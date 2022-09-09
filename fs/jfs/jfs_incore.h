@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
  *   Portions Copyright (C) Christoph Hellwig, 2001-2002
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _H_JFS_INCORE
 #define _H_JFS_INCORE
@@ -23,6 +10,8 @@
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/uuid.h>
+
 #include "jfs_types.h"
 #include "jfs_xtree.h"
 #include "jfs_dtree.h"
@@ -88,11 +77,18 @@ struct jfs_inode_info {
 			unchar _unused[16];	/* 16: */
 			dxd_t _dxd;		/* 16: */
 			/* _inline may overflow into _inline_ea when needed */
-			unchar _inline[128];	/* 128: inline symlink */
 			/* _inline_ea may overlay the last part of
 			 * file._xtroot if maxentry = XTROOTINITSLOT
 			 */
-			unchar _inline_ea[128];	/* 128: inline extended attr */
+			union {
+				struct {
+					/* 128: inline symlink */
+					unchar _inline[128];
+					/* 128: inline extended attr */
+					unchar _inline_ea[128];
+				};
+				unchar _inline_all[256];
+			};
 		} link;
 	} u;
 #ifdef CONFIG_QUOTA
@@ -107,6 +103,7 @@ struct jfs_inode_info {
 #define i_dtroot u.dir._dtroot
 #define i_inline u.link._inline
 #define i_inline_ea u.link._inline_ea
+#define i_inline_all u.link._inline_all
 
 #define IREAD_LOCK(ip, subclass) \
 	down_read_nested(&JFS_IP(ip)->rdwrlock, subclass)
@@ -178,8 +175,8 @@ struct jfs_sb_info {
 	pxd_t		logpxd;		/* pxd describing log	*/
 	pxd_t		fsckpxd;	/* pxd describing fsck wkspc */
 	pxd_t		ait2;		/* pxd describing AIT copy	*/
-	char		uuid[16];	/* 128-bit uuid for volume	*/
-	char		loguuid[16];	/* 128-bit uuid for log	*/
+	uuid_t		uuid;		/* 128-bit uuid for volume	*/
+	uuid_t		loguuid;	/* 128-bit uuid for log	*/
 	/*
 	 * commit_state is used for synchronization of the jfs_commit
 	 * threads.  It is protected by LAZY_LOCK().

@@ -32,6 +32,7 @@ extern void native_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
 extern void __pv_init_lock_hash(void);
 extern void __pv_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
 extern void __raw_callee_save___pv_queued_spin_unlock(struct qspinlock *lock);
+extern bool nopvspin;
 
 #define	queued_spin_unlock queued_spin_unlock
 /**
@@ -52,6 +53,7 @@ static inline void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 
 static inline void queued_spin_unlock(struct qspinlock *lock)
 {
+	kcsan_release();
 	pv_queued_spin_unlock(lock);
 }
 
@@ -63,10 +65,25 @@ static inline bool vcpu_is_preempted(long cpu)
 #endif
 
 #ifdef CONFIG_PARAVIRT
+/*
+ * virt_spin_lock_key - enables (by default) the virt_spin_lock() hijack.
+ *
+ * Native (and PV wanting native due to vCPU pinning) should disable this key.
+ * It is done in this backwards fashion to only have a single direction change,
+ * which removes ordering between native_pv_spin_init() and HV setup.
+ */
 DECLARE_STATIC_KEY_TRUE(virt_spin_lock_key);
 
 void native_pv_lock_init(void) __init;
 
+/*
+ * Shortcut for the queued_spin_lock_slowpath() function that allows
+ * virt to hijack it.
+ *
+ * Returns:
+ *   true - lock has been negotiated, all done;
+ *   false - queued_spin_lock_slowpath() will do its thing.
+ */
 #define virt_spin_lock virt_spin_lock
 static inline bool virt_spin_lock(struct qspinlock *lock)
 {

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Driver for the Macintosh 68K onboard MACE controller with PSC
  *	driven DMA. The MACE driver code is derived from mace.c. The
  *	Mac68k theory of operation is courtesy of the MacBSD wizards.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Copyright (C) 1996 Paul Mackerras.
  *	Copyright (C) 1998 Alan Cox <alan@lxorguk.ukuu.org.uk>
@@ -95,8 +91,8 @@ static int mace_set_address(struct net_device *dev, void *addr);
 static void mace_reset(struct net_device *dev);
 static irqreturn_t mace_interrupt(int irq, void *dev_id);
 static irqreturn_t mace_dma_intr(int irq, void *dev_id);
-static void mace_tx_timeout(struct net_device *dev);
-static void __mace_set_address(struct net_device *dev, void *addr);
+static void mace_tx_timeout(struct net_device *dev, unsigned int txqueue);
+static void __mace_set_address(struct net_device *dev, const void *addr);
 
 /*
  * Load a receive DMA channel with a base address and ring length
@@ -201,6 +197,7 @@ static int mace_probe(struct platform_device *pdev)
 	unsigned char *addr;
 	struct net_device *dev;
 	unsigned char checksum = 0;
+	u8 macaddr[ETH_ALEN];
 	int err;
 
 	dev = alloc_etherdev(PRIV_BYTES);
@@ -233,8 +230,9 @@ static int mace_probe(struct platform_device *pdev)
 	for (j = 0; j < 6; ++j) {
 		u8 v = bitrev8(addr[j<<4]);
 		checksum ^= v;
-		dev->dev_addr[j] = v;
+		macaddr[j] = v;
 	}
+	eth_hw_addr_set(dev, macaddr);
 	for (; j < 8; ++j) {
 		checksum ^= bitrev8(addr[j<<4]);
 	}
@@ -319,11 +317,12 @@ static void mace_reset(struct net_device *dev)
  * Load the address on a mace controller.
  */
 
-static void __mace_set_address(struct net_device *dev, void *addr)
+static void __mace_set_address(struct net_device *dev, const void *addr)
 {
 	struct mace_data *mp = netdev_priv(dev);
 	volatile struct mace *mb = mp->mace;
-	unsigned char *p = addr;
+	const unsigned char *p = addr;
+	u8 macaddr[ETH_ALEN];
 	int i;
 
 	/* load up the hardware address */
@@ -335,7 +334,8 @@ static void __mace_set_address(struct net_device *dev, void *addr)
 			;
 	}
 	for (i = 0; i < 6; ++i)
-		mb->padr = dev->dev_addr[i] = p[i];
+		mb->padr = macaddr[i] = p[i];
+	eth_hw_addr_set(dev, macaddr);
 	if (mp->chipid != BROKEN_ADDRCHG_REV)
 		mb->iac = 0;
 }
@@ -604,7 +604,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void mace_tx_timeout(struct net_device *dev)
+static void mace_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mace_data *mp = netdev_priv(dev);
 	volatile struct mace *mb = mp->mace;

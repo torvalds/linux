@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_QIB
 	tristate "Intel PCIe HCA support"
 	depends on 64BIT && INFINIBAND_RDMAVT
 	depends on PCI
-	---help---
+	help
 	This is a low-level driver for Intel PCIe QLE InfiniBand host
 	channel adapters.  This driver does not support the Intel
 	HyperTransport card (model QHT7140).
@@ -11,6 +12,6 @@ config INFINIBAND_QIB_DCA
 	bool "QIB DCA support"
 	depends on INFINIBAND_QIB && DCA && SMP && !(INFINIBAND_QIB=y && DCA=m)
 	default y
-	---help---
+	help
 	Setting this enables DCA support on some Intel chip sets
 	with the iba7322 HCA.

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -224,7 +212,7 @@ static int is_idx_node_in_use(struct ubifs_info *c, union ubifs_key *key,
 /**
  * layout_leb_in_gaps - layout index nodes using in-the-gaps method.
  * @c: UBIFS file-system description object
- * @p: return LEB number here
+ * @p: return LEB number in @c->gap_lebs[p]
  *
  * This function lays out new index nodes for dirty znodes using in-the-gaps
  * method of TNC commit.
@@ -233,7 +221,7 @@ static int is_idx_node_in_use(struct ubifs_info *c, union ubifs_key *key,
  * This function returns the number of index nodes written into the gaps, or a
  * negative error code on failure.
  */
-static int layout_leb_in_gaps(struct ubifs_info *c, int *p)
+static int layout_leb_in_gaps(struct ubifs_info *c, int p)
 {
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
@@ -248,7 +236,7 @@ static int layout_leb_in_gaps(struct ubifs_info *c, int *p)
 		 * filled, however we do not check there at present.
 		 */
 		return lnum; /* Error code */
-	*p = lnum;
+	c->gap_lebs[p] = lnum;
 	dbg_gc("LEB %d", lnum);
 	/*
 	 * Scan the index LEB.  We use the generic scan for this even though
@@ -367,7 +355,7 @@ static int get_leb_cnt(struct ubifs_info *c, int cnt)
  */
 static int layout_in_gaps(struct ubifs_info *c, int cnt)
 {
-	int err, leb_needed_cnt, written, *p;
+	int err, leb_needed_cnt, written, p = 0, old_idx_lebs, *gap_lebs;
 
 	dbg_gc("%d znodes to write", cnt);
 
@@ -376,9 +364,9 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 	if (!c->gap_lebs)
 		return -ENOMEM;
 
-	p = c->gap_lebs;
+	old_idx_lebs = c->lst.idx_lebs;
 	do {
-		ubifs_assert(c, p < c->gap_lebs + c->lst.idx_lebs);
+		ubifs_assert(c, p < c->lst.idx_lebs);
 		written = layout_leb_in_gaps(c, p);
 		if (written < 0) {
 			err = written;
@@ -404,9 +392,29 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 		leb_needed_cnt = get_leb_cnt(c, cnt);
 		dbg_gc("%d znodes remaining, need %d LEBs, have %d", cnt,
 		       leb_needed_cnt, c->ileb_cnt);
+		/*
+		 * Dynamically change the size of @c->gap_lebs to prevent
+		 * oob, because @c->lst.idx_lebs could be increased by
+		 * function @get_idx_gc_leb (called by layout_leb_in_gaps->
+		 * ubifs_find_dirty_idx_leb) during loop. Only enlarge
+		 * @c->gap_lebs when needed.
+		 *
+		 */
+		if (leb_needed_cnt > c->ileb_cnt && p >= old_idx_lebs &&
+		    old_idx_lebs < c->lst.idx_lebs) {
+			old_idx_lebs = c->lst.idx_lebs;
+			gap_lebs = krealloc(c->gap_lebs, sizeof(int) *
+					       (old_idx_lebs + 1), GFP_NOFS);
+			if (!gap_lebs) {
+				kfree(c->gap_lebs);
+				c->gap_lebs = NULL;
+				return -ENOMEM;
+			}
+			c->gap_lebs = gap_lebs;
+		}
 	} while (leb_needed_cnt > c->ileb_cnt);
 
-	*p = -1;
+	c->gap_lebs[p] = -1;
 	return 0;
 }
 
@@ -922,7 +930,7 @@ static int write_index(struct ubifs_info *c)
 		 * flag cleared before %COW_ZNODE. Specifically, it matters in
 		 * the 'dirty_cow_znode()' function. This is the reason for the
 		 * first barrier. Also, we want the bit changes to be seen to
-		 * other threads ASAP, to avoid unnecesarry copying, which is
+		 * other threads ASAP, to avoid unnecessary copying, which is
 		 * the reason for the second barrier.
 		 */
 		clear_bit(DIRTY_ZNODE, &znode->flags);

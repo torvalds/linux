@@ -65,7 +65,7 @@ struct fsl_otg_timer *b_data_pulse_tmr, *b_vbus_pulse_tmr, *b_srp_fail_tmr,
 
 static struct list_head active_timers;
 
-static struct fsl_otg_config fsl_otg_initdata = {
+static const struct fsl_otg_config fsl_otg_initdata = {
 	.otg_port = 1,
 };
 
@@ -873,6 +873,8 @@ int usb_otg_start(struct platform_device *pdev)
 
 	/* request irq */
 	p_otg->irq = platform_get_irq(pdev, 0);
+	if (p_otg->irq < 0)
+		return p_otg->irq;
 	status = request_irq(p_otg->irq, fsl_otg_isr,
 				IRQF_SHARED, driver_name, p_otg);
 	if (status) {
@@ -911,10 +913,10 @@ int usb_otg_start(struct platform_device *pdev)
 		break;
 	case FSL_USB2_PHY_UTMI_WIDE:
 		temp |= PORTSC_PTW_16BIT;
-		/* fall through */
+		fallthrough;
 	case FSL_USB2_PHY_UTMI:
 		temp |= PORTSC_PTS_UTMI;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -957,154 +959,6 @@ int usb_otg_start(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * state file in sysfs
- */
-static ssize_t show_fsl_usb2_otg_state(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	struct otg_fsm *fsm = &fsl_otg_dev->fsm;
-	char *next = buf;
-	unsigned size = PAGE_SIZE;
-	int t;
-
-	mutex_lock(&fsm->lock);
-
-	/* basic driver infomation */
-	t = scnprintf(next, size,
-			DRIVER_DESC "\n" "fsl_usb2_otg version: %s\n\n",
-			DRIVER_VERSION);
-	size -= t;
-	next += t;
-
-	/* Registers */
-	t = scnprintf(next, size,
-			"OTGSC:   0x%08x\n"
-			"PORTSC:  0x%08x\n"
-			"USBMODE: 0x%08x\n"
-			"USBCMD:  0x%08x\n"
-			"USBSTS:  0x%08x\n"
-			"USBINTR: 0x%08x\n",
-			fsl_readl(&usb_dr_regs->otgsc),
-			fsl_readl(&usb_dr_regs->portsc),
-			fsl_readl(&usb_dr_regs->usbmode),
-			fsl_readl(&usb_dr_regs->usbcmd),
-			fsl_readl(&usb_dr_regs->usbsts),
-			fsl_readl(&usb_dr_regs->usbintr));
-	size -= t;
-	next += t;
-
-	/* State */
-	t = scnprintf(next, size,
-		      "OTG state: %s\n\n",
-		      usb_otg_state_string(fsl_otg_dev->phy.otg->state));
-	size -= t;
-	next += t;
-
-	/* State Machine Variables */
-	t = scnprintf(next, size,
-			"a_bus_req: %d\n"
-			"b_bus_req: %d\n"
-			"a_bus_resume: %d\n"
-			"a_bus_suspend: %d\n"
-			"a_conn: %d\n"
-			"a_sess_vld: %d\n"
-			"a_srp_det: %d\n"
-			"a_vbus_vld: %d\n"
-			"b_bus_resume: %d\n"
-			"b_bus_suspend: %d\n"
-			"b_conn: %d\n"
-			"b_se0_srp: %d\n"
-			"b_ssend_srp: %d\n"
-			"b_sess_vld: %d\n"
-			"id: %d\n",
-			fsm->a_bus_req,
-			fsm->b_bus_req,
-			fsm->a_bus_resume,
-			fsm->a_bus_suspend,
-			fsm->a_conn,
-			fsm->a_sess_vld,
-			fsm->a_srp_det,
-			fsm->a_vbus_vld,
-			fsm->b_bus_resume,
-			fsm->b_bus_suspend,
-			fsm->b_conn,
-			fsm->b_se0_srp,
-			fsm->b_ssend_srp,
-			fsm->b_sess_vld,
-			fsm->id);
-	size -= t;
-	next += t;
-
-	mutex_unlock(&fsm->lock);
-
-	return PAGE_SIZE - size;
-}
-
-static DEVICE_ATTR(fsl_usb2_otg_state, S_IRUGO, show_fsl_usb2_otg_state, NULL);
-
-
-/* Char driver interface to control some OTG input */
-
-/*
- * Handle some ioctl command, such as get otg
- * status and set host suspend
- */
-static long fsl_otg_ioctl(struct file *file, unsigned int cmd,
-			  unsigned long arg)
-{
-	u32 retval = 0;
-
-	switch (cmd) {
-	case GET_OTG_STATUS:
-		retval = fsl_otg_dev->host_working;
-		break;
-
-	case SET_A_SUSPEND_REQ:
-		fsl_otg_dev->fsm.a_suspend_req_inf = arg;
-		break;
-
-	case SET_A_BUS_DROP:
-		fsl_otg_dev->fsm.a_bus_drop = arg;
-		break;
-
-	case SET_A_BUS_REQ:
-		fsl_otg_dev->fsm.a_bus_req = arg;
-		break;
-
-	case SET_B_BUS_REQ:
-		fsl_otg_dev->fsm.b_bus_req = arg;
-		break;
-
-	default:
-		break;
-	}
-
-	otg_statemachine(&fsl_otg_dev->fsm);
-
-	return retval;
-}
-
-static int fsl_otg_open(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static int fsl_otg_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static const struct file_operations otg_fops = {
-	.owner = THIS_MODULE,
-	.llseek = NULL,
-	.read = NULL,
-	.write = NULL,
-	.unlocked_ioctl = fsl_otg_ioctl,
-	.open = fsl_otg_open,
-	.release = fsl_otg_release,
-};
-
 static int fsl_otg_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1126,16 +980,6 @@ static int fsl_otg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = register_chrdev(FSL_OTG_MAJOR, FSL_OTG_NAME, &otg_fops);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register FSL OTG device\n");
-		return ret;
-	}
-
-	ret = device_create_file(&pdev->dev, &dev_attr_fsl_usb2_otg_state);
-	if (ret)
-		dev_warn(&pdev->dev, "Can't register sysfs attribute\n");
-
 	return ret;
 }
 
@@ -1151,10 +995,6 @@ static int fsl_otg_remove(struct platform_device *pdev)
 	fsl_otg_uninit_timers();
 	kfree(fsl_otg_dev->phy.otg);
 	kfree(fsl_otg_dev);
-
-	device_remove_file(&pdev->dev, &dev_attr_fsl_usb2_otg_state);
-
-	unregister_chrdev(FSL_OTG_MAJOR, FSL_OTG_NAME);
 
 	if (pdata->exit)
 		pdata->exit(pdev);

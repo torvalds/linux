@@ -198,7 +198,7 @@ static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr, char *buf,
 			     loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	return w1_ds2760_read(dev, buf, off, count);
 }
 
@@ -795,7 +795,7 @@ static const struct of_device_id w1_ds2760_of_ids[] = {
 };
 #endif
 
-static struct w1_family_ops w1_ds2760_fops = {
+static const struct w1_family_ops w1_ds2760_fops = {
 	.add_slave	= w1_ds2760_add_slave,
 	.remove_slave	= w1_ds2760_remove_slave,
 	.groups		= w1_ds2760_groups,

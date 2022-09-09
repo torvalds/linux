@@ -63,7 +63,7 @@ struct mthca_eq_context {
 	__be32 consumer_index;
 	__be32 producer_index;
 	u32    reserved3[4];
-} __attribute__((packed));
+} __packed;
 
 #define MTHCA_EQ_STATUS_OK          ( 0 << 28)
 #define MTHCA_EQ_STATUS_OVERFLOW    ( 9 << 28)
@@ -130,7 +130,7 @@ struct mthca_eqe {
 		u32 raw[6];
 		struct {
 			__be32 cqn;
-		} __attribute__((packed)) comp;
+		} __packed comp;
 		struct {
 			u16    reserved1;
 			__be16 token;
@@ -138,27 +138,27 @@ struct mthca_eqe {
 			u8     reserved3[3];
 			u8     status;
 			__be64 out_param;
-		} __attribute__((packed)) cmd;
+		} __packed cmd;
 		struct {
 			__be32 qpn;
-		} __attribute__((packed)) qp;
+		} __packed qp;
 		struct {
 			__be32 srqn;
-		} __attribute__((packed)) srq;
+		} __packed srq;
 		struct {
 			__be32 cqn;
 			u32    reserved1;
 			u8     reserved2[3];
 			u8     syndrome;
-		} __attribute__((packed)) cq_err;
+		} __packed cq_err;
 		struct {
 			u32    reserved1[2];
 			__be32 port;
-		} __attribute__((packed)) port_change;
+		} __packed port_change;
 	} event;
 	u8 reserved3[3];
 	u8 owner;
-} __attribute__((packed));
+} __packed;
 
 #define  MTHCA_EQ_ENTRY_OWNER_SW      (0 << 7)
 #define  MTHCA_EQ_ENTRY_OWNER_HW      (1 << 7)
@@ -617,9 +617,9 @@ static void mthca_free_eq(struct mthca_dev *dev,
 
 	mthca_free_mr(dev, &eq->mr);
 	for (i = 0; i < npages; ++i)
-		pci_free_consistent(dev->pdev, PAGE_SIZE,
-				    eq->page_list[i].buf,
-				    dma_unmap_addr(&eq->page_list[i], mapping));
+		dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+				  eq->page_list[i].buf,
+				  dma_unmap_addr(&eq->page_list[i], mapping));
 
 	kfree(eq->page_list);
 	mthca_free_mailbox(dev, mailbox);
@@ -739,17 +739,18 @@ int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 	dev->eq_table.icm_page = alloc_page(GFP_HIGHUSER);
 	if (!dev->eq_table.icm_page)
 		return -ENOMEM;
-	dev->eq_table.icm_dma  = pci_map_page(dev->pdev, dev->eq_table.icm_page, 0,
-					      PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(dev->pdev, dev->eq_table.icm_dma)) {
+	dev->eq_table.icm_dma =
+		dma_map_page(&dev->pdev->dev, dev->eq_table.icm_page, 0,
+			     PAGE_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(&dev->pdev->dev, dev->eq_table.icm_dma)) {
 		__free_page(dev->eq_table.icm_page);
 		return -ENOMEM;
 	}
 
 	ret = mthca_MAP_ICM_page(dev, dev->eq_table.icm_dma, icm_virt);
 	if (ret) {
-		pci_unmap_page(dev->pdev, dev->eq_table.icm_dma, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_page(&dev->pdev->dev, dev->eq_table.icm_dma,
+			       PAGE_SIZE, DMA_BIDIRECTIONAL);
 		__free_page(dev->eq_table.icm_page);
 	}
 
@@ -759,8 +760,8 @@ int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 void mthca_unmap_eq_icm(struct mthca_dev *dev)
 {
 	mthca_UNMAP_ICM(dev, dev->eq_table.icm_virt, 1);
-	pci_unmap_page(dev->pdev, dev->eq_table.icm_dma, PAGE_SIZE,
-		       PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_page(&dev->pdev->dev, dev->eq_table.icm_dma, PAGE_SIZE,
+		       DMA_BIDIRECTIONAL);
 	__free_page(dev->eq_table.icm_page);
 }
 

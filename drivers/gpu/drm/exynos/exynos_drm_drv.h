@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* exynos_drm_drv.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
@@ -5,24 +6,25 @@
  *	Inki Dae <inki.dae@samsung.com>
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef _EXYNOS_DRM_DRV_H_
 #define _EXYNOS_DRM_DRV_H_
 
-#include <drm/drmP.h>
 #include <linux/module.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_plane.h>
 
 #define MAX_CRTC	3
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
 
 #define DEFAULT_WIN	0
+
+struct drm_crtc_state;
+struct drm_display_mode;
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
@@ -116,8 +118,8 @@ struct exynos_drm_plane_config {
 /*
  * Exynos drm crtc ops
  *
- * @enable: enable the device
- * @disable: disable the device
+ * @atomic_enable: enable the device
+ * @atomic_disable: disable the device
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @mode_valid: specific driver callback for mode validation
@@ -131,8 +133,8 @@ struct exynos_drm_plane_config {
  */
 struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
-	void (*enable)(struct exynos_drm_crtc *crtc);
-	void (*disable)(struct exynos_drm_crtc *crtc);
+	void (*atomic_enable)(struct exynos_drm_crtc *crtc);
+	void (*atomic_disable)(struct exynos_drm_crtc *crtc);
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	enum drm_mode_status (*mode_valid)(struct exynos_drm_crtc *crtc,
@@ -221,8 +223,10 @@ static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
 	return priv->mapping ? true : false;
 }
 
-int exynos_drm_register_dma(struct drm_device *drm, struct device *dev);
-void exynos_drm_unregister_dma(struct drm_device *drm, struct device *dev);
+int exynos_drm_register_dma(struct drm_device *drm, struct device *dev,
+			    void **dma_priv);
+void exynos_drm_unregister_dma(struct drm_device *drm, struct device *dev,
+			       void **dma_priv);
 void exynos_drm_cleanup_dma(struct drm_device *drm);
 
 #ifdef CONFIG_DRM_EXYNOS_DPI

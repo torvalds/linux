@@ -5,15 +5,16 @@
 / {
 	compatible = "samsung,n710x", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
 	model = "Samsung Galaxy Note 2 (GT-N7100, GT-N7105) based on Exynos4412";
+	chassis-type = "handset";
 
 	memory@40000000 {
 		device_type = "memory";
-		reg =  <0x40000000 0x80000000>;
+		reg = <0x40000000 0x80000000>;
 	};
 
 	/* bootargs are passed in by bootloader */
 
-	cam_vdda_reg: voltage-regulator-6 {
+	cam_vdda_reg: voltage-regulator-10 {
 		compatible = "regulator-fixed";
 		regulator-name = "CAM_SENSOR_CORE_1.2V";
 		regulator-min-microvolt = <1200000>;
@@ -45,13 +46,13 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	mms152-touchscreen@48 {
+	touchscreen@48 {
 		compatible = "melfas,mms152";
 		reg = <0x48>;
 		interrupt-parent = <&gpm2>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
-		x-size = <720>;
-		y-size = <1280>;
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
 		avdd-supply = <&ldo23_reg>;
 		vdd-supply = <&ldo24_reg>;
 	};
@@ -71,5 +72,45 @@
 &s5c73m3 {
 	standby-gpios = <&gpm0 6 GPIO_ACTIVE_LOW>;   /* ISP_STANDBY */
 	vdda-supply = <&cam_vdda_reg>;
+	status = "okay";
+};
+
+&sound {
+	samsung,audio-routing =
+		"HP", "HPOUT1L",
+		"HP", "HPOUT1R",
+
+		"SPK", "SPKOUTLN",
+		"SPK", "SPKOUTLP",
+
+		"RCV", "HPOUT2N",
+		"RCV", "HPOUT2P",
+
+		"HDMI", "LINEOUT1N",
+		"HDMI", "LINEOUT1P",
+
+		"LINE", "LINEOUT2N",
+		"LINE", "LINEOUT2P",
+
+		"IN1LP", "MICBIAS2",
+		"IN1LN", "MICBIAS2",
+		"Headset Mic", "MICBIAS2",
+
+		"IN1RP", "Sub Mic",
+		"IN1RN", "Sub Mic",
+
+		"IN2LP:VXRN", "Main Mic",
+		"IN2LN", "Main Mic",
+
+		"IN2RN", "FM In",
+		"IN2RP:VXRP", "FM In";
+};
+
+&submic_bias_reg {
+	regulator-always-on;
+};
+
+&touchkey_reg {
+	gpio = <&gpm0 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };

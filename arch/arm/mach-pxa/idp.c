@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/idp.c
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  *
  *  Copyright (c) 2001 Cliff Brake, Accelent Systems Inc.
  *
@@ -13,7 +10,6 @@
  *  2005-02-15: Cliff Brake <cliff.brake@gmail.com>
  *  		<http://www.vibren.com> <http://bec-systems.com>
  *              Updated for 2.6 kernel
- *
  */
 
 #include <linux/init.h>
@@ -26,7 +22,6 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <asm/mach/arch.h>
@@ -35,7 +30,6 @@
 #include "pxa25x.h"
 #include "idp.h"
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/bitfield.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/smc91x.h>
 

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcm283x.dtsi"
+#include "bcm2835-common.dtsi"
+#include "bcm2835-rpi-common.dtsi"
 
 / {
 	compatible = "brcm,bcm2835";
@@ -12,6 +14,23 @@
 			device_type = "cpu";
 			compatible = "arm,arm1176jzf-s";
 			reg = <0x0>;
+			/* Source for d/i-cache-line-size and d/i-cache-sets
+			 * https://developer.arm.com/documentation/ddi0301
+			 * /h/level-one-memory-system/cache-organization?lang=en
+			 *
+			 * Source for d/i-cache-size
+			 * https://forums.raspberrypi.com/viewtopic.php?t=98428
+			 *
+			 * NOTE: The BCM2835 has a L2 cache but it is dedicated to the GPU
+			 * It can be shared with the CPU through fw settings,
+			 * but this is not recommended.
+			 */
+			d-cache-size = <0x4000>;
+			d-cache-line-size = <16>;
+			d-cache-sets = <256>; // 16KiB(size)/16(line-size)=1024ways/4-way set
+			i-cache-size = <0x4000>;
+			i-cache-line-size = <16>;
+			i-cache-sets = <256>; // 16KiB(size)/16(line-size)=1024ways/4-way set
 		};
 	};
 

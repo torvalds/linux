@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/drivers/acorn/scsi/fas216.h
  *
  *  Copyright (C) 1997-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  FAS216 generic driver
  */
@@ -312,6 +309,20 @@ typedef struct {
 	struct scsi_eh_save	ses;		/* holds request sense restore info */
 	unsigned long		magic_end;
 } FAS216_Info;
+
+/* driver-private data per SCSI command. */
+struct fas216_cmd_priv {
+	/*
+	 * @scsi_pointer must be the first member. See also arm_scsi_pointer().
+	 */
+	struct scsi_pointer scsi_pointer;
+	void (*scsi_done)(struct scsi_cmnd *cmd);
+};
+
+static inline struct fas216_cmd_priv *fas216_cmd_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
 
 /* Function: int fas216_init (struct Scsi_Host *instance)
  * Purpose : initialise FAS/NCR/AMD SCSI structures.

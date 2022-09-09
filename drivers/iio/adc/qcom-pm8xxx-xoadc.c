@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm PM8xxx PMIC XOADC driver
  *
@@ -9,6 +10,7 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 
+#include <linux/iio/adc/qcom-vadc-common.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
@@ -19,8 +21,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/consumer.h>
-
-#include "qcom-vadc-common.h"
 
 /*
  * Definitions for the "user processor" registers lifted from the v3.4
@@ -119,7 +119,7 @@
 #define ADC_ARB_USRP_DATA0			0x19D
 #define ADC_ARB_USRP_DATA1			0x19C
 
-/**
+/*
  * Physical channels which MUST exist on all PM variants in order to provide
  * proper reference points for calibration.
  *
@@ -175,7 +175,7 @@ struct xoadc_channel {
 	const char *datasheet_name;
 	u8 pre_scale_mux:2;
 	u8 amux_channel:4;
-	const struct vadc_prescale_ratio prescale;
+	const struct u32_fract prescale;
 	enum iio_chan_type type;
 	enum vadc_scale_fn_type scale_fn_type;
 	u8 amux_ip_rsv:3;
@@ -218,7 +218,9 @@ struct xoadc_variant {
 		.datasheet_name = __stringify(_dname),			\
 		.pre_scale_mux = _presmux,				\
 		.amux_channel = _amux,					\
-		.prescale = { .num = _prenum, .den = _preden },		\
+		.prescale = {						\
+			.numerator = _prenum, .denominator = _preden,	\
+		},							\
 		.type = _type,						\
 		.scale_fn_type = _scale,				\
 		.amux_ip_rsv = _amip,					\
@@ -387,6 +389,7 @@ struct pm8xxx_chan_info {
  * struct pm8xxx_xoadc - state container for the XOADC
  * @dev: pointer to device
  * @map: regmap to access registers
+ * @variant: XOADC variant characteristics
  * @vref: reference voltage regulator
  * characteristics of the channels, and sensible default settings
  * @nchans: number of channels, configured by the device tree
@@ -423,18 +426,14 @@ static irqreturn_t pm8xxx_eoc_irq(int irq, void *d)
 static struct pm8xxx_chan_info *
 pm8xxx_get_channel(struct pm8xxx_xoadc *adc, u8 chan)
 {
-	struct pm8xxx_chan_info *ch;
 	int i;
 
 	for (i = 0; i < adc->nchans; i++) {
-		ch = &adc->chans[i];
+		struct pm8xxx_chan_info *ch = &adc->chans[i];
 		if (ch->hwchan->amux_channel == chan)
-			break;
+			return ch;
 	}
-	if (i == adc->nchans)
-		return NULL;
-
-	return ch;
+	return NULL;
 }
 
 static int pm8xxx_read_channel_rsv(struct pm8xxx_xoadc *adc,
@@ -812,12 +811,11 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 		BIT(IIO_CHAN_INFO_PROCESSED);
 	iio_chan->indexed = 1;
 
-	dev_dbg(dev, "channel [PRESCALE/MUX: %02x AMUX: %02x] \"%s\" "
-		"ref voltage: %d, decimation %d "
-		"prescale %d/%d, scale function %d\n",
+	dev_dbg(dev,
+		"channel [PRESCALE/MUX: %02x AMUX: %02x] \"%s\" ref voltage: %d, decimation %d prescale %d/%d, scale function %d\n",
 		hwchan->pre_scale_mux, hwchan->amux_channel, ch->name,
-		ch->amux_ip_rsv, ch->decimation, hwchan->prescale.num,
-		hwchan->prescale.den, hwchan->scale_fn_type);
+		ch->amux_ip_rsv, ch->decimation, hwchan->prescale.numerator,
+		hwchan->prescale.denominator, hwchan->scale_fn_type);
 
 	return 0;
 }
@@ -913,16 +911,15 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 	map = dev_get_regmap(dev->parent, NULL);
 	if (!map) {
 		dev_err(dev, "parent regmap unavailable.\n");
-		return -ENXIO;
+		return -ENODEV;
 	}
 	adc->map = map;
 
 	/* Bring up regulator */
 	adc->vref = devm_regulator_get(dev, "xoadc-ref");
-	if (IS_ERR(adc->vref)) {
-		dev_err(dev, "failed to get XOADC VREF regulator\n");
-		return PTR_ERR(adc->vref);
-	}
+	if (IS_ERR(adc->vref))
+		return dev_err_probe(dev, PTR_ERR(adc->vref),
+				     "failed to get XOADC VREF regulator\n");
 	ret = regulator_enable(adc->vref);
 	if (ret) {
 		dev_err(dev, "failed to enable XOADC VREF regulator\n");
@@ -936,8 +933,6 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 		goto out_disable_vref;
 	}
 
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = np;
 	indio_dev->name = variant->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &pm8xxx_xoadc_info;

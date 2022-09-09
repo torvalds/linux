@@ -1,11 +1,17 @@
 Lantiq Synchronous Serial Controller (SSC) SPI master driver
 
 Required properties:
-- compatible: "lantiq,ase-spi", "lantiq,falcon-spi", "lantiq,xrx100-spi"
+- compatible: "lantiq,ase-spi", "lantiq,falcon-spi", "lantiq,xrx100-spi",
+  "intel,lgm-spi"
 - #address-cells: see spi-bus.txt
 - #size-cells: see spi-bus.txt
 - reg: address and length of the spi master registers
-- interrupts: should contain the "spi_rx", "spi_tx" and "spi_err" interrupt.
+- interrupts:
+  For compatible "intel,lgm-ssc" - the common interrupt number for
+  all of tx rx & err interrupts.
+       or
+  For rest of the compatibles, should contain the "spi_rx", "spi_tx" and
+  "spi_err" interrupt.
 
 
 Optional properties:
@@ -26,4 +32,15 @@ spi: spi@e100800 {
 	#size-cells = <1>;
 	num-cs = <6>;
 	base-cs = <1>;
+};
+
+ssc0: spi@e0800000 {
+	compatible = "intel,lgm-spi";
+	reg = <0xe0800000 0x400>;
+	interrupt-parent = <&ioapic1>;
+	interrupts = <35 1>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clocks = <&cgu0 LGM_CLK_NGI>, <&cgu0 LGM_GCLK_SSC0>;
+	clock-names = "freq", "gate";
 };

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Proprietary commands extension for STMicroelectronics NFC Chip
  *
  * Copyright (C) 2014-2015  STMicroelectronics SAS. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <net/genetlink.h>
@@ -306,7 +295,7 @@ exit:
 	return r;
 }
 
-static struct nfc_vendor_cmd st21nfca_vendor_cmds[] = {
+static const struct nfc_vendor_cmd st21nfca_vendor_cmds[] = {
 	{
 		.vendor_id = ST21NFCA_VENDOR_OUI,
 		.subcmd = FACTORY_MODE,
@@ -369,7 +358,7 @@ int st21nfca_vendor_cmds_init(struct nfc_hci_dev *hdev)
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
 	init_completion(&info->vendor_info.req_completion);
-	return nfc_set_vendor_cmds(hdev->ndev, st21nfca_vendor_cmds,
-				   sizeof(st21nfca_vendor_cmds));
+	return nfc_hci_set_vendor_cmds(hdev, st21nfca_vendor_cmds,
+				       sizeof(st21nfca_vendor_cmds));
 }
 EXPORT_SYMBOL(st21nfca_vendor_cmds_init);

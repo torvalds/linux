@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RapidIO interconnect services
  * (RapidIO Interconnect Specification, http://www.rapidio.org)
@@ -7,11 +8,6 @@
  *
  * Copyright 2009 - 2013 Integrated Device Technology, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/types.h>
@@ -753,7 +749,7 @@ int rio_map_outb_region(struct rio_mport *mport, u16 destid, u64 rbase,
 EXPORT_SYMBOL_GPL(rio_map_outb_region);
 
 /**
- * rio_unmap_inb_region -- Unmap the inbound memory region
+ * rio_unmap_outb_region -- Unmap the inbound memory region
  * @mport: Master port
  * @destid: destination id mapping points to
  * @rstart: RIO base address window translates to
@@ -1417,71 +1413,6 @@ rio_mport_get_feature(struct rio_mport * port, int local, u16 destid,
 EXPORT_SYMBOL_GPL(rio_mport_get_feature);
 
 /**
- * rio_get_asm - Begin or continue searching for a RIO device by vid/did/asm_vid/asm_did
- * @vid: RIO vid to match or %RIO_ANY_ID to match all vids
- * @did: RIO did to match or %RIO_ANY_ID to match all dids
- * @asm_vid: RIO asm_vid to match or %RIO_ANY_ID to match all asm_vids
- * @asm_did: RIO asm_did to match or %RIO_ANY_ID to match all asm_dids
- * @from: Previous RIO device found in search, or %NULL for new search
- *
- * Iterates through the list of known RIO devices. If a RIO device is
- * found with a matching @vid, @did, @asm_vid, @asm_did, the reference
- * count to the device is incrememted and a pointer to its device
- * structure is returned. Otherwise, %NULL is returned. A new search
- * is initiated by passing %NULL to the @from argument. Otherwise, if
- * @from is not %NULL, searches continue from next device on the global
- * list. The reference count for @from is always decremented if it is
- * not %NULL.
- */
-struct rio_dev *rio_get_asm(u16 vid, u16 did,
-			    u16 asm_vid, u16 asm_did, struct rio_dev *from)
-{
-	struct list_head *n;
-	struct rio_dev *rdev;
-
-	WARN_ON(in_interrupt());
-	spin_lock(&rio_global_list_lock);
-	n = from ? from->global_list.next : rio_devices.next;
-
-	while (n && (n != &rio_devices)) {
-		rdev = rio_dev_g(n);
-		if ((vid == RIO_ANY_ID || rdev->vid == vid) &&
-		    (did == RIO_ANY_ID || rdev->did == did) &&
-		    (asm_vid == RIO_ANY_ID || rdev->asm_vid == asm_vid) &&
-		    (asm_did == RIO_ANY_ID || rdev->asm_did == asm_did))
-			goto exit;
-		n = n->next;
-	}
-	rdev = NULL;
-      exit:
-	rio_dev_put(from);
-	rdev = rio_dev_get(rdev);
-	spin_unlock(&rio_global_list_lock);
-	return rdev;
-}
-EXPORT_SYMBOL_GPL(rio_get_asm);
-
-/**
- * rio_get_device - Begin or continue searching for a RIO device by vid/did
- * @vid: RIO vid to match or %RIO_ANY_ID to match all vids
- * @did: RIO did to match or %RIO_ANY_ID to match all dids
- * @from: Previous RIO device found in search, or %NULL for new search
- *
- * Iterates through the list of known RIO devices. If a RIO device is
- * found with a matching @vid and @did, the reference count to the
- * device is incrememted and a pointer to its device structure is returned.
- * Otherwise, %NULL is returned. A new search is initiated by passing %NULL
- * to the @from argument. Otherwise, if @from is not %NULL, searches
- * continue from next device on the global list. The reference count for
- * @from is always decremented if it is not %NULL.
- */
-struct rio_dev *rio_get_device(u16 vid, u16 did, struct rio_dev *from)
-{
-	return rio_get_asm(vid, did, RIO_ANY_ID, RIO_ANY_ID, from);
-}
-EXPORT_SYMBOL_GPL(rio_get_device);
-
-/**
  * rio_std_route_add_entry - Add switch route table entry using standard
  *   registers defined in RIO specification rev.1.3
  * @mport: Master port to issue transaction
@@ -2110,20 +2041,6 @@ found:
 	return rc;
 }
 
-static void rio_fixup_device(struct rio_dev *dev)
-{
-}
-
-static int rio_init(void)
-{
-	struct rio_dev *dev = NULL;
-
-	while ((dev = rio_get_device(RIO_ANY_ID, RIO_ANY_ID, dev)) != NULL) {
-		rio_fixup_device(dev);
-	}
-	return 0;
-}
-
 static struct workqueue_struct *rio_wq;
 
 struct rio_disc_work {
@@ -2210,8 +2127,6 @@ int rio_init_mports(void)
 	kfree(work);
 
 no_disc:
-	rio_init();
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_init_mports);

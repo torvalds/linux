@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/misc/xillybus_core.c
  *
@@ -10,10 +11,6 @@
  * file in the host. The number of such pipes and their attributes are
  * set up on the logic. This driver detects these automatically and
  * creates the device files accordingly.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the smems of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/list.h>
@@ -24,7 +21,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
-#include <linux/cdev.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/crc32.h>
@@ -33,10 +29,10 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include "xillybus.h"
+#include "xillybus_class.h"
 
 MODULE_DESCRIPTION("Xillybus core functions");
 MODULE_AUTHOR("Eli Billauer, Xillybus Ltd.");
-MODULE_VERSION("1.07");
 MODULE_ALIAS("xillybus_core");
 MODULE_LICENSE("GPL v2");
 
@@ -61,16 +57,6 @@ MODULE_LICENSE("GPL v2");
 
 static const char xillyname[] = "xillybus";
 
-static struct class *xillybus_class;
-
-/*
- * ep_list_lock is the last lock to be taken; No other lock requests are
- * allowed while holding it. It merely protects list_of_endpoints, and not
- * the endpoints listed in it.
- */
-
-static LIST_HEAD(list_of_endpoints);
-static struct mutex ep_list_lock;
 static struct workqueue_struct *xillybus_wq;
 
 /*
@@ -136,10 +122,8 @@ irqreturn_t xillybus_isr(int irq, void *data)
 	buf = ep->msgbuf_addr;
 	buf_size = ep->msg_buf_size/sizeof(u32);
 
-	ep->ephw->hw_sync_sgl_for_cpu(ep,
-				      ep->msgbuf_dma_addr,
-				      ep->msg_buf_size,
-				      DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(ep->dev, ep->msgbuf_dma_addr,
+				ep->msg_buf_size, DMA_FROM_DEVICE);
 
 	for (i = 0; i < buf_size; i += 2) {
 		if (((buf[i+1] >> 28) & 0xf) != ep->msg_counter) {
@@ -154,11 +138,10 @@ irqreturn_t xillybus_isr(int irq, void *data)
 				dev_err(ep->dev,
 					"Lost sync with interrupt messages. Stopping.\n");
 			} else {
-				ep->ephw->hw_sync_sgl_for_device(
-					ep,
-					ep->msgbuf_dma_addr,
-					ep->msg_buf_size,
-					DMA_FROM_DEVICE);
+				dma_sync_single_for_device(ep->dev,
+							   ep->msgbuf_dma_addr,
+							   ep->msg_buf_size,
+							   DMA_FROM_DEVICE);
 
 				iowrite32(0x01,  /* Message NACK */
 					  ep->registers + fpga_msg_ctrl_reg);
@@ -289,10 +272,8 @@ irqreturn_t xillybus_isr(int irq, void *data)
 		}
 	}
 
-	ep->ephw->hw_sync_sgl_for_device(ep,
-					 ep->msgbuf_dma_addr,
-					 ep->msg_buf_size,
-					 DMA_FROM_DEVICE);
+	dma_sync_single_for_device(ep->dev, ep->msgbuf_dma_addr,
+				   ep->msg_buf_size, DMA_FROM_DEVICE);
 
 	ep->msg_counter = (ep->msg_counter + 1) & 0xf;
 	ep->failed_messages = 0;
@@ -317,6 +298,47 @@ struct xilly_alloc_state {
 	enum dma_data_direction direction;
 	u32 regdirection;
 };
+
+static void xilly_unmap(void *ptr)
+{
+	struct xilly_mapping *data = ptr;
+
+	dma_unmap_single(data->device, data->dma_addr,
+			 data->size, data->direction);
+
+	kfree(ptr);
+}
+
+static int xilly_map_single(struct xilly_endpoint *ep,
+			    void *ptr,
+			    size_t size,
+			    int direction,
+			    dma_addr_t *ret_dma_handle
+	)
+{
+	dma_addr_t addr;
+	struct xilly_mapping *this;
+
+	this = kzalloc(sizeof(*this), GFP_KERNEL);
+	if (!this)
+		return -ENOMEM;
+
+	addr = dma_map_single(ep->dev, ptr, size, direction);
+
+	if (dma_mapping_error(ep->dev, addr)) {
+		kfree(this);
+		return -ENODEV;
+	}
+
+	this->device = ep->dev;
+	this->dma_addr = addr;
+	this->size = size;
+	this->direction = direction;
+
+	*ret_dma_handle = addr;
+
+	return devm_add_action_or_reset(ep->dev, xilly_unmap, this);
+}
 
 static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 				 struct xilly_alloc_state *s,
@@ -369,9 +391,9 @@ static int xilly_get_dma_buffers(struct xilly_endpoint *ep,
 			s->left_of_salami = allocsize;
 		}
 
-		rc = ep->ephw->map_single(ep, s->salami,
-					  bytebufsize, s->direction,
-					  &dma_addr);
+		rc = xilly_map_single(ep, s->salami,
+				      bytebufsize, s->direction,
+				      &dma_addr);
 		if (rc)
 			return rc;
 
@@ -573,16 +595,16 @@ static int xilly_scan_idt(struct xilly_endpoint *endpoint,
 	unsigned char *scan;
 	int len;
 
-	scan = idt;
-	idt_handle->idt = idt;
-
-	scan++; /* Skip version number */
+	scan = idt + 1;
+	idt_handle->names = scan;
 
 	while ((scan <= end_of_idt) && *scan) {
 		while ((scan <= end_of_idt) && *scan++)
 			/* Do nothing, just scan thru string */;
 		count++;
 	}
+
+	idt_handle->names_len = scan - idt_handle->names;
 
 	scan++;
 
@@ -634,11 +656,10 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		return -ENODEV;
 	}
 
-	endpoint->ephw->hw_sync_sgl_for_cpu(
-		channel->endpoint,
-		channel->wr_buffers[0]->dma_addr,
-		channel->wr_buf_size,
-		DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(channel->endpoint->dev,
+				channel->wr_buffers[0]->dma_addr,
+				channel->wr_buf_size,
+				DMA_FROM_DEVICE);
 
 	if (channel->wr_buffers[0]->end_offset != endpoint->idtlen) {
 		dev_err(endpoint->dev,
@@ -749,11 +770,10 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 		if (!empty) { /* Go on, now without the spinlock */
 
 			if (bufpos == 0) /* Position zero means it's virgin */
-				channel->endpoint->ephw->hw_sync_sgl_for_cpu(
-					channel->endpoint,
-					channel->wr_buffers[bufidx]->dma_addr,
-					channel->wr_buf_size,
-					DMA_FROM_DEVICE);
+				dma_sync_single_for_cpu(channel->endpoint->dev,
+							channel->wr_buffers[bufidx]->dma_addr,
+							channel->wr_buf_size,
+							DMA_FROM_DEVICE);
 
 			if (copy_to_user(
 				    userbuf,
@@ -765,11 +785,10 @@ static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
 			bytes_done += howmany;
 
 			if (bufferdone) {
-				channel->endpoint->ephw->hw_sync_sgl_for_device(
-					channel->endpoint,
-					channel->wr_buffers[bufidx]->dma_addr,
-					channel->wr_buf_size,
-					DMA_FROM_DEVICE);
+				dma_sync_single_for_device(channel->endpoint->dev,
+							   channel->wr_buffers[bufidx]->dma_addr,
+							   channel->wr_buf_size,
+							   DMA_FROM_DEVICE);
 
 				/*
 				 * Tell FPGA the buffer is done with. It's an
@@ -1069,11 +1088,10 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 		else
 			channel->rd_host_buf_idx++;
 
-		channel->endpoint->ephw->hw_sync_sgl_for_device(
-			channel->endpoint,
-			channel->rd_buffers[bufidx]->dma_addr,
-			channel->rd_buf_size,
-			DMA_TO_DEVICE);
+		dma_sync_single_for_device(channel->endpoint->dev,
+					   channel->rd_buffers[bufidx]->dma_addr,
+					   channel->rd_buf_size,
+					   DMA_TO_DEVICE);
 
 		mutex_lock(&channel->endpoint->register_mutex);
 
@@ -1289,11 +1307,10 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 
 			if ((bufpos == 0) || /* Zero means it's virgin */
 			    (channel->rd_leftovers[3] != 0)) {
-				channel->endpoint->ephw->hw_sync_sgl_for_cpu(
-					channel->endpoint,
-					channel->rd_buffers[bufidx]->dma_addr,
-					channel->rd_buf_size,
-					DMA_TO_DEVICE);
+				dma_sync_single_for_cpu(channel->endpoint->dev,
+							channel->rd_buffers[bufidx]->dma_addr,
+							channel->rd_buf_size,
+							DMA_TO_DEVICE);
 
 				/* Virgin, but leftovers are due */
 				for (i = 0; i < bufpos; i++)
@@ -1311,11 +1328,10 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 			bytes_done += howmany;
 
 			if (bufferdone) {
-				channel->endpoint->ephw->hw_sync_sgl_for_device(
-					channel->endpoint,
-					channel->rd_buffers[bufidx]->dma_addr,
-					channel->rd_buf_size,
-					DMA_TO_DEVICE);
+				dma_sync_single_for_device(channel->endpoint->dev,
+							   channel->rd_buffers[bufidx]->dma_addr,
+							   channel->rd_buf_size,
+							   DMA_TO_DEVICE);
 
 				mutex_lock(&channel->endpoint->register_mutex);
 
@@ -1410,36 +1426,20 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 
 static int xillybus_open(struct inode *inode, struct file *filp)
 {
-	int rc = 0;
+	int rc;
 	unsigned long flags;
-	int minor = iminor(inode);
-	int major = imajor(inode);
-	struct xilly_endpoint *ep_iter, *endpoint = NULL;
+	struct xilly_endpoint *endpoint;
 	struct xilly_channel *channel;
+	int index;
 
-	mutex_lock(&ep_list_lock);
-
-	list_for_each_entry(ep_iter, &list_of_endpoints, ep_list) {
-		if ((ep_iter->major == major) &&
-		    (minor >= ep_iter->lowest_minor) &&
-		    (minor < (ep_iter->lowest_minor +
-			      ep_iter->num_channels))) {
-			endpoint = ep_iter;
-			break;
-		}
-	}
-	mutex_unlock(&ep_list_lock);
-
-	if (!endpoint) {
-		pr_err("xillybus: open() failed to find a device for major=%d and minor=%d\n",
-		       major, minor);
-		return -ENODEV;
-	}
+	rc = xillybus_find_inode(inode, (void **)&endpoint, &index);
+	if (rc)
+		return rc;
 
 	if (endpoint->fatal_error)
 		return -EIO;
 
-	channel = endpoint->channels[1 + minor - endpoint->lowest_minor];
+	channel = endpoint->channels[1 + index];
 	filp->private_data = channel;
 
 	/*
@@ -1802,99 +1802,7 @@ static const struct file_operations xillybus_fops = {
 	.poll       = xillybus_poll,
 };
 
-static int xillybus_init_chrdev(struct xilly_endpoint *endpoint,
-				const unsigned char *idt)
-{
-	int rc;
-	dev_t dev;
-	int devnum, i, minor, major;
-	char devname[48];
-	struct device *device;
-
-	rc = alloc_chrdev_region(&dev, 0, /* minor start */
-				 endpoint->num_channels,
-				 xillyname);
-	if (rc) {
-		dev_warn(endpoint->dev, "Failed to obtain major/minors");
-		return rc;
-	}
-
-	endpoint->major = major = MAJOR(dev);
-	endpoint->lowest_minor = minor = MINOR(dev);
-
-	cdev_init(&endpoint->cdev, &xillybus_fops);
-	endpoint->cdev.owner = endpoint->ephw->owner;
-	rc = cdev_add(&endpoint->cdev, MKDEV(major, minor),
-		      endpoint->num_channels);
-	if (rc) {
-		dev_warn(endpoint->dev, "Failed to add cdev. Aborting.\n");
-		goto unregister_chrdev;
-	}
-
-	idt++;
-
-	for (i = minor, devnum = 0;
-	     devnum < endpoint->num_channels;
-	     devnum++, i++) {
-		snprintf(devname, sizeof(devname)-1, "xillybus_%s", idt);
-
-		devname[sizeof(devname)-1] = 0; /* Should never matter */
-
-		while (*idt++)
-			/* Skip to next */;
-
-		device = device_create(xillybus_class,
-				       NULL,
-				       MKDEV(major, i),
-				       NULL,
-				       "%s", devname);
-
-		if (IS_ERR(device)) {
-			dev_warn(endpoint->dev,
-				 "Failed to create %s device. Aborting.\n",
-				 devname);
-			rc = -ENODEV;
-			goto unroll_device_create;
-		}
-	}
-
-	dev_info(endpoint->dev, "Created %d device files.\n",
-		 endpoint->num_channels);
-	return 0; /* succeed */
-
-unroll_device_create:
-	devnum--; i--;
-	for (; devnum >= 0; devnum--, i--)
-		device_destroy(xillybus_class, MKDEV(major, i));
-
-	cdev_del(&endpoint->cdev);
-unregister_chrdev:
-	unregister_chrdev_region(MKDEV(major, minor), endpoint->num_channels);
-
-	return rc;
-}
-
-static void xillybus_cleanup_chrdev(struct xilly_endpoint *endpoint)
-{
-	int minor;
-
-	for (minor = endpoint->lowest_minor;
-	     minor < (endpoint->lowest_minor + endpoint->num_channels);
-	     minor++)
-		device_destroy(xillybus_class, MKDEV(endpoint->major, minor));
-	cdev_del(&endpoint->cdev);
-	unregister_chrdev_region(MKDEV(endpoint->major,
-				       endpoint->lowest_minor),
-				 endpoint->num_channels);
-
-	dev_info(endpoint->dev, "Removed %d device files.\n",
-		 endpoint->num_channels);
-}
-
-struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
-					      struct device *dev,
-					      struct xilly_endpoint_hardware
-					      *ephw)
+struct xilly_endpoint *xillybus_init_endpoint(struct device *dev)
 {
 	struct xilly_endpoint *endpoint;
 
@@ -1902,9 +1810,7 @@ struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
 	if (!endpoint)
 		return NULL;
 
-	endpoint->pdev = pdev;
 	endpoint->dev = dev;
-	endpoint->ephw = ephw;
 	endpoint->msg_counter = 0x0b;
 	endpoint->failed_messages = 0;
 	endpoint->fatal_error = 0;
@@ -2030,27 +1936,19 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	if (rc)
 		goto failed_idt;
 
-	/*
-	 * endpoint is now completely configured. We put it on the list
-	 * available to open() before registering the char device(s)
-	 */
+	rc = xillybus_init_chrdev(dev, &xillybus_fops,
+				  endpoint->owner, endpoint,
+				  idt_handle.names,
+				  idt_handle.names_len,
+				  endpoint->num_channels,
+				  xillyname, false);
 
-	mutex_lock(&ep_list_lock);
-	list_add_tail(&endpoint->ep_list, &list_of_endpoints);
-	mutex_unlock(&ep_list_lock);
-
-	rc = xillybus_init_chrdev(endpoint, idt_handle.idt);
 	if (rc)
-		goto failed_chrdevs;
+		goto failed_idt;
 
 	devres_release_group(dev, bootstrap_resources);
 
 	return 0;
-
-failed_chrdevs:
-	mutex_lock(&ep_list_lock);
-	list_del(&endpoint->ep_list);
-	mutex_unlock(&ep_list_lock);
 
 failed_idt:
 	xilly_quiesce(endpoint);
@@ -2062,11 +1960,7 @@ EXPORT_SYMBOL(xillybus_endpoint_discovery);
 
 void xillybus_endpoint_remove(struct xilly_endpoint *endpoint)
 {
-	xillybus_cleanup_chrdev(endpoint);
-
-	mutex_lock(&ep_list_lock);
-	list_del(&endpoint->ep_list);
-	mutex_unlock(&ep_list_lock);
+	xillybus_cleanup_chrdev(endpoint, endpoint->dev);
 
 	xilly_quiesce(endpoint);
 
@@ -2080,17 +1974,9 @@ EXPORT_SYMBOL(xillybus_endpoint_remove);
 
 static int __init xillybus_init(void)
 {
-	mutex_init(&ep_list_lock);
-
-	xillybus_class = class_create(THIS_MODULE, xillyname);
-	if (IS_ERR(xillybus_class))
-		return PTR_ERR(xillybus_class);
-
 	xillybus_wq = alloc_workqueue(xillyname, 0, 0);
-	if (!xillybus_wq) {
-		class_destroy(xillybus_class);
+	if (!xillybus_wq)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -2099,8 +1985,6 @@ static void __exit xillybus_exit(void)
 {
 	/* flush_workqueue() was called for each endpoint released */
 	destroy_workqueue(xillybus_wq);
-
-	class_destroy(xillybus_class);
 }
 
 module_init(xillybus_init);

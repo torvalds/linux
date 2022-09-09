@@ -7,11 +7,18 @@
 /dts-v1/;
 #include <dt-bindings/i2c/i2c.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "rk3188.dtsi"
 
 / {
 	model = "BQ Edison2 Quad-Core";
 	compatible = "mundoreader,bq-edison2qc", "rockchip,rk3188";
+
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+		mmc2 = &emmc;
+	};
 
 	memory@60000000 {
 		device_type = "memory";
@@ -30,7 +37,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key &usb_int>;
 
-		power {
+		key-power {
 			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
@@ -39,7 +46,7 @@
 			wakeup-source;
 		};
 
-		wake_on_usb: wake-on-usb {
+		wake_on_usb: key-wake-on-usb {
 			label = "Wake-on-USB";
 			gpios = <&gpio0 RK_PA7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
@@ -58,20 +65,25 @@
 
 	lvds-encoder {
 		compatible = "ti,sn75lvds83", "lvds-encoder";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		port@0 {
-			reg = <0>;
-			lvds_in_vop0: endpoint {
-				remote-endpoint = <&vop0_out_lvds>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lvds_in_vop0: endpoint {
+					remote-endpoint = <&vop0_out_lvds>;
+				};
 			};
-		};
 
-		port@1 {
-			reg = <1>;
-			lvds_out_panel: endpoint {
-				remote-endpoint = <&panel_in_lvds>;
+			port@1 {
+				reg = <1>;
+
+				lvds_out_panel: endpoint {
+					remote-endpoint = <&panel_in_lvds>;
+				};
 			};
 		};
 	};
@@ -227,7 +239,6 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	disable-wp;
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd>;
@@ -408,6 +419,21 @@
 &i2c2 {
 	clock-frequency = <400000>;
 	status = "okay";
+
+	ft5606: touchscreen@3e {
+		compatible = "edt,edt-ft5506";
+		reg = <0x3e>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PB7 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_int &tp_rst>;
+		reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
+		touchscreen-inverted-y;
+		/* hw ts resolution does not match display */
+		touchscreen-size-y = <1024>;
+		touchscreen-size-x = <768>;
+		touchscreen-swapped-x-y;
+	};
 };
 
 &i2c3 {
@@ -446,19 +472,21 @@
 &mmc1 {
 	bus-width = <4>;
 	cap-sd-highspeed;
-	cap-mmc-highspeed;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk>, <&sd1_cmd>, <&sd1_bus4>;
-	vmmcq-supply = <&vccio_wl>;
+	vqmmc-supply = <&vccio_wl>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
 
 	brcmf: wifi@1 {
+		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 		interrupt-parent = <&gpio3>;
-		interrupts = <RK_PD2 GPIO_ACTIVE_HIGH>;
+		interrupts = <RK_PD2 IRQ_TYPE_NONE>;
 		interrupt-names = "host-wake";
 		brcm,drive-strength = <5>;
 		pinctrl-names = "default";
@@ -526,7 +554,7 @@
 		};
 
 		cif1_pdn: cif1-pdn {
-			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		cif_avdd_en: cif-avdd-en {

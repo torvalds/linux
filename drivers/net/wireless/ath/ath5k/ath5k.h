@@ -410,7 +410,7 @@ enum ath5k_radio {
  * This article claims Super G sticks to bonding of channels 5 and 6 for
  * USA:
  *
- * http://www.pcworld.com/article/id,113428-page,1/article.html
+ * https://www.pcworld.com/article/id,113428-page,1/article.html
  *
  * The channel bonding seems to be driver specific though.
  *
@@ -1395,10 +1395,6 @@ struct ath5k_hw {
 	u32			ah_txq_imr_nofrm;
 
 	u32			ah_txq_isr_txok_all;
-	u32			ah_txq_isr_txurn;
-	u32			ah_txq_isr_qcborn;
-	u32			ah_txq_isr_qcburn;
-	u32			ah_txq_isr_qtrig;
 
 	u32			*ah_rf_banks;
 	size_t			ah_rf_banks_size;

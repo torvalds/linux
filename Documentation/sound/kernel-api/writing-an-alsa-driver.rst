@@ -71,7 +71,7 @@ core/oss
 The codes for PCM and mixer OSS emulation modules are stored in this
 directory. The rawmidi OSS emulation is included in the ALSA rawmidi
 code since it's quite small. The sequencer code is stored in
-``core/seq/oss`` directory (see `below <#core-seq-oss>`__).
+``core/seq/oss`` directory (see `below <core/seq/oss_>`__).
 
 core/seq
 ~~~~~~~~
@@ -194,7 +194,7 @@ The minimum flow for PCI soundcards is as follows:
 
 -  create ``remove`` callback.
 
--  create a :c:type:`struct pci_driver <pci_driver>` structure
+-  create a struct pci_driver structure
    containing the three pointers above.
 
 -  create an ``init`` function just calling the
@@ -259,7 +259,7 @@ to details explained in the following section.
       {
               struct mychip *chip;
               int err;
-              static struct snd_device_ops ops = {
+              static const struct snd_device_ops ops = {
                      .dev_free = snd_mychip_dev_free,
               };
 
@@ -324,7 +324,7 @@ to details explained in the following section.
               strcpy(card->driver, "My Chip");
               strcpy(card->shortname, "My Own Chip 123");
               sprintf(card->longname, "%s at 0x%lx irq %i",
-                      card->shortname, chip->ioport, chip->irq);
+                      card->shortname, chip->port, chip->irq);
 
               /* (5) */
               .... /* implemented later */
@@ -382,7 +382,7 @@ where ``enable[dev]`` is the module option.
 Each time the ``probe`` callback is called, check the availability of
 the device. If not available, simply increment the device index and
 returns. dev will be incremented also later (`step 7
-<#set-the-pci-driver-data-and-return-zero>`__).
+<7) Set the PCI driver data and return zero._>`__).
 
 2) Create a card instance
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -437,7 +437,7 @@ Since each component can be properly freed, the single
   strcpy(card->driver, "My Chip");
   strcpy(card->shortname, "My Own Chip 123");
   sprintf(card->longname, "%s at 0x%lx irq %i",
-          card->shortname, chip->ioport, chip->irq);
+          card->shortname, chip->port, chip->irq);
 
 The driver field holds the minimal ID string of the chip. This is used
 by alsa-lib's configurator, so keep it simple but unique. Even the
@@ -450,10 +450,10 @@ field contains the information shown in ``/proc/asound/cards``.
 5) Create other components, such as mixer, MIDI, etc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here you define the basic components such as `PCM <#PCM-Interface>`__,
-mixer (e.g. `AC97 <#API-for-AC97-Codec>`__), MIDI (e.g.
-`MPU-401 <#MIDI-MPU401-UART-Interface>`__), and other interfaces.
-Also, if you want a `proc file <#Proc-Interface>`__, define it here,
+Here you define the basic components such as `PCM <PCM Interface_>`__,
+mixer (e.g. `AC97 <API for AC97 Codec_>`__), MIDI (e.g.
+`MPU-401 <MIDI (MPU401-UART) Interface_>`__), and other interfaces.
+Also, if you want a `proc file <Proc Interface_>`__, define it here,
 too.
 
 6) Register the card instance.
@@ -487,7 +487,7 @@ The destructor, remove callback, simply releases the card instance. Then
 the ALSA middle layer will release all the attached components
 automatically.
 
-It would be typically just :c:func:`calling snd_card_free()`:
+It would be typically just calling :c:func:`snd_card_free()`:
 
 ::
 
@@ -560,16 +560,15 @@ return the card instance. The extra_size argument is used to allocate
 card->private_data for the chip-specific data. Note that these data are
 allocated by :c:func:`snd_card_new()`.
 
-The first argument, the pointer of struct :c:type:`struct device
-<device>`, specifies the parent device. For PCI devices, typically
-``&pci->`` is passed there.
+The first argument, the pointer of struct device, specifies the parent
+device. For PCI devices, typically ``&pci->`` is passed there.
 
 Components
 ----------
 
 After the card is created, you can attach the components (devices) to
 the card instance. In an ALSA driver, a component is represented as a
-:c:type:`struct snd_device <snd_device>` object. A component
+struct snd_device object. A component
 can be a PCM instance, a control interface, a raw MIDI interface, etc.
 Each such instance has one component entry.
 
@@ -628,7 +627,7 @@ argument of :c:func:`snd_card_new()`, i.e.
   err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
                      sizeof(struct mychip), &card);
 
-:c:type:`struct mychip <mychip>` is the type of the chip record.
+struct mychip is the type of the chip record.
 
 In return, the allocated record can be accessed as
 
@@ -675,7 +674,7 @@ low-level device with a specified ``ops``,
 
 ::
 
-  static struct snd_device_ops ops = {
+  static const struct snd_device_ops ops = {
           .dev_free =        snd_mychip_dev_free,
   };
   ....
@@ -761,7 +760,7 @@ destructor and PCI entries. Example code is shown first, below.
       {
               struct mychip *chip;
               int err;
-              static struct snd_device_ops ops = {
+              static const struct snd_device_ops ops = {
                      .dev_free = snd_mychip_dev_free,
               };
 
@@ -805,6 +804,7 @@ destructor and PCI entries. Example code is shown first, below.
                       return -EBUSY;
               }
               chip->irq = pci->irq;
+              card->sync_irq = chip->irq;
 
               /* (2) initialization of the chip hardware */
               .... /*   (not implemented in this document) */
@@ -889,7 +889,7 @@ functions.  These resources must be released in the destructor
 function (see below).
 
 Now assume that the PCI device has an I/O port with 8 bytes and an
-interrupt. Then :c:type:`struct mychip <mychip>` will have the
+interrupt. Then struct mychip will have the
 following fields:
 
 ::
@@ -941,7 +941,7 @@ The allocation of an interrupt source is done like this:
   chip->irq = pci->irq;
 
 where :c:func:`snd_mychip_interrupt()` is the interrupt handler
-defined `later <#pcm-interface-interrupt-handler>`__. Note that
+defined `later <PCM Interrupt Handler_>`__. Note that
 ``chip->irq`` should be defined only when :c:func:`request_irq()`
 succeeded.
 
@@ -965,6 +965,15 @@ usually like the following:
           return IRQ_HANDLED;
   }
 
+After requesting the IRQ, you can passed it to ``card->sync_irq``
+field:
+::
+
+          card->irq = chip->irq;
+
+This allows PCM core automatically performing
+:c:func:`synchronize_irq()` at the necessary timing like ``hw_free``.
+See the later section `sync_stop callback`_ for details.
 
 Now let's write the corresponding destructor for the resources above.
 The role of destructor is simple: disable the hardware (if already
@@ -1048,7 +1057,7 @@ and the allocation would be like below:
           return err;
   }
   chip->iobase_phys = pci_resource_start(pci, 0);
-  chip->iobase_virt = ioremap_nocache(chip->iobase_phys,
+  chip->iobase_virt = ioremap(chip->iobase_phys,
                                       pci_resource_len(pci, 0));
 
 and the corresponding destructor would be:
@@ -1084,7 +1093,7 @@ PCI Entries
 -----------
 
 So far, so good. Let's finish the missing PCI stuff. At first, we need a
-:c:type:`struct pci_device_id <pci_device_id>` table for
+struct pci_device_id table for
 this chipset. It's a table of PCI vendor/device ID number, and some
 masks.
 
@@ -1100,19 +1109,17 @@ For example,
   };
   MODULE_DEVICE_TABLE(pci, snd_mychip_ids);
 
-The first and second fields of the :c:type:`struct pci_device_id
-<pci_device_id>` structure are the vendor and device IDs. If you
-have no reason to filter the matching devices, you can leave the
-remaining fields as above. The last field of the :c:type:`struct
-pci_device_id <pci_device_id>` struct contains private data
-for this entry. You can specify any value here, for example, to define
-specific operations for supported device IDs. Such an example is found
-in the intel8x0 driver.
+The first and second fields of the struct pci_device_id are the vendor
+and device IDs. If you have no reason to filter the matching devices, you can
+leave the remaining fields as above. The last field of the
+struct pci_device_id contains private data for this entry. You can specify
+any value here, for example, to define specific operations for supported
+device IDs. Such an example is found in the intel8x0 driver.
 
 The last entry of this list is the terminator. You must specify this
 all-zero entry.
 
-Then, prepare the :c:type:`struct pci_driver <pci_driver>`
+Then, prepare the struct pci_driver
 record:
 
 ::
@@ -1270,21 +1277,23 @@ shows only the skeleton, how to build up the PCM interfaces.
               /* the hardware-specific codes will be here */
               ....
               return 0;
-
       }
 
       /* hw_params callback */
       static int snd_mychip_pcm_hw_params(struct snd_pcm_substream *substream,
                                    struct snd_pcm_hw_params *hw_params)
       {
-              return snd_pcm_lib_malloc_pages(substream,
-                                         params_buffer_bytes(hw_params));
+              /* the hardware-specific codes will be here */
+              ....
+              return 0;
       }
 
       /* hw_free callback */
       static int snd_mychip_pcm_hw_free(struct snd_pcm_substream *substream)
       {
-              return snd_pcm_lib_free_pages(substream);
+              /* the hardware-specific codes will be here */
+              ....
+              return 0;
       }
 
       /* prepare callback */
@@ -1339,7 +1348,6 @@ shows only the skeleton, how to build up the PCM interfaces.
       static struct snd_pcm_ops snd_mychip_playback_ops = {
               .open =        snd_mychip_playback_open,
               .close =       snd_mychip_playback_close,
-              .ioctl =       snd_pcm_lib_ioctl,
               .hw_params =   snd_mychip_pcm_hw_params,
               .hw_free =     snd_mychip_pcm_hw_free,
               .prepare =     snd_mychip_pcm_prepare,
@@ -1351,7 +1359,6 @@ shows only the skeleton, how to build up the PCM interfaces.
       static struct snd_pcm_ops snd_mychip_capture_ops = {
               .open =        snd_mychip_capture_open,
               .close =       snd_mychip_capture_close,
-              .ioctl =       snd_pcm_lib_ioctl,
               .hw_params =   snd_mychip_pcm_hw_params,
               .hw_free =     snd_mychip_pcm_hw_free,
               .prepare =     snd_mychip_pcm_prepare,
@@ -1382,9 +1389,9 @@ shows only the skeleton, how to build up the PCM interfaces.
                               &snd_mychip_capture_ops);
               /* pre-allocation of buffers */
               /* NOTE: this may fail */
-              snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                                    snd_dma_pci_data(chip->pci),
-                                                    64*1024, 64*1024);
+              snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+                                             &chip->pci->dev,
+                                             64*1024, 64*1024);
               return 0;
       }
 
@@ -1429,8 +1436,8 @@ corresponding argument.
 If a chip supports multiple playbacks or captures, you can specify more
 numbers, but they must be handled properly in open/close, etc.
 callbacks. When you need to know which substream you are referring to,
-then it can be obtained from :c:type:`struct snd_pcm_substream
-<snd_pcm_substream>` data passed to each callback as follows:
+then it can be obtained from struct snd_pcm_substream data passed to each
+callback as follows:
 
 ::
 
@@ -1454,7 +1461,6 @@ The operators are defined typically like this:
   static struct snd_pcm_ops snd_mychip_playback_ops = {
           .open =        snd_mychip_pcm_open,
           .close =       snd_mychip_pcm_close,
-          .ioctl =       snd_pcm_lib_ioctl,
           .hw_params =   snd_mychip_pcm_hw_params,
           .hw_free =     snd_mychip_pcm_hw_free,
           .prepare =     snd_mychip_pcm_prepare,
@@ -1465,13 +1471,14 @@ The operators are defined typically like this:
 All the callbacks are described in the Operators_ subsection.
 
 After setting the operators, you probably will want to pre-allocate the
-buffer. For the pre-allocation, simply call the following:
+buffer and set up the managed allocation mode.
+For that, simply call the following:
 
 ::
 
-  snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                        snd_dma_pci_data(chip->pci),
-                                        64*1024, 64*1024);
+  snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+                                 &chip->pci->dev,
+                                 64*1024, 64*1024);
 
 It will allocate a buffer up to 64kB as default. Buffer management
 details will be described in the later section `Buffer and Memory
@@ -1621,8 +1628,7 @@ For the operators (callbacks) of each sound driver, most of these
 records are supposed to be read-only. Only the PCM middle-layer changes
 / updates them. The exceptions are the hardware description (hw) DMA
 buffer information and the private data. Besides, if you use the
-standard buffer allocation method via
-:c:func:`snd_pcm_lib_malloc_pages()`, you don't need to set the
+standard managed buffer allocation mode, you don't need to set the
 DMA buffer information by yourself.
 
 In the sections below, important records are explained.
@@ -1630,10 +1636,9 @@ In the sections below, important records are explained.
 Hardware Description
 ~~~~~~~~~~~~~~~~~~~~
 
-The hardware descriptor (:c:type:`struct snd_pcm_hardware
-<snd_pcm_hardware>`) contains the definitions of the fundamental
-hardware configuration. Above all, you'll need to define this in the
-`PCM open callback`_. Note that the runtime instance holds the copy of
+The hardware descriptor (struct snd_pcm_hardware) contains the definitions of
+the fundamental hardware configuration. Above all, you'll need to define this
+in the `PCM open callback`_. Note that the runtime instance holds the copy of
 the descriptor, not the pointer to the existing descriptor. That is,
 in the open callback, you can modify the copied descriptor
 (``runtime->hw``) as you need. For example, if the maximum number of
@@ -1776,8 +1781,8 @@ the physical address of the buffer. This field is specified only when
 the buffer is a linear buffer. ``dma_bytes`` holds the size of buffer
 in bytes. ``dma_private`` is used for the ALSA DMA allocator.
 
-If you use a standard ALSA function,
-:c:func:`snd_pcm_lib_malloc_pages()`, for allocating the buffer,
+If you use either the managed buffer allocation mode or the standard
+API function :c:func:`snd_pcm_lib_malloc_pages()` for allocating the buffer,
 these fields are set by the ALSA middle layer, and you should *not*
 change them by yourself. You can read them but not write them. On the
 other hand, if you want to allocate the buffer by yourself, you'll
@@ -1791,14 +1796,13 @@ Running Status
 ~~~~~~~~~~~~~~
 
 The running status can be referred via ``runtime->status``. This is
-the pointer to the :c:type:`struct snd_pcm_mmap_status
-<snd_pcm_mmap_status>` record. For example, you can get the current
+the pointer to the struct snd_pcm_mmap_status record.
+For example, you can get the current
 DMA hardware pointer via ``runtime->status->hw_ptr``.
 
 The DMA application pointer can be referred via ``runtime->control``,
-which points to the :c:type:`struct snd_pcm_mmap_control
-<snd_pcm_mmap_control>` record. However, accessing directly to
-this value is not recommended.
+which points to the struct snd_pcm_mmap_control record.
+However, accessing directly to this value is not recommended.
 
 Private Data
 ~~~~~~~~~~~~
@@ -1834,8 +1838,8 @@ error number such as ``-EINVAL``. To choose an appropriate error
 number, it is advised to check what value other parts of the kernel
 return when the same kind of request fails.
 
-The callback function takes at least the argument with :c:type:`struct
-snd_pcm_substream <snd_pcm_substream>` pointer. To retrieve the chip
+The callback function takes at least the argument with
+struct snd_pcm_substream pointer. To retrieve the chip
 record from the given substream instance, you can use the following
 macro.
 
@@ -1911,7 +1915,10 @@ ioctl callback
 ~~~~~~~~~~~~~~
 
 This is used for any special call to pcm ioctls. But usually you can
-pass a generic ioctl callback, :c:func:`snd_pcm_lib_ioctl()`.
+leave it as NULL, then PCM core calls the generic ioctl callback
+function :c:func:`snd_pcm_lib_ioctl()`.  If you need to deal with the
+unique setup of channel info or reset procedure, you can pass your own
+callback function here.
 
 hw_params callback
 ~~~~~~~~~~~~~~~~~~~
@@ -1929,8 +1936,12 @@ Many hardware setups should be done in this callback, including the
 allocation of buffers.
 
 Parameters to be initialized are retrieved by
-:c:func:`params_xxx()` macros. To allocate buffer, you can call a
-helper function,
+:c:func:`params_xxx()` macros.
+
+When you set up the managed buffer allocation mode for the substream,
+a buffer is already allocated before this callback gets
+called. Alternatively, you can call a helper function below for
+allocating the buffer, too.
 
 ::
 
@@ -1964,17 +1975,22 @@ hw_free callback
   static int snd_xxx_hw_free(struct snd_pcm_substream *substream);
 
 This is called to release the resources allocated via
-``hw_params``. For example, releasing the buffer via
-:c:func:`snd_pcm_lib_malloc_pages()` is done by calling the
-following:
-
-::
-
-  snd_pcm_lib_free_pages(substream);
+``hw_params``.
 
 This function is always called before the close callback is called.
 Also, the callback may be called multiple times, too. Keep track
 whether the resource was already released.
+
+When you have set up the managed buffer allocation mode for the PCM
+substream, the allocated PCM buffer will be automatically released
+after this callback gets called.  Otherwise you'll have to release the
+buffer manually.  Typically, when the buffer was allocated from the
+pre-allocated pool, you can use the standard API function
+:c:func:`snd_pcm_lib_malloc_pages()` like:
+
+::
+
+  snd_pcm_lib_free_pages(substream);
 
 prepare callback
 ~~~~~~~~~~~~~~~~
@@ -2048,6 +2064,37 @@ flag set, and you cannot call functions which may sleep. The
 triggering the DMA. The other stuff should be initialized
 ``hw_params`` and ``prepare`` callbacks properly beforehand.
 
+sync_stop callback
+~~~~~~~~~~~~~~~~~~
+
+::
+
+  static int snd_xxx_sync_stop(struct snd_pcm_substream *substream);
+
+This callback is optional, and NULL can be passed.  It's called after
+the PCM core stops the stream and changes the stream state
+``prepare``, ``hw_params`` or ``hw_free``.
+Since the IRQ handler might be still pending, we need to wait until
+the pending task finishes before moving to the next step; otherwise it
+might lead to a crash due to resource conflicts or access to the freed
+resources.  A typical behavior is to call a synchronization function
+like :c:func:`synchronize_irq()` here.
+
+For majority of drivers that need only a call of
+:c:func:`synchronize_irq()`, there is a simpler setup, too.
+While keeping NULL to ``sync_stop`` PCM callback, the driver can set
+``card->sync_irq`` field to store the valid interrupt number after
+requesting an IRQ, instead.   Then PCM core will look call
+:c:func:`synchronize_irq()` with the given IRQ appropriately.
+
+If the IRQ handler is released at the card destructor, you don't need
+to clear ``card->sync_irq``, as the card itself is being released.
+So, usually you'll need to add just a single line for assigning
+``card->sync_irq`` in the driver code unless the driver re-acquires
+the IRQ.  When the driver frees and re-acquires the IRQ dynamically
+(e.g. for suspend/resume), it needs to clear and re-set
+``card->sync_irq`` again appropriately.
+
 pointer callback
 ~~~~~~~~~~~~~~~~
 
@@ -2095,10 +2142,12 @@ This callback is atomic as default.
 page callback
 ~~~~~~~~~~~~~
 
-This callback is optional too. This callback is used mainly for
-non-contiguous buffers. The mmap calls this callback to get the page
-address. Some examples will be explained in the later section `Buffer
-and Memory Management`_, too.
+This callback is optional too. The mmap calls this callback to get the
+page fault address.
+
+Since the recent changes, you need no special callback any longer for
+the standard SG-buffer or vmalloc-buffer. Hence this callback should
+be rarely used.
 
 mmap calllback
 ~~~~~~~~~~~~~~
@@ -2259,10 +2308,10 @@ non-atomic contexts. For example, the function
 :c:func:`snd_pcm_period_elapsed()` is called typically from the
 interrupt handler. But, if you set up the driver to use a threaded
 interrupt handler, this call can be in non-atomic context, too. In such
-a case, you can set ``nonatomic`` filed of :c:type:`struct snd_pcm
-<snd_pcm>` object after creating it. When this flag is set, mutex
-and rwsem are used internally in the PCM core instead of spin and
-rwlocks, so that you can call all PCM functions safely in a non-atomic
+a case, you can set ``nonatomic`` filed of struct snd_pcm object
+after creating it. When this flag is set, mutex and rwsem are used internally
+in the PCM core instead of spin and rwlocks, so that you can call all PCM
+functions safely in a non-atomic
 context.
 
 Constraints
@@ -2303,8 +2352,7 @@ There are many different constraints. Look at ``sound/pcm.h`` for a
 complete list. You can even define your own constraint rules. For
 example, let's suppose my_chip can manage a substream of 1 channel if
 and only if the format is ``S16_LE``, otherwise it supports any format
-specified in the :c:type:`struct snd_pcm_hardware
-<snd_pcm_hardware>` structure (or in any other
+specified in struct snd_pcm_hardware> (or in any other
 constraint_list). You can build a rule like this:
 
 ::
@@ -2413,7 +2461,7 @@ Definition of Controls
 
 To create a new control, you need to define the following three
 callbacks: ``info``, ``get`` and ``put``. Then, define a
-:c:type:`struct snd_kcontrol_new <snd_kcontrol_new>` record, such as:
+struct snd_kcontrol_new record, such as:
 
 ::
 
@@ -2548,8 +2596,8 @@ info callback
 ~~~~~~~~~~~~~
 
 The ``info`` callback is used to get detailed information on this
-control. This must store the values of the given :c:type:`struct
-snd_ctl_elem_info <snd_ctl_elem_info>` object. For example,
+control. This must store the values of the given
+struct snd_ctl_elem_info object. For example,
 for a boolean control with a single element:
 
 ::
@@ -2720,13 +2768,11 @@ In the simplest way, you can do like this:
   if (err < 0)
           return err;
 
-where ``my_control`` is the :c:type:`struct snd_kcontrol_new
-<snd_kcontrol_new>` object defined above, and chip is the object
-pointer to be passed to kcontrol->private_data which can be referred
-to in callbacks.
+where ``my_control`` is the struct snd_kcontrol_new object defined above,
+and chip is the object pointer to be passed to kcontrol->private_data which
+can be referred to in callbacks.
 
-:c:func:`snd_ctl_new1()` allocates a new :c:type:`struct
-snd_kcontrol <snd_kcontrol>` instance, and
+:c:func:`snd_ctl_new1()` allocates a new struct snd_kcontrol instance, and
 :c:func:`snd_ctl_add()` assigns the given control component to the
 card.
 
@@ -2743,10 +2789,9 @@ can call :c:func:`snd_ctl_notify()`. For example,
 This function takes the card pointer, the event-mask, and the control id
 pointer for the notification. The event-mask specifies the types of
 notification, for example, in the above example, the change of control
-values is notified. The id pointer is the pointer of :c:type:`struct
-snd_ctl_elem_id <snd_ctl_elem_id>` to be notified. You can
-find some examples in ``es1938.c`` or ``es1968.c`` for hardware volume
-interrupts.
+values is notified. The id pointer is the pointer of struct snd_ctl_elem_id
+to be notified. You can find some examples in ``es1938.c`` or ``es1968.c``
+for hardware volume interrupts.
 
 Metadata
 --------
@@ -2861,9 +2906,8 @@ with an ``ac97_bus_ops_t`` record with callback functions.
 
 The bus record is shared among all belonging ac97 instances.
 
-And then call :c:func:`snd_ac97_mixer()` with an :c:type:`struct
-snd_ac97_template <snd_ac97_template>` record together with
-the bus pointer created above.
+And then call :c:func:`snd_ac97_mixer()` with an struct snd_ac97_template
+record together with the bus pointer created above.
 
 ::
 
@@ -3060,15 +3104,14 @@ processing the output stream in the irq handler.
 
 If the MPU-401 interface shares its interrupt with the other logical
 devices on the card, set ``MPU401_INFO_IRQ_HOOK`` (see
-`below <#MIDI-Interrupt-Handler>`__).
+`below <MIDI Interrupt Handler_>`__).
 
 Usually, the port address corresponds to the command port and port + 1
 corresponds to the data port. If not, you may change the ``cport``
-field of :c:type:`struct snd_mpu401 <snd_mpu401>` manually afterward.
-However, :c:type:`struct snd_mpu401 <snd_mpu401>` pointer is
+field of struct snd_mpu401 manually afterward.
+However, struct snd_mpu401 pointer is
 not returned explicitly by :c:func:`snd_mpu401_uart_new()`. You
-need to cast ``rmidi->private_data`` to :c:type:`struct snd_mpu401
-<snd_mpu401>` explicitly,
+need to cast ``rmidi->private_data`` to struct snd_mpu401 explicitly,
 
 ::
 
@@ -3272,8 +3315,7 @@ data and removes them from the buffer at once:
   }
 
 If you know beforehand how many bytes you can accept, you can use a
-buffer size greater than one with the
-:c:func:`snd_rawmidi_transmit\*()` functions.
+buffer size greater than one with the ``snd_rawmidi_transmit*()`` functions.
 
 The ``trigger`` callback must not sleep. If the hardware FIFO is full
 before the substream buffer has been emptied, you have to continue
@@ -3326,7 +3368,7 @@ This ensures that the device can be closed and the driver unloaded
 without losing data.
 
 This callback is optional. If you do not set ``drain`` in the struct
-snd_rawmidi_ops structure, ALSA will simply wait for 50 milliseconds
+snd_rawmidi_ops structure, ALSA will simply wait for 50 milliseconds
 instead.
 
 Miscellaneous Devices
@@ -3466,14 +3508,15 @@ field must be set, though).
 
 “IEC958 Playback Con Mask” is used to return the bit-mask for the IEC958
 status bits of consumer mode. Similarly, “IEC958 Playback Pro Mask”
-returns the bitmask for professional mode. They are read-only controls,
-and are defined as MIXER controls (iface =
-``SNDRV_CTL_ELEM_IFACE_MIXER``).
+returns the bitmask for professional mode. They are read-only controls.
 
 Meanwhile, “IEC958 Playback Default” control is defined for getting and
-setting the current default IEC958 bits. Note that this one is usually
-defined as a PCM control (iface = ``SNDRV_CTL_ELEM_IFACE_PCM``),
-although in some places it's defined as a MIXER control.
+setting the current default IEC958 bits.
+
+Due to historical reasons, both variants of the Playback Mask and the
+Playback Default controls can be implemented on either a
+``SNDRV_CTL_ELEM_IFACE_PCM`` or a ``SNDRV_CTL_ELEM_IFACE_MIXER`` iface.
+Drivers should expose the mask and default on the same iface though.
 
 In addition, you can define the control switches to enable/disable or to
 set the raw bit mode. The implementation will depend on the chip, but
@@ -3512,7 +3555,7 @@ bus).
 ::
 
   snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                                        snd_dma_pci_data(pci), size, max);
+                                        &pci->dev, size, max);
 
 where ``size`` is the byte size to be pre-allocated and the ``max`` is
 the maximum size to be changed via the ``prealloc`` proc file. The
@@ -3520,15 +3563,17 @@ allocator will try to get an area as large as possible within the
 given size.
 
 The second argument (type) and the third argument (device pointer) are
-dependent on the bus. In the case of the ISA bus, pass
-:c:func:`snd_dma_isa_data()` as the third argument with
+dependent on the bus. For normal devices, pass the device pointer
+(typically identical as ``card->dev``) to the third argument with
 ``SNDRV_DMA_TYPE_DEV`` type. For the continuous buffer unrelated to the
-bus can be pre-allocated with ``SNDRV_DMA_TYPE_CONTINUOUS`` type and the
-``snd_dma_continuous_data(GFP_KERNEL)`` device pointer, where
-``GFP_KERNEL`` is the kernel allocation flag to use. For the PCI
-scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with
-``snd_dma_pci_data(pci)`` (see the `Non-Contiguous Buffers`_
-section).
+bus can be pre-allocated with ``SNDRV_DMA_TYPE_CONTINUOUS`` type.
+You can pass NULL to the device pointer in that case, which is the
+default mode implying to allocate with ``GFP_KERNEL`` flag.
+If you need a different GFP flag, you can pass it by encoding the flag
+into the device pointer via a special macro
+:c:func:`snd_dma_continuous_data()`.
+For the scatter-gather buffers, use ``SNDRV_DMA_TYPE_DEV_SG`` with the
+device pointer (see the `Non-Contiguous Buffers`_ section).
 
 Once the buffer is pre-allocated, you can use the allocator in the
 ``hw_params`` callback:
@@ -3538,6 +3583,25 @@ Once the buffer is pre-allocated, you can use the allocator in the
   snd_pcm_lib_malloc_pages(substream, size);
 
 Note that you have to pre-allocate to use this function.
+
+Most of drivers use, though, rather the newly introduced "managed
+buffer allocation mode" instead of the manual allocation or release.
+This is done by calling :c:func:`snd_pcm_set_managed_buffer_all()`
+instead of :c:func:`snd_pcm_lib_preallocate_pages_for_all()`.
+
+::
+
+  snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+                                 &pci->dev, size, max);
+
+where passed arguments are identical in both functions.
+The difference in the managed mode is that PCM core will call
+:c:func:`snd_pcm_lib_malloc_pages()` internally already before calling
+the PCM ``hw_params`` callback, and call :c:func:`snd_pcm_lib_free_pages()`
+after the PCM ``hw_free`` callback automatically.  So the driver
+doesn't have to call these functions explicitly in its callback any
+longer.  This made many driver code having NULL ``hw_params`` and
+``hw_free`` entries.
 
 External Hardware Buffers
 -------------------------
@@ -3693,20 +3757,26 @@ provides an interface for handling SG-buffers. The API is provided in
 ``<sound/pcm.h>``.
 
 For creating the SG-buffer handler, call
-:c:func:`snd_pcm_lib_preallocate_pages()` or
-:c:func:`snd_pcm_lib_preallocate_pages_for_all()` with
+:c:func:`snd_pcm_set_managed_buffer()` or
+:c:func:`snd_pcm_set_managed_buffer_all()` with
 ``SNDRV_DMA_TYPE_DEV_SG`` in the PCM constructor like other PCI
-pre-allocator. You need to pass ``snd_dma_pci_data(pci)``, where pci is
-the :c:type:`struct pci_dev <pci_dev>` pointer of the chip as
-well. The ``struct snd_sg_buf`` instance is created as
-``substream->dma_private``. You can cast the pointer like:
+pre-allocator. You need to pass ``&pci->dev``, where pci is
+the struct pci_dev pointer of the chip as
+well.
+
+::
+
+  snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+                                 &pci->dev, size, max);
+
+The ``struct snd_sg_buf`` instance is created as
+``substream->dma_private`` in turn. You can cast the pointer like:
 
 ::
 
   struct snd_sg_buf *sgbuf = (struct snd_sg_buf *)substream->dma_private;
 
-Then call :c:func:`snd_pcm_lib_malloc_pages()` in the ``hw_params``
-callback as well as in the case of normal PCI buffer. The SG-buffer
+Then in :c:func:`snd_pcm_lib_malloc_pages()` call, the common SG-buffer
 handler will allocate the non-contiguous kernel pages of the given size
 and map them onto the virtually contiguous memory. The virtual pointer
 is addressed in runtime->dma_area. The physical address
@@ -3715,41 +3785,40 @@ physically non-contiguous. The physical address table is set up in
 ``sgbuf->table``. You can get the physical address at a certain offset
 via :c:func:`snd_pcm_sgbuf_get_addr()`.
 
-When a SG-handler is used, you need to set
-:c:func:`snd_pcm_sgbuf_ops_page()` as the ``page`` callback. (See
-`page callback`_ section.)
-
-To release the data, call :c:func:`snd_pcm_lib_free_pages()` in
-the ``hw_free`` callback as usual.
+If you need to release the SG-buffer data explicitly, call the
+standard API function :c:func:`snd_pcm_lib_free_pages()` as usual.
 
 Vmalloc'ed Buffers
 ------------------
 
 It's possible to use a buffer allocated via :c:func:`vmalloc()`, for
-example, for an intermediate buffer. Since the allocated pages are not
-contiguous, you need to set the ``page`` callback to obtain the physical
-address at every offset.
-
-The easiest way to achieve it would be to use
-:c:func:`snd_pcm_lib_alloc_vmalloc_buffer()` for allocating the buffer
-via :c:func:`vmalloc()`, and set :c:func:`snd_pcm_sgbuf_ops_page()` to
-the ``page`` callback.  At release, you need to call
-:c:func:`snd_pcm_lib_free_vmalloc_buffer()`.
-
-If you want to implementation the ``page`` manually, it would be like
-this:
+example, for an intermediate buffer. In the recent version of kernel,
+you can simply allocate it via standard
+:c:func:`snd_pcm_lib_malloc_pages()` and co after setting up the
+buffer preallocation with ``SNDRV_DMA_TYPE_VMALLOC`` type.
 
 ::
 
-  #include <linux/vmalloc.h>
+  snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+                                 NULL, 0, 0);
 
-  /* get the physical page pointer on the given offset */
-  static struct page *mychip_page(struct snd_pcm_substream *substream,
-                                  unsigned long offset)
-  {
-          void *pageptr = substream->runtime->dma_area + offset;
-          return vmalloc_to_page(pageptr);
-  }
+The NULL is passed to the device pointer argument, which indicates
+that the default pages (GFP_KERNEL and GFP_HIGHMEM) will be
+allocated.
+
+Also, note that zero is passed to both the size and the max size
+arguments here.  Since each vmalloc call should succeed at any time,
+we don't need to pre-allocate the buffers like other continuous
+pages.
+
+If you need the 32bit DMA allocation, pass the device pointer encoded
+by :c:func:`snd_dma_continuous_data()` with ``GFP_KERNEL|__GFP_DMA32``
+argument.
+
+::
+
+  snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+          snd_dma_continuous_data(GFP_KERNEL | __GFP_DMA32), 0, 0);
 
 Proc Interface
 ==============
@@ -3832,7 +3901,7 @@ For a raw-data proc-file, set the attributes as follows:
 
 ::
 
-  static struct snd_info_entry_ops my_file_io_ops = {
+  static const struct snd_info_entry_ops my_file_io_ops = {
           .read = my_file_io_read,
   };
 
@@ -3847,7 +3916,7 @@ the maximum size of the proc file access.
 
 The read/write callbacks of raw mode are more direct than the text mode.
 You need to use a low-level I/O functions such as
-:c:func:`copy_from/to_user()` to transfer the data.
+:c:func:`copy_from_user()` and :c:func:`copy_to_user()` to transfer the data.
 
 ::
 
@@ -3924,15 +3993,12 @@ The scheme of the real suspend job is as follows.
 2. Call :c:func:`snd_power_change_state()` with
    ``SNDRV_CTL_POWER_D3hot`` to change the power status.
 
-3. Call :c:func:`snd_pcm_suspend_all()` to suspend the running
-   PCM streams.
-
-4. If AC97 codecs are used, call :c:func:`snd_ac97_suspend()` for
+3. If AC97 codecs are used, call :c:func:`snd_ac97_suspend()` for
    each codec.
 
-5. Save the register values if necessary.
+4. Save the register values if necessary.
 
-6. Stop the hardware if necessary.
+5. Stop the hardware if necessary.
 
 A typical code would be like:
 
@@ -3946,12 +4012,10 @@ A typical code would be like:
           /* (2) */
           snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
           /* (3) */
-          snd_pcm_suspend_all(chip->pcm);
-          /* (4) */
           snd_ac97_suspend(chip->ac97);
-          /* (5) */
+          /* (4) */
           snd_mychip_save_registers(chip);
-          /* (6) */
+          /* (5) */
           snd_mychip_stop_hardware(chip);
           return 0;
   }
@@ -3994,13 +4058,9 @@ A typical code would be like:
           return 0;
   }
 
-As shown in the above, it's better to save registers after suspending
-the PCM operations via :c:func:`snd_pcm_suspend_all()` or
-:c:func:`snd_pcm_suspend()`. It means that the PCM streams are
-already stopped when the register snapshot is taken. But, remember that
-you don't have to restart the PCM stream in the resume callback. It'll
-be restarted via trigger call with ``SNDRV_PCM_TRIGGER_RESUME`` when
-necessary.
+Note that, at the time this callback gets called, the PCM stream has
+been already suspended via its own PM ops calling
+:c:func:`snd_pcm_suspend_all()` internally.
 
 OK, we have all callbacks now. Let's set them up. In the initialization
 of the card, make sure that you can get the chip data from the card
@@ -4110,6 +4170,39 @@ module license as GPL, etc., otherwise the system is shown as “tainted”.
 
   MODULE_DESCRIPTION("Sound driver for My Chip");
   MODULE_LICENSE("GPL");
+
+
+Device-Managed Resources
+========================
+
+In the examples above, all resources are allocated and released
+manually.  But human beings are lazy in nature, especially developers
+are lazier.  So there are some ways to automate the release part; it's
+the (device-)managed resources aka devres or devm family.  For
+example, an object allocated via :c:func:`devm_kmalloc()` will be
+freed automatically at unbinding the device.
+
+ALSA core provides also the device-managed helper, namely,
+:c:func:`snd_devm_card_new()` for creating a card object.
+Call this functions instead of the normal :c:func:`snd_card_new()`,
+and you can forget the explicit :c:func:`snd_card_free()` call, as
+it's called automagically at error and removal paths.
+
+One caveat is that the call of :c:func:`snd_card_free()` would be put
+at the beginning of the call chain only after you call
+:c:func:`snd_card_register()`.
+
+Also, the ``private_free`` callback is always called at the card free,
+so be careful to put the hardware clean-up procedure in
+``private_free`` callback.  It might be called even before you
+actually set up at an earlier error path.  For avoiding such an
+invalid initialization, you can set ``private_free`` callback after
+:c:func:`snd_card_register()` call succeeds.
+
+Another thing to be remarked is that you should use device-managed
+helpers for each component as much as possible once when you manage
+the card in that way.  Mixing up with the normal and the managed
+resources may screw up the release order.
 
 
 How To Put Your Driver Into ALSA Tree

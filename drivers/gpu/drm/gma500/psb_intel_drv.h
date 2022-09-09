@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2009-2011, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #ifndef __INTEL_DRV_H__
@@ -24,7 +11,8 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
-#include <linux/gpio.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 #include "gma_display.h"
 
 /*
@@ -67,25 +55,6 @@
 #define INTEL_OUTPUT_DISPLAYPORT 9
 #define INTEL_OUTPUT_EDP 10
 
-#define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
-#define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
-
-static inline void
-psb_intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
-				int multiplier)
-{
-	mode->clock *= multiplier;
-	mode->private_flags |= multiplier;
-}
-
-static inline int
-psb_intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
-{
-	return (mode->private_flags & INTEL_MODE_PIXEL_MULTIPLIER_MASK)
-	       >> INTEL_MODE_PIXEL_MULTIPLIER_SHIFT;
-}
-
-
 /*
  * Hold information useally put on the device driver privates here,
  * since it needs to be shared across multiple of devices drivers privates.
@@ -109,13 +78,14 @@ struct psb_intel_mode_device {
 	uint32_t saveBLC_PWM_CTL;
 };
 
-struct psb_intel_i2c_chan {
-	/* for getting at dev. private (mmio etc.) */
-	struct drm_device *drm_dev;
-	u32 reg;		/* GPIO reg */
-	struct i2c_adapter adapter;
+struct gma_i2c_chan {
+	struct i2c_adapter base;
 	struct i2c_algo_bit_data algo;
 	u8 slave_addr;
+
+	/* for getting at dev. private (mmio etc.) */
+	struct drm_device *drm_dev;
+	u32 reg; /* GPIO reg */
 };
 
 struct gma_encoder {
@@ -134,8 +104,7 @@ struct gma_encoder {
 
 	/* FIXME: Either make SDVO and LVDS store it's i2c here or give CDV it's
 	   own set of output privates */
-	struct psb_intel_i2c_chan *i2c_bus;
-	struct psb_intel_i2c_chan *ddc_bus;
+	struct gma_i2c_chan *i2c_bus;
 };
 
 struct gma_connector {
@@ -171,7 +140,7 @@ struct gma_crtc {
 	int pipe;
 	int plane;
 	uint32_t cursor_addr;
-	struct gtt_range *cursor_gt;
+	struct psb_gem_object *cursor_pobj;
 	u8 lut_adj[256];
 	struct psb_intel_framebuffer *fbdev_fb;
 	/* a mode_set for fbdev users on this crtc */
@@ -194,6 +163,8 @@ struct gma_crtc {
 	struct psb_intel_crtc_state *crtc_state;
 
 	const struct gma_clock_funcs *clock_funcs;
+
+	struct drm_pending_vblank_event *page_flip_event;
 };
 
 #define to_gma_crtc(x)	\
@@ -204,10 +175,12 @@ struct gma_crtc {
 		container_of(x, struct gma_encoder, base)
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
+#define to_gma_i2c_chan(x)	\
+		container_of(x, struct gma_i2c_chan, base)
 
-struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
-					const u32 reg, const char *name);
-void psb_intel_i2c_destroy(struct psb_intel_i2c_chan *chan);
+struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
+				    const char *name);
+void gma_i2c_destroy(struct gma_i2c_chan *chan);
 int psb_intel_ddc_get_modes(struct drm_connector *connector,
 			    struct i2c_adapter *adapter);
 extern bool psb_intel_ddc_probe(struct i2c_adapter *adapter);
@@ -226,7 +199,7 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 extern void oaktrail_wait_for_INTR_PKT_SENT(struct drm_device *dev);
 extern void oaktrail_dsi_init(struct drm_device *dev,
 			   struct psb_intel_mode_device *mode_dev);
-extern void oaktrail_lvds_i2c_init(struct drm_encoder *encoder);
+struct gma_i2c_chan *oaktrail_lvds_i2c_init(struct drm_device *dev);
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
 
@@ -261,7 +234,6 @@ extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 					struct drm_property *property,
 					uint64_t value);
 extern void psb_intel_lvds_destroy(struct drm_connector *connector);
-extern const struct drm_encoder_funcs psb_intel_lvds_enc_funcs;
 
 /* intel_gmbus.c */
 extern void gma_intel_i2c_reset(struct drm_device *dev);

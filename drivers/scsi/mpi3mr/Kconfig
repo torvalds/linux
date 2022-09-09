@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config SCSI_MPI3MR
+	tristate "Broadcom MPI3 Storage Controller Device Driver"
+	depends on PCI && SCSI
+	select BLK_DEV_BSGLIB
+	help
+	MPI3 based Storage & RAID Controllers Driver.

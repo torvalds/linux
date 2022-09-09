@@ -1,48 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
 /*
  * Copyright(c) 2015 - 2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #ifndef HFI1_VERBS_H
@@ -72,6 +30,7 @@ struct hfi1_packet;
 
 #include "iowait.h"
 #include "tid_rdma.h"
+#include "opfn.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
 
@@ -106,9 +65,9 @@ enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
 
-#define LRH_16B_BYTES (FIELD_SIZEOF(struct hfi1_16b_header, lrh))
+#define LRH_16B_BYTES (sizeof_field(struct hfi1_16b_header, lrh))
 #define LRH_16B_DWORDS (LRH_16B_BYTES / sizeof(u32))
-#define LRH_9B_BYTES (FIELD_SIZEOF(struct ib_header, lrh))
+#define LRH_9B_BYTES (sizeof_field(struct ib_header, lrh))
 #define LRH_9B_DWORDS (LRH_9B_BYTES / sizeof(u32))
 
 /* 24Bits for qpn, upper 8Bits reserved */
@@ -158,10 +117,69 @@ struct hfi1_qp_priv {
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
 	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
+	struct page **pages;                      /* for TID page scan */
+	u32 tid_enqueue;                          /* saved when tid waited */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
+	struct timer_list s_tid_timer;            /* for timing tid wait */
+	struct timer_list s_tid_retry_timer;      /* for timing tid ack */
+	struct list_head tid_wait;                /* for queueing tid space */
+	struct hfi1_opfn_data opfn;
+	struct tid_flow_state flow_state;
+	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
+	u16 s_running_pkt_size;
 	u8 hdr_type; /* 9B or 16B */
+	struct rvt_sge_state tid_ss;       /* SGE state pointer for 2nd leg */
+	atomic_t n_requests;               /* # of TID RDMA requests in the */
+					   /* queue */
+	atomic_t n_tid_requests;            /* # of sent TID RDMA requests */
+	unsigned long tid_timer_timeout_jiffies;
+	unsigned long tid_retry_timeout_jiffies;
+
+	/* variables for the TID RDMA SE state machine */
+	u8 s_state;
+	u8 s_retry;
+	u8 rnr_nak_state;       /* RNR NAK state */
+	u8 s_nak_state;
+	u32 s_nak_psn;
+	u32 s_flags;
+	u32 s_tid_cur;
+	u32 s_tid_head;
+	u32 s_tid_tail;
+	u32 r_tid_head;     /* Most recently added TID RDMA request */
+	u32 r_tid_tail;     /* the last completed TID RDMA request */
+	u32 r_tid_ack;      /* the TID RDMA request to be ACK'ed */
+	u32 r_tid_alloc;    /* Request for which we are allocating resources */
+	u32 pending_tid_w_segs; /* Num of pending tid write segments */
+	u32 pending_tid_w_resp; /* Num of pending tid write responses */
+	u32 alloc_w_segs;       /* Number of segments for which write */
+			       /* resources have been allocated for this QP */
+
+	/* For TID RDMA READ */
+	u32 tid_r_reqs;         /* Num of tid reads requested */
+	u32 tid_r_comp;         /* Num of tid reads completed */
+	u32 pending_tid_r_segs; /* Num of pending tid read segments */
+	u16 pkts_ps;            /* packets per segment */
+	u8 timeout_shift;       /* account for number of packets per segment */
+
+	u32 r_next_psn_kdeth;
+	u32 r_next_psn_kdeth_save;
+	u32 s_resync_psn;
+	u8 sync_pt;           /* Set when QP reaches sync point */
+	u8 resync;
+};
+
+#define HFI1_QP_WQE_INVALID   ((u32)-1)
+
+struct hfi1_swqe_priv {
+	struct tid_rdma_request tid_req;
+	struct rvt_sge_state ss;  /* Used for TID RDMA READ Request */
+};
+
+struct hfi1_ack_priv {
+	struct rvt_sge_state ss;               /* used for TID WRITE RESP */
+	struct tid_rdma_request tid_req;
 };
 
 /*
@@ -225,6 +243,7 @@ struct hfi1_ibdev {
 	struct kmem_cache *verbs_txreq_cache;
 	u64 n_txwait;
 	u64 n_kmem_wait;
+	u64 n_tidwait;
 
 	/* protect iowait lists */
 	seqlock_t iowait_lock ____cacheline_aligned_in_smp;
@@ -264,14 +283,13 @@ static inline struct rvt_qp *iowait_to_qp(struct iowait *s_iowait)
  */
 void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
 		   u32 qp1, u32 qp2, u32 lid1, u32 lid2);
-void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num);
+void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u32 port_num);
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp);
 void hfi1_node_desc_chg(struct hfi1_ibport *ibp);
-int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
+int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u32 port,
 		     const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		     const struct ib_mad_hdr *in_mad, size_t in_mad_size,
-		     struct ib_mad_hdr *out_mad, size_t *out_mad_size,
-		     u16 *out_mad_pkey_index);
+		     const struct ib_mad *in_mad, struct ib_mad *out_mad,
+		     size_t *out_mad_size, u16 *out_mad_pkey_index);
 
 /*
  * The PSN_MASK and PSN_SHIFT allow for
@@ -312,6 +330,31 @@ static inline u32 delta_psn(u32 a, u32 b)
 	return (((int)a - (int)b) << PSN_SHIFT) >> PSN_SHIFT;
 }
 
+static inline struct tid_rdma_request *wqe_to_tid_req(struct rvt_swqe *wqe)
+{
+	return &((struct hfi1_swqe_priv *)wqe->priv)->tid_req;
+}
+
+static inline struct tid_rdma_request *ack_to_tid_req(struct rvt_ack_entry *e)
+{
+	return &((struct hfi1_ack_priv *)e->priv)->tid_req;
+}
+
+/*
+ * Look through all the active flows for a TID RDMA request and find
+ * the one (if it exists) that contains the specified PSN.
+ */
+static inline u32 __full_flow_psn(struct flow_state *state, u32 psn)
+{
+	return mask_psn((state->generation << HFI1_KDETH_BTH_SEQ_SHIFT) |
+			(psn & HFI1_KDETH_BTH_SEQ_MASK));
+}
+
+static inline u32 full_flow_psn(struct tid_rdma_flow *flow, u32 psn)
+{
+	return __full_flow_psn(&flow->flow_state, psn);
+}
+
 struct verbs_txreq;
 void hfi1_put_txreq(struct verbs_txreq *tx);
 
@@ -330,6 +373,7 @@ void hfi1_rc_hdrerr(
 
 u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
+void hfi1_rc_verbs_aborted(struct rvt_qp *qp, struct hfi1_opa_header *opah);
 void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah);
 
 void hfi1_ud_rcv(struct hfi1_packet *packet);
@@ -356,8 +400,11 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  const struct ib_global_route *grh, u32 hwords, u32 nwords);
 
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
-			  u32 bth0, u32 bth2, int middle,
+			  u32 bth0, u32 bth1, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps);
+
+bool hfi1_schedule_send_yield(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
+			      bool tid);
 
 void _hfi1_do_send(struct work_struct *work);
 
@@ -377,6 +424,10 @@ int hfi1_register_ib_device(struct hfi1_devdata *);
 
 void hfi1_unregister_ib_device(struct hfi1_devdata *);
 
+void hfi1_kdeth_eager_rcv(struct hfi1_packet *packet);
+
+void hfi1_kdeth_expected_rcv(struct hfi1_packet *packet);
+
 void hfi1_ib_rcv(struct hfi1_packet *packet);
 
 void hfi1_16B_rcv(struct hfi1_packet *packet);
@@ -392,6 +443,16 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
 {
 	return ohdr->bth[1] & cpu_to_be32(OPA_BTH_MIG_REQ);
+}
+
+void hfi1_wait_kmem(struct rvt_qp *qp);
+
+static inline void hfi1_trdma_send_complete(struct rvt_qp *qp,
+					    struct rvt_swqe *wqe,
+					    enum ib_wc_status status)
+{
+	trdma_clean_swqe(qp, wqe);
+	rvt_send_complete(qp, wqe, status);
 }
 
 extern const enum ib_wc_opcode ib_hfi1_wc_opcode[];

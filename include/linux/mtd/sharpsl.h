@@ -1,15 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * SharpSL NAND support
  *
  * Copyright (C) 2008 Dmitry Baryshkov
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#ifndef _MTD_SHARPSL_H
+#define _MTD_SHARPSL_H
+
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
 struct sharpsl_nand_platform_data {
@@ -19,3 +18,5 @@ struct sharpsl_nand_platform_data {
 	unsigned int		nr_partitions;
 	const char *const	*part_parsers;
 };
+
+#endif /* _MTD_SHARPSL_H */

@@ -1,12 +1,4 @@
-What		/sys/bus/iio/devices/iio:deviceX/sensor_sensitivity
-Date:		January 2017
-KernelVersion:	4.11
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Show or set the gain boost of the amp, from 0-31 range.
-		default 31
-
-What		/sys/bus/iio/devices/iio:deviceX/sensor_max_range
+What:		/sys/bus/iio/devices/iio:deviceX/sensor_max_range
 Date:		January 2017
 KernelVersion:	4.11
 Contact:	linux-iio@vger.kernel.org
@@ -15,8 +7,11 @@ Description:
 		first object echoed in meters. Default value is 6.020.
 		This setting limits the time the driver is waiting for a
 		echo.
+
 		Showing the range of available values is represented as the
 		minimum value, the step and the maximum value, all enclosed
 		in square brackets.
-		Example:
-		[0.043 0.043 11.008]
+
+		Example::
+
+			[0.043 0.043 11.008]

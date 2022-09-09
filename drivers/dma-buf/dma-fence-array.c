@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * dma-fence-array: aggregate fences to be waited together
  *
@@ -6,20 +7,13 @@
  * Authors:
  *	Gustavo Padovan <gustavo@padovan.org>
  *	Christian König <christian.koenig@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/dma-fence-array.h>
+
+#define PENDING_ERROR 1
 
 static const char *dma_fence_array_get_driver_name(struct dma_fence *fence)
 {
@@ -31,9 +25,28 @@ static const char *dma_fence_array_get_timeline_name(struct dma_fence *fence)
 	return "unbound";
 }
 
+static void dma_fence_array_set_pending_error(struct dma_fence_array *array,
+					      int error)
+{
+	/*
+	 * Propagate the first error reported by any of our fences, but only
+	 * before we ourselves are signaled.
+	 */
+	if (error)
+		cmpxchg(&array->base.error, PENDING_ERROR, error);
+}
+
+static void dma_fence_array_clear_pending_error(struct dma_fence_array *array)
+{
+	/* Clear the error flag if not actually set. */
+	cmpxchg(&array->base.error, PENDING_ERROR, 0);
+}
+
 static void irq_dma_fence_array_work(struct irq_work *wrk)
 {
 	struct dma_fence_array *array = container_of(wrk, typeof(*array), work);
+
+	dma_fence_array_clear_pending_error(array);
 
 	dma_fence_signal(&array->base);
 	dma_fence_put(&array->base);
@@ -45,6 +58,8 @@ static void dma_fence_array_cb_func(struct dma_fence *f,
 	struct dma_fence_array_cb *array_cb =
 		container_of(cb, struct dma_fence_array_cb, cb);
 	struct dma_fence_array *array = array_cb->array;
+
+	dma_fence_array_set_pending_error(array, f->error);
 
 	if (atomic_dec_and_test(&array->num_pending))
 		irq_work_queue(&array->work);
@@ -71,9 +86,14 @@ static bool dma_fence_array_enable_signaling(struct dma_fence *fence)
 		dma_fence_get(&array->base);
 		if (dma_fence_add_callback(array->fences[i], &cb[i].cb,
 					   dma_fence_array_cb_func)) {
+			int error = array->fences[i]->error;
+
+			dma_fence_array_set_pending_error(array, error);
 			dma_fence_put(&array->base);
-			if (atomic_dec_and_test(&array->num_pending))
+			if (atomic_dec_and_test(&array->num_pending)) {
+				dma_fence_array_clear_pending_error(array);
 				return false;
+			}
 		}
 	}
 
@@ -84,7 +104,11 @@ static bool dma_fence_array_signaled(struct dma_fence *fence)
 {
 	struct dma_fence_array *array = to_dma_fence_array(fence);
 
-	return atomic_read(&array->num_pending) <= 0;
+	if (atomic_read(&array->num_pending) > 0)
+		return false;
+
+	dma_fence_array_clear_pending_error(array);
+	return true;
 }
 
 static void dma_fence_array_release(struct dma_fence *fence)
@@ -135,6 +159,8 @@ struct dma_fence_array *dma_fence_array_create(int num_fences,
 	struct dma_fence_array *array;
 	size_t size = sizeof(*array);
 
+	WARN_ON(!num_fences || !fences);
+
 	/* Allocate the callback structures behind the array. */
 	size += num_fences * sizeof(struct dma_fence_array_cb);
 	array = kzalloc(size, GFP_KERNEL);
@@ -149,6 +175,22 @@ struct dma_fence_array *dma_fence_array_create(int num_fences,
 	array->num_fences = num_fences;
 	atomic_set(&array->num_pending, signal_on_any ? 1 : num_fences);
 	array->fences = fences;
+
+	array->base.error = PENDING_ERROR;
+
+	/*
+	 * dma_fence_array objects should never contain any other fence
+	 * containers or otherwise we run into recursion and potential kernel
+	 * stack overflow on operations on the dma_fence_array.
+	 *
+	 * The correct way of handling this is to flatten out the array by the
+	 * caller instead.
+	 *
+	 * Enforce this here by checking that we don't create a dma_fence_array
+	 * with any container inside.
+	 */
+	while (num_fences--)
+		WARN_ON(dma_fence_is_container(fences[num_fences]));
 
 	return array;
 }
@@ -179,3 +221,33 @@ bool dma_fence_match_context(struct dma_fence *fence, u64 context)
 	return true;
 }
 EXPORT_SYMBOL(dma_fence_match_context);
+
+struct dma_fence *dma_fence_array_first(struct dma_fence *head)
+{
+	struct dma_fence_array *array;
+
+	if (!head)
+		return NULL;
+
+	array = to_dma_fence_array(head);
+	if (!array)
+		return head;
+
+	if (!array->num_fences)
+		return NULL;
+
+	return array->fences[0];
+}
+EXPORT_SYMBOL(dma_fence_array_first);
+
+struct dma_fence *dma_fence_array_next(struct dma_fence *head,
+				       unsigned int index)
+{
+	struct dma_fence_array *array = to_dma_fence_array(head);
+
+	if (!array || index >= array->num_fences)
+		return NULL;
+
+	return array->fences[index];
+}
+EXPORT_SYMBOL(dma_fence_array_next);

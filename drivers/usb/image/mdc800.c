@@ -38,7 +38,7 @@
  *
  * version 0.7.3
  * bugfix : The mdc800->state field gets set to READY after the
- * the disconnect function sets it to NOT_CONNECTED. This makes the
+ * disconnect function sets it to NOT_CONNECTED. This makes the
  * driver running like the camera is connected and causes some
  * hang ups.
  *
@@ -880,7 +880,7 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 						return -EIO;
 					}
 					mdc800->pic_len=-1;
-					/* fall through */
+					fallthrough;
 
 				case 0x09: /* Download Thumbnail */
 					mdc800->download_left=answersize+64;

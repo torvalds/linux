@@ -6,50 +6,54 @@ Description:
 		The /sys/class/rapidio_port subdirectory contains individual
 		subdirectories named as "rapidioN" where N = mport ID registered
 		with RapidIO subsystem.
+
 		NOTE: An mport ID is not a RapidIO destination ID assigned to a
 		given local mport device.
 
-What:		/sys/class/rapidio_port/rapidioN/sys_size
+What:		/sys/class/rapidio_port/rapidio<N>/sys_size
 Date:		Apr, 2014
 KernelVersion:	v3.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
 Description:
 		(RO) reports RapidIO common transport system size:
+
 		0 = small (8-bit destination ID, max. 256 devices),
+
 		1 = large (16-bit destination ID, max. 65536 devices).
 
-What:		/sys/class/rapidio_port/rapidioN/port_destid
+What:		/sys/class/rapidio_port/rapidio<N>/port_destid
 Date:		Apr, 2014
 KernelVersion:	v3.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
 		Alexandre Bounine <alexandre.bounine@idt.com>
 Description:
-		(RO) reports RapidIO destination ID assigned to the given
-		RapidIO mport device. If value 0xFFFFFFFF is returned this means
-		that no valid destination ID have been assigned to the mport
-		(yet). Normally, before enumeration/discovery have been executed
-		only fabric enumerating mports have a valid destination ID
-		assigned to them using "hdid=..." rapidio module parameter.
+
+(RO) reports RapidIO destination ID assigned to the given
+RapidIO mport device. If value 0xFFFFFFFF is returned this means
+that no valid destination ID have been assigned to the mport
+(yet). Normally, before enumeration/discovery have been executed
+only fabric enumerating mports have a valid destination ID
+assigned to them using "hdid=..." rapidio module parameter.
 
 After enumeration or discovery was performed for a given mport device,
 the corresponding subdirectory will also contain subdirectories for each
 child RapidIO device connected to the mport.
 
 The example below shows mport device subdirectory with several child RapidIO
-devices attached to it.
+devices attached to it::
 
-[rio@rapidio ~]$ ls /sys/class/rapidio_port/rapidio0/ -l
-total 0
-drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0001
-drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0004
-drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0007
-drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0002
-drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0003
-drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0005
-lrwxrwxrwx 1 root root    0 Feb 11 15:11 device -> ../../../0000:01:00.0
--r--r--r-- 1 root root 4096 Feb 11 15:11 port_destid
-drwxr-xr-x 2 root root    0 Feb 11 15:11 power
-lrwxrwxrwx 1 root root    0 Feb 11 15:04 subsystem -> ../../../../../../class/rapidio_port
--r--r--r-- 1 root root 4096 Feb 11 15:11 sys_size
--rw-r--r-- 1 root root 4096 Feb 11 15:04 uevent
+    [rio@rapidio ~]$ ls /sys/class/rapidio_port/rapidio0/ -l
+    total 0
+    drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0001
+    drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0004
+    drwxr-xr-x 3 root root    0 Feb 11 15:10 00:e:0007
+    drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0002
+    drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0003
+    drwxr-xr-x 3 root root    0 Feb 11 15:10 00:s:0005
+    lrwxrwxrwx 1 root root    0 Feb 11 15:11 device -> ../../../0000:01:00.0
+    -r--r--r-- 1 root root 4096 Feb 11 15:11 port_destid
+    drwxr-xr-x 2 root root    0 Feb 11 15:11 power
+    lrwxrwxrwx 1 root root    0 Feb 11 15:04 subsystem -> ../../../../../../class/rapidio_port
+    -r--r--r-- 1 root root 4096 Feb 11 15:11 sys_size
+    -rw-r--r-- 1 root root 4096 Feb 11 15:04 uevent

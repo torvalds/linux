@@ -2,18 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test reading of set_ftrace_filter
 #
+# The triggers are set within the set_ftrace_filter file
+# requires: set_ftrace_filter
+#
 # The set_ftrace_filter file of ftrace is used to list functions as well as
 # triggers (probes) attached to functions. The code to read this file is not
 # straight forward and has had various bugs in the past. This test is designed
 # to add functions and triggers to that file in various ways and read that
 # file in various ways (cat vs dd).
 #
-
-# The triggers are set within the set_ftrace_filter file
-if [ ! -f set_ftrace_filter ]; then
-    echo "set_ftrace_filter not found? Is dynamic ftrace not set?"
-    exit_unsupported
-fi
 
 fail() { # mesg
     echo $1
@@ -22,7 +19,7 @@ fail() { # mesg
 
 FILTER=set_ftrace_filter
 FUNC1="schedule"
-FUNC2="do_softirq"
+FUNC2="scheduler_tick"
 
 ALL_FUNCS="#### all functions enabled ####"
 

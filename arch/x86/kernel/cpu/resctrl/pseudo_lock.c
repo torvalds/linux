@@ -24,7 +24,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/intel-family.h>
-#include <asm/resctrl_sched.h>
+#include <asm/resctrl.h>
 #include <asm/perf_event.h>
 
 #include "../../events/perf_event.h" /* For X86_CONFIG() */
@@ -32,13 +32,6 @@
 
 #define CREATE_TRACE_POINTS
 #include "pseudo_lock_event.h"
-
-/*
- * MSR_MISC_FEATURE_CONTROL register enables the modification of hardware
- * prefetcher state. Details about this register can be found in the MSR
- * tables for specific platforms found in Intel's SDM.
- */
-#define MSR_MISC_FEATURE_CONTROL	0x000001a4
 
 /*
  * The bits needed to disable hardware prefetching varies based on the
@@ -56,6 +49,7 @@ static struct class *pseudo_lock_class;
 
 /**
  * get_prefetch_disable_bits - prefetch disable bits of supported platforms
+ * @void: It takes no parameters.
  *
  * Capture the list of platforms that have been validated to support
  * pseudo-locking. This includes testing to ensure pseudo-locked regions
@@ -169,7 +163,7 @@ static struct rdtgroup *region_find_by_minor(unsigned int minor)
 }
 
 /**
- * pseudo_lock_pm_req - A power management QoS request list entry
+ * struct pseudo_lock_pm_req - A power management QoS request list entry
  * @list:	Entry within the @pm_reqs list for a pseudo-locked region
  * @req:	PM QoS request
  */
@@ -191,6 +185,7 @@ static void pseudo_lock_cstates_relax(struct pseudo_lock_region *plr)
 
 /**
  * pseudo_lock_cstates_constrain - Restrict cores from entering C6
+ * @plr: Pseudo-locked region
  *
  * To prevent the cache from being affected by power management entering
  * C6 has to be avoided. This is accomplished by requesting a latency
@@ -203,6 +198,8 @@ static void pseudo_lock_cstates_relax(struct pseudo_lock_region *plr)
  * the ACPI latencies need to be considered while keeping in mind that C2
  * may be set to map to deeper sleep states. In this case the latency
  * requirement needs to prevent entering C2 also.
+ *
+ * Return: 0 on success, <0 on failure
  */
 static int pseudo_lock_cstates_constrain(struct pseudo_lock_region *plr)
 {
@@ -253,7 +250,7 @@ static void pseudo_lock_region_clear(struct pseudo_lock_region *plr)
 	plr->line_size = 0;
 	kfree(plr->kmem);
 	plr->kmem = NULL;
-	plr->r = NULL;
+	plr->s = NULL;
 	if (plr->d)
 		plr->d->plr = NULL;
 	plr->d = NULL;
@@ -297,10 +294,10 @@ static int pseudo_lock_region_init(struct pseudo_lock_region *plr)
 
 	ci = get_cpu_cacheinfo(plr->cpu);
 
-	plr->size = rdtgroup_cbm_to_size(plr->r, plr->d, plr->cbm);
+	plr->size = rdtgroup_cbm_to_size(plr->s->res, plr->d, plr->cbm);
 
 	for (i = 0; i < ci->num_leaves; i++) {
-		if (ci->info_list[i].level == plr->r->cache_level) {
+		if (ci->info_list[i].level == plr->s->res->cache_level) {
 			plr->line_size = ci->info_list[i].coherency_line_size;
 			return 0;
 		}
@@ -438,11 +435,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 #else
 	register unsigned int line_size asm("esi");
 	register unsigned int size asm("edi");
-#ifdef CONFIG_X86_64
-	register void *mem_r asm("rbx");
-#else
-	register void *mem_r asm("ebx");
-#endif /* CONFIG_X86_64 */
+	register void *mem_r asm(_ASM_BX);
 #endif /* CONFIG_KASAN */
 
 	/*
@@ -531,7 +524,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 
 /**
  * rdtgroup_monitor_in_progress - Test if monitoring in progress
- * @r: resource group being queried
+ * @rdtgrp: resource group being queried
  *
  * Return: 1 if monitor groups have been created for this resource
  * group, 0 otherwise.
@@ -695,8 +688,8 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 *   resource, the portion of cache used by it should be made
 	 *   unavailable to all future allocations from both resources.
 	 */
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled ||
-	    rdt_resources_all[RDT_RESOURCE_L2DATA].alloc_enabled) {
+	if (resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L3) ||
+	    resctrl_arch_get_cdp_enabled(RDT_RESOURCE_L2)) {
 		rdt_last_cmd_puts("CDP enabled\n");
 		return -EINVAL;
 	}
@@ -807,7 +800,7 @@ bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, unsigned long cbm
 	unsigned long cbm_b;
 
 	if (d->plr) {
-		cbm_len = d->plr->r->cache.cbm_len;
+		cbm_len = d->plr->s->res->cache.cbm_len;
 		cbm_b = d->plr->cbm;
 		if (bitmap_intersects(&cbm, &cbm_b, cbm_len))
 			return true;
@@ -1151,6 +1144,8 @@ out:
 
 /**
  * pseudo_lock_measure_cycles - Trigger latency measure to pseudo-locked region
+ * @rdtgrp: Resource group to which the pseudo-locked region belongs.
+ * @sel: Selector of which measurement to perform on a pseudo-locked region.
  *
  * The measurement of latency to access a pseudo-locked region should be
  * done from a cpu that is associated with that pseudo-locked region.
@@ -1318,7 +1313,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		 * If the thread does not get on the CPU for whatever
 		 * reason and the process which sets up the region is
 		 * interrupted then this will leave the thread in runnable
-		 * state and once it gets on the CPU it will derefence
+		 * state and once it gets on the CPU it will dereference
 		 * the cleared, but not freed, plr struct resulting in an
 		 * empty pseudo-locking loop.
 		 */
@@ -1337,9 +1332,9 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	 * pseudo-locked region will still be here on return.
 	 *
 	 * The mutex has to be released temporarily to avoid a potential
-	 * deadlock with the mm->mmap_sem semaphore which is obtained in
-	 * the device_create() and debugfs_create_dir() callpath below
-	 * as well as before the mmap() callback is called.
+	 * deadlock with the mm->mmap_lock which is obtained in the
+	 * device_create() and debugfs_create_dir() callpath below as well as
+	 * before the mmap() callback is called.
 	 */
 	mutex_unlock(&rdtgroup_mutex);
 
@@ -1402,7 +1397,7 @@ out:
  * group is removed from user space via a "rmdir" from userspace or the
  * unmount of the resctrl filesystem. On removal the resource group does
  * not go back to pseudo-locksetup mode before it is removed, instead it is
- * removed directly. There is thus assymmetry with the creation where the
+ * removed directly. There is thus asymmetry with the creation where the
  * &struct pseudo_lock_region is removed here while it was not created in
  * rdtgroup_pseudo_lock_create().
  *
@@ -1510,7 +1505,7 @@ static int pseudo_lock_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 	 * may be scheduled elsewhere and invalidate entries in the
 	 * pseudo-locked region.
 	 */
-	if (!cpumask_subset(&current->cpus_allowed, &plr->d->cpu_mask)) {
+	if (!cpumask_subset(current->cpus_ptr, &plr->d->cpu_mask)) {
 		mutex_unlock(&rdtgroup_mutex);
 		return -EINVAL;
 	}

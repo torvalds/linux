@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom Brahma-B15 CPU read-ahead cache management functions
  *
  * Copyright (C) 2015-2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -77,7 +74,7 @@ static inline void __b15_rac_flush(void)
 	__raw_writel(FLUSH_RAC, b15_rac_base + rac_flush_offset);
 	do {
 		/* This dmb() is required to force the Bus Interface Unit
-		 * to clean oustanding writes, and forces an idle cycle
+		 * to clean outstanding writes, and forces an idle cycle
 		 * to be inserted.
 		 */
 		dmb();
@@ -361,8 +358,7 @@ static int __init b15_rac_init(void)
 	set_bit(RAC_ENABLED, &b15_rac_flags);
 	spin_unlock(&rac_lock);
 
-	pr_info("Broadcom Brahma-B15 readahead cache at: 0x%p\n",
-		b15_rac_base + RAC_CONFIG0_REG);
+	pr_info("%pOF: Broadcom Brahma-B15 readahead cache\n", dn);
 
 	goto out;
 

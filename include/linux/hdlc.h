@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Generic HDLC support routines for Linux
  *
  * Copyright (C) 1999-2005 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 #ifndef __HDLC_H
 #define __HDLC_H
@@ -25,7 +22,7 @@ struct hdlc_proto {
 	void (*start)(struct net_device *dev); /* if open & DCD */
 	void (*stop)(struct net_device *dev); /* if open & !DCD */
 	void (*detach)(struct net_device *dev);
-	int (*ioctl)(struct net_device *dev, struct ifreq *ifr);
+	int (*ioctl)(struct net_device *dev, struct if_settings *ifs);
 	__be16 (*type_trans)(struct sk_buff *skb, struct net_device *dev);
 	int (*netif_rx)(struct sk_buff *skb);
 	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *dev);
@@ -57,7 +54,7 @@ typedef struct hdlc_device {
 /* Exported from hdlc module */
 
 /* Called by hardware driver when a user requests HDLC service */
-int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+int hdlc_ioctl(struct net_device *dev, struct if_settings *ifs);
 
 /* Must be used by hardware driver on module startup/exit */
 #define register_hdlc_device(dev)	register_netdev(dev)

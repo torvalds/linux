@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 ///
 /// Remove unneeded variable used to store return value.
 ///
 // Confidence: Moderate
-// Copyright: (C) 2012 Peter Senna Tschudin, INRIA/LIP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2012 Peter Senna Tschudin, INRIA/LIP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments: Comments on code can be deleted if near code that is removed.
 //           "when strict" can be removed to get more hits, but adds false
 //           positives

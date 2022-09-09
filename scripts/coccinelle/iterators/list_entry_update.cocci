@@ -1,13 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// list_for_each_entry uses its first argument to get from one element of
 /// the list to the next, so it is usually not a good idea to reassign it.
 /// The first rule finds such a reassignment and the second rule checks
 /// that there is a path from the reassignment back to the top of the loop.
 ///
 // Confidence: High
-// Copyright: (C) 2010 Nicolas Palix, DIKU.  GPLv2.
-// Copyright: (C) 2010 Julia Lawall, DIKU.  GPLv2.
-// Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2010 Nicolas Palix, DIKU.
+// Copyright: (C) 2010 Julia Lawall, DIKU.
+// Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 

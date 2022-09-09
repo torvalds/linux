@@ -9,7 +9,6 @@
 int main(void)
 {
 	/* offsets into the task struct */
-	DEFINE(TASK_STATE,        offsetof(struct task_struct, state));
 	DEFINE(TASK_THREAD_INFO,  offsetof(struct task_struct, stack));
 	DEFINE(TASK_FLAGS,        offsetof(struct task_struct, flags));
 	DEFINE(TASK_PTRACE,       offsetof(struct task_struct, ptrace));
@@ -18,8 +17,7 @@ int main(void)
 	DEFINE(TASK_ACTIVE_MM,    offsetof(struct task_struct, active_mm));
 
 	/* offsets into the thread struct */
-	DEFINE(THREAD_KSP,        offsetof(struct thread_struct, ksp));
-	DEFINE(THREAD_SR,         offsetof(struct thread_struct, sr));
+	DEFINE(THREAD_KSP,        offsetof(struct thread_struct, sp));
 	DEFINE(THREAD_FESR,       offsetof(struct thread_struct, user_fp.fesr));
 	DEFINE(THREAD_FCR,        offsetof(struct thread_struct, user_fp.fcr));
 	DEFINE(THREAD_FPREG,      offsetof(struct thread_struct, user_fp.vr));
@@ -27,7 +25,6 @@ int main(void)
 	/* offsets into the thread_info struct */
 	DEFINE(TINFO_FLAGS,       offsetof(struct thread_info, flags));
 	DEFINE(TINFO_PREEMPT,     offsetof(struct thread_info, preempt_count));
-	DEFINE(TINFO_ADDR_LIMIT,  offsetof(struct thread_info, addr_limit));
 	DEFINE(TINFO_TP_VALUE,   offsetof(struct thread_info, tp_value));
 	DEFINE(TINFO_TASK,        offsetof(struct thread_info, task));
 
@@ -72,6 +69,7 @@ int main(void)
 	DEFINE(PT_RLO,            offsetof(struct pt_regs, rlo));
 #endif
 	DEFINE(PT_USP,            offsetof(struct pt_regs, usp));
+	DEFINE(PT_FRAME_SIZE,     sizeof(struct pt_regs));
 
 	/* offsets into the irq_cpustat_t struct */
 	DEFINE(CPUSTAT_SOFTIRQ_PENDING, offsetof(irq_cpustat_t,

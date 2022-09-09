@@ -1,15 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/domain_governor.c - Governors for device PM domains.
  *
  * Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
-
 #include <linux/kernel.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_qos.h>
 #include <linux/hrtimer.h>
+#include <linux/cpuidle.h>
+#include <linux/cpumask.h>
+#include <linux/ktime.h>
 
 static int dev_update_qos_constraint(struct device *dev, void *data)
 {
@@ -17,6 +18,8 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 	s64 constraint_ns;
 
 	if (dev->power.subsys_data && dev->power.subsys_data->domain_data) {
+		struct gpd_timing_data *td = dev_gpd_data(dev)->td;
+
 		/*
 		 * Only take suspend-time QoS constraints of devices into
 		 * account, because constraints updated after the device has
@@ -24,7 +27,8 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 		 * anyway.  In order for them to take effect, the device has to
 		 * be resumed and suspended again.
 		 */
-		constraint_ns = dev_gpd_data(dev)->td.effective_constraint_ns;
+		constraint_ns = td ? td->effective_constraint_ns :
+				PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
 	} else {
 		/*
 		 * The child is not in a domain and there's no info on its
@@ -32,7 +36,7 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 		 * take its current PM QoS constraint (that's the only thing
 		 * known at this point anyway).
 		 */
-		constraint_ns = dev_pm_qos_read_value(dev);
+		constraint_ns = dev_pm_qos_read_value(dev, DEV_PM_QOS_RESUME_LATENCY);
 		constraint_ns *= NSEC_PER_USEC;
 	}
 
@@ -48,7 +52,7 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
  */
 static bool default_suspend_ok(struct device *dev)
 {
-	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	struct gpd_timing_data *td = dev_gpd_data(dev)->td;
 	unsigned long flags;
 	s64 constraint_ns;
 
@@ -65,7 +69,7 @@ static bool default_suspend_ok(struct device *dev)
 	td->constraint_changed = false;
 	td->cached_suspend_ok = false;
 	td->effective_constraint_ns = 0;
-	constraint_ns = __dev_pm_qos_read_value(dev);
+	constraint_ns = __dev_pm_qos_resume_latency(dev);
 
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 
@@ -116,6 +120,57 @@ static bool default_suspend_ok(struct device *dev)
 	return td->cached_suspend_ok;
 }
 
+static void update_domain_next_wakeup(struct generic_pm_domain *genpd, ktime_t now)
+{
+	ktime_t domain_wakeup = KTIME_MAX;
+	ktime_t next_wakeup;
+	struct pm_domain_data *pdd;
+	struct gpd_link *link;
+
+	if (!(genpd->flags & GENPD_FLAG_MIN_RESIDENCY))
+		return;
+
+	/*
+	 * Devices that have a predictable wakeup pattern, may specify
+	 * their next wakeup. Let's find the next wakeup from all the
+	 * devices attached to this domain and from all the sub-domains.
+	 * It is possible that component's a next wakeup may have become
+	 * stale when we read that here. We will ignore to ensure the domain
+	 * is able to enter its optimal idle state.
+	 */
+	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+		next_wakeup = to_gpd_data(pdd)->td->next_wakeup;
+		if (next_wakeup != KTIME_MAX && !ktime_before(next_wakeup, now))
+			if (ktime_before(next_wakeup, domain_wakeup))
+				domain_wakeup = next_wakeup;
+	}
+
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		struct genpd_governor_data *cgd = link->child->gd;
+
+		next_wakeup = cgd ? cgd->next_wakeup : KTIME_MAX;
+		if (next_wakeup != KTIME_MAX && !ktime_before(next_wakeup, now))
+			if (ktime_before(next_wakeup, domain_wakeup))
+				domain_wakeup = next_wakeup;
+	}
+
+	genpd->gd->next_wakeup = domain_wakeup;
+}
+
+static bool next_wakeup_allows_state(struct generic_pm_domain *genpd,
+				     unsigned int state, ktime_t now)
+{
+	ktime_t domain_wakeup = genpd->gd->next_wakeup;
+	s64 idle_time_ns, min_sleep_ns;
+
+	min_sleep_ns = genpd->states[state].power_off_latency_ns +
+		       genpd->states[state].residency_ns;
+
+	idle_time_ns = ktime_to_ns(ktime_sub(domain_wakeup, now));
+
+	return idle_time_ns >= min_sleep_ns;
+}
+
 static bool __default_power_down_ok(struct dev_pm_domain *pd,
 				     unsigned int state)
 {
@@ -128,16 +183,16 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 	off_on_time_ns = genpd->states[state].power_off_latency_ns +
 		genpd->states[state].power_on_latency_ns;
 
-
 	min_off_time_ns = -1;
 	/*
 	 * Check if subdomains can be off for enough time.
 	 *
 	 * All subdomains have been powered off already at this point.
 	 */
-	list_for_each_entry(link, &genpd->master_links, master_node) {
-		struct generic_pm_domain *sd = link->slave;
-		s64 sd_max_off_ns = sd->max_off_time_ns;
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		struct genpd_governor_data *cgd = link->child->gd;
+
+		s64 sd_max_off_ns = cgd ? cgd->max_off_time_ns : -1;
 
 		if (sd_max_off_ns < 0)
 			continue;
@@ -166,7 +221,7 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 		 * domain to turn off and on (that's how much time it will
 		 * have to wait worst case).
 		 */
-		td = &to_gpd_data(pdd)->td;
+		td = to_gpd_data(pdd)->td;
 		constraint_ns = td->effective_constraint_ns;
 		/*
 		 * Zero means "no suspend at all" and this runs only when all
@@ -195,55 +250,153 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 	 * time and the time needed to turn the domain on is the maximum
 	 * theoretical time this domain can spend in the "off" state.
 	 */
-	genpd->max_off_time_ns = min_off_time_ns -
+	genpd->gd->max_off_time_ns = min_off_time_ns -
 		genpd->states[state].power_on_latency_ns;
 	return true;
 }
 
 /**
- * default_power_down_ok - Default generic PM domain power off governor routine.
+ * _default_power_down_ok - Default generic PM domain power off governor routine.
  * @pd: PM domain to check.
+ * @now: current ktime.
  *
  * This routine must be executed under the PM domain's lock.
  */
-static bool default_power_down_ok(struct dev_pm_domain *pd)
+static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 {
 	struct generic_pm_domain *genpd = pd_to_genpd(pd);
+	struct genpd_governor_data *gd = genpd->gd;
+	int state_idx = genpd->state_count - 1;
 	struct gpd_link *link;
 
-	if (!genpd->max_off_time_changed)
-		return genpd->cached_power_down_ok;
-
 	/*
-	 * We have to invalidate the cached results for the masters, so
-	 * use the observation that default_power_down_ok() is not
-	 * going to be called for any master until this instance
-	 * returns.
+	 * Find the next wakeup from devices that can determine their own wakeup
+	 * to find when the domain would wakeup and do it for every device down
+	 * the hierarchy. It is not worth while to sleep if the state's residency
+	 * cannot be met.
 	 */
-	list_for_each_entry(link, &genpd->slave_links, slave_node)
-		link->master->max_off_time_changed = true;
-
-	genpd->max_off_time_ns = -1;
-	genpd->max_off_time_changed = false;
-	genpd->cached_power_down_ok = true;
-	genpd->state_idx = genpd->state_count - 1;
-
-	/* Find a state to power down to, starting from the deepest. */
-	while (!__default_power_down_ok(pd, genpd->state_idx)) {
-		if (genpd->state_idx == 0) {
-			genpd->cached_power_down_ok = false;
-			break;
+	update_domain_next_wakeup(genpd, now);
+	if ((genpd->flags & GENPD_FLAG_MIN_RESIDENCY) && (gd->next_wakeup != KTIME_MAX)) {
+		/* Let's find out the deepest domain idle state, the devices prefer */
+		while (state_idx >= 0) {
+			if (next_wakeup_allows_state(genpd, state_idx, now)) {
+				gd->max_off_time_changed = true;
+				break;
+			}
+			state_idx--;
 		}
-		genpd->state_idx--;
+
+		if (state_idx < 0) {
+			state_idx = 0;
+			gd->cached_power_down_ok = false;
+			goto done;
+		}
 	}
 
-	return genpd->cached_power_down_ok;
+	if (!gd->max_off_time_changed) {
+		genpd->state_idx = gd->cached_power_down_state_idx;
+		return gd->cached_power_down_ok;
+	}
+
+	/*
+	 * We have to invalidate the cached results for the parents, so
+	 * use the observation that default_power_down_ok() is not
+	 * going to be called for any parent until this instance
+	 * returns.
+	 */
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		struct genpd_governor_data *pgd = link->parent->gd;
+
+		if (pgd)
+			pgd->max_off_time_changed = true;
+	}
+
+	gd->max_off_time_ns = -1;
+	gd->max_off_time_changed = false;
+	gd->cached_power_down_ok = true;
+
+	/*
+	 * Find a state to power down to, starting from the state
+	 * determined by the next wakeup.
+	 */
+	while (!__default_power_down_ok(pd, state_idx)) {
+		if (state_idx == 0) {
+			gd->cached_power_down_ok = false;
+			break;
+		}
+		state_idx--;
+	}
+
+done:
+	genpd->state_idx = state_idx;
+	gd->cached_power_down_state_idx = genpd->state_idx;
+	return gd->cached_power_down_ok;
 }
 
-static bool always_on_power_down_ok(struct dev_pm_domain *domain)
+static bool default_power_down_ok(struct dev_pm_domain *pd)
 {
+	return _default_power_down_ok(pd, ktime_get());
+}
+
+#ifdef CONFIG_CPU_IDLE
+static bool cpu_power_down_ok(struct dev_pm_domain *pd)
+{
+	struct generic_pm_domain *genpd = pd_to_genpd(pd);
+	struct cpuidle_device *dev;
+	ktime_t domain_wakeup, next_hrtimer;
+	ktime_t now = ktime_get();
+	s64 idle_duration_ns;
+	int cpu, i;
+
+	/* Validate dev PM QoS constraints. */
+	if (!_default_power_down_ok(pd, now))
+		return false;
+
+	if (!(genpd->flags & GENPD_FLAG_CPU_DOMAIN))
+		return true;
+
+	/*
+	 * Find the next wakeup for any of the online CPUs within the PM domain
+	 * and its subdomains. Note, we only need the genpd->cpus, as it already
+	 * contains a mask of all CPUs from subdomains.
+	 */
+	domain_wakeup = ktime_set(KTIME_SEC_MAX, 0);
+	for_each_cpu_and(cpu, genpd->cpus, cpu_online_mask) {
+		dev = per_cpu(cpuidle_devices, cpu);
+		if (dev) {
+			next_hrtimer = READ_ONCE(dev->next_hrtimer);
+			if (ktime_before(next_hrtimer, domain_wakeup))
+				domain_wakeup = next_hrtimer;
+		}
+	}
+
+	/* The minimum idle duration is from now - until the next wakeup. */
+	idle_duration_ns = ktime_to_ns(ktime_sub(domain_wakeup, now));
+	if (idle_duration_ns <= 0)
+		return false;
+
+	/*
+	 * Find the deepest idle state that has its residency value satisfied
+	 * and by also taking into account the power off latency for the state.
+	 * Start at the state picked by the dev PM QoS constraint validation.
+	 */
+	i = genpd->state_idx;
+	do {
+		if (idle_duration_ns >= (genpd->states[i].residency_ns +
+		    genpd->states[i].power_off_latency_ns)) {
+			genpd->state_idx = i;
+			return true;
+		}
+	} while (--i >= 0);
+
 	return false;
 }
+
+struct dev_power_governor pm_domain_cpu_gov = {
+	.suspend_ok = default_suspend_ok,
+	.power_down_ok = cpu_power_down_ok,
+};
+#endif
 
 struct dev_power_governor simple_qos_governor = {
 	.suspend_ok = default_suspend_ok,
@@ -254,6 +407,5 @@ struct dev_power_governor simple_qos_governor = {
  * pm_genpd_gov_always_on - A governor implementing an always-on policy
  */
 struct dev_power_governor pm_domain_always_on_gov = {
-	.power_down_ok = always_on_power_down_ok,
 	.suspend_ok = default_suspend_ok,
 };

@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* Copyright (c) 2002-2007 Volkswagen Group Electronic Research
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,32 +53,17 @@ struct receiver {
 	canid_t can_id;
 	canid_t mask;
 	unsigned long matches;
-	void (*func)(struct sk_buff *, void *);
+	void (*func)(struct sk_buff *skb, void *data);
 	void *data;
 	char *ident;
 	struct sock *sk;
 	struct rcu_head rcu;
 };
 
-#define CAN_SFF_RCV_ARRAY_SZ (1 << CAN_SFF_ID_BITS)
-#define CAN_EFF_RCV_HASH_BITS 10
-#define CAN_EFF_RCV_ARRAY_SZ (1 << CAN_EFF_RCV_HASH_BITS)
-
-enum { RX_ERR, RX_ALL, RX_FIL, RX_INV, RX_MAX };
-
-/* per device receive filters linked at dev->ml_priv */
-struct can_dev_rcv_lists {
-	struct hlist_head rx[RX_MAX];
-	struct hlist_head rx_sff[CAN_SFF_RCV_ARRAY_SZ];
-	struct hlist_head rx_eff[CAN_EFF_RCV_ARRAY_SZ];
-	int remove_on_zero_entries;
-	int entries;
-};
-
 /* statistic structures */
 
 /* can be reset e.g. by can_init_stats() */
-struct s_stats {
+struct can_pkg_stats {
 	unsigned long jiffies_init;
 
 	unsigned long rx_frames;
@@ -103,7 +88,7 @@ struct s_stats {
 };
 
 /* persistent statistics */
-struct s_pstats {
+struct can_rcv_lists_stats {
 	unsigned long stats_reset;
 	unsigned long user_reset;
 	unsigned long rcv_entries;

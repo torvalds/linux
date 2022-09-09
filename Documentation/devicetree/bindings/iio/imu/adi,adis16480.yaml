@@ -1,0 +1,130 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/imu/adi,adis16480.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices ADIS16480 and similar IMUs
+
+maintainers:
+  - Alexandru Tachici <alexandru.tachici@analog.com>
+
+properties:
+  compatible:
+    enum:
+      - adi,adis16375
+      - adi,adis16480
+      - adi,adis16485
+      - adi,adis16488
+      - adi,adis16490
+      - adi,adis16495-1
+      - adi,adis16495-2
+      - adi,adis16495-3
+      - adi,adis16497-1
+      - adi,adis16497-2
+      - adi,adis16497-3
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+    description: |
+      Accepted interrupt types are:
+      * IRQ_TYPE_EDGE_RISING
+      * IRQ_TYPE_EDGE_FALLING
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 2
+    description:
+      Default if not supplied is DIO1.
+    items:
+      enum:
+        - DIO1
+        - DIO2
+        - DIO3
+        - DIO4
+
+  spi-max-frequency: true
+
+  spi-cpha: true
+  spi-cpol: true
+
+  reset-gpios:
+    maxItems: 1
+    description: Connected to RESET pin which is active low.
+
+  clocks:
+    maxItems: 1
+    description: If not provided, then the internal clock is used.
+
+  clock-names:
+    description: |
+      sync: In sync mode, the internal clock is disabled and the frequency
+            of the external clock signal establishes therate of data
+            collection and processing. See Fig 14 and 15 in the datasheet.
+            The clock-frequency must be:
+            * 3000 to 4500 Hz for adis1649x devices.
+            * 700 to 2400 Hz for adis1648x devices.
+      pps:  In Pulse Per Second (PPS) Mode, the rate of data collection and
+            production is equal to the product of the external clock
+            frequency and the scale factor in the SYNC_SCALE register, see
+            Table 154 in the datasheet.
+            The clock-frequency must be:
+            * 1 to 128 Hz for adis1649x devices.
+            * This mode is not supported by adis1648x devices.
+    enum:
+      - sync
+      - pps
+
+  adi,ext-clk-pin:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: |
+      The DIOx line to be used as an external clock input.
+      Each DIOx pin supports only one function at a time (data ready line
+      selection or external clock input). When a single pin has two
+      two assignments, the enable bit for the lower priority function
+      automatically resets to zero (disabling the lower priority function).
+      Data ready has highest priority.
+      If not provided then DIO2 is assigned as default external clock
+      input pin.
+    enum:
+      - DIO1
+      - DIO2
+      - DIO3
+      - DIO4
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - spi-cpha
+  - spi-cpol
+  - spi-max-frequency
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        imu@0 {
+            compatible = "adi,adis16495-1";
+            reg = <0>;
+            spi-max-frequency = <3200000>;
+            spi-cpol;
+            spi-cpha;
+            interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-parent = <&gpio>;
+            interrupt-names = "DIO2";
+            clocks = <&adis16495_sync>;
+            clock-names = "sync";
+            adi,ext-clk-pin = "DIO1";
+        };
+    };
+...

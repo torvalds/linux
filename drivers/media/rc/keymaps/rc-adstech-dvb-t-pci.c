@@ -12,16 +12,16 @@
 
 static struct rc_map_table adstech_dvb_t_pci[] = {
 	/* Keys 0 to 9 */
-	{ 0x4d, KEY_0 },
-	{ 0x57, KEY_1 },
-	{ 0x4f, KEY_2 },
-	{ 0x53, KEY_3 },
-	{ 0x56, KEY_4 },
-	{ 0x4e, KEY_5 },
-	{ 0x5e, KEY_6 },
-	{ 0x54, KEY_7 },
-	{ 0x4c, KEY_8 },
-	{ 0x5c, KEY_9 },
+	{ 0x4d, KEY_NUMERIC_0 },
+	{ 0x57, KEY_NUMERIC_1 },
+	{ 0x4f, KEY_NUMERIC_2 },
+	{ 0x53, KEY_NUMERIC_3 },
+	{ 0x56, KEY_NUMERIC_4 },
+	{ 0x4e, KEY_NUMERIC_5 },
+	{ 0x5e, KEY_NUMERIC_6 },
+	{ 0x54, KEY_NUMERIC_7 },
+	{ 0x4c, KEY_NUMERIC_8 },
+	{ 0x5c, KEY_NUMERIC_9 },
 
 	{ 0x5b, KEY_POWER },
 	{ 0x5f, KEY_MUTE },

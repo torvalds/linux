@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8998-tables.c  --  data tables for wm8998-class codecs
  *
  * Copyright 2014 Wolfson Microelectronics plc
  *
  * Author: Richard Fitzgerald <rf@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -809,12 +806,6 @@ static const struct reg_default wm8998_reg_default[] = {
 	{ 0x00000EF3, 0x0000 },    /* R3827  - ISRC 2 CTRL 1 */
 	{ 0x00000EF4, 0x0001 },    /* R3828  - ISRC 2 CTRL 2 */
 	{ 0x00000EF5, 0x0000 },    /* R3829  - ISRC 2 CTRL 3 */
-	{ 0x00001700, 0x0000 },    /* R5888  - FRF_COEFF_1 */
-	{ 0x00001701, 0x0000 },    /* R5889  - FRF_COEFF_2 */
-	{ 0x00001702, 0x0000 },    /* R5890  - FRF_COEFF_3 */
-	{ 0x00001703, 0x0000 },    /* R5891  - FRF_COEFF_4 */
-	{ 0x00001704, 0x0000 },    /* R5892  - DAC_COMP_1 */
-	{ 0x00001705, 0x0000 },    /* R5893  - DAC_COMP_2 */
 };
 
 static bool wm8998_readable_register(struct device *dev, unsigned int reg)
@@ -1495,12 +1486,6 @@ static bool wm8998_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ISRC_2_CTRL_1:
 	case ARIZONA_ISRC_2_CTRL_2:
 	case ARIZONA_ISRC_2_CTRL_3:
-	case ARIZONA_FRF_COEFF_1:
-	case ARIZONA_FRF_COEFF_2:
-	case ARIZONA_FRF_COEFF_3:
-	case ARIZONA_FRF_COEFF_4:
-	case ARIZONA_V2_DAC_COMP_1:
-	case ARIZONA_V2_DAC_COMP_2:
 		return true;
 	default:
 		return false;

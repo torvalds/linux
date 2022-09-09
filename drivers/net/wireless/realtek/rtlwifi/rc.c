@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "wifi.h"
 #include "base.h"
@@ -88,7 +66,7 @@ static u8 _rtl_rc_get_highest_rix(struct rtl_priv *rtlpriv,
 				else
 					return N_MODE_MCS15_RIX;
 			} else if (wireless_mode == WIRELESS_MODE_AC_24G) {
-				if (sta->bandwidth == IEEE80211_STA_RX_BW_20) {
+				if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20) {
 					ieee80211_rate_set_vht(&rate,
 							       AC_MODE_MCS8_RIX,
 							       nss);
@@ -110,7 +88,7 @@ static u8 _rtl_rc_get_highest_rix(struct rtl_priv *rtlpriv,
 				else
 					return N_MODE_MCS15_RIX;
 			} else if (wireless_mode == WIRELESS_MODE_AC_5G) {
-				if (sta->bandwidth == IEEE80211_STA_RX_BW_20) {
+				if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20) {
 					ieee80211_rate_set_vht(&rate,
 							       AC_MODE_MCS8_RIX,
 							       nss);
@@ -143,9 +121,9 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 	u8 sgi_20 = 0, sgi_40 = 0, sgi_80 = 0;
 
 	if (sta) {
-		sgi_20 = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20;
-		sgi_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40;
-		sgi_80 = sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80;
+		sgi_20 = sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20;
+		sgi_40 = sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40;
+		sgi_80 = sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80;
 		sta_entry = (struct rtl_sta_info *)sta->drv_priv;
 		wireless_mode = sta_entry->wireless_mode;
 	}
@@ -157,10 +135,10 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 			rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
 		if (mac->opmode == NL80211_IFTYPE_AP ||
 			mac->opmode == NL80211_IFTYPE_ADHOC) {
-			if (sta && (sta->ht_cap.cap &
+			if (sta && (sta->deflink.ht_cap.cap &
 				    IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 				rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
-			if (sta && sta->vht_cap.vht_supported)
+			if (sta && sta->deflink.vht_cap.vht_supported)
 				rate->flags |= IEEE80211_TX_RC_80_MHZ_WIDTH;
 		} else {
 			if (mac->bw_80)
@@ -171,11 +149,11 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 
 		if (sgi_20 || sgi_40 || sgi_80)
 			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
-		if (sta && sta->ht_cap.ht_supported &&
+		if (sta && sta->deflink.ht_cap.ht_supported &&
 		    (wireless_mode == WIRELESS_MODE_N_5G ||
 		     wireless_mode == WIRELESS_MODE_N_24G))
 			rate->flags |= IEEE80211_TX_RC_MCS;
-		if (sta && sta->vht_cap.vht_supported &&
+		if (sta && sta->deflink.vht_cap.vht_supported &&
 		    (wireless_mode == WIRELESS_MODE_AC_5G ||
 		     wireless_mode == WIRELESS_MODE_AC_24G ||
 		     wireless_mode == WIRELESS_MODE_AC_ONLY))
@@ -194,9 +172,6 @@ static void rtl_get_rate(void *ppriv, struct ieee80211_sta *sta,
 	__le16 fc = rtl_get_fc(skb);
 	u8 try_per_rate, i, rix;
 	bool not_data = !ieee80211_is_data(fc);
-
-	if (rate_control_send_low(sta, priv_sta, txrc))
-		return;
 
 	rix = _rtl_rc_get_highest_rix(rtlpriv, sta, skb, not_data);
 	try_per_rate = 1;
@@ -254,10 +229,11 @@ static void rtl_tx_status(void *ppriv,
 	if (sta) {
 		/* Check if aggregation has to be enabled for this tid */
 		sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-		if (sta->ht_cap.ht_supported &&
+		if (sta->deflink.ht_cap.ht_supported &&
 		    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
 			if (ieee80211_is_data_qos(fc)) {
 				u8 tid = rtl_get_tid(skb);
+
 				if (_rtl_tx_aggr_check(rtlpriv, sta_entry,
 						       tid)) {
 					sta_entry->tids[tid].agg.agg_state =
@@ -285,7 +261,7 @@ static void rtl_rate_update(void *ppriv,
 {
 }
 
-static void *rtl_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+static void *rtl_rate_alloc(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	return rtlpriv;
@@ -315,6 +291,7 @@ static void rtl_rate_free_sta(void *rtlpriv,
 			      struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct rtl_rate_priv *rate_priv = priv_sta;
+
 	kfree(rate_priv);
 }
 

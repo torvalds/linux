@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Nano River Technologies viperboard IIO ADC driver
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
  *  All rights reserved.
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the	License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -126,7 +121,6 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	adc = iio_priv(indio_dev);
 	adc->vb = vb;
 	indio_dev->name = "viperboard adc";
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &vprbrd_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vprbrd_adc_iio_channels;

@@ -25,6 +25,11 @@ attachments, but then the attachments should have content-type
 it makes quoting portions of the patch more difficult in the patch
 review process.
 
+It's also strongly recommended that you use plain text in your email body,
+for patches and other emails alike. https://useplaintext.email may be useful
+for information on how to configure your preferred email client, as well as
+listing recommended email clients should you not already have a preference.
+
 Email clients that are used for Linux kernel patches should send the
 patch text untouched.  For example, they should not modify or delete tabs
 or spaces, even at the beginning or end of lines.
@@ -40,7 +45,7 @@ Emailed patches should be in ASCII or UTF-8 encoding only.
 If you configure your email client to send emails with UTF-8 encoding,
 you avoid some possible charset problems.
 
-Email clients should generate and maintain References: or In-Reply-To:
+Email clients should generate and maintain "References:" or "In-Reply-To:"
 headers so that mail threading is not broken.
 
 Copy-and-paste (or cut-and-paste) usually does not work for patches
@@ -89,7 +94,7 @@ Claws Mail (GUI)
 
 Works. Some people use this successfully for patches.
 
-To insert a patch use :menuselection:`Message-->Insert` File (:kbd:`CTRL-I`)
+To insert a patch use :menuselection:`Message-->Insert File` (:kbd:`CTRL-I`)
 or an external editor.
 
 If the inserted patch has to be edited in the Claws composition window
@@ -132,8 +137,8 @@ wrapping.
 At the bottom of your email, put the commonly-used patch delimiter before
 inserting your patch:  three hyphens (``---``).
 
-Then from the :menuselection:`Message` menu item, select insert file and
-choose your patch.
+Then from the :menuselection:`Message` menu item, select
+:menuselection:`insert file` and choose your patch.
 As an added bonus you can customise the message creation toolbar menu
 and put the :menuselection:`insert file` icon there.
 
@@ -149,18 +154,16 @@ patches so do not GPG sign them.  Signing patches that have been inserted
 as inlined text will make them tricky to extract from their 7-bit encoding.
 
 If you absolutely must send patches as attachments instead of inlining
-them as text, right click on the attachment and select properties, and
-highlight :menuselection:`Suggest automatic display` to make the attachment
+them as text, right click on the attachment and select :menuselection:`properties`,
+and highlight :menuselection:`Suggest automatic display` to make the attachment
 inlined to make it more viewable.
 
 When saving patches that are sent as inlined text, select the email that
 contains the patch from the message list pane, right click and select
 :menuselection:`save as`.  You can use the whole email unmodified as a patch
-if it was properly composed.  There is no option currently to save the email
-when you are actually viewing it in its own window -- there has been a request
-filed at kmail's bugzilla and hopefully this will be addressed.  Emails are
-saved as read-write for user only so you will have to chmod them to make them
-group and world readable if you copy them elsewhere.
+if it was properly composed.  Emails are saved as read-write for user only so
+you will have to chmod them to make them group and world readable if you copy
+them elsewhere.
 
 Lotus Notes (GUI)
 *****************
@@ -239,9 +242,9 @@ using Mutt to send patches through Gmail::
 
 The Mutt docs have lots more information:
 
-    http://dev.mutt.org/trac/wiki/UseCases/Gmail
+    https://gitlab.com/muttmua/mutt/-/wikis/UseCases/Gmail
 
-    http://dev.mutt.org/doc/manual.html
+    http://www.mutt.org/doc/manual/
 
 Pine (TUI)
 **********
@@ -274,36 +277,61 @@ Thunderbird (GUI)
 Thunderbird is an Outlook clone that likes to mangle text, but there are ways
 to coerce it into behaving.
 
-- Allow use of an external editor:
-  The easiest thing to do with Thunderbird and patches is to use an
-  "external editor" extension and then just use your favorite ``$EDITOR``
-  for reading/merging patches into the body text.  To do this, download
-  and install the extension, then add a button for it using
-  :menuselection:`View-->Toolbars-->Customize...` and finally just click on it
-  when in the :menuselection:`Compose` dialog.
+After doing the modifications, this includes installing the extensions,
+you need to restart Thunderbird.
 
-  Please note that "external editor" requires that your editor must not
-  fork, or in other words, the editor must not return before closing.
-  You may have to pass additional flags or change the settings of your
-  editor. Most notably if you are using gvim then you must pass the -f
-  option to gvim by putting ``/usr/bin/gvim -f`` (if the binary is in
-  ``/usr/bin``) to the text editor field in :menuselection:`external editor`
-  settings. If you are using some other editor then please read its manual
-  to find out how to do this.
+- Allow use of an external editor:
+
+  The easiest thing to do with Thunderbird and patches is to use extensions
+  which open your favorite external editor.
+
+  Here are some example extensions which are capable of doing this.
+
+  - "External Editor Revived"
+
+    https://github.com/Frederick888/external-editor-revived
+
+    https://addons.thunderbird.net/en-GB/thunderbird/addon/external-editor-revived/
+
+    It requires installing a "native messaging host".
+    Please read the wiki which can be found here:
+    https://github.com/Frederick888/external-editor-revived/wiki
+
+  - "External Editor"
+
+    https://github.com/exteditor/exteditor
+
+    To do this, download and install the extension, then open the
+    :menuselection:`compose` window, add a button for it using
+    :menuselection:`View-->Toolbars-->Customize...`
+    then just click on the new button when you wish to use the external editor.
+
+    Please note that "External Editor" requires that your editor must not
+    fork, or in other words, the editor must not return before closing.
+    You may have to pass additional flags or change the settings of your
+    editor. Most notably if you are using gvim then you must pass the -f
+    option to gvim by putting ``/usr/bin/gvim --nofork"`` (if the binary is in
+    ``/usr/bin``) to the text editor field in :menuselection:`external editor`
+    settings. If you are using some other editor then please read its manual
+    to find out how to do this.
 
 To beat some sense out of the internal editor, do this:
 
-- Edit your Thunderbird config settings so that it won't use ``format=flowed``.
-  Go to :menuselection:`edit-->preferences-->advanced-->config editor` to bring up
-  the thunderbird's registry editor.
+- Edit your Thunderbird config settings so that it won't use ``format=flowed``!
+  Go to your main window and find the button for your main dropdown menu.
+  :menuselection:`Main Menu-->Preferences-->General-->Config Editor...`
+  to bring up the thunderbird's registry editor.
 
-- Set ``mailnews.send_plaintext_flowed`` to ``false``
+  - Set ``mailnews.send_plaintext_flowed`` to ``false``
 
-- Set ``mailnews.wraplength`` from ``72`` to ``0``
+  - Set ``mailnews.wraplength`` from ``72`` to ``0``
 
-- :menuselection:`View-->Message Body As-->Plain Text`
+- Don't write HTML messages! Go to the main window
+  :menuselection:`Main Menu-->Account Settings-->youracc@server.something-->Composition & Addressing`!
+  There you can disable the option "Compose messages in HTML format".
 
-- :menuselection:`View-->Character Encoding-->Unicode (UTF-8)`
+- Open messages only as plain text! Go to the main window
+  :menuselection:`Main Menu-->View-->Message Body As-->Plain Text`!
 
 TkRat (GUI)
 ***********

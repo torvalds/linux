@@ -64,17 +64,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "bpi-m2m:blue:usr";
 			gpios = <&pio 2 7 GPIO_ACTIVE_LOW>;
 		};
 
-		green {
+		led-1 {
 			label = "bpi-m2m:green:usr";
 			gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>;
 		};
 
-		red {
+		led-2 {
 			label = "bpi-m2m:red:power";
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
 			default-state = "on";
@@ -91,7 +91,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 6 GPIO_ACTIVE_LOW>; /* PL06 */
-		clocks = <&rtc 1>;
+		clocks = <&rtc CLK_OSC32K_FANOUT>;
 		clock-names = "ext_clock";
 	};
 };
@@ -163,8 +163,8 @@
 	axp22x: pmic@3a3 {
 		compatible = "x-powers,axp223";
 		reg = <0x3a3>;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&r_intc>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
 		eldoin-supply = <&reg_dcdc1>;
 		x-powers,drive-vbus-en;
 	};
@@ -283,7 +283,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
-		clocks = <&rtc 1>;
+		clocks = <&rtc CLK_OSC32K_FANOUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_dldo1>;
 		vddio-supply = <&reg_aldo3>;

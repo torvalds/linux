@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/dmar.h>
-#include <linux/irq.h>
-#include <linux/cpu.h>
 
-#include <asm/smp.h>
-#include "x2apic.h"
+#include <linux/cpuhotplug.h>
+#include <linux/cpumask.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
+
+#include <asm/apic.h>
+
+#include "local.h"
 
 struct cluster_mask {
 	unsigned int	clusterid;
@@ -17,9 +15,15 @@ struct cluster_mask {
 	struct cpumask	mask;
 };
 
-static DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);
+/*
+ * __x2apic_send_IPI_mask() possibly needs to read
+ * x86_cpu_to_logical_apicid for all online cpus in a sequential way.
+ * Using per cpu variable would cost one cache line per cpu.
+ */
+static u32 *x86_cpu_to_logical_apicid __read_mostly;
+
 static DEFINE_PER_CPU(cpumask_var_t, ipi_mask);
-static DEFINE_PER_CPU(struct cluster_mask *, cluster_masks);
+static DEFINE_PER_CPU_READ_MOSTLY(struct cluster_mask *, cluster_masks);
 static struct cluster_mask *cluster_hotplug_mask;
 
 static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
@@ -29,9 +33,10 @@ static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 static void x2apic_send_IPI(int cpu, int vector)
 {
-	u32 dest = per_cpu(x86_cpu_to_logical_apicid, cpu);
+	u32 dest = x86_cpu_to_logical_apicid[cpu];
 
-	x2apic_wrmsr_fence();
+	/* x2apic MSRs are special and need a special fence: */
+	weak_wrmsr_fence();
 	__x2apic_send_IPI_dest(dest, vector, APIC_DEST_LOGICAL);
 }
 
@@ -43,14 +48,15 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 	unsigned long flags;
 	u32 dest;
 
-	x2apic_wrmsr_fence();
+	/* x2apic MSRs are special and need a special fence: */
+	weak_wrmsr_fence();
 	local_irq_save(flags);
 
 	tmpmsk = this_cpu_cpumask_var_ptr(ipi_mask);
 	cpumask_copy(tmpmsk, mask);
 	/* If IPI should not be sent to self, clear current CPU */
 	if (apic_dest != APIC_DEST_ALLINC)
-		cpumask_clear_cpu(smp_processor_id(), tmpmsk);
+		__cpumask_clear_cpu(smp_processor_id(), tmpmsk);
 
 	/* Collapse cpus in a cluster so a single IPI per cluster is sent */
 	for_each_cpu(cpu, tmpmsk) {
@@ -58,12 +64,12 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 
 		dest = 0;
 		for_each_cpu_and(clustercpu, tmpmsk, &cmsk->mask)
-			dest |= per_cpu(x86_cpu_to_logical_apicid, clustercpu);
+			dest |= x86_cpu_to_logical_apicid[clustercpu];
 
 		if (!dest)
 			continue;
 
-		__x2apic_send_IPI_dest(dest, vector, apic->dest_logical);
+		__x2apic_send_IPI_dest(dest, vector, APIC_DEST_LOGICAL);
 		/* Remove cluster CPUs from tmpmask */
 		cpumask_andnot(tmpmsk, tmpmsk, &cmsk->mask);
 	}
@@ -84,17 +90,17 @@ x2apic_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 
 static void x2apic_send_IPI_allbutself(int vector)
 {
-	__x2apic_send_IPI_mask(cpu_online_mask, vector, APIC_DEST_ALLBUT);
+	__x2apic_send_IPI_shorthand(vector, APIC_DEST_ALLBUT);
 }
 
 static void x2apic_send_IPI_all(int vector)
 {
-	__x2apic_send_IPI_mask(cpu_online_mask, vector, APIC_DEST_ALLINC);
+	__x2apic_send_IPI_shorthand(vector, APIC_DEST_ALLINC);
 }
 
 static u32 x2apic_calc_apicid(unsigned int cpu)
 {
-	return per_cpu(x86_cpu_to_logical_apicid, cpu);
+	return x86_cpu_to_logical_apicid[cpu];
 }
 
 static void init_x2apic_ldr(void)
@@ -103,7 +109,7 @@ static void init_x2apic_ldr(void)
 	u32 cluster, apicid = apic_read(APIC_LDR);
 	unsigned int cpu;
 
-	this_cpu_write(x86_cpu_to_logical_apicid, apicid);
+	x86_cpu_to_logical_apicid[smp_processor_id()] = apicid;
 
 	if (cmsk)
 		goto update;
@@ -158,19 +164,29 @@ static int x2apic_dead_cpu(unsigned int dead_cpu)
 {
 	struct cluster_mask *cmsk = per_cpu(cluster_masks, dead_cpu);
 
-	cpumask_clear_cpu(dead_cpu, &cmsk->mask);
+	if (cmsk)
+		cpumask_clear_cpu(dead_cpu, &cmsk->mask);
 	free_cpumask_var(per_cpu(ipi_mask, dead_cpu));
 	return 0;
 }
 
 static int x2apic_cluster_probe(void)
 {
+	u32 slots;
+
 	if (!x2apic_mode)
+		return 0;
+
+	slots = max_t(u32, L1_CACHE_BYTES/sizeof(u32), nr_cpu_ids);
+	x86_cpu_to_logical_apicid = kcalloc(slots, sizeof(u32), GFP_KERNEL);
+	if (!x86_cpu_to_logical_apicid)
 		return 0;
 
 	if (cpuhp_setup_state(CPUHP_X2APIC_PREPARE, "x86/x2apic:prepare",
 			      x2apic_prepare_cpu, x2apic_dead_cpu) < 0) {
 		pr_err("Failed to register X2APIC_PREPARE\n");
+		kfree(x86_cpu_to_logical_apicid);
+		x86_cpu_to_logical_apicid = NULL;
 		return 0;
 	}
 	init_x2apic_ldr();
@@ -185,15 +201,13 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.apic_id_valid			= x2apic_apic_id_valid,
 	.apic_id_registered		= x2apic_apic_id_registered,
 
-	.irq_delivery_mode		= dest_Fixed,
-	.irq_dest_mode			= 1, /* logical */
+	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
+	.dest_mode_logical		= true,
 
 	.disable_esr			= 0,
-	.dest_logical			= APIC_DEST_LOGICAL,
+
 	.check_apicid_used		= NULL,
-
 	.init_apic_ldr			= init_x2apic_ldr,
-
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,

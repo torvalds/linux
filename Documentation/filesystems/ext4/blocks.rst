@@ -10,7 +10,9 @@ block groups. Block size is specified at mkfs time and typically is
 4KiB. You may experience mounting problems if block size is greater than
 page size (i.e. 64KiB blocks on a i386 which only has 4KiB memory
 pages). By default a filesystem can contain 2^32 blocks; if the '64bit'
-feature is enabled, then a filesystem can have 2^64 blocks.
+feature is enabled, then a filesystem can have 2^64 blocks. The location
+of structures is stored in terms of the block number the structure lives
+in and not the absolute offset on disk.
 
 For 32-bit filesystems, limits are as follows:
 
@@ -37,7 +39,7 @@ For 32-bit filesystems, limits are as follows:
      - 4TiB
      - 8TiB
      - 16TiB
-     - 256PiB
+     - 256TiB
    * - Blocks Per Block Group
      - 8,192
      - 16,384

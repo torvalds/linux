@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
- *
  */
 
 #include <linux/kernel.h>
@@ -126,9 +124,6 @@ static const struct attribute_group *iio_sysfs_trigger_attr_groups[] = {
 	NULL
 };
 
-static const struct iio_trigger_ops iio_sysfs_trigger_ops = {
-};
-
 static int iio_sysfs_trigger_probe(int id)
 {
 	struct iio_sysfs_trig *t;
@@ -151,18 +146,16 @@ static int iio_sysfs_trigger_probe(int id)
 		goto out1;
 	}
 	t->id = id;
-	t->trig = iio_trigger_alloc("sysfstrig%d", id);
+	t->trig = iio_trigger_alloc(&iio_sysfs_trig_dev, "sysfstrig%d", id);
 	if (!t->trig) {
 		ret = -ENOMEM;
 		goto free_t;
 	}
 
 	t->trig->dev.groups = iio_sysfs_trigger_attr_groups;
-	t->trig->ops = &iio_sysfs_trigger_ops;
-	t->trig->dev.parent = &iio_sysfs_trig_dev;
 	iio_trigger_set_drvdata(t->trig, t);
 
-	init_irq_work(&t->work, iio_sysfs_trigger_work);
+	t->work = IRQ_WORK_INIT_HARD(iio_sysfs_trigger_work);
 
 	ret = iio_trigger_register(t->trig);
 	if (ret)
@@ -183,21 +176,21 @@ out1:
 
 static int iio_sysfs_trigger_remove(int id)
 {
-	bool foundit = false;
-	struct iio_sysfs_trig *t;
+	struct iio_sysfs_trig *t = NULL, *iter;
 
 	mutex_lock(&iio_sysfs_trig_list_mut);
-	list_for_each_entry(t, &iio_sysfs_trig_list, l)
-		if (id == t->id) {
-			foundit = true;
+	list_for_each_entry(iter, &iio_sysfs_trig_list, l)
+		if (id == iter->id) {
+			t = iter;
 			break;
 		}
-	if (!foundit) {
+	if (!t) {
 		mutex_unlock(&iio_sysfs_trig_list_mut);
 		return -EINVAL;
 	}
 
 	iio_trigger_unregister(t->trig);
+	irq_work_sync(&t->work);
 	iio_trigger_free(t->trig);
 
 	list_del(&t->l);

@@ -23,93 +23,131 @@
 #include "atom.h"
 #include "core.h"
 
-static void
+#include <nvif/pushc37b.h>
+
+#include <nvhw/class/clc37d.h>
+
+static int
 headc37d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		/*XXX: This is a dirty hack until OR depth handling is
-		 *     improved later for deep colour etc.
-		 */
-		switch (asyh->or.depth) {
-		case 6: asyh->or.depth = 5; break;
-		case 5: asyh->or.depth = 4; break;
-		case 2: asyh->or.depth = 1; break;
-		case 0:	asyh->or.depth = 4; break;
-		default:
-			WARN_ON(1);
-			break;
-		}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	u8 depth;
+	int ret;
 
-		evo_mthd(push, 0x2004 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000001 |
-			       asyh->or.depth << 4 |
-			       asyh->or.nvsync << 3 |
-			       asyh->or.nhsync << 2);
-		evo_kick(push, core);
+	/*XXX: This is a dirty hack until OR depth handling is
+	 *     improved later for deep colour etc.
+	 */
+	switch (asyh->or.depth) {
+	case 6: depth = 5; break;
+	case 5: depth = 4; break;
+	case 2: depth = 1; break;
+	case 0:	depth = 4; break;
+	default:
+		depth = asyh->or.depth;
+		WARN_ON(1);
+		break;
 	}
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE(i),
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, CRC_MODE, asyh->or.crc_raster) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, HSYNC_POLARITY, asyh->or.nhsync) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, VSYNC_POLARITY, asyh->or.nvsync) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, PIXEL_DEPTH, depth) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, COLOR_SPACE_OVERRIDE, DISABLE));
+	return 0;
 }
 
-static void
+static int
 headc37d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x2000 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x80000000 |
-			       asyh->procamp.sat.sin << 16 |
-			       asyh->procamp.sat.cos << 4);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_PROCAMP(i),
+		  NVDEF(NVC37D, HEAD_SET_PROCAMP, COLOR_SPACE, RGB) |
+		  NVDEF(NVC37D, HEAD_SET_PROCAMP, CHROMA_LPF, DISABLE) |
+		  NVVAL(NVC37D, HEAD_SET_PROCAMP, SAT_COS, asyh->procamp.sat.cos) |
+		  NVVAL(NVC37D, HEAD_SET_PROCAMP, SAT_SINE, asyh->procamp.sat.sin) |
+		  NVDEF(NVC37D, HEAD_SET_PROCAMP, DYNAMIC_RANGE, VESA) |
+		  NVDEF(NVC37D, HEAD_SET_PROCAMP, RANGE_COMPRESSION, DISABLE) |
+		  NVDEF(NVC37D, HEAD_SET_PROCAMP, BLACK_LEVEL, GRAPHICS));
+	return 0;
 }
 
-void
+int
 headc37d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x2018 + (head->base.index * 0x0400), 1);
-		evo_data(push, asyh->dither.mode << 8 |
-			       asyh->dither.bits << 4 |
-			       asyh->dither.enable);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_DITHER_CONTROL(i),
+		  NVVAL(NVC37D, HEAD_SET_DITHER_CONTROL, ENABLE, asyh->dither.enable) |
+		  NVVAL(NVC37D, HEAD_SET_DITHER_CONTROL, BITS, asyh->dither.bits) |
+		  NVDEF(NVC37D, HEAD_SET_DITHER_CONTROL, OFFSET_ENABLE, DISABLE) |
+		  NVVAL(NVC37D, HEAD_SET_DITHER_CONTROL, MODE, asyh->dither.mode) |
+		  NVVAL(NVC37D, HEAD_SET_DITHER_CONTROL, PHASE, 0));
+	return 0;
 }
 
-void
+int
 headc37d_curs_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x209c + head->base.index * 0x400, 1);
-		evo_data(push, 0x000000cf);
-		evo_mthd(push, 0x2088 + head->base.index * 0x400, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, ENABLE, DISABLE) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, FORMAT, A8R8G8B8));
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CURSOR(i, 0), 0x00000000);
+	return 0;
 }
 
-void
+int
 headc37d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 7))) {
-		evo_mthd(push, 0x209c + head->base.index * 0x400, 2);
-		evo_data(push, 0x80000000 |
-			       asyh->curs.layout << 8 |
-			       asyh->curs.format << 0);
-		evo_data(push, 0x000072ff);
-		evo_mthd(push, 0x2088 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->curs.handle);
-		evo_mthd(push, 0x2090 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->curs.offset >> 8);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 7)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, ENABLE, ENABLE) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, FORMAT, asyh->curs.format) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, SIZE, asyh->curs.layout) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_X, 0) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_Y, 0) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, DE_GAMMA, NONE),
+
+				HEAD_SET_CONTROL_CURSOR_COMPOSITION(i),
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, K1, 0xff) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, CURSOR_COLOR_FACTOR_SELECT,
+								     K1) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, VIEWPORT_COLOR_FACTOR_SELECT,
+								     NEG_K1_TIMES_SRC) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, MODE, BLEND));
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CURSOR(i, 0), asyh->curs.handle);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_OFFSET_CURSOR(i, 0), asyh->curs.offset >> 8);
+	return 0;
 }
 
 int
@@ -120,80 +158,126 @@ headc37d_curs_format(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 	return 0;
 }
 
-static void
+static int
 headc37d_olut_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x20ac + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_OUTPUT_LUT(i), 0x00000000);
+	return 0;
 }
 
-static void
+static int
 headc37d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x20a4 + (head->base.index * 0x400), 3);
-		evo_data(push, asyh->olut.output_mode << 8 |
-			       asyh->olut.range << 4 |
-			       asyh->olut.size);
-		evo_data(push, asyh->olut.offset >> 8);
-		evo_data(push, asyh->olut.handle);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT(i),
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT, SIZE, asyh->olut.size) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT, RANGE, asyh->olut.range) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT, OUTPUT_MODE, asyh->olut.output_mode),
+
+				HEAD_SET_OFFSET_OUTPUT_LUT(i), asyh->olut.offset >> 8,
+				HEAD_SET_CONTEXT_DMA_OUTPUT_LUT(i), asyh->olut.handle);
+	return 0;
 }
 
-static void
-headc37d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
+static bool
+headc37d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 {
-	asyh->olut.mode = 2;
-	asyh->olut.size = 0;
-	asyh->olut.range = 0;
-	asyh->olut.output_mode = 1;
+	if (size != 256 && size != 1024)
+		return false;
+
+	asyh->olut.size = size == 1024 ? NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_SIZE_SIZE_1025 :
+					 NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_SIZE_SIZE_257;
+	asyh->olut.range = NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_RANGE_UNITY;
+	asyh->olut.output_mode = NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_OUTPUT_MODE_INTERPOLATE;
 	asyh->olut.load = head907d_olut_load;
+	return true;
 }
 
-static void
+static int
 headc37d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	struct nv50_head_mode *m = &asyh->mode;
-	u32 *push;
-	if ((push = evo_wait(core, 12))) {
-		evo_mthd(push, 0x2064 + (head->base.index * 0x400), 5);
-		evo_data(push, (m->v.active  << 16) | m->h.active );
-		evo_data(push, (m->v.synce   << 16) | m->h.synce  );
-		evo_data(push, (m->v.blanke  << 16) | m->h.blanke );
-		evo_data(push, (m->v.blanks  << 16) | m->h.blanks );
-		evo_data(push, (m->v.blank2e << 16) | m->v.blank2s);
-		evo_mthd(push, 0x200c + (head->base.index * 0x400), 1);
-		evo_data(push, m->clock * 1000);
-		evo_mthd(push, 0x2028 + (head->base.index * 0x400), 1);
-		evo_data(push, m->clock * 1000);
-		/*XXX: HEAD_USAGE_BOUNDS, doesn't belong here. */
-		evo_mthd(push, 0x2030 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000124);
-		evo_kick(push, core);
-	}
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 15)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_RASTER_SIZE(i),
+		  NVVAL(NVC37D, HEAD_SET_RASTER_SIZE, WIDTH, m->h.active) |
+		  NVVAL(NVC37D, HEAD_SET_RASTER_SIZE, HEIGHT, m->v.active),
+
+				HEAD_SET_RASTER_SYNC_END(i),
+		  NVVAL(NVC37D, HEAD_SET_RASTER_SYNC_END, X, m->h.synce) |
+		  NVVAL(NVC37D, HEAD_SET_RASTER_SYNC_END, Y, m->v.synce),
+
+				HEAD_SET_RASTER_BLANK_END(i),
+		  NVVAL(NVC37D, HEAD_SET_RASTER_BLANK_END, X, m->h.blanke) |
+		  NVVAL(NVC37D, HEAD_SET_RASTER_BLANK_END, Y, m->v.blanke),
+
+				HEAD_SET_RASTER_BLANK_START(i),
+		  NVVAL(NVC37D, HEAD_SET_RASTER_BLANK_START, X, m->h.blanks) |
+		  NVVAL(NVC37D, HEAD_SET_RASTER_BLANK_START, Y, m->v.blanks));
+
+	//XXX:
+	PUSH_NVSQ(push, NVC37D, 0x2074 + (i * 0x400), m->v.blank2e << 16 | m->v.blank2s);
+	PUSH_NVSQ(push, NVC37D, 0x2008 + (i * 0x400), m->interlace);
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_PIXEL_CLOCK_FREQUENCY(i),
+		  NVVAL(NVC37D, HEAD_SET_PIXEL_CLOCK_FREQUENCY, HERTZ, m->clock * 1000));
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_PIXEL_CLOCK_FREQUENCY_MAX(i),
+		  NVVAL(NVC37D, HEAD_SET_PIXEL_CLOCK_FREQUENCY_MAX, HERTZ, m->clock * 1000));
+
+	/*XXX: HEAD_USAGE_BOUNDS, doesn't belong here. */
+	PUSH_MTHD(push, NVC37D, HEAD_SET_HEAD_USAGE_BOUNDS(i),
+		  NVDEF(NVC37D, HEAD_SET_HEAD_USAGE_BOUNDS, CURSOR, USAGE_W256_H256) |
+		  NVDEF(NVC37D, HEAD_SET_HEAD_USAGE_BOUNDS, OUTPUT_LUT, USAGE_1025) |
+		  NVDEF(NVC37D, HEAD_SET_HEAD_USAGE_BOUNDS, UPSCALING_ALLOWED, TRUE));
+	return 0;
+}
+
+int
+headc37d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_VIEWPORT_SIZE_IN(i),
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_IN, WIDTH, asyh->view.iW) |
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_IN, HEIGHT, asyh->view.iH));
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_VIEWPORT_SIZE_OUT(i),
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_OUT, WIDTH, asyh->view.oW) |
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_OUT, HEIGHT, asyh->view.oH));
+	return 0;
 }
 
 void
-headc37d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
+headc37d_static_wndw_map(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x204c + (head->base.index * 0x400), 1);
-		evo_data(push, (asyh->view.iH << 16) | asyh->view.iW);
-		evo_mthd(push, 0x2058 + (head->base.index * 0x400), 1);
-		evo_data(push, (asyh->view.oH << 16) | asyh->view.oW);
-		evo_kick(push, core);
-	}
+	int i, end;
+
+	for (i = head->base.index * 2, end = i + 2; i < end; i++)
+		asyh->wndw.owned |= BIT(i);
 }
 
 const struct nv50_head_func
@@ -201,6 +285,8 @@ headc37d = {
 	.view = headc37d_view,
 	.mode = headc37d_mode,
 	.olut = headc37d_olut,
+	.ilut_check = head907d_ilut_check,
+	.olut_size = 1024,
 	.olut_set = headc37d_olut_set,
 	.olut_clr = headc37d_olut_clr,
 	.curs_layout = head917d_curs_layout,
@@ -210,4 +296,5 @@ headc37d = {
 	.dither = headc37d_dither,
 	.procamp = headc37d_procamp,
 	.or = headc37d_or,
+	.static_wndw_map = headc37d_static_wndw_map,
 };

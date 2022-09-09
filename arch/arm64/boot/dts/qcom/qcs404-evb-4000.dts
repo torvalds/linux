@@ -3,9 +3,92 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "qcs404-evb.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. QCS404 EVB 4000";
-	compatible = "qcom,qcs404-evb";
+	compatible = "qcom,qcs404-evb-4000", "qcom,qcs404-evb",
+		     "qcom,qcs404";
+};
+
+&ethernet {
+	status = "okay";
+
+	snps,reset-gpio = <&tlmm 60 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 10000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&ethernet_defaults>;
+
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii";
+	mdio {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		compatible = "snps,dwmac-mdio";
+		phy1: phy@4 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			device_type = "ethernet-phy";
+			reg = <0x4>;
+		};
+	};
+};
+
+&tlmm {
+	ethernet_defaults: ethernet-defaults {
+		int {
+			pins = "gpio61";
+			function = "rgmii_int";
+			bias-disable;
+			drive-strength = <2>;
+		};
+		mdc {
+			pins = "gpio76";
+			function = "rgmii_mdc";
+			bias-pull-up;
+		};
+		mdio {
+			pins = "gpio75";
+			function = "rgmii_mdio";
+			bias-pull-up;
+		};
+		tx {
+			pins = "gpio67", "gpio66", "gpio65", "gpio64";
+			function = "rgmii_tx";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+		rx {
+			pins = "gpio73", "gpio72", "gpio71", "gpio70";
+			function = "rgmii_rx";
+			bias-disable;
+			drive-strength = <2>;
+		};
+		tx-ctl {
+			pins = "gpio68";
+			function = "rgmii_ctl";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+		rx-ctl {
+			pins = "gpio74";
+			function = "rgmii_ctl";
+			bias-disable;
+			drive-strength = <2>;
+		};
+		tx-ck {
+			pins = "gpio63";
+			function = "rgmii_ck";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+		rx-ck {
+			pins = "gpio69";
+			function = "rgmii_ck";
+			bias-disable;
+			drive-strength = <2>;
+		};
+	};
 };

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
+#define _GNU_SOURCE
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fts.h>
+#include <ftw.h>
 #include <libgen.h>
 #include <mntent.h>
 #include <stdbool.h>
@@ -12,15 +13,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <linux/limits.h>
-#include <linux/magic.h>
 #include <net/if.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
 
-#include <bpf.h>
+#include <linux/filter.h>
+#include <linux/limits.h>
+#include <linux/magic.h>
+#include <linux/unistd.h>
+
+#include <bpf/bpf.h>
+#include <bpf/hashmap.h>
+#include <bpf/libbpf.h> /* libbpf_num_possible_cpus */
+#include <bpf/btf.h>
 
 #include "main.h"
 
@@ -28,7 +35,7 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
-void __printf(1, 2) p_err(const char *fmt, ...)
+void p_err(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -46,7 +53,7 @@ void __printf(1, 2) p_err(const char *fmt, ...)
 	va_end(ap);
 }
 
-void __printf(1, 2) p_info(const char *fmt, ...)
+void p_info(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -69,11 +76,73 @@ static bool is_bpffs(char *path)
 	return (unsigned long)st_fs.f_type == BPF_FS_MAGIC;
 }
 
+/* Probe whether kernel switched from memlock-based (RLIMIT_MEMLOCK) to
+ * memcg-based memory accounting for BPF maps and programs. This was done in
+ * commit 97306be45fbe ("Merge branch 'switch to memcg-based memory
+ * accounting'"), in Linux 5.11.
+ *
+ * Libbpf also offers to probe for memcg-based accounting vs rlimit, but does
+ * so by checking for the availability of a given BPF helper and this has
+ * failed on some kernels with backports in the past, see commit 6b4384ff1088
+ * ("Revert "bpftool: Use libbpf 1.0 API mode instead of RLIMIT_MEMLOCK"").
+ * Instead, we can probe by lowering the process-based rlimit to 0, trying to
+ * load a BPF object, and resetting the rlimit. If the load succeeds then
+ * memcg-based accounting is supported.
+ *
+ * This would be too dangerous to do in the library, because multithreaded
+ * applications might attempt to load items while the rlimit is at 0. Given
+ * that bpftool is single-threaded, this is fine to do here.
+ */
+static bool known_to_need_rlimit(void)
+{
+	struct rlimit rlim_init, rlim_cur_zero = {};
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	size_t insn_cnt = ARRAY_SIZE(insns);
+	union bpf_attr attr;
+	int prog_fd, err;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	attr.insns = ptr_to_u64(insns);
+	attr.insn_cnt = insn_cnt;
+	attr.license = ptr_to_u64("GPL");
+
+	if (getrlimit(RLIMIT_MEMLOCK, &rlim_init))
+		return false;
+
+	/* Drop the soft limit to zero. We maintain the hard limit to its
+	 * current value, because lowering it would be a permanent operation
+	 * for unprivileged users.
+	 */
+	rlim_cur_zero.rlim_max = rlim_init.rlim_max;
+	if (setrlimit(RLIMIT_MEMLOCK, &rlim_cur_zero))
+		return false;
+
+	/* Do not use bpf_prog_load() from libbpf here, because it calls
+	 * bump_rlimit_memlock(), interfering with the current probe.
+	 */
+	prog_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+	err = errno;
+
+	/* reset soft rlimit to its initial value */
+	setrlimit(RLIMIT_MEMLOCK, &rlim_init);
+
+	if (prog_fd < 0)
+		return err == EPERM;
+
+	close(prog_fd);
+	return false;
+}
+
 void set_max_rlimit(void)
 {
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
 
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
+	if (known_to_need_rlimit())
+		setrlimit(RLIMIT_MEMLOCK, &rinf);
 }
 
 static int
@@ -122,24 +191,35 @@ int mount_tracefs(const char *target)
 	return err;
 }
 
-int open_obj_pinned(char *path, bool quiet)
+int open_obj_pinned(const char *path, bool quiet)
 {
-	int fd;
+	char *pname;
+	int fd = -1;
 
-	fd = bpf_obj_get(path);
-	if (fd < 0) {
+	pname = strdup(path);
+	if (!pname) {
 		if (!quiet)
-			p_err("bpf obj get (%s): %s", path,
-			      errno == EACCES && !is_bpffs(dirname(path)) ?
-			    "directory not in bpf file system (bpffs)" :
-			    strerror(errno));
-		return -1;
+			p_err("mem alloc failed");
+		goto out_ret;
 	}
 
+	fd = bpf_obj_get(pname);
+	if (fd < 0) {
+		if (!quiet)
+			p_err("bpf obj get (%s): %s", pname,
+			      errno == EACCES && !is_bpffs(dirname(pname)) ?
+			    "directory not in bpf file system (bpffs)" :
+			    strerror(errno));
+		goto out_free;
+	}
+
+out_free:
+	free(pname);
+out_ret:
 	return fd;
 }
 
-int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
+int open_obj_pinned_any(const char *path, enum bpf_obj_type exp_type)
 {
 	enum bpf_obj_type type;
 	int fd;
@@ -170,6 +250,11 @@ int mount_bpffs_for_pin(const char *name)
 	int err = 0;
 
 	file = malloc(strlen(name) + 1);
+	if (!file) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+
 	strcpy(file, name);
 	dir = dirname(file);
 
@@ -203,42 +288,21 @@ int do_pin_fd(int fd, const char *name)
 	if (err)
 		return err;
 
-	return bpf_obj_pin(fd, name);
+	err = bpf_obj_pin(fd, name);
+	if (err)
+		p_err("can't pin the object (%s): %s", name, strerror(errno));
+
+	return err;
 }
 
-int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
+int do_pin_any(int argc, char **argv, int (*get_fd)(int *, char ***))
 {
-	unsigned int id;
-	char *endptr;
 	int err;
 	int fd;
 
-	if (argc < 3) {
-		p_err("too few arguments, id ID and FILE path is required");
-		return -1;
-	} else if (argc > 3) {
-		p_err("too many arguments");
-		return -1;
-	}
-
-	if (!is_prefix(*argv, "id")) {
-		p_err("expected 'id' got %s", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	id = strtoul(*argv, &endptr, 0);
-	if (*endptr) {
-		p_err("can't parse %s as ID", *argv);
-		return -1;
-	}
-	NEXT_ARG();
-
-	fd = get_fd_by_id(id);
-	if (fd < 0) {
-		p_err("can't get prog by id (%u): %s", id, strerror(errno));
-		return -1;
-	}
+	fd = get_fd(&argc, &argv);
+	if (fd < 0)
+		return fd;
 
 	err = do_pin_fd(fd, *argv);
 
@@ -252,12 +316,56 @@ const char *get_fd_type_name(enum bpf_obj_type type)
 		[BPF_OBJ_UNKNOWN]	= "unknown",
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
+		[BPF_OBJ_LINK]		= "link",
 	};
 
 	if (type < 0 || type >= ARRAY_SIZE(names) || !names[type])
 		return names[BPF_OBJ_UNKNOWN];
 
 	return names[type];
+}
+
+void get_prog_full_name(const struct bpf_prog_info *prog_info, int prog_fd,
+			char *name_buff, size_t buff_len)
+{
+	const char *prog_name = prog_info->name;
+	const struct btf_type *func_type;
+	const struct bpf_func_info finfo = {};
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	struct btf *prog_btf = NULL;
+
+	if (buff_len <= BPF_OBJ_NAME_LEN ||
+	    strlen(prog_info->name) < BPF_OBJ_NAME_LEN - 1)
+		goto copy_name;
+
+	if (!prog_info->btf_id || prog_info->nr_func_info == 0)
+		goto copy_name;
+
+	info.nr_func_info = 1;
+	info.func_info_rec_size = prog_info->func_info_rec_size;
+	if (info.func_info_rec_size > sizeof(finfo))
+		info.func_info_rec_size = sizeof(finfo);
+	info.func_info = ptr_to_u64(&finfo);
+
+	if (bpf_obj_get_info_by_fd(prog_fd, &info, &info_len))
+		goto copy_name;
+
+	prog_btf = btf__load_from_kernel_by_id(info.btf_id);
+	if (!prog_btf)
+		goto copy_name;
+
+	func_type = btf__type_by_id(prog_btf, finfo.type_id);
+	if (!func_type || !btf_is_func(func_type))
+		goto copy_name;
+
+	prog_name = btf__name_by_offset(prog_btf, func_type->name_off);
+
+copy_name:
+	snprintf(name_buff, buff_len, "%s", prog_name);
+
+	if (prog_btf)
+		btf__free(prog_btf);
 }
 
 int get_fd_type(int fd)
@@ -282,6 +390,8 @@ int get_fd_type(int fd)
 		return BPF_OBJ_MAP;
 	else if (strstr(buf, "bpf-prog"))
 		return BPF_OBJ_PROG;
+	else if (strstr(buf, "bpf-link"))
+		return BPF_OBJ_LINK;
 
 	return BPF_OBJ_UNKNOWN;
 }
@@ -297,10 +407,8 @@ char *get_fdinfo(int fd, const char *key)
 	snprintf(path, sizeof(path), "/proc/self/fdinfo/%d", fd);
 
 	fdi = fopen(path, "r");
-	if (!fdi) {
-		p_err("can't open fdinfo: %s", strerror(errno));
+	if (!fdi)
 		return NULL;
-	}
 
 	while ((n = getline(&line, &line_n, fdi)) > 0) {
 		char *value;
@@ -313,7 +421,6 @@ char *get_fdinfo(int fd, const char *key)
 
 		value = strchr(line, '\t');
 		if (!value || !value[1]) {
-			p_err("malformed fdinfo!?");
 			free(line);
 			return NULL;
 		}
@@ -326,7 +433,6 @@ char *get_fdinfo(int fd, const char *key)
 		return line;
 	}
 
-	p_err("key '%s' not found in fdinfo", key);
 	free(line);
 	fclose(fdi);
 	return NULL;
@@ -352,84 +458,94 @@ void print_hex_data_json(uint8_t *data, size_t len)
 	jsonw_end_array(json_wtr);
 }
 
-int build_pinned_obj_table(struct pinned_obj_table *tab,
+/* extra params for nftw cb */
+static struct hashmap *build_fn_table;
+static enum bpf_obj_type build_fn_type;
+
+static int do_build_table_cb(const char *fpath, const struct stat *sb,
+			     int typeflag, struct FTW *ftwbuf)
+{
+	struct bpf_prog_info pinned_info;
+	__u32 len = sizeof(pinned_info);
+	enum bpf_obj_type objtype;
+	int fd, err = 0;
+	char *path;
+
+	if (typeflag != FTW_F)
+		goto out_ret;
+
+	fd = open_obj_pinned(fpath, true);
+	if (fd < 0)
+		goto out_ret;
+
+	objtype = get_fd_type(fd);
+	if (objtype != build_fn_type)
+		goto out_close;
+
+	memset(&pinned_info, 0, sizeof(pinned_info));
+	if (bpf_obj_get_info_by_fd(fd, &pinned_info, &len))
+		goto out_close;
+
+	path = strdup(fpath);
+	if (!path) {
+		err = -1;
+		goto out_close;
+	}
+
+	err = hashmap__append(build_fn_table, u32_as_hash_field(pinned_info.id), path);
+	if (err) {
+		p_err("failed to append entry to hashmap for ID %u, path '%s': %s",
+		      pinned_info.id, path, strerror(errno));
+		goto out_close;
+	}
+
+out_close:
+	close(fd);
+out_ret:
+	return err;
+}
+
+int build_pinned_obj_table(struct hashmap *tab,
 			   enum bpf_obj_type type)
 {
-	struct bpf_prog_info pinned_info = {};
-	struct pinned_obj *obj_node = NULL;
-	__u32 len = sizeof(pinned_info);
 	struct mntent *mntent = NULL;
-	enum bpf_obj_type objtype;
 	FILE *mntfile = NULL;
-	FTSENT *ftse = NULL;
-	FTS *fts = NULL;
-	int fd, err;
+	int flags = FTW_PHYS;
+	int nopenfd = 16;
+	int err = 0;
 
 	mntfile = setmntent("/proc/mounts", "r");
 	if (!mntfile)
 		return -1;
 
+	build_fn_table = tab;
+	build_fn_type = type;
+
 	while ((mntent = getmntent(mntfile))) {
-		char *path[] = { mntent->mnt_dir, NULL };
+		char *path = mntent->mnt_dir;
 
 		if (strncmp(mntent->mnt_type, "bpf", 3) != 0)
 			continue;
-
-		fts = fts_open(path, 0, NULL);
-		if (!fts)
-			continue;
-
-		while ((ftse = fts_read(fts))) {
-			if (!(ftse->fts_info & FTS_F))
-				continue;
-			fd = open_obj_pinned(ftse->fts_path, true);
-			if (fd < 0)
-				continue;
-
-			objtype = get_fd_type(fd);
-			if (objtype != type) {
-				close(fd);
-				continue;
-			}
-			memset(&pinned_info, 0, sizeof(pinned_info));
-			err = bpf_obj_get_info_by_fd(fd, &pinned_info, &len);
-			if (err) {
-				close(fd);
-				continue;
-			}
-
-			obj_node = malloc(sizeof(*obj_node));
-			if (!obj_node) {
-				close(fd);
-				fts_close(fts);
-				fclose(mntfile);
-				return -1;
-			}
-
-			memset(obj_node, 0, sizeof(*obj_node));
-			obj_node->id = pinned_info.id;
-			obj_node->path = strdup(ftse->fts_path);
-			hash_add(tab->table, &obj_node->hash, obj_node->id);
-
-			close(fd);
-		}
-		fts_close(fts);
+		err = nftw(path, do_build_table_cb, nopenfd, flags);
+		if (err)
+			break;
 	}
 	fclose(mntfile);
-	return 0;
+	return err;
 }
 
-void delete_pinned_obj_table(struct pinned_obj_table *tab)
+void delete_pinned_obj_table(struct hashmap *map)
 {
-	struct pinned_obj *obj;
-	struct hlist_node *tmp;
-	unsigned int bkt;
+	struct hashmap_entry *entry;
+	size_t bkt;
 
-	hash_for_each_safe(tab->table, bkt, tmp, obj, hash) {
-		hash_del(&obj->hash);
-		free(obj->path);
-		free(obj);
-	}
+	if (!map)
+		return;
+
+	hashmap__for_each_entry(map, entry, bkt)
+		free(entry->value);
+
+	hashmap__free(map);
 }
 
 unsigned int get_page_size(void)
@@ -443,57 +559,13 @@ unsigned int get_page_size(void)
 
 unsigned int get_possible_cpus(void)
 {
-	static unsigned int result;
-	char buf[128];
-	long int n;
-	char *ptr;
-	int fd;
+	int cpus = libbpf_num_possible_cpus();
 
-	if (result)
-		return result;
-
-	fd = open("/sys/devices/system/cpu/possible", O_RDONLY);
-	if (fd < 0) {
-		p_err("can't open sysfs possible cpus");
+	if (cpus < 0) {
+		p_err("Can't get # of possible cpus: %s", strerror(-cpus));
 		exit(-1);
 	}
-
-	n = read(fd, buf, sizeof(buf));
-	if (n < 2) {
-		p_err("can't read sysfs possible cpus");
-		exit(-1);
-	}
-	close(fd);
-
-	if (n == sizeof(buf)) {
-		p_err("read sysfs possible cpus overflow");
-		exit(-1);
-	}
-
-	ptr = buf;
-	n = 0;
-	while (*ptr && *ptr != '\n') {
-		unsigned int a, b;
-
-		if (sscanf(ptr, "%u-%u", &a, &b) == 2) {
-			n += b - a + 1;
-
-			ptr = strchr(ptr, '-') + 1;
-		} else if (sscanf(ptr, "%u", &a) == 1) {
-			n++;
-		} else {
-			assert(0);
-		}
-
-		while (isdigit(*ptr))
-			ptr++;
-		if (*ptr == ',')
-			ptr++;
-	}
-
-	result = n;
-
-	return result;
+	return cpus;
 }
 
 static char *
@@ -639,4 +711,365 @@ int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what)
 	NEXT_ARGP();
 
 	return 0;
+}
+
+int __printf(2, 0)
+print_all_levels(__maybe_unused enum libbpf_print_level level,
+		 const char *format, va_list args)
+{
+	return vfprintf(stderr, format, args);
+}
+
+static int prog_fd_by_nametag(void *nametag, int **fds, bool tag)
+{
+	unsigned int id = 0;
+	int fd, nb_fds = 0;
+	void *tmp;
+	int err;
+
+	while (true) {
+		struct bpf_prog_info info = {};
+		__u32 len = sizeof(info);
+
+		err = bpf_prog_get_next_id(id, &id);
+		if (err) {
+			if (errno != ENOENT) {
+				p_err("%s", strerror(errno));
+				goto err_close_fds;
+			}
+			return nb_fds;
+		}
+
+		fd = bpf_prog_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get prog by id (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fds;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get prog info (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fd;
+		}
+
+		if ((tag && memcmp(nametag, info.tag, BPF_TAG_SIZE)) ||
+		    (!tag && strncmp(nametag, info.name, BPF_OBJ_NAME_LEN))) {
+			close(fd);
+			continue;
+		}
+
+		if (nb_fds > 0) {
+			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
+			if (!tmp) {
+				p_err("failed to realloc");
+				goto err_close_fd;
+			}
+			*fds = tmp;
+		}
+		(*fds)[nb_fds++] = fd;
+	}
+
+err_close_fd:
+	close(fd);
+err_close_fds:
+	while (--nb_fds >= 0)
+		close((*fds)[nb_fds]);
+	return -1;
+}
+
+int prog_parse_fds(int *argc, char ***argv, int **fds)
+{
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			p_err("can't parse %s as ID", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		(*fds)[0] = bpf_prog_get_fd_by_id(id);
+		if ((*fds)[0] < 0) {
+			p_err("get by id (%u): %s", id, strerror(errno));
+			return -1;
+		}
+		return 1;
+	} else if (is_prefix(**argv, "tag")) {
+		unsigned char tag[BPF_TAG_SIZE];
+
+		NEXT_ARGP();
+
+		if (sscanf(**argv, BPF_TAG_FMT, tag, tag + 1, tag + 2,
+			   tag + 3, tag + 4, tag + 5, tag + 6, tag + 7)
+		    != BPF_TAG_SIZE) {
+			p_err("can't parse tag");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return prog_fd_by_nametag(tag, fds, true);
+	} else if (is_prefix(**argv, "name")) {
+		char *name;
+
+		NEXT_ARGP();
+
+		name = **argv;
+		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
+			p_err("can't parse name");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return prog_fd_by_nametag(name, fds, false);
+	} else if (is_prefix(**argv, "pinned")) {
+		char *path;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_PROG);
+		if ((*fds)[0] < 0)
+			return -1;
+		return 1;
+	}
+
+	p_err("expected 'id', 'tag', 'name' or 'pinned', got: '%s'?", **argv);
+	return -1;
+}
+
+int prog_parse_fd(int *argc, char ***argv)
+{
+	int *fds = NULL;
+	int nb_fds, fd;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = prog_parse_fds(argc, argv, &fds);
+	if (nb_fds != 1) {
+		if (nb_fds > 1) {
+			p_err("several programs match this handle");
+			while (nb_fds--)
+				close(fds[nb_fds]);
+		}
+		fd = -1;
+		goto exit_free;
+	}
+
+	fd = fds[0];
+exit_free:
+	free(fds);
+	return fd;
+}
+
+static int map_fd_by_name(char *name, int **fds)
+{
+	unsigned int id = 0;
+	int fd, nb_fds = 0;
+	void *tmp;
+	int err;
+
+	while (true) {
+		struct bpf_map_info info = {};
+		__u32 len = sizeof(info);
+
+		err = bpf_map_get_next_id(id, &id);
+		if (err) {
+			if (errno != ENOENT) {
+				p_err("%s", strerror(errno));
+				goto err_close_fds;
+			}
+			return nb_fds;
+		}
+
+		fd = bpf_map_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get map by id (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fds;
+		}
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get map info (%u): %s",
+			      id, strerror(errno));
+			goto err_close_fd;
+		}
+
+		if (strncmp(name, info.name, BPF_OBJ_NAME_LEN)) {
+			close(fd);
+			continue;
+		}
+
+		if (nb_fds > 0) {
+			tmp = realloc(*fds, (nb_fds + 1) * sizeof(int));
+			if (!tmp) {
+				p_err("failed to realloc");
+				goto err_close_fd;
+			}
+			*fds = tmp;
+		}
+		(*fds)[nb_fds++] = fd;
+	}
+
+err_close_fd:
+	close(fd);
+err_close_fds:
+	while (--nb_fds >= 0)
+		close((*fds)[nb_fds]);
+	return -1;
+}
+
+int map_parse_fds(int *argc, char ***argv, int **fds)
+{
+	if (is_prefix(**argv, "id")) {
+		unsigned int id;
+		char *endptr;
+
+		NEXT_ARGP();
+
+		id = strtoul(**argv, &endptr, 0);
+		if (*endptr) {
+			p_err("can't parse %s as ID", **argv);
+			return -1;
+		}
+		NEXT_ARGP();
+
+		(*fds)[0] = bpf_map_get_fd_by_id(id);
+		if ((*fds)[0] < 0) {
+			p_err("get map by id (%u): %s", id, strerror(errno));
+			return -1;
+		}
+		return 1;
+	} else if (is_prefix(**argv, "name")) {
+		char *name;
+
+		NEXT_ARGP();
+
+		name = **argv;
+		if (strlen(name) > BPF_OBJ_NAME_LEN - 1) {
+			p_err("can't parse name");
+			return -1;
+		}
+		NEXT_ARGP();
+
+		return map_fd_by_name(name, fds);
+	} else if (is_prefix(**argv, "pinned")) {
+		char *path;
+
+		NEXT_ARGP();
+
+		path = **argv;
+		NEXT_ARGP();
+
+		(*fds)[0] = open_obj_pinned_any(path, BPF_OBJ_MAP);
+		if ((*fds)[0] < 0)
+			return -1;
+		return 1;
+	}
+
+	p_err("expected 'id', 'name' or 'pinned', got: '%s'?", **argv);
+	return -1;
+}
+
+int map_parse_fd(int *argc, char ***argv)
+{
+	int *fds = NULL;
+	int nb_fds, fd;
+
+	fds = malloc(sizeof(int));
+	if (!fds) {
+		p_err("mem alloc failed");
+		return -1;
+	}
+	nb_fds = map_parse_fds(argc, argv, &fds);
+	if (nb_fds != 1) {
+		if (nb_fds > 1) {
+			p_err("several maps match this handle");
+			while (nb_fds--)
+				close(fds[nb_fds]);
+		}
+		fd = -1;
+		goto exit_free;
+	}
+
+	fd = fds[0];
+exit_free:
+	free(fds);
+	return fd;
+}
+
+int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
+{
+	int err;
+	int fd;
+
+	fd = map_parse_fd(argc, argv);
+	if (fd < 0)
+		return -1;
+
+	err = bpf_obj_get_info_by_fd(fd, info, info_len);
+	if (err) {
+		p_err("can't get map info: %s", strerror(errno));
+		close(fd);
+		return err;
+	}
+
+	return fd;
+}
+
+size_t hash_fn_for_key_as_id(const void *key, void *ctx)
+{
+	return (size_t)key;
+}
+
+bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx)
+{
+	return k1 == k2;
+}
+
+const char *bpf_attach_type_input_str(enum bpf_attach_type t)
+{
+	switch (t) {
+	case BPF_CGROUP_INET_INGRESS:		return "ingress";
+	case BPF_CGROUP_INET_EGRESS:		return "egress";
+	case BPF_CGROUP_INET_SOCK_CREATE:	return "sock_create";
+	case BPF_CGROUP_INET_SOCK_RELEASE:	return "sock_release";
+	case BPF_CGROUP_SOCK_OPS:		return "sock_ops";
+	case BPF_CGROUP_DEVICE:			return "device";
+	case BPF_CGROUP_INET4_BIND:		return "bind4";
+	case BPF_CGROUP_INET6_BIND:		return "bind6";
+	case BPF_CGROUP_INET4_CONNECT:		return "connect4";
+	case BPF_CGROUP_INET6_CONNECT:		return "connect6";
+	case BPF_CGROUP_INET4_POST_BIND:	return "post_bind4";
+	case BPF_CGROUP_INET6_POST_BIND:	return "post_bind6";
+	case BPF_CGROUP_INET4_GETPEERNAME:	return "getpeername4";
+	case BPF_CGROUP_INET6_GETPEERNAME:	return "getpeername6";
+	case BPF_CGROUP_INET4_GETSOCKNAME:	return "getsockname4";
+	case BPF_CGROUP_INET6_GETSOCKNAME:	return "getsockname6";
+	case BPF_CGROUP_UDP4_SENDMSG:		return "sendmsg4";
+	case BPF_CGROUP_UDP6_SENDMSG:		return "sendmsg6";
+	case BPF_CGROUP_SYSCTL:			return "sysctl";
+	case BPF_CGROUP_UDP4_RECVMSG:		return "recvmsg4";
+	case BPF_CGROUP_UDP6_RECVMSG:		return "recvmsg6";
+	case BPF_CGROUP_GETSOCKOPT:		return "getsockopt";
+	case BPF_CGROUP_SETSOCKOPT:		return "setsockopt";
+	case BPF_TRACE_RAW_TP:			return "raw_tp";
+	case BPF_TRACE_FENTRY:			return "fentry";
+	case BPF_TRACE_FEXIT:			return "fexit";
+	case BPF_MODIFY_RETURN:			return "mod_ret";
+	case BPF_SK_REUSEPORT_SELECT:		return "sk_skb_reuseport_select";
+	case BPF_SK_REUSEPORT_SELECT_OR_MIGRATE:	return "sk_skb_reuseport_select_or_migrate";
+	default:	return libbpf_bpf_attach_type_str(t);
+	}
 }

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tmon.c Thermal Monitor (TMON) main function and entry point
  *
  * Copyright (C) 2012 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 or later as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Author: Jacob Pan <jacob.jun.pan@linux.intel.com>
- *
  */
 
 #include <getopt.h>
@@ -55,7 +46,7 @@ static void	start_daemon_mode(void);
 
 pthread_t event_tid;
 pthread_mutex_t input_lock;
-void usage()
+void usage(void)
 {
 	printf("Usage: tmon [OPTION...]\n");
 	printf("  -c, --control         cooling device in control\n");
@@ -71,7 +62,7 @@ void usage()
 	exit(0);
 }
 
-void version()
+void version(void)
 {
 	printf("TMON version %s\n", VERSION);
 	exit(EXIT_SUCCESS);
@@ -79,7 +70,6 @@ void version()
 
 static void tmon_cleanup(void)
 {
-
 	syslog(LOG_INFO, "TMON exit cleanup\n");
 	fflush(stdout);
 	refresh();
@@ -105,7 +95,6 @@ static void tmon_cleanup(void)
 	exit(1);
 }
 
-
 static void tmon_sig_handler(int sig)
 {
 	syslog(LOG_INFO, "TMON caught signal %d\n", sig);
@@ -128,7 +117,6 @@ static void tmon_sig_handler(int sig)
 	}
 	tmon_exit = true;
 }
-
 
 static void start_syslog(void)
 {
@@ -176,7 +164,6 @@ static void prepare_logging(void)
 		return;
 	}
 
-
 	fprintf(tmon_log, "#----------- THERMAL SYSTEM CONFIG -------------\n");
 	for (i = 0; i < ptdata.nr_tz_sensor; i++) {
 		char binding_str[33]; /* size of long + 1 */
@@ -184,7 +171,7 @@ static void prepare_logging(void)
 
 		memset(binding_str, 0, sizeof(binding_str));
 		for (j = 0; j < 32; j++)
-			binding_str[j] = (ptdata.tzi[i].cdev_binding & 1<<j) ?
+			binding_str[j] = (ptdata.tzi[i].cdev_binding & (1 << j)) ?
 				'1' : '0';
 
 		fprintf(tmon_log, "#thermal zone %s%02d cdevs binding: %32s\n",
@@ -196,7 +183,6 @@ static void prepare_logging(void)
 				trip_type_name[ptdata.tzi[i].tp[j].type],
 				ptdata.tzi[i].tp[j].temp);
 		}
-
 	}
 
 	for (i = 0; i <	ptdata.nr_cooling_dev; i++)
@@ -227,7 +213,6 @@ static struct option opts[] = {
 	{ "debug", 0, NULL, 'g' },
 	{ 0, 0, NULL, 0 }
 };
-
 
 int main(int argc, char **argv)
 {
@@ -292,7 +277,7 @@ int main(int argc, char **argv)
 	if (signal(SIGINT, tmon_sig_handler) == SIG_ERR)
 		syslog(LOG_DEBUG, "Cannot handle SIGINT\n");
 	if (signal(SIGTERM, tmon_sig_handler) == SIG_ERR)
-		syslog(LOG_DEBUG, "Cannot handle SIGINT\n");
+		syslog(LOG_DEBUG, "Cannot handle SIGTERM\n");
 
 	if (probe_thermal_sysfs()) {
 		pthread_mutex_destroy(&input_lock);
@@ -337,8 +322,7 @@ int main(int argc, char **argv)
 			show_cooling_device();
 		}
 		time_elapsed += ticktime;
-		controller_handler(trec[0].temp[target_tz_index] / 1000,
-				&yk);
+		controller_handler(trec[0].temp[target_tz_index] / 1000, &yk);
 		trec[0].pid_out_pct = yk;
 		if (!dialogue_on)
 			show_control_w();
@@ -349,14 +333,15 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-static void start_daemon_mode()
+static void start_daemon_mode(void)
 {
 	daemon_mode = 1;
 	/* fork */
 	pid_t	sid, pid = fork();
-	if (pid < 0) {
+
+	if (pid < 0)
 		exit(EXIT_FAILURE);
-	} else if (pid > 0)
+	else if (pid > 0)
 		/* kill parent */
 		exit(EXIT_SUCCESS);
 
@@ -375,11 +360,9 @@ static void start_daemon_mode()
 	if ((chdir("/")) < 0)
 		exit(EXIT_FAILURE);
 
-
 	sleep(10);
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
-
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the High Speed UART DMA
  *
@@ -5,10 +6,6 @@
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  *
  * Partially based on the bits found in drivers/tty/serial/mfd.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -64,10 +61,10 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 
 	if (hsuc->direction == DMA_MEM_TO_DEV) {
 		bsr = config->dst_maxburst;
-		mtsr = config->src_addr_width;
+		mtsr = config->dst_addr_width;
 	} else if (hsuc->direction == DMA_DEV_TO_MEM) {
 		bsr = config->src_maxburst;
-		mtsr = config->dst_addr_width;
+		mtsr = config->src_addr_width;
 	}
 
 	hsu_chan_disable(hsuc);
@@ -204,6 +201,7 @@ EXPORT_SYMBOL_GPL(hsu_dma_get_status);
  */
 int hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr, u32 status)
 {
+	struct dma_chan_percpu *stat;
 	struct hsu_dma_chan *hsuc;
 	struct hsu_dma_desc *desc;
 	unsigned long flags;
@@ -213,6 +211,7 @@ int hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr, u32 status)
 		return 0;
 
 	hsuc = &chip->hsu->chan[nr];
+	stat = this_cpu_ptr(hsuc->vchan.chan.local);
 
 	spin_lock_irqsave(&hsuc->vchan.lock, flags);
 	desc = hsuc->desc;
@@ -224,6 +223,7 @@ int hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr, u32 status)
 		} else {
 			vchan_cookie_complete(&desc->vdesc);
 			desc->status = DMA_COMPLETE;
+			stat->bytes_transferred += desc->length;
 			hsu_dma_start_transfer(hsuc);
 		}
 	}

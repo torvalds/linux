@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * generic helper functions for handling video4linux capture buffers
  *
@@ -7,10 +8,6 @@
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2
  */
 
 #ifndef _VIDEOBUF_CORE_H
@@ -43,7 +40,7 @@ struct videobuf_queue;
  * (which v4l2 uses).
  *
  * If there is a valid mapping for a buffer, buffer->baddr/bsize holds
- * userspace address + size which can be feeded into the
+ * userspace address + size which can be fed into the
  * videobuf_dma_init_user function listed above.
  *
  */
@@ -80,7 +77,7 @@ struct videobuf_buffer {
 	struct list_head        queue;
 	wait_queue_head_t       done;
 	unsigned int            field_count;
-	struct timeval          ts;
+	u64			ts;
 
 	/* Memory type */
 	enum v4l2_memory        memory;

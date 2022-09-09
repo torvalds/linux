@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Sysfs attributes of bridge ports
  *	Linux ethernet bridge
  *
  *	Authors:
  *	Stephen Hemminger		<shemminger@osdl.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/capability.h>
@@ -20,6 +16,10 @@
 #include <linux/sched/signal.h>
 
 #include "br_private.h"
+
+/* IMPORTANT: new bridge port options must be added with netlink support only
+ *            please do not add new sysfs entries
+ */
 
 struct brport_attribute {
 	struct attribute	attr;
@@ -59,9 +59,9 @@ static BRPORT_ATTR(_name, 0644,					\
 static int store_flag(struct net_bridge_port *p, unsigned long v,
 		      unsigned long mask)
 {
-	unsigned long flags;
-
-	flags = p->flags;
+	struct netlink_ext_ack extack = {0};
+	unsigned long flags = p->flags;
+	int err;
 
 	if (v)
 		flags |= mask;
@@ -69,6 +69,12 @@ static int store_flag(struct net_bridge_port *p, unsigned long v,
 		flags &= ~mask;
 
 	if (flags != p->flags) {
+		err = br_switchdev_set_port_flag(p, flags, mask, &extack);
+		if (err) {
+			netdev_err(p->dev, "%s\n", extack._msg);
+			return err;
+		}
+
 		p->flags = flags;
 		br_port_flags_change(p, mask);
 	}
@@ -238,13 +244,13 @@ BRPORT_ATTR_FLAG(isolated, BR_ISOLATED);
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 static ssize_t show_multicast_router(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->multicast_router);
+	return sprintf(buf, "%d\n", p->multicast_ctx.multicast_router);
 }
 
 static int store_multicast_router(struct net_bridge_port *p,
 				      unsigned long v)
 {
-	return br_multicast_set_port_router(p, v);
+	return br_multicast_set_port_router(&p->multicast_ctx, v);
 }
 static BRPORT_ATTR(multicast_router, 0644, show_multicast_router,
 		   store_multicast_router);

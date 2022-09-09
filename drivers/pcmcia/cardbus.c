@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cardbus.c -- 16-bit PCMCIA core support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -25,7 +22,9 @@
 #include <linux/pci.h>
 
 #include <pcmcia/ss.h>
+#include <pcmcia/cistpl.h>
 
+#include "cs_internal.h"
 
 static void cardbus_config_irq_and_cls(struct pci_bus *bus, int irq)
 {

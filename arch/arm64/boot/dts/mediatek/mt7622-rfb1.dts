@@ -40,15 +40,14 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		poll-interval = <100>;
 
-		factory {
+		key-factory {
 			label = "factory";
 			linux,code = <BTN_0>;
 			gpios = <&pio 0 0>;
 		};
 
-		wps {
+		key-wps {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&pio 102 0>;
@@ -105,20 +104,71 @@
 	pinctrl-0 = <&eth_pins>;
 	status = "okay";
 
-	gmac1: mac@1 {
+	gmac0: mac@0 {
 		compatible = "mediatek,eth-mac";
-		reg = <1>;
-		phy-handle = <&phy5>;
+		reg = <0>;
+		phy-mode = "2500base-x";
+
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+			pause;
+		};
 	};
 
 	mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		phy5: ethernet-phy@5 {
-			reg = <5>;
-			phy-mode = "sgmii";
+		switch@0 {
+			compatible = "mediatek,mt7531";
+			reg = <0>;
+			reset-gpios = <&pio 54 0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					label = "lan0";
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "lan1";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "lan2";
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "lan3";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "wan";
+				};
+
+				port@6 {
+					reg = <6>;
+					label = "cpu";
+					ethernet = <&gmac0>;
+					phy-mode = "2500base-x";
+
+					fixed-link {
+						speed = <2500>;
+						full-duplex;
+						pause;
+					};
+				};
+			};
 		};
+
 	};
 };
 
@@ -183,14 +233,10 @@
 	};
 };
 
-&pcie {
+&pcie0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie0_pins>;
 	status = "okay";
-
-	pcie@0,0 {
-		status = "okay";
-	};
 };
 
 &pio {
@@ -251,14 +297,14 @@
 	i2c1_pins: i2c1-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c1_0";
+			groups = "i2c1_0";
 		};
 	};
 
 	i2c2_pins: i2c2-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c2_0";
+			groups = "i2c2_0";
 		};
 	};
 
@@ -281,14 +327,14 @@
 	irrx_pins: irrx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_rx";
+			groups = "ir_1_rx";
 		};
 	};
 
 	irtx_pins: irtx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_tx";
+			groups = "ir_1_tx";
 		};
 	};
 
@@ -444,6 +490,16 @@
 			groups = "watchdog";
 		};
 	};
+
+	wmac_pins: wmac-pins {
+		mux {
+			function = "antsel";
+			groups = "antsel0", "antsel1", "antsel2", "antsel3",
+				 "antsel4", "antsel5", "antsel6", "antsel7",
+				 "antsel8", "antsel9", "antsel12", "antsel13",
+				 "antsel14", "antsel15", "antsel16", "antsel17";
+		};
+	};
 };
 
 &pwm {
@@ -504,5 +560,11 @@
 &watchdog {
 	pinctrl-names = "default";
 	pinctrl-0 = <&watchdog_pins>;
+	status = "okay";
+};
+
+&wmac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&wmac_pins>;
 	status = "okay";
 };

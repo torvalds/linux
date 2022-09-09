@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI tlc4541 ADC Driver
  *
  * Copyright (C) 2017 Phil Reid
  *
  * Datasheets can be found here:
- * http://www.ti.com/lit/gpn/tlc3541
- * http://www.ti.com/lit/gpn/tlc4541
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * https://www.ti.com/lit/gpn/tlc3541
+ * https://www.ti.com/lit/gpn/tlc4541
  *
  * The tlc4541 requires 24 clock cycles to start a transfer.
  * Conversion then takes 2.94us to complete before data is ready
@@ -27,6 +24,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
@@ -39,12 +37,12 @@ struct tlc4541_state {
 	struct spi_message              scan_single_msg;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 * 2 bytes data + 6 bytes padding + 8 bytes timestamp when
 	 * call iio_push_to_buffers_with_timestamp.
 	 */
-	__be16                          rx_buf[8] ____cacheline_aligned;
+	__be16                          rx_buf[8] __aligned(IIO_DMA_MINALIGN);
 };
 
 struct tlc4541_chip_info {
@@ -180,7 +178,6 @@ static int tlc4541_probe(struct spi_device *spi)
 	info = &tlc4541_chip_info[spi_get_device_id(spi)->driver_data];
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = info->channels;
 	indio_dev->num_channels = info->num_channels;
@@ -192,7 +189,8 @@ static int tlc4541_probe(struct spi_device *spi)
 	/* Setup default message */
 	st->scan_single_xfer[0].rx_buf = &st->rx_buf[0];
 	st->scan_single_xfer[0].len = 3;
-	st->scan_single_xfer[1].delay_usecs = 3;
+	st->scan_single_xfer[1].delay.value = 3;
+	st->scan_single_xfer[1].delay.unit = SPI_DELAY_UNIT_NSECS;
 	st->scan_single_xfer[2].rx_buf = &st->rx_buf[0];
 	st->scan_single_xfer[2].len = 2;
 
@@ -226,7 +224,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int tlc4541_remove(struct spi_device *spi)
+static void tlc4541_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct tlc4541_state *st = iio_priv(indio_dev);
@@ -234,18 +232,14 @@ static int tlc4541_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(st->reg);
-
-	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id tlc4541_dt_ids[] = {
 	{ .compatible = "ti,tlc3541", },
 	{ .compatible = "ti,tlc4541", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tlc4541_dt_ids);
-#endif
 
 static const struct spi_device_id tlc4541_id[] = {
 	{"tlc3541", TLC3541},
@@ -257,7 +251,7 @@ MODULE_DEVICE_TABLE(spi, tlc4541_id);
 static struct spi_driver tlc4541_driver = {
 	.driver = {
 		.name   = "tlc4541",
-		.of_match_table = of_match_ptr(tlc4541_dt_ids),
+		.of_match_table = tlc4541_dt_ids,
 	},
 	.probe          = tlc4541_probe,
 	.remove         = tlc4541_remove,

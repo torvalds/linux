@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* vmu-flash.c
  * Driver for SEGA Dreamcast Visual Memory Unit
  *
  * Copyright (c) Adrian McMenamin 2002 - 2009
  * Copyright (c) Paul Mundt 2001
- *
- * Licensed under version 2 of the
- * GNU General Public Licence
  */
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -42,7 +40,7 @@ struct memcard {
 	u32 blocklen;
 	u32 writecnt;
 	u32 readcnt;
-	u32 removeable;
+	u32 removable;
 	int partition;
 	int read;
 	unsigned char *blockread;
@@ -621,7 +619,7 @@ static int vmu_connect(struct maple_device *mdev)
 	card->blocklen = ((basic_flash_data >> 16 & 0xFF) + 1) << 5;
 	card->writecnt = basic_flash_data >> 12 & 0xF;
 	card->readcnt = basic_flash_data >> 8 & 0xF;
-	card->removeable = basic_flash_data >> 7 & 1;
+	card->removable = basic_flash_data >> 7 & 1;
 
 	card->partition = 0;
 
@@ -774,7 +772,6 @@ static void vmu_file_error(struct maple_device *mdev, void *recvbuf)
 
 static int probe_maple_vmu(struct device *dev)
 {
-	int error;
 	struct maple_device *mdev = to_maple_dev(dev);
 	struct maple_driver *mdrv = to_maple_driver(dev->driver);
 
@@ -782,11 +779,7 @@ static int probe_maple_vmu(struct device *dev)
 	mdev->fileerr_handler = vmu_file_error;
 	mdev->driver = mdrv;
 
-	error = vmu_connect(mdev);
-	if (error)
-		return error;
-
-	return 0;
+	return vmu_connect(mdev);
 }
 
 static int remove_maple_vmu(struct device *dev)

@@ -1,7 +1,7 @@
 Atmel system registers
 
 Chipid required properties:
-- compatible: Should be "atmel,sama5d2-chipid"
+- compatible: Should be "atmel,sama5d2-chipid" or "microchip,sama7g5-chipid"
 - reg : Should contain registers location and length
 
 PIT Timer required properties:
@@ -9,6 +9,12 @@ PIT Timer required properties:
 - reg: Should contain registers location and length
 - interrupts: Should contain interrupt for the PIT which is the IRQ line
   shared across all System Controller members.
+
+PIT64B Timer required properties:
+- compatible: Should be "microchip,sam9x60-pit64b"
+- reg: Should contain registers location and length
+- interrupts: Should contain interrupt for PIT64B timer
+- clocks: Should contain the available clock sources for PIT64B timer.
 
 System Timer (ST) required properties:
 - compatible: Should be "atmel,at91rm9200-st", "syscon", "simple-mfd"
@@ -19,25 +25,13 @@ System Timer (ST) required properties:
 Its subnodes can be:
 - watchdog: compatible should be "atmel,at91rm9200-wdt"
 
-RSTC Reset Controller required properties:
-- compatible: Should be "atmel,<chip>-rstc".
-  <chip> can be "at91sam9260" or "at91sam9g45" or "sama5d3"
-- reg: Should contain registers location and length
-- clocks: phandle to input clock.
-
-Example:
-
-	rstc@fffffd00 {
-		compatible = "atmel,at91sam9260-rstc";
-		reg = <0xfffffd00 0x10>;
-		clocks = <&clk32k>;
-	};
-
 RAMC SDRAM/DDR Controller required properties:
 - compatible: Should be "atmel,at91rm9200-sdramc", "syscon"
 			"atmel,at91sam9260-sdramc",
 			"atmel,at91sam9g45-ddramc",
 			"atmel,sama5d3-ddramc",
+			"microchip,sam9x60-ddramc",
+			"microchip,sama7g5-uddrc"
 - reg: Should contain registers location and length
 
 Examples:
@@ -46,6 +40,17 @@ Examples:
 		compatible = "atmel,at91sam9g45-ddramc";
 		reg = <0xffffe800 0x200>;
 	};
+
+RAMC PHY Controller required properties:
+- compatible: Should be "microchip,sama7g5-ddr3phy", "syscon"
+- reg: Should contain registers location and length
+
+Example:
+
+	ddr3phy: ddr3phy@e3804000 {
+		compatible = "microchip,sama7g5-ddr3phy", "syscon";
+		reg = <0xe3804000 0x1000>;
+};
 
 SHDWC Shutdown Controller
 
@@ -83,7 +88,8 @@ SHDWC SAMA5D2-Compatible Shutdown Controller
 1) shdwc node
 
 required properties:
-- compatible: should be "atmel,sama5d2-shdwc".
+- compatible: should be "atmel,sama5d2-shdwc", "microchip,sam9x60-shdwc" or
+  "microchip,sama7g5-shdwc"
 - reg: should contain registers location and length
 - clocks: phandle to input clock.
 - #address-cells: should be one. The cell is the wake-up input index.
@@ -94,6 +100,9 @@ optional properties:
 - debounce-delay-us: minimum wake-up inputs debouncer period in
   microseconds. It's usually a board-related property.
 - atmel,wakeup-rtc-timer: boolean to enable Real-Time Clock wake-up.
+
+optional microchip,sam9x60-shdwc or microchip,sama7g5-shdwc properties:
+- atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
 
 The node contains child nodes for each wake-up input that the platform uses.
 
@@ -147,6 +156,7 @@ required properties:
 - compatible: Should be "atmel,<chip>-sfr", "syscon" or
 	"atmel,<chip>-sfrbu", "syscon"
   <chip> can be "sama5d3", "sama5d4" or "sama5d2".
+  It also can be "microchip,sam9x60-sfr", "syscon".
 - reg: Should contain registers location and length
 
 	sfr@f0038000 {

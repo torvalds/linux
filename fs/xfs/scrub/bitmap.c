@@ -10,11 +10,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_btree.h"
-#include "scrub/xfs_scrub.h"
-#include "scrub/scrub.h"
-#include "scrub/common.h"
-#include "scrub/trace.h"
-#include "scrub/repair.h"
 #include "scrub/bitmap.h"
 
 /*
@@ -23,14 +18,14 @@
  * This is the logical equivalent of bitmap |= mask(start, len).
  */
 int
-xfs_bitmap_set(
-	struct xfs_bitmap	*bitmap,
+xbitmap_set(
+	struct xbitmap		*bitmap,
 	uint64_t		start,
 	uint64_t		len)
 {
-	struct xfs_bitmap_range	*bmr;
+	struct xbitmap_range	*bmr;
 
-	bmr = kmem_alloc(sizeof(struct xfs_bitmap_range), KM_MAYFAIL);
+	bmr = kmem_alloc(sizeof(struct xbitmap_range), KM_MAYFAIL);
 	if (!bmr)
 		return -ENOMEM;
 
@@ -44,13 +39,13 @@ xfs_bitmap_set(
 
 /* Free everything related to this bitmap. */
 void
-xfs_bitmap_destroy(
-	struct xfs_bitmap	*bitmap)
+xbitmap_destroy(
+	struct xbitmap		*bitmap)
 {
-	struct xfs_bitmap_range	*bmr;
-	struct xfs_bitmap_range	*n;
+	struct xbitmap_range	*bmr;
+	struct xbitmap_range	*n;
 
-	for_each_xfs_bitmap_extent(bmr, n, bitmap) {
+	for_each_xbitmap_extent(bmr, n, bitmap) {
 		list_del(&bmr->list);
 		kmem_free(bmr);
 	}
@@ -58,24 +53,24 @@ xfs_bitmap_destroy(
 
 /* Set up a per-AG block bitmap. */
 void
-xfs_bitmap_init(
-	struct xfs_bitmap	*bitmap)
+xbitmap_init(
+	struct xbitmap		*bitmap)
 {
 	INIT_LIST_HEAD(&bitmap->list);
 }
 
 /* Compare two btree extents. */
 static int
-xfs_bitmap_range_cmp(
+xbitmap_range_cmp(
 	void			*priv,
-	struct list_head	*a,
-	struct list_head	*b)
+	const struct list_head	*a,
+	const struct list_head	*b)
 {
-	struct xfs_bitmap_range	*ap;
-	struct xfs_bitmap_range	*bp;
+	struct xbitmap_range	*ap;
+	struct xbitmap_range	*bp;
 
-	ap = container_of(a, struct xfs_bitmap_range, list);
-	bp = container_of(b, struct xfs_bitmap_range, list);
+	ap = container_of(a, struct xbitmap_range, list);
+	bp = container_of(b, struct xbitmap_range, list);
 
 	if (ap->start > bp->start)
 		return 1;
@@ -101,14 +96,14 @@ xfs_bitmap_range_cmp(
 #define LEFT_ALIGNED	(1 << 0)
 #define RIGHT_ALIGNED	(1 << 1)
 int
-xfs_bitmap_disunion(
-	struct xfs_bitmap	*bitmap,
-	struct xfs_bitmap	*sub)
+xbitmap_disunion(
+	struct xbitmap		*bitmap,
+	struct xbitmap		*sub)
 {
 	struct list_head	*lp;
-	struct xfs_bitmap_range	*br;
-	struct xfs_bitmap_range	*new_br;
-	struct xfs_bitmap_range	*sub_br;
+	struct xbitmap_range	*br;
+	struct xbitmap_range	*new_br;
+	struct xbitmap_range	*sub_br;
 	uint64_t		sub_start;
 	uint64_t		sub_len;
 	int			state;
@@ -118,8 +113,8 @@ xfs_bitmap_disunion(
 		return 0;
 	ASSERT(!list_empty(&sub->list));
 
-	list_sort(NULL, &bitmap->list, xfs_bitmap_range_cmp);
-	list_sort(NULL, &sub->list, xfs_bitmap_range_cmp);
+	list_sort(NULL, &bitmap->list, xbitmap_range_cmp);
+	list_sort(NULL, &sub->list, xbitmap_range_cmp);
 
 	/*
 	 * Now that we've sorted both lists, we iterate bitmap once, rolling
@@ -129,11 +124,11 @@ xfs_bitmap_disunion(
 	 * list traversal is similar to merge sort, but we're deleting
 	 * instead.  In this manner we avoid O(n^2) operations.
 	 */
-	sub_br = list_first_entry(&sub->list, struct xfs_bitmap_range,
+	sub_br = list_first_entry(&sub->list, struct xbitmap_range,
 			list);
 	lp = bitmap->list.next;
 	while (lp != &bitmap->list) {
-		br = list_entry(lp, struct xfs_bitmap_range, list);
+		br = list_entry(lp, struct xbitmap_range, list);
 
 		/*
 		 * Advance sub_br and/or br until we find a pair that
@@ -186,7 +181,7 @@ xfs_bitmap_disunion(
 			 * Deleting from the middle: add the new right extent
 			 * and then shrink the left extent.
 			 */
-			new_br = kmem_alloc(sizeof(struct xfs_bitmap_range),
+			new_br = kmem_alloc(sizeof(struct xbitmap_range),
 					KM_MAYFAIL);
 			if (!new_br) {
 				error = -ENOMEM;
@@ -227,21 +222,21 @@ out:
  * 1  2  3
  *
  * Pretend for this example that each leaf block has 100 btree records.  For
- * the first btree record, we'll observe that bc_ptrs[0] == 1, so we record
- * that we saw block 1.  Then we observe that bc_ptrs[1] == 1, so we record
- * block 4.  The list is [1, 4].
+ * the first btree record, we'll observe that bc_levels[0].ptr == 1, so we
+ * record that we saw block 1.  Then we observe that bc_levels[1].ptr == 1, so
+ * we record block 4.  The list is [1, 4].
  *
- * For the second btree record, we see that bc_ptrs[0] == 2, so we exit the
- * loop.  The list remains [1, 4].
+ * For the second btree record, we see that bc_levels[0].ptr == 2, so we exit
+ * the loop.  The list remains [1, 4].
  *
  * For the 101st btree record, we've moved onto leaf block 2.  Now
- * bc_ptrs[0] == 1 again, so we record that we saw block 2.  We see that
- * bc_ptrs[1] == 2, so we exit the loop.  The list is now [1, 4, 2].
+ * bc_levels[0].ptr == 1 again, so we record that we saw block 2.  We see that
+ * bc_levels[1].ptr == 2, so we exit the loop.  The list is now [1, 4, 2].
  *
- * For the 102nd record, bc_ptrs[0] == 2, so we continue.
+ * For the 102nd record, bc_levels[0].ptr == 2, so we continue.
  *
- * For the 201st record, we've moved on to leaf block 3.  bc_ptrs[0] == 1, so
- * we add 3 to the list.  Now it is [1, 4, 2, 3].
+ * For the 201st record, we've moved on to leaf block 3.
+ * bc_levels[0].ptr == 1, so we add 3 to the list.  Now it is [1, 4, 2, 3].
  *
  * For the 300th record we just exit, with the list being [1, 4, 2, 3].
  */
@@ -252,8 +247,8 @@ out:
  * blocks going from the leaf towards the root.
  */
 int
-xfs_bitmap_set_btcur_path(
-	struct xfs_bitmap	*bitmap,
+xbitmap_set_btcur_path(
+	struct xbitmap		*bitmap,
 	struct xfs_btree_cur	*cur)
 {
 	struct xfs_buf		*bp;
@@ -261,12 +256,12 @@ xfs_bitmap_set_btcur_path(
 	int			i;
 	int			error;
 
-	for (i = 0; i < cur->bc_nlevels && cur->bc_ptrs[i] == 1; i++) {
+	for (i = 0; i < cur->bc_nlevels && cur->bc_levels[i].ptr == 1; i++) {
 		xfs_btree_get_block(cur, i, &bp);
 		if (!bp)
 			continue;
-		fsb = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
-		error = xfs_bitmap_set(bitmap, fsb, 1);
+		fsb = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
+		error = xbitmap_set(bitmap, fsb, 1);
 		if (error)
 			return error;
 	}
@@ -276,12 +271,12 @@ xfs_bitmap_set_btcur_path(
 
 /* Collect a btree's block in the bitmap. */
 STATIC int
-xfs_bitmap_collect_btblock(
+xbitmap_collect_btblock(
 	struct xfs_btree_cur	*cur,
 	int			level,
 	void			*priv)
 {
-	struct xfs_bitmap	*bitmap = priv;
+	struct xbitmap		*bitmap = priv;
 	struct xfs_buf		*bp;
 	xfs_fsblock_t		fsbno;
 
@@ -289,15 +284,31 @@ xfs_bitmap_collect_btblock(
 	if (!bp)
 		return 0;
 
-	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, bp->b_bn);
-	return xfs_bitmap_set(bitmap, fsbno, 1);
+	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
+	return xbitmap_set(bitmap, fsbno, 1);
 }
 
 /* Walk the btree and mark the bitmap wherever a btree block is found. */
 int
-xfs_bitmap_set_btblocks(
-	struct xfs_bitmap	*bitmap,
+xbitmap_set_btblocks(
+	struct xbitmap		*bitmap,
 	struct xfs_btree_cur	*cur)
 {
-	return xfs_btree_visit_blocks(cur, xfs_bitmap_collect_btblock, bitmap);
+	return xfs_btree_visit_blocks(cur, xbitmap_collect_btblock,
+			XFS_BTREE_VISIT_ALL, bitmap);
+}
+
+/* How many bits are set in this bitmap? */
+uint64_t
+xbitmap_hweight(
+	struct xbitmap		*bitmap)
+{
+	struct xbitmap_range	*bmr;
+	struct xbitmap_range	*n;
+	uint64_t		ret = 0;
+
+	for_each_xbitmap_extent(bmr, n, bitmap)
+		ret += bmr->len;
+
+	return ret;
 }

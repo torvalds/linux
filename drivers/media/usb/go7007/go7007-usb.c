@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2006 Micronas USA Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1052,6 +1044,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	struct go7007_usb *usb;
 	const struct go7007_usb_board *board;
 	struct usb_device *usbdev = interface_to_usbdev(intf);
+	struct usb_host_endpoint *ep;
 	unsigned num_i2c_devs;
 	char *name;
 	int video_pipe, i, v_urb_len;
@@ -1132,12 +1125,16 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	usb->usbdev = usbdev;
 	usb_make_path(usbdev, go->bus_info, sizeof(go->bus_info));
 	go->board_id = id->driver_info;
-	strncpy(go->name, name, sizeof(go->name));
+	strscpy(go->name, name, sizeof(go->name));
 	if (board->flags & GO7007_USB_EZUSB)
 		go->hpi_ops = &go7007_usb_ezusb_hpi_ops;
 	else
 		go->hpi_ops = &go7007_usb_onboard_hpi_ops;
 	go->hpi_context = usb;
+
+	ep = usb->usbdev->ep_in[4];
+	if (!ep)
+		goto allocfail;
 
 	/* Allocate the URB and buffer for receiving incoming interrupts */
 	usb->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -1148,7 +1145,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	if (usb->intr_urb->transfer_buffer == NULL)
 		goto allocfail;
 
-	if (go->board_id == GO7007_BOARDID_SENSORAY_2250)
+	if (usb_endpoint_type(&ep->desc) == USB_ENDPOINT_XFER_BULK)
 		usb_fill_bulk_urb(usb->intr_urb, usb->usbdev,
 			usb_rcvbulkpipe(usb->usbdev, 4),
 			usb->intr_urb->transfer_buffer, 2*sizeof(u16),
@@ -1198,7 +1195,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 				go->board_id = GO7007_BOARDID_ENDURA;
 				usb->board = board = &board_endura;
 				go->board_info = &board->main_info;
-				strncpy(go->name, "Pelco Endura",
+				strscpy(go->name, "Pelco Endura",
 					sizeof(go->name));
 			} else {
 				u16 channel;
@@ -1232,21 +1229,21 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		case 1:
 			go->tuner_type = TUNER_SONY_BTF_PG472Z;
 			go->std = V4L2_STD_PAL;
-			strncpy(go->name, "Plextor PX-TV402U-EU",
-					sizeof(go->name));
+			strscpy(go->name, "Plextor PX-TV402U-EU",
+				sizeof(go->name));
 			break;
 		case 2:
 			go->tuner_type = TUNER_SONY_BTF_PK467Z;
 			go->std = V4L2_STD_NTSC_M_JP;
 			num_i2c_devs -= 2;
-			strncpy(go->name, "Plextor PX-TV402U-JP",
-					sizeof(go->name));
+			strscpy(go->name, "Plextor PX-TV402U-JP",
+				sizeof(go->name));
 			break;
 		case 3:
 			go->tuner_type = TUNER_SONY_BTF_PB463Z;
 			num_i2c_devs -= 2;
-			strncpy(go->name, "Plextor PX-TV402U-NA",
-					sizeof(go->name));
+			strscpy(go->name, "Plextor PX-TV402U-NA",
+				sizeof(go->name));
 			break;
 		default:
 			pr_debug("unable to detect tuner type!\n");
@@ -1269,9 +1266,13 @@ static int go7007_usb_probe(struct usb_interface *intf,
 
 	/* Allocate the URBs and buffers for receiving the video stream */
 	if (board->flags & GO7007_USB_EZUSB) {
+		if (!usb->usbdev->ep_in[6])
+			goto allocfail;
 		v_urb_len = 1024;
 		video_pipe = usb_rcvbulkpipe(usb->usbdev, 6);
 	} else {
+		if (!usb->usbdev->ep_in[1])
+			goto allocfail;
 		v_urb_len = 512;
 		video_pipe = usb_rcvbulkpipe(usb->usbdev, 1);
 	}
@@ -1291,6 +1292,8 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	/* Allocate the URBs and buffers for receiving the audio stream */
 	if ((board->flags & GO7007_USB_EZUSB) &&
 	    (board->main_info.flags & GO7007_BOARD_HAS_AUDIO)) {
+		if (!usb->usbdev->ep_in[8])
+			goto allocfail;
 		for (i = 0; i < 8; ++i) {
 			usb->audio_urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
 			if (usb->audio_urbs[i] == NULL)

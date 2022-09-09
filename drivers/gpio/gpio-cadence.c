@@ -41,12 +41,12 @@ static int cdns_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	struct cdns_gpio_chip *cgpio = gpiochip_get_data(chip);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->bgpio_lock, flags);
 
 	iowrite32(ioread32(cgpio->regs + CDNS_GPIO_BYPASS_MODE) & ~BIT(offset),
 		  cgpio->regs + CDNS_GPIO_BYPASS_MODE);
 
-	spin_unlock_irqrestore(&chip->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->bgpio_lock, flags);
 	return 0;
 }
 
@@ -55,13 +55,13 @@ static void cdns_gpio_free(struct gpio_chip *chip, unsigned int offset)
 	struct cdns_gpio_chip *cgpio = gpiochip_get_data(chip);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->bgpio_lock, flags);
 
 	iowrite32(ioread32(cgpio->regs + CDNS_GPIO_BYPASS_MODE) |
 		  (BIT(offset) & cgpio->bypass_orig),
 		  cgpio->regs + CDNS_GPIO_BYPASS_MODE);
 
-	spin_unlock_irqrestore(&chip->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->bgpio_lock, flags);
 }
 
 static void cdns_gpio_irq_mask(struct irq_data *d)
@@ -90,7 +90,7 @@ static int cdns_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	u32 mask = BIT(d->hwirq);
 	int ret = 0;
 
-	spin_lock_irqsave(&chip->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->bgpio_lock, flags);
 
 	int_value = ioread32(cgpio->regs + CDNS_GPIO_IRQ_VALUE) & ~mask;
 	int_type = ioread32(cgpio->regs + CDNS_GPIO_IRQ_TYPE) & ~mask;
@@ -115,7 +115,7 @@ static int cdns_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	iowrite32(int_type, cgpio->regs + CDNS_GPIO_IRQ_TYPE);
 
 err_irq_type:
-	spin_unlock_irqrestore(&chip->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->bgpio_lock, flags);
 	return ret;
 }
 
@@ -133,7 +133,7 @@ static void cdns_gpio_irq_handler(struct irq_desc *desc)
 		~ioread32(cgpio->regs + CDNS_GPIO_IRQ_MASK);
 
 	for_each_set_bit(hwirq, &status, chip->ngpio)
-		generic_handle_irq(irq_find_mapping(chip->irq.domain, hwirq));
+		generic_handle_domain_irq(chip->irq.domain, hwirq);
 
 	chained_irq_exit(irqchip, desc);
 }
@@ -148,7 +148,6 @@ static struct irq_chip cdns_gpio_irqchip = {
 static int cdns_gpio_probe(struct platform_device *pdev)
 {
 	struct cdns_gpio_chip *cgpio;
-	struct resource *res;
 	int ret, irq;
 	u32 dir_prev;
 	u32 num_gpios = 32;
@@ -157,8 +156,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	if (!cgpio)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cgpio->regs = devm_ioremap_resource(&pdev->dev, res);
+	cgpio->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cgpio->regs))
 		return PTR_ERR(cgpio->regs);
 
@@ -216,27 +214,33 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 		goto err_revert_dir;
 	}
 
+	/*
+	 * Optional irq_chip support
+	 */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0) {
+		struct gpio_irq_chip *girq;
+
+		girq = &cgpio->gc.irq;
+		girq->chip = &cdns_gpio_irqchip;
+		girq->parent_handler = cdns_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents) {
+			ret = -ENOMEM;
+			goto err_disable_clk;
+		}
+		girq->parents[0] = irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
+	}
+
 	ret = devm_gpiochip_add_data(&pdev->dev, &cgpio->gc, cgpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		goto err_disable_clk;
-	}
-
-	/*
-	 * irq_chip support
-	 */
-	irq = platform_get_irq(pdev, 0);
-	if (irq >= 0) {
-		ret = gpiochip_irqchip_add(&cgpio->gc, &cdns_gpio_irqchip,
-					   0, handle_level_irq,
-					   IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(&pdev->dev, "Could not add irqchip, %d\n",
-				ret);
-			goto err_disable_clk;
-		}
-		gpiochip_set_chained_irqchip(&cgpio->gc, &cdns_gpio_irqchip,
-					     irq, cdns_gpio_irq_handler);
 	}
 
 	cgpio->bypass_orig = ioread32(cgpio->regs + CDNS_GPIO_BYPASS_MODE);
@@ -274,6 +278,7 @@ static const struct of_device_id cdns_of_ids[] = {
 	{ .compatible = "cdns,gpio-r1p02" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, cdns_of_ids);
 
 static struct platform_driver cdns_gpio_driver = {
 	.driver = {

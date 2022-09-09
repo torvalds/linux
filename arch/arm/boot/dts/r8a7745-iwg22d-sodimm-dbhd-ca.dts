@@ -84,8 +84,6 @@
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
-		adi,input-style = <1>;
-		adi,input-justification = "evenly";
 
 		ports {
 			#address-cells = <1>;
@@ -106,6 +104,12 @@
 			};
 		};
 	};
+};
+
+&lcd_panel {
+	status = "disabled";
+
+	/delete-node/ port;
 };
 
 &pfc {

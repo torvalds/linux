@@ -3,7 +3,7 @@
 // Copyright (c) 2015 Samsung Electronics Co., Ltd.
 //	      http://www.samsung.com/
 //
-// EXYNOS - SROM Controller support
+// Exynos - SROM Controller support
 // Author: Pankaj Dubey <pankaj.dubey@samsung.com>
 
 #include <linux/io.h>
@@ -47,9 +47,9 @@ struct exynos_srom {
 	struct exynos_srom_reg_dump *reg_offset;
 };
 
-static struct exynos_srom_reg_dump *exynos_srom_alloc_reg_dump(
-		const unsigned long *rdump,
-		unsigned long nr_rdump)
+static struct exynos_srom_reg_dump *
+exynos_srom_alloc_reg_dump(const unsigned long *rdump,
+			   unsigned long nr_rdump)
 {
 	struct exynos_srom_reg_dump *rd;
 	unsigned int i;
@@ -116,7 +116,7 @@ static int exynos_srom_probe(struct platform_device *pdev)
 	}
 
 	srom = devm_kzalloc(&pdev->dev,
-			sizeof(struct exynos_srom), GFP_KERNEL);
+			    sizeof(struct exynos_srom), GFP_KERNEL);
 	if (!srom)
 		return -ENOMEM;
 
@@ -130,7 +130,7 @@ static int exynos_srom_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, srom);
 
 	srom->reg_offset = exynos_srom_alloc_reg_dump(exynos_srom_offsets,
-			ARRAY_SIZE(exynos_srom_offsets));
+						      ARRAY_SIZE(exynos_srom_offsets));
 	if (!srom->reg_offset) {
 		iounmap(srom->reg_base);
 		return -ENOMEM;
@@ -157,16 +157,16 @@ static int exynos_srom_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_PM_SLEEP
 static void exynos_srom_save(void __iomem *base,
-				    struct exynos_srom_reg_dump *rd,
-				    unsigned int num_regs)
+			     struct exynos_srom_reg_dump *rd,
+			     unsigned int num_regs)
 {
 	for (; num_regs > 0; --num_regs, ++rd)
 		rd->value = readl(base + rd->offset);
 }
 
 static void exynos_srom_restore(void __iomem *base,
-				      const struct exynos_srom_reg_dump *rd,
-				      unsigned int num_regs)
+				const struct exynos_srom_reg_dump *rd,
+				unsigned int num_regs)
 {
 	for (; num_regs > 0; --num_regs, ++rd)
 		writel(rd->value, base + rd->offset);
@@ -177,7 +177,7 @@ static int exynos_srom_suspend(struct device *dev)
 	struct exynos_srom *srom = dev_get_drvdata(dev);
 
 	exynos_srom_save(srom->reg_base, srom->reg_offset,
-				ARRAY_SIZE(exynos_srom_offsets));
+			 ARRAY_SIZE(exynos_srom_offsets));
 	return 0;
 }
 
@@ -186,7 +186,7 @@ static int exynos_srom_resume(struct device *dev)
 	struct exynos_srom *srom = dev_get_drvdata(dev);
 
 	exynos_srom_restore(srom->reg_base, srom->reg_offset,
-				ARRAY_SIZE(exynos_srom_offsets));
+			    ARRAY_SIZE(exynos_srom_offsets));
 	return 0;
 }
 #endif

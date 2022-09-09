@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * BCM47XX NAND flash driver
  *
  * Copyright (C) 2012 Rafał Miłecki <zajec5@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include "bcm47xxnflash.h"
@@ -395,7 +391,8 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 
 	nand_chip->legacy.chip_delay = 50;
 	b47n->nand_chip.bbt_options = NAND_BBT_USE_FLASH;
-	b47n->nand_chip.ecc.mode = NAND_ECC_NONE; /* TODO: implement ECC */
+	/* TODO: implement ECC */
+	b47n->nand_chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_NONE;
 
 	/* Enable NAND flash access */
 	bcma_cc_set32(b47n->cc, BCMA_CC_4706_FLASHSCFG,
@@ -428,7 +425,7 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	}
 
 	/* Configure FLASH */
-	chipsize = b47n->nand_chip.chipsize >> 20;
+	chipsize = nanddev_target_size(&b47n->nand_chip.base) >> 20;
 	tbits = ffs(chipsize); /* find first bit set */
 	if (!tbits || tbits != fls(chipsize)) {
 		pr_err("Invalid flash size: 0x%lX\n", chipsize);

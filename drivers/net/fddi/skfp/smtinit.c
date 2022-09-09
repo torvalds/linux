@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -23,11 +19,7 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)smtinit.c	1.15 97/05/06 (C) SK " ;
-#endif
-
-void init_fddi_driver(struct s_smc *smc, u_char *mac_addr);
+void init_fddi_driver(struct s_smc *smc, const u_char *mac_addr);
 
 /* define global debug variable */
 #if defined(DEBUG) && !defined(DEBUG_BRD)
@@ -65,7 +57,7 @@ static void set_oem_spec_val(struct s_smc *smc)
 /*
  * Init SMT
  */
-int init_smt(struct s_smc *smc, u_char *mac_addr)
+int init_smt(struct s_smc *smc, const u_char *mac_addr)
 /* u_char *mac_addr;	canonical address or NULL */
 {
 	int	p ;

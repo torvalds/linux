@@ -52,16 +52,15 @@ static inline GtkWidget *perf_gtk__setup_info_bar(void)
 }
 #endif
 
-struct perf_evsel;
-struct perf_evlist;
+struct evsel;
+struct evlist;
 struct hist_entry;
 struct hist_browser_timer;
 
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt,
-				  float min_pcnt);
+int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
+			     struct hist_browser_timer *hbt, float min_pcnt);
 int hist_entry__gtk_annotate(struct hist_entry *he,
-			     struct perf_evsel *evsel,
+			     struct evsel *evsel,
 			     struct hist_browser_timer *hbt);
 void perf_gtk__show_annotations(void);
 

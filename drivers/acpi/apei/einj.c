@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * APEI Error INJection support
  *
@@ -9,15 +10,6 @@
  *
  * Copyright 2009-2010 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -36,9 +28,10 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "EINJ: " fmt
 
-#define SPIN_UNIT		100			/* 100ns */
-/* Firmware should respond within 1 milliseconds */
-#define FIRMWARE_TIMEOUT	(1 * NSEC_PER_MSEC)
+#define SLEEP_UNIT_MIN		1000			/* 1ms */
+#define SLEEP_UNIT_MAX		5000			/* 5ms */
+/* Firmware should respond within 1 seconds */
+#define FIRMWARE_TIMEOUT	(1 * USEC_PER_SEC)
 #define ACPI5_VENDOR_BIT	BIT(31)
 #define MEM_ERROR_MASK		(ACPI_EINJ_MEMORY_CORRECTABLE | \
 				ACPI_EINJ_MEMORY_UNCORRECTABLE | \
@@ -179,13 +172,13 @@ static int einj_get_available_error_type(u32 *type)
 
 static int einj_timedout(u64 *t)
 {
-	if ((s64)*t < SPIN_UNIT) {
-		pr_warning(FW_WARN "Firmware does not respond in time\n");
+	if ((s64)*t < SLEEP_UNIT_MIN) {
+		pr_warn(FW_WARN "Firmware does not respond in time\n");
 		return 1;
 	}
-	*t -= SPIN_UNIT;
-	ndelay(SPIN_UNIT);
-	touch_nmi_watchdog();
+	*t -= SLEEP_UNIT_MIN;
+	usleep_range(SLEEP_UNIT_MIN, SLEEP_UNIT_MAX);
+
 	return 0;
 }
 
@@ -320,7 +313,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	}
 	rc = einj_check_trigger_header(trigger_tab);
 	if (rc) {
-		pr_warning(FW_BUG "Invalid trigger error action table.\n");
+		pr_warn(FW_BUG "Invalid trigger error action table.\n");
 		goto out_rel_header;
 	}
 
@@ -552,8 +545,14 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	    ((region_intersects(base_addr, size, IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE)
 				!= REGION_INTERSECTS) &&
 	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_PERSISTENT_MEMORY)
-				!= REGION_INTERSECTS)))
+				!= REGION_INTERSECTS) &&
+	     (region_intersects(base_addr, size, IORESOURCE_MEM, IORES_DESC_SOFT_RESERVED)
+				!= REGION_INTERSECTS) &&
+	     !arch_is_platform_page(base_addr)))
 		return -EINVAL;
+
+	if (is_zero_pfn(base_addr >> PAGE_SHIFT))
+		return -EADDRINUSE;
 
 inject:
 	mutex_lock(&einj_mutex);
@@ -644,8 +643,8 @@ static int error_type_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(error_type_fops, error_type_get,
-			error_type_set, "0x%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(error_type_fops, error_type_get, error_type_set,
+			 "0x%llx\n");
 
 static int error_inject_set(void *data, u64 val)
 {
@@ -656,8 +655,7 @@ static int error_inject_set(void *data, u64 val)
 		error_param3, error_param4);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(error_inject_fops, NULL,
-			error_inject_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(error_inject_fops, NULL, error_inject_set, "%llu\n");
 
 static int einj_check_table(struct acpi_table_einj *einj_tab)
 {
@@ -679,11 +677,10 @@ static int __init einj_init(void)
 {
 	int rc;
 	acpi_status status;
-	struct dentry *fentry;
 	struct apei_exec_context ctx;
 
 	if (acpi_disabled) {
-		pr_warn("ACPI disabled.\n");
+		pr_info("ACPI disabled.\n");
 		return -ENODEV;
 	}
 
@@ -702,30 +699,18 @@ static int __init einj_init(void)
 	rc = einj_check_table(einj_tab);
 	if (rc) {
 		pr_warn(FW_BUG "Invalid EINJ table.\n");
-		return -EINVAL;
+		goto err_put_table;
 	}
 
 	rc = -ENOMEM;
 	einj_debug_dir = debugfs_create_dir("einj", apei_get_debugfs_dir());
-	if (!einj_debug_dir) {
-		pr_err("Error creating debugfs node.\n");
-		goto err_cleanup;
-	}
 
-	fentry = debugfs_create_file("available_error_type", S_IRUSR,
-				     einj_debug_dir, NULL,
-				     &available_error_type_fops);
-	if (!fentry)
-		goto err_cleanup;
-
-	fentry = debugfs_create_file("error_type", S_IRUSR | S_IWUSR,
-				     einj_debug_dir, NULL, &error_type_fops);
-	if (!fentry)
-		goto err_cleanup;
-	fentry = debugfs_create_file("error_inject", S_IWUSR,
-				     einj_debug_dir, NULL, &error_inject_fops);
-	if (!fentry)
-		goto err_cleanup;
+	debugfs_create_file("available_error_type", S_IRUSR, einj_debug_dir,
+			    NULL, &available_error_type_fops);
+	debugfs_create_file_unsafe("error_type", 0600, einj_debug_dir,
+				   NULL, &error_type_fops);
+	debugfs_create_file_unsafe("error_inject", 0200, einj_debug_dir,
+				   NULL, &error_inject_fops);
 
 	apei_resources_init(&einj_resources);
 	einj_exec_ctx_init(&ctx);
@@ -747,70 +732,42 @@ static int __init einj_init(void)
 		goto err_release;
 	}
 
-	rc = -ENOMEM;
 	einj_param = einj_get_parameter_address();
 	if ((param_extension || acpi5) && einj_param) {
-		fentry = debugfs_create_x32("flags", S_IRUSR | S_IWUSR,
-					    einj_debug_dir, &error_flags);
-		if (!fentry)
-			goto err_unmap;
-		fentry = debugfs_create_x64("param1", S_IRUSR | S_IWUSR,
-					    einj_debug_dir, &error_param1);
-		if (!fentry)
-			goto err_unmap;
-		fentry = debugfs_create_x64("param2", S_IRUSR | S_IWUSR,
-					    einj_debug_dir, &error_param2);
-		if (!fentry)
-			goto err_unmap;
-		fentry = debugfs_create_x64("param3", S_IRUSR | S_IWUSR,
-					    einj_debug_dir, &error_param3);
-		if (!fentry)
-			goto err_unmap;
-		fentry = debugfs_create_x64("param4", S_IRUSR | S_IWUSR,
-					    einj_debug_dir, &error_param4);
-		if (!fentry)
-			goto err_unmap;
-
-		fentry = debugfs_create_x32("notrigger", S_IRUSR | S_IWUSR,
-					    einj_debug_dir, &notrigger);
-		if (!fentry)
-			goto err_unmap;
+		debugfs_create_x32("flags", S_IRUSR | S_IWUSR, einj_debug_dir,
+				   &error_flags);
+		debugfs_create_x64("param1", S_IRUSR | S_IWUSR, einj_debug_dir,
+				   &error_param1);
+		debugfs_create_x64("param2", S_IRUSR | S_IWUSR, einj_debug_dir,
+				   &error_param2);
+		debugfs_create_x64("param3", S_IRUSR | S_IWUSR, einj_debug_dir,
+				   &error_param3);
+		debugfs_create_x64("param4", S_IRUSR | S_IWUSR, einj_debug_dir,
+				   &error_param4);
+		debugfs_create_x32("notrigger", S_IRUSR | S_IWUSR,
+				   einj_debug_dir, &notrigger);
 	}
 
 	if (vendor_dev[0]) {
 		vendor_blob.data = vendor_dev;
 		vendor_blob.size = strlen(vendor_dev);
-		fentry = debugfs_create_blob("vendor", S_IRUSR,
-					     einj_debug_dir, &vendor_blob);
-		if (!fentry)
-			goto err_unmap;
-		fentry = debugfs_create_x32("vendor_flags", S_IRUSR | S_IWUSR,
-					    einj_debug_dir, &vendor_flags);
-		if (!fentry)
-			goto err_unmap;
+		debugfs_create_blob("vendor", S_IRUSR, einj_debug_dir,
+				    &vendor_blob);
+		debugfs_create_x32("vendor_flags", S_IRUSR | S_IWUSR,
+				   einj_debug_dir, &vendor_flags);
 	}
 
 	pr_info("Error INJection is initialized.\n");
 
 	return 0;
 
-err_unmap:
-	if (einj_param) {
-		acpi_size size = (acpi5) ?
-			sizeof(struct set_error_type_with_address) :
-			sizeof(struct einj_parameter);
-
-		acpi_os_unmap_iomem(einj_param, size);
-		pr_err("Error creating param extension debugfs nodes.\n");
-	}
-	apei_exec_post_unmap_gars(&ctx);
 err_release:
 	apei_resources_release(&einj_resources);
 err_fini:
 	apei_resources_fini(&einj_resources);
-err_cleanup:
-	pr_err("Error creating primary debugfs nodes.\n");
 	debugfs_remove_recursive(einj_debug_dir);
+err_put_table:
+	acpi_put_table((struct acpi_table_header *)einj_tab);
 
 	return rc;
 }
@@ -831,6 +788,7 @@ static void __exit einj_exit(void)
 	apei_resources_release(&einj_resources);
 	apei_resources_fini(&einj_resources);
 	debugfs_remove_recursive(einj_debug_dir);
+	acpi_put_table((struct acpi_table_header *)einj_tab);
 }
 
 module_init(einj_init);

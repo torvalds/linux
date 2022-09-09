@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WLAN_VENDOR_MARVELL
 	bool "Marvell devices"
 	default y
-	---help---
+	help
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -18,7 +19,7 @@ source "drivers/net/wireless/marvell/mwifiex/Kconfig"
 config MWL8K
 	tristate "Marvell 88W8xxx PCI/PCIe Wireless support"
 	depends on MAC80211 && PCI
-	---help---
+	help
 	  This driver supports Marvell TOPDOG 802.11 wireless cards.
 
 	  To compile this driver as a module, choose M here: the module

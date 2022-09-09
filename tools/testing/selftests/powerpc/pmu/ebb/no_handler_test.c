@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <stdio.h>
@@ -49,8 +49,6 @@ static int no_handler_test(void)
 	FAIL_IF(val != 0x0000000080000080);
 
 	event_close(&event);
-
-	dump_ebb_state();
 
 	/* The real test is that we never took an EBB at 0x0 */
 

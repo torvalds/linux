@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -25,9 +14,10 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/of_graph.h>
@@ -164,9 +154,14 @@
 #define VEC_DAC_MISC_DAC_RST_N		BIT(0)
 
 
+struct vc4_vec_variant {
+	u32 dac_config;
+};
+
 /* General VEC hardware state. */
 struct vc4_vec {
 	struct platform_device *pdev;
+	const struct vc4_vec_variant *variant;
 
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
@@ -176,6 +171,8 @@ struct vc4_vec {
 	struct clk *clock;
 
 	const struct vc4_vec_tv_mode *tv_mode;
+
+	struct debugfs_regset32 regset;
 };
 
 #define VEC_READ(offset) readl(vec->regs + (offset))
@@ -205,12 +202,6 @@ struct vc4_vec_connector {
 	struct drm_encoder *encoder;
 };
 
-static inline struct vc4_vec_connector *
-to_vc4_vec_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct vc4_vec_connector, base);
-}
-
 enum vc4_vec_tv_mode_id {
 	VC4_VEC_TV_MODE_NTSC,
 	VC4_VEC_TV_MODE_NTSC_J,
@@ -223,58 +214,32 @@ struct vc4_vec_tv_mode {
 	void (*mode_set)(struct vc4_vec *vec);
 };
 
-#define VEC_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} vec_regs[] = {
-	VEC_REG(VEC_WSE_CONTROL),
-	VEC_REG(VEC_WSE_WSS_DATA),
-	VEC_REG(VEC_WSE_VPS_DATA1),
-	VEC_REG(VEC_WSE_VPS_CONTROL),
-	VEC_REG(VEC_REVID),
-	VEC_REG(VEC_CONFIG0),
-	VEC_REG(VEC_SCHPH),
-	VEC_REG(VEC_CLMP0_START),
-	VEC_REG(VEC_CLMP0_END),
-	VEC_REG(VEC_FREQ3_2),
-	VEC_REG(VEC_FREQ1_0),
-	VEC_REG(VEC_CONFIG1),
-	VEC_REG(VEC_CONFIG2),
-	VEC_REG(VEC_INTERRUPT_CONTROL),
-	VEC_REG(VEC_INTERRUPT_STATUS),
-	VEC_REG(VEC_FCW_SECAM_B),
-	VEC_REG(VEC_SECAM_GAIN_VAL),
-	VEC_REG(VEC_CONFIG3),
-	VEC_REG(VEC_STATUS0),
-	VEC_REG(VEC_MASK0),
-	VEC_REG(VEC_CFG),
-	VEC_REG(VEC_DAC_TEST),
-	VEC_REG(VEC_DAC_CONFIG),
-	VEC_REG(VEC_DAC_MISC),
+static const struct debugfs_reg32 vec_regs[] = {
+	VC4_REG32(VEC_WSE_CONTROL),
+	VC4_REG32(VEC_WSE_WSS_DATA),
+	VC4_REG32(VEC_WSE_VPS_DATA1),
+	VC4_REG32(VEC_WSE_VPS_CONTROL),
+	VC4_REG32(VEC_REVID),
+	VC4_REG32(VEC_CONFIG0),
+	VC4_REG32(VEC_SCHPH),
+	VC4_REG32(VEC_CLMP0_START),
+	VC4_REG32(VEC_CLMP0_END),
+	VC4_REG32(VEC_FREQ3_2),
+	VC4_REG32(VEC_FREQ1_0),
+	VC4_REG32(VEC_CONFIG1),
+	VC4_REG32(VEC_CONFIG2),
+	VC4_REG32(VEC_INTERRUPT_CONTROL),
+	VC4_REG32(VEC_INTERRUPT_STATUS),
+	VC4_REG32(VEC_FCW_SECAM_B),
+	VC4_REG32(VEC_SECAM_GAIN_VAL),
+	VC4_REG32(VEC_CONFIG3),
+	VC4_REG32(VEC_STATUS0),
+	VC4_REG32(VEC_MASK0),
+	VC4_REG32(VEC_CFG),
+	VC4_REG32(VEC_DAC_TEST),
+	VC4_REG32(VEC_DAC_CONFIG),
+	VC4_REG32(VEC_DAC_MISC),
 };
-
-#ifdef CONFIG_DEBUG_FS
-int vc4_vec_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_vec *vec = vc4->vec;
-	int i;
-
-	if (!vec)
-		return 0;
-
-	for (i = 0; i < ARRAY_SIZE(vec_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   vec_regs[i].name, vec_regs[i].reg,
-			   VEC_READ(vec_regs[i].reg));
-	}
-
-	return 0;
-}
-#endif
 
 static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
 {
@@ -409,10 +374,6 @@ static struct drm_connector *vc4_vec_connector_init(struct drm_device *dev,
 	return connector;
 }
 
-static const struct drm_encoder_funcs vc4_vec_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 static void vc4_vec_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_vec_encoder *vc4_vec_encoder = to_vc4_vec_encoder(encoder);
@@ -489,10 +450,7 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
 	VEC_WRITE(VEC_CONFIG2,
 		  VEC_CONFIG2_UV_DIG_DIS | VEC_CONFIG2_RGB_DIG_DIS);
 	VEC_WRITE(VEC_CONFIG3, VEC_CONFIG3_HORIZ_LEN_STD);
-	VEC_WRITE(VEC_DAC_CONFIG,
-		  VEC_DAC_CONFIG_DAC_CTRL(0xc) |
-		  VEC_DAC_CONFIG_DRIVER_CTRL(0xc) |
-		  VEC_DAC_CONFIG_LDO_BIAS_CTRL(0x46));
+	VEC_WRITE(VEC_DAC_CONFIG, vec->variant->dac_config);
 
 	/* Mask all interrupts. */
 	VEC_WRITE(VEC_MASK0, 0);
@@ -545,8 +503,21 @@ static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
 	.atomic_mode_set = vc4_vec_encoder_atomic_mode_set,
 };
 
+static const struct vc4_vec_variant bcm2835_vec_variant = {
+	.dac_config = VEC_DAC_CONFIG_DAC_CTRL(0xc) |
+		      VEC_DAC_CONFIG_DRIVER_CTRL(0xc) |
+		      VEC_DAC_CONFIG_LDO_BIAS_CTRL(0x46)
+};
+
+static const struct vc4_vec_variant bcm2711_vec_variant = {
+	.dac_config = VEC_DAC_CONFIG_DAC_CTRL(0x0) |
+		      VEC_DAC_CONFIG_DRIVER_CTRL(0x80) |
+		      VEC_DAC_CONFIG_LDO_BIAS_CTRL(0x61)
+};
+
 static const struct of_device_id vc4_vec_dt_match[] = {
-	{ .compatible = "brcm,bcm2835-vec", .data = NULL },
+	{ .compatible = "brcm,bcm2835-vec", .data = &bcm2835_vec_variant },
+	{ .compatible = "brcm,bcm2711-vec", .data = &bcm2711_vec_variant },
 	{ /* sentinel */ },
 };
 
@@ -584,9 +555,14 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	vec->encoder = &vc4_vec_encoder->base.base;
 
 	vec->pdev = pdev;
+	vec->variant = (const struct vc4_vec_variant *)
+		of_device_get_match_data(dev);
 	vec->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vec->regs))
 		return PTR_ERR(vec->regs);
+	vec->regset.base = vec->regs;
+	vec->regset.regs = vec_regs;
+	vec->regset.nregs = ARRAY_SIZE(vec_regs);
 
 	vec->clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(vec->clock)) {
@@ -598,8 +574,7 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 
 	pm_runtime_enable(dev);
 
-	drm_encoder_init(drm, vec->encoder, &vc4_vec_encoder_funcs,
-			 DRM_MODE_ENCODER_TVDAC, NULL);
+	drm_simple_encoder_init(drm, vec->encoder, DRM_MODE_ENCODER_TVDAC);
 	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
 
 	vec->connector = vc4_vec_connector_init(drm, vec);
@@ -611,6 +586,8 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, vec);
 
 	vc4->vec = vec;
+
+	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
 
 	return 0;
 

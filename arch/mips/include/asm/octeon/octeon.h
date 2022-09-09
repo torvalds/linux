@@ -51,7 +51,7 @@ extern void octeon_setup_delays(void);
 extern void octeon_io_clk_delay(unsigned long);
 
 #define OCTEON_ARGV_MAX_ARGS	64
-#define OCTOEN_SERIAL_LEN	20
+#define OCTEON_SERIAL_LEN	20
 
 struct octeon_boot_descriptor {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -102,7 +102,7 @@ struct octeon_boot_descriptor {
 	uint16_t chip_type;
 	uint8_t chip_rev_major;
 	uint8_t chip_rev_minor;
-	char board_serial_number[OCTOEN_SERIAL_LEN];
+	char board_serial_number[OCTEON_SERIAL_LEN];
 	uint8_t mac_addr_base[6];
 	uint8_t mac_addr_count;
 	uint64_t cvmx_desc_vaddr;
@@ -198,7 +198,7 @@ union octeon_cvmemctl {
 		 * CvmMemCtl[DIDTTO] */
 		__BITFIELD_FIELD(uint64_t didtto2:1,
 		/* R/W If set, marked write-buffer entries time out
-		 * the same as as other entries; if clear, marked
+		 * the same as other entries; if clear, marked
 		 * write-buffer entries use the maximum timeout. */
 		__BITFIELD_FIELD(uint64_t dismarkwblongto:1,
 		/* R/W If set, a merged store does not clear the
@@ -282,7 +282,6 @@ union octeon_cvmemctl {
 extern void octeon_check_cpu_bist(void);
 
 int octeon_prune_device_tree(void);
-extern const char __appended_dtb;
 extern const char __dtb_octeon_3xxx_begin;
 extern const char __dtb_octeon_68xx_begin;
 

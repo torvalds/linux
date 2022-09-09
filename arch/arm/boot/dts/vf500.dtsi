@@ -23,7 +23,7 @@
 	};
 
 	soc {
-		aips-bus@40000000 {
+		bus@40000000 {
 
 			intc: interrupt-controller@40003000 {
 				compatible = "arm,cortex-a9-gic";
@@ -43,7 +43,7 @@
 			};
 		};
 
-		aips-bus@40080000 {
+		bus@40080000 {
 			pmu@40089000 {
 				compatible = "arm,cortex-a5-pmu";
 				interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;

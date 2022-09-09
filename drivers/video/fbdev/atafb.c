@@ -47,7 +47,6 @@
 #define ATAFB_EXT
 #define ATAFB_FALCON
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -55,10 +54,10 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
@@ -76,29 +75,6 @@
 #define SWITCH_SND6 0x40
 #define SWITCH_SND7 0x80
 #define SWITCH_NONE 0x00
-
-
-#define up(x, r) (((x) + (r) - 1) & ~((r)-1))
-
-	/*
-	 * Interface to the world
-	 */
-
-static int atafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info);
-static int atafb_set_par(struct fb_info *info);
-static int atafb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
-			   unsigned int blue, unsigned int transp,
-			   struct fb_info *info);
-static int atafb_blank(int blank, struct fb_info *info);
-static int atafb_pan_display(struct fb_var_screeninfo *var,
-			     struct fb_info *info);
-static void atafb_fillrect(struct fb_info *info,
-			   const struct fb_fillrect *rect);
-static void atafb_copyarea(struct fb_info *info,
-			   const struct fb_copyarea *region);
-static void atafb_imageblit(struct fb_info *info, const struct fb_image *image);
-static int atafb_ioctl(struct fb_info *info, unsigned int cmd,
-		       unsigned long arg);
 
 
 static int default_par;		/* default resolution (0=none) */
@@ -259,16 +235,6 @@ static int MV300_reg_8bit[256] = {
 static int *MV300_reg = MV300_reg_8bit;
 #endif /* ATAFB_EXT */
 
-
-static int inverse;
-
-extern int fontheight_8x8;
-extern int fontwidth_8x8;
-extern unsigned char fontdata_8x8[];
-
-extern int fontheight_8x16;
-extern int fontwidth_8x16;
-extern unsigned char fontdata_8x16[];
 
 /*
  * struct fb_ops {
@@ -499,27 +465,27 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 	{
 		/* 320x200, 15 kHz, 60 Hz (ST low) */
 		"st-low", 60, 320, 200, 32000, 32, 16, 31, 14, 96, 4,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x200, 15 kHz, 60 Hz (ST medium) */
 		"st-mid", 60, 640, 200, 32000, 32, 16, 31, 14, 96, 4,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x400, 30.25 kHz, 63.5 Hz (ST high) */
 		"st-high", 63, 640, 400, 32000, 128, 0, 40, 14, 128, 4,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 320x480, 15 kHz, 60 Hz (TT low) */
 		"tt-low", 60, 320, 480, 31041, 120, 100, 8, 16, 140, 30,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x480, 29 kHz, 57 Hz (TT medium) */
 		"tt-mid", 60, 640, 480, 31041, 120, 100, 8, 16, 140, 30,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
-		/* 1280x960, 29 kHz, 60 Hz (TT high) */
-		"tt-high", 57, 640, 960, 31041, 120, 100, 8, 16, 140, 30,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		/* 1280x960, 72 kHz, 72 Hz (TT high) */
+		"tt-high", 72, 1280, 960, 7760, 260, 60, 36, 4, 192, 4,
+		0, FB_VMODE_NONINTERLACED
 	},
 
 	/*
@@ -528,12 +494,12 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 
 	{
 		/* 640x480, 31 kHz, 60 Hz (VGA) */
-		"vga", 63.5, 640, 480, 32000, 18, 42, 31, 11, 96, 3,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		"vga", 60, 640, 480, 39721, 42, 18, 31, 11, 100, 3,
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x400, 31 kHz, 70 Hz (VGA) */
-		"vga70", 70, 640, 400, 32000, 18, 42, 31, 11, 96, 3,
-		FB_SYNC_VERT_HIGH_ACT | FB_SYNC_COMP_HIGH_ACT, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		"vga70", 70, 640, 400, 39721, 42, 18, 31, 11, 100, 3,
+		FB_SYNC_VERT_HIGH_ACT | FB_SYNC_COMP_HIGH_ACT, FB_VMODE_NONINTERLACED
 	},
 
 	/*
@@ -543,7 +509,7 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 	{
 		/* 896x608, 31 kHz, 60 Hz (Falcon High) */
 		"falh", 60, 896, 608, 32000, 18, 42, 31, 1, 96,3,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	},
 };
 
@@ -784,17 +750,17 @@ static void tt_get_par(struct atafb_par *par)
 {
 	unsigned long addr;
 	par->hw.tt.mode = shifter_tt.tt_shiftmode;
-	par->hw.tt.sync = shifter.syncmode;
-	addr = ((shifter.bas_hi & 0xff) << 16) |
-	       ((shifter.bas_md & 0xff) << 8)  |
-	       ((shifter.bas_lo & 0xff));
+	par->hw.tt.sync = shifter_st.syncmode;
+	addr = ((shifter_st.bas_hi & 0xff) << 16) |
+	       ((shifter_st.bas_md & 0xff) << 8)  |
+	       ((shifter_st.bas_lo & 0xff));
 	par->screen_base = atari_stram_to_virt(addr);
 }
 
 static void tt_set_par(struct atafb_par *par)
 {
 	shifter_tt.tt_shiftmode = par->hw.tt.mode;
-	shifter.syncmode = par->hw.tt.sync;
+	shifter_st.syncmode = par->hw.tt.sync;
 	/* only set screen_base if really necessary */
 	if (current_par.screen_base != par->screen_base)
 		fbhw->set_screen_base(par->screen_base);
@@ -1042,10 +1008,6 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 	else if (yres_virtual < yres)
 		yres_virtual = yres;
 
-	/* backward bug-compatibility */
-	if (var->pixclock > 1)
-		var->pixclock -= 1;
-
 	par->hw.falcon.line_width = bpp * xres / 16;
 	par->hw.falcon.line_offset = bpp * (xres_virtual - xres) / 16;
 
@@ -1104,8 +1066,6 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 			xstretch = 2;	/* Double pixel width only for hicolor */
 		/* Default values are used for vert./hor. timing if no pixelclock given. */
 		if (var->pixclock == 0) {
-			int linesize;
-
 			/* Choose master pixelclock depending on hor. timing */
 			plen = 1 * xstretch;
 			if ((plen * xres + f25.right + f25.hsync + f25.left) *
@@ -1124,7 +1084,6 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 			left_margin = pclock->left / plen;
 			right_margin = pclock->right / plen;
 			hsync_len = pclock->hsync / plen;
-			linesize = left_margin + xres + right_margin + hsync_len;
 			upper_margin = 31;
 			lower_margin = 11;
 			vsync_len = 3;
@@ -1564,7 +1523,7 @@ static void falcon_get_par(struct atafb_par *par)
 	hw->f_shift = videl.f_shift;
 	hw->vid_control = videl.control;
 	hw->vid_mode = videl.mode;
-	hw->sync = shifter.syncmode & 0x1;
+	hw->sync = shifter_st.syncmode & 0x1;
 	hw->xoffset = videl.xoffset & 0xf;
 	hw->hht = videl.hht;
 	hw->hbb = videl.hbb;
@@ -1579,9 +1538,9 @@ static void falcon_get_par(struct atafb_par *par)
 	hw->vde = videl.vde;
 	hw->vss = videl.vss;
 
-	addr = (shifter.bas_hi & 0xff) << 16 |
-	       (shifter.bas_md & 0xff) << 8  |
-	       (shifter.bas_lo & 0xff);
+	addr = (shifter_st.bas_hi & 0xff) << 16 |
+	       (shifter_st.bas_md & 0xff) << 8  |
+	       (shifter_st.bas_lo & 0xff);
 	par->screen_base = atari_stram_to_virt(addr);
 
 	/* derived parameters */
@@ -1626,7 +1585,7 @@ static irqreturn_t falcon_vbl_switcher(int irq, void *dummy)
 			/* Turn off external clocks. Read sets all output bits to 1. */
 			*(volatile unsigned short *)0xffff9202;
 		}
-		shifter.syncmode = hw->sync;
+		shifter_st.syncmode = hw->sync;
 
 		videl.hht = hw->hht;
 		videl.hbb = hw->hbb;
@@ -1673,18 +1632,18 @@ static irqreturn_t falcon_vbl_switcher(int irq, void *dummy)
 static int falcon_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 
 	int xoffset;
 	int bpp = info->var.bits_per_pixel;
 
 	if (bpp == 1)
-		var->xoffset = up(var->xoffset, 32);
+		var->xoffset = round_up(var->xoffset, 32);
 	if (bpp != 16)
 		par->hw.falcon.xoffset = var->xoffset & 15;
 	else {
 		par->hw.falcon.xoffset = 0;
-		var->xoffset = up(var->xoffset, 2);
+		var->xoffset = round_up(var->xoffset, 2);
 	}
 	par->hw.falcon.line_offset = bpp *
 		(info->var.xres_virtual - info->var.xres) / 16;
@@ -1713,9 +1672,9 @@ static int falcon_setcolreg(unsigned int regno, unsigned int red,
 			   ((blue & 0xfc00) >> 8));
 	if (regno < 16) {
 		shifter_tt.color_reg[regno] =
-			(((red & 0xe000) >> 13) | ((red & 0x1000) >> 12) << 8) |
-			(((green & 0xe000) >> 13) | ((green & 0x1000) >> 12) << 4) |
-			((blue & 0xe000) >> 13) | ((blue & 0x1000) >> 12);
+			((((red & 0xe000) >> 13)   | ((red & 0x1000) >> 12)) << 8)   |
+			((((green & 0xe000) >> 13) | ((green & 0x1000) >> 12)) << 4) |
+			   ((blue & 0xe000) >> 13) | ((blue & 0x1000) >> 12);
 		((u32 *)info->pseudo_palette)[regno] = ((red & 0xf800) |
 						       ((green & 0xfc00) >> 5) |
 						       ((blue & 0xf800) >> 11));
@@ -1973,18 +1932,18 @@ static void stste_get_par(struct atafb_par *par)
 {
 	unsigned long addr;
 	par->hw.st.mode = shifter_tt.st_shiftmode;
-	par->hw.st.sync = shifter.syncmode;
-	addr = ((shifter.bas_hi & 0xff) << 16) |
-	       ((shifter.bas_md & 0xff) << 8);
+	par->hw.st.sync = shifter_st.syncmode;
+	addr = ((shifter_st.bas_hi & 0xff) << 16) |
+	       ((shifter_st.bas_md & 0xff) << 8);
 	if (ATARIHW_PRESENT(EXTD_SHIFTER))
-		addr |= (shifter.bas_lo & 0xff);
+		addr |= (shifter_st.bas_lo & 0xff);
 	par->screen_base = atari_stram_to_virt(addr);
 }
 
 static void stste_set_par(struct atafb_par *par)
 {
 	shifter_tt.st_shiftmode = par->hw.st.mode;
-	shifter.syncmode = par->hw.st.sync;
+	shifter_st.syncmode = par->hw.st.sync;
 	/* only set screen_base if really necessary */
 	if (current_par.screen_base != par->screen_base)
 		fbhw->set_screen_base(par->screen_base);
@@ -2001,9 +1960,9 @@ static int stste_setcolreg(unsigned int regno, unsigned int red,
 	green >>= 12;
 	if (ATARIHW_PRESENT(EXTD_SHIFTER))
 		shifter_tt.color_reg[regno] =
-			(((red & 0xe) >> 1) | ((red & 1) << 3) << 8) |
-			(((green & 0xe) >> 1) | ((green & 1) << 3) << 4) |
-			((blue & 0xe) >> 1) | ((blue & 1) << 3);
+			((((red & 0xe)   >> 1) | ((red & 1)   << 3)) << 8) |
+			((((green & 0xe) >> 1) | ((green & 1) << 3)) << 4) |
+			  ((blue & 0xe)  >> 1) | ((blue & 1)  << 3);
 	else
 		shifter_tt.color_reg[regno] =
 			((red & 0xe) << 7) |
@@ -2039,10 +1998,10 @@ static void stste_set_screen_base(void *s_base)
 	unsigned long addr;
 	addr = atari_stram_to_phys(s_base);
 	/* Setup Screen Memory */
-	shifter.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
-	shifter.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
+	shifter_st.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
+	shifter_st.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
 	if (ATARIHW_PRESENT(EXTD_SHIFTER))
-		shifter.bas_lo = (unsigned char)(addr & 0x0000ff);
+		shifter_st.bas_lo = (unsigned char)(addr & 0x0000ff);
 }
 
 #endif /* ATAFB_STE */
@@ -2240,6 +2199,10 @@ static int ext_setcolreg(unsigned int regno, unsigned int red,
 	if (regno > 255)
 		return 1;
 
+	red >>= 8;
+	green >>= 8;
+	blue >>= 8;
+
 	switch (external_card_type) {
 	case IS_VGA:
 		OUTB(0x3c8, regno);
@@ -2286,19 +2249,19 @@ static void set_screen_base(void *s_base)
 
 	addr = atari_stram_to_phys(s_base);
 	/* Setup Screen Memory */
-	shifter.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
-	shifter.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
-	shifter.bas_lo = (unsigned char)(addr & 0x0000ff);
+	shifter_st.bas_hi = (unsigned char)((addr & 0xff0000) >> 16);
+	shifter_st.bas_md = (unsigned char)((addr & 0x00ff00) >> 8);
+	shifter_st.bas_lo = (unsigned char)(addr & 0x0000ff);
 }
 
 static int pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 
 	if (!fbhw->set_screen_base ||
 	    (!ATARIHW_PRESENT(EXTD_SHIFTER) && var->xoffset))
 		return -EINVAL;
-	var->xoffset = up(var->xoffset, 16);
+	var->xoffset = round_up(var->xoffset, 16);
 	par->screen_base = screen_base +
 	        (var->yoffset * info->var.xres_virtual + var->xoffset)
 	        * info->var.bits_per_pixel / 8;
@@ -2436,68 +2399,22 @@ static void atafb_set_disp(struct fb_info *info)
 				atari_stram_to_virt(info->fix.smem_start));
 }
 
-static int atafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
-			   u_int transp, struct fb_info *info)
-{
-	red >>= 8;
-	green >>= 8;
-	blue >>= 8;
-
-	return info->fbops->fb_setcolreg(regno, red, green, blue, transp, info);
-}
-
 static int
 atafb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	int xoffset = var->xoffset;
-	int yoffset = var->yoffset;
-	int err;
-
-	if (var->vmode & FB_VMODE_YWRAP) {
-		if (yoffset < 0 || yoffset >= info->var.yres_virtual || xoffset)
-			return -EINVAL;
-	} else {
-		if (xoffset + info->var.xres > info->var.xres_virtual ||
-		    yoffset + info->var.yres > info->var.yres_virtual)
-			return -EINVAL;
-	}
-
-	if (fbhw->pan_display) {
-		err = fbhw->pan_display(var, info);
-		if (err)
-			return err;
-	} else
+	if (!fbhw->pan_display)
 		return -EINVAL;
 
-	info->var.xoffset = xoffset;
-	info->var.yoffset = yoffset;
-
-	if (var->vmode & FB_VMODE_YWRAP)
-		info->var.vmode |= FB_VMODE_YWRAP;
-	else
-		info->var.vmode &= ~FB_VMODE_YWRAP;
-
-	return 0;
+	return fbhw->pan_display(var, info);
 }
 
 /*
  * generic drawing routines; imageblit needs updating for image depth > 1
  */
 
-#if BITS_PER_LONG == 32
-#define BYTES_PER_LONG	4
-#define SHIFT_PER_LONG	5
-#elif BITS_PER_LONG == 64
-#define BYTES_PER_LONG	8
-#define SHIFT_PER_LONG	6
-#else
-#define Please update me
-#endif
-
-
 static void atafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 	int x2, y2;
 	u32 width, height;
 
@@ -2540,7 +2457,7 @@ static void atafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 static void atafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 	int x2, y2;
 	u32 dx, dy, sx, sy, width, height;
 	int rev_copy = 0;
@@ -2594,10 +2511,8 @@ static void atafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 
 static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 	int x2, y2;
-	unsigned long *dst;
-	int dst_idx;
 	const char *src;
 	u32 dx, dy, width, height, pitch;
 
@@ -2624,10 +2539,6 @@ static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 	if (image->depth == 1) {
 		// used for font data
-		dst = (unsigned long *)
-			((unsigned long)info->screen_base & ~(BYTES_PER_LONG - 1));
-		dst_idx = ((unsigned long)info->screen_base & (BYTES_PER_LONG - 1)) * 8;
-		dst_idx += dy * par->next_line * 8 + dx;
 		src = image->data;
 		pitch = (image->width + 7) / 8;
 		while (height--) {
@@ -2664,14 +2575,14 @@ atafb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 #ifdef FBCMD_GET_CURRENTPAR
 	case FBCMD_GET_CURRENTPAR:
-		if (copy_to_user((void *)arg, (void *)&current_par,
+		if (copy_to_user((void *)arg, &current_par,
 				 sizeof(struct atafb_par)))
 			return -EFAULT;
 		return 0;
 #endif
 #ifdef FBCMD_SET_CURRENTPAR
 	case FBCMD_SET_CURRENTPAR:
-		if (copy_from_user((void *)&current_par, (void *)arg,
+		if (copy_from_user(&current_par, (void *)arg,
 				   sizeof(struct atafb_par)))
 			return -EFAULT;
 		ata_set_par(&current_par);
@@ -2737,7 +2648,7 @@ static int atafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	 * hw par just decoded */
 static int atafb_set_par(struct fb_info *info)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 
 	/* Decode wanted screen parameters */
 	fbhw->decode_var(&info->var, par);
@@ -2756,7 +2667,6 @@ static struct fb_ops atafb_ops = {
 	.owner =	THIS_MODULE,
 	.fb_check_var	= atafb_check_var,
 	.fb_set_par	= atafb_set_par,
-	.fb_setcolreg	= atafb_setcolreg,
 	.fb_blank =	atafb_blank,
 	.fb_pan_display	= atafb_pan_display,
 	.fb_fillrect	= atafb_fillrect,
@@ -3024,7 +2934,7 @@ static void __init atafb_setup_user(char *spec)
 	}
 }
 
-int __init atafb_setup(char *options)
+static int __init atafb_setup(char *options)
 {
 	char *this_opt;
 	int temp;
@@ -3039,7 +2949,7 @@ int __init atafb_setup(char *options)
 			default_par = temp;
 			mode_option = this_opt;
 		} else if (!strcmp(this_opt, "inverse"))
-			inverse = 1;
+			fb_invert_cmaps();
 		else if (!strncmp(this_opt, "hwscroll_", 9)) {
 			hwscroll = simple_strtoul(this_opt + 9, NULL, 10);
 			if (hwscroll < 0)
@@ -3073,28 +2983,22 @@ int __init atafb_setup(char *options)
 	return 0;
 }
 
-int __init atafb_init(void)
+static int __init atafb_probe(struct platform_device *pdev)
 {
 	int pad, detected_mode, error;
 	unsigned int defmode = 0;
 	unsigned long mem_req;
-
-#ifndef MODULE
 	char *option = NULL;
 
 	if (fb_get_options("atafb", &option))
 		return -ENODEV;
 	atafb_setup(option);
-#endif
-	printk("atafb_init: start\n");
-
-	if (!MACH_IS_ATARI)
-		return -ENODEV;
+	dev_dbg(&pdev->dev, "%s: start\n", __func__);
 
 	do {
 #ifdef ATAFB_EXT
 		if (external_addr) {
-			printk("atafb_init: initializing external hw\n");
+			dev_dbg(&pdev->dev, "initializing external hw\n");
 			fbhw = &ext_switch;
 			atafb_ops.fb_setcolreg = &ext_setcolreg;
 			defmode = DEFMODE_EXT;
@@ -3103,7 +3007,7 @@ int __init atafb_init(void)
 #endif
 #ifdef ATAFB_TT
 		if (ATARIHW_PRESENT(TT_SHIFTER)) {
-			printk("atafb_init: initializing TT hw\n");
+			dev_dbg(&pdev->dev, "initializing TT hw\n");
 			fbhw = &tt_switch;
 			atafb_ops.fb_setcolreg = &tt_setcolreg;
 			defmode = DEFMODE_TT;
@@ -3112,7 +3016,7 @@ int __init atafb_init(void)
 #endif
 #ifdef ATAFB_FALCON
 		if (ATARIHW_PRESENT(VIDEL_SHIFTER)) {
-			printk("atafb_init: initializing Falcon hw\n");
+			dev_dbg(&pdev->dev, "initializing Falcon hw\n");
 			fbhw = &falcon_switch;
 			atafb_ops.fb_setcolreg = &falcon_setcolreg;
 			error = request_irq(IRQ_AUTO_4, falcon_vbl_switcher, 0,
@@ -3127,7 +3031,7 @@ int __init atafb_init(void)
 #ifdef ATAFB_STE
 		if (ATARIHW_PRESENT(STND_SHIFTER) ||
 		    ATARIHW_PRESENT(EXTD_SHIFTER)) {
-			printk("atafb_init: initializing ST/E hw\n");
+			dev_dbg(&pdev->dev, "initializing ST/E hw\n");
 			fbhw = &st_switch;
 			atafb_ops.fb_setcolreg = &stste_setcolreg;
 			defmode = DEFMODE_STE;
@@ -3135,7 +3039,8 @@ int __init atafb_init(void)
 		}
 		fbhw = &st_switch;
 		atafb_ops.fb_setcolreg = &stste_setcolreg;
-		printk("Cannot determine video hardware; defaulting to ST(e)\n");
+		dev_warn(&pdev->dev,
+			 "Cannot determine video hardware; defaulting to ST(e)\n");
 #else /* ATAFB_STE */
 		/* no default driver included */
 		/* Nobody will ever see this message :-) */
@@ -3175,8 +3080,8 @@ int __init atafb_init(void)
 			kernel_set_cachemode(screen_base, screen_len,
 					     IOMAP_WRITETHROUGH);
 		}
-		printk("atafb: screen_base %p phys_screen_base %lx screen_len %d\n",
-			screen_base, phys_screen_base, screen_len);
+		dev_info(&pdev->dev, "phys_screen_base %lx screen_len %d\n",
+			 phys_screen_base, screen_len);
 #ifdef ATAFB_EXT
 	} else {
 		/* Map the video memory (physical address given) to somewhere
@@ -3223,12 +3128,12 @@ int __init atafb_init(void)
 	fb_alloc_cmap(&(fb_info.cmap), 1 << fb_info.var.bits_per_pixel, 0);
 
 
-	printk("Determined %dx%d, depth %d\n",
-	       fb_info.var.xres, fb_info.var.yres, fb_info.var.bits_per_pixel);
+	dev_info(&pdev->dev, "Determined %dx%d, depth %d\n", fb_info.var.xres,
+		 fb_info.var.yres, fb_info.var.bits_per_pixel);
 	if ((fb_info.var.xres != fb_info.var.xres_virtual) ||
 	    (fb_info.var.yres != fb_info.var.yres_virtual))
-		printk("   virtual %dx%d\n", fb_info.var.xres_virtual,
-		       fb_info.var.yres_virtual);
+		dev_info(&pdev->dev, "   virtual %dx%d\n",
+			 fb_info.var.xres_virtual, fb_info.var.yres_virtual);
 
 	if (register_framebuffer(&fb_info) < 0) {
 #ifdef ATAFB_EXT
@@ -3251,14 +3156,32 @@ int __init atafb_init(void)
 	return 0;
 }
 
-module_init(atafb_init);
-
-#ifdef MODULE
-MODULE_LICENSE("GPL");
-
-int cleanup_module(void)
+static void atafb_shutdown(struct platform_device *pdev)
 {
-	unregister_framebuffer(&fb_info);
-	return atafb_deinit();
+	/* Unblank before kexec */
+	if (fbhw->blank)
+		fbhw->blank(0);
 }
-#endif /* MODULE */
+
+static struct platform_driver atafb_driver = {
+	.shutdown	= atafb_shutdown,
+	.driver	= {
+		.name	= "atafb",
+	},
+};
+
+static int __init atafb_init(void)
+{
+	struct platform_device *pdev;
+
+	if (!MACH_IS_ATARI)
+		return -ENODEV;
+
+	pdev = platform_device_register_simple("atafb", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return platform_driver_probe(&atafb_driver, atafb_probe);
+}
+
+device_initcall(atafb_init);

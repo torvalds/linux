@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Clk driver for NXP LPC18xx/LPC43xx Clock Generation Unit (CGU)
  *
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -352,9 +350,9 @@ static unsigned long lpc18xx_pll0_recalc_rate(struct clk_hw *hw,
 	struct lpc18xx_pll *pll = to_lpc_pll(hw);
 	u32 ctrl, mdiv, msel, npdiv;
 
-	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
-	mdiv = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_MDIV);
-	npdiv = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_NP_DIV);
+	ctrl = readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
+	mdiv = readl(pll->reg + LPC18XX_CGU_PLL0USB_MDIV);
+	npdiv = readl(pll->reg + LPC18XX_CGU_PLL0USB_NP_DIV);
 
 	if (ctrl & LPC18XX_PLL0_CTRL_BYPASS)
 		return parent_rate;
@@ -415,25 +413,25 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 	m |= lpc18xx_pll0_msel2seli(m) << LPC18XX_PLL0_MDIV_SELI_SHIFT;
 
 	/* Power down PLL, disable clk output and dividers */
-	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
+	ctrl = readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 	ctrl |= LPC18XX_PLL0_CTRL_PD;
 	ctrl &= ~(LPC18XX_PLL0_CTRL_BYPASS | LPC18XX_PLL0_CTRL_DIRECTI |
 		  LPC18XX_PLL0_CTRL_DIRECTO | LPC18XX_PLL0_CTRL_CLKEN);
-	clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
+	writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 
 	/* Configure new PLL settings */
-	clk_writel(m, pll->reg + LPC18XX_CGU_PLL0USB_MDIV);
-	clk_writel(LPC18XX_PLL0_NP_DIVS_1, pll->reg + LPC18XX_CGU_PLL0USB_NP_DIV);
+	writel(m, pll->reg + LPC18XX_CGU_PLL0USB_MDIV);
+	writel(LPC18XX_PLL0_NP_DIVS_1, pll->reg + LPC18XX_CGU_PLL0USB_NP_DIV);
 
 	/* Power up PLL and wait for lock */
 	ctrl &= ~LPC18XX_PLL0_CTRL_PD;
-	clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
+	writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 	do {
 		udelay(10);
-		stat = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_STAT);
+		stat = readl(pll->reg + LPC18XX_CGU_PLL0USB_STAT);
 		if (stat & LPC18XX_PLL0_STAT_LOCK) {
 			ctrl |= LPC18XX_PLL0_CTRL_CLKEN;
-			clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
+			writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 
 			return 0;
 		}
@@ -456,10 +454,9 @@ static unsigned long lpc18xx_pll1_recalc_rate(struct clk_hw *hw,
 	struct lpc18xx_pll *pll = to_lpc_pll(hw);
 	u16 msel, nsel, psel;
 	bool direct, fbsel;
-	u32 stat, ctrl;
+	u32 ctrl;
 
-	stat = clk_readl(pll->reg + LPC18XX_CGU_PLL1_STAT);
-	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL1_CTRL);
+	ctrl = readl(pll->reg + LPC18XX_CGU_PLL1_CTRL);
 
 	direct = (ctrl & LPC18XX_PLL1_CTRL_DIRECT) ? true : false;
 	fbsel = (ctrl & LPC18XX_PLL1_CTRL_FBSEL) ? true : false;
@@ -522,7 +519,7 @@ static struct lpc18xx_cgu_pll_clk lpc18xx_cgu_src_clk_plls[] = {
 	LPC1XX_CGU_CLK_PLL(PLL1,	pll1_src_ids, pll1_ops),
 };
 
-static void lpc18xx_fill_parent_names(const char **parent, u32 *id, int size)
+static void lpc18xx_fill_parent_names(const char **parent, const u32 *id, int size)
 {
 	int i;
 

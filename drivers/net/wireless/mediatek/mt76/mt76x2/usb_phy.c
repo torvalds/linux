@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x2u.h"
@@ -21,7 +10,7 @@
 static void
 mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	bool is_5ghz = chan->band == NL80211_BAND_5GHZ;
 
 	if (dev->cal.channel_cal_done)
@@ -43,8 +32,9 @@ mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_SHAPING, 0);
 
 	if (!mac_stopped)
-		mt76x2u_mac_resume(dev);
+		mt76x2_mac_resume(dev);
 	mt76x2_apply_gain_adj(dev);
+	mt76x02_edcca_init(dev);
 
 	dev->cal.channel_cal_done = true;
 }
@@ -54,9 +44,14 @@ void mt76x2u_phy_calibrate(struct work_struct *work)
 	struct mt76x02_dev *dev;
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
+
+	mutex_lock(&dev->mt76.mutex);
+
 	mt76x2u_phy_channel_calibrate(dev, false);
 	mt76x2_phy_tssi_compensate(dev);
 	mt76x2_phy_update_channel_gain(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
@@ -87,7 +82,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 		      FIELD_PREP(MT_EXT_CCA_CFG_CCA3, 0) |
 		      FIELD_PREP(MT_EXT_CCA_CFG_CCA_MASK, BIT(3)),
 	};
-	bool scan = test_bit(MT76_SCANNING, &dev->mt76.state);
+	bool scan = test_bit(MT76_SCANNING, &dev->mphy.state);
 	struct ieee80211_channel *chan = chandef->chan;
 	u8 channel = chan->hw_value, bw, bw_index;
 	int ch_group_index, freq, freq1, ret;
@@ -190,7 +185,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			struct ieee80211_channel *chan;
 			u32 flag = 0;
 
-			chan = dev->mt76.chandef.chan;
+			chan = dev->mphy.chandef.chan;
 			if (chan->band == NL80211_BAND_5GHZ)
 				flag |= BIT(0);
 			if (mt76x02_ext_pa_enabled(dev, chan->band))

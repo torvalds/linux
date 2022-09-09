@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#include "dt-bindings/clock/bcm3368-clock.h"
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -51,16 +54,22 @@
 		compatible = "simple-bus";
 		ranges;
 
-		periph_cntl: syscon@fff8c000 {
+		clkctl: clock-controller@fff8c004 {
+			compatible = "brcm,bcm3368-clocks";
+			reg = <0xfff8c004 0x4>;
+			#clock-cells = <1>;
+		};
+
+		periph_cntl: syscon@fff8c008 {
 			compatible = "syscon";
-			reg = <0xfff8c000 0xc>;
+			reg = <0xfff8c008 0x4>;
 			native-endian;
 		};
 
 		reboot: syscon-reboot@fff8c008 {
 			compatible = "syscon-reboot";
 			regmap = <&periph_cntl>;
-			offset = <0x8>;
+			offset = <0x0>;
 			mask = <0x1>;
 		};
 

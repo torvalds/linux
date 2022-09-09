@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung SoC USB 1.1/2.0 PHY driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Kamil Debski <k.debski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -130,6 +127,10 @@ static const struct of_device_id samsung_usb2_phy_of_match[] = {
 		.compatible = "samsung,exynos5250-usb2-phy",
 		.data = &exynos5250_usb2_phy_config,
 	},
+	{
+		.compatible = "samsung,exynos5420-usb2-phy",
+		.data = &exynos5420_usb2_phy_config,
+	},
 #endif
 #ifdef CONFIG_PHY_S5PV210_USB2
 	{
@@ -146,7 +147,6 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	const struct samsung_usb2_phy_config *cfg;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
-	struct resource *mem;
 	struct samsung_usb2_phy_driver *drv;
 	int i, ret;
 
@@ -159,9 +159,8 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	if (!cfg)
 		return -EINVAL;
 
-	drv = devm_kzalloc(dev, sizeof(struct samsung_usb2_phy_driver) +
-		cfg->num_phys * sizeof(struct samsung_usb2_phy_instance),
-								GFP_KERNEL);
+	drv = devm_kzalloc(dev, struct_size(drv, instances, cfg->num_phys),
+			   GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 
@@ -171,8 +170,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	drv->cfg = cfg;
 	drv->dev = dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	drv->reg_phy = devm_ioremap_resource(dev, mem);
+	drv->reg_phy = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drv->reg_phy)) {
 		dev_err(dev, "Failed to map register memory (phy)\n");
 		return PTR_ERR(drv->reg_phy);
@@ -254,11 +252,12 @@ static struct platform_driver samsung_usb2_phy_driver = {
 	.driver = {
 		.of_match_table	= samsung_usb2_phy_of_match,
 		.name		= "samsung-usb2-phy",
+		.suppress_bind_attrs = true,
 	}
 };
 
 module_platform_driver(samsung_usb2_phy_driver);
-MODULE_DESCRIPTION("Samsung S5P/EXYNOS SoC USB PHY driver");
+MODULE_DESCRIPTION("Samsung S5P/Exynos SoC USB PHY driver");
 MODULE_AUTHOR("Kamil Debski <k.debski@samsung.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:samsung-usb2-phy");

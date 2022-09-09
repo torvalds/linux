@@ -1,12 +1,7 @@
-/*
- * L2TPv3 ethernet pseudowire driver
+// SPDX-License-Identifier: GPL-2.0-or-later
+/* L2TPv3 ethernet pseudowire driver
  *
  * Copyright (c) 2008,2009,2010 Katalix Systems Ltd
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -55,7 +50,6 @@ struct l2tp_eth_sess {
 	struct net_device __rcu *dev;
 };
 
-
 static int l2tp_eth_dev_init(struct net_device *dev)
 {
 	eth_hw_addr_random(dev);
@@ -77,12 +71,12 @@ static void l2tp_eth_dev_uninit(struct net_device *dev)
 	 */
 }
 
-static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 	struct l2tp_session *session = priv->session;
 	unsigned int len = skb->len;
-	int ret = l2tp_xmit_skb(session, skb, session->hdr_len);
+	int ret = l2tp_xmit_skb(session, skb);
 
 	if (likely(ret == NET_XMIT_SUCCESS)) {
 		atomic_long_add(len, &priv->tx_bytes);
@@ -98,13 +92,12 @@ static void l2tp_eth_get_stats64(struct net_device *dev,
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 
-	stats->tx_bytes   = (unsigned long) atomic_long_read(&priv->tx_bytes);
-	stats->tx_packets = (unsigned long) atomic_long_read(&priv->tx_packets);
-	stats->tx_dropped = (unsigned long) atomic_long_read(&priv->tx_dropped);
-	stats->rx_bytes   = (unsigned long) atomic_long_read(&priv->rx_bytes);
-	stats->rx_packets = (unsigned long) atomic_long_read(&priv->rx_packets);
-	stats->rx_errors  = (unsigned long) atomic_long_read(&priv->rx_errors);
-
+	stats->tx_bytes   = (unsigned long)atomic_long_read(&priv->tx_bytes);
+	stats->tx_packets = (unsigned long)atomic_long_read(&priv->tx_packets);
+	stats->tx_dropped = (unsigned long)atomic_long_read(&priv->tx_dropped);
+	stats->rx_bytes   = (unsigned long)atomic_long_read(&priv->rx_bytes);
+	stats->rx_packets = (unsigned long)atomic_long_read(&priv->rx_packets);
+	stats->rx_errors  = (unsigned long)atomic_long_read(&priv->rx_errors);
 }
 
 static const struct net_device_ops l2tp_eth_netdev_ops = {
@@ -135,17 +128,6 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	struct net_device *dev;
 	struct l2tp_eth *priv;
 
-	if (session->debug & L2TP_MSG_DATA) {
-		unsigned int length;
-
-		length = min(32u, skb->len);
-		if (!pskb_may_pull(skb, length))
-			goto error;
-
-		pr_debug("%s: eth recv\n", session->name);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
-	}
-
 	if (!pskb_may_pull(skb, ETH_HLEN))
 		goto error;
 
@@ -155,7 +137,7 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	skb_dst_drop(skb);
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	rcu_read_lock();
 	dev = rcu_dereference(spriv->dev);
@@ -352,12 +334,10 @@ err:
 	return rc;
 }
 
-
 static const struct l2tp_nl_cmd_ops l2tp_eth_nl_cmd_ops = {
 	.session_create	= l2tp_eth_create,
 	.session_delete	= l2tp_session_delete,
 };
-
 
 static int __init l2tp_eth_init(void)
 {

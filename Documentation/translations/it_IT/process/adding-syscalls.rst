@@ -39,7 +39,7 @@ vostra interfaccia.
        un qualche modo opaca.
 
  - Se dovete esporre solo delle informazioni sul sistema, un nuovo nodo in
-   sysfs (vedere ``Documentation/translations/it_IT/filesystems/sysfs.txt``) o
+   sysfs (vedere ``Documentation/filesystems/sysfs.rst``) o
    in procfs potrebbe essere sufficiente.  Tuttavia, l'accesso a questi
    meccanismi richiede che il filesystem sia montato, il che potrebbe non
    essere sempre vero (per esempio, in ambienti come namespace/sandbox/chroot).
@@ -562,7 +562,7 @@ kernel.  Se la nuova funzionalità è utile all'interno del kernel, per esempio
 dev'essere condivisa fra una vecchia e una nuova chiamata di sistema o
 dev'essere utilizzata da una chiamata di sistema e la sua variante compatibile,
 allora dev'essere implementata come una funzione di supporto
-(*helper function*) (per esempio ``kern_xyzzy()``).  Questa funzione potrà
+(*helper function*) (per esempio ``ksys_xyzzy()``).  Questa funzione potrà
 essere chiamata dallo *stub* (``sys_xyzzy()``), dalla variante compatibile
 (``compat_sys_xyzzy()``), e/o da altri parti del kernel.
 
@@ -611,21 +611,21 @@ Riferimenti e fonti
    https://lwn.net/Articles/486306/
  - Raccomandazioni da Andrew Morton circa il fatto che tutte le informazioni
    su una nuova chiamata di sistema dovrebbero essere contenute nello stesso
-   filone di discussione di email: https://lkml.org/lkml/2014/7/24/641
+   filone di discussione di email: https://lore.kernel.org/r/20140724144747.3041b208832bbdf9fbce5d96@linux-foundation.org
  - Raccomandazioni da Michael Kerrisk circa il fatto che le nuove chiamate di
-   sistema dovrebbero avere una pagina man: https://lkml.org/lkml/2014/6/13/309
+   sistema dovrebbero avere una pagina man: https://lore.kernel.org/r/CAKgNAkgMA39AfoSoA5Pe1r9N+ZzfYQNvNPvcRN7tOvRb8+v06Q@mail.gmail.com
  - Consigli da Thomas Gleixner sul fatto che il collegamento all'architettura
    x86 dovrebbe avvenire in un *commit* differente:
-   https://lkml.org/lkml/2014/11/19/254
+   https://lore.kernel.org/r/alpine.DEB.2.11.1411191249560.3909@nanos
  - Consigli da Greg Kroah-Hartman circa la bontà d'avere una pagina man e un
    programma di auto-verifica per le nuove chiamate di sistema:
-   https://lkml.org/lkml/2014/3/19/710
+   https://lore.kernel.org/r/20140320025530.GA25469@kroah.com
  - Discussione di Michael Kerrisk sulle nuove chiamate di sistema contro
-   le estensioni :manpage:`prctl(2)`: https://lkml.org/lkml/2014/6/3/411
+   le estensioni :manpage:`prctl(2)`: https://lore.kernel.org/r/CAHO5Pa3F2MjfTtfNxa8LbnkeeU8=YJ+9tDqxZpw7Gz59E-4AUg@mail.gmail.com
  - Consigli da Ingo Molnar che le chiamate di sistema con più argomenti
    dovrebbero incapsularli in una struttura che includa un argomento
    *size* per garantire l'estensibilità futura:
-   https://lkml.org/lkml/2015/7/30/117
+   https://lore.kernel.org/r/20150730083831.GA22182@gmail.com
  - Un certo numero di casi strani emersi dall'uso (riuso) dei flag O_*:
 
     - commit 75069f2b5bfb ("vfs: renumber FMODE_NONOTIFY and add to uniqueness
@@ -635,9 +635,9 @@ Riferimenti e fonti
     - commit bb458c644a59 ("Safer ABI for O_TMPFILE")
 
  - Discussion from Matthew Wilcox about restrictions on 64-bit arguments:
-   https://lkml.org/lkml/2008/12/12/187
+   https://lore.kernel.org/r/20081212152929.GM26095@parisc-linux.org
  - Raccomandazioni da Greg Kroah-Hartman sul fatto che i flag sconosciuti dovrebbero
-   essere controllati: https://lkml.org/lkml/2014/7/17/577
+   essere controllati: https://lore.kernel.org/r/20140717193330.GB4703@kroah.com
  - Raccomandazioni da Linus Torvalds che le chiamate di sistema x32 dovrebbero
    favorire la compatibilità con le versioni a 64-bit piuttosto che quelle a 32-bit:
-   https://lkml.org/lkml/2011/8/31/244
+   https://lore.kernel.org/r/CA+55aFxfmwfB7jbbrXxa=K7VBYPfAvmu3XOkGrLbB1UFjX1+Ew@mail.gmail.com

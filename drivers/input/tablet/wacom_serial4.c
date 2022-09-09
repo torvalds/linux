@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Wacom protocol 4 serial tablet driver
  *
  * Copyright 2014      Hans de Goede <hdegoede@redhat.com>
  * Copyright 2011-2012 Julian Squires <julian@cipht.net>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version of 2 of the License, or (at your
- * option) any later version. See the file COPYING in the main directory of
- * this archive for more details.
  *
  * Many thanks to Bill Seremetis, without whom PenPartner support
  * would not have been possible. Thanks to Patrick Mahoney.
@@ -187,6 +182,7 @@ enum {
 	MODEL_DIGITIZER_II	= 0x5544, /* UD */
 	MODEL_GRAPHIRE		= 0x4554, /* ET */
 	MODEL_PENPARTNER	= 0x4354, /* CT */
+	MODEL_ARTPAD_II		= 0x4B54, /* KT */
 };
 
 static void wacom_handle_model_response(struct wacom *wacom)
@@ -217,7 +213,7 @@ static void wacom_handle_model_response(struct wacom *wacom)
 		case 0x3731: /* PL-710 */
 			wacom->res_x = 2540;
 			wacom->res_y = 2540;
-			/* fall through */
+			fallthrough;
 		case 0x3535: /* PL-550 */
 		case 0x3830: /* PL-800 */
 			wacom->extra_z_bits = 2;
@@ -245,6 +241,7 @@ static void wacom_handle_model_response(struct wacom *wacom)
 		wacom->flags = F_HAS_STYLUS2 | F_HAS_SCROLLWHEEL;
 		break;
 
+	case MODEL_ARTPAD_II:
 	case MODEL_DIGITIZER_II:
 		wacom->dev->name = "Wacom Digitizer II";
 		wacom->dev->id.version = MODEL_DIGITIZER_II;

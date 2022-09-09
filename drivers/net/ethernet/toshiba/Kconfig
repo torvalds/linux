@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Toshiba network device configuration
 #
@@ -6,7 +7,7 @@ config NET_VENDOR_TOSHIBA
 	bool "Toshiba devices"
 	default y
 	depends on PCI && (PPC_IBM_CELL_BLADE || MIPS) || PPC_PS3
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +21,7 @@ config GELIC_NET
 	tristate "PS3 Gigabit Ethernet driver"
 	depends on PPC_PS3
 	select PS3_SYS_MANAGER
-	---help---
+	help
 	  This driver supports the network device on the PS3 game
 	  console.  This driver has built-in support for Ethernet.
 
@@ -31,7 +32,7 @@ config GELIC_WIRELESS
 	bool "PS3 Wireless support"
 	depends on GELIC_NET && WLAN
 	select WIRELESS_EXT
-	---help---
+	help
 	  This option adds the support for the wireless feature of PS3.
 	  If you have the wireless-less model of PS3 or have no plan to
 	  use wireless feature, disabling this option saves memory.  As
@@ -43,7 +44,7 @@ config SPIDER_NET
 	depends on PCI && PPC_IBM_CELL_BLADE
 	select FW_LOADER
 	select SUNGEM_PHY
-	---help---
+	help
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.
 

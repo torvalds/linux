@@ -36,6 +36,8 @@ static const char *v3d_fence_get_timeline_name(struct dma_fence *fence)
 		return "v3d-render";
 	case V3D_TFU:
 		return "v3d-tfu";
+	case V3D_CSD:
+		return "v3d-csd";
 	default:
 		return NULL;
 	}

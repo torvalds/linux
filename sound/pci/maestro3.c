@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ESS Maestro3/Allegro (ES1988) soundcards.
  * Copyright (c) 2000 by Zach Brown <zab@zabbo.net>
@@ -6,26 +7,10 @@
  * Most of the hardware init stuffs are based on maestro3 driver for
  * OSS/Free by Zach Brown.  Many thanks to Zach!
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
- *
  * ChangeLog:
  * Aug. 27, 2001
  *     - Fixed deadlock on capture
  *     - Added Canyon3D-2 support by Rob Riggs <rob@pangalactic.org>
- *
  */
  
 #define CARD_NAME "ESS Maestro3/Allegro/Canyon3D-2"
@@ -54,11 +39,6 @@
 MODULE_AUTHOR("Zach Brown <zab@zabbo.net>, Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ESS Maestro3 PCI");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{ESS,Maestro3 PCI},"
-		"{ESS,ES1988},"
-		"{ESS,Allegro PCI},"
-		"{ESS,Allegro-1 PCI},"
-	        "{ESS,Canyon3D-2/LE PCI}}");
 MODULE_FIRMWARE("ess/maestro3_assp_kernel.fw");
 MODULE_FIRMWARE("ess/maestro3_assp_minisrc.fw");
 
@@ -822,7 +802,7 @@ static const struct pci_device_id snd_m3_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_m3_ids);
 
-static struct snd_pci_quirk m3_amp_quirk_list[] = {
+static const struct snd_pci_quirk m3_amp_quirk_list[] = {
 	SND_PCI_QUIRK(0x0E11, 0x0094, "Compaq Evo N600c", 0x0c),
 	SND_PCI_QUIRK(0x10f7, 0x833e, "Panasonic CF-28", 0x0d),
 	SND_PCI_QUIRK(0x10f7, 0x833d, "Panasonic CF-72", 0x0d),
@@ -831,7 +811,7 @@ static struct snd_pci_quirk m3_amp_quirk_list[] = {
 	{ } /* END */
 };
 
-static struct snd_pci_quirk m3_irda_quirk_list[] = {
+static const struct snd_pci_quirk m3_irda_quirk_list[] = {
 	SND_PCI_QUIRK(0x1028, 0x00b0, "Dell Inspiron 4000", 1),
 	SND_PCI_QUIRK(0x1028, 0x00a4, "Dell Inspiron 8000", 1),
 	SND_PCI_QUIRK(0x1028, 0x00e6, "Dell Inspiron 8100", 1),
@@ -839,7 +819,7 @@ static struct snd_pci_quirk m3_irda_quirk_list[] = {
 };
 
 /* hardware volume quirks */
-static struct snd_pci_quirk m3_hv_quirk_list[] = {
+static const struct snd_pci_quirk m3_hv_quirk_list[] = {
 	/* Allegro chips */
 	SND_PCI_QUIRK(0x0E11, 0x002E, NULL, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD),
 	SND_PCI_QUIRK(0x0E11, 0x0094, NULL, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD),
@@ -917,7 +897,7 @@ static struct snd_pci_quirk m3_hv_quirk_list[] = {
 };
 
 /* HP Omnibook quirks */
-static struct snd_pci_quirk m3_omnibook_quirk_list[] = {
+static const struct snd_pci_quirk m3_omnibook_quirk_list[] = {
 	SND_PCI_QUIRK_ID(0x103c, 0x0010), /* HP OmniBook 6000 */
 	SND_PCI_QUIRK_ID(0x103c, 0x0011), /* HP OmniBook 500 */
 	{ } /* END */
@@ -1260,7 +1240,7 @@ static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
 			  snd_pcm_format_width(runtime->format) == 16 ? 0 : 1);
 
 	/* set up dac/adc rate */
-	freq = ((runtime->rate << 15) + 24000 ) / 48000;
+	freq = DIV_ROUND_CLOSEST(runtime->rate << 15, 48000);
 	if (freq) 
 		freq--;
 
@@ -1396,10 +1376,7 @@ static int snd_m3_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
 	struct m3_dma *s = substream->runtime->private_data;
-	int err;
 
-	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
-		return err;
 	/* set buffer address */
 	s->buffer_addr = substream->runtime->dma_addr;
 	if (s->buffer_addr & 0x3) {
@@ -1416,7 +1393,6 @@ static int snd_m3_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (substream->runtime->private_data == NULL)
 		return 0;
 	s = substream->runtime->private_data;
-	snd_pcm_lib_free_pages(substream);
 	s->buffer_addr = 0;
 	return 0;
 }
@@ -1789,7 +1765,8 @@ snd_m3_playback_open(struct snd_pcm_substream *subs)
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	int err;
 
-	if ((err = snd_m3_substream_open(chip, subs)) < 0)
+	err = snd_m3_substream_open(chip, subs);
+	if (err < 0)
 		return err;
 
 	runtime->hw = snd_m3_playback;
@@ -1813,7 +1790,8 @@ snd_m3_capture_open(struct snd_pcm_substream *subs)
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	int err;
 
-	if ((err = snd_m3_substream_open(chip, subs)) < 0)
+	err = snd_m3_substream_open(chip, subs);
+	if (err < 0)
 		return err;
 
 	runtime->hw = snd_m3_capture;
@@ -1837,7 +1815,6 @@ snd_m3_capture_close(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops snd_m3_playback_ops = {
 	.open =		snd_m3_playback_open,
 	.close =	snd_m3_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_m3_pcm_hw_params,
 	.hw_free =	snd_m3_pcm_hw_free,
 	.prepare =	snd_m3_pcm_prepare,
@@ -1848,7 +1825,6 @@ static const struct snd_pcm_ops snd_m3_playback_ops = {
 static const struct snd_pcm_ops snd_m3_capture_ops = {
 	.open =		snd_m3_capture_open,
 	.close =	snd_m3_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_m3_pcm_hw_params,
 	.hw_free =	snd_m3_pcm_hw_free,
 	.prepare =	snd_m3_pcm_prepare,
@@ -1875,8 +1851,8 @@ snd_m3_pcm(struct snd_m3 * chip, int device)
 	strcpy(pcm->name, chip->card->driver);
 	chip->pcm = pcm;
 	
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci), 64*1024, 64*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       &chip->pci->dev, 64*1024, 64*1024);
 
 	return 0;
 }
@@ -2057,17 +2033,19 @@ static int snd_m3_mixer(struct snd_m3 *chip)
 	struct snd_ctl_elem_id elem_id;
 #endif
 	int err;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_m3_ac97_write,
 		.read = snd_m3_ac97_read,
 	};
 
-	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
+	err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus);
+	if (err < 0)
 		return err;
 	
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
-	if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97)) < 0)
+	err = snd_ac97_mixer(pbus, &ac97, &chip->ac97);
+	if (err < 0)
 		return err;
 
 	/* seems ac97 PCM needs initialization.. hack hack.. */
@@ -2361,16 +2339,13 @@ snd_m3_enable_ints(struct snd_m3 *chip)
 /*
  */
 
-static int snd_m3_free(struct snd_m3 *chip)
+static void snd_m3_free(struct snd_card *card)
 {
+	struct snd_m3 *chip = card->private_data;
 	struct m3_dma *s;
 	int i;
 
 	cancel_work_sync(&chip->hwvol_work);
-#ifdef CONFIG_SND_MAESTRO3_INPUT
-	if (chip->input_dev)
-		input_unregister_device(chip->input_dev);
-#endif
 
 	if (chip->substreams) {
 		spin_lock_irq(&chip->reg_lock);
@@ -2381,7 +2356,6 @@ static int snd_m3_free(struct snd_m3 *chip)
 				snd_m3_pcm_stop(chip, s, s->substream);
 		}
 		spin_unlock_irq(&chip->reg_lock);
-		kfree(chip->substreams);
 	}
 	if (chip->iobase) {
 		outw(0, chip->iobase + HOST_INT_CTRL); /* disable ints */
@@ -2390,19 +2364,8 @@ static int snd_m3_free(struct snd_m3 *chip)
 #ifdef CONFIG_PM_SLEEP
 	vfree(chip->suspend_mem);
 #endif
-
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
-
-	if (chip->iobase)
-		pci_release_regions(chip->pci);
-
 	release_firmware(chip->assp_kernel_image);
 	release_firmware(chip->assp_minisrc_image);
-
-	pci_disable_device(chip->pci);
-	kfree(chip);
-	return 0;
 }
 
 
@@ -2422,7 +2385,6 @@ static int m3_suspend(struct device *dev)
 	chip->in_suspend = 1;
 	cancel_work_sync(&chip->hwvol_work);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 
 	msleep(10); /* give the assp a chance to idle.. */
@@ -2496,7 +2458,7 @@ static int snd_m3_input_register(struct snd_m3 *chip)
 	struct input_dev *input_dev;
 	int err;
 
-	input_dev = input_allocate_device();
+	input_dev = devm_input_allocate_device(&chip->pci->dev);
 	if (!input_dev)
 		return -ENOMEM;
 
@@ -2516,10 +2478,8 @@ static int snd_m3_input_register(struct snd_m3 *chip)
 	__set_bit(KEY_VOLUMEUP, input_dev->keybit);
 
 	err = input_register_device(input_dev);
-	if (err) {
-		input_free_device(input_dev);
+	if (err)
 		return err;
-	}
 
 	chip->input_dev = input_dev;
 	return 0;
@@ -2529,43 +2489,23 @@ static int snd_m3_input_register(struct snd_m3 *chip)
 /*
  */
 
-static int snd_m3_dev_free(struct snd_device *device)
-{
-	struct snd_m3 *chip = device->device_data;
-	return snd_m3_free(chip);
-}
-
 static int
 snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	      int enable_amp,
-	      int amp_gpio,
-	      struct snd_m3 **chip_ret)
+	      int amp_gpio)
 {
-	struct snd_m3 *chip;
+	struct snd_m3 *chip = card->private_data;
 	int i, err;
 	const struct snd_pci_quirk *quirk;
-	static struct snd_device_ops ops = {
-		.dev_free =	snd_m3_dev_free,
-	};
 
-	*chip_ret = NULL;
-
-	if (pci_enable_device(pci))
+	if (pcim_enable_device(pci))
 		return -EIO;
 
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
-	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(28)) < 0 ||
-	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(28)) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(28))) {
 		dev_err(card->dev,
 			"architecture does not support 28bit PCI busmaster DMA\n");
-		pci_disable_device(pci);
 		return -ENXIO;
-	}
-
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-		pci_disable_device(pci);
-		return -ENOMEM;
 	}
 
 	spin_lock_init(&chip->reg_lock);
@@ -2583,6 +2523,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 	INIT_WORK(&chip->hwvol_work, snd_m3_update_hw_volume);
+	card->private_free = snd_m3_free;
 
 	chip->external_amp = enable_amp;
 	if (amp_gpio >= 0 && amp_gpio <= 0x0f)
@@ -2612,27 +2553,24 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		chip->is_omnibook = 1;
 
 	chip->num_substreams = NR_DSPS;
-	chip->substreams = kcalloc(chip->num_substreams, sizeof(struct m3_dma),
-				   GFP_KERNEL);
-	if (chip->substreams == NULL) {
-		kfree(chip);
-		pci_disable_device(pci);
+	chip->substreams = devm_kcalloc(&pci->dev, chip->num_substreams,
+					sizeof(struct m3_dma), GFP_KERNEL);
+	if (!chip->substreams)
 		return -ENOMEM;
-	}
 
 	err = request_firmware(&chip->assp_kernel_image,
 			       "ess/maestro3_assp_kernel.fw", &pci->dev);
 	if (err < 0)
-		goto free_chip;
+		return err;
 
 	err = request_firmware(&chip->assp_minisrc_image,
 			       "ess/maestro3_assp_minisrc.fw", &pci->dev);
 	if (err < 0)
-		goto free_chip;
+		return err;
 
 	err = pci_request_regions(pci, card->driver);
 	if (err < 0)
-		goto free_chip;
+		return err;
 
 	chip->iobase = pci_resource_start(pci, 0);
 	
@@ -2648,13 +2586,13 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 	snd_m3_hv_init(chip);
 
-	if (request_irq(pci->irq, snd_m3_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, chip)) {
+	if (devm_request_irq(&pci->dev, pci->irq, snd_m3_interrupt, IRQF_SHARED,
+			     KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		err = -ENOMEM;
-		goto free_chip;
+		return -ENOMEM;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 #ifdef CONFIG_PM_SLEEP
 	chip->suspend_mem =
@@ -2665,20 +2603,19 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 		dev_warn(card->dev, "can't allocate apm buffer\n");
 #endif
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	err = snd_m3_mixer(chip);
 	if (err < 0)
-		goto free_chip;
-
-	if ((err = snd_m3_mixer(chip)) < 0)
 		return err;
 
 	for (i = 0; i < chip->num_substreams; i++) {
 		struct m3_dma *s = &chip->substreams[i];
-		if ((err = snd_m3_assp_client_init(chip, s, i)) < 0)
+		err = snd_m3_assp_client_init(chip, s, i);
+		if (err < 0)
 			return err;
 	}
 
-	if ((err = snd_m3_pcm(chip, 0)) < 0)
+	err = snd_m3_pcm(chip, 0);
+	if (err < 0)
 		return err;
 
 #ifdef CONFIG_SND_MAESTRO3_INPUT
@@ -2694,19 +2631,13 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	snd_m3_enable_ints(chip);
 	snd_m3_assp_continue(chip);
 
-	*chip_ret = chip;
-
 	return 0; 
-
-free_chip:
-	snd_m3_free(chip);
-	return err;
 }
 
 /*
  */
 static int
-snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
+__snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -2724,10 +2655,11 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
-			   0, &card);
+	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
+	chip = card->private_data;
 
 	switch (pci->device) {
 	case PCI_DEVICE_ID_ESS_ALLEGRO:
@@ -2743,11 +2675,9 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		break;
 	}
 
-	err = snd_m3_create(card, pci, external_amp[dev], amp_gpio[dev], &chip);
+	err = snd_m3_create(card, pci, external_amp[dev], amp_gpio[dev]);
 	if (err < 0)
-		goto free_card;
-
-	card->private_data = chip;
+		return err;
 
 	sprintf(card->shortname, "ESS %s PCI", card->driver);
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
@@ -2755,7 +2685,7 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto free_card;
+		return err;
 
 #if 0 /* TODO: not supported yet */
 	/* TODO enable MIDI IRQ and I/O */
@@ -2770,22 +2700,18 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
-
-free_card:
-	snd_card_free(card);
-	return err;
 }
 
-static void snd_m3_remove(struct pci_dev *pci)
+static int
+snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	return snd_card_free_on_error(&pci->dev, __snd_m3_probe(pci, pci_id));
 }
 
 static struct pci_driver m3_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
-	.remove = snd_m3_remove,
 	.driver = {
 		.pm = M3_PM_OPS,
 	},

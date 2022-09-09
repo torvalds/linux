@@ -1,28 +1,15 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0+
 #
 # Kernel-version-dependent shell functions for the rest of the scripts.
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, you can access it online at
-# http://www.gnu.org/licenses/gpl-2.0.html.
-#
 # Copyright (C) IBM Corporation, 2013
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
 # rcutorture_param_n_barrier_cbs bootparam-string
 #
-# Adds n_barrier_cbs rcutorture module parameter to kernels having it.
+# Adds n_barrier_cbs rcutorture module parameter if not already specified.
 rcutorture_param_n_barrier_cbs () {
 	if echo $1 | grep -q "rcutorture\.n_barrier_cbs"
 	then
@@ -43,13 +30,25 @@ rcutorture_param_onoff () {
 	fi
 }
 
+# rcutorture_param_stat_interval bootparam-string
+#
+# Adds stat_interval rcutorture module parameter if not already specified.
+rcutorture_param_stat_interval () {
+	if echo $1 | grep -q "rcutorture\.stat_interval"
+	then
+		:
+	else
+		echo rcutorture.stat_interval=15
+	fi
+}
+
 # per_version_boot_params bootparam-string config-file seconds
 #
 # Adds per-version torture-module parameters to kernels supporting them.
 per_version_boot_params () {
 	echo $1 `rcutorture_param_onoff "$1" "$2"` \
 		`rcutorture_param_n_barrier_cbs "$1"` \
-		rcutorture.stat_interval=15 \
+		`rcutorture_param_stat_interval "$1"` \
 		rcutorture.shutdown_secs=$3 \
 		rcutorture.test_no_idle_hz=1 \
 		rcutorture.verbose=1

@@ -1,18 +1,9 @@
-/******************************************************************************
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- *****************************************************************************/
-
+ * Contact Information: wlanfae <wlanfae@realtek.com>
+ */
 #include "rtl_core.h"
 #include "r8192E_hw.h"
 #include "r8192E_hwimg.h"
@@ -43,8 +34,7 @@ static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 	netdev_dbg(dev, "Download Firmware: Put code ok!\n");
 
 	CPU_status = rtl92e_readl(dev, CPU_GEN);
-	rtl92e_writeb(dev, CPU_GEN,
-		      (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
+	rtl92e_writeb(dev, CPU_GEN, (CPU_status | CPU_GEN_PWR_STB_CPU) & 0xff);
 	mdelay(1);
 
 	if (!_rtl92e_wait_for_fw(dev, CPU_GEN_BOOT_RDY, 200)) {

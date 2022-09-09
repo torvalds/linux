@@ -323,7 +323,6 @@ credentials (the value is simply returned in each case)::
 	uid_t current_fsuid(void)	Current's file access UID
 	gid_t current_fsgid(void)	Current's file access GID
 	kernel_cap_t current_cap(void)	Current's effective capabilities
-	void *current_security(void)	Current's LSM security pointer
 	struct user_struct *current_user(void)  Current's user account
 
 There are also convenience wrappers for retrieving specific associated pairs of
@@ -453,9 +452,9 @@ still at this point.
 
 When replacing the group list, the new list must be sorted before it
 is added to the credential, as a binary search is used to test for
-membership.  In practice, this means :c:func:`groups_sort` should be
-called before :c:func:`set_groups` or :c:func:`set_current_groups`.
-:c:func:`groups_sort)` must not be called on a ``struct group_list`` which
+membership.  In practice, this means groups_sort() should be
+called before set_groups() or set_current_groups().
+groups_sort() must not be called on a ``struct group_list`` which
 is shared as it may permute elements as part of the sorting process
 even if the array is already sorted.
 
@@ -548,6 +547,10 @@ pointer will not change over the lifetime of the file struct, and nor will the
 contents of the cred struct pointed to, barring the exceptions listed above
 (see the Task Credentials section).
 
+To avoid "confused deputy" privilege escalation attacks, access control checks
+during subsequent operations on an opened file should use these credentials
+instead of "current"'s credentials, as the file may have been passed to a more
+privileged process.
 
 Overriding the VFS's Use of Credentials
 =======================================

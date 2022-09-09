@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_U8500
 	bool "ST-Ericsson U8500 Series"
-	depends on ARCH_MULTI_V7 && MMU
+	depends on ARCH_MULTI_V7
 	select AB8500_CORE
 	select ABX500_CORE
 	select ARM_AMBA
@@ -29,6 +29,7 @@ menuconfig ARCH_U8500
 	select REGULATOR_DB8500_PRCMU
 	select REGULATOR_FIXED_VOLTAGE
 	select SOC_BUS
+	select RESET_CONTROLLER
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 

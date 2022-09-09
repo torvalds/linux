@@ -48,7 +48,7 @@ static const u32 supported_pixformats[] = {
 	V4L2_PIX_FMT_YVYU,
 	V4L2_PIX_FMT_UYVY,
 	V4L2_PIX_FMT_VYUY,
-	V4L2_PIX_FMT_HM12,
+	V4L2_PIX_FMT_NV12_16L16,
 	V4L2_PIX_FMT_NV12,
 	V4L2_PIX_FMT_NV21,
 	V4L2_PIX_FMT_YUV420,
@@ -56,6 +56,9 @@ static const u32 supported_pixformats[] = {
 	V4L2_PIX_FMT_NV16,
 	V4L2_PIX_FMT_NV61,
 	V4L2_PIX_FMT_YUV422P,
+	V4L2_PIX_FMT_RGB565,
+	V4L2_PIX_FMT_RGB565X,
+	V4L2_PIX_FMT_JPEG,
 };
 
 static bool is_pixformat_valid(unsigned int pixformat)
@@ -74,7 +77,7 @@ sun6i_video_remote_subdev(struct sun6i_video *video, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_pad(&video->pad);
+	remote = media_pad_remote_pad_first(&video->pad);
 
 	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
@@ -148,8 +151,10 @@ static int sun6i_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	subdev = sun6i_video_remote_subdev(video, NULL);
-	if (!subdev)
+	if (!subdev) {
+		ret = -EINVAL;
 		goto stop_media_pipeline;
+	}
 
 	config.pixelformat = video->fmt.fmt.pix.pixelformat;
 	config.code = video->mbus_code;
@@ -363,7 +368,11 @@ static int sun6i_video_try_fmt(struct sun6i_video *video,
 	if (pixfmt->field == V4L2_FIELD_ANY)
 		pixfmt->field = V4L2_FIELD_NONE;
 
-	pixfmt->colorspace = V4L2_COLORSPACE_RAW;
+	if (pixfmt->pixelformat == V4L2_PIX_FMT_JPEG)
+		pixfmt->colorspace = V4L2_COLORSPACE_JPEG;
+	else
+		pixfmt->colorspace = V4L2_COLORSPACE_SRGB;
+
 	pixfmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	pixfmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	pixfmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -409,7 +418,7 @@ static int vidioc_enum_input(struct file *file, void *fh,
 	if (inp->index != 0)
 		return -EINVAL;
 
-	strlcpy(inp->name, "camera", sizeof(inp->name));
+	strscpy(inp->name, "camera", sizeof(inp->name));
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 
 	return 0;
@@ -462,7 +471,7 @@ static const struct v4l2_ioctl_ops sun6i_video_ioctl_ops = {
 static int sun6i_video_open(struct file *file)
 {
 	struct sun6i_video *video = video_drvdata(file);
-	int ret;
+	int ret = 0;
 
 	if (mutex_lock_interruptible(&video->lock))
 		return -ERESTARTSYS;
@@ -471,7 +480,7 @@ static int sun6i_video_open(struct file *file)
 	if (ret < 0)
 		goto unlock;
 
-	ret = v4l2_pipeline_pm_use(&video->vdev.entity, 1);
+	ret = v4l2_pipeline_pm_get(&video->vdev.entity);
 	if (ret < 0)
 		goto fh_release;
 
@@ -504,7 +513,7 @@ static int sun6i_video_close(struct file *file)
 
 	_vb2_fop_release(file, NULL);
 
-	v4l2_pipeline_pm_use(&video->vdev.entity, 0);
+	v4l2_pipeline_pm_put(&video->vdev.entity);
 
 	if (last_fh)
 		sun6i_csi_set_power(video->csi, false);
@@ -551,7 +560,7 @@ static int sun6i_video_link_validate(struct media_link *link)
 
 	video->mbus_code = 0;
 
-	if (!media_entity_remote_pad(link->sink->entity->pads)) {
+	if (!media_pad_remote_pad_first(link->sink->entity->pads)) {
 		dev_info(video->csi->dev,
 			 "video node %s pad not connected\n", vdev->name);
 		return -ENOLINK;
@@ -641,11 +650,11 @@ int sun6i_video_init(struct sun6i_video *video, struct sun6i_csi *csi,
 	}
 
 	/* Register video device */
-	strlcpy(vdev->name, name, sizeof(vdev->name));
+	strscpy(vdev->name, name, sizeof(vdev->name));
 	vdev->release		= video_device_release_empty;
 	vdev->fops		= &sun6i_video_fops;
 	vdev->ioctl_ops		= &sun6i_video_ioctl_ops;
-	vdev->vfl_type		= VFL_TYPE_GRABBER;
+	vdev->vfl_type		= VFL_TYPE_VIDEO;
 	vdev->vfl_dir		= VFL_DIR_RX;
 	vdev->v4l2_dev		= &csi->v4l2_dev;
 	vdev->queue		= vidq;
@@ -653,17 +662,15 @@ int sun6i_video_init(struct sun6i_video *video, struct sun6i_csi *csi,
 	vdev->device_caps	= V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE;
 	video_set_drvdata(vdev, video);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		v4l2_err(&csi->v4l2_dev,
 			 "video_register_device failed: %d\n", ret);
-		goto release_vb2;
+		goto clean_entity;
 	}
 
 	return 0;
 
-release_vb2:
-	vb2_queue_release(&video->vb2_vidq);
 clean_entity:
 	media_entity_cleanup(&video->vdev.entity);
 	mutex_destroy(&video->lock);
@@ -672,8 +679,7 @@ clean_entity:
 
 void sun6i_video_cleanup(struct sun6i_video *video)
 {
-	video_unregister_device(&video->vdev);
+	vb2_video_unregister_device(&video->vdev);
 	media_entity_cleanup(&video->vdev.entity);
-	vb2_queue_release(&video->vb2_vidq);
 	mutex_destroy(&video->lock);
 }

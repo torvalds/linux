@@ -67,12 +67,13 @@
 
 #ifdef CONFIG_FUSION_LOGGING
 #define MPT_CHECK_LOGGING(IOC, CMD, BITS)			\
-{								\
+do {								\
 	if (IOC->debug_level & BITS)				\
 		CMD;						\
-}
+} while (0)
 #else
-#define MPT_CHECK_LOGGING(IOC, CMD, BITS)
+#define MPT_CHECK_LOGGING(IOC, CMD, BITS)			\
+do { } while (0)
 #endif
 
 

@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Common boot and setup code for both 32-bit and 64-bit.
  * Extracted from arch/powerpc/kernel/setup_64.c.
  *
  * Copyright (C) 2001 PPC64 Team, IBM Corp
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #undef DEBUG
 
 #include <linux/export.h>
+#include <linux/panic_notifier.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -26,22 +23,21 @@
 #include <linux/console.h>
 #include <linux/screen_info.h>
 #include <linux/root_dev.h>
-#include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
+#include <linux/of_irq.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/hugetlb.h>
-#include <asm/debugfs.h>
+#include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/paca.h>
-#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/vdso_datapage.h>
-#include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
 #include <asm/machdep.h>
@@ -67,11 +63,12 @@
 #include <asm/livepatch.h>
 #include <asm/mmu_context.h>
 #include <asm/cpu_has_feature.h>
+#include <asm/kasan.h>
+#include <asm/mce.h>
 
 #include "setup.h"
 
 #ifdef DEBUG
-#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -93,10 +90,6 @@ EXPORT_SYMBOL_GPL(boot_cpuid);
  */
 int dcache_bsize;
 int icache_bsize;
-int ucache_bsize;
-
-
-unsigned long klimit = (unsigned long) _end;
 
 /*
  * This still seems to be needed... -- paulus
@@ -133,13 +126,11 @@ int crashing_cpu = -1;
 /* also used by kexec */
 void machine_shutdown(void)
 {
-#ifdef CONFIG_FA_DUMP
 	/*
 	 * if fadump is active, cleanup the fadump registration before we
 	 * shutdown.
 	 */
 	fadump_cleanup();
-#endif
 
 	if (ppc_md.machine_shutdown)
 		ppc_md.machine_shutdown();
@@ -170,9 +161,7 @@ void machine_restart(char *cmd)
 void machine_power_off(void)
 {
 	machine_shutdown();
-	if (pm_power_off)
-		pm_power_off();
-
+	do_kernel_power_off();
 	smp_send_stop();
 	machine_hang();
 }
@@ -181,6 +170,14 @@ EXPORT_SYMBOL_GPL(machine_power_off);
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
+
+size_t __must_check arch_get_random_seed_longs(unsigned long *v, size_t max_longs)
+{
+	if (max_longs && ppc_md.get_random_seed && ppc_md.get_random_seed(v))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(arch_get_random_seed_longs);
 
 void machine_halt(void)
 {
@@ -200,14 +197,15 @@ static void show_cpuinfo_summary(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = NULL;
-#if defined(CONFIG_SMP) && defined(CONFIG_PPC32)
 	unsigned long bogosum = 0;
 	int i;
-	for_each_online_cpu(i)
-		bogosum += loops_per_jiffy;
-	seq_printf(m, "total bogomips\t: %lu.%02lu\n",
-		   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
-#endif /* CONFIG_SMP && CONFIG_PPC32 */
+
+	if (IS_ENABLED(CONFIG_SMP) && IS_ENABLED(CONFIG_PPC32)) {
+		for_each_online_cpu(i)
+			bogosum += loops_per_jiffy;
+		seq_printf(m, "total bogomips\t: %lu.%02lu\n",
+			   bogosum / (500000 / HZ), bogosum / (5000 / HZ) % 100);
+	}
 	seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
 	if (ppc_md.name)
 		seq_printf(m, "platform\t: %s\n", ppc_md.name);
@@ -221,11 +219,10 @@ static void show_cpuinfo_summary(struct seq_file *m)
 	if (ppc_md.show_cpuinfo != NULL)
 		ppc_md.show_cpuinfo(m);
 
-#ifdef CONFIG_PPC32
 	/* Display the amount of memory */
-	seq_printf(m, "Memory\t\t: %d MB\n",
-		   (unsigned int)(total_memory / (1024 * 1024)));
-#endif
+	if (IS_ENABLED(CONFIG_PPC32))
+		seq_printf(m, "Memory\t\t: %d MB\n",
+			   (unsigned int)(total_memory / (1024 * 1024)));
 }
 
 static int show_cpuinfo(struct seq_file *m, void *v)
@@ -244,34 +241,31 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	maj = (pvr >> 8) & 0xFF;
 	min = pvr & 0xFF;
 
-	seq_printf(m, "processor\t: %lu\n", cpu_id);
-	seq_printf(m, "cpu\t\t: ");
+	seq_printf(m, "processor\t: %lu\ncpu\t\t: ", cpu_id);
 
 	if (cur_cpu_spec->pvr_mask && cur_cpu_spec->cpu_name)
-		seq_printf(m, "%s", cur_cpu_spec->cpu_name);
+		seq_puts(m, cur_cpu_spec->cpu_name);
 	else
 		seq_printf(m, "unknown (%08x)", pvr);
 
-#ifdef CONFIG_ALTIVEC
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		seq_printf(m, ", altivec supported");
-#endif /* CONFIG_ALTIVEC */
+		seq_puts(m, ", altivec supported");
 
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 #ifdef CONFIG_TAU
-	if (cur_cpu_spec->cpu_features & CPU_FTR_TAU) {
-#ifdef CONFIG_TAU_AVERAGE
-		/* more straightforward, but potentially misleading */
-		seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
-			   cpu_temp(cpu_id));
-#else
-		/* show the actual temp sensor range */
-		u32 temp;
-		temp = cpu_temp_both(cpu_id);
-		seq_printf(m, "temperature \t: %u-%u C (uncalibrated)\n",
-			   temp & 0xff, temp >> 16);
-#endif
+	if (cpu_has_feature(CPU_FTR_TAU)) {
+		if (IS_ENABLED(CONFIG_TAU_AVERAGE)) {
+			/* more straightforward, but potentially misleading */
+			seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
+				   cpu_temp(cpu_id));
+		} else {
+			/* show the actual temp sensor range */
+			u32 temp;
+			temp = cpu_temp_both(cpu_id);
+			seq_printf(m, "temperature \t: %u-%u C (uncalibrated)\n",
+				   temp & 0xff, temp >> 16);
+		}
 	}
 #endif /* CONFIG_TAU */
 
@@ -290,11 +284,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "clock\t\t: %lu.%06luMHz\n",
 			   proc_freq / 1000000, proc_freq % 1000000);
 
-	if (ppc_md.show_percpuinfo != NULL)
-		ppc_md.show_percpuinfo(m, cpu_id);
-
 	/* If we are a Freescale core do a simple check so
-	 * we dont have to keep adding cases in the future */
+	 * we don't have to keep adding cases in the future */
 	if (PVR_VER(pvr) & 0x8000) {
 		switch (PVR_VER(pvr)) {
 		case 0x8000:	/* 7441/7450/7451, Voyager */
@@ -313,15 +304,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		}
 	} else {
 		switch (PVR_VER(pvr)) {
-			case 0x0020:	/* 403 family */
-				maj = PVR_MAJ(pvr) + 1;
-				min = PVR_MIN(pvr);
-				break;
 			case 0x1008:	/* 740P/750P ?? */
 				maj = ((pvr >> 8) & 0xFF) - 1;
 				min = pvr & 0xFF;
 				break;
 			case 0x004e: /* POWER9 bits 12-15 give chip type */
+			case 0x0080: /* POWER10 bit 12 gives SMT8/4 */
 				maj = (pvr >> 8) & 0x0F;
 				min = pvr & 0xFF;
 				break;
@@ -335,12 +323,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "revision\t: %hd.%hd (pvr %04x %04x)\n",
 		   maj, min, PVR_VER(pvr), PVR_REV(pvr));
 
-#ifdef CONFIG_PPC32
-	seq_printf(m, "bogomips\t: %lu.%02lu\n",
-		   loops_per_jiffy / (500000/HZ),
-		   (loops_per_jiffy / (5000/HZ)) % 100);
-#endif
-	seq_printf(m, "\n");
+	if (IS_ENABLED(CONFIG_PPC32))
+		seq_printf(m, "bogomips\t: %lu.%02lu\n", loops_per_jiffy / (500000 / HZ),
+			   (loops_per_jiffy / (5000 / HZ)) % 100);
+
+	seq_putc(m, '\n');
 
 	/* If this is the last cpu, print the summary */
 	if (cpumask_next(cpu_id, cpu_online_mask) >= nr_cpu_ids)
@@ -401,8 +388,8 @@ void __init check_for_initrd(void)
 
 #ifdef CONFIG_SMP
 
-int threads_per_core, threads_per_subcore, threads_shift;
-cpumask_t threads_core_mask;
+int threads_per_core, threads_per_subcore, threads_shift __read_mostly;
+cpumask_t threads_core_mask __read_mostly;
 EXPORT_SYMBOL_GPL(threads_per_core);
 EXPORT_SYMBOL_GPL(threads_per_subcore);
 EXPORT_SYMBOL_GPL(threads_shift);
@@ -459,8 +446,11 @@ void __init smp_setup_cpu_maps(void)
 
 	DBG("smp_setup_cpu_maps()\n");
 
-	cpu_to_phys_id = __va(memblock_phys_alloc(nr_cpu_ids * sizeof(u32), __alignof__(u32)));
-	memset(cpu_to_phys_id, 0, nr_cpu_ids * sizeof(u32));
+	cpu_to_phys_id = memblock_alloc(nr_cpu_ids * sizeof(u32),
+					__alignof__(u32));
+	if (!cpu_to_phys_id)
+		panic("%s: Failed to allocate %zu bytes align=0x%zx\n",
+		      __func__, nr_cpu_ids * sizeof(u32), __alignof__(u32));
 
 	for_each_node_by_type(dn, "cpu") {
 		const __be32 *intserv;
@@ -472,8 +462,8 @@ void __init smp_setup_cpu_maps(void)
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);
 		if (intserv) {
-			DBG("    ibm,ppc-interrupt-server#s -> %d threads\n",
-			    nthreads);
+			DBG("    ibm,ppc-interrupt-server#s -> %lu threads\n",
+			    (len / sizeof(int)));
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
 			intserv = of_get_property(dn, "reg", &len);
@@ -598,7 +588,7 @@ static __init int add_pcspkr(void)
 device_initcall(add_pcspkr);
 #endif	/* CONFIG_PCSPKR_PLATFORM */
 
-void probe_machine(void)
+static __init void probe_machine(void)
 {
 	extern struct machdep_calls __machine_desc_start;
 	extern struct machdep_calls __machine_desc_end;
@@ -634,7 +624,7 @@ void probe_machine(void)
 	}
 	/* What can we do if we didn't find ? */
 	if (machine_id >= &__machine_desc_end) {
-		DBG("No suitable machine found !\n");
+		pr_err("No suitable machine description found !\n");
 		for (;;);
 	}
 
@@ -696,8 +686,25 @@ int check_legacy_ioport(unsigned long base_port)
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
-static int ppc_panic_event(struct notifier_block *this,
-                             unsigned long event, void *ptr)
+/*
+ * Panic notifiers setup
+ *
+ * We have 3 notifiers for powerpc, each one from a different "nature":
+ *
+ * - ppc_panic_fadump_handler() is a hypervisor notifier, which hard-disables
+ *   IRQs and deal with the Firmware-Assisted dump, when it is configured;
+ *   should run early in the panic path.
+ *
+ * - dump_kernel_offset() is an informative notifier, just showing the KASLR
+ *   offset if we have RANDOMIZE_BASE set.
+ *
+ * - ppc_panic_platform_handler() is a low-level handler that's registered
+ *   only if the platform wishes to perform final actions in the panic path,
+ *   hence it should run late and might not even return. Currently, only
+ *   pseries and ps3 platforms register callbacks.
+ */
+static int ppc_panic_fadump_handler(struct notifier_block *this,
+				    unsigned long event, void *ptr)
 {
 	/*
 	 * panic does a local_irq_disable, but we really
@@ -707,25 +714,63 @@ static int ppc_panic_event(struct notifier_block *this,
 
 	/*
 	 * If firmware-assisted dump has been registered then trigger
-	 * firmware-assisted dump and let firmware handle everything else.
+	 * its callback and let the firmware handles everything else.
 	 */
 	crash_fadump(NULL, ptr);
-	if (ppc_md.panic)
-		ppc_md.panic(ptr);  /* May not return */
+
 	return NOTIFY_DONE;
 }
 
+static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
+			      void *p)
+{
+	pr_emerg("Kernel Offset: 0x%lx from 0x%lx\n",
+		 kaslr_offset(), KERNELBASE);
+
+	return NOTIFY_DONE;
+}
+
+static int ppc_panic_platform_handler(struct notifier_block *this,
+				      unsigned long event, void *ptr)
+{
+	/*
+	 * This handler is only registered if we have a panic callback
+	 * on ppc_md, hence NULL check is not needed.
+	 * Also, it may not return, so it runs really late on panic path.
+	 */
+	ppc_md.panic(ptr);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ppc_fadump_block = {
+	.notifier_call = ppc_panic_fadump_handler,
+	.priority = INT_MAX, /* run early, to notify the firmware ASAP */
+};
+
+static struct notifier_block kernel_offset_notifier = {
+	.notifier_call = dump_kernel_offset,
+};
+
 static struct notifier_block ppc_panic_block = {
-	.notifier_call = ppc_panic_event,
-	.priority = INT_MIN /* may not return; must be done last */
+	.notifier_call = ppc_panic_platform_handler,
+	.priority = INT_MIN, /* may not return; must be done last */
 };
 
 void __init setup_panic(void)
 {
-	/* PPC64 always does a hard irq disable in its panic handler */
-	if (!IS_ENABLED(CONFIG_PPC64) && !ppc_md.panic)
-		return;
-	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
+	/* Hard-disables IRQs + deal with FW-assisted dump (fadump) */
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &ppc_fadump_block);
+
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_offset() > 0)
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &kernel_offset_notifier);
+
+	/* Low-level platform-specific routines that should run on panic */
+	if (ppc_md.panic)
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &ppc_panic_block);
 }
 
 #ifdef CONFIG_CHECK_CACHE_COHERENCY
@@ -737,23 +782,19 @@ void __init setup_panic(void)
  * BUG() in that case.
  */
 
-#ifdef CONFIG_NOT_COHERENT_CACHE
-#define KERNEL_COHERENCY	0
-#else
-#define KERNEL_COHERENCY	1
-#endif
+#define KERNEL_COHERENCY	(!IS_ENABLED(CONFIG_NOT_COHERENT_CACHE))
 
 static int __init check_cache_coherency(void)
 {
 	struct device_node *np;
 	const void *prop;
-	int devtree_coherency;
+	bool devtree_coherency;
 
 	np = of_find_node_by_path("/");
 	prop = of_get_property(np, "coherency-off", NULL);
 	of_node_put(np);
 
-	devtree_coherency = prop ? 0 : 1;
+	devtree_coherency = prop ? false : true;
 
 	if (devtree_coherency != KERNEL_COHERENCY) {
 		printk(KERN_ERR
@@ -769,47 +810,19 @@ static int __init check_cache_coherency(void)
 late_initcall(check_cache_coherency);
 #endif /* CONFIG_CHECK_CACHE_COHERENCY */
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *powerpc_debugfs_root;
-EXPORT_SYMBOL(powerpc_debugfs_root);
-
-static int powerpc_debugfs_init(void)
-{
-	powerpc_debugfs_root = debugfs_create_dir("powerpc", NULL);
-
-	return powerpc_debugfs_root == NULL;
-}
-arch_initcall(powerpc_debugfs_init);
-#endif
-
 void ppc_printk_progress(char *s, unsigned short hex)
 {
 	pr_info("%s\n", s);
 }
 
-void arch_setup_pdev_archdata(struct platform_device *pdev)
-{
-	pdev->archdata.dma_mask = DMA_BIT_MASK(32);
-	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
- 	set_dma_ops(&pdev->dev, &dma_nommu_ops);
-}
-
 static __init void print_system_info(void)
 {
 	pr_info("-----------------------------------------------------\n");
-#ifdef CONFIG_PPC_BOOK3S_64
-	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
-#endif
-#ifdef CONFIG_PPC_BOOK3S_32
-	pr_info("Hash_size         = 0x%lx\n", Hash_size);
-#endif
 	pr_info("phys_mem_size     = 0x%llx\n",
 		(unsigned long long)memblock_phys_mem_size());
 
 	pr_info("dcache_bsize      = 0x%x\n", dcache_bsize);
 	pr_info("icache_bsize      = 0x%x\n", icache_bsize);
-	if (ucache_bsize != 0)
-		pr_info("ucache_bsize      = 0x%x\n", ucache_bsize);
 
 	pr_info("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
 	pr_info("  possible        = 0x%016lx\n",
@@ -822,20 +835,15 @@ static __init void print_system_info(void)
 	pr_info("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
 #ifdef CONFIG_PPC64
 	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
+#ifdef CONFIG_PPC_BOOK3S
+	pr_info("vmalloc start     = 0x%lx\n", KERN_VIRT_START);
+	pr_info("IO start          = 0x%lx\n", KERN_IO_START);
+	pr_info("vmemmap start     = 0x%lx\n", (unsigned long)vmemmap);
+#endif
 #endif
 
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (htab_address)
-		pr_info("htab_address      = 0x%p\n", htab_address);
-	if (htab_hash_mask)
-		pr_info("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
-#endif
-#ifdef CONFIG_PPC_BOOK3S_32
-	if (Hash)
-		pr_info("Hash              = 0x%p\n", Hash);
-	if (Hash_mask)
-		pr_info("Hash_mask         = 0x%lx\n", Hash_mask);
-#endif
+	if (!early_radix_enabled())
+		print_system_hash_info();
 
 	if (PHYSICAL_START > 0)
 		pr_info("physical_start    = 0x%llx\n",
@@ -844,7 +852,7 @@ static __init void print_system_info(void)
 }
 
 #ifdef CONFIG_SMP
-static void smp_setup_pacas(void)
+static void __init smp_setup_pacas(void)
 {
 	int cpu;
 
@@ -855,7 +863,7 @@ static void smp_setup_pacas(void)
 		set_hard_smp_processor_id(cpu, cpu_to_phys_id[cpu]);
 	}
 
-	memblock_free(__pa(cpu_to_phys_id), nr_cpu_ids * sizeof(u32));
+	memblock_free(cpu_to_phys_id, nr_cpu_ids * sizeof(u32));
 	cpu_to_phys_id = NULL;
 }
 #endif
@@ -866,6 +874,8 @@ static void smp_setup_pacas(void)
  */
 void __init setup_arch(char **cmdline_p)
 {
+	kasan_init();
+
 	*cmdline_p = boot_command_line;
 
 	/* Set a half-reasonable default so udelay does something sensible */
@@ -928,48 +938,34 @@ void __init setup_arch(char **cmdline_p)
 
 	/* On BookE, setup per-core TLB data structures. */
 	setup_tlb_core_data();
-
-	smp_release_cpus();
 #endif
 
 	/* Print various info about the machine that has been gathered so far. */
 	print_system_info();
 
-	/* Reserve large chunks of memory for use by CMA for KVM. */
-	kvm_cma_reserve();
+	klp_init_thread_info(&init_task);
 
-	klp_init_thread_info(&init_thread_info);
+	setup_initial_init_mm(_stext, _etext, _edata, _end);
 
-	init_mm.start_code = (unsigned long)_stext;
-	init_mm.end_code = (unsigned long) _etext;
-	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = klimit;
-
-#ifdef CONFIG_PPC_MM_SLICES
-#ifdef CONFIG_PPC64
-	if (!radix_enabled())
-		init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
-#elif defined(CONFIG_PPC_8xx)
-	init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW;
-#else
-#error	"context.addr_limit not initialized."
-#endif
-#endif
-
-#ifdef CONFIG_SPAPR_TCE_IOMMU
 	mm_iommu_init(&init_mm);
-#endif
 	irqstack_early_init();
 	exc_lvl_early_init();
 	emergency_stack_init();
 
+	mce_init();
+	smp_release_cpus();
+
 	initmem_init();
+
+	/*
+	 * Reserve large chunks of memory for use by CMA for KVM and hugetlb. These must
+	 * be called after initmem_init(), so that pageblock_order is initialised.
+	 */
+	kvm_cma_reserve();
+	gigantic_hugetlb_cma_reserve();
 
 	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
 	if (ppc_md.setup_arch)
 		ppc_md.setup_arch();
 
@@ -981,10 +977,8 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize the MMU context management stuff. */
 	mmu_context_init();
 
-#ifdef CONFIG_PPC64
 	/* Interrupt code needs to be 64K-aligned. */
-	if ((unsigned long)_stext & 0xffff)
+	if (IS_ENABLED(CONFIG_PPC64) && (unsigned long)_stext & 0xffff)
 		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
 		      (unsigned long)_stext);
-#endif
 }

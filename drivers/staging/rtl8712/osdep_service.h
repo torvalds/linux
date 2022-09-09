@@ -37,7 +37,6 @@ struct	__queue	{
 
 #define _pkt struct sk_buff
 #define _buffer unsigned char
-#define thread_exit() complete_and_exit(NULL, 0)
 
 #define _init_queue(pqueue)				\
 	do {						\
@@ -46,7 +45,7 @@ struct	__queue	{
 	} while (0)
 
 static inline u32 end_of_queue_search(struct list_head *head,
-		struct list_head *plist)
+				      struct list_head *plist)
 {
 	return (head == plist);
 }

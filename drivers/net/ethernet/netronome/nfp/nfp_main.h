@@ -13,7 +13,6 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/msi.h>
-#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include <net/devlink.h>
@@ -42,12 +41,13 @@ struct nfp_shared_buf;
  */
 struct nfp_dumpspec {
 	u32 size;
-	u8 data[0];
+	u8 data[];
 };
 
 /**
  * struct nfp_pf - NFP PF-specific device structure
  * @pdev:		Backpointer to PCI device
+ * @dev_info:		NFP ASIC params
  * @cpp:		Pointer to the CPP handle
  * @app:		Pointer to the APP handle
  * @data_vnic_bar:	Pointer to the CPP area for the data vNICs' BARs
@@ -64,6 +64,7 @@ struct nfp_dumpspec {
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
  * @fw_loaded:		Is the firmware loaded?
+ * @unload_fw_on_remove:Do we need to unload firmware on driver removal?
  * @ctrl_vnic:		Pointer to the control vNIC if available
  * @mip:		MIP handle
  * @rtbl:		RTsym table
@@ -83,10 +84,12 @@ struct nfp_dumpspec {
  * @port_refresh_work:	Work entry for taking netdevs out
  * @shared_bufs:	Array of shared buffer structures if FW has any SBs
  * @num_shared_bufs:	Number of elements in @shared_bufs
- * @lock:		Protects all fields which may change after probe
+ *
+ * Fields which may change after proble are protected by devlink instance lock.
  */
 struct nfp_pf {
 	struct pci_dev *pdev;
+	const struct nfp_dev_info *dev_info;
 
 	struct nfp_cpp *cpp;
 
@@ -110,6 +113,7 @@ struct nfp_pf {
 	unsigned int num_vfs;
 
 	bool fw_loaded;
+	bool unload_fw_on_remove;
 
 	struct nfp_net *ctrl_vnic;
 
@@ -137,8 +141,6 @@ struct nfp_pf {
 
 	struct nfp_shared_buf *shared_bufs;
 	unsigned int num_shared_bufs;
-
-	struct mutex lock;
 };
 
 extern struct pci_driver nfp_netvf_pci_driver;
@@ -164,6 +166,8 @@ nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		 unsigned int min_size, struct nfp_cpp_area **area);
 int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
 		 void *out_data, u64 out_length);
+int nfp_flash_update_common(struct nfp_pf *pf, const struct firmware *fw,
+			    struct netlink_ext_ack *extack);
 
 enum nfp_dump_diag {
 	NFP_DUMP_NSP_DIAG = 0,
@@ -183,4 +187,7 @@ int nfp_shared_buf_pool_get(struct nfp_pf *pf, unsigned int sb, u16 pool_index,
 int nfp_shared_buf_pool_set(struct nfp_pf *pf, unsigned int sb,
 			    u16 pool_index, u32 size,
 			    enum devlink_sb_threshold_type threshold_type);
+
+int nfp_devlink_params_register(struct nfp_pf *pf);
+void nfp_devlink_params_unregister(struct nfp_pf *pf);
 #endif /* NFP_MAIN_H */

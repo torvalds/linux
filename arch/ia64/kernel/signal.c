@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
@@ -152,7 +151,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	return retval;
 
   give_sigsegv:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return retval;
 }
 
@@ -257,7 +256,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 			 */
 			check_sp = (new_sp - sizeof(*frame)) & -STACK_ALIGN;
 			if (!likely(on_sig_stack(check_sp))) {
-				force_sigsegv(ksig->sig, current);
+				force_sigsegv(ksig->sig);
 				return 1;
 			}
 		}
@@ -265,7 +264,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 	frame = (void __user *) ((new_sp - sizeof(*frame)) & -STACK_ALIGN);
 
 	if (!access_ok(frame, sizeof(*frame))) {
-		force_sigsegv(ksig->sig, current);
+		force_sigsegv(ksig->sig);
 		return 1;
 	}
 
@@ -282,7 +281,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 	err |= setup_sigcontext(&frame->sc, set, scr);
 
 	if (unlikely(err)) {
-		force_sigsegv(ksig->sig, current);
+		force_sigsegv(ksig->sig);
 		return 1;
 	}
 
@@ -341,7 +340,8 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 	 * need to push through a forced SIGSEGV.
 	 */
 	while (1) {
-		get_signal(&ksig);
+		if (!get_signal(&ksig))
+			break;
 
 		/*
 		 * get_signal() may have run a debugger (via notify_parent())
@@ -363,19 +363,19 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 
 		if (unlikely(restart)) {
 			switch (errno) {
-			      case ERESTART_RESTARTBLOCK:
-			      case ERESTARTNOHAND:
+			case ERESTART_RESTARTBLOCK:
+			case ERESTARTNOHAND:
 				scr->pt.r8 = EINTR;
 				/* note: scr->pt.r10 is already -1 */
 				break;
-
-			      case ERESTARTSYS:
+			case ERESTARTSYS:
 				if ((ksig.ka.sa.sa_flags & SA_RESTART) == 0) {
 					scr->pt.r8 = EINTR;
 					/* note: scr->pt.r10 is already -1 */
 					break;
 				}
-			      case ERESTARTNOINTR:
+				fallthrough;
+			case ERESTARTNOINTR:
 				ia64_decrement_ip(&scr->pt);
 				restart = 0; /* don't restart twice if handle_signal() fails... */
 			}

@@ -22,7 +22,7 @@
  * assembler to insert a extra (16-bit) IT instruction, depending on the
  * presence or absence of neighbouring conditional instructions.
  *
- * To avoid this unpredictableness, an approprite IT is inserted explicitly:
+ * To avoid this unpredictability, an appropriate IT is inserted explicitly:
  * the assembler won't change IT instructions which are explicitly present
  * in the input.
  */
@@ -210,11 +210,12 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 
 	prefetchw(&rw->lock);
 	__asm__ __volatile__(
+"	.syntax unified\n"
 "1:	ldrex	%0, [%2]\n"
 "	adds	%0, %0, #1\n"
 "	strexpl	%1, %0, [%2]\n"
 	WFE("mi")
-"	rsbpls	%0, %1, #0\n"
+"	rsbspl	%0, %1, #0\n"
 "	bmi	1b"
 	: "=&r" (tmp), "=&r" (tmp2)
 	: "r" (&rw->lock)

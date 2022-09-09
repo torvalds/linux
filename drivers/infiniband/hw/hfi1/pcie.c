@@ -1,48 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * Copyright(c) 2015 - 2019 Intel Corporation.
  */
 
 #include <linux/pci.h>
@@ -92,25 +50,18 @@ int hfi1_pcie_init(struct hfi1_devdata *dd)
 		goto bail;
 	}
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
 		/*
 		 * If the 64 bit setup fails, try 32 bit.  Some systems
 		 * do not setup 64 bit maps on systems with 2GB or less
 		 * memory installed.
 		 */
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			dd_dev_err(dd, "Unable to set DMA mask: %d\n", ret);
 			goto bail;
 		}
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-	} else {
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	}
-	if (ret) {
-		dd_dev_err(dd, "Unable to set DMA consistent mask: %d\n", ret);
-		goto bail;
 	}
 
 	pci_set_master(pdev);
@@ -161,7 +112,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
-	dd->kregbase1 = ioremap_nocache(addr, RCV_ARRAY);
+	dd->kregbase1 = ioremap(addr, RCV_ARRAY);
 	if (!dd->kregbase1) {
 		dd_dev_err(dd, "UC mapping of kregbase1 failed\n");
 		return -ENOMEM;
@@ -179,7 +130,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	dd_dev_info(dd, "RcvArray count: %u\n", rcv_array_count);
 	dd->base2_start  = RCV_ARRAY + rcv_array_count * 8;
 
-	dd->kregbase2 = ioremap_nocache(
+	dd->kregbase2 = ioremap(
 		addr + dd->base2_start,
 		TXE_PIO_SEND - dd->base2_start);
 	if (!dd->kregbase2) {
@@ -306,7 +257,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	ret = pcie_capability_read_dword(dd->pcidev, PCI_EXP_LNKCAP, &linkcap);
 	if (ret) {
 		dd_dev_err(dd, "Unable to read from PCI config\n");
-		return ret;
+		return pcibios_err_to_errno(ret);
 	}
 
 	if ((linkcap & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_8_0GB) {
@@ -319,7 +270,9 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	/*
 	 * bus->max_bus_speed is set from the bridge's linkcap Max Link Speed
 	 */
-	if (parent && dd->pcidev->bus->max_bus_speed != PCIE_SPEED_8_0GT) {
+	if (parent &&
+	    (dd->pcidev->bus->max_bus_speed == PCIE_SPEED_2_5GT ||
+	     dd->pcidev->bus->max_bus_speed == PCIE_SPEED_5_0GT)) {
 		dd_dev_info(dd, "Parent PCIe bridge does not support Gen3\n");
 		dd->link_gen3_capable = 0;
 	}
@@ -332,10 +285,14 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	return 0;
 }
 
-/* restore command and BARs after a reset has wiped them out */
+/*
+ * Restore command and BARs after a reset has wiped them out
+ *
+ * Returns 0 on success, otherwise a negative error value
+ */
 int restore_pci_variables(struct hfi1_devdata *dd)
 {
-	int ret = 0;
+	int ret;
 
 	ret = pci_write_config_word(dd->pcidev, PCI_COMMAND, dd->pci_command);
 	if (ret)
@@ -384,13 +341,17 @@ int restore_pci_variables(struct hfi1_devdata *dd)
 
 error:
 	dd_dev_err(dd, "Unable to write to PCI config\n");
-	return ret;
+	return pcibios_err_to_errno(ret);
 }
 
-/* Save BARs and command to rewrite after device reset */
+/*
+ * Save BARs and command to rewrite after device reset
+ *
+ * Returns 0 on success, otherwise a negative error value
+ */
 int save_pci_variables(struct hfi1_devdata *dd)
 {
-	int ret = 0;
+	int ret;
 
 	ret = pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_0,
 				    &dd->pcibar0);
@@ -439,7 +400,7 @@ int save_pci_variables(struct hfi1_devdata *dd)
 
 error:
 	dd_dev_err(dd, "Unable to read from PCI config\n");
-	return ret;
+	return pcibios_err_to_errno(ret);
 }
 
 /*
@@ -449,10 +410,6 @@ error:
 static int hfi1_pcie_caps;
 module_param_named(pcie_caps, hfi1_pcie_caps, int, 0444);
 MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
-
-uint aspm_mode = ASPM_MODE_DISABLED;
-module_param_named(aspm, aspm_mode, uint, 0444);
-MODULE_PARM_DESC(aspm, "PCIe ASPM: 0: disable, 1: enable, 2: dynamic");
 
 /**
  * tune_pcie_caps() - Code to adjust PCIe capabilities.

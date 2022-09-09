@@ -60,14 +60,12 @@ static int tipc_eth_addr2msg(char *msg, struct tipc_media_addr *addr)
 /* Convert raw mac address format to media addr format */
 static int tipc_eth_raw2addr(struct tipc_bearer *b,
 			     struct tipc_media_addr *addr,
-			     char *msg)
+			     const char *msg)
 {
-	char bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 	memset(addr, 0, sizeof(*addr));
 	ether_addr_copy(addr->value, msg);
 	addr->media_id = TIPC_MEDIA_TYPE_ETH;
-	addr->broadcast = !memcmp(addr->value, bcast_mac, ETH_ALEN);
+	addr->broadcast = is_broadcast_ether_addr(addr->value);
 	return 0;
 }
 
@@ -92,7 +90,8 @@ struct tipc_media eth_media_info = {
 	.raw2addr	= tipc_eth_raw2addr,
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
-	.window		= TIPC_DEF_LINK_WIN,
+	.min_win	= TIPC_DEF_LINK_WIN,
+	.max_win	= TIPC_MAX_LINK_WIN,
 	.type_id	= TIPC_MEDIA_TYPE_ETH,
 	.hwaddr_len	= ETH_ALEN,
 	.name		= "eth"

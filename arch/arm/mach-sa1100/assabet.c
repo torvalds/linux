@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-sa1100/assabet.c
  *
  * Author: Nicolas Pitre
  *
  * This file contains all Assabet-specific tweaks.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -37,7 +34,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
 #include <asm/mach/arch.h>
@@ -88,7 +84,7 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 }
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 
-static int __init assabet_init_gpio(void __iomem *reg, u32 def_val)
+static void __init assabet_init_gpio(void __iomem *reg, u32 def_val)
 {
 	struct gpio_chip *gc;
 
@@ -98,11 +94,9 @@ static int __init assabet_init_gpio(void __iomem *reg, u32 def_val)
 			   assabet_names, NULL, NULL);
 
 	if (IS_ERR(gc))
-		return PTR_ERR(gc);
+		return;
 
 	assabet_bcr_gc = gc;
-
-	return gc->base;
 }
 
 /*
@@ -469,7 +463,6 @@ static struct regulator_consumer_supply assabet_cf_vcc_consumers[] = {
 static struct fixed_voltage_config assabet_cf_vcc_pdata __initdata = {
 	.supply_name = "cf-power",
 	.microvolts = 3300000,
-	.enable_high = 1,
 };
 
 static struct gpiod_lookup_table assabet_cf_vcc_gpio_table = {
@@ -480,16 +473,23 @@ static struct gpiod_lookup_table assabet_cf_vcc_gpio_table = {
 	},
 };
 
+static struct gpiod_lookup_table assabet_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		GPIO_LOOKUP("assabet", 13, NULL, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 14, NULL, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct gpio_led assabet_leds[] __initdata = {
 	{
 		.name = "assabet:red",
 		.default_trigger = "cpu0",
-		.active_low = 1,
 		.default_state = LEDS_GPIO_DEFSTATE_KEEP,
 	}, {
 		.name = "assabet:green",
 		.default_trigger = "heartbeat",
-		.active_low = 1,
 		.default_state = LEDS_GPIO_DEFSTATE_KEEP,
 	},
 };
@@ -521,6 +521,29 @@ static const struct gpio_keys_platform_data assabet_keys_pdata = {
 	.buttons = assabet_keys_buttons,
 	.nbuttons = ARRAY_SIZE(assabet_keys_buttons),
 	.rep = 0,
+};
+
+static struct gpiod_lookup_table assabet_uart1_gpio_table = {
+	.dev_id = "sa11x0-uart.1",
+	.table = {
+		GPIO_LOOKUP("assabet", 16, "dtr", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 17, "rts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 25, "dcd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 26, "cts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 27, "dsr", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table assabet_uart3_gpio_table = {
+	.dev_id = "sa11x0-uart.3",
+	.table = {
+		GPIO_LOOKUP("assabet", 28, "cts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 29, "dsr", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 30, "dcd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("assabet", 31, "rng", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init assabet_init(void)
@@ -569,7 +592,10 @@ static void __init assabet_init(void)
 			neponset_resources, ARRAY_SIZE(neponset_resources));
 #endif
 	} else {
+		gpiod_add_lookup_table(&assabet_uart1_gpio_table);
+		gpiod_add_lookup_table(&assabet_uart3_gpio_table);
 		gpiod_add_lookup_table(&assabet_cf_vcc_gpio_table);
+
 		sa11x0_register_fixed_regulator(0, &assabet_cf_vcc_pdata,
 					assabet_cf_vcc_consumers,
 					ARRAY_SIZE(assabet_cf_vcc_consumers),
@@ -582,6 +608,7 @@ static void __init assabet_init(void)
 					  &assabet_keys_pdata,
 					  sizeof(assabet_keys_pdata));
 
+	gpiod_add_lookup_table(&assabet_leds_gpio_table);
 	gpio_led_register_device(-1, &assabet_leds_pdata);
 
 #ifndef ASSABET_PAL_VIDEO
@@ -611,7 +638,7 @@ static void __init map_sa1100_gpio_regs( void )
 	int prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_DOMAIN(DOMAIN_IO);
 	pmd_t *pmd;
 
-	pmd = pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);
+	pmd = pmd_off_k(virt);
 	*pmd = __pmd(phys | prot);
 	flush_pmd_entry(pmd);
 }
@@ -631,7 +658,7 @@ static void __init map_sa1100_gpio_regs( void )
  */
 static void __init get_assabet_scr(void)
 {
-	unsigned long uninitialized_var(scr), i;
+	unsigned long scr, i;
 
 	GPDR |= 0x3fc;			/* Configure GPIO 9:2 as outputs */
 	GPSR = 0x3fc;			/* Write 0xFF to GPIO 9:2 */
@@ -659,74 +686,13 @@ static void assabet_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
 	if (port->mapbase == _Ser1UTCR0) {
 		if (state)
-			ASSABET_BCR_clear(ASSABET_BCR_RS232EN |
-					  ASSABET_BCR_COM_RTS |
-					  ASSABET_BCR_COM_DTR);
+			ASSABET_BCR_clear(ASSABET_BCR_RS232EN);
 		else
-			ASSABET_BCR_set(ASSABET_BCR_RS232EN |
-					ASSABET_BCR_COM_RTS |
-					ASSABET_BCR_COM_DTR);
+			ASSABET_BCR_set(ASSABET_BCR_RS232EN);
 	}
-}
-
-/*
- * Assabet uses COM_RTS and COM_DTR for both UART1 (com port)
- * and UART3 (radio module).  We only handle them for UART1 here.
- */
-static void assabet_set_mctrl(struct uart_port *port, u_int mctrl)
-{
-	if (port->mapbase == _Ser1UTCR0) {
-		u_int set = 0, clear = 0;
-
-		if (mctrl & TIOCM_RTS)
-			clear |= ASSABET_BCR_COM_RTS;
-		else
-			set |= ASSABET_BCR_COM_RTS;
-
-		if (mctrl & TIOCM_DTR)
-			clear |= ASSABET_BCR_COM_DTR;
-		else
-			set |= ASSABET_BCR_COM_DTR;
-
-		ASSABET_BCR_clear(clear);
-		ASSABET_BCR_set(set);
-	}
-}
-
-static u_int assabet_get_mctrl(struct uart_port *port)
-{
-	u_int ret = 0;
-	u_int bsr = ASSABET_BSR;
-
-	/* need 2 reads to read current value */
-	bsr = ASSABET_BSR;
-
-	if (port->mapbase == _Ser1UTCR0) {
-		if (bsr & ASSABET_BSR_COM_DCD)
-			ret |= TIOCM_CD;
-		if (bsr & ASSABET_BSR_COM_CTS)
-			ret |= TIOCM_CTS;
-		if (bsr & ASSABET_BSR_COM_DSR)
-			ret |= TIOCM_DSR;
-	} else if (port->mapbase == _Ser3UTCR0) {
-		if (bsr & ASSABET_BSR_RAD_DCD)
-			ret |= TIOCM_CD;
-		if (bsr & ASSABET_BSR_RAD_CTS)
-			ret |= TIOCM_CTS;
-		if (bsr & ASSABET_BSR_RAD_DSR)
-			ret |= TIOCM_DSR;
-		if (bsr & ASSABET_BSR_RAD_RI)
-			ret |= TIOCM_RI;
-	} else {
-		ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
-	}
-
-	return ret;
 }
 
 static struct sa1100_port_fns assabet_port_fns __initdata = {
-	.set_mctrl	= assabet_set_mctrl,
-	.get_mctrl	= assabet_get_mctrl,
 	.pm		= assabet_uart_pm,
 };
 
@@ -779,7 +745,6 @@ static void __init assabet_map_io(void)
 
 void __init assabet_init_irq(void)
 {
-	unsigned int assabet_gpio_base;
 	u32 def_val;
 
 	sa1100_init_irq();
@@ -794,10 +759,7 @@ void __init assabet_init_irq(void)
 	 *
 	 * This must precede any driver calls to BCR_set() or BCR_clear().
 	 */
-	assabet_gpio_base = assabet_init_gpio((void *)&ASSABET_BCR, def_val);
-
-	assabet_leds[0].gpio = assabet_gpio_base + 13;
-	assabet_leds[1].gpio = assabet_gpio_base + 14;
+	assabet_init_gpio((void *)&ASSABET_BCR, def_val);
 }
 
 MACHINE_START(ASSABET, "Intel-Assabet")

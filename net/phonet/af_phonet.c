@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * File: af_phonet.c
  *
@@ -7,20 +8,6 @@
  *
  * Authors: Sakari Ailus <sakari.ailus@nokia.com>
  *          Rémi Denis-Courmont
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/kernel.h>
@@ -159,7 +146,7 @@ EXPORT_SYMBOL(phonet_header_ops);
  * Prepends an ISI header and sends a datagram.
  */
 static int pn_send(struct sk_buff *skb, struct net_device *dev,
-			u16 dst, u16 src, u8 res, u8 irq)
+			u16 dst, u16 src, u8 res)
 {
 	struct phonethdr *ph;
 	int err;
@@ -195,7 +182,7 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 	if (skb->pkt_type == PACKET_LOOPBACK) {
 		skb_reset_mac_header(skb);
 		skb_orphan(skb);
-		err = (irq ? netif_rx(skb) : netif_rx_ni(skb)) ? -ENOBUFS : 0;
+		err = netif_rx(skb) ? -ENOBUFS : 0;
 	} else {
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					NULL, NULL, skb->len);
@@ -227,7 +214,7 @@ static int pn_raw_send(const void *data, int len, struct net_device *dev,
 	skb_reserve(skb, MAX_PHONET_HEADER);
 	__skb_put(skb, len);
 	skb_copy_to_linear_data(skb, data, len);
-	return pn_send(skb, dev, dst, src, res, 1);
+	return pn_send(skb, dev, dst, src, res);
 }
 
 /*
@@ -282,14 +269,13 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 	if (!pn_addr(src))
 		src = pn_object(saddr, pn_obj(src));
 
-	err = pn_send(skb, dev, dst, src, res, 0);
+	err = pn_send(skb, dev, dst, src, res);
 	dev_put(dev);
 	return err;
 
 drop:
 	kfree_skb(skb);
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 	return err;
 }
 EXPORT_SYMBOL(pn_skb_send);

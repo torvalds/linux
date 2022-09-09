@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * tboot.h: shared data structure with tboot and kernel and functions
  *          used by kernel for runtime support of Intel(R) Trusted
  *          Execution Technology
  *
  * Copyright (c) 2006-2009, Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #ifndef _LINUX_TBOOT_H
@@ -57,7 +44,7 @@ struct tboot_acpi_generic_address {
 
 /*
  * combines Sx info from FADT and FACS tables per ACPI 2.0+ spec
- * (http://www.acpi.info/)
+ * (https://uefi.org/specifications)
  */
 struct tboot_acpi_sleep_info {
 	struct tboot_acpi_generic_address pm1a_cnt_blk;
@@ -134,18 +121,11 @@ struct tboot {
 #define TBOOT_UUID	{0xff, 0x8d, 0x3c, 0x66, 0xb3, 0xe8, 0x82, 0x4b, 0xbf,\
 			 0xaa, 0x19, 0xea, 0x4d, 0x5, 0x7a, 0x8}
 
-extern struct tboot *tboot;
-
-static inline int tboot_enabled(void)
-{
-	return tboot != NULL;
-}
-
+bool tboot_enabled(void);
 extern void tboot_probe(void);
 extern void tboot_shutdown(u32 shutdown_type);
 extern struct acpi_table_header *tboot_get_dmar_table(
 				      struct acpi_table_header *dmar_tbl);
-extern int tboot_force_iommu(void);
 
 #else
 
@@ -155,7 +135,6 @@ extern int tboot_force_iommu(void);
 #define tboot_sleep(sleep_state, pm1a_control, pm1b_control)	\
 					do { } while (0)
 #define tboot_get_dmar_table(dmar_tbl)	(dmar_tbl)
-#define tboot_force_iommu()		0
 
 #endif /* !CONFIG_INTEL_TXT */
 

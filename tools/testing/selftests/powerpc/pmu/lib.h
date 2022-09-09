@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #ifndef __SELFTESTS_POWERPC_PMU_LIB_H
 #define __SELFTESTS_POWERPC_PMU_LIB_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>

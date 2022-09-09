@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Marvell Wireless LAN device driver: 802.11n
+ * NXP Wireless LAN device driver: 802.11n
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #ifndef _MWIFIEX_11N_H_
@@ -147,11 +135,10 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
 	int tid;
 	u8 ret = false;
 	struct mwifiex_tx_ba_stream_tbl *tx_tbl;
-	unsigned long flags;
 
 	tid = priv->aggr_prio_tbl[ptr_tid].ampdu_user;
 
-	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 	list_for_each_entry(tx_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		if (tid > priv->aggr_prio_tbl[tx_tbl->tid].ampdu_user) {
 			tid = priv->aggr_prio_tbl[tx_tbl->tid].ampdu_user;
@@ -160,7 +147,7 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
 			ret = true;
 		}
 	}
-	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 
 	return ret;
 }

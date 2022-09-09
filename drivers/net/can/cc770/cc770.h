@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Core driver for the CC770 and AN82527 CAN controllers
  *
  * Copyright (C) 2009, 2011 Wolfgang Grandegger <wg@grandegger.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #ifndef CC770_DEV_H
@@ -192,7 +184,7 @@ struct cc770_priv {
 	u8 control_normal_mode;	/* Control register for normal mode */
 	u8 cpu_interface;	/* CPU interface register */
 	u8 clkout;		/* Clock out register */
-	u8 bus_config;		/* Bus conffiguration register */
+	u8 bus_config;		/* Bus configuration register */
 
 	struct sk_buff *tx_skb;
 };

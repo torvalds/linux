@@ -1,21 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include "msm_drv.h"
 #include "mdp_kms.h"
@@ -185,7 +176,7 @@ const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format,
 
 struct csc_cfg *mdp_get_default_csc_cfg(enum csc_type type)
 {
-	if (unlikely(WARN_ON(type >= CSC_MAX)))
+	if (WARN_ON(type >= CSC_MAX))
 		return NULL;
 
 	return &csc_convert[type];

@@ -15,51 +15,29 @@
 #include <linux/regset.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
-#include <linux/tracehook.h>
 #include <linux/uaccess.h>
 #include <linux/user.h>
 
 static int genregs_get(struct task_struct *target,
 		       const struct user_regset *regset,
-		       unsigned int pos, unsigned int count,
-		       void *kbuf, void __user *ubuf)
+		       struct membuf to)
 {
 	const struct pt_regs *regs = task_pt_regs(target);
 	const struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	int ret = 0;
 
-#define REG_O_ZERO_RANGE(START, END)		\
-	if (!ret)					\
-		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf, \
-			START * 4, (END * 4) + 4);
-
-#define REG_O_ONE(PTR, LOC)	\
-	if (!ret)			\
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, PTR, \
-			LOC * 4, (LOC * 4) + 4);
-
-#define REG_O_RANGE(PTR, START, END)	\
-	if (!ret)				\
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, PTR, \
-			START * 4, (END * 4) + 4);
-
-	REG_O_ZERO_RANGE(PTR_R0, PTR_R0);
-	REG_O_RANGE(&regs->r1, PTR_R1, PTR_R7);
-	REG_O_RANGE(&regs->r8, PTR_R8, PTR_R15);
-	REG_O_RANGE(sw, PTR_R16, PTR_R23);
-	REG_O_ZERO_RANGE(PTR_R24, PTR_R25); /* et and bt */
-	REG_O_ONE(&regs->gp, PTR_GP);
-	REG_O_ONE(&regs->sp, PTR_SP);
-	REG_O_ONE(&regs->fp, PTR_FP);
-	REG_O_ONE(&regs->ea, PTR_EA);
-	REG_O_ZERO_RANGE(PTR_BA, PTR_BA);
-	REG_O_ONE(&regs->ra, PTR_RA);
-	REG_O_ONE(&regs->ea, PTR_PC); /* use ea for PC */
-	if (!ret)
-		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					 PTR_STATUS * 4, -1);
-
-	return ret;
+	membuf_zero(&to, 4); // R0
+	membuf_write(&to, &regs->r1, 7 * 4); // R1..R7
+	membuf_write(&to, &regs->r8, 8 * 4); // R8..R15
+	membuf_write(&to, sw, 8 * 4); // R16..R23
+	membuf_zero(&to, 2 * 4); /* et and bt */
+	membuf_store(&to, regs->gp);
+	membuf_store(&to, regs->sp);
+	membuf_store(&to, regs->fp);
+	membuf_store(&to, regs->ea);
+	membuf_zero(&to, 4); // PTR_BA
+	membuf_store(&to, regs->ra);
+	membuf_store(&to, regs->ea); /* use ea for PC */
+	return membuf_zero(&to, (NUM_PTRACE_REG - PTR_PC) * 4);
 }
 
 /*
@@ -121,7 +99,7 @@ static const struct user_regset nios2_regsets[] = {
 		.n = NUM_PTRACE_REG,
 		.size = sizeof(unsigned long),
 		.align = sizeof(unsigned long),
-		.get = genregs_get,
+		.regset_get = genregs_get,
 		.set = genregs_set,
 	}
 };
@@ -155,7 +133,7 @@ asmlinkage int do_syscall_trace_enter(void)
 	int ret = 0;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ret = tracehook_report_syscall_entry(task_pt_regs(current));
+		ret = ptrace_report_syscall_entry(task_pt_regs(current));
 
 	return ret;
 }
@@ -163,5 +141,5 @@ asmlinkage int do_syscall_trace_enter(void)
 asmlinkage void do_syscall_trace_exit(void)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(task_pt_regs(current), 0);
+		ptrace_report_syscall_exit(task_pt_regs(current), 0);
 }

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Based on documentation provided by Dave Jones. Thanks!
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  *
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
  */
@@ -224,7 +223,6 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	case EPS_BRAND_C3:
 		pr_cont("C3\n");
 		return -ENODEV;
-		break;
 	}
 	/* Enable Enhanced PowerSaver */
 	rdmsrl(MSR_IA32_MISC_ENABLE, val);
@@ -323,9 +321,8 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		states = 2;
 
 	/* Allocate private data and frequency table for current cpu */
-	centaur = kzalloc(sizeof(*centaur)
-		    + (states + 1) * sizeof(struct cpufreq_frequency_table),
-		    GFP_KERNEL);
+	centaur = kzalloc(struct_size(centaur, freq_table, states + 1),
+			  GFP_KERNEL);
 	if (!centaur)
 		return -ENOMEM;
 	eps_cpu[0] = centaur;
@@ -387,7 +384,7 @@ static struct cpufreq_driver eps_driver = {
 /* This driver will work only on Centaur C7 processors with
  * Enhanced SpeedStep/PowerSaver registers */
 static const struct x86_cpu_id eps_cpu_id[] = {
-	{ X86_VENDOR_CENTAUR, 6, X86_MODEL_ANY, X86_FEATURE_EST },
+	X86_MATCH_VENDOR_FAM_FEATURE(CENTAUR, 6, X86_FEATURE_EST, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, eps_cpu_id);

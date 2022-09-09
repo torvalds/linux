@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/allwinner,sun8i-a33-ths.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A33 Thermal Sensor Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  "#io-channel-cells":
+    const: 0
+
+  "#thermal-sensor-cells":
+    const: 0
+
+  compatible:
+    const: allwinner,sun8i-a33-ths
+
+  reg:
+    maxItems: 1
+
+required:
+  - "#io-channel-cells"
+  - "#thermal-sensor-cells"
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    ths: ths@1c25000 {
+        compatible = "allwinner,sun8i-a33-ths";
+        reg = <0x01c25000 0x100>;
+        #thermal-sensor-cells = <0>;
+        #io-channel-cells = <0>;
+    };
+
+...

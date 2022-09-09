@@ -15,7 +15,7 @@ please direct abuse to Tobin C. Harding <me@tobin.cc>.
 
 Original email thread::
 
-	http://lkml.kernel.org/r/20171114110500.GA21175@kroah.com
+	https://lore.kernel.org/r/20171114110500.GA21175@kroah.com
 
 
 Create Branch
@@ -29,7 +29,7 @@ request to.
 In order to create the pull request you must first tag the branch that you
 have just created. It is recommended that you choose a meaningful tag name,
 in a way that you and others can understand, even after some time.  A good
-practice is to include in the name an indicator of the sybsystem of origin
+practice is to include in the name an indicator of the subsystem of origin
 and the target kernel version.
 
 Greg offers the following. A pull request with miscellaneous stuff for

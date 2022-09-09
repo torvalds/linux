@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2012 Siemens AG
  *
  * Written by:
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -28,9 +20,9 @@
 #include "ieee802154_i.h"
 #include "cfg.h"
 
-static void ieee802154_tasklet_handler(unsigned long data)
+static void ieee802154_tasklet_handler(struct tasklet_struct *t)
 {
-	struct ieee802154_local *local = (struct ieee802154_local *)data;
+	struct ieee802154_local *local = from_tasklet(local, t, tasklet);
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&local->skb_queue))) {
@@ -99,9 +91,7 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	INIT_LIST_HEAD(&local->interfaces);
 	mutex_init(&local->iflist_mtx);
 
-	tasklet_init(&local->tasklet,
-		     ieee802154_tasklet_handler,
-		     (unsigned long)local);
+	tasklet_setup(&local->tasklet, ieee802154_tasklet_handler);
 
 	skb_queue_head_init(&local->skb_queue);
 
@@ -123,6 +113,50 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 }
 EXPORT_SYMBOL(ieee802154_alloc_hw);
 
+void ieee802154_configure_durations(struct wpan_phy *phy)
+{
+	u32 duration = 0;
+
+	switch (phy->current_page) {
+	case 0:
+		if (BIT(phy->current_channel) & 0x1)
+			/* 868 MHz BPSK 802.15.4-2003: 20 ksym/s */
+			duration = 50 * NSEC_PER_USEC;
+		else if (BIT(phy->current_channel) & 0x7FE)
+			/* 915 MHz BPSK	802.15.4-2003: 40 ksym/s */
+			duration = 25 * NSEC_PER_USEC;
+		else if (BIT(phy->current_channel) & 0x7FFF800)
+			/* 2400 MHz O-QPSK 802.15.4-2006: 62.5 ksym/s */
+			duration = 16 * NSEC_PER_USEC;
+		break;
+	case 2:
+		if (BIT(phy->current_channel) & 0x1)
+			/* 868 MHz O-QPSK 802.15.4-2006: 25 ksym/s */
+			duration = 40 * NSEC_PER_USEC;
+		else if (BIT(phy->current_channel) & 0x7FE)
+			/* 915 MHz O-QPSK 802.15.4-2006: 62.5 ksym/s */
+			duration = 16 * NSEC_PER_USEC;
+		break;
+	case 3:
+		if (BIT(phy->current_channel) & 0x3FFF)
+			/* 2.4 GHz CSS 802.15.4a-2007: 1/6 Msym/s */
+			duration = 6 * NSEC_PER_USEC;
+		break;
+	default:
+		break;
+	}
+
+	if (!duration) {
+		pr_debug("Unknown PHY symbol duration\n");
+		return;
+	}
+
+	phy->symbol_duration = duration;
+	phy->lifs_period = (IEEE802154_LIFS_PERIOD * phy->symbol_duration) / NSEC_PER_SEC;
+	phy->sifs_period = (IEEE802154_SIFS_PERIOD * phy->symbol_duration) / NSEC_PER_SEC;
+}
+EXPORT_SYMBOL(ieee802154_configure_durations);
+
 void ieee802154_free_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
@@ -141,10 +175,10 @@ static void ieee802154_setup_wpan_phy_pib(struct wpan_phy *wpan_phy)
 	 * Should be done when all drivers sets this value.
 	 */
 
-	wpan_phy->lifs_period = IEEE802154_LIFS_PERIOD *
-				wpan_phy->symbol_duration;
-	wpan_phy->sifs_period = IEEE802154_SIFS_PERIOD *
-				wpan_phy->symbol_duration;
+	wpan_phy->lifs_period =
+		(IEEE802154_LIFS_PERIOD * wpan_phy->symbol_duration) / 1000;
+	wpan_phy->sifs_period =
+		(IEEE802154_SIFS_PERIOD * wpan_phy->symbol_duration) / 1000;
 }
 
 int ieee802154_register_hw(struct ieee802154_hw *hw)
@@ -166,6 +200,8 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	wpan_phy_set_dev(local->phy, local->hw.parent);
 
 	ieee802154_setup_wpan_phy_pib(local->phy);
+
+	ieee802154_configure_durations(local->phy);
 
 	if (!(hw->flags & IEEE802154_HW_CSMA_PARAMS)) {
 		local->phy->supported.min_csma_backoffs = 4;

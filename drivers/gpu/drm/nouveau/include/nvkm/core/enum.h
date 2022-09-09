@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_ENUM_H__
 #define __NVKM_ENUM_H__
 #include <core/os.h>
@@ -8,6 +8,7 @@ struct nvkm_enum {
 	const char *name;
 	const void *data;
 	u32 data2;
+	int inst;
 };
 
 const struct nvkm_enum *nvkm_enum_find(const struct nvkm_enum *, u32 value);

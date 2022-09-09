@@ -2,7 +2,7 @@
 //
 // PCM3060 codec driver
 //
-// Copyright (C) 2018 Kirill Marinushkin <kmarinushkin@birdec.tech>
+// Copyright (C) 2018 Kirill Marinushkin <kmarinushkin@birdec.com>
 
 #include <linux/module.h>
 #include <sound/pcm_params.h>
@@ -18,11 +18,38 @@ static int pcm3060_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_component *comp = dai->component;
 	struct pcm3060_priv *priv = snd_soc_component_get_drvdata(comp);
+	unsigned int reg;
+	unsigned int val;
 
 	if (dir != SND_SOC_CLOCK_IN) {
 		dev_err(comp->dev, "unsupported sysclock dir: %d\n", dir);
 		return -EINVAL;
 	}
+
+	switch (clk_id) {
+	case PCM3060_CLK_DEF:
+		val = 0;
+		break;
+
+	case PCM3060_CLK1:
+		val = (dai->id == PCM3060_DAI_ID_DAC ? PCM3060_REG_CSEL : 0);
+		break;
+
+	case PCM3060_CLK2:
+		val = (dai->id == PCM3060_DAI_ID_DAC ? 0 : PCM3060_REG_CSEL);
+		break;
+
+	default:
+		dev_err(comp->dev, "unsupported sysclock id: %d\n", clk_id);
+		return -EINVAL;
+	}
+
+	if (dai->id == PCM3060_DAI_ID_DAC)
+		reg = PCM3060_REG67;
+	else
+		reg = PCM3060_REG72;
+
+	regmap_update_bits(priv->regmap, reg, PCM3060_REG_CSEL, val);
 
 	priv->dai[dai->id].sclk_freq = freq;
 
@@ -41,15 +68,15 @@ static int pcm3060_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		priv->dai[dai->id].is_master = true;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		priv->dai[dai->id].is_provider = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		priv->dai[dai->id].is_master = false;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		priv->dai[dai->id].is_provider = false;
 		break;
 	default:
-		dev_err(comp->dev, "unsupported DAI master mode: 0x%x\n", fmt);
+		dev_err(comp->dev, "unsupported DAI mode: 0x%x\n", fmt);
 		return -EINVAL;
 	}
 
@@ -89,7 +116,7 @@ static int pcm3060_hw_params(struct snd_pcm_substream *substream,
 	unsigned int reg;
 	unsigned int val;
 
-	if (!priv->dai[dai->id].is_master) {
+	if (!priv->dai[dai->id].is_provider) {
 		val = PCM3060_REG_MS_S;
 		goto val_ready;
 	}
@@ -228,6 +255,7 @@ static const struct snd_soc_component_driver pcm3060_soc_comp_driver = {
 	.num_dapm_widgets = ARRAY_SIZE(pcm3060_dapm_widgets),
 	.dapm_routes = pcm3060_dapm_map,
 	.num_dapm_routes = ARRAY_SIZE(pcm3060_dapm_map),
+	.endianness = 1,
 };
 
 /* regmap */
@@ -287,6 +315,14 @@ int pcm3060_probe(struct device *dev)
 	int rc;
 	struct pcm3060_priv *priv = dev_get_drvdata(dev);
 
+	/* soft reset */
+	rc = regmap_update_bits(priv->regmap, PCM3060_REG64,
+				PCM3060_REG_MRST, 0);
+	if (rc) {
+		dev_err(dev, "failed to reset component, rc=%d\n", rc);
+		return rc;
+	}
+
 	if (dev->of_node)
 		pcm3060_parse_dt(dev->of_node, priv);
 
@@ -307,5 +343,5 @@ int pcm3060_probe(struct device *dev)
 EXPORT_SYMBOL(pcm3060_probe);
 
 MODULE_DESCRIPTION("PCM3060 codec driver");
-MODULE_AUTHOR("Kirill Marinushkin <kmarinushkin@birdec.tech>");
+MODULE_AUTHOR("Kirill Marinushkin <kmarinushkin@birdec.com>");
 MODULE_LICENSE("GPL v2");

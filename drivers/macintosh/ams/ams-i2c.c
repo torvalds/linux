@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Apple Motion Sensor driver (I2C variant)
  *
@@ -7,11 +8,6 @@
  * Clean room implementation based on the reverse engineered Mac OS X driver by
  * Johannes Berg <johannes@sipsolutions.net>, documentation available at
  * http://johannes.sipsolutions.net/PowerBook/Apple_Motion_Sensor_Specification
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -260,8 +256,6 @@ static void ams_i2c_exit(void)
 
 int __init ams_i2c_init(struct device_node *np)
 {
-	int result;
-
 	/* Set implementation stuff */
 	ams_info.of_node = np;
 	ams_info.exit = ams_i2c_exit;
@@ -270,7 +264,5 @@ int __init ams_i2c_init(struct device_node *np)
 	ams_info.clear_irq = ams_i2c_clear_irq;
 	ams_info.bustype = BUS_I2C;
 
-	result = i2c_add_driver(&ams_i2c_driver);
-
-	return result;
+	return i2c_add_driver(&ams_i2c_driver);
 }

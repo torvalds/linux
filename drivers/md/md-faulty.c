@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * faulty.c : Multiple Devices driver for Linux
  *
  * Copyright (C) 2004 Neil Brown
  *
  * fautly-device-simulator personality for md
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * You should have received a copy of the GNU General Public License
- * (for example /usr/src/linux/COPYING); if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -178,7 +169,7 @@ static bool faulty_make_request(struct mddev *mddev, struct bio *bio)
 	if (bio_data_dir(bio) == WRITE) {
 		/* write request */
 		if (atomic_read(&conf->counters[WriteAll])) {
-			/* special case - don't decrement, don't generic_make_request,
+			/* special case - don't decrement, don't submit_bio_noacct,
 			 * just fail immediately
 			 */
 			bio_io_error(bio);
@@ -214,16 +205,16 @@ static bool faulty_make_request(struct mddev *mddev, struct bio *bio)
 		}
 	}
 	if (failit) {
-		struct bio *b = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+		struct bio *b = bio_alloc_clone(conf->rdev->bdev, bio, GFP_NOIO,
+						&mddev->bio_set);
 
-		bio_set_dev(b, conf->rdev->bdev);
 		b->bi_private = bio;
 		b->bi_end_io = faulty_fail;
 		bio = b;
 	} else
 		bio_set_dev(bio, conf->rdev->bdev);
 
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 	return true;
 }
 
@@ -366,7 +357,7 @@ static void raid_exit(void)
 module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Fault injection personality for MD");
+MODULE_DESCRIPTION("Fault injection personality for MD (deprecated)");
 MODULE_ALIAS("md-personality-10"); /* faulty */
 MODULE_ALIAS("md-faulty");
 MODULE_ALIAS("md-level--5");

@@ -15,19 +15,16 @@ load-$(CONFIG_MIPS_DB1XXX)	+= 0xffffffff80100000
 #
 # 4G-Systems MTX-1 "MeshCube" wireless router
 #
-platform-$(CONFIG_MIPS_MTX1)	+= alchemy/
 load-$(CONFIG_MIPS_MTX1)	+= 0xffffffff80100000
 
 #
 # MyCable eval board
 #
-platform-$(CONFIG_MIPS_XXS1500) += alchemy/
 load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 
 #
 # Trapeze ITS GRP board
 #
-platform-$(CONFIG_MIPS_GPR)	+= alchemy/
 load-$(CONFIG_MIPS_GPR)		+= 0xffffffff80100000
 
 # boards can specify their own <gpio.h> in one of their include dirs.

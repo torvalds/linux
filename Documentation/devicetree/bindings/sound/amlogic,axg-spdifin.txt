@@ -1,13 +1,18 @@
 * Amlogic Audio SPDIF Input
 
 Required properties:
-- compatible: 'amlogic,axg-spdifin'
+- compatible: 'amlogic,axg-spdifin' or
+	      'amlogic,g12a-spdifin' or
+	      'amlogic,sm1-spdifin'
 - interrupts: interrupt specifier for the spdif input.
 - clocks: list of clock phandle, one for each entry clock-names.
 - clock-names: should contain the following:
   * "pclk" : peripheral clock.
   * "refclk" : spdif input reference clock
 - #sound-dai-cells: must be 0.
+
+Optional property:
+- resets: phandle to the dedicated reset line of the spdif input.
 
 Example on the A113 SoC:
 

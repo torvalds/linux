@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for TEA5757/5759 Philips AM/FM radio tuner chips
  *
  *	Copyright (c) 2004 Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
  */
 
 #include <linux/delay.h>
@@ -237,10 +226,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(v->card, tea->card, sizeof(v->card));
 	strlcat(v->card, tea->tea5759 ? " TEA5759" : " TEA5757", sizeof(v->card));
 	strscpy(v->bus_info, tea->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	if (!tea->cannot_read_data)
-		v->device_caps |= V4L2_CAP_HW_FREQ_SEEK;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -264,7 +249,7 @@ int snd_tea575x_enum_freq_bands(struct snd_tea575x *tea,
 			index = BAND_AM;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}
@@ -540,6 +525,9 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 	strscpy(tea->vd.name, tea->v4l2_dev->name, sizeof(tea->vd.name));
 	tea->vd.lock = &tea->mutex;
 	tea->vd.v4l2_dev = tea->v4l2_dev;
+	tea->vd.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	if (!tea->cannot_read_data)
+		tea->vd.device_caps |= V4L2_CAP_HW_FREQ_SEEK;
 	tea->fops = tea575x_fops;
 	tea->fops.owner = owner;
 	tea->vd.fops = &tea->fops;

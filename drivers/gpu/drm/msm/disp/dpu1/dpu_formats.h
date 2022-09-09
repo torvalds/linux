@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DPU_FORMATS_H
@@ -29,6 +21,28 @@ const struct dpu_format *dpu_get_dpu_format_ext(
 #define dpu_get_dpu_format(f) dpu_get_dpu_format_ext(f, 0)
 
 /**
+ * dpu_find_format - validate if the pixel format is supported
+ * @format:		dpu format
+ * @supported_formats:	supported formats by dpu HW
+ * @num_formatss:	total number of formats
+ *
+ * Return: false if not valid format, true on success
+ */
+static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
+					size_t num_formats)
+{
+	int i;
+
+	for (i = 0; i < num_formats; i++) {
+		/* check for valid formats supported */
+		if (format == supported_formats[i])
+			return true;
+	}
+
+	return false;
+}
+
+/**
  * dpu_get_msm_format - get an dpu_format by its msm_format base
  *                     callback function registers with the msm_kms layer
  * @kms:             kms driver
@@ -39,20 +53,6 @@ const struct msm_format *dpu_get_msm_format(
 		struct msm_kms *kms,
 		const uint32_t format,
 		const uint64_t modifiers);
-
-/**
- * dpu_populate_formats - populate the given array with fourcc codes supported
- * @format_list:       pointer to list of possible formats
- * @pixel_formats:     array to populate with fourcc codes
- * @pixel_modifiers:   array to populate with drm modifiers, can be NULL
- * @pixel_formats_max: length of pixel formats array
- * Return: number of elements populated
- */
-uint32_t dpu_populate_formats(
-		const struct dpu_format_extended *format_list,
-		uint32_t *pixel_formats,
-		uint64_t *pixel_modifiers,
-		uint32_t pixel_formats_max);
 
 /**
  * dpu_format_check_modified_format - validate format and buffers for

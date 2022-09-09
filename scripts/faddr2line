@@ -44,17 +44,6 @@
 set -o errexit
 set -o nounset
 
-READELF="${CROSS_COMPILE:-}readelf"
-ADDR2LINE="${CROSS_COMPILE:-}addr2line"
-SIZE="${CROSS_COMPILE:-}size"
-NM="${CROSS_COMPILE:-}nm"
-
-command -v awk >/dev/null 2>&1 || die "awk isn't installed"
-command -v ${READELF} >/dev/null 2>&1 || die "readelf isn't installed"
-command -v ${ADDR2LINE} >/dev/null 2>&1 || die "addr2line isn't installed"
-command -v ${SIZE} >/dev/null 2>&1 || die "size isn't installed"
-command -v ${NM} >/dev/null 2>&1 || die "nm isn't installed"
-
 usage() {
 	echo "usage: faddr2line [--list] <object file> <func+offset> <func+offset>..." >&2
 	exit 1
@@ -69,6 +58,15 @@ die() {
 	exit 1
 }
 
+READELF="${CROSS_COMPILE:-}readelf"
+ADDR2LINE="${CROSS_COMPILE:-}addr2line"
+AWK="awk"
+GREP="grep"
+
+command -v ${AWK} >/dev/null 2>&1 || die "${AWK} isn't installed"
+command -v ${READELF} >/dev/null 2>&1 || die "${READELF} isn't installed"
+command -v ${ADDR2LINE} >/dev/null 2>&1 || die "${ADDR2LINE} isn't installed"
+
 # Try to figure out the source directory prefix so we can remove it from the
 # addr2line output.  HACK ALERT: This assumes that start_kernel() is in
 # init/main.c!  This only works for vmlinux.  Otherwise it falls back to
@@ -76,7 +74,7 @@ die() {
 find_dir_prefix() {
 	local objfile=$1
 
-	local start_kernel_addr=$(${READELF} -sW $objfile | awk '$8 == "start_kernel" {printf "0x%s", $2}')
+	local start_kernel_addr=$(${READELF} --symbols --wide $objfile | ${AWK} '$8 == "start_kernel" {printf "0x%s", $2}')
 	[[ -z $start_kernel_addr ]] && return
 
 	local file_line=$(${ADDR2LINE} -e $objfile $start_kernel_addr)
@@ -97,86 +95,158 @@ __faddr2line() {
 	local dir_prefix=$3
 	local print_warnings=$4
 
-	local func=${func_addr%+*}
-	local offset=${func_addr#*+}
-	offset=${offset%/*}
-	local size=
-	[[ $func_addr =~ "/" ]] && size=${func_addr#*/}
+	local sym_name=${func_addr%+*}
+	local func_offset=${func_addr#*+}
+	func_offset=${func_offset%/*}
+	local user_size=
+	local file_type
+	local is_vmlinux=0
+	[[ $func_addr =~ "/" ]] && user_size=${func_addr#*/}
 
-	if [[ -z $func ]] || [[ -z $offset ]] || [[ $func = $func_addr ]]; then
+	if [[ -z $sym_name ]] || [[ -z $func_offset ]] || [[ $sym_name = $func_addr ]]; then
 		warn "bad func+offset $func_addr"
 		DONE=1
 		return
 	fi
 
-	# Go through each of the object's symbols which match the func name.
-	# In rare cases there might be duplicates.
-	file_end=$(${SIZE} -Ax $objfile | awk '$1 == ".text" {print $2}')
-	while read symbol; do
-		local fields=($symbol)
-		local sym_base=0x${fields[0]}
-		local sym_type=${fields[1]}
-		local sym_end=${fields[3]}
+	# vmlinux uses absolute addresses in the section table rather than
+	# section offsets.
+	local file_type=$(${READELF} --file-header $objfile |
+		${AWK} '$1 == "Type:" { print $2; exit }')
+	if [[ $file_type = "EXEC" ]] || [[ $file_type == "DYN" ]]; then
+		is_vmlinux=1
+	fi
 
-		# calculate the size
-		local sym_size=$(($sym_end - $sym_base))
-		if [[ -z $sym_size ]] || [[ $sym_size -le 0 ]]; then
-			warn "bad symbol size: base: $sym_base end: $sym_end"
+	# Go through each of the object's symbols which match the func name.
+	# In rare cases there might be duplicates, in which case we print all
+	# matches.
+	while read line; do
+		local fields=($line)
+		local sym_addr=0x${fields[1]}
+		local sym_elf_size=${fields[2]}
+		local sym_sec=${fields[6]}
+		local sec_size
+		local sec_name
+
+		# Get the section size:
+		sec_size=$(${READELF} --section-headers --wide $objfile |
+			sed 's/\[ /\[/' |
+			${AWK} -v sec=$sym_sec '$1 == "[" sec "]" { print "0x" $6; exit }')
+
+		if [[ -z $sec_size ]]; then
+			warn "bad section size: section: $sym_sec"
 			DONE=1
 			return
 		fi
+
+		# Get the section name:
+		sec_name=$(${READELF} --section-headers --wide $objfile |
+			sed 's/\[ /\[/' |
+			${AWK} -v sec=$sym_sec '$1 == "[" sec "]" { print $2; exit }')
+
+		if [[ -z $sec_name ]]; then
+			warn "bad section name: section: $sym_sec"
+			DONE=1
+			return
+		fi
+
+		# Calculate the symbol size.
+		#
+		# Unfortunately we can't use the ELF size, because kallsyms
+		# also includes the padding bytes in its size calculation.  For
+		# kallsyms, the size calculation is the distance between the
+		# symbol and the next symbol in a sorted list.
+		local sym_size
+		local cur_sym_addr
+		local found=0
+		while read line; do
+			local fields=($line)
+			cur_sym_addr=0x${fields[1]}
+			local cur_sym_elf_size=${fields[2]}
+			local cur_sym_name=${fields[7]:-}
+
+			if [[ $cur_sym_addr = $sym_addr ]] &&
+			   [[ $cur_sym_elf_size = $sym_elf_size ]] &&
+			   [[ $cur_sym_name = $sym_name ]]; then
+				found=1
+				continue
+			fi
+
+			if [[ $found = 1 ]]; then
+				sym_size=$(($cur_sym_addr - $sym_addr))
+				[[ $sym_size -lt $sym_elf_size ]] && continue;
+				found=2
+				break
+			fi
+		done < <(${READELF} --symbols --wide $objfile | ${AWK} -v sec=$sym_sec '$7 == sec' | sort --key=2)
+
+		if [[ $found = 0 ]]; then
+			warn "can't find symbol: sym_name: $sym_name sym_sec: $sym_sec sym_addr: $sym_addr sym_elf_size: $sym_elf_size"
+			DONE=1
+			return
+		fi
+
+		# If nothing was found after the symbol, assume it's the last
+		# symbol in the section.
+		[[ $found = 1 ]] && sym_size=$(($sec_size - $sym_addr))
+
+		if [[ -z $sym_size ]] || [[ $sym_size -le 0 ]]; then
+			warn "bad symbol size: sym_addr: $sym_addr cur_sym_addr: $cur_sym_addr"
+			DONE=1
+			return
+		fi
+
 		sym_size=0x$(printf %x $sym_size)
 
-		# calculate the address
-		local addr=$(($sym_base + $offset))
+		# Calculate the address from user-supplied offset:
+		local addr=$(($sym_addr + $func_offset))
 		if [[ -z $addr ]] || [[ $addr = 0 ]]; then
-			warn "bad address: $sym_base + $offset"
+			warn "bad address: $sym_addr + $func_offset"
 			DONE=1
 			return
 		fi
 		addr=0x$(printf %x $addr)
 
-		# weed out non-function symbols
-		if [[ $sym_type != t ]] && [[ $sym_type != T ]]; then
+		# If the user provided a size, make sure it matches the symbol's size:
+		if [[ -n $user_size ]] && [[ $user_size -ne $sym_size ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $addr due to non-function symbol of type '$sym_type'"
-			continue
-		fi
-
-		# if the user provided a size, make sure it matches the symbol's size
-		if [[ -n $size ]] && [[ $size -ne $sym_size ]]; then
-			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $addr due to size mismatch ($size != $sym_size)"
+				echo "skipping $sym_name address at $addr due to size mismatch ($user_size != $sym_size)"
 			continue;
 		fi
 
-		# make sure the provided offset is within the symbol's range
-		if [[ $offset -gt $sym_size ]]; then
+		# Make sure the provided offset is within the symbol's range:
+		if [[ $func_offset -gt $sym_size ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $addr due to size mismatch ($offset > $sym_size)"
+				echo "skipping $sym_name address at $addr due to size mismatch ($func_offset > $sym_size)"
 			continue
 		fi
 
-		# separate multiple entries with a blank line
+		# In case of duplicates or multiple addresses specified on the
+		# cmdline, separate multiple entries with a blank line:
 		[[ $FIRST = 0 ]] && echo
 		FIRST=0
 
-		# pass real address to addr2line
-		echo "$func+$offset/$sym_size:"
-		local file_lines=$(${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;")
-		[[ -z $file_lines ]] && return
+		echo "$sym_name+$func_offset/$sym_size:"
 
+		# Pass section address to addr2line and strip absolute paths
+		# from the output:
+		local args="--functions --pretty-print --inlines --exe=$objfile"
+		[[ $is_vmlinux = 0 ]] && args="$args --section=$sec_name"
+		local output=$(${ADDR2LINE} $args $addr | sed "s; $dir_prefix\(\./\)*; ;")
+		[[ -z $output ]] && continue
+
+		# Default output (non --list):
 		if [[ $LIST = 0 ]]; then
-			echo "$file_lines" | while read -r line
+			echo "$output" | while read -r line
 			do
 				echo $line
 			done
 			DONE=1;
-			return
+			continue
 		fi
 
-		# show each line with context
-		echo "$file_lines" | while read -r line
+		# For --list, show each line with its corresponding source code:
+		echo "$output" | while read -r line
 		do
 			echo
 			echo $line
@@ -184,12 +254,12 @@ __faddr2line() {
 			n1=$[$n-5]
 			n2=$[$n+5]
 			f=$(echo $line | sed 's/.*at \(.\+\):.*/\1/g')
-			awk 'NR>=strtonum("'$n1'") && NR<=strtonum("'$n2'") { if (NR=='$n') printf(">%d<", NR); else printf(" %d ", NR); printf("\t%s\n", $0)}' $f
+			${AWK} 'NR>=strtonum("'$n1'") && NR<=strtonum("'$n2'") { if (NR=='$n') printf(">%d<", NR); else printf(" %d ", NR); printf("\t%s\n", $0)}' $f
 		done
 
 		DONE=1
 
-	done < <(${NM} -n $objfile | awk -v fn=$func -v end=$file_end '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, "0x"$1 } END {if (found == 1) print line, end; }')
+	done < <(${READELF} --symbols --wide $objfile | ${AWK} -v fn=$sym_name '$4 == "FUNC" && $8 == fn')
 }
 
 [[ $# -lt 2 ]] && usage
@@ -201,6 +271,8 @@ LIST=0
 
 [[ ! -f $objfile ]] && die "can't find objfile $objfile"
 shift
+
+${READELF} --section-headers --wide $objfile | ${GREP} -q '\.debug_info' || die "CONFIG_DEBUG_INFO not enabled"
 
 DIR_PREFIX=supercalifragilisticexpialidocious
 find_dir_prefix $objfile

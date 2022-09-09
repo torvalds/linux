@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2017-2018 Overkiz SAS
+ *   Author: Mickael Gardet <m.gardet@overkiz.com>
+ *           Kévin Raymond <k.raymond@overkiz.com>
+ *           Dorian Rocipon <d.rocipon@overkiz.com>
+ */
+/dts-v1/;
+#include "at91-kizboxmini-common.dtsi"
+
+/ {
+	model = "Overkiz SmartKiz";
+	compatible = "overkiz,smartkiz", "atmel,at91sam9g25",
+		     "atmel,at91sam9x5", "atmel,at91sam9";
+
+	clocks {
+		adc_op_clk {
+			status = "okay";
+		};
+	};
+
+	aliases {
+		serial5 = &uart0;
+	};
+
+	pio_keys {
+		hk_reset {
+			label = "HK_RESET";
+			gpios = <&pioC 13 GPIO_ACTIVE_HIGH>;
+		};
+
+		power_rf {
+			label = "POWER_RF";
+			gpios = <&pioA 20 GPIO_ACTIVE_HIGH>;
+		};
+
+		power_wifi {
+			label = "POWER_WIFI";
+			gpios = <&pioA 21 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&pinctrl {
+	i2c1 {
+		pinctrl_i2c1: i2c1-0 {
+			atmel,pins =
+				<AT91_PIOC 0 AT91_PERIPH_C AT91_PINCTRL_PULL_UP
+				AT91_PIOC 1 AT91_PERIPH_C AT91_PINCTRL_PULL_UP>;
+		};
+	};
+
+	adc0 {
+		pinctrl_adc0_ad0: adc0_ad0-0 {
+			/* pull-up disable */
+			atmel,pins = <AT91_PIOB 11 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+		};
+		pinctrl_adc0_ad5: adc0_ad5-0 {
+			/* pull-up disable */
+			atmel,pins = <AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+		};
+		pinctrl_adc0_ad6: adc0_ad6-0 {
+			/* pull-up disable */
+			atmel,pins = <AT91_PIOB 17 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+		};
+		pinctrl_adc0_ad11: adc0_ad11-0 {
+			/* pull-up disable */
+			atmel,pins = <AT91_PIOB 10 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+		};
+	};
+};
+
+&i2c1 {
+	dmas = <0>, <0>;
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "disabled";
+};
+
+&macb0 {
+	status = "disabled";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&led_blue {
+	status = "okay";
+};
+
+&adc0 {
+	atmel,adc-vref = <2500>;
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&pinctrl_adc0_ad0
+		&pinctrl_adc0_ad5
+		&pinctrl_adc0_ad6
+		&pinctrl_adc0_ad11
+	>;
+	atmel,adc-channels-used = <0x0861>;
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+

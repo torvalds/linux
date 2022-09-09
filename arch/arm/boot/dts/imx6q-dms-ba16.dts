@@ -42,12 +42,12 @@
 };
 
 &ecspi5 {
-	cs-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi5>;
 	status = "okay";
 
-	m25_eeprom: m25p80@0 {
+	m25_eeprom: flash@0 {
 		compatible = "atmel,at25256B", "atmel,at25";
 		spi-max-frequency = <20000000>;
 		size = <0x8000>;

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  LCD / Backlight control code for Sharp SL-6000x (tosa)
  *
  *  Copyright (c) 2005		Dirk Opfer
  *  Copyright (c) 2007,2008	Dmitry Baryshkov
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -15,14 +11,14 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/slab.h>
 
 #include <asm/mach/sharpsl_param.h>
 
-#include <mach/tosa.h>
+#include "tosa_bl.h"
 
 #define COMADJ_DEFAULT	97
 
@@ -32,6 +28,7 @@
 struct tosa_bl_data {
 	struct i2c_client *i2c;
 	struct backlight_device *bl;
+	struct gpio_desc *gpio;
 
 	int comadj;
 };
@@ -46,7 +43,7 @@ static void tosa_bl_set_backlight(struct tosa_bl_data *data, int brightness)
 	i2c_smbus_write_byte_data(data->i2c, DAC_CH2, (u8)(brightness & 0xff));
 
 	/* SetBacklightVR */
-	gpio_set_value(TOSA_GPIO_BL_C20MA, brightness & 0x100);
+	gpiod_set_value(data->gpio, brightness & 0x100);
 
 	tosa_bl_enable(spi, brightness);
 }
@@ -91,9 +88,8 @@ static int tosa_bl_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->comadj = sharpsl_param.comadj == -1 ? COMADJ_DEFAULT : sharpsl_param.comadj;
-
-	ret = devm_gpio_request_one(&client->dev, TOSA_GPIO_BL_C20MA,
-				GPIOF_OUT_INIT_LOW, "backlight");
+	data->gpio = devm_gpiod_get(&client->dev, "backlight", GPIOD_OUT_LOW);
+	ret = PTR_ERR_OR_ZERO(data->gpio);
 	if (ret) {
 		dev_dbg(&data->bl->dev, "Unable to request gpio!\n");
 		return ret;

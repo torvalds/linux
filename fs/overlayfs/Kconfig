@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config OVERLAY_FS
 	tristate "Overlay filesystem support"
 	select EXPORTFS
@@ -8,7 +9,7 @@ config OVERLAY_FS
 	  'lower' filesystem is either hidden or, in the case of directories,
 	  merged with the 'upper' object.
 
-	  For more information see Documentation/filesystems/overlayfs.txt
+	  For more information see Documentation/filesystems/overlayfs.rst
 
 config OVERLAY_FS_REDIRECT_DIR
 	bool "Overlayfs: turn on redirect directory feature by default"
@@ -37,7 +38,7 @@ config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
 	  If backward compatibility is not an issue, then it is safe and
 	  recommended to say N here.
 
-	  For more information, see Documentation/filesystems/overlayfs.txt
+	  For more information, see Documentation/filesystems/overlayfs.rst
 
 	  If unsure, say Y.
 
@@ -92,6 +93,7 @@ config OVERLAY_FS_XINO_AUTO
 	bool "Overlayfs: auto enable inode number mapping"
 	default n
 	depends on OVERLAY_FS
+	depends on 64BIT
 	help
 	  If this config option is enabled then overlay filesystems will use
 	  unused high bits in undelying filesystem inode numbers to map all
@@ -101,7 +103,7 @@ config OVERLAY_FS_XINO_AUTO
 	  If compatibility with applications that expect 32bit inodes is not an
 	  issue, then it is safe and recommended to say Y here.
 
-	  For more information, see Documentation/filesystems/overlayfs.txt
+	  For more information, see Documentation/filesystems/overlayfs.rst
 
 	  If unsure, say N.
 

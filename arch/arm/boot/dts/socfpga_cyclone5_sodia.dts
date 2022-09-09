@@ -26,7 +26,7 @@
 		ethernet0 = &gmac1;
 	};
 
-	regulator_3_3v: 3-3-v-regulator {
+	regulator_3_3v: regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3.3V";
 		regulator-min-microvolt = <3300000>;
@@ -113,10 +113,10 @@
 &qspi {
 	status = "okay";
 
-	flash0: n25q512a@0 {
+	flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q512a";
+		compatible = "micron,n25q512a", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <100000000>;
 

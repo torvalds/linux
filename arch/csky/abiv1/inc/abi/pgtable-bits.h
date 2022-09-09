@@ -1,37 +1,49 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_PGTABLE_BITS_H
 #define __ASM_CSKY_PGTABLE_BITS_H
 
 /* implemented in software */
-#define _PAGE_ACCESSED		(1<<3)
-#define PAGE_ACCESSED_BIT	(3)
-
+#define _PAGE_PRESENT		(1<<0)
 #define _PAGE_READ		(1<<1)
 #define _PAGE_WRITE		(1<<2)
-#define _PAGE_PRESENT		(1<<0)
-
+#define _PAGE_ACCESSED		(1<<3)
 #define _PAGE_MODIFIED		(1<<4)
-#define PAGE_MODIFIED_BIT	(4)
 
 /* implemented in hardware */
 #define _PAGE_GLOBAL		(1<<6)
-
 #define _PAGE_VALID		(1<<7)
-#define PAGE_VALID_BIT		(7)
-
 #define _PAGE_DIRTY		(1<<8)
-#define PAGE_DIRTY_BIT		(8)
 
 #define _PAGE_CACHE		(3<<9)
 #define _PAGE_UNCACHE		(2<<9)
 #define _PAGE_SO		_PAGE_UNCACHE
-
 #define _CACHE_MASK		(7<<9)
 
-#define _CACHE_CACHED		(_PAGE_VALID | _PAGE_CACHE)
-#define _CACHE_UNCACHED		(_PAGE_VALID | _PAGE_UNCACHE)
+#define _CACHE_CACHED		_PAGE_CACHE
+#define _CACHE_UNCACHED		_PAGE_UNCACHE
+
+#define _PAGE_PROT_NONE		_PAGE_READ
+
+/*
+ * Encode and decode a swap entry
+ *
+ * Format of swap PTE:
+ *     bit          0:    _PAGE_PRESENT (zero)
+ *     bit          1:    _PAGE_READ (zero)
+ *     bit      2 - 5:    swap type[0 - 3]
+ *     bit          6:    _PAGE_GLOBAL (zero)
+ *     bit          7:    _PAGE_VALID (zero)
+ *     bit          8:    swap type[4]
+ *     bit     9 - 31:    swap offset
+ */
+#define __swp_type(x)			((((x).val >> 2) & 0xf) | \
+					(((x).val >> 4) & 0x10))
+#define __swp_offset(x)			((x).val >> 9)
+#define __swp_entry(type, offset)	((swp_entry_t) { \
+					((type & 0xf) << 2) | \
+					((type & 0x10) << 4) | \
+					((offset) << 9)})
 
 #define HAVE_ARCH_UNMAPPED_AREA
 

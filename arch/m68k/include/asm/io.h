@@ -8,6 +8,9 @@
 #include <asm/io_mm.h>
 #endif
 
+#define gf_ioread32 ioread32be
+#define gf_iowrite32 iowrite32be
+
 #include <asm-generic/io.h>
 
 #endif /* _M68K_IO_H */

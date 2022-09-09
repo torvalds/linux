@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Implementation of the Xen vTPM device frontend
  *
  * Author:  Daniel De Graaf <dgdegra@tycho.nsa.gov>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation.
  */
 #include <linux/errno.h>
 #include <linux/err.h>
@@ -129,16 +126,16 @@ static void vtpm_cancel(struct tpm_chip *chip)
 	notify_remote_via_evtchn(priv->evtchn);
 }
 
-static unsigned int shr_data_offset(struct vtpm_shared_page *shr)
+static size_t shr_data_offset(struct vtpm_shared_page *shr)
 {
-	return sizeof(*shr) + sizeof(u32) * shr->nr_extra_pages;
+	return struct_size(shr, extra_pages, shr->nr_extra_pages);
 }
 
 static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
-	unsigned int offset = shr_data_offset(shr);
+	size_t offset = shr_data_offset(shr);
 
 	u32 ordinal;
 	unsigned long duration;
@@ -163,7 +160,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	wmb();
 	notify_remote_via_evtchn(priv->evtchn);
 
-	ordinal = be32_to_cpu(((struct tpm_input_header*)buf)->ordinal);
+	ordinal = be32_to_cpu(((struct tpm_header *)buf)->ordinal);
 	duration = tpm_calc_ordinal_duration(chip, ordinal);
 
 	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, duration,
@@ -173,14 +170,14 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -ETIME;
 	}
 
-	return count;
+	return 0;
 }
 
 static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
-	unsigned int offset = shr_data_offset(shr);
+	size_t offset = shr_data_offset(shr);
 	size_t length = shr->length;
 
 	if (shr->state == VTPM_STATE_IDLE)
@@ -256,19 +253,11 @@ static int setup_ring(struct xenbus_device *dev, struct tpm_private *priv)
 	struct xenbus_transaction xbt;
 	const char *message = NULL;
 	int rv;
-	grant_ref_t gref;
 
-	priv->shr = (void *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
-	if (!priv->shr) {
-		xenbus_dev_fatal(dev, -ENOMEM, "allocating shared ring");
-		return -ENOMEM;
-	}
-
-	rv = xenbus_grant_ring(dev, priv->shr, 1, &gref);
+	rv = xenbus_setup_ring(dev, GFP_KERNEL, (void **)&priv->shr, 1,
+			       &priv->ring_ref);
 	if (rv < 0)
 		return rv;
-
-	priv->ring_ref = gref;
 
 	rv = xenbus_alloc_evtchn(dev, &priv->evtchn);
 	if (rv)
@@ -334,11 +323,7 @@ static void ring_free(struct tpm_private *priv)
 	if (!priv)
 		return;
 
-	if (priv->ring_ref)
-		gnttab_end_foreign_access(priv->ring_ref, 0,
-				(unsigned long)priv->shr);
-	else
-		free_page((unsigned long)priv->shr);
+	xenbus_teardown_ring((void **)&priv->shr, 1, &priv->ring_ref);
 
 	if (priv->irq)
 		unbind_from_irqhandler(priv->irq, priv);

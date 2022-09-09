@@ -1,13 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DPU_HW_CTL_H
@@ -17,7 +10,6 @@
 #include "dpu_hw_util.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_sspp.h"
-#include "dpu_hw_blk.h"
 
 /**
  * dpu_ctl_mode_sel: Interface mode selection
@@ -45,14 +37,19 @@ struct dpu_hw_stage_cfg {
  * struct dpu_hw_intf_cfg :Describes how the DPU writes data to output interface
  * @intf :                 Interface id
  * @mode_3d:               3d mux configuration
+ * @merge_3d:              3d merge block used
  * @intf_mode_sel:         Interface mode, cmd / vid
  * @stream_sel:            Stream selection for multi-stream interfaces
+ * @dsc:                   DSC BIT masks used
  */
 struct dpu_hw_intf_cfg {
 	enum dpu_intf intf;
+	enum dpu_wb wb;
 	enum dpu_3d_blend_mode mode_3d;
+	enum dpu_merge_3d merge_3d;
 	enum dpu_ctl_mode_sel intf_mode_sel;
 	int stream_sel;
+	unsigned int dsc;
 };
 
 /**
@@ -66,6 +63,13 @@ struct dpu_hw_ctl_ops {
 	 * @ctx       : ctl path ctx pointer
 	 */
 	void (*trigger_start)(struct dpu_hw_ctl *ctx);
+
+	/**
+	 * check if the ctl is started
+	 * @ctx       : ctl path ctx pointer
+	 * @Return: true if started, false if stopped
+	 */
+	bool (*is_started)(struct dpu_hw_ctl *ctx);
 
 	/**
 	 * kickoff prepare is in progress hw operation for sw
@@ -99,6 +103,33 @@ struct dpu_hw_ctl_ops {
 		u32 flushbits);
 
 	/**
+	 * OR in the given flushbits to the cached pending_(wb_)flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @blk       : writeback block index
+	 */
+	void (*update_pending_flush_wb)(struct dpu_hw_ctl *ctx,
+		enum dpu_wb blk);
+
+	/**
+	 * OR in the given flushbits to the cached pending_(intf_)flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @blk       : interface block index
+	 */
+	void (*update_pending_flush_intf)(struct dpu_hw_ctl *ctx,
+		enum dpu_intf blk);
+
+	/**
+	 * OR in the given flushbits to the cached pending_(merge_3d_)flush_mask
+	 * No effect on hardware
+	 * @ctx       : ctl path ctx pointer
+	 * @blk       : interface block index
+	 */
+	void (*update_pending_flush_merge_3d)(struct dpu_hw_ctl *ctx,
+		enum dpu_merge_3d blk);
+
+	/**
 	 * Write the value of the pending_flush_mask to hardware
 	 * @ctx       : ctl path ctx pointer
 	 */
@@ -119,6 +150,14 @@ struct dpu_hw_ctl_ops {
 	void (*setup_intf_cfg)(struct dpu_hw_ctl *ctx,
 		struct dpu_hw_intf_cfg *cfg);
 
+	/**
+	 * reset ctl_path interface config
+	 * @ctx    : ctl path ctx pointer
+	 * @cfg    : interface config structure pointer
+	 */
+	void (*reset_intf_cfg)(struct dpu_hw_ctl *ctx,
+			struct dpu_hw_intf_cfg *cfg);
+
 	int (*reset)(struct dpu_hw_ctl *c);
 
 	/*
@@ -138,9 +177,8 @@ struct dpu_hw_ctl_ops {
 	uint32_t (*get_bitmask_mixer)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm blk);
 
-	int (*get_bitmask_intf)(struct dpu_hw_ctl *ctx,
-		u32 *flushbits,
-		enum dpu_intf blk);
+	uint32_t (*get_bitmask_dspp)(struct dpu_hw_ctl *ctx,
+		enum dpu_dspp blk);
 
 	/**
 	 * Set all blend stages to disabled
@@ -156,6 +194,9 @@ struct dpu_hw_ctl_ops {
 	 */
 	void (*setup_blendstage)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm lm, struct dpu_hw_stage_cfg *cfg);
+
+	void (*set_active_pipes)(struct dpu_hw_ctl *ctx,
+		unsigned long *fetch_active);
 };
 
 /**
@@ -167,6 +208,8 @@ struct dpu_hw_ctl_ops {
  * @mixer_count: number of mixers
  * @mixer_hw_caps: mixer hardware capabilities
  * @pending_flush_mask: storage for pending ctl_flush managed via ops
+ * @pending_intf_flush_mask: pending INTF flush
+ * @pending_wb_flush_mask: pending WB flush
  * @ops: operation list
  */
 struct dpu_hw_ctl {
@@ -179,6 +222,9 @@ struct dpu_hw_ctl {
 	int mixer_count;
 	const struct dpu_lm_cfg *mixer_hw_caps;
 	u32 pending_flush_mask;
+	u32 pending_intf_flush_mask;
+	u32 pending_wb_flush_mask;
+	u32 pending_merge_3d_flush_mask;
 
 	/* ops */
 	struct dpu_hw_ctl_ops ops;
@@ -203,7 +249,7 @@ static inline struct dpu_hw_ctl *to_dpu_hw_ctl(struct dpu_hw_blk *hw)
  */
 struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_ctl_destroy(): Destroys ctl driver context

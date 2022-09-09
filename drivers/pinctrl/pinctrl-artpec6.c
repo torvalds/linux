@@ -688,8 +688,9 @@ static void artpec6_pmx_select_func(struct pinctrl_dev *pctldev,
 	}
 }
 
-int artpec6_pmx_enable(struct pinctrl_dev *pctldev, unsigned int function,
-		       unsigned int group)
+static int artpec6_pmx_set(struct pinctrl_dev *pctldev,
+			   unsigned int function,
+			   unsigned int group)
 {
 	struct artpec6_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 
@@ -700,18 +701,6 @@ int artpec6_pmx_enable(struct pinctrl_dev *pctldev, unsigned int function,
 	artpec6_pmx_select_func(pctldev, function, group, true);
 
 	return 0;
-}
-
-void artpec6_pmx_disable(struct pinctrl_dev *pctldev, unsigned int function,
-			 unsigned int group)
-{
-	struct artpec6_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-
-	dev_dbg(pmx->dev, "disabling %s function for pin group %s\n",
-		artpec6_pmx_get_fname(pctldev, function),
-		artpec6_get_group_name(pctldev, group));
-
-	artpec6_pmx_select_func(pctldev, function, group, false);
 }
 
 static int artpec6_pmx_request_gpio(struct pinctrl_dev *pctldev,
@@ -737,7 +726,7 @@ static const struct pinmux_ops artpec6_pmx_ops = {
 	.get_functions_count	= artpec6_pmx_get_functions_count,
 	.get_function_name	= artpec6_pmx_get_fname,
 	.get_function_groups	= artpec6_pmx_get_fgroups,
-	.set_mux		= artpec6_pmx_enable,
+	.set_mux		= artpec6_pmx_set,
 	.gpio_request_enable = artpec6_pmx_request_gpio,
 };
 
@@ -809,7 +798,7 @@ static int artpec6_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	enum pin_config_param param;
 	unsigned int arg;
 	unsigned int regval;
-	unsigned int *reg;
+	void __iomem *reg;
 	int i;
 
 	/* Check for valid pin */
@@ -947,7 +936,6 @@ static void artpec6_pmx_reset(struct artpec6_pmx *pmx)
 static int artpec6_pmx_probe(struct platform_device *pdev)
 {
 	struct artpec6_pmx *pmx;
-	struct resource *res;
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx)
@@ -955,8 +943,7 @@ static int artpec6_pmx_probe(struct platform_device *pdev)
 
 	pmx->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmx->base = devm_ioremap_resource(&pdev->dev, res);
+	pmx->base = devm_platform_ioremap_resource(pdev, 0);
 
 	if (IS_ERR(pmx->base))
 		return PTR_ERR(pmx->base);

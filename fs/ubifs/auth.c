@@ -10,10 +10,11 @@
  */
 
 #include <linux/crypto.h>
+#include <linux/verification.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
 #include <crypto/algapi.h>
 #include <keys/user-type.h>
+#include <keys/asymmetric-type.h>
 
 #include "ubifs.h"
 
@@ -29,16 +30,9 @@ int __ubifs_node_calc_hash(const struct ubifs_info *c, const void *node,
 			    u8 *hash)
 {
 	const struct ubifs_ch *ch = node;
-	SHASH_DESC_ON_STACK(shash, c->hash_tfm);
-	int err;
 
-	shash->tfm = c->hash_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-
-	err = crypto_shash_digest(shash, node, le32_to_cpu(ch->len), hash);
-	if (err < 0)
-		return err;
-	return 0;
+	return crypto_shash_tfm_digest(c->hash_tfm, node, le32_to_cpu(ch->len),
+				       hash);
 }
 
 /**
@@ -52,23 +46,14 @@ int __ubifs_node_calc_hash(const struct ubifs_info *c, const void *node,
 static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
 				 u8 *hmac)
 {
-	SHASH_DESC_ON_STACK(shash, c->hmac_tfm);
-	int err;
-
-	shash->tfm = c->hmac_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-
-	err = crypto_shash_digest(shash, hash, c->hash_len, hmac);
-	if (err < 0)
-		return err;
-	return 0;
+	return crypto_shash_tfm_digest(c->hmac_tfm, hash, c->hash_len, hmac);
 }
 
 /**
  * ubifs_prepare_auth_node - Prepare an authentication node
  * @c: UBIFS file-system description object
  * @node: the node to calculate a hash for
- * @hash: input hash of previous nodes
+ * @inhash: input hash of previous nodes
  *
  * This function prepares an authentication node for writing onto flash.
  * It creates a HMAC from the given input hash and writes it to the node.
@@ -78,35 +63,28 @@ static int ubifs_hash_calc_hmac(const struct ubifs_info *c, const u8 *hash,
 int ubifs_prepare_auth_node(struct ubifs_info *c, void *node,
 			     struct shash_desc *inhash)
 {
-	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 	struct ubifs_auth_node *auth = node;
-	u8 *hash;
+	u8 hash[UBIFS_HASH_ARR_SZ];
 	int err;
 
-	hash = kmalloc(crypto_shash_descsize(c->hash_tfm), GFP_NOFS);
-	if (!hash)
-		return -ENOMEM;
+	{
+		SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
 
-	hash_desc->tfm = c->hash_tfm;
-	hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	ubifs_shash_copy_state(c, inhash, hash_desc);
+		hash_desc->tfm = c->hash_tfm;
+		ubifs_shash_copy_state(c, inhash, hash_desc);
 
-	err = crypto_shash_final(hash_desc, hash);
-	if (err)
-		goto out;
+		err = crypto_shash_final(hash_desc, hash);
+		if (err)
+			return err;
+	}
 
 	err = ubifs_hash_calc_hmac(c, hash, auth->hmac);
 	if (err)
-		goto out;
+		return err;
 
 	auth->ch.node_type = UBIFS_AUTH_NODE;
 	ubifs_prepare_node(c, auth, ubifs_auth_node_sz(c), 0);
-
-	err = 0;
-out:
-	kfree(hash);
-
-	return err;
+	return 0;
 }
 
 static struct shash_desc *ubifs_get_desc(const struct ubifs_info *c,
@@ -123,7 +101,6 @@ static struct shash_desc *ubifs_get_desc(const struct ubifs_info *c,
 		return ERR_PTR(-ENOMEM);
 
 	desc->tfm = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_init(desc);
 	if (err) {
@@ -144,24 +121,6 @@ static struct shash_desc *ubifs_get_desc(const struct ubifs_info *c,
 struct shash_desc *__ubifs_hash_get_desc(const struct ubifs_info *c)
 {
 	return ubifs_get_desc(c, c->hash_tfm);
-}
-
-/**
- * __ubifs_shash_final - finalize shash
- * @c: UBIFS file-system description object
- * @desc: the descriptor
- * @out: the output hash
- *
- * Simple wrapper around crypto_shash_final(), safe to be called with
- * disabled authentication.
- */
-int __ubifs_shash_final(const struct ubifs_info *c, struct shash_desc *desc,
-			u8 *out)
-{
-	if (ubifs_authenticated(c))
-		return crypto_shash_final(desc, out);
-
-	return 0;
 }
 
 /**
@@ -215,6 +174,77 @@ int __ubifs_node_check_hash(const struct ubifs_info *c, const void *node,
 		return -EPERM;
 
 	return 0;
+}
+
+/**
+ * ubifs_sb_verify_signature - verify the signature of a superblock
+ * @c: UBIFS file-system description object
+ * @sup: The superblock node
+ *
+ * To support offline signed images the superblock can be signed with a
+ * PKCS#7 signature. The signature is placed directly behind the superblock
+ * node in an ubifs_sig_node.
+ *
+ * Returns 0 when the signature can be successfully verified or a negative
+ * error code if not.
+ */
+int ubifs_sb_verify_signature(struct ubifs_info *c,
+			      const struct ubifs_sb_node *sup)
+{
+	int err;
+	struct ubifs_scan_leb *sleb;
+	struct ubifs_scan_node *snod;
+	const struct ubifs_sig_node *signode;
+
+	sleb = ubifs_scan(c, UBIFS_SB_LNUM, UBIFS_SB_NODE_SZ, c->sbuf, 0);
+	if (IS_ERR(sleb)) {
+		err = PTR_ERR(sleb);
+		return err;
+	}
+
+	if (sleb->nodes_cnt == 0) {
+		ubifs_err(c, "Unable to find signature node");
+		err = -EINVAL;
+		goto out_destroy;
+	}
+
+	snod = list_first_entry(&sleb->nodes, struct ubifs_scan_node, list);
+
+	if (snod->type != UBIFS_SIG_NODE) {
+		ubifs_err(c, "Signature node is of wrong type");
+		err = -EINVAL;
+		goto out_destroy;
+	}
+
+	signode = snod->node;
+
+	if (le32_to_cpu(signode->len) > snod->len + sizeof(struct ubifs_sig_node)) {
+		ubifs_err(c, "invalid signature len %d", le32_to_cpu(signode->len));
+		err = -EINVAL;
+		goto out_destroy;
+	}
+
+	if (le32_to_cpu(signode->type) != UBIFS_SIGNATURE_TYPE_PKCS7) {
+		ubifs_err(c, "Signature type %d is not supported\n",
+			  le32_to_cpu(signode->type));
+		err = -EINVAL;
+		goto out_destroy;
+	}
+
+	err = verify_pkcs7_signature(sup, sizeof(struct ubifs_sb_node),
+				     signode->sig, le32_to_cpu(signode->len),
+				     NULL, VERIFYING_UNSPECIFIED_SIGNATURE,
+				     NULL, NULL);
+
+	if (err)
+		ubifs_err(c, "Failed to verify signature");
+	else
+		ubifs_msg(c, "Successfully verified super block signature");
+
+out_destroy:
+	ubifs_scan_destroy(sleb);
+
+	return err;
 }
 
 /**
@@ -297,7 +327,7 @@ int ubifs_init_authentication(struct ubifs_info *c)
 		ubifs_err(c, "hmac %s is bigger than maximum allowed hmac size (%d > %d)",
 			  hmac_name, c->hmac_desc_len, UBIFS_HMAC_ARR_SZ);
 		err = -EINVAL;
-		goto out_free_hash;
+		goto out_free_hmac;
 	}
 
 	err = crypto_shash_setkey(c->hmac_tfm, ukp->data, ukp->datalen);
@@ -307,8 +337,10 @@ int ubifs_init_authentication(struct ubifs_info *c)
 	c->authenticated = true;
 
 	c->log_hash = ubifs_hash_get_desc(c);
-	if (IS_ERR(c->log_hash))
+	if (IS_ERR(c->log_hash)) {
+		err = PTR_ERR(c->log_hash);
 		goto out_free_hmac;
+	}
 
 	err = 0;
 
@@ -364,7 +396,6 @@ static int ubifs_node_calc_hmac(const struct ubifs_info *c, const void *node,
 	ubifs_assert(c, ofs_hmac + hmac_len < len);
 
 	shash->tfm = c->hmac_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_init(shash);
 	if (err)
@@ -426,8 +457,10 @@ int __ubifs_node_verify_hmac(const struct ubifs_info *c, const void *node,
 		return -ENOMEM;
 
 	err = ubifs_node_calc_hmac(c, node, len, ofs_hmac, hmac);
-	if (err)
+	if (err) {
+		kfree(hmac);
 		return err;
+	}
 
 	err = crypto_memneq(hmac, node + ofs_hmac, hmac_len);
 
@@ -483,7 +516,6 @@ int ubifs_hmac_wkm(struct ubifs_info *c, u8 *hmac)
 		return 0;
 
 	shash->tfm = c->hmac_tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = crypto_shash_init(shash);
 	if (err)
@@ -498,4 +530,17 @@ int ubifs_hmac_wkm(struct ubifs_info *c, u8 *hmac)
 	if (err)
 		return err;
 	return 0;
+}
+
+/*
+ * ubifs_hmac_zero - test if a HMAC is zero
+ * @c: UBIFS file-system description object
+ * @hmac: the HMAC to test
+ *
+ * This function tests if a HMAC is zero and returns true if it is
+ * and false otherwise.
+ */
+bool ubifs_hmac_zero(struct ubifs_info *c, const u8 *hmac)
+{
+	return !memchr_inv(hmac, 0, c->hmac_desc_len);
 }

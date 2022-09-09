@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/fs_context.h>
 
 #define FUSE_CTL_SUPER_MAGIC 0x65735543
 
@@ -35,7 +36,9 @@ static ssize_t fuse_conn_abort_write(struct file *file, const char __user *buf,
 {
 	struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 	if (fc) {
-		fuse_abort_conn(fc, true);
+		if (fc->abort_err)
+			fc->aborted = true;
+		fuse_abort_conn(fc);
 		fuse_conn_put(fc);
 	}
 	return count;
@@ -117,7 +120,7 @@ static ssize_t fuse_conn_max_background_write(struct file *file,
 					      const char __user *buf,
 					      size_t count, loff_t *ppos)
 {
-	unsigned uninitialized_var(val);
+	unsigned val;
 	ssize_t ret;
 
 	ret = fuse_conn_limit_write(file, buf, count, ppos, &val,
@@ -159,7 +162,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 						    const char __user *buf,
 						    size_t count, loff_t *ppos)
 {
-	unsigned uninitialized_var(val);
+	unsigned val;
 	struct fuse_conn *fc;
 	ssize_t ret;
 
@@ -171,18 +174,11 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 	if (!fc)
 		goto out;
 
+	down_read(&fc->killsb);
 	spin_lock(&fc->bg_lock);
 	fc->congestion_threshold = val;
-	if (fc->sb) {
-		if (fc->num_background < fc->congestion_threshold) {
-			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
-			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
-		} else {
-			set_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
-			set_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
-		}
-	}
 	spin_unlock(&fc->bg_lock);
+	up_read(&fc->killsb);
 	fuse_conn_put(fc);
 out:
 	return ret;
@@ -262,7 +258,7 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 	struct dentry *parent;
 	char name[32];
 
-	if (!fuse_control_sb)
+	if (!fuse_control_sb || fc->no_control)
 		return 0;
 
 	parent = fuse_control_sb->s_root;
@@ -300,7 +296,7 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 {
 	int i;
 
-	if (!fuse_control_sb)
+	if (!fuse_control_sb || fc->no_control)
 		return;
 
 	for (i = fc->ctl_ndents - 1; i >= 0; i--) {
@@ -315,7 +311,7 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 	drop_nlink(d_inode(fuse_control_sb->s_root));
 }
 
-static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
+static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	static const struct tree_descr empty_descr = {""};
 	struct fuse_conn *fc;
@@ -341,10 +337,19 @@ static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct dentry *fuse_ctl_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name, void *raw_data)
+static int fuse_ctl_get_tree(struct fs_context *fsc)
 {
-	return mount_single(fs_type, flags, raw_data, fuse_ctl_fill_super);
+	return get_tree_single(fsc, fuse_ctl_fill_super);
+}
+
+static const struct fs_context_operations fuse_ctl_context_ops = {
+	.get_tree	= fuse_ctl_get_tree,
+};
+
+static int fuse_ctl_init_fs_context(struct fs_context *fsc)
+{
+	fsc->ops = &fuse_ctl_context_ops;
+	return 0;
 }
 
 static void fuse_ctl_kill_sb(struct super_block *sb)
@@ -363,7 +368,7 @@ static void fuse_ctl_kill_sb(struct super_block *sb)
 static struct file_system_type fuse_ctl_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fusectl",
-	.mount		= fuse_ctl_mount,
+	.init_fs_context = fuse_ctl_init_fs_context,
 	.kill_sb	= fuse_ctl_kill_sb,
 };
 MODULE_ALIAS_FS("fusectl");

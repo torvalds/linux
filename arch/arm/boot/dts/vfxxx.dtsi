@@ -59,7 +59,7 @@
 		interrupt-parent = <&mscm_ir>;
 		ranges;
 
-		aips0: aips-bus@40000000 {
+		aips0: bus@40000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -95,7 +95,7 @@
 				status = "disabled";
 			};
 
-			can0: flexcan@40020000 {
+			can0: can@40020000 {
 				compatible = "fsl,vf610-flexcan";
 				reg = <0x40020000 0x4000>;
 				interrupts = <58 IRQ_TYPE_LEVEL_HIGH>;
@@ -293,7 +293,7 @@
 				status = "disabled";
 			};
 
-			wdoga5: wdog@4003e000 {
+			wdoga5: watchdog@4003e000 {
 				compatible = "fsl,vf610-wdt", "fsl,imx21-wdt";
 				reg = <0x4003e000 0x1000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
@@ -471,7 +471,7 @@
 			};
 		};
 
-		aips1: aips-bus@40080000 {
+		aips1: bus@40080000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -495,7 +495,7 @@
 			};
 
 			ocotp: ocotp@400a5000 {
-				compatible = "fsl,vf610-ocotp";
+				compatible = "fsl,vf610-ocotp", "syscon";
 				reg = <0x400a5000 0x1000>;
 				clocks = <&clks VF610_CLK_OCOTP>;
 			};
@@ -681,7 +681,7 @@
 				status = "disabled";
 			};
 
-			can1: flexcan@400d4000 {
+			can1: can@400d4000 {
 				compatible = "fsl,vf610-flexcan";
 				reg = <0x400d4000 0x4000>;
 				interrupts = <59 IRQ_TYPE_LEVEL_HIGH>;
@@ -728,6 +728,28 @@
 					<&edma0 1 39>;
 				dma-names = "rx","tx";
 				status = "disabled";
+			};
+
+			crypto: crypto@400f0000 {
+				compatible = "fsl,sec-v4.0";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x400f0000 0x9000>;
+				ranges = <0 0x400f0000 0x9000>;
+				clocks = <&clks VF610_CLK_CAAM>;
+				clock-names = "ipg";
+
+				sec_jr0: jr0@1000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x1000 0x1000>;
+					interrupts = <102 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				sec_jr1: jr1@2000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x2000 0x1000>;
+					interrupts = <102 IRQ_TYPE_LEVEL_HIGH>;
+				};
 			};
 		};
 	};

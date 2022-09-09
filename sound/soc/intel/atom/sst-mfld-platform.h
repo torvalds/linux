@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  sst_mfld_platform.h - Intel MID Platform driver header file
  *
@@ -5,15 +6,6 @@
  *  Author: Vinod Koul <vinod.koul@intel.com>
  *  Author: Harsha Priya <priya.harsha@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -25,7 +17,7 @@
 #include "sst-atom-controls.h"
 
 extern struct sst_device *sst;
-extern const struct snd_compr_ops sst_platform_compr_ops;
+extern const struct snd_compress_ops sst_platform_compress_ops;
 
 #define DRV_NAME "sst"
 
@@ -181,6 +173,6 @@ struct sst_data {
 	struct snd_soc_card *soc_card;
 	struct sst_cmd_sba_hw_set_ssp ssp_cmd;
 };
-int sst_register_dsp(struct sst_device *sst);
-int sst_unregister_dsp(struct sst_device *sst);
+int sst_register_dsp(struct sst_device *dev);
+int sst_unregister_dsp(struct sst_device *dev);
 #endif

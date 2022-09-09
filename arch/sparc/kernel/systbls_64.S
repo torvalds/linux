@@ -10,18 +10,20 @@
  * Copyright (C) 1995 Adrian M. Rodriguez (adrian@remus.rutgers.edu)
  */
 
-#define __SYSCALL(nr, entry, nargs) .word entry
+#define __SYSCALL(nr, entry) .word entry
 	.text
 	.align	4
 #ifdef CONFIG_COMPAT
 	.globl sys_call_table32
 sys_call_table32:
-#include <asm/syscall_table_c32.h>	/* Compat syscalls */
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
+#include <asm/syscall_table_32.h>	/* Compat syscalls */
+#undef __SYSCALL_WITH_COMPAT
 #endif /* CONFIG_COMPAT */
 
 	.align	4
 	.globl sys_call_table64, sys_call_table
 sys_call_table64:
 sys_call_table:
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
 #include <asm/syscall_table_64.h>	/* 64-bit native syscalls */
-#undef __SYSCALL

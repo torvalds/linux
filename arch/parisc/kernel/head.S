@@ -17,12 +17,12 @@
 #include <asm/pdc.h>
 	
 #include <asm/assembly.h>
-#include <asm/pgtable.h>
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/pgtable.h>
 
-	.level	LEVEL
+	.level	1.1
 
 	__INITDATA
 ENTRY(boot_args)
@@ -35,7 +35,8 @@ END(boot_args)
 	__HEAD
 
 	.align	4
-	.import init_thread_union,data
+	.import init_task,data
+	.import init_stack,data
 	.import fault_vector_20,code    /* IVA parisc 2.0 32 bit */
 #ifndef CONFIG_64BIT
         .import fault_vector_11,code    /* IVA parisc 1.1 32 bit */
@@ -68,6 +69,47 @@ $bss_loop:
 	stw,ma          %arg1,4(%r1)
 	stw,ma          %arg2,4(%r1)
 	stw,ma          %arg3,4(%r1)
+
+#if !defined(CONFIG_64BIT) && defined(CONFIG_PA20)
+	/* This 32-bit kernel was compiled for PA2.0 CPUs. Check current CPU
+	 * and halt kernel if we detect a PA1.x CPU. */
+	ldi		32,%r10
+	mtctl		%r10,%cr11
+	.level 2.0
+	mfctl,w		%cr11,%r10
+	.level 1.1
+	comib,<>,n	0,%r10,$cpu_ok
+
+	load32		PA(msg1),%arg0
+	ldi		msg1_end-msg1,%arg1
+$iodc_panic:
+	copy		%arg0, %r10
+	copy		%arg1, %r11
+	load32		PA(init_stack),%sp
+#define MEM_CONS 0x3A0
+	ldw		MEM_CONS+32(%r0),%arg0	// HPA
+	ldi		ENTRY_IO_COUT,%arg1
+	ldw		MEM_CONS+36(%r0),%arg2	// SPA
+	ldw		MEM_CONS+8(%r0),%arg3	// layers
+	load32		PA(__bss_start),%r1
+	stw		%r1,-52(%sp)		// arg4
+	stw		%r0,-56(%sp)		// arg5
+	stw		%r10,-60(%sp)		// arg6 = ptr to text
+	stw		%r11,-64(%sp)		// arg7 = len
+	stw		%r0,-68(%sp)		// arg8
+	load32		PA(.iodc_panic_ret), %rp
+	ldw		MEM_CONS+40(%r0),%r1	// ENTRY_IODC
+	bv,n		(%r1)
+.iodc_panic_ret:
+	b .				/* wait endless with ... */
+	or		%r10,%r10,%r10	/* qemu idle sleep */
+msg1:	.ascii "Can't boot kernel which was built for PA8x00 CPUs on this machine.\r\n"
+msg1_end:
+
+$cpu_ok:
+#endif
+
+	.level	PA_ASM_LEVEL
 
 	/* Initialize startup VM. Just map first 16/32 MB of memory */
 	load32		PA(swapper_pg_dir),%r4
@@ -123,12 +165,12 @@ $pgt_fill_loop:
 	load32		start_parisc,%r11
 
 	/* And the initial task pointer */
-	load32		init_thread_union,%r6
+	load32		init_task,%r6
 	mtctl           %r6,%cr30
 
 	/* And the stack pointer too */
-	ldo             THREAD_SZ_ALGN(%r6),%sp
-
+	load32		init_stack,%sp
+	tophys_r1	%sp
 #if defined(CONFIG_64BIT) && defined(CONFIG_FUNCTION_TRACER)
 	.import _mcount,data
 	/* initialize mcount FPTR */
@@ -161,6 +203,15 @@ $pgt_fill_loop:
 	/* FALLTHROUGH */
 	.procend
 
+#ifdef CONFIG_HOTPLUG_CPU
+	/* common_stext is far away in another section... jump there */
+	load32		PA(common_stext), %rp
+	bv,n		(%rp)
+
+	/* common_stext and smp_slave_stext needs to be in text section */
+	.text
+#endif
+
 	/*
 	** Code Common to both Monarch and Slave processors.
 	** Entry:
@@ -186,12 +237,11 @@ common_stext:
 #endif /*CONFIG_SMP*/
 
 #ifdef CONFIG_64BIT
-	tophys_r1	%sp
+	mfctl		%cr30,%r6		/* PCX-W2 firmware bug */
+	tophys_r1	%r6
 
 	/* Save the rfi target address */
-	ldd             TI_TASK-THREAD_SZ_ALGN(%sp), %r10
-	tophys_r1       %r10
-	std             %r11,  TASK_PT_GR11(%r10)
+	STREG		%r11,  TASK_PT_GR11(%r6)
 	/* Switch to wide mode Superdome doesn't support narrow PDC
 	** calls.
 	*/
@@ -206,7 +256,6 @@ common_stext:
         ** Someday, palo might not do this for the Monarch either.
         */
 2:
-	mfctl		%cr30,%r6		/* PCX-W2 firmware bug */
 
 	ldo             PDC_PSW(%r0),%arg0              /* 21 */
 	ldo             PDC_PSW_SET_DEFAULTS(%r0),%arg1 /* 2 */
@@ -216,13 +265,9 @@ common_stext:
 	copy            %r0,%arg3
 
 stext_pdc_ret:
+	LDREG		TASK_PT_GR11(%r6), %r11
+	tovirt_r1	%r6
 	mtctl		%r6,%cr30		/* restore task thread info */
-
-	/* restore rfi target address*/
-	ldd             TI_TASK-THREAD_SZ_ALGN(%sp), %r10
-	tophys_r1       %r10
-	ldd             TASK_PT_GR11(%r10), %r11
-	tovirt_r1       %sp
 #endif
 	
 	/* PARANOID: clear user scratch/user space SR's */
@@ -258,7 +303,7 @@ stext_pdc_ret:
 	ldo		R%PA(fault_vector_11)(%r10),%r10
 
 $is_pa20:
-	.level		LEVEL /* restore 1.1 || 2.0w */
+	.level		PA_ASM_LEVEL /* restore 1.1 || 2.0w */
 #endif /*!CONFIG_64BIT*/
 	load32		PA(fault_vector_20),%r10
 
@@ -287,7 +332,9 @@ aligned_rfi:
 
 	load32		KERNEL_PSW,%r10
 	mtctl		%r10,%ipsw
-	
+
+	tovirt_r1	%sp
+
 	/* Jump through hyperspace to Virt Mode */
 	rfi
 	nop
@@ -329,13 +376,27 @@ smp_slave_stext:
 	mtsp	   %r0,%sr6
 	mtsp	   %r0,%sr7
 
+#ifdef CONFIG_64BIT
+	/*
+	 *  Enable Wide mode early, in case the task_struct for the idle
+	 *  task in smp_init_current_idle_task was allocated above 4GB.
+	 */
+1:	mfia            %rp             /* clear upper part of pcoq */
+	ldo             2f-1b(%rp),%rp
+	depdi           0,31,32,%rp
+	bv              (%rp)
+	ssm             PSW_SM_W,%r0
+2:
+#endif
+
 	/*  Initialize the SP - monarch sets up smp_init_current_idle_task */
-	load32		PA(smp_init_current_idle_task),%sp
-	LDREG		0(%sp),%sp	/* load task address */
+	load32		PA(smp_init_current_idle_task),%r6
+	LDREG		0(%r6),%r6
+	mtctl		%r6,%cr30
+	tophys_r1	%r6
+	LDREG           TASK_STACK(%r6),%sp
 	tophys_r1	%sp
-	LDREG		TASK_THREAD_INFO(%sp),%sp
-	mtctl           %sp,%cr30       /* store in cr30 */
-	ldo             THREAD_SZ_ALGN(%sp),%sp
+	ldo		FRAME_SIZE(%sp),%sp
 
 	/* point CPU to kernel page tables */
 	load32		PA(swapper_pg_dir),%r4
@@ -360,10 +421,8 @@ smp_slave_stext:
 	.procend
 #endif /* CONFIG_SMP */
 
-ENDPROC(parisc_kernel_start)
-
 #ifndef CONFIG_64BIT
-	.section .data..read_mostly
+	.section .data..ro_after_init
 
 	.align	4
 	.export	$global$,data

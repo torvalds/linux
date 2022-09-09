@@ -6,6 +6,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "mt2701.dtsi"
 
 / {
@@ -13,6 +14,7 @@
 	compatible = "mediatek,mt2701-evb", "mediatek,mt2701";
 
 	memory {
+		device_type = "memory";
 		reg = <0 0x80000000 0 0x40000000>;
 	};
 
@@ -59,6 +61,15 @@
 			255
 		>;
 		default-brightness-level = <9>;
+	};
+
+	usb_vbus: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 45 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 
@@ -228,4 +239,15 @@
 
 &uart0 {
 	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+	usb-role-switch;
+	connector{
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		id-gpios = <&pio 44 GPIO_ACTIVE_HIGH>;
+		vbus-supply = <&usb_vbus>;
+	};
 };

@@ -231,7 +231,8 @@ void dce110_timing_generator_set_drr(
 
 void dce110_timing_generator_set_static_screen_control(
 	struct timing_generator *tg,
-	uint32_t value);
+	uint32_t event_triggers,
+	uint32_t num_frames);
 
 void dce110_timing_generator_get_crtc_scanoutpos(
 	struct timing_generator *tg,
@@ -256,6 +257,11 @@ void dce110_tg_set_overscan_color(struct timing_generator *tg,
 
 void dce110_tg_program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios);
 
 bool dce110_tg_is_blanked(struct timing_generator *tg);

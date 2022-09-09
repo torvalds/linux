@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * dmic.c  --  SoC audio for Generic Digital MICs
  *
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/delay.h>
@@ -44,8 +30,8 @@ struct dmic {
 	int modeswitch_delay;
 };
 
-int dmic_daiops_trigger(struct snd_pcm_substream *substream,
-		int cmd, struct snd_soc_dai *dai)
+static int dmic_daiops_trigger(struct snd_pcm_substream *substream,
+			       int cmd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct dmic *dmic = snd_soc_component_get_drvdata(component);
@@ -73,14 +59,14 @@ static int dmic_aif_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (dmic->gpio_en)
-			gpiod_set_value(dmic->gpio_en, 1);
+			gpiod_set_value_cansleep(dmic->gpio_en, 1);
 
 		if (dmic->wakeup_delay)
 			msleep(dmic->wakeup_delay);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (dmic->gpio_en)
-			gpiod_set_value(dmic->gpio_en, 0);
+			gpiod_set_value_cansleep(dmic->gpio_en, 0);
 		break;
 	}
 
@@ -96,7 +82,10 @@ static struct snd_soc_dai_driver dmic_dai = {
 		.rates = SNDRV_PCM_RATE_CONTINUOUS,
 		.formats = SNDRV_PCM_FMTBIT_S32_LE
 			| SNDRV_PCM_FMTBIT_S24_LE
-			| SNDRV_PCM_FMTBIT_S16_LE,
+			| SNDRV_PCM_FMTBIT_S16_LE
+			| SNDRV_PCM_FMTBIT_DSD_U8
+			| SNDRV_PCM_FMTBIT_DSD_U16_LE
+			| SNDRV_PCM_FMTBIT_DSD_U32_LE,
 	},
 	.ops    = &dmic_dai_ops,
 };
@@ -151,7 +140,6 @@ static const struct snd_soc_component_driver soc_dmic = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int dmic_dev_probe(struct platform_device *pdev)

@@ -20,56 +20,45 @@
 #endif
 #include <linux/font.h>
 
-#define NO_FONTS
-
 static const struct font_desc *fonts[] = {
 #ifdef CONFIG_FONT_8x8
-#undef NO_FONTS
-    &font_vga_8x8,
+	&font_vga_8x8,
 #endif
 #ifdef CONFIG_FONT_8x16
-#undef NO_FONTS
-    &font_vga_8x16,
+	&font_vga_8x16,
 #endif
 #ifdef CONFIG_FONT_6x11
-#undef NO_FONTS
-    &font_vga_6x11,
+	&font_vga_6x11,
 #endif
 #ifdef CONFIG_FONT_7x14
-#undef NO_FONTS
-    &font_7x14,
+	&font_7x14,
 #endif
 #ifdef CONFIG_FONT_SUN8x16
-#undef NO_FONTS
-    &font_sun_8x16,
+	&font_sun_8x16,
 #endif
 #ifdef CONFIG_FONT_SUN12x22
-#undef NO_FONTS
-    &font_sun_12x22,
+	&font_sun_12x22,
 #endif
 #ifdef CONFIG_FONT_10x18
-#undef NO_FONTS
-    &font_10x18,
+	&font_10x18,
 #endif
 #ifdef CONFIG_FONT_ACORN_8x8
-#undef NO_FONTS
-    &font_acorn_8x8,
+	&font_acorn_8x8,
 #endif
 #ifdef CONFIG_FONT_PEARL_8x8
-#undef NO_FONTS
-    &font_pearl_8x8,
+	&font_pearl_8x8,
 #endif
 #ifdef CONFIG_FONT_MINI_4x6
-#undef NO_FONTS
-    &font_mini_4x6,
+	&font_mini_4x6,
 #endif
 #ifdef CONFIG_FONT_6x10
-#undef NO_FONTS
-    &font_6x10,
+	&font_6x10,
 #endif
 #ifdef CONFIG_FONT_TER16x32
-#undef NO_FONTS
-    &font_ter_16x32,
+	&font_ter_16x32,
+#endif
+#ifdef CONFIG_FONT_6x8
+	&font_6x8,
 #endif
 };
 
@@ -90,16 +79,17 @@ static const struct font_desc *fonts[] = {
  *	specified font.
  *
  */
-
 const struct font_desc *find_font(const char *name)
 {
-   unsigned int i;
+	unsigned int i;
 
-   for (i = 0; i < num_fonts; i++)
-      if (!strcmp(fonts[i]->name, name))
-	  return fonts[i];
-   return NULL;
+	BUILD_BUG_ON(!num_fonts);
+	for (i = 0; i < num_fonts; i++)
+		if (!strcmp(fonts[i]->name, name))
+			return fonts[i];
+	return NULL;
 }
+EXPORT_SYMBOL(find_font);
 
 
 /**
@@ -116,44 +106,46 @@ const struct font_desc *find_font(const char *name)
  *	chosen font.
  *
  */
-
 const struct font_desc *get_default_font(int xres, int yres, u32 font_w,
 					 u32 font_h)
 {
-    int i, c, cc;
-    const struct font_desc *f, *g;
+	int i, c, cc, res;
+	const struct font_desc *f, *g;
 
-    g = NULL;
-    cc = -10000;
-    for(i=0; i<num_fonts; i++) {
-	f = fonts[i];
-	c = f->pref;
+	g = NULL;
+	cc = -10000;
+	for (i = 0; i < num_fonts; i++) {
+		f = fonts[i];
+		c = f->pref;
 #if defined(__mc68000__)
 #ifdef CONFIG_FONT_PEARL_8x8
-	if (MACH_IS_AMIGA && f->idx == PEARL8x8_IDX)
-	    c = 100;
+		if (MACH_IS_AMIGA && f->idx == PEARL8x8_IDX)
+			c = 100;
 #endif
 #ifdef CONFIG_FONT_6x11
-	if (MACH_IS_MAC && xres < 640 && f->idx == VGA6x11_IDX)
-	    c = 100;
+		if (MACH_IS_MAC && xres < 640 && f->idx == VGA6x11_IDX)
+			c = 100;
 #endif
 #endif
-	if ((yres < 400) == (f->height <= 8))
-	    c += 1000;
+		if ((yres < 400) == (f->height <= 8))
+			c += 1000;
 
-	if ((font_w & (1 << (f->width - 1))) &&
-	    (font_h & (1 << (f->height - 1))))
-	    c += 1000;
+		/* prefer a bigger font for high resolution */
+		res = (xres / f->width) * (yres / f->height) / 1000;
+		if (res > 20)
+			c += 20 - res;
 
-	if (c > cc) {
-	    cc = c;
-	    g = f;
+		if ((font_w & (1 << (f->width - 1))) &&
+		    (font_h & (1 << (f->height - 1))))
+			c += 1000;
+
+		if (c > cc) {
+			cc = c;
+			g = f;
+		}
 	}
-    }
-    return g;
+	return g;
 }
-
-EXPORT_SYMBOL(find_font);
 EXPORT_SYMBOL(get_default_font);
 
 MODULE_AUTHOR("James Simmons <jsimmons@users.sf.net>");

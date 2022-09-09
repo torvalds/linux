@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/video/backlight/ili9320.c
  *
  * ILI9320 LCD controller driver core.
@@ -5,10 +6,6 @@
  * Copyright 2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <linux/delay.h>
@@ -254,10 +251,9 @@ int ili9320_probe_spi(struct spi_device *spi,
 }
 EXPORT_SYMBOL_GPL(ili9320_probe_spi);
 
-int ili9320_remove(struct ili9320 *ili)
+void ili9320_remove(struct ili9320 *ili)
 {
 	ili9320_power(ili, FB_BLANK_POWERDOWN);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ili9320_remove);
 

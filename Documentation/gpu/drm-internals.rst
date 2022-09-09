@@ -24,9 +24,9 @@ Driver Initialization
 At the core of every DRM driver is a :c:type:`struct drm_driver
 <drm_driver>` structure. Drivers typically statically initialize
 a drm_driver structure, and then pass it to
-:c:func:`drm_dev_alloc()` to allocate a device instance. After the
+drm_dev_alloc() to allocate a device instance. After the
 device instance is fully initialized it can be registered (which makes
-it accessible from userspace) using :c:func:`drm_dev_register()`.
+it accessible from userspace) using drm_dev_register().
 
 The :c:type:`struct drm_driver <drm_driver>` structure
 contains static information that describes the driver and features it
@@ -38,68 +38,6 @@ sections.
 
 Driver Information
 ------------------
-
-Driver Features
-~~~~~~~~~~~~~~~
-
-Drivers inform the DRM core about their requirements and supported
-features by setting appropriate flags in the driver_features field.
-Since those flags influence the DRM core behaviour since registration
-time, most of them must be set to registering the :c:type:`struct
-drm_driver <drm_driver>` instance.
-
-u32 driver_features;
-
-DRIVER_USE_AGP
-    Driver uses AGP interface, the DRM core will manage AGP resources.
-
-DRIVER_LEGACY
-    Denote a legacy driver using shadow attach. Don't use.
-
-DRIVER_KMS_LEGACY_CONTEXT
-    Used only by nouveau for backwards compatibility with existing userspace.
-    Don't use.
-
-DRIVER_PCI_DMA
-    Driver is capable of PCI DMA, mapping of PCI DMA buffers to
-    userspace will be enabled. Deprecated.
-
-DRIVER_SG
-    Driver can perform scatter/gather DMA, allocation and mapping of
-    scatter/gather buffers will be enabled. Deprecated.
-
-DRIVER_HAVE_DMA
-    Driver supports DMA, the userspace DMA API will be supported.
-    Deprecated.
-
-DRIVER_HAVE_IRQ; DRIVER_IRQ_SHARED
-    DRIVER_HAVE_IRQ indicates whether the driver has an IRQ handler
-    managed by the DRM Core. The core will support simple IRQ handler
-    installation when the flag is set. The installation process is
-    described in ?.
-
-    DRIVER_IRQ_SHARED indicates whether the device & handler support
-    shared IRQs (note that this is required of PCI drivers).
-
-DRIVER_GEM
-    Driver use the GEM memory manager.
-
-DRIVER_MODESET
-    Driver supports mode setting interfaces (KMS).
-
-DRIVER_PRIME
-    Driver implements DRM PRIME buffer sharing.
-
-DRIVER_RENDER
-    Driver supports dedicated render nodes.
-
-DRIVER_ATOMIC
-    Driver supports atomic properties. In this case the driver must
-    implement appropriate obj->atomic_get_property() vfuncs for any
-    modeset objects with driver specific properties.
-
-DRIVER_SYNCOBJ
-    Driver support drm sync objects.
 
 Major, Minor and Patchlevel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -137,11 +75,32 @@ update it, its value is mostly useless. The DRM core prints it to the
 kernel log at initialization time and passes it to userspace through the
 DRM_IOCTL_VERSION ioctl.
 
+Module Initialization
+---------------------
+
+.. kernel-doc:: include/drm/drm_module.h
+   :doc: overview
+
+Managing Ownership of the Framebuffer Aperture
+----------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_aperture.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_aperture.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_aperture.c
+   :export:
+
 Device Instance and Driver Handling
 -----------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :doc: driver instance overview
+
+.. kernel-doc:: include/drm/drm_device.h
+   :internal:
 
 .. kernel-doc:: include/drm/drm_drv.h
    :internal:
@@ -152,15 +111,11 @@ Device Instance and Driver Handling
 Driver Load
 -----------
 
+Component Helper Usage
+~~~~~~~~~~~~~~~~~~~~~~
 
-IRQ Helper Library
-~~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: drivers/gpu/drm/drm_irq.c
-   :doc: irq helpers
-
-.. kernel-doc:: drivers/gpu/drm/drm_irq.c
-   :export:
+.. kernel-doc:: drivers/gpu/drm/drm_drv.c
+   :doc: component helper usage recommendations
 
 Memory Manager Initialization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -185,6 +140,18 @@ been mapped and any necessary information has been extracted, it should
 be unmapped; on many devices, the ROM address decoder is shared with
 other BARs, so leaving it mapped could cause undesired behaviour like
 hangs or memory corruption.
+
+Managed Resources
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_managed.c
+   :doc: managed resources
+
+.. kernel-doc:: drivers/gpu/drm/drm_managed.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_managed.h
+   :internal:
 
 Bus-specific Device Registration and PCI Support
 ------------------------------------------------
@@ -229,6 +196,47 @@ Printer
 
 .. kernel-doc:: drivers/gpu/drm/drm_print.c
    :export:
+
+Utilities
+---------
+
+.. kernel-doc:: include/drm/drm_util.h
+   :doc: drm utils
+
+.. kernel-doc:: include/drm/drm_util.h
+   :internal:
+
+
+Unit testing
+============
+
+KUnit
+-----
+
+KUnit (Kernel unit testing framework) provides a common framework for unit tests
+within the Linux kernel.
+
+This section covers the specifics for the DRM subsystem. For general information
+about KUnit, please refer to Documentation/dev-tools/kunit/start.rst.
+
+How to run the tests?
+~~~~~~~~~~~~~~~~~~~~~
+
+In order to facilitate running the test suite, a configuration file is present
+in ``drivers/gpu/drm/tests/.kunitconfig``. It can be used by ``kunit.py`` as
+follows:
+
+.. code-block:: bash
+
+	$ ./tools/testing/kunit/kunit.py run --kunitconfig=drivers/gpu/drm/tests \
+		--kconfig_add CONFIG_VIRTIO_UML=y \
+		--kconfig_add CONFIG_UML_PCI_OVER_VIRTIO=y
+
+.. note::
+	The configuration included in ``.kunitconfig`` should be as generic as
+	possible.
+	``CONFIG_VIRTIO_UML`` and ``CONFIG_UML_PCI_OVER_VIRTIO`` are not
+	included in it because they are only required for User Mode Linux.
 
 
 Legacy Support Code

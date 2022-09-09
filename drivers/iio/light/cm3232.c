@@ -1,18 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CM3232 Ambient Light Sensor
  *
  * Copyright (C) 2014-2015 Capella Microsystems Inc.
  * Author: Kevin Tsai <ktsai@capellamicro.com>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2, as published
- * by the Free Software Foundation.
- *
  * IIO driver for CM3232 (7-bit I2C slave address 0x10).
  */
 
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/init.h>
@@ -342,7 +340,6 @@ static int cm3232_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	chip->client = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = cm3232_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm3232_channels);
 	indio_dev->info = &cm3232_info;
@@ -377,7 +374,6 @@ static const struct i2c_device_id cm3232_id[] = {
 	{}
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int cm3232_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -406,9 +402,7 @@ static int cm3232_resume(struct device *dev)
 	return ret;
 }
 
-static const struct dev_pm_ops cm3232_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cm3232_suspend, cm3232_resume)};
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(cm3232_pm_ops, cm3232_suspend, cm3232_resume);
 
 MODULE_DEVICE_TABLE(i2c, cm3232_id);
 
@@ -421,10 +415,8 @@ MODULE_DEVICE_TABLE(of, cm3232_of_match);
 static struct i2c_driver cm3232_driver = {
 	.driver = {
 		.name	= "cm3232",
-		.of_match_table = of_match_ptr(cm3232_of_match),
-#ifdef CONFIG_PM_SLEEP
-		.pm	= &cm3232_pm_ops,
-#endif
+		.of_match_table = cm3232_of_match,
+		.pm	= pm_sleep_ptr(&cm3232_pm_ops),
 	},
 	.id_table	= cm3232_id,
 	.probe		= cm3232_probe,

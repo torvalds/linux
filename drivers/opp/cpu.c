@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic OPP helper interface for CPU device
  *
@@ -5,10 +6,6 @@
  *	Nishanth Menon
  *	Romit Dasgupta
  *	Kevin Hilman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -44,7 +41,7 @@
  * the table if any of the mentioned functions have been invoked in the interim.
  */
 int dev_pm_opp_init_cpufreq_table(struct device *dev,
-				  struct cpufreq_frequency_table **table)
+				  struct cpufreq_frequency_table **opp_table)
 {
 	struct dev_pm_opp *opp;
 	struct cpufreq_frequency_table *freq_table = NULL;
@@ -79,7 +76,7 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 	freq_table[i].driver_data = i;
 	freq_table[i].frequency = CPUFREQ_TABLE_END;
 
-	*table = &freq_table[0];
+	*opp_table = &freq_table[0];
 
 out:
 	if (ret)
@@ -97,13 +94,13 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_init_cpufreq_table);
  * Free up the table allocated by dev_pm_opp_init_cpufreq_table
  */
 void dev_pm_opp_free_cpufreq_table(struct device *dev,
-				   struct cpufreq_frequency_table **table)
+				   struct cpufreq_frequency_table **opp_table)
 {
-	if (!table)
+	if (!opp_table)
 		return;
 
-	kfree(*table);
-	*table = NULL;
+	kfree(*opp_table);
+	*opp_table = NULL;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_free_cpufreq_table);
 #endif	/* CONFIG_CPU_FREQ */
@@ -127,7 +124,7 @@ void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask,
 			continue;
 		}
 
-		_dev_pm_opp_find_and_remove_table(cpu_dev);
+		dev_pm_opp_remove_table(cpu_dev);
 	}
 }
 

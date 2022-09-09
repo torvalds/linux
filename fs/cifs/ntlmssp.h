@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/ntlmssp.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define NTLMSSP_SIGNATURE "NTLMSSP"
@@ -53,7 +40,7 @@
 #define NTLMSSP_REQUEST_NON_NT_KEY    0x400000
 #define NTLMSSP_NEGOTIATE_TARGET_INFO 0x800000
 /* #define reserved4                 0x1000000 */
-#define NTLMSSP_NEGOTIATE_VERSION    0x2000000 /* we do not set */
+#define NTLMSSP_NEGOTIATE_VERSION    0x2000000 /* we only set for SMB2+ */
 /* #define reserved3                 0x4000000 */
 /* #define reserved2                 0x8000000 */
 /* #define reserved1                0x10000000 */
@@ -100,6 +87,30 @@ typedef struct _NEGOTIATE_MESSAGE {
 	/* followed by WorkstationString */
 } __attribute__((packed)) NEGOTIATE_MESSAGE, *PNEGOTIATE_MESSAGE;
 
+#define NTLMSSP_REVISION_W2K3 0x0F
+
+/* See MS-NLMP section 2.2.2.10 */
+struct ntlmssp_version {
+	__u8	ProductMajorVersion;
+	__u8	ProductMinorVersion;
+	__le16	ProductBuild; /* we send the cifs.ko module version here */
+	__u8	Reserved[3];
+	__u8	NTLMRevisionCurrent; /* currently 0x0F */
+} __packed;
+
+/* see MS-NLMP section 2.2.1.1 */
+struct negotiate_message {
+	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
+	__le32 MessageType;     /* NtLmNegotiate = 1 */
+	__le32 NegotiateFlags;
+	SECURITY_BUFFER DomainName;	/* RFC 1001 style and ASCII */
+	SECURITY_BUFFER WorkstationName;	/* RFC 1001 and ASCII */
+	struct	ntlmssp_version Version;
+	/* SECURITY_BUFFER */
+	char DomainString[];
+	/* followed by WorkstationString */
+} __packed;
+
 typedef struct _CHALLENGE_MESSAGE {
 	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
 	__le32 MessageType;   /* NtLmChallenge = 2 */
@@ -132,7 +143,15 @@ typedef struct _AUTHENTICATE_MESSAGE {
  */
 
 int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len, struct cifs_ses *ses);
-void build_ntlmssp_negotiate_blob(unsigned char *pbuffer, struct cifs_ses *ses);
+int build_ntlmssp_negotiate_blob(unsigned char **pbuffer, u16 *buflen,
+				 struct cifs_ses *ses,
+				 struct TCP_Server_Info *server,
+				 const struct nls_table *nls_cp);
+int build_ntlmssp_smb3_negotiate_blob(unsigned char **pbuffer, u16 *buflen,
+				 struct cifs_ses *ses,
+				 struct TCP_Server_Info *server,
+				 const struct nls_table *nls_cp);
 int build_ntlmssp_auth_blob(unsigned char **pbuffer, u16 *buflen,
 			struct cifs_ses *ses,
+			struct TCP_Server_Info *server,
 			const struct nls_table *nls_cp);

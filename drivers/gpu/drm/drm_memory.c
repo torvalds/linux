@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_memory.c
  * Memory management wrappers for DRM
  *
@@ -33,9 +33,14 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/highmem.h>
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/highmem.h>
+#include <linux/pci.h>
+#include <linux/vmalloc.h>
+
+#include <drm/drm_cache.h>
+#include <drm/drm_device.h>
+
 #include "drm_legacy.h"
 
 #if IS_ENABLED(CONFIG_AGP)
@@ -93,24 +98,6 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	return addr;
 }
 
-/** Wrapper around agp_free_memory() */
-void drm_free_agp(struct agp_memory *handle, int pages)
-{
-	agp_free_memory(handle);
-}
-
-/** Wrapper around agp_bind_memory() */
-int drm_bind_agp(struct agp_memory *handle, unsigned int start)
-{
-	return agp_bind_memory(handle, start);
-}
-
-/** Wrapper around agp_unbind_memory() */
-int drm_unbind_agp(struct agp_memory *handle)
-{
-	return agp_unbind_memory(handle);
-}
-
 #else /*  CONFIG_AGP  */
 static inline void *agp_remap(unsigned long offset, unsigned long size,
 			      struct drm_device *dev)
@@ -149,16 +136,3 @@ void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 		iounmap(map->handle);
 }
 EXPORT_SYMBOL(drm_legacy_ioremapfree);
-
-u64 drm_get_max_iomem(void)
-{
-	struct resource *tmp;
-	resource_size_t max_iomem = 0;
-
-	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling) {
-		max_iomem = max(max_iomem,  tmp->end);
-	}
-
-	return max_iomem;
-}
-EXPORT_SYMBOL(drm_get_max_iomem);

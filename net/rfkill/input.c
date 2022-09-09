@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Input layer to RF Kill interface connector
  *
  * Copyright (c) 2007 Dmitry Torokhov
  * Copyright 2009 Johannes Berg <johannes@sipsolutions.net>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * If you ever run into a situation in which you have a SW_ type rfkill
  * input device, then you can revive code that was removed in the patch
@@ -39,7 +36,7 @@ module_param_named(master_switch_mode, rfkill_master_switch_mode, uint, 0);
 MODULE_PARM_DESC(master_switch_mode,
 	"SW_RFKILL_ALL ON should: 0=do nothing (only unlock); 1=restore; 2=unblock all");
 
-static spinlock_t rfkill_op_lock;
+static DEFINE_SPINLOCK(rfkill_op_lock);
 static bool rfkill_op_pending;
 static unsigned long rfkill_sw_pending[BITS_TO_LONGS(NUM_RFKILL_TYPES)];
 static unsigned long rfkill_sw_state[BITS_TO_LONGS(NUM_RFKILL_TYPES)];
@@ -332,8 +329,6 @@ int __init rfkill_handler_init(void)
 	default:
 		return -EINVAL;
 	}
-
-	spin_lock_init(&rfkill_op_lock);
 
 	/* Avoid delay at first schedule */
 	rfkill_last_scheduled =

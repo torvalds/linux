@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ams-delta.c  --  SoC audio for Amstrad E3 (Delta) videophone
  *
@@ -5,21 +6,6 @@
  *
  * Initially based on sound/soc/omap/osk5912.x
  * Copyright (C) 2008 Mistral Solutions
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/gpio/consumer.h>
@@ -37,14 +23,31 @@
 #include "omap-mcbsp.h"
 #include "../codecs/cx20442.h"
 
+static struct gpio_desc *handset_mute;
+static struct gpio_desc *handsfree_mute;
+
+static int ams_delta_event_handset(struct snd_soc_dapm_widget *w,
+				   struct snd_kcontrol *k, int event)
+{
+	gpiod_set_value_cansleep(handset_mute, !SND_SOC_DAPM_EVENT_ON(event));
+	return 0;
+}
+
+static int ams_delta_event_handsfree(struct snd_soc_dapm_widget *w,
+				     struct snd_kcontrol *k, int event)
+{
+	gpiod_set_value_cansleep(handsfree_mute, !SND_SOC_DAPM_EVENT_ON(event));
+	return 0;
+}
+
 /* Board specific DAPM widgets */
 static const struct snd_soc_dapm_widget ams_delta_dapm_widgets[] = {
 	/* Handset */
 	SND_SOC_DAPM_MIC("Mouthpiece", NULL),
-	SND_SOC_DAPM_HP("Earpiece", NULL),
+	SND_SOC_DAPM_HP("Earpiece", ams_delta_event_handset),
 	/* Handsfree/Speakerphone */
 	SND_SOC_DAPM_MIC("Microphone", NULL),
-	SND_SOC_DAPM_SPK("Speaker", NULL),
+	SND_SOC_DAPM_SPK("Speaker", ams_delta_event_handsfree),
 };
 
 /* How they are connected to codec pins */
@@ -200,7 +203,7 @@ static int ams_delta_get_audio_mode(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const SOC_ENUM_SINGLE_EXT_DECL(ams_delta_audio_enum,
+static SOC_ENUM_SINGLE_EXT_DECL(ams_delta_audio_enum,
 				      ams_delta_audio_mode);
 
 static const struct snd_kcontrol_new ams_delta_audio_controls[] = {
@@ -327,15 +330,14 @@ static void cx81801_close(struct tty_struct *tty)
 }
 
 /* Line discipline .hangup() */
-static int cx81801_hangup(struct tty_struct *tty)
+static void cx81801_hangup(struct tty_struct *tty)
 {
 	cx81801_close(tty);
-	return 0;
 }
 
 /* Line discipline .receive_buf() */
-static void cx81801_receive(struct tty_struct *tty,
-				const unsigned char *cp, char *fp, int count)
+static void cx81801_receive(struct tty_struct *tty, const unsigned char *cp,
+		const char *fp, int count)
 {
 	struct snd_soc_component *component = tty->disc_data;
 	const unsigned char *c;
@@ -392,8 +394,8 @@ static void cx81801_wakeup(struct tty_struct *tty)
 }
 
 static struct tty_ldisc_ops cx81801_ops = {
-	.magic = TTY_LDISC_MAGIC,
 	.name = "cx81801",
+	.num = N_V253,
 	.owner = THIS_MODULE,
 	.open = cx81801_open,
 	.close = cx81801_close,
@@ -405,7 +407,7 @@ static struct tty_ldisc_ops cx81801_ops = {
 
 /*
  * Even if not very useful, the sound card can still work without any of the
- * above functonality activated.  You can still control its audio input/output
+ * above functionality activated.  You can still control its audio input/output
  * constellation and speakerphone gain from userspace by issuing AT commands
  * over the modem port.
  */
@@ -417,7 +419,7 @@ static struct snd_soc_ops ams_delta_ops;
  * Shares hardware with codec config pulse generation */
 static bool ams_delta_muted = 1;
 
-static int ams_delta_digital_mute(struct snd_soc_dai *dai, int mute)
+static int ams_delta_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	int apply;
 
@@ -436,18 +438,19 @@ static int ams_delta_digital_mute(struct snd_soc_dai *dai, int mute)
 
 /* Our codec DAI probably doesn't have its own .ops structure */
 static const struct snd_soc_dai_ops ams_delta_dai_ops = {
-	.digital_mute = ams_delta_digital_mute,
+	.mute_stream = ams_delta_mute,
+	.no_capture_mute = 1,
 };
 
 /* Will be used if the codec ever has its own digital_mute function */
 static int ams_delta_startup(struct snd_pcm_substream *substream)
 {
-	return ams_delta_digital_mute(NULL, 0);
+	return ams_delta_mute(NULL, 0, substream->stream);
 }
 
 static void ams_delta_shutdown(struct snd_pcm_substream *substream)
 {
-	ams_delta_digital_mute(NULL, 1);
+	ams_delta_mute(NULL, 1, substream->stream);
 }
 
 
@@ -457,19 +460,19 @@ static void ams_delta_shutdown(struct snd_pcm_substream *substream)
 
 static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 	int ret;
 	/* Codec is ready, now add/activate board specific controls */
 
 	/* Store a pointer to the codec structure for tty ldisc use */
-	cx20442_codec = rtd->codec_dai->component;
+	cx20442_codec = asoc_rtd_to_codec(rtd, 0)->component;
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */
-	ret = snd_soc_card_jack_new(card, "hook_switch", SND_JACK_HEADSET,
-				    &ams_delta_hook_switch, NULL, 0);
+	ret = snd_soc_card_jack_new_pins(card, "hook_switch", SND_JACK_HEADSET,
+					 &ams_delta_hook_switch, NULL, 0);
 	if (ret)
 		dev_warn(card->dev,
 				"Failed to allocate resources for hook switch, "
@@ -500,7 +503,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Register optional line discipline for over the modem control */
-	ret = tty_register_ldisc(N_V253, &cx81801_ops);
+	ret = tty_register_ldisc(&cx81801_ops);
 	if (ret) {
 		dev_warn(card->dev,
 				"Failed to register line discipline, "
@@ -518,17 +521,19 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* DAI glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(cx20442,
+	DAILINK_COMP_ARRAY(COMP_CPU("omap-mcbsp.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cx20442-codec", "cx20442-voice")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("omap-mcbsp.1")));
+
 static struct snd_soc_dai_link ams_delta_dai_link = {
 	.name = "CX20442",
 	.stream_name = "CX20442",
-	.cpu_dai_name = "omap-mcbsp.1",
-	.codec_dai_name = "cx20442-voice",
 	.init = ams_delta_cx20442_init,
-	.platform_name = "omap-mcbsp.1",
-	.codec_name = "cx20442-codec",
 	.ops = &ams_delta_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
+	SND_SOC_DAILINK_REG(cx20442),
 };
 
 /* Audio card driver */
@@ -554,6 +559,16 @@ static int ams_delta_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
+	handset_mute = devm_gpiod_get(card->dev, "handset_mute",
+				      GPIOD_OUT_HIGH);
+	if (IS_ERR(handset_mute))
+		return PTR_ERR(handset_mute);
+
+	handsfree_mute = devm_gpiod_get(card->dev, "handsfree_mute",
+					GPIOD_OUT_HIGH);
+	if (IS_ERR(handsfree_mute))
+		return PTR_ERR(handsfree_mute);
+
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
@@ -567,9 +582,7 @@ static int ams_delta_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	if (tty_unregister_ldisc(N_V253) != 0)
-		dev_warn(&pdev->dev,
-			"failed to unregister V253 line discipline\n");
+	tty_unregister_ldisc(&cx81801_ops);
 
 	snd_soc_unregister_card(card);
 	card->dev = NULL;

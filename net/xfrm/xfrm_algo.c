@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * xfrm algorithm interface
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <crypto/hash.h>
@@ -345,6 +341,26 @@ static struct xfrm_algo_desc aalg_list[] = {
 
 	.pfkey_supported = 0,
 },
+{
+	.name = "hmac(sm3)",
+	.compat = "sm3",
+
+	.uinfo = {
+		.auth = {
+			.icv_truncbits = 256,
+			.icv_fullbits = 256,
+		}
+	},
+
+	.pfkey_supported = 1,
+
+	.desc = {
+		.sadb_alg_id = SADB_X_AALG_SM3_256HMAC,
+		.sadb_alg_ivlen = 0,
+		.sadb_alg_minbits = 256,
+		.sadb_alg_maxbits = 256
+	}
+},
 };
 
 static struct xfrm_algo_desc ealg_list[] = {
@@ -556,6 +572,27 @@ static struct xfrm_algo_desc ealg_list[] = {
 		.sadb_alg_maxbits = 288
 	}
 },
+{
+	.name = "cbc(sm4)",
+	.compat = "sm4",
+
+	.uinfo = {
+		.encr = {
+			.geniv = "echainiv",
+			.blockbits = 128,
+			.defkeybits = 128,
+		}
+	},
+
+	.pfkey_supported = 1,
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_SM4CBC,
+		.sadb_alg_ivlen	= 16,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
 };
 
 static struct xfrm_algo_desc calg_list[] = {
@@ -630,8 +667,8 @@ static const struct xfrm_algo_list xfrm_aalg_list = {
 static const struct xfrm_algo_list xfrm_ealg_list = {
 	.algs = ealg_list,
 	.entries = ARRAY_SIZE(ealg_list),
-	.type = CRYPTO_ALG_TYPE_BLKCIPHER,
-	.mask = CRYPTO_ALG_TYPE_BLKCIPHER_MASK,
+	.type = CRYPTO_ALG_TYPE_SKCIPHER,
+	.mask = CRYPTO_ALG_TYPE_MASK,
 };
 
 static const struct xfrm_algo_list xfrm_calg_list = {

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Applied Micro X-Gene SoC Ethernet Driver
  *
  * Copyright (c) 2014, Applied Micro Circuits Corporation
  * Authors: Iyappan Subramanian <isubramanian@apm.com>
  *	    Ravi Patel <rapatel@apm.com>
  *	    Keyur Chudgar <kchudgar@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/gpio.h>
@@ -352,7 +340,8 @@ static int xgene_enet_work_msg(struct sk_buff *skb, u64 *hopinfo)
 				nr_frags = skb_shinfo(skb)->nr_frags;
 
 				for (i = 0; i < 2 && i < nr_frags; i++)
-					len += skb_shinfo(skb)->frags[i].size;
+					len += skb_frag_size(
+						&skb_shinfo(skb)->frags[i]);
 
 				/* HW requires header must reside in 3 buffer */
 				if (unlikely(hdr_len > len)) {
@@ -707,6 +696,12 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	buf_pool->rx_skb[skb_index] = NULL;
 
 	datalen = xgene_enet_get_data_len(le64_to_cpu(raw_desc->m1));
+
+	/* strip off CRC as HW isn't doing this */
+	nv = GET_VAL(NV, le64_to_cpu(raw_desc->m0));
+	if (!nv)
+		datalen -= 4;
+
 	skb_put(skb, datalen);
 	prefetch(skb->data - NET_IP_ALIGN);
 	skb->protocol = eth_type_trans(skb, ndev);
@@ -728,12 +723,8 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 		}
 	}
 
-	nv = GET_VAL(NV, le64_to_cpu(raw_desc->m0));
-	if (!nv) {
-		/* strip off CRC as HW isn't doing this */
-		datalen -= 4;
+	if (!nv)
 		goto skip_jumbo;
-	}
 
 	slots = page_pool->slots - 1;
 	head = page_pool->head;
@@ -870,7 +861,7 @@ static int xgene_enet_napi(struct napi_struct *napi, const int budget)
 	return processed;
 }
 
-static void xgene_enet_timeout(struct net_device *ndev)
+static void xgene_enet_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct netdev_queue *txq;
@@ -880,7 +871,7 @@ static void xgene_enet_timeout(struct net_device *ndev)
 
 	for (i = 0; i < pdata->txq_cnt; i++) {
 		txq = netdev_get_tx_queue(ndev, i);
-		txq->trans_start = jiffies;
+		txq_trans_cond_update(txq);
 		netif_tx_start_queue(txq);
 	}
 }
@@ -1628,7 +1619,6 @@ static int xgene_get_rx_delay(struct xgene_enet_pdata *pdata)
 static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 {
 	struct platform_device *pdev = pdata->pdev;
-	struct device *dev = &pdev->dev;
 	int i, ret, max_irqs;
 
 	if (phy_interface_mode_is_rgmii(pdata->phy_mode))
@@ -1648,9 +1638,7 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 				pdata->cq_cnt = max_irqs / 2;
 				break;
 			}
-			dev_err(dev, "Unable to get ENET IRQ\n");
-			ret = ret ? : -ENXIO;
-			return ret;
+			return ret ? : -ENXIO;
 		}
 		pdata->irqs[i] = ret;
 	}
@@ -1745,7 +1733,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		xgene_get_port_id_acpi(dev, pdata);
 #endif
 
-	if (!device_get_mac_address(dev, ndev->dev_addr, ETH_ALEN))
+	if (device_get_ethdev_address(dev, ndev))
 		eth_hw_addr_random(ndev);
 
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
@@ -2034,7 +2022,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	int ret;
 
 	ndev = alloc_etherdev_mqs(sizeof(struct xgene_enet_pdata),
-				  XGENE_NUM_RX_RING, XGENE_NUM_TX_RING);
+				  XGENE_NUM_TX_RING, XGENE_NUM_RX_RING);
 	if (!ndev)
 		return -ENOMEM;
 
@@ -2193,7 +2181,6 @@ static struct platform_driver xgene_enet_driver = {
 module_platform_driver(xgene_enet_driver);
 
 MODULE_DESCRIPTION("APM X-Gene SoC Ethernet driver");
-MODULE_VERSION(XGENE_DRV_VERSION);
 MODULE_AUTHOR("Iyappan Subramanian <isubramanian@apm.com>");
 MODULE_AUTHOR("Keyur Chudgar <kchudgar@apm.com>");
 MODULE_LICENSE("GPL");

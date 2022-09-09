@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -45,13 +42,21 @@ nflog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 static int nflog_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_nflog_info *info = par->targinfo;
+	int ret;
 
 	if (info->flags & ~XT_NFLOG_MASK)
 		return -EINVAL;
 	if (info->prefix[sizeof(info->prefix) - 1] != '\0')
 		return -EINVAL;
 
-	return nf_logger_find_get(par->family, NF_LOG_TYPE_ULOG);
+	ret = nf_logger_find_get(par->family, NF_LOG_TYPE_ULOG);
+	if (ret != 0 && !par->nft_compat) {
+		request_module("%s", "nfnetlink_log");
+
+		ret = nf_logger_find_get(par->family, NF_LOG_TYPE_ULOG);
+	}
+
+	return ret;
 }
 
 static void nflog_tg_destroy(const struct xt_tgdtor_param *par)
@@ -82,3 +87,4 @@ static void __exit nflog_tg_exit(void)
 
 module_init(nflog_tg_init);
 module_exit(nflog_tg_exit);
+MODULE_SOFTDEP("pre: nfnetlink_log");

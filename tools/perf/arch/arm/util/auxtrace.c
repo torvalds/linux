@@ -6,10 +6,12 @@
 
 #include <stdbool.h>
 #include <linux/coresight-pmu.h>
+#include <linux/zalloc.h>
 
-#include "../../util/auxtrace.h"
-#include "../../util/evlist.h"
-#include "../../util/pmu.h"
+#include "../../../util/auxtrace.h"
+#include "../../../util/debug.h"
+#include "../../../util/evlist.h"
+#include "../../../util/pmu.h"
 #include "cs-etm.h"
 #include "arm-spe.h"
 
@@ -49,39 +51,38 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 }
 
 struct auxtrace_record
-*auxtrace_record__init(struct perf_evlist *evlist, int *err)
+*auxtrace_record__init(struct evlist *evlist, int *err)
 {
 	struct perf_pmu	*cs_etm_pmu;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool found_etm = false;
-	bool found_spe = false;
-	static struct perf_pmu **arm_spe_pmus = NULL;
-	static int nr_spes = 0;
+	struct perf_pmu *found_spe = NULL;
+	struct perf_pmu **arm_spe_pmus = NULL;
+	int nr_spes = 0;
 	int i = 0;
 
 	if (!evlist)
 		return NULL;
 
 	cs_etm_pmu = perf_pmu__find(CORESIGHT_ETM_PMU_NAME);
-
-	if (!arm_spe_pmus)
-		arm_spe_pmus = find_all_arm_spe_pmus(&nr_spes, err);
+	arm_spe_pmus = find_all_arm_spe_pmus(&nr_spes, err);
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (cs_etm_pmu &&
-		    evsel->attr.type == cs_etm_pmu->type)
+		    evsel->core.attr.type == cs_etm_pmu->type)
 			found_etm = true;
 
-		if (!nr_spes)
+		if (!nr_spes || found_spe)
 			continue;
 
 		for (i = 0; i < nr_spes; i++) {
-			if (evsel->attr.type == arm_spe_pmus[i]->type) {
-				found_spe = true;
+			if (evsel->core.attr.type == arm_spe_pmus[i]->type) {
+				found_spe = arm_spe_pmus[i];
 				break;
 			}
 		}
 	}
+	free(arm_spe_pmus);
 
 	if (found_etm && found_spe) {
 		pr_err("Concurrent ARM Coresight ETM and SPE operation not currently supported\n");
@@ -94,7 +95,7 @@ struct auxtrace_record
 
 #if defined(__aarch64__)
 	if (found_spe)
-		return arm_spe_recording_init(err, arm_spe_pmus[i]);
+		return arm_spe_recording_init(err, found_spe);
 #endif
 
 	/*
@@ -106,3 +107,35 @@ struct auxtrace_record
 	*err = 0;
 	return NULL;
 }
+
+#if defined(__arm__)
+u64 compat_auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+	u64 result;
+
+	__asm__ __volatile__(
+"	ldrd    %0, %H0, [%1]"
+	: "=&r" (result)
+	: "r" (&pc->aux_head), "Qo" (pc->aux_head)
+	);
+
+	return result;
+}
+
+int compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+
+	/* Ensure all reads are done before we write the tail out */
+	smp_mb();
+
+	__asm__ __volatile__(
+"	strd    %2, %H2, [%1]"
+	: "=Qo" (pc->aux_tail)
+	: "r" (&pc->aux_tail), "r" (tail)
+	);
+
+	return 0;
+}
+#endif

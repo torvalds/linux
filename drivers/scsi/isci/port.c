@@ -62,7 +62,7 @@
 
 #undef C
 #define C(a) (#a)
-const char *port_state_name(enum sci_port_states state)
+static const char *port_state_name(enum sci_port_states state)
 {
 	static const char * const strings[] = PORT_STATES;
 
@@ -115,9 +115,9 @@ static u32 sci_port_get_phys(struct isci_port *iport)
 /**
  * sci_port_get_properties() - This method simply returns the properties
  *    regarding the port, such as: physical index, protocols, sas address, etc.
- * @port: this parameter specifies the port for which to retrieve the physical
+ * @iport: this parameter specifies the port for which to retrieve the physical
  *    index.
- * @properties: This parameter specifies the properties structure into which to
+ * @prop: This parameter specifies the properties structure into which to
  *    copy the requested information.
  *
  * Indicate if the user specified a valid port. SCI_SUCCESS This value is
@@ -164,7 +164,8 @@ static void isci_port_bc_change_received(struct isci_host *ihost,
 		"%s: isci_phy = %p, sas_phy = %p\n",
 		__func__, iphy, &iphy->sas_phy);
 
-	ihost->sas_ha.notify_port_event(&iphy->sas_phy, PORTE_BROADCAST_RCVD);
+	sas_notify_port_event(&iphy->sas_phy,
+			      PORTE_BROADCAST_RCVD, GFP_ATOMIC);
 	sci_port_bcn_enable(iport);
 }
 
@@ -223,8 +224,8 @@ static void isci_port_link_up(struct isci_host *isci_host,
 	/* Notify libsas that we have an address frame, if indeed
 	 * we've found an SSP, SMP, or STP target */
 	if (success)
-		isci_host->sas_ha.notify_port_event(&iphy->sas_phy,
-						    PORTE_BYTES_DMAED);
+		sas_notify_port_event(&iphy->sas_phy,
+				      PORTE_BYTES_DMAED, GFP_ATOMIC);
 }
 
 
@@ -232,8 +233,8 @@ static void isci_port_link_up(struct isci_host *isci_host,
  * isci_port_link_down() - This function is called by the sci core when a link
  *    becomes inactive.
  * @isci_host: This parameter specifies the isci host object.
- * @phy: This parameter specifies the isci phy with the active link.
- * @port: This parameter specifies the isci port with the active link.
+ * @isci_phy: This parameter specifies the isci phy with the active link.
+ * @isci_port: This parameter specifies the isci port with the active link.
  *
  */
 static void isci_port_link_down(struct isci_host *isci_host,
@@ -270,8 +271,8 @@ static void isci_port_link_down(struct isci_host *isci_host,
 	 * isci_port_deformed and isci_dev_gone functions.
 	 */
 	sas_phy_disconnected(&isci_phy->sas_phy);
-	isci_host->sas_ha.notify_phy_event(&isci_phy->sas_phy,
-					   PHYE_LOSS_OF_SIGNAL);
+	sas_notify_phy_event(&isci_phy->sas_phy,
+			     PHYE_LOSS_OF_SIGNAL, GFP_ATOMIC);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p - Done\n", __func__, isci_port);
@@ -307,7 +308,7 @@ static void port_state_machine_change(struct isci_port *iport,
 /**
  * isci_port_hard_reset_complete() - This function is called by the sci core
  *    when the hard reset complete notification has been received.
- * @port: This parameter specifies the sci port with the active link.
+ * @isci_port: This parameter specifies the sci port with the active link.
  * @completion_status: This parameter specifies the core status for the reset
  *    process.
  *
@@ -394,9 +395,10 @@ bool sci_port_is_valid_phy_assignment(struct isci_port *iport, u32 phy_index)
 }
 
 /**
- *
- * @sci_port: This is the port object for which to determine if the phy mask
+ * sci_port_is_phy_mask_valid()
+ * @iport: This is the port object for which to determine if the phy mask
  *    can be supported.
+ * @phy_mask: Phy mask belonging to this port
  *
  * This method will return a true value if the port's phy mask can be supported
  * by the SCU. The following is a list of valid PHY mask configurations for
@@ -532,7 +534,7 @@ void sci_port_get_attached_sas_address(struct isci_port *iport, struct sci_sas_a
 /**
  * sci_port_construct_dummy_rnc() - create dummy rnc for si workaround
  *
- * @sci_port: logical port on which we need to create the remote node context
+ * @iport: logical port on which we need to create the remote node context
  * @rni: remote node index for this remote node context.
  *
  * This routine will construct a dummy remote node context data structure
@@ -676,8 +678,8 @@ static void sci_port_invalid_link_up(struct isci_port *iport, struct isci_phy *i
 
 /**
  * sci_port_general_link_up_handler - phy can be assigned to port?
- * @sci_port: sci_port object for which has a phy that has gone link up.
- * @sci_phy: This is the struct isci_phy object that has gone link up.
+ * @iport: sci_port object for which has a phy that has gone link up.
+ * @iphy: This is the struct isci_phy object that has gone link up.
  * @flags: PF_RESUME, PF_NOTIFY to sci_port_activate_phy
  *
  * Determine if this phy can be assigned to this port . If the phy is
@@ -715,10 +717,11 @@ static void sci_port_general_link_up_handler(struct isci_port *iport,
 
 
 /**
+ * sci_port_is_wide()
  * This method returns false if the port only has a single phy object assigned.
  *     If there are no phys or more than one phy then the method will return
  *    true.
- * @sci_port: The port for which the wide port condition is to be checked.
+ * @iport: The port for which the wide port condition is to be checked.
  *
  * bool true Is returned if this is a wide ported port. false Is returned if
  * this is a narrow port.
@@ -738,12 +741,13 @@ static bool sci_port_is_wide(struct isci_port *iport)
 }
 
 /**
+ * sci_port_link_detected()
  * This method is called by the PHY object when the link is detected. if the
  *    port wants the PHY to continue on to the link up state then the port
  *    layer must return true.  If the port object returns false the phy object
  *    must halt its attempt to go link up.
- * @sci_port: The port associated with the phy object.
- * @sci_phy: The phy object that is trying to go link up.
+ * @iport: The port associated with the phy object.
+ * @iphy: The phy object that is trying to go link up.
  *
  * true if the phy object can continue to the link up condition. true Is
  * returned if this phy can continue to the ready state. false Is returned if
@@ -816,10 +820,8 @@ done:
 
 /* --------------------------------------------------------------------------- */
 
-/**
+/*
  * This function updates the hardwares VIIT entry for this port.
- *
- *
  */
 static void sci_port_update_viit_entry(struct isci_port *iport)
 {
@@ -873,7 +875,7 @@ static void sci_port_suspend_port_task_scheduler(struct isci_port *iport)
 
 /**
  * sci_port_post_dummy_request() - post dummy/workaround request
- * @sci_port: port to post task
+ * @iport: port to post task
  *
  * Prevent the hardware scheduler from posting new requests to the front
  * of the scheduler queue causing a starvation problem for currently
@@ -898,10 +900,11 @@ static void sci_port_post_dummy_request(struct isci_port *iport)
 }
 
 /**
- * This routine will abort the dummy request.  This will alow the hardware to
+ * sci_port_abort_dummy_request()
+ * This routine will abort the dummy request.  This will allow the hardware to
  * power down parts of the silicon to save power.
  *
- * @sci_port: The port on which the task must be aborted.
+ * @iport: The port on which the task must be aborted.
  *
  */
 static void sci_port_abort_dummy_request(struct isci_port *iport)
@@ -922,8 +925,8 @@ static void sci_port_abort_dummy_request(struct isci_port *iport)
 }
 
 /**
- *
- * @sci_port: This is the struct isci_port object to resume.
+ * sci_port_resume_port_task_scheduler()
+ * @iport: This is the struct isci_port object to resume.
  *
  * This method will resume the port task scheduler for this port object. none
  */
@@ -1013,8 +1016,8 @@ static void sci_port_invalidate_dummy_remote_node(struct isci_port *iport)
 }
 
 /**
- *
- * @object: This is the object which is cast to a struct isci_port object.
+ * sci_port_ready_substate_operational_exit()
+ * @sm: This is the object which is cast to a struct isci_port object.
  *
  * This method will perform the actions required by the struct isci_port on
  * exiting the SCI_PORT_SUB_OPERATIONAL. This function reports
@@ -1185,9 +1188,9 @@ static enum sci_status sci_port_hard_reset(struct isci_port *iport, u32 timeout)
 }
 
 /**
- * sci_port_add_phy() -
- * @sci_port: This parameter specifies the port in which the phy will be added.
- * @sci_phy: This parameter is the phy which is to be added to the port.
+ * sci_port_add_phy()
+ * @iport: This parameter specifies the port in which the phy will be added.
+ * @iphy: This parameter is the phy which is to be added to the port.
  *
  * This method will add a PHY to the selected port. This method returns an
  * enum sci_status. SCI_SUCCESS the phy has been added to the port. Any other
@@ -1256,9 +1259,9 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 }
 
 /**
- * sci_port_remove_phy() -
- * @sci_port: This parameter specifies the port in which the phy will be added.
- * @sci_phy: This parameter is the phy which is to be added to the port.
+ * sci_port_remove_phy()
+ * @iport: This parameter specifies the port in which the phy will be added.
+ * @iphy: This parameter is the phy which is to be added to the port.
  *
  * This method will remove the PHY from the selected PORT. This method returns
  * an enum sci_status. SCI_SUCCESS the phy has been removed from the port. Any

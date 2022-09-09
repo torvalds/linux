@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/sound/soc/pxa/palm27x.c
  *
@@ -6,11 +7,6 @@
  * based on tosa.c
  *
  * Copyright (C) 2008 Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -24,7 +20,7 @@
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/asoc-palm27x.h>
 
 static struct snd_soc_jack hs_jack;
@@ -75,9 +71,10 @@ static int palm27x_ac97_init(struct snd_soc_pcm_runtime *rtd)
 	int err;
 
 	/* Jack detection API stuff */
-	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
-				    SND_JACK_HEADPHONE, &hs_jack, hs_jack_pins,
-				    ARRAY_SIZE(hs_jack_pins));
+	err = snd_soc_card_jack_new_pins(rtd->card, "Headphone Jack",
+					 SND_JACK_HEADPHONE, &hs_jack,
+					 hs_jack_pins,
+					 ARRAY_SIZE(hs_jack_pins));
 	if (err)
 		return err;
 
@@ -87,23 +84,27 @@ static int palm27x_ac97_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
+SND_SOC_DAILINK_DEFS(aux,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97-aux")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-aux")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link palm27x_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "pxa2xx-ac97",
-	.codec_dai_name =  "wm9712-hifi",
-	.codec_name = "wm9712-codec",
-	.platform_name = "pxa-pcm-audio",
 	.init = palm27x_ac97_init,
+	SND_SOC_DAILINK_REG(hifi),
 },
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
-	.cpu_dai_name = "pxa2xx-ac97-aux",
-	.codec_dai_name = "wm9712-aux",
-	.codec_name = "wm9712-codec",
-	.platform_name = "pxa-pcm-audio",
+	SND_SOC_DAILINK_REG(aux),
 },
 };
 

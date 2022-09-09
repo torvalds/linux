@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is a module which is used for logging packets.
  */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -47,6 +44,7 @@ log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 static int log_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_log_info *loginfo = par->targinfo;
+	int ret;
 
 	if (par->family != NFPROTO_IPV4 && par->family != NFPROTO_IPV6)
 		return -EINVAL;
@@ -61,7 +59,14 @@ static int log_tg_check(const struct xt_tgchk_param *par)
 		return -EINVAL;
 	}
 
-	return nf_logger_find_get(par->family, NF_LOG_TYPE_LOG);
+	ret = nf_logger_find_get(par->family, NF_LOG_TYPE_LOG);
+	if (ret != 0 && !par->nft_compat) {
+		request_module("%s", "nf_log_syslog");
+
+		ret = nf_logger_find_get(par->family, NF_LOG_TYPE_LOG);
+	}
+
+	return ret;
 }
 
 static void log_tg_destroy(const struct xt_tgdtor_param *par)
@@ -111,3 +116,4 @@ MODULE_AUTHOR("Jan Rekorajski <baggins@pld.org.pl>");
 MODULE_DESCRIPTION("Xtables: IPv4/IPv6 packet logging");
 MODULE_ALIAS("ipt_LOG");
 MODULE_ALIAS("ip6t_LOG");
+MODULE_SOFTDEP("pre: nf_log_syslog");

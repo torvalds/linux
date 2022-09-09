@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -44,15 +45,6 @@
 /******************************************************************************
     (c) 1995-1998 E.M. Serrat		emserrat@geocities.com
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 *******************************************************************************/
 
 #include <linux/errno.h>
@@ -92,8 +84,7 @@
 #include <net/dn_neigh.h>
 #include <net/dn_fib.h>
 
-struct dn_rt_hash_bucket
-{
+struct dn_rt_hash_bucket {
 	struct dn_route __rcu *chain;
 	spinlock_t lock;
 };
@@ -101,7 +92,7 @@ struct dn_rt_hash_bucket
 extern struct neigh_table dn_neigh_table;
 
 
-static unsigned char dn_hiord_addr[6] = {0xAA,0x00,0x04,0x00,0x00,0x00};
+static unsigned char dn_hiord_addr[6] = {0xAA, 0x00, 0x04, 0x00, 0x00, 0x00};
 
 static const int dn_rt_min_delay = 2 * HZ;
 static const int dn_rt_max_delay = 10 * HZ;
@@ -118,7 +109,8 @@ static void dn_dst_ifdown(struct dst_entry *, struct net_device *dev, int how);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
 static void dn_dst_update_pmtu(struct dst_entry *dst, struct sock *sk,
-			       struct sk_buff *skb , u32 mtu);
+			       struct sk_buff *skb , u32 mtu,
+			       bool confirm_neigh);
 static void dn_dst_redirect(struct dst_entry *dst, struct sock *sk,
 			    struct sk_buff *skb);
 static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst,
@@ -167,7 +159,7 @@ static void dn_dst_ifdown(struct dst_entry *dst, struct net_device *dev, int how
 		struct neighbour *n = rt->n;
 
 		if (n && n->dev == dev) {
-			n->dev = dev_net(dev)->loopback_dev;
+			n->dev = blackhole_netdev;
 			dev_hold(n->dev);
 			dev_put(dev);
 		}
@@ -209,7 +201,7 @@ static void dn_dst_check_expire(struct timer_list *unused)
 		}
 		spin_unlock(&dn_rt_hash_table[i].lock);
 
-		if ((jiffies - now) > 0)
+		if (jiffies != now)
 			break;
 	}
 
@@ -259,7 +251,8 @@ static int dn_dst_gc(struct dst_ops *ops)
  * advertise to the other end).
  */
 static void dn_dst_update_pmtu(struct dst_entry *dst, struct sock *sk,
-			       struct sk_buff *skb, u32 mtu)
+			       struct sk_buff *skb, u32 mtu,
+			       bool confirm_neigh)
 {
 	struct dn_route *rt = (struct dn_route *) dst;
 	struct neighbour *n = rt->n;
@@ -365,10 +358,11 @@ static void dn_run_flush(struct timer_list *unused)
 	for (i = 0; i < dn_rt_hash_mask; i++) {
 		spin_lock_bh(&dn_rt_hash_table[i].lock);
 
-		if ((rt = xchg((struct dn_route **)&dn_rt_hash_table[i].chain, NULL)) == NULL)
+		rt = xchg((struct dn_route **)&dn_rt_hash_table[i].chain, NULL);
+		if (!rt)
 			goto nothing_to_declare;
 
-		for(; rt; rt = next) {
+		for (; rt; rt = next) {
 			next = rcu_dereference_raw(rt->dn_next);
 			RCU_INIT_POINTER(rt->dn_next, NULL);
 			dst_dev_put(&rt->dst);
@@ -431,7 +425,8 @@ static int dn_return_short(struct sk_buff *skb)
 	/* Add back headers */
 	skb_push(skb, skb->data - skb_network_header(skb));
 
-	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	cb = DN_SKB_CB(skb);
@@ -467,7 +462,8 @@ static int dn_return_long(struct sk_buff *skb)
 	/* Add back all headers */
 	skb_push(skb, skb->data - skb_network_header(skb));
 
-	if ((skb = skb_unshare(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_RX_DROP;
 
 	cb = DN_SKB_CB(skb);
@@ -500,6 +496,8 @@ static int dn_return_long(struct sk_buff *skb)
 
 /**
  * dn_route_rx_packet - Try and find a route for an incoming packet
+ * @net: The applicable net namespace
+ * @sk: Socket packet transmitted on
  * @skb: The packet to find a route for
  *
  * Returns: result of input function if route is found, error code otherwise
@@ -509,7 +507,8 @@ static int dn_route_rx_packet(struct net *net, struct sock *sk, struct sk_buff *
 	struct dn_skb_cb *cb;
 	int err;
 
-	if ((err = dn_route_input(skb)) == 0)
+	err = dn_route_input(skb);
+	if (err == 0)
 		return dst_input(skb);
 
 	cb = DN_SKB_CB(skb);
@@ -605,7 +604,7 @@ drop_it:
 static int dn_route_discard(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	/*
-	 * I know we drop the packet here, but thats considered success in
+	 * I know we drop the packet here, but that's considered success in
 	 * this case
 	 */
 	kfree_skb(skb);
@@ -633,7 +632,8 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 	if (dn == NULL)
 		goto dump_it;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
 		goto out;
 
 	if (!pskb_may_pull(skb, 3))
@@ -676,7 +676,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 	if (decnet_debug_level & 1)
 		printk(KERN_DEBUG
 			"dn_route_rcv: got 0x%02x from %s [%d %d %d]\n",
-			(int)flags, (dev) ? dev->name : "???", len, skb->len,
+			(int)flags, dev->name, len, skb->len,
 			padlen);
 
 	if (flags & DN_RT_PKT_CNTL) {
@@ -902,7 +902,7 @@ static inline int dn_match_addr(__le16 addr1, __le16 addr2)
 {
 	__u16 tmp = le16_to_cpu(addr1) ^ le16_to_cpu(addr2);
 	int match = 16;
-	while(tmp) {
+	while (tmp) {
 		tmp >>= 1;
 		match--;
 	}
@@ -1026,8 +1026,7 @@ source_ok:
 	if (!fld.daddr) {
 		fld.daddr = fld.saddr;
 
-		if (dev_out)
-			dev_put(dev_out);
+		dev_put(dev_out);
 		err = -EINVAL;
 		dev_out = init_net.loopback_dev;
 		if (!dev_out->dn_ptr)
@@ -1039,7 +1038,7 @@ source_ok:
 			fld.saddr = dnet_select_source(dev_out, 0,
 						       RT_SCOPE_HOST);
 			if (!fld.daddr)
-				goto out;
+				goto done;
 		}
 		fld.flowidn_oif = LOOPBACK_IFINDEX;
 		res.type = RTN_LOCAL;
@@ -1084,8 +1083,7 @@ source_ok:
 					neigh_release(neigh);
 					neigh = NULL;
 				} else {
-					if (dev_out)
-						dev_put(dev_out);
+					dev_put(dev_out);
 					if (dn_dev_islocal(neigh->dev, fld.daddr)) {
 						dev_out = init_net.loopback_dev;
 						res.type = RTN_LOCAL;
@@ -1122,7 +1120,7 @@ source_ok:
 		/* Ok then, we assume its directly connected and move on */
 select_source:
 		if (neigh)
-			gateway = ((struct dn_neigh *)neigh)->addr;
+			gateway = container_of(neigh, struct dn_neigh, n)->addr;
 		if (gateway == 0)
 			gateway = fld.daddr;
 		if (fld.saddr == 0) {
@@ -1144,8 +1142,7 @@ select_source:
 	if (res.type == RTN_LOCAL) {
 		if (!fld.saddr)
 			fld.saddr = fld.daddr;
-		if (dev_out)
-			dev_put(dev_out);
+		dev_put(dev_out);
 		dev_out = init_net.loopback_dev;
 		dev_hold(dev_out);
 		if (!dev_out->dn_ptr)
@@ -1168,8 +1165,7 @@ select_source:
 	if (!fld.saddr)
 		fld.saddr = DN_FIB_RES_PREFSRC(res);
 
-	if (dev_out)
-		dev_put(dev_out);
+	dev_put(dev_out);
 	dev_out = DN_FIB_RES_DEV(res);
 	dev_hold(dev_out);
 	fld.flowidn_oif = dev_out->ifindex;
@@ -1179,7 +1175,7 @@ make_route:
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	rt = dst_alloc(&dn_dst_ops, dev_out, 0, DST_OBSOLETE_NONE, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, dev_out, 0, DST_OBSOLETE_NONE, 0);
 	if (rt == NULL)
 		goto e_nobufs;
 
@@ -1222,8 +1218,7 @@ done:
 		neigh_release(neigh);
 	if (free_res)
 		dn_fib_res_put(&res);
-	if (dev_out)
-		dev_put(dev_out);
+	dev_put(dev_out);
 out:
 	return err;
 
@@ -1328,7 +1323,8 @@ static int dn_route_input_slow(struct sk_buff *skb)
 
 	dev_hold(in_dev);
 
-	if ((dn_db = rcu_dereference(in_dev->dn_ptr)) == NULL)
+	dn_db = rcu_dereference(in_dev->dn_ptr);
+	if (!dn_db)
 		goto out;
 
 	/* Zero source addresses are not allowed */
@@ -1387,7 +1383,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		fld.saddr = src_map;
 	}
 
-	switch(res.type) {
+	switch (res.type) {
 	case RTN_UNICAST:
 		/*
 		 * Forwarding check here, we only check for forwarding
@@ -1411,7 +1407,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 			flags |= RTCF_DOREDIRECT;
 
 		local_src = DN_FIB_RES_PREFSRC(res);
-
+		break;
 	case RTN_BLACKHOLE:
 	case RTN_UNREACHABLE:
 		break;
@@ -1433,7 +1429,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		/* Use the default router if there is one */
 		neigh = neigh_clone(dn_db->router);
 		if (neigh) {
-			gateway = ((struct dn_neigh *)neigh)->addr;
+			gateway = container_of(neigh, struct dn_neigh, n)->addr;
 			goto make_route;
 		}
 
@@ -1445,7 +1441,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	}
 
 make_route:
-	rt = dst_alloc(&dn_dst_ops, out_dev, 1, DST_OBSOLETE_NONE, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, out_dev, 1, DST_OBSOLETE_NONE, 0);
 	if (rt == NULL)
 		goto e_nobufs;
 
@@ -1502,8 +1498,7 @@ done:
 	if (free_res)
 		dn_fib_res_put(&res);
 	dev_put(in_dev);
-	if (out_dev)
-		dev_put(out_dev);
+	dev_put(out_dev);
 out:
 	return err;
 
@@ -1530,7 +1525,7 @@ static int dn_route_input(struct sk_buff *skb)
 		return 0;
 
 	rcu_read_lock();
-	for(rt = rcu_dereference(dn_rt_hash_table[hash].chain); rt != NULL;
+	for (rt = rcu_dereference(dn_rt_hash_table[hash].chain); rt != NULL;
 	    rt = rcu_dereference(rt->dn_next)) {
 		if ((rt->fld.saddr == cb->src) &&
 		    (rt->fld.daddr == cb->dst) &&
@@ -1651,8 +1646,8 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_dn_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+				     rtm_dn_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -1743,13 +1738,13 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
-	for(h = 0; h <= dn_rt_hash_mask; h++) {
+	for (h = 0; h <= dn_rt_hash_mask; h++) {
 		if (h < s_h)
 			continue;
 		if (h > s_h)
 			s_idx = 0;
 		rcu_read_lock_bh();
-		for(rt = rcu_dereference_bh(dn_rt_hash_table[h].chain), idx = 0;
+		for (rt = rcu_dereference_bh(dn_rt_hash_table[h].chain), idx = 0;
 			rt;
 			rt = rcu_dereference_bh(rt->dn_next), idx++) {
 			if (idx < s_idx)
@@ -1783,7 +1778,7 @@ static struct dn_route *dn_rt_cache_get_first(struct seq_file *seq)
 	struct dn_route *rt = NULL;
 	struct dn_rt_cache_iter_state *s = seq->private;
 
-	for(s->bucket = dn_rt_hash_mask; s->bucket >= 0; --s->bucket) {
+	for (s->bucket = dn_rt_hash_mask; s->bucket >= 0; --s->bucket) {
 		rcu_read_lock_bh();
 		rt = rcu_dereference_bh(dn_rt_hash_table[s->bucket].chain);
 		if (rt)
@@ -1813,7 +1808,7 @@ static void *dn_rt_cache_seq_start(struct seq_file *seq, loff_t *pos)
 	struct dn_route *rt = dn_rt_cache_get_first(seq);
 
 	if (rt) {
-		while(*pos && (rt = dn_rt_cache_get_next(seq, rt)))
+		while (*pos && (rt = dn_rt_cache_get_next(seq, rt)))
 			--*pos;
 	}
 	return *pos ? NULL : rt;
@@ -1868,21 +1863,21 @@ void __init dn_route_init(void)
 
 	goal = totalram_pages() >> (26 - PAGE_SHIFT);
 
-	for(order = 0; (1UL << order) < goal; order++)
+	for (order = 0; (1UL << order) < goal; order++)
 		/* NOTHING */;
 
 	/*
 	 * Only want 1024 entries max, since the table is very, very unlikely
 	 * to be larger than that.
 	 */
-	while(order && ((((1UL << order) * PAGE_SIZE) /
+	while (order && ((((1UL << order) * PAGE_SIZE) /
 				sizeof(struct dn_rt_hash_bucket)) >= 2048))
 		order--;
 
 	do {
 		dn_rt_hash_mask = (1UL << order) * PAGE_SIZE /
 			sizeof(struct dn_rt_hash_bucket);
-		while(dn_rt_hash_mask & (dn_rt_hash_mask - 1))
+		while (dn_rt_hash_mask & (dn_rt_hash_mask - 1))
 			dn_rt_hash_mask--;
 		dn_rt_hash_table = (struct dn_rt_hash_bucket *)
 			__get_free_pages(GFP_ATOMIC, order);
@@ -1897,7 +1892,7 @@ void __init dn_route_init(void)
 		(long)(dn_rt_hash_mask*sizeof(struct dn_rt_hash_bucket))/1024);
 
 	dn_rt_hash_mask--;
-	for(i = 0; i <= dn_rt_hash_mask; i++) {
+	for (i = 0; i <= dn_rt_hash_mask; i++) {
 		spin_lock_init(&dn_rt_hash_table[i].lock);
 		dn_rt_hash_table[i].chain = NULL;
 	}

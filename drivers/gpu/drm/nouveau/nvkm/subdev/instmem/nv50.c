@@ -133,12 +133,12 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	 * into it.  The lock has to be dropped while doing this due
 	 * to the possibility of recursion for page table allocation.
 	 */
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&imem->base.mutex);
 	while ((ret = nvkm_vmm_get(vmm, 12, size, &bar))) {
 		/* Evict unused mappings, and keep retrying until we either
 		 * succeed,or there's no more objects left on the LRU.
 		 */
-		mutex_lock(&subdev->mutex);
+		mutex_lock(&imem->base.mutex);
 		eobj = list_first_entry_or_null(&imem->lru, typeof(*eobj), lru);
 		if (eobj) {
 			nvkm_debug(subdev, "evict %016llx %016llx @ %016llx\n",
@@ -151,7 +151,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 			emap = eobj->map;
 			eobj->map = NULL;
 		}
-		mutex_unlock(&subdev->mutex);
+		mutex_unlock(&imem->base.mutex);
 		if (!eobj)
 			break;
 		iounmap(emap);
@@ -160,12 +160,12 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 
 	if (ret == 0)
 		ret = nvkm_memory_map(memory, 0, vmm, bar, NULL, 0);
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&imem->base.mutex);
 	if (ret || iobj->bar) {
 		/* We either failed, or another thread beat us. */
-		mutex_unlock(&subdev->mutex);
+		mutex_unlock(&imem->base.mutex);
 		nvkm_vmm_put(vmm, &bar);
-		mutex_lock(&subdev->mutex);
+		mutex_lock(&imem->base.mutex);
 		return;
 	}
 
@@ -197,7 +197,7 @@ nv50_instobj_release(struct nvkm_memory *memory)
 	wmb();
 	nvkm_bar_flush(subdev->device->bar);
 
-	if (refcount_dec_and_mutex_lock(&iobj->maps, &subdev->mutex)) {
+	if (refcount_dec_and_mutex_lock(&iobj->maps, &imem->base.mutex)) {
 		/* Add the now-unused mapping to the LRU instead of directly
 		 * unmapping it here, in case we need to map it again later.
 		 */
@@ -208,7 +208,7 @@ nv50_instobj_release(struct nvkm_memory *memory)
 
 		/* Switch back to NULL accessors when last map is gone. */
 		iobj->base.memory.ptrs = NULL;
-		mutex_unlock(&subdev->mutex);
+		mutex_unlock(&imem->base.mutex);
 	}
 }
 
@@ -227,9 +227,9 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	/* Take the lock, and re-check that another thread hasn't
 	 * already mapped the object in the meantime.
 	 */
-	mutex_lock(&imem->subdev.mutex);
+	mutex_lock(&imem->mutex);
 	if (refcount_inc_not_zero(&iobj->maps)) {
-		mutex_unlock(&imem->subdev.mutex);
+		mutex_unlock(&imem->mutex);
 		return iobj->map;
 	}
 
@@ -252,7 +252,7 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 		refcount_set(&iobj->maps, 1);
 	}
 
-	mutex_unlock(&imem->subdev.mutex);
+	mutex_unlock(&imem->mutex);
 	return map;
 }
 
@@ -265,7 +265,7 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 	/* Exclude bootstrapped objects (ie. the page tables for the
 	 * instmem BAR itself) from eviction.
 	 */
-	mutex_lock(&imem->subdev.mutex);
+	mutex_lock(&imem->mutex);
 	if (likely(iobj->lru.next)) {
 		list_del_init(&iobj->lru);
 		iobj->lru.next = NULL;
@@ -273,7 +273,7 @@ nv50_instobj_boot(struct nvkm_memory *memory, struct nvkm_vmm *vmm)
 
 	nv50_instobj_kmap(iobj, vmm);
 	nvkm_instmem_boot(imem);
-	mutex_unlock(&imem->subdev.mutex);
+	mutex_unlock(&imem->mutex);
 }
 
 static u64
@@ -313,14 +313,14 @@ nv50_instobj_dtor(struct nvkm_memory *memory)
 	struct nv50_instobj *iobj = nv50_instobj(memory);
 	struct nvkm_instmem *imem = &iobj->imem->base;
 	struct nvkm_vma *bar;
-	void *map = map;
+	void *map;
 
-	mutex_lock(&imem->subdev.mutex);
+	mutex_lock(&imem->mutex);
 	if (likely(iobj->lru.next))
 		list_del(&iobj->lru);
 	map = iobj->map;
 	bar = iobj->bar;
-	mutex_unlock(&imem->subdev.mutex);
+	mutex_unlock(&imem->mutex);
 
 	if (map) {
 		struct nvkm_vmm *vmm = nvkm_bar_bar2_vmm(imem->subdev.device);
@@ -386,14 +386,14 @@ nv50_instmem = {
 };
 
 int
-nv50_instmem_new(struct nvkm_device *device, int index,
+nv50_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		 struct nvkm_instmem **pimem)
 {
 	struct nv50_instmem *imem;
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_instmem_ctor(&nv50_instmem, device, index, &imem->base);
+	nvkm_instmem_ctor(&nv50_instmem, device, type, inst, &imem->base);
 	INIT_LIST_HEAD(&imem->lru);
 	*pimem = &imem->base;
 	return 0;

@@ -5,8 +5,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <asm/processor.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
 /*
  * Flush all TLB entries on the local CPU.
@@ -27,13 +25,8 @@ static inline void __tlb_flush_idte(unsigned long asce)
 	if (MACHINE_HAS_TLB_GUEST)
 		opt |= IDTE_GUEST_ASCE;
 	/* Global TLB flush for the mm */
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,0,%0,%1,0"
-		: : "a" (opt), "a" (asce) : "cc");
+	asm volatile("idte 0,%1,%0" : : "a" (opt), "a" (asce) : "cc");
 }
-
-#ifdef CONFIG_SMP
-void smp_ptlb_all(void);
 
 /*
  * Flush all TLB entries on all CPUs.
@@ -83,22 +76,6 @@ static inline void __tlb_flush_kernel(void)
 	else
 		__tlb_flush_global();
 }
-#else
-#define __tlb_flush_global()	__tlb_flush_local()
-
-/*
- * Flush TLB entries for a specific ASCE on all CPUs.
- */
-static inline void __tlb_flush_mm(struct mm_struct *mm)
-{
-	__tlb_flush_local();
-}
-
-static inline void __tlb_flush_kernel(void)
-{
-	__tlb_flush_local();
-}
-#endif
 
 static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 {

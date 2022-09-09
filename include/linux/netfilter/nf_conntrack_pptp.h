@@ -3,9 +3,14 @@
 #ifndef _NF_CONNTRACK_PPTP_H
 #define _NF_CONNTRACK_PPTP_H
 
+#include <linux/netfilter.h>
+#include <linux/skbuff.h>
+#include <linux/types.h>
 #include <linux/netfilter/nf_conntrack_common.h>
+#include <net/netfilter/nf_conntrack_expect.h>
+#include <uapi/linux/netfilter/nf_conntrack_tuple_common.h>
 
-extern const char *const pptp_msg_name[];
+const char *pptp_msg_name(u_int16_t msg);
 
 /* state of the control session */
 enum pptp_ctrlsess_state {
@@ -44,8 +49,6 @@ struct nf_nat_pptp {
 	__be16 pns_call_id;			/* NAT'ed PNS call id */
 	__be16 pac_call_id;			/* NAT'ed PAC call id */
 };
-
-#ifdef __KERNEL__
 
 #define PPTP_CONTROL_PORT	1723
 
@@ -297,31 +300,22 @@ union pptp_ctrl_union {
 	struct PptpSetLinkInfo		setlink;
 };
 
-/* crap needed for nf_conntrack_compat.h */
-struct nf_conn;
-struct nf_conntrack_expect;
+struct nf_nat_pptp_hook {
+	int (*outbound)(struct sk_buff *skb,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+			unsigned int protoff,
+			struct PptpControlHeader *ctlh,
+			union pptp_ctrl_union *pptpReq);
+	int (*inbound)(struct sk_buff *skb,
+		       struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
+		       struct PptpControlHeader *ctlh,
+		       union pptp_ctrl_union *pptpReq);
+	void (*exp_gre)(struct nf_conntrack_expect *exp_orig,
+			struct nf_conntrack_expect *exp_reply);
+	void (*expectfn)(struct nf_conn *ct,
+			 struct nf_conntrack_expect *exp);
+};
 
-extern int
-(*nf_nat_pptp_hook_outbound)(struct sk_buff *skb,
-			     struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			     unsigned int protoff,
-			     struct PptpControlHeader *ctlh,
-			     union pptp_ctrl_union *pptpReq);
-
-extern int
-(*nf_nat_pptp_hook_inbound)(struct sk_buff *skb,
-			    struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			    unsigned int protoff,
-			    struct PptpControlHeader *ctlh,
-			    union pptp_ctrl_union *pptpReq);
-
-extern void
-(*nf_nat_pptp_hook_exp_gre)(struct nf_conntrack_expect *exp_orig,
-			    struct nf_conntrack_expect *exp_reply);
-
-extern void
-(*nf_nat_pptp_hook_expectfn)(struct nf_conn *ct,
-			     struct nf_conntrack_expect *exp);
-
-#endif /* __KERNEL__ */
+extern const struct nf_nat_pptp_hook __rcu *nf_nat_pptp_hook;
 #endif /* _NF_CONNTRACK_PPTP_H */

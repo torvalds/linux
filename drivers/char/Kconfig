@@ -7,62 +7,19 @@ menu "Character devices"
 
 source "drivers/tty/Kconfig"
 
-config DEVMEM
-	bool "/dev/mem virtual device support"
-	default y
-	help
-	  Say Y here if you want to support the /dev/mem device.
-	  The /dev/mem device is used to access areas of physical
-	  memory.
-	  When in doubt, say "Y".
-
-config DEVKMEM
-	bool "/dev/kmem virtual device support"
-	# On arm64, VMALLOC_START < PAGE_OFFSET, which confuses kmem read/write
-	depends on !ARM64
-	help
-	  Say Y here if you want to support the /dev/kmem device. The
-	  /dev/kmem device is rarely used, but can be used for certain
-	  kind of kernel debugging operations.
-	  When in doubt, say "N".
-
-config SGI_SNSC
-	bool "SGI Altix system controller communication support"
-	depends on (IA64_SGI_SN2 || IA64_GENERIC)
-	help
-	  If you have an SGI Altix and you want to enable system
-	  controller communication from user space (you want this!),
-	  say Y.  Otherwise, say N.
-
-config SGI_TIOCX
-       bool "SGI TIO CX driver support"
-       depends on (IA64_SGI_SN2 || IA64_GENERIC)
-       help
-         If you have an SGI Altix and you have fpga devices attached
-         to your TIO, say Y here, otherwise say N.
-
-config SGI_MBCS
-       tristate "SGI FPGA Core Services driver support"
-       depends on SGI_TIOCX
-       help
-         If you have an SGI Altix with an attached SABrick
-         say Y or M here, otherwise say N.
-
-source "drivers/tty/serial/Kconfig"
-source "drivers/tty/serdev/Kconfig"
-
 config TTY_PRINTK
 	tristate "TTY driver to output user messages via printk"
 	depends on EXPERT && TTY
 	default n
-	---help---
+	help
 	  If you say Y here, the support for writing user messages (i.e.
 	  console messages) via printk is available.
 
 	  The feature is useful to inline user messages with kernel
 	  messages.
 	  In order to use this feature, you should output user messages
-	  to /dev/ttyprintk or redirect console to this TTY.
+	  to /dev/ttyprintk or redirect console to this TTY, or boot
+	  the kernel with console=ttyprintk.
 
 	  If unsure, say N.
 
@@ -77,12 +34,12 @@ config TTY_PRINTK_LEVEL
 config PRINTER
 	tristate "Parallel printer support"
 	depends on PARPORT
-	---help---
+	help
 	  If you intend to attach a printer to the parallel port of your Linux
 	  box (as opposed to using a serial printer; if the connector at the
 	  printer has 9 or 25 holes ["female"], then it's serial), say Y.
 	  Also read the Printing-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  <https://www.tldp.org/docs.html#howto>.
 
 	  It is possible to share one parallel port among several devices
 	  (e.g. printer and ZIP drive) and it is safe to compile the
@@ -103,7 +60,7 @@ config PRINTER
 config LP_CONSOLE
 	bool "Support for console on line printer"
 	depends on PRINTER
-	---help---
+	help
 	  If you want kernel messages to be printed out as they occur, you
 	  can have a console on the printer. This option adds support for
 	  doing that; to actually get it to happen you need to pass the
@@ -120,7 +77,7 @@ config LP_CONSOLE
 config PPDEV
 	tristate "Support for user-space parallel port device drivers"
 	depends on PARPORT
-	---help---
+	help
 	  Saying Y to this adds support for /dev/parport device nodes.  This
 	  is needed for programs that want portable access to the parallel
 	  port, for instance deviceid (which displays Plug-and-Play device
@@ -135,12 +92,11 @@ config PPDEV
 
 	  If unsure, say N.
 
-source "drivers/tty/hvc/Kconfig"
-
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
-	depends on VIRTIO && TTY
+	depends on TTY
 	select HVC_DRIVER
+	select VIRTIO
 	help
 	  Virtio console for use with hypervisors.
 
@@ -192,7 +148,7 @@ config DS1620
 config NWBUTTON
 	tristate "NetWinder Button"
 	depends on ARCH_NETWINDER
-	---help---
+	help
 	  If you say Y here and create a character device node /dev/nwbutton
 	  with major and minor numbers 10 and 158 ("man mknod"), then every
 	  time the orange button is pressed a number of times, the number of
@@ -228,7 +184,7 @@ config NWBUTTON_REBOOT
 config NWFLASH
 	tristate "NetWinder flash support"
 	depends on ARCH_NETWINDER
-	---help---
+	help
 	  If you say Y here and create a character device /dev/flash with
 	  major 10 and minor 160 you can manipulate the flash ROM containing
 	  the NetWinder firmware. Be careful as accidentally overwriting the
@@ -242,98 +198,12 @@ config NWFLASH
 
 source "drivers/char/hw_random/Kconfig"
 
-config NVRAM
-	tristate "/dev/nvram support"
-	depends on ATARI || X86 || GENERIC_NVRAM
-	---help---
-	  If you say Y here and create a character special file /dev/nvram
-	  with major number 10 and minor number 144 using mknod ("man mknod"),
-	  you get read and write access to the extra bytes of non-volatile
-	  memory in the real time clock (RTC), which is contained in every PC
-	  and most Ataris.  The actual number of bytes varies, depending on the
-	  nvram in the system, but is usually 114 (128-14 for the RTC).
-
-	  This memory is conventionally called "CMOS RAM" on PCs and "NVRAM"
-	  on Ataris. /dev/nvram may be used to view settings there, or to
-	  change them (with some utility). It could also be used to frequently
-	  save a few bits of very important data that may not be lost over
-	  power-off and for which writing to disk is too insecure. Note
-	  however that most NVRAM space in a PC belongs to the BIOS and you
-	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
-	  for a guide to the use of CMOS bytes by your BIOS.
-
-	  On Atari machines, /dev/nvram is always configured and does not need
-	  to be selected.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called nvram.
-
-#
-# These legacy RTC drivers just cause too many conflicts with the generic
-# RTC framework ... let's not even try to coexist any more.
-#
-if RTC_LIB=n
-
-config RTC
-	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
-	depends on ALPHA
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  Every PC has such a clock built in. It can be used to generate
-	  signals from as low as 1Hz up to 8192Hz, and can also be used
-	  as a 24 hour alarm. It reports status information via the file
-	  /proc/driver/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-	  If you run Linux on a multiprocessor machine and said Y to
-	  "Symmetric Multi Processing" above, you should say Y here to read
-	  and set the RTC in an SMP compatible fashion.
-
-	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
-	  for details.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rtc.
-
-config JS_RTC
-	tristate "Enhanced Real Time Clock Support"
-	depends on SPARC32 && PCI
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  Every PC has such a clock built in. It can be used to generate
-	  signals from as low as 1Hz up to 8192Hz, and can also be used
-	  as a 24 hour alarm. It reports status information via the file
-	  /proc/driver/rtc and its behaviour is set by various ioctls on
-	  /dev/rtc.
-
-	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
-	  for details.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called js-rtc.
-
-config EFI_RTC
-	bool "EFI Real Time Clock Services"
-	depends on IA64
-
-endif # RTC_LIB
-
 config DTLK
 	tristate "Double Talk PC internal speech card support"
 	depends on ISA
 	help
 	  This driver is for the DoubleTalk PC, a speech synthesizer
-	  manufactured by RC Systems (<http://www.rcsys.com/>).  It is also
+	  manufactured by RC Systems (<https://www.rcsys.com/>).  It is also
 	  called the `internal DoubleTalk'.
 
 	  To compile this driver as a module, choose M here: the
@@ -341,7 +211,7 @@ config DTLK
 
 config XILINX_HWICAP
 	tristate "Xilinx HWICAP Support"
-	depends on XILINX_VIRTEX || MICROBLAZE
+	depends on MICROBLAZE
 	help
 	  This option enables support for Xilinx Internal Configuration
 	  Access Port (ICAP) driver.  The ICAP is used on Xilinx Virtex
@@ -349,27 +219,14 @@ config XILINX_HWICAP
 
 	  If unsure, say N.
 
-config R3964
-	tristate "Siemens R3964 line discipline"
-	depends on TTY
-	---help---
-	  This driver allows synchronous communication with devices using the
-	  Siemens R3964 packet protocol. Unless you are dealing with special
-	  hardware like PLCs, you are unlikely to need this.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called n_r3964.
-
-	  If unsure, say N.
-
 config APPLICOM
 	tristate "Applicom intelligent fieldbus card support"
 	depends on PCI
-	---help---
+	help
 	  This driver provides the kernel-side support for the intelligent
 	  fieldbus cards made by Applicom International. More information
 	  about these cards can be found on the WWW at the address
-	  <http://www.applicom-int.com/>, or by email from David Woodhouse
+	  <https://www.applicom-int.com/>, or by email from David Woodhouse
 	  <dwmw2@infradead.org>.
 
 	  To compile this driver as a module, choose M here: the
@@ -380,20 +237,15 @@ config APPLICOM
 config SONYPI
 	tristate "Sony Vaio Programmable I/O Control Device support"
 	depends on X86_32 && PCI && INPUT
-	---help---
+	help
 	  This driver enables access to the Sony Programmable I/O Control
 	  Device which can be found in many (all ?) Sony Vaio laptops.
 
 	  If you have one of those laptops, read
-	  <file:Documentation/laptops/sonypi.txt>, and say Y or M here.
+	  <file:Documentation/admin-guide/laptops/sonypi.rst>, and say Y or M here.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.
-
-config GPIO_TB0219
-	tristate "TANBAC TB0219 GPIO support"
-	depends on TANBAC_TB022X
-	select GPIO_VR41XX
 
 source "drivers/char/pcmcia/Kconfig"
 
@@ -401,7 +253,7 @@ config MWAVE
 	tristate "ACP Modem (Mwave) support"
 	depends on X86 && TTY
 	select SERIAL_8250
-	---help---
+	help
 	  The ACP modem (Mwave) for Linux is a WinModem. It is composed of a
 	  kernel driver and a user level application. Together these components
 	  support direct attachment to public switched telephone networks (PSTNs)
@@ -456,26 +308,45 @@ config NSC_GPIO
 	  pc8736x_gpio drivers.  If those drivers are built as
 	  modules, this one will be too, named nsc_gpio
 
-config RAW_DRIVER
-	tristate "RAW driver (/dev/raw/rawN)"
-	depends on BLOCK
+config DEVMEM
+	bool "/dev/mem virtual device support"
+	default y
 	help
-	  The raw driver permits block devices to be bound to /dev/raw/rawN.
-	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O.
-	  See the raw(8) manpage for more details.
+	  Say Y here if you want to support the /dev/mem device.
+	  The /dev/mem device is used to access areas of physical
+	  memory.
+	  When in doubt, say "Y".
 
-          Applications should preferably open the device (eg /dev/hda1)
-          with the O_DIRECT flag.
-
-config MAX_RAW_DEVS
-	int "Maximum number of RAW devices to support (1-65536)"
-	depends on RAW_DRIVER
-	range 1 65536
-	default "256"
+config NVRAM
+	tristate "/dev/nvram support"
+	depends on X86 || HAVE_ARCH_NVRAM_OPS
+	default M68K || PPC
 	help
-	  The maximum number of RAW devices that are supported.
-	  Default is 256. Increase this number in case you need lots of
-	  raw devices.
+	  If you say Y here and create a character special file /dev/nvram
+	  with major number 10 and minor number 144 using mknod ("man mknod"),
+	  you get read and write access to the non-volatile memory.
+
+	  /dev/nvram may be used to view settings in NVRAM or to change them
+	  (with some utility). It could also be used to frequently
+	  save a few bits of very important data that may not be lost over
+	  power-off and for which writing to disk is too insecure. Note
+	  however that most NVRAM space in a PC belongs to the BIOS and you
+	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
+	  for a guide to the use of CMOS bytes by your BIOS.
+
+	  This memory is conventionally called "NVRAM" on PowerPC machines,
+	  "CMOS RAM" on PCs, "NVRAM" on Ataris and "PRAM" on Macintoshes.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvram.
+
+config DEVPORT
+	bool "/dev/port character device"
+	depends on ISA || PCI
+	default y
+	help
+	  Say Y here if you want to support the /dev/port device. The /dev/port
+	  device is similar to /dev/mem, but for I/O ports.
 
 config HPET
 	bool "HPET - High Precision Event Timer" if (X86 || IA64)
@@ -536,14 +407,6 @@ config TELCLOCK
 	  /sys/devices/platform/telco_clock, with a number of files for
 	  controlling the behavior of this hardware.
 
-config DEVPORT
-	bool "/dev/port character device"
-	depends on ISA || PCI
-	default y
-	help
-	  Say Y here if you want to support the /dev/port device. The /dev/port
-	  device is similar to /dev/mem, but for I/O ports.
-
 source "drivers/s390/char/Kconfig"
 
 source "drivers/char/xillybus/Kconfig"
@@ -560,19 +423,40 @@ config ADI
 	  and SSM (Silicon Secured Memory).  Intended consumers of this
 	  driver include crash and makedumpfile.
 
-endmenu
-
 config RANDOM_TRUST_CPU
-	bool "Trust the CPU manufacturer to initialize Linux's CRNG"
-	depends on X86 || S390 || PPC
-	default n
+	bool "Initialize RNG using CPU RNG instructions"
+	default y
 	help
-	Assume that CPU manufacturer (e.g., Intel or AMD for RDSEED or
-	RDRAND, IBM for the S390 and Power PC architectures) is trustworthy
-	for the purposes of initializing Linux's CRNG.  Since this is not
-	something that can be independently audited, this amounts to trusting
-	that CPU manufacturer (perhaps with the insistence or mandate
-	of a Nation State's intelligence or law enforcement agencies)
-	has not installed a hidden back door to compromise the CPU's
-	random number generation facilities. This can also be configured
-	at boot with "random.trust_cpu=on/off".
+	  Initialize the RNG using random numbers supplied by the CPU's
+	  RNG instructions (e.g. RDRAND), if supported and available. These
+	  random numbers are never used directly, but are rather hashed into
+	  the main input pool, and this happens regardless of whether or not
+	  this option is enabled. Instead, this option controls whether the
+	  they are credited and hence can initialize the RNG. Additionally,
+	  other sources of randomness are always used, regardless of this
+	  setting.  Enabling this implies trusting that the CPU can supply high
+	  quality and non-backdoored random numbers.
+
+	  Say Y here unless you have reason to mistrust your CPU or believe
+	  its RNG facilities may be faulty. This may also be configured at
+	  boot time with "random.trust_cpu=on/off".
+
+config RANDOM_TRUST_BOOTLOADER
+	bool "Initialize RNG using bootloader-supplied seed"
+	default y
+	help
+	  Initialize the RNG using a seed supplied by the bootloader or boot
+	  environment (e.g. EFI or a bootloader-generated device tree). This
+	  seed is not used directly, but is rather hashed into the main input
+	  pool, and this happens regardless of whether or not this option is
+	  enabled. Instead, this option controls whether the seed is credited
+	  and hence can initialize the RNG. Additionally, other sources of
+	  randomness are always used, regardless of this setting. Enabling
+	  this implies trusting that the bootloader can supply high quality and
+	  non-backdoored seeds.
+
+	  Say Y here unless you have reason to mistrust your bootloader or
+	  believe its RNG facilities may be faulty. This may also be configured
+	  at boot time with "random.trust_bootloader=on/off".
+
+endmenu

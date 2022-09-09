@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Montage Technology DS3000 - DVBS/S2 Demodulator driver
     Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
     Copyright (C) 2009-2012 TurboSight.com
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/slab.h>
@@ -914,7 +902,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 	/* ds3000 global reset */
 	ds3000_writereg(state, 0x07, 0x80);
 	ds3000_writereg(state, 0x07, 0x00);
-	/* ds3000 build-in uC reset */
+	/* ds3000 built-in uC reset */
 	ds3000_writereg(state, 0xb2, 0x01);
 	/* ds3000 software reset */
 	ds3000_writereg(state, 0x00, 0x01);
@@ -1023,7 +1011,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 
 	/* ds3000 out of software reset */
 	ds3000_writereg(state, 0x00, 0x00);
-	/* start ds3000 build-in uC */
+	/* start ds3000 built-in uC */
 	ds3000_writereg(state, 0xb2, 0x00);
 
 	if (fe->ops.tuner_ops.get_frequency) {

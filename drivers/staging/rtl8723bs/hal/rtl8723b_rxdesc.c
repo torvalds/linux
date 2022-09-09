@@ -4,7 +4,6 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTL8723B_REDESC_C_
 
 #include <rtl8723b_hal.h>
 
@@ -13,7 +12,6 @@ static void process_rssi(struct adapter *padapter, union recv_frame *prframe)
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
 	struct signal_stat *signal_stat = &padapter->recvpriv.signal_strength_data;
 
-	/* DBG_8192C("process_rssi => pattrib->rssil(%d) signal_strength(%d)\n ", pattrib->RecvSignalPower, pattrib->signal_strength); */
 	/* if (pRfd->Status.bPacketToSelf || pRfd->Status.bPacketBeacon) */
 	{
 		if (signal_stat->update_req) {
@@ -34,13 +32,11 @@ static void process_link_qual(struct adapter *padapter, union recv_frame *prfram
 	struct rx_pkt_attrib *pattrib;
 	struct signal_stat *signal_stat;
 
-	if (prframe == NULL || padapter == NULL)
+	if (!prframe || !padapter)
 		return;
 
 	pattrib = &prframe->u.hdr.attrib;
 	signal_stat = &padapter->recvpriv.signal_qual_data;
-
-	/* DBG_8192C("process_link_qual => pattrib->signal_qual(%d)\n ", pattrib->signal_qual); */
 
 	if (signal_stat->update_req) {
 		signal_stat->total_num = 0;

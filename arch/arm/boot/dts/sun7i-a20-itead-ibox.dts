@@ -53,13 +53,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_itead_core>;
 
-		green {
+		led-0 {
 			label = "itead_core:green:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
-		blue {
+		led-1 {
 			label = "itead_core:blue:usr";
 			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
@@ -97,10 +97,12 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_mii_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
+};
 
+&gmac_mdio {
 	phy1: ethernet-phy@1 {
 		reg = <1>;
 	};

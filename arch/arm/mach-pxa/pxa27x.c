@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/pxa27x.c
  *
@@ -6,10 +7,6 @@
  *  Copyright:	MontaVista Software Inc.
  *
  * Code specific to PXA27x aka Bulverde.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/dmaengine.h>
 #include <linux/dma/pxa-dma.h>
@@ -26,18 +23,18 @@
 #include <linux/irq.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/mmp_dma.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <asm/mach/map.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/suspend.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "pxa27x.h"
-#include <mach/reset.h>
+#include "reset.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include "pm.h"
-#include <mach/dma.h>
-#include <mach/smemc.h>
+#include "addr-map.h"
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"
@@ -340,7 +337,7 @@ static int __init pxa27x_init(void)
 
 	if (cpu_is_pxa27x()) {
 
-		reset_status = RCSR;
+		pxa_register_wdt(RCSR);
 
 		pxa27x_init_pm();
 

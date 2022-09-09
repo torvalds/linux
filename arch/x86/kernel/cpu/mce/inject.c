@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Machine check injection support.
  * Copyright 2008 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Authors:
  * Andi Kleen
@@ -15,9 +11,6 @@
  * for testing different aspects of the RAS code. This driver should be
  * built as module so that it can be loaded on production kernels for
  * testing purposes.
- *
- * This file may be distributed under the terms of the GNU General Public
- * License version 2.
  *
  * Copyright (c) 2010-17:  Borislav Petkov <bp@alien8.de>
  *			   Advanced Micro Devices Inc.
@@ -40,13 +33,13 @@
 
 #include "internal.h"
 
+static bool hw_injection_possible = true;
+
 /*
  * Collect all the MCi_XXX settings
  */
 static struct mce i_mce;
 static struct dentry *dfs_inj;
-
-static u8 n_banks;
 
 #define MAX_FLAG_OPT_SIZE	4
 #define NBCFG			0x44
@@ -97,11 +90,27 @@ MCE_INJECT_GET(status);
 MCE_INJECT_GET(misc);
 MCE_INJECT_GET(addr);
 MCE_INJECT_GET(synd);
+MCE_INJECT_GET(ipid);
 
 DEFINE_SIMPLE_ATTRIBUTE(status_fops, inj_status_get, inj_status_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(synd_fops, inj_synd_get, inj_synd_set, "%llx\n");
+
+/* Use the user provided IPID value on a sw injection. */
+static int inj_ipid_set(void *data, u64 val)
+{
+	struct mce *m = (struct mce *)data;
+
+	if (cpu_feature_enabled(X86_FEATURE_SMCA)) {
+		if (inj_type == SW_INJ)
+			m->ipid = val;
+	}
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(ipid_fops, inj_ipid_get, inj_ipid_set, "%llx\n");
 
 static void setup_inj_struct(struct mce *m)
 {
@@ -155,9 +164,9 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 		regs.cs = m->cs;
 		pregs = &regs;
 	}
-	/* in mcheck exeception handler, irq will be disabled */
+	/* do_machine_check() expects interrupts disabled -- at least */
 	local_irq_save(flags);
-	do_machine_check(pregs, 0);
+	do_machine_check(pregs);
 	local_irq_restore(flags);
 	m->finished = 0;
 }
@@ -208,7 +217,7 @@ static int raise_local(void)
 			 * calling irq_enter, but the necessary
 			 * machinery isn't exported currently.
 			 */
-			/*FALL THROUGH*/
+			fallthrough;
 		case MCJ_CTX_PROCESS:
 			raise_exception(m, NULL);
 			break;
@@ -241,7 +250,7 @@ static void __maybe_unused raise_mce(struct mce *m)
 		unsigned long start;
 		int cpu;
 
-		get_online_cpus();
+		cpus_read_lock();
 		cpumask_copy(mce_inject_cpumask, cpu_online_mask);
 		cpumask_clear_cpu(get_cpu(), mce_inject_cpumask);
 		for_each_online_cpu(cpu) {
@@ -275,7 +284,7 @@ static void __maybe_unused raise_mce(struct mce *m)
 		}
 		raise_local();
 		put_cpu();
-		put_online_cpus();
+		cpus_read_unlock();
 	} else {
 		preempt_disable();
 		raise_local();
@@ -332,6 +341,8 @@ static int __set_inj(const char *buf)
 
 	for (i = 0; i < N_INJ_TYPES; i++) {
 		if (!strncmp(flags_options[i], buf, strlen(flags_options[i]))) {
+			if (i > SW_INJ && !hw_injection_possible)
+				continue;
 			inj_type = i;
 			return 0;
 		}
@@ -356,7 +367,7 @@ static ssize_t flags_write(struct file *filp, const char __user *ubuf,
 	char buf[MAX_FLAG_OPT_SIZE], *__buf;
 	int err;
 
-	if (cnt > MAX_FLAG_OPT_SIZE)
+	if (!cnt || cnt > MAX_FLAG_OPT_SIZE)
 		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, cnt))
@@ -496,6 +507,8 @@ static void do_inject(void)
 
 	i_mce.tsc = rdtsc_ordered();
 
+	i_mce.status |= MCI_STATUS_VAL;
+
 	if (i_mce.misc)
 		i_mce.status |= MCI_STATUS_MISCV;
 
@@ -503,7 +516,7 @@ static void do_inject(void)
 		i_mce.status |= MCI_STATUS_SYNDV;
 
 	if (inj_type == SW_INJ) {
-		mce_inject_log(&i_mce);
+		mce_log(&i_mce);
 		return;
 	}
 
@@ -520,7 +533,7 @@ static void do_inject(void)
 	 */
 	if (inj_type == DFR_INT_INJ) {
 		i_mce.status |= MCI_STATUS_DEFERRED;
-		i_mce.status |= (i_mce.status & ~MCI_STATUS_UC);
+		i_mce.status &= ~MCI_STATUS_UC;
 	}
 
 	/*
@@ -528,14 +541,14 @@ static void do_inject(void)
 	 * only on the node base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
 	 * Fam10h and later BKDGs.
 	 */
-	if (static_cpu_has(X86_FEATURE_AMD_DCM) &&
+	if (boot_cpu_has(X86_FEATURE_AMD_DCM) &&
 	    b == 4 &&
 	    boot_cpu_data.x86 < 0x17) {
-		toggle_nb_mca_mst_cpu(amd_get_nb_id(cpu));
-		cpu = get_nbc_for_node(amd_get_nb_id(cpu));
+		toggle_nb_mca_mst_cpu(topology_die_id(cpu));
+		cpu = get_nbc_for_node(topology_die_id(cpu));
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 	if (!cpu_online(cpu))
 		goto err;
 
@@ -559,7 +572,7 @@ static void do_inject(void)
 	}
 
 err:
-	put_online_cpus();
+	cpus_read_unlock();
 
 }
 
@@ -570,13 +583,46 @@ err:
 static int inj_bank_set(void *data, u64 val)
 {
 	struct mce *m = (struct mce *)data;
+	u8 n_banks;
+	u64 cap;
+
+	/* Get bank count on target CPU so we can handle non-uniform values. */
+	rdmsrl_on_cpu(m->extcpu, MSR_IA32_MCG_CAP, &cap);
+	n_banks = cap & MCG_BANKCNT_MASK;
 
 	if (val >= n_banks) {
-		pr_err("Non-existent MCE bank: %llu\n", val);
+		pr_err("MCA bank %llu non-existent on CPU%d\n", val, m->extcpu);
 		return -EINVAL;
 	}
 
 	m->bank = val;
+
+	/*
+	 * sw-only injection allows to write arbitrary values into the MCA
+	 * registers because it tests only the decoding paths.
+	 */
+	if (inj_type == SW_INJ)
+		goto inject;
+
+	/*
+	 * Read IPID value to determine if a bank is populated on the target
+	 * CPU.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_SMCA)) {
+		u64 ipid;
+
+		if (rdmsrl_on_cpu(m->extcpu, MSR_AMD64_SMCA_MCx_IPID(val), &ipid)) {
+			pr_err("Error reading IPID on CPU%d\n", m->extcpu);
+			return -EINVAL;
+		}
+
+		if (!ipid) {
+			pr_err("Cannot inject into unpopulated bank %llu\n", val);
+			return -ENODEV;
+		}
+	}
+
+inject:
 	do_inject();
 
 	/* Reset injection struct */
@@ -632,6 +678,8 @@ static const char readme_msg[] =
 "\t    is present in hardware. \n"
 "\t  - \"th\": Trigger APIC interrupt for Threshold errors. Causes threshold \n"
 "\t    APIC interrupt handler to handle the error. \n"
+"\n"
+"ipid:\t IPID (AMD-specific)\n"
 "\n";
 
 static ssize_t
@@ -648,7 +696,6 @@ static const struct file_operations readme_fops = {
 
 static struct dfs_node {
 	char *name;
-	struct dentry *d;
 	const struct file_operations *fops;
 	umode_t perm;
 } dfs_fls[] = {
@@ -656,59 +703,73 @@ static struct dfs_node {
 	{ .name = "misc",	.fops = &misc_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "addr",	.fops = &addr_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "synd",	.fops = &synd_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "ipid",	.fops = &ipid_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
 	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },
 	{ .name = "README",	.fops = &readme_fops, .perm = S_IRUSR | S_IRGRP | S_IROTH },
 };
 
-static int __init debugfs_init(void)
+static void __init debugfs_init(void)
 {
 	unsigned int i;
-	u64 cap;
-
-	rdmsrl(MSR_IA32_MCG_CAP, cap);
-	n_banks = cap & MCG_BANKCNT_MASK;
 
 	dfs_inj = debugfs_create_dir("mce-inject", NULL);
-	if (!dfs_inj)
-		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++) {
-		dfs_fls[i].d = debugfs_create_file(dfs_fls[i].name,
-						    dfs_fls[i].perm,
-						    dfs_inj,
-						    &i_mce,
-						    dfs_fls[i].fops);
+	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++)
+		debugfs_create_file(dfs_fls[i].name, dfs_fls[i].perm, dfs_inj,
+				    &i_mce, dfs_fls[i].fops);
+}
 
-		if (!dfs_fls[i].d)
-			goto err_dfs_add;
+static void check_hw_inj_possible(void)
+{
+	int cpu;
+	u8 bank;
+
+	/*
+	 * This behavior exists only on SMCA systems though its not directly
+	 * related to SMCA.
+	 */
+	if (!cpu_feature_enabled(X86_FEATURE_SMCA))
+		return;
+
+	cpu = get_cpu();
+
+	for (bank = 0; bank < MAX_NR_BANKS; ++bank) {
+		u64 status = MCI_STATUS_VAL, ipid;
+
+		/* Check whether bank is populated */
+		rdmsrl(MSR_AMD64_SMCA_MCx_IPID(bank), ipid);
+		if (!ipid)
+			continue;
+
+		toggle_hw_mce_inject(cpu, true);
+
+		wrmsrl_safe(mca_msr_reg(bank, MCA_STATUS), status);
+		rdmsrl_safe(mca_msr_reg(bank, MCA_STATUS), &status);
+
+		if (!status) {
+			hw_injection_possible = false;
+			pr_warn("Platform does not allow *hardware* error injection."
+				"Try using APEI EINJ instead.\n");
+		}
+
+		toggle_hw_mce_inject(cpu, false);
+
+		break;
 	}
 
-	return 0;
-
-err_dfs_add:
-	while (i-- > 0)
-		debugfs_remove(dfs_fls[i].d);
-
-	debugfs_remove(dfs_inj);
-	dfs_inj = NULL;
-
-	return -ENODEV;
+	put_cpu();
 }
 
 static int __init inject_init(void)
 {
-	int err;
-
 	if (!alloc_cpumask_var(&mce_inject_cpumask, GFP_KERNEL))
 		return -ENOMEM;
 
-	err = debugfs_init();
-	if (err) {
-		free_cpumask_var(mce_inject_cpumask);
-		return err;
-	}
+	check_hw_inj_possible();
+
+	debugfs_init();
 
 	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0, "mce_notify");
 	mce_register_injector_chain(&inject_nb);

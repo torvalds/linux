@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mfd/mcp-core.c
  *
  *  Copyright (C) 2001 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  *
  *  Generic MCP (Multimedia Communications Port) layer.  All MCP locking
  *  is solely held within this file.
@@ -36,13 +33,12 @@ static int mcp_bus_probe(struct device *dev)
 	return drv->probe(mcp);
 }
 
-static int mcp_bus_remove(struct device *dev)
+static void mcp_bus_remove(struct device *dev)
 {
 	struct mcp *mcp = to_mcp(dev);
 	struct mcp_driver *drv = to_mcp_driver(dev->driver);
 
 	drv->remove(mcp);
-	return 0;
 }
 
 static struct bus_type mcp_bus_type = {

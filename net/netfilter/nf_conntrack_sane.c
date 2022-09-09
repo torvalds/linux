@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* SANE connection tracking helper
  * (SANE = Scanner Access Now Easy)
  * For documentation about the SANE network protocol see
@@ -11,10 +12,6 @@
  *  (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
  *  (C) 2003,2004 USAGI/WIDE Project <http://www.linux-ipv6.org>
  *  (C) 2003 Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -30,14 +27,12 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <linux/netfilter/nf_conntrack_sane.h>
 
+#define HELPER_NAME "sane"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Schmidt <mschmidt@redhat.com>");
 MODULE_DESCRIPTION("SANE connection tracking helper");
-MODULE_ALIAS_NFCT_HELPER("sane");
-
-static char *sane_buffer;
-
-static DEFINE_SPINLOCK(nf_sane_lock);
+MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
 #define MAX_PORTS 8
 static u_int16_t ports[MAX_PORTS];
@@ -68,14 +63,16 @@ static int help(struct sk_buff *skb,
 	unsigned int dataoff, datalen;
 	const struct tcphdr *th;
 	struct tcphdr _tcph;
-	void *sb_ptr;
 	int ret = NF_ACCEPT;
 	int dir = CTINFO2DIR(ctinfo);
 	struct nf_ct_sane_master *ct_sane_info = nfct_help_data(ct);
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple *tuple;
-	struct sane_request *req;
 	struct sane_reply_net_start *reply;
+	union {
+		struct sane_request req;
+		struct sane_reply_net_start repl;
+	} buf;
 
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED &&
@@ -93,56 +90,62 @@ static int help(struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	datalen = skb->len - dataoff;
-
-	spin_lock_bh(&nf_sane_lock);
-	sb_ptr = skb_header_pointer(skb, dataoff, datalen, sane_buffer);
-	BUG_ON(sb_ptr == NULL);
-
 	if (dir == IP_CT_DIR_ORIGINAL) {
-		if (datalen != sizeof(struct sane_request))
-			goto out;
+		const struct sane_request *req;
 
-		req = sb_ptr;
+		if (datalen != sizeof(struct sane_request))
+			return NF_ACCEPT;
+
+		req = skb_header_pointer(skb, dataoff, datalen, &buf.req);
+		if (!req)
+			return NF_ACCEPT;
+
 		if (req->RPC_code != htonl(SANE_NET_START)) {
 			/* Not an interesting command */
-			ct_sane_info->state = SANE_STATE_NORMAL;
-			goto out;
+			WRITE_ONCE(ct_sane_info->state, SANE_STATE_NORMAL);
+			return NF_ACCEPT;
 		}
 
 		/* We're interested in the next reply */
-		ct_sane_info->state = SANE_STATE_START_REQUESTED;
-		goto out;
+		WRITE_ONCE(ct_sane_info->state, SANE_STATE_START_REQUESTED);
+		return NF_ACCEPT;
 	}
 
+	/* IP_CT_DIR_REPLY */
+
 	/* Is it a reply to an uninteresting command? */
-	if (ct_sane_info->state != SANE_STATE_START_REQUESTED)
-		goto out;
+	if (READ_ONCE(ct_sane_info->state) != SANE_STATE_START_REQUESTED)
+		return NF_ACCEPT;
 
 	/* It's a reply to SANE_NET_START. */
-	ct_sane_info->state = SANE_STATE_NORMAL;
+	WRITE_ONCE(ct_sane_info->state, SANE_STATE_NORMAL);
 
 	if (datalen < sizeof(struct sane_reply_net_start)) {
 		pr_debug("NET_START reply too short\n");
-		goto out;
+		return NF_ACCEPT;
 	}
 
-	reply = sb_ptr;
+	datalen = sizeof(struct sane_reply_net_start);
+
+	reply = skb_header_pointer(skb, dataoff, datalen, &buf.repl);
+	if (!reply)
+		return NF_ACCEPT;
+
 	if (reply->status != htonl(SANE_STATUS_SUCCESS)) {
 		/* saned refused the command */
 		pr_debug("unsuccessful SANE_STATUS = %u\n",
 			 ntohl(reply->status));
-		goto out;
+		return NF_ACCEPT;
 	}
 
 	/* Invalid saned reply? Ignore it. */
 	if (reply->zero != 0)
-		goto out;
+		return NF_ACCEPT;
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
 		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
-		ret = NF_DROP;
-		goto out;
+		return NF_DROP;
 	}
 
 	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
@@ -154,15 +157,12 @@ static int help(struct sk_buff *skb,
 	nf_ct_dump_tuple(&exp->tuple);
 
 	/* Can't expect this?  Best to drop packet now. */
-	if (nf_ct_expect_related(exp) != 0) {
+	if (nf_ct_expect_related(exp, 0) != 0) {
 		nf_ct_helper_log(skb, ct, "cannot add expectation");
 		ret = NF_DROP;
 	}
 
 	nf_ct_expect_put(exp);
-
-out:
-	spin_unlock_bh(&nf_sane_lock);
 	return ret;
 }
 
@@ -176,7 +176,6 @@ static const struct nf_conntrack_expect_policy sane_exp_policy = {
 static void __exit nf_conntrack_sane_fini(void)
 {
 	nf_conntrack_helpers_unregister(sane, ports_c * 2);
-	kfree(sane_buffer);
 }
 
 static int __init nf_conntrack_sane_init(void)
@@ -185,22 +184,18 @@ static int __init nf_conntrack_sane_init(void)
 
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sane_master));
 
-	sane_buffer = kmalloc(65536, GFP_KERNEL);
-	if (!sane_buffer)
-		return -ENOMEM;
-
 	if (ports_c == 0)
 		ports[ports_c++] = SANE_PORT;
 
 	/* FIXME should be configurable whether IPv4 and IPv6 connections
 		 are tracked or not - YK */
 	for (i = 0; i < ports_c; i++) {
-		nf_ct_helper_init(&sane[2 * i], AF_INET, IPPROTO_TCP, "sane",
-				  SANE_PORT, ports[i], ports[i],
+		nf_ct_helper_init(&sane[2 * i], AF_INET, IPPROTO_TCP,
+				  HELPER_NAME, SANE_PORT, ports[i], ports[i],
 				  &sane_exp_policy, 0, help, NULL,
 				  THIS_MODULE);
-		nf_ct_helper_init(&sane[2 * i + 1], AF_INET6, IPPROTO_TCP, "sane",
-				  SANE_PORT, ports[i], ports[i],
+		nf_ct_helper_init(&sane[2 * i + 1], AF_INET6, IPPROTO_TCP,
+				  HELPER_NAME, SANE_PORT, ports[i], ports[i],
 				  &sane_exp_policy, 0, help, NULL,
 				  THIS_MODULE);
 	}
@@ -208,7 +203,6 @@ static int __init nf_conntrack_sane_init(void)
 	ret = nf_conntrack_helpers_register(sane, ports_c * 2);
 	if (ret < 0) {
 		pr_err("failed to register helpers\n");
-		kfree(sane_buffer);
 		return ret;
 	}
 

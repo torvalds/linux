@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Edirol UA-101/UA-1000 driver
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
- * This driver is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2.
- *
- * This driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/init.h>
@@ -29,7 +19,6 @@
 MODULE_DESCRIPTION("Edirol UA-101/1000 driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{Edirol,UA-101},{Edirol,UA-1000}}");
 
 /*
  * Should not be lower than the minimum scheduling delay of the host
@@ -106,7 +95,7 @@ struct ua101 {
 	u8 rate_feedback[MAX_QUEUE_LENGTH];
 
 	struct list_head ready_playback_urbs;
-	struct tasklet_struct playback_tasklet;
+	struct work_struct playback_work;
 	wait_queue_head_t alsa_capture_wait;
 	wait_queue_head_t rate_feedback_wait;
 	wait_queue_head_t alsa_playback_wait;
@@ -198,7 +187,7 @@ static void playback_urb_complete(struct urb *usb_urb)
 		spin_lock_irqsave(&ua->lock, flags);
 		list_add_tail(&urb->ready_list, &ua->ready_playback_urbs);
 		if (ua->rate_feedback_count > 0)
-			tasklet_schedule(&ua->playback_tasklet);
+			queue_work(system_highpri_wq, &ua->playback_work);
 		ua->playback.substream->runtime->delay -=
 				urb->urb.iso_frame_desc[0].length /
 						ua->playback.frame_bytes;
@@ -257,9 +246,9 @@ static inline void add_with_wraparound(struct ua101 *ua,
 		*value -= ua->playback.queue_length;
 }
 
-static void playback_tasklet(unsigned long data)
+static void playback_work(struct work_struct *work)
 {
-	struct ua101 *ua = (void *)data;
+	struct ua101 *ua = container_of(work, struct ua101, playback_work);
 	unsigned long flags;
 	unsigned int frames;
 	struct ua101_urb *urb;
@@ -411,7 +400,7 @@ static void capture_urb_complete(struct urb *urb)
 		}
 		if (test_bit(USB_PLAYBACK_RUNNING, &ua->states) &&
 		    !list_empty(&ua->ready_playback_urbs))
-			tasklet_schedule(&ua->playback_tasklet);
+			queue_work(system_highpri_wq, &ua->playback_work);
 	}
 
 	spin_unlock_irqrestore(&ua->lock, flags);
@@ -542,7 +531,7 @@ static void stop_usb_playback(struct ua101 *ua)
 
 	kill_stream_urbs(&ua->playback);
 
-	tasklet_kill(&ua->playback_tasklet);
+	cancel_work_sync(&ua->playback_work);
 
 	disable_iso_interface(ua, INTF_PLAYBACK);
 }
@@ -560,7 +549,7 @@ static int start_usb_playback(struct ua101 *ua)
 		return 0;
 
 	kill_stream_urbs(&ua->playback);
-	tasklet_kill(&ua->playback_tasklet);
+	cancel_work_sync(&ua->playback_work);
 
 	err = enable_iso_interface(ua, INTF_PLAYBACK);
 	if (err < 0)
@@ -740,11 +729,7 @@ static int capture_pcm_hw_params(struct snd_pcm_substream *substream,
 	mutex_lock(&ua->mutex);
 	err = start_usb_capture(ua);
 	mutex_unlock(&ua->mutex);
-	if (err < 0)
-		return err;
-
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-						params_buffer_bytes(hw_params));
+	return err;
 }
 
 static int playback_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -758,16 +743,7 @@ static int playback_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (err >= 0)
 		err = start_usb_playback(ua);
 	mutex_unlock(&ua->mutex);
-	if (err < 0)
-		return err;
-
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-						params_buffer_bytes(hw_params));
-}
-
-static int ua101_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return err;
 }
 
 static int capture_pcm_prepare(struct snd_pcm_substream *substream)
@@ -893,25 +869,19 @@ static snd_pcm_uframes_t playback_pcm_pointer(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops capture_pcm_ops = {
 	.open = capture_pcm_open,
 	.close = capture_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = capture_pcm_hw_params,
-	.hw_free = ua101_pcm_hw_free,
 	.prepare = capture_pcm_prepare,
 	.trigger = capture_pcm_trigger,
 	.pointer = capture_pcm_pointer,
-	.page = snd_pcm_lib_get_vmalloc_page,
 };
 
 static const struct snd_pcm_ops playback_pcm_ops = {
 	.open = playback_pcm_open,
 	.close = playback_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = playback_pcm_hw_params,
-	.hw_free = ua101_pcm_hw_free,
 	.prepare = playback_pcm_prepare,
 	.trigger = playback_pcm_trigger,
 	.pointer = playback_pcm_pointer,
-	.page = snd_pcm_lib_get_vmalloc_page,
 };
 
 static const struct uac_format_type_i_discrete_descriptor *
@@ -1030,7 +1000,7 @@ static int detect_usb_format(struct ua101 *ua)
 		fmt_playback->bSubframeSize * ua->playback.channels;
 
 	epd = &ua->intf[INTF_CAPTURE]->altsetting[1].endpoint[0].desc;
-	if (!usb_endpoint_is_isoc_in(epd)) {
+	if (!usb_endpoint_is_isoc_in(epd) || usb_endpoint_maxp(epd) == 0) {
 		dev_err(&ua->dev->dev, "invalid capture endpoint\n");
 		return -ENXIO;
 	}
@@ -1038,7 +1008,7 @@ static int detect_usb_format(struct ua101 *ua)
 	ua->capture.max_packet_bytes = usb_endpoint_maxp(epd);
 
 	epd = &ua->intf[INTF_PLAYBACK]->altsetting[1].endpoint[0].desc;
-	if (!usb_endpoint_is_isoc_out(epd)) {
+	if (!usb_endpoint_is_isoc_out(epd) || usb_endpoint_maxp(epd) == 0) {
 		dev_err(&ua->dev->dev, "invalid playback endpoint\n");
 		return -ENXIO;
 	}
@@ -1247,8 +1217,7 @@ static int ua101_probe(struct usb_interface *interface,
 	spin_lock_init(&ua->lock);
 	mutex_init(&ua->mutex);
 	INIT_LIST_HEAD(&ua->ready_playback_urbs);
-	tasklet_init(&ua->playback_tasklet,
-		     playback_tasklet, (unsigned long)ua);
+	INIT_WORK(&ua->playback_work, playback_work);
 	init_waitqueue_head(&ua->alsa_capture_wait);
 	init_waitqueue_head(&ua->rate_feedback_wait);
 	init_waitqueue_head(&ua->alsa_playback_wait);
@@ -1306,6 +1275,8 @@ static int ua101_probe(struct usb_interface *interface,
 	strcpy(ua->pcm->name, name);
 	snd_pcm_set_ops(ua->pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_pcm_ops);
 	snd_pcm_set_ops(ua->pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_pcm_ops);
+	snd_pcm_set_managed_buffer_all(ua->pcm, SNDRV_DMA_TYPE_VMALLOC,
+				       NULL, 0, 0);
 
 	err = snd_usbmidi_create(card, ua->intf[INTF_MIDI],
 				 &ua->midi_list, &midi_quirk);

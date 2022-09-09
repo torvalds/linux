@@ -10,17 +10,9 @@
 #include <linux/interrupt.h>
 #include <net/dst.h>
 
-#include <asm/octeon/octeon.h>
-
-#include "ethernet-defines.h"
 #include "octeon-ethernet.h"
+#include "ethernet-defines.h"
 #include "ethernet-util.h"
-
-#include <asm/octeon/cvmx-spi.h>
-
-#include <asm/octeon/cvmx-npi-defs.h>
-#include <asm/octeon/cvmx-spxx-defs.h>
-#include <asm/octeon/cvmx-stxx-defs.h>
 
 static int number_spi_ports;
 static int need_retrain[2] = { 0, 0 };
@@ -210,7 +202,7 @@ int cvm_oct_spi_init(struct net_device *dev)
 	}
 	number_spi_ports++;
 
-	if ((priv->port == 0) || (priv->port == 16)) {
+	if (priv->port == 0 || priv->port == 16) {
 		cvm_oct_spi_enable_error_reporting(INTERFACE(priv->port));
 		priv->poll = cvm_oct_spi_poll;
 	}

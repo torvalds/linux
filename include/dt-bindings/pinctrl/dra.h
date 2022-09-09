@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This header provides constants for DRA pinctrl bindings.
  *
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rajendra Nayak <rnayak@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _DT_BINDINGS_PINCTRL_DRA_H

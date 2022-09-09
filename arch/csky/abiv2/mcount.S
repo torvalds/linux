@@ -3,6 +3,8 @@
 
 #include <linux/linkage.h>
 #include <asm/ftrace.h>
+#include <abi/entry.h>
+#include <asm/asm-offsets.h>
 
 /*
  * csky-gcc with -pg will put the following asm after prologue:
@@ -44,6 +46,24 @@
 	jmp	t1
 .endm
 
+.macro mcount_enter_regs
+	subi	sp, 8
+	stw	lr, (sp, 0)
+	stw	r8, (sp, 4)
+	SAVE_REGS_FTRACE
+.endm
+
+.macro mcount_exit_regs
+	RESTORE_REGS_FTRACE
+	subi	sp, 152
+	ldw	t1, (sp, 4)
+	addi	sp, 152
+	ldw	r8, (sp, 4)
+	ldw	lr, (sp, 8)
+	addi	sp, 12
+	jmp	t1
+.endm
+
 .macro save_return_regs
 	subi	sp, 16
 	stw	a0, (sp, 0)
@@ -61,10 +81,17 @@
 	addi	sp, 16
 .endm
 
+.macro nop32_stub
+	nop32
+	nop32
+	nop32
+.endm
+
 ENTRY(ftrace_stub)
 	jmp	lr
 END(ftrace_stub)
 
+#ifndef CONFIG_DYNAMIC_FTRACE
 ENTRY(_mcount)
 	mcount_enter
 
@@ -76,8 +103,10 @@ ENTRY(_mcount)
 	bf	skip_ftrace
 
 	mov	a0, lr
-	subi	a0, MCOUNT_INSN_SIZE
+	subi	a0, 4
 	ldw	a1, (sp, 24)
+	lrw	a2, function_trace_op
+	ldw	a2, (a2, 0)
 
 	jsr	r26
 
@@ -101,13 +130,43 @@ skip_ftrace:
 	mcount_exit
 #endif
 END(_mcount)
+#else /* CONFIG_DYNAMIC_FTRACE */
+ENTRY(_mcount)
+	mov	t1, lr
+	ldw	lr, (sp, 0)
+	addi	sp, 4
+	jmp	t1
+ENDPROC(_mcount)
+
+ENTRY(ftrace_caller)
+	mcount_enter
+
+	ldw	a0, (sp, 16)
+	subi	a0, 4
+	ldw	a1, (sp, 24)
+	lrw	a2, function_trace_op
+	ldw	a2, (a2, 0)
+
+	nop
+GLOBAL(ftrace_call)
+	nop32_stub
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	nop
+GLOBAL(ftrace_graph_call)
+	nop32_stub
+#endif
+
+	mcount_exit
+ENDPROC(ftrace_caller)
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
 	mov	a0, sp
 	addi	a0, 24
 	ldw	a1, (sp, 16)
-	subi	a1, MCOUNT_INSN_SIZE
+	subi	a1, 4
 	mov	a2, r8
 	lrw	r26, prepare_ftrace_return
 	jsr	r26
@@ -122,3 +181,31 @@ ENTRY(return_to_handler)
 	jmp	lr
 END(return_to_handler)
 #endif
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+ENTRY(ftrace_regs_caller)
+	mcount_enter_regs
+
+	lrw	t1, PT_FRAME_SIZE
+	add	t1, sp
+
+	ldw	a0, (t1, 0)
+	subi	a0, 4
+	ldw	a1, (t1, 8)
+	lrw	a2, function_trace_op
+	ldw	a2, (a2, 0)
+	mov	a3, sp
+
+	nop
+GLOBAL(ftrace_regs_call)
+	nop32_stub
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	nop
+GLOBAL(ftrace_graph_regs_call)
+	nop32_stub
+#endif
+
+	mcount_exit_regs
+ENDPROC(ftrace_regs_caller)
+#endif /* CONFIG_DYNAMIC_FTRACE */

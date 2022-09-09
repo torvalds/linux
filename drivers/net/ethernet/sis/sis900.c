@@ -191,6 +191,8 @@ struct sis900_private {
 	unsigned int tx_full; /* The Tx queue is full. */
 	u8 host_bridge_rev;
 	u8 chipset_rev;
+	/* EEPROM data */
+	int eeprom_size;
 };
 
 MODULE_AUTHOR("Jim Huang <cmhuang@sis.com.tw>, Ollie Lho <ollie@sis.com.tw>");
@@ -220,7 +222,7 @@ static int mdio_read(struct net_device *net_dev, int phy_id, int location);
 static void mdio_write(struct net_device *net_dev, int phy_id, int location, int val);
 static void sis900_timer(struct timer_list *t);
 static void sis900_check_mode (struct net_device *net_dev, struct mii_phy *mii_phy);
-static void sis900_tx_timeout(struct net_device *net_dev);
+static void sis900_tx_timeout(struct net_device *net_dev, unsigned int txqueue);
 static void sis900_init_tx_ring(struct net_device *net_dev);
 static void sis900_init_rx_ring(struct net_device *net_dev);
 static netdev_tx_t sis900_start_xmit(struct sk_buff *skb,
@@ -256,20 +258,22 @@ static int sis900_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	u16 signature;
 	int i;
 
 	/* check to see if we have sane EEPROM */
 	signature = (u16) read_eeprom(ioaddr, EEPROMSignature);
 	if (signature == 0xffff || signature == 0x0000) {
-		printk (KERN_WARNING "%s: Error EERPOM read %x\n",
+		printk (KERN_WARNING "%s: Error EEPROM read %x\n",
 			pci_name(pci_dev), signature);
 		return 0;
 	}
 
 	/* get MAC address from EEPROM */
 	for (i = 0; i < 3; i++)
-	        ((u16 *)(net_dev->dev_addr))[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
+	        addr[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
+	eth_hw_addr_set(net_dev, (u8 *)addr);
 
 	return 1;
 }
@@ -288,6 +292,7 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 				struct net_device *net_dev)
 {
 	struct pci_dev *isa_bridge = NULL;
+	u8 addr[ETH_ALEN];
 	u8 reg;
 	int i;
 
@@ -304,8 +309,9 @@ static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
 
 	for (i = 0; i < 6; i++) {
 		outb(0x09 + i, 0x70);
-		((u8 *)(net_dev->dev_addr))[i] = inb(0x71);
+		addr[i] = inb(0x71);
 	}
+	eth_hw_addr_set(net_dev, addr);
 
 	pci_write_config_byte(isa_bridge, 0x48, reg & ~0x40);
 	pci_dev_put(isa_bridge);
@@ -329,6 +335,7 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	u32 rfcrSave;
 	u32 i;
 
@@ -343,8 +350,9 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
 	/* load MAC addr to filter data register */
 	for (i = 0 ; i < 3 ; i++) {
 		sw32(rfcr, (i << RFADDR_shift));
-		*( ((u16 *)net_dev->dev_addr) + i) = sr16(rfdr);
+		addr[i] = sr16(rfdr);
 	}
+	eth_hw_addr_set(net_dev, (u8 *)addr);
 
 	/* enable packet filtering */
 	sw32(rfcr, rfcrSave | RFEN);
@@ -359,9 +367,9 @@ static int sis635_get_mac_addr(struct pci_dev *pci_dev,
  *
  *	SiS962 or SiS963 model, use EEPROM to store MAC address. And EEPROM
  *	is shared by
- *	LAN and 1394. When access EEPROM, send EEREQ signal to hardware first
- *	and wait for EEGNT. If EEGNT is ON, EEPROM is permitted to be access
- *	by LAN, otherwise is not. After MAC address is read from EEPROM, send
+ *	LAN and 1394. When accessing EEPROM, send EEREQ signal to hardware first
+ *	and wait for EEGNT. If EEGNT is ON, EEPROM is permitted to be accessed
+ *	by LAN, otherwise it is not. After MAC address is read from EEPROM, send
  *	EEDONE signal to refuse EEPROM access by LAN.
  *	The EEPROM map of SiS962 or SiS963 is different to SiS900.
  *	The signature field in SiS962 or SiS963 spec is meaningless.
@@ -373,17 +381,18 @@ static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
+	u16 addr[ETH_ALEN / 2];
 	int wait, rc = 0;
 
 	sw32(mear, EEREQ);
 	for (wait = 0; wait < 2000; wait++) {
 		if (sr32(mear) & EEGNT) {
-			u16 *mac = (u16 *)net_dev->dev_addr;
 			int i;
 
 			/* get MAC address from EEPROM */
 			for (i = 0; i < 3; i++)
-			        mac[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
+			        addr[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
+			eth_hw_addr_set(net_dev, (u8 *)addr);
 
 			rc = 1;
 			break;
@@ -402,7 +411,7 @@ static const struct net_device_ops sis900_netdev_ops = {
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
-	.ndo_do_ioctl		= mii_ioctl,
+	.ndo_eth_ioctl		= mii_ioctl,
 	.ndo_tx_timeout		= sis900_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
         .ndo_poll_controller	= sis900_poll,
@@ -441,10 +450,10 @@ static int sis900_probe(struct pci_dev *pci_dev,
 #endif
 
 	/* setup various bits in PCI command register */
-	ret = pci_enable_device(pci_dev);
+	ret = pcim_enable_device(pci_dev);
 	if(ret) return ret;
 
-	i = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
+	i = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 	if(i){
 		printk(KERN_ERR "sis900.c: architecture does not support "
 			"32bit PCI busmaster DMA\n");
@@ -467,7 +476,7 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	ioaddr = pci_iomap(pci_dev, 0, 0);
 	if (!ioaddr) {
 		ret = -ENOMEM;
-		goto err_out_cleardev;
+		goto err_out;
 	}
 
 	sis_priv = netdev_priv(net_dev);
@@ -475,9 +484,12 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	sis_priv->pci_dev = pci_dev;
 	spin_lock_init(&sis_priv->lock);
 
+	sis_priv->eeprom_size = 24;
+
 	pci_set_drvdata(pci_dev, net_dev);
 
-	ring_space = pci_alloc_consistent(pci_dev, TX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pci_dev->dev, TX_TOTAL_SIZE,
+					&ring_dma, GFP_KERNEL);
 	if (!ring_space) {
 		ret = -ENOMEM;
 		goto err_out_unmap;
@@ -485,7 +497,8 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	sis_priv->tx_ring = ring_space;
 	sis_priv->tx_ring_dma = ring_dma;
 
-	ring_space = pci_alloc_consistent(pci_dev, RX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pci_dev->dev, RX_TOTAL_SIZE,
+					&ring_dma, GFP_KERNEL);
 	if (!ring_space) {
 		ret = -ENOMEM;
 		goto err_unmap_tx;
@@ -568,15 +581,13 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	return 0;
 
 err_unmap_rx:
-	pci_free_consistent(pci_dev, RX_TOTAL_SIZE, sis_priv->rx_ring,
-		sis_priv->rx_ring_dma);
+	dma_free_coherent(&pci_dev->dev, RX_TOTAL_SIZE, sis_priv->rx_ring,
+			  sis_priv->rx_ring_dma);
 err_unmap_tx:
-	pci_free_consistent(pci_dev, TX_TOTAL_SIZE, sis_priv->tx_ring,
-		sis_priv->tx_ring_dma);
+	dma_free_coherent(&pci_dev->dev, TX_TOTAL_SIZE, sis_priv->tx_ring,
+			  sis_priv->tx_ring_dma);
 err_out_unmap:
 	pci_iounmap(pci_dev, ioaddr);
-err_out_cleardev:
-	pci_release_regions(pci_dev);
  err_out:
 	free_netdev(net_dev);
 	return ret;
@@ -672,12 +683,12 @@ static int sis900_mii_probe(struct net_device *net_dev)
 	/* Reset phy if default phy is internal sis900 */
         if ((sis_priv->mii->phy_id0 == 0x001D) &&
 	    ((sis_priv->mii->phy_id1&0xFFF0) == 0x8000))
-        	status = sis900_reset_phy(net_dev, sis_priv->cur_phy);
+		status = sis900_reset_phy(net_dev, sis_priv->cur_phy);
 
         /* workaround for ICS1893 PHY */
         if ((sis_priv->mii->phy_id0 == 0x0015) &&
             ((sis_priv->mii->phy_id1&0xFFF0) == 0xF440))
-            	mdio_write(net_dev, sis_priv->cur_phy, 0x0018, 0xD200);
+		mdio_write(net_dev, sis_priv->cur_phy, 0x0018, 0xD200);
 
 	if(status & MII_STAT_LINK){
 		while (poll_bit) {
@@ -721,7 +732,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
 static u16 sis900_default_phy(struct net_device * net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
- 	struct mii_phy *phy = NULL, *phy_home = NULL,
+	struct mii_phy *phy = NULL, *phy_home = NULL,
 		*default_phy = NULL, *phy_lan = NULL;
 	u16 status;
 
@@ -730,10 +741,10 @@ static u16 sis900_default_phy(struct net_device * net_dev)
 		status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
 
 		/* Link ON & Not select default PHY & not ghost PHY */
-		 if ((status & MII_STAT_LINK) && !default_phy &&
-					(phy->phy_types != UNKNOWN))
-		 	default_phy = phy;
-		 else {
+		if ((status & MII_STAT_LINK) && !default_phy &&
+		    (phy->phy_types != UNKNOWN)) {
+			default_phy = phy;
+		} else {
 			status = mdio_read(net_dev, phy->phy_addr, MII_CONTROL);
 			mdio_write(net_dev, phy->phy_addr, MII_CONTROL,
 				status | MII_CNTL_AUTO | MII_CNTL_ISOLATE);
@@ -741,7 +752,7 @@ static u16 sis900_default_phy(struct net_device * net_dev)
 				phy_home = phy;
 			else if(phy->phy_types == LAN)
 				phy_lan = phy;
-		 }
+		}
 	}
 
 	if (!default_phy && phy_home)
@@ -783,10 +794,9 @@ static u16 sis900_default_phy(struct net_device * net_dev)
 static void sis900_set_capability(struct net_device *net_dev, struct mii_phy *phy)
 {
 	u16 cap;
-	u16 status;
 
-	status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
-	status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
+	mdio_read(net_dev, phy->phy_addr, MII_STATUS);
+	mdio_read(net_dev, phy->phy_addr, MII_STATUS);
 
 	cap = MII_NWAY_CSMA_CD |
 		((phy->status & MII_STAT_CAN_TX_FDX)? MII_NWAY_TX_FDX:0) |
@@ -882,7 +892,7 @@ static void mdio_reset(struct sis900_private *sp)
  *	mdio_read - read MII PHY register
  *	@net_dev: the net device to read
  *	@phy_id: the phy address to read
- *	@location: the phy regiester id to read
+ *	@location: the phy register id to read
  *
  *	Read MII registers through MDIO and MDC
  *	using MDIO management frame structure and protocol(defined by ISO/IEC).
@@ -926,7 +936,7 @@ static int mdio_read(struct net_device *net_dev, int phy_id, int location)
  *	mdio_write - write MII PHY register
  *	@net_dev: the net device to write
  *	@phy_id: the phy address to write
- *	@location: the phy regiester id to write
+ *	@location: the phy register id to write
  *	@value: the register value to write with
  *
  *	Write MII registers with @value through MDIO and MDC
@@ -1057,7 +1067,7 @@ sis900_open(struct net_device *net_dev)
 	sis900_set_mode(sis_priv, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
 
 	/* Enable all known interrupts by setting the interrupt mask. */
-	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxIDLE);
+	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 	sw32(cr, RxENA | sr32(cr));
 	sw32(ier, IE);
 
@@ -1095,13 +1105,13 @@ sis900_init_rxfilter (struct net_device * net_dev)
 
 	/* load MAC addr to filter data register */
 	for (i = 0 ; i < 3 ; i++) {
-		u32 w = (u32) *((u16 *)(net_dev->dev_addr)+i);
+		u32 w = (u32) *((const u16 *)(net_dev->dev_addr)+i);
 
 		sw32(rfcr, i << RFADDR_shift);
 		sw32(rfdr, w);
 
 		if (netif_msg_hw(sis_priv)) {
-			printk(KERN_DEBUG "%s: Receive Filter Addrss[%d]=%x\n",
+			printk(KERN_DEBUG "%s: Receive Filter Address[%d]=%x\n",
 			       net_dev->name, i, sr32(rfdr));
 		}
 	}
@@ -1148,7 +1158,7 @@ sis900_init_tx_ring(struct net_device *net_dev)
  *	@net_dev: the net device to initialize for
  *
  *	Initialize the Rx descriptor ring,
- *	and pre-allocate recevie buffers (socket buffer)
+ *	and pre-allocate receive buffers (socket buffer)
  */
 
 static void
@@ -1184,10 +1194,12 @@ sis900_init_rx_ring(struct net_device *net_dev)
 		}
 		sis_priv->rx_skbuff[i] = skb;
 		sis_priv->rx_ring[i].cmdsts = RX_BUF_SIZE;
-		sis_priv->rx_ring[i].bufptr = pci_map_single(sis_priv->pci_dev,
-				skb->data, RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-		if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
-				sis_priv->rx_ring[i].bufptr))) {
+		sis_priv->rx_ring[i].bufptr = dma_map_single(&sis_priv->pci_dev->dev,
+							     skb->data,
+							     RX_BUF_SIZE,
+							     DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(&sis_priv->pci_dev->dev,
+					       sis_priv->rx_ring[i].bufptr))) {
 			dev_kfree_skb(skb);
 			sis_priv->rx_skbuff[i] = NULL;
 			break;
@@ -1294,7 +1306,7 @@ static void sis630_set_eq(struct net_device *net_dev, u8 revision)
 
 /**
  *	sis900_timer - sis900 timer routine
- *	@data: pointer to sis900 net device
+ *	@t: timer list containing a pointer to sis900 net device
  *
  *	On each timer ticks we check two things,
  *	link status (ON/OFF) and link mode (10/100/Full/Half)
@@ -1332,18 +1344,18 @@ static void sis900_timer(struct timer_list *t)
 	} else {
 	/* Link ON -> OFF */
                 if (!(status & MII_STAT_LINK)){
-                	netif_carrier_off(net_dev);
+			netif_carrier_off(net_dev);
 			if(netif_msg_link(sis_priv))
-                		printk(KERN_INFO "%s: Media Link Off\n", net_dev->name);
+				printk(KERN_INFO "%s: Media Link Off\n", net_dev->name);
 
-                	/* Change mode issue */
-                	if ((mii_phy->phy_id0 == 0x001D) &&
-			    ((mii_phy->phy_id1 & 0xFFF0) == 0x8000))
-               			sis900_reset_phy(net_dev,  sis_priv->cur_phy);
+			/* Change mode issue */
+			if ((mii_phy->phy_id0 == 0x001D) &&
+				((mii_phy->phy_id1 & 0xFFF0) == 0x8000))
+					sis900_reset_phy(net_dev,  sis_priv->cur_phy);
 
 			sis630_set_eq(net_dev, sis_priv->chipset_rev);
 
-                	goto LookForLink;
+			goto LookForLink;
                 }
 	}
 
@@ -1528,12 +1540,13 @@ static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex
 /**
  *	sis900_tx_timeout - sis900 transmit timeout routine
  *	@net_dev: the net device to transmit
+ *	@txqueue: index of hanging queue
  *
  *	print transmit timeout status
  *	disable interrupts and do some tasks
  */
 
-static void sis900_tx_timeout(struct net_device *net_dev)
+static void sis900_tx_timeout(struct net_device *net_dev, unsigned int txqueue)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
@@ -1557,9 +1570,9 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 		struct sk_buff *skb = sis_priv->tx_skbuff[i];
 
 		if (skb) {
-			pci_unmap_single(sis_priv->pci_dev,
-				sis_priv->tx_ring[i].bufptr, skb->len,
-				PCI_DMA_TODEVICE);
+			dma_unmap_single(&sis_priv->pci_dev->dev,
+					 sis_priv->tx_ring[i].bufptr,
+					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_irq(skb);
 			sis_priv->tx_skbuff[i] = NULL;
 			sis_priv->tx_ring[i].cmdsts = 0;
@@ -1578,7 +1591,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 	sw32(txdp, sis_priv->tx_ring_dma);
 
 	/* Enable all known interrupts by setting the interrupt mask. */
-	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxIDLE);
+	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 }
 
 /**
@@ -1608,17 +1621,18 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	sis_priv->tx_skbuff[entry] = skb;
 
 	/* set the transmit buffer descriptor and enable Transmit State Machine */
-	sis_priv->tx_ring[entry].bufptr = pci_map_single(sis_priv->pci_dev,
-		skb->data, skb->len, PCI_DMA_TODEVICE);
-	if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
-		sis_priv->tx_ring[entry].bufptr))) {
+	sis_priv->tx_ring[entry].bufptr = dma_map_single(&sis_priv->pci_dev->dev,
+							 skb->data, skb->len,
+							 DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(&sis_priv->pci_dev->dev,
+				       sis_priv->tx_ring[entry].bufptr))) {
 			dev_kfree_skb_any(skb);
 			sis_priv->tx_skbuff[entry] = NULL;
 			net_dev->stats.tx_dropped++;
 			spin_unlock_irqrestore(&sis_priv->lock, flags);
 			return NETDEV_TX_OK;
 	}
-	sis_priv->tx_ring[entry].cmdsts = (OWN | skb->len);
+	sis_priv->tx_ring[entry].cmdsts = (OWN | INTR | skb->len);
 	sw32(cr, TxENA | sr32(cr));
 
 	sis_priv->cur_tx ++;
@@ -1674,8 +1688,8 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 	do {
 		status = sr32(isr);
 
-		if ((status & (HIBERR|TxURN|TxERR|TxIDLE|RxORN|RxERR|RxOK)) == 0)
-			/* nothing intresting happened */
+		if ((status & (HIBERR|TxURN|TxERR|TxDESC|RxORN|RxERR|RxOK)) == 0)
+			/* nothing interesting happened */
 			break;
 		handled = 1;
 
@@ -1684,7 +1698,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 			/* Rx interrupt */
 			sis900_rx(net_dev);
 
-		if (status & (TxURN | TxERR | TxIDLE))
+		if (status & (TxURN | TxERR | TxDESC))
 			/* Tx interrupt */
 			sis900_finish_xmit(net_dev);
 
@@ -1774,9 +1788,9 @@ static int sis900_rx(struct net_device *net_dev)
 			struct sk_buff * skb;
 			struct sk_buff * rx_skb;
 
-			pci_unmap_single(sis_priv->pci_dev,
-				sis_priv->rx_ring[entry].bufptr, RX_BUF_SIZE,
-				PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&sis_priv->pci_dev->dev,
+					 sis_priv->rx_ring[entry].bufptr,
+					 RX_BUF_SIZE, DMA_FROM_DEVICE);
 
 			/* refill the Rx buffer, what if there is not enough
 			 * memory for new socket buffer ?? */
@@ -1822,10 +1836,11 @@ refill_rx_ring:
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
 			sis_priv->rx_ring[entry].bufptr =
-				pci_map_single(sis_priv->pci_dev, skb->data,
-					RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-			if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
-				sis_priv->rx_ring[entry].bufptr))) {
+				dma_map_single(&sis_priv->pci_dev->dev,
+					       skb->data, RX_BUF_SIZE,
+					       DMA_FROM_DEVICE);
+			if (unlikely(dma_mapping_error(&sis_priv->pci_dev->dev,
+						       sis_priv->rx_ring[entry].bufptr))) {
 				dev_kfree_skb_irq(skb);
 				sis_priv->rx_skbuff[entry] = NULL;
 				break;
@@ -1856,10 +1871,11 @@ refill_rx_ring:
 			sis_priv->rx_skbuff[entry] = skb;
 			sis_priv->rx_ring[entry].cmdsts = RX_BUF_SIZE;
 			sis_priv->rx_ring[entry].bufptr =
-				pci_map_single(sis_priv->pci_dev, skb->data,
-					RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-			if (unlikely(pci_dma_mapping_error(sis_priv->pci_dev,
-					sis_priv->rx_ring[entry].bufptr))) {
+				dma_map_single(&sis_priv->pci_dev->dev,
+					       skb->data, RX_BUF_SIZE,
+					       DMA_FROM_DEVICE);
+			if (unlikely(dma_mapping_error(&sis_priv->pci_dev->dev,
+						       sis_priv->rx_ring[entry].bufptr))) {
 				dev_kfree_skb_irq(skb);
 				sis_priv->rx_skbuff[entry] = NULL;
 				break;
@@ -1896,8 +1912,8 @@ static void sis900_finish_xmit (struct net_device *net_dev)
 
 		if (tx_status & OWN) {
 			/* The packet is not transmitted yet (owned by hardware) !
-			 * Note: the interrupt is generated only when Tx Machine
-			 * is idle, so this is an almost impossible case */
+			 * Note: this is an almost impossible condition
+			 * on TxDESC interrupt ('descriptor interrupt') */
 			break;
 		}
 
@@ -1924,10 +1940,10 @@ static void sis900_finish_xmit (struct net_device *net_dev)
 		}
 		/* Free the original skb. */
 		skb = sis_priv->tx_skbuff[entry];
-		pci_unmap_single(sis_priv->pci_dev,
-			sis_priv->tx_ring[entry].bufptr, skb->len,
-			PCI_DMA_TODEVICE);
-		dev_kfree_skb_irq(skb);
+		dma_unmap_single(&sis_priv->pci_dev->dev,
+				 sis_priv->tx_ring[entry].bufptr, skb->len,
+				 DMA_TO_DEVICE);
+		dev_consume_skb_irq(skb);
 		sis_priv->tx_skbuff[entry] = NULL;
 		sis_priv->tx_ring[entry].bufptr = 0;
 		sis_priv->tx_ring[entry].cmdsts = 0;
@@ -1975,8 +1991,9 @@ static int sis900_close(struct net_device *net_dev)
 	for (i = 0; i < NUM_RX_DESC; i++) {
 		skb = sis_priv->rx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(pdev, sis_priv->rx_ring[i].bufptr,
-					 RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&pdev->dev,
+					 sis_priv->rx_ring[i].bufptr,
+					 RX_BUF_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 			sis_priv->rx_skbuff[i] = NULL;
 		}
@@ -1984,8 +2001,9 @@ static int sis900_close(struct net_device *net_dev)
 	for (i = 0; i < NUM_TX_DESC; i++) {
 		skb = sis_priv->tx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(pdev, sis_priv->tx_ring[i].bufptr,
-					 skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(&pdev->dev,
+					 sis_priv->tx_ring[i].bufptr,
+					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb(skb);
 			sis_priv->tx_skbuff[i] = NULL;
 		}
@@ -2122,6 +2140,68 @@ static void sis900_get_wol(struct net_device *net_dev, struct ethtool_wolinfo *w
 	wol->supported = (WAKE_PHY | WAKE_MAGIC);
 }
 
+static int sis900_get_eeprom_len(struct net_device *dev)
+{
+	struct sis900_private *sis_priv = netdev_priv(dev);
+
+	return sis_priv->eeprom_size;
+}
+
+static int sis900_read_eeprom(struct net_device *net_dev, u8 *buf)
+{
+	struct sis900_private *sis_priv = netdev_priv(net_dev);
+	void __iomem *ioaddr = sis_priv->ioaddr;
+	int wait, ret = -EAGAIN;
+	u16 signature;
+	u16 *ebuf = (u16 *)buf;
+	int i;
+
+	if (sis_priv->chipset_rev == SIS96x_900_REV) {
+		sw32(mear, EEREQ);
+		for (wait = 0; wait < 2000; wait++) {
+			if (sr32(mear) & EEGNT) {
+				/* read 16 bits, and index by 16 bits */
+				for (i = 0; i < sis_priv->eeprom_size / 2; i++)
+					ebuf[i] = (u16)read_eeprom(ioaddr, i);
+				ret = 0;
+				break;
+			}
+			udelay(1);
+		}
+		sw32(mear, EEDONE);
+	} else {
+		signature = (u16)read_eeprom(ioaddr, EEPROMSignature);
+		if (signature != 0xffff && signature != 0x0000) {
+			/* read 16 bits, and index by 16 bits */
+			for (i = 0; i < sis_priv->eeprom_size / 2; i++)
+				ebuf[i] = (u16)read_eeprom(ioaddr, i);
+			ret = 0;
+		}
+	}
+	return ret;
+}
+
+#define SIS900_EEPROM_MAGIC	0xBABE
+static int sis900_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct sis900_private *sis_priv = netdev_priv(dev);
+	u8 *eebuf;
+	int res;
+
+	eebuf = kmalloc(sis_priv->eeprom_size, GFP_KERNEL);
+	if (!eebuf)
+		return -ENOMEM;
+
+	eeprom->magic = SIS900_EEPROM_MAGIC;
+	spin_lock_irq(&sis_priv->lock);
+	res = sis900_read_eeprom(dev, eebuf);
+	spin_unlock_irq(&sis_priv->lock);
+	if (!res)
+		memcpy(data, eebuf + eeprom->offset, eeprom->len);
+	kfree(eebuf);
+	return res;
+}
+
 static const struct ethtool_ops sis900_ethtool_ops = {
 	.get_drvinfo 	= sis900_get_drvinfo,
 	.get_msglevel	= sis900_get_msglevel,
@@ -2132,6 +2212,8 @@ static const struct ethtool_ops sis900_ethtool_ops = {
 	.set_wol	= sis900_set_wol,
 	.get_link_ksettings = sis900_get_link_ksettings,
 	.set_link_ksettings = sis900_set_link_ksettings,
+	.get_eeprom_len = sis900_get_eeprom_len,
+	.get_eeprom = sis900_get_eeprom,
 };
 
 /**
@@ -2151,7 +2233,7 @@ static int mii_ioctl(struct net_device *net_dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = sis_priv->mii->phy_addr;
-		/* Fall Through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		data->val_out = mdio_read(net_dev, data->phy_id & 0x1f, data->reg_num & 0x1f);
@@ -2254,7 +2336,7 @@ static int sis900_set_config(struct net_device *dev, struct ifmap *map)
 		case IF_PORT_10BASE2: /* 10Base2 */
 		case IF_PORT_AUI: /* AUI */
 		case IF_PORT_100BASEFX: /* 100BaseFx */
-                	/* These Modes are not supported (are they?)*/
+			/* These Modes are not supported (are they?)*/
 			return -EOPNOTSUPP;
 
 		default:
@@ -2416,20 +2498,17 @@ static void sis900_remove(struct pci_dev *pci_dev)
 		kfree(phy);
 	}
 
-	pci_free_consistent(pci_dev, RX_TOTAL_SIZE, sis_priv->rx_ring,
-		sis_priv->rx_ring_dma);
-	pci_free_consistent(pci_dev, TX_TOTAL_SIZE, sis_priv->tx_ring,
-		sis_priv->tx_ring_dma);
+	dma_free_coherent(&pci_dev->dev, RX_TOTAL_SIZE, sis_priv->rx_ring,
+			  sis_priv->rx_ring_dma);
+	dma_free_coherent(&pci_dev->dev, TX_TOTAL_SIZE, sis_priv->tx_ring,
+			  sis_priv->tx_ring_dma);
 	pci_iounmap(pci_dev, sis_priv->ioaddr);
 	free_netdev(net_dev);
-	pci_release_regions(pci_dev);
 }
 
-#ifdef CONFIG_PM
-
-static int sis900_suspend(struct pci_dev *pci_dev, pm_message_t state)
+static int __maybe_unused sis900_suspend(struct device *dev)
 {
-	struct net_device *net_dev = pci_get_drvdata(pci_dev);
+	struct net_device *net_dev = dev_get_drvdata(dev);
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
 
@@ -2442,22 +2521,17 @@ static int sis900_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	/* Stop the chip's Tx and Rx Status Machine */
 	sw32(cr, RxDIS | TxDIS | sr32(cr));
 
-	pci_set_power_state(pci_dev, PCI_D3hot);
-	pci_save_state(pci_dev);
-
 	return 0;
 }
 
-static int sis900_resume(struct pci_dev *pci_dev)
+static int __maybe_unused sis900_resume(struct device *dev)
 {
-	struct net_device *net_dev = pci_get_drvdata(pci_dev);
+	struct net_device *net_dev = dev_get_drvdata(dev);
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
 
 	if(!netif_running(net_dev))
 		return 0;
-	pci_restore_state(pci_dev);
-	pci_set_power_state(pci_dev, PCI_D0);
 
 	sis900_init_rxfilter(net_dev);
 
@@ -2473,7 +2547,7 @@ static int sis900_resume(struct pci_dev *pci_dev)
 	sis900_set_mode(sis_priv, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
 
 	/* Enable all known interrupts by setting the interrupt mask. */
-	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxIDLE);
+	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxDESC);
 	sw32(cr, RxENA | sr32(cr));
 	sw32(ier, IE);
 
@@ -2481,17 +2555,15 @@ static int sis900_resume(struct pci_dev *pci_dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
+
+static SIMPLE_DEV_PM_OPS(sis900_pm_ops, sis900_suspend, sis900_resume);
 
 static struct pci_driver sis900_pci_driver = {
 	.name		= SIS900_MODULE_NAME,
 	.id_table	= sis900_pci_tbl,
 	.probe		= sis900_probe,
 	.remove		= sis900_remove,
-#ifdef CONFIG_PM
-	.suspend	= sis900_suspend,
-	.resume		= sis900_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &sis900_pm_ops,
 };
 
 static int __init sis900_init_module(void)

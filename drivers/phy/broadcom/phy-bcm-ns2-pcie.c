@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2016 Broadcom
 
 #include <linux/device.h>
 #include <linux/module.h>
@@ -29,14 +19,12 @@ static int ns2_pci_phy_init(struct phy *p)
 	int rc;
 
 	/* select the AFE 100MHz block page */
-	rc = mdiobus_write(mdiodev->bus, mdiodev->addr,
-			   BLK_ADDR_REG_OFFSET, PLL_AFE1_100MHZ_BLK);
+	rc = mdiodev_write(mdiodev, BLK_ADDR_REG_OFFSET, PLL_AFE1_100MHZ_BLK);
 	if (rc)
 		goto err;
 
 	/* set the 100 MHz reference clock amplitude to 2.05 v */
-	rc = mdiobus_write(mdiodev->bus, mdiodev->addr,
-			   PLL_CLK_AMP_OFFSET, PLL_CLK_AMP_2P05V);
+	rc = mdiodev_write(mdiodev, PLL_CLK_AMP_OFFSET, PLL_CLK_AMP_2P05V);
 	if (rc)
 		goto err;
 

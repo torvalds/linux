@@ -14,7 +14,6 @@ enum {
 	TLB_INVAL_SCOPE_LPID = 1,	/* invalidate TLBs for current LPID */
 };
 
-#ifdef CONFIG_PPC_NATIVE
 static inline void tlbiel_all(void)
 {
 	/*
@@ -30,9 +29,6 @@ static inline void tlbiel_all(void)
 	else
 		hash__tlbiel_all(TLB_INVAL_SCOPE_GLOBAL);
 }
-#else
-static inline void tlbiel_all(void) { BUG(); };
-#endif
 
 static inline void tlbiel_all_lpid(bool radix)
 {
@@ -142,24 +138,37 @@ static inline void flush_all_mm(struct mm_struct *mm)
 static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 						unsigned long address)
 {
-	/* See ptep_set_access_flags comment */
-	if (atomic_read(&vma->vm_mm->context.copros) > 0)
-		flush_tlb_page(vma, address);
-}
-
-/*
- * flush the page walk cache for the address
- */
-static inline void flush_tlb_pgtable(struct mmu_gather *tlb, unsigned long address)
-{
 	/*
-	 * Flush the page table walk cache on freeing a page table. We already
-	 * have marked the upper/higher level page table entry none by now.
-	 * So it is safe to flush PWC here.
+	 * Book3S 64 does not require spurious fault flushes because the PTE
+	 * must be re-fetched in case of an access permission problem. So the
+	 * only reason for a spurious fault should be concurrent modification
+	 * to the PTE, in which case the PTE will eventually be re-fetched by
+	 * the MMU when it attempts the access again.
+	 *
+	 * See: Power ISA Version 3.1B, 6.10.1.2 Modifying a Translation Table
+	 * Entry, Setting a Reference or Change Bit or Upgrading Access
+	 * Authority (PTE Subject to Atomic Hardware Updates):
+	 *
+	 * "If the only change being made to a valid PTE that is subject to
+	 *  atomic hardware updates is to set the Reference or Change bit to
+	 *  1 or to upgrade access authority, a simpler sequence suffices
+	 *  because the translation hardware will refetch the PTE if an
+	 *  access is attempted for which the only problems were reference
+	 *  and/or change bits needing to be set or insufficient access
+	 *  authority."
+	 *
+	 * The nest MMU in POWER9 does not perform this PTE re-fetch, but
+	 * it avoids the spurious fault problem by flushing the TLB before
+	 * upgrading PTE permissions, see radix__ptep_set_access_flags.
 	 */
-	if (!radix_enabled())
-		return;
-
-	radix__flush_tlb_pwc(tlb, address);
 }
+
+extern bool tlbie_capable;
+extern bool tlbie_enabled;
+
+static inline bool cputlb_use_tlbie(void)
+{
+	return tlbie_enabled;
+}
+
 #endif /*  _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H */

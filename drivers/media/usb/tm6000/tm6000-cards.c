@@ -17,7 +17,7 @@
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 
 #define TM6000_BOARD_UNKNOWN			0
@@ -1328,7 +1328,7 @@ put_device:
 
 /*
  * tm6000_usb_disconnect()
- * called when the device gets diconencted
+ * called when the device gets disconnected
  * video device will be unregistered on v4l2_close in case it is still open
  */
 static void tm6000_usb_disconnect(struct usb_interface *interface)

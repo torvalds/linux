@@ -30,14 +30,21 @@
  * authorization from the copyright holder(s) and author(s).
  */
 
+#include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
+#include <linux/fb.h>
+
+#include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 
@@ -71,11 +78,6 @@ struct drm_display_mode *drm_mode_create(struct drm_device *dev)
 	if (!nmode)
 		return NULL;
 
-	if (drm_mode_object_add(dev, &nmode->base, DRM_MODE_OBJECT_MODE)) {
-		kfree(nmode);
-		return NULL;
-	}
-
 	return nmode;
 }
 EXPORT_SYMBOL(drm_mode_create);
@@ -91,8 +93,6 @@ void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 {
 	if (!mode)
 		return;
-
-	drm_mode_object_unregister(dev, &mode->base);
 
 	kfree(mode);
 }
@@ -130,7 +130,7 @@ EXPORT_SYMBOL(drm_mode_probed_add);
  * according to the hdisplay, vdisplay, vrefresh.
  * It is based from the VESA(TM) Coordinated Video Timing Generator by
  * Graham Loveridge April 9, 2003 available at
- * http://www.elo.utfsm.cl/~elo212/docs/CVTd6r1.xls 
+ * http://www.elo.utfsm.cl/~elo212/docs/CVTd6r1.xls
  *
  * And it is copied from xf86CVTmode in xserver/hw/xfree86/modes/xf86cvt.c.
  * What I have done is to translate it by using integer calculation.
@@ -160,6 +160,9 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	int hdisplay_rnd, hmargin, vdisplay_rnd, vmargin, vsync;
 	int interlace;
 	u64 tmp;
+
+	if (!hdisplay || !vdisplay)
+		return NULL;
 
 	/* allocate the drm_display_mode structure. If failure, we will
 	 * return directly
@@ -233,7 +236,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		/* 3) Nominal HSync width (% of line period) - default 8 */
 #define CVT_HSYNC_PERCENTAGE	8
 		unsigned int hblank_percentage;
-		int vsyncandback_porch, vback_porch, hblank;
+		int vsyncandback_porch, __maybe_unused vback_porch, hblank;
 
 		/* estimated the horizontal period */
 		tmp1 = HV_FACTOR * 1000000  -
@@ -386,14 +389,18 @@ drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
 	int top_margin, bottom_margin;
 	int interlace;
 	unsigned int hfreq_est;
-	int vsync_plus_bp, vback_porch;
-	unsigned int vtotal_lines, vfieldrate_est, hperiod;
-	unsigned int vfield_rate, vframe_rate;
+	int vsync_plus_bp, __maybe_unused vback_porch;
+	unsigned int vtotal_lines, __maybe_unused vfieldrate_est;
+	unsigned int __maybe_unused hperiod;
+	unsigned int vfield_rate, __maybe_unused vframe_rate;
 	int left_margin, right_margin;
 	unsigned int total_active_pixels, ideal_duty_cycle;
 	unsigned int hblank, total_pixels, pixel_freq;
 	int hsync, hfront_porch, vodd_front_porch_lines;
 	unsigned int tmp1, tmp2;
+
+	if (!hdisplay || !vdisplay)
+		return NULL;
 
 	drm_mode = drm_mode_create(dev);
 	if (!drm_mode)
@@ -544,7 +551,7 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  * Generalized Timing Formula is derived from:
  *
  *	GTF Spreadsheet by Andy Morrish (1/5/97)
- *	available at http://www.vesa.org
+ *	available at https://www.vesa.org
  *
  * And it is copied from the file of xserver/hw/xfree86/modes/xf86gtf.c.
  * What I have done is to translate it by using integer calculation.
@@ -662,22 +669,22 @@ EXPORT_SYMBOL_GPL(drm_display_mode_to_videomode);
  * @bus_flags: information about pixelclk, sync and DE polarity will be stored
  * here
  *
- * Sets DRM_BUS_FLAG_DE_(LOW|HIGH),  DRM_BUS_FLAG_PIXDATA_(POS|NEG)EDGE and
- * DISPLAY_FLAGS_SYNC_(POS|NEG)EDGE in @bus_flags according to DISPLAY_FLAGS
+ * Sets DRM_BUS_FLAG_DE_(LOW|HIGH),  DRM_BUS_FLAG_PIXDATA_DRIVE_(POS|NEG)EDGE
+ * and DISPLAY_FLAGS_SYNC_(POS|NEG)EDGE in @bus_flags according to DISPLAY_FLAGS
  * found in @vm
  */
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags)
 {
 	*bus_flags = 0;
 	if (vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
-		*bus_flags |= DRM_BUS_FLAG_PIXDATA_POSEDGE;
+		*bus_flags |= DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
 	if (vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
-		*bus_flags |= DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+		*bus_flags |= DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
 
 	if (vm->flags & DISPLAY_FLAGS_SYNC_POSEDGE)
-		*bus_flags |= DRM_BUS_FLAG_SYNC_POSEDGE;
+		*bus_flags |= DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE;
 	if (vm->flags & DISPLAY_FLAGS_SYNC_NEGEDGE)
-		*bus_flags |= DRM_BUS_FLAG_SYNC_NEGEDGE;
+		*bus_flags |= DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE;
 
 	if (vm->flags & DISPLAY_FLAGS_DE_LOW)
 		*bus_flags |= DRM_BUS_FLAG_DE_LOW;
@@ -723,6 +730,54 @@ int of_get_drm_display_mode(struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
+
+/**
+ * of_get_drm_panel_display_mode - get a panel-timing drm_display_mode from devicetree
+ * @np: device_node with the panel-timing specification
+ * @dmode: will be set to the return value
+ * @bus_flags: information about pixelclk, sync and DE polarity
+ *
+ * The mandatory Device Tree properties width-mm and height-mm
+ * are read and set on the display mode.
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int of_get_drm_panel_display_mode(struct device_node *np,
+				  struct drm_display_mode *dmode, u32 *bus_flags)
+{
+	u32 width_mm = 0, height_mm = 0;
+	struct display_timing timing;
+	struct videomode vm;
+	int ret;
+
+	ret = of_get_display_timing(np, "panel-timing", &timing);
+	if (ret)
+		return ret;
+
+	videomode_from_timing(&timing, &vm);
+
+	memset(dmode, 0, sizeof(*dmode));
+	drm_display_mode_from_videomode(&vm, dmode);
+	if (bus_flags)
+		drm_bus_flags_from_videomode(&vm, bus_flags);
+
+	ret = of_property_read_u32(np, "width-mm", &width_mm);
+	if (ret)
+		return ret;
+
+	ret = of_property_read_u32(np, "height-mm", &height_mm);
+	if (ret)
+		return ret;
+
+	dmode->width_mm = width_mm;
+	dmode->height_mm = height_mm;
+
+	drm_mode_debug_printmodeline(dmode);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_get_drm_panel_display_mode);
 #endif /* CONFIG_OF */
 #endif /* CONFIG_VIDEOMODE_HELPERS */
 
@@ -744,32 +799,6 @@ void drm_mode_set_name(struct drm_display_mode *mode)
 EXPORT_SYMBOL(drm_mode_set_name);
 
 /**
- * drm_mode_hsync - get the hsync of a mode
- * @mode: mode
- *
- * Returns:
- * @modes's hsync rate in kHz, rounded to the nearest integer. Calculates the
- * value first if it is not yet set.
- */
-int drm_mode_hsync(const struct drm_display_mode *mode)
-{
-	unsigned int calc_val;
-
-	if (mode->hsync)
-		return mode->hsync;
-
-	if (mode->htotal < 0)
-		return 0;
-
-	calc_val = (mode->clock * 1000) / mode->htotal; /* hsync in Hz */
-	calc_val += 500;				/* round to 1000Hz */
-	calc_val /= 1000;				/* truncate to kHz */
-
-	return calc_val;
-}
-EXPORT_SYMBOL(drm_mode_hsync);
-
-/**
  * drm_mode_vrefresh - get the vrefresh of a mode
  * @mode: mode
  *
@@ -779,26 +808,22 @@ EXPORT_SYMBOL(drm_mode_hsync);
  */
 int drm_mode_vrefresh(const struct drm_display_mode *mode)
 {
-	int refresh = 0;
+	unsigned int num, den;
 
-	if (mode->vrefresh > 0)
-		refresh = mode->vrefresh;
-	else if (mode->htotal > 0 && mode->vtotal > 0) {
-		unsigned int num, den;
+	if (mode->htotal == 0 || mode->vtotal == 0)
+		return 0;
 
-		num = mode->clock * 1000;
-		den = mode->htotal * mode->vtotal;
+	num = mode->clock;
+	den = mode->htotal * mode->vtotal;
 
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			num *= 2;
-		if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-			den *= 2;
-		if (mode->vscan > 1)
-			den *= mode->vscan;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		num *= 2;
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		den *= 2;
+	if (mode->vscan > 1)
+		den *= mode->vscan;
 
-		refresh = DIV_ROUND_CLOSEST(num, den);
-	}
-	return refresh;
+	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(num, 1000), den);
 }
 EXPORT_SYMBOL(drm_mode_vrefresh);
 
@@ -814,7 +839,9 @@ EXPORT_SYMBOL(drm_mode_vrefresh);
 void drm_mode_get_hv_timing(const struct drm_display_mode *mode,
 			    int *hdisplay, int *vdisplay)
 {
-	struct drm_display_mode adjusted = *mode;
+	struct drm_display_mode adjusted;
+
+	drm_mode_init(&adjusted, mode);
 
 	drm_mode_set_crtcinfo(&adjusted, CRTC_STEREO_DOUBLE_ONLY);
 	*hdisplay = adjusted.crtc_hdisplay;
@@ -906,19 +933,34 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
  * @dst: mode to overwrite
  * @src: mode to copy
  *
- * Copy an existing mode into another mode, preserving the object id and
+ * Copy an existing mode into another mode, preserving the
  * list head of the destination mode.
  */
 void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src)
 {
-	int id = dst->base.id;
 	struct list_head head = dst->head;
 
 	*dst = *src;
-	dst->base.id = id;
 	dst->head = head;
 }
 EXPORT_SYMBOL(drm_mode_copy);
+
+/**
+ * drm_mode_init - initialize the mode from another mode
+ * @dst: mode to overwrite
+ * @src: mode to copy
+ *
+ * Copy an existing mode into another mode, zeroing the
+ * list head of the destination mode. Typically used
+ * to guarantee the list head is not left with stack
+ * garbage in on-stack modes.
+ */
+void drm_mode_init(struct drm_display_mode *dst, const struct drm_display_mode *src)
+{
+	memset(dst, 0, sizeof(*dst));
+	drm_mode_copy(dst, src);
+}
+EXPORT_SYMBOL(drm_mode_init);
 
 /**
  * drm_mode_duplicate - allocate and duplicate an existing mode
@@ -1204,16 +1246,11 @@ enum drm_mode_status
 drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
 			   struct drm_connector *connector)
 {
-	u8 vic = drm_match_cea_mode(mode);
-	enum drm_mode_status status = MODE_OK;
-	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+	if (!connector->ycbcr_420_allowed &&
+	    drm_mode_is_420_only(&connector->display_info, mode))
+		return MODE_NO_420;
 
-	if (test_bit(vic, hdmi->y420_vdb_modes)) {
-		if (!connector->ycbcr_420_allowed)
-			status = MODE_NO_420;
-	}
-
-	return status;
+	return MODE_OK;
 }
 EXPORT_SYMBOL(drm_mode_validate_ycbcr420);
 
@@ -1281,7 +1318,7 @@ const char *drm_get_mode_status_name(enum drm_mode_status status)
  * @verbose: be verbose about it
  *
  * This helper function can be used to prune a display mode list after
- * validation has been completed. All modes who's status is not MODE_OK will be
+ * validation has been completed. All modes whose status is not MODE_OK will be
  * removed from the list, and if @verbose the status code and mode name is also
  * printed to dmesg.
  */
@@ -1293,6 +1330,10 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 	list_for_each_entry_safe(mode, t, mode_list, head) {
 		if (mode->status != MODE_OK) {
 			list_del(&mode->head);
+			if (mode->type & DRM_MODE_TYPE_USERDEF) {
+				drm_warn(dev, "User-defined mode not supported: "
+					 DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+			}
 			if (verbose) {
 				drm_mode_debug_printmodeline(mode);
 				DRM_DEBUG_KMS("Not using %s mode: %s\n",
@@ -1318,7 +1359,8 @@ EXPORT_SYMBOL(drm_mode_prune_invalid);
  * Negative if @lh_a is better than @lh_b, zero if they're equivalent, or
  * positive if @lh_b is better than @lh_a.
  */
-static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head *lh_b)
+static int drm_mode_compare(void *priv, const struct list_head *lh_a,
+			    const struct list_head *lh_b)
 {
 	struct drm_display_mode *a = list_entry(lh_a, struct drm_display_mode, head);
 	struct drm_display_mode *b = list_entry(lh_b, struct drm_display_mode, head);
@@ -1332,7 +1374,7 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
 	if (diff)
 		return diff;
 
-	diff = b->vrefresh - a->vrefresh;
+	diff = drm_mode_vrefresh(b) - drm_mode_vrefresh(a);
 	if (diff)
 		return diff;
 
@@ -1414,6 +1456,305 @@ void drm_connector_list_update(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_list_update);
 
+static int drm_mode_parse_cmdline_bpp(const char *str, char **end_ptr,
+				      struct drm_cmdline_mode *mode)
+{
+	unsigned int bpp;
+
+	if (str[0] != '-')
+		return -EINVAL;
+
+	str++;
+	bpp = simple_strtol(str, end_ptr, 10);
+	if (*end_ptr == str)
+		return -EINVAL;
+
+	mode->bpp = bpp;
+	mode->bpp_specified = true;
+
+	return 0;
+}
+
+static int drm_mode_parse_cmdline_refresh(const char *str, char **end_ptr,
+					  struct drm_cmdline_mode *mode)
+{
+	unsigned int refresh;
+
+	if (str[0] != '@')
+		return -EINVAL;
+
+	str++;
+	refresh = simple_strtol(str, end_ptr, 10);
+	if (*end_ptr == str)
+		return -EINVAL;
+
+	mode->refresh = refresh;
+	mode->refresh_specified = true;
+
+	return 0;
+}
+
+static int drm_mode_parse_cmdline_extra(const char *str, int length,
+					bool freestanding,
+					const struct drm_connector *connector,
+					struct drm_cmdline_mode *mode)
+{
+	int i;
+
+	for (i = 0; i < length; i++) {
+		switch (str[i]) {
+		case 'i':
+			if (freestanding)
+				return -EINVAL;
+
+			mode->interlace = true;
+			break;
+		case 'm':
+			if (freestanding)
+				return -EINVAL;
+
+			mode->margins = true;
+			break;
+		case 'D':
+			if (mode->force != DRM_FORCE_UNSPECIFIED)
+				return -EINVAL;
+
+			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) &&
+			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
+				mode->force = DRM_FORCE_ON;
+			else
+				mode->force = DRM_FORCE_ON_DIGITAL;
+			break;
+		case 'd':
+			if (mode->force != DRM_FORCE_UNSPECIFIED)
+				return -EINVAL;
+
+			mode->force = DRM_FORCE_OFF;
+			break;
+		case 'e':
+			if (mode->force != DRM_FORCE_UNSPECIFIED)
+				return -EINVAL;
+
+			mode->force = DRM_FORCE_ON;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
+					   bool extras,
+					   const struct drm_connector *connector,
+					   struct drm_cmdline_mode *mode)
+{
+	const char *str_start = str;
+	bool rb = false, cvt = false;
+	int xres = 0, yres = 0;
+	int remaining, i;
+	char *end_ptr;
+
+	xres = simple_strtol(str, &end_ptr, 10);
+	if (end_ptr == str)
+		return -EINVAL;
+
+	if (end_ptr[0] != 'x')
+		return -EINVAL;
+	end_ptr++;
+
+	str = end_ptr;
+	yres = simple_strtol(str, &end_ptr, 10);
+	if (end_ptr == str)
+		return -EINVAL;
+
+	remaining = length - (end_ptr - str_start);
+	if (remaining < 0)
+		return -EINVAL;
+
+	for (i = 0; i < remaining; i++) {
+		switch (end_ptr[i]) {
+		case 'M':
+			cvt = true;
+			break;
+		case 'R':
+			rb = true;
+			break;
+		default:
+			/*
+			 * Try to pass that to our extras parsing
+			 * function to handle the case where the
+			 * extras are directly after the resolution
+			 */
+			if (extras) {
+				int ret = drm_mode_parse_cmdline_extra(end_ptr + i,
+								       1,
+								       false,
+								       connector,
+								       mode);
+				if (ret)
+					return ret;
+			} else {
+				return -EINVAL;
+			}
+		}
+	}
+
+	mode->xres = xres;
+	mode->yres = yres;
+	mode->cvt = cvt;
+	mode->rb = rb;
+
+	return 0;
+}
+
+static int drm_mode_parse_cmdline_int(const char *delim, unsigned int *int_ret)
+{
+	const char *value;
+	char *endp;
+
+	/*
+	 * delim must point to the '=', otherwise it is a syntax error and
+	 * if delim points to the terminating zero, then delim + 1 will point
+	 * past the end of the string.
+	 */
+	if (*delim != '=')
+		return -EINVAL;
+
+	value = delim + 1;
+	*int_ret = simple_strtol(value, &endp, 10);
+
+	/* Make sure we have parsed something */
+	if (endp == value)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int drm_mode_parse_panel_orientation(const char *delim,
+					    struct drm_cmdline_mode *mode)
+{
+	const char *value;
+
+	if (*delim != '=')
+		return -EINVAL;
+
+	value = delim + 1;
+	delim = strchr(value, ',');
+	if (!delim)
+		delim = value + strlen(value);
+
+	if (!strncmp(value, "normal", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	else if (!strncmp(value, "upside_down", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
+	else if (!strncmp(value, "left_side_up", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_LEFT_UP;
+	else if (!strncmp(value, "right_side_up", delim - value))
+		mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_RIGHT_UP;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int drm_mode_parse_cmdline_options(const char *str,
+					  bool freestanding,
+					  const struct drm_connector *connector,
+					  struct drm_cmdline_mode *mode)
+{
+	unsigned int deg, margin, rotation = 0;
+	const char *delim, *option, *sep;
+
+	option = str;
+	do {
+		delim = strchr(option, '=');
+		if (!delim) {
+			delim = strchr(option, ',');
+
+			if (!delim)
+				delim = option + strlen(option);
+		}
+
+		if (!strncmp(option, "rotate", delim - option)) {
+			if (drm_mode_parse_cmdline_int(delim, &deg))
+				return -EINVAL;
+
+			switch (deg) {
+			case 0:
+				rotation |= DRM_MODE_ROTATE_0;
+				break;
+
+			case 90:
+				rotation |= DRM_MODE_ROTATE_90;
+				break;
+
+			case 180:
+				rotation |= DRM_MODE_ROTATE_180;
+				break;
+
+			case 270:
+				rotation |= DRM_MODE_ROTATE_270;
+				break;
+
+			default:
+				return -EINVAL;
+			}
+		} else if (!strncmp(option, "reflect_x", delim - option)) {
+			rotation |= DRM_MODE_REFLECT_X;
+		} else if (!strncmp(option, "reflect_y", delim - option)) {
+			rotation |= DRM_MODE_REFLECT_Y;
+		} else if (!strncmp(option, "margin_right", delim - option)) {
+			if (drm_mode_parse_cmdline_int(delim, &margin))
+				return -EINVAL;
+
+			mode->tv_margins.right = margin;
+		} else if (!strncmp(option, "margin_left", delim - option)) {
+			if (drm_mode_parse_cmdline_int(delim, &margin))
+				return -EINVAL;
+
+			mode->tv_margins.left = margin;
+		} else if (!strncmp(option, "margin_top", delim - option)) {
+			if (drm_mode_parse_cmdline_int(delim, &margin))
+				return -EINVAL;
+
+			mode->tv_margins.top = margin;
+		} else if (!strncmp(option, "margin_bottom", delim - option)) {
+			if (drm_mode_parse_cmdline_int(delim, &margin))
+				return -EINVAL;
+
+			mode->tv_margins.bottom = margin;
+		} else if (!strncmp(option, "panel_orientation", delim - option)) {
+			if (drm_mode_parse_panel_orientation(delim, mode))
+				return -EINVAL;
+		} else {
+			return -EINVAL;
+		}
+		sep = strchr(delim, ',');
+		option = sep + 1;
+	} while (sep);
+
+	if (rotation && freestanding)
+		return -EINVAL;
+
+	if (!(rotation & DRM_MODE_ROTATE_MASK))
+		rotation |= DRM_MODE_ROTATE_0;
+
+	/* Make sure there is exactly one rotation defined */
+	if (!is_power_of_2(rotation & DRM_MODE_ROTATE_MASK))
+		return -EINVAL;
+
+	mode->rotation_reflection = rotation;
+
+	return 0;
+}
+
+static const char * const drm_named_modes_whitelist[] = {
+	"NTSC",
+	"PAL",
+};
+
 /**
  * drm_mode_parse_command_line_for_connector - parse command line modeline for connector
  * @mode_option: optional per connector mode option
@@ -1429,6 +1770,10 @@ EXPORT_SYMBOL(drm_connector_list_update);
  *
  *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
  *
+ * Additionals options can be provided following the mode, using a comma to
+ * separate each option. Valid options can be found in
+ * Documentation/fb/modedb.rst.
+ *
  * The intermediate drm_cmdline_mode structure is required to store additional
  * options from the command line modline like the force-enable/disable flag.
  *
@@ -1436,150 +1781,140 @@ EXPORT_SYMBOL(drm_connector_list_update);
  * True if a valid modeline has been parsed, false otherwise.
  */
 bool drm_mode_parse_command_line_for_connector(const char *mode_option,
-					       struct drm_connector *connector,
+					       const struct drm_connector *connector,
 					       struct drm_cmdline_mode *mode)
 {
 	const char *name;
-	unsigned int namelen;
-	bool res_specified = false, bpp_specified = false, refresh_specified = false;
-	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
-	bool yres_specified = false, cvt = false, rb = false;
-	bool interlace = false, margins = false, was_digit = false;
-	int i;
-	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
+	bool freestanding = false, parse_extras = false;
+	unsigned int bpp_off = 0, refresh_off = 0, options_off = 0;
+	unsigned int mode_end = 0;
+	const char *bpp_ptr = NULL, *refresh_ptr = NULL, *extra_ptr = NULL;
+	const char *options_ptr = NULL;
+	char *bpp_end_ptr = NULL, *refresh_end_ptr = NULL;
+	int i, len, ret;
 
-#ifdef CONFIG_FB
+	memset(mode, 0, sizeof(*mode));
+	mode->panel_orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+
 	if (!mode_option)
-		mode_option = fb_mode_option;
-#endif
-
-	if (!mode_option) {
-		mode->specified = false;
 		return false;
-	}
 
 	name = mode_option;
-	namelen = strlen(name);
-	for (i = namelen-1; i >= 0; i--) {
-		switch (name[i]) {
-		case '@':
-			if (!refresh_specified && !bpp_specified &&
-			    !yres_specified && !cvt && !rb && was_digit) {
-				refresh = simple_strtol(&name[i+1], NULL, 10);
-				refresh_specified = true;
-				was_digit = false;
-			} else
-				goto done;
-			break;
-		case '-':
-			if (!bpp_specified && !yres_specified && !cvt &&
-			    !rb && was_digit) {
-				bpp = simple_strtol(&name[i+1], NULL, 10);
-				bpp_specified = true;
-				was_digit = false;
-			} else
-				goto done;
-			break;
-		case 'x':
-			if (!yres_specified && was_digit) {
-				yres = simple_strtol(&name[i+1], NULL, 10);
-				yres_specified = true;
-				was_digit = false;
-			} else
-				goto done;
-			break;
-		case '0' ... '9':
-			was_digit = true;
-			break;
-		case 'M':
-			if (yres_specified || cvt || was_digit)
-				goto done;
-			cvt = true;
-			break;
-		case 'R':
-			if (yres_specified || cvt || rb || was_digit)
-				goto done;
-			rb = true;
-			break;
-		case 'm':
-			if (cvt || yres_specified || was_digit)
-				goto done;
-			margins = true;
-			break;
-		case 'i':
-			if (cvt || yres_specified || was_digit)
-				goto done;
-			interlace = true;
-			break;
-		case 'e':
-			if (yres_specified || bpp_specified || refresh_specified ||
-			    was_digit || (force != DRM_FORCE_UNSPECIFIED))
-				goto done;
 
-			force = DRM_FORCE_ON;
-			break;
-		case 'D':
-			if (yres_specified || bpp_specified || refresh_specified ||
-			    was_digit || (force != DRM_FORCE_UNSPECIFIED))
-				goto done;
+	/* Try to locate the bpp and refresh specifiers, if any */
+	bpp_ptr = strchr(name, '-');
+	if (bpp_ptr)
+		bpp_off = bpp_ptr - name;
 
-			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) &&
-			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
-				force = DRM_FORCE_ON;
-			else
-				force = DRM_FORCE_ON_DIGITAL;
-			break;
-		case 'd':
-			if (yres_specified || bpp_specified || refresh_specified ||
-			    was_digit || (force != DRM_FORCE_UNSPECIFIED))
-				goto done;
+	refresh_ptr = strchr(name, '@');
+	if (refresh_ptr)
+		refresh_off = refresh_ptr - name;
 
-			force = DRM_FORCE_OFF;
+	/* Locate the start of named options */
+	options_ptr = strchr(name, ',');
+	if (options_ptr)
+		options_off = options_ptr - name;
+
+	/* Locate the end of the name / resolution, and parse it */
+	if (bpp_ptr) {
+		mode_end = bpp_off;
+	} else if (refresh_ptr) {
+		mode_end = refresh_off;
+	} else if (options_ptr) {
+		mode_end = options_off;
+		parse_extras = true;
+	} else {
+		mode_end = strlen(name);
+		parse_extras = true;
+	}
+
+	/* First check for a named mode */
+	for (i = 0; i < ARRAY_SIZE(drm_named_modes_whitelist); i++) {
+		ret = str_has_prefix(name, drm_named_modes_whitelist[i]);
+		if (ret == mode_end) {
+			if (refresh_ptr)
+				return false; /* named + refresh is invalid */
+
+			strcpy(mode->name, drm_named_modes_whitelist[i]);
+			mode->specified = true;
 			break;
-		default:
-			goto done;
 		}
 	}
 
-	if (i < 0 && yres_specified) {
-		char *ch;
-		xres = simple_strtol(name, &ch, 10);
-		if ((ch != NULL) && (*ch == 'x'))
-			res_specified = true;
-		else
-			i = ch - name;
-	} else if (!yres_specified && was_digit) {
-		/* catch mode that begins with digits but has no 'x' */
-		i = 0;
-	}
-done:
-	if (i >= 0) {
-		pr_warn("[drm] parse error at position %i in video mode '%s'\n",
-			i, name);
-		mode->specified = false;
-		return false;
-	}
+	/* No named mode? Check for a normal mode argument, e.g. 1024x768 */
+	if (!mode->specified && isdigit(name[0])) {
+		ret = drm_mode_parse_cmdline_res_mode(name, mode_end,
+						      parse_extras,
+						      connector,
+						      mode);
+		if (ret)
+			return false;
 
-	if (res_specified) {
 		mode->specified = true;
-		mode->xres = xres;
-		mode->yres = yres;
 	}
 
-	if (refresh_specified) {
-		mode->refresh_specified = true;
-		mode->refresh = refresh;
+	/* No mode? Check for freestanding extras and/or options */
+	if (!mode->specified) {
+		unsigned int len = strlen(mode_option);
+
+		if (bpp_ptr || refresh_ptr)
+			return false; /* syntax error */
+
+		if (len == 1 || (len >= 2 && mode_option[1] == ','))
+			extra_ptr = mode_option;
+		else
+			options_ptr = mode_option - 1;
+
+		freestanding = true;
 	}
 
-	if (bpp_specified) {
+	if (bpp_ptr) {
+		ret = drm_mode_parse_cmdline_bpp(bpp_ptr, &bpp_end_ptr, mode);
+		if (ret)
+			return false;
+
 		mode->bpp_specified = true;
-		mode->bpp = bpp;
 	}
-	mode->rb = rb;
-	mode->cvt = cvt;
-	mode->interlace = interlace;
-	mode->margins = margins;
-	mode->force = force;
+
+	if (refresh_ptr) {
+		ret = drm_mode_parse_cmdline_refresh(refresh_ptr,
+						     &refresh_end_ptr, mode);
+		if (ret)
+			return false;
+
+		mode->refresh_specified = true;
+	}
+
+	/*
+	 * Locate the end of the bpp / refresh, and parse the extras
+	 * if relevant
+	 */
+	if (bpp_ptr && refresh_ptr)
+		extra_ptr = max(bpp_end_ptr, refresh_end_ptr);
+	else if (bpp_ptr)
+		extra_ptr = bpp_end_ptr;
+	else if (refresh_ptr)
+		extra_ptr = refresh_end_ptr;
+
+	if (extra_ptr) {
+		if (options_ptr)
+			len = options_ptr - extra_ptr;
+		else
+			len = strlen(extra_ptr);
+
+		ret = drm_mode_parse_cmdline_extra(extra_ptr, len, freestanding,
+						   connector, mode);
+		if (ret)
+			return false;
+	}
+
+	if (options_ptr) {
+		ret = drm_mode_parse_cmdline_options(options_ptr + 1,
+						     freestanding,
+						     connector, mode);
+		if (ret)
+			return false;
+	}
 
 	return true;
 }
@@ -1598,6 +1933,9 @@ drm_mode_create_from_cmdline_mode(struct drm_device *dev,
 				  struct drm_cmdline_mode *cmd)
 {
 	struct drm_display_mode *mode;
+
+	if (cmd->xres == 0 || cmd->yres == 0)
+		return NULL;
 
 	if (cmd->cvt)
 		mode = drm_cvt_mode(dev,
@@ -1624,7 +1962,7 @@ drm_mode_create_from_cmdline_mode(struct drm_device *dev,
 EXPORT_SYMBOL(drm_mode_create_from_cmdline_mode);
 
 /**
- * drm_crtc_convert_to_umode - convert a drm_display_mode into a modeinfo
+ * drm_mode_convert_to_umode - convert a drm_display_mode into a modeinfo
  * @out: drm_mode_modeinfo struct to return to the user
  * @in: drm_display_mode to use
  *
@@ -1634,13 +1972,6 @@ EXPORT_SYMBOL(drm_mode_create_from_cmdline_mode);
 void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 			       const struct drm_display_mode *in)
 {
-	WARN(in->hdisplay > USHRT_MAX || in->hsync_start > USHRT_MAX ||
-	     in->hsync_end > USHRT_MAX || in->htotal > USHRT_MAX ||
-	     in->hskew > USHRT_MAX || in->vdisplay > USHRT_MAX ||
-	     in->vsync_start > USHRT_MAX || in->vsync_end > USHRT_MAX ||
-	     in->vtotal > USHRT_MAX || in->vscan > USHRT_MAX,
-	     "timing values too large for mode info\n");
-
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
 	out->hsync_start = in->hsync_start;
@@ -1652,7 +1983,7 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 	out->vsync_end = in->vsync_end;
 	out->vtotal = in->vtotal;
 	out->vscan = in->vscan;
-	out->vrefresh = in->vrefresh;
+	out->vrefresh = drm_mode_vrefresh(in);
 	out->flags = in->flags;
 	out->type = in->type;
 
@@ -1669,8 +2000,11 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 	case HDMI_PICTURE_ASPECT_256_135:
 		out->flags |= DRM_MODE_FLAG_PIC_AR_256_135;
 		break;
-	case HDMI_PICTURE_ASPECT_RESERVED:
 	default:
+		WARN(1, "Invalid aspect ratio (0%x) on mode\n",
+		     in->picture_aspect_ratio);
+		fallthrough;
+	case HDMI_PICTURE_ASPECT_NONE:
 		out->flags |= DRM_MODE_FLAG_PIC_AR_NONE;
 		break;
 	}
@@ -1680,7 +2014,7 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 }
 
 /**
- * drm_crtc_convert_umode - convert a modeinfo into a drm_display_mode
+ * drm_mode_convert_umode - convert a modeinfo into a drm_display_mode
  * @dev: drm device
  * @out: drm_display_mode to return to the user
  * @in: drm_mode_modeinfo to use
@@ -1709,11 +2043,10 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	out->vsync_end = in->vsync_end;
 	out->vtotal = in->vtotal;
 	out->vscan = in->vscan;
-	out->vrefresh = in->vrefresh;
 	out->flags = in->flags;
 	/*
 	 * Old xf86-video-vmware (possibly others too) used to
-	 * leave 'type' unititialized. Just ignore any bits we
+	 * leave 'type' uninitialized. Just ignore any bits we
 	 * don't like. It's a just hint after all, and more
 	 * useful for the kernel->userspace direction anyway.
 	 */
@@ -1729,20 +2062,22 @@ int drm_mode_convert_umode(struct drm_device *dev,
 
 	switch (in->flags & DRM_MODE_FLAG_PIC_AR_MASK) {
 	case DRM_MODE_FLAG_PIC_AR_4_3:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_4_3;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_16_9:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_16_9;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_64_27:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_64_27;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_64_27;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_256_135:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_256_135;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135;
 		break;
-	default:
+	case DRM_MODE_FLAG_PIC_AR_NONE:
 		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	out->status = drm_mode_validate_driver(dev, out);

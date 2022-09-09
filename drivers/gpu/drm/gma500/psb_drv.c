@@ -1,43 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  * Copyright (c) 2008, Tungsten Graphics, Inc. Cedar Park, TX., USA.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
-#include <drm/drmP.h>
-#include <drm/drm.h>
-#include "psb_drv.h"
-#include "framebuffer.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
-#include "intel_bios.h"
-#include "mid_bios.h"
-#include <drm/drm_pciids.h>
-#include "power.h"
 #include <linux/cpu.h>
-#include <linux/notifier.h>
-#include <linux/spinlock.h>
-#include <linux/pm_runtime.h>
-#include <acpi/video.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/pm_runtime.h>
+#include <linux/spinlock.h>
+#include <linux/delay.h>
+
 #include <asm/set_memory.h>
 
-static struct drm_driver driver;
+#include <acpi/video.h>
+
+#include <drm/drm.h>
+#include <drm/drm_aperture.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_pciids.h>
+#include <drm/drm_vblank.h>
+
+#include "framebuffer.h"
+#include "gem.h"
+#include "intel_bios.h"
+#include "mid_bios.h"
+#include "power.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_irq.h"
+#include "psb_reg.h"
+
+static const struct drm_driver driver;
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 /*
@@ -49,16 +49,15 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
  * PowerVR SGX535    - Poulsbo    - Intel GMA 500, Intel Atom Z5xx
  * PowerVR SGX535    - Moorestown - Intel GMA 600
  * PowerVR SGX535    - Oaktrail   - Intel GMA 600, Intel Atom Z6xx, E6xx
- * PowerVR SGX540    - Medfield   - Intel Atom Z2460
- * PowerVR SGX544MP2 - Medfield   -
  * PowerVR SGX545    - Cedartrail - Intel GMA 3600, Intel Atom D2500, N2600
  * PowerVR SGX545    - Cedartrail - Intel GMA 3650, Intel Atom D2550, D2700,
  *                                  N2800
  */
 static const struct pci_device_id pciidlist[] = {
+	/* Poulsbo */
 	{ 0x8086, 0x8108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
 	{ 0x8086, 0x8109, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &psb_chip_ops },
-#if defined(CONFIG_DRM_GMA600)
+	/* Oak Trail */
 	{ 0x8086, 0x4100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4101, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
@@ -68,18 +67,7 @@ static const struct pci_device_id pciidlist[] = {
 	{ 0x8086, 0x4106, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4107, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
 	{ 0x8086, 0x4108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &oaktrail_chip_ops },
-#endif
-#if defined(CONFIG_DRM_MEDFIELD)
-	{ 0x8086, 0x0130, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0133, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0134, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0135, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0136, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-	{ 0x8086, 0x0137, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &mdfld_chip_ops },
-#endif
-#if defined(CONFIG_DRM_GMA3600)
+	/* Cedar Trail */
 	{ 0x8086, 0x0be0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0be1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0be2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
@@ -96,7 +84,6 @@ static const struct pci_device_id pciidlist[] = {
 	{ 0x8086, 0x0bed, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0bee, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
 	{ 0x8086, 0x0bef, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops },
-#endif
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -107,9 +94,39 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 static const struct drm_ioctl_desc psb_ioctls[] = {
 };
 
+/**
+ *	psb_spank		-	reset the 2D engine
+ *	@dev_priv: our PSB DRM device
+ *
+ *	Soft reset the graphics engine and then reload the necessary registers.
+ */
+static void psb_spank(struct drm_psb_private *dev_priv)
+{
+	PSB_WSGX32(_PSB_CS_RESET_BIF_RESET | _PSB_CS_RESET_DPM_RESET |
+		_PSB_CS_RESET_TA_RESET | _PSB_CS_RESET_USE_RESET |
+		_PSB_CS_RESET_ISP_RESET | _PSB_CS_RESET_TSP_RESET |
+		_PSB_CS_RESET_TWOD_RESET, PSB_CR_SOFT_RESET);
+	PSB_RSGX32(PSB_CR_SOFT_RESET);
+
+	msleep(1);
+
+	PSB_WSGX32(0, PSB_CR_SOFT_RESET);
+	wmb();
+	PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_CB_CTRL_CLEAR_FAULT,
+		   PSB_CR_BIF_CTRL);
+	wmb();
+	(void) PSB_RSGX32(PSB_CR_BIF_CTRL);
+
+	msleep(1);
+	PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) & ~_PSB_CB_CTRL_CLEAR_FAULT,
+		   PSB_CR_BIF_CTRL);
+	(void) PSB_RSGX32(PSB_CR_BIF_CTRL);
+	PSB_WSGX32(dev_priv->gtt.gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
+}
+
 static int psb_do_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_gtt *pg = &dev_priv->gtt;
 
 	uint32_t stolen_gtt;
@@ -127,7 +144,6 @@ static int psb_do_init(struct drm_device *dev)
 	    (stolen_gtt << PAGE_SHIFT) * 1024;
 
 	spin_lock_init(&dev_priv->irqmask_lock);
-	spin_lock_init(&dev_priv->lock_2d);
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
@@ -149,93 +165,94 @@ static int psb_do_init(struct drm_device *dev)
 
 static void psb_driver_unload(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	/* TODO: Kill vblank etc here */
 
-	if (dev_priv) {
-		if (dev_priv->backlight_device)
-			gma_backlight_exit(dev);
-		psb_modeset_cleanup(dev);
+	if (dev_priv->backlight_device)
+		gma_backlight_exit(dev);
+	psb_modeset_cleanup(dev);
 
-		if (dev_priv->ops->chip_teardown)
-			dev_priv->ops->chip_teardown(dev);
+	gma_irq_uninstall(dev);
 
-		psb_intel_opregion_fini(dev);
+	if (dev_priv->ops->chip_teardown)
+		dev_priv->ops->chip_teardown(dev);
 
-		if (dev_priv->pf_pd) {
-			psb_mmu_free_pagedir(dev_priv->pf_pd);
-			dev_priv->pf_pd = NULL;
-		}
-		if (dev_priv->mmu) {
-			struct psb_gtt *pg = &dev_priv->gtt;
+	psb_intel_opregion_fini(dev);
 
-			down_read(&pg->sem);
-			psb_mmu_remove_pfn_sequence(
-				psb_mmu_get_default_pd
-				(dev_priv->mmu),
-				pg->mmu_gatt_start,
-				dev_priv->vram_stolen_size >> PAGE_SHIFT);
-			up_read(&pg->sem);
-			psb_mmu_driver_takedown(dev_priv->mmu);
-			dev_priv->mmu = NULL;
-		}
-		psb_gtt_takedown(dev);
-		if (dev_priv->scratch_page) {
-			set_pages_wb(dev_priv->scratch_page, 1);
-			__free_page(dev_priv->scratch_page);
-			dev_priv->scratch_page = NULL;
-		}
-		if (dev_priv->vdc_reg) {
-			iounmap(dev_priv->vdc_reg);
-			dev_priv->vdc_reg = NULL;
-		}
-		if (dev_priv->sgx_reg) {
-			iounmap(dev_priv->sgx_reg);
-			dev_priv->sgx_reg = NULL;
-		}
-		if (dev_priv->aux_reg) {
-			iounmap(dev_priv->aux_reg);
-			dev_priv->aux_reg = NULL;
-		}
-		pci_dev_put(dev_priv->aux_pdev);
-		pci_dev_put(dev_priv->lpc_pdev);
-
-		/* Destroy VBT data */
-		psb_intel_destroy_bios(dev);
-
-		kfree(dev_priv);
-		dev->dev_private = NULL;
+	if (dev_priv->pf_pd) {
+		psb_mmu_free_pagedir(dev_priv->pf_pd);
+		dev_priv->pf_pd = NULL;
 	}
+	if (dev_priv->mmu) {
+		struct psb_gtt *pg = &dev_priv->gtt;
+
+		psb_mmu_remove_pfn_sequence(
+			psb_mmu_get_default_pd
+			(dev_priv->mmu),
+			pg->mmu_gatt_start,
+			dev_priv->vram_stolen_size >> PAGE_SHIFT);
+		psb_mmu_driver_takedown(dev_priv->mmu);
+		dev_priv->mmu = NULL;
+	}
+	psb_gem_mm_fini(dev);
+	psb_gtt_fini(dev);
+	if (dev_priv->scratch_page) {
+		set_pages_wb(dev_priv->scratch_page, 1);
+		__free_page(dev_priv->scratch_page);
+		dev_priv->scratch_page = NULL;
+	}
+	if (dev_priv->vdc_reg) {
+		iounmap(dev_priv->vdc_reg);
+		dev_priv->vdc_reg = NULL;
+	}
+	if (dev_priv->sgx_reg) {
+		iounmap(dev_priv->sgx_reg);
+		dev_priv->sgx_reg = NULL;
+	}
+	if (dev_priv->aux_reg) {
+		iounmap(dev_priv->aux_reg);
+		dev_priv->aux_reg = NULL;
+	}
+	pci_dev_put(dev_priv->aux_pdev);
+	pci_dev_put(dev_priv->lpc_pdev);
+
+	/* Destroy VBT data */
+	psb_intel_destroy_bios(dev);
+
 	gma_power_uninit(dev);
+}
+
+static void psb_device_release(void *data)
+{
+	struct drm_device *dev = data;
+
+	psb_driver_unload(dev);
 }
 
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 {
-	struct drm_psb_private *dev_priv;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long resource_start, resource_len;
 	unsigned long irqflags;
-	int ret = -ENOMEM;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	struct gma_encoder *gma_encoder;
 	struct psb_gtt *pg;
+	int ret = -ENOMEM;
 
-	/* allocating and initializing driver private data */
-	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (dev_priv == NULL)
-		return -ENOMEM;
+	/* initializing driver private data */
 
 	dev_priv->ops = (struct psb_ops *)flags;
-	dev_priv->dev = dev;
-	dev->dev_private = (void *) dev_priv;
 
 	pg = &dev_priv->gtt;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
-	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
+	resource_start = pci_resource_start(pdev, PSB_MMIO_RESOURCE);
 
 	dev_priv->vdc_reg =
 	    ioremap(resource_start + PSB_VDC_OFFSET, PSB_VDC_SIZE);
@@ -248,7 +265,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_err;
 
 	if (IS_MRST(dev)) {
-		int domain = pci_domain_nr(dev->pdev->bus);
+		int domain = pci_domain_nr(pdev->bus);
 
 		dev_priv->aux_pdev =
 			pci_get_domain_bus_and_slot(domain, 0,
@@ -259,7 +276,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 							    PSB_AUX_RESOURCE);
 			resource_len = pci_resource_len(dev_priv->aux_pdev,
 							PSB_AUX_RESOURCE);
-			dev_priv->aux_reg = ioremap_nocache(resource_start,
+			dev_priv->aux_reg = ioremap(resource_start,
 							    resource_len);
 			if (!dev_priv->aux_reg)
 				goto out_err;
@@ -312,11 +329,16 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 
 	set_pages_uc(dev_priv->scratch_page, 1);
 
-	ret = psb_gtt_init(dev, 0);
+	ret = psb_gtt_init(dev);
+	if (ret)
+		goto out_err;
+	ret = psb_gem_mm_init(dev);
 	if (ret)
 		goto out_err;
 
-	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, 0);
+	ret = -ENOMEM;
+
+	dev_priv->mmu = psb_mmu_driver_init(dev, 1, 0, NULL);
 	if (!dev_priv->mmu)
 		goto out_err;
 
@@ -329,12 +351,10 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 
 	/* Add stolen memory to SGX MMU */
-	down_read(&pg->sem);
 	ret = psb_mmu_insert_pfn_sequence(psb_mmu_get_default_pd(dev_priv->mmu),
 					  dev_priv->stolen_base >> PAGE_SHIFT,
 					  pg->gatt_start,
 					  pg->stolen_size >> PAGE_SHIFT, 0);
-	up_read(&pg->sem);
 
 	psb_mmu_set_pd_context(psb_mmu_get_default_pd(dev_priv->mmu), 0);
 	psb_mmu_set_pd_context(dev_priv->pf_pd, 1);
@@ -363,38 +383,38 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
-	drm_irq_install(dev, dev->pdev->irq);
+	gma_irq_install(dev, pdev->irq);
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	dev->driver->get_vblank_counter = psb_get_vblank_counter;
 
 	psb_modeset_init(dev);
 	psb_fbdev_init(dev);
 	drm_kms_helper_poll_init(dev);
 
-	/* Only add backlight support if we have LVDS output */
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    head) {
+	/* Only add backlight support if we have LVDS or MIPI output */
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		gma_encoder = gma_attached_encoder(connector);
 
-		switch (gma_encoder->type) {
-		case INTEL_OUTPUT_LVDS:
-		case INTEL_OUTPUT_MIPI:
+		if (gma_encoder->type == INTEL_OUTPUT_LVDS ||
+		    gma_encoder->type == INTEL_OUTPUT_MIPI) {
 			ret = gma_backlight_init(dev);
 			break;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (ret)
 		return ret;
 	psb_intel_opregion_enable_asle(dev);
 #if 0
 	/* Enable runtime pm at last */
-	pm_runtime_enable(&dev->pdev->dev);
-	pm_runtime_set_active(&dev->pdev->dev);
+	pm_runtime_enable(dev->dev);
+	pm_runtime_set_active(dev->dev);
 #endif
-	/* Intel drm driver load is done, continue doing pvr load */
-	return 0;
+
+	return devm_add_action_or_reset(dev->dev, psb_device_release, dev);
+
 out_err:
 	psb_driver_unload(dev);
 	return ret;
@@ -415,12 +435,12 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	static unsigned int runtime_allowed;
 
 	if (runtime_allowed == 1 && dev_priv->is_lvds_on) {
 		runtime_allowed++;
-		pm_runtime_allow(&dev->pdev->dev);
+		pm_runtime_allow(dev->dev);
 		dev_priv->rpm_enabled = 1;
 	}
 	return drm_ioctl(filp, cmd, arg);
@@ -429,14 +449,48 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_pci_dev(pdev, ent, &driver);
-}
+	struct drm_psb_private *dev_priv;
+	struct drm_device *dev;
+	int ret;
 
+	/*
+	 * We cannot yet easily find the framebuffer's location in memory. So
+	 * remove all framebuffers here.
+	 *
+	 * TODO: Refactor psb_driver_load() to map vdc_reg earlier. Then we
+	 *       might be able to read the framebuffer range from the device.
+	 */
+	ret = drm_aperture_remove_framebuffers(true, &driver);
+	if (ret)
+		return ret;
+
+	ret = pcim_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	dev_priv = devm_drm_dev_alloc(&pdev->dev, &driver, struct drm_psb_private, dev);
+	if (IS_ERR(dev_priv))
+		return PTR_ERR(dev_priv);
+	dev = &dev_priv->dev;
+
+	pci_set_drvdata(pdev, dev);
+
+	ret = psb_driver_load(dev, ent->driver_data);
+	if (ret)
+		return ret;
+
+	ret = drm_dev_register(dev, ent->driver_data);
+	if (ret)
+		return ret;
+
+	return 0;
+}
 
 static void psb_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	drm_put_dev(dev);
+
+	drm_dev_unregister(dev);
 }
 
 static const struct dev_pm_ops psb_pm_ops = {
@@ -450,12 +504,6 @@ static const struct dev_pm_ops psb_pm_ops = {
 	.runtime_idle = psb_runtime_idle,
 };
 
-static const struct vm_operations_struct psb_gem_vm_ops = {
-	.fault = psb_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
 static const struct file_operations psb_gem_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -467,24 +515,11 @@ static const struct file_operations psb_gem_fops = {
 	.read = drm_read,
 };
 
-static struct drm_driver driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | \
-			   DRIVER_MODESET | DRIVER_GEM,
-	.load = psb_driver_load,
-	.unload = psb_driver_unload,
+static const struct drm_driver driver = {
+	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.lastclose = drm_fb_helper_lastclose,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
-	.irq_preinstall = psb_irq_preinstall,
-	.irq_postinstall = psb_irq_postinstall,
-	.irq_uninstall = psb_irq_uninstall,
-	.irq_handler = psb_irq_handler,
-	.enable_vblank = psb_enable_vblank,
-	.disable_vblank = psb_disable_vblank,
-	.get_vblank_counter = psb_get_vblank_counter,
-
-	.gem_free_object = psb_gem_free_object,
-	.gem_vm_ops = &psb_gem_vm_ops,
 
 	.dumb_create = psb_gem_dumb_create,
 	.ioctls = psb_ioctls,
@@ -507,6 +542,9 @@ static struct pci_driver psb_pci_driver = {
 
 static int __init psb_init(void)
 {
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	return pci_register_driver(&psb_pci_driver);
 }
 

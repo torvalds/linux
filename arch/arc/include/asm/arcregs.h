@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _ASM_ARC_ARCREGS_H
@@ -42,6 +39,8 @@
 #define ARC_REG_CLUSTER_BCR	0xcf
 #define ARC_REG_AUX_ICCM	0x208	/* ICCM Base Addr (ARCv2) */
 #define ARC_REG_LPB_CTRL	0x488	/* ARCv2 Loop Buffer control */
+#define ARC_REG_FPU_CTRL	0x300
+#define ARC_REG_FPU_STATUS	0x301
 
 /* Common for ARCompact and ARCv2 status register */
 #define ARC_REG_STATUS32	0x0A
@@ -82,6 +81,7 @@
 #define ECR_V_DTLB_MISS			0x05
 #define ECR_V_PROTV			0x06
 #define ECR_V_TRAP			0x09
+#define ECR_V_MISALIGN			0x0d
 #endif
 
 /* DTLB Miss and Protection Violation Cause Codes */
@@ -118,6 +118,32 @@
 #define ARC_AUX_DPFP_2H         0x304
 #define ARC_AUX_DPFP_STAT       0x305
 
+/*
+ * DSP-related registers
+ * Registers names must correspond to dsp_callee_regs structure fields names
+ * for automatic offset calculation in DSP_AUX_SAVE_RESTORE macros.
+ */
+#define ARC_AUX_DSP_BUILD	0x7A
+#define ARC_AUX_ACC0_LO		0x580
+#define ARC_AUX_ACC0_GLO	0x581
+#define ARC_AUX_ACC0_HI		0x582
+#define ARC_AUX_ACC0_GHI	0x583
+#define ARC_AUX_DSP_BFLY0	0x598
+#define ARC_AUX_DSP_CTRL	0x59F
+#define ARC_AUX_DSP_FFT_CTRL	0x59E
+
+#define ARC_AUX_AGU_BUILD	0xCC
+#define ARC_AUX_AGU_AP0		0x5C0
+#define ARC_AUX_AGU_AP1		0x5C1
+#define ARC_AUX_AGU_AP2		0x5C2
+#define ARC_AUX_AGU_AP3		0x5C3
+#define ARC_AUX_AGU_OS0		0x5D0
+#define ARC_AUX_AGU_OS1		0x5D1
+#define ARC_AUX_AGU_MOD0	0x5E0
+#define ARC_AUX_AGU_MOD1	0x5E1
+#define ARC_AUX_AGU_MOD2	0x5E2
+#define ARC_AUX_AGU_MOD3	0x5E3
+
 #ifndef __ASSEMBLY__
 
 #include <soc/arc/aux.h>
@@ -151,19 +177,19 @@ struct bcr_isa_arcv2 {
 #endif
 };
 
+struct bcr_uarch_build_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:8, prod:8, maj:8, min:8;
+#else
+	unsigned int min:8, maj:8, prod:8, pad:8;
+#endif
+};
+
 struct bcr_mpy {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:8, x1616:8, dsp:4, cycles:2, type:2, ver:8;
 #else
 	unsigned int ver:8, type:2, cycles:2, dsp:4, x1616:8, pad:8;
-#endif
-};
-
-struct bcr_extn_xymem {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ram_org:2, num_banks:4, bank_sz:4, ver:8;
-#else
-	unsigned int ver:8, bank_sz:4, num_banks:4, ram_org:2;
 #endif
 };
 
@@ -213,6 +239,14 @@ struct bcr_fp_arcv2 {
 	unsigned int pad2:15, dp:1, pad1:7, sp:1, ver:8;
 #else
 	unsigned int ver:8, sp:1, pad1:7, dp:1, pad2:15;
+#endif
+};
+
+struct bcr_actionpoint {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:21, min:1, num:2, ver:8;
+#else
+	unsigned int ver:8, num:2, min:1, pad:21;
 #endif
 };
 
@@ -283,7 +317,7 @@ struct cpuinfo_arc_cache {
 };
 
 struct cpuinfo_arc_bpu {
-	unsigned int ver, full, num_cache, num_pred;
+	unsigned int ver, full, num_cache, num_pred, ret_stk;
 };
 
 struct cpuinfo_arc_ccm {
@@ -296,17 +330,16 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
 	struct bcr_isa_arcv2 isa;
-	const char *details, *name;
+	const char *release, *name;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
 		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
 			     fpu_sp:1, fpu_dp:1, dual:1, dual_enb:1, pad2:4,
-			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
+			     ap_num:4, ap_full:1, smart:1, rtt:1, pad3:1,
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;
 	struct bcr_mpy extn_mpy;
-	struct bcr_extn_xymem extn_xymem;
 };
 
 extern struct cpuinfo_arc cpuinfo_arc700[];

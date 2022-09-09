@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  arch/arm/mach-pxa/colibri-pxa3xx.c
  *
  *  Common functions for all Toradex PXA3xx modules
  *
  *  Daniel Mack <daniel@caiaq.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -16,12 +13,11 @@
 #include <linux/gpio.h>
 #include <linux/etherdevice.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/system_info.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
-#include <mach/pxa3xx-regs.h>
+#include "pxa3xx-regs.h"
 #include "mfp-pxa300.h"
 #include "colibri.h"
 #include <linux/platform_data/mmc-pxamci.h>

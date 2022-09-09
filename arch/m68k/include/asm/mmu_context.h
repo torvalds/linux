@@ -5,10 +5,6 @@
 #include <asm-generic/mm_hooks.h>
 #include <linux/mm_types.h>
 
-static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-}
-
 #ifdef CONFIG_MMU
 
 #if defined(CONFIG_COLDFIRE)
@@ -35,7 +31,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 
 	if (mm->context != NO_CONTEXT)
 		return;
-	while (atomic_dec_and_test_lt(&nr_free_contexts)) {
+	while (arch_atomic_dec_and_test_lt(&nr_free_contexts)) {
 		atomic_inc(&nr_free_contexts);
 		steal_context();
 	}
@@ -58,6 +54,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 /*
  * We're finished using the context for an address space.
  */
+#define destroy_context destroy_context
 static inline void destroy_context(struct mm_struct *mm)
 {
 	if (mm->context != NO_CONTEXT) {
@@ -83,14 +80,13 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
+#define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *active_mm,
 	struct mm_struct *mm)
 {
 	get_mmu_context(mm);
 	set_context(mm->context, mm->pgd);
 }
-
-#define deactivate_mm(tsk, mm) do { } while (0)
 
 #define prepare_arch_switch(next) load_ksp_mmu(next)
 
@@ -100,6 +96,8 @@ static inline void load_ksp_mmu(struct task_struct *task)
 	struct mm_struct *mm;
 	int asid;
 	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long mmuar;
@@ -127,7 +125,15 @@ static inline void load_ksp_mmu(struct task_struct *task)
 	if (pgd_none(*pgd))
 		goto bug;
 
-	pmd = pmd_offset(pgd, mmuar);
+	p4d = p4d_offset(pgd, mmuar);
+	if (p4d_none(*p4d))
+		goto bug;
+
+	pud = pud_offset(p4d, mmuar);
+	if (pud_none(*pud))
+		goto bug;
+
+	pmd = pmd_offset(pud, mmuar);
 	if (pmd_none(*pmd))
 		goto bug;
 
@@ -166,6 +172,7 @@ extern unsigned long get_free_context(struct mm_struct *mm);
 extern void clear_context(unsigned long context);
 
 /* set the context for a new task to unmapped */
+#define init_new_context init_new_context
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
@@ -182,6 +189,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 }
 
 /* flush context if allocated... */
+#define destroy_context destroy_context
 static inline void destroy_context(struct mm_struct *mm)
 {
 	if (mm->context != SUN3_INVALID_CONTEXT)
@@ -200,8 +208,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	activate_context(tsk->mm);
 }
 
-#define deactivate_mm(tsk, mm)	do { } while (0)
-
+#define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *prev_mm,
 			       struct mm_struct *next_mm)
 {
@@ -212,16 +219,15 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
+#include <asm/cacheflush.h>
 
+#define init_new_context init_new_context
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
 	mm->context = virt_to_phys(mm->pgd);
 	return 0;
 }
-
-#define destroy_context(mm)		do { } while(0)
 
 static inline void switch_mm_0230(struct mm_struct *mm)
 {
@@ -290,8 +296,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, str
 	}
 }
 
-#define deactivate_mm(tsk,mm)	do { } while (0)
-
+#define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *prev_mm,
 			       struct mm_struct *next_mm)
 {
@@ -305,24 +310,11 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 
 #endif
 
+#include <asm-generic/mmu_context.h>
+
 #else /* !CONFIG_MMU */
 
-static inline int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
-{
-	return 0;
-}
-
-
-static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk)
-{
-}
-
-#define destroy_context(mm)	do { } while (0)
-#define deactivate_mm(tsk,mm)	do { } while (0)
-
-static inline void activate_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm)
-{
-}
+#include <asm-generic/nommu_context.h>
 
 #endif /* CONFIG_MMU */
 #endif /* __M68K_MMU_CONTEXT_H */

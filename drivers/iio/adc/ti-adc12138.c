@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADC12130/ADC12132/ADC12138 12-bit plus sign ADC driver
  *
  * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Datasheet: http://www.ti.com/lit/ds/symlink/adc12138.pdf
  */
@@ -14,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/clk.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -50,8 +48,14 @@ struct adc12138 {
 	struct completion complete;
 	/* The number of cclk periods for the S/H's acquisition time */
 	unsigned int acquisition_time;
+	/*
+	 * Maximum size needed: 16x 2 bytes ADC data + 8 bytes timestamp.
+	 * Less may be need if not all channels are enabled, as long as
+	 * the 8 byte alignment of the timestamp is maintained.
+	 */
+	__be16 data[20] __aligned(8);
 
-	u8 tx_buf[2] ____cacheline_aligned;
+	u8 tx_buf[2] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[2];
 };
 
@@ -236,7 +240,8 @@ static int adc12138_read_raw(struct iio_dev *iio,
 		if (ret)
 			return ret;
 
-		*value = sign_extend32(be16_to_cpu(data) >> 3, 12);
+		*value = sign_extend32(be16_to_cpu(data) >> channel->scan_type.shift,
+				       channel->scan_type.realbits - 1);
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
@@ -332,7 +337,6 @@ static irqreturn_t adc12138_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adc12138 *adc = iio_priv(indio_dev);
-	__be16 data[20] = { }; /* 16x 2 bytes ADC data + 8 bytes timestamp */
 	__be16 trash;
 	int ret;
 	int scan_index;
@@ -348,7 +352,7 @@ static irqreturn_t adc12138_trigger_handler(int irq, void *p)
 		reinit_completion(&adc->complete);
 
 		ret = adc12138_start_and_read_conv(adc, scan_chan,
-						   i ? &data[i - 1] : &trash);
+					i ? &adc->data[i - 1] : &trash);
 		if (ret) {
 			dev_warn(&adc->spi->dev,
 				 "failed to start conversion\n");
@@ -365,7 +369,7 @@ static irqreturn_t adc12138_trigger_handler(int irq, void *p)
 	}
 
 	if (i) {
-		ret = adc12138_read_conv_data(adc, &data[i - 1]);
+		ret = adc12138_read_conv_data(adc, &adc->data[i - 1]);
 		if (ret) {
 			dev_warn(&adc->spi->dev,
 				 "failed to get conversion data\n");
@@ -373,7 +377,7 @@ static irqreturn_t adc12138_trigger_handler(int irq, void *p)
 		}
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data,
+	iio_push_to_buffers_with_timestamp(indio_dev, adc->data,
 					   iio_get_time_ns(indio_dev));
 out:
 	mutex_unlock(&adc->lock);
@@ -410,7 +414,6 @@ static int adc12138_probe(struct spi_device *spi)
 	init_completion(&adc->complete);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adc12138_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -428,8 +431,8 @@ static int adc12138_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(spi->dev.of_node, "ti,acquisition-time",
-				   &adc->acquisition_time);
+	ret = device_property_read_u32(&spi->dev, "ti,acquisition-time",
+				       &adc->acquisition_time);
 	if (ret)
 		adc->acquisition_time = 10;
 
@@ -500,7 +503,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int adc12138_remove(struct spi_device *spi)
+static void adc12138_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct adc12138 *adc = iio_priv(indio_dev);
@@ -511,11 +514,7 @@ static int adc12138_remove(struct spi_device *spi)
 		regulator_disable(adc->vref_n);
 	regulator_disable(adc->vref_p);
 	clk_disable_unprepare(adc->cclk);
-
-	return 0;
 }
-
-#ifdef CONFIG_OF
 
 static const struct of_device_id adc12138_dt_ids[] = {
 	{ .compatible = "ti,adc12130", },
@@ -524,8 +523,6 @@ static const struct of_device_id adc12138_dt_ids[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, adc12138_dt_ids);
-
-#endif
 
 static const struct spi_device_id adc12138_id[] = {
 	{ "adc12130", adc12130 },
@@ -538,7 +535,7 @@ MODULE_DEVICE_TABLE(spi, adc12138_id);
 static struct spi_driver adc12138_driver = {
 	.driver = {
 		.name = "adc12138",
-		.of_match_table = of_match_ptr(adc12138_dt_ids),
+		.of_match_table = adc12138_dt_ids,
 	},
 	.probe = adc12138_probe,
 	.remove = adc12138_remove,

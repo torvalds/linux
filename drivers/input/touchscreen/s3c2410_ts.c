@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung S3C24XX touchscreen driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the term of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Copyright 2004 Arnaud Patard <arnaud.patard@rtp-net.org>
  * Copyright 2008 Ben Dooks <ben-linux@fluff.org>
@@ -26,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -34,9 +20,42 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/adc.h>
-#include <plat/regs-adc.h>
+#include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
+
+#define	S3C2410_ADCCON			(0x00)
+#define	S3C2410_ADCTSC			(0x04)
+#define	S3C2410_ADCDLY			(0x08)
+#define	S3C2410_ADCDAT0			(0x0C)
+#define	S3C2410_ADCDAT1			(0x10)
+#define	S3C64XX_ADCUPDN			(0x14)
+#define	S3C2443_ADCMUX			(0x18)
+#define	S3C64XX_ADCCLRINT		(0x18)
+#define	S5P_ADCMUX			(0x1C)
+#define	S3C64XX_ADCCLRINTPNDNUP		(0x20)
+
+/* ADCTSC Register Bits */
+#define S3C2443_ADCTSC_UD_SEN		(1 << 8)
+#define S3C2410_ADCTSC_YM_SEN		(1<<7)
+#define S3C2410_ADCTSC_YP_SEN		(1<<6)
+#define S3C2410_ADCTSC_XM_SEN		(1<<5)
+#define S3C2410_ADCTSC_XP_SEN		(1<<4)
+#define S3C2410_ADCTSC_PULL_UP_DISABLE	(1<<3)
+#define S3C2410_ADCTSC_AUTO_PST		(1<<2)
+#define S3C2410_ADCTSC_XY_PST(x)	(((x)&0x3)<<0)
+
+/* ADCDAT0 Bits */
+#define S3C2410_ADCDAT0_UPDOWN		(1<<15)
+#define S3C2410_ADCDAT0_AUTO_PST	(1<<14)
+#define S3C2410_ADCDAT0_XY_PST		(0x3<<12)
+#define S3C2410_ADCDAT0_XPDATA_MASK	(0x03FF)
+
+/* ADCDAT1 Bits */
+#define S3C2410_ADCDAT1_UPDOWN		(1<<15)
+#define S3C2410_ADCDAT1_AUTO_PST	(1<<14)
+#define S3C2410_ADCDAT1_XY_PST		(0x3<<12)
+#define S3C2410_ADCDAT1_YPDATA_MASK	(0x03FF)
+
 
 #define TSC_SLEEP  (S3C2410_ADCTSC_PULL_UP_DISABLE | S3C2410_ADCTSC_XY_PST(0))
 

@@ -2,8 +2,6 @@
 #ifndef _IP6T_LOG_H
 #define _IP6T_LOG_H
 
-#warning "Please update iptables, this file will be removed soon!"
-
 /* make sure not to change this without changing netfilter.h:NF_LOG_* (!) */
 #define IP6T_LOG_TCPSEQ		0x01	/* Log TCP sequence numbers */
 #define IP6T_LOG_TCPOPT		0x02	/* Log TCP options */
@@ -19,4 +17,4 @@ struct ip6t_log_info {
 	char prefix[30];
 };
 
-#endif /*_IPT_LOG_H*/
+#endif /* _IP6T_LOG_H */

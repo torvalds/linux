@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Regulator part of Palmas PMIC Chips
  *
@@ -5,12 +6,6 @@
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
  * Author: Ian Lartey <ian@slimlogic.co.uk>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -27,14 +22,14 @@
 #include <linux/of_platform.h>
 #include <linux/regulator/of_regulator.h>
 
-static const struct regulator_linear_range smps_low_ranges[] = {
+static const struct linear_range smps_low_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(500000, 0x1, 0x6, 0),
 	REGULATOR_LINEAR_RANGE(510000, 0x7, 0x79, 10000),
 	REGULATOR_LINEAR_RANGE(1650000, 0x7A, 0x7f, 0),
 };
 
-static const struct regulator_linear_range smps_high_ranges[] = {
+static const struct linear_range smps_high_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(1000000, 0x1, 0x6, 0),
 	REGULATOR_LINEAR_RANGE(1020000, 0x7, 0x79, 20000),
@@ -382,7 +377,7 @@ static struct palmas_sleep_requestor_info tps65917_sleep_req_info[] = {
 	EXTERNAL_REQUESTOR_TPS65917(LDO5, 2, 4),
 };
 
-static unsigned int palmas_smps_ramp_delay[4] = {0, 10000, 5000, 2500};
+static const unsigned int palmas_smps_ramp_delay[4] = {0, 10000, 5000, 2500};
 
 #define SMPS_CTRL_MODE_OFF		0x00
 #define SMPS_CTRL_MODE_ON		0x01
@@ -991,9 +986,6 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			return PTR_ERR(rdev);
 		}
 
-		/* Save regulator for cleanup */
-		pmic->rdev[id] = rdev;
-
 		/* Initialise sleep/init values from platform data */
 		if (pdata) {
 			reg_init = pdata->reg_init[id];
@@ -1100,9 +1092,6 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 				pdev_name);
 			return PTR_ERR(rdev);
 		}
-
-		/* Save regulator for cleanup */
-		pmic->rdev[id] = rdev;
 
 		/* Initialise sleep/init values from platform data */
 		if (pdata) {
@@ -1288,9 +1277,6 @@ static int palmas_smps_registration(struct palmas_pmic *pmic,
 				pdev_name);
 			return PTR_ERR(rdev);
 		}
-
-		/* Save regulator for cleanup */
-		pmic->rdev[id] = rdev;
 	}
 
 	return 0;
@@ -1395,9 +1381,6 @@ static int tps65917_smps_registration(struct palmas_pmic *pmic,
 				pdev_name);
 			return PTR_ERR(rdev);
 		}
-
-		/* Save regulator for cleanup */
-		pmic->rdev[id] = rdev;
 	}
 
 	return 0;

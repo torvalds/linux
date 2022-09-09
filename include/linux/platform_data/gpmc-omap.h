@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP GPMC Platform data
  *
- * Copyright (C) 2014 Texas Instruments, Inc. - http://www.ti.com
+ * Copyright (C) 2014 Texas Instruments, Inc. - https://www.ti.com
  *	Roger Quadros <rogerq@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #ifndef _GPMC_OMAP_H_

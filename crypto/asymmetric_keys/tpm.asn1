@@ -1,5 +1,0 @@
---
--- Unencryted TPM Blob.  For details of the format, see:
--- http://david.woodhou.se/draft-woodhouse-cert-best-practice.html#I-D.mavrogiannopoulos-tpmuri
---
-PrivateKeyInfo ::= OCTET STRING ({ tpm_note_key })

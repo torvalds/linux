@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/media/si476x-core.h -- Common definitions for si476x core
  * device
@@ -6,16 +7,6 @@
  * Copyright (C) 2013 Andrey Smirnov
  *
  * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 
 #ifndef SI476X_CORE_H
@@ -66,7 +57,7 @@ enum si476x_mfd_cells {
  * @SI476X_POWER_DOWN: In this state all regulators are turned off
  * and the reset line is pulled low. The device is completely
  * inactive.
- * @SI476X_POWER_UP_FULL: In this state all the power regualtors are
+ * @SI476X_POWER_UP_FULL: In this state all the power regulators are
  * turned on, reset line pulled high, IRQ line is enabled(polling is
  * active for polling use scenario) and device is turned on with
  * POWER_UP command. The device is ready to be used.

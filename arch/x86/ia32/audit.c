@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/audit_arch.h>
 #include <asm/unistd_32.h>
+#include <asm/audit.h>
 
 unsigned ia32_dir_class[] = {
 #include <asm-generic/audit_dir_write.h>
@@ -30,15 +32,17 @@ int ia32_classify_syscall(unsigned syscall)
 {
 	switch (syscall) {
 	case __NR_open:
-		return 2;
+		return AUDITSC_OPEN;
 	case __NR_openat:
-		return 3;
+		return AUDITSC_OPENAT;
 	case __NR_socketcall:
-		return 4;
+		return AUDITSC_SOCKETCALL;
 	case __NR_execve:
 	case __NR_execveat:
-		return 5;
+		return AUDITSC_EXECVE;
+	case __NR_openat2:
+		return AUDITSC_OPENAT2;
 	default:
-		return 1;
+		return AUDITSC_COMPAT;
 	}
 }

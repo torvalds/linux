@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Portions of this file
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018, 2020-2022 Intel Corporation
  */
 #ifndef __NET_WIRELESS_NL80211_H
 #define __NET_WIRELESS_NL80211_H
@@ -10,8 +10,6 @@
 
 int nl80211_init(void);
 void nl80211_exit(void);
-
-extern const struct nla_policy nl80211_policy[NUM_NL80211_ATTR];
 
 void *nl80211hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 		     int flags, u8 cmd);
@@ -23,10 +21,6 @@ static inline u64 wdev_id(struct wireless_dev *wdev)
 	return (u64)wdev->identifier |
 	       ((u64)wiphy_to_rdev(wdev->wiphy)->wiphy_idx << 32);
 }
-
-int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
-			      struct cfg80211_registered_device **rdev,
-			      struct wireless_dev **wdev);
 
 int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 			  struct genl_info *info,
@@ -66,14 +60,15 @@ void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 			  const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
-			   const u8 *buf, size_t len, gfp_t gfp,
-			   int uapsd_queues);
+			   struct cfg80211_rx_assoc_resp *data);
 void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *netdev,
-			 const u8 *buf, size_t len, gfp_t gfp);
+			 const u8 *buf, size_t len,
+			 bool reconnect, gfp_t gfp);
 void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
-			   const u8 *buf, size_t len, gfp_t gfp);
+			   const u8 *buf, size_t len,
+			   bool reconnect, gfp_t gfp);
 void nl80211_send_auth_timeout(struct cfg80211_registered_device *rdev,
 			       struct net_device *netdev,
 			       const u8 *addr, gfp_t gfp);
@@ -110,8 +105,7 @@ void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct wireless_dev *wdev, u32 nlpid,
-		      int freq, int sig_dbm,
-		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
+		      struct cfg80211_rx_info *info, gfp_t gfp);
 
 void
 nl80211_radar_notify(struct cfg80211_registered_device *rdev,

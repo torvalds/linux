@@ -84,28 +84,11 @@ enum dbc_state {
 	DS_STALLED,
 };
 
-struct dbc_request {
-	void				*buf;
-	unsigned int			length;
-	dma_addr_t			dma;
-	void				(*complete)(struct xhci_hcd *xhci,
-						    struct dbc_request *req);
-	struct list_head		list_pool;
-	int				status;
-	unsigned int			actual;
-
-	struct dbc_ep			*dep;
-	struct list_head		list_pending;
-	dma_addr_t			trb_dma;
-	union xhci_trb			*trb;
-	unsigned			direction:1;
-};
-
 struct dbc_ep {
 	struct xhci_dbc			*dbc;
 	struct list_head		list_pending;
 	struct xhci_ring		*ring;
-	unsigned			direction:1;
+	unsigned int			direction:1;
 };
 
 #define DBC_QUEUE_SIZE			16
@@ -117,6 +100,7 @@ struct dbc_ep {
 struct dbc_port {
 	struct tty_port			port;
 	spinlock_t			port_lock;	/* port access */
+	int				minor;
 
 	struct list_head		read_pool;
 	struct list_head		read_queue;
@@ -127,12 +111,16 @@ struct dbc_port {
 	struct kfifo			write_fifo;
 
 	bool				registered;
-	struct dbc_ep			*in;
-	struct dbc_ep			*out;
+};
+
+struct dbc_driver {
+	int (*configure)(struct xhci_dbc *dbc);
+	void (*disconnect)(struct xhci_dbc *dbc);
 };
 
 struct xhci_dbc {
 	spinlock_t			lock;		/* device access */
+	struct device			*dev;
 	struct xhci_hcd			*xhci;
 	struct dbc_regs __iomem		*regs;
 	struct xhci_ring		*ring_evt;
@@ -150,7 +138,25 @@ struct xhci_dbc {
 	unsigned			resume_required:1;
 	struct dbc_ep			eps[2];
 
-	struct dbc_port			port;
+	const struct dbc_driver		*driver;
+	void				*priv;
+};
+
+struct dbc_request {
+	void				*buf;
+	unsigned int			length;
+	dma_addr_t			dma;
+	void				(*complete)(struct xhci_dbc *dbc,
+						    struct dbc_request *req);
+	struct list_head		list_pool;
+	int				status;
+	unsigned int			actual;
+
+	struct xhci_dbc			*dbc;
+	struct list_head		list_pending;
+	dma_addr_t			trb_dma;
+	union xhci_trb			*trb;
+	unsigned			direction:1;
 };
 
 #define dbc_bulkout_ctx(d)		\
@@ -178,44 +184,53 @@ enum evtreturn {
 	EVT_DISC,
 };
 
-static inline struct dbc_ep *get_in_ep(struct xhci_hcd *xhci)
+static inline struct dbc_ep *get_in_ep(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-
 	return &dbc->eps[BULK_IN];
 }
 
-static inline struct dbc_ep *get_out_ep(struct xhci_hcd *xhci)
+static inline struct dbc_ep *get_out_ep(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-
 	return &dbc->eps[BULK_OUT];
 }
 
 #ifdef CONFIG_USB_XHCI_DBGCAP
-int xhci_dbc_init(struct xhci_hcd *xhci);
-void xhci_dbc_exit(struct xhci_hcd *xhci);
-int xhci_dbc_tty_register_driver(struct xhci_hcd *xhci);
-void xhci_dbc_tty_unregister_driver(void);
-int xhci_dbc_tty_register_device(struct xhci_hcd *xhci);
-void xhci_dbc_tty_unregister_device(struct xhci_hcd *xhci);
-struct dbc_request *dbc_alloc_request(struct dbc_ep *dep, gfp_t gfp_flags);
-void dbc_free_request(struct dbc_ep *dep, struct dbc_request *req);
-int dbc_ep_queue(struct dbc_ep *dep, struct dbc_request *req, gfp_t gfp_flags);
+int xhci_create_dbc_dev(struct xhci_hcd *xhci);
+void xhci_remove_dbc_dev(struct xhci_hcd *xhci);
+int xhci_dbc_init(void);
+void xhci_dbc_exit(void);
+int dbc_tty_init(void);
+void dbc_tty_exit(void);
+int xhci_dbc_tty_probe(struct device *dev, void __iomem *res, struct xhci_hcd *xhci);
+void xhci_dbc_tty_remove(struct xhci_dbc *dbc);
+struct xhci_dbc *xhci_alloc_dbc(struct device *dev, void __iomem *res,
+				 const struct dbc_driver *driver);
+void xhci_dbc_remove(struct xhci_dbc *dbc);
+struct dbc_request *dbc_alloc_request(struct xhci_dbc *dbc,
+				      unsigned int direction,
+				      gfp_t flags);
+void dbc_free_request(struct dbc_request *req);
+int dbc_ep_queue(struct dbc_request *req);
 #ifdef CONFIG_PM
 int xhci_dbc_suspend(struct xhci_hcd *xhci);
 int xhci_dbc_resume(struct xhci_hcd *xhci);
 #endif /* CONFIG_PM */
 #else
-static inline int xhci_dbc_init(struct xhci_hcd *xhci)
+static inline int xhci_create_dbc_dev(struct xhci_hcd *xhci)
 {
 	return 0;
 }
 
-static inline void xhci_dbc_exit(struct xhci_hcd *xhci)
+static inline void xhci_remove_dbc_dev(struct xhci_hcd *xhci)
 {
 }
-
+static inline int xhci_dbc_init(void)
+{
+	return 0;
+}
+static inline void xhci_dbc_exit(void)
+{
+}
 static inline int xhci_dbc_suspend(struct xhci_hcd *xhci)
 {
 	return 0;

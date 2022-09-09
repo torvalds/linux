@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config OCFS2_FS
 	tristate "OCFS2 file system support"
-	depends on NET && SYSFS && CONFIGFS_FS
+	depends on INET && SYSFS && CONFIGFS_FS
 	select JBD2
 	select CRC32
 	select QUOTA
@@ -15,12 +16,12 @@ config OCFS2_FS
 	  You'll want to install the ocfs2-tools package in order to at least
 	  get "mount.ocfs2".
 
-	  Project web page:    http://oss.oracle.com/projects/ocfs2
-	  Tools web page:      http://oss.oracle.com/projects/ocfs2-tools
-	  OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
+	  Project web page:    https://oss.oracle.com/projects/ocfs2
+	  Tools web page:      https://oss.oracle.com/projects/ocfs2-tools
+	  OCFS2 mailing lists: https://oss.oracle.com/projects/ocfs2/mailman/
 
 	  For more information on OCFS2, see the file
-	  <file:Documentation/filesystems/ocfs2.txt>.
+	  <file:Documentation/filesystems/ocfs2.rst>.
 
 config OCFS2_FS_O2CB
 	tristate "O2CB Kernelspace Clustering"

@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
@@ -69,10 +66,10 @@ static int rose_set_mac_address(struct net_device *dev, void *addr)
 		if (err)
 			return err;
 
-		rose_del_loopback_node((rose_address *)dev->dev_addr);
+		rose_del_loopback_node((const rose_address *)dev->dev_addr);
 	}
 
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
+	dev_addr_set(dev, sa->sa_data);
 
 	return 0;
 }
@@ -81,7 +78,7 @@ static int rose_open(struct net_device *dev)
 {
 	int err;
 
-	err = rose_add_loopback_node((rose_address *)dev->dev_addr);
+	err = rose_add_loopback_node((const rose_address *)dev->dev_addr);
 	if (err)
 		return err;
 
@@ -93,7 +90,7 @@ static int rose_open(struct net_device *dev)
 static int rose_close(struct net_device *dev)
 {
 	netif_stop_queue(dev);
-	rose_del_loopback_node((rose_address *)dev->dev_addr);
+	rose_del_loopback_node((const rose_address *)dev->dev_addr);
 	return 0;
 }
 

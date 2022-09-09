@@ -5,6 +5,7 @@
  *   Jesse Barnes <jesse.barnes@intel.com>
  * Copyright © 2014 Intel Corporation
  *   Daniel Vetter <daniel.vetter@ffwll.ch>
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,14 +32,33 @@
  * and are not exported to drivers.
  */
 
-enum drm_mode_status;
-enum drm_connector_force;
+#include <linux/types.h>
 
-struct drm_display_mode;
-struct work_struct;
-struct drm_connector;
+enum drm_color_encoding;
+enum drm_color_range;
+enum drm_connector_force;
+enum drm_mode_status;
+
+struct drm_atomic_state;
 struct drm_bridge;
+struct drm_connector;
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_mode_create_dumb;
+struct drm_mode_fb_cmd2;
+struct drm_mode_fb_cmd;
+struct drm_mode_object;
+struct drm_mode_set;
+struct drm_plane;
+struct drm_plane_state;
+struct drm_property;
 struct edid;
+struct kref;
+struct work_struct;
+struct fwnode_handle;
 
 /* drm_crtc.c */
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
@@ -50,9 +70,13 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 			    const struct drm_framebuffer *fb);
 int drm_crtc_register_all(struct drm_device *dev);
 void drm_crtc_unregister_all(struct drm_device *dev);
+int drm_crtc_force_disable(struct drm_crtc *crtc);
 
 struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc);
 
+struct drm_property *
+drm_create_scaling_filter_prop(struct drm_device *dev,
+			       unsigned int supported_filters);
 /* IOCTLs */
 int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
@@ -63,6 +87,7 @@ int drm_mode_setcrtc(struct drm_device *dev,
 /* drm_mode_config.c */
 int drm_modeset_register_all(struct drm_device *dev);
 void drm_modeset_unregister_all(struct drm_device *dev);
+void drm_mode_config_validate(struct drm_device *dev);
 
 /* drm_modes.c */
 const char *drm_get_mode_status_name(enum drm_mode_status status);
@@ -162,6 +187,7 @@ int drm_connector_set_obj_prop(struct drm_mode_object *obj,
 int drm_connector_create_standard_properties(struct drm_device *dev);
 const char *drm_get_connector_force_name(enum drm_connector_force force);
 void drm_connector_free_work_fn(struct work_struct *work);
+struct drm_connector *drm_connector_find_by_fwnode(struct fwnode_handle *fwnode);
 
 /* IOCTL */
 int drm_connector_property_set_ioctl(struct drm_device *dev,
@@ -197,22 +223,31 @@ int drm_mode_rmfb_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 int drm_mode_getfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv);
+int drm_mode_getfb2_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv);
 int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv);
 
 /* drm_atomic.c */
 #ifdef CONFIG_DEBUG_FS
 struct drm_minor;
-int drm_atomic_debugfs_init(struct drm_minor *minor);
+void drm_atomic_debugfs_init(struct drm_minor *minor);
 #endif
 
-void drm_atomic_print_state(const struct drm_atomic_state *state);
+int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
+				      struct drm_plane_state *plane_state);
+int __drm_atomic_helper_set_config(struct drm_mode_set *set,
+				   struct drm_atomic_state *state);
+
+void drm_atomic_print_new_state(const struct drm_atomic_state *state,
+		struct drm_printer *p);
 
 /* drm_atomic_uapi.c */
 int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
 				     struct drm_connector *connector,
 				     int mode);
 int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_file *file_priv,
 			    struct drm_mode_object *obj,
 			    struct drm_property *prop,
 			    uint64_t prop_value);
@@ -229,6 +264,8 @@ int drm_plane_register_all(struct drm_device *dev);
 void drm_plane_unregister_all(struct drm_device *dev);
 int drm_plane_check_pixel_format(struct drm_plane *plane,
 				 u32 format, u64 modifier);
+struct drm_mode_rect *
+__drm_plane_get_damage_clips(const struct drm_plane_state *state);
 
 /* drm_bridge.c */
 void drm_bridge_detach(struct drm_bridge *bridge);
@@ -249,5 +286,5 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 /* drm_edid.c */
 void drm_mode_fixup_1366x768(struct drm_display_mode *mode);
-void drm_reset_display_info(struct drm_connector *connector);
-u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid);
+int drm_edid_override_set(struct drm_connector *connector, const void *edid, size_t size);
+int drm_edid_override_reset(struct drm_connector *connector);

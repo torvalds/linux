@@ -21,21 +21,13 @@
  * non-initialized list entries.
  */
 #define LIST_POISON1  ((void *) 0x100 + POISON_POINTER_DELTA)
-#define LIST_POISON2  ((void *) 0x200 + POISON_POINTER_DELTA)
+#define LIST_POISON2  ((void *) 0x122 + POISON_POINTER_DELTA)
 
 /********** include/linux/timer.h **********/
-/*
- * Magic number "tsta" to indicate a static timer initializer
- * for the object debugging code.
- */
 #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
 
-/********** mm/debug-pagealloc.c **********/
-#ifdef CONFIG_PAGE_POISONING_ZERO
-#define PAGE_POISON 0x00
-#else
+/********** mm/page_poison.c **********/
 #define PAGE_POISON 0xaa
-#endif
 
 /********** mm/page_alloc.c ************/
 
@@ -83,10 +75,10 @@
 #define MUTEX_DEBUG_FREE	0x22
 #define MUTEX_POISON_WW_CTX	((void *) 0x500 + POISON_POINTER_DELTA)
 
-/********** lib/flex_array.c **********/
-#define FLEX_ARRAY_FREE	0x6c	/* for use-after-free poisoning */
-
 /********** security/ **********/
 #define KEY_DESTROY		0xbd
+
+/********** net/core/page_pool.c **********/
+#define PP_SIGNATURE		(0x40 + POISON_POINTER_DELTA)
 
 #endif

@@ -81,8 +81,6 @@ int ipmi_si_mem_setup(struct si_sm_io *io)
 	if (!addr)
 		return -ENODEV;
 
-	io->io_cleanup = mem_cleanup;
-
 	/*
 	 * Figure out the actual readb/readw/readl/etc routine to use based
 	 * upon the register size.
@@ -120,7 +118,7 @@ int ipmi_si_mem_setup(struct si_sm_io *io)
 	 */
 	for (idx = 0; idx < io->io_size; idx++) {
 		if (request_mem_region(addr + idx * io->regspacing,
-				       io->regsize, DEVICE_NAME) == NULL) {
+				       io->regsize, SI_DEVICE_NAME) == NULL) {
 			/* Undo allocations */
 			mem_region_cleanup(io, idx);
 			return -EIO;
@@ -141,5 +139,8 @@ int ipmi_si_mem_setup(struct si_sm_io *io)
 		mem_region_cleanup(io, io->io_size);
 		return -EIO;
 	}
+
+	io->io_cleanup = mem_cleanup;
+
 	return 0;
 }

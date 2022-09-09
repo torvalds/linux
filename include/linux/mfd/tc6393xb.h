@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Toshiba TC6393XB SoC support
  *
@@ -8,10 +9,6 @@
  *
  * Based on code written by Sharp/Lineo for 2.4 kernels
  * Based on locomo.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef MFD_TC6393XB_H
@@ -25,14 +22,11 @@ struct tc6393xb_platform_data {
 	u16	scr_gper;	/* GP Enable */
 
 	int	(*enable)(struct platform_device *dev);
-	int	(*disable)(struct platform_device *dev);
+	void	(*disable)(struct platform_device *dev);
 	int	(*suspend)(struct platform_device *dev);
 	int	(*resume)(struct platform_device *dev);
 
 	int	irq_base;	/* base for subdevice irqs */
-	int	gpio_base;
-	int	(*setup)(struct platform_device *dev);
-	void	(*teardown)(struct platform_device *dev);
 
 	struct tmio_nand_data	*nand_data;
 	struct tmio_fb_data	*fb_data;

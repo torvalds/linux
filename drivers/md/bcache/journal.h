@@ -103,6 +103,9 @@ struct journal_write {
 /* Embedded in struct cache_set */
 struct journal {
 	spinlock_t		lock;
+	spinlock_t		flush_write_lock;
+	bool			btree_flushing;
+	bool			do_reserve;
 	/* used when waiting because the journal was full */
 	struct closure_waitlist	wait;
 	struct closure		io;
@@ -154,6 +157,8 @@ struct journal_device {
 	struct bio_vec		bv[8];
 };
 
+#define BTREE_FLUSH_NR	8
+
 #define journal_pin_cmp(c, l, r)				\
 	(fifo_idx(&(c)->journal.pin, (l)) > fifo_idx(&(c)->journal.pin, (r)))
 
@@ -178,5 +183,6 @@ int bch_journal_replay(struct cache_set *c, struct list_head *list);
 
 void bch_journal_free(struct cache_set *c);
 int bch_journal_alloc(struct cache_set *c);
+void bch_journal_space_reserve(struct journal *j);
 
 #endif /* _BCACHE_JOURNAL_H */

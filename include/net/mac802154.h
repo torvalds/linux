@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IEEE802.15.4-2003 specification
  *
  * Copyright (C) 2007-2012 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #ifndef NET_MAC802154_H
 #define NET_MAC802154_H
@@ -473,6 +464,12 @@ void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
  * ieee802154_wake_queue - wake ieee802154 queue
  * @hw: pointer as obtained from ieee802154_alloc_hw().
  *
+ * Tranceivers usually have either one transmit framebuffer or one framebuffer
+ * for both transmitting and receiving. Hence, the core currently only handles
+ * one frame at a time for each phy, which means we had to stop the queue to
+ * avoid new skb to come during the transmission. The queue then needs to be
+ * woken up after the operation.
+ *
  * Drivers should use this function instead of netif_wake_queue.
  */
 void ieee802154_wake_queue(struct ieee802154_hw *hw);
@@ -480,6 +477,12 @@ void ieee802154_wake_queue(struct ieee802154_hw *hw);
 /**
  * ieee802154_stop_queue - stop ieee802154 queue
  * @hw: pointer as obtained from ieee802154_alloc_hw().
+ *
+ * Tranceivers usually have either one transmit framebuffer or one framebuffer
+ * for both transmitting and receiving. Hence, the core currently only handles
+ * one frame at a time for each phy, which means we need to tell upper layers to
+ * stop giving us new skbs while we are busy with the transmitted one. The queue
+ * must then be stopped before transmitting.
  *
  * Drivers should use this function instead of netif_stop_queue.
  */
@@ -494,5 +497,24 @@ void ieee802154_stop_queue(struct ieee802154_hw *hw);
  */
 void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 			      bool ifs_handling);
+
+/**
+ * ieee802154_xmit_error - offloaded frame transmission failed
+ *
+ * @hw: pointer as obtained from ieee802154_alloc_hw().
+ * @skb: buffer for transmission
+ * @reason: error code
+ */
+void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb,
+			   int reason);
+
+/**
+ * ieee802154_xmit_hw_error - frame could not be offloaded to the transmitter
+ *                            because of a hardware error (bus error, timeout, etc)
+ *
+ * @hw: pointer as obtained from ieee802154_alloc_hw().
+ * @skb: buffer for transmission
+ */
+void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *skb);
 
 #endif /* NET_MAC802154_H */

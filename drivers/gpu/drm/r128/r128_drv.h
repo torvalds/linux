@@ -29,14 +29,21 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
- *    Michel D�zer <daenzerm@student.ethz.ch>
+ *    Michel Dänzer <daenzerm@student.ethz.ch>
  */
 
 #ifndef __R128_DRV_H__
 #define __R128_DRV_H__
 
-#include <drm/ati_pcigart.h>
+#include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/irqreturn.h>
+
+#include <drm/drm_ioctl.h>
 #include <drm/drm_legacy.h>
+#include <drm/r128_drm.h>
+
+#include "ati_pcigart.h"
 
 /* General customization:
  */
@@ -293,8 +300,8 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 #	define R128_PM4_64PIO_128INDBM		(5  << 28)
 #	define R128_PM4_64BM_128INDBM		(6  << 28)
 #	define R128_PM4_64PIO_64VCBM_64INDBM	(7  << 28)
-#	define R128_PM4_64BM_64VCBM_64INDBM	(8  << 28)
-#	define R128_PM4_64PIO_64VCPIO_64INDPIO	(15 << 28)
+#	define R128_PM4_64BM_64VCBM_64INDBM	(8U  << 28)
+#	define R128_PM4_64PIO_64VCPIO_64INDPIO	(15U << 28)
 #	define R128_PM4_BUFFER_CNTL_NOUPDATE	(1  << 27)
 
 #define R128_PM4_BUFFER_WM_CNTL		0x0708
@@ -397,10 +404,10 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 
 #define R128_PCIGART_TABLE_SIZE         32768
 
-#define R128_READ(reg)		DRM_READ32(dev_priv->mmio, (reg))
-#define R128_WRITE(reg, val)	DRM_WRITE32(dev_priv->mmio, (reg), (val))
-#define R128_READ8(reg)		DRM_READ8(dev_priv->mmio, (reg))
-#define R128_WRITE8(reg, val)	DRM_WRITE8(dev_priv->mmio, (reg), (val))
+#define R128_READ(reg)		readl(((void __iomem *)dev_priv->mmio->handle) + (reg))
+#define R128_WRITE(reg, val)	writel(val, ((void __iomem *)dev_priv->mmio->handle) + (reg))
+#define R128_READ8(reg)		readb(((void __iomem *)dev_priv->mmio->handle) + (reg))
+#define R128_WRITE8(reg, val)	writeb(val, ((void __iomem *)dev_priv->mmio->handle) + (reg))
 
 #define R128_WRITE_PLL(addr, val)					\
 do {									\
@@ -445,7 +452,7 @@ do {									\
 			r128_update_ring_snapshot(dev_priv);		\
 			if (ring->space >= ring->high_mark)		\
 				goto __ring_space_done;			\
-			DRM_UDELAY(1);					\
+			udelay(1);					\
 		}							\
 		DRM_ERROR("ring space check failed!\n");		\
 		return -EBUSY;						\

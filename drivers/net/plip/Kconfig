@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Parallel Line Internet Protocol (PLIP) network device configuration
 #
@@ -5,7 +6,7 @@
 config PLIP
 	tristate "PLIP (parallel port) support"
 	depends on PARPORT
-	---help---
+	help
 	  PLIP (Parallel Line Internet Protocol) is used to create a
 	  reasonably fast mini network consisting of two (or, rarely, more)
 	  local machines.  A PLIP link from a Linux box is a popular means to
@@ -20,7 +21,7 @@ config PLIP
 	  bits at a time (mode 0) or with special PLIP cables, to be used on
 	  bidirectional parallel ports only, which can transmit 8 bits at a
 	  time (mode 1); you can find the wiring of these cables in
-	  <file:Documentation/networking/PLIP.txt>.  The cables can be up to
+	  <file:Documentation/networking/plip.rst>.  The cables can be up to
 	  15m long.  Mode 0 works also if one of the machines runs DOS/Windows
 	  and has some PLIP software installed, e.g. the Crynwr PLIP packet
 	  driver (<http://oak.oakland.edu/simtel.net/msdos/pktdrvr-pre.html>)

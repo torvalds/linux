@@ -1,5 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Common values for SM3 algorithm
+ *
+ * Copyright (C) 2017 ARM Limited or its affiliates.
+ * Copyright (C) 2017 Gilad Ben-Yossef <gilad@benyossef.com>
+ * Copyright (C) 2021 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
  */
 
 #ifndef _CRYPTO_SM3_H
@@ -30,11 +35,30 @@ struct sm3_state {
 	u8 buffer[SM3_BLOCK_SIZE];
 };
 
-struct shash_desc;
+/*
+ * Stand-alone implementation of the SM3 algorithm. It is designed to
+ * have as little dependencies as possible so it can be used in the
+ * kexec_file purgatory. In other cases you should generally use the
+ * hash APIs from include/crypto/hash.h. Especially when hashing large
+ * amounts of data as those APIs may be hw-accelerated.
+ *
+ * For details see lib/crypto/sm3.c
+ */
 
-extern int crypto_sm3_update(struct shash_desc *desc, const u8 *data,
-			      unsigned int len);
+static inline void sm3_init(struct sm3_state *sctx)
+{
+	sctx->state[0] = SM3_IVA;
+	sctx->state[1] = SM3_IVB;
+	sctx->state[2] = SM3_IVC;
+	sctx->state[3] = SM3_IVD;
+	sctx->state[4] = SM3_IVE;
+	sctx->state[5] = SM3_IVF;
+	sctx->state[6] = SM3_IVG;
+	sctx->state[7] = SM3_IVH;
+	sctx->count = 0;
+}
 
-extern int crypto_sm3_finup(struct shash_desc *desc, const u8 *data,
-			     unsigned int len, u8 *hash);
+void sm3_update(struct sm3_state *sctx, const u8 *data, unsigned int len);
+void sm3_final(struct sm3_state *sctx, u8 *out);
+
 #endif

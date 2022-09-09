@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006 Juergen Beisert, Pengutronix
  * Copyright (C) 2008 Guennadi Liakhovetski, Pengutronix
  * Copyright (C) 2009 Wolfram Sang, Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Check max730x.c for further details.
  */
@@ -67,9 +64,9 @@ static int max7301_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int max7301_remove(struct spi_device *spi)
+static void max7301_remove(struct spi_device *spi)
 {
-	return __max730x_remove(&spi->dev);
+	__max730x_remove(&spi->dev);
 }
 
 static const struct spi_device_id max7301_id[] = {

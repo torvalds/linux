@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __CLK_UNIPHIER_H__
@@ -128,6 +119,10 @@ struct uniphier_clk_data {
 	UNIPHIER_CLK_DIV2(parent, div0, div1),			\
 	UNIPHIER_CLK_DIV2(parent, div2, div3)
 
+#define UNIPHIER_CLK_DIV5(parent, div0, div1, div2, div3, div4)	\
+	UNIPHIER_CLK_DIV4(parent, div0, div1, div2, div3),	\
+	UNIPHIER_CLK_DIV(parent, div4)
+
 struct clk_hw *uniphier_clk_register_cpugear(struct device *dev,
 					     struct regmap *regmap,
 					     const char *name,
@@ -155,9 +150,11 @@ extern const struct uniphier_clk_data uniphier_pxs2_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld11_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld20_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[];
+extern const struct uniphier_clk_data uniphier_nx1_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld4_mio_clk_data[];
 extern const struct uniphier_clk_data uniphier_pro5_sd_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld4_peri_clk_data[];
 extern const struct uniphier_clk_data uniphier_pro4_peri_clk_data[];
+extern const struct uniphier_clk_data uniphier_pro4_sg_clk_data[];
 
 #endif /* __CLK_UNIPHIER_H__ */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC subsystem, dev interface
  *
@@ -5,14 +6,11 @@
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on arch/arm/common/rtctime.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/sched/signal.h>
@@ -60,7 +58,7 @@ static void rtc_uie_task(struct work_struct *work)
 	} else if (rtc->oldsecs != tm.tm_sec) {
 		num = (tm.tm_sec + 60 - rtc->oldsecs) % 60;
 		rtc->oldsecs = tm.tm_sec;
-		rtc->uie_timer.expires = jiffies + HZ - (HZ/10);
+		rtc->uie_timer.expires = jiffies + HZ - (HZ / 10);
 		rtc->uie_timer_active = 1;
 		rtc->uie_task_active = 0;
 		add_timer(&rtc->uie_timer);
@@ -71,6 +69,7 @@ static void rtc_uie_task(struct work_struct *work)
 	if (num)
 		rtc_handle_legacy_irq(rtc, num, RTC_UF);
 }
+
 static void rtc_uie_timer(struct timer_list *t)
 {
 	struct rtc_device *rtc = from_timer(rtc, t, uie_timer);
@@ -97,7 +96,7 @@ static int clear_uie(struct rtc_device *rtc)
 		}
 		if (rtc->uie_task_active) {
 			spin_unlock_irq(&rtc->irq_lock);
-			flush_scheduled_work();
+			flush_work(&rtc->uie_task);
 			spin_lock_irq(&rtc->irq_lock);
 		}
 		rtc->uie_irq_active = 0;
@@ -178,11 +177,6 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	remove_wait_queue(&rtc->irq_queue, &wait);
 
 	if (ret == 0) {
-		/* Check for any data updates */
-		if (rtc->ops->read_callback)
-			data = rtc->ops->read_callback(rtc->dev.parent,
-						       data);
-
 		if (sizeof(int) != sizeof(long) &&
 		    count == sizeof(unsigned int))
 			ret = put_user(data, (unsigned int __user *)buf) ?:
@@ -207,14 +201,15 @@ static __poll_t rtc_dev_poll(struct file *file, poll_table *wait)
 }
 
 static long rtc_dev_ioctl(struct file *file,
-		unsigned int cmd, unsigned long arg)
+			  unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	struct rtc_device *rtc = file->private_data;
 	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_time tm;
 	struct rtc_wkalrm alarm;
-	void __user *uarg = (void __user *) arg;
+	struct rtc_param param;
+	void __user *uarg = (void __user *)arg;
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
@@ -227,6 +222,7 @@ static long rtc_dev_ioctl(struct file *file,
 	switch (cmd) {
 	case RTC_EPOCH_SET:
 	case RTC_SET_TIME:
+	case RTC_PARAM_SET:
 		if (!capable(CAP_SYS_TIME))
 			err = -EACCES;
 		break;
@@ -238,7 +234,7 @@ static long rtc_dev_ioctl(struct file *file,
 
 	case RTC_PIE_ON:
 		if (rtc->irq_freq > rtc->max_user_freq &&
-				!capable(CAP_SYS_RESOURCE))
+		    !capable(CAP_SYS_RESOURCE))
 			err = -EACCES;
 		break;
 	}
@@ -367,7 +363,6 @@ static long rtc_dev_ioctl(struct file *file,
 	case RTC_IRQP_SET:
 		err = rtc_irq_set_freq(rtc, arg);
 		break;
-
 	case RTC_IRQP_READ:
 		err = put_user(rtc->irq_freq, (unsigned long __user *)uarg);
 		break;
@@ -389,14 +384,78 @@ static long rtc_dev_ioctl(struct file *file,
 			err = -EFAULT;
 		return err;
 
+	case RTC_PARAM_GET:
+		if (copy_from_user(&param, uarg, sizeof(param))) {
+			mutex_unlock(&rtc->ops_lock);
+			return -EFAULT;
+		}
+
+		switch(param.param) {
+		case RTC_PARAM_FEATURES:
+			if (param.index != 0)
+				err = -EINVAL;
+			param.uvalue = rtc->features[0];
+			break;
+
+		case RTC_PARAM_CORRECTION: {
+			long offset;
+			mutex_unlock(&rtc->ops_lock);
+			if (param.index != 0)
+				return -EINVAL;
+			err = rtc_read_offset(rtc, &offset);
+			mutex_lock(&rtc->ops_lock);
+			if (err == 0)
+				param.svalue = offset;
+			break;
+		}
+		default:
+			if (rtc->ops->param_get)
+				err = rtc->ops->param_get(rtc->dev.parent, &param);
+			else
+				err = -EINVAL;
+		}
+
+		if (!err)
+			if (copy_to_user(uarg, &param, sizeof(param)))
+				err = -EFAULT;
+
+		break;
+
+	case RTC_PARAM_SET:
+		if (copy_from_user(&param, uarg, sizeof(param))) {
+			mutex_unlock(&rtc->ops_lock);
+			return -EFAULT;
+		}
+
+		switch(param.param) {
+		case RTC_PARAM_FEATURES:
+			err = -EINVAL;
+			break;
+
+		case RTC_PARAM_CORRECTION:
+			mutex_unlock(&rtc->ops_lock);
+			if (param.index != 0)
+				return -EINVAL;
+			return rtc_set_offset(rtc, param.svalue);
+
+		default:
+			if (rtc->ops->param_set)
+				err = rtc->ops->param_set(rtc->dev.parent, &param);
+			else
+				err = -EINVAL;
+		}
+
+		break;
+
 	default:
 		/* Finally try the driver's ioctl interface */
 		if (ops->ioctl) {
 			err = ops->ioctl(rtc->dev.parent, cmd, arg);
 			if (err == -ENOIOCTLCMD)
 				err = -ENOTTY;
-		} else
+		} else {
 			err = -ENOTTY;
+		}
 		break;
 	}
 
@@ -405,9 +464,38 @@ done:
 	return err;
 }
 
+#ifdef CONFIG_COMPAT
+#define RTC_IRQP_SET32		_IOW('p', 0x0c, __u32)
+#define RTC_IRQP_READ32		_IOR('p', 0x0b, __u32)
+#define RTC_EPOCH_SET32		_IOW('p', 0x0e, __u32)
+
+static long rtc_dev_compat_ioctl(struct file *file,
+				 unsigned int cmd, unsigned long arg)
+{
+	struct rtc_device *rtc = file->private_data;
+	void __user *uarg = compat_ptr(arg);
+
+	switch (cmd) {
+	case RTC_IRQP_READ32:
+		return put_user(rtc->irq_freq, (__u32 __user *)uarg);
+
+	case RTC_IRQP_SET32:
+		/* arg is a plain integer, not pointer */
+		return rtc_dev_ioctl(file, RTC_IRQP_SET, arg);
+
+	case RTC_EPOCH_SET32:
+		/* arg is a plain integer, not pointer */
+		return rtc_dev_ioctl(file, RTC_EPOCH_SET, arg);
+	}
+
+	return rtc_dev_ioctl(file, cmd, (unsigned long)uarg);
+}
+#endif
+
 static int rtc_dev_fasync(int fd, struct file *file, int on)
 {
 	struct rtc_device *rtc = file->private_data;
+
 	return fasync_helper(fd, file, on, &rtc->async_queue);
 }
 
@@ -439,6 +527,9 @@ static const struct file_operations rtc_dev_fops = {
 	.read		= rtc_dev_read,
 	.poll		= rtc_dev_poll,
 	.unlocked_ioctl	= rtc_dev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= rtc_dev_compat_ioctl,
+#endif
 	.open		= rtc_dev_open,
 	.release	= rtc_dev_release,
 	.fasync		= rtc_dev_fasync,
@@ -474,10 +565,4 @@ void __init rtc_dev_init(void)
 	err = alloc_chrdev_region(&rtc_devt, 0, RTC_DEV_MAX, "rtc");
 	if (err < 0)
 		pr_err("failed to allocate char dev region\n");
-}
-
-void __exit rtc_dev_exit(void)
-{
-	if (rtc_devt)
-		unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
 }

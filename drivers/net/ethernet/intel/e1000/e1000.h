@@ -45,7 +45,6 @@
 
 #define BAR_0		0
 #define BAR_1		1
-#define BAR_5		5
 
 #define INTEL_E1000_ETHERNET_DEVICE(device_id) {\
 	PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
@@ -331,7 +330,6 @@ struct net_device *e1000_get_hw_dev(struct e1000_hw *hw);
 	dev_err(&adapter->pdev->dev, format, ## arg)
 
 extern char e1000_driver_name[];
-extern const char e1000_driver_version[];
 
 int e1000_open(struct net_device *netdev);
 int e1000_close(struct net_device *netdev);

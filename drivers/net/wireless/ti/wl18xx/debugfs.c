@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of wl18xx
  *
  * Copyright (C) 2009 Nokia Corporation
  * Copyright (C) 2011-2012 Texas Instruments
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/pm_runtime.h>
@@ -278,11 +264,9 @@ static ssize_t radar_detection_write(struct file *file,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = wl18xx_cmd_radar_detection_debug(wl, channel);
 	if (ret < 0)
@@ -320,11 +304,9 @@ static ssize_t dynamic_fw_traces_write(struct file *file,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = wl18xx_acx_dynamic_fw_traces(wl);
 	if (ret < 0)
@@ -382,11 +364,9 @@ static ssize_t radar_debug_mode_write(struct file *file,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	wl12xx_for_each_wlvif_ap(wl, wlvif) {
 		wlcore_cmd_generic_cfg(wl, wlvif,
@@ -422,20 +402,10 @@ static const struct file_operations radar_debug_mode_ops = {
 int wl18xx_debugfs_add_files(struct wl1271 *wl,
 			     struct dentry *rootdir)
 {
-	int ret = 0;
-	struct dentry *entry, *stats, *moddir;
+	struct dentry *stats, *moddir;
 
 	moddir = debugfs_create_dir(KBUILD_MODNAME, rootdir);
-	if (!moddir || IS_ERR(moddir)) {
-		entry = moddir;
-		goto err;
-	}
-
 	stats = debugfs_create_dir("fw_stats", moddir);
-	if (!stats || IS_ERR(stats)) {
-		entry = stats;
-		goto err;
-	}
 
 	DEBUGFS_ADD(clear_fw_stats, stats);
 
@@ -590,12 +560,4 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(dynamic_fw_traces, moddir);
 
 	return 0;
-
-err:
-	if (IS_ERR(entry))
-		ret = PTR_ERR(entry);
-	else
-		ret = -ENOMEM;
-
-	return ret;
 }

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * NAU8810 ALSA SoC audio driver
  *
  * Copyright 2016 Nuvoton Technology Corp.
  * Author: David Lin <ctlin0@nuvoton.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __NAU8810_H__
@@ -72,6 +69,7 @@
 
 /* NAU8810_REG_POWER1 (0x1) */
 #define NAU8810_DCBUF_EN		(0x1 << 8)
+#define NAU8810_AUX_EN_SFT		6
 #define NAU8810_PLL_EN_SFT		5
 #define NAU8810_MICBIAS_EN_SFT	4
 #define NAU8810_ABIAS_EN		(0x1 << 3)
@@ -231,7 +229,10 @@
 
 /* NAU8810_REG_INPUT_SIGNAL (0x2C) */
 #define NAU8810_PMICPGA_SFT		0
+#define NAU8810_PMICPGA_EN		(0x1 << NAU8810_PMICPGA_SFT)
 #define NAU8810_NMICPGA_SFT		1
+#define NAU8810_NMICPGA_EN		(0x1 << NAU8810_NMICPGA_SFT)
+#define NAU8810_AUXPGA_SFT		2
 
 /* NAU8810_REG_PGAGAIN (0x2D) */
 #define NAU8810_PGAGAIN_SFT		0
@@ -239,12 +240,15 @@
 #define NAU8810_PGAZC_SFT		7
 
 /* NAU8810_REG_ADCBOOST (0x2F) */
+#define NAU8810_AUXBSTGAIN_SFT	0
 #define NAU8810_PMICBSTGAIN_SFT	4
+#define NAU8810_PMICBSTGAIN_MASK	(0x7 << NAU8810_PMICBSTGAIN_SFT)
 #define NAU8810_PGABST_SFT		8
 
 /* NAU8810_REG_SPKMIX (0x32) */
 #define NAU8810_DACSPK_SFT		0
 #define NAU8810_BYPSPK_SFT		1
+#define NAU8810_AUXSPK_SFT		5
 
 /* NAU8810_REG_SPKGAIN (0x36) */
 #define NAU8810_SPKGAIN_SFT		0
@@ -254,6 +258,7 @@
 /* NAU8810_REG_MONOMIX (0x38) */
 #define NAU8810_DACMOUT_SFT		0
 #define NAU8810_BYPMOUT_SFT		1
+#define NAU8810_AUXMOUT_SFT		2
 #define NAU8810_MOUTMXMT_SFT		6
 
 

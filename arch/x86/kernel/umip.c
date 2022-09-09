@@ -1,6 +1,6 @@
 /*
- * umip.c Emulation for instruction protected by the Intel User-Mode
- * Instruction Prevention feature
+ * umip.c Emulation for instruction protected by the User-Mode Instruction
+ * Prevention feature
  *
  * Copyright (c) 2017, Intel Corporation.
  * Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
@@ -18,10 +18,10 @@
 
 /** DOC: Emulation for User-Mode Instruction Prevention (UMIP)
  *
- * The feature User-Mode Instruction Prevention present in recent Intel
- * processor prevents a group of instructions (sgdt, sidt, sldt, smsw, and str)
- * from being executed with CPL > 0. Otherwise, a general protection fault is
- * issued.
+ * User-Mode Instruction Prevention is a security feature present in recent
+ * x86 processors that, when enabled, prevents a group of instructions (SGDT,
+ * SIDT, SLDT, SMSW and STR) from being run in user mode by issuing a general
+ * protection fault if the instruction is executed with CPL > 0.
  *
  * Rather than relaying to the user space the general protection fault caused by
  * the UMIP-protected instructions (in the form of a SIGSEGV signal), it can be
@@ -36,8 +36,8 @@
  * DOSEMU2) rely on this subset of instructions to function.
  *
  * The instructions protected by UMIP can be split in two groups. Those which
- * return a kernel memory address (sgdt and sidt) and those which return a
- * value (sldt, str and smsw).
+ * return a kernel memory address (SGDT and SIDT) and those which return a
+ * value (SLDT, STR and SMSW).
  *
  * For the instructions that return a kernel memory address, applications
  * such as WineHQ rely on the result being located in the kernel memory space,
@@ -45,15 +45,14 @@
  * value that, lies close to the top of the kernel memory. The limit for the GDT
  * and the IDT are set to zero.
  *
- * Given that sldt and str are not commonly used in programs that run on WineHQ
- * or DOSEMU2, they are not emulated.
- *
- * The instruction smsw is emulated to return the value that the register CR0
+ * The instruction SMSW is emulated to return the value that the register CR0
  * has at boot time as set in the head_32.
+ * SLDT and STR are emulated to return the values that the kernel programmatically
+ * assigns:
+ * - SLDT returns (GDT_ENTRY_LDT * 8) if an LDT has been set, 0 if not.
+ * - STR returns (GDT_ENTRY_TSS * 8).
  *
- * Also, emulation is provided only for 32-bit processes; 64-bit processes
- * that attempt to use the instructions that UMIP protects will receive the
- * SIGSEGV signal issued as a consequence of the general protection fault.
+ * Emulation is provided for both 32-bit and 64-bit processes.
  *
  * Care is taken to appropriately emulate the results when segmentation is
  * used. That is, rather than relying on USER_DS and USER_CS, the function
@@ -63,17 +62,18 @@
  * application uses a local descriptor table.
  */
 
-#define UMIP_DUMMY_GDT_BASE 0xfffe0000
-#define UMIP_DUMMY_IDT_BASE 0xffff0000
+#define UMIP_DUMMY_GDT_BASE 0xfffffffffffe0000ULL
+#define UMIP_DUMMY_IDT_BASE 0xffffffffffff0000ULL
 
 /*
  * The SGDT and SIDT instructions store the contents of the global descriptor
  * table and interrupt table registers, respectively. The destination is a
  * memory operand of X+2 bytes. X bytes are used to store the base address of
- * the table and 2 bytes are used to store the limit. In 32-bit processes, the
- * only processes for which emulation is provided, X has a value of 4.
+ * the table and 2 bytes are used to store the limit. In 32-bit processes X
+ * has a value of 4, in 64-bit processes X has a value of 8.
  */
-#define UMIP_GDT_IDT_BASE_SIZE 4
+#define UMIP_GDT_IDT_BASE_SIZE_64BIT 8
+#define UMIP_GDT_IDT_BASE_SIZE_32BIT 4
 #define UMIP_GDT_IDT_LIMIT_SIZE 2
 
 #define	UMIP_INST_SGDT	0	/* 0F 01 /0 */
@@ -82,7 +82,7 @@
 #define	UMIP_INST_SLDT  3       /* 0F 00 /0 */
 #define	UMIP_INST_STR   4       /* 0F 00 /1 */
 
-const char * const umip_insns[5] = {
+static const char * const umip_insns[5] = {
 	[UMIP_INST_SGDT] = "SGDT",
 	[UMIP_INST_SIDT] = "SIDT",
 	[UMIP_INST_SMSW] = "SMSW",
@@ -92,8 +92,8 @@ const char * const umip_insns[5] = {
 
 #define umip_pr_err(regs, fmt, ...) \
 	umip_printk(regs, KERN_ERR, fmt, ##__VA_ARGS__)
-#define umip_pr_warning(regs, fmt, ...) \
-	umip_printk(regs, KERN_WARNING, fmt,  ##__VA_ARGS__)
+#define umip_pr_debug(regs, fmt, ...) \
+	umip_printk(regs, KERN_DEBUG, fmt,  ##__VA_ARGS__)
 
 /**
  * umip_printk() - Print a rate-limited message
@@ -189,6 +189,7 @@ static int identify_insn(struct insn *insn)
  * @umip_inst:	A constant indicating the instruction to emulate
  * @data:	Buffer into which the dummy result is stored
  * @data_size:	Size of the emulated result
+ * @x86_64:	true if process is 64-bit, false otherwise
  *
  * Emulate an instruction protected by UMIP and provide a dummy result. The
  * result of the emulation is saved in @data. The size of the results depends
@@ -202,11 +203,8 @@ static int identify_insn(struct insn *insn)
  * 0 on success, -EINVAL on error while emulating.
  */
 static int emulate_umip_insn(struct insn *insn, int umip_inst,
-			     unsigned char *data, int *data_size)
+			     unsigned char *data, int *data_size, bool x86_64)
 {
-	unsigned long dummy_base_addr, dummy_value;
-	unsigned short dummy_limit = 0;
-
 	if (!data || !data_size || !insn)
 		return -EINVAL;
 	/*
@@ -219,6 +217,9 @@ static int emulate_umip_insn(struct insn *insn, int umip_inst,
 	 * is always returned irrespective of the operand size.
 	 */
 	if (umip_inst == UMIP_INST_SGDT || umip_inst == UMIP_INST_SIDT) {
+		u64 dummy_base_addr;
+		u16 dummy_limit = 0;
+
 		/* SGDT and SIDT do not use registers operands. */
 		if (X86_MODRM_MOD(insn->modrm.value) == 3)
 			return -EINVAL;
@@ -228,21 +229,50 @@ static int emulate_umip_insn(struct insn *insn, int umip_inst,
 		else
 			dummy_base_addr = UMIP_DUMMY_IDT_BASE;
 
-		*data_size = UMIP_GDT_IDT_LIMIT_SIZE + UMIP_GDT_IDT_BASE_SIZE;
+		/*
+		 * 64-bit processes use the entire dummy base address.
+		 * 32-bit processes use the lower 32 bits of the base address.
+		 * dummy_base_addr is always 64 bits, but we memcpy the correct
+		 * number of bytes from it to the destination.
+		 */
+		if (x86_64)
+			*data_size = UMIP_GDT_IDT_BASE_SIZE_64BIT;
+		else
+			*data_size = UMIP_GDT_IDT_BASE_SIZE_32BIT;
 
-		memcpy(data + 2, &dummy_base_addr, UMIP_GDT_IDT_BASE_SIZE);
+		memcpy(data + 2, &dummy_base_addr, *data_size);
+
+		*data_size += UMIP_GDT_IDT_LIMIT_SIZE;
 		memcpy(data, &dummy_limit, UMIP_GDT_IDT_LIMIT_SIZE);
 
-	} else if (umip_inst == UMIP_INST_SMSW) {
-		dummy_value = CR0_STATE;
+	} else if (umip_inst == UMIP_INST_SMSW || umip_inst == UMIP_INST_SLDT ||
+		   umip_inst == UMIP_INST_STR) {
+		unsigned long dummy_value;
+
+		if (umip_inst == UMIP_INST_SMSW) {
+			dummy_value = CR0_STATE;
+		} else if (umip_inst == UMIP_INST_STR) {
+			dummy_value = GDT_ENTRY_TSS * 8;
+		} else if (umip_inst == UMIP_INST_SLDT) {
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+			down_read(&current->mm->context.ldt_usr_sem);
+			if (current->mm->context.ldt)
+				dummy_value = GDT_ENTRY_LDT * 8;
+			else
+				dummy_value = 0;
+			up_read(&current->mm->context.ldt_usr_sem);
+#else
+			dummy_value = 0;
+#endif
+		}
 
 		/*
-		 * Even though the CR0 register has 4 bytes, the number
+		 * For these 3 instructions, the number
 		 * of bytes to be copied in the result buffer is determined
 		 * by whether the operand is a register or a memory location.
 		 * If operand is a register, return as many bytes as the operand
 		 * size. If operand is memory, return only the two least
-		 * siginificant bytes of CR0.
+		 * significant bytes.
 		 */
 		if (X86_MODRM_MOD(insn->modrm.value) == 3)
 			*data_size = insn->opnd_bytes;
@@ -250,7 +280,6 @@ static int emulate_umip_insn(struct insn *insn, int umip_inst,
 			*data_size = 2;
 
 		memcpy(data, &dummy_value, *data_size);
-	/* STR and SLDT  are not emulated */
 	} else {
 		return -EINVAL;
 	}
@@ -277,7 +306,7 @@ static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
 	tsk->thread.error_code	= X86_PF_USER | X86_PF_WRITE;
 	tsk->thread.trap_nr	= X86_TRAP_PF;
 
-	force_sig_fault(SIGSEGV, SEGV_MAPERR, addr, tsk);
+	force_sig_fault(SIGSEGV, SEGV_MAPERR, addr);
 
 	if (!(show_unhandled_signals && unhandled_signal(tsk, SIGSEGV)))
 		return;
@@ -290,11 +319,10 @@ static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
  * fixup_umip_exception() - Fixup a general protection fault caused by UMIP
  * @regs:	Registers as saved when entering the #GP handler
  *
- * The instructions sgdt, sidt, str, smsw, sldt cause a general protection
- * fault if executed with CPL > 0 (i.e., from user space). If the offending
- * user-space process is not in long mode, this function fixes the exception
- * up and provides dummy results for sgdt, sidt and smsw; str and sldt are not
- * fixed up. Also long mode user-space processes are not fixed up.
+ * The instructions SGDT, SIDT, STR, SMSW and SLDT cause a general protection
+ * fault if executed with CPL > 0 (i.e., from user space). This function fixes
+ * the exception up and provides dummy results for SGDT, SIDT and SMSW; STR
+ * and SLDT are not fixed up.
  *
  * If operands are memory addresses, results are copied to user-space memory as
  * indicated by the instruction pointed by eIP using the registers indicated in
@@ -307,79 +335,39 @@ static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
  */
 bool fixup_umip_exception(struct pt_regs *regs)
 {
-	int not_copied, nr_copied, reg_offset, dummy_data_size, umip_inst;
-	unsigned long seg_base = 0, *reg_addr;
+	int nr_copied, reg_offset, dummy_data_size, umip_inst;
 	/* 10 bytes is the maximum size of the result of UMIP instructions */
 	unsigned char dummy_data[10] = { 0 };
 	unsigned char buf[MAX_INSN_SIZE];
+	unsigned long *reg_addr;
 	void __user *uaddr;
 	struct insn insn;
-	int seg_defs;
 
 	if (!regs)
 		return false;
 
 	/*
-	 * If not in user-space long mode, a custom code segment could be in
-	 * use. This is true in protected mode (if the process defined a local
-	 * descriptor table), or virtual-8086 mode. In most of the cases
-	 * seg_base will be zero as in USER_CS.
+	 * Give up on emulation if fetching the instruction failed. Should a
+	 * page fault or a #GP be issued?
 	 */
-	if (!user_64bit_mode(regs))
-		seg_base = insn_get_seg_base(regs, INAT_SEG_REG_CS);
-
-	if (seg_base == -1L)
+	nr_copied = insn_fetch_from_user(regs, buf);
+	if (nr_copied <= 0)
 		return false;
 
-	not_copied = copy_from_user(buf, (void __user *)(seg_base + regs->ip),
-				    sizeof(buf));
-	nr_copied = sizeof(buf) - not_copied;
-
-	/*
-	 * The copy_from_user above could have failed if user code is protected
-	 * by a memory protection key. Give up on emulation in such a case.
-	 * Should we issue a page fault?
-	 */
-	if (!nr_copied)
-		return false;
-
-	insn_init(&insn, buf, nr_copied, user_64bit_mode(regs));
-
-	/*
-	 * Override the default operand and address sizes with what is specified
-	 * in the code segment descriptor. The instruction decoder only sets
-	 * the address size it to either 4 or 8 address bytes and does nothing
-	 * for the operand bytes. This OK for most of the cases, but we could
-	 * have special cases where, for instance, a 16-bit code segment
-	 * descriptor is used.
-	 * If there is an address override prefix, the instruction decoder
-	 * correctly updates these values, even for 16-bit defaults.
-	 */
-	seg_defs = insn_get_code_seg_params(regs);
-	if (seg_defs == -EINVAL)
-		return false;
-
-	insn.addr_bytes = INSN_CODE_SEG_ADDR_SZ(seg_defs);
-	insn.opnd_bytes = INSN_CODE_SEG_OPND_SZ(seg_defs);
-
-	insn_get_length(&insn);
-	if (nr_copied < insn.length)
+	if (!insn_decode_from_regs(&insn, regs, buf, nr_copied))
 		return false;
 
 	umip_inst = identify_insn(&insn);
 	if (umip_inst < 0)
 		return false;
 
-	umip_pr_warning(regs, "%s instruction cannot be used by applications.\n",
+	umip_pr_debug(regs, "%s instruction cannot be used by applications.\n",
 			umip_insns[umip_inst]);
 
-	/* Do not emulate SLDT, STR or user long mode processes. */
-	if (umip_inst == UMIP_INST_STR || umip_inst == UMIP_INST_SLDT || user_64bit_mode(regs))
-		return false;
+	umip_pr_debug(regs, "For now, expensive software emulation returns the result.\n");
 
-	umip_pr_warning(regs, "For now, expensive software emulation returns the result.\n");
-
-	if (emulate_umip_insn(&insn, umip_inst, dummy_data, &dummy_data_size))
+	if (emulate_umip_insn(&insn, umip_inst, dummy_data, &dummy_data_size,
+			      user_64bit_mode(regs)))
 		return false;
 
 	/*

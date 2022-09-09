@@ -965,8 +965,8 @@ struct esas2r_adapter {
 const char *esas2r_info(struct Scsi_Host *);
 int esas2r_write_params(struct esas2r_adapter *a, struct esas2r_request *rq,
 			struct esas2r_sas_nvram *data);
-int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg);
-int esas2r_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
+int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg);
+int esas2r_ioctl(struct scsi_device *dev, unsigned int cmd, void __user *arg);
 u8 handle_hba_ioctl(struct esas2r_adapter *a,
 		    struct atto_ioctl *ioctl_hba);
 int esas2r_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd);
@@ -996,8 +996,9 @@ void esas2r_adapter_tasklet(unsigned long context);
 irqreturn_t esas2r_interrupt(int irq, void *dev_id);
 irqreturn_t esas2r_msi_interrupt(int irq, void *dev_id);
 void esas2r_kickoff_timer(struct esas2r_adapter *a);
-int esas2r_suspend(struct pci_dev *pcid, pm_message_t state);
-int esas2r_resume(struct pci_dev *pcid);
+
+extern const struct dev_pm_ops esas2r_pm_ops;
+
 void esas2r_fw_event_off(struct esas2r_adapter *a);
 void esas2r_fw_event_on(struct esas2r_adapter *a);
 bool esas2r_nvram_write(struct esas2r_adapter *a, struct esas2r_request *rq,
@@ -1225,8 +1226,9 @@ static inline void esas2r_rq_init_request(struct esas2r_request *rq,
 
 	/* req_table entry should be NULL at this point - if not, halt */
 
-	if (a->req_table[LOWORD(vrq->scsi.handle)])
+	if (a->req_table[LOWORD(vrq->scsi.handle)]) {
 		esas2r_bugon();
+	}
 
 	/* fill in the table for this handle so we can get back to the
 	 * request.

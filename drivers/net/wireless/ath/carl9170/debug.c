@@ -45,7 +45,7 @@
 #include "cmd.h"
 
 #define ADD(buf, off, max, fmt, args...)				\
-	off += snprintf(&buf[off], max - off, fmt, ##args);
+	off += scnprintf(&buf[off], max - off, fmt, ##args)
 
 
 struct carl9170_debugfs_fops {
@@ -818,7 +818,7 @@ void carl9170_debugfs_register(struct ar9170 *ar)
 #define DEBUGFS_ADD(name)						\
 	debugfs_create_file(#name, carl_debugfs_##name ##_ops.attr,	\
 			    ar->debug_dir, ar,				\
-			    &carl_debugfs_##name ## _ops.fops);
+			    &carl_debugfs_##name ## _ops.fops)
 
 	DEBUGFS_ADD(usb_tx_anch_urbs);
 	DEBUGFS_ADD(usb_rx_pool_urbs);

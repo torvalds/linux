@@ -10,12 +10,14 @@
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
 #include <linux/threads.h>
+#include <linux/netdevice.h>
 #include "dpseci.h"
 #include "desc_constr.h"
+#include <crypto/skcipher.h>
 
 #define DPAA2_CAAM_STORE_SIZE	16
 /* NAPI weight *must* be a multiple of the store size. */
-#define DPAA2_CAAM_NAPI_WEIGHT	64
+#define DPAA2_CAAM_NAPI_WEIGHT	512
 
 /* The congestion entrance threshold was chosen so that on LS2088
  * we support the maximum throughput for the available memory
@@ -64,6 +66,7 @@ struct dpaa2_caam_priv {
 	struct iommu_domain *domain;
 
 	struct dpaa2_caam_priv_per_cpu __percpu *ppriv;
+	struct dentry *dfs_root;
 };
 
 /**
@@ -76,6 +79,7 @@ struct dpaa2_caam_priv {
  * @nctx: notification context of response FQ
  * @store: where dequeued frames are stored
  * @priv: backpointer to dpaa2_caam_priv
+ * @dpio: portal used for data path operations
  */
 struct dpaa2_caam_priv_per_cpu {
 	struct napi_struct napi;
@@ -86,34 +90,8 @@ struct dpaa2_caam_priv_per_cpu {
 	struct dpaa2_io_notification_ctx nctx;
 	struct dpaa2_io_store *store;
 	struct dpaa2_caam_priv *priv;
+	struct dpaa2_io *dpio;
 };
-
-/*
- * The CAAM QI hardware constructs a job descriptor which points
- * to shared descriptor (as pointed by context_a of FQ to CAAM).
- * When the job descriptor is executed by deco, the whole job
- * descriptor together with shared descriptor gets loaded in
- * deco buffer which is 64 words long (each 32-bit).
- *
- * The job descriptor constructed by QI hardware has layout:
- *
- *	HEADER		(1 word)
- *	Shdesc ptr	(1 or 2 words)
- *	SEQ_OUT_PTR	(1 word)
- *	Out ptr		(1 or 2 words)
- *	Out length	(1 word)
- *	SEQ_IN_PTR	(1 word)
- *	In ptr		(1 or 2 words)
- *	In length	(1 word)
- *
- * The shdesc ptr is used to fetch shared descriptor contents
- * into deco buffer.
- *
- * Apart from shdesc contents, the total number of words that
- * get loaded in deco buffer are '8' or '11'. The remaining words
- * in deco buffer can be used for storing shared descriptor.
- */
-#define MAX_SDLEN	((CAAM_DESC_BYTES_MAX - DESC_JOB_IO_LEN) / CAAM_CMD_SZ)
 
 /* Length of a single buffer in the QI driver memory cache */
 #define CAAM_QI_MEMCACHE_SIZE	512
@@ -137,7 +115,7 @@ struct aead_edesc {
 	dma_addr_t qm_sg_dma;
 	unsigned int assoclen;
 	dma_addr_t assoclen_dma;
-	struct dpaa2_sg_entry sgt[0];
+	struct dpaa2_sg_entry sgt[];
 };
 
 /*
@@ -155,23 +133,21 @@ struct skcipher_edesc {
 	dma_addr_t iv_dma;
 	int qm_sg_bytes;
 	dma_addr_t qm_sg_dma;
-	struct dpaa2_sg_entry sgt[0];
+	struct dpaa2_sg_entry sgt[];
 };
 
 /*
  * ahash_edesc - s/w-extended ahash descriptor
- * @dst_dma: I/O virtual address of req->result
  * @qm_sg_dma: I/O virtual address of h/w link table
  * @src_nents: number of segments in input scatterlist
  * @qm_sg_bytes: length of dma mapped qm_sg space
  * @sgt: pointer to h/w link table
  */
 struct ahash_edesc {
-	dma_addr_t dst_dma;
 	dma_addr_t qm_sg_dma;
 	int src_nents;
 	int qm_sg_bytes;
-	struct dpaa2_sg_entry sgt[0];
+	struct dpaa2_sg_entry sgt[];
 };
 
 /**
@@ -211,6 +187,7 @@ struct caam_request {
 	void (*cbk)(void *ctx, u32 err);
 	void *ctx;
 	void *edesc;
+	struct skcipher_request fallback_req;
 };
 
 /**

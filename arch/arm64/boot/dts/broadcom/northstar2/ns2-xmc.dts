@@ -146,7 +146,7 @@
 };
 
 &qspi {
-	flash: m25p80@0 {
+	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "m25p80";

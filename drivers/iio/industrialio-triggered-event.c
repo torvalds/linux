@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Cogent Embedded, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -41,7 +37,7 @@ int iio_triggered_event_setup(struct iio_dev *indio_dev,
 						       indio_dev,
 						       "%s_consumer%d",
 						       indio_dev->name,
-						       indio_dev->id);
+						       iio_device_id(indio_dev));
 	if (indio_dev->pollfunc_event == NULL)
 		return -ENOMEM;
 

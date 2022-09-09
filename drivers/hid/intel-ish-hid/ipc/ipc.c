@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * H/W layer of ISHTP provider device (ISH)
  *
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/sched.h>
@@ -91,7 +83,10 @@ static bool check_generated_interrupt(struct ishtp_device *dev)
 			IPC_INT_FROM_ISH_TO_HOST_CHV_AB(pisr_val);
 	} else {
 		pisr_val = ish_reg_read(dev, IPC_REG_PISR_BXT);
-		interrupt_generated = IPC_INT_FROM_ISH_TO_HOST_BXT(pisr_val);
+		interrupt_generated = !!pisr_val;
+		/* only busy-clear bit is RW, others are RO */
+		if (pisr_val)
+			ish_reg_write(dev, IPC_REG_PISR_BXT, pisr_val);
 	}
 
 	return interrupt_generated;
@@ -198,6 +193,33 @@ static void ish_clr_host_rdy(struct ishtp_device *dev)
 	ish_reg_write(dev, IPC_REG_HOST_COMM, host_status);
 }
 
+static bool ish_chk_host_rdy(struct ishtp_device *dev)
+{
+	uint32_t host_status = ish_reg_read(dev, IPC_REG_HOST_COMM);
+
+	return (host_status & IPC_HOSTCOMM_READY_BIT);
+}
+
+/**
+ * ish_set_host_ready() - reconfig ipc host registers
+ * @dev: ishtp device pointer
+ *
+ * Set host to ready state
+ * This API is called in some case:
+ *    fw is still on, but ipc is powered down.
+ *    such as OOB case.
+ *
+ * Return: 0 for success else error fault code
+ */
+void ish_set_host_ready(struct ishtp_device *dev)
+{
+	if (ish_chk_host_rdy(dev))
+		return;
+
+	ish_set_host_rdy(dev);
+	set_host_ready(dev);
+}
+
 /**
  * _ishtp_read_hdr() - Read message header
  * @dev: ISHTP device pointer
@@ -256,33 +278,22 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	int	i;
 	void	(*ipc_send_compl)(void *);
 	void	*ipc_send_compl_prm;
-	static int	out_ipc_locked;
-	unsigned long	out_ipc_flags;
 
 	if (dev->dev_state == ISHTP_DEV_DISABLED)
-		return	-EINVAL;
-
-	spin_lock_irqsave(&dev->out_ipc_spinlock, out_ipc_flags);
-	if (out_ipc_locked) {
-		spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
-		return -EBUSY;
-	}
-	out_ipc_locked = 1;
-	if (!ish_is_input_ready(dev)) {
-		out_ipc_locked = 0;
-		spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
+		return -EINVAL;
 
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
+	if (!ish_is_input_ready(dev)) {
+		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
+		return -EBUSY;
+	}
+
 	/*
 	 * if tx send list is empty - return 0;
 	 * may happen, as RX_COMPLETE handler doesn't check list emptiness.
 	 */
 	if (list_empty(&dev->wr_processing_list)) {
 		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
-		out_ipc_locked = 0;
 		return	0;
 	}
 
@@ -325,15 +336,14 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 		memcpy(&reg, &r_buf[length >> 2], rem);
 		ish_reg_write(dev, reg_addr, reg);
 	}
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
+
 	/* Flush writes to msg registers and doorbell */
 	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
 
 	/* Update IPC counters */
 	++dev->ipc_tx_cnt;
 	dev->ipc_tx_bytes_cnt += IPC_HEADER_GET_LENGTH(doorbell_val);
-
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
-	out_ipc_locked = 0;
 
 	ipc_send_compl = ipc_link->ipc_send_compl;
 	ipc_send_compl_prm = ipc_link->ipc_send_compl_prm;
@@ -534,7 +544,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 #define TIMEOUT_FOR_HW_RDY_MS			300
 
 /**
- * ish_fw_reset_work_fn() - FW reset worker function
+ * fw_reset_work_fn() - FW reset worker function
  * @unused: not used
  *
  * Call ish_fw_reset_handler to complete FW reset
@@ -568,7 +578,7 @@ static void _ish_sync_fw_clock(struct ishtp_device *dev)
 	static unsigned long	prev_sync;
 	uint64_t	usec;
 
-	if (prev_sync && jiffies - prev_sync < 20 * HZ)
+	if (prev_sync && time_before(jiffies, prev_sync + 20 * HZ))
 		return;
 
 	prev_sync = jiffies;
@@ -689,7 +699,7 @@ eoi:
  *
  * Return: 0 for success else error code.
  */
-static int ish_disable_dma(struct ishtp_device *dev)
+int ish_disable_dma(struct ishtp_device *dev)
 {
 	unsigned int	dma_delay;
 
@@ -772,7 +782,7 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	csr |= PCI_D3hot;
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
-	mdelay(pdev->d3_delay);
+	mdelay(pdev->d3hot_delay);
 
 	csr &= ~PCI_PM_CTRL_STATE_MASK;
 	csr |= PCI_D0;
@@ -839,10 +849,10 @@ int ish_hw_start(struct ishtp_device *dev)
 {
 	ish_set_host_rdy(dev);
 
+	set_host_ready(dev);
+
 	/* After that we can enable ISH DMA operation and wakeup ISHFW */
 	ish_wakeup(dev);
-
-	set_host_ready(dev);
 
 	/* wait for FW-initiated reset flow */
 	if (!dev->recvd_hw_ready)
@@ -879,6 +889,33 @@ static uint32_t ish_ipc_get_header(struct ishtp_device *dev, int length,
 	return drbl_val;
 }
 
+/**
+ * _dma_no_cache_snooping()
+ *
+ * Check on current platform, DMA supports cache snooping or not.
+ * This callback is used to notify uplayer driver if manully cache
+ * flush is needed when do DMA operation.
+ *
+ * Please pay attention to this callback implementation, if declare
+ * having cache snooping on a cache snooping not supported platform
+ * will cause uplayer driver receiving mismatched data; and if
+ * declare no cache snooping on a cache snooping supported platform
+ * will cause cache be flushed twice and performance hit.
+ *
+ * @dev: ishtp device pointer
+ *
+ * Return: false - has cache snooping capability
+ *         true - no cache snooping, need manually cache flush
+ */
+static bool _dma_no_cache_snooping(struct ishtp_device *dev)
+{
+	return (dev->pdev->device == EHL_Ax_DEVICE_ID ||
+		dev->pdev->device == TGL_LP_DEVICE_ID ||
+		dev->pdev->device == TGL_H_DEVICE_ID ||
+		dev->pdev->device == ADL_S_DEVICE_ID ||
+		dev->pdev->device == ADL_P_DEVICE_ID);
+}
+
 static const struct ishtp_hw_ops ish_hw_ops = {
 	.hw_reset = _ish_hw_reset,
 	.ipc_reset = _ish_ipc_reset,
@@ -887,7 +924,8 @@ static const struct ishtp_hw_ops ish_hw_ops = {
 	.write = write_ipc_to_queue,
 	.get_fw_status = _ish_read_fw_sts_reg,
 	.sync_fw_clock = _ish_sync_fw_clock,
-	.ishtp_read_hdr = _ishtp_read_hdr
+	.ishtp_read_hdr = _ishtp_read_hdr,
+	.dma_no_cache_snooping = _dma_no_cache_snooping
 };
 
 /**
@@ -914,7 +952,6 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 	init_waitqueue_head(&dev->wait_hw_ready);
 
 	spin_lock_init(&dev->wr_processing_spinlock);
-	spin_lock_init(&dev->out_ipc_spinlock);
 
 	/* Init IPC processing and free lists */
 	INIT_LIST_HEAD(&dev->wr_processing_list);

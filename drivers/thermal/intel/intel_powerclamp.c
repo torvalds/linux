@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_powerclamp.c - package c-state idle injection
  *
@@ -6,20 +7,6 @@
  * Authors:
  *     Arjan van de Ven <arjan@linux.intel.com>
  *     Jacob Pan <jacob.jun.pan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  *	TODO:
  *           1. better handle wakeup from external interrupts, currently a fixed
@@ -33,8 +20,6 @@
  *              get_cpu_iowait_time_us()
  *
  *	     2. synchronization with other hw blocks
- *
- *
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -85,9 +70,6 @@ static unsigned int control_cpu; /* The cpu assigned to collect stat and update
 				  */
 static bool clamping;
 
-static const struct sched_param sparam = {
-	.sched_priority = MAX_USER_RT_PRIO / 2,
-};
 struct powerclamp_worker_data {
 	struct kthread_worker *worker;
 	struct kthread_work balancing_work;
@@ -101,7 +83,7 @@ struct powerclamp_worker_data {
 	bool clamping;
 };
 
-static struct powerclamp_worker_data * __percpu worker_data;
+static struct powerclamp_worker_data __percpu *worker_data;
 static struct thermal_cooling_device *cooling_dev;
 static unsigned long *cpu_clamping_mask;  /* bit map for tracking per cpu
 					   * clamping kthread worker
@@ -445,7 +427,7 @@ static void clamp_idle_injection_func(struct kthread_work *work)
 	if (should_skip)
 		goto balance;
 
-	play_idle(jiffies_to_msecs(w_data->duration_jiffies));
+	play_idle(jiffies_to_usecs(w_data->duration_jiffies));
 
 balance:
 	if (clamping && w_data->clamping && cpu_online(w_data->cpu))
@@ -494,7 +476,7 @@ static void start_power_clamp_worker(unsigned long cpu)
 	struct powerclamp_worker_data *w_data = per_cpu_ptr(worker_data, cpu);
 	struct kthread_worker *worker;
 
-	worker = kthread_create_worker_on_cpu(cpu, 0, "kidle_inject/%ld", cpu);
+	worker = kthread_create_worker_on_cpu(cpu, 0, "kidle_inj/%ld", cpu);
 	if (IS_ERR(worker))
 		return;
 
@@ -503,7 +485,7 @@ static void start_power_clamp_worker(unsigned long cpu)
 	w_data->cpu = cpu;
 	w_data->clamping = true;
 	set_bit(cpu, cpu_clamping_mask);
-	sched_setscheduler(worker->task, SCHED_FIFO, &sparam);
+	sched_set_fifo(worker->task);
 	kthread_init_work(&w_data->balancing_work, clamp_balancing_func);
 	kthread_init_delayed_work(&w_data->idle_injection_work,
 				  clamp_idle_injection_func);
@@ -546,7 +528,7 @@ static int start_power_clamp(void)
 
 	set_target_ratio = clamp(set_target_ratio, 0U, MAX_TARGET_RATIO - 1);
 	/* prevent cpu hotplug */
-	get_online_cpus();
+	cpus_read_lock();
 
 	/* prefer BSP */
 	control_cpu = 0;
@@ -560,7 +542,7 @@ static int start_power_clamp(void)
 	for_each_online_cpu(cpu) {
 		start_power_clamp_worker(cpu);
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 }
@@ -574,12 +556,9 @@ static void end_power_clamp(void)
 	 * stop faster.
 	 */
 	clamping = false;
-	if (bitmap_weight(cpu_clamping_mask, num_possible_cpus())) {
-		for_each_set_bit(i, cpu_clamping_mask, num_possible_cpus()) {
-			pr_debug("clamping worker for cpu %d alive, destroy\n",
-				 i);
-			stop_power_clamp_worker(i);
-		}
+	for_each_set_bit(i, cpu_clamping_mask, num_possible_cpus()) {
+		pr_debug("clamping worker for cpu %d alive, destroy\n", i);
+		stop_power_clamp_worker(i);
 	}
 }
 
@@ -659,14 +638,14 @@ exit_set:
 }
 
 /* bind to generic thermal layer as cooling device*/
-static struct thermal_cooling_device_ops powerclamp_cooling_ops = {
+static const struct thermal_cooling_device_ops powerclamp_cooling_ops = {
 	.get_max_state = powerclamp_get_max_state,
 	.get_cur_state = powerclamp_get_cur_state,
 	.set_cur_state = powerclamp_set_cur_state,
 };
 
 static const struct x86_cpu_id __initconst intel_powerclamp_ids[] = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_MWAIT },
+	X86_MATCH_VENDOR_FEATURE(INTEL, X86_FEATURE_MWAIT, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
@@ -713,17 +692,9 @@ DEFINE_SHOW_ATTRIBUTE(powerclamp_debug);
 static inline void powerclamp_create_debug_files(void)
 {
 	debug_dir = debugfs_create_dir("intel_powerclamp", NULL);
-	if (!debug_dir)
-		return;
 
-	if (!debugfs_create_file("powerclamp_calib", S_IRUGO, debug_dir,
-					cal_data, &powerclamp_debug_fops))
-		goto file_error;
-
-	return;
-
-file_error:
-	debugfs_remove_recursive(debug_dir);
+	debugfs_create_file("powerclamp_calib", S_IRUGO, debug_dir, cal_data,
+			    &powerclamp_debug_fops);
 }
 
 static enum cpuhp_state hp_state;
@@ -731,10 +702,8 @@ static enum cpuhp_state hp_state;
 static int __init powerclamp_init(void)
 {
 	int retval;
-	int bitmap_size;
 
-	bitmap_size = BITS_TO_LONGS(num_possible_cpus()) * sizeof(long);
-	cpu_clamping_mask = kzalloc(bitmap_size, GFP_KERNEL);
+	cpu_clamping_mask = bitmap_zalloc(num_possible_cpus(), GFP_KERNEL);
 	if (!cpu_clamping_mask)
 		return -ENOMEM;
 
@@ -779,7 +748,7 @@ exit_free_thread:
 exit_unregister:
 	cpuhp_remove_state_nocalls(hp_state);
 exit_free:
-	kfree(cpu_clamping_mask);
+	bitmap_free(cpu_clamping_mask);
 	return retval;
 }
 module_init(powerclamp_init);
@@ -790,7 +759,7 @@ static void __exit powerclamp_exit(void)
 	cpuhp_remove_state_nocalls(hp_state);
 	free_percpu(worker_data);
 	thermal_cooling_device_unregister(cooling_dev);
-	kfree(cpu_clamping_mask);
+	bitmap_free(cpu_clamping_mask);
 
 	cancel_delayed_work_sync(&poll_pkg_cstate_work);
 	debugfs_remove_recursive(debug_dir);

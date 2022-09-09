@@ -227,16 +227,16 @@ static int prism2_download_aux_dump_proc_open(struct inode *inode, struct file *
 				   sizeof(struct prism2_download_aux_dump));
 	if (ret == 0) {
 		struct seq_file *m = file->private_data;
-		m->private = PDE_DATA(inode);
+		m->private = pde_data(inode);
 	}
 	return ret;
 }
 
-static const struct file_operations prism2_download_aux_dump_proc_fops = {
-	.open		= prism2_download_aux_dump_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+static const struct proc_ops prism2_download_aux_dump_proc_ops = {
+	.proc_open		= prism2_download_aux_dump_proc_open,
+	.proc_read		= seq_read,
+	.proc_lseek		= seq_lseek,
+	.proc_release		= seq_release_private,
 };
 
 
@@ -407,10 +407,8 @@ static int prism2_enable_genesis(local_info_t *local, int hcr)
 		       hcr);
 		return 0;
 	} else {
-		printk(KERN_DEBUG "Readback test failed, HCR 0x%02x "
-		       "write %02x %02x %02x %02x read %02x %02x %02x %02x\n",
-		       hcr, initseq[0], initseq[1], initseq[2], initseq[3],
-		       readbuf[0], readbuf[1], readbuf[2], readbuf[3]);
+		printk(KERN_DEBUG "Readback test failed, HCR 0x%02x write %4ph read %4ph\n",
+		       hcr, initseq, readbuf);
 		return 1;
 	}
 }

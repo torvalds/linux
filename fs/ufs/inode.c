@@ -390,7 +390,7 @@ out:
 
 /**
  * ufs_getfrag_block() - `get_block_t' function, interface between UFS and
- * readpage, writepage and so on
+ * read_folio, writepage and so on
  */
 
 static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create)
@@ -472,9 +472,9 @@ static int ufs_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page,ufs_getfrag_block,wbc);
 }
 
-static int ufs_readpage(struct file *file, struct page *page)
+static int ufs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page,ufs_getfrag_block);
+	return block_read_full_folio(folio, ufs_getfrag_block);
 }
 
 int ufs_prepare_chunk(struct page *page, loff_t pos, unsigned len)
@@ -495,13 +495,12 @@ static void ufs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int ufs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, flags, pagep,
-				ufs_getfrag_block);
+	ret = block_write_begin(mapping, pos, len, pagep, ufs_getfrag_block);
 	if (unlikely(ret))
 		ufs_write_failed(mapping, pos + len);
 
@@ -526,7 +525,9 @@ static sector_t ufs_bmap(struct address_space *mapping, sector_t block)
 }
 
 const struct address_space_operations ufs_aops = {
-	.readpage = ufs_readpage,
+	.dirty_folio = block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
+	.read_folio = ufs_read_folio,
 	.writepage = ufs_writepage,
 	.write_begin = ufs_write_begin,
 	.write_end = ufs_write_end,
@@ -1211,13 +1212,14 @@ out:
 	return err;
 }
 
-int ufs_setattr(struct dentry *dentry, struct iattr *attr)
+int ufs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 	int error;
 
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
 		return error;
 
@@ -1227,7 +1229,7 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 			return error;
 	}
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }

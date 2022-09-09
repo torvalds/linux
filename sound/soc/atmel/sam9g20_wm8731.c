@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sam9g20_wm8731  --  SoC audio for AT91SAM9G20-based
  * 			ATMEL AT91SAM9G20ek board.
@@ -13,20 +14,6 @@
  * Based on corgi.c by:
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Copyright 2005 Openedhand Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -59,35 +46,6 @@
  */
 #undef ENABLE_MIC_INPUT
 
-static struct clk *mclk;
-
-static int at91sam9g20ek_set_bias_level(struct snd_soc_card *card,
-					struct snd_soc_dapm_context *dapm,
-					enum snd_soc_bias_level level)
-{
-	static int mclk_on;
-	int ret = 0;
-
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
-		if (!mclk_on)
-			ret = clk_enable(mclk);
-		if (ret == 0)
-			mclk_on = 1;
-		break;
-
-	case SND_SOC_BIAS_OFF:
-	case SND_SOC_BIAS_STANDBY:
-		if (mclk_on)
-			clk_disable(mclk);
-		mclk_on = 0;
-		break;
-	}
-
-	return ret;
-}
-
 static const struct snd_soc_dapm_widget at91sam9g20ek_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
@@ -109,7 +67,7 @@ static const struct snd_soc_dapm_route intercon[] = {
  */
 static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct device *dev = rtd->dev;
 	int ret;
 
@@ -129,16 +87,18 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_CPU("at91rm9200_ssc.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8731.0-001b", "wm8731-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("at91rm9200_ssc.0")));
+
 static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731 PCM",
-	.cpu_dai_name = "at91rm9200_ssc.0",
-	.codec_dai_name = "wm8731-hifi",
 	.init = at91sam9g20ek_wm8731_init,
-	.platform_name = "at91rm9200_ssc.0",
-	.codec_name = "wm8731.0-001b",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-		   SND_SOC_DAIFMT_CBM_CFM,
+		   SND_SOC_DAIFMT_CBP_CFP,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card snd_soc_at91sam9g20ek = {
@@ -146,7 +106,6 @@ static struct snd_soc_card snd_soc_at91sam9g20ek = {
 	.owner = THIS_MODULE,
 	.dai_link = &at91sam9g20ek_dai,
 	.num_links = 1,
-	.set_bias_level = at91sam9g20ek_set_bias_level,
 
 	.dapm_widgets = at91sam9g20ek_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(at91sam9g20ek_dapm_widgets),
@@ -159,7 +118,6 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *codec_np, *cpu_np;
-	struct clk *pllb;
 	struct snd_soc_card *card = &snd_soc_at91sam9g20ek;
 	int ret;
 
@@ -169,34 +127,9 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 
 	ret = atmel_ssc_set_audio(0);
 	if (ret) {
-		dev_err(&pdev->dev, "ssc channel is not valid\n");
-		return -EINVAL;
+		dev_err(&pdev->dev, "ssc channel is not valid: %d\n", ret);
+		return ret;
 	}
-
-	/*
-	 * Codec MCLK is supplied by PCK0 - set it up.
-	 */
-	mclk = clk_get(NULL, "pck0");
-	if (IS_ERR(mclk)) {
-		dev_err(&pdev->dev, "Failed to get MCLK\n");
-		ret = PTR_ERR(mclk);
-		goto err;
-	}
-
-	pllb = clk_get(NULL, "pllb");
-	if (IS_ERR(pllb)) {
-		dev_err(&pdev->dev, "Failed to get PLLB\n");
-		ret = PTR_ERR(pllb);
-		goto err_mclk;
-	}
-	ret = clk_set_parent(mclk, pllb);
-	clk_put(pllb);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to set MCLK parent\n");
-		goto err_mclk;
-	}
-
-	clk_set_rate(mclk, MCLK_RATE);
 
 	card->dev = &pdev->dev;
 
@@ -211,38 +144,40 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 		goto err;
 
 	/* Parse codec info */
-	at91sam9g20ek_dai.codec_name = NULL;
+	at91sam9g20ek_dai.codecs->name = NULL;
 	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
 	if (!codec_np) {
 		dev_err(&pdev->dev, "codec info missing\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
-	at91sam9g20ek_dai.codec_of_node = codec_np;
+	at91sam9g20ek_dai.codecs->of_node = codec_np;
 
 	/* Parse dai and platform info */
-	at91sam9g20ek_dai.cpu_dai_name = NULL;
-	at91sam9g20ek_dai.platform_name = NULL;
+	at91sam9g20ek_dai.cpus->dai_name = NULL;
+	at91sam9g20ek_dai.platforms->name = NULL;
 	cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
 	if (!cpu_np) {
 		dev_err(&pdev->dev, "dai and pcm info missing\n");
-		return -EINVAL;
+		of_node_put(codec_np);
+		ret = -EINVAL;
+		goto err;
 	}
-	at91sam9g20ek_dai.cpu_of_node = cpu_np;
-	at91sam9g20ek_dai.platform_of_node = cpu_np;
+	at91sam9g20ek_dai.cpus->of_node = cpu_np;
+	at91sam9g20ek_dai.platforms->of_node = cpu_np;
 
 	of_node_put(codec_np);
 	of_node_put(cpu_np);
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card() failed\n");
+		dev_err_probe(&pdev->dev, ret,
+			      "snd_soc_register_card() failed: %d\n", ret);
+		goto err;
 	}
 
-	return ret;
+	return 0;
 
-err_mclk:
-	clk_put(mclk);
-	mclk = NULL;
 err:
 	atmel_ssc_put_audio(0);
 	return ret;
@@ -252,8 +187,6 @@ static int at91sam9g20ek_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	clk_disable(mclk);
-	mclk = NULL;
 	snd_soc_unregister_card(card);
 	atmel_ssc_put_audio(0);
 

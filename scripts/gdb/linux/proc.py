@@ -29,6 +29,7 @@ class LxCmdLine(gdb.Command):
     def invoke(self, arg, from_tty):
         gdb.write(gdb.parse_and_eval("saved_command_line").string() + "\n")
 
+
 LxCmdLine()
 
 
@@ -42,6 +43,7 @@ class LxVersion(gdb.Command):
     def invoke(self, arg, from_tty):
         # linux_banner should contain a newline
         gdb.write(gdb.parse_and_eval("(char *)linux_banner").string())
+
 
 LxVersion()
 
@@ -86,6 +88,7 @@ Equivalent to cat /proc/iomem on a running target"""
     def invoke(self, arg, from_tty):
         return show_lx_resources("iomem_resource")
 
+
 LxIOMem()
 
 
@@ -99,6 +102,7 @@ Equivalent to cat /proc/ioports on a running target"""
 
     def invoke(self, arg, from_tty):
         return show_lx_resources("ioport_resource")
+
 
 LxIOPorts()
 
@@ -114,11 +118,11 @@ def info_opts(lst, opt):
     return opts
 
 
-FS_INFO = {constants.LX_MS_SYNCHRONOUS: ",sync",
-           constants.LX_MS_MANDLOCK: ",mand",
-           constants.LX_MS_DIRSYNC: ",dirsync",
-           constants.LX_MS_NOATIME: ",noatime",
-           constants.LX_MS_NODIRATIME: ",nodiratime"}
+FS_INFO = {constants.LX_SB_SYNCHRONOUS: ",sync",
+           constants.LX_SB_MANDLOCK: ",mand",
+           constants.LX_SB_DIRSYNC: ",dirsync",
+           constants.LX_SB_NOATIME: ",noatime",
+           constants.LX_SB_NODIRATIME: ",nodiratime"}
 
 MNT_INFO = {constants.LX_MNT_NOSUID: ",nosuid",
             constants.LX_MNT_NODEV: ",nodev",
@@ -149,7 +153,7 @@ values of that process namespace"""
         if len(argv) >= 1:
             try:
                 pid = int(argv[0])
-            except:
+            except gdb.error:
                 raise gdb.GdbError("Provide a PID as integer value")
         else:
             pid = 1
@@ -162,6 +166,9 @@ values of that process namespace"""
         namespace = task['nsproxy']['mnt_ns']
         if not namespace:
             raise gdb.GdbError("No namespace for current process")
+
+        gdb.write("{:^18} {:^15} {:>9} {} {} options\n".format(
+                  "mount", "super_block", "devname", "pathname", "fstype"))
 
         for vfs in lists.list_for_each_entry(namespace['list'],
                                              mount_ptr_type, "mnt_list"):
@@ -184,16 +191,13 @@ values of that process namespace"""
             fstype = superblock['s_type']['name'].string()
             s_flags = int(superblock['s_flags'])
             m_flags = int(vfs['mnt']['mnt_flags'])
-            rd = "ro" if (s_flags & constants.LX_MS_RDONLY) else "rw"
+            rd = "ro" if (s_flags & constants.LX_SB_RDONLY) else "rw"
 
-            gdb.write(
-                "{} {} {} {}{}{} 0 0\n"
-                .format(devname,
-                        pathname,
-                        fstype,
-                        rd,
-                        info_opts(FS_INFO, s_flags),
-                        info_opts(MNT_INFO, m_flags)))
+            gdb.write("{} {} {} {} {} {}{}{} 0 0\n".format(
+                      vfs.format_string(), superblock.format_string(), devname,
+                      pathname, fstype, rd, info_opts(FS_INFO, s_flags),
+                      info_opts(MNT_INFO, m_flags)))
+
 
 LxMounts()
 
@@ -259,12 +263,13 @@ class LxFdtDump(gdb.Command):
 
         try:
             f = open(filename, 'wb')
-        except:
+        except gdb.error:
             raise gdb.GdbError("Could not open file to dump fdt")
 
         f.write(fdt_buf)
         f.close()
 
         gdb.write("Dumped fdt blob to " + filename + "\n")
+
 
 LxFdtDump()

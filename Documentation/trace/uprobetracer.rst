@@ -26,15 +26,17 @@ Synopsis of uprobe_tracer
 -------------------------
 ::
 
-  p[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a uprobe
-  r[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a return uprobe (uretprobe)
-  -:[GRP/]EVENT                           : Clear uprobe or uretprobe event
+  p[:[GRP/][EVENT]] PATH:OFFSET [FETCHARGS] : Set a uprobe
+  r[:[GRP/][EVENT]] PATH:OFFSET [FETCHARGS] : Set a return uprobe (uretprobe)
+  p[:[GRP/][EVENT]] PATH:OFFSET%return [FETCHARGS] : Set a return uprobe (uretprobe)
+  -:[GRP/][EVENT]                           : Clear uprobe or uretprobe event
 
   GRP           : Group name. If omitted, "uprobes" is the default value.
   EVENT         : Event name. If omitted, the event name is generated based
                   on PATH+OFFSET.
   PATH          : Path to an executable or a library.
   OFFSET        : Offset where the probe is inserted.
+  OFFSET%return : Offset where the return probe is inserted.
 
   FETCHARGS     : Arguments. Each probe can have up to 128 args.
    %REG         : Fetch register REG
@@ -42,16 +44,19 @@ Synopsis of uprobe_tracer
    @+OFFSET	: Fetch memory at OFFSET (OFFSET from same file as PATH)
    $stackN	: Fetch Nth entry of stack (N >= 0)
    $stack	: Fetch stack address.
-   $retval	: Fetch return value.(*)
+   $retval	: Fetch return value.(\*1)
    $comm	: Fetch current task comm.
-   +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
+   +|-[u]OFFS(FETCHARG) : Fetch memory at FETCHARG +|- OFFS address.(\*2)(\*3)
+   \IMM		: Store an immediate value to the argument.
    NAME=FETCHARG     : Set NAME as the argument name of FETCHARG.
    FETCHARG:TYPE     : Set TYPE as the type of FETCHARG. Currently, basic types
 		       (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal types
 		       (x8/x16/x32/x64), "string" and bitfield are supported.
 
-  (*) only for return probe.
-  (**) this is useful for fetching a field of data structures.
+  (\*1) only for return probe.
+  (\*2) this is useful for fetching a field of data structures.
+  (\*3) Unlike kprobe event, "u" prefix will just be ignored, becuse uprobe
+        events can access only user-space memory.
 
 Types
 -----
@@ -73,10 +78,9 @@ For $comm, the default type is "string"; any other type is invalid.
 
 Event Profiling
 ---------------
-You can check the total number of probe hits and probe miss-hits via
-/sys/kernel/debug/tracing/uprobe_profile.
-The first column is event name, the second is the number of probe hits,
-the third is the number of probe miss-hits.
+You can check the total number of probe hits per event via
+/sys/kernel/debug/tracing/uprobe_profile. The first column is the filename,
+the second is the event name, the third is the number of probe hits.
 
 Usage examples
 --------------
@@ -153,10 +157,15 @@ events, you need to enable it by::
 
     # echo 1 > events/uprobes/enable
 
-Lets disable the event after sleeping for some time.
+Lets start tracing, sleep for some time and stop tracing.
 ::
 
+    # echo 1 > tracing_on
     # sleep 20
+    # echo 0 > tracing_on
+
+Also, you can disable the event by::
+
     # echo 0 > events/uprobes/enable
 
 And you can see the traced information via /sys/kernel/debug/tracing/trace.

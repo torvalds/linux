@@ -55,7 +55,7 @@ config MVME5100
 	select FORCE_PCI
 	select PPC_INDIRECT_PCI
 	select PPC_I8259
-	select PPC_NATIVE
+	select PPC_HASH_MMU_NATIVE
 	select PPC_UDBG_16550
 	help
 	  This option enables support for the Motorola (now Emerson) MVME5100
@@ -70,11 +70,6 @@ config TSI108_BRIDGE
 config MPC10X_BRIDGE
 	bool
 	select PPC_INDIRECT_PCI
-
-config MV64X60
-	bool
-	select PPC_INDIRECT_PCI
-	select CHECK_CACHE_COHERENCY
 
 config GAMECUBE_COMMON
 	bool

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/probes/kprobes/test-core.h
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define VERBOSE 0 /* Set to '1' for more logging of test cases */
@@ -101,7 +98,7 @@ struct test_arg_end {
 #if VERBOSE
 #define verbose(fmt, ...) pr_info(fmt, ##__VA_ARGS__)
 #else
-#define verbose(fmt, ...)
+#define verbose(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define TEST_GROUP(title)					\
@@ -111,6 +108,7 @@ struct test_arg_end {
 
 #define TESTCASE_START(title)					\
 	__asm__ __volatile__ (					\
+	".syntax unified				\n\t"	\
 	"bl	__kprobes_test_case_start		\n\t"	\
 	".pushsection .rodata				\n\t"	\
 	"10:						\n\t"	\

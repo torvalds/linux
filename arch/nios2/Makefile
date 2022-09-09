@@ -8,8 +8,7 @@
 # Written by Fredrik Markstrom
 #
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" cleaning up for this architecture.
+# architecture-specific flags and dependencies.
 #
 # Nios2 port by Wind River Systems Inc trough:
 #   fredrik.markstrom@gmail.com and ivarholmqvist@gmail.com
@@ -53,14 +52,11 @@ core-y	+= $(nios2-boot)/dts/
 
 all: vmImage
 
-archclean:
-	$(Q)$(MAKE) $(clean)=$(nios2-boot)
-
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(nios2-boot) $(nios2-boot)/$@
 
 install:
-	$(Q)$(MAKE) $(build)=$(nios2-boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+	$(call cmd,install)
 
 define archhelp
   echo  '* vmImage         - Kernel-only image for U-Boot ($(KBUILD_IMAGE))'

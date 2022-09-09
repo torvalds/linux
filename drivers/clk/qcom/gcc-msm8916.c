@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015 Linaro Limited
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -268,7 +260,7 @@ static struct clk_pll gpll0 = {
 	.l_reg = 0x21004,
 	.m_reg = 0x21008,
 	.n_reg = 0x2100c,
-	.config_reg = 0x21014,
+	.config_reg = 0x21010,
 	.mode_reg = 0x21000,
 	.status_reg = 0x2101c,
 	.status_bit = 17,
@@ -295,7 +287,7 @@ static struct clk_pll gpll1 = {
 	.l_reg = 0x20004,
 	.m_reg = 0x20008,
 	.n_reg = 0x2000c,
-	.config_reg = 0x20014,
+	.config_reg = 0x20010,
 	.mode_reg = 0x20000,
 	.status_reg = 0x2001c,
 	.status_bit = 17,
@@ -322,7 +314,7 @@ static struct clk_pll gpll2 = {
 	.l_reg = 0x4a004,
 	.m_reg = 0x4a008,
 	.n_reg = 0x4a00c,
-	.config_reg = 0x4a014,
+	.config_reg = 0x4a010,
 	.mode_reg = 0x4a000,
 	.status_reg = 0x4a01c,
 	.status_bit = 17,
@@ -349,7 +341,7 @@ static struct clk_pll bimc_pll = {
 	.l_reg = 0x23004,
 	.m_reg = 0x23008,
 	.n_reg = 0x2300c,
-	.config_reg = 0x23014,
+	.config_reg = 0x23010,
 	.mode_reg = 0x23000,
 	.status_reg = 0x2301c,
 	.status_bit = 17,
@@ -773,7 +765,20 @@ static struct clk_rcg2 cci_clk_src = {
 	},
 };
 
+/*
+ * This is a frequency table for "General Purpose" clocks.
+ * These clocks can be muxed to the SoC pins and may be used by
+ * external devices. They're often used as PWM source.
+ *
+ * See comment at ftbl_gcc_gp1_3_clk.
+ */
 static const struct freq_tbl ftbl_gcc_camss_gp0_1_clk[] = {
+	F(10000,   P_XO,    16,  1, 120),
+	F(100000,  P_XO,    16,  1,  12),
+	F(500000,  P_GPLL0, 16,  1, 100),
+	F(1000000, P_GPLL0, 16,  1,  50),
+	F(2500000, P_GPLL0, 16,  1,  20),
+	F(5000000, P_GPLL0, 16,  1,  10),
 	F(100000000, P_GPLL0, 8, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
 	{ }
@@ -935,7 +940,29 @@ static struct clk_rcg2 crypto_clk_src = {
 	},
 };
 
+/*
+ * This is a frequency table for "General Purpose" clocks.
+ * These clocks can be muxed to the SoC pins and may be used by
+ * external devices. They're often used as PWM source.
+ *
+ * Please note that MND divider must be enabled for duty-cycle
+ * control to be possible. (M != N) Also since D register is configured
+ * with a value multiplied by 2, and duty cycle is calculated as
+ *                             (2 * D) % 2^W
+ *                DutyCycle = ----------------
+ *                              2 * (N % 2^W)
+ * (where W = .mnd_width)
+ * N must be half or less than maximum value for the register.
+ * Otherwise duty-cycle control would be limited.
+ * (e.g. for 8-bit NMD N should be less than 128)
+ */
 static const struct freq_tbl ftbl_gcc_gp1_3_clk[] = {
+	F(10000,   P_XO,    16,  1, 120),
+	F(100000,  P_XO,    16,  1,  12),
+	F(500000,  P_GPLL0, 16,  1, 100),
+	F(1000000, P_GPLL0, 16,  1,  50),
+	F(2500000, P_GPLL0, 16,  1,  20),
+	F(5000000, P_GPLL0, 16,  1,  10),
 	F(19200000, P_XO, 1, 0,	0),
 	{ }
 };

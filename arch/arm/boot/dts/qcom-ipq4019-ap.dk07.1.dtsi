@@ -49,27 +49,27 @@
 		serial@78af000 {
 			pinctrl-0 = <&serial_0_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 		};
 
-		dma@7884000 {
-			status = "ok";
+		dma-controller@7884000 {
+			status = "okay";
 		};
 
 		i2c@78b7000 { /* BLSP1 QUP2 */
 			pinctrl-0 = <&i2c_0_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 		};
 
-		dma@7984000 {
-			status = "ok";
+		dma-controller@7984000 {
+			status = "okay";
 		};
 
 		qpic-nand@79b0000 {
 			pinctrl-0 = <&nand_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 		};
 	};
 };

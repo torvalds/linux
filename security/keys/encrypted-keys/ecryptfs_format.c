@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ecryptfs_format.c: helper functions for the encrypted key type
  *
  * Copyright (C) 2006 International Business Machines Corp.
  * Copyright (C) 2010 Politecnico di Torino, Italy
- *                    TORSEC group -- http://security.polito.it
+ *                    TORSEC group -- https://security.polito.it
  *
  * Authors:
  * Michael A. Halcrow <mahalcro@us.ibm.com>
  * Tyler Hicks <tyhicks@ou.edu>
  * Roberto Sassu <roberto.sassu@polito.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
  */
 
 #include <linux/export.h>

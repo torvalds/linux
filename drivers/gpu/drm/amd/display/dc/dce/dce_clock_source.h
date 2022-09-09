@@ -55,7 +55,121 @@
 	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_DCCG_DEEP_COLOR_CNTL, mask_sh),\
 	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#define CS_COMMON_REG_LIST_DCN2_0(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(PHASE, DP_DTO, 2),\
+		SRII(PHASE, DP_DTO, 3),\
+		SRII(PHASE, DP_DTO, 4),\
+		SRII(PHASE, DP_DTO, 5),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 2),\
+		SRII(MODULO, DP_DTO, 3),\
+		SRII(MODULO, DP_DTO, 4),\
+		SRII(MODULO, DP_DTO, 5),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 2),\
+		SRII(PIXEL_RATE_CNTL, OTG, 3),\
+		SRII(PIXEL_RATE_CNTL, OTG, 4),\
+		SRII(PIXEL_RATE_CNTL, OTG, 5)
+
+#define CS_COMMON_REG_LIST_DCN201(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1)
+
+#define CS_COMMON_REG_LIST_DCN2_1(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(PHASE, DP_DTO, 2),\
+		SRII(PHASE, DP_DTO, 3),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 2),\
+		SRII(MODULO, DP_DTO, 3),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 2),\
+		SRII(PIXEL_RATE_CNTL, OTG, 3)
+
+#define CS_COMMON_REG_LIST_DCN3_0(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(PHASE, DP_DTO, 2),\
+		SRII(PHASE, DP_DTO, 3),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 2),\
+		SRII(MODULO, DP_DTO, 3),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 2),\
+		SRII(PIXEL_RATE_CNTL, OTG, 3)
+
+#define CS_COMMON_REG_LIST_DCN3_01(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(PHASE, DP_DTO, 2),\
+		SRII(PHASE, DP_DTO, 3),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 2),\
+		SRII(MODULO, DP_DTO, 3),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 2),\
+		SRII(PIXEL_RATE_CNTL, OTG, 3)
+
+#define CS_COMMON_REG_LIST_DCN3_02(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(PHASE, DP_DTO, 2),\
+		SRII(PHASE, DP_DTO, 3),\
+		SRII(PHASE, DP_DTO, 4),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 2),\
+		SRII(MODULO, DP_DTO, 3),\
+		SRII(MODULO, DP_DTO, 4),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 2),\
+		SRII(PIXEL_RATE_CNTL, OTG, 3),\
+		SRII(PIXEL_RATE_CNTL, OTG, 4)
+
+#define CS_COMMON_REG_LIST_DCN3_03(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1)
+
+#define CS_COMMON_MASK_SH_LIST_DCN2_0(mask_sh)\
+	CS_SF(DP_DTO0_PHASE, DP_DTO0_PHASE, mask_sh),\
+	CS_SF(DP_DTO0_MODULO, DP_DTO0_MODULO, mask_sh),\
+	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_DCCG_DEEP_COLOR_CNTL, mask_sh),\
+	CS_SF(OTG0_PIXEL_RATE_CNTL, DP_DTO0_ENABLE, mask_sh)
+
+#define CS_COMMON_MASK_SH_LIST_DCN3_1_4(mask_sh)\
+	CS_COMMON_MASK_SH_LIST_DCN2_0(mask_sh),\
+	CS_SF(OTG0_PIXEL_RATE_CNTL, PIPE0_DTO_SRC_SEL, mask_sh),
+
+#define CS_COMMON_MASK_SH_LIST_DCN3_2(mask_sh)\
+	CS_COMMON_MASK_SH_LIST_DCN2_0(mask_sh),\
+	CS_SF(OTG0_PIXEL_RATE_CNTL, PIPE0_DTO_SRC_SEL, mask_sh)
 
 #define CS_COMMON_REG_LIST_DCN1_0(index, pllid) \
 		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
@@ -78,7 +192,6 @@
 	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_DCCG_DEEP_COLOR_CNTL, mask_sh),\
 	CS_SF(OTG0_PIXEL_RATE_CNTL, DP_DTO0_ENABLE, mask_sh)
 
-#endif
 
 #define CS_REG_FIELD_LIST(type) \
 	type PLL_REF_DIV_SRC; \
@@ -91,12 +204,23 @@
 	type DP_DTO0_MODULO; \
 	type DP_DTO0_ENABLE;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#define CS_REG_FIELD_LIST_DCN32(type) \
+	type PIPE0_DTO_SRC_SEL;
+#endif
+
 struct dce110_clk_src_shift {
 	CS_REG_FIELD_LIST(uint8_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	CS_REG_FIELD_LIST_DCN32(uint8_t)
+#endif
 };
 
 struct dce110_clk_src_mask{
 	CS_REG_FIELD_LIST(uint32_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	CS_REG_FIELD_LIST_DCN32(uint32_t)
+#endif
 };
 
 struct dce110_clk_src_regs {
@@ -152,5 +276,54 @@ bool dce112_clk_src_construct(
 	const struct dce110_clk_src_regs *regs,
 	const struct dce110_clk_src_shift *cs_shift,
 	const struct dce110_clk_src_mask *cs_mask);
+
+bool dcn20_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask);
+
+bool dcn3_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask);
+
+bool dcn301_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask);
+
+bool dcn31_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask);
+
+/* this table is use to find *1.001 and /1.001 pixel rates from non-precise pixel rate */
+struct pixel_rate_range_table_entry {
+	unsigned int range_min_khz;
+	unsigned int range_max_khz;
+	unsigned int target_pixel_rate_khz;
+	unsigned short mult_factor;
+	unsigned short div_factor;
+};
+
+extern const struct pixel_rate_range_table_entry video_optimized_pixel_rates[];
+const struct pixel_rate_range_table_entry *look_up_in_video_optimized_rate_tlb(
+		unsigned int pixel_rate_khz);
 
 #endif

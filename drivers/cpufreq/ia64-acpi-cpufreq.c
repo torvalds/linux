@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file provides the ACPI based P-state support. This
  * module works with generic cpufreq infrastructure. Most of
@@ -53,7 +54,7 @@ processor_set_pstate (
 	retval = ia64_pal_set_pstate((u64)value);
 
 	if (retval) {
-		pr_debug("Failed to set freq to 0x%x, with error 0x%lx\n",
+		pr_debug("Failed to set freq to 0x%x, with error 0x%llx\n",
 		        value, retval);
 		return -ENODEV;
 	}
@@ -76,7 +77,7 @@ processor_get_pstate (
 
 	if (retval)
 		pr_debug("Failed to get current freq with "
-			"error 0x%lx, idx 0x%x\n", retval, *value);
+			"error 0x%llx, idx 0x%x\n", retval, *value);
 
 	return (int)retval;
 }

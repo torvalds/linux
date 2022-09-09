@@ -231,12 +231,13 @@ static int __init allocate_region(phys_addr_t base, phys_addr_t size,
 void __init pmsav7_adjust_lowmem_bounds(void)
 {
 	phys_addr_t  specified_mem_size = 0, total_mem_size = 0;
-	struct memblock_region *reg;
-	bool first = true;
 	phys_addr_t mem_start;
 	phys_addr_t mem_end;
+	phys_addr_t reg_start, reg_end;
 	unsigned int mem_max_regions;
-	int num, i;
+	bool first = true;
+	int num;
+	u64 i;
 
 	/* Free-up PMSAv7_PROBE_REGION */
 	mpu_min_region_order = __mpu_min_region_order();
@@ -262,19 +263,19 @@ void __init pmsav7_adjust_lowmem_bounds(void)
 	mem_max_regions -= num;
 #endif
 
-	for_each_memblock(memory, reg) {
+	for_each_mem_range(i, &reg_start, &reg_end) {
 		if (first) {
 			phys_addr_t phys_offset = PHYS_OFFSET;
 
 			/*
 			 * Initially only use memory continuous from
 			 * PHYS_OFFSET */
-			if (reg->base != phys_offset)
+			if (reg_start != phys_offset)
 				panic("First memory bank must be contiguous from PHYS_OFFSET");
 
-			mem_start = reg->base;
-			mem_end = reg->base + reg->size;
-			specified_mem_size = reg->size;
+			mem_start = reg_start;
+			mem_end = reg_end;
+			specified_mem_size = mem_end - mem_start;
 			first = false;
 		} else {
 			/*
@@ -283,8 +284,8 @@ void __init pmsav7_adjust_lowmem_bounds(void)
 			 * blocks separately while iterating)
 			 */
 			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
-				  &mem_end, &reg->base);
-			memblock_remove(reg->base, 0 - reg->base);
+				  &mem_end, &reg_start);
+			memblock_remove(reg_start, 0 - reg_start);
 			break;
 		}
 	}

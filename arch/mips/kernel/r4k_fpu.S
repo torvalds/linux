@@ -31,7 +31,7 @@
 .ex\@:	\insn	\reg, \src
 	.set	pop
 	.section __ex_table,"a"
-	PTR	.ex\@, fault
+	PTR_WD	.ex\@, fault
 	.previous
 	.endm
 
@@ -41,7 +41,7 @@
 LEAF(_save_fp)
 EXPORT_SYMBOL(_save_fp)
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
-		defined(CONFIG_CPU_MIPSR6)
+    defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	mfc0	t0, CP0_STATUS
 #endif
 	fpu_save_double a0 t0 t1		# clobbers t1
@@ -53,7 +53,7 @@ EXPORT_SYMBOL(_save_fp)
  */
 LEAF(_restore_fp)
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
-		defined(CONFIG_CPU_MIPSR6)
+    defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	mfc0	t0, CP0_STATUS
 #endif
 	fpu_restore_double a0 t0 t1		# clobbers t1
@@ -103,10 +103,10 @@ LEAF(_save_fp_context)
 	.set	pop
 
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
-		defined(CONFIG_CPU_MIPSR6)
+    defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	.set	push
 	SET_HARDFLOAT
-#ifdef CONFIG_CPU_MIPSR2
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR5)
 	.set	mips32r2
 	.set	fp=64
 	mfc0	t0, CP0_STATUS
@@ -170,11 +170,11 @@ LEAF(_save_fp_context)
 LEAF(_restore_fp_context)
 	EX	lw t1, 0(a1)
 
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2)  || \
-		defined(CONFIG_CPU_MIPSR6)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
+    defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	.set	push
 	SET_HARDFLOAT
-#ifdef CONFIG_CPU_MIPSR2
+#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR5)
 	.set	mips32r2
 	.set	fp=64
 	mfc0	t0, CP0_STATUS

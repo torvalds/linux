@@ -10,17 +10,16 @@ C MP+polockonce+poacquiresilsil
  * speaking).
  *)
 
-{
-}
+{}
 
-P0(spinlock_t *lo, int *x)
+P0(spinlock_t *lo, int *x) // Producer
 {
 	spin_lock(lo);
 	WRITE_ONCE(*x, 1);
 	spin_unlock(lo);
 }
 
-P1(spinlock_t *lo, int *x)
+P1(spinlock_t *lo, int *x) // Consumer
 {
 	int r1;
 	int r2;
@@ -31,4 +30,4 @@ P1(spinlock_t *lo, int *x)
 	r3 = spin_is_locked(lo);
 }
 
-exists (1:r1=1 /\ 1:r2=0 /\ 1:r3=1)
+exists (1:r1=1 /\ 1:r2=0 /\ 1:r3=1) (* Bad outcome. *)

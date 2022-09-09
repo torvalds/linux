@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 **  IA64 System Bus Adapter (SBA) I/O MMU manager
 **
@@ -8,10 +9,6 @@
 **	Portions (c) 2000 Grant Grundler (from parisc I/O MMU code)
 **	Portions (c) 1999 Dave S. Miller (from sparc64 I/O MMU code)
 **
-**	This program is free software; you can redistribute it and/or modify
-**	it under the terms of the GNU General Public License as published by
-**      the Free Software Foundation; either version 2 of the License, or
-**      (at your option) any later version.
 **
 **
 ** This module initializes the IOC (I/O Controller) found on HP
@@ -36,8 +33,9 @@
 #include <linux/bitops.h>         /* hweight64() */
 #include <linux/crash_dump.h>
 #include <linux/iommu-helper.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/prefetch.h>
+#include <linux/swiotlb.h>
 
 #include <asm/delay.h>		/* ia64_get_itc() */
 #include <asm/io.h>
@@ -45,8 +43,6 @@
 #include <asm/dma.h>
 
 #include <asm/acpi-ext.h>
-
-extern int swiotlb_late_init_with_default_size (size_t size);
 
 #define PFX "IOC: "
 
@@ -254,12 +250,8 @@ static SBA_INLINE void sba_free_range(struct ioc *, dma_addr_t, size_t);
 static u64 prefetch_spill_page;
 #endif
 
-#ifdef CONFIG_PCI
-# define GET_IOC(dev)	((dev_is_pci(dev))						\
+#define GET_IOC(dev)	((dev_is_pci(dev))						\
 			 ? ((struct ioc *) PCI_CONTROLLER(to_pci_dev(dev))->iommu) : NULL)
-#else
-# define GET_IOC(dev)	NULL
-#endif
 
 /*
 ** DMA_CHUNK_SIZE is used by the SCSI mid-layer to break up
@@ -493,8 +485,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 	ASSERT(((unsigned long) ioc->res_hint & (sizeof(unsigned long) - 1UL)) == 0);
 	ASSERT(res_ptr < res_end);
 
-	boundary_size = (unsigned long long)dma_get_seg_boundary(dev) + 1;
-	boundary_size = ALIGN(boundary_size, 1ULL << iovp_shift) >> iovp_shift;
+	boundary_size = dma_get_seg_boundary_nr_pages(dev, iovp_shift);
 
 	BUG_ON(ioc->ibase & ~iovp_mask);
 	shift = ioc->ibase >> iovp_shift;
@@ -915,7 +906,7 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
  * @dir: dma direction
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static dma_addr_t sba_map_page(struct device *dev, struct page *page,
 			       unsigned long poff, size_t size,
@@ -1036,7 +1027,7 @@ sba_mark_clean(struct ioc *ioc, dma_addr_t iova, size_t size)
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 			   enum dma_data_direction dir, unsigned long attrs)
@@ -1113,7 +1104,7 @@ static void sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
  * @size:  number of bytes mapped in driver buffer.
  * @dma_handle:  IOVA of new buffer.
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void *
 sba_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
@@ -1170,7 +1161,7 @@ sba_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
  * @vaddr:  virtual address IOVA of "consistent" buffer.
  * @dma_handler:  IO virtual address of "consistent" buffer.
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void sba_free_coherent(struct device *dev, size_t size, void *vaddr,
 			      dma_addr_t dma_handle, unsigned long attrs)
@@ -1433,7 +1424,7 @@ static void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
 			    int nents, enum dma_data_direction dir,
@@ -1468,7 +1459,7 @@ static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
 		sglist->dma_address = sba_map_page(dev, sg_page(sglist),
 				sglist->offset, sglist->length, dir, attrs);
 		if (dma_mapping_error(dev, sglist->dma_address))
-			return 0;
+			return -EIO;
 		return 1;
 	}
 
@@ -1495,7 +1486,7 @@ static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
 	coalesced = sba_coalesce_chunks(ioc, dev, sglist, nents);
 	if (coalesced < 0) {
 		sba_unmap_sg_attrs(dev, sglist, nents, dir, attrs);
-		return 0;
+		return -ENOMEM;
 	}
 
 	/*
@@ -1532,7 +1523,7 @@ static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
 			       int nents, enum dma_data_direction dir,
@@ -1744,9 +1735,7 @@ ioc_sac_init(struct ioc *ioc)
 	controller->iommu = ioc;
 	sac->sysdata = controller;
 	sac->dma_mask = 0xFFFFFFFFUL;
-#ifdef CONFIG_PCI
 	sac->dev.bus = &pci_bus_type;
-#endif
 	ioc->sac_only_dev = sac;
 }
 
@@ -2065,27 +2054,37 @@ static int __init acpi_sba_ioc_init_acpi(void)
 /* This has to run before acpi_scan_init(). */
 arch_initcall(acpi_sba_ioc_init_acpi);
 
+static int sba_dma_supported (struct device *dev, u64 mask)
+{
+	/* make sure it's at least 32bit capable */
+	return ((mask & 0xFFFFFFFFUL) == 0xFFFFFFFFUL);
+}
+
+static const struct dma_map_ops sba_dma_ops = {
+	.alloc			= sba_alloc_coherent,
+	.free			= sba_free_coherent,
+	.map_page		= sba_map_page,
+	.unmap_page		= sba_unmap_page,
+	.map_sg			= sba_map_sg_attrs,
+	.unmap_sg		= sba_unmap_sg_attrs,
+	.dma_supported		= sba_dma_supported,
+	.mmap			= dma_common_mmap,
+	.get_sgtable		= dma_common_get_sgtable,
+	.alloc_pages		= dma_common_alloc_pages,
+	.free_pages		= dma_common_free_pages,
+};
+
 static int __init
 sba_init(void)
 {
-	if (!ia64_platform_is("hpzx1") && !ia64_platform_is("hpzx1_swiotlb"))
-		return 0;
-
-#if defined(CONFIG_IA64_GENERIC)
-	/* If we are booting a kdump kernel, the sba_iommu will
-	 * cause devices that were not shutdown properly to MCA
-	 * as soon as they are turned back on.  Our only option for
-	 * a successful kdump kernel boot is to use the swiotlb.
+	/*
+	 * If we are booting a kdump kernel, the sba_iommu will cause devices
+	 * that were not shutdown properly to MCA as soon as they are turned
+	 * back on.  Our only option for a successful kdump kernel boot is to
+	 * use swiotlb.
 	 */
-	if (is_kdump_kernel()) {
-		dma_ops = NULL;
-		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
-			panic("Unable to initialize software I/O TLB:"
-				  " Try machvec=dig boot option");
-		machvec_init("dig");
+	if (is_kdump_kernel())
 		return 0;
-	}
-#endif
 
 	/*
 	 * ioc_found should be populated by the acpi_sba_ioc_handler's .attach()
@@ -2094,43 +2093,18 @@ sba_init(void)
 	while (ioc_found)
 		acpi_sba_ioc_add(ioc_found);
 
-	if (!ioc_list) {
-#ifdef CONFIG_IA64_GENERIC
-		/*
-		 * If we didn't find something sba_iommu can claim, we
-		 * need to setup the swiotlb and switch to the dig machvec.
-		 */
-		dma_ops = NULL;
-		if (swiotlb_late_init_with_default_size(64 * (1<<20)) != 0)
-			panic("Unable to find SBA IOMMU or initialize "
-			      "software I/O TLB: Try machvec=dig boot option");
-		machvec_init("dig");
-#else
-		panic("Unable to find SBA IOMMU: Try a generic or DIG kernel");
-#endif
+	if (!ioc_list)
 		return 0;
-	}
 
-#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_HP_ZX1_SWIOTLB)
-	/*
-	 * hpzx1_swiotlb needs to have a fairly small swiotlb bounce
-	 * buffer setup to support devices with smaller DMA masks than
-	 * sba_iommu can handle.
-	 */
-	if (ia64_platform_is("hpzx1_swiotlb")) {
-		extern void hwsw_init(void);
-
-		hwsw_init();
-	}
-#endif
-
-#ifdef CONFIG_PCI
 	{
 		struct pci_bus *b = NULL;
 		while ((b = pci_find_next_bus(b)) != NULL)
 			sba_connect_bus(b);
 	}
-#endif
+
+	/* no need for swiotlb with the iommu */
+	swiotlb_exit();
+	dma_ops = &sba_dma_ops;
 
 #ifdef CONFIG_PROC_FS
 	ioc_proc_init();
@@ -2145,12 +2119,6 @@ nosbagart(char *str)
 {
 	reserve_sba_gart = 0;
 	return 1;
-}
-
-static int sba_dma_supported (struct device *dev, u64 mask)
-{
-	/* make sure it's at least 32bit capable */
-	return ((mask & 0xFFFFFFFFUL) == 0xFFFFFFFFUL);
 }
 
 __setup("nosbagart", nosbagart);
@@ -2177,18 +2145,3 @@ sba_page_override(char *str)
 }
 
 __setup("sbapagesize=",sba_page_override);
-
-const struct dma_map_ops sba_dma_ops = {
-	.alloc			= sba_alloc_coherent,
-	.free			= sba_free_coherent,
-	.map_page		= sba_map_page,
-	.unmap_page		= sba_unmap_page,
-	.map_sg			= sba_map_sg_attrs,
-	.unmap_sg		= sba_unmap_sg_attrs,
-	.dma_supported		= sba_dma_supported,
-};
-
-void sba_dma_init(void)
-{
-	dma_ops = &sba_dma_ops;
-}

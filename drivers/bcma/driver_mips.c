@@ -52,29 +52,6 @@ static inline u32 mips_read32(struct bcma_drv_mips *mcore,
 	return bcma_read32(mcore->core, offset);
 }
 
-static inline void mips_write32(struct bcma_drv_mips *mcore,
-				u16 offset,
-				u32 value)
-{
-	bcma_write32(mcore->core, offset, value);
-}
-
-static const u32 ipsflag_irq_mask[] = {
-	0,
-	BCMA_MIPS_IPSFLAG_IRQ1,
-	BCMA_MIPS_IPSFLAG_IRQ2,
-	BCMA_MIPS_IPSFLAG_IRQ3,
-	BCMA_MIPS_IPSFLAG_IRQ4,
-};
-
-static const u32 ipsflag_irq_shift[] = {
-	0,
-	BCMA_MIPS_IPSFLAG_IRQ1_SHIFT,
-	BCMA_MIPS_IPSFLAG_IRQ2_SHIFT,
-	BCMA_MIPS_IPSFLAG_IRQ3_SHIFT,
-	BCMA_MIPS_IPSFLAG_IRQ4_SHIFT,
-};
-
 static u32 bcma_core_mips_irqflag(struct bcma_device *dev)
 {
 	u32 flag;

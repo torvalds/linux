@@ -38,7 +38,7 @@ extern int gart_iommu_aperture_disabled;
 extern void early_gart_iommu_check(void);
 extern int gart_iommu_init(void);
 extern void __init gart_parse_options(char *);
-extern int gart_iommu_hole_init(void);
+void gart_iommu_hole_init(void);
 
 #else
 #define gart_iommu_aperture            0
@@ -51,9 +51,8 @@ static inline void early_gart_iommu_check(void)
 static inline void gart_parse_options(char *options)
 {
 }
-static inline int gart_iommu_hole_init(void)
+static inline void gart_iommu_hole_init(void)
 {
-	return -ENODEV;
 }
 #endif
 

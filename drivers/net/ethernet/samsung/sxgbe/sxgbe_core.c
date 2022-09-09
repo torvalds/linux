@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 10G controller driver for Samsung SoCs
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Author: Siva Reddy Kallam <siva.kallam@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -88,7 +85,8 @@ static void sxgbe_core_pmt(void __iomem *ioaddr, unsigned long mode)
 }
 
 /* Set/Get Unicast MAC addresses */
-static void sxgbe_core_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
+static void sxgbe_core_set_umac_addr(void __iomem *ioaddr,
+				     const unsigned char *addr,
 				     unsigned int reg_n)
 {
 	u32 high_word, low_word;

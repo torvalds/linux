@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/arm/mediatek/mediatek,mt7622-pcie-mirror.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: MediaTek PCIE Mirror Controller for MT7622
+
+maintainers:
+  - Lorenzo Bianconi <lorenzo@kernel.org>
+  - Felix Fietkau <nbd@nbd.name>
+
+description:
+  The mediatek PCIE mirror provides a configuration interface for PCIE
+  controller on MT7622 soc.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - mediatek,mt7622-pcie-mirror
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+      pcie_mirror: pcie-mirror@10000400 {
+        compatible = "mediatek,mt7622-pcie-mirror", "syscon";
+        reg = <0 0x10000400 0 0x10>;
+      };
+    };

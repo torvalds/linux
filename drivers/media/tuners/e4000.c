@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Elonics E4000 silicon tuner driver
  *
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "e4000_priv.h"
@@ -270,7 +257,7 @@ err:
 /*
  * V4L2 API
  */
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_VIDEO_DEV)
 static const struct v4l2_frequency_band bands[] = {
 	{
 		.type = V4L2_TUNER_RF,
@@ -667,7 +654,7 @@ static int e4000_probe(struct i2c_client *client,
 	if (ret)
 		goto err_kfree;
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_VIDEO_DEV)
 	/* Register controls */
 	v4l2_ctrl_handler_init(&dev->hdl, 9);
 	dev->bandwidth_auto = v4l2_ctrl_new_std(&dev->hdl, &e4000_ctrl_ops,
@@ -726,7 +713,7 @@ static int e4000_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_VIDEO_DEV)
 	v4l2_ctrl_handler_free(&dev->hdl);
 #endif
 	kfree(dev);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * uda134x.c  --  UDA134X ALSA SoC Codec driver
  *
@@ -7,10 +8,6 @@
  * Author: Zoltan Devai
  *
  * Based on the WM87xx drivers by Liam Girdwood and Richard Purdie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -120,7 +117,7 @@ static inline void uda134x_reset(struct snd_soc_component *component)
 	regmap_update_bits(uda134x->regmap, UDA134X_STATUS0, mask, 0);
 }
 
-static int uda134x_mute(struct snd_soc_dai *dai, int mute)
+static int uda134x_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(dai->component);
 	unsigned int mask = 1<<2;
@@ -275,9 +272,9 @@ static int uda134x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	pr_debug("%s fmt: %08X\n", __func__, fmt);
 
-	/* codec supports only full slave mode */
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
-		printk(KERN_ERR "%s unsupported slave mode\n", __func__);
+	/* codec supports only full consumer mode */
+	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
+		printk(KERN_ERR "%s unsupported clocking mode\n", __func__);
 		return -EINVAL;
 	}
 
@@ -419,9 +416,10 @@ static const struct snd_soc_dai_ops uda134x_dai_ops = {
 	.startup	= uda134x_startup,
 	.shutdown	= uda134x_shutdown,
 	.hw_params	= uda134x_hw_params,
-	.digital_mute	= uda134x_mute,
+	.mute_stream	= uda134x_mute,
 	.set_sysclk	= uda134x_set_dai_sysclk,
 	.set_fmt	= uda134x_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver uda134x_dai = {
@@ -529,7 +527,6 @@ static const struct snd_soc_component_driver soc_component_dev_uda134x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config uda134x_regmap_config = {

@@ -35,6 +35,7 @@ static DECLARE_RWSEM(bpf_devs_lock);
 struct bpf_offload_dev {
 	const struct bpf_prog_offload_ops *ops;
 	struct list_head netdevs;
+	void *priv;
 };
 
 struct bpf_offload_netdev {
@@ -173,6 +174,41 @@ int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
 	return ret;
 }
 
+void
+bpf_prog_offload_replace_insn(struct bpf_verifier_env *env, u32 off,
+			      struct bpf_insn *insn)
+{
+	const struct bpf_prog_offload_ops *ops;
+	struct bpf_prog_offload *offload;
+	int ret = -EOPNOTSUPP;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		ops = offload->offdev->ops;
+		if (!offload->opt_failed && ops->replace_insn)
+			ret = ops->replace_insn(env, off, insn);
+		offload->opt_failed |= ret;
+	}
+	up_read(&bpf_devs_lock);
+}
+
+void
+bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
+{
+	struct bpf_prog_offload *offload;
+	int ret = -EOPNOTSUPP;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		if (!offload->opt_failed && offload->offdev->ops->remove_insns)
+			ret = offload->offdev->ops->remove_insns(env, off, cnt);
+		offload->opt_failed |= ret;
+	}
+	up_read(&bpf_devs_lock);
+}
+
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload = prog->aux->offload;
@@ -266,14 +302,14 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 	struct inode *ns_inode;
 	struct path ns_path;
 	char __user *uinsns;
-	void *res;
+	int res;
 	u32 ulen;
 
 	res = ns_get_path_cb(&ns_path, bpf_prog_offload_info_fill_ns, &args);
-	if (IS_ERR(res)) {
+	if (res) {
 		if (!info->ifindex)
 			return -ENODEV;
-		return PTR_ERR(res);
+		return res;
 	}
 
 	down_read(&bpf_devs_lock);
@@ -285,7 +321,7 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 
 	ulen = info->jited_prog_len;
 	info->jited_prog_len = aux->offload->jited_len;
-	if (info->jited_prog_len & ulen) {
+	if (info->jited_prog_len && ulen) {
 		uinsns = u64_to_user_ptr(info->jited_prog_insns);
 		ulen = min_t(u32, info->jited_prog_len, ulen);
 		if (copy_to_user(uinsns, aux->offload->jited_image, ulen)) {
@@ -490,13 +526,13 @@ int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map)
 	};
 	struct inode *ns_inode;
 	struct path ns_path;
-	void *res;
+	int res;
 
 	res = ns_get_path_cb(&ns_path, bpf_map_offload_info_fill_ns, &args);
-	if (IS_ERR(res)) {
+	if (res) {
 		if (!info->ifindex)
 			return -ENODEV;
-		return PTR_ERR(res);
+		return res;
 	}
 
 	ns_inode = ns_path.dentry->d_inode;
@@ -634,7 +670,7 @@ unlock:
 EXPORT_SYMBOL_GPL(bpf_offload_dev_netdev_unregister);
 
 struct bpf_offload_dev *
-bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops)
+bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops, void *priv)
 {
 	struct bpf_offload_dev *offdev;
 	int err;
@@ -642,8 +678,10 @@ bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops)
 	down_write(&bpf_devs_lock);
 	if (!offdevs_inited) {
 		err = rhashtable_init(&offdevs, &offdevs_params);
-		if (err)
+		if (err) {
+			up_write(&bpf_devs_lock);
 			return ERR_PTR(err);
+		}
 		offdevs_inited = true;
 	}
 	up_write(&bpf_devs_lock);
@@ -653,6 +691,7 @@ bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops)
 		return ERR_PTR(-ENOMEM);
 
 	offdev->ops = ops;
+	offdev->priv = priv;
 	INIT_LIST_HEAD(&offdev->netdevs);
 
 	return offdev;
@@ -665,3 +704,9 @@ void bpf_offload_dev_destroy(struct bpf_offload_dev *offdev)
 	kfree(offdev);
 }
 EXPORT_SYMBOL_GPL(bpf_offload_dev_destroy);
+
+void *bpf_offload_dev_priv(struct bpf_offload_dev *offdev)
+{
+	return offdev->priv;
+}
+EXPORT_SYMBOL_GPL(bpf_offload_dev_priv);

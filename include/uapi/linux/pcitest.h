@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-/**
+/*
  * pcitest.h - PCI test uapi defines
  *
  * Copyright (C) 2017 Texas Instruments
@@ -19,5 +19,13 @@
 #define PCITEST_MSIX		_IOW('P', 0x7, int)
 #define PCITEST_SET_IRQTYPE	_IOW('P', 0x8, int)
 #define PCITEST_GET_IRQTYPE	_IO('P', 0x9)
+#define PCITEST_CLEAR_IRQ	_IO('P', 0x10)
+
+#define PCITEST_FLAGS_USE_DMA	0x00000001
+
+struct pci_endpoint_test_xfer_param {
+	unsigned long size;
+	unsigned char flags;
+};
 
 #endif /* __UAPI_LINUX_PCITEST_H */

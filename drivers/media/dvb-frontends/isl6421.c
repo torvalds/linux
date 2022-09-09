@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * isl6421.h - driver for lnb supply and control ic ISL6421
  *
  * Copyright (C) 2006 Andrew de Quincey
  * Copyright (C) 2006 Oliver Endriss
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
- *
  *
  * the project's page is at https://linuxtv.org
  */
@@ -98,7 +84,7 @@ static int isl6421_set_voltage(struct dvb_frontend *fe,
 	if (ret != 2)
 		return -EIO;
 
-	/* Store off status now incase future commands fail */
+	/* Store off status now in case future commands fail */
 	isl6421->is_off = is_off;
 
 	/* On overflow, the device will try again after 900 ms (typically) */

@@ -3,15 +3,13 @@
 #ifndef __PERF_DEBUG_H
 #define __PERF_DEBUG_H
 
+#include <stdarg.h>
 #include <stdbool.h>
-#include <string.h>
+#include <stdio.h>
 #include <linux/compiler.h>
-#include "event.h"
-#include "../ui/helpline.h"
-#include "../ui/progress.h"
-#include "../ui/util.h"
 
 extern int verbose;
+extern int debug_peo_args;
 extern bool quiet, dump_trace;
 extern int debug_ordered_events;
 extern int debug_data_convert;
@@ -24,6 +22,13 @@ extern int debug_data_convert;
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warning(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warning_once(fmt, ...) ({		\
+	static int __warned;			\
+	if (unlikely(!__warned)) {		\
+		pr_warning(fmt, ##__VA_ARGS__); \
+		__warned = 1;			\
+	}					\
+})
 #define pr_info(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_debug(fmt, ...) \
@@ -34,6 +39,14 @@ extern int debug_data_convert;
 #define pr_debug3(fmt, ...) pr_debugN(3, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_debug4(fmt, ...) pr_debugN(4, pr_fmt(fmt), ##__VA_ARGS__)
 
+/* Special macro to print perf_event_open arguments/return value. */
+#define pr_debug2_peo(fmt, ...) {				\
+	if (debug_peo_args)						\
+		pr_debugN(0, pr_fmt(fmt), ##__VA_ARGS__);	\
+	else							\
+		pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__);	\
+}
+
 #define pr_time_N(n, var, t, fmt, ...) \
 	eprintf_time(n, var, t, fmt, ##__VA_ARGS__)
 
@@ -42,11 +55,20 @@ extern int debug_data_convert;
 
 #define STRERR_BUFSIZE	128	/* For the buffer size of str_error_r */
 
+union perf_event;
+
 int dump_printf(const char *fmt, ...) __printf(1, 2);
 void trace_event(union perf_event *event);
 
 int ui__error(const char *format, ...) __printf(1, 2);
 int ui__warning(const char *format, ...) __printf(1, 2);
+#define ui__warning_once(format, ...) ({		\
+	static int __warned;				\
+	if (unlikely(!__warned)) {			\
+		ui__warning(format, ##__VA_ARGS__);	\
+		__warned = 1;				\
+	}						\
+})
 
 void pr_stat(const char *fmt, ...);
 
@@ -55,6 +77,8 @@ int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __printf(4, 5)
 int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);
+void debug_set_file(FILE *file);
+void debug_set_display_time(bool set);
 void perf_debug_setup(void);
 int perf_quiet_option(void);
 

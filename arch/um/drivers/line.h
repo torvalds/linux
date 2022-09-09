@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* 
  * Copyright (C) 2001, 2002 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 #ifndef __LINE_H__
@@ -23,9 +23,7 @@ struct line_driver {
 	const short minor_start;
 	const short type;
 	const short subtype;
-	const int read_irq;
 	const char *read_irq_name;
-	const int write_irq;
 	const char *write_irq_name;
 	struct mc_device mc;
 	struct tty_driver *driver;
@@ -34,6 +32,8 @@ struct line_driver {
 struct line {
 	struct tty_port port;
 	int valid;
+
+	int read_irq, write_irq;
 
 	char *init_str;
 	struct list_head chan_list;
@@ -66,12 +66,10 @@ extern int line_setup(char **conf, unsigned nlines, char **def,
 		      char *init, char *name);
 extern int line_write(struct tty_struct *tty, const unsigned char *buf,
 		      int len);
-extern int line_put_char(struct tty_struct *tty, unsigned char ch);
-extern void line_set_termios(struct tty_struct *tty, struct ktermios * old);
-extern int line_chars_in_buffer(struct tty_struct *tty);
+extern unsigned int line_chars_in_buffer(struct tty_struct *tty);
 extern void line_flush_buffer(struct tty_struct *tty);
 extern void line_flush_chars(struct tty_struct *tty);
-extern int line_write_room(struct tty_struct *tty);
+extern unsigned int line_write_room(struct tty_struct *tty);
 extern void line_throttle(struct tty_struct *tty);
 extern void line_unthrottle(struct tty_struct *tty);
 

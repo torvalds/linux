@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Check for constants that are added but are used elsewhere as bitmasks
 /// The results should be checked manually to ensure that the nonzero
 /// bits in the two constants are actually disjoint.
 ///
 // Confidence: Moderate
-// Copyright: (C) 2013 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2013 Gilles Muller, INRIA/LIP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2013 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2013 Gilles Muller, INRIA/LIP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 

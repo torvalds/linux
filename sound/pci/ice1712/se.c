@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble VT1724 (Envy24HT)
  *
@@ -5,21 +6,6 @@
  *
  *	Copyright (c) 2007 Shin-ya Okada  sh_okada(at)d4.dion.ne.jp
  *                                        (at) -> @
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */      
 
 #include <linux/delay.h>
@@ -259,7 +245,7 @@ static const char * const se200pci_sel[] = {
 static void se200pci_WM8776_set_input_selector(struct snd_ice1712 *ice,
 					       unsigned int sel)
 {
-	static unsigned char vals[] = {
+	static const unsigned char vals[] = {
 		/* LINE, CD, MIC, ALL, GND */
 		0x10, 0x04, 0x08, 0x1c, 0x03
 	};
@@ -302,7 +288,7 @@ static void se200pci_WM8776_set_agc(struct snd_ice1712 *ice, unsigned int agc)
 static void se200pci_WM8776_init(struct snd_ice1712 *ice)
 {
 	int i;
-	static unsigned short default_values[] = {
+	static const unsigned short default_values[] = {
 		0x100, 0x100, 0x100,
 		0x100, 0x100, 0x100,
 		0x000, 0x090, 0x000, 0x000,
@@ -715,7 +701,7 @@ static int se_add_controls(struct snd_ice1712 *ice)
 /*  entry point                                                             */
 /****************************************************************************/
 
-static unsigned char se200pci_eeprom[] = {
+static const unsigned char se200pci_eeprom[] = {
 	[ICE_EEP2_SYSCONF]	= 0x4b,	/* 49.152Hz, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]	= 0x80,	/* I2S */
 	[ICE_EEP2_I2S]		= 0x78,	/* 96k-ok, 24bit, 192k-ok */
@@ -734,7 +720,7 @@ static unsigned char se200pci_eeprom[] = {
 	[ICE_EEP2_GPIO_STATE2]	= 0x07, /* WM8766 ML/MC/MD */
 };
 
-static unsigned char se90pci_eeprom[] = {
+static const unsigned char se90pci_eeprom[] = {
 	[ICE_EEP2_SYSCONF]	= 0x4b,	/* 49.152Hz, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]	= 0x80,	/* I2S */
 	[ICE_EEP2_I2S]		= 0x78,	/* 96k-ok, 24bit, 192k-ok */

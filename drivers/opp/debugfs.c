@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic OPP debugfs interface
  *
  * Copyright (C) 2015-2016 Viresh Kumar <viresh.kumar@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -13,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <linux/init.h>
 #include <linux/limits.h>
 #include <linux/slab.h>
@@ -35,7 +33,66 @@ void opp_debug_remove_one(struct dev_pm_opp *opp)
 	debugfs_remove_recursive(opp->dentry);
 }
 
-static bool opp_debug_create_supplies(struct dev_pm_opp *opp,
+static ssize_t bw_name_read(struct file *fp, char __user *userbuf,
+			    size_t count, loff_t *ppos)
+{
+	struct icc_path *path = fp->private_data;
+	char buf[64];
+	int i;
+
+	i = scnprintf(buf, sizeof(buf), "%.62s\n", icc_get_name(path));
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
+}
+
+static const struct file_operations bw_name_fops = {
+	.open = simple_open,
+	.read = bw_name_read,
+	.llseek = default_llseek,
+};
+
+static void opp_debug_create_bw(struct dev_pm_opp *opp,
+				struct opp_table *opp_table,
+				struct dentry *pdentry)
+{
+	struct dentry *d;
+	char name[11];
+	int i;
+
+	for (i = 0; i < opp_table->path_count; i++) {
+		snprintf(name, sizeof(name), "icc-path-%.1d", i);
+
+		/* Create per-path directory */
+		d = debugfs_create_dir(name, pdentry);
+
+		debugfs_create_file("name", S_IRUGO, d, opp_table->paths[i],
+				    &bw_name_fops);
+		debugfs_create_u32("peak_bw", S_IRUGO, d,
+				   &opp->bandwidth[i].peak);
+		debugfs_create_u32("avg_bw", S_IRUGO, d,
+				   &opp->bandwidth[i].avg);
+	}
+}
+
+static void opp_debug_create_clks(struct dev_pm_opp *opp,
+				  struct opp_table *opp_table,
+				  struct dentry *pdentry)
+{
+	char name[12];
+	int i;
+
+	if (opp_table->clk_count == 1) {
+		debugfs_create_ulong("rate_hz", S_IRUGO, pdentry, &opp->rates[0]);
+		return;
+	}
+
+	for (i = 0; i < opp_table->clk_count; i++) {
+		snprintf(name, sizeof(name), "rate_hz_%d", i);
+		debugfs_create_ulong(name, S_IRUGO, pdentry, &opp->rates[i]);
+	}
+}
+
+static void opp_debug_create_supplies(struct dev_pm_opp *opp,
 				      struct opp_table *opp_table,
 				      struct dentry *pdentry)
 {
@@ -50,30 +107,24 @@ static bool opp_debug_create_supplies(struct dev_pm_opp *opp,
 		/* Create per-opp directory */
 		d = debugfs_create_dir(name, pdentry);
 
-		if (!d)
-			return false;
+		debugfs_create_ulong("u_volt_target", S_IRUGO, d,
+				     &opp->supplies[i].u_volt);
 
-		if (!debugfs_create_ulong("u_volt_target", S_IRUGO, d,
-					  &opp->supplies[i].u_volt))
-			return false;
+		debugfs_create_ulong("u_volt_min", S_IRUGO, d,
+				     &opp->supplies[i].u_volt_min);
 
-		if (!debugfs_create_ulong("u_volt_min", S_IRUGO, d,
-					  &opp->supplies[i].u_volt_min))
-			return false;
+		debugfs_create_ulong("u_volt_max", S_IRUGO, d,
+				     &opp->supplies[i].u_volt_max);
 
-		if (!debugfs_create_ulong("u_volt_max", S_IRUGO, d,
-					  &opp->supplies[i].u_volt_max))
-			return false;
+		debugfs_create_ulong("u_amp", S_IRUGO, d,
+				     &opp->supplies[i].u_amp);
 
-		if (!debugfs_create_ulong("u_amp", S_IRUGO, d,
-					  &opp->supplies[i].u_amp))
-			return false;
+		debugfs_create_ulong("u_watt", S_IRUGO, d,
+				     &opp->supplies[i].u_watt);
 	}
-
-	return true;
 }
 
-int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
+void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 {
 	struct dentry *pdentry = opp_table->dentry;
 	struct dentry *d;
@@ -84,10 +135,11 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 	 * Get directory name for OPP.
 	 *
 	 * - Normally rate is unique to each OPP, use it to get unique opp-name.
-	 * - For some devices rate isn't available, use index instead.
+	 * - For some devices rate isn't available or there are multiple, use
+	 *   index instead for them.
 	 */
-	if (likely(opp->rate))
-		id = opp->rate;
+	if (likely(opp_table->clk_count == 1 && opp->rates[0]))
+		id = opp->rates[0];
 	else
 		id = _get_opp_count(opp_table);
 
@@ -95,40 +147,28 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 
 	/* Create per-opp directory */
 	d = debugfs_create_dir(name, pdentry);
-	if (!d)
-		return -ENOMEM;
 
-	if (!debugfs_create_bool("available", S_IRUGO, d, &opp->available))
-		return -ENOMEM;
+	debugfs_create_bool("available", S_IRUGO, d, &opp->available);
+	debugfs_create_bool("dynamic", S_IRUGO, d, &opp->dynamic);
+	debugfs_create_bool("turbo", S_IRUGO, d, &opp->turbo);
+	debugfs_create_bool("suspend", S_IRUGO, d, &opp->suspend);
+	debugfs_create_u32("performance_state", S_IRUGO, d, &opp->pstate);
+	debugfs_create_u32("level", S_IRUGO, d, &opp->level);
+	debugfs_create_ulong("clock_latency_ns", S_IRUGO, d,
+			     &opp->clock_latency_ns);
 
-	if (!debugfs_create_bool("dynamic", S_IRUGO, d, &opp->dynamic))
-		return -ENOMEM;
+	opp->of_name = of_node_full_name(opp->np);
+	debugfs_create_str("of_name", S_IRUGO, d, (char **)&opp->of_name);
 
-	if (!debugfs_create_bool("turbo", S_IRUGO, d, &opp->turbo))
-		return -ENOMEM;
-
-	if (!debugfs_create_bool("suspend", S_IRUGO, d, &opp->suspend))
-		return -ENOMEM;
-
-	if (!debugfs_create_u32("performance_state", S_IRUGO, d, &opp->pstate))
-		return -ENOMEM;
-
-	if (!debugfs_create_ulong("rate_hz", S_IRUGO, d, &opp->rate))
-		return -ENOMEM;
-
-	if (!opp_debug_create_supplies(opp, opp_table, d))
-		return -ENOMEM;
-
-	if (!debugfs_create_ulong("clock_latency_ns", S_IRUGO, d,
-				  &opp->clock_latency_ns))
-		return -ENOMEM;
+	opp_debug_create_clks(opp, opp_table, d);
+	opp_debug_create_supplies(opp, opp_table, d);
+	opp_debug_create_bw(opp, opp_table, d);
 
 	opp->dentry = d;
-	return 0;
 }
 
-static int opp_list_debug_create_dir(struct opp_device *opp_dev,
-				     struct opp_table *opp_table)
+static void opp_list_debug_create_dir(struct opp_device *opp_dev,
+				      struct opp_table *opp_table)
 {
 	const struct device *dev = opp_dev->dev;
 	struct dentry *d;
@@ -137,36 +177,21 @@ static int opp_list_debug_create_dir(struct opp_device *opp_dev,
 
 	/* Create device specific directory */
 	d = debugfs_create_dir(opp_table->dentry_name, rootdir);
-	if (!d) {
-		dev_err(dev, "%s: Failed to create debugfs dir\n", __func__);
-		return -ENOMEM;
-	}
 
 	opp_dev->dentry = d;
 	opp_table->dentry = d;
-
-	return 0;
 }
 
-static int opp_list_debug_create_link(struct opp_device *opp_dev,
-				      struct opp_table *opp_table)
+static void opp_list_debug_create_link(struct opp_device *opp_dev,
+				       struct opp_table *opp_table)
 {
-	const struct device *dev = opp_dev->dev;
 	char name[NAME_MAX];
-	struct dentry *d;
 
 	opp_set_dev_name(opp_dev->dev, name);
 
 	/* Create device specific directory link */
-	d = debugfs_create_symlink(name, rootdir, opp_table->dentry_name);
-	if (!d) {
-		dev_err(dev, "%s: Failed to create link\n", __func__);
-		return -ENOMEM;
-	}
-
-	opp_dev->dentry = d;
-
-	return 0;
+	opp_dev->dentry = debugfs_create_symlink(name, rootdir,
+						 opp_table->dentry_name);
 }
 
 /**
@@ -177,33 +202,30 @@ static int opp_list_debug_create_link(struct opp_device *opp_dev,
  * Dynamically adds device specific directory in debugfs 'opp' directory. If the
  * device-opp is shared with other devices, then links will be created for all
  * devices except the first.
- *
- * Return: 0 on success, otherwise negative error.
  */
-int opp_debug_register(struct opp_device *opp_dev, struct opp_table *opp_table)
+void opp_debug_register(struct opp_device *opp_dev, struct opp_table *opp_table)
 {
-	if (!rootdir) {
-		pr_debug("%s: Uninitialized rootdir\n", __func__);
-		return -EINVAL;
-	}
-
 	if (opp_table->dentry)
-		return opp_list_debug_create_link(opp_dev, opp_table);
-
-	return opp_list_debug_create_dir(opp_dev, opp_table);
+		opp_list_debug_create_link(opp_dev, opp_table);
+	else
+		opp_list_debug_create_dir(opp_dev, opp_table);
 }
 
 static void opp_migrate_dentry(struct opp_device *opp_dev,
 			       struct opp_table *opp_table)
 {
-	struct opp_device *new_dev;
+	struct opp_device *new_dev = NULL, *iter;
 	const struct device *dev;
 	struct dentry *dentry;
 
 	/* Look for next opp-dev */
-	list_for_each_entry(new_dev, &opp_table->dev_list, node)
-		if (new_dev != opp_dev)
+	list_for_each_entry(iter, &opp_table->dev_list, node)
+		if (iter != opp_dev) {
+			new_dev = iter;
 			break;
+		}
+
+	BUG_ON(!new_dev);
 
 	/* new_dev is guaranteed to be valid here */
 	dev = new_dev->dev;
@@ -252,10 +274,6 @@ static int __init opp_debug_init(void)
 {
 	/* Create /sys/kernel/debug/opp directory */
 	rootdir = debugfs_create_dir("opp", NULL);
-	if (!rootdir) {
-		pr_err("%s: Failed to create root directory\n", __func__);
-		return -ENOMEM;
-	}
 
 	return 0;
 }

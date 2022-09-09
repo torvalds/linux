@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Abilis Systems interrupt controller driver
  *
  * Copyright (C) Abilis Systems 2012
  *
  * Author: Christian Ruppert <christian.ruppert@abilis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/interrupt.h>
@@ -72,6 +60,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	case IRQ_TYPE_NONE:
 		flow_type = IRQ_TYPE_LEVEL_LOW;
+		fallthrough;
 	case IRQ_TYPE_LEVEL_LOW:
 		mod ^= im;
 		pol ^= im;
@@ -102,7 +91,7 @@ static void tb10x_irq_cascade(struct irq_desc *desc)
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	unsigned int irq = irq_desc_get_irq(desc);
 
-	generic_handle_irq(irq_find_mapping(domain, irq));
+	generic_handle_domain_irq(domain, irq);
 }
 
 static int __init of_tb10x_init_irq(struct device_node *ictl,

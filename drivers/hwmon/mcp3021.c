@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mcp3021.c - driver for Microchip MCP3021 and MCP3221
  *
@@ -6,14 +7,9 @@
  * Reworked by Sven Schuchmann <schuchmann@schleissheimer.de>
  * DT support added by Clemens Gruber <clemens.gruber@pqgruber.com>
  *
- * This driver export the value of analog input voltage to sysfs, the
+ * This driver exports the value of analog input voltage to sysfs, the
  * voltage unit is mV. Through the sysfs interface, lm-sensors tool
  * can also display the input voltage.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -49,19 +45,29 @@ enum chips {
  * Client data (each client gets its own)
  */
 struct mcp3021_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	u32 vdd;        /* supply and reference voltage in millivolt */
 	u16 sar_shift;
 	u16 sar_mask;
 	u8 output_res;
 };
 
-static int mcp3021_read16(struct i2c_client *client)
+static inline u16 volts_from_reg(struct mcp3021_data *data, u16 val)
 {
-	struct mcp3021_data *data = i2c_get_clientdata(client);
-	int ret;
-	u16 reg;
+	return DIV_ROUND_CLOSEST(data->vdd * val, 1 << data->output_res);
+}
+
+static int mcp3021_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
+{
+	struct mcp3021_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	__be16 buf;
+	u16 reg;
+	int ret;
+
+	if (type != hwmon_in)
+		return -EOPNOTSUPP;
 
 	ret = i2c_master_recv(client, (char *)&buf, 2);
 	if (ret < 0)
@@ -78,38 +84,46 @@ static int mcp3021_read16(struct i2c_client *client)
 	 */
 	reg = (reg >> data->sar_shift) & data->sar_mask;
 
-	return reg;
+	*val = volts_from_reg(data, reg);
+
+	return 0;
 }
 
-static inline u16 volts_from_reg(struct mcp3021_data *data, u16 val)
+static umode_t mcp3021_is_visible(const void *_data,
+				  enum hwmon_sensor_types type,
+				  u32 attr, int channel)
 {
-	return DIV_ROUND_CLOSEST(data->vdd * val, 1 << data->output_res);
+	if (type != hwmon_in)
+		return 0;
+
+	if (attr != hwmon_in_input)
+		return 0;
+
+	return 0444;
 }
 
-static ssize_t in0_input_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static const struct hwmon_channel_info *mcp3021_info[] = {
+	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT),
+	NULL
+};
+
+static const struct hwmon_ops mcp3021_hwmon_ops = {
+	.is_visible = mcp3021_is_visible,
+	.read = mcp3021_read,
+};
+
+static const struct hwmon_chip_info mcp3021_chip_info = {
+	.ops = &mcp3021_hwmon_ops,
+	.info = mcp3021_info,
+};
+
+static const struct i2c_device_id mcp3021_id[];
+
+static int mcp3021_probe(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct mcp3021_data *data = i2c_get_clientdata(client);
-	int reg, in_input;
-
-	reg = mcp3021_read16(client);
-	if (reg < 0)
-		return reg;
-
-	in_input = volts_from_reg(data, reg);
-
-	return sprintf(buf, "%d\n", in_input);
-}
-
-static DEVICE_ATTR_RO(in0_input);
-
-static int mcp3021_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
-{
-	int err;
 	struct mcp3021_data *data = NULL;
 	struct device_node *np = client->dev.of_node;
+	struct device *hwmon_dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -136,7 +150,7 @@ static int mcp3021_probe(struct i2c_client *client,
 			data->vdd = MCP3021_VDD_REF_DEFAULT;
 	}
 
-	switch (id->driver_data) {
+	switch (i2c_match_id(mcp3021_id, client)->driver_data) {
 	case mcp3021:
 		data->sar_shift = MCP3021_SAR_SHIFT;
 		data->sar_mask = MCP3021_SAR_MASK;
@@ -150,34 +164,17 @@ static int mcp3021_probe(struct i2c_client *client,
 		break;
 	}
 
+	data->client = client;
+
 	if (data->vdd > MCP3021_VDD_REF_MAX || data->vdd < MCP3021_VDD_REF_MIN)
 		return -EINVAL;
 
-	err = sysfs_create_file(&client->dev.kobj, &dev_attr_in0_input.attr);
-	if (err)
-		return err;
-
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove;
-	}
-
-	return 0;
-
-exit_remove:
-	sysfs_remove_file(&client->dev.kobj, &dev_attr_in0_input.attr);
-	return err;
-}
-
-static int mcp3021_remove(struct i2c_client *client)
-{
-	struct mcp3021_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_file(&client->dev.kobj, &dev_attr_in0_input.attr);
-
-	return 0;
+	hwmon_dev = devm_hwmon_device_register_with_info(&client->dev,
+							 client->name,
+							 data,
+							 &mcp3021_chip_info,
+							 NULL);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct i2c_device_id mcp3021_id[] = {
@@ -201,8 +198,7 @@ static struct i2c_driver mcp3021_driver = {
 		.name = "mcp3021",
 		.of_match_table = of_match_ptr(of_mcp3021_match),
 	},
-	.probe = mcp3021_probe,
-	.remove = mcp3021_remove,
+	.probe_new = mcp3021_probe,
 	.id_table = mcp3021_id,
 };
 

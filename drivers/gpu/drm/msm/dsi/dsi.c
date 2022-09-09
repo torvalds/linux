@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "dsi.h"
+#include "dsi_cfg.h"
 
 struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 {
@@ -19,6 +12,18 @@ struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 		return NULL;
 
 	return msm_dsi->encoder;
+}
+
+bool msm_dsi_is_cmd_mode(struct msm_dsi *msm_dsi)
+{
+	unsigned long host_flags = msm_dsi_host_get_mode_flags(msm_dsi->host);
+
+	return !(host_flags & MIPI_DSI_MODE_VIDEO);
+}
+
+struct msm_display_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi)
+{
+	return msm_dsi_host_get_dsc_config(msm_dsi->host);
 }
 
 static int dsi_get_phy(struct msm_dsi *msm_dsi)
@@ -34,17 +39,22 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 	}
 
 	phy_pdev = of_find_device_by_node(phy_node);
-	if (phy_pdev)
+	if (phy_pdev) {
 		msm_dsi->phy = platform_get_drvdata(phy_pdev);
+		msm_dsi->phy_dev = &phy_pdev->dev;
+	}
 
 	of_node_put(phy_node);
 
-	if (!phy_pdev || !msm_dsi->phy) {
+	if (!phy_pdev) {
 		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
-
-	msm_dsi->phy_dev = get_device(&phy_pdev->dev);
+	if (!msm_dsi->phy) {
+		put_device(&phy_pdev->dev);
+		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		return -EPROBE_DEFER;
+	}
 
 	return 0;
 }
@@ -111,9 +121,40 @@ destroy_dsi:
 
 static int dsi_bind(struct device *dev, struct device *master, void *data)
 {
-	struct drm_device *drm = dev_get_drvdata(master);
-	struct msm_drm_private *priv = drm->dev_private;
-	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_drm_private *priv = dev_get_drvdata(master);
+	struct msm_dsi *msm_dsi = dev_get_drvdata(dev);
+
+	priv->dsi[msm_dsi->id] = msm_dsi;
+
+	return 0;
+}
+
+static void dsi_unbind(struct device *dev, struct device *master,
+		void *data)
+{
+	struct msm_drm_private *priv = dev_get_drvdata(master);
+	struct msm_dsi *msm_dsi = dev_get_drvdata(dev);
+
+	priv->dsi[msm_dsi->id] = NULL;
+}
+
+static const struct component_ops dsi_ops = {
+	.bind   = dsi_bind,
+	.unbind = dsi_unbind,
+};
+
+int dsi_dev_attach(struct platform_device *pdev)
+{
+	return component_add(&pdev->dev, &dsi_ops);
+}
+
+void dsi_dev_detach(struct platform_device *pdev)
+{
+	component_del(&pdev->dev, &dsi_ops);
+}
+
+static int dsi_dev_probe(struct platform_device *pdev)
+{
 	struct msm_dsi *msm_dsi;
 
 	DBG("");
@@ -126,49 +167,29 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 			return PTR_ERR(msm_dsi);
 	}
 
-	priv->dsi[msm_dsi->id] = msm_dsi;
-
 	return 0;
-}
-
-static void dsi_unbind(struct device *dev, struct device *master,
-		void *data)
-{
-	struct drm_device *drm = dev_get_drvdata(master);
-	struct msm_drm_private *priv = drm->dev_private;
-	struct msm_dsi *msm_dsi = dev_get_drvdata(dev);
-	int id = msm_dsi->id;
-
-	if (priv->dsi[id]) {
-		dsi_destroy(msm_dsi);
-		priv->dsi[id] = NULL;
-	}
-}
-
-static const struct component_ops dsi_ops = {
-	.bind   = dsi_bind,
-	.unbind = dsi_unbind,
-};
-
-static int dsi_dev_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &dsi_ops);
 }
 
 static int dsi_dev_remove(struct platform_device *pdev)
 {
+	struct msm_dsi *msm_dsi = platform_get_drvdata(pdev);
+
 	DBG("");
-	component_del(&pdev->dev, &dsi_ops);
+	dsi_destroy(msm_dsi);
+
 	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdss-dsi-ctrl" },
+	{ .compatible = "qcom,mdss-dsi-ctrl", .data = NULL /* autodetect cfg */ },
+	{ .compatible = "qcom,dsi-ctrl-6g-qcm2290", .data = &qcm2290_dsi_cfg_handler },
 	{}
 };
 
 static const struct dev_pm_ops dsi_pm_ops = {
 	SET_RUNTIME_PM_OPS(msm_dsi_runtime_suspend, msm_dsi_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver dsi_driver = {
@@ -214,8 +235,14 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		goto fail;
 	}
 
-	if (!msm_dsi_manager_validate_current_config(msm_dsi->id))
-		goto fail;
+	if (msm_dsi_is_bonded_dsi(msm_dsi) &&
+	    !msm_dsi_is_master_dsi(msm_dsi)) {
+		/*
+		 * Do not return an eror here,
+		 * Just skip creating encoder/connector for the slave-DSI.
+		 */
+		return 0;
+	}
 
 	msm_dsi->encoder = encoder;
 
@@ -251,7 +278,6 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 	}
 
 	priv->bridges[priv->num_bridges++]       = msm_dsi->bridge;
-	priv->connectors[priv->num_connectors++] = msm_dsi->connector;
 
 	return 0;
 fail:
@@ -268,5 +294,11 @@ fail:
 	msm_dsi->connector = NULL;
 
 	return ret;
+}
+
+void msm_dsi_snapshot(struct msm_disp_state *disp_state, struct msm_dsi *msm_dsi)
+{
+	msm_dsi_host_snapshot(disp_state, msm_dsi->host);
+	msm_dsi_phy_snapshot(disp_state, msm_dsi->phy);
 }
 

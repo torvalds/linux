@@ -107,7 +107,7 @@
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
-	flash: m25p80@0 {
+	flash: flash@0 {
 		compatible = "microchip,sst25vf016b";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
@@ -229,6 +229,7 @@
 };
 
 &pwm4 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm4>;
 	status = "okay";
@@ -484,31 +485,31 @@
 
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
-			MX6SX_PAD_GPIO1_IO04__UART1_TX		0x1b0b1
-			MX6SX_PAD_GPIO1_IO05__UART1_RX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO04__UART1_DCE_TX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO05__UART1_DCE_RX		0x1b0b1
 		>;
 	};
 
 	pinctrl_uart2: uart2grp {
 		fsl,pins = <
-			MX6SX_PAD_GPIO1_IO06__UART2_TX		0x1b0b1
-			MX6SX_PAD_GPIO1_IO07__UART2_RX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO06__UART2_DCE_TX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO07__UART2_DCE_RX		0x1b0b1
 		>;
 	};
 
 	pinctrl_uart3: uart3grp {
 		fsl,pins = <
-			MX6SX_PAD_QSPI1B_SS0_B__UART3_TX	0x1b0b1
-			MX6SX_PAD_QSPI1B_SCLK__UART3_RX		0x1b0b1
+			MX6SX_PAD_QSPI1B_SS0_B__UART3_DCE_TX		0x1b0b1
+			MX6SX_PAD_QSPI1B_SCLK__UART3_DCE_RX		0x1b0b1
 		>;
 	};
 
 	pinctrl_uart5: uart5grp {
 		fsl,pins = <
-			MX6SX_PAD_KEY_COL3__UART5_TX		0x1b0b1
-			MX6SX_PAD_KEY_ROW3__UART5_RX		0x1b0b1
-			MX6SX_PAD_SD3_DATA6__UART3_RTS_B	0x1b0b1
-			MX6SX_PAD_SD3_DATA7__UART3_CTS_B	0x1b0b1
+			MX6SX_PAD_KEY_COL3__UART5_DCE_TX		0x1b0b1
+			MX6SX_PAD_KEY_ROW3__UART5_DCE_RX		0x1b0b1
+			MX6SX_PAD_SD3_DATA6__UART3_DCE_RTS		0x1b0b1
+			MX6SX_PAD_SD3_DATA7__UART3_DCE_CTS		0x1b0b1
 		>;
 	};
 

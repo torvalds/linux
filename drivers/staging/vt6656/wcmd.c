@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: wcmd.c
- *
  * Purpose: Handles the management command interface functions
  *
  * Author: Lyndon Chen
@@ -33,6 +31,15 @@ static void vnt_cmd_timer_wait(struct vnt_private *priv, unsigned long msecs)
 	schedule_delayed_work(&priv->run_command_work, msecs_to_jiffies(msecs));
 }
 
+static u32 add_one_with_wrap_around(u32 var, u8 modulo)
+{
+	if (var >= (modulo - 1))
+		var = 0;
+	else
+		var++;
+	return var;
+}
+
 static int vnt_cmd_complete(struct vnt_private *priv)
 {
 	priv->command_state = WLAN_CMD_IDLE;
@@ -44,7 +51,7 @@ static int vnt_cmd_complete(struct vnt_private *priv)
 
 	priv->command = priv->cmd_queue[priv->cmd_dequeue_idx];
 
-	ADD_ONE_WITH_WRAP_AROUND(priv->cmd_dequeue_idx, CMD_Q_SIZE);
+	priv->cmd_dequeue_idx = add_one_with_wrap_around(priv->cmd_dequeue_idx, CMD_Q_SIZE);
 	priv->free_cmd_queue++;
 	priv->cmd_running = true;
 
@@ -99,6 +106,7 @@ void vnt_run_command(struct work_struct *work)
 		if (vnt_init(priv)) {
 			/* If fail all ends TODO retry */
 			dev_err(&priv->usb->dev, "failed to start\n");
+			usb_set_intfdata(priv->intf, NULL);
 			ieee80211_free_hw(priv->hw);
 			return;
 		}
@@ -121,8 +129,7 @@ void vnt_run_command(struct work_struct *work)
 
 	case WLAN_CMD_SETPOWER_START:
 
-		vnt_rf_setpower(priv, priv->current_rate,
-				priv->hw->conf.chandef.chan->hw_value);
+		vnt_rf_setpower(priv, priv->hw->conf.chandef.chan);
 
 		break;
 
@@ -159,7 +166,7 @@ int vnt_schedule_command(struct vnt_private *priv, enum vnt_cmd command)
 
 	priv->cmd_queue[priv->cmd_enqueue_idx] = command;
 
-	ADD_ONE_WITH_WRAP_AROUND(priv->cmd_enqueue_idx, CMD_Q_SIZE);
+	priv->cmd_enqueue_idx = add_one_with_wrap_around(priv->cmd_enqueue_idx, CMD_Q_SIZE);
 	priv->free_cmd_queue--;
 
 	if (!priv->cmd_running)

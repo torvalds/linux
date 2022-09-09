@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config UBIFS_FS
 	tristate "UBIFS file system support"
 	select CRC16
@@ -5,9 +6,13 @@ config UBIFS_FS
 	select CRYPTO if UBIFS_FS_ADVANCED_COMPR
 	select CRYPTO if UBIFS_FS_LZO
 	select CRYPTO if UBIFS_FS_ZLIB
+	select CRYPTO if UBIFS_FS_ZSTD
 	select CRYPTO_LZO if UBIFS_FS_LZO
 	select CRYPTO_DEFLATE if UBIFS_FS_ZLIB
+	select CRYPTO_ZSTD if UBIFS_FS_ZSTD
 	select CRYPTO_HASH_INFO
+	select UBIFS_FS_XATTR if FS_ENCRYPTION
+	select FS_ENCRYPTION_ALGS if FS_ENCRYPTION
 	depends on MTD_UBI
 	help
 	  UBIFS is a file system for flash devices which works on top of UBI.
@@ -36,6 +41,14 @@ config UBIFS_FS_ZLIB
 	help
 	  Zlib compresses better than LZO but it is slower. Say 'Y' if unsure.
 
+config UBIFS_FS_ZSTD
+	bool "ZSTD compression support" if UBIFS_FS_ADVANCED_COMPR
+	depends on UBIFS_FS
+	default y
+	help
+	  ZSTD compresses is a big win in speed over Zlib and
+	  in compression ratio over LZO. Say 'Y' if unsure.
+
 config UBIFS_ATIME_SUPPORT
 	bool "Access time support"
 	default n
@@ -60,17 +73,6 @@ config UBIFS_FS_XATTR
 
 	  If unsure, say Y.
 
-config UBIFS_FS_ENCRYPTION
-	bool "UBIFS Encryption"
-	depends on UBIFS_FS_XATTR && BLOCK
-	select FS_ENCRYPTION
-	default n
-	help
-	  Enable encryption of UBIFS files and directories. This
-	  feature is similar to ecryptfs, but it is more memory
-	  efficient since it avoids caching the encrypted and
-	  decrypted pages in the page cache.
-
 config UBIFS_FS_SECURITY
 	bool "UBIFS Security Labels"
 	depends on UBIFS_FS_XATTR
@@ -86,8 +88,9 @@ config UBIFS_FS_SECURITY
 
 config UBIFS_FS_AUTHENTICATION
 	bool "UBIFS authentication support"
-	depends on KEYS
+	select KEYS
 	select CRYPTO_HMAC
+	select SYSTEM_DATA_VERIFICATION
 	help
 	  Enable authentication support for UBIFS. This feature offers protection
 	  against offline changes for both data and metadata of the filesystem.

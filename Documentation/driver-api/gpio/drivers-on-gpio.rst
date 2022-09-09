@@ -89,13 +89,26 @@ hardware descriptions such as device tree or ACPI:
   Consumer Electronics Control bus using only GPIO. It is used to communicate
   with devices on the HDMI bus.
 
+- gpio-charger: drivers/power/supply/gpio-charger.c is used if you need to do
+  battery charging and all you have to go by to check the presence of the
+  AC charger or more complex tasks such as indicating charging status using
+  nothing but GPIO lines, this driver provides that and also a clearly defined
+  way to pass the charging parameters from hardware descriptions such as the
+  device tree.
+
+- gpio-mux: drivers/mux/gpio.c is used for controlling a multiplexer using
+  n GPIO lines such that you can mux in 2^n different devices by activating
+  different GPIO lines. Often the GPIOs are on a SoC and the devices are
+  some SoC-external entities, such as different components on a PCB that
+  can be selectively enabled.
+
 Apart from this there are special GPIO drivers in subsystems like MMC/SD to
 read card detect and write protect GPIO lines, and in the TTY serial subsystem
 to emulate MCTRL (modem control) signals CTS/RTS by using two GPIO lines. The
 MTD NOR flash has add-ons for extra GPIO lines too, though the address bus is
 usually connected directly to the flash.
 
-Use those instead of talking directly to the GPIOs using sysfs; they integrate
-with kernel frameworks better than your userspace code could. Needless to say,
-just using the appropriate kernel drivers will simplify and speed up your
-embedded hacking in particular by providing ready-made components.
+Use those instead of talking directly to the GPIOs from userspace; they
+integrate with kernel frameworks better than your userspace code could.
+Needless to say, just using the appropriate kernel drivers will simplify and
+speed up your embedded hacking in particular by providing ready-made components.

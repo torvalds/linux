@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/mediatek,uart-dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek UART APDMA controller
+
+maintainers:
+  - Long Cheng <long.cheng@mediatek.com>
+
+description: |
+  The MediaTek UART APDMA controller provides DMA capabilities
+  for the UART peripheral bus.
+
+allOf:
+  - $ref: "dma-controller.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt2712-uart-dma
+              - mediatek,mt8365-uart-dma
+              - mediatek,mt8516-uart-dma
+          - const: mediatek,mt6577-uart-dma
+      - enum:
+          - mediatek,mt6577-uart-dma
+
+  reg:
+    minItems: 1
+    maxItems: 16
+
+  interrupts:
+    description: |
+      TX, RX interrupt lines for each UART APDMA channel
+    minItems: 1
+    maxItems: 16
+
+  clocks:
+    description: Must contain one entry for the APDMA main clock
+    maxItems: 1
+
+  clock-names:
+    const: apdma
+
+  "#dma-cells":
+    const: 1
+    description: |
+      The first cell specifies the UART APDMA channel number
+
+  dma-requests:
+    description: |
+      Number of virtual channels of the UART APDMA controller
+    maximum: 16
+
+  mediatek,dma-33bits:
+    type: boolean
+    description: Enable 33-bits UART APDMA support
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+if:
+  not:
+    required:
+      - dma-requests
+then:
+  properties:
+    interrupts:
+      maxItems: 8
+    reg:
+      maxItems: 8
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt2712-clk.h>
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        apdma: dma-controller@11000400 {
+            compatible = "mediatek,mt2712-uart-dma",
+                         "mediatek,mt6577-uart-dma";
+            reg = <0 0x11000400 0 0x80>,
+                  <0 0x11000480 0 0x80>,
+                  <0 0x11000500 0 0x80>,
+                  <0 0x11000580 0 0x80>,
+                  <0 0x11000600 0 0x80>,
+                  <0 0x11000680 0 0x80>,
+                  <0 0x11000700 0 0x80>,
+                  <0 0x11000780 0 0x80>,
+                  <0 0x11000800 0 0x80>,
+                  <0 0x11000880 0 0x80>,
+                  <0 0x11000900 0 0x80>,
+                  <0 0x11000980 0 0x80>;
+            interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 105 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 106 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 107 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 108 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 109 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 110 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 111 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 112 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 113 IRQ_TYPE_LEVEL_LOW>,
+                         <GIC_SPI 114 IRQ_TYPE_LEVEL_LOW>;
+            dma-requests = <12>;
+            clocks = <&pericfg CLK_PERI_AP_DMA>;
+            clock-names = "apdma";
+            mediatek,dma-33bits;
+            #dma-cells = <1>;
+        };
+    };
+
+...

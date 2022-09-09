@@ -93,7 +93,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	case ST_ROOT:
 		inode->i_uid = sbi->s_uid;
 		inode->i_gid = sbi->s_gid;
-		/* fall through */
+		fallthrough;
 	case ST_USERDIR:
 		if (be32_to_cpu(tail->stype) == ST_USERDIR ||
 		    affs_test_opt(sbi->s_flags, SF_SETMODE)) {
@@ -150,10 +150,10 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	}
 
 	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec
-		       = (be32_to_cpu(tail->change.days) * (24 * 60 * 60) +
+		       = (be32_to_cpu(tail->change.days) * 86400LL +
 		         be32_to_cpu(tail->change.mins) * 60 +
 			 be32_to_cpu(tail->change.ticks) / 50 +
-			 ((8 * 365 + 2) * 24 * 60 * 60)) +
+			 AFFS_EPOCH_DELTA) +
 			 sys_tz.tz_minuteswest * 60;
 	inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec = inode->i_atime.tv_nsec = 0;
 	affs_brelse(bh);
@@ -216,14 +216,15 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 int
-affs_notify_change(struct dentry *dentry, struct iattr *attr)
+affs_notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
 
 	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
 
-	error = setattr_prepare(dentry, attr);
+	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
 		goto out;
 
@@ -249,7 +250,7 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 		affs_truncate(inode);
 	}
 
-	setattr_copy(inode, attr);
+	setattr_copy(&init_user_ns, inode, attr);
 	mark_inode_dirty(inode);
 
 	if (attr->ia_valid & ATTR_MODE)

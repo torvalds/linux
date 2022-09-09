@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ethernut5.dts - Device Tree file for Ethernut 5 board
  *
  * Copyright (C) 2012 egnite GmbH <info@egnite.de>
- *
- * Licensed under GPLv2.
  */
 /dts-v1/;
 #include "at91sam9xe.dtsi"
@@ -16,7 +15,7 @@
 		bootargs = "console=ttyS0,115200 root=/dev/mtdblock0 rw rootfstype=jffs2";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x08000000>;
 	};
 

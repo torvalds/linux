@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for AUO in-cell touchscreens
  *
@@ -7,17 +8,6 @@
  *
  * Copyright (c) 2008 QUALCOMM Incorporated.
  * Copyright (c) 2008 QUALCOMM USA, INC.
- *
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -424,7 +414,7 @@ static int __maybe_unused auo_pixcir_suspend(struct device *dev)
 	 */
 	if (device_may_wakeup(&client->dev)) {
 		/* need to start device if not open, to be wakeup source */
-		if (!input->users) {
+		if (!input_device_enabled(input)) {
 			ret = auo_pixcir_start(ts);
 			if (ret)
 				goto unlock;
@@ -432,7 +422,7 @@ static int __maybe_unused auo_pixcir_suspend(struct device *dev)
 
 		enable_irq_wake(client->irq);
 		ret = auo_pixcir_power_mode(ts, AUO_PIXCIR_POWER_SLEEP);
-	} else if (input->users) {
+	} else if (input_device_enabled(input)) {
 		ret = auo_pixcir_stop(ts);
 	}
 
@@ -455,14 +445,14 @@ static int __maybe_unused auo_pixcir_resume(struct device *dev)
 		disable_irq_wake(client->irq);
 
 		/* need to stop device if it was not open on suspend */
-		if (!input->users) {
+		if (!input_device_enabled(input)) {
 			ret = auo_pixcir_stop(ts);
 			if (ret)
 				goto unlock;
 		}
 
 		/* device wakes automatically from SLEEP */
-	} else if (input->users) {
+	} else if (input_device_enabled(input)) {
 		ret = auo_pixcir_start(ts);
 	}
 
@@ -612,9 +602,8 @@ static int auo_pixcir_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_add_action(&client->dev, auo_pixcir_reset, ts);
+	error = devm_add_action_or_reset(&client->dev, auo_pixcir_reset, ts);
 	if (error) {
-		auo_pixcir_reset(ts);
 		dev_err(&client->dev, "failed to register reset action, %d\n",
 			error);
 		return error;

@@ -1,1 +1,1 @@
-../../../../../arch/powerpc/mm/vphn.c
+../../../../../arch/powerpc/platforms/pseries/vphn.c

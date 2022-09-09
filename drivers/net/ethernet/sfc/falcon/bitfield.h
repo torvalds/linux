@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #ifndef EF4_BITFIELD_H
@@ -120,7 +117,7 @@ typedef union ef4_oword {
  *
  *   ( element ) << 4
  *
- * The result will contain the relevant bits filled in in the range
+ * The result will contain the relevant bits filled in the range
  * [0,high-low), with garbage in bits [high-low+1,...).
  */
 #define EF4_EXTRACT_NATIVE(native_element, min, max, low, high)		\

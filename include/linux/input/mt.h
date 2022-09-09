@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _INPUT_MT_H
 #define _INPUT_MT_H
 
@@ -5,10 +6,6 @@
  * Input Multitouch Library
  *
  * Copyright (c) 2010 Henrik Rydberg
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/input.h>
@@ -102,6 +99,11 @@ static inline bool input_is_mt_axis(int axis)
 
 bool input_mt_report_slot_state(struct input_dev *dev,
 				unsigned int tool_type, bool active);
+
+static inline void input_mt_report_slot_inactive(struct input_dev *dev)
+{
+	input_mt_report_slot_state(dev, 0, false);
+}
 
 void input_mt_report_finger_count(struct input_dev *dev, int count);
 void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count);

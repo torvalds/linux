@@ -22,7 +22,7 @@ extern void __add_wrong_size(void)
 /*
  * Constants for operation sizes. On 32-bit, the 64-bit size it set to
  * -1 because sizeof will never return -1, thereby making those switch
- * case statements guaranteeed dead code which the compiler will
+ * case statements guaranteed dead code which the compiler will
  * eliminate, and allowing the "missing symbol in the default case" to
  * indicate a usage error.
  */
@@ -221,7 +221,7 @@ extern void __add_wrong_size(void)
 #define __try_cmpxchg(ptr, pold, new, size)				\
 	__raw_try_cmpxchg((ptr), (pold), (new), (size), LOCK_PREFIX)
 
-#define try_cmpxchg(ptr, pold, new) 					\
+#define arch_try_cmpxchg(ptr, pold, new) 				\
 	__try_cmpxchg((ptr), (pold), (new), sizeof(*(ptr)))
 
 /*

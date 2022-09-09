@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/clk.h>
@@ -145,7 +137,6 @@ struct dss_pll *dss_video_pll_init(struct dss_device *dss,
 	const char * const clkctrl_name[] = { "pll1_clkctrl", "pll2_clkctrl" };
 	const char * const clkin_name[] = { "video1_clk", "video2_clk" };
 
-	struct resource *res;
 	struct dss_video_pll *vpll;
 	void __iomem *pll_base, *clkctrl_base;
 	struct clk *clk;
@@ -154,16 +145,13 @@ struct dss_pll *dss_video_pll_init(struct dss_device *dss,
 
 	/* PLL CONTROL */
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, reg_name[id]);
-	pll_base = devm_ioremap_resource(&pdev->dev, res);
+	pll_base = devm_platform_ioremap_resource_byname(pdev, reg_name[id]);
 	if (IS_ERR(pll_base))
 		return ERR_CAST(pll_base);
 
 	/* CLOCK CONTROL */
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-		clkctrl_name[id]);
-	clkctrl_base = devm_ioremap_resource(&pdev->dev, res);
+	clkctrl_base = devm_platform_ioremap_resource_byname(pdev, clkctrl_name[id]);
 	if (IS_ERR(clkctrl_base))
 		return ERR_CAST(clkctrl_base);
 

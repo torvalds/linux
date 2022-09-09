@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics accelerometers driver
  *
@@ -5,7 +6,6 @@
  *
  * Denis Ciocca <denis.ciocca@st.com>
  * v. 1.0.0
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_ACCEL_H
@@ -13,29 +13,6 @@
 
 #include <linux/types.h>
 #include <linux/iio/common/st_sensors.h>
-
-enum st_accel_type {
-	LSM303DLH,
-	LSM303DLHC,
-	LIS3DH,
-	LSM330D,
-	LSM330DL,
-	LSM330DLC,
-	LIS331DLH,
-	LSM303DL,
-	LSM303DLM,
-	LSM330,
-	LSM303AGR,
-	LIS2DH12,
-	LIS3L02DQ,
-	LNG2DM,
-	H3LIS331DL,
-	LIS331DL,
-	LIS3LV02DL,
-	LIS2DW12,
-	LIS3DHH,
-	ST_ACCEL_MAX,
-};
 
 #define H3LIS331DL_ACCEL_DEV_NAME	"h3lis331dl_accel"
 #define LIS3LV02DL_ACCEL_DEV_NAME	"lis3lv02dl_accel"
@@ -57,30 +34,20 @@ enum st_accel_type {
 #define LIS2DW12_ACCEL_DEV_NAME		"lis2dw12"
 #define LIS3DHH_ACCEL_DEV_NAME		"lis3dhh"
 #define LIS3DE_ACCEL_DEV_NAME		"lis3de"
+#define LIS2DE12_ACCEL_DEV_NAME		"lis2de12"
+#define LIS2HH12_ACCEL_DEV_NAME		"lis2hh12"
+#define LIS302DL_ACCEL_DEV_NAME		"lis302dl"
+#define SC7A20_ACCEL_DEV_NAME		"sc7a20"
 
-/**
-* struct st_sensors_platform_data - default accel platform data
-* @drdy_int_pin: default accel DRDY is available on INT1 pin.
-*/
-static const struct st_sensors_platform_data default_accel_pdata = {
-	.drdy_int_pin = 1,
-};
-
-int st_accel_common_probe(struct iio_dev *indio_dev);
-void st_accel_common_remove(struct iio_dev *indio_dev);
 
 #ifdef CONFIG_IIO_BUFFER
 int st_accel_allocate_ring(struct iio_dev *indio_dev);
-void st_accel_deallocate_ring(struct iio_dev *indio_dev);
 int st_accel_trig_set_state(struct iio_trigger *trig, bool state);
 #define ST_ACCEL_TRIGGER_SET_STATE (&st_accel_trig_set_state)
 #else /* CONFIG_IIO_BUFFER */
 static inline int st_accel_allocate_ring(struct iio_dev *indio_dev)
 {
 	return 0;
-}
-static inline void st_accel_deallocate_ring(struct iio_dev *indio_dev)
-{
 }
 #define ST_ACCEL_TRIGGER_SET_STATE NULL
 #endif /* CONFIG_IIO_BUFFER */

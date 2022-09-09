@@ -41,6 +41,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/bitops.h>
 
 #include <linux/dvb/frontend.h>
 
@@ -141,10 +142,10 @@ struct analog_parameters {
  *	These devices have AUTO recovery capabilities from LOCK failure
  */
 enum dvbfe_algo {
-	DVBFE_ALGO_HW			= (1 <<  0),
-	DVBFE_ALGO_SW			= (1 <<  1),
-	DVBFE_ALGO_CUSTOM		= (1 <<  2),
-	DVBFE_ALGO_RECOVERY		= (1 << 31)
+	DVBFE_ALGO_HW			= BIT(0),
+	DVBFE_ALGO_SW			= BIT(1),
+	DVBFE_ALGO_CUSTOM		= BIT(2),
+	DVBFE_ALGO_RECOVERY		= BIT(31),
 };
 
 /**
@@ -160,7 +161,7 @@ enum dvbfe_algo {
  *	The frontend search for a signal failed
  *
  * @DVBFE_ALGO_SEARCH_INVALID:
- *	The frontend search algorith was probably supplied with invalid
+ *	The frontend search algorithm was probably supplied with invalid
  *	parameters and the search is an invalid one
  *
  * @DVBFE_ALGO_SEARCH_ERROR:
@@ -170,12 +171,12 @@ enum dvbfe_algo {
  *	The frontend search algorithm was requested to search again
  */
 enum dvbfe_search {
-	DVBFE_ALGO_SEARCH_SUCCESS	= (1 <<  0),
-	DVBFE_ALGO_SEARCH_ASLEEP	= (1 <<  1),
-	DVBFE_ALGO_SEARCH_FAILED	= (1 <<  2),
-	DVBFE_ALGO_SEARCH_INVALID	= (1 <<  3),
-	DVBFE_ALGO_SEARCH_AGAIN		= (1 <<  4),
-	DVBFE_ALGO_SEARCH_ERROR		= (1 << 31),
+	DVBFE_ALGO_SEARCH_SUCCESS	= BIT(0),
+	DVBFE_ALGO_SEARCH_ASLEEP	= BIT(1),
+	DVBFE_ALGO_SEARCH_FAILED	= BIT(2),
+	DVBFE_ALGO_SEARCH_INVALID	= BIT(3),
+	DVBFE_ALGO_SEARCH_AGAIN		= BIT(4),
+	DVBFE_ALGO_SEARCH_ERROR		= BIT(31),
 };
 
 /**
@@ -204,7 +205,7 @@ enum dvbfe_search {
  * @set_config:		callback function used to send some tuner-specific
  *			parameters.
  * @get_frequency:	get the actual tuned frequency
- * @get_bandwidth:	get the bandwitdh used by the low pass filters
+ * @get_bandwidth:	get the bandwidth used by the low pass filters
  * @get_if_frequency:	get the Intermediate Frequency, in Hz. For baseband,
  *			should return 0.
  * @get_status:		returns the frontend lock status
@@ -232,7 +233,7 @@ struct dvb_tuner_ops {
 	int (*suspend)(struct dvb_frontend *fe);
 	int (*resume)(struct dvb_frontend *fe);
 
-	/* This is the recomended way to set the tuner */
+	/* This is the recommended way to set the tuner */
 	int (*set_params)(struct dvb_frontend *fe);
 	int (*set_analog_params)(struct dvb_frontend *fe, struct analog_parameters *p);
 
@@ -358,11 +359,15 @@ struct dvb_frontend_internal_info {
  * @release:		callback function called when frontend is ready to be
  *			freed.
  *			drivers should free any allocated memory.
- * @release_sec:	callback function requesting that the Satelite Equipment
+ * @release_sec:	callback function requesting that the Satellite Equipment
  *			Control (SEC) driver to release and free any memory
  *			allocated by the driver.
  * @init:		callback function used to initialize the tuner device.
  * @sleep:		callback function used to put the tuner to sleep.
+ * @suspend:		callback function used to inform that the Kernel will
+ *			suspend.
+ * @resume:		callback function used to inform that the Kernel is
+ *			resuming from suspend.
  * @write:		callback function used by some demod legacy drivers to
  *			allow other drivers to write data into their registers.
  *			Should not be used on new drivers.
@@ -442,6 +447,8 @@ struct dvb_frontend_ops {
 
 	int (*init)(struct dvb_frontend* fe);
 	int (*sleep)(struct dvb_frontend* fe);
+	int (*suspend)(struct dvb_frontend *fe);
+	int (*resume)(struct dvb_frontend *fe);
 
 	int (*write)(struct dvb_frontend* fe, const u8 buf[], int len);
 
@@ -754,7 +761,8 @@ void dvb_frontend_detach(struct dvb_frontend *fe);
  * &dvb_frontend_ops.tuner_ops.suspend\(\) is available, it calls it. Otherwise,
  * it will call &dvb_frontend_ops.tuner_ops.sleep\(\), if available.
  *
- * It will also call &dvb_frontend_ops.sleep\(\) to put the demod to suspend.
+ * It will also call &dvb_frontend_ops.suspend\(\) to put the demod to suspend,
+ * if available. Otherwise it will call &dvb_frontend_ops.sleep\(\).
  *
  * The drivers should also call dvb_frontend_suspend\(\) as part of their
  * handler for the &device_driver.suspend\(\).
@@ -768,7 +776,9 @@ int dvb_frontend_suspend(struct dvb_frontend *fe);
  *
  * This function resumes the usual operation of the tuner after resume.
  *
- * In order to resume the frontend, it calls the demod &dvb_frontend_ops.init\(\).
+ * In order to resume the frontend, it calls the demod
+ * &dvb_frontend_ops.resume\(\) if available. Otherwise it calls demod
+ * &dvb_frontend_ops.init\(\).
  *
  * If &dvb_frontend_ops.tuner_ops.resume\(\) is available, It, it calls it.
  * Otherwise,t will call &dvb_frontend_ops.tuner_ops.init\(\), if available.

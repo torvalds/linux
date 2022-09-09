@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * GPIOs and interrupts for Palm Zire72 Handheld Computer
  *
  * Authors:	Alex Osborne <bobofdoom@gmail.com>
  *		Jan Herman <2hp@seznam.cz>
  *		Sergey Lapin <slapin@ossfans.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _INCLUDE_PALMZ72_H_

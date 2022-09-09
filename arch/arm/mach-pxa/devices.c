@@ -4,25 +4,28 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/platform_data/i2c-pxa.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include "udc.h"
 #include <linux/platform_data/usb-pxa3xx-ulpi.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/irda-pxaficp.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/platform_data/media/camera-pxa.h>
-#include <mach/audio.h>
-#include <mach/hardware.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
+#include "regs-ost.h"
+#include "reset.h"
 #include "devices.h"
 #include "generic.h"
 
@@ -634,6 +637,13 @@ static struct platform_device pxa27x_device_camera = {
 
 void __init pxa_set_camera_info(struct pxacamera_platform_data *info)
 {
+	struct clk *mclk;
+
+	/* Register a fixed-rate clock for camera sensors. */
+	mclk = clk_register_fixed_rate(NULL, "pxa_camera_clk", NULL, 0,
+					     info->mclk_10khz * 10000);
+	if (!IS_ERR(mclk))
+		clkdev_create(mclk, "mclk", NULL);
 	pxa_register_device(&pxa27x_device_camera, info);
 }
 
@@ -1065,7 +1075,7 @@ struct platform_device pxa93x_device_gpio = {
 
 /* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1.
  * See comment in arch/arm/mach-pxa/ssp.c::ssp_probe() */
-void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info)
+void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_controller *info)
 {
 	struct platform_device *pd;
 
@@ -1109,4 +1119,13 @@ static struct platform_device pxa2xx_pxa_dma = {
 void __init pxa2xx_set_dmac_info(struct mmp_dma_platdata *dma_pdata)
 {
 	pxa_register_device(&pxa2xx_pxa_dma, dma_pdata);
+}
+
+void __init pxa_register_wdt(unsigned int reset_status)
+{
+	struct resource res = DEFINE_RES_MEM(OST_PHYS, OST_LEN);
+
+	reset_status &= RESET_STATUS_WATCHDOG;
+	platform_device_register_resndata(NULL, "sa1100_wdt", -1, &res, 1,
+					  &reset_status, sizeof(reset_status));
 }

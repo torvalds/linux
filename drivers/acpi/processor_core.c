@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005 Intel Corporation
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
@@ -12,9 +13,6 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <acpi/processor.h>
-
-#define _COMPONENT		ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("processor_core");
 
 static struct acpi_table_madt *get_madt_table(void)
 {

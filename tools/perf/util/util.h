@@ -9,45 +9,30 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
+#ifndef __cplusplus
+#include <internal/cpumap.h>
+#endif
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
 void die(const char *err, ...) __noreturn __printf(1, 2);
 
-static inline void *zalloc(size_t size)
-{
-	return calloc(1, size);
-}
-
-#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
-
 struct dirent;
-struct nsinfo;
 struct strlist;
 
 int mkdir_p(char *path, mode_t mode);
 int rm_rf(const char *path);
+int rm_rf_perf_data(const char *path);
 struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
-int copyfile(const char *from, const char *to);
-int copyfile_mode(const char *from, const char *to, mode_t mode);
-int copyfile_ns(const char *from, const char *to, struct nsinfo *nsi);
-int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size);
-
-ssize_t readn(int fd, void *buf, size_t n);
-ssize_t writen(int fd, const void *buf, size_t n);
 
 size_t hex_width(u64 v);
-int hex2u64(const char *ptr, u64 *val);
-
-extern unsigned int page_size;
-int __pure cacheline_size(void);
 
 int sysctl__max_stack(void);
+
+bool sysctl__nmi_watchdog_enabled(void);
 
 int fetch_kernel_version(unsigned int *puint,
 			 char *str, size_t str_sz);
@@ -57,24 +42,18 @@ int fetch_kernel_version(unsigned int *puint,
 #define KVER_FMT	"%d.%d.%d"
 #define KVER_PARAM(x)	KVER_VERSION(x), KVER_PATCHLEVEL(x), KVER_SUBLEVEL(x)
 
-const char *perf_tip(const char *dirpath);
-
-#ifndef HAVE_GET_CURRENT_DIR_NAME
-char *get_current_dir_name(void);
-#endif
+int perf_tip(char **strp, const char *dirpath);
 
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
-#endif
-
-#ifndef HAVE_SETNS_SUPPORT
-int setns(int fd, int nstype);
 #endif
 
 extern bool perf_singlethreaded;
 
 void perf_set_singlethreaded(void);
 void perf_set_multithreaded(void);
+
+char *perf_exe(char *buf, int len);
 
 #ifndef O_CLOEXEC
 #ifdef __sparc__
@@ -85,5 +64,34 @@ void perf_set_multithreaded(void);
 #define O_CLOEXEC      02000000
 #endif
 #endif
+
+extern bool test_attr__enabled;
+void test_attr__ready(void);
+void test_attr__init(void);
+struct perf_event_attr;
+void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
+		     int fd, int group_fd, unsigned long flags);
+
+struct perf_debuginfod {
+	const char	*urls;
+	bool		 set;
+};
+void perf_debuginfod_setup(struct perf_debuginfod *di);
+
+char *filename_with_chroot(int pid, const char *filename);
+
+int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x,
+			       size_t msz, const void *init_val);
+
+#define realloc_array_as_needed(a, n, x, v) ({			\
+	typeof(x) __x = (x);					\
+	__x >= (n) ?						\
+		do_realloc_array_as_needed((void **)&(a),	\
+					   &(n),		\
+					   __x,			\
+					   sizeof(*(a)),	\
+					   (const void *)(v)) :	\
+		0;						\
+	})
 
 #endif /* GIT_COMPAT_UTIL_H */

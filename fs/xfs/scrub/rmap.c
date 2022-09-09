@@ -9,31 +9,22 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_btree.h"
-#include "xfs_bit.h"
-#include "xfs_log_format.h"
-#include "xfs_trans.h"
-#include "xfs_sb.h"
-#include "xfs_alloc.h"
-#include "xfs_ialloc.h"
 #include "xfs_rmap.h"
 #include "xfs_refcount.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
-#include "scrub/trace.h"
+#include "xfs_ag.h"
 
 /*
  * Set us up to scrub reverse mapping btrees.
  */
 int
 xchk_setup_ag_rmapbt(
-	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_scrub	*sc)
 {
-	return xchk_setup_ag_btree(sc, ip, false);
+	return xchk_setup_ag_btree(sc, false);
 }
 
 /* Reverse-mapping scrubber. */
@@ -97,11 +88,11 @@ xchk_rmapbt_xref(
 STATIC int
 xchk_rmapbt_rec(
 	struct xchk_btree	*bs,
-	union xfs_btree_rec	*rec)
+	const union xfs_btree_rec *rec)
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	struct xfs_rmap_irec	irec;
-	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
+	struct xfs_perag	*pag = bs->cur->bc_ag.pag;
 	bool			non_inode;
 	bool			is_unwritten;
 	bool			is_bmbt;
@@ -130,8 +121,8 @@ xchk_rmapbt_rec(
 		 * Otherwise we must point somewhere past the static metadata
 		 * but before the end of the FS.  Run the regular check.
 		 */
-		if (!xfs_verify_agbno(mp, agno, irec.rm_startblock) ||
-		    !xfs_verify_agbno(mp, agno, irec.rm_startblock +
+		if (!xfs_verify_agbno(pag, irec.rm_startblock) ||
+		    !xfs_verify_agbno(pag, irec.rm_startblock +
 				irec.rm_blockcount - 1))
 			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	}

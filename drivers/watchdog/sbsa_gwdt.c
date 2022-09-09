@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SBSA(Server Base System Architecture) Generic Watchdog driver
  *
@@ -6,15 +7,6 @@
  *         Suravee Suthikulpanit <Suravee.Suthikulpanit@amd.com>
  *         Al Stone <al.stone@linaro.org>
  *         Timur Tabi <timur@codeaurora.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * ARM SBSA Generic Watchdog has two stage timeouts:
  * the first signal (WS0) is for alerting the system by interrupt,
@@ -46,7 +38,6 @@
  * by WOR, in the single stage mode, the timeout is (WOR * 2); in the two
  * stages mode, the timeout is WOR. The maximum timeout in the two stages mode
  * is half of that in the single stage mode.
- *
  */
 
 #include <linux/io.h>
@@ -82,16 +73,21 @@
 #define SBSA_GWDT_WCS_WS0	BIT(1)
 #define SBSA_GWDT_WCS_WS1	BIT(2)
 
+#define SBSA_GWDT_VERSION_MASK  0xF
+#define SBSA_GWDT_VERSION_SHIFT 16
+
 /**
  * struct sbsa_gwdt - Internal representation of the SBSA GWDT
  * @wdd:		kernel watchdog_device structure
  * @clk:		store the System Counter clock frequency, in Hz.
+ * @version:            store the architecture version
  * @refresh_base:	Virtual address of the watchdog refresh frame
  * @control_base:	Virtual address of the watchdog control frame
  */
 struct sbsa_gwdt {
 	struct watchdog_device	wdd;
 	u32			clk;
+	int			version;
 	void __iomem		*refresh_base;
 	void __iomem		*control_base;
 };
@@ -122,6 +118,30 @@ MODULE_PARM_DESC(nowayout,
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
+ * Arm Base System Architecture 1.0 introduces watchdog v1 which
+ * increases the length watchdog offset register to 48 bits.
+ * - For version 0: WOR is 32 bits;
+ * - For version 1: WOR is 48 bits which comprises the register
+ * offset 0x8 and 0xC, and the bits [63:48] are reserved which are
+ * Read-As-Zero and Writes-Ignored.
+ */
+static u64 sbsa_gwdt_reg_read(struct sbsa_gwdt *gwdt)
+{
+	if (gwdt->version == 0)
+		return readl(gwdt->control_base + SBSA_GWDT_WOR);
+	else
+		return lo_hi_readq(gwdt->control_base + SBSA_GWDT_WOR);
+}
+
+static void sbsa_gwdt_reg_write(u64 val, struct sbsa_gwdt *gwdt)
+{
+	if (gwdt->version == 0)
+		writel((u32)val, gwdt->control_base + SBSA_GWDT_WOR);
+	else
+		lo_hi_writeq(val, gwdt->control_base + SBSA_GWDT_WOR);
+}
+
+/*
  * watchdog operation functions
  */
 static int sbsa_gwdt_set_timeout(struct watchdog_device *wdd,
@@ -132,16 +152,14 @@ static int sbsa_gwdt_set_timeout(struct watchdog_device *wdd,
 	wdd->timeout = timeout;
 
 	if (action)
-		writel(gwdt->clk * timeout,
-		       gwdt->control_base + SBSA_GWDT_WOR);
+		sbsa_gwdt_reg_write(gwdt->clk * timeout, gwdt);
 	else
 		/*
 		 * In the single stage mode, The first signal (WS0) is ignored,
 		 * the timeout is (WOR * 2), so the WOR should be configured
 		 * to half value of timeout.
 		 */
-		writel(gwdt->clk / 2 * timeout,
-		       gwdt->control_base + SBSA_GWDT_WOR);
+		sbsa_gwdt_reg_write(gwdt->clk / 2 * timeout, gwdt);
 
 	return 0;
 }
@@ -158,10 +176,10 @@ static unsigned int sbsa_gwdt_get_timeleft(struct watchdog_device *wdd)
 	 */
 	if (!action &&
 	    !(readl(gwdt->control_base + SBSA_GWDT_WCS) & SBSA_GWDT_WCS_WS0))
-		timeleft += readl(gwdt->control_base + SBSA_GWDT_WOR);
+		timeleft += sbsa_gwdt_reg_read(gwdt);
 
 	timeleft += lo_hi_readq(gwdt->control_base + SBSA_GWDT_WCV) -
-		    arch_counter_get_cntvct();
+		    arch_timer_read_counter();
 
 	do_div(timeleft, gwdt->clk);
 
@@ -179,6 +197,17 @@ static int sbsa_gwdt_keepalive(struct watchdog_device *wdd)
 	writel(0, gwdt->refresh_base + SBSA_GWDT_WRR);
 
 	return 0;
+}
+
+static void sbsa_gwdt_get_version(struct watchdog_device *wdd)
+{
+	struct sbsa_gwdt *gwdt = watchdog_get_drvdata(wdd);
+	int ver;
+
+	ver = readl(gwdt->control_base + SBSA_GWDT_W_IIDR);
+	ver = (ver >> SBSA_GWDT_VERSION_SHIFT) & SBSA_GWDT_VERSION_MASK;
+
+	gwdt->version = ver;
 }
 
 static int sbsa_gwdt_start(struct watchdog_device *wdd)
@@ -231,7 +260,6 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdd;
 	struct sbsa_gwdt *gwdt;
-	struct resource *res;
 	int ret, irq;
 	u32 status;
 
@@ -240,13 +268,11 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, gwdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cf_base = devm_ioremap_resource(dev, res);
+	cf_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cf_base))
 		return PTR_ERR(cf_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	rf_base = devm_ioremap_resource(dev, res);
+	rf_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(rf_base))
 		return PTR_ERR(rf_base);
 
@@ -264,10 +290,14 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	wdd->info = &sbsa_gwdt_info;
 	wdd->ops = &sbsa_gwdt_ops;
 	wdd->min_timeout = 1;
-	wdd->max_hw_heartbeat_ms = U32_MAX / gwdt->clk * 1000;
 	wdd->timeout = DEFAULT_TIMEOUT;
 	watchdog_set_drvdata(wdd, gwdt);
 	watchdog_set_nowayout(wdd, nowayout);
+	sbsa_gwdt_get_version(wdd);
+	if (gwdt->version == 0)
+		wdd->max_hw_heartbeat_ms = U32_MAX / gwdt->clk * 1000;
+	else
+		wdd->max_hw_heartbeat_ms = GENMASK_ULL(47, 0) / gwdt->clk * 1000;
 
 	status = readl(cf_base + SBSA_GWDT_WCS);
 	if (status & SBSA_GWDT_WCS_WS1) {
@@ -313,29 +343,14 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	 */
 	sbsa_gwdt_set_timeout(wdd, wdd->timeout);
 
-	ret = watchdog_register_device(wdd);
+	watchdog_stop_on_reboot(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret)
 		return ret;
 
 	dev_info(dev, "Initialized with %ds timeout @ %u Hz, action=%d.%s\n",
 		 wdd->timeout, gwdt->clk, action,
 		 status & SBSA_GWDT_WCS_EN ? " [enabled]" : "");
-
-	return 0;
-}
-
-static void sbsa_gwdt_shutdown(struct platform_device *pdev)
-{
-	struct sbsa_gwdt *gwdt = platform_get_drvdata(pdev);
-
-	sbsa_gwdt_stop(&gwdt->wdd);
-}
-
-static int sbsa_gwdt_remove(struct platform_device *pdev)
-{
-	struct sbsa_gwdt *gwdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&gwdt->wdd);
 
 	return 0;
 }
@@ -385,8 +400,6 @@ static struct platform_driver sbsa_gwdt_driver = {
 		.of_match_table = sbsa_gwdt_of_match,
 	},
 	.probe = sbsa_gwdt_probe,
-	.remove = sbsa_gwdt_remove,
-	.shutdown = sbsa_gwdt_shutdown,
 	.id_table = sbsa_gwdt_pdev_match,
 };
 
@@ -398,4 +411,3 @@ MODULE_AUTHOR("Suravee Suthikulpanit <Suravee.Suthikulpanit@amd.com>");
 MODULE_AUTHOR("Al Stone <al.stone@linaro.org>");
 MODULE_AUTHOR("Timur Tabi <timur@codeaurora.org>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:" DRV_NAME);

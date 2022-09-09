@@ -14,7 +14,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma/dw.h>
 
-#include "8250.h"
+#include "8250_dwlib.h"
 
 #define PCI_DEVICE_ID_INTEL_QRK_UARTx	0x0936
 
@@ -23,6 +23,13 @@
 
 #define PCI_DEVICE_ID_INTEL_BSW_UART1	0x228a
 #define PCI_DEVICE_ID_INTEL_BSW_UART2	0x228c
+
+#define PCI_DEVICE_ID_INTEL_EHL_UART0	0x4b96
+#define PCI_DEVICE_ID_INTEL_EHL_UART1	0x4b97
+#define PCI_DEVICE_ID_INTEL_EHL_UART2	0x4b98
+#define PCI_DEVICE_ID_INTEL_EHL_UART3	0x4b99
+#define PCI_DEVICE_ID_INTEL_EHL_UART4	0x4b9a
+#define PCI_DEVICE_ID_INTEL_EHL_UART5	0x4b9b
 
 #define PCI_DEVICE_ID_INTEL_BDW_UART1	0x9ce3
 #define PCI_DEVICE_ID_INTEL_BDW_UART2	0x9ce4
@@ -48,21 +55,25 @@ struct lpss8250_board {
 };
 
 struct lpss8250 {
-	int line;
+	struct dw8250_port_data data;
 	struct lpss8250_board *board;
 
 	/* DMA parameters */
-	struct uart_8250_dma dma;
 	struct dw_dma_chip dma_chip;
 	struct dw_dma_slave dma_param;
 	u8 dma_maxburst;
 };
 
+static inline struct lpss8250 *to_lpss8250(struct dw8250_port_data *data)
+{
+	return container_of(data, struct lpss8250, data);
+}
+
 static void byt_set_termios(struct uart_port *p, struct ktermios *termios,
 			    struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
-	struct lpss8250 *lpss = p->private_data;
+	struct lpss8250 *lpss = to_lpss8250(p->private_data);
 	unsigned long fref = lpss->board->freq, fuart = baud * 16;
 	unsigned long w = BIT(15) - 1;
 	unsigned long m, n;
@@ -89,11 +100,7 @@ static void byt_set_termios(struct uart_port *p, struct ktermios *termios,
 	reg |= BYT_PRV_CLK_EN | BYT_PRV_CLK_UPDATE;
 	writel(reg, p->membase + BYT_PRV_CLK);
 
-	p->status &= ~UPSTAT_AUTOCTS;
-	if (termios->c_cflag & CRTSCTS)
-		p->status |= UPSTAT_AUTOCTS;
-
-	serial8250_do_set_termios(p, termios, old);
+	dw8250_do_set_termios(p, termios, old);
 }
 
 static unsigned int byt_get_mctrl(struct uart_port *port)
@@ -109,10 +116,8 @@ static unsigned int byt_get_mctrl(struct uart_port *port)
 static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
 	struct dw_dma_slave *param = &lpss->dma_param;
-	struct uart_8250_port *up = up_to_u8250p(port);
 	struct pci_dev *pdev = to_pci_dev(port->dev);
-	unsigned int dma_devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
-	struct pci_dev *dma_dev = pci_get_slot(pdev->bus, dma_devfn);
+	struct pci_dev *dma_dev;
 
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_BYT_UART1:
@@ -131,13 +136,11 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 		return -EINVAL;
 	}
 
+	dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
+
 	param->dma_dev = &dma_dev->dev;
 	param->m_master = 0;
 	param->p_master = 1;
-
-	/* TODO: Detect FIFO size automaticaly for DesignWare 8250 */
-	port->fifosize = 64;
-	up->tx_loadsz = 64;
 
 	lpss->dma_maxburst = 16;
 
@@ -150,10 +153,42 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	return 0;
 }
 
+static void byt_serial_exit(struct lpss8250 *lpss)
+{
+	struct dw_dma_slave *param = &lpss->dma_param;
+
+	/* Paired with pci_get_slot() in the byt_serial_setup() above */
+	put_device(param->dma_dev);
+}
+
+static int ehl_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
+{
+	struct uart_8250_dma *dma = &lpss->data.dma;
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	/*
+	 * This simply makes the checks in the 8250_port to try the DMA
+	 * channel request which in turn uses the magic of ACPI tables
+	 * parsing (see drivers/dma/acpi-dma.c for the details) and
+	 * matching with the registered General Purpose DMA controllers.
+	 */
+	up->dma = dma;
+
+	port->set_termios = dw8250_do_set_termios;
+
+	return 0;
+}
+
+static void ehl_serial_exit(struct lpss8250 *lpss)
+{
+	struct uart_8250_port *up = serial8250_get_port(lpss->data.line);
+
+	up->dma = NULL;
+}
+
 #ifdef CONFIG_SERIAL_8250_DMA
 static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
 	.nr_channels = 2,
-	.is_private = true,
 	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
 	.chan_priority = CHAN_PRIORITY_ASCENDING,
 	.block_size = 4095,
@@ -164,16 +199,19 @@ static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
 
 static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 {
-	struct uart_8250_dma *dma = &lpss->dma;
+	struct uart_8250_dma *dma = &lpss->data.dma;
 	struct dw_dma_chip *chip = &lpss->dma_chip;
 	struct dw_dma_slave *param = &lpss->dma_param;
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	int ret;
 
+	chip->pdata = &qrk_serial_dma_pdata;
 	chip->dev = &pdev->dev;
+	chip->id = pdev->devfn;
 	chip->irq = pci_irq_vector(pdev, 0);
 	chip->regs = pci_ioremap_bar(pdev, 1);
-	chip->pdata = &qrk_serial_dma_pdata;
+	if (!chip->regs)
+		return;
 
 	/* Falling back to PIO mode if DMA probing fails */
 	ret = dw_dma_probe(chip);
@@ -196,11 +234,15 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 
 static void qrk_serial_exit_dma(struct lpss8250 *lpss)
 {
+	struct dw_dma_chip *chip = &lpss->dma_chip;
 	struct dw_dma_slave *param = &lpss->dma_param;
 
 	if (!param->dma_dev)
 		return;
-	dw_dma_remove(&lpss->dma_chip);
+
+	dw_dma_remove(chip);
+
+	pci_iounmap(to_pci_dev(chip->dev), chip->regs);
 }
 #else	/* CONFIG_SERIAL_8250_DMA */
 static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port) {}
@@ -209,17 +251,6 @@ static void qrk_serial_exit_dma(struct lpss8250 *lpss) {}
 
 static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
-	struct pci_dev *pdev = to_pci_dev(port->dev);
-	int ret;
-
-	pci_set_master(pdev);
-
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
-	if (ret < 0)
-		return ret;
-
-	port->irq = pci_irq_vector(pdev, 0);
-
 	qrk_serial_setup_dma(lpss, port);
 	return 0;
 }
@@ -242,7 +273,7 @@ static bool lpss8250_dma_filter(struct dma_chan *chan, void *param)
 
 static int lpss8250_dma_setup(struct lpss8250 *lpss, struct uart_8250_port *port)
 {
-	struct uart_8250_dma *dma = &lpss->dma;
+	struct uart_8250_dma *dma = &lpss->data.dma;
 	struct dw_dma_slave *rx_param, *tx_param;
 	struct device *dev = port->port.dev;
 
@@ -281,19 +312,25 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
+	pci_set_master(pdev);
+
 	lpss = devm_kzalloc(&pdev->dev, sizeof(*lpss), GFP_KERNEL);
 	if (!lpss)
 		return -ENOMEM;
+
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		return ret;
 
 	lpss->board = (struct lpss8250_board *)id->driver_data;
 
 	memset(&uart, 0, sizeof(struct uart_8250_port));
 
 	uart.port.dev = &pdev->dev;
-	uart.port.irq = pdev->irq;
-	uart.port.private_data = lpss;
+	uart.port.irq = pci_irq_vector(pdev, 0);
+	uart.port.private_data = &lpss->data;
 	uart.port.type = PORT_16550A;
-	uart.port.iotype = UPIO_MEM;
+	uart.port.iotype = UPIO_MEM32;
 	uart.port.regshift = 2;
 	uart.port.uartclk = lpss->board->base_baud * 16;
 	uart.port.flags = UPF_SHARE_IRQ | UPF_FIXED_PORT | UPF_FIXED_TYPE;
@@ -307,6 +344,8 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
+	dw8250_setup_port(&uart.port);
+
 	ret = lpss8250_dma_setup(lpss, &uart);
 	if (ret)
 		goto err_exit;
@@ -315,14 +354,14 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0)
 		goto err_exit;
 
-	lpss->line = ret;
+	lpss->data.line = ret;
 
 	pci_set_drvdata(pdev, lpss);
 	return 0;
 
 err_exit:
-	if (lpss->board->exit)
-		lpss->board->exit(lpss);
+	lpss->board->exit(lpss);
+	pci_free_irq_vectors(pdev);
 	return ret;
 }
 
@@ -330,16 +369,24 @@ static void lpss8250_remove(struct pci_dev *pdev)
 {
 	struct lpss8250 *lpss = pci_get_drvdata(pdev);
 
-	serial8250_unregister_port(lpss->line);
+	serial8250_unregister_port(lpss->data.line);
 
-	if (lpss->board->exit)
-		lpss->board->exit(lpss);
+	lpss->board->exit(lpss);
+	pci_free_irq_vectors(pdev);
 }
 
 static const struct lpss8250_board byt_board = {
 	.freq = 100000000,
 	.base_baud = 2764800,
 	.setup = byt_serial_setup,
+	.exit = byt_serial_exit,
+};
+
+static const struct lpss8250_board ehl_board = {
+	.freq = 200000000,
+	.base_baud = 12500000,
+	.setup = ehl_serial_setup,
+	.exit = ehl_serial_exit,
 };
 
 static const struct lpss8250_board qrk_board = {
@@ -349,17 +396,21 @@ static const struct lpss8250_board qrk_board = {
 	.exit = qrk_serial_exit,
 };
 
-#define LPSS_DEVICE(id, board) { PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&board }
-
 static const struct pci_device_id pci_ids[] = {
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_QRK_UARTx, qrk_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BYT_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BYT_UART2, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BSW_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BSW_UART2, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BDW_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BDW_UART2, byt_board),
-	{ },
+	{ PCI_DEVICE_DATA(INTEL, QRK_UARTx, &qrk_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART0, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART1, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART2, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART3, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART4, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART5, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, BYT_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BYT_UART2, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BSW_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BSW_UART2, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BDW_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BDW_UART2, &byt_board) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
 

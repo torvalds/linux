@@ -1,8 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Video configuration
 #
 
 menu "Graphics support"
+
+config APERTURE_HELPERS
+	bool
+	help
+	  Support tracking and hand-over of aperture ownership. Required
+	  by graphics drivers for firmware-provided framebuffers.
 
 if HAS_IOMEM
 

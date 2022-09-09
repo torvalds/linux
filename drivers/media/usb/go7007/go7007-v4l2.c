@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2006 Micronas USA Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -287,48 +279,28 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(cap->driver, "go7007", sizeof(cap->driver));
 	strscpy(cap->card, go->name, sizeof(cap->card));
 	strscpy(cap->bus_info, go->bus_info, sizeof(cap->bus_info));
-
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
-				V4L2_CAP_STREAMING;
-
-	if (go->board_info->num_aud_inputs)
-		cap->device_caps |= V4L2_CAP_AUDIO;
-	if (go->board_info->flags & GO7007_BOARD_HAS_TUNER)
-		cap->device_caps |= V4L2_CAP_TUNER;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *fmt)
 {
-	char *desc = NULL;
-
 	switch (fmt->index) {
 	case 0:
 		fmt->pixelformat = V4L2_PIX_FMT_MJPEG;
-		desc = "Motion JPEG";
 		break;
 	case 1:
 		fmt->pixelformat = V4L2_PIX_FMT_MPEG1;
-		desc = "MPEG-1 ES";
 		break;
 	case 2:
 		fmt->pixelformat = V4L2_PIX_FMT_MPEG2;
-		desc = "MPEG-2 ES";
 		break;
 	case 3:
 		fmt->pixelformat = V4L2_PIX_FMT_MPEG4;
-		desc = "MPEG-4 ES";
 		break;
 	default:
 		return -EINVAL;
 	}
-	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	fmt->flags = V4L2_FMT_FLAG_COMPRESSED;
-
-	strncpy(fmt->description, desc, sizeof(fmt->description));
-
 	return 0;
 }
 
@@ -1122,6 +1094,12 @@ int go7007_v4l2_init(struct go7007 *go)
 	*vdev = go7007_template;
 	vdev->lock = &go->serialize_lock;
 	vdev->queue = &go->vidq;
+	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			    V4L2_CAP_STREAMING;
+	if (go->board_info->num_aud_inputs)
+		vdev->device_caps |= V4L2_CAP_AUDIO;
+	if (go->board_info->flags & GO7007_BOARD_HAS_TUNER)
+		vdev->device_caps |= V4L2_CAP_TUNER;
 	video_set_drvdata(vdev, go);
 	vdev->v4l2_dev = &go->v4l2_dev;
 	if (!v4l2_device_has_op(&go->v4l2_dev, 0, video, querystd))
@@ -1160,7 +1138,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	go7007_s_input(go);
 	if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
 		go7007_s_std(go);
-	rv = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	rv = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (rv < 0)
 		return rv;
 	dev_info(go->dev, "registered device %s [v4l2]\n",

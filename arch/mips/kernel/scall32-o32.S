@@ -19,7 +19,6 @@
 #include <asm/sysmips.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/war.h>
 #include <asm/asm-offsets.h>
 
 	.align	5
@@ -48,10 +47,8 @@ NESTED(handle_sys, PT_SIZE, sp)
 	 * We intentionally keep the kernel stack a little below the top of
 	 * userspace so we don't have to do a slower byte accurate check here.
 	 */
-	lw	t5, TI_ADDR_LIMIT($28)
 	addu	t4, t0, 32
-	and	t5, t4
-	bltz	t5, bad_stack		# -> sp is bad
+	bltz	t4, bad_stack		# -> sp is bad
 
 	/*
 	 * Ok, copy the args from the luser stack to the kernel stack.
@@ -74,10 +71,10 @@ loads_done:
 	.set	pop
 
 	.section __ex_table,"a"
-	PTR	load_a4, bad_stack_a4
-	PTR	load_a5, bad_stack_a5
-	PTR	load_a6, bad_stack_a6
-	PTR	load_a7, bad_stack_a7
+	PTR_WD	load_a4, bad_stack_a4
+	PTR_WD	load_a5, bad_stack_a5
+	PTR_WD	load_a6, bad_stack_a6
+	PTR_WD	load_a7, bad_stack_a7
 	.previous
 
 	lw	t0, TI_FLAGS($28)	# syscall tracing enabled?
@@ -217,9 +214,9 @@ einval: li	v0, -ENOSYS
 #define sys_sched_getaffinity	mipsmt_sys_sched_getaffinity
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
-#define __SYSCALL(nr, entry, nargs)	PTR entry
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
+#define __SYSCALL(nr, entry) 	PTR_WD entry
 	.align	2
 	.type	sys_call_table, @object
 EXPORT(sys_call_table)
-#include <asm/syscall_table_32_o32.h>
-#undef __SYSCALL
+#include <asm/syscall_table_o32.h>

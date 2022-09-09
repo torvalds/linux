@@ -11,6 +11,11 @@
 	model = "Rockchip PX3-EVB";
 	compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
 
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &emmc;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
@@ -24,7 +29,7 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		power {
+		key-power {
 			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
@@ -62,7 +67,6 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	disable-wp;
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_rst>;
@@ -208,7 +212,7 @@
 				regulator-name = "wl_18";
 			};
 
-			lcd_33: SWITCH_REG1 {
+			lcd_33: SWITCH_REG {
 				regulator-name = "lcd_33";
 			};
 		};
@@ -248,10 +252,10 @@
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <2 31 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

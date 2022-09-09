@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/partition.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Partition
+
+description: |
+  This binding describes a single flash partition. Each partition must have its
+  relative offset and size specified. Depending on partition function extra
+  properties can be used.
+
+  A partition may be dynamically allocated by a specific parser at runtime.
+  In this specific case, a specific suffix is required to the node name.
+  Everything after 'partition-' will be used as the partition name to compare
+  with the one dynamically allocated by the specific parser.
+  If the partition contains invalid char a label can be provided that will
+  be used instead of the node name to make the comparison.
+  This is used to assign an OF node to the dynamiccally allocated partition
+  so that subsystem like NVMEM can provide an OF node and declare NVMEM cells.
+  The OF node will be assigned only if the partition label declared match the
+  one assigned by the parser at runtime.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  reg:
+    description: partition's offset and size within the flash
+    maxItems: 1
+
+  label:
+    description: The label / name for this partition. If omitted, the label
+      is taken from the node name (excluding the unit address).
+
+  read-only:
+    description: This parameter, if present, is a hint that this partition
+      should only be mounted read-only. This is usually used for flash
+      partitions containing early-boot firmware images or data which should
+      not be clobbered.
+    type: boolean
+
+  lock:
+    description: Do not unlock the partition at initialization time (not
+      supported on all devices)
+    type: boolean
+
+  slc-mode:
+    description: This parameter, if present, allows one to emulate SLC mode
+      on a partition attached to an MLC NAND thus making this partition
+      immune to paired-pages corruptions
+    type: boolean
+
+if:
+  not:
+    required: [ reg ]
+then:
+  properties:
+    $nodename:
+      pattern: '^partition-.*$'
+
+additionalProperties: true

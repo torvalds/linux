@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-palmte.c
  *
@@ -11,10 +12,6 @@
  *                palmtelinux-developpers@lists.sf.net
  *
  * Copyright (c) 2006 Andrzej Zaborowski  <balrog@zabor.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -28,21 +25,19 @@
 #include <linux/interrupt.h>
 #include <linux/apm-emulation.h>
 #include <linux/omapfb.h>
+#include <linux/omap-dma.h>
+#include <linux/platform_data/keypad-omap.h>
 #include <linux/platform_data/omap1_bl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include "tc.h"
 #include "flash.h"
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <linux/omap-dma.h>
-#include <linux/platform_data/keypad-omap.h>
-
-#include <mach/hardware.h>
-#include <mach/usb.h>
-
+#include "mux.h"
+#include "hardware.h"
+#include "usb.h"
 #include "mmc.h"
 #include "common.h"
 

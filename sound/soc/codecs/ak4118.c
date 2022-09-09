@@ -6,6 +6,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -150,8 +151,8 @@ static const struct snd_soc_dapm_route ak4118_dapm_routes[] = {
 };
 
 
-static int ak4118_set_dai_fmt_master(struct ak4118_priv *ak4118,
-				     unsigned int format)
+static int ak4118_set_dai_fmt_provider(struct ak4118_priv *ak4118,
+				       unsigned int format)
 {
 	int dif;
 
@@ -172,8 +173,8 @@ static int ak4118_set_dai_fmt_master(struct ak4118_priv *ak4118,
 	return dif;
 }
 
-static int ak4118_set_dai_fmt_slave(struct ak4118_priv *ak4118,
-				    unsigned int format)
+static int ak4118_set_dai_fmt_consumer(struct ak4118_priv *ak4118,
+				       unsigned int format)
 {
 	int dif;
 
@@ -200,14 +201,12 @@ static int ak4118_set_dai_fmt(struct snd_soc_dai *dai,
 	int dif;
 	int ret = 0;
 
-	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		/* component is master */
-		dif = ak4118_set_dai_fmt_master(ak4118, format);
+	switch (format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		dif = ak4118_set_dai_fmt_provider(ak4118, format);
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		/*component is slave */
-		dif = ak4118_set_dai_fmt_slave(ak4118, format);
+	case SND_SOC_DAIFMT_CBC_CFC:
+		dif = ak4118_set_dai_fmt_consumer(ak4118, format);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -343,7 +342,6 @@ static const struct snd_soc_component_driver soc_component_drv_ak4118 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4118_regmap = {
@@ -357,8 +355,7 @@ static const struct regmap_config ak4118_regmap = {
 	.max_register = AK4118_REG_MAX - 1,
 };
 
-static int ak4118_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int ak4118_i2c_probe(struct i2c_client *i2c)
 {
 	struct ak4118_priv *ak4118;
 	int ret;
@@ -375,20 +372,14 @@ static int ak4118_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, ak4118);
 
 	ak4118->reset = devm_gpiod_get(&i2c->dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(ak4118->reset)) {
-		ret = PTR_ERR(ak4118->reset);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&i2c->dev, "Failed to get reset: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(ak4118->reset))
+		return dev_err_probe(&i2c->dev, PTR_ERR(ak4118->reset),
+				     "Failed to get reset\n");
 
 	ak4118->irq = devm_gpiod_get(&i2c->dev, "irq", GPIOD_IN);
-	if (IS_ERR(ak4118->irq)) {
-		ret = PTR_ERR(ak4118->irq);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&i2c->dev, "Failed to get IRQ: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(ak4118->irq))
+		return dev_err_probe(&i2c->dev, PTR_ERR(ak4118->irq),
+				     "Failed to get IRQ\n");
 
 	ret = devm_request_threaded_irq(&i2c->dev, gpiod_to_irq(ak4118->irq),
 					NULL, ak4118_irq_handler,
@@ -399,21 +390,17 @@ static int ak4118_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	return snd_soc_register_component(&i2c->dev, &soc_component_drv_ak4118,
-					  &ak4118_dai, 1);
+	return devm_snd_soc_register_component(&i2c->dev,
+				&soc_component_drv_ak4118, &ak4118_dai, 1);
 }
 
-static int ak4118_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_component(&i2c->dev);
-	return 0;
-}
-
+#ifdef CONFIG_OF
 static const struct of_device_id ak4118_of_match[] = {
 	{ .compatible = "asahi-kasei,ak4118", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ak4118_of_match);
+#endif
 
 static const struct i2c_device_id ak4118_id_table[] = {
 	{ "ak4118", 0 },
@@ -427,8 +414,7 @@ static struct i2c_driver ak4118_i2c_driver = {
 		.of_match_table = of_match_ptr(ak4118_of_match),
 	},
 	.id_table = ak4118_id_table,
-	.probe  = ak4118_i2c_probe,
-	.remove = ak4118_i2c_remove,
+	.probe_new = ak4118_i2c_probe,
 };
 
 module_i2c_driver(ak4118_i2c_driver);

@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
     buffer queues.
     Copyright (C) 2003-2004  Kevin Thayer <nufan_wfk at yahoo.com>
     Copyright (C) 2004  Chris Kennedy <c@groovy.org>
     Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef IVTV_QUEUE_H
@@ -29,20 +17,20 @@
 
 static inline int ivtv_might_use_pio(struct ivtv_stream *s)
 {
-	return s->dma == PCI_DMA_NONE || (SLICED_VBI_PIO && s->type == IVTV_ENC_STREAM_TYPE_VBI);
+	return s->dma == DMA_NONE || (SLICED_VBI_PIO && s->type == IVTV_ENC_STREAM_TYPE_VBI);
 }
 
 static inline int ivtv_use_pio(struct ivtv_stream *s)
 {
 	struct ivtv *itv = s->itv;
 
-	return s->dma == PCI_DMA_NONE ||
+	return s->dma == DMA_NONE ||
 	    (SLICED_VBI_PIO && s->type == IVTV_ENC_STREAM_TYPE_VBI && itv->vbi.sliced_in->service_set);
 }
 
 static inline int ivtv_might_use_dma(struct ivtv_stream *s)
 {
-	return s->dma != PCI_DMA_NONE;
+	return s->dma != DMA_NONE;
 }
 
 static inline int ivtv_use_dma(struct ivtv_stream *s)
@@ -53,15 +41,16 @@ static inline int ivtv_use_dma(struct ivtv_stream *s)
 static inline void ivtv_buf_sync_for_cpu(struct ivtv_stream *s, struct ivtv_buffer *buf)
 {
 	if (ivtv_use_dma(s))
-		pci_dma_sync_single_for_cpu(s->itv->pdev, buf->dma_handle,
-				s->buf_size + 256, s->dma);
+		dma_sync_single_for_cpu(&s->itv->pdev->dev, buf->dma_handle,
+					s->buf_size + 256, s->dma);
 }
 
 static inline void ivtv_buf_sync_for_device(struct ivtv_stream *s, struct ivtv_buffer *buf)
 {
 	if (ivtv_use_dma(s))
-		pci_dma_sync_single_for_device(s->itv->pdev, buf->dma_handle,
-				s->buf_size + 256, s->dma);
+		dma_sync_single_for_device(&s->itv->pdev->dev,
+					   buf->dma_handle, s->buf_size + 256,
+					   s->dma);
 }
 
 int ivtv_buf_copy_from_user(struct ivtv_stream *s, struct ivtv_buffer *buf, const char __user *src, int copybytes);
@@ -82,15 +71,17 @@ void ivtv_stream_free(struct ivtv_stream *s);
 static inline void ivtv_stream_sync_for_cpu(struct ivtv_stream *s)
 {
 	if (ivtv_use_dma(s))
-		pci_dma_sync_single_for_cpu(s->itv->pdev, s->sg_handle,
-			sizeof(struct ivtv_sg_element), PCI_DMA_TODEVICE);
+		dma_sync_single_for_cpu(&s->itv->pdev->dev, s->sg_handle,
+					sizeof(struct ivtv_sg_element),
+					DMA_TO_DEVICE);
 }
 
 static inline void ivtv_stream_sync_for_device(struct ivtv_stream *s)
 {
 	if (ivtv_use_dma(s))
-		pci_dma_sync_single_for_device(s->itv->pdev, s->sg_handle,
-			sizeof(struct ivtv_sg_element), PCI_DMA_TODEVICE);
+		dma_sync_single_for_device(&s->itv->pdev->dev, s->sg_handle,
+					   sizeof(struct ivtv_sg_element),
+					   DMA_TO_DEVICE);
 }
 
 #endif

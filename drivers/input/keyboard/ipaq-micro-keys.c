@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * h3600 atmel micro companion support, key subdevice
  * based on previous kernel 2.4 version
  * Author : Alessandro Gardich <gremlin@gremlin.it>
  * Author : Linus Walleij <linus.walleij@linaro.org>
- *
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -143,7 +140,7 @@ static int __maybe_unused micro_key_resume(struct device *dev)
 
 	mutex_lock(&input->mutex);
 
-	if (input->users)
+	if (input_device_enabled(input))
 		micro_key_start(keys);
 
 	mutex_unlock(&input->mutex);

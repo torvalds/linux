@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Modern ConfigFS group context specific iSCSI statistics based on original
  * iscsi_target_mib.c code
@@ -6,15 +7,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <linux/configfs.h>
@@ -36,7 +28,6 @@
 /* Instance Attributes Table */
 #define ISCSI_INST_NUM_NODES		1
 #define ISCSI_INST_DESCR		"Storage Engine Target"
-#define ISCSI_INST_LAST_FAILURE_TYPE	0
 #define ISCSI_DISCONTINUITY_TIME	0
 
 #define ISCSI_NODE_INDEX		1
@@ -608,7 +599,7 @@ static ssize_t iscsi_stat_sess_node_show(struct config_item *item, char *page)
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 
@@ -629,7 +620,7 @@ static ssize_t iscsi_stat_sess_indx_show(struct config_item *item, char *page)
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 
@@ -651,7 +642,7 @@ static ssize_t iscsi_stat_sess_cmd_pdus_show(struct config_item *item,
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 
@@ -673,7 +664,7 @@ static ssize_t iscsi_stat_sess_rsp_pdus_show(struct config_item *item,
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 
@@ -695,7 +686,7 @@ static ssize_t iscsi_stat_sess_txdata_octs_show(struct config_item *item,
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 
@@ -717,7 +708,7 @@ static ssize_t iscsi_stat_sess_rxdata_octs_show(struct config_item *item,
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 
@@ -739,7 +730,7 @@ static ssize_t iscsi_stat_sess_conn_digest_errors_show(struct config_item *item,
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 
@@ -761,7 +752,7 @@ static ssize_t iscsi_stat_sess_conn_timeout_errors_show(
 {
 	struct iscsi_node_acl *acl = iscsi_stat_nacl(item);
 	struct se_node_acl *se_nacl = &acl->se_node_acl;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_session *se_sess;
 	ssize_t ret = 0;
 

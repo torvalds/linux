@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_OS_H__
 #define __NVKM_OS_H__
 #include <nvif/os.h>
@@ -21,4 +21,17 @@
 	iowrite32_native(lower_32_bits(_v), &_p[0]);			       \
 	iowrite32_native(upper_32_bits(_v), &_p[1]);			       \
 } while(0)
+
+struct nvkm_blob {
+	void *data;
+	u32 size;
+};
+
+static inline void
+nvkm_blob_dtor(struct nvkm_blob *blob)
+{
+	kfree(blob->data);
+	blob->data = NULL;
+	blob->size = 0;
+}
 #endif

@@ -1,7 +1,7 @@
 C MP+poonceonces
 
 (*
- * Result: Maybe
+ * Result: Sometimes
  *
  * Can the counter-intuitive message-passing outcome be prevented with
  * no ordering at all?
@@ -9,19 +9,19 @@ C MP+poonceonces
 
 {}
 
-P0(int *x, int *y)
+P0(int *buf, int *flag) // Producer
 {
-	WRITE_ONCE(*x, 1);
-	WRITE_ONCE(*y, 1);
+	WRITE_ONCE(*buf, 1);
+	WRITE_ONCE(*flag, 1);
 }
 
-P1(int *x, int *y)
+P1(int *buf, int *flag) // Consumer
 {
 	int r0;
 	int r1;
 
-	r0 = READ_ONCE(*y);
-	r1 = READ_ONCE(*x);
+	r0 = READ_ONCE(*flag);
+	r1 = READ_ONCE(*buf);
 }
 
-exists (1:r0=1 /\ 1:r1=0)
+exists (1:r0=1 /\ 1:r1=0) (* Bad outcome. *)

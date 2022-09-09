@@ -19,6 +19,7 @@ SUB_DIRS = alignment		\
 	   copyloops		\
 	   dscr			\
 	   mm			\
+	   nx-gzip		\
 	   pmu			\
 	   signal		\
 	   primitives		\
@@ -26,10 +27,13 @@ SUB_DIRS = alignment		\
 	   switch_endian	\
 	   syscalls		\
 	   tm			\
+	   eeh			\
 	   vphn         \
 	   math		\
+	   papr_attributes	\
 	   ptrace	\
-	   security
+	   security	\
+	   mce
 
 endif
 

@@ -1,25 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics accelerometers driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
-#include <linux/property.h>
 
 #include <linux/iio/common/st_sensors_i2c.h>
 #include "st_accel.h"
 
-#ifdef CONFIG_OF
 static const struct of_device_id st_accel_of_match[] = {
 	{
 		/* An older compatible */
@@ -102,22 +99,33 @@ static const struct of_device_id st_accel_of_match[] = {
 		.compatible = "st,lis3de",
 		.data = LIS3DE_ACCEL_DEV_NAME,
 	},
+	{
+		.compatible = "st,lis2de12",
+		.data = LIS2DE12_ACCEL_DEV_NAME,
+	},
+	{
+		.compatible = "st,lis2hh12",
+		.data = LIS2HH12_ACCEL_DEV_NAME,
+	},
+	{
+		.compatible = "st,lis302dl",
+		.data = LIS302DL_ACCEL_DEV_NAME,
+	},
+	{
+		.compatible = "silan,sc7a20",
+		.data = SC7A20_ACCEL_DEV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_accel_of_match);
-#else
-#define st_accel_of_match NULL
-#endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id st_accel_acpi_match[] = {
-	{"SMO8840", (kernel_ulong_t)LNG2DM_ACCEL_DEV_NAME},
+	{"SMO8840", (kernel_ulong_t)LIS2DH12_ACCEL_DEV_NAME},
 	{"SMO8A90", (kernel_ulong_t)LNG2DM_ACCEL_DEV_NAME},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, st_accel_acpi_match);
-#else
-#define st_accel_acpi_match NULL
 #endif
 
 static const struct i2c_device_id st_accel_id_table[] = {
@@ -140,51 +148,55 @@ static const struct i2c_device_id st_accel_id_table[] = {
 	{ LIS3LV02DL_ACCEL_DEV_NAME },
 	{ LIS2DW12_ACCEL_DEV_NAME },
 	{ LIS3DE_ACCEL_DEV_NAME },
+	{ LIS2DE12_ACCEL_DEV_NAME },
+	{ LIS2HH12_ACCEL_DEV_NAME },
+	{ LIS302DL_ACCEL_DEV_NAME },
+	{ SC7A20_ACCEL_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_accel_id_table);
 
 static int st_accel_i2c_probe(struct i2c_client *client)
 {
-	struct iio_dev *indio_dev;
+	const struct st_sensor_settings *settings;
 	struct st_sensor_data *adata;
-	const char *match;
+	struct iio_dev *indio_dev;
 	int ret;
+
+	st_sensors_dev_name_probe(&client->dev, client->name, sizeof(client->name));
+
+	settings = st_accel_get_settings(client->name);
+	if (!settings) {
+		dev_err(&client->dev, "device name %s not recognized.\n",
+			client->name);
+		return -ENODEV;
+	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*adata));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	adata = iio_priv(indio_dev);
+	adata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	match = device_get_match_data(&client->dev);
-	if (match)
-		strlcpy(client->name, match, sizeof(client->name));
-
-	st_sensors_i2c_configure(indio_dev, client, adata);
-
-	ret = st_accel_common_probe(indio_dev);
+	ret = st_sensors_i2c_configure(indio_dev, client);
 	if (ret < 0)
 		return ret;
 
-	return 0;
-}
+	ret = st_sensors_power_enable(indio_dev);
+	if (ret)
+		return ret;
 
-static int st_accel_i2c_remove(struct i2c_client *client)
-{
-	st_accel_common_remove(i2c_get_clientdata(client));
-
-	return 0;
+	return st_accel_common_probe(indio_dev);
 }
 
 static struct i2c_driver st_accel_driver = {
 	.driver = {
 		.name = "st-accel-i2c",
-		.of_match_table = of_match_ptr(st_accel_of_match),
+		.of_match_table = st_accel_of_match,
 		.acpi_match_table = ACPI_PTR(st_accel_acpi_match),
 	},
 	.probe_new = st_accel_i2c_probe,
-	.remove = st_accel_i2c_remove,
 	.id_table = st_accel_id_table,
 };
 module_i2c_driver(st_accel_driver);
@@ -192,3 +204,4 @@ module_i2c_driver(st_accel_driver);
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics accelerometers i2c driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

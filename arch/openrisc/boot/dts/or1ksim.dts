@@ -49,8 +49,9 @@
 	};
 
 	enet0: ethoc@92000000 {
-		compatible = "opencores,ethmac-rtlsvn338";
-		reg = <0x92000000 0x100>;
+		compatible = "opencores,ethoc";
+		reg = <0x92000000 0x800>;
 		interrupts = <4>;
+		big-endian;
 	};
 };

@@ -1,0 +1,74 @@
+Kernel driver max6650
+=====================
+
+Supported chips:
+
+  * Maxim MAX6650
+
+    Prefix: 'max6650'
+
+    Addresses scanned: none
+
+    Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
+
+  * Maxim MAX6651
+
+    Prefix: 'max6651'
+
+    Addresses scanned: none
+
+    Datasheet: http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
+
+Authors:
+    - Hans J. Koch <hjk@hansjkoch.de>
+    - John Morris <john.morris@spirentcom.com>
+    - Claus Gindhart <claus.gindhart@kontron.com>
+
+Description
+-----------
+
+This driver implements support for the Maxim MAX6650 and MAX6651.
+
+The 2 devices are very similar, but the MAX6550 has a reduced feature
+set, e.g. only one fan-input, instead of 4 for the MAX6651.
+
+The driver is not able to distinguish between the 2 devices.
+
+The driver provides the following sensor accesses in sysfs:
+
+=============== ======= =======================================================
+fan1_input	ro	fan tachometer speed in RPM
+fan2_input	ro	"
+fan3_input	ro	"
+fan4_input	ro	"
+fan1_target	rw	desired fan speed in RPM (closed loop mode only)
+pwm1_enable	rw	regulator mode, 0=full on, 1=open loop, 2=closed loop
+			3=off
+pwm1		rw	relative speed (0-255), 255=max. speed.
+			Used in open loop mode only.
+fan1_div	rw	sets the speed range the inputs can handle. Legal
+			values are 1, 2, 4, and 8. Use lower values for
+			faster fans.
+=============== ======= =======================================================
+
+Usage notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
+details.
+
+Module parameters
+-----------------
+
+If your board has a BIOS that initializes the MAX6650/6651 correctly, you can
+simply load your module without parameters. It won't touch the configuration
+registers then. If your board BIOS doesn't initialize the chip, or you want
+different settings, you can set the following parameters:
+
+voltage_12V: 5=5V fan, 12=12V fan, 0=don't change
+prescaler: Possible values are 1,2,4,8,16, or 0 for don't change
+clock: The clock frequency in Hz of the chip the driver should assume [254000]
+
+Please have a look at the MAX6650/6651 data sheet and make sure that you fully
+understand the meaning of these parameters before you attempt to change them.

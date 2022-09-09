@@ -6,10 +6,13 @@
  *          for STMicroelectronics.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "sti_compositor.h"
@@ -45,7 +48,7 @@ struct dma_pixmap {
 	void *base;
 };
 
-/**
+/*
  * STI Cursor structure
  *
  * @sti_plane:    sti_plane structure
@@ -129,17 +132,17 @@ static struct drm_info_list cursor_debugfs_files[] = {
 	{ "cursor", cursor_dbg_show, 0, NULL },
 };
 
-static int cursor_debugfs_init(struct sti_cursor *cursor,
-			       struct drm_minor *minor)
+static void cursor_debugfs_init(struct sti_cursor *cursor,
+				struct drm_minor *minor)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(cursor_debugfs_files); i++)
 		cursor_debugfs_files[i].data = cursor;
 
-	return drm_debugfs_create_files(cursor_debugfs_files,
-					ARRAY_SIZE(cursor_debugfs_files),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(cursor_debugfs_files,
+				 ARRAY_SIZE(cursor_debugfs_files),
+				 minor->debugfs_root, minor);
 }
 
 static void sti_cursor_argb8888_to_clut8(struct sti_cursor *cursor, u32 *src)
@@ -179,12 +182,14 @@ static void sti_cursor_init(struct sti_cursor *cursor)
 }
 
 static int sti_cursor_atomic_check(struct drm_plane *drm_plane,
-				   struct drm_plane_state *state)
+				   struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 drm_plane);
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_cursor *cursor = to_sti_cursor(plane);
-	struct drm_crtc *crtc = state->crtc;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_crtc *crtc = new_plane_state->crtc;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *mode;
 	int dst_x, dst_y, dst_w, dst_h;
@@ -194,15 +199,17 @@ static int sti_cursor_atomic_check(struct drm_plane *drm_plane,
 	if (!crtc || !fb)
 		return 0;
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	mode = &crtc_state->mode;
-	dst_x = state->crtc_x;
-	dst_y = state->crtc_y;
-	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
-	dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	dst_x = new_plane_state->crtc_x;
+	dst_y = new_plane_state->crtc_y;
+	dst_w = clamp_val(new_plane_state->crtc_w, 0,
+			  mode->crtc_hdisplay - dst_x);
+	dst_h = clamp_val(new_plane_state->crtc_h, 0,
+			  mode->crtc_vdisplay - dst_y);
 	/* src_x are in 16.16 format */
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	src_w = new_plane_state->src_w >> 16;
+	src_h = new_plane_state->src_h >> 16;
 
 	if (src_w < STI_CURS_MIN_SIZE ||
 	    src_h < STI_CURS_MIN_SIZE ||
@@ -250,13 +257,14 @@ static int sti_cursor_atomic_check(struct drm_plane *drm_plane,
 }
 
 static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
-				     struct drm_plane_state *oldstate)
+				     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *state = drm_plane->state;
+	struct drm_plane_state *newstate = drm_atomic_get_new_plane_state(state,
+									  drm_plane);
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_cursor *cursor = to_sti_cursor(plane);
-	struct drm_crtc *crtc = state->crtc;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_crtc *crtc = newstate->crtc;
+	struct drm_framebuffer *fb = newstate->fb;
 	struct drm_display_mode *mode;
 	int dst_x, dst_y;
 	struct drm_gem_cma_object *cma_obj;
@@ -267,8 +275,8 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 		return;
 
 	mode = &crtc->mode;
-	dst_x = state->crtc_x;
-	dst_y = state->crtc_y;
+	dst_x = newstate->crtc_x;
+	dst_y = newstate->crtc_y;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 
@@ -304,8 +312,10 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 }
 
 static void sti_cursor_atomic_disable(struct drm_plane *drm_plane,
-				      struct drm_plane_state *oldstate)
+				      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *oldstate = drm_atomic_get_old_plane_state(state,
+									  drm_plane);
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	if (!oldstate->crtc) {
@@ -328,26 +338,21 @@ static const struct drm_plane_helper_funcs sti_cursor_helpers_funcs = {
 	.atomic_disable = sti_cursor_atomic_disable,
 };
 
-static void sti_cursor_destroy(struct drm_plane *drm_plane)
-{
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_plane_cleanup(drm_plane);
-}
-
 static int sti_cursor_late_register(struct drm_plane *drm_plane)
 {
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_cursor *cursor = to_sti_cursor(plane);
 
-	return cursor_debugfs_init(cursor, drm_plane->dev->primary);
+	cursor_debugfs_init(cursor, drm_plane->dev->primary);
+
+	return 0;
 }
 
 static const struct drm_plane_funcs sti_cursor_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = sti_cursor_destroy,
-	.reset = sti_plane_reset,
+	.destroy = drm_plane_cleanup,
+	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.late_register = sti_cursor_late_register,

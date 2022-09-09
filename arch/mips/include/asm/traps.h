@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Trap handling definitions.
  *
  *	Copyright (C) 2002, 2003  Maciej W. Rozycki
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_TRAPS_H
 #define _ASM_TRAPS_H
@@ -19,7 +15,7 @@
 #define MIPS_BE_FATAL	2		/* treat as an unrecoverable error */
 
 extern void (*board_be_init)(void);
-extern int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
+void mips_set_be_handler(int (*handler)(struct pt_regs *reg, int is_fixup));
 
 extern void (*board_nmi_handler_setup)(void);
 extern void (*board_ejtag_handler_setup)(void);
@@ -28,6 +24,10 @@ extern void (*board_ebase_setup)(void);
 extern void (*board_cache_error_setup)(void);
 
 extern int register_nmi_notifier(struct notifier_block *nb);
+extern void reserve_exception_space(phys_addr_t addr, unsigned long size);
+extern char except_vec_nmi[];
+
+#define VECTORSPACING 0x100	/* for EI/VI mode */
 
 #define nmi_notifier(fn, pri)						\
 ({									\

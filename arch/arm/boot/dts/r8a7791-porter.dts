@@ -28,10 +28,12 @@
 		serial0 = &scif0;
 		i2c9 = &gpioi2c2;
 		i2c10 = &i2chdmi;
+		mmc0 = &sdhi0;
+		mmc1 = &sdhi2;
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -63,8 +65,7 @@
 
 		gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -85,8 +86,7 @@
 
 		gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	hdmi-out {
@@ -164,7 +164,6 @@
 		composite-in@20 {
 			compatible = "adi,adv7180";
 			reg = <0x20>;
-			remote = <&vin0>;
 
 			port {
 				adv7180: endpoint {
@@ -183,8 +182,6 @@
 			adi,input-depth = <8>;
 			adi,input-colorspace = "rgb";
 			adi,input-clock = "1x";
-			adi,input-style = <1>;
-			adi,input-justification = "evenly";
 
 			ports {
 				#address-cells = <1>;
@@ -225,6 +222,11 @@
 
 	phy1_pins: phy1 {
 		groups = "intc_irq0";
+		function = "intc";
+	};
+
+	pmic_irq_pins: pmicirq {
+		groups = "intc_irq2";
 		function = "intc";
 	};
 
@@ -292,7 +294,7 @@
 };
 
 &ether {
-	pinctrl-0 = <&ether_pins &phy1_pins>;
+	pinctrl-0 = <&ether_pins>, <&phy1_pins>;
 	pinctrl-names = "default";
 
 	phy-handle = <&phy1>;
@@ -300,10 +302,13 @@
 	status = "okay";
 
 	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-id0022.1537",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 		interrupt-parent = <&irqc0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -373,6 +378,8 @@
 };
 
 &i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_irq_pins>;
 	status = "okay";
 	clock-frequency = <100000>;
 
@@ -383,7 +390,7 @@
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 
-		wdt {
+		watchdog {
 			compatible = "dlg,da9063-watchdog";
 		};
 	};
@@ -491,7 +498,7 @@
 };
 
 &rcar_sound {
-	pinctrl-0 = <&ssi_pins &audio_clk_pins>;
+	pinctrl-0 = <&ssi_pins>, <&audio_clk_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 

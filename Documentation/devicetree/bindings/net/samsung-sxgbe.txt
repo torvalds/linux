@@ -21,9 +21,11 @@ Required properties:
   range.
 
 Optional properties:
-- mac-address: 6 bytes, mac address
 - max-frame-size: Maximum Transfer Unit (IEEE defined MTU), rather
 		  than the maximum frame size.
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Example:
 

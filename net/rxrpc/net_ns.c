@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* rxrpc network namespace handling.
  *
  * Copyright (C) 2017 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/proc_fs.h>
@@ -54,7 +50,7 @@ static __net_init int rxrpc_init_net(struct net *net)
 	rxnet->epoch |= RXRPC_RANDOM_EPOCH;
 
 	INIT_LIST_HEAD(&rxnet->calls);
-	rwlock_init(&rxnet->call_lock);
+	spin_lock_init(&rxnet->call_lock);
 	atomic_set(&rxnet->nr_calls, 1);
 
 	atomic_set(&rxnet->nr_conns, 1);
@@ -66,20 +62,17 @@ static __net_init int rxrpc_init_net(struct net *net)
 	timer_setup(&rxnet->service_conn_reap_timer,
 		    rxrpc_service_conn_reap_timeout, 0);
 
-	rxnet->nr_client_conns = 0;
-	rxnet->nr_active_client_conns = 0;
+	atomic_set(&rxnet->nr_client_conns, 0);
 	rxnet->kill_all_client_conns = false;
 	spin_lock_init(&rxnet->client_conn_cache_lock);
 	spin_lock_init(&rxnet->client_conn_discard_lock);
-	INIT_LIST_HEAD(&rxnet->waiting_client_conns);
-	INIT_LIST_HEAD(&rxnet->active_client_conns);
 	INIT_LIST_HEAD(&rxnet->idle_client_conns);
 	INIT_WORK(&rxnet->client_conn_reaper,
 		  rxrpc_discard_expired_client_conns);
 	timer_setup(&rxnet->client_conn_reap_timer,
 		    rxrpc_client_conn_reap_timeout, 0);
 
-	INIT_LIST_HEAD(&rxnet->local_endpoints);
+	INIT_HLIST_HEAD(&rxnet->local_endpoints);
 	mutex_init(&rxnet->local_mutex);
 
 	hash_init(rxnet->peer_hash);
@@ -105,6 +98,9 @@ static __net_init int rxrpc_init_net(struct net *net)
 	proc_create_net("peers", 0444, rxnet->proc_net,
 			&rxrpc_peer_seq_ops,
 			sizeof(struct seq_net_private));
+	proc_create_net("locals", 0444, rxnet->proc_net,
+			&rxrpc_local_seq_ops,
+			sizeof(struct seq_net_private));
 	return 0;
 
 err_proc:
@@ -122,6 +118,8 @@ static __net_exit void rxrpc_exit_net(struct net *net)
 	rxnet->live = false;
 	del_timer_sync(&rxnet->peer_keepalive_timer);
 	cancel_work_sync(&rxnet->peer_keepalive_work);
+	/* Remove the timer again as the worker may have restarted it. */
+	del_timer_sync(&rxnet->peer_keepalive_timer);
 	rxrpc_destroy_all_calls(rxnet);
 	rxrpc_destroy_all_connections(rxnet);
 	rxrpc_destroy_all_peers(rxnet);

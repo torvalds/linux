@@ -28,6 +28,7 @@
 
 static const struct nvkm_pmu_func
 gm107_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.code.data = gm107_pmu_code,
 	.code.size = sizeof(gm107_pmu_code),
 	.data.data = gm107_pmu_data,
@@ -41,8 +42,15 @@ gm107_pmu = {
 	.recv = gt215_pmu_recv,
 };
 
+static const struct nvkm_pmu_fwif
+gm107_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gm107_pmu },
+	{}
+};
+
 int
-gm107_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gm107_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gm107_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gm107_pmu_fwif, device, type, inst, ppmu);
 }

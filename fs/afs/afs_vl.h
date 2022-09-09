@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* AFS Volume Location Service client interface
  *
  * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef AFS_VL_H
@@ -26,6 +22,7 @@ enum AFSVL_Operations {
 	VLGETENTRYBYNAMEU	= 527,	/* AFS Get VLDB entry by name (UUID-variant) */
 	VLGETADDRSU		= 533,	/* AFS Get addrs for fileserver */
 	YVLGETENDPOINTS		= 64002, /* YFS Get endpoints for file/volume server */
+	YVLGETCELLNAME		= 64014, /* YFS Get actual cell name */
 	VLGETCAPABILITIES	= 65537, /* AFS Get server capabilities */
 };
 

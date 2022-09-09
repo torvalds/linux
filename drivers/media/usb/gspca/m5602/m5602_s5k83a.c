@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the s5k83a sensor
  *
@@ -9,11 +10,6 @@
  * Copyright (c) 2006 Willem Duinker
  * v4l2 interface modeled after the V4L2 driver
  * for SN9C10x PC Camera Controllers
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -343,14 +339,13 @@ int s5k83a_start(struct sd *sd)
 	/* Create another thread, polling the GPIO ports of the camera to check
 	   if it got rotated. This is how the windows driver does it so we have
 	   to assume that there is no better way of accomplishing this */
-	sd->rotation_thread = kthread_create(rotation_thread_function,
-					     sd, "rotation thread");
+	sd->rotation_thread = kthread_run(rotation_thread_function,
+					  sd, "rotation thread");
 	if (IS_ERR(sd->rotation_thread)) {
 		err = PTR_ERR(sd->rotation_thread);
 		sd->rotation_thread = NULL;
 		return err;
 	}
-	wake_up_process(sd->rotation_thread);
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(start_s5k83a) && !err; i++) {
@@ -412,25 +407,21 @@ static int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 
 static int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 {
-	int err;
 	u8 data[1];
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = val;
-	err = m5602_write_sensor(sd, S5K83A_BRIGHTNESS, data, 1);
-	return err;
+	return m5602_write_sensor(sd, S5K83A_BRIGHTNESS, data, 1);
 }
 
 static int s5k83a_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 {
-	int err;
 	u8 data[2];
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	data[0] = 0;
 	data[1] = val;
-	err = m5602_write_sensor(sd, S5K83A_EXPOSURE, data, 2);
-	return err;
+	return m5602_write_sensor(sd, S5K83A_EXPOSURE, data, 2);
 }
 
 static int s5k83a_set_flip_real(struct gspca_dev *gspca_dev,

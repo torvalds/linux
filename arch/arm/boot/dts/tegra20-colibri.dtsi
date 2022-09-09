@@ -113,7 +113,7 @@
 			};
 
 			/* Colibri Backlight PWM<A>, PWM<B> */
-			pwm-a-b {
+			sdc {
 				nvidia,pins = "sdc";
 				nvidia,function = "pwm";
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -242,7 +242,7 @@
 			};
 
 			/* Colibri PWM<C>, PWM<D> */
-			pwm-c-d {
+			sdb_sdd {
 				nvidia,pins = "sdb", "sdd";
 				nvidia,function = "pwm";
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -428,10 +428,12 @@
 
 	serial@70006040 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	serial@70006300 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	nand-controller@70008000 {
@@ -495,7 +497,7 @@
 					regulator-always-on;
 				};
 
-				sm0 {
+				vdd_core: sm0 {
 					regulator-name = "VDD_CORE_1.2V";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
@@ -601,6 +603,7 @@
 		nvidia,core-pwr-good-time = <3845 3845>;
 		nvidia,core-pwr-off-time = <3875>;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 
 		/* Set SLEEP MODE bit in SUPPLYENE register of TPS658643 PMIC */
 		i2c-thermtrip {
@@ -688,7 +691,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		asix@1 {
+		ethernet@1 {
+			compatible = "usbb95,772b";
 			reg = <1>;
 			local-mac-address = [00 00 00 00 00 00];
 		};
@@ -742,8 +746,12 @@
 	};
 };
 
+&emc_icc_dvfs_opp_table {
+	/delete-node/ opp-760000000;
+};
+
 &gpio {
-	lan-reset-n {
+	lan-reset-n-hog {
 		gpio-hog;
 		gpios = <TEGRA_GPIO(V, 4) GPIO_ACTIVE_HIGH>;
 		output-high;
@@ -751,7 +759,7 @@
 	};
 
 	/* Tri-stating GMI_WR_N on SODIMM pin 99 nPWE */
-	npwe {
+	npwe-hog {
 		gpio-hog;
 		gpios = <TEGRA_GPIO(T, 5) GPIO_ACTIVE_HIGH>;
 		output-high;
@@ -759,7 +767,7 @@
 	};
 
 	/* Not tri-stating GMI_WR_N on SODIMM pin 93 RDnWR */
-	rdnwr {
+	rdnwr-hog {
 		gpio-hog;
 		gpios = <TEGRA_GPIO(T, 6) GPIO_ACTIVE_HIGH>;
 		output-low;

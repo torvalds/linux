@@ -1,17 +1,7 @@
+
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #ifndef _CIPHER_H
@@ -22,9 +12,12 @@
 #include <linux/mailbox_client.h>
 #include <crypto/aes.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/aead.h>
+#include <crypto/arc4.h>
 #include <crypto/gcm.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/sha3.h>
 
 #include "spu.h"
@@ -34,9 +27,6 @@
 /* Driver supports up to MAX_SPUS SPU blocks */
 #define MAX_SPUS 16
 
-#define ARC4_MIN_KEY_SIZE   1
-#define ARC4_MAX_KEY_SIZE   256
-#define ARC4_BLOCK_SIZE     1
 #define ARC4_STATE_SIZE     4
 
 #define CCM_AES_IV_SIZE    16
@@ -115,7 +105,7 @@ struct auth_op {
 struct iproc_alg_s {
 	u32 type;
 	union {
-		struct crypto_alg crypto;
+		struct skcipher_alg skcipher;
 		struct ahash_alg hash;
 		struct aead_alg aead;
 	} alg;
@@ -162,7 +152,7 @@ struct spu_msg_buf {
 	u8 rx_stat[ALIGN(SPU_RX_STATUS_LEN, SPU_MSG_ALIGN)];
 
 	union {
-		/* Buffers only used for ablkcipher */
+		/* Buffers only used for skcipher */
 		struct {
 			/*
 			 * Field used for either SUPDT when RC4 is used
@@ -227,7 +217,7 @@ struct iproc_ctx_s {
 
 	/*
 	 * Buffer to hold SPU message header template. Template is created at
-	 * setkey time for ablkcipher requests, since most of the fields in the
+	 * setkey time for skcipher requests, since most of the fields in the
 	 * header are known at that time. At request time, just fill in a few
 	 * missing pieces related to length of data in the request and IVs, etc.
 	 */
@@ -269,7 +259,7 @@ struct iproc_reqctx_s {
 
 	/* total todo, rx'd, and sent for this request */
 	unsigned int total_todo;
-	unsigned int total_received;	/* only valid for ablkcipher */
+	unsigned int total_received;	/* only valid for skcipher */
 	unsigned int total_sent;
 
 	/*
@@ -399,7 +389,6 @@ struct spu_hw {
 				      u16 spu_req_hdr_len,
 				      unsigned int is_inbound,
 				      struct spu_cipher_parms *cipher_parms,
-				      bool update_key,
 				      unsigned int data_size);
 	void (*spu_request_pad)(u8 *pad_start, u32 gcm_padding,
 				u32 hash_pad_len, enum hash_alg auth_alg,
@@ -431,7 +420,7 @@ struct spu_hw {
 	u32 num_chan;
 };
 
-struct device_private {
+struct bcm_device_private {
 	struct platform_device *pdev;
 
 	struct spu_hw spu;
@@ -478,6 +467,6 @@ struct device_private {
 	struct mbox_chan **mbox;
 };
 
-extern struct device_private iproc_priv;
+extern struct bcm_device_private iproc_priv;
 
 #endif

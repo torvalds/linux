@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <asm/asm-extable.h>
 #include <asm/sclp.h>
 #include <asm/ebcdic.h>
 
@@ -81,15 +82,6 @@ typedef unsigned int sclp_cmdw_t;
 
 #define GDS_KEY_SELFDEFTEXTMSG	0x31
 
-enum sclp_pm_event {
-	SCLP_PM_EVENT_FREEZE,
-	SCLP_PM_EVENT_THAW,
-	SCLP_PM_EVENT_RESTORE,
-};
-
-#define SCLP_PANIC_PRIO		1
-#define SCLP_PANIC_PRIO_CLIENT	0
-
 typedef u64 sccb_mask_t;
 
 struct sccb_header {
@@ -156,7 +148,11 @@ struct read_cpu_info_sccb {
 	u16	offset_configured;
 	u16	nr_standby;
 	u16	offset_standby;
-	u8	reserved[4096 - 16];
+	/*
+	 * Without ext sccb, struct size is PAGE_SIZE.
+	 * With ext sccb, struct size is EXT_SCCB_READ_CPU.
+	 */
+	u8	reserved[];
 } __attribute__((packed, aligned(PAGE_SIZE)));
 
 struct read_info_sccb {
@@ -195,7 +191,11 @@ struct read_info_sccb {
 	u16	hcpua;			/* 120-121 */
 	u8	_pad_122[124 - 122];	/* 122-123 */
 	u32	hmfai;			/* 124-127 */
-	u8	_pad_128[4096 - 128];	/* 128-4095 */
+	u8	_pad_128[134 - 128];	/* 128-133 */
+	u8	byte_134;			/* 134 */
+	u8	cpudirq;		/* 135 */
+	u16	cbl;			/* 136-137 */
+	u8	_pad_138[EXT_SCCB_READ_SCP - 138];
 } __packed __aligned(PAGE_SIZE);
 
 struct read_storage_sccb {
@@ -225,7 +225,7 @@ static inline void sclp_fill_core_info(struct sclp_core_info *info,
 #define SCLP_HAS_CPU_INFO	(sclp.facilities & 0x0800000000000000ULL)
 #define SCLP_HAS_CPU_RECONFIG	(sclp.facilities & 0x0400000000000000ULL)
 #define SCLP_HAS_PCI_RECONFIG	(sclp.facilities & 0x0000000040000000ULL)
-
+#define SCLP_HAS_AP_RECONFIG	(sclp.facilities & 0x0000000100000000ULL)
 
 struct gds_subvector {
 	u8	length;
@@ -285,10 +285,6 @@ struct sclp_register {
 	void (*state_change_fn)(struct sclp_register *);
 	/* called for events in cp_receive_mask/sclp_receive_mask */
 	void (*receiver_fn)(struct evbuf_header *);
-	/* called for power management events */
-	void (*pm_event_fn)(struct sclp_register *, enum sclp_pm_event);
-	/* pm event posted flag */
-	int pm_event_posted;
 };
 
 /* externals from sclp.c */
@@ -301,9 +297,7 @@ int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_sync_request(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
-
 int sclp_sdias_init(void);
-void sclp_sdias_exit(void);
 
 enum {
 	sclp_init_state_uninitialized,
@@ -317,8 +311,6 @@ extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
 extern bool sclp_mask_compat_mode;
 
-extern char sclp_early_sccb[PAGE_SIZE];
-
 void sclp_early_wait_irq(void);
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);
 unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb);
@@ -326,7 +318,7 @@ unsigned int sclp_early_con_check_vt220(struct init_sccb *sccb);
 int sclp_early_set_event_mask(struct init_sccb *sccb,
 			      sccb_mask_t receive_mask,
 			      sccb_mask_t send_mask);
-int sclp_early_get_info(struct read_info_sccb *info);
+struct read_info_sccb * __init sclp_early_get_info(void);
 
 /* useful inlines */
 
@@ -342,7 +334,7 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 		"2:\n"
 		EX_TABLE(0b, 2b)
 		EX_TABLE(1b, 2b)
-		: "+&d" (cc) : "d" (command), "a" ((unsigned long)sccb)
+		: "+&d" (cc) : "d" (command), "a" (__pa(sccb))
 		: "cc", "memory");
 	if (cc == 4)
 		return -EINVAL;
@@ -363,14 +355,14 @@ sclp_ascebc(unsigned char ch)
 
 /* translate string from EBCDIC to ASCII */
 static inline void
-sclp_ebcasc_str(unsigned char *str, int nr)
+sclp_ebcasc_str(char *str, int nr)
 {
 	(MACHINE_IS_VM) ? EBCASC(str, nr) : EBCASC_500(str, nr);
 }
 
 /* translate string from ASCII to EBCDIC */
 static inline void
-sclp_ascebc_str(unsigned char *str, int nr)
+sclp_ascebc_str(char *str, int nr)
 {
 	(MACHINE_IS_VM) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
 }

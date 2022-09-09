@@ -1,51 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
  * Copyright(c) 2015, 2016 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
-#include <linux/ctype.h>
+#include <linux/string.h>
+#include <linux/string_helpers.h>
+
 #include "efivar.h"
 
 /* GUID for HFI1 variables in EFI */
@@ -78,7 +38,7 @@ static int read_efi_var(const char *name, unsigned long *size,
 	*size = 0;
 	*return_data = NULL;
 
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
 		return -EOPNOTSUPP;
 
 	uni_name = kcalloc(strlen(name) + 1, sizeof(efi_char16_t), GFP_KERNEL);
@@ -112,7 +72,7 @@ static int read_efi_var(const char *name, unsigned long *size,
 	 * is in the EFIVAR_FS code and may not be compiled in.
 	 * However, even that is insufficient since it does not cover
 	 * EFI_BUFFER_TOO_SMALL which could be an important return.
-	 * For now, just split out succces or not found.
+	 * For now, just split out success or not found.
 	 */
 	ret = status == EFI_SUCCESS   ? 0 :
 	      status == EFI_NOT_FOUND ? -ENOENT :
@@ -154,7 +114,6 @@ int read_hfi1_efi_var(struct hfi1_devdata *dd, const char *kind,
 	char prefix_name[64];
 	char name[64];
 	int result;
-	int i;
 
 	/* create a common prefix */
 	snprintf(prefix_name, sizeof(prefix_name), "%04x:%02x:%02x.%x",
@@ -170,10 +129,7 @@ int read_hfi1_efi_var(struct hfi1_devdata *dd, const char *kind,
 	 * variable.
 	 */
 	if (result) {
-		/* Converting to uppercase */
-		for (i = 0; prefix_name[i]; i++)
-			if (isalpha(prefix_name[i]))
-				prefix_name[i] = toupper(prefix_name[i]);
+		string_upper(prefix_name, prefix_name);
 		snprintf(name, sizeof(name), "%s-%s", prefix_name, kind);
 		result = read_efi_var(name, size, return_data);
 	}

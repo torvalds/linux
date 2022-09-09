@@ -18,10 +18,7 @@
 #define I40E_ITR_DYNAMIC	0x8000	/* use top bit as a flag */
 #define I40E_ITR_MASK		0x1FFE	/* mask for ITR register value */
 #define I40E_MIN_ITR		     2	/* reg uses 2 usec resolution */
-#define I40E_ITR_100K		    10	/* all values below must be even */
-#define I40E_ITR_50K		    20
 #define I40E_ITR_20K		    50
-#define I40E_ITR_18K		    60
 #define I40E_ITR_8K		   122
 #define I40E_MAX_ITR		  8160	/* maximum value as per datasheet */
 #define ITR_TO_REG(setting) ((setting) & ~I40E_ITR_DYNAMIC)
@@ -52,9 +49,6 @@ static inline u16 i40e_intrl_usec_to_reg(int intrl)
 	else
 		return 0;
 }
-#define I40E_INTRL_8K              125     /* 8000 ints/sec */
-#define I40E_INTRL_62K             16      /* 62500 ints/sec */
-#define I40E_INTRL_83K             12      /* 83333 ints/sec */
 
 #define I40E_QUEUE_END_OF_LIST 0x7FF
 
@@ -73,7 +67,6 @@ enum i40e_dyn_idx_t {
 /* these are indexes into ITRN registers */
 #define I40E_RX_ITR    I40E_IDX_ITR0
 #define I40E_TX_ITR    I40E_IDX_ITR1
-#define I40E_PE_ITR    I40E_IDX_ITR2
 
 /* Supported RSS offloads */
 #define I40E_DEFAULT_RSS_HENA ( \
@@ -117,7 +110,7 @@ enum i40e_dyn_idx_t {
  */
 #define I40E_RX_HDR_SIZE I40E_RXBUFFER_256
 #define I40E_PACKET_HDR_PAD (ETH_HLEN + ETH_FCS_LEN + (VLAN_HLEN * 2))
-#define i40e_rx_desc i40e_32byte_rx_desc
+#define i40e_rx_desc i40e_16byte_rx_desc
 
 #define I40E_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
@@ -193,13 +186,6 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define I40E_RX_BUFFER_WRITE	32	/* Must be power of 2 */
-#define I40E_RX_INCREMENT(r, i) \
-	do {					\
-		(i)++;				\
-		if ((i) == (r)->count)		\
-			i = 0;			\
-		r->next_to_clean = i;		\
-	} while (0)
 
 #define I40E_RX_NEXT_DESC(r, i, n)		\
 	do {					\
@@ -209,11 +195,6 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 		(n) = I40E_RX_DESC((r), (i));	\
 	} while (0)
 
-#define I40E_RX_NEXT_DESC_PREFETCH(r, i, n)		\
-	do {						\
-		I40E_RX_NEXT_DESC((r), (i), (n));	\
-		prefetch((n));				\
-	} while (0)
 
 #define I40E_MAX_BUFFER_TXD	8
 #define I40E_MIN_TX_LEN		17
@@ -262,15 +243,12 @@ static inline unsigned int i40e_txd_use_count(unsigned int size)
 
 /* Tx Descriptors needed, worst case */
 #define DESC_NEEDED (MAX_SKB_FRAGS + 6)
-#define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_HW_VLAN		BIT(1)
 #define I40E_TX_FLAGS_SW_VLAN		BIT(2)
 #define I40E_TX_FLAGS_TSO		BIT(3)
 #define I40E_TX_FLAGS_IPV4		BIT(4)
 #define I40E_TX_FLAGS_IPV6		BIT(5)
-#define I40E_TX_FLAGS_FCCRC		BIT(6)
-#define I40E_TX_FLAGS_FSO		BIT(7)
 #define I40E_TX_FLAGS_TSYN		BIT(8)
 #define I40E_TX_FLAGS_FD_SB		BIT(9)
 #define I40E_TX_FLAGS_UDP_TUNNEL	BIT(10)
@@ -296,17 +274,9 @@ struct i40e_tx_buffer {
 
 struct i40e_rx_buffer {
 	dma_addr_t dma;
-	union {
-		struct {
-			struct page *page;
-			__u32 page_offset;
-			__u16 pagecnt_bias;
-		};
-		struct {
-			void *addr;
-			u64 handle;
-		};
-	};
+	struct page *page;
+	__u32 page_offset;
+	__u16 pagecnt_bias;
 };
 
 struct i40e_queue_stats {
@@ -320,6 +290,7 @@ struct i40e_tx_queue_stats {
 	u64 tx_done_old;
 	u64 tx_linearize;
 	u64 tx_force_wb;
+	u64 tx_stopped;
 	int prev_pkt_ctr;
 };
 
@@ -328,7 +299,9 @@ struct i40e_rx_queue_stats {
 	u64 alloc_page_failed;
 	u64 alloc_buff_failed;
 	u64 page_reuse_count;
-	u64 realloc_count;
+	u64 page_alloc_count;
+	u64 page_waive_count;
+	u64 page_busy_count;
 };
 
 enum i40e_ring_state_t {
@@ -340,9 +313,7 @@ enum i40e_ring_state_t {
 /* some useful defines for virtchannel interface, which
  * is the only remaining user of header split
  */
-#define I40E_RX_DTYPE_NO_SPLIT      0
 #define I40E_RX_DTYPE_HEADER_SPLIT  1
-#define I40E_RX_DTYPE_SPLIT_ALWAYS  2
 #define I40E_RX_SPLIT_L2      0x1
 #define I40E_RX_SPLIT_IP      0x2
 #define I40E_RX_SPLIT_TCP_UDP 0x4
@@ -358,6 +329,7 @@ struct i40e_ring {
 	union {
 		struct i40e_tx_buffer *tx_bi;
 		struct i40e_rx_buffer *rx_bi;
+		struct xdp_buff **rx_bi_zc;
 	};
 	DECLARE_BITMAP(state, __I40E_RING_STATE_NBITS);
 	u16 queue_index;		/* Queue number of ring */
@@ -378,6 +350,7 @@ struct i40e_ring {
 	/* used in interrupt processing */
 	u16 next_to_use;
 	u16 next_to_clean;
+	u16 xdp_tx_active;
 
 	u8 atr_sample_rate;
 	u8 atr_count;
@@ -417,9 +390,9 @@ struct i40e_ring {
 					 */
 
 	struct i40e_channel *ch;
+	u16 rx_offset;
 	struct xdp_rxq_info xdp_rxq;
-	struct xdp_umem *xsk_umem;
-	struct zero_copy_allocator zca; /* ZC allocator anchor */
+	struct xsk_buff_pool *xsk_pool;
 } ____cacheline_internodealigned_in_smp;
 
 static inline bool ring_uses_build_skb(struct i40e_ring *ring)
@@ -452,7 +425,6 @@ static inline void set_ring_xdp(struct i40e_ring *ring)
 #define I40E_ITR_ADAPTIVE_MAX_USECS	0x007e
 #define I40E_ITR_ADAPTIVE_LATENCY	0x8000
 #define I40E_ITR_ADAPTIVE_BULK		0x0000
-#define ITR_IS_BULK(x) (!((x) & I40E_ITR_ADAPTIVE_LATENCY))
 
 struct i40e_ring_container {
 	struct i40e_ring *ring;		/* pointer to linked list of ring(s) */
@@ -481,6 +453,8 @@ static inline unsigned int i40e_rx_pg_order(struct i40e_ring *ring)
 
 bool i40e_alloc_rx_buffers(struct i40e_ring *rxr, u16 cleaned_count);
 netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
+u16 i40e_lan_select_queue(struct net_device *netdev, struct sk_buff *skb,
+			  struct net_device *sb_dev);
 void i40e_clean_tx_ring(struct i40e_ring *tx_ring);
 void i40e_clean_rx_ring(struct i40e_ring *rx_ring);
 int i40e_setup_tx_descriptors(struct i40e_ring *tx_ring);
@@ -495,6 +469,7 @@ int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40e_chk_linearize(struct sk_buff *skb);
 int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		  u32 flags);
+int i40e_alloc_rx_bi(struct i40e_ring *rx_ring);
 
 /**
  * i40e_get_head - Retrieve head from head writeback
@@ -513,7 +488,6 @@ static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
 /**
  * i40e_xmit_descriptor_count - calculate number of Tx descriptors needed
  * @skb:     send buffer
- * @tx_ring: ring to send buffer on
  *
  * Returns number of data descriptors needed for this skb. Returns 0 to indicate
  * there is not enough descriptors available in this ring since we need at least
@@ -521,7 +495,7 @@ static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
  **/
 static inline int i40e_xmit_descriptor_count(struct sk_buff *skb)
 {
-	const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
+	const skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	int count = 0, size = skb_headlen(skb);
 

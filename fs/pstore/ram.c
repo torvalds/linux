@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RAM Oops/Panic logger
  *
  * Copyright (C) 2010 Marco Stornelli <marco.stornelli@gmail.com>
  * Copyright (C) 2011 Kees Cook <keescook@chromium.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,6 +21,7 @@
 #include <linux/pstore_ram.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include "internal.h"
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -67,21 +54,26 @@ MODULE_PARM_DESC(mem_size,
 		"size of reserved RAM used to store oops/panic logs");
 
 static unsigned int mem_type;
-module_param(mem_type, uint, 0600);
+module_param(mem_type, uint, 0400);
 MODULE_PARM_DESC(mem_type,
-		"set to 1 to try to use unbuffered memory (default 0)");
+		"memory type: 0=write-combined (default), 1=unbuffered, 2=cached");
 
-static int dump_oops = 1;
-module_param(dump_oops, int, 0600);
-MODULE_PARM_DESC(dump_oops,
-		"set to 1 to dump oopses, 0 to only dump panics (default 1)");
+static int ramoops_max_reason = -1;
+module_param_named(max_reason, ramoops_max_reason, int, 0400);
+MODULE_PARM_DESC(max_reason,
+		 "maximum reason for kmsg dump (default 2: Oops and Panic) ");
 
 static int ramoops_ecc;
-module_param_named(ecc, ramoops_ecc, int, 0600);
+module_param_named(ecc, ramoops_ecc, int, 0400);
 MODULE_PARM_DESC(ramoops_ecc,
 		"if non-zero, the option enables ECC support and specifies "
 		"ECC buffer size in bytes (1 is a special value, means 16 "
 		"bytes ECC)");
+
+static int ramoops_dump_oops = -1;
+module_param_named(dump_oops, ramoops_dump_oops, int, 0400);
+MODULE_PARM_DESC(dump_oops,
+		 "(deprecated: use max_reason instead) set to 1 to dump oopses & panics, 0 to only dump panics");
 
 struct ramoops_context {
 	struct persistent_ram_zone **dprzs;	/* Oops dump zones */
@@ -95,7 +87,6 @@ struct ramoops_context {
 	size_t console_size;
 	size_t ftrace_size;
 	size_t pmsg_size;
-	int dump_oops;
 	u32 flags;
 	struct persistent_ram_ecc_info ecc_info;
 	unsigned int max_dump_cnt;
@@ -110,7 +101,6 @@ struct ramoops_context {
 };
 
 static struct platform_device *dummy;
-static struct ramoops_platform_data *dummy_data;
 
 static int ramoops_pstore_open(struct pstore_info *psi)
 {
@@ -128,7 +118,6 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], int id,
 		     struct pstore_record *record)
 {
 	struct persistent_ram_zone *prz;
-	bool update = (record->type == PSTORE_TYPE_DMESG);
 
 	/* Give up if we never existed or have hit the end. */
 	if (!przs)
@@ -139,7 +128,7 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], int id,
 		return NULL;
 
 	/* Update old/shadowed buffer. */
-	if (update)
+	if (prz->type == PSTORE_TYPE_DMESG)
 		persistent_ram_save_old(prz);
 
 	if (!persistent_ram_old_size(prz))
@@ -160,6 +149,7 @@ static int ramoops_read_kmsg_hdr(char *buffer, struct timespec64 *time,
 	if (sscanf(buffer, RAMOOPS_KERNMSG_HDR "%lld.%lu-%c\n%n",
 		   (time64_t *)&time->tv_sec, &time->tv_nsec, &data_type,
 		   &header_length) == 3) {
+		time->tv_nsec *= 1000;
 		if (data_type == 'C')
 			*compressed = true;
 		else
@@ -167,6 +157,7 @@ static int ramoops_read_kmsg_hdr(char *buffer, struct timespec64 *time,
 	} else if (sscanf(buffer, RAMOOPS_KERNMSG_HDR "%lld.%lu\n%n",
 			  (time64_t *)&time->tv_sec, &time->tv_nsec,
 			  &header_length) == 2) {
+		time->tv_nsec *= 1000;
 		*compressed = false;
 	} else {
 		time->tv_sec = 0;
@@ -180,58 +171,6 @@ static bool prz_ok(struct persistent_ram_zone *prz)
 {
 	return !!prz && !!(persistent_ram_old_size(prz) +
 			   persistent_ram_ecc_string(prz, NULL, 0));
-}
-
-static ssize_t ftrace_log_combine(struct persistent_ram_zone *dest,
-				  struct persistent_ram_zone *src)
-{
-	size_t dest_size, src_size, total, dest_off, src_off;
-	size_t dest_idx = 0, src_idx = 0, merged_idx = 0;
-	void *merged_buf;
-	struct pstore_ftrace_record *drec, *srec, *mrec;
-	size_t record_size = sizeof(struct pstore_ftrace_record);
-
-	dest_off = dest->old_log_size % record_size;
-	dest_size = dest->old_log_size - dest_off;
-
-	src_off = src->old_log_size % record_size;
-	src_size = src->old_log_size - src_off;
-
-	total = dest_size + src_size;
-	merged_buf = kmalloc(total, GFP_KERNEL);
-	if (!merged_buf)
-		return -ENOMEM;
-
-	drec = (struct pstore_ftrace_record *)(dest->old_log + dest_off);
-	srec = (struct pstore_ftrace_record *)(src->old_log + src_off);
-	mrec = (struct pstore_ftrace_record *)(merged_buf);
-
-	while (dest_size > 0 && src_size > 0) {
-		if (pstore_ftrace_read_timestamp(&drec[dest_idx]) <
-		    pstore_ftrace_read_timestamp(&srec[src_idx])) {
-			mrec[merged_idx++] = drec[dest_idx++];
-			dest_size -= record_size;
-		} else {
-			mrec[merged_idx++] = srec[src_idx++];
-			src_size -= record_size;
-		}
-	}
-
-	while (dest_size > 0) {
-		mrec[merged_idx++] = drec[dest_idx++];
-		dest_size -= record_size;
-	}
-
-	while (src_size > 0) {
-		mrec[merged_idx++] = srec[src_idx++];
-		src_size -= record_size;
-	}
-
-	kfree(dest->old_log);
-	dest->old_log = merged_buf;
-	dest->old_log_size = total;
-
-	return 0;
 }
 
 static ssize_t ramoops_pstore_read(struct pstore_record *record)
@@ -305,7 +244,12 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 				tmp_prz->corrected_bytes +=
 						prz_next->corrected_bytes;
 				tmp_prz->bad_blocks += prz_next->bad_blocks;
-				size = ftrace_log_combine(tmp_prz, prz_next);
+
+				size = pstore_ftrace_combine_log(
+						&tmp_prz->old_log,
+						&tmp_prz->old_log_size,
+						prz_next->old_log,
+						prz_next->old_log_size);
 				if (size)
 					goto out;
 			}
@@ -347,17 +291,15 @@ out:
 static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 				     struct pstore_record *record)
 {
-	char *hdr;
+	char hdr[36]; /* "===="(4), %lld(20), "."(1), %06lu(6), "-%c\n"(3) */
 	size_t len;
 
-	hdr = kasprintf(GFP_ATOMIC, RAMOOPS_KERNMSG_HDR "%lld.%06lu-%c\n",
+	len = scnprintf(hdr, sizeof(hdr),
+		RAMOOPS_KERNMSG_HDR "%lld.%06lu-%c\n",
 		(time64_t)record->time.tv_sec,
 		record->time.tv_nsec / 1000,
 		record->compressed ? 'C' : 'D');
-	WARN_ON_ONCE(!hdr);
-	len = hdr ? strlen(hdr) : 0;
 	persistent_ram_write(prz, hdr, len);
-	kfree(hdr);
 
 	return len;
 }
@@ -398,16 +340,14 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 		return -EINVAL;
 
 	/*
-	 * Out of the various dmesg dump types, ramoops is currently designed
-	 * to only store crash logs, rather than storing general kernel logs.
+	 * We could filter on record->reason here if we wanted to (which
+	 * would duplicate what happened before the "max_reason" setting
+	 * was added), but that would defeat the purpose of a system
+	 * changing printk.always_kmsg_dump, so instead log everything that
+	 * the kmsg dumper sends us, since it should be doing the filtering
+	 * based on the combination of printk.always_kmsg_dump and our
+	 * requested "max_reason".
 	 */
-	if (record->reason != KMSG_DUMP_OOPS &&
-	    record->reason != KMSG_DUMP_PANIC)
-		return -EINVAL;
-
-	/* Skip Oopes when configured to do so. */
-	if (record->reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
-		return -EINVAL;
 
 	/*
 	 * Explicitly only take the first part of any new crash.
@@ -423,8 +363,22 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 
 	prz = cxt->dprzs[cxt->dump_write_cnt];
 
+	/*
+	 * Since this is a new crash dump, we need to reset the buffer in
+	 * case it still has an old dump present. Without this, the new dump
+	 * will get appended, which would seriously confuse anything trying
+	 * to check dump file contents. Specifically, ramoops_read_kmsg_hdr()
+	 * expects to find a dump header in the beginning of buffer data, so
+	 * we must to reset the buffer values, in order to ensure that the
+	 * header will be written to the beginning of the buffer.
+	 */
+	persistent_ram_zap(prz);
+
 	/* Build header and append record contents. */
 	hlen = ramoops_write_kmsg_hdr(prz, record);
+	if (!hlen)
+		return -ENOMEM;
+
 	size = record->size;
 	if (size + hlen > prz->buffer_size)
 		size = prz->buffer_size - hlen;
@@ -585,6 +539,7 @@ static int ramoops_init_przs(const char *name,
 		prz_ar[i] = persistent_ram_new(*paddr, zone_sz, sig,
 					       &cxt->ecc_info,
 					       cxt->memtype, flags, label);
+		kfree(label);
 		if (IS_ERR(prz_ar[i])) {
 			err = PTR_ERR(prz_ar[i]);
 			dev_err(dev, "failed to request %s mem region (0x%zx@0x%llx): %d\n",
@@ -630,6 +585,7 @@ static int ramoops_init_prz(const char *name,
 	label = kasprintf(GFP_KERNEL, "ramoops:%s", name);
 	*prz = persistent_ram_new(*paddr, sz, sig, &cxt->ecc_info,
 				  cxt->memtype, PRZ_FLAG_ZAP_OLD, label);
+	kfree(label);
 	if (IS_ERR(*prz)) {
 		int err = PTR_ERR(*prz);
 
@@ -644,19 +600,25 @@ static int ramoops_init_prz(const char *name,
 	return 0;
 }
 
-static int ramoops_parse_dt_size(struct platform_device *pdev,
-				 const char *propname, u32 *value)
+/* Read a u32 from a dt property and make sure it's safe for an int. */
+static int ramoops_parse_dt_u32(struct platform_device *pdev,
+				const char *propname,
+				u32 default_value, u32 *value)
 {
 	u32 val32 = 0;
 	int ret;
 
 	ret = of_property_read_u32(pdev->dev.of_node, propname, &val32);
-	if (ret < 0 && ret != -EINVAL) {
+	if (ret == -EINVAL) {
+		/* field is missing, use default value. */
+		val32 = default_value;
+	} else if (ret < 0) {
 		dev_err(&pdev->dev, "failed to parse property %s: %d\n",
 			propname, ret);
 		return ret;
 	}
 
+	/* Sanity check our results. */
 	if (val32 > INT_MAX) {
 		dev_err(&pdev->dev, "%s %u > INT_MAX\n", propname, val32);
 		return -EOVERFLOW;
@@ -670,6 +632,7 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 			    struct ramoops_platform_data *pdata)
 {
 	struct device_node *of_node = pdev->dev.of_node;
+	struct device_node *parent_node;
 	struct resource *res;
 	u32 value;
 	int ret;
@@ -685,24 +648,58 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 
 	pdata->mem_size = resource_size(res);
 	pdata->mem_address = res->start;
+	/*
+	 * Setting "unbuffered" is deprecated and will be ignored if
+	 * "mem_type" is also specified.
+	 */
 	pdata->mem_type = of_property_read_bool(of_node, "unbuffered");
-	pdata->dump_oops = !of_property_read_bool(of_node, "no-dump-oops");
+	/*
+	 * Setting "no-dump-oops" is deprecated and will be ignored if
+	 * "max_reason" is also specified.
+	 */
+	if (of_property_read_bool(of_node, "no-dump-oops"))
+		pdata->max_reason = KMSG_DUMP_PANIC;
+	else
+		pdata->max_reason = KMSG_DUMP_OOPS;
 
-#define parse_size(name, field) {					\
-		ret = ramoops_parse_dt_size(pdev, name, &value);	\
+#define parse_u32(name, field, default_value) {				\
+		ret = ramoops_parse_dt_u32(pdev, name, default_value,	\
+					    &value);			\
 		if (ret < 0)						\
 			return ret;					\
 		field = value;						\
 	}
 
-	parse_size("record-size", pdata->record_size);
-	parse_size("console-size", pdata->console_size);
-	parse_size("ftrace-size", pdata->ftrace_size);
-	parse_size("pmsg-size", pdata->pmsg_size);
-	parse_size("ecc-size", pdata->ecc_info.ecc_size);
-	parse_size("flags", pdata->flags);
+	parse_u32("mem-type", pdata->record_size, pdata->mem_type);
+	parse_u32("record-size", pdata->record_size, 0);
+	parse_u32("console-size", pdata->console_size, 0);
+	parse_u32("ftrace-size", pdata->ftrace_size, 0);
+	parse_u32("pmsg-size", pdata->pmsg_size, 0);
+	parse_u32("ecc-size", pdata->ecc_info.ecc_size, 0);
+	parse_u32("flags", pdata->flags, 0);
+	parse_u32("max-reason", pdata->max_reason, pdata->max_reason);
 
-#undef parse_size
+#undef parse_u32
+
+	/*
+	 * Some old Chromebooks relied on the kernel setting the
+	 * console_size and pmsg_size to the record size since that's
+	 * what the downstream kernel did.  These same Chromebooks had
+	 * "ramoops" straight under the root node which isn't
+	 * according to the current upstream bindings (though it was
+	 * arguably acceptable under a prior version of the bindings).
+	 * Let's make those old Chromebooks work by detecting that
+	 * we're not a child of "reserved-memory" and mimicking the
+	 * expected behavior.
+	 */
+	parent_node = of_get_parent(of_node);
+	if (!of_node_name_eq(parent_node, "reserved-memory") &&
+	    !pdata->console_size && !pdata->ftrace_size &&
+	    !pdata->pmsg_size && !pdata->ecc_info.ecc_size) {
+		pdata->console_size = pdata->record_size;
+		pdata->pmsg_size = pdata->record_size;
+	}
+	of_node_put(parent_node);
 
 	return 0;
 }
@@ -711,23 +708,11 @@ static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = dev->platform_data;
+	struct ramoops_platform_data pdata_local;
 	struct ramoops_context *cxt = &oops_cxt;
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
 	int err = -EINVAL;
-
-	if (dev_of_node(dev) && !pdata) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata) {
-			pr_err("cannot allocate platform data buffer\n");
-			err = -ENOMEM;
-			goto fail_out;
-		}
-
-		err = ramoops_parse_dt(pdev, pdata);
-		if (err < 0)
-			goto fail_out;
-	}
 
 	/*
 	 * Only a single ramoops area allowed at a time, so fail extra
@@ -736,6 +721,15 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (cxt->max_dump_cnt) {
 		pr_err("already initialized\n");
 		goto fail_out;
+	}
+
+	if (dev_of_node(dev) && !pdata) {
+		pdata = &pdata_local;
+		memset(pdata, 0, sizeof(*pdata));
+
+		err = ramoops_parse_dt(pdev, pdata);
+		if (err < 0)
+			goto fail_out;
 	}
 
 	/* Make sure we didn't get bogus platform data pointer. */
@@ -767,7 +761,6 @@ static int ramoops_probe(struct platform_device *pdev)
 	cxt->console_size = pdata->console_size;
 	cxt->ftrace_size = pdata->ftrace_size;
 	cxt->pmsg_size = pdata->pmsg_size;
-	cxt->dump_oops = pdata->dump_oops;
 	cxt->flags = pdata->flags;
 	cxt->ecc_info = pdata->ecc_info;
 
@@ -804,25 +797,37 @@ static int ramoops_probe(struct platform_device *pdev)
 
 	cxt->pstore.data = cxt;
 	/*
+	 * Prepare frontend flags based on which areas are initialized.
+	 * For ramoops_init_przs() cases, the "max count" variable tells
+	 * if there are regions present. For ramoops_init_prz() cases,
+	 * the single region size is how to check.
+	 */
+	cxt->pstore.flags = 0;
+	if (cxt->max_dump_cnt) {
+		cxt->pstore.flags |= PSTORE_FLAGS_DMESG;
+		cxt->pstore.max_reason = pdata->max_reason;
+	}
+	if (cxt->console_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_CONSOLE;
+	if (cxt->max_ftrace_cnt)
+		cxt->pstore.flags |= PSTORE_FLAGS_FTRACE;
+	if (cxt->pmsg_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_PMSG;
+
+	/*
 	 * Since bufsize is only used for dmesg crash dumps, it
 	 * must match the size of the dprz record (after PRZ header
 	 * and ECC bytes have been accounted for).
 	 */
-	cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
-	cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
-	if (!cxt->pstore.buf) {
-		pr_err("cannot allocate pstore crash dump buffer\n");
-		err = -ENOMEM;
-		goto fail_clear;
+	if (cxt->pstore.flags & PSTORE_FLAGS_DMESG) {
+		cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
+		cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
+		if (!cxt->pstore.buf) {
+			pr_err("cannot allocate pstore crash dump buffer\n");
+			err = -ENOMEM;
+			goto fail_clear;
+		}
 	}
-
-	cxt->pstore.flags = PSTORE_FLAGS_DMESG;
-	if (cxt->console_size)
-		cxt->pstore.flags |= PSTORE_FLAGS_CONSOLE;
-	if (cxt->ftrace_size)
-		cxt->pstore.flags |= PSTORE_FLAGS_FTRACE;
-	if (cxt->pmsg_size)
-		cxt->pstore.flags |= PSTORE_FLAGS_PMSG;
 
 	err = pstore_register(&cxt->pstore);
 	if (err) {
@@ -837,7 +842,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	mem_size = pdata->mem_size;
 	mem_address = pdata->mem_address;
 	record_size = pdata->record_size;
-	dump_oops = pdata->dump_oops;
+	ramoops_max_reason = pdata->max_reason;
 	ramoops_console_size = pdata->console_size;
 	ramoops_pmsg_size = pdata->pmsg_size;
 	ramoops_ftrace_size = pdata->ftrace_size;
@@ -896,13 +901,12 @@ static inline void ramoops_unregister_dummy(void)
 {
 	platform_device_unregister(dummy);
 	dummy = NULL;
-
-	kfree(dummy_data);
-	dummy_data = NULL;
 }
 
 static void __init ramoops_register_dummy(void)
 {
+	struct ramoops_platform_data pdata;
+
 	/*
 	 * Prepare a dummy platform data structure to carry the module
 	 * parameters. If mem_size isn't set, then there are no module
@@ -913,35 +917,38 @@ static void __init ramoops_register_dummy(void)
 
 	pr_info("using module parameters\n");
 
-	dummy_data = kzalloc(sizeof(*dummy_data), GFP_KERNEL);
-	if (!dummy_data) {
-		pr_info("could not allocate pdata\n");
-		return;
-	}
-
-	dummy_data->mem_size = mem_size;
-	dummy_data->mem_address = mem_address;
-	dummy_data->mem_type = mem_type;
-	dummy_data->record_size = record_size;
-	dummy_data->console_size = ramoops_console_size;
-	dummy_data->ftrace_size = ramoops_ftrace_size;
-	dummy_data->pmsg_size = ramoops_pmsg_size;
-	dummy_data->dump_oops = dump_oops;
-	dummy_data->flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
+	memset(&pdata, 0, sizeof(pdata));
+	pdata.mem_size = mem_size;
+	pdata.mem_address = mem_address;
+	pdata.mem_type = mem_type;
+	pdata.record_size = record_size;
+	pdata.console_size = ramoops_console_size;
+	pdata.ftrace_size = ramoops_ftrace_size;
+	pdata.pmsg_size = ramoops_pmsg_size;
+	/* If "max_reason" is set, its value has priority over "dump_oops". */
+	if (ramoops_max_reason >= 0)
+		pdata.max_reason = ramoops_max_reason;
+	/* Otherwise, if "dump_oops" is set, parse it into "max_reason". */
+	else if (ramoops_dump_oops != -1)
+		pdata.max_reason = ramoops_dump_oops ? KMSG_DUMP_OOPS
+						     : KMSG_DUMP_PANIC;
+	/* And if neither are explicitly set, use the default. */
+	else
+		pdata.max_reason = KMSG_DUMP_OOPS;
+	pdata.flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
 
 	/*
 	 * For backwards compatibility ramoops.ecc=1 means 16 bytes ECC
 	 * (using 1 byte for ECC isn't much of use anyway).
 	 */
-	dummy_data->ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
+	pdata.ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
 
 	dummy = platform_device_register_data(NULL, "ramoops", -1,
-			dummy_data, sizeof(struct ramoops_platform_data));
+			&pdata, sizeof(pdata));
 	if (IS_ERR(dummy)) {
 		pr_info("could not create platform device: %ld\n",
 			PTR_ERR(dummy));
 		dummy = NULL;
-		ramoops_unregister_dummy();
 	}
 }
 

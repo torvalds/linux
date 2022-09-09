@@ -15,9 +15,6 @@
 #include <linux/spinlock.h>
 #include <dt-bindings/gpio/uniphier-gpio.h>
 
-#define UNIPHIER_GPIO_BANK_MASK		\
-				GENMASK((UNIPHIER_GPIO_LINES_PER_BANK) - 1, 0)
-
 #define UNIPHIER_GPIO_IRQ_MAX_NUM	24
 
 #define UNIPHIER_GPIO_PORT_DATA		0x0	/* data */
@@ -33,7 +30,7 @@ struct uniphier_gpio_priv {
 	struct irq_domain *domain;
 	void __iomem *regs;
 	spinlock_t lock;
-	u32 saved_vals[0];
+	u32 saved_vals[];
 };
 
 static unsigned int uniphier_gpio_bank_to_reg(unsigned int bank)
@@ -113,7 +110,10 @@ static int uniphier_gpio_offset_read(struct gpio_chip *chip,
 static int uniphier_gpio_get_direction(struct gpio_chip *chip,
 				       unsigned int offset)
 {
-	return uniphier_gpio_offset_read(chip, offset, UNIPHIER_GPIO_PORT_DIR);
+	if (uniphier_gpio_offset_read(chip, offset, UNIPHIER_GPIO_PORT_DIR))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int uniphier_gpio_direction_input(struct gpio_chip *chip,
@@ -147,15 +147,11 @@ static void uniphier_gpio_set(struct gpio_chip *chip,
 static void uniphier_gpio_set_multiple(struct gpio_chip *chip,
 				       unsigned long *mask, unsigned long *bits)
 {
-	unsigned int bank, shift, bank_mask, bank_bits;
-	int i;
+	unsigned long i, bank, bank_mask, bank_bits;
 
-	for (i = 0; i < chip->ngpio; i += UNIPHIER_GPIO_LINES_PER_BANK) {
+	for_each_set_clump8(i, bank_mask, mask, chip->ngpio) {
 		bank = i / UNIPHIER_GPIO_LINES_PER_BANK;
-		shift = i % BITS_PER_LONG;
-		bank_mask = (mask[BIT_WORD(i)] >> shift) &
-						UNIPHIER_GPIO_BANK_MASK;
-		bank_bits = bits[BIT_WORD(i)] >> shift;
+		bank_bits = bitmap_get_value8(bits, i);
 
 		uniphier_gpio_bank_write(chip, bank, UNIPHIER_GPIO_PORT_DATA,
 					 bank_mask, bank_bits);
@@ -183,28 +179,28 @@ static int uniphier_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 
 static void uniphier_gpio_irq_mask(struct irq_data *data)
 {
-	struct uniphier_gpio_priv *priv = data->chip_data;
-	u32 mask = BIT(data->hwirq);
+	struct uniphier_gpio_priv *priv = irq_data_get_irq_chip_data(data);
+	u32 mask = BIT(irqd_to_hwirq(data));
 
 	uniphier_gpio_reg_update(priv, UNIPHIER_GPIO_IRQ_EN, mask, 0);
 
-	return irq_chip_mask_parent(data);
+	irq_chip_mask_parent(data);
 }
 
 static void uniphier_gpio_irq_unmask(struct irq_data *data)
 {
-	struct uniphier_gpio_priv *priv = data->chip_data;
-	u32 mask = BIT(data->hwirq);
+	struct uniphier_gpio_priv *priv = irq_data_get_irq_chip_data(data);
+	u32 mask = BIT(irqd_to_hwirq(data));
 
 	uniphier_gpio_reg_update(priv, UNIPHIER_GPIO_IRQ_EN, mask, mask);
 
-	return irq_chip_unmask_parent(data);
+	irq_chip_unmask_parent(data);
 }
 
 static int uniphier_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	struct uniphier_gpio_priv *priv = data->chip_data;
-	u32 mask = BIT(data->hwirq);
+	struct uniphier_gpio_priv *priv = irq_data_get_irq_chip_data(data);
+	u32 mask = BIT(irqd_to_hwirq(data));
 	u32 val = 0;
 
 	if (type == IRQ_TYPE_EDGE_BOTH) {
@@ -301,7 +297,8 @@ static int uniphier_gpio_irq_domain_activate(struct irq_domain *domain,
 	struct uniphier_gpio_priv *priv = domain->host_data;
 	struct gpio_chip *chip = &priv->chip;
 
-	return gpiochip_lock_as_irq(chip, data->hwirq + UNIPHIER_GPIO_IRQ_OFFSET);
+	return gpiochip_lock_as_irq(chip,
+			irqd_to_hwirq(data) + UNIPHIER_GPIO_IRQ_OFFSET);
 }
 
 static void uniphier_gpio_irq_domain_deactivate(struct irq_domain *domain,
@@ -310,7 +307,8 @@ static void uniphier_gpio_irq_domain_deactivate(struct irq_domain *domain,
 	struct uniphier_gpio_priv *priv = domain->host_data;
 	struct gpio_chip *chip = &priv->chip;
 
-	gpiochip_unlock_as_irq(chip, data->hwirq + UNIPHIER_GPIO_IRQ_OFFSET);
+	gpiochip_unlock_as_irq(chip,
+			irqd_to_hwirq(data) + UNIPHIER_GPIO_IRQ_OFFSET);
 }
 
 static const struct irq_domain_ops uniphier_gpio_irq_domain_ops = {
@@ -346,7 +344,6 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 	struct uniphier_gpio_priv *priv;
 	struct gpio_chip *chip;
 	struct irq_chip *irq_chip;
-	struct resource *regs;
 	unsigned int nregs;
 	u32 ngpios;
 	int ret;
@@ -370,8 +367,7 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(dev, regs);
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 

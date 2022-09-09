@@ -30,7 +30,7 @@ Example:
 
 	cpus {
 		cpu@0 {
-			compatible = "arm,cotex-a9";
+			compatible = "arm,cortex-a9";
 			reg = <0>;
 			...
 			enable-method = "brcm,bcm63138";
@@ -62,7 +62,7 @@ Timer node:
 
 Syscon reboot node:
 
-See Documentation/devicetree/bindings/power/reset/syscon-reboot.txt for the
+See Documentation/devicetree/bindings/power/reset/syscon-reboot.yaml for the
 detailed list of properties, the two values defined below are specific to the
 BCM6328-style timer:
 

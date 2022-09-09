@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IEEE754 floating point arithmetic
  * double precision: MIN{,A}.f
@@ -10,10 +11,6 @@
  * MIPS floating point support
  * Copyright (C) 2015 Imagination Technologies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; version 2 of the License.
  */
 
 #include "ieee754dp.h"
@@ -96,8 +93,7 @@ union ieee754dp ieee754dp_fmax(union ieee754dp x, union ieee754dp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		DPDNORMX;
-		/* fall through */
-
+		fallthrough;
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		DPDNORMY;
 		break;
@@ -225,8 +221,7 @@ union ieee754dp ieee754dp_fmaxa(union ieee754dp x, union ieee754dp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		DPDNORMX;
-		/* fall through */
-
+		fallthrough;
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		DPDNORMY;
 		break;

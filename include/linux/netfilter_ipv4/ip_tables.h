@@ -17,19 +17,17 @@
 
 #include <linux/if.h>
 #include <linux/in.h>
+#include <linux/init.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-
-#include <linux/init.h>
 #include <uapi/linux/netfilter_ipv4/ip_tables.h>
-
-extern void ipt_init(void) __init;
 
 int ipt_register_table(struct net *net, const struct xt_table *table,
 		       const struct ipt_replace *repl,
-		       const struct nf_hook_ops *ops, struct xt_table **res);
-void ipt_unregister_table(struct net *net, struct xt_table *table,
-			  const struct nf_hook_ops *ops);
+		       const struct nf_hook_ops *ops);
+
+void ipt_unregister_table_pre_exit(struct net *net, const char *name);
+void ipt_unregister_table_exit(struct net *net, const char *name);
 
 /* Standard entry. */
 struct ipt_standard {
@@ -65,11 +63,11 @@ struct ipt_error {
 }
 
 extern void *ipt_alloc_initial_table(const struct xt_table *);
-extern unsigned int ipt_do_table(struct sk_buff *skb,
-				 const struct nf_hook_state *state,
-				 struct xt_table *table);
+extern unsigned int ipt_do_table(void *priv,
+				 struct sk_buff *skb,
+				 const struct nf_hook_state *state);
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 #include <net/compat.h>
 
 struct compat_ipt_entry {
@@ -79,7 +77,7 @@ struct compat_ipt_entry {
 	__u16 next_offset;
 	compat_uint_t comefrom;
 	struct compat_xt_counters counters;
-	unsigned char elems[0];
+	unsigned char elems[];
 };
 
 /* Helper functions */

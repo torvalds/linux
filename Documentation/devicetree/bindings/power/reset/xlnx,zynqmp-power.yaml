@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/reset/xlnx,zynqmp-power.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx Zynq MPSoC Power Management Device Tree Bindings
+
+maintainers:
+  - Michal Simek <michal.simek@xilinx.com>
+
+description: |
+  The zynqmp-power node describes the power management configurations.
+  It will control remote suspend/shutdown interfaces.
+
+properties:
+  compatible:
+    const: xlnx,zynqmp-power
+
+  interrupts:
+    maxItems: 1
+
+  mboxes:
+    description: |
+      Standard property to specify a Mailbox. Each value of
+      the mboxes property should contain a phandle to the
+      mailbox controller device node and an args specifier
+      that will be the phandle to the intended sub-mailbox
+      child node to be used for communication. See
+      Documentation/devicetree/bindings/mailbox/mailbox.txt
+      for more details about the generic mailbox controller
+      and client driver bindings. Also see
+      Documentation/devicetree/bindings/mailbox/ \
+      xlnx,zynqmp-ipi-mailbox.txt for typical controller that
+      is used to communicate with this System controllers.
+    items:
+      - description: tx channel
+      - description: rx channel
+
+  mbox-names:
+    description:
+      Name given to channels seen in the 'mboxes' property.
+    items:
+      - const: tx
+      - const: rx
+
+required:
+  - compatible
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |+
+
+    // Example with interrupt method:
+
+    firmware {
+      zynqmp-firmware {
+        zynqmp-power {
+          compatible = "xlnx,zynqmp-power";
+          interrupts = <0 35 4>;
+        };
+      };
+    };
+
+  - |+
+
+    // Example with IPI mailbox method:
+
+    firmware {
+      zynqmp-firmware {
+        zynqmp-power {
+          compatible = "xlnx,zynqmp-power";
+          interrupt-parent = <&gic>;
+          interrupts = <0 35 4>;
+          mboxes = <&ipi_mailbox_pmu1 0>,
+                   <&ipi_mailbox_pmu1 1>;
+          mbox-names = "tx", "rx";
+        };
+      };
+    };
+...

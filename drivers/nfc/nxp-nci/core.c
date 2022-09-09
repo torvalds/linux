@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic driver for NXP NCI NFC chips
  *
@@ -7,25 +8,11 @@
  *
  * Derived from PN544 device driver:
  * Copyright (C) 2012  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/nfc.h>
-#include <linux/platform_data/nxp-nci.h>
 
 #include <net/nfc/nci_core.h>
 
@@ -39,6 +26,9 @@
 			       NFC_PROTO_ISO14443_MASK | \
 			       NFC_PROTO_ISO14443_B_MASK | \
 			       NFC_PROTO_NFC_DEP_MASK)
+
+#define NXP_NCI_RF_PLL_UNLOCKED_NTF nci_opcode_pack(NCI_GID_RF_MGMT, 0x21)
+#define NXP_NCI_RF_TXLDO_ERROR_NTF nci_opcode_pack(NCI_GID_RF_MGMT, 0x23)
 
 static int nxp_nci_open(struct nci_dev *ndev)
 {
@@ -83,29 +73,55 @@ static int nxp_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	struct nxp_nci_info *info = nci_get_drvdata(ndev);
 	int r;
 
-	if (!info->phy_ops->write) {
-		r = -ENOTSUPP;
-		goto send_exit;
-	}
+	if (!info->phy_ops->write)
+		return -EOPNOTSUPP;
 
-	if (info->mode != NXP_NCI_MODE_NCI) {
-		r = -EINVAL;
-		goto send_exit;
-	}
+	if (info->mode != NXP_NCI_MODE_NCI)
+		return -EINVAL;
 
 	r = info->phy_ops->write(info->phy_id, skb);
 	if (r < 0)
 		kfree_skb(skb);
 
-send_exit:
 	return r;
 }
 
-static struct nci_ops nxp_nci_ops = {
+static int nxp_nci_rf_pll_unlocked_ntf(struct nci_dev *ndev,
+				       struct sk_buff *skb)
+{
+	nfc_err(&ndev->nfc_dev->dev,
+		"PLL didn't lock. Missing or unstable clock?\n");
+
+	return 0;
+}
+
+static int nxp_nci_rf_txldo_error_ntf(struct nci_dev *ndev,
+				      struct sk_buff *skb)
+{
+	nfc_err(&ndev->nfc_dev->dev,
+		"RF transmitter couldn't start. Bad power and/or configuration?\n");
+
+	return 0;
+}
+
+static const struct nci_driver_ops nxp_nci_core_ops[] = {
+	{
+		.opcode = NXP_NCI_RF_PLL_UNLOCKED_NTF,
+		.ntf = nxp_nci_rf_pll_unlocked_ntf,
+	},
+	{
+		.opcode = NXP_NCI_RF_TXLDO_ERROR_NTF,
+		.ntf = nxp_nci_rf_txldo_error_ntf,
+	},
+};
+
+static const struct nci_ops nxp_nci_ops = {
 	.open = nxp_nci_open,
 	.close = nxp_nci_close,
 	.send = nxp_nci_send,
 	.fw_download = nxp_nci_fw_download,
+	.core_ops = nxp_nci_core_ops,
+	.n_core_ops = ARRAY_SIZE(nxp_nci_core_ops),
 };
 
 int nxp_nci_probe(void *phy_id, struct device *pdev,
@@ -117,10 +133,8 @@ int nxp_nci_probe(void *phy_id, struct device *pdev,
 	int r;
 
 	info = devm_kzalloc(pdev, sizeof(struct nxp_nci_info), GFP_KERNEL);
-	if (!info) {
-		r = -ENOMEM;
-		goto probe_exit;
-	}
+	if (!info)
+		return -ENOMEM;
 
 	info->phy_id = phy_id;
 	info->pdev = pdev;
@@ -133,31 +147,25 @@ int nxp_nci_probe(void *phy_id, struct device *pdev,
 	if (info->phy_ops->set_mode) {
 		r = info->phy_ops->set_mode(info->phy_id, NXP_NCI_MODE_COLD);
 		if (r < 0)
-			goto probe_exit;
+			return r;
 	}
 
 	info->mode = NXP_NCI_MODE_COLD;
 
 	info->ndev = nci_allocate_device(&nxp_nci_ops, NXP_NCI_NFC_PROTOCOLS,
 					 NXP_NCI_HDR_LEN, 0);
-	if (!info->ndev) {
-		r = -ENOMEM;
-		goto probe_exit;
-	}
+	if (!info->ndev)
+		return -ENOMEM;
 
 	nci_set_parent_dev(info->ndev, pdev);
 	nci_set_drvdata(info->ndev, info);
 	r = nci_register_device(info->ndev);
-	if (r < 0)
-		goto probe_exit_free_nci;
+	if (r < 0) {
+		nci_free_device(info->ndev);
+		return r;
+	}
 
 	*ndev = info->ndev;
-
-	goto probe_exit;
-
-probe_exit_free_nci:
-	nci_free_device(info->ndev);
-probe_exit:
 	return r;
 }
 EXPORT_SYMBOL(nxp_nci_probe);

@@ -36,7 +36,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-/**
+/*
  * socket tuples for filtering in socket traces:
  * (portid, sock type, name type, name lower, name upper)
  */
@@ -111,7 +111,7 @@ int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf)
 			break;
 		default:
 			break;
-		};
+		}
 		i += scnprintf(buf + i, sz - i, " | %u",
 			       msg_src_droppable(hdr));
 		i += scnprintf(buf + i, sz - i, " %u",
@@ -122,7 +122,7 @@ int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf)
 	default:
 		/* need more? */
 		break;
-	};
+	}
 
 	i += scnprintf(buf + i, sz - i, "\n");
 	if (!more)

@@ -81,6 +81,20 @@ struct ipmi_ipmb_addr {
 };
 
 /*
+ * Used for messages received directly from an IPMB that have not gone
+ * through a MC.  This is for systems that sit right on an IPMB so
+ * they can receive commands and respond to them.
+ */
+#define IPMI_IPMB_DIRECT_ADDR_TYPE	0x81
+struct ipmi_ipmb_direct_addr {
+	int           addr_type;
+	short         channel;
+	unsigned char slave_addr;
+	unsigned char rs_lun;
+	unsigned char rq_lun;
+};
+
+/*
  * A LAN Address.  This is an address to/from a LAN interface bridged
  * by the BMC, not an address actually out on the LAN.
  *
@@ -158,7 +172,7 @@ struct kernel_ipmi_msg {
  * is used for the receive in-kernel interface and in the receive
  * IOCTL.
  *
- * The "IPMI_RESPONSE_RESPNOSE_TYPE" is a little strange sounding, but
+ * The "IPMI_RESPONSE_RESPONSE_TYPE" is a little strange sounding, but
  * it allows you to get the message results when you send a response
  * message.
  */

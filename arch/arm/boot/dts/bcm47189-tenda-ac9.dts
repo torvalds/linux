@@ -15,7 +15,8 @@
 		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
-	memory {
+	memory@0 {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000>;
 	};
 
@@ -57,22 +58,20 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		rfkill {
+		button-rfkill {
 			label = "WiFi";
 			linux,code = <KEY_RFKILL>;
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 		};
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
 		};
 
-		wps {
+		button-wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
@@ -103,6 +102,43 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
+		};
+	};
+};
+
+&switch {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			label = "wan";
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "lan1";
+		};
+
+		port@2 {
+			reg = <2>;
+			label = "lan2";
+		};
+
+		port@3 {
+			reg = <3>;
+			label = "lan3";
+		};
+
+		port@4 {
+			reg = <4>;
+			label = "lan4";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
 		};
 	};
 };

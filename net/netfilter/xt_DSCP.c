@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* x_tables module for setting the IPv4/IPv6 DSCP field, Version 1.8
  *
  * (C) 2002 by Harald Welte <laforge@netfilter.org>
  * based on ipt_FTOS.c (C) 2000 by Matthew G. Marsh <mgm@paktronix.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * See RFC2474 for a description of the DSCP field within the IP Header.
 */
@@ -27,6 +24,8 @@ MODULE_ALIAS("ip6t_DSCP");
 MODULE_ALIAS("ipt_TOS");
 MODULE_ALIAS("ip6t_TOS");
 
+#define XT_DSCP_ECN_MASK	3u
+
 static unsigned int
 dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
@@ -34,11 +33,10 @@ dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 
-		ipv4_change_dsfield(ip_hdr(skb),
-				    (__force __u8)(~XT_DSCP_MASK),
+		ipv4_change_dsfield(ip_hdr(skb), XT_DSCP_ECN_MASK,
 				    dinfo->dscp << XT_DSCP_SHIFT);
 
 	}
@@ -52,11 +50,10 @@ dscp_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
 
 	if (dscp != dinfo->dscp) {
-		if (!skb_make_writable(skb, sizeof(struct ipv6hdr)))
+		if (skb_ensure_writable(skb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
 
-		ipv6_change_dsfield(ipv6_hdr(skb),
-				    (__force __u8)(~XT_DSCP_MASK),
+		ipv6_change_dsfield(ipv6_hdr(skb), XT_DSCP_ECN_MASK,
 				    dinfo->dscp << XT_DSCP_SHIFT);
 	}
 	return XT_CONTINUE;
@@ -82,7 +79,7 @@ tos_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	nv   = (orig & ~info->tos_mask) ^ info->tos_value;
 
 	if (orig != nv) {
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 		iph = ip_hdr(skb);
 		ipv4_change_dsfield(iph, 0, nv);
@@ -102,7 +99,7 @@ tos_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	nv   = (orig & ~info->tos_mask) ^ info->tos_value;
 
 	if (orig != nv) {
-		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 		iph = ipv6_hdr(skb);
 		ipv6_change_dsfield(iph, 0, nv);

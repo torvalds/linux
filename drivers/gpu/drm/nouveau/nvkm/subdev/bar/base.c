@@ -134,9 +134,9 @@ nvkm_bar = {
 
 void
 nvkm_bar_ctor(const struct nvkm_bar_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_bar *bar)
+	      enum nvkm_subdev_type type, int inst, struct nvkm_bar *bar)
 {
-	nvkm_subdev_ctor(&nvkm_bar, device, index, &bar->subdev);
+	nvkm_subdev_ctor(&nvkm_bar, device, type, inst, &bar->subdev);
 	bar->func = func;
 	spin_lock_init(&bar->lock);
 }

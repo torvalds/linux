@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2016 Tomasz Chilinski <tomasz.chilinski@chilan.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* Kernel module implementing an IP set type: the hash:ip,mac type */
@@ -26,7 +23,7 @@
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
 #define IPSET_TYPE_REV_MIN	0
-#define IPSET_TYPE_REV_MAX	0
+#define IPSET_TYPE_REV_MAX	1	/* bucketsize, initval support  */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tomasz Chilinski <tomasz.chilinski@chilan.com>");
@@ -50,7 +47,7 @@ struct hash_ipmac4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipmac4_data_equal(const struct hash_ipmac4_elem *e1,
 		       const struct hash_ipmac4_elem *e2,
 		       u32 *multi)
@@ -70,7 +67,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipmac4_data_next(struct hash_ipmac4_elem *next,
 		      const struct hash_ipmac4_elem *e)
 {
@@ -92,15 +89,11 @@ hash_ipmac4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_ipmac4_elem e = { .ip = 0, { .foo[0] = 0, .foo[1] = 0 } };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
-	 /* MAC can be src only */
-	if (!(opt->flags & IPSET_DIM_TWO_SRC))
-		return 0;
-
 	if (skb_mac_header(skb) < skb->head ||
 	    (skb_mac_header(skb) + ETH_HLEN) > skb->data)
 		return -EINVAL;
 
-	if (opt->flags & IPSET_DIM_ONE_SRC)
+	if (opt->flags & IPSET_DIM_TWO_SRC)
 		ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
 	else
 		ether_addr_copy(e.ether, eth_hdr(skb)->h_dest);
@@ -161,7 +154,7 @@ struct hash_ipmac6_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipmac6_data_equal(const struct hash_ipmac6_elem *e1,
 		       const struct hash_ipmac6_elem *e2,
 		       u32 *multi)
@@ -182,7 +175,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipmac6_data_next(struct hash_ipmac6_elem *next,
 		      const struct hash_ipmac6_elem *e)
 {
@@ -216,7 +209,7 @@ hash_ipmac6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	    (skb_mac_header(skb) + ETH_HLEN) > skb->data)
 		return -EINVAL;
 
-	if (opt->flags & IPSET_DIM_ONE_SRC)
+	if (opt->flags & IPSET_DIM_TWO_SRC)
 		ether_addr_copy(e.ether, eth_hdr(skb)->h_source);
 	else
 		ether_addr_copy(e.ether, eth_hdr(skb)->h_dest);
@@ -275,11 +268,13 @@ static struct ip_set_type hash_ipmac_type __read_mostly = {
 	.family		= NFPROTO_UNSPEC,
 	.revision_min	= IPSET_TYPE_REV_MIN,
 	.revision_max	= IPSET_TYPE_REV_MAX,
+	.create_flags[IPSET_TYPE_REV_MAX] = IPSET_CREATE_FLAG_BUCKETSIZE,
 	.create		= hash_ipmac_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
 		[IPSET_ATTR_MAXELEM]	= { .type = NLA_U32 },
-		[IPSET_ATTR_PROBES]	= { .type = NLA_U8 },
+		[IPSET_ATTR_INITVAL]	= { .type = NLA_U32 },
+		[IPSET_ATTR_BUCKETSIZE]	= { .type = NLA_U8 },
 		[IPSET_ATTR_RESIZE]	= { .type = NLA_U8  },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
 		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },

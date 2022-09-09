@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * twl4030_usb - TWL4030 USB transceiver, talking to OMAP OTG controller
  *
  * Copyright (C) 2004-2007 Texas Instruments
  * Copyright (C) 2008 Nokia Corporation
  * Contact: Felipe Balbi <felipe.balbi@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Current status:
  *	- HS USB ULPI mode works.
@@ -172,8 +159,11 @@ struct twl4030_usb {
 
 	int			irq;
 	enum musb_vbus_id_status linkstat;
+	atomic_t		connected;
 	bool			vbus_supplied;
 	bool			musb_mailbox_pending;
+	unsigned long		runtime_suspended:1;
+	unsigned long		needs_resume:1;
 
 	struct delayed_work	id_workaround_work;
 };
@@ -396,6 +386,9 @@ static void __twl4030_phy_power(struct twl4030_usb *twl, int on)
 	WARN_ON(twl4030_usb_write_verify(twl, PHY_PWR_CTRL, pwr) < 0);
 }
 
+static int twl4030_usb_runtime_suspend(struct device *dev);
+static int twl4030_usb_runtime_resume(struct device *dev);
+
 static int __maybe_unused twl4030_usb_suspend(struct device *dev)
 {
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
@@ -407,6 +400,10 @@ static int __maybe_unused twl4030_usb_suspend(struct device *dev)
 	 */
 	dev_dbg(twl->dev, "%s\n", __func__);
 	disable_irq(twl->irq);
+	if (!twl->runtime_suspended && !atomic_read(&twl->connected)) {
+		twl4030_usb_runtime_suspend(dev);
+		twl->needs_resume = 1;
+	}
 
 	return 0;
 }
@@ -417,8 +414,12 @@ static int __maybe_unused twl4030_usb_resume(struct device *dev)
 
 	dev_dbg(twl->dev, "%s\n", __func__);
 	enable_irq(twl->irq);
+	if (twl->needs_resume)
+		twl4030_usb_runtime_resume(dev);
 	/* check whether cable status changed */
 	twl4030_usb_irq(0, twl);
+
+	twl->runtime_suspended = 0;
 
 	return 0;
 }
@@ -433,6 +434,8 @@ static int __maybe_unused twl4030_usb_runtime_suspend(struct device *dev)
 	regulator_disable(twl->usb1v5);
 	regulator_disable(twl->usb1v8);
 	regulator_disable(twl->usb3v1);
+
+	twl->runtime_suspended = 1;
 
 	return 0;
 }
@@ -556,8 +559,8 @@ static int twl4030_usb_ldo_init(struct twl4030_usb *twl)
 	return 0;
 }
 
-static ssize_t twl4030_usb_vbus_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t vbus_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
 {
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
 	int ret = -EINVAL;
@@ -569,45 +572,35 @@ static ssize_t twl4030_usb_vbus_show(struct device *dev,
 
 	return ret;
 }
-static DEVICE_ATTR(vbus, 0444, twl4030_usb_vbus_show, NULL);
+static DEVICE_ATTR_RO(vbus);
 
 static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 {
 	struct twl4030_usb *twl = _twl;
 	enum musb_vbus_id_status status;
-	bool status_changed = false;
 	int err;
 
 	status = twl4030_usb_linkstat(twl);
 
 	mutex_lock(&twl->lock);
-	if (status >= 0 && status != twl->linkstat) {
-		status_changed =
-			cable_present(twl->linkstat) !=
-			cable_present(status);
-		twl->linkstat = status;
-	}
+	twl->linkstat = status;
 	mutex_unlock(&twl->lock);
 
-	if (status_changed) {
-		/* FIXME add a set_power() method so that B-devices can
-		 * configure the charger appropriately.  It's not always
-		 * correct to consume VBUS power, and how much current to
-		 * consume is a function of the USB configuration chosen
-		 * by the host.
-		 *
-		 * REVISIT usb_gadget_vbus_connect(...) as needed, ditto
-		 * its disconnect() sibling, when changing to/from the
-		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
-		 * starts to handle softconnect right.
-		 */
-		if (cable_present(status)) {
+	if (cable_present(status)) {
+		if (atomic_add_unless(&twl->connected, 1, 1)) {
+			dev_dbg(twl->dev, "%s: cable connected %i\n",
+				__func__, status);
 			pm_runtime_get_sync(twl->dev);
-		} else {
+			twl->musb_mailbox_pending = true;
+		}
+	} else {
+		if (atomic_add_unless(&twl->connected, -1, 0)) {
+			dev_dbg(twl->dev, "%s: cable disconnected %i\n",
+				__func__, status);
 			pm_runtime_mark_last_busy(twl->dev);
 			pm_runtime_put_autosuspend(twl->dev);
+			twl->musb_mailbox_pending = true;
 		}
-		twl->musb_mailbox_pending = true;
 	}
 	if (twl->musb_mailbox_pending) {
 		err = musb_mailbox(status);
@@ -801,7 +794,7 @@ static int twl4030_usb_remove(struct platform_device *pdev)
 
 	usb_remove_phy(&twl->phy);
 	pm_runtime_get_sync(twl->dev);
-	cancel_delayed_work(&twl->id_workaround_work);
+	cancel_delayed_work_sync(&twl->id_workaround_work);
 	device_remove_file(twl->dev, &dev_attr_vbus);
 
 	/* set transceiver mode to power on defaults */

@@ -12,8 +12,8 @@
  */
 
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * void *memset(void *dst, int c, size_t length)
@@ -34,7 +34,7 @@
 ENTRY(__memset)
 WEAK(memset)
 
-	entry	sp, 16		# minimal stack frame
+	abi_entry_default
 	# a2/ dst, a3/ c, a4/ length
 	extui	a3, a3, 0, 8	# mask to just 8 bits
 	slli	a7, a3, 8	# duplicate character in all bytes of word
@@ -48,7 +48,7 @@ WEAK(memset)
 	srli	a7, a4, 4	# number of loop iterations with 16B
 				# per iteration
 	bnez	a4, .Laligned
-	retw
+	abi_ret_default
 
 /*
  * Destination is word-aligned.
@@ -95,7 +95,7 @@ EX(10f) s16i	a3, a5,  0
 EX(10f) s8i	a3, a5,  0
 .L5:
 .Lret1:
-	retw
+	abi_ret_default
 
 /*
  * Destination is unaligned
@@ -139,7 +139,7 @@ EX(10f) s8i	a3, a5, 0
 	blt	a5, a6, .Lbyteloop
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbytesetdone:
-	retw
+	abi_ret_default
 
 ENDPROC(__memset)
 
@@ -150,4 +150,4 @@ ENDPROC(__memset)
 
 10:
 	movi	a2, 0
-	retw
+	abi_ret_default

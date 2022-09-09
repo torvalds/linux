@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /** -*- linux-c -*- ***********************************************************
  * Linux PPP over Ethernet (PPPoX/PPPoE) Sockets
  *
  * PPPoX --- Generic PPP encapsulation socket family
  * PPPoE --- PPP over Ethernet (RFC 2516)
- *
  *
  * Version:	0.7.0
  *
@@ -25,7 +25,7 @@
  *		in pppoe_release.
  * 051000 :	Initialization cleanup.
  * 111100 :	Fix recvmsg.
- * 050101 :	Fix PADT procesing.
+ * 050101 :	Fix PADT processing.
  * 140501 :	Use pppoe_rcv_core to handle all backlog. (Alexey)
  * 170701 :	Do not lock_sock with rwlock held. (DaveM)
  *		Ignore discovery frames if user has socket
@@ -50,11 +50,6 @@
  *		David S. Miller (davem@redhat.com)
  *
  * License:
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/string.h>
@@ -101,7 +96,7 @@ struct pppoe_net {
 	 * we could use _single_ hash table for all
 	 * nets by injecting net id into the hash but
 	 * it would increase hash chains and add
-	 * a few additional math comparations messy
+	 * a few additional math comparisons messy
 	 * as well, moreover in case of SMP less locking
 	 * controversy here
 	 */
@@ -124,8 +119,6 @@ static inline bool stage_session(__be16 sid)
 
 static inline struct pppoe_net *pppoe_pernet(struct net *net)
 {
-	BUG_ON(!net);
-
 	return net_generic(net, pppoe_net_id);
 }
 
@@ -445,6 +438,7 @@ static int pppoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (pskb_trim_rcsum(skb, len))
 		goto drop;
 
+	ph = pppoe_hdr(skb);
 	pn = pppoe_pernet(dev_net(dev));
 
 	/* Note that get_item does a sock_hold(), so sk_pppox(po)
@@ -495,6 +489,9 @@ static int pppoe_disc_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto out;
+
+	if (skb->pkt_type != PACKET_HOST)
+		goto abort;
 
 	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
 		goto abort;
@@ -975,8 +972,32 @@ static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	return __pppoe_xmit(sk, skb);
 }
 
+static int pppoe_fill_forward_path(struct net_device_path_ctx *ctx,
+				   struct net_device_path *path,
+				   const struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+	struct net_device *dev = po->pppoe_dev;
+
+	if (sock_flag(sk, SOCK_DEAD) ||
+	    !(sk->sk_state & PPPOX_CONNECTED) || !dev)
+		return -1;
+
+	path->type = DEV_PATH_PPPOE;
+	path->encap.proto = htons(ETH_P_PPP_SES);
+	path->encap.id = be16_to_cpu(po->num);
+	memcpy(path->encap.h_dest, po->pppoe_pa.remote, ETH_ALEN);
+	memcpy(ctx->daddr, po->pppoe_pa.remote, ETH_ALEN);
+	path->dev = ctx->dev;
+	ctx->dev = dev;
+
+	return 0;
+}
+
 static const struct ppp_channel_ops pppoe_chan_ops = {
 	.start_xmit = pppoe_xmit,
+	.fill_forward_path = pppoe_fill_forward_path,
 };
 
 static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
@@ -991,8 +1012,7 @@ static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
 		goto end;
 	}
 
-	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
-				flags & MSG_DONTWAIT, &error);
+	skb = skb_recv_datagram(sk, flags, &error);
 	if (error < 0)
 		goto end;
 
@@ -1113,12 +1133,13 @@ static const struct proto_ops pppoe_ops = {
 	.poll		= datagram_poll,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
 	.sendmsg	= pppoe_sendmsg,
 	.recvmsg	= pppoe_recvmsg,
 	.mmap		= sock_no_mmap,
 	.ioctl		= pppox_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= pppox_compat_ioctl,
+#endif
 };
 
 static const struct pppox_proto pppoe_proto = {

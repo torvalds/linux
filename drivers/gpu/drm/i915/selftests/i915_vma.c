@@ -24,10 +24,15 @@
 
 #include <linux/prime_numbers.h>
 
-#include "../i915_selftest.h"
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_internal.h"
+#include "gem/selftests/mock_context.h"
+
+#include "i915_scatterlist.h"
+#include "i915_selftest.h"
 
 #include "mock_gem_device.h"
-#include "mock_context.h"
+#include "mock_gtt.h"
 
 static bool assert_vma(struct i915_vma *vma,
 		       struct drm_i915_gem_object *obj,
@@ -35,7 +40,7 @@ static bool assert_vma(struct i915_vma *vma,
 {
 	bool ok = true;
 
-	if (vma->vm != &ctx->ppgtt->vm) {
+	if (vma->vm != ctx->vm) {
 		pr_err("VMA created with wrong VM\n");
 		ok = false;
 	}
@@ -58,7 +63,7 @@ static bool assert_vma(struct i915_vma *vma,
 static struct i915_vma *
 checked_vma_instance(struct drm_i915_gem_object *obj,
 		     struct i915_address_space *vm,
-		     struct i915_ggtt_view *view)
+		     const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 	bool ok = true;
@@ -110,11 +115,13 @@ static int create_vmas(struct drm_i915_private *i915,
 	list_for_each_entry(obj, objects, st_link) {
 		for (pinned = 0; pinned <= 1; pinned++) {
 			list_for_each_entry(ctx, contexts, link) {
-				struct i915_address_space *vm = &ctx->ppgtt->vm;
+				struct i915_address_space *vm;
 				struct i915_vma *vma;
 				int err;
 
+				vm = i915_gem_context_get_eb_vm(ctx);
 				vma = checked_vma_instance(obj, vm, NULL);
+				i915_vm_put(vm);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
 
@@ -141,7 +148,8 @@ static int create_vmas(struct drm_i915_private *i915,
 
 static int igt_vma_create(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
+	struct i915_ggtt *ggtt = arg;
+	struct drm_i915_private *i915 = ggtt->vm.i915;
 	struct drm_i915_gem_object *obj, *on;
 	struct i915_gem_context *ctx, *cn;
 	unsigned long num_obj, num_ctx;
@@ -166,7 +174,7 @@ static int igt_vma_create(void *arg)
 		}
 
 		nc = 0;
-		for_each_prime_number(num_ctx, MAX_CONTEXT_HW_ID) {
+		for_each_prime_number(num_ctx, 2 * BITS_PER_LONG) {
 			for (; nc < num_ctx; nc++) {
 				ctx = mock_context(i915, "mock");
 				if (!ctx)
@@ -189,6 +197,8 @@ static int igt_vma_create(void *arg)
 			list_del_init(&ctx->link);
 			mock_context_close(ctx);
 		}
+
+		cond_resched();
 	}
 
 end:
@@ -245,7 +255,7 @@ static bool assert_pin_einval(const struct i915_vma *vma,
 
 static int igt_vma_pin1(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
+	struct i915_ggtt *ggtt = arg;
 	const struct pin_mode modes[] = {
 #define VALID(sz, fl) { .size = (sz), .flags = (fl), .assert = assert_pin_valid, .string = #sz ", " #fl ", (valid) " }
 #define __INVALID(sz, fl, check, eval) { .size = (sz), .flags = (fl), .assert = (check), .string = #sz ", " #fl ", (invalid " #eval ")" }
@@ -256,30 +266,30 @@ static int igt_vma_pin1(void *arg)
 
 		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | 4096),
 		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | 8192),
-		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
-		VALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
-		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.vm.total - 4096)),
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
+		VALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->vm.total - 4096)),
 
-		VALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (i915->ggtt.mappable_end - 4096)),
-		INVALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | i915->ggtt.mappable_end),
-		VALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | (i915->ggtt.vm.total - 4096)),
-		INVALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | i915->ggtt.vm.total),
+		VALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (ggtt->mappable_end - 4096)),
+		INVALID(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | ggtt->mappable_end),
+		VALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | (ggtt->vm.total - 4096)),
+		INVALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | ggtt->vm.total),
 		INVALID(0, PIN_GLOBAL | PIN_OFFSET_FIXED | round_down(U64_MAX, PAGE_SIZE)),
 
 		VALID(4096, PIN_GLOBAL),
 		VALID(8192, PIN_GLOBAL),
-		VALID(i915->ggtt.mappable_end - 4096, PIN_GLOBAL | PIN_MAPPABLE),
-		VALID(i915->ggtt.mappable_end, PIN_GLOBAL | PIN_MAPPABLE),
-		NOSPACE(i915->ggtt.mappable_end + 4096, PIN_GLOBAL | PIN_MAPPABLE),
-		VALID(i915->ggtt.vm.total - 4096, PIN_GLOBAL),
-		VALID(i915->ggtt.vm.total, PIN_GLOBAL),
-		NOSPACE(i915->ggtt.vm.total + 4096, PIN_GLOBAL),
+		VALID(ggtt->mappable_end - 4096, PIN_GLOBAL | PIN_MAPPABLE),
+		VALID(ggtt->mappable_end, PIN_GLOBAL | PIN_MAPPABLE),
+		NOSPACE(ggtt->mappable_end + 4096, PIN_GLOBAL | PIN_MAPPABLE),
+		VALID(ggtt->vm.total - 4096, PIN_GLOBAL),
+		VALID(ggtt->vm.total, PIN_GLOBAL),
+		NOSPACE(ggtt->vm.total + 4096, PIN_GLOBAL),
 		NOSPACE(round_down(U64_MAX, PAGE_SIZE), PIN_GLOBAL),
-		INVALID(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (i915->ggtt.mappable_end - 4096)),
-		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (i915->ggtt.vm.total - 4096)),
+		INVALID(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (ggtt->mappable_end - 4096)),
+		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (ggtt->vm.total - 4096)),
 		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (round_down(U64_MAX, PAGE_SIZE) - 4096)),
 
-		VALID(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
+		VALID(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
 
 #if !IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 		/* Misusing BIAS is a programming error (it is not controllable
@@ -287,10 +297,10 @@ static int igt_vma_pin1(void *arg)
 		 * However, the tests are still quite interesting for checking
 		 * variable start, end and size.
 		 */
-		NOSPACE(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | i915->ggtt.mappable_end),
-		NOSPACE(0, PIN_GLOBAL | PIN_OFFSET_BIAS | i915->ggtt.vm.total),
-		NOSPACE(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (i915->ggtt.mappable_end - 4096)),
-		NOSPACE(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (i915->ggtt.vm.total - 4096)),
+		NOSPACE(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | ggtt->mappable_end),
+		NOSPACE(0, PIN_GLOBAL | PIN_OFFSET_BIAS | ggtt->vm.total),
+		NOSPACE(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
+		NOSPACE(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->vm.total - 4096)),
 #endif
 		{ },
 #undef NOSPACE
@@ -306,13 +316,13 @@ static int igt_vma_pin1(void *arg)
 	 * focusing on error handling of boundary conditions.
 	 */
 
-	GEM_BUG_ON(!drm_mm_clean(&i915->ggtt.vm.mm));
+	GEM_BUG_ON(!drm_mm_clean(&ggtt->vm.mm));
 
-	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_internal(ggtt->vm.i915, PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	vma = checked_vma_instance(obj, &i915->ggtt.vm, NULL);
+	vma = checked_vma_instance(obj, &ggtt->vm, NULL);
 	if (IS_ERR(vma))
 		goto out;
 
@@ -331,12 +341,14 @@ static int igt_vma_pin1(void *arg)
 
 		if (!err) {
 			i915_vma_unpin(vma);
-			err = i915_vma_unbind(vma);
+			err = i915_vma_unbind_unlocked(vma);
 			if (err) {
 				pr_err("Failed to unbind single page from GGTT, err=%d\n", err);
 				goto out;
 			}
 		}
+
+		cond_resched();
 	}
 
 	err = 0;
@@ -350,7 +362,7 @@ static unsigned long rotated_index(const struct intel_rotation_info *r,
 				   unsigned int x,
 				   unsigned int y)
 {
-	return (r->plane[n].stride * (r->plane[n].height - y - 1) +
+	return (r->plane[n].src_stride * (r->plane[n].height - y - 1) +
 		r->plane[n].offset + x);
 }
 
@@ -362,6 +374,8 @@ assert_rotated(struct drm_i915_gem_object *obj,
 	unsigned int x, y;
 
 	for (x = 0; x < r->plane[n].width; x++) {
+		unsigned int left;
+
 		for (y = 0; y < r->plane[n].height; y++) {
 			unsigned long src_idx;
 			dma_addr_t src;
@@ -390,40 +404,176 @@ assert_rotated(struct drm_i915_gem_object *obj,
 
 			sg = sg_next(sg);
 		}
+
+		left = (r->plane[n].dst_stride - y) * PAGE_SIZE;
+
+		if (!left)
+			continue;
+
+		if (!sg) {
+			pr_err("Invalid sg table: too short at plane %d, (%d, %d)!\n",
+			       n, x, y);
+			return ERR_PTR(-EINVAL);
+		}
+
+		if (sg_dma_len(sg) != left) {
+			pr_err("Invalid sg.length, found %d, expected %u for rotated page (%d, %d)\n",
+			       sg_dma_len(sg), left, x, y);
+			return ERR_PTR(-EINVAL);
+		}
+
+		if (sg_dma_address(sg) != 0) {
+			pr_err("Invalid address, found %pad, expected 0 for remapped page (%d, %d)\n",
+			       &sg_dma_address(sg), x, y);
+			return ERR_PTR(-EINVAL);
+		}
+
+		sg = sg_next(sg);
 	}
 
 	return sg;
 }
 
-static unsigned int rotated_size(const struct intel_rotation_plane_info *a,
-				 const struct intel_rotation_plane_info *b)
+static unsigned long remapped_index(const struct intel_remapped_info *r,
+				    unsigned int n,
+				    unsigned int x,
+				    unsigned int y)
 {
-	return a->width * a->height + b->width * b->height;
+	return (r->plane[n].src_stride * y +
+		r->plane[n].offset + x);
 }
 
-static int igt_vma_rotate(void *arg)
+static struct scatterlist *
+assert_remapped(struct drm_i915_gem_object *obj,
+		const struct intel_remapped_info *r, unsigned int n,
+		struct scatterlist *sg)
 {
-	struct drm_i915_private *i915 = arg;
-	struct i915_address_space *vm = &i915->ggtt.vm;
+	unsigned int x, y;
+	unsigned int left = 0;
+	unsigned int offset;
+
+	for (y = 0; y < r->plane[n].height; y++) {
+		for (x = 0; x < r->plane[n].width; x++) {
+			unsigned long src_idx;
+			dma_addr_t src;
+
+			if (!sg) {
+				pr_err("Invalid sg table: too short at plane %d, (%d, %d)!\n",
+				       n, x, y);
+				return ERR_PTR(-EINVAL);
+			}
+			if (!left) {
+				offset = 0;
+				left = sg_dma_len(sg);
+			}
+
+			src_idx = remapped_index(r, n, x, y);
+			src = i915_gem_object_get_dma_address(obj, src_idx);
+
+			if (left < PAGE_SIZE || left & (PAGE_SIZE-1)) {
+				pr_err("Invalid sg.length, found %d, expected %lu for remapped page (%d, %d) [src index %lu]\n",
+				       sg_dma_len(sg), PAGE_SIZE,
+				       x, y, src_idx);
+				return ERR_PTR(-EINVAL);
+			}
+
+			if (sg_dma_address(sg) + offset != src) {
+				pr_err("Invalid address for remapped page (%d, %d) [src index %lu]\n",
+				       x, y, src_idx);
+				return ERR_PTR(-EINVAL);
+			}
+
+			left -= PAGE_SIZE;
+			offset += PAGE_SIZE;
+
+
+			if (!left)
+				sg = sg_next(sg);
+		}
+
+		if (left) {
+			pr_err("Unexpected sg tail with %d size for remapped page (%d, %d)\n",
+			       left,
+			       x, y);
+			return ERR_PTR(-EINVAL);
+		}
+
+		left = (r->plane[n].dst_stride - r->plane[n].width) * PAGE_SIZE;
+
+		if (!left)
+			continue;
+
+		if (!sg) {
+			pr_err("Invalid sg table: too short at plane %d, (%d, %d)!\n",
+			       n, x, y);
+			return ERR_PTR(-EINVAL);
+		}
+
+		if (sg_dma_len(sg) != left) {
+			pr_err("Invalid sg.length, found %u, expected %u for remapped page (%d, %d)\n",
+			       sg_dma_len(sg), left,
+			       x, y);
+			return ERR_PTR(-EINVAL);
+		}
+
+		if (sg_dma_address(sg) != 0) {
+			pr_err("Invalid address, found %pad, expected 0 for remapped page (%d, %d)\n",
+			       &sg_dma_address(sg),
+			       x, y);
+			return ERR_PTR(-EINVAL);
+		}
+
+		sg = sg_next(sg);
+		left = 0;
+	}
+
+	return sg;
+}
+
+static unsigned int remapped_size(enum i915_ggtt_view_type view_type,
+				  const struct intel_remapped_plane_info *a,
+				  const struct intel_remapped_plane_info *b)
+{
+
+	if (view_type == I915_GGTT_VIEW_ROTATED)
+		return a->dst_stride * a->width + b->dst_stride * b->width;
+	else
+		return a->dst_stride * a->height + b->dst_stride * b->height;
+}
+
+static int igt_vma_rotate_remap(void *arg)
+{
+	struct i915_ggtt *ggtt = arg;
+	struct i915_address_space *vm = &ggtt->vm;
 	struct drm_i915_gem_object *obj;
-	const struct intel_rotation_plane_info planes[] = {
-		{ .width = 1, .height = 1, .stride = 1 },
-		{ .width = 2, .height = 2, .stride = 2 },
-		{ .width = 4, .height = 4, .stride = 4 },
-		{ .width = 8, .height = 8, .stride = 8 },
+	const struct intel_remapped_plane_info planes[] = {
+		{ .width = 1, .height = 1, .src_stride = 1 },
+		{ .width = 2, .height = 2, .src_stride = 2 },
+		{ .width = 4, .height = 4, .src_stride = 4 },
+		{ .width = 8, .height = 8, .src_stride = 8 },
 
-		{ .width = 3, .height = 5, .stride = 3 },
-		{ .width = 3, .height = 5, .stride = 4 },
-		{ .width = 3, .height = 5, .stride = 5 },
+		{ .width = 3, .height = 5, .src_stride = 3 },
+		{ .width = 3, .height = 5, .src_stride = 4 },
+		{ .width = 3, .height = 5, .src_stride = 5 },
 
-		{ .width = 5, .height = 3, .stride = 5 },
-		{ .width = 5, .height = 3, .stride = 7 },
-		{ .width = 5, .height = 3, .stride = 9 },
+		{ .width = 5, .height = 3, .src_stride = 5 },
+		{ .width = 5, .height = 3, .src_stride = 7 },
+		{ .width = 5, .height = 3, .src_stride = 9 },
 
-		{ .width = 4, .height = 6, .stride = 6 },
-		{ .width = 6, .height = 4, .stride = 6 },
+		{ .width = 4, .height = 6, .src_stride = 6 },
+		{ .width = 6, .height = 4, .src_stride = 6 },
+
+		{ .width = 2, .height = 2, .src_stride = 2, .dst_stride = 2 },
+		{ .width = 3, .height = 3, .src_stride = 3, .dst_stride = 4 },
+		{ .width = 5, .height = 6, .src_stride = 7, .dst_stride = 8 },
+
 		{ }
 	}, *a, *b;
+	enum i915_ggtt_view_type types[] = {
+		I915_GGTT_VIEW_ROTATED,
+		I915_GGTT_VIEW_REMAPPED,
+		0,
+	}, *t;
 	const unsigned int max_pages = 64;
 	int err = -ENOMEM;
 
@@ -431,28 +581,40 @@ static int igt_vma_rotate(void *arg)
 	 * that the page layout within the rotated VMA match our expectations.
 	 */
 
-	obj = i915_gem_object_create_internal(i915, max_pages * PAGE_SIZE);
+	obj = i915_gem_object_create_internal(vm->i915, max_pages * PAGE_SIZE);
 	if (IS_ERR(obj))
 		goto out;
 
+	for (t = types; *t; t++) {
 	for (a = planes; a->width; a++) {
 		for (b = planes + ARRAY_SIZE(planes); b-- != planes; ) {
-			struct i915_ggtt_view view;
+			struct i915_ggtt_view view = {
+				.type = *t,
+				.remapped.plane[0] = *a,
+				.remapped.plane[1] = *b,
+			};
+			struct intel_remapped_plane_info *plane_info = view.remapped.plane;
 			unsigned int n, max_offset;
 
-			max_offset = max(a->stride * a->height,
-					 b->stride * b->height);
+			max_offset = max(plane_info[0].src_stride * plane_info[0].height,
+					 plane_info[1].src_stride * plane_info[1].height);
 			GEM_BUG_ON(max_offset > max_pages);
 			max_offset = max_pages - max_offset;
 
-			view.type = I915_GGTT_VIEW_ROTATED;
-			view.rotated.plane[0] = *a;
-			view.rotated.plane[1] = *b;
+			if (!plane_info[0].dst_stride)
+				plane_info[0].dst_stride = view.type == I915_GGTT_VIEW_ROTATED ?
+									plane_info[0].height :
+									plane_info[0].width;
+			if (!plane_info[1].dst_stride)
+				plane_info[1].dst_stride = view.type == I915_GGTT_VIEW_ROTATED ?
+									plane_info[1].height :
+									plane_info[1].width;
 
-			for_each_prime_number_from(view.rotated.plane[0].offset, 0, max_offset) {
-				for_each_prime_number_from(view.rotated.plane[1].offset, 0, max_offset) {
+			for_each_prime_number_from(plane_info[0].offset, 0, max_offset) {
+				for_each_prime_number_from(plane_info[1].offset, 0, max_offset) {
 					struct scatterlist *sg;
 					struct i915_vma *vma;
+					unsigned int expected_pages;
 
 					vma = checked_vma_instance(obj, vm, &view);
 					if (IS_ERR(vma)) {
@@ -466,16 +628,27 @@ static int igt_vma_rotate(void *arg)
 						goto out_object;
 					}
 
-					if (vma->size != rotated_size(a, b) * PAGE_SIZE) {
+					expected_pages = remapped_size(view.type, &plane_info[0], &plane_info[1]);
+
+					if (view.type == I915_GGTT_VIEW_ROTATED &&
+					    vma->size != expected_pages * PAGE_SIZE) {
 						pr_err("VMA is wrong size, expected %lu, found %llu\n",
-						       PAGE_SIZE * rotated_size(a, b), vma->size);
+						       PAGE_SIZE * expected_pages, vma->size);
 						err = -EINVAL;
 						goto out_object;
 					}
 
-					if (vma->pages->nents != rotated_size(a, b)) {
+					if (view.type == I915_GGTT_VIEW_REMAPPED &&
+					    vma->size > expected_pages * PAGE_SIZE) {
+						pr_err("VMA is wrong size, expected %lu, found %llu\n",
+						       PAGE_SIZE * expected_pages, vma->size);
+						err = -EINVAL;
+						goto out_object;
+					}
+
+					if (vma->pages->nents > expected_pages) {
 						pr_err("sg table is wrong sizeo, expected %u, found %u nents\n",
-						       rotated_size(a, b), vma->pages->nents);
+						       expected_pages, vma->pages->nents);
 						err = -EINVAL;
 						goto out_object;
 					}
@@ -495,26 +668,40 @@ static int igt_vma_rotate(void *arg)
 
 					sg = vma->pages->sgl;
 					for (n = 0; n < ARRAY_SIZE(view.rotated.plane); n++) {
-						sg = assert_rotated(obj, &view.rotated, n, sg);
+						if (view.type == I915_GGTT_VIEW_ROTATED)
+							sg = assert_rotated(obj, &view.rotated, n, sg);
+						else
+							sg = assert_remapped(obj, &view.remapped, n, sg);
 						if (IS_ERR(sg)) {
-							pr_err("Inconsistent VMA pages for plane %d: [(%d, %d, %d, %d), (%d, %d, %d, %d)]\n", n,
-							       view.rotated.plane[0].width,
-							       view.rotated.plane[0].height,
-							       view.rotated.plane[0].stride,
-							       view.rotated.plane[0].offset,
-							       view.rotated.plane[1].width,
-							       view.rotated.plane[1].height,
-							       view.rotated.plane[1].stride,
-							       view.rotated.plane[1].offset);
+							pr_err("Inconsistent %s VMA pages for plane %d: [(%d, %d, %d, %d, %d), (%d, %d, %d, %d, %d)]\n",
+							       view.type == I915_GGTT_VIEW_ROTATED ?
+							       "rotated" : "remapped", n,
+							       plane_info[0].width,
+							       plane_info[0].height,
+							       plane_info[0].src_stride,
+							       plane_info[0].dst_stride,
+							       plane_info[0].offset,
+							       plane_info[1].width,
+							       plane_info[1].height,
+							       plane_info[1].src_stride,
+							       plane_info[1].dst_stride,
+							       plane_info[1].offset);
 							err = -EINVAL;
 							goto out_object;
 						}
 					}
 
 					i915_vma_unpin(vma);
+					err = i915_vma_unbind_unlocked(vma);
+					if (err) {
+						pr_err("Unbinding returned %i\n", err);
+						goto out_object;
+					}
+					cond_resched();
 				}
 			}
 		}
+	}
 	}
 
 out_object:
@@ -531,7 +718,7 @@ static bool assert_partial(struct drm_i915_gem_object *obj,
 	struct sgt_iter sgt;
 	dma_addr_t dma;
 
-	for_each_sgt_dma(dma, sgt, vma->pages) {
+	for_each_sgt_daddr(dma, sgt, vma->pages) {
 		dma_addr_t src;
 
 		if (!size) {
@@ -602,8 +789,8 @@ static bool assert_pin(struct i915_vma *vma,
 
 static int igt_vma_partial(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
-	struct i915_address_space *vm = &i915->ggtt.vm;
+	struct i915_ggtt *ggtt = arg;
+	struct i915_address_space *vm = &ggtt->vm;
 	const unsigned int npages = 1021; /* prime! */
 	struct drm_i915_gem_object *obj;
 	const struct phase {
@@ -621,7 +808,7 @@ static int igt_vma_partial(void *arg)
 	 * we are returned the same VMA when we later request the same range.
 	 */
 
-	obj = i915_gem_object_create_internal(i915, npages*PAGE_SIZE);
+	obj = i915_gem_object_create_internal(vm->i915, npages * PAGE_SIZE);
 	if (IS_ERR(obj))
 		goto out;
 
@@ -666,11 +853,18 @@ static int igt_vma_partial(void *arg)
 
 				i915_vma_unpin(vma);
 				nvma++;
+				err = i915_vma_unbind_unlocked(vma);
+				if (err) {
+					pr_err("Unbinding returned %i\n", err);
+					goto out_object;
+				}
+
+				cond_resched();
 			}
 		}
 
 		count = 0;
-		list_for_each_entry(vma, &obj->vma_list, obj_link)
+		list_for_each_entry(vma, &obj->vma.list, obj_link)
 			count++;
 		if (count != nvma) {
 			pr_err("(%s) All partial vma were not recorded on the obj->vma_list: found %u, expected %u\n",
@@ -698,8 +892,14 @@ static int igt_vma_partial(void *arg)
 
 		i915_vma_unpin(vma);
 
+		err = i915_vma_unbind_unlocked(vma);
+		if (err) {
+			pr_err("Unbinding returned %i\n", err);
+			goto out_object;
+		}
+
 		count = 0;
-		list_for_each_entry(vma, &obj->vma_list, obj_link)
+		list_for_each_entry(vma, &obj->vma.list, obj_link)
 			count++;
 		if (count != nvma) {
 			pr_err("(%s) allocated an extra full vma!\n", p->name);
@@ -719,21 +919,189 @@ int i915_vma_mock_selftests(void)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_vma_create),
 		SUBTEST(igt_vma_pin1),
-		SUBTEST(igt_vma_rotate),
+		SUBTEST(igt_vma_rotate_remap),
 		SUBTEST(igt_vma_partial),
 	};
 	struct drm_i915_private *i915;
+	struct intel_gt *gt;
 	int err;
 
 	i915 = mock_gem_device();
 	if (!i915)
 		return -ENOMEM;
 
-	mutex_lock(&i915->drm.struct_mutex);
-	err = i915_subtests(tests, i915);
-	mutex_unlock(&i915->drm.struct_mutex);
+	/* allocate the ggtt */
+	err = intel_gt_assign_ggtt(to_gt(i915));
+	if (err)
+		goto out_put;
 
-	drm_dev_put(&i915->drm);
+	gt = to_gt(i915);
+
+	mock_init_ggtt(gt);
+
+	err = i915_subtests(tests, gt->ggtt);
+
+	mock_device_flush(i915);
+	i915_gem_drain_freed_objects(i915);
+	mock_fini_ggtt(gt->ggtt);
+
+out_put:
+	mock_destroy_device(i915);
 	return err;
 }
 
+static int igt_vma_remapped_gtt(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	const struct intel_remapped_plane_info planes[] = {
+		{ .width = 1, .height = 1, .src_stride = 1 },
+		{ .width = 2, .height = 2, .src_stride = 2 },
+		{ .width = 4, .height = 4, .src_stride = 4 },
+		{ .width = 8, .height = 8, .src_stride = 8 },
+
+		{ .width = 3, .height = 5, .src_stride = 3 },
+		{ .width = 3, .height = 5, .src_stride = 4 },
+		{ .width = 3, .height = 5, .src_stride = 5 },
+
+		{ .width = 5, .height = 3, .src_stride = 5 },
+		{ .width = 5, .height = 3, .src_stride = 7 },
+		{ .width = 5, .height = 3, .src_stride = 9 },
+
+		{ .width = 4, .height = 6, .src_stride = 6 },
+		{ .width = 6, .height = 4, .src_stride = 6 },
+
+		{ .width = 2, .height = 2, .src_stride = 2, .dst_stride = 2 },
+		{ .width = 3, .height = 3, .src_stride = 3, .dst_stride = 4 },
+		{ .width = 5, .height = 6, .src_stride = 7, .dst_stride = 8 },
+
+		{ }
+	}, *p;
+	enum i915_ggtt_view_type types[] = {
+		I915_GGTT_VIEW_ROTATED,
+		I915_GGTT_VIEW_REMAPPED,
+		0,
+	}, *t;
+	struct drm_i915_gem_object *obj;
+	intel_wakeref_t wakeref;
+	int err = 0;
+
+	if (!i915_ggtt_has_aperture(to_gt(i915)->ggtt))
+		return 0;
+
+	obj = i915_gem_object_create_internal(i915, 10 * 10 * PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	for (t = types; *t; t++) {
+		for (p = planes; p->width; p++) {
+			struct i915_ggtt_view view = {
+				.type = *t,
+				.rotated.plane[0] = *p,
+			};
+			struct intel_remapped_plane_info *plane_info = view.rotated.plane;
+			struct i915_vma *vma;
+			u32 __iomem *map;
+			unsigned int x, y;
+
+			i915_gem_object_lock(obj, NULL);
+			err = i915_gem_object_set_to_gtt_domain(obj, true);
+			i915_gem_object_unlock(obj);
+			if (err)
+				goto out;
+
+			if (!plane_info[0].dst_stride)
+				plane_info[0].dst_stride = *t == I915_GGTT_VIEW_ROTATED ?
+								 p->height : p->width;
+
+			vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
+			if (IS_ERR(vma)) {
+				err = PTR_ERR(vma);
+				goto out;
+			}
+
+			GEM_BUG_ON(vma->ggtt_view.type != *t);
+
+			map = i915_vma_pin_iomap(vma);
+			i915_vma_unpin(vma);
+			if (IS_ERR(map)) {
+				err = PTR_ERR(map);
+				goto out;
+			}
+
+			for (y = 0 ; y < plane_info[0].height; y++) {
+				for (x = 0 ; x < plane_info[0].width; x++) {
+					unsigned int offset;
+					u32 val = y << 16 | x;
+
+					if (*t == I915_GGTT_VIEW_ROTATED)
+						offset = (x * plane_info[0].dst_stride + y) * PAGE_SIZE;
+					else
+						offset = (y * plane_info[0].dst_stride + x) * PAGE_SIZE;
+
+					iowrite32(val, &map[offset / sizeof(*map)]);
+				}
+			}
+
+			i915_vma_unpin_iomap(vma);
+
+			vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
+			if (IS_ERR(vma)) {
+				err = PTR_ERR(vma);
+				goto out;
+			}
+
+			GEM_BUG_ON(vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL);
+
+			map = i915_vma_pin_iomap(vma);
+			i915_vma_unpin(vma);
+			if (IS_ERR(map)) {
+				err = PTR_ERR(map);
+				goto out;
+			}
+
+			for (y = 0 ; y < plane_info[0].height; y++) {
+				for (x = 0 ; x < plane_info[0].width; x++) {
+					unsigned int offset, src_idx;
+					u32 exp = y << 16 | x;
+					u32 val;
+
+					if (*t == I915_GGTT_VIEW_ROTATED)
+						src_idx = rotated_index(&view.rotated, 0, x, y);
+					else
+						src_idx = remapped_index(&view.remapped, 0, x, y);
+					offset = src_idx * PAGE_SIZE;
+
+					val = ioread32(&map[offset / sizeof(*map)]);
+					if (val != exp) {
+						pr_err("%s VMA write test failed, expected 0x%x, found 0x%x\n",
+						       *t == I915_GGTT_VIEW_ROTATED ? "Rotated" : "Remapped",
+						       exp, val);
+						i915_vma_unpin_iomap(vma);
+						err = -EINVAL;
+						goto out;
+					}
+				}
+			}
+			i915_vma_unpin_iomap(vma);
+
+			cond_resched();
+		}
+	}
+
+out:
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	i915_gem_object_put(obj);
+
+	return err;
+}
+
+int i915_vma_live_selftests(struct drm_i915_private *i915)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_vma_remapped_gtt),
+	};
+
+	return i915_subtests(tests, i915);
+}

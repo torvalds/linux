@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IIO DAC driver for NXP LPC18xx DAC
  *
  * Copyright (C) 2016 Joachim Eastwood <manabian@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * UNSUPPORTED hardware features:
  *  - Interrupts
@@ -19,9 +16,8 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
@@ -109,7 +105,6 @@ static int lpc18xx_dac_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct lpc18xx_dac *dac;
-	struct resource *res;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*dac));
@@ -120,25 +115,21 @@ static int lpc18xx_dac_probe(struct platform_device *pdev)
 	dac = iio_priv(indio_dev);
 	mutex_init(&dac->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dac->base = devm_ioremap_resource(&pdev->dev, res);
+	dac->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dac->base))
 		return PTR_ERR(dac->base);
 
 	dac->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dac->clk)) {
-		dev_err(&pdev->dev, "error getting clock\n");
-		return PTR_ERR(dac->clk);
-	}
+	if (IS_ERR(dac->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dac->clk),
+				     "error getting clock\n");
 
 	dac->vref = devm_regulator_get(&pdev->dev, "vref");
-	if (IS_ERR(dac->vref)) {
-		dev_err(&pdev->dev, "error getting regulator\n");
-		return PTR_ERR(dac->vref);
-	}
+	if (IS_ERR(dac->vref))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dac->vref),
+				     "error getting regulator\n");
 
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &lpc18xx_dac_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = lpc18xx_dac_iio_channels;

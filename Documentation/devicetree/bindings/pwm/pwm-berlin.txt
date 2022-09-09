@@ -4,7 +4,7 @@ Required properties:
 - compatible: should be "marvell,berlin-pwm"
 - reg: physical base address and length of the controller's registers
 - clocks: phandle to the input clock
-- #pwm-cells: should be 3. See pwm.txt in this directory for a description of
+- #pwm-cells: should be 3. See pwm.yaml in this directory for a description of
   the cells format.
 
 Example:

@@ -17,26 +17,20 @@
 #include <asm/pgtable-64.h>
 #endif
 
+#include <asm/cmpxchg.h>
 #include <asm/io.h>
 #include <asm/pgtable-bits.h>
+#include <asm/cpu-features.h>
 
 struct mm_struct;
 struct vm_area_struct;
 
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_NO_READ | \
-				 _page_cachable_default)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | \
-				 _page_cachable_default)
-#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_NO_EXEC | \
-				 _page_cachable_default)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | \
-				 _page_cachable_default)
+#define PAGE_SHARED	vm_get_page_prot(VM_READ|VM_WRITE|VM_SHARED)
+
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _page_cachable_default)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _CACHE_CACHABLE_NONCOHERENT)
-#define PAGE_USERIO	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | \
-				 _page_cachable_default)
 #define PAGE_KERNEL_UNCACHED __pgprot(_PAGE_PRESENT | __READABLE | \
 			__WRITEABLE | _PAGE_GLOBAL | _CACHE_UNCACHED)
 
@@ -47,29 +41,8 @@ struct vm_area_struct;
  * by reasonable means..
  */
 
-/*
- * Dummy values to fill the table in mmap.c
- * The real values will be generated at runtime
- */
-#define __P000 __pgprot(0)
-#define __P001 __pgprot(0)
-#define __P010 __pgprot(0)
-#define __P011 __pgprot(0)
-#define __P100 __pgprot(0)
-#define __P101 __pgprot(0)
-#define __P110 __pgprot(0)
-#define __P111 __pgprot(0)
-
-#define __S000 __pgprot(0)
-#define __S001 __pgprot(0)
-#define __S010 __pgprot(0)
-#define __S011 __pgprot(0)
-#define __S100 __pgprot(0)
-#define __S101 __pgprot(0)
-#define __S110 __pgprot(0)
-#define __S111 __pgprot(0)
-
 extern unsigned long _page_cachable_default;
+extern void __update_cache(unsigned long address, pte_t pte);
 
 /*
  * ZERO_PAGE is a global shared page that is always zero; used
@@ -91,40 +64,44 @@ extern void paging_init(void);
  */
 #define pmd_phys(pmd)		virt_to_phys((void *)pmd_val(pmd))
 
-#define __pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
-#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-#define pmd_page(pmd)		__pmd_page(pmd)
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return pmd_val(pmd) >> _PFN_SHIFT;
+}
+
+#ifndef CONFIG_MIPS_HUGE_TLB_SUPPORT
+#define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
 #define htw_stop()							\
 do {									\
-	unsigned long flags;						\
+	unsigned long __flags;						\
 									\
 	if (cpu_has_htw) {						\
-		local_irq_save(flags);					\
+		local_irq_save(__flags);				\
 		if(!raw_current_cpu_data.htw_seq++) {			\
 			write_c0_pwctl(read_c0_pwctl() &		\
 				       ~(1 << MIPS_PWCTL_PWEN_SHIFT));	\
 			back_to_back_c0_hazard();			\
 		}							\
-		local_irq_restore(flags);				\
+		local_irq_restore(__flags);				\
 	}								\
 } while(0)
 
 #define htw_start()							\
 do {									\
-	unsigned long flags;						\
+	unsigned long __flags;						\
 									\
 	if (cpu_has_htw) {						\
-		local_irq_save(flags);					\
+		local_irq_save(__flags);				\
 		if (!--raw_current_cpu_data.htw_seq) {			\
 			write_c0_pwctl(read_c0_pwctl() |		\
 				       (1 << MIPS_PWCTL_PWEN_SHIFT));	\
 			back_to_back_c0_hazard();			\
 		}							\
-		local_irq_restore(flags);				\
+		local_irq_restore(__flags);				\
 	}								\
 } while(0)
 
@@ -197,56 +174,18 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
-#if !defined(CONFIG_CPU_R3000) && !defined(CONFIG_CPU_TX39XX)
+#if !defined(CONFIG_CPU_R3K_TLB)
 	if (pte_val(pteval) & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
-#ifdef CONFIG_SMP
-		/*
-		 * For SMP, multiple CPUs can race, so we need to do
-		 * this atomically.
-		 */
-		unsigned long page_global = _PAGE_GLOBAL;
-		unsigned long tmp;
-
-		if (kernel_uses_llsc && R10000_LLSC_WAR) {
-			__asm__ __volatile__ (
-			"	.set	push				\n"
-			"	.set	arch=r4000			\n"
-			"	.set	noreorder			\n"
-			"1:"	__LL	"%[tmp], %[buddy]		\n"
-			"	bnez	%[tmp], 2f			\n"
-			"	 or	%[tmp], %[tmp], %[global]	\n"
-				__SC	"%[tmp], %[buddy]		\n"
-			"	beqzl	%[tmp], 1b			\n"
-			"	nop					\n"
-			"2:						\n"
-			"	.set	pop				\n"
-			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
-			: [global] "r" (page_global));
-		} else if (kernel_uses_llsc) {
-			__asm__ __volatile__ (
-			"	.set	push				\n"
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
-			"	.set	noreorder			\n"
-			"1:"	__LL	"%[tmp], %[buddy]		\n"
-			"	bnez	%[tmp], 2f			\n"
-			"	 or	%[tmp], %[tmp], %[global]	\n"
-				__SC	"%[tmp], %[buddy]		\n"
-			"	beqz	%[tmp], 1b			\n"
-			"	nop					\n"
-			"2:						\n"
-			"	.set	pop				\n"
-			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
-			: [global] "r" (page_global));
-		}
-#else /* !CONFIG_SMP */
-		if (pte_none(*buddy))
-			pte_val(*buddy) = pte_val(*buddy) | _PAGE_GLOBAL;
-#endif /* CONFIG_SMP */
+# if defined(CONFIG_PHYS_ADDR_T_64BIT) && !defined(CONFIG_CPU_MIPS32)
+		cmpxchg64(&buddy->pte, 0, _PAGE_GLOBAL);
+# else
+		cmpxchg(&buddy->pte, 0, _PAGE_GLOBAL);
+# endif
 	}
 #endif
 }
@@ -254,7 +193,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	htw_stop();
-#if !defined(CONFIG_CPU_R3000) && !defined(CONFIG_CPU_TX39XX)
+#if !defined(CONFIG_CPU_R3K_TLB)
 	/* Preserve global status for the pair */
 	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
 		set_pte_at(mm, addr, ptep, __pte(_PAGE_GLOBAL));
@@ -268,7 +207,6 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
-	extern void __update_cache(unsigned long address, pte_t pte);
 
 	if (!pte_present(pteval))
 		goto cache_sync_done;
@@ -304,6 +242,36 @@ cache_sync_done:
  * to find that this expression is a constant, so the size is dropped.
  */
 extern pgd_t swapper_pg_dir[];
+
+/*
+ * Platform specific pte_special() and pte_mkspecial() definitions
+ * are required only when ARCH_HAS_PTE_SPECIAL is enabled.
+ */
+#if defined(CONFIG_ARCH_HAS_PTE_SPECIAL)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+static inline int pte_special(pte_t pte)
+{
+	return pte.pte_low & _PAGE_SPECIAL;
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte.pte_low |= _PAGE_SPECIAL;
+	return pte;
+}
+#else
+static inline int pte_special(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_SPECIAL;
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_SPECIAL;
+	return pte;
+}
+#endif
+#endif /* CONFIG_ARCH_HAS_PTE_SPECIAL */
 
 /*
  * The following only work if pte_present() is true.
@@ -406,7 +374,7 @@ static inline pte_t pte_mkwrite(pte_t pte)
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {
-	pte_val(pte) |= _PAGE_MODIFIED;
+	pte_val(pte) |= _PAGE_MODIFIED | _PAGE_SOFT_DIRTY;
 	if (pte_val(pte) & _PAGE_WRITE)
 		pte_val(pte) |= _PAGE_SILENT_WRITE;
 	return pte;
@@ -420,6 +388,8 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
+#define pte_sw_mkyoung	pte_mkyoung
+
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 static inline int pte_huge(pte_t pte)	{ return pte_val(pte) & _PAGE_HUGE; }
 
@@ -428,10 +398,46 @@ static inline pte_t pte_mkhuge(pte_t pte)
 	pte_val(pte) |= _PAGE_HUGE;
 	return pte;
 }
+
+#define pmd_write pmd_write
+static inline int pmd_write(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_WRITE);
+}
+
+static inline struct page *pmd_page(pmd_t pmd)
+{
+	if (pmd_val(pmd) & _PAGE_HUGE)
+		return pfn_to_page(pmd_pfn(pmd));
+
+	return pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT);
+}
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
+
+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+static inline bool pte_soft_dirty(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_SOFT_DIRTY;
+}
+#define pte_swp_soft_dirty pte_soft_dirty
+
+static inline pte_t pte_mksoft_dirty(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_SOFT_DIRTY;
+	return pte;
+}
+#define pte_swp_mksoft_dirty pte_mksoft_dirty
+
+static inline pte_t pte_clear_soft_dirty(pte_t pte)
+{
+	pte_val(pte) &= ~(_PAGE_SOFT_DIRTY);
+	return pte;
+}
+#define pte_swp_clear_soft_dirty pte_clear_soft_dirty
+
+#endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
+
 #endif
-static inline int pte_special(pte_t pte)	{ return 0; }
-static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /*
  * Macro to make mark a page protection value as "uncacheable".	 Note
@@ -462,6 +468,31 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 	return __pgprot(prot);
 }
 
+static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
+						unsigned long address)
+{
+}
+
+#define __HAVE_ARCH_PTE_SAME
+static inline int pte_same(pte_t pte_a, pte_t pte_b)
+{
+	return pte_val(pte_a) == pte_val(pte_b);
+}
+
+#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+static inline int ptep_set_access_flags(struct vm_area_struct *vma,
+					unsigned long address, pte_t *ptep,
+					pte_t entry, int dirty)
+{
+	if (!pte_same(*ptep, entry))
+		set_pte_at(vma->vm_mm, address, ptep, entry);
+	/*
+	 * update_mmu_cache will unconditionally execute, handling both
+	 * the case that the PTE changed and the spurious fault case.
+	 */
+	return true;
+}
+
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
@@ -489,8 +520,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #else
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	return __pte((pte_val(pte) & _PAGE_CHG_MASK) |
-		     (pgprot_val(newprot) & ~_PAGE_CHG_MASK));
+	pte_val(pte) &= _PAGE_CHG_MASK;
+	pte_val(pte) |= pgprot_val(newprot) & ~_PAGE_CHG_MASK;
+	if ((pte_val(pte) & _PAGE_ACCESSED) && !(pte_val(pte) & _PAGE_NO_READ))
+		pte_val(pte) |= _PAGE_SILENT_READ;
+	return pte;
 }
 #endif
 
@@ -505,6 +539,9 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	__update_tlb(vma, address, pte);
 }
 
+#define	__HAVE_ARCH_UPDATE_MMU_TLB
+#define update_mmu_tlb	update_mmu_cache
+
 static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 	unsigned long address, pmd_t *pmdp)
 {
@@ -515,20 +552,17 @@ static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
 
 #define kern_addr_valid(addr)	(1)
 
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from, unsigned long pfn, unsigned long size, pgprot_t prot);
-
-static inline int io_remap_pfn_range(struct vm_area_struct *vma,
-		unsigned long vaddr,
-		unsigned long pfn,
-		unsigned long size,
-		pgprot_t prot)
-{
-	phys_addr_t phys_addr_high = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
-	return remap_pfn_range(vma, vaddr, phys_addr_high >> PAGE_SHIFT, size, prot);
-}
+/*
+ * Allow physical addresses to be fixed up to help 36-bit peripherals.
+ */
+#ifdef CONFIG_MIPS_FIXUP_BIGPHYS_ADDR
+phys_addr_t fixup_bigphys_addr(phys_addr_t addr, phys_addr_t size);
+int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long vaddr,
+		unsigned long pfn, unsigned long size, pgprot_t prot);
 #define io_remap_pfn_range io_remap_pfn_range
-#endif
+#else
+#define fixup_bigphys_addr(addr, size)	(addr)
+#endif /* CONFIG_MIPS_FIXUP_BIGPHYS_ADDR */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
@@ -552,12 +586,6 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		       pmd_t *pmdp, pmd_t pmd);
-
-#define pmd_write pmd_write
-static inline int pmd_write(pmd_t pmd)
-{
-	return !!(pmd_val(pmd) & _PAGE_WRITE);
-}
 
 static inline pmd_t pmd_wrprotect(pmd_t pmd)
 {
@@ -587,7 +615,7 @@ static inline pmd_t pmd_mkclean(pmd_t pmd)
 
 static inline pmd_t pmd_mkdirty(pmd_t pmd)
 {
-	pmd_val(pmd) |= _PAGE_MODIFIED;
+	pmd_val(pmd) |= _PAGE_MODIFIED | _PAGE_SOFT_DIRTY;
 	if (pmd_val(pmd) & _PAGE_WRITE)
 		pmd_val(pmd) |= _PAGE_SILENT_WRITE;
 
@@ -616,21 +644,28 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 	return pmd;
 }
 
+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+static inline int pmd_soft_dirty(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_SOFT_DIRTY);
+}
+
+static inline pmd_t pmd_mksoft_dirty(pmd_t pmd)
+{
+	pmd_val(pmd) |= _PAGE_SOFT_DIRTY;
+	return pmd;
+}
+
+static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~(_PAGE_SOFT_DIRTY);
+	return pmd;
+}
+
+#endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
+
 /* Extern to avoid header file madness */
 extern pmd_t mk_pmd(struct page *page, pgprot_t prot);
-
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	return pmd_val(pmd) >> _PFN_SHIFT;
-}
-
-static inline struct page *pmd_page(pmd_t pmd)
-{
-	if (pmd_trans_huge(pmd))
-		return pfn_to_page(pmd_pfn(pmd));
-
-	return pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT);
-}
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
@@ -639,7 +674,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	return pmd;
 }
 
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 {
 	pmd_val(pmd) &= ~(_PAGE_PRESENT | _PAGE_VALID | _PAGE_DIRTY);
 
@@ -663,18 +698,12 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-#include <asm-generic/pgtable.h>
-
-/*
- * uncached accelerated TLB map for video memory access
- */
-#ifdef CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED
-#define __HAVE_PHYS_MEM_ACCESS_PROT
-
-struct file;
-pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
-		unsigned long size, pgprot_t vma_prot);
+#ifdef _PAGE_HUGE
+#define pmd_leaf(pmd)	((pmd_val(pmd) & _PAGE_HUGE) != 0)
+#define pud_leaf(pud)	((pud_val(pud) & _PAGE_HUGE) != 0)
 #endif
+
+#define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
 
 /*
  * We provide our own get_unmapped area to cope with the virtual aliasing
@@ -682,10 +711,5 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
  */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
 
 #endif /* _ASM_PGTABLE_H */

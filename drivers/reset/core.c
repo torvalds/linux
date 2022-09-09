@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Reset Controller framework
  *
  * Copyright 2013 Philipp Zabel, Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/atomic.h>
 #include <linux/device.h>
@@ -16,6 +12,7 @@
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/acpi.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
@@ -34,8 +31,10 @@ static LIST_HEAD(reset_lookup_list);
  * @id: ID of the reset controller in the reset
  *      controller device
  * @refcnt: Number of gets of this reset_control
+ * @acquired: Only one reset_control may be acquired for a given rcdev and id.
  * @shared: Is this a shared (1), or an exclusive (0) reset_control?
- * @deassert_cnt: Number of times this reset line has been deasserted
+ * @array: Is this an array of reset controls (1)?
+ * @deassert_count: Number of times this reset line has been deasserted
  * @triggered_count: Number of times this reset line has been reset. Currently
  *                   only used for shared resets, which means that the value
  *                   will be either 0 or 1.
@@ -45,6 +44,7 @@ struct reset_control {
 	struct list_head list;
 	unsigned int id;
 	struct kref refcnt;
+	bool acquired;
 	bool shared;
 	bool array;
 	atomic_t deassert_count;
@@ -63,17 +63,29 @@ struct reset_control_array {
 	struct reset_control *rstc[];
 };
 
+static const char *rcdev_name(struct reset_controller_dev *rcdev)
+{
+	if (rcdev->dev)
+		return dev_name(rcdev->dev);
+
+	if (rcdev->of_node)
+		return rcdev->of_node->full_name;
+
+	return NULL;
+}
+
 /**
  * of_reset_simple_xlate - translate reset_spec to the reset line number
  * @rcdev: a pointer to the reset controller device
  * @reset_spec: reset line specifier as found in the device tree
- * @flags: a flags pointer to fill in (optional)
  *
- * This simple translation function should be used for reset controllers
- * with 1:1 mapping, where reset lines can be indexed by number without gaps.
+ * This static translation function is used by default if of_xlate in
+ * :c:type:`reset_controller_dev` is not set. It is useful for all reset
+ * controllers with 1:1 mapping, where reset lines can be indexed by number
+ * without gaps.
  */
 static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
-			  const struct of_phandle_args *reset_spec)
+				 const struct of_phandle_args *reset_spec)
 {
 	if (reset_spec->args[0] >= rcdev->nr_resets)
 		return -EINVAL;
@@ -140,12 +152,13 @@ int devm_reset_controller_register(struct device *dev,
 		return -ENOMEM;
 
 	ret = reset_controller_register(rcdev);
-	if (!ret) {
-		*rcdevp = rcdev;
-		devres_add(dev, rcdevp);
-	} else {
+	if (ret) {
 		devres_free(rcdevp);
+		return ret;
 	}
+
+	*rcdevp = rcdev;
+	devres_add(dev, rcdevp);
 
 	return ret;
 }
@@ -196,6 +209,39 @@ static int reset_control_array_reset(struct reset_control_array *resets)
 	return 0;
 }
 
+static int reset_control_array_rearm(struct reset_control_array *resets)
+{
+	struct reset_control *rstc;
+	int i;
+
+	for (i = 0; i < resets->num_rstcs; i++) {
+		rstc = resets->rstc[i];
+
+		if (!rstc)
+			continue;
+
+		if (WARN_ON(IS_ERR(rstc)))
+			return -EINVAL;
+
+		if (rstc->shared) {
+			if (WARN_ON(atomic_read(&rstc->deassert_count) != 0))
+				return -EINVAL;
+		} else {
+			if (!rstc->acquired)
+				return -EPERM;
+		}
+	}
+
+	for (i = 0; i < resets->num_rstcs; i++) {
+		rstc = resets->rstc[i];
+
+		if (rstc && rstc->shared)
+			WARN_ON(atomic_dec_return(&rstc->triggered_count) < 0);
+	}
+
+	return 0;
+}
+
 static int reset_control_array_assert(struct reset_control_array *resets)
 {
 	int ret, i;
@@ -230,6 +276,34 @@ err:
 	while (i--)
 		reset_control_assert(resets->rstc[i]);
 	return ret;
+}
+
+static int reset_control_array_acquire(struct reset_control_array *resets)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < resets->num_rstcs; i++) {
+		err = reset_control_acquire(resets->rstc[i]);
+		if (err < 0)
+			goto release;
+	}
+
+	return 0;
+
+release:
+	while (i--)
+		reset_control_release(resets->rstc[i]);
+
+	return err;
+}
+
+static void reset_control_array_release(struct reset_control_array *resets)
+{
+	unsigned int i;
+
+	for (i = 0; i < resets->num_rstcs; i++)
+		reset_control_release(resets->rstc[i]);
 }
 
 static inline bool reset_control_is_array(struct reset_control *rstc)
@@ -272,6 +346,9 @@ int reset_control_reset(struct reset_control *rstc)
 
 		if (atomic_inc_return(&rstc->triggered_count) != 1)
 			return 0;
+	} else {
+		if (!rstc->acquired)
+			return -EPERM;
 	}
 
 	ret = rstc->rcdev->ops->reset(rstc->rcdev, rstc->id);
@@ -281,6 +358,70 @@ int reset_control_reset(struct reset_control *rstc)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(reset_control_reset);
+
+/**
+ * reset_control_bulk_reset - reset the controlled devices in order
+ * @num_rstcs: number of entries in rstcs array
+ * @rstcs: array of struct reset_control_bulk_data with reset controls set
+ *
+ * Issue a reset on all provided reset controls, in order.
+ *
+ * See also: reset_control_reset()
+ */
+int reset_control_bulk_reset(int num_rstcs,
+			     struct reset_control_bulk_data *rstcs)
+{
+	int ret, i;
+
+	for (i = 0; i < num_rstcs; i++) {
+		ret = reset_control_reset(rstcs[i].rstc);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(reset_control_bulk_reset);
+
+/**
+ * reset_control_rearm - allow shared reset line to be re-triggered"
+ * @rstc: reset controller
+ *
+ * On a shared reset line the actual reset pulse is only triggered once for the
+ * lifetime of the reset_control instance, except if this call is used.
+ *
+ * Calls to this function must be balanced with calls to reset_control_reset,
+ * a warning is thrown in case triggered_count ever dips below 0.
+ *
+ * Consumers must not use reset_control_(de)assert on shared reset lines when
+ * reset_control_reset or reset_control_rearm have been used.
+ *
+ * If rstc is NULL the function will just return 0.
+ */
+int reset_control_rearm(struct reset_control *rstc)
+{
+	if (!rstc)
+		return 0;
+
+	if (WARN_ON(IS_ERR(rstc)))
+		return -EINVAL;
+
+	if (reset_control_is_array(rstc))
+		return reset_control_array_rearm(rstc_to_array(rstc));
+
+	if (rstc->shared) {
+		if (WARN_ON(atomic_read(&rstc->deassert_count) != 0))
+			return -EINVAL;
+
+		WARN_ON(atomic_dec_return(&rstc->triggered_count) < 0);
+	} else {
+		if (!rstc->acquired)
+			return -EPERM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(reset_control_rearm);
 
 /**
  * reset_control_assert - asserts the reset line
@@ -294,7 +435,6 @@ EXPORT_SYMBOL_GPL(reset_control_reset);
  * internal state to be reset, but must be prepared for this to happen.
  * Consumers must not use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
- * return 0.
  *
  * If rstc is NULL it is an optional reset and the function will just
  * return 0.
@@ -334,11 +474,47 @@ int reset_control_assert(struct reset_control *rstc)
 		 */
 		if (!rstc->rcdev->ops->assert)
 			return -ENOTSUPP;
+
+		if (!rstc->acquired) {
+			WARN(1, "reset %s (ID: %u) is not acquired\n",
+			     rcdev_name(rstc->rcdev), rstc->id);
+			return -EPERM;
+		}
 	}
 
 	return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
 }
 EXPORT_SYMBOL_GPL(reset_control_assert);
+
+/**
+ * reset_control_bulk_assert - asserts the reset lines in order
+ * @num_rstcs: number of entries in rstcs array
+ * @rstcs: array of struct reset_control_bulk_data with reset controls set
+ *
+ * Assert the reset lines for all provided reset controls, in order.
+ * If an assertion fails, already asserted resets are deasserted again.
+ *
+ * See also: reset_control_assert()
+ */
+int reset_control_bulk_assert(int num_rstcs,
+			      struct reset_control_bulk_data *rstcs)
+{
+	int ret, i;
+
+	for (i = 0; i < num_rstcs; i++) {
+		ret = reset_control_assert(rstcs[i].rstc);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	while (i--)
+		reset_control_deassert(rstcs[i].rstc);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(reset_control_bulk_assert);
 
 /**
  * reset_control_deassert - deasserts the reset line
@@ -347,7 +523,6 @@ EXPORT_SYMBOL_GPL(reset_control_assert);
  * After calling this function, the reset is guaranteed to be deasserted.
  * Consumers must not use reset_control_reset on shared reset lines when
  * reset_control_(de)assert has been used.
- * return 0.
  *
  * If rstc is NULL it is an optional reset and the function will just
  * return 0.
@@ -369,6 +544,12 @@ int reset_control_deassert(struct reset_control *rstc)
 
 		if (atomic_inc_return(&rstc->deassert_count) != 1)
 			return 0;
+	} else {
+		if (!rstc->acquired) {
+			WARN(1, "reset %s (ID: %u) is not acquired\n",
+			     rcdev_name(rstc->rcdev), rstc->id);
+			return -EPERM;
+		}
 	}
 
 	/*
@@ -384,6 +565,36 @@ int reset_control_deassert(struct reset_control *rstc)
 	return rstc->rcdev->ops->deassert(rstc->rcdev, rstc->id);
 }
 EXPORT_SYMBOL_GPL(reset_control_deassert);
+
+/**
+ * reset_control_bulk_deassert - deasserts the reset lines in reverse order
+ * @num_rstcs: number of entries in rstcs array
+ * @rstcs: array of struct reset_control_bulk_data with reset controls set
+ *
+ * Deassert the reset lines for all provided reset controls, in reverse order.
+ * If a deassertion fails, already deasserted resets are asserted again.
+ *
+ * See also: reset_control_deassert()
+ */
+int reset_control_bulk_deassert(int num_rstcs,
+				struct reset_control_bulk_data *rstcs)
+{
+	int ret, i;
+
+	for (i = num_rstcs - 1; i >= 0; i--) {
+		ret = reset_control_deassert(rstcs[i].rstc);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	while (i < num_rstcs)
+		reset_control_assert(rstcs[i++].rstc);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(reset_control_bulk_deassert);
 
 /**
  * reset_control_status - returns a negative errno if not supported, a
@@ -406,9 +617,137 @@ int reset_control_status(struct reset_control *rstc)
 }
 EXPORT_SYMBOL_GPL(reset_control_status);
 
-static struct reset_control *__reset_control_get_internal(
-				struct reset_controller_dev *rcdev,
-				unsigned int index, bool shared)
+/**
+ * reset_control_acquire() - acquires a reset control for exclusive use
+ * @rstc: reset control
+ *
+ * This is used to explicitly acquire a reset control for exclusive use. Note
+ * that exclusive resets are requested as acquired by default. In order for a
+ * second consumer to be able to control the reset, the first consumer has to
+ * release it first. Typically the easiest way to achieve this is to call the
+ * reset_control_get_exclusive_released() to obtain an instance of the reset
+ * control. Such reset controls are not acquired by default.
+ *
+ * Consumers implementing shared access to an exclusive reset need to follow
+ * a specific protocol in order to work together. Before consumers can change
+ * a reset they must acquire exclusive access using reset_control_acquire().
+ * After they are done operating the reset, they must release exclusive access
+ * with a call to reset_control_release(). Consumers are not granted exclusive
+ * access to the reset as long as another consumer hasn't released a reset.
+ *
+ * See also: reset_control_release()
+ */
+int reset_control_acquire(struct reset_control *rstc)
+{
+	struct reset_control *rc;
+
+	if (!rstc)
+		return 0;
+
+	if (WARN_ON(IS_ERR(rstc)))
+		return -EINVAL;
+
+	if (reset_control_is_array(rstc))
+		return reset_control_array_acquire(rstc_to_array(rstc));
+
+	mutex_lock(&reset_list_mutex);
+
+	if (rstc->acquired) {
+		mutex_unlock(&reset_list_mutex);
+		return 0;
+	}
+
+	list_for_each_entry(rc, &rstc->rcdev->reset_control_head, list) {
+		if (rstc != rc && rstc->id == rc->id) {
+			if (rc->acquired) {
+				mutex_unlock(&reset_list_mutex);
+				return -EBUSY;
+			}
+		}
+	}
+
+	rstc->acquired = true;
+
+	mutex_unlock(&reset_list_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(reset_control_acquire);
+
+/**
+ * reset_control_bulk_acquire - acquires reset controls for exclusive use
+ * @num_rstcs: number of entries in rstcs array
+ * @rstcs: array of struct reset_control_bulk_data with reset controls set
+ *
+ * This is used to explicitly acquire reset controls requested with
+ * reset_control_bulk_get_exclusive_release() for temporary exclusive use.
+ *
+ * See also: reset_control_acquire(), reset_control_bulk_release()
+ */
+int reset_control_bulk_acquire(int num_rstcs,
+			       struct reset_control_bulk_data *rstcs)
+{
+	int ret, i;
+
+	for (i = 0; i < num_rstcs; i++) {
+		ret = reset_control_acquire(rstcs[i].rstc);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	while (i--)
+		reset_control_release(rstcs[i].rstc);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(reset_control_bulk_acquire);
+
+/**
+ * reset_control_release() - releases exclusive access to a reset control
+ * @rstc: reset control
+ *
+ * Releases exclusive access right to a reset control previously obtained by a
+ * call to reset_control_acquire(). Until a consumer calls this function, no
+ * other consumers will be granted exclusive access.
+ *
+ * See also: reset_control_acquire()
+ */
+void reset_control_release(struct reset_control *rstc)
+{
+	if (!rstc || WARN_ON(IS_ERR(rstc)))
+		return;
+
+	if (reset_control_is_array(rstc))
+		reset_control_array_release(rstc_to_array(rstc));
+	else
+		rstc->acquired = false;
+}
+EXPORT_SYMBOL_GPL(reset_control_release);
+
+/**
+ * reset_control_bulk_release() - releases exclusive access to reset controls
+ * @num_rstcs: number of entries in rstcs array
+ * @rstcs: array of struct reset_control_bulk_data with reset controls set
+ *
+ * Releases exclusive access right to reset controls previously obtained by a
+ * call to reset_control_bulk_acquire().
+ *
+ * See also: reset_control_release(), reset_control_bulk_acquire()
+ */
+void reset_control_bulk_release(int num_rstcs,
+				struct reset_control_bulk_data *rstcs)
+{
+	int i;
+
+	for (i = 0; i < num_rstcs; i++)
+		reset_control_release(rstcs[i].rstc);
+}
+EXPORT_SYMBOL_GPL(reset_control_bulk_release);
+
+static struct reset_control *
+__reset_control_get_internal(struct reset_controller_dev *rcdev,
+			     unsigned int index, bool shared, bool acquired)
 {
 	struct reset_control *rstc;
 
@@ -416,6 +755,14 @@ static struct reset_control *__reset_control_get_internal(
 
 	list_for_each_entry(rstc, &rcdev->reset_control_head, list) {
 		if (rstc->id == index) {
+			/*
+			 * Allow creating a secondary exclusive reset_control
+			 * that is initially not acquired for an already
+			 * controlled reset line.
+			 */
+			if (!rstc->shared && !shared && !acquired)
+				break;
+
 			if (WARN_ON(!rstc->shared || !shared))
 				return ERR_PTR(-EBUSY);
 
@@ -428,12 +775,16 @@ static struct reset_control *__reset_control_get_internal(
 	if (!rstc)
 		return ERR_PTR(-ENOMEM);
 
-	try_module_get(rcdev->owner);
+	if (!try_module_get(rcdev->owner)) {
+		kfree(rstc);
+		return ERR_PTR(-ENODEV);
+	}
 
 	rstc->rcdev = rcdev;
 	list_add(&rstc->list, &rcdev->reset_control_head);
 	rstc->id = index;
 	kref_init(&rstc->refcnt);
+	rstc->acquired = acquired;
 	rstc->shared = shared;
 
 	return rstc;
@@ -459,9 +810,9 @@ static void __reset_control_put_internal(struct reset_control *rstc)
 	kref_put(&rstc->refcnt, __reset_control_release);
 }
 
-struct reset_control *__of_reset_control_get(struct device_node *node,
-				     const char *id, int index, bool shared,
-				     bool optional)
+struct reset_control *
+__of_reset_control_get(struct device_node *node, const char *id, int index,
+		       bool shared, bool optional, bool acquired)
 {
 	struct reset_control *rstc;
 	struct reset_controller_dev *r, *rcdev;
@@ -514,7 +865,7 @@ struct reset_control *__of_reset_control_get(struct device_node *node,
 	}
 
 	/* reset_list_mutex also protects the rcdev's reset_control list */
-	rstc = __reset_control_get_internal(rcdev, rstc_id, shared);
+	rstc = __reset_control_get_internal(rcdev, rstc_id, shared, acquired);
 
 out:
 	mutex_unlock(&reset_list_mutex);
@@ -544,15 +895,12 @@ __reset_controller_by_name(const char *name)
 
 static struct reset_control *
 __reset_control_get_from_lookup(struct device *dev, const char *con_id,
-				bool shared, bool optional)
+				bool shared, bool optional, bool acquired)
 {
 	const struct reset_control_lookup *lookup;
 	struct reset_controller_dev *rcdev;
 	const char *dev_id = dev_name(dev);
 	struct reset_control *rstc = NULL;
-
-	if (!dev)
-		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&reset_lookup_mutex);
 
@@ -574,7 +922,7 @@ __reset_control_get_from_lookup(struct device *dev, const char *con_id,
 
 			rstc = __reset_control_get_internal(rcdev,
 							    lookup->index,
-							    shared);
+							    shared, acquired);
 			mutex_unlock(&reset_list_mutex);
 			break;
 		}
@@ -589,15 +937,46 @@ __reset_control_get_from_lookup(struct device *dev, const char *con_id,
 }
 
 struct reset_control *__reset_control_get(struct device *dev, const char *id,
-					  int index, bool shared, bool optional)
+					  int index, bool shared, bool optional,
+					  bool acquired)
 {
+	if (WARN_ON(shared && acquired))
+		return ERR_PTR(-EINVAL);
+
 	if (dev->of_node)
 		return __of_reset_control_get(dev->of_node, id, index, shared,
-					      optional);
+					      optional, acquired);
 
-	return __reset_control_get_from_lookup(dev, id, shared, optional);
+	return __reset_control_get_from_lookup(dev, id, shared, optional,
+					       acquired);
 }
 EXPORT_SYMBOL_GPL(__reset_control_get);
+
+int __reset_control_bulk_get(struct device *dev, int num_rstcs,
+			     struct reset_control_bulk_data *rstcs,
+			     bool shared, bool optional, bool acquired)
+{
+	int ret, i;
+
+	for (i = 0; i < num_rstcs; i++) {
+		rstcs[i].rstc = __reset_control_get(dev, rstcs[i].id, 0,
+						    shared, optional, acquired);
+		if (IS_ERR(rstcs[i].rstc)) {
+			ret = PTR_ERR(rstcs[i].rstc);
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	mutex_lock(&reset_list_mutex);
+	while (i--)
+		__reset_control_put_internal(rstcs[i].rstc);
+	mutex_unlock(&reset_list_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__reset_control_bulk_get);
 
 static void reset_control_array_put(struct reset_control_array *resets)
 {
@@ -607,6 +986,7 @@ static void reset_control_array_put(struct reset_control_array *resets)
 	for (i = 0; i < resets->num_rstcs; i++)
 		__reset_control_put_internal(resets->rstc[i]);
 	mutex_unlock(&reset_list_mutex);
+	kfree(resets);
 }
 
 /**
@@ -629,14 +1009,31 @@ void reset_control_put(struct reset_control *rstc)
 }
 EXPORT_SYMBOL_GPL(reset_control_put);
 
+/**
+ * reset_control_bulk_put - free the reset controllers
+ * @num_rstcs: number of entries in rstcs array
+ * @rstcs: array of struct reset_control_bulk_data with reset controls set
+ */
+void reset_control_bulk_put(int num_rstcs, struct reset_control_bulk_data *rstcs)
+{
+	mutex_lock(&reset_list_mutex);
+	while (num_rstcs--) {
+		if (IS_ERR_OR_NULL(rstcs[num_rstcs].rstc))
+			continue;
+		__reset_control_put_internal(rstcs[num_rstcs].rstc);
+	}
+	mutex_unlock(&reset_list_mutex);
+}
+EXPORT_SYMBOL_GPL(reset_control_bulk_put);
+
 static void devm_reset_control_release(struct device *dev, void *res)
 {
 	reset_control_put(*(struct reset_control **)res);
 }
 
-struct reset_control *__devm_reset_control_get(struct device *dev,
-				     const char *id, int index, bool shared,
-				     bool optional)
+struct reset_control *
+__devm_reset_control_get(struct device *dev, const char *id, int index,
+			 bool shared, bool optional, bool acquired)
 {
 	struct reset_control **ptr, *rstc;
 
@@ -645,34 +1042,85 @@ struct reset_control *__devm_reset_control_get(struct device *dev,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	rstc = __reset_control_get(dev, id, index, shared, optional);
-	if (!IS_ERR(rstc)) {
-		*ptr = rstc;
-		devres_add(dev, ptr);
-	} else {
+	rstc = __reset_control_get(dev, id, index, shared, optional, acquired);
+	if (IS_ERR_OR_NULL(rstc)) {
 		devres_free(ptr);
+		return rstc;
 	}
+
+	*ptr = rstc;
+	devres_add(dev, ptr);
 
 	return rstc;
 }
 EXPORT_SYMBOL_GPL(__devm_reset_control_get);
 
+struct reset_control_bulk_devres {
+	int num_rstcs;
+	struct reset_control_bulk_data *rstcs;
+};
+
+static void devm_reset_control_bulk_release(struct device *dev, void *res)
+{
+	struct reset_control_bulk_devres *devres = res;
+
+	reset_control_bulk_put(devres->num_rstcs, devres->rstcs);
+}
+
+int __devm_reset_control_bulk_get(struct device *dev, int num_rstcs,
+				  struct reset_control_bulk_data *rstcs,
+				  bool shared, bool optional, bool acquired)
+{
+	struct reset_control_bulk_devres *ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_reset_control_bulk_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = __reset_control_bulk_get(dev, num_rstcs, rstcs, shared, optional, acquired);
+	if (ret < 0) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	ptr->num_rstcs = num_rstcs;
+	ptr->rstcs = rstcs;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__devm_reset_control_bulk_get);
+
 /**
- * device_reset - find reset controller associated with the device
- *                and perform reset
+ * __device_reset - find reset controller associated with the device
+ *                  and perform reset
  * @dev: device to be reset by the controller
  * @optional: whether it is optional to reset the device
  *
  * Convenience wrapper for __reset_control_get() and reset_control_reset().
  * This is useful for the common case of devices with single, dedicated reset
- * lines.
+ * lines. _RST firmware method will be called for devices with ACPI.
  */
 int __device_reset(struct device *dev, bool optional)
 {
 	struct reset_control *rstc;
 	int ret;
 
-	rstc = __reset_control_get(dev, NULL, 0, 0, optional);
+#ifdef CONFIG_ACPI
+	acpi_handle handle = ACPI_HANDLE(dev);
+
+	if (handle) {
+		if (!acpi_has_method(handle, "_RST"))
+			return optional ? 0 : -ENOENT;
+		if (ACPI_FAILURE(acpi_evaluate_object(handle, "_RST", NULL,
+						      NULL)))
+			return -EIO;
+	}
+#endif
+
+	rstc = __reset_control_get(dev, NULL, 0, 0, optional, true);
 	if (IS_ERR(rstc))
 		return PTR_ERR(rstc);
 
@@ -684,9 +1132,10 @@ int __device_reset(struct device *dev, bool optional)
 }
 EXPORT_SYMBOL_GPL(__device_reset);
 
-/**
+/*
  * APIs to manage an array of reset controls.
  */
+
 /**
  * of_reset_control_get_count - Count number of resets available with a device
  *
@@ -716,12 +1165,14 @@ static int of_reset_control_get_count(struct device_node *node)
  * @np: device node for the device that requests the reset controls array
  * @shared: whether reset controls are shared or not
  * @optional: whether it is optional to get the reset controls
+ * @acquired: only one reset control may be acquired for a given controller
+ *            and ID
  *
- * Returns pointer to allocated reset_control_array on success or
- * error on failure
+ * Returns pointer to allocated reset_control on success or error on failure
  */
 struct reset_control *
-of_reset_control_array_get(struct device_node *np, bool shared, bool optional)
+of_reset_control_array_get(struct device_node *np, bool shared, bool optional,
+			   bool acquired)
 {
 	struct reset_control_array *resets;
 	struct reset_control *rstc;
@@ -736,7 +1187,8 @@ of_reset_control_array_get(struct device_node *np, bool shared, bool optional)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < num; i++) {
-		rstc = __of_reset_control_get(np, NULL, i, shared, optional);
+		rstc = __of_reset_control_get(np, NULL, i, shared, optional,
+					      acquired);
 		if (IS_ERR(rstc))
 			goto err_rst;
 		resets->rstc[i] = rstc;
@@ -769,29 +1221,69 @@ EXPORT_SYMBOL_GPL(of_reset_control_array_get);
  * that just have to be asserted or deasserted, without any
  * requirements on the order.
  *
- * Returns pointer to allocated reset_control_array on success or
- * error on failure
+ * Returns pointer to allocated reset_control on success or error on failure
  */
 struct reset_control *
 devm_reset_control_array_get(struct device *dev, bool shared, bool optional)
 {
-	struct reset_control **devres;
-	struct reset_control *rstc;
+	struct reset_control **ptr, *rstc;
 
-	devres = devres_alloc(devm_reset_control_release, sizeof(*devres),
-			      GFP_KERNEL);
-	if (!devres)
+	ptr = devres_alloc(devm_reset_control_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	rstc = of_reset_control_array_get(dev->of_node, shared, optional);
-	if (IS_ERR(rstc)) {
-		devres_free(devres);
+	rstc = of_reset_control_array_get(dev->of_node, shared, optional, true);
+	if (IS_ERR_OR_NULL(rstc)) {
+		devres_free(ptr);
 		return rstc;
 	}
 
-	*devres = rstc;
-	devres_add(dev, devres);
+	*ptr = rstc;
+	devres_add(dev, ptr);
 
 	return rstc;
 }
 EXPORT_SYMBOL_GPL(devm_reset_control_array_get);
+
+static int reset_control_get_count_from_lookup(struct device *dev)
+{
+	const struct reset_control_lookup *lookup;
+	const char *dev_id;
+	int count = 0;
+
+	if (!dev)
+		return -EINVAL;
+
+	dev_id = dev_name(dev);
+	mutex_lock(&reset_lookup_mutex);
+
+	list_for_each_entry(lookup, &reset_lookup_list, list) {
+		if (!strcmp(lookup->dev_id, dev_id))
+			count++;
+	}
+
+	mutex_unlock(&reset_lookup_mutex);
+
+	if (count == 0)
+		count = -ENOENT;
+
+	return count;
+}
+
+/**
+ * reset_control_get_count - Count number of resets available with a device
+ *
+ * @dev: device for which to return the number of resets
+ *
+ * Returns positive reset count on success, or error number on failure and
+ * on count being zero.
+ */
+int reset_control_get_count(struct device *dev)
+{
+	if (dev->of_node)
+		return of_reset_control_get_count(dev->of_node);
+
+	return reset_control_get_count_from_lookup(dev);
+}
+EXPORT_SYMBOL_GPL(reset_control_get_count);

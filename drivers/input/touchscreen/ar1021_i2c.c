@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Microchip AR1020 and AR1021 driver for I2C
  *
  * Author: Christian Gmeiner <christian.gmeiner@gmail.com>
- *
- * License: GPLv2 as published by the FSF.
  */
 
 #include <linux/bitops.h>
@@ -14,7 +13,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
-#define AR1021_TOCUH_PKG_SIZE	5
+#define AR1021_TOUCH_PKG_SIZE	5
 
 #define AR1021_MAX_X	4095
 #define AR1021_MAX_Y	4095
@@ -26,7 +25,7 @@
 struct ar1021_i2c {
 	struct i2c_client *client;
 	struct input_dev *input;
-	u8 data[AR1021_TOCUH_PKG_SIZE];
+	u8 data[AR1021_TOUCH_PKG_SIZE];
 };
 
 static irqreturn_t ar1021_i2c_irq(int irq, void *dev_id)
@@ -126,16 +125,13 @@ static int ar1021_i2c_probe(struct i2c_client *client,
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, ar1021_i2c_irq,
-					  IRQF_ONESHOT,
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					  "ar1021_i2c", ar1021);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to enable IRQ, error: %d\n", error);
 		return error;
 	}
-
-	/* Disable the IRQ, we'll enable it in ar1021_i2c_open() */
-	disable_irq(client->irq);
 
 	error = input_register_device(ar1021->input);
 	if (error) {

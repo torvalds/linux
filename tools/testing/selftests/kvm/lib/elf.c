@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tools/testing/selftests/kvm/lib/elf.c
  *
  * Copyright (C) 2018, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
 #include "test_util.h"
@@ -12,7 +11,6 @@
 #include <linux/elf.h>
 
 #include "kvm_util.h"
-#include "kvm_util_internal.h"
 
 static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
 {
@@ -112,8 +110,7 @@ static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
  * by the image and it needs to have sufficient available physical pages, to
  * back the virtual pages used to load the image.
  */
-void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
-	uint32_t data_memslot, uint32_t pgd_memslot)
+void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 {
 	off_t offset, offset_rv;
 	Elf64_Ehdr hdr;
@@ -159,14 +156,12 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename,
 			"memsize of 0,\n"
 			"  phdr index: %u p_memsz: 0x%" PRIx64,
 			n1, (uint64_t) phdr.p_memsz);
-		vm_vaddr_t seg_vstart = phdr.p_vaddr;
-		seg_vstart &= ~(vm_vaddr_t)(vm->page_size - 1);
+		vm_vaddr_t seg_vstart = align_down(phdr.p_vaddr, vm->page_size);
 		vm_vaddr_t seg_vend = phdr.p_vaddr + phdr.p_memsz - 1;
 		seg_vend |= vm->page_size - 1;
 		size_t seg_size = seg_vend - seg_vstart + 1;
 
-		vm_vaddr_t vaddr = vm_vaddr_alloc(vm, seg_size, seg_vstart,
-			data_memslot, pgd_memslot);
+		vm_vaddr_t vaddr = vm_vaddr_alloc(vm, seg_size, seg_vstart);
 		TEST_ASSERT(vaddr == seg_vstart, "Unable to allocate "
 			"virtual memory for segment at requested min addr,\n"
 			"  segment idx: %u\n"

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9263ek.dts - Device Tree file for Atmel at91sam9263 reference board
  *
  *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2 only
  */
 /dts-v1/;
 #include "at91sam9263.dtsi"
@@ -17,7 +16,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 
@@ -73,6 +72,7 @@
 					&pinctrl_mmc0_clk
 					&pinctrl_mmc0_slot0_cmd_dat0
 					&pinctrl_mmc0_slot0_dat1_3>;
+				pinctrl-names = "default";
 				status = "okay";
 				slot@0 {
 					reg = <0>;
@@ -95,11 +95,15 @@
 			spi0: spi@fffa4000 {
 				status = "okay";
 				cs-gpios = <&pioA 5 0>, <0>, <0>, <0>;
-				mtd_dataflash@0 {
+				flash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";
 					spi-max-frequency = <50000000>;
 					reg = <0>;
 				};
+			};
+
+			rtc@fffffd20 {
+				atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
 			};
 
 			watchdog@fffffd40 {
@@ -111,7 +115,7 @@
 			display = <&display0>;
 			status = "okay";
 
-			display0: display {
+			display0: panel {
 				bits-per-pixel = <16>;
 				atmel,lcdcon-backlight;
 				atmel,dmacon = <0x1>;
@@ -228,17 +232,17 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		left_click {
+		button-left-click {
 			label = "left_click";
 			gpios = <&pioC 5 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
 			wakeup-source;
 		};
 
-		right_click {
+		button-right-click {
 			label = "right_click";
 			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;

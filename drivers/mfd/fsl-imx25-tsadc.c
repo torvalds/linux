@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2015 Pengutronix, Markus Pargmann <mpa@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -38,10 +35,10 @@ static void mx25_tsadc_irq_handler(struct irq_desc *desc)
 	regmap_read(tsadc->regs, MX25_TSC_TGSR, &status);
 
 	if (status & MX25_TGSR_GCQ_INT)
-		generic_handle_irq(irq_find_mapping(tsadc->domain, 1));
+		generic_handle_domain_irq(tsadc->domain, 1);
 
 	if (status & MX25_TGSR_TCQ_INT)
-		generic_handle_irq(irq_find_mapping(tsadc->domain, 0));
+		generic_handle_domain_irq(tsadc->domain, 0);
 
 	chained_irq_exit(chip, desc);
 }
@@ -72,10 +69,8 @@ static int mx25_tsadc_setup_irq(struct platform_device *pdev,
 	int irq;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(dev, "Failed to get irq\n");
+	if (irq <= 0)
 		return irq;
-	}
 
 	tsadc->domain = irq_domain_add_simple(np, 2, 0, &mx25_tsadc_domain_ops,
 					      tsadc);
@@ -201,7 +196,7 @@ MODULE_DEVICE_TABLE(of, mx25_tsadc_ids);
 static struct platform_driver mx25_tsadc_driver = {
 	.driver = {
 		.name = "mx25-tsadc",
-		.of_match_table = of_match_ptr(mx25_tsadc_ids),
+		.of_match_table = mx25_tsadc_ids,
 	},
 	.probe = mx25_tsadc_probe,
 	.remove = mx25_tsadc_remove,

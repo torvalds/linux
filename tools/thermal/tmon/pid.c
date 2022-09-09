@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pid.c PID controller for testing cooling devices
  *
- *
- *
  * Copyright (C) 2012 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 or later as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Author Name Jacob Pan <jacob.jun.pan@linux.intel.com>
- *
  */
 
 #include <unistd.h>
@@ -38,7 +27,7 @@
 
 /**************************************************************************
  * PID (Proportional-Integral-Derivative) controller is commonly used in
- * linear control system, consider the the process.
+ * linear control system, consider the process.
  * G(s) = U(s)/E(s)
  * kp = proportional gain
  * ki = integral gain
@@ -65,7 +54,6 @@ static double xk_1, xk_2; /* input temperature x[k-#] */
  */
 int init_thermal_controller(void)
 {
-	int ret = 0;
 
 	/* init pid params */
 	p_param.ts = ticktime;
@@ -76,7 +64,7 @@ int init_thermal_controller(void)
 
 	p_param.t_target = target_temp_user;
 
-	return ret;
+	return 0;
 }
 
 void controller_reset(void)

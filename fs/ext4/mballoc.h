@@ -24,19 +24,15 @@
 #include "ext4.h"
 
 /*
+ * mb_debug() dynamic printk msgs could be used to debug mballoc code.
  */
 #ifdef CONFIG_EXT4_DEBUG
-extern ushort ext4_mballoc_debug;
-
-#define mb_debug(n, fmt, ...)	                                        \
-do {									\
-	if ((n) <= ext4_mballoc_debug) {				\
-		printk(KERN_DEBUG "(%s, %d): %s: " fmt,			\
-		       __FILE__, __LINE__, __func__, ##__VA_ARGS__);	\
-	}								\
-} while (0)
+#define mb_debug(sb, fmt, ...)						\
+	pr_debug("[%s/%d] EXT4-fs (%s): (%s, %d): %s: " fmt,		\
+		current->comm, task_pid_nr(current), sb->s_id,		\
+	       __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 #else
-#define mb_debug(n, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define mb_debug(sb, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define EXT4_MB_HISTORY_ALLOC		1	/* allocation */
@@ -63,7 +59,7 @@ do {									\
  * by the stream allocator, which purpose is to pack requests
  * as close each to other as possible to produce smooth I/O traffic
  * We use locality group prealloc space for stream request.
- * We can tune the same via /proc/fs/ext4/<parition>/stream_req
+ * We can tune the same via /proc/fs/ext4/<partition>/stream_req
  */
 #define MB_DEFAULT_STREAM_THRESHOLD	16	/* 64K */
 
@@ -77,6 +73,27 @@ do {									\
  */
 #define MB_DEFAULT_GROUP_PREALLOC	512
 
+/*
+ * maximum length of inode prealloc list
+ */
+#define MB_DEFAULT_MAX_INODE_PREALLOC	512
+
+/*
+ * Number of groups to search linearly before performing group scanning
+ * optimization.
+ */
+#define MB_DEFAULT_LINEAR_LIMIT		4
+
+/*
+ * Minimum number of groups that should be present in the file system to perform
+ * group scanning optimizations.
+ */
+#define MB_DEFAULT_LINEAR_SCAN_THRESHOLD	16
+
+/*
+ * Number of valid buddy orders
+ */
+#define MB_NUM_ORDERS(sb)		((sb)->s_blocksize_bits + 2)
 
 struct ext4_free_data {
 	/* this links the free block information from sb_info */
@@ -161,11 +178,14 @@ struct ext4_allocation_context {
 	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
 
+	ext4_group_t ac_last_optimal_group;
+	__u32 ac_groups_considered;
+	__u32 ac_flags;		/* allocation hints */
 	__u16 ac_groups_scanned;
+	__u16 ac_groups_linear_remaining;
 	__u16 ac_found;
 	__u16 ac_tail;
 	__u16 ac_buddy;
-	__u16 ac_flags;		/* allocation hints */
 	__u8 ac_status;
 	__u8 ac_criteria;
 	__u8 ac_2order;		/* if request is to allocate 2^N blocks and

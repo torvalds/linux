@@ -15,10 +15,10 @@
 #include <linux/platform_device.h>
 #include <linux/usb/musb.h>
 
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/da8xx.h>
-#include <mach/irqs.h>
+#include "common.h"
+#include "cputype.h"
+#include "da8xx.h"
+#include "irqs.h"
 
 #define DA8XX_USB0_BASE		0x01e00000
 #define DA8XX_USB1_BASE		0x01e25000
@@ -70,7 +70,7 @@ static struct resource da8xx_usb20_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= IRQ_DA8XX_USB_INT,
+		.start		= DAVINCI_INTC_IRQ(IRQ_DA8XX_USB_INT),
 		.flags		= IORESOURCE_IRQ,
 		.name		= "mc",
 	},
@@ -105,8 +105,8 @@ static struct resource da8xx_usb11_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_DA8XX_IRQN,
-		.end	= IRQ_DA8XX_IRQN,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_IRQN),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_IRQN),
 		.flags	= IORESOURCE_IRQ,
 	},
 };

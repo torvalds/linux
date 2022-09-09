@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DM_PERSISTENT_DATA
        tristate
        depends on BLK_DEV_DM
        select LIBCRC32C
        select DM_BUFIO
-       ---help---
+	help
 	 Library providing immutable on-disk data structure support for
 	 device-mapper targets such as the thin provisioning target.
 

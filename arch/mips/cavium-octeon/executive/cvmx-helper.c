@@ -30,6 +30,7 @@
  * Helper functions for common, but complicated tasks.
  *
  */
+#include <linux/bug.h>
 #include <asm/octeon/octeon.h>
 
 #include <asm/octeon/cvmx-config.h>
@@ -43,7 +44,6 @@
 #include <asm/octeon/cvmx-helper-board.h>
 
 #include <asm/octeon/cvmx-pip-defs.h>
-#include <asm/octeon/cvmx-smix-defs.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 
 /* Port count per interface */
@@ -61,6 +61,12 @@ int cvmx_helper_get_number_of_interfaces(void)
 {
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		return 9;
+	if (OCTEON_IS_MODEL(OCTEON_CN66XX)) {
+		if (OCTEON_IS_MODEL(OCTEON_CN66XX_PASS1_0))
+			return 7;
+		else
+			return 8;
+	}
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX))
 		return 4;
 	if (OCTEON_IS_MODEL(OCTEON_CN7XXX))
@@ -315,22 +321,6 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 			return CVMX_HELPER_INTERFACE_MODE_LOOP;
 		else
 			return CVMX_HELPER_INTERFACE_MODE_DISABLED;
-	}
-
-	if (interface == 0
-	    && cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CN3005_EVB_HS5
-	    && cvmx_sysinfo_get()->board_rev_major == 1) {
-		/*
-		 * Lie about interface type of CN3005 board.  This
-		 * board has a switch on port 1 like the other
-		 * evaluation boards, but it is connected over RGMII
-		 * instead of GMII.  Report GMII mode so that the
-		 * speed is forced to 1 Gbit full duplex.  Other than
-		 * some initial configuration (which does not use the
-		 * output of this function) there is no difference in
-		 * setup between GMII and RGMII modes.
-		 */
-		return CVMX_HELPER_INTERFACE_MODE_GMII;
 	}
 
 	/* Interface 1 is always disabled on CN31XX and CN30XX */
@@ -778,7 +768,6 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
 		result = __cvmx_helper_loop_enable(interface);
 		break;
 	}
-	result |= __cvmx_helper_board_hardware_enable(interface);
 	return result;
 }
 
@@ -799,9 +788,9 @@ static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 #define INTERFACE(port) (port >> 4)
 #define INDEX(port) (port & 0xf)
 	uint64_t *p64;
-	cvmx_pko_command_word0_t pko_command;
+	union cvmx_pko_command_word0 pko_command;
 	union cvmx_buf_ptr g_buffer, pkt_buffer;
-	cvmx_wqe_t *work;
+	struct cvmx_wqe *work;
 	int size, num_segs = 0, wqe_pcnt, pkt_pcnt;
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	int retry_cnt;
@@ -1026,7 +1015,6 @@ int cvmx_helper_initialize_packet_io_global(void)
 	int result = 0;
 	int interface;
 	union cvmx_l2c_cfg l2c_cfg;
-	union cvmx_smix_en smix_en;
 	const int num_interfaces = cvmx_helper_get_number_of_interfaces();
 
 	/*
@@ -1045,24 +1033,6 @@ int cvmx_helper_initialize_packet_io_global(void)
 	l2c_cfg.s.lrf_arb_mode = 0;
 	l2c_cfg.s.rfb_arb_mode = 0;
 	cvmx_write_csr(CVMX_L2C_CFG, l2c_cfg.u64);
-
-	/* Make sure SMI/MDIO is enabled so we can query PHYs */
-	smix_en.u64 = cvmx_read_csr(CVMX_SMIX_EN(0));
-	if (!smix_en.s.en) {
-		smix_en.s.en = 1;
-		cvmx_write_csr(CVMX_SMIX_EN(0), smix_en.u64);
-	}
-
-	/* Newer chips actually have two SMI/MDIO interfaces */
-	if (!OCTEON_IS_MODEL(OCTEON_CN3XXX) &&
-	    !OCTEON_IS_MODEL(OCTEON_CN58XX) &&
-	    !OCTEON_IS_MODEL(OCTEON_CN50XX)) {
-		smix_en.u64 = cvmx_read_csr(CVMX_SMIX_EN(1));
-		if (!smix_en.s.en) {
-			smix_en.s.en = 1;
-			cvmx_write_csr(CVMX_SMIX_EN(1), smix_en.u64);
-		}
-	}
 
 	cvmx_pko_initialize_global();
 	for (interface = 0; interface < num_interfaces; interface++) {
@@ -1092,16 +1062,6 @@ int cvmx_helper_initialize_packet_io_global(void)
 EXPORT_SYMBOL_GPL(cvmx_helper_initialize_packet_io_global);
 
 /**
- * Does core local initialization for packet io
- *
- * Returns Zero on success, non-zero on failure
- */
-int cvmx_helper_initialize_packet_io_local(void)
-{
-	return cvmx_pko_initialize_local();
-}
-
-/**
  * Return the link state of an IPD/PKO port as returned by
  * auto negotiation. The result of this function may not match
  * Octeon's link config if auto negotiation has changed since
@@ -1111,9 +1071,9 @@ int cvmx_helper_initialize_packet_io_local(void)
  *
  * Returns Link state
  */
-cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
+union cvmx_helper_link_info cvmx_helper_link_get(int ipd_port)
 {
-	cvmx_helper_link_info_t result;
+	union cvmx_helper_link_info result;
 	int interface = cvmx_helper_get_interface_num(ipd_port);
 	int index = cvmx_helper_get_interface_index_num(ipd_port);
 
@@ -1136,6 +1096,7 @@ cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
 		if (index == 0)
 			result = __cvmx_helper_rgmii_link_get(ipd_port);
 		else {
+			WARN(1, "Using deprecated link status - please update your DT");
 			result.s.full_duplex = 1;
 			result.s.link_up = 1;
 			result.s.speed = 1000;
@@ -1171,7 +1132,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_link_get);
  *
  * Returns Zero on success, negative on failure
  */
-int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
+int cvmx_helper_link_set(int ipd_port, union cvmx_helper_link_info link_info)
 {
 	int result = -1;
 	int interface = cvmx_helper_get_interface_num(ipd_port);

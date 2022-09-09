@@ -17,8 +17,6 @@
  */
 
 /* stock kernel-level ioctls we support */
-#define XFS_IOC_GETXFLAGS_32	FS_IOC32_GETFLAGS
-#define XFS_IOC_SETXFLAGS_32	FS_IOC32_SETFLAGS
 #define XFS_IOC_GETVERSION_32	FS_IOC32_GETVERSION
 
 /*
@@ -32,11 +30,11 @@
 #endif
 
 typedef struct compat_xfs_bstime {
-	compat_time_t	tv_sec;		/* seconds		*/
+	old_time32_t	tv_sec;		/* seconds		*/
 	__s32		tv_nsec;	/* and nanoseconds	*/
 } compat_xfs_bstime_t;
 
-typedef struct compat_xfs_bstat {
+struct compat_xfs_bstat {
 	__u64		bs_ino;		/* inode number			*/
 	__u16		bs_mode;	/* type and mode		*/
 	__u16		bs_nlink;	/* number of links		*/
@@ -61,14 +59,14 @@ typedef struct compat_xfs_bstat {
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
 	__u16		bs_dmstate;	/* DMIG state info		*/
 	__u16		bs_aextents;	/* attribute number of extents	*/
-} __compat_packed compat_xfs_bstat_t;
+} __compat_packed;
 
-typedef struct compat_xfs_fsop_bulkreq {
+struct compat_xfs_fsop_bulkreq {
 	compat_uptr_t	lastip;		/* last inode # pointer		*/
 	__s32		icount;		/* count of entries in buffer	*/
 	compat_uptr_t	ubuffer;	/* user buffer for inode desc.	*/
 	compat_uptr_t	ocount;		/* output count pointer		*/
-} compat_xfs_fsop_bulkreq_t;
+};
 
 #define XFS_IOC_FSBULKSTAT_32 \
 	_IOWR('X', 101, struct compat_xfs_fsop_bulkreq)
@@ -99,15 +97,15 @@ typedef struct compat_xfs_fsop_handlereq {
 	_IOWR('X', 108, struct compat_xfs_fsop_handlereq)
 
 /* The bstat field in the swapext struct needs translation */
-typedef struct compat_xfs_swapext {
+struct compat_xfs_swapext {
 	int64_t			sx_version;	/* version */
 	int64_t			sx_fdtarget;	/* fd of target file */
 	int64_t			sx_fdtmp;	/* fd of tmp file */
 	xfs_off_t		sx_offset;	/* offset into file */
 	xfs_off_t		sx_length;	/* leng from offset */
 	char			sx_pad[16];	/* pad space, unused */
-	compat_xfs_bstat_t	sx_stat;	/* stat of target b4 copy */
-} __compat_packed compat_xfs_swapext_t;
+	struct compat_xfs_bstat	sx_stat;	/* stat of target b4 copy */
+} __compat_packed;
 
 #define XFS_IOC_SWAPEXT_32	_IOWR('X', 109, struct compat_xfs_swapext)
 
@@ -143,38 +141,7 @@ typedef struct compat_xfs_fsop_attrmulti_handlereq {
 #define XFS_IOC_ATTRMULTI_BY_HANDLE_32 \
 	_IOW('X', 123, struct compat_xfs_fsop_attrmulti_handlereq)
 
-typedef struct compat_xfs_fsop_setdm_handlereq {
-	struct compat_xfs_fsop_handlereq hreq;	/* handle information   */
-	/* ptr to struct fsdmidata */
-	compat_uptr_t			data;	/* DMAPI data   */
-} compat_xfs_fsop_setdm_handlereq_t;
-
-#define XFS_IOC_FSSETDM_BY_HANDLE_32 \
-	_IOW('X', 121, struct compat_xfs_fsop_setdm_handlereq)
-
 #ifdef BROKEN_X86_ALIGNMENT
-/* on ia32 l_start is on a 32-bit boundary */
-typedef struct compat_xfs_flock64 {
-	__s16		l_type;
-	__s16		l_whence;
-	__s64		l_start	__attribute__((packed));
-			/* len == 0 means until end of file */
-	__s64		l_len __attribute__((packed));
-	__s32		l_sysid;
-	__u32		l_pid;
-	__s32		l_pad[4];	/* reserve area */
-} compat_xfs_flock64_t;
-
-#define XFS_IOC_ALLOCSP_32	_IOW('X', 10, struct compat_xfs_flock64)
-#define XFS_IOC_FREESP_32	_IOW('X', 11, struct compat_xfs_flock64)
-#define XFS_IOC_ALLOCSP64_32	_IOW('X', 36, struct compat_xfs_flock64)
-#define XFS_IOC_FREESP64_32	_IOW('X', 37, struct compat_xfs_flock64)
-#define XFS_IOC_RESVSP_32	_IOW('X', 40, struct compat_xfs_flock64)
-#define XFS_IOC_UNRESVSP_32	_IOW('X', 41, struct compat_xfs_flock64)
-#define XFS_IOC_RESVSP64_32	_IOW('X', 42, struct compat_xfs_flock64)
-#define XFS_IOC_UNRESVSP64_32	_IOW('X', 43, struct compat_xfs_flock64)
-#define XFS_IOC_ZERO_RANGE_32	_IOW('X', 57, struct compat_xfs_flock64)
-
 typedef struct compat_xfs_fsop_geom_v1 {
 	__u32		blocksize;	/* filesystem (data) block size */
 	__u32		rtextsize;	/* realtime extent size		*/
@@ -201,11 +168,11 @@ typedef struct compat_xfs_fsop_geom_v1 {
 #define XFS_IOC_FSGEOMETRY_V1_32  \
 	_IOR('X', 100, struct compat_xfs_fsop_geom_v1)
 
-typedef struct compat_xfs_inogrp {
+struct compat_xfs_inogrp {
 	__u64		xi_startino;	/* starting inode number	*/
 	__s32		xi_alloccount;	/* # bits set in allocmask	*/
 	__u64		xi_allocmask;	/* mask of allocated inodes	*/
-} __attribute__((packed)) compat_xfs_inogrp_t;
+} __attribute__((packed));
 
 /* These growfs input structures have padding on the end, so must translate */
 typedef struct compat_xfs_growfs_data {

@@ -50,7 +50,8 @@ struct user_pt_regs {
 	__u32 windowstart;
 	__u32 windowbase;
 	__u32 threadptr;
-	__u32 reserved[7 + 48];
+	__u32 syscall;
+	__u32 reserved[6 + 48];
 	__u32 a[64];
 };
 

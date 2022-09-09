@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
@@ -6,18 +7,6 @@
  *  Based on Steven Toth <stoth@linuxtv.org> cx25821 driver
  *  Parts adapted/taken from Eduardo Moscoso Rubino
  *  Copyright (C) 2009 Eduardo Moscoso Rubino <moscoso@TopoLogica.com>
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -46,12 +35,10 @@ MODULE_PARM_DESC(irq_debug, "enable debug messages [IRQ handler]");
 
 static const struct cx25821_fmt formats[] = {
 	{
-		.name = "4:1:1, packed, Y41P",
 		.fourcc = V4L2_PIX_FMT_Y41P,
 		.depth = 12,
 		.flags = FORMAT_FLAGS_PACKED,
 	}, {
-		.name = "4:2:2, packed, YUYV",
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.depth = 16,
 		.flags = FORMAT_FLAGS_PACKED,
@@ -226,9 +213,9 @@ static int cx25821_buffer_prepare(struct vb2_buffer *vb)
 		break;
 	}
 
-	dprintk(2, "[%p/%d] buffer_prep - %dx%d %dbpp \"%s\" - dma=0x%08lx\n",
+	dprintk(2, "[%p/%d] buffer_prep - %dx%d %dbpp 0x%08x - dma=0x%08lx\n",
 		buf, buf->vb.vb2_buf.index, chan->width, chan->height,
-		chan->fmt->depth, chan->fmt->name,
+		chan->fmt->depth, chan->fmt->fourcc,
 		(unsigned long)buf->risc.dma);
 
 	return ret;
@@ -322,7 +309,6 @@ static int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
 		return -EINVAL;
 
-	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
 
 	return 0;
@@ -437,18 +423,13 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_dev *dev = chan->dev;
-	const u32 cap_input = V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	const u32 cap_output = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE;
 
 	strscpy(cap->driver, "cx25821", sizeof(cap->driver));
 	strscpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
-	if (chan->id >= VID_CHANNEL_NUM)
-		cap->device_caps = cap_output;
-	else
-		cap->device_caps = cap_input;
-	cap->capabilities = cap_input | cap_output | V4L2_CAP_DEVICE_CAPS;
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
+			    V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -635,6 +616,8 @@ static const struct video_device cx25821_video_device = {
 	.minor = -1,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		       V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_file_operations video_out_fops = {
@@ -668,6 +651,7 @@ static const struct video_device cx25821_video_out_device = {
 	.minor = -1,
 	.ioctl_ops = &video_out_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
+	.device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE,
 };
 
 void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
@@ -773,7 +757,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		snprintf(vdev->name, sizeof(vdev->name), "%s #%d", dev->name, i);
 		video_set_drvdata(vdev, chan);
 
-		err = video_register_device(vdev, VFL_TYPE_GRABBER,
+		err = video_register_device(vdev, VFL_TYPE_VIDEO,
 					    video_nr[dev->nr]);
 
 		if (err < 0)

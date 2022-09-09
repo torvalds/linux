@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Load Analog Devices SigmaStudio firmware files
  *
  * Copyright 2009-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/regmap.h>
@@ -27,7 +26,7 @@ static int sigmadsp_read_regmap(void *control_data,
 }
 
 /**
- * devm_sigmadsp_init_i2c() - Initialize SigmaDSP instance
+ * devm_sigmadsp_init_regmap() - Initialize SigmaDSP instance
  * @dev: The parent device
  * @regmap: Regmap instance to use
  * @ops: The sigmadsp_ops to use for this instance

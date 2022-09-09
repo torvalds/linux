@@ -319,9 +319,7 @@ static void mcf_rx_chars(struct mcf_uart *pp)
 		uart_insert_char(port, status, MCFUART_USR_RXOVERRUN, ch, flag);
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
-	spin_lock(&port->lock);
 }
 
 /****************************************************************************/
@@ -340,7 +338,7 @@ static void mcf_tx_chars(struct mcf_uart *pp)
 	}
 
 	while (readb(port->membase + MCFUART_USR) & MCFUART_USR_TXREADY) {
-		if (xmit->head == xmit->tail)
+		if (uart_circ_empty(xmit))
 			break;
 		writeb(xmit->buf[xmit->tail], port->membase + MCFUART_UTB);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE -1);
@@ -350,9 +348,8 @@ static void mcf_tx_chars(struct mcf_uart *pp)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (xmit->head == xmit->tail) {
-		pp->imr &= ~MCFUART_UIR_TXREADY;
-		writeb(pp->imr, port->membase + MCFUART_UIMR);
+	if (uart_circ_empty(xmit)) {
+		mcf_stop_tx(port);
 		/* Disable TX to negate RTS automatically */
 		if (port->rs485.flags & SER_RS485_ENABLED)
 			writeb(MCFUART_UCR_TXDISABLE,
@@ -434,7 +431,8 @@ static int mcf_verify_port(struct uart_port *port, struct serial_struct *ser)
 /****************************************************************************/
 
 /* Enable or disable the RS485 support */
-static int mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+static int mcf_config_rs485(struct uart_port *port, struct ktermios *termios,
+			    struct serial_rs485 *rs485)
 {
 	unsigned char mr1, mr2;
 
@@ -451,10 +449,13 @@ static int mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 	}
 	writeb(mr1, port->membase + MCFUART_UMR);
 	writeb(mr2, port->membase + MCFUART_UMR);
-	port->rs485 = *rs485;
 
 	return 0;
 }
+
+static const struct serial_rs485 mcf_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_AFTER_SEND,
+};
 
 /****************************************************************************/
 
@@ -505,6 +506,7 @@ int __init early_mcf_setup(struct mcf_platform_uart *platp)
 		port->uartclk = MCF_BUSCLK;
 		port->flags = UPF_BOOT_AUTOCONF;
 		port->rs485_config = mcf_config_rs485;
+		port->rs485_supported = mcf_rs485_supported;
 		port->ops = &mcf_uart_ops;
 	}
 
@@ -632,6 +634,8 @@ static int mcf_probe(struct platform_device *pdev)
 		port->ops = &mcf_uart_ops;
 		port->flags = UPF_BOOT_AUTOCONF;
 		port->rs485_config = mcf_config_rs485;
+		port->rs485_supported = mcf_rs485_supported;
+		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_MCF_CONSOLE);
 
 		uart_add_one_port(&mcf_driver, port);
 	}

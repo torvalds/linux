@@ -8,7 +8,6 @@
 #define _SS_SERVICES_H_
 
 #include "policydb.h"
-#include "sidtab.h"
 
 /* Mapping for a single class */
 struct selinux_mapping {
@@ -23,15 +22,12 @@ struct selinux_map {
 	u16 size; /* array size of mapping */
 };
 
-struct selinux_ss {
+struct selinux_policy {
 	struct sidtab *sidtab;
 	struct policydb policydb;
-	rwlock_t policy_rwlock;
-	u32 latest_granting;
 	struct selinux_map map;
-	struct page *status_page;
-	struct mutex status_lock;
-};
+	u32 latest_granting;
+} __randomize_layout;
 
 void services_compute_xperms_drivers(struct extended_perms *xperms,
 				struct avtab_node *node);

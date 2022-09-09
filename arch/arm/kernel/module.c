@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/module.c
  *
  *  Copyright (C) 2002 Russell King.
  *  Modified for nommu by Hyok S. Choi
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Module allocation method suggested by Andi Kleen.
  */
@@ -20,7 +17,6 @@
 #include <linux/string.h>
 #include <linux/gfp.h>
 
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/smp_plat.h>
 #include <asm/unwind.h>
@@ -58,6 +54,58 @@ void *module_alloc(unsigned long size)
 }
 #endif
 
+bool module_init_section(const char *name)
+{
+	return strstarts(name, ".init") ||
+		strstarts(name, ".ARM.extab.init") ||
+		strstarts(name, ".ARM.exidx.init");
+}
+
+bool module_exit_section(const char *name)
+{
+	return strstarts(name, ".exit") ||
+		strstarts(name, ".ARM.extab.exit") ||
+		strstarts(name, ".ARM.exidx.exit");
+}
+
+#ifdef CONFIG_ARM_HAS_GROUP_RELOCS
+/*
+ * This implements the partitioning algorithm for group relocations as
+ * documented in the ARM AArch32 ELF psABI (IHI 0044).
+ *
+ * A single PC-relative symbol reference is divided in up to 3 add or subtract
+ * operations, where the final one could be incorporated into a load/store
+ * instruction with immediate offset. E.g.,
+ *
+ *   ADD	Rd, PC, #...		or	ADD	Rd, PC, #...
+ *   ADD	Rd, Rd, #...			ADD	Rd, Rd, #...
+ *   LDR	Rd, [Rd, #...]			ADD	Rd, Rd, #...
+ *
+ * The latter has a guaranteed range of only 16 MiB (3x8 == 24 bits), so it is
+ * of limited use in the kernel. However, the ADD/ADD/LDR combo has a range of
+ * -/+ 256 MiB, (2x8 + 12 == 28 bits), which means it has sufficient range for
+ * any in-kernel symbol reference (unless module PLTs are being used).
+ *
+ * The main advantage of this approach over the typical pattern using a literal
+ * load is that literal loads may miss in the D-cache, and generally lead to
+ * lower cache efficiency for variables that are referenced often from many
+ * different places in the code.
+ */
+static u32 get_group_rem(u32 group, u32 *offset)
+{
+	u32 val = *offset;
+	u32 shift;
+	do {
+		shift = val ? (31 - __fls(val)) & ~1 : 32;
+		*offset = val;
+		if (!val)
+			break;
+		val &= 0xffffff >> shift;
+	} while (group--);
+	return shift;
+}
+#endif
+
 int
 apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 	       unsigned int relindex, struct module *module)
@@ -72,6 +120,9 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		unsigned long loc;
 		Elf32_Sym *sym;
 		const char *symname;
+#ifdef CONFIG_ARM_HAS_GROUP_RELOCS
+		u32 shift, group = 1;
+#endif
 		s32 offset;
 		u32 tmp;
 #ifdef CONFIG_THUMB2_KERNEL
@@ -175,14 +226,24 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			*(u32 *)loc |= offset & 0x7fffffff;
 			break;
 
+		case R_ARM_REL32:
+			*(u32 *)loc += sym->st_value - loc;
+			break;
+
 		case R_ARM_MOVW_ABS_NC:
 		case R_ARM_MOVT_ABS:
+		case R_ARM_MOVW_PREL_NC:
+		case R_ARM_MOVT_PREL:
 			offset = tmp = __mem_to_opcode_arm(*(u32 *)loc);
 			offset = ((offset & 0xf0000) >> 4) | (offset & 0xfff);
 			offset = (offset ^ 0x8000) - 0x8000;
 
 			offset += sym->st_value;
-			if (ELF32_R_TYPE(rel->r_info) == R_ARM_MOVT_ABS)
+			if (ELF32_R_TYPE(rel->r_info) == R_ARM_MOVT_PREL ||
+			    ELF32_R_TYPE(rel->r_info) == R_ARM_MOVW_PREL_NC)
+				offset -= loc;
+			if (ELF32_R_TYPE(rel->r_info) == R_ARM_MOVT_ABS ||
+			    ELF32_R_TYPE(rel->r_info) == R_ARM_MOVT_PREL)
 				offset >>= 16;
 
 			tmp &= 0xfff0f000;
@@ -192,6 +253,55 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			*(u32 *)loc = __opcode_to_mem_arm(tmp);
 			break;
 
+#ifdef CONFIG_ARM_HAS_GROUP_RELOCS
+		case R_ARM_ALU_PC_G0_NC:
+			group = 0;
+			fallthrough;
+		case R_ARM_ALU_PC_G1_NC:
+			tmp = __mem_to_opcode_arm(*(u32 *)loc);
+			offset = ror32(tmp & 0xff, (tmp & 0xf00) >> 7);
+			if (tmp & BIT(22))
+				offset = -offset;
+			offset += sym->st_value - loc;
+			if (offset < 0) {
+				offset = -offset;
+				tmp = (tmp & ~BIT(23)) | BIT(22); // SUB opcode
+			} else {
+				tmp = (tmp & ~BIT(22)) | BIT(23); // ADD opcode
+			}
+
+			shift = get_group_rem(group, &offset);
+			if (shift < 24) {
+				offset >>= 24 - shift;
+				offset |= (shift + 8) << 7;
+			}
+			*(u32 *)loc = __opcode_to_mem_arm((tmp & ~0xfff) | offset);
+			break;
+
+		case R_ARM_LDR_PC_G2:
+			tmp = __mem_to_opcode_arm(*(u32 *)loc);
+			offset = tmp & 0xfff;
+			if (~tmp & BIT(23))		// U bit cleared?
+				offset = -offset;
+			offset += sym->st_value - loc;
+			if (offset < 0) {
+				offset = -offset;
+				tmp &= ~BIT(23);	// clear U bit
+			} else {
+				tmp |= BIT(23);		// set U bit
+			}
+			get_group_rem(2, &offset);
+
+			if (offset > 0xfff) {
+				pr_err("%s: section %u reloc %u sym '%s': relocation %u out of range (%#lx -> %#x)\n",
+				       module->name, relindex, i, symname,
+				       ELF32_R_TYPE(rel->r_info), loc,
+				       sym->st_value);
+				return -ENOEXEC;
+			}
+			*(u32 *)loc = __opcode_to_mem_arm((tmp & ~0xfff) | offset);
+			break;
+#endif
 #ifdef CONFIG_THUMB2_KERNEL
 		case R_ARM_THM_CALL:
 		case R_ARM_THM_JUMP24:
@@ -273,6 +383,8 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 
 		case R_ARM_THM_MOVW_ABS_NC:
 		case R_ARM_THM_MOVT_ABS:
+		case R_ARM_THM_MOVW_PREL_NC:
+		case R_ARM_THM_MOVT_PREL:
 			upper = __mem_to_opcode_thumb16(*(u16 *)loc);
 			lower = __mem_to_opcode_thumb16(*(u16 *)(loc + 2));
 
@@ -292,7 +404,11 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			offset = (offset ^ 0x8000) - 0x8000;
 			offset += sym->st_value;
 
-			if (ELF32_R_TYPE(rel->r_info) == R_ARM_THM_MOVT_ABS)
+			if (ELF32_R_TYPE(rel->r_info) == R_ARM_THM_MOVT_PREL ||
+			    ELF32_R_TYPE(rel->r_info) == R_ARM_THM_MOVW_PREL_NC)
+				offset -= loc;
+			if (ELF32_R_TYPE(rel->r_info) == R_ARM_THM_MOVT_ABS ||
+			    ELF32_R_TYPE(rel->r_info) == R_ARM_THM_MOVT_PREL)
 				offset >>= 16;
 
 			upper = (u16)((upper & 0xfbf0) |
@@ -343,46 +459,40 @@ int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 #ifdef CONFIG_ARM_UNWIND
 	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 	const Elf_Shdr *sechdrs_end = sechdrs + hdr->e_shnum;
-	struct mod_unwind_map maps[ARM_SEC_MAX];
-	int i;
+	struct list_head *unwind_list = &mod->arch.unwind_list;
 
-	memset(maps, 0, sizeof(maps));
+	INIT_LIST_HEAD(unwind_list);
+	mod->arch.init_table = NULL;
 
 	for (s = sechdrs; s < sechdrs_end; s++) {
 		const char *secname = secstrs + s->sh_name;
+		const char *txtname;
+		const Elf_Shdr *txt_sec;
 
-		if (!(s->sh_flags & SHF_ALLOC))
+		if (!(s->sh_flags & SHF_ALLOC) ||
+		    s->sh_type != ELF_SECTION_UNWIND)
 			continue;
 
-		if (strcmp(".ARM.exidx.init.text", secname) == 0)
-			maps[ARM_SEC_INIT].unw_sec = s;
-		else if (strcmp(".ARM.exidx", secname) == 0)
-			maps[ARM_SEC_CORE].unw_sec = s;
-		else if (strcmp(".ARM.exidx.exit.text", secname) == 0)
-			maps[ARM_SEC_EXIT].unw_sec = s;
-		else if (strcmp(".ARM.exidx.text.unlikely", secname) == 0)
-			maps[ARM_SEC_UNLIKELY].unw_sec = s;
-		else if (strcmp(".ARM.exidx.text.hot", secname) == 0)
-			maps[ARM_SEC_HOT].unw_sec = s;
-		else if (strcmp(".init.text", secname) == 0)
-			maps[ARM_SEC_INIT].txt_sec = s;
-		else if (strcmp(".text", secname) == 0)
-			maps[ARM_SEC_CORE].txt_sec = s;
-		else if (strcmp(".exit.text", secname) == 0)
-			maps[ARM_SEC_EXIT].txt_sec = s;
-		else if (strcmp(".text.unlikely", secname) == 0)
-			maps[ARM_SEC_UNLIKELY].txt_sec = s;
-		else if (strcmp(".text.hot", secname) == 0)
-			maps[ARM_SEC_HOT].txt_sec = s;
-	}
+		if (!strcmp(".ARM.exidx", secname))
+			txtname = ".text";
+		else
+			txtname = secname + strlen(".ARM.exidx");
+		txt_sec = find_mod_section(hdr, sechdrs, txtname);
 
-	for (i = 0; i < ARM_SEC_MAX; i++)
-		if (maps[i].unw_sec && maps[i].txt_sec)
-			mod->arch.unwind[i] =
-				unwind_table_add(maps[i].unw_sec->sh_addr,
-					         maps[i].unw_sec->sh_size,
-					         maps[i].txt_sec->sh_addr,
-					         maps[i].txt_sec->sh_size);
+		if (txt_sec) {
+			struct unwind_table *table =
+				unwind_table_add(s->sh_addr,
+						s->sh_size,
+						txt_sec->sh_addr,
+						txt_sec->sh_size);
+
+			list_add(&table->mod_list, unwind_list);
+
+			/* save init table for module_arch_freeing_init */
+			if (strcmp(".ARM.exidx.init.text", secname) == 0)
+				mod->arch.init_table = table;
+		}
+	}
 #endif
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
 	s = find_mod_section(hdr, sechdrs, ".pv_table");
@@ -403,10 +513,27 @@ void
 module_arch_cleanup(struct module *mod)
 {
 #ifdef CONFIG_ARM_UNWIND
-	int i;
+	struct unwind_table *tmp;
+	struct unwind_table *n;
 
-	for (i = 0; i < ARM_SEC_MAX; i++)
-		if (mod->arch.unwind[i])
-			unwind_table_del(mod->arch.unwind[i]);
+	list_for_each_entry_safe(tmp, n,
+			&mod->arch.unwind_list, mod_list) {
+		list_del(&tmp->mod_list);
+		unwind_table_del(tmp);
+	}
+	mod->arch.init_table = NULL;
+#endif
+}
+
+void __weak module_arch_freeing_init(struct module *mod)
+{
+#ifdef CONFIG_ARM_UNWIND
+	struct unwind_table *init = mod->arch.init_table;
+
+	if (init) {
+		mod->arch.init_table = NULL;
+		list_del(&init->mod_list);
+		unwind_table_del(init);
+	}
 #endif
 }

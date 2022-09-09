@@ -28,16 +28,26 @@ AMDDALPATH = $(RELATIVE_AMD_DISPLAY_PATH)
 
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/hw
+subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/clk_mgr
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/inc
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/freesync
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/color
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/info_packet
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/power
+subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dmub/inc
+
+ifdef CONFIG_DRM_AMD_DC_HDCP
+subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/hdcp
+endif
 
 #TODO: remove when Timing Sync feature is complete
 subdir-ccflags-y += -DBUILD_FEATURE_TIMING_SYNC=0
 
-DAL_LIBS = amdgpu_dm dc	modules/freesync modules/color modules/info_packet modules/power
+DAL_LIBS = amdgpu_dm dc	modules/freesync modules/color modules/info_packet modules/power dmub/src
+
+ifdef CONFIG_DRM_AMD_DC_HDCP
+DAL_LIBS += modules/hdcp
+endif
 
 AMD_DAL = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/,$(DAL_LIBS)))
 

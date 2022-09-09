@@ -1,21 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Liviu Dudau <Liviu.Dudau@arm.com>
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
  *
  * ARM Mali DP plane manipulation routines.
  */
 
 #include <linux/iommu.h>
+#include <linux/platform_device.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -51,6 +51,8 @@
 #define MALIDP_LAYER_OFFSET		0x014
 #define MALIDP550_LS_ENABLE		0x01c
 #define MALIDP550_LS_R1_IN_SIZE		0x020
+
+#define MODIFIERS_COUNT_MAX		15
 
 /*
  * This 4-entry look-up-table is used to determine the full 8-bit alpha value
@@ -145,6 +147,117 @@ static void malidp_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tmmu_prefetch_pgsize=%d\n", ms->mmu_prefetch_pgsize);
 }
 
+bool malidp_format_mod_supported(struct drm_device *drm,
+				 u32 format, u64 modifier)
+{
+	const struct drm_format_info *info;
+	const u64 *modifiers;
+	struct malidp_drm *malidp = drm->dev_private;
+	const struct malidp_hw_regmap *map = &malidp->dev->hw->map;
+
+	if (WARN_ON(modifier == DRM_FORMAT_MOD_INVALID))
+		return false;
+
+	/* Some pixel formats are supported without any modifier */
+	if (modifier == DRM_FORMAT_MOD_LINEAR) {
+		/*
+		 * However these pixel formats need to be supported with
+		 * modifiers only
+		 */
+		return !malidp_hw_format_is_afbc_only(format);
+	}
+
+	if (!fourcc_mod_is_vendor(modifier, ARM)) {
+		DRM_ERROR("Unknown modifier (not Arm)\n");
+		return false;
+	}
+
+	if (modifier &
+	    ~DRM_FORMAT_MOD_ARM_AFBC(AFBC_MOD_VALID_BITS)) {
+		DRM_DEBUG_KMS("Unsupported modifiers\n");
+		return false;
+	}
+
+	modifiers = malidp_format_modifiers;
+
+	/* SPLIT buffers must use SPARSE layout */
+	if (WARN_ON_ONCE((modifier & AFBC_SPLIT) && !(modifier & AFBC_SPARSE)))
+		return false;
+
+	/* CBR only applies to YUV formats, where YTR should be always 0 */
+	if (WARN_ON_ONCE((modifier & AFBC_CBR) && (modifier & AFBC_YTR)))
+		return false;
+
+	while (*modifiers != DRM_FORMAT_MOD_INVALID) {
+		if (*modifiers == modifier)
+			break;
+
+		modifiers++;
+	}
+
+	/* return false, if the modifier was not found */
+	if (*modifiers == DRM_FORMAT_MOD_INVALID) {
+		DRM_DEBUG_KMS("Unsupported modifier\n");
+		return false;
+	}
+
+	info = drm_format_info(format);
+
+	if (info->num_planes != 1) {
+		DRM_DEBUG_KMS("AFBC buffers expect one plane\n");
+		return false;
+	}
+
+	if (malidp_hw_format_is_linear_only(format) == true) {
+		DRM_DEBUG_KMS("Given format (0x%x) is supported is linear mode only\n",
+			      format);
+		return false;
+	}
+
+	/*
+	 * RGB formats need to provide YTR modifier and YUV formats should not
+	 * provide YTR modifier.
+	 */
+	if (!(info->is_yuv) != !!(modifier & AFBC_FORMAT_MOD_YTR)) {
+		DRM_DEBUG_KMS("AFBC_FORMAT_MOD_YTR is %s for %s formats\n",
+			      info->is_yuv ? "disallowed" : "mandatory",
+			      info->is_yuv ? "YUV" : "RGB");
+		return false;
+	}
+
+	if (modifier & AFBC_SPLIT) {
+		if (!info->is_yuv) {
+			if (info->cpp[0] <= 2) {
+				DRM_DEBUG_KMS("RGB formats <= 16bpp are not supported with SPLIT\n");
+				return false;
+			}
+		}
+
+		if ((info->hsub != 1) || (info->vsub != 1)) {
+			if (!(format == DRM_FORMAT_YUV420_10BIT &&
+			      (map->features & MALIDP_DEVICE_AFBC_YUV_420_10_SUPPORT_SPLIT))) {
+				DRM_DEBUG_KMS("Formats which are sub-sampled should never be split\n");
+				return false;
+			}
+		}
+	}
+
+	if (modifier & AFBC_CBR) {
+		if ((info->hsub == 1) || (info->vsub == 1)) {
+			DRM_DEBUG_KMS("Formats which are not sub-sampled should not have CBR set\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool malidp_format_mod_supported_per_plane(struct drm_plane *plane,
+						  u32 format, u64 modifier)
+{
+	return malidp_format_mod_supported(plane->dev, format, modifier);
+}
+
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -153,6 +266,7 @@ static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
 	.atomic_destroy_state = malidp_destroy_plane_state,
 	.atomic_print_state = malidp_plane_atomic_print_state,
+	.format_mod_supported = malidp_format_mod_supported_per_plane,
 };
 
 static int malidp_se_check_scaling(struct malidp_plane *mp,
@@ -198,17 +312,13 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 
 static u32 malidp_get_pgsize_bitmap(struct malidp_plane *mp)
 {
-	u32 pgsize_bitmap = 0;
+	struct iommu_domain *mmu_dom;
 
-	if (iommu_present(&platform_bus_type)) {
-		struct iommu_domain *mmu_dom =
-			iommu_get_domain_for_dev(mp->base.dev->dev);
+	mmu_dom = iommu_get_domain_for_dev(mp->base.dev->dev);
+	if (mmu_dom)
+		return mmu_dom->pgsize_bitmap;
 
-		if (mmu_dom)
-			pgsize_bitmap = mmu_dom->pgsize_bitmap;
-	}
-
-	return pgsize_bitmap;
+	return 0;
 }
 
 /*
@@ -234,9 +344,9 @@ static bool malidp_check_pages_threshold(struct malidp_plane_state *ms,
 		if (cma_obj->sgt)
 			sgt = cma_obj->sgt;
 		else
-			sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
+			sgt = obj->funcs->get_sg_table(obj);
 
-		if (!sgt)
+		if (IS_ERR(sgt))
 			return false;
 
 		sgl = sgt->sgl;
@@ -390,24 +500,26 @@ static void malidp_de_prefetch_settings(struct malidp_plane *mp,
 }
 
 static int malidp_de_plane_check(struct drm_plane *plane,
-				 struct drm_plane_state *state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										 plane);
 	struct malidp_plane *mp = to_malidp_plane(plane);
-	struct malidp_plane_state *ms = to_malidp_plane_state(state);
-	bool rotated = state->rotation & MALIDP_ROTATED_MASK;
+	struct malidp_plane_state *ms = to_malidp_plane_state(new_plane_state);
+	bool rotated = new_plane_state->rotation & MALIDP_ROTATED_MASK;
 	struct drm_framebuffer *fb;
-	u16 pixel_alpha = state->pixel_blend_mode;
+	u16 pixel_alpha = new_plane_state->pixel_blend_mode;
 	int i, ret;
 	unsigned int block_w, block_h;
 
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || WARN_ON(!new_plane_state->fb))
 		return 0;
 
-	fb = state->fb;
+	fb = new_plane_state->fb;
 
 	ms->format = malidp_hw_get_format_id(&mp->hwdev->hw->map,
-					     mp->layer->id,
-					     fb->format->format);
+					     mp->layer->id, fb->format->format,
+					     !!fb->modifier);
 	if (ms->format == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
 
@@ -415,8 +527,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	for (i = 0; i < ms->n_planes; i++) {
 		u8 alignment = malidp_hw_get_pitch_align(mp->hwdev, rotated);
 
-		if ((fb->pitches[i] * drm_format_info_block_height(fb->format, i))
-				& (alignment - 1)) {
+		if (((fb->pitches[i] * drm_format_info_block_height(fb->format, i))
+				& (alignment - 1)) && !(fb->modifier)) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
 			return -EINVAL;
@@ -429,15 +541,15 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 		DRM_DEBUG_KMS("Buffer width/height needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
-	if ((state->src_x >> 16) % block_w || (state->src_y >> 16) % block_h) {
+	if ((new_plane_state->src_x >> 16) % block_w || (new_plane_state->src_y >> 16) % block_h) {
 		DRM_DEBUG_KMS("Plane src_x/src_y needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
 
-	if ((state->crtc_w > mp->hwdev->max_line_size) ||
-	    (state->crtc_h > mp->hwdev->max_line_size) ||
-	    (state->crtc_w < mp->hwdev->min_line_size) ||
-	    (state->crtc_h < mp->hwdev->min_line_size))
+	if ((new_plane_state->crtc_w > mp->hwdev->max_line_size) ||
+	    (new_plane_state->crtc_h > mp->hwdev->max_line_size) ||
+	    (new_plane_state->crtc_w < mp->hwdev->min_line_size) ||
+	    (new_plane_state->crtc_h < mp->hwdev->min_line_size))
 		return -EINVAL;
 
 	/*
@@ -447,15 +559,15 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	 */
 	if (ms->n_planes == 3 &&
 	    !(mp->hwdev->hw->features & MALIDP_DEVICE_LV_HAS_3_STRIDES) &&
-	    (state->fb->pitches[1] != state->fb->pitches[2]))
+	    (new_plane_state->fb->pitches[1] != new_plane_state->fb->pitches[2]))
 		return -EINVAL;
 
-	ret = malidp_se_check_scaling(mp, state);
+	ret = malidp_se_check_scaling(mp, new_plane_state);
 	if (ret)
 		return ret;
 
 	/* validate the rotation constraints for each layer */
-	if (state->rotation != DRM_MODE_ROTATE_0) {
+	if (new_plane_state->rotation != DRM_MODE_ROTATE_0) {
 		if (mp->layer->rot == ROTATE_NONE)
 			return -EINVAL;
 		if ((mp->layer->rot == ROTATE_COMPRESSED) && !(fb->modifier))
@@ -469,13 +581,20 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 			return -EINVAL;
 	}
 
+	/* SMART layer does not support AFBC */
+	if (mp->layer->id == DE_SMART && fb->modifier) {
+		DRM_ERROR("AFBC framebuffer not supported in SMART layer");
+		return -EINVAL;
+	}
+
 	ms->rotmem_size = 0;
-	if (state->rotation & MALIDP_ROTATED_MASK) {
+	if (new_plane_state->rotation & MALIDP_ROTATED_MASK) {
 		int val;
 
-		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_w,
-						     state->crtc_h,
-						     fb->format->format);
+		val = mp->hwdev->hw->rotmem_required(mp->hwdev, new_plane_state->crtc_w,
+						     new_plane_state->crtc_h,
+						     fb->format->format,
+						     !!(fb->modifier));
 		if (val < 0)
 			return val;
 
@@ -483,7 +602,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	}
 
 	/* HW can't support plane + pixel blending */
-	if ((state->alpha != DRM_BLEND_ALPHA_OPAQUE) &&
+	if ((new_plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE) &&
 	    (pixel_alpha != DRM_MODE_BLEND_PIXEL_NONE) &&
 	    fb->format->has_alpha)
 		return -EINVAL;
@@ -592,43 +711,127 @@ static void malidp_de_set_mmu_control(struct malidp_plane *mp,
 			mp->layer->base + mp->layer->mmu_ctrl_offset);
 }
 
-static void malidp_de_plane_update(struct drm_plane *plane,
-				   struct drm_plane_state *old_state)
+static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
+				       struct malidp_plane *mp,
+				       int plane_index)
+{
+	dma_addr_t paddr;
+	u16 ptr;
+	struct drm_plane *plane = &mp->base;
+	bool afbc = fb->modifier ? true : false;
+
+	ptr = mp->layer->ptr + (plane_index << 4);
+
+	/*
+	 * drm_fb_cma_get_gem_addr() alters the physical base address of the
+	 * framebuffer as per the plane's src_x, src_y co-ordinates (ie to
+	 * take care of source cropping).
+	 * For AFBC, this is not needed as the cropping is handled by _AD_CROP_H
+	 * and _AD_CROP_V registers.
+	 */
+	if (!afbc) {
+		paddr = drm_fb_cma_get_gem_addr(fb, plane->state,
+						plane_index);
+	} else {
+		struct drm_gem_cma_object *obj;
+
+		obj = drm_fb_cma_get_gem_obj(fb, plane_index);
+
+		if (WARN_ON(!obj))
+			return;
+		paddr = obj->paddr;
+	}
+
+	malidp_hw_write(mp->hwdev, lower_32_bits(paddr), ptr);
+	malidp_hw_write(mp->hwdev, upper_32_bits(paddr), ptr + 4);
+}
+
+static void malidp_de_set_plane_afbc(struct drm_plane *plane)
 {
 	struct malidp_plane *mp;
-	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
-	struct drm_plane_state *state = plane->state;
-	u16 pixel_alpha = state->pixel_blend_mode;
-	u8 plane_alpha = state->alpha >> 8;
-	u32 src_w, src_h, dest_w, dest_h, val;
-	int i;
+	u32 src_w, src_h, val = 0, src_x, src_y;
+	struct drm_framebuffer *fb = plane->state->fb;
 
 	mp = to_malidp_plane(plane);
 
+	/* no afbc_decoder_offset means AFBC is not supported on this plane */
+	if (!mp->layer->afbc_decoder_offset)
+		return;
+
+	if (!fb->modifier) {
+		malidp_hw_write(mp->hwdev, 0, mp->layer->afbc_decoder_offset);
+		return;
+	}
+
 	/* convert src values from Q16 fixed point to integer */
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
-	dest_w = state->crtc_w;
-	dest_h = state->crtc_h;
+	src_w = plane->state->src_w >> 16;
+	src_h = plane->state->src_h >> 16;
+	src_x = plane->state->src_x >> 16;
+	src_y = plane->state->src_y >> 16;
+
+	val = ((fb->width - (src_x + src_w)) << MALIDP_AD_CROP_RIGHT_OFFSET) |
+		   src_x;
+	malidp_hw_write(mp->hwdev, val,
+			mp->layer->afbc_decoder_offset + MALIDP_AD_CROP_H);
+
+	val = ((fb->height - (src_y + src_h)) << MALIDP_AD_CROP_BOTTOM_OFFSET) |
+		   src_y;
+	malidp_hw_write(mp->hwdev, val,
+			mp->layer->afbc_decoder_offset + MALIDP_AD_CROP_V);
+
+	val = MALIDP_AD_EN;
+	if (fb->modifier & AFBC_FORMAT_MOD_SPLIT)
+		val |= MALIDP_AD_BS;
+	if (fb->modifier & AFBC_FORMAT_MOD_YTR)
+		val |= MALIDP_AD_YTR;
+
+	malidp_hw_write(mp->hwdev, val, mp->layer->afbc_decoder_offset);
+}
+
+static void malidp_de_plane_update(struct drm_plane *plane,
+				   struct drm_atomic_state *state)
+{
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
+	struct malidp_plane *mp;
+	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
+	u16 pixel_alpha = new_state->pixel_blend_mode;
+	u8 plane_alpha = new_state->alpha >> 8;
+	u32 src_w, src_h, dest_w, dest_h, val;
+	int i;
+	struct drm_framebuffer *fb = plane->state->fb;
+
+	mp = to_malidp_plane(plane);
+
+	/*
+	 * For AFBC framebuffer, use the framebuffer width and height for
+	 * configuring layer input size register.
+	 */
+	if (fb->modifier) {
+		src_w = fb->width;
+		src_h = fb->height;
+	} else {
+		/* convert src values from Q16 fixed point to integer */
+		src_w = new_state->src_w >> 16;
+		src_h = new_state->src_h >> 16;
+	}
+
+	dest_w = new_state->crtc_w;
+	dest_h = new_state->crtc_h;
 
 	val = malidp_hw_read(mp->hwdev, mp->layer->base);
 	val = (val & ~LAYER_FORMAT_MASK) | ms->format;
 	malidp_hw_write(mp->hwdev, val, mp->layer->base);
 
-	for (i = 0; i < ms->n_planes; i++) {
-		/* calculate the offset for the layer's plane registers */
-		u16 ptr = mp->layer->ptr + (i << 4);
-		dma_addr_t fb_addr = drm_fb_cma_get_gem_addr(state->fb,
-							     state, i);
-
-		malidp_hw_write(mp->hwdev, lower_32_bits(fb_addr), ptr);
-		malidp_hw_write(mp->hwdev, upper_32_bits(fb_addr), ptr + 4);
-	}
+	for (i = 0; i < ms->n_planes; i++)
+		malidp_set_plane_base_addr(fb, mp, i);
 
 	malidp_de_set_mmu_control(mp, ms);
 
 	malidp_de_set_plane_pitches(mp, ms->n_planes,
-				    state->fb->pitches);
+				    new_state->fb->pitches);
 
 	if ((plane->state->color_encoding != old_state->color_encoding) ||
 	    (plane->state->color_range != old_state->color_range))
@@ -641,8 +844,8 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	malidp_hw_write(mp->hwdev, LAYER_H_VAL(dest_w) | LAYER_V_VAL(dest_h),
 			mp->layer->base + MALIDP_LAYER_COMP_SIZE);
 
-	malidp_hw_write(mp->hwdev, LAYER_H_VAL(state->crtc_x) |
-			LAYER_V_VAL(state->crtc_y),
+	malidp_hw_write(mp->hwdev, LAYER_H_VAL(new_state->crtc_x) |
+			LAYER_V_VAL(new_state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
 	if (mp->layer->id == DE_SMART) {
@@ -657,24 +860,26 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 				mp->layer->base + MALIDP550_LS_R1_IN_SIZE);
 	}
 
+	malidp_de_set_plane_afbc(plane);
+
 	/* first clear the rotation bits */
 	val = malidp_hw_read(mp->hwdev, mp->layer->base + MALIDP_LAYER_CONTROL);
 	val &= ~LAYER_ROT_MASK;
 
 	/* setup the rotation and axis flip bits */
-	if (state->rotation & DRM_MODE_ROTATE_MASK)
+	if (new_state->rotation & DRM_MODE_ROTATE_MASK)
 		val |= ilog2(plane->state->rotation & DRM_MODE_ROTATE_MASK) <<
 		       LAYER_ROT_OFFSET;
-	if (state->rotation & DRM_MODE_REFLECT_X)
+	if (new_state->rotation & DRM_MODE_REFLECT_X)
 		val |= LAYER_H_FLIP;
-	if (state->rotation & DRM_MODE_REFLECT_Y)
+	if (new_state->rotation & DRM_MODE_REFLECT_Y)
 		val |= LAYER_V_FLIP;
 
 	val &= ~(LAYER_COMP_MASK | LAYER_PMUL_ENABLE | LAYER_ALPHA(0xff));
 
-	if (state->alpha != DRM_BLEND_ALPHA_OPAQUE) {
+	if (new_state->alpha != DRM_BLEND_ALPHA_OPAQUE) {
 		val |= LAYER_COMP_PLANE;
-	} else if (state->fb->format->has_alpha) {
+	} else if (new_state->fb->format->has_alpha) {
 		/* We only care about blend mode if the format has alpha */
 		switch (pixel_alpha) {
 		case DRM_MODE_BLEND_PREMULTI:
@@ -688,9 +893,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val |= LAYER_ALPHA(plane_alpha);
 
 	val &= ~LAYER_FLOWCFG(LAYER_FLOWCFG_MASK);
-	if (state->crtc) {
+	if (new_state->crtc) {
 		struct malidp_crtc_state *m =
-			to_malidp_crtc_state(state->crtc->state);
+			to_malidp_crtc_state(new_state->crtc->state);
 
 		if (m->scaler_config.scale_enable &&
 		    m->scaler_config.plane_src_id == mp->layer->id)
@@ -705,7 +910,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 }
 
 static void malidp_de_plane_disable(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_atomic_state *state)
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 
@@ -720,20 +925,44 @@ static const struct drm_plane_helper_funcs malidp_de_plane_helper_funcs = {
 	.atomic_disable = malidp_de_plane_disable,
 };
 
+static const uint64_t linear_only_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 int malidp_de_planes_init(struct drm_device *drm)
 {
 	struct malidp_drm *malidp = drm->dev_private;
 	const struct malidp_hw_regmap *map = &malidp->dev->hw->map;
 	struct malidp_plane *plane = NULL;
 	enum drm_plane_type plane_type;
-	unsigned long crtcs = 1 << drm->mode_config.num_crtc;
+	unsigned long crtcs = BIT(drm->mode_config.num_crtc);
 	unsigned long flags = DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
 			      DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
 	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 				  BIT(DRM_MODE_BLEND_PREMULTI)   |
 				  BIT(DRM_MODE_BLEND_COVERAGE);
 	u32 *formats;
-	int ret, i, j, n;
+	int ret, i = 0, j = 0, n;
+	u64 supported_modifiers[MODIFIERS_COUNT_MAX];
+	const u64 *modifiers;
+
+	modifiers = malidp_format_modifiers;
+
+	if (!(map->features & MALIDP_DEVICE_AFBC_SUPPORT_SPLIT)) {
+		/*
+		 * Since our hardware does not support SPLIT, so build the list
+		 * of supported modifiers excluding SPLIT ones.
+		 */
+		while (*modifiers != DRM_FORMAT_MOD_INVALID) {
+			if (!(*modifiers & AFBC_SPLIT))
+				supported_modifiers[j++] = *modifiers;
+
+			modifiers++;
+		}
+		supported_modifiers[j++] = DRM_FORMAT_MOD_INVALID;
+		modifiers = supported_modifiers;
+	}
 
 	formats = kcalloc(map->n_pixel_formats, sizeof(*formats), GFP_KERNEL);
 	if (!formats) {
@@ -758,9 +987,15 @@ int malidp_de_planes_init(struct drm_device *drm)
 
 		plane_type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
 					DRM_PLANE_TYPE_OVERLAY;
+
+		/*
+		 * All the layers except smart layer supports AFBC modifiers.
+		 */
 		ret = drm_universal_plane_init(drm, &plane->base, crtcs,
-					       &malidp_de_plane_funcs, formats,
-					       n, NULL, plane_type, NULL);
+				&malidp_de_plane_funcs, formats, n,
+				(id == DE_SMART) ? linear_only_modifiers : modifiers,
+				plane_type, NULL);
+
 		if (ret < 0)
 			goto cleanup;
 

@@ -52,11 +52,11 @@ struct serial_struct {
 #define PORT_16450	2
 #define PORT_16550	3
 #define PORT_16550A	4
-#define PORT_CIRRUS     5	/* usurped by cyclades.c */
+#define PORT_CIRRUS     5
 #define PORT_16650	6
 #define PORT_16650V2	7
 #define PORT_16750	8
-#define PORT_STARTECH	9	/* usurped by cyclades.c */
+#define PORT_STARTECH	9
 #define PORT_16C950	10	/* Oxford Semiconductor */
 #define PORT_16654	11
 #define PORT_16850	12
@@ -126,10 +126,26 @@ struct serial_rs485 {
 #define SER_RS485_TERMINATE_BUS		(1 << 5)	/* Enable bus
 							   termination
 							   (if supported) */
+
+/* RS-485 addressing mode */
+#define SER_RS485_ADDRB			(1 << 6)	/* Enable addressing mode */
+#define SER_RS485_ADDR_RECV		(1 << 7)	/* Receive address filter */
+#define SER_RS485_ADDR_DEST		(1 << 8)	/* Destination address */
+
 	__u32	delay_rts_before_send;	/* Delay before send (milliseconds) */
 	__u32	delay_rts_after_send;	/* Delay after send (milliseconds) */
-	__u32	padding[5];		/* Memory is cheap, new structs
-					   are a royal PITA .. */
+
+	/* The fields below are defined by flags */
+	union {
+		__u32	padding[5];		/* Memory is cheap, new structs are a pain */
+
+		struct {
+			__u8	addr_recv;
+			__u8	addr_dest;
+			__u8	padding0[2];
+			__u32	padding1[4];
+		};
+	};
 };
 
 /*

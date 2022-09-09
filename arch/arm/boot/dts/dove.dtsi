@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "marvell,dove";
 	model = "Marvell Armada 88AP510 SoC";
 	interrupt-parent = <&intc>;
@@ -175,7 +175,6 @@
 				#size-cells = <0>;
 				interrupts = <11>;
 				clock-frequency = <400000>;
-				timeout-ms = <1000>;
 				clocks = <&core_clk 0>;
 				status = "okay";
 			};
@@ -248,7 +247,7 @@
 				marvell,#interrupts = <5>;
 			};
 
-			intc: main-interrupt-ctrl@20200 {
+			intc: interrupt-controller@20200 {
 				compatible = "marvell,orion-intc";
 				interrupt-controller;
 				#interrupt-cells = <1>;
@@ -784,7 +783,7 @@
 				status = "disabled";
 			};
 
-			crypto_sram: sa-sram@ffffe000 {
+			crypto_sram: sram@ffffe000 {
 				compatible = "mmio-sram";
 				reg = <0xffffe000 0x800>;
 				clocks = <&gate_clk 15>;

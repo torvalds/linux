@@ -64,11 +64,11 @@ static int creg_gpio_validate_pg(struct device *dev, struct creg_gpio *hcg,
 	if (layout->bit_per_gpio[i] < 1 || layout->bit_per_gpio[i] > 8)
 		return -EINVAL;
 
-	/* Check that on valiue fits it's placeholder */
+	/* Check that on value fits its placeholder */
 	if (GENMASK(31, layout->bit_per_gpio[i]) & layout->on[i])
 		return -EINVAL;
 
-	/* Check that off valiue fits it's placeholder */
+	/* Check that off value fits its placeholder */
 	if (GENMASK(31, layout->bit_per_gpio[i]) & layout->off[i])
 		return -EINVAL;
 
@@ -137,7 +137,6 @@ static int creg_gpio_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct creg_gpio *hcg;
-	struct resource *mem;
 	u32 ngpios;
 	int ret;
 
@@ -145,8 +144,7 @@ static int creg_gpio_probe(struct platform_device *pdev)
 	if (!hcg)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcg->regs = devm_ioremap_resource(dev, mem);
+	hcg->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hcg->regs))
 		return PTR_ERR(hcg->regs);
 
@@ -165,12 +163,12 @@ static int creg_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&hcg->lock);
 
+	hcg->gc.parent = dev;
 	hcg->gc.label = dev_name(dev);
 	hcg->gc.base = -1;
 	hcg->gc.ngpio = ngpios;
 	hcg->gc.set = creg_gpio_set;
 	hcg->gc.direction_output = creg_gpio_dir_out;
-	hcg->gc.of_node = dev->of_node;
 
 	ret = devm_gpiochip_add_data(dev, &hcg->gc, hcg);
 	if (ret)

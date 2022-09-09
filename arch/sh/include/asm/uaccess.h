@@ -2,30 +2,8 @@
 #ifndef __ASM_SH_UACCESS_H
 #define __ASM_SH_UACCESS_H
 
-#include <asm/segment.h>
 #include <asm/extable.h>
-
-#define __addr_ok(addr) \
-	((unsigned long __force)(addr) < current_thread_info()->addr_limit.seg)
-
-/*
- * __access_ok: Check if address with size is OK or not.
- *
- * Uhhuh, this needs 33-bit arithmetic. We have a carry..
- *
- * sum := addr + size;  carry? --> flag = true;
- * if (sum >= addr_limit) flag = true;
- */
-#define __access_ok(addr, size)	({				\
-	unsigned long __ao_a = (addr), __ao_b = (size);		\
-	unsigned long __ao_end = __ao_a + __ao_b - !!__ao_b;	\
-	__ao_end >= __ao_a && __addr_ok(__ao_end); })
-
-#define access_ok(addr, size)	\
-	(__chk_user_ptr(addr),		\
-	 __access_ok((unsigned long __force)(addr), (size)))
-
-#define user_addr_max()	(current_thread_info()->addr_limit.seg)
+#include <asm-generic/access_ok.h>
 
 /*
  * Uh, these should become the main single-value transfer routines ...
@@ -68,7 +46,7 @@ struct __large_struct { unsigned long buf[100]; };
 ({									\
 	long __gu_err = -EFAULT;					\
 	unsigned long __gu_val = 0;					\
-	const __typeof__(*(ptr)) *__gu_addr = (ptr);			\
+	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);			\
 	if (likely(access_ok(__gu_addr, (size))))		\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
@@ -96,11 +74,7 @@ struct __large_struct { unsigned long buf[100]; };
 	__pu_err;						\
 })
 
-#ifdef CONFIG_SUPERH32
 # include <asm/uaccess_32.h>
-#else
-# include <asm/uaccess_64.h>
-#endif
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
@@ -128,7 +102,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
  * Clear the area and return remaining number of bytes
  * (on failure.  Usually it's 0.)
  */
-__kernel_size_t __clear_user(void *addr, __kernel_size_t size);
+__kernel_size_t __clear_user(void __user *addr, __kernel_size_t size);
 
 #define clear_user(addr,n)						\
 ({									\

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ICS backend for OPAL managed interrupts.
  *
  * Copyright 2011 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #undef DEBUG
@@ -22,7 +18,6 @@
 #include <linux/spinlock.h>
 #include <linux/msi.h>
 
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -66,17 +61,6 @@ static void ics_opal_unmask_irq(struct irq_data *d)
 
 static unsigned int ics_opal_startup(struct irq_data *d)
 {
-#ifdef CONFIG_PCI_MSI
-	/*
-	 * The generic MSI code returns with the interrupt disabled on the
-	 * card, using the MSI mask bits. Firmware doesn't appear to unmask
-	 * at that level, so we do it here by hand.
-	 */
-	if (irq_data_get_msi_desc(d))
-		pci_msi_unmask_irq(d);
-#endif
-
-	/* unmask it */
 	ics_opal_unmask_irq(d);
 	return 0;
 }
@@ -137,7 +121,7 @@ static int ics_opal_set_affinity(struct irq_data *d,
 	}
 	server = ics_opal_mangle_server(wanted_server);
 
-	pr_devel("ics-hal: set-affinity irq %d [hw 0x%x] server: 0x%x/0x%x\n",
+	pr_debug("ics-hal: set-affinity irq %d [hw 0x%x] server: 0x%x/0x%x\n",
 		 d->irq, hw_irq, wanted_server, server);
 
 	rc = opal_set_xive(hw_irq, server, priority);
@@ -161,26 +145,13 @@ static struct irq_chip ics_opal_irq_chip = {
 	.irq_retrigger = xics_retrigger,
 };
 
-static int ics_opal_map(struct ics *ics, unsigned int virq);
-static void ics_opal_mask_unknown(struct ics *ics, unsigned long vec);
-static long ics_opal_get_server(struct ics *ics, unsigned long vec);
-
 static int ics_opal_host_match(struct ics *ics, struct device_node *node)
 {
 	return 1;
 }
 
-/* Only one global & state struct ics */
-static struct ics ics_hal = {
-	.map		= ics_opal_map,
-	.mask_unknown	= ics_opal_mask_unknown,
-	.get_server	= ics_opal_get_server,
-	.host_match	= ics_opal_host_match,
-};
-
-static int ics_opal_map(struct ics *ics, unsigned int virq)
+static int ics_opal_check(struct ics *ics, unsigned int hw_irq)
 {
-	unsigned int hw_irq = (unsigned int)virq_to_hw(virq);
 	int64_t rc;
 	__be16 server;
 	int8_t priority;
@@ -192,9 +163,6 @@ static int ics_opal_map(struct ics *ics, unsigned int virq)
 	rc = opal_get_xive(hw_irq, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return -ENXIO;
-
-	irq_set_chip_and_handler(virq, &ics_opal_irq_chip, handle_fasteoi_irq);
-	irq_set_chip_data(virq, &ics_hal);
 
 	return 0;
 }
@@ -225,6 +193,15 @@ static long ics_opal_get_server(struct ics *ics, unsigned long vec)
 		return -1;
 	return ics_opal_unmangle_server(be16_to_cpu(server));
 }
+
+/* Only one global & state struct ics */
+static struct ics ics_hal = {
+	.check		= ics_opal_check,
+	.mask_unknown	= ics_opal_mask_unknown,
+	.get_server	= ics_opal_get_server,
+	.host_match	= ics_opal_host_match,
+	.chip		= &ics_opal_irq_chip,
+};
 
 int __init ics_opal_init(void)
 {

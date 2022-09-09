@@ -227,7 +227,7 @@ struct igbvf_adapter {
 
 	/* The VF counters don't clear on read so we have to get a base
 	 * count on driver start up and always subtract that base on
-	 * on the first update, thus the flag..
+	 * the first update, thus the flag..
 	 */
 	struct e1000_vf_stats stats;
 	u64 zero_base;
@@ -281,7 +281,6 @@ enum igbvf_state_t {
 };
 
 extern char igbvf_driver_name[];
-extern const char igbvf_driver_version[];
 
 void igbvf_check_options(struct igbvf_adapter *);
 void igbvf_set_ethtool_ops(struct net_device *);

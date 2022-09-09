@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Driver for Digigram miXart soundcards
  *
  * low level interface with interrupt handling and mail box implementation
  *
  * Copyright (c) 2003 by Digigram <alsa@digigram.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #ifndef __SOUND_MIXART_CORE_H
@@ -62,6 +49,7 @@ enum mixart_message_id {
 	MSG_CLOCK_SET_PROPERTIES             = 0x200002,
 };
 
+#define MSG_DEFAULT_SIZE            512
 
 struct mixart_msg
 {
@@ -264,10 +252,17 @@ struct mixart_sample_pos
 	u32   sample_pos_low_part;
 } __attribute__((packed));
 
+/*
+ * This structure is limited by the size of MSG_DEFAULT_SIZE. Instead of
+ * having MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS many streams,
+ * this is capped to have a total size below MSG_DEFAULT_SIZE.
+ */
+#define MIXART_MAX_TIMER_NOTIFY_STREAMS				\
+	((MSG_DEFAULT_SIZE - sizeof(u32)) / sizeof(struct mixart_sample_pos))
 struct mixart_timer_notify
 {
 	u32                  stream_count;
-	struct mixart_sample_pos  streams[MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS];
+	struct mixart_sample_pos  streams[MIXART_MAX_TIMER_NOTIFY_STREAMS];
 } __attribute__((packed));
 
 

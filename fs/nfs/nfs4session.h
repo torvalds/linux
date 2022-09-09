@@ -10,8 +10,9 @@
 
 /* maximum number of slots to use */
 #define NFS4_DEF_SLOT_TABLE_SIZE (64U)
-#define NFS4_DEF_CB_SLOT_TABLE_SIZE (1U)
+#define NFS4_DEF_CB_SLOT_TABLE_SIZE (16U)
 #define NFS4_MAX_SLOT_TABLE (1024U)
+#define NFS4_MAX_SLOTID (NFS4_MAX_SLOT_TABLE - 1U)
 #define NFS4_NO_SLOT ((u32)-1)
 
 #if IS_ENABLED(CONFIG_NFS_V4)
@@ -23,8 +24,9 @@ struct nfs4_slot {
 	unsigned long		generation;
 	u32			slot_nr;
 	u32		 	seq_nr;
-	unsigned int		interrupted : 1,
-				privileged : 1,
+	u32		 	seq_nr_last_acked;
+	u32		 	seq_nr_highest_sent;
+	unsigned int		privileged : 1,
 				seq_done : 1;
 };
 
@@ -33,7 +35,7 @@ enum nfs4_slot_tbl_state {
 	NFS4_SLOT_TBL_DRAINING,
 };
 
-#define SLOT_TABLE_SZ DIV_ROUND_UP(NFS4_MAX_SLOT_TABLE, 8*sizeof(long))
+#define SLOT_TABLE_SZ DIV_ROUND_UP(NFS4_MAX_SLOT_TABLE, BITS_PER_LONG)
 struct nfs4_slot_table {
 	struct nfs4_session *session;		/* Parent session */
 	struct nfs4_slot *slots;		/* seqid per slot */

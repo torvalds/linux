@@ -22,15 +22,24 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
+#include <linux/iopoll.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 
 #define CEDRUS_NAME			"cedrus"
 
 #define CEDRUS_CAPABILITY_UNTILED	BIT(0)
+#define CEDRUS_CAPABILITY_H265_DEC	BIT(1)
+#define CEDRUS_CAPABILITY_H264_DEC	BIT(2)
+#define CEDRUS_CAPABILITY_MPEG2_DEC	BIT(3)
+#define CEDRUS_CAPABILITY_VP8_DEC	BIT(4)
+#define CEDRUS_CAPABILITY_H265_10_DEC	BIT(5)
 
 enum cedrus_codec {
 	CEDRUS_CODEC_MPEG2,
-
+	CEDRUS_CODEC_H264,
+	CEDRUS_CODEC_H265,
+	CEDRUS_CODEC_VP8,
 	CEDRUS_CODEC_LAST,
 };
 
@@ -40,16 +49,44 @@ enum cedrus_irq_status {
 	CEDRUS_IRQ_OK,
 };
 
+enum cedrus_h264_pic_type {
+	CEDRUS_H264_PIC_TYPE_FRAME	= 0,
+	CEDRUS_H264_PIC_TYPE_FIELD,
+	CEDRUS_H264_PIC_TYPE_MBAFF,
+};
+
 struct cedrus_control {
-	u32			id;
-	u32			elem_size;
+	struct v4l2_ctrl_config cfg;
 	enum cedrus_codec	codec;
-	unsigned char		required:1;
+};
+
+struct cedrus_h264_run {
+	const struct v4l2_ctrl_h264_decode_params	*decode_params;
+	const struct v4l2_ctrl_h264_pps			*pps;
+	const struct v4l2_ctrl_h264_scaling_matrix	*scaling_matrix;
+	const struct v4l2_ctrl_h264_slice_params	*slice_params;
+	const struct v4l2_ctrl_h264_sps			*sps;
+	const struct v4l2_ctrl_h264_pred_weights	*pred_weights;
 };
 
 struct cedrus_mpeg2_run {
-	const struct v4l2_ctrl_mpeg2_slice_params	*slice_params;
-	const struct v4l2_ctrl_mpeg2_quantization	*quantization;
+	const struct v4l2_ctrl_mpeg2_sequence		*sequence;
+	const struct v4l2_ctrl_mpeg2_picture		*picture;
+	const struct v4l2_ctrl_mpeg2_quantisation	*quantisation;
+};
+
+struct cedrus_h265_run {
+	const struct v4l2_ctrl_hevc_sps			*sps;
+	const struct v4l2_ctrl_hevc_pps			*pps;
+	const struct v4l2_ctrl_hevc_slice_params	*slice_params;
+	const struct v4l2_ctrl_hevc_decode_params	*decode_params;
+	const struct v4l2_ctrl_hevc_scaling_matrix	*scaling_matrix;
+	const u32					*entry_points;
+	u32						entry_points_count;
+};
+
+struct cedrus_vp8_run {
+	const struct v4l2_ctrl_vp8_frame		*frame_params;
 };
 
 struct cedrus_run {
@@ -57,12 +94,22 @@ struct cedrus_run {
 	struct vb2_v4l2_buffer	*dst;
 
 	union {
+		struct cedrus_h264_run	h264;
 		struct cedrus_mpeg2_run	mpeg2;
+		struct cedrus_h265_run	h265;
+		struct cedrus_vp8_run	vp8;
 	};
 };
 
 struct cedrus_buffer {
 	struct v4l2_m2m_buffer          m2m_buf;
+
+	union {
+		struct {
+			unsigned int			position;
+			enum cedrus_h264_pic_type	pic_type;
+		} h264;
+	} codec;
 };
 
 struct cedrus_ctx {
@@ -76,14 +123,50 @@ struct cedrus_ctx {
 	struct v4l2_ctrl_handler	hdl;
 	struct v4l2_ctrl		**ctrls;
 
-	struct vb2_buffer		*dst_bufs[VIDEO_MAX_FRAME];
+	union {
+		struct {
+			void		*mv_col_buf;
+			dma_addr_t	mv_col_buf_dma;
+			ssize_t		mv_col_buf_field_size;
+			ssize_t		mv_col_buf_size;
+			void		*pic_info_buf;
+			dma_addr_t	pic_info_buf_dma;
+			ssize_t		pic_info_buf_size;
+			void		*neighbor_info_buf;
+			dma_addr_t	neighbor_info_buf_dma;
+			void		*deblk_buf;
+			dma_addr_t	deblk_buf_dma;
+			ssize_t		deblk_buf_size;
+			void		*intra_pred_buf;
+			dma_addr_t	intra_pred_buf_dma;
+			ssize_t		intra_pred_buf_size;
+		} h264;
+		struct {
+			void		*mv_col_buf;
+			dma_addr_t	mv_col_buf_addr;
+			ssize_t		mv_col_buf_size;
+			ssize_t		mv_col_buf_unit_size;
+			void		*neighbor_info_buf;
+			dma_addr_t	neighbor_info_buf_addr;
+			void		*entry_points_buf;
+			dma_addr_t	entry_points_buf_addr;
+		} h265;
+		struct {
+			unsigned int	last_frame_p_type;
+			unsigned int	last_filter_type;
+			unsigned int	last_sharpness_level;
+
+			u8		*entropy_probs_buf;
+			dma_addr_t	entropy_probs_buf_dma;
+		} vp8;
+	} codec;
 };
 
 struct cedrus_dec_ops {
 	void (*irq_clear)(struct cedrus_ctx *ctx);
 	void (*irq_disable)(struct cedrus_ctx *ctx);
 	enum cedrus_irq_status (*irq_status)(struct cedrus_ctx *ctx);
-	void (*setup)(struct cedrus_ctx *ctx, struct cedrus_run *run);
+	int (*setup)(struct cedrus_ctx *ctx, struct cedrus_run *run);
 	int (*start)(struct cedrus_ctx *ctx);
 	void (*stop)(struct cedrus_ctx *ctx);
 	void (*trigger)(struct cedrus_ctx *ctx);
@@ -91,6 +174,7 @@ struct cedrus_dec_ops {
 
 struct cedrus_variant {
 	unsigned int	capabilities;
+	unsigned int	mod_rate;
 };
 
 struct cedrus_dev {
@@ -115,9 +199,14 @@ struct cedrus_dev {
 	struct reset_control	*rstc;
 
 	unsigned int		capabilities;
+
+	struct delayed_work	watchdog_work;
 };
 
 extern struct cedrus_dec_ops cedrus_dec_ops_mpeg2;
+extern struct cedrus_dec_ops cedrus_dec_ops_h264;
+extern struct cedrus_dec_ops cedrus_dec_ops_h265;
+extern struct cedrus_dec_ops cedrus_dec_ops_vp8;
 
 static inline void cedrus_write(struct cedrus_dev *dev, u32 reg, u32 val)
 {
@@ -127,6 +216,14 @@ static inline void cedrus_write(struct cedrus_dev *dev, u32 reg, u32 val)
 static inline u32 cedrus_read(struct cedrus_dev *dev, u32 reg)
 {
 	return readl(dev->base + reg);
+}
+
+static inline u32 cedrus_wait_for(struct cedrus_dev *dev, u32 reg, u32 flag)
+{
+	u32 value;
+
+	return readl_poll_timeout_atomic(dev->base + reg, value,
+			(value & flag) == 0, 10, 1000);
 }
 
 static inline dma_addr_t cedrus_buf_addr(struct vb2_buffer *buf,
@@ -140,10 +237,17 @@ static inline dma_addr_t cedrus_buf_addr(struct vb2_buffer *buf,
 }
 
 static inline dma_addr_t cedrus_dst_buf_addr(struct cedrus_ctx *ctx,
-					     unsigned int index,
-					     unsigned int plane)
+					     int index, unsigned int plane)
 {
-	struct vb2_buffer *buf = ctx->dst_bufs[index];
+	struct vb2_buffer *buf = NULL;
+	struct vb2_queue *vq;
+
+	if (index < 0)
+		return 0;
+
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (vq)
+		buf = vb2_get_buffer(vq, index);
 
 	return buf ? cedrus_buf_addr(buf, &ctx->dst_fmt, plane) : 0;
 }
@@ -161,5 +265,6 @@ vb2_to_cedrus_buffer(const struct vb2_buffer *p)
 }
 
 void *cedrus_find_control_data(struct cedrus_ctx *ctx, u32 id);
+u32 cedrus_get_num_of_controls(struct cedrus_ctx *ctx, u32 id);
 
 #endif

@@ -6,6 +6,8 @@
 #ifndef LINUX_NFSD_VFS_H
 #define LINUX_NFSD_VFS_H
 
+#include <linux/fs.h>
+#include <linux/posix_acl.h>
 #include "nfsfh.h"
 #include "nfsd.h"
 
@@ -34,14 +36,30 @@
 #define NFSD_MAY_CREATE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE)
 #define NFSD_MAY_REMOVE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE|NFSD_MAY_TRUNC)
 
+struct nfsd_file;
+
 /*
  * Callback function for readdir
  */
 typedef int (*nfsd_filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 
 /* nfsd/vfs.c */
-int		nfsd_racache_init(int);
-void		nfsd_racache_shutdown(void);
+struct nfsd_attrs {
+	struct iattr		*na_iattr;	/* input */
+	struct xdr_netobj	*na_seclabel;	/* input */
+	struct posix_acl	*na_pacl;	/* input */
+	struct posix_acl	*na_dpacl;	/* input */
+
+	int			na_labelerr;	/* output */
+	int			na_aclerr;	/* output */
+};
+
+static inline void nfsd_attrs_free(struct nfsd_attrs *attrs)
+{
+	posix_acl_release(attrs->na_pacl);
+	posix_acl_release(attrs->na_dpacl);
+}
+
 int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 		                struct svc_export **expp);
 __be32		nfsd_lookup(struct svc_rqst *, struct svc_fh *,
@@ -50,54 +68,67 @@ __be32		 nfsd_lookup_dentry(struct svc_rqst *, struct svc_fh *,
 				const char *, unsigned int,
 				struct svc_export **, struct dentry **);
 __be32		nfsd_setattr(struct svc_rqst *, struct svc_fh *,
-				struct iattr *, int, time_t);
+				struct nfsd_attrs *, int, time64_t);
 int nfsd_mountpoint(struct dentry *, struct svc_export *);
 #ifdef CONFIG_NFSD_V4
-__be32          nfsd4_set_nfs4_label(struct svc_rqst *, struct svc_fh *,
-		    struct xdr_netobj *);
 __be32		nfsd4_vfs_fallocate(struct svc_rqst *, struct svc_fh *,
 				    struct file *, loff_t, loff_t, int);
-__be32		nfsd4_clone_file_range(struct file *, u64, struct file *,
-			u64, u64);
+__be32		nfsd4_clone_file_range(struct svc_rqst *rqstp,
+				       struct nfsd_file *nf_src, u64 src_pos,
+				       struct nfsd_file *nf_dst, u64 dst_pos,
+				       u64 count, bool sync);
 #endif /* CONFIG_NFSD_V4 */
 __be32		nfsd_create_locked(struct svc_rqst *, struct svc_fh *,
-				char *name, int len, struct iattr *attrs,
+				char *name, int len, struct nfsd_attrs *attrs,
 				int type, dev_t rdev, struct svc_fh *res);
 __be32		nfsd_create(struct svc_rqst *, struct svc_fh *,
-				char *name, int len, struct iattr *attrs,
+				char *name, int len, struct nfsd_attrs *attrs,
 				int type, dev_t rdev, struct svc_fh *res);
-#ifdef CONFIG_NFSD_V3
 __be32		nfsd_access(struct svc_rqst *, struct svc_fh *, u32 *, u32 *);
-__be32		do_nfsd_create(struct svc_rqst *, struct svc_fh *,
-				char *name, int len, struct iattr *attrs,
-				struct svc_fh *res, int createmode,
-				u32 *verifier, bool *truncp, bool *created);
-__be32		nfsd_commit(struct svc_rqst *, struct svc_fh *,
-				loff_t, unsigned long);
-#endif /* CONFIG_NFSD_V3 */
+__be32		nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
+				struct svc_fh *resfhp, struct nfsd_attrs *iap);
+__be32		nfsd_commit(struct svc_rqst *rqst, struct svc_fh *fhp,
+				u64 offset, u32 count, __be32 *verf);
+#ifdef CONFIG_NFSD_V4
+__be32		nfsd_getxattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			    char *name, void **bufp, int *lenp);
+__be32		nfsd_listxattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			    char **bufp, int *lenp);
+__be32		nfsd_removexattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			    char *name);
+__be32		nfsd_setxattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			    char *name, void *buf, u32 len, u32 flags);
+#endif
+int 		nfsd_open_break_lease(struct inode *, int);
 __be32		nfsd_open(struct svc_rqst *, struct svc_fh *, umode_t,
 				int, struct file **);
-struct raparms;
+__be32		nfsd_open_verified(struct svc_rqst *, struct svc_fh *,
+				int, struct file **);
 __be32		nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct file *file, loff_t offset,
-				unsigned long *count);
+				unsigned long *count,
+				u32 *eof);
 __be32		nfsd_readv(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct file *file, loff_t offset,
 				struct kvec *vec, int vlen,
-				unsigned long *count);
+				unsigned long *count,
+				u32 *eof);
 __be32 		nfsd_read(struct svc_rqst *, struct svc_fh *,
-				loff_t, struct kvec *, int, unsigned long *);
+				loff_t, struct kvec *, int, unsigned long *,
+				u32 *eof);
 __be32 		nfsd_write(struct svc_rqst *, struct svc_fh *, loff_t,
-				struct kvec *, int, unsigned long *, int);
+				struct kvec *, int, unsigned long *,
+				int stable, __be32 *verf);
 __be32		nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
-				struct file *file, loff_t offset,
+				struct nfsd_file *nf, loff_t offset,
 				struct kvec *vec, int vlen, unsigned long *cnt,
-				int stable);
+				int stable, __be32 *verf);
 __be32		nfsd_readlink(struct svc_rqst *, struct svc_fh *,
 				char *, int *);
 __be32		nfsd_symlink(struct svc_rqst *, struct svc_fh *,
-				char *name, int len, char *path,
-				struct svc_fh *res);
+			     char *name, int len, char *path,
+			     struct nfsd_attrs *attrs,
+			     struct svc_fh *res);
 __be32		nfsd_link(struct svc_rqst *, struct svc_fh *,
 				char *, int, struct svc_fh *);
 ssize_t		nfsd_copy_file_range(struct file *, u64,
@@ -115,13 +146,13 @@ __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 __be32		nfsd_permission(struct svc_rqst *, struct svc_export *,
 				struct dentry *, int);
 
-struct raparms *nfsd_init_raparms(struct file *file);
-void		nfsd_put_raparams(struct file *file, struct raparms *ra);
-
 static inline int fh_want_write(struct svc_fh *fh)
 {
-	int ret = mnt_want_write(fh->fh_export->ex_path.mnt);
+	int ret;
 
+	if (fh->fh_want_write)
+		return 0;
+	ret = mnt_want_write(fh->fh_export->ex_path.mnt);
 	if (!ret)
 		fh->fh_want_write = true;
 	return ret;
@@ -135,37 +166,12 @@ static inline void fh_drop_write(struct svc_fh *fh)
 	}
 }
 
-static inline __be32 fh_getattr(struct svc_fh *fh, struct kstat *stat)
+static inline __be32 fh_getattr(const struct svc_fh *fh, struct kstat *stat)
 {
 	struct path p = {.mnt = fh->fh_export->ex_path.mnt,
 			 .dentry = fh->fh_dentry};
 	return nfserrno(vfs_getattr(&p, stat, STATX_BASIC_STATS,
 				    AT_STATX_SYNC_AS_STAT));
-}
-
-static inline int nfsd_create_is_exclusive(int createmode)
-{
-	return createmode == NFS3_CREATE_EXCLUSIVE
-	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
-}
-
-static inline bool nfsd_eof_on_read(long requested, long read,
-				loff_t offset, loff_t size)
-{
-	/* We assume a short read means eof: */
-	if (requested > read)
-		return true;
-	/*
-	 * A non-short read might also reach end of file.  The spec
-	 * still requires us to set eof in that case.
-	 *
-	 * Further operations may have modified the file size since
-	 * the read, so the following check is not atomic with the read.
-	 * We've only seen that cause a problem for a client in the case
-	 * where the read returned a count of 0 without setting eof.
-	 * That case was fixed by the addition of the above check.
-	 */
-	return (offset + read >= size);
 }
 
 #endif /* LINUX_NFSD_VFS_H */

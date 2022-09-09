@@ -4,8 +4,9 @@
 
 /*
  * For the benefit of those who are trying to port Linux to another
- * architecture, here are some C-language equivalents.  You should
- * recode these in the native assembly language, if at all possible.
+ * architecture, here are some C-language equivalents.  They should
+ * generate reasonable code, so take a look at what your compiler spits
+ * out before rolling your own buggy implementation in assembly language.
  *
  * C language equivalents written by Theodore Ts'o, 9/26/92
  */
@@ -19,7 +20,6 @@
 #include <asm-generic/bitops/fls.h>
 #include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/fls64.h>
-#include <asm-generic/bitops/find.h>
 
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly

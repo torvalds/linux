@@ -6,7 +6,7 @@ On TWL6030 series: LED PWM (mainly used as charging indicator LED)
 
 Required properties:
 - compatible: "ti,twl4030-pwmled" or "ti,twl6030-pwmled"
-- #pwm-cells: should be 2. See pwm.txt in this directory for a description of
+- #pwm-cells: should be 2. See pwm.yaml in this directory for a description of
   the cells format.
 
 Example:

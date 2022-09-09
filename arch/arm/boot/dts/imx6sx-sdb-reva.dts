@@ -6,6 +6,7 @@
 
 / {
 	model = "Freescale i.MX6 SoloX SDB RevA Board";
+	compatible = "fsl,imx6sx-sdb-reva", "fsl,imx6sx";
 };
 
 &i2c1 {
@@ -122,7 +123,7 @@
 	pinctrl-0 = <&pinctrl_qspi2>;
 	status = "okay";
 
-	flash0: s25fl128s@0 {
+	flash0: flash@0 {
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -132,7 +133,7 @@
 		spi-tx-bus-width = <4>;
 	};
 
-	flash1: s25fl128s@2 {
+	flash1: flash@2 {
 		reg = <2>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -153,4 +154,16 @@
 	gpio = <&gpio4 27 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
 	vin-supply = <&reg_can_en>;
+};
+
+&reg_vdd1p1 {
+	vin-supply = <&vgen6_reg>;
+};
+
+&reg_vdd2p5 {
+	vin-supply = <&vgen6_reg>;
+};
+
+&snvs_pwrkey {
+	status = "okay";
 };

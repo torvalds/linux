@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
 ================
 BPFTOOL
 ================
@@ -6,6 +8,8 @@ tool for inspection and simple manipulation of eBPF programs and maps
 -------------------------------------------------------------------------------
 
 :Manual section: 8
+
+.. include:: substitutions.rst
 
 SYNOPSIS
 ========
@@ -16,23 +20,35 @@ SYNOPSIS
 
 	**bpftool** **version**
 
-	*OBJECT* := { **map** | **program** | **cgroup** | **perf** | **net** }
+	*OBJECT* := { **map** | **program** | **link** | **cgroup** | **perf** | **net** | **feature** |
+	**btf** | **gen** | **struct_ops** | **iter** }
 
-	*OPTIONS* := { { **-V** | **--version** } | { **-h** | **--help** }
-	| { **-j** | **--json** } [{ **-p** | **--pretty** }] }
+	*OPTIONS* := { { **-V** | **--version** } | |COMMON_OPTIONS| }
 
 	*MAP-COMMANDS* :=
-	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext**
-	| **delete** | **pin** | **event_pipe** | **help** }
+	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext** |
+	**delete** | **pin** | **event_pipe** | **help** }
 
-	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin**
-	| **load** | **attach** | **detach** | **help** }
+	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin** |
+	**load** | **attach** | **detach** | **help** }
+
+	*LINK-COMMANDS* := { **show** | **list** | **pin** | **detach** | **help** }
 
 	*CGROUP-COMMANDS* := { **show** | **list** | **attach** | **detach** | **help** }
 
 	*PERF-COMMANDS* := { **show** | **list** | **help** }
 
 	*NET-COMMANDS* := { **show** | **list** | **help** }
+
+	*FEATURE-COMMANDS* := { **probe** | **help** }
+
+	*BTF-COMMANDS* := { **show** | **list** | **dump** | **help** }
+
+	*GEN-COMMANDS* := { **object** | **skeleton** | **min_core_btf** | **help** }
+
+	*STRUCT-OPS-COMMANDS* := { **show** | **list** | **dump** | **register** | **unregister** | **help** }
+
+	*ITER-COMMANDS* := { **pin** | **help** }
 
 DESCRIPTION
 ===========
@@ -44,18 +60,7 @@ DESCRIPTION
 
 OPTIONS
 =======
-	-h, --help
-		  Print short help message (similar to **bpftool help**).
-
-	-v, --version
-		  Print version number (similar to **bpftool version**).
-
-	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
-
-	-p, --pretty
-		  Generate human-readable JSON output. Implies **-j**.
+	.. include:: common_options.rst
 
 	-m, --mapcompat
 		  Allow loading maps with unknown map definitions.
@@ -63,14 +68,3 @@ OPTIONS
 	-n, --nomount
 		  Do not automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
-
-
-SEE ALSO
-========
-	**bpf**\ (2),
-	**bpf-helpers**\ (7),
-	**bpftool-prog**\ (8),
-	**bpftool-map**\ (8),
-	**bpftool-cgroup**\ (8),
-	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8)

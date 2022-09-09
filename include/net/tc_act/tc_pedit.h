@@ -14,6 +14,7 @@ struct tcf_pedit {
 	struct tc_action	common;
 	unsigned char		tcfp_nkeys;
 	unsigned char		tcfp_flags;
+	u32			tcfp_off_max_hint;
 	struct tc_pedit_key	*tcfp_keys;
 	struct tcf_pedit_key_ex	*tcfp_keys_ex;
 };
@@ -23,7 +24,7 @@ struct tcf_pedit {
 static inline bool is_tcf_pedit(const struct tc_action *a)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->type == TCA_ACT_PEDIT)
+	if (a->ops && a->ops->id == TCA_ID_PEDIT)
 		return true;
 #endif
 	return false;

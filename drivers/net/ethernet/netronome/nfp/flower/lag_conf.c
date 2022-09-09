@@ -156,7 +156,8 @@ nfp_fl_lag_find_group_for_master_with_lag(struct nfp_fl_lag *lag,
 
 int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct net_device *master,
-				       struct nfp_fl_pre_lag *pre_act)
+				       struct nfp_fl_pre_lag *pre_act,
+				       struct netlink_ext_ack *extack)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_lag_group *group = NULL;
@@ -167,6 +168,7 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 							  master);
 	if (!group) {
 		mutex_unlock(&priv->nfp_lag.lock);
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: group does not exist for LAG action");
 		return -ENOENT;
 	}
 
@@ -232,7 +234,7 @@ nfp_fl_lag_config_group(struct nfp_fl_lag *lag, struct nfp_fl_lag_group *group,
 	}
 
 	/* To signal the end of a batch, both the switch and last flags are set
-	 * and the the reserved SYNC group ID is used.
+	 * and the reserved SYNC group ID is used.
 	 */
 	if (*batch == NFP_FL_LAG_BATCH_FINISHED) {
 		flags |= NFP_FL_LAG_SWITCH | NFP_FL_LAG_LAST;
@@ -574,7 +576,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group->dirty = true;
 	group->slave_cnt = slave_count;
 
-	/* Group may have been on queue for removal but is now offfloable. */
+	/* Group may have been on queue for removal but is now offloadable. */
 	group->to_remove = false;
 	mutex_unlock(&lag->lock);
 

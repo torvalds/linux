@@ -1,4 +1,5 @@
-/**
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  * IBM Accelerator Family 'GenWQE'
  *
  * (C) Copyright IBM Corp. 2013
@@ -7,15 +8,6 @@
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
  * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -95,7 +87,7 @@ static int genwqe_del_pin(struct genwqe_file *cfile, struct dma_mapping *m)
  * @cfile:	Descriptor of opened file
  * @u_addr:	User virtual address
  * @size:	Size of buffer
- * @dma_addr:	DMA address to be updated
+ * @virt_addr:	Virtual address to be updated
  *
  * Return: Pointer to the corresponding mapping	NULL if not found
  */
@@ -152,6 +144,7 @@ static void __genwqe_del_mapping(struct genwqe_file *cfile,
  * @u_addr:	user virtual address
  * @size:	size of buffer
  * @dma_addr:	DMA address to be updated
+ * @virt_addr:	Virtual address to be updated
  * Return: Pointer to the corresponding mapping	NULL if not found
  */
 static struct dma_mapping *__genwqe_search_mapping(struct genwqe_file *cfile,
@@ -257,6 +250,8 @@ static void genwqe_remove_pinnings(struct genwqe_file *cfile)
 
 /**
  * genwqe_kill_fasync() - Send signal to all processes with open GenWQE files
+ * @cd: GenWQE device information
+ * @sig: Signal to send out
  *
  * E.g. genwqe_send_signal(cd, SIGIO);
  */
@@ -388,6 +383,7 @@ static void genwqe_vma_open(struct vm_area_struct *vma)
 
 /**
  * genwqe_vma_close() - Called each time when vma is unmapped
+ * @vma: VMA area to close
  *
  * Free memory which got allocated by GenWQE mmap().
  */
@@ -424,6 +420,8 @@ static const struct vm_operations_struct genwqe_vma_ops = {
 
 /**
  * genwqe_mmap() - Provide contignous buffers to userspace
+ * @filp:	File pointer (unused)
+ * @vma:	VMA area to map
  *
  * We use mmap() to allocate contignous buffers used for DMA
  * transfers. After the buffer is allocated we remap it to user-space
@@ -492,16 +490,15 @@ static int genwqe_mmap(struct file *filp, struct vm_area_struct *vma)
 	return rc;
 }
 
+#define	FLASH_BLOCK	0x40000	/* we use 256k blocks */
+
 /**
  * do_flash_update() - Excute flash update (write image or CVPD)
- * @cd:        genwqe device
+ * @cfile:	Descriptor of opened file
  * @load:      details about image load
  *
  * Return: 0 if successful
  */
-
-#define	FLASH_BLOCK	0x40000	/* we use 256k blocks */
-
 static int do_flash_update(struct genwqe_file *cfile,
 			   struct genwqe_bitstream *load)
 {
@@ -780,6 +777,8 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 
 	if ((m->addr == 0x0) || (m->size == 0))
 		return -EINVAL;
+	if (m->size > ULONG_MAX - PAGE_SIZE - (m->addr & ~PAGE_MASK))
+		return -EINVAL;
 
 	map_addr = (m->addr & PAGE_MASK);
 	map_size = round_up(m->size + (m->addr & ~PAGE_MASK), PAGE_SIZE);
@@ -826,6 +825,8 @@ static int genwqe_unpin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 
 /**
  * ddcb_cmd_cleanup() - Remove dynamically created fixup entries
+ * @cfile:	Descriptor of opened file
+ * @req:	DDCB work request
  *
  * Only if there are any. Pinnings are not removed.
  */
@@ -850,6 +851,8 @@ static int ddcb_cmd_cleanup(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 /**
  * ddcb_cmd_fixups() - Establish DMA fixups/sglists for user memory references
+ * @cfile:	Descriptor of opened file
+ * @req:	DDCB work request
  *
  * Before the DDCB gets executed we need to handle the fixups. We
  * replace the user-space addresses with DMA addresses or do
@@ -980,6 +983,8 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 /**
  * genwqe_execute_ddcb() - Execute DDCB using userspace address fixups
+ * @cfile:	Descriptor of opened file
+ * @cmd:        Command identifier (passed from user)
  *
  * The code will build up the translation tables or lookup the
  * contignous memory allocation table to find the right translations
@@ -1221,34 +1226,13 @@ static long genwqe_ioctl(struct file *filp, unsigned int cmd,
 	return rc;
 }
 
-#if defined(CONFIG_COMPAT)
-/**
- * genwqe_compat_ioctl() - Compatibility ioctl
- *
- * Called whenever a 32-bit process running under a 64-bit kernel
- * performs an ioctl on /dev/genwqe<n>_card.
- *
- * @filp:        file pointer.
- * @cmd:         command.
- * @arg:         user argument.
- * Return:       zero on success or negative number on failure.
- */
-static long genwqe_compat_ioctl(struct file *filp, unsigned int cmd,
-				unsigned long arg)
-{
-	return genwqe_ioctl(filp, cmd, arg);
-}
-#endif /* defined(CONFIG_COMPAT) */
-
 static const struct file_operations genwqe_fops = {
 	.owner		= THIS_MODULE,
 	.open		= genwqe_open,
 	.fasync		= genwqe_fasync,
 	.mmap		= genwqe_mmap,
 	.unlocked_ioctl	= genwqe_ioctl,
-#if defined(CONFIG_COMPAT)
-	.compat_ioctl   = genwqe_compat_ioctl,
-#endif
+	.compat_ioctl   = compat_ptr_ioctl,
 	.release	= genwqe_release,
 };
 
@@ -1307,14 +1291,10 @@ int genwqe_device_create(struct genwqe_dev *cd)
 		goto err_cdev;
 	}
 
-	rc = genwqe_init_debugfs(cd);
-	if (rc != 0)
-		goto err_debugfs;
+	genwqe_init_debugfs(cd);
 
 	return 0;
 
- err_debugfs:
-	device_destroy(cd->class_genwqe, cd->devnum_genwqe);
  err_cdev:
 	cdev_del(&cd->cdev_genwqe);
  err_add:
@@ -1370,6 +1350,7 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 
 /**
  * genwqe_device_remove() - Remove genwqe's char device
+ * @cd: GenWQE device information
  *
  * This function must be called after the client devices are removed
  * because it will free the major/minor number range for the genwqe

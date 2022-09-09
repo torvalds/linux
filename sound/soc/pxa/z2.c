@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/sound/soc/pxa/z2.c
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2009 Ken McGuire <kenm@desertweyr.com>
  * Copyright (C) 2010 Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -16,7 +13,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -24,9 +21,7 @@
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <mach/audio.h>
-#include <mach/z2.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 #include "../codecs/wm8750.h"
 #include "pxa2xx-i2s.h"
@@ -36,9 +31,9 @@ static struct snd_soc_card snd_soc_z2;
 static int z2_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	unsigned int clk = 0;
 	int ret = 0;
 
@@ -93,7 +88,6 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 /* Headset jack detection gpios */
 static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 	{
-		.gpio		= GPIO37_ZIPITZ2_HEADSET_DETECT,
 		.name		= "hsdet-gpio",
 		.report		= SND_JACK_HEADSET,
 		.debounce_time	= 200,
@@ -135,9 +129,10 @@ static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 
 	/* Jack detection API stuff */
-	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
-				    &hs_jack, hs_jack_pins,
-				    ARRAY_SIZE(hs_jack_pins));
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset Jack",
+					 SND_JACK_HEADSET, &hs_jack,
+					 hs_jack_pins,
+					 ARRAY_SIZE(hs_jack_pins));
 	if (ret)
 		goto err;
 
@@ -157,17 +152,19 @@ static const struct snd_soc_ops z2_ops = {
 };
 
 /* z2 digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(wm8750,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8750.0-001b", "wm8750-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link z2_dai = {
 	.name		= "wm8750",
 	.stream_name	= "WM8750",
-	.cpu_dai_name	= "pxa2xx-i2s",
-	.codec_dai_name	= "wm8750-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name	= "wm8750.0-001b",
 	.init		= z2_wm8750_init,
 	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			  SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &z2_ops,
+	SND_SOC_DAILINK_REG(wm8750),
 };
 
 /* z2 audio machine driver */
@@ -197,6 +194,7 @@ static int __init z2_init(void)
 	if (!z2_snd_device)
 		return -ENOMEM;
 
+	hs_jack_gpios[0].gpiod_dev = &z2_snd_device->dev;
 	platform_set_drvdata(z2_snd_device, &snd_soc_z2);
 	ret = platform_device_add(z2_snd_device);
 

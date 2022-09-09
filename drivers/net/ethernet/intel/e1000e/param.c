@@ -101,8 +101,6 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
  * demoted to the most advanced interrupt mode available.
  */
 E1000_PARAM(IntMode, "Interrupt Mode");
-#define MAX_INTMODE	2
-#define MIN_INTMODE	0
 
 /* Enable Smart Power Down of the PHY
  *
@@ -375,7 +373,7 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 				 "%s Invalid mode - setting default\n",
 				 opt.name);
 			adapter->itr_setting = opt.def;
-			/* fall-through */
+			fallthrough;
 		case 3:
 			dev_info(&adapter->pdev->dev,
 				 "%s set to dynamic conservative mode\n",

@@ -1,7 +1,7 @@
 Hisilicon RoCE DT description
 
 Hisilicon RoCE engine is a part of network subsystem.
-It works depending on other part of network wubsytem, such as, gmac and
+It works depending on other part of network subsystem, such as gmac and
 dsa fabric.
 
 Additional properties are described here:

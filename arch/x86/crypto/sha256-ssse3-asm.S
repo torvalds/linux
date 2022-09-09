@@ -347,13 +347,15 @@ a = TMP_
 .endm
 
 ########################################################################
-## void sha256_transform_ssse3(void *input_data, UINT32 digest[8], UINT64 num_blks)
-## arg 1 : pointer to digest
+## void sha256_transform_ssse3(struct sha256_state *state, const u8 *data,
+##			       int blocks);
+## arg 1 : pointer to state
+##	   (struct sha256_state is assumed to begin with u32 state[8])
 ## arg 2 : pointer to input data
 ## arg 3 : Num blocks
 ########################################################################
 .text
-ENTRY(sha256_transform_ssse3)
+SYM_FUNC_START(sha256_transform_ssse3)
 .align 32
 	pushq   %rbx
 	pushq   %r12
@@ -470,8 +472,8 @@ done_hash:
 	popq    %r12
 	popq    %rbx
 
-	ret
-ENDPROC(sha256_transform_ssse3)
+	RET
+SYM_FUNC_END(sha256_transform_ssse3)
 
 .section	.rodata.cst256.K256, "aM", @progbits, 256
 .align 64

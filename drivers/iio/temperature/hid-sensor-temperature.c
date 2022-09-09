@@ -1,26 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID Sensors Driver
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.
  */
 #include <linux/device.h>
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/triggered_buffer.h>
-#include <linux/iio/trigger_consumer.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 #include "../common/hid-sensors/hid-sensor-trigger.h"
@@ -28,11 +16,18 @@
 struct temperature_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info temperature_attr;
-	s32 temperature_data;
+	struct {
+		s32 temperature_data;
+		u64 timestamp __aligned(8);
+	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
 	int scale_precision;
 	int value_offset;
+};
+
+static const u32 temperature_sensitivity_addresses[] = {
+	HID_USAGE_SENSOR_DATA_ENVIRONMENTAL_TEMPERATURE,
 };
 
 /* Channel definitions */
@@ -45,7 +40,7 @@ static const struct iio_chan_spec temperature_channels[] = {
 			BIT(IIO_CHAN_INFO_SAMP_FREQ) |
 			BIT(IIO_CHAN_INFO_HYSTERESIS),
 	},
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 /* Adjust channel real bits based on report descriptor */
@@ -136,9 +131,8 @@ static int temperature_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct temperature_state *temp_st = iio_priv(indio_dev);
 
 	if (atomic_read(&temp_st->common_attributes.data_ready))
-		iio_push_to_buffers_with_timestamp(indio_dev,
-				&temp_st->temperature_data,
-				iio_get_time_ns(indio_dev));
+		iio_push_to_buffers_with_timestamp(indio_dev, &temp_st->scan,
+						   iio_get_time_ns(indio_dev));
 
 	return 0;
 }
@@ -153,7 +147,7 @@ static int temperature_capture_sample(struct hid_sensor_hub_device *hsdev,
 
 	switch (usage_id) {
 	case HID_USAGE_SENSOR_DATA_ENVIRONMENTAL_TEMPERATURE:
-		temp_st->temperature_data = *(s32 *)raw_data;
+		temp_st->scan.temperature_data = *(s32 *)raw_data;
 		return 0;
 	default:
 		return -EINVAL;
@@ -184,14 +178,6 @@ static int temperature_parse_report(struct platform_device *pdev,
 				&st->temperature_attr,
 				&st->scale_pre_decml, &st->scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
-	if (st->common_attributes.sensitivity.index < 0)
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_DATA_ENVIRONMENTAL_TEMPERATURE,
-			&st->common_attributes.sensitivity);
-
 	return ret;
 }
 
@@ -220,7 +206,9 @@ static int hid_temperature_probe(struct platform_device *pdev)
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
 					HID_USAGE_SENSOR_TEMPERATURE,
-					&temp_st->common_attributes);
+					&temp_st->common_attributes,
+					temperature_sensitivity_addresses,
+					ARRAY_SIZE(temperature_sensitivity_addresses));
 	if (ret)
 		return ret;
 
@@ -236,17 +224,12 @@ static int hid_temperature_probe(struct platform_device *pdev)
 
 	indio_dev->channels = temp_chans;
 	indio_dev->num_channels = ARRAY_SIZE(temperature_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &temperature_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = devm_iio_triggered_buffer_setup(&pdev->dev, indio_dev,
-					&iio_pollfunc_store_time, NULL, NULL);
-	if (ret)
-		return ret;
-
 	atomic_set(&temp_st->common_attributes.data_ready, 0);
+
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 				&temp_st->common_attributes);
 	if (ret)
@@ -269,7 +252,7 @@ static int hid_temperature_probe(struct platform_device *pdev)
 error_remove_callback:
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TEMPERATURE);
 error_remove_trigger:
-	hid_sensor_remove_trigger(&temp_st->common_attributes);
+	hid_sensor_remove_trigger(indio_dev, &temp_st->common_attributes);
 	return ret;
 }
 
@@ -281,7 +264,7 @@ static int hid_temperature_remove(struct platform_device *pdev)
 	struct temperature_state *temp_st = iio_priv(indio_dev);
 
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TEMPERATURE);
-	hid_sensor_remove_trigger(&temp_st->common_attributes);
+	hid_sensor_remove_trigger(indio_dev, &temp_st->common_attributes);
 
 	return 0;
 }
@@ -309,3 +292,4 @@ module_platform_driver(hid_temperature_platform_driver);
 MODULE_DESCRIPTION("HID Environmental temperature sensor");
 MODULE_AUTHOR("Song Hongyan <hongyan.song@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_HID);

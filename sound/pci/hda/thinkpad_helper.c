@@ -3,12 +3,10 @@
  * to be included from codec driver
  */
 
-#if IS_ENABLED(CONFIG_THINKPAD_ACPI) && IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
+#if IS_ENABLED(CONFIG_THINKPAD_ACPI)
 
 #include <linux/acpi.h>
 #include <linux/leds.h>
-
-static void (*old_vmaster_hook)(void *, int);
 
 static bool is_thinkpad(struct hda_codec *codec)
 {
@@ -17,25 +15,14 @@ static bool is_thinkpad(struct hda_codec *codec)
 		acpi_dev_found("IBM0068"));
 }
 
-static void update_tpacpi_mute_led(void *private_data, int enabled)
-{
-	if (old_vmaster_hook)
-		old_vmaster_hook(private_data, enabled);
-
-	ledtrig_audio_set(LED_AUDIO_MUTE, enabled ? LED_OFF : LED_ON);
-}
-
 static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
-	struct hda_gen_spec *spec = codec->spec;
-
-	if (action == HDA_FIXUP_ACT_PROBE) {
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		if (!is_thinkpad(codec))
 			return;
-		old_vmaster_hook = spec->vmaster_mute.hook;
-		spec->vmaster_mute.hook = update_tpacpi_mute_led;
-		snd_hda_gen_fixup_micmute_led(codec, fix, action);
+		snd_hda_gen_add_mute_led_cdev(codec, NULL);
+		snd_hda_gen_add_micmute_led_cdev(codec, NULL);
 	}
 }
 

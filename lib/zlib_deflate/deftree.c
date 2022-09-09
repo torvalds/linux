@@ -76,11 +76,6 @@ static const uch bl_order[BL_CODES]
  * probability, to avoid transmitting the lengths for unused bit length codes.
  */
 
-#define Buf_size (8 * 2*sizeof(char))
-/* Number of bits used within bi_buf. (bi_buf might be implemented on
- * more than 16 bits on some systems.)
- */
-
 /* ===========================================================================
  * Local data. These are initialized only once.
  */
@@ -147,7 +142,6 @@ static void send_all_trees (deflate_state *s, int lcodes, int dcodes,
 static void compress_block (deflate_state *s, ct_data *ltree,
                            ct_data *dtree);
 static void set_data_type  (deflate_state *s);
-static void bi_windup      (deflate_state *s);
 static void bi_flush       (deflate_state *s);
 static void copy_block     (deflate_state *s, char *buf, unsigned len,
                            int header);
@@ -168,54 +162,6 @@ static void copy_block     (deflate_state *s, char *buf, unsigned len,
  * must not have side effects. dist_code[256] and dist_code[257] are never
  * used.
  */
-
-/* ===========================================================================
- * Send a value on a given number of bits.
- * IN assertion: length <= 16 and value fits in length bits.
- */
-#ifdef DEBUG_ZLIB
-static void send_bits      (deflate_state *s, int value, int length);
-
-static void send_bits(
-	deflate_state *s,
-	int value,  /* value to send */
-	int length  /* number of bits */
-)
-{
-    Tracevv((stderr," l %2d v %4x ", length, value));
-    Assert(length > 0 && length <= 15, "invalid length");
-    s->bits_sent += (ulg)length;
-
-    /* If not enough room in bi_buf, use (valid) bits from bi_buf and
-     * (16 - bi_valid) bits from value, leaving (width - (16-bi_valid))
-     * unused bits in value.
-     */
-    if (s->bi_valid > (int)Buf_size - length) {
-        s->bi_buf |= (value << s->bi_valid);
-        put_short(s, s->bi_buf);
-        s->bi_buf = (ush)value >> (Buf_size - s->bi_valid);
-        s->bi_valid += length - Buf_size;
-    } else {
-        s->bi_buf |= value << s->bi_valid;
-        s->bi_valid += length;
-    }
-}
-#else /* !DEBUG_ZLIB */
-
-#define send_bits(s, value, length) \
-{ int len = length;\
-  if (s->bi_valid > (int)Buf_size - len) {\
-    int val = value;\
-    s->bi_buf |= (val << s->bi_valid);\
-    put_short(s, s->bi_buf);\
-    s->bi_buf = (ush)val >> (Buf_size - s->bi_valid);\
-    s->bi_valid += len - Buf_size;\
-  } else {\
-    s->bi_buf |= (value) << s->bi_valid;\
-    s->bi_valid += len;\
-  }\
-}
-#endif /* DEBUG_ZLIB */
 
 /* ===========================================================================
  * Initialize the various 'constant' tables. In a multi-threaded environment,

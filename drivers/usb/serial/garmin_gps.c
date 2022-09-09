@@ -104,7 +104,7 @@ struct garmin_packet {
 	int               seq;
 	/* the real size of the data array, always > 0 */
 	int               size;
-	__u8              data[1];
+	__u8              data[];
 };
 
 /* structure used to keep the current state of the driver */
@@ -179,19 +179,22 @@ static unsigned char const GARMIN_START_SESSION_REPLY[]
 	= { 0, 0, 0, 0,  6, 0, 0, 0, 4, 0, 0, 0 };
 static unsigned char const GARMIN_BULK_IN_AVAIL_REPLY[]
 	= { 0, 0, 0, 0,  2, 0, 0, 0, 0, 0, 0, 0 };
+static unsigned char const GARMIN_STOP_TRANSFER_REQ[]
+	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 0, 0 };
+static unsigned char const GARMIN_STOP_TRANSFER_REQ_V2[]
+	= { 20, 0, 0, 0,  10, 0, 0, 0, 1, 0, 0, 0, 0 };
+
+/* packets currently unused, left as documentation */
+#if 0
 static unsigned char const GARMIN_APP_LAYER_REPLY[]
 	= { 0x14, 0, 0, 0 };
 static unsigned char const GARMIN_START_PVT_REQ[]
 	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 49, 0 };
 static unsigned char const GARMIN_STOP_PVT_REQ[]
 	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 50, 0 };
-static unsigned char const GARMIN_STOP_TRANSFER_REQ[]
-	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 0, 0 };
-static unsigned char const GARMIN_STOP_TRANSFER_REQ_V2[]
-	= { 20, 0, 0, 0,  10, 0, 0, 0, 1, 0, 0, 0, 0 };
 static unsigned char const PRIVATE_REQ[]
 	=    { 0x4B, 0x6E, 0x10, 0x01,  0xFF, 0, 0, 0, 0xFF, 0, 0, 0 };
-
+#endif
 
 
 static const struct usb_device_id id_table[] = {
@@ -985,7 +988,7 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 	garmin_data_p->flags &= ~FLAGS_DROP_DATA;
 	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 
-	buffer = kmalloc(count, GFP_ATOMIC);
+	buffer = kmemdup(buf, count, GFP_ATOMIC);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -994,8 +997,6 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 		kfree(buffer);
 		return -ENOMEM;
 	}
-
-	memcpy(buffer, buf, count);
 
 	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
@@ -1110,7 +1111,7 @@ static int garmin_write(struct tty_struct *tty, struct usb_serial_port *port,
 }
 
 
-static int garmin_write_room(struct tty_struct *tty)
+static unsigned int garmin_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	/*
@@ -1138,8 +1139,8 @@ static void garmin_read_process(struct garmin_data *garmin_data_p,
 		   send it directly to the tty port */
 		if (garmin_data_p->flags & FLAGS_QUEUING) {
 			pkt_add(garmin_data_p, data, data_length);
-		} else if (bulk_data ||
-			   getLayerId(data) == GARMIN_LAYERID_APPL) {
+		} else if (bulk_data || (data_length >= sizeof(u32) &&
+				getLayerId(data) == GARMIN_LAYERID_APPL)) {
 
 			spin_lock_irqsave(&garmin_data_p->lock, flags);
 			garmin_data_p->flags |= APP_RESP_SEEN;
@@ -1398,7 +1399,7 @@ err_free:
 }
 
 
-static int garmin_port_remove(struct usb_serial_port *port)
+static void garmin_port_remove(struct usb_serial_port *port)
 {
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
@@ -1406,7 +1407,6 @@ static int garmin_port_remove(struct usb_serial_port *port)
 	usb_kill_urb(port->interrupt_in_urb);
 	del_timer_sync(&garmin_data_p->timer);
 	kfree(garmin_data_p);
-	return 0;
 }
 
 
@@ -1442,5 +1442,5 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(initial_mode, int, S_IRUGO);
+module_param(initial_mode, int, 0444);
 MODULE_PARM_DESC(initial_mode, "Initial mode");

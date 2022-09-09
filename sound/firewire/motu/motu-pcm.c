@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * motu-pcm.c - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include <sound/pcm_params.h>
@@ -27,8 +26,7 @@ static int motu_rate_constraint(struct snd_pcm_hw_params *params,
 		rate = snd_motu_clock_rates[i];
 		mode = i / 2;
 
-		pcm_channels = formats->fixed_part_pcm_chunks[mode] +
-			       formats->differed_part_pcm_chunks[mode];
+		pcm_channels = formats->pcm_chunks[mode];
 		if (!snd_interval_test(c, pcm_channels))
 			continue;
 
@@ -60,8 +58,7 @@ static int motu_channels_constraint(struct snd_pcm_hw_params *params,
 		if (!snd_interval_test(r, rate))
 			continue;
 
-		pcm_channels = formats->fixed_part_pcm_chunks[mode] +
-			       formats->differed_part_pcm_chunks[mode];
+		pcm_channels = formats->pcm_chunks[mode];
 		channels.min = min(channels.min, pcm_channels);
 		channels.max = max(channels.max, pcm_channels);
 	}
@@ -83,8 +80,7 @@ static void limit_channels_and_rates(struct snd_motu *motu,
 		rate = snd_motu_clock_rates[i];
 		mode = i / 2;
 
-		pcm_channels = formats->fixed_part_pcm_chunks[mode] +
-			       formats->differed_part_pcm_chunks[mode];
+		pcm_channels = formats->pcm_chunks[mode];
 		if (pcm_channels == 0)
 			continue;
 
@@ -134,9 +130,8 @@ static int init_hw_info(struct snd_motu *motu,
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
-	const struct snd_motu_protocol *const protocol = motu->spec->protocol;
+	struct amdtp_domain *d = &motu->domain;
 	enum snd_motu_clock_source src;
-	unsigned int rate;
 	int err;
 
 	err = snd_motu_stream_lock_try(motu);
@@ -153,28 +148,47 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto err_locked;
 
-	/*
-	 * When source of clock is not internal or any PCM streams are running,
-	 * available sampling rate is limited at current sampling rate.
-	 */
-	err = protocol->get_clock_source(motu, &src);
+	err = snd_motu_protocol_get_clock_source(motu, &src);
 	if (err < 0)
 		goto err_locked;
-	if (src != SND_MOTU_CLOCK_SOURCE_INTERNAL ||
-	    amdtp_stream_pcm_running(&motu->tx_stream) ||
-	    amdtp_stream_pcm_running(&motu->rx_stream)) {
-		err = protocol->get_clock_rate(motu, &rate);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
+	if ((src != SND_MOTU_CLOCK_SOURCE_INTERNAL &&
+	     src != SND_MOTU_CLOCK_SOURCE_SPH) ||
+	    (motu->substreams_counter > 0 && d->events_per_period > 0)) {
+		unsigned int frames_per_period = d->events_per_period;
+		unsigned int frames_per_buffer = d->events_per_buffer;
+		unsigned int rate;
+
+		err = snd_motu_protocol_get_clock_rate(motu, &rate);
 		if (err < 0)
 			goto err_locked;
+
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
+
+		if (frames_per_period > 0) {
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0)
+				goto err_locked;
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
+			if (err < 0)
+				goto err_locked;
+		}
 	}
 
 	snd_pcm_set_sync(substream);
 
 	mutex_unlock(&motu->mutex);
 
-	return err;
+	return 0;
 err_locked:
 	mutex_unlock(&motu->mutex);
 	snd_motu_stream_lock_release(motu);
@@ -190,75 +204,42 @@ static int pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int capture_hw_params(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *hw_params)
+static int pcm_hw_params(struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_motu *motu = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
+	int err = 0;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
+		unsigned int frames_per_buffer = params_buffer_size(hw_params);
+
 		mutex_lock(&motu->mutex);
-		motu->capture_substreams++;
+		err = snd_motu_stream_reserve_duplex(motu, rate,
+					frames_per_period, frames_per_buffer);
+		if (err >= 0)
+			++motu->substreams_counter;
 		mutex_unlock(&motu->mutex);
 	}
 
-	return 0;
-}
-static int playback_hw_params(struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_motu *motu = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
-
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&motu->mutex);
-		motu->playback_substreams++;
-		mutex_unlock(&motu->mutex);
-	}
-
-	return 0;
+	return err;
 }
 
-static int capture_hw_free(struct snd_pcm_substream *substream)
+static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
 	mutex_lock(&motu->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		motu->capture_substreams--;
+		--motu->substreams_counter;
 
 	snd_motu_stream_stop_duplex(motu);
 
 	mutex_unlock(&motu->mutex);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
-}
-
-static int playback_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_motu *motu = substream->private_data;
-
-	mutex_lock(&motu->mutex);
-
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		motu->playback_substreams--;
-
-	snd_motu_stream_stop_duplex(motu);
-
-	mutex_unlock(&motu->mutex);
-
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return 0;
 }
 
 static int capture_prepare(struct snd_pcm_substream *substream)
@@ -267,7 +248,7 @@ static int capture_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&motu->mutex);
-	err = snd_motu_stream_start_duplex(motu, substream->runtime->rate);
+	err = snd_motu_stream_start_duplex(motu);
 	mutex_unlock(&motu->mutex);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&motu->tx_stream);
@@ -280,7 +261,7 @@ static int playback_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&motu->mutex);
-	err = snd_motu_stream_start_duplex(motu, substream->runtime->rate);
+	err = snd_motu_stream_start_duplex(motu);
 	mutex_unlock(&motu->mutex);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&motu->rx_stream);
@@ -327,27 +308,27 @@ static snd_pcm_uframes_t capture_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_pointer(&motu->tx_stream);
+	return amdtp_domain_stream_pcm_pointer(&motu->domain, &motu->tx_stream);
 }
 static snd_pcm_uframes_t playback_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_pointer(&motu->rx_stream);
+	return amdtp_domain_stream_pcm_pointer(&motu->domain, &motu->rx_stream);
 }
 
 static int capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&motu->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&motu->domain, &motu->tx_stream);
 }
 
 static int playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&motu->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&motu->domain, &motu->rx_stream);
 }
 
 int snd_motu_create_pcm_devices(struct snd_motu *motu)
@@ -355,26 +336,22 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 	static const struct snd_pcm_ops capture_ops = {
 		.open      = pcm_open,
 		.close     = pcm_close,
-		.ioctl     = snd_pcm_lib_ioctl,
-		.hw_params = capture_hw_params,
-		.hw_free   = capture_hw_free,
+		.hw_params = pcm_hw_params,
+		.hw_free   = pcm_hw_free,
 		.prepare   = capture_prepare,
 		.trigger   = capture_trigger,
 		.pointer   = capture_pointer,
 		.ack       = capture_ack,
-		.page      = snd_pcm_lib_get_vmalloc_page,
 	};
 	static const struct snd_pcm_ops playback_ops = {
 		.open      = pcm_open,
 		.close     = pcm_close,
-		.ioctl     = snd_pcm_lib_ioctl,
-		.hw_params = playback_hw_params,
-		.hw_free   = playback_hw_free,
+		.hw_params = pcm_hw_params,
+		.hw_free   = pcm_hw_free,
 		.prepare   = playback_prepare,
 		.trigger   = playback_trigger,
 		.pointer   = playback_pointer,
 		.ack       = playback_ack,
-		.page      = snd_pcm_lib_get_vmalloc_page,
 	};
 	struct snd_pcm *pcm;
 	int err;
@@ -387,6 +364,7 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_ops);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 
 	return 0;
 }

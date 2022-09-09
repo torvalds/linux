@@ -79,13 +79,13 @@ extern int crash_wake_offline;
 struct kimage;
 struct pt_regs;
 extern void default_machine_kexec(struct kimage *image);
-extern int default_machine_kexec_prepare(struct kimage *image);
 extern void default_machine_crash_shutdown(struct pt_regs *regs);
 extern int crash_shutdown_register(crash_shutdown_t handler);
 extern int crash_shutdown_unregister(crash_shutdown_t handler);
 
+extern void crash_kexec_prepare(void);
 extern void crash_kexec_secondary(struct pt_regs *regs);
-extern int overlaps_crashkernel(unsigned long start, unsigned long size);
+int __init overlaps_crashkernel(unsigned long start, unsigned long size);
 extern void reserve_crashkernel(void);
 extern void machine_kexec_mask_interrupts(void);
 
@@ -94,25 +94,58 @@ static inline bool kdump_in_progress(void)
 	return crashing_cpu >= 0;
 }
 
+void relocate_new_kernel(unsigned long indirection_page, unsigned long reboot_code_buffer,
+			 unsigned long start_address) __noreturn;
+
+void kexec_copy_flush(struct kimage *image);
+
+#if defined(CONFIG_CRASH_DUMP) && defined(CONFIG_PPC_RTAS)
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
+#define crash_free_reserved_phys_range crash_free_reserved_phys_range
+#endif
+
 #ifdef CONFIG_KEXEC_FILE
 extern const struct kexec_file_ops kexec_elf64_ops;
 
-#ifdef CONFIG_IMA_KEXEC
 #define ARCH_HAS_KIMAGE_ARCH
 
 struct kimage_arch {
-	phys_addr_t ima_buffer_addr;
-	size_t ima_buffer_size;
-};
-#endif
+	struct crash_mem *exclude_ranges;
 
+	unsigned long backup_start;
+	void *backup_buf;
+	void *fdt;
+};
+
+char *setup_kdump_cmdline(struct kimage *image, char *cmdline,
+			  unsigned long cmdline_len);
 int setup_purgatory(struct kimage *image, const void *slave_code,
 		    const void *fdt, unsigned long kernel_load_addr,
 		    unsigned long fdt_load_addr);
-int setup_new_fdt(const struct kimage *image, void *fdt,
-		  unsigned long initrd_load_addr, unsigned long initrd_len,
-		  const char *cmdline);
-int delete_fdt_mem_rsv(void *fdt, unsigned long start, unsigned long size);
+
+#ifdef CONFIG_PPC64
+struct kexec_buf;
+
+int arch_kexec_kernel_image_probe(struct kimage *image, void *buf, unsigned long buf_len);
+#define arch_kexec_kernel_image_probe arch_kexec_kernel_image_probe
+
+int arch_kimage_file_post_load_cleanup(struct kimage *image);
+#define arch_kimage_file_post_load_cleanup arch_kimage_file_post_load_cleanup
+
+int arch_kexec_locate_mem_hole(struct kexec_buf *kbuf);
+#define arch_kexec_locate_mem_hole arch_kexec_locate_mem_hole
+
+int load_crashdump_segments_ppc64(struct kimage *image,
+				  struct kexec_buf *kbuf);
+int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
+			  const void *fdt, unsigned long kernel_load_addr,
+			  unsigned long fdt_load_addr);
+unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image);
+int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
+			unsigned long initrd_load_addr,
+			unsigned long initrd_len, const char *cmdline);
+#endif /* CONFIG_PPC64 */
+
 #endif /* CONFIG_KEXEC_FILE */
 
 #else /* !CONFIG_KEXEC_CORE */
@@ -147,6 +180,18 @@ static inline void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 }
 
 #endif /* CONFIG_KEXEC_CORE */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+#include <asm/book3s/64/kexec.h>
+#endif
+
+#ifndef reset_sprs
+#define reset_sprs reset_sprs
+static inline void reset_sprs(void)
+{
+}
+#endif
+
 #endif /* ! __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

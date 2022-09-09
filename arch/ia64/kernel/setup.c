@@ -25,11 +25,13 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/pgtable.h>
 
 #include <linux/acpi.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
+#include <linux/kdev_t.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/reboot.h>
@@ -41,6 +43,7 @@
 #include <linux/threads.h>
 #include <linux/screen_info.h>
 #include <linux/dmi.h>
+#include <linux/root_dev.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/efi.h>
@@ -50,12 +53,10 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 
-#include <asm/machvec.h>
 #include <asm/mca.h>
 #include <asm/meminit.h>
 #include <asm/page.h>
 #include <asm/patch.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sal.h>
 #include <asm/sections.h>
@@ -63,11 +64,14 @@
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
-#include <asm/hpsim.h>
+#include <asm/uv/uv.h>
+#include <asm/xtp.h>
 
 #if defined(CONFIG_SMP) && (IA64_CPU_SIZE > PAGE_SIZE)
 # error "struct cpuinfo_ia64 too big!"
 #endif
+
+char ia64_platform_name[64];
 
 #ifdef CONFIG_SMP
 unsigned long __per_cpu_offset[NR_CPUS];
@@ -127,7 +131,7 @@ unsigned long ia64_cache_stride_shift = ~0;
  * We use a special marker for the end of memory and it uses the extra (+1) slot
  */
 struct rsvd_region rsvd_region[IA64_MAX_RSVD_REGIONS + 1] __initdata;
-int num_rsvd_regions __initdata;
+static int num_rsvd_regions __initdata;
 
 
 /*
@@ -204,10 +208,7 @@ sort_regions (struct rsvd_region *rsvd_region, int max)
 	while (max--) {
 		for (j = 0; j < max; ++j) {
 			if (rsvd_region[j].start > rsvd_region[j+1].start) {
-				struct rsvd_region tmp;
-				tmp = rsvd_region[j];
-				rsvd_region[j] = rsvd_region[j + 1];
-				rsvd_region[j + 1] = tmp;
+				swap(rsvd_region[j], rsvd_region[j + 1]);
 			}
 		}
 	}
@@ -256,15 +257,15 @@ __initcall(register_memory);
  * This function checks if the reserved crashkernel is allowed on the specific
  * IA64 machine flavour. Machines without an IO TLB use swiotlb and require
  * some memory below 4 GB (i.e. in 32 bit area), see the implementation of
- * lib/swiotlb.c. The hpzx1 architecture has an IO TLB but cannot use that
+ * kernel/dma/swiotlb.c. The hpzx1 architecture has an IO TLB but cannot use that
  * in kdump case. See the comment in sba_init() in sba_iommu.c.
  *
  * So, the only machvec that really supports loading the kdump kernel
- * over 4 GB is "sn2".
+ * over 4 GB is "uv".
  */
 static int __init check_crashkernel_memory(unsigned long pbase, size_t size)
 {
-	if (ia64_platform_is("sn2") || ia64_platform_is("uv"))
+	if (is_uv_system())
 		return 1;
 	else
 		return pbase < (1UL << 32);
@@ -286,7 +287,7 @@ static void __init setup_crashkernel(unsigned long total, int *n)
 		}
 
 		if (!check_crashkernel_memory(base, size)) {
-			pr_warning("crashkernel: There would be kdump memory "
+			pr_warn("crashkernel: There would be kdump memory "
 				"at %ld GB but this is unusable because it "
 				"must\nbe below 4 GB. Change the memory "
 				"configuration of the machine.\n",
@@ -320,6 +321,31 @@ static void __init setup_crashkernel(unsigned long total, int *n)
 static inline void __init setup_crashkernel(unsigned long total, int *n)
 {}
 #endif
+
+#ifdef CONFIG_CRASH_DUMP
+static int __init reserve_elfcorehdr(u64 *start, u64 *end)
+{
+	u64 length;
+
+	/* We get the address using the kernel command line,
+	 * but the size is extracted from the EFI tables.
+	 * Both address and size are required for reservation
+	 * to work properly.
+	 */
+
+	if (!is_vmcore_usable())
+		return -EINVAL;
+
+	if ((length = vmcore_find_descriptor_size(elfcorehdr_addr)) == 0) {
+		vmcore_unusable();
+		return -EINVAL;
+	}
+
+	*start = (unsigned long)__va(elfcorehdr_addr);
+	*end = *start + length;
+	return 0;
+}
+#endif /* CONFIG_CRASH_DUMP */
 
 /**
  * reserve_memory - setup reserved memory areas
@@ -461,23 +487,44 @@ io_port_init (void)
 static inline int __init
 early_console_setup (char *cmdline)
 {
-	int earlycons = 0;
-
-#ifdef CONFIG_SERIAL_SGI_L1_CONSOLE
-	{
-		extern int sn_serial_console_early_setup(void);
-		if (!sn_serial_console_early_setup())
-			earlycons++;
-	}
-#endif
 #ifdef CONFIG_EFI_PCDP
 	if (!efi_setup_pcdp_console(cmdline))
-		earlycons++;
+		return 0;
 #endif
-	if (!simcons_register())
-		earlycons++;
+	return -1;
+}
 
-	return (earlycons) ? 0 : -1;
+static void __init
+screen_info_setup(void)
+{
+	unsigned int orig_x, orig_y, num_cols, num_rows, font_height;
+
+	memset(&screen_info, 0, sizeof(screen_info));
+
+	if (!ia64_boot_param->console_info.num_rows ||
+	    !ia64_boot_param->console_info.num_cols) {
+		printk(KERN_WARNING "invalid screen-info, guessing 80x25\n");
+		orig_x = 0;
+		orig_y = 0;
+		num_cols = 80;
+		num_rows = 25;
+		font_height = 16;
+	} else {
+		orig_x = ia64_boot_param->console_info.orig_x;
+		orig_y = ia64_boot_param->console_info.orig_y;
+		num_cols = ia64_boot_param->console_info.num_cols;
+		num_rows = ia64_boot_param->console_info.num_rows;
+		font_height = 400 / num_rows;
+	}
+
+	screen_info.orig_x = orig_x;
+	screen_info.orig_y = orig_y;
+	screen_info.orig_video_cols  = num_cols;
+	screen_info.orig_video_lines = num_rows;
+	screen_info.orig_video_points = font_height;
+	screen_info.orig_video_mode = 3;	/* XXX fake */
+	screen_info.orig_video_isVGA = 1;	/* XXX fake */
+	screen_info.orig_video_ega_bx = 3;	/* XXX fake */
 }
 
 static inline void
@@ -497,32 +544,6 @@ static __init int setup_nomca(char *s)
 }
 early_param("nomca", setup_nomca);
 
-#ifdef CONFIG_CRASH_DUMP
-int __init reserve_elfcorehdr(u64 *start, u64 *end)
-{
-	u64 length;
-
-	/* We get the address using the kernel command line,
-	 * but the size is extracted from the EFI tables.
-	 * Both address and size are required for reservation
-	 * to work properly.
-	 */
-
-	if (!is_vmcore_usable())
-		return -EINVAL;
-
-	if ((length = vmcore_find_descriptor_size(elfcorehdr_addr)) == 0) {
-		vmcore_unusable();
-		return -EINVAL;
-	}
-
-	*start = (unsigned long)__va(elfcorehdr_addr);
-	*end = *start + length;
-	return 0;
-}
-
-#endif /* CONFIG_PROC_VMCORE */
-
 void __init
 setup_arch (char **cmdline_p)
 {
@@ -536,35 +557,25 @@ setup_arch (char **cmdline_p)
 	efi_init();
 	io_port_init();
 
-#ifdef CONFIG_IA64_GENERIC
-	/* machvec needs to be parsed from the command line
-	 * before parse_early_param() is called to ensure
-	 * that ia64_mv is initialised before any command line
-	 * settings may cause console setup to occur
-	 */
-	machvec_init_from_cmdline(*cmdline_p);
-#endif
-
+	uv_probe_system_type();
 	parse_early_param();
 
 	if (early_console_setup(*cmdline_p) == 0)
 		mark_bsp_online();
 
-#ifdef CONFIG_ACPI
 	/* Initialize the ACPI boot-time table parser */
 	acpi_table_init();
 	early_acpi_boot_init();
-# ifdef CONFIG_ACPI_NUMA
+#ifdef CONFIG_ACPI_NUMA
 	acpi_numa_init();
 	acpi_numa_fixup();
-#  ifdef CONFIG_ACPI_HOTPLUG_CPU
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
 	prefill_possible_map();
-#  endif
-	per_cpu_scan_finalize((cpumask_weight(&early_cpu_possible_map) == 0 ?
+#endif
+	per_cpu_scan_finalize((cpumask_empty(&early_cpu_possible_map) ?
 		32 : cpumask_weight(&early_cpu_possible_map)),
 		additional_cpus > 0 ? additional_cpus : 0);
-# endif
-#endif /* CONFIG_APCI_BOOT */
+#endif /* CONFIG_ACPI_NUMA */
 
 #ifdef CONFIG_SMP
 	smp_build_cpu_map();
@@ -572,7 +583,7 @@ setup_arch (char **cmdline_p)
 	find_memory();
 
 	/* process SAL system table: */
-	ia64_sal_init(__va(efi.sal_systab));
+	ia64_sal_init(__va(sal_systab_phys));
 
 #ifdef CONFIG_ITANIUM
 	ia64_patch_rse((u64) __start___rse_patchlist, (u64) __end___rse_patchlist);
@@ -594,9 +605,6 @@ setup_arch (char **cmdline_p)
 
 #ifdef CONFIG_VT
 	if (!conswitchp) {
-# if defined(CONFIG_DUMMY_CONSOLE)
-		conswitchp = &dummy_con;
-# endif
 # if defined(CONFIG_VGA_CONSOLE)
 		/*
 		 * Non-legacy systems may route legacy VGA MMIO range to system
@@ -614,10 +622,21 @@ setup_arch (char **cmdline_p)
 	if (!nomca)
 		ia64_mca_init();
 
-	platform_setup(cmdline_p);
-#ifndef CONFIG_IA64_HP_SIM
-	check_sal_cache_flush();
+	/*
+	 * Default to /dev/sda2.  This assumes that the EFI partition
+	 * is physical disk 1 partition 1 and the Linux root disk is
+	 * physical disk 1 partition 2.
+	 */
+	ROOT_DEV = Root_SDA2;		/* default to second partition on first drive */
+
+	if (is_uv_system())
+		uv_setup(cmdline_p);
+#ifdef CONFIG_SMP
+	else
+		init_smp_config();
 #endif
+
+	screen_info_setup();
 	paging_init();
 
 	clear_sched_clock_stable();
@@ -1046,7 +1065,6 @@ cpu_init (void)
 		ia64_patch_phys_stack_reg(num_phys_stacked*8 + 8);
 		max_num_phys_stacked = num_phys_stacked;
 	}
-	platform_cpu_init();
 }
 
 void __init
@@ -1058,9 +1076,7 @@ check_bugs (void)
 
 static int __init run_dmi_scan(void)
 {
-	dmi_scan_machine();
-	dmi_memdev_walk();
-	dmi_set_dump_stack_arch_desc();
+	dmi_setup();
 	return 0;
 }
 core_initcall(run_dmi_scan);

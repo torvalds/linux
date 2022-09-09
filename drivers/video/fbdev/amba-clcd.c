@@ -30,26 +30,10 @@
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
-#include "amba-clcd-nomadik.h"
-#include "amba-clcd-versatile.h"
-
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
 
 /* This is limited to 16 characters when displayed by X startup */
 static const char *clcd_name = "CLCD FB";
-
-/*
- * Unfortunately, the enable/disable functions may be called either from
- * process or IRQ context, and we _need_ to delay.  This is _not_ good.
- */
-static inline void clcdfb_sleep(unsigned int ms)
-{
-	if (in_atomic()) {
-		mdelay(ms);
-	} else {
-		msleep(ms);
-	}
-}
 
 static inline void clcdfb_set_start(struct clcd_fb *fb)
 {
@@ -80,7 +64,7 @@ static void clcdfb_disable(struct clcd_fb *fb)
 		val &= ~CNTL_LCDPWR;
 		writel(val, fb->regs + fb->off_cntl);
 
-		clcdfb_sleep(20);
+		msleep(20);
 	}
 	if (val & CNTL_LCDEN) {
 		val &= ~CNTL_LCDEN;
@@ -112,7 +96,7 @@ static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
 	cntl |= CNTL_LCDEN;
 	writel(cntl, fb->regs + fb->off_cntl);
 
-	clcdfb_sleep(20);
+	msleep(20);
 
 	/*
 	 * and now apply power.
@@ -223,15 +207,6 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 			var->blue.length = 4;
 		}
 		break;
-	case 24:
-		if (fb->vendor->packed_24_bit_pixels) {
-			var->red.length = 8;
-			var->green.length = 8;
-			var->blue.length = 8;
-		} else {
-			ret = -EINVAL;
-		}
-		break;
 	case 32:
 		/* If we can't do 888, reject */
 		caps &= CLCD_CAP_888;
@@ -317,12 +292,6 @@ static int clcdfb_set_par(struct fb_info *info)
 	fb->board->decode(fb, &regs);
 
 	clcdfb_disable(fb);
-
-	/* Some variants must be clocked here */
-	if (fb->vendor->clock_timregs && !fb->clk_enabled) {
-		fb->clk_enabled = true;
-		clk_enable(fb->clk);
-	}
 
 	writel(regs.tim0, fb->regs + CLCD_TIM0);
 	writel(regs.tim1, fb->regs + CLCD_TIM1);
@@ -441,7 +410,7 @@ static int clcdfb_mmap(struct fb_info *info,
 	return ret;
 }
 
-static struct fb_ops clcdfb_ops = {
+static const struct fb_ops clcdfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= clcdfb_check_var,
 	.fb_set_par	= clcdfb_set_par,
@@ -465,14 +434,8 @@ static int clcdfb_register(struct clcd_fb *fb)
 		fb->off_ienb = CLCD_PL111_IENB;
 		fb->off_cntl = CLCD_PL111_CNTL;
 	} else {
-		if (of_machine_is_compatible("arm,versatile-ab") ||
-		    of_machine_is_compatible("arm,versatile-pb")) {
-			fb->off_ienb = CLCD_PL111_IENB;
-			fb->off_cntl = CLCD_PL111_CNTL;
-		} else {
-			fb->off_ienb = CLCD_PL110_IENB;
-			fb->off_cntl = CLCD_PL110_CNTL;
-		}
+		fb->off_ienb = CLCD_PL110_IENB;
+		fb->off_cntl = CLCD_PL110_CNTL;
 	}
 
 	fb->clk = clk_get(&fb->dev->dev, NULL);
@@ -585,8 +548,10 @@ static int clcdfb_of_get_dpi_panel_mode(struct device_node *node,
 	struct videomode video;
 
 	err = of_get_display_timing(node, "panel-timing", &timing);
-	if (err)
+	if (err) {
+		pr_err("%pOF: problems parsing panel-timing (%d)\n", node, err);
 		return err;
+	}
 
 	videomode_from_timing(&timing, &video);
 
@@ -624,20 +589,17 @@ static int clcdfb_snprintf_mode(char *buf, int size, struct fb_videomode *mode)
 			mode->refresh);
 }
 
-static int clcdfb_of_get_backlight(struct device_node *panel,
+static int clcdfb_of_get_backlight(struct device *dev,
 				   struct clcd_panel *clcd_panel)
 {
-	struct device_node *backlight;
+	struct backlight_device *backlight;
 
-	/* Look up the optional backlight phandle */
-	backlight = of_parse_phandle(panel, "backlight", 0);
-	if (backlight) {
-		clcd_panel->backlight = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+	/* Look up the optional backlight device */
+	backlight = devm_of_find_backlight(dev);
+	if (IS_ERR(backlight))
+		return PTR_ERR(backlight);
 
-		if (!clcd_panel->backlight)
-			return -EPROBE_DEFER;
-	}
+	clcd_panel->backlight = backlight;
 	return 0;
 }
 
@@ -713,42 +675,6 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 	if (r0 != 0 && b0 == 0)
 		fb->panel->bgr_connection = true;
 
-	if (fb->panel->caps && fb->vendor->st_bitmux_control) {
-		/*
-		 * Set up the special bits for the Nomadik control register
-		 * (other platforms tend to do this through an external
-		 * register).
-		 */
-
-		/* Offset of the highest used color */
-		int maxoff = max3(r0, g0, b0);
-		/* Most significant bit out, highest used bit */
-		int msb = 0;
-
-		if (fb->panel->caps & CLCD_CAP_888) {
-			msb = maxoff + 8 - 1;
-		} else if (fb->panel->caps & CLCD_CAP_565) {
-			msb = maxoff + 5 - 1;
-			fb->panel->cntl |= CNTL_ST_1XBPP_565;
-		} else if (fb->panel->caps & CLCD_CAP_5551) {
-			msb = maxoff + 5 - 1;
-			fb->panel->cntl |= CNTL_ST_1XBPP_5551;
-		} else if (fb->panel->caps & CLCD_CAP_444) {
-			msb = maxoff + 4 - 1;
-			fb->panel->cntl |= CNTL_ST_1XBPP_444;
-		}
-
-		/* Send out as many bits as we need */
-		if (msb > 17)
-			fb->panel->cntl |= CNTL_ST_CDWID_24;
-		else if (msb > 15)
-			fb->panel->cntl |= CNTL_ST_CDWID_18;
-		else if (msb > 11)
-			fb->panel->cntl |= CNTL_ST_CDWID_16;
-		else
-			fb->panel->cntl |= CNTL_ST_CDWID_12;
-	}
-
 	return fb->panel->caps ? 0 : -EINVAL;
 }
 
@@ -772,22 +698,18 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 		return -ENODEV;
 
 	panel = of_graph_get_remote_port_parent(endpoint);
-	if (!panel)
-		return -ENODEV;
-
-	if (fb->vendor->init_panel) {
-		err = fb->vendor->init_panel(fb, panel);
-		if (err)
-			return err;
+	if (!panel) {
+		err = -ENODEV;
+		goto out_endpoint_put;
 	}
 
-	err = clcdfb_of_get_backlight(panel, fb->panel);
+	err = clcdfb_of_get_backlight(&fb->dev->dev, fb->panel);
 	if (err)
-		return err;
+		goto out_panel_put;
 
 	err = clcdfb_of_get_mode(&fb->dev->dev, panel, fb->panel);
 	if (err)
-		return err;
+		goto out_panel_put;
 
 	err = of_property_read_u32(fb->dev->dev.of_node, "max-memory-bandwidth",
 			&max_bandwidth);
@@ -816,11 +738,21 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 
 	if (of_property_read_u32_array(endpoint,
 			"arm,pl11x,tft-r0g0b0-pads",
-			tft_r0b0g0, ARRAY_SIZE(tft_r0b0g0)) != 0)
-		return -ENOENT;
+			tft_r0b0g0, ARRAY_SIZE(tft_r0b0g0)) != 0) {
+		err = -ENOENT;
+		goto out_panel_put;
+	}
+
+	of_node_put(panel);
+	of_node_put(endpoint);
 
 	return clcdfb_of_init_tft_panel(fb, tft_r0b0g0[0],
 					tft_r0b0g0[1],  tft_r0b0g0[2]);
+out_panel_put:
+	of_node_put(panel);
+out_endpoint_put:
+	of_node_put(endpoint);
+	return err;
 }
 
 static int clcdfb_of_vram_setup(struct clcd_fb *fb)
@@ -838,12 +770,15 @@ static int clcdfb_of_vram_setup(struct clcd_fb *fb)
 		return -ENODEV;
 
 	fb->fb.screen_base = of_iomap(memory, 0);
-	if (!fb->fb.screen_base)
+	if (!fb->fb.screen_base) {
+		of_node_put(memory);
 		return -ENOMEM;
+	}
 
 	fb->fb.fix.smem_start = of_translate_address(memory,
 			of_get_address(memory, 0, &size, NULL));
 	fb->fb.fix.smem_len = size;
+	of_node_put(memory);
 
 	return 0;
 }
@@ -941,7 +876,6 @@ static struct clcd_board *clcdfb_of_get_board(struct amba_device *dev)
 static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct clcd_board *board = dev_get_platdata(&dev->dev);
-	struct clcd_vendor_data *vendor = id->data;
 	struct clcd_fb *fb;
 	int ret;
 
@@ -950,12 +884,6 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 
 	if (!board)
 		return -EINVAL;
-
-	if (vendor->init_board) {
-		ret = vendor->init_board(dev, board);
-		if (ret)
-			return ret;
-	}
 
 	ret = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (ret)
@@ -974,7 +902,6 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 	}
 
 	fb->dev = dev;
-	fb->vendor = vendor;
 	fb->board = board;
 
 	dev_info(&fb->dev->dev, "PL%03x designer %02x rev%u at 0x%08llx\n",
@@ -1000,7 +927,7 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 	return ret;
 }
 
-static int clcdfb_remove(struct amba_device *dev)
+static void clcdfb_remove(struct amba_device *dev)
 {
 	struct clcd_fb *fb = amba_get_drvdata(dev);
 
@@ -1017,34 +944,12 @@ static int clcdfb_remove(struct amba_device *dev)
 	kfree(fb);
 
 	amba_release_regions(dev);
-
-	return 0;
 }
-
-static struct clcd_vendor_data vendor_arm = {
-	/* Sets up the versatile board displays */
-	.init_panel = versatile_clcd_init_panel,
-};
-
-static struct clcd_vendor_data vendor_nomadik = {
-	.clock_timregs = true,
-	.packed_24_bit_pixels = true,
-	.st_bitmux_control = true,
-	.init_board = nomadik_clcd_init_board,
-	.init_panel = nomadik_clcd_init_panel,
-};
 
 static const struct amba_id clcdfb_id_table[] = {
 	{
 		.id	= 0x00041110,
 		.mask	= 0x000ffffe,
-		.data	= &vendor_arm,
-	},
-	/* ST Electronics Nomadik variant */
-	{
-		.id	= 0x00180110,
-		.mask	= 0x00fffffe,
-		.data	= &vendor_nomadik,
 	},
 	{ 0, 0 },
 };

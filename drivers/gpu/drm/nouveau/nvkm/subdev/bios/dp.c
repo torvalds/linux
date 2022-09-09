@@ -100,7 +100,7 @@ nvbios_dpout_parse(struct nvkm_bios *bios, u8 idx,
 		switch (*ver) {
 		case 0x20:
 			info->mask |= 0x00c0; /* match any link */
-			/* fall-through */
+			fallthrough;
 		case 0x21:
 		case 0x30:
 			info->flags     = nvbios_rd08(bios, data + 0x05);
@@ -212,7 +212,7 @@ nvbios_dpcfg_match(struct nvkm_bios *bios, u16 outp, u8 pc, u8 vs, u8 pe,
 	u16 data;
 
 	if (*ver >= 0x30) {
-		const u8 vsoff[] = { 0, 4, 7, 9 };
+		static const u8 vsoff[] = { 0, 4, 7, 9 };
 		idx = (pc * 10) + vsoff[vs] + pe;
 		if (*ver >= 0x40 && *ver <= 0x41 && *hdr >= 0x12)
 			idx += nvbios_rd08(bios, outp + 0x11) * 40;

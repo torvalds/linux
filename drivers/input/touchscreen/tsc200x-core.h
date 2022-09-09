@@ -74,6 +74,6 @@ extern const struct dev_pm_ops tsc200x_pm_ops;
 int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		  struct regmap *regmap,
 		  int (*tsc200x_cmd)(struct device *dev, u8 cmd));
-int tsc200x_remove(struct device *dev);
+void tsc200x_remove(struct device *dev);
 
 #endif

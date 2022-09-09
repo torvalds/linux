@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "routing.h"
@@ -41,7 +29,6 @@
 #include "distributed-arp-table.h"
 #include "fragmentation.h"
 #include "hard-interface.h"
-#include "icmp_socket.h"
 #include "log.h"
 #include "network-coding.h"
 #include "originator.h"
@@ -83,13 +70,13 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 	 * the code needs to ensure the curr_router variable contains a pointer
 	 * to the replaced best neighbor.
 	 */
-	curr_router = rcu_dereference_protected(orig_ifinfo->router, true);
 
 	/* increase refcount of new best neighbor */
 	if (neigh_node)
 		kref_get(&neigh_node->refcount);
 
-	rcu_assign_pointer(orig_ifinfo->router, neigh_node);
+	curr_router = rcu_replace_pointer(orig_ifinfo->router, neigh_node,
+					  true);
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 	batadv_orig_ifinfo_put(orig_ifinfo);
 
@@ -114,8 +101,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 	}
 
 	/* decrease refcount of previous best neighbor */
-	if (curr_router)
-		batadv_neigh_node_put(curr_router);
+	batadv_neigh_node_put(curr_router);
 }
 
 /**
@@ -141,8 +127,7 @@ void batadv_update_route(struct batadv_priv *bat_priv,
 		_batadv_update_route(bat_priv, orig_node, recv_if, neigh_node);
 
 out:
-	if (router)
-		batadv_neigh_node_put(router);
+	batadv_neigh_node_put(router);
 }
 
 /**
@@ -239,15 +224,6 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 	icmph = (struct batadv_icmp_header *)skb->data;
 
 	switch (icmph->msg_type) {
-	case BATADV_ECHO_REPLY:
-	case BATADV_DESTINATION_UNREACHABLE:
-	case BATADV_TTL_EXCEEDED:
-		/* receive the packet */
-		if (skb_linearize(skb) < 0)
-			break;
-
-		batadv_socket_receive_packet(icmph, skb->len);
-		break;
 	case BATADV_ECHO_REQUEST:
 		/* answer echo request (ping) */
 		primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -291,10 +267,8 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 		goto out;
 	}
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_hardif_put(primary_if);
+	batadv_orig_node_put(orig_node);
 
 	kfree_skb(skb);
 
@@ -346,10 +320,8 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	skb = NULL;
 
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_hardif_put(primary_if);
+	batadv_orig_node_put(orig_node);
 
 	kfree_skb(skb);
 
@@ -447,8 +419,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	skb = NULL;
 
 put_orig_node:
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_orig_node_put(orig_node);
 free_skb:
 	kfree_skb(skb);
 
@@ -461,7 +432,7 @@ free_skb:
  * @skb: packet to check
  * @hdr_size: size of header to pull
  *
- * Check for short header and bad addresses in given packet.
+ * Checks for short header and bad addresses in the given packet.
  *
  * Return: negative value when check fails and 0 otherwise. The negative value
  * depends on the reason: -ENODATA for bad header, -EBADR for broadcast
@@ -535,8 +506,7 @@ batadv_last_bonding_replace(struct batadv_orig_node *orig_node,
 	orig_node->last_bonding_candidate = new_candidate;
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
-	if (old_candidate)
-		batadv_orig_ifinfo_put(old_candidate);
+	batadv_orig_ifinfo_put(old_candidate);
 }
 
 /**
@@ -678,8 +648,7 @@ next:
 		batadv_orig_ifinfo_put(next_candidate);
 	}
 
-	if (last_candidate)
-		batadv_orig_ifinfo_put(last_candidate);
+	batadv_orig_ifinfo_put(last_candidate);
 
 	return router;
 }
@@ -778,7 +747,8 @@ batadv_reroute_unicast_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_hard_iface *primary_if = NULL;
 	bool ret = false;
-	u8 *orig_addr, orig_ttvn;
+	const u8 *orig_addr;
+	u8 orig_ttvn;
 
 	if (batadv_is_my_client(bat_priv, dst_addr, vid)) {
 		primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -807,10 +777,8 @@ batadv_reroute_unicast_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	ret = true;
 out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_hardif_put(primary_if);
+	batadv_orig_node_put(orig_node);
 
 	return ret;
 }
@@ -837,6 +805,10 @@ static bool batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
 	vid = batadv_get_vid(skb, hdr_len);
 	ethhdr = (struct ethhdr *)(skb->data + hdr_len);
+
+	/* do not reroute multicast frames in a unicast header */
+	if (is_multicast_ether_addr(ethhdr->h_dest))
+		return true;
 
 	/* check if the destination client was served by this node and it is now
 	 * roaming. In this case, it means that the node has got a ROAM_ADV
@@ -1043,12 +1015,13 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 							hdr_size))
 			goto rx_success;
 
+		batadv_dat_snoop_incoming_dhcp_ack(bat_priv, skb, hdr_size);
+
 		batadv_interface_rx(recv_if->soft_iface, skb, hdr_size,
 				    orig_node);
 
 rx_success:
-		if (orig_node)
-			batadv_orig_node_put(orig_node);
+		batadv_orig_node_put(orig_node);
 
 		return NET_RX_SUCCESS;
 	}
@@ -1123,7 +1096,7 @@ free_skb:
  * @recv_if: interface that the skb is received on
  *
  * This function does one of the three following things: 1) Forward fragment, if
- * the assembled packet will exceed our MTU; 2) Buffer fragment, if we till
+ * the assembled packet will exceed our MTU; 2) Buffer fragment, if we still
  * lack further fragments; 3) Merge fragments, if we have all needed parts.
  *
  * Return: NET_RX_DROP if the skb is not consumed, NET_RX_SUCCESS otherwise.
@@ -1198,9 +1171,9 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	struct batadv_bcast_packet *bcast_packet;
 	struct ethhdr *ethhdr;
 	int hdr_size = sizeof(*bcast_packet);
-	int ret = NET_RX_DROP;
 	s32 seq_diff;
 	u32 seqno;
+	int ret;
 
 	/* drop packet if it has not necessary minimum size */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
@@ -1226,7 +1199,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (batadv_is_my_mac(bat_priv, bcast_packet->orig))
 		goto free_skb;
 
-	if (bcast_packet->ttl < 2)
+	if (bcast_packet->ttl-- < 2)
 		goto free_skb;
 
 	orig_node = batadv_orig_hash_find(bat_priv, bcast_packet->orig);
@@ -1265,7 +1238,9 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	batadv_skb_set_priority(skb, sizeof(struct batadv_bcast_packet));
 
 	/* rebroadcast packet */
-	batadv_add_bcast_packet_to_list(bat_priv, skb, 1, false);
+	ret = batadv_forw_bcast_packet(bat_priv, skb, 0, false);
+	if (ret == NETDEV_TX_BUSY)
+		goto free_skb;
 
 	/* don't hand the broadcast up if it is from an originator
 	 * from the same backbone.
@@ -1278,6 +1253,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (batadv_dat_snoop_incoming_arp_reply(bat_priv, skb, hdr_size))
 		goto rx_success;
 
+	batadv_dat_snoop_incoming_dhcp_ack(bat_priv, skb, hdr_size);
+
 	/* broadcast for me */
 	batadv_interface_rx(recv_if->soft_iface, skb, hdr_size, orig_node);
 
@@ -1289,8 +1266,8 @@ spin_unlock:
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 free_skb:
 	kfree_skb(skb);
+	ret = NET_RX_DROP;
 out:
-	if (orig_node)
-		batadv_orig_node_put(orig_node);
+	batadv_orig_node_put(orig_node);
 	return ret;
 }

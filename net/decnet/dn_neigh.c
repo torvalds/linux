@@ -94,6 +94,7 @@ struct neigh_table dn_neigh_table = {
 			[NEIGH_VAR_RETRANS_TIME] = 1 * HZ,
 			[NEIGH_VAR_BASE_REACHABLE_TIME] = 30 * HZ,
 			[NEIGH_VAR_DELAY_PROBE_TIME] = 5 * HZ,
+			[NEIGH_VAR_INTERVAL_PROBE_TIME_MS] = 5 * HZ,
 			[NEIGH_VAR_GC_STALETIME] = 60 * HZ,
 			[NEIGH_VAR_QUEUE_LEN_BYTES] = SK_WMEM_MAX,
 			[NEIGH_VAR_PROXY_QLEN] = 0,
@@ -426,7 +427,8 @@ int dn_neigh_router_hello(struct net *net, struct sock *sk, struct sk_buff *skb)
 			if (!dn_db->router) {
 				dn_db->router = neigh_clone(neigh);
 			} else {
-				if (msg->priority > ((struct dn_neigh *)dn_db->router)->priority)
+				if (msg->priority > container_of(dn_db->router,
+								 struct dn_neigh, n)->priority)
 					neigh_release(xchg(&dn_db->router, neigh_clone(neigh)));
 			}
 		}

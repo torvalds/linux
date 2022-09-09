@@ -10,6 +10,8 @@
 
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/export.h>
+#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/slab.h>
 #include <linux/bitfield.h>
@@ -155,13 +157,14 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_frac_pll *pll = to_clk_frac_pll(hw);
 	u32 val, divfi, divff;
-	u64 temp64 = parent_rate;
+	u64 temp64;
 	int ret;
 
 	parent_rate *= 8;
 	rate *= 2;
 	divfi = rate / parent_rate;
-	temp64 *= rate - divfi;
+	temp64 = parent_rate * divfi;
+	temp64 = rate - temp64;
 	temp64 *= PLL_FRAC_DENOM;
 	do_div(temp64, parent_rate);
 	divff = temp64;
@@ -199,8 +202,9 @@ static const struct clk_ops clk_frac_pll_ops = {
 	.set_rate	= clk_pll_set_rate,
 };
 
-struct clk *imx_clk_frac_pll(const char *name, const char *parent_name,
-			     void __iomem *base)
+struct clk_hw *imx_clk_hw_frac_pll(const char *name,
+				   const char *parent_name,
+				   void __iomem *base)
 {
 	struct clk_init_data init;
 	struct clk_frac_pll *pll;
@@ -228,5 +232,6 @@ struct clk *imx_clk_frac_pll(const char *name, const char *parent_name,
 		return ERR_PTR(ret);
 	}
 
-	return hw->clk;
+	return hw;
 }
+EXPORT_SYMBOL_GPL(imx_clk_hw_frac_pll);

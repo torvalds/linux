@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPv6 input
  *	Linux INET6 implementation
@@ -7,11 +8,6 @@
  *	Ian P. Morris		<I.P.Morris@soton.ac.uk>
  *
  *	Based in linux/net/ipv4/ip_input.c
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 /* Changes
  *
@@ -29,12 +25,14 @@
 #include <linux/icmpv6.h>
 #include <linux/mroute6.h>
 #include <linux/slab.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
+#include <net/udp.h>
 
 #include <net/ipv6.h>
 #include <net/protocol.h>
@@ -50,15 +48,20 @@
 static void ip6_rcv_finish_core(struct net *net, struct sock *sk,
 				struct sk_buff *skb)
 {
-	void (*edemux)(struct sk_buff *skb);
-
-	if (net->ipv4.sysctl_ip_early_demux && !skb_dst(skb) && skb->sk == NULL) {
-		const struct inet6_protocol *ipprot;
-
-		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
-		if (ipprot && (edemux = READ_ONCE(ipprot->early_demux)))
-			edemux(skb);
+	if (READ_ONCE(net->ipv4.sysctl_ip_early_demux) &&
+	    !skb_dst(skb) && !skb->sk) {
+		switch (ipv6_hdr(skb)->nexthdr) {
+		case IPPROTO_TCP:
+			if (READ_ONCE(net->ipv4.sysctl_tcp_early_demux))
+				tcp_v6_early_demux(skb);
+			break;
+		case IPPROTO_UDP:
+			if (READ_ONCE(net->ipv4.sysctl_udp_early_demux))
+				udp_v6_early_demux(skb);
+			break;
+		}
 	}
+
 	if (!skb_valid_dst(skb))
 		ip6_route_input(skb);
 }
@@ -80,15 +83,33 @@ static void ip6_sublist_rcv_finish(struct list_head *head)
 {
 	struct sk_buff *skb, *next;
 
-	list_for_each_entry_safe(skb, next, head, list)
+	list_for_each_entry_safe(skb, next, head, list) {
+		skb_list_del_init(skb);
 		dst_input(skb);
+	}
+}
+
+static bool ip6_can_use_hint(const struct sk_buff *skb,
+			     const struct sk_buff *hint)
+{
+	return hint && !skb_dst(skb) &&
+	       ipv6_addr_equal(&ipv6_hdr(hint)->daddr, &ipv6_hdr(skb)->daddr);
+}
+
+static struct sk_buff *ip6_extract_route_hint(const struct net *net,
+					      struct sk_buff *skb)
+{
+	if (fib6_routes_require_src(net) || fib6_has_custom_rules(net))
+		return NULL;
+
+	return skb;
 }
 
 static void ip6_list_rcv_finish(struct net *net, struct sock *sk,
 				struct list_head *head)
 {
+	struct sk_buff *skb, *next, *hint = NULL;
 	struct dst_entry *curr_dst = NULL;
-	struct sk_buff *skb, *next;
 	struct list_head sublist;
 
 	INIT_LIST_HEAD(&sublist);
@@ -102,9 +123,15 @@ static void ip6_list_rcv_finish(struct net *net, struct sock *sk,
 		skb = l3mdev_ip6_rcv(skb);
 		if (!skb)
 			continue;
-		ip6_rcv_finish_core(net, sk, skb);
+
+		if (ip6_can_use_hint(skb, hint))
+			skb_dst_copy(skb, hint);
+		else
+			ip6_rcv_finish_core(net, sk, skb);
 		dst = skb_dst(skb);
 		if (curr_dst != dst) {
+			hint = ip6_extract_route_hint(net, skb);
+
 			/* dispatch old sublist */
 			if (!list_empty(&sublist))
 				ip6_sublist_rcv_finish(&sublist);
@@ -121,12 +148,14 @@ static void ip6_list_rcv_finish(struct net *net, struct sock *sk,
 static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 				    struct net *net)
 {
+	enum skb_drop_reason reason;
 	const struct ipv6hdr *hdr;
 	u32 pkt_len;
 	struct inet6_dev *idev;
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
-		kfree_skb(skb);
+		dev_core_stats_rx_otherhost_dropped_inc(skb->dev);
+		kfree_skb_reason(skb, SKB_DROP_REASON_OTHERHOST);
 		return NULL;
 	}
 
@@ -136,9 +165,12 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	__IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_IN, skb->len);
 
+	SKB_DR_SET(reason, NOT_SPECIFIED);
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL ||
 	    !idev || unlikely(idev->cnf.disable_ipv6)) {
 		__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDISCARDS);
+		if (idev && unlikely(idev->cnf.disable_ipv6))
+			SKB_DR_SET(reason, IPV6DISABLED);
 		goto drop;
 	}
 
@@ -162,8 +194,10 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 
 	hdr = ipv6_hdr(skb);
 
-	if (hdr->version != 6)
+	if (hdr->version != 6) {
+		SKB_DR_SET(reason, UNHANDLED_PROTO);
 		goto err;
+	}
 
 	__IP6_ADD_STATS(net, idev,
 			IPSTATS_MIB_NOECTPKTS +
@@ -201,8 +235,10 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 	if (!ipv6_addr_is_multicast(&hdr->daddr) &&
 	    (skb->pkt_type == PACKET_BROADCAST ||
 	     skb->pkt_type == PACKET_MULTICAST) &&
-	    idev->cnf.drop_unicast_in_l2_multicast)
+	    idev->cnf.drop_unicast_in_l2_multicast) {
+		SKB_DR_SET(reason, UNICAST_IN_L2_MULTICAST);
 		goto err;
+	}
 
 	/* RFC4291 2.7
 	 * Nodes must not originate a packet to a multicast address whose scope
@@ -231,12 +267,11 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 		if (pkt_len + sizeof(struct ipv6hdr) > skb->len) {
 			__IP6_INC_STATS(net,
 					idev, IPSTATS_MIB_INTRUNCATEDPKTS);
+			SKB_DR_SET(reason, PKT_TOO_SMALL);
 			goto drop;
 		}
-		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr))) {
-			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
-			goto drop;
-		}
+		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr)))
+			goto err;
 		hdr = ipv6_hdr(skb);
 	}
 
@@ -251,14 +286,16 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 	rcu_read_unlock();
 
 	/* Must drop socket now because of tproxy. */
-	skb_orphan(skb);
+	if (!skb_sk_is_prefetched(skb))
+		skb_orphan(skb);
 
 	return skb;
 err:
 	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
+	SKB_DR_OR(reason, IP_INHDR);
 drop:
 	rcu_read_unlock();
-	kfree_skb(skb);
+	kfree_skb_reason(skb, reason);
 	return NULL;
 }
 
@@ -313,8 +350,11 @@ void ipv6_list_rcv(struct list_head *head, struct packet_type *pt,
 		list_add_tail(&skb->list, &sublist);
 	}
 	/* dispatch final sublist */
-	ip6_sublist_rcv(&sublist, curr_dev, curr_net);
+	if (!list_empty(&sublist))
+		ip6_sublist_rcv(&sublist, curr_dev, curr_net);
 }
+
+INDIRECT_CALLABLE_DECLARE(int tcp_v6_rcv(struct sk_buff *));
 
 /*
  *	Deliver the packet to the host
@@ -325,6 +365,7 @@ void ip6_protocol_deliver_rcu(struct net *net, struct sk_buff *skb, int nexthdr,
 	const struct inet6_protocol *ipprot;
 	struct inet6_dev *idev;
 	unsigned int nhoff;
+	SKB_DR(reason);
 	bool raw;
 
 	/*
@@ -366,7 +407,7 @@ resubmit_final:
 			/* Free reference early: we don't need it any more,
 			   and it may hold ip_conntrack module loaded
 			   indefinitely. */
-			nf_reset(skb);
+			nf_reset_ct(skb);
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
@@ -384,14 +425,19 @@ resubmit_final:
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
 			    !ipv6_chk_mcast_addr(dev, &hdr->daddr,
 						 &hdr->saddr) &&
-			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb)))
+			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb))) {
+				SKB_DR_SET(reason, IP_INADDRERRORS);
 				goto discard;
+			}
 		}
 		if (!(ipprot->flags & INET6_PROTO_NOPOLICY) &&
-		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
+		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+			SKB_DR_SET(reason, XFRM_POLICY);
 			goto discard;
+		}
 
-		ret = ipprot->handler(skb);
+		ret = INDIRECT_CALL_2(ipprot->handler, tcp_v6_rcv, udpv6_rcv,
+				      skb);
 		if (ret > 0) {
 			if (ipprot->flags & INET6_PROTO_FINAL) {
 				/* Not an extension header, most likely UDP
@@ -414,8 +460,11 @@ resubmit_final:
 						IPSTATS_MIB_INUNKNOWNPROTOS);
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
 					    ICMPV6_UNK_NEXTHDR, nhoff);
+				SKB_DR_SET(reason, IP_NOPROTO);
+			} else {
+				SKB_DR_SET(reason, XFRM_POLICY);
 			}
-			kfree_skb(skb);
+			kfree_skb_reason(skb, reason);
 		} else {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDELIVERS);
 			consume_skb(skb);
@@ -425,11 +474,12 @@ resubmit_final:
 
 discard:
 	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDISCARDS);
-	kfree_skb(skb);
+	kfree_skb_reason(skb, reason);
 }
 
 static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	skb_clear_delivery_time(skb);
 	rcu_read_lock();
 	ip6_protocol_deliver_rcu(net, skb, 0, false);
 	rcu_read_unlock();
@@ -479,7 +529,7 @@ int ip6_mc_input(struct sk_buff *skb)
 	/*
 	 *      IPv6 multicast router mode is now supported ;)
 	 */
-	if (dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding &&
+	if (atomic_read(&dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding) &&
 	    !(ipv6_addr_type(&hdr->daddr) &
 	      (IPV6_ADDR_LOOPBACK|IPV6_ADDR_LINKLOCAL)) &&
 	    likely(!(IP6CB(skb)->flags & IP6SKB_FORWARDED))) {

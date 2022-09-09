@@ -22,16 +22,7 @@ enum severity_level {
 
 extern struct blocking_notifier_head x86_mce_decoder_chain;
 
-#define ATTR_LEN		16
 #define INITIAL_CHECK_INTERVAL	5 * 60 /* 5 minutes */
-
-/* One object for each MCE bank, shared by all CPUs */
-struct mce_bank {
-	u64			ctl;			/* subevents to enable */
-	unsigned char init;				/* initialise bank? */
-	struct device_attribute attr;			/* device attribute */
-	char			attrname[ATTR_LEN];	/* attribute name */
-};
 
 struct mce_evt_llist {
 	struct llist_node llnode;
@@ -44,10 +35,9 @@ int mce_gen_pool_add(struct mce *mce);
 int mce_gen_pool_init(void);
 struct llist_node *mce_gen_pool_prepare_records(void);
 
-extern int (*mce_severity)(struct mce *a, int tolerant, char **msg, bool is_excp);
+int mce_severity(struct mce *a, struct pt_regs *regs, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
 
-extern struct mce_bank *mce_banks;
 extern mce_banks_t mce_banks_ce_disabled;
 
 #ifdef CONFIG_X86_MCE_INTEL
@@ -55,11 +45,19 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval);
 bool mce_intel_cmci_poll(void);
 void mce_intel_hcpu_update(unsigned long cpu);
 void cmci_disable_bank(int bank);
+void intel_init_cmci(void);
+void intel_init_lmce(void);
+void intel_clear_lmce(void);
+bool intel_filter_mce(struct mce *m);
 #else
 # define cmci_intel_adjust_timer mce_adjust_timer_default
 static inline bool mce_intel_cmci_poll(void) { return false; }
 static inline void mce_intel_hcpu_update(unsigned long cpu) { }
 static inline void cmci_disable_bank(int bank) { }
+static inline void intel_init_cmci(void) { }
+static inline void intel_init_lmce(void) { }
+static inline void intel_clear_lmce(void) { }
+static inline bool intel_filter_mce(struct mce *m) { return false; }
 #endif
 
 void mce_timer_kick(unsigned long interval);
@@ -88,8 +86,6 @@ static inline int apei_clear_mce(u64 record_id)
 }
 #endif
 
-void mce_inject_log(struct mce *m);
-
 /*
  * We consider records to be equivalent if bank+status+addr+misc all match.
  * This is only used when the system is going down because of a fatal error
@@ -117,26 +113,28 @@ static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
 #endif
 
 struct mca_config {
-	bool dont_log_ce;
-	bool cmci_disabled;
-	bool ignore_ce;
-
 	__u64 lmce_disabled		: 1,
 	      disabled			: 1,
 	      ser			: 1,
 	      recovery			: 1,
 	      bios_cmci_threshold	: 1,
-	      __reserved		: 59;
+	      /* Proper #MC exception handler is set */
+	      initialized		: 1,
+	      __reserved		: 58;
 
-	u8 banks;
-	s8 bootlog;
-	int tolerant;
+	bool dont_log_ce;
+	bool cmci_disabled;
+	bool ignore_ce;
+	bool print_all;
+
 	int monarch_timeout;
 	int panic_timeout;
 	u32 rip_msr;
+	s8 bootlog;
 };
 
 extern struct mca_config mca_cfg;
+DECLARE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
 
 struct mce_vendor_flags {
 	/*
@@ -149,7 +147,7 @@ struct mce_vendor_flags {
 	 * Recovery. It indicates support for data poisoning in HW and deferred
 	 * error interrupts.
 	 */
-	      succor		: 1,
+	succor			: 1,
 
 	/*
 	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
@@ -157,20 +155,79 @@ struct mce_vendor_flags {
 	 * banks. Also, to accommodate the new banks and registers, the MCA
 	 * register space is moved to a new MSR range.
 	 */
-	      smca		: 1,
+	smca			: 1,
 
-	      __reserved_0	: 61;
+	/* AMD-style error thresholding banks present. */
+	amd_threshold		: 1,
+
+	/* Pentium, family 5-style MCA */
+	p5			: 1,
+
+	/* Centaur Winchip C6-style MCA */
+	winchip			: 1,
+
+	/* SandyBridge IFU quirk */
+	snb_ifu_quirk		: 1,
+
+	/* Skylake, Cascade Lake, Cooper Lake REP;MOVS* quirk */
+	skx_repmov_quirk	: 1,
+
+	__reserved_0		: 56;
 };
 
 extern struct mce_vendor_flags mce_flags;
 
-struct mca_msr_regs {
-	u32 (*ctl)	(int bank);
-	u32 (*status)	(int bank);
-	u32 (*addr)	(int bank);
-	u32 (*misc)	(int bank);
+enum mca_msr {
+	MCA_CTL,
+	MCA_STATUS,
+	MCA_ADDR,
+	MCA_MISC,
 };
 
-extern struct mca_msr_regs msr_ops;
+/* Decide whether to add MCE record to MCE event pool or filter it out. */
+extern bool filter_mce(struct mce *m);
+
+#ifdef CONFIG_X86_MCE_AMD
+extern bool amd_filter_mce(struct mce *m);
+#else
+static inline bool amd_filter_mce(struct mce *m) { return false; }
+#endif
+
+#ifdef CONFIG_X86_ANCIENT_MCE
+void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
+void winchip_mcheck_init(struct cpuinfo_x86 *c);
+noinstr void pentium_machine_check(struct pt_regs *regs);
+noinstr void winchip_machine_check(struct pt_regs *regs);
+static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
+#else
+static inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
+static inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
+static inline void enable_p5_mce(void) {}
+static inline void pentium_machine_check(struct pt_regs *regs) {}
+static inline void winchip_machine_check(struct pt_regs *regs) {}
+#endif
+
+noinstr u64 mce_rdmsrl(u32 msr);
+
+static __always_inline u32 mca_msr_reg(int bank, enum mca_msr reg)
+{
+	if (cpu_feature_enabled(X86_FEATURE_SMCA)) {
+		switch (reg) {
+		case MCA_CTL:	 return MSR_AMD64_SMCA_MCx_CTL(bank);
+		case MCA_ADDR:	 return MSR_AMD64_SMCA_MCx_ADDR(bank);
+		case MCA_MISC:	 return MSR_AMD64_SMCA_MCx_MISC(bank);
+		case MCA_STATUS: return MSR_AMD64_SMCA_MCx_STATUS(bank);
+		}
+	}
+
+	switch (reg) {
+	case MCA_CTL:	 return MSR_IA32_MCx_CTL(bank);
+	case MCA_ADDR:	 return MSR_IA32_MCx_ADDR(bank);
+	case MCA_MISC:	 return MSR_IA32_MCx_MISC(bank);
+	case MCA_STATUS: return MSR_IA32_MCx_STATUS(bank);
+	}
+
+	return 0;
+}
 
 #endif /* __X86_MCE_INTERNAL_H__ */

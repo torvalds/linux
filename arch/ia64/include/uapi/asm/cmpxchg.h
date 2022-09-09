@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef _ASM_IA64_CMPXCHG_H
-#define _ASM_IA64_CMPXCHG_H
+#ifndef _UAPI_ASM_IA64_CMPXCHG_H
+#define _UAPI_ASM_IA64_CMPXCHG_H
 
 /*
  * Compare/Exchange, forked from asm/intrinsics.h
@@ -33,28 +33,30 @@ extern void ia64_xchg_called_with_bad_pointer(void);
 									\
 	switch (size) {							\
 	case 1:								\
-		__xchg_result = ia64_xchg1((__u8 *)ptr, x);		\
+		__xchg_result = ia64_xchg1((__u8 __force *)ptr, x);	\
 		break;							\
 									\
 	case 2:								\
-		__xchg_result = ia64_xchg2((__u16 *)ptr, x);		\
+		__xchg_result = ia64_xchg2((__u16 __force *)ptr, x);	\
 		break;							\
 									\
 	case 4:								\
-		__xchg_result = ia64_xchg4((__u32 *)ptr, x);		\
+		__xchg_result = ia64_xchg4((__u32 __force *)ptr, x);	\
 		break;							\
 									\
 	case 8:								\
-		__xchg_result = ia64_xchg8((__u64 *)ptr, x);		\
+		__xchg_result = ia64_xchg8((__u64 __force *)ptr, x);	\
 		break;							\
 	default:							\
 		ia64_xchg_called_with_bad_pointer();			\
 	}								\
-	__xchg_result;							\
+	(__typeof__ (*(ptr)) __force) __xchg_result;			\
 })
 
+#ifndef __KERNEL__
 #define xchg(ptr, x)							\
-((__typeof__(*(ptr))) __xchg((unsigned long) (x), (ptr), sizeof(*(ptr))))
+({(__typeof__(*(ptr))) __xchg((unsigned long) (x), (ptr), sizeof(*(ptr)));})
+#endif
 
 /*
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
@@ -74,42 +76,42 @@ extern long ia64_cmpxchg_called_with_bad_pointer(void);
 									\
 	switch (size) {							\
 	case 1:								\
-		_o_ = (__u8) (long) (old);				\
+		_o_ = (__u8) (long __force) (old);			\
 		break;							\
 	case 2:								\
-		_o_ = (__u16) (long) (old);				\
+		_o_ = (__u16) (long __force) (old);			\
 		break;							\
 	case 4:								\
-		_o_ = (__u32) (long) (old);				\
+		_o_ = (__u32) (long __force) (old);			\
 		break;							\
 	case 8:								\
-		_o_ = (__u64) (long) (old);				\
+		_o_ = (__u64) (long __force) (old);			\
 		break;							\
 	default:							\
 		break;							\
 	}								\
 	switch (size) {							\
 	case 1:								\
-		_r_ = ia64_cmpxchg1_##sem((__u8 *) ptr, new, _o_);	\
+		_r_ = ia64_cmpxchg1_##sem((__u8 __force *) ptr, new, _o_);	\
 		break;							\
 									\
 	case 2:								\
-		_r_ = ia64_cmpxchg2_##sem((__u16 *) ptr, new, _o_);	\
+		_r_ = ia64_cmpxchg2_##sem((__u16 __force *) ptr, new, _o_);	\
 		break;							\
 									\
 	case 4:								\
-		_r_ = ia64_cmpxchg4_##sem((__u32 *) ptr, new, _o_);	\
+		_r_ = ia64_cmpxchg4_##sem((__u32 __force *) ptr, new, _o_);	\
 		break;							\
 									\
 	case 8:								\
-		_r_ = ia64_cmpxchg8_##sem((__u64 *) ptr, new, _o_);	\
+		_r_ = ia64_cmpxchg8_##sem((__u64 __force *) ptr, new, _o_);	\
 		break;							\
 									\
 	default:							\
 		_r_ = ia64_cmpxchg_called_with_bad_pointer();		\
 		break;							\
 	}								\
-	(__typeof__(old)) _r_;						\
+	(__typeof__(old) __force) _r_;					\
 })
 
 #define cmpxchg_acq(ptr, o, n)	\
@@ -126,12 +128,14 @@ extern long ia64_cmpxchg_called_with_bad_pointer(void);
  * we had to back-pedal and keep the "legacy" behavior of a full fence :-(
  */
 
+#ifndef __KERNEL__
 /* for compatibility with other platforms: */
 #define cmpxchg(ptr, o, n)	cmpxchg_acq((ptr), (o), (n))
 #define cmpxchg64(ptr, o, n)	cmpxchg_acq((ptr), (o), (n))
 
 #define cmpxchg_local		cmpxchg
 #define cmpxchg64_local		cmpxchg64
+#endif
 
 #ifdef CONFIG_IA64_DEBUG_CMPXCHG
 # define CMPXCHG_BUGCHECK_DECL	int _cmpxchg_bugcheck_count = 128;
@@ -139,9 +143,9 @@ extern long ia64_cmpxchg_called_with_bad_pointer(void);
 do {									\
 	if (_cmpxchg_bugcheck_count-- <= 0) {				\
 		void *ip;						\
-		extern int printk(const char *fmt, ...);		\
+		extern int _printk(const char *fmt, ...);		\
 		ip = (void *) ia64_getreg(_IA64_REG_IP);		\
-		printk("CMPXCHG_BUGCHECK: stuck at %p on word %p\n", ip, (v));\
+		_printk("CMPXCHG_BUGCHECK: stuck at %p on word %p\n", ip, (v));\
 		break;							\
 	}								\
 } while (0)
@@ -152,4 +156,4 @@ do {									\
 
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _ASM_IA64_CMPXCHG_H */
+#endif /* _UAPI_ASM_IA64_CMPXCHG_H */

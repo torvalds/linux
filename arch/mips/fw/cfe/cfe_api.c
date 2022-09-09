@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2000, 2001, 2002 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 /*
@@ -26,9 +13,14 @@
  *
  * Authors:  Mitch Lichtenberg, Chris Demetriou
  */
-
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/printk.h>
+#include <asm/mipsregs.h>
 #include <asm/fw/cfe/cfe_api.h>
 #include "cfe_api_int.h"
+
+unsigned long __initdata cfe_seal;
 
 /* Cast from a native pointer to a cfe_xptr_t and back.	 */
 #define XPTR_FROM_NATIVE(n)	((cfe_xptr_t) (intptr_t) (n))
@@ -256,11 +248,6 @@ int cfe_getfwinfo(cfe_fwinfo_t * info)
 	info->fwi_bootarea_pa = xiocb.plist.xiocb_fwinfo.fwi_bootarea_pa;
 	info->fwi_bootarea_size =
 	    xiocb.plist.xiocb_fwinfo.fwi_bootarea_size;
-#if 0
-	info->fwi_reserved1 = xiocb.plist.xiocb_fwinfo.fwi_reserved1;
-	info->fwi_reserved2 = xiocb.plist.xiocb_fwinfo.fwi_reserved2;
-	info->fwi_reserved3 = xiocb.plist.xiocb_fwinfo.fwi_reserved3;
-#endif
 
 	return 0;
 }
@@ -429,4 +416,65 @@ int cfe_writeblk(int handle, s64 offset, const char *buffer, int length)
 	if (xiocb.xiocb_status < 0)
 		return xiocb.xiocb_status;
 	return xiocb.plist.xiocb_buffer.buf_retlen;
+}
+
+void __init cfe_die(char *fmt, ...)
+{
+	unsigned int prid, __maybe_unused rev;
+	char msg[128];
+	va_list ap;
+	int handle;
+	unsigned int count;
+
+	va_start(ap, fmt);
+	vsprintf(msg, fmt, ap);
+	strcat(msg, "\r\n");
+
+	if (cfe_seal != CFE_EPTSEAL)
+		goto no_cfe;
+
+	prid = read_c0_prid();
+	if ((prid & PRID_COMP_MASK) != PRID_COMP_BROADCOM)
+		goto no_cfe;
+
+	rev = prid & PRID_REV_MASK;
+
+	/* disable XKS01 so that CFE can access the registers */
+	switch (prid & PRID_IMP_MASK) {
+#ifdef CONFIG_CPU_BMIPS4380
+	case PRID_IMP_BMIPS43XX:
+		if (rev >= PRID_REV_BMIPS4380_LO &&
+		    rev <= PRID_REV_BMIPS4380_HI)
+			__write_32bit_c0_register($22, 3,
+				__read_32bit_c0_register($22, 3) & ~BIT(12));
+		break;
+#endif
+#ifdef CONFIG_CPU_BMIPS5000
+	case PRID_IMP_BMIPS5000:
+	case PRID_IMP_BMIPS5200:
+		__write_32bit_c0_register($22, 5,
+			__read_32bit_c0_register($22, 5) & ~BIT(8));
+		break;
+#endif
+	default:
+		break;
+	}
+
+	handle = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE);
+	if (handle < 0)
+		goto no_cfe;
+
+	cfe_write(handle, msg, strlen(msg));
+
+	for (count = 0; count < 0x7fffffff; count++)
+		mb();
+	cfe_exit(0, 1);
+	while (1)
+		;
+
+no_cfe:
+	/* probably won't print anywhere useful */
+	panic("%s", msg);
+
+	va_end(ap);
 }

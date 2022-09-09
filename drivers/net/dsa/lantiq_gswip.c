@@ -1,13 +1,32 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Lantiq / Intel GSWIP switch driver for VRX200 SoCs
+ * Lantiq / Intel GSWIP switch driver for VRX200, xRX300 and xRX330 SoCs
  *
  * Copyright (C) 2010 Lantiq Deutschland
  * Copyright (C) 2012 John Crispin <john@phrozen.org>
- * Copyright (C) 2017 - 2018 Hauke Mehrtens <hauke@hauke-m.de>
+ * Copyright (C) 2017 - 2019 Hauke Mehrtens <hauke@hauke-m.de>
+ *
+ * The VLAN and bridge model the GSWIP hardware uses does not directly
+ * matches the model DSA uses.
+ *
+ * The hardware has 64 possible table entries for bridges with one VLAN
+ * ID, one flow id and a list of ports for each bridge. All entries which
+ * match the same flow ID are combined in the mac learning table, they
+ * act as one global bridge.
+ * The hardware does not support VLAN filter on the port, but on the
+ * bridge, this driver converts the DSA model to the hardware.
+ *
+ * The CPU gets all the exception frames which do not match any forwarding
+ * rule and the CPU port is also added to all bridges. This makes it possible
+ * to handle all the special cases easily in software.
+ * At the initialization the driver allocates one bridge table entry for
+ * each switch port which is used when the port is used without an
+ * explicit bridge. This prevents the frames from being forwarded
+ * between all LAN ports by default.
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/if_bridge.h>
@@ -73,16 +92,19 @@
 					 GSWIP_MDIO_PHY_FDUP_MASK)
 
 /* GSWIP MII Registers */
-#define GSWIP_MII_CFG0			0x00
-#define GSWIP_MII_CFG1			0x02
-#define GSWIP_MII_CFG5			0x04
+#define GSWIP_MII_CFGp(p)		(0x2 * (p))
+#define  GSWIP_MII_CFG_RESET		BIT(15)
 #define  GSWIP_MII_CFG_EN		BIT(14)
+#define  GSWIP_MII_CFG_ISOLATE		BIT(13)
 #define  GSWIP_MII_CFG_LDCLKDIS		BIT(12)
+#define  GSWIP_MII_CFG_RGMII_IBS	BIT(8)
+#define  GSWIP_MII_CFG_RMII_CLK		BIT(7)
 #define  GSWIP_MII_CFG_MODE_MIIP	0x0
 #define  GSWIP_MII_CFG_MODE_MIIM	0x1
 #define  GSWIP_MII_CFG_MODE_RMIIP	0x2
 #define  GSWIP_MII_CFG_MODE_RMIIM	0x3
 #define  GSWIP_MII_CFG_MODE_RGMII	0x4
+#define  GSWIP_MII_CFG_MODE_GMII	0x9
 #define  GSWIP_MII_CFG_MODE_MASK	0xf
 #define  GSWIP_MII_CFG_RATE_M2P5	0x00
 #define  GSWIP_MII_CFG_RATE_M25	0x10
@@ -148,22 +170,50 @@
 #define GSWIP_PCE_PMAP2			0x454	/* Default Multicast port map */
 #define GSWIP_PCE_PMAP3			0x455	/* Default Unknown Unicast port map */
 #define GSWIP_PCE_GCTRL_0		0x456
+#define  GSWIP_PCE_GCTRL_0_MTFL		BIT(0)  /* MAC Table Flushing */
 #define  GSWIP_PCE_GCTRL_0_MC_VALID	BIT(3)
 #define  GSWIP_PCE_GCTRL_0_VLAN		BIT(14) /* VLAN aware Switching */
 #define GSWIP_PCE_GCTRL_1		0x457
 #define  GSWIP_PCE_GCTRL_1_MAC_GLOCK	BIT(2)	/* MAC Address table lock */
 #define  GSWIP_PCE_GCTRL_1_MAC_GLOCK_MOD	BIT(3) /* Mac address table lock forwarding mode */
 #define GSWIP_PCE_PCTRL_0p(p)		(0x480 + ((p) * 0xA))
-#define  GSWIP_PCE_PCTRL_0_INGRESS	BIT(11)
+#define  GSWIP_PCE_PCTRL_0_TVM		BIT(5)	/* Transparent VLAN mode */
+#define  GSWIP_PCE_PCTRL_0_VREP		BIT(6)	/* VLAN Replace Mode */
+#define  GSWIP_PCE_PCTRL_0_INGRESS	BIT(11)	/* Accept special tag in ingress */
 #define  GSWIP_PCE_PCTRL_0_PSTATE_LISTEN	0x0
 #define  GSWIP_PCE_PCTRL_0_PSTATE_RX		0x1
 #define  GSWIP_PCE_PCTRL_0_PSTATE_TX		0x2
 #define  GSWIP_PCE_PCTRL_0_PSTATE_LEARNING	0x3
 #define  GSWIP_PCE_PCTRL_0_PSTATE_FORWARDING	0x7
 #define  GSWIP_PCE_PCTRL_0_PSTATE_MASK	GENMASK(2, 0)
+#define GSWIP_PCE_VCTRL(p)		(0x485 + ((p) * 0xA))
+#define  GSWIP_PCE_VCTRL_UVR		BIT(0)	/* Unknown VLAN Rule */
+#define  GSWIP_PCE_VCTRL_VIMR		BIT(3)	/* VLAN Ingress Member violation rule */
+#define  GSWIP_PCE_VCTRL_VEMR		BIT(4)	/* VLAN Egress Member violation rule */
+#define  GSWIP_PCE_VCTRL_VSR		BIT(5)	/* VLAN Security */
+#define  GSWIP_PCE_VCTRL_VID0		BIT(6)	/* Priority Tagged Rule */
+#define GSWIP_PCE_DEFPVID(p)		(0x486 + ((p) * 0xA))
 
 #define GSWIP_MAC_FLEN			0x8C5
+#define GSWIP_MAC_CTRL_0p(p)		(0x903 + ((p) * 0xC))
+#define  GSWIP_MAC_CTRL_0_PADEN		BIT(8)
+#define  GSWIP_MAC_CTRL_0_FCS_EN	BIT(7)
+#define  GSWIP_MAC_CTRL_0_FCON_MASK	0x0070
+#define  GSWIP_MAC_CTRL_0_FCON_AUTO	0x0000
+#define  GSWIP_MAC_CTRL_0_FCON_RX	0x0010
+#define  GSWIP_MAC_CTRL_0_FCON_TX	0x0020
+#define  GSWIP_MAC_CTRL_0_FCON_RXTX	0x0030
+#define  GSWIP_MAC_CTRL_0_FCON_NONE	0x0040
+#define  GSWIP_MAC_CTRL_0_FDUP_MASK	0x000C
+#define  GSWIP_MAC_CTRL_0_FDUP_AUTO	0x0000
+#define  GSWIP_MAC_CTRL_0_FDUP_EN	0x0004
+#define  GSWIP_MAC_CTRL_0_FDUP_DIS	0x000C
+#define  GSWIP_MAC_CTRL_0_GMII_MASK	0x0003
+#define  GSWIP_MAC_CTRL_0_GMII_AUTO	0x0000
+#define  GSWIP_MAC_CTRL_0_GMII_MII	0x0001
+#define  GSWIP_MAC_CTRL_0_GMII_RGMII	0x0002
 #define GSWIP_MAC_CTRL_2p(p)		(0x905 + ((p) * 0xC))
+#define GSWIP_MAC_CTRL_2_LCHKL		BIT(2) /* Frame Length Check Long Enable */
 #define GSWIP_MAC_CTRL_2_MLEN		BIT(3) /* Maximum Untagged Frame Lnegth */
 
 /* Ethernet Switch Fetch DMA Port Control Register */
@@ -181,13 +231,28 @@
 #define GSWIP_SDMA_PCTRLp(p)		(0xBC0 + ((p) * 0x6))
 #define  GSWIP_SDMA_PCTRL_EN		BIT(0)	/* SDMA Port Enable */
 #define  GSWIP_SDMA_PCTRL_FCEN		BIT(1)	/* Flow Control Enable */
-#define  GSWIP_SDMA_PCTRL_PAUFWD	BIT(1)	/* Pause Frame Forwarding */
+#define  GSWIP_SDMA_PCTRL_PAUFWD	BIT(3)	/* Pause Frame Forwarding */
+
+#define GSWIP_TABLE_ACTIVE_VLAN		0x01
+#define GSWIP_TABLE_VLAN_MAPPING	0x02
+#define GSWIP_TABLE_MAC_BRIDGE		0x0b
+#define  GSWIP_TABLE_MAC_BRIDGE_STATIC	0x01	/* Static not, aging entry */
 
 #define XRX200_GPHY_FW_ALIGN	(16 * 1024)
+
+/* Maximum packet size supported by the switch. In theory this should be 10240,
+ * but long packets currently cause lock-ups with an MTU of over 2526. Medium
+ * packets are sometimes dropped (e.g. TCP over 2477, UDP over 2516-2519, ICMP
+ * over 2526), hence an MTU value of 2400 seems safe. This issue only affects
+ * packet reception. This is probably caused by the PPA engine, which is on the
+ * RX part of the device. Packet transmission works properly up to 10240.
+ */
+#define GSWIP_MAX_PACKET_LENGTH	2400
 
 struct gswip_hw_info {
 	int max_ports;
 	int cpu_port;
+	const struct dsa_switch_ops *ops;
 };
 
 struct xway_gphy_match_data {
@@ -202,6 +267,12 @@ struct gswip_gphy_fw {
 	char *fw_name;
 };
 
+struct gswip_vlan {
+	struct net_device *bridge;
+	u16 vid;
+	u8 fid;
+};
+
 struct gswip_priv {
 	__iomem void *gswip;
 	__iomem void *mdio;
@@ -211,8 +282,23 @@ struct gswip_priv {
 	struct dsa_switch *ds;
 	struct device *dev;
 	struct regmap *rcu_regmap;
+	struct gswip_vlan vlans[64];
 	int num_gphy_fw;
 	struct gswip_gphy_fw *gphy_fw;
+	u32 port_vlan_filter;
+	struct mutex pce_table_lock;
+};
+
+struct gswip_pce_table_entry {
+	u16 index;      // PCE_TBL_ADDR.ADDR = pData->table_index
+	u16 table;      // PCE_TBL_CTRL.ADDR = pData->table
+	u16 key[8];
+	u16 val[5];
+	u16 mask;
+	u8 gmap;
+	bool type;
+	bool valid;
+	bool key_mode;
 };
 
 struct gswip_rmon_cnt_desc {
@@ -338,17 +424,9 @@ static void gswip_mii_mask(struct gswip_priv *priv, u32 clear, u32 set,
 static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 clear, u32 set,
 			       int port)
 {
-	switch (port) {
-	case 0:
-		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFG0);
-		break;
-	case 1:
-		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFG1);
-		break;
-	case 5:
-		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFG5);
-		break;
-	}
+	/* There's no MII_CFG register for the CPU port */
+	if (!dsa_is_cpu_port(priv->ds, port))
+		gswip_mii_mask(priv, clear, set, GSWIP_MII_CFGp(port));
 }
 
 static void gswip_mii_mask_pcdu(struct gswip_priv *priv, u32 clear, u32 set,
@@ -430,8 +508,9 @@ static int gswip_mdio_rd(struct mii_bus *bus, int addr, int reg)
 static int gswip_mdio(struct gswip_priv *priv, struct device_node *mdio_np)
 {
 	struct dsa_switch *ds = priv->ds;
+	int err;
 
-	ds->slave_mii_bus = devm_mdiobus_alloc(priv->dev);
+	ds->slave_mii_bus = mdiobus_alloc();
 	if (!ds->slave_mii_bus)
 		return -ENOMEM;
 
@@ -444,13 +523,179 @@ static int gswip_mdio(struct gswip_priv *priv, struct device_node *mdio_np)
 	ds->slave_mii_bus->parent = priv->dev;
 	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
 
-	return of_mdiobus_register(ds->slave_mii_bus, mdio_np);
+	err = of_mdiobus_register(ds->slave_mii_bus, mdio_np);
+	if (err)
+		mdiobus_free(ds->slave_mii_bus);
+
+	return err;
+}
+
+static int gswip_pce_table_entry_read(struct gswip_priv *priv,
+				      struct gswip_pce_table_entry *tbl)
+{
+	int i;
+	int err;
+	u16 crtl;
+	u16 addr_mode = tbl->key_mode ? GSWIP_PCE_TBL_CTRL_OPMOD_KSRD :
+					GSWIP_PCE_TBL_CTRL_OPMOD_ADRD;
+
+	mutex_lock(&priv->pce_table_lock);
+
+	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
+				     GSWIP_PCE_TBL_CTRL_BAS);
+	if (err) {
+		mutex_unlock(&priv->pce_table_lock);
+		return err;
+	}
+
+	gswip_switch_w(priv, tbl->index, GSWIP_PCE_TBL_ADDR);
+	gswip_switch_mask(priv, GSWIP_PCE_TBL_CTRL_ADDR_MASK |
+				GSWIP_PCE_TBL_CTRL_OPMOD_MASK,
+			  tbl->table | addr_mode | GSWIP_PCE_TBL_CTRL_BAS,
+			  GSWIP_PCE_TBL_CTRL);
+
+	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
+				     GSWIP_PCE_TBL_CTRL_BAS);
+	if (err) {
+		mutex_unlock(&priv->pce_table_lock);
+		return err;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(tbl->key); i++)
+		tbl->key[i] = gswip_switch_r(priv, GSWIP_PCE_TBL_KEY(i));
+
+	for (i = 0; i < ARRAY_SIZE(tbl->val); i++)
+		tbl->val[i] = gswip_switch_r(priv, GSWIP_PCE_TBL_VAL(i));
+
+	tbl->mask = gswip_switch_r(priv, GSWIP_PCE_TBL_MASK);
+
+	crtl = gswip_switch_r(priv, GSWIP_PCE_TBL_CTRL);
+
+	tbl->type = !!(crtl & GSWIP_PCE_TBL_CTRL_TYPE);
+	tbl->valid = !!(crtl & GSWIP_PCE_TBL_CTRL_VLD);
+	tbl->gmap = (crtl & GSWIP_PCE_TBL_CTRL_GMAP_MASK) >> 7;
+
+	mutex_unlock(&priv->pce_table_lock);
+
+	return 0;
+}
+
+static int gswip_pce_table_entry_write(struct gswip_priv *priv,
+				       struct gswip_pce_table_entry *tbl)
+{
+	int i;
+	int err;
+	u16 crtl;
+	u16 addr_mode = tbl->key_mode ? GSWIP_PCE_TBL_CTRL_OPMOD_KSWR :
+					GSWIP_PCE_TBL_CTRL_OPMOD_ADWR;
+
+	mutex_lock(&priv->pce_table_lock);
+
+	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
+				     GSWIP_PCE_TBL_CTRL_BAS);
+	if (err) {
+		mutex_unlock(&priv->pce_table_lock);
+		return err;
+	}
+
+	gswip_switch_w(priv, tbl->index, GSWIP_PCE_TBL_ADDR);
+	gswip_switch_mask(priv, GSWIP_PCE_TBL_CTRL_ADDR_MASK |
+				GSWIP_PCE_TBL_CTRL_OPMOD_MASK,
+			  tbl->table | addr_mode,
+			  GSWIP_PCE_TBL_CTRL);
+
+	for (i = 0; i < ARRAY_SIZE(tbl->key); i++)
+		gswip_switch_w(priv, tbl->key[i], GSWIP_PCE_TBL_KEY(i));
+
+	for (i = 0; i < ARRAY_SIZE(tbl->val); i++)
+		gswip_switch_w(priv, tbl->val[i], GSWIP_PCE_TBL_VAL(i));
+
+	gswip_switch_mask(priv, GSWIP_PCE_TBL_CTRL_ADDR_MASK |
+				GSWIP_PCE_TBL_CTRL_OPMOD_MASK,
+			  tbl->table | addr_mode,
+			  GSWIP_PCE_TBL_CTRL);
+
+	gswip_switch_w(priv, tbl->mask, GSWIP_PCE_TBL_MASK);
+
+	crtl = gswip_switch_r(priv, GSWIP_PCE_TBL_CTRL);
+	crtl &= ~(GSWIP_PCE_TBL_CTRL_TYPE | GSWIP_PCE_TBL_CTRL_VLD |
+		  GSWIP_PCE_TBL_CTRL_GMAP_MASK);
+	if (tbl->type)
+		crtl |= GSWIP_PCE_TBL_CTRL_TYPE;
+	if (tbl->valid)
+		crtl |= GSWIP_PCE_TBL_CTRL_VLD;
+	crtl |= (tbl->gmap << 7) & GSWIP_PCE_TBL_CTRL_GMAP_MASK;
+	crtl |= GSWIP_PCE_TBL_CTRL_BAS;
+	gswip_switch_w(priv, crtl, GSWIP_PCE_TBL_CTRL);
+
+	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
+				     GSWIP_PCE_TBL_CTRL_BAS);
+
+	mutex_unlock(&priv->pce_table_lock);
+
+	return err;
+}
+
+/* Add the LAN port into a bridge with the CPU port by
+ * default. This prevents automatic forwarding of
+ * packages between the LAN ports when no explicit
+ * bridge is configured.
+ */
+static int gswip_add_single_port_br(struct gswip_priv *priv, int port, bool add)
+{
+	struct gswip_pce_table_entry vlan_active = {0,};
+	struct gswip_pce_table_entry vlan_mapping = {0,};
+	unsigned int cpu_port = priv->hw_info->cpu_port;
+	unsigned int max_ports = priv->hw_info->max_ports;
+	int err;
+
+	if (port >= max_ports) {
+		dev_err(priv->dev, "single port for %i supported\n", port);
+		return -EIO;
+	}
+
+	vlan_active.index = port + 1;
+	vlan_active.table = GSWIP_TABLE_ACTIVE_VLAN;
+	vlan_active.key[0] = 0; /* vid */
+	vlan_active.val[0] = port + 1 /* fid */;
+	vlan_active.valid = add;
+	err = gswip_pce_table_entry_write(priv, &vlan_active);
+	if (err) {
+		dev_err(priv->dev, "failed to write active VLAN: %d\n", err);
+		return err;
+	}
+
+	if (!add)
+		return 0;
+
+	vlan_mapping.index = port + 1;
+	vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
+	vlan_mapping.val[0] = 0 /* vid */;
+	vlan_mapping.val[1] = BIT(port) | BIT(cpu_port);
+	vlan_mapping.val[2] = 0;
+	err = gswip_pce_table_entry_write(priv, &vlan_mapping);
+	if (err) {
+		dev_err(priv->dev, "failed to write VLAN mapping: %d\n", err);
+		return err;
+	}
+
+	return 0;
 }
 
 static int gswip_port_enable(struct dsa_switch *ds, int port,
 			     struct phy_device *phydev)
 {
 	struct gswip_priv *priv = ds->priv;
+	int err;
+
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
+	if (!dsa_is_cpu_port(ds, port)) {
+		err = gswip_add_single_port_br(priv, port, true);
+		if (err)
+			return err;
+	}
 
 	/* RMON Counter Enable for port */
 	gswip_switch_w(priv, GSWIP_BM_PCFG_CNTEN, GSWIP_BM_PCFGp(port));
@@ -461,37 +706,26 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 			 GSWIP_FDMA_PCTRLp(port));
 	gswip_switch_mask(priv, 0, GSWIP_SDMA_PCTRL_EN,
 			  GSWIP_SDMA_PCTRLp(port));
-	gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_INGRESS,
-			  GSWIP_PCE_PCTRL_0p(port));
 
 	if (!dsa_is_cpu_port(ds, port)) {
-		u32 macconf = GSWIP_MDIO_PHY_LINK_AUTO |
-			      GSWIP_MDIO_PHY_SPEED_AUTO |
-			      GSWIP_MDIO_PHY_FDUP_AUTO |
-			      GSWIP_MDIO_PHY_FCONTX_AUTO |
-			      GSWIP_MDIO_PHY_FCONRX_AUTO |
-			      (phydev->mdio.addr & GSWIP_MDIO_PHY_ADDR_MASK);
+		u32 mdio_phy = 0;
 
-		gswip_mdio_w(priv, macconf, GSWIP_MDIO_PHYp(port));
-		/* Activate MDIO auto polling */
-		gswip_mdio_mask(priv, 0, BIT(port), GSWIP_MDIO_MDC_CFG0);
+		if (phydev)
+			mdio_phy = phydev->mdio.addr & GSWIP_MDIO_PHY_ADDR_MASK;
+
+		gswip_mdio_mask(priv, GSWIP_MDIO_PHY_ADDR_MASK, mdio_phy,
+				GSWIP_MDIO_PHYp(port));
 	}
 
 	return 0;
 }
 
-static void gswip_port_disable(struct dsa_switch *ds, int port,
-			       struct phy_device *phy)
+static void gswip_port_disable(struct dsa_switch *ds, int port)
 {
 	struct gswip_priv *priv = ds->priv;
 
-	if (!dsa_is_cpu_port(ds, port)) {
-		gswip_mdio_mask(priv, GSWIP_MDIO_PHY_LINK_DOWN,
-				GSWIP_MDIO_PHY_LINK_MASK,
-				GSWIP_MDIO_PHYp(port));
-		/* Deactivate MDIO auto polling */
-		gswip_mdio_mask(priv, BIT(port), 0, GSWIP_MDIO_MDC_CFG0);
-	}
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	gswip_switch_mask(priv, GSWIP_FDMA_PCTRL_EN, 0,
 			  GSWIP_FDMA_PCTRLp(port));
@@ -536,6 +770,43 @@ static int gswip_pce_load_microcode(struct gswip_priv *priv)
 	return 0;
 }
 
+static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
+				     bool vlan_filtering,
+				     struct netlink_ext_ack *extack)
+{
+	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
+	struct gswip_priv *priv = ds->priv;
+
+	/* Do not allow changing the VLAN filtering options while in bridge */
+	if (bridge && !!(priv->port_vlan_filter & BIT(port)) != vlan_filtering) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Dynamic toggling of vlan_filtering not supported");
+		return -EIO;
+	}
+
+	if (vlan_filtering) {
+		/* Use port based VLAN tag */
+		gswip_switch_mask(priv,
+				  GSWIP_PCE_VCTRL_VSR,
+				  GSWIP_PCE_VCTRL_UVR | GSWIP_PCE_VCTRL_VIMR |
+				  GSWIP_PCE_VCTRL_VEMR,
+				  GSWIP_PCE_VCTRL(port));
+		gswip_switch_mask(priv, GSWIP_PCE_PCTRL_0_TVM, 0,
+				  GSWIP_PCE_PCTRL_0p(port));
+	} else {
+		/* Use port based VLAN tag */
+		gswip_switch_mask(priv,
+				  GSWIP_PCE_VCTRL_UVR | GSWIP_PCE_VCTRL_VIMR |
+				  GSWIP_PCE_VCTRL_VEMR,
+				  GSWIP_PCE_VCTRL_VSR,
+				  GSWIP_PCE_VCTRL(port));
+		gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_TVM,
+				  GSWIP_PCE_PCTRL_0p(port));
+	}
+
+	return 0;
+}
+
 static int gswip_setup(struct dsa_switch *ds)
 {
 	struct gswip_priv *priv = ds->priv;
@@ -548,8 +819,10 @@ static int gswip_setup(struct dsa_switch *ds)
 	gswip_switch_w(priv, 0, GSWIP_SWRES);
 
 	/* disable port fetch/store dma on all ports */
-	for (i = 0; i < priv->hw_info->max_ports; i++)
-		gswip_port_disable(ds, i, NULL);
+	for (i = 0; i < priv->hw_info->max_ports; i++) {
+		gswip_port_disable(ds, i);
+		gswip_port_vlan_filtering(ds, i, false, NULL);
+	}
 
 	/* enable Switch */
 	gswip_mdio_mask(priv, 0, GSWIP_MDIO_GLOB_ENABLE, GSWIP_MDIO_GLOB);
@@ -565,106 +838,829 @@ static int gswip_setup(struct dsa_switch *ds)
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP2);
 	gswip_switch_w(priv, BIT(cpu_port), GSWIP_PCE_PMAP3);
 
-	/* disable PHY auto polling */
+	/* Deactivate MDIO PHY auto polling. Some PHYs as the AR8030 have an
+	 * interoperability problem with this auto polling mechanism because
+	 * their status registers think that the link is in a different state
+	 * than it actually is. For the AR8030 it has the BMSR_ESTATEN bit set
+	 * as well as ESTATUS_1000_TFULL and ESTATUS_1000_XFULL. This makes the
+	 * auto polling state machine consider the link being negotiated with
+	 * 1Gbit/s. Since the PHY itself is a Fast Ethernet RMII PHY this leads
+	 * to the switch port being completely dead (RX and TX are both not
+	 * working).
+	 * Also with various other PHY / port combinations (PHY11G GPHY, PHY22F
+	 * GPHY, external RGMII PEF7071/7072) any traffic would stop. Sometimes
+	 * it would work fine for a few minutes to hours and then stop, on
+	 * other device it would no traffic could be sent or received at all.
+	 * Testing shows that when PHY auto polling is disabled these problems
+	 * go away.
+	 */
 	gswip_mdio_w(priv, 0x0, GSWIP_MDIO_MDC_CFG0);
+
 	/* Configure the MDIO Clock 2.5 MHz */
 	gswip_mdio_mask(priv, 0xff, 0x09, GSWIP_MDIO_MDC_CFG1);
 
-	/* Disable the xMII link */
-	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, 0);
-	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, 1);
-	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, 5);
+	/* Disable the xMII interface and clear it's isolation bit */
+	for (i = 0; i < priv->hw_info->max_ports; i++)
+		gswip_mii_mask_cfg(priv,
+				   GSWIP_MII_CFG_EN | GSWIP_MII_CFG_ISOLATE,
+				   0, i);
 
 	/* enable special tag insertion on cpu port */
 	gswip_switch_mask(priv, 0, GSWIP_FDMA_PCTRL_STEN,
 			  GSWIP_FDMA_PCTRLp(cpu_port));
 
-	gswip_switch_mask(priv, 0, GSWIP_MAC_CTRL_2_MLEN,
-			  GSWIP_MAC_CTRL_2p(cpu_port));
-	gswip_switch_w(priv, VLAN_ETH_FRAME_LEN + 8, GSWIP_MAC_FLEN);
+	/* accept special tag in ingress direction */
+	gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_INGRESS,
+			  GSWIP_PCE_PCTRL_0p(cpu_port));
+
 	gswip_switch_mask(priv, 0, GSWIP_BM_QUEUE_GCTRL_GL_MOD,
 			  GSWIP_BM_QUEUE_GCTRL);
 
 	/* VLAN aware Switching */
 	gswip_switch_mask(priv, 0, GSWIP_PCE_GCTRL_0_VLAN, GSWIP_PCE_GCTRL_0);
 
-	/* Mac Address Table Lock */
-	gswip_switch_mask(priv, 0, GSWIP_PCE_GCTRL_1_MAC_GLOCK |
-				   GSWIP_PCE_GCTRL_1_MAC_GLOCK_MOD,
-			  GSWIP_PCE_GCTRL_1);
+	/* Flush MAC Table */
+	gswip_switch_mask(priv, 0, GSWIP_PCE_GCTRL_0_MTFL, GSWIP_PCE_GCTRL_0);
+
+	err = gswip_switch_r_timeout(priv, GSWIP_PCE_GCTRL_0,
+				     GSWIP_PCE_GCTRL_0_MTFL);
+	if (err) {
+		dev_err(priv->dev, "MAC flushing didn't finish\n");
+		return err;
+	}
+
+	ds->mtu_enforcement_ingress = true;
 
 	gswip_port_enable(ds, cpu_port, NULL);
+
+	ds->configure_vlan_while_not_filtering = false;
+
 	return 0;
 }
 
 static enum dsa_tag_protocol gswip_get_tag_protocol(struct dsa_switch *ds,
-						    int port)
+						    int port,
+						    enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_GSWIP;
 }
 
-static void gswip_phylink_validate(struct dsa_switch *ds, int port,
-				   unsigned long *supported,
-				   struct phylink_link_state *state)
+static int gswip_vlan_active_create(struct gswip_priv *priv,
+				    struct net_device *bridge,
+				    int fid, u16 vid)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+	struct gswip_pce_table_entry vlan_active = {0,};
+	unsigned int max_ports = priv->hw_info->max_ports;
+	int idx = -1;
+	int err;
+	int i;
 
-	switch (port) {
-	case 0:
-	case 1:
-		if (!phy_interface_mode_is_rgmii(state->interface) &&
-		    state->interface != PHY_INTERFACE_MODE_MII &&
-		    state->interface != PHY_INTERFACE_MODE_REVMII &&
-		    state->interface != PHY_INTERFACE_MODE_RMII)
-			goto unsupported;
+	/* Look for a free slot */
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
+		if (!priv->vlans[i].bridge) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1)
+		return -ENOSPC;
+
+	if (fid == -1)
+		fid = idx;
+
+	vlan_active.index = idx;
+	vlan_active.table = GSWIP_TABLE_ACTIVE_VLAN;
+	vlan_active.key[0] = vid;
+	vlan_active.val[0] = fid;
+	vlan_active.valid = true;
+
+	err = gswip_pce_table_entry_write(priv, &vlan_active);
+	if (err) {
+		dev_err(priv->dev, "failed to write active VLAN: %d\n",	err);
+		return err;
+	}
+
+	priv->vlans[idx].bridge = bridge;
+	priv->vlans[idx].vid = vid;
+	priv->vlans[idx].fid = fid;
+
+	return idx;
+}
+
+static int gswip_vlan_active_remove(struct gswip_priv *priv, int idx)
+{
+	struct gswip_pce_table_entry vlan_active = {0,};
+	int err;
+
+	vlan_active.index = idx;
+	vlan_active.table = GSWIP_TABLE_ACTIVE_VLAN;
+	vlan_active.valid = false;
+	err = gswip_pce_table_entry_write(priv, &vlan_active);
+	if (err)
+		dev_err(priv->dev, "failed to delete active VLAN: %d\n", err);
+	priv->vlans[idx].bridge = NULL;
+
+	return err;
+}
+
+static int gswip_vlan_add_unaware(struct gswip_priv *priv,
+				  struct net_device *bridge, int port)
+{
+	struct gswip_pce_table_entry vlan_mapping = {0,};
+	unsigned int max_ports = priv->hw_info->max_ports;
+	unsigned int cpu_port = priv->hw_info->cpu_port;
+	bool active_vlan_created = false;
+	int idx = -1;
+	int i;
+	int err;
+
+	/* Check if there is already a page for this bridge */
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
+		if (priv->vlans[i].bridge == bridge) {
+			idx = i;
+			break;
+		}
+	}
+
+	/* If this bridge is not programmed yet, add a Active VLAN table
+	 * entry in a free slot and prepare the VLAN mapping table entry.
+	 */
+	if (idx == -1) {
+		idx = gswip_vlan_active_create(priv, bridge, -1, 0);
+		if (idx < 0)
+			return idx;
+		active_vlan_created = true;
+
+		vlan_mapping.index = idx;
+		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
+		/* VLAN ID byte, maps to the VLAN ID of vlan active table */
+		vlan_mapping.val[0] = 0;
+	} else {
+		/* Read the existing VLAN mapping entry from the switch */
+		vlan_mapping.index = idx;
+		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
+		err = gswip_pce_table_entry_read(priv, &vlan_mapping);
+		if (err) {
+			dev_err(priv->dev, "failed to read VLAN mapping: %d\n",
+				err);
+			return err;
+		}
+	}
+
+	/* Update the VLAN mapping entry and write it to the switch */
+	vlan_mapping.val[1] |= BIT(cpu_port);
+	vlan_mapping.val[1] |= BIT(port);
+	err = gswip_pce_table_entry_write(priv, &vlan_mapping);
+	if (err) {
+		dev_err(priv->dev, "failed to write VLAN mapping: %d\n", err);
+		/* In case an Active VLAN was creaetd delete it again */
+		if (active_vlan_created)
+			gswip_vlan_active_remove(priv, idx);
+		return err;
+	}
+
+	gswip_switch_w(priv, 0, GSWIP_PCE_DEFPVID(port));
+	return 0;
+}
+
+static int gswip_vlan_add_aware(struct gswip_priv *priv,
+				struct net_device *bridge, int port,
+				u16 vid, bool untagged,
+				bool pvid)
+{
+	struct gswip_pce_table_entry vlan_mapping = {0,};
+	unsigned int max_ports = priv->hw_info->max_ports;
+	unsigned int cpu_port = priv->hw_info->cpu_port;
+	bool active_vlan_created = false;
+	int idx = -1;
+	int fid = -1;
+	int i;
+	int err;
+
+	/* Check if there is already a page for this bridge */
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
+		if (priv->vlans[i].bridge == bridge) {
+			if (fid != -1 && fid != priv->vlans[i].fid)
+				dev_err(priv->dev, "one bridge with multiple flow ids\n");
+			fid = priv->vlans[i].fid;
+			if (priv->vlans[i].vid == vid) {
+				idx = i;
+				break;
+			}
+		}
+	}
+
+	/* If this bridge is not programmed yet, add a Active VLAN table
+	 * entry in a free slot and prepare the VLAN mapping table entry.
+	 */
+	if (idx == -1) {
+		idx = gswip_vlan_active_create(priv, bridge, fid, vid);
+		if (idx < 0)
+			return idx;
+		active_vlan_created = true;
+
+		vlan_mapping.index = idx;
+		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
+		/* VLAN ID byte, maps to the VLAN ID of vlan active table */
+		vlan_mapping.val[0] = vid;
+	} else {
+		/* Read the existing VLAN mapping entry from the switch */
+		vlan_mapping.index = idx;
+		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
+		err = gswip_pce_table_entry_read(priv, &vlan_mapping);
+		if (err) {
+			dev_err(priv->dev, "failed to read VLAN mapping: %d\n",
+				err);
+			return err;
+		}
+	}
+
+	vlan_mapping.val[0] = vid;
+	/* Update the VLAN mapping entry and write it to the switch */
+	vlan_mapping.val[1] |= BIT(cpu_port);
+	vlan_mapping.val[2] |= BIT(cpu_port);
+	vlan_mapping.val[1] |= BIT(port);
+	if (untagged)
+		vlan_mapping.val[2] &= ~BIT(port);
+	else
+		vlan_mapping.val[2] |= BIT(port);
+	err = gswip_pce_table_entry_write(priv, &vlan_mapping);
+	if (err) {
+		dev_err(priv->dev, "failed to write VLAN mapping: %d\n", err);
+		/* In case an Active VLAN was creaetd delete it again */
+		if (active_vlan_created)
+			gswip_vlan_active_remove(priv, idx);
+		return err;
+	}
+
+	if (pvid)
+		gswip_switch_w(priv, idx, GSWIP_PCE_DEFPVID(port));
+
+	return 0;
+}
+
+static int gswip_vlan_remove(struct gswip_priv *priv,
+			     struct net_device *bridge, int port,
+			     u16 vid, bool pvid, bool vlan_aware)
+{
+	struct gswip_pce_table_entry vlan_mapping = {0,};
+	unsigned int max_ports = priv->hw_info->max_ports;
+	unsigned int cpu_port = priv->hw_info->cpu_port;
+	int idx = -1;
+	int i;
+	int err;
+
+	/* Check if there is already a page for this bridge */
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
+		if (priv->vlans[i].bridge == bridge &&
+		    (!vlan_aware || priv->vlans[i].vid == vid)) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == -1) {
+		dev_err(priv->dev, "bridge to leave does not exists\n");
+		return -ENOENT;
+	}
+
+	vlan_mapping.index = idx;
+	vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
+	err = gswip_pce_table_entry_read(priv, &vlan_mapping);
+	if (err) {
+		dev_err(priv->dev, "failed to read VLAN mapping: %d\n",	err);
+		return err;
+	}
+
+	vlan_mapping.val[1] &= ~BIT(port);
+	vlan_mapping.val[2] &= ~BIT(port);
+	err = gswip_pce_table_entry_write(priv, &vlan_mapping);
+	if (err) {
+		dev_err(priv->dev, "failed to write VLAN mapping: %d\n", err);
+		return err;
+	}
+
+	/* In case all ports are removed from the bridge, remove the VLAN */
+	if ((vlan_mapping.val[1] & ~BIT(cpu_port)) == 0) {
+		err = gswip_vlan_active_remove(priv, idx);
+		if (err) {
+			dev_err(priv->dev, "failed to write active VLAN: %d\n",
+				err);
+			return err;
+		}
+	}
+
+	/* GSWIP 2.2 (GRX300) and later program here the VID directly. */
+	if (pvid)
+		gswip_switch_w(priv, 0, GSWIP_PCE_DEFPVID(port));
+
+	return 0;
+}
+
+static int gswip_port_bridge_join(struct dsa_switch *ds, int port,
+				  struct dsa_bridge bridge,
+				  bool *tx_fwd_offload,
+				  struct netlink_ext_ack *extack)
+{
+	struct net_device *br = bridge.dev;
+	struct gswip_priv *priv = ds->priv;
+	int err;
+
+	/* When the bridge uses VLAN filtering we have to configure VLAN
+	 * specific bridges. No bridge is configured here.
+	 */
+	if (!br_vlan_enabled(br)) {
+		err = gswip_vlan_add_unaware(priv, br, port);
+		if (err)
+			return err;
+		priv->port_vlan_filter &= ~BIT(port);
+	} else {
+		priv->port_vlan_filter |= BIT(port);
+	}
+	return gswip_add_single_port_br(priv, port, false);
+}
+
+static void gswip_port_bridge_leave(struct dsa_switch *ds, int port,
+				    struct dsa_bridge bridge)
+{
+	struct net_device *br = bridge.dev;
+	struct gswip_priv *priv = ds->priv;
+
+	gswip_add_single_port_br(priv, port, true);
+
+	/* When the bridge uses VLAN filtering we have to configure VLAN
+	 * specific bridges. No bridge is configured here.
+	 */
+	if (!br_vlan_enabled(br))
+		gswip_vlan_remove(priv, br, port, 0, true, false);
+}
+
+static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
+				   const struct switchdev_obj_port_vlan *vlan,
+				   struct netlink_ext_ack *extack)
+{
+	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
+	struct gswip_priv *priv = ds->priv;
+	unsigned int max_ports = priv->hw_info->max_ports;
+	int pos = max_ports;
+	int i, idx = -1;
+
+	/* We only support VLAN filtering on bridges */
+	if (!dsa_is_cpu_port(ds, port) && !bridge)
+		return -EOPNOTSUPP;
+
+	/* Check if there is already a page for this VLAN */
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
+		if (priv->vlans[i].bridge == bridge &&
+		    priv->vlans[i].vid == vlan->vid) {
+			idx = i;
+			break;
+		}
+	}
+
+	/* If this VLAN is not programmed yet, we have to reserve
+	 * one entry in the VLAN table. Make sure we start at the
+	 * next position round.
+	 */
+	if (idx == -1) {
+		/* Look for a free slot */
+		for (; pos < ARRAY_SIZE(priv->vlans); pos++) {
+			if (!priv->vlans[pos].bridge) {
+				idx = pos;
+				pos++;
+				break;
+			}
+		}
+
+		if (idx == -1) {
+			NL_SET_ERR_MSG_MOD(extack, "No slot in VLAN table");
+			return -ENOSPC;
+		}
+	}
+
+	return 0;
+}
+
+static int gswip_port_vlan_add(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_vlan *vlan,
+			       struct netlink_ext_ack *extack)
+{
+	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
+	struct gswip_priv *priv = ds->priv;
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	int err;
+
+	err = gswip_port_vlan_prepare(ds, port, vlan, extack);
+	if (err)
+		return err;
+
+	/* We have to receive all packets on the CPU port and should not
+	 * do any VLAN filtering here. This is also called with bridge
+	 * NULL and then we do not know for which bridge to configure
+	 * this.
+	 */
+	if (dsa_is_cpu_port(ds, port))
+		return 0;
+
+	return gswip_vlan_add_aware(priv, bridge, port, vlan->vid,
+				    untagged, pvid);
+}
+
+static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_vlan *vlan)
+{
+	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
+	struct gswip_priv *priv = ds->priv;
+	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+
+	/* We have to receive all packets on the CPU port and should not
+	 * do any VLAN filtering here. This is also called with bridge
+	 * NULL and then we do not know for which bridge to configure
+	 * this.
+	 */
+	if (dsa_is_cpu_port(ds, port))
+		return 0;
+
+	return gswip_vlan_remove(priv, bridge, port, vlan->vid, pvid, true);
+}
+
+static void gswip_port_fast_age(struct dsa_switch *ds, int port)
+{
+	struct gswip_priv *priv = ds->priv;
+	struct gswip_pce_table_entry mac_bridge = {0,};
+	int i;
+	int err;
+
+	for (i = 0; i < 2048; i++) {
+		mac_bridge.table = GSWIP_TABLE_MAC_BRIDGE;
+		mac_bridge.index = i;
+
+		err = gswip_pce_table_entry_read(priv, &mac_bridge);
+		if (err) {
+			dev_err(priv->dev, "failed to read mac bridge: %d\n",
+				err);
+			return;
+		}
+
+		if (!mac_bridge.valid)
+			continue;
+
+		if (mac_bridge.val[1] & GSWIP_TABLE_MAC_BRIDGE_STATIC)
+			continue;
+
+		if (((mac_bridge.val[0] & GENMASK(7, 4)) >> 4) != port)
+			continue;
+
+		mac_bridge.valid = false;
+		err = gswip_pce_table_entry_write(priv, &mac_bridge);
+		if (err) {
+			dev_err(priv->dev, "failed to write mac bridge: %d\n",
+				err);
+			return;
+		}
+	}
+}
+
+static void gswip_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
+{
+	struct gswip_priv *priv = ds->priv;
+	u32 stp_state;
+
+	switch (state) {
+	case BR_STATE_DISABLED:
+		gswip_switch_mask(priv, GSWIP_SDMA_PCTRL_EN, 0,
+				  GSWIP_SDMA_PCTRLp(port));
+		return;
+	case BR_STATE_BLOCKING:
+	case BR_STATE_LISTENING:
+		stp_state = GSWIP_PCE_PCTRL_0_PSTATE_LISTEN;
 		break;
-	case 2:
-	case 3:
-	case 4:
-		if (state->interface != PHY_INTERFACE_MODE_INTERNAL)
-			goto unsupported;
+	case BR_STATE_LEARNING:
+		stp_state = GSWIP_PCE_PCTRL_0_PSTATE_LEARNING;
 		break;
-	case 5:
-		if (!phy_interface_mode_is_rgmii(state->interface) &&
-		    state->interface != PHY_INTERFACE_MODE_INTERNAL)
-			goto unsupported;
+	case BR_STATE_FORWARDING:
+		stp_state = GSWIP_PCE_PCTRL_0_PSTATE_FORWARDING;
 		break;
 	default:
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		dev_err(ds->dev, "Unsupported port: %i\n", port);
+		dev_err(priv->dev, "invalid STP state: %d\n", state);
 		return;
 	}
 
-	/* Allow all the expected bits */
-	phylink_set(mask, Autoneg);
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Pause);
-	phylink_set(mask, Asym_Pause);
+	gswip_switch_mask(priv, 0, GSWIP_SDMA_PCTRL_EN,
+			  GSWIP_SDMA_PCTRLp(port));
+	gswip_switch_mask(priv, GSWIP_PCE_PCTRL_0_PSTATE_MASK, stp_state,
+			  GSWIP_PCE_PCTRL_0p(port));
+}
 
-	/* With the exclusion of MII and Reverse MII, we support Gigabit,
-	 * including Half duplex
-	 */
-	if (state->interface != PHY_INTERFACE_MODE_MII &&
-	    state->interface != PHY_INTERFACE_MODE_REVMII) {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseT_Half);
+static int gswip_port_fdb(struct dsa_switch *ds, int port,
+			  const unsigned char *addr, u16 vid, bool add)
+{
+	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
+	struct gswip_priv *priv = ds->priv;
+	struct gswip_pce_table_entry mac_bridge = {0,};
+	unsigned int max_ports = priv->hw_info->max_ports;
+	int fid = -1;
+	int i;
+	int err;
+
+	if (!bridge)
+		return -EINVAL;
+
+	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
+		if (priv->vlans[i].bridge == bridge) {
+			fid = priv->vlans[i].fid;
+			break;
+		}
 	}
 
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
+	if (fid == -1) {
+		dev_err(priv->dev, "Port not part of a bridge\n");
+		return -EINVAL;
+	}
 
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	return;
+	mac_bridge.table = GSWIP_TABLE_MAC_BRIDGE;
+	mac_bridge.key_mode = true;
+	mac_bridge.key[0] = addr[5] | (addr[4] << 8);
+	mac_bridge.key[1] = addr[3] | (addr[2] << 8);
+	mac_bridge.key[2] = addr[1] | (addr[0] << 8);
+	mac_bridge.key[3] = fid;
+	mac_bridge.val[0] = add ? BIT(port) : 0; /* port map */
+	mac_bridge.val[1] = GSWIP_TABLE_MAC_BRIDGE_STATIC;
+	mac_bridge.valid = add;
 
-unsupported:
-	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	dev_err(ds->dev, "Unsupported interface: %d\n", state->interface);
-	return;
+	err = gswip_pce_table_entry_write(priv, &mac_bridge);
+	if (err)
+		dev_err(priv->dev, "failed to write mac bridge: %d\n", err);
+
+	return err;
+}
+
+static int gswip_port_fdb_add(struct dsa_switch *ds, int port,
+			      const unsigned char *addr, u16 vid,
+			      struct dsa_db db)
+{
+	return gswip_port_fdb(ds, port, addr, vid, true);
+}
+
+static int gswip_port_fdb_del(struct dsa_switch *ds, int port,
+			      const unsigned char *addr, u16 vid,
+			      struct dsa_db db)
+{
+	return gswip_port_fdb(ds, port, addr, vid, false);
+}
+
+static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
+			       dsa_fdb_dump_cb_t *cb, void *data)
+{
+	struct gswip_priv *priv = ds->priv;
+	struct gswip_pce_table_entry mac_bridge = {0,};
+	unsigned char addr[6];
+	int i;
+	int err;
+
+	for (i = 0; i < 2048; i++) {
+		mac_bridge.table = GSWIP_TABLE_MAC_BRIDGE;
+		mac_bridge.index = i;
+
+		err = gswip_pce_table_entry_read(priv, &mac_bridge);
+		if (err) {
+			dev_err(priv->dev,
+				"failed to read mac bridge entry %d: %d\n",
+				i, err);
+			return err;
+		}
+
+		if (!mac_bridge.valid)
+			continue;
+
+		addr[5] = mac_bridge.key[0] & 0xff;
+		addr[4] = (mac_bridge.key[0] >> 8) & 0xff;
+		addr[3] = mac_bridge.key[1] & 0xff;
+		addr[2] = (mac_bridge.key[1] >> 8) & 0xff;
+		addr[1] = mac_bridge.key[2] & 0xff;
+		addr[0] = (mac_bridge.key[2] >> 8) & 0xff;
+		if (mac_bridge.val[1] & GSWIP_TABLE_MAC_BRIDGE_STATIC) {
+			if (mac_bridge.val[0] & BIT(port)) {
+				err = cb(addr, 0, true, data);
+				if (err)
+					return err;
+			}
+		} else {
+			if (((mac_bridge.val[0] & GENMASK(7, 4)) >> 4) == port) {
+				err = cb(addr, 0, false, data);
+				if (err)
+					return err;
+			}
+		}
+	}
+	return 0;
+}
+
+static int gswip_port_max_mtu(struct dsa_switch *ds, int port)
+{
+	/* Includes 8 bytes for special header. */
+	return GSWIP_MAX_PACKET_LENGTH - VLAN_ETH_HLEN - ETH_FCS_LEN;
+}
+
+static int gswip_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct gswip_priv *priv = ds->priv;
+	int cpu_port = priv->hw_info->cpu_port;
+
+	/* CPU port always has maximum mtu of user ports, so use it to set
+	 * switch frame size, including 8 byte special header.
+	 */
+	if (port == cpu_port) {
+		new_mtu += 8;
+		gswip_switch_w(priv, VLAN_ETH_HLEN + new_mtu + ETH_FCS_LEN,
+			       GSWIP_MAC_FLEN);
+	}
+
+	/* Enable MLEN for ports with non-standard MTUs, including the special
+	 * header on the CPU port added above.
+	 */
+	if (new_mtu != ETH_DATA_LEN)
+		gswip_switch_mask(priv, 0, GSWIP_MAC_CTRL_2_MLEN,
+				  GSWIP_MAC_CTRL_2p(port));
+	else
+		gswip_switch_mask(priv, GSWIP_MAC_CTRL_2_MLEN, 0,
+				  GSWIP_MAC_CTRL_2p(port));
+
+	return 0;
+}
+
+static void gswip_xrx200_phylink_get_caps(struct dsa_switch *ds, int port,
+					  struct phylink_config *config)
+{
+	switch (port) {
+	case 0:
+	case 1:
+		phy_interface_set_rgmii(config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_MII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_REVMII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  config->supported_interfaces);
+		break;
+
+	case 2:
+	case 3:
+	case 4:
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		break;
+
+	case 5:
+		phy_interface_set_rgmii(config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		break;
+	}
+
+	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+		MAC_10 | MAC_100 | MAC_1000;
+}
+
+static void gswip_xrx300_phylink_get_caps(struct dsa_switch *ds, int port,
+					  struct phylink_config *config)
+{
+	switch (port) {
+	case 0:
+		phy_interface_set_rgmii(config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  config->supported_interfaces);
+		break;
+
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		break;
+
+	case 5:
+		phy_interface_set_rgmii(config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  config->supported_interfaces);
+		break;
+	}
+
+	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+		MAC_10 | MAC_100 | MAC_1000;
+}
+
+static void gswip_port_set_link(struct gswip_priv *priv, int port, bool link)
+{
+	u32 mdio_phy;
+
+	if (link)
+		mdio_phy = GSWIP_MDIO_PHY_LINK_UP;
+	else
+		mdio_phy = GSWIP_MDIO_PHY_LINK_DOWN;
+
+	gswip_mdio_mask(priv, GSWIP_MDIO_PHY_LINK_MASK, mdio_phy,
+			GSWIP_MDIO_PHYp(port));
+}
+
+static void gswip_port_set_speed(struct gswip_priv *priv, int port, int speed,
+				 phy_interface_t interface)
+{
+	u32 mdio_phy = 0, mii_cfg = 0, mac_ctrl_0 = 0;
+
+	switch (speed) {
+	case SPEED_10:
+		mdio_phy = GSWIP_MDIO_PHY_SPEED_M10;
+
+		if (interface == PHY_INTERFACE_MODE_RMII)
+			mii_cfg = GSWIP_MII_CFG_RATE_M50;
+		else
+			mii_cfg = GSWIP_MII_CFG_RATE_M2P5;
+
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_GMII_MII;
+		break;
+
+	case SPEED_100:
+		mdio_phy = GSWIP_MDIO_PHY_SPEED_M100;
+
+		if (interface == PHY_INTERFACE_MODE_RMII)
+			mii_cfg = GSWIP_MII_CFG_RATE_M50;
+		else
+			mii_cfg = GSWIP_MII_CFG_RATE_M25;
+
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_GMII_MII;
+		break;
+
+	case SPEED_1000:
+		mdio_phy = GSWIP_MDIO_PHY_SPEED_G1;
+
+		mii_cfg = GSWIP_MII_CFG_RATE_M125;
+
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_GMII_RGMII;
+		break;
+	}
+
+	gswip_mdio_mask(priv, GSWIP_MDIO_PHY_SPEED_MASK, mdio_phy,
+			GSWIP_MDIO_PHYp(port));
+	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_RATE_MASK, mii_cfg, port);
+	gswip_switch_mask(priv, GSWIP_MAC_CTRL_0_GMII_MASK, mac_ctrl_0,
+			  GSWIP_MAC_CTRL_0p(port));
+}
+
+static void gswip_port_set_duplex(struct gswip_priv *priv, int port, int duplex)
+{
+	u32 mac_ctrl_0, mdio_phy;
+
+	if (duplex == DUPLEX_FULL) {
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FDUP_EN;
+		mdio_phy = GSWIP_MDIO_PHY_FDUP_EN;
+	} else {
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FDUP_DIS;
+		mdio_phy = GSWIP_MDIO_PHY_FDUP_DIS;
+	}
+
+	gswip_switch_mask(priv, GSWIP_MAC_CTRL_0_FDUP_MASK, mac_ctrl_0,
+			  GSWIP_MAC_CTRL_0p(port));
+	gswip_mdio_mask(priv, GSWIP_MDIO_PHY_FDUP_MASK, mdio_phy,
+			GSWIP_MDIO_PHYp(port));
+}
+
+static void gswip_port_set_pause(struct gswip_priv *priv, int port,
+				 bool tx_pause, bool rx_pause)
+{
+	u32 mac_ctrl_0, mdio_phy;
+
+	if (tx_pause && rx_pause) {
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FCON_RXTX;
+		mdio_phy = GSWIP_MDIO_PHY_FCONTX_EN |
+			   GSWIP_MDIO_PHY_FCONRX_EN;
+	} else if (tx_pause) {
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FCON_TX;
+		mdio_phy = GSWIP_MDIO_PHY_FCONTX_EN |
+			   GSWIP_MDIO_PHY_FCONRX_DIS;
+	} else if (rx_pause) {
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FCON_RX;
+		mdio_phy = GSWIP_MDIO_PHY_FCONTX_DIS |
+			   GSWIP_MDIO_PHY_FCONRX_EN;
+	} else {
+		mac_ctrl_0 = GSWIP_MAC_CTRL_0_FCON_NONE;
+		mdio_phy = GSWIP_MDIO_PHY_FCONTX_DIS |
+			   GSWIP_MDIO_PHY_FCONRX_DIS;
+	}
+
+	gswip_switch_mask(priv, GSWIP_MAC_CTRL_0_FCON_MASK,
+			  mac_ctrl_0, GSWIP_MAC_CTRL_0p(port));
+	gswip_mdio_mask(priv,
+			GSWIP_MDIO_PHY_FCONTX_MASK |
+			GSWIP_MDIO_PHY_FCONRX_MASK,
+			mdio_phy, GSWIP_MDIO_PHYp(port));
 }
 
 static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
@@ -693,12 +1689,19 @@ static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		miicfg |= GSWIP_MII_CFG_MODE_RGMII;
 		break;
+	case PHY_INTERFACE_MODE_GMII:
+		miicfg |= GSWIP_MII_CFG_MODE_GMII;
+		break;
 	default:
 		dev_err(ds->dev,
 			"Unsupported interface: %d\n", state->interface);
 		return;
 	}
-	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_MODE_MASK, miicfg, port);
+
+	gswip_mii_mask_cfg(priv,
+			   GSWIP_MII_CFG_MODE_MASK | GSWIP_MII_CFG_RMII_CLK |
+			   GSWIP_MII_CFG_RGMII_IBS | GSWIP_MII_CFG_LDCLKDIS,
+			   miicfg, port);
 
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_RGMII_ID:
@@ -723,18 +1726,28 @@ static void gswip_phylink_mac_link_down(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 
 	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, port);
+
+	if (!dsa_is_cpu_port(ds, port))
+		gswip_port_set_link(priv, port, false);
 }
 
 static void gswip_phylink_mac_link_up(struct dsa_switch *ds, int port,
 				      unsigned int mode,
 				      phy_interface_t interface,
-				      struct phy_device *phydev)
+				      struct phy_device *phydev,
+				      int speed, int duplex,
+				      bool tx_pause, bool rx_pause)
 {
 	struct gswip_priv *priv = ds->priv;
 
-	/* Enable the xMII interface only for the external PHY */
-	if (interface != PHY_INTERFACE_MODE_INTERNAL)
-		gswip_mii_mask_cfg(priv, 0, GSWIP_MII_CFG_EN, port);
+	if (!dsa_is_cpu_port(ds, port)) {
+		gswip_port_set_link(priv, port, true);
+		gswip_port_set_speed(priv, port, speed, interface);
+		gswip_port_set_duplex(priv, port, duplex);
+		gswip_port_set_pause(priv, port, tx_pause, rx_pause);
+	}
+
+	gswip_mii_mask_cfg(priv, 0, GSWIP_MII_CFG_EN, port);
 }
 
 static void gswip_get_strings(struct dsa_switch *ds, int port, u32 stringset,
@@ -805,12 +1818,50 @@ static int gswip_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(gswip_rmon_cnt);
 }
 
-static const struct dsa_switch_ops gswip_switch_ops = {
+static const struct dsa_switch_ops gswip_xrx200_switch_ops = {
 	.get_tag_protocol	= gswip_get_tag_protocol,
 	.setup			= gswip_setup,
 	.port_enable		= gswip_port_enable,
 	.port_disable		= gswip_port_disable,
-	.phylink_validate	= gswip_phylink_validate,
+	.port_bridge_join	= gswip_port_bridge_join,
+	.port_bridge_leave	= gswip_port_bridge_leave,
+	.port_fast_age		= gswip_port_fast_age,
+	.port_vlan_filtering	= gswip_port_vlan_filtering,
+	.port_vlan_add		= gswip_port_vlan_add,
+	.port_vlan_del		= gswip_port_vlan_del,
+	.port_stp_state_set	= gswip_port_stp_state_set,
+	.port_fdb_add		= gswip_port_fdb_add,
+	.port_fdb_del		= gswip_port_fdb_del,
+	.port_fdb_dump		= gswip_port_fdb_dump,
+	.port_change_mtu	= gswip_port_change_mtu,
+	.port_max_mtu		= gswip_port_max_mtu,
+	.phylink_get_caps	= gswip_xrx200_phylink_get_caps,
+	.phylink_mac_config	= gswip_phylink_mac_config,
+	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
+	.phylink_mac_link_up	= gswip_phylink_mac_link_up,
+	.get_strings		= gswip_get_strings,
+	.get_ethtool_stats	= gswip_get_ethtool_stats,
+	.get_sset_count		= gswip_get_sset_count,
+};
+
+static const struct dsa_switch_ops gswip_xrx300_switch_ops = {
+	.get_tag_protocol	= gswip_get_tag_protocol,
+	.setup			= gswip_setup,
+	.port_enable		= gswip_port_enable,
+	.port_disable		= gswip_port_disable,
+	.port_bridge_join	= gswip_port_bridge_join,
+	.port_bridge_leave	= gswip_port_bridge_leave,
+	.port_fast_age		= gswip_port_fast_age,
+	.port_vlan_filtering	= gswip_port_vlan_filtering,
+	.port_vlan_add		= gswip_port_vlan_add,
+	.port_vlan_del		= gswip_port_vlan_del,
+	.port_stp_state_set	= gswip_port_stp_state_set,
+	.port_fdb_add		= gswip_port_fdb_add,
+	.port_fdb_del		= gswip_port_fdb_del,
+	.port_fdb_dump		= gswip_port_fdb_dump,
+	.port_change_mtu	= gswip_port_change_mtu,
+	.port_max_mtu		= gswip_port_max_mtu,
+	.phylink_get_caps	= gswip_xrx300_phylink_get_caps,
 	.phylink_mac_config	= gswip_phylink_mac_config,
 	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
 	.phylink_mac_link_up	= gswip_phylink_mac_link_up,
@@ -858,6 +1909,12 @@ static int gswip_gphy_fw_load(struct gswip_priv *priv, struct gswip_gphy_fw *gph
 		return ret;
 
 	reset_control_assert(gphy_fw->reset);
+
+	/* The vendor BSP uses a 200ms delay after asserting the reset line.
+	 * Without this some users are observing that the PHY is not coming up
+	 * on the MDIO bus.
+	 */
+	msleep(200);
 
 	ret = request_firmware(&fw, gphy_fw->fw_name, dev);
 	if (ret) {
@@ -1013,10 +2070,22 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 	for_each_available_child_of_node(gphy_fw_list_np, gphy_fw_np) {
 		err = gswip_gphy_fw_probe(priv, &priv->gphy_fw[i],
 					  gphy_fw_np, i);
-		if (err)
+		if (err) {
+			of_node_put(gphy_fw_np);
 			goto remove_gphy;
+		}
 		i++;
 	}
+
+	/* The standalone PHY11G requires 300ms to be fully
+	 * initialized and ready for any MDIO communication after being
+	 * taken out of reset. For the SoC-internal GPHY variant there
+	 * is no (known) documentation for the minimum time after a
+	 * reset. Use the same value as for the standalone variant as
+	 * some users have reported internal PHYs not being detected
+	 * without any delay.
+	 */
+	msleep(300);
 
 	return 0;
 
@@ -1029,8 +2098,7 @@ remove_gphy:
 static int gswip_probe(struct platform_device *pdev)
 {
 	struct gswip_priv *priv;
-	struct resource *gswip_res, *mdio_res, *mii_res;
-	struct device_node *mdio_np, *gphy_fw_np;
+	struct device_node *np, *mdio_np, *gphy_fw_np;
 	struct device *dev = &pdev->dev;
 	int err;
 	int i;
@@ -1040,18 +2108,15 @@ static int gswip_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	gswip_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->gswip = devm_ioremap_resource(dev, gswip_res);
+	priv->gswip = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->gswip))
 		return PTR_ERR(priv->gswip);
 
-	mdio_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->mdio = devm_ioremap_resource(dev, mdio_res);
+	priv->mdio = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->mdio))
 		return PTR_ERR(priv->mdio);
 
-	mii_res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	priv->mii = devm_ioremap_resource(dev, mii_res);
+	priv->mii = devm_platform_ioremap_resource(pdev, 2);
 	if (IS_ERR(priv->mii))
 		return PTR_ERR(priv->mii);
 
@@ -1059,20 +2124,41 @@ static int gswip_probe(struct platform_device *pdev)
 	if (!priv->hw_info)
 		return -EINVAL;
 
-	priv->ds = dsa_switch_alloc(dev, priv->hw_info->max_ports);
+	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
 	if (!priv->ds)
 		return -ENOMEM;
 
+	priv->ds->dev = dev;
+	priv->ds->num_ports = priv->hw_info->max_ports;
 	priv->ds->priv = priv;
-	priv->ds->ops = &gswip_switch_ops;
+	priv->ds->ops = priv->hw_info->ops;
 	priv->dev = dev;
+	mutex_init(&priv->pce_table_lock);
 	version = gswip_switch_r(priv, GSWIP_VERSION);
 
+	np = dev->of_node;
+	switch (version) {
+	case GSWIP_VERSION_2_0:
+	case GSWIP_VERSION_2_1:
+		if (!of_device_is_compatible(np, "lantiq,xrx200-gswip"))
+			return -EINVAL;
+		break;
+	case GSWIP_VERSION_2_2:
+	case GSWIP_VERSION_2_2_ETC:
+		if (!of_device_is_compatible(np, "lantiq,xrx300-gswip") &&
+		    !of_device_is_compatible(np, "lantiq,xrx330-gswip"))
+			return -EINVAL;
+		break;
+	default:
+		dev_err(dev, "unknown GSWIP version: 0x%x", version);
+		return -ENOENT;
+	}
+
 	/* bring up the mdio bus */
-	gphy_fw_np = of_find_compatible_node(pdev->dev.of_node, NULL,
-					     "lantiq,gphy-fw");
+	gphy_fw_np = of_get_compatible_child(dev->of_node, "lantiq,gphy-fw");
 	if (gphy_fw_np) {
 		err = gswip_gphy_fw_list(priv, gphy_fw_np, version);
+		of_node_put(gphy_fw_np);
 		if (err) {
 			dev_err(dev, "gphy fw probe failed\n");
 			return err;
@@ -1080,13 +2166,12 @@ static int gswip_probe(struct platform_device *pdev)
 	}
 
 	/* bring up the mdio bus */
-	mdio_np = of_find_compatible_node(pdev->dev.of_node, NULL,
-					  "lantiq,xrx200-mdio");
+	mdio_np = of_get_compatible_child(dev->of_node, "lantiq,xrx200-mdio");
 	if (mdio_np) {
 		err = gswip_mdio(priv, mdio_np);
 		if (err) {
 			dev_err(dev, "mdio probe failed\n");
-			goto gphy_fw;
+			goto put_mdio_node;
 		}
 	}
 
@@ -1099,7 +2184,7 @@ static int gswip_probe(struct platform_device *pdev)
 		dev_err(dev, "wrong CPU port defined, HW only supports port: %i",
 			priv->hw_info->cpu_port);
 		err = -EINVAL;
-		goto mdio_bus;
+		goto disable_switch;
 	}
 
 	platform_set_drvdata(pdev, priv);
@@ -1109,10 +2194,16 @@ static int gswip_probe(struct platform_device *pdev)
 		 (version & GSWIP_VERSION_MOD_MASK) >> GSWIP_VERSION_MOD_SHIFT);
 	return 0;
 
+disable_switch:
+	gswip_mdio_mask(priv, GSWIP_MDIO_GLOB_ENABLE, 0, GSWIP_MDIO_GLOB);
+	dsa_unregister_switch(priv->ds);
 mdio_bus:
-	if (mdio_np)
+	if (mdio_np) {
 		mdiobus_unregister(priv->ds->slave_mii_bus);
-gphy_fw:
+		mdiobus_free(priv->ds->slave_mii_bus);
+	}
+put_mdio_node:
+	of_node_put(mdio_np);
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
 	return err;
@@ -1131,22 +2222,48 @@ static int gswip_remove(struct platform_device *pdev)
 
 	dsa_unregister_switch(priv->ds);
 
-	if (priv->ds->slave_mii_bus)
+	if (priv->ds->slave_mii_bus) {
 		mdiobus_unregister(priv->ds->slave_mii_bus);
+		of_node_put(priv->ds->slave_mii_bus->dev.of_node);
+		mdiobus_free(priv->ds->slave_mii_bus);
+	}
 
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
 
+	platform_set_drvdata(pdev, NULL);
+
 	return 0;
+}
+
+static void gswip_shutdown(struct platform_device *pdev)
+{
+	struct gswip_priv *priv = platform_get_drvdata(pdev);
+
+	if (!priv)
+		return;
+
+	dsa_switch_shutdown(priv->ds);
+
+	platform_set_drvdata(pdev, NULL);
 }
 
 static const struct gswip_hw_info gswip_xrx200 = {
 	.max_ports = 7,
 	.cpu_port = 6,
+	.ops = &gswip_xrx200_switch_ops,
+};
+
+static const struct gswip_hw_info gswip_xrx300 = {
+	.max_ports = 7,
+	.cpu_port = 6,
+	.ops = &gswip_xrx300_switch_ops,
 };
 
 static const struct of_device_id gswip_of_match[] = {
 	{ .compatible = "lantiq,xrx200-gswip", .data = &gswip_xrx200 },
+	{ .compatible = "lantiq,xrx300-gswip", .data = &gswip_xrx300 },
+	{ .compatible = "lantiq,xrx330-gswip", .data = &gswip_xrx300 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, gswip_of_match);
@@ -1154,6 +2271,7 @@ MODULE_DEVICE_TABLE(of, gswip_of_match);
 static struct platform_driver gswip_driver = {
 	.probe = gswip_probe,
 	.remove = gswip_remove,
+	.shutdown = gswip_shutdown,
 	.driver = {
 		.name = "gswip",
 		.of_match_table = gswip_of_match,
@@ -1162,6 +2280,12 @@ static struct platform_driver gswip_driver = {
 
 module_platform_driver(gswip_driver);
 
+MODULE_FIRMWARE("lantiq/xrx300_phy11g_a21.bin");
+MODULE_FIRMWARE("lantiq/xrx300_phy22f_a21.bin");
+MODULE_FIRMWARE("lantiq/xrx200_phy11g_a14.bin");
+MODULE_FIRMWARE("lantiq/xrx200_phy11g_a22.bin");
+MODULE_FIRMWARE("lantiq/xrx200_phy22f_a14.bin");
+MODULE_FIRMWARE("lantiq/xrx200_phy22f_a22.bin");
 MODULE_AUTHOR("Hauke Mehrtens <hauke@hauke-m.de>");
 MODULE_DESCRIPTION("Lantiq / Intel GSWIP driver");
 MODULE_LICENSE("GPL v2");

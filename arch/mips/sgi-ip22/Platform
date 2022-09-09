@@ -7,7 +7,6 @@
 # current variable will break so for 64-bit kernels we have to raise the start
 # address by 8kb.
 #
-platform-$(CONFIG_SGI_IP22)		+= sgi-ip22/
 cflags-$(CONFIG_SGI_IP22)	+= -I$(srctree)/arch/mips/include/asm/mach-ip22
 ifdef CONFIG_32BIT
 load-$(CONFIG_SGI_IP22)		+= 0xffffffff88002000
@@ -24,11 +23,5 @@ endif
 # be 16kb aligned or the handling of the current variable will break.
 # Simplified: what IP22 does at 128MB+ in ksegN, IP28 does at 512MB+ in xkphys
 #
-ifdef CONFIG_SGI_IP28
-  ifeq ($(call cc-option-yn,-march=r10000 -mr10k-cache-barrier=store), n)
-      $(error gcc doesn't support needed option -mr10k-cache-barrier=store)
-  endif
-endif
-platform-$(CONFIG_SGI_IP28)		+= sgi-ip22/
 cflags-$(CONFIG_SGI_IP28)	+= -mr10k-cache-barrier=store -I$(srctree)/arch/mips/include/asm/mach-ip28
 load-$(CONFIG_SGI_IP28)		+= 0xa800000020004000

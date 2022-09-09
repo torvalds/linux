@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/usb/ohci_pdriver.h>
+#include <asm/platform_early.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_REIE,
@@ -221,7 +222,7 @@ static struct platform_device *sh7763_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7763_early_devices,
+	sh_early_platform_add_devices(sh7763_early_devices,
 				   ARRAY_SIZE(sh7763_early_devices));
 }
 

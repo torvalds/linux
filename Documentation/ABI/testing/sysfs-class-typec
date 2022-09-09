@@ -20,13 +20,13 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		The supported power roles. This attribute can be used to request
-		power role swap on the port when the port supports USB Power
-		Delivery. Swapping is supported as synchronous operation, so
-		write(2) to the attribute will not return until the operation
-		has finished. The attribute is notified about role changes so
-		that poll(2) on the attribute wakes up. Change on the role will
-		also generate uevent KOBJ_CHANGE. The current role is show in
-		brackets, for example "[source] sink" when in source mode.
+		power role swap on the port. Swapping is supported as
+		synchronous operation, so write(2) to the attribute will not
+		return until the operation has finished. The attribute is
+		notified about role changes so that poll(2) on the attribute
+		wakes up. Change on the role will also generate uevent
+		KOBJ_CHANGE. The current role is show in brackets, for example
+		"[source] sink" when in source mode.
 
 		Valid values: source, sink
 
@@ -40,10 +40,13 @@ Description:
 		attribute will not return until the operation has finished.
 
 		Valid values:
-		- source (The port will behave as source only DFP port)
-		- sink (The port will behave as sink only UFP port)
-		- dual (The port will behave as dual-role-data and
+
+		======  ==============================================
+		source  (The port will behave as source only DFP port)
+		sink    (The port will behave as sink only UFP port)
+		dual    (The port will behave as dual-role-data and
 			dual-role-power port)
+		======  ==============================================
 
 What:		/sys/class/typec/<port>/vconn_source
 Date:		April 2017
@@ -59,6 +62,7 @@ Description:
 		generates uevent KOBJ_CHANGE.
 
 		Valid values:
+
 		- "no" when the port is not the VCONN Source
 		- "yes" when the port is the VCONN Source
 
@@ -72,6 +76,7 @@ Description:
 		power operation mode should show "usb_power_delivery".
 
 		Valid values:
+
 		- default
 		- 1.5A
 		- 3.0A
@@ -100,7 +105,25 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Revision number of the supported USB Power Delivery
-		specification, or 0 when USB Power Delivery is not supported.
+		specification, or 0.0 when USB Power Delivery is not supported.
+
+		Example values:
+		- "2.0": USB Power Delivery Release 2.0
+		- "3.0": USB Power Delivery Release 3.0
+		- "3.1": USB Power Delivery Release 3.1
+
+What:		/sys/class/typec/<port>-{partner|cable}/usb_power_delivery_revision
+Date:		January 2021
+Contact:	Benson Leung <bleung@chromium.org>
+Description:
+		Revision number of the supported USB Power Delivery
+		specification of the port partner or cable, or 0.0 when USB
+		Power Delivery is not supported.
+
+		Example values:
+		- "2.0": USB Power Delivery Release 2.0
+		- "3.0": USB Power Delivery Release 3.0
+		- "3.1": USB Power Delivery Release 3.1
 
 What:		/sys/class/typec/<port>/usb_typec_revision
 Date:		April 2017
@@ -108,6 +131,23 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Revision number of the supported USB Type-C specification.
 
+What:		/sys/class/typec/<port>/orientation
+Date:		February 2020
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		Indicates the active orientation of the Type-C connector.
+		Valid values:
+		- "normal": CC1 orientation
+		- "reverse": CC2 orientation
+		- "unknown": Orientation cannot be determined.
+
+What:		/sys/class/typec/<port>/select_usb_power_delivery
+Date:		May 2022
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Lists the USB Power Delivery Capabilities that the port can
+		advertise to the partner. The currently used capabilities are in
+		brackets. Selection happens by writing to the file.
 
 USB Type-C partner devices (eg. /sys/class/typec/port0-partner/)
 
@@ -125,7 +165,50 @@ Description:
 		Shows if the partner supports USB Power Delivery communication:
 		Valid values: yes, no
 
-What:		/sys/class/typec/<port>-partner>/identity/
+What:		/sys/class/typec/<port>-partner/number_of_alternate_modes
+Date:		November 2020
+Contact:	Prashant Malani <pmalani@chromium.org>
+Description:
+		Shows the number of alternate modes which are advertised by the partner
+		during Power Delivery discovery. This file remains hidden until a value
+		greater than or equal to 0 is set by Type C port driver.
+
+What:		/sys/class/typec/<port>-partner/type
+Date:		December 2020
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:	USB Power Delivery Specification defines a set of product types
+		for the partner devices. This file will show the product type of
+		the partner if it is known. Dual-role capable partners will have
+		both UFP and DFP product types defined, but only one that
+		matches the current role will be active at the time. If the
+		product type of the partner is not visible to the device driver,
+		this file will not exist.
+
+		When the partner product type is detected, or changed with role
+		swap, uvevent is also raised that contains PRODUCT_TYPE=<product
+		type> (for example PRODUCT_TYPE=hub).
+
+		Valid values:
+
+		UFP / device role
+		======================  ==========================
+		undefined		-
+		hub			PDUSB Hub
+		peripheral		PDUSB Peripheral
+		psd			Power Bank
+		ama			Alternate Mode Adapter
+		======================  ==========================
+
+		DFP / host role
+		======================  ==========================
+		undefined		-
+		hub			PDUSB Hub
+		host			PDUSB Host
+		power_brick		Power Brick
+		amc			Alternate Mode Controller
+		======================  ==========================
+
+What:		/sys/class/typec/<port>-partner/identity/
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
@@ -136,31 +219,6 @@ Description:
 		communication for the port is mostly handled in firmware. If the
 		directory exists, it will have an attribute file for every VDO
 		in Discover Identity command result.
-
-What:		/sys/class/typec/<port>-partner/identity/id_header
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		ID Header VDO part of Discover Identity command result. The
-		value will show 0 until Discover Identity command result becomes
-		available. The value can be polled.
-
-What:		/sys/class/typec/<port>-partner/identity/cert_stat
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Cert Stat VDO part of Discover Identity command result. The
-		value will show 0 until Discover Identity command result becomes
-		available. The value can be polled.
-
-What:		/sys/class/typec/<port>-partner/identity/product
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Product VDO part of Discover Identity command result. The value
-		will show 0 until Discover Identity command result becomes
-		available. The value can be polled.
-
 
 USB Type-C cable devices (eg. /sys/class/typec/port0-cable/)
 
@@ -173,31 +231,64 @@ described in USB Type-C and USB Power Delivery specifications.
 What:		/sys/class/typec/<port>-cable/type
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Shows if the cable is active.
-		Valid values: active, passive
+Description:	USB Power Delivery Specification defines a set of product types
+		for the cables. This file will show the product type of the
+		cable if it is known. If the product type of the cable is not
+		visible to the device driver, this file will not exist.
+
+		When the cable product type is detected, uvevent is also raised
+		with PRODUCT_TYPE showing the product type of the cable.
+
+		Valid values:
+
+		======================  ==========================
+		undefined		-
+		active			Active Cable
+		passive			Passive Cable
+		======================  ==========================
 
 What:		/sys/class/typec/<port>-cable/plug_type
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Shows type of the plug on the cable:
+
 		- type-a - Standard A
 		- type-b - Standard B
 		- type-c
 		- captive
 
-What:		/sys/class/typec/<port>-cable/identity/
+What:		/sys/class/typec/<port>-<plug>/number_of_alternate_modes
+Date:		November 2020
+Contact:	Prashant Malani <pmalani@chromium.org>
+Description:
+		Shows the number of alternate modes which are advertised by the plug
+		associated with a particular cable during Power Delivery discovery.
+		This file remains hidden until a value greater than or equal to 0
+		is set by Type C port driver.
+
+
+USB Type-C partner/cable Power Delivery Identity objects
+
+NOTE: The following attributes will be applicable to both
+partner (e.g /sys/class/typec/port0-partner/) and
+cable (e.g /sys/class/typec/port0-cable/) devices. Consequently, the example file
+paths below are prefixed with "/sys/class/typec/<port>-{partner|cable}/" to
+reflect this.
+
+What:		/sys/class/typec/<port>-{partner|cable}/identity/
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		This directory appears only if the port device driver is capable
 		of showing the result of Discover Identity USB power delivery
 		command. That will not always be possible even when USB power
-		delivery is supported. If the directory exists, it will have an
-		attribute for every VDO returned by Discover Identity command.
+		delivery is supported, for example when USB power delivery
+		communication for the port is mostly handled in firmware. If the
+		directory exists, it will have an attribute file for every VDO
+		in Discover Identity command result.
 
-What:		/sys/class/typec/<port>-cable/identity/id_header
+What:		/sys/class/typec/<port>-{partner|cable}/identity/id_header
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
@@ -205,7 +296,7 @@ Description:
 		value will show 0 until Discover Identity command result becomes
 		available. The value can be polled.
 
-What:		/sys/class/typec/<port>-cable/identity/cert_stat
+What:		/sys/class/typec/<port>-{partner|cable}/identity/cert_stat
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
@@ -213,13 +304,37 @@ Description:
 		value will show 0 until Discover Identity command result becomes
 		available. The value can be polled.
 
-What:		/sys/class/typec/<port>-cable/identity/product
+What:		/sys/class/typec/<port>-{partner|cable}/identity/product
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Product VDO part of Discover Identity command result. The value
 		will show 0 until Discover Identity command result becomes
 		available. The value can be polled.
+
+What:		/sys/class/typec/<port>-{partner|cable}/identity/product_type_vdo1
+Date:		October 2020
+Contact:	Prashant Malani <pmalani@chromium.org>
+Description:
+		1st Product Type VDO of Discover Identity command result.
+		The value will show 0 until Discover Identity command result becomes
+		available and a valid Product Type VDO is returned.
+
+What:		/sys/class/typec/<port>-{partner|cable}/identity/product_type_vdo2
+Date:		October 2020
+Contact:	Prashant Malani <pmalani@chromium.org>
+Description:
+		2nd Product Type VDO of Discover Identity command result.
+		The value will show 0 until Discover Identity command result becomes
+		available and a valid Product Type VDO is returned.
+
+What:		/sys/class/typec/<port>-{partner|cable}/identity/product_type_vdo3
+Date:		October 2020
+Contact:	Prashant Malani <pmalani@chromium.org>
+Description:
+		3rd Product Type VDO of Discover Identity command result.
+		The value will show 0 until Discover Identity command result becomes
+		available and a valid Product Type VDO is returned.
 
 
 USB Type-C port alternate mode devices.

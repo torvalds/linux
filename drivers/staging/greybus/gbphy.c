@@ -13,8 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 
 #define GB_GBPHY_AUTOSUSPEND_MS	3000
@@ -27,7 +27,7 @@ struct gbphy_host {
 static DEFINE_IDA(gbphy_id);
 
 static ssize_t protocol_id_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+				struct device_attribute *attr, char *buf)
 {
 	struct gbphy_device *gbphy_dev = to_gbphy_dev(dev);
 
@@ -169,7 +169,7 @@ static int gbphy_dev_probe(struct device *dev)
 	return ret;
 }
 
-static int gbphy_dev_remove(struct device *dev)
+static void gbphy_dev_remove(struct device *dev)
 {
 	struct gbphy_driver *gbphy_drv = to_gbphy_driver(dev->driver);
 	struct gbphy_device *gbphy_dev = to_gbphy_dev(dev);
@@ -180,8 +180,6 @@ static int gbphy_dev_remove(struct device *dev)
 	pm_runtime_set_suspended(dev);
 	pm_runtime_put_noidle(dev);
 	pm_runtime_dont_use_autosuspend(dev);
-
-	return 0;
 }
 
 static struct bus_type gbphy_bus_type = {
@@ -221,7 +219,7 @@ void gb_gbphy_deregister_driver(struct gbphy_driver *driver)
 EXPORT_SYMBOL_GPL(gb_gbphy_deregister_driver);
 
 static struct gbphy_device *gb_gbphy_create_dev(struct gb_bundle *bundle,
-				struct greybus_descriptor_cport *cport_desc)
+						struct greybus_descriptor_cport *cport_desc)
 {
 	struct gbphy_device *gbphy_dev;
 	int retval;

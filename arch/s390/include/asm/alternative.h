@@ -13,32 +13,25 @@ struct alt_instr {
 	s32 repl_offset;	/* offset to replacement instruction */
 	u16 facility;		/* facility bit set for replacement */
 	u8  instrlen;		/* length of original instruction */
-	u8  replacementlen;	/* length of new instruction */
 } __packed;
 
 void apply_alternative_instructions(void);
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 
 /*
- * |661:       |662:	  |6620      |663:
- * +-----------+---------------------+
- * | oldinstr  | oldinstr_padding    |
- * |	       +----------+----------+
- * |	       |	  |	     |
- * |	       | >6 bytes |6/4/2 nops|
- * |	       |6 bytes jg----------->
- * +-----------+---------------------+
- *		 ^^ static padding ^^
+ * +---------------------------------+
+ * |661:			     |662:
+ * | oldinstr			     |
+ * +---------------------------------+
  *
  * .altinstr_replacement section
- * +---------------------+-----------+
+ * +---------------------------------+
  * |6641:			     |6651:
  * | alternative instr 1	     |
- * +-----------+---------+- - - - - -+
- * |6642:		 |6652:      |
- * | alternative instr 2 | padding
- * +---------------------+- - - - - -+
- *			  ^ runtime ^
+ * +---------------------------------+
+ * |6642:			     |6652:
+ * | alternative instr 2	     |
+ * +---------------------------------+
  *
  * .altinstructions section
  * +---------------------------------+
@@ -47,70 +40,31 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
  * +---------------------------------+
  */
 
-#define b_altinstr(num)	"664"#num
-#define e_altinstr(num)	"665"#num
-
-#define e_oldinstr_pad_end	"663"
+#define b_altinstr(num)		"664"#num
+#define e_altinstr(num)		"665"#num
 #define oldinstr_len		"662b-661b"
-#define oldinstr_total_len	e_oldinstr_pad_end"b-661b"
 #define altinstr_len(num)	e_altinstr(num)"b-"b_altinstr(num)"b"
-#define oldinstr_pad_len(num) \
-	"-(((" altinstr_len(num) ")-(" oldinstr_len ")) > 0) * " \
-	"((" altinstr_len(num) ")-(" oldinstr_len "))"
 
-#define INSTR_LEN_SANITY_CHECK(len)					\
-	".if " len " > 254\n"						\
-	"\t.error \"cpu alternatives does not support instructions "	\
-		"blocks > 254 bytes\"\n"				\
-	".endif\n"							\
-	".if (" len ") %% 2\n"						\
-	"\t.error \"cpu alternatives instructions length is odd\"\n"	\
-	".endif\n"
-
-#define OLDINSTR_PADDING(oldinstr, num)					\
-	".if " oldinstr_pad_len(num) " > 6\n"				\
-	"\tjg " e_oldinstr_pad_end "f\n"				\
-	"6620:\n"							\
-	"\t.fill (" oldinstr_pad_len(num) " - (6620b-662b)) / 2, 2, 0x0700\n" \
-	".else\n"							\
-	"\t.fill " oldinstr_pad_len(num) " / 6, 6, 0xc0040000\n"	\
-	"\t.fill " oldinstr_pad_len(num) " %% 6 / 4, 4, 0x47000000\n"	\
-	"\t.fill " oldinstr_pad_len(num) " %% 6 %% 4 / 2, 2, 0x0700\n"	\
-	".endif\n"
-
-#define OLDINSTR(oldinstr, num)						\
-	"661:\n\t" oldinstr "\n662:\n"					\
-	OLDINSTR_PADDING(oldinstr, num)					\
-	e_oldinstr_pad_end ":\n"					\
-	INSTR_LEN_SANITY_CHECK(oldinstr_len)
-
-#define OLDINSTR_2(oldinstr, num1, num2)				\
-	"661:\n\t" oldinstr "\n662:\n"					\
-	".if " altinstr_len(num1) " < " altinstr_len(num2) "\n"		\
-	OLDINSTR_PADDING(oldinstr, num2)				\
-	".else\n"							\
-	OLDINSTR_PADDING(oldinstr, num1)				\
-	".endif\n"							\
-	e_oldinstr_pad_end ":\n"					\
-	INSTR_LEN_SANITY_CHECK(oldinstr_len)
+#define OLDINSTR(oldinstr) \
+	"661:\n\t" oldinstr "\n662:\n"
 
 #define ALTINSTR_ENTRY(facility, num)					\
 	"\t.long 661b - .\n"			/* old instruction */	\
 	"\t.long " b_altinstr(num)"b - .\n"	/* alt instruction */	\
 	"\t.word " __stringify(facility) "\n"	/* facility bit    */	\
-	"\t.byte " oldinstr_total_len "\n"	/* source len	   */	\
-	"\t.byte " altinstr_len(num) "\n"	/* alt instruction len */
+	"\t.byte " oldinstr_len "\n"		/* instruction len */	\
+	"\t.org . - (" oldinstr_len ") + (" altinstr_len(num) ")\n"	\
+	"\t.org . - (" altinstr_len(num) ") + (" oldinstr_len ")\n"
 
 #define ALTINSTR_REPLACEMENT(altinstr, num)	/* replacement */	\
-	b_altinstr(num)":\n\t" altinstr "\n" e_altinstr(num) ":\n"	\
-	INSTR_LEN_SANITY_CHECK(altinstr_len(num))
+	b_altinstr(num)":\n\t" altinstr "\n" e_altinstr(num) ":\n"
 
 /* alternative assembly primitive: */
 #define ALTERNATIVE(oldinstr, altinstr, facility) \
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(altinstr, 1)				\
 	".popsection\n"							\
-	OLDINSTR(oldinstr, 1)						\
+	OLDINSTR(oldinstr)						\
 	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(facility, 1)					\
 	".popsection\n"
@@ -120,7 +74,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 	ALTINSTR_REPLACEMENT(altinstr1, 1)				\
 	ALTINSTR_REPLACEMENT(altinstr2, 2)				\
 	".popsection\n"							\
-	OLDINSTR_2(oldinstr, 1, 2)					\
+	OLDINSTR(oldinstr)						\
 	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(facility1, 1)					\
 	ALTINSTR_ENTRY(facility2, 2)					\
@@ -139,11 +93,27 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
  * without volatile and memory clobber.
  */
 #define alternative(oldinstr, altinstr, facility)			\
-	asm volatile(ALTERNATIVE(oldinstr, altinstr, facility) : : : "memory")
+	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, facility) : : : "memory")
 
 #define alternative_2(oldinstr, altinstr1, facility1, altinstr2, facility2) \
-	asm volatile(ALTERNATIVE_2(oldinstr, altinstr1, facility1,	    \
+	asm_inline volatile(ALTERNATIVE_2(oldinstr, altinstr1, facility1,   \
 				   altinstr2, facility2) ::: "memory")
+
+/* Alternative inline assembly with input. */
+#define alternative_input(oldinstr, newinstr, feature, input...)	\
+	asm_inline volatile (ALTERNATIVE(oldinstr, newinstr, feature)	\
+		: : input)
+
+/* Like alternative_input, but with a single output argument */
+#define alternative_io(oldinstr, altinstr, facility, output, input...)	\
+	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, facility)	\
+		: output : input)
+
+/* Use this macro if more than one output parameter is needed. */
+#define ASM_OUTPUT2(a...) a
+
+/* Use this macro if clobbers are needed without inputs. */
+#define ASM_NO_INPUT_CLOBBER(clobber...) : clobber
 
 #endif /* __ASSEMBLY__ */
 

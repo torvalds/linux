@@ -1,11 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#include <dt-bindings/clock/jz4770-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4770-cgu.h>
+#include <dt-bindings/clock/ingenic,tcu.h>
 
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	compatible = "ingenic,jz4770";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "ingenic,xburst-fpu1.0-mxu1.1";
+			reg = <0>;
+
+			clocks = <&cgu JZ4770_CLK_CCLK>;
+			clock-names = "cpu";
+		};
+	};
 
 	cpuintc: interrupt-controller {
 		#address-cells = <0>;
@@ -37,13 +51,87 @@
 	};
 
 	cgu: jz4770-cgu@10000000 {
-		compatible = "ingenic,jz4770-cgu";
+		compatible = "ingenic,jz4770-cgu", "simple-mfd";
 		reg = <0x10000000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x10000000 0x100>;
 
 		clocks = <&ext>, <&osc32k>;
 		clock-names = "ext", "osc32k";
 
 		#clock-cells = <1>;
+
+		otg_phy: usb-phy@3c {
+			compatible = "ingenic,jz4770-phy";
+			reg = <0x3c 0x10>;
+
+			clocks = <&cgu JZ4770_CLK_OTG_PHY>;
+
+			#phy-cells = <0>;
+		};
+	};
+
+	tcu: timer@10002000 {
+		compatible = "ingenic,jz4770-tcu", "simple-mfd";
+		reg = <0x10002000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x10002000 0x1000>;
+
+		#clock-cells = <1>;
+
+		clocks = <&cgu JZ4770_CLK_RTC>,
+			 <&cgu JZ4770_CLK_EXT>,
+			 <&cgu JZ4770_CLK_PCLK>;
+		clock-names = "rtc", "ext", "pclk";
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <27 26 25>;
+
+		watchdog: watchdog@0 {
+			compatible = "ingenic,jz4770-watchdog",
+				     "ingenic,jz4740-watchdog";
+			reg = <0x0 0xc>;
+
+			clocks = <&tcu TCU_CLK_WDT>;
+			clock-names = "wdt";
+		};
+
+		pwm: pwm@40 {
+			compatible = "ingenic,jz4770-pwm", "ingenic,jz4740-pwm";
+			reg = <0x40 0x80>;
+
+			#pwm-cells = <3>;
+
+			clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>,
+				 <&tcu TCU_CLK_TIMER2>, <&tcu TCU_CLK_TIMER3>,
+				 <&tcu TCU_CLK_TIMER4>, <&tcu TCU_CLK_TIMER5>,
+				 <&tcu TCU_CLK_TIMER6>, <&tcu TCU_CLK_TIMER7>;
+			clock-names = "timer0", "timer1", "timer2", "timer3",
+				      "timer4", "timer5", "timer6", "timer7";
+		};
+
+		ost: timer@e0 {
+			compatible = "ingenic,jz4770-ost";
+			reg = <0xe0 0x20>;
+
+			clocks = <&tcu TCU_CLK_OST>;
+			clock-names = "ost";
+
+			interrupts = <15>;
+		};
+	};
+
+	rtc: rtc@10003000 {
+		compatible = "ingenic,jz4770-rtc", "ingenic,jz4760-rtc";
+		reg = <0x10003000 0x40>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <32>;
 	};
 
 	pinctrl: pin-controller@10010000 {
@@ -144,6 +232,93 @@
 		};
 	};
 
+	aic: audio-controller@10020000 {
+		compatible = "ingenic,jz4770-i2s";
+		reg = <0x10020000 0x94>;
+
+		#sound-dai-cells = <0>;
+
+		clocks = <&cgu JZ4770_CLK_AIC>, <&cgu JZ4770_CLK_I2S>,
+			 <&cgu JZ4770_CLK_EXT>, <&cgu JZ4770_CLK_PLL0>;
+		clock-names = "aic", "i2s", "ext", "pll half";
+
+		interrupt-parent = <&intc>;
+		interrupts = <34>;
+
+		dmas = <&dmac0 25 0xffffffff>, <&dmac0 24 0xffffffff>;
+		dma-names = "rx", "tx";
+	};
+
+	codec: audio-codec@100200a0 {
+		compatible = "ingenic,jz4770-codec";
+		reg = <0x100200a4 0x8>;
+
+		#sound-dai-cells = <0>;
+
+		clocks = <&cgu JZ4770_CLK_AIC>;
+		clock-names = "aic";
+	};
+
+	mmc0: mmc@10021000 {
+		compatible = "ingenic,jz4770-mmc", "ingenic,jz4760-mmc";
+		reg = <0x10021000 0x1000>;
+
+		clocks = <&cgu JZ4770_CLK_MMC0>;
+		clock-names = "mmc";
+
+		interrupt-parent = <&intc>;
+		interrupts = <37>;
+
+		dmas = <&dmac1 27 0xffffffff>, <&dmac1 26 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		cap-sdio-irq;
+
+		status = "disabled";
+	};
+
+	mmc1: mmc@10022000 {
+		compatible = "ingenic,jz4770-mmc", "ingenic,jz4760-mmc";
+		reg = <0x10022000 0x1000>;
+
+		clocks = <&cgu JZ4770_CLK_MMC1>;
+		clock-names = "mmc";
+
+		interrupt-parent = <&intc>;
+		interrupts = <36>;
+
+		dmas = <&dmac1 31 0xffffffff>, <&dmac1 30 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		cap-sdio-irq;
+
+		status = "disabled";
+	};
+
+	mmc2: mmc@10023000 {
+		compatible = "ingenic,jz4770-mmc", "ingenic,jz4760-mmc";
+		reg = <0x10023000 0x1000>;
+
+		clocks = <&cgu JZ4770_CLK_MMC2>;
+		clock-names = "mmc";
+
+		interrupt-parent = <&intc>;
+		interrupts = <35>;
+
+		dmas = <&dmac1 37 0xffffffff>, <&dmac1 36 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		cap-sdio-irq;
+
+		status = "disabled";
+	};
+
 	uart0: serial@10030000 {
 		compatible = "ingenic,jz4770-uart";
 		reg = <0x10030000 0x100>;
@@ -196,37 +371,66 @@
 		status = "disabled";
 	};
 
+	adc: adc@10070000 {
+		compatible = "ingenic,jz4770-adc";
+		reg = <0x10070000 0x30>;
+
+		#io-channel-cells = <1>;
+
+		clocks = <&cgu JZ4770_CLK_ADC>;
+		clock-names = "adc";
+
+		interrupt-parent = <&intc>;
+		interrupts = <18>;
+	};
+
+	gpu: gpu@13040000 {
+		compatible = "vivante,gc";
+		reg = <0x13040000 0x10000>;
+
+		clocks = <&cgu JZ4770_CLK_GPU>,
+			 <&cgu JZ4770_CLK_GPU>,
+			 <&cgu JZ4770_CLK_GPU>;
+		clock-names = "bus", "core", "shader";
+
+		interrupt-parent = <&intc>;
+		interrupts = <6>;
+	};
+
+	lcd: lcd-controller@13050000 {
+		compatible = "ingenic,jz4770-lcd";
+		reg = <0x13050000 0x130>; /* tbc */
+
+		interrupt-parent = <&intc>;
+		interrupts = <31>;
+
+		clocks = <&cgu JZ4770_CLK_LPCLK_MUX>;
+		clock-names = "lcd_pclk";
+	};
+
 	dmac0: dma-controller@13420000 {
 		compatible = "ingenic,jz4770-dma";
-		reg = <0x13420000 0xC0
-		       0x13420300 0x20>;
+		reg = <0x13420000 0xC0>, <0x13420300 0x20>;
 
-		#dma-cells = <1>;
+		#dma-cells = <2>;
 
 		clocks = <&cgu JZ4770_CLK_DMA>;
 		interrupt-parent = <&intc>;
 		interrupts = <24>;
-
-		/* Disable dmac0 until we have something that uses it */
-		status = "disabled";
 	};
 
 	dmac1: dma-controller@13420100 {
 		compatible = "ingenic,jz4770-dma";
-		reg = <0x13420100 0xC0
-		       0x13420400 0x20>;
+		reg = <0x13420100 0xC0>, <0x13420400 0x20>;
 
-		#dma-cells = <1>;
+		#dma-cells = <2>;
 
 		clocks = <&cgu JZ4770_CLK_DMA>;
 		interrupt-parent = <&intc>;
 		interrupts = <23>;
-
-		/* Disable dmac1 until we have something that uses it */
-		status = "disabled";
 	};
 
-	uhc: uhc@13430000 {
+	uhc: usb@13430000 {
 		compatible = "generic-ohci";
 		reg = <0x13430000 0x1000>;
 
@@ -238,5 +442,30 @@
 		interrupts = <20>;
 
 		status = "disabled";
+	};
+
+	usb_otg: usb@13440000 {
+		compatible = "ingenic,jz4770-musb";
+		reg = <0x13440000 0x10000>;
+
+		clocks = <&cgu JZ4770_CLK_OTG>;
+		clock-names = "udc";
+
+		interrupt-parent = <&intc>;
+		interrupts = <21>;
+		interrupt-names = "mc";
+
+		phys = <&otg_phy>;
+
+		usb-role-switch;
+	};
+
+	rom: memory@1fc00000 {
+		compatible = "mtd-rom";
+		probe-type = "map_rom";
+		reg = <0x1fc00000 0x2000>;
+
+		bank-width = <4>;
+		device-width = <1>;
 	};
 };

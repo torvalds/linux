@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/magic.h>
@@ -87,7 +83,7 @@ static int disconnect(const struct path *path, char *buf, char **name,
  *
  * Returns: %0 else error code if path lookup fails
  *          When no error the path name is returned in @name which points to
- *          to a position in @buf
+ *          a position in @buf
  */
 static int d_namespace_path(const struct path *path, char *buf, char **name,
 			    int flags, const char *disconnected)
@@ -146,7 +142,7 @@ static int d_namespace_path(const struct path *path, char *buf, char **name,
 			error = PTR_ERR(res);
 			*name = buf;
 			goto out;
-		};
+		}
 	} else if (!our_mnt(path->mnt))
 		connected = 0;
 

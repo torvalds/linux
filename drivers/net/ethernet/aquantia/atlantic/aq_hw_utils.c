@@ -1,10 +1,8 @@
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+// SPDX-License-Identifier: GPL-2.0-only
+/* Atlantic Network Driver
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_hw_utils.c: Definitions of helper functions used across
@@ -12,6 +10,9 @@
  */
 
 #include "aq_hw_utils.h"
+
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include "aq_hw.h"
 #include "aq_nic.h"
 
@@ -40,9 +41,8 @@ u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg)
 {
 	u32 value = readl(hw->mmio + reg);
 
-	if ((~0U) == value &&
-	    (~0U) == readl(hw->mmio +
-			   hw->aq_nic_cfg->aq_hw_caps->hw_alive_check_addr))
+	if (value == U32_MAX &&
+	    readl(hw->mmio + hw->aq_nic_cfg->aq_hw_caps->hw_alive_check_addr) == U32_MAX)
 		aq_utils_obj_set(&hw->flags, AQ_HW_FLAG_ERR_UNPLUG);
 
 	return value;
@@ -51,6 +51,34 @@ u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg)
 void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value)
 {
 	writel(value, hw->mmio + reg);
+}
+
+/* Most of 64-bit registers are in LSW, MSW form.
+   Counters are normally implemented by HW as latched pairs:
+   reading LSW first locks MSW, to overcome LSW overflow
+ */
+u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg)
+{
+	u64 value = U64_MAX;
+
+	if (hw->aq_nic_cfg->aq_hw_caps->op64bit)
+		value = readq(hw->mmio + reg);
+	else
+		value = lo_hi_readq(hw->mmio + reg);
+
+	if (value == U64_MAX &&
+	    readl(hw->mmio + hw->aq_nic_cfg->aq_hw_caps->hw_alive_check_addr) == U32_MAX)
+		aq_utils_obj_set(&hw->flags, AQ_HW_FLAG_ERR_UNPLUG);
+
+	return value;
+}
+
+void aq_hw_write_reg64(struct aq_hw_s *hw, u32 reg, u64 value)
+{
+	if (hw->aq_nic_cfg->aq_hw_caps->op64bit)
+		writeq(value, hw->mmio + reg);
+	else
+		lo_hi_writeq(value, hw->mmio + reg);
 }
 
 int aq_hw_err_from_flags(struct aq_hw_s *hw)
@@ -68,4 +96,30 @@ int aq_hw_err_from_flags(struct aq_hw_s *hw)
 
 err_exit:
 	return err;
+}
+
+int aq_hw_num_tcs(struct aq_hw_s *hw)
+{
+	switch (hw->aq_nic_cfg->tc_mode) {
+	case AQ_TC_MODE_8TCS:
+		return 8;
+	case AQ_TC_MODE_4TCS:
+		return 4;
+	default:
+		break;
+	}
+
+	return 1;
+}
+
+int aq_hw_q_per_tc(struct aq_hw_s *hw)
+{
+	switch (hw->aq_nic_cfg->tc_mode) {
+	case AQ_TC_MODE_8TCS:
+		return 4;
+	case AQ_TC_MODE_4TCS:
+		return 8;
+	default:
+		return 4;
+	}
 }

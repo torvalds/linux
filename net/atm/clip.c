@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* net/atm/clip.c - RFC1577 Classical IP over ATM */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -88,7 +89,7 @@ static void unlink_clip_vcc(struct clip_vcc *clip_vcc)
 	struct clip_vcc **walk;
 
 	if (!entry) {
-		pr_crit("!clip_vcc->entry (clip_vcc %p)\n", clip_vcc);
+		pr_err("!clip_vcc->entry (clip_vcc %p)\n", clip_vcc);
 		return;
 	}
 	netif_tx_lock_bh(entry->neigh->dev);	/* block clip_start_xmit() */
@@ -108,10 +109,10 @@ static void unlink_clip_vcc(struct clip_vcc *clip_vcc)
 			error = neigh_update(entry->neigh, NULL, NUD_NONE,
 					     NEIGH_UPDATE_F_ADMIN, 0);
 			if (error)
-				pr_crit("neigh_update failed with %d\n", error);
+				pr_err("neigh_update failed with %d\n", error);
 			goto out;
 		}
-	pr_crit("ATMARP: failed (entry %p, vcc 0x%p)\n", entry, clip_vcc);
+	pr_err("ATMARP: failed (entry %p, vcc 0x%p)\n", entry, clip_vcc);
 out:
 	netif_tx_unlock_bh(entry->neigh->dev);
 }
@@ -345,8 +346,8 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 	rt = (struct rtable *) dst;
-	if (rt->rt_gateway)
-		daddr = &rt->rt_gateway;
+	if (rt->rt_gw_family == AF_INET)
+		daddr = &rt->rt_gw4;
 	else
 		daddr = &ip_hdr(skb)->daddr;
 	n = dst_neigh_lookup(dst, daddr);

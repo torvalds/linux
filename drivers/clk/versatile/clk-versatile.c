@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Clock driver for the ARM Integrator/AP, Integrator/CP, Versatile AB and
  * Versatile PB boards.
  * Copyright (C) 2012 Linus Walleij
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clk-provider.h>
 #include <linux/err.h>
@@ -59,7 +56,7 @@ static const struct clk_icst_desc versatile_auxosc_desc __initconst = {
 static void __init cm_osc_setup(struct device_node *np,
 				const struct clk_icst_desc *desc)
 {
-	struct clk *clk = ERR_PTR(-EINVAL);
+	struct clk *clk;
 	const char *clk_name = np->name;
 	const char *parent_name;
 
@@ -73,6 +70,7 @@ static void __init cm_osc_setup(struct device_node *np,
 			return;
 		}
 		cm_base = of_iomap(parent, 0);
+		of_node_put(parent);
 		if (!cm_base) {
 			pr_err("could not remap core module base\n");
 			return;

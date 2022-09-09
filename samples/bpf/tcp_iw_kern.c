@@ -9,7 +9,7 @@
  * would usually be done after doing appropriate checks that indicate
  * the hosts are far enough away (i.e. large RTT).
  *
- * Use load_sock_ops to load this BPF program.
+ * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */
 
 #include <uapi/linux/bpf.h>
@@ -17,17 +17,10 @@
 #include <uapi/linux/if_packet.h>
 #include <uapi/linux/ip.h>
 #include <linux/socket.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 #define DEBUG 1
-
-#define bpf_printk(fmt, ...)					\
-({								\
-	       char ____fmt[] = fmt;				\
-	       bpf_trace_printk(____fmt, sizeof(____fmt),	\
-				##__VA_ARGS__);			\
-})
 
 SEC("sockops")
 int bpf_iw(struct bpf_sock_ops *skops)

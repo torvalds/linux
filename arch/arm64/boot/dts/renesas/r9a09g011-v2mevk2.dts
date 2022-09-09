@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/V2M (r9a09g011) Evaluation Kit Board
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r9a09g011.dtsi"
+
+/ {
+	model = "RZ/V2M Evaluation Kit 2.0";
+	compatible = "renesas,rzv2mevk2", "renesas,r9a09g011";
+
+	aliases {
+		serial0 = &uart0;
+		ethernet0 = &avb;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@58000000 {
+		device_type = "memory";
+		/*
+		 * first 1.25GiB is reserved for ISP Firmware,
+		 * next 128MiB is reserved for secure area.
+		 */
+		reg = <0x0 0x58000000 0x0 0x28000000>;
+	};
+
+	memory@180000000 {
+		device_type = "memory";
+		reg = <0x1 0x80000000 0x0 0x80000000>;
+	};
+};
+
+&avb {
+	renesas,no-ether-link;
+	phy-handle = <&phy0>;
+	phy-mode = "gmii";
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id001c.c916",
+			     "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <48000000>;
+};
+
+&uart0 {
+	status = "okay";
+};

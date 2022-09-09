@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-sa1100/gpio.c
  *
  * Generic SA-1100 GPIO handling
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
@@ -56,7 +53,10 @@ static int sa1100_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	void __iomem *gpdr = sa1100_gpio_chip(chip)->membase + R_GPDR;
 
-	return !(readl_relaxed(gpdr) & BIT(offset));
+	if (readl_relaxed(gpdr) & BIT(offset))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int sa1100_direction_input(struct gpio_chip *chip, unsigned offset)

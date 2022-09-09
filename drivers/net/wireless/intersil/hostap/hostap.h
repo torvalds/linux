@@ -8,8 +8,10 @@
 #include "hostap_wlan.h"
 #include "hostap_ap.h"
 
-static const long freq_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
-				  2447, 2452, 2457, 2462, 2467, 2472, 2484 };
+static const long __maybe_unused freq_list[] = {
+	2412, 2417, 2422, 2427, 2432, 2437, 2442,
+	2447, 2452, 2457, 2462, 2467, 2472, 2484
+};
 #define FREQ_COUNT ARRAY_SIZE(freq_list)
 
 /* hostap.c */
@@ -91,6 +93,7 @@ extern const struct iw_handler_def hostap_iw_handler_def;
 extern const struct ethtool_ops prism2_ethtool_ops;
 
 int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-
+int hostap_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			  void __user *data, int cmd);
 
 #endif /* HOSTAP_H */

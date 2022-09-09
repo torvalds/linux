@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/mfd/si476x-i2c.c -- Core device driver for si476x MFD
  * device
@@ -6,16 +7,6 @@
  * Copyright (C) 2013 Andrey Smirnov
  *
  * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 #include <linux/module.h>
 
@@ -359,7 +350,7 @@ static inline void si476x_core_start_rds_drainer_once(struct si476x_core *core)
 	mutex_unlock(&core->rds_drainer_status_lock);
 }
 /**
- * si476x_drain_rds_fifo() - RDS buffer drainer.
+ * si476x_core_drain_rds_fifo() - RDS buffer drainer.
  * @work: struct work_struct being ppassed to the function by the
  * kernel.
  *
@@ -463,7 +454,7 @@ int si476x_core_i2c_xfer(struct si476x_core *core,
 EXPORT_SYMBOL_GPL(si476x_core_i2c_xfer);
 
 /**
- * si476x_get_status()
+ * si476x_core_get_status()
  * @core: Core device structure
  *
  * Get the status byte of the core device by berforming one byte I2C
@@ -482,7 +473,7 @@ static int si476x_core_get_status(struct si476x_core *core)
 }
 
 /**
- * si476x_get_and_signal_status() - IRQ dispatcher
+ * si476x_core_get_and_signal_status() - IRQ dispatcher
  * @core: Core device structure
  *
  * Dispatch the arrived interrupt request based on the value of the
@@ -541,8 +532,13 @@ static irqreturn_t si476x_core_interrupt(int irq, void *dev)
 }
 
 /**
- * si476x_firmware_version_to_revision()
+ * si476x_core_fwver_to_revision()
  * @core: Core device structure
+ * @func: Selects the boot function of the device:
+ *         *_BOOTLOADER  - Boot loader
+ *         *_FM_RECEIVER - FM receiver
+ *         *_AM_RECEIVER - AM receiver
+ *         *_WB_RECEIVER - Weatherband receiver
  * @major:  Firmware major number
  * @minor1: Firmware first minor number
  * @minor2: Firmware second minor number
@@ -592,7 +588,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 			goto unknown_revision;
 		}
 	case SI476X_FUNC_BOOTLOADER:
-	default:		/* FALLTHROUG */
+	default:		/* FALLTHROUGH */
 		BUG();
 		return -1;
 	}
@@ -607,7 +603,7 @@ unknown_revision:
 }
 
 /**
- * si476x_get_revision_info()
+ * si476x_core_get_revision_info()
  * @core: Core device structure
  *
  * Get the firmware version number of the device. It is done in

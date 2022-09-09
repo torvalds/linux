@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
  *   Portions Copyright (C) Christoph Hellwig, 2001-2002
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/fs.h>
@@ -31,6 +18,7 @@
 #include "jfs_extent.h"
 #include "jfs_unicode.h"
 #include "jfs_debug.h"
+#include "jfs_dmap.h"
 
 
 struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
@@ -150,18 +138,22 @@ int jfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 void jfs_evict_inode(struct inode *inode)
 {
+	struct jfs_inode_info *ji = JFS_IP(inode);
+
 	jfs_info("In jfs_evict_inode, inode = 0x%p", inode);
 
 	if (!inode->i_nlink && !is_bad_inode(inode)) {
 		dquot_initialize(inode);
 
 		if (JFS_IP(inode)->fileset == FILESYSTEM_I) {
+			struct inode *ipimap = JFS_SBI(inode->i_sb)->ipimap;
 			truncate_inode_pages_final(&inode->i_data);
 
 			if (test_cflag(COMMIT_Freewmap, inode))
 				jfs_free_zero_link(inode);
 
-			diFree(inode);
+			if (ipimap && JFS_IP(ipimap)->i_imap)
+				diFree(inode);
 
 			/*
 			 * Free the inode from the quota allocation.
@@ -173,6 +165,16 @@ void jfs_evict_inode(struct inode *inode)
 	}
 	clear_inode(inode);
 	dquot_drop(inode);
+
+	BUG_ON(!list_empty(&ji->anon_inode_list));
+
+	spin_lock_irq(&ji->ag_lock);
+	if (ji->active_ag != -1) {
+		struct bmap *bmap = JFS_SBI(inode->i_sb)->bmap;
+		atomic_dec(&bmap->db_active[ji->active_ag]);
+		ji->active_ag = -1;
+	}
+	spin_unlock_irq(&ji->ag_lock);
 }
 
 void jfs_dirty_inode(struct inode *inode, int flags)
@@ -222,18 +224,9 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 				 * this as a hole
 				 */
 				goto unlock;
-#ifdef _JFS_4K
 			XADoffset(&xad, lblock64);
 			XADlength(&xad, xlen);
 			XADaddress(&xad, xaddr);
-#else				/* _JFS_4K */
-			/*
-			 * As long as block size = 4K, this isn't a problem.
-			 * We should mark the whole page not ABNR, but how
-			 * will we know to mark the other blocks BH_New?
-			 */
-			BUG();
-#endif				/* _JFS_4K */
 			rc = extRecord(ip, &xad);
 			if (rc)
 				goto unlock;
@@ -250,7 +243,6 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	/*
 	 * Allocate a new block
 	 */
-#ifdef _JFS_4K
 	if ((rc = extHint(ip, lblock64 << ip->i_sb->s_blocksize_bits, &xad)))
 		goto unlock;
 	rc = extAlloc(ip, xlen, lblock64, &xad, false);
@@ -260,14 +252,6 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	set_buffer_new(bh_result);
 	map_bh(bh_result, ip->i_sb, addressXAD(&xad));
 	bh_result->b_size = lengthXAD(&xad) << ip->i_blkbits;
-
-#else				/* _JFS_4K */
-	/*
-	 * We need to do whatever it takes to keep all but the last buffers
-	 * in 4K pages - see jfs_write.c
-	 */
-	BUG();
-#endif				/* _JFS_4K */
 
       unlock:
 	/*
@@ -291,15 +275,14 @@ static int jfs_writepages(struct address_space *mapping,
 	return mpage_writepages(mapping, wbc, jfs_get_block);
 }
 
-static int jfs_readpage(struct file *file, struct page *page)
+static int jfs_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, jfs_get_block);
+	return mpage_read_folio(folio, jfs_get_block);
 }
 
-static int jfs_readpages(struct file *file, struct address_space *mapping,
-		struct list_head *pages, unsigned nr_pages)
+static void jfs_readahead(struct readahead_control *rac)
 {
-	return mpage_readpages(mapping, pages, nr_pages, jfs_get_block);
+	mpage_readahead(rac, jfs_get_block);
 }
 
 static void jfs_write_failed(struct address_space *mapping, loff_t to)
@@ -313,16 +296,27 @@ static void jfs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int jfs_write_begin(struct file *file, struct address_space *mapping,
-				loff_t pos, unsigned len, unsigned flags,
+				loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata)
 {
 	int ret;
 
-	ret = nobh_write_begin(mapping, pos, len, flags, pagep, fsdata,
-				jfs_get_block);
+	ret = block_write_begin(mapping, pos, len, pagep, jfs_get_block);
 	if (unlikely(ret))
 		jfs_write_failed(mapping, pos + len);
 
+	return ret;
+}
+
+static int jfs_write_end(struct file *file, struct address_space *mapping,
+		loff_t pos, unsigned len, unsigned copied, struct page *page,
+		void *fsdata)
+{
+	int ret;
+
+	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+	if (ret < len)
+		jfs_write_failed(mapping, pos + len);
 	return ret;
 }
 
@@ -357,12 +351,14 @@ static ssize_t jfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 }
 
 const struct address_space_operations jfs_aops = {
-	.readpage	= jfs_readpage,
-	.readpages	= jfs_readpages,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
+	.read_folio	= jfs_read_folio,
+	.readahead	= jfs_readahead,
 	.writepage	= jfs_writepage,
 	.writepages	= jfs_writepages,
 	.write_begin	= jfs_write_begin,
-	.write_end	= nobh_write_end,
+	.write_end	= jfs_write_end,
 	.bmap		= jfs_bmap,
 	.direct_IO	= jfs_direct_IO,
 };
@@ -415,7 +411,7 @@ void jfs_truncate(struct inode *ip)
 {
 	jfs_info("jfs_truncate: size = 0x%lx", (ulong) ip->i_size);
 
-	nobh_truncate_page(ip->i_mapping, ip->i_size, jfs_get_block);
+	block_truncate_page(ip->i_mapping, ip->i_size, jfs_get_block);
 
 	IWRITE_LOCK(ip, RDWRLOCK_NORMAL);
 	jfs_truncate_nolock(ip, ip->i_size);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1999, 2000, 2004  MIPS Technologies, Inc.
  *	All rights reserved.
@@ -6,10 +7,6 @@
  *
  * Copyright (C) 2009 Lemote Inc.
  * Author: Wu Zhangjin <wuzhangjin@gmail.com>
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
  */
 #include <linux/types.h>
 #include <linux/pci.h>

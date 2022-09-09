@@ -10,6 +10,8 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 
+#include <asm/vga.h>
+
 unsigned long vga_base;
 EXPORT_SYMBOL(vga_base);
 

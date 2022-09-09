@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * soc-apci-intel-hsw-bdw-match.c - tables and support for ACPI enumeration.
+ * soc-acpi-intel-hsw-bdw-match.c - tables and support for ACPI enumeration.
  *
  * Copyright (c) 2017, Intel Corporation.
- *
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/dmi.h>
@@ -21,11 +12,9 @@
 struct snd_soc_acpi_mach snd_soc_acpi_intel_haswell_machines[] = {
 	{
 		.id = "INT33CA",
-		.drv_name = "haswell-audio",
+		.drv_name = "hsw_rt5640",
 		.fw_filename = "intel/IntcSST1.bin",
-		.sof_fw_filename = "intel/sof-hsw.ri",
-		.sof_tplg_filename = "intel/sof-hsw.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
+		.sof_tplg_filename = "sof-hsw.tplg",
 	},
 	{}
 };
@@ -34,31 +23,28 @@ EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_haswell_machines);
 struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 	{
 		.id = "INT343A",
-		.drv_name = "broadwell-audio",
+		.drv_name = "bdw_rt286",
 		.fw_filename =  "intel/IntcSST2.bin",
-		.sof_fw_filename = "intel/sof-bdw.ri",
-		.sof_tplg_filename = "intel/sof-bdw-rt286.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
+		.sof_tplg_filename = "sof-bdw-rt286.tplg",
+	},
+	{
+		.id = "10EC5650",
+		.drv_name = "bdw-rt5650",
+		.fw_filename = "intel/IntcSST2.bin",
+		.sof_tplg_filename = "sof-bdw-rt5650.tplg",
 	},
 	{
 		.id = "RT5677CE",
 		.drv_name = "bdw-rt5677",
 		.fw_filename =  "intel/IntcSST2.bin",
-		.sof_fw_filename = "intel/sof-bdw.ri",
-		.sof_tplg_filename = "intel/sof-bdw-rt5677.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
+		.sof_tplg_filename = "sof-bdw-rt5677.tplg",
 	},
 	{
 		.id = "INT33CA",
-		.drv_name = "haswell-audio",
+		.drv_name = "hsw_rt5640",
 		.fw_filename = "intel/IntcSST2.bin",
-		.sof_fw_filename = "intel/sof-bdw.ri",
-		.sof_tplg_filename = "intel/sof-bdw-rt5640.tplg",
-		.asoc_plat_name = "haswell-pcm-audio",
+		.sof_tplg_filename = "sof-bdw-rt5640.tplg",
 	},
 	{}
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_broadwell_machines);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Common ACPI Match module");

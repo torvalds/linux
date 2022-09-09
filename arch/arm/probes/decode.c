@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/probes/decode.c
  *
@@ -5,10 +6,6 @@
  *
  * Some contents moved here from arch/arm/include/asm/kprobes-arm.c which is
  * Copyright (C) 2006, 2007 Motorola Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -310,7 +307,7 @@ static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs, bool modify)
 		case REG_TYPE_NOPCWB:
 			if (!is_writeback(insn))
 				break; /* No writeback, so any register is OK */
-			/* fall through... */
+			fallthrough;
 		case REG_TYPE_NOPC:
 		case REG_TYPE_NOPCX:
 			/* Reject PC (R15) */

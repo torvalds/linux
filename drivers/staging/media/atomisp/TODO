@@ -1,0 +1,213 @@
+For both Cherrytrail (CHT) and Baytrail (BHT) the driver
+requires the "candrpv_0415_20150521_0458" firmware version.
+It should be noticed that the firmware file is different,
+depending on the ISP model, so they're stored with different
+names:
+
+- for BHT: /lib/firmware/shisp_2400b0_v21.bin
+
+  Warning: The driver was not tested yet for BHT.
+
+- for CHT: /lib/firmware/shisp_2401a0_v21.bin
+
+  https://github.com/intel-aero/meta-intel-aero-base/blob/master/recipes-kernel/linux/linux-yocto/shisp_2401a0_v21.bin
+
+NOTE:
+=====
+
+This driver currently doesn't work with most V4L2 applications,
+as there are still some issues with regards to implementing
+certain APIs at the standard way.
+
+Also, currently only USERPTR streaming mode is working.
+
+In order to test, it is needed to know what's the sensor's
+resolution. This can be checked with:
+
+$ v4l2-ctl --get-fmt-video
+  Format Video Capture:
+	Width/Height      : 1600/1200
+	...
+
+It is known to work with:
+
+- v4l2grab at contrib/test directory at https://git.linuxtv.org/v4l-utils.git/
+
+  The resolution should not be bigger than the max resolution
+  supported by the sensor, or it will fail. So, if the sensor
+  reports:
+
+  The driver can be tested with:
+
+  v4l2grab -f YUYV -x 1600 -y 1200 -d /dev/video2 -u
+
+- NVT at https://github.com/intel/nvt
+
+  $ ./v4l2n -o testimage_@.raw \
+		 --device /dev/video2 \
+		 --input 0 \
+		 --exposure=30000,30000,30000,30000 \
+		 --parm type=1,capturemode=CI_MODE_PREVIEW \
+		 --fmt type=1,width=1600,height=1200,pixelformat=YUYV \
+		 --reqbufs count=2,memory=USERPTR \
+		 --parameters=wb_config.r=32768,wb_config.gr=21043,wb_config.gb=21043,wb_config.b=30863 \
+		 --capture=20
+
+  As the output is in raw format, images need to be converted with:
+
+  $ for i in $(seq 0 19); do
+	name="testimage_$(printf "%03i" $i)"
+	./raw2pnm -x$WIDTH -y$HEIGHT -f$FORMAT $name.raw $name.pnm
+	rm $name.raw
+    done
+
+TODO
+====
+
+1.  Fix support for MMAP streaming mode. This is required for most
+    V4L2 applications;
+
+2.  Implement and/or fix V4L2 ioctls in order to allow a normal app to
+    use it;
+
+3.  Ensure that the driver will pass v4l2-compliance tests;
+
+4.  Get manufacturer's authorization to redistribute the binaries for
+    the firmware files;
+
+5.  remove VIDEO_ATOMISP_ISP2401, making the driver to auto-detect the
+    register address differences between ISP2400 and ISP2401;
+
+6.  Cleanup the driver code, removing the abstraction layers inside it;
+
+7.  The atomisp doesn't rely at the usual i2c stuff to discover the
+    sensors. Instead, it calls a function from atomisp_gmin_platform.c.
+    There are some hacks added there for it to wait for sensors to be
+    probed (with a timeout of 2 seconds or so). This should be converted
+    to the usual way, using V4L2 async subdev framework to wait for
+    cameras to be probed;
+
+8.  Switch to standard V4L2 sub-device API for sensor and lens. In
+    particular, the user space API needs to support V4L2 controls as
+    defined in the V4L2 spec and references to atomisp must be removed from
+    these drivers.
+
+9.  Use LED flash API for flash LED drivers such as LM3554 (which already
+    has a LED class driver).
+
+10. Migrate the sensor drivers out of staging or re-using existing
+    drivers;
+
+11. Switch the driver to use pm_runtime stuff. Right now, it probes the
+    existing PMIC code and sensors call it directly.
+
+12. There's a problem on sensor drivers: when trying to set a video
+    format, the atomisp main driver calls the sensor drivers with the
+    sensor turned off. This causes them to fail.
+
+    This was fixed at atomisp-ov2880, which has a hack inside it
+    to turn it on when VIDIOC_S_FMT is called, but this has to be
+    cheked on other drivers as well.
+
+    The right fix seems to power on the sensor when a video device is
+    opened (or at the first VIDIOC_ ioctl - except for VIDIOC_QUERYCAP),
+    powering it down at close() syscall.
+
+    Such kind of control would need to be done inside the atomisp driver,
+    not at the sensors code.
+
+13. There are several issues related to memory management, that can
+    cause crashes and/or memory leaks. The atomisp splits the memory
+    management on three separate regions:
+
+	- dynamic pool;
+	- reserved pool;
+	- generic pool
+
+    The code implementing it is at:
+
+	drivers/staging/media/atomisp/pci/hmm/
+
+    It also has a separate code for managing DMA buffers at:
+
+	drivers/staging/media/atomisp/pci/mmu/
+
+    The code there is really dirty, ugly and probably wrong. I fixed
+    one bug there already, but the best would be to just trash it and use
+    something else. Maybe the code from the newer intel driver could
+    serve as a model:
+
+	drivers/staging/media/ipu3/ipu3-mmu.c
+
+    But converting it to use something like that is painful and may
+    cause some breakages.
+
+14. The file structure needs to get tidied up to resemble a normal Linux
+    driver.
+
+15. Lots of the midlayer glue. Unused code and abstraction needs removing.
+
+16. The AtomISP driver includes some special IOCTLS (ATOMISP_IOC_XXXX_XXXX)
+    and controls that require some cleanup. Some of those code may have
+    been removed during the cleanups. They could be needed in order to
+    properly support 3A algorithms.
+
+    Such IOCTL interface needs more documentation. The better would
+    be to use something close to the interface used by the IPU3 IMGU driver.
+
+17. The ISP code has some dependencies of the exact FW version.
+    The version defined in pci/sh_css_firmware.c:
+
+    BYT (isp2400): "irci_stable_candrpv_0415_20150521_0458"
+
+    CHT (isp2401): "irci_ecr - master_20150911_0724"
+
+    Those versions don't seem to be available anymore. On the tests we've
+    done so far, this version also seems to work for CHT:
+
+		"irci_stable_candrpv_0415_20150521_0458"
+
+    Which can be obtainable from Yocto Atom ISP respository.
+
+    but this was not thoroughly tested.
+
+    At some point we may need to round up a few driver versions and see if
+    there are any specific things that can be done to fold in support for
+    multiple firmware versions.
+
+
+18. Switch from videobuf1 to videobuf2. Videobuf1 is being removed!
+
+19. Correct Coding Style. Please refrain sending coding style patches
+    for this driver until the other work is done, as there will be a lot
+    of code churn until this driver becomes functional again.
+
+20. Remove the logic which sets up pipelines inside it, moving it to
+    libcamera and implement MC support.
+
+
+Limitations
+===========
+
+1. To test the patches, you also need the ISP firmware
+
+   for BYT: /lib/firmware/shisp_2400b0_v21.bin
+   for CHT: /lib/firmware/shisp_2401a0_v21.bin
+
+   The firmware files will usually be found in /etc/firmware on an Android
+   device but can also be extracted from the upgrade kit if you've managed
+   to lose them somehow.
+
+2. Without a 3A library the capture behaviour is not very good. To take a good
+   picture, you need tune ISP parameters by IOCTL functions or use a 3A library
+   such as libxcam.
+
+3. The driver is intended to drive the PCI exposed versions of the device.
+   It will not detect those devices enumerated via ACPI as a field of the
+   i915 GPU driver.
+
+   There are some patches adding i915 GPU support floating at the Yocto's
+   Aero repository (so far, untested upstream).
+
+4. The driver supports only v2 of the IPU/Camera. It will not work with the
+   versions of the hardware in other SoCs.

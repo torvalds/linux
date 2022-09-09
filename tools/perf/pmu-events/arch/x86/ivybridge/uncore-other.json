@@ -1,0 +1,91 @@
+[
+    {
+        "BriefDescription": "Cycles weighted by number of requests pending in Coherency Tracker.",
+        "EventCode": "0x83",
+        "EventName": "UNC_ARB_COH_TRK_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "Cycles weighted by number of requests pending in Coherency Tracker.",
+        "UMask": "0x01",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Number of requests allocated in Coherency Tracker.",
+        "Counter": "0,1",
+        "EventCode": "0x84",
+        "EventName": "UNC_ARB_COH_TRK_REQUESTS.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "Number of requests allocated in Coherency Tracker.",
+        "UMask": "0x01",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Counts cycles weighted by the number of requests waiting for data returning from the memory controller. Accounts for coherent and non-coherent requests initiated by IA cores, processor graphic units, or LLC.",
+        "EventCode": "0x80",
+        "EventName": "UNC_ARB_TRK_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "Counts cycles weighted by the number of requests waiting for data returning from the memory controller. Accounts for coherent and non-coherent requests initiated by IA cores, processor graphic units, or LLC.",
+        "UMask": "0x01",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Cycles with at least half of the requests outstanding are waiting for data return from memory controller. Account for coherent and non-coherent requests initiated by IA Cores, Processor Graphics Unit, or LLC.",
+        "Counter": "0,1",
+        "CounterMask": "10",
+        "EventCode": "0x80",
+        "EventName": "UNC_ARB_TRK_OCCUPANCY.CYCLES_OVER_HALF_FULL",
+        "PerPkg": "1",
+        "PublicDescription": "Cycles with at least half of the requests outstanding are waiting for data return from memory controller. Account for coherent and non-coherent requests initiated by IA Cores, Processor Graphics Unit, or LLC.",
+        "UMask": "0x01",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Cycles with at least one request outstanding is waiting for data return from memory controller. Account for coherent and non-coherent requests initiated by IA Cores, Processor Graphics Unit, or LLC.",
+        "Counter": "0,1",
+        "CounterMask": "1",
+        "EventCode": "0x80",
+        "EventName": "UNC_ARB_TRK_OCCUPANCY.CYCLES_WITH_ANY_REQUEST",
+        "PerPkg": "1",
+        "PublicDescription": "Cycles with at least one request outstanding is waiting for data return from memory controller. Account for coherent and non-coherent requests initiated by IA Cores, Processor Graphics Unit, or LLC.",
+        "UMask": "0x01",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Counts the number of coherent and in-coherent requests initiated by IA cores, processor graphic units, or LLC.",
+        "Counter": "0,1",
+        "EventCode": "0x81",
+        "EventName": "UNC_ARB_TRK_REQUESTS.ALL",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of coherent and in-coherent requests initiated by IA cores, processor graphic units, or LLC.",
+        "UMask": "0x01",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Counts the number of LLC evictions allocated.",
+        "Counter": "0,1",
+        "EventCode": "0x81",
+        "EventName": "UNC_ARB_TRK_REQUESTS.EVICTIONS",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of LLC evictions allocated.",
+        "UMask": "0x80",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "Counts the number of allocated write entries, include full, partial, and LLC evictions.",
+        "Counter": "0,1",
+        "EventCode": "0x81",
+        "EventName": "UNC_ARB_TRK_REQUESTS.WRITES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of allocated write entries, include full, partial, and LLC evictions.",
+        "UMask": "0x20",
+        "Unit": "ARB"
+    },
+    {
+        "BriefDescription": "This 48-bit fixed counter counts the UCLK cycles.",
+        "Counter": "Fixed",
+        "EventCode": "0xff",
+        "EventName": "UNC_CLOCK.SOCKET",
+        "PerPkg": "1",
+        "PublicDescription": "This 48-bit fixed counter counts the UCLK cycles.",
+        "Unit": "ARB"
+    }
+]

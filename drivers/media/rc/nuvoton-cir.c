@@ -74,13 +74,6 @@ static inline void nvt_set_reg_bit(struct nvt_dev *nvt, u8 val, u8 reg)
 	nvt_cr_write(nvt, tmp, reg);
 }
 
-/* clear config register bit without changing other bits */
-static inline void nvt_clear_reg_bit(struct nvt_dev *nvt, u8 val, u8 reg)
-{
-	u8 tmp = nvt_cr_read(nvt, reg) & ~val;
-	nvt_cr_write(nvt, tmp, reg);
-}
-
 /* enter extended function mode */
 static inline int nvt_efm_enable(struct nvt_dev *nvt)
 {
@@ -230,10 +223,10 @@ static ssize_t wakeup_data_show(struct device *dev,
 	for (i = 0; i < fifo_len; i++) {
 		duration = nvt_cir_wake_reg_read(nvt, CIR_WAKE_RD_FIFO_ONLY);
 		duration = (duration & BUF_LEN_MASK) * SAMPLE_PERIOD;
-		buf_len += snprintf(buf + buf_len, PAGE_SIZE - buf_len,
+		buf_len += scnprintf(buf + buf_len, PAGE_SIZE - buf_len,
 				    "%d ", duration);
 	}
-	buf_len += snprintf(buf + buf_len, PAGE_SIZE - buf_len, "\n");
+	buf_len += scnprintf(buf + buf_len, PAGE_SIZE - buf_len, "\n");
 
 	spin_unlock_irqrestore(&nvt->lock, flags);
 
@@ -631,30 +624,6 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 	return carrier;
 }
 #endif
-/*
- * set carrier frequency
- *
- * set carrier on 2 registers: CP & CC
- * always set CP as 0x81
- * set CC by SPEC, CC = 3MHz/carrier - 1
- */
-static int nvt_set_tx_carrier(struct rc_dev *dev, u32 carrier)
-{
-	struct nvt_dev *nvt = dev->priv;
-	u16 val;
-
-	if (carrier == 0)
-		return -EINVAL;
-
-	nvt_cir_reg_write(nvt, 1, CIR_CP);
-	val = 3000000 / (carrier) - 1;
-	nvt_cir_reg_write(nvt, val & 0xff, CIR_CC);
-
-	nvt_dbg("cp: 0x%x cc: 0x%x\n",
-		nvt_cir_reg_read(nvt, CIR_CP), nvt_cir_reg_read(nvt, CIR_CC));
-
-	return 0;
-}
 
 static int nvt_ir_raw_set_wakeup_filter(struct rc_dev *dev,
 					struct rc_scancode_filter *sc_filter)
@@ -684,8 +653,7 @@ static int nvt_ir_raw_set_wakeup_filter(struct rc_dev *dev,
 
 	/* Inspect the ir samples */
 	for (i = 0, count = 0; i < ret && count < WAKEUP_MAX_SIZE; ++i) {
-		/* NS to US */
-		val = DIV_ROUND_UP(raw[i].duration, 1000L) / SAMPLE_PERIOD;
+		val = raw[i].duration / SAMPLE_PERIOD;
 
 		/* Split too large values into several smaller ones */
 		while (val > 0 && count < WAKEUP_MAX_SIZE) {
@@ -752,8 +720,7 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 		sample = nvt->buf[i];
 
 		rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
-		rawir.duration = US_TO_NS((sample & BUF_LEN_MASK)
-					  * SAMPLE_PERIOD);
+		rawir.duration = (sample & BUF_LEN_MASK) * SAMPLE_PERIOD;
 
 		nvt_dbg("Storing %s with duration %d",
 			rawir.pulse ? "pulse" : "space", rawir.duration);
@@ -775,7 +742,7 @@ static void nvt_handle_rx_fifo_overrun(struct nvt_dev *nvt)
 
 	nvt->pkts = 0;
 	nvt_clear_cir_fifo(nvt);
-	ir_raw_event_reset(nvt->rdev);
+	ir_raw_event_overflow(nvt->rdev);
 }
 
 /* copy data from hardware rx fifo into driver buffer */
@@ -1022,7 +989,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->encode_wakeup = true;
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
-	rdev->s_tx_carrier = nvt_set_tx_carrier;
 	rdev->s_wakeup_filter = nvt_ir_raw_set_wakeup_filter;
 	rdev->device_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
 	rdev->input_phys = "nuvoton/cir0";
@@ -1032,9 +998,9 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->input_id.version = nvt->chip_minor;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
-	rdev->timeout = MS_TO_NS(100);
+	rdev->timeout = MS_TO_US(100);
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
-	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
+	rdev->rx_resolution = CIR_SAMPLE_PERIOD;
 #if 0
 	rdev->min_timeout = XYZ;
 	rdev->max_timeout = XYZ;

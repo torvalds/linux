@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/arch/arm/mach-omap1/devices.c
  *
  * OMAP1 platform device setup/initialization
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/dma-mapping.h>
@@ -18,16 +14,15 @@
 #include <linux/spi/spi.h>
 
 #include <linux/platform_data/omap-wd-timer.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach/map.h>
 
-#include <mach/tc.h>
-#include <mach/mux.h>
+#include "tc.h"
+#include "mux.h"
 
-#include <mach/omap7xx.h>
-#include "camera.h"
-#include <mach/hardware.h>
-
+#include "omap7xx.h"
+#include "hardware.h"
 #include "common.h"
 #include "clock.h"
 #include "mmc.h"
@@ -262,48 +257,6 @@ static inline void omap_init_spi100k(void)
 }
 #endif
 
-
-#define OMAP1_CAMERA_BASE	0xfffb6800
-#define OMAP1_CAMERA_IOSIZE	0x1c
-
-static struct resource omap1_camera_resources[] = {
-	[0] = {
-		.start	= OMAP1_CAMERA_BASE,
-		.end	= OMAP1_CAMERA_BASE + OMAP1_CAMERA_IOSIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= INT_CAMERA,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static u64 omap1_camera_dma_mask = DMA_BIT_MASK(32);
-
-static struct platform_device omap1_camera_device = {
-	.name		= "omap1-camera",
-	.id		= 0, /* This is used to put cameras on this interface */
-	.dev		= {
-		.dma_mask		= &omap1_camera_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(omap1_camera_resources),
-	.resource	= omap1_camera_resources,
-};
-
-void __init omap1_camera_init(void *info)
-{
-	struct platform_device *dev = &omap1_camera_device;
-	int ret;
-
-	dev->dev.platform_data = info;
-
-	ret = platform_device_register(dev);
-	if (ret)
-		dev_err(&dev->dev, "unable to register device: %d\n", ret);
-}
-
-
 /*-------------------------------------------------------------------------*/
 
 static inline void omap_init_sti(void) {}
@@ -403,7 +356,7 @@ static int __init omap1_init_devices(void)
 	if (!cpu_class_is_omap1())
 		return -ENODEV;
 
-	omap_sram_init();
+	omap1_sram_init();
 	omap1_clk_late_init();
 
 	/* please keep these calls, and their implementations above,

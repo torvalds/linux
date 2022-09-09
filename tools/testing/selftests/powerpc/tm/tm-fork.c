@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Michael Neuling, IBM Corp.
- * Licensed under GPLv2.
  *
  * Edited: Rashmica Gupta, Nov 2015
  *
@@ -21,6 +21,7 @@
 int test_fork(void)
 {
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 
 	asm __volatile__(
 		"tbegin.;"

@@ -81,6 +81,17 @@ enum dce110_opp_reg_type {
 	OPP_COMMON_REG_LIST_BASE(id), \
 	SRI(CONTROL, FMT_MEMORY, id)
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define OPP_DCE_60_REG_LIST(id) \
+	SRI(FMT_DYNAMIC_EXP_CNTL, FMT, id), \
+	SRI(FMT_BIT_DEPTH_CONTROL, FMT, id), \
+	SRI(FMT_CONTROL, FMT, id), \
+	SRI(FMT_DITHER_RAND_R_SEED, FMT, id), \
+	SRI(FMT_DITHER_RAND_G_SEED, FMT, id), \
+	SRI(FMT_DITHER_RAND_B_SEED, FMT, id), \
+	SRI(FMT_CLAMP_CNTL, FMT, id)
+#endif
+
 #define OPP_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -100,7 +111,6 @@ enum dce110_opp_reg_type {
 	OPP_SF(FMT_DITHER_RAND_R_SEED, FMT_RAND_R_SEED, mask_sh),\
 	OPP_SF(FMT_DITHER_RAND_G_SEED, FMT_RAND_G_SEED, mask_sh),\
 	OPP_SF(FMT_DITHER_RAND_B_SEED, FMT_RAND_B_SEED, mask_sh),\
-	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_EN, mask_sh),\
 	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_RESET, mask_sh),\
 	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_OFFSET, mask_sh),\
 	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_DEPTH, mask_sh),\
@@ -192,6 +202,34 @@ enum dce110_opp_reg_type {
 	OPP_SF(FMT0_FMT_CONTROL, FMT_SUBSAMPLING_ORDER, mask_sh),\
 	OPP_SF(FMT0_FMT_CONTROL, FMT_CBCR_BIT_REDUCTION_BYPASS, mask_sh)
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define OPP_COMMON_MASK_SH_LIST_DCE_60(mask_sh)\
+	OPP_SF(FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_EN, mask_sh),\
+	OPP_SF(FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_MODE, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_DEPTH, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_SPATIAL_DITHER_EN, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_SPATIAL_DITHER_DEPTH, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_SPATIAL_DITHER_MODE, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_HIGHPASS_RANDOM_ENABLE, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_FRAME_RANDOM_ENABLE, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_RGB_RANDOM_ENABLE, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_EN, mask_sh),\
+	OPP_SF(FMT_DITHER_RAND_R_SEED, FMT_RAND_R_SEED, mask_sh),\
+	OPP_SF(FMT_DITHER_RAND_G_SEED, FMT_RAND_G_SEED, mask_sh),\
+	OPP_SF(FMT_DITHER_RAND_B_SEED, FMT_RAND_B_SEED, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_RESET, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_OFFSET, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_DITHER_DEPTH, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TEMPORAL_LEVEL, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_25FRC_SEL, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_50FRC_SEL, mask_sh),\
+	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_75FRC_SEL, mask_sh),\
+	OPP_SF(FMT_CLAMP_CNTL, FMT_CLAMP_DATA_EN, mask_sh),\
+	OPP_SF(FMT_CLAMP_CNTL, FMT_CLAMP_COLOR_FORMAT, mask_sh),\
+	OPP_SF(FMT_CONTROL, FMT_PIXEL_ENCODING, mask_sh)
+#endif
+
 #define OPP_REG_FIELD_LIST(type) \
 	type FMT_DYNAMIC_EXP_EN; \
 	type FMT_DYNAMIC_EXP_MODE; \
@@ -278,6 +316,15 @@ void dce110_opp_construct(struct dce110_opp *opp110,
 	const struct dce_opp_registers *regs,
 	const struct dce_opp_shift *opp_shift,
 	const struct dce_opp_mask *opp_mask);
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_opp_construct(struct dce110_opp *opp110,
+	struct dc_context *ctx,
+	uint32_t inst,
+	const struct dce_opp_registers *regs,
+	const struct dce_opp_shift *opp_shift,
+	const struct dce_opp_mask *opp_mask);
+#endif
 
 void dce110_opp_destroy(struct output_pixel_processor **opp);
 

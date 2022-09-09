@@ -12,8 +12,6 @@
 #define _XTENSA_PLATFORM_H
 
 #include <linux/types.h>
-#include <linux/pci.h>
-
 #include <asm/bootparam.h>
 
 /*
@@ -55,16 +53,6 @@ extern void platform_idle (void);
 extern void platform_heartbeat (void);
 
 /*
- * platform_pcibios_init is called to allow the platform to setup the pci bus.
- */
-extern void platform_pcibios_init (void);
-
-/*
- * platform_pcibios_fixup allows to modify the PCI configuration.
- */
-extern int platform_pcibios_fixup (void);
-
-/*
  * platform_calibrate_ccount calibrates cpu clock freq (CONFIG_XTENSA_CALIBRATE)
  */
 extern void platform_calibrate_ccount (void);
@@ -74,32 +62,5 @@ extern void platform_calibrate_ccount (void);
  * jump to the reset vector.
  */
 void cpu_reset(void) __attribute__((noreturn));
-
-/*
- * Memory caching is platform-dependent in noMMU xtensa configurations.
- * The following set of functions should be implemented in platform code
- * in order to enable coherent DMA memory operations when CONFIG_MMU is not
- * enabled. Default implementations do nothing and issue a warning.
- */
-
-/*
- * Check whether p points to a cached memory.
- */
-bool platform_vaddr_cached(const void *p);
-
-/*
- * Check whether p points to an uncached memory.
- */
-bool platform_vaddr_uncached(const void *p);
-
-/*
- * Return pointer to an uncached view of the cached sddress p.
- */
-void *platform_vaddr_to_uncached(void *p);
-
-/*
- * Return pointer to a cached view of the uncached sddress p.
- */
-void *platform_vaddr_to_cached(void *p);
 
 #endif	/* _XTENSA_PLATFORM_H */

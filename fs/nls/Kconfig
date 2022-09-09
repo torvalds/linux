@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Native language support configuration
 #
 
 menuconfig NLS
 	tristate "Native language support"
-	---help---
+	help
 	  The base Native Language Support. A number of filesystems
 	  depend on it (e.g. FAT, JOLIET, NT, BEOS filesystems), as well
 	  as the ability of some filesystems to use native languages
@@ -20,7 +21,7 @@ if NLS
 config NLS_DEFAULT
 	string "Default NLS Option"
 	default "iso8859-1"
-	---help---
+	help
 	  The default NLS used when mounting file system. Note, that this is
 	  the NLS used by your console, not the NLS used by a specific file
 	  system (if different) to store data (filenames) on a disk.
@@ -75,7 +76,7 @@ config NLS_CODEPAGE_775
 
 config NLS_CODEPAGE_850
 	tristate "Codepage 850 (Europe)"
-	---help---
+	help
 	  The Microsoft FAT file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called DOS codepages. You need to include the appropriate
@@ -91,7 +92,7 @@ config NLS_CODEPAGE_850
 
 config NLS_CODEPAGE_852
 	tristate "Codepage 852 (Central/Eastern Europe)"
-	---help---
+	help
 	  The Microsoft FAT file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called DOS codepages. You need to include the appropriate
@@ -420,7 +421,7 @@ config NLS_ISO8859_14
 
 config NLS_ISO8859_15
 	tristate "NLS ISO 8859-15 (Latin 9; Western European Languages with Euro)"
-	---help---
+	help
 	  If you want to display filenames with native language characters
 	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
 	  correctly on the screen, you need to include the appropriate
@@ -454,7 +455,7 @@ config NLS_KOI8_U
 
 config NLS_MAC_ROMAN
 	tristate "Codepage macroman"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -469,7 +470,7 @@ config NLS_MAC_ROMAN
 
 config NLS_MAC_CELTIC
 	tristate "Codepage macceltic"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -483,7 +484,7 @@ config NLS_MAC_CELTIC
 
 config NLS_MAC_CENTEURO
 	tristate "Codepage maccenteuro"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -497,7 +498,7 @@ config NLS_MAC_CENTEURO
 
 config NLS_MAC_CROATIAN
 	tristate "Codepage maccroatian"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -511,7 +512,7 @@ config NLS_MAC_CROATIAN
 
 config NLS_MAC_CYRILLIC
 	tristate "Codepage maccyrillic"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -525,7 +526,7 @@ config NLS_MAC_CYRILLIC
 
 config NLS_MAC_GAELIC
 	tristate "Codepage macgaelic"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -539,7 +540,7 @@ config NLS_MAC_GAELIC
 
 config NLS_MAC_GREEK
 	tristate "Codepage macgreek"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -553,7 +554,7 @@ config NLS_MAC_GREEK
 
 config NLS_MAC_ICELAND
 	tristate "Codepage maciceland"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -567,7 +568,7 @@ config NLS_MAC_ICELAND
 
 config NLS_MAC_INUIT
 	tristate "Codepage macinuit"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -581,7 +582,7 @@ config NLS_MAC_INUIT
 
 config NLS_MAC_ROMANIAN
 	tristate "Codepage macromanian"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate
@@ -595,7 +596,7 @@ config NLS_MAC_ROMANIAN
 
 config NLS_MAC_TURKISH
 	tristate "Codepage macturkish"
-	---help---
+	help
 	  The Apple HFS file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called MAC codepages. You need to include the appropriate

@@ -52,7 +52,7 @@ static int udf_pc_to_char(struct super_block *sb, unsigned char *from,
 				elen += pc->lengthComponentIdent;
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case 2:
 			if (tolen == 0)
 				return -ENAMETOOLONG;
@@ -101,8 +101,9 @@ static int udf_pc_to_char(struct super_block *sb, unsigned char *from,
 	return 0;
 }
 
-static int udf_symlink_filler(struct file *file, struct page *page)
+static int udf_symlink_filler(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *bh = NULL;
 	unsigned char *symlink;
@@ -122,7 +123,7 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 
 	down_read(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		symlink = iinfo->i_ext.i_data + iinfo->i_lenEAttr;
+		symlink = iinfo->i_data + iinfo->i_lenEAttr;
 	} else {
 		bh = sb_bread(inode->i_sb, pos);
 
@@ -152,14 +153,15 @@ out_unmap:
 	return err;
 }
 
-static int udf_symlink_getattr(const struct path *path, struct kstat *stat,
-				u32 request_mask, unsigned int flags)
+static int udf_symlink_getattr(struct user_namespace *mnt_userns,
+			       const struct path *path, struct kstat *stat,
+			       u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
 	struct inode *inode = d_backing_inode(dentry);
 	struct page *page;
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	page = read_mapping_page(inode->i_mapping, 0, NULL);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
@@ -182,7 +184,7 @@ static int udf_symlink_getattr(const struct path *path, struct kstat *stat,
  * symlinks can't do much...
  */
 const struct address_space_operations udf_symlink_aops = {
-	.readpage		= udf_symlink_filler,
+	.read_folio		= udf_symlink_filler,
 };
 
 const struct inode_operations udf_symlink_inode_operations = {

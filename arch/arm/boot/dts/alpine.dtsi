@@ -25,11 +25,17 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "skeleton64.dtsi"
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	/* SOC compatibility */
 	compatible = "al,alpine";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0>;
+	};
 
 	/* CPU Configuration */
 	cpus {
@@ -85,7 +91,7 @@
 		};
 
 		/* Interrupt Controller */
-		gic: gic@fb001000 {
+		gic: interrupt-controller@fb001000 {
 			compatible = "arm,cortex-a15-gic";
 			#interrupt-cells = <3>;
 			#size-cells = <0>;
@@ -148,7 +154,7 @@
 			reg = <0x0 0xfbc00000 0x0 0x100000>;
 			interrupt-map-mask = <0xf800 0 0 7>;
 			/* Add legacy interrupts for SATA devices only */
-			interrupt-map =	<0x4000 0 0 1 &gic 0 43 4>,
+			interrupt-map = <0x4000 0 0 1 &gic 0 43 4>,
 					<0x4800 0 0 1 &gic 0 44 4>;
 
 			/* 32 bit non prefetchable memory space */

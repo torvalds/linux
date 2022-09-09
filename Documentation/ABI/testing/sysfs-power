@@ -47,14 +47,18 @@ Description:
 		suspend-to-disk mechanism.  Reading from this file returns
 		the name of the method by which the system will be put to
 		sleep on the next suspend.  There are four methods supported:
+
 		'firmware' - means that the memory image will be saved to disk
 		by some firmware, in which case we also assume that the
 		firmware will handle the system suspend.
+
 		'platform' - the memory image will be saved by the kernel and
 		the system will be put to sleep by the platform driver (e.g.
 		ACPI or other PM registers).
+
 		'shutdown' - the memory image will be saved by the kernel and
 		the system will be powered off.
+
 		'reboot' - the memory image will be saved by the kernel and
 		the system will be rebooted.
 
@@ -74,12 +78,12 @@ Description:
 		The suspend-to-disk method may be chosen by writing to this
 		file one of the accepted strings:
 
-		'firmware'
-		'platform'
-		'shutdown'
-		'reboot'
-		'testproc'
-		'test'
+		- 'firmware'
+		- 'platform'
+		- 'shutdown'
+		- 'reboot'
+		- 'testproc'
+		- 'test'
 
 		It will only change to 'firmware' or 'platform' if the system
 		supports that.
@@ -114,9 +118,9 @@ Description:
 		string representing a nonzero integer into it.
 
 		To use this debugging feature you should attempt to suspend
-		the machine, then reboot it and run
+		the machine, then reboot it and run::
 
-		dmesg -s 1000000 | grep 'hash matches'
+		  dmesg -s 1000000 | grep 'hash matches'
 
 		If you do not get any matches (or they appear to be false
 		positives), it is possible that the last PM event point
@@ -244,6 +248,7 @@ Description:
 		wakeup sources created with the help of /sys/power/wake_lock.
 		When a string is written to /sys/power/wake_unlock, it will be
 		assumed to represent the name of a wakeup source to deactivate.
+
 		If a wakeup source object of that name exists and is active at
 		the moment, it will be deactivated.
 
@@ -290,7 +295,7 @@ Description:
 
 What:		/sys/power/resume_offset
 Date:		April 2018
-Contact:	Mario Limonciello <mario.limonciello@dell.com>
+Contact:	Mario Limonciello <mario.limonciello@outlook.com>
 Description:
 		This file is used for telling the kernel an offset into a disk
 		to use when hibernating the system such as with a swap file.
@@ -301,3 +306,122 @@ Description:
 
 		Using this sysfs file will override any values that were
 		set using the kernel command line for disk offset.
+
+What:		/sys/power/suspend_stats
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats directory contains suspend related
+		statistics.
+
+What:		/sys/power/suspend_stats/success
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/success file contains the number
+		of times entering system sleep state succeeded.
+
+What:		/sys/power/suspend_stats/fail
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/fail file contains the number
+		of times entering system sleep state failed.
+
+What:		/sys/power/suspend_stats/failed_freeze
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_freeze file contains the
+		number of times freezing processes failed.
+
+What:		/sys/power/suspend_stats/failed_prepare
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_prepare file contains the
+		number of times preparing all non-sysdev devices for
+		a system PM transition failed.
+
+What:		/sys/power/suspend_stats/failed_resume
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_resume file contains the
+		number of times executing "resume" callbacks of
+		non-sysdev devices failed.
+
+What:		/sys/power/suspend_stats/failed_resume_early
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_resume_early file contains
+		the number of times executing "early resume" callbacks
+		of devices failed.
+
+What:		/sys/power/suspend_stats/failed_resume_noirq
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_resume_noirq file contains
+		the number of times executing "noirq resume" callbacks
+		of devices failed.
+
+What:		/sys/power/suspend_stats/failed_suspend
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_suspend file contains
+		the number of times executing "suspend" callbacks
+		of all non-sysdev devices failed.
+
+What:		/sys/power/suspend_stats/failed_suspend_late
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_suspend_late file contains
+		the number of times executing "late suspend" callbacks
+		of all devices failed.
+
+What:		/sys/power/suspend_stats/failed_suspend_noirq
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/failed_suspend_noirq file contains
+		the number of times executing "noirq suspend" callbacks
+		of all devices failed.
+
+What:		/sys/power/suspend_stats/last_failed_dev
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/last_failed_dev file contains
+		the last device for which a suspend/resume callback failed.
+
+What:		/sys/power/suspend_stats/last_failed_errno
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/last_failed_errno file contains
+		the errno of the last failed attempt at entering
+		system sleep state.
+
+What:		/sys/power/suspend_stats/last_failed_step
+Date:		July 2019
+Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
+Description:
+		The /sys/power/suspend_stats/last_failed_step file contains
+		the last failed step in the suspend/resume path.
+
+What:		/sys/power/sync_on_suspend
+Date:		October 2019
+Contact:	Jonas Meurer <jonas@freesources.org>
+Description:
+		This file controls whether or not the kernel will sync()
+		filesystems during system suspend (after freezing user space
+		and before suspending devices).
+
+		Writing a "1" to this file enables the sync() and writing a "0"
+		disables it.  Reads from the file return the current value.
+		The default is "1" if the build-time "SUSPEND_SKIP_SYNC" config
+		flag is unset, or "0" otherwise.

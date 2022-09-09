@@ -1,5 +1,6 @@
 /*
  * Copyright(c) 2017 Intel Corporation.
+ * Copyright(c) 2021 Cornelis Networks.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -46,11 +47,12 @@
  */
 
 /*
- * This file contains OPA Virtual Network Interface Controller (VNIC)
+ * This file contains OPX Virtual Network Interface Controller (VNIC)
  * Ethernet Management Agent (EMA) driver
  */
 
 #include <linux/module.h>
+#include <linux/xarray.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/opa_smi.h>
@@ -58,9 +60,7 @@
 
 #include "opa_vnic_internal.h"
 
-#define DRV_VERSION "1.0"
 char opa_vnic_driver_name[] = "opa_vnic";
-const char opa_vnic_driver_version[] = DRV_VERSION;
 
 /*
  * The trap service level is kept in bits 3 to 7 in the trap_sl_rsvd
@@ -97,7 +97,7 @@ const char opa_vnic_driver_version[] = DRV_VERSION;
  * @class_port_info: Class port info information.
  * @tid: Transaction id
  * @port_num: OPA port number
- * @vport_idr: vnic ports idr
+ * @vports: vnic ports
  * @event_handler: ib event handler
  * @lock: adapter interface lock
  */
@@ -107,14 +107,14 @@ struct opa_vnic_vema_port {
 	struct opa_class_port_info      class_port_info;
 	u64                             tid;
 	u8                              port_num;
-	struct idr                      vport_idr;
+	struct xarray                   vports;
 	struct ib_event_handler         event_handler;
 
 	/* Lock to query/update network adapter */
 	struct mutex                    lock;
 };
 
-static void opa_vnic_vema_add_one(struct ib_device *device);
+static int opa_vnic_vema_add_one(struct ib_device *device);
 static void opa_vnic_vema_rem_one(struct ib_device *device,
 				  void *client_data);
 
@@ -148,7 +148,7 @@ vema_get_vport_adapter(struct opa_vnic_vema_mad *recvd_mad,
 {
 	u8 vport_num = vema_get_vport_num(recvd_mad);
 
-	return idr_find(&port->vport_idr, vport_num);
+	return xa_load(&port->vports, vport_num);
 }
 
 /**
@@ -207,8 +207,7 @@ static struct opa_vnic_adapter *vema_add_vport(struct opa_vnic_vema_port *port,
 		int rc;
 
 		adapter->cport = cport;
-		rc = idr_alloc(&port->vport_idr, adapter, vport_num,
-			       vport_num + 1, GFP_NOWAIT);
+		rc = xa_insert(&port->vports, vport_num, adapter, GFP_KERNEL);
 		if (rc < 0) {
 			opa_vnic_rem_netdev(adapter);
 			adapter = ERR_PTR(rc);
@@ -235,7 +234,7 @@ static void vema_get_class_port_info(struct opa_vnic_vema_port *port,
 
 	port_info = (struct opa_class_port_info *)rsp_mad->data;
 	memcpy(port_info, &port->class_port_info, sizeof(*port_info));
-	port_info->base_version = OPA_MGMT_BASE_VERSION,
+	port_info->base_version = OPA_MGMT_BASE_VERSION;
 	port_info->class_version = OPA_EMA_CLASS_VERSION;
 
 	/*
@@ -549,7 +548,6 @@ static void vema_get(struct opa_vnic_vema_port *port,
 		vema_get_mac_entries(port, recvd_mad, rsp_mad);
 		break;
 	case OPA_EM_ATTR_IFACE_UCAST_MACS:
-		/* fall through */
 	case OPA_EM_ATTR_IFACE_MCAST_MACS:
 		vema_get_mac_list(port, recvd_mad, rsp_mad, attr_id);
 		break;
@@ -853,36 +851,14 @@ err_exit:
 	v_err("Aborting trap\n");
 }
 
-static int vema_rem_vport(int id, void *p, void *data)
-{
-	struct opa_vnic_adapter *adapter = p;
-
-	opa_vnic_rem_netdev(adapter);
-	return 0;
-}
-
-static int vema_enable_vport(int id, void *p, void *data)
-{
-	struct opa_vnic_adapter *adapter = p;
-
-	netif_carrier_on(adapter->netdev);
-	return 0;
-}
-
-static int vema_disable_vport(int id, void *p, void *data)
-{
-	struct opa_vnic_adapter *adapter = p;
-
-	netif_carrier_off(adapter->netdev);
-	return 0;
-}
-
 static void opa_vnic_event(struct ib_event_handler *handler,
 			   struct ib_event *record)
 {
 	struct opa_vnic_vema_port *port =
 		container_of(handler, struct opa_vnic_vema_port, event_handler);
 	struct opa_vnic_ctrl_port *cport = port->cport;
+	struct opa_vnic_adapter *adapter;
+	unsigned long index;
 
 	if (record->element.port_num != port->port_num)
 		return;
@@ -891,10 +867,16 @@ static void opa_vnic_event(struct ib_event_handler *handler,
 	      record->event, dev_name(&record->device->dev),
 	      record->element.port_num);
 
-	if (record->event == IB_EVENT_PORT_ERR)
-		idr_for_each(&port->vport_idr, vema_disable_vport, NULL);
-	if (record->event == IB_EVENT_PORT_ACTIVE)
-		idr_for_each(&port->vport_idr, vema_enable_vport, NULL);
+	if (record->event != IB_EVENT_PORT_ERR &&
+	    record->event != IB_EVENT_PORT_ACTIVE)
+		return;
+
+	xa_for_each(&port->vports, index, adapter) {
+		if (record->event == IB_EVENT_PORT_ACTIVE)
+			netif_carrier_on(adapter->netdev);
+		else
+			netif_carrier_off(adapter->netdev);
+	}
 }
 
 /**
@@ -905,6 +887,8 @@ static void opa_vnic_event(struct ib_event_handler *handler,
  */
 static void vema_unregister(struct opa_vnic_ctrl_port *cport)
 {
+	struct opa_vnic_adapter *adapter;
+	unsigned long index;
 	int i;
 
 	for (i = 1; i <= cport->num_ports; i++) {
@@ -915,13 +899,14 @@ static void vema_unregister(struct opa_vnic_ctrl_port *cport)
 
 		/* Lock ensures no MAD is being processed */
 		mutex_lock(&port->lock);
-		idr_for_each(&port->vport_idr, vema_rem_vport, NULL);
+		xa_for_each(&port->vports, index, adapter)
+			opa_vnic_rem_netdev(adapter);
 		mutex_unlock(&port->lock);
 
 		ib_unregister_mad_agent(port->mad_agent);
 		port->mad_agent = NULL;
 		mutex_destroy(&port->lock);
-		idr_destroy(&port->vport_idr);
+		xa_destroy(&port->vports);
 		ib_unregister_event_handler(&port->event_handler);
 	}
 }
@@ -958,7 +943,7 @@ static int vema_register(struct opa_vnic_ctrl_port *cport)
 				      cport->ibdev, opa_vnic_event);
 		ib_register_event_handler(&port->event_handler);
 
-		idr_init(&port->vport_idr);
+		xa_init(&port->vports);
 		mutex_init(&port->lock);
 		port->mad_agent = ib_register_mad_agent(cport->ibdev, i,
 							IB_QPT_GSI, &reg_req,
@@ -969,7 +954,6 @@ static int vema_register(struct opa_vnic_ctrl_port *cport)
 			ret = PTR_ERR(port->mad_agent);
 			port->mad_agent = NULL;
 			mutex_destroy(&port->lock);
-			idr_destroy(&port->vport_idr);
 			vema_unregister(cport);
 			return ret;
 		}
@@ -1005,18 +989,18 @@ static void opa_vnic_ctrl_config_dev(struct opa_vnic_ctrl_port *cport, bool en)
  *
  * Allocate the vnic control port and initialize it.
  */
-static void opa_vnic_vema_add_one(struct ib_device *device)
+static int opa_vnic_vema_add_one(struct ib_device *device)
 {
 	struct opa_vnic_ctrl_port *cport;
 	int rc, size = sizeof(*cport);
 
 	if (!rdma_cap_opa_vnic(device))
-		return;
+		return -EOPNOTSUPP;
 
 	size += device->phys_port_cnt * sizeof(struct opa_vnic_vema_port);
 	cport = kzalloc(size, GFP_KERNEL);
 	if (!cport)
-		return;
+		return -ENOMEM;
 
 	cport->num_ports = device->phys_port_cnt;
 	cport->ibdev = device;
@@ -1028,6 +1012,7 @@ static void opa_vnic_vema_add_one(struct ib_device *device)
 
 	ib_set_client_data(device, &opa_vnic_client, cport);
 	opa_vnic_ctrl_config_dev(cport, true);
+	return 0;
 }
 
 /**
@@ -1042,9 +1027,6 @@ static void opa_vnic_vema_rem_one(struct ib_device *device,
 {
 	struct opa_vnic_ctrl_port *cport = client_data;
 
-	if (!cport)
-		return;
-
 	c_info("removing VNIC client\n");
 	opa_vnic_ctrl_config_dev(cport, false);
 	vema_unregister(cport);
@@ -1054,9 +1036,6 @@ static void opa_vnic_vema_rem_one(struct ib_device *device,
 static int __init opa_vnic_init(void)
 {
 	int rc;
-
-	pr_info("OPA Virtual Network Driver - v%s\n",
-		opa_vnic_driver_version);
 
 	rc = ib_register_client(&opa_vnic_client);
 	if (rc)
@@ -1073,5 +1052,5 @@ static void opa_vnic_deinit(void)
 module_exit(opa_vnic_deinit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("Intel OPA Virtual Network driver");
+MODULE_AUTHOR("Cornelis Networks");
+MODULE_DESCRIPTION("Cornelis OPX Virtual Network driver");

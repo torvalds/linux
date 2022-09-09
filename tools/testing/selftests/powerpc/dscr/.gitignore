@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 dscr_default_test
 dscr_explicit_test
 dscr_inherit_exec_test

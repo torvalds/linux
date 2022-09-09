@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/io.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <mach-se/mach/se7343.h>
 
 #define PA_CPLD_BASE_ADDR	0x11400000
@@ -38,7 +38,7 @@ static void se7343_irq_demux(struct irq_desc *desc)
 	mask = ioread16(se7343_irq_regs + PA_CPLD_ST_REG);
 
 	for_each_set_bit(bit, &mask, SE7343_FPGA_IRQ_NR)
-		generic_handle_irq(irq_linear_revmap(se7343_irq_domain, bit));
+		generic_handle_domain_irq(se7343_irq_domain, bit);
 
 	chip->irq_unmask(data);
 }

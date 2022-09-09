@@ -1,3 +1,46 @@
+What:		/sys/firmware/acpi/fpdt/
+Date:		Jan 2021
+Contact:	Zhang Rui <rui.zhang@intel.com>
+Description:
+		ACPI Firmware Performance Data Table (FPDT) provides
+		information for firmware performance data for system boot,
+		S3 suspend and S3 resume. This sysfs entry contains the
+		performance data retrieved from the FPDT.
+
+		boot:
+			firmware_start_ns: Timer value logged at the beginning
+				of firmware image execution. In nanoseconds.
+			bootloader_load_ns: Timer value logged just prior to
+				loading the OS boot loader into memory.
+				In nanoseconds.
+			bootloader_launch_ns: Timer value logged just prior to
+				launching the currently loaded OS boot loader
+				image. In nanoseconds.
+			exitbootservice_start_ns: Timer value logged at the
+				point when the OS loader calls the
+				ExitBootServices function for UEFI compatible
+				firmware. In nanoseconds.
+			exitbootservice_end_ns: Timer value logged at the point
+				just prior to the OS loader gaining control
+				back from the ExitBootServices function for
+				UEFI compatible firmware. In nanoseconds.
+		suspend:
+			suspend_start_ns: Timer value recorded at the previous
+				OS write to SLP_TYP upon entry to S3. In
+				nanoseconds.
+			suspend_end_ns: Timer value recorded at the previous
+				firmware write to SLP_TYP used to trigger
+				hardware entry to S3. In nanoseconds.
+		resume:
+			resume_count: A count of the number of S3 resume cycles
+				since the last full boot sequence.
+			resume_avg_ns: Average timer value of all resume cycles
+				logged since the last full boot sequence,
+				including the most recent resume. In nanoseconds.
+			resume_prev_ns: Timer recorded at the end of the previous
+				platform runtime firmware S3 resume, just prior to
+				handoff to the OS waking vector. In nanoseconds.
+
 What:		/sys/firmware/acpi/bgrt/
 Date:		January 2012
 Contact:	Matthew Garrett <mjg@redhat.com>
@@ -12,11 +55,14 @@ Description:
 		image: The image bitmap. Currently a 32-bit BMP.
 		status: 1 if the image is valid, 0 if firmware invalidated it.
 		type: 0 indicates image is in BMP format.
+
+		======== ===================================================
 		version: The version of the BGRT. Currently 1.
 		xoffset: The number of pixels between the left of the screen
 			 and the left edge of the image.
 		yoffset: The number of pixels between the top of the screen
 			 and the top edge of the image.
+		======== ===================================================
 
 What:		/sys/firmware/acpi/hotplug/
 Date:		February 2013
@@ -33,12 +79,14 @@ Description:
 		The following setting is available to user space for each
 		hotplug profile:
 
+		======== =======================================================
 		enabled: If set, the ACPI core will handle notifications of
-			hotplug events associated with the given class of
-			devices and will allow those devices to be ejected with
-			the help of the _EJ0 control method.  Unsetting it
-			effectively disables hotplug for the correspoinding
-			class of devices.
+			 hotplug events associated with the given class of
+			 devices and will allow those devices to be ejected with
+			 the help of the _EJ0 control method.  Unsetting it
+			 effectively disables hotplug for the correspoinding
+			 class of devices.
+		======== =======================================================
 
 		The value of the above attribute is an integer number: 1 (set)
 		or 0 (unset).  Attempts to write any other values to it will
@@ -71,86 +119,90 @@ Description:
 		To figure out where all the SCI's are coming from,
 		/sys/firmware/acpi/interrupts contains a file listing
 		every possible source, and the count of how many
-		times it has triggered.
+		times it has triggered::
 
-		$ cd /sys/firmware/acpi/interrupts
-		$ grep . *
-		error:	     0
-		ff_gbl_lock:	   0   enable
-		ff_pmtimer:	  0  invalid
-		ff_pwr_btn:	  0   enable
-		ff_rt_clk:	 2  disable
-		ff_slp_btn:	  0  invalid
-		gpe00:	     0	invalid
-		gpe01:	     0	 enable
-		gpe02:	   108	 enable
-		gpe03:	     0	invalid
-		gpe04:	     0	invalid
-		gpe05:	     0	invalid
-		gpe06:	     0	 enable
-		gpe07:	     0	 enable
-		gpe08:	     0	invalid
-		gpe09:	     0	invalid
-		gpe0A:	     0	invalid
-		gpe0B:	     0	invalid
-		gpe0C:	     0	invalid
-		gpe0D:	     0	invalid
-		gpe0E:	     0	invalid
-		gpe0F:	     0	invalid
-		gpe10:	     0	invalid
-		gpe11:	     0	invalid
-		gpe12:	     0	invalid
-		gpe13:	     0	invalid
-		gpe14:	     0	invalid
-		gpe15:	     0	invalid
-		gpe16:	     0	invalid
-		gpe17:	  1084	 enable
-		gpe18:	     0	 enable
-		gpe19:	     0	invalid
-		gpe1A:	     0	invalid
-		gpe1B:	     0	invalid
-		gpe1C:	     0	invalid
-		gpe1D:	     0	invalid
-		gpe1E:	     0	invalid
-		gpe1F:	     0	invalid
-		gpe_all:    1192
-		sci:	1194
-		sci_not:     0	
+		  $ cd /sys/firmware/acpi/interrupts
+		  $ grep . *
+		  error:	     0
+		  ff_gbl_lock:	     0   enable
+		  ff_pmtimer:	     0  invalid
+		  ff_pwr_btn:	     0   enable
+		  ff_rt_clk:	     2  disable
+		  ff_slp_btn:	     0  invalid
+		  gpe00:	     0	invalid
+		  gpe01:	     0	 enable
+		  gpe02:	   108	 enable
+		  gpe03:	     0	invalid
+		  gpe04:	     0	invalid
+		  gpe05:	     0	invalid
+		  gpe06:	     0	 enable
+		  gpe07:	     0	 enable
+		  gpe08:	     0	invalid
+		  gpe09:	     0	invalid
+		  gpe0A:	     0	invalid
+		  gpe0B:	     0	invalid
+		  gpe0C:	     0	invalid
+		  gpe0D:	     0	invalid
+		  gpe0E:	     0	invalid
+		  gpe0F:	     0	invalid
+		  gpe10:	     0	invalid
+		  gpe11:	     0	invalid
+		  gpe12:	     0	invalid
+		  gpe13:	     0	invalid
+		  gpe14:	     0	invalid
+		  gpe15:	     0	invalid
+		  gpe16:	     0	invalid
+		  gpe17:	  1084	 enable
+		  gpe18:	     0	 enable
+		  gpe19:	     0	invalid
+		  gpe1A:	     0	invalid
+		  gpe1B:	     0	invalid
+		  gpe1C:	     0	invalid
+		  gpe1D:	     0	invalid
+		  gpe1E:	     0	invalid
+		  gpe1F:	     0	invalid
+		  gpe_all:	  1192
+		  sci:		  1194
+		  sci_not:	     0
 
-		sci - The number of times the ACPI SCI
-		has been called and claimed an interrupt.
+		===========  ==================================================
+		sci	     The number of times the ACPI SCI
+			     has been called and claimed an interrupt.
 
-		sci_not - The number of times the ACPI SCI
-		has been called and NOT claimed an interrupt.
+		sci_not	     The number of times the ACPI SCI
+			     has been called and NOT claimed an interrupt.
 
-		gpe_all - count of SCI caused by GPEs.
+		gpe_all	     count of SCI caused by GPEs.
 
-		gpeXX - count for individual GPE source
+		gpeXX	     count for individual GPE source
 
-		ff_gbl_lock - Global Lock
+		ff_gbl_lock  Global Lock
 
-		ff_pmtimer - PM Timer
+		ff_pmtimer   PM Timer
 
-		ff_pwr_btn - Power Button
+		ff_pwr_btn   Power Button
 
-		ff_rt_clk - Real Time Clock
+		ff_rt_clk    Real Time Clock
 
-		ff_slp_btn - Sleep Button
+		ff_slp_btn   Sleep Button
 
-		error - an interrupt that can't be accounted for above.
+		error	     an interrupt that can't be accounted for above.
 
-		invalid: it's either a GPE or a Fixed Event that
-			doesn't have an event handler.
+		invalid      it's either a GPE or a Fixed Event that
+			     doesn't have an event handler.
 
-		disable: the GPE/Fixed Event is valid but disabled.
+		disable	     the GPE/Fixed Event is valid but disabled.
 
-		enable: the GPE/Fixed Event is valid and enabled.
+		enable       the GPE/Fixed Event is valid and enabled.
+		===========  ==================================================
 
-		Root has permission to clear any of these counters.  Eg.
-		# echo 0 > gpe11
+		Root has permission to clear any of these counters.  Eg.::
 
-		All counters can be cleared by clearing the total "sci":
-		# echo 0 > sci
+		  # echo 0 > gpe11
+
+		All counters can be cleared by clearing the total "sci"::
+
+		  # echo 0 > sci
 
 		None of these counters has an effect on the function
 		of the system, they are simply statistics.
@@ -165,32 +217,34 @@ Description:
 
 		Let's take power button fixed event for example, please kill acpid
 		and other user space applications so that the machine won't shutdown
-		when pressing the power button.
-		# cat ff_pwr_btn
-		0	enabled
-		# press the power button for 3 times;
-		# cat ff_pwr_btn
-		3	enabled
-		# echo disable > ff_pwr_btn
-		# cat ff_pwr_btn
-		3	disabled
-		# press the power button for 3 times;
-		# cat ff_pwr_btn
-		3	disabled
-		# echo enable > ff_pwr_btn
-		# cat ff_pwr_btn
-		4	enabled
-		/*
-		 * this is because the status bit is set even if the enable bit is cleared,
-		 * and it triggers an ACPI fixed event when the enable bit is set again
-		 */
-		# press the power button for 3 times;
-		# cat ff_pwr_btn
-		7	enabled
-		# echo disable > ff_pwr_btn
-		# press the power button for 3 times;
-		# echo clear > ff_pwr_btn	/* clear the status bit */
-		# echo disable > ff_pwr_btn
-		# cat ff_pwr_btn
-		7	enabled
+		when pressing the power button::
+
+		  # cat ff_pwr_btn
+		  0	enabled
+		  # press the power button for 3 times;
+		  # cat ff_pwr_btn
+		  3	enabled
+		  # echo disable > ff_pwr_btn
+		  # cat ff_pwr_btn
+		  3	disabled
+		  # press the power button for 3 times;
+		  # cat ff_pwr_btn
+		  3	disabled
+		  # echo enable > ff_pwr_btn
+		  # cat ff_pwr_btn
+		  4	enabled
+		  /*
+		   * this is because the status bit is set even if the enable
+		   * bit is cleared, and it triggers an ACPI fixed event when
+		   * the enable bit is set again
+		   */
+		  # press the power button for 3 times;
+		  # cat ff_pwr_btn
+		  7	enabled
+		  # echo disable > ff_pwr_btn
+		  # press the power button for 3 times;
+		  # echo clear > ff_pwr_btn	/* clear the status bit */
+		  # echo disable > ff_pwr_btn
+		  # cat ff_pwr_btn
+		  7	enabled
 

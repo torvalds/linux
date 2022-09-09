@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Amstrad E3 FIQ handling
  *
@@ -8,12 +9,9 @@
  *
  * Parts of this code are taken from linux/arch/arm/mach-omap/irq.c
  * in the MontaVista 2.4 kernel (and the Amstrad changes therein)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -23,7 +21,9 @@
 #include <linux/platform_device.h>
 
 #include <asm/fiq.h>
+#include <linux/soc/ti/omap1-io.h>
 
+#include "hardware.h"
 #include "ams-delta-fiq.h"
 #include "board-ams-delta.h"
 
@@ -72,9 +72,7 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 			 * interrupts default to since commit 80ac93c27441
 			 * requires interrupt already acked and unmasked.
 			 */
-			if (irq_chip->irq_ack)
-				irq_chip->irq_ack(d);
-			if (irq_chip->irq_unmask)
+			if (!WARN_ON_ONCE(!irq_chip->irq_unmask))
 				irq_chip->irq_unmask(d);
 		}
 		for (; irq_counter[gpio] < fiq_count; irq_counter[gpio]++)
@@ -102,7 +100,8 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(irq_data); i++) {
-		gpiod = gpiochip_request_own_desc(chip, i, pin_name[i], 0);
+		gpiod = gpiochip_request_own_desc(chip, i, pin_name[i],
+						  GPIO_ACTIVE_HIGH, GPIOD_IN);
 		if (IS_ERR(gpiod)) {
 			pr_err("%s: failed to get GPIO pin %d (%ld)\n",
 			       __func__, i, PTR_ERR(gpiod));
@@ -113,7 +112,7 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 
 		/*
 		 * FIQ handler takes full control over serio data and clk GPIO
-		 * pins.  Initiaize them and keep requested so nobody can
+		 * pins.  Initialize them and keep requested so nobody can
 		 * interfere.  Fail if any of those two couldn't be requested.
 		 */
 		switch (i) {

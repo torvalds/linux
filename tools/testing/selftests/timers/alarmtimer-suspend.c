@@ -79,7 +79,7 @@ char *clockstring(int clockid)
 		return "CLOCK_BOOTTIME_ALARM";
 	case CLOCK_TAI:
 		return "CLOCK_TAI";
-	};
+	}
 	return "UNKNOWN_CLOCKID";
 }
 
@@ -92,7 +92,7 @@ long long timespec_sub(struct timespec a, struct timespec b)
 	return ret;
 }
 
-int final_ret = 0;
+int final_ret;
 
 void sigalarm(int signo)
 {

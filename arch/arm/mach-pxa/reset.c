@@ -1,8 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -11,12 +7,9 @@
 #include <asm/proc-fns.h>
 #include <asm/system_misc.h>
 
-#include <mach/regs-ost.h>
-#include <mach/reset.h>
-#include <mach/smemc.h>
-
-unsigned int reset_status;
-EXPORT_SYMBOL(reset_status);
+#include "regs-ost.h"
+#include "reset.h"
+#include "smemc.h"
 
 static void do_hw_reset(void);
 

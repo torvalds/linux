@@ -4,9 +4,9 @@ The TAS5720 serial control bus communicates through the I2C protocol only. The
 serial bus is also used for periodic codec fault checking/reporting during
 audio playback. For more product information please see the links below:
 
-http://www.ti.com/product/TAS5720L
-http://www.ti.com/product/TAS5720M
-http://www.ti.com/product/TAS5722L
+https://www.ti.com/product/TAS5720L
+https://www.ti.com/product/TAS5720M
+https://www.ti.com/product/TAS5722L
 
 Required properties:
 

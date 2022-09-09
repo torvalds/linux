@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ZyDAS ZD1301 driver (demodulator)
  *
  * Copyright (C) 2015 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "zd1301_demod.h"
@@ -430,8 +421,7 @@ static int zd1301_demod_i2c_master_xfer(struct i2c_adapter *adapter,
 	} else {
 		dev_dbg(&pdev->dev, "unknown msg[0].len=%u\n", msg[0].len);
 		ret = -EOPNOTSUPP;
-		if (ret)
-			goto err;
+		goto err;
 	}
 
 	return num;

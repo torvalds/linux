@@ -101,7 +101,7 @@ struct security_priv {
 	union pn48 Grprxpn;		/* PN48 used for Grp Key recv. */
 	u8 wps_hw_pbc_pressed;/*for hw pbc pressed*/
 	u8 wps_phase;/*for wps*/
-	u8 wps_ie[MAX_WPA_IE_LEN<<2];
+	u8 wps_ie[MAX_WPA_IE_LEN << 2];
 	int wps_ie_len;
 	u8	binstallGrpkey;
 	u8	busetkipkey;
@@ -185,7 +185,7 @@ do {\
 	txpn._byte_.TSC5 = iv[7];\
 } while (0)
 
-#define ROL32(A, n) (((A) << (n)) | (((A)>>(32-(n)))  & ((1UL << (n)) - 1)))
+#define ROL32(A, n) (((A) << (n)) | (((A) >> (32 - (n)))  & ((1UL << (n)) - 1)))
 #define ROR32(A, n) ROL32((A), 32 - (n))
 
 struct mic_data {
@@ -209,8 +209,8 @@ void r8712_secgetmic(struct mic_data *pmicdata, u8 *dst);
 u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe);
 u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe);
 void r8712_wep_encrypt(struct _adapter *padapter, u8  *pxmitframe);
-u32 r8712_aes_decrypt(struct _adapter *padapter, u8  *precvframe);
-u32 r8712_tkip_decrypt(struct _adapter *padapter, u8  *precvframe);
+void r8712_aes_decrypt(struct _adapter *padapter, u8  *precvframe);
+void r8712_tkip_decrypt(struct _adapter *padapter, u8  *precvframe);
 void r8712_wep_decrypt(struct _adapter *padapter, u8  *precvframe);
 void r8712_use_tkipkey_handler(struct timer_list *t);
 

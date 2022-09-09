@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/hpfs/super.c
  *
@@ -191,8 +192,7 @@ static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = sbi->sb_n_free;
 	buf->f_files = sbi->sb_dirband_size / 4;
 	buf->f_ffree = hpfs_get_free_dnodes(s);
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_namelen = 254;
 
 	hpfs_unlock(s);
@@ -232,21 +232,15 @@ static struct kmem_cache * hpfs_inode_cachep;
 static struct inode *hpfs_alloc_inode(struct super_block *sb)
 {
 	struct hpfs_inode_info *ei;
-	ei = kmem_cache_alloc(hpfs_inode_cachep, GFP_NOFS);
+	ei = alloc_inode_sb(sb, hpfs_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
 }
 
-static void hpfs_i_callback(struct rcu_head *head)
+static void hpfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(hpfs_inode_cachep, hpfs_i(inode));
-}
-
-static void hpfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, hpfs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -532,7 +526,7 @@ static int hpfs_show_options(struct seq_file *seq, struct dentry *root)
 static const struct super_operations hpfs_sops =
 {
 	.alloc_inode	= hpfs_alloc_inode,
-	.destroy_inode	= hpfs_destroy_inode,
+	.free_inode	= hpfs_free_inode,
 	.evict_inode	= hpfs_evict_inode,
 	.put_super	= hpfs_put_super,
 	.statfs		= hpfs_statfs,
@@ -619,6 +613,8 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	s->s_magic = HPFS_SUPER_MAGIC;
 	s->s_op = &hpfs_sops;
 	s->s_d_op = &hpfs_dentry_operations;
+	s->s_time_min =  local_to_gmt(s, 0);
+	s->s_time_max =  local_to_gmt(s, U32_MAX);
 
 	sbi->sb_root = le32_to_cpu(superblock->root);
 	sbi->sb_fs_size = le32_to_cpu(superblock->n_sectors);

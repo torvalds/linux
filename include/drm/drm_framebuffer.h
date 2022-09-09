@@ -23,13 +23,18 @@
 #ifndef __DRM_FRAMEBUFFER_H__
 #define __DRM_FRAMEBUFFER_H__
 
-#include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/list.h>
+#include <linux/sched.h>
+
+#include <drm/drm_fourcc.h>
 #include <drm/drm_mode_object.h>
 
-struct drm_framebuffer;
-struct drm_file;
+struct drm_clip_rect;
 struct drm_device;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_gem_object;
 
 /**
  * struct drm_framebuffer_funcs - framebuffer hooks
@@ -81,6 +86,9 @@ struct drm_framebuffer_funcs {
 	 * See documentation in drm_mode.h for the struct drm_mode_fb_dirty_cmd
 	 * for more information as all the semantics and arguments have a one to
 	 * one mapping on this function.
+	 *
+	 * Atomic drivers should use drm_atomic_helper_dirtyfb() to implement
+	 * this hook.
 	 *
 	 * RETURNS:
 	 *
@@ -139,7 +147,7 @@ struct drm_framebuffer {
 	 * @pitches: Line stride per buffer. For userspace created object this
 	 * is copied from drm_mode_fb_cmd2.
 	 */
-	unsigned int pitches[4];
+	unsigned int pitches[DRM_FORMAT_MAX_PLANES];
 	/**
 	 * @offsets: Offset from buffer start to the actual pixel data in bytes,
 	 * per buffer. For userspace created object this is copied from
@@ -157,7 +165,7 @@ struct drm_framebuffer {
 	 * data (even for linear buffers). Specifying an x/y pixel offset is
 	 * instead done through the source rectangle in &struct drm_plane_state.
 	 */
-	unsigned int offsets[4];
+	unsigned int offsets[DRM_FORMAT_MAX_PLANES];
 	/**
 	 * @modifier: Data layout modifier. This is used to describe
 	 * tiling, or also special layouts (like compression) of auxiliary
@@ -202,7 +210,7 @@ struct drm_framebuffer {
 	 * This is used by the GEM framebuffer helpers, see e.g.
 	 * drm_gem_fb_create().
 	 */
-	struct drm_gem_object *obj[4];
+	struct drm_gem_object *obj[DRM_FORMAT_MAX_PLANES];
 };
 
 #define obj_to_fb(x) container_of(x, struct drm_framebuffer, base)
@@ -288,5 +296,43 @@ int drm_framebuffer_plane_width(int width,
 				const struct drm_framebuffer *fb, int plane);
 int drm_framebuffer_plane_height(int height,
 				 const struct drm_framebuffer *fb, int plane);
+
+/**
+ * struct drm_afbc_framebuffer - a special afbc frame buffer object
+ *
+ * A derived class of struct drm_framebuffer, dedicated for afbc use cases.
+ */
+struct drm_afbc_framebuffer {
+	/**
+	 * @base: base framebuffer structure.
+	 */
+	struct drm_framebuffer base;
+	/**
+	 * @block_width: width of a single afbc block
+	 */
+	u32 block_width;
+	/**
+	 * @block_height: height of a single afbc block
+	 */
+	u32 block_height;
+	/**
+	 * @aligned_width: aligned frame buffer width
+	 */
+	u32 aligned_width;
+	/**
+	 * @aligned_height: aligned frame buffer height
+	 */
+	u32 aligned_height;
+	/**
+	 * @offset: offset of the first afbc header
+	 */
+	u32 offset;
+	/**
+	 * @afbc_size: minimum size of afbc buffer
+	 */
+	u32 afbc_size;
+};
+
+#define fb_to_afbc_fb(x) container_of(x, struct drm_afbc_framebuffer, base)
 
 #endif

@@ -10,5 +10,9 @@ additions to this manual.
    :maxdepth: 2
 
    configure-git
+   rebasing-and-merging
    pull-requests
+   messy-diffstat
+   maintainer-entry-profile
+   modifying-patches
 

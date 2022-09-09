@@ -1,29 +1,13 @@
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
  * inode.c - basic inode and dentry operations.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  *
  * Based on sysfs:
  * 	sysfs is Copyright (C) 2001, 2002, 2003 Patrick Mochel
  *
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  *
- * Please see Documentation/filesystems/configfs/configfs.txt for more
+ * Please see Documentation/filesystems/configfs.rst for more
  * information.
  */
 
@@ -44,17 +28,12 @@
 static struct lock_class_key default_group_class[MAX_LOCK_DEPTH];
 #endif
 
-static const struct address_space_operations configfs_aops = {
-	.readpage	= simple_readpage,
-	.write_begin	= simple_write_begin,
-	.write_end	= simple_write_end,
-};
-
 static const struct inode_operations configfs_inode_operations ={
 	.setattr	= configfs_setattr,
 };
 
-int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
+int configfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		     struct iattr *iattr)
 {
 	struct inode * inode = d_inode(dentry);
 	struct configfs_dirent * sd = dentry->d_fsdata;
@@ -81,7 +60,7 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	}
 	/* attributes were changed atleast once in past */
 
-	error = simple_setattr(dentry, iattr);
+	error = simple_setattr(mnt_userns, dentry, iattr);
 	if (error)
 		return error;
 
@@ -90,14 +69,11 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	if (ia_valid & ATTR_GID)
 		sd_iattr->ia_gid = iattr->ia_gid;
 	if (ia_valid & ATTR_ATIME)
-		sd_iattr->ia_atime = timespec64_trunc(iattr->ia_atime,
-						      inode->i_sb->s_time_gran);
+		sd_iattr->ia_atime = iattr->ia_atime;
 	if (ia_valid & ATTR_MTIME)
-		sd_iattr->ia_mtime = timespec64_trunc(iattr->ia_mtime,
-						      inode->i_sb->s_time_gran);
+		sd_iattr->ia_mtime = iattr->ia_mtime;
 	if (ia_valid & ATTR_CTIME)
-		sd_iattr->ia_ctime = timespec64_trunc(iattr->ia_ctime,
-						      inode->i_sb->s_time_gran);
+		sd_iattr->ia_ctime = iattr->ia_ctime;
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = iattr->ia_mode;
 
@@ -132,7 +108,7 @@ struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
 	struct inode * inode = new_inode(s);
 	if (inode) {
 		inode->i_ino = get_next_ino();
-		inode->i_mapping->a_ops = &configfs_aops;
+		inode->i_mapping->a_ops = &ram_aops;
 		inode->i_op = &configfs_inode_operations;
 
 		if (sd->s_iattr) {
@@ -178,41 +154,27 @@ static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
 
 #endif /* CONFIG_LOCKDEP */
 
-int configfs_create(struct dentry * dentry, umode_t mode, void (*init)(struct inode *))
+struct inode *configfs_create(struct dentry *dentry, umode_t mode)
 {
-	int error = 0;
 	struct inode *inode = NULL;
 	struct configfs_dirent *sd;
 	struct inode *p_inode;
 
 	if (!dentry)
-		return -ENOENT;
+		return ERR_PTR(-ENOENT);
 
 	if (d_really_is_positive(dentry))
-		return -EEXIST;
+		return ERR_PTR(-EEXIST);
 
 	sd = dentry->d_fsdata;
 	inode = configfs_new_inode(mode, sd, dentry->d_sb);
 	if (!inode)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	p_inode = d_inode(dentry->d_parent);
 	p_inode->i_mtime = p_inode->i_ctime = current_time(p_inode);
 	configfs_set_inode_lock_class(sd, inode);
-
-	init(inode);
-	if (S_ISDIR(mode) || S_ISLNK(mode)) {
-		/*
-		 * ->symlink(), ->mkdir(), configfs_register_subsystem() or
-		 * create_default_group() - already hashed.
-		 */
-		d_instantiate(dentry, inode);
-		dget(dentry);  /* pin link and directory dentries in core */
-	} else {
-		/* ->lookup() */
-		d_add(dentry, inode);
-	}
-	return error;
+	return inode;
 }
 
 /*

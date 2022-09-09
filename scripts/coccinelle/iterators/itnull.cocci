@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Many iterators have the property that the first argument is always bound
 /// to a real list element, never NULL.
 //# False positives arise for some iterators that do not have this property,
@@ -6,10 +7,10 @@
 //# or return).
 ///
 // Confidence: Moderate
-// Copyright: (C) 2010-2012 Nicolas Palix.  GPLv2.
-// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2010-2012 Nicolas Palix.
+// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 

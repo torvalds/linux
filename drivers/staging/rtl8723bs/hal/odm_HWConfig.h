@@ -9,37 +9,20 @@
 #ifndef __HALHWOUTSRC_H__
 #define __HALHWOUTSRC_H__
 
-
-/*--------------------------Define -------------------------------------------*/
-/* define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while (0) */
-#define AGC_DIFF_CONFIG_MP(ic, band) (ODM_ReadAndConfig_MP_##ic##_AGC_TAB_DIFF(pDM_Odm, Array_MP_##ic##_AGC_TAB_DIFF_##band, \
-	sizeof(Array_MP_##ic##_AGC_TAB_DIFF_##band)/sizeof(u32)))
-#define AGC_DIFF_CONFIG_TC(ic, band) (ODM_ReadAndConfig_TC_##ic##_AGC_TAB_DIFF(pDM_Odm, Array_TC_##ic##_AGC_TAB_DIFF_##band, \
-	sizeof(Array_TC_##ic##_AGC_TAB_DIFF_##band)/sizeof(u32)))
-
-#define AGC_DIFF_CONFIG(ic, band)\
-	do {\
-		if (pDM_Odm->bIsMPChip)\
-			AGC_DIFF_CONFIG_MP(ic, band);\
-		else\
-			AGC_DIFF_CONFIG_TC(ic, band);\
-	} while (0)
-
-
 /*  */
 /*  structure and define */
 /*  */
 
-typedef struct _Phy_Rx_AGC_Info {
+struct phy_rx_agc_info_t {
 	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
 		u8 gain:7, trsw:1;
 	#else
 		u8 trsw:1, gain:7;
 	#endif
-} PHY_RX_AGC_INFO_T, *pPHY_RX_AGC_INFO_T;
+};
 
-typedef struct _Phy_Status_Rpt_8192cd {
-	PHY_RX_AGC_INFO_T path_agc[2];
+struct phy_status_rpt_8192cd_t {
+	struct phy_rx_agc_info_t path_agc[2];
 	u8 ch_corr[2];
 	u8 cck_sig_qual_ofdm_pwdb_all;
 	u8 cck_agc_rpt_ofdm_cfosho_a;
@@ -74,81 +57,30 @@ typedef struct _Phy_Status_Rpt_8192cd {
 	u8 sgi_en:1;
 	u8 antsel_rx_keep_2:1;	/* ex_intf_flg:1; */
 #endif
-} PHY_STATUS_RPT_8192CD_T, *PPHY_STATUS_RPT_8192CD_T;
+};
 
+void odm_phy_status_query(struct dm_odm_t *dm_odm, struct odm_phy_info *phy_info,
+			  u8 *phy_status, struct odm_packet_info *pkt_info);
 
-typedef struct _Phy_Status_Rpt_8812 {
-	/* 2012.05.24 LukeLee: This structure should take big/little endian in consideration later..... */
+enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm);
 
-	/* DWORD 0 */
-	u8 gain_trsw[2];
-#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
-	u16 chl_num:10;
-	u16 sub_chnl:4;
-	u16 r_RFMOD:2;
-#else	/*  _BIG_ENDIAN_ */
-	u16 r_RFMOD:2;
-	u16 sub_chnl:4;
-	u16 chl_num:10;
-#endif
-
-	/* DWORD 1 */
-	u8 pwdb_all;
-	u8 cfosho[4];	/*  DW 1 byte 1 DW 2 byte 0 */
-
-	/* DWORD 2 */
-	s8 cfotail[4]; /*  DW 2 byte 1 DW 3 byte 0 */
-
-	/* DWORD 3 */
-	s8 rxevm[2]; /*  DW 3 byte 1 DW 3 byte 2 */
-	s8 rxsnr[2]; /*  DW 3 byte 3 DW 4 byte 0 */
-
-	/* DWORD 4 */
-	u8 PCTS_MSK_RPT[2];
-	u8 pdsnr[2]; /*  DW 4 byte 3 DW 5 Byte 0 */
-
-	/* DWORD 5 */
-	u8 csi_current[2];
-	u8 rx_gain_c;
-
-	/* DWORD 6 */
-	u8 rx_gain_d;
-	s8 sigevm;
-	u8 resvd_0;
-	u8 antidx_anta:3;
-	u8 antidx_antb:3;
-	u8 resvd_1:2;
-} PHY_STATUS_RPT_8812_T, *PPHY_STATUS_RPT_8812_T;
-
-
-void ODM_PhyStatusQuery(
-	PDM_ODM_T pDM_Odm,
-	struct odm_phy_info *pPhyInfo,
-	u8 *pPhyStatus,
-	struct odm_packet_info *pPktinfo
+enum hal_status ODM_ConfigRFWithHeaderFile(
+	struct dm_odm_t *pDM_Odm,
+	enum ODM_RF_Config_Type ConfigType,
+	enum rf_path eRFPath
 );
 
-HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(PDM_ODM_T pDM_Odm);
-
-HAL_STATUS ODM_ConfigRFWithHeaderFile(
-	PDM_ODM_T pDM_Odm,
-	ODM_RF_Config_Type ConfigType,
-	ODM_RF_RADIO_PATH_E eRFPath
+enum hal_status ODM_ConfigBBWithHeaderFile(
+	struct dm_odm_t *pDM_Odm, enum ODM_BB_Config_Type ConfigType
 );
 
-HAL_STATUS ODM_ConfigBBWithHeaderFile(
-	PDM_ODM_T pDM_Odm, ODM_BB_Config_Type ConfigType
-);
-
-HAL_STATUS ODM_ConfigMACWithHeaderFile(PDM_ODM_T pDM_Odm);
-
-HAL_STATUS ODM_ConfigFWWithHeaderFile(
-	PDM_ODM_T pDM_Odm,
-	ODM_FW_Config_Type ConfigType,
+enum hal_status ODM_ConfigFWWithHeaderFile(
+	struct dm_odm_t *pDM_Odm,
+	enum ODM_FW_Config_Type ConfigType,
 	u8 *pFirmware,
 	u32 *pSize
 );
 
-s32 odm_SignalScaleMapping(PDM_ODM_T pDM_Odm, s32 CurrSig);
+s32 odm_signal_scale_mapping(struct dm_odm_t *pDM_Odm, s32 CurrSig);
 
 #endif

@@ -25,8 +25,12 @@
  * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include <drm/drmP.h>
+#include <linux/slab.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
 #include <drm/via_drm.h>
+
 #include "via_drv.h"
 
 #define VIA_MM_ALIGN_SHIFT 4
@@ -81,7 +85,7 @@ int via_final_context(struct drm_device *dev, int context)
 	/* Last context, perform cleanup */
 	if (list_is_singular(&dev->ctxlist)) {
 		DRM_DEBUG("Last Context\n");
-		drm_irq_uninstall(dev);
+		drm_legacy_irq_uninstall(dev);
 		via_cleanup_futex(dev_priv);
 		via_do_cleanup_map(dev);
 	}
@@ -124,9 +128,9 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 	if (0 == ((mem->type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
 		      dev_priv->agp_initialized)) {
+		mutex_unlock(&dev->struct_mutex);
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
-		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 

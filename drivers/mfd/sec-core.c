@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
@@ -28,45 +29,33 @@
 #include <linux/regmap.h>
 
 static const struct mfd_cell s5m8751_devs[] = {
-	{
-		.name = "s5m8751-pmic",
-	}, {
-		.name = "s5m-charger",
-	}, {
-		.name = "s5m8751-codec",
-	},
+	{ .name = "s5m8751-pmic", },
+	{ .name = "s5m-charger", },
+	{ .name = "s5m8751-codec", },
 };
 
 static const struct mfd_cell s5m8763_devs[] = {
-	{
-		.name = "s5m8763-pmic",
-	}, {
-		.name = "s5m-rtc",
-	}, {
-		.name = "s5m-charger",
-	},
+	{ .name = "s5m8763-pmic", },
+	{ .name = "s5m-rtc", },
+	{ .name = "s5m-charger", },
 };
 
 static const struct mfd_cell s5m8767_devs[] = {
+	{ .name = "s5m8767-pmic", },
+	{ .name = "s5m-rtc", },
 	{
-		.name = "s5m8767-pmic",
-	}, {
-		.name = "s5m-rtc",
-	}, {
 		.name = "s5m8767-clk",
 		.of_compatible = "samsung,s5m8767-clk",
-	}
+	},
 };
 
 static const struct mfd_cell s2mps11_devs[] = {
+	{ .name = "s2mps11-regulator", },
+	{ .name = "s2mps14-rtc", },
 	{
-		.name = "s2mps11-regulator",
-	}, {
-		.name = "s2mps14-rtc",
-	}, {
 		.name = "s2mps11-clk",
 		.of_compatible = "samsung,s2mps11-clk",
-	}
+	},
 };
 
 static const struct mfd_cell s2mps13_devs[] = {
@@ -79,42 +68,35 @@ static const struct mfd_cell s2mps13_devs[] = {
 };
 
 static const struct mfd_cell s2mps14_devs[] = {
+	{ .name = "s2mps14-regulator", },
+	{ .name = "s2mps14-rtc", },
 	{
-		.name = "s2mps14-regulator",
-	}, {
-		.name = "s2mps14-rtc",
-	}, {
 		.name = "s2mps14-clk",
 		.of_compatible = "samsung,s2mps14-clk",
-	}
+	},
 };
 
 static const struct mfd_cell s2mps15_devs[] = {
+	{ .name = "s2mps15-regulator", },
+	{ .name = "s2mps15-rtc", },
 	{
-		.name = "s2mps15-regulator",
-	}, {
-		.name = "s2mps15-rtc",
-	}, {
 		.name = "s2mps13-clk",
 		.of_compatible = "samsung,s2mps13-clk",
 	},
 };
 
 static const struct mfd_cell s2mpa01_devs[] = {
-	{
-		.name = "s2mpa01-pmic",
-	},
+	{ .name = "s2mpa01-pmic", },
+	{ .name = "s2mps14-rtc", },
 };
 
 static const struct mfd_cell s2mpu02_devs[] = {
-	{
-		.name = "s2mpu02-regulator",
-	},
+	{ .name = "s2mpu02-regulator", },
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id sec_dt_match[] = {
-	{	.compatible = "samsung,s5m8767-pmic",
+	{
+		.compatible = "samsung,s5m8767-pmic",
 		.data = (void *)S5M8767X,
 	}, {
 		.compatible = "samsung,s2mps11-pmic",
@@ -139,7 +121,6 @@ static const struct of_device_id sec_dt_match[] = {
 	},
 };
 MODULE_DEVICE_TABLE(of, sec_dt_match);
-#endif
 
 static bool s2mpa01_volatile(struct device *dev, unsigned int reg)
 {
@@ -299,7 +280,6 @@ static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
 	}
 }
 
-#ifdef CONFIG_OF
 /*
  * Only the common platform data elements for s5m8767 are parsed here from the
  * device tree. Other sub-modules of s5m8767 such as pmic, rtc , charger and
@@ -309,8 +289,8 @@ static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
  * the sub-modules need not instantiate another instance while parsing their
  * platform data.
  */
-static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
-					struct device *dev)
+static struct sec_platform_data *
+sec_pmic_i2c_parse_dt_pdata(struct device *dev)
 {
 	struct sec_platform_data *pd;
 
@@ -318,48 +298,20 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	/*
-	 * ToDo: the 'wakeup' member in the platform data is more of a linux
-	 * specfic information. Hence, there is no binding for that yet and
-	 * not parsed here.
-	 */
-
 	pd->manual_poweroff = of_property_read_bool(dev->of_node,
 						"samsung,s2mps11-acokb-ground");
 	pd->disable_wrstbi = of_property_read_bool(dev->of_node,
 						"samsung,s2mps11-wrstbi-ground");
 	return pd;
 }
-#else
-static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
-					struct device *dev)
-{
-	return NULL;
-}
-#endif
-
-static inline unsigned long sec_i2c_get_driver_data(struct i2c_client *i2c,
-						const struct i2c_device_id *id)
-{
-#ifdef CONFIG_OF
-	if (i2c->dev.of_node) {
-		const struct of_device_id *match;
-
-		match = of_match_node(sec_dt_match, i2c->dev.of_node);
-		return (unsigned long)match->data;
-	}
-#endif
-	return id->driver_data;
-}
 
 static int sec_pmic_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct sec_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	const struct regmap_config *regmap;
+	struct sec_platform_data *pdata;
 	const struct mfd_cell *sec_devs;
 	struct sec_pmic_dev *sec_pmic;
-	unsigned long device_type;
 	int ret, num_sec_devs;
 
 	sec_pmic = devm_kzalloc(&i2c->dev, sizeof(struct sec_pmic_dev),
@@ -371,22 +323,15 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	sec_pmic->dev = &i2c->dev;
 	sec_pmic->i2c = i2c;
 	sec_pmic->irq = i2c->irq;
-	device_type = sec_i2c_get_driver_data(i2c, id);
 
-	if (sec_pmic->dev->of_node) {
-		pdata = sec_pmic_i2c_parse_dt_pdata(sec_pmic->dev);
-		if (IS_ERR(pdata)) {
-			ret = PTR_ERR(pdata);
-			return ret;
-		}
-		pdata->device_type = device_type;
+	pdata = sec_pmic_i2c_parse_dt_pdata(sec_pmic->dev);
+	if (IS_ERR(pdata)) {
+		ret = PTR_ERR(pdata);
+		return ret;
 	}
-	if (pdata) {
-		sec_pmic->device_type = pdata->device_type;
-		sec_pmic->irq_base = pdata->irq_base;
-		sec_pmic->wakeup = pdata->wakeup;
-		sec_pmic->pdata = pdata;
-	}
+
+	sec_pmic->device_type = (unsigned long)of_device_get_match_data(sec_pmic->dev);
+	sec_pmic->pdata = pdata;
 
 	switch (sec_pmic->device_type) {
 	case S2MPA01:
@@ -425,9 +370,6 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
-
-	if (pdata && pdata->cfg_pmic_irq)
-		pdata->cfg_pmic_irq();
 
 	sec_irq_init(sec_pmic);
 
@@ -471,15 +413,15 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		num_sec_devs = ARRAY_SIZE(s2mpu02_devs);
 		break;
 	default:
-		/* If this happens the probe function is problem */
-		BUG();
+		dev_err(&i2c->dev, "Unsupported device type (%lu)\n",
+			sec_pmic->device_type);
+		return -ENODEV;
 	}
 	ret = devm_mfd_add_devices(sec_pmic->dev, -1, sec_devs, num_sec_devs,
 				   NULL, 0, NULL);
 	if (ret)
 		return ret;
 
-	device_init_wakeup(sec_pmic->dev, sec_pmic->wakeup);
 	sec_pmic_configure(sec_pmic);
 	sec_pmic_dump_rev(sec_pmic);
 
@@ -550,35 +492,16 @@ static int sec_pmic_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(sec_pmic_pm_ops, sec_pmic_suspend, sec_pmic_resume);
 
-static const struct i2c_device_id sec_pmic_id[] = {
-	{ "sec_pmic", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, sec_pmic_id);
-
 static struct i2c_driver sec_pmic_driver = {
 	.driver = {
 		   .name = "sec_pmic",
 		   .pm = &sec_pmic_pm_ops,
-		   .of_match_table = of_match_ptr(sec_dt_match),
+		   .of_match_table = sec_dt_match,
 	},
 	.probe = sec_pmic_probe,
 	.shutdown = sec_pmic_shutdown,
-	.id_table = sec_pmic_id,
 };
-
-static int __init sec_pmic_init(void)
-{
-	return i2c_add_driver(&sec_pmic_driver);
-}
-
-subsys_initcall(sec_pmic_init);
-
-static void __exit sec_pmic_exit(void)
-{
-	i2c_del_driver(&sec_pmic_driver);
-}
-module_exit(sec_pmic_exit);
+module_i2c_driver(sec_pmic_driver);
 
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
 MODULE_DESCRIPTION("Core support for the S5M MFD");

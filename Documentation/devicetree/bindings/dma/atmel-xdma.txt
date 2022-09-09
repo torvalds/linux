@@ -2,9 +2,8 @@
 
 * XDMA Controller
 Required properties:
-- compatible: Should be "atmel,<chip>-dma".
-  <chip> compatible description:
-  - sama5d4: first SoC adding the XDMAC
+- compatible: Should be "atmel,sama5d4-dma", "microchip,sam9x60-dma" or
+  "microchip,sama7g5-dma".
 - reg: Should contain DMA registers location and length.
 - interrupts: Should contain DMA interrupt.
 - #dma-cells: Must be <1>, used to represent the number of integer cells in

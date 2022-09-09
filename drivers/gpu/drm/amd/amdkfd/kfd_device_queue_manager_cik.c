@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,6 +49,7 @@ void device_queue_manager_init_cik(
 	asic_ops->set_cache_memory_policy = set_cache_memory_policy_cik;
 	asic_ops->update_qpd = update_qpd_cik;
 	asic_ops->init_sdma_vm = init_sdma_vm;
+	asic_ops->mqd_manager_init = mqd_manager_init_cik;
 }
 
 void device_queue_manager_init_cik_hawaii(
@@ -56,6 +58,7 @@ void device_queue_manager_init_cik_hawaii(
 	asic_ops->set_cache_memory_policy = set_cache_memory_policy_cik;
 	asic_ops->update_qpd = update_qpd_cik_hawaii;
 	asic_ops->init_sdma_vm = init_sdma_vm_hawaii;
+	asic_ops->mqd_manager_init = mqd_manager_init_cik_hawaii;
 }
 
 static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)

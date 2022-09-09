@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel BayTrail PMIC I2C bus semaphore implementaion
+ * Intel BayTrail PMIC I2C bus semaphore implementation
  * Copyright (c) 2014, Intel Corporation.
  */
 #include <linux/device.h>
@@ -12,25 +12,25 @@
 
 #include "i2c-designware-core.h"
 
-int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
+int i2c_dw_baytrail_probe_lock_support(struct dw_i2c_dev *dev)
 {
 	acpi_status status;
 	unsigned long long shared_host = 0;
 	acpi_handle handle;
 
-	if (!dev || !dev->dev)
-		return 0;
+	if (!dev)
+		return -ENODEV;
 
 	handle = ACPI_HANDLE(dev->dev);
 	if (!handle)
-		return 0;
+		return -ENODEV;
 
 	status = acpi_evaluate_integer(handle, "_SEM", NULL, &shared_host);
 	if (ACPI_FAILURE(status))
-		return 0;
+		return -ENODEV;
 
 	if (!shared_host)
-		return 0;
+		return -ENODEV;
 
 	if (!iosf_mbi_available())
 		return -EPROBE_DEFER;

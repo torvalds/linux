@@ -66,13 +66,4 @@ struct nfs_mount_data {
 #define NFS_MOUNT_UNSHARED	0x8000	/* 5 */
 #define NFS_MOUNT_FLAGMASK	0xFFFF
 
-/* The following are for internal use only */
-#define NFS_MOUNT_LOOKUP_CACHE_NONEG	0x10000
-#define NFS_MOUNT_LOOKUP_CACHE_NONE	0x20000
-#define NFS_MOUNT_NORESVPORT		0x40000
-#define NFS_MOUNT_LEGACY_INTERFACE	0x80000
-
-#define NFS_MOUNT_LOCAL_FLOCK	0x100000
-#define NFS_MOUNT_LOCAL_FCNTL	0x200000
-
 #endif

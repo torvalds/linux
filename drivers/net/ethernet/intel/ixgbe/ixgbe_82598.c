@@ -879,7 +879,7 @@ static s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
  *  ixgbe_clear_vfta_82598 - Clear VLAN filter table
  *  @hw: pointer to hardware structure
  *
- *  Clears the VLAN filer table, and the VMDq index associated with the filter
+ *  Clears the VLAN filter table, and the VMDq index associated with the filter
  **/
 static s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw)
 {
@@ -1098,7 +1098,7 @@ static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb,
 			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
 		/* Setup the last four at 48KB...don't re-init i */
 		rxpktsize = IXGBE_RXPBSIZE_48KB;
-		/* Fall Through */
+		fallthrough;
 	case PBA_STRATEGY_EQUAL:
 	default:
 		/* Divide the remaining Rx packet buffer evenly among the TCs */

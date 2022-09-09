@@ -28,17 +28,35 @@ properties:
               - arm,armv7-timer
       - items:
           - enum:
-            - arm,armv7-timer
+              - arm,armv7-timer
       - items:
           - enum:
-            - arm,armv8-timer
+              - arm,armv8-timer
 
   interrupts:
+    minItems: 1
     items:
       - description: secure timer irq
       - description: non-secure timer irq
       - description: virtual timer irq
       - description: hypervisor timer irq
+      - description: hypervisor virtual timer irq
+
+  interrupt-names:
+    oneOf:
+      - minItems: 2
+        items:
+          - const: phys
+          - const: virt
+          - const: hyp-phys
+          - const: hyp-virt
+      - minItems: 3
+        items:
+          - const: sec-phys
+          - const: phys
+          - const: virt
+          - const: hyp-phys
+          - const: hyp-virt
 
   clock-frequency:
     description: The frequency of the main counter, in Hz. Should be present
@@ -50,6 +68,12 @@ properties:
     type: boolean
     description: If present, the timer is powered through an always-on power
       domain, therefore it never loses context.
+
+  allwinner,erratum-unknown1:
+    type: boolean
+    description: Indicates the presence of an erratum found in Allwinner SoCs,
+      where reading certain values from the counter is unreliable. This also
+      affects writes to the tval register, due to the implicit counter read.
 
   fsl,erratum-a008585:
     type: boolean
@@ -81,6 +105,8 @@ properties:
 
 required:
   - compatible
+
+additionalProperties: false
 
 oneOf:
   - required:

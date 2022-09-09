@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FB_PRIV_H__
 #define __NVKM_FB_PRIV_H__
 #define nvkm_fb(p) container_of((p), struct nvkm_fb, subdev)
@@ -17,6 +17,11 @@ struct nvkm_fb_func {
 	void (*intr)(struct nvkm_fb *);
 
 	struct {
+		bool (*scrub_required)(struct nvkm_fb *);
+		int (*scrub)(struct nvkm_fb *);
+	} vpr;
+
+	struct {
 		int regions;
 		void (*init)(struct nvkm_fb *, int i, u32 addr, u32 size,
 			     u32 pitch, u32 flags, struct nvkm_fb_tile *);
@@ -33,9 +38,9 @@ struct nvkm_fb_func {
 };
 
 void nvkm_fb_ctor(const struct nvkm_fb_func *, struct nvkm_device *device,
-		  int index, struct nvkm_fb *);
+		  enum nvkm_subdev_type type, int inst, struct nvkm_fb *);
 int nvkm_fb_new_(const struct nvkm_fb_func *, struct nvkm_device *device,
-		 int index, struct nvkm_fb **);
+		 enum nvkm_subdev_type type, int inst, struct nvkm_fb **);
 int nvkm_fb_bios_memtype(struct nvkm_bios *);
 
 void nv10_fb_tile_init(struct nvkm_fb *, int i, u32 addr, u32 size,
@@ -72,4 +77,11 @@ int gm200_fb_init_page(struct nvkm_fb *);
 
 void gp100_fb_init_remapper(struct nvkm_fb *);
 void gp100_fb_init_unkn(struct nvkm_fb *);
+
+int gp102_fb_new_(const struct nvkm_fb_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_fb **);
+bool gp102_fb_vpr_scrub_required(struct nvkm_fb *);
+int gp102_fb_vpr_scrub(struct nvkm_fb *);
+
+int gv100_fb_init_page(struct nvkm_fb *);
 #endif

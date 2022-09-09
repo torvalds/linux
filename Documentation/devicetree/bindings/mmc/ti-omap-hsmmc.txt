@@ -25,10 +25,10 @@ The following are mandatory properties for 66AK2G SoCs only:
 - power-domains:Should contain a phandle to a PM domain provider node
 		and an args specifier containing the MMC device id
 		value. This property is as per the binding,
-		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+		Documentation/devicetree/bindings/soc/ti/sci-pm-domain.yaml
 - clocks:	Must contain an entry for each entry in clock-names. Should
 		be defined as per the he appropriate clock bindings consumer
-		usage in Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+		usage in Documentation/devicetree/bindings/clock/ti,sci-clk.yaml
 - clock-names:	Shall be "fck" for the functional clock,
 		and "mmchsdb_fck" for the debounce clock.
 
@@ -124,7 +124,7 @@ not every application needs SDIO irq, e.g. MMC cards.
 		pinctrl-1 = <&mmc1_idle>;
 		pinctrl-2 = <&mmc1_sleep>;
 		...
-		interrupts-extended = <&intc 64 &gpio2 28 GPIO_ACTIVE_LOW>;
+		interrupts-extended = <&intc 64 &gpio2 28 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	mmc1_idle : pinmux_cirq_pin {

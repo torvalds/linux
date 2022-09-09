@@ -2,11 +2,12 @@
 #ifdef CONFIG_MMU
 #include <linux/list.h>
 #include <linux/vmalloc.h>
-
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;
+
+extern int icache_size;
 
 /*
  * 0xffff8000 to 0xffffffff is reserved for any ARM architecture
@@ -32,11 +33,6 @@ static inline pte_t get_top_pte(unsigned long va)
 {
 	pte_t *ptep = pte_offset_kernel(top_pmd, va);
 	return *ptep;
-}
-
-static inline pmd_t *pmd_off_k(unsigned long virt)
-{
-	return pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);
 }
 
 struct mem_type {
@@ -68,9 +64,6 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
 #define VM_ARM_MTYPE(mt)		((mt) << 20)
 #define VM_ARM_MTYPE_MASK	(0x1f << 20)
 
-/* consistent regions used by dma_alloc_attrs() */
-#define VM_ARM_DMA_CONSISTENT	0x20000000
-
 
 struct static_vm {
 	struct vm_struct vm;
@@ -95,6 +88,10 @@ extern phys_addr_t arm_lowmem_limit;
 
 void __init bootmem_init(void);
 void arm_mm_memblock_reserve(void);
+#ifdef CONFIG_CMA_AREAS
 void dma_contiguous_remap(void);
+#else
+static inline void dma_contiguous_remap(void) { }
+#endif
 
 unsigned long __clear_cr(unsigned long mask);

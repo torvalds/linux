@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /* Copyright (C) 2007,2008 Freescale Semiconductor, Inc. */
 
 #include <linux/usb/otg-fsm.h>
@@ -371,21 +371,7 @@ struct fsl_otg_config {
 	u8 otg_port;
 };
 
-/* For SRP and HNP handle */
-#define FSL_OTG_MAJOR		240
 #define FSL_OTG_NAME		"fsl-usb2-otg"
-/* Command to OTG driver ioctl */
-#define OTG_IOCTL_MAGIC		FSL_OTG_MAJOR
-/* if otg work as host, it should return 1, otherwise return 0 */
-#define GET_OTG_STATUS		_IOR(OTG_IOCTL_MAGIC, 1, int)
-#define SET_A_SUSPEND_REQ	_IOW(OTG_IOCTL_MAGIC, 2, int)
-#define SET_A_BUS_DROP		_IOW(OTG_IOCTL_MAGIC, 3, int)
-#define SET_A_BUS_REQ		_IOW(OTG_IOCTL_MAGIC, 4, int)
-#define SET_B_BUS_REQ		_IOW(OTG_IOCTL_MAGIC, 5, int)
-#define GET_A_SUSPEND_REQ	_IOR(OTG_IOCTL_MAGIC, 6, int)
-#define GET_A_BUS_DROP		_IOR(OTG_IOCTL_MAGIC, 7, int)
-#define GET_A_BUS_REQ		_IOR(OTG_IOCTL_MAGIC, 8, int)
-#define GET_B_BUS_REQ		_IOR(OTG_IOCTL_MAGIC, 9, int)
 
 void fsl_otg_add_timer(struct otg_fsm *fsm, void *timer);
 void fsl_otg_del_timer(struct otg_fsm *fsm, void *timer);

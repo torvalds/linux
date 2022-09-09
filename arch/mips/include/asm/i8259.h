@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	include/asm-mips/i8259.h
  *
@@ -5,11 +6,6 @@
  *
  *	Copyright (C) 2003  Maciej W. Rozycki
  *	Copyright (C) 2003  Ralf Baechle <ralf@linux-mips.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_I8259_H
 #define _ASM_I8259_H
@@ -40,6 +36,7 @@ extern raw_spinlock_t i8259A_lock;
 extern void make_8259A_irq(unsigned int irq);
 
 extern void init_i8259_irqs(void);
+extern struct irq_domain *__init_i8259_irqs(struct device_node *node);
 
 /**
  * i8159_set_poll() - Override the i8259 polling function

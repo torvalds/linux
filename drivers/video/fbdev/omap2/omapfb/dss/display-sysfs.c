@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "DISPLAY"
@@ -30,14 +19,14 @@
 
 static ssize_t display_name_show(struct omap_dss_device *dssdev, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n",
+	return sysfs_emit(buf, "%s\n",
 			dssdev->name ?
 			dssdev->name : "");
 }
 
 static ssize_t display_enabled_show(struct omap_dss_device *dssdev, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			omapdss_device_is_enabled(dssdev));
 }
 
@@ -70,7 +59,7 @@ static ssize_t display_enabled_store(struct omap_dss_device *dssdev,
 
 static ssize_t display_tear_show(struct omap_dss_device *dssdev, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 			dssdev->driver->get_te ?
 			dssdev->driver->get_te(dssdev) : 0);
 }
@@ -104,7 +93,7 @@ static ssize_t display_timings_show(struct omap_dss_device *dssdev, char *buf)
 
 	dssdev->driver->get_timings(dssdev, &t);
 
-	return snprintf(buf, PAGE_SIZE, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
+	return sysfs_emit(buf, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
 			t.pixelclock,
 			t.x_res, t.hfp, t.hbp, t.hsw,
 			t.y_res, t.vfp, t.vbp, t.vsw);
@@ -154,7 +143,7 @@ static ssize_t display_rotate_show(struct omap_dss_device *dssdev, char *buf)
 	if (!dssdev->driver->get_rotate)
 		return -ENOENT;
 	rotate = dssdev->driver->get_rotate(dssdev);
-	return snprintf(buf, PAGE_SIZE, "%u\n", rotate);
+	return sysfs_emit(buf, "%u\n", rotate);
 }
 
 static ssize_t display_rotate_store(struct omap_dss_device *dssdev,
@@ -182,7 +171,7 @@ static ssize_t display_mirror_show(struct omap_dss_device *dssdev, char *buf)
 	if (!dssdev->driver->get_mirror)
 		return -ENOENT;
 	mirror = dssdev->driver->get_mirror(dssdev);
-	return snprintf(buf, PAGE_SIZE, "%u\n", mirror);
+	return sysfs_emit(buf, "%u\n", mirror);
 }
 
 static ssize_t display_mirror_store(struct omap_dss_device *dssdev,
@@ -214,7 +203,7 @@ static ssize_t display_wss_show(struct omap_dss_device *dssdev, char *buf)
 
 	wss = dssdev->driver->get_wss(dssdev);
 
-	return snprintf(buf, PAGE_SIZE, "0x%05x\n", wss);
+	return sysfs_emit(buf, "0x%05x\n", wss);
 }
 
 static ssize_t display_wss_store(struct omap_dss_device *dssdev,
@@ -276,6 +265,7 @@ static struct attribute *display_sysfs_attrs[] = {
 	&display_attr_wss.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(display_sysfs);
 
 static ssize_t display_attr_show(struct kobject *kobj, struct attribute *attr,
 		char *buf)
@@ -314,7 +304,7 @@ static const struct sysfs_ops display_sysfs_ops = {
 
 static struct kobj_type display_ktype = {
 	.sysfs_ops = &display_sysfs_ops,
-	.default_attrs = display_sysfs_attrs,
+	.default_groups = display_sysfs_groups,
 };
 
 int display_init_sysfs(struct platform_device *pdev)

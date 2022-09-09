@@ -1,28 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* intel_pch_thermal.c - Intel PCH Thermal driver
  *
  * Copyright (c) 2015, Intel Corporation.
  *
  * Authors:
  *     Tushar Dave <tushar.n.dave@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
+#include <linux/acpi.h>
+#include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/types.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/acpi.h>
-#include <linux/thermal.h>
 #include <linux/pm.h>
+#include <linux/suspend.h>
+#include <linux/thermal.h>
+#include <linux/types.h>
+#include <linux/units.h>
 
 /* Intel PCH thermal Device IDs */
 #define PCH_THERMAL_DID_HSW_1	0x9C24 /* Haswell PCH */
@@ -32,6 +26,9 @@
 #define PCH_THERMAL_DID_SKL_H	0xA131 /* Skylake PCH 100 series */
 #define PCH_THERMAL_DID_CNL	0x9Df9 /* CNL PCH */
 #define PCH_THERMAL_DID_CNL_H	0xA379 /* CNL-H PCH */
+#define PCH_THERMAL_DID_CNL_LP	0x02F9 /* CNL-LP PCH */
+#define PCH_THERMAL_DID_CML_H	0X06F9 /* CML-H PCH */
+#define PCH_THERMAL_DID_LWB	0xA1B1 /* Lewisburg PCH */
 
 /* Wildcat Point-LP  PCH Thermal registers */
 #define WPT_TEMP	0x0000	/* Temperature */
@@ -41,6 +38,7 @@
 #define WPT_TSREL	0x0A	/* Thermal Sensor Report Enable and Lock */
 #define WPT_TSMIC	0x0C	/* Thermal Sensor SMI Control */
 #define WPT_CTT	0x0010	/* Catastrophic Trip Point */
+#define WPT_TSPM	0x001C	/* Thermal Sensor Power Management */
 #define WPT_TAHV	0x0014	/* Thermal Alert High Value */
 #define WPT_TALV	0x0018	/* Thermal Alert Low Value */
 #define WPT_TL		0x00000040	/* Throttle Value */
@@ -60,6 +58,22 @@
 #define WPT_TL_TOL	0x000001FF	/* T0 Level */
 #define WPT_TL_T1L	0x1ff00000	/* T1 Level */
 #define WPT_TL_TTEN	0x20000000	/* TT Enable */
+
+/* Resolution of 1/2 degree C and an offset of -50C */
+#define PCH_TEMP_OFFSET	(-50)
+#define GET_WPT_TEMP(x)	((x) * MILLIDEGREE_PER_DEGREE / 2 + WPT_TEMP_OFFSET)
+#define WPT_TEMP_OFFSET	(PCH_TEMP_OFFSET * MILLIDEGREE_PER_DEGREE)
+#define GET_PCH_TEMP(x)	(((x) / 2) + PCH_TEMP_OFFSET)
+
+/* Amount of time for each cooling delay, 100ms by default for now */
+static unsigned int delay_timeout = 100;
+module_param(delay_timeout, int, 0644);
+MODULE_PARM_DESC(delay_timeout, "amount of time delay for each iteration.");
+
+/* Number of iterations for cooling delay, 600 counts by default for now */
+static unsigned int delay_cnt = 600;
+module_param(delay_cnt, int, 0644);
+MODULE_PARM_DESC(delay_cnt, "total number of iterations for time delay.");
 
 static char driver_name[] = "Intel PCH thermal driver";
 
@@ -101,7 +115,7 @@ static void pch_wpt_add_acpi_psv_trip(struct pch_thermal_device *ptd,
 		if (ACPI_SUCCESS(status)) {
 			unsigned long trip_temp;
 
-			trip_temp = DECI_KELVIN_TO_MILLICELSIUS(r);
+			trip_temp = deci_kelvin_to_millicelsius(r);
 			if (trip_temp) {
 				ptd->psv_temp = trip_temp;
 				ptd->psv_trip_id = *nr_trips;
@@ -153,8 +167,7 @@ read_trips:
 	trip_temp = readw(ptd->hw_base + WPT_CTT);
 	trip_temp &= 0x1FF;
 	if (trip_temp) {
-		/* Resolution of 1/2 degree C and an offset of -50C */
-		ptd->crt_temp = trip_temp * 1000 / 2 - 50000;
+		ptd->crt_temp = GET_WPT_TEMP(trip_temp);
 		ptd->crt_trip_id = 0;
 		++(*nr_trips);
 	}
@@ -163,8 +176,7 @@ read_trips:
 	trip_temp = readw(ptd->hw_base + WPT_PHL);
 	trip_temp &= 0x1FF;
 	if (trip_temp) {
-		/* Resolution of 1/2 degree C and an offset of -50C */
-		ptd->hot_temp = trip_temp * 1000 / 2 - 50000;
+		ptd->hot_temp = GET_WPT_TEMP(trip_temp);
 		ptd->hot_trip_id = *nr_trips;
 		++(*nr_trips);
 	}
@@ -176,26 +188,75 @@ read_trips:
 
 static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 {
-	u16 wpt_temp;
-
-	wpt_temp = WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP);
-
-	/* Resolution of 1/2 degree C and an offset of -50C */
-	*temp = (wpt_temp * 1000 / 2 - 50000);
+	*temp = GET_WPT_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
 
 	return 0;
 }
 
+/* Cool the PCH when it's overheat in .suspend_noirq phase */
 static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 {
 	u8 tsel;
+	int pch_delay_cnt = 0;
+	u16 pch_thr_temp, pch_cur_temp;
 
-	if (ptd->bios_enabled)
+	/* Shutdown the thermal sensor if it is not enabled by BIOS */
+	if (!ptd->bios_enabled) {
+		tsel = readb(ptd->hw_base + WPT_TSEL);
+		writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
+		return 0;
+	}
+
+	/* Do not check temperature if it is not s2idle */
+	if (pm_suspend_via_firmware())
 		return 0;
 
-	tsel = readb(ptd->hw_base + WPT_TSEL);
+	/* Get the PCH temperature threshold value */
+	pch_thr_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TSPM));
 
-	writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
+	/* Get the PCH current temperature value */
+	pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
+
+	/*
+	 * If current PCH temperature is higher than configured PCH threshold
+	 * value, run some delay loop with sleep to let the current temperature
+	 * go down below the threshold value which helps to allow system enter
+	 * lower power S0ix suspend state. Even after delay loop if PCH current
+	 * temperature stays above threshold, notify the warning message
+	 * which helps to indentify the reason why S0ix entry was rejected.
+	 */
+	while (pch_delay_cnt < delay_cnt) {
+		if (pch_cur_temp < pch_thr_temp)
+			break;
+
+		if (pm_wakeup_pending()) {
+			dev_warn(&ptd->pdev->dev, "Wakeup event detected, abort cooling\n");
+			return 0;
+		}
+
+		pch_delay_cnt++;
+		dev_dbg(&ptd->pdev->dev,
+			"CPU-PCH current temp [%dC] higher than the threshold temp [%dC], sleep %d times for %d ms duration\n",
+			pch_cur_temp, pch_thr_temp, pch_delay_cnt, delay_timeout);
+		msleep(delay_timeout);
+		/* Read the PCH current temperature for next cycle. */
+		pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
+	}
+
+	if (pch_cur_temp >= pch_thr_temp)
+		dev_warn(&ptd->pdev->dev,
+			"CPU-PCH is hot [%dC] after %d ms delay. S0ix might fail\n",
+			pch_cur_temp, pch_delay_cnt * delay_timeout);
+	else {
+		if (pch_delay_cnt)
+			dev_info(&ptd->pdev->dev,
+				"CPU-PCH is cool [%dC] after %d ms delay\n",
+				pch_cur_temp, pch_delay_cnt * delay_timeout);
+		else
+			dev_info(&ptd->pdev->dev,
+				"CPU-PCH is cool [%dC]\n",
+				pch_cur_temp);
+	}
 
 	return 0;
 }
@@ -270,10 +331,16 @@ static int pch_get_trip_temp(struct thermal_zone_device *tzd, int trip, int *tem
 	return 0;
 }
 
+static void pch_critical(struct thermal_zone_device *tzd)
+{
+	dev_dbg(&tzd->device, "%s: critical temperature reached\n", tzd->type);
+}
+
 static struct thermal_zone_device_ops tzd_ops = {
 	.get_temp = pch_thermal_get_temp,
 	.get_trip_type = pch_get_trip_type,
 	.get_trip_temp = pch_get_trip_temp,
+	.critical = pch_critical,
 };
 
 enum board_ids {
@@ -281,6 +348,8 @@ enum board_ids {
 	board_wpt,
 	board_skl,
 	board_cnl,
+	board_cml,
+	board_lwb,
 };
 
 static const struct board_info {
@@ -301,6 +370,14 @@ static const struct board_info {
 	},
 	[board_cnl] = {
 		.name = "pch_cannonlake",
+		.ops = &pch_dev_ops_wpt,
+	},
+	[board_cml] = {
+		.name = "pch_cometlake",
+		.ops = &pch_dev_ops_wpt,
+	},
+	[board_lwb] = {
+		.name = "pch_lewisburg",
 		.ops = &pch_dev_ops_wpt,
 	},
 };
@@ -354,9 +431,14 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 		err = PTR_ERR(ptd->tzd);
 		goto error_cleanup;
 	}
+	err = thermal_zone_device_enable(ptd->tzd);
+	if (err)
+		goto err_unregister;
 
 	return 0;
 
+err_unregister:
+	thermal_zone_device_unregister(ptd->tzd);
 error_cleanup:
 	iounmap(ptd->hw_base);
 error_release:
@@ -374,22 +456,20 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 	thermal_zone_device_unregister(ptd->tzd);
 	iounmap(ptd->hw_base);
 	pci_set_drvdata(pdev, NULL);
-	pci_release_region(pdev, 0);
+	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
-static int intel_pch_thermal_suspend(struct device *device)
+static int intel_pch_thermal_suspend_noirq(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct pch_thermal_device *ptd = pci_get_drvdata(pdev);
+	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
 	return ptd->ops->suspend(ptd);
 }
 
 static int intel_pch_thermal_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct pch_thermal_device *ptd = pci_get_drvdata(pdev);
+	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
 	return ptd->ops->resume(ptd);
 }
@@ -409,12 +489,18 @@ static const struct pci_device_id intel_pch_thermal_id[] = {
 		.driver_data = board_cnl, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CNL_H),
 		.driver_data = board_cnl, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CNL_LP),
+		.driver_data = board_cnl, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CML_H),
+		.driver_data = board_cml, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_LWB),
+		.driver_data = board_lwb, },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
 
 static const struct dev_pm_ops intel_pch_pm_ops = {
-	.suspend = intel_pch_thermal_suspend,
+	.suspend_noirq = intel_pch_thermal_suspend_noirq,
 	.resume = intel_pch_thermal_resume,
 };
 

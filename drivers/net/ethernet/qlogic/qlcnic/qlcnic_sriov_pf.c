@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic qlcnic NIC Driver
  * Copyright (c) 2009-2013 QLogic Corporation
- *
- * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #include <linux/types.h>
@@ -598,7 +597,9 @@ static int __qlcnic_pci_sriov_enable(struct qlcnic_adapter *adapter,
 	if (err)
 		goto del_flr_queue;
 
-	qlcnic_sriov_alloc_vlans(adapter);
+	err = qlcnic_sriov_alloc_vlans(adapter);
+	if (err)
+		goto del_flr_queue;
 
 	return err;
 
@@ -1066,7 +1067,7 @@ static int qlcnic_sriov_pf_cfg_ip_cmd(struct qlcnic_bc_trans *trans,
 {
 	struct qlcnic_vf_info *vf = trans->vf;
 	struct qlcnic_adapter *adapter = vf->adapter;
-	int err = -EIO;
+	int err;
 
 	cmd->req.arg[1] |= vf->vp->handle << 16;
 	cmd->req.arg[1] |= BIT_31;
@@ -1868,8 +1869,7 @@ int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf,
 	if (!min_tx_rate)
 		min_tx_rate = QLC_VF_MIN_TX_RATE;
 
-	if (max_tx_rate &&
-	    (max_tx_rate >= 10000 || max_tx_rate < min_tx_rate)) {
+	if (max_tx_rate && max_tx_rate >= 10000) {
 		netdev_err(netdev,
 			   "Invalid max Tx rate, allowed range is [%d - %d]",
 			   min_tx_rate, QLC_VF_MAX_TX_RATE);
@@ -1879,8 +1879,7 @@ int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf,
 	if (!max_tx_rate)
 		max_tx_rate = 10000;
 
-	if (min_tx_rate &&
-	    (min_tx_rate > max_tx_rate || min_tx_rate < QLC_VF_MIN_TX_RATE)) {
+	if (min_tx_rate && min_tx_rate < QLC_VF_MIN_TX_RATE) {
 		netdev_err(netdev,
 			   "Invalid min Tx rate, allowed range is [%d - %d]",
 			   QLC_VF_MIN_TX_RATE, max_tx_rate);

@@ -70,6 +70,7 @@ static void vgpu_pci_cfg_mem_write(struct intel_vgpu *vgpu, unsigned int off,
 {
 	u8 *cfg_base = vgpu_cfg_space(vgpu);
 	u8 mask, new, old;
+	pci_power_t pwr;
 	int i = 0;
 
 	for (; i < bytes && (off + i < sizeof(pci_cfg_space_rw_bmp)); i++) {
@@ -91,6 +92,15 @@ static void vgpu_pci_cfg_mem_write(struct intel_vgpu *vgpu, unsigned int off,
 	/* For other configuration space directly copy as it is. */
 	if (i < bytes)
 		memcpy(cfg_base + off + i, src + i, bytes - i);
+
+	if (off == vgpu->cfg_space.pmcsr_off && vgpu->cfg_space.pmcsr_off) {
+		pwr = (pci_power_t __force)(*(u16*)(&vgpu_cfg_space(vgpu)[off])
+			& PCI_PM_CTRL_STATE_MASK);
+		if (pwr == PCI_D3hot)
+			vgpu->d3_entered = true;
+		gvt_dbg_core("vgpu-%d power status changed to %d\n",
+			     vgpu->id, pwr);
+	}
 }
 
 /**
@@ -106,70 +116,29 @@ static void vgpu_pci_cfg_mem_write(struct intel_vgpu *vgpu, unsigned int off,
 int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
-	if (WARN_ON(bytes > 4))
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
+
+	if (drm_WARN_ON(&i915->drm, bytes > 4))
 		return -EINVAL;
 
-	if (WARN_ON(offset + bytes > vgpu->gvt->device_info.cfg_space_size))
+	if (drm_WARN_ON(&i915->drm,
+			offset + bytes > vgpu->gvt->device_info.cfg_space_size))
 		return -EINVAL;
 
 	memcpy(p_data, vgpu_cfg_space(vgpu) + offset, bytes);
 	return 0;
 }
 
-static int map_aperture(struct intel_vgpu *vgpu, bool map)
+static void map_aperture(struct intel_vgpu *vgpu, bool map)
 {
-	phys_addr_t aperture_pa = vgpu_aperture_pa_base(vgpu);
-	unsigned long aperture_sz = vgpu_aperture_sz(vgpu);
-	u64 first_gfn;
-	u64 val;
-	int ret;
-
-	if (map == vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].tracked)
-		return 0;
-
-	val = vgpu_cfg_space(vgpu)[PCI_BASE_ADDRESS_2];
-	if (val & PCI_BASE_ADDRESS_MEM_TYPE_64)
-		val = *(u64 *)(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_2);
-	else
-		val = *(u32 *)(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_2);
-
-	first_gfn = (val + vgpu_aperture_offset(vgpu)) >> PAGE_SHIFT;
-
-	ret = intel_gvt_hypervisor_map_gfn_to_mfn(vgpu, first_gfn,
-						  aperture_pa >> PAGE_SHIFT,
-						  aperture_sz >> PAGE_SHIFT,
-						  map);
-	if (ret)
-		return ret;
-
-	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].tracked = map;
-	return 0;
+	if (map != vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].tracked)
+		vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].tracked = map;
 }
 
-static int trap_gttmmio(struct intel_vgpu *vgpu, bool trap)
+static void trap_gttmmio(struct intel_vgpu *vgpu, bool trap)
 {
-	u64 start, end;
-	u64 val;
-	int ret;
-
-	if (trap == vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].tracked)
-		return 0;
-
-	val = vgpu_cfg_space(vgpu)[PCI_BASE_ADDRESS_0];
-	if (val & PCI_BASE_ADDRESS_MEM_TYPE_64)
-		start = *(u64 *)(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_0);
-	else
-		start = *(u32 *)(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_0);
-
-	start &= ~GENMASK(3, 0);
-	end = start + vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].size - 1;
-
-	ret = intel_gvt_hypervisor_set_trap_area(vgpu, start, end, trap);
-	if (ret)
-		return ret;
-
-	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].tracked = trap;
-	return 0;
+	if (trap != vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].tracked)
+		vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].tracked = trap;
 }
 
 static int emulate_pci_command_write(struct intel_vgpu *vgpu,
@@ -178,26 +147,17 @@ static int emulate_pci_command_write(struct intel_vgpu *vgpu,
 	u8 old = vgpu_cfg_space(vgpu)[offset];
 	u8 new = *(u8 *)p_data;
 	u8 changed = old ^ new;
-	int ret;
 
 	vgpu_pci_cfg_mem_write(vgpu, offset, p_data, bytes);
 	if (!(changed & PCI_COMMAND_MEMORY))
 		return 0;
 
 	if (old & PCI_COMMAND_MEMORY) {
-		ret = trap_gttmmio(vgpu, false);
-		if (ret)
-			return ret;
-		ret = map_aperture(vgpu, false);
-		if (ret)
-			return ret;
+		trap_gttmmio(vgpu, false);
+		map_aperture(vgpu, false);
 	} else {
-		ret = trap_gttmmio(vgpu, true);
-		if (ret)
-			return ret;
-		ret = map_aperture(vgpu, true);
-		if (ret)
-			return ret;
+		trap_gttmmio(vgpu, true);
+		map_aperture(vgpu, true);
 	}
 
 	return 0;
@@ -217,13 +177,12 @@ static int emulate_pci_rom_bar_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
-static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
+static void emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
 	u32 new = *(u32 *)(p_data);
 	bool lo = IS_ALIGNED(offset, 8);
 	u64 size;
-	int ret = 0;
 	bool mmio_enabled =
 		vgpu_cfg_space(vgpu)[PCI_COMMAND] & PCI_COMMAND_MEMORY;
 	struct intel_vgpu_pci_bar *bars = vgpu->cfg_space.bar;
@@ -246,14 +205,14 @@ static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
 			 * Untrap the BAR, since guest hasn't configured a
 			 * valid GPA
 			 */
-			ret = trap_gttmmio(vgpu, false);
+			trap_gttmmio(vgpu, false);
 			break;
 		case PCI_BASE_ADDRESS_2:
 		case PCI_BASE_ADDRESS_3:
 			size = ~(bars[INTEL_GVT_PCI_BAR_APERTURE].size -1);
 			intel_vgpu_write_pci_bar(vgpu, offset,
 						size >> (lo ? 0 : 32), lo);
-			ret = map_aperture(vgpu, false);
+			map_aperture(vgpu, false);
 			break;
 		default:
 			/* Unimplemented BARs */
@@ -269,19 +228,18 @@ static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
 			 */
 			trap_gttmmio(vgpu, false);
 			intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
-			ret = trap_gttmmio(vgpu, mmio_enabled);
+			trap_gttmmio(vgpu, mmio_enabled);
 			break;
 		case PCI_BASE_ADDRESS_2:
 		case PCI_BASE_ADDRESS_3:
 			map_aperture(vgpu, false);
 			intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
-			ret = map_aperture(vgpu, mmio_enabled);
+			map_aperture(vgpu, mmio_enabled);
 			break;
 		default:
 			intel_vgpu_write_pci_bar(vgpu, offset, new, lo);
 		}
 	}
-	return ret;
 }
 
 /**
@@ -297,34 +255,36 @@ static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
 int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	int ret;
 
-	if (WARN_ON(bytes > 4))
+	if (drm_WARN_ON(&i915->drm, bytes > 4))
 		return -EINVAL;
 
-	if (WARN_ON(offset + bytes > vgpu->gvt->device_info.cfg_space_size))
+	if (drm_WARN_ON(&i915->drm,
+			offset + bytes > vgpu->gvt->device_info.cfg_space_size))
 		return -EINVAL;
 
 	/* First check if it's PCI_COMMAND */
 	if (IS_ALIGNED(offset, 2) && offset == PCI_COMMAND) {
-		if (WARN_ON(bytes > 2))
+		if (drm_WARN_ON(&i915->drm, bytes > 2))
 			return -EINVAL;
 		return emulate_pci_command_write(vgpu, offset, p_data, bytes);
 	}
 
 	switch (rounddown(offset, 4)) {
 	case PCI_ROM_ADDRESS:
-		if (WARN_ON(!IS_ALIGNED(offset, 4)))
+		if (drm_WARN_ON(&i915->drm, !IS_ALIGNED(offset, 4)))
 			return -EINVAL;
 		return emulate_pci_rom_bar_write(vgpu, offset, p_data, bytes);
 
 	case PCI_BASE_ADDRESS_0 ... PCI_BASE_ADDRESS_5:
-		if (WARN_ON(!IS_ALIGNED(offset, 4)))
+		if (drm_WARN_ON(&i915->drm, !IS_ALIGNED(offset, 4)))
 			return -EINVAL;
-		return emulate_pci_bar_write(vgpu, offset, p_data, bytes);
-
+		emulate_pci_bar_write(vgpu, offset, p_data, bytes);
+		break;
 	case INTEL_GVT_PCI_SWSCI:
-		if (WARN_ON(!IS_ALIGNED(offset, 4)))
+		if (drm_WARN_ON(&i915->drm, !IS_ALIGNED(offset, 4)))
 			return -EINVAL;
 		ret = intel_vgpu_emulate_opregion_request(vgpu, *(u32 *)p_data);
 		if (ret)
@@ -332,7 +292,7 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 		break;
 
 	case INTEL_GVT_PCI_OPREGION:
-		if (WARN_ON(!IS_ALIGNED(offset, 4)))
+		if (drm_WARN_ON(&i915->drm, !IS_ALIGNED(offset, 4)))
 			return -EINVAL;
 		ret = intel_vgpu_opregion_base_write_handler(vgpu,
 						   *(u32 *)p_data);
@@ -359,8 +319,10 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 			       bool primary)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
+	struct pci_dev *pdev = to_pci_dev(gvt->gt->i915->drm.dev);
 	const struct intel_gvt_device_info *info = &gvt->device_info;
 	u16 *gmch_ctl;
+	u8 next;
 
 	memcpy(vgpu_cfg_space(vgpu), gvt->firmware.cfg_space,
 	       info->cfg_space_size);
@@ -391,11 +353,24 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 	memset(vgpu_cfg_space(vgpu) + INTEL_GVT_PCI_OPREGION, 0, 4);
 
 	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].size =
-				pci_resource_len(gvt->dev_priv->drm.pdev, 0);
+		pci_resource_len(pdev, 0);
 	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].size =
-				pci_resource_len(gvt->dev_priv->drm.pdev, 2);
+		pci_resource_len(pdev, 2);
 
 	memset(vgpu_cfg_space(vgpu) + PCI_ROM_ADDRESS, 0, 4);
+
+	/* PM Support */
+	vgpu->cfg_space.pmcsr_off = 0;
+	if (vgpu_cfg_space(vgpu)[PCI_STATUS] & PCI_STATUS_CAP_LIST) {
+		next = vgpu_cfg_space(vgpu)[PCI_CAPABILITY_LIST];
+		do {
+			if (vgpu_cfg_space(vgpu)[next + PCI_CAP_LIST_ID] == PCI_CAP_ID_PM) {
+				vgpu->cfg_space.pmcsr_off = next + PCI_PM_CTRL;
+				break;
+			}
+			next = vgpu_cfg_space(vgpu)[next + PCI_CAP_LIST_NEXT];
+		} while (next);
+	}
 }
 
 /**

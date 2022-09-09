@@ -26,8 +26,8 @@
  *
  *  - flush_tlb_all() flushes all processes TLB entries
  *  - flush_tlb_mm(mm) flushes the specified mm context TLB entries
- *  - flush_tlb_page(mm, vmaddr) flushes a single page
- *  - flush_tlb_range(mm, start, end) flushes a range of pages
+ *  - flush_tlb_page(vma, page) flushes a single page
+ *  - flush_tlb_range(vma, vmaddr, end) flushes a range of pages
  */
 
 void local_flush_tlb_all(void);
@@ -159,9 +159,6 @@ static inline void invalidate_dtlb_mapping (unsigned address)
 	if (((tlb_entry = dtlb_probe(address)) & (1 << DTLB_HIT_BIT)) != 0)
 		invalidate_dtlb_entry(tlb_entry);
 }
-
-#define check_pgt_cache()	do { } while (0)
-
 
 /*
  * DO NOT USE THESE FUNCTIONS.  These instructions aren't part of the Xtensa

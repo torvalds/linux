@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Real Time Clock interface for Linux on Atmel AT91RM9200
  *
@@ -10,15 +11,10 @@
  *
  *	Based on sa1100-rtc.c by Nils Faerber
  *	Based on rtc.c by Paul Gortmaker
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/bcd.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
@@ -35,7 +31,58 @@
 #include <linux/time.h>
 #include <linux/uaccess.h>
 
-#include "rtc-at91rm9200.h"
+#define	AT91_RTC_CR		0x00			/* Control Register */
+#define		AT91_RTC_UPDTIM		BIT(0)		/* Update Request Time Register */
+#define		AT91_RTC_UPDCAL		BIT(1)		/* Update Request Calendar Register */
+
+#define	AT91_RTC_MR		0x04			/* Mode Register */
+#define		AT91_RTC_HRMOD		BIT(0)		/* 12/24 hour mode */
+#define		AT91_RTC_NEGPPM		BIT(4)		/* Negative PPM correction */
+#define		AT91_RTC_CORRECTION	GENMASK(14, 8)	/* Slow clock correction */
+#define		AT91_RTC_HIGHPPM	BIT(15)		/* High PPM correction */
+
+#define	AT91_RTC_TIMR		0x08			/* Time Register */
+#define		AT91_RTC_SEC		GENMASK(6, 0)	/* Current Second */
+#define		AT91_RTC_MIN		GENMASK(14, 8)	/* Current Minute */
+#define		AT91_RTC_HOUR		GENMASK(21, 16)	/* Current Hour */
+#define		AT91_RTC_AMPM		BIT(22)		/* Ante Meridiem Post Meridiem Indicator */
+
+#define	AT91_RTC_CALR		0x0c			/* Calendar Register */
+#define		AT91_RTC_CENT		GENMASK(6, 0)	/* Current Century */
+#define		AT91_RTC_YEAR		GENMASK(15, 8)	/* Current Year */
+#define		AT91_RTC_MONTH		GENMASK(20, 16)	/* Current Month */
+#define		AT91_RTC_DAY		GENMASK(23, 21)	/* Current Day */
+#define		AT91_RTC_DATE		GENMASK(29, 24)	/* Current Date */
+
+#define	AT91_RTC_TIMALR		0x10			/* Time Alarm Register */
+#define		AT91_RTC_SECEN		BIT(7)		/* Second Alarm Enable */
+#define		AT91_RTC_MINEN		BIT(15)		/* Minute Alarm Enable */
+#define		AT91_RTC_HOUREN		BIT(23)		/* Hour Alarm Enable */
+
+#define	AT91_RTC_CALALR		0x14			/* Calendar Alarm Register */
+#define		AT91_RTC_MTHEN		BIT(23)		/* Month Alarm Enable */
+#define		AT91_RTC_DATEEN		BIT(31)		/* Date Alarm Enable */
+
+#define	AT91_RTC_SR		0x18			/* Status Register */
+#define		AT91_RTC_ACKUPD		BIT(0)		/* Acknowledge for Update */
+#define		AT91_RTC_ALARM		BIT(1)		/* Alarm Flag */
+#define		AT91_RTC_SECEV		BIT(2)		/* Second Event */
+#define		AT91_RTC_TIMEV		BIT(3)		/* Time Event */
+#define		AT91_RTC_CALEV		BIT(4)		/* Calendar Event */
+
+#define	AT91_RTC_SCCR		0x1c			/* Status Clear Command Register */
+#define	AT91_RTC_IER		0x20			/* Interrupt Enable Register */
+#define	AT91_RTC_IDR		0x24			/* Interrupt Disable Register */
+#define	AT91_RTC_IMR		0x28			/* Interrupt Mask Register */
+
+#define	AT91_RTC_VER		0x2c			/* Valid Entry Register */
+#define		AT91_RTC_NVTIM		BIT(0)		/* Non valid Time */
+#define		AT91_RTC_NVCAL		BIT(1)		/* Non valid Calendar */
+#define		AT91_RTC_NVTIMALR	BIT(2)		/* Non valid Time Alarm */
+#define		AT91_RTC_NVCALALR	BIT(3)		/* Non valid Calendar Alarm */
+
+#define AT91_RTC_CORR_DIVIDEND		3906000
+#define AT91_RTC_CORR_LOW_RATIO		20
 
 #define at91_rtc_read(field) \
 	readl_relaxed(at91_rtc_regs + field)
@@ -44,6 +91,7 @@
 
 struct at91_rtc_config {
 	bool use_shadow_imr;
+	bool has_correction;
 };
 
 static const struct at91_rtc_config *at91_rtc_config;
@@ -122,20 +170,20 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg,
 	} while ((time != at91_rtc_read(timereg)) ||
 			(date != at91_rtc_read(calreg)));
 
-	tm->tm_sec  = bcd2bin((time & AT91_RTC_SEC) >> 0);
-	tm->tm_min  = bcd2bin((time & AT91_RTC_MIN) >> 8);
-	tm->tm_hour = bcd2bin((time & AT91_RTC_HOUR) >> 16);
+	tm->tm_sec  = bcd2bin(FIELD_GET(AT91_RTC_SEC, time));
+	tm->tm_min  = bcd2bin(FIELD_GET(AT91_RTC_MIN, time));
+	tm->tm_hour = bcd2bin(FIELD_GET(AT91_RTC_HOUR, time));
 
 	/*
 	 * The Calendar Alarm register does not have a field for
 	 * the year - so these will return an invalid value.
 	 */
 	tm->tm_year  = bcd2bin(date & AT91_RTC_CENT) * 100;	/* century */
-	tm->tm_year += bcd2bin((date & AT91_RTC_YEAR) >> 8);	/* year */
+	tm->tm_year += bcd2bin(FIELD_GET(AT91_RTC_YEAR, date));	/* year */
 
-	tm->tm_wday = bcd2bin((date & AT91_RTC_DAY) >> 21) - 1;	/* day of the week [0-6], Sunday=0 */
-	tm->tm_mon  = bcd2bin((date & AT91_RTC_MONTH) >> 16) - 1;
-	tm->tm_mday = bcd2bin((date & AT91_RTC_DATE) >> 24);
+	tm->tm_wday = bcd2bin(FIELD_GET(AT91_RTC_DAY, date)) - 1;	/* day of the week [0-6], Sunday=0 */
+	tm->tm_mon  = bcd2bin(FIELD_GET(AT91_RTC_MONTH, date)) - 1;
+	tm->tm_mday = bcd2bin(FIELD_GET(AT91_RTC_DATE, date));
 }
 
 /*
@@ -172,16 +220,17 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 	at91_rtc_write_idr(AT91_RTC_ACKUPD);
 
 	at91_rtc_write(AT91_RTC_TIMR,
-			  bin2bcd(tm->tm_sec) << 0
-			| bin2bcd(tm->tm_min) << 8
-			| bin2bcd(tm->tm_hour) << 16);
+			  FIELD_PREP(AT91_RTC_SEC, bin2bcd(tm->tm_sec))
+			| FIELD_PREP(AT91_RTC_MIN, bin2bcd(tm->tm_min))
+			| FIELD_PREP(AT91_RTC_HOUR, bin2bcd(tm->tm_hour)));
 
 	at91_rtc_write(AT91_RTC_CALR,
-			  bin2bcd((tm->tm_year + 1900) / 100)	/* century */
-			| bin2bcd(tm->tm_year % 100) << 8	/* year */
-			| bin2bcd(tm->tm_mon + 1) << 16		/* tm_mon starts at zero */
-			| bin2bcd(tm->tm_wday + 1) << 21	/* day of the week [0-6], Sunday=0 */
-			| bin2bcd(tm->tm_mday) << 24);
+			  FIELD_PREP(AT91_RTC_CENT,
+				     bin2bcd((tm->tm_year + 1900) / 100))
+			| FIELD_PREP(AT91_RTC_YEAR, bin2bcd(tm->tm_year % 100))
+			| FIELD_PREP(AT91_RTC_MONTH, bin2bcd(tm->tm_mon + 1))
+			| FIELD_PREP(AT91_RTC_DAY, bin2bcd(tm->tm_wday + 1))
+			| FIELD_PREP(AT91_RTC_DATE, bin2bcd(tm->tm_mday)));
 
 	/* Restart Time/Calendar */
 	cr = at91_rtc_read(AT91_RTC_CR);
@@ -216,25 +265,17 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
  */
 static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct rtc_time tm;
-
-	at91_rtc_decodetime(AT91_RTC_TIMR, AT91_RTC_CALR, &tm);
-
-	tm.tm_mon = alrm->time.tm_mon;
-	tm.tm_mday = alrm->time.tm_mday;
-	tm.tm_hour = alrm->time.tm_hour;
-	tm.tm_min = alrm->time.tm_min;
-	tm.tm_sec = alrm->time.tm_sec;
+	struct rtc_time tm = alrm->time;
 
 	at91_rtc_write_idr(AT91_RTC_ALARM);
 	at91_rtc_write(AT91_RTC_TIMALR,
-		  bin2bcd(tm.tm_sec) << 0
-		| bin2bcd(tm.tm_min) << 8
-		| bin2bcd(tm.tm_hour) << 16
+		  FIELD_PREP(AT91_RTC_SEC, bin2bcd(alrm->time.tm_sec))
+		| FIELD_PREP(AT91_RTC_MIN, bin2bcd(alrm->time.tm_min))
+		| FIELD_PREP(AT91_RTC_HOUR, bin2bcd(alrm->time.tm_hour))
 		| AT91_RTC_HOUREN | AT91_RTC_MINEN | AT91_RTC_SECEN);
 	at91_rtc_write(AT91_RTC_CALALR,
-		  bin2bcd(tm.tm_mon + 1) << 16		/* tm_mon starts at zero */
-		| bin2bcd(tm.tm_mday) << 24
+		  FIELD_PREP(AT91_RTC_MONTH, bin2bcd(alrm->time.tm_mon + 1))
+		| FIELD_PREP(AT91_RTC_DATE, bin2bcd(alrm->time.tm_mday))
 		| AT91_RTC_DATEEN | AT91_RTC_MTHEN);
 
 	if (alrm->enabled) {
@@ -259,17 +300,72 @@ static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	return 0;
 }
-/*
- * Provide additional RTC information in /proc/driver/rtc
- */
-static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
-{
-	unsigned long imr = at91_rtc_read_imr();
 
-	seq_printf(seq, "update_IRQ\t: %s\n",
-			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
-	seq_printf(seq, "periodic_IRQ\t: %s\n",
-			(imr & AT91_RTC_SECEV) ? "yes" : "no");
+static int at91_rtc_readoffset(struct device *dev, long *offset)
+{
+	u32 mr = at91_rtc_read(AT91_RTC_MR);
+	long val = FIELD_GET(AT91_RTC_CORRECTION, mr);
+
+	if (!val) {
+		*offset = 0;
+		return 0;
+	}
+
+	val++;
+
+	if (!(mr & AT91_RTC_NEGPPM))
+		val = -val;
+
+	if (!(mr & AT91_RTC_HIGHPPM))
+		val *= AT91_RTC_CORR_LOW_RATIO;
+
+	*offset = DIV_ROUND_CLOSEST(AT91_RTC_CORR_DIVIDEND, val);
+
+	return 0;
+}
+
+static int at91_rtc_setoffset(struct device *dev, long offset)
+{
+	long corr;
+	u32 mr;
+
+	if (offset > AT91_RTC_CORR_DIVIDEND / 2)
+		return -ERANGE;
+	if (offset < -AT91_RTC_CORR_DIVIDEND / 2)
+		return -ERANGE;
+
+	mr = at91_rtc_read(AT91_RTC_MR);
+	mr &= ~(AT91_RTC_NEGPPM | AT91_RTC_CORRECTION | AT91_RTC_HIGHPPM);
+
+	if (offset > 0)
+		mr |= AT91_RTC_NEGPPM;
+	else
+		offset = -offset;
+
+	/* offset less than 764 ppb, disable correction*/
+	if (offset < 764) {
+		at91_rtc_write(AT91_RTC_MR, mr & ~AT91_RTC_NEGPPM);
+
+		return 0;
+	}
+
+	/*
+	 * 29208 ppb is the perfect cutoff between low range and high range
+	 * low range values are never better than high range value after that.
+	 */
+	if (offset < 29208) {
+		corr = DIV_ROUND_CLOSEST(AT91_RTC_CORR_DIVIDEND, offset * AT91_RTC_CORR_LOW_RATIO);
+	} else {
+		corr = DIV_ROUND_CLOSEST(AT91_RTC_CORR_DIVIDEND, offset);
+		mr |= AT91_RTC_HIGHPPM;
+	}
+
+	if (corr > 128)
+		corr = 128;
+
+	mr |= FIELD_PREP(AT91_RTC_CORRECTION, corr - 1);
+
+	at91_rtc_write(AT91_RTC_MR, mr);
 
 	return 0;
 }
@@ -324,7 +420,10 @@ static const struct at91_rtc_config at91sam9x5_config = {
 	.use_shadow_imr	= true,
 };
 
-#ifdef CONFIG_OF
+static const struct at91_rtc_config sama5d4_config = {
+	.has_correction = true,
+};
+
 static const struct of_device_id at91_rtc_dt_ids[] = {
 	{
 		.compatible = "atmel,at91rm9200-rtc",
@@ -333,34 +432,36 @@ static const struct of_device_id at91_rtc_dt_ids[] = {
 		.compatible = "atmel,at91sam9x5-rtc",
 		.data = &at91sam9x5_config,
 	}, {
+		.compatible = "atmel,sama5d4-rtc",
+		.data = &sama5d4_config,
+	}, {
+		.compatible = "atmel,sama5d2-rtc",
+		.data = &sama5d4_config,
+	}, {
+		.compatible = "microchip,sam9x60-rtc",
+		.data = &sama5d4_config,
+	}, {
 		/* sentinel */
 	}
 };
 MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
-#endif
-
-static const struct at91_rtc_config *
-at91_rtc_get_config(struct platform_device *pdev)
-{
-	const struct of_device_id *match;
-
-	if (pdev->dev.of_node) {
-		match = of_match_node(at91_rtc_dt_ids, pdev->dev.of_node);
-		if (!match)
-			return NULL;
-		return (const struct at91_rtc_config *)match->data;
-	}
-
-	return &at91rm9200_config;
-}
 
 static const struct rtc_class_ops at91_rtc_ops = {
 	.read_time	= at91_rtc_readtime,
 	.set_time	= at91_rtc_settime,
 	.read_alarm	= at91_rtc_readalarm,
 	.set_alarm	= at91_rtc_setalarm,
-	.proc		= at91_rtc_proc,
 	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
+};
+
+static const struct rtc_class_ops sama5d4_rtc_ops = {
+	.read_time	= at91_rtc_readtime,
+	.set_time	= at91_rtc_settime,
+	.read_alarm	= at91_rtc_readalarm,
+	.set_alarm	= at91_rtc_setalarm,
+	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
+	.set_offset	= at91_rtc_setoffset,
+	.read_offset	= at91_rtc_readoffset,
 };
 
 /*
@@ -372,7 +473,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	struct resource *regs;
 	int ret = 0;
 
-	at91_rtc_config = at91_rtc_get_config(pdev);
+	at91_rtc_config = of_device_get_match_data(&pdev->dev);
 	if (!at91_rtc_config)
 		return -ENODEV;
 
@@ -383,10 +484,8 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource defined\n");
+	if (irq < 0)
 		return -ENXIO;
-	}
 
 	at91_rtc_regs = devm_ioremap(&pdev->dev, regs->start,
 				     resource_size(regs));
@@ -411,7 +510,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	}
 
 	at91_rtc_write(AT91_RTC_CR, 0);
-	at91_rtc_write(AT91_RTC_MR, 0);		/* 24 hour mode */
+	at91_rtc_write(AT91_RTC_MR, at91_rtc_read(AT91_RTC_MR) & ~AT91_RTC_HRMOD);
 
 	/* Disable all interrupts */
 	at91_rtc_write_idr(AT91_RTC_ACKUPD | AT91_RTC_ALARM |
@@ -432,10 +531,14 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	if (!device_can_wakeup(&pdev->dev))
 		device_init_wakeup(&pdev->dev, 1);
 
-	rtc->ops = &at91_rtc_ops;
+	if (at91_rtc_config->has_correction)
+		rtc->ops = &sama5d4_rtc_ops;
+	else
+		rtc->ops = &at91_rtc_ops;
+
 	rtc->range_min = RTC_TIMESTAMP_BEGIN_1900;
 	rtc->range_max = RTC_TIMESTAMP_END_2099;
-	ret = rtc_register_device(rtc);
+	ret = devm_rtc_register_device(rtc);
 	if (ret)
 		goto err_clk;
 

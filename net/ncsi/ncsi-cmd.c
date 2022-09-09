@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright Gavin Shan, IBM Corporation 2016.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -21,6 +17,8 @@
 
 #include "internal.h"
 #include "ncsi-pkt.h"
+
+static const int padding_bytes = 26;
 
 u32 ncsi_calculate_checksum(unsigned char *data, int len)
 {
@@ -58,7 +56,7 @@ static void ncsi_cmd_build_header(struct ncsi_pkt_hdr *h,
 	checksum = ncsi_calculate_checksum((unsigned char *)h,
 					   sizeof(*h) + nca->payload);
 	pchecksum = (__be32 *)((void *)h + sizeof(struct ncsi_pkt_hdr) +
-		    nca->payload);
+		    ALIGN(nca->payload, 4));
 	*pchecksum = htonl(checksum);
 }
 
@@ -217,12 +215,17 @@ static int ncsi_cmd_handler_oem(struct sk_buff *skb,
 {
 	struct ncsi_cmd_oem_pkt *cmd;
 	unsigned int len;
+	int payload;
+	/* NC-SI spec DSP_0222_1.2.0, section 8.2.2.2
+	 * requires payload to be padded with 0 to
+	 * 32-bit boundary before the checksum field.
+	 * Ensure the padding bytes are accounted for in
+	 * skb allocation
+	 */
 
+	payload = ALIGN(nca->payload, 4);
 	len = sizeof(struct ncsi_cmd_pkt_hdr) + 4;
-	if (nca->payload < 26)
-		len += 26;
-	else
-		len += nca->payload;
+	len += max(payload, padding_bytes);
 
 	cmd = skb_put_zero(skb, len);
 	memcpy(&cmd->mfr_id, nca->data, nca->payload);
@@ -276,6 +279,7 @@ static struct ncsi_request *ncsi_alloc_command(struct ncsi_cmd_arg *nca)
 	struct net_device *dev = nd->dev;
 	int hlen = LL_RESERVED_SPACE(dev);
 	int tlen = dev->needed_tailroom;
+	int payload;
 	int len = hlen + tlen;
 	struct sk_buff *skb;
 	struct ncsi_request *nr;
@@ -285,14 +289,14 @@ static struct ncsi_request *ncsi_alloc_command(struct ncsi_cmd_arg *nca)
 		return NULL;
 
 	/* NCSI command packet has 16-bytes header, payload, 4 bytes checksum.
+	 * Payload needs padding so that the checksum field following payload is
+	 * aligned to 32-bit boundary.
 	 * The packet needs padding if its payload is less than 26 bytes to
 	 * meet 64 bytes minimal ethernet frame length.
 	 */
 	len += sizeof(struct ncsi_cmd_pkt_hdr) + 4;
-	if (nca->payload < 26)
-		len += 26;
-	else
-		len += nca->payload;
+	payload = ALIGN(nca->payload, 4);
+	len += max(payload, padding_bytes);
 
 	/* Allocate skb */
 	skb = alloc_skb(len, GFP_ATOMIC);
@@ -313,14 +317,21 @@ static struct ncsi_request *ncsi_alloc_command(struct ncsi_cmd_arg *nca)
 
 int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 {
-	struct ncsi_request *nr;
-	struct ethhdr *eh;
 	struct ncsi_cmd_handler *nch = NULL;
+	struct ncsi_request *nr;
+	unsigned char type;
+	struct ethhdr *eh;
 	int i, ret;
+
+	/* Use OEM generic handler for Netlink request */
+	if (nca->req_flags == NCSI_REQ_FLAG_NETLINK_DRIVEN)
+		type = NCSI_PKT_CMD_OEM;
+	else
+		type = nca->type;
 
 	/* Search for the handler */
 	for (i = 0; i < ARRAY_SIZE(ncsi_cmd_handlers); i++) {
-		if (ncsi_cmd_handlers[i].type == nca->type) {
+		if (ncsi_cmd_handlers[i].type == type) {
 			if (ncsi_cmd_handlers[i].handler)
 				nch = &ncsi_cmd_handlers[i];
 			else
@@ -366,7 +377,15 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 	eh = skb_push(nr->cmd, sizeof(*eh));
 	eh->h_proto = htons(ETH_P_NCSI);
 	eth_broadcast_addr(eh->h_dest);
-	eth_broadcast_addr(eh->h_source);
+
+	/* If mac address received from device then use it for
+	 * source address as unicast address else use broadcast
+	 * address as source address
+	 */
+	if (nca->ndp->gma_flag == 1)
+		memcpy(eh->h_source, nca->ndp->ndev.dev->dev_addr, ETH_ALEN);
+	else
+		eth_broadcast_addr(eh->h_source);
 
 	/* Start the timer for the request that might not have
 	 * corresponding response. Given NCSI is an internal

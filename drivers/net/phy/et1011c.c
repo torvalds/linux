@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/et1011c.c
  *
@@ -6,12 +7,6 @@
  * Author: Chaithrika U S
  *
  * Copyright (c) 2008 Texas Instruments
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -51,8 +46,8 @@ MODULE_LICENSE("GPL");
 
 static int et1011c_config_aneg(struct phy_device *phydev)
 {
-	int ctl = 0;
-	ctl = phy_read(phydev, MII_BMCR);
+	int ctl = phy_read(phydev, MII_BMCR);
+
 	if (ctl < 0)
 		return ctl;
 	ctl &= ~(BMCR_FULLDPLX | BMCR_SPEED100 | BMCR_SPEED1000 |
@@ -65,9 +60,10 @@ static int et1011c_config_aneg(struct phy_device *phydev)
 
 static int et1011c_read_status(struct phy_device *phydev)
 {
+	static int speed;
 	int ret;
 	u32 val;
-	static int speed;
+
 	ret = genphy_read_status(phydev);
 
 	if (speed != phydev->speed) {
@@ -77,10 +73,10 @@ static int et1011c_read_status(struct phy_device *phydev)
 					ET1011C_GIGABIT_SPEED) {
 			val = phy_read(phydev, ET1011C_CONFIG_REG);
 			val &= ~ET1011C_TX_FIFO_MASK;
-			phy_write(phydev, ET1011C_CONFIG_REG, val\
-					| ET1011C_GMII_INTERFACE\
-					| ET1011C_SYS_CLK_EN\
-					| ET1011C_TX_FIFO_DEPTH_16);
+			phy_write(phydev, ET1011C_CONFIG_REG, val |
+					  ET1011C_GMII_INTERFACE |
+					  ET1011C_SYS_CLK_EN |
+					  ET1011C_TX_FIFO_DEPTH_16);
 
 		}
 	}
@@ -91,7 +87,7 @@ static struct phy_driver et1011c_driver[] = { {
 	.phy_id		= 0x0282f014,
 	.name		= "ET1011C",
 	.phy_id_mask	= 0xfffffff0,
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 	.config_aneg	= et1011c_config_aneg,
 	.read_status	= et1011c_read_status,
 } };

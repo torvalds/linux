@@ -5,12 +5,17 @@
 #include <asm/mman.h>
 #include <asm-generic/hugetlb_encode.h>
 
-#define MREMAP_MAYMOVE	1
-#define MREMAP_FIXED	2
+#define MREMAP_MAYMOVE		1
+#define MREMAP_FIXED		2
+#define MREMAP_DONTUNMAP	4
 
 #define OVERCOMMIT_GUESS		0
 #define OVERCOMMIT_ALWAYS		1
 #define OVERCOMMIT_NEVER		2
+
+#define MAP_SHARED	0x01		/* Share changes */
+#define MAP_PRIVATE	0x02		/* Changes are private */
+#define MAP_SHARED_VALIDATE 0x03	/* share + validate extension flags */
 
 /*
  * Huge page size encoding when MAP_HUGETLB is specified, and a huge page
@@ -22,6 +27,7 @@
 #define MAP_HUGE_SHIFT	HUGETLB_FLAG_ENCODE_SHIFT
 #define MAP_HUGE_MASK	HUGETLB_FLAG_ENCODE_MASK
 
+#define MAP_HUGE_16KB	HUGETLB_FLAG_ENCODE_16KB
 #define MAP_HUGE_64KB	HUGETLB_FLAG_ENCODE_64KB
 #define MAP_HUGE_512KB	HUGETLB_FLAG_ENCODE_512KB
 #define MAP_HUGE_1MB	HUGETLB_FLAG_ENCODE_1MB

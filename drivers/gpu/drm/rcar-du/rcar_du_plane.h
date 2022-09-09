@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * rcar_du_plane.h  --  R-Car Display Unit Planes
+ * R-Car Display Unit Planes
  *
  * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
@@ -10,8 +10,7 @@
 #ifndef __RCAR_DU_PLANE_H__
 #define __RCAR_DU_PLANE_H__
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
+#include <drm/drm_plane.h>
 
 struct rcar_du_format_info;
 struct rcar_du_group;

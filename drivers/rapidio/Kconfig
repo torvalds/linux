@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # RapidIO configuration
 #
@@ -18,14 +19,14 @@ config RAPIDIO_DISC_TIMEOUT
 	int "Discovery timeout duration (seconds)"
 	depends on RAPIDIO
 	default "30"
-	---help---
+	help
 	  Amount of time a discovery node waits for a host to complete
 	  enumeration before giving up.
 
 config RAPIDIO_ENABLE_RX_TX_PORTS
 	bool "Enable RapidIO Input/Output Ports"
 	depends on RAPIDIO
-	---help---
+	help
 	  The RapidIO specification describes a Output port transmit
 	  enable and a Input port receive enable. The recommended state
 	  for Input ports and Output ports should be disabled. When
@@ -36,7 +37,7 @@ config RAPIDIO_ENABLE_RX_TX_PORTS
 config RAPIDIO_DMA_ENGINE
 	bool "DMA Engine support for RapidIO"
 	depends on RAPIDIO
-	select DMADEVICES
+	depends on DMADEVICES
 	select DMA_ENGINE
 	help
 	  Say Y here if you want to use DMA Engine frameork for RapidIO data
@@ -85,7 +86,7 @@ config RAPIDIO_CHMAN
 	  This option includes RapidIO channelized messaging driver which
 	  provides socket-like interface to allow sharing of single RapidIO
 	  messaging mailbox between multiple user-space applications.
-	  See "Documentation/rapidio/rio_cm.txt" for driver description.
+	  See "Documentation/driver-api/rapidio/rio_cm.rst" for driver description.
 
 config RAPIDIO_MPORT_CDEV
 	tristate "RapidIO /dev mport device driver"

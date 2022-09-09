@@ -96,20 +96,13 @@
 
 #define OPT_SWAP_PORT	0x0001	/* Need to wordswp on the MPU port */
 
-#define DMA_WBACK(ndev, addr, len) \
-	do { dma_cache_sync((ndev)->dev.parent, (void *)addr, len, DMA_TO_DEVICE); } while (0)
-
-#define DMA_INV(ndev, addr, len) \
-	do { dma_cache_sync((ndev)->dev.parent, (void *)addr, len, DMA_FROM_DEVICE); } while (0)
-
-#define DMA_WBACK_INV(ndev, addr, len) \
-	do { dma_cache_sync((ndev)->dev.parent, (void *)addr, len, DMA_BIDIRECTIONAL); } while (0)
-
-#define SYSBUS      0x0000006c;
+#define SYSBUS      0x0000006c
 
 /* big endian CPU, 82596 "big" endian mode */
 #define SWAP32(x)   (((u32)(x)<<16) | ((((u32)(x)))>>16))
 #define SWAP16(x)   (x)
+
+#define NONCOHERENT_DMA 1
 
 #include "lib82596.c"
 
@@ -141,7 +134,8 @@ static void mpu_port(struct net_device *dev, int c, dma_addr_t x)
 	}
 
 	gsc_writel(a, dev->base_addr + PA_CPU_PORT_L_ACCESS);
-	udelay(1);
+	if (!running_on_qemu)
+		udelay(1);
 	gsc_writel(b, dev->base_addr + PA_CPU_PORT_L_ACCESS);
 }
 
@@ -152,7 +146,8 @@ lan_init_chip(struct parisc_device *dev)
 {
 	struct	net_device *netdevice;
 	struct i596_private *lp;
-	int	retval;
+	int retval = -ENOMEM;
+	u8 addr[ETH_ALEN];
 	int i;
 
 	if (!dev->irq) {
@@ -173,35 +168,45 @@ lan_init_chip(struct parisc_device *dev)
 	netdevice->base_addr = dev->hpa.start;
 	netdevice->irq = dev->irq;
 
-	if (pdc_lan_station_id(netdevice->dev_addr, netdevice->base_addr)) {
+	if (pdc_lan_station_id(addr, netdevice->base_addr)) {
 		for (i = 0; i < 6; i++) {
-			netdevice->dev_addr[i] = gsc_readb(LAN_PROM_ADDR + i);
+			addr[i] = gsc_readb(LAN_PROM_ADDR + i);
 		}
 		printk(KERN_INFO
 		       "%s: MAC of HP700 LAN read from EEPROM\n", __FILE__);
 	}
+	eth_hw_addr_set(netdevice, addr);
 
 	lp = netdev_priv(netdevice);
 	lp->options = dev->id.sversion == 0x72 ? OPT_SWAP_PORT : 0;
+	lp->dma = dma_alloc_noncoherent(&dev->dev,
+			sizeof(struct i596_dma), &lp->dma_addr,
+			DMA_BIDIRECTIONAL, GFP_KERNEL);
+	if (!lp->dma)
+		goto out_free_netdev;
 
 	retval = i82596_probe(netdevice);
-	if (retval) {
-		free_netdev(netdevice);
-		return -ENODEV;
-	}
+	if (retval)
+		goto out_free_dma;
+	return 0;
+
+out_free_dma:
+	dma_free_noncoherent(&dev->dev, sizeof(struct i596_dma),
+		       lp->dma, lp->dma_addr, DMA_BIDIRECTIONAL);
+out_free_netdev:
+	free_netdev(netdevice);
 	return retval;
 }
 
-static int __exit lan_remove_chip(struct parisc_device *pdev)
+static void __exit lan_remove_chip(struct parisc_device *pdev)
 {
 	struct net_device *dev = parisc_get_drvdata(pdev);
 	struct i596_private *lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
-	dma_free_attrs(&pdev->dev, sizeof(struct i596_private), lp->dma,
-		       lp->dma_addr, DMA_ATTR_NON_CONSISTENT);
+	dma_free_noncoherent(&pdev->dev, sizeof(struct i596_private), lp->dma,
+		       lp->dma_addr, DMA_BIDIRECTIONAL);
 	free_netdev (dev);
-	return 0;
 }
 
 static const struct parisc_device_id lan_tbl[] __initconst = {

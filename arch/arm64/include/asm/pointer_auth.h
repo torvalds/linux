@@ -1,13 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_POINTER_AUTH_H
 #define __ASM_POINTER_AUTH_H
 
 #include <linux/bitops.h>
+#include <linux/prctl.h>
 #include <linux/random.h>
 
 #include <asm/cpufeature.h>
 #include <asm/memory.h>
 #include <asm/sysreg.h>
+
+#define PR_PAC_ENABLED_KEYS_MASK                                               \
+	(PR_PAC_APIAKEY | PR_PAC_APIBKEY | PR_PAC_APDAKEY | PR_PAC_APDBKEY)
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 /*
@@ -22,7 +26,7 @@ struct ptrauth_key {
  * We give each process its own keys, which are shared by all threads. The keys
  * are inherited upon fork(), and reinitialised upon exec*().
  */
-struct ptrauth_keys {
+struct ptrauth_keys_user {
 	struct ptrauth_key apia;
 	struct ptrauth_key apib;
 	struct ptrauth_key apda;
@@ -30,7 +34,49 @@ struct ptrauth_keys {
 	struct ptrauth_key apga;
 };
 
-static inline void ptrauth_keys_init(struct ptrauth_keys *keys)
+#define __ptrauth_key_install_nosync(k, v)			\
+do {								\
+	struct ptrauth_key __pki_v = (v);			\
+	write_sysreg_s(__pki_v.lo, SYS_ ## k ## KEYLO_EL1);	\
+	write_sysreg_s(__pki_v.hi, SYS_ ## k ## KEYHI_EL1);	\
+} while (0)
+
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
+
+struct ptrauth_keys_kernel {
+	struct ptrauth_key apia;
+};
+
+static __always_inline void ptrauth_keys_init_kernel(struct ptrauth_keys_kernel *keys)
+{
+	if (system_supports_address_auth())
+		get_random_bytes(&keys->apia, sizeof(keys->apia));
+}
+
+static __always_inline void ptrauth_keys_switch_kernel(struct ptrauth_keys_kernel *keys)
+{
+	if (!system_supports_address_auth())
+		return;
+
+	__ptrauth_key_install_nosync(APIA, keys->apia);
+	isb();
+}
+
+#endif /* CONFIG_ARM64_PTR_AUTH_KERNEL */
+
+static inline void ptrauth_keys_install_user(struct ptrauth_keys_user *keys)
+{
+	if (system_supports_address_auth()) {
+		__ptrauth_key_install_nosync(APIB, keys->apib);
+		__ptrauth_key_install_nosync(APDA, keys->apda);
+		__ptrauth_key_install_nosync(APDB, keys->apdb);
+	}
+
+	if (system_supports_generic_auth())
+		__ptrauth_key_install_nosync(APGA, keys->apga);
+}
+
+static inline void ptrauth_keys_init_user(struct ptrauth_keys_user *keys)
 {
 	if (system_supports_address_auth()) {
 		get_random_bytes(&keys->apia, sizeof(keys->apia));
@@ -41,57 +87,66 @@ static inline void ptrauth_keys_init(struct ptrauth_keys *keys)
 
 	if (system_supports_generic_auth())
 		get_random_bytes(&keys->apga, sizeof(keys->apga));
-}
 
-#define __ptrauth_key_install(k, v)				\
-do {								\
-	struct ptrauth_key __pki_v = (v);			\
-	write_sysreg_s(__pki_v.lo, SYS_ ## k ## KEYLO_EL1);	\
-	write_sysreg_s(__pki_v.hi, SYS_ ## k ## KEYHI_EL1);	\
-} while (0)
-
-static inline void ptrauth_keys_switch(struct ptrauth_keys *keys)
-{
-	if (system_supports_address_auth()) {
-		__ptrauth_key_install(APIA, keys->apia);
-		__ptrauth_key_install(APIB, keys->apib);
-		__ptrauth_key_install(APDA, keys->apda);
-		__ptrauth_key_install(APDB, keys->apdb);
-	}
-
-	if (system_supports_generic_auth())
-		__ptrauth_key_install(APGA, keys->apga);
+	ptrauth_keys_install_user(keys);
 }
 
 extern int ptrauth_prctl_reset_keys(struct task_struct *tsk, unsigned long arg);
 
-/*
- * The EL0 pointer bits used by a pointer authentication code.
- * This is dependent on TBI0 being enabled, or bits 63:56 would also apply.
- */
-#define ptrauth_user_pac_mask()	GENMASK(54, vabits_user)
+extern int ptrauth_set_enabled_keys(struct task_struct *tsk, unsigned long keys,
+				    unsigned long enabled);
+extern int ptrauth_get_enabled_keys(struct task_struct *tsk);
 
-/* Only valid for EL0 TTBR0 instruction pointers */
 static inline unsigned long ptrauth_strip_insn_pac(unsigned long ptr)
 {
-	return ptr & ~ptrauth_user_pac_mask();
+	return ptrauth_clear_pac(ptr);
 }
 
-#define ptrauth_thread_init_user(tsk)					\
-do {									\
-	struct task_struct *__ptiu_tsk = (tsk);				\
-	ptrauth_keys_init(&__ptiu_tsk->thread.keys_user);		\
-	ptrauth_keys_switch(&__ptiu_tsk->thread.keys_user);		\
-} while (0)
+static __always_inline void ptrauth_enable(void)
+{
+	if (!system_supports_address_auth())
+		return;
+	sysreg_clear_set(sctlr_el1, 0, (SCTLR_ELx_ENIA | SCTLR_ELx_ENIB |
+					SCTLR_ELx_ENDA | SCTLR_ELx_ENDB));
+	isb();
+}
 
-#define ptrauth_thread_switch(tsk)	\
-	ptrauth_keys_switch(&(tsk)->thread.keys_user)
+#define ptrauth_suspend_exit()                                                 \
+	ptrauth_keys_install_user(&current->thread.keys_user)
+
+#define ptrauth_thread_init_user()                                             \
+	do {                                                                   \
+		ptrauth_keys_init_user(&current->thread.keys_user);            \
+									       \
+		/* enable all keys */                                          \
+		if (system_supports_address_auth())                            \
+			ptrauth_set_enabled_keys(current,                      \
+						 PR_PAC_ENABLED_KEYS_MASK,     \
+						 PR_PAC_ENABLED_KEYS_MASK);    \
+	} while (0)
+
+#define ptrauth_thread_switch_user(tsk)                                        \
+	ptrauth_keys_install_user(&(tsk)->thread.keys_user)
 
 #else /* CONFIG_ARM64_PTR_AUTH */
+#define ptrauth_enable()
 #define ptrauth_prctl_reset_keys(tsk, arg)	(-EINVAL)
+#define ptrauth_set_enabled_keys(tsk, keys, enabled)	(-EINVAL)
+#define ptrauth_get_enabled_keys(tsk)	(-EINVAL)
 #define ptrauth_strip_insn_pac(lr)	(lr)
-#define ptrauth_thread_init_user(tsk)
-#define ptrauth_thread_switch(tsk)
+#define ptrauth_suspend_exit()
+#define ptrauth_thread_init_user()
+#define ptrauth_thread_switch_user(tsk)
 #endif /* CONFIG_ARM64_PTR_AUTH */
+
+#ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
+#define ptrauth_thread_init_kernel(tsk)					\
+	ptrauth_keys_init_kernel(&(tsk)->thread.keys_kernel)
+#define ptrauth_thread_switch_kernel(tsk)				\
+	ptrauth_keys_switch_kernel(&(tsk)->thread.keys_kernel)
+#else
+#define ptrauth_thread_init_kernel(tsk)
+#define ptrauth_thread_switch_kernel(tsk)
+#endif /* CONFIG_ARM64_PTR_AUTH_KERNEL */
 
 #endif /* __ASM_POINTER_AUTH_H */

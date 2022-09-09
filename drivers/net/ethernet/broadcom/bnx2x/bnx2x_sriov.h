@@ -139,6 +139,7 @@ struct bnx2x_virtf {
 #define VF_ACQUIRED	1	/* VF acquired, but not initialized */
 #define VF_ENABLED	2	/* VF Enabled */
 #define VF_RESET	3	/* VF FLR'd, pending cleanup */
+#define VF_LOST		4	/* Recovery while VFs are loaded */
 
 	bool flr_clnup_stage;	/* true during flr cleanup */
 	bool malicious;		/* true if FW indicated so, until FLR */
@@ -503,12 +504,12 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp);
 /* VF side vfpf channel functions */
 int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count);
 int bnx2x_vfpf_release(struct bnx2x *bp);
-int bnx2x_vfpf_release(struct bnx2x *bp);
 int bnx2x_vfpf_init(struct bnx2x *bp);
 void bnx2x_vfpf_close_vf(struct bnx2x *bp);
 int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		       bool is_leading);
-int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set);
+int bnx2x_vfpf_config_mac(struct bnx2x *bp, const u8 *addr, u8 vf_qid,
+			  bool set);
 int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 			  struct bnx2x_config_rss_params *params);
 int bnx2x_vfpf_set_mcast(struct net_device *dev);
@@ -585,7 +586,7 @@ static inline int bnx2x_vfpf_release(struct bnx2x *bp) {return 0; }
 static inline int bnx2x_vfpf_init(struct bnx2x *bp) {return 0; }
 static inline void bnx2x_vfpf_close_vf(struct bnx2x *bp) {}
 static inline int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp, bool is_leading) {return 0; }
-static inline int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr,
+static inline int bnx2x_vfpf_config_mac(struct bnx2x *bp, const u8 *addr,
 					u8 vf_qid, bool set) {return 0; }
 static inline int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 					struct bnx2x_config_rss_params *params) {return 0; }

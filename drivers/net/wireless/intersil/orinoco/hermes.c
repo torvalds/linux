@@ -79,7 +79,6 @@
 
 #undef HERMES_DEBUG
 #ifdef HERMES_DEBUG
-#include <stdarg.h>
 
 #define DEBUG(lvl, stuff...) if ((lvl) <= HERMES_DEBUG) DMSG(stuff)
 
@@ -763,6 +762,7 @@ static const struct hermes_ops hermes_ops_local = {
 	.init_cmd_wait = hermes_doicmd_wait,
 	.allocate = hermes_allocate,
 	.read_ltv = hermes_read_ltv,
+	.read_ltv_pr = hermes_read_ltv,
 	.write_ltv = hermes_write_ltv,
 	.bap_pread = hermes_bap_pread,
 	.bap_pwrite = hermes_bap_pwrite,

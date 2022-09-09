@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC subsystem, sysfs interface
  *
  * Copyright (C) 2005 Tower Technologies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/module.h>
 #include <linux/rtc.h>
 
 #include "rtc-core.h"
-
 
 /* device attributes */
 
@@ -86,7 +82,7 @@ max_user_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static ssize_t
 max_user_freq_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t n)
+		    const char *buf, size_t n)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
 	unsigned long val;
@@ -106,9 +102,12 @@ max_user_freq_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RW(max_user_freq);
 
 /**
- * rtc_sysfs_show_hctosys - indicate if the given RTC set the system time
+ * hctosys_show - indicate if the given RTC set the system time
+ * @dev: The device that the attribute belongs to.
+ * @attr: The attribute being read.
+ * @buf: The result buffer.
  *
- * Returns 1 if the system clock was set by this RTC at the last
+ * buf is "1" if the system clock was set by this RTC at the last
  * boot or resume event.
  */
 static ssize_t
@@ -116,12 +115,11 @@ hctosys_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 	if (rtc_hctosys_ret == 0 &&
-			strcmp(dev_name(&to_rtc_device(dev)->dev),
-				CONFIG_RTC_HCTOSYS_DEVICE) == 0)
+	    strcmp(dev_name(&to_rtc_device(dev)->dev),
+		   CONFIG_RTC_HCTOSYS_DEVICE) == 0)
 		return sprintf(buf, "1\n");
-	else
 #endif
-		return sprintf(buf, "0\n");
+	return sprintf(buf, "0\n");
 }
 static DEVICE_ATTR_RO(hctosys);
 
@@ -175,15 +173,15 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		if (*buf_ptr == '=') {
 			buf_ptr++;
 			push = 1;
-		} else
+		} else {
 			adjust = 1;
+		}
 	}
 	retval = kstrtos64(buf_ptr, 0, &alarm);
 	if (retval)
 		return retval;
-	if (adjust) {
+	if (adjust)
 		alarm += now;
-	}
 	if (alarm > now || push) {
 		/* Avoid accidentally clobbering active alarms; we can't
 		 * entirely prevent that here, without even the minimal
@@ -275,13 +273,13 @@ static bool rtc_does_wakealarm(struct rtc_device *rtc)
 	if (!device_can_wakeup(rtc->dev.parent))
 		return false;
 
-	return rtc->ops->set_alarm != NULL;
+	return !!test_bit(RTC_FEATURE_ALARM, rtc->features);
 }
 
 static umode_t rtc_attr_is_visible(struct kobject *kobj,
 				   struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct rtc_device *rtc = to_rtc_device(dev);
 	umode_t mode = attr->mode;
 
@@ -319,8 +317,6 @@ int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
 	size_t old_cnt = 0, add_cnt = 0, new_cnt;
 	const struct attribute_group **groups, **old;
 
-	if (rtc->registered)
-		return -EINVAL;
 	if (!grps)
 		return -EINVAL;
 

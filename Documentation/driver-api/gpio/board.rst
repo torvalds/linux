@@ -6,7 +6,7 @@ This document explains how GPIOs can be assigned to given devices and functions.
 
 Note that it only applies to the new descriptor-based interface. For a
 description of the deprecated integer-based GPIO interface please refer to
-gpio-legacy.txt (actually, there is no real mapping possible with the old
+legacy.rst (actually, there is no real mapping possible with the old
 interface; you just fetch an integer from somewhere and request the
 corresponding GPIO).
 
@@ -71,14 +71,14 @@ with the help of _DSD (Device Specific Data), introduced in ACPI 5.1::
 
 	Device (FOO) {
 		Name (_CRS, ResourceTemplate () {
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {15} // red
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {16} // green
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {17} // blue
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {1} // power
+			GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 15 } // red
+			GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 16 } // green
+			GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 17 } // blue
+			GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 1 } // power
 		})
 
 		Name (_DSD, Package () {
@@ -92,16 +92,13 @@ with the help of _DSD (Device Specific Data), introduced in ACPI 5.1::
 						^FOO, 2, 0, 1,
 					}
 				},
-				Package () {
-					"power-gpios",
-					Package () {^FOO, 3, 0, 0},
-				},
+				Package () { "power-gpios", Package () { ^FOO, 3, 0, 0 } },
 			}
 		})
 	}
 
 For more information about the ACPI GPIO bindings see
-Documentation/acpi/gpio-properties.txt.
+Documentation/firmware-guide/acpi/gpio-properties.rst.
 
 Platform Data
 -------------
@@ -113,13 +110,15 @@ files that desire to do so need to include the following header::
 GPIOs are mapped by the means of tables of lookups, containing instances of the
 gpiod_lookup structure. Two macros are defined to help declaring such mappings::
 
-	GPIO_LOOKUP(chip_label, chip_hwnum, con_id, flags)
-	GPIO_LOOKUP_IDX(chip_label, chip_hwnum, con_id, idx, flags)
+	GPIO_LOOKUP(key, chip_hwnum, con_id, flags)
+	GPIO_LOOKUP_IDX(key, chip_hwnum, con_id, idx, flags)
 
 where
 
-  - chip_label is the label of the gpiod_chip instance providing the GPIO
-  - chip_hwnum is the hardware number of the GPIO within the chip
+  - key is either the label of the gpiod_chip instance providing the GPIO, or
+    the GPIO line name
+  - chip_hwnum is the hardware number of the GPIO within the chip, or U16_MAX
+    to indicate that key is a GPIO line name
   - con_id is the name of the GPIO function from the device point of view. It
 	can be NULL, in which case it will match any function.
   - idx is the index of the GPIO within the function.
@@ -135,7 +134,10 @@ where
 
 In the future, these flags might be extended to support more properties.
 
-Note that GPIO_LOOKUP() is just a shortcut to GPIO_LOOKUP_IDX() where idx = 0.
+Note that:
+  1. GPIO line names are not guaranteed to be globally unique, so the first
+     match found will be used.
+  2. GPIO_LOOKUP() is just a shortcut to GPIO_LOOKUP_IDX() where idx = 0.
 
 A lookup table can then be defined as follows, with an empty entry defining its
 end. The 'dev_id' field of the table is the identifier of the device that will
@@ -204,6 +206,7 @@ between a caller and a respective .get/set_multiple() callback of a GPIO chip.
 
 In order to qualify for fast bitmap processing, the array must meet the
 following requirements:
+
 - pin hardware number of array member 0 must also be 0,
 - pin hardware numbers of consecutive array members which belong to the same
   chip as member 0 does must also match their array indexes.

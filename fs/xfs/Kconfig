@@ -1,7 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config XFS_FS
 	tristate "XFS filesystem support"
 	depends on BLOCK
-	depends on (64BIT || LBDAF)
 	select EXPORTFS
 	select LIBCRC32C
 	select FS_IOMAP
@@ -21,6 +21,31 @@ config XFS_FS
 	  module will be called xfs.  Be aware, however, that if the file
 	  system of your root partition is compiled as a module, you'll need
 	  to use an initial ramdisk (initrd) to boot.
+
+config XFS_SUPPORT_V4
+	bool "Support deprecated V4 (crc=0) format"
+	depends on XFS_FS
+	default y
+	help
+	  The V4 filesystem format lacks certain features that are supported
+	  by the V5 format, such as metadata checksumming, strengthened
+	  metadata verification, and the ability to store timestamps past the
+	  year 2038.  Because of this, the V4 format is deprecated.  All users
+	  should upgrade by backing up their files, reformatting, and restoring
+	  from the backup.
+
+	  Administrators and users can detect a V4 filesystem by running
+	  xfs_info against a filesystem mountpoint and checking for a string
+	  beginning with "crc=".  If the string "crc=0" is found, the
+	  filesystem is a V4 filesystem.  If no such string is found, please
+	  upgrade xfsprogs to the latest version and try again.
+
+	  This option will become default N in September 2025.  Support for the
+	  V4 format will be removed entirely in September 2030.  Distributors
+	  can say N here to withdraw support earlier.
+
+	  To continue supporting the old V4 format (crc=0), say Y.
+	  To close off an attack surface, say N.
 
 config XFS_QUOTA
 	bool "XFS Quota support"

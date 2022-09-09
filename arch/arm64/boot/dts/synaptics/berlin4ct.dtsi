@@ -27,7 +27,7 @@
 		#size-cells = <0>;
 
 		cpu0: cpu@0 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0>;
 			enable-method = "psci";
@@ -36,7 +36,7 @@
 		};
 
 		cpu1: cpu@1 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x1>;
 			enable-method = "psci";
@@ -45,7 +45,7 @@
 		};
 
 		cpu2: cpu@2 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x2>;
 			enable-method = "psci";
@@ -54,7 +54,7 @@
 		};
 
 		cpu3: cpu@3 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x3>;
 			enable-method = "psci";
@@ -140,7 +140,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -158,7 +158,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -176,7 +176,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -194,7 +194,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -269,7 +269,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 				};
 			};
@@ -284,7 +284,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
+					ngpios = <32>;
 					reg = <0>;
 				};
 			};

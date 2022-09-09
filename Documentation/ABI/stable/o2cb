@@ -1,4 +1,4 @@
-What:		/sys/fs/o2cb/ (was /sys/o2cb)
+What:		/sys/fs/o2cb/
 Date:		Dec 2005
 KernelVersion:	2.6.16
 Contact:	ocfs2-devel@oss.oracle.com

@@ -62,12 +62,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		red {
+		led-0 {
 			label = "i12_tvbox:red:usr";
 			gpios = <&pio 7 9 GPIO_ACTIVE_LOW>;
 		};
 
-		blue {
+		led-1 {
 			label = "i12_tvbox:blue:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};
@@ -115,14 +115,10 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_mii_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	phy-supply = <&reg_gmac_3v3>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &i2c0 {
@@ -143,6 +139,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
+};
+
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mmc0 {

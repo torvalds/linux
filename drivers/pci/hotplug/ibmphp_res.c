@@ -1941,6 +1941,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 						break;
 					case PCI_HEADER_TYPE_BRIDGE:
 						function = 0x8;
+						fallthrough;
 					case PCI_HEADER_TYPE_MULTIBRIDGE:
 						/* We assume here that only 1 bus behind the bridge
 						   TO DO: add functionality for several:
@@ -1954,7 +1955,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 						bus_sec = find_bus_wprev(sec_busno, NULL, 0);
 						/* this bus structure doesn't exist yet, PPB was configured during previous loading of ibmphp */
 						if (!bus_sec) {
-							bus_sec = alloc_error_bus(NULL, sec_busno, 1);
+							alloc_error_bus(NULL, sec_busno, 1);
 							/* the rest will be populated during NVRAM call */
 							return 0;
 						}
@@ -2113,6 +2114,5 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 		}	/* end for function */
 	}	/* end for device */
 
-	bus = &bus_cur;
 	return 0;
 }

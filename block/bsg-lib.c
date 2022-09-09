@@ -1,25 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  BSG helper library
  *
  *  Copyright (C) 2008   James Smart, Emulex Corporation
  *  Copyright (C) 2011   Red Hat, Inc.  All rights reserved.
  *  Copyright (C) 2011   Mike Christie
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
+#include <linux/bsg.h>
 #include <linux/slab.h>
 #include <linux/blk-mq.h>
 #include <linux/delay.h>
@@ -33,35 +20,79 @@
 
 struct bsg_set {
 	struct blk_mq_tag_set	tag_set;
+	struct bsg_device	*bd;
 	bsg_job_fn		*job_fn;
 	bsg_timeout_fn		*timeout_fn;
 };
 
-static int bsg_transport_check_proto(struct sg_io_v4 *hdr)
+static int bsg_transport_sg_io_fn(struct request_queue *q, struct sg_io_v4 *hdr,
+		fmode_t mode, unsigned int timeout)
 {
+	struct bsg_job *job;
+	struct request *rq;
+	struct bio *bio;
+	void *reply;
+	int ret;
+
 	if (hdr->protocol != BSG_PROTOCOL_SCSI  ||
 	    hdr->subprotocol != BSG_SUB_PROTOCOL_SCSI_TRANSPORT)
 		return -EINVAL;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
-	return 0;
-}
 
-static int bsg_transport_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
-		fmode_t mode)
-{
-	struct bsg_job *job = blk_mq_rq_to_pdu(rq);
+	rq = blk_mq_alloc_request(q, hdr->dout_xfer_len ?
+			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+	rq->timeout = timeout;
+
+	job = blk_mq_rq_to_pdu(rq);
+	reply = job->reply;
+	memset(job, 0, sizeof(*job));
+	job->reply = reply;
+	job->reply_len = SCSI_SENSE_BUFFERSIZE;
+	job->dd_data = job + 1;
 
 	job->request_len = hdr->request_len;
 	job->request = memdup_user(uptr64(hdr->request), hdr->request_len);
+	if (IS_ERR(job->request)) {
+		ret = PTR_ERR(job->request);
+		goto out_free_rq;
+	}
 
-	return PTR_ERR_OR_ZERO(job->request);
-}
+	if (hdr->dout_xfer_len && hdr->din_xfer_len) {
+		job->bidi_rq = blk_mq_alloc_request(rq->q, REQ_OP_DRV_IN, 0);
+		if (IS_ERR(job->bidi_rq)) {
+			ret = PTR_ERR(job->bidi_rq);
+			goto out_free_job_request;
+		}
 
-static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
-{
-	struct bsg_job *job = blk_mq_rq_to_pdu(rq);
-	int ret = 0;
+		ret = blk_rq_map_user(rq->q, job->bidi_rq, NULL,
+				uptr64(hdr->din_xferp), hdr->din_xfer_len,
+				GFP_KERNEL);
+		if (ret)
+			goto out_free_bidi_rq;
+
+		job->bidi_bio = job->bidi_rq->bio;
+	} else {
+		job->bidi_rq = NULL;
+		job->bidi_bio = NULL;
+	}
+
+	ret = 0;
+	if (hdr->dout_xfer_len) {
+		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->dout_xferp),
+				hdr->dout_xfer_len, GFP_KERNEL);
+	} else if (hdr->din_xfer_len) {
+		ret = blk_rq_map_user(rq->q, rq, NULL, uptr64(hdr->din_xferp),
+				hdr->din_xfer_len, GFP_KERNEL);
+	}
+
+	if (ret)
+		goto out_unmap_bidi_rq;
+
+	bio = rq->bio;
+	blk_execute_rq(rq, !(hdr->flags & BSG_FLAG_Q_AT_TAIL));
 
 	/*
 	 * The assignments below don't make much sense, but are kept for
@@ -69,7 +100,7 @@ static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
 	 */
 	hdr->device_status = job->result & 0xff;
 	hdr->transport_status = host_byte(job->result);
-	hdr->driver_status = driver_byte(job->result);
+	hdr->driver_status = 0;
 	hdr->info = 0;
 	if (hdr->device_status || hdr->transport_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
@@ -93,7 +124,7 @@ static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
 	/* we assume all request payload was transferred, residual == 0 */
 	hdr->dout_resid = 0;
 
-	if (rq->next_rq) {
+	if (job->bidi_rq) {
 		unsigned int rsp_len = job->reply_payload.payload_len;
 
 		if (WARN_ON(job->reply_payload_rcv_len > rsp_len))
@@ -104,22 +135,19 @@ static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
 		hdr->din_resid = 0;
 	}
 
+	blk_rq_unmap_user(bio);
+out_unmap_bidi_rq:
+	if (job->bidi_rq)
+		blk_rq_unmap_user(job->bidi_bio);
+out_free_bidi_rq:
+	if (job->bidi_rq)
+		blk_mq_free_request(job->bidi_rq);
+out_free_job_request:
+	kfree(job->request);
+out_free_rq:
+	blk_mq_free_request(rq);
 	return ret;
 }
-
-static void bsg_transport_free_rq(struct request *rq)
-{
-	struct bsg_job *job = blk_mq_rq_to_pdu(rq);
-
-	kfree(job->request);
-}
-
-static const struct bsg_ops bsg_transport_ops = {
-	.check_proto		= bsg_transport_check_proto,
-	.fill_hdr		= bsg_transport_fill_hdr,
-	.complete_rq		= bsg_transport_complete_rq,
-	.free_rq		= bsg_transport_free_rq,
-};
 
 /**
  * bsg_teardown_job - routine to teardown a bsg job
@@ -161,9 +189,12 @@ EXPORT_SYMBOL_GPL(bsg_job_get);
 void bsg_job_done(struct bsg_job *job, int result,
 		  unsigned int reply_payload_rcv_len)
 {
+	struct request *rq = blk_mq_rq_from_pdu(job);
+
 	job->result = result;
 	job->reply_payload_rcv_len = reply_payload_rcv_len;
-	blk_mq_complete_request(blk_mq_rq_from_pdu(job));
+	if (likely(!blk_should_fake_timeout(rq->q)))
+		blk_mq_complete_request(rq);
 }
 EXPORT_SYMBOL_GPL(bsg_job_done);
 
@@ -184,7 +215,7 @@ static int bsg_map_buffer(struct bsg_buffer *buf, struct request *req)
 
 	BUG_ON(!req->nr_phys_segments);
 
-	buf->sg_list = kzalloc(sz, GFP_KERNEL);
+	buf->sg_list = kmalloc(sz, GFP_KERNEL);
 	if (!buf->sg_list)
 		return -ENOMEM;
 	sg_init_table(buf->sg_list, req->nr_phys_segments);
@@ -200,7 +231,6 @@ static int bsg_map_buffer(struct bsg_buffer *buf, struct request *req)
  */
 static bool bsg_prepare_job(struct device *dev, struct request *req)
 {
-	struct request *rsp = req->next_rq;
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 	int ret;
 
@@ -211,8 +241,8 @@ static bool bsg_prepare_job(struct device *dev, struct request *req)
 		if (ret)
 			goto failjob_rls_job;
 	}
-	if (rsp && rsp->bio) {
-		ret = bsg_map_buffer(&job->reply_payload, rsp);
+	if (job->bidi_rq) {
+		ret = bsg_map_buffer(&job->reply_payload, job->bidi_rq);
 		if (ret)
 			goto failjob_rls_rqst_payload;
 	}
@@ -247,6 +277,7 @@ static blk_status_t bsg_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *req = bd->rq;
 	struct bsg_set *bset =
 		container_of(q->tag_set, struct bsg_set, tag_set);
+	blk_status_t sts = BLK_STS_IOERR;
 	int ret;
 
 	blk_mq_start_request(req);
@@ -255,14 +286,15 @@ static blk_status_t bsg_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_IOERR;
 
 	if (!bsg_prepare_job(dev, req))
-		return BLK_STS_IOERR;
+		goto out;
 
 	ret = bset->job_fn(blk_mq_rq_to_pdu(req));
-	if (ret)
-		return BLK_STS_IOERR;
+	if (!ret)
+		sts = BLK_STS_OK;
 
+out:
 	put_device(dev);
-	return BLK_STS_OK;
+	return sts;
 }
 
 /* called right after the request is allocated for the request_queue */
@@ -275,18 +307,6 @@ static int bsg_init_rq(struct blk_mq_tag_set *set, struct request *req,
 	if (!job->reply)
 		return -ENOMEM;
 	return 0;
-}
-
-/* called right before the request is given to the request_queue user */
-static void bsg_initialize_rq(struct request *req)
-{
-	struct bsg_job *job = blk_mq_rq_to_pdu(req);
-	void *reply = job->reply;
-
-	memset(job, 0, sizeof(*job));
-	job->reply = reply;
-	job->reply_len = SCSI_SENSE_BUFFERSIZE;
-	job->dd_data = job + 1;
 }
 
 static void bsg_exit_rq(struct blk_mq_tag_set *set, struct request *req,
@@ -303,15 +323,15 @@ void bsg_remove_queue(struct request_queue *q)
 		struct bsg_set *bset =
 			container_of(q->tag_set, struct bsg_set, tag_set);
 
-		bsg_unregister_queue(q);
-		blk_cleanup_queue(q);
+		bsg_unregister_queue(bset->bd);
+		blk_mq_destroy_queue(q);
 		blk_mq_free_tag_set(&bset->tag_set);
 		kfree(bset);
 	}
 }
 EXPORT_SYMBOL_GPL(bsg_remove_queue);
 
-static enum blk_eh_timer_return bsg_timeout(struct request *rq, bool reserved)
+static enum blk_eh_timer_return bsg_timeout(struct request *rq)
 {
 	struct bsg_set *bset =
 		container_of(rq->q->tag_set, struct bsg_set, tag_set);
@@ -325,7 +345,6 @@ static const struct blk_mq_ops bsg_mq_ops = {
 	.queue_rq		= bsg_queue_rq,
 	.init_request		= bsg_init_rq,
 	.exit_request		= bsg_exit_rq,
-	.initialize_rq_fn	= bsg_initialize_rq,
 	.complete		= bsg_complete,
 	.timeout		= bsg_timeout,
 };
@@ -335,6 +354,7 @@ static const struct blk_mq_ops bsg_mq_ops = {
  * @dev: device to attach bsg device to
  * @name: device to give bsg device
  * @job_fn: bsg job handler
+ * @timeout: timeout handler function pointer
  * @dd_job_size: size of LLD data needed for each job
  */
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
@@ -353,7 +373,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	bset->timeout_fn = timeout;
 
 	set = &bset->tag_set;
-	set->ops = &bsg_mq_ops,
+	set->ops = &bsg_mq_ops;
 	set->nr_hw_queues = 1;
 	set->queue_depth = 128;
 	set->numa_node = NUMA_NO_NODE;
@@ -369,19 +389,17 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	}
 
 	q->queuedata = dev;
-	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 
-	ret = bsg_register_queue(q, dev, name, &bsg_transport_ops);
-	if (ret) {
-		printk(KERN_ERR "%s: bsg interface failed to "
-		       "initialize - register queue\n", dev->kobj.name);
+	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);
+	if (IS_ERR(bset->bd)) {
+		ret = PTR_ERR(bset->bd);
 		goto out_cleanup_queue;
 	}
 
 	return q;
 out_cleanup_queue:
-	blk_cleanup_queue(q);
+	blk_mq_destroy_queue(q);
 out_queue:
 	blk_mq_free_tag_set(set);
 out_tag_set:

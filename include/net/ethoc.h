@@ -1,17 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/include/net/ethoc.h
  *
  * Copyright (C) 2008-2009 Avionic Design GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Written by Thierry Reding <thierry.reding@avionic-design.de>
  */
 
 #ifndef LINUX_NET_ETHOC_H
 #define LINUX_NET_ETHOC_H 1
+
+#include <linux/if.h>
+#include <linux/types.h>
 
 struct ethoc_platform_data {
 	u8 hwaddr[IFHWADDRLEN];

@@ -1,49 +1,5 @@
-/*
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
-
-  GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  Contact Information:
-  qat-linux@intel.com
-
-  BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+// SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+/* Copyright(c) 2014 - 2020 Intel Corporation */
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -68,7 +24,7 @@ static long adf_ctl_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 static const struct file_operations adf_ctl_ops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = adf_ctl_ioctl,
-	.compat_ioctl = adf_ctl_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 struct adf_ctl_drv_info {
@@ -270,7 +226,7 @@ static int adf_ctl_is_device_in_use(int id)
 	return 0;
 }
 
-static void adf_ctl_stop_devices(uint32_t id)
+static void adf_ctl_stop_devices(u32 id)
 {
 	struct adf_accel_dev *accel_dev;
 
@@ -374,7 +330,7 @@ out:
 static int adf_ctl_ioctl_get_num_devices(struct file *fp, unsigned int cmd,
 					 unsigned long arg)
 {
-	uint32_t num_devices = 0;
+	u32 num_devices = 0;
 
 	adf_devmgr_get_num_dev(&num_devices);
 	if (copy_to_user((void __user *)arg, &num_devices, sizeof(num_devices)))
@@ -450,7 +406,7 @@ static long adf_ctl_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		ret = adf_ctl_ioctl_get_status(fp, cmd, arg);
 		break;
 	default:
-		pr_err("QAT: Invalid ioctl\n");
+		pr_err_ratelimited("QAT: Invalid ioctl %d\n", cmd);
 		ret = -EFAULT;
 		break;
 	}
@@ -460,10 +416,11 @@ static long adf_ctl_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 static int __init adf_register_ctl_device_driver(void)
 {
-	mutex_init(&adf_ctl_lock);
-
 	if (adf_chr_drv_create())
 		goto err_chr_dev;
+
+	if (adf_init_misc_wq())
+		goto err_misc_wq;
 
 	if (adf_init_aer())
 		goto err_aer;
@@ -486,6 +443,8 @@ err_vf_wq:
 err_pf_wq:
 	adf_exit_aer();
 err_aer:
+	adf_exit_misc_wq();
+err_misc_wq:
 	adf_chr_drv_destroy();
 err_chr_dev:
 	mutex_destroy(&adf_ctl_lock);
@@ -495,6 +454,7 @@ err_chr_dev:
 static void __exit adf_unregister_ctl_device_driver(void)
 {
 	adf_chr_drv_destroy();
+	adf_exit_misc_wq();
 	adf_exit_aer();
 	adf_exit_vf_wq();
 	adf_exit_pf_wq();
@@ -510,3 +470,4 @@ MODULE_AUTHOR("Intel");
 MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
 MODULE_ALIAS_CRYPTO("intel_qat");
 MODULE_VERSION(ADF_DRV_VERSION);
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);

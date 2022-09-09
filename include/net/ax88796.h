@@ -1,16 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* include/net/ax88796.h
  *
  * Copyright 2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
 */
 
 #ifndef __NET_AX88796_PLAT_H
 #define __NET_AX88796_PLAT_H
+
+#include <linux/types.h>
 
 struct sk_buff;
 struct net_device;
@@ -36,10 +34,13 @@ struct ax_plat_data {
 			const unsigned char *buf, int star_page);
 	void (*block_input)(struct net_device *dev, int count,
 			struct sk_buff *skb, int ring_offset);
-	/* returns nonzero if a pending interrupt request might by caused by
-	 * the ax88786. Handles all interrupts if set to NULL
+	/* returns nonzero if a pending interrupt request might be caused by
+	 * the ax88796. Handles all interrupts if set to NULL
 	 */
 	int (*check_irq)(struct platform_device *pdev);
 };
+
+/* exported from ax88796.c for xsurf100.c  */
+extern void ax_NS8390_reinit(struct net_device *dev);
 
 #endif /* __NET_AX88796_PLAT_H */

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Greybus Bridged-Phy Bus driver
  *
@@ -36,9 +36,9 @@ struct gbphy_device_id {
 
 struct gbphy_driver {
 	const char *name;
-	int (*probe)(struct gbphy_device *,
+	int (*probe)(struct gbphy_device *device,
 		     const struct gbphy_device_id *id);
-	void (*remove)(struct gbphy_device *);
+	void (*remove)(struct gbphy_device *device);
 	const struct gbphy_device_id *id_table;
 
 	struct device_driver driver;

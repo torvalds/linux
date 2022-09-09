@@ -35,7 +35,7 @@ physical memory (demand paging) and provides a mechanism for the
 protection and controlled sharing of data between processes.
 
 With virtual memory, each and every memory access uses a virtual
-address. When the CPU decodes the an instruction that reads (or
+address. When the CPU decodes an instruction that reads (or
 writes) from (or to) the system memory, it translates the `virtual`
 address encoded in that instruction to a `physical` address that the
 memory controller can understand.
@@ -125,7 +125,7 @@ processor. Each bank is referred to as a `node` and for each node Linux
 constructs an independent memory management subsystem. A node has its
 own set of zones, lists of free and used pages and various statistics
 counters. You can find more details about NUMA in
-:ref:`Documentation/vm/numa.rst <numa>` and in
+:ref:`Documentation/mm/numa.rst <numa>` and in
 :ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`.
 
 Page cache
@@ -184,7 +184,7 @@ pages either asynchronously or synchronously, depending on the state
 of the system. When the system is not loaded, most of the memory is free
 and allocation requests will be satisfied immediately from the free
 pages supply. As the load increases, the amount of the free pages goes
-down and when it reaches a certain threshold (high watermark), an
+down and when it reaches a certain threshold (low watermark), an
 allocation request will awaken the ``kswapd`` daemon. It will
 asynchronously scan memory pages and either just free them if the data
 they contain is available elsewhere, or evict to the backing storage

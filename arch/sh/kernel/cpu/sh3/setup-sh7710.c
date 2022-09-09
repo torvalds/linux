@@ -13,6 +13,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 
 enum {
 	UNUSED = 0,
@@ -177,7 +178,7 @@ static struct platform_device *sh7710_early_devices[] __initdata = {
 
 void __init plat_early_device_setup(void)
 {
-	early_platform_add_devices(sh7710_early_devices,
+	sh_early_platform_add_devices(sh7710_early_devices,
 				   ARRAY_SIZE(sh7710_early_devices));
 }
 

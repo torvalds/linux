@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 Intel Corporation
  *
  * Driver for UPISEMI us5182d Proximity and Ambient Light Sensor.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * To do: Interrupt support.
  */
@@ -375,9 +367,7 @@ static int us5182d_set_power_state(struct us5182d_data *data, bool on)
 		return 0;
 
 	if (on) {
-		ret = pm_runtime_get_sync(&data->client->dev);
-		if (ret < 0)
-			pm_runtime_put_noidle(&data->client->dev);
+		ret = pm_runtime_resume_and_get(&data->client->dev);
 	} else {
 		pm_runtime_mark_last_busy(&data->client->dev);
 		ret = pm_runtime_put_autosuspend(&data->client->dev);
@@ -454,8 +444,8 @@ static int us5182d_read_raw(struct iio_dev *indio_dev,
 
 /**
  * us5182d_update_dark_th - update Darh_Th registers
- * @data	us5182d_data structure
- * @index	index in us5182d_dark_ths array to use for the updated value
+ * @data:	us5182d_data structure
+ * @index:	index in us5182d_dark_ths array to use for the updated value
  *
  * Function needs to be called with a lock held because it needs two i2c write
  * byte operations as these registers (0x27 0x28) don't work in word mode
@@ -477,8 +467,8 @@ static int us5182d_update_dark_th(struct us5182d_data *data, int index)
 
 /**
  * us5182d_apply_scale - update the ALS scale
- * @data	us5182d_data structure
- * @index	index in us5182d_scales array to use for the updated value
+ * @data:	us5182d_data structure
+ * @index:	index in us5182d_scales array to use for the updated value
  *
  * Function needs to be called with a lock held as we're having more than one
  * i2c operation.
@@ -859,7 +849,6 @@ static int us5182d_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &us5182d_info;
 	indio_dev->name = US5182D_DRV_NAME;
 	indio_dev->channels = us5182d_channels;
@@ -918,16 +907,21 @@ out_err:
 static int us5182d_remove(struct i2c_client *client)
 {
 	struct us5182d_data *data = iio_priv(i2c_get_clientdata(client));
+	int ret;
 
 	iio_device_unregister(i2c_get_clientdata(client));
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+	ret = us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+	if (ret)
+		dev_warn(&client->dev, "Failed to shut down (%pe)\n",
+			 ERR_PTR(ret));
+
+	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM)
 static int us5182d_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -950,23 +944,22 @@ static int us5182d_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops us5182d_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(us5182d_suspend, us5182d_resume)
-	SET_RUNTIME_PM_OPS(us5182d_suspend, us5182d_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(us5182d_suspend, us5182d_resume)
+	RUNTIME_PM_OPS(us5182d_suspend, us5182d_resume, NULL)
 };
 
 static const struct acpi_device_id us5182d_acpi_match[] = {
-	{ "USD5182", 0},
+	{ "USD5182", 0 },
 	{}
 };
 
 MODULE_DEVICE_TABLE(acpi, us5182d_acpi_match);
 
 static const struct i2c_device_id us5182d_id[] = {
-		{"usd5182", 0},
-		{}
+	{ "usd5182", 0 },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, us5182d_id);
@@ -980,7 +973,7 @@ MODULE_DEVICE_TABLE(of, us5182d_of_match);
 static struct i2c_driver us5182d_driver = {
 	.driver = {
 		.name = US5182D_DRV_NAME,
-		.pm = &us5182d_pm_ops,
+		.pm = pm_ptr(&us5182d_pm_ops),
 		.of_match_table = us5182d_of_match,
 		.acpi_match_table = ACPI_PTR(us5182d_acpi_match),
 	},

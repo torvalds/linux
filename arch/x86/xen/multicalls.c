@@ -105,7 +105,7 @@ void xen_mc_flush(void)
 		for (i = 0; i < b->mcidx; i++) {
 			if (b->entries[i].result < 0) {
 #if MC_DEBUG
-				pr_err("  call %2d: op=%lu arg=[%lx] result=%ld\t%pF\n",
+				pr_err("  call %2d: op=%lu arg=[%lx] result=%ld\t%pS\n",
 				       i + 1,
 				       b->debug[i].op,
 				       b->debug[i].args[0],

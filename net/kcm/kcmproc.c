@@ -261,7 +261,7 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 	aggregate_strp_stats(&knet->aggregate_strp_stats,
 			     &strp_stats);
 
-	list_for_each_entry_rcu(mux, &knet->mux_list, kcm_mux_list) {
+	list_for_each_entry(mux, &knet->mux_list, kcm_mux_list) {
 		spin_lock_bh(&mux->lock);
 		aggregate_mux_stats(&mux->stats, &mux_stats);
 		aggregate_psock_stats(&mux->aggregate_psock_stats,

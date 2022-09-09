@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Atheros AR71XX/AR724X/AR913X common routines
  *
@@ -6,10 +7,6 @@
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
  *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -44,7 +41,7 @@ static void __iomem *ath79_ddr_pci_win_base;
 
 void ath79_ddr_ctrl_init(void)
 {
-	ath79_ddr_base = ioremap_nocache(AR71XX_DDR_CTRL_BASE,
+	ath79_ddr_base = ioremap(AR71XX_DDR_CTRL_BASE,
 					 AR71XX_DDR_CTRL_SIZE);
 	if (soc_is_ar913x() || soc_is_ar724x() || soc_is_ar933x()) {
 		ath79_ddr_wb_flush_base = ath79_ddr_base + 0x7c;

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <stdio.h>
@@ -19,6 +19,9 @@ static int l3_bank_test(void)
 	struct event event;
 	char *p;
 	int i;
+
+	// The L3 bank logic is only used on Power8 or later
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
 
 	p = malloc(MALLOC_SIZE);
 	FAIL_IF(!p);

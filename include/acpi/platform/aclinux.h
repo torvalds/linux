@@ -3,7 +3,7 @@
  *
  * Name: aclinux.h - OS specific defines, etc. for Linux
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -66,6 +66,11 @@
 
 #define ACPI_INIT_FUNCTION __init
 
+/* Use a specific bugging default separate from ACPICA */
+
+#undef ACPI_DEBUG_DEFAULT
+#define ACPI_DEBUG_DEFAULT          (ACPI_LV_INFO | ACPI_LV_REPAIR)
+
 #ifndef CONFIG_ACPI
 
 /* External globals for __KERNEL__, stubs is needed */
@@ -109,9 +114,18 @@
 #define acpi_raw_spinlock                   raw_spinlock_t *
 #define acpi_cpu_flags                      unsigned long
 
+#define acpi_uintptr_t                      uintptr_t
+
+#define ACPI_TO_INTEGER(p)                  ((uintptr_t)(p))
+#define ACPI_OFFSET(d, f)                   offsetof(d, f)
+
 /* Use native linux version of acpi_os_allocate_zeroed */
 
 #define USE_NATIVE_ALLOCATE_ZEROED
+
+/* Use logical addresses for accessing GPE registers in system memory */
+
+#define ACPI_GPE_USE_LOGICAL_ADDRESSES
 
 /*
  * Overrides for in-kernel ACPICA
@@ -185,7 +199,8 @@
 
 #if defined(__ia64__)    || (defined(__x86_64__) && !defined(__ILP32__)) ||\
 	defined(__aarch64__) || defined(__PPC64__) ||\
-	defined(__s390x__)
+	defined(__s390x__) ||\
+	(defined(__riscv) && (defined(__LP64__) || defined(_LP64)))
 #define ACPI_MACHINE_WIDTH          64
 #define COMPILER_DEPENDENT_INT64    long
 #define COMPILER_DEPENDENT_UINT64   unsigned long

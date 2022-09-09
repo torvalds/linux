@@ -24,10 +24,9 @@
  *
  */
 
-#include <drm/drmP.h>
-
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
+#include <linux/sched/signal.h>
 #include <trace/events/dma_fence.h>
 
 #include <nvif/cl826e.h>
@@ -88,7 +87,7 @@ nouveau_local_fence(struct dma_fence *fence, struct nouveau_drm *drm)
 }
 
 void
-nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
+nouveau_fence_context_kill(struct nouveau_fence_chan *fctx, int error)
 {
 	struct nouveau_fence *fence;
 
@@ -96,12 +95,20 @@ nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 	while (!list_empty(&fctx->pending)) {
 		fence = list_entry(fctx->pending.next, typeof(*fence), head);
 
+		if (error)
+			dma_fence_set_error(&fence->base, error);
+
 		if (nouveau_fence_signal(fence))
 			nvif_notify_put(&fctx->notify);
 	}
 	spin_unlock_irq(&fctx->lock);
+}
 
-	nvif_notify_fini(&fctx->notify);
+void
+nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
+{
+	nouveau_fence_context_kill(fctx, 0);
+	nvif_notify_dtor(&fctx->notify);
 	fctx->dead = 1;
 
 	/*
@@ -157,7 +164,7 @@ nouveau_fence_wait_uevent_handler(struct nvif_notify *notify)
 
 		fence = list_entry(fctx->pending.next, typeof(*fence), head);
 		chan = rcu_dereference_protected(fence->channel, lockdep_is_held(&fctx->lock));
-		if (nouveau_fence_update(fence->channel, fctx))
+		if (nouveau_fence_update(chan, fctx))
 			ret = NVIF_NOTIFY_DROP;
 	}
 	spin_unlock_irqrestore(&fctx->lock, flags);
@@ -188,7 +195,8 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	if (!priv->uevent)
 		return;
 
-	ret = nvif_notify_init(&chan->user, nouveau_fence_wait_uevent_handler,
+	ret = nvif_notify_ctor(&chan->user, "fenceNonStallIntr",
+			       nouveau_fence_wait_uevent_handler,
 			       false, NV826E_V0_NTFY_NON_STALL_INTERRUPT,
 			       &(struct nvif_notify_uevent_req) { },
 			       sizeof(struct nvif_notify_uevent_req),
@@ -216,7 +224,6 @@ nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 			       &fctx->lock, fctx->context, ++fctx->sequence);
 	kref_get(&fctx->fence_ref);
 
-	trace_dma_fence_emit(&fence->base);
 	ret = fctx->emit(fence);
 	if (!ret) {
 		dma_fence_get(&fence->base);
@@ -331,68 +338,56 @@ nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 }
 
 int
-nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool exclusive, bool intr)
+nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
+		   bool exclusive, bool intr)
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
-	struct dma_fence *fence;
-	struct reservation_object *resv = nvbo->bo.resv;
-	struct reservation_object_list *fobj;
-	struct nouveau_fence *f;
-	int ret = 0, i;
+	struct dma_resv *resv = nvbo->bo.base.resv;
+	int i, ret;
 
-	if (!exclusive) {
-		ret = reservation_object_reserve_shared(resv, 1);
-
-		if (ret)
-			return ret;
-	}
-
-	fobj = reservation_object_get_list(resv);
-	fence = reservation_object_get_excl(resv);
-
-	if (fence && (!exclusive || !fobj || !fobj->shared_count)) {
-		struct nouveau_channel *prev = NULL;
-		bool must_wait = true;
-
-		f = nouveau_local_fence(fence, chan->drm);
-		if (f) {
-			rcu_read_lock();
-			prev = rcu_dereference(f->channel);
-			if (prev && (prev == chan || fctx->sync(f, prev, chan) == 0))
-				must_wait = false;
-			rcu_read_unlock();
-		}
-
-		if (must_wait)
-			ret = dma_fence_wait(fence, intr);
-
-		return ret;
-	}
-
-	if (!exclusive || !fobj)
+	ret = dma_resv_reserve_fences(resv, 1);
+	if (ret)
 		return ret;
 
-	for (i = 0; i < fobj->shared_count && !ret; ++i) {
-		struct nouveau_channel *prev = NULL;
-		bool must_wait = true;
+	/* Waiting for the writes first causes performance regressions
+	 * under some circumstances. So manually wait for the reads first.
+	 */
+	for (i = 0; i < 2; ++i) {
+		struct dma_resv_iter cursor;
+		struct dma_fence *fence;
 
-		fence = rcu_dereference_protected(fobj->shared[i],
-						reservation_object_held(resv));
+		dma_resv_for_each_fence(&cursor, resv,
+					dma_resv_usage_rw(exclusive),
+					fence) {
+			enum dma_resv_usage usage;
+			struct nouveau_fence *f;
 
-		f = nouveau_local_fence(fence, chan->drm);
-		if (f) {
-			rcu_read_lock();
-			prev = rcu_dereference(f->channel);
-			if (prev && (prev == chan || fctx->sync(f, prev, chan) == 0))
-				must_wait = false;
-			rcu_read_unlock();
-		}
+			usage = dma_resv_iter_usage(&cursor);
+			if (i == 0 && usage == DMA_RESV_USAGE_WRITE)
+				continue;
 
-		if (must_wait)
+			f = nouveau_local_fence(fence, chan->drm);
+			if (f) {
+				struct nouveau_channel *prev;
+				bool must_wait = true;
+
+				rcu_read_lock();
+				prev = rcu_dereference(f->channel);
+				if (prev && (prev == chan ||
+					     fctx->sync(f, prev, chan) == 0))
+					must_wait = false;
+				rcu_read_unlock();
+				if (!must_wait)
+					continue;
+			}
+
 			ret = dma_fence_wait(fence, intr);
+			if (ret)
+				return ret;
+		}
 	}
 
-	return ret;
+	return 0;
 }
 
 void

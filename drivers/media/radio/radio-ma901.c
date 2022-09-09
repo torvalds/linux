@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the MasterKit MA901 USB FM radio. This device plugs
  * into the USB port and an analog audio input or headphones, so this thing
  * only deals with initialization, frequency setting, volume.
  *
  * Copyright (c) 2012 Alexey Klimov <klimov.linux@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -200,8 +191,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(v->driver, "radio-ma901", sizeof(v->driver));
 	strscpy(v->card, "Masterkit MA901 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -407,6 +396,7 @@ static int usb_ma901radio_probe(struct usb_interface *intf,
 	radio->vdev.ioctl_ops = &usb_ma901radio_ioctl_ops;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.lock = &radio->lock;
+	radio->vdev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;

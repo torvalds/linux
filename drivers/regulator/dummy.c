@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dummy.c
  *
  * Copyright 2010 Wolfson Microelectronics PLC.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
  *
  * This is useful for systems with mixed controllable and
  * non-controllable regulators, as well as for allowing testing on
@@ -25,13 +21,13 @@
 
 struct regulator_dev *dummy_regulator_rdev;
 
-static struct regulator_init_data dummy_initdata = {
+static const struct regulator_init_data dummy_initdata = {
 	.constraints = {
 		.always_on = 1,
 	},
 };
 
-static struct regulator_ops dummy_ops;
+static const struct regulator_ops dummy_ops;
 
 static const struct regulator_desc dummy_desc = {
 	.name = "regulator-dummy",
@@ -49,7 +45,8 @@ static int dummy_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = &dummy_initdata;
 
-	dummy_regulator_rdev = regulator_register(&dummy_desc, &config);
+	dummy_regulator_rdev = devm_regulator_register(&pdev->dev, &dummy_desc,
+						       &config);
 	if (IS_ERR(dummy_regulator_rdev)) {
 		ret = PTR_ERR(dummy_regulator_rdev);
 		pr_err("Failed to register regulator: %d\n", ret);

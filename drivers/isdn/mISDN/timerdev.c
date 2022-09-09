@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * general timer device for using in ISDN stacks
@@ -5,16 +6,6 @@
  * Author	Karsten Keil <kkeil@novell.com>
  *
  * Copyright 2008  by Karsten Keil <kkeil@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/poll.h>
@@ -170,8 +161,8 @@ dev_expire_timer(struct timer_list *t)
 	spin_lock_irqsave(&timer->dev->lock, flags);
 	if (timer->id >= 0)
 		list_move_tail(&timer->list, &timer->dev->expired);
-	spin_unlock_irqrestore(&timer->dev->lock, flags);
 	wake_up_interruptible(&timer->dev->wait);
+	spin_unlock_irqrestore(&timer->dev->lock, flags);
 }
 
 static int

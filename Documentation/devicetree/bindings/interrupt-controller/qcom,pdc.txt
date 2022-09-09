@@ -17,8 +17,14 @@ Properties:
 - compatible:
 	Usage: required
 	Value type: <string>
-	Definition: Should contain "qcom,<soc>-pdc"
+	Definition: Should contain "qcom,<soc>-pdc" and "qcom,pdc"
+		    - "qcom,sc7180-pdc": For SC7180
+		    - "qcom,sc7280-pdc": For SC7280
 		    - "qcom,sdm845-pdc": For SDM845
+		    - "qcom,sm6350-pdc": For SM6350
+		    - "qcom,sm8150-pdc": For SM8150
+		    - "qcom,sm8250-pdc": For SM8250
+		    - "qcom,sm8350-pdc": For SM8350
 
 - reg:
 	Usage: required

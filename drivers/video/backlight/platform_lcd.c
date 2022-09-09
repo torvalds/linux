@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/video/backlight/platform_lcd.c
  *
  * Copyright 2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * Generic platform-device LCD power control interface.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
 */
 
 #include <linux/module.h>
@@ -16,7 +12,6 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/lcd.h>
-#include <linux/of.h>
 #include <linux/slab.h>
 
 #include <video/platform_lcd.h>
@@ -137,19 +132,10 @@ static int platform_lcd_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(platform_lcd_pm_ops, platform_lcd_suspend,
 			platform_lcd_resume);
 
-#ifdef CONFIG_OF
-static const struct of_device_id platform_lcd_of_match[] = {
-	{ .compatible = "platform-lcd" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, platform_lcd_of_match);
-#endif
-
 static struct platform_driver platform_lcd_driver = {
 	.driver		= {
 		.name	= "platform-lcd",
 		.pm	= &platform_lcd_pm_ops,
-		.of_match_table = of_match_ptr(platform_lcd_of_match),
 	},
 	.probe		= platform_lcd_probe,
 };

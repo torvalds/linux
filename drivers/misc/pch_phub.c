@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -64,7 +52,6 @@
 #define CLKCFG_UARTCLKSEL			(1 << 18)
 
 /* Macros for ML7213 */
-#define PCI_VENDOR_ID_ROHM			0x10db
 #define PCI_DEVICE_ID_ROHM_ML7213_PHUB		0x801A
 
 /* Macros for ML7223 */
@@ -148,6 +135,7 @@ static DEFINE_MUTEX(pch_phub_mutex);
 
 /**
  * pch_phub_read_modify_write_reg() - Reading modifying and writing register
+ * @chip:		Pointer to the PHUB register structure
  * @reg_addr_offset:	Register offset address value.
  * @data:		Writing value.
  * @mask:		Mask value.
@@ -160,9 +148,8 @@ static void pch_phub_read_modify_write_reg(struct pch_phub_reg *chip,
 	iowrite32(((ioread32(reg_addr) & ~mask)) | data, reg_addr);
 }
 
-#ifdef CONFIG_PM
 /* pch_phub_save_reg_conf - saves register configuration */
-static void pch_phub_save_reg_conf(struct pci_dev *pdev)
+static void __maybe_unused pch_phub_save_reg_conf(struct pci_dev *pdev)
 {
 	unsigned int i;
 	struct pch_phub_reg *chip = pci_get_drvdata(pdev);
@@ -223,7 +210,7 @@ static void pch_phub_save_reg_conf(struct pci_dev *pdev)
 }
 
 /* pch_phub_restore_reg_conf - restore register configuration */
-static void pch_phub_restore_reg_conf(struct pci_dev *pdev)
+static void __maybe_unused pch_phub_restore_reg_conf(struct pci_dev *pdev)
 {
 	unsigned int i;
 	struct pch_phub_reg *chip = pci_get_drvdata(pdev);
@@ -283,10 +270,10 @@ static void pch_phub_restore_reg_conf(struct pci_dev *pdev)
 	if ((chip->ioh_type == 2) || (chip->ioh_type == 4))
 		iowrite32(chip->funcsel_reg, p + FUNCSEL_REG_OFFSET);
 }
-#endif
 
 /**
  * pch_phub_read_serial_rom() - Reading Serial ROM
+ * @chip:		Pointer to the PHUB register structure
  * @offset_address:	Serial ROM offset address to read.
  * @data:		Read buffer for specified Serial ROM value.
  */
@@ -301,6 +288,7 @@ static void pch_phub_read_serial_rom(struct pch_phub_reg *chip,
 
 /**
  * pch_phub_write_serial_rom() - Writing Serial ROM
+ * @chip:		Pointer to the PHUB register structure
  * @offset_address:	Serial ROM offset address.
  * @data:		Serial ROM value to write.
  */
@@ -339,6 +327,7 @@ static int pch_phub_write_serial_rom(struct pch_phub_reg *chip,
 
 /**
  * pch_phub_read_serial_rom_val() - Read Serial ROM value
+ * @chip:		Pointer to the PHUB register structure
  * @offset_address:	Serial ROM address offset value.
  * @data:		Serial ROM value to read.
  */
@@ -355,6 +344,7 @@ static void pch_phub_read_serial_rom_val(struct pch_phub_reg *chip,
 
 /**
  * pch_phub_write_serial_rom_val() - writing Serial ROM value
+ * @chip:		Pointer to the PHUB register structure
  * @offset_address:	Serial ROM address offset value.
  * @data:		Serial ROM value.
  */
@@ -456,7 +446,7 @@ static int pch_phub_gbe_serial_rom_conf_mp(struct pch_phub_reg *chip)
 
 /**
  * pch_phub_read_gbe_mac_addr() - Read Gigabit Ethernet MAC address
- * @offset_address:	Gigabit Ethernet MAC address offset value.
+ * @chip:		Pointer to the PHUB register structure
  * @data:		Buffer of the Gigabit Ethernet MAC address value.
  */
 static void pch_phub_read_gbe_mac_addr(struct pch_phub_reg *chip, u8 *data)
@@ -468,7 +458,7 @@ static void pch_phub_read_gbe_mac_addr(struct pch_phub_reg *chip, u8 *data)
 
 /**
  * pch_phub_write_gbe_mac_addr() - Write MAC address
- * @offset_address:	Gigabit Ethernet MAC address offset value.
+ * @chip:		Pointer to the PHUB register structure
  * @data:		Gigabit Ethernet MAC address value.
  */
 static int pch_phub_write_gbe_mac_addr(struct pch_phub_reg *chip, u8 *data)
@@ -848,48 +838,19 @@ static void pch_phub_remove(struct pci_dev *pdev)
 	kfree(chip);
 }
 
-#ifdef CONFIG_PM
-
-static int pch_phub_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused pch_phub_suspend(struct device *dev_d)
 {
-	int ret;
-
-	pch_phub_save_reg_conf(pdev);
-	ret = pci_save_state(pdev);
-	if (ret) {
-		dev_err(&pdev->dev,
-			" %s -pci_save_state returns %d\n", __func__, ret);
-		return ret;
-	}
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	device_wakeup_disable(dev_d);
 
 	return 0;
 }
 
-static int pch_phub_resume(struct pci_dev *pdev)
+static int __maybe_unused pch_phub_resume(struct device *dev_d)
 {
-	int ret;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		dev_err(&pdev->dev,
-		"%s-pci_enable_device failed(ret=%d) ", __func__, ret);
-		return ret;
-	}
-
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-	pch_phub_restore_reg_conf(pdev);
+	device_wakeup_disable(dev_d);
 
 	return 0;
 }
-#else
-#define pch_phub_suspend NULL
-#define pch_phub_resume NULL
-#endif /* CONFIG_PM */
 
 static const struct pci_device_id pch_phub_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH1_PHUB),       1,  },
@@ -901,13 +862,14 @@ static const struct pci_device_id pch_phub_pcidev_id[] = {
 };
 MODULE_DEVICE_TABLE(pci, pch_phub_pcidev_id);
 
+static SIMPLE_DEV_PM_OPS(pch_phub_pm_ops, pch_phub_suspend, pch_phub_resume);
+
 static struct pci_driver pch_phub_driver = {
 	.name = "pch_phub",
 	.id_table = pch_phub_pcidev_id,
 	.probe = pch_phub_probe,
 	.remove = pch_phub_remove,
-	.suspend = pch_phub_suspend,
-	.resume = pch_phub_resume
+	.driver.pm = &pch_phub_pm_ops,
 };
 
 module_pci_driver(pch_phub_driver);

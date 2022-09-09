@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/cpuidle.h>
@@ -17,7 +11,7 @@
 extern struct of_cpuidle_method __cpuidle_method_of_table[];
 
 static const struct of_cpuidle_method __cpuidle_method_of_table_sentinel
-	__used __section(__cpuidle_method_of_table_end);
+	__used __section("__cpuidle_method_of_table_end");
 
 static struct cpuidle_ops cpuidle_ops[NR_CPUS] __ro_after_init;
 

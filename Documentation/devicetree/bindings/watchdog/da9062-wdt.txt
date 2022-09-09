@@ -6,6 +6,17 @@ Required properties:
 	"dlg,da9061-watchdog", "dlg,da9062-watchdog"
 	"dlg,da9062-watchdog"
 
+Optional properties:
+- dlg,use-sw-pm: Add this property to disable the watchdog during suspend.
+	Only use this option if you can't use the watchdog automatic suspend
+	function during a suspend (see register CONTROL_B).
+- dlg,wdt-sd: Set what happens on watchdog timeout. If this bit is set the
+	watchdog timeout triggers SHUTDOWN, if cleared the watchdog triggers
+	POWERDOWN. Can be 0 or 1. Only use this option if you want to change the
+	default chip's OTP setting for WATCHDOG_SD bit. If this property is NOT
+	set the WATCHDOG_SD bit and on timeout watchdog behavior will match the
+	chip's OTP settings.
+
 Example: DA9062
 
 	pmic0: da9062@58 {

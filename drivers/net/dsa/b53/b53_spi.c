@@ -145,42 +145,52 @@ static int b53_spi_read8(struct b53_device *dev, u8 page, u8 reg, u8 *val)
 
 static int b53_spi_read16(struct b53_device *dev, u8 page, u8 reg, u16 *val)
 {
-	int ret = b53_spi_read(dev, page, reg, (u8 *)val, 2);
+	__le16 value;
+	int ret;
+
+	ret = b53_spi_read(dev, page, reg, (u8 *)&value, 2);
 
 	if (!ret)
-		*val = le16_to_cpu(*val);
+		*val = le16_to_cpu(value);
 
 	return ret;
 }
 
 static int b53_spi_read32(struct b53_device *dev, u8 page, u8 reg, u32 *val)
 {
-	int ret = b53_spi_read(dev, page, reg, (u8 *)val, 4);
+	__le32 value;
+	int ret;
+
+	ret = b53_spi_read(dev, page, reg, (u8 *)&value, 4);
 
 	if (!ret)
-		*val = le32_to_cpu(*val);
+		*val = le32_to_cpu(value);
 
 	return ret;
 }
 
 static int b53_spi_read48(struct b53_device *dev, u8 page, u8 reg, u64 *val)
 {
+	__le64 value;
 	int ret;
 
 	*val = 0;
-	ret = b53_spi_read(dev, page, reg, (u8 *)val, 6);
+	ret = b53_spi_read(dev, page, reg, (u8 *)&value, 6);
 	if (!ret)
-		*val = le64_to_cpu(*val);
+		*val = le64_to_cpu(value);
 
 	return ret;
 }
 
 static int b53_spi_read64(struct b53_device *dev, u8 page, u8 reg, u64 *val)
 {
-	int ret = b53_spi_read(dev, page, reg, (u8 *)val, 8);
+	__le64 value;
+	int ret;
+
+	ret = b53_spi_read(dev, page, reg, (u8 *)&value, 8);
 
 	if (!ret)
-		*val = le64_to_cpu(*val);
+		*val = le64_to_cpu(value);
 
 	return ret;
 }
@@ -304,22 +314,59 @@ static int b53_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int b53_spi_remove(struct spi_device *spi)
+static void b53_spi_remove(struct spi_device *spi)
 {
 	struct b53_device *dev = spi_get_drvdata(spi);
 
 	if (dev)
 		b53_switch_remove(dev);
-
-	return 0;
 }
+
+static void b53_spi_shutdown(struct spi_device *spi)
+{
+	struct b53_device *dev = spi_get_drvdata(spi);
+
+	if (dev)
+		b53_switch_shutdown(dev);
+
+	spi_set_drvdata(spi, NULL);
+}
+
+static const struct of_device_id b53_spi_of_match[] = {
+	{ .compatible = "brcm,bcm5325" },
+	{ .compatible = "brcm,bcm5365" },
+	{ .compatible = "brcm,bcm5395" },
+	{ .compatible = "brcm,bcm5397" },
+	{ .compatible = "brcm,bcm5398" },
+	{ .compatible = "brcm,bcm53115" },
+	{ .compatible = "brcm,bcm53125" },
+	{ .compatible = "brcm,bcm53128" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, b53_spi_of_match);
+
+static const struct spi_device_id b53_spi_ids[] = {
+	{ .name = "bcm5325" },
+	{ .name = "bcm5365" },
+	{ .name = "bcm5395" },
+	{ .name = "bcm5397" },
+	{ .name = "bcm5398" },
+	{ .name = "bcm53115" },
+	{ .name = "bcm53125" },
+	{ .name = "bcm53128" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, b53_spi_ids);
 
 static struct spi_driver b53_spi_driver = {
 	.driver = {
 		.name	= "b53-switch",
+		.of_match_table = b53_spi_of_match,
 	},
 	.probe	= b53_spi_probe,
 	.remove	= b53_spi_remove,
+	.shutdown = b53_spi_shutdown,
+	.id_table = b53_spi_ids,
 };
 
 module_spi_driver(b53_spi_driver);

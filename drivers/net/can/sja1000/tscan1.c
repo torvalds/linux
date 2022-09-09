@@ -1,26 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tscan1.c: driver for Technologic Systems TS-CAN1 PC104 boards
  *
  * Copyright 2010 Andre B. Oliveira
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
- * References:
- * - Getting started with TS-CAN1, Technologic Systems, Jun 2009
- *	http://www.embeddedarm.com/documentation/ts-can1-manual.pdf
+/* References:
+ * - Getting started with TS-CAN1, Technologic Systems, Feb 2022
+ *	https://docs.embeddedts.com/TS-CAN1
  */
 
 #include <linux/init.h>
@@ -171,7 +158,7 @@ static int tscan1_probe(struct device *dev, unsigned id)
 	return -ENXIO;
 }
 
-static int tscan1_remove(struct device *dev, unsigned id /*unused*/)
+static void tscan1_remove(struct device *dev, unsigned id /*unused*/)
 {
 	struct net_device *netdev;
 	struct sja1000_priv *priv;
@@ -191,8 +178,6 @@ static int tscan1_remove(struct device *dev, unsigned id /*unused*/)
 	release_region(pld_base, TSCAN1_PLD_SIZE);
 
 	free_sja1000dev(netdev);
-
-	return 0;
 }
 
 static struct isa_driver tscan1_isa_driver = {

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * tascam.h - a part of driver for TASCAM FireWire series
  *
  * Copyright (c) 2015 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef SOUND_TASCAM_H_INCLUDED
@@ -71,8 +70,6 @@ struct snd_tscm {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
 	const struct snd_tscm_spec *spec;
 
 	struct fw_iso_resources tx_resources;
@@ -98,6 +95,9 @@ struct snd_tscm {
 	struct snd_firewire_tascam_change queue[SND_TSCM_QUEUE_COUNT];
 	unsigned int pull_pos;
 	unsigned int push_pos;
+
+	struct amdtp_domain domain;
+	bool need_long_tx_init_skip;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull
@@ -128,6 +128,26 @@ struct snd_tscm {
 
 #define TSCM_OFFSET_MIDI_RX_QUAD	0x4000
 
+// Although FE-8 supports the above registers, it has no I/O interfaces for
+// audio samples and music messages. Otherwise it supports another notification
+// for status and control message as well as LED brightening. The message
+// consists of quadlet-aligned data up to 32 quadlets. The first byte of message
+// is fixed to 0x40. The second byte is between 0x00 to 0x1f and represent each
+// control:
+//   fader:	0x00-0x07
+//   button:	0x0d, 0x0e
+//   knob:	0x14-0x1b
+//   sensing:	0x0b
+//
+// The rest two bytes represent state of the controls; e.g. current value for
+// fader and knob, bitmasks for button and sensing.
+// Just after turning on, 32 quadlets messages with 0x00-0x1f are immediately
+// sent in one transaction. After, several quadlets are sent in one transaction.
+//
+// TSCM_OFFSET_FE8_CTL_TX_ON		0x0310
+// TSCM_OFFSET_FE8_CTL_TX_ADDR_HI	0x0314
+// TSCM_OFFSET_FE8_CTL_TX_ADDR_LO	0x0318
+
 enum snd_tscm_clock {
 	SND_TSCM_CLOCK_INTERNAL = 0,
 	SND_TSCM_CLOCK_WORD	= 1,
@@ -147,6 +167,9 @@ int snd_tscm_stream_get_clock(struct snd_tscm *tscm,
 int snd_tscm_stream_init_duplex(struct snd_tscm *tscm);
 void snd_tscm_stream_update_duplex(struct snd_tscm *tscm);
 void snd_tscm_stream_destroy_duplex(struct snd_tscm *tscm);
+int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate,
+				   unsigned int frames_per_period,
+				   unsigned int frames_per_buffer);
 int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate);
 void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm);
 

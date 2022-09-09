@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2013-2014 Chelsio Communications.  All rights reserved.
  *
  *  Written by Anish Bhatt (anish@chelsio.com)
  *	       Casey Leedom (leedom@chelsio.com)
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
- *
  */
 
 #include "cxgb4.h"
@@ -97,7 +85,7 @@ static void cxgb4_dcb_cleanup_apps(struct net_device *dev)
 
 		if (err) {
 			dev_err(adap->pdev_dev,
-				"Failed DCB Clear %s Application Priority: sel=%d, prot=%d, , err=%d\n",
+				"Failed DCB Clear %s Application Priority: sel=%d, prot=%d, err=%d\n",
 				dcb_ver_array[dcb->dcb_version], app.selector,
 				app.protocol, -err);
 			break;

@@ -12,6 +12,7 @@
 #include <linux/uaccess.h>
 #include <asm/ucontext.h>
 #include <frame_kern.h>
+#include <registers.h>
 #include <skas.h>
 
 #ifdef CONFIG_X86_32
@@ -471,7 +472,7 @@ long sys_sigreturn(void)
 	return PT_REGS_SYSCALL_RET(&current->thread.regs);
 
  segfault:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -577,6 +578,6 @@ long sys_rt_sigreturn(void)
 	return PT_REGS_SYSCALL_RET(&current->thread.regs);
 
  segfault:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }

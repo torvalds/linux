@@ -2,7 +2,6 @@
 // Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/debug.h>
@@ -16,6 +15,12 @@
 
 struct cpuinfo_csky cpu_data[NR_CPUS];
 
+#ifdef CONFIG_STACKPROTECTOR
+#include <linux/stackprotector.h>
+unsigned long __stack_chk_guard __read_mostly;
+EXPORT_SYMBOL(__stack_chk_guard);
+#endif
+
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
@@ -24,21 +29,11 @@ asmlinkage void ret_from_kernel_thread(void);
  */
 void flush_thread(void){}
 
-/*
- * Return saved PC from a blocked thread
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
-	struct switch_stack *sw = (struct switch_stack *)tsk->thread.ksp;
-
-	return sw->r15;
-}
-
-int copy_thread(unsigned long clone_flags,
-		unsigned long usp,
-		unsigned long kthread_arg,
-		struct task_struct *p)
-{
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct switch_stack *childstack;
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -49,14 +44,14 @@ int copy_thread(unsigned long clone_flags,
 	childstack = ((struct switch_stack *) childregs) - 1;
 	memset(childstack, 0, sizeof(struct switch_stack));
 
-	/* setup ksp for switch_to !!! */
-	p->thread.ksp = (unsigned long)childstack;
+	/* setup thread.sp for switch_to !!! */
+	p->thread.sp = (unsigned long)childstack;
 
-	if (unlikely(p->flags & PF_KTHREAD)) {
+	if (unlikely(args->fn)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childstack->r15 = (unsigned long) ret_from_kernel_thread;
-		childstack->r8 = kthread_arg;
-		childstack->r9 = usp;
+		childstack->r10 = (unsigned long) args->fn_arg;
+		childstack->r9 = (unsigned long) args->fn;
 		childregs->sr = mfcr("psr");
 	} else {
 		*childregs = *(current_pt_regs());
@@ -64,7 +59,7 @@ int copy_thread(unsigned long clone_flags,
 			childregs->usp = usp;
 		if (clone_flags & CLONE_SETTLS)
 			task_thread_info(p)->tp_value = childregs->tls
-						      = childregs->regs[0];
+						      = tls;
 
 		childregs->a0 = 0;
 		childstack->r15 = (unsigned long) ret_from_fork;
@@ -91,37 +86,6 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *pr_regs)
 	return 1;
 }
 
-unsigned long get_wchan(struct task_struct *p)
-{
-	unsigned long lr;
-	unsigned long *fp, *stack_start, *stack_end;
-	int count = 0;
-
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
-
-	stack_start = (unsigned long *)end_of_stack(p);
-	stack_end = (unsigned long *)(task_stack_page(p) + THREAD_SIZE);
-
-	fp = (unsigned long *) thread_saved_fp(p);
-	do {
-		if (fp < stack_start || fp > stack_end)
-			return 0;
-#ifdef CONFIG_STACKTRACE
-		lr = fp[1];
-		fp = (unsigned long *)fp[0];
-#else
-		lr = *fp++;
-#endif
-		if (!in_sched_functions(lr) &&
-		    __kernel_text_address(lr))
-			return lr;
-	} while (count++ < 16);
-
-	return 0;
-}
-EXPORT_SYMBOL(get_wchan);
-
 #ifndef CONFIG_CPU_PM_NONE
 void arch_cpu_idle(void)
 {
@@ -136,6 +100,6 @@ void arch_cpu_idle(void)
 #ifdef CONFIG_CPU_PM_STOP
 	asm volatile("stop\n");
 #endif
-	local_irq_enable();
+	raw_local_irq_enable();
 }
 #endif

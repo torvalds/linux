@@ -26,6 +26,7 @@
 
 static const struct gk104_fifo_func
 gm20b_fifo = {
+	.intr.fault = gm107_fifo_intr_fault,
 	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gm107_fifo_fault_engine,
@@ -37,7 +38,8 @@ gm20b_fifo = {
 };
 
 int
-gm20b_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gm20b_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gm20b_fifo, device, index, 512, pfifo);
+	return gk104_fifo_new_(&gm20b_fifo, device, type, inst, 512, pfifo);
 }

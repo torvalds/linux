@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 #include "omap5.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -31,14 +28,6 @@
 		vin-supply = <&vmain>;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-	};
-
-	vdds_1v8_main: fixedregulator-vdds_1v8_main {
-		compatible = "regulator-fixed";
-		regulator-name = "vdds_1v8_main";
-		vin-supply = <&smps7_reg>;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
 	};
 
 	vmmcsd_fixed: fixedregulator-mmcsd {
@@ -152,7 +141,7 @@
 
 &gpio8 {
 	/* TI trees use GPIO instead of msecure, see also muxing */
-	p234 {
+	msecure-hog {
 		gpio-hog;
 		gpios = <10 GPIO_ACTIVE_HIGH>;
 		output-high;
@@ -317,7 +306,8 @@
 
 	palmas_sys_nirq_pins: pinmux_palmas_sys_nirq_pins {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq1 */
+			/* sys_nirq1 is pulled down as the SoC is inverting it for GIC */
+			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0)
 		>;
 	};
 
@@ -364,7 +354,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wlcore_irq_pin>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <14 IRQ_TYPE_EDGE_RISING>;	/* gpio 14 */
+		interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;	/* gpio 14 */
 		ref-clock-frequency = <26000000>;
 	};
 };
@@ -385,7 +375,8 @@
 
 	palmas: palmas@48 {
 		compatible = "ti,palmas";
-		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* IRQ_SYS_1N */
+		/* sys_nirq/ext_sys_irq pins get inverted at mpuss wakeupgen */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x48>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
@@ -488,6 +479,7 @@
 					regulator-boot-on;
 				};
 
+				vdds_1v8_main:
 				smps7_reg: smps7 {
 					/* VDDS_1v8_OMAP over VDDS_1v8_MAIN */
 					regulator-name = "smps7";
@@ -651,7 +643,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&twl6040_pins>;
 
-		interrupts = <GIC_SPI 119 IRQ_TYPE_NONE>; /* IRQ_SYS_2N cascaded to gic */
+		/* sys_nirq/ext_sys_irq pins get inverted at mpuss wakeupgen */
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_LOW>;
 
 		/* audpwron gpio defined in the board specific dts */
 
@@ -664,14 +657,16 @@
 	};
 };
 
-&mcpdm {
+&mcpdm_module {
+	/* Module on the SoC needs external clock from the PMIC */
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
 
+&mcpdm {
 	clocks = <&twl6040>;
 	clock-names = "pdmclk";
-
-	status = "okay";
 };
 
 &mcbsp1 {
@@ -741,11 +736,11 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 };
 
 &hdmi {
-	status = "ok";
+	status = "okay";
 
 	/* vdda-supply populated in board specific dts file */
 

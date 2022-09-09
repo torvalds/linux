@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * udc.c - Core UDC Framework
  *
  * Copyright (C) 2010 Texas Instruments
  * Author: Felipe Balbi <balbi@ti.com>
  */
 
+#define pr_fmt(fmt)	"UDC core: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/idr.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched/task_stack.h>
@@ -21,14 +24,19 @@
 
 #include "trace.h"
 
+static DEFINE_IDA(gadget_id_numbers);
+
+static struct bus_type gadget_bus_type;
+
 /**
  * struct usb_udc - describes one usb device controller
- * @driver - the gadget driver pointer. For use by the class code
- * @dev - the child device to the actual controller
- * @gadget - the gadget. For use by the class code
- * @list - for use by the udc class driver
- * @vbus - for udcs who care about vbus status, this value is real vbus status;
+ * @driver: the gadget driver pointer. For use by the class code
+ * @dev: the child device to the actual controller
+ * @gadget: the gadget. For use by the class code
+ * @list: for use by the udc class driver
+ * @vbus: for udcs who care about vbus status, this value is real vbus status;
  * for udcs who do not care about vbus status, this value is always true
+ * @started: the UDC's started state. True if the UDC had started.
  *
  * This represents the internal data structure which is used by the UDC-class
  * to hold information about udc driver and gadget together.
@@ -39,15 +47,14 @@ struct usb_udc {
 	struct device			dev;
 	struct list_head		list;
 	bool				vbus;
+	bool				started;
 };
 
 static struct class *udc_class;
 static LIST_HEAD(udc_list);
-static LIST_HEAD(gadget_driver_pending_list);
-static DEFINE_MUTEX(udc_lock);
 
-static int udc_bind_to_driver(struct usb_udc *udc,
-		struct usb_gadget_driver *driver);
+/* Protects udc_list, udc->driver, driver->is_bound, and related calls */
+static DEFINE_MUTEX(udc_lock);
 
 /* ------------------------------------------------------------------------- */
 
@@ -85,9 +92,9 @@ EXPORT_SYMBOL_GPL(usb_ep_set_maxpacket_limit);
  * for interrupt transfers as well as bulk, but it likely couldn't be used
  * for iso transfers or for endpoint 14.  some endpoints are fully
  * configurable, with more generic names like "ep-a".  (remember that for
- * USB, "in" means "towards the USB master".)
+ * USB, "in" means "towards the USB host".)
  *
- * This routine must be called in process context.
+ * This routine may be called in an atomic (interrupt) context.
  *
  * returns zero, or a negative error code.
  */
@@ -97,6 +104,17 @@ int usb_ep_enable(struct usb_ep *ep)
 
 	if (ep->enabled)
 		goto out;
+
+	/* UDC drivers can't handle endpoints with maxpacket size 0 */
+	if (usb_endpoint_maxp(ep->desc) == 0) {
+		/*
+		 * We should log an error message here, but we can't call
+		 * dev_err() because there's no way to find the gadget
+		 * given only ep.
+		 */
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = ep->ops->enable(ep, ep->desc);
 	if (ret)
@@ -121,7 +139,7 @@ EXPORT_SYMBOL_GPL(usb_ep_enable);
  * gadget drivers must call usb_ep_enable() again before queueing
  * requests to the endpoint.
  *
- * This routine must be called in process context.
+ * This routine may be called in an atomic (interrupt) context.
  *
  * returns zero, or a negative error code.
  */
@@ -281,10 +299,10 @@ EXPORT_SYMBOL_GPL(usb_ep_queue);
  * @ep:the endpoint associated with the request
  * @req:the request being canceled
  *
- * If the request is still active on the endpoint, it is dequeued and its
- * completion routine is called (with status -ECONNRESET); else a negative
- * error code is returned. This is guaranteed to happen before the call to
- * usb_ep_dequeue() returns.
+ * If the request is still active on the endpoint, it is dequeued and
+ * eventually its completion routine is called (with status -ECONNRESET);
+ * else a negative error code is returned.  This routine is asynchronous,
+ * that is, it may return before the completion routine runs.
  *
  * Note that some hardware can't clear out write fifos (to unlink the request
  * at the head of the queue) except as part of disconnecting from usb. Such
@@ -648,8 +666,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_vbus_disconnect);
  *
  * Enables the D+ (or potentially D-) pullup.  The host will start
  * enumerating this gadget when the pullup is active and a VBUS session
- * is active (the link is powered).  This pullup is always enabled unless
- * usb_gadget_disconnect() has been used to disable it.
+ * is active (the link is powered).
  *
  * Returns zero on success, else negative errno.
  */
@@ -704,6 +721,9 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 		goto out;
 	}
 
+	if (!gadget->connected)
+		goto out;
+
 	if (gadget->deactivated) {
 		/*
 		 * If gadget is deactivated we only save new state.
@@ -716,7 +736,10 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 	ret = gadget->ops->pullup(gadget, 0);
 	if (!ret) {
 		gadget->connected = 0;
-		gadget->udc->driver->disconnect(gadget);
+		mutex_lock(&udc_lock);
+		if (gadget->udc->driver)
+			gadget->udc->driver->disconnect(gadget);
+		mutex_unlock(&udc_lock);
 	}
 
 out:
@@ -880,7 +903,8 @@ EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
 
 /**
  * usb_gadget_giveback_request - give the request back to the gadget layer
- * Context: in_interrupt()
+ * @ep: the endpoint to be used with with the request
+ * @req: the request being given back
  *
  * This is called by device controller drivers in order to return the
  * completed request back to the gadget layer.
@@ -987,6 +1011,25 @@ int usb_gadget_ep_match_desc(struct usb_gadget *gadget,
 }
 EXPORT_SYMBOL_GPL(usb_gadget_ep_match_desc);
 
+/**
+ * usb_gadget_check_config - checks if the UDC can support the binded
+ *	configuration
+ * @gadget: controller to check the USB configuration
+ *
+ * Ensure that a UDC is able to support the requested resources by a
+ * configuration, and that there are no resource limitations, such as
+ * internal memory allocated to all requested endpoints.
+ *
+ * Returns zero on success, else a negative errno.
+ */
+int usb_gadget_check_config(struct usb_gadget *gadget)
+{
+	if (gadget->ops->check_config)
+		return gadget->ops->check_config(gadget);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_gadget_check_config);
+
 /* ------------------------------------------------------------------------- */
 
 static void usb_gadget_state_work(struct work_struct *work)
@@ -1068,13 +1111,23 @@ EXPORT_SYMBOL_GPL(usb_gadget_udc_reset);
  */
 static inline int usb_gadget_udc_start(struct usb_udc *udc)
 {
-	return udc->gadget->ops->udc_start(udc->gadget, udc->driver);
+	int ret;
+
+	if (udc->started) {
+		dev_err(&udc->dev, "UDC had already started\n");
+		return -EBUSY;
+	}
+
+	ret = udc->gadget->ops->udc_start(udc->gadget, udc->driver);
+	if (!ret)
+		udc->started = true;
+
+	return ret;
 }
 
 /**
  * usb_gadget_udc_stop - tells usb device controller we don't need it anymore
- * @gadget: The device we want to stop activity
- * @driver: The driver to unbind from @gadget
+ * @udc: The UDC to be stopped
  *
  * This call is issued by the UDC Class driver after calling
  * gadget driver's unbind() method.
@@ -1085,7 +1138,13 @@ static inline int usb_gadget_udc_start(struct usb_udc *udc)
  */
 static inline void usb_gadget_udc_stop(struct usb_udc *udc)
 {
+	if (!udc->started) {
+		dev_err(&udc->dev, "UDC had already stopped\n");
+		return;
+	}
+
 	udc->gadget->ops->udc_stop(udc->gadget);
+	udc->started = false;
 }
 
 /**
@@ -1101,12 +1160,65 @@ static inline void usb_gadget_udc_stop(struct usb_udc *udc)
 static inline void usb_gadget_udc_set_speed(struct usb_udc *udc,
 					    enum usb_device_speed speed)
 {
-	if (udc->gadget->ops->udc_set_speed) {
-		enum usb_device_speed s;
+	struct usb_gadget *gadget = udc->gadget;
+	enum usb_device_speed s;
 
-		s = min(speed, udc->gadget->max_speed);
-		udc->gadget->ops->udc_set_speed(udc->gadget, s);
-	}
+	if (speed == USB_SPEED_UNKNOWN)
+		s = gadget->max_speed;
+	else
+		s = min(speed, gadget->max_speed);
+
+	if (s == USB_SPEED_SUPER_PLUS && gadget->ops->udc_set_ssp_rate)
+		gadget->ops->udc_set_ssp_rate(gadget, gadget->max_ssp_rate);
+	else if (gadget->ops->udc_set_speed)
+		gadget->ops->udc_set_speed(gadget, s);
+}
+
+/**
+ * usb_gadget_enable_async_callbacks - tell usb device controller to enable asynchronous callbacks
+ * @udc: The UDC which should enable async callbacks
+ *
+ * This routine is used when binding gadget drivers.  It undoes the effect
+ * of usb_gadget_disable_async_callbacks(); the UDC driver should enable IRQs
+ * (if necessary) and resume issuing callbacks.
+ *
+ * This routine will always be called in process context.
+ */
+static inline void usb_gadget_enable_async_callbacks(struct usb_udc *udc)
+{
+	struct usb_gadget *gadget = udc->gadget;
+
+	if (gadget->ops->udc_async_callbacks)
+		gadget->ops->udc_async_callbacks(gadget, true);
+}
+
+/**
+ * usb_gadget_disable_async_callbacks - tell usb device controller to disable asynchronous callbacks
+ * @udc: The UDC which should disable async callbacks
+ *
+ * This routine is used when unbinding gadget drivers.  It prevents a race:
+ * The UDC driver doesn't know when the gadget driver's ->unbind callback
+ * runs, so unless it is told to disable asynchronous callbacks, it might
+ * issue a callback (such as ->disconnect) after the unbind has completed.
+ *
+ * After this function runs, the UDC driver must suppress all ->suspend,
+ * ->resume, ->disconnect, ->reset, and ->setup callbacks to the gadget driver
+ * until async callbacks are again enabled.  A simple-minded but effective
+ * way to accomplish this is to tell the UDC hardware not to generate any
+ * more IRQs.
+ *
+ * Request completion callbacks must still be issued.  However, it's okay
+ * to defer them until the request is cancelled, since the pull-up will be
+ * turned off during the time period when async callbacks are disabled.
+ *
+ * This routine will always be called in process context.
+ */
+static inline void usb_gadget_disable_async_callbacks(struct usb_udc *udc)
+{
+	struct usb_gadget *gadget = udc->gadget;
+
+	if (gadget->ops->udc_async_callbacks)
+		gadget->ops->udc_async_callbacks(gadget, false);
 }
 
 /**
@@ -1132,23 +1244,102 @@ static void usb_udc_nop_release(struct device *dev)
 	dev_vdbg(dev, "%s\n", __func__);
 }
 
-/* should be called with udc_lock held */
-static int check_pending_gadget_drivers(struct usb_udc *udc)
+/**
+ * usb_initialize_gadget - initialize a gadget and its embedded struct device
+ * @parent: the parent device to this udc. Usually the controller driver's
+ * device.
+ * @gadget: the gadget to be initialized.
+ * @release: a gadget release function.
+ */
+void usb_initialize_gadget(struct device *parent, struct usb_gadget *gadget,
+		void (*release)(struct device *dev))
 {
-	struct usb_gadget_driver *driver;
-	int ret = 0;
+	INIT_WORK(&gadget->work, usb_gadget_state_work);
+	gadget->dev.parent = parent;
 
-	list_for_each_entry(driver, &gadget_driver_pending_list, pending)
-		if (!driver->udc_name || strcmp(driver->udc_name,
-						dev_name(&udc->dev)) == 0) {
-			ret = udc_bind_to_driver(udc, driver);
-			if (ret != -EPROBE_DEFER)
-				list_del(&driver->pending);
-			break;
-		}
+	if (release)
+		gadget->dev.release = release;
+	else
+		gadget->dev.release = usb_udc_nop_release;
 
+	device_initialize(&gadget->dev);
+	gadget->dev.bus = &gadget_bus_type;
+}
+EXPORT_SYMBOL_GPL(usb_initialize_gadget);
+
+/**
+ * usb_add_gadget - adds a new gadget to the udc class driver list
+ * @gadget: the gadget to be added to the list.
+ *
+ * Returns zero on success, negative errno otherwise.
+ * Does not do a final usb_put_gadget() if an error occurs.
+ */
+int usb_add_gadget(struct usb_gadget *gadget)
+{
+	struct usb_udc		*udc;
+	int			ret = -ENOMEM;
+
+	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
+	if (!udc)
+		goto error;
+
+	device_initialize(&udc->dev);
+	udc->dev.release = usb_udc_release;
+	udc->dev.class = udc_class;
+	udc->dev.groups = usb_udc_attr_groups;
+	udc->dev.parent = gadget->dev.parent;
+	ret = dev_set_name(&udc->dev, "%s",
+			kobject_name(&gadget->dev.parent->kobj));
+	if (ret)
+		goto err_put_udc;
+
+	udc->gadget = gadget;
+	gadget->udc = udc;
+
+	udc->started = false;
+
+	mutex_lock(&udc_lock);
+	list_add_tail(&udc->list, &udc_list);
+	mutex_unlock(&udc_lock);
+
+	ret = device_add(&udc->dev);
+	if (ret)
+		goto err_unlist_udc;
+
+	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
+	udc->vbus = true;
+
+	ret = ida_alloc(&gadget_id_numbers, GFP_KERNEL);
+	if (ret < 0)
+		goto err_del_udc;
+	gadget->id_number = ret;
+	dev_set_name(&gadget->dev, "gadget.%d", ret);
+
+	ret = device_add(&gadget->dev);
+	if (ret)
+		goto err_free_id;
+
+	return 0;
+
+ err_free_id:
+	ida_free(&gadget_id_numbers, gadget->id_number);
+
+ err_del_udc:
+	flush_work(&gadget->work);
+	device_del(&udc->dev);
+
+ err_unlist_udc:
+	mutex_lock(&udc_lock);
+	list_del(&udc->list);
+	mutex_unlock(&udc_lock);
+
+ err_put_udc:
+	put_device(&udc->dev);
+
+ error:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(usb_add_gadget);
 
 /**
  * usb_add_gadget_udc_release - adds a new gadget to the udc class driver list
@@ -1163,73 +1354,12 @@ static int check_pending_gadget_drivers(struct usb_udc *udc)
 int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 		void (*release)(struct device *dev))
 {
-	struct usb_udc		*udc;
-	int			ret = -ENOMEM;
+	int	ret;
 
-	dev_set_name(&gadget->dev, "gadget");
-	INIT_WORK(&gadget->work, usb_gadget_state_work);
-	gadget->dev.parent = parent;
-
-	if (release)
-		gadget->dev.release = release;
-	else
-		gadget->dev.release = usb_udc_nop_release;
-
-	device_initialize(&gadget->dev);
-
-	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
-	if (!udc)
-		goto err_put_gadget;
-
-	device_initialize(&udc->dev);
-	udc->dev.release = usb_udc_release;
-	udc->dev.class = udc_class;
-	udc->dev.groups = usb_udc_attr_groups;
-	udc->dev.parent = parent;
-	ret = dev_set_name(&udc->dev, "%s", kobject_name(&parent->kobj));
+	usb_initialize_gadget(parent, gadget, release);
+	ret = usb_add_gadget(gadget);
 	if (ret)
-		goto err_put_udc;
-
-	ret = device_add(&gadget->dev);
-	if (ret)
-		goto err_put_udc;
-
-	udc->gadget = gadget;
-	gadget->udc = udc;
-
-	mutex_lock(&udc_lock);
-	list_add_tail(&udc->list, &udc_list);
-
-	ret = device_add(&udc->dev);
-	if (ret)
-		goto err_unlist_udc;
-
-	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
-	udc->vbus = true;
-
-	/* pick up one of pending gadget drivers */
-	ret = check_pending_gadget_drivers(udc);
-	if (ret)
-		goto err_del_udc;
-
-	mutex_unlock(&udc_lock);
-
-	return 0;
-
- err_del_udc:
-	device_del(&udc->dev);
-
- err_unlist_udc:
-	list_del(&udc->list);
-	mutex_unlock(&udc_lock);
-
-	device_del(&gadget->dev);
-
- err_put_udc:
-	put_device(&udc->dev);
-
- err_put_gadget:
-	put_device(&gadget->dev);
+		usb_put_gadget(gadget);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_add_gadget_udc_release);
@@ -1278,30 +1408,14 @@ int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
 }
 EXPORT_SYMBOL_GPL(usb_add_gadget_udc);
 
-static void usb_gadget_remove_driver(struct usb_udc *udc)
-{
-	dev_dbg(&udc->dev, "unregistering UDC driver [%s]\n",
-			udc->driver->function);
-
-	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
-
-	usb_gadget_disconnect(udc->gadget);
-	udc->driver->unbind(udc->gadget);
-	usb_gadget_udc_stop(udc);
-
-	udc->driver = NULL;
-	udc->dev.driver = NULL;
-	udc->gadget->dev.driver = NULL;
-}
-
 /**
- * usb_del_gadget_udc - deletes @udc from udc_list
- * @gadget: the gadget to be removed.
+ * usb_del_gadget - deletes a gadget and unregisters its udc
+ * @gadget: the gadget to be deleted.
  *
- * This, will call usb_gadget_unregister_driver() if
- * the @udc is still busy.
+ * This will unbind @gadget, if it is bound.
+ * It will not do a final usb_put_gadget().
  */
-void usb_del_gadget_udc(struct usb_gadget *gadget)
+void usb_del_gadget(struct usb_gadget *gadget)
 {
 	struct usb_udc *udc = gadget->udc;
 
@@ -1312,137 +1426,171 @@ void usb_del_gadget_udc(struct usb_gadget *gadget)
 
 	mutex_lock(&udc_lock);
 	list_del(&udc->list);
-
-	if (udc->driver) {
-		struct usb_gadget_driver *driver = udc->driver;
-
-		usb_gadget_remove_driver(udc);
-		list_add(&driver->pending, &gadget_driver_pending_list);
-	}
 	mutex_unlock(&udc_lock);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_REMOVE);
 	flush_work(&gadget->work);
+	device_del(&gadget->dev);
+	ida_free(&gadget_id_numbers, gadget->id_number);
 	device_unregister(&udc->dev);
-	device_unregister(&gadget->dev);
-	memset(&gadget->dev, 0x00, sizeof(gadget->dev));
+}
+EXPORT_SYMBOL_GPL(usb_del_gadget);
+
+/**
+ * usb_del_gadget_udc - unregisters a gadget
+ * @gadget: the gadget to be unregistered.
+ *
+ * Calls usb_del_gadget() and does a final usb_put_gadget().
+ */
+void usb_del_gadget_udc(struct usb_gadget *gadget)
+{
+	usb_del_gadget(gadget);
+	usb_put_gadget(gadget);
 }
 EXPORT_SYMBOL_GPL(usb_del_gadget_udc);
 
 /* ------------------------------------------------------------------------- */
 
-static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *driver)
+static int gadget_match_driver(struct device *dev, struct device_driver *drv)
 {
-	int ret;
+	struct usb_gadget *gadget = dev_to_usb_gadget(dev);
+	struct usb_udc *udc = gadget->udc;
+	struct usb_gadget_driver *driver = container_of(drv,
+			struct usb_gadget_driver, driver);
 
-	dev_dbg(&udc->dev, "registering UDC driver [%s]\n",
-			driver->function);
+	/* If the driver specifies a udc_name, it must match the UDC's name */
+	if (driver->udc_name &&
+			strcmp(driver->udc_name, dev_name(&udc->dev)) != 0)
+		return 0;
 
+	/* If the driver is already bound to a gadget, it doesn't match */
+	if (driver->is_bound)
+		return 0;
+
+	/* Otherwise any gadget driver matches any UDC */
+	return 1;
+}
+
+static int gadget_bind_driver(struct device *dev)
+{
+	struct usb_gadget *gadget = dev_to_usb_gadget(dev);
+	struct usb_udc *udc = gadget->udc;
+	struct usb_gadget_driver *driver = container_of(dev->driver,
+			struct usb_gadget_driver, driver);
+	int ret = 0;
+
+	mutex_lock(&udc_lock);
+	if (driver->is_bound) {
+		mutex_unlock(&udc_lock);
+		return -ENXIO;		/* Driver binds to only one gadget */
+	}
+	driver->is_bound = true;
 	udc->driver = driver;
-	udc->dev.driver = &driver->driver;
-	udc->gadget->dev.driver = &driver->driver;
+	mutex_unlock(&udc_lock);
+
+	dev_dbg(&udc->dev, "binding gadget driver [%s]\n", driver->function);
 
 	usb_gadget_udc_set_speed(udc, driver->max_speed);
 
 	ret = driver->bind(udc->gadget, driver);
 	if (ret)
-		goto err1;
+		goto err_bind;
+
 	ret = usb_gadget_udc_start(udc);
-	if (ret) {
-		driver->unbind(udc->gadget);
-		goto err1;
-	}
+	if (ret)
+		goto err_start;
+	usb_gadget_enable_async_callbacks(udc);
 	usb_udc_connect_control(udc);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	return 0;
-err1:
+
+ err_start:
+	driver->unbind(udc->gadget);
+
+ err_bind:
 	if (ret != -EISNAM)
 		dev_err(&udc->dev, "failed to start %s: %d\n",
-			udc->driver->function, ret);
+			driver->function, ret);
+
+	mutex_lock(&udc_lock);
 	udc->driver = NULL;
-	udc->dev.driver = NULL;
-	udc->gadget->dev.driver = NULL;
+	driver->is_bound = false;
+	mutex_unlock(&udc_lock);
+
 	return ret;
 }
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
+static void gadget_unbind_driver(struct device *dev)
 {
-	struct usb_udc		*udc = NULL;
-	int			ret = -ENODEV;
+	struct usb_gadget *gadget = dev_to_usb_gadget(dev);
+	struct usb_udc *udc = gadget->udc;
+	struct usb_gadget_driver *driver = udc->driver;
+
+	dev_dbg(&udc->dev, "unbinding gadget driver [%s]\n", driver->function);
+
+	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
+
+	usb_gadget_disconnect(gadget);
+	usb_gadget_disable_async_callbacks(udc);
+	if (gadget->irq)
+		synchronize_irq(gadget->irq);
+	udc->driver->unbind(gadget);
+	usb_gadget_udc_stop(udc);
+
+	mutex_lock(&udc_lock);
+	driver->is_bound = false;
+	udc->driver = NULL;
+	mutex_unlock(&udc_lock);
+}
+
+/* ------------------------------------------------------------------------- */
+
+int usb_gadget_register_driver_owner(struct usb_gadget_driver *driver,
+		struct module *owner, const char *mod_name)
+{
+	int ret;
 
 	if (!driver || !driver->bind || !driver->setup)
 		return -EINVAL;
 
+	driver->driver.bus = &gadget_bus_type;
+	driver->driver.owner = owner;
+	driver->driver.mod_name = mod_name;
+	ret = driver_register(&driver->driver);
+	if (ret) {
+		pr_warn("%s: driver registration failed: %d\n",
+				driver->function, ret);
+		return ret;
+	}
+
 	mutex_lock(&udc_lock);
-	if (driver->udc_name) {
-		list_for_each_entry(udc, &udc_list, list) {
-			ret = strcmp(driver->udc_name, dev_name(&udc->dev));
-			if (!ret)
-				break;
-		}
-		if (ret)
-			ret = -ENODEV;
-		else if (udc->driver)
+	if (!driver->is_bound) {
+		if (driver->match_existing_only) {
+			pr_warn("%s: couldn't find an available UDC or it's busy\n",
+					driver->function);
 			ret = -EBUSY;
-		else
-			goto found;
-	} else {
-		list_for_each_entry(udc, &udc_list, list) {
-			/* For now we take the first one */
-			if (!udc->driver)
-				goto found;
+		} else {
+			pr_info("%s: couldn't find an available UDC\n",
+					driver->function);
+			ret = 0;
 		}
 	}
-
-	if (!driver->match_existing_only) {
-		list_add_tail(&driver->pending, &gadget_driver_pending_list);
-		pr_info("udc-core: couldn't find an available UDC - added [%s] to list of pending drivers\n",
-			driver->function);
-		ret = 0;
-	}
-
 	mutex_unlock(&udc_lock);
-	return ret;
-found:
-	ret = udc_bind_to_driver(udc, driver);
-	mutex_unlock(&udc_lock);
+
+	if (ret)
+		driver_unregister(&driver->driver);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(usb_gadget_probe_driver);
+EXPORT_SYMBOL_GPL(usb_gadget_register_driver_owner);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
-	struct usb_udc		*udc = NULL;
-	int			ret = -ENODEV;
-
 	if (!driver || !driver->unbind)
 		return -EINVAL;
 
-	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list) {
-		if (udc->driver == driver) {
-			usb_gadget_remove_driver(udc);
-			usb_gadget_set_state(udc->gadget,
-					     USB_STATE_NOTATTACHED);
-
-			/* Maybe there is someone waiting for this UDC? */
-			check_pending_gadget_drivers(udc);
-			/*
-			 * For now we ignore bind errors as probably it's
-			 * not a valid reason to fail other's gadget unbind
-			 */
-			ret = 0;
-			break;
-		}
-	}
-
-	if (ret) {
-		list_del(&driver->pending);
-		ret = 0;
-	}
-	mutex_unlock(&udc_lock);
-	return ret;
+	driver_unregister(&driver->driver);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_unregister_driver);
 
@@ -1464,10 +1612,13 @@ static ssize_t soft_connect_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
+	ssize_t			ret;
 
+	device_lock(&udc->gadget->dev);
 	if (!udc->driver) {
 		dev_err(dev, "soft-connect without a gadget driver\n");
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
 	if (sysfs_streq(buf, "connect")) {
@@ -1478,10 +1629,14 @@ static ssize_t soft_connect_store(struct device *dev,
 		usb_gadget_udc_stop(udc);
 	} else {
 		dev_err(dev, "unsupported command '%s'\n", buf);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
-	return n;
+	ret = n;
+out:
+	device_unlock(&udc->gadget->dev);
+	return ret;
 }
 static DEVICE_ATTR_WO(soft_connect);
 
@@ -1499,11 +1654,15 @@ static ssize_t function_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
-	struct usb_gadget_driver *drv = udc->driver;
+	struct usb_gadget_driver *drv;
+	int			rc = 0;
 
-	if (!drv || !drv->function)
-		return 0;
-	return scnprintf(buf, PAGE_SIZE, "%s\n", drv->function);
+	mutex_lock(&udc_lock);
+	drv = udc->driver;
+	if (drv && drv->function)
+		rc = scnprintf(buf, PAGE_SIZE, "%s\n", drv->function);
+	mutex_unlock(&udc_lock);
+	return rc;
 }
 static DEVICE_ATTR_RO(function);
 
@@ -1575,20 +1734,30 @@ static int usb_udc_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return ret;
 	}
 
-	if (udc->driver) {
+	mutex_lock(&udc_lock);
+	if (udc->driver)
 		ret = add_uevent_var(env, "USB_UDC_DRIVER=%s",
 				udc->driver->function);
-		if (ret) {
-			dev_err(dev, "failed to add uevent USB_UDC_DRIVER\n");
-			return ret;
-		}
+	mutex_unlock(&udc_lock);
+	if (ret) {
+		dev_err(dev, "failed to add uevent USB_UDC_DRIVER\n");
+		return ret;
 	}
 
 	return 0;
 }
 
+static struct bus_type gadget_bus_type = {
+	.name = "gadget",
+	.probe = gadget_bind_driver,
+	.remove = gadget_unbind_driver,
+	.match = gadget_match_driver,
+};
+
 static int __init usb_udc_init(void)
 {
+	int rc;
+
 	udc_class = class_create(THIS_MODULE, "udc");
 	if (IS_ERR(udc_class)) {
 		pr_err("failed to create udc class --> %ld\n",
@@ -1597,12 +1766,17 @@ static int __init usb_udc_init(void)
 	}
 
 	udc_class->dev_uevent = usb_udc_uevent;
-	return 0;
+
+	rc = bus_register(&gadget_bus_type);
+	if (rc)
+		class_destroy(udc_class);
+	return rc;
 }
 subsys_initcall(usb_udc_init);
 
 static void __exit usb_udc_exit(void)
 {
+	bus_unregister(&gadget_bus_type);
 	class_destroy(udc_class);
 }
 module_exit(usb_udc_exit);

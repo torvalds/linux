@@ -271,7 +271,7 @@ static void smc91c92_release(struct pcmcia_device *link);
 static int smc_open(struct net_device *dev);
 static int smc_close(struct net_device *dev);
 static int smc_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static void smc_tx_timeout(struct net_device *dev);
+static void smc_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
 static irqreturn_t smc_interrupt(int irq, void *dev_id);
@@ -294,7 +294,7 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_tx_timeout 	= smc_tx_timeout,
 	.ndo_set_config 	= s9k_config,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_do_ioctl		= smc_ioctl,
+	.ndo_eth_ioctl		= smc_ioctl,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -347,6 +347,7 @@ static void smc91c92_detach(struct pcmcia_device *link)
 
 static int cvt_ascii_address(struct net_device *dev, char *s)
 {
+    u8 mac[ETH_ALEN];
     int i, j, da, c;
 
     if (strlen(s) != 12)
@@ -359,8 +360,9 @@ static int cvt_ascii_address(struct net_device *dev, char *s)
 	    da += ((c >= '0') && (c <= '9')) ?
 		(c - '0') : ((c & 0x0f) + 9);
 	}
-	dev->dev_addr[i] = da;
+	mac[i] = da;
     }
+    eth_hw_addr_set(dev, mac);
     return 0;
 }
 
@@ -539,6 +541,7 @@ static int mot_setup(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     unsigned int ioaddr = dev->base_addr;
     int i, wait, loop;
+    u8 mac[ETH_ALEN];
     u_int addr;
 
     /* Read Ethernet address from Serial EEPROM */
@@ -559,9 +562,10 @@ static int mot_setup(struct pcmcia_device *link)
 	    return -1;
 	
 	addr = inw(ioaddr + GENERAL);
-	dev->dev_addr[2*i]   = addr & 0xff;
-	dev->dev_addr[2*i+1] = (addr >> 8) & 0xff;
+	mac[2*i]   = addr & 0xff;
+	mac[2*i+1] = (addr >> 8) & 0xff;
     }
+    eth_hw_addr_set(dev, mac);
 
     return 0;
 }
@@ -666,14 +670,13 @@ static int pcmcia_osi_mac(struct pcmcia_device *p_dev,
 			  void *priv)
 {
 	struct net_device *dev = priv;
-	int i;
 
 	if (tuple->TupleDataLen < 8)
 		return -EINVAL;
 	if (tuple->TupleData[0] != 0x04)
 		return -EINVAL;
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = tuple->TupleData[i+2];
+
+	eth_hw_addr_set(dev, &tuple->TupleData[2]);
 	return 0;
 };
 
@@ -1178,7 +1181,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 
 /*====================================================================*/
 
-static void smc_tx_timeout(struct net_device *dev)
+static void smc_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;

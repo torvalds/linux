@@ -1,0 +1,234 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/ddr/jedec,lpddr2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: LPDDR2 SDRAM compliant to JEDEC JESD209-2
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - elpida,ECB240ABACN
+              - elpida,B8132B2PB-6D-F
+          - enum:
+              - jedec,lpddr2-s4
+      - items:
+          - enum:
+              - jedec,lpddr2-s2
+      - items:
+          - enum:
+              - jedec,lpddr2-nvm
+
+  revision-id1:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 255
+    description: |
+      Revision 1 value of SDRAM chip. Obtained from device datasheet.
+      Property is deprecated, use revision-id instead.
+    deprecated: true
+
+  revision-id2:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 255
+    description: |
+      Revision 2 value of SDRAM chip. Obtained from device datasheet.
+      Property is deprecated, use revision-id instead.
+    deprecated: true
+
+  revision-id:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      Revision IDs read from Mode Register 6 and 7. One byte per uint32 cell (i.e. <MR6 MR7>).
+    minItems: 2
+    maxItems: 2
+    items:
+      minimum: 0
+      maximum: 255
+
+  density:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Density in megabits of SDRAM chip. Obtained from device datasheet.
+    enum:
+      - 64
+      - 128
+      - 256
+      - 512
+      - 1024
+      - 2048
+      - 4096
+      - 8192
+      - 16384
+      - 32768
+
+  io-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      IO bus width in bits of SDRAM chip. Obtained from device datasheet.
+    enum:
+      - 32
+      - 16
+      - 8
+
+  tRRD-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      Active bank a to active bank b in terms of number of clock cycles.
+      Obtained from device datasheet.
+
+  tWTR-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      Internal WRITE-to-READ command delay in terms of number of clock cycles.
+      Obtained from device datasheet.
+
+  tXP-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      Exit power-down to next valid command delay in terms of number of clock
+      cycles. Obtained from device datasheet.
+
+  tRTP-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      Internal READ to PRECHARGE command delay in terms of number of clock
+      cycles. Obtained from device datasheet.
+
+  tCKE-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      CKE minimum pulse width (HIGH and LOW pulse width) in terms of number
+      of clock cycles. Obtained from device datasheet.
+
+  tRPab-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      Row precharge time (all banks) in terms of number of clock cycles.
+      Obtained from device datasheet.
+
+  tRCD-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      RAS-to-CAS delay in terms of number of clock cycles. Obtained from
+      device datasheet.
+
+  tWR-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      WRITE recovery time in terms of number of clock cycles. Obtained from
+      device datasheet.
+
+  tRASmin-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      Row active time in terms of number of clock cycles. Obtained from device
+      datasheet.
+
+  tCKESR-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      CKE minimum pulse width during SELF REFRESH (low pulse width during
+      SELF REFRESH) in terms of number of clock cycles. Obtained from device
+      datasheet.
+
+  tFAW-min-tck:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 16
+    description: |
+      Four-bank activate window in terms of number of clock cycles. Obtained
+      from device datasheet.
+
+patternProperties:
+  "^lpddr2-timings":
+    $ref: jedec,lpddr2-timings.yaml
+    description: |
+      The lpddr2 node may have one or more child nodes of type "lpddr2-timings".
+      "lpddr2-timings" provides AC timing parameters of the device for
+      a given speed-bin. The user may provide the timings for as many
+      speed-bins as is required.
+
+required:
+  - compatible
+  - density
+  - io-width
+
+additionalProperties: false
+
+examples:
+  - |
+    elpida_ECB240ABACN: lpddr2 {
+        compatible = "elpida,ECB240ABACN", "jedec,lpddr2-s4";
+        density = <2048>;
+        io-width = <32>;
+        revision-id = <1 0>;
+
+        tRPab-min-tck = <3>;
+        tRCD-min-tck = <3>;
+        tWR-min-tck = <3>;
+        tRASmin-min-tck = <3>;
+        tRRD-min-tck = <2>;
+        tWTR-min-tck = <2>;
+        tXP-min-tck = <2>;
+        tRTP-min-tck = <2>;
+        tCKE-min-tck = <3>;
+        tCKESR-min-tck = <3>;
+        tFAW-min-tck = <8>;
+
+        timings_elpida_ECB240ABACN_400mhz: lpddr2-timings0 {
+            compatible = "jedec,lpddr2-timings";
+            min-freq = <10000000>;
+            max-freq = <400000000>;
+            tRPab = <21000>;
+            tRCD = <18000>;
+            tWR = <15000>;
+            tRAS-min = <42000>;
+            tRRD = <10000>;
+            tWTR = <7500>;
+            tXP = <7500>;
+            tRTP = <7500>;
+            tCKESR = <15000>;
+            tDQSCK-max = <5500>;
+            tFAW = <50000>;
+            tZQCS = <90000>;
+            tZQCL = <360000>;
+            tZQinit = <1000000>;
+            tRAS-max-ns = <70000>;
+        };
+
+        timings_elpida_ECB240ABACN_200mhz: lpddr2-timings1 {
+            compatible = "jedec,lpddr2-timings";
+            min-freq = <10000000>;
+            max-freq = <200000000>;
+            tRPab = <21000>;
+            tRCD = <18000>;
+            tWR = <15000>;
+            tRAS-min = <42000>;
+            tRRD = <10000>;
+            tWTR = <10000>;
+            tXP = <7500>;
+            tRTP = <7500>;
+            tCKESR = <15000>;
+            tDQSCK-max = <5500>;
+            tFAW = <50000>;
+            tZQCS = <90000>;
+            tZQCL = <360000>;
+            tZQinit = <1000000>;
+            tRAS-max-ns = <70000>;
+        };
+    };

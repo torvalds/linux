@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * max9867.h -- MAX9867 ALSA SoC Audio driver
  *
  * Copyright 2013-2015 Maxim Integrated Products
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _MAX9867_H
@@ -47,7 +44,8 @@
 #define MAX9867_IFC1B_PCLK_4	0x05
 #define MAX9867_IFC1B_PCLK_8	0x06
 #define MAX9867_IFC1B_PCLK_16	0x07
-#define MAX9867_CODECFLTR    0x0a
+#define MAX9867_CODECFLTR	0x0a
+#define MAX9867_CODECFLTR_MODE	(1<<7)
 #define MAX9867_SIDETONE     0x0b
 #define MAX9867_DACLEVEL     0x0c
 #define MAX9867_ADCLEVEL     0x0d
@@ -61,7 +59,7 @@
 #define MAX9867_MICCONFIG    0x15
 #define MAX9867_MODECONFIG   0x16
 #define MAX9867_PWRMAN       0x17
-#define MAX9867_SHTDOWN      0x80
+#define MAX9867_PWRMAN_SHDN  (1<<7)
 #define MAX9867_REVISION     0xff
 
 #define MAX9867_CACHEREGNUM 10

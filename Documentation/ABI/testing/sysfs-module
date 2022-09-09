@@ -17,14 +17,15 @@ KernelVersion:	3.1
 Contact:	Kirill Smelkov <kirr@mns.spb.ru>
 Description:	Maximum time allowed for periodic transfers per microframe (μs)
 
-		[ USB 2.0 sets maximum allowed time for periodic transfers per
+		Note:
+		  USB 2.0 sets maximum allowed time for periodic transfers per
 		  microframe to be 80%, that is 100 microseconds out of 125
 		  microseconds (full microframe).
 
 		  However there are cases, when 80% max isochronous bandwidth is
 		  too limiting. For example two video streams could require 110
 		  microseconds of isochronous bandwidth per microframe to work
-		  together. ]
+		  together.
 
 		Through this setting it is possible to raise the limit so that
 		the host controller would allow allocating more than 100
@@ -36,17 +37,26 @@ Description:	Maximum time allowed for periodic transfers per microframe (μs)
 
 What:		/sys/module/*/{coresize,initsize}
 Date:		Jan 2012
-KernelVersion:»·3.3
+KernelVersion:	3.3
 Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:	Module size in bytes.
 
+What:		/sys/module/*/initstate
+Date:		Nov 2006
+KernelVersion:	2.6.19
+Contact:	Kay Sievers <kay.sievers@vrfy.org>
+Description:	Show the initialization state(live, coming, going) of
+		the module.
+
 What:		/sys/module/*/taint
 Date:		Jan 2012
-KernelVersion:»·3.3
+KernelVersion:	3.3
 Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:	Module taint flags:
-			P - proprietary module
-			O - out-of-tree module
-			F - force-loaded module
-			C - staging driver module
-			E - unsigned module
+			==  =====================
+			P   proprietary module
+			O   out-of-tree module
+			F   force-loaded module
+			C   staging driver module
+			E   unsigned module
+			==  =====================

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2007 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -33,7 +30,7 @@ static unsigned int jhash_rnd __read_mostly;
 
 static unsigned int xt_rateest_hash(const char *name)
 {
-	return jhash(name, FIELD_SIZEOF(struct xt_rateest, name), jhash_rnd) &
+	return jhash(name, sizeof_field(struct xt_rateest, name), jhash_rnd) &
 	       (RATEEST_HSIZE - 1);
 }
 
@@ -97,11 +94,11 @@ static unsigned int
 xt_rateest_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_rateest_target_info *info = par->targinfo;
-	struct gnet_stats_basic_packed *stats = &info->est->bstats;
+	struct gnet_stats_basic_sync *stats = &info->est->bstats;
 
 	spin_lock_bh(&info->est->lock);
-	stats->bytes += skb->len;
-	stats->packets++;
+	u64_stats_add(&stats->bytes, skb->len);
+	u64_stats_inc(&stats->packets);
 	spin_unlock_bh(&info->est->lock);
 
 	return XT_CONTINUE;
@@ -117,6 +114,9 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 		struct gnet_estimator	est;
 	} cfg;
 	int ret;
+
+	if (strnlen(info->name, sizeof(est->name)) >= sizeof(est->name))
+		return -ENAMETOOLONG;
 
 	net_get_random_once(&jhash_rnd, sizeof(jhash_rnd));
 
@@ -143,6 +143,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	if (!est)
 		goto err1;
 
+	gnet_stats_basic_sync_init(&est->bstats);
 	strlcpy(est->name, info->name, sizeof(est->name));
 	spin_lock_init(&est->lock);
 	est->refcnt		= 1;

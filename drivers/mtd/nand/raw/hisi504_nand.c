@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hisilicon NAND Flash controller driver
  *
@@ -7,16 +8,6 @@
  * Author: Zhou Wang <wangzhou.bry@gmail.com>
  * The initial developer of the original code is Zhiyong Cai
  * <caizhiyong@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/of.h>
 #include <linux/mtd/mtd.h>
@@ -195,7 +186,7 @@ static void hisi_nfc_dma_transfer(struct hinfc_host *host, int todev)
 	hinfc_write(host, host->dma_buffer, HINFC504_DMA_ADDR_DATA);
 	hinfc_write(host, host->dma_oob, HINFC504_DMA_ADDR_OOB);
 
-	if (chip->ecc.mode == NAND_ECC_NONE) {
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_NONE) {
 		hinfc_write(host, ((mtd->oobsize & HINFC504_DMA_LEN_OOB_MASK)
 			<< HINFC504_DMA_LEN_OOB_SHIFT), HINFC504_DMA_LEN);
 
@@ -477,7 +468,7 @@ static void hisi_nfc_cmdfunc(struct nand_chip *chip, unsigned command,
 
 	case NAND_CMD_STATUS:
 		flag = hinfc_read(host, HINFC504_CON);
-		if (chip->ecc.mode == NAND_ECC_HW)
+		if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST)
 			hinfc_write(host,
 				    flag & ~(HINFC504_CON_ECCTYPE_MASK <<
 				    HINFC504_CON_ECCTYPE_SHIFT), HINFC504_CON);
@@ -730,7 +721,7 @@ static int hisi_nfc_attach_chip(struct nand_chip *chip)
 	}
 	hinfc_write(host, flag, HINFC504_CON);
 
-	if (chip->ecc.mode == NAND_ECC_HW)
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST)
 		hisi_nfc_ecc_probe(host);
 
 	return 0;
@@ -747,7 +738,6 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	struct hinfc_host *host;
 	struct nand_chip  *chip;
 	struct mtd_info   *mtd;
-	struct resource	  *res;
 	struct device_node *np = dev->of_node;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
@@ -760,22 +750,16 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	mtd  = nand_to_mtd(chip);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "no IRQ resource defined\n");
+	if (irq < 0)
 		return -ENXIO;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->iobase = devm_ioremap_resource(dev, res);
+	host->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(host->iobase))
 		return PTR_ERR(host->iobase);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	host->mmio = devm_ioremap_resource(dev, res);
-	if (IS_ERR(host->mmio)) {
-		dev_err(dev, "devm_ioremap_resource[1] fail\n");
+	host->mmio = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(host->mmio))
 		return PTR_ERR(host->mmio);
-	}
 
 	mtd->name		= "hisi_nand";
 	mtd->dev.parent         = &pdev->dev;
@@ -817,8 +801,12 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 static int hisi_nfc_remove(struct platform_device *pdev)
 {
 	struct hinfc_host *host = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &host->chip;
+	int ret;
 
-	nand_release(&host->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 
 	return 0;
 }
@@ -849,7 +837,7 @@ static int hisi_nfc_resume(struct device *dev)
 	struct hinfc_host *host = dev_get_drvdata(dev);
 	struct nand_chip *chip = &host->chip;
 
-	for (cs = 0; cs < chip->numchips; cs++)
+	for (cs = 0; cs < nanddev_ntargets(&chip->base); cs++)
 		hisi_nfc_send_cmd_reset(host, cs);
 	hinfc_write(host, SET_HINFC504_PWIDTH(HINFC504_W_LATCH,
 		    HINFC504_R_LATCH, HINFC504_RW_LATCH), HINFC504_PWIDTH);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename: target_core_ua.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -212,6 +199,8 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 	struct se_node_acl *nacl;
 	struct se_ua *ua = NULL, *ua_p;
 	int head = 1;
+	bool dev_ua_intlck_clear = (dev->dev_attrib.emulate_ua_intlck_ctrl
+						== TARGET_UA_INTLCK_CTRL_CLEAR);
 
 	if (WARN_ON_ONCE(!sess))
 		return false;
@@ -242,7 +231,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 		 * highest priority UNIT_ATTENTION and ASC/ASCQ without
 		 * clearing it.
 		 */
-		if (dev->dev_attrib.emulate_ua_intlck_ctrl != 0) {
+		if (!dev_ua_intlck_clear) {
 			*asc = ua->ua_asc;
 			*ascq = ua->ua_ascq;
 			break;
@@ -267,8 +256,8 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 		" INTLCK_CTRL: %d, mapped LUN: %llu, got CDB: 0x%02x"
 		" reported ASC: 0x%02x, ASCQ: 0x%02x\n",
 		nacl->se_tpg->se_tpg_tfo->fabric_name,
-		(dev->dev_attrib.emulate_ua_intlck_ctrl != 0) ? "Reporting" :
-		"Releasing", dev->dev_attrib.emulate_ua_intlck_ctrl,
+		dev_ua_intlck_clear ? "Releasing" : "Reporting",
+		dev->dev_attrib.emulate_ua_intlck_ctrl,
 		cmd->orig_fe_lun, cmd->t_task_cdb[0], *asc, *ascq);
 
 	return head == 0;

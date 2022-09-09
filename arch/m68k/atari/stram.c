@@ -26,7 +26,6 @@
 #include <asm/setup.h>
 #include <asm/machdep.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/atarihw.h>
 #include <asm/atari_stram.h>
 #include <asm/io.h>
@@ -97,6 +96,10 @@ void __init atari_stram_reserve_pages(void *start_mem)
 		pr_debug("atari_stram pool: kernel in ST-RAM, using alloc_bootmem!\n");
 		stram_pool.start = (resource_size_t)memblock_alloc_low(pool_size,
 								       PAGE_SIZE);
+		if (!stram_pool.start)
+			panic("%s: Failed to allocate %lu bytes align=%lx\n",
+			      __func__, pool_size, PAGE_SIZE);
+
 		stram_pool.end = stram_pool.start + pool_size - 1;
 		request_resource(&iomem_resource, &stram_pool);
 		stram_virt_offset = 0;

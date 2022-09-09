@@ -45,12 +45,19 @@ struct csiphy_config {
 struct csiphy_device;
 
 struct csiphy_hw_ops {
+	/*
+	 * csiphy_get_lane_mask - Calculate CSI2 lane mask configuration parameter
+	 * @lane_cfg - CSI2 lane configuration
+	 *
+	 * Return lane mask
+	 */
+	u8 (*get_lane_mask)(struct csiphy_lanes_cfg *lane_cfg);
 	void (*hw_version_read)(struct csiphy_device *csiphy,
 				struct device *dev);
 	void (*reset)(struct csiphy_device *csiphy);
 	void (*lanes_enable)(struct csiphy_device *csiphy,
 			     struct csiphy_config *cfg,
-			     u32 pixel_clock, u8 bpp, u8 lane_mask);
+			     s64 link_freq, u8 lane_mask);
 	void (*lanes_disable)(struct csiphy_device *csiphy,
 			      struct csiphy_config *cfg);
 	irqreturn_t (*isr)(int irq, void *dev);
@@ -66,6 +73,7 @@ struct csiphy_device {
 	u32 irq;
 	char irq_name[30];
 	struct camss_clock *clock;
+	bool *rate_set;
 	int nclocks;
 	u32 timer_clk_rate;
 	struct csiphy_config cfg;

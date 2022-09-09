@@ -68,6 +68,7 @@ typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 			       unsigned long arg);
 
 #define DRM_IOCTL_NR(n)                _IOC_NR(n)
+#define DRM_IOCTL_TYPE(n)              _IOC_TYPE(n)
 #define DRM_MAJOR       226
 
 /**
@@ -114,6 +115,9 @@ enum drm_ioctl_flags {
 	 * Whether &drm_ioctl_desc.func should be called with the DRM BKL held
 	 * or not. Enforced as the default for all modern drivers, hence there
 	 * should never be a need to set this flag.
+	 *
+	 * Do not use anywhere else than for the VBLANK_WAIT IOCTL, which is the
+	 * only legacy IOCTL which needs this.
 	 */
 	DRM_UNLOCKED		= BIT(4),
 	/**
@@ -163,7 +167,6 @@ struct drm_ioctl_desc {
 		.name = #ioctl						\
 	}
 
-int drm_ioctl_permit(u32 flags, struct drm_file *file_priv);
 long drm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long drm_ioctl_kernel(struct file *, drm_ioctl_t, void *, u32);
 #ifdef CONFIG_COMPAT

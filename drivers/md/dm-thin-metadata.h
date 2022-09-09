@@ -166,7 +166,6 @@ int dm_pool_alloc_data_block(struct dm_pool_metadata *pmd, dm_block_t *result);
 int dm_thin_insert_block(struct dm_thin_device *td, dm_block_t block,
 			 dm_block_t data_block);
 
-int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block);
 int dm_thin_remove_range(struct dm_thin_device *td,
 			 dm_block_t begin, dm_block_t end);
 
@@ -195,7 +194,7 @@ int dm_pool_get_metadata_dev_size(struct dm_pool_metadata *pmd,
 
 int dm_pool_get_data_dev_size(struct dm_pool_metadata *pmd, dm_block_t *result);
 
-int dm_pool_block_is_used(struct dm_pool_metadata *pmd, dm_block_t b, bool *result);
+int dm_pool_block_is_shared(struct dm_pool_metadata *pmd, dm_block_t b, bool *result);
 
 int dm_pool_inc_data_range(struct dm_pool_metadata *pmd, dm_block_t b, dm_block_t e);
 int dm_pool_dec_data_range(struct dm_pool_metadata *pmd, dm_block_t b, dm_block_t e);
@@ -229,6 +228,13 @@ bool dm_pool_metadata_needs_check(struct dm_pool_metadata *pmd);
  * Issue any prefetches that may be useful.
  */
 void dm_pool_issue_prefetches(struct dm_pool_metadata *pmd);
+
+/* Pre-commit callback */
+typedef int (*dm_pool_pre_commit_fn)(void *context);
+
+void dm_pool_register_pre_commit_callback(struct dm_pool_metadata *pmd,
+					  dm_pool_pre_commit_fn fn,
+					  void *context);
 
 /*----------------------------------------------------------------*/
 

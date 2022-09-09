@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for Palm Tungsten|E2
  *
@@ -7,12 +8,7 @@
  * Rewrite for mainline:
  *	Marek Vasut <marek.vasut@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * (find more info at www.hackndev.com)
- *
  */
 
 #include <linux/platform_device.h>
@@ -27,14 +23,13 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx.h>
 #include <linux/power_supply.h>
-#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include "pxa25x.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include "palmte2.h"
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/video-pxafb.h>
@@ -180,7 +175,6 @@ static void palmte2_backlight_exit(struct device *dev)
 static struct platform_pwm_backlight_data palmte2_backlight_data = {
 	.max_brightness	= PALMTE2_MAX_INTENSITY,
 	.dft_brightness	= PALMTE2_MAX_INTENSITY,
-	.enable_gpio	= -1,
 	.init		= palmte2_backlight_init,
 	.notify		= palmte2_backlight_notify,
 	.exit		= palmte2_backlight_exit,
@@ -205,18 +199,20 @@ static struct pxaficp_platform_data palmte2_ficp_platform_data = {
 /******************************************************************************
  * UDC
  ******************************************************************************/
-static struct gpio_vbus_mach_info palmte2_udc_info = {
-	.gpio_vbus		= GPIO_NR_PALMTE2_USB_DETECT_N,
-	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_PALMTE2_USB_PULLUP,
+static struct gpiod_lookup_table palmte2_udc_gpiod_table = {
+	.dev_id = "gpio-vbus",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTE2_USB_DETECT_N,
+			    "vbus", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTE2_USB_PULLUP,
+			    "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device palmte2_gpio_vbus = {
 	.name	= "gpio-vbus",
 	.id	= -1,
-	.dev	= {
-		.platform_data	= &palmte2_udc_info,
-	},
 };
 
 /******************************************************************************
@@ -277,7 +273,6 @@ static struct platform_device power_supply = {
 static struct wm97xx_batt_pdata palmte2_batt_pdata = {
 	.batt_aux	= WM97XX_AUX_ID3,
 	.temp_aux	= WM97XX_AUX_ID2,
-	.charge_gpio	= -1,
 	.max_voltage	= PALMTE2_BAT_MAX_VOLTAGE,
 	.min_voltage	= PALMTE2_BAT_MIN_VOLTAGE,
 	.batt_mult	= 1000,
@@ -372,6 +367,7 @@ static void __init palmte2_init(void)
 	pxa_set_ficp_info(&palmte2_ficp_platform_data);
 
 	pwm_add_table(palmte2_pwm_lookup, ARRAY_SIZE(palmte2_pwm_lookup));
+	gpiod_add_lookup_table(&palmte2_udc_gpiod_table);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

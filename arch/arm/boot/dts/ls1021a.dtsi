@@ -1,56 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright 2013-2014 Freescale Semiconductor, Inc.
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of
- *     the License, or (at your option) any later version.
- *
- *     This file is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton64.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
-	compatible = "fsl,ls1021a";
+	#address-cells = <2>;
+	#size-cells = <2>;
 	interrupt-parent = <&gic>;
 
 	aliases {
@@ -58,6 +16,7 @@
 		ethernet0 = &enet0;
 		ethernet1 = &enet1;
 		ethernet2 = &enet2;
+		rtc1 = &ftm_alarm0;
 		serial0 = &lpuart0;
 		serial1 = &lpuart1;
 		serial2 = &lpuart2;
@@ -86,6 +45,11 @@
 			clocks = <&clockgen 1 0>;
 			#cooling-cells = <2>;
 		};
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x0>;
 	};
 
 	sysclk: sysclk {
@@ -125,6 +89,13 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
+		ddr: memory-controller@1080000 {
+			compatible = "fsl,qoriq-memory-controller";
+			reg = <0x0 0x1080000 0x0 0x1000>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			big-endian;
+		};
+
 		gic: interrupt-controller@1400000 {
 			compatible = "arm,gic-400", "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
@@ -151,15 +122,23 @@
 			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		ifc: ifc@1530000 {
-			compatible = "fsl,ifc", "simple-bus";
+		ifc: memory-controller@1530000 {
+			compatible = "fsl,ifc";
 			reg = <0x0 0x1530000 0x0 0x10000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		sfp: efuse@1e80000 {
+			compatible = "fsl,ls1021a-sfp";
+			reg = <0x0 0x1e80000 0x0 0x10000>;
+			clocks = <&clockgen 4 3>;
+			clock-names = "sfp";
 		};
 
 		dcfg: dcfg@1ee0000 {
 			compatible = "fsl,ls1021a-dcfg", "syscon";
-			reg = <0x0 0x1ee0000 0x0 0x10000>;
+			reg = <0x0 0x1ee0000 0x0 0x1000>;
 			big-endian;
 		};
 
@@ -168,12 +147,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x1550000 0x0 0x10000>,
-			      <0x0 0x40000000 0x0 0x40000000>;
+			      <0x0 0x40000000 0x0 0x20000000>;
 			reg-names = "QuadSPI", "QuadSPI-memory";
 			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "qspi_en", "qspi";
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
-			big-endian;
 			status = "disabled";
 		};
 
@@ -204,6 +182,25 @@
 			compatible = "fsl,ls1021a-scfg", "syscon";
 			reg = <0x0 0x1570000 0x0 0x10000>;
 			big-endian;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x1570000 0x10000>;
+
+			extirq: interrupt-controller@1ac {
+				compatible = "fsl,ls1021a-extirq";
+				#interrupt-cells = <2>;
+				#address-cells = <0>;
+				interrupt-controller;
+				reg = <0x1ac 4>;
+				interrupt-map =
+					<0 0 &gic GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+					<1 0 &gic GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+					<2 0 &gic GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+					<3 0 &gic GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
+					<4 0 &gic GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+					<5 0 &gic GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-map-mask = <0x7 0x0>;
+			};
 		};
 
 		crypto: crypto@1700000 {
@@ -214,6 +211,7 @@
 			reg		 = <0x0 0x1700000 0x0 0x100000>;
 			ranges		 = <0x0 0x0 0x1700000 0x100000>;
 			interrupts	 = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 
 			sec_jr0: jr@10000 {
 				compatible = "fsl,sec-v5.0-job-ring",
@@ -256,80 +254,44 @@
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f00000 0x0 0x10000>;
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
-			fsl,tmu-range = <0xb0000 0xa0026 0x80048 0x30061>;
-			fsl,tmu-calibration = <0x00000000 0x0000000f
-					       0x00000001 0x00000017
-					       0x00000002 0x0000001e
-					       0x00000003 0x00000026
-					       0x00000004 0x0000002e
-					       0x00000005 0x00000035
-					       0x00000006 0x0000003d
-					       0x00000007 0x00000044
-					       0x00000008 0x0000004c
-					       0x00000009 0x00000053
-					       0x0000000a 0x0000005b
-					       0x0000000b 0x00000064
+			fsl,tmu-range = <0xb0000 0x9002c 0x6004e 0x30066>;
+			fsl,tmu-calibration = <0x00000000 0x00000020>,
+					      <0x00000001 0x00000024>,
+					      <0x00000002 0x0000002a>,
+					      <0x00000003 0x00000032>,
+					      <0x00000004 0x00000038>,
+					      <0x00000005 0x0000003e>,
+					      <0x00000006 0x00000043>,
+					      <0x00000007 0x0000004a>,
+					      <0x00000008 0x00000050>,
+					      <0x00000009 0x00000059>,
+					      <0x0000000a 0x0000005f>,
+					      <0x0000000b 0x00000066>,
 
-					       0x00010000 0x00000011
-					       0x00010001 0x0000001c
-					       0x00010002 0x00000024
-					       0x00010003 0x0000002b
-					       0x00010004 0x00000034
-					       0x00010005 0x00000039
-					       0x00010006 0x00000042
-					       0x00010007 0x0000004c
-					       0x00010008 0x00000051
-					       0x00010009 0x0000005a
-					       0x0001000a 0x00000063
+					      <0x00010000 0x00000023>,
+					      <0x00010001 0x0000002b>,
+					      <0x00010002 0x00000033>,
+					      <0x00010003 0x0000003a>,
+					      <0x00010004 0x00000042>,
+					      <0x00010005 0x0000004a>,
+					      <0x00010006 0x00000054>,
+					      <0x00010007 0x0000005c>,
+					      <0x00010008 0x00000065>,
+					      <0x00010009 0x0000006f>,
 
-					       0x00020000 0x00000013
-					       0x00020001 0x00000019
-					       0x00020002 0x00000024
-					       0x00020003 0x0000002c
-					       0x00020004 0x00000035
-					       0x00020005 0x0000003d
-					       0x00020006 0x00000046
-					       0x00020007 0x00000050
-					       0x00020008 0x00000059
+					      <0x00020000 0x00000029>,
+					      <0x00020001 0x00000033>,
+					      <0x00020002 0x0000003d>,
+					      <0x00020003 0x00000048>,
+					      <0x00020004 0x00000054>,
+					      <0x00020005 0x00000060>,
+					      <0x00020006 0x0000006c>,
 
-					       0x00030000 0x00000002
-					       0x00030001 0x0000000d
-					       0x00030002 0x00000019
-					       0x00030003 0x00000024>;
+					      <0x00030000 0x00000025>,
+					      <0x00030001 0x00000033>,
+					      <0x00030002 0x00000043>,
+					      <0x00030003 0x00000055>;
 			#thermal-sensor-cells = <1>;
-		};
-
-		thermal-zones {
-			cpu_thermal: cpu-thermal {
-				polling-delay-passive = <1000>;
-				polling-delay = <5000>;
-
-				thermal-sensors = <&tmu 0>;
-
-				trips {
-					cpu_alert: cpu-alert {
-						temperature = <85000>;
-						hysteresis = <2000>;
-						type = "passive";
-					};
-					cpu_crit: cpu-crit {
-						temperature = <95000>;
-						hysteresis = <2000>;
-						type = "critical";
-					};
-				};
-
-				cooling-maps {
-					map0 {
-						trip = <&cpu_alert>;
-						cooling-device =
-							<&cpu0 THERMAL_NO_LIMIT
-							THERMAL_NO_LIMIT>,
-							<&cpu1 THERMAL_NO_LIMIT
-							THERMAL_NO_LIMIT>;
-					};
-				};
-			};
 		};
 
 		dspi0: spi@2100000 {
@@ -364,10 +326,9 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2180000 0x0 0x10000>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
 			clocks = <&clockgen 4 1>;
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 39>, <&edma0 1 38>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 38>, <&edma0 1 39>;
 			status = "disabled";
 		};
 
@@ -377,10 +338,9 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2190000 0x0 0x10000>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
 			clocks = <&clockgen 4 1>;
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 37>, <&edma0 1 36>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 36>, <&edma0 1 37>;
 			status = "disabled";
 		};
 
@@ -390,10 +350,9 @@
 			#size-cells = <0>;
 			reg = <0x0 0x21a0000 0x0 0x10000>;
 			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
 			clocks = <&clockgen 4 1>;
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 35>, <&edma0 1 34>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 34>, <&edma0 1 35>;
 			status = "disabled";
 		};
 
@@ -430,6 +389,34 @@
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <0>;
 			fifo-size = <15>;
+			status = "disabled";
+		};
+
+		counter0: counter@29d0000 {
+			compatible = "fsl,ftm-quaddec";
+			reg = <0x0 0x29d0000 0x0 0x10000>;
+			big-endian;
+			status = "disabled";
+		};
+
+		counter1: counter@29e0000 {
+			compatible = "fsl,ftm-quaddec";
+			reg = <0x0 0x29e0000 0x0 0x10000>;
+			big-endian;
+			status = "disabled";
+		};
+
+		counter2: counter@29f0000 {
+			compatible = "fsl,ftm-quaddec";
+			reg = <0x0 0x29f0000 0x0 0x10000>;
+			big-endian;
+			status = "disabled";
+		};
+
+		counter3: counter@2a00000 {
+			compatible = "fsl,ftm-quaddec";
+			reg = <0x0 0x2a00000 0x0 0x10000>;
+			big-endian;
 			status = "disabled";
 		};
 
@@ -696,6 +683,15 @@
 			      <0x0 0x2d10030 0x0 0x4>;
 		};
 
+		mdio1: mdio@2d64000 {
+			compatible = "gianfar";
+			device_type = "mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x2d64000 0x0 0x4000>,
+			      <0x0 0x2d50030 0x0 0x4>;
+		};
+
 		ptp_clock@2d10e00 {
 			compatible = "fsl,etsec-ptp";
 			reg = <0x0 0x2d10e00 0x0 0xb0>;
@@ -704,8 +700,9 @@
 			fsl,tmr-prsc    = <2>;
 			fsl,tmr-add     = <0xaaaaaaab>;
 			fsl,tmr-fiper1  = <999999995>;
-			fsl,tmr-fiper2  = <99990>;
+			fsl,tmr-fiper2  = <999999995>;
 			fsl,max-adj     = <499999999>;
+			fsl,extts-fifo;
 		};
 
 		enet0: ethernet@2d10000 {
@@ -804,29 +801,30 @@
 			phy_type = "ulpi";
 		};
 
-		usb3: usb3@3100000 {
+		usb3: usb@3100000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x3100000 0x0 0x10000>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
+			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
 		};
 
 		pcie@3400000 {
 			compatible = "fsl,ls1021a-pcie";
-			reg = <0x00 0x03400000 0x0 0x00010000   /* controller registers */
-			       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03400000 0x0 0x00010000>, /* controller registers */
+			      <0x40 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>; /* controller interrupt */
 			fsl,pcie-scfg = <&scfg 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
-			num-lanes = <4>;
+			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000>, /* downstream I/O */
+				 <0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
 			msi-parent = <&msi1>, <&msi2>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -839,18 +837,18 @@
 
 		pcie@3500000 {
 			compatible = "fsl,ls1021a-pcie";
-			reg = <0x00 0x03500000 0x0 0x00010000   /* controller registers */
-			       0x48 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg = <0x00 0x03500000 0x0 0x00010000>, /* controller registers */
+			      <0x48 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
 			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,pcie-scfg = <&scfg 1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
-			num-lanes = <4>;
+			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000>, /* downstream I/O */
+				 <0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
 			msi-parent = <&msi1>, <&msi2>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -923,6 +921,7 @@
 				     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "qdma-error",
 				"qdma-queue0", "qdma-queue1";
+			#dma-cells = <2>;
 			dma-channels = <8>;
 			block-number = <1>;
 			block-offset = <0x1000>;
@@ -932,5 +931,53 @@
 			big-endian;
 		};
 
+		rcpm: power-controller@1ee2140 {
+			compatible = "fsl,ls1021a-rcpm", "fsl,qoriq-rcpm-2.1+";
+			reg = <0x0 0x1ee2140 0x0 0x8>;
+			#fsl,rcpm-wakeup-cells = <2>;
+			#power-domain-cells = <0>;
+		};
+
+		ftm_alarm0: timer0@29d0000 {
+			compatible = "fsl,ls1021a-ftm-alarm";
+			reg = <0x0 0x29d0000 0x0 0x10000>;
+			reg-names = "ftm";
+			fsl,rcpm-wakeup = <&rcpm 0x0 0x20000000>;
+			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+			big-endian;
+		};
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+
+			thermal-sensors = <&tmu 0>;
+
+			trips {
+				cpu_alert: cpu-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu_crit: cpu-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert>;
+					cooling-device =
+						<&cpu0 THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>,
+						<&cpu1 THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 };

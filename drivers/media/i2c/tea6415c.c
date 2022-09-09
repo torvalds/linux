@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
  /*
     tea6415c - i2c-driver for the tea6415c by SGS Thomson
 
@@ -9,22 +10,9 @@
     It is cascadable, i.e. it can be found at the addresses
     0x86 and 0x06 on the i2c-bus.
 
-    For detailed informations download the specifications directly
+    For detailed information download the specifications directly
     from SGS Thomson at http://www.st.com
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License vs published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mvss Ave, Cambridge, MA 02139, USA.
   */
 
 

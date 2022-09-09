@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright(c) 2015-17 Intel Corporation
 
 /*
@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <sound/intel-nhlt.h>
 #include "skl.h"
 #include "skl-ssp-clk.h"
 #include "skl-topology.h"
@@ -101,7 +102,7 @@ static void skl_fill_clk_ipc(struct skl_clk_rate_cfg_table *rcfg, u8 clk_type)
 }
 
 /* Sends dma control IPC to turn the clock ON/OFF */
-static int skl_send_clk_dma_control(struct skl *skl,
+static int skl_send_clk_dma_control(struct skl_dev *skl,
 				struct skl_clk_rate_cfg_table *rcfg,
 				u32 vbus_id, u8 clk_type,
 				bool enable)
@@ -152,7 +153,7 @@ static int skl_send_clk_dma_control(struct skl *skl,
 	memcpy(i2s_config + sp_cfg->size, data, size);
 
 	node_id = ((SKL_DMA_I2S_LINK_INPUT_CLASS << 8) | (vbus_id << 4));
-	ret = skl_dsp_set_dma_control(skl->skl_sst, (u32 *)i2s_config,
+	ret = skl_dsp_set_dma_control(skl, (u32 *)i2s_config,
 					i2s_config_size, node_id);
 	kfree(i2s_config);
 
@@ -276,10 +277,8 @@ static void unregister_parent_src_clk(struct skl_clk_parent *pclk,
 
 static void unregister_src_clk(struct skl_clk_data *dclk)
 {
-	u8 cnt = dclk->avail_clk_cnt;
-
-	while (cnt--)
-		clkdev_drop(dclk->clk[cnt]->lookup);
+	while (dclk->avail_clk_cnt--)
+		clkdev_drop(dclk->clk[dclk->avail_clk_cnt]->lookup);
 }
 
 static int skl_register_parent_clks(struct device *dev,
@@ -381,9 +380,11 @@ static int skl_clk_dev_probe(struct platform_device *pdev)
 		if (clks[i].rate_cfg[0].rate == 0)
 			continue;
 
-		data->clk[i] = register_skl_clk(dev, &clks[i], clk_pdata, i);
-		if (IS_ERR(data->clk[i])) {
-			ret = PTR_ERR(data->clk[i]);
+		data->clk[data->avail_clk_cnt] = register_skl_clk(dev,
+				&clks[i], clk_pdata, i);
+
+		if (IS_ERR(data->clk[data->avail_clk_cnt])) {
+			ret = PTR_ERR(data->clk[data->avail_clk_cnt]);
 			goto err_unreg_skl_clk;
 		}
 

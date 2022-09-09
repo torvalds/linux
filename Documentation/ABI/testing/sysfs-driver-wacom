@@ -1,6 +1,6 @@
 What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/speed
 Date:		April 2010
-Kernel Version:	2.6.35
+KernelVersion:	2.6.35
 Contact:	linux-bluetooth@vger.kernel.org
 Description:
 		The /sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/speed file
@@ -79,7 +79,9 @@ Description:
 		When the Wacom Intuos 4 is connected over Bluetooth, the
 		image has to contain 256 bytes (64x32 px 1 bit colour).
 		The format is also scrambled, like in the USB mode, and it can
-		be summarized by converting 76543210 into GECA6420.
+		be summarized by converting::
+
+					    76543210 into GECA6420.
 					    HGFEDCBA      HFDB7531
 
 What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_remote/unpair_remote

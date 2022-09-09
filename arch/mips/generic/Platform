@@ -8,13 +8,19 @@
 # option) any later version.
 #
 
-platform-$(CONFIG_MIPS_GENERIC)	+= generic/
+# Note: order matters, keep the asm/mach-generic include last.
+cflags-$(CONFIG_MACH_INGENIC_SOC)	+= -I$(srctree)/arch/mips/include/asm/mach-ingenic
 cflags-$(CONFIG_MIPS_GENERIC)	+= -I$(srctree)/arch/mips/include/asm/mach-generic
+
 load-$(CONFIG_MIPS_GENERIC)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_GENERIC)	:= vmlinux.gz.itb
+all-$(CONFIG_MIPS_GENERIC)	+= vmlinux.gz.itb
 
 its-y					:= vmlinux.its.S
 its-$(CONFIG_FIT_IMAGE_FDT_BOSTON)	+= board-boston.its.S
 its-$(CONFIG_FIT_IMAGE_FDT_NI169445)	+= board-ni169445.its.S
 its-$(CONFIG_FIT_IMAGE_FDT_OCELOT)	+= board-ocelot.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_LUTON)	+= board-luton.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_JAGUAR2)	+= board-jaguar2.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_SERVAL)	+= board-serval.its.S
 its-$(CONFIG_FIT_IMAGE_FDT_XILFPGA)	+= board-xilfpga.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_MARDUK)	+= board-marduk.its.S

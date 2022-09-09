@@ -433,8 +433,9 @@ static int __init ibm_acpiphp_init(void)
 		goto init_return;
 	}
 	pr_debug("%s: found IBM aPCI device\n", __func__);
-	if (acpi_bus_get_device(ibm_acpi_handle, &device)) {
-		pr_err("%s: acpi_bus_get_device failed\n", __func__);
+	device = acpi_fetch_acpi_dev(ibm_acpi_handle);
+	if (!device) {
+		pr_err("%s: acpi_fetch_acpi_dev failed\n", __func__);
 		retval = -ENODEV;
 		goto init_return;
 	}

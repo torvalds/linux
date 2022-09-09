@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2007 Freescale Semiconductor, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Prototypes for MPC512x shared code
  */
@@ -16,8 +12,8 @@ extern void __init mpc512x_init_early(void);
 extern void __init mpc512x_init(void);
 extern void __init mpc512x_setup_arch(void);
 extern int __init mpc5121_clk_init(void);
-extern const char *mpc512x_select_psc_compat(void);
-extern const char *mpc512x_select_reset_compat(void);
+const char *__init mpc512x_select_psc_compat(void);
+const char *__init mpc512x_select_reset_compat(void);
 extern void __noreturn mpc512x_restart(char *cmd);
 
 #endif				/* __MPC512X_H__ */

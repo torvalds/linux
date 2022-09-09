@@ -19,10 +19,10 @@ struct ixgb_stats {
 };
 
 #define IXGB_STAT(m)		IXGB_STATS, \
-				FIELD_SIZEOF(struct ixgb_adapter, m), \
+				sizeof_field(struct ixgb_adapter, m), \
 				offsetof(struct ixgb_adapter, m)
 #define IXGB_NETDEV_STAT(m)	NETDEV_STATS, \
-				FIELD_SIZEOF(struct net_device, m), \
+				sizeof_field(struct net_device, m), \
 				offsetof(struct net_device, m)
 
 static struct ixgb_stats ixgb_gstrings_stats[] = {
@@ -458,15 +458,15 @@ ixgb_get_drvinfo(struct net_device *netdev,
 
 	strlcpy(drvinfo->driver,  ixgb_driver_name,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, ixgb_driver_version,
-		sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
 
 static void
 ixgb_get_ringparam(struct net_device *netdev,
-		struct ethtool_ringparam *ring)
+		   struct ethtool_ringparam *ring,
+		   struct kernel_ethtool_ringparam *kernel_ring,
+		   struct netlink_ext_ack *extack)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_desc_ring *txdr = &adapter->tx_ring;
@@ -480,7 +480,9 @@ ixgb_get_ringparam(struct net_device *netdev,
 
 static int
 ixgb_set_ringparam(struct net_device *netdev,
-		struct ethtool_ringparam *ring)
+		   struct ethtool_ringparam *ring,
+		   struct kernel_ethtool_ringparam *kernel_ring,
+		   struct netlink_ext_ack *extack)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_desc_ring *txdr = &adapter->tx_ring;

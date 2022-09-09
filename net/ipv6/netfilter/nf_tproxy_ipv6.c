@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <net/netfilter/nf_tproxy.h>
 #include <linux/module.h>
 #include <net/inet6_hashtables.h>
@@ -149,4 +150,4 @@ EXPORT_SYMBOL_GPL(nf_tproxy_get_sock_v6);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Balazs Scheidler, Krisztian Kovacs");
-MODULE_DESCRIPTION("Netfilter IPv4 transparent proxy support");
+MODULE_DESCRIPTION("Netfilter IPv6 transparent proxy support");

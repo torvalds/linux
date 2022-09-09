@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic iSCSI HBA Driver
  * Copyright (c)  2003-2013 QLogic Corporation
- *
- * See LICENSE.qla4xxx for copyright and licensing details.
  */
 
 #ifndef _QLA4X_FW_H
@@ -1029,7 +1028,7 @@ struct crash_record {
 
 	uint8_t out_RISC_reg_dump[256]; /* 80 -17F */
 	uint8_t in_RISC_reg_dump[256];	/*180 -27F */
-	uint8_t in_out_RISC_stack_dump[0];	/*280 - ??? */
+	uint8_t in_out_RISC_stack_dump[];	/*280 - ??? */
 };
 
 struct conn_event_log_entry {
@@ -1182,7 +1181,6 @@ struct status_entry {
 	uint32_t handle;	/* 04-07 */
 
 	uint8_t scsiStatus;	/* 08 */
-#define SCSI_CHECK_CONDITION		  0x02
 
 	uint8_t iscsiFlags;	/* 09 */
 #define ISCSI_FLAG_RESIDUAL_UNDER	  0x02

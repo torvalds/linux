@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic iSCSI Offload Driver
  * Copyright (c) 2016 Cavium Inc.
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #ifndef _QEDI_FW_ISCSI_H_
@@ -13,7 +10,7 @@
 #include "qedi_fw_scsi.h"
 
 struct iscsi_task_params {
-	struct e4_iscsi_task_context *context;
+	struct iscsi_task_context *context;
 	struct iscsi_wqe	  *sqe;
 	u32			  tx_io_size;
 	u32			  rx_io_size;

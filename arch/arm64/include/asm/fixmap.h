@@ -28,10 +28,9 @@
  * compile time, but to set the physical address only
  * in the boot process.
  *
- * These 'compile-time allocated' memory buffers are
- * page-sized. Use set_fixmap(idx,phys) to associate
- * physical memory with fixmap indices.
- *
+ * Each enum increment in these 'compile-time allocated'
+ * memory buffers is page-sized. Use set_fixmap(idx,phys)
+ * to associate physical memory with a fixmap index.
  */
 enum fixed_addresses {
 	FIX_HOLE,
@@ -55,13 +54,21 @@ enum fixed_addresses {
 #ifdef CONFIG_ACPI_APEI_GHES
 	/* Used for GHES mapping from assorted contexts */
 	FIX_APEI_GHES_IRQ,
-	FIX_APEI_GHES_NMI,
+	FIX_APEI_GHES_SEA,
+#ifdef CONFIG_ARM_SDE_INTERFACE
+	FIX_APEI_GHES_SDEI_NORMAL,
+	FIX_APEI_GHES_SDEI_CRITICAL,
+#endif
 #endif /* CONFIG_ACPI_APEI_GHES */
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	FIX_ENTRY_TRAMP_DATA,
-	FIX_ENTRY_TRAMP_TEXT,
-#define TRAMP_VALIAS		(__fix_to_virt(FIX_ENTRY_TRAMP_TEXT))
+#ifdef CONFIG_RELOCATABLE
+	FIX_ENTRY_TRAMP_TEXT4,	/* one extra slot for the data page */
+#endif
+	FIX_ENTRY_TRAMP_TEXT3,
+	FIX_ENTRY_TRAMP_TEXT2,
+	FIX_ENTRY_TRAMP_TEXT1,
+#define TRAMP_VALIAS		(__fix_to_virt(FIX_ENTRY_TRAMP_TEXT1))
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 	__end_of_permanent_fixed_addresses,
 

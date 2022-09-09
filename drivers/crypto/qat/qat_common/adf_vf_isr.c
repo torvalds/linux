@@ -1,49 +1,5 @@
-/*
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
-
-  GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  Contact Information:
-  qat-linux@intel.com
-
-  BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+// SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+/* Copyright(c) 2014 - 2020 Intel Corporation */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -59,9 +15,9 @@
 #include "adf_cfg_common.h"
 #include "adf_transport_access_macros.h"
 #include "adf_transport_internal.h"
-#include "adf_pf2vf_msg.h"
 
 #define ADF_VINTSOU_OFFSET	0x204
+#define ADF_VINTMSK_OFFSET	0x208
 #define ADF_VINTSOU_BUN		BIT(0)
 #define ADF_VINTSOU_PF2VF	BIT(1)
 
@@ -72,30 +28,40 @@ struct adf_vf_stop_data {
 	struct work_struct work;
 };
 
+void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+
+	ADF_CSR_WR(pmisc_addr, ADF_VINTMSK_OFFSET, 0x0);
+}
+
+void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+
+	ADF_CSR_WR(pmisc_addr, ADF_VINTMSK_OFFSET, 0x2);
+}
+EXPORT_SYMBOL_GPL(adf_disable_pf2vf_interrupts);
+
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_pci *pci_dev_info = &accel_dev->accel_pci_dev;
-	int stat = pci_enable_msi(pci_dev_info->pci_dev);
-
-	if (stat) {
+	int stat = pci_alloc_irq_vectors(pci_dev_info->pci_dev, 1, 1,
+					 PCI_IRQ_MSI);
+	if (unlikely(stat < 0)) {
 		dev_err(&GET_DEV(accel_dev),
-			"Failed to enable MSI interrupts\n");
+			"Failed to enable MSI interrupt: %d\n", stat);
 		return stat;
 	}
 
-	accel_dev->vf.irq_name = kzalloc(ADF_MAX_MSIX_VECTOR_NAME, GFP_KERNEL);
-	if (!accel_dev->vf.irq_name)
-		return -ENOMEM;
-
-	return stat;
+	return 0;
 }
 
 static void adf_disable_msi(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
-	kfree(accel_dev->vf.irq_name);
-	pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
 }
 
 static void adf_dev_stop_async(struct work_struct *work)
@@ -104,6 +70,7 @@ static void adf_dev_stop_async(struct work_struct *work)
 		container_of(work, struct adf_vf_stop_data, work);
 	struct adf_accel_dev *accel_dev = stop_data->accel_dev;
 
+	adf_dev_restarting_notify(accel_dev);
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
 
@@ -112,72 +79,37 @@ static void adf_dev_stop_async(struct work_struct *work)
 	kfree(stop_data);
 }
 
+int adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev)
+{
+	struct adf_vf_stop_data *stop_data;
+
+	clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
+	stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
+	if (!stop_data) {
+		dev_err(&GET_DEV(accel_dev),
+			"Couldn't schedule stop for vf_%d\n",
+			accel_dev->accel_id);
+		return -ENOMEM;
+	}
+	stop_data->accel_dev = accel_dev;
+	INIT_WORK(&stop_data->work, adf_dev_stop_async);
+	queue_work(adf_vf_stop_wq, &stop_data->work);
+
+	return 0;
+}
+
 static void adf_pf2vf_bh_handler(void *data)
 {
 	struct adf_accel_dev *accel_dev = data;
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
-	u32 msg;
+	bool ret;
 
-	/* Read the message from PF */
-	msg = ADF_CSR_RD(pmisc_bar_addr, hw_data->get_pf2vf_offset(0));
+	ret = adf_recv_and_handle_pf2vf_msg(accel_dev);
+	if (ret)
+		/* Re-enable PF2VF interrupts */
+		adf_enable_pf2vf_interrupts(accel_dev);
 
-	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM))
-		/* Ignore legacy non-system (non-kernel) PF2VF messages */
-		goto err;
-
-	switch ((msg & ADF_PF2VF_MSGTYPE_MASK) >> ADF_PF2VF_MSGTYPE_SHIFT) {
-	case ADF_PF2VF_MSGTYPE_RESTARTING: {
-		struct adf_vf_stop_data *stop_data;
-
-		dev_dbg(&GET_DEV(accel_dev),
-			"Restarting msg received from PF 0x%x\n", msg);
-
-		clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
-
-		stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
-		if (!stop_data) {
-			dev_err(&GET_DEV(accel_dev),
-				"Couldn't schedule stop for vf_%d\n",
-				accel_dev->accel_id);
-			return;
-		}
-		stop_data->accel_dev = accel_dev;
-		INIT_WORK(&stop_data->work, adf_dev_stop_async);
-		queue_work(adf_vf_stop_wq, &stop_data->work);
-		/* To ack, clear the PF2VFINT bit */
-		msg &= ~ADF_PF2VF_INT;
-		ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
-		return;
-	}
-	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
-		dev_dbg(&GET_DEV(accel_dev),
-			"Version resp received from PF 0x%x\n", msg);
-		accel_dev->vf.pf_version =
-			(msg & ADF_PF2VF_VERSION_RESP_VERS_MASK) >>
-			ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
-		accel_dev->vf.compatible =
-			(msg & ADF_PF2VF_VERSION_RESP_RESULT_MASK) >>
-			ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		complete(&accel_dev->vf.iov_msg_completion);
-		break;
-	default:
-		goto err;
-	}
-
-	/* To ack, clear the PF2VFINT bit */
-	msg &= ~ADF_PF2VF_INT;
-	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
-
-	/* Re-enable PF2VF interrupts */
-	adf_enable_pf2vf_interrupts(accel_dev);
 	return;
-err:
-	dev_err(&GET_DEV(accel_dev),
-		"Unknown message from PF (0x%x); leaving PF2VF ints disabled\n",
-		msg);
+
 }
 
 static int adf_setup_pf2vf_bh(struct adf_accel_dev *accel_dev)
@@ -200,13 +132,24 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 {
 	struct adf_accel_dev *accel_dev = privdata;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_hw_csr_ops *csr_ops = &hw_data->csr_ops;
 	struct adf_bar *pmisc =
 			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *pmisc_bar_addr = pmisc->virt_addr;
-	u32 v_int;
+	bool handled = false;
+	u32 v_int, v_mask;
 
 	/* Read VF INT source CSR to determine the source of VF interrupt */
 	v_int = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTSOU_OFFSET);
+
+	/* Read VF INT mask CSR to determine which sources are masked */
+	v_mask = ADF_CSR_RD(pmisc_bar_addr, ADF_VINTMSK_OFFSET);
+
+	/*
+	 * Recompute v_int ignoring sources that are masked. This is to
+	 * avoid rescheduling the tasklet for interrupts already handled
+	 */
+	v_int &= ~v_mask;
 
 	/* Check for PF2VF interrupt */
 	if (v_int & ADF_VINTSOU_PF2VF) {
@@ -215,7 +158,7 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 
 		/* Schedule tasklet to handle interrupt BH */
 		tasklet_hi_schedule(&accel_dev->vf.pf2vf_bh_tasklet);
-		return IRQ_HANDLED;
+		handled = true;
 	}
 
 	/* Check bundle interrupt */
@@ -224,13 +167,13 @@ static irqreturn_t adf_isr(int irq, void *privdata)
 		struct adf_etr_bank_data *bank = &etr_data->banks[0];
 
 		/* Disable Flag and Coalesce Ring Interrupts */
-		WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number,
-					   0);
+		csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
+						    bank->bank_number, 0);
 		tasklet_hi_schedule(&bank->resp_handler);
-		return IRQ_HANDLED;
+		handled = true;
 	}
 
-	return IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int adf_request_msi_irq(struct adf_accel_dev *accel_dev)
@@ -251,6 +194,7 @@ static int adf_request_msi_irq(struct adf_accel_dev *accel_dev)
 	}
 	cpu = accel_dev->accel_id % num_online_cpus();
 	irq_set_affinity_hint(pdev->irq, get_cpu_mask(cpu));
+	accel_dev->vf.irq_enabled = true;
 
 	return ret;
 }
@@ -282,8 +226,10 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
-	irq_set_affinity_hint(pdev->irq, NULL);
-	free_irq(pdev->irq, (void *)accel_dev);
+	if (accel_dev->vf.irq_enabled) {
+		irq_set_affinity_hint(pdev->irq, NULL);
+		free_irq(pdev->irq, accel_dev);
+	}
 	adf_cleanup_bh(accel_dev);
 	adf_cleanup_pf2vf_bh(accel_dev);
 	adf_disable_msi(accel_dev);
@@ -304,21 +250,54 @@ int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 		goto err_out;
 
 	if (adf_setup_pf2vf_bh(accel_dev))
-		goto err_out;
+		goto err_disable_msi;
 
 	if (adf_setup_bh(accel_dev))
-		goto err_out;
+		goto err_cleanup_pf2vf_bh;
 
 	if (adf_request_msi_irq(accel_dev))
-		goto err_out;
+		goto err_cleanup_bh;
 
 	return 0;
+
+err_cleanup_bh:
+	adf_cleanup_bh(accel_dev);
+
+err_cleanup_pf2vf_bh:
+	adf_cleanup_pf2vf_bh(accel_dev);
+
+err_disable_msi:
+	adf_disable_msi(accel_dev);
+
 err_out:
-	adf_vf_isr_resource_free(accel_dev);
 	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);
 
+/**
+ * adf_flush_vf_wq() - Flush workqueue for VF
+ * @accel_dev:  Pointer to acceleration device.
+ *
+ * Function disables the PF/VF interrupts on the VF so that no new messages
+ * are received and flushes the workqueue 'adf_vf_stop_wq'.
+ *
+ * Return: void.
+ */
+void adf_flush_vf_wq(struct adf_accel_dev *accel_dev)
+{
+	adf_disable_pf2vf_interrupts(accel_dev);
+
+	flush_workqueue(adf_vf_stop_wq);
+}
+EXPORT_SYMBOL_GPL(adf_flush_vf_wq);
+
+/**
+ * adf_init_vf_wq() - Init workqueue for VF
+ *
+ * Function init workqueue 'adf_vf_stop_wq' for VF.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
 int __init adf_init_vf_wq(void)
 {
 	adf_vf_stop_wq = alloc_workqueue("adf_vf_stop_wq", WQ_MEM_RECLAIM, 0);

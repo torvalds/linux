@@ -26,7 +26,7 @@ static int __init spin_retry_init(void)
 }
 early_initcall(spin_retry_init);
 
-/**
+/*
  * spin_retry= parameter
  */
 static int __init spin_retry_setup(char *str)
@@ -74,8 +74,8 @@ static inline int arch_load_niai4(int *lock)
 {
 	int owner;
 
-	asm volatile(
-		ALTERNATIVE("", ".long 0xb2fa0040", 49)	/* NIAI 4 */
+	asm_inline volatile(
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,4,0", 49) /* NIAI 4 */
 		"	l	%0,%1\n"
 		: "=d" (owner) : "Q" (*lock) : "memory");
 	return owner;
@@ -85,8 +85,8 @@ static inline int arch_cmpxchg_niai8(int *lock, int old, int new)
 {
 	int expected = old;
 
-	asm volatile(
-		ALTERNATIVE("", ".long 0xb2fa0080", 49)	/* NIAI 8 */
+	asm_inline volatile(
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", 49) /* NIAI 8 */
 		"	cs	%0,%3,%1\n"
 		: "=d" (old), "=Q" (*lock)
 		: "0" (old), "d" (new), "Q" (*lock)
@@ -242,7 +242,6 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 
 void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
-	/* Use classic spinlocks + niai if the steal time is >= 10% */
 	if (test_cpu_flag(CIF_DEDICATED_CPU))
 		arch_spin_lock_queued(lp);
 	else

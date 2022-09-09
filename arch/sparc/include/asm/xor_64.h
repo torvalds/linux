@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/asm/xor.h
  *
@@ -7,26 +8,24 @@
  *
  * Copyright (C) 1997, 1999 Jakub Jelinek (jj@ultra.linux.cz)
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * You should have received a copy of the GNU General Public License
- * (for example /usr/src/linux/COPYING); if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <asm/spitfire.h>
 
-void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
-void xor_vis_3(unsigned long, unsigned long *, unsigned long *,
-	       unsigned long *);
-void xor_vis_4(unsigned long, unsigned long *, unsigned long *,
-	       unsigned long *, unsigned long *);
-void xor_vis_5(unsigned long, unsigned long *, unsigned long *,
-	       unsigned long *, unsigned long *, unsigned long *);
+void xor_vis_2(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2);
+void xor_vis_3(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3);
+void xor_vis_4(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3,
+	       const unsigned long * __restrict p4);
+void xor_vis_5(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3,
+	       const unsigned long * __restrict p4,
+	       const unsigned long * __restrict p5);
 
 /* XXX Ugh, write cheetah versions... -DaveM */
 
@@ -38,13 +37,20 @@ static struct xor_block_template xor_block_VIS = {
         .do_5	= xor_vis_5,
 };
 
-void xor_niagara_2(unsigned long, unsigned long *, unsigned long *);
-void xor_niagara_3(unsigned long, unsigned long *, unsigned long *,
-		   unsigned long *);
-void xor_niagara_4(unsigned long, unsigned long *, unsigned long *,
-		   unsigned long *, unsigned long *);
-void xor_niagara_5(unsigned long, unsigned long *, unsigned long *,
-		   unsigned long *, unsigned long *, unsigned long *);
+void xor_niagara_2(unsigned long bytes, unsigned long * __restrict p1,
+		   const unsigned long * __restrict p2);
+void xor_niagara_3(unsigned long bytes, unsigned long * __restrict p1,
+		   const unsigned long * __restrict p2,
+		   const unsigned long * __restrict p3);
+void xor_niagara_4(unsigned long bytes, unsigned long * __restrict p1,
+		   const unsigned long * __restrict p2,
+		   const unsigned long * __restrict p3,
+		   const unsigned long * __restrict p4);
+void xor_niagara_5(unsigned long bytes, unsigned long * __restrict p1,
+		   const unsigned long * __restrict p2,
+		   const unsigned long * __restrict p3,
+		   const unsigned long * __restrict p4,
+		   const unsigned long * __restrict p5);
 
 static struct xor_block_template xor_block_niagara = {
         .name	= "Niagara",

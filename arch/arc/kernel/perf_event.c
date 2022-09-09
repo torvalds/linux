@@ -1,15 +1,10 @@
-/*
- * Linux performance counter support for ARC700 series
- *
- * Copyright (C) 2013-2015 Synopsys, Inc. (www.synopsys.com)
- *
- * This code is inspired by the perf support of various other architectures.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Linux performance counter support for ARC CPUs.
+// This code is inspired by the perf support of various other architectures.
+//
+// Copyright (C) 2013-2018 Synopsys, Inc. (www.synopsys.com)
+
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -19,12 +14,193 @@
 #include <asm/arcregs.h>
 #include <asm/stacktrace.h>
 
+/* HW holds 8 symbols + one for null terminator */
+#define ARCPMU_EVENT_NAME_LEN	9
+
+/*
+ * Some ARC pct quirks:
+ *
+ * PERF_COUNT_HW_STALLED_CYCLES_BACKEND
+ * PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
+ *	The ARC 700 can either measure stalls per pipeline stage, or all stalls
+ *	combined; for now we assign all stalls to STALLED_CYCLES_BACKEND
+ *	and all pipeline flushes (e.g. caused by mispredicts, etc.) to
+ *	STALLED_CYCLES_FRONTEND.
+ *
+ *	We could start multiple performance counters and combine everything
+ *	afterwards, but that makes it complicated.
+ *
+ *	Note that I$ cache misses aren't counted by either of the two!
+ */
+
+/*
+ * ARC PCT has hardware conditions with fixed "names" but variable "indexes"
+ * (based on a specific RTL build)
+ * Below is the static map between perf generic/arc specific event_id and
+ * h/w condition names.
+ * At the time of probe, we loop thru each index and find it's name to
+ * complete the mapping of perf event_id to h/w index as latter is needed
+ * to program the counter really
+ */
+static const char * const arc_pmu_ev_hw_map[] = {
+	/* count cycles */
+	[PERF_COUNT_HW_CPU_CYCLES] = "crun",
+	[PERF_COUNT_HW_REF_CPU_CYCLES] = "crun",
+	[PERF_COUNT_HW_BUS_CYCLES] = "crun",
+
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = "bflush",
+	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = "bstall",
+
+	/* counts condition */
+	[PERF_COUNT_HW_INSTRUCTIONS] = "iall",
+	/* All jump instructions that are taken */
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmptak",
+#ifdef CONFIG_ISA_ARCV2
+	[PERF_COUNT_HW_BRANCH_MISSES] = "bpmp",
+#else
+	[PERF_COUNT_ARC_BPOK]         = "bpok",	  /* NP-NT, PT-T, PNT-NT */
+	[PERF_COUNT_HW_BRANCH_MISSES] = "bpfail", /* NP-T, PT-NT, PNT-T */
+#endif
+	[PERF_COUNT_ARC_LDC] = "imemrdc",	/* Instr: mem read cached */
+	[PERF_COUNT_ARC_STC] = "imemwrc",	/* Instr: mem write cached */
+
+	[PERF_COUNT_ARC_DCLM] = "dclm",		/* D-cache Load Miss */
+	[PERF_COUNT_ARC_DCSM] = "dcsm",		/* D-cache Store Miss */
+	[PERF_COUNT_ARC_ICM] = "icm",		/* I-cache Miss */
+	[PERF_COUNT_ARC_EDTLB] = "edtlb",	/* D-TLB Miss */
+	[PERF_COUNT_ARC_EITLB] = "eitlb",	/* I-TLB Miss */
+
+	[PERF_COUNT_HW_CACHE_REFERENCES] = "imemrdc",	/* Instr: mem read cached */
+	[PERF_COUNT_HW_CACHE_MISSES] = "dclm",		/* D-cache Load Miss */
+};
+
+#define C(_x)			PERF_COUNT_HW_CACHE_##_x
+#define CACHE_OP_UNSUPPORTED	0xffff
+
+static const unsigned int arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+	[C(L1D)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_LDC,
+			[C(RESULT_MISS)]	= PERF_COUNT_ARC_DCLM,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_STC,
+			[C(RESULT_MISS)]	= PERF_COUNT_ARC_DCSM,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(L1I)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= PERF_COUNT_HW_INSTRUCTIONS,
+			[C(RESULT_MISS)]	= PERF_COUNT_ARC_ICM,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(DTLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_LDC,
+			[C(RESULT_MISS)]	= PERF_COUNT_ARC_EDTLB,
+		},
+			/* DTLB LD/ST Miss not segregated by h/w*/
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(ITLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= PERF_COUNT_ARC_EITLB,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(BPU)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)] = PERF_COUNT_HW_BRANCH_INSTRUCTIONS,
+			[C(RESULT_MISS)]	= PERF_COUNT_HW_BRANCH_MISSES,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+	[C(NODE)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
+			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
+		},
+	},
+};
+
+enum arc_pmu_attr_groups {
+	ARCPMU_ATTR_GR_EVENTS,
+	ARCPMU_ATTR_GR_FORMATS,
+	ARCPMU_NR_ATTR_GR
+};
+
+struct arc_pmu_raw_event_entry {
+	char name[ARCPMU_EVENT_NAME_LEN];
+};
+
 struct arc_pmu {
 	struct pmu	pmu;
 	unsigned int	irq;
 	int		n_counters;
+	int		n_events;
 	u64		max_period;
 	int		ev_hw_idx[PERF_COUNT_ARC_HW_MAX];
+
+	struct arc_pmu_raw_event_entry	*raw_entry;
+	struct attribute		**attrs;
+	struct perf_pmu_events_attr	*attr;
+	const struct attribute_group	*attr_groups[ARCPMU_NR_ATTR_GR + 1];
 };
 
 struct arc_pmu_cpu {
@@ -49,6 +225,7 @@ static int callchain_trace(unsigned int addr, void *data)
 {
 	struct arc_callchain_trace *ctrl = data;
 	struct perf_callchain_entry_ctx *entry = ctrl->perf_stuff;
+
 	perf_callchain_store(entry, addr);
 
 	if (ctrl->depth++ < 3)
@@ -57,8 +234,8 @@ static int callchain_trace(unsigned int addr, void *data)
 	return -1;
 }
 
-void
-perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
+			   struct pt_regs *regs)
 {
 	struct arc_callchain_trace ctrl = {
 		.depth = 0,
@@ -68,8 +245,8 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 	arc_unwind_core(NULL, regs, callchain_trace, &ctrl);
 }
 
-void
-perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
+void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
+			 struct pt_regs *regs)
 {
 	/*
 	 * User stack can't be unwound trivially with kernel dwarf unwinder
@@ -82,10 +259,10 @@ static struct arc_pmu *arc_pmu;
 static DEFINE_PER_CPU(struct arc_pmu_cpu, arc_pmu_cpu);
 
 /* read counter #idx; note that counter# != event# on ARC! */
-static uint64_t arc_pmu_read_counter(int idx)
+static u64 arc_pmu_read_counter(int idx)
 {
-	uint32_t tmp;
-	uint64_t result;
+	u32 tmp;
+	u64 result;
 
 	/*
 	 * ARC supports making 'snapshots' of the counters, so we don't
@@ -94,7 +271,7 @@ static uint64_t arc_pmu_read_counter(int idx)
 	write_aux_reg(ARC_REG_PCT_INDEX, idx);
 	tmp = read_aux_reg(ARC_REG_PCT_CONTROL);
 	write_aux_reg(ARC_REG_PCT_CONTROL, tmp | ARC_REG_PCT_CONTROL_SN);
-	result = (uint64_t) (read_aux_reg(ARC_REG_PCT_SNAPH)) << 32;
+	result = (u64) (read_aux_reg(ARC_REG_PCT_SNAPH)) << 32;
 	result |= read_aux_reg(ARC_REG_PCT_SNAPL);
 
 	return result;
@@ -103,9 +280,9 @@ static uint64_t arc_pmu_read_counter(int idx)
 static void arc_perf_event_update(struct perf_event *event,
 				  struct hw_perf_event *hwc, int idx)
 {
-	uint64_t prev_raw_count = local64_read(&hwc->prev_count);
-	uint64_t new_raw_count = arc_pmu_read_counter(idx);
-	int64_t delta = new_raw_count - prev_raw_count;
+	u64 prev_raw_count = local64_read(&hwc->prev_count);
+	u64 new_raw_count = arc_pmu_read_counter(idx);
+	s64 delta = new_raw_count - prev_raw_count;
 
 	/*
 	 * We aren't afraid of hwc->prev_count changing beneath our feet
@@ -155,7 +332,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 	int ret;
 
 	if (!is_sampling_event(event)) {
-		hwc->sample_period  = arc_pmu->max_period;
+		hwc->sample_period = arc_pmu->max_period;
 		hwc->last_period = hwc->sample_period;
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
@@ -192,6 +369,18 @@ static int arc_pmu_event_init(struct perf_event *event)
 		pr_debug("init cache event with h/w %08x \'%s\'\n",
 			 (int)hwc->config, arc_pmu_ev_hw_map[ret]);
 		return 0;
+
+	case PERF_TYPE_RAW:
+		if (event->attr.config >= arc_pmu->n_events)
+			return -ENOENT;
+
+		hwc->config |= event->attr.config;
+		pr_debug("init raw event with idx %lld \'%s\'\n",
+			 event->attr.config,
+			 arc_pmu->raw_entry[event->attr.config].name);
+
+		return 0;
+
 	default:
 		return -ENOENT;
 	}
@@ -200,7 +389,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 /* starts all counters */
 static void arc_pmu_enable(struct pmu *pmu)
 {
-	uint32_t tmp;
+	u32 tmp;
 	tmp = read_aux_reg(ARC_REG_PCT_CONTROL);
 	write_aux_reg(ARC_REG_PCT_CONTROL, (tmp & 0xffff0000) | 0x1);
 }
@@ -208,7 +397,7 @@ static void arc_pmu_enable(struct pmu *pmu)
 /* stops all counters */
 static void arc_pmu_disable(struct pmu *pmu)
 {
-	uint32_t tmp;
+	u32 tmp;
 	tmp = read_aux_reg(ARC_REG_PCT_CONTROL);
 	write_aux_reg(ARC_REG_PCT_CONTROL, (tmp & 0xffff0000) | 0x0);
 }
@@ -228,7 +417,7 @@ static int arc_pmu_event_set_period(struct perf_event *event)
 		local64_set(&hwc->period_left, left);
 		hwc->last_period = period;
 		overflow = 1;
-	} else	if (unlikely(left <= 0)) {
+	} else if (unlikely(left <= 0)) {
 		/* left underflowed by less than period. */
 		left += period;
 		local64_set(&hwc->period_left, left);
@@ -246,8 +435,8 @@ static int arc_pmu_event_set_period(struct perf_event *event)
 	write_aux_reg(ARC_REG_PCT_INDEX, idx);
 
 	/* Write value */
-	write_aux_reg(ARC_REG_PCT_COUNTL, (u32)value);
-	write_aux_reg(ARC_REG_PCT_COUNTH, (value >> 32));
+	write_aux_reg(ARC_REG_PCT_COUNTL, lower_32_bits(value));
+	write_aux_reg(ARC_REG_PCT_COUNTH, upper_32_bits(value));
 
 	perf_event_update_userpage(event);
 
@@ -277,7 +466,7 @@ static void arc_pmu_start(struct perf_event *event, int flags)
 	/* Enable interrupt for this counter */
 	if (is_sampling_event(event))
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
-			      read_aux_reg(ARC_REG_PCT_INT_CTRL) | (1 << idx));
+			      read_aux_reg(ARC_REG_PCT_INT_CTRL) | BIT(idx));
 
 	/* enable ARC pmu here */
 	write_aux_reg(ARC_REG_PCT_INDEX, idx);		/* counter # */
@@ -295,13 +484,13 @@ static void arc_pmu_stop(struct perf_event *event, int flags)
 		 * Reset interrupt flag by writing of 1. This is required
 		 * to make sure pending interrupt was not left.
 		 */
-		write_aux_reg(ARC_REG_PCT_INT_ACT, 1 << idx);
+		write_aux_reg(ARC_REG_PCT_INT_ACT, BIT(idx));
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
-			      read_aux_reg(ARC_REG_PCT_INT_CTRL) & ~(1 << idx));
+			      read_aux_reg(ARC_REG_PCT_INT_CTRL) & ~BIT(idx));
 	}
 
 	if (!(event->hw.state & PERF_HES_STOPPED)) {
-		/* stop ARC pmu here */
+		/* stop hw counter here */
 		write_aux_reg(ARC_REG_PCT_INDEX, idx);
 
 		/* condition code #0 is always "never" */
@@ -334,7 +523,7 @@ static int arc_pmu_add(struct perf_event *event, int flags)
 {
 	struct arc_pmu_cpu *pmu_cpu = this_cpu_ptr(&arc_pmu_cpu);
 	struct hw_perf_event *hwc = &event->hw;
-	int idx = hwc->idx;
+	int idx;
 
 	idx = ffz(pmu_cpu->used_mask[0]);
 	if (idx == arc_pmu->n_counters)
@@ -349,9 +538,10 @@ static int arc_pmu_add(struct perf_event *event, int flags)
 
 	if (is_sampling_event(event)) {
 		/* Mimic full counter overflow as other arches do */
-		write_aux_reg(ARC_REG_PCT_INT_CNTL, (u32)arc_pmu->max_period);
+		write_aux_reg(ARC_REG_PCT_INT_CNTL,
+			      lower_32_bits(arc_pmu->max_period));
 		write_aux_reg(ARC_REG_PCT_INT_CNTH,
-			      (arc_pmu->max_period >> 32));
+			      upper_32_bits(arc_pmu->max_period));
 	}
 
 	write_aux_reg(ARC_REG_PCT_CONFIG, 0);
@@ -392,7 +582,7 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 		idx = __ffs(active_ints);
 
 		/* Reset interrupt flag by writing of 1 */
-		write_aux_reg(ARC_REG_PCT_INT_ACT, 1 << idx);
+		write_aux_reg(ARC_REG_PCT_INT_ACT, BIT(idx));
 
 		/*
 		 * On reset of "interrupt active" bit corresponding
@@ -400,7 +590,7 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 		 * Now we need to re-enable interrupt for the counter.
 		 */
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
-			read_aux_reg(ARC_REG_PCT_INT_CTRL) | (1 << idx));
+			read_aux_reg(ARC_REG_PCT_INT_CTRL) | BIT(idx));
 
 		event = pmu_cpu->act_counter[idx];
 		hwc = &event->hw;
@@ -414,7 +604,7 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 				arc_pmu_stop(event, 0);
 		}
 
-		active_ints &= ~(1U << idx);
+		active_ints &= ~BIT(idx);
 	} while (active_ints);
 
 done:
@@ -441,19 +631,108 @@ static void arc_cpu_pmu_irq_init(void *data)
 	write_aux_reg(ARC_REG_PCT_INT_ACT, 0xffffffff);
 }
 
+/* Event field occupies the bottom 15 bits of our config field */
+PMU_FORMAT_ATTR(event, "config:0-14");
+static struct attribute *arc_pmu_format_attrs[] = {
+	&format_attr_event.attr,
+	NULL,
+};
+
+static struct attribute_group arc_pmu_format_attr_gr = {
+	.name = "format",
+	.attrs = arc_pmu_format_attrs,
+};
+
+static ssize_t arc_pmu_events_sysfs_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr;
+
+	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
+	return sprintf(page, "event=0x%04llx\n", pmu_attr->id);
+}
+
+/*
+ * We don't add attrs here as we don't have pre-defined list of perf events.
+ * We will generate and add attrs dynamically in probe() after we read HW
+ * configuration.
+ */
+static struct attribute_group arc_pmu_events_attr_gr = {
+	.name = "events",
+};
+
+static void arc_pmu_add_raw_event_attr(int j, char *str)
+{
+	memmove(arc_pmu->raw_entry[j].name, str, ARCPMU_EVENT_NAME_LEN - 1);
+	arc_pmu->attr[j].attr.attr.name = arc_pmu->raw_entry[j].name;
+	arc_pmu->attr[j].attr.attr.mode = VERIFY_OCTAL_PERMISSIONS(0444);
+	arc_pmu->attr[j].attr.show = arc_pmu_events_sysfs_show;
+	arc_pmu->attr[j].id = j;
+	arc_pmu->attrs[j] = &(arc_pmu->attr[j].attr.attr);
+}
+
+static int arc_pmu_raw_alloc(struct device *dev)
+{
+	arc_pmu->attr = devm_kmalloc_array(dev, arc_pmu->n_events + 1,
+		sizeof(*arc_pmu->attr), GFP_KERNEL | __GFP_ZERO);
+	if (!arc_pmu->attr)
+		return -ENOMEM;
+
+	arc_pmu->attrs = devm_kmalloc_array(dev, arc_pmu->n_events + 1,
+		sizeof(*arc_pmu->attrs), GFP_KERNEL | __GFP_ZERO);
+	if (!arc_pmu->attrs)
+		return -ENOMEM;
+
+	arc_pmu->raw_entry = devm_kmalloc_array(dev, arc_pmu->n_events,
+		sizeof(*arc_pmu->raw_entry), GFP_KERNEL | __GFP_ZERO);
+	if (!arc_pmu->raw_entry)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static inline bool event_in_hw_event_map(int i, char *name)
+{
+	if (!arc_pmu_ev_hw_map[i])
+		return false;
+
+	if (!strlen(arc_pmu_ev_hw_map[i]))
+		return false;
+
+	if (strcmp(arc_pmu_ev_hw_map[i], name))
+		return false;
+
+	return true;
+}
+
+static void arc_pmu_map_hw_event(int j, char *str)
+{
+	int i;
+
+	/* See if HW condition has been mapped to a perf event_id */
+	for (i = 0; i < ARRAY_SIZE(arc_pmu_ev_hw_map); i++) {
+		if (event_in_hw_event_map(i, str)) {
+			pr_debug("mapping perf event %2d to h/w event \'%8s\' (idx %d)\n",
+				 i, str, j);
+			arc_pmu->ev_hw_idx[i] = j;
+		}
+	}
+}
+
 static int arc_pmu_device_probe(struct platform_device *pdev)
 {
 	struct arc_reg_pct_build pct_bcr;
 	struct arc_reg_cc_build cc_bcr;
-	int i, j, has_interrupts;
+	int i, has_interrupts, irq = -1;
 	int counter_size;	/* in bits */
 
 	union cc_name {
 		struct {
-			uint32_t word0, word1;
+			u32 word0, word1;
 			char sentinel;
 		} indiv;
-		char str[9];
+		char str[ARCPMU_EVENT_NAME_LEN];
 	} cc_name;
 
 
@@ -463,13 +742,20 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
-	BUG_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS);
+	if (WARN_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS))
+		return -EINVAL;
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);
-	BUG_ON(!cc_bcr.v); /* Counters exist but No countable conditions ? */
+	if (WARN(!cc_bcr.v, "Counters exist but No countable conditions?"))
+		return -EINVAL;
 
 	arc_pmu = devm_kzalloc(&pdev->dev, sizeof(struct arc_pmu), GFP_KERNEL);
 	if (!arc_pmu)
+		return -ENOMEM;
+
+	arc_pmu->n_events = cc_bcr.c;
+
+	if (arc_pmu_raw_alloc(&pdev->dev))
 		return -ENOMEM;
 
 	has_interrupts = is_isa_arcv2() ? pct_bcr.i : 0;
@@ -481,29 +767,25 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 	pr_info("ARC perf\t: %d counters (%d bits), %d conditions%s\n",
 		arc_pmu->n_counters, counter_size, cc_bcr.c,
-		has_interrupts ? ", [overflow IRQ support]":"");
+		has_interrupts ? ", [overflow IRQ support]" : "");
 
-	cc_name.str[8] = 0;
+	cc_name.str[ARCPMU_EVENT_NAME_LEN - 1] = 0;
 	for (i = 0; i < PERF_COUNT_ARC_HW_MAX; i++)
 		arc_pmu->ev_hw_idx[i] = -1;
 
 	/* loop thru all available h/w condition indexes */
-	for (j = 0; j < cc_bcr.c; j++) {
-		write_aux_reg(ARC_REG_CC_INDEX, j);
-		cc_name.indiv.word0 = read_aux_reg(ARC_REG_CC_NAME0);
-		cc_name.indiv.word1 = read_aux_reg(ARC_REG_CC_NAME1);
+	for (i = 0; i < cc_bcr.c; i++) {
+		write_aux_reg(ARC_REG_CC_INDEX, i);
+		cc_name.indiv.word0 = le32_to_cpu(read_aux_reg(ARC_REG_CC_NAME0));
+		cc_name.indiv.word1 = le32_to_cpu(read_aux_reg(ARC_REG_CC_NAME1));
 
-		/* See if it has been mapped to a perf event_id */
-		for (i = 0; i < ARRAY_SIZE(arc_pmu_ev_hw_map); i++) {
-			if (arc_pmu_ev_hw_map[i] &&
-			    !strcmp(arc_pmu_ev_hw_map[i], cc_name.str) &&
-			    strlen(arc_pmu_ev_hw_map[i])) {
-				pr_debug("mapping perf event %2d to h/w event \'%8s\' (idx %d)\n",
-					 i, cc_name.str, j);
-				arc_pmu->ev_hw_idx[i] = j;
-			}
-		}
+		arc_pmu_map_hw_event(i, cc_name.str);
+		arc_pmu_add_raw_event_attr(i, cc_name.str);
 	}
+
+	arc_pmu_events_attr_gr.attrs = arc_pmu->attrs;
+	arc_pmu->attr_groups[ARCPMU_ATTR_GR_EVENTS] = &arc_pmu_events_attr_gr;
+	arc_pmu->attr_groups[ARCPMU_ATTR_GR_FORMATS] = &arc_pmu_format_attr_gr;
 
 	arc_pmu->pmu = (struct pmu) {
 		.pmu_enable	= arc_pmu_enable,
@@ -514,38 +796,44 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		.start		= arc_pmu_start,
 		.stop		= arc_pmu_stop,
 		.read		= arc_pmu_read,
+		.attr_groups	= arc_pmu->attr_groups,
 	};
 
 	if (has_interrupts) {
-		int irq = platform_get_irq(pdev, 0);
+		irq = platform_get_irq(pdev, 0);
+		if (irq >= 0) {
+			int ret;
 
-		if (irq < 0) {
-			pr_err("Cannot get IRQ number for the platform\n");
-			return -ENODEV;
+			arc_pmu->irq = irq;
+
+			/* intc map function ensures irq_set_percpu_devid() called */
+			ret = request_percpu_irq(irq, arc_pmu_intr, "ARC perf counters",
+						 this_cpu_ptr(&arc_pmu_cpu));
+
+			if (!ret)
+				on_each_cpu(arc_cpu_pmu_irq_init, &irq, 1);
+			else
+				irq = -1;
 		}
 
-		arc_pmu->irq = irq;
+	}
 
-		/* intc map function ensures irq_set_percpu_devid() called */
-		request_percpu_irq(irq, arc_pmu_intr, "ARC perf counters",
-				   this_cpu_ptr(&arc_pmu_cpu));
-
-		on_each_cpu(arc_cpu_pmu_irq_init, &irq, 1);
-
-	} else
+	if (irq == -1)
 		arc_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
-	return perf_pmu_register(&arc_pmu->pmu, pdev->name, PERF_TYPE_RAW);
+	/*
+	 * perf parser doesn't really like '-' symbol in events name, so let's
+	 * use '_' in arc pct name as it goes to kernel PMU event prefix.
+	 */
+	return perf_pmu_register(&arc_pmu->pmu, "arc_pct", PERF_TYPE_RAW);
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id arc_pmu_match[] = {
 	{ .compatible = "snps,arc700-pct" },
 	{ .compatible = "snps,archs-pct" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, arc_pmu_match);
-#endif
 
 static struct platform_driver arc_pmu_driver = {
 	.driver	= {

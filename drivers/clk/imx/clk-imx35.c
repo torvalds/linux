@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -85,14 +81,6 @@ enum mx35_clks {
 };
 
 static struct clk *clk[clk_max];
-
-static struct clk ** const uart_clks[] __initconst = {
-	&clk[ipg],
-	&clk[uart1_gate],
-	&clk[uart2_gate],
-	&clk[uart3_gate],
-	NULL
-};
 
 static void __init _mx35_clocks_init(void)
 {
@@ -247,77 +235,9 @@ static void __init _mx35_clocks_init(void)
 	 */
 	clk_prepare_enable(clk[scc_gate]);
 
-	imx_register_uart_clocks(uart_clks);
+	imx_register_uart_clocks(4);
 
 	imx_print_silicon_rev("i.MX35", mx35_revision());
-}
-
-int __init mx35_clocks_init(void)
-{
-	_mx35_clocks_init();
-
-	clk_register_clkdev(clk[pata_gate], NULL, "pata_imx");
-	clk_register_clkdev(clk[can1_gate], NULL, "flexcan.0");
-	clk_register_clkdev(clk[can2_gate], NULL, "flexcan.1");
-	clk_register_clkdev(clk[cspi1_gate], "per", "imx35-cspi.0");
-	clk_register_clkdev(clk[cspi1_gate], "ipg", "imx35-cspi.0");
-	clk_register_clkdev(clk[cspi2_gate], "per", "imx35-cspi.1");
-	clk_register_clkdev(clk[cspi2_gate], "ipg", "imx35-cspi.1");
-	clk_register_clkdev(clk[epit1_gate], NULL, "imx-epit.0");
-	clk_register_clkdev(clk[epit2_gate], NULL, "imx-epit.1");
-	clk_register_clkdev(clk[esdhc1_gate], "per", "sdhci-esdhc-imx35.0");
-	clk_register_clkdev(clk[ipg], "ipg", "sdhci-esdhc-imx35.0");
-	clk_register_clkdev(clk[ahb], "ahb", "sdhci-esdhc-imx35.0");
-	clk_register_clkdev(clk[esdhc2_gate], "per", "sdhci-esdhc-imx35.1");
-	clk_register_clkdev(clk[ipg], "ipg", "sdhci-esdhc-imx35.1");
-	clk_register_clkdev(clk[ahb], "ahb", "sdhci-esdhc-imx35.1");
-	clk_register_clkdev(clk[esdhc3_gate], "per", "sdhci-esdhc-imx35.2");
-	clk_register_clkdev(clk[ipg], "ipg", "sdhci-esdhc-imx35.2");
-	clk_register_clkdev(clk[ahb], "ahb", "sdhci-esdhc-imx35.2");
-	/* i.mx35 has the i.mx27 type fec */
-	clk_register_clkdev(clk[fec_gate], NULL, "imx27-fec.0");
-	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[i2c1_gate], NULL, "imx21-i2c.0");
-	clk_register_clkdev(clk[i2c2_gate], NULL, "imx21-i2c.1");
-	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
-	clk_register_clkdev(clk[ipu_gate], NULL, "ipu-core");
-	clk_register_clkdev(clk[ipu_gate], NULL, "mx3_sdc_fb");
-	clk_register_clkdev(clk[kpp_gate], NULL, "imx-keypad");
-	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1");
-	clk_register_clkdev(clk[sdma_gate], NULL, "imx35-sdma");
-	clk_register_clkdev(clk[ssi1_gate], NULL, "imx-ssi.0");
-	clk_register_clkdev(clk[ssi2_gate], NULL, "imx-ssi.1");
-	/* i.mx35 has the i.mx21 type uart */
-	clk_register_clkdev(clk[uart1_gate], "per", "imx21-uart.0");
-	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.0");
-	clk_register_clkdev(clk[uart2_gate], "per", "imx21-uart.1");
-	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.1");
-	clk_register_clkdev(clk[uart3_gate], "per", "imx21-uart.2");
-	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.2");
-	/* i.mx35 has the i.mx21 type rtc */
-	clk_register_clkdev(clk[ckil], "ref", "imx21-rtc");
-	clk_register_clkdev(clk[rtc_gate], "ipg", "imx21-rtc");
-	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.0");
-	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.0");
-	clk_register_clkdev(clk[usbotg_gate], "ahb", "mxc-ehci.0");
-	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.1");
-	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.1");
-	clk_register_clkdev(clk[usbotg_gate], "ahb", "mxc-ehci.1");
-	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.2");
-	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
-	clk_register_clkdev(clk[usbotg_gate], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usb_div], "per", "imx-udc-mx27");
-	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
-	clk_register_clkdev(clk[usbotg_gate], "ahb", "imx-udc-mx27");
-	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[nfc_div], NULL, "imx25-nand.0");
-	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");
-	clk_register_clkdev(clk[admux_gate], "audmux", NULL);
-
-	mxc_timer_init(MX35_GPT1_BASE_ADDR, MX35_INT_GPT, GPT_TYPE_IMX31);
-
-	return 0;
 }
 
 static void __init mx35_clocks_init_dt(struct device_node *ccm_node)

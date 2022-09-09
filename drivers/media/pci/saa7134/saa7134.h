@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  * v4l2 device driver for philips saa7134 based TV cards
  *
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #define SAA7134_VERSION "0, 2, 17"
@@ -107,7 +98,6 @@ struct saa7134_tvaudio {
 };
 
 struct saa7134_format {
-	char           *name;
 	unsigned int   fourcc;
 	unsigned int   depth;
 	unsigned int   pm;
@@ -338,6 +328,7 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_AVERMEDIA_505         194
 #define SAA7134_BOARD_LEADTEK_WINFAST_TV2100_FM 195
 #define SAA7134_BOARD_SNAZIO_TVPVR_PRO      196
+#define SAA7134_BOARD_LEADTEK_WINFAST_HDTV200_H 197
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -519,7 +510,7 @@ struct saa7134_dmasound {
 	void			   *vaddr;
 	struct scatterlist	   *sglist;
 	int                        sglen;
-	int                        nr_pages;
+	unsigned long              nr_pages;
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;

@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/device.h>   // for linux/firmware.h
@@ -198,8 +188,8 @@ static int pvr2_encoder_cmd(void *ctxt,
 	}
 
 
-	LOCK_TAKE(hdw->ctl_lock); while (1) {
-
+	LOCK_TAKE(hdw->ctl_lock);
+	while (1) {
 		if (!hdw->state_encoder_ok) {
 			ret = -EIO;
 			break;
@@ -294,8 +284,8 @@ rdData[0]);
 		wrData[0] = 0x0;
 		ret = pvr2_encoder_write_words(hdw,MBOX_BASE,wrData,1);
 		break;
-
-	}; LOCK_GIVE(hdw->ctl_lock);
+	}
+	LOCK_GIVE(hdw->ctl_lock);
 
 	return ret;
 }

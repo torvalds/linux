@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018 NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #define HOST1X_CHANNEL_DMASTART				0x0000
@@ -41,6 +29,6 @@
 #define HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(x)	(0x652c + 4 * (x))
 #define HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(x)	(0x6590 + 4 * (x))
 #define HOST1X_SYNC_SYNCPT(x)				(0x8080 + 4 * (x))
-#define HOST1X_SYNC_SYNCPT_INT_THRESH(x)		(0x8d00 + 4 * (x))
+#define HOST1X_SYNC_SYNCPT_INT_THRESH(x)		(0x9980 + 4 * (x))
 #define HOST1X_SYNC_SYNCPT_CH_APP(x)			(0xa604 + 4 * (x))
 #define HOST1X_SYNC_SYNCPT_CH_APP_CH(v)			(((v) & 0x3f) << 8)

@@ -1,0 +1,332 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (c) 2016 Protonic Holland
+ * Copyright (c) 2020 Oleksij Rempel <kernel@pengutronix.de>, Pengutronix
+ */
+
+/dts-v1/;
+#include "imx6dl.dtsi"
+#include "imx6qdl-vicut1.dtsi"
+
+/ {
+	model = "Kverneland TGO";
+	compatible = "kvg,victgo", "fsl,imx6dl";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiokeys>;
+		autorepeat;
+
+		power {
+			label = "Power Button";
+			gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			wakeup-source;
+		};
+
+		enter {
+			label = "Rotary Key";
+			gpios = <&gpio2 05 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_ENTER>;
+			wakeup-source;
+		};
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&vdiv_vaccu>, <&vdiv_hitch_pos>;
+	};
+
+	panel {
+		compatible = "lg,lb070wv8";
+		backlight = <&backlight_lcd>;
+		power-supply = <&reg_3v3>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
+
+	clk50m_phy: phy-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+	};
+
+	rotary-encoder {
+		compatible = "rotary-encoder";
+		pinctrl-0 = <&pinctrl_rotary_ch>;
+		gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>,
+			<&gpio2 4 GPIO_ACTIVE_HIGH>;
+		linux,axis = <REL_WHEEL>;
+		rotary-encoder,steps-per-period = <4>;
+		rotary-encoder,relative-axis;
+		rotary-encoder,rollover;
+		wakeup-source;
+	};
+
+	thermal-zones {
+		chassis-thermal {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&tsens0>;
+		};
+
+		touch-thermal0 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp0>;
+		};
+
+		touch-thermal1 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp1>;
+		};
+	};
+
+	touchscreen {
+		compatible = "resistive-adc-touch";
+		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>,
+                              <&adc_ts 5>;
+		io-channel-names = "y", "z1", "z2", "x";
+		touchscreen-min-pressure = <64687>;
+		touchscreen-inverted-y;
+		touchscreen-x-plate-ohms = <300>;
+		touchscreen-y-plate-ohms = <800>;
+	};
+
+	touch_temp0: touch-temperature-sensor0 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 0>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 736
+						85000 474>;
+	};
+
+	touch_temp1: touch-temperature-sensor1 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 7>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 826
+						85000 609>;
+	};
+
+	vdiv_vaccu: voltage-divider-vaccu {
+		compatible = "voltage-divider";
+		io-channels = <&adc_ts 2>;
+		output-ohms = <2500>;
+		full-ohms = <64000>;
+		#io-channel-cells = <0>;
+	};
+
+	vdiv_hitch_pos: voltage-divider-hitch-pos {
+		compatible = "voltage-divider";
+		io-channels = <&adc_ts 6>;
+		output-ohms = <3300>;
+		full-ohms = <13300>;
+		#io-channel-cells = <0>;
+	};
+};
+
+&ecspi2 {
+	cs-gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	status = "okay";
+
+	adc_ts: adc@0 {
+		compatible = "ti,tsc2046e-adc";
+		reg = <0>;
+		pinctrl-0 = <&pinctrl_touchscreen>;
+		pinctrl-names = "default";
+		spi-max-frequency = <1000000>;
+		interrupts-extended = <&gpio5 8 IRQ_TYPE_LEVEL_LOW>;
+		#io-channel-cells = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		channel@1 {
+			reg = <1>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@3 {
+			reg = <3>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@4 {
+			reg = <4>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet>;
+	phy-mode = "rmii";
+	clocks = <&clks IMX6QDL_CLK_ENET>,
+		 <&clks IMX6QDL_CLK_ENET>,
+		 <&clk50m_phy>;
+	clock-names = "ipg", "ahb", "ptp";
+	phy-handle = <&rmii_phy>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Microchip KSZ8081RNA PHY */
+		rmii_phy: ethernet-phy@0 {
+			reg = <0>;
+			interrupts-extended = <&gpio4 30 IRQ_TYPE_LEVEL_LOW>;
+			reset-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <300>;
+		};
+	};
+};
+
+&gpio1 {
+	gpio-line-names =
+		"CAN1_TERM", "SD1_CD", "ITU656_RESET", "CAM1_MIRROR",
+			"CAM2_MIRROR", "", "", "SMBALERT",
+		"DEBUG_0", "DEBUG_1", "", "", "", "", "", "",
+		"SD1_DATA0", "SD1_DATA1", "SD1_CMD", "SD1_DATA2", "SD1_CLK",
+			"SD1_DATA3", "ETH_MDIO", "",
+		"", "", "", "", "", "", "", "ETH_MDC";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"", "", "", "", "", "", "UART4_TXD", "UART4_RXD",
+		"UART5_TXD", "UART5_RXD", "CAN1_TX", "CAN1_RX", "CAN1_SR",
+			"CAN2_SR", "CAN2_TX", "CAN2_RX",
+		"", "", "DIP1_FB", "", "VCAM_EN", "ON1_CTRL", "ON2_CTRL",
+			"HITCH_IN_OUT",
+		"LIGHT_ON", "", "ETH_RESET", "CONTACT_IN", "BL_EN",
+			"BL_PWM", "ETH_INT", "ISB_LED";
+};
+
+&gpio5 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"TSC_PENIRQ", "TSC_BUSY", "ECSPI2_MOSI", "ECSPI2_MISO",
+			"ECSPI2_SS0", "ECSPI2_SCLK", "", "",
+		"", "", "ITU656_CLK", "I2S_MCLK", "ITU656_PDN", "AUDIO_RESET",
+			"I2S_BITCLK", "I2S_DOUT",
+		"I2S_LRCLK", "I2S_DIN", "I2C1_SDA", "I2C1_SCL", "YACO_AUX_RX",
+			"YACO_AUX_TX", "ITU656_D0", "ITU656_D1";
+};
+
+&gpio6 {
+	gpio-line-names =
+		"ITU656_D2", "ITU656_D3", "ITU656_D4", "ITU656_D5",
+			"ITU656_D6", "ITU656_D7", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&i2c1 {
+	keypad@70 {
+		compatible = "holtek,ht16k33";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_keypad>;
+		reg = <0x70>;
+		refresh-rate-hz = <20>;
+		debounce-delay-ms = <50>;
+		interrupts-extended = <&gpio4 5 (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_EDGE_RISING)>;
+		keypad,num-rows = <12>;
+		keypad,num-columns = <3>;
+		linux,keymap = <
+			MATRIX_KEY(2, 0, KEY_F6)
+			MATRIX_KEY(3, 0, KEY_F8)
+			MATRIX_KEY(4, 0, KEY_F10)
+			MATRIX_KEY(5, 0, KEY_F4)
+			MATRIX_KEY(6, 0, KEY_F2)
+			MATRIX_KEY(2, 1, KEY_F5)
+			MATRIX_KEY(3, 1, KEY_F7)
+			MATRIX_KEY(4, 1, KEY_F9)
+			MATRIX_KEY(5, 1, KEY_F3)
+			MATRIX_KEY(6, 1, KEY_F1)
+		      >;
+	};
+};
+
+&iomuxc {
+	pinctrl_ecspi2: ecspi2grp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT16__ECSPI2_MOSI		0x100b1
+			MX6QDL_PAD_DISP0_DAT17__ECSPI2_MISO		0x100b1
+			MX6QDL_PAD_DISP0_DAT18__GPIO5_IO12		0x100b1
+			MX6QDL_PAD_DISP0_DAT19__ECSPI2_SCLK		0x100b1
+		>;
+	};
+
+	pinctrl_enet: enetgrp {
+		fsl,pins = <
+			/* MX6QDL_ENET_PINGRP4 */
+			MX6QDL_PAD_ENET_MDC__ENET_MDC			0x1b0b0
+			MX6QDL_PAD_ENET_MDIO__ENET_MDIO			0x1b0b0
+			MX6QDL_PAD_ENET_RXD0__ENET_RX_DATA0		0x1b0b0
+			MX6QDL_PAD_ENET_RXD1__ENET_RX_DATA1		0x1b0b0
+			MX6QDL_PAD_ENET_RX_ER__ENET_RX_ER		0x1b0b0
+			MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN		0x1b0b0
+			MX6QDL_PAD_ENET_TXD0__ENET_TX_DATA0		0x1b0b0
+			MX6QDL_PAD_ENET_TXD1__ENET_TX_DATA1		0x1b0b0
+			MX6QDL_PAD_ENET_CRS_DV__ENET_RX_EN		0x1b0b0
+			MX6QDL_PAD_GPIO_16__ENET_REF_CLK		0x1b0b0
+			/* Phy reset */
+			MX6QDL_PAD_DISP0_DAT5__GPIO4_IO26		0x1b0b0
+			/* nINTRP */
+			MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30		0x1b0b0
+		>;
+	};
+
+	pinctrl_gpiokeys: gpiokeygrp {
+		fsl,pins = <
+			/* ROTARY_BTN */
+			MX6QDL_PAD_NANDF_D5__GPIO2_IO05			0x1b0b0
+			/* nON_SWITCH */
+			MX6QDL_PAD_EIM_CS0__GPIO2_IO23			0x1b0b0
+		>;
+	};
+
+	pinctrl_keypad: keypadgrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_19__GPIO4_IO05			0x1b0b0
+		>;
+	};
+
+	pinctrl_rotary_ch: rotarychgrp {
+		fsl,pins = <
+			MX6QDL_PAD_NANDF_D3__GPIO2_IO03			0x1b0b0
+			MX6QDL_PAD_NANDF_D4__GPIO2_IO04			0x1b0b0
+		>;
+	};
+
+	pinctrl_touchscreen: touchscreengrp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT14__GPIO5_IO08		0x1b0b0
+			MX6QDL_PAD_DISP0_DAT15__GPIO5_IO09		0x1b0b0
+		>;
+	};
+};

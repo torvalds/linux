@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __DIO_DOT_H__
@@ -43,9 +40,11 @@ extern const struct address_space_operations gfs2_rgrp_aops;
 static inline struct gfs2_sbd *gfs2_mapping2sbd(struct address_space *mapping)
 {
 	struct inode *inode = mapping->host;
-	if (mapping->a_ops == &gfs2_meta_aops)
-		return (((struct gfs2_glock *)mapping) - 1)->gl_name.ln_sbd;
-	else if (mapping->a_ops == &gfs2_rgrp_aops)
+	if (mapping->a_ops == &gfs2_meta_aops) {
+		struct gfs2_glock_aspace *gla =
+			container_of(mapping, struct gfs2_glock_aspace, mapping);
+		return gla->glock.gl_name.ln_sbd;
+	} else if (mapping->a_ops == &gfs2_rgrp_aops)
 		return container_of(mapping, struct gfs2_sbd, sd_aspace);
 	else
 		return inode->i_sb->s_fs_info;
@@ -63,14 +62,14 @@ enum {
 };
 
 extern void gfs2_remove_from_journal(struct buffer_head *bh, int meta);
-extern void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
-extern int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
-				     struct buffer_head **bhp);
+extern void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
+extern int gfs2_meta_buffer(struct gfs2_inode *ip, u32 mtype, u64 num,
+			    struct buffer_head **bhp);
 
 static inline int gfs2_meta_inode_buffer(struct gfs2_inode *ip,
 					 struct buffer_head **bhp)
 {
-	return gfs2_meta_indirect_buffer(ip, 0, ip->i_no_addr, bhp);
+	return gfs2_meta_buffer(ip, GFS2_METATYPE_DI, ip->i_no_addr, bhp);
 }
 
 struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen);

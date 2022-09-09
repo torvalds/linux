@@ -107,13 +107,13 @@ typedef struct _HT_INFORMATION_ELE {
 typedef enum _HT_SPEC_VER {
 	HT_SPEC_VER_IEEE = 0,
 	HT_SPEC_VER_EWC = 1,
-}HT_SPEC_VER, *PHT_SPEC_VER;
+} HT_SPEC_VER, *PHT_SPEC_VER;
 
 typedef enum _HT_AGGRE_MODE_E {
 	HT_AGG_AUTO = 0,
 	HT_AGG_FORCE_ENABLE = 1,
 	HT_AGG_FORCE_DISABLE = 2,
-}HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
+} HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
 
 /*
  *  The Data structure is used to keep HT related variables when card is
@@ -253,10 +253,10 @@ extern u8 MCS_FILTER_1SS[16];
 /* 2007/07/12 MH We only define legacy and HT wireless mode now. */
 #define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
 
-#define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-					((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ?\
-						(LegacyRate) :\
-						(PICK_RATE(LegacyRate, HTRate))
+#define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)           \
+		((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ? \
+			(LegacyRate) :                           \
+			(PICK_RATE(LegacyRate, HTRate))
 
 // MCS Bw 40 {1~7, 12~15,32}
 #define	RATE_ADPT_1SS_MASK		0xFF
@@ -270,11 +270,10 @@ typedef enum _HT_AGGRE_SIZE {
 	HT_AGG_SIZE_16K = 1,
 	HT_AGG_SIZE_32K = 2,
 	HT_AGG_SIZE_64K = 3,
-}HT_AGGRE_SIZE_E, *PHT_AGGRE_SIZE_E;
+} HT_AGGRE_SIZE_E, *PHT_AGGRE_SIZE_E;
 
 /* Indicate different AP vendor for IOT issue */
-typedef enum _HT_IOT_PEER
-{
+typedef enum _HT_IOT_PEER {
 	HT_IOT_PEER_UNKNOWN = 0,
 	HT_IOT_PEER_REALTEK = 1,
 	HT_IOT_PEER_BROADCOM = 2,
@@ -282,7 +281,7 @@ typedef enum _HT_IOT_PEER
 	HT_IOT_PEER_ATHEROS = 4,
 	HT_IOT_PEER_CISCO = 5,
 	HT_IOT_PEER_MAX = 6
-}HT_IOT_PEER_E, *PHTIOT_PEER_E;
+} HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
 /*
  * IOT Action for different AP
@@ -298,6 +297,6 @@ typedef enum _HT_IOT_ACTION {
 	HT_IOT_ACT_CDD_FSYNC = 0x00000080,
 	HT_IOT_ACT_PURE_N_MODE = 0x00000100,
 	HT_IOT_ACT_FORCED_CTS2SELF = 0x00000200,
-}HT_IOT_ACTION_E, *PHT_IOT_ACTION_E;
+} HT_IOT_ACTION_E, *PHT_IOT_ACTION_E;
 
 #endif //_RTL819XU_HTTYPE_H_

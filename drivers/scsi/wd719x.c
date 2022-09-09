@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Western Digital WD7193, WD7197 and WD7296 SCSI cards
  * Copyright 2013 Ondrej Zary
@@ -107,8 +108,15 @@ static inline int wd719x_wait_done(struct wd719x *wd, int timeout)
 	}
 
 	if (status != WD719X_INT_NOERRORS) {
+		u8 sue = wd719x_readb(wd, WD719X_AMR_SCB_ERROR);
+		/* we get this after wd719x_dev_reset, it's not an error */
+		if (sue == WD719X_SUE_TERM)
+			return 0;
+		/* we get this after wd719x_bus_reset, it's not an error */
+		if (sue == WD719X_SUE_RESET)
+			return 0;
 		dev_err(&wd->pdev->dev, "direct command failed, status 0x%02x, SUE 0x%02x\n",
-			status, wd719x_readb(wd, WD719X_AMR_SCB_ERROR));
+			status, sue);
 		return -EIO;
 	}
 
@@ -127,8 +135,10 @@ static int wd719x_direct_cmd(struct wd719x *wd, u8 opcode, u8 dev, u8 lun,
 	if (wd719x_wait_ready(wd))
 		return -ETIMEDOUT;
 
-	/* make sure we get NO interrupts */
-	dev |= WD719X_DISABLE_INT;
+	/* disable interrupts except for RESET/ABORT (it breaks them) */
+	if (opcode != WD719X_CMD_BUSRESET && opcode != WD719X_CMD_ABORT &&
+	    opcode != WD719X_CMD_ABORT_TAG && opcode != WD719X_CMD_RESET)
+		dev |= WD719X_DISABLE_INT;
 	wd719x_writeb(wd, WD719X_AMR_CMD_PARAM, dev);
 	wd719x_writeb(wd, WD719X_AMR_CMD_PARAM_2, lun);
 	wd719x_writeb(wd, WD719X_AMR_CMD_PARAM_3, tag);
@@ -186,11 +196,11 @@ static void wd719x_finish_cmd(struct wd719x_scb *scb, int result)
 	dma_unmap_single(&wd->pdev->dev, scb->phys,
 			sizeof(struct wd719x_scb), DMA_BIDIRECTIONAL);
 	scsi_dma_unmap(cmd);
-	dma_unmap_single(&wd->pdev->dev, cmd->SCp.dma_handle,
+	dma_unmap_single(&wd->pdev->dev, scb->dma_handle,
 			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 
 	cmd->result = result << 16;
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 }
 
 /* Build a SCB and send it to the card */
@@ -219,11 +229,11 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	/* map sense buffer */
 	scb->sense_buf_length = SCSI_SENSE_BUFFERSIZE;
-	cmd->SCp.dma_handle = dma_map_single(&wd->pdev->dev, cmd->sense_buffer,
-			SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
-	if (dma_mapping_error(&wd->pdev->dev, cmd->SCp.dma_handle))
+	scb->dma_handle = dma_map_single(&wd->pdev->dev, cmd->sense_buffer,
+			       SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&wd->pdev->dev, scb->dma_handle))
 		goto out_unmap_scb;
-	scb->sense_buf = cpu_to_le32(cmd->SCp.dma_handle);
+	scb->sense_buf = cpu_to_le32(scb->dma_handle);
 
 	/* request autosense */
 	scb->SCB_options |= WD719X_SCB_FLAGS_AUTO_REQUEST_SENSE;
@@ -278,14 +288,14 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	return 0;
 
 out_unmap_sense:
-	dma_unmap_single(&wd->pdev->dev, cmd->SCp.dma_handle,
+	dma_unmap_single(&wd->pdev->dev, scb->dma_handle,
 			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 out_unmap_scb:
 	dma_unmap_single(&wd->pdev->dev, scb->phys, sizeof(*scb),
 			 DMA_BIDIRECTIONAL);
 out_error:
 	cmd->result = DID_ERROR << 16;
-	cmd->scsi_done(cmd);
+	scsi_done(cmd);
 	return 0;
 }
 
@@ -456,14 +466,17 @@ static int wd719x_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	struct wd719x_scb *scb = scsi_cmd_priv(cmd);
 	struct wd719x *wd = shost_priv(cmd->device->host);
+	struct device *dev = &wd->pdev->dev;
 
-	dev_info(&wd->pdev->dev, "abort command, tag: %x\n", cmd->tag);
+	dev_info(dev, "abort command, tag: %x\n", scsi_cmd_to_rq(cmd)->tag);
 
-	action = /*cmd->tag ? WD719X_CMD_ABORT_TAG : */WD719X_CMD_ABORT;
+	action = WD719X_CMD_ABORT;
 
 	spin_lock_irqsave(wd->sh->host_lock, flags);
 	result = wd719x_direct_cmd(wd, action, cmd->device->id,
-				   cmd->device->lun, cmd->tag, scb->phys, 0);
+				   cmd->device->lun, scsi_cmd_to_rq(cmd)->tag,
+				   scb->phys, 0);
+	wd719x_finish_cmd(scb, DID_ABORT);
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
 	if (result)
 		return FAILED;
@@ -476,6 +489,7 @@ static int wd719x_reset(struct scsi_cmnd *cmd, u8 opcode, u8 device)
 	int result;
 	unsigned long flags;
 	struct wd719x *wd = shost_priv(cmd->device->host);
+	struct wd719x_scb *scb, *tmp;
 
 	dev_info(&wd->pdev->dev, "%s reset requested\n",
 		 (opcode == WD719X_CMD_BUSRESET) ? "bus" : "device");
@@ -483,6 +497,12 @@ static int wd719x_reset(struct scsi_cmnd *cmd, u8 opcode, u8 device)
 	spin_lock_irqsave(wd->sh->host_lock, flags);
 	result = wd719x_direct_cmd(wd, opcode, device, 0, 0, 0,
 				   WD719X_WAIT_FOR_SCSI_RESET);
+	/* flush all SCBs (or all for a device if dev_reset) */
+	list_for_each_entry_safe(scb, tmp, &wd->active_scbs, list) {
+		if (opcode == WD719X_CMD_BUSRESET ||
+		    scb->cmd->device->id == device)
+			wd719x_finish_cmd(scb, DID_RESET);
+	}
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
 	if (result)
 		return FAILED;
@@ -505,22 +525,23 @@ static int wd719x_host_reset(struct scsi_cmnd *cmd)
 	struct wd719x *wd = shost_priv(cmd->device->host);
 	struct wd719x_scb *scb, *tmp;
 	unsigned long flags;
-	int result;
 
 	dev_info(&wd->pdev->dev, "host reset requested\n");
 	spin_lock_irqsave(wd->sh->host_lock, flags);
-	/* Try to reinit the RISC */
-	if (wd719x_chip_init(wd) == 0)
-		result = SUCCESS;
-	else
-		result = FAILED;
+	/* stop the RISC */
+	if (wd719x_direct_cmd(wd, WD719X_CMD_SLEEP, 0, 0, 0, 0,
+			      WD719X_WAIT_FOR_RISC))
+		dev_warn(&wd->pdev->dev, "RISC sleep command failed\n");
+	/* disable RISC */
+	wd719x_writeb(wd, WD719X_PCI_MODE_SELECT, 0);
 
 	/* flush all SCBs */
 	list_for_each_entry_safe(scb, tmp, &wd->active_scbs, list)
-		wd719x_finish_cmd(scb, result);
+		wd719x_finish_cmd(scb, DID_RESET);
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
 
-	return result;
+	/* Try to reinit the RISC */
+	return wd719x_chip_init(wd) == 0 ? SUCCESS : FAILED;
 }
 
 static int wd719x_biosparam(struct scsi_device *sdev, struct block_device *bdev,
@@ -672,7 +693,7 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 			else
 				dev_err(&wd->pdev->dev, "card returned invalid SCB pointer\n");
 		} else
-			dev_warn(&wd->pdev->dev, "direct command 0x%x completed\n",
+			dev_dbg(&wd->pdev->dev, "direct command 0x%x completed\n",
 				 regs.bytes.OPC);
 		break;
 	case WD719X_INT_PIOREADY:
@@ -883,7 +904,8 @@ static int wd719x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *d)
 	if (err)
 		goto fail;
 
-	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (err) {
 		dev_warn(&pdev->dev, "Unable to set 32-bit DMA mask\n");
 		goto disable_device;
 	}

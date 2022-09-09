@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Lantiq XWAY SoC RCU module based USB 1.1/2.0 PHY driver
  *
  * Copyright (C) 2016 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
  * Copyright (C) 2017 Hauke Mehrtens <hauke@hauke-m.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -127,8 +124,16 @@ static int ltq_rcu_usb2_phy_power_on(struct phy *phy)
 	reset_control_deassert(priv->phy_reset);
 
 	ret = clk_prepare_enable(priv->phy_gate_clk);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "failed to enable PHY gate\n");
+		return ret;
+	}
+
+	/*
+	 * at least the xrx200 usb2 phy requires some extra time to be
+	 * operational after enabling the clock
+	 */
+	usleep_range(100, 200);
 
 	return ret;
 }
@@ -144,7 +149,7 @@ static int ltq_rcu_usb2_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops ltq_rcu_usb2_phy_ops = {
+static const struct phy_ops ltq_rcu_usb2_phy_ops = {
 	.init		= ltq_rcu_usb2_phy_init,
 	.power_on	= ltq_rcu_usb2_phy_power_on,
 	.power_off	= ltq_rcu_usb2_phy_power_off,

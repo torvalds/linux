@@ -14,11 +14,31 @@
 
 unsigned long initrd_start, initrd_end;
 int initrd_below_start_ok;
-unsigned int real_root_dev;	/* do_proc_dointvec cannot handle kdev_t */
+static unsigned int real_root_dev;	/* do_proc_dointvec cannot handle kdev_t */
 static int __initdata mount_initrd = 1;
 
 phys_addr_t phys_initrd_start __initdata;
 unsigned long phys_initrd_size __initdata;
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table kern_do_mounts_initrd_table[] = {
+	{
+		.procname       = "real-root-dev",
+		.data           = &real_root_dev,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{ }
+};
+
+static __init int kernel_do_mounts_initrd_sysctls_init(void)
+{
+	register_sysctl_init("kernel", kern_do_mounts_initrd_table);
+	return 0;
+}
+late_initcall(kernel_do_mounts_initrd_sysctls_init);
+#endif /* CONFIG_SYSCTL */
 
 static int __init no_initrd(char *str)
 {
@@ -28,7 +48,7 @@ static int __init no_initrd(char *str)
 
 __setup("noinitrd", no_initrd);
 
-static int __init early_initrd(char *p)
+static int __init early_initrdmem(char *p)
 {
 	phys_addr_t start;
 	unsigned long size;
@@ -43,19 +63,22 @@ static int __init early_initrd(char *p)
 	}
 	return 0;
 }
+early_param("initrdmem", early_initrdmem);
+
+static int __init early_initrd(char *p)
+{
+	return early_initrdmem(p);
+}
 early_param("initrd", early_initrd);
 
-static int init_linuxrc(struct subprocess_info *info, struct cred *new)
+static int __init init_linuxrc(struct subprocess_info *info, struct cred *new)
 {
 	ksys_unshare(CLONE_FS | CLONE_FILES);
-	/* stdin/stdout/stderr for /linuxrc */
-	ksys_open("/dev/console", O_RDWR, 0);
-	ksys_dup(0);
-	ksys_dup(0);
+	console_on_rootfs();
 	/* move initrd over / and chdir/chroot in initrd root */
-	ksys_chdir("/root");
-	ksys_mount(".", "/", NULL, MS_MOVE, NULL);
-	ksys_chroot(".");
+	init_chdir("/root");
+	init_mount(".", "/", NULL, MS_MOVE, NULL);
+	init_chroot(".");
 	ksys_setsid();
 	return 0;
 }
@@ -67,12 +90,14 @@ static void __init handle_initrd(void)
 	extern char *envp_init[];
 	int error;
 
+	pr_warn("using deprecated initrd support, will be removed in 2021.\n");
+
 	real_root_dev = new_encode_dev(ROOT_DEV);
 	create_dev("/dev/root.old", Root_RAM0);
 	/* mount initrd on rootfs' /root */
 	mount_block_root("/dev/root.old", root_mountflags & ~MS_RDONLY);
-	ksys_mkdir("/old", 0700);
-	ksys_chdir("/old");
+	init_mkdir("/old", 0700);
+	init_chdir("/old");
 
 	/*
 	 * In case that a resume from disk is carried out by linuxrc or one of
@@ -89,39 +114,30 @@ static void __init handle_initrd(void)
 	current->flags &= ~PF_FREEZER_SKIP;
 
 	/* move initrd to rootfs' /old */
-	ksys_mount("..", ".", NULL, MS_MOVE, NULL);
+	init_mount("..", ".", NULL, MS_MOVE, NULL);
 	/* switch root and cwd back to / of rootfs */
-	ksys_chroot("..");
+	init_chroot("..");
 
 	if (new_decode_dev(real_root_dev) == Root_RAM0) {
-		ksys_chdir("/old");
+		init_chdir("/old");
 		return;
 	}
 
-	ksys_chdir("/");
+	init_chdir("/");
 	ROOT_DEV = new_decode_dev(real_root_dev);
 	mount_root();
 
 	printk(KERN_NOTICE "Trying to move old root to /initrd ... ");
-	error = ksys_mount("/old", "/root/initrd", NULL, MS_MOVE, NULL);
+	error = init_mount("/old", "/root/initrd", NULL, MS_MOVE, NULL);
 	if (!error)
 		printk("okay\n");
 	else {
-		int fd = ksys_open("/dev/root.old", O_RDWR, 0);
 		if (error == -ENOENT)
 			printk("/initrd does not exist. Ignored.\n");
 		else
 			printk("failed\n");
 		printk(KERN_NOTICE "Unmounting old root\n");
-		ksys_umount("/old", MNT_DETACH);
-		printk(KERN_NOTICE "Trying to free ramdisk memory ... ");
-		if (fd < 0) {
-			error = fd;
-		} else {
-			error = ksys_ioctl(fd, BLKFLSBUF, 0);
-			ksys_close(fd);
-		}
-		printk(!error ? "okay\n" : "failed\n");
+		init_umount("/old", MNT_DETACH);
 	}
 }
 
@@ -136,11 +152,11 @@ bool __init initrd_load(void)
 		 * mounted in the normal path.
 		 */
 		if (rd_load_image("/initrd.image") && ROOT_DEV != Root_RAM0) {
-			ksys_unlink("/initrd.image");
+			init_unlink("/initrd.image");
 			handle_initrd();
 			return true;
 		}
 	}
-	ksys_unlink("/initrd.image");
+	init_unlink("/initrd.image");
 	return false;
 }

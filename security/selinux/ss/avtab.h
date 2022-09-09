@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * An access vector table (avtab) is a hash table
  * of access vectors and transition types indexed
@@ -13,9 +14,6 @@
  * 	Added conditional policy language extensions
  *
  * Copyright (C) 2003 Tresys Technology, LLC
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation, version 2.
  *
  * Updated: Yuichi Nakamura <ynakam@hitachisoft.jp>
  * 	Tuned number of hash slots for avtab to reduce memory usage
@@ -24,7 +22,6 @@
 #define _SS_AVTAB_H_
 
 #include "security.h"
-#include <linux/flex_array.h>
 
 struct avtab_key {
 	u16 source_type;	/* source type */
@@ -84,33 +81,35 @@ struct avtab_node {
 };
 
 struct avtab {
-	struct flex_array *htable;
+	struct avtab_node **htable;
 	u32 nel;	/* number of elements */
 	u32 nslot;      /* number of hash slots */
 	u32 mask;       /* mask to compute hash func */
-
 };
 
-int avtab_init(struct avtab *);
+void avtab_init(struct avtab *h);
 int avtab_alloc(struct avtab *, u32);
-struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *k);
+int avtab_alloc_dup(struct avtab *new, const struct avtab *orig);
+struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *k);
 void avtab_destroy(struct avtab *h);
 void avtab_hash_eval(struct avtab *h, char *tag);
 
 struct policydb;
 int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
-		    int (*insert)(struct avtab *a, struct avtab_key *k,
-				  struct avtab_datum *d, void *p),
+		    int (*insert)(struct avtab *a, const struct avtab_key *k,
+				  const struct avtab_datum *d, void *p),
 		    void *p);
 
 int avtab_read(struct avtab *a, void *fp, struct policydb *pol);
-int avtab_write_item(struct policydb *p, struct avtab_node *cur, void *fp);
+int avtab_write_item(struct policydb *p, const struct avtab_node *cur, void *fp);
 int avtab_write(struct policydb *p, struct avtab *a, void *fp);
 
-struct avtab_node *avtab_insert_nonunique(struct avtab *h, struct avtab_key *key,
-					  struct avtab_datum *datum);
+struct avtab_node *avtab_insert_nonunique(struct avtab *h,
+					  const struct avtab_key *key,
+					  const struct avtab_datum *datum);
 
-struct avtab_node *avtab_search_node(struct avtab *h, struct avtab_key *key);
+struct avtab_node *avtab_search_node(struct avtab *h,
+				     const struct avtab_key *key);
 
 struct avtab_node *avtab_search_node_next(struct avtab_node *node, int specified);
 

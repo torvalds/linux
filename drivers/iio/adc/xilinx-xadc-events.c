@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx XADC driver
  *
  * Copyright 2013 Analog Devices Inc.
- *  Author: Lars-Peter Clauen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
+ *  Author: Lars-Peter Clausen <lars@metafoo.de>
  */
 
 #include <linux/iio/events.h>
@@ -156,9 +155,6 @@ err_out:
 	return ret;
 }
 
-/* Register value is msb aligned, the lower 4 bits are ignored */
-#define XADC_THRESHOLD_VALUE_SHIFT 4
-
 int xadc_read_event_value(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
 	enum iio_event_direction dir, enum iio_event_info info,
@@ -178,7 +174,8 @@ int xadc_read_event_value(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	*val >>= XADC_THRESHOLD_VALUE_SHIFT;
+	/* MSB aligned */
+	*val >>= 16 - chan->scan_type.realbits;
 
 	return IIO_VAL_INT;
 }
@@ -192,7 +189,8 @@ int xadc_write_event_value(struct iio_dev *indio_dev,
 	struct xadc *xadc = iio_priv(indio_dev);
 	int ret = 0;
 
-	val <<= XADC_THRESHOLD_VALUE_SHIFT;
+	/* MSB aligned */
+	val <<= 16 - chan->scan_type.realbits;
 
 	if (val < 0 || val > 0xffff)
 		return -EINVAL;

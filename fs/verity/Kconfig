@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config FS_VERITY
+	bool "FS Verity (read-only file-based authenticity protection)"
+	select CRYPTO
+	select CRYPTO_HASH_INFO
+	# SHA-256 is implied as it's intended to be the default hash algorithm.
+	# To avoid bloat, other wanted algorithms must be selected explicitly.
+	# Note that CRYPTO_SHA256 denotes the generic C implementation, but
+	# some architectures provided optimized implementations of the same
+	# algorithm that may be used instead. In this case, CRYPTO_SHA256 may
+	# be omitted even if SHA-256 is being used.
+	imply CRYPTO_SHA256
+	help
+	  This option enables fs-verity.  fs-verity is the dm-verity
+	  mechanism implemented at the file level.  On supported
+	  filesystems (currently ext4, f2fs, and btrfs), userspace can
+	  use an ioctl to enable verity for a file, which causes the
+	  filesystem to build a Merkle tree for the file.  The filesystem
+	  will then transparently verify any data read from the file
+	  against the Merkle tree.  The file is also made read-only.
+
+	  This serves as an integrity check, but the availability of the
+	  Merkle tree root hash also allows efficiently supporting
+	  various use cases where normally the whole file would need to
+	  be hashed at once, such as: (a) auditing (logging the file's
+	  hash), or (b) authenticity verification (comparing the hash
+	  against a known good value, e.g. from a digital signature).
+
+	  fs-verity is especially useful on large files where not all
+	  the contents may actually be needed.  Also, fs-verity verifies
+	  data each time it is paged back in, which provides better
+	  protection against malicious disks vs. an ahead-of-time hash.
+
+	  If unsure, say N.
+
+config FS_VERITY_DEBUG
+	bool "FS Verity debugging"
+	depends on FS_VERITY
+	help
+	  Enable debugging messages related to fs-verity by default.
+
+	  Say N unless you are an fs-verity developer.
+
+config FS_VERITY_BUILTIN_SIGNATURES
+	bool "FS Verity builtin signature support"
+	depends on FS_VERITY
+	select SYSTEM_DATA_VERIFICATION
+	help
+	  Support verifying signatures of verity files against the X.509
+	  certificates that have been loaded into the ".fs-verity"
+	  kernel keyring.
+
+	  This is meant as a relatively simple mechanism that can be
+	  used to provide an authenticity guarantee for verity files, as
+	  an alternative to IMA appraisal.  Userspace programs still
+	  need to check that the verity bit is set in order to get an
+	  authenticity guarantee.
+
+	  If unsure, say N.

@@ -12,6 +12,8 @@ Required properties:
 - reg: I2C address of the SC16IS7xx device.
 - interrupts: Should contain the UART interrupt
 - clocks: Reference to the IC source clock.
+	OR (when there is no clock provider visible to the platform)
+- clock-frequency: The source clock frequency for the IC.
 
 Optional properties:
 - gpio-controller: Marks the device node as a GPIO controller.
@@ -19,6 +21,8 @@ Optional properties:
   the second cell is used to specify the GPIO polarity:
     0 = active high,
     1 = active low.
+- irda-mode-ports: An array that lists the indices of the port that
+		   should operate in IrDA mode.
 
 Example:
         sc16is750: sc16is750@51 {
@@ -53,6 +57,8 @@ Optional properties:
   the second cell is used to specify the GPIO polarity:
     0 = active high,
     1 = active low.
+- irda-mode-ports: An array that lists the indices of the port that
+		   should operate in IrDA mode.
 
 Example:
 	sc16is750: sc16is750@0 {

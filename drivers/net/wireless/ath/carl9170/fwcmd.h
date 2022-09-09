@@ -127,7 +127,7 @@ struct carl9170_write_reg {
 struct carl9170_write_reg_byte {
 	__le32	addr;
 	__le32  count;
-	u8	val[0];
+	u8	val[];
 } __packed;
 
 #define	CARL9170FW_PHY_HT_ENABLE		0x4
@@ -240,7 +240,7 @@ struct carl9170_cmd {
 		struct carl9170_bcn_ctrl_cmd	bcn_ctrl;
 		struct carl9170_rx_filter_cmd	rx_filter;
 		u8 data[CARL9170_MAX_CMD_PAYLOAD_LEN];
-	} __packed;
+	} __packed __aligned(4);
 } __packed __aligned(4);
 
 #define	CARL9170_TX_STATUS_QUEUE	3

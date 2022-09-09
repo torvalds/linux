@@ -155,6 +155,7 @@ struct omap_sr {
 	struct voltagedomain		*voltdm;
 	struct dentry			*dbg_dir;
 	unsigned int			irq;
+	struct clk			*fck;
 	int				srid;
 	int				ip_type;
 	int				nvalue_count;
@@ -169,6 +170,7 @@ struct omap_sr {
 	u32				senp_mod;
 	u32				senn_mod;
 	void __iomem			*base;
+	unsigned long			enabled:1;
 };
 
 /**
@@ -292,6 +294,9 @@ struct omap_sr_data {
 	struct omap_sr_nvalue_table	*nvalue_table;
 	struct voltagedomain		*voltdm;
 };
+
+
+extern struct omap_sr_data omap_sr_pdata[OMAP_SR_NR];
 
 #ifdef CONFIG_POWER_AVS_OMAP
 

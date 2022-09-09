@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/compiler_types.h>
 #include <linux/errno.h>
@@ -11,15 +11,17 @@
 #include <linux/kdev_t.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/namei.h>
 #include <linux/magic.h>
 #include <linux/major.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/mount.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
 #include <linux/radix-tree.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock_types.h>
 #include <linux/stddef.h>
@@ -30,7 +32,7 @@
 #include <linux/xarray.h>
 #include <uapi/asm-generic/errno-base.h>
 #include <uapi/linux/android/binder.h>
-#include <uapi/linux/android/binder_ctl.h>
+#include <uapi/linux/android/binderfs.h>
 
 #include "binder_internal.h"
 
@@ -39,34 +41,47 @@
 #define INODE_OFFSET 3
 #define INTSTRLEN 21
 #define BINDERFS_MAX_MINOR (1U << MINORBITS)
-
-static struct vfsmount *binderfs_mnt;
+/* Ensure that the initial ipc namespace always has devices available. */
+#define BINDERFS_MAX_MINOR_CAPPED (BINDERFS_MAX_MINOR - 4)
 
 static dev_t binderfs_dev;
 static DEFINE_MUTEX(binderfs_minors_mutex);
 static DEFINE_IDA(binderfs_minors);
 
-/**
- * binderfs_info - information about a binderfs mount
- * @ipc_ns:         The ipc namespace the binderfs mount belongs to.
- * @control_dentry: This records the dentry of this binderfs mount
- *                  binder-control device.
- * @root_uid:       uid that needs to be used when a new binder device is
- *                  created.
- * @root_gid:       gid that needs to be used when a new binder device is
- *                  created.
- */
-struct binderfs_info {
-	struct ipc_namespace *ipc_ns;
-	struct dentry *control_dentry;
-	kuid_t root_uid;
-	kgid_t root_gid;
-
+enum binderfs_param {
+	Opt_max,
+	Opt_stats_mode,
 };
 
-static inline struct binderfs_info *BINDERFS_I(const struct inode *inode)
+enum binderfs_stats_mode {
+	binderfs_stats_mode_unset,
+	binderfs_stats_mode_global,
+};
+
+struct binder_features {
+	bool oneway_spam_detection;
+	bool extended_error;
+};
+
+static const struct constant_table binderfs_param_stats[] = {
+	{ "global", binderfs_stats_mode_global },
+	{}
+};
+
+static const struct fs_parameter_spec binderfs_fs_parameters[] = {
+	fsparam_u32("max",	Opt_max),
+	fsparam_enum("stats",	Opt_stats_mode, binderfs_param_stats),
+	{}
+};
+
+static struct binder_features binder_features = {
+	.oneway_spam_detection = true,
+	.extended_error = true,
+};
+
+static inline struct binderfs_info *BINDERFS_SB(const struct super_block *sb)
 {
-	return inode->i_sb->s_fs_info;
+	return sb->s_fs_info;
 }
 
 bool is_binderfs_device(const struct inode *inode)
@@ -84,7 +99,7 @@ bool is_binderfs_device(const struct inode *inode)
  * @userp:     buffer to copy information about new device for userspace to
  * @req:       struct binderfs_device as copied from userspace
  *
- * This function allocated a new binder_device and reserves a new minor
+ * This function allocates a new binder_device and reserves a new minor
  * number for it.
  * Minor numbers are limited and tracked globally in binderfs_minors. The
  * function will stash a struct binder_device for the specific binder
@@ -100,20 +115,34 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 					 struct binderfs_device *req)
 {
 	int minor, ret;
-	struct dentry *dentry, *dup, *root;
+	struct dentry *dentry, *root;
 	struct binder_device *device;
-	size_t name_len = BINDERFS_MAX_NAME + 1;
 	char *name = NULL;
+	size_t name_len;
 	struct inode *inode = NULL;
 	struct super_block *sb = ref_inode->i_sb;
 	struct binderfs_info *info = sb->s_fs_info;
+#if defined(CONFIG_IPC_NS)
+	bool use_reserve = (info->ipc_ns == &init_ipc_ns);
+#else
+	bool use_reserve = true;
+#endif
 
 	/* Reserve new minor number for the new device. */
 	mutex_lock(&binderfs_minors_mutex);
-	minor = ida_alloc_max(&binderfs_minors, BINDERFS_MAX_MINOR, GFP_KERNEL);
-	mutex_unlock(&binderfs_minors_mutex);
-	if (minor < 0)
+	if (++info->device_count <= info->mount_opts.max)
+		minor = ida_alloc_max(&binderfs_minors,
+				      use_reserve ? BINDERFS_MAX_MINOR :
+						    BINDERFS_MAX_MINOR_CAPPED,
+				      GFP_KERNEL);
+	else
+		minor = -ENOSPC;
+	if (minor < 0) {
+		--info->device_count;
+		mutex_unlock(&binderfs_minors_mutex);
 		return minor;
+	}
+	mutex_unlock(&binderfs_minors_mutex);
 
 	ret = -ENOMEM;
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
@@ -132,12 +161,14 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	inode->i_uid = info->root_uid;
 	inode->i_gid = info->root_gid;
 
-	name = kmalloc(name_len, GFP_KERNEL);
+	req->name[BINDERFS_MAX_NAME] = '\0'; /* NUL-terminate */
+	name_len = strlen(req->name);
+	/* Make sure to include terminating NUL byte */
+	name = kmemdup(req->name, name_len + 1, GFP_KERNEL);
 	if (!name)
 		goto err;
 
-	strscpy(name, req->name, name_len);
-
+	refcount_set(&device->ref, 1);
 	device->binderfs_inode = inode;
 	device->context.binder_context_mgr_uid = INVALID_UID;
 	device->context.name = name;
@@ -148,36 +179,32 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	req->major = MAJOR(binderfs_dev);
 	req->minor = minor;
 
-	ret = copy_to_user(userp, req, sizeof(*req));
-	if (ret) {
+	if (userp && copy_to_user(userp, req, sizeof(*req))) {
 		ret = -EFAULT;
 		goto err;
 	}
 
 	root = sb->s_root;
 	inode_lock(d_inode(root));
-	dentry = d_alloc_name(root, name);
-	if (!dentry) {
+
+	/* look it up */
+	dentry = lookup_one_len(name, root, name_len);
+	if (IS_ERR(dentry)) {
 		inode_unlock(d_inode(root));
-		ret = -ENOMEM;
+		ret = PTR_ERR(dentry);
 		goto err;
 	}
 
-	/* Verify that the name userspace gave us is not already in use. */
-	dup = d_lookup(root, &dentry->d_name);
-	if (dup) {
-		if (d_really_is_positive(dup)) {
-			dput(dup);
-			dput(dentry);
-			inode_unlock(d_inode(root));
-			ret = -EEXIST;
-			goto err;
-		}
-		dput(dup);
+	if (d_really_is_positive(dentry)) {
+		/* already exists */
+		dput(dentry);
+		inode_unlock(d_inode(root));
+		ret = -EEXIST;
+		goto err;
 	}
 
 	inode->i_private = device;
-	d_add(dentry, inode);
+	d_instantiate(dentry, inode);
 	fsnotify_create(root->d_inode, dentry);
 	inode_unlock(d_inode(root));
 
@@ -187,6 +214,7 @@ err:
 	kfree(name);
 	kfree(device);
 	mutex_lock(&binderfs_minors_mutex);
+	--info->device_count;
 	ida_free(&binderfs_minors, minor);
 	mutex_unlock(&binderfs_minors_mutex);
 	iput(inode);
@@ -232,57 +260,127 @@ static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 static void binderfs_evict_inode(struct inode *inode)
 {
 	struct binder_device *device = inode->i_private;
+	struct binderfs_info *info = BINDERFS_SB(inode->i_sb);
 
 	clear_inode(inode);
 
-	if (!device)
+	if (!S_ISCHR(inode->i_mode) || !device)
 		return;
 
 	mutex_lock(&binderfs_minors_mutex);
+	--info->device_count;
 	ida_free(&binderfs_minors, device->miscdev.minor);
 	mutex_unlock(&binderfs_minors_mutex);
 
-	kfree(device->context.name);
-	kfree(device);
+	if (refcount_dec_and_test(&device->ref)) {
+		kfree(device->context.name);
+		kfree(device);
+	}
 }
 
-static const struct super_operations binderfs_super_ops = {
-	.statfs = simple_statfs,
-	.evict_inode = binderfs_evict_inode,
-};
-
-static int binderfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			   struct inode *new_dir, struct dentry *new_dentry,
-			   unsigned int flags)
+static int binderfs_fs_context_parse_param(struct fs_context *fc,
+					   struct fs_parameter *param)
 {
-	struct inode *inode = d_inode(old_dentry);
+	int opt;
+	struct binderfs_mount_opts *ctx = fc->fs_private;
+	struct fs_parse_result result;
 
-	/* binderfs doesn't support directories. */
-	if (d_is_dir(old_dentry))
-		return -EPERM;
+	opt = fs_parse(fc, binderfs_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
 
-	if (flags & ~RENAME_NOREPLACE)
-		return -EINVAL;
+	switch (opt) {
+	case Opt_max:
+		if (result.uint_32 > BINDERFS_MAX_MINOR)
+			return invalfc(fc, "Bad value for '%s'", param->key);
 
-	if (!simple_empty(new_dentry))
-		return -ENOTEMPTY;
+		ctx->max = result.uint_32;
+		break;
+	case Opt_stats_mode:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 
-	if (d_really_is_positive(new_dentry))
-		simple_unlink(new_dir, new_dentry);
-
-	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
-		new_dir->i_mtime = inode->i_ctime = current_time(old_dir);
+		ctx->stats_mode = result.uint_32;
+		break;
+	default:
+		return invalfc(fc, "Unsupported parameter '%s'", param->key);
+	}
 
 	return 0;
 }
 
+static int binderfs_fs_context_reconfigure(struct fs_context *fc)
+{
+	struct binderfs_mount_opts *ctx = fc->fs_private;
+	struct binderfs_info *info = BINDERFS_SB(fc->root->d_sb);
+
+	if (info->mount_opts.stats_mode != ctx->stats_mode)
+		return invalfc(fc, "Binderfs stats mode cannot be changed during a remount");
+
+	info->mount_opts.stats_mode = ctx->stats_mode;
+	info->mount_opts.max = ctx->max;
+	return 0;
+}
+
+static int binderfs_show_options(struct seq_file *seq, struct dentry *root)
+{
+	struct binderfs_info *info = BINDERFS_SB(root->d_sb);
+
+	if (info->mount_opts.max <= BINDERFS_MAX_MINOR)
+		seq_printf(seq, ",max=%d", info->mount_opts.max);
+
+	switch (info->mount_opts.stats_mode) {
+	case binderfs_stats_mode_unset:
+		break;
+	case binderfs_stats_mode_global:
+		seq_printf(seq, ",stats=global");
+		break;
+	}
+
+	return 0;
+}
+
+static void binderfs_put_super(struct super_block *sb)
+{
+	struct binderfs_info *info = sb->s_fs_info;
+
+	if (info && info->ipc_ns)
+		put_ipc_ns(info->ipc_ns);
+
+	kfree(info);
+	sb->s_fs_info = NULL;
+}
+
+static const struct super_operations binderfs_super_ops = {
+	.evict_inode    = binderfs_evict_inode,
+	.show_options	= binderfs_show_options,
+	.statfs         = simple_statfs,
+	.put_super	= binderfs_put_super,
+};
+
+static inline bool is_binderfs_control_device(const struct dentry *dentry)
+{
+	struct binderfs_info *info = dentry->d_sb->s_fs_info;
+
+	return info->control_dentry == dentry;
+}
+
+static int binderfs_rename(struct user_namespace *mnt_userns,
+			   struct inode *old_dir, struct dentry *old_dentry,
+			   struct inode *new_dir, struct dentry *new_dentry,
+			   unsigned int flags)
+{
+	if (is_binderfs_control_device(old_dentry) ||
+	    is_binderfs_control_device(new_dentry))
+		return -EPERM;
+
+	return simple_rename(&init_user_ns, old_dir, old_dentry, new_dir,
+			     new_dentry, flags);
+}
+
 static int binderfs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	/*
-	 * The control dentry is only ever touched during mount so checking it
-	 * here should not require us to take lock.
-	 */
-	if (BINDERFS_I(dir)->control_dentry == dentry)
+	if (is_binderfs_control_device(dentry))
 		return -EPERM;
 
 	return simple_unlink(dir, dentry);
@@ -313,12 +411,15 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	struct inode *inode = NULL;
 	struct dentry *root = sb->s_root;
 	struct binderfs_info *info = sb->s_fs_info;
+#if defined(CONFIG_IPC_NS)
+	bool use_reserve = (info->ipc_ns == &init_ipc_ns);
+#else
+	bool use_reserve = true;
+#endif
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
 		return -ENOMEM;
-
-	inode_lock(d_inode(root));
 
 	/* If we have already created a binder-control node, return. */
 	if (info->control_dentry) {
@@ -333,7 +434,10 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 
 	/* Reserve a new minor number for the new device. */
 	mutex_lock(&binderfs_minors_mutex);
-	minor = ida_alloc_max(&binderfs_minors, BINDERFS_MAX_MINOR, GFP_KERNEL);
+	minor = ida_alloc_max(&binderfs_minors,
+			      use_reserve ? BINDERFS_MAX_MINOR :
+					    BINDERFS_MAX_MINOR_CAPPED,
+			      GFP_KERNEL);
 	mutex_unlock(&binderfs_minors_mutex);
 	if (minor < 0) {
 		ret = minor;
@@ -348,6 +452,7 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	inode->i_uid = info->root_uid;
 	inode->i_gid = info->root_gid;
 
+	refcount_set(&device->ref, 1);
 	device->binderfs_inode = inode;
 	device->miscdev.minor = minor;
 
@@ -358,12 +463,10 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	inode->i_private = device;
 	info->control_dentry = dentry;
 	d_add(dentry, inode);
-	inode_unlock(d_inode(root));
 
 	return 0;
 
 out:
-	inode_unlock(d_inode(root));
 	kfree(device);
 	iput(inode);
 
@@ -376,14 +479,199 @@ static const struct inode_operations binderfs_dir_inode_operations = {
 	.unlink = binderfs_unlink,
 };
 
-static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
+static struct inode *binderfs_make_inode(struct super_block *sb, int mode)
 {
-	struct binderfs_info *info;
-	int ret = -ENOMEM;
-	struct inode *inode = NULL;
-	struct ipc_namespace *ipc_ns = sb->s_fs_info;
+	struct inode *ret;
 
-	get_ipc_ns(ipc_ns);
+	ret = new_inode(sb);
+	if (ret) {
+		ret->i_ino = iunique(sb, BINDERFS_MAX_MINOR + INODE_OFFSET);
+		ret->i_mode = mode;
+		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);
+	}
+	return ret;
+}
+
+static struct dentry *binderfs_create_dentry(struct dentry *parent,
+					     const char *name)
+{
+	struct dentry *dentry;
+
+	dentry = lookup_one_len(name, parent, strlen(name));
+	if (IS_ERR(dentry))
+		return dentry;
+
+	/* Return error if the file/dir already exists. */
+	if (d_really_is_positive(dentry)) {
+		dput(dentry);
+		return ERR_PTR(-EEXIST);
+	}
+
+	return dentry;
+}
+
+void binderfs_remove_file(struct dentry *dentry)
+{
+	struct inode *parent_inode;
+
+	parent_inode = d_inode(dentry->d_parent);
+	inode_lock(parent_inode);
+	if (simple_positive(dentry)) {
+		dget(dentry);
+		simple_unlink(parent_inode, dentry);
+		d_delete(dentry);
+		dput(dentry);
+	}
+	inode_unlock(parent_inode);
+}
+
+struct dentry *binderfs_create_file(struct dentry *parent, const char *name,
+				    const struct file_operations *fops,
+				    void *data)
+{
+	struct dentry *dentry;
+	struct inode *new_inode, *parent_inode;
+	struct super_block *sb;
+
+	parent_inode = d_inode(parent);
+	inode_lock(parent_inode);
+
+	dentry = binderfs_create_dentry(parent, name);
+	if (IS_ERR(dentry))
+		goto out;
+
+	sb = parent_inode->i_sb;
+	new_inode = binderfs_make_inode(sb, S_IFREG | 0444);
+	if (!new_inode) {
+		dput(dentry);
+		dentry = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	new_inode->i_fop = fops;
+	new_inode->i_private = data;
+	d_instantiate(dentry, new_inode);
+	fsnotify_create(parent_inode, dentry);
+
+out:
+	inode_unlock(parent_inode);
+	return dentry;
+}
+
+static struct dentry *binderfs_create_dir(struct dentry *parent,
+					  const char *name)
+{
+	struct dentry *dentry;
+	struct inode *new_inode, *parent_inode;
+	struct super_block *sb;
+
+	parent_inode = d_inode(parent);
+	inode_lock(parent_inode);
+
+	dentry = binderfs_create_dentry(parent, name);
+	if (IS_ERR(dentry))
+		goto out;
+
+	sb = parent_inode->i_sb;
+	new_inode = binderfs_make_inode(sb, S_IFDIR | 0755);
+	if (!new_inode) {
+		dput(dentry);
+		dentry = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	new_inode->i_fop = &simple_dir_operations;
+	new_inode->i_op = &simple_dir_inode_operations;
+
+	set_nlink(new_inode, 2);
+	d_instantiate(dentry, new_inode);
+	inc_nlink(parent_inode);
+	fsnotify_mkdir(parent_inode, dentry);
+
+out:
+	inode_unlock(parent_inode);
+	return dentry;
+}
+
+static int binder_features_show(struct seq_file *m, void *unused)
+{
+	bool *feature = m->private;
+
+	seq_printf(m, "%d\n", *feature);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(binder_features);
+
+static int init_binder_features(struct super_block *sb)
+{
+	struct dentry *dentry, *dir;
+
+	dir = binderfs_create_dir(sb->s_root, "features");
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+
+	dentry = binderfs_create_file(dir, "oneway_spam_detection",
+				      &binder_features_fops,
+				      &binder_features.oneway_spam_detection);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
+	dentry = binderfs_create_file(dir, "extended_error",
+				      &binder_features_fops,
+				      &binder_features.extended_error);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
+	return 0;
+}
+
+static int init_binder_logs(struct super_block *sb)
+{
+	struct dentry *binder_logs_root_dir, *dentry, *proc_log_dir;
+	const struct binder_debugfs_entry *db_entry;
+	struct binderfs_info *info;
+	int ret = 0;
+
+	binder_logs_root_dir = binderfs_create_dir(sb->s_root,
+						   "binder_logs");
+	if (IS_ERR(binder_logs_root_dir)) {
+		ret = PTR_ERR(binder_logs_root_dir);
+		goto out;
+	}
+
+	binder_for_each_debugfs_entry(db_entry) {
+		dentry = binderfs_create_file(binder_logs_root_dir,
+					      db_entry->name,
+					      db_entry->fops,
+					      db_entry->data);
+		if (IS_ERR(dentry)) {
+			ret = PTR_ERR(dentry);
+			goto out;
+		}
+	}
+
+	proc_log_dir = binderfs_create_dir(binder_logs_root_dir, "proc");
+	if (IS_ERR(proc_log_dir)) {
+		ret = PTR_ERR(proc_log_dir);
+		goto out;
+	}
+	info = sb->s_fs_info;
+	info->proc_log_dir = proc_log_dir;
+
+out:
+	return ret;
+}
+
+static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
+{
+	int ret;
+	struct binderfs_info *info;
+	struct binderfs_mount_opts *ctx = fc->fs_private;
+	struct inode *inode = NULL;
+	struct binderfs_device device_info = {};
+	const char *name;
+	size_t len;
 
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
@@ -405,23 +693,25 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &binderfs_super_ops;
 	sb->s_time_gran = 1;
 
-	info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
-	if (!info)
-		goto err_without_dentry;
+	sb->s_fs_info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
+	if (!sb->s_fs_info)
+		return -ENOMEM;
+	info = sb->s_fs_info;
 
-	info->ipc_ns = ipc_ns;
+	info->ipc_ns = get_ipc_ns(current->nsproxy->ipc_ns);
+
 	info->root_gid = make_kgid(sb->s_user_ns, 0);
 	if (!gid_valid(info->root_gid))
 		info->root_gid = GLOBAL_ROOT_GID;
 	info->root_uid = make_kuid(sb->s_user_ns, 0);
 	if (!uid_valid(info->root_uid))
 		info->root_uid = GLOBAL_ROOT_UID;
-
-	sb->s_fs_info = info;
+	info->mount_opts.max = ctx->max;
+	info->mount_opts.stats_mode = ctx->stats_mode;
 
 	inode = new_inode(sb);
 	if (!inode)
-		goto err_without_dentry;
+		return -ENOMEM;
 
 	inode->i_ino = FIRST_INODE;
 	inode->i_fop = &simple_dir_operations;
@@ -432,91 +722,92 @@ static int binderfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
-		goto err_without_dentry;
+		return -ENOMEM;
 
 	ret = binderfs_binder_ctl_create(sb);
 	if (ret)
-		goto err_with_dentry;
+		return ret;
 
-	return 0;
-
-err_with_dentry:
-	dput(sb->s_root);
-	sb->s_root = NULL;
-
-err_without_dentry:
-	put_ipc_ns(ipc_ns);
-	iput(inode);
-	kfree(info);
-
-	return ret;
-}
-
-static int binderfs_test_super(struct super_block *sb, void *data)
-{
-	struct binderfs_info *info = sb->s_fs_info;
-
-	if (info)
-		return info->ipc_ns == data;
-
-	return 0;
-}
-
-static int binderfs_set_super(struct super_block *sb, void *data)
-{
-	sb->s_fs_info = data;
-	return set_anon_super(sb, NULL);
-}
-
-static struct dentry *binderfs_mount(struct file_system_type *fs_type,
-				     int flags, const char *dev_name,
-				     void *data)
-{
-	struct super_block *sb;
-	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
-
-	if (!ns_capable(ipc_ns->user_ns, CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
-
-	sb = sget_userns(fs_type, binderfs_test_super, binderfs_set_super,
-			 flags, ipc_ns->user_ns, ipc_ns);
-	if (IS_ERR(sb))
-		return ERR_CAST(sb);
-
-	if (!sb->s_root) {
-		int ret = binderfs_fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
-		if (ret) {
-			deactivate_locked_super(sb);
-			return ERR_PTR(ret);
-		}
-
-		sb->s_flags |= SB_ACTIVE;
+	name = binder_devices_param;
+	for (len = strcspn(name, ","); len > 0; len = strcspn(name, ",")) {
+		strscpy(device_info.name, name, len + 1);
+		ret = binderfs_binder_device_create(inode, NULL, &device_info);
+		if (ret)
+			return ret;
+		name += len;
+		if (*name == ',')
+			name++;
 	}
 
-	return dget(sb->s_root);
+	ret = init_binder_features(sb);
+	if (ret)
+		return ret;
+
+	if (info->mount_opts.stats_mode == binderfs_stats_mode_global)
+		return init_binder_logs(sb);
+
+	return 0;
 }
 
-static void binderfs_kill_super(struct super_block *sb)
+static int binderfs_fs_context_get_tree(struct fs_context *fc)
 {
-	struct binderfs_info *info = sb->s_fs_info;
+	return get_tree_nodev(fc, binderfs_fill_super);
+}
 
-	if (info && info->ipc_ns)
-		put_ipc_ns(info->ipc_ns);
+static void binderfs_fs_context_free(struct fs_context *fc)
+{
+	struct binderfs_mount_opts *ctx = fc->fs_private;
 
-	kfree(info);
-	kill_litter_super(sb);
+	kfree(ctx);
+}
+
+static const struct fs_context_operations binderfs_fs_context_ops = {
+	.free		= binderfs_fs_context_free,
+	.get_tree	= binderfs_fs_context_get_tree,
+	.parse_param	= binderfs_fs_context_parse_param,
+	.reconfigure	= binderfs_fs_context_reconfigure,
+};
+
+static int binderfs_init_fs_context(struct fs_context *fc)
+{
+	struct binderfs_mount_opts *ctx;
+
+	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->max = BINDERFS_MAX_MINOR;
+	ctx->stats_mode = binderfs_stats_mode_unset;
+
+	fc->fs_private = ctx;
+	fc->ops = &binderfs_fs_context_ops;
+
+	return 0;
 }
 
 static struct file_system_type binder_fs_type = {
-	.name		= "binder",
-	.mount		= binderfs_mount,
-	.kill_sb	= binderfs_kill_super,
-	.fs_flags	= FS_USERNS_MOUNT,
+	.name			= "binder",
+	.init_fs_context	= binderfs_init_fs_context,
+	.parameters		= binderfs_fs_parameters,
+	.kill_sb		= kill_litter_super,
+	.fs_flags		= FS_USERNS_MOUNT,
 };
 
-static int __init init_binderfs(void)
+int __init init_binderfs(void)
 {
 	int ret;
+	const char *name;
+	size_t len;
+
+	/* Verify that the default binderfs device names are valid. */
+	name = binder_devices_param;
+	for (len = strcspn(name, ","); len > 0; len = strcspn(name, ",")) {
+		if (len > BINDERFS_MAX_NAME)
+			return -E2BIG;
+		name += len;
+		if (*name == ',')
+			name++;
+	}
 
 	/* Allocate new major number for binderfs. */
 	ret = alloc_chrdev_region(&binderfs_dev, 0, BINDERFS_MAX_MINOR,
@@ -530,15 +821,5 @@ static int __init init_binderfs(void)
 		return ret;
 	}
 
-	binderfs_mnt = kern_mount(&binder_fs_type);
-	if (IS_ERR(binderfs_mnt)) {
-		ret = PTR_ERR(binderfs_mnt);
-		binderfs_mnt = NULL;
-		unregister_filesystem(&binder_fs_type);
-		unregister_chrdev_region(binderfs_dev, BINDERFS_MAX_MINOR);
-	}
-
 	return ret;
 }
-
-device_initcall(init_binderfs);

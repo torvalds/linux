@@ -1,11 +1,11 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # pstore_crash_test - Pstore test shell script which causes crash and reboot
 #
 # Copyright (C) Hitachi Ltd., 2015
 #  Written by Hiraku Toyooka <hiraku.toyooka.gu@hitachi.com>
 #
-# Released under the terms of the GPL v2.
 
 # exit if pstore backend is not registered
 . ./common_tests

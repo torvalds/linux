@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GE IMP3A Board Setup
  *
  * Author Martyn Welch <martyn.welch@ge.com>
  *
  * Copyright 2010 GE Intelligent Platforms Embedded Systems, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Based on: mpc85xx_ds.c (MPC85xx DS Board Setup)
  * Copyright 2007 Freescale Semiconductor Inc.
@@ -21,13 +17,13 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -82,7 +78,7 @@ void __init ge_imp3a_pic_init(void)
 	of_node_put(cascade_node);
 }
 
-static void ge_imp3a_pci_assign_primary(void)
+static void __init ge_imp3a_pci_assign_primary(void)
 {
 #ifdef CONFIG_PCI
 	struct device_node *np;
@@ -201,8 +197,6 @@ static int __init ge_imp3a_probe(void)
 }
 
 machine_arch_initcall(ge_imp3a, mpc85xx_common_publish_devices);
-
-machine_arch_initcall(ge_imp3a, swiotlb_setup_bus_notifier);
 
 define_machine(ge_imp3a) {
 	.name			= "GE_IMP3A",

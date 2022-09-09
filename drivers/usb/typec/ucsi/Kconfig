@@ -1,6 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config TYPEC_UCSI
 	tristate "USB Type-C Connector System Software Interface driver"
 	depends on !CPU_BIG_ENDIAN
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
 	help
 	  USB Type-C Connector System Software Interface (UCSI) is a
 	  specification for an interface that allows the operating system to
@@ -16,7 +19,7 @@ config TYPEC_UCSI
 	  for every supported interface method.
 
 	  The UCSI specification can be downloaded from:
-	  http://www.intel.com/content/www/us/en/io/universal-serial-bus/usb-type-c-ucsi-spec.html
+	  https://www.intel.com/content/www/us/en/io/universal-serial-bus/usb-type-c-ucsi-spec.html
 
 	  To compile the driver as a module, choose M here: the module will be
 	  called typec_ucsi.
@@ -44,5 +47,15 @@ config UCSI_ACPI
 
 	  To compile the driver as a module, choose M here: the module will be
 	  called ucsi_acpi
+
+config UCSI_STM32G0
+	tristate "UCSI Interface Driver for STM32G0"
+	depends on I2C
+	help
+	  This driver enables UCSI support on platforms that expose a STM32G0
+	  Type-C controller over I2C interface.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called ucsi_stm32g0.
 
 endif

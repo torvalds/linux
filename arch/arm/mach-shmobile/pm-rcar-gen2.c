@@ -72,6 +72,7 @@ void __init rcar_gen2_pm_init(void)
 	}
 
 	error = of_address_to_resource(np, 0, &res);
+	of_node_put(np);
 	if (error) {
 		pr_err("Failed to get smp-sram address: %d\n", error);
 		return;
@@ -102,7 +103,7 @@ map:
 	iounmap(p);
 
 	/* setup reset vectors */
-	p = ioremap_nocache(RST, 0x63);
+	p = ioremap(RST, 0x63);
 	bar = phys_to_sbar(res.start);
 	if (has_a15) {
 		writel_relaxed(bar, p + CA15BAR);

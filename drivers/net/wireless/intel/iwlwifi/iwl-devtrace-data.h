@@ -1,25 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015        Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *****************************************************************************/
 
 #if !defined(__IWLWIFI_DEVICE_TRACE_DATA) || defined(TRACE_HEADER_MULTI_READ)
@@ -32,16 +16,18 @@
 
 TRACE_EVENT(iwlwifi_dev_tx_tb,
 	TP_PROTO(const struct device *dev, struct sk_buff *skb,
-		 u8 *data_src, size_t data_len),
-	TP_ARGS(dev, skb, data_src, data_len),
+		 u8 *data_src, dma_addr_t phys, size_t data_len),
+	TP_ARGS(dev, skb, data_src, phys, data_len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
+		__field(u64, phys)
 
 		__dynamic_array(u8, data,
 				iwl_trace_data(skb) ? data_len : 0)
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
+		__entry->phys = phys;
 		if (iwl_trace_data(skb))
 			memcpy(__get_dynamic_array(data), data_src, data_len);
 	),

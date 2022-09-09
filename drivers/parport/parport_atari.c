@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Low-level parallel port routines for the Atari builtin port
  *
  * Author: Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>
@@ -199,7 +200,7 @@ static int __init parport_atari_init(void)
 		}
 
 		this_port = p;
-		printk(KERN_INFO "%s: Atari built-in port using irq\n", p->name);
+		pr_info("%s: Atari built-in port using irq\n", p->name);
 		parport_announce_port (p);
 
 		return 0;
@@ -217,7 +218,6 @@ static void __exit parport_atari_exit(void)
 
 MODULE_AUTHOR("Andreas Schwab");
 MODULE_DESCRIPTION("Parport Driver for Atari builtin Port");
-MODULE_SUPPORTED_DEVICE("Atari builtin Parallel Port");
 MODULE_LICENSE("GPL");
 
 module_init(parport_atari_init)

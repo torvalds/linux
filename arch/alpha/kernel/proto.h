@@ -2,8 +2,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
-#include <asm/pgtable.h>
-
 /* Prototypes of functions used across modules here in this directory.  */
 
 #define vucp	volatile unsigned char  *
@@ -51,10 +49,6 @@ extern void marvel_init_arch(void);
 extern void marvel_kill_arch(int);
 extern void marvel_machine_check(unsigned long, unsigned long);
 extern void marvel_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
-extern int marvel_pa_to_nid(unsigned long);
-extern int marvel_cpuid_to_nid(int);
-extern unsigned long marvel_node_mem_start(int);
-extern unsigned long marvel_node_mem_size(int);
 extern struct _alpha_agp_info *marvel_agp_info(void);
 struct io7 *marvel_find_io7(int pe);
 struct io7 *marvel_next_io7(struct io7 *prev);
@@ -103,10 +97,6 @@ extern void wildfire_init_arch(void);
 extern void wildfire_kill_arch(int);
 extern void wildfire_machine_check(unsigned long vector, unsigned long la_ptr);
 extern void wildfire_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
-extern int wildfire_pa_to_nid(unsigned long);
-extern int wildfire_cpuid_to_nid(int);
-extern unsigned long wildfire_node_mem_start(int);
-extern unsigned long wildfire_node_mem_size(int);
 
 /* console.c */
 #ifdef CONFIG_VGA_HOSE

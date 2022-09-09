@@ -39,7 +39,6 @@
 #include <asm/irq.h>
 #include <asm/mpc8260.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/cpm2.h>
 #include <asm/rheap.h>
 #include <asm/fs_pd.h>
@@ -108,7 +107,7 @@ EXPORT_SYMBOL(cpm_command);
  * memory mapped space.
  * The baud rate clock is the system clock divided by something.
  * It was set up long ago during the initial boot phase and is
- * is given to us.
+ * given to us.
  * Baud rate clocks are zero-based in the driver code (as that maps
  * to port numbers).  Documentation uses 1-based numbering.
  */
@@ -136,7 +135,7 @@ void __cpm2_setbrg(uint brg, uint rate, uint clk, int div16, int src)
 }
 EXPORT_SYMBOL(__cpm2_setbrg);
 
-int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
+int __init cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 {
 	int ret = 0;
 	int shift;
@@ -266,7 +265,7 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	return ret;
 }
 
-int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
+int __init cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
 {
 	int ret = 0;
 	int shift;
@@ -327,7 +326,7 @@ struct cpm2_ioports {
 	u32 res[3];
 };
 
-void cpm2_set_pin(int port, int pin, int flags)
+void __init cpm2_set_pin(int port, int pin, int flags)
 {
 	struct cpm2_ioports __iomem *iop =
 		(struct cpm2_ioports __iomem *)&cpm2_immr->im_ioport;

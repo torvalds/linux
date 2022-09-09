@@ -37,14 +37,12 @@ static const struct of_device_id iproc_pcie_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, iproc_pcie_of_match_table);
 
-static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
+static int iproc_pltfm_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct iproc_pcie *pcie;
 	struct device_node *np = dev->of_node;
 	struct resource reg;
-	resource_size_t iobase = 0;
-	LIST_HEAD(resources);
 	struct pci_host_bridge *bridge;
 	int ret;
 
@@ -87,39 +85,29 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 
 	/*
 	 * DT nodes are not used by all platforms that use the iProc PCIe
-	 * core driver. For platforms that require explict inbound mapping
+	 * core driver. For platforms that require explicit inbound mapping
 	 * configuration, "dma-ranges" would have been present in DT
 	 */
 	pcie->need_ib_cfg = of_property_read_bool(np, "dma-ranges");
 
 	/* PHY use is optional */
-	pcie->phy = devm_phy_get(dev, "pcie-phy");
-	if (IS_ERR(pcie->phy)) {
-		if (PTR_ERR(pcie->phy) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		pcie->phy = NULL;
-	}
-
-	ret = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &resources,
-						    &iobase);
-	if (ret) {
-		dev_err(dev, "unable to get PCI host bridge resources\n");
-		return ret;
-	}
+	pcie->phy = devm_phy_optional_get(dev, "pcie-phy");
+	if (IS_ERR(pcie->phy))
+		return PTR_ERR(pcie->phy);
 
 	/* PAXC doesn't support legacy IRQs, skip mapping */
 	switch (pcie->type) {
 	case IPROC_PCIE_PAXC:
 	case IPROC_PCIE_PAXC_V2:
+		pcie->map_irq = NULL;
 		break;
 	default:
-		pcie->map_irq = of_irq_parse_and_map_pci;
+		break;
 	}
 
-	ret = iproc_pcie_setup(pcie, &resources);
+	ret = iproc_pcie_setup(pcie, &bridge->windows);
 	if (ret) {
 		dev_err(dev, "PCIe controller setup failed\n");
-		pci_free_resource_list(&resources);
 		return ret;
 	}
 
@@ -127,30 +115,30 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int iproc_pcie_pltfm_remove(struct platform_device *pdev)
+static int iproc_pltfm_pcie_remove(struct platform_device *pdev)
 {
 	struct iproc_pcie *pcie = platform_get_drvdata(pdev);
 
 	return iproc_pcie_remove(pcie);
 }
 
-static void iproc_pcie_pltfm_shutdown(struct platform_device *pdev)
+static void iproc_pltfm_pcie_shutdown(struct platform_device *pdev)
 {
 	struct iproc_pcie *pcie = platform_get_drvdata(pdev);
 
 	iproc_pcie_shutdown(pcie);
 }
 
-static struct platform_driver iproc_pcie_pltfm_driver = {
+static struct platform_driver iproc_pltfm_pcie_driver = {
 	.driver = {
 		.name = "iproc-pcie",
 		.of_match_table = of_match_ptr(iproc_pcie_of_match_table),
 	},
-	.probe = iproc_pcie_pltfm_probe,
-	.remove = iproc_pcie_pltfm_remove,
-	.shutdown = iproc_pcie_pltfm_shutdown,
+	.probe = iproc_pltfm_pcie_probe,
+	.remove = iproc_pltfm_pcie_remove,
+	.shutdown = iproc_pltfm_pcie_shutdown,
 };
-module_platform_driver(iproc_pcie_pltfm_driver);
+module_platform_driver(iproc_pltfm_pcie_driver);
 
 MODULE_AUTHOR("Ray Jui <rjui@broadcom.com>");
 MODULE_DESCRIPTION("Broadcom iPROC PCIe platform driver");

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -11,15 +12,11 @@
  * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * SHA224 Support Copyright 2007 Intel Corporation <jonathan.lynch@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/mm.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
+#include <crypto/sha256_base.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -65,40 +62,6 @@ static void octeon_sha256_transform(const void *_block)
 	write_octeon_64bit_block_dword(block[5], 5);
 	write_octeon_64bit_block_dword(block[6], 6);
 	octeon_sha256_start(block[7]);
-}
-
-static int octeon_sha224_init(struct shash_desc *desc)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	sctx->state[0] = SHA224_H0;
-	sctx->state[1] = SHA224_H1;
-	sctx->state[2] = SHA224_H2;
-	sctx->state[3] = SHA224_H3;
-	sctx->state[4] = SHA224_H4;
-	sctx->state[5] = SHA224_H5;
-	sctx->state[6] = SHA224_H6;
-	sctx->state[7] = SHA224_H7;
-	sctx->count = 0;
-
-	return 0;
-}
-
-static int octeon_sha256_init(struct shash_desc *desc)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	sctx->state[0] = SHA256_H0;
-	sctx->state[1] = SHA256_H1;
-	sctx->state[2] = SHA256_H2;
-	sctx->state[3] = SHA256_H3;
-	sctx->state[4] = SHA256_H4;
-	sctx->state[5] = SHA256_H5;
-	sctx->state[6] = SHA256_H6;
-	sctx->state[7] = SHA256_H7;
-	sctx->count = 0;
-
-	return 0;
 }
 
 static void __octeon_sha256_update(struct sha256_state *sctx, const u8 *data,
@@ -228,7 +191,7 @@ static int octeon_sha256_import(struct shash_desc *desc, const void *in)
 
 static struct shash_alg octeon_sha256_algs[2] = { {
 	.digestsize	=	SHA256_DIGEST_SIZE,
-	.init		=	octeon_sha256_init,
+	.init		=	sha256_base_init,
 	.update		=	octeon_sha256_update,
 	.final		=	octeon_sha256_final,
 	.export		=	octeon_sha256_export,
@@ -244,7 +207,7 @@ static struct shash_alg octeon_sha256_algs[2] = { {
 	}
 }, {
 	.digestsize	=	SHA224_DIGEST_SIZE,
-	.init		=	octeon_sha224_init,
+	.init		=	sha224_base_init,
 	.update		=	octeon_sha256_update,
 	.final		=	octeon_sha224_final,
 	.descsize	=	sizeof(struct sha256_state),

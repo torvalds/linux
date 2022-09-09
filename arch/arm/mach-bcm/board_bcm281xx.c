@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2012-2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2012-2014 Broadcom Corporation
 
 #include <linux/clocksource.h>
 #include <linux/of_address.h>
@@ -38,6 +28,7 @@ static void bcm281xx_restart(enum reboot_mode mode, const char *cmd)
 		return;
 	}
 	base = of_iomap(np_wdog, 0);
+	of_node_put(np_wdog);
 	if (!base) {
 		pr_emerg("Couldn't map brcm,kona-wdt\n");
 		return;

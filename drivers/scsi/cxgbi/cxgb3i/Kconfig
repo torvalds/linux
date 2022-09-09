@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SCSI_CXGB3_ISCSI
 	tristate "Chelsio T3 iSCSI support"
 	depends on PCI && INET && (IPV6 || IPV6=n)
@@ -7,5 +8,5 @@ config SCSI_CXGB3_ISCSI
 	select CHELSIO_T3
 	select CHELSIO_LIB
 	select SCSI_ISCSI_ATTRS
-	---help---
+	help
 	  This driver supports iSCSI offload for the Chelsio T3 devices.

@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ALSA SoC Voice Codec Interface for TI DAVINCI processor
  *
  * Copyright (C) 2010 Texas Instruments.
  *
  * Author: Miguel Aguilar <miguel.aguilar@ridgerun.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -54,9 +41,9 @@ struct davinci_vcif_dev {
 
 static void davinci_vcif_start(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct davinci_vcif_dev *davinci_vcif_dev =
-			snd_soc_dai_get_drvdata(rtd->cpu_dai);
+			snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	struct davinci_vc *davinci_vc = davinci_vcif_dev->davinci_vc;
 	u32 w;
 
@@ -73,9 +60,9 @@ static void davinci_vcif_start(struct snd_pcm_substream *substream)
 
 static void davinci_vcif_stop(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct davinci_vcif_dev *davinci_vcif_dev =
-			snd_soc_dai_get_drvdata(rtd->cpu_dai);
+			snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
 	struct davinci_vc *davinci_vc = davinci_vcif_dev->davinci_vc;
 	u32 w;
 
@@ -198,7 +185,8 @@ static struct snd_soc_dai_driver davinci_vcif_dai = {
 };
 
 static const struct snd_soc_component_driver davinci_vcif_component = {
-	.name		= "davinci-vcif",
+	.name			= "davinci-vcif",
+	.legacy_dai_naming	= 1,
 };
 
 static int davinci_vcif_probe(struct platform_device *pdev)

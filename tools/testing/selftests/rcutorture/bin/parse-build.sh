@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0+
 #
 # Check the build output from an rcutorture run for goodness.
 # The "file" is a pathname on the local system, and "title" is
@@ -8,23 +9,9 @@
 #
 # Usage: parse-build.sh file title
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, you can access it online at
-# http://www.gnu.org/licenses/gpl-2.0.html.
-#
 # Copyright (C) IBM Corporation, 2011
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
 F=$1
 title=$2
@@ -34,7 +21,7 @@ mkdir $T
 
 . functions.sh
 
-if grep -q CC < $F
+if grep -q CC < $F || test -n "$TORTURE_TRUST_MAKE" || grep -qe --trust-make < `dirname $F`/../log
 then
 	:
 else
@@ -52,7 +39,8 @@ fi
 grep warning: < $F > $T/warnings
 grep "include/linux/*rcu*\.h:" $T/warnings > $T/hwarnings
 grep "kernel/rcu/[^/]*:" $T/warnings > $T/cwarnings
-cat $T/hwarnings $T/cwarnings > $T/rcuwarnings
+grep "^ld: .*undefined reference to" $T/warnings | head -1 > $T/ldwarnings
+cat $T/hwarnings $T/cwarnings $T/ldwarnings > $T/rcuwarnings
 if test -s $T/rcuwarnings
 then
 	print_warning $title build errors:

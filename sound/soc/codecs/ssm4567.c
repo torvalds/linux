@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SSM4567 amplifier audio driver
  *
@@ -6,8 +7,6 @@
  *
  * Based on code copyright/by:
  *   Copyright 2013 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/acpi.h>
@@ -221,7 +220,7 @@ static int ssm4567_hw_params(struct snd_pcm_substream *substream,
 				SSM4567_DAC_FS_MASK, dacfs);
 }
 
-static int ssm4567_mute(struct snd_soc_dai *dai, int mute)
+static int ssm4567_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct ssm4567 *ssm4567 = snd_soc_component_get_drvdata(dai->component);
 	unsigned int val;
@@ -279,8 +278,8 @@ static int ssm4567_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int ctrl1 = 0;
 	bool invert_fclk;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -391,9 +390,10 @@ static int ssm4567_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops ssm4567_dai_ops = {
 	.hw_params	= ssm4567_hw_params,
-	.digital_mute	= ssm4567_mute,
+	.mute_stream	= ssm4567_mute,
 	.set_fmt	= ssm4567_set_dai_fmt,
 	.set_tdm_slot	= ssm4567_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ssm4567_dai = {
@@ -427,7 +427,6 @@ static const struct snd_soc_component_driver ssm4567_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(ssm4567_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ssm4567_regmap_config = {
@@ -444,8 +443,7 @@ static const struct regmap_config ssm4567_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ssm4567_reg_defaults),
 };
 
-static int ssm4567_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int ssm4567_i2c_probe(struct i2c_client *i2c)
 {
 	struct ssm4567 *ssm4567;
 	int ret;
@@ -502,7 +500,7 @@ static struct i2c_driver ssm4567_driver = {
 		.of_match_table = of_match_ptr(ssm4567_of_match),
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
-	.probe = ssm4567_i2c_probe,
+	.probe_new = ssm4567_i2c_probe,
 	.id_table = ssm4567_i2c_ids,
 };
 module_i2c_driver(ssm4567_driver);

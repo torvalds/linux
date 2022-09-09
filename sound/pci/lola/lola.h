@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Support for Digigram Lola PCI-e boards
  *
  *  Copyright (c) 2011 Takashi Iwai <tiwai@suse.de>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #ifndef _LOLA_H
@@ -316,7 +303,7 @@ struct lola_stream {
 
 struct lola_pcm {
 	unsigned int num_streams;
-	struct snd_dma_buffer bdl; /* BDL buffer */
+	struct snd_dma_buffer *bdl; /* BDL buffer */
 	struct lola_stream streams[MAX_STREAM_COUNT];
 };
 
@@ -341,7 +328,7 @@ struct lola {
 	unsigned int last_cmd_nid, last_verb, last_data, last_extdata;
 
 	/* CORB/RIRB buffers */
-	struct snd_dma_buffer rb;
+	struct snd_dma_buffer *rb;
 
 	/* unsolicited events */
 	unsigned int last_unsol_res;
@@ -493,7 +480,6 @@ int lola_codec_flush(struct lola *chip);
 
 /* PCM */
 int lola_create_pcm(struct lola *chip);
-void lola_free_pcm(struct lola *chip);
 int lola_init_pcm(struct lola *chip, int dir, int *nidp);
 void lola_pcm_update(struct lola *chip, struct lola_pcm *pcm, unsigned int bits);
 

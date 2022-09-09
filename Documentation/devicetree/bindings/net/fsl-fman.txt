@@ -110,6 +110,13 @@ PROPERTIES
 		Usage: required
 		Definition: See soc/fsl/qman.txt and soc/fsl/bman.txt
 
+- fsl,erratum-a050385
+		Usage: optional
+		Value type: boolean
+		Definition: A boolean property. Indicates the presence of the
+		erratum A050385 which indicates that DMA transactions that are
+		split can result in a FMan lock.
+
 =============================================================================
 FMan MURAM Node
 
@@ -381,14 +388,24 @@ PROPERTIES
 		Value type: <prop-encoded-array>
 		Definition: A standard property.
 
-- bus-frequency
+- clocks
+		Usage: optional
+		Value type: <phandle>
+		Definition: A reference to the input clock of the controller
+		from which the MDC frequency is derived.
+
+- clock-frequency
 		Usage: optional
 		Value type: <u32>
-		Definition: Specifies the external MDIO bus clock speed to
-		be used, if different from the standard 2.5 MHz.
-		This may be due to the standard speed being unsupported (e.g.
-		due to a hardware problem), or to advertise that all relevant
-		components in the system support a faster speed.
+		Definition: Specifies the external MDC frequency, in Hertz, to
+		be used. Requires that the input clock is specified in the
+		"clocks" property. See also: mdio.yaml.
+
+- suppress-preamble
+		Usage: optional
+		Value type: <boolean>
+		Definition: Disable generation of preamble bits. See also:
+		mdio.yaml.
 
 - interrupts
 		Usage: required for external MDIO
@@ -402,6 +419,28 @@ PROPERTIES
 		Coding Sublayer) PHYs and external MDIO for external PHYs.
 		The settings and programming routines for internal/external
 		MDIO are different. Must be included for internal MDIO.
+
+- fsl,erratum-a009885
+		Usage: optional
+		Value type: <boolean>
+		Definition: Indicates the presence of the A009885
+		erratum describing that the contents of MDIO_DATA may
+		become corrupt unless it is read within 16 MDC cycles
+		of MDIO_CFG[BSY] being cleared, when performing an
+		MDIO read operation.
+
+- fsl,erratum-a011043
+		Usage: optional
+		Value type: <boolean>
+		Definition: Indicates the presence of the A011043 erratum
+		describing that the MDIO_CFG[MDIO_RD_ER] bit may be falsely
+		set when reading internal PCS registers. MDIO reads to
+		internal PCS registers may result in having the
+		MDIO_CFG[MDIO_RD_ER] bit set, even when there is no error and
+		read data (MDIO_DATA[MDIO_DATA]) is correct.
+		Software may get false read error when reading internal
+		PCS registers through MDIO. As a workaround, all internal
+		MDIO accesses should ignore the MDIO_CFG[MDIO_RD_ER] bit.
 
 For internal PHY device on internal mdio bus, a PHY node should be created.
 See the definition of the PHY node in booting-without-of.txt for an

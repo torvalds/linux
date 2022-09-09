@@ -34,13 +34,13 @@ extern arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned;
 /* Can't use raw_spin_lock_irq because of #include problems, so
  * this is the substitute */
 #define _atomic_spin_lock_irqsave(l,f) do {	\
-	arch_spinlock_t *s = ATOMIC_HASH(l);		\
+	arch_spinlock_t *s = ATOMIC_HASH(l);	\
 	local_irq_save(f);			\
 	arch_spin_lock(s);			\
 } while(0)
 
 #define _atomic_spin_unlock_irqrestore(l,f) do {	\
-	arch_spinlock_t *s = ATOMIC_HASH(l);			\
+	arch_spinlock_t *s = ATOMIC_HASH(l);		\
 	arch_spin_unlock(s);				\
 	local_irq_restore(f);				\
 } while(0)
@@ -56,7 +56,7 @@ extern arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned;
  * are atomic, so a reader never sees inconsistent values.
  */
 
-static __inline__ void atomic_set(atomic_t *v, int i)
+static __inline__ void arch_atomic_set(atomic_t *v, int i)
 {
 	unsigned long flags;
 	_atomic_spin_lock_irqsave(v, flags);
@@ -66,29 +66,29 @@ static __inline__ void atomic_set(atomic_t *v, int i)
 	_atomic_spin_unlock_irqrestore(v, flags);
 }
 
-#define atomic_set_release(v, i)	atomic_set((v), (i))
+#define arch_atomic_set_release(v, i)	arch_atomic_set((v), (i))
 
-static __inline__ int atomic_read(const atomic_t *v)
+static __inline__ int arch_atomic_read(const atomic_t *v)
 {
 	return READ_ONCE((v)->counter);
 }
 
 /* exported interface */
-#define atomic_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic_cmpxchg(v, o, n)	(arch_cmpxchg(&((v)->counter), (o), (n)))
+#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), new))
 
 #define ATOMIC_OP(op, c_op)						\
-static __inline__ void atomic_##op(int i, atomic_t *v)			\
+static __inline__ void arch_atomic_##op(int i, atomic_t *v)		\
 {									\
 	unsigned long flags;						\
 									\
 	_atomic_spin_lock_irqsave(v, flags);				\
 	v->counter c_op i;						\
 	_atomic_spin_unlock_irqrestore(v, flags);			\
-}									\
+}
 
 #define ATOMIC_OP_RETURN(op, c_op)					\
-static __inline__ int atomic_##op##_return(int i, atomic_t *v)		\
+static __inline__ int arch_atomic_##op##_return(int i, atomic_t *v)	\
 {									\
 	unsigned long flags;						\
 	int ret;							\
@@ -101,7 +101,7 @@ static __inline__ int atomic_##op##_return(int i, atomic_t *v)		\
 }
 
 #define ATOMIC_FETCH_OP(op, c_op)					\
-static __inline__ int atomic_fetch_##op(int i, atomic_t *v)		\
+static __inline__ int arch_atomic_fetch_##op(int i, atomic_t *v)	\
 {									\
 	unsigned long flags;						\
 	int ret;							\
@@ -136,24 +136,22 @@ ATOMIC_OPS(xor, ^=)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define ATOMIC_INIT(i)	{ (i) }
-
 #ifdef CONFIG_64BIT
 
 #define ATOMIC64_INIT(i) { (i) }
 
 #define ATOMIC64_OP(op, c_op)						\
-static __inline__ void atomic64_##op(s64 i, atomic64_t *v)		\
+static __inline__ void arch_atomic64_##op(s64 i, atomic64_t *v)		\
 {									\
 	unsigned long flags;						\
 									\
 	_atomic_spin_lock_irqsave(v, flags);				\
 	v->counter c_op i;						\
 	_atomic_spin_unlock_irqrestore(v, flags);			\
-}									\
+}
 
 #define ATOMIC64_OP_RETURN(op, c_op)					\
-static __inline__ s64 atomic64_##op##_return(s64 i, atomic64_t *v)	\
+static __inline__ s64 arch_atomic64_##op##_return(s64 i, atomic64_t *v)	\
 {									\
 	unsigned long flags;						\
 	s64 ret;							\
@@ -166,7 +164,7 @@ static __inline__ s64 atomic64_##op##_return(s64 i, atomic64_t *v)	\
 }
 
 #define ATOMIC64_FETCH_OP(op, c_op)					\
-static __inline__ s64 atomic64_fetch_##op(s64 i, atomic64_t *v)		\
+static __inline__ s64 arch_atomic64_fetch_##op(s64 i, atomic64_t *v)	\
 {									\
 	unsigned long flags;						\
 	s64 ret;							\
@@ -202,7 +200,7 @@ ATOMIC64_OPS(xor, ^=)
 #undef ATOMIC64_OP
 
 static __inline__ void
-atomic64_set(atomic64_t *v, s64 i)
+arch_atomic64_set(atomic64_t *v, s64 i)
 {
 	unsigned long flags;
 	_atomic_spin_lock_irqsave(v, flags);
@@ -212,16 +210,18 @@ atomic64_set(atomic64_t *v, s64 i)
 	_atomic_spin_unlock_irqrestore(v, flags);
 }
 
+#define arch_atomic64_set_release(v, i)	arch_atomic64_set((v), (i))
+
 static __inline__ s64
-atomic64_read(const atomic64_t *v)
+arch_atomic64_read(const atomic64_t *v)
 {
 	return READ_ONCE((v)->counter);
 }
 
 /* exported interface */
-#define atomic64_cmpxchg(v, o, n) \
-	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
-#define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
+#define arch_atomic64_cmpxchg(v, o, n) \
+	((__typeof__((v)->counter))arch_cmpxchg(&((v)->counter), (o), (n)))
+#define arch_atomic64_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #endif /* !CONFIG_64BIT */
 

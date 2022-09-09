@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	HP300 Topcat framebuffer support (derived from macfb of all things)
  *	Phil Blundell <philb@gnu.org> 1998
@@ -183,7 +184,7 @@ static int hpfb_sync(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops hpfb_ops = {
+static const struct fb_ops hpfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= hpfb_setcolreg,
 	.fb_blank	= hpfb_blank,
@@ -374,7 +375,7 @@ static struct dio_driver hpfb_driver = {
     .remove    = hpfb_remove_one,
 };
 
-int __init hpfb_init(void)
+static int __init hpfb_init(void)
 {
 	unsigned int sid;
 	unsigned char i;
@@ -401,7 +402,7 @@ int __init hpfb_init(void)
 	if (err)
 		return err;
 
-	err = probe_kernel_read(&i, (unsigned char *)INTFBVADDR + DIO_IDOFF, 1);
+	err = copy_from_kernel_nofault(&i, (unsigned char *)INTFBVADDR + DIO_IDOFF, 1);
 
 	if (!err && (i == DIO_ID_FBUFFER) && topcat_sid_ok(sid = DIO_SECID(INTFBVADDR))) {
 		if (!request_mem_region(INTFBPADDR, DIO_DEVSIZE, "Internal Topcat"))
@@ -414,7 +415,7 @@ int __init hpfb_init(void)
 	return 0;
 }
 
-void __exit hpfb_cleanup_module(void)
+static void __exit hpfb_cleanup_module(void)
 {
 	dio_unregister_driver(&hpfb_driver);
 }

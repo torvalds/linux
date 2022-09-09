@@ -1,38 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Traphandler
  * Copyright (C) 2014 Free Electrons
  *
  * Author: Jean-Jacques Hiblot <jjhiblot@traphandler.com>
  * Author: Boris BREZILLON <boris.brezillon@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
+#include <linux/media-bus-format.h>
+#include <linux/mfd/atmel-hlcdc.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/pinctrl/consumer.h>
-
-#include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drmP.h>
 
 #include <video/videomode.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "atmel_hlcdc_dc.h"
 
 /**
- * Atmel HLCDC CRTC state structure
+ * struct atmel_hlcdc_crtc_state - Atmel HLCDC CRTC state structure
  *
  * @base: base CRTC state
  * @output_mode: RGBXXX output mode
@@ -49,10 +43,10 @@ drm_crtc_state_to_atmel_hlcdc_crtc_state(struct drm_crtc_state *state)
 }
 
 /**
- * Atmel HLCDC CRTC structure
+ * struct atmel_hlcdc_crtc - Atmel HLCDC CRTC structure
  *
  * @base: base DRM CRTC structure
- * @hlcdc: pointer to the atmel_hlcdc structure provided by the MFD device
+ * @dc: pointer to the atmel_hlcdc structure provided by the MFD device
  * @event: pointer to the current page flip event
  * @id: CRTC id (returned by drm_crtc_index)
  */
@@ -78,8 +72,13 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 	unsigned long mode_rate;
 	struct videomode vm;
 	unsigned long prate;
-	unsigned int cfg;
-	int div;
+	unsigned int mask = ATMEL_HLCDC_CLKDIV_MASK | ATMEL_HLCDC_CLKPOL;
+	unsigned int cfg = 0;
+	int div, ret;
+
+	ret = clk_prepare_enable(crtc->dc->hlcdc->sys_clk);
+	if (ret)
+		return;
 
 	vm.vfront_porch = adj->crtc_vsync_start - adj->crtc_vdisplay;
 	vm.vback_porch = adj->crtc_vtotal - adj->crtc_vsync_end;
@@ -101,10 +100,13 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 		     (adj->crtc_hdisplay - 1) |
 		     ((adj->crtc_vdisplay - 1) << 16));
 
-	cfg = ATMEL_HLCDC_CLKSEL;
-
-	prate = 2 * clk_get_rate(crtc->dc->hlcdc->sys_clk);
+	prate = clk_get_rate(crtc->dc->hlcdc->sys_clk);
 	mode_rate = adj->crtc_clock * 1000;
+	if (!crtc->dc->desc->fixed_clksrc) {
+		prate *= 2;
+		cfg |= ATMEL_HLCDC_CLKSEL;
+		mask |= ATMEL_HLCDC_CLKSEL;
+	}
 
 	div = DIV_ROUND_UP(prate, mode_rate);
 	if (div < 2) {
@@ -120,8 +122,8 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 		int div_low = prate / mode_rate;
 
 		if (div_low >= 2 &&
-		    ((prate / div_low - mode_rate) <
-		     10 * (mode_rate - prate / div)))
+		    (10 * (prate / div_low - mode_rate) <
+		     (mode_rate - prate / div)))
 			/*
 			 * At least 10 times better when using a higher
 			 * frequency than requested, instead of a lower.
@@ -132,20 +134,16 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 
 	cfg |= ATMEL_HLCDC_CLKDIV(div);
 
-	regmap_update_bits(regmap, ATMEL_HLCDC_CFG(0),
-			   ATMEL_HLCDC_CLKSEL | ATMEL_HLCDC_CLKDIV_MASK |
-			   ATMEL_HLCDC_CLKPOL, cfg);
+	regmap_update_bits(regmap, ATMEL_HLCDC_CFG(0), mask, cfg);
 
-	cfg = 0;
+	state = drm_crtc_state_to_atmel_hlcdc_crtc_state(c->state);
+	cfg = state->output_mode << 8;
 
 	if (adj->flags & DRM_MODE_FLAG_NVSYNC)
 		cfg |= ATMEL_HLCDC_VSPOL;
 
 	if (adj->flags & DRM_MODE_FLAG_NHSYNC)
 		cfg |= ATMEL_HLCDC_HSPOL;
-
-	state = drm_crtc_state_to_atmel_hlcdc_crtc_state(c->state);
-	cfg |= state->output_mode << 8;
 
 	regmap_update_bits(regmap, ATMEL_HLCDC_CFG(5),
 			   ATMEL_HLCDC_HSPOL | ATMEL_HLCDC_VSPOL |
@@ -154,6 +152,8 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 			   ATMEL_HLCDC_VSPSU | ATMEL_HLCDC_VSPHO |
 			   ATMEL_HLCDC_GUARDTIME_MASK | ATMEL_HLCDC_MODE_MASK,
 			   cfg);
+
+	clk_disable_unprepare(crtc->dc->hlcdc->sys_clk);
 }
 
 static enum drm_mode_status
@@ -166,7 +166,7 @@ atmel_hlcdc_crtc_mode_valid(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_disable(struct drm_crtc *c,
-					    struct drm_crtc_state *old_state)
+					    struct drm_atomic_state *state)
 {
 	struct drm_device *dev = c->dev;
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
@@ -201,7 +201,7 @@ static void atmel_hlcdc_crtc_atomic_disable(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_enable(struct drm_crtc *c,
-					   struct drm_crtc_state *old_state)
+					   struct drm_atomic_state *state)
 {
 	struct drm_device *dev = c->dev;
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
@@ -233,7 +233,6 @@ static void atmel_hlcdc_crtc_atomic_enable(struct drm_crtc *c,
 
 	pm_runtime_put_sync(dev->dev);
 
-	drm_crtc_vblank_on(c);
 }
 
 #define ATMEL_HLCDC_RGB444_OUTPUT	BIT(0)
@@ -326,8 +325,9 @@ static int atmel_hlcdc_crtc_select_output_mode(struct drm_crtc_state *state)
 }
 
 static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
-					 struct drm_crtc_state *s)
+					 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *s = drm_atomic_get_new_crtc_state(state, c);
 	int ret;
 
 	ret = atmel_hlcdc_crtc_select_output_mode(s);
@@ -342,9 +342,18 @@ static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c,
-					  struct drm_crtc_state *old_s)
+					  struct drm_atomic_state *state)
+{
+	drm_crtc_vblank_on(c);
+}
+
+static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *c,
+					  struct drm_atomic_state *state)
 {
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
+	unsigned long flags;
+
+	spin_lock_irqsave(&c->dev->event_lock, flags);
 
 	if (c->state->event) {
 		c->state->event->pipe = drm_crtc_index(c);
@@ -354,12 +363,7 @@ static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c,
 		crtc->event = c->state->event;
 		c->state->event = NULL;
 	}
-}
-
-static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_s)
-{
-	/* TODO: write common plane control register if available */
+	spin_unlock_irqrestore(&c->dev->event_lock, flags);
 }
 
 static const struct drm_crtc_helper_funcs lcdc_crtc_helper_funcs = {
@@ -412,10 +416,8 @@ static void atmel_hlcdc_crtc_reset(struct drm_crtc *crtc)
 	}
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		crtc->state = &state->base;
-		crtc->state->crtc = crtc;
-	}
+	if (state)
+		__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
 
 static struct drm_crtc_state *
@@ -475,7 +477,6 @@ static const struct drm_crtc_funcs atmel_hlcdc_crtc_funcs = {
 	.atomic_destroy_state = atmel_hlcdc_crtc_destroy_state,
 	.enable_vblank = atmel_hlcdc_crtc_enable_vblank,
 	.disable_vblank = atmel_hlcdc_crtc_disable_vblank,
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
 int atmel_hlcdc_crtc_create(struct drm_device *dev)
@@ -529,7 +530,6 @@ int atmel_hlcdc_crtc_create(struct drm_device *dev)
 	}
 
 	drm_crtc_helper_add(&crtc->base, &lcdc_crtc_helper_funcs);
-	drm_crtc_vblank_reset(&crtc->base);
 
 	drm_mode_crtc_set_gamma_size(&crtc->base, ATMEL_HLCDC_CLUT_SIZE);
 	drm_crtc_enable_color_mgmt(&crtc->base, 0, false,

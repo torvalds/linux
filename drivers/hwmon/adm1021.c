@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * adm1021.c - Part of lm_sensors, Linux kernel modules for hardware
  *	       monitoring
  * Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
  *			     Philip Edelbrock <phil@netroedge.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -85,7 +72,7 @@ struct adm1021_data {
 	const struct attribute_group *groups[3];
 
 	struct mutex update_lock;
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	char low_power;		/* !=0 if device in low power mode */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -148,7 +135,7 @@ static struct adm1021_data *adm1021_update_device(struct device *dev)
 						ADM1023_REG_REM_OFFSET_PREC);
 		}
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -337,7 +324,7 @@ static int adm1021_detect(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = client->adapter;
 	const char *type_name;
-	int conv_rate, status, config, man_id, dev_id;
+	int reg, conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("detect failed, smbus byte data not supported!\n");
@@ -362,9 +349,19 @@ static int adm1021_detect(struct i2c_client *client,
 	if (man_id < 0 || dev_id < 0)
 		return -ENODEV;
 
-	if (man_id == 0x4d && dev_id == 0x01)
+	if (man_id == 0x4d && dev_id == 0x01) {
+		/*
+		 * dev_id 0x01 matches MAX6680, MAX6695, MAX6696, and possibly
+		 * others. Read register which is unsupported on MAX1617 but
+		 * exists on all those chips and compare with the dev_id
+		 * register. If it matches, it may be a MAX1617A.
+		 */
+		reg = i2c_smbus_read_byte_data(client,
+					       ADM1023_REG_REM_TEMP_PREC);
+		if (reg != dev_id)
+			return -ENODEV;
 		type_name = "max1617a";
-	else if (man_id == 0x41) {
+	} else if (man_id == 0x41) {
 		if ((dev_id & 0xF0) == 0x30)
 			type_name = "adm1023";
 		else if ((dev_id & 0xF0) == 0x00)
@@ -408,13 +405,18 @@ static int adm1021_detect(struct i2c_client *client,
 
 		/*
 		 * LM84 Mfr ID is in a different place,
-		 * and it has more unused bits.
+		 * and it has more unused bits. Registers at 0xfe and 0xff
+		 * are undefined and return the most recently read value,
+		 * here the value of the configuration register.
 		 */
 		if (conv_rate == 0x00
+		    && man_id == config && dev_id == config
 		    && (config & 0x7F) == 0x00
 		    && (status & 0xAB) == 0x00) {
 			type_name = "lm84";
 		} else {
+			if ((config & 0x3f) || (status & 0x03))
+				return -ENODEV;
 			/* fail if low limits are larger than high limits */
 			if ((s8)llo > lhi || (s8)rlo > rhi)
 				return -ENODEV;
@@ -438,8 +440,9 @@ static void adm1021_init_client(struct i2c_client *client)
 	i2c_smbus_write_byte_data(client, ADM1021_REG_CONV_RATE_W, 0x04);
 }
 
-static int adm1021_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id adm1021_id[];
+
+static int adm1021_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct adm1021_data *data;
@@ -450,7 +453,7 @@ static int adm1021_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->client = client;
-	data->type = id->driver_data;
+	data->type = i2c_match_id(adm1021_id, client)->driver_data;
 	mutex_init(&data->update_lock);
 
 	/* Initialize the ADM1021 chip */
@@ -485,7 +488,7 @@ static struct i2c_driver adm1021_driver = {
 	.driver = {
 		.name	= "adm1021",
 	},
-	.probe		= adm1021_probe,
+	.probe_new	= adm1021_probe,
 	.id_table	= adm1021_id,
 	.detect		= adm1021_detect,
 	.address_list	= normal_i2c,

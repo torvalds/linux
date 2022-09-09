@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -5,20 +6,6 @@
 
   Copyright (c) 2011 Rafał Miłecki <zajec5@gmail.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
@@ -913,9 +900,6 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x70, 0x50);
 	b43_phy_write(dev, 0x1ff, 0x30);
 
-	if (0) /* TODO: condition */
-		; /* TODO: PHY op on reg 0x217 */
-
 	if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
 		b43_phy_ht_classifier(dev, B43_PHY_HT_CLASS_CTL_CCK_EN, 0);
 	else
@@ -1031,7 +1015,7 @@ static void b43_phy_ht_op_free(struct b43_wldev *dev)
 	phy->ht = NULL;
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
+/* https://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
 static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {

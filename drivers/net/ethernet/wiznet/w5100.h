@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Ethernet driver for the WIZnet W5100 chip.
  *
  * Copyright (C) 2006-2008 WIZnet Co.,Ltd.
  * Copyright (C) 2012 Mike Sinkovsky <msink@permonline.ru>
- *
- * Licensed under the GPL-2 or later.
  */
 
 enum {
@@ -32,6 +31,6 @@ void *w5100_ops_priv(const struct net_device *ndev);
 int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 		int sizeof_ops_priv, const void *mac_addr, int irq,
 		int link_gpio);
-int w5100_remove(struct device *dev);
+void w5100_remove(struct device *dev);
 
 extern const struct dev_pm_ops w5100_pm_ops;

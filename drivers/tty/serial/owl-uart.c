@@ -12,6 +12,7 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -61,6 +62,9 @@
 #define OWL_UART_STAT_TFES		BIT(10)
 #define OWL_UART_STAT_TRFL_MASK		GENMASK(16, 11)
 #define OWL_UART_STAT_UTBB		BIT(17)
+
+#define OWL_UART_POLL_USEC		5
+#define OWL_UART_TIMEOUT_USEC		10000
 
 static struct uart_driver owl_uart_driver;
 
@@ -180,9 +184,6 @@ static void owl_uart_send_chars(struct uart_port *port)
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int ch;
 
-	if (uart_tx_stopped(port))
-		return;
-
 	if (port->x_char) {
 		while (!(owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_TFFU))
 			cpu_relax();
@@ -191,13 +192,16 @@ static void owl_uart_send_chars(struct uart_port *port)
 		port->x_char = 0;
 	}
 
+	if (uart_tx_stopped(port))
+		return;
+
 	while (!(owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_TFFU)) {
 		if (uart_circ_empty(xmit))
 			break;
 
 		ch = xmit->buf[xmit->tail];
 		owl_uart_write(port, ch, OWL_UART_TXDAT);
-		xmit->tail = (xmit->tail + 1) & (SERIAL_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 
@@ -243,9 +247,7 @@ static void owl_uart_receive_chars(struct uart_port *port)
 		stat = owl_uart_read(port, OWL_UART_STAT);
 	}
 
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
-	spin_lock(&port->lock);
 }
 
 static irqreturn_t owl_uart_irq(int irq, void *dev_id)
@@ -427,7 +429,7 @@ static int owl_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+		port->membase = devm_ioremap(port->dev, port->mapbase,
 				resource_size(res));
 		if (!port->membase)
 			return -EBUSY;
@@ -461,6 +463,36 @@ static void owl_uart_config_port(struct uart_port *port, int flags)
 	}
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+
+static int owl_uart_poll_get_char(struct uart_port *port)
+{
+	if (owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_RFEM)
+		return NO_POLL_CHAR;
+
+	return owl_uart_read(port, OWL_UART_RXDAT);
+}
+
+static void owl_uart_poll_put_char(struct uart_port *port, unsigned char ch)
+{
+	u32 reg;
+	int ret;
+
+	/* Wait while FIFO is full or timeout */
+	ret = readl_poll_timeout_atomic(port->membase + OWL_UART_STAT, reg,
+					!(reg & OWL_UART_STAT_TFFU),
+					OWL_UART_POLL_USEC,
+					OWL_UART_TIMEOUT_USEC);
+	if (ret == -ETIMEDOUT) {
+		dev_err(port->dev, "Timeout waiting while UART TX FULL\n");
+		return;
+	}
+
+	owl_uart_write(port, ch, OWL_UART_TXDAT);
+}
+
+#endif /* CONFIG_CONSOLE_POLL */
+
 static const struct uart_ops owl_uart_ops = {
 	.set_mctrl = owl_uart_set_mctrl,
 	.get_mctrl = owl_uart_get_mctrl,
@@ -476,11 +508,15 @@ static const struct uart_ops owl_uart_ops = {
 	.request_port = owl_uart_request_port,
 	.release_port = owl_uart_release_port,
 	.verify_port = owl_uart_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char = owl_uart_poll_get_char,
+	.poll_put_char = owl_uart_poll_put_char,
+#endif
 };
 
 #ifdef CONFIG_SERIAL_OWL_CONSOLE
 
-static void owl_console_putchar(struct uart_port *port, int ch)
+static void owl_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	if (!port->membase)
 		return;
@@ -662,10 +698,8 @@ static int owl_uart_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "could not get irq\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	if (owl_uart_ports[pdev->id]) {
 		dev_err(&pdev->dev, "port %d already allocated\n", pdev->id);
@@ -682,6 +716,12 @@ static int owl_uart_probe(struct platform_device *pdev)
 		return PTR_ERR(owl_port->clk);
 	}
 
+	ret = clk_prepare_enable(owl_port->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "could not enable clk\n");
+		return ret;
+	}
+
 	owl_port->port.dev = &pdev->dev;
 	owl_port->port.line = pdev->id;
 	owl_port->port.type = PORT_OWL;
@@ -691,6 +731,7 @@ static int owl_uart_probe(struct platform_device *pdev)
 	owl_port->port.uartclk = clk_get_rate(owl_port->clk);
 	if (owl_port->port.uartclk == 0) {
 		dev_err(&pdev->dev, "clock rate is zero\n");
+		clk_disable_unprepare(owl_port->clk);
 		return -EINVAL;
 	}
 	owl_port->port.flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP | UPF_LOW_LATENCY;
@@ -714,6 +755,7 @@ static int owl_uart_remove(struct platform_device *pdev)
 
 	uart_remove_one_port(&owl_uart_driver, &owl_port->port);
 	owl_uart_ports[pdev->id] = NULL;
+	clk_disable_unprepare(owl_port->clk);
 
 	return 0;
 }
@@ -742,7 +784,7 @@ static int __init owl_uart_init(void)
 	return ret;
 }
 
-static void __init owl_uart_exit(void)
+static void __exit owl_uart_exit(void)
 {
 	platform_driver_unregister(&owl_uart_platform_driver);
 	uart_unregister_driver(&owl_uart_driver);

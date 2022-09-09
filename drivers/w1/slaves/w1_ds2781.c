@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 1-Wire implementation for the ds2781 chip
  *
  * Author: Renata Sayakhova <renata@oktetlabs.ru>
  *
  * Based on w1-ds2780 driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -91,7 +87,7 @@ static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr, char *buf,
 			     loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	return w1_ds2781_io(dev, buf, off, count, 0);
 }
 
@@ -142,7 +138,7 @@ static void w1_ds2781_remove_slave(struct w1_slave *sl)
 	platform_device_unregister(pdev);
 }
 
-static struct w1_family_ops w1_ds2781_fops = {
+static const struct w1_family_ops w1_ds2781_fops = {
 	.add_slave    = w1_ds2781_add_slave,
 	.remove_slave = w1_ds2781_remove_slave,
 	.groups       = w1_ds2781_groups,

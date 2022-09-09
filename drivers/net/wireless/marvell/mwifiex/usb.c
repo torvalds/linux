@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: USB specific handling
+ * NXP Wireless LAN device driver: USB specific handling
  *
- * Copyright (C) 2012-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include "main.h"
@@ -130,7 +118,8 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 		default:
 			mwifiex_dbg(adapter, ERROR,
 				    "unknown recv_type %#x\n", recv_type);
-			return -1;
+			ret = -1;
+			goto exit_restore_skb;
 		}
 		break;
 	case MWIFIEX_USB_EP_DATA:
@@ -503,6 +492,22 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 			card->bulk_out_maxpktsize =
 					le16_to_cpu(epd->wMaxPacketSize);
 		}
+	}
+
+	switch (card->usb_boot_state) {
+	case USB8XXX_FW_DNLD:
+		/* Reject broken descriptors. */
+		if (!card->rx_cmd_ep || !card->tx_cmd_ep)
+			return -ENODEV;
+		if (card->bulk_out_maxpktsize == 0)
+			return -ENODEV;
+		break;
+	case USB8XXX_FW_READY:
+		/* Assume the driver can handle missing endpoints for now. */
+		break;
+	default:
+		WARN_ON(1);
+		return -ENODEV;
 	}
 
 	usb_set_intfdata(intf, card);
@@ -1128,10 +1133,9 @@ static void mwifiex_usb_tx_aggr_tmo(struct timer_list *t)
 		from_timer(timer_context, t, hold_timer);
 	struct mwifiex_adapter *adapter = timer_context->adapter;
 	struct usb_tx_data_port *port = timer_context->port;
-	unsigned long flags;
 	int err = 0;
 
-	spin_lock_irqsave(&port->tx_aggr_lock, flags);
+	spin_lock_bh(&port->tx_aggr_lock);
 	err = mwifiex_usb_prepare_tx_aggr_skb(adapter, port, &skb_send);
 	if (err) {
 		mwifiex_dbg(adapter, ERROR,
@@ -1158,7 +1162,7 @@ done:
 	if (err == -1)
 		mwifiex_write_data_complete(adapter, skb_send, 0, -1);
 unlock:
-	spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
+	spin_unlock_bh(&port->tx_aggr_lock);
 }
 
 /* This function write a command/data packet to card. */
@@ -1169,7 +1173,6 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct usb_card_rec *card = adapter->card;
 	struct urb_context *context = NULL;
 	struct usb_tx_data_port *port = NULL;
-	unsigned long flags;
 	int idx, ret;
 
 	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
@@ -1211,10 +1214,10 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		}
 
 		if (adapter->bus_aggr.enable) {
-			spin_lock_irqsave(&port->tx_aggr_lock, flags);
+			spin_lock_bh(&port->tx_aggr_lock);
 			ret =  mwifiex_usb_aggr_tx_data(adapter, ep, skb,
 							tx_param, port);
-			spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
+			spin_unlock_bh(&port->tx_aggr_lock);
 			return ret;
 		}
 
@@ -1355,7 +1358,8 @@ static void mwifiex_usb_cleanup_tx_aggr(struct mwifiex_adapter *adapter)
 				skb_dequeue(&port->tx_aggr.aggr_list)))
 				mwifiex_write_data_complete(adapter, skb_tmp,
 							    0, -1);
-		del_timer_sync(&port->tx_aggr.timer_cnxt.hold_timer);
+		if (port->tx_aggr.timer_cnxt.hold_timer.function)
+			del_timer_sync(&port->tx_aggr.timer_cnxt.hold_timer);
 		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
 		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
 	}

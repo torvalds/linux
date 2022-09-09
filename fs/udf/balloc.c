@@ -325,6 +325,17 @@ got_block:
 	newblock = bit + (block_group << (sb->s_blocksize_bits + 3)) -
 		(sizeof(struct spaceBitmapDesc) << 3);
 
+	if (newblock >= sbi->s_partmaps[partition].s_partition_len) {
+		/*
+		 * Ran off the end of the bitmap, and bits following are
+		 * non-compliant (not all zero)
+		 */
+		udf_err(sb, "bitmap for partition %d corrupted (block %u marked"
+			" as free, partition length is %u)\n", partition,
+			newblock, sbi->s_partmaps[partition].s_partition_len);
+		goto error_return;
+	}
+
 	if (!udf_clear_bit(bit, bh->b_data)) {
 		udf_debug("bit already cleared for block %d\n", bit);
 		goto repeat;
@@ -553,7 +564,7 @@ static udf_pblk_t udf_table_new_block(struct super_block *sb,
 	udf_pblk_t newblock = 0;
 	uint32_t adsize;
 	uint32_t elen, goal_elen = 0;
-	struct kernel_lb_addr eloc, uninitialized_var(goal_eloc);
+	struct kernel_lb_addr eloc, goal_eloc;
 	struct extent_position epos, goal_epos;
 	int8_t etype;
 	struct udf_inode_info *iinfo = UDF_I(table);

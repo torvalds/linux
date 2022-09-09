@@ -1,36 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
 #include <linux/backlight.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
+
+#include "gma_device.h"
 #include "intel_bios.h"
 #include "psb_device.h"
-#include "gma_device.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static int psb_output_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	psb_intel_lvds_init(dev, &dev_priv->mode_dev);
 	psb_intel_sdvo_init(dev, SDVOB);
 	return 0;
@@ -67,7 +55,7 @@ static int psb_get_brightness(struct backlight_device *bd)
 
 static int psb_backlight_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	unsigned long core_clock;
 	/* u32 bl_max_freq; */
 	/* unsigned long value; */
@@ -122,7 +110,7 @@ static const struct backlight_ops psb_ops = {
 
 static int psb_backlight_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int ret;
 	struct backlight_properties props;
 
@@ -161,7 +149,7 @@ static int psb_backlight_init(struct drm_device *dev)
 
 static void psb_init_pm(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	u32 gating = PSB_RSGX32(PSB_CR_CLKGATECTL);
 	gating &= ~3;	/* Disable 2D clock gating */
@@ -179,9 +167,11 @@ static void psb_init_pm(struct drm_device *dev)
  */
 static int psb_save_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gma_connector *gma_connector;
 	struct drm_crtc *crtc;
-	struct gma_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration control + watermarks */
@@ -201,9 +191,13 @@ static int psb_save_display_registers(struct drm_device *dev)
 			dev_priv->ops->save_crtc(crtc);
 	}
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
-		if (connector->save)
-			connector->save(&connector->base);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		gma_connector = to_gma_connector(connector);
+		if (gma_connector->save)
+			gma_connector->save(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -217,9 +211,11 @@ static int psb_save_display_registers(struct drm_device *dev)
  */
 static int psb_restore_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gma_connector *gma_connector;
 	struct drm_crtc *crtc;
-	struct gma_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration + watermarks */
@@ -240,9 +236,13 @@ static int psb_restore_display_registers(struct drm_device *dev)
 		if (drm_helper_crtc_in_use(crtc))
 			dev_priv->ops->restore_crtc(crtc);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
-		if (connector->restore)
-			connector->restore(&connector->base);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		gma_connector = to_gma_connector(connector);
+		if (gma_connector->restore)
+			gma_connector->restore(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -312,7 +312,7 @@ static const struct psb_offset psb_regmap[2] = {
 
 static int psb_chip_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	dev_priv->regmap = psb_regmap;
 	gma_get_core_freq(dev);
 	gma_intel_setup_gmbus(dev);
@@ -323,14 +323,13 @@ static int psb_chip_setup(struct drm_device *dev)
 
 static void psb_chip_teardown(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	psb_lid_timer_takedown(dev_priv);
 	gma_intel_teardown_gmbus(dev);
 }
 
 const struct psb_ops psb_chip_ops = {
 	.name = "Poulsbo",
-	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
 	.hdmi_mask = (1 << 0),
@@ -342,7 +341,6 @@ const struct psb_ops psb_chip_ops = {
 	.chip_teardown = psb_chip_teardown,
 
 	.crtc_helper = &psb_intel_helper_funcs,
-	.crtc_funcs = &psb_intel_crtc_funcs,
 	.clock_funcs = &psb_clock_funcs,
 
 	.output_init = psb_output_init,

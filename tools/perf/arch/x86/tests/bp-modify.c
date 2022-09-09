@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
 #include <errno.h>
@@ -72,7 +73,7 @@ static int bp_modify1(void)
 	/*
 	 * The parent does following steps:
 	 *  - creates a new breakpoint (id 0) for bp_2 function
-	 *  - changes that breakponit to bp_1 function
+	 *  - changes that breakpoint to bp_1 function
 	 *  - waits for the breakpoint to hit and checks
 	 *    it has proper rip of bp_1 function
 	 *  - detaches the child
@@ -203,7 +204,7 @@ out:
 	return rip == (unsigned long) bp_1 ? TEST_OK : TEST_FAIL;
 }
 
-int test__bp_modify(struct test *test __maybe_unused,
+int test__bp_modify(struct test_suite *test __maybe_unused,
 		    int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("modify test 1 failed\n", !bp_modify1());

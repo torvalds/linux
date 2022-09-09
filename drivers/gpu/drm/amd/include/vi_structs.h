@@ -151,8 +151,7 @@ struct vi_sdma_mqd {
 	uint32_t reserved_123;
 	uint32_t reserved_124;
 	uint32_t reserved_125;
-	uint32_t reserved_126;
-	uint32_t reserved_127;
+	/* reserved_126,127: repurposed for driver-internal use */
 	uint32_t sdma_engine_id;
 	uint32_t sdma_queue_id;
 };
@@ -398,22 +397,22 @@ struct vi_mqd {
 	uint32_t reserved60;
 	uint32_t reserved61;
 	uint32_t reserved62;
-	uint32_t reserved63;
-	uint32_t reserved64;
-	uint32_t reserved65;
-	uint32_t reserved66;
-	uint32_t reserved67;
-	uint32_t reserved68;
-	uint32_t reserved69;
-	uint32_t reserved70;
-	uint32_t reserved71;
-	uint32_t reserved72;
-	uint32_t reserved73;
-	uint32_t reserved74;
-	uint32_t reserved75;
-	uint32_t reserved76;
-	uint32_t reserved77;
-	uint32_t reserved78;
+	uint32_t queue_doorbell_id0;
+	uint32_t queue_doorbell_id1;
+	uint32_t queue_doorbell_id2;
+	uint32_t queue_doorbell_id3;
+	uint32_t queue_doorbell_id4;
+	uint32_t queue_doorbell_id5;
+	uint32_t queue_doorbell_id6;
+	uint32_t queue_doorbell_id7;
+	uint32_t queue_doorbell_id8;
+	uint32_t queue_doorbell_id9;
+	uint32_t queue_doorbell_id10;
+	uint32_t queue_doorbell_id11;
+	uint32_t queue_doorbell_id12;
+	uint32_t queue_doorbell_id13;
+	uint32_t queue_doorbell_id14;
+	uint32_t queue_doorbell_id15;
 	uint32_t reserved_t[256];
 };
 

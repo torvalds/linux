@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Conexant cx24117/cx24132 - Dual DVBS/S2 Satellite demod/tuner driver
 
@@ -9,19 +10,6 @@
 		TBS6980 - Dual DVBS/S2 PCIe card
 		TBS6981 - Dual DVBS/S2 PCIe card
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/slab.h>
@@ -631,8 +619,10 @@ static int cx24117_load_firmware(struct dvb_frontend *fe,
 
 	/* send fw */
 	ret = i2c_transfer(state->priv->i2c, &msg, 1);
-	if (ret < 0)
+	if (ret < 0) {
+		kfree(buf);
 		return ret;
+	}
 
 	kfree(buf);
 
@@ -1182,7 +1172,6 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 			"%s: Error attaching frontend %d\n",
 			KBUILD_MODNAME, demod);
 		goto error1;
-		break;
 	case 1:
 		/* new priv instance */
 		priv->i2c = i2c;

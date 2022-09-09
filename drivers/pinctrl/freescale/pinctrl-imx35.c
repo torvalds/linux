@@ -1014,6 +1014,7 @@ static struct platform_driver imx35_pinctrl_driver = {
 	.driver = {
 		.name = "imx35-pinctrl",
 		.of_match_table = imx35_pinctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx35_pinctrl_probe,
 };

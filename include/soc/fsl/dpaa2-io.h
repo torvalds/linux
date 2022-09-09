@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright NXP
+ * Copyright 2017-2019 NXP
  *
  */
 #ifndef __FSL_DPAA2_IO_H
@@ -44,6 +44,7 @@ struct device;
  * @regs_cinh:      The cache inhibited regs
  * @dpio_id:        The dpio index
  * @qman_version:   The qman version
+ * @qman_clk:       The qman clock frequency in Hz
  *
  * Describes the attributes and features of the DPIO object.
  */
@@ -55,9 +56,11 @@ struct dpaa2_io_desc {
 	void __iomem *regs_cinh;
 	int dpio_id;
 	u32 qman_version;
+	u32 qman_clk;
 };
 
-struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc);
+struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
+				 struct device *dev);
 
 void dpaa2_io_down(struct dpaa2_io *d);
 
@@ -90,10 +93,14 @@ struct dpaa2_io_notification_ctx {
 	void *dpio_private;
 };
 
+int dpaa2_io_get_cpu(struct dpaa2_io *d);
+
 int dpaa2_io_service_register(struct dpaa2_io *service,
-			      struct dpaa2_io_notification_ctx *ctx);
+			      struct dpaa2_io_notification_ctx *ctx,
+			      struct device *dev);
 void dpaa2_io_service_deregister(struct dpaa2_io *service,
-				 struct dpaa2_io_notification_ctx *ctx);
+				 struct dpaa2_io_notification_ctx *ctx,
+				 struct device *dev);
 int dpaa2_io_service_rearm(struct dpaa2_io *service,
 			   struct dpaa2_io_notification_ctx *ctx);
 
@@ -104,11 +111,15 @@ int dpaa2_io_service_pull_channel(struct dpaa2_io *d, u32 channelid,
 
 int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d, u32 fqid,
 				const struct dpaa2_fd *fd);
+int dpaa2_io_service_enqueue_multiple_fq(struct dpaa2_io *d, u32 fqid,
+				const struct dpaa2_fd *fd, int number_of_frame);
+int dpaa2_io_service_enqueue_multiple_desc_fq(struct dpaa2_io *d, u32 *fqid,
+				const struct dpaa2_fd *fd, int number_of_frame);
 int dpaa2_io_service_enqueue_qd(struct dpaa2_io *d, u32 qdid, u8 prio,
 				u16 qdbin, const struct dpaa2_fd *fd);
-int dpaa2_io_service_release(struct dpaa2_io *d, u32 bpid,
+int dpaa2_io_service_release(struct dpaa2_io *d, u16 bpid,
 			     const u64 *buffers, unsigned int num_buffers);
-int dpaa2_io_service_acquire(struct dpaa2_io *d, u32 bpid,
+int dpaa2_io_service_acquire(struct dpaa2_io *d, u16 bpid,
 			     u64 *buffers, unsigned int num_buffers);
 
 struct dpaa2_io_store *dpaa2_io_store_create(unsigned int max_frames,
@@ -120,4 +131,11 @@ int dpaa2_io_query_fq_count(struct dpaa2_io *d, u32 fqid,
 			    u32 *fcnt, u32 *bcnt);
 int dpaa2_io_query_bp_count(struct dpaa2_io *d, u16 bpid,
 			    u32 *num);
+
+int dpaa2_io_set_irq_coalescing(struct dpaa2_io *d, u32 irq_holdoff);
+void dpaa2_io_get_irq_coalescing(struct dpaa2_io *d, u32 *irq_holdoff);
+void dpaa2_io_set_adaptive_coalescing(struct dpaa2_io *d,
+				      int use_adaptive_rx_coalesce);
+int dpaa2_io_get_adaptive_coalescing(struct dpaa2_io *d);
+void dpaa2_io_update_net_dim(struct dpaa2_io *d, __u64 frames, __u64 bytes);
 #endif /* __FSL_DPAA2_IO_H */

@@ -91,6 +91,7 @@ enum {
 	SGE_CTXT_SIZE = 24,       /* size of SGE context */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
+	SGE_NDBQTIMERS = 8,       /* # of Doorbell Queue Timer values */
 	SGE_MAX_IQ_SIZE = 65520,
 
 	SGE_TIMER_RSTRT_CNTR = 6, /* restart RX packet threshold counter */
@@ -292,6 +293,8 @@ enum {
 #define I2C_PAGE_SIZE		0x100
 #define SFP_DIAG_TYPE_ADDR	0x5c
 #define SFP_DIAG_TYPE_LEN	0x1
+#define SFP_DIAG_ADDRMODE	BIT(2)
+#define SFP_DIAG_IMPLEMENTED	BIT(6)
 #define SFF_8472_COMP_ADDR	0x5e
 #define SFF_8472_COMP_LEN	0x1
 #define SFF_REV_ADDR		0x1

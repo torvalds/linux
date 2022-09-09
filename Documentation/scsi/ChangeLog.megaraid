@@ -220,7 +220,7 @@ Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
 
 4.	Use the pre defined DMA mask constants from dma-mapping.h
 	Use the DMA_{64,32}BIT_MASK constants from dma-mapping.h when calling
-	pci_set_dma_mask() or pci_set_consistend_dma_mask(). See
+	pci_set_dma_mask() or pci_set_consistent_dma_mask(). See
 	http://marc.theaimsgroup.com/?t=108001993000001&r=1&w=2 for more
 	details.
 		Signed-off-by: Tobias Klauser <tklauser@nuerscht.ch>

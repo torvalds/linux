@@ -1,6 +1,6 @@
 What:		/sys/bus/scsi/drivers/st/debug_flag
 Date:		October 2015
-Kernel Version:	?.?
+KernelVersion:	?.?
 Contact:	shane.seymour@hpe.com
 Description:
 		This file allows you to turn debug output from the st driver

@@ -38,7 +38,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <linux/of_device.h>
 
 #include <asm/io.h>
@@ -51,17 +51,6 @@
 #include <asm/iommu.h>
 #include <asm/io-unit.h>
 #include <asm/leon.h>
-
-/* This function must make sure that caches and memory are coherent after DMA
- * On LEON systems without cache snooping it flushes the entire D-CACHE.
- */
-static inline void dma_make_coherent(unsigned long pa, unsigned long len)
-{
-	if (sparc_cpu_model == sparc_leon) {
-		if (!sparc_leon3_snooping_enabled())
-			leon_flush_dcache_all();
-	}
-}
 
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
 static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
@@ -311,70 +300,20 @@ arch_initcall(sparc_register_ioport);
 
 #endif /* CONFIG_SBUS */
 
-
-/* Allocate and map kernel buffer using consistent mode DMA for a device.
- * hwdev should be valid struct pci_dev pointer for PCI devices.
- */
-void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, unsigned long attrs)
-{
-	unsigned long addr;
-	void *va;
-
-	if (!size || size > 256 * 1024)	/* __get_free_pages() limit */
-		return NULL;
-
-	size = PAGE_ALIGN(size);
-	va = (void *) __get_free_pages(gfp | __GFP_ZERO, get_order(size));
-	if (!va) {
-		printk("%s: no %zd pages\n", __func__, size >> PAGE_SHIFT);
-		return NULL;
-	}
-
-	addr = sparc_dma_alloc_resource(dev, size);
-	if (!addr)
-		goto err_nomem;
-
-	srmmu_mapiorange(0, virt_to_phys(va), addr, size);
-
-	*dma_handle = virt_to_phys(va);
-	return (void *)addr;
-
-err_nomem:
-	free_pages((unsigned long)va, get_order(size));
-	return NULL;
-}
-
-/* Free and unmap a consistent DMA buffer.
- * cpu_addr is what was returned arch_dma_alloc, size must be the same as what
- * was passed into arch_dma_alloc, and likewise dma_addr must be the same as
- * what *dma_ndler was set to.
+/*
+ * IIep is write-through, not flushing on cpu to device transfer.
  *
- * References to the memory and mappings associated with cpu_addr/dma_addr
- * past this call are illegal.
+ * On LEON systems without cache snooping, the entire D-CACHE must be flushed to
+ * make DMA to cacheable memory coherent.
  */
-void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
-		dma_addr_t dma_addr, unsigned long attrs)
+void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
-	if (!sparc_dma_free_resource(cpu_addr, PAGE_ALIGN(size)))
-		return;
-
-	dma_make_coherent(dma_addr, size);
-	srmmu_unmapiorange((unsigned long)cpu_addr, size);
-	free_pages((unsigned long)phys_to_virt(dma_addr), get_order(size));
+	if (dir != DMA_TO_DEVICE &&
+	    sparc_cpu_model == sparc_leon &&
+	    !sparc_leon3_snooping_enabled())
+		leon_flush_dcache_all();
 }
-
-/* IIep is write-through, not flushing on cpu to device transfer. */
-
-void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
-{
-	if (dir != PCI_DMA_TODEVICE)
-		dma_make_coherent(paddr, PAGE_ALIGN(size));
-}
-
-const struct dma_map_ops *dma_ops;
-EXPORT_SYMBOL(dma_ops);
 
 #ifdef CONFIG_PROC_FS
 

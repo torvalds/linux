@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-note) OR BSD-3-Clause) */
 /*
  * linux/can/bcm.h
  *
@@ -71,7 +71,7 @@ struct bcm_msg_head {
 	struct bcm_timeval ival1, ival2;
 	canid_t can_id;
 	__u32 nframes;
-	struct can_frame frames[0];
+	struct can_frame frames[];
 };
 
 enum {

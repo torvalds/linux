@@ -1,14 +1,8 @@
-/*
- * smdk_spdif.c  --  S/PDIF audio for SMDK
- *
- * Copyright 2010 Samsung Electronics Co. Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// smdk_spdif.c - S/PDIF audio for SMDK
+//
+// Copyright (C) 2010 Samsung Electronics Co., Ltd.
 
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -106,8 +100,8 @@ static int set_audio_clock_rate(unsigned long epll_rate,
 static int smdk_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	unsigned long pll_out, rclk_rate;
 	int ret, ratio;
 
@@ -148,14 +142,16 @@ static const struct snd_soc_ops smdk_spdif_ops = {
 	.hw_params = smdk_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(spdif,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-spdif")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("spdif-dit", "dit-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-spdif")));
+
 static struct snd_soc_dai_link smdk_dai = {
 	.name = "S/PDIF",
 	.stream_name = "S/PDIF PCM Playback",
-	.platform_name = "samsung-spdif",
-	.cpu_dai_name = "samsung-spdif",
-	.codec_dai_name = "dit-hifi",
-	.codec_name = "spdif-dit",
 	.ops = &smdk_spdif_ops,
+	SND_SOC_DAILINK_REG(spdif),
 };
 
 static struct snd_soc_card smdk = {

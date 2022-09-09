@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2009-2010 Pengutronix
  * Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>
  *
  * loosely based on an earlier driver that has
  * Copyright 2009 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 
 #include <linux/slab.h>
@@ -169,9 +166,9 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	return mc13xxx_common_init(&spi->dev);
 }
 
-static int mc13xxx_spi_remove(struct spi_device *spi)
+static void mc13xxx_spi_remove(struct spi_device *spi)
 {
-	return mc13xxx_common_exit(&spi->dev);
+	mc13xxx_common_exit(&spi->dev);
 }
 
 static struct spi_driver mc13xxx_spi_driver = {

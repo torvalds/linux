@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C driver for the Intersil ISL 12022
  *
@@ -5,10 +6,6 @@
  *
  * Based on the Philips PCF8563 RTC
  * by Alessandro Zummo <a.zummo@towertech.it>.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -235,8 +232,7 @@ static const struct rtc_class_ops isl12022_rtc_ops = {
 	.set_time	= isl12022_rtc_set_time,
 };
 
-static int isl12022_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int isl12022_probe(struct i2c_client *client)
 {
 	struct isl12022 *isl12022;
 
@@ -278,7 +274,7 @@ static struct i2c_driver isl12022_driver = {
 		.of_match_table = of_match_ptr(isl12022_dt_match),
 #endif
 	},
-	.probe		= isl12022_probe,
+	.probe_new	= isl12022_probe,
 	.id_table	= isl12022_id,
 };
 

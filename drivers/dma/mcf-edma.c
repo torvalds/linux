@@ -35,6 +35,13 @@ static irqreturn_t mcf_edma_tx_handler(int irq, void *dev_id)
 			mcf_chan = &mcf_edma->chans[ch];
 
 			spin_lock(&mcf_chan->vchan.lock);
+
+			if (!mcf_chan->edesc) {
+				/* terminate_all called before */
+				spin_unlock(&mcf_chan->vchan.lock);
+				continue;
+			}
+
 			if (!mcf_chan->edesc->iscyclic) {
 				list_del(&mcf_chan->edesc->vdesc.node);
 				vchan_cookie_complete(&mcf_chan->edesc->vdesc);
@@ -164,6 +171,11 @@ static void mcf_edma_irq_free(struct platform_device *pdev,
 		free_irq(irq, mcf_edma);
 }
 
+static struct fsl_edma_drvdata mcf_data = {
+	.version = v2,
+	.setup_irq = mcf_edma_irq_init,
+};
+
 static int mcf_edma_probe(struct platform_device *pdev)
 {
 	struct mcf_edma_platform_data *pdata;
@@ -187,8 +199,8 @@ static int mcf_edma_probe(struct platform_device *pdev)
 
 	mcf_edma->n_chans = chans;
 
-	/* Set up version for ColdFire edma */
-	mcf_edma->version = v2;
+	/* Set up drvdata for ColdFire edma */
+	mcf_edma->drvdata = &mcf_data;
 	mcf_edma->big_endian = 1;
 
 	if (!mcf_edma->n_chans) {
@@ -214,6 +226,7 @@ static int mcf_edma_probe(struct platform_device *pdev)
 		mcf_chan->edma = mcf_edma;
 		mcf_chan->slave_id = i;
 		mcf_chan->idle = true;
+		mcf_chan->dma_dir = DMA_NONE;
 		mcf_chan->vchan.desc_free = fsl_edma_free_desc;
 		vchan_init(&mcf_chan->vchan, &mcf_edma->dma_dev);
 		iowrite32(0x0, &regs->tcd[i].csr);
@@ -222,7 +235,7 @@ static int mcf_edma_probe(struct platform_device *pdev)
 	iowrite32(~0, regs->inth);
 	iowrite32(~0, regs->intl);
 
-	ret = mcf_edma_irq_init(pdev, mcf_edma);
+	ret = mcf_edma->drvdata->setup_irq(pdev, mcf_edma);
 	if (ret)
 		return ret;
 

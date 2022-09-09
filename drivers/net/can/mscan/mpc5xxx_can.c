@@ -1,22 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAN bus driver for the Freescale MPC5xxx embedded CPU.
  *
  * Copyright (C) 2004-2005 Andrey Volkov <avolkov@varma-el.com>,
  *                         Varma Electronics Oy
  * Copyright (C) 2008-2009 Wolfgang Grandegger <wg@grandegger.com>
- * Copyright (C) 2009 Wolfram Sang, Pengutronix <w.sang@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2009 Wolfram Sang, Pengutronix <kernel@pengutronix.de>
  */
 
 #include <linux/kernel.h>
@@ -25,6 +14,8 @@
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/can/dev.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
 #include <linux/clk.h>
@@ -72,7 +63,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	else
 		*mscan_clksrc = MSCAN_CLKSRC_XTAL;
 
-	freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
+	freq = mpc5xxx_get_bus_frequency(&ofdev->dev);
 	if (!freq)
 		return 0;
 
@@ -290,7 +281,6 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 static const struct of_device_id mpc5xxx_can_table[];
 static int mpc5xxx_can_probe(struct platform_device *ofdev)
 {
-	const struct of_device_id *match;
 	const struct mpc5xxx_can_data *data;
 	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev;
@@ -300,16 +290,13 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 	int irq, mscan_clksrc = 0;
 	int err = -ENOMEM;
 
-	match = of_match_device(mpc5xxx_can_table, &ofdev->dev);
-	if (!match)
+	data = of_device_get_match_data(&ofdev->dev);
+	if (!data)
 		return -EINVAL;
-	data = match->data;
 
 	base = of_iomap(np, 0);
-	if (!base) {
-		dev_err(&ofdev->dev, "couldn't ioremap\n");
-		return err;
-	}
+	if (!base)
+		return dev_err_probe(&ofdev->dev, err, "couldn't ioremap\n");
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
@@ -330,7 +317,6 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 
 	clock_name = of_get_property(np, "fsl,mscan-clock-source", NULL);
 
-	BUG_ON(!data);
 	priv->type = data->type;
 	priv->can.clock.freq = data->get_clock(ofdev, clock_name,
 					       &mscan_clksrc);

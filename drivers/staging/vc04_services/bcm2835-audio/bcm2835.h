@@ -6,10 +6,10 @@
 
 #include <linux/device.h>
 #include <linux/wait.h>
+#include <linux/raspberrypi/vchiq.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm-indirect.h>
-#include "interface/vchi/vchi.h"
 
 #define MAX_SUBSTREAMS   (8)
 #define AVAIL_SUBSTREAMS_MASK  (0xff)
@@ -22,7 +22,7 @@ enum {
 /* macros for alsa2chip and chip2alsa, instead of functions */
 
 // convert alsa to chip volume (defined as macro rather than function call)
-#define alsa2chip(vol) (uint)(-(((vol) << 8) / 100))
+#define alsa2chip(vol) ((uint)(-(((vol) << 8) / 100)))
 
 // convert chip to alsa volume
 #define chip2alsa(vol) -(((vol) * 100) >> 8)
@@ -44,7 +44,7 @@ enum snd_bcm2835_ctrl {
 };
 
 struct bcm2835_vchi_ctx {
-	VCHI_INSTANCE_T vchi_instance;
+	struct vchiq_instance *instance;
 };
 
 /* definition of the chip-specific record */
@@ -61,7 +61,7 @@ struct bcm2835_chip {
 
 	unsigned int opened;
 	unsigned int spdif_status;
-	struct mutex audio_mutex;
+	struct mutex audio_mutex; /* Serialize chip data access */
 
 	struct bcm2835_vchi_ctx *vchi_ctx;
 };

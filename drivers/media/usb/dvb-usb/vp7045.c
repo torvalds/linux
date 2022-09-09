@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant Linux driver for the
  *  - TwinhanDTV Alpha/MagicBoxII USB2.0 DVB-T receiver
  *  - DigitalNow TinyUSB2 DVB-t receiver
@@ -6,11 +7,7 @@
  *
  * Thanks to Twinhan who kindly provided hardware and information.
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "vp7045.h"
 
@@ -99,10 +96,14 @@ static int vp7045_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 static int vp7045_rc_query(struct dvb_usb_device *d)
 {
+	int ret;
 	u8 key;
-	vp7045_usb_op(d,RC_VAL_READ,NULL,0,&key,1,20);
 
-	deb_rc("remote query key: %x %d\n",key,key);
+	ret = vp7045_usb_op(d, RC_VAL_READ, NULL, 0, &key, 1, 20);
+	if (ret)
+		return ret;
+
+	deb_rc("remote query key: %x\n", key);
 
 	if (key != 0x44) {
 		/*
@@ -118,15 +119,18 @@ static int vp7045_rc_query(struct dvb_usb_device *d)
 
 static int vp7045_read_eeprom(struct dvb_usb_device *d,u8 *buf, int len, int offset)
 {
-	int i = 0;
-	u8 v,br[2];
+	int i, ret;
+	u8 v, br[2];
 	for (i=0; i < len; i++) {
 		v = offset + i;
-		vp7045_usb_op(d,GET_EE_VALUE,&v,1,br,2,5);
+		ret = vp7045_usb_op(d, GET_EE_VALUE, &v, 1, br, 2, 5);
+		if (ret)
+			return ret;
+
 		buf[i] = br[1];
 	}
-	deb_info("VP7045 EEPROM read (offs: %d, len: %d) : ",offset, i);
-	debug_dump(buf,i,deb_info);
+	deb_info("VP7045 EEPROM read (offs: %d, len: %d) : ", offset, i);
+	debug_dump(buf, i, deb_info);
 	return 0;
 }
 
@@ -168,13 +172,21 @@ static int vp7045_usb_probe(struct usb_interface *intf,
 				   THIS_MODULE, NULL, adapter_nr);
 }
 
-static struct usb_device_id vp7045_usb_table [] = {
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TWINHAN_VP7045_COLD) },
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TWINHAN_VP7045_WARM) },
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_DNTV_TINYUSB2_COLD) },
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_DNTV_TINYUSB2_WARM) },
-	    { 0 },
+enum {
+	VISIONPLUS_VP7045_COLD,
+	VISIONPLUS_VP7045_WARM,
+	VISIONPLUS_TINYUSB2_COLD,
+	VISIONPLUS_TINYUSB2_WARM,
 };
+
+static struct usb_device_id vp7045_usb_table[] = {
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7045_COLD),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7045_WARM),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_TINYUSB2_COLD),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_TINYUSB2_WARM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, vp7045_usb_table);
 
 static struct dvb_usb_device_properties vp7045_properties = {
@@ -217,12 +229,12 @@ static struct dvb_usb_device_properties vp7045_properties = {
 	.num_device_descs = 2,
 	.devices = {
 		{ .name = "Twinhan USB2.0 DVB-T receiver (TwinhanDTV Alpha/MagicBox II)",
-		  .cold_ids = { &vp7045_usb_table[0], NULL },
-		  .warm_ids = { &vp7045_usb_table[1], NULL },
+		  .cold_ids = { &vp7045_usb_table[VISIONPLUS_VP7045_COLD], NULL },
+		  .warm_ids = { &vp7045_usb_table[VISIONPLUS_VP7045_WARM], NULL },
 		},
 		{ .name = "DigitalNow TinyUSB 2 DVB-t Receiver",
-		  .cold_ids = { &vp7045_usb_table[2], NULL },
-		  .warm_ids = { &vp7045_usb_table[3], NULL },
+		  .cold_ids = { &vp7045_usb_table[VISIONPLUS_TINYUSB2_COLD], NULL },
+		  .warm_ids = { &vp7045_usb_table[VISIONPLUS_TINYUSB2_WARM], NULL },
 		},
 		{ NULL },
 	}

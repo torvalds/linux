@@ -42,7 +42,6 @@
 
 #define BAR_0		0
 #define BAR_1		1
-#define BAR_5		5
 
 struct ixgb_adapter;
 #include "ixgb_hw.h"
@@ -164,7 +163,6 @@ enum ixgb_state_t {
 void ixgb_check_options(struct ixgb_adapter *adapter);
 void ixgb_set_ethtool_ops(struct net_device *netdev);
 extern char ixgb_driver_name[];
-extern const char ixgb_driver_version[];
 
 void ixgb_set_speed_duplex(struct net_device *netdev);
 

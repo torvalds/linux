@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #if !defined(_DPU_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
@@ -146,16 +138,12 @@ TRACE_EVENT(dpu_trace_counter,
 )
 
 TRACE_EVENT(dpu_perf_crtc_update,
-	TP_PROTO(u32 crtc, u64 bw_ctl_mnoc, u64 bw_ctl_llcc,
-			u64 bw_ctl_ebi, u32 core_clk_rate,
-			bool stop_req, u32 update_bus, u32 update_clk),
-	TP_ARGS(crtc, bw_ctl_mnoc, bw_ctl_llcc, bw_ctl_ebi, core_clk_rate,
-		stop_req, update_bus, update_clk),
+	TP_PROTO(u32 crtc, u64 bw_ctl, u32 core_clk_rate,
+			bool stop_req, bool update_bus, bool update_clk),
+	TP_ARGS(crtc, bw_ctl, core_clk_rate, stop_req, update_bus, update_clk),
 	TP_STRUCT__entry(
 			__field(u32, crtc)
-			__field(u64, bw_ctl_mnoc)
-			__field(u64, bw_ctl_llcc)
-			__field(u64, bw_ctl_ebi)
+			__field(u64, bw_ctl)
 			__field(u32, core_clk_rate)
 			__field(bool, stop_req)
 			__field(u32, update_bus)
@@ -163,79 +151,62 @@ TRACE_EVENT(dpu_perf_crtc_update,
 	),
 	TP_fast_assign(
 			__entry->crtc = crtc;
-			__entry->bw_ctl_mnoc = bw_ctl_mnoc;
-			__entry->bw_ctl_llcc = bw_ctl_llcc;
-			__entry->bw_ctl_ebi = bw_ctl_ebi;
+			__entry->bw_ctl = bw_ctl;
 			__entry->core_clk_rate = core_clk_rate;
 			__entry->stop_req = stop_req;
 			__entry->update_bus = update_bus;
 			__entry->update_clk = update_clk;
 	),
 	 TP_printk(
-		"crtc=%d bw_mnoc=%llu bw_llcc=%llu bw_ebi=%llu clk_rate=%u stop_req=%d u_bus=%d u_clk=%d",
+		"crtc=%d bw_ctl=%llu clk_rate=%u stop_req=%d u_bus=%d u_clk=%d",
 			__entry->crtc,
-			__entry->bw_ctl_mnoc,
-			__entry->bw_ctl_llcc,
-			__entry->bw_ctl_ebi,
+			__entry->bw_ctl,
 			__entry->core_clk_rate,
 			__entry->stop_req,
 			__entry->update_bus,
 			__entry->update_clk)
 );
 
-DECLARE_EVENT_CLASS(dpu_enc_irq_template,
-	TP_PROTO(uint32_t drm_id, enum dpu_intr_idx intr_idx, int hw_idx,
-		 int irq_idx),
-	TP_ARGS(drm_id, intr_idx, hw_idx, irq_idx),
+DECLARE_EVENT_CLASS(dpu_irq_template,
+	TP_PROTO(int irq_idx),
+	TP_ARGS(irq_idx),
 	TP_STRUCT__entry(
-		__field(	uint32_t,		drm_id		)
-		__field(	enum dpu_intr_idx,	intr_idx	)
-		__field(	int,			hw_idx		)
 		__field(	int,			irq_idx		)
 	),
 	TP_fast_assign(
-		__entry->drm_id = drm_id;
-		__entry->intr_idx = intr_idx;
-		__entry->hw_idx = hw_idx;
 		__entry->irq_idx = irq_idx;
 	),
-	TP_printk("id=%u, intr=%d, hw=%d, irq=%d",
-		  __entry->drm_id, __entry->intr_idx, __entry->hw_idx,
-		  __entry->irq_idx)
+	TP_printk("irq=%d", __entry->irq_idx)
 );
-DEFINE_EVENT(dpu_enc_irq_template, dpu_enc_irq_register_success,
-	TP_PROTO(uint32_t drm_id, enum dpu_intr_idx intr_idx, int hw_idx,
-		 int irq_idx),
-	TP_ARGS(drm_id, intr_idx, hw_idx, irq_idx)
+DEFINE_EVENT(dpu_irq_template, dpu_irq_register_success,
+	TP_PROTO(int irq_idx),
+	TP_ARGS(irq_idx)
 );
-DEFINE_EVENT(dpu_enc_irq_template, dpu_enc_irq_unregister_success,
-	TP_PROTO(uint32_t drm_id, enum dpu_intr_idx intr_idx, int hw_idx,
-		 int irq_idx),
-	TP_ARGS(drm_id, intr_idx, hw_idx, irq_idx)
+DEFINE_EVENT(dpu_irq_template, dpu_irq_unregister_success,
+	TP_PROTO(int irq_idx),
+	TP_ARGS(irq_idx)
 );
 
 TRACE_EVENT(dpu_enc_irq_wait_success,
-	TP_PROTO(uint32_t drm_id, enum dpu_intr_idx intr_idx, int hw_idx,
+	TP_PROTO(uint32_t drm_id, void *func,
 		 int irq_idx, enum dpu_pingpong pp_idx, int atomic_cnt),
-	TP_ARGS(drm_id, intr_idx, hw_idx, irq_idx, pp_idx, atomic_cnt),
+	TP_ARGS(drm_id, func, irq_idx, pp_idx, atomic_cnt),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		drm_id		)
-		__field(	enum dpu_intr_idx,	intr_idx	)
-		__field(	int,			hw_idx		)
+		__field(	void *,			func		)
 		__field(	int,			irq_idx		)
 		__field(	enum dpu_pingpong,	pp_idx		)
 		__field(	int,			atomic_cnt	)
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
-		__entry->intr_idx = intr_idx;
-		__entry->hw_idx = hw_idx;
+		__entry->func = func;
 		__entry->irq_idx = irq_idx;
 		__entry->pp_idx = pp_idx;
 		__entry->atomic_cnt = atomic_cnt;
 	),
-	TP_printk("id=%u, intr=%d, hw=%d, irq=%d, pp=%d, atomic_cnt=%d",
-		  __entry->drm_id, __entry->intr_idx, __entry->hw_idx,
+	TP_printk("id=%u, callback=%ps, irq=%d, pp=%d, atomic_cnt=%d",
+		  __entry->drm_id, __entry->func,
 		  __entry->irq_idx, __entry->pp_idx, __entry->atomic_cnt)
 );
 
@@ -283,10 +254,6 @@ DEFINE_EVENT(dpu_drm_obj_template, dpu_crtc_vblank_cb,
 	TP_ARGS(drm_id)
 );
 DEFINE_EVENT(dpu_drm_obj_template, dpu_crtc_complete_commit,
-	TP_PROTO(uint32_t drm_id),
-	TP_ARGS(drm_id)
-);
-DEFINE_EVENT(dpu_drm_obj_template, dpu_kms_enc_enable,
 	TP_PROTO(uint32_t drm_id),
 	TP_ARGS(drm_id)
 );
@@ -343,20 +310,18 @@ DEFINE_EVENT(dpu_enc_keyval_template, dpu_enc_trigger_start,
 );
 
 TRACE_EVENT(dpu_enc_atomic_check_flags,
-	TP_PROTO(uint32_t drm_id, unsigned int flags, int private_flags),
-	TP_ARGS(drm_id, flags, private_flags),
+	TP_PROTO(uint32_t drm_id, unsigned int flags),
+	TP_ARGS(drm_id, flags),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		drm_id		)
 		__field(	unsigned int,		flags		)
-		__field(	int,			private_flags	)
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->flags = flags;
-		__entry->private_flags = private_flags;
 	),
-	TP_printk("id=%u, flags=%u, private_flags=%d",
-		  __entry->drm_id, __entry->flags, __entry->private_flags)
+	TP_printk("id=%u, flags=%u",
+		  __entry->drm_id, __entry->flags)
 );
 
 DECLARE_EVENT_CLASS(dpu_enc_id_enable_template,
@@ -408,27 +373,33 @@ TRACE_EVENT(dpu_enc_rc,
 		__entry->rc_state = rc_state;
 		__assign_str(stage_str, stage);
 	),
-	TP_printk("%s: id:%u, sw_event:%d, idle_pc_supported:%s, rc_state:%d\n",
+	TP_printk("%s: id:%u, sw_event:%d, idle_pc_supported:%s, rc_state:%d",
 		  __get_str(stage_str), __entry->drm_id, __entry->sw_event,
 		  __entry->idle_pc_supported ? "true" : "false",
 		  __entry->rc_state)
 );
 
 TRACE_EVENT(dpu_enc_frame_done_cb_not_busy,
-	TP_PROTO(uint32_t drm_id, u32 event, enum dpu_intf intf_idx),
-	TP_ARGS(drm_id, event, intf_idx),
+	TP_PROTO(uint32_t drm_id, u32 event, char *intf_mode, enum dpu_intf intf_idx,
+			enum dpu_wb wb_idx),
+	TP_ARGS(drm_id, event, intf_mode, intf_idx, wb_idx),
 	TP_STRUCT__entry(
 		__field(	uint32_t,	drm_id		)
 		__field(	u32,		event		)
+		__string(	intf_mode_str,	intf_mode	)
 		__field(	enum dpu_intf,	intf_idx	)
+		__field(	enum dpu_wb,	wb_idx		)
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->event = event;
+		__assign_str(intf_mode_str, intf_mode);
 		__entry->intf_idx = intf_idx;
+		__entry->wb_idx = wb_idx;
 	),
-	TP_printk("id=%u, event=%u, intf=%d", __entry->drm_id, __entry->event,
-		  __entry->intf_idx)
+	TP_printk("id=%u, event=%u, intf_mode=%s intf=%d wb=%d", __entry->drm_id,
+			__entry->event, __get_str(intf_mode_str),
+			__entry->intf_idx, __entry->wb_idx)
 );
 
 TRACE_EVENT(dpu_enc_frame_done_cb,
@@ -450,14 +421,16 @@ TRACE_EVENT(dpu_enc_frame_done_cb,
 );
 
 TRACE_EVENT(dpu_enc_trigger_flush,
-	TP_PROTO(uint32_t drm_id, enum dpu_intf intf_idx,
+	TP_PROTO(uint32_t drm_id, char *intf_mode, enum dpu_intf intf_idx, enum dpu_wb wb_idx,
 		 int pending_kickoff_cnt, int ctl_idx, u32 extra_flush_bits,
 		 u32 pending_flush_ret),
-	TP_ARGS(drm_id, intf_idx, pending_kickoff_cnt, ctl_idx,
+	TP_ARGS(drm_id, intf_mode, intf_idx, wb_idx, pending_kickoff_cnt, ctl_idx,
 		extra_flush_bits, pending_flush_ret),
 	TP_STRUCT__entry(
 		__field(	uint32_t,	drm_id			)
+		__string(	intf_mode_str,	intf_mode		)
 		__field(	enum dpu_intf,	intf_idx		)
+		__field(	enum dpu_wb,	wb_idx			)
 		__field(	int,		pending_kickoff_cnt	)
 		__field(	int,		ctl_idx			)
 		__field(	u32,		extra_flush_bits	)
@@ -465,15 +438,17 @@ TRACE_EVENT(dpu_enc_trigger_flush,
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
+		__assign_str(intf_mode_str, intf_mode);
 		__entry->intf_idx = intf_idx;
+		__entry->wb_idx = wb_idx;
 		__entry->pending_kickoff_cnt = pending_kickoff_cnt;
 		__entry->ctl_idx = ctl_idx;
 		__entry->extra_flush_bits = extra_flush_bits;
 		__entry->pending_flush_ret = pending_flush_ret;
 	),
-	TP_printk("id=%u, intf_idx=%d, pending_kickoff_cnt=%d ctl_idx=%d "
+	TP_printk("id=%u, intf_mode=%s, intf_idx=%d, wb_idx=%d, pending_kickoff_cnt=%d ctl_idx=%d "
 		  "extra_flush_bits=0x%x pending_flush_ret=0x%x",
-		  __entry->drm_id, __entry->intf_idx,
+		  __entry->drm_id, __get_str(intf_mode_str), __entry->intf_idx, __entry->wb_idx,
 		  __entry->pending_kickoff_cnt, __entry->ctl_idx,
 		  __entry->extra_flush_bits, __entry->pending_flush_ret)
 );
@@ -532,12 +507,12 @@ DEFINE_EVENT(dpu_id_event_template, dpu_crtc_frame_event_more_pending,
 );
 
 TRACE_EVENT(dpu_enc_wait_event_timeout,
-	TP_PROTO(uint32_t drm_id, int32_t hw_id, int rc, s64 time,
+	TP_PROTO(uint32_t drm_id, int irq_idx, int rc, s64 time,
 		 s64 expected_time, int atomic_cnt),
-	TP_ARGS(drm_id, hw_id, rc, time, expected_time, atomic_cnt),
+	TP_ARGS(drm_id, irq_idx, rc, time, expected_time, atomic_cnt),
 	TP_STRUCT__entry(
 		__field(	uint32_t,	drm_id		)
-		__field(	int32_t,	hw_id		)
+		__field(	int,		irq_idx		)
 		__field(	int,		rc		)
 		__field(	s64,		time		)
 		__field(	s64,		expected_time	)
@@ -545,14 +520,14 @@ TRACE_EVENT(dpu_enc_wait_event_timeout,
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
-		__entry->hw_id = hw_id;
+		__entry->irq_idx = irq_idx;
 		__entry->rc = rc;
 		__entry->time = time;
 		__entry->expected_time = expected_time;
 		__entry->atomic_cnt = atomic_cnt;
 	),
-	TP_printk("id=%u, hw_id=%d, rc=%d, time=%lld, expected=%lld cnt=%d",
-		  __entry->drm_id, __entry->hw_id, __entry->rc, __entry->time,
+	TP_printk("id=%u, irq_idx=%d, rc=%d, time=%lld, expected=%lld cnt=%d",
+		  __entry->drm_id, __entry->irq_idx, __entry->rc, __entry->time,
 		  __entry->expected_time, __entry->atomic_cnt)
 );
 
@@ -831,48 +806,42 @@ TRACE_EVENT(dpu_plane_disable,
 );
 
 DECLARE_EVENT_CLASS(dpu_rm_iter_template,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
-	TP_ARGS(id, type, enc_id),
+	TP_PROTO(uint32_t id, uint32_t enc_id),
+	TP_ARGS(id, enc_id),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		id	)
-		__field(	enum dpu_hw_blk_type,	type	)
 		__field(	uint32_t,		enc_id	)
 	),
 	TP_fast_assign(
 		__entry->id = id;
-		__entry->type = type;
 		__entry->enc_id = enc_id;
 	),
-	TP_printk("id:%d type:%d enc_id:%u", __entry->id, __entry->type,
-		  __entry->enc_id)
+	TP_printk("id:%d enc_id:%u", __entry->id, __entry->enc_id)
 );
 DEFINE_EVENT(dpu_rm_iter_template, dpu_rm_reserve_intf,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
-	TP_ARGS(id, type, enc_id)
+	TP_PROTO(uint32_t id, uint32_t enc_id),
+	TP_ARGS(id, enc_id)
 );
 DEFINE_EVENT(dpu_rm_iter_template, dpu_rm_reserve_ctls,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
-	TP_ARGS(id, type, enc_id)
+	TP_PROTO(uint32_t id, uint32_t enc_id),
+	TP_ARGS(id, enc_id)
 );
 
 TRACE_EVENT(dpu_rm_reserve_lms,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id,
-		 uint32_t pp_id),
-	TP_ARGS(id, type, enc_id, pp_id),
+	TP_PROTO(uint32_t id, uint32_t enc_id, uint32_t pp_id),
+	TP_ARGS(id, enc_id, pp_id),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		id	)
-		__field(	enum dpu_hw_blk_type,	type	)
 		__field(	uint32_t,		enc_id	)
 		__field(	uint32_t,		pp_id	)
 	),
 	TP_fast_assign(
 		__entry->id = id;
-		__entry->type = type;
 		__entry->enc_id = enc_id;
 		__entry->pp_id = pp_id;
 	),
-	TP_printk("id:%d type:%d enc_id:%u pp_id:%u", __entry->id,
-		  __entry->type, __entry->enc_id, __entry->pp_id)
+	TP_printk("id:%d enc_id:%u pp_id:%u", __entry->id,
+		  __entry->enc_id, __entry->pp_id)
 );
 
 TRACE_EVENT(dpu_vbif_wait_xin_halt_fail,
@@ -903,50 +872,31 @@ TRACE_EVENT(dpu_pp_connect_ext_te,
 	TP_printk("pp:%d cfg:%u", __entry->pp, __entry->cfg)
 );
 
-DECLARE_EVENT_CLASS(dpu_core_irq_idx_cnt_template,
-	TP_PROTO(int irq_idx, int enable_count),
-	TP_ARGS(irq_idx, enable_count),
-	TP_STRUCT__entry(
-		__field(	int,	irq_idx		)
-		__field(	int,	enable_count	)
-	),
-	TP_fast_assign(
-		__entry->irq_idx = irq_idx;
-		__entry->enable_count = enable_count;
-	),
-	TP_printk("irq_idx:%d enable_count:%u", __entry->irq_idx,
-		  __entry->enable_count)
-);
-DEFINE_EVENT(dpu_core_irq_idx_cnt_template, dpu_core_irq_enable_idx,
-	TP_PROTO(int irq_idx, int enable_count),
-	TP_ARGS(irq_idx, enable_count)
-);
-DEFINE_EVENT(dpu_core_irq_idx_cnt_template, dpu_core_irq_disable_idx,
-	TP_PROTO(int irq_idx, int enable_count),
-	TP_ARGS(irq_idx, enable_count)
-);
-
-DECLARE_EVENT_CLASS(dpu_core_irq_callback_template,
-	TP_PROTO(int irq_idx, struct dpu_irq_callback *callback),
+TRACE_EVENT(dpu_core_irq_register_callback,
+	TP_PROTO(int irq_idx, void *callback),
 	TP_ARGS(irq_idx, callback),
 	TP_STRUCT__entry(
 		__field(	int,				irq_idx	)
-		__field(	struct dpu_irq_callback *,	callback)
+		__field(	void *,				callback)
 	),
 	TP_fast_assign(
 		__entry->irq_idx = irq_idx;
 		__entry->callback = callback;
 	),
-	TP_printk("irq_idx:%d callback:%pK", __entry->irq_idx,
+	TP_printk("irq_idx:%d callback:%ps", __entry->irq_idx,
 		  __entry->callback)
 );
-DEFINE_EVENT(dpu_core_irq_callback_template, dpu_core_irq_register_callback,
-	TP_PROTO(int irq_idx, struct dpu_irq_callback *callback),
-	TP_ARGS(irq_idx, callback)
-);
-DEFINE_EVENT(dpu_core_irq_callback_template, dpu_core_irq_unregister_callback,
-	TP_PROTO(int irq_idx, struct dpu_irq_callback *callback),
-	TP_ARGS(irq_idx, callback)
+
+TRACE_EVENT(dpu_core_irq_unregister_callback,
+	TP_PROTO(int irq_idx),
+	TP_ARGS(irq_idx),
+	TP_STRUCT__entry(
+		__field(	int,				irq_idx	)
+	),
+	TP_fast_assign(
+		__entry->irq_idx = irq_idx;
+	),
+	TP_printk("irq_idx:%d", __entry->irq_idx)
 );
 
 TRACE_EVENT(dpu_core_perf_update_clk,

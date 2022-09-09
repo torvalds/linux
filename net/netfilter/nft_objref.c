@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2016 Pablo Neira Ayuso <pablo@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -12,7 +9,7 @@
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
-#include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_core.h>
 
 #define nft_objref_priv(expr)	*((struct nft_object **)nft_expr_priv(expr))
 
@@ -38,7 +35,8 @@ static int nft_objref_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 
 	objtype = ntohl(nla_get_be32(tb[NFTA_OBJREF_IMM_TYPE]));
-	obj = nft_obj_lookup(ctx->table, tb[NFTA_OBJREF_IMM_NAME], objtype,
+	obj = nft_obj_lookup(ctx->net, ctx->table,
+			     tb[NFTA_OBJREF_IMM_NAME], objtype,
 			     genmask);
 	if (IS_ERR(obj))
 		return -ENOENT;
@@ -53,7 +51,7 @@ static int nft_objref_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_object *obj = nft_objref_priv(expr);
 
-	if (nla_put_string(skb, NFTA_OBJREF_IMM_NAME, obj->name) ||
+	if (nla_put_string(skb, NFTA_OBJREF_IMM_NAME, obj->key.name) ||
 	    nla_put_be32(skb, NFTA_OBJREF_IMM_TYPE,
 			 htonl(obj->ops->type->type)))
 		goto nla_put_failure;
@@ -64,12 +62,24 @@ nla_put_failure:
 	return -1;
 }
 
-static void nft_objref_destroy(const struct nft_ctx *ctx,
-			       const struct nft_expr *expr)
+static void nft_objref_deactivate(const struct nft_ctx *ctx,
+				  const struct nft_expr *expr,
+				  enum nft_trans_phase phase)
 {
 	struct nft_object *obj = nft_objref_priv(expr);
 
+	if (phase == NFT_TRANS_COMMIT)
+		return;
+
 	obj->use--;
+}
+
+static void nft_objref_activate(const struct nft_ctx *ctx,
+				const struct nft_expr *expr)
+{
+	struct nft_object *obj = nft_objref_priv(expr);
+
+	obj->use++;
 }
 
 static struct nft_expr_type nft_objref_type;
@@ -78,13 +88,15 @@ static const struct nft_expr_ops nft_objref_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_object *)),
 	.eval		= nft_objref_eval,
 	.init		= nft_objref_init,
-	.destroy	= nft_objref_destroy,
+	.activate	= nft_objref_activate,
+	.deactivate	= nft_objref_deactivate,
 	.dump		= nft_objref_dump,
+	.reduce		= NFT_REDUCE_READONLY,
 };
 
 struct nft_objref_map {
 	struct nft_set		*set;
-	enum nft_registers	sreg:8;
+	u8			sreg;
 	struct nft_set_binding	binding;
 };
 
@@ -94,15 +106,18 @@ static void nft_objref_map_eval(const struct nft_expr *expr,
 {
 	struct nft_objref_map *priv = nft_expr_priv(expr);
 	const struct nft_set *set = priv->set;
+	struct net *net = nft_net(pkt);
 	const struct nft_set_ext *ext;
 	struct nft_object *obj;
 	bool found;
 
-	found = set->ops->lookup(nft_net(pkt), set, &regs->data[priv->sreg],
-				 &ext);
+	found = nft_set_do_lookup(net, set, &regs->data[priv->sreg], &ext);
 	if (!found) {
-		regs->verdict.code = NFT_BREAK;
-		return;
+		ext = nft_set_catchall_lookup(net, set);
+		if (!ext) {
+			regs->verdict.code = NFT_BREAK;
+			return;
+		}
 	}
 	obj = *nft_set_ext_obj(ext);
 	obj->ops->eval(obj, regs, pkt);
@@ -126,8 +141,8 @@ static int nft_objref_map_init(const struct nft_ctx *ctx,
 	if (!(set->flags & NFT_SET_OBJECT))
 		return -EINVAL;
 
-	priv->sreg = nft_parse_register(tb[NFTA_OBJREF_SET_SREG]);
-	err = nft_validate_register_load(priv->sreg, set->klen);
+	err = nft_parse_register_load(tb[NFTA_OBJREF_SET_SREG], &priv->sreg,
+				      set->klen);
 	if (err < 0)
 		return err;
 
@@ -155,20 +170,21 @@ nla_put_failure:
 	return -1;
 }
 
+static void nft_objref_map_deactivate(const struct nft_ctx *ctx,
+				      const struct nft_expr *expr,
+				      enum nft_trans_phase phase)
+{
+	struct nft_objref_map *priv = nft_expr_priv(expr);
+
+	nf_tables_deactivate_set(ctx, priv->set, &priv->binding, phase);
+}
+
 static void nft_objref_map_activate(const struct nft_ctx *ctx,
 				    const struct nft_expr *expr)
 {
 	struct nft_objref_map *priv = nft_expr_priv(expr);
 
-	nf_tables_rebind_set(ctx, priv->set, &priv->binding);
-}
-
-static void nft_objref_map_deactivate(const struct nft_ctx *ctx,
-				      const struct nft_expr *expr)
-{
-	struct nft_objref_map *priv = nft_expr_priv(expr);
-
-	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
+	priv->set->use++;
 }
 
 static void nft_objref_map_destroy(const struct nft_ctx *ctx,
@@ -189,6 +205,7 @@ static const struct nft_expr_ops nft_objref_map_ops = {
 	.deactivate	= nft_objref_map_deactivate,
 	.destroy	= nft_objref_map_destroy,
 	.dump		= nft_objref_map_dump,
+	.reduce		= NFT_REDUCE_READONLY,
 };
 
 static const struct nft_expr_ops *
@@ -240,3 +257,4 @@ module_exit(nft_objref_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NFT_EXPR("objref");
+MODULE_DESCRIPTION("nftables stateful object reference module");

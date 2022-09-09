@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tas2552.c - ALSA SoC Texas Instruments TAS2552 Mono Audio Amplifier
  *
- * Copyright (C) 2014 Texas Instruments Incorporated -  http://www.ti.com
+ * Copyright (C) 2014 Texas Instruments Incorporated -  https://www.ti.com
  *
  * Author: Dan Murphy <dmurphy@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -177,7 +169,7 @@ static int tas2552_setup_pll(struct snd_soc_component *component,
 		pll_clkin += tas2552->tdm_delay;
 	}
 
-	pll_enable = snd_soc_component_read32(component, TAS2552_CFG_2) & TAS2552_PLL_ENABLE;
+	pll_enable = snd_soc_component_read(component, TAS2552_CFG_2) & TAS2552_PLL_ENABLE;
 	snd_soc_component_update_bits(component, TAS2552_CFG_2, TAS2552_PLL_ENABLE, 0);
 
 	if (pll_clkin == pll_clk)
@@ -195,7 +187,7 @@ static int tas2552_setup_pll(struct snd_soc_component *component,
 		unsigned int d, q, t;
 		u8 j;
 		u8 pll_sel = (tas2552->pll_clk_id << 3) & TAS2552_PLL_SRC_MASK;
-		u8 p = snd_soc_component_read32(component, TAS2552_PLL_CTRL_1);
+		u8 p = snd_soc_component_read(component, TAS2552_PLL_CTRL_1);
 
 		p = (p >> 7);
 
@@ -355,17 +347,17 @@ static int tas2552_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct tas2552_data *tas2552 = dev_get_drvdata(component->dev);
 	u8 serial_format;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		serial_format = 0x00;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBC_CFP:
 		serial_format = TAS2552_WCLKDIR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		serial_format = TAS2552_BCLKDIR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		serial_format = (TAS2552_BCLKDIR | TAS2552_WCLKDIR);
 		break;
 	default:
@@ -415,7 +407,7 @@ static int tas2552_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 			clk_id = TAS2552_PLL_CLKIN_BCLK;
 			freq = 0;
 		}
-		/* fall through */
+		fallthrough;
 	case TAS2552_PLL_CLKIN_BCLK:
 	case TAS2552_PLL_CLKIN_1_8_FIXED:
 		mask = TAS2552_PLL_SRC_MASK;
@@ -473,7 +465,7 @@ static int tas2552_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int tas2552_mute(struct snd_soc_dai *dai, int mute)
+static int tas2552_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	u8 cfg1_reg = 0;
 	struct snd_soc_component *component = dai->component;
@@ -527,7 +519,8 @@ static const struct snd_soc_dai_ops tas2552_speaker_dai_ops = {
 	.set_sysclk	= tas2552_set_dai_sysclk,
 	.set_fmt	= tas2552_set_dai_fmt,
 	.set_tdm_slot	= tas2552_set_dai_tdm_slot,
-	.digital_mute = tas2552_mute,
+	.mute_stream	= tas2552_mute,
+	.no_capture_mute = 1,
 };
 
 /* Formats supported by TAS2552 driver. */
@@ -588,7 +581,7 @@ static int tas2552_component_probe(struct snd_soc_component *component)
 
 	gpiod_set_value(tas2552->enable_gpio, 1);
 
-	ret = pm_runtime_get_sync(component->dev);
+	ret = pm_runtime_resume_and_get(component->dev);
 	if (ret < 0) {
 		dev_err(component->dev, "Enabling device failed: %d\n",
 			ret);
@@ -610,6 +603,7 @@ static int tas2552_component_probe(struct snd_soc_component *component)
 	return 0;
 
 probe_fail:
+	pm_runtime_put_noidle(component->dev);
 	gpiod_set_value(tas2552->enable_gpio, 0);
 
 	regulator_bulk_disable(ARRAY_SIZE(tas2552->supplies),
@@ -674,7 +668,6 @@ static const struct snd_soc_component_driver soc_component_dev_tas2552 = {
 	.num_dapm_routes	= ARRAY_SIZE(tas2552_audio_map),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config tas2552_regmap_config = {
@@ -687,8 +680,7 @@ static const struct regmap_config tas2552_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int tas2552_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int tas2552_probe(struct i2c_client *client)
 {
 	struct device *dev;
 	struct tas2552_data *data;
@@ -736,8 +728,10 @@ static int tas2552_probe(struct i2c_client *client,
 	ret = devm_snd_soc_register_component(&client->dev,
 				      &soc_component_dev_tas2552,
 				      tas2552_dai, ARRAY_SIZE(tas2552_dai));
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&client->dev, "Failed to register component: %d\n", ret);
+		pm_runtime_get_noresume(&client->dev);
+	}
 
 	return ret;
 }
@@ -768,7 +762,7 @@ static struct i2c_driver tas2552_i2c_driver = {
 		.of_match_table = of_match_ptr(tas2552_of_match),
 		.pm = &tas2552_pm,
 	},
-	.probe = tas2552_probe,
+	.probe_new = tas2552_probe,
 	.remove = tas2552_i2c_remove,
 	.id_table = tas2552_id,
 };

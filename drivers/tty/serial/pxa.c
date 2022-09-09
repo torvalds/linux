@@ -19,14 +19,11 @@
  */
 
 
-#if defined(CONFIG_SERIAL_PXA_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
+#include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/circ_buf.h>
 #include <linux/delay.h>
@@ -434,21 +431,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned int baud, quot;
 	unsigned int dll;
 
-	switch (termios->c_cflag & CSIZE) {
-	case CS5:
-		cval = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		cval = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		cval = UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		cval = UART_LCR_WLEN8;
-		break;
-	}
+	cval = UART_LCR_WLEN(tty_get_char_size(termios->c_cflag));
 
 	if (termios->c_cflag & CSTOPB)
 		cval |= UART_LCR_STOP;
@@ -593,8 +576,6 @@ static struct uart_driver serial_pxa_reg;
 
 #ifdef CONFIG_SERIAL_PXA_CONSOLE
 
-#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
-
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -612,7 +593,7 @@ static void wait_for_xmitr(struct uart_pxa_port *up)
 		if (--tmout == 0)
 			break;
 		udelay(1);
-	} while ((status & BOTH_EMPTY) != BOTH_EMPTY);
+	} while (!uart_lsr_tx_empty(status));
 
 	/* Wait up to 1s for flow control if necessary */
 	if (up->port.flags & UPF_CONS_FLOW) {
@@ -623,7 +604,7 @@ static void wait_for_xmitr(struct uart_pxa_port *up)
 	}
 }
 
-static void serial_pxa_console_putchar(struct uart_port *port, int ch)
+static void serial_pxa_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 
@@ -846,13 +827,17 @@ static int serial_pxa_probe_dt(struct platform_device *pdev,
 static int serial_pxa_probe(struct platform_device *dev)
 {
 	struct uart_pxa_port *sport;
-	struct resource *mmres, *irqres;
+	struct resource *mmres;
 	int ret;
+	int irq;
 
 	mmres = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	irqres = platform_get_resource(dev, IORESOURCE_IRQ, 0);
-	if (!mmres || !irqres)
+	if (!mmres)
 		return -ENODEV;
+
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0)
+		return irq;
 
 	sport = kzalloc(sizeof(struct uart_pxa_port), GFP_KERNEL);
 	if (!sport)
@@ -873,12 +858,13 @@ static int serial_pxa_probe(struct platform_device *dev)
 	sport->port.type = PORT_PXA;
 	sport->port.iotype = UPIO_MEM;
 	sport->port.mapbase = mmres->start;
-	sport->port.irq = irqres->start;
+	sport->port.irq = irq;
 	sport->port.fifosize = 64;
 	sport->port.ops = &serial_pxa_pops;
 	sport->port.dev = &dev->dev;
 	sport->port.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 	sport->port.uartclk = clk_get_rate(sport->clk);
+	sport->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_PXA_CONSOLE);
 
 	ret = serial_pxa_probe_dt(dev, sport);
 	if (ret > 0)

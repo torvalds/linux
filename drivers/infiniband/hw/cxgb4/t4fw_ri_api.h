@@ -123,7 +123,7 @@ struct fw_ri_dsgl {
 	__be32	len0;
 	__be64	addr0;
 #ifndef C99_NOT_SUPPORTED
-	struct fw_ri_dsge_pair sge[0];
+	struct fw_ri_dsge_pair sge[];
 #endif
 };
 
@@ -139,7 +139,7 @@ struct fw_ri_isgl {
 	__be16	nsge;
 	__be32	r2;
 #ifndef C99_NOT_SUPPORTED
-	struct fw_ri_sge sge[0];
+	struct fw_ri_sge sge[];
 #endif
 };
 
@@ -149,7 +149,7 @@ struct fw_ri_immd {
 	__be16	r2;
 	__be32	immdlen;
 #ifndef C99_NOT_SUPPORTED
-	__u8	data[0];
+	__u8	data[];
 #endif
 };
 
@@ -321,7 +321,7 @@ struct fw_ri_res_wr {
 	__be32 len16_pkd;
 	__u64  cookie;
 #ifndef C99_NOT_SUPPORTED
-	struct fw_ri_res res[0];
+	struct fw_ri_res res[];
 #endif
 };
 

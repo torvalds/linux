@@ -13,6 +13,7 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio/consumer.h>
@@ -55,6 +56,7 @@ struct ohci_at91_priv {
 	bool clocked;
 	bool wakeup;		/* Saved wake-up state for resume */
 	struct regmap *sfr_regmap;
+	u32 suspend_smc_id;
 };
 /* interface and function clocks; sometimes also an AHB clock */
 
@@ -115,7 +117,6 @@ static void at91_start_hc(struct platform_device *pdev)
 static void at91_stop_hc(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct ohci_regs __iomem *regs = hcd->regs;
 	struct ohci_at91_priv *ohci_at91 = hcd_to_ohci_at91_priv(hcd);
 
 	dev_dbg(&pdev->dev, "stop\n");
@@ -123,7 +124,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 	/*
 	 * Put the USB host controller into reset.
 	 */
-	writel(0, &regs->control);
+	usb_hcd_platform_shutdown(pdev);
 
 	/*
 	 * Stop the USB clocks.
@@ -136,13 +137,29 @@ static void at91_stop_hc(struct platform_device *pdev)
 
 static void usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
 
+static u32 at91_dt_suspend_smc(struct device *dev)
+{
+	u32 suspend_smc_id;
+
+	if (!dev->of_node)
+		return 0;
+
+	if (of_property_read_u32(dev->of_node, "microchip,suspend-smc-id", &suspend_smc_id))
+		return 0;
+
+	return suspend_smc_id;
+}
+
 static struct regmap *at91_dt_syscon_sfr(void)
 {
 	struct regmap *regmap;
 
 	regmap = syscon_regmap_lookup_by_compatible("atmel,sama5d2-sfr");
-	if (IS_ERR(regmap))
-		regmap = NULL;
+	if (IS_ERR(regmap)) {
+		regmap = syscon_regmap_lookup_by_compatible("microchip,sam9x60-sfr");
+		if (IS_ERR(regmap))
+			regmap = NULL;
+	}
 
 	return regmap;
 }
@@ -151,9 +168,12 @@ static struct regmap *at91_dt_syscon_sfr(void)
 /* always called with process context; sleeping is OK */
 
 
-/**
+/*
  * usb_hcd_at91_probe - initialize AT91-based HCDs
- * Context: !in_interrupt()
+ * @driver:	Pointer to hc driver instance
+ * @pdev:	USB controller to probe
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
@@ -210,9 +230,13 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		goto err;
 	}
 
-	ohci_at91->sfr_regmap = at91_dt_syscon_sfr();
-	if (!ohci_at91->sfr_regmap)
-		dev_dbg(dev, "failed to find sfr node\n");
+	ohci_at91->suspend_smc_id = at91_dt_suspend_smc(dev);
+	if (!ohci_at91->suspend_smc_id)  {
+		dev_dbg(dev, "failed to find sfr suspend smc id, using regmap\n");
+		ohci_at91->sfr_regmap = at91_dt_syscon_sfr();
+		if (!ohci_at91->sfr_regmap)
+			dev_dbg(dev, "failed to find sfr node\n");
+	}
 
 	board = hcd->self.controller->platform_data;
 	ohci = hcd_to_ohci(hcd);
@@ -242,15 +266,16 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 
 /* may be called with controller, bus, and devices active */
 
-/**
+/*
  * usb_hcd_at91_remove - shutdown processing for AT91-based HCDs
- * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
+ * @hcd:	USB controller to remove
+ * @pdev:	Platform device required for cleanup
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of usb_hcd_at91_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
  * context, "rmmod" or something similar.
- *
  */
 static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 				struct platform_device *pdev)
@@ -297,24 +322,30 @@ static int ohci_at91_hub_status_data(struct usb_hcd *hcd, char *buf)
 	return length;
 }
 
-static int ohci_at91_port_suspend(struct regmap *regmap, u8 set)
+static int ohci_at91_port_suspend(struct ohci_at91_priv *ohci_at91, u8 set)
 {
+	struct regmap *regmap = ohci_at91->sfr_regmap;
 	u32 regval;
 	int ret;
 
-	if (!regmap)
-		return 0;
+	if (ohci_at91->suspend_smc_id) {
+		struct arm_smccc_res res;
 
-	ret = regmap_read(regmap, AT91_SFR_OHCIICR, &regval);
-	if (ret)
-		return ret;
+		arm_smccc_smc(ohci_at91->suspend_smc_id, set, 0, 0, 0, 0, 0, 0, &res);
+		if (res.a0)
+			return -EINVAL;
+	} else if (regmap) {
+		ret = regmap_read(regmap, AT91_SFR_OHCIICR, &regval);
+		if (ret)
+			return ret;
 
-	if (set)
-		regval |= AT91_OHCIICR_USB_SUSPEND;
-	else
-		regval &= ~AT91_OHCIICR_USB_SUSPEND;
+		if (set)
+			regval |= AT91_OHCIICR_USB_SUSPEND;
+		else
+			regval &= ~AT91_OHCIICR_USB_SUSPEND;
 
-	regmap_write(regmap, AT91_SFR_OHCIICR, regval);
+		regmap_write(regmap, AT91_SFR_OHCIICR, regval);
+	}
 
 	return 0;
 }
@@ -351,9 +382,8 @@ static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		case USB_PORT_FEAT_SUSPEND:
 			dev_dbg(hcd->self.controller, "SetPortFeat: SUSPEND\n");
-			if (valid_port(wIndex) && ohci_at91->sfr_regmap) {
-				ohci_at91_port_suspend(ohci_at91->sfr_regmap,
-						       1);
+			if (valid_port(wIndex)) {
+				ohci_at91_port_suspend(ohci_at91, 1);
 				return 0;
 			}
 			break;
@@ -394,9 +424,8 @@ static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		case USB_PORT_FEAT_SUSPEND:
 			dev_dbg(hcd->self.controller, "ClearPortFeature: SUSPEND\n");
-			if (valid_port(wIndex) && ohci_at91->sfr_regmap) {
-				ohci_at91_port_suspend(ohci_at91->sfr_regmap,
-						       0);
+			if (valid_port(wIndex)) {
+				ohci_at91_port_suspend(ohci_at91, 0);
 				return 0;
 			}
 			break;
@@ -605,8 +634,6 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 	if (ohci_at91->wakeup)
 		enable_irq_wake(hcd->irq);
 
-	ohci_at91_port_suspend(ohci_at91->sfr_regmap, 1);
-
 	ret = ohci_suspend(hcd, ohci_at91->wakeup);
 	if (ret) {
 		if (ohci_at91->wakeup)
@@ -625,7 +652,11 @@ ohci_hcd_at91_drv_suspend(struct device *dev)
 
 		/* flush the writes */
 		(void) ohci_readl (ohci, &ohci->regs->control);
+		msleep(1);
+		ohci_at91_port_suspend(ohci_at91, 1);
 		at91_stop_clock(ohci_at91);
+	} else {
+		ohci_at91_port_suspend(ohci_at91, 1);
 	}
 
 	return ret;
@@ -637,14 +668,14 @@ ohci_hcd_at91_drv_resume(struct device *dev)
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct ohci_at91_priv *ohci_at91 = hcd_to_ohci_at91_priv(hcd);
 
+	ohci_at91_port_suspend(ohci_at91, 0);
+
 	if (ohci_at91->wakeup)
 		disable_irq_wake(hcd->irq);
-
-	at91_start_clock(ohci_at91);
+	else
+		at91_start_clock(ohci_at91);
 
 	ohci_resume(hcd, false);
-
-	ohci_at91_port_suspend(ohci_at91->sfr_regmap, 0);
 
 	return 0;
 }

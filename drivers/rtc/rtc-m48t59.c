@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST M48T59 RTC driver
  *
  * Copyright (c) 2007 Wind River Systems, Inc.
  *
  * Author: Mark Zhan <rongkai.zhan@windriver.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -316,11 +313,6 @@ static const struct rtc_class_ops m48t59_rtc_ops = {
 	.alarm_irq_enable = m48t59_rtc_alarm_irq_enable,
 };
 
-static const struct rtc_class_ops m48t02_rtc_ops = {
-	.read_time	= m48t59_rtc_read_time,
-	.set_time	= m48t59_rtc_set_time,
-};
-
 static int m48t59_nvram_read(void *priv, unsigned int offset, void *val,
 			     size_t size)
 {
@@ -369,7 +361,6 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	struct m48t59_private *m48t59 = NULL;
 	struct resource *res;
 	int ret = -ENOMEM;
-	const struct rtc_class_ops *ops;
 	struct nvmem_config nvmem_cfg = {
 		.name = "m48t59-",
 		.word_size = 1,
@@ -430,7 +421,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	/* Try to get irq number. We also can work in
 	 * the mode without IRQ.
 	 */
-	m48t59->irq = platform_get_irq(pdev, 0);
+	m48t59->irq = platform_get_irq_optional(pdev, 0);
 	if (m48t59->irq <= 0)
 		m48t59->irq = NO_IRQ;
 
@@ -441,17 +432,21 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
+
+	m48t59->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(m48t59->rtc))
+		return PTR_ERR(m48t59->rtc);
+
 	switch (pdata->type) {
 	case M48T59RTC_TYPE_M48T59:
-		ops = &m48t59_rtc_ops;
 		pdata->offset = 0x1ff0;
 		break;
 	case M48T59RTC_TYPE_M48T02:
-		ops = &m48t02_rtc_ops;
+		clear_bit(RTC_FEATURE_ALARM, m48t59->rtc->features);
 		pdata->offset = 0x7f0;
 		break;
 	case M48T59RTC_TYPE_M48T08:
-		ops = &m48t02_rtc_ops;
+		clear_bit(RTC_FEATURE_ALARM, m48t59->rtc->features);
 		pdata->offset = 0x1ff0;
 		break;
 	default:
@@ -462,19 +457,14 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&m48t59->lock);
 	platform_set_drvdata(pdev, m48t59);
 
-	m48t59->rtc = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(m48t59->rtc))
-		return PTR_ERR(m48t59->rtc);
-
-	m48t59->rtc->nvram_old_abi = true;
-	m48t59->rtc->ops = ops;
+	m48t59->rtc->ops = &m48t59_rtc_ops;
 
 	nvmem_cfg.size = pdata->offset;
-	ret = rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);
+	ret = devm_rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);
 	if (ret)
 		return ret;
 
-	ret = rtc_register_device(m48t59->rtc);
+	ret = devm_rtc_register_device(m48t59->rtc);
 	if (ret)
 		return ret;
 

@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Joern Rennecke  <joern.rennecke@embecosm.com>: Jan 2012
  *  -Insn Scheduling improvements to csum core routines.
@@ -27,7 +24,7 @@
  */
 static inline __sum16 csum_fold(__wsum s)
 {
-	unsigned r = s << 16 | s >> 16;	/* ror */
+	unsigned int r = s << 16 | s >> 16;	/* ror */
 	s = ~s;
 	s -= r;
 	return s >> 16;

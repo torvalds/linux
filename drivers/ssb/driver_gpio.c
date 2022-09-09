@@ -231,7 +231,8 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 	chip->ngpio		= 16;
 	/* There is just one SoC in one device and its GPIO addresses should be
 	 * deterministic to address them more easily. The other buses could get
-	 * a random base number. */
+	 * a random base number.
+	 */
 	if (bus->bustype == SSB_BUSTYPE_SSB)
 		chip->base		= 0;
 	else
@@ -424,7 +425,8 @@ static int ssb_gpio_extif_init(struct ssb_bus *bus)
 	chip->ngpio		= 5;
 	/* There is just one SoC in one device and its GPIO addresses should be
 	 * deterministic to address them more easily. The other buses could get
-	 * a random base number. */
+	 * a random base number.
+	 */
 	if (bus->bustype == SSB_BUSTYPE_SSB)
 		chip->base		= 0;
 	else
@@ -460,9 +462,6 @@ int ssb_gpio_init(struct ssb_bus *bus)
 		return ssb_gpio_chipco_init(bus);
 	else if (ssb_extif_available(&bus->extif))
 		return ssb_gpio_extif_init(bus);
-	else
-		WARN_ON(1);
-
 	return -1;
 }
 
@@ -472,9 +471,6 @@ int ssb_gpio_unregister(struct ssb_bus *bus)
 	    ssb_extif_available(&bus->extif)) {
 		gpiochip_remove(&bus->gpio);
 		return 0;
-	} else {
-		WARN_ON(1);
 	}
-
 	return -1;
 }

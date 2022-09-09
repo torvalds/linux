@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/rtc/rtc-pcf85363.c
  *
  * Driver for NXP PCF85363 real-time clock.
  *
  * Copyright (C) 2017 Eric Nelson
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Based loosely on rtc-8583 by Russell King, Wolfram Sang and Juergen Beisert
  */
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -112,10 +107,7 @@
 
 #define NVRAM_SIZE	0x40
 
-static struct i2c_driver pcf85363_driver;
-
 struct pcf85363 {
-	struct device		*dev;
 	struct rtc_device	*rtc;
 	struct regmap		*regmap;
 };
@@ -174,7 +166,12 @@ static int pcf85363_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buf[DT_YEARS] = bin2bcd(tm->tm_year % 100);
 
 	ret = regmap_bulk_write(pcf85363->regmap, CTRL_STOP_EN,
-				tmp, sizeof(tmp));
+				tmp, 2);
+	if (ret)
+		return ret;
+
+	ret = regmap_bulk_write(pcf85363->regmap, DT_100THS,
+				buf, sizeof(tmp) - 2);
 	if (ret)
 		return ret;
 
@@ -288,11 +285,6 @@ static irqreturn_t pcf85363_rtc_handle_irq(int irq, void *dev_id)
 static const struct rtc_class_ops rtc_ops = {
 	.read_time	= pcf85363_rtc_read_time,
 	.set_time	= pcf85363_rtc_set_time,
-};
-
-static const struct rtc_class_ops rtc_ops_alarm = {
-	.read_time	= pcf85363_rtc_read_time,
-	.set_time	= pcf85363_rtc_set_time,
 	.read_alarm	= pcf85363_rtc_read_alarm,
 	.set_alarm	= pcf85363_rtc_set_alarm,
 	.alarm_irq_enable = pcf85363_rtc_alarm_irq_enable,
@@ -358,8 +350,7 @@ static const struct pcf85x63_config pcf_85363_config = {
 	.num_nvram = 2
 };
 
-static int pcf85363_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int pcf85363_probe(struct i2c_client *client)
 {
 	struct pcf85363 *pcf85363;
 	const struct pcf85x63_config *config = &pcf_85363_config;
@@ -386,9 +377,6 @@ static int pcf85363_probe(struct i2c_client *client,
 	if (data)
 		config = data;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-
 	pcf85363 = devm_kzalloc(&client->dev, sizeof(struct pcf85363),
 				GFP_KERNEL);
 	if (!pcf85363)
@@ -400,40 +388,42 @@ static int pcf85363_probe(struct i2c_client *client,
 		return PTR_ERR(pcf85363->regmap);
 	}
 
-	pcf85363->dev = &client->dev;
 	i2c_set_clientdata(client, pcf85363);
 
-	pcf85363->rtc = devm_rtc_allocate_device(pcf85363->dev);
+	pcf85363->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(pcf85363->rtc))
 		return PTR_ERR(pcf85363->rtc);
 
 	pcf85363->rtc->ops = &rtc_ops;
+	pcf85363->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	pcf85363->rtc->range_max = RTC_TIMESTAMP_END_2099;
+	clear_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
 
 	if (client->irq > 0) {
 		regmap_write(pcf85363->regmap, CTRL_FLAGS, 0);
 		regmap_update_bits(pcf85363->regmap, CTRL_PIN_IO,
 				   PIN_IO_INTA_OUT, PIN_IO_INTAPM);
-		ret = devm_request_threaded_irq(pcf85363->dev, client->irq,
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, pcf85363_rtc_handle_irq,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"pcf85363", client);
 		if (ret)
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 		else
-			pcf85363->rtc->ops = &rtc_ops_alarm;
+			set_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
 	}
 
-	ret = rtc_register_device(pcf85363->rtc);
+	ret = devm_rtc_register_device(pcf85363->rtc);
 
 	for (i = 0; i < config->num_nvram; i++) {
 		nvmem_cfg[i].priv = pcf85363;
-		rtc_nvmem_register(pcf85363->rtc, &nvmem_cfg[i]);
+		devm_rtc_nvmem_register(pcf85363->rtc, &nvmem_cfg[i]);
 	}
 
 	return ret;
 }
 
-static const struct of_device_id dev_ids[] = {
+static const __maybe_unused struct of_device_id dev_ids[] = {
 	{ .compatible = "nxp,pcf85263", .data = &pcf_85263_config },
 	{ .compatible = "nxp,pcf85363", .data = &pcf_85363_config },
 	{ /* sentinel */ }
@@ -445,7 +435,7 @@ static struct i2c_driver pcf85363_driver = {
 		.name	= "pcf85363",
 		.of_match_table = of_match_ptr(dev_ids),
 	},
-	.probe	= pcf85363_probe,
+	.probe_new = pcf85363_probe,
 };
 
 module_i2c_driver(pcf85363_driver);

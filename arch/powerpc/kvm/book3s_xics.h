@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2012 Michael Ellerman, IBM Corporation.
  * Copyright 2012 Benjamin Herrenschmidt, IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #ifndef _KVM_PPC_BOOK3S_XICS_H
@@ -119,7 +116,7 @@ static inline struct kvmppc_icp *kvmppc_xics_find_server(struct kvm *kvm,
 							 u32 nr)
 {
 	struct kvm_vcpu *vcpu = NULL;
-	int i;
+	unsigned long i;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (vcpu->arch.icp && nr == vcpu->arch.icp->server_num)
@@ -146,6 +143,7 @@ static inline struct kvmppc_ics *kvmppc_xics_find_ics(struct kvmppc_xics *xics,
 }
 
 extern unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu);
+extern unsigned long xics_rm_h_xirr_x(struct kvm_vcpu *vcpu);
 extern int xics_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 			 unsigned long mfrr);
 extern int xics_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr);

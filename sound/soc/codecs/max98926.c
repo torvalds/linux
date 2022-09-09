@@ -1,9 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max98926.c -- ALSA SoC MAX98926 driver
  * Copyright 2013-15 Maxim Integrated Products
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -20,15 +18,6 @@
 static const char * const max98926_boost_voltage_txt[] = {
 	"8.5V", "8.25V", "8.0V", "7.75V", "7.5V", "7.25V", "7.0V", "6.75V",
 	"6.5V", "6.5V", "6.5V", "6.5V", "6.5V", "6.5V", "6.5V", "6.5V"
-};
-
-static const char * const max98926_boost_current_txt[] = {
-	"0.6", "0.8", "1.0", "1.2", "1.4", "1.6", "1.8", "2.0",
-	"2.2", "2.4", "2.6", "2.8", "3.2", "3.6", "4.0", "4.4"
-};
-
-static const char *const max98926_dai_txt[] = {
-	"Left", "Right", "LeftRight", "LeftRightDiv2",
 };
 
 static const char *const max98926_pdm_ch_text[] = {
@@ -342,8 +331,8 @@ static int max98926_dai_set_fmt(struct snd_soc_dai *codec_dai,
 
 	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		max98926_set_sense_data(max98926);
 		break;
 	default:
@@ -507,7 +496,6 @@ static const struct snd_soc_component_driver soc_component_dev_max98926 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98926_regmap = {
@@ -521,8 +509,7 @@ static const struct regmap_config max98926_regmap = {
 	.cache_type		= REGCACHE_RBTREE,
 };
 
-static int max98926_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int max98926_i2c_probe(struct i2c_client *i2c)
 {
 	int ret, reg;
 	u32 value;
@@ -582,19 +569,20 @@ static const struct i2c_device_id max98926_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max98926_i2c_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id max98926_of_match[] = {
 	{ .compatible = "maxim,max98926", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max98926_of_match);
+#endif
 
 static struct i2c_driver max98926_i2c_driver = {
 	.driver = {
 		.name = "max98926",
 		.of_match_table = of_match_ptr(max98926_of_match),
-		.pm = NULL,
 	},
-	.probe	= max98926_i2c_probe,
+	.probe_new = max98926_i2c_probe,
 	.id_table = max98926_i2c_id,
 };
 

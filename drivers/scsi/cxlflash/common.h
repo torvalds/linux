@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * CXL Flash Device Driver
  *
@@ -5,11 +6,6 @@
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _CXLFLASH_COMMON_H
@@ -334,7 +330,8 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t c, res_hndl_t r, u8 mode);
 void cxlflash_list_init(void);
 void cxlflash_term_global_luns(void);
 void cxlflash_free_errpage(void);
-int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
+int cxlflash_ioctl(struct scsi_device *sdev, unsigned int cmd,
+		   void __user *arg);
 void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg);
 int cxlflash_mark_contexts_error(struct cxlflash_cfg *cfg);
 void cxlflash_term_local_luns(struct cxlflash_cfg *cfg);

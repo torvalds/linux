@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/irqdomain.h>
+#include <linux/platform_device.h>
 
 #include "cxl.h"
 #include "hcalls.h"
@@ -24,34 +22,38 @@ static void pci_error_handlers(struct cxl_afu *afu,
 				pci_channel_state_t state)
 {
 	struct pci_dev *afu_dev;
+	struct pci_driver *afu_drv;
+	const struct pci_error_handlers *err_handler;
 
 	if (afu->phb == NULL)
 		return;
 
 	list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
-		if (!afu_dev->driver)
+		afu_drv = to_pci_driver(afu_dev->dev.driver);
+		if (!afu_drv)
 			continue;
 
+		err_handler = afu_drv->err_handler;
 		switch (bus_error_event) {
 		case CXL_ERROR_DETECTED_EVENT:
 			afu_dev->error_state = state;
 
-			if (afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->error_detected)
-				afu_dev->driver->err_handler->error_detected(afu_dev, state);
-		break;
+			if (err_handler &&
+			    err_handler->error_detected)
+				err_handler->error_detected(afu_dev, state);
+			break;
 		case CXL_SLOT_RESET_EVENT:
 			afu_dev->error_state = state;
 
-			if (afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->slot_reset)
-				afu_dev->driver->err_handler->slot_reset(afu_dev);
-		break;
+			if (err_handler &&
+			    err_handler->slot_reset)
+				err_handler->slot_reset(afu_dev);
+			break;
 		case CXL_RESUME_EVENT:
-			if (afu_dev->driver->err_handler &&
-			    afu_dev->driver->err_handler->resume)
-				afu_dev->driver->err_handler->resume(afu_dev);
-		break;
+			if (err_handler &&
+			    err_handler->resume)
+				err_handler->resume(afu_dev);
+			break;
 		}
 	}
 }
@@ -267,6 +269,7 @@ static int guest_reset(struct cxl *adapter)
 	int i, rc;
 
 	pr_devel("Adapter reset request\n");
+	spin_lock(&adapter->afu_list_lock);
 	for (i = 0; i < adapter->slices; i++) {
 		if ((afu = adapter->afu[i])) {
 			pci_error_handlers(afu, CXL_ERROR_DETECTED_EVENT,
@@ -283,6 +286,7 @@ static int guest_reset(struct cxl *adapter)
 			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
 		}
 	}
+	spin_unlock(&adapter->afu_list_lock);
 	return rc;
 }
 
@@ -1049,7 +1053,7 @@ static void free_adapter(struct cxl *adapter)
 		if (adapter->guest->irq_avail) {
 			for (i = 0; i < adapter->guest->irq_nranges; i++) {
 				cur = &adapter->guest->irq_avail[i];
-				kfree(cur->bitmap);
+				bitmap_free(cur->bitmap);
 			}
 			kfree(adapter->guest->irq_avail);
 		}

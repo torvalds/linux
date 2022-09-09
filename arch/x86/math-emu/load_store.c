@@ -240,7 +240,7 @@ int FPU_load_store(u_char type, fpu_addr_modes addr_modes,
 		   fix-up operations. */
 		return 1;
 	case 022:		/* frstor m94/108byte */
-		frstor(addr_modes, (u_char __user *) data_address);
+		FPU_frstor(addr_modes, (u_char __user *) data_address);
 		/* Ensure that the values just loaded are not changed by
 		   fix-up operations. */
 		return 1;

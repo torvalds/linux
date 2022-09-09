@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Shared CARL9170 Header
  *
  * Firmware descriptor format
  *
  * Copyright 2009-2011 Christian Lamparter <chunkeey@googlemail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
- * http://www.gnu.org/licenses/.
  */
 
 #ifndef __CARL9170_SHARED_FWDESC_H
@@ -161,7 +149,7 @@ struct carl9170fw_fix_entry {
 
 struct carl9170fw_fix_desc {
 	struct carl9170fw_desc_head head;
-	struct carl9170fw_fix_entry data[0];
+	struct carl9170fw_fix_entry data[];
 } __packed;
 #define CARL9170FW_FIX_DESC_SIZE			\
 	(sizeof(struct carl9170fw_fix_desc))

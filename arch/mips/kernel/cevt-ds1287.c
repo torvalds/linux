@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  DS1287 clockevent driver
  *
  *  Copyright (C) 2008	Yoichi Yuasa <yuasa@linux-mips.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 #include <linux/clockchips.h>
 #include <linux/init.h>
@@ -113,14 +100,9 @@ static irqreturn_t ds1287_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction ds1287_irqaction = {
-	.handler	= ds1287_interrupt,
-	.flags		= IRQF_PERCPU | IRQF_TIMER,
-	.name		= "ds1287",
-};
-
 int __init ds1287_clockevent_init(int irq)
 {
+	unsigned long flags = IRQF_PERCPU | IRQF_TIMER;
 	struct clock_event_device *cd;
 
 	cd = &ds1287_clockevent;
@@ -135,5 +117,5 @@ int __init ds1287_clockevent_init(int irq)
 
 	clockevents_register_device(&ds1287_clockevent);
 
-	return setup_irq(irq, &ds1287_irqaction);
+	return request_irq(irq, ds1287_interrupt, flags, "ds1287", NULL);
 }

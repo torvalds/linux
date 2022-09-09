@@ -19,7 +19,6 @@
 #define MI_RSV4I	0x08000000	/* Reserve 4 TLB entries */
 #define MI_PPCS		0x02000000	/* Use MI_RPN prob/priv state */
 #define MI_IDXMASK	0x00001f00	/* TLB index to be loaded */
-#define MI_RESETVAL	0x00000000	/* Value of register at reset */
 
 /* These are the Ks and Kp from the PowerPC books.  For proper operation,
  * Ks = 0, Kp = 1.
@@ -34,12 +33,16 @@
  * respectively NA for All or X for Supervisor and no access for User.
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
- * Therefore, we define 2 APG groups. lsb is _PMD_USER
- * 0 => No user => 01 (all accesses performed according to page definition)
- * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
- * We define all 16 groups so that all other bits of APG can take any value
+ * _PAGE_ACCESSED is also managed via APG. When _PAGE_ACCESSED is not set, say
+ * "all User" rules, that will lead to NA for all.
+ * Therefore, we define 4 APG groups. lsb is _PAGE_ACCESSED
+ * 0 => Kernel => 11 (all accesses performed according as user iaw page definition)
+ * 1 => Kernel+Accessed => 01 (all accesses performed according to page definition)
+ * 2 => User => 11 (all accesses performed according as user iaw page definition)
+ * 3 => User+Accessed => 10 (all accesses performed according to swaped page definition) for KUEP
+ * 4-15 => Not Used
  */
-#define MI_APG_INIT	0x44444444
+#define MI_APG_INIT	0xde000000
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
@@ -88,7 +91,6 @@
 #define MD_TWAM		0x04000000	/* Use 4K page hardware assist */
 #define MD_PPCS		0x02000000	/* Use MI_RPN prob/priv state */
 #define MD_IDXMASK	0x00001f00	/* TLB index to be loaded */
-#define MD_RESETVAL	0x04000000	/* Value of register at reset */
 
 #define SPRN_M_CASID	793	/* Address space ID (context) to match */
 #define MC_ASIDMASK	0x0000000f	/* Bits used for ASID value */
@@ -101,18 +103,9 @@
 #define MD_Ks		0x80000000	/* Should not be set */
 #define MD_Kp		0x40000000	/* Should always be set */
 
-/*
- * All pages' PP data bits are set to either 000 or 011 or 001, which means
- * respectively RW for Supervisor and no access for User, or RO for
- * Supervisor and no access for user and NA for ALL.
- * Then we use the APG to say whether accesses are according to Page rules or
- * "all Supervisor" rules (Access to all)
- * Therefore, we define 2 APG groups. lsb is _PMD_USER
- * 0 => No user => 01 (all accesses performed according to page definition)
- * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
- * We define all 16 groups so that all other bits of APG can take any value
- */
-#define MD_APG_INIT	0x44444444
+/* See explanation above at the definition of MI_APG_INIT */
+#define MD_APG_INIT	0xdc000000
+#define MD_APG_KUAP	0xde000000
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MD_RPN is written, bits in
@@ -164,32 +157,33 @@
  */
 #define SPRN_M_TW	799
 
-#ifdef CONFIG_PPC_MM_SLICES
-#include <asm/nohash/32/slice.h>
-#define SLICE_ARRAY_SIZE	(1 << (32 - SLICE_LOW_SHIFT - 1))
+#if defined(CONFIG_PPC_4K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_4K
+#elif defined(CONFIG_PPC_16K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_16K
+#define PTE_FRAG_NR		4
+#define PTE_FRAG_SIZE_SHIFT	12
+#define PTE_FRAG_SIZE		(1UL << 12)
+#else
+#error "Unsupported PAGE_SIZE"
 #endif
 
+#define mmu_linear_psize	MMU_PAGE_8M
+
+#define MODULES_VADDR	(PAGE_OFFSET - SZ_256M)
+#define MODULES_END	PAGE_OFFSET
+
 #ifndef __ASSEMBLY__
-struct slice_mask {
-	u64 low_slices;
-	DECLARE_BITMAP(high_slices, 0);
-};
+
+#include <linux/mmdebug.h>
+#include <linux/sizes.h>
+
+void mmu_pin_tlb(unsigned long top, bool readonly);
 
 typedef struct {
 	unsigned int id;
 	unsigned int active;
-	unsigned long vdso_base;
-#ifdef CONFIG_PPC_MM_SLICES
-	u16 user_psize;		/* page size index */
-	unsigned char low_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned char high_slices_psize[0];
-	unsigned long slb_addr_limit;
-	struct slice_mask mask_base_psize; /* 4k or 16k */
-# ifdef CONFIG_HUGETLB_PAGE
-	struct slice_mask mask_512k;
-	struct slice_mask mask_8m;
-# endif
-#endif
+	void __user *vdso;
 	void *pte_frag;
 } mm_context_t;
 
@@ -230,28 +224,52 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 	BUG();
 }
 
-/* patch sites */
-extern s32 patch__itlbmiss_linmem_top;
-extern s32 patch__dtlbmiss_linmem_top, patch__dtlbmiss_immr_jmp;
-extern s32 patch__fixupdar_linmem_top;
+static inline bool arch_vmap_try_size(unsigned long addr, unsigned long end, u64 pfn,
+				      unsigned int max_page_shift, unsigned long size)
+{
+	if (end - addr < size)
+		return false;
 
-extern s32 patch__itlbmiss_exit_1, patch__itlbmiss_exit_2;
-extern s32 patch__dtlbmiss_exit_1, patch__dtlbmiss_exit_2, patch__dtlbmiss_exit_3;
+	if ((1UL << max_page_shift) < size)
+		return false;
+
+	if (!IS_ALIGNED(addr, size))
+		return false;
+
+	if (!IS_ALIGNED(PFN_PHYS(pfn), size))
+		return false;
+
+	return true;
+}
+
+static inline unsigned long arch_vmap_pte_range_map_size(unsigned long addr, unsigned long end,
+							 u64 pfn, unsigned int max_page_shift)
+{
+	if (arch_vmap_try_size(addr, end, pfn, max_page_shift, SZ_512K))
+		return SZ_512K;
+	if (PAGE_SIZE == SZ_16K)
+		return SZ_16K;
+	if (arch_vmap_try_size(addr, end, pfn, max_page_shift, SZ_16K))
+		return SZ_16K;
+	return PAGE_SIZE;
+}
+#define arch_vmap_pte_range_map_size arch_vmap_pte_range_map_size
+
+static inline int arch_vmap_pte_supported_shift(unsigned long size)
+{
+	if (size >= SZ_512K)
+		return 19;
+	else if (size >= SZ_16K)
+		return 14;
+	else
+		return PAGE_SHIFT;
+}
+#define arch_vmap_pte_supported_shift arch_vmap_pte_supported_shift
+
+/* patch sites */
+extern s32 patch__itlbmiss_exit_1, patch__dtlbmiss_exit_1;
 extern s32 patch__itlbmiss_perf, patch__dtlbmiss_perf;
 
 #endif /* !__ASSEMBLY__ */
-
-#if defined(CONFIG_PPC_4K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_4K
-#elif defined(CONFIG_PPC_16K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_16K
-#define PTE_FRAG_NR		4
-#define PTE_FRAG_SIZE_SHIFT	12
-#define PTE_FRAG_SIZE		(1UL << 12)
-#else
-#error "Unsupported PAGE_SIZE"
-#endif
-
-#define mmu_linear_psize	MMU_PAGE_8M
 
 #endif /* _ASM_POWERPC_MMU_8XX_H_ */

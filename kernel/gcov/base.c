@@ -22,88 +22,8 @@
 #include <linux/sched.h>
 #include "gcov.h"
 
-static int gcov_events_enabled;
-static DEFINE_MUTEX(gcov_lock);
-
-/*
- * __gcov_init is called by gcc-generated constructor code for each object
- * file compiled with -fprofile-arcs.
- */
-void __gcov_init(struct gcov_info *info)
-{
-	static unsigned int gcov_version;
-
-	mutex_lock(&gcov_lock);
-	if (gcov_version == 0) {
-		gcov_version = gcov_info_version(info);
-		/*
-		 * Printing gcc's version magic may prove useful for debugging
-		 * incompatibility reports.
-		 */
-		pr_info("version magic: 0x%x\n", gcov_version);
-	}
-	/*
-	 * Add new profiling data structure to list and inform event
-	 * listener.
-	 */
-	gcov_info_link(info);
-	if (gcov_events_enabled)
-		gcov_event(GCOV_ADD, info);
-	mutex_unlock(&gcov_lock);
-}
-EXPORT_SYMBOL(__gcov_init);
-
-/*
- * These functions may be referenced by gcc-generated profiling code but serve
- * no function for kernel profiling.
- */
-void __gcov_flush(void)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_flush);
-
-void __gcov_merge_add(gcov_type *counters, unsigned int n_counters)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_merge_add);
-
-void __gcov_merge_single(gcov_type *counters, unsigned int n_counters)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_merge_single);
-
-void __gcov_merge_delta(gcov_type *counters, unsigned int n_counters)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_merge_delta);
-
-void __gcov_merge_ior(gcov_type *counters, unsigned int n_counters)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_merge_ior);
-
-void __gcov_merge_time_profile(gcov_type *counters, unsigned int n_counters)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_merge_time_profile);
-
-void __gcov_merge_icall_topn(gcov_type *counters, unsigned int n_counters)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_merge_icall_topn);
-
-void __gcov_exit(void)
-{
-	/* Unused. */
-}
-EXPORT_SYMBOL(__gcov_exit);
+int gcov_events_enabled;
+DEFINE_MUTEX(gcov_lock);
 
 /**
  * gcov_enable_events - enable event reporting through gcov_event()
@@ -129,6 +49,55 @@ void gcov_enable_events(void)
 	mutex_unlock(&gcov_lock);
 }
 
+/**
+ * store_gcov_u32 - store 32 bit number in gcov format to buffer
+ * @buffer: target buffer or NULL
+ * @off: offset into the buffer
+ * @v: value to be stored
+ *
+ * Number format defined by gcc: numbers are recorded in the 32 bit
+ * unsigned binary form of the endianness of the machine generating the
+ * file. Returns the number of bytes stored. If @buffer is %NULL, doesn't
+ * store anything.
+ */
+size_t store_gcov_u32(void *buffer, size_t off, u32 v)
+{
+	u32 *data;
+
+	if (buffer) {
+		data = buffer + off;
+		*data = v;
+	}
+
+	return sizeof(*data);
+}
+
+/**
+ * store_gcov_u64 - store 64 bit number in gcov format to buffer
+ * @buffer: target buffer or NULL
+ * @off: offset into the buffer
+ * @v: value to be stored
+ *
+ * Number format defined by gcc: numbers are recorded in the 32 bit
+ * unsigned binary form of the endianness of the machine generating the
+ * file. 64 bit numbers are stored as two 32 bit numbers, the low part
+ * first. Returns the number of bytes stored. If @buffer is %NULL, doesn't store
+ * anything.
+ */
+size_t store_gcov_u64(void *buffer, size_t off, u64 v)
+{
+	u32 *data;
+
+	if (buffer) {
+		data = buffer + off;
+
+		data[0] = (v & 0xffffffffUL);
+		data[1] = (v >> 32);
+	}
+
+	return sizeof(*data) * 2;
+}
+
 #ifdef CONFIG_MODULES
 /* Update list and generate events when modules are unloaded. */
 static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
@@ -144,7 +113,7 @@ static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
 
 	/* Remove entries located in module from linked list. */
 	while ((info = gcov_info_next(info))) {
-		if (within_module((unsigned long)info, mod)) {
+		if (gcov_info_within_module(info, mod)) {
 			gcov_info_unlink(prev, info);
 			if (gcov_events_enabled)
 				gcov_event(GCOV_REMOVE, info);

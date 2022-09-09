@@ -6,6 +6,16 @@ Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 
 This small document introduces how to test DMA drivers using dmatest module.
 
+The dmatest module tests DMA memcpy, memset, XOR and RAID6 P+Q operations using
+various lengths and various offsets into the source and destination buffers. It
+will initialize both buffers with a repeatable pattern and verify that the DMA
+engine copies the requested region and nothing more. It will also verify that
+the bytes aren't swapped around, and that the source buffer isn't modified.
+
+The dmatest module can be configured to test a specific channel. It can also
+test multiple channels at the same time, and it can start multiple threads
+competing for the same channel.
+
 .. note::
   The test suite works only on the channels that have at least one
   capability of the following: DMA_MEMCPY (memory-to-memory), DMA_MEMSET
@@ -44,7 +54,8 @@ Example of usage::
 
     dmatest.timeout=2000 dmatest.iterations=1 dmatest.channel=dma0chan0 dmatest.run=1
 
-Example of multi-channel test usage:
+Example of multi-channel test usage (new in the 5.0 kernel)::
+
     % modprobe dmatest
     % echo 2000 > /sys/module/dmatest/parameters/timeout
     % echo 1 > /sys/module/dmatest/parameters/iterations
@@ -53,14 +64,18 @@ Example of multi-channel test usage:
     % echo dma0chan2 > /sys/module/dmatest/parameters/channel
     % echo 1 > /sys/module/dmatest/parameters/run
 
-Note: the channel parameter should always be the last parameter set prior to
-running the test (setting run=1), this is because upon setting the channel
-parameter, that specific channel is requested using the dmaengine and a thread
-is created with the existing parameters. This thread is set as pending
-and will be executed once run is set to 1. Any parameters set after the thread
-is created are not applied.
+.. note::
+  For all tests, starting in the 5.0 kernel, either single- or multi-channel,
+  the channel parameter(s) must be set after all other parameters. It is at
+  that time that the existing parameter values are acquired for use by the
+  thread(s). All other parameters are shared. Therefore, if changes are made
+  to any of the other parameters, and an additional channel specified, the
+  (shared) parameters used for all threads will use the new values.
+  After the channels are specified, each thread is set as pending. All threads
+  begin execution when the run parameter is set to 1.
+
 .. hint::
-  available channel list could be extracted by running the following command::
+  A list of available channels can be found by running the following command::
 
     % ls -1 /sys/class/dma/
 
@@ -138,13 +153,14 @@ Part 5 - Handling channel allocation
 Allocating Channels
 -------------------
 
-Channels are required to be configured prior to starting the test run.
-Attempting to run the test without configuring the channels will fail.
+Channels do not need to be configured prior to starting a test run. Attempting
+to run the test without configuring the channels will result in testing any
+channels that are available.
 
 Example::
 
     % echo 1 > /sys/module/dmatest/parameters/run
-    dmatest: Could not start test, no channels configured
+    dmatest: No channels configured, continue with any
 
 Channels are registered using the "channel" parameter. Channels can be requested by their
 name, once requested, the channel is registered and a pending thread is added to the test list.
@@ -203,6 +219,7 @@ Releasing Channels
 Channels can be freed by setting run to 0.
 
 Example::
+
     % echo dma0chan1 > /sys/module/dmatest/parameters/channel
     dmatest: Added 1 threads using dma0chan1
     % cat /sys/class/dma/dma0chan1/in_use

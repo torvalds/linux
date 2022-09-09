@@ -8,7 +8,7 @@
 #include <linux/version.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define MAX_ENTRIES	20
 #define MAX_CPU		4
@@ -18,12 +18,12 @@
  * trace_preempt_[on|off] tracepoints hooks is not supported.
  */
 
-struct bpf_map_def SEC("maps") my_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(u64),
-	.max_entries = MAX_CPU,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, u64);
+	__uint(max_entries, MAX_CPU);
+} my_map SEC(".maps");
 
 SEC("kprobe/trace_preempt_off")
 int bpf_prog1(struct pt_regs *ctx)
@@ -61,12 +61,12 @@ static unsigned int log2l(unsigned long v)
 		return log2(v);
 }
 
-struct bpf_map_def SEC("maps") my_lat = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(long),
-	.max_entries = MAX_CPU * MAX_ENTRIES,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, long);
+	__uint(max_entries, MAX_CPU * MAX_ENTRIES);
+} my_lat SEC(".maps");
 
 SEC("kprobe/trace_preempt_on")
 int bpf_prog2(struct pt_regs *ctx)

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MPC8610 HPCD Device Tree Source
  *
  * Copyright 2007-2008 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under the terms of the GNU General Public License Version 2 as published
- * by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -203,7 +200,7 @@
 			interrupts = <59 2>;
 			interrupt-parent = <&mpic>;
 			mode = "cpu";
-			gpios = <&sdcsr_pio 7 0>;
+			cs-gpios = <&sdcsr_pio 7 0>;
 			sleep = <&pmc 0x00000800 0>;
 
 			mmc-slot@0 {

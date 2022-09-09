@@ -1,49 +1,5 @@
-/*
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
-
-  GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  Contact Information:
-  qat-linux@intel.com
-
-  BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+// SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+/* Copyright(c) 2014 - 2020 Intel Corporation */
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
@@ -86,16 +42,17 @@ static int adf_ring_show(struct seq_file *sfile, void *v)
 {
 	struct adf_etr_ring_data *ring = sfile->private;
 	struct adf_etr_bank_data *bank = ring->bank;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 	void __iomem *csr = ring->bank->csr_addr;
 
 	if (v == SEQ_START_TOKEN) {
 		int head, tail, empty;
 
-		head = READ_CSR_RING_HEAD(csr, bank->bank_number,
-					  ring->ring_number);
-		tail = READ_CSR_RING_TAIL(csr, bank->bank_number,
-					  ring->ring_number);
-		empty = READ_CSR_E_STAT(csr, bank->bank_number);
+		head = csr_ops->read_csr_ring_head(csr, bank->bank_number,
+						   ring->ring_number);
+		tail = csr_ops->read_csr_ring_tail(csr, bank->bank_number,
+						   ring->ring_number);
+		empty = csr_ops->read_csr_e_stat(csr, bank->bank_number);
 
 		seq_puts(sfile, "------- Ring configuration -------\n");
 		seq_printf(sfile, "ring name: %s\n",
@@ -105,8 +62,8 @@ static int adf_ring_show(struct seq_file *sfile, void *v)
 		seq_printf(sfile, "head %x, tail %x, empty: %d\n",
 			   head, tail, (empty & 1 << ring->ring_number)
 			   >> ring->ring_number);
-		seq_printf(sfile, "ring size %d, msg size %d\n",
-			   ADF_SIZE_TO_RING_SIZE_IN_BYTES(ring->ring_size),
+		seq_printf(sfile, "ring size %lld, msg size %d\n",
+			   (long long)ADF_SIZE_TO_RING_SIZE_IN_BYTES(ring->ring_size),
 			   ADF_MSG_SIZE_TO_BYTES(ring->msg_size));
 		seq_puts(sfile, "----------- Ring data ------------\n");
 		return 0;
@@ -121,31 +78,14 @@ static void adf_ring_stop(struct seq_file *sfile, void *v)
 	mutex_unlock(&ring_read_lock);
 }
 
-static const struct seq_operations adf_ring_sops = {
+static const struct seq_operations adf_ring_debug_sops = {
 	.start = adf_ring_start,
 	.next = adf_ring_next,
 	.stop = adf_ring_stop,
 	.show = adf_ring_show
 };
 
-static int adf_ring_open(struct inode *inode, struct file *file)
-{
-	int ret = seq_open(file, &adf_ring_sops);
-
-	if (!ret) {
-		struct seq_file *seq_f = file->private_data;
-
-		seq_f->private = inode->i_private;
-	}
-	return ret;
-}
-
-static const struct file_operations adf_ring_debug_fops = {
-	.open = adf_ring_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release
-};
+DEFINE_SEQ_ATTRIBUTE(adf_ring_debug);
 
 int adf_ring_debugfs_add(struct adf_etr_ring_data *ring, const char *name)
 {
@@ -163,11 +103,6 @@ int adf_ring_debugfs_add(struct adf_etr_ring_data *ring, const char *name)
 	ring_debug->debug = debugfs_create_file(entry_name, S_IRUSR,
 						ring->bank->bank_debug_dir,
 						ring, &adf_ring_debug_fops);
-	if (!ring_debug->debug) {
-		pr_err("QAT: Failed to create ring debug entry.\n");
-		kfree(ring_debug);
-		return -EFAULT;
-	}
 	ring->ring_debug = ring_debug;
 	return 0;
 }
@@ -183,11 +118,14 @@ void adf_ring_debugfs_rm(struct adf_etr_ring_data *ring)
 
 static void *adf_bank_start(struct seq_file *sfile, loff_t *pos)
 {
+	struct adf_etr_bank_data *bank = sfile->private;
+	u8 num_rings_per_bank = GET_NUM_RINGS_PER_BANK(bank->accel_dev);
+
 	mutex_lock(&bank_read_lock);
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	if (*pos >= ADF_ETR_MAX_RINGS_PER_BANK)
+	if (*pos >= num_rings_per_bank)
 		return NULL;
 
 	return pos;
@@ -195,7 +133,10 @@ static void *adf_bank_start(struct seq_file *sfile, loff_t *pos)
 
 static void *adf_bank_next(struct seq_file *sfile, void *v, loff_t *pos)
 {
-	if (++(*pos) >= ADF_ETR_MAX_RINGS_PER_BANK)
+	struct adf_etr_bank_data *bank = sfile->private;
+	u8 num_rings_per_bank = GET_NUM_RINGS_PER_BANK(bank->accel_dev);
+
+	if (++(*pos) >= num_rings_per_bank)
 		return NULL;
 
 	return pos;
@@ -204,6 +145,7 @@ static void *adf_bank_next(struct seq_file *sfile, void *v, loff_t *pos)
 static int adf_bank_show(struct seq_file *sfile, void *v)
 {
 	struct adf_etr_bank_data *bank = sfile->private;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(sfile, "------- Bank %d configuration -------\n",
@@ -217,11 +159,11 @@ static int adf_bank_show(struct seq_file *sfile, void *v)
 		if (!(bank->ring_mask & 1 << ring_id))
 			return 0;
 
-		head = READ_CSR_RING_HEAD(csr, bank->bank_number,
-					  ring->ring_number);
-		tail = READ_CSR_RING_TAIL(csr, bank->bank_number,
-					  ring->ring_number);
-		empty = READ_CSR_E_STAT(csr, bank->bank_number);
+		head = csr_ops->read_csr_ring_head(csr, bank->bank_number,
+						   ring->ring_number);
+		tail = csr_ops->read_csr_ring_tail(csr, bank->bank_number,
+						   ring->ring_number);
+		empty = csr_ops->read_csr_e_stat(csr, bank->bank_number);
 
 		seq_printf(sfile,
 			   "ring num %02d, head %04x, tail %04x, empty: %d\n",
@@ -237,31 +179,14 @@ static void adf_bank_stop(struct seq_file *sfile, void *v)
 	mutex_unlock(&bank_read_lock);
 }
 
-static const struct seq_operations adf_bank_sops = {
+static const struct seq_operations adf_bank_debug_sops = {
 	.start = adf_bank_start,
 	.next = adf_bank_next,
 	.stop = adf_bank_stop,
 	.show = adf_bank_show
 };
 
-static int adf_bank_open(struct inode *inode, struct file *file)
-{
-	int ret = seq_open(file, &adf_bank_sops);
-
-	if (!ret) {
-		struct seq_file *seq_f = file->private_data;
-
-		seq_f->private = inode->i_private;
-	}
-	return ret;
-}
-
-static const struct file_operations adf_bank_debug_fops = {
-	.open = adf_bank_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release
-};
+DEFINE_SEQ_ATTRIBUTE(adf_bank_debug);
 
 int adf_bank_debugfs_add(struct adf_etr_bank_data *bank)
 {
@@ -271,19 +196,9 @@ int adf_bank_debugfs_add(struct adf_etr_bank_data *bank)
 
 	snprintf(name, sizeof(name), "bank_%02d", bank->bank_number);
 	bank->bank_debug_dir = debugfs_create_dir(name, parent);
-	if (!bank->bank_debug_dir) {
-		pr_err("QAT: Failed to create bank debug dir.\n");
-		return -EFAULT;
-	}
-
 	bank->bank_debug_cfg = debugfs_create_file("config", S_IRUSR,
 						   bank->bank_debug_dir, bank,
 						   &adf_bank_debug_fops);
-	if (!bank->bank_debug_cfg) {
-		pr_err("QAT: Failed to create bank debug entry.\n");
-		debugfs_remove(bank->bank_debug_dir);
-		return -EFAULT;
-	}
 	return 0;
 }
 

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015 Robert Jarzmik <robert.jarzmik@free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -132,7 +129,6 @@ struct pxad_device {
 	spinlock_t			phy_lock;	/* Phy association */
 #ifdef CONFIG_DEBUG_FS
 	struct dentry			*dbgfs_root;
-	struct dentry			*dbgfs_state;
 	struct dentry			**dbgfs_chan;
 #endif
 };
@@ -326,31 +322,18 @@ static struct dentry *pxad_dbg_alloc_chan(struct pxad_device *pdev,
 					     int ch, struct dentry *chandir)
 {
 	char chan_name[11];
-	struct dentry *chan, *chan_state = NULL, *chan_descr = NULL;
-	struct dentry *chan_reqs = NULL;
+	struct dentry *chan;
 	void *dt;
 
 	scnprintf(chan_name, sizeof(chan_name), "%d", ch);
 	chan = debugfs_create_dir(chan_name, chandir);
 	dt = (void *)&pdev->phys[ch];
 
-	if (chan)
-		chan_state = debugfs_create_file("state", 0400, chan, dt,
-						 &chan_state_fops);
-	if (chan_state)
-		chan_descr = debugfs_create_file("descriptors", 0400, chan, dt,
-						 &descriptors_fops);
-	if (chan_descr)
-		chan_reqs = debugfs_create_file("requesters", 0400, chan, dt,
-						&requester_chan_fops);
-	if (!chan_reqs)
-		goto err_state;
+	debugfs_create_file("state", 0400, chan, dt, &chan_state_fops);
+	debugfs_create_file("descriptors", 0400, chan, dt, &descriptors_fops);
+	debugfs_create_file("requesters", 0400, chan, dt, &requester_chan_fops);
 
 	return chan;
-
-err_state:
-	debugfs_remove_recursive(chan);
-	return NULL;
 }
 
 static void pxad_init_debugfs(struct pxad_device *pdev)
@@ -358,40 +341,20 @@ static void pxad_init_debugfs(struct pxad_device *pdev)
 	int i;
 	struct dentry *chandir;
 
-	pdev->dbgfs_root = debugfs_create_dir(dev_name(pdev->slave.dev), NULL);
-	if (IS_ERR(pdev->dbgfs_root) || !pdev->dbgfs_root)
-		goto err_root;
-
-	pdev->dbgfs_state = debugfs_create_file("state", 0400, pdev->dbgfs_root,
-						pdev, &state_fops);
-	if (!pdev->dbgfs_state)
-		goto err_state;
-
 	pdev->dbgfs_chan =
-		kmalloc_array(pdev->nr_chans, sizeof(*pdev->dbgfs_state),
+		kmalloc_array(pdev->nr_chans, sizeof(struct dentry *),
 			      GFP_KERNEL);
 	if (!pdev->dbgfs_chan)
-		goto err_alloc;
+		return;
+
+	pdev->dbgfs_root = debugfs_create_dir(dev_name(pdev->slave.dev), NULL);
+
+	debugfs_create_file("state", 0400, pdev->dbgfs_root, pdev, &state_fops);
 
 	chandir = debugfs_create_dir("channels", pdev->dbgfs_root);
-	if (!chandir)
-		goto err_chandir;
 
-	for (i = 0; i < pdev->nr_chans; i++) {
+	for (i = 0; i < pdev->nr_chans; i++)
 		pdev->dbgfs_chan[i] = pxad_dbg_alloc_chan(pdev, i, chandir);
-		if (!pdev->dbgfs_chan[i])
-			goto err_chans;
-	}
-
-	return;
-err_chans:
-err_chandir:
-	kfree(pdev->dbgfs_chan);
-err_alloc:
-err_state:
-	debugfs_remove_recursive(pdev->dbgfs_root);
-err_root:
-	pr_err("pxad: debugfs is not available\n");
 }
 
 static void pxad_cleanup_debugfs(struct pxad_device *pdev)
@@ -643,7 +606,6 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	struct pxad_chan *chan = phy->vchan;
 	struct virt_dma_desc *vd, *tmp;
 	unsigned int dcsr;
-	unsigned long flags;
 	bool vd_completed;
 	dma_cookie_t last_started = 0;
 
@@ -653,7 +615,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	if (dcsr & PXA_DCSR_RUN)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&chan->vc.lock, flags);
+	spin_lock(&chan->vc.lock);
 	list_for_each_entry_safe(vd, tmp, &chan->vc.desc_issued, node) {
 		vd_completed = is_desc_completed(vd);
 		dev_dbg(&chan->vc.chan.dev->device,
@@ -695,7 +657,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 			pxad_launch_chan(chan, to_pxad_sw_desc(vd));
 		}
 	}
-	spin_unlock_irqrestore(&chan->vc.lock, flags);
+	spin_unlock(&chan->vc.lock);
 	wake_up(&chan->wq_state);
 
 	return IRQ_HANDLED;
@@ -780,8 +742,7 @@ pxad_alloc_desc(struct pxad_chan *chan, unsigned int nb_hw_desc)
 	dma_addr_t dma;
 	int i;
 
-	sw_desc = kzalloc(sizeof(*sw_desc) +
-			  nb_hw_desc * sizeof(struct pxad_desc_hw *),
+	sw_desc = kzalloc(struct_size(sw_desc, hw_desc, nb_hw_desc),
 			  GFP_NOWAIT);
 	if (!sw_desc)
 		return NULL;
@@ -948,13 +909,6 @@ static void pxad_get_config(struct pxad_chan *chan,
 		*dcmd |= PXA_DCMD_BURST16;
 	else if (maxburst == 32)
 		*dcmd |= PXA_DCMD_BURST32;
-
-	/* FIXME: drivers should be ported over to use the filter
-	 * function. Once that's done, the following two lines can
-	 * be removed.
-	 */
-	if (chan->cfg.slave_id)
-		chan->drcmr = chan->cfg.slave_id;
 }
 
 static struct dma_async_tx_descriptor *
@@ -1411,10 +1365,17 @@ static int pxad_probe(struct platform_device *op)
 
 	of_id = of_match_device(pxad_dt_ids, &op->dev);
 	if (of_id) {
-		of_property_read_u32(op->dev.of_node, "#dma-channels",
-				     &dma_channels);
-		ret = of_property_read_u32(op->dev.of_node, "#dma-requests",
+		/* Parse new and deprecated dma-channels properties */
+		if (of_property_read_u32(op->dev.of_node, "dma-channels",
+					 &dma_channels))
+			of_property_read_u32(op->dev.of_node, "#dma-channels",
+					     &dma_channels);
+		/* Parse new and deprecated dma-requests properties */
+		ret = of_property_read_u32(op->dev.of_node, "dma-requests",
 					   &nb_requestors);
+		if (ret)
+			ret = of_property_read_u32(op->dev.of_node, "#dma-requests",
+						   &nb_requestors);
 		if (ret) {
 			dev_warn(pdev->slave.dev,
 				 "#dma-requests set to default 32 as missing in OF: %d",

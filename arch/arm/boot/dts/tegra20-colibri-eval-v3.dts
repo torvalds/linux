@@ -70,11 +70,11 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
-			pwm-a-b {
+			sdc {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
-			pwm-c-d {
+			sdb_sdd {
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 
@@ -183,7 +183,7 @@
 	};
 
 	/* SD/MMC */
-	sdhci@c8000600 {
+	mmc@c8000600 {
 		status = "okay";
 		bus-width = <4>;
 		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>; /* MMCD */
@@ -209,7 +209,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wakeup {
+		key-wakeup {
 			label = "SODIMM pin 45 wakeup";
 			gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_WAKEUP>;
@@ -223,7 +223,7 @@
 		 * edt,et057090dhu: EDT 5.7" LCD TFT
 		 * edt,et070080dh6: EDT 7.0" LCD TFT
 		 */
-		compatible = "edt,et057090dhu", "simple-panel";
+		compatible = "edt,et057090dhu";
 		backlight = <&backlight>;
 		power-supply = <&reg_3v3>;
 	};

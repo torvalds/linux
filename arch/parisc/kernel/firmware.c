@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/parisc/kernel/firmware.c  - safe PDC access routines
  *
  *	PDC == Processor Dependent Code
  *
- * See http://www.parisc-linux.org/documentation/index.html
+ * See PDC documentation at
+ * https://parisc.wiki.kernel.org/index.php/Technical_Documentation
  * for documentation describing the entry points and calling
  * conventions defined below.
  *
@@ -12,12 +14,6 @@
  * Copyright 2003 Grant Grundler <grundler parisc-linux org>
  * Copyright 2003,2004 Ryan Bradetich <rbrad@parisc-linux.org>
  * Copyright 2004,2006 Thibaut VARENE <varenet@parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
  */
 
 /*	I think it would be in everyone's best interest to follow this
@@ -55,7 +51,7 @@
  *					prumpf	991016	
  */
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -87,7 +83,7 @@ extern unsigned long pdc_result2[NUM_PDC_RESULT];
 
 /* Firmware needs to be initially set to narrow to determine the 
  * actual firmware width. */
-int parisc_narrow_firmware __read_mostly = 1;
+int parisc_narrow_firmware __ro_after_init = 2;
 #endif
 
 /* On most currently-supported platforms, IODC I/O calls are 32-bit calls
@@ -178,6 +174,11 @@ void set_firmware_width_unlocked(void)
 void set_firmware_width(void)
 {
 	unsigned long flags;
+
+	/* already initialized? */
+	if (parisc_narrow_firmware != 2)
+		return;
+
 	spin_lock_irqsave(&pdc_lock, flags);
 	set_firmware_width_unlocked();
 	spin_unlock_irqrestore(&pdc_lock, flags);
@@ -316,6 +317,56 @@ int pdc_chassis_disp(unsigned long disp)
 	return retval;
 }
 
+/**
+ * pdc_cpu_rendenzvous - Stop currently executing CPU
+ * @retval: -1 on error, 0 on success
+ */
+int __pdc_cpu_rendezvous(void)
+{
+	if (is_pdc_pat())
+		return mem_pdc_call(PDC_PAT_CPU, PDC_PAT_CPU_RENDEZVOUS);
+	else
+		return mem_pdc_call(PDC_PROC, 1, 0);
+}
+
+/**
+ * pdc_cpu_rendezvous_lock - Lock PDC while transitioning to rendezvous state
+ */
+void pdc_cpu_rendezvous_lock(void)
+{
+	spin_lock(&pdc_lock);
+}
+
+/**
+ * pdc_cpu_rendezvous_unlock - Unlock PDC after reaching rendezvous state
+ */
+void pdc_cpu_rendezvous_unlock(void)
+{
+	spin_unlock(&pdc_lock);
+}
+
+/**
+ * pdc_pat_get_PDC_entrypoint - Get PDC entry point for current CPU
+ * @retval: -1 on error, 0 on success
+ */
+int pdc_pat_get_PDC_entrypoint(unsigned long *pdc_entry)
+{
+	int retval = 0;
+	unsigned long flags;
+
+	if (!IS_ENABLED(CONFIG_SMP) || !is_pdc_pat()) {
+		*pdc_entry = MEM_PDC;
+		return 0;
+	}
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_CPU, PDC_PAT_CPU_GET_PDC_ENTRYPOINT,
+			__pa(pdc_result));
+	*pdc_entry = pdc_result[0];
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
 /**
  * pdc_chassis_warn - Fetches chassis warnings
  * @retval: -1 on error, 0 on success
@@ -566,6 +617,30 @@ int pdc_model_capabilities(unsigned long *capabilities)
         spin_unlock_irqrestore(&pdc_lock, flags);
 
         return retval;
+}
+
+/**
+ * pdc_model_platform_info - Returns machine product and serial number.
+ * @orig_prod_num: Return buffer for original product number.
+ * @current_prod_num: Return buffer for current product number.
+ * @serial_no: Return buffer for serial number.
+ *
+ * Returns strings containing the original and current product numbers and the
+ * serial number of the system.
+ */
+int pdc_model_platform_info(char *orig_prod_num, char *current_prod_num,
+		char *serial_no)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_GET_PLATFORM_INFO,
+		__pa(orig_prod_num), __pa(current_prod_num), __pa(serial_no));
+	convert_to_wide(pdc_result);
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
 }
 
 /**
@@ -1025,6 +1100,38 @@ int pdc_mem_pdt_read_entries(struct pdc_mem_read_pdt *pret,
 		return PDC_ERROR;
 #endif
 
+	return retval;
+}
+
+/**
+ * pdc_pim_toc11 - Fetch TOC PIM 1.1 data from firmware.
+ * @ret: pointer to return buffer
+ */
+int pdc_pim_toc11(struct pdc_toc_pim_11 *ret)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PIM, PDC_PIM_TOC, __pa(pdc_result),
+			      __pa(ret), sizeof(*ret));
+	spin_unlock_irqrestore(&pdc_lock, flags);
+	return retval;
+}
+
+/**
+ * pdc_pim_toc20 - Fetch TOC PIM 2.0 data from firmware.
+ * @ret: pointer to return buffer
+ */
+int pdc_pim_toc20(struct pdc_toc_pim_20 *ret)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PIM, PDC_PIM_TOC, __pa(pdc_result),
+			      __pa(ret), sizeof(*ret));
+	spin_unlock_irqrestore(&pdc_lock, flags);
 	return retval;
 }
 

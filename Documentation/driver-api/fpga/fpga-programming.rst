@@ -6,22 +6,22 @@ Overview
 
 The in-kernel API for FPGA programming is a combination of APIs from
 FPGA manager, bridge, and regions.  The actual function used to
-trigger FPGA programming is :c:func:`fpga_region_program_fpga()`.
+trigger FPGA programming is fpga_region_program_fpga().
 
-:c:func:`fpga_region_program_fpga()` uses functionality supplied by
+fpga_region_program_fpga() uses functionality supplied by
 the FPGA manager and bridges.  It will:
 
  * lock the region's mutex
  * lock the mutex of the region's FPGA manager
  * build a list of FPGA bridges if a method has been specified to do so
  * disable the bridges
- * program the FPGA using info passed in :c:member:`fpga_region->info`.
+ * program the FPGA using info passed in :c:expr:`fpga_region->info`.
  * re-enable the bridges
  * release the locks
 
 The struct fpga_image_info specifies what FPGA image to program.  It is
-allocated/freed by :c:func:`fpga_image_info_alloc()` and freed with
-:c:func:`fpga_image_info_free()`
+allocated/freed by fpga_image_info_alloc() and freed with
+fpga_image_info_free()
 
 How to program an FPGA using a region
 -------------------------------------
@@ -84,10 +84,10 @@ will generate that list.  Here's some sample code of what to do next::
 API for programming an FPGA
 ---------------------------
 
-* :c:func:`fpga_region_program_fpga` —  Program an FPGA
-* :c:type:`fpga_image_info` —  Specifies what FPGA image to program
-* :c:func:`fpga_image_info_alloc()` —  Allocate an FPGA image info struct
-* :c:func:`fpga_image_info_free()` —  Free an FPGA image info struct
+* fpga_region_program_fpga() -  Program an FPGA
+* fpga_image_info() -  Specifies what FPGA image to program
+* fpga_image_info_alloc() -  Allocate an FPGA image info struct
+* fpga_image_info_free() -  Free an FPGA image info struct
 
 .. kernel-doc:: drivers/fpga/fpga-region.c
    :functions: fpga_region_program_fpga

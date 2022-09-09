@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Hardware for mISDN
 #
@@ -9,7 +10,7 @@ config MISDN_HFCPCI
 	depends on PCI
 	help
 	  Enable support for cards with Cologne Chip AG's
-          HFC PCI chip.
+	  HFC PCI chip.
 
 config MISDN_HFCMULTI
 	tristate "Support for HFC multiport cards (HFC-4S/8S/E1)"
@@ -78,11 +79,14 @@ config MISDN_NETJET
 	depends on PCI
 	depends on TTY
 	select MISDN_IPAC
-	select ISDN_HDLC
-	select ISDN_I4L
+	select MISDN_HDLC
 	help
 	  Enable support for Traverse Technologies NETJet PCI cards.
 
+config MISDN_HDLC
+	tristate
+	select CRC_CCITT
+	select BITREVERSE
 
 config MISDN_IPAC
 	tristate

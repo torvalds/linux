@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Hisilicon Ltd. HiP01 SoC
+ * HiSilicon Ltd. HiP01 SoC
  *
- * Copyright (C) 2014 Hisilicon Ltd.
+ * Copyright (C) 2014 HiSilicon Ltd.
  * Copyright (C) 2014 Huawei Ltd.
  *
  * Author: Wang Long <long.wanglong@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -40,7 +37,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
 	};

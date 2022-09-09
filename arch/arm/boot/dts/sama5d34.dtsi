@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sama5d34.dtsi - Device Tree Include file for SAMA5D34 SoC
  *
  *  Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
- *
- * Licensed under GPLv2 or later.
  */
 #include "sama5d3.dtsi"
 #include "sama5d3_lcd.dtsi"

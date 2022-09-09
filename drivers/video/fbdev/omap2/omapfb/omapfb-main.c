@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/video/omap2/omapfb-main.c
  *
@@ -6,18 +7,6 @@
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -893,7 +882,7 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 				/ (var->bits_per_pixel >> 2);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		screen_width = fix->line_length / (var->bits_per_pixel >> 3);
 		break;
@@ -1165,16 +1154,12 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 		   r = fbdev->ctrl->setcolreg(regno, red, green, blue,
 		   transp, update_hw_pal);
 		   */
-		/* Fallthrough */
 		r = -EINVAL;
 		break;
 	case OMAPFB_COLOR_RGB565:
 	case OMAPFB_COLOR_RGB444:
 	case OMAPFB_COLOR_RGB24P:
 	case OMAPFB_COLOR_RGB24U:
-		if (r != 0)
-			break;
-
 		if (regno < 16) {
 			u32 pal;
 			pal = ((red >> (16 - var->red.length)) <<
@@ -1291,7 +1276,7 @@ ssize_t omapfb_write(struct fb_info *info, const char __user *buf,
 }
 #endif
 
-static struct fb_ops omapfb_ops = {
+static const struct fb_ops omapfb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_open        = omapfb_open,
 	.fb_release     = omapfb_release,
@@ -1346,7 +1331,7 @@ static void clear_fb_info(struct fb_info *fbi)
 {
 	memset(&fbi->var, 0, sizeof(fbi->var));
 	memset(&fbi->fix, 0, sizeof(fbi->fix));
-	strlcpy(fbi->fix.id, MODULE_NAME, sizeof(fbi->fix.id));
+	strscpy(fbi->fix.id, MODULE_NAME, sizeof(fbi->fix.id));
 }
 
 static int omapfb_free_all_fbmem(struct omapfb2_device *fbdev)
@@ -1869,7 +1854,6 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	}
 
 	if (fbdev->auto_update_wq != NULL) {
-		flush_workqueue(fbdev->auto_update_wq);
 		destroy_workqueue(fbdev->auto_update_wq);
 		fbdev->auto_update_wq = NULL;
 	}
@@ -1892,12 +1876,8 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 
 		fbi = framebuffer_alloc(sizeof(struct omapfb_info),
 				fbdev->dev);
-
-		if (fbi == NULL) {
-			dev_err(fbdev->dev,
-				"unable to allocate memory for plane info\n");
+		if (!fbi)
 			return -ENOMEM;
-		}
 
 		clear_fb_info(fbi);
 

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARC simulation Platform support code
  *
  * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -24,7 +21,6 @@ static const char *simulation_compat[] __initconst = {
 	"snps,nsim",
 	"snps,nsimosci",
 #else
-	"snps,nsim_hs",
 	"snps,nsimosci_hs",
 	"snps,zebu_hs",
 #endif

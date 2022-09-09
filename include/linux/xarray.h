@@ -9,12 +9,14 @@
  * See Documentation/core-api/xarray.rst for how to use the XArray.
  */
 
+#include <linux/bitmap.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/gfp.h>
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/mm.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
@@ -32,8 +34,8 @@
  * The following internal entries have a special meaning:
  *
  * 0-62: Sibling entries
- * 256: Zero entry
- * 257: Retry entry
+ * 256: Retry entry
+ * 257: Zero entry
  *
  * Errors are also represented as internal entries, but use the negative
  * space (-4094 to -2).  They're never stored in the slots array; only
@@ -131,6 +133,12 @@ static inline unsigned int xa_pointer_tag(void *entry)
  * xa_mk_internal() - Create an internal entry.
  * @v: Value to turn into an internal entry.
  *
+ * Internal entries are used for a number of purposes.  Entries 0-255 are
+ * used for sibling entries (only 0-62 are used by the current code).  256
+ * is used for the retry entry.  257 is used for the reserved / zero entry.
+ * Negative internal entries are used to represent errnos.  Node pointers
+ * are also tagged as internal entries in some situations.
+ *
  * Context: Any context.
  * Return: An XArray internal entry corresponding to this value.
  */
@@ -163,6 +171,22 @@ static inline bool xa_is_internal(const void *entry)
 	return ((unsigned long)entry & 3) == 2;
 }
 
+#define XA_ZERO_ENTRY		xa_mk_internal(257)
+
+/**
+ * xa_is_zero() - Is the entry a zero entry?
+ * @entry: Entry retrieved from the XArray
+ *
+ * The normal API will return NULL as the contents of a slot containing
+ * a zero entry.  You can only see zero entries by using the advanced API.
+ *
+ * Return: %true if the entry is a zero entry.
+ */
+static inline bool xa_is_zero(const void *entry)
+{
+	return unlikely(entry == XA_ZERO_ENTRY);
+}
+
 /**
  * xa_is_err() - Report whether an XArray operation returned an error
  * @entry: Result from calling an XArray function
@@ -176,7 +200,8 @@ static inline bool xa_is_internal(const void *entry)
  */
 static inline bool xa_is_err(const void *entry)
 {
-	return unlikely(xa_is_internal(entry));
+	return unlikely(xa_is_internal(entry) &&
+			entry >= xa_mk_internal(-MAX_ERRNO));
 }
 
 /**
@@ -199,6 +224,29 @@ static inline int xa_err(void *entry)
 	return 0;
 }
 
+/**
+ * struct xa_limit - Represents a range of IDs.
+ * @min: The lowest ID to allocate (inclusive).
+ * @max: The maximum ID to allocate (inclusive).
+ *
+ * This structure is used either directly or via the XA_LIMIT() macro
+ * to communicate the range of IDs that are valid for allocation.
+ * Three common ranges are predefined for you:
+ * * xa_limit_32b	- [0 - UINT_MAX]
+ * * xa_limit_31b	- [0 - INT_MAX]
+ * * xa_limit_16b	- [0 - USHRT_MAX]
+ */
+struct xa_limit {
+	u32 max;
+	u32 min;
+};
+
+#define XA_LIMIT(_min, _max) (struct xa_limit) { .min = _min, .max = _max }
+
+#define xa_limit_32b	XA_LIMIT(0, UINT_MAX)
+#define xa_limit_31b	XA_LIMIT(0, INT_MAX)
+#define xa_limit_16b	XA_LIMIT(0, USHRT_MAX)
+
 typedef unsigned __bitwise xa_mark_t;
 #define XA_MARK_0		((__force xa_mark_t)0U)
 #define XA_MARK_1		((__force xa_mark_t)1U)
@@ -219,10 +267,15 @@ enum xa_lock_type {
 #define XA_FLAGS_LOCK_IRQ	((__force gfp_t)XA_LOCK_IRQ)
 #define XA_FLAGS_LOCK_BH	((__force gfp_t)XA_LOCK_BH)
 #define XA_FLAGS_TRACK_FREE	((__force gfp_t)4U)
+#define XA_FLAGS_ZERO_BUSY	((__force gfp_t)8U)
+#define XA_FLAGS_ALLOC_WRAPPED	((__force gfp_t)16U)
+#define XA_FLAGS_ACCOUNT	((__force gfp_t)32U)
 #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
 						(__force unsigned)(mark)))
 
+/* ALLOC is for a normal 0-based alloc.  ALLOC1 is for an 1-based alloc */
 #define XA_FLAGS_ALLOC	(XA_FLAGS_TRACK_FREE | XA_FLAGS_MARK(XA_FREE_MARK))
+#define XA_FLAGS_ALLOC1	(XA_FLAGS_TRACK_FREE | XA_FLAGS_ZERO_BUSY)
 
 /**
  * struct xarray - The anchor of the XArray.
@@ -278,7 +331,7 @@ struct xarray {
 #define DEFINE_XARRAY(name) DEFINE_XARRAY_FLAGS(name, 0)
 
 /**
- * DEFINE_XARRAY_ALLOC() - Define an XArray which can allocate IDs.
+ * DEFINE_XARRAY_ALLOC() - Define an XArray which allocates IDs starting at 0.
  * @name: A string that names your XArray.
  *
  * This is intended for file scope definitions of allocating XArrays.
@@ -286,7 +339,15 @@ struct xarray {
  */
 #define DEFINE_XARRAY_ALLOC(name) DEFINE_XARRAY_FLAGS(name, XA_FLAGS_ALLOC)
 
-void xa_init_flags(struct xarray *, gfp_t flags);
+/**
+ * DEFINE_XARRAY_ALLOC1() - Define an XArray which allocates IDs starting at 1.
+ * @name: A string that names your XArray.
+ *
+ * This is intended for file scope definitions of allocating XArrays.
+ * See also DEFINE_XARRAY().
+ */
+#define DEFINE_XARRAY_ALLOC1(name) DEFINE_XARRAY_FLAGS(name, XA_FLAGS_ALLOC1)
+
 void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *xa_erase(struct xarray *, unsigned long index);
@@ -302,6 +363,24 @@ void *xa_find_after(struct xarray *xa, unsigned long *index,
 unsigned int xa_extract(struct xarray *, void **dst, unsigned long start,
 		unsigned long max, unsigned int n, xa_mark_t);
 void xa_destroy(struct xarray *);
+
+/**
+ * xa_init_flags() - Initialise an empty XArray with flags.
+ * @xa: XArray.
+ * @flags: XA_FLAG values.
+ *
+ * If you need to initialise an XArray with special flags (eg you need
+ * to take the lock from interrupt context), use this function instead
+ * of xa_init().
+ *
+ * Context: Any context.
+ */
+static inline void xa_init_flags(struct xarray *xa, gfp_t flags)
+{
+	spin_lock_init(&xa->xa_lock);
+	xa->xa_flags = flags;
+	xa->xa_head = NULL;
+}
 
 /**
  * xa_init() - Initialise an empty XArray.
@@ -342,20 +421,72 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 }
 
 /**
- * xa_for_each() - Iterate over a portion of an XArray.
+ * xa_for_each_range() - Iterate over a portion of an XArray.
  * @xa: XArray.
- * @entry: Entry retrieved from array.
  * @index: Index of @entry.
- * @max: Maximum index to retrieve from array.
- * @filter: Selection criterion.
+ * @entry: Entry retrieved from array.
+ * @start: First index to retrieve from array.
+ * @last: Last index to retrieve from array.
  *
- * Initialise @index to the lowest index you want to retrieve from the
- * array.  During the iteration, @entry will have the value of the entry
- * stored in @xa at @index.  The iteration will skip all entries in the
- * array which do not match @filter.  You may modify @index during the
- * iteration if you want to skip or reprocess indices.  It is safe to modify
- * the array during the iteration.  At the end of the iteration, @entry will
- * be set to NULL and @index will have a value less than or equal to max.
+ * During the iteration, @entry will have the value of the entry stored
+ * in @xa at @index.  You may modify @index during the iteration if you
+ * want to skip or reprocess indices.  It is safe to modify the array
+ * during the iteration.  At the end of the iteration, @entry will be set
+ * to NULL and @index will have a value less than or equal to max.
+ *
+ * xa_for_each_range() is O(n.log(n)) while xas_for_each() is O(n).  You have
+ * to handle your own locking with xas_for_each(), and if you have to unlock
+ * after each iteration, it will also end up being O(n.log(n)).
+ * xa_for_each_range() will spin if it hits a retry entry; if you intend to
+ * see retry entries, you should use the xas_for_each() iterator instead.
+ * The xas_for_each() iterator will expand into more inline code than
+ * xa_for_each_range().
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ */
+#define xa_for_each_range(xa, index, entry, start, last)		\
+	for (index = start,						\
+	     entry = xa_find(xa, &index, last, XA_PRESENT);		\
+	     entry;							\
+	     entry = xa_find_after(xa, &index, last, XA_PRESENT))
+
+/**
+ * xa_for_each_start() - Iterate over a portion of an XArray.
+ * @xa: XArray.
+ * @index: Index of @entry.
+ * @entry: Entry retrieved from array.
+ * @start: First index to retrieve from array.
+ *
+ * During the iteration, @entry will have the value of the entry stored
+ * in @xa at @index.  You may modify @index during the iteration if you
+ * want to skip or reprocess indices.  It is safe to modify the array
+ * during the iteration.  At the end of the iteration, @entry will be set
+ * to NULL and @index will have a value less than or equal to max.
+ *
+ * xa_for_each_start() is O(n.log(n)) while xas_for_each() is O(n).  You have
+ * to handle your own locking with xas_for_each(), and if you have to unlock
+ * after each iteration, it will also end up being O(n.log(n)).
+ * xa_for_each_start() will spin if it hits a retry entry; if you intend to
+ * see retry entries, you should use the xas_for_each() iterator instead.
+ * The xas_for_each() iterator will expand into more inline code than
+ * xa_for_each_start().
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ */
+#define xa_for_each_start(xa, index, entry, start) \
+	xa_for_each_range(xa, index, entry, start, ULONG_MAX)
+
+/**
+ * xa_for_each() - Iterate over present entries in an XArray.
+ * @xa: XArray.
+ * @index: Index of @entry.
+ * @entry: Entry retrieved from array.
+ *
+ * During the iteration, @entry will have the value of the entry stored
+ * in @xa at @index.  You may modify @index during the iteration if you want
+ * to skip or reprocess indices.  It is safe to modify the array during the
+ * iteration.  At the end of the iteration, @entry will be set to NULL and
+ * @index will have a value less than or equal to max.
  *
  * xa_for_each() is O(n.log(n)) while xas_for_each() is O(n).  You have
  * to handle your own locking with xas_for_each(), and if you have to unlock
@@ -366,9 +497,36 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
  *
  * Context: Any context.  Takes and releases the RCU lock.
  */
-#define xa_for_each(xa, entry, index, max, filter) \
-	for (entry = xa_find(xa, &index, max, filter); entry; \
-	     entry = xa_find_after(xa, &index, max, filter))
+#define xa_for_each(xa, index, entry) \
+	xa_for_each_start(xa, index, entry, 0)
+
+/**
+ * xa_for_each_marked() - Iterate over marked entries in an XArray.
+ * @xa: XArray.
+ * @index: Index of @entry.
+ * @entry: Entry retrieved from array.
+ * @filter: Selection criterion.
+ *
+ * During the iteration, @entry will have the value of the entry stored
+ * in @xa at @index.  The iteration will skip all entries in the array
+ * which do not match @filter.  You may modify @index during the iteration
+ * if you want to skip or reprocess indices.  It is safe to modify the array
+ * during the iteration.  At the end of the iteration, @entry will be set to
+ * NULL and @index will have a value less than or equal to max.
+ *
+ * xa_for_each_marked() is O(n.log(n)) while xas_for_each_marked() is O(n).
+ * You have to handle your own locking with xas_for_each(), and if you have
+ * to unlock after each iteration, it will also end up being O(n.log(n)).
+ * xa_for_each_marked() will spin if it hits a retry entry; if you intend to
+ * see retry entries, you should use the xas_for_each_marked() iterator
+ * instead.  The xas_for_each_marked() iterator will expand into more inline
+ * code than xa_for_each_marked().
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ */
+#define xa_for_each_marked(xa, index, entry, filter) \
+	for (index = 0, entry = xa_find(xa, &index, ULONG_MAX, filter); \
+	     entry; entry = xa_find_after(xa, &index, ULONG_MAX, filter))
 
 #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
 #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
@@ -381,6 +539,14 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 				spin_lock_irqsave(&(xa)->xa_lock, flags)
 #define xa_unlock_irqrestore(xa, flags) \
 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
+#define xa_lock_nested(xa, subclass) \
+				spin_lock_nested(&(xa)->xa_lock, subclass)
+#define xa_lock_bh_nested(xa, subclass) \
+				spin_lock_bh_nested(&(xa)->xa_lock, subclass)
+#define xa_lock_irq_nested(xa, subclass) \
+				spin_lock_irq_nested(&(xa)->xa_lock, subclass)
+#define xa_lock_irqsave_nested(xa, flags, subclass) \
+		spin_lock_irqsave_nested(&(xa)->xa_lock, flags, subclass)
 
 /*
  * Versions of the normal API which require the caller to hold the
@@ -393,38 +559,14 @@ void *__xa_erase(struct xarray *, unsigned long index);
 void *__xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *__xa_cmpxchg(struct xarray *, unsigned long index, void *old,
 		void *entry, gfp_t);
-int __xa_alloc(struct xarray *, u32 *id, u32 max, void *entry, gfp_t);
-int __xa_reserve(struct xarray *, unsigned long index, gfp_t);
+int __must_check __xa_insert(struct xarray *, unsigned long index,
+		void *entry, gfp_t);
+int __must_check __xa_alloc(struct xarray *, u32 *id, void *entry,
+		struct xa_limit, gfp_t);
+int __must_check __xa_alloc_cyclic(struct xarray *, u32 *id, void *entry,
+		struct xa_limit, u32 *next, gfp_t);
 void __xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
-
-/**
- * __xa_insert() - Store this entry in the XArray unless another entry is
- *			already present.
- * @xa: XArray.
- * @index: Index into array.
- * @entry: New entry.
- * @gfp: Memory allocation flags.
- *
- * If you would rather see the existing entry in the array, use __xa_cmpxchg().
- * This function is for users who don't care what the entry is, only that
- * one is present.
- *
- * Context: Any context.  Expects xa_lock to be held on entry.  May
- *	    release and reacquire xa_lock if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
- * -ENOMEM if memory could not be allocated.
- */
-static inline int __xa_insert(struct xarray *xa, unsigned long index,
-		void *entry, gfp_t gfp)
-{
-	void *curr = __xa_cmpxchg(xa, index, NULL, entry, gfp);
-	if (!curr)
-		return 0;
-	if (xa_is_err(curr))
-		return xa_err(curr);
-	return -EEXIST;
-}
 
 /**
  * xa_store_bh() - Store this entry in the XArray.
@@ -438,13 +580,14 @@ static inline int __xa_insert(struct xarray *xa, unsigned long index,
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
- * Return: The entry which used to be at this index.
+ * Return: The old entry at this index or xa_err() if an error happened.
  */
 static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
 		void *entry, gfp_t gfp)
 {
 	void *curr;
 
+	might_alloc(gfp);
 	xa_lock_bh(xa);
 	curr = __xa_store(xa, index, entry, gfp);
 	xa_unlock_bh(xa);
@@ -453,7 +596,7 @@ static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
 }
 
 /**
- * xa_store_irq() - Erase this entry from the XArray.
+ * xa_store_irq() - Store this entry in the XArray.
  * @xa: XArray.
  * @index: Index into array.
  * @entry: New entry.
@@ -464,13 +607,14 @@ static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.
- * Return: The entry which used to be at this index.
+ * Return: The old entry at this index or xa_err() if an error happened.
  */
 static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
 		void *entry, gfp_t gfp)
 {
 	void *curr;
 
+	might_alloc(gfp);
 	xa_lock_irq(xa);
 	curr = __xa_store(xa, index, entry, gfp);
 	xa_unlock_irq(xa);
@@ -483,9 +627,9 @@ static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
  * @xa: XArray.
  * @index: Index of entry.
  *
- * This function is the equivalent of calling xa_store() with %NULL as
- * the third argument.  The XArray does not need to allocate memory, so
- * the user does not need to provide GFP flags.
+ * After this function returns, loading from @index will return %NULL.
+ * If the index is part of a multi-index entry, all indices will be erased
+ * and none of the entries will be part of a multi-index entry.
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
@@ -507,9 +651,9 @@ static inline void *xa_erase_bh(struct xarray *xa, unsigned long index)
  * @xa: XArray.
  * @index: Index of entry.
  *
- * This function is the equivalent of calling xa_store() with %NULL as
- * the third argument.  The XArray does not need to allocate memory, so
- * the user does not need to provide GFP flags.
+ * After this function returns, loading from @index will return %NULL.
+ * If the index is part of a multi-index entry, all indices will be erased
+ * and none of the entries will be part of a multi-index entry.
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.
@@ -546,6 +690,7 @@ static inline void *xa_cmpxchg(struct xarray *xa, unsigned long index,
 {
 	void *curr;
 
+	might_alloc(gfp);
 	xa_lock(xa);
 	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
 	xa_unlock(xa);
@@ -573,6 +718,7 @@ static inline void *xa_cmpxchg_bh(struct xarray *xa, unsigned long index,
 {
 	void *curr;
 
+	might_alloc(gfp);
 	xa_lock_bh(xa);
 	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
 	xa_unlock_bh(xa);
@@ -600,6 +746,7 @@ static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
 {
 	void *curr;
 
+	might_alloc(gfp);
 	xa_lock_irq(xa);
 	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
 	xa_unlock_irq(xa);
@@ -615,50 +762,113 @@ static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
  * @entry: New entry.
  * @gfp: Memory allocation flags.
  *
- * If you would rather see the existing entry in the array, use xa_cmpxchg().
- * This function is for users who don't care what the entry is, only that
- * one is present.
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
  *
- * Context: Process context.  Takes and releases the xa_lock.
- *	    May sleep if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EEXIST if another entry was present.
+ * Context: Any context.  Takes and releases the xa_lock.  May sleep if
+ * the @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
  * -ENOMEM if memory could not be allocated.
  */
-static inline int xa_insert(struct xarray *xa, unsigned long index,
-		void *entry, gfp_t gfp)
+static inline int __must_check xa_insert(struct xarray *xa,
+		unsigned long index, void *entry, gfp_t gfp)
 {
-	void *curr = xa_cmpxchg(xa, index, NULL, entry, gfp);
-	if (!curr)
-		return 0;
-	if (xa_is_err(curr))
-		return xa_err(curr);
-	return -EEXIST;
+	int err;
+
+	might_alloc(gfp);
+	xa_lock(xa);
+	err = __xa_insert(xa, index, entry, gfp);
+	xa_unlock(xa);
+
+	return err;
+}
+
+/**
+ * xa_insert_bh() - Store this entry in the XArray unless another entry is
+ *			already present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.  May sleep if the @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+static inline int __must_check xa_insert_bh(struct xarray *xa,
+		unsigned long index, void *entry, gfp_t gfp)
+{
+	int err;
+
+	might_alloc(gfp);
+	xa_lock_bh(xa);
+	err = __xa_insert(xa, index, entry, gfp);
+	xa_unlock_bh(xa);
+
+	return err;
+}
+
+/**
+ * xa_insert_irq() - Store this entry in the XArray unless another entry is
+ *			already present.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * Inserting a NULL entry will store a reserved entry (like xa_reserve())
+ * if no entry is present.  Inserting will fail if a reserved entry is
+ * present, even though loading from this index will return NULL.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.  May sleep if the @gfp flags permit.
+ * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
+ * -ENOMEM if memory could not be allocated.
+ */
+static inline int __must_check xa_insert_irq(struct xarray *xa,
+		unsigned long index, void *entry, gfp_t gfp)
+{
+	int err;
+
+	might_alloc(gfp);
+	xa_lock_irq(xa);
+	err = __xa_insert(xa, index, entry, gfp);
+	xa_unlock_irq(xa);
+
+	return err;
 }
 
 /**
  * xa_alloc() - Find somewhere to store this entry in the XArray.
  * @xa: XArray.
  * @id: Pointer to ID.
- * @max: Maximum ID to allocate (inclusive).
  * @entry: New entry.
+ * @limit: Range of ID to allocate.
  * @gfp: Memory allocation flags.
  *
- * Allocates an unused ID in the range specified by @id and @max.
- * Updates the @id pointer with the index, then stores the entry at that
- * index.  A concurrent lookup will not see an uninitialised @id.
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
  *
- * Context: Process context.  Takes and releases the xa_lock.  May sleep if
+ * Context: Any context.  Takes and releases the xa_lock.  May sleep if
  * the @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory allocation fails or -ENOSPC if
- * there is no more space in the XArray.
+ * Return: 0 on success, -ENOMEM if memory could not be allocated or
+ * -EBUSY if there are no free entries in @limit.
  */
-static inline int xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry,
-		gfp_t gfp)
+static inline __must_check int xa_alloc(struct xarray *xa, u32 *id,
+		void *entry, struct xa_limit limit, gfp_t gfp)
 {
 	int err;
 
+	might_alloc(gfp);
 	xa_lock(xa);
-	err = __xa_alloc(xa, id, max, entry, gfp);
+	err = __xa_alloc(xa, id, entry, limit, gfp);
 	xa_unlock(xa);
 
 	return err;
@@ -668,26 +878,27 @@ static inline int xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry,
  * xa_alloc_bh() - Find somewhere to store this entry in the XArray.
  * @xa: XArray.
  * @id: Pointer to ID.
- * @max: Maximum ID to allocate (inclusive).
  * @entry: New entry.
+ * @limit: Range of ID to allocate.
  * @gfp: Memory allocation flags.
  *
- * Allocates an unused ID in the range specified by @id and @max.
- * Updates the @id pointer with the index, then stores the entry at that
- * index.  A concurrent lookup will not see an uninitialised @id.
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.  May sleep if the @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory allocation fails or -ENOSPC if
- * there is no more space in the XArray.
+ * Return: 0 on success, -ENOMEM if memory could not be allocated or
+ * -EBUSY if there are no free entries in @limit.
  */
-static inline int xa_alloc_bh(struct xarray *xa, u32 *id, u32 max, void *entry,
-		gfp_t gfp)
+static inline int __must_check xa_alloc_bh(struct xarray *xa, u32 *id,
+		void *entry, struct xa_limit limit, gfp_t gfp)
 {
 	int err;
 
+	might_alloc(gfp);
 	xa_lock_bh(xa);
-	err = __xa_alloc(xa, id, max, entry, gfp);
+	err = __xa_alloc(xa, id, entry, limit, gfp);
 	xa_unlock_bh(xa);
 
 	return err;
@@ -697,26 +908,129 @@ static inline int xa_alloc_bh(struct xarray *xa, u32 *id, u32 max, void *entry,
  * xa_alloc_irq() - Find somewhere to store this entry in the XArray.
  * @xa: XArray.
  * @id: Pointer to ID.
- * @max: Maximum ID to allocate (inclusive).
  * @entry: New entry.
+ * @limit: Range of ID to allocate.
  * @gfp: Memory allocation flags.
  *
- * Allocates an unused ID in the range specified by @id and @max.
- * Updates the @id pointer with the index, then stores the entry at that
- * index.  A concurrent lookup will not see an uninitialised @id.
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.  May sleep if the @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory allocation fails or -ENOSPC if
- * there is no more space in the XArray.
+ * Return: 0 on success, -ENOMEM if memory could not be allocated or
+ * -EBUSY if there are no free entries in @limit.
  */
-static inline int xa_alloc_irq(struct xarray *xa, u32 *id, u32 max, void *entry,
-		gfp_t gfp)
+static inline int __must_check xa_alloc_irq(struct xarray *xa, u32 *id,
+		void *entry, struct xa_limit limit, gfp_t gfp)
 {
 	int err;
 
+	might_alloc(gfp);
 	xa_lock_irq(xa);
-	err = __xa_alloc(xa, id, max, entry, gfp);
+	err = __xa_alloc(xa, id, entry, limit, gfp);
+	xa_unlock_irq(xa);
+
+	return err;
+}
+
+/**
+ * xa_alloc_cyclic() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @entry: New entry.
+ * @limit: Range of allocated ID.
+ * @next: Pointer to next ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
+ * The search for an empty entry will start at @next and will wrap
+ * around if necessary.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.  May sleep if
+ * the @gfp flags permit.
+ * Return: 0 if the allocation succeeded without wrapping.  1 if the
+ * allocation succeeded after wrapping, -ENOMEM if memory could not be
+ * allocated or -EBUSY if there are no free entries in @limit.
+ */
+static inline int xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, u32 *next, gfp_t gfp)
+{
+	int err;
+
+	might_alloc(gfp);
+	xa_lock(xa);
+	err = __xa_alloc_cyclic(xa, id, entry, limit, next, gfp);
+	xa_unlock(xa);
+
+	return err;
+}
+
+/**
+ * xa_alloc_cyclic_bh() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @entry: New entry.
+ * @limit: Range of allocated ID.
+ * @next: Pointer to next ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
+ * The search for an empty entry will start at @next and will wrap
+ * around if necessary.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.  May sleep if the @gfp flags permit.
+ * Return: 0 if the allocation succeeded without wrapping.  1 if the
+ * allocation succeeded after wrapping, -ENOMEM if memory could not be
+ * allocated or -EBUSY if there are no free entries in @limit.
+ */
+static inline int xa_alloc_cyclic_bh(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, u32 *next, gfp_t gfp)
+{
+	int err;
+
+	might_alloc(gfp);
+	xa_lock_bh(xa);
+	err = __xa_alloc_cyclic(xa, id, entry, limit, next, gfp);
+	xa_unlock_bh(xa);
+
+	return err;
+}
+
+/**
+ * xa_alloc_cyclic_irq() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @entry: New entry.
+ * @limit: Range of allocated ID.
+ * @next: Pointer to next ID to allocate.
+ * @gfp: Memory allocation flags.
+ *
+ * Finds an empty entry in @xa between @limit.min and @limit.max,
+ * stores the index into the @id pointer, then stores the entry at
+ * that index.  A concurrent lookup will not see an uninitialised @id.
+ * The search for an empty entry will start at @next and will wrap
+ * around if necessary.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.  May sleep if the @gfp flags permit.
+ * Return: 0 if the allocation succeeded without wrapping.  1 if the
+ * allocation succeeded after wrapping, -ENOMEM if memory could not be
+ * allocated or -EBUSY if there are no free entries in @limit.
+ */
+static inline int xa_alloc_cyclic_irq(struct xarray *xa, u32 *id, void *entry,
+		struct xa_limit limit, u32 *next, gfp_t gfp)
+{
+	int err;
+
+	might_alloc(gfp);
+	xa_lock_irq(xa);
+	err = __xa_alloc_cyclic(xa, id, entry, limit, next, gfp);
 	xa_unlock_irq(xa);
 
 	return err;
@@ -740,16 +1054,10 @@ static inline int xa_alloc_irq(struct xarray *xa, u32 *id, u32 max, void *entry,
  * May sleep if the @gfp flags permit.
  * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
  */
-static inline
+static inline __must_check
 int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
 {
-	int ret;
-
-	xa_lock(xa);
-	ret = __xa_reserve(xa, index, gfp);
-	xa_unlock(xa);
-
-	return ret;
+	return xa_err(xa_cmpxchg(xa, index, NULL, XA_ZERO_ENTRY, gfp));
 }
 
 /**
@@ -764,16 +1072,10 @@ int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
  * disabling softirqs.
  * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
  */
-static inline
+static inline __must_check
 int xa_reserve_bh(struct xarray *xa, unsigned long index, gfp_t gfp)
 {
-	int ret;
-
-	xa_lock_bh(xa);
-	ret = __xa_reserve(xa, index, gfp);
-	xa_unlock_bh(xa);
-
-	return ret;
+	return xa_err(xa_cmpxchg_bh(xa, index, NULL, XA_ZERO_ENTRY, gfp));
 }
 
 /**
@@ -788,16 +1090,10 @@ int xa_reserve_bh(struct xarray *xa, unsigned long index, gfp_t gfp)
  * disabling interrupts.
  * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
  */
-static inline
+static inline __must_check
 int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
 {
-	int ret;
-
-	xa_lock_irq(xa);
-	ret = __xa_reserve(xa, index, gfp);
-	xa_unlock_irq(xa);
-
-	return ret;
+	return xa_err(xa_cmpxchg_irq(xa, index, NULL, XA_ZERO_ENTRY, gfp));
 }
 
 /**
@@ -811,7 +1107,7 @@ int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
  */
 static inline void xa_release(struct xarray *xa, unsigned long index)
 {
-	xa_cmpxchg(xa, index, NULL, NULL, 0);
+	xa_cmpxchg(xa, index, XA_ZERO_ENTRY, NULL, 0);
 }
 
 /* Everything below here is the Advanced API.  Proceed with caution. */
@@ -970,19 +1266,7 @@ static inline bool xa_is_sibling(const void *entry)
 		(entry < xa_mk_sibling(XA_CHUNK_SIZE - 1));
 }
 
-#define XA_ZERO_ENTRY		xa_mk_internal(256)
-#define XA_RETRY_ENTRY		xa_mk_internal(257)
-
-/**
- * xa_is_zero() - Is the entry a zero entry?
- * @entry: Entry retrieved from the XArray
- *
- * Return: %true if the entry is a zero entry.
- */
-static inline bool xa_is_zero(const void *entry)
-{
-	return unlikely(entry == XA_ZERO_ENTRY);
-}
+#define XA_RETRY_ENTRY		xa_mk_internal(256)
 
 /**
  * xa_is_retry() - Is the entry a retry entry?
@@ -993,6 +1277,17 @@ static inline bool xa_is_zero(const void *entry)
 static inline bool xa_is_retry(const void *entry)
 {
 	return unlikely(entry == XA_RETRY_ENTRY);
+}
+
+/**
+ * xa_is_advanced() - Is the entry only permitted for the advanced API?
+ * @entry: Entry to be stored in the XArray.
+ *
+ * Return: %true if the entry cannot be stored by the normal API.
+ */
+static inline bool xa_is_advanced(const void *entry)
+{
+	return xa_is_internal(entry) && (entry <= XA_RETRY_ENTRY);
 }
 
 /**
@@ -1008,6 +1303,8 @@ static inline bool xa_is_retry(const void *entry)
  *	    interrupts.
  */
 typedef void (*xa_update_node_t)(struct xa_node *node);
+
+void xa_delete_node(struct xa_node *, xa_update_node_t);
 
 /*
  * The xa_state is opaque to its users.  It contains various different pieces
@@ -1036,6 +1333,7 @@ struct xa_state {
 	struct xa_node *xa_node;
 	struct xa_node *xa_alloc;
 	xa_update_node_t xa_update;
+	struct list_lru *xa_lru;
 };
 
 /*
@@ -1055,7 +1353,8 @@ struct xa_state {
 	.xa_pad = 0,					\
 	.xa_node = XAS_RESTART,				\
 	.xa_alloc = NULL,				\
-	.xa_update = NULL				\
+	.xa_update = NULL,				\
+	.xa_lru = NULL,					\
 }
 
 /**
@@ -1224,9 +1523,32 @@ void *xas_find_marked(struct xa_state *, unsigned long max, xa_mark_t);
 void xas_init_marks(const struct xa_state *);
 
 bool xas_nomem(struct xa_state *, gfp_t);
+void xas_destroy(struct xa_state *);
 void xas_pause(struct xa_state *);
 
 void xas_create_range(struct xa_state *);
+
+#ifdef CONFIG_XARRAY_MULTI
+int xa_get_order(struct xarray *, unsigned long index);
+void xas_split(struct xa_state *, void *entry, unsigned int order);
+void xas_split_alloc(struct xa_state *, void *entry, unsigned int order, gfp_t);
+#else
+static inline int xa_get_order(struct xarray *xa, unsigned long index)
+{
+	return 0;
+}
+
+static inline void xas_split(struct xa_state *xas, void *entry,
+		unsigned int order)
+{
+	xas_store(xas, entry);
+}
+
+static inline void xas_split_alloc(struct xa_state *xas, void *entry,
+		unsigned int order, gfp_t gfp)
+{
+}
+#endif
 
 /**
  * xas_reload() - Refetch an entry from the xarray.
@@ -1245,10 +1567,21 @@ void xas_create_range(struct xa_state *);
 static inline void *xas_reload(struct xa_state *xas)
 {
 	struct xa_node *node = xas->xa_node;
+	void *entry;
+	char offset;
 
-	if (node)
-		return xa_entry(xas->xa, node, xas->xa_offset);
-	return xa_head(xas->xa);
+	if (!node)
+		return xa_head(xas->xa);
+	if (IS_ENABLED(CONFIG_XARRAY_MULTI)) {
+		offset = (xas->xa_index >> node->shift) & XA_CHUNK_MASK;
+		entry = xa_entry(xas->xa, node, offset);
+		if (!xa_is_sibling(entry))
+			return entry;
+		offset = xa_to_sibling(entry);
+	} else {
+		offset = xas->xa_offset;
+	}
+	return xa_entry(xas->xa, node, offset);
 }
 
 /**
@@ -1264,6 +1597,24 @@ static inline void xas_set(struct xa_state *xas, unsigned long index)
 {
 	xas->xa_index = index;
 	xas->xa_node = XAS_RESTART;
+}
+
+/**
+ * xas_advance() - Skip over sibling entries.
+ * @xas: XArray operation state.
+ * @index: Index of last sibling entry.
+ *
+ * Move the operation state to refer to the last sibling entry.
+ * This is useful for loops that normally want to see sibling
+ * entries but sometimes want to skip them.  Use xas_set() if you
+ * want to move to an index which is not part of this entry.
+ */
+static inline void xas_advance(struct xa_state *xas, unsigned long index)
+{
+	unsigned char shift = xas_is_node(xas) ? xas->xa_node->shift : 0;
+
+	xas->xa_index = index;
+	xas->xa_offset = (index >> shift) & XA_CHUNK_MASK;
 }
 
 /**
@@ -1297,6 +1648,11 @@ static inline void xas_set_order(struct xa_state *xas, unsigned long index,
 static inline void xas_set_update(struct xa_state *xas, xa_update_node_t update)
 {
 	xas->xa_update = update;
+}
+
+static inline void xas_set_lru(struct xa_state *xas, struct list_lru *lru)
+{
+	xas->xa_lru = lru;
 }
 
 /**
@@ -1371,6 +1727,7 @@ static inline void *xas_next_marked(struct xa_state *xas, unsigned long max,
 								xa_mark_t mark)
 {
 	struct xa_node *node = xas->xa_node;
+	void *entry;
 	unsigned int offset;
 
 	if (unlikely(xas_not_node(node) || node->shift))
@@ -1382,7 +1739,10 @@ static inline void *xas_next_marked(struct xa_state *xas, unsigned long max,
 		return NULL;
 	if (offset == XA_CHUNK_SIZE)
 		return xas_find_marked(xas, max, mark);
-	return xa_entry(xas->xa, node, offset);
+	entry = xa_entry(xas->xa, node, offset);
+	if (!entry)
+		return xas_find_marked(xas, max, mark);
+	return entry;
 }
 
 /*
@@ -1433,13 +1793,12 @@ enum {
  * @xas: XArray operation state.
  * @entry: Entry retrieved from the array.
  *
- * The loop body will be executed for each entry in the XArray that lies
- * within the range specified by @xas.  If the loop completes successfully,
- * any entries that lie in this range will be replaced by @entry.  The caller
- * may break out of the loop; if they do so, the contents of the XArray will
- * be unchanged.  The operation may fail due to an out of memory condition.
- * The caller may also call xa_set_err() to exit the loop while setting an
- * error to record the reason.
+ * The loop body will be executed for each entry in the XArray that
+ * lies within the range specified by @xas.  If the loop terminates
+ * normally, @entry will be %NULL.  The user may break out of the loop,
+ * which will leave @entry set to the conflicting entry.  The caller
+ * may also call xa_set_err() to exit the loop while setting an error
+ * to record the reason.
  */
 #define xas_for_each_conflict(xas, entry) \
 	while ((entry = xas_find_conflict(xas)))

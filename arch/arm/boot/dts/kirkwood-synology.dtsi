@@ -198,7 +198,7 @@
 		spi@10600 {
 			status = "okay";
 
-			m25p80@0 {
+			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				compatible = "st,m25p80", "jedec,spi-nor";
@@ -244,7 +244,7 @@
 
 			rs5c372: rs5c372@32 {
 				status = "disabled";
-				compatible = "ricoh,rs5c372";
+				compatible = "ricoh,rs5c372a";
 				reg = <0x32>;
 			};
 

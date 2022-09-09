@@ -1,141 +1,81 @@
-/*
- * Copyright(c) 2016 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- */
-#include <linux/percpu-refcount.h>
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2016 - 2018 Intel Corporation. All rights reserved. */
 #include <linux/memremap.h>
 #include <linux/module.h>
 #include <linux/pfn_t.h>
 #include "../nvdimm/pfn.h"
 #include "../nvdimm/nd.h"
-#include "device-dax.h"
+#include "bus.h"
 
-struct dax_pmem {
-	struct device *dev;
-	struct percpu_ref ref;
-	struct dev_pagemap pgmap;
-	struct completion cmp;
-};
-
-static struct dax_pmem *to_dax_pmem(struct percpu_ref *ref)
+static struct dev_dax *__dax_pmem_probe(struct device *dev)
 {
-	return container_of(ref, struct dax_pmem, ref);
-}
-
-static void dax_pmem_percpu_release(struct percpu_ref *ref)
-{
-	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
-
-	dev_dbg(dax_pmem->dev, "trace\n");
-	complete(&dax_pmem->cmp);
-}
-
-static void dax_pmem_percpu_exit(void *data)
-{
-	struct percpu_ref *ref = data;
-	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
-
-	dev_dbg(dax_pmem->dev, "trace\n");
-	wait_for_completion(&dax_pmem->cmp);
-	percpu_ref_exit(ref);
-}
-
-static void dax_pmem_percpu_kill(struct percpu_ref *ref)
-{
-	struct dax_pmem *dax_pmem = to_dax_pmem(ref);
-
-	dev_dbg(dax_pmem->dev, "trace\n");
-	percpu_ref_kill(ref);
-}
-
-static int dax_pmem_probe(struct device *dev)
-{
-	void *addr;
-	struct resource res;
+	struct range range;
 	int rc, id, region_id;
+	resource_size_t offset;
 	struct nd_pfn_sb *pfn_sb;
 	struct dev_dax *dev_dax;
-	struct dax_pmem *dax_pmem;
+	struct dev_dax_data data;
 	struct nd_namespace_io *nsio;
 	struct dax_region *dax_region;
+	struct dev_pagemap pgmap = { };
 	struct nd_namespace_common *ndns;
 	struct nd_dax *nd_dax = to_nd_dax(dev);
 	struct nd_pfn *nd_pfn = &nd_dax->nd_pfn;
+	struct nd_region *nd_region = to_nd_region(dev->parent);
 
 	ndns = nvdimm_namespace_common_probe(dev);
 	if (IS_ERR(ndns))
-		return PTR_ERR(ndns);
-	nsio = to_nd_namespace_io(&ndns->dev);
-
-	dax_pmem = devm_kzalloc(dev, sizeof(*dax_pmem), GFP_KERNEL);
-	if (!dax_pmem)
-		return -ENOMEM;
+		return ERR_CAST(ndns);
 
 	/* parse the 'pfn' info block via ->rw_bytes */
-	rc = devm_nsio_enable(dev, nsio);
+	rc = devm_namespace_enable(dev, ndns, nd_info_block_reserve());
 	if (rc)
-		return rc;
-	rc = nvdimm_setup_pfn(nd_pfn, &dax_pmem->pgmap);
+		return ERR_PTR(rc);
+	rc = nvdimm_setup_pfn(nd_pfn, &pgmap);
 	if (rc)
-		return rc;
-	devm_nsio_disable(dev, nsio);
+		return ERR_PTR(rc);
+	devm_namespace_disable(dev, ndns);
 
+	/* reserve the metadata area, device-dax will reserve the data */
 	pfn_sb = nd_pfn->pfn_sb;
-
-	if (!devm_request_mem_region(dev, nsio->res.start,
-				resource_size(&nsio->res),
+	offset = le64_to_cpu(pfn_sb->dataoff);
+	nsio = to_nd_namespace_io(&ndns->dev);
+	if (!devm_request_mem_region(dev, nsio->res.start, offset,
 				dev_name(&ndns->dev))) {
-		dev_warn(dev, "could not reserve region %pR\n", &nsio->res);
-		return -EBUSY;
+		dev_warn(dev, "could not reserve metadata\n");
+		return ERR_PTR(-EBUSY);
 	}
-
-	dax_pmem->dev = dev;
-	init_completion(&dax_pmem->cmp);
-	rc = percpu_ref_init(&dax_pmem->ref, dax_pmem_percpu_release, 0,
-			GFP_KERNEL);
-	if (rc)
-		return rc;
-
-	rc = devm_add_action(dev, dax_pmem_percpu_exit, &dax_pmem->ref);
-	if (rc) {
-		percpu_ref_exit(&dax_pmem->ref);
-		return rc;
-	}
-
-	dax_pmem->pgmap.ref = &dax_pmem->ref;
-	dax_pmem->pgmap.kill = dax_pmem_percpu_kill;
-	addr = devm_memremap_pages(dev, &dax_pmem->pgmap);
-	if (IS_ERR(addr))
-		return PTR_ERR(addr);
-
-	/* adjust the dax_region resource to the start of data */
-	memcpy(&res, &dax_pmem->pgmap.res, sizeof(res));
-	res.start += le64_to_cpu(pfn_sb->dataoff);
 
 	rc = sscanf(dev_name(&ndns->dev), "namespace%d.%d", &region_id, &id);
 	if (rc != 2)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
-	dax_region = alloc_dax_region(dev, region_id, &res,
-			le32_to_cpu(pfn_sb->align), addr, PFN_DEV|PFN_MAP);
+	/* adjust the dax_region range to the start of data */
+	range = pgmap.range;
+	range.start += offset;
+	dax_region = alloc_dax_region(dev, region_id, &range,
+			nd_region->target_node, le32_to_cpu(pfn_sb->align),
+			IORESOURCE_DAX_STATIC);
 	if (!dax_region)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	/* TODO: support for subdividing a dax region... */
-	dev_dax = devm_create_dev_dax(dax_region, id, &res, 1);
+	data = (struct dev_dax_data) {
+		.dax_region = dax_region,
+		.id = id,
+		.pgmap = &pgmap,
+		.size = range_len(&range),
+	};
+	dev_dax = devm_create_dev_dax(&data);
 
 	/* child dev_dax instances now own the lifetime of the dax_region */
 	dax_region_put(dax_region);
 
-	return PTR_ERR_OR_ZERO(dev_dax);
+	return dev_dax;
+}
+
+static int dax_pmem_probe(struct device *dev)
+{
+	return PTR_ERR_OR_ZERO(__dax_pmem_probe(dev));
 }
 
 static struct nd_device_driver dax_pmem_driver = {
@@ -146,7 +86,17 @@ static struct nd_device_driver dax_pmem_driver = {
 	.type = ND_DRIVER_DAX_PMEM,
 };
 
-module_nd_driver(dax_pmem_driver);
+static int __init dax_pmem_init(void)
+{
+	return nd_driver_register(&dax_pmem_driver);
+}
+module_init(dax_pmem_init);
+
+static void __exit dax_pmem_exit(void)
+{
+	driver_unregister(&dax_pmem_driver.drv);
+}
+module_exit(dax_pmem_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");

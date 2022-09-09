@@ -341,7 +341,7 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 	pm_power_off = sh7785lcr_power_off;
 
 	/* sm501 DRAM configuration */
-	sm501_reg = ioremap_nocache(SM107_REG_ADDR, SM501_DRAM_CONTROL);
+	sm501_reg = ioremap(SM107_REG_ADDR, SM501_DRAM_CONTROL);
 	if (!sm501_reg) {
 		printk(KERN_ERR "%s: ioremap error.\n", __func__);
 		return;

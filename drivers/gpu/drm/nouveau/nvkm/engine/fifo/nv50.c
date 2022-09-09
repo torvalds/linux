@@ -51,9 +51,9 @@ nv50_fifo_runlist_update_locked(struct nv50_fifo *fifo)
 void
 nv50_fifo_runlist_update(struct nv50_fifo *fifo)
 {
-	mutex_lock(&fifo->base.engine.subdev.mutex);
+	mutex_lock(&fifo->base.mutex);
 	nv50_fifo_runlist_update_locked(fifo);
-	mutex_unlock(&fifo->base.engine.subdev.mutex);
+	mutex_unlock(&fifo->base.mutex);
 }
 
 int
@@ -107,7 +107,7 @@ nv50_fifo_dtor(struct nvkm_fifo *base)
 
 int
 nv50_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_fifo **pfifo)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_fifo **pfifo)
 {
 	struct nv50_fifo *fifo;
 	int ret;
@@ -116,7 +116,7 @@ nv50_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 		return -ENOMEM;
 	*pfifo = &fifo->base;
 
-	ret = nvkm_fifo_ctor(func, device, index, 128, &fifo->base);
+	ret = nvkm_fifo_ctor(func, device, type, inst, 128, &fifo->base);
 	if (ret)
 		return ret;
 
@@ -131,17 +131,19 @@ nv50_fifo = {
 	.oneinit = nv50_fifo_oneinit,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
+	.engine_id = nv04_fifo_engine_id,
+	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.chan = {
-		&nv50_fifo_dma_oclass,
 		&nv50_fifo_gpfifo_oclass,
 		NULL
 	},
 };
 
 int
-nv50_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+nv50_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_fifo **pfifo)
 {
-	return nv50_fifo_new_(&nv50_fifo, device, index, pfifo);
+	return nv50_fifo_new_(&nv50_fifo, device, type, inst, pfifo);
 }

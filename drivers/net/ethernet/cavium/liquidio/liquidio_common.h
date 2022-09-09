@@ -25,17 +25,11 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
 #define LIQUIDIO_BASE_MINOR_VERSION 7
 #define LIQUIDIO_BASE_MICRO_VERSION 2
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
-#define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
-#define LIQUIDIO_VERSION        LIQUIDIO_PACKAGE \
-				__stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
-				__stringify(LIQUIDIO_BASE_MINOR_VERSION) \
-				"." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
 
 struct lio_version {
 	u16  major;

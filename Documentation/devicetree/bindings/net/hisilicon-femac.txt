@@ -14,13 +14,15 @@ Required properties:
 	the PHY reset signal(optional).
 - reset-names: should contain the reset signal name "mac"(required)
 	and "phy"(optional).
-- mac-address: see ethernet.txt [1].
 - phy-mode: see ethernet.txt [1].
 - phy-handle: see ethernet.txt [1].
 - hisilicon,phy-reset-delays-us: triplet of delays if PHY reset signal given.
 	The 1st cell is reset pre-delay in micro seconds.
 	The 2nd cell is reset pulse in micro seconds.
 	The 3rd cell is reset post-delay in micro seconds.
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt[1].
 
 [1] Documentation/devicetree/bindings/net/ethernet.txt
 

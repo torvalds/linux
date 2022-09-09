@@ -19,11 +19,11 @@ void free_srcline(char *srcline);
 char *get_srcline_split(struct dso *dso, u64 addr, unsigned *line);
 
 /* insert the srcline into the DSO, which will take ownership */
-void srcline__tree_insert(struct rb_root *tree, u64 addr, char *srcline);
+void srcline__tree_insert(struct rb_root_cached *tree, u64 addr, char *srcline);
 /* find previously inserted srcline */
-char *srcline__tree_find(struct rb_root *tree, u64 addr);
+char *srcline__tree_find(struct rb_root_cached *tree, u64 addr);
 /* delete all srclines within the tree */
-void srcline__tree_delete(struct rb_root *tree);
+void srcline__tree_delete(struct rb_root_cached *tree);
 
 #define SRCLINE_UNKNOWN  ((char *) "??:0")
 
@@ -46,10 +46,11 @@ struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 void inline_node__delete(struct inline_node *node);
 
 /* insert the inline node list into the DSO, which will take ownership */
-void inlines__tree_insert(struct rb_root *tree, struct inline_node *inlines);
+void inlines__tree_insert(struct rb_root_cached *tree,
+			  struct inline_node *inlines);
 /* find previously inserted inline node list */
-struct inline_node *inlines__tree_find(struct rb_root *tree, u64 addr);
+struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr);
 /* delete all nodes within the tree of inline_node s */
-void inlines__tree_delete(struct rb_root *tree);
+void inlines__tree_delete(struct rb_root_cached *tree);
 
 #endif /* PERF_SRCLINE_H */

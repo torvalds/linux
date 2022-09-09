@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config AFFS_FS
 	tristate "Amiga FFS file system support"
 	depends on BLOCK
@@ -8,7 +9,7 @@ config AFFS_FS
 	  FFS partition on your hard drive.  Amiga floppies however cannot be
 	  read with this driver due to an incompatibility of the floppy
 	  controller used in an Amiga and the standard floppy controller in
-	  PCs and workstations. Read <file:Documentation/filesystems/affs.txt>
+	  PCs and workstations. Read <file:Documentation/filesystems/affs.rst>
 	  and <file:fs/affs/Changes>.
 
 	  With this driver you can also mount disk files used by Bernd

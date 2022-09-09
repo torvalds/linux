@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Paul Kocialkowski <contact@paulk.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 /dts-v1/;
 
@@ -18,16 +15,16 @@
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
 
-	pwmleds {
+	led-controller {
 		compatible = "pwm-leds";
 
-		green {
+		led-1 {
 			label = "green";
 			pwms = <&twl_pwm 0 7812500>;
 			max-brightness = <127>;
 		};
 
-		orange {
+		led-2 {
 			label = "orange";
 			pwms = <&twl_pwm 1 7812500>;
 			max-brightness = <127>;

@@ -2,7 +2,7 @@
 #ifndef __ASM_PROTOTYPES_H
 #define __ASM_PROTOTYPES_H
 /*
- * CONFIG_MODEVERIONS requires a C declaration to generate the appropriate CRC
+ * CONFIG_MODVERSIONS requires a C declaration to generate the appropriate CRC
  * for each symbol. Since commit:
  *
  *   4efca4ed05cbdfd1 ("kbuild: modversions for EXPORT_SYMBOL() for asm")
@@ -22,5 +22,11 @@
 long long __ashlti3(long long a, int b);
 long long __ashrti3(long long a, int b);
 long long __lshrti3(long long a, int b);
+
+/*
+ * This function uses a custom calling convention and cannot be called from C so
+ * this prototype is not entirely accurate.
+ */
+void __hwasan_tag_mismatch(unsigned long addr, unsigned long access_info);
 
 #endif /* __ASM_PROTOTYPES_H */

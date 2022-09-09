@@ -80,7 +80,7 @@ TRACE_EVENT(	vas_tx_win_open,
 TRACE_EVENT(	vas_paste_crb,
 
 		TP_PROTO(struct task_struct *tsk,
-			struct vas_window *win),
+			struct pnv_vas_window *win),
 
 		TP_ARGS(tsk, win),
 
@@ -96,7 +96,7 @@ TRACE_EVENT(	vas_paste_crb,
 		TP_fast_assign(
 			__entry->pid = tsk->pid;
 			__entry->vasid = win->vinst->vas_id;
-			__entry->winid = win->winid;
+			__entry->winid = win->vas_win.winid;
 			__entry->paste_kaddr = (unsigned long)win->paste_kaddr
 		),
 

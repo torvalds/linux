@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/engine/device/acpi.o
 nvkm-y += nvkm/engine/device/base.o
 nvkm-y += nvkm/engine/device/ctrl.o

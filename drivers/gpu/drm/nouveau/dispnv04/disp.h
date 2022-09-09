@@ -1,10 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV04_DISPLAY_H__
 #define __NV04_DISPLAY_H__
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 
 #include "nouveau_display.h"
+
+struct nouveau_encoder;
 
 enum nv04_fp_display_regs {
 	FP_DISPLAY_END,
@@ -82,6 +84,7 @@ struct nv04_display {
 	uint32_t saved_vga_font[4][16384];
 	uint32_t dac_users[4];
 	struct nouveau_bo *image[2];
+	struct nvif_notify flip;
 };
 
 static inline struct nv04_display *
@@ -92,9 +95,8 @@ nv04_display(struct drm_device *dev)
 
 /* nv04_display.c */
 int nv04_display_create(struct drm_device *);
-void nv04_display_destroy(struct drm_device *);
-int nv04_display_init(struct drm_device *);
-void nv04_display_fini(struct drm_device *);
+struct nouveau_connector *
+nv04_encoder_get_connector(struct nouveau_encoder *nv_encoder);
 
 /* nv04_crtc.c */
 int nv04_crtc_create(struct drm_device *, int index);
@@ -128,7 +130,7 @@ static inline bool
 nv_two_heads(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	const int impl = dev->pdev->device & 0x0ff0;
+	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
 	    impl != 0x0150 && impl != 0x01a0 && impl != 0x0200)
@@ -140,14 +142,14 @@ nv_two_heads(struct drm_device *dev)
 static inline bool
 nv_gf4_disp_arch(struct drm_device *dev)
 {
-	return nv_two_heads(dev) && (dev->pdev->device & 0x0ff0) != 0x0110;
+	return nv_two_heads(dev) && (to_pci_dev(dev->dev)->device & 0x0ff0) != 0x0110;
 }
 
 static inline bool
 nv_two_reg_pll(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	const int impl = dev->pdev->device & 0x0ff0;
+	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
 	if (impl == 0x0310 || impl == 0x0340 || drm->client.device.info.family >= NV_DEVICE_INFO_V0_CURIE)
 		return true;
@@ -158,12 +160,13 @@ static inline bool
 nv_match_device(struct drm_device *dev, unsigned device,
 		unsigned sub_vendor, unsigned sub_device)
 {
-	return dev->pdev->device == device &&
-		dev->pdev->subsystem_vendor == sub_vendor &&
-		dev->pdev->subsystem_device == sub_device;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	return pdev->device == device &&
+		pdev->subsystem_vendor == sub_vendor &&
+		pdev->subsystem_device == sub_device;
 }
 
-#include <subdev/bios.h>
 #include <subdev/bios/init.h>
 
 static inline void
@@ -176,4 +179,5 @@ nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 	);
 }
 
+int nv04_flip_complete(struct nvif_notify *);
 #endif

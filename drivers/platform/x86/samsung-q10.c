@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Driver for Samsung Q10 and related laptops: controls the backlight
  *
  *  Copyright (c) 2011 Frederick van der Wyck <fvanderwyck@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Framework for ISA radio drivers.
  * This takes care of all the V4L2 scaffolding, allowing the ISA drivers
  * to concentrate on the actual hardware operation.
  *
  * Copyright (C) 2012 Hans Verkuil <hans.verkuil@cisco.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -45,9 +37,6 @@ static int radio_isa_querycap(struct file *file, void  *priv,
 	strscpy(v->driver, isa->drv->driver.driver.name, sizeof(v->driver));
 	strscpy(v->card, isa->drv->card, sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", isa->v4l2_dev.name);
-
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -248,6 +237,7 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 	isa->vdev.fops = &radio_isa_fops;
 	isa->vdev.ioctl_ops = &radio_isa_ioctl_ops;
 	isa->vdev.release = video_device_release_empty;
+	isa->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	video_set_drvdata(&isa->vdev, isa);
 	isa->freq = FREQ_LOW;
 	isa->stereo = drv->has_stereo;
@@ -283,8 +273,8 @@ err_dev_reg:
 	return res;
 }
 
-static int radio_isa_common_remove(struct radio_isa_card *isa,
-				   unsigned region_size)
+static void radio_isa_common_remove(struct radio_isa_card *isa,
+				    unsigned region_size)
 {
 	const struct radio_isa_ops *ops = isa->drv->ops;
 
@@ -295,7 +285,6 @@ static int radio_isa_common_remove(struct radio_isa_card *isa,
 	release_region(isa->io, region_size);
 	v4l2_info(&isa->v4l2_dev, "Removed radio card %s\n", isa->drv->card);
 	kfree(isa);
-	return 0;
 }
 
 int radio_isa_probe(struct device *pdev, unsigned int dev)
@@ -348,11 +337,11 @@ int radio_isa_probe(struct device *pdev, unsigned int dev)
 }
 EXPORT_SYMBOL_GPL(radio_isa_probe);
 
-int radio_isa_remove(struct device *pdev, unsigned int dev)
+void radio_isa_remove(struct device *pdev, unsigned int dev)
 {
 	struct radio_isa_card *isa = dev_get_drvdata(pdev);
 
-	return radio_isa_common_remove(isa, isa->drv->region_size);
+	radio_isa_common_remove(isa, isa->drv->region_size);
 }
 EXPORT_SYMBOL_GPL(radio_isa_remove);
 

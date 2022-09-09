@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD am53c974 driver.
  * Copyright (c) 2014 Hannes Reinecke, SUSE Linux GmbH

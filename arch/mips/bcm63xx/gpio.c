@@ -43,8 +43,7 @@ static void bcm63xx_gpio_set(struct gpio_chip *chip,
 	u32 *v;
 	unsigned long flags;
 
-	if (gpio >= chip->ngpio)
-		BUG();
+	BUG_ON(gpio >= chip->ngpio);
 
 	if (gpio < 32) {
 		reg = gpio_out_low_reg;
@@ -70,8 +69,7 @@ static int bcm63xx_gpio_get(struct gpio_chip *chip, unsigned gpio)
 	u32 reg;
 	u32 mask;
 
-	if (gpio >= chip->ngpio)
-		BUG();
+	BUG_ON(gpio >= chip->ngpio);
 
 	if (gpio < 32) {
 		reg = gpio_out_low_reg;
@@ -92,8 +90,7 @@ static int bcm63xx_gpio_set_direction(struct gpio_chip *chip,
 	u32 tmp;
 	unsigned long flags;
 
-	if (gpio >= chip->ngpio)
-		BUG();
+	BUG_ON(gpio >= chip->ngpio);
 
 	if (gpio < 32) {
 		reg = GPIO_CTL_LO_REG;

@@ -24,7 +24,7 @@
 #include <linux/efi.h>
 #include <linux/nodemask.h>
 #include <linux/slab.h>
-#include <asm/pgalloc.h>
+#include <asm/efi.h>
 #include <asm/tlb.h>
 #include <asm/meminit.h>
 #include <asm/numa.h>
@@ -95,7 +95,7 @@ static int __init build_node_maps(unsigned long start, unsigned long len,
  * acpi_boot_init() (which builds the node_to_cpu_mask array) hasn't been
  * called yet.  Note that node 0 will also count all non-existent cpus.
  */
-static int __meminit early_nr_cpus_node(int node)
+static int early_nr_cpus_node(int node)
 {
 	int cpu, n = 0;
 
@@ -110,7 +110,7 @@ static int __meminit early_nr_cpus_node(int node)
  * compute_pernodesize - compute size of pernode data
  * @node: the node id.
  */
-static unsigned long __meminit compute_pernodesize(int node)
+static unsigned long compute_pernodesize(int node)
 {
 	unsigned long pernodesize = 0, cpus;
 
@@ -180,13 +180,13 @@ static void *per_cpu_node_setup(void *cpu_data, int node)
 void __init setup_per_cpu_areas(void)
 {
 	struct pcpu_alloc_info *ai;
-	struct pcpu_group_info *uninitialized_var(gi);
+	struct pcpu_group_info *gi;
 	unsigned int *cpu_map;
 	void *base;
 	unsigned long base_offset;
 	unsigned int cpu;
 	ssize_t static_size, reserved_size, dyn_size;
-	int node, prev_node, unit, nr_units, rc;
+	int node, prev_node, unit, nr_units;
 
 	ai = pcpu_alloc_alloc_info(MAX_NUMNODES, nr_cpu_ids);
 	if (!ai)
@@ -227,7 +227,7 @@ void __init setup_per_cpu_areas(void)
 	 * CPUs are put into groups according to node.  Walk cpu_map
 	 * and create new groups at node boundaries.
 	 */
-	prev_node = -1;
+	prev_node = NUMA_NO_NODE;
 	ai->nr_groups = 0;
 	for (unit = 0; unit < nr_units; unit++) {
 		cpu = cpu_map[unit];
@@ -245,10 +245,7 @@ void __init setup_per_cpu_areas(void)
 		gi->cpu_map		= &cpu_map[unit];
 	}
 
-	rc = pcpu_setup_first_chunk(ai, base);
-	if (rc)
-		panic("failed to setup percpu area (err=%d)", rc);
-
+	pcpu_setup_first_chunk(ai, base);
 	pcpu_free_alloc_info(ai);
 }
 #endif
@@ -370,7 +367,7 @@ static void __init reserve_pernode_space(void)
 	}
 }
 
-static void __meminit scatter_node_data(void)
+static void scatter_node_data(void)
 {
 	pg_data_t **dst;
 	int node;
@@ -396,8 +393,7 @@ static void __meminit scatter_node_data(void)
  *
  * Each node's per-node area has a copy of the global pg_data_t list, so
  * we copy that to each node here, as well as setting the per-cpu pointer
- * to the local node data structure.  The active_cpus field of the per-node
- * structure gets setup by the platform_cpu_init() function later.
+ * to the local node data structure.
  */
 static void __init initialize_pernode_data(void)
 {
@@ -435,7 +431,7 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 {
 	void *ptr = NULL;
 	u8 best = 0xff;
-	int bestnode = -1, node, anynode = 0;
+	int bestnode = NUMA_NO_NODE, node, anynode = 0;
 
 	for_each_online_node(node) {
 		if (node_isset(node, memory_less_mask))
@@ -447,13 +443,17 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 		anynode = node;
 	}
 
-	if (bestnode == -1)
+	if (bestnode == NUMA_NO_NODE)
 		bestnode = anynode;
 
 	ptr = memblock_alloc_try_nid(pernodesize, PERCPU_PAGE_SIZE,
 				     __pa(MAX_DMA_ADDRESS),
 				     MEMBLOCK_ALLOC_ACCESSIBLE,
 				     bestnode);
+	if (!ptr)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
+		      __func__, pernodesize, PERCPU_PAGE_SIZE, bestnode,
+		      __pa(MAX_DMA_ADDRESS));
 
 	return ptr;
 }
@@ -594,55 +594,25 @@ void call_pernode_memory(unsigned long start, unsigned long len, void *arg)
 void __init paging_init(void)
 {
 	unsigned long max_dma;
-	unsigned long pfn_offset = 0;
-	unsigned long max_pfn = 0;
-	int node;
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
 	max_dma = virt_to_phys((void *) MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 
-	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-	VMALLOC_END -= PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
-		sizeof(struct page));
-	vmem_map = (struct page *) VMALLOC_END;
-	efi_memmap_walk(create_mem_map_page_table, NULL);
-	printk("Virtual mem_map starts at 0x%p\n", vmem_map);
-#endif
-
-	for_each_online_node(node) {
-		pfn_offset = mem_data[node].min_pfn;
-
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-		NODE_DATA(node)->node_mem_map = vmem_map + pfn_offset;
-#endif
-		if (mem_data[node].max_pfn > max_pfn)
-			max_pfn = mem_data[node].max_pfn;
-	}
-
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-#ifdef CONFIG_ZONE_DMA32
 	max_zone_pfns[ZONE_DMA32] = max_dma;
-#endif
-	max_zone_pfns[ZONE_NORMAL] = max_pfn;
-	free_area_init_nodes(max_zone_pfns);
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	free_area_init(max_zone_pfns);
 
 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-pg_data_t *arch_alloc_nodedata(int nid)
+pg_data_t * __init arch_alloc_nodedata(int nid)
 {
 	unsigned long size = compute_pernodesize(nid);
 
-	return kzalloc(size, GFP_KERNEL);
-}
-
-void arch_free_nodedata(pg_data_t *pgdat)
-{
-	kfree(pgdat);
+	return memblock_alloc(size, SMP_CACHE_BYTES);
 }
 
 void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
@@ -650,13 +620,12 @@ void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
 	pgdat_list[update_node] = update_pgdat;
 	scatter_node_data();
 }
-#endif
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		struct vmem_altmap *altmap)
 {
-	return vmemmap_populate_basepages(start, end, node);
+	return vmemmap_populate_basepages(start, end, node, NULL);
 }
 
 void vmemmap_free(unsigned long start, unsigned long end,

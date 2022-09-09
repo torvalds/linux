@@ -1,20 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * NET		Generic infrastructure for INET6 connection oriented protocols.
  *
  * Authors:	Many people, see the TCPv6 sources
  *
  * 		From code originally in TCPv6
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _INET6_CONNECTION_SOCK_H
 #define _INET6_CONNECTION_SOCK_H
 
 #include <linux/types.h>
 
+struct flowi;
+struct flowi6;
 struct request_sock;
 struct sk_buff;
 struct sock;

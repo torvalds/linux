@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * u_ether.h -- interface to USB gadget "ethernet link" utilities
  *
@@ -243,6 +243,18 @@ unsigned gether_get_qmult(struct net_device *net);
  * Returns zero on success, else negative errno.
  */
 int gether_get_ifname(struct net_device *net, char *name, int len);
+
+/**
+ * gether_set_ifname - set an ethernet-over-usb link interface name
+ * @net: device representing this link
+ * @name: new interface name
+ * @len: length of @name
+ *
+ * This sets the interface name of this ethernet-over-usb link.
+ * A single terminating newline, if any, is ignored.
+ * Returns zero on success, else negative errno.
+ */
+int gether_set_ifname(struct net_device *net, const char *name, int len);
 
 void gether_cleanup(struct eth_dev *dev);
 

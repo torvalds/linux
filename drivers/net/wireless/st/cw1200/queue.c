@@ -1,16 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * O(1) TX queue with built-in allocator for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <net/mac80211.h>
 #include <linux/sched.h>
+#include <linux/jiffies.h>
 #include "queue.h"
 #include "cw1200.h"
 #include "debug.h"
@@ -82,10 +80,9 @@ static void cw1200_queue_register_post_gc(struct list_head *gc_list,
 					  struct cw1200_queue_item *item)
 {
 	struct cw1200_queue_item *gc_item;
-	gc_item = kmalloc(sizeof(struct cw1200_queue_item),
+	gc_item = kmemdup(item, sizeof(struct cw1200_queue_item),
 			GFP_ATOMIC);
 	BUG_ON(!gc_item);
-	memcpy(gc_item, item, sizeof(struct cw1200_queue_item));
 	list_add_tail(&gc_item->head, gc_list);
 }
 
@@ -98,7 +95,7 @@ static void __cw1200_queue_gc(struct cw1200_queue *queue,
 	bool wakeup_stats = false;
 
 	list_for_each_entry_safe(item, tmp, &queue->queue, head) {
-		if (jiffies - item->queue_timestamp < queue->ttl)
+		if (time_is_after_jiffies(item->queue_timestamp + queue->ttl))
 			break;
 		--queue->num_queued;
 		--queue->link_map_cache[item->txpriv.link_id];
@@ -283,7 +280,6 @@ int cw1200_queue_put(struct cw1200_queue *queue,
 		     struct cw1200_txpriv *txpriv)
 {
 	int ret = 0;
-	LIST_HEAD(gc_list);
 	struct cw1200_queue_stats *stats = queue->stats;
 
 	if (txpriv->link_id >= queue->stats->map_capacity)

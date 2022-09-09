@@ -61,45 +61,43 @@
 		status = "okay";
 	};
 
-	usb3h0_phy: usb3_phy0 {
-		compatible = "usb-nop-xceiv";
-		vcc-supply = <&v_5v0_usb3_hst_vbus>;
-	};
-
 	sfp_eth0: sfp-eth0 {
 		/* CON15,16 - CPM lane 4 */
 		compatible = "sff,sfp";
 		i2c-bus = <&sfpp0_i2c>;
-		los-gpio = <&cp1_gpio1 28 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp1_gpio1 27 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp1_gpio1 29 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&cp1_gpio1 26 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp1_gpio1 28 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp1_gpio1 27 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 29 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp1_gpio1 26 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp1_sfpp0_pins>;
+		maximum-power-milliwatt = <2000>;
 	};
 
 	sfp_eth1: sfp-eth1 {
 		/* CON17,18 - CPS lane 4 */
 		compatible = "sff,sfp";
 		i2c-bus = <&sfpp1_i2c>;
-		los-gpio = <&cp1_gpio1 8 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp1_gpio1 11 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp1_gpio1 10 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp0_gpio2 30 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp1_gpio1 8 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp1_gpio1 11 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 10 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_gpio2 30 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp1_sfpp1_pins &cp0_sfpp1_pins>;
+		maximum-power-milliwatt = <2000>;
 	};
 
 	sfp_eth3: sfp-eth3 {
 		/* CON13,14 - CPS lane 5 */
 		compatible = "sff,sfp";
 		i2c-bus = <&sfp_1g_i2c>;
-		los-gpio = <&cp0_gpio2 22 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp0_gpio2 21 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp1_gpio1 24 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp0_gpio2 19 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp0_gpio2 22 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp0_gpio2 21 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 24 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_gpio2 19 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp0_sfp_1g_pins &cp1_sfp_1g_pins>;
+		maximum-power-milliwatt = <2000>;
 	};
 };
 
@@ -183,7 +181,12 @@
 	pinctrl-0 = <&cp0_pcie_pins>;
 	num-lanes = <4>;
 	num-viewport = <8>;
-	reset-gpio = <&cp0_gpio1 20 GPIO_ACTIVE_LOW>;
+	reset-gpios = <&cp0_gpio2 20 GPIO_ACTIVE_LOW>;
+	ranges = <0x82000000 0x0 0xc0000000 0x0 0xc0000000 0x0 0x20000000>;
+	phys = <&cp0_comphy0 0>, <&cp0_comphy1 0>,
+	       <&cp0_comphy2 0>, <&cp0_comphy3 0>;
+	phy-names = "cp0-pcie0-x4-lane0-phy", "cp0-pcie0-x4-lane1-phy",
+		    "cp0-pcie0-x4-lane2-phy", "cp0-pcie0-x4-lane3-phy";
 	status = "okay";
 };
 
@@ -237,8 +240,13 @@
 };
 
 &cp0_sata0 {
-	/* CPM Lane 0 - U29 */
 	status = "okay";
+
+	/* CPM Lane 5 - U29 */
+	sata-port@1 {
+		phys = <&cp0_comphy5 1>;
+		phy-names = "cp0-sata0-1-phy";
+	};
 };
 
 &cp0_sdhci0 {
@@ -251,13 +259,23 @@
 	vqmmc-supply = <&v_3_3>;
 };
 
+&cp0_utmi {
+	status = "okay";
+};
+
 &cp0_usb3_0 {
 	/* J38? - USB2.0 only */
+	phys = <&cp0_utmi0>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
 &cp0_usb3_1 {
 	/* J38? - USB2.0 only */
+	phys = <&cp0_utmi1>;
+	phy-names = "utmi";
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -322,9 +340,19 @@
 };
 
 &cp1_sata0 {
-	/* CPS Lane 1 - U32 */
-	/* CPS Lane 3 - U31 */
 	status = "okay";
+
+	/* CPS Lane 1 - U32 */
+	sata-port@0 {
+		phys = <&cp1_comphy1 0>;
+		phy-names = "cp1-sata0-0-phy";
+	};
+
+	/* CPS Lane 3 - U31 */
+	sata-port@1 {
+		phys = <&cp1_comphy3 1>;
+		phy-names = "cp1-sata0-1-phy";
+	};
 };
 
 &cp1_spi1 {
@@ -332,15 +360,28 @@
 	pinctrl-0 = <&cp1_spi1_pins>;
 	status = "okay";
 
-	spi-flash@0 {
+	flash@0 {
 		compatible = "st,w25q32";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
 	};
 };
 
+&cp1_comphy2 {
+	cp1_usbh0_con: connector {
+		compatible = "usb-a-connector";
+		phy-supply = <&v_5v0_usb3_hst_vbus>;
+	};
+};
+
+&cp1_utmi {
+	status = "okay";
+};
+
 &cp1_usb3_0 {
 	/* CPS Lane 2 - CON7 */
-	usb-phy = <&usb3h0_phy>;
+	phys = <&cp1_comphy2 0>, <&cp1_utmi0>;
+	phy-names = "cp1-usb3h0-comphy", "utmi";
+	dr_mode = "host";
 	status = "okay";
 };

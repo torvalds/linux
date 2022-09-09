@@ -25,83 +25,116 @@
 #include <syscall.h>
 #include <assert.h>
 #include <signal.h>
+#include <limits.h>
+#include <dlfcn.h>
+#include <stddef.h>
 
+#include "../kselftest.h"
 #include "rseq.h"
 
-#define ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
+static const ptrdiff_t *libc_rseq_offset_p;
+static const unsigned int *libc_rseq_size_p;
+static const unsigned int *libc_rseq_flags_p;
 
-__attribute__((tls_model("initial-exec"))) __thread
-volatile struct rseq __rseq_abi = {
-	.cpu_id = RSEQ_CPU_ID_UNINITIALIZED,
+/* Offset from the thread pointer to the rseq area.  */
+ptrdiff_t rseq_offset;
+
+/* Size of the registered rseq area.  0 if the registration was
+   unsuccessful.  */
+unsigned int rseq_size = -1U;
+
+/* Flags used during rseq registration.  */
+unsigned int rseq_flags;
+
+static int rseq_ownership;
+
+static
+__thread struct rseq_abi __rseq_abi __attribute__((tls_model("initial-exec"))) = {
+	.cpu_id = RSEQ_ABI_CPU_ID_UNINITIALIZED,
 };
 
-static __attribute__((tls_model("initial-exec"))) __thread
-volatile int refcount;
-
-static void signal_off_save(sigset_t *oldset)
-{
-	sigset_t set;
-	int ret;
-
-	sigfillset(&set);
-	ret = pthread_sigmask(SIG_BLOCK, &set, oldset);
-	if (ret)
-		abort();
-}
-
-static void signal_restore(sigset_t oldset)
-{
-	int ret;
-
-	ret = pthread_sigmask(SIG_SETMASK, &oldset, NULL);
-	if (ret)
-		abort();
-}
-
-static int sys_rseq(volatile struct rseq *rseq_abi, uint32_t rseq_len,
+static int sys_rseq(struct rseq_abi *rseq_abi, uint32_t rseq_len,
 		    int flags, uint32_t sig)
 {
 	return syscall(__NR_rseq, rseq_abi, rseq_len, flags, sig);
 }
 
+int rseq_available(void)
+{
+	int rc;
+
+	rc = sys_rseq(NULL, 0, 0, 0);
+	if (rc != -1)
+		abort();
+	switch (errno) {
+	case ENOSYS:
+		return 0;
+	case EINVAL:
+		return 1;
+	default:
+		abort();
+	}
+}
+
 int rseq_register_current_thread(void)
 {
-	int rc, ret = 0;
-	sigset_t oldset;
+	int rc;
 
-	signal_off_save(&oldset);
-	if (refcount++)
-		goto end;
-	rc = sys_rseq(&__rseq_abi, sizeof(struct rseq), 0, RSEQ_SIG);
-	if (!rc) {
-		assert(rseq_current_cpu_raw() >= 0);
-		goto end;
+	if (!rseq_ownership) {
+		/* Treat libc's ownership as a successful registration. */
+		return 0;
 	}
-	if (errno != EBUSY)
-		__rseq_abi.cpu_id = -2;
-	ret = -1;
-	refcount--;
-end:
-	signal_restore(oldset);
-	return ret;
+	rc = sys_rseq(&__rseq_abi, sizeof(struct rseq_abi), 0, RSEQ_SIG);
+	if (rc)
+		return -1;
+	assert(rseq_current_cpu_raw() >= 0);
+	return 0;
 }
 
 int rseq_unregister_current_thread(void)
 {
-	int rc, ret = 0;
-	sigset_t oldset;
+	int rc;
 
-	signal_off_save(&oldset);
-	if (--refcount)
-		goto end;
-	rc = sys_rseq(&__rseq_abi, sizeof(struct rseq),
-		      RSEQ_FLAG_UNREGISTER, RSEQ_SIG);
-	if (!rc)
-		goto end;
-	ret = -1;
-end:
-	signal_restore(oldset);
-	return ret;
+	if (!rseq_ownership) {
+		/* Treat libc's ownership as a successful unregistration. */
+		return 0;
+	}
+	rc = sys_rseq(&__rseq_abi, sizeof(struct rseq_abi), RSEQ_ABI_FLAG_UNREGISTER, RSEQ_SIG);
+	if (rc)
+		return -1;
+	return 0;
+}
+
+static __attribute__((constructor))
+void rseq_init(void)
+{
+	libc_rseq_offset_p = dlsym(RTLD_NEXT, "__rseq_offset");
+	libc_rseq_size_p = dlsym(RTLD_NEXT, "__rseq_size");
+	libc_rseq_flags_p = dlsym(RTLD_NEXT, "__rseq_flags");
+	if (libc_rseq_size_p && libc_rseq_offset_p && libc_rseq_flags_p &&
+			*libc_rseq_size_p != 0) {
+		/* rseq registration owned by glibc */
+		rseq_offset = *libc_rseq_offset_p;
+		rseq_size = *libc_rseq_size_p;
+		rseq_flags = *libc_rseq_flags_p;
+		return;
+	}
+	if (!rseq_available())
+		return;
+	rseq_ownership = 1;
+	rseq_offset = (void *)&__rseq_abi - rseq_thread_pointer();
+	rseq_size = sizeof(struct rseq_abi);
+	rseq_flags = 0;
+}
+
+static __attribute__((destructor))
+void rseq_exit(void)
+{
+	if (!rseq_ownership)
+		return;
+	rseq_offset = 0;
+	rseq_size = -1U;
+	rseq_ownership = 0;
 }
 
 int32_t rseq_fallback_current_cpu(void)

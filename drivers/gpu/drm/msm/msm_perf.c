@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /* For profiling, userspace can:
@@ -26,6 +15,9 @@
 #ifdef CONFIG_DEBUG_FS
 
 #include <linux/debugfs.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_file.h>
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
@@ -163,9 +155,12 @@ static int perf_open(struct inode *inode, struct file *file)
 	struct msm_gpu *gpu = priv->gpu;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	if (!gpu)
+		return -ENODEV;
 
-	if (perf->open || !gpu) {
+	mutex_lock(&gpu->lock);
+
+	if (perf->open) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -179,7 +174,7 @@ static int perf_open(struct inode *inode, struct file *file)
 	perf->next_jiffies = jiffies + SAMPLE_TIME;
 
 out:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&gpu->lock);
 	return ret;
 }
 
@@ -205,7 +200,6 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 {
 	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_perf_state *perf;
-	struct dentry *ent;
 
 	/* only create on first minor: */
 	if (priv->perf)
@@ -220,19 +214,9 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	mutex_init(&perf->read_lock);
 	priv->perf = perf;
 
-	ent = debugfs_create_file("perf", S_IFREG | S_IRUGO,
-			minor->debugfs_root, perf, &perf_debugfs_fops);
-	if (!ent) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/perf\n",
-				minor->debugfs_root);
-		goto fail;
-	}
-
+	debugfs_create_file("perf", S_IFREG | S_IRUGO, minor->debugfs_root,
+			    perf, &perf_debugfs_fops);
 	return 0;
-
-fail:
-	msm_perf_debugfs_cleanup(priv);
-	return -1;
 }
 
 void msm_perf_debugfs_cleanup(struct msm_drm_private *priv)

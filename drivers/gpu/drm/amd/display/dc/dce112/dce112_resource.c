@@ -34,8 +34,6 @@
 #include "dce110/dce110_timing_generator.h"
 
 #include "irq/dce110/irq_service_dce110.h"
-
-#include "dce/dce_clk_mgr.h"
 #include "dce/dce_mem_input.h"
 #include "dce/dce_transform.h"
 #include "dce/dce_link_encoder.h"
@@ -51,6 +49,7 @@
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "reg_helper.h"
 
@@ -58,7 +57,9 @@
 #include "dce/dce_11_2_sh_mask.h"
 
 #include "dce100/dce100_resource.h"
-#define DC_LOGGER \
+#include "dce112_resource.h"
+
+#define DC_LOGGER				\
 		dc->ctx->logger
 
 #ifndef mmDP_DPHY_INTERNAL_CTRL
@@ -76,6 +77,7 @@
 
 #ifndef mmBIOS_SCRATCH_2
 	#define mmBIOS_SCRATCH_2 0x05CB
+	#define mmBIOS_SCRATCH_3 0x05CC
 	#define mmBIOS_SCRATCH_6 0x05CF
 #endif
 
@@ -147,19 +149,6 @@ static const struct dce110_timing_generator_offsets dce112_tg_offsets[] = {
 #define SRI(reg_name, block, id)\
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
-
-static const struct clk_mgr_registers disp_clk_regs = {
-		CLK_COMMON_REG_LIST_DCE_BASE()
-};
-
-static const struct clk_mgr_shift disp_clk_shift = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
-};
-
-static const struct clk_mgr_mask disp_clk_mask = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
-};
-
 static const struct dce_dmcu_registers dmcu_regs = {
 		DMCU_DCE110_COMMON_REG_LIST()
 };
@@ -182,6 +171,14 @@ static const struct dce_abm_shift abm_shift = {
 
 static const struct dce_abm_mask abm_mask = {
 		ABM_MASK_SH_LIST_DCE110(_MASK)
+};
+
+static const struct dce110_aux_registers_shift aux_shift = {
+	DCE_AUX_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce110_aux_registers_mask aux_mask = {
+	DCE_AUX_MASK_SH_LIST(_MASK)
 };
 
 #define ipp_regs(id)\
@@ -240,6 +237,18 @@ static const struct dce110_link_enc_aux_registers link_enc_aux_regs[] = {
 		aux_regs(3),
 		aux_regs(4),
 		aux_regs(5)
+};
+
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCE_PANEL_CNTL_REG_LIST() }
+};
+
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
 };
 
 #define hpd_regs(id)\
@@ -349,7 +358,7 @@ static const struct dce_audio_shift audio_shift = {
 		AUD_COMMON_MASK_SH_LIST(__SHIFT)
 };
 
-static const struct dce_aduio_mask audio_mask = {
+static const struct dce_audio_mask audio_mask = {
 		AUD_COMMON_MASK_SH_LIST(_MASK)
 };
 
@@ -376,6 +385,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 };
 
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3,
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6
 };
 
@@ -395,6 +405,30 @@ static const struct resource_caps polaris_11_resource_cap = {
 		.num_ddc = 5,
 };
 
+static const struct dc_plane_cap plane_cap = {
+	.type = DC_PLANE_TYPE_DCE_RGB,
+
+	.pixel_format_support = {
+			.argb8888 = true,
+			.nv12 = false,
+			.fp16 = true
+	},
+
+	.max_upscale_factor = {
+			.argb8888 = 16000,
+			.nv12 = 1,
+			.fp16 = 1
+	},
+
+	.max_downscale_factor = {
+			.argb8888 = 250,
+			.nv12 = 1,
+			.fp16 = 1
+	},
+	64,
+	64
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -405,6 +439,30 @@ static const struct resource_caps polaris_11_resource_cap = {
 #define CC_DC_HDMI_STRAPS__AUDIO_STREAM_NUMBER_MASK 0x700
 #define CC_DC_HDMI_STRAPS__AUDIO_STREAM_NUMBER__SHIFT 0x8
 #endif
+
+static int map_transmitter_id_to_phy_instance(
+	enum transmitter transmitter)
+{
+	switch (transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return 0;
+	case TRANSMITTER_UNIPHY_B:
+		return 1;
+	case TRANSMITTER_UNIPHY_C:
+		return 2;
+	case TRANSMITTER_UNIPHY_D:
+		return 3;
+	case TRANSMITTER_UNIPHY_E:
+		return 4;
+	case TRANSMITTER_UNIPHY_F:
+		return 5;
+	case TRANSMITTER_UNIPHY_G:
+		return 6;
+	default:
+		ASSERT(0);
+		return 0;
+	}
+}
 
 static void read_dce_straps(
 	struct dc_context *ctx,
@@ -559,22 +617,44 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
-struct link_encoder *dce112_link_encoder_create(
+static struct link_encoder *dce112_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
 		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
+	int link_regs_id;
 
 	if (!enc110)
 		return NULL;
 
+	link_regs_id =
+		map_transmitter_id_to_phy_instance(enc_init_data->transmitter);
+
 	dce110_link_encoder_construct(enc110,
 				      enc_init_data,
 				      &link_enc_feature,
-				      &link_enc_regs[enc_init_data->transmitter],
+				      &link_enc_regs[link_regs_id],
 				      &link_enc_aux_regs[enc_init_data->channel - 1],
 				      &link_enc_hpd_regs[enc_init_data->hpd_source]);
 	return &enc110->base;
+}
+
+static struct panel_cntl *dce112_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+{
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+
+	if (!panel_cntl)
+		return NULL;
+
+	dce_panel_cntl_construct(panel_cntl,
+			init_data,
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
+
+	return &panel_cntl->base;
 }
 
 static struct input_pixel_processor *dce112_ipp_create(
@@ -592,7 +672,7 @@ static struct input_pixel_processor *dce112_ipp_create(
 	return &ipp->base;
 }
 
-struct output_pixel_processor *dce112_opp_create(
+static struct output_pixel_processor *dce112_opp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -607,7 +687,7 @@ struct output_pixel_processor *dce112_opp_create(
 	return &opp->base;
 }
 
-struct aux_engine *dce112_aux_engine_create(
+static struct dce_aux *dce112_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -619,7 +699,10 @@ struct aux_engine *dce112_aux_engine_create(
 
 	dce110_aux_engine_construct(aux_engine, ctx, inst,
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
-				    &aux_engine_regs[inst]);
+				    &aux_engine_regs[inst],
+					&aux_mask,
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -642,7 +725,7 @@ static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCE110(_MASK)
 };
 
-struct dce_i2c_hw *dce112_i2c_hw_create(
+static struct dce_i2c_hw *dce112_i2c_hw_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -657,7 +740,7 @@ struct dce_i2c_hw *dce112_i2c_hw_create(
 
 	return dce_i2c_hw;
 }
-struct clock_source *dce112_clock_source_create(
+static struct clock_source *dce112_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id id,
@@ -676,17 +759,18 @@ struct clock_source *dce112_clock_source_create(
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
 
-void dce112_clock_source_destroy(struct clock_source **clk_src)
+static void dce112_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
 }
 
-static void destruct(struct dce110_resource_pool *pool)
+static void dce112_resource_destruct(struct dce110_resource_pool *pool)
 {
 	unsigned int i;
 
@@ -750,9 +834,6 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.clk_mgr != NULL)
-		dce_clk_mgr_destroy(&pool->base.clk_mgr);
-
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
 	}
@@ -763,7 +844,7 @@ static struct clock_source *find_matching_pll(
 		const struct resource_pool *pool,
 		const struct dc_stream_state *const stream)
 {
-	switch (stream->sink->link->link_enc->transmitter) {
+	switch (stream->link->link_enc->transmitter) {
 	case TRANSMITTER_UNIPHY_A:
 		return pool->clock_sources[DCE112_CLK_SRC_PLL0];
 	case TRANSMITTER_UNIPHY_B:
@@ -778,9 +859,9 @@ static struct clock_source *find_matching_pll(
 		return pool->clock_sources[DCE112_CLK_SRC_PLL5];
 	default:
 		return NULL;
-	};
+	}
 
-	return 0;
+	return NULL;
 }
 
 static enum dc_status build_mapped_resource(
@@ -802,7 +883,8 @@ static enum dc_status build_mapped_resource(
 
 bool dce112_validate_bandwidth(
 	struct dc *dc,
-	struct dc_state *context)
+	struct dc_state *context,
+	bool fast_validate)
 {
 	bool result = false;
 
@@ -816,7 +898,7 @@ bool dce112_validate_bandwidth(
 			dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
 			dc->res_pool->pipe_count,
-			&context->bw.dce))
+			&context->bw_ctx.bw.dce))
 		result = true;
 
 	if (!result)
@@ -824,8 +906,8 @@ bool dce112_validate_bandwidth(
 			"%s: Bandwidth validation failed!",
 			__func__);
 
-	if (memcmp(&dc->current_state->bw.dce,
-			&context->bw.dce, sizeof(context->bw.dce))) {
+	if (memcmp(&dc->current_state->bw_ctx.bw.dce,
+			&context->bw_ctx.bw.dce, sizeof(context->bw_ctx.bw.dce))) {
 
 		DC_LOG_BANDWIDTH_CALCS(
 			"%s: finish,\n"
@@ -839,34 +921,34 @@ bool dce112_validate_bandwidth(
 			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n"
 			,
 			__func__,
-			context->bw.dce.nbp_state_change_wm_ns[0].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[0].a_mark,
-			context->bw.dce.urgent_wm_ns[0].b_mark,
-			context->bw.dce.urgent_wm_ns[0].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].a_mark,
-			context->bw.dce.nbp_state_change_wm_ns[1].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[1].a_mark,
-			context->bw.dce.urgent_wm_ns[1].b_mark,
-			context->bw.dce.urgent_wm_ns[1].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].a_mark,
-			context->bw.dce.nbp_state_change_wm_ns[2].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[2].a_mark,
-			context->bw.dce.urgent_wm_ns[2].b_mark,
-			context->bw.dce.urgent_wm_ns[2].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[2].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[2].a_mark,
-			context->bw.dce.stutter_mode_enable,
-			context->bw.dce.cpuc_state_change_enable,
-			context->bw.dce.cpup_state_change_enable,
-			context->bw.dce.nbp_state_change_enable,
-			context->bw.dce.all_displays_in_sync,
-			context->bw.dce.dispclk_khz,
-			context->bw.dce.sclk_khz,
-			context->bw.dce.sclk_deep_sleep_khz,
-			context->bw.dce.yclk_khz,
-			context->bw.dce.blackout_recovery_time_us);
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.stutter_mode_enable,
+			context->bw_ctx.bw.dce.cpuc_state_change_enable,
+			context->bw_ctx.bw.dce.cpup_state_change_enable,
+			context->bw_ctx.bw.dce.nbp_state_change_enable,
+			context->bw_ctx.bw.dce.all_displays_in_sync,
+			context->bw_ctx.bw.dce.dispclk_khz,
+			context->bw_ctx.bw.dce.sclk_khz,
+			context->bw_ctx.bw.dce.sclk_deep_sleep_khz,
+			context->bw_ctx.bw.dce.yclk_khz,
+			context->bw_ctx.bw.dce.blackout_recovery_time_us);
 	}
 	return result;
 }
@@ -885,7 +967,7 @@ enum dc_status resource_map_phy_clock_resources(
 		return DC_ERROR_UNEXPECTED;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)
-		|| pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
+		|| dc_is_virtual_signal(pipe_ctx->stream->signal))
 		pipe_ctx->clock_source =
 				dc->res_pool->dp_clock_source;
 	else
@@ -929,7 +1011,7 @@ enum dc_status dce112_add_stream_to_ctx(
 		struct dc_state *new_ctx,
 		struct dc_stream_state *dc_stream)
 {
-	enum dc_status result = DC_ERROR_UNEXPECTED;
+	enum dc_status result;
 
 	result = resource_map_pool_resources(dc, new_ctx, dc_stream);
 
@@ -943,7 +1025,7 @@ enum dc_status dce112_add_stream_to_ctx(
 	return result;
 }
 
-enum dc_status dce112_validate_global(
+static enum dc_status dce112_validate_global(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -957,7 +1039,7 @@ static void dce112_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
 
-	destruct(dce110_pool);
+	dce112_resource_destruct(dce110_pool);
 	kfree(dce110_pool);
 	*pool = NULL;
 }
@@ -965,10 +1047,12 @@ static void dce112_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce112_res_pool_funcs = {
 	.destroy = dce112_destroy_resource_pool,
 	.link_enc_create = dce112_link_encoder_create,
+	.panel_cntl_create = dce112_panel_cntl_create,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce112_add_stream_to_ctx,
-	.validate_global = dce112_validate_global
+	.validate_global = dce112_validate_global,
+	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
 };
 
 static void bw_calcs_data_update_from_pplib(struct dc *dc)
@@ -977,6 +1061,10 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	struct dm_pp_clock_levels_with_latency mem_clks = {0};
 	struct dm_pp_wm_sets_with_clock_ranges clk_ranges = {0};
 	struct dm_pp_clock_levels clks = {0};
+	int memory_type_multiplier = MEMORY_TYPE_MULTIPLIER_CZ;
+
+	if (dc->bw_vbios && dc->bw_vbios->memory_type == bw_def_hbm)
+		memory_type_multiplier = MEMORY_TYPE_HBM;
 
 	/*do system clock  TODO PPLIB: after PPLIB implement,
 	 * then remove old way
@@ -1016,12 +1104,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 				&clks);
 
 		dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
+			clks.clocks_in_khz[0] * memory_type_multiplier, 1000);
 		dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER_CZ,
+			clks.clocks_in_khz[clks.num_levels>>1] * memory_type_multiplier,
 			1000);
 		dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER_CZ,
+			clks.clocks_in_khz[clks.num_levels-1] * memory_type_multiplier,
 			1000);
 
 		return;
@@ -1057,12 +1145,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
+		mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
+		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
+		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -1115,7 +1203,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	dm_pp_notify_wm_clock_changes(dc->ctx, &clk_ranges);
 }
 
-const struct resource_caps *dce112_resource_cap(
+static const struct resource_caps *dce112_resource_cap(
 	struct hw_asic_id *asic_id)
 {
 	if (ASIC_REV_IS_POLARIS11_M(asic_id->hw_internal_rev) ||
@@ -1125,7 +1213,7 @@ const struct resource_caps *dce112_resource_cap(
 		return &polaris_10_resource_cap;
 }
 
-static bool construct(
+static bool dce112_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dce110_resource_pool *pool)
@@ -1146,9 +1234,11 @@ static bool construct(
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dual_link_dvi = true;
-
+	dc->caps.extended_aux_timeout_support = false;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -1197,16 +1287,6 @@ static bool construct(
 			BREAK_TO_DEBUGGER();
 			goto res_create_fail;
 		}
-	}
-
-	pool->base.clk_mgr = dce112_clk_mgr_create(ctx,
-			&disp_clk_regs,
-			&disp_clk_shift,
-			&disp_clk_mask);
-	if (pool->base.clk_mgr == NULL) {
-		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
-		goto res_create_fail;
 	}
 
 	pool->base.dmcu = dce_dmcu_create(ctx,
@@ -1308,6 +1388,9 @@ static bool construct(
 
 	dc->caps.max_planes =  pool->base.pipe_count;
 
+	for (i = 0; i < dc->caps.max_planes; ++i)
+		dc->caps.planes[i] = plane_cap;
+
 	/* Create hardware sequencer */
 	dce112_hw_sequencer_construct(dc);
 
@@ -1318,7 +1401,7 @@ static bool construct(
 	return true;
 
 res_create_fail:
-	destruct(pool);
+	dce112_resource_destruct(pool);
 	return false;
 }
 
@@ -1332,9 +1415,10 @@ struct resource_pool *dce112_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (construct(num_virtual_links, dc, pool))
+	if (dce112_resource_construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
+	kfree(pool);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }

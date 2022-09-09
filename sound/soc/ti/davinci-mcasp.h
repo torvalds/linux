@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ALSA SoC McASP Audio Layer for TI DAVINCI processor
  *
@@ -9,10 +10,6 @@
  *
  * Copyright:   (C) 2009 MontaVista Software, Inc., <source@mvista.com>
  * Copyright:   (C) 2009  Texas Instruments, India
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef DAVINCI_MCASP_H
@@ -297,6 +294,10 @@
 #define NUMEVT_MASK	(0xFF << 8)
 #define NUMEVT(x)	(((x) & 0xFF) << 8)
 #define NUMDMA_MASK	(0xFF)
+
+/* Source of High-frequency transmit/receive clock */
+#define MCASP_CLK_HCLK_AHCLK		0 /* AHCLKX/R */
+#define MCASP_CLK_HCLK_AUXCLK		1 /* Internal functional clock */
 
 /* clock divider IDs */
 #define MCASP_CLKDIV_AUXCLK		0 /* HCLK divider from AUXCLK */

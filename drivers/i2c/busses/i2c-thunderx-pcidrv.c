@@ -118,6 +118,8 @@ static void thunder_i2c_clock_disable(struct device *dev, struct clk *clk)
 static int thunder_i2c_smbus_setup_of(struct octeon_i2c *i2c,
 				      struct device_node *node)
 {
+	struct i2c_client *ara;
+
 	if (!node)
 		return -EINVAL;
 
@@ -125,9 +127,12 @@ static int thunder_i2c_smbus_setup_of(struct octeon_i2c *i2c,
 	if (!i2c->alert_data.irq)
 		return -EINVAL;
 
-	i2c->ara = i2c_setup_smbus_alert(&i2c->adap, &i2c->alert_data);
-	if (!i2c->ara)
-		return -ENODEV;
+	ara = i2c_new_smbus_alert_device(&i2c->adap, &i2c->alert_data);
+	if (IS_ERR(ara))
+		return PTR_ERR(ara);
+
+	i2c->ara = ara;
+
 	return 0;
 }
 
@@ -178,7 +183,7 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	thunder_i2c_clock_enable(dev, i2c);
 	ret = device_property_read_u32(dev, "clock-frequency", &i2c->twsi_freq);
 	if (ret)
-		i2c->twsi_freq = 100000;
+		i2c->twsi_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
 	init_waitqueue_head(&i2c->queue);
 
@@ -208,6 +213,7 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	i2c->adap.bus_recovery_info = &octeon_i2c_recovery_info;
 	i2c->adap.dev.parent = dev;
 	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.fwnode = dev->fwnode;
 	snprintf(i2c->adap.name, sizeof(i2c->adap.name),
 		 "Cavium ThunderX i2c adapter at %s", dev_name(dev));
 	i2c_set_adapdata(&i2c->adap, i2c);

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Elantech Touchpad driver (v6)
  *
  * Copyright (C) 2007-2009 Arjan Opmeer <arjan@opmeer.net>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Trademarks are the property of their respective owners.
  */
@@ -21,6 +18,7 @@
 #define ETP_CAPABILITIES_QUERY		0x02
 #define ETP_SAMPLE_QUERY		0x03
 #define ETP_RESOLUTION_QUERY		0x04
+#define ETP_ICBODY_QUERY		0x05
 
 /*
  * Command values for register reading or writing
@@ -143,9 +141,19 @@ struct elantech_device_info {
 	unsigned char samples[3];
 	unsigned char debug;
 	unsigned char hw_version;
+	unsigned char pattern;
 	unsigned int fw_version;
+	unsigned int ic_version;
+	unsigned int product_id;
+	unsigned int x_min;
+	unsigned int y_min;
+	unsigned int x_max;
+	unsigned int y_max;
 	unsigned int x_res;
 	unsigned int y_res;
+	unsigned int x_traces;
+	unsigned int y_traces;
+	unsigned int width;
 	unsigned int bus;
 	bool paritycheck;
 	bool jumpy_cursor;
@@ -153,6 +161,7 @@ struct elantech_device_info {
 	bool crc_enabled;
 	bool set_hw_resolution;
 	bool has_trackpoint;
+	bool has_middle_button;
 	int (*send_cmd)(struct psmouse *psmouse, unsigned char c,
 			unsigned char *param);
 };
@@ -179,32 +188,18 @@ struct elantech_data {
 	void (*original_set_rate)(struct psmouse *psmouse, unsigned int rate);
 };
 
-#ifdef CONFIG_MOUSE_PS2_ELANTECH
 int elantech_detect(struct psmouse *psmouse, bool set_properties);
 int elantech_init_ps2(struct psmouse *psmouse);
+
+#ifdef CONFIG_MOUSE_PS2_ELANTECH
 int elantech_init(struct psmouse *psmouse);
 #else
-static inline int elantech_detect(struct psmouse *psmouse, bool set_properties)
-{
-	return -ENOSYS;
-}
 static inline int elantech_init(struct psmouse *psmouse)
-{
-	return -ENOSYS;
-}
-static inline int elantech_init_ps2(struct psmouse *psmouse)
 {
 	return -ENOSYS;
 }
 #endif /* CONFIG_MOUSE_PS2_ELANTECH */
 
-#if defined(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)
 int elantech_init_smbus(struct psmouse *psmouse);
-#else
-static inline int elantech_init_smbus(struct psmouse *psmouse)
-{
-	return -ENOSYS;
-}
-#endif /* CONFIG_MOUSE_PS2_ELANTECH_SMBUS */
 
 #endif

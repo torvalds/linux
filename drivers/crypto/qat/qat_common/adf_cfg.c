@@ -1,49 +1,5 @@
-/*
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
-
-  GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  Contact Information:
-  qat-linux@intel.com
-
-  BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+// SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+/* Copyright(c) 2014 - 2020 Intel Corporation */
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -96,24 +52,7 @@ static const struct seq_operations qat_dev_cfg_sops = {
 	.show = qat_dev_cfg_show
 };
 
-static int qat_dev_cfg_open(struct inode *inode, struct file *file)
-{
-	int ret = seq_open(file, &qat_dev_cfg_sops);
-
-	if (!ret) {
-		struct seq_file *seq_f = file->private_data;
-
-		seq_f->private = inode->i_private;
-	}
-	return ret;
-}
-
-static const struct file_operations qat_dev_cfg_fops = {
-	.open = qat_dev_cfg_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release
-};
+DEFINE_SEQ_ATTRIBUTE(qat_dev_cfg);
 
 /**
  * adf_cfg_dev_add() - Create an acceleration device configuration table.
@@ -141,13 +80,6 @@ int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 						  accel_dev->debugfs_dir,
 						  dev_cfg_data,
 						  &qat_dev_cfg_fops);
-	if (!dev_cfg_data->debug) {
-		dev_err(&GET_DEV(accel_dev),
-			"Failed to create qat cfg debugfs entry.\n");
-		kfree(dev_cfg_data);
-		accel_dev->cfg = NULL;
-		return -EFAULT;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(adf_cfg_dev_add);
@@ -194,6 +126,24 @@ static void adf_cfg_keyval_add(struct adf_cfg_key_val *new,
 			       struct adf_cfg_section *sec)
 {
 	list_add_tail(&new->list, &sec->param_head);
+}
+
+static void adf_cfg_keyval_remove(const char *key, struct adf_cfg_section *sec)
+{
+	struct list_head *head = &sec->param_head;
+	struct list_head *list_ptr, *tmp;
+
+	list_for_each_prev_safe(list_ptr, tmp, head) {
+		struct adf_cfg_key_val *ptr =
+			list_entry(list_ptr, struct adf_cfg_key_val, list);
+
+		if (strncmp(ptr->key, key, sizeof(ptr->key)))
+			continue;
+
+		list_del(list_ptr);
+		kfree(ptr);
+		break;
+	}
 }
 
 static void adf_cfg_keyval_del_all(struct list_head *head)
@@ -264,7 +214,7 @@ static int adf_cfg_key_val_get(struct adf_accel_dev *accel_dev,
 		memcpy(val, keyval->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES);
 		return 0;
 	}
-	return -1;
+	return -ENODATA;
 }
 
 /**
@@ -276,7 +226,8 @@ static int adf_cfg_key_val_get(struct adf_accel_dev *accel_dev,
  * @type: Type - string, int or address
  *
  * Function adds configuration key - value entry in the appropriate section
- * in the given acceleration device
+ * in the given acceleration device. If the key exists already, the value
+ * is updated.
  * To be used by QAT device specific drivers.
  *
  * Return: 0 on success, error code otherwise.
@@ -290,6 +241,8 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 	struct adf_cfg_key_val *key_val;
 	struct adf_cfg_section *section = adf_cfg_sec_find(accel_dev,
 							   section_name);
+	char temp_val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
+
 	if (!section)
 		return -EFAULT;
 
@@ -311,9 +264,27 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 	} else {
 		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
 		kfree(key_val);
-		return -1;
+		return -EINVAL;
 	}
 	key_val->type = type;
+
+	/* Add the key-value pair as below policy:
+	 * 1. if the key doesn't exist, add it;
+	 * 2. if the key already exists with a different value then update it
+	 *    to the new value (the key is deleted and the newly created
+	 *    key_val containing the new value is added to the database);
+	 * 3. if the key exists with the same value, then return without doing
+	 *    anything (the newly created key_val is freed).
+	 */
+	if (!adf_cfg_key_val_get(accel_dev, section_name, key, temp_val)) {
+		if (strncmp(temp_val, key_val->val, sizeof(temp_val))) {
+			adf_cfg_keyval_remove(key, section);
+		} else {
+			kfree(key_val);
+			return 0;
+		}
+	}
+
 	down_write(&cfg->lock);
 	adf_cfg_keyval_add(key_val, section);
 	up_write(&cfg->lock);
@@ -365,3 +336,4 @@ int adf_cfg_get_param_value(struct adf_accel_dev *accel_dev,
 	up_read(&cfg->lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(adf_cfg_get_param_value);

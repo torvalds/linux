@@ -27,7 +27,7 @@ struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum)
 
 		switch (status) {
 		case -ENOENT:
-			/* fall through */
+			fallthrough;
 		case -ECONNRESET:
 			dev_dbg(&urb->dev->dev,
 				 "urb seq# %u was unlinked %ssynchronously\n",
@@ -77,18 +77,26 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 	usbip_pack_pdu(pdu, urb, USBIP_RET_SUBMIT, 0);
 
 	/* recv transfer buffer */
-	if (usbip_recv_xbuff(ud, urb) < 0)
-		return;
+	if (usbip_recv_xbuff(ud, urb) < 0) {
+		urb->status = -EPROTO;
+		goto error;
+	}
 
 	/* recv iso_packet_descriptor */
-	if (usbip_recv_iso(ud, urb) < 0)
-		return;
+	if (usbip_recv_iso(ud, urb) < 0) {
+		urb->status = -EPROTO;
+		goto error;
+	}
 
 	/* restore the padding in iso packets */
 	usbip_pad_iso(ud, urb);
 
+error:
 	if (usbip_dbg_flag_vhci_rx)
 		usbip_dump_urb(urb);
+
+	if (urb->num_sgs)
+		urb->transfer_flags &= ~URB_DMA_MAP_SG;
 
 	usbip_dbg_vhci_rx("now giveback urb %u\n", pdu->base.seqnum);
 
@@ -253,7 +261,9 @@ int vhci_rx_loop(void *data)
 		if (usbip_event_happened(ud))
 			break;
 
+		usbip_kcov_remote_start(ud);
 		vhci_rx_pdu(ud);
+		usbip_kcov_remote_stop();
 	}
 
 	return 0;

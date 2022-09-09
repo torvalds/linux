@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __HDMI_CONNECTOR_H__
@@ -22,22 +11,16 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/hdmi.h>
+
+#include <drm/drm_bridge.h>
 
 #include "msm_drv.h"
 #include "hdmi.xml.h"
 
-#define HDMI_MAX_NUM_GPIO	6
-
 struct hdmi_phy;
 struct hdmi_platform_config;
-
-struct hdmi_gpio_data {
-	int num;
-	bool output;
-	int value;
-	const char *label;
-};
 
 struct hdmi_audio {
 	bool enabled;
@@ -65,10 +48,12 @@ struct hdmi {
 	void __iomem *qfprom_mmio;
 	phys_addr_t mmio_phy_addr;
 
-	struct regulator **hpd_regs;
-	struct regulator **pwr_regs;
+	struct regulator_bulk_data *hpd_regs;
+	struct regulator_bulk_data *pwr_regs;
 	struct clk **hpd_clks;
 	struct clk **pwr_clks;
+
+	struct gpio_desc *hpd_gpiod;
 
 	struct hdmi_phy *phy;
 	struct device *phy_dev;
@@ -76,6 +61,8 @@ struct hdmi {
 	struct i2c_adapter *i2c;
 	struct drm_connector *connector;
 	struct drm_bridge *bridge;
+
+	struct drm_bridge *next_bridge;
 
 	/* the encoder we are hooked to (outside of hdmi block) */
 	struct drm_encoder *encoder;
@@ -118,10 +105,14 @@ struct hdmi_platform_config {
 	/* clks that need to be on for screen pwr (ie pixel clk): */
 	const char **pwr_clk_names;
 	int pwr_clk_cnt;
-
-	/* gpio's: */
-	struct hdmi_gpio_data gpios[HDMI_MAX_NUM_GPIO];
 };
+
+struct hdmi_bridge {
+	struct drm_bridge base;
+	struct hdmi *hdmi;
+	struct work_struct hpd_work;
+};
+#define to_hdmi_bridge(x) container_of(x, struct hdmi_bridge, base)
 
 void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on);
 
@@ -172,7 +163,7 @@ struct hdmi_phy {
 	void __iomem *mmio;
 	struct hdmi_phy_cfg *cfg;
 	const struct hdmi_phy_funcs *funcs;
-	struct regulator **regs;
+	struct regulator_bulk_data *regs;
 	struct clk **clks;
 };
 
@@ -239,13 +230,11 @@ void msm_hdmi_audio_set_sample_rate(struct hdmi *hdmi, int rate);
 struct drm_bridge *msm_hdmi_bridge_init(struct hdmi *hdmi);
 void msm_hdmi_bridge_destroy(struct drm_bridge *bridge);
 
-/*
- * hdmi connector:
- */
-
-void msm_hdmi_connector_irq(struct drm_connector *connector);
-struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi);
-int msm_hdmi_hpd_enable(struct drm_connector *connector);
+void msm_hdmi_hpd_irq(struct drm_bridge *bridge);
+enum drm_connector_status msm_hdmi_bridge_detect(
+		struct drm_bridge *bridge);
+int msm_hdmi_hpd_enable(struct drm_bridge *bridge);
+void msm_hdmi_hpd_disable(struct hdmi_bridge *hdmi_bridge);
 
 /*
  * i2c adapter for ddc:

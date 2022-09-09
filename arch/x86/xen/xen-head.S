@@ -20,48 +20,18 @@
 #include <xen/interface/xen-mca.h>
 #include <asm/xen/interface.h>
 
-#ifdef CONFIG_XEN_PV
-	__INIT
-ENTRY(startup_xen)
-	UNWIND_HINT_EMPTY
-	cld
-
-	/* Clear .bss */
-	xor %eax,%eax
-	mov $__bss_start, %_ASM_DI
-	mov $__bss_stop, %_ASM_CX
-	sub %_ASM_DI, %_ASM_CX
-	shr $__ASM_SEL(2, 3), %_ASM_CX
-	rep __ASM_SIZE(stos)
-
-	mov %_ASM_SI, xen_start_info
-	mov $init_thread_union+THREAD_SIZE, %_ASM_SP
-
-#ifdef CONFIG_X86_64
-	/* Set up %gs.
-	 *
-	 * The base of %gs always points to the bottom of the irqstack
-	 * union.  If the stack protector canary is enabled, it is
-	 * located at %gs:40.  Note that, on SMP, the boot cpu uses
-	 * init data section till per cpu areas are set up.
-	 */
-	movl	$MSR_GS_BASE,%ecx
-	movq	$INIT_PER_CPU_VAR(irq_stack_union),%rax
-	cdq
-	wrmsr
-#endif
-
-	jmp xen_start_kernel
-END(startup_xen)
-	__FINIT
-#endif
-
-.pushsection .text
+.pushsection .noinstr.text, "ax"
 	.balign PAGE_SIZE
-ENTRY(hypercall_page)
+SYM_CODE_START(hypercall_page)
 	.rept (PAGE_SIZE / 32)
-		UNWIND_HINT_EMPTY
-		.skip 32
+		UNWIND_HINT_FUNC
+		ANNOTATE_NOENDBR
+		ANNOTATE_UNRET_SAFE
+		ret
+		/*
+		 * Xen will write the hypercall page, and sort out ENDBR.
+		 */
+		.skip 31, 0xcc
 	.endr
 
 #define HYPERCALL(n) \
@@ -69,8 +39,46 @@ ENTRY(hypercall_page)
 	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
 #include <asm/xen-hypercalls.h>
 #undef HYPERCALL
-END(hypercall_page)
+SYM_CODE_END(hypercall_page)
 .popsection
+
+#ifdef CONFIG_XEN_PV
+	__INIT
+SYM_CODE_START(startup_xen)
+	UNWIND_HINT_EMPTY
+	ANNOTATE_NOENDBR
+	cld
+
+	mov initial_stack(%rip), %rsp
+
+	/* Set up %gs.
+	 *
+	 * The base of %gs always points to fixed_percpu_data.  If the
+	 * stack protector canary is enabled, it is located at %gs:40.
+	 * Note that, on SMP, the boot cpu uses init data section until
+	 * the per cpu areas are set up.
+	 */
+	movl	$MSR_GS_BASE,%ecx
+	movq	$INIT_PER_CPU_VAR(fixed_percpu_data),%rax
+	cdq
+	wrmsr
+
+	mov	%rsi, %rdi
+	call xen_start_kernel
+SYM_CODE_END(startup_xen)
+	__FINIT
+
+#ifdef CONFIG_XEN_PV_SMP
+.pushsection .text
+SYM_CODE_START(asm_cpu_bringup_and_idle)
+	UNWIND_HINT_EMPTY
+	ENDBR
+
+	call cpu_bringup_and_idle
+SYM_CODE_END(asm_cpu_bringup_and_idle)
+.popsection
+#endif
+#endif
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")

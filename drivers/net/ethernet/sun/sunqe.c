@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -36,7 +37,6 @@
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/auxio.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 
 #include "sunqe.h"
@@ -144,7 +144,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	void __iomem *cregs = qep->qcregs;
 	void __iomem *mregs = qep->mregs;
 	void __iomem *gregs = qecp->gregs;
-	unsigned char *e = &qep->dev->dev_addr[0];
+	const unsigned char *e = &qep->dev->dev_addr[0];
 	__u32 qblk_dvma = (__u32)qep->qblock_dvma;
 	u32 tmp;
 	int i;
@@ -544,7 +544,7 @@ static void qe_tx_reclaim(struct sunqe *qep)
 	qep->tx_old = elem;
 }
 
-static void qe_tx_timeout(struct net_device *dev)
+static void qe_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct sunqe *qep = netdev_priv(dev);
 	int tx_full;
@@ -844,7 +844,7 @@ static int qec_ether_init(struct platform_device *op)
 	if (!dev)
 		return -ENOMEM;
 
-	memcpy(dev->dev_addr, idprom->id_ethaddr, ETH_ALEN);
+	eth_hw_addr_set(dev, idprom->id_ethaddr);
 
 	qe = netdev_priv(dev);
 

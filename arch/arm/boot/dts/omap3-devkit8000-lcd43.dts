@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Author: Anthoine Bourgeois <anthoine.bourgois@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 /dts-v1/;
 
@@ -14,7 +11,7 @@
 #include "omap3-devkit8000-lcd-common.dtsi"
 / {
 	model = "TimLL OMAP3 Devkit8000 with 4.3'' LCD panel";
-	compatible = "timll,omap3-devkit8000", "ti,omap3";
+	compatible = "timll,omap3-devkit8000", "ti,omap3430", "ti,omap3";
 
 	lcd0: display {
 		panel-timing {

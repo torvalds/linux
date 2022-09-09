@@ -9,7 +9,7 @@
 #define __ASM_MACH_GENERIC_IRQ_H
 
 #ifndef NR_IRQS
-#define NR_IRQS 128
+#define NR_IRQS 256
 #endif
 
 #ifdef CONFIG_I8259
@@ -28,18 +28,6 @@
 #endif /* CONFIG_I8259 */
 #endif
 
-#ifdef CONFIG_IRQ_CPU_RM7K
-#ifndef RM7K_CPU_IRQ_BASE
-#define RM7K_CPU_IRQ_BASE (MIPS_CPU_IRQ_BASE+8)
-#endif
-#endif
-
 #endif /* CONFIG_IRQ_MIPS_CPU */
-
-#ifdef CONFIG_MIPS_GIC
-#ifndef MIPS_GIC_IRQ_BASE
-#define MIPS_GIC_IRQ_BASE (MIPS_CPU_IRQ_BASE + 8)
-#endif
-#endif /* CONFIG_MIPS_GIC */
 
 #endif /* __ASM_MACH_GENERIC_IRQ_H */

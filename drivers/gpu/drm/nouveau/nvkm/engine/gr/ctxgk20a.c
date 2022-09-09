@@ -32,7 +32,7 @@ gk20a_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	u32 idle_timeout;
 	int i;
 
-	gf100_gr_mmio(gr, gr->fuc_sw_ctx);
+	gf100_gr_mmio(gr, gr->sw_ctx);
 
 	gf100_gr_wait_idle(gr);
 
@@ -56,10 +56,10 @@ gk20a_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	nvkm_wr32(device, 0x404154, idle_timeout);
 	gf100_gr_wait_idle(gr);
 
-	gf100_gr_mthd(gr, gr->fuc_method);
+	gf100_gr_mthd(gr, gr->method);
 	gf100_gr_wait_idle(gr);
 
-	gf100_gr_icmd(gr, gr->fuc_bundle);
+	gf100_gr_icmd(gr, gr->bundle);
 	grctx->pagepool(info);
 	grctx->bundle(info);
 }

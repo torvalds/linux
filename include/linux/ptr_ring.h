@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Definitions for the 'struct ptr_ring' datastructure.
  *
@@ -5,11 +6,6 @@
  *		Michael S. Tsirkin <mst@redhat.com>
  *
  *	Copyright (C) 2016 Red Hat, Inc.
- *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the
- *	Free Software Foundation; either version 2 of the License, or (at your
- *	option) any later version.
  *
  *	This is a limited-size FIFO maintaining pointers in FIFO order, with
  *	one CPU producing entries and another consuming entries from a FIFO.
@@ -26,8 +22,8 @@
 #include <linux/cache.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <linux/cache.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <asm/errno.h>
 #endif
 
@@ -111,7 +107,7 @@ static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 		return -ENOSPC;
 
 	/* Make sure the pointer we are storing points to a valid data. */
-	/* Pairs with smp_read_barrier_depends in __ptr_ring_consume. */
+	/* Pairs with the dependency ordering in __ptr_ring_consume. */
 	smp_wmb();
 
 	WRITE_ONCE(r->queue[r->producer++], ptr);

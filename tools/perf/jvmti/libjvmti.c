@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
+#include <linux/string.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,34 +32,41 @@ static void print_error(jvmtiEnv *jvmti, const char *msg, jvmtiError ret)
 
 #ifdef HAVE_JVMTI_CMLR
 static jvmtiError
-do_get_line_numbers(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
-		    jvmti_line_info_t *tab, jint *nr)
+do_get_line_number(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
+		   jvmti_line_info_t *tab)
 {
-	jint i, lines = 0;
-	jint nr_lines = 0;
+	jint i, nr_lines = 0;
 	jvmtiLineNumberEntry *loc_tab = NULL;
 	jvmtiError ret;
+	jint src_line = -1;
 
 	ret = (*jvmti)->GetLineNumberTable(jvmti, m, &nr_lines, &loc_tab);
-	if (ret != JVMTI_ERROR_NONE) {
+	if (ret == JVMTI_ERROR_ABSENT_INFORMATION || ret == JVMTI_ERROR_NATIVE_METHOD) {
+		/* No debug information for this method */
+		return ret;
+	} else if (ret != JVMTI_ERROR_NONE) {
 		print_error(jvmti, "GetLineNumberTable", ret);
 		return ret;
 	}
 
-	for (i = 0; i < nr_lines; i++) {
-		if (loc_tab[i].start_location < bci) {
-			tab[lines].pc = (unsigned long)pc;
-			tab[lines].line_number = loc_tab[i].line_number;
-			tab[lines].discrim = 0; /* not yet used */
-			tab[lines].methodID = m;
-			lines++;
-		} else {
-			break;
-		}
+	for (i = 0; i < nr_lines && loc_tab[i].start_location <= bci; i++) {
+		src_line = i;
 	}
+
+	if (src_line != -1) {
+		tab->pc = (unsigned long)pc;
+		tab->line_number = loc_tab[src_line].line_number;
+		tab->discrim = 0; /* not yet used */
+		tab->methodID = m;
+
+		ret = JVMTI_ERROR_NONE;
+	} else {
+		ret = JVMTI_ERROR_ABSENT_INFORMATION;
+	}
+
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)loc_tab);
-	*nr = lines;
-	return JVMTI_ERROR_NONE;
+
+	return ret;
 }
 
 static jvmtiError
@@ -66,9 +74,8 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 {
 	const jvmtiCompiledMethodLoadRecordHeader *hdr;
 	jvmtiCompiledMethodLoadInlineRecord *rec;
-	jvmtiLineNumberEntry *lne = NULL;
 	PCStackInfo *c;
-	jint nr, ret;
+	jint ret;
 	int nr_total = 0;
 	int i, lines_total = 0;
 
@@ -81,21 +88,7 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 	for (hdr = compile_info; hdr != NULL; hdr = hdr->next) {
 		if (hdr->kind == JVMTI_CMLR_INLINE_INFO) {
 			rec = (jvmtiCompiledMethodLoadInlineRecord *)hdr;
-			for (i = 0; i < rec->numpcs; i++) {
-				c = rec->pcinfo + i;
-				nr = 0;
-				/*
-				 * unfortunately, need a tab to get the number of lines!
-				 */
-				ret = (*jvmti)->GetLineNumberTable(jvmti, c->methods[0], &nr, &lne);
-				if (ret == JVMTI_ERROR_NONE) {
-					/* free what was allocated for nothing */
-					(*jvmti)->Deallocate(jvmti, (unsigned char *)lne);
-					nr_total += (int)nr;
-				} else {
-					print_error(jvmti, "GetLineNumberTable", ret);
-				}
-			}
+			nr_total += rec->numpcs;
 		}
 	}
 
@@ -114,14 +107,17 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 			rec = (jvmtiCompiledMethodLoadInlineRecord *)hdr;
 			for (i = 0; i < rec->numpcs; i++) {
 				c = rec->pcinfo + i;
-				nr = 0;
-				ret = do_get_line_numbers(jvmti, c->pc,
-							  c->methods[0],
-							  c->bcis[0],
-							  *tab + lines_total,
-							  &nr);
+                                /*
+                                 * c->methods is the stack of inlined method calls
+                                 * at c->pc. [0] is the leaf method. Caller frames
+                                 * are ignored at the moment.
+                                 */
+				ret = do_get_line_number(jvmti, c->pc,
+							 c->methods[0],
+							 c->bcis[0],
+							 *tab + lines_total);
 				if (ret == JVMTI_ERROR_NONE)
-					lines_total += nr;
+					lines_total++;
 			}
 		}
 	}
@@ -162,8 +158,7 @@ copy_class_filename(const char * class_sign, const char * file_name, char * resu
 		result[i] = '\0';
 	} else {
 		/* fallback case */
-		size_t file_name_len = strlen(file_name);
-		strncpy(result, file_name, file_name_len < max_length ? file_name_len : max_length);
+		strlcpy(result, file_name, max_length);
 	}
 }
 
@@ -246,8 +241,6 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	char *class_sign = NULL;
 	char *func_name = NULL;
 	char *func_sign = NULL;
-	char *file_name = NULL;
-	char fn[PATH_MAX];
 	uint64_t addr = (uint64_t)(uintptr_t)code_addr;
 	jvmtiError ret;
 	int nr_lines = 0; /* in line_tab[] */
@@ -264,7 +257,9 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	if (has_line_numbers && map && map_length) {
 		ret = get_line_numbers(jvmti, compile_info, &line_tab, &nr_lines);
 		if (ret != JVMTI_ERROR_NONE) {
-			warnx("jvmti: cannot get line table for method");
+			if (ret != JVMTI_ERROR_NOT_FOUND) {
+				warnx("jvmti: cannot get line table for method");
+			}
 			nr_lines = 0;
 		} else if (nr_lines > 0) {
 			line_file_names = malloc(sizeof(char*) * nr_lines);
@@ -282,12 +277,6 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 		}
 	}
 
-	ret = (*jvmti)->GetSourceFileName(jvmti, decl_class, &file_name);
-	if (ret != JVMTI_ERROR_NONE) {
-		print_error(jvmti, "GetSourceFileName", ret);
-		goto error;
-	}
-
 	ret = (*jvmti)->GetClassSignature(jvmti, decl_class,
 					  &class_sign, NULL);
 	if (ret != JVMTI_ERROR_NONE) {
@@ -301,8 +290,6 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 		print_error(jvmti, "GetMethodName", ret);
 		goto error;
 	}
-
-	copy_class_filename(class_sign, file_name, fn, PATH_MAX);
 
 	/*
 	 * write source line info record if we have it
@@ -323,7 +310,6 @@ error:
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)func_name);
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)func_sign);
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)class_sign);
-	(*jvmti)->Deallocate(jvmti, (unsigned char *)file_name);
 	free(line_tab);
 	while (line_file_names && (nr_lines > 0)) {
 	    if (line_file_names[nr_lines - 1]) {

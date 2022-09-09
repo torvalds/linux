@@ -11,6 +11,13 @@
 #ifndef _SMC_H
 #define _SMC_H
 
+#include <linux/device.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+#include <linux/wait.h>
+
+struct sock;
+
 #define SMC_MAX_PNETID_LEN	16	/* Max. length of PNET id */
 
 struct smc_hashinfo {
@@ -37,6 +44,10 @@ struct smcd_dmb {
 #define ISM_EVENT_GID	1
 #define ISM_EVENT_SWR	2
 
+#define ISM_RESERVED_VLANID	0x1FFF
+
+#define ISM_ERROR	0xFFFF
+
 struct smcd_event {
 	u32 type;
 	u32 code;
@@ -61,6 +72,8 @@ struct smcd_ops {
 	int (*move_data)(struct smcd_dev *dev, u64 dmb_tok, unsigned int idx,
 			 bool sf, unsigned int offset, void *data,
 			 unsigned int size);
+	u8* (*get_system_eid)(void);
+	u16 (*get_chid)(struct smcd_dev *dev);
 };
 
 struct smcd_dev {
@@ -74,6 +87,12 @@ struct smcd_dev {
 	struct list_head vlan;
 	struct workqueue_struct *event_wq;
 	u8 pnetid[SMC_MAX_PNETID_LEN];
+	bool pnetid_by_user;
+	struct list_head lgr_list;
+	spinlock_t lgr_lock;
+	atomic_t lgr_cnt;
+	wait_queue_head_t lgrs_deleted;
+	u8 going_away : 1;
 };
 
 struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
@@ -82,5 +101,5 @@ int smcd_register_dev(struct smcd_dev *smcd);
 void smcd_unregister_dev(struct smcd_dev *smcd);
 void smcd_free_dev(struct smcd_dev *smcd);
 void smcd_handle_event(struct smcd_dev *dev, struct smcd_event *event);
-void smcd_handle_irq(struct smcd_dev *dev, unsigned int bit);
+void smcd_handle_irq(struct smcd_dev *dev, unsigned int bit, u16 dmbemask);
 #endif	/* _SMC_H */

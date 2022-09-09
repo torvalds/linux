@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Connection Management Procedures (IEC 61883-1) helper functions
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include <linux/device.h>
@@ -185,6 +185,37 @@ void cmp_connection_destroy(struct cmp_connection *c)
 }
 EXPORT_SYMBOL(cmp_connection_destroy);
 
+int cmp_connection_reserve(struct cmp_connection *c,
+			   unsigned int max_payload_bytes)
+{
+	int err;
+
+	mutex_lock(&c->mutex);
+
+	if (WARN_ON(c->resources.allocated)) {
+		err = -EBUSY;
+		goto end;
+	}
+
+	c->speed = min(c->max_speed,
+		       fw_parent_device(c->resources.unit)->max_speed);
+
+	err = fw_iso_resources_allocate(&c->resources, max_payload_bytes,
+					c->speed);
+end:
+	mutex_unlock(&c->mutex);
+
+	return err;
+}
+EXPORT_SYMBOL(cmp_connection_reserve);
+
+void cmp_connection_release(struct cmp_connection *c)
+{
+	mutex_lock(&c->mutex);
+	fw_iso_resources_free(&c->resources);
+	mutex_unlock(&c->mutex);
+}
+EXPORT_SYMBOL(cmp_connection_release);
 
 static __be32 ipcr_set_modify(struct cmp_connection *c, __be32 ipcr)
 {
@@ -262,7 +293,6 @@ static int pcr_set_check(struct cmp_connection *c, __be32 pcr)
 /**
  * cmp_connection_establish - establish a connection to the target
  * @c: the connection manager
- * @max_payload_bytes: the amount of data (including CIP headers) per packet
  *
  * This function establishes a point-to-point connection from the local
  * computer to the target by allocating isochronous resources (channel and
@@ -270,25 +300,18 @@ static int pcr_set_check(struct cmp_connection *c, __be32 pcr)
  * When this function succeeds, the caller is responsible for starting
  * transmitting packets.
  */
-int cmp_connection_establish(struct cmp_connection *c,
-			     unsigned int max_payload_bytes)
+int cmp_connection_establish(struct cmp_connection *c)
 {
 	int err;
 
-	if (WARN_ON(c->connected))
-		return -EISCONN;
-
-	c->speed = min(c->max_speed,
-		       fw_parent_device(c->resources.unit)->max_speed);
-
 	mutex_lock(&c->mutex);
 
-retry_after_bus_reset:
-	err = fw_iso_resources_allocate(&c->resources,
-					max_payload_bytes, c->speed);
-	if (err < 0)
-		goto err_mutex;
+	if (WARN_ON(c->connected)) {
+		mutex_unlock(&c->mutex);
+		return -EISCONN;
+	}
 
+retry_after_bus_reset:
 	if (c->direction == CMP_OUTPUT)
 		err = pcr_modify(c, opcr_set_modify, pcr_set_check,
 				 ABORT_ON_BUS_RESET);
@@ -297,21 +320,13 @@ retry_after_bus_reset:
 				 ABORT_ON_BUS_RESET);
 
 	if (err == -EAGAIN) {
-		fw_iso_resources_free(&c->resources);
-		goto retry_after_bus_reset;
+		err = fw_iso_resources_update(&c->resources);
+		if (err >= 0)
+			goto retry_after_bus_reset;
 	}
-	if (err < 0)
-		goto err_resources;
+	if (err >= 0)
+		c->connected = true;
 
-	c->connected = true;
-
-	mutex_unlock(&c->mutex);
-
-	return 0;
-
-err_resources:
-	fw_iso_resources_free(&c->resources);
-err_mutex:
 	mutex_unlock(&c->mutex);
 
 	return err;
@@ -351,14 +366,12 @@ int cmp_connection_update(struct cmp_connection *c)
 				 SUCCEED_ON_BUS_RESET);
 
 	if (err < 0)
-		goto err_resources;
+		goto err_unconnect;
 
 	mutex_unlock(&c->mutex);
 
 	return 0;
 
-err_resources:
-	fw_iso_resources_free(&c->resources);
 err_unconnect:
 	c->connected = false;
 	mutex_unlock(&c->mutex);
@@ -394,8 +407,6 @@ void cmp_connection_break(struct cmp_connection *c)
 	err = pcr_modify(c, pcr_break_modify, NULL, SUCCEED_ON_BUS_RESET);
 	if (err < 0)
 		cmp_error(c, "plug is still connected\n");
-
-	fw_iso_resources_free(&c->resources);
 
 	c->connected = false;
 

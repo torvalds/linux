@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains the iSCSI Virtual Device and Disk Transport
  * agnostic related functions.
@@ -6,15 +7,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <target/target_core_base.h>
@@ -25,7 +17,7 @@
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
 
-void iscsit_determine_maxcmdsn(struct iscsi_session *sess)
+void iscsit_determine_maxcmdsn(struct iscsit_session *sess)
 {
 	struct se_node_acl *se_nacl;
 
@@ -50,7 +42,7 @@ void iscsit_determine_maxcmdsn(struct iscsi_session *sess)
 	atomic_add(se_nacl->queue_depth - 1, &sess->max_cmd_sn);
 }
 
-void iscsit_increment_maxcmdsn(struct iscsi_cmd *cmd, struct iscsi_session *sess)
+void iscsit_increment_maxcmdsn(struct iscsit_cmd *cmd, struct iscsit_session *sess)
 {
 	u32 max_cmd_sn;
 

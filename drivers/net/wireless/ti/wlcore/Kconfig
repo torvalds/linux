@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WLCORE
 	tristate "TI wlcore support"
 	depends on MAC80211
 	select FW_LOADER
-	---help---
+	help
 	  This module contains the main code for TI WLAN chips.  It abstracts
 	  hardware-specific differences among different chipset families.
 	  Each chipset family needs to implement its own lower-level module
@@ -15,7 +16,7 @@ config WLCORE_SPI
 	tristate "TI wlcore SPI support"
 	depends on WLCORE && SPI_MASTER && OF
 	select CRC7
-	---help---
+	help
 	  This module adds support for the SPI interface of adapters using
 	  TI WLAN chipsets.  Select this if your platform is using
 	  the SPI bus.
@@ -26,7 +27,7 @@ config WLCORE_SPI
 config WLCORE_SDIO
 	tristate "TI wlcore SDIO support"
 	depends on WLCORE && MMC
-	---help---
+	help
 	  This module adds support for the SDIO interface of adapters using
 	  TI WLAN chipsets.  Select this if your platform is using
 	  the SDIO bus.

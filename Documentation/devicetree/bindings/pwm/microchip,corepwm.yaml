@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/microchip,corepwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip IP corePWM controller bindings
+
+maintainers:
+  - Conor Dooley <conor.dooley@microchip.com>
+
+description: |
+  corePWM is an 16 channel pulse width modulator FPGA IP
+
+  https://www.microsemi.com/existing-parts/parts/152118
+
+allOf:
+  - $ref: pwm.yaml#
+
+properties:
+  compatible:
+    items:
+      - const: microchip,corepwm-rtl-v4
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  "#pwm-cells":
+    const: 2
+
+  microchip,sync-update-mask:
+    description: |
+      Depending on how the IP is instantiated, there are two modes of operation.
+      In synchronous mode, all channels are updated at the beginning of the PWM period,
+      and in asynchronous mode updates happen as the control registers are written.
+      A 16 bit wide "SHADOW_REG_EN" parameter of the IP core controls whether synchronous
+      mode is possible for each channel, and is set by the bitstream programmed to the
+      FPGA. If the IP core is instantiated with SHADOW_REG_ENx=1, both registers that
+      control the duty cycle for channel x have a second "shadow"/buffer reg synthesised.
+      At runtime a bit wide register exposed to APB can be used to toggle on/off
+      synchronised mode for all channels it has been synthesised for.
+      Each bit of "microchip,sync-update-mask" corresponds to a PWM channel & represents
+      whether synchronous mode is possible for the PWM channel.
+
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+  microchip,dac-mode-mask:
+    description: |
+      Optional, per-channel Low Ripple DAC mode is possible on this IP core. It creates
+      a minimum period pulse train whose High/Low average is that of the chosen duty
+      cycle. This "DAC" will have far better bandwidth and ripple performance than the
+      standard PWM algorithm can achieve. A 16 bit DAC_MODE module parameter of the IP
+      core, set at instantiation and by the bitstream programmed to the FPGA, determines
+      whether a given channel operates in regular PWM or DAC mode.
+      Each bit corresponds to a PWM channel & represents whether DAC mode is enabled
+      for that channel.
+
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    pwm@41000000 {
+      compatible = "microchip,corepwm-rtl-v4";
+      microchip,sync-update-mask = /bits/ 32 <0>;
+      clocks = <&clkcfg 30>;
+      reg = <0x41000000 0xF0>;
+      #pwm-cells = <2>;
+    };

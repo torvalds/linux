@@ -67,13 +67,6 @@
 #define MAX77686_REGULATORS	MAX77686_REG_MAX
 #define MAX77686_LDOS		26
 
-enum max77686_ramp_rate {
-	RAMP_RATE_13P75MV,
-	RAMP_RATE_27P5MV,
-	RAMP_RATE_55MV,
-	RAMP_RATE_NO_CTRL,	/* 100mV/us */
-};
-
 struct max77686_data {
 	struct device *dev;
 	DECLARE_BITMAP(gpio_enabled, MAX77686_REGULATORS);
@@ -220,31 +213,6 @@ static int max77686_enable(struct regulator_dev *rdev)
 				  max77686->opmode[id] << shift);
 }
 
-static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	unsigned int ramp_value = RAMP_RATE_NO_CTRL;
-
-	switch (ramp_delay) {
-	case 1 ... 13750:
-		ramp_value = RAMP_RATE_13P75MV;
-		break;
-	case 13751 ... 27500:
-		ramp_value = RAMP_RATE_27P5MV;
-		break;
-	case 27501 ... 55000:
-		ramp_value = RAMP_RATE_55MV;
-		break;
-	case 55001 ... 100000:
-		break;
-	default:
-		pr_warn("%s: ramp_delay: %d not supported, setting 100000\n",
-			rdev->desc->name, ramp_delay);
-	}
-
-	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
-				  MAX77686_RAMP_RATE_MASK, ramp_value << 6);
-}
-
 static int max77686_of_parse_cb(struct device_node *np,
 		const struct regulator_desc *desc,
 		struct regulator_config *config)
@@ -256,7 +224,8 @@ static int max77686_of_parse_cb(struct device_node *np,
 	case MAX77686_BUCK8:
 	case MAX77686_BUCK9:
 	case MAX77686_LDO20 ... MAX77686_LDO22:
-		config->ena_gpiod = gpiod_get_from_of_node(np,
+		config->ena_gpiod = fwnode_gpiod_get_index(
+				of_fwnode_handle(np),
 				"maxim,ena",
 				0,
 				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
@@ -282,6 +251,10 @@ static int max77686_of_parse_cb(struct device_node *np,
 
 	return 0;
 }
+
+static const unsigned int max77686_buck_dvs_ramp_table[] = {
+	13750, 27500, 55000, 100000
+};
 
 static const struct regulator_ops max77686_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
@@ -329,7 +302,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
-	.set_ramp_delay		= max77686_set_ramp_delay,
+	.set_ramp_delay		= regulator_set_ramp_delay_regmap,
 	.set_suspend_disable	= max77686_set_suspend_disable,
 };
 
@@ -461,6 +434,10 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 	.enable_reg	= MAX77686_REG_BUCK2CTRL1 + (num - 2) * 10,	\
 	.enable_mask	= MAX77686_OPMODE_MASK				\
 			<< MAX77686_OPMODE_BUCK234_SHIFT,		\
+	.ramp_reg	= MAX77686_REG_BUCK2CTRL1 + (num - 2) * 10,	\
+	.ramp_mask	= MAX77686_RAMP_RATE_MASK,			\
+	.ramp_delay_table = max77686_buck_dvs_ramp_table,		\
+	.n_ramp_values	= ARRAY_SIZE(max77686_buck_dvs_ramp_table),	\
 }
 
 static const struct regulator_desc regulators[] = {

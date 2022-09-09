@@ -1,24 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Murata ZPA2326 SPI pressure and temperature sensor driver
  *
  * Copyright (c) 2016 Parrot S.A.
  *
  * Author: Gregor Boirie <gregor.boirie@parrot.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include "zpa2326.h"
 
 /*
@@ -65,11 +57,9 @@ static int zpa2326_probe_spi(struct spi_device *spi)
 			     spi->irq, ZPA2326_DEVICE_ID, regmap);
 }
 
-static int zpa2326_remove_spi(struct spi_device *spi)
+static void zpa2326_remove_spi(struct spi_device *spi)
 {
 	zpa2326_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id zpa2326_spi_ids[] = {
@@ -78,18 +68,16 @@ static const struct spi_device_id zpa2326_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, zpa2326_spi_ids);
 
-#if defined(CONFIG_OF)
 static const struct of_device_id zpa2326_spi_matches[] = {
 	{ .compatible = "murata,zpa2326" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, zpa2326_spi_matches);
-#endif
 
 static struct spi_driver zpa2326_spi_driver = {
 	.driver = {
 		.name           = "zpa2326-spi",
-		.of_match_table = of_match_ptr(zpa2326_spi_matches),
+		.of_match_table = zpa2326_spi_matches,
 		.pm             = ZPA2326_PM_OPS,
 	},
 	.probe    = zpa2326_probe_spi,
@@ -101,3 +89,4 @@ module_spi_driver(zpa2326_spi_driver);
 MODULE_AUTHOR("Gregor Boirie <gregor.boirie@parrot.com>");
 MODULE_DESCRIPTION("SPI driver for Murata ZPA2326 pressure sensor");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ZPA2326);

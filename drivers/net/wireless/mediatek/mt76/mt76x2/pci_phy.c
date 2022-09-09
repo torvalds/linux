@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/delay.h>
@@ -23,7 +12,7 @@
 static bool
 mt76x2_phy_tssi_init_cal(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	u32 flag = 0;
 
 	if (!mt76x2_tssi_enabled(dev))
@@ -46,7 +35,7 @@ mt76x2_phy_tssi_init_cal(struct mt76x02_dev *dev)
 static void
 mt76x2_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	bool is_5ghz = chan->band == NL80211_BAND_5GHZ;
 
 	if (dev->cal.channel_cal_done)
@@ -74,6 +63,7 @@ mt76x2_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 		mt76x2_mac_resume(dev);
 
 	mt76x2_apply_gain_adj(dev);
+	mt76x02_edcca_init(dev);
 
 	dev->cal.channel_cal_done = true;
 }
@@ -84,7 +74,7 @@ void mt76x2_phy_set_antenna(struct mt76x02_dev *dev)
 
 	val = mt76_rr(dev, MT_BBP(AGC, 0));
 	val &= ~(BIT(4) | BIT(1));
-	switch (dev->mt76.antenna_mask) {
+	switch (dev->mphy.antenna_mask) {
 	case 1:
 		/* disable mac DAC control */
 		mt76_clear(dev, MT_BBP(IBI, 9), BIT(11));
@@ -128,7 +118,7 @@ int mt76x2_phy_set_channel(struct mt76x02_dev *dev,
 			   struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_channel *chan = chandef->chan;
-	bool scan = test_bit(MT76_SCANNING, &dev->mt76.state);
+	bool scan = test_bit(MT76_SCANNING, &dev->mphy.state);
 	enum nl80211_band band = chan->band;
 	u8 channel;
 
@@ -293,10 +283,16 @@ void mt76x2_phy_calibrate(struct work_struct *work)
 	struct mt76x02_dev *dev;
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
+
+	mutex_lock(&dev->mt76.mutex);
+
 	mt76x2_phy_channel_calibrate(dev, false);
 	mt76x2_phy_tssi_compensate(dev);
 	mt76x2_phy_temp_compensate(dev);
 	mt76x2_phy_update_channel_gain(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
+
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 }

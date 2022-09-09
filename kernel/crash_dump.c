@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/crash_dump.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/export.h>
-
-/*
- * If we have booted due to a crash, max_pfn will be a very low value. We need
- * to know the amount of memory that the previous kernel used.
- */
-unsigned long saved_max_pfn;
 
 /*
  * stores the physical address of elf header of crash image

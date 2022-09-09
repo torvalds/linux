@@ -37,32 +37,56 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 
-typedef int proc_handler (struct ctl_table *ctl, int write,
-			  void __user *buffer, size_t *lenp, loff_t *ppos);
+/* Keep the same order as in fs/proc/proc_sysctl.c */
+#define SYSCTL_ZERO			((void *)&sysctl_vals[0])
+#define SYSCTL_ONE			((void *)&sysctl_vals[1])
+#define SYSCTL_TWO			((void *)&sysctl_vals[2])
+#define SYSCTL_THREE			((void *)&sysctl_vals[3])
+#define SYSCTL_FOUR			((void *)&sysctl_vals[4])
+#define SYSCTL_ONE_HUNDRED		((void *)&sysctl_vals[5])
+#define SYSCTL_TWO_HUNDRED		((void *)&sysctl_vals[6])
+#define SYSCTL_ONE_THOUSAND		((void *)&sysctl_vals[7])
+#define SYSCTL_THREE_THOUSAND		((void *)&sysctl_vals[8])
+#define SYSCTL_INT_MAX			((void *)&sysctl_vals[9])
 
-extern int proc_dostring(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
-extern int proc_dointvec(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
-extern int proc_douintvec(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
-extern int proc_dointvec_minmax(struct ctl_table *, int,
-				void __user *, size_t *, loff_t *);
-extern int proc_douintvec_minmax(struct ctl_table *table, int write,
-				 void __user *buffer, size_t *lenp,
-				 loff_t *ppos);
-extern int proc_dointvec_jiffies(struct ctl_table *, int,
-				 void __user *, size_t *, loff_t *);
-extern int proc_dointvec_userhz_jiffies(struct ctl_table *, int,
-					void __user *, size_t *, loff_t *);
-extern int proc_dointvec_ms_jiffies(struct ctl_table *, int,
-				    void __user *, size_t *, loff_t *);
-extern int proc_doulongvec_minmax(struct ctl_table *, int,
-				  void __user *, size_t *, loff_t *);
-extern int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int,
-				      void __user *, size_t *, loff_t *);
-extern int proc_do_large_bitmap(struct ctl_table *, int,
-				void __user *, size_t *, loff_t *);
+/* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+#define SYSCTL_MAXOLDUID		((void *)&sysctl_vals[10])
+#define SYSCTL_NEG_ONE			((void *)&sysctl_vals[11])
+
+extern const int sysctl_vals[];
+
+#define SYSCTL_LONG_ZERO	((void *)&sysctl_long_vals[0])
+#define SYSCTL_LONG_ONE		((void *)&sysctl_long_vals[1])
+#define SYSCTL_LONG_MAX		((void *)&sysctl_long_vals[2])
+
+extern const unsigned long sysctl_long_vals[];
+
+typedef int proc_handler(struct ctl_table *ctl, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
+
+int proc_dostring(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dobool(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
+int proc_dointvec(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_douintvec(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_douintvec_minmax(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
+int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
+			size_t *lenp, loff_t *ppos);
+int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_ms_jiffies_minmax(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
+int proc_dointvec_userhz_jiffies(struct ctl_table *, int, void *, size_t *,
+		loff_t *);
+int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
+		loff_t *);
+int proc_doulongvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int, void *,
+		size_t *, loff_t *);
+int proc_do_large_bitmap(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table
@@ -73,15 +97,13 @@ extern int proc_do_large_bitmap(struct ctl_table *, int,
  * sysctl names can be mirrored automatically under /proc/sys.  The
  * procname supplied controls /proc naming.
  *
- * The table's mode will be honoured both for sys_sysctl(2) and
- * proc-fs access.
+ * The table's mode will be honoured for proc-fs access.
  *
  * Leaf nodes in the sysctl tree will be represented by a single file
  * under /proc; non-leaf nodes will be represented by directories.  A
  * null procname disables /proc mirroring at this node.
  *
- * sysctl(2) can automatically manage read and write requests through
- * the sysctl table.  The data and maxlen fields of the ctl_table
+ * The data and maxlen fields of the ctl_table
  * struct enable minimal validation of the values being written to be
  * performed, and the mode field allows minimal authentication.
  * 
@@ -110,8 +132,7 @@ static inline void *proc_sys_poll_event(struct ctl_table_poll *poll)
 	struct ctl_table_poll name = __CTL_TABLE_POLL_INITIALIZER(name)
 
 /* A sysctl table is an array of struct ctl_table: */
-struct ctl_table 
-{
+struct ctl_table {
 	const char *procname;		/* Text ID for /proc/sys, or zero */
 	void *data;
 	int maxlen;
@@ -130,8 +151,7 @@ struct ctl_node {
 
 /* struct ctl_table_header is used to maintain dynamic lists of
    struct ctl_table trees. */
-struct ctl_table_header
-{
+struct ctl_table_header {
 	union {
 		struct {
 			struct ctl_table *ctl_table;
@@ -177,6 +197,20 @@ struct ctl_path {
 
 #ifdef CONFIG_SYSCTL
 
+#define DECLARE_SYSCTL_BASE(_name, _table)				\
+static struct ctl_table _name##_base_table[] = {			\
+	{								\
+		.procname	= #_name,				\
+		.mode		= 0555,					\
+		.child		= _table,				\
+	},								\
+	{ },								\
+}
+
+extern int __register_sysctl_base(struct ctl_table *base_table);
+
+#define register_sysctl_base(_name) __register_sysctl_base(_name##_base_table)
+
 void proc_sys_poll_notify(struct ctl_table_poll *poll);
 
 extern void setup_sysctl_set(struct ctl_table_set *p,
@@ -197,12 +231,48 @@ struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
 
 void unregister_sysctl_table(struct ctl_table_header * table);
 
-extern int sysctl_init(void);
+extern int sysctl_init_bases(void);
+extern void __register_sysctl_init(const char *path, struct ctl_table *table,
+				 const char *table_name);
+#define register_sysctl_init(path, table) __register_sysctl_init(path, table, #table)
+extern struct ctl_table_header *register_sysctl_mount_point(const char *path);
+
+void do_sysctl_args(void);
+int do_proc_douintvec(struct ctl_table *table, int write,
+		      void *buffer, size_t *lenp, loff_t *ppos,
+		      int (*conv)(unsigned long *lvalp,
+				  unsigned int *valp,
+				  int write, void *data),
+		      void *data);
+
+extern int pwrsw_enabled;
+extern int unaligned_enabled;
+extern int unaligned_dump_stack;
+extern int no_unaligned_warning;
 
 extern struct ctl_table sysctl_mount_point[];
 
 #else /* CONFIG_SYSCTL */
+
+#define DECLARE_SYSCTL_BASE(_name, _table)
+
+static inline int __register_sysctl_base(struct ctl_table *base_table)
+{
+	return 0;
+}
+
+#define register_sysctl_base(table) __register_sysctl_base(table)
+
 static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
+{
+	return NULL;
+}
+
+static inline void register_sysctl_init(const char *path, struct ctl_table *table)
+{
+}
+
+static inline struct ctl_table_header *register_sysctl_mount_point(const char *path)
 {
 	return NULL;
 }
@@ -228,9 +298,12 @@ static inline void setup_sysctl_set(struct ctl_table_set *p,
 {
 }
 
+static inline void do_sysctl_args(void)
+{
+}
 #endif /* CONFIG_SYSCTL */
 
-int sysctl_max_threads(struct ctl_table *table, int write,
-		       void __user *buffer, size_t *lenp, loff_t *ppos);
+int sysctl_max_threads(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
 
 #endif /* _LINUX_SYSCTL_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Atheros AR71XX/AR724X/AR913X SoC register definitions
  *
@@ -6,10 +7,6 @@
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
  *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #ifndef __ASM_MACH_AR71XX_REGS_H
@@ -865,6 +862,7 @@
 #define REV_ID_MAJOR_QCA9558		0x1130
 #define REV_ID_MAJOR_TP9343		0x0150
 #define REV_ID_MAJOR_QCA956X		0x1150
+#define REV_ID_MAJOR_QCN550X		0x2170
 
 #define AR71XX_REV_ID_MINOR_MASK	0x3
 #define AR71XX_REV_ID_MINOR_AR7130	0x0

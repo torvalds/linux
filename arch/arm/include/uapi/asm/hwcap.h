@@ -15,7 +15,7 @@
 #define HWCAP_EDSP	(1 << 7)
 #define HWCAP_JAVA	(1 << 8)
 #define HWCAP_IWMMXT	(1 << 9)
-#define HWCAP_CRUNCH	(1 << 10)
+#define HWCAP_CRUNCH	(1 << 10)	/* Obsolete */
 #define HWCAP_THUMBEE	(1 << 11)
 #define HWCAP_NEON	(1 << 12)
 #define HWCAP_VFPv3	(1 << 13)

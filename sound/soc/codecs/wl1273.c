@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC WL1273 codec driver
  *
  * Author:      Matti Aaltonen, <matti.j.aaltonen@nokia.com>
  *
  * Copyright:   (C) 2010, 2011 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/mfd/wl1273-core.h>
@@ -197,7 +183,7 @@ static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* Do not allow changes while stream is running */
-	if (snd_soc_component_is_active(component))
+	if (snd_soc_component_active(component))
 		return -EPERM;
 
 	if (ucontrol->value.enumerated.item[0] >=  ARRAY_SIZE(wl1273_audio_route))
@@ -325,7 +311,6 @@ static int wl1273_startup(struct snd_pcm_substream *substream,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
@@ -429,13 +414,13 @@ int wl1273_get_format(struct snd_soc_component *component, unsigned int *fmt)
 	case WL1273_MODE_FM_TX:
 		*fmt =	SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 
 		break;
 	case WL1273_MODE_BT:
 		*fmt =	SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_IB_NF |
-			SND_SOC_DAIFMT_CBM_CFM;
+			SND_SOC_DAIFMT_CBP_CFP;
 
 		break;
 	default:
@@ -490,7 +475,6 @@ static const struct snd_soc_component_driver soc_component_dev_wl1273 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int wl1273_platform_probe(struct platform_device *pdev)

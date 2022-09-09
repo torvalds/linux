@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI wrapper
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #define DSS_SUBSYS_NAME "HDMIWP"

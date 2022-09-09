@@ -14,6 +14,7 @@
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
+#include <asm/asm-extable.h>
 #include <asm/facility.h>
 #include <asm/page-states.h>
 
@@ -21,33 +22,27 @@ static int cmma_flag = 1;
 
 static int __init cmma(char *str)
 {
-	char *parm;
+	bool enabled;
 
-	parm = strstrip(str);
-	if (strcmp(parm, "yes") == 0 || strcmp(parm, "on") == 0) {
-		cmma_flag = 1;
-		return 1;
-	}
-	cmma_flag = 0;
-	if (strcmp(parm, "no") == 0 || strcmp(parm, "off") == 0)
-		return 1;
-	return 0;
+	if (!kstrtobool(str, &enabled))
+		cmma_flag = enabled;
+	return 1;
 }
 __setup("cmma=", cmma);
 
 static inline int cmma_test_essa(void)
 {
-	register unsigned long tmp asm("0") = 0;
-	register int rc asm("1");
+	unsigned long tmp = 0;
+	int rc = -EOPNOTSUPP;
 
 	/* test ESSA_GET_STATE */
 	asm volatile(
-		"	.insn	rrf,0xb9ab0000,%1,%1,%2,0\n"
-		"0:     la      %0,0\n"
+		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
+		"0:     la      %[rc],0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "=&d" (rc), "+&d" (tmp)
-		: "i" (ESSA_GET_STATE), "0" (-EOPNOTSUPP));
+		: [rc] "+&d" (rc), [tmp] "+&d" (tmp)
+		: [cmd] "i" (ESSA_GET_STATE));
 	return rc;
 }
 
@@ -118,7 +113,7 @@ static void mark_kernel_pmd(pud_t *pud, unsigned long addr, unsigned long end)
 		next = pmd_addr_end(addr, end);
 		if (pmd_none(*pmd) || pmd_large(*pmd))
 			continue;
-		page = virt_to_page(pmd_val(*pmd));
+		page = phys_to_page(pmd_val(*pmd));
 		set_bit(PG_arch_1, &page->flags);
 	} while (pmd++, addr = next, addr != end);
 }
@@ -136,7 +131,7 @@ static void mark_kernel_pud(p4d_t *p4d, unsigned long addr, unsigned long end)
 		if (pud_none(*pud) || pud_large(*pud))
 			continue;
 		if (!pud_folded(*pud)) {
-			page = virt_to_page(pud_val(*pud));
+			page = phys_to_page(pud_val(*pud));
 			for (i = 0; i < 3; i++)
 				set_bit(PG_arch_1, &page[i].flags);
 		}
@@ -157,7 +152,7 @@ static void mark_kernel_p4d(pgd_t *pgd, unsigned long addr, unsigned long end)
 		if (p4d_none(*p4d))
 			continue;
 		if (!p4d_folded(*p4d)) {
-			page = virt_to_page(p4d_val(*p4d));
+			page = phys_to_page(p4d_val(*p4d));
 			for (i = 0; i < 3; i++)
 				set_bit(PG_arch_1, &page[i].flags);
 		}
@@ -179,7 +174,7 @@ static void mark_kernel_pgd(void)
 		if (pgd_none(*pgd))
 			continue;
 		if (!pgd_folded(*pgd)) {
-			page = virt_to_page(pgd_val(*pgd));
+			page = phys_to_page(pgd_val(*pgd));
 			for (i = 0; i < 3; i++)
 				set_bit(PG_arch_1, &page[i].flags);
 		}
@@ -189,9 +184,9 @@ static void mark_kernel_pgd(void)
 
 void __init cmma_init_nodat(void)
 {
-	struct memblock_region *reg;
 	struct page *page;
 	unsigned long start, end, ix;
+	int i;
 
 	if (cmma_flag < 2)
 		return;
@@ -199,9 +194,7 @@ void __init cmma_init_nodat(void)
 	mark_kernel_pgd();
 
 	/* Set all kernel pages not used for page tables to stable/no-dat */
-	for_each_memblock(memory, reg) {
-		start = memblock_region_memory_base_pfn(reg);
-		end = memblock_region_memory_end_pfn(reg);
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, NULL) {
 		page = pfn_to_page(start);
 		for (ix = start; ix < end; ix++, page++) {
 			if (__test_and_clear_bit(PG_arch_1, &page->flags))
@@ -235,47 +228,4 @@ void arch_set_page_dat(struct page *page, int order)
 	if (!cmma_flag)
 		return;
 	set_page_stable_dat(page, order);
-}
-
-void arch_set_page_nodat(struct page *page, int order)
-{
-	if (cmma_flag < 2)
-		return;
-	set_page_stable_nodat(page, order);
-}
-
-int arch_test_page_nodat(struct page *page)
-{
-	unsigned char state;
-
-	if (cmma_flag < 2)
-		return 0;
-	state = get_page_state(page);
-	return !!(state & 0x20);
-}
-
-void arch_set_page_states(int make_stable)
-{
-	unsigned long flags, order, t;
-	struct list_head *l;
-	struct page *page;
-	struct zone *zone;
-
-	if (!cmma_flag)
-		return;
-	if (make_stable)
-		drain_local_pages(NULL);
-	for_each_populated_zone(zone) {
-		spin_lock_irqsave(&zone->lock, flags);
-		for_each_migratetype_order(order, t) {
-			list_for_each(l, &zone->free_area[order].free_list[t]) {
-				page = list_entry(l, struct page, lru);
-				if (make_stable)
-					set_page_stable_dat(page, order);
-				else
-					set_page_unused(page, order);
-			}
-		}
-		spin_unlock_irqrestore(&zone->lock, flags);
-	}
 }

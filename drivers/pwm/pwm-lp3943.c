@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI/National Semiconductor LP3943 PWM driver
  *
  * Copyright 2013 Texas Instruments
  *
  * Author: Milo Kim <milo.kim@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2.
  */
 
 #include <linux/err.h>
@@ -96,7 +93,7 @@ static void lp3943_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 }
 
 static int lp3943_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			     int duty_ns, int period_ns)
+			     u64 duty_ns, u64 period_ns)
 {
 	struct lp3943_pwm *lp3943_pwm = to_lp3943_pwm(chip);
 	struct lp3943 *lp3943 = lp3943_pwm->lp3943;
@@ -121,14 +118,20 @@ static int lp3943_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		reg_duty     = LP3943_REG_PWM1;
 	}
 
-	period_ns = clamp(period_ns, LP3943_MIN_PERIOD, LP3943_MAX_PERIOD);
-	val       = (u8)(period_ns / LP3943_MIN_PERIOD - 1);
+	/*
+	 * Note that after this clamping, period_ns fits into an int. This is
+	 * helpful because we can resort to integer division below instead of
+	 * the (more expensive) 64 bit division.
+	 */
+	period_ns = clamp(period_ns, (u64)LP3943_MIN_PERIOD, (u64)LP3943_MAX_PERIOD);
+	val       = (u8)((int)period_ns / LP3943_MIN_PERIOD - 1);
 
 	err = lp3943_write_byte(lp3943, reg_prescale, val);
 	if (err)
 		return err;
 
-	val = (u8)(duty_ns * LP3943_MAX_DUTY / period_ns);
+	duty_ns = min(duty_ns, period_ns);
+	val = (u8)((int)duty_ns * LP3943_MAX_DUTY / (int)period_ns);
 
 	return lp3943_write_byte(lp3943, reg_duty, val);
 }
@@ -185,12 +188,34 @@ static void lp3943_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	lp3943_pwm_set_mode(lp3943_pwm, pwm_map, LP3943_GPIO_OUT_HIGH);
 }
 
+static int lp3943_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			    const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			lp3943_pwm_disable(chip, pwm);
+		return 0;
+	}
+
+	err = lp3943_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = lp3943_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops lp3943_pwm_ops = {
 	.request	= lp3943_pwm_request,
 	.free		= lp3943_pwm_free,
-	.config		= lp3943_pwm_config,
-	.enable		= lp3943_pwm_enable,
-	.disable	= lp3943_pwm_disable,
+	.apply		= lp3943_pwm_apply,
 	.owner		= THIS_MODULE,
 };
 
@@ -279,16 +304,7 @@ static int lp3943_pwm_probe(struct platform_device *pdev)
 	lp3943_pwm->chip.ops = &lp3943_pwm_ops;
 	lp3943_pwm->chip.npwm = LP3943_NUM_PWMS;
 
-	platform_set_drvdata(pdev, lp3943_pwm);
-
-	return pwmchip_add(&lp3943_pwm->chip);
-}
-
-static int lp3943_pwm_remove(struct platform_device *pdev)
-{
-	struct lp3943_pwm *lp3943_pwm = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&lp3943_pwm->chip);
+	return devm_pwmchip_add(&pdev->dev, &lp3943_pwm->chip);
 }
 
 #ifdef CONFIG_OF
@@ -301,7 +317,6 @@ MODULE_DEVICE_TABLE(of, lp3943_pwm_of_match);
 
 static struct platform_driver lp3943_pwm_driver = {
 	.probe = lp3943_pwm_probe,
-	.remove = lp3943_pwm_remove,
 	.driver = {
 		.name = "lp3943-pwm",
 		.of_match_table = of_match_ptr(lp3943_pwm_of_match),

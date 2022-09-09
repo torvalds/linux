@@ -11,7 +11,7 @@ static size_t syscall_arg__scnprintf_waitid_options(char *bf, size_t size,
 
 #define	P_OPTION(n) \
 	if (options & W##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "",  #n); \
 		options &= ~W##n; \
 	}
 

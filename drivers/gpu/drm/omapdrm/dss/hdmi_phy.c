@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI PHY
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/kernel.h>
@@ -185,15 +182,12 @@ static const struct hdmi_phy_features omap54xx_phy_feats = {
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy,
 		  unsigned int version)
 {
-	struct resource *res;
-
 	if (version == 4)
 		phy->features = &omap44xx_phy_feats;
 	else
 		phy->features = &omap54xx_phy_feats;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
-	phy->base = devm_ioremap_resource(&pdev->dev, res);
+	phy->base = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(phy->base))
 		return PTR_ERR(phy->base);
 

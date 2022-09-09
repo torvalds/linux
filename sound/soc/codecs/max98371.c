@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max98371.c -- ALSA SoC Stereo MAX98371 driver
  *
  * Copyright 2015-16 Maxim Integrated Products
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -157,10 +154,6 @@ static const DECLARE_TLV_DB_RANGE(max98371_gain_tlv,
 	8, 10, TLV_DB_SCALE_ITEM(400, 100, 0)
 );
 
-static const DECLARE_TLV_DB_RANGE(max98371_noload_gain_tlv,
-	0, 11, TLV_DB_SCALE_ITEM(950, 100, 0),
-);
-
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -6300, 50, 1);
 
 static const struct snd_kcontrol_new max98371_snd_controls[] = {
@@ -191,8 +184,8 @@ static int max98371_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	struct max98371_priv *max98371 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		dev_err(component->dev, "DAI clock mode unsupported");
@@ -358,7 +351,6 @@ static const struct snd_soc_component_driver max98371_component = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98371_regmap = {
@@ -372,8 +364,7 @@ static const struct regmap_config max98371_regmap = {
 	.cache_type       = REGCACHE_RBTREE,
 };
 
-static int max98371_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int max98371_i2c_probe(struct i2c_client *i2c)
 {
 	struct max98371_priv *max98371;
 	int ret, reg;
@@ -415,19 +406,20 @@ static const struct i2c_device_id max98371_i2c_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, max98371_i2c_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id max98371_of_match[] = {
 	{ .compatible = "maxim,max98371", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max98371_of_match);
+#endif
 
 static struct i2c_driver max98371_i2c_driver = {
 	.driver = {
 		.name = "max98371",
-		.pm = NULL,
 		.of_match_table = of_match_ptr(max98371_of_match),
 	},
-	.probe  = max98371_i2c_probe,
+	.probe_new  = max98371_i2c_probe,
 	.id_table = max98371_i2c_id,
 };
 

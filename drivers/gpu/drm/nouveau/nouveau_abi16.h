@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_ABI16_H__
 #define __NOUVEAU_ABI16_H__
 
@@ -6,7 +6,6 @@
 	struct drm_device *dev, void *data, struct drm_file *file_priv
 
 int nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS);
-int nouveau_abi16_ioctl_setparam(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS);
@@ -22,6 +21,7 @@ struct nouveau_abi16_ntfy {
 struct nouveau_abi16_chan {
 	struct list_head head;
 	struct nouveau_channel *chan;
+	struct nvif_object ce;
 	struct list_head notifiers;
 	struct nouveau_bo *ntfy;
 	struct nouveau_vma *ntfy_vma;

@@ -19,20 +19,13 @@ struct mmu_psize_def {
 	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
 	unsigned int	tlbiel;	/* tlbiel supported for that page size */
 	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
+	unsigned long   h_rpt_pgsize; /* H_RPT_INVALIDATE page size encoding */
 	union {
 		unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
 		unsigned long ap;	/* Ap encoding used by PowerISA 3.0 */
 	};
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
-
-/*
- * For BOOK3s 64 with 4k and 64K linux page size
- * we want to use pointers, because the page table
- * actually store pfn
- */
-typedef pte_t *pgtable_t;
-
 #endif /* __ASSEMBLY__ */
 
 /* 64-bit classic hash table MMU */
@@ -69,35 +62,31 @@ extern struct patb_entry *partition_tb;
 #define PRTS_MASK	0x1f		/* process table size field */
 #define PRTB_MASK	0x0ffffffffffff000UL
 
+/* Number of supported LPID bits */
+extern unsigned int mmu_lpid_bits;
+
 /* Number of supported PID bits */
 extern unsigned int mmu_pid_bits;
 
 /* Base PID to allocate from */
 extern unsigned int mmu_base_pid;
 
+/*
+ * memory block size used with radix translation.
+ */
+extern unsigned long __ro_after_init radix_mem_block_size;
+
 #define PRTB_SIZE_SHIFT	(mmu_pid_bits + 4)
 #define PRTB_ENTRIES	(1ul << mmu_pid_bits)
 
-/*
- * Power9 currently only support 64K partition table size.
- */
-#define PATB_SIZE_SHIFT	16
+#define PATB_SIZE_SHIFT	(mmu_lpid_bits + 4)
+#define PATB_ENTRIES	(1ul << mmu_lpid_bits)
 
 typedef unsigned long mm_context_id_t;
 struct spinlock;
 
 /* Maximum possible number of NPUs in a system. */
 #define NV_MAX_NPUS 8
-
-/*
- * One bit per slice. We have lower slices which cover 256MB segments
- * upto 4G range. That gets us 16 low slices. For the rest we track slices
- * in 1TB size.
- */
-struct slice_mask {
-	u64 low_slices;
-	DECLARE_BITMAP(high_slices, SLICE_NUM_HIGH);
-};
 
 typedef struct {
 	union {
@@ -110,9 +99,10 @@ typedef struct {
 		 * from EA and new context ids to build the new VAs.
 		 */
 		mm_context_id_t id;
+#ifdef CONFIG_PPC_64S_HASH_MMU
 		mm_context_id_t extended_id[TASK_SIZE_USER64/TASK_CONTEXT_SIZE];
+#endif
 	};
-	u16 user_psize;		/* page size index */
 
 	/* Number of bits in the mm_cpumask */
 	atomic_t active_cpus;
@@ -120,29 +110,14 @@ typedef struct {
 	/* Number of users of the external (Nest) MMU */
 	atomic_t copros;
 
-	/* NPU NMMU context */
-	struct npu_context *npu_context;
+	/* Number of user space windows opened in process mm_context */
+	atomic_t vas_windows;
 
-#ifdef CONFIG_PPC_MM_SLICES
-	 /* SLB page size encodings*/
-	unsigned char low_slices_psize[BITS_PER_LONG / BITS_PER_BYTE];
-	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long slb_addr_limit;
-# ifdef CONFIG_PPC_64K_PAGES
-	struct slice_mask mask_64k;
-# endif
-	struct slice_mask mask_4k;
-# ifdef CONFIG_HUGETLB_PAGE
-	struct slice_mask mask_16m;
-	struct slice_mask mask_16g;
-# endif
-#else
-	u16 sllp;		/* SLB page size encoding */
+#ifdef CONFIG_PPC_64S_HASH_MMU
+	struct hash_mm_context *hash_context;
 #endif
-	unsigned long vdso_base;
-#ifdef CONFIG_PPC_SUBPAGE_PROT
-	struct subpage_prot_table spt;
-#endif /* CONFIG_PPC_SUBPAGE_PROT */
+
+	void __user *vdso;
 	/*
 	 * pagetable fragment support
 	 */
@@ -163,23 +138,90 @@ typedef struct {
 #endif
 } mm_context_t;
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
+static inline u16 mm_ctx_user_psize(mm_context_t *ctx)
+{
+	return ctx->hash_context->user_psize;
+}
+
+static inline void mm_ctx_set_user_psize(mm_context_t *ctx, u16 user_psize)
+{
+	ctx->hash_context->user_psize = user_psize;
+}
+
+static inline unsigned char *mm_ctx_low_slices(mm_context_t *ctx)
+{
+	return ctx->hash_context->low_slices_psize;
+}
+
+static inline unsigned char *mm_ctx_high_slices(mm_context_t *ctx)
+{
+	return ctx->hash_context->high_slices_psize;
+}
+
+static inline unsigned long mm_ctx_slb_addr_limit(mm_context_t *ctx)
+{
+	return ctx->hash_context->slb_addr_limit;
+}
+
+static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long limit)
+{
+	ctx->hash_context->slb_addr_limit = limit;
+}
+
+static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
+{
+#ifdef CONFIG_PPC_64K_PAGES
+	if (psize == MMU_PAGE_64K)
+		return &ctx->hash_context->mask_64k;
+#endif
+#ifdef CONFIG_HUGETLB_PAGE
+	if (psize == MMU_PAGE_16M)
+		return &ctx->hash_context->mask_16m;
+	if (psize == MMU_PAGE_16G)
+		return &ctx->hash_context->mask_16g;
+#endif
+	BUG_ON(psize != MMU_PAGE_4K);
+
+	return &ctx->hash_context->mask_4k;
+}
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
+{
+	return ctx->hash_context->spt;
+}
+#endif
+
 /*
  * The current system page and segment sizes
  */
-extern int mmu_linear_psize;
 extern int mmu_virtual_psize;
 extern int mmu_vmalloc_psize;
-extern int mmu_vmemmap_psize;
 extern int mmu_io_psize;
+#else /* CONFIG_PPC_64S_HASH_MMU */
+#ifdef CONFIG_PPC_64K_PAGES
+#define mmu_virtual_psize MMU_PAGE_64K
+#else
+#define mmu_virtual_psize MMU_PAGE_4K
+#endif
+#endif
+extern int mmu_linear_psize;
+extern int mmu_vmemmap_psize;
 
 /* MMU initialization */
 void mmu_early_init_devtree(void);
 void hash__early_init_devtree(void);
 void radix__early_init_devtree(void);
-extern void radix_init_native(void);
+#ifdef CONFIG_PPC_PKEY
+void pkey_early_init_devtree(void);
+#else
+static inline void pkey_early_init_devtree(void) {}
+#endif
+
 extern void hash__early_init_mmu(void);
 extern void radix__early_init_mmu(void);
-static inline void early_init_mmu(void)
+static inline void __init early_init_mmu(void)
 {
 	if (radix_enabled())
 		return radix__early_init_mmu();
@@ -196,27 +238,38 @@ static inline void early_init_mmu_secondary(void)
 
 extern void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					 phys_addr_t first_memblock_size);
-extern void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
-					 phys_addr_t first_memblock_size);
 static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					      phys_addr_t first_memblock_size)
 {
-	if (early_radix_enabled())
-		return radix__setup_initial_memory_limit(first_memblock_base,
-						   first_memblock_size);
-	return hash__setup_initial_memory_limit(first_memblock_base,
-					   first_memblock_size);
+	/*
+	 * Hash has more strict restrictions. At this point we don't
+	 * know which translations we will pick. Hence go with hash
+	 * restrictions.
+	 */
+	if (!early_radix_enabled())
+		hash__setup_initial_memory_limit(first_memblock_base,
+						 first_memblock_size);
 }
 
-extern int (*register_process_table)(unsigned long base, unsigned long page_size,
-				     unsigned long tbl_size);
-
 #ifdef CONFIG_PPC_PSERIES
-extern void radix_init_pseries(void);
+void __init radix_init_pseries(void);
 #else
-static inline void radix_init_pseries(void) { };
+static inline void radix_init_pseries(void) { }
 #endif
 
+#ifdef CONFIG_HOTPLUG_CPU
+#define arch_clear_mm_cpumask_cpu(cpu, mm)				\
+	do {								\
+		if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {		\
+			atomic_dec(&(mm)->context.active_cpus);		\
+			cpumask_clear_cpu(cpu, mm_cpumask(mm));		\
+		}							\
+	} while (0)
+
+void cleanup_cpu_mmu_context(void);
+#endif
+
+#ifdef CONFIG_PPC_64S_HASH_MMU
 static inline int get_user_context(mm_context_t *ctx, unsigned long ea)
 {
 	int index = ea >> MAX_EA_BITS_PER_CONTEXT;
@@ -236,6 +289,7 @@ static inline unsigned long get_user_vsid(mm_context_t *ctx,
 
 	return get_vsid(context, ea, ssize);
 }
+#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

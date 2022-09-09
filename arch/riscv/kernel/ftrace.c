@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
@@ -7,9 +7,21 @@
 
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
+#include <linux/memory.h>
 #include <asm/cacheflush.h>
+#include <asm/patch.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+void ftrace_arch_code_modify_prepare(void) __acquires(&text_mutex)
+{
+	mutex_lock(&text_mutex);
+}
+
+void ftrace_arch_code_modify_post_process(void) __releases(&text_mutex)
+{
+	mutex_unlock(&text_mutex);
+}
+
 static int ftrace_check_current_call(unsigned long hook_pos,
 				     unsigned int *expected)
 {
@@ -24,7 +36,8 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 	 * Read the text we want to modify;
 	 * return must be -EFAULT on read error
 	 */
-	if (probe_kernel_read(replaced, (void *)hook_pos, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(replaced, (void *)hook_pos,
+			MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/*
@@ -32,7 +45,7 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 	 * return must be -EINVAL on failed comparison
 	 */
 	if (memcmp(expected, replaced, sizeof(replaced))) {
-		pr_err("%p: expected (%08x %08x) but get (%08x %08x)",
+		pr_err("%p: expected (%08x %08x) but got (%08x %08x)\n",
 		       (void *)hook_pos, expected[0], expected[1], replaced[0],
 		       replaced[1]);
 		return -EINVAL;
@@ -46,46 +59,86 @@ static int __ftrace_modify_call(unsigned long hook_pos, unsigned long target,
 {
 	unsigned int call[2];
 	unsigned int nops[2] = {NOP4, NOP4};
-	int ret = 0;
 
 	make_call(hook_pos, target, call);
 
-	/* replace the auipc-jalr pair at once */
-	ret = probe_kernel_write((void *)hook_pos, enable ? call : nops,
-				 MCOUNT_INSN_SIZE);
-	/* return must be -EPERM on write error */
-	if (ret)
+	/* Replace the auipc-jalr pair at once. Return -EPERM on write error. */
+	if (patch_text_nosync
+	    ((void *)hook_pos, enable ? call : nops, MCOUNT_INSN_SIZE))
 		return -EPERM;
-
-	smp_mb();
-	flush_icache_range((void *)hook_pos, (void *)hook_pos + MCOUNT_INSN_SIZE);
 
 	return 0;
 }
 
+/*
+ * Put 5 instructions with 16 bytes at the front of function within
+ * patchable function entry nops' area.
+ *
+ * 0: REG_S  ra, -SZREG(sp)
+ * 1: auipc  ra, 0x?
+ * 2: jalr   -?(ra)
+ * 3: REG_L  ra, -SZREG(sp)
+ *
+ * So the opcodes is:
+ * 0: 0xfe113c23 (sd)/0xfe112e23 (sw)
+ * 1: 0x???????? -> auipc
+ * 2: 0x???????? -> jalr
+ * 3: 0xff813083 (ld)/0xffc12083 (lw)
+ */
+#if __riscv_xlen == 64
+#define INSN0	0xfe113c23
+#define INSN3	0xff813083
+#elif __riscv_xlen == 32
+#define INSN0	0xfe112e23
+#define INSN3	0xffc12083
+#endif
+
+#define FUNC_ENTRY_SIZE	16
+#define FUNC_ENTRY_JMP	4
+
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	int ret = ftrace_check_current_call(rec->ip, NULL);
+	unsigned int call[4] = {INSN0, 0, 0, INSN3};
+	unsigned long target = addr;
+	unsigned long caller = rec->ip + FUNC_ENTRY_JMP;
 
-	if (ret)
-		return ret;
+	call[1] = to_auipc_insn((unsigned int)(target - caller));
+	call[2] = to_jalr_insn((unsigned int)(target - caller));
 
-	return __ftrace_modify_call(rec->ip, addr, true);
+	if (patch_text_nosync((void *)rec->ip, call, FUNC_ENTRY_SIZE))
+		return -EPERM;
+
+	return 0;
 }
 
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
-	unsigned int call[2];
-	int ret;
+	unsigned int nops[4] = {NOP4, NOP4, NOP4, NOP4};
 
-	make_call(rec->ip, addr, call);
-	ret = ftrace_check_current_call(rec->ip, call);
+	if (patch_text_nosync((void *)rec->ip, nops, FUNC_ENTRY_SIZE))
+		return -EPERM;
 
-	if (ret)
-		return ret;
+	return 0;
+}
 
-	return __ftrace_modify_call(rec->ip, addr, false);
+
+/*
+ * This is called early on, and isn't wrapped by
+ * ftrace_arch_code_modify_{prepare,post_process}() and therefor doesn't hold
+ * text_mutex, which triggers a lockdep failure.  SMP isn't running so we could
+ * just directly poke the text, but it's simpler to just take the lock
+ * ourselves.
+ */
+int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+{
+	int out;
+
+	ftrace_arch_code_modify_prepare();
+	out = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
+	ftrace_arch_code_modify_post_process();
+
+	return out;
 }
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
@@ -99,11 +152,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 
 	return ret;
 }
-
-int __init ftrace_dyn_arch_init(void)
-{
-	return 0;
-}
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
@@ -111,15 +159,16 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
 	unsigned int call[2];
+	unsigned long caller = rec->ip + FUNC_ENTRY_JMP;
 	int ret;
 
-	make_call(rec->ip, old_addr, call);
-	ret = ftrace_check_current_call(rec->ip, call);
+	make_call(caller, old_addr, call);
+	ret = ftrace_check_current_call(caller, call);
 
 	if (ret)
 		return ret;
 
-	return __ftrace_modify_call(rec->ip, addr, true);
+	return __ftrace_modify_call(caller, addr, true);
 }
 #endif
 
@@ -142,59 +191,36 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 */
 	old = *parent;
 
-	if (function_graph_enter(old, self_addr, frame_pointer, parent))
+	if (!function_graph_enter(old, self_addr, frame_pointer, parent))
 		*parent = return_hooker;
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern void ftrace_graph_call(void);
+extern void ftrace_graph_regs_call(void);
 int ftrace_enable_ftrace_graph_caller(void)
 {
-	unsigned int call[2];
-	static int init_graph = 1;
 	int ret;
 
-	make_call(&ftrace_graph_call, &ftrace_stub, call);
-
-	/*
-	 * When enabling graph tracer for the first time, ftrace_graph_call
-	 * should contains a call to ftrace_stub.  Once it has been disabled,
-	 * the 8-bytes at the position becomes NOPs.
-	 */
-	if (init_graph) {
-		ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
-						call);
-		init_graph = 0;
-	} else {
-		ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
-						NULL);
-	}
-
+	ret = __ftrace_modify_call((unsigned long)&ftrace_graph_call,
+				    (unsigned long)&prepare_ftrace_return, true);
 	if (ret)
 		return ret;
 
-	return __ftrace_modify_call((unsigned long)&ftrace_graph_call,
+	return __ftrace_modify_call((unsigned long)&ftrace_graph_regs_call,
 				    (unsigned long)&prepare_ftrace_return, true);
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	unsigned int call[2];
 	int ret;
 
-	make_call(&ftrace_graph_call, &prepare_ftrace_return, call);
-
-	/*
-	 * This is to make sure that ftrace_enable_ftrace_graph_caller
-	 * did the right thing.
-	 */
-	ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
-					call);
-
+	ret = __ftrace_modify_call((unsigned long)&ftrace_graph_call,
+				    (unsigned long)&prepare_ftrace_return, false);
 	if (ret)
 		return ret;
 
-	return __ftrace_modify_call((unsigned long)&ftrace_graph_call,
+	return __ftrace_modify_call((unsigned long)&ftrace_graph_regs_call,
 				    (unsigned long)&prepare_ftrace_return, false);
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */

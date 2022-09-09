@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * forcedeth: Ethernet driver for NVIDIA nForce media access controllers.
  *
@@ -14,19 +15,6 @@
  * Copyright (C) 2004 Carl-Daniel Hailfinger (invalid MAC handling, insane
  *		IRQ rate fixes, bigendian fixes, cleanups, verification)
  * Copyright (c) 2004,2005,2006,2007,2008,2009 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -68,8 +56,8 @@
 
 #include <asm/irq.h>
 
-#define TX_WORK_PER_LOOP  64
-#define RX_WORK_PER_LOOP  64
+#define TX_WORK_PER_LOOP  NAPI_POLL_WEIGHT
+#define RX_WORK_PER_LOOP  NAPI_POLL_WEIGHT
 
 /*
  * Hardware access:
@@ -725,6 +713,21 @@ struct nv_skb_map {
 	struct nv_skb_map *next_tx_ctx;
 };
 
+struct nv_txrx_stats {
+	u64 stat_rx_packets;
+	u64 stat_rx_bytes; /* not always available in HW */
+	u64 stat_rx_missed_errors;
+	u64 stat_rx_dropped;
+	u64 stat_tx_packets; /* not always available in HW */
+	u64 stat_tx_bytes;
+	u64 stat_tx_dropped;
+};
+
+#define nv_txrx_stats_inc(member) \
+		__this_cpu_inc(np->txrx_stats->member)
+#define nv_txrx_stats_add(member, count) \
+		__this_cpu_add(np->txrx_stats->member, (count))
+
 /*
  * SMP locking:
  * All hardware access under netdev_priv(dev)->lock, except the performance
@@ -809,10 +812,7 @@ struct fe_priv {
 
 	/* RX software stats */
 	struct u64_stats_sync swstats_rx_syncp;
-	u64 stat_rx_packets;
-	u64 stat_rx_bytes; /* not always available in HW */
-	u64 stat_rx_missed_errors;
-	u64 stat_rx_dropped;
+	struct nv_txrx_stats __percpu *txrx_stats;
 
 	/* media detection workaround.
 	 * Locking: Within irq hander or disable_irq+spin_lock(&np->lock);
@@ -838,9 +838,6 @@ struct fe_priv {
 
 	/* TX software stats */
 	struct u64_stats_sync swstats_tx_syncp;
-	u64 stat_tx_packets; /* not always available in HW */
-	u64 stat_tx_bytes;
-	u64 stat_tx_dropped;
 
 	/* msi/msi-x fields */
 	u32 msi_flags;
@@ -1046,8 +1043,7 @@ static int using_multi_irqs(struct net_device *dev)
 	struct fe_priv *np = get_nvpriv(dev);
 
 	if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
-	    ((np->msi_flags & NV_MSI_X_ENABLED) &&
-	     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1)))
+	    ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))
 		return 0;
 	else
 		return 1;
@@ -1669,11 +1665,7 @@ static void nv_update_stats(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 
-	/* If it happens that this is run in top-half context, then
-	 * replace the spin_lock of hwstats_lock with
-	 * spin_lock_irqsave() in calling functions. */
-	WARN_ONCE(in_irq(), "forcedeth: estats spin_lock(_bh) from top-half");
-	assert_spin_locked(&np->hwstats_lock);
+	lockdep_assert_held(&np->hwstats_lock);
 
 	/* query hardware */
 	np->estats.tx_bytes += readl(base + NvRegTxCnt);
@@ -1733,6 +1725,39 @@ static void nv_update_stats(struct net_device *dev)
 	}
 }
 
+static void nv_get_stats(int cpu, struct fe_priv *np,
+			 struct rtnl_link_stats64 *storage)
+{
+	struct nv_txrx_stats *src = per_cpu_ptr(np->txrx_stats, cpu);
+	unsigned int syncp_start;
+	u64 rx_packets, rx_bytes, rx_dropped, rx_missed_errors;
+	u64 tx_packets, tx_bytes, tx_dropped;
+
+	do {
+		syncp_start = u64_stats_fetch_begin_irq(&np->swstats_rx_syncp);
+		rx_packets       = src->stat_rx_packets;
+		rx_bytes         = src->stat_rx_bytes;
+		rx_dropped       = src->stat_rx_dropped;
+		rx_missed_errors = src->stat_rx_missed_errors;
+	} while (u64_stats_fetch_retry_irq(&np->swstats_rx_syncp, syncp_start));
+
+	storage->rx_packets       += rx_packets;
+	storage->rx_bytes         += rx_bytes;
+	storage->rx_dropped       += rx_dropped;
+	storage->rx_missed_errors += rx_missed_errors;
+
+	do {
+		syncp_start = u64_stats_fetch_begin_irq(&np->swstats_tx_syncp);
+		tx_packets  = src->stat_tx_packets;
+		tx_bytes    = src->stat_tx_bytes;
+		tx_dropped  = src->stat_tx_dropped;
+	} while (u64_stats_fetch_retry_irq(&np->swstats_tx_syncp, syncp_start));
+
+	storage->tx_packets += tx_packets;
+	storage->tx_bytes   += tx_bytes;
+	storage->tx_dropped += tx_dropped;
+}
+
 /*
  * nv_get_stats64: dev->ndo_get_stats64 function
  * Get latest stats value from the nic.
@@ -1745,7 +1770,7 @@ nv_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *storage)
 	__releases(&netdev_priv(dev)->hwstats_lock)
 {
 	struct fe_priv *np = netdev_priv(dev);
-	unsigned int syncp_start;
+	int cpu;
 
 	/*
 	 * Note: because HW stats are not always available and for
@@ -1758,20 +1783,8 @@ nv_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *storage)
 	 */
 
 	/* software stats */
-	do {
-		syncp_start = u64_stats_fetch_begin_irq(&np->swstats_rx_syncp);
-		storage->rx_packets       = np->stat_rx_packets;
-		storage->rx_bytes         = np->stat_rx_bytes;
-		storage->rx_dropped       = np->stat_rx_dropped;
-		storage->rx_missed_errors = np->stat_rx_missed_errors;
-	} while (u64_stats_fetch_retry_irq(&np->swstats_rx_syncp, syncp_start));
-
-	do {
-		syncp_start = u64_stats_fetch_begin_irq(&np->swstats_tx_syncp);
-		storage->tx_packets = np->stat_tx_packets;
-		storage->tx_bytes   = np->stat_tx_bytes;
-		storage->tx_dropped = np->stat_tx_dropped;
-	} while (u64_stats_fetch_retry_irq(&np->swstats_tx_syncp, syncp_start));
+	for_each_online_cpu(cpu)
+		nv_get_stats(cpu, np, storage);
 
 	/* If the nic supports hw counters then retrieve latest values */
 	if (np->driver_data & DEV_HAS_STATISTICS_V123) {
@@ -1839,7 +1852,7 @@ static int nv_alloc_rx(struct net_device *dev)
 		} else {
 packet_dropped:
 			u64_stats_update_begin(&np->swstats_rx_syncp);
-			np->stat_rx_dropped++;
+			nv_txrx_stats_inc(stat_rx_dropped);
 			u64_stats_update_end(&np->swstats_rx_syncp);
 			return 1;
 		}
@@ -1881,7 +1894,7 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 		} else {
 packet_dropped:
 			u64_stats_update_begin(&np->swstats_rx_syncp);
-			np->stat_rx_dropped++;
+			nv_txrx_stats_inc(stat_rx_dropped);
 			u64_stats_update_end(&np->swstats_rx_syncp);
 			return 1;
 		}
@@ -2025,7 +2038,7 @@ static void nv_drain_tx(struct net_device *dev)
 		}
 		if (nv_release_txskb(np, &np->tx_skb[i])) {
 			u64_stats_update_begin(&np->swstats_tx_syncp);
-			np->stat_tx_dropped++;
+			nv_txrx_stats_inc(stat_tx_dropped);
 			u64_stats_update_end(&np->swstats_tx_syncp);
 		}
 		np->tx_skb[i].dma = 0;
@@ -2207,6 +2220,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct nv_skb_map *prev_tx_ctx;
 	struct nv_skb_map *tmp_tx_ctx = NULL, *start_tx_ctx = NULL;
 	unsigned long flags;
+	netdev_tx_t ret = NETDEV_TX_OK;
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
@@ -2222,7 +2236,12 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		np->tx_stop = 1;
 		spin_unlock_irqrestore(&np->lock, flags);
-		return NETDEV_TX_BUSY;
+
+		/* When normal packets and/or xmit_more packets fill up
+		 * tx_desc, it is necessary to trigger NIC tx reg.
+		 */
+		ret = NETDEV_TX_BUSY;
+		goto txkick;
 	}
 	spin_unlock_irqrestore(&np->lock, flags);
 
@@ -2239,9 +2258,12 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			/* on DMA mapping error - drop the packet */
 			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
-			np->stat_tx_dropped++;
+			nv_txrx_stats_inc(stat_tx_dropped);
 			u64_stats_update_end(&np->swstats_tx_syncp);
-			return NETDEV_TX_OK;
+
+			ret = NETDEV_TX_OK;
+
+			goto dma_error;
 		}
 		np->put_tx_ctx->dma_len = bcnt;
 		np->put_tx_ctx->dma_single = 1;
@@ -2285,9 +2307,12 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				dev_kfree_skb_any(skb);
 				np->put_tx_ctx = start_tx_ctx;
 				u64_stats_update_begin(&np->swstats_tx_syncp);
-				np->stat_tx_dropped++;
+				nv_txrx_stats_inc(stat_tx_dropped);
 				u64_stats_update_end(&np->swstats_tx_syncp);
-				return NETDEV_TX_OK;
+
+				ret = NETDEV_TX_OK;
+
+				goto dma_error;
 			}
 
 			np->put_tx_ctx->dma_len = bcnt;
@@ -2339,8 +2364,15 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
-	return NETDEV_TX_OK;
+txkick:
+	if (netif_queue_stopped(dev) || !netdev_xmit_more()) {
+		u32 txrxctl_kick;
+dma_error:
+		txrxctl_kick = NVREG_TXRXCTL_KICK | np->txrxctl_bits;
+		writel(txrxctl_kick, get_hwbase(dev) + NvRegTxRxControl);
+	}
+
+	return ret;
 }
 
 static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
@@ -2363,6 +2395,7 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	struct nv_skb_map *start_tx_ctx = NULL;
 	struct nv_skb_map *tmp_tx_ctx = NULL;
 	unsigned long flags;
+	netdev_tx_t ret = NETDEV_TX_OK;
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
@@ -2378,7 +2411,13 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 		netif_stop_queue(dev);
 		np->tx_stop = 1;
 		spin_unlock_irqrestore(&np->lock, flags);
-		return NETDEV_TX_BUSY;
+
+		/* When normal packets and/or xmit_more packets fill up
+		 * tx_desc, it is necessary to trigger NIC tx reg.
+		 */
+		ret = NETDEV_TX_BUSY;
+
+		goto txkick;
 	}
 	spin_unlock_irqrestore(&np->lock, flags);
 
@@ -2396,9 +2435,12 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			/* on DMA mapping error - drop the packet */
 			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
-			np->stat_tx_dropped++;
+			nv_txrx_stats_inc(stat_tx_dropped);
 			u64_stats_update_end(&np->swstats_tx_syncp);
-			return NETDEV_TX_OK;
+
+			ret = NETDEV_TX_OK;
+
+			goto dma_error;
 		}
 		np->put_tx_ctx->dma_len = bcnt;
 		np->put_tx_ctx->dma_single = 1;
@@ -2443,9 +2485,12 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 				dev_kfree_skb_any(skb);
 				np->put_tx_ctx = start_tx_ctx;
 				u64_stats_update_begin(&np->swstats_tx_syncp);
-				np->stat_tx_dropped++;
+				nv_txrx_stats_inc(stat_tx_dropped);
 				u64_stats_update_end(&np->swstats_tx_syncp);
-				return NETDEV_TX_OK;
+
+				ret = NETDEV_TX_OK;
+
+				goto dma_error;
 			}
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
@@ -2524,8 +2569,15 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
-	return NETDEV_TX_OK;
+txkick:
+	if (netif_queue_stopped(dev) || !netdev_xmit_more()) {
+		u32 txrxctl_kick;
+dma_error:
+		txrxctl_kick = NVREG_TXRXCTL_KICK | np->txrxctl_bits;
+		writel(txrxctl_kick, get_hwbase(dev) + NvRegTxRxControl);
+	}
+
+	return ret;
 }
 
 static inline void nv_tx_flip_ownership(struct net_device *dev)
@@ -2572,9 +2624,12 @@ static int nv_tx_done(struct net_device *dev, int limit)
 					    && !(flags & NV_TX_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
 				} else {
+					unsigned int len;
+
 					u64_stats_update_begin(&np->swstats_tx_syncp);
-					np->stat_tx_packets++;
-					np->stat_tx_bytes += np->get_tx_ctx->skb->len;
+					nv_txrx_stats_inc(stat_tx_packets);
+					len = np->get_tx_ctx->skb->len;
+					nv_txrx_stats_add(stat_tx_bytes, len);
 					u64_stats_update_end(&np->swstats_tx_syncp);
 				}
 				bytes_compl += np->get_tx_ctx->skb->len;
@@ -2589,9 +2644,12 @@ static int nv_tx_done(struct net_device *dev, int limit)
 					    && !(flags & NV_TX2_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
 				} else {
+					unsigned int len;
+
 					u64_stats_update_begin(&np->swstats_tx_syncp);
-					np->stat_tx_packets++;
-					np->stat_tx_bytes += np->get_tx_ctx->skb->len;
+					nv_txrx_stats_inc(stat_tx_packets);
+					len = np->get_tx_ctx->skb->len;
+					nv_txrx_stats_add(stat_tx_bytes, len);
 					u64_stats_update_end(&np->swstats_tx_syncp);
 				}
 				bytes_compl += np->get_tx_ctx->skb->len;
@@ -2639,9 +2697,12 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
 						nv_legacybackoff_reseed(dev);
 				}
 			} else {
+				unsigned int len;
+
 				u64_stats_update_begin(&np->swstats_tx_syncp);
-				np->stat_tx_packets++;
-				np->stat_tx_bytes += np->get_tx_ctx->skb->len;
+				nv_txrx_stats_inc(stat_tx_packets);
+				len = np->get_tx_ctx->skb->len;
+				nv_txrx_stats_add(stat_tx_bytes, len);
 				u64_stats_update_end(&np->swstats_tx_syncp);
 			}
 
@@ -2673,7 +2734,7 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
  * nv_tx_timeout: dev->tx_timeout function
  * Called with netif_tx_lock held.
  */
-static void nv_tx_timeout(struct net_device *dev)
+static void nv_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
@@ -2818,6 +2879,15 @@ static int nv_getlen(struct net_device *dev, void *packet, int datalen)
 	}
 }
 
+static void rx_missing_handler(u32 flags, struct fe_priv *np)
+{
+	if (flags & NV_RX_MISSEDFRAME) {
+		u64_stats_update_begin(&np->swstats_rx_syncp);
+		nv_txrx_stats_inc(stat_rx_missed_errors);
+		u64_stats_update_end(&np->swstats_rx_syncp);
+	}
+}
+
 static int nv_rx_process(struct net_device *dev, int limit)
 {
 	struct fe_priv *np = netdev_priv(dev);
@@ -2860,11 +2930,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					}
 					/* the rest are hard errors */
 					else {
-						if (flags & NV_RX_MISSEDFRAME) {
-							u64_stats_update_begin(&np->swstats_rx_syncp);
-							np->stat_rx_missed_errors++;
-							u64_stats_update_end(&np->swstats_rx_syncp);
-						}
+						rx_missing_handler(flags, np);
 						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
@@ -2908,8 +2974,8 @@ static int nv_rx_process(struct net_device *dev, int limit)
 		skb->protocol = eth_type_trans(skb, dev);
 		napi_gro_receive(&np->napi, skb);
 		u64_stats_update_begin(&np->swstats_rx_syncp);
-		np->stat_rx_packets++;
-		np->stat_rx_bytes += len;
+		nv_txrx_stats_inc(stat_rx_packets);
+		nv_txrx_stats_add(stat_rx_bytes, len);
 		u64_stats_update_end(&np->swstats_rx_syncp);
 next_pkt:
 		if (unlikely(np->get_rx.orig++ == np->last_rx.orig))
@@ -2994,8 +3060,8 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			}
 			napi_gro_receive(&np->napi, skb);
 			u64_stats_update_begin(&np->swstats_rx_syncp);
-			np->stat_rx_packets++;
-			np->stat_rx_bytes += len;
+			nv_txrx_stats_inc(stat_rx_packets);
+			nv_txrx_stats_add(stat_rx_bytes, len);
 			u64_stats_update_end(&np->swstats_rx_syncp);
 		} else {
 			dev_kfree_skb(skb);
@@ -3109,7 +3175,7 @@ static int nv_set_mac_address(struct net_device *dev, void *addr)
 		return -EADDRNOTAVAIL;
 
 	/* synchronized against open : rtnl_lock() held by caller */
-	memcpy(dev->dev_addr, macaddr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, macaddr->sa_data);
 
 	if (netif_running(dev)) {
 		netif_tx_lock_bh(dev);
@@ -4585,7 +4651,10 @@ static int nv_nway_reset(struct net_device *dev)
 	return ret;
 }
 
-static void nv_get_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
+static void nv_get_ringparam(struct net_device *dev,
+			     struct ethtool_ringparam *ring,
+			     struct kernel_ethtool_ringparam *kernel_ring,
+			     struct netlink_ext_ack *extack)
 {
 	struct fe_priv *np = netdev_priv(dev);
 
@@ -4596,7 +4665,10 @@ static void nv_get_ringparam(struct net_device *dev, struct ethtool_ringparam* r
 	ring->tx_pending = np->tx_ring_size;
 }
 
-static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
+static int nv_set_ringparam(struct net_device *dev,
+			    struct ethtool_ringparam *ring,
+			    struct kernel_ethtool_ringparam *kernel_ring,
+			    struct netlink_ext_ack *extack)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
@@ -5645,6 +5717,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	u32 phystate_orig = 0, phystate;
 	int phyinitialized = 0;
 	static int printed_version;
+	u8 mac[ETH_ALEN];
 
 	if (!printed_version++)
 		pr_info("Reverse Engineered nForce ethernet driver. Version %s.\n",
@@ -5663,6 +5736,12 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	SET_NETDEV_DEV(dev, &pci_dev->dev);
 	u64_stats_init(&np->swstats_rx_syncp);
 	u64_stats_init(&np->swstats_tx_syncp);
+	np->txrx_stats = alloc_percpu(struct nv_txrx_stats);
+	if (!np->txrx_stats) {
+		pr_err("np->txrx_stats, alloc memory error.\n");
+		err = -ENOMEM;
+		goto out_alloc_percpu;
+	}
 
 	timer_setup(&np->oom_kick, nv_do_rx_refill, 0);
 	timer_setup(&np->nic_poll, nv_do_nic_poll, 0);
@@ -5710,15 +5789,11 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		np->desc_ver = DESC_VER_3;
 		np->txrxctl_bits = NVREG_TXRXCTL_DESC_3;
 		if (dma_64bit) {
-			if (pci_set_dma_mask(pci_dev, DMA_BIT_MASK(39)))
+			if (dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(39)))
 				dev_info(&pci_dev->dev,
 					 "64-bit DMA failed, using 32-bit addressing\n");
 			else
 				dev->features |= NETIF_F_HIGHDMA;
-			if (pci_set_consistent_dma_mask(pci_dev, DMA_BIT_MASK(39))) {
-				dev_info(&pci_dev->dev,
-					 "64-bit DMA (consistent) failed, using 32-bit ring buffers\n");
-			}
 		}
 	} else if (id->driver_data & DEV_HAS_LARGEDESC) {
 		/* packet format 2: supports jumbo frames */
@@ -5801,7 +5876,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	else
 		dev->netdev_ops = &nv_netdev_ops_optimized;
 
-	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
+	netif_napi_add(dev, &np->napi, nv_napi_poll, NAPI_POLL_WEIGHT);
 	dev->ethtool_ops = &ops;
 	dev->watchdog_timeo = NV_WATCHDOG_TIMEO;
 
@@ -5816,50 +5891,52 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	txreg = readl(base + NvRegTransmitPoll);
 	if (id->driver_data & DEV_HAS_CORRECT_MACADDR) {
 		/* mac address is already in correct order */
-		dev->dev_addr[0] = (np->orig_mac[0] >>  0) & 0xff;
-		dev->dev_addr[1] = (np->orig_mac[0] >>  8) & 0xff;
-		dev->dev_addr[2] = (np->orig_mac[0] >> 16) & 0xff;
-		dev->dev_addr[3] = (np->orig_mac[0] >> 24) & 0xff;
-		dev->dev_addr[4] = (np->orig_mac[1] >>  0) & 0xff;
-		dev->dev_addr[5] = (np->orig_mac[1] >>  8) & 0xff;
+		mac[0] = (np->orig_mac[0] >>  0) & 0xff;
+		mac[1] = (np->orig_mac[0] >>  8) & 0xff;
+		mac[2] = (np->orig_mac[0] >> 16) & 0xff;
+		mac[3] = (np->orig_mac[0] >> 24) & 0xff;
+		mac[4] = (np->orig_mac[1] >>  0) & 0xff;
+		mac[5] = (np->orig_mac[1] >>  8) & 0xff;
 	} else if (txreg & NVREG_TRANSMITPOLL_MAC_ADDR_REV) {
 		/* mac address is already in correct order */
-		dev->dev_addr[0] = (np->orig_mac[0] >>  0) & 0xff;
-		dev->dev_addr[1] = (np->orig_mac[0] >>  8) & 0xff;
-		dev->dev_addr[2] = (np->orig_mac[0] >> 16) & 0xff;
-		dev->dev_addr[3] = (np->orig_mac[0] >> 24) & 0xff;
-		dev->dev_addr[4] = (np->orig_mac[1] >>  0) & 0xff;
-		dev->dev_addr[5] = (np->orig_mac[1] >>  8) & 0xff;
+		mac[0] = (np->orig_mac[0] >>  0) & 0xff;
+		mac[1] = (np->orig_mac[0] >>  8) & 0xff;
+		mac[2] = (np->orig_mac[0] >> 16) & 0xff;
+		mac[3] = (np->orig_mac[0] >> 24) & 0xff;
+		mac[4] = (np->orig_mac[1] >>  0) & 0xff;
+		mac[5] = (np->orig_mac[1] >>  8) & 0xff;
 		/*
 		 * Set orig mac address back to the reversed version.
 		 * This flag will be cleared during low power transition.
 		 * Therefore, we should always put back the reversed address.
 		 */
-		np->orig_mac[0] = (dev->dev_addr[5] << 0) + (dev->dev_addr[4] << 8) +
-			(dev->dev_addr[3] << 16) + (dev->dev_addr[2] << 24);
-		np->orig_mac[1] = (dev->dev_addr[1] << 0) + (dev->dev_addr[0] << 8);
+		np->orig_mac[0] = (mac[5] << 0) + (mac[4] << 8) +
+			(mac[3] << 16) + (mac[2] << 24);
+		np->orig_mac[1] = (mac[1] << 0) + (mac[0] << 8);
 	} else {
 		/* need to reverse mac address to correct order */
-		dev->dev_addr[0] = (np->orig_mac[1] >>  8) & 0xff;
-		dev->dev_addr[1] = (np->orig_mac[1] >>  0) & 0xff;
-		dev->dev_addr[2] = (np->orig_mac[0] >> 24) & 0xff;
-		dev->dev_addr[3] = (np->orig_mac[0] >> 16) & 0xff;
-		dev->dev_addr[4] = (np->orig_mac[0] >>  8) & 0xff;
-		dev->dev_addr[5] = (np->orig_mac[0] >>  0) & 0xff;
+		mac[0] = (np->orig_mac[1] >>  8) & 0xff;
+		mac[1] = (np->orig_mac[1] >>  0) & 0xff;
+		mac[2] = (np->orig_mac[0] >> 24) & 0xff;
+		mac[3] = (np->orig_mac[0] >> 16) & 0xff;
+		mac[4] = (np->orig_mac[0] >>  8) & 0xff;
+		mac[5] = (np->orig_mac[0] >>  0) & 0xff;
 		writel(txreg|NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
 		dev_dbg(&pci_dev->dev,
 			"%s: set workaround bit for reversed mac addr\n",
 			__func__);
 	}
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
+	if (is_valid_ether_addr(mac)) {
+		eth_hw_addr_set(dev, mac);
+	} else {
 		/*
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab
 		 */
 		dev_err(&pci_dev->dev,
 			"Invalid MAC address detected: %pM - Please complain to your hardware vendor.\n",
-			dev->dev_addr);
+			mac);
 		eth_hw_addr_random(dev);
 		dev_err(&pci_dev->dev,
 			"Using random MAC address: %pM\n", dev->dev_addr);
@@ -6072,6 +6149,8 @@ out_relreg:
 out_disable:
 	pci_disable_device(pci_dev);
 out_free:
+	free_percpu(np->txrx_stats);
+out_alloc_percpu:
 	free_netdev(dev);
 out:
 	return err;
@@ -6117,6 +6196,9 @@ static void nv_restore_mac_addr(struct pci_dev *pci_dev)
 static void nv_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
+	struct fe_priv *np = netdev_priv(dev);
+
+	free_percpu(np->txrx_stats);
 
 	unregister_netdev(dev);
 
@@ -6138,8 +6220,7 @@ static void nv_remove(struct pci_dev *pci_dev)
 #ifdef CONFIG_PM_SLEEP
 static int nv_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	int i;

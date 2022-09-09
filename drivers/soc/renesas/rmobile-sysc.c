@@ -14,8 +14,6 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
-#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
@@ -48,12 +46,8 @@ struct rmobile_pm_domain *to_rmobile_pd(struct generic_pm_domain *d)
 static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 {
 	struct rmobile_pm_domain *rmobile_pd = to_rmobile_pd(genpd);
-	unsigned int mask;
+	unsigned int mask = BIT(rmobile_pd->bit_shift);
 
-	if (rmobile_pd->bit_shift == ~0)
-		return -EBUSY;
-
-	mask = BIT(rmobile_pd->bit_shift);
 	if (rmobile_pd->suspend) {
 		int ret = rmobile_pd->suspend();
 
@@ -61,40 +55,36 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 			return ret;
 	}
 
-	if (__raw_readl(rmobile_pd->base + PSTR) & mask) {
+	if (readl(rmobile_pd->base + PSTR) & mask) {
 		unsigned int retry_count;
-		__raw_writel(mask, rmobile_pd->base + SPDCR);
+		writel(mask, rmobile_pd->base + SPDCR);
 
 		for (retry_count = PSTR_RETRIES; retry_count; retry_count--) {
-			if (!(__raw_readl(rmobile_pd->base + SPDCR) & mask))
+			if (!(readl(rmobile_pd->base + SPDCR) & mask))
 				break;
 			cpu_relax();
 		}
 	}
 
 	pr_debug("%s: Power off, 0x%08x -> PSTR = 0x%08x\n", genpd->name, mask,
-		 __raw_readl(rmobile_pd->base + PSTR));
+		 readl(rmobile_pd->base + PSTR));
 
 	return 0;
 }
 
 static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd)
 {
-	unsigned int mask;
+	unsigned int mask = BIT(rmobile_pd->bit_shift);
 	unsigned int retry_count;
 	int ret = 0;
 
-	if (rmobile_pd->bit_shift == ~0)
-		return 0;
-
-	mask = BIT(rmobile_pd->bit_shift);
-	if (__raw_readl(rmobile_pd->base + PSTR) & mask)
+	if (readl(rmobile_pd->base + PSTR) & mask)
 		return ret;
 
-	__raw_writel(mask, rmobile_pd->base + SWUCR);
+	writel(mask, rmobile_pd->base + SWUCR);
 
 	for (retry_count = 2 * PSTR_RETRIES; retry_count; retry_count--) {
-		if (!(__raw_readl(rmobile_pd->base + SWUCR) & mask))
+		if (!(readl(rmobile_pd->base + SWUCR) & mask))
 			break;
 		if (retry_count > PSTR_RETRIES)
 			udelay(PSTR_DELAY_US);
@@ -106,7 +96,7 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd)
 
 	pr_debug("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
 		 rmobile_pd->genpd.name, mask,
-		 __raw_readl(rmobile_pd->base + PSTR));
+		 readl(rmobile_pd->base + PSTR));
 
 	return ret;
 }
@@ -122,11 +112,15 @@ static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 	struct dev_power_governor *gov = rmobile_pd->gov;
 
 	genpd->flags |= GENPD_FLAG_PM_CLK | GENPD_FLAG_ACTIVE_WAKEUP;
-	genpd->power_off		= rmobile_pd_power_down;
-	genpd->power_on			= rmobile_pd_power_up;
-	genpd->attach_dev		= cpg_mstp_attach_dev;
-	genpd->detach_dev		= cpg_mstp_detach_dev;
-	__rmobile_pd_power_up(rmobile_pd);
+	genpd->attach_dev = cpg_mstp_attach_dev;
+	genpd->detach_dev = cpg_mstp_detach_dev;
+
+	if (!(genpd->flags & GENPD_FLAG_ALWAYS_ON)) {
+		genpd->power_off = rmobile_pd_power_down;
+		genpd->power_on = rmobile_pd_power_up;
+		__rmobile_pd_power_up(rmobile_pd);
+	}
+
 	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
 }
 
@@ -270,6 +264,11 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		break;
 
 	case PD_NORMAL:
+		if (pd->bit_shift == ~0) {
+			/* Top-level always-on domain */
+			pr_debug("PM domain %s is always-on domain\n", name);
+			pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
+		}
 		break;
 	}
 
@@ -326,6 +325,7 @@ static int __init rmobile_init_pm_domains(void)
 
 		pmd = of_get_child_by_name(np, "pm-domains");
 		if (!pmd) {
+			iounmap(base);
 			pr_warn("%pOF lacks pm-domains node\n", np);
 			continue;
 		}
@@ -342,6 +342,8 @@ static int __init rmobile_init_pm_domains(void)
 			of_node_put(np);
 			break;
 		}
+
+		fwnode_dev_initialized(&np->fwnode, true);
 	}
 
 	put_special_pds();

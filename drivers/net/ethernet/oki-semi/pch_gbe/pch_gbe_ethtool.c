@@ -1,25 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1999 - 2010 Intel Corporation.
  * Copyright (C) 2010 OKI SEMICONDUCTOR Co., LTD.
  *
  * This code was derived from the Intel e1000e Linux driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "pch_gbe.h"
 #include "pch_gbe_phy.h"
 
-/**
+static const char pch_driver_version[] = "1.01";
+
+/*
  * pch_gbe_stats - Stats item information
  */
 struct pch_gbe_stats {
@@ -31,11 +22,11 @@ struct pch_gbe_stats {
 #define PCH_GBE_STAT(m)						\
 {								\
 	.string = #m,						\
-	.size = FIELD_SIZEOF(struct pch_gbe_hw_stats, m),	\
+	.size = sizeof_field(struct pch_gbe_hw_stats, m),	\
 	.offset = offsetof(struct pch_gbe_hw_stats, m),		\
 }
 
-/**
+/*
  * pch_gbe_gstrings_stats - ethtool information status name list
  */
 static const struct pch_gbe_stats pch_gbe_gstrings_stats[] = {
@@ -279,9 +270,13 @@ static int pch_gbe_nway_reset(struct net_device *netdev)
  * pch_gbe_get_ringparam - Report ring sizes
  * @netdev:  Network interface device structure
  * @ring:    Ring param structure
+ * @kernel_ring:	Ring external param structure
+ * @extack:	netlink handle
  */
 static void pch_gbe_get_ringparam(struct net_device *netdev,
-					struct ethtool_ringparam *ring)
+				  struct ethtool_ringparam *ring,
+				  struct kernel_ethtool_ringparam *kernel_ring,
+				  struct netlink_ext_ack *extack)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_tx_ring *txdr = adapter->tx_ring;
@@ -297,12 +292,16 @@ static void pch_gbe_get_ringparam(struct net_device *netdev,
  * pch_gbe_set_ringparam - Set ring sizes
  * @netdev:  Network interface device structure
  * @ring:    Ring param structure
+ * @kernel_ring:	Ring external param structure
+ * @extack:	netlink handle
  * Returns
  *	0:			Successful.
  *	Negative value:		Failed.
  */
 static int pch_gbe_set_ringparam(struct net_device *netdev,
-					struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring,
+				 struct kernel_ethtool_ringparam *kernel_ring,
+				 struct netlink_ext_ack *extack)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_tx_ring *txdr, *tx_old;

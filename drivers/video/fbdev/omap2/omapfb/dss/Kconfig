@@ -3,7 +3,7 @@ config FB_OMAP2_DSS_INIT
 	bool
 
 config FB_OMAP2_DSS
-        tristate
+	tristate
 	select VIDEOMODE_HELPERS
 	select FB_OMAP2_DSS_INIT
 	select HDMI
@@ -39,21 +39,9 @@ config FB_OMAP2_DSS_DPI
 	help
 	  DPI Interface. This is the Parallel Display Interface.
 
-config FB_OMAP2_DSS_RFBI
-	bool "RFBI support"
-	depends on BROKEN
-	help
-	  MIPI DBI support (RFBI, Remote Framebuffer Interface, in Texas
-	  Instrument's terminology).
-
-	  DBI is a bus between the host processor and a peripheral,
-	  such as a display or a framebuffer chip.
-
-	  See http://www.mipi.org/ for DBI specifications.
-
 config FB_OMAP2_DSS_VENC
 	bool "VENC support"
-        default y
+	default y
 	help
 	  OMAP Video Encoder support for S-Video and composite TV-out.
 
@@ -62,7 +50,7 @@ config FB_OMAP2_DSS_HDMI_COMMON
 
 config FB_OMAP4_DSS_HDMI
 	bool "HDMI support for OMAP4"
-        default y
+	default y
 	select FB_OMAP2_DSS_HDMI_COMMON
 	help
 	  HDMI support for OMAP4 based SoCs.
@@ -72,7 +60,7 @@ config FB_OMAP5_DSS_HDMI
 	select FB_OMAP2_DSS_HDMI_COMMON
 	help
 	  HDMI Interface for OMAP5 and similar cores. This adds the High
-	  Definition Multimedia Interface. See http://www.hdmi.org/ for HDMI
+	  Definition Multimedia Interface. See https://www.hdmi.org/ for HDMI
 	  specification.
 
 config FB_OMAP2_DSS_SDI
@@ -91,7 +79,7 @@ config FB_OMAP2_DSS_DSI
 	  DSI is a high speed half-duplex serial interface between the host
 	  processor and a peripheral, such as a display or a framebuffer chip.
 
-	  See http://www.mipi.org/ for DSI specifications.
+	  See https://www.mipi.org/ for DSI specifications.
 
 config FB_OMAP2_DSS_MIN_FCK_PER_PCK
 	int "Minimum FCK/PCK ratio (for scaling)"

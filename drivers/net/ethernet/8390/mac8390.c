@@ -153,8 +153,6 @@ static void dayna_block_input(struct net_device *dev, int count,
 static void dayna_block_output(struct net_device *dev, int count,
 			       const unsigned char *buf, int start_page);
 
-#define memcmp_withio(a, b, c)	memcmp((a), (void *)(b), (c))
-
 /* Slow Sane (16-bit chunk memory read/write) Cabletron uses this */
 static void slow_sane_get_8390_hdr(struct net_device *dev,
 				   struct e8390_pkt_hdr *hdr, int ring_page);
@@ -177,7 +175,6 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 		default:
 			return MAC8390_APPLE;
 		}
-		break;
 
 	case NUBUS_DRSW_APPLE:
 		switch (fres->dr_hw) {
@@ -188,11 +185,9 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 		default:
 			return MAC8390_APPLE;
 		}
-		break;
 
 	case NUBUS_DRSW_ASANTE:
 		return MAC8390_ASANTE;
-		break;
 
 	case NUBUS_DRSW_TECHWORKS:
 	case NUBUS_DRSW_DAYNA2:
@@ -201,11 +196,9 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 			return MAC8390_CABLETRON;
 		else
 			return MAC8390_APPLE;
-		break;
 
 	case NUBUS_DRSW_FARALLON:
 		return MAC8390_FARALLON;
-		break;
 
 	case NUBUS_DRSW_KINETICS:
 		switch (fres->dr_hw) {
@@ -214,7 +207,6 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 		default:
 			return MAC8390_KINETICS;
 		}
-		break;
 
 	case NUBUS_DRSW_DAYNA:
 		/*
@@ -226,26 +218,32 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 			return MAC8390_NONE;
 		else
 			return MAC8390_DAYNA;
-		break;
 	}
 	return MAC8390_NONE;
 }
 
 static enum mac8390_access mac8390_testio(unsigned long membase)
 {
-	unsigned long outdata = 0xA5A0B5B0;
-	unsigned long indata =  0x00000000;
+	u32 outdata = 0xA5A0B5B0;
+	u32 indata = 0;
+
 	/* Try writing 32 bits */
-	memcpy_toio((void __iomem *)membase, &outdata, 4);
-	/* Now compare them */
-	if (memcmp_withio(&outdata, membase, 4) == 0)
+	nubus_writel(outdata, membase);
+	/* Now read it back */
+	indata = nubus_readl(membase);
+	if (outdata == indata)
 		return ACCESS_32;
+
+	outdata = 0xC5C0D5D0;
+	indata = 0;
+
 	/* Write 16 bit output */
 	word_memcpy_tocard(membase, &outdata, 4);
 	/* Now read it back */
 	word_memcpy_fromcard(&indata, membase, 4);
 	if (outdata == indata)
 		return ACCESS_16;
+
 	return ACCESS_UNKNOWN;
 }
 
@@ -294,6 +292,7 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 	struct nubus_dirent ent;
 	int offset;
 	volatile unsigned short *i;
+	u8 addr[ETH_ALEN];
 
 	dev->irq = SLOT2IRQ(board->slot);
 	/* This is getting to be a habit */
@@ -316,7 +315,8 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 		return false;
 	}
 
-	nubus_get_rsrc_mem(dev->dev_addr, &ent, 6);
+	nubus_get_rsrc_mem(addr, &ent, 6);
+	eth_hw_addr_set(dev, addr);
 
 	if (useresources[cardtype] == 1) {
 		nubus_rewinddir(&dir);
@@ -430,13 +430,12 @@ out:
 	return err;
 }
 
-static int mac8390_device_remove(struct nubus_board *board)
+static void mac8390_device_remove(struct nubus_board *board)
 {
 	struct net_device *dev = nubus_get_drvdata(board);
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-	return 0;
 }
 
 static struct nubus_driver mac8390_driver = {

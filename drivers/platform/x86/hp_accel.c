@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  hp_accel.c - Interface between LIS3LV02DL driver and HP ACPI BIOS
  *
  *  Copyright (C) 2007-2008 Yan Burman
  *  Copyright (C) 2008 Eric Piel
  *  Copyright (C) 2008-2009 Pavel Machek
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -40,9 +27,6 @@
 #include <linux/i8042.h>
 #include <linux/serio.h>
 #include "../../misc/lis3lv02d/lis3lv02d.h"
-
-#define DRIVER_NAME     "hp_accel"
-#define ACPI_MDPS_CLASS "accelerometer"
 
 /* Delayed LEDs infrastructure ------------------------------------ */
 
@@ -91,20 +75,14 @@ static const struct acpi_device_id lis3lv02d_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, lis3lv02d_device_ids);
 
-
 /**
- * lis3lv02d_acpi_init - ACPI _INI method: initialize the device.
+ * lis3lv02d_acpi_init - initialize the device for ACPI
  * @lis3: pointer to the device struct
  *
  * Returns 0 on success.
  */
 static int lis3lv02d_acpi_init(struct lis3lv02d *lis3)
 {
-	struct acpi_device *dev = lis3->bus_priv;
-	if (acpi_evaluate_object(dev->handle, METHOD_NAME__INI,
-				 NULL, NULL) != AE_OK)
-		return -EINVAL;
-
 	return 0;
 }
 
@@ -242,6 +220,7 @@ static const struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("HPB440G3", "HP ProBook 440 G3", x_inverted_usd),
 	AXIS_DMI_MATCH("HPB440G4", "HP ProBook 440 G4", x_inverted),
 	AXIS_DMI_MATCH("HPB442x", "HP ProBook 442", xy_rotated_left),
+	AXIS_DMI_MATCH("HPB450G0", "HP ProBook 450 G0", x_inverted),
 	AXIS_DMI_MATCH("HPB452x", "HP ProBook 452", y_inverted),
 	AXIS_DMI_MATCH("HPB522x", "HP ProBook 522", xy_swap),
 	AXIS_DMI_MATCH("HPB532x", "HP ProBook 532", y_inverted),
@@ -252,6 +231,7 @@ static const struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("HPB64xx", "HP EliteBook 84", xy_swap),
 	AXIS_DMI_MATCH("HPB65xx", "HP ProBook 65", x_inverted),
 	AXIS_DMI_MATCH("HPZBook15", "HP ZBook 15", x_inverted),
+	AXIS_DMI_MATCH("HPZBook17G5", "HP ZBook 17 G5", x_inverted),
 	AXIS_DMI_MATCH("HPZBook17", "HP ZBook 17", xy_swap_yz_inverted),
 	{ NULL, }
 /* Laptop models without axis info (yet):
@@ -286,30 +266,6 @@ static struct delayed_led_classdev hpled_led = {
 	.set_brightness = hpled_set,
 };
 
-static acpi_status
-lis3lv02d_get_resource(struct acpi_resource *resource, void *context)
-{
-	if (resource->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
-		struct acpi_resource_extended_irq *irq;
-		u32 *device_irq = context;
-
-		irq = &resource->data.extended_irq;
-		*device_irq = irq->interrupts[0];
-	}
-
-	return AE_OK;
-}
-
-static void lis3lv02d_enum_resources(struct acpi_device *device)
-{
-	acpi_status status;
-
-	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
-					lis3lv02d_get_resource, &lis3_dev.irq);
-	if (ACPI_FAILURE(status))
-		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
-}
-
 static bool hp_accel_i8042_filter(unsigned char data, unsigned char str,
 				  struct serio *port)
 {
@@ -339,23 +295,19 @@ static bool hp_accel_i8042_filter(unsigned char data, unsigned char str,
 	return false;
 }
 
-static int lis3lv02d_add(struct acpi_device *device)
+static int lis3lv02d_probe(struct platform_device *device)
 {
 	int ret;
 
-	if (!device)
-		return -EINVAL;
-
-	lis3_dev.bus_priv = device;
+	lis3_dev.bus_priv = ACPI_COMPANION(&device->dev);
 	lis3_dev.init = lis3lv02d_acpi_init;
 	lis3_dev.read = lis3lv02d_acpi_read;
 	lis3_dev.write = lis3lv02d_acpi_write;
-	strcpy(acpi_device_name(device), DRIVER_NAME);
-	strcpy(acpi_device_class(device), ACPI_MDPS_CLASS);
-	device->driver_data = &lis3_dev;
 
 	/* obtain IRQ number of our device from ACPI */
-	lis3lv02d_enum_resources(device);
+	ret = platform_get_irq_optional(device, 0);
+	if (ret > 0)
+		lis3_dev.irq = ret;
 
 	/* If possible use a "standard" axes order */
 	if (lis3_dev.ac.x && lis3_dev.ac.y && lis3_dev.ac.z) {
@@ -379,20 +331,19 @@ static int lis3lv02d_add(struct acpi_device *device)
 	INIT_WORK(&hpled_led.work, delayed_set_status_worker);
 	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
 	if (ret) {
+		i8042_remove_filter(hp_accel_i8042_filter);
 		lis3lv02d_joystick_disable(&lis3_dev);
 		lis3lv02d_poweroff(&lis3_dev);
 		flush_work(&hpled_led.work);
+		lis3lv02d_remove_fs(&lis3_dev);
 		return ret;
 	}
 
 	return ret;
 }
 
-static int lis3lv02d_remove(struct acpi_device *device)
+static int lis3lv02d_remove(struct platform_device *device)
 {
-	if (!device)
-		return -EINVAL;
-
 	i8042_remove_filter(hp_accel_i8042_filter);
 	lis3lv02d_joystick_disable(&lis3_dev);
 	lis3lv02d_poweroff(&lis3_dev);
@@ -400,42 +351,36 @@ static int lis3lv02d_remove(struct acpi_device *device)
 	led_classdev_unregister(&hpled_led.led_classdev);
 	flush_work(&hpled_led.work);
 
-	return lis3lv02d_remove_fs(&lis3_dev);
+	lis3lv02d_remove_fs(&lis3_dev);
+	return 0;
 }
 
-
-#ifdef CONFIG_PM_SLEEP
-static int lis3lv02d_suspend(struct device *dev)
+static int __maybe_unused lis3lv02d_suspend(struct device *dev)
 {
 	/* make sure the device is off when we suspend */
 	lis3lv02d_poweroff(&lis3_dev);
 	return 0;
 }
 
-static int lis3lv02d_resume(struct device *dev)
+static int __maybe_unused lis3lv02d_resume(struct device *dev)
 {
 	lis3lv02d_poweron(&lis3_dev);
 	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(hp_accel_pm, lis3lv02d_suspend, lis3lv02d_resume);
-#define HP_ACCEL_PM (&hp_accel_pm)
-#else
-#define HP_ACCEL_PM NULL
-#endif
 
 /* For the HP MDPS aka 3D Driveguard */
-static struct acpi_driver lis3lv02d_driver = {
-	.name  = DRIVER_NAME,
-	.class = ACPI_MDPS_CLASS,
-	.ids   = lis3lv02d_device_ids,
-	.ops = {
-		.add     = lis3lv02d_add,
-		.remove  = lis3lv02d_remove,
+static struct platform_driver lis3lv02d_driver = {
+	.probe	= lis3lv02d_probe,
+	.remove	= lis3lv02d_remove,
+	.driver	= {
+		.name	= "hp_accel",
+		.pm	= &hp_accel_pm,
+		.acpi_match_table = lis3lv02d_device_ids,
 	},
-	.drv.pm = HP_ACCEL_PM,
 };
-module_acpi_driver(lis3lv02d_driver);
+module_platform_driver(lis3lv02d_driver);
 
 MODULE_DESCRIPTION("Glue between LIS3LV02Dx and HP ACPI BIOS and support for disk protection LED.");
 MODULE_AUTHOR("Yan Burman, Eric Piel, Pavel Machek");

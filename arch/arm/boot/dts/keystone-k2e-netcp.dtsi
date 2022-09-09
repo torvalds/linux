@@ -12,9 +12,9 @@ qmss: qmss@2a40000 {
 	#size-cells = <1>;
 	clocks = <&chipclk13>;
 	ranges;
-	queue-range	= <0 0x2000>;
-	linkram0	= <0x100000 0x4000>;
-	linkram1	= <0 0x10000>;
+	queue-range = <0 0x2000>;
+	linkram0 = <0x100000 0x4000>;
+	linkram1 = <0 0x10000>;
 
 	qmgrs {
 		#address-cells = <1>;
@@ -95,7 +95,7 @@ qmss: qmss@2a40000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		pdsp0@0x2a10000 {
+		pdsp0@2a10000 {
 			reg = <0x2a10000 0x1000    /*iram */
 			       0x2a0f000 0x100     /*reg*/
 			       0x2a0c000 0x3c8	   /*intd */
@@ -135,8 +135,8 @@ netcp: netcp@24000000 {
 	/* NetCP address range */
 	ranges = <0 0x24000000 0x1000000>;
 
-	clocks = <&clkpa>, <&clkcpgmac>, <&chipclk12>;
-	clock-names = "pa_clk", "ethss_clk", "cpts";
+	clocks = <&clkpa>, <&clkcpgmac>;
+	clock-names = "pa_clk", "ethss_clk";
 	dma-coherent;
 
 	ti,navigator-dmas = <&dma_gbe 0>,
@@ -156,43 +156,60 @@ netcp: netcp@24000000 {
 			tx-queue = <896>;
 			tx-channel = "nettx";
 
+			cpts {
+				clocks = <&cpts_refclk_mux>;
+				clock-names = "cpts";
+
+				cpts_refclk_mux: cpts-refclk-mux {
+					#clock-cells = <0>;
+					clocks = <&chipclk12>, <&chipclk13>,
+						 <&timi0>, <&timi1>,
+						 <&tsipclka>, <&tsrefclk>,
+						 <&tsipclkb>;
+					ti,mux-tbl = <0x0>, <0x1>, <0x2>,
+						<0x3>, <0x4>, <0x8>, <0xC>;
+					assigned-clocks = <&cpts_refclk_mux>;
+					assigned-clock-parents = <&chipclk12>;
+				};
+			};
+
 			interfaces {
 				gbe0: interface-0 {
 					slave-port = <0>;
-					link-interface	= <1>;
-					phy-handle	= <&ethphy0>;
+					link-interface = <1>;
+					phy-handle = <&ethphy0>;
 				};
 				gbe1: interface-1 {
 					slave-port = <1>;
-					link-interface	= <1>;
-					phy-handle	= <&ethphy1>;
+					link-interface = <1>;
+					phy-handle = <&ethphy1>;
 				};
 			};
 
 			secondary-slave-ports {
 				port-2 {
 					slave-port = <2>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-3 {
 					slave-port = <3>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-4 {
 					slave-port = <4>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-5 {
 					slave-port = <5>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-6 {
 					slave-port = <6>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-7 {
 					slave-port = <7>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 			};
 		};

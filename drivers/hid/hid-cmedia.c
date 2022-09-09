@@ -1,16 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID driver for CMedia CM6533 audio jack controls
+ * and HS100B mute buttons
  *
  * Copyright (C) 2015 Ben Chen <ben_chen@bizlinktech.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (C) 2021 Thomas Weißschuh <linux@weissschuh.net>
  */
 
 #include <linux/device.h>
@@ -19,12 +13,52 @@
 #include "hid-ids.h"
 
 MODULE_AUTHOR("Ben Chen");
-MODULE_DESCRIPTION("CM6533 HID jack controls");
+MODULE_AUTHOR("Thomas Weißschuh");
+MODULE_DESCRIPTION("CM6533 HID jack controls and HS100B mute button");
 MODULE_LICENSE("GPL");
 
 #define CM6533_JD_TYPE_COUNT      1
 #define CM6533_JD_RAWEV_LEN	 16
 #define CM6533_JD_SFX_OFFSET	  8
+
+#define HS100B_RDESC_ORIG_SIZE   60
+
+/* Fixed report descriptor of HS-100B audio chip
+ * Bit 4 is an abolute Microphone mute usage instead of being unassigned.
+ */
+static __u8 hs100b_rdesc_fixed[] = {
+	0x05, 0x0C,         /*  Usage Page (Consumer),          */
+	0x09, 0x01,         /*  Usage (Consumer Control),       */
+	0xA1, 0x01,         /*  Collection (Application),       */
+	0x15, 0x00,         /*      Logical Minimum (0),        */
+	0x25, 0x01,         /*      Logical Maximum (1),        */
+	0x09, 0xE9,         /*      Usage (Volume Inc),         */
+	0x09, 0xEA,         /*      Usage (Volume Dec),         */
+	0x75, 0x01,         /*      Report Size (1),            */
+	0x95, 0x02,         /*      Report Count (2),           */
+	0x81, 0x02,         /*      Input (Variable),           */
+	0x09, 0xE2,         /*      Usage (Mute),               */
+	0x95, 0x01,         /*      Report Count (1),           */
+	0x81, 0x06,         /*      Input (Variable, Relative), */
+	0x05, 0x0B,         /*      Usage Page (Telephony),     */
+	0x09, 0x2F,         /*      Usage (2Fh),                */
+	0x81, 0x02,         /*      Input (Variable),           */
+	0x09, 0x20,         /*      Usage (20h),                */
+	0x81, 0x06,         /*      Input (Variable, Relative), */
+	0x05, 0x0C,         /*      Usage Page (Consumer),      */
+	0x09, 0x00,         /*      Usage (00h),                */
+	0x95, 0x03,         /*      Report Count (3),           */
+	0x81, 0x02,         /*      Input (Variable),           */
+	0x26, 0xFF, 0x00,   /*      Logical Maximum (255),      */
+	0x09, 0x00,         /*      Usage (00h),                */
+	0x75, 0x08,         /*      Report Size (8),            */
+	0x95, 0x03,         /*      Report Count (3),           */
+	0x81, 0x02,         /*      Input (Variable),           */
+	0x09, 0x00,         /*      Usage (00h),                */
+	0x95, 0x04,         /*      Report Count (4),           */
+	0x91, 0x02,         /*      Output (Variable),          */
+	0xC0                /*  End Collection                  */
+};
 
 /*
 *
@@ -164,5 +198,49 @@ static struct hid_driver cmhid_driver = {
 	.remove = cmhid_remove,
 	.input_mapping = cmhid_input_mapping,
 };
-module_hid_driver(cmhid_driver);
 
+static __u8 *cmhid_hs100b_report_fixup(struct hid_device *hid, __u8 *rdesc,
+				       unsigned int *rsize)
+{
+	if (*rsize == HS100B_RDESC_ORIG_SIZE) {
+		hid_info(hid, "Fixing CMedia HS-100B report descriptor\n");
+		rdesc = hs100b_rdesc_fixed;
+		*rsize = sizeof(hs100b_rdesc_fixed);
+	}
+	return rdesc;
+}
+
+static const struct hid_device_id cmhid_hs100b_devices[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CMEDIA, USB_DEVICE_ID_CMEDIA_HS100B) },
+	{ }
+};
+MODULE_DEVICE_TABLE(hid, cmhid_hs100b_devices);
+
+static struct hid_driver cmhid_hs100b_driver = {
+	.name = "cmedia_hs100b",
+	.id_table = cmhid_hs100b_devices,
+	.report_fixup = cmhid_hs100b_report_fixup,
+};
+
+static int cmedia_init(void)
+{
+	int ret;
+
+	ret = hid_register_driver(&cmhid_driver);
+	if (ret)
+		return ret;
+
+	ret = hid_register_driver(&cmhid_hs100b_driver);
+	if (ret)
+		hid_unregister_driver(&cmhid_driver);
+
+	return ret;
+}
+module_init(cmedia_init);
+
+static void cmedia_exit(void)
+{
+		hid_unregister_driver(&cmhid_driver);
+		hid_unregister_driver(&cmhid_hs100b_driver);
+}
+module_exit(cmedia_exit);

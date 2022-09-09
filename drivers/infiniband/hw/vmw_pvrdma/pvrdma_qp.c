@@ -52,6 +52,9 @@
 
 #include "pvrdma.h"
 
+static void __pvrdma_destroy_qp(struct pvrdma_dev *dev,
+				struct pvrdma_qp *qp);
+
 static inline void get_cqs(struct pvrdma_qp *qp, struct pvrdma_cq **send_cq,
 			   struct pvrdma_cq **recv_cq)
 {
@@ -179,23 +182,24 @@ static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
 
 /**
  * pvrdma_create_qp - create queue pair
- * @pd: protection domain
+ * @ibqp: queue pair
  * @init_attr: queue pair attributes
  * @udata: user data
  *
- * @return: the ib_qp pointer on success, otherwise returns an errno.
+ * @return: the 0 on success, otherwise returns an errno.
  */
-struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
-			       struct ib_qp_init_attr *init_attr,
-			       struct ib_udata *udata)
+int pvrdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
+		     struct ib_udata *udata)
 {
-	struct pvrdma_qp *qp = NULL;
-	struct pvrdma_dev *dev = to_vdev(pd->device);
+	struct pvrdma_qp *qp = to_vqp(ibqp);
+	struct pvrdma_dev *dev = to_vdev(ibqp->device);
 	union pvrdma_cmd_req req;
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_create_qp *cmd = &req.create_qp;
 	struct pvrdma_cmd_create_qp_resp *resp = &rsp.create_qp_resp;
+	struct pvrdma_cmd_create_qp_resp_v2 *resp_v2 = &rsp.create_qp_resp_v2;
 	struct pvrdma_create_qp ucmd;
+	struct pvrdma_create_qp_resp qp_resp = {};
 	unsigned long flags;
 	int ret;
 	bool is_srq = !!init_attr->srq;
@@ -204,7 +208,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 		dev_warn(&dev->pdev->dev,
 			 "invalid create queuepair flags %#x\n",
 			 init_attr->create_flags);
-		return ERR_PTR(-EINVAL);
+		return -EOPNOTSUPP;
 	}
 
 	if (init_attr->qp_type != IB_QPT_RC &&
@@ -212,36 +216,29 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	    init_attr->qp_type != IB_QPT_GSI) {
 		dev_warn(&dev->pdev->dev, "queuepair type %d not supported\n",
 			 init_attr->qp_type);
-		return ERR_PTR(-EINVAL);
+		return -EOPNOTSUPP;
 	}
 
 	if (is_srq && !dev->dsr->caps.max_srq) {
 		dev_warn(&dev->pdev->dev,
 			 "SRQs not supported by device\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (!atomic_add_unless(&dev->num_qps, 1, dev->dsr->caps.max_qp))
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_GSI:
 		if (init_attr->port_num == 0 ||
-		    init_attr->port_num > pd->device->phys_port_cnt ||
-		    udata) {
+		    init_attr->port_num > ibqp->device->phys_port_cnt) {
 			dev_warn(&dev->pdev->dev, "invalid queuepair attrs\n");
 			ret = -EINVAL;
 			goto err_qp;
 		}
-		/* fall through */
+		fallthrough;
 	case IB_QPT_RC:
 	case IB_QPT_UD:
-		qp = kzalloc(sizeof(*qp), GFP_KERNEL);
-		if (!qp) {
-			ret = -ENOMEM;
-			goto err_qp;
-		}
-
 		spin_lock_init(&qp->sq.lock);
 		spin_lock_init(&qp->rq.lock);
 		mutex_init(&qp->mutex);
@@ -260,11 +257,20 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 				goto err_qp;
 			}
 
+			/* Userspace supports qpn and qp handles? */
+			if (dev->dsr_version >= PVRDMA_QPHANDLE_VERSION &&
+			    udata->outlen < sizeof(qp_resp)) {
+				dev_warn(&dev->pdev->dev,
+					 "create queuepair not supported\n");
+				ret = -EOPNOTSUPP;
+				goto err_qp;
+			}
+
 			if (!is_srq) {
 				/* set qp->sq.wqe_cnt, shift, buf_size.. */
-				qp->rumem = ib_umem_get(pd->uobject->context,
+				qp->rumem = ib_umem_get(ibqp->device,
 							ucmd.rbuf_addr,
-							ucmd.rbuf_size, 0, 0);
+							ucmd.rbuf_size, 0);
 				if (IS_ERR(qp->rumem)) {
 					ret = PTR_ERR(qp->rumem);
 					goto err_qp;
@@ -275,9 +281,8 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 				qp->srq = to_vsrq(init_attr->srq);
 			}
 
-			qp->sumem = ib_umem_get(pd->uobject->context,
-						ucmd.sbuf_addr,
-						ucmd.sbuf_size, 0, 0);
+			qp->sumem = ib_umem_get(ibqp->device, ucmd.sbuf_addr,
+						ucmd.sbuf_size, 0);
 			if (IS_ERR(qp->sumem)) {
 				if (!is_srq)
 					ib_umem_release(qp->rumem);
@@ -285,19 +290,21 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 				goto err_qp;
 			}
 
-			qp->npages_send = ib_umem_page_count(qp->sumem);
+			qp->npages_send =
+				ib_umem_num_dma_blocks(qp->sumem, PAGE_SIZE);
 			if (!is_srq)
-				qp->npages_recv = ib_umem_page_count(qp->rumem);
+				qp->npages_recv = ib_umem_num_dma_blocks(
+					qp->rumem, PAGE_SIZE);
 			else
 				qp->npages_recv = 0;
 			qp->npages = qp->npages_send + qp->npages_recv;
 		} else {
-			ret = pvrdma_set_sq_size(to_vdev(pd->device),
+			ret = pvrdma_set_sq_size(to_vdev(ibqp->device),
 						 &init_attr->cap, qp);
 			if (ret)
 				goto err_qp;
 
-			ret = pvrdma_set_rq_size(to_vdev(pd->device),
+			ret = pvrdma_set_rq_size(to_vdev(ibqp->device),
 						 &init_attr->cap, qp);
 			if (ret)
 				goto err_qp;
@@ -348,7 +355,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_CREATE_QP;
-	cmd->pd_handle = to_vpd(pd)->pd_handle;
+	cmd->pd_handle = to_vpd(ibqp->pd)->pd_handle;
 	cmd->send_cq_handle = to_vcq(init_attr->send_cq)->cq_handle;
 	cmd->recv_cq_handle = to_vcq(init_attr->recv_cq)->cq_handle;
 	if (is_srq)
@@ -381,37 +388,71 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	}
 
 	/* max_send_wr/_recv_wr/_send_sge/_recv_sge/_inline_data */
-	qp->qp_handle = resp->qpn;
 	qp->port = init_attr->port_num;
-	qp->ibqp.qp_num = resp->qpn;
+
+	if (dev->dsr_version >= PVRDMA_QPHANDLE_VERSION) {
+		qp->ibqp.qp_num = resp_v2->qpn;
+		qp->qp_handle = resp_v2->qp_handle;
+	} else {
+		qp->ibqp.qp_num = resp->qpn;
+		qp->qp_handle = resp->qpn;
+	}
+
 	spin_lock_irqsave(&dev->qp_tbl_lock, flags);
 	dev->qp_tbl[qp->qp_handle % dev->dsr->caps.max_qp] = qp;
 	spin_unlock_irqrestore(&dev->qp_tbl_lock, flags);
 
-	return &qp->ibqp;
+	if (udata) {
+		qp_resp.qpn = qp->ibqp.qp_num;
+		qp_resp.qp_handle = qp->qp_handle;
+
+		if (ib_copy_to_udata(udata, &qp_resp,
+				     min(udata->outlen, sizeof(qp_resp)))) {
+			dev_warn(&dev->pdev->dev,
+				 "failed to copy back udata\n");
+			__pvrdma_destroy_qp(dev, qp);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 
 err_pdir:
 	pvrdma_page_dir_cleanup(dev, &qp->pdir);
 err_umem:
-	if (!qp->is_kernel) {
-		if (qp->rumem)
-			ib_umem_release(qp->rumem);
-		if (qp->sumem)
-			ib_umem_release(qp->sumem);
-	}
+	ib_umem_release(qp->rumem);
+	ib_umem_release(qp->sumem);
 err_qp:
-	kfree(qp);
 	atomic_dec(&dev->num_qps);
+	return ret;
+}
 
-	return ERR_PTR(ret);
+static void _pvrdma_free_qp(struct pvrdma_qp *qp)
+{
+	unsigned long flags;
+	struct pvrdma_dev *dev = to_vdev(qp->ibqp.device);
+
+	spin_lock_irqsave(&dev->qp_tbl_lock, flags);
+	dev->qp_tbl[qp->qp_handle] = NULL;
+	spin_unlock_irqrestore(&dev->qp_tbl_lock, flags);
+
+	if (refcount_dec_and_test(&qp->refcnt))
+		complete(&qp->free);
+	wait_for_completion(&qp->free);
+
+	ib_umem_release(qp->rumem);
+	ib_umem_release(qp->sumem);
+
+	pvrdma_page_dir_cleanup(dev, &qp->pdir);
+
+	atomic_dec(&dev->num_qps);
 }
 
 static void pvrdma_free_qp(struct pvrdma_qp *qp)
 {
-	struct pvrdma_dev *dev = to_vdev(qp->ibqp.device);
 	struct pvrdma_cq *scq;
 	struct pvrdma_cq *rcq;
-	unsigned long flags, scq_flags, rcq_flags;
+	unsigned long scq_flags, rcq_flags;
 
 	/* In case cq is polling */
 	get_cqs(qp, &scq, &rcq);
@@ -421,55 +462,55 @@ static void pvrdma_free_qp(struct pvrdma_qp *qp)
 	if (scq != rcq)
 		_pvrdma_flush_cqe(qp, rcq);
 
-	spin_lock_irqsave(&dev->qp_tbl_lock, flags);
-	dev->qp_tbl[qp->qp_handle] = NULL;
-	spin_unlock_irqrestore(&dev->qp_tbl_lock, flags);
-
+	/*
+	 * We're now unlocking the CQs before clearing out the qp handle this
+	 * should still be safe. We have destroyed the backend QP and flushed
+	 * the CQEs so there should be no other completions for this QP.
+	 */
 	pvrdma_unlock_cqs(scq, rcq, &scq_flags, &rcq_flags);
 
-	if (refcount_dec_and_test(&qp->refcnt))
-		complete(&qp->free);
-	wait_for_completion(&qp->free);
-
-	if (!qp->is_kernel) {
-		if (qp->rumem)
-			ib_umem_release(qp->rumem);
-		if (qp->sumem)
-			ib_umem_release(qp->sumem);
-	}
-
-	pvrdma_page_dir_cleanup(dev, &qp->pdir);
-
-	kfree(qp);
-
-	atomic_dec(&dev->num_qps);
+	_pvrdma_free_qp(qp);
 }
 
-/**
- * pvrdma_destroy_qp - destroy a queue pair
- * @qp: the queue pair to destroy
- *
- * @return: 0 on success.
- */
-int pvrdma_destroy_qp(struct ib_qp *qp)
+static inline void _pvrdma_destroy_qp_work(struct pvrdma_dev *dev,
+					   u32 qp_handle)
 {
-	struct pvrdma_qp *vqp = to_vqp(qp);
 	union pvrdma_cmd_req req;
 	struct pvrdma_cmd_destroy_qp *cmd = &req.destroy_qp;
 	int ret;
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_DESTROY_QP;
-	cmd->qp_handle = vqp->qp_handle;
+	cmd->qp_handle = qp_handle;
 
-	ret = pvrdma_cmd_post(to_vdev(qp->device), &req, NULL, 0);
+	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0)
-		dev_warn(&to_vdev(qp->device)->pdev->dev,
+		dev_warn(&dev->pdev->dev,
 			 "destroy queuepair failed, error: %d\n", ret);
+}
 
+/**
+ * pvrdma_destroy_qp - destroy a queue pair
+ * @qp: the queue pair to destroy
+ * @udata: user data or null for kernel object
+ *
+ * @return: always 0.
+ */
+int pvrdma_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
+{
+	struct pvrdma_qp *vqp = to_vqp(qp);
+
+	_pvrdma_destroy_qp_work(to_vdev(qp->device), vqp->qp_handle);
 	pvrdma_free_qp(vqp);
 
 	return 0;
+}
+
+static void __pvrdma_destroy_qp(struct pvrdma_dev *dev,
+				struct pvrdma_qp *qp)
+{
+	_pvrdma_destroy_qp_work(dev, qp->qp_handle);
+	_pvrdma_free_qp(qp);
 }
 
 /**
@@ -491,6 +532,9 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct pvrdma_cmd_modify_qp *cmd = &req.modify_qp;
 	enum ib_qp_state cur_state, next_state;
 	int ret;
+
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
 
 	/* Sanity checking. Should need lock here */
 	mutex_lock(&qp->mutex);
@@ -721,6 +765,12 @@ int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		    wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM)
 			wqe_hdr->ex.imm_data = wr->ex.imm_data;
 
+		if (unlikely(wqe_hdr->opcode == PVRDMA_WR_ERROR)) {
+			*bad_wr = wr;
+			ret = -EINVAL;
+			goto out;
+		}
+
 		switch (qp->ibqp.qp_type) {
 		case IB_QPT_GSI:
 		case IB_QPT_UD:
@@ -821,7 +871,7 @@ out:
 }
 
 /**
- * pvrdma_post_receive - post receive work request entries on a QP
+ * pvrdma_post_recv - post receive work request entries on a QP
  * @ibqp: the QP
  * @wr: the work request list to post
  * @bad_wr: the first bad WR returned

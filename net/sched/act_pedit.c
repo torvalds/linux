@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/act_pedit.c	Generic packet editor
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Jamal Hadi Salim (2002-4)
  */
@@ -23,6 +19,7 @@
 #include <linux/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_pedit.h>
 #include <uapi/linux/tc_act/tc_pedit.h>
+#include <net/pkt_cls.h>
 
 static unsigned int pedit_net_id;
 static struct tc_action_ops act_pedit_ops;
@@ -46,7 +43,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 	int err = -EINVAL;
 	int rem;
 
-	if (!nla || !n)
+	if (!nla)
 		return NULL;
 
 	keys_ex = kcalloc(n, sizeof(*k), GFP_KERNEL);
@@ -69,8 +66,9 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 			goto err_out;
 		}
 
-		err = nla_parse_nested(tb, TCA_PEDIT_KEY_EX_MAX, ka,
-				       pedit_key_ex_policy, NULL);
+		err = nla_parse_nested_deprecated(tb, TCA_PEDIT_KEY_EX_MAX,
+						  ka, pedit_key_ex_policy,
+						  NULL);
 		if (err)
 			goto err_out;
 
@@ -107,14 +105,15 @@ err_out:
 static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 				 struct tcf_pedit_key_ex *keys_ex, int n)
 {
-	struct nlattr *keys_start = nla_nest_start(skb, TCA_PEDIT_KEYS_EX);
+	struct nlattr *keys_start = nla_nest_start_noflag(skb,
+							  TCA_PEDIT_KEYS_EX);
 
 	if (!keys_start)
 		goto nla_failure;
 	for (; n > 0; n--) {
 		struct nlattr *key_start;
 
-		key_start = nla_nest_start(skb, TCA_PEDIT_KEY_EX);
+		key_start = nla_nest_start_noflag(skb, TCA_PEDIT_KEY_EX);
 		if (!key_start)
 			goto nla_failure;
 
@@ -137,25 +136,29 @@ nla_failure:
 
 static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 			  struct nlattr *est, struct tc_action **a,
-			  int ovr, int bind, bool rtnl_held,
+			  struct tcf_proto *tp, u32 flags,
 			  struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
+	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_PEDIT_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_pedit_key *keys = NULL;
 	struct tcf_pedit_key_ex *keys_ex;
 	struct tc_pedit *parm;
 	struct nlattr *pattr;
 	struct tcf_pedit *p;
 	int ret = 0, err;
-	int ksize;
+	int i, ksize;
+	u32 index;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Pedit requires attributes to be passed");
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, pedit_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_PEDIT_MAX, nla,
+					  pedit_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -168,6 +171,10 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	}
 
 	parm = nla_data(pattr);
+	if (!parm->nkeys) {
+		NL_SET_ERR_MSG_MOD(extack, "Pedit requires keys to be passed");
+		return -EINVAL;
+	}
 	ksize = parm->nkeys * sizeof(struct tc_pedit_key);
 	if (nla_len(pattr) < sizeof(*parm) + ksize) {
 		NL_SET_ERR_MSG_ATTR(extack, pattr, "Length of TCA_PEDIT_PARMS or TCA_PEDIT_PARMS_EX pedit attribute is invalid");
@@ -178,25 +185,20 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (IS_ERR(keys_ex))
 		return PTR_ERR(keys_ex);
 
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
-		if (!parm->nkeys) {
-			tcf_idr_cleanup(tn, parm->index);
-			NL_SET_ERR_MSG_MOD(extack, "Pedit requires keys to be passed");
-			ret = -EINVAL;
-			goto out_free;
-		}
-		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_pedit_ops, bind, false);
+		ret = tcf_idr_create(tn, index, est, a,
+				     &act_pedit_ops, bind, false, flags);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			goto out_free;
 		}
 		ret = ACT_P_CREATED;
 	} else if (err > 0) {
 		if (bind)
 			goto out_free;
-		if (!ovr) {
+		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			ret = -EEXIST;
 			goto out_release;
 		}
@@ -205,6 +207,11 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		goto out_free;
 	}
 
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0) {
+		ret = err;
+		goto out_release;
+	}
 	p = to_pedit(*a);
 	spin_lock_bh(&p->tcf_lock);
 
@@ -214,25 +221,44 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		if (!keys) {
 			spin_unlock_bh(&p->tcf_lock);
 			ret = -ENOMEM;
-			goto out_release;
+			goto put_chain;
 		}
 		kfree(p->tcfp_keys);
 		p->tcfp_keys = keys;
 		p->tcfp_nkeys = parm->nkeys;
 	}
 	memcpy(p->tcfp_keys, parm->keys, ksize);
+	p->tcfp_off_max_hint = 0;
+	for (i = 0; i < p->tcfp_nkeys; ++i) {
+		u32 cur = p->tcfp_keys[i].off;
+
+		/* sanitize the shift value for any later use */
+		p->tcfp_keys[i].shift = min_t(size_t, BITS_PER_TYPE(int) - 1,
+					      p->tcfp_keys[i].shift);
+
+		/* The AT option can read a single byte, we can bound the actual
+		 * value with uchar max.
+		 */
+		cur += (0xff & p->tcfp_keys[i].offmask) >> p->tcfp_keys[i].shift;
+
+		/* Each key touches 4 bytes starting from the computed offset */
+		p->tcfp_off_max_hint = max(p->tcfp_off_max_hint, cur + 4);
+	}
 
 	p->tcfp_flags = parm->flags;
-	p->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 
 	kfree(p->tcfp_keys_ex);
 	p->tcfp_keys_ex = keys_ex;
 
 	spin_unlock_bh(&p->tcf_lock);
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	return ret;
 
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 out_release:
 	tcf_idr_release(*a, bind);
 out_free:
@@ -298,12 +324,17 @@ static int tcf_pedit_act(struct sk_buff *skb, const struct tc_action *a,
 			 struct tcf_result *res)
 {
 	struct tcf_pedit *p = to_pedit(a);
+	u32 max_offset;
 	int i;
 
-	if (skb_unclone(skb, GFP_ATOMIC))
-		return p->tcf_action;
-
 	spin_lock(&p->tcf_lock);
+
+	max_offset = (skb_transport_header_was_set(skb) ?
+		      skb_transport_offset(skb) :
+		      skb_network_offset(skb)) +
+		     p->tcfp_off_max_hint;
+	if (skb_ensure_writable(skb, min(skb->len, max_offset)))
+		goto unlock;
 
 	tcf_lastuse_update(&p->tcf_tm);
 
@@ -393,8 +424,19 @@ bad:
 	p->tcf_qstats.overlimits++;
 done:
 	bstats_update(&p->tcf_bstats, skb);
+unlock:
 	spin_unlock(&p->tcf_lock);
 	return p->tcf_action;
+}
+
+static void tcf_pedit_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+				   u64 drops, u64 lastuse, bool hw)
+{
+	struct tcf_pedit *d = to_pedit(a);
+	struct tcf_t *tm = &d->tcf_tm;
+
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
 static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
@@ -406,7 +448,7 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_t t;
 	int s;
 
-	s = sizeof(*opt) + p->tcfp_nkeys * sizeof(struct tc_pedit_key);
+	s = struct_size(opt, keys, p->tcfp_nkeys);
 
 	/* netlink spinlocks held above us - must use ATOMIC */
 	opt = kzalloc(s, GFP_ATOMIC);
@@ -414,8 +456,7 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 		return -ENOBUFS;
 
 	spin_lock_bh(&p->tcf_lock);
-	memcpy(opt->keys, p->tcfp_keys,
-	       p->tcfp_nkeys * sizeof(struct tc_pedit_key));
+	memcpy(opt->keys, p->tcfp_keys, flex_array_size(opt, keys, p->tcfp_nkeys));
 	opt->index = p->tcf_index;
 	opt->nkeys = p->tcfp_nkeys;
 	opt->flags = p->tcfp_flags;
@@ -468,16 +509,53 @@ static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_pedit_offload_act_setup(struct tc_action *act, void *entry_data,
+				       u32 *index_inc, bool bind,
+				       struct netlink_ext_ack *extack)
+{
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+		int k;
+
+		for (k = 0; k < tcf_pedit_nkeys(act); k++) {
+			switch (tcf_pedit_cmd(act, k)) {
+			case TCA_PEDIT_KEY_EX_CMD_SET:
+				entry->id = FLOW_ACTION_MANGLE;
+				break;
+			case TCA_PEDIT_KEY_EX_CMD_ADD:
+				entry->id = FLOW_ACTION_ADD;
+				break;
+			default:
+				NL_SET_ERR_MSG_MOD(extack, "Unsupported pedit command offload");
+				return -EOPNOTSUPP;
+			}
+			entry->mangle.htype = tcf_pedit_htype(act, k);
+			entry->mangle.mask = tcf_pedit_mask(act, k);
+			entry->mangle.val = tcf_pedit_val(act, k);
+			entry->mangle.offset = tcf_pedit_offset(act, k);
+			entry->hw_stats = tc_act_hw_stats(act->hw_stats);
+			entry++;
+		}
+		*index_inc = k;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
-	.type		=	TCA_ACT_PEDIT,
+	.id		=	TCA_ID_PEDIT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_pedit_act,
+	.stats_update	=	tcf_pedit_stats_update,
 	.dump		=	tcf_pedit_dump,
 	.cleanup	=	tcf_pedit_cleanup,
 	.init		=	tcf_pedit_init,
 	.walk		=	tcf_pedit_walker,
 	.lookup		=	tcf_pedit_search,
+	.offload_act_setup =	tcf_pedit_offload_act_setup,
 	.size		=	sizeof(struct tcf_pedit),
 };
 
@@ -485,7 +563,7 @@ static __net_init int pedit_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 
-	return tc_action_net_init(tn, &act_pedit_ops);
+	return tc_action_net_init(net, tn, &act_pedit_ops);
 }
 
 static void __net_exit pedit_exit_net(struct list_head *net_list)

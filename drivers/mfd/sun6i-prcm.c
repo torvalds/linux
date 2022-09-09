@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Free Electrons
  *
- * License Terms: GNU General Public License v2
  * Author: Boris BREZILLON <boris.brezillon@free-electrons.com>
  *
  * Allwinner PRCM (Power/Reset/Clock Management) driver
- *
  */
 
 #include <linux/mfd/core.h>
@@ -21,43 +20,23 @@ struct prcm_data {
 };
 
 static const struct resource sun6i_a31_ar100_clk_res[] = {
-	{
-		.start = 0x0,
-		.end = 0x3,
-		.flags = IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(0x0, 4)
 };
 
 static const struct resource sun6i_a31_apb0_clk_res[] = {
-	{
-		.start = 0xc,
-		.end = 0xf,
-		.flags = IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(0xc, 4)
 };
 
 static const struct resource sun6i_a31_apb0_gates_clk_res[] = {
-	{
-		.start = 0x28,
-		.end = 0x2b,
-		.flags = IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(0x28, 4)
 };
 
 static const struct resource sun6i_a31_ir_clk_res[] = {
-	{
-		.start = 0x54,
-		.end = 0x57,
-		.flags = IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(0x54, 4)
 };
 
 static const struct resource sun6i_a31_apb0_rstc_res[] = {
-	{
-		.start = 0xb0,
-		.end = 0xb3,
-		.flags = IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(0xb0, 4)
 };
 
 static const struct resource sun8i_codec_analog_res[] = {
@@ -148,13 +127,12 @@ static const struct of_device_id sun6i_prcm_dt_ids[] = {
 
 static int sun6i_prcm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	const struct prcm_data *data;
 	struct resource *res;
 	int ret;
 
-	match = of_match_node(sun6i_prcm_dt_ids, np);
+	match = of_match_node(sun6i_prcm_dt_ids, pdev->dev.of_node);
 	if (!match)
 		return -EINVAL;
 

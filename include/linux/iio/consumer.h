@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Industrial I/O in kernel consumer interface
  *
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #ifndef _IIO_INKERN_CONSUMER_H_
 #define _IIO_INKERN_CONSUMER_H_
@@ -16,6 +13,7 @@
 struct iio_dev;
 struct iio_chan_spec;
 struct device;
+struct device_node;
 
 /**
  * struct iio_channel - everything needed for a consumer to use a channel
@@ -67,15 +65,6 @@ void iio_channel_release(struct iio_channel *chan);
 struct iio_channel *devm_iio_channel_get(struct device *dev,
 					 const char *consumer_channel);
 /**
- * devm_iio_channel_release() - Resource managed version of
- *				iio_channel_release().
- * @dev:		Pointer to consumer device for which resource
- *			is allocared.
- * @chan:		The channel to be released.
- */
-void devm_iio_channel_release(struct device *dev, struct iio_channel *chan);
-
-/**
  * iio_channel_get_all() - get all channels associated with a client
  * @dev:		Pointer to consumer device.
  *
@@ -110,13 +99,39 @@ void iio_channel_release_all(struct iio_channel *chan);
 struct iio_channel *devm_iio_channel_get_all(struct device *dev);
 
 /**
- * devm_iio_channel_release_all() - Resource managed version of
- *				    iio_channel_release_all().
- * @dev:		Pointer to consumer device for which resource
- *			is allocared.
- * @chan:		Array channel to be released.
+ * of_iio_channel_get_by_name() - get description of all that is needed to access channel.
+ * @np:			Pointer to consumer device tree node
+ * @consumer_channel:	Unique name to identify the channel on the consumer
+ *			side. This typically describes the channels use within
+ *			the consumer. E.g. 'battery_voltage'
  */
-void devm_iio_channel_release_all(struct device *dev, struct iio_channel *chan);
+#ifdef CONFIG_OF
+struct iio_channel *of_iio_channel_get_by_name(struct device_node *np, const char *name);
+#else
+static inline struct iio_channel *
+of_iio_channel_get_by_name(struct device_node *np, const char *name)
+{
+	return NULL;
+}
+#endif
+
+/**
+ * devm_of_iio_channel_get_by_name() - Resource managed version of of_iio_channel_get_by_name().
+ * @dev:		Pointer to consumer device.
+ * @np:			Pointer to consumer device tree node
+ * @consumer_channel:	Unique name to identify the channel on the consumer
+ *			side. This typically describes the channels use within
+ *			the consumer. E.g. 'battery_voltage'
+ *
+ * Returns a pointer to negative errno if it is not able to get the iio channel
+ * otherwise returns valid pointer for iio channel.
+ *
+ * The allocated iio channel is automatically released when the device is
+ * unbound.
+ */
+struct iio_channel *devm_of_iio_channel_get_by_name(struct device *dev,
+						    struct device_node *np,
+						    const char *consumer_channel);
 
 struct iio_cb_buffer;
 /**
@@ -227,6 +242,21 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val);
 int iio_read_channel_processed(struct iio_channel *chan, int *val);
 
 /**
+ * iio_read_channel_processed_scale() - read and scale a processed value
+ * @chan:		The channel being queried.
+ * @val:		Value read back.
+ * @scale:		Scale factor to apply during the conversion
+ *
+ * Returns an error code or 0.
+ *
+ * This function will read a processed value from a channel. This will work
+ * like @iio_read_channel_processed() but also scale with an additional
+ * scale factor while attempting to minimize any precision loss.
+ */
+int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
+				     unsigned int scale);
+
+/**
  * iio_write_channel_attribute() - Write values to the device attribute.
  * @chan:	The channel being queried.
  * @val:	Value being written.
@@ -289,6 +319,20 @@ int iio_read_max_channel_raw(struct iio_channel *chan, int *val);
  */
 int iio_read_avail_channel_raw(struct iio_channel *chan,
 			       const int **vals, int *length);
+
+/**
+ * iio_read_avail_channel_attribute() - read available channel attribute values
+ * @chan:		The channel being queried.
+ * @vals:		Available values read back.
+ * @type:		Type of values read back.
+ * @length:		Number of entries in vals.
+ * @attribute:		info attribute to be read back.
+ *
+ * Returns an error code, IIO_AVAIL_RANGE or IIO_AVAIL_LIST.
+ */
+int iio_read_avail_channel_attribute(struct iio_channel *chan,
+				     const int **vals, int *type, int *length,
+				     enum iio_chan_info_enum attribute);
 
 /**
  * iio_get_channel_type() - get the type of a channel

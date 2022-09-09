@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 #include <linux/fb.h>
 #include <linux/fs.h>
+#include <linux/fbcon.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_domain.h>
@@ -133,7 +134,6 @@ static DEFINE_MUTEX(vgasr_mutex);
  * @delayed_switch_active: whether a delayed switch is pending
  * @delayed_client_id: client to which a delayed switch is pending
  * @debugfs_root: directory for vga_switcheroo debugfs interface
- * @switch_file: file for vga_switcheroo debugfs interface
  * @registered_clients: number of registered GPUs
  *	(counting only vga clients, not audio clients)
  * @clients: list of registered clients
@@ -152,7 +152,6 @@ struct vgasr_priv {
 	enum vga_switcheroo_client_id delayed_client_id;
 
 	struct dentry *debugfs_root;
-	struct dentry *switch_file;
 
 	int registered_clients;
 	struct list_head clients;
@@ -168,7 +167,7 @@ struct vgasr_priv {
 #define client_is_vga(c)		(!client_is_audio(c))
 #define client_id(c)		((c)->id & ~ID_BIT_AUDIO)
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
+static void vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv);
 
 /* only one switcheroo per system */
@@ -736,14 +735,8 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	if (!active->driver_power_control)
 		set_audio_state(active->id, VGA_SWITCHEROO_OFF);
 
-	if (new_client->fb_info) {
-		struct fb_event event;
-
-		console_lock();
-		event.info = new_client->fb_info;
-		fb_notifier_call_chain(FB_EVENT_REMAP_ALL_CONSOLE, &event);
-		console_unlock();
-	}
+	if (new_client->fb_info)
+		fbcon_remap_all(new_client->fb_info);
 
 	mutex_lock(&vgasr_priv.mux_hw_lock);
 	ret = vgasr_priv.handler->switchto(new_client->id);
@@ -914,38 +907,20 @@ static const struct file_operations vga_switcheroo_debugfs_fops = {
 
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv)
 {
-	debugfs_remove(priv->switch_file);
-	priv->switch_file = NULL;
-
-	debugfs_remove(priv->debugfs_root);
+	debugfs_remove_recursive(priv->debugfs_root);
 	priv->debugfs_root = NULL;
 }
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
+static void vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
 {
-	static const char mp[] = "/sys/kernel/debug";
-
 	/* already initialised */
 	if (priv->debugfs_root)
-		return 0;
+		return;
+
 	priv->debugfs_root = debugfs_create_dir("vgaswitcheroo", NULL);
 
-	if (!priv->debugfs_root) {
-		pr_err("Cannot create %s/vgaswitcheroo\n", mp);
-		goto fail;
-	}
-
-	priv->switch_file = debugfs_create_file("switch", 0644,
-						priv->debugfs_root, NULL,
-						&vga_switcheroo_debugfs_fops);
-	if (!priv->switch_file) {
-		pr_err("cannot create %s/vgaswitcheroo/switch\n", mp);
-		goto fail;
-	}
-	return 0;
-fail:
-	vga_switcheroo_debugfs_fini(priv);
-	return -1;
+	debugfs_create_file("switch", 0644, priv->debugfs_root, NULL,
+			    &vga_switcheroo_debugfs_fops);
 }
 
 /**
@@ -1059,17 +1034,12 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 static int vga_switcheroo_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	int ret;
 
 	mutex_lock(&vgasr_mutex);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_ON);
 	mutex_unlock(&vgasr_mutex);
-	pci_wakeup_bus(pdev->bus);
-	ret = dev->bus->pm->runtime_resume(dev);
-	if (ret)
-		return ret;
-
-	return 0;
+	pci_resume_bus(pdev->bus);
+	return dev->bus->pm->runtime_resume(dev);
 }
 
 /**

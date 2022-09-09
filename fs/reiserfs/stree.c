@@ -387,6 +387,24 @@ void pathrelse(struct treepath *search_path)
 	search_path->path_length = ILLEGAL_PATH_ELEMENT_OFFSET;
 }
 
+static int has_valid_deh_location(struct buffer_head *bh, struct item_head *ih)
+{
+	struct reiserfs_de_head *deh;
+	int i;
+
+	deh = B_I_DEH(bh, ih);
+	for (i = 0; i < ih_entry_count(ih); i++) {
+		if (deh_location(&deh[i]) > ih_item_len(ih)) {
+			reiserfs_warning(NULL, "reiserfs-5094",
+					 "directory entry location seems wrong %h",
+					 &deh[i]);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 static int is_leaf(char *buf, int blocksize, struct buffer_head *bh)
 {
 	struct block_head *blkh;
@@ -453,6 +471,15 @@ static int is_leaf(char *buf, int blocksize, struct buffer_head *bh)
 					 "item location seems wrong "
 					 "(second one): %h", ih);
 			return 0;
+		}
+		if (is_direntry_le_ih(ih)) {
+			if (ih_item_len(ih) < (ih_entry_count(ih) * IH_SIZE)) {
+				reiserfs_warning(NULL, "reiserfs-5093",
+						 "item entry count seems wrong %h",
+						 ih);
+				return 0;
+			}
+			return has_valid_deh_location(bh, ih);
 		}
 		prev_location = ih_location(ih);
 	}
@@ -552,7 +579,7 @@ static int search_by_key_reada(struct super_block *s,
 		if (!buffer_uptodate(bh[j])) {
 			if (depth == -1)
 				depth = reiserfs_write_unlock_nested(s);
-			ll_rw_block(REQ_OP_READ, REQ_RAHEAD, 1, bh + j);
+			ll_rw_block(REQ_OP_READ | REQ_RAHEAD, 1, bh + j);
 		}
 		brelse(bh[j]);
 	}
@@ -593,7 +620,6 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,
 	struct buffer_head *bh;
 	struct path_element *last_element;
 	int node_level, retval;
-	int right_neighbor_of_leaf_node;
 	int fs_gen;
 	struct buffer_head *reada_bh[SEARCH_BY_KEY_READA];
 	b_blocknr_t reada_blocks[SEARCH_BY_KEY_READA];
@@ -613,8 +639,6 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,
 	 */
 
 	pathrelse(search_path);
-
-	right_neighbor_of_leaf_node = 0;
 
 	/*
 	 * With each iteration of this loop we search through the items in the
@@ -661,7 +685,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,
 			if (!buffer_uptodate(bh) && depth == -1)
 				depth = reiserfs_write_unlock_nested(sb);
 
-			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+			ll_rw_block(REQ_OP_READ, 1, &bh);
 			wait_on_buffer(bh);
 
 			if (depth != -1)
@@ -701,7 +725,6 @@ io_error:
 			 */
 			block_number = SB_ROOT_BLOCK(sb);
 			expected_level = -1;
-			right_neighbor_of_leaf_node = 0;
 
 			/* repeat search from the root */
 			continue;
@@ -921,12 +944,6 @@ int comp_items(const struct item_head *stored_ih, const struct treepath *path)
 	ih = tp_item_head(path);
 	return memcmp(stored_ih, ih, IH_SIZE);
 }
-
-/* unformatted nodes are not logged anymore, ever.  This is safe now */
-#define held_by_others(bh) (atomic_read(&(bh)->b_count) > 1)
-
-/* block can not be forgotten as it is in I/O or held by someone */
-#define block_in_use(bh) (buffer_locked(bh) || (held_by_others(bh)))
 
 /* prepare for delete or cut of direct item */
 static inline int prepare_for_direct_item(struct treepath *path,
@@ -2250,7 +2267,8 @@ error_out:
 	/* also releases the path */
 	unfix_nodes(&s_ins_balance);
 #ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
+	if (inode)
+		reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
 		       "reiserquota insert_item(): freeing %u id=%u type=%c",
 		       quota_bytes, inode->i_uid, head2type(ih));
 #endif

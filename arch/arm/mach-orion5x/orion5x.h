@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Generic definitions of Orion SoC flavors:
  *  Orion-1, Orion-VoIP, Orion-NAS, Orion-2, and Orion-1-90.
  *
  * Maintainer: Tzachi Perelstein <tzachi@marvell.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #ifndef __ASM_ARCH_ORION5X_H
@@ -31,13 +28,13 @@
  * fc000000	device bus mappings (cs0/cs1)
  *
  * virt		phys		size
- * fe000000	f1000000	1M	on-chip peripheral registers
+ * fec00000	f1000000	1M	on-chip peripheral registers
  * fee00000	f2000000	64K	PCIe I/O space
  * fee10000	f2100000	64K	PCI I/O space
  * fd000000	f0000000	16M	PCIe WA space (Orion-1/Orion-NAS only)
  ****************************************************************************/
 #define ORION5X_REGS_PHYS_BASE		0xf1000000
-#define ORION5X_REGS_VIRT_BASE		IOMEM(0xfe000000)
+#define ORION5X_REGS_VIRT_BASE		IOMEM(0xfec00000)
 #define ORION5X_REGS_SIZE		SZ_1M
 
 #define ORION5X_PCIE_IO_PHYS_BASE	0xf2000000

@@ -1,0 +1,173 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cpufreq/qcom-cpufreq-nvmem.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. NVMEM CPUFreq bindings
+
+maintainers:
+  - Ilia Lin <ilia.lin@kernel.org>
+
+description: |
+  In certain Qualcomm Technologies, Inc. SoCs such as QCS404, The CPU supply
+  voltage is dynamically configured by Core Power Reduction (CPR) depending on
+  current CPU frequency and efuse values.
+  CPR provides a power domain with multiple levels that are selected depending
+  on the CPU OPP in use. The CPUFreq driver sets the CPR power domain level
+  according to the required OPPs defined in the CPU OPP tables.
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - qcom,apq8064
+          - qcom,apq8096
+          - qcom,ipq8064
+          - qcom,msm8939
+          - qcom,msm8960
+          - qcom,msm8974
+          - qcom,msm8996
+          - qcom,qcs404
+  required:
+    - compatible
+
+properties:
+  cpus:
+    type: object
+
+    patternProperties:
+      'cpu@[0-9a-f]+':
+        type: object
+
+        properties:
+          power-domains:
+            maxItems: 1
+
+          power-domain-names:
+            items:
+              - const: cpr
+
+        required:
+          - power-domains
+          - power-domain-names
+
+patternProperties:
+  '^opp-table(-[a-z0-9]+)?$':
+    if:
+      properties:
+        compatible:
+          const: operating-points-v2-kryo-cpu
+    then:
+      patternProperties:
+        '^opp-?[0-9]+$':
+          required:
+            - required-opps
+
+additionalProperties: true
+
+examples:
+  - |
+    / {
+        model = "Qualcomm Technologies, Inc. QCS404 EVB 1000";
+        compatible = "qcom,qcs404-evb-1000", "qcom,qcs404-evb", "qcom,qcs404";
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        cpus {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            CPU0: cpu@100 {
+                device_type = "cpu";
+                compatible = "arm,cortex-a53";
+                reg = <0x100>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                next-level-cache = <&L2_0>;
+                #cooling-cells = <2>;
+                clocks = <&apcs_glb>;
+                operating-points-v2 = <&cpu_opp_table>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+            };
+
+            CPU1: cpu@101 {
+                device_type = "cpu";
+                compatible = "arm,cortex-a53";
+                reg = <0x101>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                next-level-cache = <&L2_0>;
+                #cooling-cells = <2>;
+                clocks = <&apcs_glb>;
+                operating-points-v2 = <&cpu_opp_table>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+            };
+
+            CPU2: cpu@102 {
+                device_type = "cpu";
+                compatible = "arm,cortex-a53";
+                reg = <0x102>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                next-level-cache = <&L2_0>;
+                #cooling-cells = <2>;
+                clocks = <&apcs_glb>;
+                operating-points-v2 = <&cpu_opp_table>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+            };
+
+            CPU3: cpu@103 {
+                device_type = "cpu";
+                compatible = "arm,cortex-a53";
+                reg = <0x103>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                next-level-cache = <&L2_0>;
+                #cooling-cells = <2>;
+                clocks = <&apcs_glb>;
+                operating-points-v2 = <&cpu_opp_table>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+            };
+        };
+
+        cpu_opp_table: opp-table-cpu {
+            compatible = "operating-points-v2-kryo-cpu";
+            opp-shared;
+
+            opp-1094400000 {
+                opp-hz = /bits/ 64 <1094400000>;
+                required-opps = <&cpr_opp1>;
+            };
+            opp-1248000000 {
+                opp-hz = /bits/ 64 <1248000000>;
+                required-opps = <&cpr_opp2>;
+            };
+            opp-1401600000 {
+                opp-hz = /bits/ 64 <1401600000>;
+                required-opps = <&cpr_opp3>;
+            };
+        };
+
+        cpr_opp_table: opp-table-cpr {
+            compatible = "operating-points-v2-qcom-level";
+
+            cpr_opp1: opp1 {
+                opp-level = <1>;
+                qcom,opp-fuse-level = <1>;
+            };
+            cpr_opp2: opp2 {
+                opp-level = <2>;
+                qcom,opp-fuse-level = <2>;
+            };
+            cpr_opp3: opp3 {
+                opp-level = <3>;
+                qcom,opp-fuse-level = <3>;
+            };
+        };
+    };

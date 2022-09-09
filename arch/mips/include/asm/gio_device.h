@@ -32,8 +32,6 @@ struct gio_driver {
 };
 #define to_gio_driver(drv) container_of(drv, struct gio_driver, driver)
 
-extern const struct gio_device_id *gio_match_device(const struct gio_device_id *,
-						    const struct gio_device *);
 extern struct gio_device *gio_dev_get(struct gio_device *);
 extern void gio_dev_put(struct gio_device *);
 

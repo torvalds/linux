@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Extreme Engineering Solutions, Inc.
  * Based on TQM8548 device tree
  *
  * XPedite5200 PrPMC/XMC module based on MPC8548E
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -135,7 +132,7 @@
 				reg = <0x68>;
 			};
 
-			dtt@48 {
+			dtt@34 {
 				compatible = "maxim,max1237";
 				reg = <0x34>;
 			};

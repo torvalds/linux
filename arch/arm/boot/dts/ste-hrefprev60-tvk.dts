@@ -1,26 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 ST-Ericsson AB
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
+#include "ste-db8500.dtsi"
 #include "ste-hrefprev60.dtsi"
-#include "ste-href-tvk1281618.dtsi"
+#include "ste-href-tvk1281618-r2.dtsi"
 
 / {
-	model = "ST-Ericsson HREF (pre-v60) and TVK1281618 UIB";
+	model = "ST-Ericsson HREF (pre-v60) and TVK1281618 R2 UIB";
 	compatible = "st-ericsson,mop500", "st-ericsson,u8500";
 
-	/* This stablilizes the serial port enumeration */
-	aliases {
-		serial0 = &ux500_serial0;
-		serial1 = &ux500_serial1;
-		serial2 = &ux500_serial2;
+	/* ST6G3244ME level translator for 1.8/2.9 V */
+	vmmci: regulator-gpio {
+		compatible = "regulator-gpio";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-name = "mmci-reg";
+		regulator-type = "voltage";
+
+		startup-delay-us = <100>;
+
+		states = <1800000 0x1
+			  2900000 0x0>;
+
+		gpios = <&tc3589x_gpio 18 GPIO_ACTIVE_HIGH>;
+		enable-gpio = <&tc3589x_gpio 17 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };

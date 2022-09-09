@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  A low-level PATA driver to handle a Compact Flash connected on the
  *  Mikrotik's RouterBoard 532 board.
@@ -12,11 +13,6 @@
  *  Also was based on the driver for Linux 2.4.xx published by Mikrotik for
  *  their RouterBoard 1xx and 5xx series devices. The original Mikrotik code
  *  seems not to have a license.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/gfp.h>
@@ -119,10 +115,10 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
-		return -ENOENT;
-	}
+	if (irq < 0)
+		return irq;
+	if (!irq)
+		return -EINVAL;
 
 	gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_IN);
 	if (IS_ERR(gpiod)) {
@@ -144,7 +140,7 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	info->gpio_line = gpiod;
 	info->irq = irq;
 
-	info->iobase = devm_ioremap_nocache(&pdev->dev, res->start,
+	info->iobase = devm_ioremap(&pdev->dev, res->start,
 				resource_size(res));
 	if (!info->iobase)
 		return -ENOMEM;
@@ -162,7 +158,6 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 static int rb532_pata_driver_remove(struct platform_device *pdev)
 {
 	struct ata_host *ah = platform_get_drvdata(pdev);
-	struct rb532_cf_info *info = ah->private_data;
 
 	ata_host_detach(ah);
 

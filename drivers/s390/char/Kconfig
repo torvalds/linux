@@ -79,27 +79,6 @@ config SCLP_VT220_CONSOLE
 	  Include support for using an IBM SCLP VT220-compatible terminal as a
 	  Linux system console.
 
-config SCLP_ASYNC
-	def_tristate m
-	prompt "Support for Call Home via Asynchronous SCLP Records"
-	depends on S390
-	help
-	  This option enables the call home function, which is able to inform
-	  the service element and connected organisations about a kernel panic.
-	  You should only select this option if you know what you are doing,
-	  want for inform other people about your kernel panics,
-	  need this feature and intend to run your kernel in LPAR.
-
-config SCLP_ASYNC_ID
-       string "Component ID for Call Home"
-       depends on SCLP_ASYNC
-       default "000000000"
-       help
-	 The Component ID for Call Home is used to identify the correct
-	 problem reporting queue the call home records should be sent to.
-
-	 If your are unsure, please use the default value "000000000".
-
 config HMC_DRV
 	def_tristate m
 	prompt "Support for file transfers from HMC drive CD/DVD-ROM"
@@ -110,7 +89,7 @@ config HMC_DRV
 	  Management Console (HMC) drive CD/DVD-ROM. It is available as a
 	  module, called 'hmcdrv', and also as kernel built-in. There is one
 	  optional parameter for this module: cachesize=N, which modifies the
-	  transfer cache size from it's default value 0.5MB to N bytes. If N
+	  transfer cache size from its default value 0.5MB to N bytes. If N
 	  is zero, then no caching is performed.
 
 config SCLP_OFB
@@ -120,6 +99,17 @@ config SCLP_OFB
 	help
 	  This option enables the Open-for-Business interface to the s390
 	  Service Element.
+
+config S390_UV_UAPI
+	def_tristate m
+	prompt "Ultravisor userspace API"
+	depends on S390
+	help
+	  Selecting exposes parts of the UV interface to userspace
+	  by providing a misc character device at /dev/uv.
+	  Using IOCTLs one can interact with the UV.
+	  The device is only available if the Ultravisor
+	  Facility (158) is present.
 
 config S390_TAPE
 	def_tristate m
@@ -205,4 +195,3 @@ config S390_VMUR
 	depends on S390
 	help
 	  Character device driver for z/VM reader, puncher and printer.
-

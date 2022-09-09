@@ -138,28 +138,28 @@ attached to this host.
     Local USB devices
     =================
      - busid 1-1 (05a9:a511)
-	     1-1:1.0 -> ov511
+	     1-1:1.0
 
      - busid 3-2 (0711:0902)
-	     3-2:1.0 -> none
+	     3-2:1.0
 
      - busid 3-3.1 (08bb:2702)
-	     3-3.1:1.0 -> snd-usb-audio
-	     3-3.1:1.1 -> snd-usb-audio
+	     3-3.1:1.0
+	     3-3.1:1.1
 
      - busid 3-3.2 (04bb:0206)
-	     3-3.2:1.0 -> usb-storage
+	     3-3.2:1.0
 
      - busid 3-3 (0409:0058)
-	     3-3:1.0 -> hub
+	     3-3:1.0
 
      - busid 4-1 (046d:08b2)
-	     4-1:1.0 -> none
-	     4-1:1.1 -> none
-	     4-1:1.2 -> none
+	     4-1:1.0
+	     4-1:1.1
+	     4-1:1.2
 
      - busid 5-2 (058f:9254)
-	     5-2:1.0 -> hub
+	     5-2:1.0
 
 A USB storage device of busid 3-3.2 is now bound to the usb-storage
 driver. To export this device, we first mark the device as
@@ -180,7 +180,7 @@ Mark the device of busid 3-3.2 as exportable:
     ...
 
      - busid 3-3.2 (04bb:0206)
-	     3-3.2:1.0 -> usbip-host
+	     3-3.2:1.0
     ...
 
 ---------------------------

@@ -1,15 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
 **  Copyright (C) 2004-2010 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
+
+#include <trace/events/dlm.h>
 
 #include "dlm_internal.h"
 #include "lock.h"
@@ -255,10 +255,12 @@ void dlm_callback_work(struct work_struct *work)
 		if (callbacks[i].flags & DLM_CB_SKIP) {
 			continue;
 		} else if (callbacks[i].flags & DLM_CB_BAST) {
+			trace_dlm_bast(ls, lkb, callbacks[i].mode);
 			bastfn(lkb->lkb_astparam, callbacks[i].mode);
 		} else if (callbacks[i].flags & DLM_CB_CAST) {
 			lkb->lkb_lksb->sb_status = callbacks[i].sb_status;
 			lkb->lkb_lksb->sb_flags = callbacks[i].sb_flags;
+			trace_dlm_ast(ls, lkb);
 			castfn(lkb->lkb_astparam);
 		}
 	}
@@ -297,7 +299,8 @@ void dlm_callback_suspend(struct dlm_ls *ls)
 void dlm_callback_resume(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb, *safe;
-	int count = 0;
+	int count = 0, sum = 0;
+	bool empty;
 
 	clear_bit(LSFL_CB_DELAY, &ls->ls_flags);
 
@@ -313,14 +316,17 @@ more:
 		if (count == MAX_CB_QUEUE)
 			break;
 	}
+	empty = list_empty(&ls->ls_cb_delay);
 	mutex_unlock(&ls->ls_cb_mutex);
 
-	if (count)
-		log_rinfo(ls, "dlm_callback_resume %d", count);
-	if (count == MAX_CB_QUEUE) {
+	sum += count;
+	if (!empty) {
 		count = 0;
 		cond_resched();
 		goto more;
 	}
+
+	if (sum)
+		log_rinfo(ls, "%s %d", __func__, sum);
 }
 

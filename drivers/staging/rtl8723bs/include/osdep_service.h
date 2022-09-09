@@ -14,10 +14,6 @@
 
 #include <osdep_service_linux.h>
 
-#ifndef BIT
-	#define BIT(x)	(1 << (x))
-#endif
-
 #define BIT0	0x00000001
 #define BIT1	0x00000002
 #define BIT2	0x00000004
@@ -58,44 +54,13 @@
 
 extern int RTW_STATUS_CODE(int error_code);
 
-/* flags used for rtw_mstat_update() */
-enum mstat_f {
-	/* type: 0x00ff */
-	MSTAT_TYPE_VIR = 0x00,
-	MSTAT_TYPE_PHY = 0x01,
-	MSTAT_TYPE_SKB = 0x02,
-	MSTAT_TYPE_USB = 0x03,
-	MSTAT_TYPE_MAX = 0x04,
-
-	/* func: 0xff00 */
-	MSTAT_FUNC_UNSPECIFIED = 0x00<<8,
-	MSTAT_FUNC_IO = 0x01<<8,
-	MSTAT_FUNC_TX_IO = 0x02<<8,
-	MSTAT_FUNC_RX_IO = 0x03<<8,
-	MSTAT_FUNC_TX = 0x04<<8,
-	MSTAT_FUNC_RX = 0x05<<8,
-	MSTAT_FUNC_MAX = 0x06<<8,
-};
-
-#define mstat_tf_idx(flags) ((flags)&0xff)
-#define mstat_ff_idx(flags) (((flags)&0xff00) >> 8)
-
-typedef enum mstat_status{
-	MSTAT_ALLOC_SUCCESS = 0,
-	MSTAT_ALLOC_FAIL,
-	MSTAT_FREE
-} MSTAT_STATUS;
-
-#define rtw_mstat_update(flag, status, sz) do {} while (0)
-#define rtw_mstat_dump(sel) do {} while (0)
 void *_rtw_zmalloc(u32 sz);
 void *_rtw_malloc(u32 sz);
 void _kfree(u8 *pbuf, u32 sz);
 
 struct sk_buff *_rtw_skb_alloc(u32 sz);
 struct sk_buff *_rtw_skb_copy(const struct sk_buff *skb);
-struct sk_buff *_rtw_skb_clone(struct sk_buff *skb);
-int _rtw_netif_rx(_nic_hdl ndev, struct sk_buff *skb);
+int _rtw_netif_rx(struct net_device *ndev, struct sk_buff *skb);
 
 #define rtw_malloc(sz)			_rtw_malloc((sz))
 #define rtw_zmalloc(sz)			_rtw_zmalloc((sz))
@@ -103,21 +68,19 @@ int _rtw_netif_rx(_nic_hdl ndev, struct sk_buff *skb);
 #define rtw_skb_alloc(size) _rtw_skb_alloc((size))
 #define rtw_skb_alloc_f(size, mstat_f)	_rtw_skb_alloc((size))
 #define rtw_skb_copy(skb)	_rtw_skb_copy((skb))
-#define rtw_skb_clone(skb)	_rtw_skb_clone((skb))
 #define rtw_skb_copy_f(skb, mstat_f)	_rtw_skb_copy((skb))
-#define rtw_skb_clone_f(skb, mstat_f)	_rtw_skb_clone((skb))
 #define rtw_netif_rx(ndev, skb) _rtw_netif_rx(ndev, skb)
 
 extern void _rtw_init_queue(struct __queue	*pqueue);
 
-static __inline void thread_enter(char *name)
+static inline void thread_enter(char *name)
 {
 	allow_signal(SIGTERM);
 }
 
-__inline static void flush_signals_thread(void)
+static inline void flush_signals_thread(void)
 {
-	if (signal_pending (current))
+	if (signal_pending(current))
 	{
 		flush_signals(current);
 	}
@@ -125,7 +88,7 @@ __inline static void flush_signals_thread(void)
 
 #define rtw_warn_on(condition) WARN_ON(condition)
 
-__inline static int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *parg4)
+static inline int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *parg4)
 {
 	int ret = true;
 
@@ -134,117 +97,14 @@ __inline static int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *p
 }
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0: 1)) << 2)
 
-__inline static u32 _RND4(u32 sz)
-{
-
-	u32 val;
-
-	val = ((sz >> 2) + ((sz & 3) ? 1: 0)) << 2;
-
-	return val;
-
-}
-
-__inline static u32 _RND8(u32 sz)
-{
-
-	u32 val;
-
-	val = ((sz >> 3) + ((sz & 7) ? 1: 0)) << 3;
-
-	return val;
-
-}
-
-#ifndef MAC_FMT
-#define MAC_FMT "%pM"
-#endif
 #ifndef MAC_ARG
 #define MAC_ARG(x) (x)
 #endif
 
-
-#ifdef CONFIG_AP_WOWLAN
-extern void rtw_softap_lock_suspend(void);
-extern void rtw_softap_unlock_suspend(void);
-#endif
-
-/* File operation APIs, just for linux now */
-extern int rtw_is_file_readable(char *path);
-extern int rtw_retrive_from_file(char *path, u8 *buf, u32 sz);
-
 extern void rtw_free_netdev(struct net_device * netdev);
 
-
-extern u64 rtw_modular64(u64 x, u64 y);
-
 /* Macros for handling unaligned memory accesses */
-
-#define RTW_GET_BE16(a) ((u16) (((a)[0] << 8) | (a)[1]))
-#define RTW_PUT_BE16(a, val)			\
-	do {					\
-		(a)[0] = ((u16) (val)) >> 8;	\
-		(a)[1] = ((u16) (val)) & 0xff;	\
-	} while (0)
-
-#define RTW_GET_LE16(a) ((u16) (((a)[1] << 8) | (a)[0]))
-#define RTW_PUT_LE16(a, val)			\
-	do {					\
-		(a)[1] = ((u16) (val)) >> 8;	\
-		(a)[0] = ((u16) (val)) & 0xff;	\
-	} while (0)
-
-#define RTW_GET_BE24(a) ((((u32) (a)[0]) << 16) | (((u32) (a)[1]) << 8) | \
-			 ((u32) (a)[2]))
-#define RTW_PUT_BE24(a, val)					\
-	do {							\
-		(a)[0] = (u8) ((((u32) (val)) >> 16) & 0xff);	\
-		(a)[1] = (u8) ((((u32) (val)) >> 8) & 0xff);	\
-		(a)[2] = (u8) (((u32) (val)) & 0xff);		\
-	} while (0)
-
-#define RTW_GET_BE32(a) ((((u32) (a)[0]) << 24) | (((u32) (a)[1]) << 16) | \
-			 (((u32) (a)[2]) << 8) | ((u32) (a)[3]))
-#define RTW_PUT_BE32(a, val)					\
-	do {							\
-		(a)[0] = (u8) ((((u32) (val)) >> 24) & 0xff);	\
-		(a)[1] = (u8) ((((u32) (val)) >> 16) & 0xff);	\
-		(a)[2] = (u8) ((((u32) (val)) >> 8) & 0xff);	\
-		(a)[3] = (u8) (((u32) (val)) & 0xff);		\
-	} while (0)
-
-#define RTW_GET_LE32(a) ((((u32) (a)[3]) << 24) | (((u32) (a)[2]) << 16) | \
-			 (((u32) (a)[1]) << 8) | ((u32) (a)[0]))
-#define RTW_PUT_LE32(a, val)					\
-	do {							\
-		(a)[3] = (u8) ((((u32) (val)) >> 24) & 0xff);	\
-		(a)[2] = (u8) ((((u32) (val)) >> 16) & 0xff);	\
-		(a)[1] = (u8) ((((u32) (val)) >> 8) & 0xff);	\
-		(a)[0] = (u8) (((u32) (val)) & 0xff);		\
-	} while (0)
-
-#define RTW_GET_BE64(a) ((((u64) (a)[0]) << 56) | (((u64) (a)[1]) << 48) | \
-			 (((u64) (a)[2]) << 40) | (((u64) (a)[3]) << 32) | \
-			 (((u64) (a)[4]) << 24) | (((u64) (a)[5]) << 16) | \
-			 (((u64) (a)[6]) << 8) | ((u64) (a)[7]))
-#define RTW_PUT_BE64(a, val)				\
-	do {						\
-		(a)[0] = (u8) (((u64) (val)) >> 56);	\
-		(a)[1] = (u8) (((u64) (val)) >> 48);	\
-		(a)[2] = (u8) (((u64) (val)) >> 40);	\
-		(a)[3] = (u8) (((u64) (val)) >> 32);	\
-		(a)[4] = (u8) (((u64) (val)) >> 24);	\
-		(a)[5] = (u8) (((u64) (val)) >> 16);	\
-		(a)[6] = (u8) (((u64) (val)) >> 8);	\
-		(a)[7] = (u8) (((u64) (val)) & 0xff);	\
-	} while (0)
-
-#define RTW_GET_LE64(a) ((((u64) (a)[7]) << 56) | (((u64) (a)[6]) << 48) | \
-			 (((u64) (a)[5]) << 40) | (((u64) (a)[4]) << 32) | \
-			 (((u64) (a)[3]) << 24) | (((u64) (a)[2]) << 16) | \
-			 (((u64) (a)[1]) << 8) | ((u64) (a)[0]))
 
 void rtw_buf_free(u8 **buf, u32 *buf_len);
 void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len);
@@ -253,7 +113,7 @@ struct rtw_cbuf {
 	u32 write;
 	u32 read;
 	u32 size;
-	void *bufs[0];
+	void *bufs[];
 };
 
 bool rtw_cbuf_full(struct rtw_cbuf *cbuf);

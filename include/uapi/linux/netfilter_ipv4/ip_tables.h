@@ -121,7 +121,7 @@ struct ipt_entry {
 	struct xt_counters counters;
 
 	/* The matches (if any), then the target. */
-	unsigned char elems[0];
+	unsigned char elems[];
 };
 
 /*
@@ -203,7 +203,7 @@ struct ipt_replace {
 	struct xt_counters __user *counters;
 
 	/* The entries (hang off end: not really an array). */
-	struct ipt_entry entries[0];
+	struct ipt_entry entries[];
 };
 
 /* The argument to IPT_SO_GET_ENTRIES. */
@@ -215,14 +215,14 @@ struct ipt_get_entries {
 	unsigned int size;
 
 	/* The entries. */
-	struct ipt_entry entrytable[0];
+	struct ipt_entry entrytable[];
 };
 
 /* Helper functions */
 static __inline__ struct xt_entry_target *
 ipt_get_target(struct ipt_entry *e)
 {
-	return (void *)e + e->target_offset;
+	return (struct xt_entry_target *)((char *)e + e->target_offset);
 }
 
 /*

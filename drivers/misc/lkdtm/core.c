@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux Kernel Dump Test Module for testing kernel crashes conditions:
  * induces system failures at predefined crashpoints and under predefined
  * operational conditions in order to evaluate the reliability of kernel
  * sanity checking and crash dumps obtained using different dumping
  * solutions.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2006
  *
@@ -28,7 +15,7 @@
  *
  * Debugfs support added by Simon Kagstrom <simon.kagstrom@netinsight.net>
  *
- * See Documentation/fault-injection/provoke-crashes.txt for instructions
+ * See Documentation/fault-injection/provoke-crashes.rst for instructions
  */
 #include "lkdtm.h"
 #include <linux/fs.h>
@@ -37,15 +24,9 @@
 #include <linux/kprobes.h>
 #include <linux/list.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/hrtimer.h>
 #include <linux/slab.h>
-#include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
-
-#ifdef CONFIG_IDE
-#include <linux/ide.h>
-#endif
+#include <linux/utsname.h>
 
 #define DEFAULT_COUNT 10
 
@@ -101,92 +82,24 @@ static struct crashpoint crashpoints[] = {
 	CRASHPOINT("FS_DEVRW",		 "ll_rw_block"),
 	CRASHPOINT("MEM_SWAPOUT",	 "shrink_inactive_list"),
 	CRASHPOINT("TIMERADD",		 "hrtimer_start"),
-	CRASHPOINT("SCSI_DISPATCH_CMD",	 "scsi_dispatch_cmd"),
-# ifdef CONFIG_IDE
-	CRASHPOINT("IDE_CORE_CP",	 "generic_ide_ioctl"),
-# endif
+	CRASHPOINT("SCSI_QUEUE_RQ",	 "scsi_queue_rq"),
 #endif
 };
 
-
-/* Crash types. */
-struct crashtype {
-	const char *name;
-	void (*func)(void);
+/* List of possible types for crashes that can be triggered. */
+static const struct crashtype_category *crashtype_categories[] = {
+	&bugs_crashtypes,
+	&heap_crashtypes,
+	&perms_crashtypes,
+	&refcount_crashtypes,
+	&usercopy_crashtypes,
+	&stackleak_crashtypes,
+	&cfi_crashtypes,
+	&fortify_crashtypes,
+#ifdef CONFIG_PPC_64S_HASH_MMU
+	&powerpc_crashtypes,
+#endif
 };
-
-#define CRASHTYPE(_name)			\
-	{					\
-		.name = __stringify(_name),	\
-		.func = lkdtm_ ## _name,	\
-	}
-
-/* Define the possible types of crashes that can be triggered. */
-static const struct crashtype crashtypes[] = {
-	CRASHTYPE(PANIC),
-	CRASHTYPE(BUG),
-	CRASHTYPE(WARNING),
-	CRASHTYPE(EXCEPTION),
-	CRASHTYPE(LOOP),
-	CRASHTYPE(OVERFLOW),
-	CRASHTYPE(CORRUPT_LIST_ADD),
-	CRASHTYPE(CORRUPT_LIST_DEL),
-	CRASHTYPE(CORRUPT_USER_DS),
-	CRASHTYPE(CORRUPT_STACK),
-	CRASHTYPE(CORRUPT_STACK_STRONG),
-	CRASHTYPE(STACK_GUARD_PAGE_LEADING),
-	CRASHTYPE(STACK_GUARD_PAGE_TRAILING),
-	CRASHTYPE(UNALIGNED_LOAD_STORE_WRITE),
-	CRASHTYPE(OVERWRITE_ALLOCATION),
-	CRASHTYPE(WRITE_AFTER_FREE),
-	CRASHTYPE(READ_AFTER_FREE),
-	CRASHTYPE(WRITE_BUDDY_AFTER_FREE),
-	CRASHTYPE(READ_BUDDY_AFTER_FREE),
-	CRASHTYPE(SOFTLOCKUP),
-	CRASHTYPE(HARDLOCKUP),
-	CRASHTYPE(SPINLOCKUP),
-	CRASHTYPE(HUNG_TASK),
-	CRASHTYPE(EXEC_DATA),
-	CRASHTYPE(EXEC_STACK),
-	CRASHTYPE(EXEC_KMALLOC),
-	CRASHTYPE(EXEC_VMALLOC),
-	CRASHTYPE(EXEC_RODATA),
-	CRASHTYPE(EXEC_USERSPACE),
-	CRASHTYPE(ACCESS_USERSPACE),
-	CRASHTYPE(WRITE_RO),
-	CRASHTYPE(WRITE_RO_AFTER_INIT),
-	CRASHTYPE(WRITE_KERN),
-	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
-	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-	CRASHTYPE(REFCOUNT_INC_NOT_ZERO_OVERFLOW),
-	CRASHTYPE(REFCOUNT_ADD_NOT_ZERO_OVERFLOW),
-	CRASHTYPE(REFCOUNT_DEC_ZERO),
-	CRASHTYPE(REFCOUNT_DEC_NEGATIVE),
-	CRASHTYPE(REFCOUNT_DEC_AND_TEST_NEGATIVE),
-	CRASHTYPE(REFCOUNT_SUB_AND_TEST_NEGATIVE),
-	CRASHTYPE(REFCOUNT_INC_ZERO),
-	CRASHTYPE(REFCOUNT_ADD_ZERO),
-	CRASHTYPE(REFCOUNT_INC_SATURATED),
-	CRASHTYPE(REFCOUNT_DEC_SATURATED),
-	CRASHTYPE(REFCOUNT_ADD_SATURATED),
-	CRASHTYPE(REFCOUNT_INC_NOT_ZERO_SATURATED),
-	CRASHTYPE(REFCOUNT_ADD_NOT_ZERO_SATURATED),
-	CRASHTYPE(REFCOUNT_DEC_AND_TEST_SATURATED),
-	CRASHTYPE(REFCOUNT_SUB_AND_TEST_SATURATED),
-	CRASHTYPE(REFCOUNT_TIMING),
-	CRASHTYPE(ATOMIC_TIMING),
-	CRASHTYPE(USERCOPY_HEAP_SIZE_TO),
-	CRASHTYPE(USERCOPY_HEAP_SIZE_FROM),
-	CRASHTYPE(USERCOPY_HEAP_WHITELIST_TO),
-	CRASHTYPE(USERCOPY_HEAP_WHITELIST_FROM),
-	CRASHTYPE(USERCOPY_STACK_FRAME_TO),
-	CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
-	CRASHTYPE(USERCOPY_STACK_BEYOND),
-	CRASHTYPE(USERCOPY_KERNEL),
-	CRASHTYPE(USERCOPY_KERNEL_DS),
-	CRASHTYPE(STACKLEAK_ERASING),
-};
-
 
 /* Global kprobe entry and crashtype. */
 static struct kprobe *lkdtm_kprobe;
@@ -212,15 +125,26 @@ module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
 
+/*
+ * For test debug reporting when CI systems provide terse summaries.
+ * TODO: Remove this once reasonable reporting exists in most CI systems:
+ * https://lore.kernel.org/lkml/CAHk-=wiFvfkoFixTapvvyPMN9pq5G-+Dys2eSyBa1vzDGAO5+A@mail.gmail.com
+ */
+char *lkdtm_kernel_info;
 
 /* Return the crashtype number or NULL if the name is invalid */
 static const struct crashtype *find_crashtype(const char *name)
 {
-	int i;
+	int cat, idx;
 
-	for (i = 0; i < ARRAY_SIZE(crashtypes); i++) {
-		if (!strcmp(name, crashtypes[i].name))
-			return &crashtypes[i];
+	for (cat = 0; cat < ARRAY_SIZE(crashtype_categories); cat++) {
+		for (idx = 0; idx < crashtype_categories[cat]->len; idx++) {
+			struct crashtype *crashtype;
+
+			crashtype = &crashtype_categories[cat]->crashtypes[idx];
+			if (!strcmp(name, crashtype->name))
+				return crashtype;
+		}
 	}
 
 	return NULL;
@@ -340,17 +264,24 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 		size_t count, loff_t *off)
 {
+	int n, cat, idx;
+	ssize_t out;
 	char *buf;
-	int i, n, out;
 
 	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	n = snprintf(buf, PAGE_SIZE, "Available crash types:\n");
-	for (i = 0; i < ARRAY_SIZE(crashtypes); i++) {
-		n += snprintf(buf + n, PAGE_SIZE - n, "%s\n",
-			      crashtypes[i].name);
+	n = scnprintf(buf, PAGE_SIZE, "Available crash types:\n");
+
+	for (cat = 0; cat < ARRAY_SIZE(crashtype_categories); cat++) {
+		for (idx = 0; idx < crashtype_categories[cat]->len; idx++) {
+			struct crashtype *crashtype;
+
+			crashtype = &crashtype_categories[cat]->crashtypes[idx];
+			n += scnprintf(buf + n, PAGE_SIZE - n, "%s\n",
+				      crashtype->name);
+		}
 	}
 	buf[n] = '\0';
 
@@ -401,13 +332,63 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 	return count;
 }
 
+#ifndef MODULE
+/*
+ * To avoid needing to export parse_args(), just don't use this code
+ * when LKDTM is built as a module.
+ */
+struct check_cmdline_args {
+	const char *param;
+	int value;
+};
+
+static int lkdtm_parse_one(char *param, char *val,
+			   const char *unused, void *arg)
+{
+	struct check_cmdline_args *args = arg;
+
+	/* short circuit if we already found a value. */
+	if (args->value != -ESRCH)
+		return 0;
+	if (strncmp(param, args->param, strlen(args->param)) == 0) {
+		bool bool_result;
+		int ret;
+
+		ret = kstrtobool(val, &bool_result);
+		if (ret == 0)
+			args->value = bool_result;
+	}
+	return 0;
+}
+
+int lkdtm_check_bool_cmdline(const char *param)
+{
+	char *command_line;
+	struct check_cmdline_args args = {
+		.param = param,
+		.value = -ESRCH,
+	};
+
+	command_line = kstrdup(saved_command_line, GFP_KERNEL);
+	if (!command_line)
+		return -ENOMEM;
+
+	parse_args("Setting sysctl args", command_line,
+		   NULL, 0, -1, -1, &args, lkdtm_parse_one);
+
+	kfree(command_line);
+
+	return args.value;
+}
+#endif
+
 static struct dentry *lkdtm_debugfs_root;
 
 static int __init lkdtm_module_init(void)
 {
 	struct crashpoint *crashpoint = NULL;
 	const struct crashtype *crashtype = NULL;
-	int ret = -EINVAL;
+	int ret;
 	int i;
 
 	/* Neither or both of these need to be set */
@@ -442,29 +423,26 @@ static int __init lkdtm_module_init(void)
 	crash_count = cpoint_count;
 #endif
 
+	/* Common initialization. */
+	lkdtm_kernel_info = kasprintf(GFP_KERNEL, "kernel (%s %s)",
+				      init_uts_ns.name.release,
+				      init_uts_ns.name.machine);
+
 	/* Handle test-specific initialization. */
 	lkdtm_bugs_init(&recur_count);
 	lkdtm_perms_init();
 	lkdtm_usercopy_init();
+	lkdtm_heap_init();
 
 	/* Register debugfs interface */
 	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
-	if (!lkdtm_debugfs_root) {
-		pr_err("creating root dir failed\n");
-		return -ENODEV;
-	}
 
 	/* Install debugfs trigger files. */
 	for (i = 0; i < ARRAY_SIZE(crashpoints); i++) {
 		struct crashpoint *cur = &crashpoints[i];
-		struct dentry *de;
 
-		de = debugfs_create_file(cur->name, 0644, lkdtm_debugfs_root,
-					 cur, &cur->fops);
-		if (de == NULL) {
-			pr_err("could not create crashpoint %s\n", cur->name);
-			goto out_err;
-		}
+		debugfs_create_file(cur->name, 0644, lkdtm_debugfs_root, cur,
+				    &cur->fops);
 	}
 
 	/* Install crashpoint if one was selected. */
@@ -492,10 +470,13 @@ static void __exit lkdtm_module_exit(void)
 	debugfs_remove_recursive(lkdtm_debugfs_root);
 
 	/* Handle test-specific clean-up. */
+	lkdtm_heap_exit();
 	lkdtm_usercopy_exit();
 
 	if (lkdtm_kprobe != NULL)
 		unregister_kprobe(lkdtm_kprobe);
+
+	kfree(lkdtm_kernel_info);
 
 	pr_info("Crash point unregistered\n");
 }

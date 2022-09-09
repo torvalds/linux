@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Test null syscall performance
  *
  * Copyright (C) 2009-2015 Anton Blanchard, IBM
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define NR_LOOPS 10000000
@@ -18,6 +14,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/syscall.h>
 #include <signal.h>
 
 static volatile int soak_done;
@@ -25,7 +22,7 @@ unsigned long long clock_frequency;
 unsigned long long timebase_frequency;
 double timebase_multiplier;
 
-static inline unsigned long long mftb(void)
+static inline unsigned long mftb(void)
 {
 	unsigned long low;
 
@@ -125,7 +122,7 @@ static void do_null_syscall(unsigned long nr)
 	unsigned long i;
 
 	for (i = 0; i < nr; i++)
-		getppid();
+		syscall(__NR_gettid);
 }
 
 #define TIME(A, STR) \

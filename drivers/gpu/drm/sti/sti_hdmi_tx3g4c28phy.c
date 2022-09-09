@@ -4,6 +4,8 @@
  * Author: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
  */
 
+#include <drm/drm_print.h>
+
 #include "sti_hdmi_tx3g4c28phy.h"
 
 #define HDMI_SRZ_CFG                             0x504
@@ -65,7 +67,7 @@ static struct hdmi_phy_config hdmiphy_config[NB_HDMI_PHY_CONFIG] = {
 };
 
 /**
- * Start hdmi phy macro cell tx3g4c28
+ * sti_hdmi_tx3g4c28phy_start - Start hdmi phy macro cell tx3g4c28
  *
  * @hdmi: pointer on the hdmi internal structure
  *
@@ -177,7 +179,7 @@ err:
 }
 
 /**
- * Stop hdmi phy macro cell tx3g4c28
+ * sti_hdmi_tx3g4c28phy_stop - Stop hdmi phy macro cell tx3g4c28
  *
  * @hdmi: pointer on the hdmi internal structure
  */

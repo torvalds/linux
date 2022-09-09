@@ -216,6 +216,8 @@ struct edac_device_ctl_info {
 	 */
 	u32 nr_instances;
 	struct edac_device_instance *instances;
+	struct edac_device_block *blocks;
+	struct edac_dev_sysfs_block_attribute *attribs;
 
 	/* Event counters for the this whole EDAC Device */
 	struct edac_device_counter counters;
@@ -258,7 +260,7 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 extern void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info);
 
 /**
- * edac_device_add_device: Insert the 'edac_dev' structure into the
+ * edac_device_add_device - Insert the 'edac_dev' structure into the
  *	 edac_device global list and create sysfs entries associated with
  *	 edac_device structure.
  *
@@ -271,9 +273,8 @@ extern void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info);
 extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
 
 /**
- * edac_device_del_device:
- *	Remove sysfs entries for specified edac_device structure and
- *	then remove edac_device structure from global list
+ * edac_device_del_device - Remove sysfs entries for specified edac_device
+ *	structure and then remove edac_device structure from global list
  *
  * @dev:
  *	Pointer to struct &device representing the edac device
@@ -286,27 +287,60 @@ extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
 
 /**
- * edac_device_handle_ue():
- *	perform a common output and handling of an 'edac_dev' UE event
+ * edac_device_handle_ce_count - Log correctable errors.
  *
  * @edac_dev: pointer to struct &edac_device_ctl_info
- * @inst_nr: number of the instance where the UE error happened
- * @block_nr: number of the block where the UE error happened
+ * @inst_nr: number of the instance where the CE error happened
+ * @count: Number of errors to log.
+ * @block_nr: number of the block where the CE error happened
  * @msg: message to be printed
  */
-extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
-				int inst_nr, int block_nr, const char *msg);
+void edac_device_handle_ce_count(struct edac_device_ctl_info *edac_dev,
+				 unsigned int count, int inst_nr, int block_nr,
+				 const char *msg);
+
 /**
- * edac_device_handle_ce():
- *	perform a common output and handling of an 'edac_dev' CE event
+ * edac_device_handle_ue_count - Log uncorrectable errors.
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the CE error happened
+ * @count: Number of errors to log.
+ * @block_nr: number of the block where the CE error happened
+ * @msg: message to be printed
+ */
+void edac_device_handle_ue_count(struct edac_device_ctl_info *edac_dev,
+				 unsigned int count, int inst_nr, int block_nr,
+				 const char *msg);
+
+/**
+ * edac_device_handle_ce(): Log a single correctable error
  *
  * @edac_dev: pointer to struct &edac_device_ctl_info
  * @inst_nr: number of the instance where the CE error happened
  * @block_nr: number of the block where the CE error happened
  * @msg: message to be printed
  */
-extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
-				int inst_nr, int block_nr, const char *msg);
+static inline void
+edac_device_handle_ce(struct edac_device_ctl_info *edac_dev, int inst_nr,
+		      int block_nr, const char *msg)
+{
+	edac_device_handle_ce_count(edac_dev, 1, inst_nr, block_nr, msg);
+}
+
+/**
+ * edac_device_handle_ue(): Log a single uncorrectable error
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the UE error happened
+ * @block_nr: number of the block where the UE error happened
+ * @msg: message to be printed
+ */
+static inline void
+edac_device_handle_ue(struct edac_device_ctl_info *edac_dev, int inst_nr,
+		      int block_nr, const char *msg)
+{
+	edac_device_handle_ue_count(edac_dev, 1, inst_nr, block_nr, msg);
+}
 
 /**
  * edac_device_alloc_index: Allocate a unique device index number
@@ -317,4 +351,15 @@ extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 extern int edac_device_alloc_index(void);
 extern const char *edac_layer_name[];
 
+/* Free the actual struct */
+static inline void __edac_device_free_ctl_info(struct edac_device_ctl_info *ci)
+{
+	if (ci) {
+		kfree(ci->pvt_info);
+		kfree(ci->attribs);
+		kfree(ci->blocks);
+		kfree(ci->instances);
+		kfree(ci);
+	}
+}
 #endif

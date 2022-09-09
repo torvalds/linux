@@ -1,18 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* YFS protocol bits
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define YFS_FS_SERVICE	2500
 #define YFS_CM_SERVICE	2501
 
-#define YFSCBMAX 1024
+#define YFSCBMAX	1024
 
 enum YFS_CM_Operations {
 	YFSCBProbe		= 206,	/* probe client */
@@ -31,9 +27,9 @@ enum YFS_CM_Operations {
 };
 
 enum YFS_FS_Operations {
-	YFSFETCHACL		= 64131, /* YFS Fetch file ACL */
+	YFSFETCHACL		= 64131, /* YFS Fetch file AFS3 ACL */
 	YFSFETCHSTATUS		= 64132, /* YFS Fetch file status */
-	YFSSTOREACL		= 64134, /* YFS Store file ACL */
+	YFSSTOREACL		= 64134, /* YFS Store file AFS3 ACL */
 	YFSSTORESTATUS		= 64135, /* YFS Store file status */
 	YFSREMOVEFILE		= 64136, /* YFS Remove a file */
 	YFSCREATEFILE		= 64137, /* YFS Create a file */
@@ -49,7 +45,7 @@ enum YFS_FS_Operations {
 	YFSRELEASELOCK		= 64158, /* YFS Release a file lock */
 	YFSLOOKUP		= 64161, /* YFS lookup file in directory */
 	YFSFLUSHCPS		= 64165,
-	YFSFETCHOPAQUEACL	= 64168,
+	YFSFETCHOPAQUEACL	= 64168, /* YFS Fetch file YFS ACL */
 	YFSWHOAMI		= 64170,
 	YFSREMOVEACL		= 64171,
 	YFSREMOVEFILE2		= 64173,
@@ -161,3 +157,20 @@ struct yfs_xdr_YFSStoreVolumeStatus {
 	struct yfs_xdr_u64	max_quota;
 	struct yfs_xdr_u64	file_quota;
 } __packed;
+
+enum yfs_lock_type {
+	yfs_LockNone		= -1,
+	yfs_LockRead		= 0,
+	yfs_LockWrite		= 1,
+	yfs_LockExtend		= 2,
+	yfs_LockRelease		= 3,
+	yfs_LockMandatoryRead	= 0x100,
+	yfs_LockMandatoryWrite	= 0x101,
+	yfs_LockMandatoryExtend	= 0x102,
+};
+
+/* RXYFS Viced Capability Flags */
+#define YFS_VICED_CAPABILITY_ERRORTRANS		0x0001 /* Deprecated v0.195 */
+#define YFS_VICED_CAPABILITY_64BITFILES		0x0002 /* Deprecated v0.195 */
+#define YFS_VICED_CAPABILITY_WRITELOCKACL	0x0004 /* Can lock a file even without lock perm */
+#define YFS_VICED_CAPABILITY_SANEACLS		0x0008 /* Deprecated v0.195 */

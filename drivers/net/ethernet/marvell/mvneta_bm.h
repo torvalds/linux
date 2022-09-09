@@ -160,16 +160,23 @@ static inline u32 mvneta_bm_pool_get_bp(struct mvneta_bm *priv,
 			     (bm_pool->id << MVNETA_BM_POOL_ACCESS_OFFS));
 }
 #else
-void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
-			    struct mvneta_bm_pool *bm_pool, u8 port_map) {}
-void mvneta_bm_bufs_free(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
-			 u8 port_map) {}
-int mvneta_bm_construct(struct hwbm_pool *hwbm_pool, void *buf) { return 0; }
-int mvneta_bm_pool_refill(struct mvneta_bm *priv,
-			  struct mvneta_bm_pool *bm_pool) {return 0; }
-struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
-					  enum mvneta_bm_type type, u8 port_id,
-					  int pkt_size) { return NULL; }
+static inline void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
+					  struct mvneta_bm_pool *bm_pool,
+					  u8 port_map) {}
+static inline void mvneta_bm_bufs_free(struct mvneta_bm *priv,
+				       struct mvneta_bm_pool *bm_pool,
+				       u8 port_map) {}
+static inline int mvneta_bm_construct(struct hwbm_pool *hwbm_pool, void *buf)
+{ return 0; }
+static inline int mvneta_bm_pool_refill(struct mvneta_bm *priv,
+					struct mvneta_bm_pool *bm_pool)
+{ return 0; }
+static inline struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv,
+							u8 pool_id,
+							enum mvneta_bm_type type,
+							u8 port_id,
+							int pkt_size)
+{ return NULL; }
 
 static inline void mvneta_bm_pool_put_bp(struct mvneta_bm *priv,
 					 struct mvneta_bm_pool *bm_pool,
@@ -178,7 +185,8 @@ static inline void mvneta_bm_pool_put_bp(struct mvneta_bm *priv,
 static inline u32 mvneta_bm_pool_get_bp(struct mvneta_bm *priv,
 					struct mvneta_bm_pool *bm_pool)
 { return 0; }
-struct mvneta_bm *mvneta_bm_get(struct device_node *node) { return NULL; }
-void mvneta_bm_put(struct mvneta_bm *priv) {}
+static inline struct mvneta_bm *mvneta_bm_get(struct device_node *node)
+{ return NULL; }
+static inline void mvneta_bm_put(struct mvneta_bm *priv) {}
 #endif /* CONFIG_MVNETA_BM */
 #endif

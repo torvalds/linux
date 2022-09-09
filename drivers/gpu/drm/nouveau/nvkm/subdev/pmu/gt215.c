@@ -34,7 +34,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 	struct nvkm_device *device = subdev->device;
 	u32 addr;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&pmu->send.mutex);
 	/* wait for a free slot in the fifo */
 	addr  = nvkm_rd32(device, 0x10a4a0);
 	if (nvkm_msec(device, 2000,
@@ -42,7 +42,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 		if (tmp != (addr ^ 8))
 			break;
 	) < 0) {
-		mutex_unlock(&subdev->mutex);
+		mutex_unlock(&pmu->send.mutex);
 		return -EBUSY;
 	}
 
@@ -79,7 +79,7 @@ gt215_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 		reply[1] = pmu->recv.data[1];
 	}
 
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&pmu->send.mutex);
 	return 0;
 }
 
@@ -241,8 +241,27 @@ gt215_pmu_init(struct nvkm_pmu *pmu)
 	return 0;
 }
 
+const struct nvkm_falcon_func
+gt215_pmu_flcn = {
+	.debug = 0xc08,
+	.fbif = 0xe00,
+	.load_imem = nvkm_falcon_v1_load_imem,
+	.load_dmem = nvkm_falcon_v1_load_dmem,
+	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.bind_context = nvkm_falcon_v1_bind_context,
+	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
+	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
+	.set_start_addr = nvkm_falcon_v1_set_start_addr,
+	.start = nvkm_falcon_v1_start,
+	.enable = nvkm_falcon_v1_enable,
+	.disable = nvkm_falcon_v1_disable,
+	.cmdq = { 0x4a0, 0x4b0, 4 },
+	.msgq = { 0x4c8, 0x4cc, 0 },
+};
+
 static const struct nvkm_pmu_func
 gt215_pmu = {
+	.flcn = &gt215_pmu_flcn,
 	.code.data = gt215_pmu_code,
 	.code.size = sizeof(gt215_pmu_code),
 	.data.data = gt215_pmu_data,
@@ -256,8 +275,15 @@ gt215_pmu = {
 	.recv = gt215_pmu_recv,
 };
 
+static const struct nvkm_pmu_fwif
+gt215_pmu_fwif[] = {
+	{ -1, gf100_pmu_nofw, &gt215_pmu },
+	{}
+};
+
 int
-gt215_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gt215_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(&gt215_pmu, device, index, ppmu);
+	return nvkm_pmu_new_(gt215_pmu_fwif, device, type, inst, ppmu);
 }

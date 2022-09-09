@@ -23,7 +23,8 @@
 struct qtnf_pcie_bus_priv {
 	struct pci_dev *pdev;
 
-	int (*probe_cb)(struct qtnf_bus *bus, unsigned int tx_bd_size);
+	int (*probe_cb)(struct qtnf_bus *bus, unsigned int tx_bd_size,
+			unsigned int rx_bd_size);
 	void (*remove_cb)(struct qtnf_bus *bus);
 	int (*suspend_cb)(struct qtnf_bus *bus);
 	int (*resume_cb)(struct qtnf_bus *bus);
@@ -70,7 +71,7 @@ struct qtnf_pcie_bus_priv {
 
 int qtnf_pcie_control_tx(struct qtnf_bus *bus, struct sk_buff *skb);
 int qtnf_pcie_alloc_skb_array(struct qtnf_pcie_bus_priv *priv);
-void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success);
+int qtnf_pcie_fw_boot_done(struct qtnf_bus *bus);
 void qtnf_pcie_init_shm_ipc(struct qtnf_pcie_bus_priv *priv,
 			    struct qtnf_shm_ipc_region __iomem *ipc_tx_reg,
 			    struct qtnf_shm_ipc_region __iomem *ipc_rx_reg,

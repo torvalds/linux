@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * h3600 atmel micro companion support, touchscreen subdevice
  * Author : Alessandro Gardich <gremlin@gremlin.it>
  * Author : Dmitry Artamonow <mad_soft@inbox.ru>
  * Author : Linus Walleij <linus.walleij@linaro.org>
- *
  */
 
 #include <asm/byteorder.h>
@@ -138,7 +135,7 @@ static int __maybe_unused micro_ts_resume(struct device *dev)
 
 	mutex_lock(&input->mutex);
 
-	if (input->users)
+	if (input_device_enabled(input))
 		micro_ts_toggle_receive(ts, true);
 
 	mutex_unlock(&input->mutex);

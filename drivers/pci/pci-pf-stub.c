@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* pci-pf-stub - simple stub driver for PCI SR-IOV PF device
  *
- * This driver is meant to act as a "whitelist" for devices that provde
+ * This driver is meant to act as a "whitelist" for devices that provide
  * SR-IOV functionality while at the same time not actually needing a
  * driver of their own.
  */
@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-/**
+/*
  * pci_pf_stub_whitelist - White list of devices to bind pci-pf-stub onto
  *
  * This table provides the list of IDs this driver is supposed to bind
@@ -37,18 +37,6 @@ static struct pci_driver pf_stub_driver = {
 	.probe			= pci_pf_stub_probe,
 	.sriov_configure	= pci_sriov_configure_simple,
 };
-
-static int __init pci_pf_stub_init(void)
-{
-	return pci_register_driver(&pf_stub_driver);
-}
-
-static void __exit pci_pf_stub_exit(void)
-{
-	pci_unregister_driver(&pf_stub_driver);
-}
-
-module_init(pci_pf_stub_init);
-module_exit(pci_pf_stub_exit);
+module_pci_driver(pf_stub_driver);
 
 MODULE_LICENSE("GPL");

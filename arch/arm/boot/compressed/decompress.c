@@ -32,6 +32,7 @@
 extern char * strstr(const char * s1, const char *s2);
 extern size_t strlen(const char *s);
 extern int memcmp(const void *cs, const void *ct, size_t count);
+extern char * strchrnul(const char *, int);
 
 #ifdef CONFIG_KERNEL_GZIP
 #include "../../../../lib/decompress_inflate.c"
@@ -46,7 +47,10 @@ extern int memcmp(const void *cs, const void *ct, size_t count);
 #endif
 
 #ifdef CONFIG_KERNEL_XZ
+/* Prevent KASAN override of string helpers in decompressor */
+#undef memmove
 #define memmove memmove
+#undef memcpy
 #define memcpy memcpy
 #include "../../../../lib/decompress_unxz.c"
 #endif

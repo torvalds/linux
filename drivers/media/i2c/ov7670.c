@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A V4L2 driver for OmniVision OV7670 cameras.
  *
@@ -6,9 +7,6 @@
  * McClelland's ovcamchip code.
  *
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
- *
- * This file may be distributed under the terms of the GNU General
- * Public License, version 2.
  */
 #include <linux/clk.h>
 #include <linux/init.h>
@@ -160,10 +158,10 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define REG_GFIX	0x69	/* Fix gain control */
 
 #define REG_DBLV	0x6b	/* PLL control an debugging */
-#define   DBLV_BYPASS	  0x00	  /* Bypass PLL */
-#define   DBLV_X4	  0x01	  /* clock x4 */
-#define   DBLV_X6	  0x10	  /* clock x6 */
-#define   DBLV_X8	  0x11	  /* clock x8 */
+#define   DBLV_BYPASS	  0x0a	  /* Bypass PLL */
+#define   DBLV_X4	  0x4a	  /* clock x4 */
+#define   DBLV_X6	  0x8a	  /* clock x6 */
+#define   DBLV_X8	  0xca	  /* clock x8 */
 
 #define REG_SCALING_XSC	0x70	/* Test pattern and horizontal scale factor */
 #define   TEST_PATTTERN_0 0x80
@@ -241,7 +239,9 @@ struct ov7670_info {
 	};
 	struct v4l2_mbus_framefmt format;
 	struct ov7670_format_struct *fmt;  /* Current format */
+	struct ov7670_win_size *wsize;
 	struct clk *clk;
+	int on;
 	struct gpio_desc *resetb_gpio;
 	struct gpio_desc *pwdn_gpio;
 	unsigned int mbus_config;	/* Media bus configuration flags */
@@ -561,6 +561,7 @@ static int ov7670_read(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char *value)
 {
 	struct ov7670_info *info = to_state(sd);
+
 	if (info->use_smbus)
 		return ov7670_read_smbus(sd, reg, value);
 	else
@@ -571,6 +572,7 @@ static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char value)
 {
 	struct ov7670_info *info = to_state(sd);
+
 	if (info->use_smbus)
 		return ov7670_write_smbus(sd, reg, value);
 	else
@@ -597,6 +599,7 @@ static int ov7670_write_array(struct v4l2_subdev *sd, struct regval_list *vals)
 {
 	while (vals->reg_num != 0xff || vals->value != 0xff) {
 		int ret = ov7670_write(sd, vals->reg_num, vals->value);
+
 		if (ret < 0)
 			return ret;
 		vals++;
@@ -810,13 +813,25 @@ static void ov7675_get_framerate(struct v4l2_subdev *sd,
 			(4 * clkrc);
 }
 
+static int ov7675_apply_framerate(struct v4l2_subdev *sd)
+{
+	struct ov7670_info *info = to_state(sd);
+	int ret;
+
+	ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
+	if (ret < 0)
+		return ret;
+
+	return ov7670_write(sd, REG_DBLV,
+			    info->pll_bypass ? DBLV_BYPASS : DBLV_X4);
+}
+
 static int ov7675_set_framerate(struct v4l2_subdev *sd,
 				 struct v4l2_fract *tpf)
 {
 	struct ov7670_info *info = to_state(sd);
 	u32 clkrc;
 	int pll_factor;
-	int ret;
 
 	/*
 	 * The formula is fps = 5/4*pixclk for YUV/RGB and
@@ -825,19 +840,10 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	 * pixclk = clock_speed / (clkrc + 1) * PLLfactor
 	 *
 	 */
-	if (info->pll_bypass) {
-		pll_factor = 1;
-		ret = ov7670_write(sd, REG_DBLV, DBLV_BYPASS);
-	} else {
-		pll_factor = PLL_FACTOR;
-		ret = ov7670_write(sd, REG_DBLV, DBLV_X4);
-	}
-	if (ret < 0)
-		return ret;
-
 	if (tpf->numerator == 0 || tpf->denominator == 0) {
 		clkrc = 0;
 	} else {
+		pll_factor = info->pll_bypass ? 1 : PLL_FACTOR;
 		clkrc = (5 * pll_factor * info->clock_speed * tpf->numerator) /
 			(4 * tpf->denominator);
 		if (info->fmt->mbus_code == MEDIA_BUS_FMT_SBGGR8_1X8)
@@ -859,11 +865,15 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	/* Recalculate frame rate */
 	ov7675_get_framerate(sd, tpf);
 
-	ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
-	if (ret < 0)
-		return ret;
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the framerate will be restored right after power-up.
+	 */
+	if (info->on)
+		return ov7675_apply_framerate(sd);
 
-	return ov7670_write(sd, REG_DBLV, DBLV_X4);
+	return 0;
 }
 
 static void ov7670_get_framerate_legacy(struct v4l2_subdev *sd,
@@ -894,7 +904,16 @@ static int ov7670_set_framerate_legacy(struct v4l2_subdev *sd,
 	info->clkrc = (info->clkrc & 0x80) | div;
 	tpf->numerator = 1;
 	tpf->denominator = info->clock_speed / div;
-	return ov7670_write(sd, REG_CLKRC, info->clkrc);
+
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the framerate will be restored right after power-up.
+	 */
+	if (info->on)
+		return ov7670_write(sd, REG_CLKRC, info->clkrc);
+
+	return 0;
 }
 
 /*
@@ -905,32 +924,43 @@ static int ov7670_set_hw(struct v4l2_subdev *sd, int hstart, int hstop,
 {
 	int ret;
 	unsigned char v;
-/*
- * Horizontal: 11 bits, top 8 live in hstart and hstop.  Bottom 3 of
- * hstart are in href[2:0], bottom 3 of hstop in href[5:3].  There is
- * a mystery "edge offset" value in the top two bits of href.
- */
-	ret =  ov7670_write(sd, REG_HSTART, (hstart >> 3) & 0xff);
-	ret += ov7670_write(sd, REG_HSTOP, (hstop >> 3) & 0xff);
-	ret += ov7670_read(sd, REG_HREF, &v);
+	/*
+	 * Horizontal: 11 bits, top 8 live in hstart and hstop.  Bottom 3 of
+	 * hstart are in href[2:0], bottom 3 of hstop in href[5:3].  There is
+	 * a mystery "edge offset" value in the top two bits of href.
+	 */
+	ret = ov7670_write(sd, REG_HSTART, (hstart >> 3) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_write(sd, REG_HSTOP, (hstop >> 3) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_read(sd, REG_HREF, &v);
+	if (ret)
+		return ret;
 	v = (v & 0xc0) | ((hstop & 0x7) << 3) | (hstart & 0x7);
 	msleep(10);
-	ret += ov7670_write(sd, REG_HREF, v);
-/*
- * Vertical: similar arrangement, but only 10 bits.
- */
-	ret += ov7670_write(sd, REG_VSTART, (vstart >> 2) & 0xff);
-	ret += ov7670_write(sd, REG_VSTOP, (vstop >> 2) & 0xff);
-	ret += ov7670_read(sd, REG_VREF, &v);
+	ret = ov7670_write(sd, REG_HREF, v);
+	if (ret)
+		return ret;
+	/* Vertical: similar arrangement, but only 10 bits. */
+	ret = ov7670_write(sd, REG_VSTART, (vstart >> 2) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_write(sd, REG_VSTOP, (vstop >> 2) & 0xff);
+	if (ret)
+		return ret;
+	ret = ov7670_read(sd, REG_VREF, &v);
+	if (ret)
+		return ret;
 	v = (v & 0xf0) | ((vstop & 0x3) << 2) | (vstart & 0x3);
 	msleep(10);
-	ret += ov7670_write(sd, REG_VREF, v);
-	return ret;
+	return ov7670_write(sd, REG_VREF, v);
 }
 
 
 static int ov7670_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_state *sd_state,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index >= N_OV7670_FMTS)
@@ -1004,48 +1034,20 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * Set a format.
- */
-static int ov7670_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_format *format)
+static int ov7670_apply_fmt(struct v4l2_subdev *sd)
 {
-	struct ov7670_format_struct *ovfmt;
-	struct ov7670_win_size *wsize;
 	struct ov7670_info *info = to_state(sd);
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	struct v4l2_mbus_framefmt *mbus_fmt;
-#endif
+	struct ov7670_win_size *wsize = info->wsize;
 	unsigned char com7, com10 = 0;
 	int ret;
 
-	if (format->pad)
-		return -EINVAL;
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
-		if (ret)
-			return ret;
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
-		*mbus_fmt = format->format;
-		return 0;
-#else
-		return -ENOTTY;
-#endif
-	}
-
-	ret = ov7670_try_fmt_internal(sd, &format->format, &ovfmt, &wsize);
-	if (ret)
-		return ret;
 	/*
 	 * COM7 is a pain in the ass, it doesn't like to be read then
 	 * quickly written afterward.  But we have everything we need
 	 * to set it absolutely here, as long as the format-specific
 	 * register sets list it first.
 	 */
-	com7 = ovfmt->regs[0].value;
+	com7 = info->fmt->regs[0].value;
 	com7 |= wsize->com7_bit;
 	ret = ov7670_write(sd, REG_COM7, com7);
 	if (ret)
@@ -1067,7 +1069,7 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	/*
 	 * Now write the rest of the array.  Also store start/stops
 	 */
-	ret = ov7670_write_array(sd, ovfmt->regs + 1);
+	ret = ov7670_write_array(sd, info->fmt->regs + 1);
 	if (ret)
 		return ret;
 
@@ -1081,8 +1083,6 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		if (ret)
 			return ret;
 	}
-
-	info->fmt = ovfmt;
 
 	/*
 	 * If we're running RGB565, we must rewrite clkrc after setting
@@ -1101,8 +1101,51 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+/*
+ * Set a format.
+ */
+static int ov7670_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_state *sd_state,
+		struct v4l2_subdev_format *format)
+{
+	struct ov7670_info *info = to_state(sd);
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *mbus_fmt;
+#endif
+	int ret;
+
+	if (format->pad)
+		return -EINVAL;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
+		if (ret)
+			return ret;
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state,
+						      format->pad);
+		*mbus_fmt = format->format;
+#endif
+		return 0;
+	}
+
+	ret = ov7670_try_fmt_internal(sd, &format->format, &info->fmt, &info->wsize);
+	if (ret)
+		return ret;
+
+	/*
+	 * If the device is not powered up by the host driver do
+	 * not apply any changes to H/W at this time. Instead
+	 * the frame format will be restored right after power-up.
+	 */
+	if (info->on)
+		return ov7670_apply_fmt(sd);
+
+	return 0;
+}
+
 static int ov7670_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov7670_info *info = to_state(sd);
@@ -1112,11 +1155,11 @@ static int ov7670_get_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *mbus_fmt;
 		return 0;
 #else
-		return -ENOTTY;
+		return -EINVAL;
 #endif
 	} else {
 		format->format = info->format;
@@ -1160,7 +1203,7 @@ static int ov7670_s_frame_interval(struct v4l2_subdev *sd,
 static int ov7670_frame_rates[] = { 30, 15, 10, 5, 1 };
 
 static int ov7670_enum_frame_interval(struct v4l2_subdev *sd,
-				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_state *sd_state,
 				      struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct ov7670_info *info = to_state(sd);
@@ -1199,7 +1242,7 @@ static int ov7670_enum_frame_interval(struct v4l2_subdev *sd,
  * Frame size enumeration
  */
 static int ov7670_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct ov7670_info *info = to_state(sd);
@@ -1217,6 +1260,7 @@ static int ov7670_enum_frame_size(struct v4l2_subdev *sd,
 	 */
 	for (i = 0; i < n_win_sizes; i++) {
 		struct ov7670_win_size *win = &info->devtype->win_sizes[i];
+
 		if (info->min_width && win->width < info->min_width)
 			continue;
 		if (info->min_height && win->height < info->min_height)
@@ -1257,17 +1301,17 @@ static int ov7670_store_cmatrix(struct v4l2_subdev *sd,
 				raw = 0xff;
 			else
 				raw = (-1 * matrix[i]) & 0xff;
-		}
-		else {
+		} else {
 			if (matrix[i] > 255)
 				raw = 0xff;
 			else
 				raw = matrix[i] & 0xff;
 		}
-		ret += ov7670_write(sd, REG_CMATRIX_BASE + i, raw);
+		ret = ov7670_write(sd, REG_CMATRIX_BASE + i, raw);
+		if (ret)
+			return ret;
 	}
-	ret += ov7670_write(sd, REG_CMATRIX_SIGN, signbits);
-	return ret;
+	return ov7670_write(sd, REG_CMATRIX_SIGN, signbits);
 }
 
 
@@ -1353,11 +1397,9 @@ static int ov7670_s_sat_hue(struct v4l2_subdev *sd, int sat, int hue)
 {
 	struct ov7670_info *info = to_state(sd);
 	int matrix[CMATRIX_LEN];
-	int ret;
 
 	ov7670_calc_cmatrix(info, matrix, sat, hue);
-	ret = ov7670_store_cmatrix(sd, matrix);
-	return ret;
+	return ov7670_store_cmatrix(sd, matrix);
 }
 
 
@@ -1375,14 +1417,12 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 static int ov7670_s_brightness(struct v4l2_subdev *sd, int value)
 {
 	unsigned char com8 = 0, v;
-	int ret;
 
 	ov7670_read(sd, REG_COM8, &com8);
 	com8 &= ~COM8_AEC;
 	ov7670_write(sd, REG_COM8, com8);
 	v = ov7670_abs_to_sm(value);
-	ret = ov7670_write(sd, REG_BRIGHT, v);
-	return ret;
+	return ov7670_write(sd, REG_BRIGHT, v);
 }
 
 static int ov7670_s_contrast(struct v4l2_subdev *sd, int value)
@@ -1396,13 +1436,14 @@ static int ov7670_s_hflip(struct v4l2_subdev *sd, int value)
 	int ret;
 
 	ret = ov7670_read(sd, REG_MVFP, &v);
+	if (ret)
+		return ret;
 	if (value)
 		v |= MVFP_MIRROR;
 	else
 		v &= ~MVFP_MIRROR;
 	msleep(10);  /* FIXME */
-	ret += ov7670_write(sd, REG_MVFP, v);
-	return ret;
+	return ov7670_write(sd, REG_MVFP, v);
 }
 
 static int ov7670_s_vflip(struct v4l2_subdev *sd, int value)
@@ -1411,13 +1452,14 @@ static int ov7670_s_vflip(struct v4l2_subdev *sd, int value)
 	int ret;
 
 	ret = ov7670_read(sd, REG_MVFP, &v);
+	if (ret)
+		return ret;
 	if (value)
 		v |= MVFP_FLIP;
 	else
 		v &= ~MVFP_FLIP;
 	msleep(10);  /* FIXME */
-	ret += ov7670_write(sd, REG_MVFP, v);
-	return ret;
+	return ov7670_write(sd, REG_MVFP, v);
 }
 
 /*
@@ -1432,8 +1474,10 @@ static int ov7670_g_gain(struct v4l2_subdev *sd, __s32 *value)
 	unsigned char gain;
 
 	ret = ov7670_read(sd, REG_GAIN, &gain);
+	if (ret)
+		return ret;
 	*value = gain;
-	return ret;
+	return 0;
 }
 
 static int ov7670_s_gain(struct v4l2_subdev *sd, int value)
@@ -1442,12 +1486,13 @@ static int ov7670_s_gain(struct v4l2_subdev *sd, int value)
 	unsigned char com8;
 
 	ret = ov7670_write(sd, REG_GAIN, value & 0xff);
+	if (ret)
+		return ret;
 	/* Have to turn off AGC as well */
-	if (ret == 0) {
-		ret = ov7670_read(sd, REG_COM8, &com8);
-		ret = ov7670_write(sd, REG_COM8, com8 & ~COM8_AGC);
-	}
-	return ret;
+	ret = ov7670_read(sd, REG_COM8, &com8);
+	if (ret)
+		return ret;
+	return ov7670_write(sd, REG_COM8, com8 & ~COM8_AGC);
 }
 
 /*
@@ -1607,17 +1652,58 @@ static int ov7670_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regis
 }
 #endif
 
+static void ov7670_power_on(struct v4l2_subdev *sd)
+{
+	struct ov7670_info *info = to_state(sd);
+
+	if (info->on)
+		return;
+
+	clk_prepare_enable(info->clk);
+
+	if (info->pwdn_gpio)
+		gpiod_set_value(info->pwdn_gpio, 0);
+	if (info->resetb_gpio) {
+		gpiod_set_value(info->resetb_gpio, 1);
+		usleep_range(500, 1000);
+		gpiod_set_value(info->resetb_gpio, 0);
+	}
+	if (info->pwdn_gpio || info->resetb_gpio || info->clk)
+		usleep_range(3000, 5000);
+
+	info->on = true;
+}
+
+static void ov7670_power_off(struct v4l2_subdev *sd)
+{
+	struct ov7670_info *info = to_state(sd);
+
+	if (!info->on)
+		return;
+
+	clk_disable_unprepare(info->clk);
+
+	if (info->pwdn_gpio)
+		gpiod_set_value(info->pwdn_gpio, 1);
+
+	info->on = false;
+}
+
 static int ov7670_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct ov7670_info *info = to_state(sd);
 
-	if (info->pwdn_gpio)
-		gpiod_set_value(info->pwdn_gpio, !on);
-	if (on && info->resetb_gpio) {
-		gpiod_set_value(info->resetb_gpio, 1);
-		usleep_range(500, 1000);
-		gpiod_set_value(info->resetb_gpio, 0);
-		usleep_range(3000, 5000);
+	if (info->on == on)
+		return 0;
+
+	if (on) {
+		ov7670_power_on(sd);
+		ov7670_init(sd, 0);
+		ov7670_apply_fmt(sd);
+		ov7675_apply_framerate(sd);
+		v4l2_ctrl_handler_setup(&info->hdl);
+	} else {
+		ov7670_power_off(sd);
 	}
 
 	return 0;
@@ -1639,7 +1725,7 @@ static void ov7670_get_default_format(struct v4l2_subdev *sd,
 static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
 
 	ov7670_get_default_format(sd, format);
 
@@ -1652,6 +1738,7 @@ static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 	.reset = ov7670_reset,
 	.init = ov7670_init,
+	.s_power = ov7670_s_power,
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
@@ -1801,11 +1888,7 @@ static int ov7670_probe(struct i2c_client *client,
 		if (config->clock_speed)
 			info->clock_speed = config->clock_speed;
 
-		/*
-		 * It should be allowed for ov7670 too when it is migrated to
-		 * the new frame rate formula.
-		 */
-		if (config->pll_bypass && id->driver_data != MODEL_OV7670)
+		if (config->pll_bypass)
 			info->pll_bypass = true;
 
 		if (config->pclk_hb_disable)
@@ -1820,23 +1903,20 @@ static int ov7670_probe(struct i2c_client *client,
 		else
 			return ret;
 	}
-	if (info->clk) {
-		ret = clk_prepare_enable(info->clk);
-		if (ret)
-			return ret;
-
-		info->clock_speed = clk_get_rate(info->clk) / 1000000;
-		if (info->clock_speed < 10 || info->clock_speed > 48) {
-			ret = -EINVAL;
-			goto clk_disable;
-		}
-	}
 
 	ret = ov7670_init_gpio(client, info);
 	if (ret)
-		goto clk_disable;
+		return ret;
 
-	ov7670_s_power(sd, 1);
+	ov7670_power_on(sd);
+
+	if (info->clk) {
+		info->clock_speed = clk_get_rate(info->clk) / 1000000;
+		if (info->clock_speed < 10 || info->clock_speed > 48) {
+			ret = -EINVAL;
+			goto power_off;
+		}
+	}
 
 	/* Make sure it's an ov7670 */
 	ret = ov7670_detect(sd);
@@ -1851,6 +1931,7 @@ static int ov7670_probe(struct i2c_client *client,
 
 	info->devtype = &ov7670_devdata[id->driver_data];
 	info->fmt = &ov7670_formats[0];
+	info->wsize = &info->devtype->win_sizes[0];
 
 	ov7670_get_default_format(sd, &info->format);
 
@@ -1916,6 +1997,7 @@ static int ov7670_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto entity_cleanup;
 
+	ov7670_power_off(sd);
 	return 0;
 
 entity_cleanup:
@@ -1923,12 +2005,9 @@ entity_cleanup:
 hdl_free:
 	v4l2_ctrl_handler_free(&info->hdl);
 power_off:
-	ov7670_s_power(sd, 0);
-clk_disable:
-	clk_disable_unprepare(info->clk);
+	ov7670_power_off(sd);
 	return ret;
 }
-
 
 static int ov7670_remove(struct i2c_client *client)
 {
@@ -1937,9 +2016,7 @@ static int ov7670_remove(struct i2c_client *client)
 
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
-	clk_disable_unprepare(info->clk);
 	media_entity_cleanup(&info->sd.entity);
-	ov7670_s_power(sd, 0);
 	return 0;
 }
 

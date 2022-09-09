@@ -1,0 +1,228 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/gpio-pca95xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP PCA95xx I2C GPIO multiplexer
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |+
+  Bindings for the family of I2C GPIO multiplexers/expanders: NXP PCA95xx,
+  Maxim MAX73xx
+
+properties:
+  compatible:
+    enum:
+      - exar,xra1202
+      - maxim,max7310
+      - maxim,max7312
+      - maxim,max7313
+      - maxim,max7315
+      - maxim,max7319
+      - maxim,max7320
+      - maxim,max7321
+      - maxim,max7322
+      - maxim,max7323
+      - maxim,max7324
+      - maxim,max7325
+      - maxim,max7326
+      - maxim,max7327
+      - nxp,pca6408
+      - nxp,pca6416
+      - nxp,pca9505
+      - nxp,pca9506
+      - nxp,pca9534
+      - nxp,pca9535
+      - nxp,pca9536
+      - nxp,pca9537
+      - nxp,pca9538
+      - nxp,pca9539
+      - nxp,pca9554
+      - nxp,pca9555
+      - nxp,pca9556
+      - nxp,pca9557
+      - nxp,pca9574
+      - nxp,pca9575
+      - nxp,pca9698
+      - nxp,pcal6416
+      - nxp,pcal6524
+      - nxp,pcal9535
+      - nxp,pcal9554b
+      - nxp,pcal9555a
+      - onnn,cat9554
+      - onnn,pca9654
+      - ti,pca6107
+      - ti,pca9536
+      - ti,tca6408
+      - ti,tca6416
+      - ti,tca6424
+      - ti,tca9539
+      - ti,tca9554
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-line-names:
+    minItems: 1
+    maxItems: 40
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  reset-gpios:
+    maxItems: 1
+    description:
+      GPIO specification for the RESET input. This is an active low signal to
+      the PCA953x.  Not valid for Maxim MAX732x devices.
+
+  vcc-supply:
+    description:
+      Optional power supply.  Not valid for Maxim MAX732x devices.
+
+  wakeup-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+
+patternProperties:
+  "^(hog-[0-9]+|.+-hog(-[0-9]+)?)$":
+    type: object
+    properties:
+      gpio-hog: true
+      gpios: true
+      input: true
+      output-high: true
+      output-low: true
+      line-name: true
+
+    required:
+      - gpio-hog
+      - gpios
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - "#gpio-cells"
+
+additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - maxim,max7320
+              - maxim,max7321
+              - maxim,max7322
+              - maxim,max7323
+              - maxim,max7324
+              - maxim,max7325
+              - maxim,max7326
+              - maxim,max7327
+    then:
+      properties:
+        reset-gpios: false
+        vcc-supply: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio@20 {
+            compatible = "nxp,pca9505";
+            reg = <0x20>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pinctrl_pca9505>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-parent = <&gpio3>;
+            interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+
+            usb3-sata-sel-hog {
+                gpio-hog;
+                gpios = <4 GPIO_ACTIVE_HIGH>;
+                output-low;
+                line-name = "usb3_sata_sel";
+            };
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c1 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio99: gpio@22 {
+            compatible = "nxp,pcal6524";
+            reg = <0x22>;
+            interrupt-parent = <&gpio6>;
+            interrupts = <1 IRQ_TYPE_EDGE_FALLING>; /* gpio6_161 */
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            vcc-supply = <&vdds_1v8_main>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            gpio-line-names = "hdmi-ct-hpd", "hdmi.ls-oe", "p02", "p03",
+                              "vibra", "fault2", "p06", "p07", "en-usb",
+                              "en-host1", "en-host2", "chg-int", "p14", "p15",
+                              "mic-int", "en-modem", "shdn-hs-amp",
+                              "chg-status+red", "green", "blue", "en-esata",
+                              "fault1", "p26", "p27";
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c2 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* MAX7325 with interrupt support enabled */
+        gpio@6d {
+            compatible = "maxim,max7325";
+            reg = <0x6d>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            interrupt-parent = <&gpio4>;
+            interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };
+
+  - |
+    i2c3 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* MAX7325 with interrupt support disabled */
+        gpio@6e {
+            compatible = "maxim,max7325";
+            reg = <0x6e>;
+            gpio-controller;
+            #gpio-cells = <2>;
+        };
+    };

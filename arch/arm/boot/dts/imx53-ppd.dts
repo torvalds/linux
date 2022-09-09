@@ -70,6 +70,12 @@
 		clock-frequency = <11289600>;
 	};
 
+	achc_24M: achc-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
 	sgtlsound: sound {
 		compatible = "fsl,imx53-cpuvo-sgtl5000",
 			     "fsl,imx-audio-sgtl5000";
@@ -176,12 +182,39 @@
 		power-supply = <&reg_3v3_lcd>;
 	};
 
-	leds {
+	led-controller-1 {
 		compatible = "pwm-leds";
 
-		alarm-brightness {
+		led-1 {
+			label = "alarm-brightness";
 			pwms = <&pwm1 0 100000>;
 			max-brightness = <255>;
+		};
+	};
+
+	led-controller-2 {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_alarmled_pins>;
+
+		led-2 {
+			label = "alarm:red";
+			gpios = <&gpio7 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-3 {
+			label = "alarm:yellow";
+			gpios = <&gpio7 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-4 {
+			label = "alarm:blue";
+			gpios = <&gpio7 8 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-5 {
+			label = "alarm:silenced";
+			gpios = <&gpio7 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -287,16 +320,13 @@
 		    &gpio4 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
-	spidev0: spi@0 {
-		compatible = "ge,achc";
-		reg = <0>;
-		spi-max-frequency = <1000000>;
-	};
-
-	spidev1: spi@1 {
-		compatible = "ge,achc";
-		reg = <1>;
-		spi-max-frequency = <1000000>;
+	spidev0: spi@1 {
+		compatible = "ge,achc", "nxp,kinetis-k20";
+		reg = <1>, <0>;
+		vdd-supply = <&reg_3v3>;
+		vdda-supply = <&reg_3v3>;
+		clocks = <&achc_24M>;
+		reset-gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
 	};
 
 	gpioxra0: gpio@2 {
@@ -563,7 +593,7 @@
 
 	touchscreen@4b {
 		compatible = "atmel,maxtouch";
-		reset-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio5 19 GPIO_ACTIVE_LOW>;
 		reg = <0x4b>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
@@ -598,12 +628,14 @@
 };
 
 &pwm1 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
 
 &pwm2 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";
@@ -622,6 +654,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,dma-info = <24 20>;
 	status = "okay";
 };
 
@@ -641,6 +674,7 @@
 &uart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
+	fsl,dma-info = <4096 4>;
 	status = "okay";
 };
 
@@ -909,18 +943,10 @@
 			MX53_PAD_NANDF_CS3__GPIO6_16		0x0
 			/* POWER_AND_BOOT_STATUS_INDICATOR */
 			MX53_PAD_PATA_INTRQ__GPIO7_2		0x1e4
-			/* ACTIVATE_ALARM_LIGHT_RED */
-			MX53_PAD_PATA_DIOR__GPIO7_3		0x0
-			/* ACTIVATE_ALARM_LIGHT_YELLOW */
-			MX53_PAD_PATA_DA_1__GPIO7_7		0x0
-			/* ACTIVATE_ALARM_LIGHT_CYAN */
-			MX53_PAD_PATA_DA_2__GPIO7_8		0x0
 			/* RUNNING_ON_BATTERY_INDICATOR_GREEN */
 			MX53_PAD_GPIO_16__GPIO7_11		0x0
 			/* BATTERY_STATUS_INDICATOR_AMBER */
 			MX53_PAD_GPIO_17__GPIO7_12		0x0
-			/* AUDIO_ALARMS_SILENCED_INDICATOR */
-			MX53_PAD_GPIO_18__GPIO7_13		0x0
 		>;
 	};
 
@@ -1078,6 +1104,19 @@
 		fsl,pins = <
 			/* USB_OTG_FAULT_N */
 			MX53_PAD_KEY_COL4__USBOH3_USBOTG_OC	0x180
+		>;
+	};
+
+	pinctrl_alarmled_pins: qmx6alarmledgrp {
+		fsl,pins = <
+			/* ACTIVATE_ALARM_LIGHT_RED */
+			MX53_PAD_PATA_DIOR__GPIO7_3		0x0
+			/* ACTIVATE_ALARM_LIGHT_YELLOW */
+			MX53_PAD_PATA_DA_1__GPIO7_7		0x0
+			/* ACTIVATE_ALARM_LIGHT_CYAN */
+			MX53_PAD_PATA_DA_2__GPIO7_8		0x0
+			/* AUDIO_ALARMS_SILENCED_INDICATOR */
+			MX53_PAD_GPIO_18__GPIO7_13		0x0
 		>;
 	};
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -26,15 +27,6 @@
 /******************************************************************************
     (c) 1995-1998 E.M. Serrat		emserrat@geocities.com
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 *******************************************************************************/
 
 #include <linux/errno.h>
@@ -60,6 +52,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/if_packet.h>
+#include <linux/jiffies.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
@@ -187,7 +180,7 @@ static void dn_nsp_rtt(struct sock *sk, long rtt)
 		scp->nsp_srtt = 1;
 
 	/*
-	 * Add new rtt varience to smoothed varience
+	 * Add new rtt variance to smoothed varience
 	 */
 	delta >>= 1;
 	rttvar += ((((delta>0)?(delta):(-delta)) - rttvar) >> 2);
@@ -359,7 +352,7 @@ void dn_nsp_queue_xmit(struct sock *sk, struct sk_buff *skb,
 	 * Slow start: If we have been idle for more than
 	 * one RTT, then reset window to min size.
 	 */
-	if ((jiffies - scp->stamp) > t)
+	if (time_is_before_jiffies(scp->stamp + t))
 		scp->snd_window = NSP_MIN_WINDOW;
 
 	if (oth)

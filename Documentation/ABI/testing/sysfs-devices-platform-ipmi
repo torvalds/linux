@@ -123,38 +123,40 @@ KernelVersion:	v4.15
 Contact:	openipmi-developer@lists.sourceforge.net
 Description:
 
-		idles:			(RO) Number of times the interface was
+		======================	========================================
+		idles			(RO) Number of times the interface was
 					idle while being polled.
 
-		watchdog_pretimeouts:	(RO) Number of watchdog pretimeouts.
+		watchdog_pretimeouts	(RO) Number of watchdog pretimeouts.
 
-		complete_transactions:	(RO) Number of completed messages.
+		complete_transactions	(RO) Number of completed messages.
 
-		events:			(RO) Number of IPMI events received from
+		events			(RO) Number of IPMI events received from
 					the hardware.
 
-		interrupts:		(RO) Number of interrupts the driver
+		interrupts		(RO) Number of interrupts the driver
 					handled.
 
-		hosed_count:		(RO) Number of times the hardware didn't
+		hosed_count		(RO) Number of times the hardware didn't
 					follow the state machine.
 
-		long_timeouts:		(RO) Number of times the driver
+		long_timeouts		(RO) Number of times the driver
 					requested a timer while nothing was in
 					progress.
 
-		flag_fetches:		(RO) Number of times the driver
+		flag_fetches		(RO) Number of times the driver
 					requested flags from the hardware.
 
-		attentions:		(RO) Number of time the driver got an
+		attentions		(RO) Number of time the driver got an
 					ATTN from the hardware.
 
-		incoming_messages:	(RO) Number of asynchronous messages
+		incoming_messages	(RO) Number of asynchronous messages
 					received.
 
-		short_timeouts:		(RO) Number of times the driver
+		short_timeouts		(RO) Number of times the driver
 					requested a timer while an operation was
 					in progress.
+		======================	========================================
 
 
 What:		/sys/devices/platform/ipmi_si.*/interrupts_enabled
@@ -201,38 +203,40 @@ Date:		Sep, 2017
 KernelVersion:	v4.15
 Contact:	openipmi-developer@lists.sourceforge.net
 Description:
-		hosed:			(RO) Number of times the hardware didn't
+		======================	========================================
+		hosed			(RO) Number of times the hardware didn't
 					follow the state machine.
 
-		alerts:			(RO) Number of alerts received.
+		alerts			(RO) Number of alerts received.
 
-		sent_messages:		(RO) Number of total messages sent.
+		sent_messages		(RO) Number of total messages sent.
 
-		sent_message_parts:	(RO) Number of message parts sent.
+		sent_message_parts	(RO) Number of message parts sent.
 					Messages may be broken into parts if
 					they are long.
 
-		receieved_messages:	(RO) Number of message responses
+		received_messages	(RO) Number of message responses
 					received.
 
-		received_message_parts: (RO) Number of message fragments
+		received_message_parts	(RO) Number of message fragments
 					received.
 
-		events:			(RO) Number of received events.
+		events			(RO) Number of received events.
 
-		watchdog_pretimeouts:	(RO) Number of watchdog pretimeouts.
+		watchdog_pretimeouts	(RO) Number of watchdog pretimeouts.
 
-		flag_fetches:		(RO) Number of times a flag fetch was
+		flag_fetches		(RO) Number of times a flag fetch was
 					requested.
 
-		send_retries:		(RO) Number of time a message was
+		send_retries		(RO) Number of time a message was
 					retried.
 
-		receive_retries:	(RO) Number of times the receive of a
+		receive_retries		(RO) Number of times the receive of a
 					message was retried.
 
-		send_errors:		(RO) Number of times the send of a
+		send_errors		(RO) Number of times the send of a
 					message failed.
 
-		receive_errors:		(RO) Number of errors in receiving
+		receive_errors		(RO) Number of errors in receiving
 					messages.
+		======================	========================================

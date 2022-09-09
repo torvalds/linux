@@ -243,19 +243,20 @@ static inline unsigned int iavf_txd_use_count(unsigned int size)
 #define DESC_NEEDED (MAX_SKB_FRAGS + 6)
 #define IAVF_MIN_DESC_PENDING	4
 
-#define IAVF_TX_FLAGS_HW_VLAN		BIT(1)
-#define IAVF_TX_FLAGS_SW_VLAN		BIT(2)
-#define IAVF_TX_FLAGS_TSO		BIT(3)
-#define IAVF_TX_FLAGS_IPV4		BIT(4)
-#define IAVF_TX_FLAGS_IPV6		BIT(5)
-#define IAVF_TX_FLAGS_FCCRC		BIT(6)
-#define IAVF_TX_FLAGS_FSO		BIT(7)
-#define IAVF_TX_FLAGS_FD_SB		BIT(9)
-#define IAVF_TX_FLAGS_VXLAN_TUNNEL	BIT(10)
-#define IAVF_TX_FLAGS_VLAN_MASK		0xffff0000
-#define IAVF_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
-#define IAVF_TX_FLAGS_VLAN_PRIO_SHIFT	29
-#define IAVF_TX_FLAGS_VLAN_SHIFT	16
+#define IAVF_TX_FLAGS_HW_VLAN			BIT(1)
+#define IAVF_TX_FLAGS_SW_VLAN			BIT(2)
+#define IAVF_TX_FLAGS_TSO			BIT(3)
+#define IAVF_TX_FLAGS_IPV4			BIT(4)
+#define IAVF_TX_FLAGS_IPV6			BIT(5)
+#define IAVF_TX_FLAGS_FCCRC			BIT(6)
+#define IAVF_TX_FLAGS_FSO			BIT(7)
+#define IAVF_TX_FLAGS_FD_SB			BIT(9)
+#define IAVF_TX_FLAGS_VXLAN_TUNNEL		BIT(10)
+#define IAVF_TX_FLAGS_HW_OUTER_SINGLE_VLAN	BIT(11)
+#define IAVF_TX_FLAGS_VLAN_MASK			0xffff0000
+#define IAVF_TX_FLAGS_VLAN_PRIO_MASK		0xe0000000
+#define IAVF_TX_FLAGS_VLAN_PRIO_SHIFT		29
+#define IAVF_TX_FLAGS_VLAN_SHIFT		16
 
 struct iavf_tx_buffer {
 	struct iavf_tx_desc *next_to_watch;
@@ -362,6 +363,9 @@ struct iavf_ring {
 	u16 flags;
 #define IAVF_TXR_FLAGS_WB_ON_ITR		BIT(0)
 #define IAVF_RXR_FLAGS_BUILD_SKB_ENABLED	BIT(1)
+#define IAVF_TXRX_FLAGS_VLAN_TAG_LOC_L2TAG1	BIT(3)
+#define IAVF_TXR_FLAGS_VLAN_TAG_LOC_L2TAG2	BIT(4)
+#define IAVF_RXR_FLAGS_VLAN_TAG_LOC_L2TAG2_2	BIT(5)
 
 	/* stats structs */
 	struct iavf_queue_stats	stats;
@@ -454,7 +458,6 @@ bool __iavf_chk_linearize(struct sk_buff *skb);
 /**
  * iavf_xmit_descriptor_count - calculate number of Tx descriptors needed
  * @skb:     send buffer
- * @tx_ring: ring to send buffer on
  *
  * Returns number of data descriptors needed for this skb. Returns 0 to indicate
  * there is not enough descriptors available in this ring since we need at least
@@ -462,7 +465,7 @@ bool __iavf_chk_linearize(struct sk_buff *skb);
  **/
 static inline int iavf_xmit_descriptor_count(struct sk_buff *skb)
 {
-	const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
+	const skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	int count = 0, size = skb_headlen(skb);
 
@@ -514,6 +517,7 @@ static inline bool iavf_chk_linearize(struct sk_buff *skb, int count)
 	return count != IAVF_MAX_BUFFER_TXD;
 }
 /**
+ * txring_txq - helper to convert from a ring to a queue
  * @ring: Tx ring to find the netdev equivalent of
  **/
 static inline struct netdev_queue *txring_txq(const struct iavf_ring *ring)

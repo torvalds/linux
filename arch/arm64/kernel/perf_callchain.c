@@ -1,25 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arm64 callchain support
  *
  * Copyright (C) 2015 ARM Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/perf_event.h>
+#include <linux/stacktrace.h>
 #include <linux/uaccess.h>
 
 #include <asm/pointer_auth.h>
-#include <asm/stacktrace.h>
 
 struct frame_tail {
 	struct frame_tail	__user *fp;
@@ -113,7 +102,7 @@ compat_user_backtrace(struct compat_frame_tail __user *tail,
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
+	if (perf_guest_state()) {
 		/* We don't support guest os callchain now */
 		return;
 	}
@@ -127,7 +116,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		tail = (struct frame_tail __user *)regs->regs[29];
 
 		while (entry->nr < entry->max_stack &&
-		       tail && !((unsigned long)tail & 0xf))
+		       tail && !((unsigned long)tail & 0x7))
 			tail = user_backtrace(tail, entry);
 	} else {
 #ifdef CONFIG_COMPAT
@@ -143,51 +132,38 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	}
 }
 
-/*
- * Gets called by walk_stackframe() for every stackframe. This will be called
- * whist unwinding the stackframe and is like a subroutine return so we use
- * the PC.
- */
-static int callchain_trace(struct stackframe *frame, void *data)
+static bool callchain_trace(void *data, unsigned long pc)
 {
 	struct perf_callchain_entry_ctx *entry = data;
-	perf_callchain_store(entry, frame->pc);
-	return 0;
+	return perf_callchain_store(entry, pc) == 0;
 }
 
 void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
-	struct stackframe frame;
-
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
+	if (perf_guest_state()) {
 		/* We don't support guest os callchain now */
 		return;
 	}
 
-	frame.fp = regs->regs[29];
-	frame.pc = regs->pc;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
-
-	walk_stackframe(current, &frame, callchain_trace, entry);
+	arch_stack_walk(callchain_trace, entry, current, regs);
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
-		return perf_guest_cbs->get_guest_ip();
+	if (perf_guest_state())
+		return perf_guest_get_ip();
 
 	return instruction_pointer(regs);
 }
 
 unsigned long perf_misc_flags(struct pt_regs *regs)
 {
+	unsigned int guest_state = perf_guest_state();
 	int misc = 0;
 
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		if (perf_guest_cbs->is_user_mode())
+	if (guest_state) {
+		if (guest_state & PERF_GUEST_USER)
 			misc |= PERF_RECORD_MISC_GUEST_USER;
 		else
 			misc |= PERF_RECORD_MISC_GUEST_KERNEL;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /*
  * proc.c - procfs support for Protocol family CAN core module
  *
@@ -44,6 +45,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/if_arp.h>
+#include <linux/can/can-ml.h>
 #include <linux/can/core.h>
 
 #include "af_can.h"
@@ -52,7 +54,6 @@
  * proc filenames for the PF_CAN core
  */
 
-#define CAN_PROC_VERSION     "version"
 #define CAN_PROC_STATS       "stats"
 #define CAN_PROC_RESET_STATS "reset_stats"
 #define CAN_PROC_RCVLIST_ALL "rcvlist_all"
@@ -77,29 +78,27 @@ static const char rx_list_name[][8] = {
 
 static void can_init_stats(struct net *net)
 {
-	struct s_stats *can_stats = net->can.can_stats;
-	struct s_pstats *can_pstats = net->can.can_pstats;
+	struct can_pkg_stats *pkg_stats = net->can.pkg_stats;
+	struct can_rcv_lists_stats *rcv_lists_stats = net->can.rcv_lists_stats;
 	/*
 	 * This memset function is called from a timer context (when
 	 * can_stattimer is active which is the default) OR in a process
 	 * context (reading the proc_fs when can_stattimer is disabled).
 	 */
-	memset(can_stats, 0, sizeof(struct s_stats));
-	can_stats->jiffies_init = jiffies;
+	memset(pkg_stats, 0, sizeof(struct can_pkg_stats));
+	pkg_stats->jiffies_init = jiffies;
 
-	can_pstats->stats_reset++;
+	rcv_lists_stats->stats_reset++;
 
 	if (user_reset) {
 		user_reset = 0;
-		can_pstats->user_reset++;
+		rcv_lists_stats->user_reset++;
 	}
 }
 
 static unsigned long calc_rate(unsigned long oldjif, unsigned long newjif,
 			       unsigned long count)
 {
-	unsigned long rate;
-
 	if (oldjif == newjif)
 		return 0;
 
@@ -110,15 +109,13 @@ static unsigned long calc_rate(unsigned long oldjif, unsigned long newjif,
 		return 99999999;
 	}
 
-	rate = (count * HZ) / (newjif - oldjif);
-
-	return rate;
+	return (count * HZ) / (newjif - oldjif);
 }
 
 void can_stat_update(struct timer_list *t)
 {
-	struct net *net = from_timer(net, t, can.can_stattimer);
-	struct s_stats *can_stats = net->can.can_stats;
+	struct net *net = from_timer(net, t, can.stattimer);
+	struct can_pkg_stats *pkg_stats = net->can.pkg_stats;
 	unsigned long j = jiffies; /* snapshot */
 
 	/* restart counting in timer context on user request */
@@ -126,57 +123,57 @@ void can_stat_update(struct timer_list *t)
 		can_init_stats(net);
 
 	/* restart counting on jiffies overflow */
-	if (j < can_stats->jiffies_init)
+	if (j < pkg_stats->jiffies_init)
 		can_init_stats(net);
 
 	/* prevent overflow in calc_rate() */
-	if (can_stats->rx_frames > (ULONG_MAX / HZ))
+	if (pkg_stats->rx_frames > (ULONG_MAX / HZ))
 		can_init_stats(net);
 
 	/* prevent overflow in calc_rate() */
-	if (can_stats->tx_frames > (ULONG_MAX / HZ))
+	if (pkg_stats->tx_frames > (ULONG_MAX / HZ))
 		can_init_stats(net);
 
 	/* matches overflow - very improbable */
-	if (can_stats->matches > (ULONG_MAX / 100))
+	if (pkg_stats->matches > (ULONG_MAX / 100))
 		can_init_stats(net);
 
 	/* calc total values */
-	if (can_stats->rx_frames)
-		can_stats->total_rx_match_ratio = (can_stats->matches * 100) /
-			can_stats->rx_frames;
+	if (pkg_stats->rx_frames)
+		pkg_stats->total_rx_match_ratio = (pkg_stats->matches * 100) /
+			pkg_stats->rx_frames;
 
-	can_stats->total_tx_rate = calc_rate(can_stats->jiffies_init, j,
-					    can_stats->tx_frames);
-	can_stats->total_rx_rate = calc_rate(can_stats->jiffies_init, j,
-					    can_stats->rx_frames);
+	pkg_stats->total_tx_rate = calc_rate(pkg_stats->jiffies_init, j,
+					    pkg_stats->tx_frames);
+	pkg_stats->total_rx_rate = calc_rate(pkg_stats->jiffies_init, j,
+					    pkg_stats->rx_frames);
 
 	/* calc current values */
-	if (can_stats->rx_frames_delta)
-		can_stats->current_rx_match_ratio =
-			(can_stats->matches_delta * 100) /
-			can_stats->rx_frames_delta;
+	if (pkg_stats->rx_frames_delta)
+		pkg_stats->current_rx_match_ratio =
+			(pkg_stats->matches_delta * 100) /
+			pkg_stats->rx_frames_delta;
 
-	can_stats->current_tx_rate = calc_rate(0, HZ, can_stats->tx_frames_delta);
-	can_stats->current_rx_rate = calc_rate(0, HZ, can_stats->rx_frames_delta);
+	pkg_stats->current_tx_rate = calc_rate(0, HZ, pkg_stats->tx_frames_delta);
+	pkg_stats->current_rx_rate = calc_rate(0, HZ, pkg_stats->rx_frames_delta);
 
 	/* check / update maximum values */
-	if (can_stats->max_tx_rate < can_stats->current_tx_rate)
-		can_stats->max_tx_rate = can_stats->current_tx_rate;
+	if (pkg_stats->max_tx_rate < pkg_stats->current_tx_rate)
+		pkg_stats->max_tx_rate = pkg_stats->current_tx_rate;
 
-	if (can_stats->max_rx_rate < can_stats->current_rx_rate)
-		can_stats->max_rx_rate = can_stats->current_rx_rate;
+	if (pkg_stats->max_rx_rate < pkg_stats->current_rx_rate)
+		pkg_stats->max_rx_rate = pkg_stats->current_rx_rate;
 
-	if (can_stats->max_rx_match_ratio < can_stats->current_rx_match_ratio)
-		can_stats->max_rx_match_ratio = can_stats->current_rx_match_ratio;
+	if (pkg_stats->max_rx_match_ratio < pkg_stats->current_rx_match_ratio)
+		pkg_stats->max_rx_match_ratio = pkg_stats->current_rx_match_ratio;
 
 	/* clear values for 'current rate' calculation */
-	can_stats->tx_frames_delta = 0;
-	can_stats->rx_frames_delta = 0;
-	can_stats->matches_delta   = 0;
+	pkg_stats->tx_frames_delta = 0;
+	pkg_stats->rx_frames_delta = 0;
+	pkg_stats->matches_delta   = 0;
 
 	/* restart timer (one second) */
-	mod_timer(&net->can.can_stattimer, round_jiffies(jiffies + HZ));
+	mod_timer(&net->can.stattimer, round_jiffies(jiffies + HZ));
 }
 
 /*
@@ -204,67 +201,69 @@ static void can_print_recv_banner(struct seq_file *m)
 	 *                  can1.  00000000  00000000  00000000
 	 *                 .......          0  tp20
 	 */
-	seq_puts(m, "  device   can_id   can_mask  function"
-			"  userdata   matches  ident\n");
+	if (IS_ENABLED(CONFIG_64BIT))
+		seq_puts(m, "  device   can_id   can_mask      function          userdata       matches  ident\n");
+	else
+		seq_puts(m, "  device   can_id   can_mask  function  userdata   matches  ident\n");
 }
 
 static int can_stats_proc_show(struct seq_file *m, void *v)
 {
 	struct net *net = m->private;
-	struct s_stats *can_stats = net->can.can_stats;
-	struct s_pstats *can_pstats = net->can.can_pstats;
+	struct can_pkg_stats *pkg_stats = net->can.pkg_stats;
+	struct can_rcv_lists_stats *rcv_lists_stats = net->can.rcv_lists_stats;
 
 	seq_putc(m, '\n');
-	seq_printf(m, " %8ld transmitted frames (TXF)\n", can_stats->tx_frames);
-	seq_printf(m, " %8ld received frames (RXF)\n", can_stats->rx_frames);
-	seq_printf(m, " %8ld matched frames (RXMF)\n", can_stats->matches);
+	seq_printf(m, " %8ld transmitted frames (TXF)\n", pkg_stats->tx_frames);
+	seq_printf(m, " %8ld received frames (RXF)\n", pkg_stats->rx_frames);
+	seq_printf(m, " %8ld matched frames (RXMF)\n", pkg_stats->matches);
 
 	seq_putc(m, '\n');
 
-	if (net->can.can_stattimer.function == can_stat_update) {
+	if (net->can.stattimer.function == can_stat_update) {
 		seq_printf(m, " %8ld %% total match ratio (RXMR)\n",
-				can_stats->total_rx_match_ratio);
+				pkg_stats->total_rx_match_ratio);
 
 		seq_printf(m, " %8ld frames/s total tx rate (TXR)\n",
-				can_stats->total_tx_rate);
+				pkg_stats->total_tx_rate);
 		seq_printf(m, " %8ld frames/s total rx rate (RXR)\n",
-				can_stats->total_rx_rate);
+				pkg_stats->total_rx_rate);
 
 		seq_putc(m, '\n');
 
 		seq_printf(m, " %8ld %% current match ratio (CRXMR)\n",
-				can_stats->current_rx_match_ratio);
+				pkg_stats->current_rx_match_ratio);
 
 		seq_printf(m, " %8ld frames/s current tx rate (CTXR)\n",
-				can_stats->current_tx_rate);
+				pkg_stats->current_tx_rate);
 		seq_printf(m, " %8ld frames/s current rx rate (CRXR)\n",
-				can_stats->current_rx_rate);
+				pkg_stats->current_rx_rate);
 
 		seq_putc(m, '\n');
 
 		seq_printf(m, " %8ld %% max match ratio (MRXMR)\n",
-				can_stats->max_rx_match_ratio);
+				pkg_stats->max_rx_match_ratio);
 
 		seq_printf(m, " %8ld frames/s max tx rate (MTXR)\n",
-				can_stats->max_tx_rate);
+				pkg_stats->max_tx_rate);
 		seq_printf(m, " %8ld frames/s max rx rate (MRXR)\n",
-				can_stats->max_rx_rate);
+				pkg_stats->max_rx_rate);
 
 		seq_putc(m, '\n');
 	}
 
 	seq_printf(m, " %8ld current receive list entries (CRCV)\n",
-			can_pstats->rcv_entries);
+			rcv_lists_stats->rcv_entries);
 	seq_printf(m, " %8ld maximum receive list entries (MRCV)\n",
-			can_pstats->rcv_entries_max);
+			rcv_lists_stats->rcv_entries_max);
 
-	if (can_pstats->stats_reset)
+	if (rcv_lists_stats->stats_reset)
 		seq_printf(m, "\n %8ld statistic resets (STR)\n",
-				can_pstats->stats_reset);
+				rcv_lists_stats->stats_reset);
 
-	if (can_pstats->user_reset)
+	if (rcv_lists_stats->user_reset)
 		seq_printf(m, " %8ld user statistic resets (USTR)\n",
-				can_pstats->user_reset);
+				rcv_lists_stats->user_reset);
 
 	seq_putc(m, '\n');
 	return 0;
@@ -273,37 +272,31 @@ static int can_stats_proc_show(struct seq_file *m, void *v)
 static int can_reset_stats_proc_show(struct seq_file *m, void *v)
 {
 	struct net *net = m->private;
-	struct s_pstats *can_pstats = net->can.can_pstats;
-	struct s_stats *can_stats = net->can.can_stats;
+	struct can_rcv_lists_stats *rcv_lists_stats = net->can.rcv_lists_stats;
+	struct can_pkg_stats *pkg_stats = net->can.pkg_stats;
 
 	user_reset = 1;
 
-	if (net->can.can_stattimer.function == can_stat_update) {
+	if (net->can.stattimer.function == can_stat_update) {
 		seq_printf(m, "Scheduled statistic reset #%ld.\n",
-				can_pstats->stats_reset + 1);
+				rcv_lists_stats->stats_reset + 1);
 	} else {
-		if (can_stats->jiffies_init != jiffies)
+		if (pkg_stats->jiffies_init != jiffies)
 			can_init_stats(net);
 
 		seq_printf(m, "Performed statistic reset #%ld.\n",
-				can_pstats->stats_reset);
+				rcv_lists_stats->stats_reset);
 	}
-	return 0;
-}
-
-static int can_version_proc_show(struct seq_file *m, void *v)
-{
-	seq_printf(m, "%s\n", CAN_VERSION_STRING);
 	return 0;
 }
 
 static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
 					     struct net_device *dev,
-					     struct can_dev_rcv_lists *d)
+					     struct can_dev_rcv_lists *dev_rcv_lists)
 {
-	if (!hlist_empty(&d->rx[idx])) {
+	if (!hlist_empty(&dev_rcv_lists->rx[idx])) {
 		can_print_recv_banner(m);
-		can_print_rcvlist(m, &d->rx[idx], dev);
+		can_print_rcvlist(m, &dev_rcv_lists->rx[idx], dev);
 	} else
 		seq_printf(m, "  (%s: no entry)\n", DNAME(dev));
 
@@ -312,9 +305,9 @@ static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
 static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 {
 	/* double cast to prevent GCC warning */
-	int idx = (int)(long)PDE_DATA(m->file->f_inode);
+	int idx = (int)(long)pde_data(m->file->f_inode);
 	struct net_device *dev;
-	struct can_dev_rcv_lists *d;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
 
 	seq_printf(m, "\nreceive list '%s':\n", rx_list_name[idx]);
@@ -322,13 +315,16 @@ static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* receive list for 'all' CAN devices (dev == NULL) */
-	d = net->can.can_rx_alldev_list;
-	can_rcvlist_proc_show_one(m, idx, NULL, d);
+	dev_rcv_lists = net->can.rx_alldev_list;
+	can_rcvlist_proc_show_one(m, idx, NULL, dev_rcv_lists);
 
 	/* receive list for registered CAN devices */
 	for_each_netdev_rcu(net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv)
-			can_rcvlist_proc_show_one(m, idx, dev, dev->ml_priv);
+		struct can_ml_priv *can_ml = can_get_ml_priv(dev);
+
+		if (can_ml)
+			can_rcvlist_proc_show_one(m, idx, dev,
+						  &can_ml->dev_rcv_lists);
 	}
 
 	rcu_read_unlock();
@@ -365,7 +361,7 @@ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
 static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
-	struct can_dev_rcv_lists *d;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
 
 	/* RX_SFF */
@@ -374,15 +370,18 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* sff receive list for 'all' CAN devices (dev == NULL) */
-	d = net->can.can_rx_alldev_list;
-	can_rcvlist_proc_show_array(m, NULL, d->rx_sff, ARRAY_SIZE(d->rx_sff));
+	dev_rcv_lists = net->can.rx_alldev_list;
+	can_rcvlist_proc_show_array(m, NULL, dev_rcv_lists->rx_sff,
+				    ARRAY_SIZE(dev_rcv_lists->rx_sff));
 
 	/* sff receive list for registered CAN devices */
 	for_each_netdev_rcu(net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
-			d = dev->ml_priv;
-			can_rcvlist_proc_show_array(m, dev, d->rx_sff,
-						    ARRAY_SIZE(d->rx_sff));
+		struct can_ml_priv *can_ml = can_get_ml_priv(dev);
+
+		if (can_ml) {
+			dev_rcv_lists = &can_ml->dev_rcv_lists;
+			can_rcvlist_proc_show_array(m, dev, dev_rcv_lists->rx_sff,
+						    ARRAY_SIZE(dev_rcv_lists->rx_sff));
 		}
 	}
 
@@ -395,7 +394,7 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
-	struct can_dev_rcv_lists *d;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
 
 	/* RX_EFF */
@@ -404,15 +403,18 @@ static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* eff receive list for 'all' CAN devices (dev == NULL) */
-	d = net->can.can_rx_alldev_list;
-	can_rcvlist_proc_show_array(m, NULL, d->rx_eff, ARRAY_SIZE(d->rx_eff));
+	dev_rcv_lists = net->can.rx_alldev_list;
+	can_rcvlist_proc_show_array(m, NULL, dev_rcv_lists->rx_eff,
+				    ARRAY_SIZE(dev_rcv_lists->rx_eff));
 
 	/* eff receive list for registered CAN devices */
 	for_each_netdev_rcu(net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
-			d = dev->ml_priv;
-			can_rcvlist_proc_show_array(m, dev, d->rx_eff,
-						    ARRAY_SIZE(d->rx_eff));
+		struct can_ml_priv *can_ml = can_get_ml_priv(dev);
+
+		if (can_ml) {
+			dev_rcv_lists = &can_ml->dev_rcv_lists;
+			can_rcvlist_proc_show_array(m, dev, dev_rcv_lists->rx_eff,
+						    ARRAY_SIZE(dev_rcv_lists->rx_eff));
 		}
 	}
 
@@ -437,8 +439,6 @@ void can_init_proc(struct net *net)
 	}
 
 	/* own procfs entries from the AF_CAN core */
-	net->can.pde_version = proc_create_net_single(CAN_PROC_VERSION, 0644,
-			net->can.proc_dir, can_version_proc_show, NULL);
 	net->can.pde_stats = proc_create_net_single(CAN_PROC_STATS, 0644,
 			net->can.proc_dir, can_stats_proc_show, NULL);
 	net->can.pde_reset_stats = proc_create_net_single(CAN_PROC_RESET_STATS,
@@ -467,8 +467,8 @@ void can_init_proc(struct net *net)
  */
 void can_remove_proc(struct net *net)
 {
-	if (net->can.pde_version)
-		remove_proc_entry(CAN_PROC_VERSION, net->can.proc_dir);
+	if (!net->can.proc_dir)
+		return;
 
 	if (net->can.pde_stats)
 		remove_proc_entry(CAN_PROC_STATS, net->can.proc_dir);
@@ -494,6 +494,5 @@ void can_remove_proc(struct net *net)
 	if (net->can.pde_rcvlist_sff)
 		remove_proc_entry(CAN_PROC_RCVLIST_SFF, net->can.proc_dir);
 
-	if (net->can.proc_dir)
-		remove_proc_entry("can", net->proc_net);
+	remove_proc_entry("can", net->proc_net);
 }

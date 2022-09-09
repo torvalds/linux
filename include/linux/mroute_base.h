@@ -12,6 +12,7 @@
 /**
  * struct vif_device - interface representor for multicast routing
  * @dev: network device being used
+ * @dev_tracker: refcount tracker for @dev reference
  * @bytes_in: statistic; bytes ingressing
  * @bytes_out: statistic; bytes egresing
  * @pkt_in: statistic; packets ingressing
@@ -25,7 +26,8 @@
  * @remote: Remote address for tunnels
  */
 struct vif_device {
-	struct net_device *dev;
+	struct net_device __rcu *dev;
+	netdevice_tracker dev_tracker;
 	unsigned long bytes_in, bytes_out;
 	unsigned long pkt_in, pkt_out;
 	unsigned long rate_limit;
@@ -47,39 +49,40 @@ struct vif_entry_notifier_info {
 };
 
 static inline int mr_call_vif_notifier(struct notifier_block *nb,
-				       struct net *net,
 				       unsigned short family,
 				       enum fib_event_type event_type,
 				       struct vif_device *vif,
-				       unsigned short vif_index, u32 tb_id)
+				       struct net_device *vif_dev,
+				       unsigned short vif_index, u32 tb_id,
+				       struct netlink_ext_ack *extack)
 {
 	struct vif_entry_notifier_info info = {
 		.info = {
 			.family = family,
-			.net = net,
+			.extack = extack,
 		},
-		.dev = vif->dev,
+		.dev = vif_dev,
 		.vif_index = vif_index,
 		.vif_flags = vif->flags,
 		.tb_id = tb_id,
 	};
 
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return call_fib_notifier(nb, event_type, &info.info);
 }
 
 static inline int mr_call_vif_notifiers(struct net *net,
 					unsigned short family,
 					enum fib_event_type event_type,
 					struct vif_device *vif,
+					struct net_device *vif_dev,
 					unsigned short vif_index, u32 tb_id,
 					unsigned int *ipmr_seq)
 {
 	struct vif_entry_notifier_info info = {
 		.info = {
 			.family = family,
-			.net = net,
 		},
-		.dev = vif->dev,
+		.dev = vif_dev,
 		.vif_index = vif_index,
 		.vif_flags = vif->flags,
 		.tb_id = tb_id,
@@ -97,7 +100,8 @@ static inline int mr_call_vif_notifiers(struct net *net,
 #define MAXVIFS	32
 #endif
 
-#define VIF_EXISTS(_mrt, _idx) (!!((_mrt)->vif_table[_idx].dev))
+/* Note: This helper is deprecated. */
+#define VIF_EXISTS(_mrt, _idx) (!!rcu_access_pointer((_mrt)->vif_table[_idx].dev))
 
 /* mfc_flags:
  * MFC_STATIC - the entry was added statically (not by a routing daemon)
@@ -173,21 +177,21 @@ struct mfc_entry_notifier_info {
 };
 
 static inline int mr_call_mfc_notifier(struct notifier_block *nb,
-				       struct net *net,
 				       unsigned short family,
 				       enum fib_event_type event_type,
-				       struct mr_mfc *mfc, u32 tb_id)
+				       struct mr_mfc *mfc, u32 tb_id,
+				       struct netlink_ext_ack *extack)
 {
 	struct mfc_entry_notifier_info info = {
 		.info = {
 			.family = family,
-			.net = net,
+			.extack = extack,
 		},
 		.mfc = mfc,
 		.tb_id = tb_id
 	};
 
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return call_fib_notifier(nb, event_type, &info.info);
 }
 
 static inline int mr_call_mfc_notifiers(struct net *net,
@@ -199,7 +203,6 @@ static inline int mr_call_mfc_notifiers(struct net *net,
 	struct mfc_entry_notifier_info info = {
 		.info = {
 			.family = family,
-			.net = net,
 		},
 		.mfc = mfc,
 		.tb_id = tb_id
@@ -301,10 +304,11 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 
 int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 	    int (*rules_dump)(struct net *net,
-			      struct notifier_block *nb),
+			      struct notifier_block *nb,
+			      struct netlink_ext_ack *extack),
 	    struct mr_table *(*mr_iter)(struct net *net,
 					struct mr_table *mrt),
-	    rwlock_t *mrt_lock);
+	    struct netlink_ext_ack *extack);
 #else
 static inline void vif_device_init(struct vif_device *v,
 				   struct net_device *dev,
@@ -355,10 +359,11 @@ mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 static inline int mr_dump(struct net *net, struct notifier_block *nb,
 			  unsigned short family,
 			  int (*rules_dump)(struct net *net,
-					    struct notifier_block *nb),
+					    struct notifier_block *nb,
+					    struct netlink_ext_ack *extack),
 			  struct mr_table *(*mr_iter)(struct net *net,
 						      struct mr_table *mrt),
-			  rwlock_t *mrt_lock)
+			  struct netlink_ext_ack *extack)
 {
 	return -EINVAL;
 }

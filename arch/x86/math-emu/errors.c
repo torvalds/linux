@@ -178,13 +178,15 @@ void FPU_printall(void)
 	for (i = 0; i < 8; i++) {
 		FPU_REG *r = &st(i);
 		u_char tagi = FPU_gettagi(i);
+
 		switch (tagi) {
 		case TAG_Empty:
 			continue;
-			break;
 		case TAG_Zero:
 		case TAG_Special:
+			/* Update tagi for the printk below */
 			tagi = FPU_Special(r);
+			fallthrough;
 		case TAG_Valid:
 			printk("st(%d)  %c .%04lx %04lx %04lx %04lx e%+-6d ", i,
 			       getsign(r) ? '-' : '+',
@@ -198,7 +200,6 @@ void FPU_printall(void)
 			printk("Whoops! Error in errors.c: tag%d is %d ", i,
 			       tagi);
 			continue;
-			break;
 		}
 		printk("%s\n", tag_desc[(int)(unsigned)tagi]);
 	}

@@ -1,12 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2013 Markus Pargmann <mpa@pengutronix.de>, Pengutronix
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #ifndef __DTS_IMX27_PINFUNC_H
@@ -32,9 +26,9 @@
  *                2 - 0
  *                3 - 1
  *
- * 'pin' is an integer between 0 and 0xbf. imx27 has 6 ports with 32 configurable
- * configurable pins each. 'pin' is PORT * 32 + PORT_PIN, PORT_PIN is the pin
- * number on the specific port (between 0 and 31).
+ * 'pin' is an integer between 0 and 0xbf. imx27 has 6 ports with 32
+ * configurable pins each. 'pin' is PORT * 32 + PORT_PIN, PORT_PIN is
+ * the pin number on the specific port (between 0 and 31).
  */
 
 #define MX27_PAD_USBH2_CLK__USBH2_CLK                      0x00 0x000

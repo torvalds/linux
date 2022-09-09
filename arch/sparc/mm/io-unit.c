@@ -10,14 +10,11 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
-#include <linux/highmem.h>	/* pte_offset_map => kmap_atomic */
 #include <linux/bitops.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/io-unit.h>
 #include <asm/mxcc.h>
@@ -37,6 +34,8 @@
 
 #define IOPERM        (IOUPTE_CACHE | IOUPTE_WRITE | IOUPTE_VALID)
 #define MKIOPTE(phys) __iopte((((phys)>>4) & IOUPTE_PAGE) | IOPERM)
+
+static const struct dma_map_ops iounit_dma_ops;
 
 static void __init iounit_iommu_init(struct platform_device *op)
 {
@@ -70,6 +69,8 @@ static void __init iounit_iommu_init(struct platform_device *op)
 	xptend = iounit->page_table + (16 * PAGE_SIZE) / sizeof(iopte_t);
 	for (; xpt < xptend; xpt++)
 		sbus_writel(0, xpt);
+
+	op->dev.dma_ops = &iounit_dma_ops;
 }
 
 static int __init iounit_init(void)
@@ -238,17 +239,15 @@ static void *iounit_alloc(struct device *dev, size_t len,
 	while(addr < end) {
 		page = va;
 		{
-			pgd_t *pgdp;
 			pmd_t *pmdp;
 			pte_t *ptep;
 			long i;
 
-			pgdp = pgd_offset(&init_mm, addr);
-			pmdp = pmd_offset(pgdp, addr);
+			pmdp = pmd_off_k(addr);
 			ptep = pte_offset_map(pmdp, addr);
 
 			set_pte(ptep, mk_pte(virt_to_page(page), dvma_prot));
-			
+
 			i = ((addr - IOUNIT_DMA_BASE) >> PAGE_SHIFT);
 
 			iopte = iounit->page_table + i;
@@ -284,8 +283,3 @@ static const struct dma_map_ops iounit_dma_ops = {
 	.map_sg			= iounit_map_sg,
 	.unmap_sg		= iounit_unmap_sg,
 };
-
-void __init ld_mmu_iounit(void)
-{
-	dma_ops = &iounit_dma_ops;
-}

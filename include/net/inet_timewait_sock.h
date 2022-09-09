@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -6,11 +7,6 @@
  *		Definitions for a generic INET TIMEWAIT sock
  *
  *		From code originally in net/tcp.h
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _INET_TIMEWAIT_SOCK_
 #define _INET_TIMEWAIT_SOCK_
@@ -69,11 +65,12 @@ struct inet_timewait_sock {
 	/* these three are in inet_sock */
 	__be16			tw_sport;
 	/* And these are ours. */
-	unsigned int		tw_kill		: 1,
-				tw_transparent  : 1,
+	unsigned int		tw_transparent  : 1,
 				tw_flowlabel	: 20,
-				tw_pad		: 2,	/* 2 bits hole */
+				tw_pad		: 3,	/* 3 bits hole */
 				tw_tos		: 8;
+	u32			tw_txhash;
+	u32			tw_priority;
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
 };

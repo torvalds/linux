@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _RX_DESC_H_
@@ -79,7 +68,7 @@ struct rx_attention {
  *		first_msdu is set.
  *
  * peer_idx_invalid
- *		Indicates no matching entries within the the max search
+ *		Indicates no matching entries within the max search
  *		count.  Only set when first_msdu is set.
  *
  * peer_idx_timeout
@@ -207,15 +196,29 @@ struct rx_attention {
  *		descriptor.
  */
 
-struct rx_frag_info {
+struct rx_frag_info_common {
 	u8 ring0_more_count;
 	u8 ring1_more_count;
 	u8 ring2_more_count;
 	u8 ring3_more_count;
+} __packed;
+
+struct rx_frag_info_wcn3990 {
 	u8 ring4_more_count;
 	u8 ring5_more_count;
 	u8 ring6_more_count;
 	u8 ring7_more_count;
+} __packed;
+
+struct rx_frag_info {
+	struct rx_frag_info_common common;
+	union {
+		struct rx_frag_info_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_frag_info_v1 {
+	struct rx_frag_info_common common;
 } __packed;
 
 /*
@@ -485,8 +488,14 @@ struct rx_msdu_start_wcn3990 {
 struct rx_msdu_start {
 	struct rx_msdu_start_common common;
 	union {
-		struct rx_msdu_start_qca99x0 qca99x0;
 		struct rx_msdu_start_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_msdu_start_v1 {
+	struct rx_msdu_start_common common;
+	union {
+		struct rx_msdu_start_qca99x0 qca99x0;
 	} __packed;
 } __packed;
 
@@ -623,8 +632,14 @@ struct rx_msdu_end_wcn3990 {
 struct rx_msdu_end {
 	struct rx_msdu_end_common common;
 	union {
-		struct rx_msdu_end_qca99x0 qca99x0;
 		struct rx_msdu_end_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_msdu_end_v1 {
+	struct rx_msdu_end_common common;
+	union {
+		struct rx_msdu_end_qca99x0 qca99x0;
 	} __packed;
 } __packed;
 
@@ -1147,11 +1162,17 @@ struct rx_ppdu_end_wcn3990 {
 struct rx_ppdu_end {
 	struct rx_ppdu_end_common common;
 	union {
+		struct rx_ppdu_end_wcn3990 wcn3990;
+	} __packed;
+} __packed;
+
+struct rx_ppdu_end_v1 {
+	struct rx_ppdu_end_common common;
+	union {
 		struct rx_ppdu_end_qca988x qca988x;
 		struct rx_ppdu_end_qca6174 qca6174;
 		struct rx_ppdu_end_qca99x0 qca99x0;
 		struct rx_ppdu_end_qca9984 qca9984;
-		struct rx_ppdu_end_wcn3990 wcn3990;
 	} __packed;
 } __packed;
 
@@ -1293,7 +1314,19 @@ struct fw_rx_desc_base {
 #define FW_RX_DESC_UDP              (1 << 6)
 
 struct fw_rx_desc_hl {
-	u8 info0;
+	union {
+		struct {
+		u8 discard:1,
+		   forward:1,
+		   any_err:1,
+		   dup_err:1,
+		   reserved:1,
+		   inspect:1,
+		   extension:2;
+		} bits;
+		u8 info0;
+	} u;
+
 	u8 version;
 	u8 len;
 	u8 flags;

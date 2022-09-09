@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
- *   fs/cifs/cifspdu.h
  *
  *   Copyright (c) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _CIFSPDU_H
@@ -24,15 +11,9 @@
 
 #include <net/sock.h>
 #include <asm/unaligned.h>
-#include "smbfsctl.h"
+#include "../smbfs_common/smbfsctl.h"
 
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define LANMAN_PROT 0
-#define LANMAN2_PROT 1
-#define CIFS_PROT   2
-#else
 #define CIFS_PROT   0
-#endif
 #define POSIX_PROT  (CIFS_PROT+1)
 #define BAD_PROT 0xFFFF
 
@@ -142,12 +123,6 @@
  */
 #define CIFS_SESS_KEY_SIZE (16)
 
-/*
- * Size of the smb3 signing key
- */
-#define SMB3_SIGN_KEY_SIZE (16)
-
-#define CIFS_CLIENT_CHALLENGE_SIZE (8)
 #define CIFS_SERVER_CHALLENGE_SIZE (8)
 #define CIFS_HMAC_MD5_HASH_SIZE (16)
 #define CIFS_CPHTXT_SIZE (16)
@@ -240,6 +215,8 @@
 #define SYNCHRONIZE           0x00100000  /* The file handle can waited on to */
 					  /* synchronize with the completion  */
 					  /* of an input/output request       */
+#define SYSTEM_SECURITY       0x01000000  /* The system access control list   */
+					  /* can be read and changed          */
 #define GENERIC_ALL           0x10000000
 #define GENERIC_EXECUTE       0x20000000
 #define GENERIC_WRITE         0x40000000
@@ -262,7 +239,7 @@
 				| WRITE_OWNER | SYNCHRONIZE)
 #define SET_FILE_WRITE_RIGHTS (FILE_WRITE_DATA | FILE_APPEND_DATA \
 				| FILE_READ_EA | FILE_WRITE_EA \
-				| FILE_DELETE_CHILD | FILE_READ_ATTRIBUTES \
+				| FILE_READ_ATTRIBUTES \
 				| FILE_WRITE_ATTRIBUTES \
 				| DELETE | READ_CONTROL | WRITE_DAC \
 				| WRITE_OWNER | SYNCHRONIZE)
@@ -509,29 +486,7 @@ typedef struct negotiate_req {
 	unsigned char DialectsArray[1];
 } __attribute__((packed)) NEGOTIATE_REQ;
 
-/* Dialect index is 13 for LANMAN */
-
 #define MIN_TZ_ADJ (15 * 60) /* minimum grid for timezones in seconds */
-
-typedef struct lanman_neg_rsp {
-	struct smb_hdr hdr;	/* wct = 13 */
-	__le16 DialectIndex;
-	__le16 SecurityMode;
-	__le16 MaxBufSize;
-	__le16 MaxMpxCount;
-	__le16 MaxNumberVcs;
-	__le16 RawMode;
-	__le32 SessionKey;
-	struct {
-		__le16 Time;
-		__le16 Date;
-	} __attribute__((packed)) SrvTime;
-	__le16 ServerTimeZone;
-	__le16 EncryptionKeyLength;
-	__le16 Reserved;
-	__u16  ByteCount;
-	unsigned char EncryptionKey[1];
-} __attribute__((packed)) LANMAN_NEG_RSP;
 
 #define READ_RAW_ENABLE 1
 #define WRITE_RAW_ENABLE 2
@@ -1021,7 +976,7 @@ typedef struct smb_com_writex_req {
 	__le16 ByteCount;
 	__u8 Pad;		/* BB check for whether padded to DWORD
 				   boundary and optimum performance here */
-	char Data[0];
+	char Data[];
 } __attribute__((packed)) WRITEX_REQ;
 
 typedef struct smb_com_write_req {
@@ -1041,7 +996,7 @@ typedef struct smb_com_write_req {
 	__le16 ByteCount;
 	__u8 Pad;		/* BB check for whether padded to DWORD
 				   boundary and optimum performance here */
-	char Data[0];
+	char Data[];
 } __attribute__((packed)) WRITE_REQ;
 
 typedef struct smb_com_write_rsp {
@@ -1306,7 +1261,7 @@ typedef struct smb_com_ntransact_req {
 	/* SetupCount words follow then */
 	__le16 ByteCount;
 	__u8 Pad[3];
-	__u8 Parms[0];
+	__u8 Parms[];
 } __attribute__((packed)) NTRANSACT_REQ;
 
 typedef struct smb_com_ntransact_rsp {
@@ -1523,7 +1478,7 @@ struct file_notify_information {
 	__le32 NextEntryOffset;
 	__le32 Action;
 	__le32 FileNameLength;
-	__u8  FileName[0];
+	__u8  FileName[];
 } __attribute__((packed));
 
 /* For IO_REPARSE_TAG_SYMLINK */
@@ -1536,7 +1491,7 @@ struct reparse_symlink_data {
 	__le16	PrintNameOffset;
 	__le16	PrintNameLength;
 	__le32	Flags;
-	char	PathBuffer[0];
+	char	PathBuffer[];
 } __attribute__((packed));
 
 /* Flag above */
@@ -1553,7 +1508,7 @@ struct reparse_posix_data {
 	__le16	ReparseDataLength;
 	__u16	Reserved;
 	__le64	InodeType; /* LNK, FIFO, CHR etc. */
-	char	PathBuffer[0];
+	char	PathBuffer[];
 } __attribute__((packed));
 
 struct cifs_quota_data {
@@ -1691,6 +1646,7 @@ struct smb_t2_rsp {
 #define SMB_FIND_FILE_ID_FULL_DIR_INFO    0x105
 #define SMB_FIND_FILE_ID_BOTH_DIR_INFO    0x106
 #define SMB_FIND_FILE_UNIX                0x202
+/* #define SMB_FIND_FILE_POSIX_INFO          0x064 */
 
 typedef struct smb_com_transaction2_qpi_req {
 	struct smb_hdr hdr;	/* wct = 14+ */
@@ -1761,7 +1717,7 @@ struct set_file_rename {
 	__le32 overwrite;   /* 1 = overwrite dest */
 	__u32 root_fid;   /* zero */
 	__le32 target_name_len;
-	char  target_name[0];  /* Must be unicode */
+	char  target_name[];  /* Must be unicode */
 } __attribute__((packed));
 
 struct smb_com_transaction2_sfi_req {
@@ -1788,6 +1744,7 @@ struct smb_com_transaction2_sfi_req {
 	__u16 Fid;
 	__le16 InformationLevel;
 	__u16 Reserved4;
+	__u8  payload[];
 } __attribute__((packed));
 
 struct smb_com_transaction2_sfi_rsp {
@@ -1895,7 +1852,7 @@ typedef struct smb_com_transaction2_fnext_req {
 	__le16 InformationLevel;
 	__u32 ResumeKey;
 	__le16 SearchFlags;
-	char ResumeFileName[1];
+	char ResumeFileName[];
 } __attribute__((packed)) TRANSACTION2_FNEXT_REQ;
 
 typedef struct smb_com_transaction2_fnext_rsp {
@@ -2450,7 +2407,7 @@ struct cifs_posix_acl { /* access conrol list  (ACL) */
 	__le16	version;
 	__le16	access_entry_count;  /* access ACL - count of entries */
 	__le16	default_entry_count; /* default ACL - count of entries */
-	struct cifs_posix_ace ace_array[0];
+	struct cifs_posix_ace ace_array[];
 	/* followed by
 	struct cifs_posix_ace default_ace_arraay[] */
 } __attribute__((packed));  /* level 0x204 */
@@ -2591,7 +2548,7 @@ typedef struct {
 	__le32 EaSize; /* length of the xattrs */
 	__u8   ShortNameLength;
 	__u8   Reserved;
-	__u8   ShortName[12];
+	__u8   ShortName[24];
 	char FileName[1];
 } __attribute__((packed)) FILE_BOTH_DIRECTORY_INFO; /* level 0x104 FFrsp data */
 
@@ -2756,7 +2713,7 @@ typedef struct file_xattr_info {
 	/* BB do we need another field for flags? BB */
 	__u32 xattr_name_len;
 	__u32 xattr_value_len;
-	char  xattr_name[0];
+	char  xattr_name[];
 	/* followed by xattr_value[xattr_value_len], no pad */
 } __attribute__((packed)) FILE_XATTR_INFO; /* extended attribute info
 					      level 0x205 */

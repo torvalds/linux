@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -128,17 +118,6 @@ static int pvr2_querycap(struct file *file, void *priv, struct v4l2_capability *
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
 			    V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
 			    V4L2_CAP_READWRITE | V4L2_CAP_DEVICE_CAPS;
-	switch (fh->pdi->devbase.vfl_type) {
-	case VFL_TYPE_GRABBER:
-		cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO;
-		break;
-	case VFL_TYPE_RADIO:
-		cap->device_caps = V4L2_CAP_RADIO;
-		break;
-	default:
-		return -EINVAL;
-	}
-	cap->device_caps |= V4L2_CAP_TUNER | V4L2_CAP_READWRITE;
 	return 0;
 }
 
@@ -284,7 +263,7 @@ static int pvr2_enumaudio(struct file *file, void *priv, struct v4l2_audio *vin)
 
 	if (vin->index > 0)
 		return -EINVAL;
-	strncpy(vin->name, "PVRUSB2 Audio", 14);
+	strscpy(vin->name, "PVRUSB2 Audio", sizeof(vin->name));
 	vin->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
@@ -293,7 +272,7 @@ static int pvr2_g_audio(struct file *file, void *priv, struct v4l2_audio *vin)
 {
 	/* pkt: FIXME: see above comment (VIDIOC_ENUMAUDIO) */
 	vin->index = 0;
-	strncpy(vin->name, "PVRUSB2 Audio", 14);
+	strscpy(vin->name, "PVRUSB2 Audio", sizeof(vin->name));
 	vin->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
@@ -661,10 +640,6 @@ static int pvr2_s_ext_ctrls(struct file *file, void *priv,
 	unsigned int idx;
 	int ret;
 
-	/* Default value cannot be changed */
-	if (ctls->which == V4L2_CTRL_WHICH_DEF_VAL)
-		return -EINVAL;
-
 	ret = 0;
 	for (idx = 0; idx < ctls->count; idx++) {
 		ctrl = ctls->controls + idx;
@@ -919,8 +894,12 @@ static void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
 	pvr2_v4l2_dev_disassociate_parent(vp->dev_video);
 	pvr2_v4l2_dev_disassociate_parent(vp->dev_radio);
 	if (!list_empty(&vp->dev_video->devbase.fh_list) ||
-	    !list_empty(&vp->dev_radio->devbase.fh_list))
+	    (vp->dev_radio &&
+	     !list_empty(&vp->dev_radio->devbase.fh_list))) {
+		pvr2_trace(PVR2_TRACE_STRUCT,
+			   "pvr2_v4l2 internal_check exit-empty id=%p", vp);
 		return;
+	}
 	pvr2_v4l2_destroy_no_lock(vp);
 }
 
@@ -956,7 +935,8 @@ static int pvr2_v4l2_release(struct file *file)
 	kfree(fhp);
 	if (vp->channel.mc_head->disconnect_flag &&
 	    list_empty(&vp->dev_video->devbase.fh_list) &&
-	    list_empty(&vp->dev_radio->devbase.fh_list)) {
+	    (!vp->dev_radio ||
+	     list_empty(&vp->dev_radio->devbase.fh_list))) {
 		pvr2_v4l2_destroy_no_lock(vp);
 	}
 	return 0;
@@ -1024,7 +1004,7 @@ static int pvr2_v4l2_open(struct file *file)
 	input_mask &= pvr2_hdw_get_input_available(hdw);
 	input_cnt = 0;
 	for (idx = 0; idx < (sizeof(input_mask) << 3); idx++) {
-		if (input_mask & (1 << idx)) input_cnt++;
+		if (input_mask & (1UL << idx)) input_cnt++;
 	}
 	fhp->input_cnt = input_cnt;
 	fhp->input_map = kzalloc(input_cnt,GFP_KERNEL);
@@ -1039,7 +1019,7 @@ static int pvr2_v4l2_open(struct file *file)
 	}
 	input_cnt = 0;
 	for (idx = 0; idx < (sizeof(input_mask) << 3); idx++) {
-		if (!(input_mask & (1 << idx))) continue;
+		if (!(input_mask & (1UL << idx))) continue;
 		fhp->input_map[input_cnt++] = idx;
 	}
 
@@ -1205,16 +1185,19 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	int unit_number;
 	struct pvr2_hdw *hdw;
 	int *nr_ptr = NULL;
+	u32 caps = V4L2_CAP_TUNER | V4L2_CAP_READWRITE;
+
 	dip->v4lp = vp;
 
 	hdw = vp->channel.mc_head->hdw;
 	dip->v4l_type = v4l_type;
 	switch (v4l_type) {
-	case VFL_TYPE_GRABBER:
+	case VFL_TYPE_VIDEO:
 		dip->stream = &vp->channel.mc_head->video_stream;
 		dip->config = pvr2_config_mpeg;
 		dip->minor_type = pvr2_v4l_type_video;
 		nr_ptr = video_nr;
+		caps |= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO;
 		if (!dip->stream) {
 			pr_err(KBUILD_MODNAME
 				": Failed to set up pvrusb2 v4l video dev due to missing stream instance\n");
@@ -1225,12 +1208,14 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		dip->config = pvr2_config_vbi;
 		dip->minor_type = pvr2_v4l_type_vbi;
 		nr_ptr = vbi_nr;
+		caps |= V4L2_CAP_VBI_CAPTURE;
 		break;
 	case VFL_TYPE_RADIO:
 		dip->stream = &vp->channel.mc_head->video_stream;
 		dip->config = pvr2_config_mpeg;
 		dip->minor_type = pvr2_v4l_type_radio;
 		nr_ptr = radio_nr;
+		caps |= V4L2_CAP_RADIO;
 		break;
 	default:
 		/* Bail out (this should be impossible) */
@@ -1241,6 +1226,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	dip->devbase = vdev_template;
 	dip->devbase.release = pvr2_video_device_release;
 	dip->devbase.ioctl_ops = &pvr2_ioctl_ops;
+	dip->devbase.device_caps = caps;
 	{
 		int val;
 		pvr2_ctrl_get_value(
@@ -1286,7 +1272,7 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	/* register streams */
 	vp->dev_video = kzalloc(sizeof(*vp->dev_video),GFP_KERNEL);
 	if (!vp->dev_video) goto fail;
-	pvr2_v4l2_dev_init(vp->dev_video,vp,VFL_TYPE_GRABBER);
+	pvr2_v4l2_dev_init(vp->dev_video,vp,VFL_TYPE_VIDEO);
 	if (pvr2_hdw_get_input_available(vp->channel.mc_head->hdw) &
 	    (1 << PVR2_CVAL_INPUT_RADIO)) {
 		vp->dev_radio = kzalloc(sizeof(*vp->dev_radio),GFP_KERNEL);

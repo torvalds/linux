@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2014, Sony Mobile Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This driver is for the multi-block Switch-Mode Battery Charger and Boost
  * (SMBB) hardware, found in Qualcomm PM8941 PMICs.  The charger is an
@@ -871,8 +863,8 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	}
 
 	chg->revision += 1;
-	if (chg->revision != 2 && chg->revision != 3) {
-		dev_err(&pdev->dev, "v1 hardware not supported\n");
+	if (chg->revision != 1 && chg->revision != 2 && chg->revision != 3) {
+		dev_err(&pdev->dev, "v%d hardware not supported\n", chg->revision);
 		return -ENODEV;
 	}
 	dev_info(&pdev->dev, "Initializing SMBB rev %u", chg->revision);
@@ -937,11 +929,8 @@ static int smbb_charger_probe(struct platform_device *pdev)
 		int irq;
 
 		irq = platform_get_irq_byname(pdev, smbb_charger_irqs[i].name);
-		if (irq < 0) {
-			dev_err(&pdev->dev, "failed to get irq '%s'\n",
-				smbb_charger_irqs[i].name);
+		if (irq < 0)
 			return irq;
-		}
 
 		smbb_charger_irqs[i].handler(irq, chg);
 
@@ -1023,6 +1012,7 @@ static int smbb_charger_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id smbb_charger_id_table[] = {
+	{ .compatible = "qcom,pm8226-charger" },
 	{ .compatible = "qcom,pm8941-charger" },
 	{ }
 };

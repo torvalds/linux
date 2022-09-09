@@ -61,9 +61,12 @@ setup_prepare()
 
 	vrf_prepare
 	mirror_gre_topo_create
+	# Avoid changing br1's PVID while it is operational as a L3 interface.
+	ip link set dev br1 down
 
 	ip link set dev $swp3 master br1
 	bridge vlan add dev br1 vid 555 pvid untagged self
+	ip link set dev br1 up
 	ip address add dev br1 192.0.2.129/28
 	ip address add dev br1 2001:db8:2::1/64
 

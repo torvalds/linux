@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADLX345/346 Three-Axis Digital Accelerometers (SPI Interface)
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2009 Michael Hennerich, Analog Devices Inc.
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/input.h>	/* BUS_SPI */
@@ -87,11 +87,11 @@ static int adxl34x_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int adxl34x_spi_remove(struct spi_device *spi)
+static void adxl34x_spi_remove(struct spi_device *spi)
 {
 	struct adxl34x *ac = spi_get_drvdata(spi);
 
-	return adxl34x_remove(ac);
+	adxl34x_remove(ac);
 }
 
 static int __maybe_unused adxl34x_spi_suspend(struct device *dev)

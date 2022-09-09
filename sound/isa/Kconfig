@@ -1,22 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA ISA drivers
 
 config SND_WSS_LIB
-        tristate
-        select SND_PCM
+	tristate
+	select SND_PCM
 	select SND_TIMER
 
 config SND_SB_COMMON
-        tristate
+	tristate
 
 config SND_SB8_DSP
-        tristate
-        select SND_PCM
-        select SND_SB_COMMON
+	tristate
+	select SND_PCM
+	select SND_SB_COMMON
 
 config SND_SB16_DSP
-        tristate
-        select SND_PCM
-        select SND_SB_COMMON
+	tristate
+	select SND_PCM
+	select SND_SB_COMMON
 
 menuconfig SND_ISA
 	bool "ISA sound devices"

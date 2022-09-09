@@ -19,8 +19,6 @@
 #define MSGTYPE06_VARIANT_NORNG		1
 #define MSGTYPE06_VARIANT_EP11		2
 
-#define MSGTYPE06_MAX_MSG_SIZE		(12*1024)
-
 /**
  * The type 6 message family is associated with CEXxC/CEXxP cards.
  *
@@ -47,14 +45,14 @@ struct type6_hdr {
 	unsigned char reserved5[2];	/* 0x0000			*/
 	unsigned char function_code[2];	/* for PKD, 0x5044 (ascii 'PD')	*/
 	unsigned char reserved6[2];	/* 0x0000			*/
-	unsigned int  ToCardLen1;	/* (request CPRB len + 3) & -4	*/
-	unsigned int  ToCardLen2;	/* db len 0x00000000 for PKD	*/
-	unsigned int  ToCardLen3;	/* 0x00000000			*/
-	unsigned int  ToCardLen4;	/* 0x00000000			*/
-	unsigned int  FromCardLen1;	/* response buffer length	*/
-	unsigned int  FromCardLen2;	/* db len 0x00000000 for PKD	*/
-	unsigned int  FromCardLen3;	/* 0x00000000			*/
-	unsigned int  FromCardLen4;	/* 0x00000000			*/
+	unsigned int  tocardlen1;	/* (request CPRB len + 3) & -4	*/
+	unsigned int  tocardlen2;	/* db len 0x00000000 for PKD	*/
+	unsigned int  tocardlen3;	/* 0x00000000			*/
+	unsigned int  tocardlen4;	/* 0x00000000			*/
+	unsigned int  fromcardlen1;	/* response buffer length	*/
+	unsigned int  fromcardlen2;	/* db len 0x00000000 for PKD	*/
+	unsigned int  fromcardlen3;	/* 0x00000000			*/
+	unsigned int  fromcardlen4;	/* 0x00000000			*/
 } __packed;
 
 /**
@@ -96,11 +94,14 @@ struct type86_fmt2_ext {
 	unsigned int	  offset4;	/* 0x00000000			*/
 } __packed;
 
-unsigned int get_cprb_fc(struct ica_xcRB *, struct ap_message *,
-			 unsigned int *, unsigned short **);
-unsigned int get_ep11cprb_fc(struct ep11_urb *, struct ap_message *,
-			     unsigned int *);
-unsigned int get_rng_fc(struct ap_message *, int *, unsigned int *);
+int prep_cca_ap_msg(bool userspace, struct ica_xcRB *xcrb,
+		    struct ap_message *ap_msg,
+		    unsigned int *fc, unsigned short **dom);
+int prep_ep11_ap_msg(bool userspace, struct ep11_urb *xcrb,
+		     struct ap_message *ap_msg,
+		     unsigned int *fc, unsigned int *dom);
+int prep_rng_ap_msg(struct ap_message *ap_msg,
+		    int *fc, unsigned int *dom);
 
 #define LOW	10
 #define MEDIUM	100
@@ -115,7 +116,7 @@ int speed_idx_ep11(int);
  * @ap_dev: AP device pointer
  * @ap_msg: pointer to AP message
  */
-static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
+static inline void rng_type6cprb_msgx(struct ap_message *ap_msg,
 				      unsigned int random_number_length,
 				      unsigned int *domain)
 {
@@ -127,14 +128,14 @@ static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
 		char rule[8];
 		short int verb_length;
 		short int key_length;
-	} __packed * msg = ap_msg->message;
+	} __packed * msg = ap_msg->msg;
 	static struct type6_hdr static_type6_hdrX = {
 		.type		= 0x06,
 		.offset1	= 0x00000058,
 		.agent_id	= {'C', 'A'},
 		.function_code	= {'R', 'L'},
-		.ToCardLen1	= sizeof(*msg) - sizeof(msg->hdr),
-		.FromCardLen1	= sizeof(*msg) - sizeof(msg->hdr),
+		.tocardlen1	= sizeof(*msg) - sizeof(msg->hdr),
+		.fromcardlen1	= sizeof(*msg) - sizeof(msg->hdr),
 	};
 	static struct CPRBX local_cprbx = {
 		.cprb_len	= 0x00dc,
@@ -146,15 +147,15 @@ static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
 	};
 
 	msg->hdr = static_type6_hdrX;
-	msg->hdr.FromCardLen2 = random_number_length,
+	msg->hdr.fromcardlen2 = random_number_length;
 	msg->cprbx = local_cprbx;
-	msg->cprbx.rpl_datal = random_number_length,
+	msg->cprbx.rpl_datal = random_number_length;
 	memcpy(msg->function_code, msg->hdr.function_code, 0x02);
 	msg->rule_length = 0x0a;
 	memcpy(msg->rule, "RANDOM  ", 8);
 	msg->verb_length = 0x02;
 	msg->key_length = 0x02;
-	ap_msg->length = sizeof(*msg);
+	ap_msg->len = sizeof(*msg);
 	*domain = (unsigned short)msg->cprbx.domain;
 }
 

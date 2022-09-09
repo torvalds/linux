@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV20_GR_H__
 #define __NV20_GR_H__
 #define nv20_gr(p) container_of((p), struct nv20_gr, base)
@@ -9,8 +9,8 @@ struct nv20_gr {
 	struct nvkm_memory *ctxtab;
 };
 
-int nv20_gr_new_(const struct nvkm_gr_func *, struct nvkm_device *,
-		 int, struct nvkm_gr **);
+int nv20_gr_new_(const struct nvkm_gr_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		 struct nvkm_gr **);
 void *nv20_gr_dtor(struct nvkm_gr *);
 int nv20_gr_oneinit(struct nvkm_gr *);
 int nv20_gr_init(struct nvkm_gr *);

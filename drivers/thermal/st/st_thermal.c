@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ST Thermal Sensor Driver core routines
  * Author: Ajit Pal Singh <ajitpal.singh@st.com>
  *
  * Copyright (C) 2003-2014 STMicroelectronics (R&D) Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/clk.h>
@@ -251,11 +246,16 @@ int st_thermal_register(struct platform_device *pdev,
 		ret = PTR_ERR(sensor->thermal_dev);
 		goto sensor_off;
 	}
+	ret = thermal_zone_device_enable(sensor->thermal_dev);
+	if (ret)
+		goto tzd_unregister;
 
 	platform_set_drvdata(pdev, sensor);
 
 	return 0;
 
+tzd_unregister:
+	thermal_zone_device_unregister(sensor->thermal_dev);
 sensor_off:
 	st_thermal_sensor_off(sensor);
 

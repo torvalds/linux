@@ -1,31 +1,10 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x2u.h"
 #include "eeprom.h"
-
-static void mt76x2u_mac_reset_counters(struct mt76x02_dev *dev)
-{
-	mt76_rr(dev, MT_RX_STAT_0);
-	mt76_rr(dev, MT_RX_STAT_1);
-	mt76_rr(dev, MT_RX_STAT_2);
-	mt76_rr(dev, MT_TX_STA_0);
-	mt76_rr(dev, MT_TX_STA_1);
-	mt76_rr(dev, MT_TX_STA_2);
-}
 
 static void mt76x2u_mac_fixup_xtal(struct mt76x02_dev *dev)
 {
@@ -93,7 +72,6 @@ int mt76x2u_mac_reset(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_TX_LINK_CFG, 0x1020);
 	mt76_wr(dev, MT_AUTO_RSP_CFG, 0x13);
 	mt76_wr(dev, MT_MAX_LEN_CFG, 0x2f00);
-	mt76_wr(dev, MT_TX_RTS_CFG, 0x92b20);
 
 	mt76_wr(dev, MT_WMM_AIFSN, 0x2273);
 	mt76_wr(dev, MT_WMM_CWMIN, 0x2344);
@@ -114,37 +92,20 @@ int mt76x2u_mac_reset(struct mt76x02_dev *dev)
 	return 0;
 }
 
-int mt76x2u_mac_start(struct mt76x02_dev *dev)
-{
-	mt76x2u_mac_reset_counters(dev);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-	mt76x02_wait_for_wpdma(&dev->mt76, 1000);
-	usleep_range(50, 100);
-
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-
-	return 0;
-}
-
 int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 {
 	int i, count = 0, val;
 	bool stopped = false;
 	u32 rts_cfg;
 
-	if (test_bit(MT76_REMOVED, &dev->mt76.state))
+	if (test_bit(MT76_REMOVED, &dev->mphy.state))
 		return -EIO;
 
 	rts_cfg = mt76_rr(dev, MT_TX_RTS_CFG);
 	mt76_wr(dev, MT_TX_RTS_CFG, rts_cfg & ~MT_TX_RTS_CFG_RETRY_LIMIT);
 
-	mt76_clear(dev, MT_TXOP_CTRL_CFG, BIT(20));
-	mt76_clear(dev, MT_TXOP_HLDR_ET, BIT(1));
+	mt76_clear(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
+	mt76_clear(dev, MT_TXOP_HLDR_ET, MT_TXOP_HLDR_TX40M_BLK_EN);
 
 	/* wait tx dma to stop */
 	for (i = 0; i < 2000; i++) {
@@ -210,13 +171,4 @@ int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_TX_RTS_CFG, rts_cfg);
 
 	return 0;
-}
-
-void mt76x2u_mac_resume(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-	mt76_set(dev, MT_TXOP_CTRL_CFG, BIT(20));
-	mt76_set(dev, MT_TXOP_HLDR_ET, BIT(1));
 }

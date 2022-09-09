@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /* Copyright 2013-2016 Freescale Semiconductor Inc.
  * Copyright 2016 NXP
+ * Copyright 2020 NXP
  */
 #ifndef _FSL_DPNI_CMD_H
 #define _FSL_DPNI_CMD_H
@@ -11,9 +12,11 @@
 #define DPNI_VER_MAJOR				7
 #define DPNI_VER_MINOR				0
 #define DPNI_CMD_BASE_VERSION			1
+#define DPNI_CMD_2ND_VERSION			2
 #define DPNI_CMD_ID_OFFSET			4
 
 #define DPNI_CMD(id)	(((id) << DPNI_CMD_ID_OFFSET) | DPNI_CMD_BASE_VERSION)
+#define DPNI_CMD_V2(id)	(((id) << DPNI_CMD_ID_OFFSET) | DPNI_CMD_2ND_VERSION)
 
 #define DPNI_CMDID_OPEN					DPNI_CMD(0x801)
 #define DPNI_CMDID_CLOSE				DPNI_CMD(0x800)
@@ -45,7 +48,7 @@
 #define DPNI_CMDID_SET_MAX_FRAME_LENGTH			DPNI_CMD(0x216)
 #define DPNI_CMDID_GET_MAX_FRAME_LENGTH			DPNI_CMD(0x217)
 #define DPNI_CMDID_SET_LINK_CFG				DPNI_CMD(0x21A)
-#define DPNI_CMDID_SET_TX_SHAPING			DPNI_CMD(0x21B)
+#define DPNI_CMDID_SET_TX_SHAPING			DPNI_CMD_V2(0x21B)
 
 #define DPNI_CMDID_SET_MCAST_PROMISC			DPNI_CMD(0x220)
 #define DPNI_CMDID_GET_MCAST_PROMISC			DPNI_CMD(0x221)
@@ -59,6 +62,14 @@
 
 #define DPNI_CMDID_SET_RX_TC_DIST			DPNI_CMD(0x235)
 
+#define DPNI_CMDID_ENABLE_VLAN_FILTER			DPNI_CMD(0x230)
+#define DPNI_CMDID_ADD_VLAN_ID				DPNI_CMD_V2(0x231)
+#define DPNI_CMDID_REMOVE_VLAN_ID			DPNI_CMD(0x232)
+
+#define DPNI_CMDID_SET_QOS_TBL				DPNI_CMD(0x240)
+#define DPNI_CMDID_ADD_QOS_ENT				DPNI_CMD(0x241)
+#define DPNI_CMDID_REMOVE_QOS_ENT			DPNI_CMD(0x242)
+#define DPNI_CMDID_CLR_QOS_TBL				DPNI_CMD(0x243)
 #define DPNI_CMDID_ADD_FS_ENT				DPNI_CMD(0x244)
 #define DPNI_CMDID_REMOVE_FS_ENT			DPNI_CMD(0x245)
 #define DPNI_CMDID_CLR_FS_ENT				DPNI_CMD(0x246)
@@ -84,6 +95,10 @@
 
 #define DPNI_CMDID_SET_RX_FS_DIST			DPNI_CMD(0x273)
 #define DPNI_CMDID_SET_RX_HASH_DIST			DPNI_CMD(0x274)
+#define DPNI_CMDID_GET_LINK_CFG				DPNI_CMD(0x278)
+
+#define DPNI_CMDID_SET_SINGLE_STEP_CFG			DPNI_CMD(0x279)
+#define DPNI_CMDID_GET_SINGLE_STEP_CFG			DPNI_CMD_V2(0x27a)
 
 /* Macros for accessing command fields smaller than 1byte */
 #define DPNI_MASK(field)	\
@@ -284,7 +299,7 @@ struct dpni_rsp_get_statistics {
 	__le64 counter[DPNI_STATISTICS_CNT];
 };
 
-struct dpni_cmd_set_link_cfg {
+struct dpni_cmd_link_cfg {
 	/* cmd word 0 */
 	__le64 pad0;
 	/* cmd word 1 */
@@ -564,6 +579,108 @@ struct dpni_cmd_remove_fs_entry {
 	__le64 key_iova;
 	/* cmd word 2 */
 	__le64 mask_iova;
+};
+
+#define DPNI_DISCARD_ON_MISS_SHIFT	0
+#define DPNI_DISCARD_ON_MISS_SIZE	1
+
+struct dpni_cmd_set_qos_table {
+	__le32 pad;
+	u8 default_tc;
+	/* only the LSB */
+	u8 discard_on_miss;
+	__le16 pad1[21];
+	__le64 key_cfg_iova;
+};
+
+struct dpni_cmd_add_qos_entry {
+	__le16 pad;
+	u8 tc_id;
+	u8 key_size;
+	__le16 index;
+	__le16 pad1;
+	__le64 key_iova;
+	__le64 mask_iova;
+};
+
+struct dpni_cmd_remove_qos_entry {
+	u8 pad[3];
+	u8 key_size;
+	__le32 pad1;
+	__le64 key_iova;
+	__le64 mask_iova;
+};
+
+#define DPNI_DEST_TYPE_SHIFT		0
+#define DPNI_DEST_TYPE_SIZE		4
+#define DPNI_CONG_UNITS_SHIFT		4
+#define DPNI_CONG_UNITS_SIZE		2
+
+struct dpni_cmd_set_congestion_notification {
+	/* cmd word 0 */
+	u8 qtype;
+	u8 tc;
+	u8 pad[6];
+	/* cmd word 1 */
+	__le32 dest_id;
+	__le16 notification_mode;
+	u8 dest_priority;
+	/* from LSB: dest_type: 4 units:2 */
+	u8 type_units;
+	/* cmd word 2 */
+	__le64 message_iova;
+	/* cmd word 3 */
+	__le64 message_ctx;
+	/* cmd word 4 */
+	__le32 threshold_entry;
+	__le32 threshold_exit;
+};
+
+#define DPNI_COUPLED_SHIFT	0
+#define DPNI_COUPLED_SIZE	1
+
+struct dpni_cmd_set_tx_shaping {
+	__le16 tx_cr_max_burst_size;
+	__le16 tx_er_max_burst_size;
+	__le32 pad;
+	__le32 tx_cr_rate_limit;
+	__le32 tx_er_rate_limit;
+	/* from LSB: coupled:1 */
+	u8 coupled;
+};
+
+#define DPNI_PTP_ENABLE_SHIFT			0
+#define DPNI_PTP_ENABLE_SIZE			1
+#define DPNI_PTP_CH_UPDATE_SHIFT		1
+#define DPNI_PTP_CH_UPDATE_SIZE			1
+
+struct dpni_cmd_single_step_cfg {
+	__le16 flags;
+	__le16 offset;
+	__le32 peer_delay;
+	__le32 ptp_onestep_reg_base;
+	__le32 pad0;
+};
+
+struct dpni_rsp_single_step_cfg {
+	__le16 flags;
+	__le16 offset;
+	__le32 peer_delay;
+	__le32 ptp_onestep_reg_base;
+	__le32 pad0;
+};
+
+struct dpni_cmd_enable_vlan_filter {
+	/* only the LSB */
+	u8 en;
+};
+
+struct dpni_cmd_vlan_id {
+	u8 flags;
+	u8 tc_id;
+	u8 flow_id;
+	u8 pad;
+	__le16 vlan_id;
 };
 
 #endif /* _FSL_DPNI_CMD_H */

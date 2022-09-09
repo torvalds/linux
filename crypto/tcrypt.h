@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Quick & dirty crypto testing module.
  *
@@ -7,12 +8,6 @@
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
  * Copyright (c) 2007 Nokia Siemens Networks
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_TCRYPT_H
 #define _CRYPTO_TCRYPT_H
@@ -30,7 +25,6 @@ struct aead_speed_template {
 struct hash_speed {
 	unsigned int blen;	/* buffer length */
 	unsigned int plen;	/* per-update length */
-	unsigned int klen;	/* key length */
 };
 
 /*
@@ -100,34 +94,6 @@ static struct hash_speed generic_hash_speed_template[] = {
 
 	/* End marker */
 	{  .blen = 0,	.plen = 0, }
-};
-
-static struct hash_speed hash_speed_template_16[] = {
-	{ .blen = 16,	.plen = 16,	.klen = 16, },
-	{ .blen = 64,	.plen = 16,	.klen = 16, },
-	{ .blen = 64,	.plen = 64,	.klen = 16, },
-	{ .blen = 256,	.plen = 16,	.klen = 16, },
-	{ .blen = 256,	.plen = 64,	.klen = 16, },
-	{ .blen = 256,	.plen = 256,	.klen = 16, },
-	{ .blen = 1024,	.plen = 16,	.klen = 16, },
-	{ .blen = 1024,	.plen = 256,	.klen = 16, },
-	{ .blen = 1024,	.plen = 1024,	.klen = 16, },
-	{ .blen = 2048,	.plen = 16,	.klen = 16, },
-	{ .blen = 2048,	.plen = 256,	.klen = 16, },
-	{ .blen = 2048,	.plen = 1024,	.klen = 16, },
-	{ .blen = 2048,	.plen = 2048,	.klen = 16, },
-	{ .blen = 4096,	.plen = 16,	.klen = 16, },
-	{ .blen = 4096,	.plen = 256,	.klen = 16, },
-	{ .blen = 4096,	.plen = 1024,	.klen = 16, },
-	{ .blen = 4096,	.plen = 4096,	.klen = 16, },
-	{ .blen = 8192,	.plen = 16,	.klen = 16, },
-	{ .blen = 8192,	.plen = 256,	.klen = 16, },
-	{ .blen = 8192,	.plen = 1024,	.klen = 16, },
-	{ .blen = 8192,	.plen = 4096,	.klen = 16, },
-	{ .blen = 8192,	.plen = 8192,	.klen = 16, },
-
-	/* End marker */
-	{  .blen = 0,	.plen = 0,	.klen = 0, }
 };
 
 static struct hash_speed poly1305_speed_template[] = {

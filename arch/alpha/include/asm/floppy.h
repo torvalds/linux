@@ -11,8 +11,8 @@
 #define __ASM_ALPHA_FLOPPY_H
 
 
-#define fd_inb(port)			inb_p(port)
-#define fd_outb(value,port)		outb_p(value,port)
+#define fd_inb(base, reg)		inb_p((base) + (reg))
+#define fd_outb(value, base, reg)	outb_p(value, (base) + (reg))
 
 #define fd_enable_dma()         enable_dma(FLOPPY_DMA)
 #define fd_disable_dma()        disable_dma(FLOPPY_DMA)
@@ -20,7 +20,7 @@
 #define fd_free_dma()           free_dma(FLOPPY_DMA)
 #define fd_clear_dma_ff()       clear_dma_ff(FLOPPY_DMA)
 #define fd_set_dma_mode(mode)   set_dma_mode(FLOPPY_DMA,mode)
-#define fd_set_dma_addr(addr)   set_dma_addr(FLOPPY_DMA,virt_to_bus(addr))
+#define fd_set_dma_addr(addr)   set_dma_addr(FLOPPY_DMA,isa_virt_to_bus(addr))
 #define fd_set_dma_count(count) set_dma_count(FLOPPY_DMA,count)
 #define fd_enable_irq()         enable_irq(FLOPPY_IRQ)
 #define fd_disable_irq()        disable_irq(FLOPPY_IRQ)
@@ -43,17 +43,18 @@ alpha_fd_dma_setup(char *addr, unsigned long size, int mode, int io)
 	static int prev_dir;
 	int dir;
 
-	dir = (mode != DMA_MODE_READ) ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE;
+	dir = (mode != DMA_MODE_READ) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 	if (bus_addr 
 	    && (addr != prev_addr || size != prev_size || dir != prev_dir)) {
 		/* different from last time -- unmap prev */
-		pci_unmap_single(isa_bridge, bus_addr, prev_size, prev_dir);
+		dma_unmap_single(&isa_bridge->dev, bus_addr, prev_size,
+				 prev_dir);
 		bus_addr = 0;
 	}
 
 	if (!bus_addr)	/* need to map it */
-		bus_addr = pci_map_single(isa_bridge, addr, size, dir);
+		bus_addr = dma_map_single(&isa_bridge->dev, addr, size, dir);
 
 	/* remember this one as prev */
 	prev_addr = addr;

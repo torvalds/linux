@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Extreme Engineering Solutions, Inc.
  *
@@ -6,10 +7,6 @@
  * Based on mpc85xx_ds code from Freescale Semiconductor, Inc.
  *
  * Author: Nate Case <ncase@xes-inc.com>
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/stddef.h>
@@ -19,13 +16,13 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 
@@ -48,7 +45,7 @@ void __init xes_mpc85xx_pic_init(void)
 	mpic_init(mpic);
 }
 
-static void xes_mpc85xx_configure_l2(void __iomem *l2_base)
+static void __init xes_mpc85xx_configure_l2(void __iomem *l2_base)
 {
 	volatile uint32_t ctl, tmp;
 
@@ -75,7 +72,7 @@ static void xes_mpc85xx_configure_l2(void __iomem *l2_base)
 	asm volatile("msync; isync");
 }
 
-static void xes_mpc85xx_fixups(void)
+static void __init xes_mpc85xx_fixups(void)
 {
 	struct device_node *np;
 	int err;

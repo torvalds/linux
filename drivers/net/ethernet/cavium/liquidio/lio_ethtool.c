@@ -15,6 +15,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
 #include <linux/pci.h>
@@ -442,7 +443,6 @@ lio_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 
 	memset(drvinfo, 0, sizeof(struct ethtool_drvinfo));
 	strcpy(drvinfo->driver, "liquidio");
-	strcpy(drvinfo->version, LIQUIDIO_VERSION);
 	strncpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
 		ETHTOOL_FWVERS_LEN);
 	strncpy(drvinfo->bus_info, pci_name(oct->pci_dev), 32);
@@ -459,7 +459,6 @@ lio_get_vf_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 
 	memset(drvinfo, 0, sizeof(struct ethtool_drvinfo));
 	strcpy(drvinfo->driver, "liquidio_vf");
-	strcpy(drvinfo->version, LIQUIDIO_VERSION);
 	strncpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
 		ETHTOOL_FWVERS_LEN);
 	strncpy(drvinfo->bus_info, pci_name(oct->pci_dev), 32);
@@ -948,7 +947,9 @@ static int lio_set_phys_id(struct net_device *netdev,
 
 static void
 lio_ethtool_get_ringparam(struct net_device *netdev,
-			  struct ethtool_ringparam *ering)
+			  struct ethtool_ringparam *ering,
+			  struct kernel_ethtool_ringparam *kernel_ering,
+			  struct netlink_ext_ack *extack)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
@@ -1253,8 +1254,11 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 	return 0;
 }
 
-static int lio_ethtool_set_ringparam(struct net_device *netdev,
-				     struct ethtool_ringparam *ering)
+static int
+lio_ethtool_set_ringparam(struct net_device *netdev,
+			  struct ethtool_ringparam *ering,
+			  struct kernel_ethtool_ringparam *kernel_ering,
+			  struct netlink_ext_ack *extack)
 {
 	u32 rx_count, tx_count, rx_count_old, tx_count_old;
 	struct lio *lio = GET_LIO(netdev);
@@ -2109,7 +2113,9 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 }
 
 static int lio_get_intr_coalesce(struct net_device *netdev,
-				 struct ethtool_coalesce *intr_coal)
+				 struct ethtool_coalesce *intr_coal,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
@@ -2413,7 +2419,9 @@ oct_cfg_tx_intrcnt(struct lio *lio,
 }
 
 static int lio_set_intr_coalesce(struct net_device *netdev,
-				 struct ethtool_coalesce *intr_coal)
+				 struct ethtool_coalesce *intr_coal,
+				 struct kernel_ethtool_coalesce *kernel_coal,
+				 struct netlink_ext_ack *extack)
 {
 	struct lio *lio = GET_LIO(netdev);
 	int ret;
@@ -3099,7 +3107,17 @@ static int lio_set_fecparam(struct net_device *netdev,
 	return 0;
 }
 
+#define LIO_ETHTOOL_COALESCE	(ETHTOOL_COALESCE_RX_USECS |		\
+				 ETHTOOL_COALESCE_MAX_FRAMES |		\
+				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
+				 ETHTOOL_COALESCE_RX_MAX_FRAMES_LOW |	\
+				 ETHTOOL_COALESCE_TX_MAX_FRAMES_LOW |	\
+				 ETHTOOL_COALESCE_RX_MAX_FRAMES_HIGH |	\
+				 ETHTOOL_COALESCE_TX_MAX_FRAMES_HIGH |	\
+				 ETHTOOL_COALESCE_PKT_RATE_RX_USECS)
+
 static const struct ethtool_ops lio_ethtool_ops = {
+	.supported_coalesce_params = LIO_ETHTOOL_COALESCE,
 	.get_link_ksettings	= lio_get_link_ksettings,
 	.set_link_ksettings	= lio_set_link_ksettings,
 	.get_fecparam		= lio_get_fecparam,
@@ -3130,6 +3148,7 @@ static const struct ethtool_ops lio_ethtool_ops = {
 };
 
 static const struct ethtool_ops lio_vf_ethtool_ops = {
+	.supported_coalesce_params = LIO_ETHTOOL_COALESCE,
 	.get_link_ksettings	= lio_get_link_ksettings,
 	.get_link		= ethtool_op_get_link,
 	.get_drvinfo		= lio_get_vf_drvinfo,

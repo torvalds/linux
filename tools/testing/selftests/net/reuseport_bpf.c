@@ -24,9 +24,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#endif
+#include "../kselftest.h"
 
 struct test_params {
 	int recv_family;

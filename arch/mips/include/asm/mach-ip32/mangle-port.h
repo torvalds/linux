@@ -17,10 +17,10 @@
 # define ioswabb(a, x)		(x)
 # define __mem_ioswabb(a, x)	(x)
 # define ioswabw(a, x)		(x)
-# define __mem_ioswabw(a, x)	cpu_to_le16(x)
+# define __mem_ioswabw(a, x)	((__force u16)cpu_to_le16(x))
 # define ioswabl(a, x)		(x)
-# define __mem_ioswabl(a, x)	cpu_to_le32(x)
+# define __mem_ioswabl(a, x)	((__force u32)cpu_to_le32(x))
 # define ioswabq(a, x)		(x)
-# define __mem_ioswabq(a, x)	cpu_to_le32(x)
+# define __mem_ioswabq(a, x)	((__force u64)cpu_to_le64(x))
 
 #endif /* __ASM_MACH_IP32_MANGLE_PORT_H */

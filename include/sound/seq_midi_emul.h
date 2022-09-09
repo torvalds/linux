@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_SEQ_MIDI_EMUL_H
 #define __SOUND_SEQ_MIDI_EMUL_H
 
@@ -5,21 +6,6 @@
  *  Midi channel definition for optional channel management.
  *
  *  Copyright (C) 1999 Steve Ratcliffe
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <sound/seq_kernel.h>
@@ -188,7 +174,8 @@ enum {
 };
 
 /* Prototypes for midi_process.c */
-void snd_midi_process_event(struct snd_midi_op *ops, struct snd_seq_event *ev,
+void snd_midi_process_event(const struct snd_midi_op *ops,
+			    struct snd_seq_event *ev,
 			    struct snd_midi_channel_set *chanset);
 void snd_midi_channel_set_clear(struct snd_midi_channel_set *chset);
 struct snd_midi_channel_set *snd_midi_channel_alloc_set(int n);

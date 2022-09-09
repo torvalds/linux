@@ -24,9 +24,9 @@
 		ramoops@88d00000{
 			compatible = "ramoops";
 			reg = <0x88d00000 0x100000>;
-			record-size     = <0x00020000>;
-			console-size    = <0x00020000>;
-			ftrace-size     = <0x00020000>;
+			record-size = <0x00020000>;
+			console-size = <0x00020000>;
+			ftrace-size = <0x00020000>;
 		};
 	};
 
@@ -44,12 +44,12 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		volume_up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&pm8921_gpio 4 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
-		volume_down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&pm8921_gpio 38 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_VOLUMEDOWN>;
@@ -98,8 +98,8 @@
 				 * tabla2x-slim-VDDIO_CDC
 				 */
 				s4 {
-					regulator-min-microvolt	= <1800000>;
-					regulator-max-microvolt	= <1800000>;
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
 					qcom,switch-mode-frequency = <3200000>;
 					regulator-always-on;
 				};
@@ -212,13 +212,12 @@
 			};
 		};
 
-		dsi0: mdss_dsi@4700000 {
+		dsi0: dsi@4700000 {
 			status = "okay";
 			vdda-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
 			vdd-supply = <&pm8921_l8>;
 			vddio-supply = <&pm8921_lvs7>;
 			avdd-supply = <&pm8921_l11>;
-			vcss-supply = <&ext_3p3v>;
 
 			panel@0 {
 				reg = <0>;
@@ -302,11 +301,11 @@
 		};
 
 		gsbi@16500000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 
 			serial@16540000 {
-				status = "ok";
+				status = "okay";
 
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsbi6_uart_4pins>;
@@ -314,10 +313,10 @@
 		};
 
 		gsbi@16600000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 			serial@16640000 {
-				status = "ok";
+				status = "okay";
 			};
 		};
 
@@ -335,24 +334,24 @@
 
 		amba {
 			/* eMMC */
-			sdcc@12400000 {
+			mmc@12400000 {
 				status = "okay";
 				vmmc-supply = <&pm8921_l5>;
 				vqmmc-supply = <&pm8921_s4>;
 			};
 		};
 
-		imem@2a03f000 {
-			compatible = "syscon", "simple-mfd";
+		sram@2a03f000 {
+			compatible = "qcom,apq8064-imem", "syscon", "simple-mfd";
 			reg = <0x2a03f000 0x1000>;
 
 			reboot-mode {
 				compatible = "syscon-reboot-mode";
 				offset = <0x65c>;
 
-				mode-normal	= <0x77665501>;
-				mode-bootloader	= <0x77665500>;
-				mode-recovery	= <0x77665502>;
+				mode-normal = <0x77665501>;
+				mode-bootloader = <0x77665500>;
+				mode-recovery = <0x77665502>;
 			};
 		};
 	};

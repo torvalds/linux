@@ -1,12 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef ARMADA_FB_H
 #define ARMADA_FB_H
+
+#include <drm/drm_framebuffer.h>
 
 struct armada_framebuffer {
 	struct drm_framebuffer	fb;

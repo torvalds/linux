@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
@@ -64,7 +65,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 		goto out_close;
 	}
 
-	sp = stack + UM_KERN_PAGE_SIZE - sizeof(void *);
+	sp = stack + UM_KERN_PAGE_SIZE;
 	data.pre_exec = pre_exec;
 	data.pre_data = pre_data;
 	data.argv = argv;
@@ -99,6 +100,10 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 		CATCH_EINTR(waitpid(pid, NULL, __WALL));
 	}
 
+	if (ret < 0)
+		printk(UM_KERN_ERR "run_helper : failed to exec %s on host: %s\n",
+		       argv[0], strerror(-ret));
+
 out_free2:
 	kfree(data.buf);
 out_close:
@@ -120,7 +125,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	if (stack == 0)
 		return -ENOMEM;
 
-	sp = stack + UM_KERN_PAGE_SIZE - sizeof(void *);
+	sp = stack + UM_KERN_PAGE_SIZE;
 	pid = clone(proc, (void *) sp, flags, arg);
 	if (pid < 0) {
 		err = -errno;

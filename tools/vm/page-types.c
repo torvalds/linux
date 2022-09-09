@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * page-types: Tool for querying page flags
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should find a copy of v2 of the GNU General Public License somewhere on
- * your Linux system; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  *
  * Copyright (C) 2009 Intel corporation
  *
@@ -90,10 +78,12 @@
 #define KPF_ARCH		38
 #define KPF_UNCACHED		39
 #define KPF_SOFTDIRTY		40
+#define KPF_ARCH_2		41
 
-/* [48-] take some arbitrary free slots for expanding overloaded flags
+/* [47-] take some arbitrary free slots for expanding overloaded flags
  * not part of kernel API
  */
+#define KPF_ANON_EXCLUSIVE	47
 #define KPF_READAHEAD		48
 #define KPF_SLOB_FREE		49
 #define KPF_SLUB_FROZEN		50
@@ -133,7 +123,7 @@ static const char * const page_flag_names[] = {
 	[KPF_NOPAGE]		= "n:nopage",
 	[KPF_KSM]		= "x:ksm",
 	[KPF_THP]		= "t:thp",
-	[KPF_BALLOON]		= "o:balloon",
+	[KPF_OFFLINE]		= "o:offline",
 	[KPF_PGTABLE]		= "g:pgtable",
 	[KPF_ZERO_PAGE]		= "z:zero_page",
 	[KPF_IDLE]              = "i:idle_page",
@@ -147,7 +137,9 @@ static const char * const page_flag_names[] = {
 	[KPF_ARCH]		= "h:arch",
 	[KPF_UNCACHED]		= "c:uncached",
 	[KPF_SOFTDIRTY]		= "f:softdirty",
+	[KPF_ARCH_2]		= "H:arch_2",
 
+	[KPF_ANON_EXCLUSIVE]	= "d:anon_exclusive",
 	[KPF_READAHEAD]		= "I:readahead",
 	[KPF_SLOB_FREE]		= "P:slob_free",
 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
@@ -400,7 +392,7 @@ static void show_page_range(unsigned long voffset, unsigned long offset,
 		if (opt_pid)
 			printf("%lx\t", voff);
 		if (opt_file)
-			printf("%lu\t", voff);
+			printf("%lx\t", voff);
 		if (opt_list_cgroup)
 			printf("@%llu\t", (unsigned long long)cgroup0);
 		if (opt_list_mapcnt)
@@ -428,7 +420,7 @@ static void show_page(unsigned long voffset, unsigned long offset,
 	if (opt_pid)
 		printf("%lx\t", voffset);
 	if (opt_file)
-		printf("%lu\t", voffset);
+		printf("%lx\t", voffset);
 	if (opt_list_cgroup)
 		printf("@%llu\t", (unsigned long long)cgroup);
 	if (opt_list_mapcnt)
@@ -482,6 +474,10 @@ static int bit_mask_ok(uint64_t flags)
 
 static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 {
+	/* Anonymous pages overload PG_mappedtodisk */
+	if ((flags & BIT(ANON)) && (flags & BIT(MAPPEDTODISK)))
+		flags ^= BIT(MAPPEDTODISK) | BIT(ANON_EXCLUSIVE);
+
 	/* SLOB/SLUB overload several page flags */
 	if (flags & BIT(SLAB)) {
 		if (flags & BIT(PRIVATE))
@@ -977,22 +973,19 @@ static struct sigaction sigbus_action = {
 	.sa_flags = SA_SIGINFO,
 };
 
-static void walk_file(const char *name, const struct stat *st)
+static void walk_file_range(const char *name, int fd,
+			    unsigned long off, unsigned long end)
 {
 	uint8_t vec[PAGEMAP_BATCH];
 	uint64_t buf[PAGEMAP_BATCH], flags;
 	uint64_t cgroup = 0;
 	uint64_t mapcnt = 0;
 	unsigned long nr_pages, pfn, i;
-	off_t off, end = st->st_size;
-	int fd;
 	ssize_t len;
 	void *ptr;
 	int first = 1;
 
-	fd = checked_open(name, O_RDONLY|O_NOATIME|O_NOFOLLOW);
-
-	for (off = 0; off < end; off += len) {
+	for (; off < end; off += len) {
 		nr_pages = (end - off + page_size - 1) / page_size;
 		if (nr_pages > PAGEMAP_BATCH)
 			nr_pages = PAGEMAP_BATCH;
@@ -1047,12 +1040,26 @@ got_sigbus:
 			if (first && opt_list) {
 				first = 0;
 				flush_page_range();
-				show_file(name, st);
 			}
 			add_page(off / page_size + i, pfn,
 				 flags, cgroup, mapcnt, buf[i]);
 		}
 	}
+}
+
+static void walk_file(const char *name, const struct stat *st)
+{
+	int i;
+	int fd;
+
+	fd = checked_open(name, O_RDONLY|O_NOATIME|O_NOFOLLOW);
+
+	if (!nr_addr_ranges)
+		add_addr_range(0, st->st_size / page_size);
+
+	for (i = 0; i < nr_addr_ranges; i++)
+		walk_file_range(name, fd, opt_offset[i] * page_size,
+				(opt_offset[i] + opt_size[i]) * page_size);
 
 	close(fd);
 }
@@ -1072,10 +1079,10 @@ int walk_tree(const char *name, const struct stat *st, int type, struct FTW *f)
 	return 0;
 }
 
+struct stat st;
+
 static void walk_page_cache(void)
 {
-	struct stat st;
-
 	kpageflags_fd = checked_open(opt_kpageflags, O_RDONLY);
 	pagemap_fd = checked_open("/proc/self/pagemap", O_RDONLY);
 	sigaction(SIGBUS, &sigbus_action, NULL);
@@ -1341,7 +1348,7 @@ int main(int argc, char *argv[])
 	if (opt_list && opt_list_mapcnt)
 		kpagecount_fd = checked_open(PROC_KPAGECOUNT, O_RDONLY);
 
-	if (opt_mark_idle && opt_file)
+	if (opt_mark_idle)
 		page_idle_fd = checked_open(SYS_KERNEL_MM_PAGE_IDLE, O_RDWR);
 
 	if (opt_list && opt_pid)
@@ -1371,6 +1378,11 @@ int main(int argc, char *argv[])
 
 	if (opt_list)
 		printf("\n\n");
+
+	if (opt_file) {
+		show_file(opt_file, &st);
+		printf("\n");
+	}
 
 	show_summary();
 

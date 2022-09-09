@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALPS touchpad PS/2 mouse driver
  *
@@ -9,10 +10,6 @@
  *
  * ALPS detection, tap switching and status querying info is taken from
  * tpconfig utility (by C. Scott Ananian and Bruce Kall).
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/slab.h>
@@ -24,6 +21,7 @@
 
 #include "psmouse.h"
 #include "alps.h"
+#include "trackpoint.h"
 
 /*
  * Definitions for ALPS version 3 and 4 command mode protocol
@@ -988,7 +986,7 @@ static void alps_get_finger_coordinate_v7(struct input_mt_pos *mt,
 	case V7_PACKET_ID_TWO:
 		mt[1].x &= ~0x000F;
 		mt[1].y |= 0x000F;
-		/* Detect false-postive touches where x & y report max value */
+		/* Detect false-positive touches where x & y report max value */
 		if (mt[1].y == 0x7ff && mt[1].x == 0xff0) {
 			mt[1].x = 0;
 			/* y gets set to 0 at the end of this function */
@@ -1931,7 +1929,7 @@ static int alps_monitor_mode(struct psmouse *psmouse, bool enable)
 static int alps_absolute_mode_v6(struct psmouse *psmouse)
 {
 	u16 reg_val = 0x181;
-	int ret = -1;
+	int ret;
 
 	/* enter monitor mode, to write the register */
 	if (alps_monitor_mode(psmouse, true))
@@ -2864,6 +2862,23 @@ static const struct alps_protocol_info *alps_match_table(unsigned char *e7,
 	return NULL;
 }
 
+static bool alps_is_cs19_trackpoint(struct psmouse *psmouse)
+{
+	u8 param[2] = { 0 };
+
+	if (ps2_command(&psmouse->ps2dev,
+			param, MAKE_PS2_CMD(0, 2, TP_READ_ID)))
+		return false;
+
+	/*
+	 * param[0] contains the trackpoint device variant_id while
+	 * param[1] contains the firmware_id. So far all alps
+	 * trackpoint-only devices have their variant_ids equal
+	 * TP_VARIANT_ALPS and their firmware_ids are in 0x20~0x2f range.
+	 */
+	return param[0] == TP_VARIANT_ALPS && ((param[1] & 0xf0) == 0x20);
+}
+
 static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 {
 	const struct alps_protocol_info *protocol;
@@ -3163,6 +3178,20 @@ int alps_detect(struct psmouse *psmouse, bool set_properties)
 	error = alps_identify(psmouse, NULL);
 	if (error)
 		return error;
+
+	/*
+	 * ALPS cs19 is a trackpoint-only device, and uses different
+	 * protocol than DualPoint ones, so we return -EINVAL here and let
+	 * trackpoint.c drive this device. If the trackpoint driver is not
+	 * enabled, the device will fall back to a bare PS/2 mouse.
+	 * If ps2_command() fails here, we depend on the immediately
+	 * followed psmouse_reset() to reset the device to normal state.
+	 */
+	if (alps_is_cs19_trackpoint(psmouse)) {
+		psmouse_dbg(psmouse,
+			    "ALPS CS19 trackpoint-only device detected, ignoring\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Reset the device to make sure it is fully operational:

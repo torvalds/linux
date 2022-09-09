@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * fschmd.c
  *
  * Copyright (C) 2007 - 2009 Hans de Goede <hdegoede@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -227,8 +214,7 @@ static const int FSCHMD_NO_TEMP_SENSORS[7] = { 3, 3, 4, 3, 5, 5, 11 };
  * Functions declarations
  */
 
-static int fschmd_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
+static int fschmd_probe(struct i2c_client *client);
 static int fschmd_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int fschmd_remove(struct i2c_client *client);
@@ -255,7 +241,7 @@ static struct i2c_driver fschmd_driver = {
 	.driver = {
 		.name	= "fschmd",
 	},
-	.probe		= fschmd_probe,
+	.probe_new	= fschmd_probe,
 	.remove		= fschmd_remove,
 	.id_table	= fschmd_id,
 	.detect		= fschmd_detect,
@@ -278,7 +264,7 @@ struct fschmd_data {
 	unsigned long watchdog_is_open;
 	char watchdog_expect_close;
 	char watchdog_name[10]; /* must be unique to avoid sysfs conflict */
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* register values */
@@ -837,7 +823,7 @@ static int watchdog_open(struct inode *inode, struct file *filp)
 	watchdog_trigger(data);
 	filp->private_data = data;
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int watchdog_release(struct inode *inode, struct file *filp)
@@ -967,6 +953,7 @@ static const struct file_operations watchdog_fops = {
 	.release = watchdog_release,
 	.write = watchdog_write,
 	.unlocked_ioctl = watchdog_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 
@@ -1093,15 +1080,14 @@ static int fschmd_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int fschmd_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int fschmd_probe(struct i2c_client *client)
 {
 	struct fschmd_data *data;
 	const char * const names[7] = { "Poseidon", "Hermes", "Scylla",
 				"Heracles", "Heimdall", "Hades", "Syleus" };
 	const int watchdog_minors[] = { WATCHDOG_MINOR, 212, 213, 214, 215 };
 	int i, err;
-	enum chips kind = id->driver_data;
+	enum chips kind = i2c_match_id(fschmd_id, client)->driver_data;
 
 	data = kzalloc(sizeof(struct fschmd_data), GFP_KERNEL);
 	if (!data)
@@ -1370,7 +1356,7 @@ static struct fschmd_data *fschmd_update_device(struct device *dev)
 					       FSCHMD_REG_VOLT[data->kind][i]);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);

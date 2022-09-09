@@ -7,17 +7,16 @@ This list is the Linux Device List, the official registry of allocated
 device numbers and ``/dev`` directory nodes for the Linux operating
 system.
 
-The LaTeX version of this document is no longer maintained, nor is
-the document that used to reside at lanana.org.  This version in the
-mainline Linux kernel is the master document.  Updates shall be sent
-as patches to the kernel maintainers (see the
+The version of this document at lanana.org is no longer maintained.  This
+version in the mainline Linux kernel is the master document.  Updates
+shall be sent as patches to the kernel maintainers (see the
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` document).
 Specifically explore the sections titled "CHAR and MISC DRIVERS", and
 "BLOCK LAYER" in the MAINTAINERS file to find the right maintainers
 to involve for character and block devices.
 
 This document is included by reference into the Filesystem Hierarchy
-Standard (FHS).	 The FHS is available from http://www.pathname.com/fhs/.
+Standard (FHS).	 The FHS is available from https://www.pathname.com/fhs/.
 
 Allocations marked (68k/Amiga) apply to Linux/68k on the Amiga
 platform only.	Allocations marked (68k/Atari) apply to Linux/68k on

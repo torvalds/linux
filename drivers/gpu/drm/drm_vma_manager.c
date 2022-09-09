@@ -23,15 +23,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mm.h>
-#include <drm/drm_vma_manager.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+
+#include <drm/drm_mm.h>
+#include <drm/drm_vma_manager.h>
 
 /**
  * DOC: vma offset manager
@@ -361,7 +361,7 @@ EXPORT_SYMBOL(drm_vma_node_revoke);
  * This is locked against concurrent access internally.
  *
  * RETURNS:
- * true iff @filp is on the list
+ * true if @filp is on the list
  */
 bool drm_vma_node_is_allowed(struct drm_vma_offset_node *node,
 			     struct drm_file *tag)

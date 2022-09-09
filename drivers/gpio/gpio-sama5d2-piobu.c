@@ -49,7 +49,7 @@ struct sama5d2_piobu {
 	struct regmap *regmap;
 };
 
-/**
+/*
  * sama5d2_piobu_setup_pin() - prepares a pin for set_direction call
  *
  * Do not consider pin for tamper detection (normal and backup modes)
@@ -73,7 +73,7 @@ static int sama5d2_piobu_setup_pin(struct gpio_chip *chip, unsigned int pin)
 	return regmap_update_bits(piobu->regmap, PIOBU_WKPR, mask, 0);
 }
 
-/**
+/*
  * sama5d2_piobu_write_value() - writes value & mask at the pin's PIOBU register
  */
 static int sama5d2_piobu_write_value(struct gpio_chip *chip, unsigned int pin,
@@ -88,7 +88,7 @@ static int sama5d2_piobu_write_value(struct gpio_chip *chip, unsigned int pin,
 	return regmap_update_bits(piobu->regmap, reg, mask, value);
 }
 
-/**
+/*
  * sama5d2_piobu_read_value() - read the value with masking from the pin's PIOBU
  *			      register
  */
@@ -108,17 +108,7 @@ static int sama5d2_piobu_read_value(struct gpio_chip *chip, unsigned int pin,
 	return val & mask;
 }
 
-/**
- * sama5d2_piobu_set_direction() - mark pin as input or output
- */
-static int sama5d2_piobu_set_direction(struct gpio_chip *chip,
-				       unsigned int direction,
-				       unsigned int pin)
-{
-	return sama5d2_piobu_write_value(chip, pin, PIOBU_DIRECTION, direction);
-}
-
-/**
+/*
  * sama5d2_piobu_get_direction() - gpiochip get_direction
  */
 static int sama5d2_piobu_get_direction(struct gpio_chip *chip,
@@ -129,28 +119,35 @@ static int sama5d2_piobu_get_direction(struct gpio_chip *chip,
 	if (ret < 0)
 		return ret;
 
-	return (ret == PIOBU_IN) ? 1 : 0;
+	return (ret == PIOBU_IN) ? GPIO_LINE_DIRECTION_IN :
+				   GPIO_LINE_DIRECTION_OUT;
 }
 
-/**
+/*
  * sama5d2_piobu_direction_input() - gpiochip direction_input
  */
 static int sama5d2_piobu_direction_input(struct gpio_chip *chip,
 					 unsigned int pin)
 {
-	return sama5d2_piobu_set_direction(chip, PIOBU_IN, pin);
+	return sama5d2_piobu_write_value(chip, pin, PIOBU_DIRECTION, PIOBU_IN);
 }
 
-/**
+/*
  * sama5d2_piobu_direction_output() - gpiochip direction_output
  */
 static int sama5d2_piobu_direction_output(struct gpio_chip *chip,
 					  unsigned int pin, int value)
 {
-	return sama5d2_piobu_set_direction(chip, PIOBU_OUT, pin);
+	unsigned int val = PIOBU_OUT;
+
+	if (value)
+		val |= PIOBU_HIGH;
+
+	return sama5d2_piobu_write_value(chip, pin, PIOBU_DIRECTION | PIOBU_SOD,
+					 val);
 }
 
-/**
+/*
  * sama5d2_piobu_get() - gpiochip get
  */
 static int sama5d2_piobu_get(struct gpio_chip *chip, unsigned int pin)
@@ -158,9 +155,9 @@ static int sama5d2_piobu_get(struct gpio_chip *chip, unsigned int pin)
 	/* if pin is input, read value from PDS else read from SOD */
 	int ret = sama5d2_piobu_get_direction(chip, pin);
 
-	if (ret == 1)
+	if (ret == GPIO_LINE_DIRECTION_IN)
 		ret = sama5d2_piobu_read_value(chip, pin, PIOBU_PDS);
-	else if (!ret)
+	else if (ret == GPIO_LINE_DIRECTION_OUT)
 		ret = sama5d2_piobu_read_value(chip, pin, PIOBU_SOD);
 
 	if (ret < 0)
@@ -169,7 +166,7 @@ static int sama5d2_piobu_get(struct gpio_chip *chip, unsigned int pin)
 	return !!ret;
 }
 
-/**
+/*
  * sama5d2_piobu_set() - gpiochip set
  */
 static void sama5d2_piobu_set(struct gpio_chip *chip, unsigned int pin,
@@ -195,7 +192,6 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, piobu);
 	piobu->chip.label = pdev->name;
 	piobu->chip.parent = &pdev->dev;
-	piobu->chip.of_node = pdev->dev.of_node;
 	piobu->chip.owner = THIS_MODULE,
 	piobu->chip.get_direction = sama5d2_piobu_get_direction,
 	piobu->chip.direction_input = sama5d2_piobu_direction_input,
@@ -247,7 +243,6 @@ static struct platform_driver sama5d2_piobu_driver = {
 
 module_platform_driver(sama5d2_piobu_driver);
 
-MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SAMA5D2 PIOBU controller driver");
 MODULE_AUTHOR("Andrei Stefanescu <andrei.stefanescu@microchip.com>");

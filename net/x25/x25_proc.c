@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	X.25 Packet Layer release 002
  *
@@ -6,12 +7,6 @@
  *	screw up. It might even work.
  *
  *	This code REQUIRES 2.4 with seq_file support
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	History
  *	2002/10/06	Arnaldo Carvalho de Melo  seq_file support
@@ -84,7 +79,6 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 {
 	struct sock *s;
 	struct x25_sock *x25;
-	struct net_device *dev;
 	const char *devname;
 
 	if (v == SEQ_START_TOKEN) {
@@ -96,7 +90,7 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 	s = sk_entry(v);
 	x25 = x25_sk(s);
 
-	if (!x25->neighbour || (dev = x25->neighbour->dev) == NULL)
+	if (!x25->neighbour || !x25->neighbour->dev)
 		devname = "???";
 	else
 		devname = x25->neighbour->dev->name;

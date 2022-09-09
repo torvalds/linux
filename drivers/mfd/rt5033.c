@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MFD core driver for the Richtek RT5033.
  *
@@ -6,10 +7,6 @@
  *
  * Copyright (C) 2014 Samsung Electronics, Co., Ltd.
  * Author: Beomho Seo <beomho.seo@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published bythe Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -125,7 +122,7 @@ MODULE_DEVICE_TABLE(of, rt5033_dt_match);
 static struct i2c_driver rt5033_driver = {
 	.driver = {
 		.name = "rt5033",
-		.of_match_table = of_match_ptr(rt5033_dt_match),
+		.of_match_table = rt5033_dt_match,
 	},
 	.probe = rt5033_i2c_probe,
 	.id_table = rt5033_i2c_id,

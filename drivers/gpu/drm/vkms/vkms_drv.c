@@ -1,26 +1,35 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
 /**
  * DOC: vkms (Virtual Kernel Modesetting)
  *
- * vkms is a software-only model of a kms driver that is useful for testing,
- * or for running X (or similar) on headless machines and be able to still
- * use the GPU. vkms aims to enable a virtual display without the need for
- * a hardware display capability.
+ * VKMS is a software-only model of a KMS driver that is useful for testing
+ * and for running X (or similar) on headless machines. VKMS aims to enable
+ * a virtual display with no need of a hardware display capability, releasing
+ * the GPU in DRM API tests.
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+
 #include <drm/drm_gem.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_vblank.h>
+
 #include "vkms_drv.h"
+
+#include <drm/drm_print.h>
+#include <drm/drm_debugfs.h>
 
 #define DRIVER_NAME	"vkms"
 #define DRIVER_DESC	"Virtual Kernel Mode Setting"
@@ -28,49 +37,88 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static struct vkms_device *vkms_device;
+static struct vkms_config *default_config;
 
-bool enable_cursor;
+static bool enable_cursor = true;
 module_param_named(enable_cursor, enable_cursor, bool, 0444);
 MODULE_PARM_DESC(enable_cursor, "Enable/Disable cursor support");
 
-static const struct file_operations vkms_driver_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.mmap		= drm_gem_mmap,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.release	= drm_release,
-};
+static bool enable_writeback = true;
+module_param_named(enable_writeback, enable_writeback, bool, 0444);
+MODULE_PARM_DESC(enable_writeback, "Enable/Disable writeback connector support");
 
-static const struct vm_operations_struct vkms_gem_vm_ops = {
-	.fault = vkms_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
+static bool enable_overlay;
+module_param_named(enable_overlay, enable_overlay, bool, 0444);
+MODULE_PARM_DESC(enable_overlay, "Enable/Disable overlay support");
+
+DEFINE_DRM_GEM_FOPS(vkms_driver_fops);
 
 static void vkms_release(struct drm_device *dev)
 {
-	struct vkms_device *vkms = container_of(dev, struct vkms_device, drm);
+	struct vkms_device *vkms = drm_device_to_vkms_device(dev);
 
-	platform_device_unregister(vkms->platform);
-	drm_atomic_helper_shutdown(&vkms->drm);
-	drm_mode_config_cleanup(&vkms->drm);
-	drm_dev_fini(&vkms->drm);
-	destroy_workqueue(vkms->output.crc_workq);
+	destroy_workqueue(vkms->output.composer_workq);
 }
 
-static struct drm_driver vkms_driver = {
+static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = old_state->dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	int i;
+
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
+
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_fake_vblank(old_state);
+
+	drm_atomic_helper_commit_hw_done(old_state);
+
+	drm_atomic_helper_wait_for_flip_done(dev, old_state);
+
+	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		struct vkms_crtc_state *vkms_state =
+			to_vkms_crtc_state(old_crtc_state);
+
+		flush_work(&vkms_state->composer_work);
+	}
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
+}
+
+static int vkms_config_show(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct vkms_device *vkmsdev = drm_device_to_vkms_device(dev);
+
+	seq_printf(m, "writeback=%d\n", vkmsdev->config->writeback);
+	seq_printf(m, "cursor=%d\n", vkmsdev->config->cursor);
+	seq_printf(m, "overlay=%d\n", vkmsdev->config->overlay);
+
+	return 0;
+}
+
+static const struct drm_info_list vkms_config_debugfs_list[] = {
+	{ "vkms_config", vkms_config_show, 0 },
+};
+
+static void vkms_config_debugfs_init(struct drm_minor *minor)
+{
+	drm_debugfs_create_files(vkms_config_debugfs_list, ARRAY_SIZE(vkms_config_debugfs_list),
+				 minor->debugfs_root, minor);
+}
+
+static const struct drm_driver vkms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
-	.dumb_create		= vkms_dumb_create,
-	.gem_vm_ops		= &vkms_gem_vm_ops,
-	.gem_free_object_unlocked = vkms_gem_free_object,
-	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
+	DRM_GEM_SHMEM_DRIVER_OPS,
+
+	.debugfs_init           = vkms_config_debugfs_init,
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
@@ -85,6 +133,10 @@ static const struct drm_mode_config_funcs vkms_mode_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
+static const struct drm_mode_config_helper_funcs vkms_mode_config_helpers = {
+	.atomic_commit_tail = vkms_atomic_commit_tail,
+};
+
 static int vkms_modeset_init(struct vkms_device *vkmsdev)
 {
 	struct drm_device *dev = &vkmsdev->drm;
@@ -95,70 +147,117 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev)
 	dev->mode_config.min_height = YRES_MIN;
 	dev->mode_config.max_width = XRES_MAX;
 	dev->mode_config.max_height = YRES_MAX;
+	dev->mode_config.cursor_width = 512;
+	dev->mode_config.cursor_height = 512;
+	/* FIXME: There's a confusion between bpp and depth between this and
+	 * fbdev helpers. We have to go with 0, meaning "pick the default",
+	 * which ix XRGB8888 in all cases. */
+	dev->mode_config.preferred_depth = 0;
+	dev->mode_config.helper_private = &vkms_mode_config_helpers;
 
-	return vkms_output_init(vkmsdev);
+	return vkms_output_init(vkmsdev, 0);
 }
 
-static int __init vkms_init(void)
+static int vkms_create(struct vkms_config *config)
 {
 	int ret;
+	struct platform_device *pdev;
+	struct vkms_device *vkms_device;
 
-	vkms_device = kzalloc(sizeof(*vkms_device), GFP_KERNEL);
-	if (!vkms_device)
-		return -ENOMEM;
+	pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
-	vkms_device->platform =
-		platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
-	if (IS_ERR(vkms_device->platform)) {
-		ret = PTR_ERR(vkms_device->platform);
-		goto out_free;
+	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
+		ret = -ENOMEM;
+		goto out_unregister;
 	}
 
-	ret = drm_dev_init(&vkms_device->drm, &vkms_driver,
-			   &vkms_device->platform->dev);
-	if (ret)
-		goto out_unregister;
+	vkms_device = devm_drm_dev_alloc(&pdev->dev, &vkms_driver,
+					 struct vkms_device, drm);
+	if (IS_ERR(vkms_device)) {
+		ret = PTR_ERR(vkms_device);
+		goto out_devres;
+	}
+	vkms_device->platform = pdev;
+	vkms_device->config = config;
+	config->dev = vkms_device;
 
-	vkms_device->drm.irq_enabled = true;
+	ret = dma_coerce_mask_and_coherent(vkms_device->drm.dev,
+					   DMA_BIT_MASK(64));
+
+	if (ret) {
+		DRM_ERROR("Could not initialize DMA support\n");
+		goto out_devres;
+	}
 
 	ret = drm_vblank_init(&vkms_device->drm, 1);
 	if (ret) {
 		DRM_ERROR("Failed to vblank\n");
-		goto out_fini;
+		goto out_devres;
 	}
 
 	ret = vkms_modeset_init(vkms_device);
 	if (ret)
-		goto out_fini;
+		goto out_devres;
 
 	ret = drm_dev_register(&vkms_device->drm, 0);
 	if (ret)
-		goto out_fini;
+		goto out_devres;
+
+	drm_fbdev_generic_setup(&vkms_device->drm, 0);
 
 	return 0;
 
-out_fini:
-	drm_dev_fini(&vkms_device->drm);
-
+out_devres:
+	devres_release_group(&pdev->dev, NULL);
 out_unregister:
-	platform_device_unregister(vkms_device->platform);
-
-out_free:
-	kfree(vkms_device);
+	platform_device_unregister(pdev);
 	return ret;
 }
 
-static void __exit vkms_exit(void)
+static int __init vkms_init(void)
 {
-	if (!vkms_device) {
+	struct vkms_config *config;
+
+	config = kmalloc(sizeof(*config), GFP_KERNEL);
+	if (!config)
+		return -ENOMEM;
+
+	default_config = config;
+
+	config->cursor = enable_cursor;
+	config->writeback = enable_writeback;
+	config->overlay = enable_overlay;
+
+	return vkms_create(config);
+}
+
+static void vkms_destroy(struct vkms_config *config)
+{
+	struct platform_device *pdev;
+
+	if (!config->dev) {
 		DRM_INFO("vkms_device is NULL.\n");
 		return;
 	}
 
-	drm_dev_unregister(&vkms_device->drm);
-	drm_dev_put(&vkms_device->drm);
+	pdev = config->dev->platform;
 
-	kfree(vkms_device);
+	drm_dev_unregister(&config->dev->drm);
+	drm_atomic_helper_shutdown(&config->dev->drm);
+	devres_release_group(&pdev->dev, NULL);
+	platform_device_unregister(pdev);
+
+	config->dev = NULL;
+}
+
+static void __exit vkms_exit(void)
+{
+	if (default_config->dev)
+		vkms_destroy(default_config);
+
+	kfree(default_config);
 }
 
 module_init(vkms_init);

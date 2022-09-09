@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SFC_FALCON
 	tristate "Solarflare SFC4000 support"
 	depends on PCI
@@ -5,7 +6,7 @@ config SFC_FALCON
 	select CRC32
 	select I2C
 	select I2C_ALGOBIT
-	---help---
+	help
 	  This driver supports 10-gigabit Ethernet cards based on
 	  the Solarflare SFC4000 controller.
 
@@ -15,7 +16,7 @@ config SFC_FALCON_MTD
 	bool "Solarflare SFC4000 MTD support"
 	depends on SFC_FALCON && MTD && !(SFC_FALCON=y && MTD=m)
 	default y
-	---help---
+	help
 	  This exposes the on-board flash and/or EEPROM as MTD devices
 	  (e.g. /dev/mtd1).  This is required to update the boot
 	  configuration under Linux.

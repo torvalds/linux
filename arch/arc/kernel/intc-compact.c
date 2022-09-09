@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011-12 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/interrupt.h>
@@ -146,7 +142,7 @@ IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
  *    Time hard-ISR, timer_interrupt( ) calls spin_unlock_irq several times.
  *    Here local_irq_enable( ) shd not re-enable lower priority interrupts
  * -If called from soft-ISR, it must re-enable all interrupts
- *    soft ISR are low prioity jobs which can be very slow, thus all IRQs
+ *    soft ISR are low priority jobs which can be very slow, thus all IRQs
  *    must be enabled while they run.
  *    Now hardware context wise we may still be in L2 ISR (not done rtie)
  *    still we must re-enable both L1 and L2 IRQs

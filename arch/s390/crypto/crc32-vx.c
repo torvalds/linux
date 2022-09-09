@@ -111,10 +111,8 @@ static int crc32_vx_setkey(struct crypto_shash *tfm, const u8 *newkey,
 {
 	struct crc_ctx *mctx = crypto_shash_ctx(tfm);
 
-	if (newkeylen != sizeof(mctx->key)) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (newkeylen != sizeof(mctx->key))
 		return -EINVAL;
-	}
 	mctx->key = le32_to_cpu(*(__le32 *)newkey);
 	return 0;
 }
@@ -124,10 +122,8 @@ static int crc32be_vx_setkey(struct crypto_shash *tfm, const u8 *newkey,
 {
 	struct crc_ctx *mctx = crypto_shash_ctx(tfm);
 
-	if (newkeylen != sizeof(mctx->key)) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (newkeylen != sizeof(mctx->key))
 		return -EINVAL;
-	}
 	mctx->key = be32_to_cpu(*(__be32 *)newkey);
 	return 0;
 }
@@ -302,7 +298,7 @@ static void __exit crc_vx_mod_exit(void)
 	crypto_unregister_shashes(crc32_vx_algs, ARRAY_SIZE(crc32_vx_algs));
 }
 
-module_cpu_feature_match(VXRS, crc_vx_mod_init);
+module_cpu_feature_match(S390_CPU_FEATURE_VXRS, crc_vx_mod_init);
 module_exit(crc_vx_mod_exit);
 
 MODULE_AUTHOR("Hendrik Brueckner <brueckner@linux.vnet.ibm.com>");

@@ -3,7 +3,7 @@
  * Public definitions for the CAAM/QI (Queue Interface) backend.
  *
  * Copyright 2013-2016 Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2017, 2020 NXP
  */
 
 #ifndef __QI_H__
@@ -13,32 +13,6 @@
 #include "compat.h"
 #include "desc.h"
 #include "desc_constr.h"
-
-/*
- * CAAM hardware constructs a job descriptor which points to a shared descriptor
- * (as pointed by context_a of to-CAAM FQ).
- * When the job descriptor is executed by DECO, the whole job descriptor
- * together with shared descriptor gets loaded in DECO buffer, which is
- * 64 words (each 32-bit) long.
- *
- * The job descriptor constructed by CAAM hardware has the following layout:
- *
- *	HEADER		(1 word)
- *	Shdesc ptr	(1 or 2 words)
- *	SEQ_OUT_PTR	(1 word)
- *	Out ptr		(1 or 2 words)
- *	Out length	(1 word)
- *	SEQ_IN_PTR	(1 word)
- *	In ptr		(1 or 2 words)
- *	In length	(1 word)
- *
- * The shdesc ptr is used to fetch shared descriptor contents into DECO buffer.
- *
- * Apart from shdesc contents, the total number of words that get loaded in DECO
- * buffer are '8' or '11'. The remaining words in DECO buffer can be used for
- * storing shared descriptor.
- */
-#define MAX_SDLEN	((CAAM_DESC_BYTES_MAX - DESC_JOB_IO_LEN) / CAAM_CMD_SZ)
 
 /* Length of a single buffer in the QI driver memory cache */
 #define CAAM_QI_MEMCACHE_SIZE	768
@@ -78,6 +52,7 @@ enum optype {
  * @context_a: shared descriptor dma address
  * @req_fq: to-CAAM request frame queue
  * @rsp_fq: from-CAAM response frame queue
+ * @refcnt: reference counter incremented for each frame enqueued in to-CAAM FQ
  * @cpu: cpu on which to receive CAAM response
  * @op_type: operation type
  * @qidev: device pointer for CAAM/QI backend
@@ -88,6 +63,7 @@ struct caam_drv_ctx {
 	dma_addr_t context_a;
 	struct qman_fq *req_fq;
 	struct qman_fq *rsp_fq;
+	refcount_t refcnt;
 	int cpu;
 	enum optype op_type;
 	struct device *qidev;
@@ -173,7 +149,6 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc);
 void caam_drv_ctx_rel(struct caam_drv_ctx *drv_ctx);
 
 int caam_qi_init(struct platform_device *pdev);
-void caam_qi_shutdown(struct device *dev);
 
 /**
  * qi_cache_alloc - Allocate buffers from CAAM-QI cache

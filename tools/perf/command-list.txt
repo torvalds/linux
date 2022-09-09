@@ -14,9 +14,11 @@ perf-config			mainporcelain common
 perf-evlist			mainporcelain common
 perf-ftrace			mainporcelain common
 perf-inject			mainporcelain common
+perf-iostat			mainporcelain common
 perf-kallsyms			mainporcelain common
 perf-kmem			mainporcelain common
 perf-kvm			mainporcelain common
+perf-kwork			mainporcelain common
 perf-list			mainporcelain common
 perf-lock			mainporcelain common
 perf-mem			mainporcelain common
@@ -31,3 +33,4 @@ perf-timechart			mainporcelain common
 perf-top			mainporcelain common
 perf-trace			mainporcelain audit
 perf-version			mainporcelain common
+perf-daemon			mainporcelain common

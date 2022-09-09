@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/viper.c
  *
@@ -14,10 +15,6 @@
  *  Author:	Nicolas Pitre
  *  Created:	Jun 15, 2001
  *  Copyright:	MontaVista Software Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -49,16 +46,16 @@
 #include <linux/syscore_ops.h>
 
 #include "pxa25x.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/regs-uart.h>
-#include <linux/platform_data/pcmcia-pxa2xx_viper.h>
+#include "regs-uart.h"
+#include "viper-pcmcia.h"
 #include "viper.h"
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/system_info.h>
 
 #include <asm/mach/arch.h>
@@ -407,7 +404,6 @@ static void viper_backlight_exit(struct device *dev)
 static struct platform_pwm_backlight_data viper_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
-	.enable_gpio	= -1,
 	.init		= viper_backlight_init,
 	.notify		= viper_backlight_notify,
 	.exit		= viper_backlight_exit,
@@ -855,7 +851,7 @@ static void __init viper_init_vcore_gpios(void)
 		goto err_dir;
 
 	/* c/should assume redboot set the correct level ??? */
-	viper_set_core_cpu_voltage(get_clk_frequency_khz(0), 1);
+	viper_set_core_cpu_voltage(pxa25x_get_clk_frequency_khz(0), 1);
 
 	return;
 
@@ -1000,6 +996,18 @@ static struct map_desc viper_io_desc[] __initdata = {
 		.virtual = VIPER_PC104IO_BASE,
 		.pfn     = __phys_to_pfn(0x30000000),
 		.length  = 0x00800000,
+		.type    = MT_DEVICE,
+	},
+	{
+		/*
+		 * ISA I/O space mapping:
+		 * -  ports 0x0000-0x0fff are PC/104
+		 * -  ports 0x10000-0x10fff are PCMCIA slot 1
+		 * -  ports 0x11000-0x11fff are PC/104
+		 */
+		.virtual = PCI_IO_VIRT_BASE,
+		.pfn     = __phys_to_pfn(0x30000000),
+		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 };

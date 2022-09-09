@@ -72,13 +72,9 @@
 #define REG_MULTI_FUNC_CTRL			0x0068 /*  RTL8723 WIFI/BT/GPS Multi-Function control source. */
 #define REG_GSSR						0x006c
 #define REG_AFE_XTAL_CTRL_EXT			0x0078 /* RTL8188E */
-#define REG_XCK_OUT_CTRL				0x007c /* RTL8188E */
 #define REG_MCUFWDL					0x0080
-#define REG_WOL_EVENT					0x0081 /* RTL8188E */
 #define REG_MCUTSTCFG					0x0084
 #define REG_FDHM0						0x0088
-#define REG_HOST_SUSP_CNT				0x00BC	/*  RTL8192C Host suspend counter on FPGA platform */
-#define REG_SYSTEM_ON_CTRL			0x00CC	/*  For 8723AE Reset after S3 */
 #define REG_EFUSE_ACCESS				0x00CF	/*  Efuse access protection for RTL8723 */
 #define REG_BIST_SCAN					0x00D0
 #define REG_BIST_RPT					0x00D4
@@ -117,7 +113,6 @@
 #define REG_FWIMR						0x0130
 #define REG_FWISR						0x0134
 #define REG_FTIMR						0x0138
-#define REG_FTISR						0x013C /* RTL8192C */
 #define REG_PKTBUF_DBG_CTRL			0x0140
 #define REG_RXPKTBUF_CTRL				(REG_PKTBUF_DBG_CTRL+2)
 #define REG_PKTBUF_DBG_DATA_L			0x0144
@@ -132,11 +127,9 @@
 #define REG_MBIST_START				0x0174
 #define REG_MBIST_DONE					0x0178
 #define REG_MBIST_FAIL					0x017C
-#define REG_32K_CTRL					0x0194 /* RTL8188E */
 #define REG_C2HEVT_MSG_NORMAL		0x01A0
 #define REG_C2HEVT_CLEAR				0x01AF
 #define REG_MCUTST_1					0x01c0
-#define REG_MCUTST_WOWLAN			0x01C7	/*  Defined after 8188E series. */
 #define REG_FMETHR						0x01C8
 #define REG_HMETFR						0x01CC
 #define REG_HMEBOX_0					0x01D0
@@ -526,44 +519,6 @@
 #define MAX_MSS_DENSITY_1T			0x0A
 
 /*  */
-/*        8192C Cmd9346CR bits					(Offset 0xA, 16bit) */
-/*  */
-#define CmdEEPROM_En				BIT5	 /*  EEPROM enable when set 1 */
-#define CmdEERPOMSEL				BIT4	/*  System EEPROM select, 0: boot from E-FUSE, 1: The EEPROM used is 9346 */
-#define Cmd9346CR_9356SEL			BIT4
-
-/*  */
-/*        8192C GPIO MUX Configuration Register (offset 0x40, 4 byte) */
-/*  */
-#define GPIOSEL_GPIO				0
-#define GPIOSEL_ENBT				BIT5
-
-/*  */
-/*        8192C GPIO PIN Control Register (offset 0x44, 4 byte) */
-/*  */
-#define GPIO_IN					REG_GPIO_PIN_CTRL		/*  GPIO pins input value */
-#define GPIO_OUT				(REG_GPIO_PIN_CTRL+1)	/*  GPIO pins output value */
-#define GPIO_IO_SEL				(REG_GPIO_PIN_CTRL+2)	/*  GPIO pins output enable when a bit is set to "1"; otherwise, input is configured. */
-#define GPIO_MOD				(REG_GPIO_PIN_CTRL+3)
-
-/*  */
-/*        8811A GPIO PIN Control Register (offset 0x60, 4 byte) */
-/*  */
-#define GPIO_IN_8811A			REG_GPIO_PIN_CTRL_2		/*  GPIO pins input value */
-#define GPIO_OUT_8811A			(REG_GPIO_PIN_CTRL_2+1)	/*  GPIO pins output value */
-#define GPIO_IO_SEL_8811A		(REG_GPIO_PIN_CTRL_2+2)	/*  GPIO pins output enable when a bit is set to "1"; otherwise, input is configured. */
-#define GPIO_MOD_8811A			(REG_GPIO_PIN_CTRL_2+3)
-
-/*  */
-/*        8723/8188E Host System Interrupt Mask Register (offset 0x58, 32 byte) */
-/*  */
-#define HSIMR_GPIO12_0_INT_EN			BIT0
-#define HSIMR_SPS_OCP_INT_EN			BIT5
-#define HSIMR_RON_INT_EN				BIT6
-#define HSIMR_PDN_INT_EN				BIT7
-#define HSIMR_GPIO9_INT_EN				BIT25
-
-/*  */
 /*        8723/8188E Host System Interrupt Status Register (offset 0x5C, 32 byte) */
 /*  */
 #define HSISR_GPIO12_0_INT				BIT0
@@ -571,22 +526,6 @@
 #define HSISR_RON_INT					BIT6
 #define HSISR_PDNINT					BIT7
 #define HSISR_GPIO9_INT					BIT25
-
-/*  */
-/*        8192C (MSR) Media Status Register	(Offset 0x4C, 8 bits) */
-/*  */
-/*
-Network Type
-00: No link
-01: Link in ad hoc network
-10: Link in infrastructure network
-11: AP mode
-Default: 00b.
-*/
-#define MSR_NOLINK				0x00
-#define MSR_ADHOC				0x01
-#define MSR_INFRA				0x02
-#define MSR_AP					0x03
 
 /*  */
 /*        USB INTR CONTENT */
@@ -662,15 +601,6 @@ Default: 00b.
 #define	RATR_MCS5					0x00020000
 #define	RATR_MCS6					0x00040000
 #define	RATR_MCS7					0x00080000
-/* MCS 2 Spatial Stream */
-#define	RATR_MCS8					0x00100000
-#define	RATR_MCS9					0x00200000
-#define	RATR_MCS10					0x00400000
-#define	RATR_MCS11					0x00800000
-#define	RATR_MCS12					0x01000000
-#define	RATR_MCS13					0x02000000
-#define	RATR_MCS14					0x04000000
-#define	RATR_MCS15					0x08000000
 
 /* CCK */
 #define RATE_1M					BIT(0)
@@ -695,26 +625,8 @@ Default: 00b.
 #define RATE_MCS5				BIT(17)
 #define RATE_MCS6				BIT(18)
 #define RATE_MCS7				BIT(19)
-/* MCS 2 Spatial Stream */
-#define RATE_MCS8				BIT(20)
-#define RATE_MCS9				BIT(21)
-#define RATE_MCS10				BIT(22)
-#define RATE_MCS11				BIT(23)
-#define RATE_MCS12				BIT(24)
-#define RATE_MCS13				BIT(25)
-#define RATE_MCS14				BIT(26)
-#define RATE_MCS15				BIT(27)
-
 
 /*  ALL CCK Rate */
-#define	RATE_ALL_CCK				RATR_1M|RATR_2M|RATR_55M|RATR_11M
-#define	RATE_ALL_OFDM_AG			RATR_6M|RATR_9M|RATR_12M|RATR_18M|RATR_24M|\
-						RATR_36M|RATR_48M|RATR_54M
-#define	RATE_ALL_OFDM_1SS			RATR_MCS0|RATR_MCS1|RATR_MCS2|RATR_MCS3 |\
-						RATR_MCS4|RATR_MCS5|RATR_MCS6	|RATR_MCS7
-#define	RATE_ALL_OFDM_2SS			RATR_MCS8|RATR_MCS9	|RATR_MCS10|RATR_MCS11|\
-						RATR_MCS12|RATR_MCS13|RATR_MCS14|RATR_MCS15
-
 #define RATE_BITMAP_ALL			0xFFFFF
 
 /*  Only use CCK 1M rate for ACK */
@@ -725,7 +637,6 @@ Default: 00b.
 /*        BW_OPMODE bits				(Offset 0x603, 8bit) */
 /*  */
 #define BW_OPMODE_20MHZ			BIT2
-#define BW_OPMODE_5G				BIT1
 
 /*  */
 /*        CAM Config Setting (offset 0x680, 1 byte) */
@@ -776,14 +687,14 @@ Default: 00b.
 #define IMR_BCNDMAINT3			BIT28		/*  Beacon DMA Interrupt 3 */
 #define IMR_BCNDMAINT2			BIT27		/*  Beacon DMA Interrupt 2 */
 #define IMR_BCNDMAINT1			BIT26		/*  Beacon DMA Interrupt 1 */
-#define IMR_BCNDOK8				BIT25		/*  Beacon Queue DMA OK Interrup 8 */
-#define IMR_BCNDOK7				BIT24		/*  Beacon Queue DMA OK Interrup 7 */
-#define IMR_BCNDOK6				BIT23		/*  Beacon Queue DMA OK Interrup 6 */
-#define IMR_BCNDOK5				BIT22		/*  Beacon Queue DMA OK Interrup 5 */
-#define IMR_BCNDOK4				BIT21		/*  Beacon Queue DMA OK Interrup 4 */
-#define IMR_BCNDOK3				BIT20		/*  Beacon Queue DMA OK Interrup 3 */
-#define IMR_BCNDOK2				BIT19		/*  Beacon Queue DMA OK Interrup 2 */
-#define IMR_BCNDOK1				BIT18		/*  Beacon Queue DMA OK Interrup 1 */
+#define IMR_BCNDOK8				BIT25		/*  Beacon Queue DMA OK Interrupt 8 */
+#define IMR_BCNDOK7				BIT24		/*  Beacon Queue DMA OK Interrupt 7 */
+#define IMR_BCNDOK6				BIT23		/*  Beacon Queue DMA OK Interrupt 6 */
+#define IMR_BCNDOK5				BIT22		/*  Beacon Queue DMA OK Interrupt 5 */
+#define IMR_BCNDOK4				BIT21		/*  Beacon Queue DMA OK Interrupt 4 */
+#define IMR_BCNDOK3				BIT20		/*  Beacon Queue DMA OK Interrupt 3 */
+#define IMR_BCNDOK2				BIT19		/*  Beacon Queue DMA OK Interrupt 2 */
+#define IMR_BCNDOK1				BIT18		/*  Beacon Queue DMA OK Interrupt 1 */
 #define IMR_TIMEOUT2			BIT17		/*  Timeout interrupt 2 */
 #define IMR_TIMEOUT1			BIT16		/*  Timeout interrupt 1 */
 #define IMR_TXFOVW				BIT15		/*  Transmit FIFO Overflow */
@@ -792,9 +703,9 @@ Default: 00b.
 #define IMR_RXFOVW				BIT12		/*  Receive FIFO Overflow */
 #define IMR_RDU					BIT11		/*  Receive Descriptor Unavailable */
 #define IMR_ATIMEND				BIT10		/*  For 92C, ATIM Window End Interrupt. For 8723 and later ICs, it also means P2P CTWin End interrupt. */
-#define IMR_BDOK				BIT9		/*  Beacon Queue DMA OK Interrup */
+#define IMR_BDOK				BIT9		/*  Beacon Queue DMA OK Interrupt */
 #define IMR_HIGHDOK				BIT8		/*  High Queue DMA OK Interrupt */
-#define IMR_TBDOK				BIT7		/*  Transmit Beacon OK interrup */
+#define IMR_TBDOK				BIT7		/*  Transmit Beacon OK interrupt */
 #define IMR_MGNTDOK			BIT6		/*  Management Queue DMA OK Interrupt */
 #define IMR_TBDER				BIT5		/*  For 92C, Transmit Beacon Error Interrupt */
 #define IMR_BKDOK				BIT4		/*  AC_BK DMA OK Interrupt */
@@ -813,206 +724,6 @@ Default: 00b.
 /* RSVD [2-7] */
 #define IMR_OCPINT				BIT1
 #define IMR_WLANOFF			BIT0
-
-/*  */
-/*  8723E series PCIE Host IMR/ISR bit */
-/*  */
-/*  IMR DW0 Bit 0-31 */
-#define PHIMR_TIMEOUT2				BIT31
-#define PHIMR_TIMEOUT1				BIT30
-#define PHIMR_PSTIMEOUT			BIT29
-#define PHIMR_GTINT4				BIT28
-#define PHIMR_GTINT3				BIT27
-#define PHIMR_TXBCNERR				BIT26
-#define PHIMR_TXBCNOK				BIT25
-#define PHIMR_TSF_BIT32_TOGGLE	BIT24
-#define PHIMR_BCNDMAINT3			BIT23
-#define PHIMR_BCNDMAINT2			BIT22
-#define PHIMR_BCNDMAINT1			BIT21
-#define PHIMR_BCNDMAINT0			BIT20
-#define PHIMR_BCNDOK3				BIT19
-#define PHIMR_BCNDOK2				BIT18
-#define PHIMR_BCNDOK1				BIT17
-#define PHIMR_BCNDOK0				BIT16
-#define PHIMR_HSISR_IND_ON			BIT15
-#define PHIMR_BCNDMAINT_E			BIT14
-#define PHIMR_ATIMEND_E			BIT13
-#define PHIMR_ATIM_CTW_END		BIT12
-#define PHIMR_HISRE_IND			BIT11	/*  RO. HISRE Indicator (HISRE & HIMRE is true, this bit is set to 1) */
-#define PHIMR_C2HCMD				BIT10
-#define PHIMR_CPWM2				BIT9
-#define PHIMR_CPWM					BIT8
-#define PHIMR_HIGHDOK				BIT7		/*  High Queue DMA OK Interrupt */
-#define PHIMR_MGNTDOK				BIT6		/*  Management Queue DMA OK Interrupt */
-#define PHIMR_BKDOK					BIT5		/*  AC_BK DMA OK Interrupt */
-#define PHIMR_BEDOK					BIT4		/*  AC_BE DMA OK Interrupt */
-#define PHIMR_VIDOK					BIT3		/*  AC_VI DMA OK Interrupt */
-#define PHIMR_VODOK				BIT2		/*  AC_VO DMA Interrupt */
-#define PHIMR_RDU					BIT1		/*  Receive Descriptor Unavailable */
-#define PHIMR_ROK					BIT0		/*  Receive DMA OK Interrupt */
-
-/*  PCIE Host Interrupt Status Extension bit */
-#define PHIMR_BCNDMAINT7			BIT23
-#define PHIMR_BCNDMAINT6			BIT22
-#define PHIMR_BCNDMAINT5			BIT21
-#define PHIMR_BCNDMAINT4			BIT20
-#define PHIMR_BCNDOK7				BIT19
-#define PHIMR_BCNDOK6				BIT18
-#define PHIMR_BCNDOK5				BIT17
-#define PHIMR_BCNDOK4				BIT16
-/*  bit12 15: RSVD */
-#define PHIMR_TXERR					BIT11
-#define PHIMR_RXERR					BIT10
-#define PHIMR_TXFOVW				BIT9
-#define PHIMR_RXFOVW				BIT8
-/*  bit2-7: RSVD */
-#define PHIMR_OCPINT				BIT1
-/*  bit0: RSVD */
-
-#define UHIMR_TIMEOUT2				BIT31
-#define UHIMR_TIMEOUT1				BIT30
-#define UHIMR_PSTIMEOUT			BIT29
-#define UHIMR_GTINT4				BIT28
-#define UHIMR_GTINT3				BIT27
-#define UHIMR_TXBCNERR				BIT26
-#define UHIMR_TXBCNOK				BIT25
-#define UHIMR_TSF_BIT32_TOGGLE	BIT24
-#define UHIMR_BCNDMAINT3			BIT23
-#define UHIMR_BCNDMAINT2			BIT22
-#define UHIMR_BCNDMAINT1			BIT21
-#define UHIMR_BCNDMAINT0			BIT20
-#define UHIMR_BCNDOK3				BIT19
-#define UHIMR_BCNDOK2				BIT18
-#define UHIMR_BCNDOK1				BIT17
-#define UHIMR_BCNDOK0				BIT16
-#define UHIMR_HSISR_IND			BIT15
-#define UHIMR_BCNDMAINT_E			BIT14
-/* RSVD	BIT13 */
-#define UHIMR_CTW_END				BIT12
-/* RSVD	BIT11 */
-#define UHIMR_C2HCMD				BIT10
-#define UHIMR_CPWM2				BIT9
-#define UHIMR_CPWM					BIT8
-#define UHIMR_HIGHDOK				BIT7		/*  High Queue DMA OK Interrupt */
-#define UHIMR_MGNTDOK				BIT6		/*  Management Queue DMA OK Interrupt */
-#define UHIMR_BKDOK				BIT5		/*  AC_BK DMA OK Interrupt */
-#define UHIMR_BEDOK				BIT4		/*  AC_BE DMA OK Interrupt */
-#define UHIMR_VIDOK					BIT3		/*  AC_VI DMA OK Interrupt */
-#define UHIMR_VODOK				BIT2		/*  AC_VO DMA Interrupt */
-#define UHIMR_RDU					BIT1		/*  Receive Descriptor Unavailable */
-#define UHIMR_ROK					BIT0		/*  Receive DMA OK Interrupt */
-
-/*  USB Host Interrupt Status Extension bit */
-#define UHIMR_BCNDMAINT7			BIT23
-#define UHIMR_BCNDMAINT6			BIT22
-#define UHIMR_BCNDMAINT5			BIT21
-#define UHIMR_BCNDMAINT4			BIT20
-#define UHIMR_BCNDOK7				BIT19
-#define UHIMR_BCNDOK6				BIT18
-#define UHIMR_BCNDOK5				BIT17
-#define UHIMR_BCNDOK4				BIT16
-/*  bit14-15: RSVD */
-#define UHIMR_ATIMEND_E			BIT13
-#define UHIMR_ATIMEND				BIT12
-#define UHIMR_TXERR					BIT11
-#define UHIMR_RXERR					BIT10
-#define UHIMR_TXFOVW				BIT9
-#define UHIMR_RXFOVW				BIT8
-/*  bit2-7: RSVD */
-#define UHIMR_OCPINT				BIT1
-/*  bit0: RSVD */
-
-
-#define HAL_NIC_UNPLUG_ISR			0xFFFFFFFF	/*  The value when the NIC is unplugged for PCI. */
-#define HAL_NIC_UNPLUG_PCI_ISR		0xEAEAEAEA	/*  The value when the NIC is unplugged for PCI in PCI interrupt (page 3). */
-
-/*  */
-/*        8188 IMR/ISR bits */
-/*  */
-#define IMR_DISABLED_88E			0x0
-/*  IMR DW0(0x0060-0063) Bit 0-31 */
-#define IMR_TXCCK_88E				BIT30		/*  TXRPT interrupt when CCX bit of the packet is set */
-#define IMR_PSTIMEOUT_88E			BIT29		/*  Power Save Time Out Interrupt */
-#define IMR_GTINT4_88E				BIT28		/*  When GTIMER4 expires, this bit is set to 1 */
-#define IMR_GTINT3_88E				BIT27		/*  When GTIMER3 expires, this bit is set to 1 */
-#define IMR_TBDER_88E				BIT26		/*  Transmit Beacon0 Error */
-#define IMR_TBDOK_88E				BIT25		/*  Transmit Beacon0 OK */
-#define IMR_TSF_BIT32_TOGGLE_88E	BIT24		/*  TSF Timer BIT32 toggle indication interrupt */
-#define IMR_BCNDMAINT0_88E		BIT20		/*  Beacon DMA Interrupt 0 */
-#define IMR_BCNDERR0_88E			BIT16		/*  Beacon Queue DMA Error 0 */
-#define IMR_HSISR_IND_ON_INT_88E	BIT15		/*  HSISR Indicator (HSIMR & HSISR is true, this bit is set to 1) */
-#define IMR_BCNDMAINT_E_88E		BIT14		/*  Beacon DMA Interrupt Extension for Win7 */
-#define IMR_ATIMEND_88E			BIT12		/*  CTWidnow End or ATIM Window End */
-#define IMR_HISR1_IND_INT_88E		BIT11		/*  HISR1 Indicator (HISR1 & HIMR1 is true, this bit is set to 1) */
-#define IMR_C2HCMD_88E				BIT10		/*  CPU to Host Command INT Status, Write 1 clear */
-#define IMR_CPWM2_88E				BIT9			/*  CPU power Mode exchange INT Status, Write 1 clear */
-#define IMR_CPWM_88E				BIT8			/*  CPU power Mode exchange INT Status, Write 1 clear */
-#define IMR_HIGHDOK_88E			BIT7			/*  High Queue DMA OK */
-#define IMR_MGNTDOK_88E			BIT6			/*  Management Queue DMA OK */
-#define IMR_BKDOK_88E				BIT5			/*  AC_BK DMA OK */
-#define IMR_BEDOK_88E				BIT4			/*  AC_BE DMA OK */
-#define IMR_VIDOK_88E				BIT3			/*  AC_VI DMA OK */
-#define IMR_VODOK_88E				BIT2			/*  AC_VO DMA OK */
-#define IMR_RDU_88E					BIT1			/*  Rx Descriptor Unavailable */
-#define IMR_ROK_88E					BIT0			/*  Receive DMA OK */
-
-/*  IMR DW1(0x00B4-00B7) Bit 0-31 */
-#define IMR_BCNDMAINT7_88E		BIT27		/*  Beacon DMA Interrupt 7 */
-#define IMR_BCNDMAINT6_88E		BIT26		/*  Beacon DMA Interrupt 6 */
-#define IMR_BCNDMAINT5_88E		BIT25		/*  Beacon DMA Interrupt 5 */
-#define IMR_BCNDMAINT4_88E		BIT24		/*  Beacon DMA Interrupt 4 */
-#define IMR_BCNDMAINT3_88E		BIT23		/*  Beacon DMA Interrupt 3 */
-#define IMR_BCNDMAINT2_88E		BIT22		/*  Beacon DMA Interrupt 2 */
-#define IMR_BCNDMAINT1_88E		BIT21		/*  Beacon DMA Interrupt 1 */
-#define IMR_BCNDOK7_88E			BIT20		/*  Beacon Queue DMA OK Interrup 7 */
-#define IMR_BCNDOK6_88E			BIT19		/*  Beacon Queue DMA OK Interrup 6 */
-#define IMR_BCNDOK5_88E			BIT18		/*  Beacon Queue DMA OK Interrup 5 */
-#define IMR_BCNDOK4_88E			BIT17		/*  Beacon Queue DMA OK Interrup 4 */
-#define IMR_BCNDOK3_88E			BIT16		/*  Beacon Queue DMA OK Interrup 3 */
-#define IMR_BCNDOK2_88E			BIT15		/*  Beacon Queue DMA OK Interrup 2 */
-#define IMR_BCNDOK1_88E			BIT14		/*  Beacon Queue DMA OK Interrup 1 */
-#define IMR_ATIMEND_E_88E			BIT13		/*  ATIM Window End Extension for Win7 */
-#define IMR_TXERR_88E				BIT11		/*  Tx Error Flag Interrupt Status, write 1 clear. */
-#define IMR_RXERR_88E				BIT10		/*  Rx Error Flag INT Status, Write 1 clear */
-#define IMR_TXFOVW_88E				BIT9			/*  Transmit FIFO Overflow */
-#define IMR_RXFOVW_88E				BIT8			/*  Receive FIFO Overflow */
-
-/*===================================================================
-=====================================================================
-Here the register defines are for 92C. When the define is as same with 92C,
-we will use the 92C's define for the consistency
-So the following defines for 92C is not entire!!!!!!
-=====================================================================
-=====================================================================*/
-/*
-Based on Datasheet V33---090401
-Register Summary
-Current IOREG MAP
-0x0000h ~ 0x00FFh   System Configuration (256 Bytes)
-0x0100h ~ 0x01FFh   MACTOP General Configuration (256 Bytes)
-0x0200h ~ 0x027Fh   TXDMA Configuration (128 Bytes)
-0x0280h ~ 0x02FFh   RXDMA Configuration (128 Bytes)
-0x0300h ~ 0x03FFh   PCIE EMAC Reserved Region (256 Bytes)
-0x0400h ~ 0x04FFh   Protocol Configuration (256 Bytes)
-0x0500h ~ 0x05FFh   EDCA Configuration (256 Bytes)
-0x0600h ~ 0x07FFh   WMAC Configuration (512 Bytes)
-0x2000h ~ 0x3FFFh   8051 FW Download Region (8196 Bytes)
-*/
-	/*  */
-	/* 		 8192C (TXPAUSE) transmission pause	(Offset 0x522, 8 bits) */
-	/*  */
-/*  Note: */
-/* 	The the bits of stoping AC(VO/VI/BE/BK) queue in datasheet RTL8192S/RTL8192C are wrong, */
-/* 	the correct arragement is VO - Bit0, VI - Bit1, BE - Bit2, and BK - Bit3. */
-/* 	8723 and 88E may be not correct either in the eralier version. Confirmed with DD Tim. */
-/*  By Bruce, 2011-09-22. */
-#define StopBecon		BIT6
-#define StopHigh			BIT5
-#define StopMgt			BIT4
-#define StopBK			BIT3
-#define StopBE			BIT2
-#define StopVI			BIT1
-#define StopVO			BIT0
 
 /*  */
 /*        8192C (RCR) Receive Configuration Register	(Offset 0x608, 32 bits) */
@@ -1585,10 +1296,6 @@ Current IOREG MAP
 #define SDIO_HIMR_ATIMEND_E_MSK		BIT26
 #define SDIO_HIMR_CTWEND_MSK			BIT27
 
-/* RTL8188E SDIO Specific */
-#define SDIO_HIMR_MCU_ERR_MSK			BIT28
-#define SDIO_HIMR_TSF_BIT32_TOGGLE_MSK		BIT29
-
 /*  SDIO Host Interrupt Service Routine */
 #define SDIO_HISR_RX_REQUEST			BIT0
 #define SDIO_HISR_AVAL					BIT1
@@ -1610,10 +1317,6 @@ Current IOREG MAP
 #define SDIO_HISR_ATIMEND				BIT25
 #define SDIO_HISR_ATIMEND_E			BIT26
 #define SDIO_HISR_CTWEND				BIT27
-
-/* RTL8188E SDIO Specific */
-#define SDIO_HISR_MCU_ERR				BIT28
-#define SDIO_HISR_TSF_BIT32_TOGGLE	BIT29
 
 #define MASK_SDIO_HISR_CLEAR		(SDIO_HISR_TXERR |\
 									SDIO_HISR_RXERR |\
@@ -1679,39 +1382,13 @@ Current IOREG MAP
 #define GPS_HWPDN_SL			BIT21	/*  GPS HW PDn polarity control */
 #define GPS_FUNC_EN			BIT22	/*  GPS function enable */
 
-/* 3 REG_LIFECTRL_CTRL */
-#define HAL92C_EN_PKT_LIFE_TIME_BK		BIT3
-#define HAL92C_EN_PKT_LIFE_TIME_BE		BIT2
-#define HAL92C_EN_PKT_LIFE_TIME_VI		BIT1
-#define HAL92C_EN_PKT_LIFE_TIME_VO		BIT0
-
-#define HAL92C_MSDU_LIFE_TIME_UNIT		128	/*  in us, said by Tim. */
-
-/* 2 8192D PartNo. */
-#define PARTNO_92D_NIC							(BIT7|BIT6)
-#define PARTNO_92D_NIC_REMARK				(BIT5|BIT4)
-#define PARTNO_SINGLE_BAND_VS				BIT3
-#define PARTNO_SINGLE_BAND_VS_REMARK		BIT1
-#define PARTNO_CONCURRENT_BAND_VC			(BIT3|BIT2)
-#define PARTNO_CONCURRENT_BAND_VC_REMARK	(BIT1|BIT0)
-
 /*  */
 /*  General definitions */
 /*  */
 
-#define LAST_ENTRY_OF_TX_PKT_BUFFER_8188E		176
-#define LAST_ENTRY_OF_TX_PKT_BUFFER_8812			255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8723B		255
-#define LAST_ENTRY_OF_TX_PKT_BUFFER_8192C		255
-#define LAST_ENTRY_OF_TX_PKT_BUFFER_DUAL_MAC	127
 
 #define POLLING_LLT_THRESHOLD				20
 #define POLLING_READY_TIMEOUT_COUNT		1000
-
-
-/*  GPIO BIT */
-#define	HAL_8192C_HW_GPIO_WPS_BIT	BIT2
-#define	HAL_8192EU_HW_GPIO_WPS_BIT	BIT7
-#define	HAL_8188E_HW_GPIO_WPS_BIT	BIT7
 
 #endif /* __HAL_COMMON_H__ */

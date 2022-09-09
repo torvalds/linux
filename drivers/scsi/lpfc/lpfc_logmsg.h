@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -44,13 +44,43 @@
 #define LOG_NVME_DISC   0x00200000      /* NVME Discovery/Connect events. */
 #define LOG_NVME_ABTS   0x00400000      /* NVME ABTS events. */
 #define LOG_NVME_IOERR  0x00800000      /* NVME IO Error events. */
-#define LOG_ALL_MSG	0xffffffff	/* LOG all messages */
+#define LOG_RSVD1	0x01000000	/* Reserved */
+#define LOG_RSVD2	0x02000000	/* Reserved */
+#define LOG_CGN_MGMT    0x04000000	/* Congestion Mgmt events */
+#define LOG_TRACE_EVENT 0x80000000	/* Dmp the DBG log on this err */
+#define LOG_ALL_MSG	0x7fffffff	/* LOG all messages */
+
+void lpfc_dmp_dbg(struct lpfc_hba *phba);
+void lpfc_dbg_print(struct lpfc_hba *phba, const char *fmt, ...);
+
+/* generate message by verbose log setting or severity */
+#define lpfc_vlog_msg(vport, level, mask, fmt, arg...) \
+{ if (((mask) & (vport)->cfg_log_verbose) || (level[1] <= '4')) \
+	dev_printk(level, &((vport)->phba->pcidev)->dev, "%d:(%d):" \
+		   fmt, (vport)->phba->brd_no, vport->vpi, ##arg); }
+
+#define lpfc_log_msg(phba, level, mask, fmt, arg...) \
+do { \
+	{ uint32_t log_verbose = (phba)->pport ? \
+				 (phba)->pport->cfg_log_verbose : \
+				 (phba)->cfg_log_verbose; \
+	if (((mask) & log_verbose) || (level[1] <= '4')) \
+		dev_printk(level, &((phba)->pcidev)->dev, "%d:" \
+			   fmt, phba->brd_no, ##arg); \
+	} \
+} while (0)
 
 #define lpfc_printf_vlog(vport, level, mask, fmt, arg...) \
 do { \
-	{ if (((mask) & (vport)->cfg_log_verbose) || (level[1] <= '3')) \
+	{ if (((mask) & (vport)->cfg_log_verbose) || (level[1] <= '3')) { \
+		if ((mask) & LOG_TRACE_EVENT && !(vport)->cfg_log_verbose) \
+			lpfc_dmp_dbg((vport)->phba); \
 		dev_printk(level, &((vport)->phba->pcidev)->dev, "%d:(%d):" \
-			   fmt, (vport)->phba->brd_no, vport->vpi, ##arg); } \
+			   fmt, (vport)->phba->brd_no, vport->vpi, ##arg);  \
+		} else if (!(vport)->cfg_log_verbose) \
+			lpfc_dbg_print((vport)->phba, "%d:(%d):" fmt, \
+				(vport)->phba->brd_no, (vport)->vpi, ##arg); \
+	} \
 } while (0)
 
 #define lpfc_printf_log(phba, level, mask, fmt, arg...) \
@@ -58,8 +88,12 @@ do { \
 	{ uint32_t log_verbose = (phba)->pport ? \
 				 (phba)->pport->cfg_log_verbose : \
 				 (phba)->cfg_log_verbose; \
-	  if (((mask) & log_verbose) || (level[1] <= '3')) \
+	if (((mask) & log_verbose) || (level[1] <= '3')) { \
+		if ((mask) & LOG_TRACE_EVENT && !log_verbose) \
+			lpfc_dmp_dbg(phba); \
 		dev_printk(level, &((phba)->pcidev)->dev, "%d:" \
-			   fmt, phba->brd_no, ##arg); \
+			fmt, phba->brd_no, ##arg); \
+	} else if (!log_verbose)\
+		lpfc_dbg_print(phba, "%d:" fmt, phba->brd_no, ##arg); \
 	} \
 } while (0)

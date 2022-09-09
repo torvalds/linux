@@ -10,10 +10,12 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 
-#define CTRL_STRIDE_OFF(_t, _r)	(_t * 8 * _r)
+#define CTRL_STRIDE_OFF(_t, _r)	(_t * 4 * _r)
 #define CHANCTRL		0x0
 #define CHANMASK(n, t)		(CTRL_STRIDE_OFF(t, 0) + 0x4 * (n) + 0x4)
 #define CHANSET(n, t)		(CTRL_STRIDE_OFF(t, 1) + 0x4 * (n) + 0x4)
@@ -21,12 +23,15 @@
 #define CHAN_MINTDIS(t)		(CTRL_STRIDE_OFF(t, 3) + 0x4)
 #define CHAN_MASTRSTAT(t)	(CTRL_STRIDE_OFF(t, 3) + 0x8)
 
+#define CHAN_MAX_OUTPUT_INT	0x8
+
 struct irqsteer_data {
 	void __iomem		*regs;
 	struct clk		*ipg_clk;
-	int			irq;
+	int			irq[CHAN_MAX_OUTPUT_INT];
+	int			irq_count;
 	raw_spinlock_t		lock;
-	int			irq_groups;
+	int			reg_num;
 	int			channel;
 	struct irq_domain	*domain;
 	u32			*saved_reg;
@@ -35,7 +40,7 @@ struct irqsteer_data {
 static int imx_irqsteer_get_reg_index(struct irqsteer_data *data,
 				      unsigned long irqnum)
 {
-	return (data->irq_groups * 2 - irqnum / 32 - 1);
+	return (data->reg_num - irqnum / 32 - 1);
 }
 
 static void imx_irqsteer_irq_unmask(struct irq_data *d)
@@ -46,9 +51,9 @@ static void imx_irqsteer_irq_unmask(struct irq_data *d)
 	u32 val;
 
 	raw_spin_lock_irqsave(&data->lock, flags);
-	val = readl_relaxed(data->regs + CHANMASK(idx, data->irq_groups));
+	val = readl_relaxed(data->regs + CHANMASK(idx, data->reg_num));
 	val |= BIT(d->hwirq % 32);
-	writel_relaxed(val, data->regs + CHANMASK(idx, data->irq_groups));
+	writel_relaxed(val, data->regs + CHANMASK(idx, data->reg_num));
 	raw_spin_unlock_irqrestore(&data->lock, flags);
 }
 
@@ -60,13 +65,13 @@ static void imx_irqsteer_irq_mask(struct irq_data *d)
 	u32 val;
 
 	raw_spin_lock_irqsave(&data->lock, flags);
-	val = readl_relaxed(data->regs + CHANMASK(idx, data->irq_groups));
+	val = readl_relaxed(data->regs + CHANMASK(idx, data->reg_num));
 	val &= ~BIT(d->hwirq % 32);
-	writel_relaxed(val, data->regs + CHANMASK(idx, data->irq_groups));
+	writel_relaxed(val, data->regs + CHANMASK(idx, data->reg_num));
 	raw_spin_unlock_irqrestore(&data->lock, flags);
 }
 
-static struct irq_chip imx_irqsteer_irq_chip = {
+static const struct irq_chip imx_irqsteer_irq_chip = {
 	.name		= "irqsteer",
 	.irq_mask	= imx_irqsteer_irq_mask,
 	.irq_unmask	= imx_irqsteer_irq_unmask,
@@ -87,26 +92,47 @@ static const struct irq_domain_ops imx_irqsteer_domain_ops = {
 	.xlate		= irq_domain_xlate_onecell,
 };
 
+static int imx_irqsteer_get_hwirq_base(struct irqsteer_data *data, u32 irq)
+{
+	int i;
+
+	for (i = 0; i < data->irq_count; i++) {
+		if (data->irq[i] == irq)
+			return i * 64;
+	}
+
+	return -EINVAL;
+}
+
 static void imx_irqsteer_irq_handler(struct irq_desc *desc)
 {
 	struct irqsteer_data *data = irq_desc_get_handler_data(desc);
-	int i;
+	int hwirq;
+	int irq, i;
 
 	chained_irq_enter(irq_desc_get_chip(desc), desc);
 
-	for (i = 0; i < data->irq_groups * 64; i += 32) {
-		int idx = imx_irqsteer_get_reg_index(data, i);
+	irq = irq_desc_get_irq(desc);
+	hwirq = imx_irqsteer_get_hwirq_base(data, irq);
+	if (hwirq < 0) {
+		pr_warn("%s: unable to get hwirq base for irq %d\n",
+			__func__, irq);
+		return;
+	}
+
+	for (i = 0; i < 2; i++, hwirq += 32) {
+		int idx = imx_irqsteer_get_reg_index(data, hwirq);
 		unsigned long irqmap;
-		int pos, virq;
+		int pos;
+
+		if (hwirq >= data->reg_num * 32)
+			break;
 
 		irqmap = readl_relaxed(data->regs +
-				       CHANSTATUS(idx, data->irq_groups));
+				       CHANSTATUS(idx, data->reg_num));
 
-		for_each_set_bit(pos, &irqmap, 32) {
-			virq = irq_find_mapping(data->domain, pos + i);
-			if (virq)
-				generic_handle_irq(virq);
-		}
+		for_each_set_bit(pos, &irqmap, 32)
+			generic_handle_domain_irq(data->domain, pos + hwirq);
 	}
 
 	chained_irq_exit(irq_desc_get_chip(desc), desc);
@@ -116,42 +142,43 @@ static int imx_irqsteer_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct irqsteer_data *data;
-	struct resource *res;
-	int ret;
+	u32 irqs_num;
+	int i, ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->regs = devm_ioremap_resource(&pdev->dev, res);
+	data->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->regs)) {
 		dev_err(&pdev->dev, "failed to initialize reg\n");
 		return PTR_ERR(data->regs);
 	}
 
-	data->irq = platform_get_irq(pdev, 0);
-	if (data->irq <= 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
-		return -ENODEV;
-	}
-
 	data->ipg_clk = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(data->ipg_clk)) {
-		ret = PTR_ERR(data->ipg_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get ipg clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(data->ipg_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->ipg_clk),
+				     "failed to get ipg clk\n");
 
 	raw_spin_lock_init(&data->lock);
 
-	of_property_read_u32(np, "fsl,irq-groups", &data->irq_groups);
-	of_property_read_u32(np, "fsl,channel", &data->channel);
+	ret = of_property_read_u32(np, "fsl,num-irqs", &irqs_num);
+	if (ret)
+		return ret;
+	ret = of_property_read_u32(np, "fsl,channel", &data->channel);
+	if (ret)
+		return ret;
 
-	if (IS_ENABLED(CONFIG_PM_SLEEP)) {
+	/*
+	 * There is one output irq for each group of 64 inputs.
+	 * One register bit map can represent 32 input interrupts.
+	 */
+	data->irq_count = DIV_ROUND_UP(irqs_num, 64);
+	data->reg_num = irqs_num / 32;
+
+	if (IS_ENABLED(CONFIG_PM)) {
 		data->saved_reg = devm_kzalloc(&pdev->dev,
-					sizeof(u32) * data->irq_groups * 2,
+					sizeof(u32) * data->reg_num,
 					GFP_KERNEL);
 		if (!data->saved_reg)
 			return -ENOMEM;
@@ -166,27 +193,52 @@ static int imx_irqsteer_probe(struct platform_device *pdev)
 	/* steer all IRQs into configured channel */
 	writel_relaxed(BIT(data->channel), data->regs + CHANCTRL);
 
-	data->domain = irq_domain_add_linear(np, data->irq_groups * 64,
+	data->domain = irq_domain_add_linear(np, data->reg_num * 32,
 					     &imx_irqsteer_domain_ops, data);
 	if (!data->domain) {
 		dev_err(&pdev->dev, "failed to create IRQ domain\n");
-		clk_disable_unprepare(data->ipg_clk);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
+	}
+	irq_domain_set_pm_device(data->domain, &pdev->dev);
+
+	if (!data->irq_count || data->irq_count > CHAN_MAX_OUTPUT_INT) {
+		ret = -EINVAL;
+		goto out;
 	}
 
-	irq_set_chained_handler_and_data(data->irq, imx_irqsteer_irq_handler,
-					 data);
+	for (i = 0; i < data->irq_count; i++) {
+		data->irq[i] = irq_of_parse_and_map(np, i);
+		if (!data->irq[i]) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		irq_set_chained_handler_and_data(data->irq[i],
+						 imx_irqsteer_irq_handler,
+						 data);
+	}
 
 	platform_set_drvdata(pdev, data);
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
+out:
+	clk_disable_unprepare(data->ipg_clk);
+	return ret;
 }
 
 static int imx_irqsteer_remove(struct platform_device *pdev)
 {
 	struct irqsteer_data *irqsteer_data = platform_get_drvdata(pdev);
+	int i;
 
-	irq_set_chained_handler_and_data(irqsteer_data->irq, NULL, NULL);
+	for (i = 0; i < irqsteer_data->irq_count; i++)
+		irq_set_chained_handler_and_data(irqsteer_data->irq[i],
+						 NULL, NULL);
+
 	irq_domain_remove(irqsteer_data->domain);
 
 	clk_disable_unprepare(irqsteer_data->ipg_clk);
@@ -194,14 +246,14 @@ static int imx_irqsteer_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static void imx_irqsteer_save_regs(struct irqsteer_data *data)
 {
 	int i;
 
-	for (i = 0; i < data->irq_groups * 2; i++)
+	for (i = 0; i < data->reg_num; i++)
 		data->saved_reg[i] = readl_relaxed(data->regs +
-						CHANMASK(i, data->irq_groups));
+						CHANMASK(i, data->reg_num));
 }
 
 static void imx_irqsteer_restore_regs(struct irqsteer_data *data)
@@ -209,9 +261,9 @@ static void imx_irqsteer_restore_regs(struct irqsteer_data *data)
 	int i;
 
 	writel_relaxed(BIT(data->channel), data->regs + CHANCTRL);
-	for (i = 0; i < data->irq_groups * 2; i++)
+	for (i = 0; i < data->reg_num; i++)
 		writel_relaxed(data->saved_reg[i],
-			       data->regs + CHANMASK(i, data->irq_groups));
+			       data->regs + CHANMASK(i, data->reg_num));
 }
 
 static int imx_irqsteer_suspend(struct device *dev)
@@ -241,7 +293,10 @@ static int imx_irqsteer_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops imx_irqsteer_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_irqsteer_suspend, imx_irqsteer_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				      pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(imx_irqsteer_suspend,
+			   imx_irqsteer_resume, NULL)
 };
 
 static const struct of_device_id imx_irqsteer_dt_ids[] = {

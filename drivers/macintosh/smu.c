@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PowerMac G5 SMU driver
  *
  * Copyright 2004 J. Mayer <l_indien@magic.fr>
  * Copyright 2005 Benjamin Herrenschmidt, IBM Corp.
- *
- * Released under the term of the GNU GPL v2.
  */
 
 /*
@@ -42,7 +41,6 @@
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/smu.h>
@@ -133,7 +131,7 @@ static void smu_start_cmd(void)
 	/* Flush command and data to RAM */
 	faddr = (unsigned long)smu->cmd_buf;
 	fend = faddr + smu->cmd_buf->length + 2;
-	flush_inval_dcache_range(faddr, fend);
+	flush_dcache_range(faddr, fend);
 
 
 	/* We also disable NAP mode for the duration of the command
@@ -195,7 +193,7 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 		 * reply length (it's only 2 cache lines anyway)
 		 */
 		faddr = (unsigned long)smu->cmd_buf;
-		flush_inval_dcache_range(faddr, faddr + 256);
+		flush_dcache_range(faddr, faddr + 256);
 
 		/* Now check ack */
 		ack = (~cmd->cmd) & 0xff;
@@ -485,7 +483,7 @@ int __init smu_init (void)
 	 * SMU based G5s need some memory below 2Gb. Thankfully this is
 	 * called at a time where memblock is still available.
 	 */
-	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
+	smu_cmdbuf_abs = memblock_phys_alloc_range(4096, 4096, 0, 0x80000000UL);
 	if (smu_cmdbuf_abs == 0) {
 		printk(KERN_ERR "SMU: Command buffer allocation failed !\n");
 		ret = -EINVAL;
@@ -493,6 +491,9 @@ int __init smu_init (void)
 	}
 
 	smu = memblock_alloc(sizeof(struct smu_device), SMP_CACHE_BYTES);
+	if (!smu)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(struct smu_device));
 
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);
@@ -568,7 +569,7 @@ fail_msg_node:
 fail_db_node:
 	of_node_put(smu->db_node);
 fail_bootmem:
-	memblock_free(__pa(smu), sizeof(struct smu_device));
+	memblock_free(smu, sizeof(struct smu_device));
 	smu = NULL;
 fail_np:
 	of_node_put(np);
@@ -636,7 +637,7 @@ static void smu_expose_childs(struct work_struct *unused)
 {
 	struct device_node *np;
 
-	for (np = NULL; (np = of_get_next_child(smu->of_node, np)) != NULL;)
+	for_each_child_of_node(smu->of_node, np)
 		if (of_device_is_compatible(np, "smu-sensors"))
 			of_platform_device_create(np, "smu-sensors",
 						  &smu->of_dev->dev);
@@ -846,10 +847,12 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 	cmd->read = cmd->info.devaddr & 0x01;
 	switch(cmd->info.type) {
 	case SMU_I2C_TRANSFER_SIMPLE:
-		memset(&cmd->info.sublen, 0, 4);
+		cmd->info.sublen = 0;
+		memset(cmd->info.subaddr, 0, sizeof(cmd->info.subaddr));
 		break;
 	case SMU_I2C_TRANSFER_COMBINED:
 		cmd->info.devaddr &= 0xfe;
+		fallthrough;
 	case SMU_I2C_TRANSFER_STDSUB:
 		if (cmd->info.sublen > 3)
 			return -EINVAL;
@@ -1012,7 +1015,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 /* Note: Only allowed to return error code in pointers (using ERR_PTR)
  * when interruptible is 1
  */
-const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
+static const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
 		unsigned int *size, int interruptible)
 {
 	char pname[32];
@@ -1083,7 +1086,7 @@ static int smu_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 
 	pp = kzalloc(sizeof(struct smu_private), GFP_KERNEL);
-	if (pp == 0)
+	if (!pp)
 		return -ENOMEM;
 	spin_lock_init(&pp->lock);
 	pp->mode = smu_file_commands;
@@ -1250,7 +1253,7 @@ static __poll_t smu_fpoll(struct file *file, poll_table *wait)
 	__poll_t mask = 0;
 	unsigned long flags;
 
-	if (pp == 0)
+	if (!pp)
 		return 0;
 
 	if (pp->mode == smu_file_commands) {
@@ -1273,7 +1276,7 @@ static int smu_release(struct inode *inode, struct file *file)
 	unsigned long flags;
 	unsigned int busy;
 
-	if (pp == 0)
+	if (!pp)
 		return 0;
 
 	file->private_data = NULL;

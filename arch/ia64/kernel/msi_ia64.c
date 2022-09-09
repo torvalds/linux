@@ -37,13 +37,13 @@ static int ia64_set_msi_irq_affinity(struct irq_data *idata,
 	msg.data = data;
 
 	pci_write_msi_msg(irq, &msg);
-	cpumask_copy(irq_data_get_affinity_mask(idata), cpumask_of(cpu));
+	irq_data_update_affinity(idata, cpumask_of(cpu));
 
 	return 0;
 }
 #endif /* CONFIG_SMP */
 
-int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
+int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct msi_msg	msg;
 	unsigned long	dest_phys_id;
@@ -77,7 +77,7 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	return 0;
 }
 
-void ia64_teardown_msi_irq(unsigned int irq)
+void arch_teardown_msi_irq(unsigned int irq)
 {
 	destroy_irq(irq);
 }
@@ -111,23 +111,6 @@ static struct irq_chip ia64_msi_chip = {
 	.irq_retrigger		= ia64_msi_retrigger_irq,
 };
 
-
-int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
-{
-	if (platform_setup_msi_irq)
-		return platform_setup_msi_irq(pdev, desc);
-
-	return ia64_setup_msi_irq(pdev, desc);
-}
-
-void arch_teardown_msi_irq(unsigned int irq)
-{
-	if (platform_teardown_msi_irq)
-		return platform_teardown_msi_irq(irq);
-
-	return ia64_teardown_msi_irq(irq);
-}
-
 #ifdef CONFIG_INTEL_IOMMU
 #ifdef CONFIG_SMP
 static int dmar_msi_set_affinity(struct irq_data *data,
@@ -149,7 +132,7 @@ static int dmar_msi_set_affinity(struct irq_data *data,
 	msg.address_lo |= MSI_ADDR_DEST_ID_CPU(cpu_physical_id(cpu));
 
 	dmar_msi_write(irq, &msg);
-	cpumask_copy(irq_data_get_affinity_mask(data), mask);
+	irq_data_update_affinity(data, mask);
 
 	return 0;
 }

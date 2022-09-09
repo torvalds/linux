@@ -28,10 +28,16 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <linux/slab.h>
+
+#include <drm/drm_auth.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_lease.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
 #include "drm_legacy.h"
-#include <drm/drm_lease.h>
 
 /**
  * DOC: master and authentication
@@ -46,7 +52,7 @@
  *
  * In addition only one &drm_master can be the current master for a &drm_device.
  * It can be switched through the DROP_MASTER and SET_MASTER IOCTL, or
- * implicitly through closing/openeing the primary device node. See also
+ * implicitly through closing/opening the primary device node. See also
  * drm_is_current_master().
  *
  * Clients can authenticate against the current master (if it matches their own)
@@ -54,6 +60,36 @@
  * this allows controlled access to the device for an entire group of mutually
  * trusted clients.
  */
+
+static bool drm_is_current_master_locked(struct drm_file *fpriv)
+{
+	lockdep_assert_once(lockdep_is_held(&fpriv->master_lookup_lock) ||
+			    lockdep_is_held(&fpriv->minor->dev->master_mutex));
+
+	return fpriv->is_master && drm_lease_owner(fpriv->master) == fpriv->minor->dev->master;
+}
+
+/**
+ * drm_is_current_master - checks whether @priv is the current master
+ * @fpriv: DRM file private
+ *
+ * Checks whether @fpriv is current master on its device. This decides whether a
+ * client is allowed to run DRM_MASTER IOCTLs.
+ *
+ * Most of the modern IOCTL which require DRM_MASTER are for kernel modesetting
+ * - the current master is assumed to own the non-shareable display hardware.
+ */
+bool drm_is_current_master(struct drm_file *fpriv)
+{
+	bool ret;
+
+	spin_lock(&fpriv->master_lookup_lock);
+	ret = drm_is_current_master_locked(fpriv);
+	spin_unlock(&fpriv->master_lookup_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_is_current_master);
 
 int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
@@ -70,7 +106,7 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	auth->magic = file_priv->magic;
 	mutex_unlock(&dev->master_mutex);
 
-	DRM_DEBUG("%u\n", auth->magic);
+	drm_dbg_core(dev, "%u\n", auth->magic);
 
 	return ret < 0 ? ret : 0;
 }
@@ -81,7 +117,7 @@ int drm_authmagic(struct drm_device *dev, void *data,
 	struct drm_auth *auth = data;
 	struct drm_file *file;
 
-	DRM_DEBUG("%u\n", auth->magic);
+	drm_dbg_core(dev, "%u\n", auth->magic);
 
 	mutex_lock(&dev->master_mutex);
 	file = idr_find(&file_priv->master->magic_map, auth->magic);
@@ -103,14 +139,11 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 		return NULL;
 
 	kref_init(&master->refcount);
-	spin_lock_init(&master->lock.spinlock);
-	init_waitqueue_head(&master->lock.lock_queue);
+	drm_master_legacy_init(master);
 	idr_init(&master->magic_map);
 	master->dev = dev;
 
 	/* initialize the tree of output resource lessees */
-	master->lessor = NULL;
-	master->lessee_id = 0;
 	INIT_LIST_HEAD(&master->lessees);
 	INIT_LIST_HEAD(&master->lessee_list);
 	idr_init(&master->leases);
@@ -119,74 +152,114 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 	return master;
 }
 
-static int drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
-			  bool new_master)
+static void drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
+			   bool new_master)
 {
-	int ret = 0;
-
 	dev->master = drm_master_get(fpriv->master);
-	if (dev->driver->master_set) {
-		ret = dev->driver->master_set(dev, fpriv, new_master);
-		if (unlikely(ret != 0)) {
-			drm_master_put(&dev->master);
-		}
-	}
+	if (dev->driver->master_set)
+		dev->driver->master_set(dev, fpriv, new_master);
 
-	return ret;
+	fpriv->was_master = true;
 }
 
 static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct drm_master *old_master;
-	int ret;
+	struct drm_master *new_master;
 
 	lockdep_assert_held_once(&dev->master_mutex);
 
 	WARN_ON(fpriv->is_master);
 	old_master = fpriv->master;
-	fpriv->master = drm_master_create(dev);
-	if (!fpriv->master) {
-		fpriv->master = old_master;
+	new_master = drm_master_create(dev);
+	if (!new_master)
 		return -ENOMEM;
-	}
+	spin_lock(&fpriv->master_lookup_lock);
+	fpriv->master = new_master;
+	spin_unlock(&fpriv->master_lookup_lock);
 
-	if (dev->driver->master_create) {
-		ret = dev->driver->master_create(dev, fpriv->master);
-		if (ret)
-			goto out_err;
-	}
 	fpriv->is_master = 1;
 	fpriv->authenticated = 1;
 
-	ret = drm_set_master(dev, fpriv, true);
-	if (ret)
-		goto out_err;
+	drm_set_master(dev, fpriv, true);
 
 	if (old_master)
 		drm_master_put(&old_master);
 
 	return 0;
+}
 
-out_err:
-	/* drop references and restore old master on failure */
-	drm_master_put(&fpriv->master);
-	fpriv->master = old_master;
-	fpriv->is_master = 0;
+/*
+ * In the olden days the SET/DROP_MASTER ioctls used to return EACCES when
+ * CAP_SYS_ADMIN was not set. This was used to prevent rogue applications
+ * from becoming master and/or failing to release it.
+ *
+ * At the same time, the first client (for a given VT) is _always_ master.
+ * Thus in order for the ioctls to succeed, one had to _explicitly_ run the
+ * application as root or flip the setuid bit.
+ *
+ * If the CAP_SYS_ADMIN was missing, no other client could become master...
+ * EVER :-( Leading to a) the graphics session dying badly or b) a completely
+ * locked session.
+ *
+ *
+ * As some point systemd-logind was introduced to orchestrate and delegate
+ * master as applicable. It does so by opening the fd and passing it to users
+ * while in itself logind a) does the set/drop master per users' request and
+ * b)  * implicitly drops master on VT switch.
+ *
+ * Even though logind looks like the future, there are a few issues:
+ *  - some platforms don't have equivalent (Android, CrOS, some BSDs) so
+ * root is required _solely_ for SET/DROP MASTER.
+ *  - applications may not be updated to use it,
+ *  - any client which fails to drop master* can DoS the application using
+ * logind, to a varying degree.
+ *
+ * * Either due missing CAP_SYS_ADMIN or simply not calling DROP_MASTER.
+ *
+ *
+ * Here we implement the next best thing:
+ *  - ensure the logind style of fd passing works unchanged, and
+ *  - allow a client to drop/set master, iff it is/was master at a given point
+ * in time.
+ *
+ * Note: DROP_MASTER cannot be free for all, as an arbitrator user could:
+ *  - DoS/crash the arbitrator - details would be implementation specific
+ *  - open the node, become master implicitly and cause issues
+ *
+ * As a result this fixes the following when using root-less build w/o logind
+ * - startx
+ * - weston
+ * - various compositors based on wlroots
+ */
+static int
+drm_master_check_perm(struct drm_device *dev, struct drm_file *file_priv)
+{
+	if (file_priv->pid == task_pid(current) && file_priv->was_master)
+		return 0;
 
-	return ret;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	return 0;
 }
 
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&dev->master_mutex);
-	if (drm_is_current_master(file_priv))
+
+	ret = drm_master_check_perm(dev, file_priv);
+	if (ret)
+		goto out_unlock;
+
+	if (drm_is_current_master_locked(file_priv))
 		goto out_unlock;
 
 	if (dev->master) {
-		ret = -EINVAL;
+		ret = -EBUSY;
 		goto out_unlock;
 	}
 
@@ -201,12 +274,14 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (file_priv->master->lessor != NULL) {
-		DRM_DEBUG_LEASE("Attempt to set lessee %d as master\n", file_priv->master->lessee_id);
+		drm_dbg_lease(dev,
+			      "Attempt to set lessee %d as master\n",
+			      file_priv->master->lessee_id);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	ret = drm_set_master(dev, file_priv, false);
+	drm_set_master(dev, file_priv, false);
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
 	return ret;
@@ -223,22 +298,32 @@ static void drm_drop_master(struct drm_device *dev,
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	mutex_lock(&dev->master_mutex);
-	if (!drm_is_current_master(file_priv))
+
+	ret = drm_master_check_perm(dev, file_priv);
+	if (ret)
 		goto out_unlock;
 
-	if (!dev->master)
-		goto out_unlock;
-
-	if (file_priv->master->lessor != NULL) {
-		DRM_DEBUG_LEASE("Attempt to drop lessee %d as master\n", file_priv->master->lessee_id);
+	if (!drm_is_current_master_locked(file_priv)) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	ret = 0;
+	if (!dev->master) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (file_priv->master->lessor != NULL) {
+		drm_dbg_lease(dev,
+			      "Attempt to drop lessee %d as master\n",
+			      file_priv->master->lessee_id);
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	drm_drop_master(dev, file_priv);
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
@@ -251,12 +336,16 @@ int drm_master_open(struct drm_file *file_priv)
 	int ret = 0;
 
 	/* if there is no current master make this fd it, but do not create
-	 * any master object for render clients */
+	 * any master object for render clients
+	 */
 	mutex_lock(&dev->master_mutex);
-	if (!dev->master)
+	if (!dev->master) {
 		ret = drm_new_set_master(dev, file_priv);
-	else
+	} else {
+		spin_lock(&file_priv->master_lookup_lock);
 		file_priv->master = drm_master_get(dev->master);
+		spin_unlock(&file_priv->master_lookup_lock);
+	}
 	mutex_unlock(&dev->master_mutex);
 
 	return ret;
@@ -265,30 +354,17 @@ int drm_master_open(struct drm_file *file_priv)
 void drm_master_release(struct drm_file *file_priv)
 {
 	struct drm_device *dev = file_priv->minor->dev;
-	struct drm_master *master = file_priv->master;
+	struct drm_master *master;
 
 	mutex_lock(&dev->master_mutex);
+	master = file_priv->master;
 	if (file_priv->magic)
 		idr_remove(&file_priv->master->magic_map, file_priv->magic);
 
-	if (!drm_is_current_master(file_priv))
+	if (!drm_is_current_master_locked(file_priv))
 		goto out;
 
-	if (drm_core_check_feature(dev, DRIVER_LEGACY)) {
-		/*
-		 * Since the master is disappearing, so is the
-		 * possibility to lock.
-		 */
-		mutex_lock(&dev->struct_mutex);
-		if (master->lock.hw_lock) {
-			if (dev->sigdata.lock == master->lock.hw_lock)
-				dev->sigdata.lock = NULL;
-			master->lock.hw_lock = NULL;
-			master->lock.file_priv = NULL;
-			wake_up_interruptible_all(&master->lock.lock_queue);
-		}
-		mutex_unlock(&dev->struct_mutex);
-	}
+	drm_legacy_lock_master_cleanup(dev, master);
 
 	if (dev->master == file_priv->master)
 		drm_drop_master(dev, file_priv);
@@ -307,22 +383,6 @@ out:
 }
 
 /**
- * drm_is_current_master - checks whether @priv is the current master
- * @fpriv: DRM file private
- *
- * Checks whether @fpriv is current master on its device. This decides whether a
- * client is allowed to run DRM_MASTER IOCTLs.
- *
- * Most of the modern IOCTL which require DRM_MASTER are for kernel modesetting
- * - the current master is assumed to own the non-shareable display hardware.
- */
-bool drm_is_current_master(struct drm_file *fpriv)
-{
-	return fpriv->is_master && drm_lease_owner(fpriv->master) == fpriv->minor->dev->master;
-}
-EXPORT_SYMBOL(drm_is_current_master);
-
-/**
  * drm_master_get - reference a master pointer
  * @master: &struct drm_master
  *
@@ -335,6 +395,31 @@ struct drm_master *drm_master_get(struct drm_master *master)
 }
 EXPORT_SYMBOL(drm_master_get);
 
+/**
+ * drm_file_get_master - reference &drm_file.master of @file_priv
+ * @file_priv: DRM file private
+ *
+ * Increments the reference count of @file_priv's &drm_file.master and returns
+ * the &drm_file.master. If @file_priv has no &drm_file.master, returns NULL.
+ *
+ * Master pointers returned from this function should be unreferenced using
+ * drm_master_put().
+ */
+struct drm_master *drm_file_get_master(struct drm_file *file_priv)
+{
+	struct drm_master *master = NULL;
+
+	spin_lock(&file_priv->master_lookup_lock);
+	if (!file_priv->master)
+		goto unlock;
+	master = drm_master_get(file_priv->master);
+
+unlock:
+	spin_unlock(&file_priv->master_lookup_lock);
+	return master;
+}
+EXPORT_SYMBOL(drm_file_get_master);
+
 static void drm_master_destroy(struct kref *kref)
 {
 	struct drm_master *master = container_of(kref, struct drm_master, refcount);
@@ -342,9 +427,6 @@ static void drm_master_destroy(struct kref *kref)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_lease_destroy(master);
-
-	if (dev->driver->master_destroy)
-		dev->driver->master_destroy(dev, master);
 
 	drm_legacy_master_rmmaps(dev, master);
 
@@ -368,3 +450,23 @@ void drm_master_put(struct drm_master **master)
 	*master = NULL;
 }
 EXPORT_SYMBOL(drm_master_put);
+
+/* Used by drm_client and drm_fb_helper */
+bool drm_master_internal_acquire(struct drm_device *dev)
+{
+	mutex_lock(&dev->master_mutex);
+	if (dev->master) {
+		mutex_unlock(&dev->master_mutex);
+		return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(drm_master_internal_acquire);
+
+/* Used by drm_client and drm_fb_helper */
+void drm_master_internal_release(struct drm_device *dev)
+{
+	mutex_unlock(&dev->master_mutex);
+}
+EXPORT_SYMBOL(drm_master_internal_release);

@@ -21,7 +21,12 @@
 #ifndef _gc_9_0_OFFSET_HEADER
 #define _gc_9_0_OFFSET_HEADER
 
-
+#define mmSQ_DEBUG_STS_GLOBAL                                                                          0x0309
+#define mmSQ_DEBUG_STS_GLOBAL_BASE_IDX                                                                 0
+#define mmSQ_DEBUG_STS_GLOBAL2                                                                         0x0310
+#define mmSQ_DEBUG_STS_GLOBAL2_BASE_IDX                                                                0
+#define mmSQ_DEBUG_STS_GLOBAL3                                                                         0x0311
+#define mmSQ_DEBUG_STS_GLOBAL3_BASE_IDX                                                                0
 
 // addressBlock: gc_grbmdec
 // base address: 0x8000
@@ -829,6 +834,8 @@
 #define mmTD_CNTL_BASE_IDX                                                                             0
 #define mmTD_STATUS                                                                                    0x0526
 #define mmTD_STATUS_BASE_IDX                                                                           0
+#define mmTD_EDC_CNT                                                                                   0x052e
+#define mmTD_EDC_CNT_BASE_IDX                                                                          0
 #define mmTD_DSM_CNTL                                                                                  0x052f
 #define mmTD_DSM_CNTL_BASE_IDX                                                                         0
 #define mmTD_DSM_CNTL2                                                                                 0x0530
@@ -845,6 +852,8 @@
 #define mmTA_STATUS_BASE_IDX                                                                           0
 #define mmTA_SCRATCH                                                                                   0x0564
 #define mmTA_SCRATCH_BASE_IDX                                                                          0
+#define mmTA_EDC_CNT                                                                                   0x0586
+#define mmTA_EDC_CNT_BASE_IDX                                                                          0
 
 
 // addressBlock: gc_gdsdec
@@ -1051,6 +1060,13 @@
 #define mmGC_USER_RB_BACKEND_DISABLE_BASE_IDX                                                          0
 
 
+// addressBlock: gc_ea_gceadec2
+// base address: 0x9c00
+#define mmGCEA_EDC_CNT                                                                                 0x0706
+#define mmGCEA_EDC_CNT_BASE_IDX                                                                        0
+#define mmGCEA_EDC_CNT2                                                                                0x0707
+#define mmGCEA_EDC_CNT2_BASE_IDX                                                                       0
+
 // addressBlock: gc_rmi_rmidec
 // base address: 0x9e00
 #define mmRMI_GENERAL_CNTL                                                                             0x0780
@@ -1135,7 +1151,14 @@
 #define mmATC_L2_MEM_POWER_LS_BASE_IDX                                                                 0
 #define mmATC_L2_CGTT_CLK_CTRL                                                                         0x080c
 #define mmATC_L2_CGTT_CLK_CTRL_BASE_IDX                                                                0
-
+#define mmATC_L2_CACHE_4K_EDC_INDEX                                                                    0x080e
+#define mmATC_L2_CACHE_4K_EDC_INDEX_BASE_IDX                                                           0
+#define mmATC_L2_CACHE_2M_EDC_INDEX                                                                    0x080f
+#define mmATC_L2_CACHE_2M_EDC_INDEX_BASE_IDX                                                           0
+#define mmATC_L2_CACHE_4K_EDC_CNT                                                                      0x0810
+#define mmATC_L2_CACHE_4K_EDC_CNT_BASE_IDX                                                             0
+#define mmATC_L2_CACHE_2M_EDC_CNT                                                                      0x0811
+#define mmATC_L2_CACHE_2M_EDC_CNT_BASE_IDX                                                             0
 
 // addressBlock: gc_utcl2_vml2pfdec
 // base address: 0xa100
@@ -1195,7 +1218,14 @@
 #define mmVM_L2_CACHE_PARITY_CNTL_BASE_IDX                                                             0
 #define mmVM_L2_CGTT_CLK_CTRL                                                                          0x085e
 #define mmVM_L2_CGTT_CLK_CTRL_BASE_IDX                                                                 0
-
+#define mmVM_L2_MEM_ECC_INDEX                                                                          0x0860
+#define mmVM_L2_MEM_ECC_INDEX_BASE_IDX                                                                 0
+#define mmVM_L2_WALKER_MEM_ECC_INDEX                                                                   0x0861
+#define mmVM_L2_WALKER_MEM_ECC_INDEX_BASE_IDX                                                          0
+#define mmVM_L2_MEM_ECC_CNT                                                                            0x0862
+#define mmVM_L2_MEM_ECC_CNT_BASE_IDX                                                                   0
+#define mmVM_L2_WALKER_MEM_ECC_CNT                                                                     0x0863
+#define mmVM_L2_WALKER_MEM_ECC_CNT_BASE_IDX                                                            0
 
 // addressBlock: gc_utcl2_vml2vcdec
 // base address: 0xa200
@@ -1689,6 +1719,8 @@
 #define mmTCP_BUFFER_ADDR_HASH_CNTL_BASE_IDX                                                           0
 #define mmTCP_EDC_CNT                                                                                  0x0b17
 #define mmTCP_EDC_CNT_BASE_IDX                                                                         0
+#define mmTCP_EDC_CNT_NEW                                                                              0x0b18
+#define mmTCP_EDC_CNT_NEW_BASE_IDX                                                                     0
 #define mmTC_CFG_L1_LOAD_POLICY0                                                                       0x0b1a
 #define mmTC_CFG_L1_LOAD_POLICY0_BASE_IDX                                                              0
 #define mmTC_CFG_L1_LOAD_POLICY1                                                                       0x0b1b
@@ -1709,6 +1741,8 @@
 #define mmTC_CFG_L1_VOLATILE_BASE_IDX                                                                  0
 #define mmTC_CFG_L2_VOLATILE                                                                           0x0b23
 #define mmTC_CFG_L2_VOLATILE_BASE_IDX                                                                  0
+#define mmTCI_EDC_CNT                                                                                  0x0b60
+#define mmTCI_EDC_CNT_BASE_IDX                                                                         0
 #define mmTCI_STATUS                                                                                   0x0b61
 #define mmTCI_STATUS_BASE_IDX                                                                          0
 #define mmTCI_CNTL_1                                                                                   0x0b62
@@ -2195,6 +2229,14 @@
 #define mmCOMPUTE_STATIC_THREAD_MGMT_SE2_BASE_IDX                                                      0
 #define mmCOMPUTE_STATIC_THREAD_MGMT_SE3                                                               0x0e1a
 #define mmCOMPUTE_STATIC_THREAD_MGMT_SE3_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE4                                                               0x0e25
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE4_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE5                                                               0x0e26
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE5_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE6                                                               0x0e27
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE6_BASE_IDX                                                      0
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE7                                                               0x0e28
+#define mmCOMPUTE_STATIC_THREAD_MGMT_SE7_BASE_IDX                                                      0
 #define mmCOMPUTE_RESTART_X                                                                            0x0e1b
 #define mmCOMPUTE_RESTART_X_BASE_IDX                                                                   0
 #define mmCOMPUTE_RESTART_Y                                                                            0x0e1c
@@ -2594,6 +2636,24 @@
 #define mmCP_RB_DOORBELL_CONTROL_SCH_7_BASE_IDX                                                        0
 #define mmCP_RB_DOORBELL_CLEAR                                                                         0x1188
 #define mmCP_RB_DOORBELL_CLEAR_BASE_IDX                                                                0
+#define mmCPF_EDC_TAG_CNT                                                                              0x1189
+#define mmCPF_EDC_TAG_CNT_BASE_IDX                                                                     0
+#define mmCPF_EDC_ROQ_CNT                                                                              0x118a
+#define mmCPF_EDC_ROQ_CNT_BASE_IDX                                                                     0
+#define mmCPG_EDC_TAG_CNT                                                                              0x118b
+#define mmCPG_EDC_TAG_CNT_BASE_IDX                                                                     0
+#define mmCPG_EDC_DMA_CNT                                                                              0x118d
+#define mmCPG_EDC_DMA_CNT_BASE_IDX                                                                     0
+#define mmCPC_EDC_SCRATCH_CNT                                                                          0x118e
+#define mmCPC_EDC_SCRATCH_CNT_BASE_IDX                                                                 0
+#define mmCPC_EDC_UCODE_CNT                                                                            0x118f
+#define mmCPC_EDC_UCODE_CNT_BASE_IDX                                                                   0
+#define mmDC_EDC_STATE_CNT                                                                             0x1191
+#define mmDC_EDC_STATE_CNT_BASE_IDX                                                                    0
+#define mmDC_EDC_CSINVOC_CNT                                                                           0x1192
+#define mmDC_EDC_CSINVOC_CNT_BASE_IDX                                                                  0
+#define mmDC_EDC_RESTORE_CNT                                                                           0x1193
+#define mmDC_EDC_RESTORE_CNT_BASE_IDX                                                                  0
 #define mmCP_GFX_MQD_CONTROL                                                                           0x11a0
 #define mmCP_GFX_MQD_CONTROL_BASE_IDX                                                                  0
 #define mmCP_GFX_MQD_BASE_ADDR                                                                         0x11a1
@@ -7033,6 +7093,7 @@
 
 // addressBlock: sqind
 // base address: 0x0
+#define ixSQ_DEBUG_STS_LOCAL                                                                           0x0008
 #define ixSQ_WAVE_MODE                                                                                 0x0011
 #define ixSQ_WAVE_STATUS                                                                               0x0012
 #define ixSQ_WAVE_TRAPSTS                                                                              0x0013

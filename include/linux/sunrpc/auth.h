@@ -10,8 +10,6 @@
 #ifndef _LINUX_SUNRPC_AUTH_H
 #define _LINUX_SUNRPC_AUTH_H
 
-#ifdef __KERNEL__
-
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/xdr.h>
@@ -74,14 +72,12 @@ struct rpc_cred_cache;
 struct rpc_authops;
 struct rpc_auth {
 	unsigned int		au_cslack;	/* call cred size estimate */
-				/* guess at number of u32's auth adds before
-				 * reply data; normally the verifier size: */
-	unsigned int		au_rslack;
-				/* for gss, used to calculate au_rslack: */
-	unsigned int		au_verfsize;
+	unsigned int		au_rslack;	/* reply cred size estimate */
+	unsigned int		au_verfsize;	/* size of reply verifier */
+	unsigned int		au_ralign;	/* words before UL header */
 
-	unsigned int		au_flags;	/* various flags */
-	const struct rpc_authops *au_ops;		/* operations */
+	unsigned long		au_flags;
+	const struct rpc_authops *au_ops;
 	rpc_authflavor_t	au_flavor;	/* pseudoflavor (note may
 						 * differ from the flavor in
 						 * au_ops->au_flavor in gss
@@ -93,7 +89,8 @@ struct rpc_auth {
 };
 
 /* rpc_auth au_flags */
-#define RPCAUTH_AUTH_DATATOUCH	0x00000002
+#define RPCAUTH_AUTH_DATATOUCH		(1)
+#define RPCAUTH_AUTH_UPDATE_SLACK	(2)
 
 struct rpc_auth_create_args {
 	rpc_authflavor_t pseudoflavor;
@@ -102,6 +99,7 @@ struct rpc_auth_create_args {
 
 /* Flags for rpcauth_lookupcred() */
 #define RPCAUTH_LOOKUP_NEW		0x01	/* Accept an uninitialised cred */
+#define RPCAUTH_LOOKUP_ASYNC		0x02	/* Don't block waiting for memory */
 
 /*
  * Client authentication ops
@@ -117,7 +115,6 @@ struct rpc_authops {
 	int			(*hash_cred)(struct auth_cred *, unsigned int);
 	struct rpc_cred *	(*lookup_cred)(struct rpc_auth *, struct auth_cred *, int);
 	struct rpc_cred *	(*crcreate)(struct rpc_auth*, struct auth_cred *, int, gfp_t);
-	int			(*list_pseudoflavors)(rpc_authflavor_t *, int);
 	rpc_authflavor_t	(*info2flavor)(struct rpcsec_gss_info *);
 	int			(*flavor2info)(rpc_authflavor_t,
 						struct rpcsec_gss_info *);
@@ -131,13 +128,15 @@ struct rpc_credops {
 	void			(*crdestroy)(struct rpc_cred *);
 
 	int			(*crmatch)(struct auth_cred *, struct rpc_cred *, int);
-	__be32 *		(*crmarshal)(struct rpc_task *, __be32 *);
+	int			(*crmarshal)(struct rpc_task *task,
+					     struct xdr_stream *xdr);
 	int			(*crrefresh)(struct rpc_task *);
-	__be32 *		(*crvalidate)(struct rpc_task *, __be32 *);
-	int			(*crwrap_req)(struct rpc_task *, kxdreproc_t,
-						void *, __be32 *, void *);
-	int			(*crunwrap_resp)(struct rpc_task *, kxdrdproc_t,
-						void *, __be32 *, void *);
+	int			(*crvalidate)(struct rpc_task *task,
+					      struct xdr_stream *xdr);
+	int			(*crwrap_req)(struct rpc_task *task,
+					      struct xdr_stream *xdr);
+	int			(*crunwrap_resp)(struct rpc_task *task,
+						 struct xdr_stream *xdr);
 	int			(*crkey_timeout)(struct rpc_cred *);
 	char *			(*crstringify_acceptor)(struct rpc_cred *);
 	bool			(*crneed_reencode)(struct rpc_task *);
@@ -160,15 +159,22 @@ rpc_authflavor_t	rpcauth_get_pseudoflavor(rpc_authflavor_t,
 				struct rpcsec_gss_info *);
 int			rpcauth_get_gssinfo(rpc_authflavor_t,
 				struct rpcsec_gss_info *);
-int			rpcauth_list_flavors(rpc_authflavor_t *, int);
 struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int, gfp_t);
 void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);
 struct rpc_cred *	rpcauth_lookupcred(struct rpc_auth *, int);
 void			put_rpccred(struct rpc_cred *);
-__be32 *		rpcauth_marshcred(struct rpc_task *, __be32 *);
-__be32 *		rpcauth_checkverf(struct rpc_task *, __be32 *);
-int			rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp, __be32 *data, void *obj);
-int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp, __be32 *data, void *obj);
+int			rpcauth_marshcred(struct rpc_task *task,
+					  struct xdr_stream *xdr);
+int			rpcauth_checkverf(struct rpc_task *task,
+					  struct xdr_stream *xdr);
+int			rpcauth_wrap_req_encode(struct rpc_task *task,
+						struct xdr_stream *xdr);
+int			rpcauth_wrap_req(struct rpc_task *task,
+					 struct xdr_stream *xdr);
+int			rpcauth_unwrap_resp_decode(struct rpc_task *task,
+						   struct xdr_stream *xdr);
+int			rpcauth_unwrap_resp(struct rpc_task *task,
+					    struct xdr_stream *xdr);
 bool			rpcauth_xmit_need_reencode(struct rpc_task *task);
 int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
@@ -186,5 +192,4 @@ struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 	return NULL;
 }
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_AUTH_H */

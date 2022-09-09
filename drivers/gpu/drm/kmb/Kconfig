@@ -1,0 +1,12 @@
+config DRM_KMB_DISPLAY
+	tristate "Intel Keembay Display"
+	depends on DRM
+	depends on ARCH_KEEMBAY || COMPILE_TEST
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_MIPI_DSI
+	help
+	Choose this option if you have Intel's KeemBay SOC which integrates
+	an ARM Cortex A53 CPU with an Intel Movidius VPU.
+
+	If M is selected the module will be called kmb-drm.

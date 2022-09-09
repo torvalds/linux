@@ -15,25 +15,33 @@
 
 #include "pinctrl-intel.h"
 
-#define SPT_PAD_OWN	0x020
-#define SPT_PADCFGLOCK	0x0a0
-#define SPT_HOSTSW_OWN	0x0d0
-#define SPT_GPI_IE	0x120
+#define SPT_PAD_OWN		0x020
+#define SPT_H_PADCFGLOCK	0x090
+#define SPT_LP_PADCFGLOCK	0x0a0
+#define SPT_HOSTSW_OWN		0x0d0
+#define SPT_GPI_IS		0x100
+#define SPT_GPI_IE		0x120
 
-#define SPT_COMMUNITY(b, s, e)				\
+#define SPT_COMMUNITY(b, s, e, pl, gs, gn, g, n)	\
 	{						\
 		.barno = (b),				\
 		.padown_offset = SPT_PAD_OWN,		\
-		.padcfglock_offset = SPT_PADCFGLOCK,	\
+		.padcfglock_offset = (pl),		\
 		.hostown_offset = SPT_HOSTSW_OWN,	\
+		.is_offset = SPT_GPI_IS,		\
 		.ie_offset = SPT_GPI_IE,		\
-		.gpp_size = 24,				\
-		.gpp_num_padown_regs = 4,		\
+		.gpp_size = (gs),			\
+		.gpp_num_padown_regs = (gn),		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
+		.gpps = (g),				\
+		.ngpps = (n),				\
 	}
 
-#define SPTH_GPP(r, s, e, g)				\
+#define SPT_LP_COMMUNITY(b, s, e)			\
+	SPT_COMMUNITY(b, s, e, SPT_LP_PADCFGLOCK, 24, 4, NULL, 0)
+
+#define SPT_H_GPP(r, s, e, g)				\
 	{						\
 		.reg_num = (r),				\
 		.base = (s),				\
@@ -41,18 +49,8 @@
 		.gpio_base = (g),			\
 	}
 
-#define SPTH_COMMUNITY(b, s, e, g)			\
-	{						\
-		.barno = (b),				\
-		.padown_offset = SPT_PAD_OWN,		\
-		.padcfglock_offset = SPT_PADCFGLOCK,	\
-		.hostown_offset = SPT_HOSTSW_OWN,	\
-		.ie_offset = SPT_GPI_IE,		\
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-		.gpps = (g),				\
-		.ngpps = ARRAY_SIZE(g),			\
-	}
+#define SPT_H_COMMUNITY(b, s, e, g)			\
+	SPT_COMMUNITY(b, s, e, SPT_H_PADCFGLOCK, 0, 0, g, ARRAY_SIZE(g))
 
 /* Sunrisepoint-LP */
 static const struct pinctrl_pin_desc sptlp_pins[] = {
@@ -288,9 +286,9 @@ static const struct intel_function sptlp_functions[] = {
 };
 
 static const struct intel_community sptlp_communities[] = {
-	SPT_COMMUNITY(0, 0, 47),
-	SPT_COMMUNITY(1, 48, 119),
-	SPT_COMMUNITY(2, 120, 151),
+	SPT_LP_COMMUNITY(0, 0, 47),
+	SPT_LP_COMMUNITY(1, 48, 119),
+	SPT_LP_COMMUNITY(2, 120, 151),
 };
 
 static const struct intel_pinctrl_soc_data sptlp_soc_data = {
@@ -550,27 +548,27 @@ static const struct intel_function spth_functions[] = {
 };
 
 static const struct intel_padgroup spth_community0_gpps[] = {
-	SPTH_GPP(0, 0, 23, 0),		/* GPP_A */
-	SPTH_GPP(1, 24, 47, 24),	/* GPP_B */
+	SPT_H_GPP(0, 0, 23, 0),		/* GPP_A */
+	SPT_H_GPP(1, 24, 47, 24),	/* GPP_B */
 };
 
 static const struct intel_padgroup spth_community1_gpps[] = {
-	SPTH_GPP(0, 48, 71, 48),	/* GPP_C */
-	SPTH_GPP(1, 72, 95, 72),	/* GPP_D */
-	SPTH_GPP(2, 96, 108, 96),	/* GPP_E */
-	SPTH_GPP(3, 109, 132, 120),	/* GPP_F */
-	SPTH_GPP(4, 133, 156, 144),	/* GPP_G */
-	SPTH_GPP(5, 157, 180, 168),	/* GPP_H */
+	SPT_H_GPP(0, 48, 71, 48),	/* GPP_C */
+	SPT_H_GPP(1, 72, 95, 72),	/* GPP_D */
+	SPT_H_GPP(2, 96, 108, 96),	/* GPP_E */
+	SPT_H_GPP(3, 109, 132, 120),	/* GPP_F */
+	SPT_H_GPP(4, 133, 156, 144),	/* GPP_G */
+	SPT_H_GPP(5, 157, 180, 168),	/* GPP_H */
 };
 
 static const struct intel_padgroup spth_community3_gpps[] = {
-	SPTH_GPP(0, 181, 191, 192),	/* GPP_I */
+	SPT_H_GPP(0, 181, 191, 192),	/* GPP_I */
 };
 
 static const struct intel_community spth_communities[] = {
-	SPTH_COMMUNITY(0, 0, 47, spth_community0_gpps),
-	SPTH_COMMUNITY(1, 48, 180, spth_community1_gpps),
-	SPTH_COMMUNITY(2, 181, 191, spth_community3_gpps),
+	SPT_H_COMMUNITY(0, 0, 47, spth_community0_gpps),
+	SPT_H_COMMUNITY(1, 48, 180, spth_community1_gpps),
+	SPT_H_COMMUNITY(2, 181, 191, spth_community3_gpps),
 };
 
 static const struct intel_pinctrl_soc_data spth_soc_data = {
@@ -586,6 +584,7 @@ static const struct intel_pinctrl_soc_data spth_soc_data = {
 
 static const struct acpi_device_id spt_pinctrl_acpi_match[] = {
 	{ "INT344B", (kernel_ulong_t)&sptlp_soc_data },
+	{ "INT3451", (kernel_ulong_t)&spth_soc_data },
 	{ "INT345D", (kernel_ulong_t)&spth_soc_data },
 	{ }
 };

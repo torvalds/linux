@@ -398,6 +398,7 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	default:
 		dev_err(dev, "Invalid ref_clk %u, using 100000000 instead\n",
 			clock_rate);
+		fallthrough;
 	case 100000000:
 		mpll_mul = 0x19;
 		if (ref_clk_sel < 2)
@@ -418,7 +419,7 @@ static int dwc3_octeon_clocks_start(struct device *dev, u64 base)
 	/* Step 5c: Enable SuperSpeed. */
 	uctl_ctl.s.ref_ssp_en = 1;
 
-	/* Step 5d: Cofngiure PHYs. SKIP */
+	/* Step 5d: Configure PHYs. SKIP */
 
 	/* Step 6a & 6b: Power up PHYs. */
 	uctl_ctl.s.hs_power_en = 1;
@@ -515,21 +516,17 @@ static int __init dwc3_octeon_device_init(void)
 			if (!pdev)
 				return -ENODEV;
 
-			res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-			if (res == NULL) {
-				dev_err(&pdev->dev, "No memory resources\n");
-				return -ENXIO;
-			}
-
 			/*
 			 * The code below maps in the registers necessary for
 			 * setting up the clocks and reseting PHYs. We must
 			 * release the resources so the dwc3 subsystem doesn't
 			 * know the difference.
 			 */
-			base = devm_ioremap_resource(&pdev->dev, res);
-			if (IS_ERR(base))
+			base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+			if (IS_ERR(base)) {
+				put_device(&pdev->dev);
 				return PTR_ERR(base);
+			}
 
 			mutex_lock(&dwc3_octeon_clocks_mutex);
 			dwc3_octeon_clocks_start(&pdev->dev, (u64)base);
@@ -540,6 +537,7 @@ static int __init dwc3_octeon_device_init(void)
 			devm_iounmap(&pdev->dev, base);
 			devm_release_mem_region(&pdev->dev, res->start,
 						resource_size(res));
+			put_device(&pdev->dev);
 		}
 	} while (node != NULL);
 

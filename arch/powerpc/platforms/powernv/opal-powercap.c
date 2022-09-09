@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV OPAL Powercap interface
  *
  * Copyright 2017 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)     "opal-powercap: " fmt
@@ -17,7 +13,7 @@
 
 #include <asm/opal.h>
 
-DEFINE_MUTEX(powercap_mutex);
+static DEFINE_MUTEX(powercap_mutex);
 
 static struct kobject *powercap_kobj;
 
@@ -133,7 +129,7 @@ out_token:
 	return ret;
 }
 
-static void powercap_add_attr(int handle, const char *name,
+static void __init powercap_add_attr(int handle, const char *name,
 			      struct powercap_attr *attr)
 {
 	attr->handle = handle;

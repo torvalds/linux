@@ -36,7 +36,7 @@ enum nfp_dumpspec_type {
 struct nfp_dump_tl {
 	__be32 type;
 	__be32 length;	/* chunk length to follow, aligned to 8 bytes */
-	char data[0];
+	char data[];
 };
 
 /* NFP CPP parameters */
@@ -62,7 +62,7 @@ struct nfp_dumpspec_csr {
 
 struct nfp_dumpspec_rtsym {
 	struct nfp_dump_tl tl;
-	char rtsym[0];
+	char rtsym[];
 };
 
 /* header for register dumpable */
@@ -79,7 +79,7 @@ struct nfp_dump_rtsym {
 	struct nfp_dump_common_cpp cpp;
 	__be32 error;		/* error code encountered while reading */
 	u8 padded_name_length;	/* pad so data starts at 8 byte boundary */
-	char rtsym[0];
+	char rtsym[];
 	/* after padded_name_length, there is dump_length data */
 };
 
@@ -92,7 +92,7 @@ struct nfp_dump_error {
 	struct nfp_dump_tl tl;
 	__be32 error;
 	char padding[4];
-	char spec[0];
+	char spec[];
 };
 
 /* to track state through debug size calculation TLV traversal */

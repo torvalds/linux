@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel I/OAT DMA Linux driver
  * Copyright(c) 2004 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  */
 
 #include <linux/init.h>
@@ -170,8 +158,9 @@ static struct attribute *ioat_attrs[] = {
 	&intr_coalesce_attr.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(ioat);
 
 struct kobj_type ioat_ktype = {
 	.sysfs_ops = &ioat_sysfs_ops,
-	.default_attrs = ioat_attrs,
+	.default_groups = ioat_groups,
 };

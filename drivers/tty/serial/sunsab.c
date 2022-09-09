@@ -35,14 +35,10 @@
 #include <linux/init.h>
 #include <linux/of_device.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/setup.h>
-
-#if defined(CONFIG_SERIAL_SUNSAB_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
 
 #include <linux/serial_core.h>
 #include <linux/sunserialcore.h>
@@ -850,7 +846,7 @@ static struct uart_sunsab_port *sunsab_ports;
 
 #ifdef CONFIG_SERIAL_SUNSAB_CONSOLE
 
-static void sunsab_console_putchar(struct uart_port *port, int c)
+static void sunsab_console_putchar(struct uart_port *port, unsigned char c)
 {
 	struct uart_sunsab_port *up =
 		container_of(port, struct uart_sunsab_port, port);
@@ -890,7 +886,7 @@ static int sunsab_console_setup(struct console *con, char *options)
 	 * though...
 	 */
 	if (up->port.type != PORT_SUNSAB)
-		return -1;
+		return -EINVAL;
 
 	printk("Console: ttyS%d (SAB82532)\n",
 	       (sunsab_reg.minor - 64) + con->index);
@@ -985,6 +981,7 @@ static int sunsab_init_one(struct uart_sunsab_port *up,
 
 	up->port.fifosize = SAB82532_XMIT_FIFO_SIZE;
 	up->port.iotype = UPIO_MEM;
+	up->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_SUNSAB_CONSOLE);
 
 	writeb(SAB82532_IPC_IC_ACT_LOW, &up->regs->w.ipc);
 

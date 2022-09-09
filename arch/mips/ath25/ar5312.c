@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/memblock.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/reboot.h>
@@ -68,31 +69,25 @@ static irqreturn_t ar5312_ahb_err_handler(int cpl, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction ar5312_ahb_err_interrupt  = {
-	.handler = ar5312_ahb_err_handler,
-	.name    = "ar5312-ahb-error",
-};
-
 static void ar5312_misc_irq_handler(struct irq_desc *desc)
 {
 	u32 pending = ar5312_rst_reg_read(AR5312_ISR) &
 		      ar5312_rst_reg_read(AR5312_IMR);
-	unsigned nr, misc_irq = 0;
+	unsigned nr;
+	int ret = 0;
 
 	if (pending) {
 		struct irq_domain *domain = irq_desc_get_handler_data(desc);
 
 		nr = __ffs(pending);
-		misc_irq = irq_find_mapping(domain, nr);
-	}
 
-	if (misc_irq) {
-		generic_handle_irq(misc_irq);
+		ret = generic_handle_domain_irq(domain, nr);
 		if (nr == AR5312_MISC_IRQ_TIMER)
 			ar5312_rst_reg_read(AR5312_TIMER);
-	} else {
-		spurious_interrupt();
 	}
+
+	if (!pending || ret)
+		spurious_interrupt();
 }
 
 /* Enable the specified AR5312_MISC_IRQ interrupt */
@@ -121,7 +116,7 @@ static int ar5312_misc_irq_map(struct irq_domain *d, unsigned irq,
 	return 0;
 }
 
-static struct irq_domain_ops ar5312_misc_irq_domain_ops = {
+static const struct irq_domain_ops ar5312_misc_irq_domain_ops = {
 	.map = ar5312_misc_irq_map,
 };
 
@@ -154,7 +149,9 @@ void __init ar5312_arch_init_irq(void)
 		panic("Failed to add IRQ domain");
 
 	irq = irq_create_mapping(domain, AR5312_MISC_IRQ_AHB_PROC);
-	setup_irq(irq, &ar5312_ahb_err_interrupt);
+	if (request_irq(irq, ar5312_ahb_err_handler, 0, "ar5312-ahb-error",
+			NULL))
+		pr_err("Failed to register ar5312-ahb-error interrupt\n");
 
 	irq_set_chained_handler_and_data(AR5312_IRQ_MISC,
 					 ar5312_misc_irq_handler, domain);
@@ -185,7 +182,7 @@ static void __init ar5312_flash_init(void)
 	void __iomem *flashctl_base;
 	u32 ctl;
 
-	flashctl_base = ioremap_nocache(AR5312_FLASHCTL_BASE,
+	flashctl_base = ioremap(AR5312_FLASHCTL_BASE,
 					AR5312_FLASHCTL_SIZE);
 
 	ctl = __raw_readl(flashctl_base + AR5312_FLASHCTL0);
@@ -358,7 +355,7 @@ void __init ar5312_plat_mem_setup(void)
 	u32 devid;
 
 	/* Detect memory size */
-	sdram_base = ioremap_nocache(AR5312_SDRAMCTL_BASE,
+	sdram_base = ioremap(AR5312_SDRAMCTL_BASE,
 				     AR5312_SDRAMCTL_SIZE);
 	memcfg = __raw_readl(sdram_base + AR5312_MEM_CFG1);
 	bank0_ac = ATH25_REG_MS(memcfg, AR5312_MEM_CFG1_AC0);
@@ -366,10 +363,10 @@ void __init ar5312_plat_mem_setup(void)
 	memsize = (bank0_ac ? (1 << (bank0_ac + 1)) : 0) +
 		  (bank1_ac ? (1 << (bank1_ac + 1)) : 0);
 	memsize <<= 20;
-	add_memory_region(0, memsize, BOOT_MEM_RAM);
+	memblock_add(0, memsize);
 	iounmap(sdram_base);
 
-	ar5312_rst_base = ioremap_nocache(AR5312_RST_BASE, AR5312_RST_SIZE);
+	ar5312_rst_base = ioremap(AR5312_RST_BASE, AR5312_RST_SIZE);
 
 	devid = ar5312_rst_reg_read(AR5312_REV);
 	devid >>= AR5312_REV_WMAC_MIN_S;

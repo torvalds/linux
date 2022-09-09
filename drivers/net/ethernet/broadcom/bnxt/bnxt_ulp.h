@@ -11,8 +11,7 @@
 #define BNXT_ULP_H
 
 #define BNXT_ROCE_ULP	0
-#define BNXT_OTHER_ULP	1
-#define BNXT_MAX_ULP	2
+#define BNXT_MAX_ULP	1
 
 #define BNXT_MIN_ROCE_CP_RINGS	2
 #define BNXT_MIN_ROCE_STAT_CTXS	1
@@ -64,20 +63,29 @@ struct bnxt_en_dev {
 	#define BNXT_EN_FLAG_ROCE_CAP		(BNXT_EN_FLAG_ROCEV1_CAP | \
 						 BNXT_EN_FLAG_ROCEV2_CAP)
 	#define BNXT_EN_FLAG_MSIX_REQUESTED	0x4
+	#define BNXT_EN_FLAG_ULP_STOPPED	0x8
 	const struct bnxt_en_ops	*en_ops;
 	struct bnxt_ulp			ulp_tbl[BNXT_MAX_ULP];
+	int				l2_db_size;	/* Doorbell BAR size in
+							 * bytes mapped by L2
+							 * driver.
+							 */
+	int				l2_db_size_nc;	/* Doorbell BAR size in
+							 * bytes mapped as non-
+							 * cacheable.
+							 */
 };
 
 struct bnxt_en_ops {
-	int (*bnxt_register_device)(struct bnxt_en_dev *, int,
+	int (*bnxt_register_device)(struct bnxt_en_dev *, unsigned int,
 				    struct bnxt_ulp_ops *, void *);
-	int (*bnxt_unregister_device)(struct bnxt_en_dev *, int);
-	int (*bnxt_request_msix)(struct bnxt_en_dev *, int,
+	int (*bnxt_unregister_device)(struct bnxt_en_dev *, unsigned int);
+	int (*bnxt_request_msix)(struct bnxt_en_dev *, unsigned int,
 				 struct bnxt_msix_entry *, int);
-	int (*bnxt_free_msix)(struct bnxt_en_dev *, int);
-	int (*bnxt_send_fw_msg)(struct bnxt_en_dev *, int,
+	int (*bnxt_free_msix)(struct bnxt_en_dev *, unsigned int);
+	int (*bnxt_send_fw_msg)(struct bnxt_en_dev *, unsigned int,
 				struct bnxt_fw_msg *);
-	int (*bnxt_register_fw_async_events)(struct bnxt_en_dev *, int,
+	int (*bnxt_register_fw_async_events)(struct bnxt_en_dev *, unsigned int,
 					     unsigned long *, u16);
 };
 
@@ -92,7 +100,7 @@ int bnxt_get_ulp_msix_num(struct bnxt *bp);
 int bnxt_get_ulp_msix_base(struct bnxt *bp);
 int bnxt_get_ulp_stat_ctxs(struct bnxt *bp);
 void bnxt_ulp_stop(struct bnxt *bp);
-void bnxt_ulp_start(struct bnxt *bp);
+void bnxt_ulp_start(struct bnxt *bp, int err);
 void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs);
 void bnxt_ulp_shutdown(struct bnxt *bp);
 void bnxt_ulp_irq_stop(struct bnxt *bp);

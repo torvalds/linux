@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -66,6 +67,7 @@ void of_propagate_archdata(struct platform_device *bus)
 		op->dev.archdata.stc = bus_sd->stc;
 		op->dev.archdata.host_controller = bus_sd->host_controller;
 		op->dev.archdata.numa_node = bus_sd->numa_node;
+		op->dev.dma_ops = bus->dev.dma_ops;
 
 		if (dp->child)
 			of_propagate_archdata(op);

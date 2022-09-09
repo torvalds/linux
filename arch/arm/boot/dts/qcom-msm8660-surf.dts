@@ -17,10 +17,10 @@
 
 	soc {
 		gsbi@19c00000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 			serial@19c40000 {
-				status = "ok";
+				status = "okay";
 			};
 		};
 
@@ -35,13 +35,13 @@
 
 		amba {
 			/* eMMC */
-			sdcc1: sdcc@12400000 {
+			sdcc1: mmc@12400000 {
 				status = "okay";
 				vmmc-supply = <&vsdcc_fixed>;
 			};
 
 			/* External micro SD card */
-			sdcc3: sdcc@12180000 {
+			sdcc3: mmc@12180000 {
 				status = "okay";
 				vmmc-supply = <&vsdcc_fixed>;
 			};

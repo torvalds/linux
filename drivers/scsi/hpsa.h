@@ -1,5 +1,6 @@
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
+ *    Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
  *    Copyright 2016 Microsemi Corporation
  *    Copyright 2014-2015 PMC-Sierra, Inc.
  *    Copyright 2000,2009-2015 Hewlett-Packard Development Company, L.P.
@@ -57,7 +58,7 @@ struct hpsa_sas_phy {
 	bool added_to_port;
 };
 
-#define EXTERNAL_QD 7
+#define EXTERNAL_QD 128
 struct hpsa_scsi_dev_t {
 	unsigned int devtype;
 	int bus, target, lun;		/* as presented to the OS */
@@ -65,6 +66,7 @@ struct hpsa_scsi_dev_t {
 	u8 physical_device : 1;
 	u8 expose_device;
 	u8 removed : 1;			/* device is marked for death */
+	u8 was_removed : 1;		/* device actually removed */
 #define RAID_CTLR_LUNID "\0\0\0\0\0\0\0\0"
 	unsigned char device_id[16];    /* from inquiry pg. 0x83 */
 	u64 sas_address;
@@ -75,11 +77,12 @@ struct hpsa_scsi_dev_t {
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	unsigned char volume_offline;	/* discovered via TUR or VPD */
 	u16 queue_depth;		/* max queue_depth for this device */
-	atomic_t reset_cmds_out;	/* Count of commands to-be affected */
+	atomic_t commands_outstanding;	/* track commands sent to device */
 	atomic_t ioaccel_cmds_out;	/* Only used for physical devices
 					 * counts commands sent to physical
 					 * device via "ioaccel" path.
 					 */
+	bool in_reset;
 	u32 ioaccel_handle;
 	u8 active_path_index;
 	u8 path_map;
@@ -174,6 +177,7 @@ struct ctlr_info {
 	struct CfgTable __iomem *cfgtable;
 	int	interrupts_enabled;
 	int 	max_commands;
+	int	last_collision_tag; /* tags are global */
 	atomic_t commands_outstanding;
 #	define PERF_MODE_INT	0
 #	define DOORBELL_INT	1
@@ -300,6 +304,7 @@ struct ctlr_info {
 	int	needs_abort_tags_swizzled;
 	struct workqueue_struct *resubmit_wq;
 	struct workqueue_struct *rescan_ctlr_wq;
+	struct workqueue_struct *monitor_ctlr_wq;
 	atomic_t abort_cmds_available;
 	wait_queue_head_t event_sync_wait_queue;
 	struct mutex reset_mutex;

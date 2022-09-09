@@ -285,7 +285,7 @@ static int ocfb_init_var(struct ocfb_dev *fbdev)
 	return 0;
 }
 
-static struct fb_ops ocfb_ops = {
+static const struct fb_ops ocfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= ocfb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,
@@ -297,7 +297,6 @@ static int ocfb_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct ocfb_dev *fbdev;
-	struct resource *res;
 	int fbsize;
 
 	fbdev = devm_kzalloc(&pdev->dev, sizeof(*fbdev), GFP_KERNEL);
@@ -319,13 +318,7 @@ static int ocfb_probe(struct platform_device *pdev)
 	ocfb_init_var(fbdev);
 	ocfb_init_fix(fbdev);
 
-	/* Request I/O resource */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "I/O resource request failed\n");
-		return -ENXIO;
-	}
-	fbdev->regs = devm_ioremap_resource(&pdev->dev, res);
+	fbdev->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fbdev->regs))
 		return PTR_ERR(fbdev->regs);
 
@@ -394,7 +387,7 @@ static int ocfb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id ocfb_match[] = {
+static const struct of_device_id ocfb_match[] = {
 	{ .compatible = "opencores,ocfb", },
 	{},
 };

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006, 2007 Eugene Konev <ejka@openwrt.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Parts of the VLYNQ specification can be found here:
  * http://www.ti.com/litv/pdf/sprue36a
@@ -355,14 +342,12 @@ static int vlynq_device_probe(struct device *dev)
 	return result;
 }
 
-static int vlynq_device_remove(struct device *dev)
+static void vlynq_device_remove(struct device *dev)
 {
 	struct vlynq_driver *drv = to_vlynq_driver(dev->driver);
 
 	if (drv->remove)
 		drv->remove(to_vlynq_device(dev));
-
-	return 0;
 }
 
 int __vlynq_register_driver(struct vlynq_driver *driver, struct module *owner)

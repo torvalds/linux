@@ -58,6 +58,13 @@ OPTIONS
 --ignore-vmlinux::
 	Ignore vmlinux files.
 
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+include::itrace.txt[]
+
+	To disable decoding entirely, use --no-itrace.
+
 -m::
 --modules::
         Load module symbols. WARNING: use only with -k and LIVE kernel.
@@ -112,11 +119,24 @@ OPTIONS
 --objdump=<path>::
         Path to objdump binary.
 
+--prefix=PREFIX::
+--prefix-strip=N::
+	Remove first N entries from source file path names in executables
+	and add PREFIX. This allows to display source code compiled on systems
+	with different file system layout.
+
 --skip-missing::
 	Skip symbols that cannot be annotated.
 
 --group::
 	Show event group information together
+
+--demangle::
+	Demangle symbol names to human readable form. It's enabled by default,
+	disable with --no-demangle.
+
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
 
 --percent-type::
 	Set annotation percent type from following choices:
@@ -126,6 +146,11 @@ OPTIONS
 	in the scope of the function (local) or the whole data (global).
 	The period/hits keywords set the base the percentage is computed
 	on - the samples period or the number of samples (hits).
+
+--percent-limit::
+	Do not show functions which have an overhead under that percent on
+	stdio or stdio2 (Default: 0).  Note that this is about selection of
+	functions to display, not about lines within the function.
 
 SEE ALSO
 --------

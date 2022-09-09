@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AFE4403 Heart Rate Monitors and Low-Cost Pulse Oximeters
  *
- * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2016 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -30,6 +22,8 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
+
+#include <asm/unaligned.h>
 
 #include "afe440x.h"
 
@@ -71,6 +65,7 @@ static const struct reg_field afe4403_reg_fields[] = {
  * @regulator: Pointer to the regulator for the IC
  * @trig: IIO trigger for this device
  * @irq: ADC_RDY line interrupt number
+ * @buffer: Used to construct data layout to push into IIO buffer.
  */
 struct afe4403_data {
 	struct device *dev;
@@ -80,6 +75,8 @@ struct afe4403_data {
 	struct regulator *regulator;
 	struct iio_trigger *trig;
 	int irq;
+	/* Ensure suitable alignment for timestamp */
+	s32 buffer[8] __aligned(8);
 };
 
 enum afe4403_chan_id {
@@ -228,13 +225,11 @@ static int afe4403_read(struct afe4403_data *afe, unsigned int reg, u32 *val)
 	if (ret)
 		return ret;
 
-	ret = spi_write_then_read(afe->spi, &reg, 1, rx, 3);
+	ret = spi_write_then_read(afe->spi, &reg, 1, rx, sizeof(rx));
 	if (ret)
 		return ret;
 
-	*val = (rx[0] << 16) |
-		(rx[1] << 8) |
-		(rx[2]);
+	*val = get_unaligned_be24(&rx[0]);
 
 	/* Disable reading from the device */
 	tx[3] = AFE440X_CONTROL0_WRITE;
@@ -317,7 +312,6 @@ static irqreturn_t afe4403_trigger_handler(int irq, void *private)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct afe4403_data *afe = iio_priv(indio_dev);
 	int ret, bit, i = 0;
-	s32 buffer[8];
 	u8 tx[4] = {AFE440X_CONTROL0, 0x0, 0x0, AFE440X_CONTROL0_READ};
 	u8 rx[3];
 
@@ -330,13 +324,11 @@ static irqreturn_t afe4403_trigger_handler(int irq, void *private)
 			 indio_dev->masklength) {
 		ret = spi_write_then_read(afe->spi,
 					  &afe4403_channel_values[bit], 1,
-					  rx, 3);
+					  rx, sizeof(rx));
 		if (ret)
 			goto err;
 
-		buffer[i++] = (rx[0] << 16) |
-				(rx[1] << 8) |
-				(rx[2]);
+		afe->buffer[i++] = get_unaligned_be24(&rx[0]);
 	}
 
 	/* Disable reading from the device */
@@ -345,15 +337,13 @@ static irqreturn_t afe4403_trigger_handler(int irq, void *private)
 	if (ret)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
+	iio_push_to_buffers_with_timestamp(indio_dev, afe->buffer,
+					   pf->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
-
-static const struct iio_trigger_ops afe4403_trigger_ops = {
-};
 
 #define AFE4403_TIMING_PAIRS			\
 	{ AFE440X_LED2STC,	0x000050 },	\
@@ -418,7 +408,7 @@ static const struct of_device_id afe4403_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, afe4403_of_match);
 
-static int __maybe_unused afe4403_suspend(struct device *dev)
+static int afe4403_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct afe4403_data *afe = iio_priv(indio_dev);
@@ -439,7 +429,7 @@ static int __maybe_unused afe4403_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused afe4403_resume(struct device *dev)
+static int afe4403_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct afe4403_data *afe = iio_priv(indio_dev);
@@ -459,7 +449,8 @@ static int __maybe_unused afe4403_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(afe4403_pm_ops, afe4403_suspend, afe4403_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(afe4403_pm_ops, afe4403_suspend,
+				afe4403_resume);
 
 static int afe4403_probe(struct spi_device *spi)
 {
@@ -494,10 +485,10 @@ static int afe4403_probe(struct spi_device *spi)
 	}
 
 	afe->regulator = devm_regulator_get(afe->dev, "tx_sup");
-	if (IS_ERR(afe->regulator)) {
-		dev_err(afe->dev, "Unable to get regulator\n");
-		return PTR_ERR(afe->regulator);
-	}
+	if (IS_ERR(afe->regulator))
+		return dev_err_probe(afe->dev, PTR_ERR(afe->regulator),
+				     "Unable to get regulator\n");
+
 	ret = regulator_enable(afe->regulator);
 	if (ret) {
 		dev_err(afe->dev, "Unable to enable regulator\n");
@@ -519,7 +510,6 @@ static int afe4403_probe(struct spi_device *spi)
 	}
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = afe->dev;
 	indio_dev->channels = afe4403_channels;
 	indio_dev->num_channels = ARRAY_SIZE(afe4403_channels);
 	indio_dev->name = AFE4403_DRIVER_NAME;
@@ -529,7 +519,7 @@ static int afe4403_probe(struct spi_device *spi)
 		afe->trig = devm_iio_trigger_alloc(afe->dev,
 						   "%s-dev%d",
 						   indio_dev->name,
-						   indio_dev->id);
+						   iio_device_id(indio_dev));
 		if (!afe->trig) {
 			dev_err(afe->dev, "Unable to allocate IIO trigger\n");
 			ret = -ENOMEM;
@@ -537,9 +527,6 @@ static int afe4403_probe(struct spi_device *spi)
 		}
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
-
-		afe->trig->ops = &afe4403_trigger_ops;
-		afe->trig->dev.parent = afe->dev;
 
 		ret = iio_trigger_register(afe->trig);
 		if (ret) {
@@ -584,7 +571,7 @@ err_disable_reg:
 	return ret;
 }
 
-static int afe4403_remove(struct spi_device *spi)
+static void afe4403_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct afe4403_data *afe = iio_priv(indio_dev);
@@ -598,12 +585,8 @@ static int afe4403_remove(struct spi_device *spi)
 		iio_trigger_unregister(afe->trig);
 
 	ret = regulator_disable(afe->regulator);
-	if (ret) {
-		dev_err(afe->dev, "Unable to disable regulator\n");
-		return ret;
-	}
-
-	return 0;
+	if (ret)
+		dev_warn(afe->dev, "Unable to disable regulator\n");
 }
 
 static const struct spi_device_id afe4403_ids[] = {
@@ -616,7 +599,7 @@ static struct spi_driver afe4403_spi_driver = {
 	.driver = {
 		.name = AFE4403_DRIVER_NAME,
 		.of_match_table = afe4403_of_match,
-		.pm = &afe4403_pm_ops,
+		.pm = pm_sleep_ptr(&afe4403_pm_ops),
 	},
 	.probe = afe4403_probe,
 	.remove = afe4403_remove,

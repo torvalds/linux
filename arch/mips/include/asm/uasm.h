@@ -86,14 +86,18 @@ Ip_u2u1(_ctcmsa);
 Ip_u2u1s3(_daddiu);
 Ip_u3u1u2(_daddu);
 Ip_u1u2(_ddivu);
+Ip_u3u1u2(_ddivu_r6);
 Ip_u1(_di);
 Ip_u2u1msbu3(_dins);
 Ip_u2u1msbu3(_dinsm);
 Ip_u2u1msbu3(_dinsu);
 Ip_u1u2(_divu);
+Ip_u3u1u2(_divu_r6);
 Ip_u1u2u3(_dmfc0);
+Ip_u3u1u2(_dmodu);
 Ip_u1u2u3(_dmtc0);
 Ip_u1u2(_dmultu);
+Ip_u3u1u2(_dmulu);
 Ip_u2u1u3(_drotr);
 Ip_u2u1u3(_drotr32);
 Ip_u2u1(_dsbh);
@@ -131,6 +135,7 @@ Ip_u1u2u3(_mfc0);
 Ip_u1u2u3(_mfhc0);
 Ip_u1(_mfhi);
 Ip_u1(_mflo);
+Ip_u3u1u2(_modu);
 Ip_u3u1u2(_movn);
 Ip_u3u1u2(_movz);
 Ip_u1u2u3(_mtc0);
@@ -139,6 +144,8 @@ Ip_u1(_mthi);
 Ip_u1(_mtlo);
 Ip_u3u1u2(_mul);
 Ip_u1u2(_multu);
+Ip_u3u1u2(_mulu);
+Ip_u3u1u2(_muhu);
 Ip_u3u1u2(_nor);
 Ip_u3u1u2(_or);
 Ip_u2u1u3(_ori);
@@ -149,6 +156,8 @@ Ip_u2s3u1(_sb);
 Ip_u2s3u1(_sc);
 Ip_u2s3u1(_scd);
 Ip_u2s3u1(_sd);
+Ip_u3u1u2(_seleqz);
+Ip_u3u1u2(_selnez);
 Ip_u2s3u1(_sh);
 Ip_u2u1u3(_sll);
 Ip_u3u2u1(_sllv);
@@ -240,7 +249,11 @@ static inline void uasm_l##lb(struct uasm_label **lab, u32 *addr)	\
 #define uasm_i_bnezl(buf, rs, off) uasm_i_bnel(buf, rs, 0, off)
 #define uasm_i_ehb(buf) uasm_i_sll(buf, 0, 0, 3)
 #define uasm_i_move(buf, a, b) UASM_i_ADDU(buf, a, 0, b)
+#ifdef CONFIG_CPU_NOP_WORKAROUNDS
+#define uasm_i_nop(buf) uasm_i_or(buf, 1, 1, 0)
+#else
 #define uasm_i_nop(buf) uasm_i_sll(buf, 0, 0, 0)
+#endif
 #define uasm_i_ssnop(buf) uasm_i_sll(buf, 0, 0, 1)
 
 static inline void uasm_i_drotr_safe(u32 **p, unsigned int a1,

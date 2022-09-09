@@ -1,19 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-dove/mpp.c
  *
  * MPP functions for Marvell Dove SoCs
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <plat/mpp.h>
-#include <mach/dove.h>
 #include <plat/orion-gpio.h>
+#include "dove.h"
 #include "mpp.h"
 
 struct dove_mpp_grp {

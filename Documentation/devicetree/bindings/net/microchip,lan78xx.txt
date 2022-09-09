@@ -7,9 +7,8 @@ The Device Tree properties, if present, override the OTP and EEPROM.
 Required properties:
 - compatible: Should be one of "usb424,7800", "usb424,7801" or "usb424,7850".
 
-Optional properties:
-- local-mac-address:   see ethernet.txt
-- mac-address:         see ethernet.txt
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Optional properties of the embedded PHY:
 - microchip,led-modes: a 0..4 element vector, with each element configuring

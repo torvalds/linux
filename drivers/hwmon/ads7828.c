@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ads7828.c - driver for TI ADS7828 8-channel A/D converter and compatibles
  * (C) 2007 EADS Astrium
@@ -8,21 +9,7 @@
  *
  * ADS7830 support, by Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
  *
- * For further information, see the Documentation/hwmon/ads7828 file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * For further information, see the Documentation/hwmon/ads7828.rst file.
  */
 
 #include <linux/err.h>
@@ -112,8 +99,9 @@ static const struct regmap_config ads2830_regmap_config = {
 	.val_bits = 8,
 };
 
-static int ads7828_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id ads7828_device_ids[];
+
+static int ads7828_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ads7828_platform_data *pdata = dev_get_platdata(dev);
@@ -154,7 +142,7 @@ static int ads7828_probe(struct i2c_client *client,
 		chip = (enum ads7828_chips)
 			of_device_get_match_data(&client->dev);
 	else
-		chip = id->driver_data;
+		chip = i2c_match_id(ads7828_device_ids, client)->driver_data;
 
 	/* Bound Vref with min/max values */
 	vref_mv = clamp_val(vref_mv, ADS7828_EXT_VREF_MV_MIN,
@@ -200,7 +188,7 @@ static const struct i2c_device_id ads7828_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ads7828_device_ids);
 
-static const struct of_device_id ads7828_of_match[] = {
+static const struct of_device_id __maybe_unused ads7828_of_match[] = {
 	{
 		.compatible = "ti,ads7828",
 		.data = (void *)ads7828
@@ -220,7 +208,7 @@ static struct i2c_driver ads7828_driver = {
 	},
 
 	.id_table = ads7828_device_ids,
-	.probe = ads7828_probe,
+	.probe_new = ads7828_probe,
 };
 
 module_i2c_driver(ads7828_driver);

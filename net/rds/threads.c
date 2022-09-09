@@ -93,6 +93,7 @@ void rds_connect_path_complete(struct rds_conn_path *cp, int curr)
 		queue_delayed_work(rds_wq, &cp->cp_recv_w, 0);
 	}
 	rcu_read_unlock();
+	cp->cp_conn->c_proposed_version = RDS_PROTOCOL_VERSION;
 }
 EXPORT_SYMBOL_GPL(rds_connect_path_complete);
 
@@ -207,6 +208,7 @@ void rds_send_worker(struct work_struct *work)
 		case -ENOMEM:
 			rds_stats_inc(s_send_delayed_retry);
 			queue_delayed_work(rds_wq, &cp->cp_send_w, 2);
+			break;
 		default:
 			break;
 		}
@@ -231,6 +233,7 @@ void rds_recv_worker(struct work_struct *work)
 		case -ENOMEM:
 			rds_stats_inc(s_recv_delayed_retry);
 			queue_delayed_work(rds_wq, &cp->cp_recv_w, 2);
+			break;
 		default:
 			break;
 		}

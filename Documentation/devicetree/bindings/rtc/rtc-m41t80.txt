@@ -21,10 +21,19 @@ Optional properties:
                       clock name
 - wakeup-source: Enables wake up of host system on alarm
 
+Optional child node:
+- clock: Provide this if the square wave pin is used as boot-enabled fixed clock.
+
 Example:
 	rtc@68 {
 		compatible = "st,m41t80";
 		reg = <0x68>;
 		interrupt-parent = <&UIC0>;
 		interrupts = <0x9 0x8>;
+
+		clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifdef HAVE_EVENTFD
+#ifdef HAVE_EVENTFD_SUPPORT
 /*
  * Copyright (C) 2018 Davidlohr Bueso.
  *
@@ -17,7 +17,7 @@
  * While the second model, enabled via --multiq option, uses multiple
  * queueing (which refers to one epoll instance per worker). For example,
  * short lived tcp connections in a high throughput httpd server will
- * ditribute the accept()'ing  connections across CPUs. In this case each
+ * distribute the accept()'ing  connections across CPUs. In this case each
  * worker does a limited  amount of processing.
  *
  *             [queue A]  ---> [worker]
@@ -63,6 +63,7 @@
 /* For the CLR_() macros */
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -75,11 +76,11 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/types.h>
+#include <perf/cpumap.h>
 
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
 #include "bench.h"
-#include "cpumap.h"
 
 #include <err.h>
 
@@ -88,7 +89,6 @@
 
 static unsigned int nthreads = 0;
 static unsigned int nsecs    = 8;
-struct timeval start, end, runtime;
 static bool wdone, done, __verbose, randomize, nonblocking;
 
 /*
@@ -198,7 +198,7 @@ static void *workerfn(void *arg)
 
 	do {
 		/*
-		 * Block undefinitely waiting for the IN event.
+		 * Block indefinitely waiting for the IN event.
 		 * In order to stress the epoll_wait(2) syscall,
 		 * call it event per event, instead of a larger
 		 * batch (max)limit.
@@ -274,8 +274,8 @@ static void toggle_done(int sig __maybe_unused,
 {
 	/* inform all threads that we're done for the day */
 	done = true;
-	gettimeofday(&end, NULL);
-	timersub(&end, &start, &runtime);
+	gettimeofday(&bench__end, NULL);
+	timersub(&bench__end, &bench__start, &bench__runtime);
 }
 
 static void print_summary(void)
@@ -285,15 +285,17 @@ static void print_summary(void)
 
 	printf("\nAveraged %ld operations/sec (+- %.2f%%), total secs = %d\n",
 	       avg, rel_stddev_stats(stddev, avg),
-	       (int) runtime.tv_sec);
+	       (int)bench__runtime.tv_sec);
 }
 
-static int do_threads(struct worker *worker, struct cpu_map *cpu)
+static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 {
 	pthread_attr_t thread_attr, *attrp = NULL;
-	cpu_set_t cpuset;
+	cpu_set_t *cpuset;
 	unsigned int i, j;
-	int ret, events = EPOLLIN;
+	int ret = 0, events = EPOLLIN;
+	int nrcpus;
+	size_t size;
 
 	if (oneshot)
 		events |= EPOLLONESHOT;
@@ -305,6 +307,11 @@ static int do_threads(struct worker *worker, struct cpu_map *cpu)
 		  nonblocking ? " (nonblocking)":"");
 	if (!noaffinity)
 		pthread_attr_init(&thread_attr);
+
+	nrcpus = perf_cpu_map__nr(cpu);
+	cpuset = CPU_ALLOC(nrcpus);
+	BUG_ON(!cpuset);
+	size = CPU_ALLOC_SIZE(nrcpus);
 
 	for (i = 0; i < nthreads; i++) {
 		struct worker *w = &worker[i];
@@ -341,22 +348,28 @@ static int do_threads(struct worker *worker, struct cpu_map *cpu)
 		}
 
 		if (!noaffinity) {
-			CPU_ZERO(&cpuset);
-			CPU_SET(cpu->map[i % cpu->nr], &cpuset);
+			CPU_ZERO_S(size, cpuset);
+			CPU_SET_S(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu,
+					size, cpuset);
 
-			ret = pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpuset);
-			if (ret)
+			ret = pthread_attr_setaffinity_np(&thread_attr, size, cpuset);
+			if (ret) {
+				CPU_FREE(cpuset);
 				err(EXIT_FAILURE, "pthread_attr_setaffinity_np");
+			}
 
 			attrp = &thread_attr;
 		}
 
 		ret = pthread_create(&w->thread, attrp, workerfn,
 				     (void *)(struct worker *) w);
-		if (ret)
+		if (ret) {
+			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_create");
+		}
 	}
 
+	CPU_FREE(cpuset);
 	if (!noaffinity)
 		pthread_attr_destroy(&thread_attr);
 
@@ -415,7 +428,7 @@ int bench_epoll_wait(int argc, const char **argv)
 	struct sigaction act;
 	unsigned int i;
 	struct worker *worker = NULL;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 	pthread_t wthread;
 	struct rlimit rl, prevrl;
 
@@ -425,11 +438,12 @@ int bench_epoll_wait(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	memset(&act, 0, sizeof(act));
 	sigfillset(&act.sa_mask);
 	act.sa_sigaction = toggle_done;
 	sigaction(SIGINT, &act, NULL);
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		goto errmem;
 
@@ -451,7 +465,7 @@ int bench_epoll_wait(int argc, const char **argv)
 
 	/* default to the number of CPUs and leave one for the writer pthread */
 	if (!nthreads)
-		nthreads = cpu->nr - 1;
+		nthreads = perf_cpu_map__nr(cpu) - 1;
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker) {
@@ -477,7 +491,7 @@ int bench_epoll_wait(int argc, const char **argv)
 
 	threads_starting = nthreads;
 
-	gettimeofday(&start, NULL);
+	gettimeofday(&bench__start, NULL);
 
 	do_threads(worker, cpu);
 
@@ -517,7 +531,8 @@ int bench_epoll_wait(int argc, const char **argv)
 		qsort(worker, nthreads, sizeof(struct worker), cmpworker);
 
 	for (i = 0; i < nthreads; i++) {
-		unsigned long t = worker[i].ops/runtime.tv_sec;
+		unsigned long t = bench__runtime.tv_sec > 0 ?
+			worker[i].ops / bench__runtime.tv_sec : 0;
 
 		update_stats(&throughput_stats, t);
 
@@ -537,4 +552,4 @@ int bench_epoll_wait(int argc, const char **argv)
 errmem:
 	err(EXIT_FAILURE, "calloc");
 }
-#endif // HAVE_EVENTFD
+#endif // HAVE_EVENTFD_SUPPORT

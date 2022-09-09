@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic PowerPC 40x platform support
  *
  * Copyright 2008 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License.
  *
  * This implements simple platform support for PowerPC 44x chips.  This is
  * mostly used for eval boards or other simple and "generic" 44x boards.  If
@@ -16,7 +13,6 @@
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc4xx.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/udbg.h>
 #include <asm/uic.h>

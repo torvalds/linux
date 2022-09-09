@@ -1,4 +1,4 @@
-/*  SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 */
 /* mt9t112 Camera
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
@@ -14,7 +14,7 @@ struct mt9t112_pll_divider {
 };
 
 /**
- * mt9t112_platform_data -	mt9t112 driver interface
+ * struct mt9t112_platform_data - mt9t112 driver interface
  * @flags:			Sensor media bus configuration.
  * @divider:			Sensor PLL configuration
  */

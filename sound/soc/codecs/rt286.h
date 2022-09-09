@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt286.h  --  RT286 ALSA SoC audio driver
  *
  * Copyright 2011 Realtek Microelectronics
  * Author: Johnny Hsu <johnnyhsu@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __RT286_H__
@@ -198,8 +195,6 @@ enum {
 	RT286_AIF2,
 	RT286_AIFS,
 };
-
-int rt286_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack);
 
 #endif /* __RT286_H__ */
 

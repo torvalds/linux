@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/linux/sunrpc/cache.h
  *
@@ -5,9 +6,6 @@
  * used by sunrpc clients and servers.
  *
  * Copyright (C) 2002 Neil Brown <neilb@cse.unsw.edu.au>
- *
- * Released under terms in GPL version 2.  See COPYING.
- *
  */
 
 #ifndef _LINUX_SUNRPC_CACHE_H_
@@ -16,6 +14,7 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
+#include <linux/kstrtox.h>
 #include <linux/proc_fs.h>
 
 /*
@@ -47,8 +46,9 @@
  */
 struct cache_head {
 	struct hlist_node	cache_list;
-	time_t		expiry_time;	/* After time time, don't use the data */
-	time_t		last_refresh;   /* If CACHE_PENDING, this is when upcall was
+	time64_t	expiry_time;	/* After time expiry_time, don't use
+					 * the data */
+	time64_t	last_refresh;   /* If CACHE_PENDING, this is when upcall was
 					 * sent, else this is when update was
 					 * received, though it is alway set to
 					 * be *after* ->flush_time.
@@ -89,6 +89,7 @@ struct cache_detail {
 					      int has_died);
 
 	struct cache_head *	(*alloc)(void);
+	void			(*flush)(void);
 	int			(*match)(struct cache_head *orig, struct cache_head *new);
 	void			(*init)(struct cache_head *orig, struct cache_head *new);
 	void			(*update)(struct cache_head *orig, struct cache_head *new);
@@ -96,22 +97,22 @@ struct cache_detail {
 	/* fields below this comment are for internal use
 	 * and should not be touched by cache owners
 	 */
-	time_t			flush_time;		/* flush all cache items with
+	time64_t		flush_time;		/* flush all cache items with
 							 * last_refresh at or earlier
 							 * than this.  last_refresh
 							 * is never set at or earlier
 							 * than this.
 							 */
 	struct list_head	others;
-	time_t			nextcheck;
+	time64_t		nextcheck;
 	int			entries;
 
 	/* fields for communication over channel */
 	struct list_head	queue;
 
-	atomic_t		readers;		/* how many time is /chennel open */
-	time_t			last_close;		/* if no readers, when did last close */
-	time_t			last_warn;		/* when we last warned about no readers */
+	atomic_t		writers;		/* how many time is /channel open */
+	time64_t		last_close;		/* if no writers, when did last close */
+	time64_t		last_warn;		/* when we last warned about no writers */
 
 	union {
 		struct proc_dir_entry	*procfs;
@@ -120,17 +121,17 @@ struct cache_detail {
 	struct net		*net;
 };
 
-
 /* this must be embedded in any request structure that
  * identifies an object that will want a callback on
  * a cache fill
  */
 struct cache_req {
 	struct cache_deferred_req *(*defer)(struct cache_req *req);
-	int thread_wait;  /* How long (jiffies) we can block the
-			   * current thread to wait for updates.
-			   */
+	unsigned long	thread_wait;	/* How long (jiffies) we can block the
+					 * current thread to wait for updates.
+					 */
 };
+
 /* this must be embedded in a deferred_request that is being
  * delayed awaiting cache-fill
  */
@@ -148,18 +149,22 @@ struct cache_deferred_req {
  * timestamps kept in the cache are expressed in seconds
  * since boot.  This is the best for measuring differences in
  * real time.
+ * This reimplemnts ktime_get_boottime_seconds() in a slightly
+ * faster but less accurate way. When we end up converting
+ * back to wallclock (CLOCK_REALTIME), that error often
+ * cancels out during the reverse operation.
  */
-static inline time_t seconds_since_boot(void)
+static inline time64_t seconds_since_boot(void)
 {
-	struct timespec boot;
-	getboottime(&boot);
-	return get_seconds() - boot.tv_sec;
+	struct timespec64 boot;
+	getboottime64(&boot);
+	return ktime_get_real_seconds() - boot.tv_sec;
 }
 
-static inline time_t convert_to_wallclock(time_t sinceboot)
+static inline time64_t convert_to_wallclock(time64_t sinceboot)
 {
-	struct timespec boot;
-	getboottime(&boot);
+	struct timespec64 boot;
+	getboottime64(&boot);
 	return boot.tv_sec + sinceboot;
 }
 
@@ -176,6 +181,9 @@ sunrpc_cache_update(struct cache_detail *detail,
 
 extern int
 sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h);
+extern int
+sunrpc_cache_pipe_upcall_timeout(struct cache_detail *detail,
+				 struct cache_head *h);
 
 
 extern void cache_clean_deferred(void *owner);
@@ -203,11 +211,11 @@ static inline void cache_put(struct cache_head *h, struct cache_detail *cd)
 
 static inline bool cache_is_expired(struct cache_detail *detail, struct cache_head *h)
 {
+	if (h->expiry_time < seconds_since_boot())
+		return true;
 	if (!test_bit(CACHE_VALID, &h->flags))
 		return false;
-
-	return  (h->expiry_time < seconds_since_boot()) ||
-		(detail->flush_time >= h->last_refresh);
+	return detail->flush_time >= h->last_refresh;
 }
 
 extern int cache_check(struct cache_detail *detail,
@@ -274,7 +282,7 @@ static inline int get_uint(char **bpp, unsigned int *anint)
 	return 0;
 }
 
-static inline int get_time(char **bpp, time_t *time)
+static inline int get_time(char **bpp, time64_t *time)
 {
 	char buf[50];
 	long long ll;
@@ -288,20 +296,20 @@ static inline int get_time(char **bpp, time_t *time)
 	if (kstrtoll(buf, 0, &ll))
 		return -EINVAL;
 
-	*time = (time_t)ll;
+	*time = ll;
 	return 0;
 }
 
-static inline time_t get_expiry(char **bpp)
+static inline time64_t get_expiry(char **bpp)
 {
-	time_t rv;
-	struct timespec boot;
+	time64_t rv;
+	struct timespec64 boot;
 
 	if (get_time(bpp, &rv))
 		return 0;
 	if (rv < 0)
 		return 0;
-	getboottime(&boot);
+	getboottime64(&boot);
 	return rv - boot.tv_sec;
 }
 

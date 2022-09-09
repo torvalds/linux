@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/balloon3.c
  *
@@ -7,10 +8,6 @@
  *  Created:	June, 2006
  *  Copyright:	Toby Churchill Ltd
  *  Derived from mainstone.c, by Nico Pitre
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
@@ -35,7 +32,7 @@
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -43,8 +40,8 @@
 #include <asm/mach/flash.h>
 
 #include "pxa27x.h"
-#include <mach/balloon3.h>
-#include <mach/audio.h>
+#include "balloon3.h"
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"

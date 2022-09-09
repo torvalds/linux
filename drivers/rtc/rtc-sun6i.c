@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * An RTC driver for Allwinner A31/A23
  *
@@ -8,20 +9,11 @@
  * An RTC driver for Allwinner A10/A20
  *
  * Copyright (c) 2013, Carlo Caione <carlo.caione@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/clk/sunxi-ng.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -41,9 +33,11 @@
 /* Control register */
 #define SUN6I_LOSC_CTRL				0x0000
 #define SUN6I_LOSC_CTRL_KEY			(0x16aa << 16)
+#define SUN6I_LOSC_CTRL_AUTO_SWT_BYPASS		BIT(15)
 #define SUN6I_LOSC_CTRL_ALM_DHMS_ACC		BIT(9)
 #define SUN6I_LOSC_CTRL_RTC_HMS_ACC		BIT(8)
 #define SUN6I_LOSC_CTRL_RTC_YMD_ACC		BIT(7)
+#define SUN6I_LOSC_CTRL_EXT_LOSC_EN		BIT(4)
 #define SUN6I_LOSC_CTRL_EXT_OSC			BIT(0)
 #define SUN6I_LOSC_CTRL_ACC_MASK		GENMASK(9, 7)
 
@@ -55,7 +49,8 @@
 
 /* Alarm 0 (counter) */
 #define SUN6I_ALRM_COUNTER			0x0020
-#define SUN6I_ALRM_CUR_VAL			0x0024
+/* This holds the remaining alarm seconds on older SoCs (current value) */
+#define SUN6I_ALRM_COUNTER_HMS			0x0024
 #define SUN6I_ALRM_EN				0x0028
 #define SUN6I_ALRM_EN_CNT_EN			BIT(0)
 #define SUN6I_ALRM_IRQ_EN			0x002c
@@ -75,6 +70,10 @@
 
 #define SUN6I_LOSC_OUT_GATING			0x0060
 #define SUN6I_LOSC_OUT_GATING_EN_OFFSET		0
+
+/* General-purpose data */
+#define SUN6I_GP_DATA				0x0100
+#define SUN6I_GP_DATA_SIZE			0x20
 
 /*
  * Get date values
@@ -115,8 +114,9 @@
  * driver, even though it is somewhat limited.
  */
 #define SUN6I_YEAR_MIN				1970
-#define SUN6I_YEAR_MAX				2033
 #define SUN6I_YEAR_OFF				(SUN6I_YEAR_MIN - 1900)
+
+#define SECS_PER_DAY				(24 * 3600ULL)
 
 /*
  * There are other differences between models, including:
@@ -137,15 +137,19 @@ struct sun6i_rtc_clk_data {
 	unsigned int has_prescaler : 1;
 	unsigned int has_out_clk : 1;
 	unsigned int export_iosc : 1;
+	unsigned int has_losc_en : 1;
+	unsigned int has_auto_swt : 1;
 };
+
+#define RTC_LINEAR_DAY	BIT(0)
 
 struct sun6i_rtc_dev {
 	struct rtc_device *rtc;
-	struct device *dev;
 	const struct sun6i_rtc_clk_data *data;
 	void __iomem *base;
 	int irq;
-	unsigned long alarm;
+	time64_t alarm;
+	unsigned long flags;
 
 	struct clk_hw hw;
 	struct clk_hw *int_osc;
@@ -199,6 +203,10 @@ static int sun6i_rtc_osc_set_parent(struct clk_hw *hw, u8 index)
 	val &= ~SUN6I_LOSC_CTRL_EXT_OSC;
 	val |= SUN6I_LOSC_CTRL_KEY;
 	val |= index ? SUN6I_LOSC_CTRL_EXT_OSC : 0;
+	if (rtc->data->has_losc_en) {
+		val &= ~SUN6I_LOSC_CTRL_EXT_LOSC_EN;
+		val |= index ? SUN6I_LOSC_CTRL_EXT_LOSC_EN : 0;
+	}
 	writel(val, rtc->base + SUN6I_LOSC_CTRL);
 	spin_unlock_irqrestore(&rtc->lock, flags);
 
@@ -224,6 +232,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	const char *iosc_name = "rtc-int-osc";
 	const char *clkout_name = "osc32k-out";
 	const char *parents[2];
+	u32 reg;
 
 	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
@@ -244,16 +253,23 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 		goto err;
 	}
 
-	/* Switch to the external, more precise, oscillator */
-	writel(SUN6I_LOSC_CTRL_KEY | SUN6I_LOSC_CTRL_EXT_OSC,
-	       rtc->base + SUN6I_LOSC_CTRL);
+	reg = SUN6I_LOSC_CTRL_KEY;
+	if (rtc->data->has_auto_swt) {
+		/* Bypass auto-switch to int osc, on ext losc failure */
+		reg |= SUN6I_LOSC_CTRL_AUTO_SWT_BYPASS;
+		writel(reg, rtc->base + SUN6I_LOSC_CTRL);
+	}
+
+	/* Switch to the external, more precise, oscillator, if present */
+	if (of_get_property(node, "clocks", NULL)) {
+		reg |= SUN6I_LOSC_CTRL_EXT_OSC;
+		if (rtc->data->has_losc_en)
+			reg |= SUN6I_LOSC_CTRL_EXT_LOSC_EN;
+	}
+	writel(reg, rtc->base + SUN6I_LOSC_CTRL);
 
 	/* Yes, I know, this is ugly. */
 	sun6i_rtc = rtc;
-
-	/* Deal with old DTs */
-	if (!of_get_property(node, "clocks", NULL))
-		goto err;
 
 	/* Only read IOSC name from device tree if it is exported */
 	if (rtc->data->export_iosc)
@@ -267,15 +283,17 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 								300000000);
 	if (IS_ERR(rtc->int_osc)) {
 		pr_crit("Couldn't register the internal oscillator\n");
-		return;
+		goto err;
 	}
 
 	parents[0] = clk_hw_get_name(rtc->int_osc);
+	/* If there is no external oscillator, this will be NULL and ... */
 	parents[1] = of_clk_get_parent_name(node, 0);
 
 	rtc->hw.init = &init;
 
 	init.parent_names = parents;
+	/* ... number of clock parents will be 1. */
 	init.num_parents = of_clk_get_parent_count(node) + 1;
 	of_property_read_string_index(node, "clock-output-names", 0,
 				      &init.name);
@@ -283,18 +301,18 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	rtc->losc = clk_register(NULL, &rtc->hw);
 	if (IS_ERR(rtc->losc)) {
 		pr_crit("Couldn't register the LOSC clock\n");
-		return;
+		goto err_register;
 	}
 
 	of_property_read_string_index(node, "clock-output-names", 1,
 				      &clkout_name);
-	rtc->ext_losc = clk_register_gate(NULL, clkout_name, rtc->hw.init->name,
+	rtc->ext_losc = clk_register_gate(NULL, clkout_name, init.name,
 					  0, rtc->base + SUN6I_LOSC_OUT_GATING,
 					  SUN6I_LOSC_OUT_GATING_EN_OFFSET, 0,
 					  &rtc->lock);
 	if (IS_ERR(rtc->ext_losc)) {
 		pr_crit("Couldn't register the LOSC external gate\n");
-		return;
+		goto err_register;
 	}
 
 	clk_data->num = 2;
@@ -307,6 +325,8 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	return;
 
+err_register:
+	clk_hw_unregister_fixed_rate(rtc->int_osc);
 err:
 	kfree(clk_data);
 }
@@ -353,6 +373,39 @@ CLK_OF_DECLARE_DRIVER(sun8i_h3_rtc_clk, "allwinner,sun8i-h3-rtc",
 /* As far as we are concerned, clocks for H5 are the same as H3 */
 CLK_OF_DECLARE_DRIVER(sun50i_h5_rtc_clk, "allwinner,sun50i-h5-rtc",
 		      sun8i_h3_rtc_clk_init);
+
+static const struct sun6i_rtc_clk_data sun50i_h6_rtc_data = {
+	.rc_osc_rate = 16000000,
+	.fixed_prescaler = 32,
+	.has_prescaler = 1,
+	.has_out_clk = 1,
+	.export_iosc = 1,
+	.has_losc_en = 1,
+	.has_auto_swt = 1,
+};
+
+static void __init sun50i_h6_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun50i_h6_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun50i_h6_rtc_clk, "allwinner,sun50i-h6-rtc",
+		      sun50i_h6_rtc_clk_init);
+
+/*
+ * The R40 user manual is self-conflicting on whether the prescaler is
+ * fixed or configurable. The clock diagram shows it as fixed, but there
+ * is also a configurable divider in the RTC block.
+ */
+static const struct sun6i_rtc_clk_data sun8i_r40_rtc_data = {
+	.rc_osc_rate = 16000000,
+	.fixed_prescaler = 512,
+};
+static void __init sun8i_r40_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_r40_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_r40_rtc_clk, "allwinner,sun8i-r40-rtc",
+		      sun8i_r40_rtc_clk_init);
 
 static const struct sun6i_rtc_clk_data sun8i_v3_rtc_data = {
 	.rc_osc_rate = 32000,
@@ -425,21 +478,29 @@ static int sun6i_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 	} while ((date != readl(chip->base + SUN6I_RTC_YMD)) ||
 		 (time != readl(chip->base + SUN6I_RTC_HMS)));
 
+	if (chip->flags & RTC_LINEAR_DAY) {
+		/*
+		 * Newer chips store a linear day number, the manual
+		 * does not mandate any epoch base. The BSP driver uses
+		 * the UNIX epoch, let's just copy that, as it's the
+		 * easiest anyway.
+		 */
+		rtc_time64_to_tm((date & 0xffff) * SECS_PER_DAY, rtc_tm);
+	} else {
+		rtc_tm->tm_mday = SUN6I_DATE_GET_DAY_VALUE(date);
+		rtc_tm->tm_mon  = SUN6I_DATE_GET_MON_VALUE(date) - 1;
+		rtc_tm->tm_year = SUN6I_DATE_GET_YEAR_VALUE(date);
+
+		/*
+		 * switch from (data_year->min)-relative offset to
+		 * a (1900)-relative one
+		 */
+		rtc_tm->tm_year += SUN6I_YEAR_OFF;
+	}
+
 	rtc_tm->tm_sec  = SUN6I_TIME_GET_SEC_VALUE(time);
 	rtc_tm->tm_min  = SUN6I_TIME_GET_MIN_VALUE(time);
 	rtc_tm->tm_hour = SUN6I_TIME_GET_HOUR_VALUE(time);
-
-	rtc_tm->tm_mday = SUN6I_DATE_GET_DAY_VALUE(date);
-	rtc_tm->tm_mon  = SUN6I_DATE_GET_MON_VALUE(date);
-	rtc_tm->tm_year = SUN6I_DATE_GET_YEAR_VALUE(date);
-
-	rtc_tm->tm_mon  -= 1;
-
-	/*
-	 * switch from (data_year->min)-relative offset to
-	 * a (1900)-relative one
-	 */
-	rtc_tm->tm_year += SUN6I_YEAR_OFF;
 
 	return 0;
 }
@@ -458,7 +519,7 @@ static int sun6i_rtc_getalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 
 	wkalrm->enabled = !!(alrm_en & SUN6I_ALRM_EN_CNT_EN);
 	wkalrm->pending = !!(alrm_st & SUN6I_ALRM_EN_CNT_EN);
-	rtc_time_to_tm(chip->alarm, &wkalrm->time);
+	rtc_time64_to_tm(chip->alarm, &wkalrm->time);
 
 	return 0;
 }
@@ -468,36 +529,54 @@ static int sun6i_rtc_setalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	struct sun6i_rtc_dev *chip = dev_get_drvdata(dev);
 	struct rtc_time *alrm_tm = &wkalrm->time;
 	struct rtc_time tm_now;
-	unsigned long time_now = 0;
-	unsigned long time_set = 0;
-	unsigned long time_gap = 0;
-	int ret = 0;
+	time64_t time_set;
+	u32 counter_val, counter_val_hms;
+	int ret;
 
-	ret = sun6i_rtc_gettime(dev, &tm_now);
-	if (ret < 0) {
-		dev_err(dev, "Error in getting time\n");
-		return -EINVAL;
-	}
+	time_set = rtc_tm_to_time64(alrm_tm);
 
-	rtc_tm_to_time(alrm_tm, &time_set);
-	rtc_tm_to_time(&tm_now, &time_now);
-	if (time_set <= time_now) {
-		dev_err(dev, "Date to set in the past\n");
-		return -EINVAL;
-	}
+	if (chip->flags & RTC_LINEAR_DAY) {
+		/*
+		 * The alarm registers hold the actual alarm time, encoded
+		 * in the same way (linear day + HMS) as the current time.
+		 */
+		counter_val_hms = SUN6I_TIME_SET_SEC_VALUE(alrm_tm->tm_sec)  |
+				  SUN6I_TIME_SET_MIN_VALUE(alrm_tm->tm_min)  |
+				  SUN6I_TIME_SET_HOUR_VALUE(alrm_tm->tm_hour);
+		/* The division will cut off the H:M:S part of alrm_tm. */
+		counter_val = div_u64(rtc_tm_to_time64(alrm_tm), SECS_PER_DAY);
+	} else {
+		/* The alarm register holds the number of seconds left. */
+		time64_t time_now;
 
-	time_gap = time_set - time_now;
+		ret = sun6i_rtc_gettime(dev, &tm_now);
+		if (ret < 0) {
+			dev_err(dev, "Error in getting time\n");
+			return -EINVAL;
+		}
 
-	if (time_gap > U32_MAX) {
-		dev_err(dev, "Date too far in the future\n");
-		return -EINVAL;
+		time_now = rtc_tm_to_time64(&tm_now);
+		if (time_set <= time_now) {
+			dev_err(dev, "Date to set in the past\n");
+			return -EINVAL;
+		}
+		if ((time_set - time_now) > U32_MAX) {
+			dev_err(dev, "Date too far in the future\n");
+			return -EINVAL;
+		}
+
+		counter_val = time_set - time_now;
 	}
 
 	sun6i_rtc_setaie(0, chip);
 	writel(0, chip->base + SUN6I_ALRM_COUNTER);
+	if (chip->flags & RTC_LINEAR_DAY)
+		writel(0, chip->base + SUN6I_ALRM_COUNTER_HMS);
 	usleep_range(100, 300);
 
-	writel(time_gap, chip->base + SUN6I_ALRM_COUNTER);
+	writel(counter_val, chip->base + SUN6I_ALRM_COUNTER);
+	if (chip->flags & RTC_LINEAR_DAY)
+		writel(counter_val_hms, chip->base + SUN6I_ALRM_COUNTER_HMS);
 	chip->alarm = time_set;
 
 	sun6i_rtc_setaie(wkalrm->enabled, chip);
@@ -528,28 +607,25 @@ static int sun6i_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 	struct sun6i_rtc_dev *chip = dev_get_drvdata(dev);
 	u32 date = 0;
 	u32 time = 0;
-	int year;
-
-	year = rtc_tm->tm_year + 1900;
-	if (year < SUN6I_YEAR_MIN || year > SUN6I_YEAR_MAX) {
-		dev_err(dev, "rtc only supports year in range %d - %d\n",
-			SUN6I_YEAR_MIN, SUN6I_YEAR_MAX);
-		return -EINVAL;
-	}
-
-	rtc_tm->tm_year -= SUN6I_YEAR_OFF;
-	rtc_tm->tm_mon += 1;
-
-	date = SUN6I_DATE_SET_DAY_VALUE(rtc_tm->tm_mday) |
-		SUN6I_DATE_SET_MON_VALUE(rtc_tm->tm_mon)  |
-		SUN6I_DATE_SET_YEAR_VALUE(rtc_tm->tm_year);
-
-	if (is_leap_year(year))
-		date |= SUN6I_LEAP_SET_VALUE(1);
 
 	time = SUN6I_TIME_SET_SEC_VALUE(rtc_tm->tm_sec)  |
 		SUN6I_TIME_SET_MIN_VALUE(rtc_tm->tm_min)  |
 		SUN6I_TIME_SET_HOUR_VALUE(rtc_tm->tm_hour);
+
+	if (chip->flags & RTC_LINEAR_DAY) {
+		/* The division will cut off the H:M:S part of rtc_tm. */
+		date = div_u64(rtc_tm_to_time64(rtc_tm), SECS_PER_DAY);
+	} else {
+		rtc_tm->tm_year -= SUN6I_YEAR_OFF;
+		rtc_tm->tm_mon += 1;
+
+		date = SUN6I_DATE_SET_DAY_VALUE(rtc_tm->tm_mday) |
+			SUN6I_DATE_SET_MON_VALUE(rtc_tm->tm_mon)  |
+			SUN6I_DATE_SET_YEAR_VALUE(rtc_tm->tm_year);
+
+		if (is_leap_year(rtc_tm->tm_year + SUN6I_YEAR_MIN))
+			date |= SUN6I_LEAP_SET_VALUE(1);
+	}
 
 	/* Check whether registers are writable */
 	if (sun6i_rtc_wait(chip, SUN6I_LOSC_CTRL,
@@ -607,22 +683,120 @@ static const struct rtc_class_ops sun6i_rtc_ops = {
 	.alarm_irq_enable	= sun6i_rtc_alarm_irq_enable
 };
 
+static int sun6i_rtc_nvmem_read(void *priv, unsigned int offset, void *_val, size_t bytes)
+{
+	struct sun6i_rtc_dev *chip = priv;
+	u32 *val = _val;
+	int i;
+
+	for (i = 0; i < bytes / 4; ++i)
+		val[i] = readl(chip->base + SUN6I_GP_DATA + offset + 4 * i);
+
+	return 0;
+}
+
+static int sun6i_rtc_nvmem_write(void *priv, unsigned int offset, void *_val, size_t bytes)
+{
+	struct sun6i_rtc_dev *chip = priv;
+	u32 *val = _val;
+	int i;
+
+	for (i = 0; i < bytes / 4; ++i)
+		writel(val[i], chip->base + SUN6I_GP_DATA + offset + 4 * i);
+
+	return 0;
+}
+
+static struct nvmem_config sun6i_rtc_nvmem_cfg = {
+	.type		= NVMEM_TYPE_BATTERY_BACKED,
+	.reg_read	= sun6i_rtc_nvmem_read,
+	.reg_write	= sun6i_rtc_nvmem_write,
+	.size		= SUN6I_GP_DATA_SIZE,
+	.word_size	= 4,
+	.stride		= 4,
+};
+
+#ifdef CONFIG_PM_SLEEP
+/* Enable IRQ wake on suspend, to wake up from RTC. */
+static int sun6i_rtc_suspend(struct device *dev)
+{
+	struct sun6i_rtc_dev *chip = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(chip->irq);
+
+	return 0;
+}
+
+/* Disable IRQ wake on resume. */
+static int sun6i_rtc_resume(struct device *dev)
+{
+	struct sun6i_rtc_dev *chip = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(chip->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(sun6i_rtc_pm_ops,
+	sun6i_rtc_suspend, sun6i_rtc_resume);
+
+static void sun6i_rtc_bus_clk_cleanup(void *data)
+{
+	struct clk *bus_clk = data;
+
+	clk_disable_unprepare(bus_clk);
+}
+
 static int sun6i_rtc_probe(struct platform_device *pdev)
 {
 	struct sun6i_rtc_dev *chip = sun6i_rtc;
+	struct device *dev = &pdev->dev;
+	struct clk *bus_clk;
 	int ret;
 
-	if (!chip)
-		return -ENODEV;
+	bus_clk = devm_clk_get_optional(dev, "bus");
+	if (IS_ERR(bus_clk))
+		return PTR_ERR(bus_clk);
+
+	if (bus_clk) {
+		ret = clk_prepare_enable(bus_clk);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(dev, sun6i_rtc_bus_clk_cleanup,
+					       bus_clk);
+		if (ret)
+			return ret;
+	}
+
+	if (!chip) {
+		chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+		if (!chip)
+			return -ENOMEM;
+
+		spin_lock_init(&chip->lock);
+
+		chip->base = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(chip->base))
+			return PTR_ERR(chip->base);
+
+		if (IS_REACHABLE(CONFIG_SUN6I_RTC_CCU)) {
+			ret = sun6i_rtc_ccu_probe(dev, chip->base);
+			if (ret)
+				return ret;
+		}
+	}
 
 	platform_set_drvdata(pdev, chip);
-	chip->dev = &pdev->dev;
+
+	chip->flags = (unsigned long)of_device_get_match_data(&pdev->dev);
 
 	chip->irq = platform_get_irq(pdev, 0);
-	if (chip->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (chip->irq < 0)
 		return chip->irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, chip->irq, sun6i_rtc_alarmirq,
 			       0, dev_name(&pdev->dev), chip);
@@ -659,12 +833,26 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(chip->losc);
 
-	chip->rtc = devm_rtc_device_register(&pdev->dev, "rtc-sun6i",
-					     &sun6i_rtc_ops, THIS_MODULE);
-	if (IS_ERR(chip->rtc)) {
-		dev_err(&pdev->dev, "unable to register device\n");
+	device_init_wakeup(&pdev->dev, 1);
+
+	chip->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(chip->rtc))
 		return PTR_ERR(chip->rtc);
-	}
+
+	chip->rtc->ops = &sun6i_rtc_ops;
+	if (chip->flags & RTC_LINEAR_DAY)
+		chip->rtc->range_max = (65536 * SECS_PER_DAY) - 1;
+	else
+		chip->rtc->range_max = 2019686399LL; /* 2033-12-31 23:59:59 */
+
+	ret = devm_rtc_register_device(chip->rtc);
+	if (ret)
+		return ret;
+
+	sun6i_rtc_nvmem_cfg.priv = chip;
+	ret = devm_rtc_nvmem_register(chip->rtc, &sun6i_rtc_nvmem_cfg);
+	if (ret)
+		return ret;
 
 	dev_info(&pdev->dev, "RTC enabled\n");
 
@@ -681,8 +869,14 @@ static const struct of_device_id sun6i_rtc_dt_ids[] = {
 	{ .compatible = "allwinner,sun6i-a31-rtc" },
 	{ .compatible = "allwinner,sun8i-a23-rtc" },
 	{ .compatible = "allwinner,sun8i-h3-rtc" },
+	{ .compatible = "allwinner,sun8i-r40-rtc" },
 	{ .compatible = "allwinner,sun8i-v3-rtc" },
 	{ .compatible = "allwinner,sun50i-h5-rtc" },
+	{ .compatible = "allwinner,sun50i-h6-rtc" },
+	{ .compatible = "allwinner,sun50i-h616-rtc",
+		.data = (void *)RTC_LINEAR_DAY },
+	{ .compatible = "allwinner,sun50i-r329-rtc",
+		.data = (void *)RTC_LINEAR_DAY },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sun6i_rtc_dt_ids);
@@ -692,6 +886,7 @@ static struct platform_driver sun6i_rtc_driver = {
 	.driver		= {
 		.name		= "sun6i-rtc",
 		.of_match_table = sun6i_rtc_dt_ids,
+		.pm = &sun6i_rtc_pm_ops,
 	},
 };
 builtin_platform_driver(sun6i_rtc_driver);

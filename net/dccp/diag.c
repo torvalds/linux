@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  net/dccp/diag.c
  *
  *  An implementation of the DCCP protocol
  *  Arnaldo Carvalho de Melo <acme@mandriva.com>
- *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License version 2 as
- *	published by the Free Software Foundation.
  */
 
 
@@ -49,16 +46,15 @@ static void dccp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 }
 
 static void dccp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			   const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			   const struct inet_diag_req_v2 *r)
 {
-	inet_diag_dump_icsk(&dccp_hashinfo, skb, cb, r, bc);
+	inet_diag_dump_icsk(&dccp_hashinfo, skb, cb, r);
 }
 
-static int dccp_diag_dump_one(struct sk_buff *in_skb,
-			      const struct nlmsghdr *nlh,
+static int dccp_diag_dump_one(struct netlink_callback *cb,
 			      const struct inet_diag_req_v2 *req)
 {
-	return inet_diag_dump_one_icsk(&dccp_hashinfo, in_skb, nlh, req);
+	return inet_diag_dump_one_icsk(&dccp_hashinfo, cb, req);
 }
 
 static const struct inet_diag_handler dccp_diag_handler = {

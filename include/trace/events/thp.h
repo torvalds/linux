@@ -8,24 +8,6 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
-TRACE_EVENT(hugepage_invalidate,
-
-	    TP_PROTO(unsigned long addr, unsigned long pte),
-	    TP_ARGS(addr, pte),
-	    TP_STRUCT__entry(
-		    __field(unsigned long, addr)
-		    __field(unsigned long, pte)
-		    ),
-
-	    TP_fast_assign(
-		    __entry->addr = addr;
-		    __entry->pte = pte;
-		    ),
-
-	    TP_printk("hugepage invalidate at addr 0x%lx and pte = 0x%lx",
-		      __entry->addr, __entry->pte)
-);
-
 TRACE_EVENT(hugepage_set_pmd,
 
 	    TP_PROTO(unsigned long addr, unsigned long pmd),
@@ -65,24 +47,34 @@ TRACE_EVENT(hugepage_update,
 
 	    TP_printk("hugepage update at addr 0x%lx and pte = 0x%lx clr = 0x%lx, set = 0x%lx", __entry->addr, __entry->pte, __entry->clr, __entry->set)
 );
-TRACE_EVENT(hugepage_splitting,
 
-	    TP_PROTO(unsigned long addr, unsigned long pte),
-	    TP_ARGS(addr, pte),
-	    TP_STRUCT__entry(
-		    __field(unsigned long, addr)
-		    __field(unsigned long, pte)
-		    ),
+DECLARE_EVENT_CLASS(migration_pmd,
 
-	    TP_fast_assign(
-		    __entry->addr = addr;
-		    __entry->pte = pte;
-		    ),
+		TP_PROTO(unsigned long addr, unsigned long pmd),
 
-	    TP_printk("hugepage splitting at addr 0x%lx and pte = 0x%lx",
-		      __entry->addr, __entry->pte)
+		TP_ARGS(addr, pmd),
+
+		TP_STRUCT__entry(
+			__field(unsigned long, addr)
+			__field(unsigned long, pmd)
+		),
+
+		TP_fast_assign(
+			__entry->addr = addr;
+			__entry->pmd = pmd;
+		),
+		TP_printk("addr=%lx, pmd=%lx", __entry->addr, __entry->pmd)
 );
 
+DEFINE_EVENT(migration_pmd, set_migration_pmd,
+	TP_PROTO(unsigned long addr, unsigned long pmd),
+	TP_ARGS(addr, pmd)
+);
+
+DEFINE_EVENT(migration_pmd, remove_migration_pmd,
+	TP_PROTO(unsigned long addr, unsigned long pmd),
+	TP_ARGS(addr, pmd)
+);
 #endif /* _TRACE_THP_H */
 
 /* This part must be outside protection */

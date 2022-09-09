@@ -16,11 +16,11 @@
 #include <asm/sn/types.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
-#include <asm/sn/hub.h>
 #include <asm/sn/mapped_kernel.h>
-#include <asm/sn/sn_private.h>
 
-static cpumask_t ktext_repmask;
+#include "ip27-common.h"
+
+static nodemask_t ktext_repmask;
 
 /*
  * XXX - This needs to be much smarter about where it puts copies of the
@@ -30,21 +30,21 @@ static cpumask_t ktext_repmask;
 void __init setup_replication_mask(void)
 {
 	/* Set only the master cnode's bit.  The master cnode is always 0. */
-	cpumask_clear(&ktext_repmask);
-	cpumask_set_cpu(0, &ktext_repmask);
+	nodes_clear(ktext_repmask);
+	node_set(0, ktext_repmask);
 
 #ifdef CONFIG_REPLICATE_KTEXT
 #ifndef CONFIG_MAPPED_KERNEL
 #error Kernel replication works with mapped kernel support. No calias support.
 #endif
 	{
-		cnodeid_t	cnode;
+		nasid_t nasid;
 
-		for_each_online_node(cnode) {
-			if (cnode == 0)
+		for_each_online_node(nasid) {
+			if (nasid == 0)
 				continue;
 			/* Advertise that we have a copy of the kernel */
-			cpumask_set_cpu(cnode, &ktext_repmask);
+			node_set(nasid, ktext_repmask);
 		}
 	}
 #endif
@@ -85,7 +85,6 @@ static __init void copy_kernel(nasid_t dest_nasid)
 
 void __init replicate_kernel_text(void)
 {
-	cnodeid_t cnode;
 	nasid_t client_nasid;
 	nasid_t server_nasid;
 
@@ -94,13 +93,12 @@ void __init replicate_kernel_text(void)
 	/* Record where the master node should get its kernel text */
 	set_ktext_source(master_nasid, master_nasid);
 
-	for_each_online_node(cnode) {
-		if (cnode == 0)
+	for_each_online_node(client_nasid) {
+		if (client_nasid == 0)
 			continue;
-		client_nasid = COMPACT_TO_NASID_NODEID(cnode);
 
 		/* Check if this node should get a copy of the kernel */
-		if (cpumask_test_cpu(cnode, &ktext_repmask)) {
+		if (node_isset(client_nasid, ktext_repmask)) {
 			server_nasid = client_nasid;
 			copy_kernel(server_nasid);
 		}
@@ -115,17 +113,16 @@ void __init replicate_kernel_text(void)
  * data structures on the first couple of pages of the first slot of each
  * node. If this is the case, getfirstfree(node) > getslotstart(node, 0).
  */
-unsigned long node_getfirstfree(cnodeid_t cnode)
+unsigned long node_getfirstfree(nasid_t nasid)
 {
 	unsigned long loadbase = REP_BASE;
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 	unsigned long offset;
 
 #ifdef CONFIG_MAPPED_KERNEL
 	loadbase += 16777216;
 #endif
 	offset = PAGE_ALIGN((unsigned long)(&_end)) - loadbase;
-	if ((cnode == 0) || (cpumask_test_cpu(cnode, &ktext_repmask)))
+	if ((nasid == 0) || (node_isset(nasid, ktext_repmask)))
 		return TO_NODE(nasid, offset) >> PAGE_SHIFT;
 	else
 		return KDM_TO_PHYS(PAGE_ALIGN(SYMMON_STK_ADDR(nasid, 0))) >> PAGE_SHIFT;

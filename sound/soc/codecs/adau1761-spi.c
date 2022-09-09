@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for ADAU1361/ADAU1461/ADAU1761/ADAU1961 codec
  *
  * Copyright 2014 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/mod_devicetable.h>
@@ -46,10 +45,9 @@ static int adau1761_spi_probe(struct spi_device *spi)
 		id->driver_data, adau1761_spi_switch_mode);
 }
 
-static int adau1761_spi_remove(struct spi_device *spi)
+static void adau1761_spi_remove(struct spi_device *spi)
 {
 	adau17x1_remove(&spi->dev);
-	return 0;
 }
 
 static const struct spi_device_id adau1761_spi_id[] = {

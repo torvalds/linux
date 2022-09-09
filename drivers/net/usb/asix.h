@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * ASIX AX8817X based USB 2.0 Ethernet Devices
  * Copyright (C) 2003-2006 David Hollis <dhollis@davehollis.com>
  * Copyright (C) 2005 Phil Chang <pchang23@sbcglobal.net>
  * Copyright (C) 2006 James Painter <jamie.painter@iname.com>
  * Copyright (c) 2002-2003 TiVo Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _ASIX_H
@@ -37,6 +25,8 @@
 #include <linux/usb/usbnet.h>
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
+#include <linux/phy.h>
+#include <net/selftests.h>
 
 #define DRIVER_VERSION "22-Dec-2011"
 #define DRIVER_NAME "asix"
@@ -136,8 +126,7 @@
 	 AX_MEDIUM_RE)
 
 #define AX88772_MEDIUM_DEFAULT	\
-	(AX_MEDIUM_FD | AX_MEDIUM_RFC | \
-	 AX_MEDIUM_TFC | AX_MEDIUM_PS | \
+	(AX_MEDIUM_FD | AX_MEDIUM_PS | \
 	 AX_MEDIUM_AC | AX_MEDIUM_RE)
 
 /* AX88772 & AX88178 RX_CTL values */
@@ -168,6 +157,8 @@
 #define AX_EEPROM_MAGIC		0xdeadbeef
 #define AX_EEPROM_LEN		0x200
 
+#define AX_EMBD_PHY_ADDR	0x10
+
 /* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct asix_data {
 	u8 multi_filter[AX_MCAST_FILTER_SIZE];
@@ -187,9 +178,16 @@ struct asix_rx_fixup_info {
 struct asix_common_private {
 	void (*resume)(struct usbnet *dev);
 	void (*suspend)(struct usbnet *dev);
+	int (*reset)(struct usbnet *dev, int in_pm);
 	u16 presvd_phy_advertise;
 	u16 presvd_phy_bmcr;
 	struct asix_rx_fixup_info rx_fixup_info;
+	struct mii_bus *mdio;
+	struct phy_device *phydev;
+	struct phy_device *phydev_int;
+	u16 phy_addr;
+	bool embd_phy;
+	u8 chipcode;
 };
 
 extern const struct driver_info ax88172a_info;
@@ -197,8 +195,8 @@ extern const struct driver_info ax88172a_info;
 /* ASIX specific flags */
 #define FLAG_EEPROM_MAC		(1UL << 0)  /* init device MAC from eeprom */
 
-int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
-		  u16 size, void *data, int in_pm);
+int __must_check asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
+			       u16 size, void *data, int in_pm);
 
 int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		   u16 size, void *data, int in_pm);
@@ -214,11 +212,7 @@ void asix_rx_fixup_common_free(struct asix_common_private *dp);
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 			      gfp_t flags);
 
-int asix_set_sw_mii(struct usbnet *dev, int in_pm);
-int asix_set_hw_mii(struct usbnet *dev, int in_pm);
-
-int asix_read_phy_addr(struct usbnet *dev, int internal);
-int asix_get_phy_addr(struct usbnet *dev);
+int asix_read_phy_addr(struct usbnet *dev, bool internal);
 
 int asix_sw_reset(struct usbnet *dev, u8 flags, int in_pm);
 
@@ -227,6 +221,7 @@ int asix_write_rx_ctl(struct usbnet *dev, u16 mode, int in_pm);
 
 u16 asix_read_medium_status(struct usbnet *dev, int in_pm);
 int asix_write_medium_mode(struct usbnet *dev, u16 mode, int in_pm);
+void asix_adjust_link(struct net_device *netdev);
 
 int asix_write_gpio(struct usbnet *dev, u16 value, int sleep, int in_pm);
 
@@ -234,6 +229,9 @@ void asix_set_multicast(struct net_device *net);
 
 int asix_mdio_read(struct net_device *netdev, int phy_id, int loc);
 void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val);
+
+int asix_mdio_bus_read(struct mii_bus *bus, int phy_id, int regnum);
+int asix_mdio_bus_write(struct mii_bus *bus, int phy_id, int regnum, u16 val);
 
 int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc);
 void asix_mdio_write_nopm(struct net_device *netdev, int phy_id, int loc,

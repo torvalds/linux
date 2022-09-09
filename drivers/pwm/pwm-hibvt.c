@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PWM Controller Driver for HiSilicon BVT SoCs
  *
  * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bitops.h>
@@ -49,15 +37,30 @@ struct hibvt_pwm_chip {
 	struct clk *clk;
 	void __iomem *base;
 	struct reset_control *rstc;
+	const struct hibvt_pwm_soc *soc;
 };
 
 struct hibvt_pwm_soc {
 	u32 num_pwms;
+	bool quirk_force_enable;
 };
 
-static const struct hibvt_pwm_soc pwm_soc[2] = {
-	{ .num_pwms = 4 },
-	{ .num_pwms = 8 },
+static const struct hibvt_pwm_soc hi3516cv300_soc_info = {
+	.num_pwms = 4,
+};
+
+static const struct hibvt_pwm_soc hi3519v100_soc_info = {
+	.num_pwms = 8,
+};
+
+static const struct hibvt_pwm_soc hi3559v100_shub_soc_info = {
+	.num_pwms = 8,
+	.quirk_force_enable = true,
+};
+
+static const struct hibvt_pwm_soc hi3559v100_soc_info = {
+	.num_pwms = 2,
+	.quirk_force_enable = true,
 };
 
 static inline struct hibvt_pwm_chip *to_hibvt_pwm_chip(struct pwm_chip *chip)
@@ -146,14 +149,24 @@ static void hibvt_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static int hibvt_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-				struct pwm_state *state)
+			   const struct pwm_state *state)
 {
+	struct hibvt_pwm_chip *hi_pwm_chip = to_hibvt_pwm_chip(chip);
+
 	if (state->polarity != pwm->state.polarity)
 		hibvt_pwm_set_polarity(chip, pwm, state->polarity);
 
 	if (state->period != pwm->state.period ||
-		state->duty_cycle != pwm->state.duty_cycle)
+	    state->duty_cycle != pwm->state.duty_cycle) {
 		hibvt_pwm_config(chip, pwm, state->duty_cycle, state->period);
+
+		/*
+		 * Some implementations require the PWM to be enabled twice
+		 * each time the duty cycle is refreshed.
+		 */
+		if (hi_pwm_chip->soc->quirk_force_enable && state->enabled)
+			hibvt_pwm_enable(chip, pwm);
+	}
 
 	if (state->enabled != pwm->state.enabled) {
 		if (state->enabled)
@@ -177,9 +190,7 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 	const struct hibvt_pwm_soc *soc =
 				of_device_get_match_data(&pdev->dev);
 	struct hibvt_pwm_chip *pwm_chip;
-	struct resource *res;
-	int ret;
-	int i;
+	int ret, i;
 
 	pwm_chip = devm_kzalloc(&pdev->dev, sizeof(*pwm_chip), GFP_KERNEL);
 	if (pwm_chip == NULL)
@@ -194,13 +205,10 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 
 	pwm_chip->chip.ops = &hibvt_pwm_ops;
 	pwm_chip->chip.dev = &pdev->dev;
-	pwm_chip->chip.base = -1;
 	pwm_chip->chip.npwm = soc->num_pwms;
-	pwm_chip->chip.of_xlate = of_pwm_xlate_with_flags;
-	pwm_chip->chip.of_pwm_n_cells = 3;
+	pwm_chip->soc = soc;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pwm_chip->base = devm_ioremap_resource(&pdev->dev, res);
+	pwm_chip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pwm_chip->base))
 		return PTR_ERR(pwm_chip->base);
 
@@ -240,18 +248,26 @@ static int hibvt_pwm_remove(struct platform_device *pdev)
 
 	pwm_chip = platform_get_drvdata(pdev);
 
+	pwmchip_remove(&pwm_chip->chip);
+
 	reset_control_assert(pwm_chip->rstc);
 	msleep(30);
 	reset_control_deassert(pwm_chip->rstc);
 
 	clk_disable_unprepare(pwm_chip->clk);
 
-	return pwmchip_remove(&pwm_chip->chip);
+	return 0;
 }
 
 static const struct of_device_id hibvt_pwm_of_match[] = {
-	{ .compatible = "hisilicon,hi3516cv300-pwm", .data = &pwm_soc[0] },
-	{ .compatible = "hisilicon,hi3519v100-pwm", .data = &pwm_soc[1] },
+	{ .compatible = "hisilicon,hi3516cv300-pwm",
+	  .data = &hi3516cv300_soc_info },
+	{ .compatible = "hisilicon,hi3519v100-pwm",
+	  .data = &hi3519v100_soc_info },
+	{ .compatible = "hisilicon,hi3559v100-shub-pwm",
+	  .data = &hi3559v100_shub_soc_info },
+	{ .compatible = "hisilicon,hi3559v100-pwm",
+	  .data = &hi3559v100_soc_info },
 	{  }
 };
 MODULE_DEVICE_TABLE(of, hibvt_pwm_of_match);

@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/ratelimit.h>
 #include <linux/irq.h>
+#include <linux/sched/isolation.h>
 
 #include "internals.h"
 
@@ -116,7 +117,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 		 */
 		if (irqd_affinity_is_managed(d)) {
 			irqd_set_managed_shutdown(d);
-			irq_shutdown(desc);
+			irq_shutdown_and_deactivate(desc);
 			return false;
 		}
 		affinity = cpu_online_mask;
@@ -165,10 +166,24 @@ void irq_migrate_all_off_this_cpu(void)
 		raw_spin_unlock(&desc->lock);
 
 		if (affinity_broken) {
-			pr_warn_ratelimited("IRQ %u: no longer affine to CPU%u\n",
+			pr_debug_ratelimited("IRQ %u: no longer affine to CPU%u\n",
 					    irq, smp_processor_id());
 		}
 	}
+}
+
+static bool hk_should_isolate(struct irq_data *data, unsigned int cpu)
+{
+	const struct cpumask *hk_mask;
+
+	if (!housekeeping_enabled(HK_TYPE_MANAGED_IRQ))
+		return false;
+
+	hk_mask = housekeeping_cpumask(HK_TYPE_MANAGED_IRQ);
+	if (cpumask_subset(irq_data_get_effective_affinity_mask(data), hk_mask))
+		return false;
+
+	return cpumask_test_cpu(cpu, hk_mask);
 }
 
 static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
@@ -188,9 +203,11 @@ static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
 	/*
 	 * If the interrupt can only be directed to a single target
 	 * CPU then it is already assigned to a CPU in the affinity
-	 * mask. No point in trying to move it around.
+	 * mask. No point in trying to move it around unless the
+	 * isolation mechanism requests to move it to an upcoming
+	 * housekeeping CPU.
 	 */
-	if (!irqd_is_single_target(data))
+	if (!irqd_is_single_target(data) || hk_should_isolate(data, cpu))
 		irq_set_affinity_locked(data, affinity, false);
 }
 

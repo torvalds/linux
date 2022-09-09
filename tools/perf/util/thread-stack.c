@@ -1,26 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * thread-stack.c: Synthesize a thread's stack using call / return events
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include "thread.h"
 #include "event.h"
 #include "machine.h"
-#include "util.h"
+#include "env.h"
 #include "debug.h"
 #include "symbol.h"
 #include "comm.h"
@@ -29,24 +23,45 @@
 
 #define STACK_GROWTH 2048
 
+/*
+ * State of retpoline detection.
+ *
+ * RETPOLINE_NONE: no retpoline detection
+ * X86_RETPOLINE_POSSIBLE: x86 retpoline possible
+ * X86_RETPOLINE_DETECTED: x86 retpoline detected
+ */
+enum retpoline_state_t {
+	RETPOLINE_NONE,
+	X86_RETPOLINE_POSSIBLE,
+	X86_RETPOLINE_DETECTED,
+};
+
 /**
  * struct thread_stack_entry - thread stack entry.
  * @ret_addr: return address
  * @timestamp: timestamp (if known)
  * @ref: external reference (e.g. db_id of sample)
  * @branch_count: the branch count when the entry was created
+ * @insn_count: the instruction count when the entry was created
+ * @cyc_count the cycle count when the entry was created
+ * @db_id: id used for db-export
  * @cp: call path
  * @no_call: a 'call' was not seen
  * @trace_end: a 'call' but trace ended
+ * @non_call: a branch but not a 'call' to the start of a different symbol
  */
 struct thread_stack_entry {
 	u64 ret_addr;
 	u64 timestamp;
 	u64 ref;
 	u64 branch_count;
+	u64 insn_count;
+	u64 cyc_count;
+	u64 db_id;
 	struct call_path *cp;
 	bool no_call;
 	bool trace_end;
+	bool non_call;
 };
 
 /**
@@ -57,11 +72,18 @@ struct thread_stack_entry {
  * @sz: current maximum stack size
  * @trace_nr: current trace number
  * @branch_count: running branch count
+ * @insn_count: running  instruction count
+ * @cyc_count running  cycle count
  * @kernel_start: kernel start address
  * @last_time: last timestamp
  * @crp: call/return processor
  * @comm: current comm
  * @arr_sz: size of array if this is the first element of an array
+ * @rstate: used to detect retpolines
+ * @br_stack_rb: branch stack (ring buffer)
+ * @br_stack_sz: maximum branch stack size
+ * @br_stack_pos: current position in @br_stack_rb
+ * @mispred_all: mark all branches as mispredicted
  */
 struct thread_stack {
 	struct thread_stack_entry *stack;
@@ -69,11 +91,18 @@ struct thread_stack {
 	size_t sz;
 	u64 trace_nr;
 	u64 branch_count;
+	u64 insn_count;
+	u64 cyc_count;
 	u64 kernel_start;
 	u64 last_time;
 	struct call_return_processor *crp;
 	struct comm *comm;
 	unsigned int arr_sz;
+	enum retpoline_state_t rstate;
+	struct branch_stack *br_stack_rb;
+	unsigned int br_stack_sz;
+	unsigned int br_stack_pos;
+	bool mispred_all;
 };
 
 /*
@@ -105,25 +134,46 @@ static int thread_stack__grow(struct thread_stack *ts)
 }
 
 static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
-			      struct call_return_processor *crp)
+			      struct call_return_processor *crp,
+			      bool callstack, unsigned int br_stack_sz)
 {
 	int err;
 
-	err = thread_stack__grow(ts);
-	if (err)
-		return err;
+	if (callstack) {
+		err = thread_stack__grow(ts);
+		if (err)
+			return err;
+	}
 
-	if (thread->mg && thread->mg->machine)
-		ts->kernel_start = machine__kernel_start(thread->mg->machine);
-	else
+	if (br_stack_sz) {
+		size_t sz = sizeof(struct branch_stack);
+
+		sz += br_stack_sz * sizeof(struct branch_entry);
+		ts->br_stack_rb = zalloc(sz);
+		if (!ts->br_stack_rb)
+			return -ENOMEM;
+		ts->br_stack_sz = br_stack_sz;
+	}
+
+	if (thread->maps && thread->maps->machine) {
+		struct machine *machine = thread->maps->machine;
+		const char *arch = perf_env__arch(machine->env);
+
+		ts->kernel_start = machine__kernel_start(machine);
+		if (!strcmp(arch, "x86"))
+			ts->rstate = X86_RETPOLINE_POSSIBLE;
+	} else {
 		ts->kernel_start = 1ULL << 63;
+	}
 	ts->crp = crp;
 
 	return 0;
 }
 
 static struct thread_stack *thread_stack__new(struct thread *thread, int cpu,
-					      struct call_return_processor *crp)
+					      struct call_return_processor *crp,
+					      bool callstack,
+					      unsigned int br_stack_sz)
 {
 	struct thread_stack *ts = thread->ts, *new_ts;
 	unsigned int old_sz = ts ? ts->arr_sz : 0;
@@ -149,7 +199,7 @@ static struct thread_stack *thread_stack__new(struct thread *thread, int cpu,
 		ts += cpu;
 
 	if (!ts->stack &&
-	    thread_stack__init(ts, thread, crp))
+	    thread_stack__init(ts, thread, crp, callstack, br_stack_sz))
 		return NULL;
 
 	return ts;
@@ -256,20 +306,33 @@ static int thread_stack__call_return(struct thread *thread,
 		.comm = ts->comm,
 		.db_id = 0,
 	};
+	u64 *parent_db_id;
 
 	tse = &ts->stack[idx];
 	cr.cp = tse->cp;
 	cr.call_time = tse->timestamp;
 	cr.return_time = timestamp;
 	cr.branch_count = ts->branch_count - tse->branch_count;
+	cr.insn_count = ts->insn_count - tse->insn_count;
+	cr.cyc_count = ts->cyc_count - tse->cyc_count;
+	cr.db_id = tse->db_id;
 	cr.call_ref = tse->ref;
 	cr.return_ref = ref;
 	if (tse->no_call)
 		cr.flags |= CALL_RETURN_NO_CALL;
 	if (no_return)
 		cr.flags |= CALL_RETURN_NO_RETURN;
+	if (tse->non_call)
+		cr.flags |= CALL_RETURN_NON_CALL;
 
-	return crp->process(&cr, crp->data);
+	/*
+	 * The parent db_id must be assigned before exporting the child. Note
+	 * it is not possible to export the parent first because its information
+	 * is not yet complete because its 'return' has not yet been processed.
+	 */
+	parent_db_id = idx ? &(tse - 1)->db_id : NULL;
+
+	return crp->process(&cr, parent_db_id, crp->data);
 }
 
 static int __thread_stack__flush(struct thread *thread, struct thread_stack *ts)
@@ -279,6 +342,9 @@ static int __thread_stack__flush(struct thread *thread, struct thread_stack *ts)
 
 	if (!crp) {
 		ts->cnt = 0;
+		ts->br_stack_pos = 0;
+		if (ts->br_stack_rb)
+			ts->br_stack_rb->nr = 0;
 		return 0;
 	}
 
@@ -313,8 +379,33 @@ int thread_stack__flush(struct thread *thread)
 	return err;
 }
 
+static void thread_stack__update_br_stack(struct thread_stack *ts, u32 flags,
+					  u64 from_ip, u64 to_ip)
+{
+	struct branch_stack *bs = ts->br_stack_rb;
+	struct branch_entry *be;
+
+	if (!ts->br_stack_pos)
+		ts->br_stack_pos = ts->br_stack_sz;
+
+	ts->br_stack_pos -= 1;
+
+	be              = &bs->entries[ts->br_stack_pos];
+	be->from        = from_ip;
+	be->to          = to_ip;
+	be->flags.value = 0;
+	be->flags.abort = !!(flags & PERF_IP_FLAG_TX_ABORT);
+	be->flags.in_tx = !!(flags & PERF_IP_FLAG_IN_TX);
+	/* No support for mispredict */
+	be->flags.mispred = ts->mispred_all;
+
+	if (bs->nr < ts->br_stack_sz)
+		bs->nr += 1;
+}
+
 int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
-			u64 to_ip, u16 insn_len, u64 trace_nr)
+			u64 to_ip, u16 insn_len, u64 trace_nr, bool callstack,
+			unsigned int br_stack_sz, bool mispred_all)
 {
 	struct thread_stack *ts = thread__stack(thread, cpu);
 
@@ -322,12 +413,13 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 		return -EINVAL;
 
 	if (!ts) {
-		ts = thread_stack__new(thread, cpu, NULL);
+		ts = thread_stack__new(thread, cpu, NULL, callstack, br_stack_sz);
 		if (!ts) {
 			pr_warning("Out of memory: no thread stack\n");
 			return -ENOMEM;
 		}
 		ts->trace_nr = trace_nr;
+		ts->mispred_all = mispred_all;
 	}
 
 	/*
@@ -341,8 +433,14 @@ int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 		ts->trace_nr = trace_nr;
 	}
 
-	/* Stop here if thread_stack__process() is in use */
-	if (ts->crp)
+	if (br_stack_sz)
+		thread_stack__update_br_stack(ts, flags, from_ip, to_ip);
+
+	/*
+	 * Stop here if thread_stack__process() is in use, or not recording call
+	 * stack.
+	 */
+	if (ts->crp || !callstack)
 		return 0;
 
 	if (flags & PERF_IP_FLAG_CALL) {
@@ -390,6 +488,7 @@ static void __thread_stack__free(struct thread *thread, struct thread_stack *ts)
 {
 	__thread_stack__flush(thread, ts);
 	zfree(&ts->stack);
+	zfree(&ts->br_stack_rb);
 }
 
 static void thread_stack__reset(struct thread *thread, struct thread_stack *ts)
@@ -457,8 +556,201 @@ void thread_stack__sample(struct thread *thread, int cpu,
 	chain->nr = i;
 }
 
+/*
+ * Hardware sample records, created some time after the event occurred, need to
+ * have subsequent addresses removed from the call chain.
+ */
+void thread_stack__sample_late(struct thread *thread, int cpu,
+			       struct ip_callchain *chain, size_t sz,
+			       u64 sample_ip, u64 kernel_start)
+{
+	struct thread_stack *ts = thread__stack(thread, cpu);
+	u64 sample_context = callchain_context(sample_ip, kernel_start);
+	u64 last_context, context, ip;
+	size_t nr = 0, j;
+
+	if (sz < 2) {
+		chain->nr = 0;
+		return;
+	}
+
+	if (!ts)
+		goto out;
+
+	/*
+	 * When tracing kernel space, kernel addresses occur at the top of the
+	 * call chain after the event occurred but before tracing stopped.
+	 * Skip them.
+	 */
+	for (j = 1; j <= ts->cnt; j++) {
+		ip = ts->stack[ts->cnt - j].ret_addr;
+		context = callchain_context(ip, kernel_start);
+		if (context == PERF_CONTEXT_USER ||
+		    (context == sample_context && ip == sample_ip))
+			break;
+	}
+
+	last_context = sample_ip; /* Use sample_ip as an invalid context */
+
+	for (; nr < sz && j <= ts->cnt; nr++, j++) {
+		ip = ts->stack[ts->cnt - j].ret_addr;
+		context = callchain_context(ip, kernel_start);
+		if (context != last_context) {
+			if (nr >= sz - 1)
+				break;
+			chain->ips[nr++] = context;
+			last_context = context;
+		}
+		chain->ips[nr] = ip;
+	}
+out:
+	if (nr) {
+		chain->nr = nr;
+	} else {
+		chain->ips[0] = sample_context;
+		chain->ips[1] = sample_ip;
+		chain->nr = 2;
+	}
+}
+
+void thread_stack__br_sample(struct thread *thread, int cpu,
+			     struct branch_stack *dst, unsigned int sz)
+{
+	struct thread_stack *ts = thread__stack(thread, cpu);
+	const size_t bsz = sizeof(struct branch_entry);
+	struct branch_stack *src;
+	struct branch_entry *be;
+	unsigned int nr;
+
+	dst->nr = 0;
+
+	if (!ts)
+		return;
+
+	src = ts->br_stack_rb;
+	if (!src->nr)
+		return;
+
+	dst->nr = min((unsigned int)src->nr, sz);
+
+	be = &dst->entries[0];
+	nr = min(ts->br_stack_sz - ts->br_stack_pos, (unsigned int)dst->nr);
+	memcpy(be, &src->entries[ts->br_stack_pos], bsz * nr);
+
+	if (src->nr >= ts->br_stack_sz) {
+		sz -= nr;
+		be = &dst->entries[nr];
+		nr = min(ts->br_stack_pos, sz);
+		memcpy(be, &src->entries[0], bsz * ts->br_stack_pos);
+	}
+}
+
+/* Start of user space branch entries */
+static bool us_start(struct branch_entry *be, u64 kernel_start, bool *start)
+{
+	if (!*start)
+		*start = be->to && be->to < kernel_start;
+
+	return *start;
+}
+
+/*
+ * Start of branch entries after the ip fell in between 2 branches, or user
+ * space branch entries.
+ */
+static bool ks_start(struct branch_entry *be, u64 sample_ip, u64 kernel_start,
+		     bool *start, struct branch_entry *nb)
+{
+	if (!*start) {
+		*start = (nb && sample_ip >= be->to && sample_ip <= nb->from) ||
+			 be->from < kernel_start ||
+			 (be->to && be->to < kernel_start);
+	}
+
+	return *start;
+}
+
+/*
+ * Hardware sample records, created some time after the event occurred, need to
+ * have subsequent addresses removed from the branch stack.
+ */
+void thread_stack__br_sample_late(struct thread *thread, int cpu,
+				  struct branch_stack *dst, unsigned int sz,
+				  u64 ip, u64 kernel_start)
+{
+	struct thread_stack *ts = thread__stack(thread, cpu);
+	struct branch_entry *d, *s, *spos, *ssz;
+	struct branch_stack *src;
+	unsigned int nr = 0;
+	bool start = false;
+
+	dst->nr = 0;
+
+	if (!ts)
+		return;
+
+	src = ts->br_stack_rb;
+	if (!src->nr)
+		return;
+
+	spos = &src->entries[ts->br_stack_pos];
+	ssz  = &src->entries[ts->br_stack_sz];
+
+	d = &dst->entries[0];
+	s = spos;
+
+	if (ip < kernel_start) {
+		/*
+		 * User space sample: start copying branch entries when the
+		 * branch is in user space.
+		 */
+		for (s = spos; s < ssz && nr < sz; s++) {
+			if (us_start(s, kernel_start, &start)) {
+				*d++ = *s;
+				nr += 1;
+			}
+		}
+
+		if (src->nr >= ts->br_stack_sz) {
+			for (s = &src->entries[0]; s < spos && nr < sz; s++) {
+				if (us_start(s, kernel_start, &start)) {
+					*d++ = *s;
+					nr += 1;
+				}
+			}
+		}
+	} else {
+		struct branch_entry *nb = NULL;
+
+		/*
+		 * Kernel space sample: start copying branch entries when the ip
+		 * falls in between 2 branches (or the branch is in user space
+		 * because then the start must have been missed).
+		 */
+		for (s = spos; s < ssz && nr < sz; s++) {
+			if (ks_start(s, ip, kernel_start, &start, nb)) {
+				*d++ = *s;
+				nr += 1;
+			}
+			nb = s;
+		}
+
+		if (src->nr >= ts->br_stack_sz) {
+			for (s = &src->entries[0]; s < spos && nr < sz; s++) {
+				if (ks_start(s, ip, kernel_start, &start, nb)) {
+					*d++ = *s;
+					nr += 1;
+				}
+				nb = s;
+			}
+		}
+	}
+
+	dst->nr = nr;
+}
+
 struct call_return_processor *
-call_return_processor__new(int (*process)(struct call_return *cr, void *data),
+call_return_processor__new(int (*process)(struct call_return *cr, u64 *parent_db_id, void *data),
 			   void *data)
 {
 	struct call_return_processor *crp;
@@ -493,6 +785,9 @@ static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 	struct thread_stack_entry *tse;
 	int err;
 
+	if (!cp)
+		return -ENOMEM;
+
 	if (ts->cnt == ts->sz) {
 		err = thread_stack__grow(ts);
 		if (err)
@@ -504,9 +799,13 @@ static int thread_stack__push_cp(struct thread_stack *ts, u64 ret_addr,
 	tse->timestamp = timestamp;
 	tse->ref = ref;
 	tse->branch_count = ts->branch_count;
+	tse->insn_count = ts->insn_count;
+	tse->cyc_count = ts->cyc_count;
 	tse->cp = cp;
 	tse->no_call = no_call;
 	tse->trace_end = trace_end;
+	tse->non_call = false;
+	tse->db_id = 0;
 
 	return 0;
 }
@@ -528,14 +827,16 @@ static int thread_stack__pop_cp(struct thread *thread, struct thread_stack *ts,
 							 timestamp, ref, false);
 	}
 
-	if (ts->stack[ts->cnt - 1].ret_addr == ret_addr) {
+	if (ts->stack[ts->cnt - 1].ret_addr == ret_addr &&
+	    !ts->stack[ts->cnt - 1].non_call) {
 		return thread_stack__call_return(thread, ts, --ts->cnt,
 						 timestamp, ref, false);
 	} else {
 		size_t i = ts->cnt - 1;
 
 		while (i--) {
-			if (ts->stack[i].ret_addr != ret_addr)
+			if (ts->stack[i].ret_addr != ret_addr ||
+			    ts->stack[i].non_call)
 				continue;
 			i += 1;
 			while (ts->cnt > i) {
@@ -576,11 +877,26 @@ static int thread_stack__bottom(struct thread_stack *ts,
 
 	cp = call_path__findnew(cpr, &cpr->call_path, sym, ip,
 				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
 
 	return thread_stack__push_cp(ts, ip, sample->time, ref, cp,
 				     true, false);
+}
+
+static int thread_stack__pop_ks(struct thread *thread, struct thread_stack *ts,
+				struct perf_sample *sample, u64 ref)
+{
+	u64 tm = sample->time;
+	int err;
+
+	/* Return to userspace, so pop all kernel addresses */
+	while (thread_stack__in_kernel(ts)) {
+		err = thread_stack__call_return(thread, ts, --ts->cnt,
+						tm, ref, true);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int thread_stack__no_call_return(struct thread *thread,
@@ -590,59 +906,91 @@ static int thread_stack__no_call_return(struct thread *thread,
 					struct addr_location *to_al, u64 ref)
 {
 	struct call_path_root *cpr = ts->crp->cpr;
+	struct call_path *root = &cpr->call_path;
+	struct symbol *fsym = from_al->sym;
+	struct symbol *tsym = to_al->sym;
 	struct call_path *cp, *parent;
 	u64 ks = ts->kernel_start;
+	u64 addr = sample->addr;
+	u64 tm = sample->time;
+	u64 ip = sample->ip;
 	int err;
 
-	if (sample->ip >= ks && sample->addr < ks) {
+	if (ip >= ks && addr < ks) {
 		/* Return to userspace, so pop all kernel addresses */
-		while (thread_stack__in_kernel(ts)) {
-			err = thread_stack__call_return(thread, ts, --ts->cnt,
-							sample->time, ref,
-							true);
-			if (err)
-				return err;
-		}
+		err = thread_stack__pop_ks(thread, ts, sample, ref);
+		if (err)
+			return err;
 
 		/* If the stack is empty, push the userspace address */
 		if (!ts->cnt) {
-			cp = call_path__findnew(cpr, &cpr->call_path,
-						to_al->sym, sample->addr,
-						ts->kernel_start);
-			if (!cp)
-				return -ENOMEM;
-			return thread_stack__push_cp(ts, 0, sample->time, ref,
-						     cp, true, false);
+			cp = call_path__findnew(cpr, root, tsym, addr, ks);
+			return thread_stack__push_cp(ts, 0, tm, ref, cp, true,
+						     false);
 		}
-	} else if (thread_stack__in_kernel(ts) && sample->ip < ks) {
+	} else if (thread_stack__in_kernel(ts) && ip < ks) {
 		/* Return to userspace, so pop all kernel addresses */
-		while (thread_stack__in_kernel(ts)) {
-			err = thread_stack__call_return(thread, ts, --ts->cnt,
-							sample->time, ref,
-							true);
-			if (err)
-				return err;
-		}
+		err = thread_stack__pop_ks(thread, ts, sample, ref);
+		if (err)
+			return err;
 	}
 
 	if (ts->cnt)
 		parent = ts->stack[ts->cnt - 1].cp;
 	else
-		parent = &cpr->call_path;
+		parent = root;
 
-	/* This 'return' had no 'call', so push and pop top of stack */
-	cp = call_path__findnew(cpr, parent, from_al->sym, sample->ip,
-				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
+	if (parent->sym == from_al->sym) {
+		/*
+		 * At the bottom of the stack, assume the missing 'call' was
+		 * before the trace started. So, pop the current symbol and push
+		 * the 'to' symbol.
+		 */
+		if (ts->cnt == 1) {
+			err = thread_stack__call_return(thread, ts, --ts->cnt,
+							tm, ref, false);
+			if (err)
+				return err;
+		}
 
-	err = thread_stack__push_cp(ts, sample->addr, sample->time, ref, cp,
-				    true, false);
+		if (!ts->cnt) {
+			cp = call_path__findnew(cpr, root, tsym, addr, ks);
+
+			return thread_stack__push_cp(ts, addr, tm, ref, cp,
+						     true, false);
+		}
+
+		/*
+		 * Otherwise assume the 'return' is being used as a jump (e.g.
+		 * retpoline) and just push the 'to' symbol.
+		 */
+		cp = call_path__findnew(cpr, parent, tsym, addr, ks);
+
+		err = thread_stack__push_cp(ts, 0, tm, ref, cp, true, false);
+		if (!err)
+			ts->stack[ts->cnt - 1].non_call = true;
+
+		return err;
+	}
+
+	/*
+	 * Assume 'parent' has not yet returned, so push 'to', and then push and
+	 * pop 'from'.
+	 */
+
+	cp = call_path__findnew(cpr, parent, tsym, addr, ks);
+
+	err = thread_stack__push_cp(ts, addr, tm, ref, cp, true, false);
 	if (err)
 		return err;
 
-	return thread_stack__pop_cp(thread, ts, sample->addr, sample->time, ref,
-				    to_al->sym);
+	cp = call_path__findnew(cpr, cp, fsym, ip, ks);
+
+	err = thread_stack__push_cp(ts, ip, tm, ref, cp, true, false);
+	if (err)
+		return err;
+
+	return thread_stack__call_return(thread, ts, --ts->cnt, tm, ref, false);
 }
 
 static int thread_stack__trace_begin(struct thread *thread,
@@ -680,13 +1028,75 @@ static int thread_stack__trace_end(struct thread_stack *ts,
 
 	cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp, NULL, 0,
 				ts->kernel_start);
-	if (!cp)
-		return -ENOMEM;
 
 	ret_addr = sample->ip + sample->insn_len;
 
 	return thread_stack__push_cp(ts, ret_addr, sample->time, ref, cp,
 				     false, true);
+}
+
+static bool is_x86_retpoline(const char *name)
+{
+	const char *p = strstr(name, "__x86_indirect_thunk_");
+
+	return p == name || !strcmp(name, "__indirect_thunk_start");
+}
+
+/*
+ * x86 retpoline functions pollute the call graph. This function removes them.
+ * This does not handle function return thunks, nor is there any improvement
+ * for the handling of inline thunks or extern thunks.
+ */
+static int thread_stack__x86_retpoline(struct thread_stack *ts,
+				       struct perf_sample *sample,
+				       struct addr_location *to_al)
+{
+	struct thread_stack_entry *tse = &ts->stack[ts->cnt - 1];
+	struct call_path_root *cpr = ts->crp->cpr;
+	struct symbol *sym = tse->cp->sym;
+	struct symbol *tsym = to_al->sym;
+	struct call_path *cp;
+
+	if (sym && is_x86_retpoline(sym->name)) {
+		/*
+		 * This is a x86 retpoline fn. It pollutes the call graph by
+		 * showing up everywhere there is an indirect branch, but does
+		 * not itself mean anything. Here the top-of-stack is removed,
+		 * by decrementing the stack count, and then further down, the
+		 * resulting top-of-stack is replaced with the actual target.
+		 * The result is that the retpoline functions will no longer
+		 * appear in the call graph. Note this only affects the call
+		 * graph, since all the original branches are left unchanged.
+		 */
+		ts->cnt -= 1;
+		sym = ts->stack[ts->cnt - 2].cp->sym;
+		if (sym && sym == tsym && to_al->addr != tsym->start) {
+			/*
+			 * Target is back to the middle of the symbol we came
+			 * from so assume it is an indirect jmp and forget it
+			 * altogether.
+			 */
+			ts->cnt -= 1;
+			return 0;
+		}
+	} else if (sym && sym == tsym) {
+		/*
+		 * Target is back to the symbol we came from so assume it is an
+		 * indirect jmp and forget it altogether.
+		 */
+		ts->cnt -= 1;
+		return 0;
+	}
+
+	cp = call_path__findnew(cpr, ts->stack[ts->cnt - 2].cp, tsym,
+				sample->addr, ts->kernel_start);
+	if (!cp)
+		return -ENOMEM;
+
+	/* Replace the top-of-stack with the actual target */
+	ts->stack[ts->cnt - 1].cp = cp;
+
+	return 0;
 }
 
 int thread_stack__process(struct thread *thread, struct comm *comm,
@@ -696,6 +1106,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 			  struct call_return_processor *crp)
 {
 	struct thread_stack *ts = thread__stack(thread, sample->cpu);
+	enum retpoline_state_t rstate;
 	int err = 0;
 
 	if (ts && !ts->crp) {
@@ -705,11 +1116,15 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 	}
 
 	if (!ts) {
-		ts = thread_stack__new(thread, sample->cpu, crp);
+		ts = thread_stack__new(thread, sample->cpu, crp, true, 0);
 		if (!ts)
 			return -ENOMEM;
 		ts->comm = comm;
 	}
+
+	rstate = ts->rstate;
+	if (rstate == X86_RETPOLINE_DETECTED)
+		ts->rstate = X86_RETPOLINE_POSSIBLE;
 
 	/* Flush stack on exec */
 	if (ts->comm != comm && thread->pid_ == thread->tid) {
@@ -727,6 +1142,8 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 	}
 
 	ts->branch_count += 1;
+	ts->insn_count += sample->insn_cnt;
+	ts->cyc_count += sample->cyc_cnt;
 	ts->last_time = sample->time;
 
 	if (sample->flags & PERF_IP_FLAG_CALL) {
@@ -745,13 +1162,37 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp,
 					to_al->sym, sample->addr,
 					ts->kernel_start);
-		if (!cp)
-			return -ENOMEM;
 		err = thread_stack__push_cp(ts, ret_addr, sample->time, ref,
 					    cp, false, trace_end);
+
+		/*
+		 * A call to the same symbol but not the start of the symbol,
+		 * may be the start of a x86 retpoline.
+		 */
+		if (!err && rstate == X86_RETPOLINE_POSSIBLE && to_al->sym &&
+		    from_al->sym == to_al->sym &&
+		    to_al->addr != to_al->sym->start)
+			ts->rstate = X86_RETPOLINE_DETECTED;
+
 	} else if (sample->flags & PERF_IP_FLAG_RETURN) {
-		if (!sample->ip || !sample->addr)
+		if (!sample->addr) {
+			u32 return_from_kernel = PERF_IP_FLAG_SYSCALLRET |
+						 PERF_IP_FLAG_INTERRUPT;
+
+			if (!(sample->flags & return_from_kernel))
+				return 0;
+
+			/* Pop kernel stack */
+			return thread_stack__pop_ks(thread, ts, sample, ref);
+		}
+
+		if (!sample->ip)
 			return 0;
+
+		/* x86 retpoline 'return' doesn't match the stack */
+		if (rstate == X86_RETPOLINE_DETECTED && ts->cnt > 2 &&
+		    ts->stack[ts->cnt - 1].ret_addr != sample->addr)
+			return thread_stack__x86_retpoline(ts, sample, to_al);
 
 		err = thread_stack__pop_cp(thread, ts, sample->addr,
 					   sample->time, ref, from_al->sym);
@@ -765,6 +1206,25 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 		err = thread_stack__trace_begin(thread, ts, sample->time, ref);
 	} else if (sample->flags & PERF_IP_FLAG_TRACE_END) {
 		err = thread_stack__trace_end(ts, sample, ref);
+	} else if (sample->flags & PERF_IP_FLAG_BRANCH &&
+		   from_al->sym != to_al->sym && to_al->sym &&
+		   to_al->addr == to_al->sym->start) {
+		struct call_path_root *cpr = ts->crp->cpr;
+		struct call_path *cp;
+
+		/*
+		 * The compiler might optimize a call/ret combination by making
+		 * it a jmp. Make that visible by recording on the stack a
+		 * branch to the start of a different symbol. Note, that means
+		 * when a ret pops the stack, all jmps must be popped off first.
+		 */
+		cp = call_path__findnew(cpr, ts->stack[ts->cnt - 1].cp,
+					to_al->sym, sample->addr,
+					ts->kernel_start);
+		err = thread_stack__push_cp(ts, 0, sample->time, ref, cp, false,
+					    false);
+		if (!err)
+			ts->stack[ts->cnt - 1].non_call = true;
 	}
 
 	return err;

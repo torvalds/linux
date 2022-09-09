@@ -1,28 +1,6 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
 /*
- * Copyright (c) 2015-2016, Linaro Limited
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (c) 2015-2021, Linaro Limited
  */
 #ifndef OPTEE_SMC_H
 #define OPTEE_SMC_H
@@ -61,10 +39,10 @@
 /*
  * Function specified by SMC Calling convention
  *
- * Return one of the following UIDs if using API specified in this file
- * without further extentions:
- * 65cb6b93-af0c-4617-8ed6-644a8d1140f8
- * see also OPTEE_SMC_UID_* in optee_msg.h
+ * Return the following UID if using API specified in this file
+ * without further extensions:
+ * 384fb3e0-e7f8-11e3-af63-0002a5d5c51b.
+ * see also OPTEE_MSG_UID_* in optee_msg.h
  */
 #define OPTEE_SMC_FUNCID_CALLS_UID OPTEE_MSG_FUNCID_CALLS_UID
 #define OPTEE_SMC_CALLS_UID \
@@ -75,7 +53,7 @@
 /*
  * Function specified by SMC Calling convention
  *
- * Returns 2.0 if using API specified in this file without further extentions.
+ * Returns 2.0 if using API specified in this file without further extensions.
  * see also OPTEE_MSG_REVISION_* in optee_msg.h
  */
 #define OPTEE_SMC_FUNCID_CALLS_REVISION OPTEE_MSG_FUNCID_CALLS_REVISION
@@ -129,12 +107,35 @@ struct optee_smc_call_get_os_revision_result {
 /*
  * Call with struct optee_msg_arg as argument
  *
- * Call register usage:
- * a0	SMC Function ID, OPTEE_SMC*CALL_WITH_ARG
- * a1	Upper 32bit of a 64bit physical pointer to a struct optee_msg_arg
- * a2	Lower 32bit of a 64bit physical pointer to a struct optee_msg_arg
+ * When called with OPTEE_SMC_CALL_WITH_RPC_ARG or
+ * OPTEE_SMC_CALL_WITH_REGD_ARG in a0 there is one RPC struct optee_msg_arg
+ * following after the first struct optee_msg_arg. The RPC struct
+ * optee_msg_arg has reserved space for the number of RPC parameters as
+ * returned by OPTEE_SMC_EXCHANGE_CAPABILITIES.
+ *
+ * When calling these functions, normal world has a few responsibilities:
+ * 1. It must be able to handle eventual RPCs
+ * 2. Non-secure interrupts should not be masked
+ * 3. If asynchronous notifications has been negotiated successfully, then
+ *    the interrupt for asynchronous notifications should be unmasked
+ *    during this call.
+ *
+ * Call register usage, OPTEE_SMC_CALL_WITH_ARG and
+ * OPTEE_SMC_CALL_WITH_RPC_ARG:
+ * a0	SMC Function ID, OPTEE_SMC_CALL_WITH_ARG or OPTEE_SMC_CALL_WITH_RPC_ARG
+ * a1	Upper 32 bits of a 64-bit physical pointer to a struct optee_msg_arg
+ * a2	Lower 32 bits of a 64-bit physical pointer to a struct optee_msg_arg
  * a3	Cache settings, not used if physical pointer is in a predefined shared
  *	memory area else per OPTEE_SMC_SHM_*
+ * a4-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Call register usage, OPTEE_SMC_CALL_WITH_REGD_ARG:
+ * a0	SMC Function ID, OPTEE_SMC_CALL_WITH_REGD_ARG
+ * a1	Upper 32 bits of a 64-bit shared memory cookie
+ * a2	Lower 32 bits of a 64-bit shared memory cookie
+ * a3	Offset of the struct optee_msg_arg in the shared memory with the
+ *	supplied cookie
  * a4-6	Not used
  * a7	Hypervisor Client ID register
  *
@@ -161,7 +162,7 @@ struct optee_smc_call_get_os_revision_result {
  *					optee_msg_arg.
  * OPTEE_SMC_RETURN_ETHREAD_LIMIT	Number of Trusted OS threads exceeded,
  *					try again later.
- * OPTEE_SMC_RETURN_EBADADDR		Bad physcial pointer to struct
+ * OPTEE_SMC_RETURN_EBADADDR		Bad physical pointer to struct
  *					optee_msg_arg.
  * OPTEE_SMC_RETURN_EBADCMD		Bad/unknown cmd in struct optee_msg_arg
  * OPTEE_SMC_RETURN_IS_RPC()		Call suspended by RPC call to normal
@@ -170,6 +171,10 @@ struct optee_smc_call_get_os_revision_result {
 #define OPTEE_SMC_FUNCID_CALL_WITH_ARG OPTEE_MSG_FUNCID_CALL_WITH_ARG
 #define OPTEE_SMC_CALL_WITH_ARG \
 	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_WITH_ARG)
+#define OPTEE_SMC_CALL_WITH_RPC_ARG \
+	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_WITH_RPC_ARG)
+#define OPTEE_SMC_CALL_WITH_REGD_ARG \
+	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_WITH_REGD_ARG)
 
 /*
  * Get Shared Memory Config
@@ -184,7 +189,7 @@ struct optee_smc_call_get_os_revision_result {
  * Have config return register usage:
  * a0	OPTEE_SMC_RETURN_OK
  * a1	Physical address of start of SHM
- * a2	Size of of SHM
+ * a2	Size of SHM
  * a3	Cache settings of memory, as defined by the
  *	OPTEE_SMC_SHM_* values above
  * a4-7	Preserved
@@ -217,7 +222,12 @@ struct optee_smc_get_shm_config_result {
  * Normal return register usage:
  * a0	OPTEE_SMC_RETURN_OK
  * a1	bitfield of secure world capabilities OPTEE_SMC_SEC_CAP_*
- * a2-7	Preserved
+ * a2	The maximum secure world notification number
+ * a3	Bit[7:0]: Number of parameters needed for RPC to be supplied
+ *		  as the second MSG arg struct for
+ *		  OPTEE_SMC_CALL_WITH_ARG
+ *	Bit[31:8]: Reserved (MBZ)
+ * a4-7	Preserved
  *
  * Error return register usage:
  * a0	OPTEE_SMC_RETURN_ENOTAVAIL, can't use the capabilities from normal world
@@ -236,6 +246,14 @@ struct optee_smc_get_shm_config_result {
  * secure world accepts command buffers located in any parts of non-secure RAM
  */
 #define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		BIT(2)
+/* Secure world is built with virtualization support */
+#define OPTEE_SMC_SEC_CAP_VIRTUALIZATION	BIT(3)
+/* Secure world supports Shared Memory with a NULL reference */
+#define OPTEE_SMC_SEC_CAP_MEMREF_NULL		BIT(4)
+/* Secure world supports asynchronous notification of normal world */
+#define OPTEE_SMC_SEC_CAP_ASYNC_NOTIF		BIT(5)
+/* Secure world supports pre-allocating RPC arg struct */
+#define OPTEE_SMC_SEC_CAP_RPC_ARG		BIT(6)
 
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
@@ -244,8 +262,8 @@ struct optee_smc_get_shm_config_result {
 struct optee_smc_exchange_capabilities_result {
 	unsigned long status;
 	unsigned long capabilities;
-	unsigned long reserved0;
-	unsigned long reserved1;
+	unsigned long max_notif_value;
+	unsigned long data;
 };
 
 /*
@@ -264,8 +282,8 @@ struct optee_smc_exchange_capabilities_result {
  *
  * Normal return register usage:
  * a0	OPTEE_SMC_RETURN_OK
- * a1	Upper 32bit of a 64bit Shared memory cookie
- * a2	Lower 32bit of a 64bit Shared memory cookie
+ * a1	Upper 32 bits of a 64-bit Shared memory cookie
+ * a2	Lower 32 bits of a 64-bit Shared memory cookie
  * a3-7	Preserved
  *
  * Cache empty return register usage:
@@ -311,6 +329,102 @@ struct optee_smc_disable_shm_cache_result {
 #define OPTEE_SMC_FUNCID_ENABLE_SHM_CACHE	11
 #define OPTEE_SMC_ENABLE_SHM_CACHE \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_ENABLE_SHM_CACHE)
+
+/*
+ * Query OP-TEE about number of supported threads
+ *
+ * Normal World OS or Hypervisor issues this call to find out how many
+ * threads OP-TEE supports. That is how many standard calls can be issued
+ * in parallel before OP-TEE will return OPTEE_SMC_RETURN_ETHREAD_LIMIT.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_GET_THREAD_COUNT
+ * a1-6 Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1	Number of threads
+ * a2-7 Preserved
+ *
+ * Error return:
+ * a0	OPTEE_SMC_RETURN_UNKNOWN_FUNCTION   Requested call is not implemented
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_GET_THREAD_COUNT	15
+#define OPTEE_SMC_GET_THREAD_COUNT \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_THREAD_COUNT)
+
+/*
+ * Inform OP-TEE that normal world is able to receive asynchronous
+ * notifications.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_ENABLE_ASYNC_NOTIF
+ * a1-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1-7	Preserved
+ *
+ * Not supported return register usage:
+ * a0	OPTEE_SMC_RETURN_ENOTAVAIL
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_ENABLE_ASYNC_NOTIF	16
+#define OPTEE_SMC_ENABLE_ASYNC_NOTIF \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_ENABLE_ASYNC_NOTIF)
+
+/*
+ * Retrieve a value of notifications pending since the last call of this
+ * function.
+ *
+ * OP-TEE keeps a record of all posted values. When an interrupt is
+ * received which indicates that there are posted values this function
+ * should be called until all pended values have been retrieved. When a
+ * value is retrieved, it's cleared from the record in secure world.
+ *
+ * It is expected that this function is called from an interrupt handler
+ * in normal world.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_GET_ASYNC_NOTIF_VALUE
+ * a1-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1	value
+ * a2	Bit[0]: OPTEE_SMC_ASYNC_NOTIF_VALUE_VALID if the value in a1 is
+ *		valid, else 0 if no values where pending
+ * a2	Bit[1]: OPTEE_SMC_ASYNC_NOTIF_VALUE_PENDING if another value is
+ *		pending, else 0.
+ *	Bit[31:2]: MBZ
+ * a3-7	Preserved
+ *
+ * Not supported return register usage:
+ * a0	OPTEE_SMC_RETURN_ENOTAVAIL
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_ASYNC_NOTIF_VALUE_VALID	BIT(0)
+#define OPTEE_SMC_ASYNC_NOTIF_VALUE_PENDING	BIT(1)
+
+/*
+ * Notification that OP-TEE expects a yielding call to do some bottom half
+ * work in a driver.
+ */
+#define OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF	0
+
+#define OPTEE_SMC_FUNCID_GET_ASYNC_NOTIF_VALUE	17
+#define OPTEE_SMC_GET_ASYNC_NOTIF_VALUE \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_ASYNC_NOTIF_VALUE)
+
+/* See OPTEE_SMC_CALL_WITH_RPC_ARG above */
+#define OPTEE_SMC_FUNCID_CALL_WITH_RPC_ARG	18
+
+/* See OPTEE_SMC_CALL_WITH_REGD_ARG above */
+#define OPTEE_SMC_FUNCID_CALL_WITH_REGD_ARG	19
 
 /*
  * Resume from RPC (for example after processing a foreign interrupt)
@@ -360,16 +474,16 @@ struct optee_smc_disable_shm_cache_result {
  *
  * "Return" register usage:
  * a0	SMC Function ID, OPTEE_SMC_CALL_RETURN_FROM_RPC.
- * a1	Upper 32bits of 64bit physical pointer to allocated
+ * a1	Upper 32 bits of 64-bit physical pointer to allocated
  *	memory, (a1 == 0 && a2 == 0) if size was 0 or if memory can't
  *	be allocated.
- * a2	Lower 32bits of 64bit physical pointer to allocated
+ * a2	Lower 32 bits of 64-bit physical pointer to allocated
  *	memory, (a1 == 0 && a2 == 0) if size was 0 or if memory can't
  *	be allocated
  * a3	Preserved
- * a4	Upper 32bits of 64bit Shared memory cookie used when freeing
+ * a4	Upper 32 bits of 64-bit Shared memory cookie used when freeing
  *	the memory or doing an RPC
- * a5	Lower 32bits of 64bit Shared memory cookie used when freeing
+ * a5	Lower 32 bits of 64-bit Shared memory cookie used when freeing
  *	the memory or doing an RPC
  * a6-7	Preserved
  */
@@ -382,9 +496,9 @@ struct optee_smc_disable_shm_cache_result {
  *
  * "Call" register usage:
  * a0	This value, OPTEE_SMC_RETURN_RPC_FREE
- * a1	Upper 32bits of 64bit shared memory cookie belonging to this
+ * a1	Upper 32 bits of 64-bit shared memory cookie belonging to this
  *	argument memory
- * a2	Lower 32bits of 64bit shared memory cookie belonging to this
+ * a2	Lower 32 bits of 64-bit shared memory cookie belonging to this
  *	argument memory
  * a3-7	Resume information, must be preserved
  *
@@ -398,7 +512,7 @@ struct optee_smc_disable_shm_cache_result {
 	OPTEE_SMC_RPC_VAL(OPTEE_SMC_RPC_FUNC_FREE)
 
 /*
- * Deliver foreign interrupt to normal world.
+ * Deliver a foreign interrupt in normal world.
  *
  * "Call" register usage:
  * a0	OPTEE_SMC_RETURN_RPC_FOREIGN_INTR
@@ -408,7 +522,7 @@ struct optee_smc_disable_shm_cache_result {
  * a0	SMC Function ID, OPTEE_SMC_CALL_RETURN_FROM_RPC.
  * a1-7	Preserved
  */
-#define OPTEE_SMC_RPC_FUNC_FOREIGN_INTR		4
+#define OPTEE_SMC_RPC_FUNC_FOREIGN_INTR	4
 #define OPTEE_SMC_RETURN_RPC_FOREIGN_INTR \
 	OPTEE_SMC_RPC_VAL(OPTEE_SMC_RPC_FUNC_FOREIGN_INTR)
 
@@ -424,10 +538,10 @@ struct optee_smc_disable_shm_cache_result {
  *
  * "Call" register usage:
  * a0	OPTEE_SMC_RETURN_RPC_CMD
- * a1	Upper 32bit of a 64bit Shared memory cookie holding a
+ * a1	Upper 32 bits of a 64-bit Shared memory cookie holding a
  *	struct optee_msg_arg, must be preserved, only the data should
  *	be updated
- * a2	Lower 32bit of a 64bit Shared memory cookie holding a
+ * a2	Lower 32 bits of a 64-bit Shared memory cookie holding a
  *	struct optee_msg_arg, must be preserved, only the data should
  *	be updated
  * a3-7	Resume information, must be preserved

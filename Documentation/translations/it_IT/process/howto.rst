@@ -109,8 +109,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
     accetteranno patch solo se queste osserveranno tali regole, e molte
     persone revisioneranno il codice solo se scritto nello stile appropriato.
 
-  :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>` e
-  :ref:`Documentation/translations/it_IT/process/submitting-drivers.rst <it_submittingdrivers>`
+  :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`
 
     Questo file descrive dettagliatamente come creare ed inviare una patch
     con successo, includendo (ma non solo questo):
@@ -129,9 +128,9 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 		https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 	"Linux kernel patch submission format"
-		http://linux.yyz.us/patch-format.html
+		https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
-  :ref:`Documentation/process/translations/it_IT/stable-api-nonsense.rst <it_stable_api_nonsense>`
+  :ref:`Documentation/translations/it_IT/process/stable-api-nonsense.rst <it_stable_api_nonsense>`
 
     Questo file descrive la motivazioni sottostanti la conscia decisione di
     non avere un API stabile all'interno del kernel, incluso cose come:
@@ -234,7 +233,7 @@ il progetto Linux Cross-Reference, che è in grado di presentare codice
 sorgente in un formato autoreferenziale ed indicizzato. Un eccellente ed
 aggiornata fonte di consultazione del codice del kernel la potete trovare qui:
 
-	http://lxr.free-electrons.com/
+	https://elixir.bootlin.com/
 
 
 Il processo di sviluppo
@@ -244,7 +243,6 @@ e di molti altri rami per specifici sottosistemi. Questi rami sono:
 
   - I sorgenti kernel 4.x
   - I sorgenti stabili del kernel 4.x.y -stable
-  - Le modifiche in 4.x -git
   - Sorgenti dei sottosistemi del kernel e le loro modifiche
   - Il kernel 4.x -next per test d'integrazione
 
@@ -313,16 +311,6 @@ Il file Documentation/process/stable-kernel-rules.rst (nei sorgenti) documenta
 quali tipologie di modifiche sono accettate per i sorgenti -stable, e come
 avviene il processo di rilascio.
 
-Le modifiche in 4.x -git
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Queste sono istantanee quotidiane del kernel di Linus e sono gestite in
-una repositorio git (da qui il nome). Queste modifiche sono solitamente
-rilasciate giornalmente e rappresentano l'attuale stato dei sorgenti di
-Linus. Queste sono da considerarsi più sperimentali di un -rc in quanto
-generate automaticamente senza nemmeno aver dato una rapida occhiata
-per verificarne lo stato.
-
 
 Sorgenti dei sottosistemi del kernel e le loro patch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -368,17 +356,10 @@ benvenuti.
 Riportare Bug
 -------------
 
-https://bugzilla.kernel.org è dove gli sviluppatori del kernel Linux tracciano
-i bachi del kernel. Gli utenti sono incoraggiati nel riportare tutti i bachi
-che trovano utilizzando questo strumento.
-Per maggiori dettagli su come usare il bugzilla del kernel, guardare:
-
-	https://bugzilla.kernel.org/page.cgi?id=faq.html
-
-Il file admin-guide/reporting-bugs.rst nella cartella principale del kernel
-fornisce un buon modello sul come segnalare un baco nel kernel, e spiega quali
-informazioni sono necessarie agli sviluppatori per poter aiutare il
-rintracciamento del problema.
+Il file 'Documentation/admin-guide/reporting-issues.rst' nella
+cartella principale del kernel spiega come segnalare un baco nel
+kernel, e fornisce dettagli su quali informazioni sono necessarie agli
+sviluppatori del kernel per poter studiare il problema.
 
 Gestire i rapporti sui bug
 --------------------------
@@ -391,8 +372,14 @@ al corrente della vostra presenza. Riparare bachi è una delle migliori vie per
 acquisire meriti tra gli altri sviluppatori, perchè non a molte persone piace
 perdere tempo a sistemare i bachi di altri.
 
-Per lavorare sui rapporti di bachi già riportati, andate su
-https://bugzilla.kernel.org.
+Per lavorare sui bachi già segnalati, per prima cosa cercate il
+sottosistema che vi interessa. Poi, verificate nel file MAINTAINERS
+dove vengono collezionati solitamente i bachi per quel sottosistema;
+spesso sarà una lista di discussione, raramente un bugtracker. Cercate
+bachi nell'archivio e aiutate dove credete di poterlo fare. Potete
+anche consultare https://bugzilla.kernel.org; però, solo una manciata di
+sottosistemi lo usano attivamente, ciò nonostante i bachi che
+coinvolgono l'intero kernel sono sempre riportati lì.
 
 Liste di discussione
 --------------------

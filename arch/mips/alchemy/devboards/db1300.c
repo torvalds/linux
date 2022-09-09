@@ -731,16 +731,8 @@ static struct platform_device db1300_lcd_dev = {
 
 /**********************************************************************/
 
-static void db1300_wm97xx_irqen(struct wm97xx *wm, int enable)
-{
-	if (enable)
-		enable_irq(DB1300_AC97_PEN_INT);
-	else
-		disable_irq_nosync(DB1300_AC97_PEN_INT);
-}
-
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_WM97XX)
 static struct wm97xx_mach_ops db1300_wm97xx_ops = {
-	.irq_enable	= db1300_wm97xx_irqen,
 	.irq_gpio	= WM97XX_GPIO_3,
 };
 
@@ -762,6 +754,12 @@ static int db1300_wm97xx_probe(struct platform_device *pdev)
 
 	return wm97xx_register_mach_ops(wm, &db1300_wm97xx_ops);
 }
+#else
+static int db1300_wm97xx_probe(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+#endif
 
 static struct platform_driver db1300_wm97xx_driver = {
 	.driver.name	= "wm97xx-touch",

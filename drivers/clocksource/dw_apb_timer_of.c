@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Altera Corporation
  * Copyright (c) 2011 Picochip Ltd., Jamie Iles
  *
  * Modified from mach-picoxcell/time.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/delay.h>
 #include <linux/dw_apb_timer.h>
@@ -25,12 +14,13 @@
 #include <linux/reset.h>
 #include <linux/sched_clock.h>
 
-static void __init timer_get_base_and_rate(struct device_node *np,
+static int __init timer_get_base_and_rate(struct device_node *np,
 				    void __iomem **base, u32 *rate)
 {
 	struct clk *timer_clk;
 	struct clk *pclk;
 	struct reset_control *rstc;
+	int ret;
 
 	*base = of_iomap(np, 0);
 
@@ -48,7 +38,7 @@ static void __init timer_get_base_and_rate(struct device_node *np,
 	}
 
 	/*
-	 * Not all implementations use a periphal clock, so don't panic
+	 * Not all implementations use a peripheral clock, so don't panic
 	 * if it's not present
 	 */
 	pclk = of_clk_get_by_name(np, "pclk");
@@ -57,55 +47,83 @@ static void __init timer_get_base_and_rate(struct device_node *np,
 			pr_warn("pclk for %pOFn is present, but could not be activated\n",
 				np);
 
-	timer_clk = of_clk_get_by_name(np, "timer");
-	if (IS_ERR(timer_clk))
-		goto try_clock_freq;
+	if (!of_property_read_u32(np, "clock-freq", rate) ||
+	    !of_property_read_u32(np, "clock-frequency", rate))
+		return 0;
 
-	if (!clk_prepare_enable(timer_clk)) {
-		*rate = clk_get_rate(timer_clk);
-		return;
+	timer_clk = of_clk_get_by_name(np, "timer");
+	if (IS_ERR(timer_clk)) {
+		ret = PTR_ERR(timer_clk);
+		goto out_pclk_disable;
 	}
 
-try_clock_freq:
-	if (of_property_read_u32(np, "clock-freq", rate) &&
-	    of_property_read_u32(np, "clock-frequency", rate))
-		panic("No clock nor clock-frequency property for %pOFn", np);
+	ret = clk_prepare_enable(timer_clk);
+	if (ret)
+		goto out_timer_clk_put;
+
+	*rate = clk_get_rate(timer_clk);
+	if (!(*rate)) {
+		ret = -EINVAL;
+		goto out_timer_clk_disable;
+	}
+
+	return 0;
+
+out_timer_clk_disable:
+	clk_disable_unprepare(timer_clk);
+out_timer_clk_put:
+	clk_put(timer_clk);
+out_pclk_disable:
+	if (!IS_ERR(pclk)) {
+		clk_disable_unprepare(pclk);
+		clk_put(pclk);
+	}
+	iounmap(*base);
+	return ret;
 }
 
-static void __init add_clockevent(struct device_node *event_timer)
+static int __init add_clockevent(struct device_node *event_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clock_event_device *ced;
 	u32 irq, rate;
+	int ret = 0;
 
 	irq = irq_of_parse_and_map(event_timer, 0);
 	if (irq == 0)
 		panic("No IRQ for clock event timer");
 
-	timer_get_base_and_rate(event_timer, &iobase, &rate);
+	ret = timer_get_base_and_rate(event_timer, &iobase, &rate);
+	if (ret)
+		return ret;
 
-	ced = dw_apb_clockevent_init(0, event_timer->name, 300, iobase, irq,
+	ced = dw_apb_clockevent_init(-1, event_timer->name, 300, iobase, irq,
 				     rate);
 	if (!ced)
-		panic("Unable to initialise clockevent device");
+		return -EINVAL;
 
 	dw_apb_clockevent_register(ced);
+
+	return 0;
 }
 
 static void __iomem *sched_io_base;
 static u32 sched_rate;
 
-static void __init add_clocksource(struct device_node *source_timer)
+static int __init add_clocksource(struct device_node *source_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clocksource *cs;
 	u32 rate;
+	int ret;
 
-	timer_get_base_and_rate(source_timer, &iobase, &rate);
+	ret = timer_get_base_and_rate(source_timer, &iobase, &rate);
+	if (ret)
+		return ret;
 
 	cs = dw_apb_clocksource_init(300, source_timer->name, iobase, rate);
 	if (!cs)
-		panic("Unable to initialise clocksource device");
+		return -EINVAL;
 
 	dw_apb_clocksource_start(cs);
 	dw_apb_clocksource_register(cs);
@@ -117,6 +135,8 @@ static void __init add_clocksource(struct device_node *source_timer)
 	 */
 	sched_io_base = iobase + 0x04;
 	sched_rate = rate;
+
+	return 0;
 }
 
 static u64 notrace read_sched_clock(void)
@@ -157,14 +177,14 @@ static struct delay_timer dw_apb_delay_timer = {
 static int num_called;
 static int __init dw_apb_timer_init(struct device_node *timer)
 {
+	int ret = 0;
+
 	switch (num_called) {
-	case 0:
-		pr_debug("%s: found clockevent timer\n", __func__);
-		add_clockevent(timer);
-		break;
 	case 1:
 		pr_debug("%s: found clocksource timer\n", __func__);
-		add_clocksource(timer);
+		ret = add_clocksource(timer);
+		if (ret)
+			return ret;
 		init_sched_clock();
 #ifdef CONFIG_ARM
 		dw_apb_delay_timer.freq = sched_rate;
@@ -172,6 +192,10 @@ static int __init dw_apb_timer_init(struct device_node *timer)
 #endif
 		break;
 	default:
+		pr_debug("%s: found clockevent timer\n", __func__);
+		ret = add_clockevent(timer);
+		if (ret)
+			return ret;
 		break;
 	}
 

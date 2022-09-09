@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -8,11 +9,6 @@
  * Authors:	Ralf Baechle, <ralf@waldorf-gmbh.de>
  *		Lots of code moved from tcp.c and ip.c; see those files
  *		for more names.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #include <linux/module.h>
 #include <linux/types.h>
@@ -110,40 +106,3 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 }
 
 EXPORT_SYMBOL(csum_partial);
-
-/*
- * copy while checksumming, otherwise like csum_partial
- */
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
-				       int len, __wsum sum)
-{
-	/*
-	 * It's 2:30 am and I don't feel like doing it real ...
-	 * This is lots slower than the real thing (tm)
-	 */
-	sum = csum_partial(src, len, sum);
-	memcpy(dst, src, len);
-
-	return sum;
-}
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
-
-/*
- * Copy from userspace and compute checksum.  If we catch an exception
- * then zero the rest of the buffer.
- */
-__wsum csum_partial_copy_from_user(const void __user *src,
-					void *dst, int len,
-					__wsum sum, int *err_ptr)
-{
-	int missing;
-
-	missing = copy_from_user(dst, src, len);
-	if (missing) {
-		memset(dst + len - missing, 0, missing);
-		*err_ptr = -EFAULT;
-	}
-		
-	return csum_partial(dst, len, sum);
-}
-EXPORT_SYMBOL(csum_partial_copy_from_user);

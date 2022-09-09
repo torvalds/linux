@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/engine/gr/base.o
 nvkm-y += nvkm/engine/gr/nv04.o
 nvkm-y += nvkm/engine/gr/nv10.o
@@ -35,8 +36,10 @@ nvkm-y += nvkm/engine/gr/gp100.o
 nvkm-y += nvkm/engine/gr/gp102.o
 nvkm-y += nvkm/engine/gr/gp104.o
 nvkm-y += nvkm/engine/gr/gp107.o
+nvkm-y += nvkm/engine/gr/gp108.o
 nvkm-y += nvkm/engine/gr/gp10b.o
 nvkm-y += nvkm/engine/gr/gv100.o
+nvkm-y += nvkm/engine/gr/tu102.o
 
 nvkm-y += nvkm/engine/gr/ctxnv40.o
 nvkm-y += nvkm/engine/gr/ctxnv50.o
@@ -59,3 +62,4 @@ nvkm-y += nvkm/engine/gr/ctxgp102.o
 nvkm-y += nvkm/engine/gr/ctxgp104.o
 nvkm-y += nvkm/engine/gr/ctxgp107.o
 nvkm-y += nvkm/engine/gr/ctxgv100.o
+nvkm-y += nvkm/engine/gr/ctxtu102.o

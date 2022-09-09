@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/clk-provider.h>
@@ -25,6 +20,7 @@
 struct clk_system {
 	struct clk_hw hw;
 	struct regmap *regmap;
+	struct at91_clk_pms pms;
 	u8 id;
 };
 
@@ -39,7 +35,7 @@ static inline bool clk_system_ready(struct regmap *regmap, int id)
 
 	regmap_read(regmap, AT91_PMC_SR, &status);
 
-	return status & (1 << id) ? 1 : 0;
+	return !!(status & (1 << id));
 }
 
 static int clk_system_prepare(struct clk_hw *hw)
@@ -79,13 +75,32 @@ static int clk_system_is_prepared(struct clk_hw *hw)
 
 	regmap_read(sys->regmap, AT91_PMC_SR, &status);
 
-	return status & (1 << sys->id) ? 1 : 0;
+	return !!(status & (1 << sys->id));
+}
+
+static int clk_system_save_context(struct clk_hw *hw)
+{
+	struct clk_system *sys = to_clk_system(hw);
+
+	sys->pms.status = clk_system_is_prepared(hw);
+
+	return 0;
+}
+
+static void clk_system_restore_context(struct clk_hw *hw)
+{
+	struct clk_system *sys = to_clk_system(hw);
+
+	if (sys->pms.status)
+		clk_system_prepare(&sys->hw);
 }
 
 static const struct clk_ops system_ops = {
 	.prepare = clk_system_prepare,
 	.unprepare = clk_system_unprepare,
 	.is_prepared = clk_system_is_prepared,
+	.save_context = clk_system_save_context,
+	.restore_context = clk_system_restore_context,
 };
 
 struct clk_hw * __init

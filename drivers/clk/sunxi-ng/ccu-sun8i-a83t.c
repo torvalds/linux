@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017 Chen-Yu Tsai. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
+#include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include "ccu_common.h"
@@ -513,8 +506,9 @@ static SUNXI_CCU_GATE(csi_misc_clk, "csi-misc", "osc24M", 0x130, BIT(16), 0);
 
 static SUNXI_CCU_GATE(mipi_csi_clk, "mipi-csi", "osc24M", 0x130, BIT(31), 0);
 
-static const char * const csi_mclk_parents[] = { "pll-de", "osc24M" };
-static const u8 csi_mclk_table[] = { 3, 5 };
+static const char * const csi_mclk_parents[] = { "pll-video0", "pll-de",
+						 "osc24M" };
+static const u8 csi_mclk_table[] = { 0, 3, 5 };
 static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(csi_mclk_clk, "csi-mclk",
 				       csi_mclk_parents, csi_mclk_table,
 				       0x134,
@@ -893,12 +887,10 @@ static void sun8i_a83t_cpu_pll_fixup(void __iomem *reg)
 
 static int sun8i_a83t_ccu_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	void __iomem *reg;
 	u32 val;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(&pdev->dev, res);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
@@ -912,7 +904,7 @@ static int sun8i_a83t_ccu_probe(struct platform_device *pdev)
 	sun8i_a83t_cpu_pll_fixup(reg + SUN8I_A83T_PLL_C0CPUX_REG);
 	sun8i_a83t_cpu_pll_fixup(reg + SUN8I_A83T_PLL_C1CPUX_REG);
 
-	return sunxi_ccu_probe(pdev->dev.of_node, reg, &sun8i_a83t_ccu_desc);
+	return devm_sunxi_ccu_probe(&pdev->dev, reg, &sun8i_a83t_ccu_desc);
 }
 
 static const struct of_device_id sun8i_a83t_ccu_ids[] = {
@@ -924,7 +916,11 @@ static struct platform_driver sun8i_a83t_ccu_driver = {
 	.probe	= sun8i_a83t_ccu_probe,
 	.driver	= {
 		.name	= "sun8i-a83t-ccu",
+		.suppress_bind_attrs = true,
 		.of_match_table	= sun8i_a83t_ccu_ids,
 	},
 };
-builtin_platform_driver(sun8i_a83t_ccu_driver);
+module_platform_driver(sun8i_a83t_ccu_driver);
+
+MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_LICENSE("GPL");

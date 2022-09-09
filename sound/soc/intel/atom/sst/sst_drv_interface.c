@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  sst_drv_interface.c - Intel SST Driver for audio engine
  *
@@ -6,15 +7,6 @@
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com)
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -32,9 +24,6 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../../common/sst-dsp.h"
-
-
 
 #define NUM_CODEC 2
 #define MIN_FRAGMENT 2
@@ -146,12 +135,11 @@ static int sst_power_control(struct device *dev, bool state)
 	int ret = 0;
 	int usage_count = 0;
 
-	if (state == true) {
-		ret = pm_runtime_get_sync(dev);
+	if (state) {
+		ret = pm_runtime_resume_and_get(dev);
 		usage_count = GET_USAGE_COUNT(dev);
 		dev_dbg(ctx->dev, "Enable: pm usage count: %d\n", usage_count);
 		if (ret < 0) {
-			pm_runtime_put_sync(dev);
 			dev_err(ctx->dev, "Runtime get failed with err: %d\n", ret);
 			return ret;
 		}
@@ -204,11 +192,9 @@ static int sst_cdev_open(struct device *dev,
 	struct stream_info *stream;
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
 
-	retval = pm_runtime_get_sync(ctx->dev);
-	if (retval < 0) {
-		pm_runtime_put_sync(ctx->dev);
+	retval = pm_runtime_resume_and_get(ctx->dev);
+	if (retval < 0)
 		return retval;
-	}
 
 	str_id = sst_get_stream(ctx, str_params);
 	if (str_id > 0) {
@@ -656,11 +642,9 @@ static int sst_send_byte_stream(struct device *dev,
 
 	if (NULL == bytes)
 		return -EINVAL;
-	ret_val = pm_runtime_get_sync(ctx->dev);
-	if (ret_val < 0) {
-		pm_runtime_put_sync(ctx->dev);
+	ret_val = pm_runtime_resume_and_get(ctx->dev);
+	if (ret_val < 0)
 		return ret_val;
-	}
 
 	ret_val = sst_send_byte_stream_mrfld(ctx, bytes);
 	sst_pm_runtime_put(ctx);

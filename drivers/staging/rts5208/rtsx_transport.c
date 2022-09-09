@@ -55,9 +55,9 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 		*offset += cnt;
 
 	/*
-	 * Using scatter-gather.  We have to go through the list one entry
-	 * at a time.  Each s-g entry contains some number of pages, and
-	 * each page has to be kmap()'ed separately.
+	 * Using scatter-gather. We have to go through the list one entry
+	 * at a time. Each s-g entry contains some number of pages which
+	 * have to be copied one at a time.
 	 */
 	} else {
 		struct scatterlist *sg =
@@ -92,13 +92,11 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 			while (sglen > 0) {
 				unsigned int plen = min(sglen, (unsigned int)
 						PAGE_SIZE - poff);
-				unsigned char *ptr = kmap(page);
 
 				if (dir == TO_XFER_BUF)
-					memcpy(ptr + poff, buffer + cnt, plen);
+					memcpy_to_page(page, poff, buffer + cnt, plen);
 				else
-					memcpy(buffer + cnt, ptr + poff, plen);
-				kunmap(page);
+					memcpy_from_page(buffer + cnt, page, poff, plen);
 
 				/* Start at the beginning of the next page */
 				poff = 0;
@@ -257,8 +255,8 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 	spin_unlock_irq(&rtsx->reg_lock);
 
 	/* Wait for TRANS_OK_INT */
-	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, msecs_to_jiffies(timeout));
+	timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+							     msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
 			chip->int_reg);
@@ -284,8 +282,8 @@ finish_send_cmd:
 	return err;
 }
 
-static inline void rtsx_add_sg_tbl(
-	struct rtsx_chip *chip, u32 addr, u32 len, u8 option)
+static inline void rtsx_add_sg_tbl(struct rtsx_chip *chip,
+				   u32 addr, u32 len, u8 option)
 {
 	__le64 *sgb = (__le64 *)(chip->host_sg_tbl_ptr);
 	u64 val = 0;
@@ -326,7 +324,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 	struct scatterlist *sg_ptr;
 	u32 val = TRIG_DMA;
 
-	if (!sg || (num_sg <= 0) || !offset || !index)
+	if (!sg || num_sg <= 0 || !offset || !index)
 		return -EIO;
 
 	if (dma_dir == DMA_TO_DEVICE)
@@ -393,10 +391,9 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 			*offset = 0;
 			*index = *index + 1;
 		}
-		if ((i == (sg_cnt - 1)) || !resid)
-			option = RTSX_SG_VALID | RTSX_SG_END | RTSX_SG_TRANS_DATA;
-		else
-			option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
+		option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
+		if ((i == sg_cnt - 1) || !resid)
+			option |= RTSX_SG_END;
 
 		rtsx_add_sg_tbl(chip, (u32)addr, (u32)len, option);
 
@@ -420,8 +417,8 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 
 	spin_unlock_irq(&rtsx->reg_lock);
 
-	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, msecs_to_jiffies(timeout));
+	timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+							     msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 			__func__, __LINE__);
@@ -444,8 +441,8 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 	if (rtsx->trans_result == TRANS_NOT_READY) {
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
-		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, msecs_to_jiffies(timeout));
+		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+								     msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -490,7 +487,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 	long timeleft;
 	struct scatterlist *sg_ptr;
 
-	if (!sg || (num_sg <= 0))
+	if (!sg || num_sg <= 0)
 		return -EIO;
 
 	if (dma_dir == DMA_TO_DEVICE)
@@ -541,10 +538,9 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 			dev_dbg(rtsx_dev(chip), "DMA addr: 0x%x, Len: 0x%x\n",
 				(unsigned int)addr, len);
 
+			option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
 			if (j == (sg_cnt - 1))
-				option = RTSX_SG_VALID | RTSX_SG_END | RTSX_SG_TRANS_DATA;
-			else
-				option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
+				option |= RTSX_SG_END;
 
 			rtsx_add_sg_tbl(chip, (u32)addr, (u32)len, option);
 
@@ -565,8 +561,8 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 
 		spin_unlock_irq(&rtsx->reg_lock);
 
-		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, msecs_to_jiffies(timeout));
+		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+								     msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -592,8 +588,8 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 	if (rtsx->trans_result == TRANS_NOT_READY) {
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
-		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, msecs_to_jiffies(timeout));
+		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+								     msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -637,7 +633,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	u32 val = BIT(31);
 	long timeleft;
 
-	if (!buf || (len <= 0))
+	if (!buf || len <= 0)
 		return -EIO;
 
 	if (dma_dir == DMA_TO_DEVICE)
@@ -679,8 +675,8 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	spin_unlock_irq(&rtsx->reg_lock);
 
 	/* Wait for TRANS_OK_INT */
-	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, msecs_to_jiffies(timeout));
+	timeleft = wait_for_completion_interruptible_timeout(&trans_done,
+							     msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 			__func__, __LINE__);

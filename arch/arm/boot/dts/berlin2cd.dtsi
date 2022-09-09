@@ -62,7 +62,7 @@
 
 		ranges = <0 0xf7000000 0x1000000>;
 
-		sdhci0: sdhci@ab0000 {
+		sdhci0: mmc@ab0000 {
 			compatible = "mrvl,pxav3-mmc";
 			reg = <0xab0000 0x200>;
 			clocks = <&chip_clk CLKID_SDIO0XIN>, <&chip_clk CLKID_SDIO0>;
@@ -71,7 +71,7 @@
 			status = "disabled";
 		};
 
-		l2: l2-cache-controller@ac0000 {
+		l2: cache-controller@ac0000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xac0000 0x1000>;
 			cache-unified;
@@ -181,7 +181,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <8>;
+					ngpios = <8>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -199,7 +199,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <8>;
+					ngpios = <8>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -217,7 +217,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <8>;
+					ngpios = <8>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -235,7 +235,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <8>;
+					ngpios = <8>;
 					reg = <0>;
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -473,7 +473,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <8>;
+					ngpios = <8>;
 					reg = <0>;
 				};
 			};
@@ -518,7 +518,7 @@
 					compatible = "snps,dw-apb-gpio-port";
 					gpio-controller;
 					#gpio-cells = <2>;
-					snps,nr-gpios = <8>;
+					ngpios = <8>;
 					reg = <0>;
 				};
 			};

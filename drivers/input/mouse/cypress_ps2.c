@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cypress Trackpad PS/2 mouse driver
  *
@@ -9,10 +10,6 @@
  * Additional contributors include:
  *   Kamal Mostafa <kamal@canonical.com>
  *   Kyle Fazzari <git@status.e4ward.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -699,7 +696,7 @@ int cypress_init(struct psmouse *psmouse)
 err_exit:
 	/*
 	 * Reset Cypress Trackpad as a standard mouse. Then
-	 * let psmouse driver commmunicating with it as default PS2 mouse.
+	 * let psmouse driver communicating with it as default PS2 mouse.
 	 */
 	cypress_reset(psmouse);
 

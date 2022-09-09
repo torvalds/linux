@@ -1,0 +1,104 @@
+/* SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause) */
+/*
+ * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
+ */
+
+#ifndef _DT_BINDINGS_CLK_MSM_GCC_9607_H
+#define _DT_BINDINGS_CLK_MSM_GCC_9607_H
+
+#define GPLL0							0
+#define GPLL0_EARLY						1
+#define GPLL1							2
+#define GPLL1_VOTE						3
+#define GPLL2							4
+#define GPLL2_EARLY						5
+#define PCNOC_BFDCD_CLK_SRC				6
+#define SYSTEM_NOC_BFDCD_CLK_SRC		7
+#define GCC_SMMU_CFG_CLK				8
+#define APSS_AHB_CLK_SRC				9
+#define GCC_QDSS_DAP_CLK				10
+#define BLSP1_QUP1_I2C_APPS_CLK_SRC		11
+#define BLSP1_QUP1_SPI_APPS_CLK_SRC		12
+#define BLSP1_QUP2_I2C_APPS_CLK_SRC		13
+#define BLSP1_QUP2_SPI_APPS_CLK_SRC		14
+#define BLSP1_QUP3_I2C_APPS_CLK_SRC		15
+#define BLSP1_QUP3_SPI_APPS_CLK_SRC		16
+#define BLSP1_QUP4_I2C_APPS_CLK_SRC		17
+#define BLSP1_QUP4_SPI_APPS_CLK_SRC		18
+#define BLSP1_QUP5_I2C_APPS_CLK_SRC		19
+#define BLSP1_QUP5_SPI_APPS_CLK_SRC		20
+#define BLSP1_QUP6_I2C_APPS_CLK_SRC		21
+#define BLSP1_QUP6_SPI_APPS_CLK_SRC		22
+#define BLSP1_UART1_APPS_CLK_SRC		23
+#define BLSP1_UART2_APPS_CLK_SRC		24
+#define CRYPTO_CLK_SRC					25
+#define GP1_CLK_SRC						26
+#define GP2_CLK_SRC						27
+#define GP3_CLK_SRC						28
+#define PDM2_CLK_SRC					29
+#define SDCC1_APPS_CLK_SRC				30
+#define SDCC2_APPS_CLK_SRC				31
+#define APSS_TCU_CLK_SRC				32
+#define USB_HS_SYSTEM_CLK_SRC			33
+#define GCC_BLSP1_AHB_CLK				34
+#define GCC_BLSP1_SLEEP_CLK				35
+#define GCC_BLSP1_QUP1_I2C_APPS_CLK		36
+#define GCC_BLSP1_QUP1_SPI_APPS_CLK		37
+#define GCC_BLSP1_QUP2_I2C_APPS_CLK		38
+#define GCC_BLSP1_QUP2_SPI_APPS_CLK		39
+#define GCC_BLSP1_QUP3_I2C_APPS_CLK		40
+#define GCC_BLSP1_QUP3_SPI_APPS_CLK		41
+#define GCC_BLSP1_QUP4_I2C_APPS_CLK		42
+#define GCC_BLSP1_QUP4_SPI_APPS_CLK		43
+#define GCC_BLSP1_QUP5_I2C_APPS_CLK		44
+#define GCC_BLSP1_QUP5_SPI_APPS_CLK		45
+#define GCC_BLSP1_QUP6_I2C_APPS_CLK		46
+#define GCC_BLSP1_QUP6_SPI_APPS_CLK		47
+#define GCC_BLSP1_UART1_APPS_CLK		48
+#define GCC_BLSP1_UART2_APPS_CLK		49
+#define GCC_BOOT_ROM_AHB_CLK			50
+#define GCC_CRYPTO_AHB_CLK				51
+#define GCC_CRYPTO_AXI_CLK				52
+#define GCC_CRYPTO_CLK					53
+#define GCC_GP1_CLK						54
+#define GCC_GP2_CLK						55
+#define GCC_GP3_CLK						56
+#define GCC_MSS_CFG_AHB_CLK				57
+#define GCC_PDM2_CLK					58
+#define GCC_PDM_AHB_CLK					59
+#define GCC_PRNG_AHB_CLK				60
+#define GCC_SDCC1_AHB_CLK				61
+#define GCC_SDCC1_APPS_CLK				62
+#define GCC_SDCC2_AHB_CLK				63
+#define GCC_SDCC2_APPS_CLK				64
+#define GCC_USB2A_PHY_SLEEP_CLK			65
+#define GCC_USB_HS_AHB_CLK				66
+#define GCC_USB_HS_SYSTEM_CLK			67
+#define GCC_APSS_TCU_CLK				68
+#define GCC_MSS_Q6_BIMC_AXI_CLK			69
+#define BIMC_PLL						70
+#define BIMC_PLL_VOTE					71
+#define BIMC_DDR_CLK_SRC				72
+#define BLSP1_UART3_APPS_CLK_SRC		73
+#define BLSP1_UART4_APPS_CLK_SRC		74
+#define BLSP1_UART5_APPS_CLK_SRC		75
+#define BLSP1_UART6_APPS_CLK_SRC		76
+#define GCC_BLSP1_UART3_APPS_CLK		77
+#define GCC_BLSP1_UART4_APPS_CLK		78
+#define GCC_BLSP1_UART5_APPS_CLK		79
+#define GCC_BLSP1_UART6_APPS_CLK		80
+#define GCC_APSS_AHB_CLK				81
+#define GCC_APSS_AXI_CLK				82
+#define GCC_USB_HS_PHY_CFG_AHB_CLK			83
+#define GCC_USB_HSIC_CLK_SRC			84
+#define GCC_USB_HSIC_IO_CAL_CLK_SRC		85
+#define GCC_USB_HSIC_SYSTEM_CLK_SRC		86
+
+/* Resets */
+#define USB2_HS_PHY_ONLY_BCR			0
+#define QUSB2_PHY_BCR					1
+#define GCC_MSS_RESTART					2
+#define USB_HS_HSIC_BCR					3
+#define USB_HS_BCR						4
+
+#endif

@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/rtc.h>
 
 #define SRTC_LPPDR_INIT       0x41736166	/* init for glitch detect */
@@ -73,13 +74,12 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 	struct device *dev = dev_id;
 	struct mxc_rtc_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
-	unsigned long flags;
 	u32 lp_status;
 	u32 lp_cr;
 
-	spin_lock_irqsave(&pdata->lock, flags);
+	spin_lock(&pdata->lock);
 	if (clk_enable(pdata->clk)) {
-		spin_unlock_irqrestore(&pdata->lock, flags);
+		spin_unlock(&pdata->lock);
 		return IRQ_NONE;
 	}
 
@@ -103,7 +103,7 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 
 	mxc_rtc_sync_lp_locked(dev, ioaddr);
 	clk_disable(pdata->clk);
-	spin_unlock_irqrestore(&pdata->lock, flags);
+	spin_unlock(&pdata->lock);
 	return IRQ_HANDLED;
 }
 
@@ -278,7 +278,6 @@ static int mxc_rtc_wait_for_flag(void __iomem *ioaddr, int flag)
 static int mxc_rtc_probe(struct platform_device *pdev)
 {
 	struct mxc_rtc_data *pdata;
-	struct resource *res;
 	void __iomem *ioaddr;
 	int ret = 0;
 
@@ -286,8 +285,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
 		return PTR_ERR(pdata->ioaddr);
 
@@ -305,6 +303,9 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return pdata->irq;
 
 	device_init_wakeup(&pdev->dev, 1);
+	ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irq);
+	if (ret)
+		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
 	ret = clk_prepare_enable(pdata->clk);
 	if (ret)
@@ -352,7 +353,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret < 0)
 		clk_unprepare(pdata->clk);
 
@@ -367,40 +368,16 @@ static int mxc_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mxc_rtc_suspend(struct device *dev)
-{
-	struct mxc_rtc_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		enable_irq_wake(pdata->irq);
-
-	return 0;
-}
-
-static int mxc_rtc_resume(struct device *dev)
-{
-	struct mxc_rtc_data *pdata = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		disable_irq_wake(pdata->irq);
-
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(mxc_rtc_pm_ops, mxc_rtc_suspend, mxc_rtc_resume);
-
 static const struct of_device_id mxc_ids[] = {
 	{ .compatible = "fsl,imx53-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, mxc_ids);
 
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		.name = "mxc_rtc_v2",
 		.of_match_table = mxc_ids,
-		.pm = &mxc_rtc_pm_ops,
 	},
 	.probe = mxc_rtc_probe,
 	.remove = mxc_rtc_remove,

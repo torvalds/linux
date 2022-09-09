@@ -18,7 +18,7 @@ struct nfp_port;
  */
 struct nfp_reprs {
 	unsigned int num_reprs;
-	struct net_device __rcu *reprs[0];
+	struct net_device __rcu *reprs[];
 };
 
 /**

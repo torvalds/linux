@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AD7291 8-Channel, I2C, 12-Bit SAR ADC with Temperature Sensor
  *
  * Copyright 2010-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -20,8 +19,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
-
-#include <linux/platform_data/ad7291.h>
 
 /*
  * Simplified handling
@@ -463,10 +460,14 @@ static const struct iio_info ad7291_info = {
 	.write_event_value = &ad7291_write_event_value,
 };
 
+static void ad7291_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int ad7291_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct ad7291_platform_data *pdata = client->dev.platform_data;
 	struct ad7291_chip_info *chip;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -476,19 +477,7 @@ static int ad7291_probe(struct i2c_client *client,
 		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 
-	if (pdata && pdata->use_external_ref) {
-		chip->reg = devm_regulator_get(&client->dev, "vref");
-		if (IS_ERR(chip->reg))
-			return PTR_ERR(chip->reg);
-
-		ret = regulator_enable(chip->reg);
-		if (ret)
-			return ret;
-	}
-
 	mutex_init(&chip->state_lock);
-	/* this is only used for device removal purposes */
-	i2c_set_clientdata(client, indio_dev);
 
 	chip->client = client;
 
@@ -496,71 +485,54 @@ static int ad7291_probe(struct i2c_client *client,
 			AD7291_T_SENSE_MASK | /* Tsense always enabled */
 			AD7291_ALERT_POLARITY; /* set irq polarity low level */
 
-	if (pdata && pdata->use_external_ref)
+	chip->reg = devm_regulator_get_optional(&client->dev, "vref");
+	if (IS_ERR(chip->reg)) {
+		if (PTR_ERR(chip->reg) != -ENODEV)
+			return PTR_ERR(chip->reg);
+
+		chip->reg = NULL;
+	}
+
+	if (chip->reg) {
+		ret = regulator_enable(chip->reg);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(&client->dev, ad7291_reg_disable,
+					       chip->reg);
+		if (ret)
+			return ret;
+
 		chip->command |= AD7291_EXT_REF;
+	}
 
 	indio_dev->name = id->name;
 	indio_dev->channels = ad7291_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7291_channels);
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->info = &ad7291_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = ad7291_i2c_write(chip, AD7291_COMMAND, AD7291_RESET);
-	if (ret) {
-		ret = -EIO;
-		goto error_disable_reg;
-	}
+	if (ret)
+		return -EIO;
 
 	ret = ad7291_i2c_write(chip, AD7291_COMMAND, chip->command);
-	if (ret) {
-		ret = -EIO;
-		goto error_disable_reg;
-	}
+	if (ret)
+		return -EIO;
 
 	if (client->irq > 0) {
-		ret = request_threaded_irq(client->irq,
-					   NULL,
-					   &ad7291_event_handler,
-					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					   id->name,
-					   indio_dev);
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL,
+						&ad7291_event_handler,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						id->name,
+						indio_dev);
 		if (ret)
-			goto error_disable_reg;
+			return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_irq;
-
-	return 0;
-
-error_unreg_irq:
-	if (client->irq)
-		free_irq(client->irq, indio_dev);
-error_disable_reg:
-	if (chip->reg)
-		regulator_disable(chip->reg);
-
-	return ret;
-}
-
-static int ad7291_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct ad7291_chip_info *chip = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	if (client->irq)
-		free_irq(client->irq, indio_dev);
-
-	if (chip->reg)
-		regulator_disable(chip->reg);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id ad7291_id[] = {
@@ -570,12 +542,18 @@ static const struct i2c_device_id ad7291_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ad7291_id);
 
+static const struct of_device_id ad7291_of_match[] = {
+	{ .compatible = "adi,ad7291" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ad7291_of_match);
+
 static struct i2c_driver ad7291_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
+		.of_match_table = ad7291_of_match,
 	},
 	.probe = ad7291_probe,
-	.remove = ad7291_remove,
 	.id_table = ad7291_id,
 };
 module_i2c_driver(ad7291_driver);

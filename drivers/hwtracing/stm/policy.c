@@ -34,7 +34,7 @@ struct stp_policy_node {
 	unsigned int		first_channel;
 	unsigned int		last_channel;
 	/* this is the one that's exposed to the attributes */
-	unsigned char		priv[0];
+	unsigned char		priv[];
 };
 
 void *stp_policy_node_priv(struct stp_policy_node *pn)
@@ -55,11 +55,6 @@ void stp_policy_node_get_ranges(struct stp_policy_node *policy_node,
 	*mend	= policy_node->last_master;
 	*cstart	= policy_node->first_channel;
 	*cend	= policy_node->last_channel;
-}
-
-static inline char *stp_policy_node_name(struct stp_policy_node *policy_node)
-{
-	return policy_node->group.cg_item.ci_name ? : "<none>";
 }
 
 static inline struct stp_policy *to_stp_policy(struct config_item *item)
@@ -345,7 +340,11 @@ void stp_policy_unbind(struct stp_policy *policy)
 	stm->policy = NULL;
 	policy->stm = NULL;
 
+	/*
+	 * Drop the reference on the protocol driver and lose the link.
+	 */
 	stm_put_protocol(stm->pdrv);
+	stm->pdrv = NULL;
 	stm_put_device(stm);
 }
 

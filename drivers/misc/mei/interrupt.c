@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
+ * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
-
 
 #include <linux/export.h>
 #include <linux/kthread.h>
@@ -72,16 +61,21 @@ static inline int mei_cl_hbm_equal(struct mei_cl *cl,
  *
  * @dev: mei device
  * @hdr: message header
+ * @discard_len: the length of the message to discard (excluding header)
  */
-static void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
+static void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr,
+				size_t discard_len)
 {
-	if (hdr->dma_ring)
-		mei_dma_ring_read(dev, NULL, hdr->extension[0]);
+	if (hdr->dma_ring) {
+		mei_dma_ring_read(dev, NULL,
+				  hdr->extension[dev->rd_msg_hdr_count - 2]);
+		discard_len = 0;
+	}
 	/*
 	 * no need to check for size as it is guarantied
 	 * that length fits into rd_msg_buf
 	 */
-	mei_read_slots(dev, dev->rd_msg_buf, hdr->length);
+	mei_read_slots(dev, dev->rd_msg_buf, discard_len);
 	dev_dbg(dev->dev, "discarding message " MEI_HDR_FMT "\n",
 		MEI_HDR_PRM(hdr));
 }
@@ -91,18 +85,29 @@ static void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
  *
  * @cl: reading client
  * @mei_hdr: header of mei client message
+ * @meta: extend meta header
  * @cmpl_list: completion list
  *
  * Return: always 0
  */
 static int mei_cl_irq_read_msg(struct mei_cl *cl,
 			       struct mei_msg_hdr *mei_hdr,
+			       struct mei_ext_meta_hdr *meta,
 			       struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
+
 	size_t buf_sz;
 	u32 length;
+	int ext_len;
+
+	length = mei_hdr->length;
+	ext_len = 0;
+	if (mei_hdr->extended) {
+		ext_len = sizeof(*meta) + mei_slots2data(meta->size);
+		length -= ext_len;
+	}
 
 	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
 	if (!cb) {
@@ -116,13 +121,50 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 		list_add_tail(&cb->list, &cl->rd_pending);
 	}
 
+	if (mei_hdr->extended) {
+		struct mei_ext_hdr *ext;
+		struct mei_ext_hdr_vtag *vtag_hdr = NULL;
+
+		ext = mei_ext_begin(meta);
+		do {
+			switch (ext->type) {
+			case MEI_EXT_HDR_VTAG:
+				vtag_hdr = (struct mei_ext_hdr_vtag *)ext;
+				break;
+			case MEI_EXT_HDR_NONE:
+				fallthrough;
+			default:
+				cb->status = -EPROTO;
+				break;
+			}
+
+			ext = mei_ext_next(ext);
+		} while (!mei_ext_last(meta, ext));
+
+		if (!vtag_hdr) {
+			cl_dbg(dev, cl, "vtag not found in extended header.\n");
+			cb->status = -EPROTO;
+			goto discard;
+		}
+
+		cl_dbg(dev, cl, "vtag: %d\n", vtag_hdr->vtag);
+		if (cb->vtag && cb->vtag != vtag_hdr->vtag) {
+			cl_err(dev, cl, "mismatched tag: %d != %d\n",
+			       cb->vtag, vtag_hdr->vtag);
+			cb->status = -EPROTO;
+			goto discard;
+		}
+		cb->vtag = vtag_hdr->vtag;
+	}
+
 	if (!mei_cl_is_connected(cl)) {
 		cl_dbg(dev, cl, "not connected\n");
 		cb->status = -ENODEV;
 		goto discard;
 	}
 
-	length = mei_hdr->dma_ring ? mei_hdr->extension[0] : mei_hdr->length;
+	if (mei_hdr->dma_ring)
+		length = mei_hdr->extension[mei_data2slots(ext_len)];
 
 	buf_sz = length + cb->buf_idx;
 	/* catch for integer overflow */
@@ -140,11 +182,13 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 		goto discard;
 	}
 
-	if (mei_hdr->dma_ring)
+	if (mei_hdr->dma_ring) {
 		mei_dma_ring_read(dev, cb->buf.data + cb->buf_idx, length);
-
-	/*  for DMA read 0 length to generate an interrupt to the device */
-	mei_read_slots(dev, cb->buf.data + cb->buf_idx, mei_hdr->length);
+		/*  for DMA read 0 length to generate interrupt to the device */
+		mei_read_slots(dev, cb->buf.data + cb->buf_idx, 0);
+	} else {
+		mei_read_slots(dev, cb->buf.data + cb->buf_idx, length);
+	}
 
 	cb->buf_idx += length;
 
@@ -161,7 +205,7 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 discard:
 	if (cb)
 		list_move_tail(&cb->list, cmpl_list);
-	mei_irq_discard_msg(dev, mei_hdr);
+	mei_irq_discard_msg(dev, mei_hdr, length);
 	return 0;
 }
 
@@ -233,6 +277,9 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return ret;
 	}
 
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_request_autosuspend(dev->dev);
+
 	list_move_tail(&cb->list, &cl->rd_pending);
 
 	return 0;
@@ -251,12 +298,17 @@ static inline bool hdr_is_fixed(struct mei_msg_hdr *mei_hdr)
 static inline int hdr_is_valid(u32 msg_hdr)
 {
 	struct mei_msg_hdr *mei_hdr;
+	u32 expected_len = 0;
 
 	mei_hdr = (struct mei_msg_hdr *)&msg_hdr;
 	if (!msg_hdr || mei_hdr->reserved)
 		return -EBADMSG;
 
-	if (mei_hdr->dma_ring && mei_hdr->length != MEI_SLOT_SIZE)
+	if (mei_hdr->dma_ring)
+		expected_len += MEI_SLOT_SIZE;
+	if (mei_hdr->extended)
+		expected_len += MEI_SLOT_SIZE;
+	if (mei_hdr->length < expected_len)
 		return -EBADMSG;
 
 	return 0;
@@ -276,11 +328,17 @@ int mei_irq_read_handler(struct mei_device *dev,
 			 struct list_head *cmpl_list, s32 *slots)
 {
 	struct mei_msg_hdr *mei_hdr;
+	struct mei_ext_meta_hdr *meta_hdr = NULL;
 	struct mei_cl *cl;
 	int ret;
+	u32 hdr_size_left;
+	u32 hdr_size_ext;
+	int i;
+	int ext_hdr_end;
 
 	if (!dev->rd_msg_hdr[0]) {
 		dev->rd_msg_hdr[0] = mei_read_hdr(dev);
+		dev->rd_msg_hdr_count = 1;
 		(*slots)--;
 		dev_dbg(dev->dev, "slots =%08x.\n", *slots);
 
@@ -303,10 +361,52 @@ int mei_irq_read_handler(struct mei_device *dev,
 		goto end;
 	}
 
+	ext_hdr_end = 1;
+	hdr_size_left = mei_hdr->length;
+
+	if (mei_hdr->extended) {
+		if (!dev->rd_msg_hdr[1]) {
+			dev->rd_msg_hdr[1] = mei_read_hdr(dev);
+			dev->rd_msg_hdr_count++;
+			(*slots)--;
+			dev_dbg(dev->dev, "extended header is %08x\n", dev->rd_msg_hdr[1]);
+		}
+		meta_hdr = ((struct mei_ext_meta_hdr *)&dev->rd_msg_hdr[1]);
+		if (check_add_overflow((u32)sizeof(*meta_hdr),
+				       mei_slots2data(meta_hdr->size),
+				       &hdr_size_ext)) {
+			dev_err(dev->dev, "extended message size too big %d\n",
+				meta_hdr->size);
+			return -EBADMSG;
+		}
+		if (hdr_size_left < hdr_size_ext) {
+			dev_err(dev->dev, "corrupted message header len %d\n",
+				mei_hdr->length);
+			return -EBADMSG;
+		}
+		hdr_size_left -= hdr_size_ext;
+
+		ext_hdr_end = meta_hdr->size + 2;
+		for (i = dev->rd_msg_hdr_count; i < ext_hdr_end; i++) {
+			dev->rd_msg_hdr[i] = mei_read_hdr(dev);
+			dev_dbg(dev->dev, "extended header %d is %08x\n", i,
+				dev->rd_msg_hdr[i]);
+			dev->rd_msg_hdr_count++;
+			(*slots)--;
+		}
+	}
+
 	if (mei_hdr->dma_ring) {
-		dev->rd_msg_hdr[1] = mei_read_hdr(dev);
+		if (hdr_size_left != sizeof(dev->rd_msg_hdr[ext_hdr_end])) {
+			dev_err(dev->dev, "corrupted message header len %d\n",
+				mei_hdr->length);
+			return -EBADMSG;
+		}
+
+		dev->rd_msg_hdr[ext_hdr_end] = mei_read_hdr(dev);
+		dev->rd_msg_hdr_count++;
 		(*slots)--;
-		mei_hdr->length = 0;
+		mei_hdr->length -= sizeof(dev->rd_msg_hdr[ext_hdr_end]);
 	}
 
 	/*  HBM message */
@@ -324,35 +424,31 @@ int mei_irq_read_handler(struct mei_device *dev,
 	list_for_each_entry(cl, &dev->file_list, link) {
 		if (mei_cl_hbm_equal(cl, mei_hdr)) {
 			cl_dbg(dev, cl, "got a message\n");
-			break;
+			ret = mei_cl_irq_read_msg(cl, mei_hdr, meta_hdr, cmpl_list);
+			goto reset_slots;
 		}
 	}
 
 	/* if no recipient cl was found we assume corrupted header */
-	if (&cl->link == &dev->file_list) {
-		/* A message for not connected fixed address clients
-		 * should be silently discarded
-		 * On power down client may be force cleaned,
-		 * silently discard such messages
-		 */
-		if (hdr_is_fixed(mei_hdr) ||
-		    dev->dev_state == MEI_DEV_POWER_DOWN) {
-			mei_irq_discard_msg(dev, mei_hdr);
-			ret = 0;
-			goto reset_slots;
-		}
-		dev_err(dev->dev, "no destination client found 0x%08X\n",
-				dev->rd_msg_hdr[0]);
-		ret = -EBADMSG;
-		goto end;
+	/* A message for not connected fixed address clients
+	 * should be silently discarded
+	 * On power down client may be force cleaned,
+	 * silently discard such messages
+	 */
+	if (hdr_is_fixed(mei_hdr) ||
+	    dev->dev_state == MEI_DEV_POWER_DOWN) {
+		mei_irq_discard_msg(dev, mei_hdr, mei_hdr->length);
+		ret = 0;
+		goto reset_slots;
 	}
-
-	ret = mei_cl_irq_read_msg(cl, mei_hdr, cmpl_list);
-
+	dev_err(dev->dev, "no destination client found 0x%08X\n", dev->rd_msg_hdr[0]);
+	ret = -EBADMSG;
+	goto end;
 
 reset_slots:
 	/* reset the number of slots and header */
 	memset(dev->rd_msg_hdr, 0, sizeof(dev->rd_msg_hdr));
+	dev->rd_msg_hdr_count = 0;
 	*slots = mei_count_full_read_slots(dev);
 	if (*slots == -EOVERFLOW) {
 		/* overflow - reset */
@@ -443,6 +539,16 @@ int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list)
 		case MEI_FOP_NOTIFY_START:
 		case MEI_FOP_NOTIFY_STOP:
 			ret = mei_cl_irq_notify(cl, cb, cmpl_list);
+			if (ret)
+				return ret;
+			break;
+		case MEI_FOP_DMA_MAP:
+			ret = mei_cl_irq_dma_map(cl, cb, cmpl_list);
+			if (ret)
+				return ret;
+			break;
+		case MEI_FOP_DMA_UNMAP:
+			ret = mei_cl_irq_dma_unmap(cl, cb, cmpl_list);
 			if (ret)
 				return ret;
 			break;

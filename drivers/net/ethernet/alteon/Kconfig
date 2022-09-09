@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Alteon network device configuration
 #
@@ -6,7 +7,7 @@ config NET_VENDOR_ALTEON
 	bool "Alteon devices"
 	default y
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -19,7 +20,7 @@ if NET_VENDOR_ALTEON
 config ACENIC
 	tristate "Alteon AceNIC/3Com 3C985/NetGear GA620 Gigabit support"
 	depends on PCI
-	---help---
+	help
 	  Say Y here if you have an Alteon AceNIC, 3Com 3C985(B), NetGear
 	  GA620, SGI Gigabit or Farallon PN9000-SX PCI Gigabit Ethernet
 	  adapter. The driver allows for using the Jumbo Frame option (9000
@@ -33,7 +34,7 @@ config ACENIC
 config ACENIC_OMIT_TIGON_I
 	bool "Omit support for old Tigon I based AceNICs"
 	depends on ACENIC
-	---help---
+	help
 	  Say Y here if you only have Tigon II based AceNICs and want to leave
 	  out support for the older Tigon I based cards which are no longer
 	  being sold (ie. the original Alteon AceNIC and 3Com 3C985 (non B

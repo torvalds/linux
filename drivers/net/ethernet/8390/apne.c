@@ -75,7 +75,6 @@
 #define NESM_STOP_PG	0x80	/* Last page +1 of RX ring */
 
 
-struct net_device * __init apne_probe(int unit);
 static int apne_probe1(struct net_device *dev, int ioaddr);
 
 static void apne_reset_8390(struct net_device *dev);
@@ -120,7 +119,7 @@ static u32 apne_msg_enable;
 module_param_named(msg_enable, apne_msg_enable, uint, 0444);
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
 
-struct net_device * __init apne_probe(int unit)
+static struct net_device * __init apne_probe(void)
 {
 	struct net_device *dev;
 	struct ei_device *ei_local;
@@ -150,10 +149,6 @@ struct net_device * __init apne_probe(int unit)
 	dev = alloc_ei_netdev();
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
 	ei_local = netdev_priv(dev);
 	ei_local->msg_enable = apne_msg_enable;
 
@@ -325,8 +320,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     i = request_irq(dev->irq, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
     if (i) return i;
 
-    for (i = 0; i < ETH_ALEN; i++)
-	dev->dev_addr[i] = SA_prom[i];
+    eth_hw_addr_set(dev, SA_prom);
 
     pr_cont(" %pM\n", dev->dev_addr);
 
@@ -554,12 +548,11 @@ static irqreturn_t apne_interrupt(int irq, void *dev_id)
     return IRQ_HANDLED;
 }
 
-#ifdef MODULE
 static struct net_device *apne_dev;
 
 static int __init apne_module_init(void)
 {
-	apne_dev = apne_probe(-1);
+	apne_dev = apne_probe();
 	return PTR_ERR_OR_ZERO(apne_dev);
 }
 
@@ -579,7 +572,6 @@ static void __exit apne_module_exit(void)
 }
 module_init(apne_module_init);
 module_exit(apne_module_exit);
-#endif
 
 static int init_pcmcia(void)
 {

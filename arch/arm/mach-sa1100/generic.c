@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-sa1100/generic.c
  *
  * Author: Nicolas Pitre
  *
  * Code common to all SA11x0 machines.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
@@ -41,9 +38,6 @@
 
 #include "generic.h"
 #include <clocksource/pxa.h>
-
-unsigned int reset_status;
-EXPORT_SYMBOL(reset_status);
 
 #define NR_FREQS	16
 
@@ -322,9 +316,12 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 
 static int __init sa1100_init(void)
 {
+	struct resource wdt_res = DEFINE_RES_MEM(0x90000000, 0x20);
 	pm_power_off = sa1100_power_off;
 
 	regulator_has_full_constraints();
+
+	platform_device_register_simple("sa1100_wdt", -1, &wdt_res, 1);
 
 	return platform_add_devices(sa11x0_devices, ARRAY_SIZE(sa11x0_devices));
 }

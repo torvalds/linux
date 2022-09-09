@@ -1,31 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * External Interrupt Controller on Spider South Bridge
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/ioport.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 
 #include "interrupt.h"
@@ -203,16 +191,11 @@ static void spider_irq_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct spider_pic *pic = irq_desc_get_handler_data(desc);
-	unsigned int cs, virq;
+	unsigned int cs;
 
 	cs = in_be32(pic->regs + TIR_CS) >> 24;
-	if (cs == SPIDER_IRQ_INVALID)
-		virq = 0;
-	else
-		virq = irq_linear_revmap(pic->host, cs);
-
-	if (virq)
-		generic_handle_irq(virq);
+	if (cs != SPIDER_IRQ_INVALID)
+		generic_handle_domain_irq(pic->host, cs);
 
 	chip->irq_eoi(&desc->irq_data);
 }

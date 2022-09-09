@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* xfrm6_protocol.c - Generic xfrm protocol multiplexer for ipv6.
  *
  * Copyright (C) 2013 secunet Security Networks AG
@@ -7,17 +8,13 @@
  *
  * Based on:
  * net/ipv4/xfrm4_protocol.c
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/skbuff.h>
 #include <linux/icmpv6.h>
+#include <net/ip6_route.h>
 #include <net/ipv6.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
@@ -46,7 +43,7 @@ static inline struct xfrm6_protocol __rcu **proto_handlers(u8 protocol)
 	     handler != NULL;				\
 	     handler = rcu_dereference(handler->next))	\
 
-int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
+static int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 {
 	int ret;
 	struct xfrm6_protocol *handler;
@@ -61,7 +58,53 @@ int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 
 	return 0;
 }
-EXPORT_SYMBOL(xfrm6_rcv_cb);
+
+int xfrm6_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
+		    int encap_type)
+{
+	int ret;
+	struct xfrm6_protocol *handler;
+	struct xfrm6_protocol __rcu **head = proto_handlers(nexthdr);
+
+	XFRM_TUNNEL_SKB_CB(skb)->tunnel.ip6 = NULL;
+	XFRM_SPI_SKB_CB(skb)->family = AF_INET6;
+	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct ipv6hdr, daddr);
+
+	if (!head)
+		goto out;
+
+	if (!skb_dst(skb)) {
+		const struct ipv6hdr *ip6h = ipv6_hdr(skb);
+		int flags = RT6_LOOKUP_F_HAS_SADDR;
+		struct dst_entry *dst;
+		struct flowi6 fl6 = {
+			.flowi6_iif   = skb->dev->ifindex,
+			.daddr        = ip6h->daddr,
+			.saddr        = ip6h->saddr,
+			.flowlabel    = ip6_flowinfo(ip6h),
+			.flowi6_mark  = skb->mark,
+			.flowi6_proto = ip6h->nexthdr,
+		};
+
+		dst = ip6_route_input_lookup(dev_net(skb->dev), skb->dev, &fl6,
+					     skb, flags);
+		if (dst->error)
+			goto drop;
+		skb_dst_set(skb, dst);
+	}
+
+	for_each_protocol_rcu(*head, handler)
+		if ((ret = handler->input_handler(skb, nexthdr, spi, encap_type)) != -EINVAL)
+			return ret;
+
+out:
+	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
+
+drop:
+	kfree_skb(skb);
+	return 0;
+}
+EXPORT_SYMBOL(xfrm6_rcv_encap);
 
 static int xfrm6_esp_rcv(struct sk_buff *skb)
 {

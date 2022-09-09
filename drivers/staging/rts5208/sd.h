@@ -232,7 +232,7 @@
 #define DCM_LOW_FREQUENCY_MODE   0x01
 
 #define DCM_HIGH_FREQUENCY_MODE_SET  0x0C
-#define DCM_Low_FREQUENCY_MODE_SET   0x00
+#define DCM_LOW_FREQUENCY_MODE_SET   0x00
 
 #define MULTIPLY_BY_1    0x00
 #define MULTIPLY_BY_2    0x01
@@ -273,7 +273,6 @@ void sd_cleanup_work(struct rtsx_chip *chip);
 int sd_power_off_card3v3(struct rtsx_chip *chip);
 int release_sd_card(struct rtsx_chip *chip);
 #ifdef SUPPORT_CPRM
-int soft_reset_sd_card(struct rtsx_chip *chip);
 int ext_sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx,
 			    u32 arg, u8 rsp_type, u8 *rsp, int rsp_len,
 			    bool special_check);

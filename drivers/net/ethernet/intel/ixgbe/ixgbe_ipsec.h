@@ -74,7 +74,7 @@ struct ixgbe_ipsec {
 
 struct sa_mbx_msg {
 	__be32 spi;
-	u8 flags;
+	u8 dir;
 	u8 proto;
 	u16 family;
 	__be32 addr[4];

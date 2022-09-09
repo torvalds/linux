@@ -40,18 +40,38 @@ void arch_jump_label_transform(struct jump_entry *e,
 {
 	union mips_instruction *insn_p;
 	union mips_instruction insn;
+	long offset;
 
 	insn_p = (union mips_instruction *)msk_isa16_mode(e->code);
-
-	/* Jump only works within an aligned region its delay slot is in. */
-	BUG_ON((e->target & ~J_RANGE_MASK) != ((e->code + 4) & ~J_RANGE_MASK));
 
 	/* Target must have the right alignment and ISA must be preserved. */
 	BUG_ON((e->target & J_ALIGN_MASK) != J_ISA_BIT);
 
 	if (type == JUMP_LABEL_JMP) {
-		insn.j_format.opcode = J_ISA_BIT ? mm_j32_op : j_op;
-		insn.j_format.target = e->target >> J_RANGE_SHIFT;
+		if (!IS_ENABLED(CONFIG_CPU_MICROMIPS) && MIPS_ISA_REV >= 6) {
+			offset = e->target - ((unsigned long)insn_p + 4);
+			offset >>= 2;
+
+			/*
+			 * The branch offset must fit in the instruction's 26
+			 * bit field.
+			 */
+			WARN_ON((offset >= BIT(25)) ||
+				(offset < -(long)BIT(25)));
+
+			insn.j_format.opcode = bc6_op;
+			insn.j_format.target = offset;
+		} else {
+			/*
+			 * Jump only works within an aligned region its delay
+			 * slot is in.
+			 */
+			WARN_ON((e->target & ~J_RANGE_MASK) !=
+				((e->code + 4) & ~J_RANGE_MASK));
+
+			insn.j_format.opcode = J_ISA_BIT ? mm_j32_op : j_op;
+			insn.j_format.target = e->target >> J_RANGE_SHIFT;
+		}
 	} else {
 		insn.word = 0; /* nop */
 	}
@@ -68,3 +88,22 @@ void arch_jump_label_transform(struct jump_entry *e,
 
 	mutex_unlock(&text_mutex);
 }
+
+#ifdef CONFIG_MODULES
+void jump_label_apply_nops(struct module *mod)
+{
+	struct jump_entry *iter_start = mod->jump_entries;
+	struct jump_entry *iter_stop = iter_start + mod->num_jump_entries;
+	struct jump_entry *iter;
+
+	/* if the module doesn't have jump label entries, just return */
+	if (iter_start == iter_stop)
+		return;
+
+	for (iter = iter_start; iter < iter_stop; iter++) {
+		/* Only write NOPs for arch_branch_static(). */
+		if (jump_label_init_type(iter) == JUMP_LABEL_NOP)
+			arch_jump_label_transform(iter, JUMP_LABEL_NOP);
+	}
+}
+#endif

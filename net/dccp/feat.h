@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _DCCP_FEAT_H
 #define _DCCP_FEAT_H
 /*
@@ -6,10 +7,6 @@
  *  Feature negotiation for the DCCP protocol (RFC 4340, section 6)
  *  Copyright (c) 2008 Gerrit Renker <gerrit@erg.abdn.ac.uk>
  *  Copyright (c) 2005 Andrea Bittau <a.bittau@cs.ucl.ac.uk>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/types.h>
 #include "dccp.h"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* DVB USB compliant Linux driver for the
  *  - GENPIX 8pks/qpsk/DCII USB2.0 DVB-S module
  *
@@ -8,11 +9,7 @@
  *
  * This module is based off the vp7045 and vp702x modules
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #ifndef _DVB_USB_GP8PSK_H_
 #define _DVB_USB_GP8PSK_H_

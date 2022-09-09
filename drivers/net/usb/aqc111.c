@@ -119,7 +119,7 @@ static int aqc111_write_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
 }
 
 static int aqc111_write_cmd(struct usbnet *dev, u8 cmd, u16 value,
-			    u16 index, u16 size, void *data)
+			    u16 index, u16 size, const void *data)
 {
 	int ret;
 
@@ -333,13 +333,13 @@ static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 		switch (speed) {
 		case SPEED_5000:
 			aqc111_data->phy_cfg |= AQ_ADV_5G;
-			/* fall-through */
+			fallthrough;
 		case SPEED_2500:
 			aqc111_data->phy_cfg |= AQ_ADV_2G5;
-			/* fall-through */
+			fallthrough;
 		case SPEED_1000:
 			aqc111_data->phy_cfg |= AQ_ADV_1G;
-			/* fall-through */
+			fallthrough;
 		case SPEED_100:
 			aqc111_data->phy_cfg |= AQ_ADV_100M;
 			/* fall-through */
@@ -437,7 +437,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 			   2, &reg16);
 
-	if (dev->net->mtu > 12500 && dev->net->mtu <= 16334) {
+	if (dev->net->mtu > 12500) {
 		memcpy(buf, &AQC111_BULKIN_SIZE[2], 5);
 		/* RX bulk configuration */
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL,
@@ -451,7 +451,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 		reg16 = 0x1020;
 	else if (dev->net->mtu <= 12500)
 		reg16 = 0x1420;
-	else if (dev->net->mtu <= 16334)
+	else
 		reg16 = 0x1A20;
 
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,
@@ -641,7 +641,7 @@ static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
-	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_change_mtu		= aqc111_change_mtu,
 	.ndo_set_mac_address	= aqc111_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -714,7 +714,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret)
 		goto out;
 
-	ether_addr_copy(dev->net->dev_addr, dev->net->perm_addr);
+	eth_hw_addr_set(dev->net, dev->net->perm_addr);
 
 	/* Set Rx urb size */
 	dev->rx_urb_size = URB_SIZE;
@@ -735,7 +735,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->features |= AQ_SUPPORT_FEATURE;
 	dev->net->vlan_features |= AQ_SUPPORT_VLAN_FEATURE;
 
-	netif_set_gso_max_size(dev->net, 65535);
+	netif_set_tso_max_size(dev->net, 65535);
 
 	aqc111_read_fw_version(dev, aqc111_data);
 	aqc111_data->autoneg = AUTONEG_ENABLE;
@@ -1102,9 +1102,14 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	if (start_of_descs != desc_offset)
 		goto err;
 
-	/* self check desc_offset from header*/
-	if (desc_offset >= skb_len)
+	/* self check desc_offset from header and make sure that the
+	 * bounds of the metadata array are inside the SKB
+	 */
+	if (pkt_count * 2 + desc_offset >= skb_len)
 		goto err;
+
+	/* Packets must not overlap the metadata array */
+	skb_trim(skb, desc_offset);
 
 	if (pkt_count == 0)
 		goto err;
@@ -1287,6 +1292,34 @@ static const struct driver_info asix112_info = {
 
 #undef ASIX112_DESC
 
+static const struct driver_info trendnet_info = {
+	.description	= "USB-C 3.1 to 5GBASE-T Ethernet Adapter",
+	.bind		= aqc111_bind,
+	.unbind		= aqc111_unbind,
+	.status		= aqc111_status,
+	.link_reset	= aqc111_link_reset,
+	.reset		= aqc111_reset,
+	.stop		= aqc111_stop,
+	.flags		= FLAG_ETHER | FLAG_FRAMING_AX |
+			  FLAG_AVOID_UNLINK_URBS | FLAG_MULTI_PACKET,
+	.rx_fixup	= aqc111_rx_fixup,
+	.tx_fixup	= aqc111_tx_fixup,
+};
+
+static const struct driver_info qnap_info = {
+	.description	= "QNAP QNA-UC5G1T USB to 5GbE Adapter",
+	.bind		= aqc111_bind,
+	.unbind		= aqc111_unbind,
+	.status		= aqc111_status,
+	.link_reset	= aqc111_link_reset,
+	.reset		= aqc111_reset,
+	.stop		= aqc111_stop,
+	.flags		= FLAG_ETHER | FLAG_FRAMING_AX |
+			  FLAG_AVOID_UNLINK_URBS | FLAG_MULTI_PACKET,
+	.rx_fixup	= aqc111_rx_fixup,
+	.tx_fixup	= aqc111_tx_fixup,
+};
+
 static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
@@ -1440,6 +1473,8 @@ static const struct usb_device_id products[] = {
 	{AQC111_USB_ETH_DEV(0x2eca, 0xc101, aqc111_info)},
 	{AQC111_USB_ETH_DEV(0x0b95, 0x2790, asix111_info)},
 	{AQC111_USB_ETH_DEV(0x0b95, 0x2791, asix112_info)},
+	{AQC111_USB_ETH_DEV(0x20f4, 0xe05a, trendnet_info)},
+	{AQC111_USB_ETH_DEV(0x1c04, 0x0015, qnap_info)},
 	{ },/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);

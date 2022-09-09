@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2008
  * Copyright 2011 Freescale Semiconductor, Inc.
@@ -50,7 +39,7 @@ static void kvmppc_emul_rfci(struct kvm_vcpu *vcpu)
 	kvmppc_set_msr(vcpu, vcpu->arch.csrr1);
 }
 
-int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_booke_emulate_op(struct kvm_vcpu *vcpu,
                             unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;

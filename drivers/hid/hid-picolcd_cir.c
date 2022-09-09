@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
  *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
  *                                                                         *
- *   This program is free software: you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation, version 2 of the License.               *
- *                                                                         *
- *   This driver is distributed in the hope that it will be useful, but    *
- *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
- *   General Public License for more details.                              *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this software. If not see <http://www.gnu.org/licenses/>.  *
  ***************************************************************************/
 
 #include <linux/hid.h>
@@ -69,10 +59,10 @@ int picolcd_raw_cir(struct picolcd_data *data,
 	for (i = 0; i+1 < sz; i += 2) {
 		w = (raw_data[i] << 8) | (raw_data[i+1]);
 		rawir.pulse = !!(w & 0x8000);
-		rawir.duration = US_TO_NS(rawir.pulse ? (65536 - w) : w);
+		rawir.duration = rawir.pulse ? (65536 - w) : w;
 		/* Quirk!! - see above */
-		if (i == 0 && rawir.duration > 15000000)
-			rawir.duration -= 15000000;
+		if (i == 0 && rawir.duration > 15000)
+			rawir.duration -= 15000;
 		ir_raw_event_store(data->rc_dev, &rawir);
 	}
 	ir_raw_event_handle(data->rc_dev);
@@ -124,8 +114,8 @@ int picolcd_init_cir(struct picolcd_data *data, struct hid_report *report)
 	rdev->dev.parent       = &data->hdev->dev;
 	rdev->driver_name      = PICOLCD_NAME;
 	rdev->map_name         = RC_MAP_RC6_MCE;
-	rdev->timeout          = MS_TO_NS(100);
-	rdev->rx_resolution    = US_TO_NS(1);
+	rdev->timeout          = MS_TO_US(100);
+	rdev->rx_resolution    = 1;
 
 	ret = rc_register_device(rdev);
 	if (ret)

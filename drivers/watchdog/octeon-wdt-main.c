@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Octeon Watchdog driver
  *
@@ -10,21 +11,11 @@
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
  *	warranty for any of this software. This material is provided
  *	"AS-IS" and at no charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  *
  * The OCTEON watchdog has a maximum timeout of 2^32 * io_clock.
  * For most systems this is less than 10 seconds, so to allow for
@@ -63,6 +54,7 @@
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 
 #include <asm/mipsregs.h>
 #include <asm/uasm.h>
@@ -128,7 +120,7 @@ static int cpu2core(int cpu)
 }
 
 /**
- * Poke the watchdog when an interrupt is received
+ * octeon_wdt_poke_irq - Poke the watchdog when an interrupt is received
  *
  * @cpl:
  * @dev_id:
@@ -162,7 +154,7 @@ static irqreturn_t octeon_wdt_poke_irq(int cpl, void *dev_id)
 extern int prom_putchar(char c);
 
 /**
- * Write a string to the uart
+ * octeon_wdt_write_string - Write a string to the uart
  *
  * @str:        String to write
  */
@@ -174,7 +166,7 @@ static void octeon_wdt_write_string(const char *str)
 }
 
 /**
- * Write a hex number out of the uart
+ * octeon_wdt_write_hex() - Write a hex number out of the uart
  *
  * @value:      Number to display
  * @digits:     Number of digits to print (1 to 16)
@@ -201,6 +193,8 @@ static const char reg_name[][3] = {
 };
 
 /**
+ * octeon_wdt_nmi_stage3:
+ *
  * NMI stage 3 handler. NMIs are handled in the following manner:
  * 1) The first NMI handler enables CVMSEG and transfers from
  * the bootbus region into normal memory. It is careful to not
@@ -522,7 +516,7 @@ static struct watchdog_device octeon_wdt = {
 
 static enum cpuhp_state octeon_wdt_online;
 /**
- * Module/ driver initialization.
+ * octeon_wdt_init - Module/ driver initialization.
  *
  * Returns Zero on success
  */
@@ -594,7 +588,7 @@ err:
 }
 
 /**
- * Module / driver shutdown
+ * octeon_wdt_cleanup - Module / driver shutdown
  */
 static void __exit octeon_wdt_cleanup(void)
 {

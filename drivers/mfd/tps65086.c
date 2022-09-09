@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  *
  * Based on the TPS65912 driver
  */
@@ -24,6 +16,7 @@
 static const struct mfd_cell tps65086_cells[] = {
 	{ .name = "tps65086-regulator", },
 	{ .name = "tps65086-gpio", },
+	{ .name = "tps65086-reset", },
 };
 
 static const struct regmap_range tps65086_yes_ranges[] = {
@@ -100,29 +93,30 @@ static int tps65086_probe(struct i2c_client *client,
 		 (char)((version & TPS65086_DEVICEID_OTP_MASK) >> 4) + 'A',
 		 (version & TPS65086_DEVICEID_REV_MASK) >> 6);
 
-	ret = regmap_add_irq_chip(tps->regmap, tps->irq, IRQF_ONESHOT, 0,
-				  &tps65086_irq_chip, &tps->irq_data);
-	if (ret) {
-		dev_err(tps->dev, "Failed to register IRQ chip\n");
-		return ret;
+	if (tps->irq > 0) {
+		ret = regmap_add_irq_chip(tps->regmap, tps->irq, IRQF_ONESHOT, 0,
+					  &tps65086_irq_chip, &tps->irq_data);
+		if (ret) {
+			dev_err(tps->dev, "Failed to register IRQ chip\n");
+			return ret;
+		}
 	}
 
 	ret = mfd_add_devices(tps->dev, PLATFORM_DEVID_AUTO, tps65086_cells,
 			      ARRAY_SIZE(tps65086_cells), NULL, 0,
 			      regmap_irq_get_domain(tps->irq_data));
-	if (ret) {
+	if (ret && tps->irq > 0)
 		regmap_del_irq_chip(tps->irq, tps->irq_data);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static int tps65086_remove(struct i2c_client *client)
 {
 	struct tps65086 *tps = i2c_get_clientdata(client);
 
-	regmap_del_irq_chip(tps->irq, tps->irq_data);
+	if (tps->irq > 0)
+		regmap_del_irq_chip(tps->irq, tps->irq_data);
 
 	return 0;
 }

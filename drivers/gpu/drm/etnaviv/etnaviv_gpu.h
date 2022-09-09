@@ -7,17 +7,19 @@
 #define __ETNAVIV_GPU_H__
 
 #include "etnaviv_cmdbuf.h"
+#include "etnaviv_gem.h"
+#include "etnaviv_mmu.h"
 #include "etnaviv_drv.h"
 
 struct etnaviv_gem_submit;
 struct etnaviv_vram_mapping;
 
 struct etnaviv_chip_identity {
-	/* Chip model. */
 	u32 model;
-
-	/* Revision value.*/
 	u32 revision;
+	u32 product_id;
+	u32 customer_id;
+	u32 eco_id;
 
 	/* Supported feature fields. */
 	u32 features;
@@ -84,7 +86,6 @@ struct etnaviv_event {
 };
 
 struct etnaviv_cmdbuf_suballoc;
-struct etnaviv_cmdbuf;
 struct regulator;
 struct clk;
 
@@ -99,13 +100,12 @@ struct etnaviv_gpu {
 	enum etnaviv_sec_mode sec_mode;
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
+	bool initialized;
+	bool fe_running;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf buffer;
 	int exec_state;
-
-	/* bus base address of memory  */
-	u32 memory_base;
 
 	/* event management: */
 	DECLARE_BITMAP(event_bitmap, ETNA_NR_EVENTS);
@@ -130,12 +130,13 @@ struct etnaviv_gpu {
 
 	/* hang detection */
 	u32 hangcheck_dma_addr;
+	u32 hangcheck_fence;
 
 	void __iomem *mmio;
 	int irq;
 
-	struct etnaviv_iommu *mmu;
-	struct etnaviv_cmdbuf_suballoc *cmdbuf_suballoc;
+	struct etnaviv_iommu_context *mmu_context;
+	unsigned int flush_seq;
 
 	/* Power Control: */
 	struct clk *clk_bus;
@@ -170,9 +171,10 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m);
 void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu);
 void etnaviv_gpu_retire(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
-	u32 fence, struct timespec *timeout);
+	u32 fence, struct drm_etnaviv_timespec *timeout);
 int etnaviv_gpu_wait_obj_inactive(struct etnaviv_gpu *gpu,
-	struct etnaviv_gem_object *etnaviv_obj, struct timespec *timeout);
+	struct etnaviv_gem_object *etnaviv_obj,
+	struct drm_etnaviv_timespec *timeout);
 struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit);
 int etnaviv_gpu_pm_get_sync(struct etnaviv_gpu *gpu);
 void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu);

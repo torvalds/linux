@@ -24,7 +24,7 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 	struct cgroup_namespace *new_ns;
 	int ret;
 
-	new_ns = kzalloc(sizeof(struct cgroup_namespace), GFP_KERNEL);
+	new_ns = kzalloc(sizeof(struct cgroup_namespace), GFP_KERNEL_ACCOUNT);
 	if (!new_ns)
 		return ERR_PTR(-ENOMEM);
 	ret = ns_alloc_inum(&new_ns->ns);
@@ -32,7 +32,7 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 		kfree(new_ns);
 		return ERR_PTR(ret);
 	}
-	refcount_set(&new_ns->count, 1);
+	refcount_set(&new_ns->ns.count, 1);
 	new_ns->ns.ops = &cgroupns_operations;
 	return new_ns;
 }
@@ -95,11 +95,12 @@ static inline struct cgroup_namespace *to_cg_ns(struct ns_common *ns)
 	return container_of(ns, struct cgroup_namespace, ns);
 }
 
-static int cgroupns_install(struct nsproxy *nsproxy, struct ns_common *ns)
+static int cgroupns_install(struct nsset *nsset, struct ns_common *ns)
 {
+	struct nsproxy *nsproxy = nsset->nsproxy;
 	struct cgroup_namespace *cgroup_ns = to_cg_ns(ns);
 
-	if (!ns_capable(current_user_ns(), CAP_SYS_ADMIN) ||
+	if (!ns_capable(nsset->cred->user_ns, CAP_SYS_ADMIN) ||
 	    !ns_capable(cgroup_ns->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 

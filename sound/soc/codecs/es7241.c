@@ -29,7 +29,7 @@ struct es7241_data {
 	struct gpio_desc *m1;
 	unsigned int fmt;
 	unsigned int mclk;
-	bool is_slave;
+	bool is_consumer;
 	const struct es7241_chip *chip;
 };
 
@@ -46,9 +46,9 @@ static void es7241_set_mode(struct es7241_data *priv,  int m0, int m1)
 	gpiod_set_value_cansleep(priv->reset, 1);
 }
 
-static int es7241_set_slave_mode(struct es7241_data *priv,
-				 const struct es7241_clock_mode *mode,
-				 unsigned int mfs)
+static int es7241_set_consumer_mode(struct es7241_data *priv,
+				    const struct es7241_clock_mode *mode,
+				    unsigned int mfs)
 {
 	int j;
 
@@ -67,9 +67,9 @@ out_ok:
 	return 0;
 }
 
-static int es7241_set_master_mode(struct es7241_data *priv,
-				  const struct es7241_clock_mode *mode,
-				  unsigned int mfs)
+static int es7241_set_provider_mode(struct es7241_data *priv,
+				    const struct es7241_clock_mode *mode,
+				    unsigned int mfs)
 {
 	/*
 	 * We can't really set clock ratio, if the mclk/lrclk is different
@@ -98,10 +98,10 @@ static int es7241_hw_params(struct snd_pcm_substream *substream,
 		if (rate < mode->rate_min || rate >= mode->rate_max)
 			continue;
 
-		if (priv->is_slave)
-			return es7241_set_slave_mode(priv, mode, mfs);
+		if (priv->is_consumer)
+			return es7241_set_consumer_mode(priv, mode, mfs);
 		else
-			return es7241_set_master_mode(priv, mode, mfs);
+			return es7241_set_provider_mode(priv, mode, mfs);
 	}
 
 	/* should not happen */
@@ -136,12 +136,12 @@ static int es7241_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		priv->is_slave = true;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
+		priv->is_consumer = true;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		priv->is_slave = false;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		priv->is_consumer = false;
 		break;
 
 	default:
@@ -203,7 +203,7 @@ static const struct es7241_clock_mode es7241_modes[] = {
 	},
 };
 
-static const struct es7241_chip es7241_chip = {
+static const struct es7241_chip es7241_chip __maybe_unused = {
 	.modes = es7241_modes,
 	.mode_num = ARRAY_SIZE(es7241_modes),
 };
@@ -232,7 +232,6 @@ static const struct snd_soc_component_driver es7241_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(es7241_dapm_routes),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static void es7241_parse_fmt(struct device *dev, struct es7241_data *priv)
@@ -255,7 +254,6 @@ static int es7241_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct es7241_data *priv;
-	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -271,28 +269,19 @@ static int es7241_probe(struct platform_device *pdev)
 	es7241_parse_fmt(dev, priv);
 
 	priv->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->reset)) {
-		err = PTR_ERR(priv->reset);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'reset' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->reset))
+		return dev_err_probe(dev, PTR_ERR(priv->reset),
+				     "Failed to get 'reset' gpio");
 
 	priv->m0 = devm_gpiod_get_optional(dev, "m0", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->m0)) {
-		err = PTR_ERR(priv->m0);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'm0' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->m0))
+		return dev_err_probe(dev, PTR_ERR(priv->m0),
+				     "Failed to get 'm0' gpio");
 
 	priv->m1 = devm_gpiod_get_optional(dev, "m1", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->m1)) {
-		err = PTR_ERR(priv->m1);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get 'm1' gpio: %d", err);
-		return err;
-	}
+	if (IS_ERR(priv->m1))
+		return dev_err_probe(dev, PTR_ERR(priv->m1),
+				     "Failed to get 'm1' gpio");
 
 	return devm_snd_soc_register_component(&pdev->dev,
 				      &es7241_component_driver,

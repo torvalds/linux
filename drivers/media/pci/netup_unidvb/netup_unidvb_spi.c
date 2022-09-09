@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * netup_unidvb_spi.c
  *
@@ -6,16 +7,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "netup_unidvb.h"
@@ -184,7 +175,7 @@ int netup_spi_init(struct netup_unidvb_dev *ndev)
 	struct spi_master *master;
 	struct netup_spi *nspi;
 
-	master = spi_alloc_master(&ndev->pci_dev->dev,
+	master = devm_spi_alloc_master(&ndev->pci_dev->dev,
 		sizeof(struct netup_spi));
 	if (!master) {
 		dev_err(&ndev->pci_dev->dev,
@@ -217,6 +208,7 @@ int netup_spi_init(struct netup_unidvb_dev *ndev)
 		ndev->pci_slot,
 		ndev->pci_func);
 	if (!spi_new_device(master, &netup_spi_board)) {
+		spi_unregister_master(master);
 		ndev->spi = NULL;
 		dev_err(&ndev->pci_dev->dev,
 			"%s(): unable to create SPI device\n", __func__);
@@ -235,13 +227,13 @@ void netup_spi_release(struct netup_unidvb_dev *ndev)
 	if (!spi)
 		return;
 
+	spi_unregister_master(spi->master);
 	spin_lock_irqsave(&spi->lock, flags);
 	reg = readw(&spi->regs->control_stat);
 	writew(reg | NETUP_SPI_CTRL_IRQ, &spi->regs->control_stat);
 	reg = readw(&spi->regs->control_stat);
 	writew(reg & ~NETUP_SPI_CTRL_IMASK, &spi->regs->control_stat);
 	spin_unlock_irqrestore(&spi->lock, flags);
-	spi_unregister_master(spi->master);
 	ndev->spi = NULL;
 }
 

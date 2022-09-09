@@ -31,20 +31,25 @@
  * SOFTWARE.
  */
 
+#include "rdma_core.h"
 #include "uverbs.h"
 #include <rdma/uverbs_std_types.h>
 
 static int uverbs_free_counters(struct ib_uobject *uobject,
-				enum rdma_remove_reason why)
+				enum rdma_remove_reason why,
+				struct uverbs_attr_bundle *attrs)
 {
 	struct ib_counters *counters = uobject->object;
 	int ret;
 
-	ret = ib_destroy_usecnt(&counters->usecnt, why, uobject);
+	if (atomic_read(&counters->usecnt))
+		return -EBUSY;
+
+	ret = counters->device->ops.destroy_counters(counters);
 	if (ret)
 		return ret;
-
-	return counters->device->ops.destroy_counters(counters);
+	kfree(counters);
+	return 0;
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
@@ -52,7 +57,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_CREATE_COUNTERS_HANDLE);
-	struct ib_device *ib_dev = uobj->context->device;
+	struct ib_device *ib_dev = attrs->context->device;
 	struct ib_counters *counters;
 	int ret;
 
@@ -64,20 +69,19 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
 	if (!ib_dev->ops.create_counters)
 		return -EOPNOTSUPP;
 
-	counters = ib_dev->ops.create_counters(ib_dev, attrs);
-	if (IS_ERR(counters)) {
-		ret = PTR_ERR(counters);
-		goto err_create_counters;
-	}
+	counters = rdma_zalloc_drv_obj(ib_dev, ib_counters);
+	if (!counters)
+		return -ENOMEM;
 
 	counters->device = ib_dev;
 	counters->uobject = uobj;
 	uobj->object = counters;
 	atomic_set(&counters->usecnt, 0);
 
-	return 0;
+	ret = ib_dev->ops.create_counters(counters, attrs);
+	if (ret)
+		kfree(counters);
 
-err_create_counters:
 	return ret;
 }
 

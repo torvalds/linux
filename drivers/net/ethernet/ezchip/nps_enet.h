@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright(c) 2015 EZchip Technologies.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  */
 
 #ifndef _NPS_ENET_H
@@ -178,7 +167,7 @@ struct nps_enet_priv {
 };
 
 /**
- * nps_reg_set - Sets ENET register with provided value.
+ * nps_enet_reg_set - Sets ENET register with provided value.
  * @priv:       Pointer to EZchip ENET private data structure.
  * @reg:        Register offset from base address.
  * @value:      Value to set in register.
@@ -190,7 +179,7 @@ static inline void nps_enet_reg_set(struct nps_enet_priv *priv,
 }
 
 /**
- * nps_reg_get - Gets value of specified ENET register.
+ * nps_enet_reg_get - Gets value of specified ENET register.
  * @priv:       Pointer to EZchip ENET private data structure.
  * @reg:        Register offset from base address.
  *

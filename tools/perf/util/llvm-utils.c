@@ -8,7 +8,10 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <linux/err.h>
+#include <linux/string.h>
+#include <linux/zalloc.h>
 #include "debug.h"
 #include "llvm-utils.h"
 #include "config.h"
@@ -22,7 +25,7 @@
 		"$CLANG_OPTIONS $PERF_BPF_INC_OPTIONS $KERNEL_INC_OPTIONS " \
 		"-Wno-unused-value -Wno-pointer-sign "		\
 		"-working-directory $WORKING_DIR "		\
-		"-c \"$CLANG_SOURCE\" -target bpf $CLANG_EMIT_LLVM -O2 -o - $LLVM_OPTIONS_PIPE"
+		"-c \"$CLANG_SOURCE\" -target bpf $CLANG_EMIT_LLVM -g -O2 -o - $LLVM_OPTIONS_PIPE"
 
 struct llvm_param llvm_param = {
 	.clang_path = "clang",
@@ -34,6 +37,8 @@ struct llvm_param llvm_param = {
 	.kbuild_opts = NULL,
 	.user_set_param = false,
 };
+
+static void version_notice(void);
 
 int perf_llvm_config(const char *var, const char *value)
 {
@@ -102,6 +107,21 @@ search_program(const char *def, const char *name,
 	}
 
 	free(env);
+	return ret;
+}
+
+static int search_program_and_warn(const char *def, const char *name,
+				   char *output)
+{
+	int ret = search_program(def, name, output);
+
+	if (ret) {
+		pr_err("ERROR:\tunable to find %s.\n"
+		       "Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
+		       "     \tand '%s-path' option in [llvm] section of ~/.perfconfig.\n",
+		       name, name);
+		version_notice();
+	}
 	return ret;
 }
 
@@ -214,7 +234,7 @@ version_notice(void)
 "     \t\tgit clone http://llvm.org/git/clang.git\n\n"
 "     \tOr fetch the latest clang/llvm 3.7 from pre-built llvm packages for\n"
 "     \tdebian/ubuntu:\n"
-"     \t\thttp://llvm.org/apt\n\n"
+"     \t\thttps://apt.llvm.org/\n\n"
 "     \tIf you are using old version of clang, change 'clang-bpf-cmd-template'\n"
 "     \toption in [llvm] section of ~/.perfconfig to:\n\n"
 "     \t  \"$CLANG_EXEC $CLANG_OPTIONS $KERNEL_INC_OPTIONS $PERF_BPF_INC_OPTIONS \\\n"
@@ -230,14 +250,14 @@ static int detect_kbuild_dir(char **kbuild_dir)
 	const char *prefix_dir = "";
 	const char *suffix_dir = "";
 
+	/* _UTSNAME_LENGTH is 65 */
+	char release[128];
+
 	char *autoconf_path;
 
 	int err;
 
 	if (!test_dir) {
-		/* _UTSNAME_LENGTH is 65 */
-		char release[128];
-
 		err = fetch_kernel_version(NULL, release,
 					   sizeof(release));
 		if (err)
@@ -262,6 +282,8 @@ static int detect_kbuild_dir(char **kbuild_dir)
 			return -ENOMEM;
 		return 0;
 	}
+	pr_debug("%s: Couldn't find \"%s\", missing kernel-devel package?.\n",
+		 __func__, autoconf_path);
 	free(autoconf_path);
 	return -ENOENT;
 }
@@ -285,6 +307,7 @@ static const char *kinc_fetch_script =
 "obj-y := dummy.o\n"
 "\\$(obj)/%.o: \\$(src)/%.c\n"
 "\t@echo -n \"\\$(NOSTDINC_FLAGS) \\$(LINUXINCLUDE) \\$(EXTRA_CFLAGS)\"\n"
+"\t\\$(CC) -c -o \\$@ \\$<\n"
 "EOF\n"
 "touch $TMPDIR/dummy.c\n"
 "make -s -C $KBUILD_DIR M=$TMPDIR $KBUILD_OPTS dummy.o 2>/dev/null\n"
@@ -352,8 +375,7 @@ void llvm__get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 "     \toption in [llvm] to \"\" to suppress this detection.\n\n",
 			*kbuild_dir);
 
-		free(*kbuild_dir);
-		*kbuild_dir = NULL;
+		zfree(kbuild_dir);
 		goto errout;
 	}
 
@@ -416,10 +438,9 @@ void llvm__dump_obj(const char *path, void *obj_buf, size_t size)
 		goto out;
 	}
 
-	pr_info("LLVM: dumping %s\n", obj_path);
+	pr_debug("LLVM: dumping %s\n", obj_path);
 	if (fwrite(obj_buf, size, 1, fp) != 1)
-		pr_warning("WARNING: failed to write to file '%s': %s, skip object dumping\n",
-			   obj_path, strerror(errno));
+		pr_debug("WARNING: failed to write to file '%s': %s, skip object dumping\n", obj_path, strerror(errno));
 	fclose(fp);
 out:
 	free(obj_path);
@@ -454,20 +475,14 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (!template)
 		template = CLANG_BPF_CMD_DEFAULT_TEMPLATE;
 
-	err = search_program(llvm_param.clang_path,
+	err = search_program_and_warn(llvm_param.clang_path,
 			     "clang", clang_path);
-	if (err) {
-		pr_err(
-"ERROR:\tunable to find clang.\n"
-"Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
-"     \tand 'clang-path' option in [llvm] section of ~/.perfconfig.\n");
-		version_notice();
+	if (err)
 		return -ENOENT;
-	}
 
 	/*
 	 * This is an optional work. Even it fail we can continue our
-	 * work. Needn't to check error return.
+	 * work. Needn't check error return.
 	 */
 	llvm__get_kbuild_opts(&kbuild_dir, &kbuild_include_opts);
 
@@ -491,15 +506,11 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	force_set_env("WORKING_DIR", kbuild_dir ? : ".");
 
 	if (opts) {
-		err = search_program(llvm_param.llc_path, "llc", llc_path);
-		if (err) {
-			pr_err("ERROR:\tunable to find llc.\n"
-			       "Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
-			       "     \tand 'llc-path' option in [llvm] section of ~/.perfconfig.\n");
-			version_notice();
+		err = search_program_and_warn(llvm_param.llc_path, "llc", llc_path);
+		if (err)
 			goto errout;
-		}
 
+		err = -ENOMEM;
 		if (asprintf(&pipe_template, "%s -emit-llvm | %s -march=bpf %s -filetype=obj -o -",
 			      template, llc_path, opts) < 0) {
 			pr_err("ERROR:\tnot enough memory to setup command line\n");
@@ -520,6 +531,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 
 	pr_debug("llvm compiling command template: %s\n", template);
 
+	err = -ENOMEM;
 	if (asprintf(&command_echo, "echo -n \"%s\"", template) < 0)
 		goto errout;
 
@@ -573,5 +585,5 @@ int llvm__search_clang(void)
 {
 	char clang_path[PATH_MAX];
 
-	return search_program(llvm_param.clang_path, "clang", clang_path);
+	return search_program_and_warn(llvm_param.clang_path, "clang", clang_path);
 }

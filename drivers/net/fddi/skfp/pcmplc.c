@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -48,10 +44,6 @@
 #include "h/supern_2.h"
 #define KERNEL
 #include "h/smtstate.h"
-
-#ifndef	lint
-static const char ID_sccs[] = "@(#)pcmplc.c	2.55 99/08/05 (C) SK " ;
-#endif
 
 #ifdef	FDDI_MIB
 extern int snmp_fddi_trap(
@@ -851,6 +843,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 
 	case ACTIONS(PC5_SIGNAL) :
 		ACTIONS_DONE() ;
+		fallthrough;
 	case PC5_SIGNAL :
 		if ((cmd != PC_SIGNAL) && (cmd != PC_TIMEOUT_LCT))
 			break ;
@@ -949,7 +942,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 		SETMASK(PLC(np,PL_CNTRL_B),PL_PC_JOIN,PL_PC_JOIN) ;
 		ACTIONS_DONE() ;
 		cmd = 0 ;
-		/* fall thru */
+		fallthrough;
 	case PC6_JOIN :
 		switch (plc->p_state) {
 		case PS_ACTIVE:

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/irqchip.h>
 #include <linux/mfd/syscon.h>
@@ -17,6 +14,7 @@
 
 #include "common.h"
 #include "cpuidle.h"
+#include "hardware.h"
 
 static void __init imx6ul_enet_clk_init(void)
 {
@@ -28,44 +26,19 @@ static void __init imx6ul_enet_clk_init(void)
 				   IMX6UL_GPR1_ENET_CLK_OUTPUT);
 	else
 		pr_err("failed to find fsl,imx6ul-iomux-gpr regmap\n");
-
-}
-
-static int ksz8081_phy_fixup(struct phy_device *dev)
-{
-	if (dev && dev->interface == PHY_INTERFACE_MODE_MII) {
-		phy_write(dev, 0x1f, 0x8110);
-		phy_write(dev, 0x16, 0x201);
-	} else if (dev && dev->interface == PHY_INTERFACE_MODE_RMII) {
-		phy_write(dev, 0x1f, 0x8190);
-		phy_write(dev, 0x16, 0x202);
-	}
-
-	return 0;
-}
-
-static void __init imx6ul_enet_phy_init(void)
-{
-	if (IS_BUILTIN(CONFIG_PHYLIB))
-		phy_register_fixup_for_uid(PHY_ID_KSZ8081, MICREL_PHY_ID_MASK,
-					   ksz8081_phy_fixup);
 }
 
 static inline void imx6ul_enet_init(void)
 {
 	imx6ul_enet_clk_init();
-	imx6ul_enet_phy_init();
 }
 
 static void __init imx6ul_init_machine(void)
 {
-	struct device *parent;
+	imx_print_silicon_rev(cpu_is_imx6ull() ? "i.MX6ULL" : "i.MX6UL",
+		imx_get_soc_revision());
 
-	parent = imx_soc_device_init();
-	if (parent == NULL)
-		pr_warn("failed to initialize soc device\n");
-
-	of_platform_default_populate(NULL, NULL, parent);
+	of_platform_default_populate(NULL, NULL, NULL);
 	imx6ul_enet_init();
 	imx_anatop_init();
 	imx6ul_pm_init();

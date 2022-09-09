@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,gcc-sm8350.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Global Clock & Reset Controller Binding for SM8350
+
+maintainers:
+  - Vinod Koul <vkoul@kernel.org>
+
+description: |
+  Qualcomm global clock control module which supports the clocks, resets and
+  power domains on SM8350.
+
+  See also:
+  - dt-bindings/clock/qcom,gcc-sm8350.h
+
+properties:
+  compatible:
+    const: qcom,gcc-sm8350
+
+  clocks:
+    items:
+      - description: Board XO source
+      - description: Sleep clock source
+      - description: PLL test clock source (Optional clock)
+      - description: PCIE 0 Pipe clock source (Optional clock)
+      - description: PCIE 1 Pipe clock source (Optional clock)
+      - description: UFS card Rx symbol 0 clock source (Optional clock)
+      - description: UFS card Rx symbol 1 clock source (Optional clock)
+      - description: UFS card Tx symbol 0 clock source (Optional clock)
+      - description: UFS phy Rx symbol 0 clock source (Optional clock)
+      - description: UFS phy Rx symbol 1 clock source (Optional clock)
+      - description: UFS phy Tx symbol 0 clock source (Optional clock)
+      - description: USB3 phy wrapper pipe clock source (Optional clock)
+      - description: USB3 phy sec pipe clock source (Optional clock)
+    minItems: 2
+
+  clock-names:
+    items:
+      - const: bi_tcxo
+      - const: sleep_clk
+      - const: core_bi_pll_test_se # Optional clock
+      - const: pcie_0_pipe_clk # Optional clock
+      - const: pcie_1_pipe_clk # Optional clock
+      - const: ufs_card_rx_symbol_0_clk # Optional clock
+      - const: ufs_card_rx_symbol_1_clk # Optional clock
+      - const: ufs_card_tx_symbol_0_clk # Optional clock
+      - const: ufs_phy_rx_symbol_0_clk # Optional clock
+      - const: ufs_phy_rx_symbol_1_clk # Optional clock
+      - const: ufs_phy_tx_symbol_0_clk # Optional clock
+      - const: usb3_phy_wrapper_gcc_usb30_pipe_clk # Optional clock
+      - const: usb3_uni_phy_sec_gcc_usb30_pipe_clk # Optional clock
+    minItems: 2
+
+  '#clock-cells':
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+  '#power-domain-cells':
+    const: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - reg
+  - '#clock-cells'
+  - '#reset-cells'
+  - '#power-domain-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    clock-controller@100000 {
+      compatible = "qcom,gcc-sm8350";
+      reg = <0x00100000 0x1f0000>;
+      clocks = <&rpmhcc RPMH_CXO_CLK>,
+               <&sleep_clk>;
+      clock-names = "bi_tcxo", "sleep_clk";
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+      #power-domain-cells = <1>;
+    };
+
+...

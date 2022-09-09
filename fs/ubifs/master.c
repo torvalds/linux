@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -49,13 +37,43 @@ int ubifs_compare_master_node(struct ubifs_info *c, void *m1, void *m2)
 		return ret;
 
 	/*
-	 * Do not compare the embedded HMAC aswell which also must be different
+	 * Do not compare the embedded HMAC as well which also must be different
 	 * due to the different common node header.
 	 */
 	behind = hmac_offs + UBIFS_MAX_HMAC_LEN;
 
 	if (UBIFS_MST_NODE_SZ > behind)
 		return memcmp(m1 + behind, m2 + behind, UBIFS_MST_NODE_SZ - behind);
+
+	return 0;
+}
+
+/* mst_node_check_hash - Check hash of a master node
+ * @c: UBIFS file-system description object
+ * @mst: The master node
+ * @expected: The expected hash of the master node
+ *
+ * This checks the hash of a master node against a given expected hash.
+ * Note that we have two master nodes on a UBIFS image which have different
+ * sequence numbers and consequently different CRCs. To be able to match
+ * both master nodes we exclude the common node header containing the sequence
+ * number and CRC from the hash.
+ *
+ * Returns 0 if the hashes are equal, a negative error code otherwise.
+ */
+static int mst_node_check_hash(const struct ubifs_info *c,
+			       const struct ubifs_mst_node *mst,
+			       const u8 *expected)
+{
+	u8 calc[UBIFS_MAX_HASH_LEN];
+	const void *node = mst;
+
+	crypto_shash_tfm_digest(c->hash_tfm, node + sizeof(struct ubifs_ch),
+				UBIFS_MST_NODE_SZ - sizeof(struct ubifs_ch),
+				calc);
+
+	if (ubifs_check_hash(c, expected, calc))
+		return -EPERM;
 
 	return 0;
 }
@@ -114,13 +132,21 @@ static int scan_for_master(struct ubifs_info *c)
 	if (!ubifs_authenticated(c))
 		return 0;
 
-	err = ubifs_node_verify_hmac(c, c->mst_node,
-				     sizeof(struct ubifs_mst_node),
-				     offsetof(struct ubifs_mst_node, hmac));
-	if (err) {
-		ubifs_err(c, "Failed to verify master node HMAC");
-		return -EPERM;
+	if (ubifs_hmac_zero(c, c->mst_node->hmac)) {
+		err = mst_node_check_hash(c, c->mst_node,
+					  c->sup_node->hash_mst);
+		if (err)
+			ubifs_err(c, "Failed to verify master node hash");
+	} else {
+		err = ubifs_node_verify_hmac(c, c->mst_node,
+					sizeof(struct ubifs_mst_node),
+					offsetof(struct ubifs_mst_node, hmac));
+		if (err)
+			ubifs_err(c, "Failed to verify master node HMAC");
 	}
+
+	if (err)
+		return -EPERM;
 
 	return 0;
 
@@ -288,7 +314,7 @@ static int validate_master(const struct ubifs_info *c)
 
 out:
 	ubifs_err(c, "bad master node at offset %d error %d", c->mst_offs, err);
-	ubifs_dump_node(c, c->mst_node);
+	ubifs_dump_node(c, c->mst_node, c->mst_node_alsz);
 	return -EINVAL;
 }
 
@@ -366,7 +392,7 @@ int ubifs_read_master(struct ubifs_info *c)
 		if (c->leb_cnt < old_leb_cnt ||
 		    c->leb_cnt < UBIFS_MIN_LEB_CNT) {
 			ubifs_err(c, "bad leb_cnt on master node");
-			ubifs_dump_node(c, c->mst_node);
+			ubifs_dump_node(c, c->mst_node, c->mst_node_alsz);
 			return -EINVAL;
 		}
 

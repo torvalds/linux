@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for TI BQ32000 RTC.
  *
  * Copyright (C) 2009 Semihalf.
  * Copyright (C) 2014 Pavel Machek <pavel@denx.de>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * You can get hardware description at
- * http://www.ti.com/lit/ds/symlink/bq32000.pdf
+ * https://www.ti.com/lit/ds/symlink/bq32000.pdf
  */
 
 #include <linux/module.h>
@@ -252,8 +249,7 @@ static void bq32k_sysfs_unregister(struct device *dev)
 	device_remove_file(dev, &dev_attr_trickle_charge_bypass);
 }
 
-static int bq32k_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int bq32k_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct rtc_device *rtc;
@@ -314,7 +310,7 @@ static const struct i2c_device_id bq32k_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq32k_id);
 
-static const struct of_device_id bq32k_of_match[] = {
+static const __maybe_unused struct of_device_id bq32k_of_match[] = {
 	{ .compatible = "ti,bq32000" },
 	{ }
 };
@@ -325,7 +321,7 @@ static struct i2c_driver bq32k_driver = {
 		.name	= "bq32k",
 		.of_match_table = of_match_ptr(bq32k_of_match),
 	},
-	.probe		= bq32k_probe,
+	.probe_new	= bq32k_probe,
 	.remove		= bq32k_remove,
 	.id_table	= bq32k_id,
 };

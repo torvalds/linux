@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #ifndef HINIC_HW_MGMT_H
@@ -69,7 +60,9 @@ enum hinic_cfg_cmd {
 };
 
 enum hinic_comm_cmd {
+	HINIC_COMM_CMD_START_FLR          = 0x1,
 	HINIC_COMM_CMD_IO_STATUS_GET    = 0x3,
+	HINIC_COMM_CMD_DMA_ATTR_SET	    = 0x4,
 
 	HINIC_COMM_CMD_CMDQ_CTXT_SET    = 0x10,
 	HINIC_COMM_CMD_CMDQ_CTXT_GET    = 0x11,
@@ -83,7 +76,26 @@ enum hinic_comm_cmd {
 
 	HINIC_COMM_CMD_IO_RES_CLEAR     = 0x29,
 
-	HINIC_COMM_CMD_MAX              = 0x32,
+	HINIC_COMM_CMD_CEQ_CTRL_REG_WR_BY_UP = 0x33,
+
+	HINIC_COMM_CMD_MSI_CTRL_REG_WR_BY_UP,
+	HINIC_COMM_CMD_MSI_CTRL_REG_RD_BY_UP,
+
+	HINIC_COMM_CMD_FAULT_REPORT	= 0x37,
+
+	HINIC_COMM_CMD_SET_LED_STATUS	= 0x4a,
+
+	HINIC_COMM_CMD_L2NIC_RESET	= 0x4b,
+
+	HINIC_COMM_CMD_PAGESIZE_SET	= 0x50,
+
+	HINIC_COMM_CMD_GET_BOARD_INFO	= 0x52,
+
+	HINIC_COMM_CMD_WATCHDOG_INFO	= 0x56,
+
+	HINIC_MGMT_CMD_SET_VF_RANDOM_ID = 0x61,
+
+	HINIC_COMM_CMD_MAX,
 };
 
 enum hinic_mgmt_cb_state {
@@ -116,10 +128,11 @@ struct hinic_mgmt_cb {
 
 struct hinic_pf_to_mgmt {
 	struct hinic_hwif               *hwif;
-
+	struct hinic_hwdev		*hwdev;
 	struct semaphore                sync_msg_lock;
 	u16                             sync_msg_id;
 	u8                              *sync_msg_buf;
+	void				*mgmt_ack_buf;
 
 	struct hinic_recv_msg           recv_resp_msg_from_mgmt;
 	struct hinic_recv_msg           recv_msg_from_mgmt;
@@ -127,6 +140,21 @@ struct hinic_pf_to_mgmt {
 	struct hinic_api_cmd_chain      *cmd_chain[HINIC_API_CMD_MAX];
 
 	struct hinic_mgmt_cb            mgmt_cb[HINIC_MOD_MAX];
+
+	struct workqueue_struct		*workq;
+};
+
+struct hinic_mgmt_msg_handle_work {
+	struct work_struct work;
+	struct hinic_pf_to_mgmt *pf_to_mgmt;
+
+	void			*msg;
+	u16			msg_len;
+
+	enum hinic_mod_type	mod;
+	u8			cmd;
+	u16			msg_id;
+	int			async_mgmt_to_pf;
 };
 
 void hinic_register_mgmt_msg_cb(struct hinic_pf_to_mgmt *pf_to_mgmt,

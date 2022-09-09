@@ -11,8 +11,8 @@
 
 #include <asm/processor.h>
 #include <asm/barrier.h>
-#include <asm/qrwlock.h>
 #include <asm/qspinlock.h>
+#include <asm/qrwlock.h>
 
 #endif /* !(__ASSEMBLY__) */
 

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright Gavin Shan, IBM Corporation 2016.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -12,13 +8,14 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <net/ncsi.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/addrconf.h>
 #include <net/ipv6.h>
-#include <net/if_inet6.h>
 #include <net/genetlink.h>
 
 #include "internal.h"
@@ -108,13 +105,20 @@ static void ncsi_channel_monitor(struct timer_list *t)
 	monitor_state = nc->monitor.state;
 	spin_unlock_irqrestore(&nc->lock, flags);
 
-	if (!enabled || chained) {
-		ncsi_stop_channel_monitor(nc);
-		return;
-	}
+	if (!enabled)
+		return;		/* expected race disabling timer */
+	if (WARN_ON_ONCE(chained))
+		goto bad_state;
+
 	if (state != NCSI_CHANNEL_INACTIVE &&
 	    state != NCSI_CHANNEL_ACTIVE) {
-		ncsi_stop_channel_monitor(nc);
+bad_state:
+		netdev_warn(ndp->ndev.dev,
+			    "Bad NCSI monitor state channel %d 0x%x %s queue\n",
+			    nc->id, state, chained ? "on" : "off");
+		spin_lock_irqsave(&nc->lock, flags);
+		nc->monitor.enabled = false;
+		spin_unlock_irqrestore(&nc->lock, flags);
 		return;
 	}
 
@@ -139,10 +143,9 @@ static void ncsi_channel_monitor(struct timer_list *t)
 		ncsi_report_link(ndp, true);
 		ndp->flags |= NCSI_DEV_RESHUFFLE;
 
-		ncsi_stop_channel_monitor(nc);
-
 		ncm = &nc->modes[NCSI_MODE_LINK];
 		spin_lock_irqsave(&nc->lock, flags);
+		nc->monitor.enabled = false;
 		nc->state = NCSI_CHANNEL_INVISIBLE;
 		ncm->data[2] &= ~0x1;
 		spin_unlock_irqrestore(&nc->lock, flags);
@@ -477,7 +480,7 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 	switch (nd->state) {
 	case ncsi_dev_state_suspend:
 		nd->state = ncsi_dev_state_suspend_select;
-		/* Fall through */
+		fallthrough;
 	case ncsi_dev_state_suspend_select:
 		ndp->pending_req_num = 1;
 
@@ -605,7 +608,7 @@ static int clear_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	bitmap = &ncf->bitmap;
 
 	spin_lock_irqsave(&nc->lock, flags);
-	index = find_next_bit(bitmap, ncf->n_vids, 0);
+	index = find_first_bit(bitmap, ncf->n_vids);
 	if (index >= ncf->n_vids) {
 		spin_unlock_irqrestore(&nc->lock, flags);
 		return -1;
@@ -624,7 +627,7 @@ static int clear_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	return 0;
 }
 
-/* Find an outstanding VLAN tag and constuct a "Set VLAN Filter - Enable"
+/* Find an outstanding VLAN tag and construct a "Set VLAN Filter - Enable"
  * packet.
  */
 static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
@@ -664,7 +667,7 @@ static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 		return -1;
 	}
 
-	index = find_next_zero_bit(bitmap, ncf->n_vids, 0);
+	index = find_first_zero_bit(bitmap, ncf->n_vids);
 	if (index < 0 || index >= ncf->n_vids) {
 		netdev_err(ndp->ndev.dev,
 			   "Channel %u already has all VLAN filters set\n",
@@ -686,6 +689,35 @@ static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_NCSI_OEM_CMD_KEEP_PHY)
+
+static int ncsi_oem_keep_phy_intel(struct ncsi_cmd_arg *nca)
+{
+	unsigned char data[NCSI_OEM_INTEL_CMD_KEEP_PHY_LEN];
+	int ret = 0;
+
+	nca->payload = NCSI_OEM_INTEL_CMD_KEEP_PHY_LEN;
+
+	memset(data, 0, NCSI_OEM_INTEL_CMD_KEEP_PHY_LEN);
+	*(unsigned int *)data = ntohl((__force __be32)NCSI_OEM_MFR_INTEL_ID);
+
+	data[4] = NCSI_OEM_INTEL_CMD_KEEP_PHY;
+
+	/* PHY Link up attribute */
+	data[6] = 0x1;
+
+	nca->data = data;
+
+	ret = ncsi_xmit_cmd(nca);
+	if (ret)
+		netdev_err(nca->ndp->ndev.dev,
+			   "NCSI: Failed to transmit cmd 0x%x during configure\n",
+			   nca->type);
+	return ret;
+}
+
+#endif
+
 #if IS_ENABLED(CONFIG_NCSI_OEM_CMD_GET_MAC)
 
 /* NCSI OEM Command APIs */
@@ -697,7 +729,7 @@ static int ncsi_oem_gma_handler_bcm(struct ncsi_cmd_arg *nca)
 	nca->payload = NCSI_OEM_BCM_CMD_GMA_LEN;
 
 	memset(data, 0, NCSI_OEM_BCM_CMD_GMA_LEN);
-	*(unsigned int *)data = ntohl(NCSI_OEM_MFR_BCM_ID);
+	*(unsigned int *)data = ntohl((__force __be32)NCSI_OEM_MFR_BCM_ID);
 	data[5] = NCSI_OEM_BCM_CMD_GMA;
 
 	nca->data = data;
@@ -721,7 +753,7 @@ static int ncsi_oem_gma_handler_mlx(struct ncsi_cmd_arg *nca)
 	nca->payload = NCSI_OEM_MLX_CMD_GMA_LEN;
 
 	memset(&u, 0, sizeof(u));
-	u.data_u32[0] = ntohl(NCSI_OEM_MFR_MLX_ID);
+	u.data_u32[0] = ntohl((__force __be32)NCSI_OEM_MFR_MLX_ID);
 	u.data_u8[5] = NCSI_OEM_MLX_CMD_GMA;
 	u.data_u8[6] = NCSI_OEM_MLX_CMD_GMA_PARAM;
 
@@ -735,13 +767,64 @@ static int ncsi_oem_gma_handler_mlx(struct ncsi_cmd_arg *nca)
 	return ret;
 }
 
+static int ncsi_oem_smaf_mlx(struct ncsi_cmd_arg *nca)
+{
+	union {
+		u8 data_u8[NCSI_OEM_MLX_CMD_SMAF_LEN];
+		u32 data_u32[NCSI_OEM_MLX_CMD_SMAF_LEN / sizeof(u32)];
+	} u;
+	int ret = 0;
+
+	memset(&u, 0, sizeof(u));
+	u.data_u32[0] = ntohl((__force __be32)NCSI_OEM_MFR_MLX_ID);
+	u.data_u8[5] = NCSI_OEM_MLX_CMD_SMAF;
+	u.data_u8[6] = NCSI_OEM_MLX_CMD_SMAF_PARAM;
+	memcpy(&u.data_u8[MLX_SMAF_MAC_ADDR_OFFSET],
+	       nca->ndp->ndev.dev->dev_addr,	ETH_ALEN);
+	u.data_u8[MLX_SMAF_MED_SUPPORT_OFFSET] =
+		(MLX_MC_RBT_AVL | MLX_MC_RBT_SUPPORT);
+
+	nca->payload = NCSI_OEM_MLX_CMD_SMAF_LEN;
+	nca->data = u.data_u8;
+
+	ret = ncsi_xmit_cmd(nca);
+	if (ret)
+		netdev_err(nca->ndp->ndev.dev,
+			   "NCSI: Failed to transmit cmd 0x%x during probe\n",
+			   nca->type);
+	return ret;
+}
+
+static int ncsi_oem_gma_handler_intel(struct ncsi_cmd_arg *nca)
+{
+	unsigned char data[NCSI_OEM_INTEL_CMD_GMA_LEN];
+	int ret = 0;
+
+	nca->payload = NCSI_OEM_INTEL_CMD_GMA_LEN;
+
+	memset(data, 0, NCSI_OEM_INTEL_CMD_GMA_LEN);
+	*(unsigned int *)data = ntohl((__force __be32)NCSI_OEM_MFR_INTEL_ID);
+	data[4] = NCSI_OEM_INTEL_CMD_GMA;
+
+	nca->data = data;
+
+	ret = ncsi_xmit_cmd(nca);
+	if (ret)
+		netdev_err(nca->ndp->ndev.dev,
+			   "NCSI: Failed to transmit cmd 0x%x during configure\n",
+			   nca->type);
+
+	return ret;
+}
+
 /* OEM Command handlers initialization */
 static struct ncsi_oem_gma_handler {
 	unsigned int	mfr_id;
 	int		(*handler)(struct ncsi_cmd_arg *nca);
 } ncsi_oem_gma_handlers[] = {
 	{ NCSI_OEM_MFR_BCM_ID, ncsi_oem_gma_handler_bcm },
-	{ NCSI_OEM_MFR_MLX_ID, ncsi_oem_gma_handler_mlx }
+	{ NCSI_OEM_MFR_MLX_ID, ncsi_oem_gma_handler_mlx },
+	{ NCSI_OEM_MFR_INTEL_ID, ncsi_oem_gma_handler_intel }
 };
 
 static int ncsi_gma_handler(struct ncsi_cmd_arg *nca, unsigned int mf_id)
@@ -768,9 +851,6 @@ static int ncsi_gma_handler(struct ncsi_cmd_arg *nca, unsigned int mf_id)
 			   mf_id);
 		return -1;
 	}
-
-	/* Set the flag for GMA command which should only be called once */
-	nca->ndp->gma_flag = 1;
 
 	/* Get Mac address from NCSI device */
 	return nch->handler(nca);
@@ -982,9 +1062,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 	case ncsi_dev_state_config_ev:
 	case ncsi_dev_state_config_sma:
 	case ncsi_dev_state_config_ebf:
-#if IS_ENABLED(CONFIG_IPV6)
-	case ncsi_dev_state_config_egmf:
-#endif
+	case ncsi_dev_state_config_dgmf:
 	case ncsi_dev_state_config_ecnt:
 	case ncsi_dev_state_config_ec:
 	case ncsi_dev_state_config_ae:
@@ -1037,23 +1115,23 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		} else if (nd->state == ncsi_dev_state_config_ebf) {
 			nca.type = NCSI_PKT_CMD_EBF;
 			nca.dwords[0] = nc->caps[NCSI_CAP_BC].cap;
+			/* if multicast global filtering is supported then
+			 * disable it so that all multicast packet will be
+			 * forwarded to management controller
+			 */
+			if (nc->caps[NCSI_CAP_GENERIC].cap &
+			    NCSI_CAP_GENERIC_MC)
+				nd->state = ncsi_dev_state_config_dgmf;
+			else if (ncsi_channel_is_tx(ndp, nc))
+				nd->state = ncsi_dev_state_config_ecnt;
+			else
+				nd->state = ncsi_dev_state_config_ec;
+		} else if (nd->state == ncsi_dev_state_config_dgmf) {
+			nca.type = NCSI_PKT_CMD_DGMF;
 			if (ncsi_channel_is_tx(ndp, nc))
 				nd->state = ncsi_dev_state_config_ecnt;
 			else
 				nd->state = ncsi_dev_state_config_ec;
-#if IS_ENABLED(CONFIG_IPV6)
-			if (ndp->inet6_addr_num > 0 &&
-			    (nc->caps[NCSI_CAP_GENERIC].cap &
-			     NCSI_CAP_GENERIC_MC))
-				nd->state = ncsi_dev_state_config_egmf;
-		} else if (nd->state == ncsi_dev_state_config_egmf) {
-			nca.type = NCSI_PKT_CMD_EGMF;
-			nca.dwords[0] = nc->caps[NCSI_CAP_MC].cap;
-			if (ncsi_channel_is_tx(ndp, nc))
-				nd->state = ncsi_dev_state_config_ecnt;
-			else
-				nd->state = ncsi_dev_state_config_ec;
-#endif /* CONFIG_IPV6 */
 		} else if (nd->state == ncsi_dev_state_config_ecnt) {
 			if (np->preferred_channel &&
 			    nc != np->preferred_channel)
@@ -1282,7 +1360,7 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 	switch (nd->state) {
 	case ncsi_dev_state_probe:
 		nd->state = ncsi_dev_state_probe_deselect;
-		/* Fall through */
+		fallthrough;
 	case ncsi_dev_state_probe_deselect:
 		ndp->pending_req_num = 8;
 
@@ -1320,8 +1398,38 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 			break;
 		}
 		nd->state = ncsi_dev_state_probe_cis;
+		if (IS_ENABLED(CONFIG_NCSI_OEM_CMD_GET_MAC) &&
+		    ndp->mlx_multi_host)
+			nd->state = ncsi_dev_state_probe_mlx_gma;
+
 		schedule_work(&ndp->work);
 		break;
+#if IS_ENABLED(CONFIG_NCSI_OEM_CMD_GET_MAC)
+	case ncsi_dev_state_probe_mlx_gma:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_OEM;
+		nca.package = ndp->active_package->id;
+		nca.channel = 0;
+		ret = ncsi_oem_gma_handler_mlx(&nca);
+		if (ret)
+			goto error;
+
+		nd->state = ncsi_dev_state_probe_mlx_smaf;
+		break;
+	case ncsi_dev_state_probe_mlx_smaf:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_OEM;
+		nca.package = ndp->active_package->id;
+		nca.channel = 0;
+		ret = ncsi_oem_smaf_mlx(&nca);
+		if (ret)
+			goto error;
+
+		nd->state = ncsi_dev_state_probe_cis;
+		break;
+#endif /* CONFIG_NCSI_OEM_CMD_GET_MAC */
 	case ncsi_dev_state_probe_cis:
 		ndp->pending_req_num = NCSI_RESERVED_CHANNEL;
 
@@ -1336,7 +1444,23 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 		}
 
 		nd->state = ncsi_dev_state_probe_gvi;
+		if (IS_ENABLED(CONFIG_NCSI_OEM_CMD_KEEP_PHY))
+			nd->state = ncsi_dev_state_probe_keep_phy;
 		break;
+#if IS_ENABLED(CONFIG_NCSI_OEM_CMD_KEEP_PHY)
+	case ncsi_dev_state_probe_keep_phy:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_OEM;
+		nca.package = ndp->active_package->id;
+		nca.channel = 0;
+		ret = ncsi_oem_keep_phy_intel(&nca);
+		if (ret)
+			goto error;
+
+		nd->state = ncsi_dev_state_probe_gvi;
+		break;
+#endif /* CONFIG_NCSI_OEM_CMD_KEEP_PHY */
 	case ncsi_dev_state_probe_gvi:
 	case ncsi_dev_state_probe_gc:
 	case ncsi_dev_state_probe_gls:
@@ -1487,70 +1611,6 @@ out:
 	return -ENODEV;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static int ncsi_inet6addr_event(struct notifier_block *this,
-				unsigned long event, void *data)
-{
-	struct inet6_ifaddr *ifa = data;
-	struct net_device *dev = ifa->idev->dev;
-	struct ncsi_dev *nd = ncsi_find_dev(dev);
-	struct ncsi_dev_priv *ndp = nd ? TO_NCSI_DEV_PRIV(nd) : NULL;
-	struct ncsi_package *np;
-	struct ncsi_channel *nc;
-	struct ncsi_cmd_arg nca;
-	bool action;
-	int ret;
-
-	if (!ndp || (ipv6_addr_type(&ifa->addr) &
-	    (IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK)))
-		return NOTIFY_OK;
-
-	switch (event) {
-	case NETDEV_UP:
-		action = (++ndp->inet6_addr_num) == 1;
-		nca.type = NCSI_PKT_CMD_EGMF;
-		break;
-	case NETDEV_DOWN:
-		action = (--ndp->inet6_addr_num == 0);
-		nca.type = NCSI_PKT_CMD_DGMF;
-		break;
-	default:
-		return NOTIFY_OK;
-	}
-
-	/* We might not have active channel or packages. The IPv6
-	 * required multicast will be enabled when active channel
-	 * or packages are chosen.
-	 */
-	np = ndp->active_package;
-	nc = ndp->active_channel;
-	if (!action || !np || !nc)
-		return NOTIFY_OK;
-
-	/* We needn't enable or disable it if the function isn't supported */
-	if (!(nc->caps[NCSI_CAP_GENERIC].cap & NCSI_CAP_GENERIC_MC))
-		return NOTIFY_OK;
-
-	nca.ndp = ndp;
-	nca.req_flags = 0;
-	nca.package = np->id;
-	nca.channel = nc->id;
-	nca.dwords[0] = nc->caps[NCSI_CAP_MC].cap;
-	ret = ncsi_xmit_cmd(&nca);
-	if (ret) {
-		netdev_warn(dev, "Fail to %s global multicast filter (%d)\n",
-			    (event == NETDEV_UP) ? "enable" : "disable", ret);
-		return NOTIFY_DONE;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block ncsi_inet6addr_notifier = {
-	.notifier_call = ncsi_inet6addr_event,
-};
-#endif /* CONFIG_IPV6 */
-
 static int ncsi_kick_channels(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_dev *nd = &ndp->ndev;
@@ -1695,6 +1755,8 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 {
 	struct ncsi_dev_priv *ndp;
 	struct ncsi_dev *nd;
+	struct platform_device *pdev;
+	struct device_node *np;
 	unsigned long flags;
 	int i;
 
@@ -1729,11 +1791,6 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	}
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
-#if IS_ENABLED(CONFIG_IPV6)
-	ndp->inet6_addr_num = 0;
-	if (list_empty(&ncsi_dev_list))
-		register_inet6addr_notifier(&ncsi_inet6addr_notifier);
-#endif
 	list_add_tail_rcu(&ndp->node, &ncsi_dev_list);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
 
@@ -1743,8 +1800,13 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	ndp->ptype.dev = dev;
 	dev_add_pack(&ndp->ptype);
 
-	/* Set up generic netlink interface */
-	ncsi_init_netlink(dev);
+	pdev = to_platform_device(dev->dev.parent);
+	if (pdev) {
+		np = pdev->dev.of_node;
+		if (np && (of_get_property(np, "mellanox,multi-host", NULL) ||
+			   of_get_property(np, "mlx,multi-host", NULL)))
+			ndp->mlx_multi_host = true;
+	}
 
 	return nd;
 }
@@ -1900,13 +1962,7 @@ void ncsi_unregister_dev(struct ncsi_dev *nd)
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
 	list_del_rcu(&ndp->node);
-#if IS_ENABLED(CONFIG_IPV6)
-	if (list_empty(&ncsi_dev_list))
-		unregister_inet6addr_notifier(&ncsi_inet6addr_notifier);
-#endif
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
-
-	ncsi_unregister_netlink(nd->dev);
 
 	kfree(ndp);
 }

@@ -42,8 +42,8 @@ __exception_irq_entry orion_handle_irq(struct pt_regs *regs)
 			gc->mask_cache;
 		while (stat) {
 			u32 hwirq = __fls(stat);
-			handle_domain_irq(orion_irq_domain,
-					  gc->irq_base + hwirq, regs);
+			generic_handle_domain_irq(orion_irq_domain,
+						  gc->irq_base + hwirq);
 			stat &= ~(1 << hwirq);
 		}
 	}
@@ -117,7 +117,7 @@ static void orion_bridge_irq_handler(struct irq_desc *desc)
 	while (stat) {
 		u32 hwirq = __fls(stat);
 
-		generic_handle_irq(irq_find_mapping(d, gc->irq_base + hwirq));
+		generic_handle_domain_irq(d, gc->irq_base + hwirq);
 		stat &= ~(1 << hwirq);
 	}
 }

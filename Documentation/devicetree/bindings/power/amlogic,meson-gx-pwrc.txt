@@ -10,13 +10,15 @@ The Video Processing Unit power domain is controlled by this power controller,
 but the domain requires some external resources to meet the correct power
 sequences.
 The bindings must respect the power domain bindings as described in the file
-power_domain.txt
+power-domain.yaml
 
 Device Tree Bindings:
 ---------------------
 
 Required properties:
-- compatible: should be "amlogic,meson-gx-pwrc-vpu" for the Meson GX SoCs
+- compatible: should be one of the following :
+	- "amlogic,meson-gx-pwrc-vpu" for the Meson GX SoCs
+	- "amlogic,meson-g12a-pwrc-vpu" for the Meson G12A SoCs
 - #power-domain-cells: should be 0
 - amlogic,hhi-sysctrl: phandle to the HHI sysctrl node
 - resets: phandles to the reset lines needed for this power demain sequence

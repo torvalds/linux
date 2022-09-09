@@ -75,7 +75,6 @@
 MODULE_AUTHOR("Simon Kelley");
 MODULE_DESCRIPTION("Support for Atmel at76c50x 802.11 wireless ethernet cards.");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("Atmel at76c50x wireless cards");
 
 /* The name of the firmware file to be loaded
    over-rides any automatic selection */
@@ -601,7 +600,7 @@ static void atmel_set_mib8(struct atmel_private *priv, u8 type, u8 index,
 static void atmel_set_mib16(struct atmel_private *priv, u8 type, u8 index,
 			    u16 data);
 static void atmel_set_mib(struct atmel_private *priv, u8 type, u8 index,
-			  u8 *data, int data_len);
+			  const u8 *data, int data_len);
 static void atmel_get_mib(struct atmel_private *priv, u8 type, u8 index,
 			  u8 *data, int data_len);
 static void atmel_scan(struct atmel_private *priv, int specific_ssid);
@@ -798,7 +797,6 @@ static void tx_update_descriptor(struct atmel_private *priv, int is_bcast,
 
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 {
-	static const u8 SNAP_RFC1024[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 	struct atmel_private *priv = netdev_priv(dev);
 	struct ieee80211_hdr header;
 	unsigned long flags;
@@ -853,7 +851,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (priv->use_wpa)
-		memcpy(&header.addr4, SNAP_RFC1024, ETH_ALEN);
+		memcpy(&header.addr4, rfc1042_header, ETH_ALEN);
 
 	header.frame_control = cpu_to_le16(frame_ctl);
 	/* Copy the wireless header into the card */
@@ -1228,7 +1226,7 @@ static irqreturn_t service_interrupt(int irq, void *dev_id)
 
 		case ISR_RxFRAMELOST:
 			priv->wstats.discard.misc++;
-			/* fall through */
+			fallthrough;
 		case ISR_RxCOMPLETE:
 			rx_done_irq(priv);
 			break;
@@ -1298,7 +1296,7 @@ static int atmel_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	memcpy (dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return atmel_open(dev);
 }
 
@@ -3355,7 +3353,7 @@ static void atmel_management_frame(struct atmel_private *priv,
 					priv->beacons_this_sec++;
 					atmel_smooth_qual(priv);
 					if (priv->last_beacon_timestamp) {
-						/* Note truncate this to 32 bits - kernel can't divide a long long */
+						/* Note truncate this to 32 bits - kernel can't divide a long */
 						u32 beacon_delay = timestamp - priv->last_beacon_timestamp;
 						int beacons = beacon_delay / (beacon_interval * 1000);
 						if (beacons > 1)
@@ -3671,6 +3669,7 @@ static int probe_atmel_card(struct net_device *dev)
 {
 	int rc = 0;
 	struct atmel_private *priv = netdev_priv(dev);
+	u8 addr[ETH_ALEN] = {};
 
 	/* reset pccard */
 	if (priv->bus_type == BUS_TYPE_PCCARD)
@@ -3695,7 +3694,9 @@ static int probe_atmel_card(struct net_device *dev)
 		if (i == 0) {
 			printk(KERN_ALERT "%s: MAC failed to boot MAC address reader.\n", dev->name);
 		} else {
-			atmel_copy_to_host(dev, dev->dev_addr, atmel_read16(dev, MR2), 6);
+
+			atmel_copy_to_host(dev, addr, atmel_read16(dev, MR2), 6);
+			eth_hw_addr_set(dev, addr);
 			/* got address, now squash it again until the network
 			   interface is opened */
 			if (priv->bus_type == BUS_TYPE_PCCARD)
@@ -3707,7 +3708,8 @@ static int probe_atmel_card(struct net_device *dev)
 		/* Mac address easy in this case. */
 		priv->card_type = CARD_TYPE_PARALLEL_FLASH;
 		atmel_write16(dev,  BSR, 1);
-		atmel_copy_to_host(dev, dev->dev_addr, 0xc000, 6);
+		atmel_copy_to_host(dev, addr, 0xc000, 6);
+		eth_hw_addr_set(dev, addr);
 		atmel_write16(dev,  BSR, 0x200);
 		rc = 1;
 	} else {
@@ -3715,7 +3717,8 @@ static int probe_atmel_card(struct net_device *dev)
 		   for the Mac Address */
 		priv->card_type = CARD_TYPE_SPI_FLASH;
 		if (atmel_wakeup_firmware(priv) == 0) {
-			atmel_get_mib(priv, Mac_Address_Mib_Type, 0, dev->dev_addr, 6);
+			atmel_get_mib(priv, Mac_Address_Mib_Type, 0, addr, 6);
+			eth_hw_addr_set(dev, addr);
 
 			/* got address, now squash it again until the network
 			   interface is opened */
@@ -3732,7 +3735,7 @@ static int probe_atmel_card(struct net_device *dev)
 				0x00, 0x04, 0x25, 0x00, 0x00, 0x00
 			};
 			printk(KERN_ALERT "%s: *** Invalid MAC address. UPGRADE Firmware ****\n", dev->name);
-			memcpy(dev->dev_addr, default_mac, ETH_ALEN);
+			eth_hw_addr_set(dev, default_mac);
 		}
 	}
 
@@ -4105,7 +4108,7 @@ static void atmel_set_mib16(struct atmel_private *priv, u8 type, u8 index,
 }
 
 static void atmel_set_mib(struct atmel_private *priv, u8 type, u8 index,
-			  u8 *data, int data_len)
+			  const u8 *data, int data_len)
 {
 	struct get_set_mib m;
 	m.type = type;
@@ -4229,7 +4232,7 @@ static void atmel_wmem32(struct atmel_private *priv, u16 pos, u32 data)
 /* Copyright 2003 Matthew T. Russotto                                      */
 /* But derived from the Atmel 76C502 firmware written by Atmel and         */
 /* included in "atmel wireless lan drivers" package                        */
-/**
+/*
     This file is part of net.russotto.AtmelMACFW, hereto referred to
     as AtmelMACFW
 

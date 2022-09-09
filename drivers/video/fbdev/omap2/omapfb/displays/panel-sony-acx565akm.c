@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sony ACX565AKM LCD Panel driver
  *
@@ -6,18 +7,6 @@
  * Original Driver Author: Imre Deak <imre.deak@nokia.com>
  * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@nokia.com>
  * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -487,7 +476,7 @@ static ssize_t show_cabc_available_modes(struct device *dev,
 	int i;
 
 	if (!ddata->has_cabc)
-		return snprintf(buf, PAGE_SIZE, "%s\n", cabc_modes[0]);
+		return sysfs_emit(buf, "%s\n", cabc_modes[0]);
 
 	for (i = 0, len = 0;
 	     len < PAGE_SIZE && i < ARRAY_SIZE(cabc_modes); i++)
@@ -517,16 +506,11 @@ static int acx565akm_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.sdi->connect(in, dssdev);
-	if (r)
-		return r;
-
-	return 0;
+	return in->ops.sdi->connect(in, dssdev);
 }
 
 static void acx565akm_disconnect(struct omap_dss_device *dssdev)
@@ -873,7 +857,7 @@ err_gpio:
 	return r;
 }
 
-static int acx565akm_remove(struct spi_device *spi)
+static void acx565akm_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -890,8 +874,6 @@ static int acx565akm_remove(struct spi_device *spi)
 	acx565akm_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	return 0;
 }
 
 static const struct of_device_id acx565akm_of_match[] = {

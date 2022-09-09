@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
@@ -11,12 +12,6 @@
  *         Mikko Sarmanne <mikko.sarmanne@symbio.com>,
  *         Jarmo K. Kuronen <jarmo.kuronen@symbio.com>,
  *         for ST-Ericsson.
- *
- * License terms:
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -114,13 +109,6 @@ enum amic_idx {
 	AMIC_IDX_1A,
 	AMIC_IDX_1B,
 	AMIC_IDX_2
-};
-
-struct ab8500_codec_drvdata_dbg {
-	struct regulator *vaud;
-	struct regulator *vamic1;
-	struct regulator *vamic2;
-	struct regulator *vdmic;
 };
 
 /* Private data for AB8500 device-driver */
@@ -1062,10 +1050,10 @@ static void anc_iir(struct snd_soc_component *component, unsigned int bnk,
 			snd_soc_component_update_bits(component, AB8500_ANCCONF1,
 					BIT(AB8500_ANCCONF1_ANCIIRINIT),
 					BIT(AB8500_ANCCONF1_ANCIIRINIT));
-			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY);
+			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY*2);
 			snd_soc_component_update_bits(component, AB8500_ANCCONF1,
 					BIT(AB8500_ANCCONF1_ANCIIRINIT), 0);
-			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY);
+			usleep_range(AB8500_ANC_SM_DELAY, AB8500_ANC_SM_DELAY*2);
 		} else {
 			snd_soc_component_update_bits(component, AB8500_ANCCONF1,
 					BIT(AB8500_ANCCONF1_ANCIIRUPDATE),
@@ -1103,7 +1091,7 @@ static void anc_configure(struct snd_soc_component *component,
 	if (apply_fir)
 		for (bnk = 0; bnk < AB8500_NR_OF_ANC_COEFF_BANKS; bnk++)
 			for (par = 0; par < AB8500_ANC_FIR_COEFFS; par++) {
-				val = snd_soc_component_read32(component,
+				val = snd_soc_component_read(component,
 						drvdata->anc_fir_values[par]);
 				anc_fir(component, bnk, par, val);
 			}
@@ -1111,7 +1099,7 @@ static void anc_configure(struct snd_soc_component *component,
 	if (apply_iir)
 		for (bnk = 0; bnk < AB8500_NR_OF_ANC_COEFF_BANKS; bnk++)
 			for (par = 0; par < AB8500_ANC_IIR_COEFFS; par++) {
-				val = snd_soc_component_read32(component,
+				val = snd_soc_component_read(component,
 						drvdata->anc_iir_values[par]);
 				anc_iir(component, bnk, par, val);
 			}
@@ -1156,7 +1144,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&drvdata->ctrl_lock);
 
-	sidconf = snd_soc_component_read32(component, AB8500_SIDFIRCONF);
+	sidconf = snd_soc_component_read(component, AB8500_SIDFIRCONF);
 	if (((sidconf & BIT(AB8500_SIDFIRCONF_FIRSIDBUSY)) != 0)) {
 		if ((sidconf & BIT(AB8500_SIDFIRCONF_ENFIRSIDS)) == 0) {
 			dev_err(component->dev, "%s: Sidetone busy while off!\n",
@@ -1171,7 +1159,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 	snd_soc_component_write(component, AB8500_SIDFIRADR, 0);
 
 	for (param = 0; param < AB8500_SID_FIR_COEFFS; param++) {
-		val = snd_soc_component_read32(component, drvdata->sid_fir_values[param]);
+		val = snd_soc_component_read(component, drvdata->sid_fir_values[param]);
 		snd_soc_component_write(component, AB8500_SIDFIRCOEF1, val >> 8 & 0xff);
 		snd_soc_component_write(component, AB8500_SIDFIRCOEF2, val & 0xff);
 	}
@@ -2114,25 +2102,26 @@ static int ab8500_codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			BIT(AB8500_DIGIFCONF3_IF0MASTER);
 	val = 0;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM: /* codec clk & FRM master */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		dev_dbg(dai->component->dev,
-			"%s: IF0 Master-mode: AB8500 master.\n", __func__);
+			"%s: IF0 Master-mode: AB8500 provider.\n", __func__);
 		val |= BIT(AB8500_DIGIFCONF3_IF0MASTER);
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS: /* codec clk & FRM slave */
+	case SND_SOC_DAIFMT_CBC_CFC:
 		dev_dbg(dai->component->dev,
-			"%s: IF0 Master-mode: AB8500 slave.\n", __func__);
+			"%s: IF0 Master-mode: AB8500 consumer.\n", __func__);
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM: /* codec clk slave & FRM master */
-	case SND_SOC_DAIFMT_CBM_CFS: /* codec clk master & frame slave */
+	case SND_SOC_DAIFMT_CBC_CFP:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		dev_err(dai->component->dev,
-			"%s: ERROR: The device is either a master or a slave.\n",
+			"%s: ERROR: The device is either a provider or a consumer.\n",
 			__func__);
+		fallthrough;
 	default:
 		dev_err(dai->component->dev,
-			"%s: ERROR: Unsupporter master mask 0x%x\n",
-			__func__, fmt & SND_SOC_DAIFMT_MASTER_MASK);
+			"%s: ERROR: Unsupporter clocking mask 0x%x\n",
+			__func__, fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK);
 		return -EINVAL;
 	}
 
@@ -2386,7 +2375,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 			.formats = AB8500_SUPPORTED_FMT,
 		},
 		.ops = &ab8500_codec_ops,
-		.symmetric_rates = 1
+		.symmetric_rate = 1
 	},
 	{
 		.name = "ab8500-codec-dai.1",
@@ -2399,7 +2388,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 			.formats = AB8500_SUPPORTED_FMT,
 		},
 		.ops = &ab8500_codec_ops,
-		.symmetric_rates = 1
+		.symmetric_rate = 1
 	}
 };
 
@@ -2534,7 +2523,6 @@ static const struct snd_soc_component_driver ab8500_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int ab8500_codec_driver_probe(struct platform_device *pdev)

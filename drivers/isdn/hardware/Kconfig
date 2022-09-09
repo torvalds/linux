@@ -1,7 +1,0 @@
-#
-# ISDN hardware drivers
-#
-comment "CAPI hardware drivers"
-
-source "drivers/isdn/hardware/avm/Kconfig"
-

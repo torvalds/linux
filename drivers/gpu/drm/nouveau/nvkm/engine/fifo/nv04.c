@@ -94,6 +94,38 @@ __releases(fifo->base.lock)
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
+struct nvkm_engine *
+nv04_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
+{
+	enum nvkm_subdev_type type;
+
+	switch (engi) {
+	case NV04_FIFO_ENGN_SW  : type = NVKM_ENGINE_SW; break;
+	case NV04_FIFO_ENGN_GR  : type = NVKM_ENGINE_GR; break;
+	case NV04_FIFO_ENGN_MPEG: type = NVKM_ENGINE_MPEG; break;
+	case NV04_FIFO_ENGN_DMA : type = NVKM_ENGINE_DMAOBJ; break;
+	default:
+		WARN_ON(1);
+		return NULL;
+	}
+
+	return nvkm_device_engine(fifo->engine.subdev.device, type, 0);
+}
+
+int
+nv04_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
+{
+	switch (engine->subdev.type) {
+	case NVKM_ENGINE_SW    : return NV04_FIFO_ENGN_SW;
+	case NVKM_ENGINE_GR    : return NV04_FIFO_ENGN_GR;
+	case NVKM_ENGINE_MPEG  : return NV04_FIFO_ENGN_MPEG;
+	case NVKM_ENGINE_DMAOBJ: return NV04_FIFO_ENGN_DMA;
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+}
+
 static const char *
 nv_dma_state_err(u32 state)
 {
@@ -117,8 +149,10 @@ nv04_fifo_swmthd(struct nvkm_device *device, u32 chid, u32 addr, u32 data)
 	switch (mthd) {
 	case 0x0000 ... 0x0000: /* subchannel's engine -> software */
 		nvkm_wr32(device, 0x003280, (engine &= ~mask));
+		fallthrough;
 	case 0x0180 ... 0x01fc: /* handle -> instance */
 		data = nvkm_rd32(device, 0x003258) & 0x0000ffff;
+		fallthrough;
 	case 0x0100 ... 0x017c:
 	case 0x0200 ... 0x1ffc: /* pass method down to sw */
 		if (!(engine & mask) && sw)
@@ -324,7 +358,7 @@ nv04_fifo_init(struct nvkm_fifo *base)
 
 int
 nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-	       int index, int nr, const struct nv04_fifo_ramfc *ramfc,
+	       enum nvkm_subdev_type type, int inst, int nr, const struct nv04_fifo_ramfc *ramfc,
 	       struct nvkm_fifo **pfifo)
 {
 	struct nv04_fifo *fifo;
@@ -335,7 +369,7 @@ nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	fifo->ramfc = ramfc;
 	*pfifo = &fifo->base;
 
-	ret = nvkm_fifo_ctor(func, device, index, nr, &fifo->base);
+	ret = nvkm_fifo_ctor(func, device, type, inst, nr, &fifo->base);
 	if (ret)
 		return ret;
 
@@ -347,6 +381,8 @@ static const struct nvkm_fifo_func
 nv04_fifo = {
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
+	.engine_id = nv04_fifo_engine_id,
+	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.chan = {
@@ -356,8 +392,8 @@ nv04_fifo = {
 };
 
 int
-nv04_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+nv04_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv04_fifo, device, index, 16,
-			      nv04_fifo_ramfc, pfifo);
+	return nv04_fifo_new_(&nv04_fifo, device, type, inst, 16, nv04_fifo_ramfc, pfifo);
 }

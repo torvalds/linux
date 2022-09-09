@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/binfmts.h>
@@ -332,16 +328,10 @@ void mips_set_personality_nan(struct arch_elf_state *state)
 
 int mips_elf_read_implies_exec(void *elf_ex, int exstack)
 {
-	if (exstack != EXSTACK_DISABLE_X) {
-		/* The binary doesn't request a non-executable stack */
-		return 1;
-	}
-
-	if (!cpu_has_rixi) {
-		/* The CPU doesn't support non-executable memory */
-		return 1;
-	}
-
-	return 0;
+	/*
+	 * Set READ_IMPLIES_EXEC only on non-NX systems that
+	 * do not request a specific state via PT_GNU_STACK.
+	 */
+	return (!cpu_has_rixi && exstack == EXSTACK_DEFAULT);
 }
 EXPORT_SYMBOL(mips_elf_read_implies_exec);

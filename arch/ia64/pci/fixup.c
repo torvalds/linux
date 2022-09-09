@@ -8,8 +8,7 @@
 #include <linux/init.h>
 #include <linux/vgaarb.h>
 #include <linux/screen_info.h>
-
-#include <asm/machvec.h>
+#include <asm/uv/uv.h>
 
 /*
  * Fixup to mark boot BIOS video selected by BIOS before it changes
@@ -35,8 +34,7 @@ static void pci_fixup_video(struct pci_dev *pdev)
 	u16 config;
 	struct resource *res;
 
-	if ((strcmp(ia64_platform_name, "dig") != 0)
-	    && (strcmp(ia64_platform_name, "hpzx1")  != 0))
+	if (is_uv_system())
 		return;
 	/* Maybe, this machine supports legacy memory map. */
 
@@ -78,5 +76,5 @@ static void pci_fixup_video(struct pci_dev *pdev)
 		}
 	}
 }
-DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
-				PCI_CLASS_DISPLAY_VGA, 8, pci_fixup_video);
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_ANY_ID, PCI_ANY_ID,
+			       PCI_CLASS_DISPLAY_VGA, 8, pci_fixup_video);

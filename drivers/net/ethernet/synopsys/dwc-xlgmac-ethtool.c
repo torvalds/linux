@@ -146,12 +146,14 @@ static void xlgmac_ethtool_get_channels(struct net_device *netdev,
 	channel->tx_count = pdata->tx_q_count;
 }
 
-static int xlgmac_ethtool_get_coalesce(struct net_device *netdev,
-				       struct ethtool_coalesce *ec)
+static int
+xlgmac_ethtool_get_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct xlgmac_pdata *pdata = netdev_priv(netdev);
 
-	memset(ec, 0, sizeof(struct ethtool_coalesce));
 	ec->rx_coalesce_usecs = pdata->rx_usecs;
 	ec->rx_max_coalesced_frames = pdata->rx_frames;
 	ec->tx_max_coalesced_frames = pdata->tx_frames;
@@ -159,27 +161,16 @@ static int xlgmac_ethtool_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-static int xlgmac_ethtool_set_coalesce(struct net_device *netdev,
-				       struct ethtool_coalesce *ec)
+static int
+xlgmac_ethtool_set_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ec,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct xlgmac_pdata *pdata = netdev_priv(netdev);
 	struct xlgmac_hw_ops *hw_ops = &pdata->hw_ops;
 	unsigned int rx_frames, rx_riwt, rx_usecs;
 	unsigned int tx_frames;
-
-	/* Check for not supported parameters */
-	if ((ec->rx_coalesce_usecs_irq) || (ec->rx_max_coalesced_frames_irq) ||
-	    (ec->tx_coalesce_usecs) || (ec->tx_coalesce_usecs_high) ||
-	    (ec->tx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||
-	    (ec->stats_block_coalesce_usecs) ||  (ec->pkt_rate_low) ||
-	    (ec->use_adaptive_rx_coalesce) || (ec->use_adaptive_tx_coalesce) ||
-	    (ec->rx_max_coalesced_frames_low) || (ec->rx_coalesce_usecs_low) ||
-	    (ec->tx_coalesce_usecs_low) || (ec->tx_max_coalesced_frames_low) ||
-	    (ec->pkt_rate_high) || (ec->rx_coalesce_usecs_high) ||
-	    (ec->rx_max_coalesced_frames_high) ||
-	    (ec->tx_max_coalesced_frames_high) ||
-	    (ec->rate_sample_interval))
-		return -EOPNOTSUPP;
 
 	rx_usecs = ec->rx_coalesce_usecs;
 	rx_riwt = hw_ops->usec_to_riwt(pdata, rx_usecs);
@@ -257,6 +248,8 @@ static void xlgmac_ethtool_get_ethtool_stats(struct net_device *netdev,
 }
 
 static const struct ethtool_ops xlgmac_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo = xlgmac_ethtool_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = xlgmac_ethtool_get_msglevel,

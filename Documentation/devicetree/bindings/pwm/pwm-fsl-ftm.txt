@@ -21,7 +21,7 @@ Required properties:
   - "fsl,vf610-ftm-pwm" for PWM compatible with the one integrated on VF610
   - "fsl,imx8qm-ftm-pwm" for PWM compatible with the one integrated on i.MX8QM
 - reg: Physical base address and length of the controller's registers
-- #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
+- #pwm-cells: Should be 3. See pwm.yaml in this directory for a description of
   the cells format.
 - clock-names: Should include the following module clock source entries:
     "ftm_sys" (module clock, also can be used as counter clock),

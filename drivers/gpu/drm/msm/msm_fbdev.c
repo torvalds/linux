@@ -1,28 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_prime.h>
 
 #include "msm_drv.h"
+#include "msm_gem.h"
 #include "msm_kms.h"
 
-extern int msm_gem_mmap_obj(struct drm_gem_object *obj,
-					struct vm_area_struct *vma);
 static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
 /*
@@ -36,7 +28,7 @@ struct msm_fbdev {
 	struct drm_framebuffer *fb;
 };
 
-static struct fb_ops msm_fb_ops = {
+static const struct fb_ops msm_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 
@@ -56,15 +48,8 @@ static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_gem_object *bo = msm_framebuffer_bo(fbdev->fb, 0);
-	int ret = 0;
 
-	ret = drm_gem_mmap_obj(bo, bo->size, vma);
-	if (ret) {
-		pr_err("%s:drm_gem_mmap_obj fail\n", __func__);
-		return ret;
-	}
-
-	return msm_gem_mmap_obj(bo, vma);
+	return drm_gem_prime_mmap(bo, vma);
 }
 
 static int msm_fbdev_create(struct drm_fb_helper *helper,
@@ -97,8 +82,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	bo = msm_framebuffer_bo(fb, 0);
 
-	mutex_lock(&dev->struct_mutex);
-
 	/*
 	 * NOTE: if we can be guaranteed to be able to map buffer
 	 * in panic (ie. lock-safe, etc) we could avoid pinning the
@@ -107,14 +90,14 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	ret = msm_gem_get_and_pin_iova(bo, priv->kms->aspace, &paddr);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev, "failed to get buffer obj iova: %d\n", ret);
-		goto fail_unlock;
+		goto fail;
 	}
 
 	fbi = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(fbi)) {
 		DRM_DEV_ERROR(dev->dev, "failed to allocate fb info\n");
 		ret = PTR_ERR(fbi);
-		goto fail_unlock;
+		goto fail;
 	}
 
 	DBG("fbi=%p, dev=%p", fbi, dev);
@@ -122,20 +105,16 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	fbdev->fb = fb;
 	helper->fb = fb;
 
-	fbi->par = helper;
 	fbi->fbops = &msm_fb_ops;
 
-	strcpy(fbi->fix.id, "msm");
-
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(fbi, helper, sizes);
 
 	dev->mode_config.fb_base = paddr;
 
 	fbi->screen_base = msm_gem_get_vaddr(bo);
 	if (IS_ERR(fbi->screen_base)) {
 		ret = PTR_ERR(fbi->screen_base);
-		goto fail_unlock;
+		goto fail;
 	}
 	fbi->screen_size = bo->size;
 	fbi->fix.smem_start = paddr;
@@ -144,12 +123,9 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
 	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
 
-	mutex_unlock(&dev->struct_mutex);
-
 	return 0;
 
-fail_unlock:
-	mutex_unlock(&dev->struct_mutex);
+fail:
 	drm_framebuffer_remove(fb);
 	return ret;
 }
@@ -174,13 +150,14 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &msm_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, priv->num_connectors);
+	ret = drm_fb_helper_init(dev, helper);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev, "could not init fbdev: ret=%d\n", ret);
 		goto fail;
 	}
 
-	ret = drm_fb_helper_single_add_all_connectors(helper);
+	/* the fw fb could be anywhere in memory */
+	ret = drm_aperture_remove_framebuffers(false, dev->driver);
 	if (ret)
 		goto fini;
 

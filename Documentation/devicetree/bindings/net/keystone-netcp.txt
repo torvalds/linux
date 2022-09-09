@@ -104,6 +104,23 @@ Required properties:
 			- 10Gb mac<->mac forced mode : 11
 ----phy-handle:	phandle to PHY device
 
+- cpts:		sub-node time synchronization (CPTS) submodule configuration
+-- clocks:	CPTS reference clock. Should point on cpts-refclk-mux clock.
+-- clock-names: should be "cpts"
+-- cpts-refclk-mux: multiplexer clock definition sub-node for CPTS reference (RFTCLK) clock
+--- #clock-cells: should be 0
+--- clocks:	list of CPTS reference (RFTCLK) clock's parents as defined in Data manual
+--- ti,mux-tbl: array of multiplexer indexes as defined in Data manual
+--- assigned-clocks: should point on cpts-refclk-mux clock
+--- assigned-clock-parents: should point on required RFTCLK clock parent to be selected
+-- cpts_clock_mult: (optional) Numerator to convert input clock ticks
+		into nanoseconds
+-- cpts_clock_shift: (optional) Denominator to convert input clock ticks into
+		nanoseconds.
+		Mult and shift will be calculated basing on CPTS
+		rftclk frequency if both cpts_clock_shift and
+		cpts_clock_mult properties are not provided.
+
 Optional properties:
 - enable-ale:	NetCP driver keeps the address learning feature in the ethernet
 		switch module disabled. This attribute is to enable the address
@@ -135,13 +152,13 @@ Optional properties:
 		are swapped.  The netcp driver will swap the two DWORDs
 		back to the proper order when this property is set to 2
 		when it obtains the mac address from efuse.
-- local-mac-address:	the driver is designed to use the of_get_mac_address api
-			only if efuse-mac is 0. When efuse-mac is 0, the MAC
-			address is obtained from local-mac-address. If this
-			attribute is not present, then the driver will use a
-			random MAC address.
 - "netcp-device label":	phandle to the device specification for each of NetCP
 			sub-module attached to this interface.
+
+The MAC address will be determined using the optional properties defined in
+ethernet.txt and only if efuse-mac is set to 0. If all of the optional MAC
+address properties are not present, then the driver will use a random MAC
+address.
 
 Example binding:
 
@@ -167,6 +184,23 @@ netcp: netcp@2000000 {
 			/* enable-ale; */
 			tx-queue = <648>;
 			tx-channel = <8>;
+
+			cpts {
+				clocks = <&cpts_refclk_mux>;
+				clock-names = "cpts";
+
+				cpts_refclk_mux: cpts-refclk-mux {
+					#clock-cells = <0>;
+					clocks = <&chipclk12>, <&chipclk13>,
+						 <&timi0>, <&timi1>,
+						 <&tsipclka>, <&tsrefclk>,
+						 <&tsipclkb>;
+					ti,mux-tbl = <0x0>, <0x1>, <0x2>,
+						<0x3>, <0x4>, <0x8>, <0xC>;
+					assigned-clocks = <&cpts_refclk_mux>;
+					assigned-clock-parents = <&chipclk12>;
+				};
+			};
 
 			interfaces {
 				gbe0: interface-0 {
@@ -218,4 +252,14 @@ netcp: netcp@2000000 {
 			netcp-gbe = <&gbe1>;
 		};
 	};
+};
+
+CPTS board configuration - select external CPTS RFTCLK:
+
+&tsrefclk{
+	clock-frequency = <500000000>;
+};
+
+&cpts_refclk_mux {
+	assigned-clock-parents = <&tsrefclk>;
 };

@@ -41,6 +41,8 @@
  * chips need ... there may be several reasons you'd need to tweak timings
  * in these routines, not just to make it faster or slower to match a
  * particular CPU clock rate.
+ *
+ * ToDo: Maybe the bitrev macros can be used to improve the code?
  */
 
 static inline u32
@@ -103,6 +105,72 @@ bitbang_txrx_be_cpha1(struct spi_device *spi,
 		word <<= 1;
 		if ((flags & SPI_MASTER_NO_RX) == 0)
 			word |= getmiso(spi);
+	}
+	return word;
+}
+
+static inline u32
+bitbang_txrx_le_cpha0(struct spi_device *spi,
+		unsigned int nsecs, unsigned int cpol, unsigned int flags,
+		u32 word, u8 bits)
+{
+	/* if (cpol == 0) this is SPI_MODE_0; else this is SPI_MODE_2 */
+
+	u8 rxbit = bits - 1;
+	u32 oldbit = !(word & 1);
+	/* clock starts at inactive polarity */
+	for (; likely(bits); bits--) {
+
+		/* setup LSB (to slave) on trailing edge */
+		if ((flags & SPI_MASTER_NO_TX) == 0) {
+			if ((word & 1) != oldbit) {
+				setmosi(spi, word & 1);
+				oldbit = word & 1;
+			}
+		}
+		spidelay(nsecs);	/* T(setup) */
+
+		setsck(spi, !cpol);
+		spidelay(nsecs);
+
+		/* sample LSB (from slave) on leading edge */
+		word >>= 1;
+		if ((flags & SPI_MASTER_NO_RX) == 0)
+			word |= getmiso(spi) << rxbit;
+		setsck(spi, cpol);
+	}
+	return word;
+}
+
+static inline u32
+bitbang_txrx_le_cpha1(struct spi_device *spi,
+		unsigned int nsecs, unsigned int cpol, unsigned int flags,
+		u32 word, u8 bits)
+{
+	/* if (cpol == 0) this is SPI_MODE_1; else this is SPI_MODE_3 */
+
+	u8 rxbit = bits - 1;
+	u32 oldbit = !(word & 1);
+	/* clock starts at inactive polarity */
+	for (; likely(bits); bits--) {
+
+		/* setup LSB (to slave) on leading edge */
+		setsck(spi, !cpol);
+		if ((flags & SPI_MASTER_NO_TX) == 0) {
+			if ((word & 1) != oldbit) {
+				setmosi(spi, word & 1);
+				oldbit = word & 1;
+			}
+		}
+		spidelay(nsecs); /* T(setup) */
+
+		setsck(spi, cpol);
+		spidelay(nsecs);
+
+		/* sample LSB (from slave) on trailing edge */
+		word >>= 1;
+		if ((flags & SPI_MASTER_NO_RX) == 0)
+			word |= getmiso(spi) << rxbit;
 	}
 	return word;
 }

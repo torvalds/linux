@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCM3168A codec spi driver
  *
  * Copyright (C) 2015 Imagination Technologies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -29,11 +26,9 @@ static int pcm3168a_spi_probe(struct spi_device *spi)
 	return pcm3168a_probe(&spi->dev, regmap);
 }
 
-static int pcm3168a_spi_remove(struct spi_device *spi)
+static void pcm3168a_spi_remove(struct spi_device *spi)
 {
 	pcm3168a_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id pcm3168a_spi_id[] = {

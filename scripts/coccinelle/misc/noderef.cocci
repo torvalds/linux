@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// sizeof when applied to a pointer typed expression gives the size of
 /// the pointer
 ///
 // Confidence: High
-// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 

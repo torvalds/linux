@@ -108,7 +108,7 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 		return ret;
 
 	/* Pin fault buffer in BAR2. */
-	buffer->addr = nvkm_memory_bar2(buffer->mem);
+	buffer->addr = fault->func->buffer.pin(buffer);
 	if (buffer->addr == ~0ULL)
 		return -EFAULT;
 
@@ -146,6 +146,7 @@ nvkm_fault_dtor(struct nvkm_subdev *subdev)
 	struct nvkm_fault *fault = nvkm_fault(subdev);
 	int i;
 
+	nvkm_notify_fini(&fault->nrpfb);
 	nvkm_event_fini(&fault->event);
 
 	for (i = 0; i < fault->buffer_nr; i++) {
@@ -169,12 +170,14 @@ nvkm_fault = {
 
 int
 nvkm_fault_new_(const struct nvkm_fault_func *func, struct nvkm_device *device,
-		int index, struct nvkm_fault **pfault)
+		enum nvkm_subdev_type type, int inst, struct nvkm_fault **pfault)
 {
 	struct nvkm_fault *fault;
 	if (!(fault = *pfault = kzalloc(sizeof(*fault), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_fault, device, index, &fault->subdev);
+	nvkm_subdev_ctor(&nvkm_fault, device, type, inst, &fault->subdev);
 	fault->func = func;
+	fault->user.ctor = nvkm_ufault_new;
+	fault->user.base = func->user.base;
 	return 0;
 }

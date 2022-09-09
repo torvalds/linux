@@ -14,8 +14,10 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/syscore_ops.h>
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -23,7 +25,6 @@
 #define IRQS_PER_BANK 32
 
 #define HWSPNLCK_TIMEOUT	1000 /* usec */
-#define HWSPNLCK_RETRY_DELAY	100  /* usec */
 
 struct stm32_exti_bank {
 	u32 imr_ofst;
@@ -33,26 +34,15 @@ struct stm32_exti_bank {
 	u32 swier_ofst;
 	u32 rpr_ofst;
 	u32 fpr_ofst;
+	u32 trg_ofst;
 };
 
 #define UNDEF_REG ~0
 
-enum stm32_exti_hwspinlock {
-	HWSPINLOCK_UNKNOWN,
-	HWSPINLOCK_NONE,
-	HWSPINLOCK_READY,
-};
-
-struct stm32_desc_irq {
-	u32 exti;
-	u32 irq_parent;
-};
-
 struct stm32_exti_drv_data {
 	const struct stm32_exti_bank **exti_banks;
-	const struct stm32_desc_irq *desc_irqs;
+	const u8 *desc_irqs;
 	u32 bank_nr;
-	u32 irq_nr;
 };
 
 struct stm32_exti_chip_data {
@@ -69,8 +59,6 @@ struct stm32_exti_host_data {
 	void __iomem *base;
 	struct stm32_exti_chip_data *chips_data;
 	const struct stm32_exti_drv_data *drv_data;
-	struct device_node *node;
-	enum stm32_exti_hwspinlock hwlock_state;
 	struct hwspinlock *hwlock;
 };
 
@@ -84,6 +72,7 @@ static const struct stm32_exti_bank stm32f4xx_exti_b1 = {
 	.swier_ofst	= 0x10,
 	.rpr_ofst	= 0x14,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank *stm32f4xx_exti_banks[] = {
@@ -103,6 +92,7 @@ static const struct stm32_exti_bank stm32h7xx_exti_b1 = {
 	.swier_ofst	= 0x08,
 	.rpr_ofst	= 0x88,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank stm32h7xx_exti_b2 = {
@@ -113,6 +103,7 @@ static const struct stm32_exti_bank stm32h7xx_exti_b2 = {
 	.swier_ofst	= 0x28,
 	.rpr_ofst	= 0x98,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank stm32h7xx_exti_b3 = {
@@ -123,6 +114,7 @@ static const struct stm32_exti_bank stm32h7xx_exti_b3 = {
 	.swier_ofst	= 0x48,
 	.rpr_ofst	= 0xA8,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank *stm32h7xx_exti_banks[] = {
@@ -138,32 +130,35 @@ static const struct stm32_exti_drv_data stm32h7xx_drv_data = {
 
 static const struct stm32_exti_bank stm32mp1_exti_b1 = {
 	.imr_ofst	= 0x80,
-	.emr_ofst	= 0x84,
+	.emr_ofst	= UNDEF_REG,
 	.rtsr_ofst	= 0x00,
 	.ftsr_ofst	= 0x04,
 	.swier_ofst	= 0x08,
 	.rpr_ofst	= 0x0C,
 	.fpr_ofst	= 0x10,
+	.trg_ofst	= 0x3EC,
 };
 
 static const struct stm32_exti_bank stm32mp1_exti_b2 = {
 	.imr_ofst	= 0x90,
-	.emr_ofst	= 0x94,
+	.emr_ofst	= UNDEF_REG,
 	.rtsr_ofst	= 0x20,
 	.ftsr_ofst	= 0x24,
 	.swier_ofst	= 0x28,
 	.rpr_ofst	= 0x2C,
 	.fpr_ofst	= 0x30,
+	.trg_ofst	= 0x3E8,
 };
 
 static const struct stm32_exti_bank stm32mp1_exti_b3 = {
 	.imr_ofst	= 0xA0,
-	.emr_ofst	= 0xA4,
+	.emr_ofst	= UNDEF_REG,
 	.rtsr_ofst	= 0x40,
 	.ftsr_ofst	= 0x44,
 	.swier_ofst	= 0x48,
 	.rpr_ofst	= 0x4C,
 	.fpr_ofst	= 0x50,
+	.trg_ofst	= 0x3E4,
 };
 
 static const struct stm32_exti_bank *stm32mp1_exti_banks[] = {
@@ -172,53 +167,116 @@ static const struct stm32_exti_bank *stm32mp1_exti_banks[] = {
 	&stm32mp1_exti_b3,
 };
 
-static const struct stm32_desc_irq stm32mp1_desc_irq[] = {
-	{ .exti = 0, .irq_parent = 6 },
-	{ .exti = 1, .irq_parent = 7 },
-	{ .exti = 2, .irq_parent = 8 },
-	{ .exti = 3, .irq_parent = 9 },
-	{ .exti = 4, .irq_parent = 10 },
-	{ .exti = 5, .irq_parent = 23 },
-	{ .exti = 6, .irq_parent = 64 },
-	{ .exti = 7, .irq_parent = 65 },
-	{ .exti = 8, .irq_parent = 66 },
-	{ .exti = 9, .irq_parent = 67 },
-	{ .exti = 10, .irq_parent = 40 },
-	{ .exti = 11, .irq_parent = 42 },
-	{ .exti = 12, .irq_parent = 76 },
-	{ .exti = 13, .irq_parent = 77 },
-	{ .exti = 14, .irq_parent = 121 },
-	{ .exti = 15, .irq_parent = 127 },
-	{ .exti = 16, .irq_parent = 1 },
-	{ .exti = 65, .irq_parent = 144 },
-	{ .exti = 68, .irq_parent = 143 },
-	{ .exti = 73, .irq_parent = 129 },
+static struct irq_chip stm32_exti_h_chip;
+static struct irq_chip stm32_exti_h_chip_direct;
+
+#define EXTI_INVALID_IRQ       U8_MAX
+#define STM32MP1_DESC_IRQ_SIZE (ARRAY_SIZE(stm32mp1_exti_banks) * IRQS_PER_BANK)
+
+static const u8 stm32mp1_desc_irq[] = {
+	/* default value */
+	[0 ... (STM32MP1_DESC_IRQ_SIZE - 1)] = EXTI_INVALID_IRQ,
+
+	[0] = 6,
+	[1] = 7,
+	[2] = 8,
+	[3] = 9,
+	[4] = 10,
+	[5] = 23,
+	[6] = 64,
+	[7] = 65,
+	[8] = 66,
+	[9] = 67,
+	[10] = 40,
+	[11] = 42,
+	[12] = 76,
+	[13] = 77,
+	[14] = 121,
+	[15] = 127,
+	[16] = 1,
+	[19] = 3,
+	[21] = 31,
+	[22] = 33,
+	[23] = 72,
+	[24] = 95,
+	[25] = 107,
+	[26] = 37,
+	[27] = 38,
+	[28] = 39,
+	[29] = 71,
+	[30] = 52,
+	[31] = 53,
+	[32] = 82,
+	[33] = 83,
+	[47] = 93,
+	[48] = 138,
+	[50] = 139,
+	[52] = 140,
+	[53] = 141,
+	[54] = 135,
+	[61] = 100,
+	[65] = 144,
+	[68] = 143,
+	[70] = 62,
+	[73] = 129,
+};
+
+static const u8 stm32mp13_desc_irq[] = {
+	/* default value */
+	[0 ... (STM32MP1_DESC_IRQ_SIZE - 1)] = EXTI_INVALID_IRQ,
+
+	[0] = 6,
+	[1] = 7,
+	[2] = 8,
+	[3] = 9,
+	[4] = 10,
+	[5] = 24,
+	[6] = 65,
+	[7] = 66,
+	[8] = 67,
+	[9] = 68,
+	[10] = 41,
+	[11] = 43,
+	[12] = 77,
+	[13] = 78,
+	[14] = 106,
+	[15] = 109,
+	[16] = 1,
+	[19] = 3,
+	[21] = 32,
+	[22] = 34,
+	[23] = 73,
+	[24] = 93,
+	[25] = 114,
+	[26] = 38,
+	[27] = 39,
+	[28] = 40,
+	[29] = 72,
+	[30] = 53,
+	[31] = 54,
+	[32] = 83,
+	[33] = 84,
+	[44] = 96,
+	[47] = 92,
+	[48] = 116,
+	[50] = 117,
+	[52] = 118,
+	[53] = 119,
+	[68] = 63,
+	[70] = 98,
 };
 
 static const struct stm32_exti_drv_data stm32mp1_drv_data = {
 	.exti_banks = stm32mp1_exti_banks,
 	.bank_nr = ARRAY_SIZE(stm32mp1_exti_banks),
 	.desc_irqs = stm32mp1_desc_irq,
-	.irq_nr = ARRAY_SIZE(stm32mp1_desc_irq),
 };
 
-static int stm32_exti_to_irq(const struct stm32_exti_drv_data *drv_data,
-			     irq_hw_number_t hwirq)
-{
-	const struct stm32_desc_irq *desc_irq;
-	int i;
-
-	if (!drv_data->desc_irqs)
-		return -EINVAL;
-
-	for (i = 0; i < drv_data->irq_nr; i++) {
-		desc_irq = &drv_data->desc_irqs[i];
-		if (desc_irq->exti == hwirq)
-			return desc_irq->irq_parent;
-	}
-
-	return -EINVAL;
-}
+static const struct stm32_exti_drv_data stm32mp13_drv_data = {
+	.exti_banks = stm32mp1_exti_banks,
+	.bank_nr = ARRAY_SIZE(stm32mp1_exti_banks),
+	.desc_irqs = stm32mp13_desc_irq,
+};
 
 static unsigned long stm32_exti_pending(struct irq_chip_generic *gc)
 {
@@ -237,7 +295,7 @@ static void stm32_irq_handler(struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned int virq, nbanks = domain->gc->num_chips;
+	unsigned int nbanks = domain->gc->num_chips;
 	struct irq_chip_generic *gc;
 	unsigned long pending;
 	int n, i, irq_base = 0;
@@ -248,11 +306,9 @@ static void stm32_irq_handler(struct irq_desc *desc)
 		gc = irq_get_domain_generic_chip(domain, irq_base);
 
 		while ((pending = stm32_exti_pending(gc))) {
-			for_each_set_bit(n, &pending, IRQS_PER_BANK) {
-				virq = irq_find_mapping(domain, irq_base + n);
-				generic_handle_irq(virq);
-			}
-		}
+			for_each_set_bit(n, &pending, IRQS_PER_BANK)
+				generic_handle_domain_irq(domain, irq_base + n);
+ 		}
 	}
 
 	chained_irq_exit(chip, desc);
@@ -283,77 +339,24 @@ static int stm32_exti_set_type(struct irq_data *d,
 	return 0;
 }
 
-static int stm32_exti_hwspin_lock(struct stm32_exti_chip_data *chip_data)
-{
-	struct stm32_exti_host_data *host_data = chip_data->host_data;
-	struct hwspinlock *hwlock;
-	int id, ret = 0, timeout = 0;
-
-	/* first time, check for hwspinlock availability */
-	if (unlikely(host_data->hwlock_state == HWSPINLOCK_UNKNOWN)) {
-		id = of_hwspin_lock_get_id(host_data->node, 0);
-		if (id >= 0) {
-			hwlock = hwspin_lock_request_specific(id);
-			if (hwlock) {
-				/* found valid hwspinlock */
-				host_data->hwlock_state = HWSPINLOCK_READY;
-				host_data->hwlock = hwlock;
-				pr_debug("%s hwspinlock = %d\n", __func__, id);
-			} else {
-				host_data->hwlock_state = HWSPINLOCK_NONE;
-			}
-		} else if (id != -EPROBE_DEFER) {
-			host_data->hwlock_state = HWSPINLOCK_NONE;
-		} else {
-			/* hwspinlock driver shall be ready at that stage */
-			ret = -EPROBE_DEFER;
-		}
-	}
-
-	if (likely(host_data->hwlock_state == HWSPINLOCK_READY)) {
-		/*
-		 * Use the x_raw API since we are under spin_lock protection.
-		 * Do not use the x_timeout API because we are under irq_disable
-		 * mode (see __setup_irq())
-		 */
-		do {
-			ret = hwspin_trylock_raw(host_data->hwlock);
-			if (!ret)
-				return 0;
-
-			udelay(HWSPNLCK_RETRY_DELAY);
-			timeout += HWSPNLCK_RETRY_DELAY;
-		} while (timeout < HWSPNLCK_TIMEOUT);
-
-		if (ret == -EBUSY)
-			ret = -ETIMEDOUT;
-	}
-
-	if (ret)
-		pr_err("%s can't get hwspinlock (%d)\n", __func__, ret);
-
-	return ret;
-}
-
-static void stm32_exti_hwspin_unlock(struct stm32_exti_chip_data *chip_data)
-{
-	if (likely(chip_data->host_data->hwlock_state == HWSPINLOCK_READY))
-		hwspin_unlock_raw(chip_data->host_data->hwlock);
-}
-
 static int stm32_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct stm32_exti_chip_data *chip_data = gc->private;
 	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
+	struct hwspinlock *hwlock = chip_data->host_data->hwlock;
 	u32 rtsr, ftsr;
 	int err;
 
 	irq_gc_lock(gc);
 
-	err = stm32_exti_hwspin_lock(chip_data);
-	if (err)
-		goto unlock;
+	if (hwlock) {
+		err = hwspin_lock_timeout_in_atomic(hwlock, HWSPNLCK_TIMEOUT);
+		if (err) {
+			pr_err("%s can't get hwspinlock (%d)\n", __func__, err);
+			goto unlock;
+		}
+	}
 
 	rtsr = irq_reg_readl(gc, stm32_bank->rtsr_ofst);
 	ftsr = irq_reg_readl(gc, stm32_bank->ftsr_ofst);
@@ -366,7 +369,8 @@ static int stm32_irq_set_type(struct irq_data *d, unsigned int type)
 	irq_reg_writel(gc, ftsr, stm32_bank->ftsr_ofst);
 
 unspinlock:
-	stm32_exti_hwspin_unlock(chip_data);
+	if (hwlock)
+		hwspin_unlock_in_atomic(hwlock);
 unlock:
 	irq_gc_unlock(gc);
 
@@ -459,6 +463,16 @@ static void stm32_irq_ack(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
+/* directly set the target bit without reading first. */
+static inline void stm32_exti_write_bit(struct irq_data *d, u32 reg)
+{
+	struct stm32_exti_chip_data *chip_data = irq_data_get_irq_chip_data(d);
+	void __iomem *base = chip_data->host_data->base;
+	u32 val = BIT(d->hwirq % IRQS_PER_BANK);
+
+	writel_relaxed(val, base + reg);
+}
+
 static inline u32 stm32_exti_set_bit(struct irq_data *d, u32 reg)
 {
 	struct stm32_exti_chip_data *chip_data = irq_data_get_irq_chip_data(d);
@@ -492,9 +506,9 @@ static void stm32_exti_h_eoi(struct irq_data *d)
 
 	raw_spin_lock(&chip_data->rlock);
 
-	stm32_exti_set_bit(d, stm32_bank->rpr_ofst);
+	stm32_exti_write_bit(d, stm32_bank->rpr_ofst);
 	if (stm32_bank->fpr_ofst != UNDEF_REG)
-		stm32_exti_set_bit(d, stm32_bank->fpr_ofst);
+		stm32_exti_write_bit(d, stm32_bank->fpr_ofst);
 
 	raw_spin_unlock(&chip_data->rlock);
 
@@ -532,15 +546,20 @@ static int stm32_exti_h_set_type(struct irq_data *d, unsigned int type)
 {
 	struct stm32_exti_chip_data *chip_data = irq_data_get_irq_chip_data(d);
 	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
+	struct hwspinlock *hwlock = chip_data->host_data->hwlock;
 	void __iomem *base = chip_data->host_data->base;
 	u32 rtsr, ftsr;
 	int err;
 
 	raw_spin_lock(&chip_data->rlock);
 
-	err = stm32_exti_hwspin_lock(chip_data);
-	if (err)
-		goto unlock;
+	if (hwlock) {
+		err = hwspin_lock_timeout_in_atomic(hwlock, HWSPNLCK_TIMEOUT);
+		if (err) {
+			pr_err("%s can't get hwspinlock (%d)\n", __func__, err);
+			goto unlock;
+		}
+	}
 
 	rtsr = readl_relaxed(base + stm32_bank->rtsr_ofst);
 	ftsr = readl_relaxed(base + stm32_bank->ftsr_ofst);
@@ -553,7 +572,8 @@ static int stm32_exti_h_set_type(struct irq_data *d, unsigned int type)
 	writel_relaxed(ftsr, base + stm32_bank->ftsr_ofst);
 
 unspinlock:
-	stm32_exti_hwspin_unlock(chip_data);
+	if (hwlock)
+		hwspin_unlock_in_atomic(hwlock);
 unlock:
 	raw_spin_unlock(&chip_data->rlock);
 
@@ -583,11 +603,10 @@ static int stm32_exti_h_set_affinity(struct irq_data *d,
 	if (d->parent_data->chip)
 		return irq_chip_set_affinity_parent(d, dest, force);
 
-	return -EINVAL;
+	return IRQ_SET_MASK_OK_DONE;
 }
 
-#ifdef CONFIG_PM
-static int stm32_exti_h_suspend(void)
+static int __maybe_unused stm32_exti_h_suspend(void)
 {
 	struct stm32_exti_chip_data *chip_data;
 	int i;
@@ -602,7 +621,7 @@ static int stm32_exti_h_suspend(void)
 	return 0;
 }
 
-static void stm32_exti_h_resume(void)
+static void __maybe_unused stm32_exti_h_resume(void)
 {
 	struct stm32_exti_chip_data *chip_data;
 	int i;
@@ -616,28 +635,58 @@ static void stm32_exti_h_resume(void)
 }
 
 static struct syscore_ops stm32_exti_h_syscore_ops = {
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= stm32_exti_h_suspend,
 	.resume		= stm32_exti_h_resume,
+#endif
 };
 
-static void stm32_exti_h_syscore_init(void)
+static void stm32_exti_h_syscore_init(struct stm32_exti_host_data *host_data)
 {
+	stm32_host_data = host_data;
 	register_syscore_ops(&stm32_exti_h_syscore_ops);
 }
-#else
-static inline void stm32_exti_h_syscore_init(void) {}
-#endif
+
+static void stm32_exti_h_syscore_deinit(void)
+{
+	unregister_syscore_ops(&stm32_exti_h_syscore_ops);
+}
+
+static int stm32_exti_h_retrigger(struct irq_data *d)
+{
+	struct stm32_exti_chip_data *chip_data = irq_data_get_irq_chip_data(d);
+	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
+	void __iomem *base = chip_data->host_data->base;
+	u32 mask = BIT(d->hwirq % IRQS_PER_BANK);
+
+	writel_relaxed(mask, base + stm32_bank->swier_ofst);
+
+	return 0;
+}
 
 static struct irq_chip stm32_exti_h_chip = {
 	.name			= "stm32-exti-h",
 	.irq_eoi		= stm32_exti_h_eoi,
 	.irq_mask		= stm32_exti_h_mask,
 	.irq_unmask		= stm32_exti_h_unmask,
-	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_retrigger		= stm32_exti_h_retrigger,
 	.irq_set_type		= stm32_exti_h_set_type,
 	.irq_set_wake		= stm32_exti_h_set_wake,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND,
 	.irq_set_affinity	= IS_ENABLED(CONFIG_SMP) ? stm32_exti_h_set_affinity : NULL,
+};
+
+static struct irq_chip stm32_exti_h_chip_direct = {
+	.name			= "stm32-exti-h-direct",
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_ack		= irq_chip_ack_parent,
+	.irq_mask		= stm32_exti_h_mask,
+	.irq_unmask		= stm32_exti_h_unmask,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= irq_chip_set_type_parent,
+	.irq_set_wake		= stm32_exti_h_set_wake,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND,
+	.irq_set_affinity	= IS_ENABLED(CONFIG_SMP) ? irq_chip_set_affinity_parent : NULL,
 };
 
 static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
@@ -646,24 +695,36 @@ static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
 {
 	struct stm32_exti_host_data *host_data = dm->host_data;
 	struct stm32_exti_chip_data *chip_data;
+	u8 desc_irq;
 	struct irq_fwspec *fwspec = data;
 	struct irq_fwspec p_fwspec;
 	irq_hw_number_t hwirq;
-	int p_irq, bank;
+	int bank;
+	u32 event_trg;
+	struct irq_chip *chip;
 
 	hwirq = fwspec->param[0];
+	if (hwirq >= host_data->drv_data->bank_nr * IRQS_PER_BANK)
+		return -EINVAL;
+
 	bank  = hwirq / IRQS_PER_BANK;
 	chip_data = &host_data->chips_data[bank];
 
-	irq_domain_set_hwirq_and_chip(dm, virq, hwirq,
-				      &stm32_exti_h_chip, chip_data);
+	event_trg = readl_relaxed(host_data->base + chip_data->reg_bank->trg_ofst);
+	chip = (event_trg & BIT(hwirq % IRQS_PER_BANK)) ?
+	       &stm32_exti_h_chip : &stm32_exti_h_chip_direct;
 
-	p_irq = stm32_exti_to_irq(host_data->drv_data, hwirq);
-	if (p_irq >= 0) {
+	irq_domain_set_hwirq_and_chip(dm, virq, hwirq, chip, chip_data);
+
+	if (!host_data->drv_data || !host_data->drv_data->desc_irqs)
+		return -EINVAL;
+
+	desc_irq = host_data->drv_data->desc_irqs[hwirq];
+	if (desc_irq != EXTI_INVALID_IRQ) {
 		p_fwspec.fwnode = dm->parent->fwnode;
 		p_fwspec.param_count = 3;
 		p_fwspec.param[0] = GIC_SPI;
-		p_fwspec.param[1] = p_irq;
+		p_fwspec.param[1] = desc_irq;
 		p_fwspec.param[2] = IRQ_TYPE_LEVEL_HIGH;
 
 		return irq_domain_alloc_irqs_parent(dm, virq, 1, &p_fwspec);
@@ -683,8 +744,6 @@ stm32_exti_host_data *stm32_exti_host_init(const struct stm32_exti_drv_data *dd,
 		return NULL;
 
 	host_data->drv_data = dd;
-	host_data->node = node;
-	host_data->hwlock_state = HWSPINLOCK_UNKNOWN;
 	host_data->chips_data = kcalloc(dd->bank_nr,
 					sizeof(struct stm32_exti_chip_data),
 					GFP_KERNEL);
@@ -711,12 +770,12 @@ free_host_data:
 
 static struct
 stm32_exti_chip_data *stm32_exti_chip_init(struct stm32_exti_host_data *h_data,
-					   u32 bank_idx)
+					   u32 bank_idx,
+					   struct device_node *node)
 {
 	const struct stm32_exti_bank *stm32_bank;
 	struct stm32_exti_chip_data *chip_data;
 	void __iomem *base = h_data->base;
-	u32 irqs_mask;
 
 	stm32_bank = h_data->drv_data->exti_banks[bank_idx];
 	chip_data = &h_data->chips_data[bank_idx];
@@ -725,23 +784,15 @@ stm32_exti_chip_data *stm32_exti_chip_init(struct stm32_exti_host_data *h_data,
 
 	raw_spin_lock_init(&chip_data->rlock);
 
-	/* Determine number of irqs supported */
-	writel_relaxed(~0UL, base + stm32_bank->rtsr_ofst);
-	irqs_mask = readl_relaxed(base + stm32_bank->rtsr_ofst);
-
 	/*
 	 * This IP has no reset, so after hot reboot we should
 	 * clear registers to avoid residue
 	 */
 	writel_relaxed(0, base + stm32_bank->imr_ofst);
-	writel_relaxed(0, base + stm32_bank->emr_ofst);
-	writel_relaxed(0, base + stm32_bank->rtsr_ofst);
-	writel_relaxed(0, base + stm32_bank->ftsr_ofst);
-	writel_relaxed(~0UL, base + stm32_bank->rpr_ofst);
-	if (stm32_bank->fpr_ofst != UNDEF_REG)
-		writel_relaxed(~0UL, base + stm32_bank->fpr_ofst);
+	if (stm32_bank->emr_ofst != UNDEF_REG)
+		writel_relaxed(0, base + stm32_bank->emr_ofst);
 
-	pr_info("%pOF: bank%d\n", h_data->node, bank_idx);
+	pr_info("%pOF: bank%d\n", node, bank_idx);
 
 	return chip_data;
 }
@@ -781,7 +832,7 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 		struct stm32_exti_chip_data *chip_data;
 
 		stm32_bank = drv_data->exti_banks[i];
-		chip_data = stm32_exti_chip_init(host_data, i);
+		chip_data = stm32_exti_chip_init(host_data, i, node);
 
 		gc = irq_get_domain_generic_chip(domain, i * IRQS_PER_BANK);
 
@@ -822,52 +873,130 @@ out_unmap:
 static const struct irq_domain_ops stm32_exti_h_domain_ops = {
 	.alloc	= stm32_exti_h_domain_alloc,
 	.free	= irq_domain_free_irqs_common,
+	.xlate = irq_domain_xlate_twocell,
 };
 
-static int
-__init stm32_exti_hierarchy_init(const struct stm32_exti_drv_data *drv_data,
-				 struct device_node *node,
-				 struct device_node *parent)
+static void stm32_exti_remove_irq(void *data)
 {
+	struct irq_domain *domain = data;
+
+	irq_domain_remove(domain);
+}
+
+static int stm32_exti_remove(struct platform_device *pdev)
+{
+	stm32_exti_h_syscore_deinit();
+	return 0;
+}
+
+static int stm32_exti_probe(struct platform_device *pdev)
+{
+	int ret, i;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct irq_domain *parent_domain, *domain;
 	struct stm32_exti_host_data *host_data;
-	int ret, i;
+	const struct stm32_exti_drv_data *drv_data;
 
-	parent_domain = irq_find_host(parent);
-	if (!parent_domain) {
-		pr_err("interrupt-parent not found\n");
-		return -EINVAL;
-	}
-
-	host_data = stm32_exti_host_init(drv_data, node);
+	host_data = devm_kzalloc(dev, sizeof(*host_data), GFP_KERNEL);
 	if (!host_data)
 		return -ENOMEM;
 
+	/* check for optional hwspinlock which may be not available yet */
+	ret = of_hwspin_lock_get_id(np, 0);
+	if (ret == -EPROBE_DEFER)
+		/* hwspinlock framework not yet ready */
+		return ret;
+
+	if (ret >= 0) {
+		host_data->hwlock = devm_hwspin_lock_request_specific(dev, ret);
+		if (!host_data->hwlock) {
+			dev_err(dev, "Failed to request hwspinlock\n");
+			return -EINVAL;
+		}
+	} else if (ret != -ENOENT) {
+		/* note: ENOENT is a valid case (means 'no hwspinlock') */
+		dev_err(dev, "Failed to get hwspinlock\n");
+		return ret;
+	}
+
+	/* initialize host_data */
+	drv_data = of_device_get_match_data(dev);
+	if (!drv_data) {
+		dev_err(dev, "no of match data\n");
+		return -ENODEV;
+	}
+	host_data->drv_data = drv_data;
+
+	host_data->chips_data = devm_kcalloc(dev, drv_data->bank_nr,
+					     sizeof(*host_data->chips_data),
+					     GFP_KERNEL);
+	if (!host_data->chips_data)
+		return -ENOMEM;
+
+	host_data->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(host_data->base))
+		return PTR_ERR(host_data->base);
+
 	for (i = 0; i < drv_data->bank_nr; i++)
-		stm32_exti_chip_init(host_data, i);
+		stm32_exti_chip_init(host_data, i, np);
+
+	parent_domain = irq_find_host(of_irq_find_parent(np));
+	if (!parent_domain) {
+		dev_err(dev, "GIC interrupt-parent not found\n");
+		return -EINVAL;
+	}
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0,
 					  drv_data->bank_nr * IRQS_PER_BANK,
-					  node, &stm32_exti_h_domain_ops,
+					  np, &stm32_exti_h_domain_ops,
 					  host_data);
 
 	if (!domain) {
-		pr_err("%pOFn: Could not register exti domain.\n", node);
-		ret = -ENOMEM;
-		goto out_unmap;
+		dev_err(dev, "Could not register exti domain\n");
+		return -ENOMEM;
 	}
 
-	stm32_exti_h_syscore_init();
+	ret = devm_add_action_or_reset(dev, stm32_exti_remove_irq, domain);
+	if (ret)
+		return ret;
+
+	stm32_exti_h_syscore_init(host_data);
 
 	return 0;
-
-out_unmap:
-	iounmap(host_data->base);
-	kfree(host_data->chips_data);
-	kfree(host_data);
-	return ret;
 }
 
+/* platform driver only for MP1 */
+static const struct of_device_id stm32_exti_ids[] = {
+	{ .compatible = "st,stm32mp1-exti", .data = &stm32mp1_drv_data},
+	{ .compatible = "st,stm32mp13-exti", .data = &stm32mp13_drv_data},
+	{},
+};
+MODULE_DEVICE_TABLE(of, stm32_exti_ids);
+
+static struct platform_driver stm32_exti_driver = {
+	.probe		= stm32_exti_probe,
+	.remove		= stm32_exti_remove,
+	.driver		= {
+		.name	= "stm32_exti",
+		.of_match_table = stm32_exti_ids,
+	},
+};
+
+static int __init stm32_exti_arch_init(void)
+{
+	return platform_driver_register(&stm32_exti_driver);
+}
+
+static void __exit stm32_exti_arch_exit(void)
+{
+	return platform_driver_unregister(&stm32_exti_driver);
+}
+
+arch_initcall(stm32_exti_arch_init);
+module_exit(stm32_exti_arch_exit);
+
+/* no platform driver for F4 and H7 */
 static int __init stm32f4_exti_of_init(struct device_node *np,
 				       struct device_node *parent)
 {
@@ -883,11 +1012,3 @@ static int __init stm32h7_exti_of_init(struct device_node *np,
 }
 
 IRQCHIP_DECLARE(stm32h7_exti, "st,stm32h7-exti", stm32h7_exti_of_init);
-
-static int __init stm32mp1_exti_of_init(struct device_node *np,
-					struct device_node *parent)
-{
-	return stm32_exti_hierarchy_init(&stm32mp1_drv_data, np, parent);
-}
-
-IRQCHIP_DECLARE(stm32mp1_exti, "st,stm32mp1-exti", stm32mp1_exti_of_init);

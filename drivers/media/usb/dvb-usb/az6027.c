@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant Linux driver for the AZUREWAVE DVB-S/S2 USB2.0 (AZ6027)
  * receiver.
  *
  * Copyright (C) 2009 Adams.Xu <adams.xu@azwave.com.cn>
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "az6027.h"
 
@@ -394,6 +391,7 @@ static struct rc_map_table rc_map_az6027_table[] = {
 /* remote control stuff (does not work with my box) */
 static int az6027_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
+	*state = REMOTE_NO_KEY_PRESSED;
 	return 0;
 }
 
@@ -1054,8 +1052,8 @@ static struct i2c_algorithm az6027_i2c_algo = {
 };
 
 static int az6027_identify_state(struct usb_device *udev,
-				 struct dvb_usb_device_properties *props,
-				 struct dvb_usb_device_description **desc,
+				 const struct dvb_usb_device_properties *props,
+				 const struct dvb_usb_device_description **desc,
 				 int *cold)
 {
 	u8 *b;
@@ -1082,16 +1080,27 @@ static int az6027_identify_state(struct usb_device *udev,
 }
 
 
+enum {
+	AZUREWAVE_AZ6027,
+	TERRATEC_DVBS2CI_V1,
+	TERRATEC_DVBS2CI_V2,
+	TECHNISAT_USB2_HDCI_V1,
+	TECHNISAT_USB2_HDCI_V2,
+	ELGATO_EYETV_SAT,
+	ELGATO_EYETV_SAT_V2,
+	ELGATO_EYETV_SAT_V3,
+};
+
 static struct usb_device_id az6027_usb_table[] = {
-	{ USB_DEVICE(USB_VID_AZUREWAVE, USB_PID_AZUREWAVE_AZ6027) },
-	{ USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_DVBS2CI_V1) },
-	{ USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_DVBS2CI_V2) },
-	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_USB2_HDCI_V1) },
-	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_USB2_HDCI_V2) },
-	{ USB_DEVICE(USB_VID_ELGATO, USB_PID_ELGATO_EYETV_SAT) },
-	{ USB_DEVICE(USB_VID_ELGATO, USB_PID_ELGATO_EYETV_SAT_V2) },
-	{ USB_DEVICE(USB_VID_ELGATO, USB_PID_ELGATO_EYETV_SAT_V3) },
-	{ },
+	DVB_USB_DEV(AZUREWAVE, AZUREWAVE_AZ6027),
+	DVB_USB_DEV(TERRATEC, TERRATEC_DVBS2CI_V1),
+	DVB_USB_DEV(TERRATEC, TERRATEC_DVBS2CI_V2),
+	DVB_USB_DEV(TECHNISAT, TECHNISAT_USB2_HDCI_V1),
+	DVB_USB_DEV(TECHNISAT, TECHNISAT_USB2_HDCI_V2),
+	DVB_USB_DEV(ELGATO, ELGATO_EYETV_SAT),
+	DVB_USB_DEV(ELGATO, ELGATO_EYETV_SAT_V2),
+	DVB_USB_DEV(ELGATO, ELGATO_EYETV_SAT_V3),
+	{ }
 };
 
 MODULE_DEVICE_TABLE(usb, az6027_usb_table);
@@ -1143,35 +1152,35 @@ static struct dvb_usb_device_properties az6027_properties = {
 	.devices = {
 		{
 			.name = "AZUREWAVE DVB-S/S2 USB2.0 (AZ6027)",
-			.cold_ids = { &az6027_usb_table[0], NULL },
+			.cold_ids = { &az6027_usb_table[AZUREWAVE_AZ6027], NULL },
 			.warm_ids = { NULL },
 		}, {
 			.name = "TERRATEC S7",
-			.cold_ids = { &az6027_usb_table[1], NULL },
+			.cold_ids = { &az6027_usb_table[TERRATEC_DVBS2CI_V1], NULL },
 			.warm_ids = { NULL },
 		}, {
 			.name = "TERRATEC S7 MKII",
-			.cold_ids = { &az6027_usb_table[2], NULL },
+			.cold_ids = { &az6027_usb_table[TERRATEC_DVBS2CI_V2], NULL },
 			.warm_ids = { NULL },
 		}, {
 			.name = "Technisat SkyStar USB 2 HD CI",
-			.cold_ids = { &az6027_usb_table[3], NULL },
+			.cold_ids = { &az6027_usb_table[TECHNISAT_USB2_HDCI_V1], NULL },
 			.warm_ids = { NULL },
 		}, {
 			.name = "Technisat SkyStar USB 2 HD CI",
-			.cold_ids = { &az6027_usb_table[4], NULL },
+			.cold_ids = { &az6027_usb_table[TECHNISAT_USB2_HDCI_V2], NULL },
 			.warm_ids = { NULL },
 		}, {
 			.name = "Elgato EyeTV Sat",
-			.cold_ids = { &az6027_usb_table[5], NULL },
+			.cold_ids = { &az6027_usb_table[ELGATO_EYETV_SAT], NULL },
 			.warm_ids = { NULL },
 		}, {
 			.name = "Elgato EyeTV Sat",
-			.cold_ids = { &az6027_usb_table[6], NULL },
+			.cold_ids = { &az6027_usb_table[ELGATO_EYETV_SAT_V2], NULL },
 			.warm_ids = { NULL },
 		}, {
 			.name = "Elgato EyeTV Sat",
-			.cold_ids = { &az6027_usb_table[7], NULL },
+			.cold_ids = { &az6027_usb_table[ELGATO_EYETV_SAT_V3], NULL },
 			.warm_ids = { NULL },
 		},
 		{ NULL },

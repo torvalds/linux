@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Rockchip machine ASoC driver for RK3288 boards that have an HDMI and analog
  * audio output
@@ -6,19 +7,6 @@
  *
  * Authors: Sjoerd Simons <sjoerd.simons@collabora.com>,
  *	    Romain Perier <romain.perier@collabora.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/module.h>
@@ -78,9 +66,9 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 			struct snd_pcm_hw_params *params)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int mclk;
 
 	switch (params_rate(params)) {
@@ -136,10 +124,10 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 
 	/* Enable Headset Jack detection */
 	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_card_jack_new(runtime->card, "Headphone Jack",
-				      SND_JACK_HEADPHONE, &headphone_jack,
-				      headphone_jack_pins,
-				      ARRAY_SIZE(headphone_jack_pins));
+		snd_soc_card_jack_new_pins(runtime->card, "Headphone Jack",
+					   SND_JACK_HEADPHONE, &headphone_jack,
+					   headphone_jack_pins,
+					   ARRAY_SIZE(headphone_jack_pins));
 		rk_hp_jack_gpio.gpio = machine->gpio_hp_det;
 		snd_soc_jack_add_gpios(&headphone_jack, 1, &rk_hp_jack_gpio);
 	}
@@ -151,24 +139,21 @@ static const struct snd_soc_ops rk_ops = {
 	.hw_params = rk_hw_params,
 };
 
-static struct snd_soc_dai_link_component rk_codecs[] = {
-	{ },
-	{
-		.name = "hdmi-audio-codec.2.auto",
-		.dai_name = "i2s-hifi",
-	},
-};
+SND_SOC_DAILINK_DEFS(audio,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, NULL),
+			   COMP_CODEC("hdmi-audio-codec.2.auto", "i2s-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link rk_dailink = {
 	.name = "Codecs",
 	.stream_name = "Audio",
 	.init = rk_init,
 	.ops = &rk_ops,
-	.codecs = rk_codecs,
-	.num_codecs = ARRAY_SIZE(rk_codecs),
 	/* Set codecs as slave */
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(audio),
 };
 
 static struct snd_soc_card snd_soc_card_rk = {
@@ -184,7 +169,7 @@ static struct snd_soc_card snd_soc_card_rk = {
 
 static int snd_rk_mc_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	struct snd_soc_card *card = &snd_soc_card_rk;
 	struct device_node *np = pdev->dev.of_node;
 	struct rk_drvdata *machine;
@@ -244,15 +229,15 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_dailink.cpu_of_node = of_parse_phandle(np, "rockchip,i2s-controller",
+	rk_dailink.cpus->of_node = of_parse_phandle(np, "rockchip,i2s-controller",
 						  0);
-	if (!rk_dailink.cpu_of_node) {
+	if (!rk_dailink.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.platform_of_node = rk_dailink.cpu_of_node;
+	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
 
 	ret = snd_soc_of_parse_audio_routing(card, "rockchip,routing");
 	if (ret) {
@@ -264,15 +249,11 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, machine);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Soc register card failed %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Soc register card failed\n");
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id rockchip_sound_of_match[] = {

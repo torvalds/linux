@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -57,18 +54,12 @@ struct nicpf {
 #define	NIC_GET_BGX_FROM_VF_LMAC_MAP(map)	((map >> 4) & 0xF)
 #define	NIC_GET_LMAC_FROM_VF_LMAC_MAP(map)	(map & 0xF)
 	u8			*vf_lmac_map;
-	struct delayed_work     dwork;
-	struct workqueue_struct *check_link;
-	u8			*link;
-	u8			*duplex;
-	u32			*speed;
 	u16			cpi_base[MAX_NUM_VFS_SUPPORTED];
 	u16			rssi_base[MAX_NUM_VFS_SUPPORTED];
-	bool			mbx_lock[MAX_NUM_VFS_SUPPORTED];
 
 	/* MSI-X */
 	u8			num_vec;
-	bool			irq_allocated[NIC_PF_MSIX_VECTORS];
+	unsigned int		irq_allocated[NIC_PF_MSIX_VECTORS];
 	char			irq_name[NIC_PF_MSIX_VECTORS][20];
 };
 
@@ -929,6 +920,35 @@ static void nic_config_timestamp(struct nicpf *nic, int vf, struct set_ptp *ptp)
 	nic_reg_write(nic, NIC_PF_PKIND_0_15_CFG | (pkind_idx << 3), pkind_val);
 }
 
+/* Get BGX LMAC link status and update corresponding VF
+ * if there is a change, valid only if internal L2 switch
+ * is not present otherwise VF link is always treated as up
+ */
+static void nic_link_status_get(struct nicpf *nic, u8 vf)
+{
+	union nic_mbx mbx = {};
+	struct bgx_link_status link;
+	u8 bgx, lmac;
+
+	mbx.link_status.msg = NIC_MBOX_MSG_BGX_LINK_CHANGE;
+
+	/* Get BGX, LMAC indices for the VF */
+	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+
+	/* Get interface link status */
+	bgx_get_lmac_link_state(nic->node, bgx, lmac, &link);
+
+	/* Send a mbox message to VF with current link status */
+	mbx.link_status.link_up = link.link_up;
+	mbx.link_status.duplex = link.duplex;
+	mbx.link_status.speed = link.speed;
+	mbx.link_status.mac_type = link.mac_type;
+
+	/* reply with link status */
+	nic_send_msg_to_vf(nic, vf, &mbx);
+}
+
 /* Interrupt handler to handle mailbox messages from VFs */
 static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 {
@@ -940,8 +960,6 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	int bgx, lmac;
 	int i;
 	int ret = 0;
-
-	nic->mbx_lock[vf] = true;
 
 	mbx_addr = nic_get_mbx_addr(vf);
 	mbx_data = (u64 *)&mbx;
@@ -957,12 +975,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	switch (mbx.msg.msg) {
 	case NIC_MBOX_MSG_READY:
 		nic_mbx_send_ready(nic, vf);
-		if (vf < nic->num_vf_en) {
-			nic->link[vf] = 0;
-			nic->duplex[vf] = 0;
-			nic->speed[vf] = 0;
-		}
-		goto unlock;
+		return;
 	case NIC_MBOX_MSG_QS_CFG:
 		reg_addr = NIC_PF_QSET_0_127_CFG |
 			   (mbx.qs.num << NIC_QS_ID_SHIFT);
@@ -1031,7 +1044,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		break;
 	case NIC_MBOX_MSG_RSS_SIZE:
 		nic_send_rss_size(nic, vf);
-		goto unlock;
+		return;
 	case NIC_MBOX_MSG_RSS_CFG:
 	case NIC_MBOX_MSG_RSS_CFG_CONT:
 		nic_config_rss(nic, &mbx.rss_cfg);
@@ -1039,7 +1052,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	case NIC_MBOX_MSG_CFG_DONE:
 		/* Last message of VF config msg sequence */
 		nic_enable_vf(nic, vf, true);
-		goto unlock;
+		break;
 	case NIC_MBOX_MSG_SHUTDOWN:
 		/* First msg in VF teardown sequence */
 		if (vf >= nic->num_vf_en)
@@ -1049,19 +1062,19 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		break;
 	case NIC_MBOX_MSG_ALLOC_SQS:
 		nic_alloc_sqs(nic, &mbx.sqs_alloc);
-		goto unlock;
+		return;
 	case NIC_MBOX_MSG_NICVF_PTR:
 		nic->nicvf[vf] = mbx.nicvf.nicvf;
 		break;
 	case NIC_MBOX_MSG_PNICVF_PTR:
 		nic_send_pnicvf(nic, vf);
-		goto unlock;
+		return;
 	case NIC_MBOX_MSG_SNICVF_PTR:
 		nic_send_snicvf(nic, &mbx.nicvf);
-		goto unlock;
+		return;
 	case NIC_MBOX_MSG_BGX_STATS:
 		nic_get_bgx_stats(nic, &mbx.bgx_stats);
-		goto unlock;
+		return;
 	case NIC_MBOX_MSG_LOOPBACK:
 		ret = nic_config_loopback(nic, &mbx.lbk);
 		break;
@@ -1070,7 +1083,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		break;
 	case NIC_MBOX_MSG_PFC:
 		nic_pause_frame(nic, vf, &mbx.pfc);
-		goto unlock;
+		return;
 	case NIC_MBOX_MSG_PTP_CFG:
 		nic_config_timestamp(nic, vf, &mbx.ptp);
 		break;
@@ -1094,7 +1107,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		bgx_set_dmac_cam_filter(nic->node, bgx, lmac,
-					mbx.xcast.data.mac,
+					mbx.xcast.mac,
 					vf < NIC_VF_PER_MBX_REG ? vf :
 					vf - NIC_VF_PER_MBX_REG);
 		break;
@@ -1106,8 +1119,15 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		}
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
-		bgx_set_xcast_mode(nic->node, bgx, lmac, mbx.xcast.data.mode);
+		bgx_set_xcast_mode(nic->node, bgx, lmac, mbx.xcast.mode);
 		break;
+	case NIC_MBOX_MSG_BGX_LINK_CHANGE:
+		if (vf >= nic->num_vf_en) {
+			ret = -1; /* NACK */
+			break;
+		}
+		nic_link_status_get(nic, vf);
+		return;
 	default:
 		dev_err(&nic->pdev->dev,
 			"Invalid msg from VF%d, msg 0x%x\n", vf, mbx.msg.msg);
@@ -1121,8 +1141,6 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 			mbx.msg.msg, vf);
 		nic_mbx_send_nack(nic, vf);
 	}
-unlock:
-	nic->mbx_lock[vf] = false;
 }
 
 static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
@@ -1132,7 +1150,7 @@ static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
 	u64 intr;
 	u8  vf;
 
-	if (irq == pci_irq_vector(nic->pdev, NIC_PF_INTR_ID_MBOX0))
+	if (irq == nic->irq_allocated[NIC_PF_INTR_ID_MBOX0])
 		mbx = 0;
 	else
 		mbx = 1;
@@ -1158,14 +1176,14 @@ static void nic_free_all_interrupts(struct nicpf *nic)
 
 	for (irq = 0; irq < nic->num_vec; irq++) {
 		if (nic->irq_allocated[irq])
-			free_irq(pci_irq_vector(nic->pdev, irq), nic);
-		nic->irq_allocated[irq] = false;
+			free_irq(nic->irq_allocated[irq], nic);
+		nic->irq_allocated[irq] = 0;
 	}
 }
 
 static int nic_register_interrupts(struct nicpf *nic)
 {
-	int i, ret;
+	int i, ret, irq;
 	nic->num_vec = pci_msix_vec_count(nic->pdev);
 
 	/* Enable MSI-X */
@@ -1175,7 +1193,7 @@ static int nic_register_interrupts(struct nicpf *nic)
 		dev_err(&nic->pdev->dev,
 			"Request for #%d msix vectors failed, returned %d\n",
 			   nic->num_vec, ret);
-		return 1;
+		return ret;
 	}
 
 	/* Register mailbox interrupt handler */
@@ -1183,13 +1201,13 @@ static int nic_register_interrupts(struct nicpf *nic)
 		sprintf(nic->irq_name[i],
 			"NICPF Mbox%d", (i - NIC_PF_INTR_ID_MBOX0));
 
-		ret = request_irq(pci_irq_vector(nic->pdev, i),
-				  nic_mbx_intr_handler, 0,
+		irq = pci_irq_vector(nic->pdev, i);
+		ret = request_irq(irq, nic_mbx_intr_handler, 0,
 				  nic->irq_name[i], nic);
 		if (ret)
 			goto fail;
 
-		nic->irq_allocated[i] = true;
+		nic->irq_allocated[i] = irq;
 	}
 
 	/* Enable mailbox interrupt */
@@ -1270,52 +1288,6 @@ static int nic_sriov_init(struct pci_dev *pdev, struct nicpf *nic)
 	return 0;
 }
 
-/* Poll for BGX LMAC link status and update corresponding VF
- * if there is a change, valid only if internal L2 switch
- * is not present otherwise VF link is always treated as up
- */
-static void nic_poll_for_link(struct work_struct *work)
-{
-	union nic_mbx mbx = {};
-	struct nicpf *nic;
-	struct bgx_link_status link;
-	u8 vf, bgx, lmac;
-
-	nic = container_of(work, struct nicpf, dwork.work);
-
-	mbx.link_status.msg = NIC_MBOX_MSG_BGX_LINK_CHANGE;
-
-	for (vf = 0; vf < nic->num_vf_en; vf++) {
-		/* Poll only if VF is UP */
-		if (!nic->vf_enabled[vf])
-			continue;
-
-		/* Get BGX, LMAC indices for the VF */
-		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
-		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
-		/* Get interface link status */
-		bgx_get_lmac_link_state(nic->node, bgx, lmac, &link);
-
-		/* Inform VF only if link status changed */
-		if (nic->link[vf] == link.link_up)
-			continue;
-
-		if (!nic->mbx_lock[vf]) {
-			nic->link[vf] = link.link_up;
-			nic->duplex[vf] = link.duplex;
-			nic->speed[vf] = link.speed;
-
-			/* Send a mbox message to VF with current link status */
-			mbx.link_status.link_up = link.link_up;
-			mbx.link_status.duplex = link.duplex;
-			mbx.link_status.speed = link.speed;
-			mbx.link_status.mac_type = link.mac_type;
-			nic_send_msg_to_vf(nic, vf, &mbx);
-		}
-	}
-	queue_delayed_work(nic->check_link, &nic->dwork, HZ * 2);
-}
-
 static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
@@ -1339,9 +1311,8 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(dev, "Failed to enable PCI device\n");
 		pci_set_drvdata(pdev, NULL);
-		return err;
+		return dev_err_probe(dev, err, "Failed to enable PCI device\n");
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
@@ -1350,15 +1321,9 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err) {
 		dev_err(dev, "Unable to get usable DMA configuration\n");
-		goto err_release_regions;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "Unable to get 48-bit DMA for consistent allocations\n");
 		goto err_release_regions;
 	}
 
@@ -1384,18 +1349,6 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!nic->vf_lmac_map)
 		goto err_release_regions;
 
-	nic->link = devm_kmalloc_array(dev, max_lmac, sizeof(u8), GFP_KERNEL);
-	if (!nic->link)
-		goto err_release_regions;
-
-	nic->duplex = devm_kmalloc_array(dev, max_lmac, sizeof(u8), GFP_KERNEL);
-	if (!nic->duplex)
-		goto err_release_regions;
-
-	nic->speed = devm_kmalloc_array(dev, max_lmac, sizeof(u32), GFP_KERNEL);
-	if (!nic->speed)
-		goto err_release_regions;
-
 	/* Initialize hardware */
 	nic_init_hw(nic);
 
@@ -1411,22 +1364,8 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_unregister_interrupts;
 
-	/* Register a physical link status poll fn() */
-	nic->check_link = alloc_workqueue("check_link_status",
-					  WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
-	if (!nic->check_link) {
-		err = -ENOMEM;
-		goto err_disable_sriov;
-	}
-
-	INIT_DELAYED_WORK(&nic->dwork, nic_poll_for_link);
-	queue_delayed_work(nic->check_link, &nic->dwork, 0);
-
 	return 0;
 
-err_disable_sriov:
-	if (nic->flags & NIC_SRIOV_ENABLED)
-		pci_disable_sriov(pdev);
 err_unregister_interrupts:
 	nic_unregister_interrupts(nic);
 err_release_regions:
@@ -1446,12 +1385,6 @@ static void nic_remove(struct pci_dev *pdev)
 
 	if (nic->flags & NIC_SRIOV_ENABLED)
 		pci_disable_sriov(pdev);
-
-	if (nic->check_link) {
-		/* Destroy work Queue */
-		cancel_delayed_work_sync(&nic->dwork);
-		destroy_workqueue(nic->check_link);
-	}
 
 	nic_unregister_interrupts(nic);
 	pci_release_regions(pdev);

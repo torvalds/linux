@@ -30,10 +30,9 @@ asmlinkage __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 
-asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
-					    int len, __wsum sum,
-					    int *src_err_ptr, int *dst_err_ptr);
+asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst, int len);
 
+#define _HAVE_ARCH_CSUM_AND_COPY
 /*
  *	Note: when you get a NULL pointer exception here this means someone
  *	passed in an incorrect kernel address to one of these functions.
@@ -42,18 +41,18 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
  *	access_ok().
  */
 static inline
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
-				 int len, __wsum sum)
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
-	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
+	return csum_partial_copy_generic(src, dst, len);
 }
 
+#define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 static inline
-__wsum csum_partial_copy_from_user(const void __user *src, void *dst,
-				   int len, __wsum sum, int *err_ptr)
+__wsum csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
-	return csum_partial_copy_generic((__force const void *)src, dst,
-					len, sum, err_ptr, NULL);
+	if (!access_ok(src, len))
+		return 0;
+	return csum_partial_copy_generic((__force const void *)src, dst, len);
 }
 
 /*
@@ -85,7 +84,8 @@ static inline __sum16 csum_fold(__wsum sum)
  */
 static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	unsigned int sum, __dummy0, __dummy1;
+	__wsum sum;
+	unsigned int __dummy0, __dummy1;
 
 	__asm__ __volatile__(
 		"mov.l	@%1+, %0\n\t"
@@ -194,16 +194,10 @@ static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 #define HAVE_CSUM_COPY_USER
 static inline __wsum csum_and_copy_to_user(const void *src,
 					   void __user *dst,
-					   int len, __wsum sum,
-					   int *err_ptr)
+					   int len)
 {
-	if (access_ok(dst, len))
-		return csum_partial_copy_generic((__force const void *)src,
-						dst, len, sum, NULL, err_ptr);
-
-	if (len)
-		*err_ptr = -EFAULT;
-
-	return (__force __wsum)-1; /* invalid checksum */
+	if (!access_ok(dst, len))
+		return 0;
+	return csum_partial_copy_generic(src, (__force void *)dst, len);
 }
 #endif /* __ASM_SH_CHECKSUM_H */

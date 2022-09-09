@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aesce-ccm-core.S - AES-CCM transform for ARMv8 with Crypto Extensions
  *
  * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -15,22 +12,21 @@
 	.arch	armv8-a+crypto
 
 	/*
-	 * void ce_aes_ccm_auth_data(u8 mac[], u8 const in[], u32 abytes,
-	 *			     u32 *macp, u8 const rk[], u32 rounds);
+	 * u32 ce_aes_ccm_auth_data(u8 mac[], u8 const in[], u32 abytes,
+	 *			    u32 macp, u8 const rk[], u32 rounds);
 	 */
-ENTRY(ce_aes_ccm_auth_data)
-	ldr	w8, [x3]			/* leftover from prev round? */
+SYM_FUNC_START(ce_aes_ccm_auth_data)
 	ld1	{v0.16b}, [x0]			/* load mac */
-	cbz	w8, 1f
-	sub	w8, w8, #16
+	cbz	w3, 1f
+	sub	w3, w3, #16
 	eor	v1.16b, v1.16b, v1.16b
 0:	ldrb	w7, [x1], #1			/* get 1 byte of input */
 	subs	w2, w2, #1
-	add	w8, w8, #1
+	add	w3, w3, #1
 	ins	v1.b[0], w7
 	ext	v1.16b, v1.16b, v1.16b, #1	/* rotate in the input bytes */
 	beq	8f				/* out of input? */
-	cbnz	w8, 0b
+	cbnz	w3, 0b
 	eor	v0.16b, v0.16b, v1.16b
 1:	ld1	{v3.4s}, [x4]			/* load first round key */
 	prfm	pldl1strm, [x1]
@@ -65,7 +61,7 @@ ENTRY(ce_aes_ccm_auth_data)
 	beq	10f
 	adds	w2, w2, #16
 	beq	10f
-	mov	w8, w2
+	mov	w3, w2
 7:	ldrb	w7, [x1], #1
 	umov	w6, v0.b[0]
 	eor	w6, w6, w7
@@ -74,22 +70,23 @@ ENTRY(ce_aes_ccm_auth_data)
 	beq	10f
 	ext	v0.16b, v0.16b, v0.16b, #1	/* rotate out the mac bytes */
 	b	7b
-8:	mov	w7, w8
-	add	w8, w8, #16
+8:	cbz	w3, 91f
+	mov	w7, w3
+	add	w3, w3, #16
 9:	ext	v1.16b, v1.16b, v1.16b, #1
 	adds	w7, w7, #1
 	bne	9b
-	eor	v0.16b, v0.16b, v1.16b
+91:	eor	v0.16b, v0.16b, v1.16b
 	st1	{v0.16b}, [x0]
-10:	str	w8, [x3]
+10:	mov	w0, w3
 	ret
-ENDPROC(ce_aes_ccm_auth_data)
+SYM_FUNC_END(ce_aes_ccm_auth_data)
 
 	/*
 	 * void ce_aes_ccm_final(u8 mac[], u8 const ctr[], u8 const rk[],
 	 * 			 u32 rounds);
 	 */
-ENTRY(ce_aes_ccm_final)
+SYM_FUNC_START(ce_aes_ccm_final)
 	ld1	{v3.4s}, [x2], #16		/* load first round key */
 	ld1	{v0.16b}, [x0]			/* load mac */
 	cmp	w3, #12				/* which key size? */
@@ -123,9 +120,10 @@ ENTRY(ce_aes_ccm_final)
 	eor	v0.16b, v0.16b, v1.16b		/* en-/decrypt the mac */
 	st1	{v0.16b}, [x0]			/* store result */
 	ret
-ENDPROC(ce_aes_ccm_final)
+SYM_FUNC_END(ce_aes_ccm_final)
 
 	.macro	aes_ccm_do_crypt,enc
+	cbz	x2, 5f
 	ldr	x8, [x6, #8]			/* load lower ctr */
 	ld1	{v0.16b}, [x5]			/* load mac */
 CPU_LE(	rev	x8, x8			)	/* keep swabbed ctr in reg */
@@ -214,10 +212,10 @@ CPU_LE(	rev	x8, x8			)
 	 * 			   u8 const rk[], u32 rounds, u8 mac[],
 	 * 			   u8 ctr[]);
 	 */
-ENTRY(ce_aes_ccm_encrypt)
+SYM_FUNC_START(ce_aes_ccm_encrypt)
 	aes_ccm_do_crypt	1
-ENDPROC(ce_aes_ccm_encrypt)
+SYM_FUNC_END(ce_aes_ccm_encrypt)
 
-ENTRY(ce_aes_ccm_decrypt)
+SYM_FUNC_START(ce_aes_ccm_decrypt)
 	aes_ccm_do_crypt	0
-ENDPROC(ce_aes_ccm_decrypt)
+SYM_FUNC_END(ce_aes_ccm_decrypt)

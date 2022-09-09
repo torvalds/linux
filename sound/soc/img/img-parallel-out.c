@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IMG parallel output controller driver
  *
  * Copyright (C) 2015 Imagination Technologies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -165,7 +162,7 @@ static int img_prl_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	ret = pm_runtime_get_sync(prl->dev);
+	ret = pm_runtime_resume_and_get(prl->dev);
 	if (ret < 0)
 		return ret;
 
@@ -204,7 +201,8 @@ static struct snd_soc_dai_driver img_prl_out_dai = {
 };
 
 static const struct snd_soc_component_driver img_prl_out_component = {
-	.name = "img-prl-out"
+	.name = "img-prl-out",
+	.legacy_dai_naming = 1,
 };
 
 static int img_prl_out_probe(struct platform_device *pdev)
@@ -223,33 +221,26 @@ static int img_prl_out_probe(struct platform_device *pdev)
 
 	prl->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	prl->base = base;
 
 	prl->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
-	if (IS_ERR(prl->rst)) {
-		if (PTR_ERR(prl->rst) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "No top level reset found\n");
-		return PTR_ERR(prl->rst);
-	}
+	if (IS_ERR(prl->rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(prl->rst),
+				     "No top level reset found\n");
 
 	prl->clk_sys = devm_clk_get(&pdev->dev, "sys");
-	if (IS_ERR(prl->clk_sys)) {
-		if (PTR_ERR(prl->clk_sys) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'sys'\n");
-		return PTR_ERR(prl->clk_sys);
-	}
+	if (IS_ERR(prl->clk_sys))
+		return dev_err_probe(dev, PTR_ERR(prl->clk_sys),
+				     "Failed to acquire clock 'sys'\n");
 
 	prl->clk_ref = devm_clk_get(&pdev->dev, "ref");
-	if (IS_ERR(prl->clk_ref)) {
-		if (PTR_ERR(prl->clk_ref) != -EPROBE_DEFER)
-			dev_err(dev, "Failed to acquire clock 'ref'\n");
-		return PTR_ERR(prl->clk_ref);
-	}
+	if (IS_ERR(prl->clk_ref))
+		return dev_err_probe(dev, PTR_ERR(prl->clk_ref),
+				     "Failed to acquire clock 'ref'\n");
 
 	ret = clk_prepare_enable(prl->clk_sys);
 	if (ret)

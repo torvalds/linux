@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/socionext,uniphier-system-bus.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UniPhier System Bus
+
+description: |
+  The UniPhier System Bus is an external bus that connects on-board devices to
+  the UniPhier SoC. It is a simple (semi-)parallel bus with address, data, and
+  some control signals. It supports up to 8 banks (chip selects).
+
+  Before any access to the bus, the bus controller must be configured; the bus
+  controller registers provide the control for the translation from the offset
+  within each bank to the CPU-viewed address. The needed setup includes the
+  base address, the size of each bank. Optionally, some timing parameters can
+  be optimized for faster bus access.
+
+maintainers:
+  - Masahiro Yamada <yamada.masahiro@socionext.com>
+
+properties:
+  compatible:
+    const: socionext,uniphier-system-bus
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    description: |
+      The first cell is the bank number (chip select).
+      The second cell is the address offset within the bank.
+    const: 2
+
+  "#size-cells":
+    const: 1
+
+  ranges:
+    description: |
+      Provide address translation from the System Bus to the parent bus.
+
+      Note:
+      The address region(s) that can be assigned for the System Bus is
+      implementation defined. Some SoCs can use 0x00000000-0x0fffffff and
+      0x40000000-0x4fffffff, while other SoCs only 0x40000000-0x4fffffff.
+      There might be additional limitations depending on SoCs and the boot mode.
+      The address translation is arbitrary as long as the banks are assigned in
+      the supported address space with the required alignment and they do not
+      overlap one another.
+
+      For example, it is possible to map:
+        bank 0 to 0x42000000-0x43ffffff, bank 5 to 0x46000000-0x46ffffff
+      It is also possible to map:
+        bank 0 to 0x48000000-0x49ffffff, bank 5 to 0x44000000-0x44ffffff
+      There is no reason to stick to a particular translation mapping, but the
+      "ranges" property should provide a "reasonable" default that is known to
+      work. The software should initialize the bus controller according to it.
+
+patternProperties:
+  "^.*@[1-5],[1-9a-f][0-9a-f]+$":
+    description: Devices attached to chip selects
+    type: object
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+  - ranges
+
+additionalProperties: false
+
+examples:
+  - |
+    // In this example,
+    // - the Ethernet device is connected at the offset 0x01f00000 of CS1 and
+    //   mapped to 0x43f00000 of the parent bus.
+    // - the UART device is connected at the offset 0x00200000 of CS5 and
+    //   mapped to 0x46200000 of the parent bus.
+
+    system-bus@58c00000 {
+        compatible = "socionext,uniphier-system-bus";
+        reg = <0x58c00000 0x400>;
+        #address-cells = <2>;
+        #size-cells = <1>;
+        ranges = <1 0x00000000 0x42000000 0x02000000>,
+                 <5 0x00000000 0x46000000 0x01000000>;
+
+        ethernet@1,1f00000 {
+            compatible = "smsc,lan9115";
+            reg = <1 0x01f00000 0x1000>;
+            interrupts = <0 48 4>;
+            phy-mode = "mii";
+        };
+
+        serial@5,200000 {
+            compatible = "ns16550a";
+            reg = <5 0x00200000 0x20>;
+            interrupts = <0 49 4>;
+            clock-frequency = <12288000>;
+        };
+    };

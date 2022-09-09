@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max9877.c  --  amp driver for max9877
  *
  * Copyright (C) 2009 Samsung Electronics Co.Ltd
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -138,8 +133,7 @@ static const struct regmap_config max9877_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int max9877_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int max9877_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	int i;
@@ -166,7 +160,7 @@ static struct i2c_driver max9877_i2c_driver = {
 	.driver = {
 		.name = "max9877",
 	},
-	.probe = max9877_i2c_probe,
+	.probe_new = max9877_i2c_probe,
 	.id_table = max9877_i2c_id,
 };
 

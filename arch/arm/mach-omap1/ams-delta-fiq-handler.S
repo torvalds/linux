@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/mach-omap1/ams-delta-fiq-handler.S
  *
@@ -7,22 +8,20 @@
  *  Copyright (C) 2004 Pete Trapps
  *  Copyright (C) 2006 Matt Callow
  *  Copyright (C) 2010 Janusz Krzysztofik
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
 #include <linux/platform_data/ams-delta-fiq.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/assembler.h>
+#include <asm/irq.h>
 
+#include "hardware.h"
 #include "ams-delta-fiq.h"
 #include "board-ams-delta.h"
 #include "iomap.h"
-#include "soc.h"
 
 /*
  * OMAP1510 GPIO related symbol copied from arch/arm/mach-omap1/gpio15xx.c.
@@ -129,6 +128,8 @@ restart:
 	orr r11, r11, r13			@ mask all requested interrupts
 	str r11, [r12, #OMAP1510_GPIO_INT_MASK]
 
+	str r13, [r12, #OMAP1510_GPIO_INT_STATUS] @ ack all requested interrupts
+
 	ands r10, r13, #KEYBRD_CLK_MASK		@ extract keyboard status - set?
 	beq hksw				@ no - try next source
 
@@ -136,7 +137,6 @@ restart:
 	@@@@@@@@@@@@@@@@@@@@@@
 	@ Keyboard clock FIQ mode interrupt handler
 	@ r10 now contains KEYBRD_CLK_MASK, use it
-	str r10, [r12, #OMAP1510_GPIO_INT_STATUS]	@ ack the interrupt
 	bic r11, r11, r10				@ unmask it
 	str r11, [r12, #OMAP1510_GPIO_INT_MASK]
 

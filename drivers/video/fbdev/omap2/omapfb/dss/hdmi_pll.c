@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI PLL
  *
  * Copyright (C) 2013 Texas Instruments Incorporated
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #define DSS_SUBSYS_NAME "HDMIPLL"
@@ -103,15 +100,10 @@ static int hdmi_pll_enable(struct dss_pll *dsspll)
 {
 	struct hdmi_pll_data *pll = container_of(dsspll, struct hdmi_pll_data, pll);
 	struct hdmi_wp_data *wp = pll->wp;
-	u16 r = 0;
 
 	dss_ctrl_pll_enable(DSS_PLL_HDMI, true);
 
-	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
-	if (r)
-		return r;
-
-	return 0;
+	return hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
 }
 
 static void hdmi_pll_disable(struct dss_pll *dsspll)
@@ -181,7 +173,6 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 {
 	struct dss_pll *pll = &hpll->pll;
 	struct clk *clk;
-	int r;
 
 	clk = devm_clk_get(&pdev->dev, "sys_clk");
 	if (IS_ERR(clk)) {
@@ -211,29 +202,17 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 	}
 
 	pll->ops = &dsi_pll_ops;
-
-	r = dss_pll_register(pll);
-	if (r)
-		return r;
-
-	return 0;
+	return dss_pll_register(pll);
 }
 
 int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
 	struct hdmi_wp_data *wp)
 {
 	int r;
-	struct resource *res;
 
 	pll->wp = wp;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
-	if (!res) {
-		DSSERR("can't get PLL mem resource\n");
-		return -EINVAL;
-	}
-
-	pll->base = devm_ioremap_resource(&pdev->dev, res);
+	pll->base = devm_platform_ioremap_resource_byname(pdev, "pll");
 	if (IS_ERR(pll->base)) {
 		DSSERR("can't ioremap PLLCTRL\n");
 		return PTR_ERR(pll->base);

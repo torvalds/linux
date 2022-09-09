@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -139,7 +124,7 @@ il3945_clear_win(struct il3945_rate_scale_data *win)
 	win->stamp = 0;
 }
 
-/**
+/*
  * il3945_rate_scale_flush_wins - flush out the rate scale wins
  *
  * Returns the number of wins that have gathered data but were
@@ -244,7 +229,7 @@ il3945_bg_rate_scale_flush(struct timer_list *t)
 	D_RATE("leave\n");
 }
 
-/**
+/*
  * il3945_collect_tx_data - Update the success/failure sliding win
  *
  * We keep a sliding win of the last 64 packets transmitted
@@ -369,13 +354,13 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	 * after assoc.. */
 
 	for (i = sband->n_bitrates - 1; i >= 0; i--) {
-		if (sta->supp_rates[sband->band] & (1 << i)) {
+		if (sta->deflink.supp_rates[sband->band] & (1 << i)) {
 			rs_sta->last_txrate_idx = i;
 			break;
 		}
 	}
 
-	il->_3945.sta_supp_rates = sta->supp_rates[sband->band];
+	il->_3945.sta_supp_rates = sta->deflink.supp_rates[sband->band];
 	/* For 5 GHz band it start at IL_FIRST_OFDM_RATE */
 	if (sband->band == NL80211_BAND_5GHZ) {
 		rs_sta->last_txrate_idx += IL_FIRST_OFDM_RATE;
@@ -389,7 +374,7 @@ out:
 }
 
 static void *
-il3945_rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+il3945_rs_alloc(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }
@@ -431,7 +416,7 @@ il3945_rs_free_sta(void *il_priv, struct ieee80211_sta *sta, void *il_sta)
 	del_timer_sync(&rs_sta->rate_scale_flush);
 }
 
-/**
+/*
  * il3945_rs_tx_status - Update rate control values based on Tx results
  *
  * NOTE: Uses il_priv->retry_rate for the # of retries attempted by
@@ -599,7 +584,7 @@ il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta, u8 idx, u16 rate_mask,
 	return (high << 8) | low;
 }
 
-/**
+/*
  * il3945_rs_get_rate - find the rate for the requested packet
  *
  * Returns the ieee80211_rate structure allocated by the driver.
@@ -646,10 +631,7 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		il_sta = NULL;
 	}
 
-	if (rate_control_send_low(sta, il_sta, txrc))
-		return;
-
-	rate_mask = sta->supp_rates[sband->band];
+	rate_mask = sta->deflink.supp_rates[sband->band];
 
 	/* get user max rate if set */
 	max_rate_idx = fls(txrc->rate_idx_mask) - 1;
@@ -861,17 +843,8 @@ il3945_add_debugfs(void *il, void *il_sta, struct dentry *dir)
 {
 	struct il3945_rs_sta *lq_sta = il_sta;
 
-	lq_sta->rs_sta_dbgfs_stats_table_file =
-	    debugfs_create_file("rate_stats_table", 0600, dir, lq_sta,
-				&rs_sta_dbgfs_stats_table_ops);
-
-}
-
-static void
-il3945_remove_debugfs(void *il, void *il_sta)
-{
-	struct il3945_rs_sta *lq_sta = il_sta;
-	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
+	debugfs_create_file("rate_stats_table", 0600, dir, lq_sta,
+			    &rs_sta_dbgfs_stats_table_ops);
 }
 #endif
 
@@ -898,7 +871,6 @@ static const struct rate_control_ops rs_ops = {
 	.free_sta = il3945_rs_free_sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = il3945_add_debugfs,
-	.remove_sta_debugfs = il3945_remove_debugfs,
 #endif
 
 };

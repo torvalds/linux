@@ -13,10 +13,20 @@ root_check_run_with_sudo "$@"
 # Parameter parsing via include
 source ${basedir}/parameters.sh
 # Set some default params, if they didn't get set
-[ -z "$DEST_IP" ]   && DEST_IP="198.18.0.42"
+if [ -z "$DEST_IP" ]; then
+    [ -z "$IP6" ] && DEST_IP="198.18.0.42" || DEST_IP="FD00::1"
+fi
 [ -z "$DST_MAC" ]   && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 [ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
+if [ -n "$DEST_IP" ]; then
+    validate_addr${IP6} $DEST_IP
+    read -r DST_MIN DST_MAX <<< $(parse_addr${IP6} $DEST_IP)
+fi
+if [ -n "$DST_PORT" ]; then
+    read -r UDP_DST_MIN UDP_DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $UDP_DST_MIN $UDP_DST_MAX
+fi
 
 # NOTICE:  Script specific settings
 # =======
@@ -26,22 +36,22 @@ source ${basedir}/parameters.sh
 [ -z "$FLOWS" ]     && FLOWS="8000"
 [ -z "$FLOWLEN" ]   && FLOWLEN="10"
 
-# Base Config
-DELAY="0"  # Zero means max speed
-
 if [[ -n "$BURST" ]]; then
     err 1 "Bursting not supported for this mode"
 fi
 
+# 198.18.0.0 / 198.19.255.255
+read -r SRC_MIN SRC_MAX <<< $(parse_addr 198.18.0.0/15)
+
 # General cleanup everything since last run
-pg_ctrl "reset"
+[ -z "$APPEND" ] && pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
 for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
 
     # Add remove all other devices and add_device $dev to thread
-    pg_thread $thread "rem_device_all"
+    [ -z "$APPEND" ] && pg_thread $thread "rem_device_all"
     pg_thread $thread "add_device" $dev
 
     # Base config
@@ -54,12 +64,22 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
 
     # Single destination
     pg_set $dev "dst_mac $DST_MAC"
-    pg_set $dev "dst $DEST_IP"
+    pg_set $dev "dst${IP6}_min $DST_MIN"
+    pg_set $dev "dst${IP6}_max $DST_MAX"
+
+    if [ -n "$DST_PORT" ]; then
+	# Single destination port or random port range
+	pg_set $dev "flag UDPDST_RND"
+	pg_set $dev "udp_dst_min $UDP_DST_MIN"
+	pg_set $dev "udp_dst_max $UDP_DST_MAX"
+    fi
+
+    [ ! -z "$UDP_CSUM" ] && pg_set $dev "flag UDPCSUM"
 
     # Randomize source IP-addresses
     pg_set $dev "flag IPSRC_RND"
-    pg_set $dev "src_min 198.18.0.0"
-    pg_set $dev "src_max 198.19.255.255"
+    pg_set $dev "src_min $SRC_MIN"
+    pg_set $dev "src_max $SRC_MAX"
 
     # Limit number of flows (max 65535)
     pg_set $dev "flows $FLOWS"
@@ -88,7 +108,11 @@ function print_result() {
 # trap keyboard interrupt (Ctrl-C)
 trap true SIGINT
 
-echo "Running... ctrl^C to stop" >&2
-pg_ctrl "start"
+if [ -z "$APPEND" ]; then
+    echo "Running... ctrl^C to stop" >&2
+    pg_ctrl "start"
 
-print_result
+    print_result
+else
+    echo "Append mode: config done. Do more or use 'pg_ctrl start' to run"
+fi

@@ -1,4 +1,5 @@
-elfconfig.h
-mk_elfconfig
-modpost
-devicetable-offsets.h
+# SPDX-License-Identifier: GPL-2.0-only
+/devicetable-offsets.h
+/elfconfig.h
+/mk_elfconfig
+/modpost

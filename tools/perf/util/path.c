@@ -11,11 +11,12 @@
  *
  * which is what it's designed for.
  */
-#include "cache.h"
 #include "path.h"
+#include "cache.h"
 #include <linux/kernel.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -85,9 +86,21 @@ bool is_directory(const char *base_path, const struct dirent *dent)
 	char path[PATH_MAX];
 	struct stat st;
 
-	sprintf(path, "%s/%s", base_path, dent->d_name);
+	snprintf(path, sizeof(path), "%s/%s", base_path, dent->d_name);
 	if (stat(path, &st))
 		return false;
 
 	return S_ISDIR(st.st_mode);
+}
+
+bool is_executable_file(const char *base_path, const struct dirent *dent)
+{
+	char path[PATH_MAX];
+	struct stat st;
+
+	snprintf(path, sizeof(path), "%s/%s", base_path, dent->d_name);
+	if (stat(path, &st))
+		return false;
+
+	return !S_ISDIR(st.st_mode) && (st.st_mode & S_IXUSR);
 }

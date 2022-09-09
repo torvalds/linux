@@ -7,6 +7,7 @@ Description:
 		(RO) Hexadecimal bitmask of the TAD attributes are reported by
 		the platform firmware (see ACPI 6.2, section 9.18.2):
 
+		======= ======================================================
 		BIT(0): AC wakeup implemented if set
 		BIT(1): DC wakeup implemented if set
 		BIT(2): Get/set real time features implemented if set
@@ -16,6 +17,7 @@ Description:
 		BIT(6): The AC timer wakes up from S5 if set
 		BIT(7): The DC timer wakes up from S4 if set
 		BIT(8): The DC timer wakes up from S5 if set
+		======= ======================================================
 
 		The other bits are reserved.
 
@@ -62,15 +64,17 @@ Description:
 		timer status with the following meaning of bits (see ACPI 6.2,
 		Section 9.18.5):
 
+		======= ======================================================
 		Bit(0): The timer has expired if set.
 		Bit(1): The timer has woken up the system from a sleep state
 		        (S3 or S4/S5 if supported) if set.
+		======= ======================================================
 
 		The other bits are reserved.
 
 		Reads also cause the AC alarm timer status to be reset.
 
-		Another way to reset the the status of the AC alarm timer is to
+		Another way to reset the status of the AC alarm timer is to
 		write (the number) 0 to this file.
 
 		If the status return value indicates that the timer has expired,

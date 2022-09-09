@@ -26,6 +26,10 @@
 #include "dm_services.h"
 #include "include/fixed31_32.h"
 
+static const struct fixed31_32 dc_fixpt_two_pi = { 26986075409LL };
+static const struct fixed31_32 dc_fixpt_ln2 = { 2977044471LL };
+static const struct fixed31_32 dc_fixpt_ln2_div_2 = { 1488522236LL };
+
 static inline unsigned long long abs_i64(
 	long long arg)
 {
@@ -447,6 +451,11 @@ static inline unsigned int clamp_ux_dy(
 		return truncated_val;
 	else
 		return min_clamp;
+}
+
+unsigned int dc_fixpt_u4d19(struct fixed31_32 arg)
+{
+	return ux_dy(arg.value, 4, 19);
 }
 
 unsigned int dc_fixpt_u3d19(struct fixed31_32 arg)

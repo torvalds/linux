@@ -8,55 +8,47 @@
 #define MCOUNT_ADDR		((unsigned long)(_mcount))
 #define MCOUNT_INSN_SIZE	4 /* sizeof mcount call */
 
-#ifdef __ASSEMBLY__
+#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
-/* Based off of objdump optput from glibc */
-
-#define MCOUNT_SAVE_FRAME			\
-	stwu	r1,-48(r1);			\
-	stw	r3, 12(r1);			\
-	stw	r4, 16(r1);			\
-	stw	r5, 20(r1);			\
-	stw	r6, 24(r1);			\
-	mflr	r3;				\
-	lwz	r4, 52(r1);			\
-	mfcr	r5;				\
-	stw	r7, 28(r1);			\
-	stw	r8, 32(r1);			\
-	stw	r9, 36(r1);			\
-	stw	r10,40(r1);			\
-	stw	r3, 44(r1);			\
-	stw	r5, 8(r1)
-
-#define MCOUNT_RESTORE_FRAME			\
-	lwz	r6, 8(r1);			\
-	lwz	r0, 44(r1);			\
-	lwz	r3, 12(r1);			\
-	mtctr	r0;				\
-	lwz	r4, 16(r1);			\
-	mtcr	r6;				\
-	lwz	r5, 20(r1);			\
-	lwz	r6, 24(r1);			\
-	lwz	r0, 52(r1);			\
-	lwz	r7, 28(r1);			\
-	lwz	r8, 32(r1);			\
-	mtlr	r0;				\
-	lwz	r9, 36(r1);			\
-	lwz	r10,40(r1);			\
-	addi	r1, r1, 48
-
-#else /* !__ASSEMBLY__ */
+#ifndef __ASSEMBLY__
 extern void _mcount(void);
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
-       /* reloction of mcount call site is the same as the address */
+       /* relocation of mcount call site is the same as the address */
        return addr;
 }
+
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
+				    unsigned long sp);
 
 struct dyn_arch_ftrace {
 	struct module *mod;
 };
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+struct ftrace_regs {
+	struct pt_regs regs;
+};
+
+static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *fregs)
+{
+	/* We clear regs.msr in ftrace_call */
+	return fregs->regs.msr ? &fregs->regs : NULL;
+}
+
+static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,
+							   unsigned long ip)
+{
+	regs_set_return_ip(&fregs->regs, ip);
+}
+
+struct ftrace_ops;
+
+#define ftrace_graph_func ftrace_graph_func
+void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
+		       struct ftrace_ops *op, struct ftrace_regs *fregs);
+#endif
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
@@ -72,7 +64,7 @@ struct dyn_arch_ftrace {
  * those.
  */
 #define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 static inline bool arch_syscall_match_sym_name(const char *sym, const char *name)
 {
 	/* We need to skip past the initial dot, and the __se_sys alias */
@@ -91,10 +83,10 @@ static inline bool arch_syscall_match_sym_name(const char *sym, const char *name
 		(!strncmp(sym, "ppc32_", 6) && !strcmp(sym + 6, name + 4)) ||
 		(!strncmp(sym, "ppc64_", 6) && !strcmp(sym + 6, name + 4));
 }
-#endif /* PPC64_ELF_ABI_v1 */
+#endif /* CONFIG_PPC64_ELF_ABI_V1 */
 #endif /* CONFIG_FTRACE_SYSCALLS */
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC64) && defined(CONFIG_FUNCTION_TRACER)
 #include <asm/paca.h>
 
 static inline void this_cpu_disable_ftrace(void)
@@ -106,9 +98,25 @@ static inline void this_cpu_enable_ftrace(void)
 {
 	get_paca()->ftrace_enabled = 1;
 }
+
+/* Disable ftrace on this CPU if possible (may not be implemented) */
+static inline void this_cpu_set_ftrace_enabled(u8 ftrace_enabled)
+{
+	get_paca()->ftrace_enabled = ftrace_enabled;
+}
+
+static inline u8 this_cpu_get_ftrace_enabled(void)
+{
+	return get_paca()->ftrace_enabled;
+}
+
+void ftrace_free_init_tramp(void);
 #else /* CONFIG_PPC64 */
 static inline void this_cpu_disable_ftrace(void) { }
 static inline void this_cpu_enable_ftrace(void) { }
+static inline void this_cpu_set_ftrace_enabled(u8 ftrace_enabled) { }
+static inline u8 this_cpu_get_ftrace_enabled(void) { return 1; }
+static inline void ftrace_free_init_tramp(void) { }
 #endif /* CONFIG_PPC64 */
 #endif /* !__ASSEMBLY__ */
 

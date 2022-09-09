@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ------------------------------------------------------------------------- */
 /* i2c-elektor.c i2c-hw access for PCF8584 style isa bus adaptes             */
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-97 Simon G. Vogl
                    1998-99 Hans Berglund
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.			     */
+ */
 /* ------------------------------------------------------------------------- */
 
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
@@ -56,7 +49,7 @@ static int mmapped;
 
 static wait_queue_head_t pcf_wait;
 static int pcf_pending;
-static spinlock_t lock;
+static DEFINE_SPINLOCK(lock);
 
 static struct i2c_adapter pcf_isa_ops;
 
@@ -139,7 +132,6 @@ static irqreturn_t pcf_isa_handler(int this_irq, void *dev_id) {
 
 static int pcf_isa_init(void)
 {
-	spin_lock_init(&lock);
 	if (!mmapped) {
 		if (!request_region(base, 2, pcf_isa_ops.name)) {
 			printk(KERN_ERR "%s: requested I/O region (%#x:2) is "
@@ -289,7 +281,7 @@ static int elektor_probe(struct device *dev, unsigned int id)
 	return -ENODEV;
 }
 
-static int elektor_remove(struct device *dev, unsigned int id)
+static void elektor_remove(struct device *dev, unsigned int id)
 {
 	i2c_del_adapter(&pcf_isa_ops);
 
@@ -305,8 +297,6 @@ static int elektor_remove(struct device *dev, unsigned int id)
 		iounmap(base_iomem);
 		release_mem_region(base, 2);
 	}
-
-	return 0;
 }
 
 static struct isa_driver i2c_elektor_driver = {

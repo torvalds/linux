@@ -120,7 +120,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	switch (i->aggr) {
 	case AGGR_BUF_FIRST:
 		ctl17 |= SM(i->aggr_len, AR_AggrLen);
-		/* fall through */
+		fallthrough;
 	case AGGR_BUF_MIDDLE:
 		ctl12 |= AR_IsAggr | AR_MoreAggr;
 		ctl17 |= SM(i->ndelim, AR_PadDelim);
@@ -144,10 +144,11 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	WRITE_ONCE(ads->ctl16, set11nPktDurRTSCTS(i->rates, 2)
 		| set11nPktDurRTSCTS(i->rates, 3));
 
-	WRITE_ONCE(ads->ctl18, set11nRateFlags(i->rates, 0)
-		| set11nRateFlags(i->rates, 1)
-		| set11nRateFlags(i->rates, 2)
-		| set11nRateFlags(i->rates, 3)
+	WRITE_ONCE(ads->ctl18,
+		  set11nRateFlags(i->rates, 0) | set11nChainSel(i->rates, 0)
+		| set11nRateFlags(i->rates, 1) | set11nChainSel(i->rates, 1)
+		| set11nRateFlags(i->rates, 2) | set11nChainSel(i->rates, 2)
+		| set11nRateFlags(i->rates, 3) | set11nChainSel(i->rates, 3)
 		| SM(i->rtscts_rate, AR_RTSCTSRate));
 
 	WRITE_ONCE(ads->ctl19, AR_Not_Sounding);
@@ -522,6 +523,8 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	rxs->rs_moreaggr = (rxsp->status11 & AR_RxMoreAggr) ? 1 : 0;
 	rxs->rs_antenna = (MS(rxsp->status4, AR_RxAntenna) & 0x7);
 	rxs->enc_flags |= (rxsp->status4 & AR_GI) ? RX_ENC_FLAG_SHORT_GI : 0;
+	rxs->enc_flags |=
+		(rxsp->status4 & AR_STBC) ? (1 << RX_ENC_FLAG_STBC_SHIFT) : 0;
 	rxs->bw = (rxsp->status4 & AR_2040) ? RATE_INFO_BW_40 : RATE_INFO_BW_20;
 
 	rxs->evm0 = rxsp->status6;

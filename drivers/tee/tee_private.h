@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2016, Linaro Limited
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #ifndef TEE_PRIVATE_H
 #define TEE_PRIVATE_H
@@ -20,17 +11,6 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
-
-/**
- * struct tee_shm_pool - shared memory pool
- * @private_mgr:	pool manager for shared memory only between kernel
- *			and secure world
- * @dma_buf_mgr:	pool manager for shared memory exported to user space
- */
-struct tee_shm_pool {
-	struct tee_shm_pool_mgr *private_mgr;
-	struct tee_shm_pool_mgr *dma_buf_mgr;
-};
 
 #define TEE_DEVICE_FLAG_REGISTERED	0x1
 #define TEE_MAX_DEV_NAME_LEN		32
@@ -46,7 +26,8 @@ struct tee_shm_pool {
  * @num_users:	number of active users of this device
  * @c_no_user:	completion used when unregistering the device
  * @mutex:	mutex protecting @num_users and @idr
- * @idr:	register of shared memory object allocated on this device
+ * @idr:	register of user space shared memory objects allocated or
+ *		registered on this device
  * @pool:	shared memory pool
  */
 struct tee_device {
@@ -75,5 +56,9 @@ void tee_device_put(struct tee_device *teedev);
 
 void teedev_ctx_get(struct tee_context *ctx);
 void teedev_ctx_put(struct tee_context *ctx);
+
+struct tee_shm *tee_shm_alloc_user_buf(struct tee_context *ctx, size_t size);
+struct tee_shm *tee_shm_register_user_buf(struct tee_context *ctx,
+					  unsigned long addr, size_t length);
 
 #endif /*TEE_PRIVATE_H*/

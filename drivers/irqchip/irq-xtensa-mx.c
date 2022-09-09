@@ -71,14 +71,17 @@ static void xtensa_mx_irq_mask(struct irq_data *d)
 	unsigned int mask = 1u << d->hwirq;
 
 	if (mask & (XCHAL_INTTYPE_MASK_EXTERN_EDGE |
-				XCHAL_INTTYPE_MASK_EXTERN_LEVEL)) {
-		set_er(1u << (xtensa_get_ext_irq_no(d->hwirq) -
-					HW_IRQ_MX_BASE), MIENG);
-	} else {
-		mask = __this_cpu_read(cached_irq_mask) & ~mask;
-		__this_cpu_write(cached_irq_mask, mask);
-		xtensa_set_sr(mask, intenable);
+		    XCHAL_INTTYPE_MASK_EXTERN_LEVEL)) {
+		unsigned int ext_irq = xtensa_get_ext_irq_no(d->hwirq);
+
+		if (ext_irq >= HW_IRQ_MX_BASE) {
+			set_er(1u << (ext_irq - HW_IRQ_MX_BASE), MIENG);
+			return;
+		}
 	}
+	mask = __this_cpu_read(cached_irq_mask) & ~mask;
+	__this_cpu_write(cached_irq_mask, mask);
+	xtensa_set_sr(mask, intenable);
 }
 
 static void xtensa_mx_irq_unmask(struct irq_data *d)
@@ -86,14 +89,17 @@ static void xtensa_mx_irq_unmask(struct irq_data *d)
 	unsigned int mask = 1u << d->hwirq;
 
 	if (mask & (XCHAL_INTTYPE_MASK_EXTERN_EDGE |
-				XCHAL_INTTYPE_MASK_EXTERN_LEVEL)) {
-		set_er(1u << (xtensa_get_ext_irq_no(d->hwirq) -
-					HW_IRQ_MX_BASE), MIENGSET);
-	} else {
-		mask |= __this_cpu_read(cached_irq_mask);
-		__this_cpu_write(cached_irq_mask, mask);
-		xtensa_set_sr(mask, intenable);
+		    XCHAL_INTTYPE_MASK_EXTERN_LEVEL)) {
+		unsigned int ext_irq = xtensa_get_ext_irq_no(d->hwirq);
+
+		if (ext_irq >= HW_IRQ_MX_BASE) {
+			set_er(1u << (ext_irq - HW_IRQ_MX_BASE), MIENGSET);
+			return;
+		}
 	}
+	mask |= __this_cpu_read(cached_irq_mask);
+	__this_cpu_write(cached_irq_mask, mask);
+	xtensa_set_sr(mask, intenable);
 }
 
 static void xtensa_mx_irq_enable(struct irq_data *d)
@@ -113,7 +119,11 @@ static void xtensa_mx_irq_ack(struct irq_data *d)
 
 static int xtensa_mx_irq_retrigger(struct irq_data *d)
 {
-	xtensa_set_sr(1 << d->hwirq, intset);
+	unsigned int mask = 1u << d->hwirq;
+
+	if (WARN_ON(mask & ~XCHAL_INTTYPE_MASK_SOFTWARE))
+		return 0;
+	xtensa_set_sr(mask, intset);
 	return 1;
 }
 
@@ -141,14 +151,25 @@ static struct irq_chip xtensa_mx_irq_chip = {
 	.irq_set_affinity = xtensa_mx_irq_set_affinity,
 };
 
+static void __init xtensa_mx_init_common(struct irq_domain *root_domain)
+{
+	unsigned int i;
+
+	irq_set_default_host(root_domain);
+	secondary_init_irq();
+
+	/* Initialize default IRQ routing to CPU 0 */
+	for (i = 0; i < XCHAL_NUM_EXTINTERRUPTS; ++i)
+		set_er(1, MIROUT(i));
+}
+
 int __init xtensa_mx_init_legacy(struct device_node *interrupt_parent)
 {
 	struct irq_domain *root_domain =
 		irq_domain_add_legacy(NULL, NR_IRQS - 1, 1, 0,
 				&xtensa_mx_irq_domain_ops,
 				&xtensa_mx_irq_chip);
-	irq_set_default_host(root_domain);
-	secondary_init_irq();
+	xtensa_mx_init_common(root_domain);
 	return 0;
 }
 
@@ -158,8 +179,7 @@ static int __init xtensa_mx_init(struct device_node *np,
 	struct irq_domain *root_domain =
 		irq_domain_add_linear(np, NR_IRQS, &xtensa_mx_irq_domain_ops,
 				&xtensa_mx_irq_chip);
-	irq_set_default_host(root_domain);
-	secondary_init_irq();
+	xtensa_mx_init_common(root_domain);
 	return 0;
 }
 IRQCHIP_DECLARE(xtensa_mx_irq_chip, "cdns,xtensa-mx", xtensa_mx_init);

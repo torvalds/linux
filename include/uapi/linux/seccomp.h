@@ -22,6 +22,9 @@
 #define SECCOMP_FILTER_FLAG_LOG			(1UL << 1)
 #define SECCOMP_FILTER_FLAG_SPEC_ALLOW		(1UL << 2)
 #define SECCOMP_FILTER_FLAG_NEW_LISTENER	(1UL << 3)
+#define SECCOMP_FILTER_FLAG_TSYNC_ESRCH		(1UL << 4)
+/* Received notifications wait in killable state (only respond to fatal signals) */
+#define SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV	(1UL << 5)
 
 /*
  * All BPF programs must return a 32-bit value.
@@ -76,11 +79,60 @@ struct seccomp_notif {
 	struct seccomp_data data;
 };
 
+/*
+ * Valid flags for struct seccomp_notif_resp
+ *
+ * Note, the SECCOMP_USER_NOTIF_FLAG_CONTINUE flag must be used with caution!
+ * If set by the process supervising the syscalls of another process the
+ * syscall will continue. This is problematic because of an inherent TOCTOU.
+ * An attacker can exploit the time while the supervised process is waiting on
+ * a response from the supervising process to rewrite syscall arguments which
+ * are passed as pointers of the intercepted syscall.
+ * It should be absolutely clear that this means that the seccomp notifier
+ * _cannot_ be used to implement a security policy! It should only ever be used
+ * in scenarios where a more privileged process supervises the syscalls of a
+ * lesser privileged process to get around kernel-enforced security
+ * restrictions when the privileged process deems this safe. In other words,
+ * in order to continue a syscall the supervising process should be sure that
+ * another security mechanism or the kernel itself will sufficiently block
+ * syscalls if arguments are rewritten to something unsafe.
+ *
+ * Similar precautions should be applied when stacking SECCOMP_RET_USER_NOTIF
+ * or SECCOMP_RET_TRACE. For SECCOMP_RET_USER_NOTIF filters acting on the
+ * same syscall, the most recently added filter takes precedence. This means
+ * that the new SECCOMP_RET_USER_NOTIF filter can override any
+ * SECCOMP_IOCTL_NOTIF_SEND from earlier filters, essentially allowing all
+ * such filtered syscalls to be executed by sending the response
+ * SECCOMP_USER_NOTIF_FLAG_CONTINUE. Note that SECCOMP_RET_TRACE can equally
+ * be overriden by SECCOMP_USER_NOTIF_FLAG_CONTINUE.
+ */
+#define SECCOMP_USER_NOTIF_FLAG_CONTINUE (1UL << 0)
+
 struct seccomp_notif_resp {
 	__u64 id;
 	__s64 val;
 	__s32 error;
 	__u32 flags;
+};
+
+/* valid flags for seccomp_notif_addfd */
+#define SECCOMP_ADDFD_FLAG_SETFD	(1UL << 0) /* Specify remote fd */
+#define SECCOMP_ADDFD_FLAG_SEND		(1UL << 1) /* Addfd and return it, atomically */
+
+/**
+ * struct seccomp_notif_addfd
+ * @id: The ID of the seccomp notification
+ * @flags: SECCOMP_ADDFD_FLAG_*
+ * @srcfd: The local fd number
+ * @newfd: Optional remote FD number if SETFD option is set, otherwise 0.
+ * @newfd_flags: The O_* flags the remote FD should have applied
+ */
+struct seccomp_notif_addfd {
+	__u64 id;
+	__u32 flags;
+	__u32 srcfd;
+	__u32 newfd;
+	__u32 newfd_flags;
 };
 
 #define SECCOMP_IOC_MAGIC		'!'
@@ -93,5 +145,9 @@ struct seccomp_notif_resp {
 #define SECCOMP_IOCTL_NOTIF_RECV	SECCOMP_IOWR(0, struct seccomp_notif)
 #define SECCOMP_IOCTL_NOTIF_SEND	SECCOMP_IOWR(1,	\
 						struct seccomp_notif_resp)
-#define SECCOMP_IOCTL_NOTIF_ID_VALID	SECCOMP_IOR(2, __u64)
+#define SECCOMP_IOCTL_NOTIF_ID_VALID	SECCOMP_IOW(2, __u64)
+/* On success, the return value is the remote process's added fd number */
+#define SECCOMP_IOCTL_NOTIF_ADDFD	SECCOMP_IOW(3, \
+						struct seccomp_notif_addfd)
+
 #endif /* _UAPI_LINUX_SECCOMP_H */

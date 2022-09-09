@@ -81,6 +81,7 @@ enum ravb_reg {
 	RQC3	= 0x00A0,
 	RQC4	= 0x00A4,
 	RPC	= 0x00B0,
+	RTC	= 0x00B4,	/* R-Car Gen3 and RZ/G2L only */
 	UFCW	= 0x00BC,
 	UFCS	= 0x00C0,
 	UFCV0	= 0x00C4,
@@ -165,7 +166,7 @@ enum ravb_reg {
 	GTO2	= 0x03A8,
 	GIC	= 0x03AC,
 	GIS	= 0x03B0,
-	GCPT	= 0x03B4,	/* Undocumented? */
+	GCPT	= 0x03B4,	/* Documented for R-Car Gen3 only */
 	GCT0	= 0x03B8,
 	GCT1	= 0x03BC,
 	GCT2	= 0x03C0,
@@ -187,23 +188,23 @@ enum ravb_reg {
 	PIR	= 0x0520,
 	PSR	= 0x0528,
 	PIPR	= 0x052c,
+	CXR31	= 0x0530,	/* RZ/G2L only */
 	MPR	= 0x0558,
 	PFTCR	= 0x055c,
 	PFRCR	= 0x0560,
 	GECMR	= 0x05b0,
 	MAHR	= 0x05c0,
 	MALR	= 0x05c8,
-	TROCR	= 0x0700,	/* Undocumented? */
-	CDCR	= 0x0708,	/* Undocumented? */
-	LCCR	= 0x0710,	/* Undocumented? */
+	TROCR	= 0x0700,	/* R-Car Gen3 and RZ/G2L only */
+	CXR41	= 0x0708,	/* RZ/G2L only */
+	CXR42	= 0x0710,	/* RZ/G2L only */
 	CEFCR	= 0x0740,
 	FRECR	= 0x0748,
 	TSFRCR	= 0x0750,
 	TLFRCR	= 0x0758,
 	RFCR	= 0x0760,
-	CERCR	= 0x0768,	/* Undocumented? */
-	CEECR	= 0x0770,	/* Undocumented? */
 	MAFCR	= 0x0778,
+	CSR0    = 0x0800,	/* RZ/G2L only */
 };
 
 
@@ -220,7 +221,6 @@ enum CCC_BIT {
 	CCC_CSEL_HPB	= 0x00010000,
 	CCC_CSEL_ETH_TX	= 0x00020000,
 	CCC_CSEL_GMII_REF = 0x00030000,
-	CCC_BOC		= 0x00100000,	/* Undocumented? */
 	CCC_LBME	= 0x01000000,
 };
 
@@ -230,7 +230,7 @@ enum CSR_BIT {
 	CSR_OPS_RESET	= 0x00000001,
 	CSR_OPS_CONFIG	= 0x00000002,
 	CSR_OPS_OPERATION = 0x00000004,
-	CSR_OPS_STANDBY	= 0x00000008,	/* Undocumented? */
+	CSR_OPS_STANDBY	= 0x00000008,	/* Documented for R-Car Gen3 only */
 	CSR_DTS		= 0x00000100,
 	CSR_TPO0	= 0x00010000,
 	CSR_TPO1	= 0x00020000,
@@ -246,13 +246,12 @@ enum ESR_BIT {
 	ESR_EIL		= 0x00001000,
 };
 
-/* APSR */
+/* APSR (R-Car Gen3 only) */
 enum APSR_BIT {
-	APSR_MEMS		= 0x00000002,
-	APSR_CMSW		= 0x00000010,
-	APSR_DM			= 0x00006000,	/* Undocumented? */
-	APSR_DM_RDM		= 0x00002000,
-	APSR_DM_TDM		= 0x00004000,
+	APSR_MEMS	= 0x00000002,	/* Undocumented */
+	APSR_CMSW	= 0x00000010,
+	APSR_RDM	= 0x00002000,
+	APSR_TDM	= 0x00004000,
 };
 
 /* RCR */
@@ -317,7 +316,7 @@ enum UFCD_BIT {
 
 /* SFO */
 enum SFO_BIT {
-	SFO_FPB		= 0x0000003F,
+	SFO_FBP		= 0x0000003F,
 };
 
 /* RTC */
@@ -535,16 +534,16 @@ enum RIS2_BIT {
 
 /* TIC */
 enum TIC_BIT {
-	TIC_FTE0	= 0x00000001,	/* Undocumented? */
-	TIC_FTE1	= 0x00000002,	/* Undocumented? */
+	TIC_FTE0	= 0x00000001,	/* Documented for R-Car Gen3 only */
+	TIC_FTE1	= 0x00000002,	/* Documented for R-Car Gen3 only */
 	TIC_TFUE	= 0x00000100,
 	TIC_TFWE	= 0x00000200,
 };
 
 /* TIS */
 enum TIS_BIT {
-	TIS_FTF0	= 0x00000001,	/* Undocumented? */
-	TIS_FTF1	= 0x00000002,	/* Undocumented? */
+	TIS_FTF0	= 0x00000001,	/* Documented for R-Car Gen3 only */
+	TIS_FTF1	= 0x00000002,	/* Documented for R-Car Gen3 only */
 	TIS_TFUF	= 0x00000100,
 	TIS_TFWF	= 0x00000200,
 	TIS_RESERVED	= (GENMASK(31, 20) | GENMASK(15, 12) | GENMASK(7, 4))
@@ -552,8 +551,8 @@ enum TIS_BIT {
 
 /* ISS */
 enum ISS_BIT {
-	ISS_FRS		= 0x00000001,	/* Undocumented? */
-	ISS_FTS		= 0x00000004,	/* Undocumented? */
+	ISS_FRS		= 0x00000001,	/* Documented for R-Car Gen3 only */
+	ISS_FTS		= 0x00000004,	/* Documented for R-Car Gen3 only */
 	ISS_ES		= 0x00000040,
 	ISS_MS		= 0x00000080,
 	ISS_TFUS	= 0x00000100,
@@ -613,13 +612,13 @@ enum GTI_BIT {
 
 /* GIC */
 enum GIC_BIT {
-	GIC_PTCE	= 0x00000001,	/* Undocumented? */
+	GIC_PTCE	= 0x00000001,	/* Documented for R-Car Gen3 only */
 	GIC_PTME	= 0x00000004,
 };
 
 /* GIS */
 enum GIS_BIT {
-	GIS_PTCF	= 0x00000001,	/* Undocumented? */
+	GIS_PTCF	= 0x00000001,	/* Documented for R-Car Gen3 only */
 	GIS_PTMF	= 0x00000004,
 	GIS_RESERVED	= GENMASK(15, 10),
 };
@@ -813,13 +812,14 @@ enum ECMR_BIT {
 	ECMR_TE		= 0x00000020,
 	ECMR_RE		= 0x00000040,
 	ECMR_MPDE	= 0x00000200,
-	ECMR_TXF	= 0x00010000,	/* Undocumented? */
+	ECMR_TXF	= 0x00010000,	/* Documented for R-Car Gen3 only */
 	ECMR_RXF	= 0x00020000,
 	ECMR_PFR	= 0x00040000,
-	ECMR_ZPF	= 0x00080000,	/* Undocumented? */
+	ECMR_ZPF	= 0x00080000,	/* Documented for R-Car Gen3 and RZ/G2L */
 	ECMR_RZPF	= 0x00100000,
 	ECMR_DPAD	= 0x00200000,
 	ECMR_RCSC	= 0x00800000,
+	ECMR_RCPT	= 0x02000000,	/* Documented for RZ/G2L only */
 	ECMR_TRCCM	= 0x04000000,
 };
 
@@ -829,13 +829,14 @@ enum ECSR_BIT {
 	ECSR_MPD	= 0x00000002,
 	ECSR_LCHNG	= 0x00000004,
 	ECSR_PHYI	= 0x00000008,
+	ECSR_PFRI	= 0x00000010,	/* Documented for R-Car Gen3 and RZ/G2L */
 };
 
 /* ECSIPR */
 enum ECSIPR_BIT {
 	ECSIPR_ICDIP	= 0x00000001,
 	ECSIPR_MPDIP	= 0x00000002,
-	ECSIPR_LCHNGIP	= 0x00000004,	/* Undocumented? */
+	ECSIPR_LCHNGIP	= 0x00000004,
 };
 
 /* PIR */
@@ -863,14 +864,18 @@ enum MPR_BIT {
 
 /* GECMR */
 enum GECMR_BIT {
-	GECMR_SPEED	= 0x00000001,
-	GECMR_SPEED_100	= 0x00000000,
-	GECMR_SPEED_1000 = 0x00000001,
+	GECMR_SPEED		= 0x00000001,
+	GECMR_SPEED_100		= 0x00000000,
+	GECMR_SPEED_1000	= 0x00000001,
+	GBETH_GECMR_SPEED	= 0x00000030,
+	GBETH_GECMR_SPEED_10	= 0x00000000,
+	GBETH_GECMR_SPEED_100	= 0x00000010,
+	GBETH_GECMR_SPEED_1000	= 0x00000020,
 };
 
 /* The Ethernet AVB descriptor definitions. */
 struct ravb_desc {
-	__le16 ds;		/* Descriptor size */
+	__le16 ds;	/* Descriptor size */
 	u8 cc;		/* Content control MSBs (reserved) */
 	u8 die_dt;	/* Descriptor interrupt enable and type */
 	__le32 dptr;	/* Descriptor pointer */
@@ -955,14 +960,25 @@ enum RAVB_QUEUE {
 	RAVB_NC,	/* Network Control Queue */
 };
 
+enum CXR31_BIT {
+	CXR31_SEL_LINK0	= 0x00000001,
+	CXR31_SEL_LINK1	= 0x00000008,
+};
+
+enum CSR0_BIT {
+	CSR0_TPE	= 0x00000010,
+	CSR0_RPE	= 0x00000020,
+};
+
 #define DBAT_ENTRY_NUM	22
 #define RX_QUEUE_OFFSET	4
 #define NUM_RX_QUEUE	2
 #define NUM_TX_QUEUE	2
 
-/* TX descriptors per packet */
-#define NUM_TX_DESC_GEN2	2
-#define NUM_TX_DESC_GEN3	1
+#define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
+
+#define GBETH_RX_BUFF_MAX 8192
+#define GBETH_RX_DESC_DATA_SIZE 4080
 
 struct ravb_tstamp_skb {
 	struct list_head list;
@@ -987,9 +1003,38 @@ struct ravb_ptp {
 	struct ravb_ptp_perout perout[N_PER_OUT];
 };
 
-enum ravb_chip_id {
-	RCAR_GEN2,
-	RCAR_GEN3,
+struct ravb_hw_info {
+	void (*rx_ring_free)(struct net_device *ndev, int q);
+	void (*rx_ring_format)(struct net_device *ndev, int q);
+	void *(*alloc_rx_desc)(struct net_device *ndev, int q);
+	bool (*receive)(struct net_device *ndev, int *quota, int q);
+	void (*set_rate)(struct net_device *ndev);
+	int (*set_feature)(struct net_device *ndev, netdev_features_t features);
+	int (*dmac_init)(struct net_device *ndev);
+	void (*emac_init)(struct net_device *ndev);
+	const char (*gstrings_stats)[ETH_GSTRING_LEN];
+	size_t gstrings_size;
+	netdev_features_t net_hw_features;
+	netdev_features_t net_features;
+	int stats_len;
+	size_t max_rx_len;
+	u32 tccr_mask;
+	u32 rx_max_buf_size;
+	unsigned aligned_tx: 1;
+
+	/* hardware features */
+	unsigned internal_delay:1;	/* AVB-DMAC has internal delays */
+	unsigned tx_counters:1;		/* E-MAC has TX counters */
+	unsigned carrier_counters:1;	/* E-MAC has carrier counters */
+	unsigned multi_irqs:1;		/* AVB-DMAC and E-MAC has multiple irqs */
+	unsigned irq_en_dis:1;		/* Has separate irq enable and disable regs */
+	unsigned err_mgmt_irqs:1;	/* Line1 (Err) and Line2 (Mgmt) irqs are separate */
+	unsigned gptp:1;		/* AVB-DMAC has gPTP support */
+	unsigned ccc_gac:1;		/* AVB-DMAC has gPTP support active in config mode */
+	unsigned gptp_ref_clk:1;	/* gPTP has separate reference clock */
+	unsigned nc_queues:1;		/* AVB-DMAC has RX and TX NC queues */
+	unsigned magic_pkt:1;		/* E-MAC supports magic packet detection */
+	unsigned half_duplex:1;		/* E-MAC supports half duplex mode */
 };
 
 struct ravb_private {
@@ -997,6 +1042,8 @@ struct ravb_private {
 	struct platform_device *pdev;
 	void __iomem *addr;
 	struct clk *clk;
+	struct clk *refclk;
+	struct clk *gptp_clk;
 	struct mdiobb_ctrl mdiobb;
 	u32 num_rx_ring[NUM_RX_QUEUE];
 	u32 num_tx_ring[NUM_TX_QUEUE];
@@ -1005,9 +1052,11 @@ struct ravb_private {
 	struct ravb_desc *desc_bat;
 	dma_addr_t rx_desc_dma[NUM_RX_QUEUE];
 	dma_addr_t tx_desc_dma[NUM_TX_QUEUE];
+	struct ravb_rx_desc *gbeth_rx_ring;
 	struct ravb_ex_rx_desc *rx_ring[NUM_RX_QUEUE];
 	struct ravb_tx_desc *tx_ring[NUM_TX_QUEUE];
 	void *tx_align[NUM_TX_QUEUE];
+	struct sk_buff *rx_1st_skb;
 	struct sk_buff **rx_skb[NUM_RX_QUEUE];
 	struct sk_buff **tx_skb[NUM_TX_QUEUE];
 	u32 rx_over_errors;
@@ -1023,7 +1072,6 @@ struct ravb_private {
 	u32 dirty_rx[NUM_RX_QUEUE];	/* Producer ring indices */
 	u32 cur_tx[NUM_TX_QUEUE];
 	u32 dirty_tx[NUM_TX_QUEUE];
-	u32 rx_buf_sz;			/* Based on MTU+slack. */
 	struct napi_struct napi[NUM_RX_QUEUE];
 	struct work_struct work;
 	/* MII transceiver section. */
@@ -1033,14 +1081,23 @@ struct ravb_private {
 	int msg_enable;
 	int speed;
 	int emac_irq;
-	enum ravb_chip_id chip_id;
+	int erra_irq;
+	int mgmta_irq;
 	int rx_irqs[NUM_RX_QUEUE];
 	int tx_irqs[NUM_TX_QUEUE];
 
 	unsigned no_avb_link:1;
 	unsigned avb_link_active_low:1;
 	unsigned wol_enabled:1;
-	int num_tx_desc;	/* TX descriptors per packet */
+	unsigned rxcidm:1;		/* RX Clock Internal Delay Mode */
+	unsigned txcidm:1;		/* TX Clock Internal Delay Mode */
+	unsigned rgmii_override:1;	/* Deprecated rgmii-*id behavior */
+	unsigned int num_tx_desc;	/* TX descriptors per packet */
+
+	int duplex;
+
+	const struct ravb_hw_info *info;
+	struct reset_control *rstc;
 };
 
 static inline u32 ravb_read(struct net_device *ndev, enum ravb_reg reg)

@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Authors: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
  * Authors: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
-
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
  */
 
 #include <stdio.h>
 #include <sys/mman.h>
 #include <string.h>
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#include "../kselftest.h"
 
 #ifdef __powerpc64__
 #define PAGE_SIZE	(64 << 10)
@@ -239,7 +231,7 @@ static struct testcase hugetlb_testcases[] = {
 static int run_test(struct testcase *test, int count)
 {
 	void *p;
-	int i, ret = 0;
+	int i, ret = KSFT_PASS;
 
 	for (i = 0; i < count; i++) {
 		struct testcase *t = test + i;
@@ -250,13 +242,13 @@ static int run_test(struct testcase *test, int count)
 
 		if (p == MAP_FAILED) {
 			printf("FAILED\n");
-			ret = 1;
+			ret = KSFT_FAIL;
 			continue;
 		}
 
 		if (t->low_addr_required && p >= (void *)(ADDR_SWITCH_HINT)) {
 			printf("FAILED\n");
-			ret = 1;
+			ret = KSFT_FAIL;
 		} else {
 			/*
 			 * Do a dereference of the address returned so that we catch
@@ -288,7 +280,7 @@ int main(int argc, char **argv)
 	int ret;
 
 	if (!supported_arch())
-		return 0;
+		return KSFT_SKIP;
 
 	ret = run_test(testcases, ARRAY_SIZE(testcases));
 	if (argc == 2 && !strcmp(argv[1], "--run-hugetlb"))

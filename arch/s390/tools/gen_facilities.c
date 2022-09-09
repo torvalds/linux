@@ -27,24 +27,16 @@ static struct facility_def facility_defs[] = {
 		 */
 		.name = "FACILITIES_ALS",
 		.bits = (int[]){
-#ifdef CONFIG_HAVE_MARCH_Z900_FEATURES
 			0,  /* N3 instructions */
 			1,  /* z/Arch mode installed */
-#endif
-#ifdef CONFIG_HAVE_MARCH_Z990_FEATURES
 			18, /* long displacement facility */
-#endif
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
 			21, /* extended-immediate facility */
 			25, /* store clock fast */
-#endif
-#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 			27, /* mvcos */
 			32, /* compare and swap and store */
 			33, /* compare and swap and store 2 */
 			34, /* general instructions extension */
 			35, /* execute extensions */
-#endif
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
 			45, /* fast-BCR, etc. */
 #endif
@@ -57,6 +49,9 @@ static struct facility_def facility_defs[] = {
 #endif
 #ifdef CONFIG_HAVE_MARCH_Z14_FEATURES
 			58, /* miscellaneous-instruction-extension 2 */
+#endif
+#ifdef CONFIG_HAVE_MARCH_Z15_FEATURES
+			61, /* miscellaneous-instruction-extension 3 */
 #endif
 			-1 /* END */
 		}
@@ -93,6 +88,9 @@ static struct facility_def facility_defs[] = {
 			131, /* enhanced-SOP 2 and side-effect */
 			139, /* multiple epoch facility */
 			146, /* msa extension 8 */
+			150, /* enhanced sort */
+			151, /* deflate conversion */
+			155, /* msa extension 9 */
 			-1  /* END */
 		}
 	},
@@ -109,6 +107,11 @@ static struct facility_def facility_defs[] = {
 			12, /* AP Query Configuration Information */
 			15, /* AP Facilities Test */
 			156, /* etoken facility */
+			165, /* nnpa facility */
+			193, /* bear enhancement facility */
+			194, /* rdp enhancement facility */
+			196, /* processor activity instrumentation facility */
+			197, /* processor activity instrumentation extension 1 */
 			-1  /* END */
 		}
 	},

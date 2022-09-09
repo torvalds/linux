@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * IBM ASM Service Processor Device Driver
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
  * Copyright (C) IBM Corporation, 2004
  *
  * Author: Max Asböck <amax@us.ibm.com>
- *
  */
 
 #include <linux/sched.h>
@@ -45,7 +31,7 @@ static void wake_up_event_readers(struct service_processor *sp)
                 wake_up_interruptible(&reader->wait);
 }
 
-/**
+/*
  * receive_event
  * Called by the interrupt handler when a dot command of type sp_event is
  * received.
@@ -82,7 +68,7 @@ static inline int event_available(struct event_buffer *b, struct event_reader *r
 	return (r->next_serial_number < b->next_serial_number);
 }
 
-/**
+/*
  * get_next_event
  * Called by event readers (initiated from user space through the file
  * system).

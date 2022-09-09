@@ -1,37 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Anysee remote controller keytable
  *
  * Copyright (C) 2010 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <media/rc-map.h>
 #include <linux/module.h>
 
 static struct rc_map_table anysee[] = {
-	{ 0x0800, KEY_0 },
-	{ 0x0801, KEY_1 },
-	{ 0x0802, KEY_2 },
-	{ 0x0803, KEY_3 },
-	{ 0x0804, KEY_4 },
-	{ 0x0805, KEY_5 },
-	{ 0x0806, KEY_6 },
-	{ 0x0807, KEY_7 },
-	{ 0x0808, KEY_8 },
-	{ 0x0809, KEY_9 },
+	{ 0x0800, KEY_NUMERIC_0 },
+	{ 0x0801, KEY_NUMERIC_1 },
+	{ 0x0802, KEY_NUMERIC_2 },
+	{ 0x0803, KEY_NUMERIC_3 },
+	{ 0x0804, KEY_NUMERIC_4 },
+	{ 0x0805, KEY_NUMERIC_5 },
+	{ 0x0806, KEY_NUMERIC_6 },
+	{ 0x0807, KEY_NUMERIC_7 },
+	{ 0x0808, KEY_NUMERIC_8 },
+	{ 0x0809, KEY_NUMERIC_9 },
 	{ 0x080a, KEY_POWER2 },          /* [red power button] */
 	{ 0x080b, KEY_VIDEO },           /* [*] MODE */
 	{ 0x080c, KEY_CHANNEL },         /* [symbol counterclockwise arrow] */

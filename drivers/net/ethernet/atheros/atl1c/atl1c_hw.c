@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -607,6 +594,11 @@ int atl1c_phy_init(struct atl1c_hw *hw)
 	int ret_val;
 	u16 mii_bmcr_data = BMCR_RESET;
 
+	if (hw->nic_type == athr_mt) {
+		hw->phy_configured = true;
+		return 0;
+	}
+
 	if ((atl1c_read_phy_reg(hw, MII_PHYSID1, &hw->phy_id1) != 0) ||
 		(atl1c_read_phy_reg(hw, MII_PHYSID2, &hw->phy_id2) != 0)) {
 		dev_err(&pdev->dev, "Error get phy ID\n");
@@ -649,6 +641,23 @@ int atl1c_phy_init(struct atl1c_hw *hw)
 	return 0;
 }
 
+bool atl1c_get_link_status(struct atl1c_hw *hw)
+{
+	u16 phy_data;
+
+	if (hw->nic_type == athr_mt) {
+		u32 spd;
+
+		AT_READ_REG(hw, REG_MT_SPEED, &spd);
+		return !!spd;
+	}
+
+	/* MII_BMSR must be read twice */
+	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
+	return !!(phy_data & BMSR_LSTATUS);
+}
+
 /*
  * Detects the current speed and duplex settings of the hardware.
  *
@@ -660,6 +669,15 @@ int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex)
 {
 	int err;
 	u16 phy_data;
+
+	if (hw->nic_type == athr_mt) {
+		u32 spd;
+
+		AT_READ_REG(hw, REG_MT_SPEED, &spd);
+		*speed = spd;
+		*duplex = FULL_DUPLEX;
+		return 0;
+	}
 
 	/* Read   PHY Specific Status Register (17) */
 	err = atl1c_read_phy_reg(hw, MII_GIGA_PSSR, &phy_data);
@@ -699,15 +717,12 @@ int atl1c_phy_to_ps_link(struct atl1c_hw *hw)
 	int ret = 0;
 	u16 autoneg_advertised = ADVERTISED_10baseT_Half;
 	u16 save_autoneg_advertised;
-	u16 phy_data;
 	u16 mii_lpa_data;
 	u16 speed = SPEED_0;
 	u16 duplex = FULL_DUPLEX;
 	int i;
 
-	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
-	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
-	if (phy_data & BMSR_LSTATUS) {
+	if (atl1c_get_link_status(hw)) {
 		atl1c_read_phy_reg(hw, MII_LPA, &mii_lpa_data);
 		if (mii_lpa_data & LPA_10FULL)
 			autoneg_advertised = ADVERTISED_10baseT_Full;
@@ -730,9 +745,7 @@ int atl1c_phy_to_ps_link(struct atl1c_hw *hw)
 		if (mii_lpa_data) {
 			for (i = 0; i < AT_SUSPEND_LINK_TIMEOUT; i++) {
 				mdelay(100);
-				atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
-				atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
-				if (phy_data & BMSR_LSTATUS) {
+				if (atl1c_get_link_status(hw)) {
 					if (atl1c_get_speed_and_duplex(hw, &speed,
 									&duplex) != 0)
 						dev_dbg(&pdev->dev,

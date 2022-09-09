@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * X-Gene SLIMpro I2C Driver
  *
@@ -5,22 +6,8 @@
  * Author: Feng Kan <fkan@apm.com>
  * Author: Hieu Le <hnle@apm.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  * This driver provides support for X-Gene SLIMpro I2C device access
  * using the APM X-Gene SLIMpro mailbox driver.
- *
  */
 #include <acpi/pcc.h>
 #include <linux/acpi.h>
@@ -32,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/version.h>
 
 #define MAILBOX_OP_TIMEOUT		1000	/* Operation time out in ms */
 #define MAILBOX_I2C_INDEX		0
@@ -117,6 +103,7 @@ struct slimpro_i2c_dev {
 	struct i2c_adapter adapter;
 	struct device *dev;
 	struct mbox_chan *mbox_chan;
+	struct pcc_mbox_chan *pcc_chan;
 	struct mbox_client mbox_client;
 	int mbox_idx;
 	struct completion rd_complete;
@@ -480,7 +467,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 			return PTR_ERR(ctx->mbox_chan);
 		}
 	} else {
-		struct acpi_pcct_hw_reduced *cppc_ss;
+		struct pcc_mbox_chan *pcc_chan;
 		const struct acpi_device_id *acpi_id;
 		int version = XGENE_SLIMPRO_I2C_V1;
 
@@ -497,24 +484,14 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 
 		cl->tx_block = false;
 		cl->rx_callback = slimpro_i2c_pcc_rx_cb;
-		ctx->mbox_chan = pcc_mbox_request_channel(cl, ctx->mbox_idx);
-		if (IS_ERR(ctx->mbox_chan)) {
+		pcc_chan = pcc_mbox_request_channel(cl, ctx->mbox_idx);
+		if (IS_ERR(pcc_chan)) {
 			dev_err(&pdev->dev, "PCC mailbox channel request failed\n");
-			return PTR_ERR(ctx->mbox_chan);
+			return PTR_ERR(pcc_chan);
 		}
 
-		/*
-		 * The PCC mailbox controller driver should
-		 * have parsed the PCCT (global table of all
-		 * PCC channels) and stored pointers to the
-		 * subspace communication region in con_priv.
-		 */
-		cppc_ss = ctx->mbox_chan->con_priv;
-		if (!cppc_ss) {
-			dev_err(&pdev->dev, "PPC subspace not found\n");
-			rc = -ENOENT;
-			goto mbox_err;
-		}
+		ctx->pcc_chan = pcc_chan;
+		ctx->mbox_chan = pcc_chan->mchan;
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
 			dev_err(&pdev->dev, "PCC IRQ not supported\n");
@@ -526,17 +503,17 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 		 * This is the shared communication region
 		 * for the OS and Platform to communicate over.
 		 */
-		ctx->comm_base_addr = cppc_ss->base_address;
+		ctx->comm_base_addr = pcc_chan->shmem_base_addr;
 		if (ctx->comm_base_addr) {
 			if (version == XGENE_SLIMPRO_I2C_V2)
 				ctx->pcc_comm_addr = memremap(
 							ctx->comm_base_addr,
-							cppc_ss->length,
+							pcc_chan->shmem_size,
 							MEMREMAP_WT);
 			else
 				ctx->pcc_comm_addr = memremap(
 							ctx->comm_base_addr,
-							cppc_ss->length,
+							pcc_chan->shmem_size,
 							MEMREMAP_WB);
 		} else {
 			dev_err(&pdev->dev, "Failed to get PCC comm region\n");
@@ -575,7 +552,7 @@ mbox_err:
 	if (acpi_disabled)
 		mbox_free_channel(ctx->mbox_chan);
 	else
-		pcc_mbox_free_channel(ctx->mbox_chan);
+		pcc_mbox_free_channel(ctx->pcc_chan);
 
 	return rc;
 }
@@ -589,7 +566,7 @@ static int xgene_slimpro_i2c_remove(struct platform_device *pdev)
 	if (acpi_disabled)
 		mbox_free_channel(ctx->mbox_chan);
 	else
-		pcc_mbox_free_channel(ctx->mbox_chan);
+		pcc_mbox_free_channel(ctx->pcc_chan);
 
 	return 0;
 }

@@ -47,7 +47,7 @@ struct rate_priv {
 	unsigned int pos;
 	rate_f func;
 	snd_pcm_sframes_t old_src_frames, old_dst_frames;
-	struct rate_channel channels[0];
+	struct rate_channel channels[];
 };
 
 static void rate_init(struct snd_pcm_plugin *plugin)
@@ -193,7 +193,7 @@ static snd_pcm_sframes_t rate_src_frames(struct snd_pcm_plugin *plugin, snd_pcm_
 	if (plugin->src_format.rate < plugin->dst_format.rate) {
 		res = (((frames * data->pitch) + (BITS/2)) >> SHIFT);
 	} else {
-		res = (((frames << SHIFT) + (data->pitch / 2)) / data->pitch);		
+		res = DIV_ROUND_CLOSEST(frames << SHIFT, data->pitch);
 	}
 	if (data->old_src_frames > 0) {
 		snd_pcm_sframes_t frames1 = frames, res1 = data->old_dst_frames;
@@ -224,7 +224,7 @@ static snd_pcm_sframes_t rate_dst_frames(struct snd_pcm_plugin *plugin, snd_pcm_
 		return 0;
 	data = (struct rate_priv *)plugin->extra_data;
 	if (plugin->src_format.rate < plugin->dst_format.rate) {
-		res = (((frames << SHIFT) + (data->pitch / 2)) / data->pitch);
+		res = DIV_ROUND_CLOSEST(frames << SHIFT, data->pitch);
 	} else {
 		res = (((frames * data->pitch) + (BITS/2)) >> SHIFT);
 	}
@@ -323,8 +323,8 @@ int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,
 
 	err = snd_pcm_plugin_build(plug, "rate conversion",
 				   src_format, dst_format,
-				   sizeof(struct rate_priv) +
-				   src_format->channels * sizeof(struct rate_channel),
+				   struct_size(data, channels,
+					       src_format->channels),
 				   &plugin);
 	if (err < 0)
 		return err;

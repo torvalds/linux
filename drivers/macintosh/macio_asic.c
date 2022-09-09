@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Bus & driver management routines for devices within
  * a MacIO ASIC. Interface to new driver model mostly
  * stolen from the PCI version.
  * 
  *  Copyright (C) 2005 Ben. Herrenschmidt (benh@kernel.crashing.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * TODO:
  * 
@@ -24,13 +20,14 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 
 #include <asm/machdep.h>
 #include <asm/macio.h>
 #include <asm/pmac_feature.h>
-#include <asm/prom.h>
 
 #undef DEBUG
 
@@ -92,7 +89,7 @@ static int macio_device_probe(struct device *dev)
 	return error;
 }
 
-static int macio_device_remove(struct device *dev)
+static void macio_device_remove(struct device *dev)
 {
 	struct macio_dev * macio_dev = to_macio_device(dev);
 	struct macio_driver * drv = to_macio_driver(dev->driver);
@@ -100,8 +97,6 @@ static int macio_device_remove(struct device *dev)
 	if (dev->driver && drv->remove)
 		drv->remove(macio_dev);
 	macio_dev_put(macio_dev);
-
-	return 0;
 }
 
 static void macio_device_shutdown(struct device *dev)
@@ -386,7 +381,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	dma_set_max_seg_size(&dev->ofdev.dev, 65536);
 	dma_set_seg_boundary(&dev->ofdev.dev, 0xffffffff);
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && defined(CONFIG_DMA_OPS)
 	/* Set the DMA ops to the ones from the PCI device, this could be
 	 * fishy if we didn't know that on PowerMac it's always direct ops
 	 * or iommu ops that will work fine
@@ -395,7 +390,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	 */
 	dev->ofdev.dev.archdata = chip->lbus.pdev->dev.archdata;
 	dev->ofdev.dev.dma_ops = chip->lbus.pdev->dev.dma_ops;
-#endif /* CONFIG_PCI */
+#endif /* CONFIG_PCI && CONFIG_DMA_OPS */
 
 #ifdef DEBUG
 	printk("preparing mdev @%p, ofdev @%p, dev @%p, kobj @%p\n",
@@ -478,7 +473,7 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 	root_res = &rdev->resource[0];
 
 	/* First scan 1st level */
-	for (np = NULL; (np = of_get_next_child(pnode, np)) != NULL;) {
+	for_each_child_of_node(pnode, np) {
 		if (macio_skip_device(np))
 			continue;
 		of_node_get(np);
@@ -495,7 +490,7 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 	/* Add media bay devices if any */
 	if (mbdev) {
 		pnode = mbdev->ofdev.dev.of_node;
-		for (np = NULL; (np = of_get_next_child(pnode, np)) != NULL;) {
+		for_each_child_of_node(pnode, np) {
 			if (macio_skip_device(np))
 				continue;
 			of_node_get(np);
@@ -508,7 +503,7 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 	/* Add serial ports if any */
 	if (sdev) {
 		pnode = sdev->ofdev.dev.of_node;
-		for (np = NULL; (np = of_get_next_child(pnode, np)) != NULL;) {
+		for_each_child_of_node(pnode, np) {
 			if (macio_skip_device(np))
 				continue;
 			of_node_get(np);
@@ -762,7 +757,7 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 
 /* pci driver glue; this is a "new style" PCI driver module */
 static struct pci_driver macio_pci_driver = {
-	.name		= (char *) "macio",
+	.name		= "macio",
 	.id_table	= pci_ids,
 
 	.probe		= macio_pci_probe,

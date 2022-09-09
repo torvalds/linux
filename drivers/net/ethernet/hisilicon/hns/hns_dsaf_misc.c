@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "hns_dsaf_mac.h"
@@ -60,31 +56,31 @@ static u32 dsaf_read_sub(struct dsaf_device *dsaf_dev, u32 reg)
 }
 
 static void hns_dsaf_acpi_ledctrl_by_port(struct hns_mac_cb *mac_cb, u8 op_type,
-                                      u32 link, u32 port, u32 act)
+					  u32 link, u32 port, u32 act)
 {
-       union acpi_object *obj;
-       union acpi_object obj_args[3], argv4;
+	union acpi_object *obj;
+	union acpi_object obj_args[3], argv4;
 
-       obj_args[0].integer.type = ACPI_TYPE_INTEGER;
-       obj_args[0].integer.value = link;
-       obj_args[1].integer.type = ACPI_TYPE_INTEGER;
-       obj_args[1].integer.value = port;
-       obj_args[2].integer.type = ACPI_TYPE_INTEGER;
-       obj_args[2].integer.value = act;
+	obj_args[0].integer.type = ACPI_TYPE_INTEGER;
+	obj_args[0].integer.value = link;
+	obj_args[1].integer.type = ACPI_TYPE_INTEGER;
+	obj_args[1].integer.value = port;
+	obj_args[2].integer.type = ACPI_TYPE_INTEGER;
+	obj_args[2].integer.value = act;
 
-       argv4.type = ACPI_TYPE_PACKAGE;
-       argv4.package.count = 3;
-       argv4.package.elements = obj_args;
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 3;
+	argv4.package.elements = obj_args;
 
-       obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
-                               &hns_dsaf_acpi_dsm_guid, 0, op_type, &argv4);
-       if (!obj) {
-               dev_warn(mac_cb->dev, "ledctrl fail, link:%d port:%d act:%d!\n",
-                        link, port, act);
-               return;
-       }
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
+				&hns_dsaf_acpi_dsm_guid, 0, op_type, &argv4);
+	if (!obj) {
+		dev_warn(mac_cb->dev, "ledctrl fail, link:%d port:%d act:%d!\n",
+			 link, port, act);
+		return;
+	}
 
-       ACPI_FREE(obj);
+	ACPI_FREE(obj);
 }
 
 static void hns_dsaf_acpi_locate_ledctrl_by_port(struct hns_mac_cb *mac_cb,
@@ -155,15 +151,15 @@ static void hns_cpld_set_led(struct hns_mac_cb *mac_cb, int link_status,
 }
 
 static void hns_cpld_set_led_acpi(struct hns_mac_cb *mac_cb, int link_status,
-                            u16 speed, int data)
+				  u16 speed, int data)
 {
-       if (!mac_cb) {
-               pr_err("cpld_led_set mac_cb is null!\n");
-               return;
-       }
+	if (!mac_cb) {
+		pr_err("cpld_led_set mac_cb is null!\n");
+		return;
+	}
 
-       hns_dsaf_acpi_ledctrl_by_port(mac_cb, HNS_OP_LED_SET_FUNC,
-               link_status, mac_cb->mac_id, data);
+	hns_dsaf_acpi_ledctrl_by_port(mac_cb, HNS_OP_LED_SET_FUNC,
+				      link_status, mac_cb->mac_id, data);
 }
 
 static void cpld_led_reset(struct hns_mac_cb *mac_cb)
@@ -178,16 +174,16 @@ static void cpld_led_reset(struct hns_mac_cb *mac_cb)
 
 static void cpld_led_reset_acpi(struct hns_mac_cb *mac_cb)
 {
-       if (!mac_cb) {
-               pr_err("cpld_led_reset mac_cb is null!\n");
-               return;
-       }
+	if (!mac_cb) {
+		pr_err("cpld_led_reset mac_cb is null!\n");
+		return;
+	}
 
-       if (mac_cb->media_type != HNAE_MEDIA_TYPE_FIBER)
-                return;
+	if (mac_cb->media_type != HNAE_MEDIA_TYPE_FIBER)
+		return;
 
-       hns_dsaf_acpi_ledctrl_by_port(mac_cb, HNS_OP_LED_SET_FUNC,
-               0, mac_cb->mac_id, 0);
+	hns_dsaf_acpi_ledctrl_by_port(mac_cb, HNS_OP_LED_SET_FUNC,
+				      0, mac_cb->mac_id, 0);
 }
 
 static int cpld_set_led_id(struct hns_mac_cb *mac_cb,
@@ -334,11 +330,12 @@ static void hns_dsaf_xge_srst_by_port_acpi(struct dsaf_device *dsaf_dev,
  * hns_dsaf_srst_chns - reset dsaf channels
  * @dsaf_dev: dsaf device struct pointer
  * @msk: xbar channels mask value:
+ * @dereset: false - request reset , true - drop reset
+ *
  * bit0-5 for xge0-5
  * bit6-11 for ppe0-5
  * bit12-17 for roce0-5
  * bit18-19 for com/dfx
- * @enable: false - request reset , true - drop reset
  */
 static void
 hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool dereset)
@@ -354,14 +351,15 @@ hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool dereset)
 }
 
 /**
- * hns_dsaf_srst_chns - reset dsaf channels
+ * hns_dsaf_srst_chns_acpi - reset dsaf channels
  * @dsaf_dev: dsaf device struct pointer
  * @msk: xbar channels mask value:
+ * @dereset: false - request reset , true - drop reset
+ *
  * bit0-5 for xge0-5
  * bit6-11 for ppe0-5
  * bit12-17 for roce0-5
  * bit18-19 for com/dfx
- * @enable: false - request reset , true - drop reset
  */
 static void
 hns_dsaf_srst_chns_acpi(struct dsaf_device *dsaf_dev, u32 msk, bool dereset)
@@ -402,6 +400,10 @@ static void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port,
 		return;
 
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+		/* DSAF_MAX_PORT_NUM is 6, but DSAF_GE_NUM is 8.
+		   We need check to prevent array overflow */
+		if (port >= DSAF_MAX_PORT_NUM)
+			return;
 		reg_val_1  = 0x1 << port;
 		port_rst_off = dsaf_dev->mac_cb[port]->port_rst_off;
 		/* there is difference between V1 and V2 in register.*/
@@ -503,7 +505,7 @@ static void hns_ppe_com_srst(struct dsaf_device *dsaf_dev, bool dereset)
 }
 
 /**
- * hns_mac_get_sds_mode - get phy ifterface form serdes mode
+ * hns_mac_get_phy_if - get phy ifterface form serdes mode
  * @mac_cb: mac control block
  * retuen phy interface
  */
@@ -523,7 +525,7 @@ static phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 			reg = HNS_MAC_HILINK4_REG;
 		else
 			reg = HNS_MAC_HILINK3_REG;
-	} else{
+	} else {
 		if (!HNS_DSAF_IS_DEBUG(mac_cb->dsaf_dev) && mac_id <= 3)
 			reg = HNS_MAC_HILINK4V2_REG;
 		else
@@ -548,9 +550,9 @@ static phy_interface_t hns_mac_get_phy_if_acpi(struct hns_mac_cb *mac_cb)
 	obj_args.integer.type = ACPI_TYPE_INTEGER;
 	obj_args.integer.value = mac_cb->mac_id;
 
-	argv4.type = ACPI_TYPE_PACKAGE,
-	argv4.package.count = 1,
-	argv4.package.elements = &obj_args,
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 1;
+	argv4.package.elements = &obj_args;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
 				&hns_dsaf_acpi_dsm_guid, 0,
@@ -595,9 +597,9 @@ static int hns_mac_get_sfp_prsnt_acpi(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 	obj_args.integer.type = ACPI_TYPE_INTEGER;
 	obj_args.integer.value = mac_cb->mac_id;
 
-	argv4.type = ACPI_TYPE_PACKAGE,
-	argv4.package.count = 1,
-	argv4.package.elements = &obj_args,
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 1;
+	argv4.package.elements = &obj_args;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
 				&hns_dsaf_acpi_dsm_guid, 0,
@@ -616,7 +618,8 @@ static int hns_mac_get_sfp_prsnt_acpi(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 /**
  * hns_mac_config_sds_loopback - set loop back for serdes
  * @mac_cb: mac control block
- * retuen 0 == success
+ * @en: enable or disable
+ * return 0 == success
  */
 static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 {
@@ -670,7 +673,7 @@ static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 		dsaf_set_field(origin, 1ull << 10, 10, en);
 		dsaf_write_syscon(mac_cb->serdes_ctrl, reg_offset, origin);
 	} else {
-		u8 *base_addr = (u8 *)mac_cb->serdes_vaddr +
+		u8 __iomem *base_addr = mac_cb->serdes_vaddr +
 				(mac_cb->mac_id <= 3 ? 0x00280000 : 0x00200000);
 		dsaf_set_reg_field(base_addr, reg_offset, 1ull << 10, 10, en);
 	}
@@ -687,7 +690,7 @@ hns_mac_config_sds_loopback_acpi(struct hns_mac_cb *mac_cb, bool en)
 	obj_args[0].integer.type = ACPI_TYPE_INTEGER;
 	obj_args[0].integer.value = mac_cb->mac_id;
 	obj_args[1].integer.type = ACPI_TYPE_INTEGER;
-	obj_args[1].integer.value = !!en;
+	obj_args[1].integer.value = en;
 
 	argv4.type = ACPI_TYPE_PACKAGE;
 	argv4.package.count = 2;
@@ -758,17 +761,11 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 	return (void *)misc_op;
 }
 
-static int hns_dsaf_dev_match(struct device *dev, void *fwnode)
-{
-	return dev->fwnode == fwnode;
-}
-
 struct
 platform_device *hns_dsaf_find_platform_device(struct fwnode_handle *fwnode)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&platform_bus_type, NULL,
-			      fwnode, hns_dsaf_dev_match);
+	dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
 	return dev ? to_platform_device(dev) : NULL;
 }

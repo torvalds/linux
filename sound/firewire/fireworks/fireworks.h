@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * fireworks.h - a part of driver for Fireworks based devices
  *
  * Copyright (c) 2009-2010 Clemens Ladisch
  * Copyright (c) 2013-2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 #ifndef SOUND_FIREWORKS_H_INCLUDED
 #define SOUND_FIREWORKS_H_INCLUDED
@@ -66,9 +65,6 @@ struct snd_efw {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
 	/* for transaction */
 	u32 seqnum;
 	bool resp_addr_changable;
@@ -89,8 +85,7 @@ struct snd_efw {
 	struct amdtp_stream rx_stream;
 	struct cmp_connection out_conn;
 	struct cmp_connection in_conn;
-	unsigned int capture_substreams;
-	unsigned int playback_substreams;
+	unsigned int substreams_counter;
 
 	/* hardware metering parameters */
 	unsigned int phys_out;
@@ -109,6 +104,8 @@ struct snd_efw {
 	u8 *resp_buf;
 	u8 *pull_ptr;
 	u8 *push_ptr;
+
+	struct amdtp_domain domain;
 };
 
 int snd_efw_transaction_cmd(struct fw_unit *unit,
@@ -177,11 +174,11 @@ struct snd_efw_phys_meters {
 	u32 in_meters;
 	u32 reserved4;
 	u32 reserved5;
-	u32 values[0];
+	u32 values[];
 } __packed;
 enum snd_efw_clock_source {
 	SND_EFW_CLOCK_SOURCE_INTERNAL	= 0,
-	SND_EFW_CLOCK_SOURCE_SYTMATCH	= 1,
+	// Unused.
 	SND_EFW_CLOCK_SOURCE_WORDCLOCK	= 2,
 	SND_EFW_CLOCK_SOURCE_SPDIF	= 3,
 	SND_EFW_CLOCK_SOURCE_ADAT_1	= 4,
@@ -207,7 +204,10 @@ int snd_efw_command_get_sampling_rate(struct snd_efw *efw, unsigned int *rate);
 int snd_efw_command_set_sampling_rate(struct snd_efw *efw, unsigned int rate);
 
 int snd_efw_stream_init_duplex(struct snd_efw *efw);
-int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate);
+int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate,
+				  unsigned int frames_per_period,
+				  unsigned int frames_per_buffer);
+int snd_efw_stream_start_duplex(struct snd_efw *efw);
 void snd_efw_stream_stop_duplex(struct snd_efw *efw);
 void snd_efw_stream_update_duplex(struct snd_efw *efw);
 void snd_efw_stream_destroy_duplex(struct snd_efw *efw);
@@ -223,13 +223,5 @@ int snd_efw_create_pcm_devices(struct snd_efw *efw);
 int snd_efw_get_multiplier_mode(unsigned int sampling_rate, unsigned int *mode);
 
 int snd_efw_create_hwdep_device(struct snd_efw *efw);
-
-#define SND_EFW_DEV_ENTRY(vendor, model) \
-{ \
-	.match_flags	= IEEE1394_MATCH_VENDOR_ID | \
-			  IEEE1394_MATCH_MODEL_ID, \
-	.vendor_id	= vendor,\
-	.model_id	= model \
-}
 
 #endif

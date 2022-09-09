@@ -19,8 +19,8 @@
 #ifndef __B53_H
 #define __B53_H
 
-#include <linux/kernel.h>
-#include <net/dsa.h>
+#include <linux/types.h>
+#include <linux/platform_data/dsa.h>
 
 struct b53_platform_data {
 	/* Must be first such that dsa_register_switch() can access it */

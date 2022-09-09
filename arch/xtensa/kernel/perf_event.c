@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xtensa Performance Monitor Module driver
  * See Tensilica Debug User's Guide for PMU registers documentation.
  *
  * Copyright (C) 2015 Cadence Design Systems Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>
@@ -365,9 +362,7 @@ irqreturn_t xtensa_pmu_irq_handler(int irq, void *dev_id)
 	struct xtensa_pmu_events *ev = this_cpu_ptr(&xtensa_pmu_events);
 	unsigned i;
 
-	for (i = find_first_bit(ev->used_mask, XCHAL_NUM_PERF_COUNTERS);
-	     i < XCHAL_NUM_PERF_COUNTERS;
-	     i = find_next_bit(ev->used_mask, XCHAL_NUM_PERF_COUNTERS, i + 1)) {
+	for_each_set_bit(i, ev->used_mask, XCHAL_NUM_PERF_COUNTERS) {
 		uint32_t v = get_er(XTENSA_PMU_PMSTAT(i));
 		struct perf_event *event = ev->event[i];
 		struct hw_perf_event *hwc = &event->hw;
@@ -404,7 +399,7 @@ static struct pmu xtensa_pmu = {
 	.read = xtensa_pmu_read,
 };
 
-static int xtensa_pmu_setup(int cpu)
+static int xtensa_pmu_setup(unsigned int cpu)
 {
 	unsigned i;
 

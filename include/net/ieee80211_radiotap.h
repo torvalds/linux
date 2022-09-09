@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017		Intel Deutschland GmbH
- * Copyright (c) 2018		Intel Corporation
+ * Copyright (c) 2018-2019, 2021 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,6 +43,11 @@ struct ieee80211_radiotap_header {
 	 * @it_present: (first) present word
 	 */
 	__le32 it_present;
+
+	/**
+	 * @it_optional: all remaining presence bitmaps
+	 */
+	__le32 it_optional[];
 } __packed;
 
 /* version is always 0 */
@@ -117,6 +122,8 @@ enum ieee80211_radiotap_tx_flags {
 	IEEE80211_RADIOTAP_F_TX_CTS = 0x0002,
 	IEEE80211_RADIOTAP_F_TX_RTS = 0x0004,
 	IEEE80211_RADIOTAP_F_TX_NOACK = 0x0008,
+	IEEE80211_RADIOTAP_F_TX_NOSEQNO = 0x0010,
+	IEEE80211_RADIOTAP_F_TX_ORDER = 0x0020,
 };
 
 /* for IEEE80211_RADIOTAP_MCS "have" flags */
@@ -291,6 +298,12 @@ enum ieee80211_radiotap_he_bits {
 
 	IEEE80211_RADIOTAP_HE_DATA6_NSTS		= 0x000f,
 	IEEE80211_RADIOTAP_HE_DATA6_DOPPLER		= 0x0010,
+	IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_KNOWN	= 0x0020,
+	IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW		= 0x00c0,
+		IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_20MHZ	= 0,
+		IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_40MHZ	= 1,
+		IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_80MHZ	= 2,
+		IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_160MHZ	= 3,
 	IEEE80211_RADIOTAP_HE_DATA6_TXOP		= 0x7f00,
 	IEEE80211_RADIOTAP_HE_DATA6_MIDAMBLE_PDCTY	= 0x8000,
 };
@@ -343,6 +356,7 @@ struct ieee80211_radiotap_lsig {
 
 enum ieee80211_radiotap_zero_len_psdu_type {
 	IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING		= 0,
+	IEEE80211_RADIOTAP_ZERO_LEN_PSDU_NOT_CAPTURED		= 1,
 	IEEE80211_RADIOTAP_ZERO_LEN_PSDU_VENDOR			= 0xff,
 };
 
@@ -351,7 +365,7 @@ enum ieee80211_radiotap_zero_len_psdu_type {
  */
 static inline u16 ieee80211_get_radiotap_len(const char *data)
 {
-	struct ieee80211_radiotap_header *hdr = (void *)data;
+	const struct ieee80211_radiotap_header *hdr = (const void *)data;
 
 	return get_unaligned_le16(&hdr->it_len);
 }

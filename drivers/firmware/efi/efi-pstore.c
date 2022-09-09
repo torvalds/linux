@@ -1,10 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
+
 #include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
 #include <linux/slab.h>
 #include <linux/ucs2_string.h>
 
+MODULE_IMPORT_NS(EFIVAR);
+
 #define DUMP_NAME_LEN 66
+
+#define EFIVARS_DATA_SIZE_MAX 1024
 
 static bool efivars_pstore_disable =
 	IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
@@ -18,13 +24,23 @@ module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
 
 static int efi_pstore_open(struct pstore_info *psi)
 {
-	psi->data = NULL;
+	int err;
+
+	err = efivar_lock();
+	if (err)
+		return err;
+
+	psi->data = kzalloc(EFIVARS_DATA_SIZE_MAX, GFP_KERNEL);
+	if (!psi->data)
+		return -ENOMEM;
+
 	return 0;
 }
 
 static int efi_pstore_close(struct pstore_info *psi)
 {
-	psi->data = NULL;
+	efivar_unlock();
+	kfree(psi->data);
 	return 0;
 }
 
@@ -33,22 +49,17 @@ static inline u64 generic_id(u64 timestamp, unsigned int part, int count)
 	return (timestamp * 100 + part) * 1000 + count;
 }
 
-static int efi_pstore_read_func(struct efivar_entry *entry,
-				struct pstore_record *record)
+static int efi_pstore_read_func(struct pstore_record *record,
+				efi_char16_t *varname)
 {
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
+	unsigned long wlen, size = EFIVARS_DATA_SIZE_MAX;
 	char name[DUMP_NAME_LEN], data_type;
-	int i;
+	efi_status_t status;
 	int cnt;
 	unsigned int part;
-	unsigned long size;
 	u64 time;
 
-	if (efi_guidcmp(entry->var.VendorGuid, vendor))
-		return 0;
-
-	for (i = 0; i < DUMP_NAME_LEN; i++)
-		name[i] = entry->var.VariableName[i];
+	ucs2_as_utf8(name, varname, DUMP_NAME_LEN);
 
 	if (sscanf(name, "dump-type%u-%u-%d-%llu-%c",
 		   &record->type, &part, &cnt, &time, &data_type) == 5) {
@@ -88,161 +99,75 @@ static int efi_pstore_read_func(struct efivar_entry *entry,
 	} else
 		return 0;
 
-	entry->var.DataSize = 1024;
-	__efivar_entry_get(entry, &entry->var.Attributes,
-			   &entry->var.DataSize, entry->var.Data);
-	size = entry->var.DataSize;
-	memcpy(record->buf, entry->var.Data,
-	       (size_t)min_t(unsigned long, EFIVARS_DATA_SIZE_MAX, size));
-
-	return size;
-}
-
-/**
- * efi_pstore_scan_sysfs_enter
- * @pos: scanning entry
- * @next: next entry
- * @head: list head
- */
-static void efi_pstore_scan_sysfs_enter(struct efivar_entry *pos,
-					struct efivar_entry *next,
-					struct list_head *head)
-{
-	pos->scanning = true;
-	if (&next->list != head)
-		next->scanning = true;
-}
-
-/**
- * __efi_pstore_scan_sysfs_exit
- * @entry: deleting entry
- * @turn_off_scanning: Check if a scanning flag should be turned off
- */
-static inline int __efi_pstore_scan_sysfs_exit(struct efivar_entry *entry,
-						bool turn_off_scanning)
-{
-	if (entry->deleting) {
-		list_del(&entry->list);
-		efivar_entry_iter_end();
-		efivar_unregister(entry);
-		if (efivar_entry_iter_begin())
-			return -EINTR;
-	} else if (turn_off_scanning)
-		entry->scanning = false;
-
-	return 0;
-}
-
-/**
- * efi_pstore_scan_sysfs_exit
- * @pos: scanning entry
- * @next: next entry
- * @head: list head
- * @stop: a flag checking if scanning will stop
- */
-static int efi_pstore_scan_sysfs_exit(struct efivar_entry *pos,
-				       struct efivar_entry *next,
-				       struct list_head *head, bool stop)
-{
-	int ret = __efi_pstore_scan_sysfs_exit(pos, true);
-
-	if (ret)
-		return ret;
-
-	if (stop)
-		ret = __efi_pstore_scan_sysfs_exit(next, &next->list != head);
-	return ret;
-}
-
-/**
- * efi_pstore_sysfs_entry_iter
- *
- * @record: pstore record to pass to callback
- *
- * You MUST call efivar_enter_iter_begin() before this function, and
- * efivar_entry_iter_end() afterwards.
- *
- */
-static int efi_pstore_sysfs_entry_iter(struct pstore_record *record)
-{
-	struct efivar_entry **pos = (struct efivar_entry **)&record->psi->data;
-	struct efivar_entry *entry, *n;
-	struct list_head *head = &efivar_sysfs_list;
-	int size = 0;
-	int ret;
-
-	if (!*pos) {
-		list_for_each_entry_safe(entry, n, head, list) {
-			efi_pstore_scan_sysfs_enter(entry, n, head);
-
-			size = efi_pstore_read_func(entry, record);
-			ret = efi_pstore_scan_sysfs_exit(entry, n, head,
-							 size < 0);
-			if (ret)
-				return ret;
-			if (size)
-				break;
-		}
-		*pos = n;
-		return size;
-	}
-
-	list_for_each_entry_safe_from((*pos), n, head, list) {
-		efi_pstore_scan_sysfs_enter((*pos), n, head);
-
-		size = efi_pstore_read_func((*pos), record);
-		ret = efi_pstore_scan_sysfs_exit((*pos), n, head, size < 0);
-		if (ret)
-			return ret;
-		if (size)
-			break;
-	}
-	*pos = n;
-	return size;
-}
-
-/**
- * efi_pstore_read
- *
- * This function returns a size of NVRAM entry logged via efi_pstore_write().
- * The meaning and behavior of efi_pstore/pstore are as below.
- *
- * size > 0: Got data of an entry logged via efi_pstore_write() successfully,
- *           and pstore filesystem will continue reading subsequent entries.
- * size == 0: Entry was not logged via efi_pstore_write(),
- *            and efi_pstore driver will continue reading subsequent entries.
- * size < 0: Failed to get data of entry logging via efi_pstore_write(),
- *           and pstore will stop reading entry.
- */
-static ssize_t efi_pstore_read(struct pstore_record *record)
-{
-	ssize_t size;
-
-	record->buf = kzalloc(EFIVARS_DATA_SIZE_MAX, GFP_KERNEL);
+	record->buf = kmalloc(size, GFP_KERNEL);
 	if (!record->buf)
 		return -ENOMEM;
 
-	if (efivar_entry_iter_begin()) {
-		size = -EINTR;
-		goto out;
-	}
-	size = efi_pstore_sysfs_entry_iter(record);
-	efivar_entry_iter_end();
-
-out:
-	if (size <= 0) {
+	status = efivar_get_variable(varname, &LINUX_EFI_CRASH_GUID, NULL,
+				     &size, record->buf);
+	if (status != EFI_SUCCESS) {
 		kfree(record->buf);
-		record->buf = NULL;
+		return -EIO;
 	}
+
+	/*
+	 * Store the name of the variable in the pstore_record priv field, so
+	 * we can reuse it later if we need to delete the EFI variable from the
+	 * variable store.
+	 */
+	wlen = (ucs2_strnlen(varname, DUMP_NAME_LEN) + 1) * sizeof(efi_char16_t);
+	record->priv = kmemdup(varname, wlen, GFP_KERNEL);
+	if (!record->priv) {
+		kfree(record->buf);
+		return -ENOMEM;
+	}
+
 	return size;
+}
+
+static ssize_t efi_pstore_read(struct pstore_record *record)
+{
+	efi_char16_t *varname = record->psi->data;
+	efi_guid_t guid = LINUX_EFI_CRASH_GUID;
+	unsigned long varname_size;
+	efi_status_t status;
+
+	for (;;) {
+		varname_size = EFIVARS_DATA_SIZE_MAX;
+
+		/*
+		 * If this is the first read() call in the pstore enumeration,
+		 * varname will be the empty string, and the GetNextVariable()
+		 * runtime service call will return the first EFI variable in
+		 * its own enumeration order, ignoring the guid argument.
+		 *
+		 * Subsequent calls to GetNextVariable() must pass the name and
+		 * guid values returned by the previous call, which is why we
+		 * store varname in record->psi->data. Given that we only
+		 * enumerate variables with the efi-pstore GUID, there is no
+		 * need to record the guid return value.
+		 */
+		status = efivar_get_next_variable(&varname_size, varname, &guid);
+		if (status == EFI_NOT_FOUND)
+			return 0;
+
+		if (status != EFI_SUCCESS)
+			return -EIO;
+
+		/* skip variables that don't concern us */
+		if (efi_guidcmp(guid, LINUX_EFI_CRASH_GUID))
+			continue;
+
+		return efi_pstore_read_func(record, varname);
+	}
 }
 
 static int efi_pstore_write(struct pstore_record *record)
 {
 	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	int i, ret = 0;
+	efi_status_t status;
+	int i;
 
 	record->id = generic_id(record->time.tv_sec, record->part,
 				record->count);
@@ -258,87 +183,26 @@ static int efi_pstore_write(struct pstore_record *record)
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
 
-	ret = efivar_entry_set_safe(efi_name, vendor, PSTORE_EFI_ATTRIBUTES,
-			      preemptible(), record->size, record->psi->buf);
-
-	if (record->reason == KMSG_DUMP_OOPS)
-		efivar_run_worker();
-
-	return ret;
+	if (efivar_trylock())
+		return -EBUSY;
+	status = efivar_set_variable_locked(efi_name, &LINUX_EFI_CRASH_GUID,
+					    PSTORE_EFI_ATTRIBUTES,
+					    record->size, record->psi->buf,
+					    true);
+	efivar_unlock();
+	return status == EFI_SUCCESS ? 0 : -EIO;
 };
-
-/*
- * Clean up an entry with the same name
- */
-static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
-{
-	efi_char16_t *efi_name = data;
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	unsigned long ucs2_len = ucs2_strlen(efi_name);
-
-	if (efi_guidcmp(entry->var.VendorGuid, vendor))
-		return 0;
-
-	if (ucs2_strncmp(entry->var.VariableName, efi_name, (size_t)ucs2_len))
-		return 0;
-
-	if (entry->scanning) {
-		/*
-		 * Skip deletion because this entry will be deleted
-		 * after scanning is completed.
-		 */
-		entry->deleting = true;
-	} else
-		list_del(&entry->list);
-
-	/* found */
-	__efivar_entry_delete(entry);
-
-	return 1;
-}
-
-static int efi_pstore_erase_name(const char *name)
-{
-	struct efivar_entry *entry = NULL;
-	efi_char16_t efi_name[DUMP_NAME_LEN];
-	int found, i;
-
-	for (i = 0; i < DUMP_NAME_LEN; i++) {
-		efi_name[i] = name[i];
-		if (name[i] == '\0')
-			break;
-	}
-
-	if (efivar_entry_iter_begin())
-		return -EINTR;
-
-	found = __efivar_entry_iter(efi_pstore_erase_func, &efivar_sysfs_list,
-				    efi_name, &entry);
-	efivar_entry_iter_end();
-
-	if (found && !entry->scanning)
-		efivar_unregister(entry);
-
-	return found ? 0 : -ENOENT;
-}
 
 static int efi_pstore_erase(struct pstore_record *record)
 {
-	char name[DUMP_NAME_LEN];
-	int ret;
+	efi_status_t status;
 
-	snprintf(name, sizeof(name), "dump-type%u-%u-%d-%lld",
-		 record->type, record->part, record->count,
-		 (long long)record->time.tv_sec);
-	ret = efi_pstore_erase_name(name);
-	if (ret != -ENOENT)
-		return ret;
+	status = efivar_set_variable(record->priv, &LINUX_EFI_CRASH_GUID,
+				     PSTORE_EFI_ATTRIBUTES, 0, NULL);
 
-	snprintf(name, sizeof(name), "dump-type%u-%u-%lld",
-		record->type, record->part, (long long)record->time.tv_sec);
-	ret = efi_pstore_erase_name(name);
-
-	return ret;
+	if (status != EFI_SUCCESS && status != EFI_NOT_FOUND)
+		return -EIO;
+	return 0;
 }
 
 static struct pstore_info efi_pstore_info = {
@@ -354,10 +218,7 @@ static struct pstore_info efi_pstore_info = {
 
 static __init int efivars_pstore_init(void)
 {
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
-
-	if (!efivars_kobject())
+	if (!efivar_supports_writes())
 		return 0;
 
 	if (efivars_pstore_disable)

@@ -41,6 +41,9 @@ int  mlx5_core_reserve_gids(struct mlx5_core_dev *dev, unsigned int count);
 void mlx5_core_unreserve_gids(struct mlx5_core_dev *dev, unsigned int count);
 int  mlx5_core_reserved_gid_alloc(struct mlx5_core_dev *dev, int *gid_index);
 void mlx5_core_reserved_gid_free(struct mlx5_core_dev *dev, int gid_index);
+int mlx5_crdump_enable(struct mlx5_core_dev *dev);
+void mlx5_crdump_disable(struct mlx5_core_dev *dev);
+int mlx5_crdump_collect(struct mlx5_core_dev *dev, u32 *cr_data);
 
 /* TODO move to lib/events.h */
 
@@ -76,4 +79,29 @@ struct mlx5_pme_stats {
 void mlx5_get_pme_stats(struct mlx5_core_dev *dev, struct mlx5_pme_stats *stats);
 int mlx5_notifier_call_chain(struct mlx5_events *events, unsigned int event, void *data);
 
+/* Crypto */
+enum {
+	MLX5_ACCEL_OBJ_TLS_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS,
+	MLX5_ACCEL_OBJ_IPSEC_KEY = MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_IPSEC,
+};
+
+int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
+			       void *key, u32 sz_bytes,
+			       u32 key_type, u32 *p_key_id);
+void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id);
+
+static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
+{
+	return devlink_net(priv_to_devlink(dev));
+}
+
+static inline void mlx5_uplink_netdev_set(struct mlx5_core_dev *mdev, struct net_device *netdev)
+{
+	mdev->mlx5e_res.uplink_netdev = netdev;
+}
+
+static inline struct net_device *mlx5_uplink_netdev_get(struct mlx5_core_dev *mdev)
+{
+	return mdev->mlx5e_res.uplink_netdev;
+}
 #endif

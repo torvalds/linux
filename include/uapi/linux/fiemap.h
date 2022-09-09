@@ -9,8 +9,8 @@
  *          Andreas Dilger <adilger@sun.com>
  */
 
-#ifndef _LINUX_FIEMAP_H
-#define _LINUX_FIEMAP_H
+#ifndef _UAPI_LINUX_FIEMAP_H
+#define _UAPI_LINUX_FIEMAP_H
 
 #include <linux/types.h>
 
@@ -34,7 +34,7 @@ struct fiemap {
 	__u32 fm_mapped_extents;/* number of extents that were mapped (out) */
 	__u32 fm_extent_count;  /* size of fm_extents array (in) */
 	__u32 fm_reserved;
-	struct fiemap_extent fm_extents[0]; /* array of mapped extents (out) */
+	struct fiemap_extent fm_extents[]; /* array of mapped extents (out) */
 };
 
 #define FIEMAP_MAX_OFFSET	(~0ULL)
@@ -67,4 +67,4 @@ struct fiemap {
 #define FIEMAP_EXTENT_SHARED		0x00002000 /* Space shared with other
 						    * files. */
 
-#endif /* _LINUX_FIEMAP_H */
+#endif /* _UAPI_LINUX_FIEMAP_H */

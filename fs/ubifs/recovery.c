@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -364,11 +352,11 @@ out_free:
 	ubifs_err(c, "failed to recover master node");
 	if (mst1) {
 		ubifs_err(c, "dumping first master node");
-		ubifs_dump_node(c, mst1);
+		ubifs_dump_node(c, mst1, c->leb_size - ((void *)mst1 - buf1));
 	}
 	if (mst2) {
 		ubifs_err(c, "dumping second master node");
-		ubifs_dump_node(c, mst2);
+		ubifs_dump_node(c, mst2, c->leb_size - ((void *)mst2 - buf2));
 	}
 	vfree(buf2);
 	vfree(buf1);
@@ -481,7 +469,7 @@ static int no_more_nodes(const struct ubifs_info *c, void *buf, int len,
 	 * The area after the common header size is not empty, so the common
 	 * header must be intact. Check it.
 	 */
-	if (ubifs_check_node(c, buf, lnum, offs, 1, 0) != -EUCLEAN) {
+	if (ubifs_check_node(c, buf, len, lnum, offs, 1, 0) != -EUCLEAN) {
 		dbg_rcvry("unexpected bad common header at %d:%d", lnum, offs);
 		return 0;
 	}
@@ -830,7 +818,7 @@ static int get_cs_sqnum(struct ubifs_info *c, int lnum, int offs,
 		goto out_err;
 	}
 	if (cs_node->ch.node_type != UBIFS_CS_NODE) {
-		ubifs_err(c, "Node a CS node, type is %d", cs_node->ch.node_type);
+		ubifs_err(c, "Not a CS node, type is %d", cs_node->ch.node_type);
 		goto out_err;
 	}
 	if (le64_to_cpu(cs_node->cmt_no) != c->cmt_no) {

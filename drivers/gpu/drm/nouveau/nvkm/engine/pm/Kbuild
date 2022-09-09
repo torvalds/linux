@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/engine/pm/base.o
 nvkm-y += nvkm/engine/pm/nv40.o
 nvkm-y += nvkm/engine/pm/nv50.o

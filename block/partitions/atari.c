@@ -47,7 +47,7 @@ int atari_partition(struct parsed_partitions *state)
 	 * ATARI partition scheme supports 512 lba only.  If this is not
 	 * the case, bail early to avoid miscalculating hd_size.
 	 */
-	if (bdev_logical_block_size(state->bdev) != 512)
+	if (queue_logical_block_size(state->disk->queue) != 512)
 		return 0;
 
 	rs = read_part_sector(state, 0, &sect);
@@ -55,7 +55,7 @@ int atari_partition(struct parsed_partitions *state)
 		return -1;
 
 	/* Verify this is an Atari rootsector: */
-	hd_size = state->bdev->bd_inode->i_size >> 9;
+	hd_size = get_capacity(state->disk);
 	if (!VALID_PARTITION(&rs->part[0], hd_size) &&
 	    !VALID_PARTITION(&rs->part[1], hd_size) &&
 	    !VALID_PARTITION(&rs->part[2], hd_size) &&
@@ -140,7 +140,6 @@ int atari_partition(struct parsed_partitions *state)
 				/* accept only GEM,BGM,RAW,LNX,SWP partitions */
 				if (!((pi->flg & 1) && OK_id(pi->id)))
 					continue;
-				part_fmt = 2;
 				put_partition (state, slot,
 						be32_to_cpu(pi->st),
 						be32_to_cpu(pi->siz));

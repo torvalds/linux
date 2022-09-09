@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SCSI Primary Commands (SPC) parsing and emulation.
  *
  * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -53,17 +40,39 @@ static void spc_fill_alua_data(struct se_lun *lun, unsigned char *buf)
 	 *
 	 * See spc4r17 section 6.4.2 Table 135
 	 */
-	spin_lock(&lun->lun_tg_pt_gp_lock);
-	tg_pt_gp = lun->lun_tg_pt_gp;
+	rcu_read_lock();
+	tg_pt_gp = rcu_dereference(lun->lun_tg_pt_gp);
 	if (tg_pt_gp)
 		buf[5] |= tg_pt_gp->tg_pt_gp_alua_access_type;
-	spin_unlock(&lun->lun_tg_pt_gp_lock);
+	rcu_read_unlock();
+}
+
+static u16
+spc_find_scsi_transport_vd(int proto_id)
+{
+	switch (proto_id) {
+	case SCSI_PROTOCOL_FCP:
+		return SCSI_VERSION_DESCRIPTOR_FCP4;
+	case SCSI_PROTOCOL_ISCSI:
+		return SCSI_VERSION_DESCRIPTOR_ISCSI;
+	case SCSI_PROTOCOL_SAS:
+		return SCSI_VERSION_DESCRIPTOR_SAS3;
+	case SCSI_PROTOCOL_SBP:
+		return SCSI_VERSION_DESCRIPTOR_SBP3;
+	case SCSI_PROTOCOL_SRP:
+		return SCSI_VERSION_DESCRIPTOR_SRP;
+	default:
+		pr_warn("Cannot find VERSION DESCRIPTOR value for unknown SCSI"
+			" transport PROTOCOL IDENTIFIER %#x\n", proto_id);
+		return 0;
+	}
 }
 
 sense_reason_t
 spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
+	struct se_portal_group *tpg = lun->lun_tpg;
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 
@@ -71,7 +80,7 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	if (dev->transport->get_device_type(dev) == TYPE_TAPE)
 		buf[1] = 0x80;
 
-	buf[2] = 0x05; /* SPC-3 */
+	buf[2] = 0x06; /* SPC-4 */
 
 	/*
 	 * NORMACA and HISUP = 0, RESPONSE DATA FORMAT = 2
@@ -121,7 +130,17 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	       strnlen(dev->t10_wwn.model, INQUIRY_MODEL_LEN));
 	memcpy(&buf[32], dev->t10_wwn.revision,
 	       strnlen(dev->t10_wwn.revision, INQUIRY_REVISION_LEN));
-	buf[4] = 31; /* Set additional length to 31 */
+
+	/*
+	 * Set the VERSION DESCRIPTOR fields
+	 */
+	put_unaligned_be16(SCSI_VERSION_DESCRIPTOR_SAM5, &buf[58]);
+	put_unaligned_be16(spc_find_scsi_transport_vd(tpg->proto_id), &buf[60]);
+	put_unaligned_be16(SCSI_VERSION_DESCRIPTOR_SPC4, &buf[62]);
+	if (cmd->se_dev->transport->get_device_type(dev) == TYPE_DISK)
+		put_unaligned_be16(SCSI_VERSION_DESCRIPTOR_SBC3, &buf[64]);
+
+	buf[4] = 91; /* Set additional length to 91 */
 
 	return 0;
 }
@@ -142,12 +161,27 @@ spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
-				      unsigned char *buf)
+/*
+ * Generate NAA IEEE Registered Extended designator
+ */
+void spc_gen_naa_6h_vendor_specific(struct se_device *dev,
+				    unsigned char *buf)
 {
 	unsigned char *p = &dev->t10_wwn.unit_serial[0];
-	int cnt;
+	u32 company_id = dev->t10_wwn.company_id;
+	int cnt, off = 0;
 	bool next = true;
+
+	/*
+	 * Start NAA IEEE Registered Extended Identifier/Designator
+	 */
+	buf[off] = 0x6 << 4;
+
+	/* IEEE COMPANY_ID */
+	buf[off++] |= (company_id >> 20) & 0xf;
+	buf[off++] = (company_id >> 12) & 0xff;
+	buf[off++] = (company_id >> 4) & 0xff;
+	buf[off] = (company_id & 0xf) << 4;
 
 	/*
 	 * Generate up to 36 bits of VENDOR SPECIFIC IDENTIFIER starting on
@@ -157,7 +191,7 @@ void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
 	 * NUMBER set via vpd_unit_serial in target_core_configfs.c to ensure
 	 * per device uniqeness.
 	 */
-	for (cnt = 0; *p && cnt < 13; p++) {
+	for (cnt = off + 13; *p && off < cnt; p++) {
 		int val = hex_to_bin(*p);
 
 		if (val < 0)
@@ -165,10 +199,10 @@ void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
 
 		if (next) {
 			next = false;
-			buf[cnt++] |= val;
+			buf[off++] |= val;
 		} else {
 			next = true;
-			buf[cnt] = val << 4;
+			buf[off] = val << 4;
 		}
 	}
 }
@@ -216,24 +250,8 @@ spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	/* Identifier/Designator length */
 	buf[off++] = 0x10;
 
-	/*
-	 * Start NAA IEEE Registered Extended Identifier/Designator
-	 */
-	buf[off++] = (0x6 << 4);
-
-	/*
-	 * Use OpenFabrics IEEE Company ID: 00 14 05
-	 */
-	buf[off++] = 0x01;
-	buf[off++] = 0x40;
-	buf[off] = (0x5 << 4);
-
-	/*
-	 * Return ConfigFS Unit Serial Number information for
-	 * VENDOR_SPECIFIC_IDENTIFIER and
-	 * VENDOR_SPECIFIC_IDENTIFIER_EXTENTION
-	 */
-	spc_parse_naa_6h_vendor_specific(dev, &buf[off]);
+	/* NAA IEEE Registered Extended designator */
+	spc_gen_naa_6h_vendor_specific(dev, &buf[off]);
 
 	len = 20;
 	off = (len + 4);
@@ -307,14 +325,14 @@ check_t10_vend_desc:
 		 * Get the PROTOCOL IDENTIFIER as defined by spc4r17
 		 * section 7.5.1 Table 362
 		 */
-		spin_lock(&lun->lun_tg_pt_gp_lock);
-		tg_pt_gp = lun->lun_tg_pt_gp;
+		rcu_read_lock();
+		tg_pt_gp = rcu_dereference(lun->lun_tg_pt_gp);
 		if (!tg_pt_gp) {
-			spin_unlock(&lun->lun_tg_pt_gp_lock);
+			rcu_read_unlock();
 			goto check_lu_gp;
 		}
 		tg_pt_gp_id = tg_pt_gp->tg_pt_gp_id;
-		spin_unlock(&lun->lun_tg_pt_gp_lock);
+		rcu_read_unlock();
 
 		buf[off] = tpg->proto_id << 4;
 		buf[off++] |= 0x1; /* CODE SET == Binary */
@@ -714,7 +732,6 @@ static sense_reason_t
 spc_emulate_inquiry(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_portal_group *tpg = cmd->se_lun->lun_tpg;
 	unsigned char *rbuf;
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned char *buf;
@@ -728,10 +745,7 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
-	if (dev == rcu_access_pointer(tpg->tpg_virt_lun0->lun_se_dev))
-		buf[0] = 0x3f; /* Not connected */
-	else
-		buf[0] = dev->transport->get_device_type(dev);
+	buf[0] = dev->transport->get_device_type(dev);
 
 	if (!(cdb[1] & 0x1)) {
 		if (cdb[2]) {
@@ -755,7 +769,7 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 		}
 	}
 
-	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
+	pr_debug("Unknown VPD Code: 0x%02x\n", cdb[2]);
 	ret = TCM_INVALID_CDB_FIELD;
 
 out:
@@ -767,7 +781,7 @@ out:
 	kfree(buf);
 
 	if (!ret)
-		target_complete_cmd_with_length(cmd, GOOD, len);
+		target_complete_cmd_with_length(cmd, SAM_STAT_GOOD, len);
 	return ret;
 }
 
@@ -860,8 +874,17 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	 * for a BUSY, TASK SET FULL, or RESERVATION CONFLICT status regardless
 	 * to the number of commands completed with one of those status codes.
 	 */
-	p[4] = (dev->dev_attrib.emulate_ua_intlck_ctrl == 2) ? 0x30 :
-	       (dev->dev_attrib.emulate_ua_intlck_ctrl == 1) ? 0x20 : 0x00;
+	switch (dev->dev_attrib.emulate_ua_intlck_ctrl) {
+	case TARGET_UA_INTLCK_CTRL_ESTABLISH_UA:
+		p[4] = 0x30;
+		break;
+	case TARGET_UA_INTLCK_CTRL_NO_CLEAR:
+		p[4] = 0x20;
+		break;
+	default:	/* TARGET_UA_INTLCK_CTRL_CLEAR */
+		p[4] = 0x00;
+		break;
+	}
 	/*
 	 * From spc4r17, section 7.4.6 Control mode Page
 	 *
@@ -1112,7 +1135,7 @@ set_length:
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd_with_length(cmd, GOOD, length);
+	target_complete_cmd_with_length(cmd, SAM_STAT_GOOD, length);
 	return 0;
 }
 
@@ -1130,7 +1153,7 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 	int i;
 
 	if (!cmd->data_length) {
-		target_complete_cmd(cmd, GOOD);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 		return 0;
 	}
 
@@ -1173,7 +1196,7 @@ out:
 	transport_kunmap_data_sg(cmd);
 
 	if (!ret)
-		target_complete_cmd(cmd, GOOD);
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return ret;
 }
 
@@ -1206,7 +1229,7 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
 	transport_kunmap_data_sg(cmd);
 
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
 }
 
@@ -1273,7 +1296,7 @@ done:
 		transport_kunmap_data_sg(cmd);
 	}
 
-	target_complete_cmd_with_length(cmd, GOOD, 8 + lun_count * 8);
+	target_complete_cmd_with_length(cmd, SAM_STAT_GOOD, 8 + lun_count * 8);
 	return 0;
 }
 EXPORT_SYMBOL(spc_emulate_report_luns);
@@ -1281,7 +1304,7 @@ EXPORT_SYMBOL(spc_emulate_report_luns);
 static sense_reason_t
 spc_emulate_testunitready(struct se_cmd *cmd)
 {
-	target_complete_cmd(cmd, GOOD);
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
 }
 

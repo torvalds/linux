@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_ENTRY_H
 #define __ASM_CSKY_ENTRY_H
@@ -16,21 +15,16 @@
 #define LSAVE_A4	40
 #define LSAVE_A5	44
 
-#define EPC_INCREASE	2
-#define EPC_KEEP	0
+#define usp ss1
 
 .macro USPTOKSP
-	mtcr	sp, ss1
+	mtcr	sp, usp
 	mfcr	sp, ss0
 .endm
 
 .macro KSPTOUSP
 	mtcr	sp, ss0
-	mfcr	sp, ss1
-.endm
-
-.macro INCTRAP	rx
-	addi	\rx, EPC_INCREASE
+	mfcr	sp, usp
 .endm
 
 .macro	SAVE_ALL epc_inc
@@ -52,7 +46,13 @@
 	add	lr, r13
 	stw     lr, (sp, 8)
 
+	mov	lr, sp
+	addi	lr, 32
+	addi	lr, 32
+	addi	lr, 16
+	bt	2f
 	mfcr	lr, ss1
+2:
 	stw     lr, (sp, 16)
 
 	stw     a0, (sp, 20)
@@ -79,16 +79,16 @@
 .endm
 
 .macro	RESTORE_ALL
-	psrclr  ie
 	ldw	lr, (sp, 4)
 	ldw     a0, (sp, 8)
 	mtcr    a0, epc
 	ldw     a0, (sp, 12)
 	mtcr    a0, epsr
 	btsti   a0, 31
+	bt      1f
 	ldw     a0, (sp, 16)
 	mtcr	a0, ss1
-
+1:
 	ldw     a0, (sp, 24)
 	ldw     a1, (sp, 28)
 	ldw     a2, (sp, 32)
@@ -109,9 +109,9 @@
 	addi	sp, 32
 	addi	sp, 8
 
-	bt      1f
+	bt      2f
 	KSPTOUSP
-1:
+2:
 	rte
 .endm
 
@@ -150,11 +150,27 @@
 	cpwcr   \rx, cpcr8
 .endm
 
-.macro SETUP_MMU rx
-	lrw	\rx, PHYS_OFFSET | 0xe
-	cpwcr	\rx, cpcr30
-	lrw	\rx, (PHYS_OFFSET + 0x20000000) | 0xe
-	cpwcr	\rx, cpcr31
-.endm
+.macro SETUP_MMU
+	/* Init psr and enable ee */
+	lrw	r6, DEFAULT_PSR_VALUE
+	mtcr    r6, psr
+	psrset  ee
 
+	/* Select MMU as co-processor */
+	cpseti	cp15
+
+	/*
+	 * cpcr30 format:
+	 * 31 - 29 | 28 - 4 | 3 | 2 | 1 | 0
+	 *   BA     Reserved  C   D   V
+	 */
+	cprcr	r6, cpcr30
+	lsri	r6, 29
+	lsli	r6, 29
+	addi	r6, 0xe
+	cpwcr	r6, cpcr30
+
+	movi	r6, 0
+	cpwcr	r6, cpcr31
+.endm
 #endif /* __ASM_CSKY_ENTRY_H */

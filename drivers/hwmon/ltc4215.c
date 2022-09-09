@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Linear Technology LTC4215 I2C Hot Swap Controller
  *
  * Copyright (C) 2009 Ira W. Snyder <iws@ovro.caltech.edu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * Datasheet:
  * http://www.linear.com/pc/downloadDocument.do?navId=H0,C1,C1003,C1006,C1163,P17572,D12697
@@ -67,7 +64,7 @@ static struct ltc4215_data *ltc4215_update_device(struct device *dev)
 		}
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -142,7 +139,7 @@ static ssize_t ltc4215_voltage_show(struct device *dev,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	const int voltage = ltc4215_get_voltage(dev, attr->index);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", voltage);
+	return sysfs_emit(buf, "%d\n", voltage);
 }
 
 static ssize_t ltc4215_current_show(struct device *dev,
@@ -150,7 +147,7 @@ static ssize_t ltc4215_current_show(struct device *dev,
 {
 	const unsigned int curr = ltc4215_get_current(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", curr);
+	return sysfs_emit(buf, "%u\n", curr);
 }
 
 static ssize_t ltc4215_power_show(struct device *dev,
@@ -162,7 +159,7 @@ static ssize_t ltc4215_power_show(struct device *dev,
 	/* current in mA * voltage in mV == power in uW */
 	const unsigned int power = abs(output_voltage * curr);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", power);
+	return sysfs_emit(buf, "%u\n", power);
 }
 
 static ssize_t ltc4215_alarm_show(struct device *dev,
@@ -173,7 +170,7 @@ static ssize_t ltc4215_alarm_show(struct device *dev,
 	const u8 reg = data->regs[LTC4215_STATUS];
 	const u32 mask = attr->index;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", !!(reg & mask));
+	return sysfs_emit(buf, "%u\n", !!(reg & mask));
 }
 
 /*
@@ -221,8 +218,7 @@ static struct attribute *ltc4215_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ltc4215);
 
-static int ltc4215_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ltc4215_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
@@ -259,7 +255,7 @@ static struct i2c_driver ltc4215_driver = {
 	.driver = {
 		.name	= "ltc4215",
 	},
-	.probe		= ltc4215_probe,
+	.probe_new	= ltc4215_probe,
 	.id_table	= ltc4215_id,
 };
 

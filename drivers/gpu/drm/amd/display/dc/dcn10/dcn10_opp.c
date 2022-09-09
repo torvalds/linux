@@ -166,7 +166,10 @@ static void opp1_set_pixel_encoding(
 		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR422:
-		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 1);
+		REG_UPDATE_3(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 1,
+				FMT_SUBSAMPLING_MODE, 2,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 0);
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		REG_UPDATE(FMT_CONTROL, FMT_PIXEL_ENCODING, 2);
@@ -234,6 +237,9 @@ void opp1_set_dyn_expansion(
 	REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
 			FMT_DYNAMIC_EXP_EN, 0,
 			FMT_DYNAMIC_EXP_MODE, 0);
+
+	if (opp->dyn_expansion == DYN_EXPANSION_DISABLE)
+		return;
 
 	/*00 - 10-bit -> 12-bit dynamic expansion*/
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/
@@ -340,33 +346,6 @@ void opp1_program_stereo(
 	*/
 }
 
-void opp1_program_oppbuf(
-	struct output_pixel_processor *opp,
-	struct oppbuf_params *oppbuf)
-{
-	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
-
-	/* Program the oppbuf active width to be the frame width from mpc */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, oppbuf->active_width);
-
-	/* Specifies the number of segments in multi-segment mode (DP-MSO operation)
-	 * description  "In 1/2/4 segment mode, specifies the horizontal active width in pixels of the display panel.
-	 * In 4 segment split left/right mode, specifies the horizontal 1/2 active width in pixels of the display panel.
-	 * Used to determine segment boundaries in multi-segment mode. Used to determine the width of the vertical active space in 3D frame packed modes.
-	 * OPPBUF_ACTIVE_WIDTH must be integer divisible by the total number of segments."
-	 */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_DISPLAY_SEGMENTATION, oppbuf->mso_segmentation);
-
-	/* description  "Specifies the number of overlap pixels (1-8 overlapping pixels supported), used in multi-segment mode (DP-MSO operation)" */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_OVERLAP_PIXEL_NUM, oppbuf->mso_overlap_pixel_num);
-
-	/* description  "Specifies the number of times a pixel is replicated (0-15 pixel replications supported).
-	 * A value of 0 disables replication. The total number of times a pixel is output is OPPBUF_PIXEL_REPETITION + 1."
-	 */
-	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, oppbuf->pixel_repetition);
-
-}
-
 void opp1_pipe_clock_control(struct output_pixel_processor *opp, bool enable)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
@@ -391,6 +370,9 @@ static const struct opp_funcs dcn10_opp_funcs = {
 		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,
 		.opp_program_stereo = opp1_program_stereo,
 		.opp_pipe_clock_control = opp1_pipe_clock_control,
+		.opp_set_disp_pattern_generator = NULL,
+		.opp_program_dpg_dimensions = NULL,
+		.dpg_is_blanked = NULL,
 		.opp_destroy = opp1_destroy
 };
 

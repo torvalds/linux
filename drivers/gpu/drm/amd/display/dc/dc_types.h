@@ -25,6 +25,10 @@
 #ifndef DC_TYPES_H_
 #define DC_TYPES_H_
 
+/* AND EdidUtility only needs a portion
+ * of this file, including the rest only
+ * causes additional issues.
+ */
 #include "os_types.h"
 #include "fixed31_32.h"
 #include "irq_types.h"
@@ -33,12 +37,17 @@
 #include "dal_types.h"
 #include "grph_object_defs.h"
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+#include "dm_cp_psp.h"
+#endif
+
 /* forward declarations */
 struct dc_plane_state;
 struct dc_stream_state;
 struct dc_link;
 struct dc_sink;
 struct dal;
+struct dc_dmub_srv;
 
 /********************************
  * Environment definitions
@@ -51,7 +60,12 @@ enum dce_environment {
 	DCE_ENV_FPGA_MAXIMUS,
 	/* Emulation on real HW or on FPGA. Used by Diagnostics, enforces
 	 * requirements of Diagnostics team. */
-	DCE_ENV_DIAG
+	DCE_ENV_DIAG,
+	/*
+	 * Guest VM system, DC HW may exist but is not virtualized and
+	 * should not be used.  SW support for VDI only.
+	 */
+	DCE_ENV_VIRTUAL_HW
 };
 
 /* Note: use these macro definitions instead of direct comparison! */
@@ -61,18 +75,6 @@ enum dce_environment {
 #define IS_DIAG_DC(dce_environment) \
 	(IS_FPGA_MAXIMUS_DC(dce_environment) || (dce_environment == DCE_ENV_DIAG))
 
-struct hw_asic_id {
-	uint32_t chip_id;
-	uint32_t chip_family;
-	uint32_t pci_revision_id;
-	uint32_t hw_internal_rev;
-	uint32_t vram_type;
-	uint32_t vram_width;
-	uint32_t feature_flags;
-	uint32_t fake_paths_num;
-	void *atombios_base_address;
-};
-
 struct dc_perf_trace {
 	unsigned long read_count;
 	unsigned long write_count;
@@ -80,33 +82,11 @@ struct dc_perf_trace {
 	unsigned long last_entry_write;
 };
 
-struct dc_context {
-	struct dc *dc;
-
-	void *driver_context; /* e.g. amdgpu_device */
-	struct dc_perf_trace *perf_trace;
-	void *cgs_device;
-
-	enum dce_environment dce_environment;
-	struct hw_asic_id asic_id;
-
-	/* todo: below should probably move to dc.  to facilitate removal
-	 * of AS we will store these here
-	 */
-	enum dce_version dce_version;
-	struct dc_bios *dc_bios;
-	bool created_bios;
-	struct gpio_service *gpio_service;
-	struct i2caux *i2caux;
-	uint32_t dc_sink_id_count;
-	uint64_t fbc_gpu_addr;
-};
-
-
-#define DC_MAX_EDID_BUFFER_SIZE 512
-#define EDID_BLOCK_SIZE 128
+#define DC_MAX_EDID_BUFFER_SIZE 2048
+#define DC_EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
+#define MAX_REPEATER_CNT 8
 
 #include "dc_ddc_types.h"
 
@@ -157,6 +137,14 @@ enum dc_edid_status {
 	EDID_NO_RESPONSE,
 	EDID_BAD_CHECKSUM,
 	EDID_THE_SAME,
+	EDID_FALL_BACK,
+	EDID_PARTIAL_VALID,
+};
+
+enum act_return_status {
+	ACT_SUCCESS,
+	ACT_LINK_LOST,
+	ACT_FAILED
 };
 
 /* audio capability from EDID*/
@@ -201,6 +189,17 @@ union display_content_support {
 struct dc_panel_patch {
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
+	unsigned int extra_delay_backlight_off;
+	unsigned int extra_t7_ms;
+	unsigned int skip_scdc_overwrite;
+	unsigned int delay_ignore_msa;
+	unsigned int disable_fec;
+	unsigned int extra_t3_ms;
+	unsigned int max_dsc_target_bpp_limit;
+	unsigned int embedded_tiled_slave;
+	unsigned int disable_fams;
+	unsigned int skip_avmute;
+	unsigned int mst_start_top_delay;
 };
 
 struct dc_edid_caps {
@@ -224,6 +223,8 @@ struct dc_edid_caps {
 	uint8_t qs_bit;
 	uint8_t qy_bit;
 
+	uint32_t max_tmds_clk_mhz;
+
 	/*HDMI 2.0 caps*/
 	bool lte_340mcsc_scramble;
 
@@ -231,11 +232,6 @@ struct dc_edid_caps {
 	bool hdr_supported;
 
 	struct dc_panel_patch panel_patch;
-};
-
-struct view {
-	uint32_t width;
-	uint32_t height;
 };
 
 struct dc_mode_flags {
@@ -284,6 +280,8 @@ enum dc_timing_source {
 	TIMING_SOURCE_EDID_CEA_SVD,
 	TIMING_SOURCE_EDID_CVT_3BYTE,
 	TIMING_SOURCE_EDID_4BYTE,
+	TIMING_SOURCE_EDID_CEA_DISPLAYID_VTDB,
+	TIMING_SOURCE_EDID_CEA_RID,
 	TIMING_SOURCE_VBIOS,
 	TIMING_SOURCE_CV,
 	TIMING_SOURCE_TV,
@@ -366,7 +364,7 @@ enum dc_connection_type {
 	dc_connection_none,
 	dc_connection_single,
 	dc_connection_mst_branch,
-	dc_connection_active_dongle
+	dc_connection_sst_branch
 };
 
 struct dc_csc_adjustments {
@@ -382,6 +380,44 @@ enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_12BPC,
 	DOWN_STREAM_MAX_16BPC
 };
+
+
+enum link_training_offset {
+	DPRX                = 0,
+	LTTPR_PHY_REPEATER1 = 1,
+	LTTPR_PHY_REPEATER2 = 2,
+	LTTPR_PHY_REPEATER3 = 3,
+	LTTPR_PHY_REPEATER4 = 4,
+	LTTPR_PHY_REPEATER5 = 5,
+	LTTPR_PHY_REPEATER6 = 6,
+	LTTPR_PHY_REPEATER7 = 7,
+	LTTPR_PHY_REPEATER8 = 8
+};
+
+struct dc_lttpr_caps {
+	union dpcd_rev revision;
+	uint8_t mode;
+	uint8_t max_lane_count;
+	uint8_t max_link_rate;
+	uint8_t phy_repeater_cnt;
+	uint8_t max_ext_timeout;
+	union dp_main_link_channel_coding_lttpr_cap main_link_channel_coding;
+	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
+	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+};
+
+struct dc_dongle_dfp_cap_ext {
+	bool supported;
+	uint16_t max_pixel_rate_in_mps;
+	uint16_t max_video_h_active_width;
+	uint16_t max_video_v_active_height;
+	struct dp_encoding_format_caps encoding_format_caps;
+	struct dp_color_depth_caps rgb_color_depth_caps;
+	struct dp_color_depth_caps ycbcr444_color_depth_caps;
+	struct dp_color_depth_caps ycbcr422_color_depth_caps;
+	struct dp_color_depth_caps ycbcr420_color_depth_caps;
+};
+
 struct dc_dongle_caps {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
@@ -394,7 +430,9 @@ struct dc_dongle_caps {
 	bool is_dp_hdmi_ycbcr422_converter;
 	bool is_dp_hdmi_ycbcr420_converter;
 	uint32_t dp_hdmi_max_bpc;
-	uint32_t dp_hdmi_max_pixel_clk;
+	uint32_t dp_hdmi_max_pixel_clk_in_khz;
+	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
+	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
 };
 /* Scaling format */
 enum scaling_transformation {
@@ -418,6 +456,57 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_PHOTO = 2,
 	DISPLAY_CONTENT_TYPE_CINEMA = 4,
 	DISPLAY_CONTENT_TYPE_GAME = 8
+};
+
+enum cm_gamut_adjust_type {
+	CM_GAMUT_ADJUST_TYPE_BYPASS = 0,
+	CM_GAMUT_ADJUST_TYPE_HW, /* without adjustments */
+	CM_GAMUT_ADJUST_TYPE_SW /* use adjustments */
+};
+
+struct cm_grph_csc_adjustment {
+	struct fixed31_32 temperature_matrix[12];
+	enum cm_gamut_adjust_type gamut_adjust_type;
+	enum cm_gamut_coef_format gamut_coef_format;
+};
+
+/* writeback */
+struct dwb_stereo_params {
+	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
+	enum dwb_stereo_type		stereo_type;		/* indicates stereo format */
+	bool				stereo_polarity;	/* indicates left eye or right eye comes first in stereo mode */
+	enum dwb_stereo_eye_select	stereo_eye_select;	/* indicate which eye should be captured */
+};
+
+struct dc_dwb_cnv_params {
+	unsigned int		src_width;	/* input active width */
+	unsigned int		src_height;	/* input active height (half-active height in interlaced mode) */
+	unsigned int		crop_width;	/* cropped window width at cnv output */
+	bool			crop_en;	/* window cropping enable in cnv */
+	unsigned int		crop_height;	/* cropped window height at cnv output */
+	unsigned int		crop_x;		/* cropped window start x value at cnv output */
+	unsigned int		crop_y;		/* cropped window start y value at cnv output */
+	enum dwb_cnv_out_bpc cnv_out_bpc;	/* cnv output pixel depth - 8bpc or 10bpc */
+	enum dwb_out_format	fc_out_format;	/* dwb output pixel format - 2101010 or 16161616 and ARGB or RGBA */
+	enum dwb_out_denorm	out_denorm_mode;/* dwb output denormalization mode */
+	unsigned int		out_max_pix_val;/* pixel values greater than out_max_pix_val are clamped to out_max_pix_val */
+	unsigned int		out_min_pix_val;/* pixel values less than out_min_pix_val are clamped to out_min_pix_val */
+};
+
+struct dc_dwb_params {
+	unsigned int			dwbscl_black_color; /* must be in FP1.5.10 */
+	unsigned int			hdr_mult;	/* must be in FP1.6.12 */
+	struct cm_grph_csc_adjustment	csc_params;
+	struct dwb_stereo_params	stereo_params;
+	struct dc_dwb_cnv_params	cnv_params;	/* CNV source size and cropping window parameters */
+	unsigned int			dest_width;	/* Destination width */
+	unsigned int			dest_height;	/* Destination height */
+	enum dwb_scaler_mode		out_format;	/* default = YUV420 - TODO: limit this to 0 and 1 on dcn3 */
+	enum dwb_output_depth		output_depth;	/* output pixel depth - 8bpc or 10bpc */
+	enum dwb_capture_rate		capture_rate;	/* controls the frame capture rate */
+	struct scaling_taps 		scaler_taps;	/* Scaling taps */
+	enum dwb_subsample_position	subsample_position;
+	struct dc_transfer_func *out_transfer_func;
 };
 
 /* audio*/
@@ -520,12 +609,17 @@ struct audio_info {
 	/* this field must be last in this struct */
 	struct audio_mode modes[DC_MAX_AUDIO_DESC_COUNT];
 };
-
+struct audio_check {
+	unsigned int audio_packet_type;
+	unsigned int max_audiosample_rate;
+	unsigned int acat;
+};
 enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
 	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
 	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
+	DC_DP_INFOFRAME_TYPE_PPS = 0x10,
 };
 
 struct dc_info_packet {
@@ -537,6 +631,15 @@ struct dc_info_packet {
 	uint8_t sb[32];
 };
 
+struct dc_info_packet_128 {
+	bool valid;
+	uint8_t hb0;
+	uint8_t hb1;
+	uint8_t hb2;
+	uint8_t hb3;
+	uint8_t sb[128];
+};
+
 #define DC_PLANE_UPDATE_TIMES_MAX 10
 
 struct dc_plane_flip_time {
@@ -545,13 +648,48 @@ struct dc_plane_flip_time {
 	unsigned int prev_update_time_in_us;
 };
 
+enum dc_psr_state {
+	PSR_STATE0 = 0x0,
+	PSR_STATE1,
+	PSR_STATE1a,
+	PSR_STATE2,
+	PSR_STATE2a,
+	PSR_STATE2b,
+	PSR_STATE3,
+	PSR_STATE3Init,
+	PSR_STATE4,
+	PSR_STATE4a,
+	PSR_STATE4b,
+	PSR_STATE4c,
+	PSR_STATE4d,
+	PSR_STATE4_FULL_FRAME,
+	PSR_STATE4a_FULL_FRAME,
+	PSR_STATE4b_FULL_FRAME,
+	PSR_STATE4c_FULL_FRAME,
+	PSR_STATE4_FULL_FRAME_POWERUP,
+	PSR_STATE5,
+	PSR_STATE5a,
+	PSR_STATE5b,
+	PSR_STATE5c,
+	PSR_STATE_HWLOCK_MGR,
+	PSR_STATE_POLLVUPDATE,
+	PSR_STATE_INVALID = 0xFF
+};
+
 struct psr_config {
 	unsigned char psr_version;
 	unsigned int psr_rfb_setup_time;
 	bool psr_exit_link_training_required;
-
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
+	/* Panel self refresh 2 selective update granularity required */
+	bool su_granularity_required;
+	/* psr2 selective update y granularity capability */
+	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 union dmcu_psr_level {
@@ -566,7 +704,9 @@ union dmcu_psr_level {
 		unsigned int SKIP_AUTO_STATE_ADVANCE:1;
 		unsigned int DISABLE_PSR_ENTRY_ABORT:1;
 		unsigned int SKIP_SINGLE_OTG_DISABLE:1;
-		unsigned int RESERVED:22;
+		unsigned int DISABLE_ALPM:1;
+		unsigned int ALPM_DEFAULT_PD_MODE:1;
+		unsigned int RESERVED:20;
 	} bits;
 	unsigned int u32all;
 };
@@ -631,7 +771,7 @@ struct psr_context {
 	/* The VSync rate in Hz used to calculate the
 	 * step size for smooth brightness feature
 	 */
-	unsigned int vsyncRateHz;
+	unsigned int vsync_rate_hz;
 	unsigned int skipPsrWaitForPllLock;
 	unsigned int numberOfControllers;
 	/* Unused, for future use. To indicate that first changed frame from
@@ -653,6 +793,14 @@ struct psr_context {
 	 * continuing powerd own
 	 */
 	unsigned int frame_delay;
+	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
+	/* Panel self refresh 2 selective update granularity required */
+	bool su_granularity_required;
+	/* psr2 selective update y granularity capability */
+	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 struct colorspace_transform {
@@ -676,6 +824,173 @@ struct AsicStateEx {
 	unsigned int dcfClockDeepSleep;
 	unsigned int fClock;
 	unsigned int phyClock;
+};
+
+
+enum dc_clock_type {
+	DC_CLOCK_TYPE_DISPCLK = 0,
+	DC_CLOCK_TYPE_DPPCLK        = 1,
+};
+
+struct dc_clock_config {
+	uint32_t max_clock_khz;
+	uint32_t min_clock_khz;
+	uint32_t bw_requirequired_clock_khz;
+	uint32_t current_clock_khz;/*current clock in use*/
+};
+
+struct hw_asic_id {
+	uint32_t chip_id;
+	uint32_t chip_family;
+	uint32_t pci_revision_id;
+	uint32_t hw_internal_rev;
+	uint32_t vram_type;
+	uint32_t vram_width;
+	uint32_t feature_flags;
+	uint32_t fake_paths_num;
+	void *atombios_base_address;
+};
+
+struct dc_context {
+	struct dc *dc;
+
+	void *driver_context; /* e.g. amdgpu_device */
+	struct dc_perf_trace *perf_trace;
+	void *cgs_device;
+
+	enum dce_environment dce_environment;
+	struct hw_asic_id asic_id;
+
+	/* todo: below should probably move to dc.  to facilitate removal
+	 * of AS we will store these here
+	 */
+	enum dce_version dce_version;
+	struct dc_bios *dc_bios;
+	bool created_bios;
+	struct gpio_service *gpio_service;
+	uint32_t dc_sink_id_count;
+	uint32_t dc_stream_id_count;
+	uint32_t dc_edp_id_count;
+	uint64_t fbc_gpu_addr;
+	struct dc_dmub_srv *dmub_srv;
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct cp_psp cp_psp;
+#endif
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
+};
+
+/* DSC DPCD capabilities */
+union dsc_slice_caps1 {
+	struct {
+		uint8_t NUM_SLICES_1 : 1;
+		uint8_t NUM_SLICES_2 : 1;
+		uint8_t RESERVED : 1;
+		uint8_t NUM_SLICES_4 : 1;
+		uint8_t NUM_SLICES_6 : 1;
+		uint8_t NUM_SLICES_8 : 1;
+		uint8_t NUM_SLICES_10 : 1;
+		uint8_t NUM_SLICES_12 : 1;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_slice_caps2 {
+	struct {
+		uint8_t NUM_SLICES_16 : 1;
+		uint8_t NUM_SLICES_20 : 1;
+		uint8_t NUM_SLICES_24 : 1;
+		uint8_t RESERVED : 5;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_formats {
+	struct {
+		uint8_t RGB : 1;
+		uint8_t YCBCR_444 : 1;
+		uint8_t YCBCR_SIMPLE_422 : 1;
+		uint8_t YCBCR_NATIVE_422 : 1;
+		uint8_t YCBCR_NATIVE_420 : 1;
+		uint8_t RESERVED : 3;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_depth {
+	struct {
+		uint8_t RESERVED1 : 1;
+		uint8_t COLOR_DEPTH_8_BPC : 1;
+		uint8_t COLOR_DEPTH_10_BPC : 1;
+		uint8_t COLOR_DEPTH_12_BPC : 1;
+		uint8_t RESERVED2 : 3;
+	} bits;
+	uint8_t raw;
+};
+
+struct dsc_dec_dpcd_caps {
+	bool is_dsc_supported;
+	uint8_t dsc_version;
+	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
+	union dsc_slice_caps1 slice_caps1;
+	union dsc_slice_caps2 slice_caps2;
+	int32_t lb_bit_depth;
+	bool is_block_pred_supported;
+	int32_t edp_max_bits_per_pixel; /* Valid only in eDP */
+	union dsc_color_formats color_formats;
+	union dsc_color_depth color_depth;
+	int32_t throughput_mode_0_mps; /* In MPs */
+	int32_t throughput_mode_1_mps; /* In MPs */
+	int32_t max_slice_width;
+	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
+
+	/* Extended DSC caps */
+	uint32_t branch_overall_throughput_0_mps; /* In MPs */
+	uint32_t branch_overall_throughput_1_mps; /* In MPs */
+	uint32_t branch_max_line_width;
+	bool is_dp;
+};
+
+struct dc_golden_table {
+	uint16_t dc_golden_table_ver;
+	uint32_t aux_dphy_rx_control0_val;
+	uint32_t aux_dphy_tx_control_val;
+	uint32_t aux_dphy_rx_control1_val;
+	uint32_t dc_gpio_aux_ctrl_0_val;
+	uint32_t dc_gpio_aux_ctrl_1_val;
+	uint32_t dc_gpio_aux_ctrl_2_val;
+	uint32_t dc_gpio_aux_ctrl_3_val;
+	uint32_t dc_gpio_aux_ctrl_4_val;
+	uint32_t dc_gpio_aux_ctrl_5_val;
+};
+
+enum dc_gpu_mem_alloc_type {
+	DC_MEM_ALLOC_TYPE_GART,
+	DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+	DC_MEM_ALLOC_TYPE_INVISIBLE_FRAME_BUFFER,
+	DC_MEM_ALLOC_TYPE_AGP
+};
+
+enum dc_psr_version {
+	DC_PSR_VERSION_1			= 0,
+	DC_PSR_VERSION_SU_1			= 1,
+	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
+};
+
+/* Possible values of display_endpoint_id.endpoint */
+enum display_endpoint_type {
+	DISPLAY_ENDPOINT_PHY = 0, /* Physical connector. */
+	DISPLAY_ENDPOINT_USB4_DPIA, /* USB4 DisplayPort tunnel. */
+	DISPLAY_ENDPOINT_UNKNOWN = -1
+};
+
+/* Extends graphics_object_id with an additional member 'ep_type' for
+ * distinguishing between physical endpoints (with entries in BIOS connector table) and
+ * logical endpoints.
+ */
+struct display_endpoint_id {
+	struct graphics_object_id link_id;
+	enum display_endpoint_type ep_type;
 };
 
 #endif /* DC_TYPES_H_ */

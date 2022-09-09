@@ -364,8 +364,7 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 	if (i)
 		return i;
 
-	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[i] = SA_prom[i];
+	eth_hw_addr_set(dev, SA_prom);
 
 	pr_debug("Found ethernet address: %pM\n", dev->dev_addr);
 

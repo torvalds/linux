@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -11,22 +12,6 @@
  * upwards to the ULP.
  *
  * This file is part of the SCTP kernel implementation
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -95,13 +80,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_assoc_change(
 	struct sctp_chunk *chunk,
 	gfp_t gfp);
 
-struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
-	const struct sctp_association *asoc,
-	const struct sockaddr_storage *aaddr,
-	int flags,
-	int state,
-	int error,
-	gfp_t gfp);
+void sctp_ulpevent_notify_peer_addr_change(struct sctp_transport *transport,
+					   int state, int error);
 
 struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
 	const struct sctp_association *asoc,
@@ -109,6 +89,13 @@ struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
 	__u16 flags,
 	gfp_t gfp);
 struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
+	const struct sctp_association *asoc,
+	struct sctp_chunk *chunk,
+	__u16 flags,
+	__u32 error,
+	gfp_t gfp);
+
+struct sctp_ulpevent *sctp_ulpevent_make_send_failed_event(
 	const struct sctp_association *asoc,
 	struct sctp_chunk *chunk,
 	__u16 flags,

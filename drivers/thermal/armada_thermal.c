@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Marvell EBU Armada SoCs thermal sensor driver
  *
  * Copyright (C) 2013 Marvell
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/device.h>
 #include <linux/err.h>
@@ -29,8 +20,6 @@
 #include <linux/interrupt.h>
 
 #include "thermal_core.h"
-
-#define TO_MCELSIUS(c)			((c) * 1000)
 
 /* Thermal Manager Control and Status Register */
 #define PMU_TDC0_SW_RST_MASK		(0x1 << 1)
@@ -62,7 +51,6 @@
 #define CONTROL0_TSEN_MODE_EXTERNAL	0x2
 #define CONTROL0_TSEN_MODE_MASK		0x3
 
-#define CONTROL1_TSEN_AVG_SHIFT		0
 #define CONTROL1_TSEN_AVG_MASK		0x7
 #define CONTROL1_EXT_TSEN_SW_RESET	BIT(7)
 #define CONTROL1_EXT_TSEN_HW_RESETn	BIT(8)
@@ -163,6 +151,9 @@ static void armadaxp_init(struct platform_device *pdev,
 	/* Reset the sensor */
 	reg |= PMU_TDC0_SW_RST_MASK;
 
+	regmap_write(priv->syscon, data->syscon_control1_off, reg);
+
+	reg &= ~PMU_TDC0_SW_RST_MASK;
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 
 	/* Enable the sensor */
@@ -276,8 +267,8 @@ static void armada_cp110_init(struct platform_device *pdev,
 
 	/* Average the output value over 2^1 = 2 samples */
 	regmap_read(priv->syscon, data->syscon_control1_off, &reg);
-	reg &= ~CONTROL1_TSEN_AVG_MASK << CONTROL1_TSEN_AVG_SHIFT;
-	reg |= 1 << CONTROL1_TSEN_AVG_SHIFT;
+	reg &= ~CONTROL1_TSEN_AVG_MASK;
+	reg |= 1;
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 }
 
@@ -588,7 +579,7 @@ static const struct armada_thermal_data armadaxp_data = {
 	.coef_m = 10000000ULL,
 	.coef_div = 13825,
 	.syscon_status_off = 0xb0,
-	.syscon_control1_off = 0xd0,
+	.syscon_control1_off = 0x2d0,
 };
 
 static const struct armada_thermal_data armada370_data = {
@@ -881,6 +872,12 @@ static int armada_thermal_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"Failed to register thermal zone device\n");
 			return PTR_ERR(tz);
+		}
+
+		ret = thermal_zone_device_enable(tz);
+		if (ret) {
+			thermal_zone_device_unregister(tz);
+			return ret;
 		}
 
 		drvdata->type = LEGACY;

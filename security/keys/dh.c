@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Crypto operations using stored keys
  *
  * Copyright (c) 2016, Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/slab.h>
@@ -15,10 +11,11 @@
 #include <crypto/hash.h>
 #include <crypto/kpp.h>
 #include <crypto/dh.h>
+#include <crypto/kdf_sp800108.h>
 #include <keys/user-type.h>
 #include "internal.h"
 
-static ssize_t dh_data_from_key(key_serial_t keyid, void **data)
+static ssize_t dh_data_from_key(key_serial_t keyid, const void **data)
 {
 	struct key *key;
 	key_ref_t key_ref;
@@ -62,9 +59,9 @@ error:
 
 static void dh_free_data(struct dh *dh)
 {
-	kzfree(dh->key);
-	kzfree(dh->p);
-	kzfree(dh->g);
+	kfree_sensitive(dh->key);
+	kfree_sensitive(dh->p);
+	kfree_sensitive(dh->g);
 }
 
 struct dh_completion {
@@ -83,17 +80,9 @@ static void dh_crypto_done(struct crypto_async_request *req, int err)
 	complete(&compl->completion);
 }
 
-struct kdf_sdesc {
-	struct shash_desc shash;
-	char ctx[];
-};
-
-static int kdf_alloc(struct kdf_sdesc **sdesc_ret, char *hashname)
+static int kdf_alloc(struct crypto_shash **hash, char *hashname)
 {
 	struct crypto_shash *tfm;
-	struct kdf_sdesc *sdesc;
-	int size;
-	int err;
 
 	/* allocate synchronous hash */
 	tfm = crypto_alloc_shash(hashname, 0, 0);
@@ -102,113 +91,30 @@ static int kdf_alloc(struct kdf_sdesc **sdesc_ret, char *hashname)
 		return PTR_ERR(tfm);
 	}
 
-	err = -EINVAL;
-	if (crypto_shash_digestsize(tfm) == 0)
-		goto out_free_tfm;
-
-	err = -ENOMEM;
-	size = sizeof(struct shash_desc) + crypto_shash_descsize(tfm);
-	sdesc = kmalloc(size, GFP_KERNEL);
-	if (!sdesc)
-		goto out_free_tfm;
-	sdesc->shash.tfm = tfm;
-	sdesc->shash.flags = 0x0;
-
-	*sdesc_ret = sdesc;
-
-	return 0;
-
-out_free_tfm:
-	crypto_free_shash(tfm);
-	return err;
-}
-
-static void kdf_dealloc(struct kdf_sdesc *sdesc)
-{
-	if (!sdesc)
-		return;
-
-	if (sdesc->shash.tfm)
-		crypto_free_shash(sdesc->shash.tfm);
-
-	kzfree(sdesc);
-}
-
-/*
- * Implementation of the KDF in counter mode according to SP800-108 section 5.1
- * as well as SP800-56A section 5.8.1 (Single-step KDF).
- *
- * SP800-56A:
- * The src pointer is defined as Z || other info where Z is the shared secret
- * from DH and other info is an arbitrary string (see SP800-56A section
- * 5.8.1.2).
- *
- * 'dlen' must be a multiple of the digest size.
- */
-static int kdf_ctr(struct kdf_sdesc *sdesc, const u8 *src, unsigned int slen,
-		   u8 *dst, unsigned int dlen, unsigned int zlen)
-{
-	struct shash_desc *desc = &sdesc->shash;
-	unsigned int h = crypto_shash_digestsize(desc->tfm);
-	int err = 0;
-	u8 *dst_orig = dst;
-	__be32 counter = cpu_to_be32(1);
-
-	while (dlen) {
-		err = crypto_shash_init(desc);
-		if (err)
-			goto err;
-
-		err = crypto_shash_update(desc, (u8 *)&counter, sizeof(__be32));
-		if (err)
-			goto err;
-
-		if (zlen && h) {
-			u8 tmpbuffer[32];
-			size_t chunk = min_t(size_t, zlen, sizeof(tmpbuffer));
-			memset(tmpbuffer, 0, chunk);
-
-			do {
-				err = crypto_shash_update(desc, tmpbuffer,
-							  chunk);
-				if (err)
-					goto err;
-
-				zlen -= chunk;
-				chunk = min_t(size_t, zlen, sizeof(tmpbuffer));
-			} while (zlen);
-		}
-
-		if (src && slen) {
-			err = crypto_shash_update(desc, src, slen);
-			if (err)
-				goto err;
-		}
-
-		err = crypto_shash_final(desc, dst);
-		if (err)
-			goto err;
-
-		dlen -= h;
-		dst += h;
-		counter = cpu_to_be32(be32_to_cpu(counter) + 1);
+	if (crypto_shash_digestsize(tfm) == 0) {
+		crypto_free_shash(tfm);
+		return -EINVAL;
 	}
 
-	return 0;
+	*hash = tfm;
 
-err:
-	memzero_explicit(dst_orig, dlen);
-	return err;
+	return 0;
 }
 
-static int keyctl_dh_compute_kdf(struct kdf_sdesc *sdesc,
-				 char __user *buffer, size_t buflen,
-				 uint8_t *kbuf, size_t kbuflen, size_t lzero)
+static void kdf_dealloc(struct crypto_shash *hash)
 {
+	if (hash)
+		crypto_free_shash(hash);
+}
+
+static int keyctl_dh_compute_kdf(struct crypto_shash *hash,
+				 char __user *buffer, size_t buflen,
+				 uint8_t *kbuf, size_t kbuflen)
+{
+	struct kvec kbuf_iov = { .iov_base = kbuf, .iov_len = kbuflen };
 	uint8_t *outbuf = NULL;
 	int ret;
-	size_t outbuf_len = roundup(buflen,
-				    crypto_shash_digestsize(sdesc->shash.tfm));
+	size_t outbuf_len = roundup(buflen, crypto_shash_digestsize(hash));
 
 	outbuf = kmalloc(outbuf_len, GFP_KERNEL);
 	if (!outbuf) {
@@ -216,7 +122,7 @@ static int keyctl_dh_compute_kdf(struct kdf_sdesc *sdesc,
 		goto err;
 	}
 
-	ret = kdf_ctr(sdesc, kbuf, kbuflen, outbuf, outbuf_len, lzero);
+	ret = crypto_kdf108_ctr_generate(hash, &kbuf_iov, 1, outbuf, outbuf_len);
 	if (ret)
 		goto err;
 
@@ -225,7 +131,7 @@ static int keyctl_dh_compute_kdf(struct kdf_sdesc *sdesc,
 		ret = -EFAULT;
 
 err:
-	kzfree(outbuf);
+	kfree_sensitive(outbuf);
 	return ret;
 }
 
@@ -245,7 +151,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	struct kpp_request *req;
 	uint8_t *secret;
 	uint8_t *outbuf;
-	struct kdf_sdesc *sdesc = NULL;
+	struct crypto_shash *hash = NULL;
 
 	if (!params || (!buffer && buflen)) {
 		ret = -EINVAL;
@@ -278,7 +184,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 		}
 
 		/* allocate KDF from the kernel crypto API */
-		ret = kdf_alloc(&sdesc, hashname);
+		ret = kdf_alloc(&hash, hashname);
 		kfree(hashname);
 		if (ret)
 			goto out1;
@@ -388,9 +294,8 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 			goto out6;
 		}
 
-		ret = keyctl_dh_compute_kdf(sdesc, buffer, buflen, outbuf,
-					    req->dst_len + kdfcopy->otherinfolen,
-					    outlen - req->dst_len);
+		ret = keyctl_dh_compute_kdf(hash, buffer, buflen, outbuf,
+					    req->dst_len + kdfcopy->otherinfolen);
 	} else if (copy_to_user(buffer, outbuf, req->dst_len) == 0) {
 		ret = req->dst_len;
 	} else {
@@ -400,15 +305,15 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 out6:
 	kpp_request_free(req);
 out5:
-	kzfree(outbuf);
+	kfree_sensitive(outbuf);
 out4:
 	crypto_free_kpp(tfm);
 out3:
-	kzfree(secret);
+	kfree_sensitive(secret);
 out2:
 	dh_free_data(&dh_inputs);
 out1:
-	kdf_dealloc(sdesc);
+	kdf_dealloc(hash);
 	return ret;
 }
 

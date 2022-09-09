@@ -75,22 +75,22 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "cubietruck:blue:usr";
 			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>;
 		};
 
-		orange {
+		led-1 {
 			label = "cubietruck:orange:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};
 
-		white {
+		led-2 {
 			label = "cubietruck:white:usr";
 			gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		green {
+		led-3 {
 			label = "cubietruck:green:usr";
 			gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>;
 		};
@@ -150,13 +150,9 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_rgmii_pins>;
-	phy = <&phy1>;
-	phy-mode = "rgmii";
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-id";
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &hdmi {
@@ -192,6 +188,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
+};
+
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mmc0 {

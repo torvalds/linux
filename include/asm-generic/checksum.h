@@ -16,29 +16,6 @@
  */
 extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 
-/*
- * the same as csum_partial, but copies from src while it
- * checksums
- *
- * here even more important to align src and dst on a 32-bit (or even
- * better 64-bit) boundary
- */
-extern __wsum csum_partial_copy(const void *src, void *dst, int len, __wsum sum);
-
-/*
- * the same as csum_partial_copy, but copies from user space.
- *
- * here even more important to align src and dst on a 32-bit (or even
- * better 64-bit) boundary
- */
-extern __wsum csum_partial_copy_from_user(const void __user *src, void *dst,
-					int len, __wsum sum, int *csum_err);
-
-#ifndef csum_partial_copy_nocheck
-#define csum_partial_copy_nocheck(src, dst, len, sum)	\
-	csum_partial_copy((src), (dst), (len), (sum))
-#endif
-
 #ifndef ip_fast_csum
 /*
  * This is a version of ip_compute_csum() optimized for IP headers,

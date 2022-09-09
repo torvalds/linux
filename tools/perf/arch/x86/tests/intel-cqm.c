@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "tests/tests.h"
-#include "perf.h"
 #include "cloexec.h"
 #include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "arch-tests.h"
+#include <internal/lib.h> // page_size
 
 #include <signal.h>
 #include <sys/mman.h>
@@ -37,10 +37,10 @@ static pid_t spawn(void)
  * the last read counter value to avoid triggering a WARN_ON_ONCE() in
  * smp_call_function_many() caused by sending IPIs from NMI context.
  */
-int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subtest __maybe_unused)
+int test__intel_cqm_count_nmi_context(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel = NULL;
+	struct evlist *evlist = NULL;
+	struct evsel *evsel = NULL;
 	struct perf_event_attr pe;
 	int i, fd[2], flag, ret;
 	size_t mmap_len;
@@ -50,22 +50,22 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 
 	flag = perf_event_open_cloexec_flag();
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
-		pr_debug("perf_evlist__new failed\n");
+		pr_debug("evlist__new failed\n");
 		return TEST_FAIL;
 	}
 
-	ret = parse_events(evlist, "intel_cqm/llc_occupancy/", NULL);
+	ret = parse_event(evlist, "intel_cqm/llc_occupancy/");
 	if (ret) {
 		pr_debug("parse_events failed, is \"intel_cqm/llc_occupancy/\" available?\n");
 		err = TEST_SKIP;
 		goto out;
 	}
 
-	evsel = perf_evlist__first(evlist);
+	evsel = evlist__first(evlist);
 	if (!evsel) {
-		pr_debug("perf_evlist__first failed\n");
+		pr_debug("evlist__first failed\n");
 		goto out;
 	}
 
@@ -123,6 +123,6 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 	kill(pid, SIGKILL);
 	wait(NULL);
 out:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }

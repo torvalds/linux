@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sysfs.c sysfs ABI access functions for TMON program
  *
  * Copyright (C) 2013 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 or later as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Author: Jacob Pan <jacob.jun.pan@linux.intel.com>
- *
  */
 #include <unistd.h>
 #include <stdio.h>
@@ -22,6 +13,7 @@
 #include <stdint.h>
 #include <dirent.h>
 #include <libintl.h>
+#include <limits.h>
 #include <ctype.h>
 #include <time.h>
 #include <syslog.h>
@@ -42,9 +34,9 @@ int sysfs_set_ulong(char *path, char *filename, unsigned long val)
 {
 	FILE *fd;
 	int ret = -1;
-	char filepath[256];
+	char filepath[PATH_MAX + 2]; /* NUL and '/' */
 
-	snprintf(filepath, 256, "%s/%s", path, filename);
+	snprintf(filepath, sizeof(filepath), "%s/%s", path, filename);
 
 	fd = fopen(filepath, "w");
 	if (!fd) {
@@ -66,9 +58,9 @@ static int sysfs_get_ulong(char *path, char *filename, unsigned long *p_ulong)
 {
 	FILE *fd;
 	int ret = -1;
-	char filepath[256];
+	char filepath[PATH_MAX + 2]; /* NUL and '/' */
 
-	snprintf(filepath, 256, "%s/%s", path, filename);
+	snprintf(filepath, sizeof(filepath), "%s/%s", path, filename);
 
 	fd = fopen(filepath, "r");
 	if (!fd) {
@@ -85,9 +77,9 @@ static int sysfs_get_string(char *path, char *filename, char *str)
 {
 	FILE *fd;
 	int ret = -1;
-	char filepath[256];
+	char filepath[PATH_MAX + 2]; /* NUL and '/' */
 
-	snprintf(filepath, 256, "%s/%s", path, filename);
+	snprintf(filepath, sizeof(filepath), "%s/%s", path, filename);
 
 	fd = fopen(filepath, "r");
 	if (!fd) {
@@ -208,8 +200,8 @@ static int find_tzone_cdev(struct dirent *nl, char *tz_name,
 {
 	unsigned long trip_instance = 0;
 	char cdev_name_linked[256];
-	char cdev_name[256];
-	char cdev_trip_name[256];
+	char cdev_name[PATH_MAX];
+	char cdev_trip_name[PATH_MAX];
 	int cdev_id;
 
 	if (nl->d_type == DT_LNK) {
@@ -222,7 +214,8 @@ static int find_tzone_cdev(struct dirent *nl, char *tz_name,
 			return -EINVAL;
 		}
 		/* find the link to real cooling device record binding */
-		snprintf(cdev_name, 256, "%s/%s", tz_name, nl->d_name);
+		snprintf(cdev_name, sizeof(cdev_name) - 2, "%s/%s",
+			 tz_name, nl->d_name);
 		memset(cdev_name_linked, 0, sizeof(cdev_name_linked));
 		if (readlink(cdev_name, cdev_name_linked,
 				sizeof(cdev_name_linked) - 1) != -1) {
@@ -235,8 +228,8 @@ static int find_tzone_cdev(struct dirent *nl, char *tz_name,
 			/* find the trip point in which the cdev is binded to
 			 * in this tzone
 			 */
-			snprintf(cdev_trip_name, 256, "%s%s", nl->d_name,
-				"_trip_point");
+			snprintf(cdev_trip_name, sizeof(cdev_trip_name) - 1,
+				"%s%s", nl->d_name, "_trip_point");
 			sysfs_get_ulong(tz_name, cdev_trip_name,
 					&trip_instance);
 			/* validate trip point range, e.g. trip could return -1

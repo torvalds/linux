@@ -156,7 +156,6 @@ void mls_sid_to_context(struct policydb *p,
 	}
 
 	*scontext = scontextp;
-	return;
 }
 
 int mls_level_isvalid(struct policydb *p, struct mls_level *l)
@@ -165,8 +164,8 @@ int mls_level_isvalid(struct policydb *p, struct mls_level *l)
 
 	if (!l->sens || l->sens > p->p_levels.nprim)
 		return 0;
-	levdatum = hashtab_search(p->p_levels.table,
-				  sym_name(p, SYM_LEVELS, l->sens - 1));
+	levdatum = symtab_search(&p->p_levels,
+				 sym_name(p, SYM_LEVELS, l->sens - 1));
 	if (!levdatum)
 		return 0;
 
@@ -293,7 +292,7 @@ int mls_context_to_sid(struct policydb *pol,
 			*(next_cat++) = '\0';
 
 		/* Parse sensitivity. */
-		levdatum = hashtab_search(pol->p_levels.table, sensitivity);
+		levdatum = symtab_search(&pol->p_levels, sensitivity);
 		if (!levdatum)
 			return -EINVAL;
 		context->range.level[l].sens = levdatum->level->sens;
@@ -312,7 +311,7 @@ int mls_context_to_sid(struct policydb *pol,
 				*rngptr++ = '\0';
 			}
 
-			catdatum = hashtab_search(pol->p_cats.table, cur_cat);
+			catdatum = symtab_search(&pol->p_cats, cur_cat);
 			if (!catdatum)
 				return -EINVAL;
 
@@ -325,7 +324,7 @@ int mls_context_to_sid(struct policydb *pol,
 			if (rngptr == NULL)
 				continue;
 
-			rngdatum = hashtab_search(pol->p_cats.table, rngptr);
+			rngdatum = symtab_search(&pol->p_cats, rngptr);
 			if (!rngdatum)
 				return -EINVAL;
 
@@ -458,9 +457,10 @@ int mls_convert_context(struct policydb *oldp,
 		return 0;
 
 	for (l = 0; l < 2; l++) {
-		levdatum = hashtab_search(newp->p_levels.table,
-					  sym_name(oldp, SYM_LEVELS,
-						   oldc->range.level[l].sens - 1));
+		char *name = sym_name(oldp, SYM_LEVELS,
+				      oldc->range.level[l].sens - 1);
+
+		levdatum = symtab_search(&newp->p_levels, name);
 
 		if (!levdatum)
 			return -EINVAL;
@@ -470,8 +470,8 @@ int mls_convert_context(struct policydb *oldp,
 					      node, i) {
 			int rc;
 
-			catdatum = hashtab_search(newp->p_cats.table,
-						  sym_name(oldp, SYM_CATS, i));
+			catdatum = symtab_search(&newp->p_cats,
+						 sym_name(oldp, SYM_CATS, i));
 			if (!catdatum)
 				return -EINVAL;
 			rc = ebitmap_set_bit(&newc->range.level[l].cat,
@@ -506,7 +506,7 @@ int mls_compute_sid(struct policydb *p,
 		rtr.source_type = scontext->type;
 		rtr.target_type = tcontext->type;
 		rtr.target_class = tclass;
-		r = hashtab_search(p->range_tr, &rtr);
+		r = policydb_rangetr_search(p, &rtr);
 		if (r)
 			return mls_range_set(newcontext, r);
 
@@ -529,11 +529,14 @@ int mls_compute_sid(struct policydb *p,
 			return mls_context_cpy_high(newcontext, tcontext);
 		case DEFAULT_TARGET_LOW_HIGH:
 			return mls_context_cpy(newcontext, tcontext);
+		case DEFAULT_GLBLUB:
+			return mls_context_glblub(newcontext,
+						  scontext, tcontext);
 		}
 
-		/* Fallthrough */
+		fallthrough;
 	case AVTAB_CHANGE:
-		if ((tclass == p->process_class) || (sock == true))
+		if ((tclass == p->process_class) || sock)
 			/* Use the process MLS attributes. */
 			return mls_context_cpy(newcontext, scontext);
 		else
@@ -542,8 +545,6 @@ int mls_compute_sid(struct policydb *p,
 	case AVTAB_MEMBER:
 		/* Use the process effective MLS attributes. */
 		return mls_context_cpy_low(newcontext, scontext);
-
-	/* fall through */
 	}
 	return -EINVAL;
 }
@@ -551,6 +552,7 @@ int mls_compute_sid(struct policydb *p,
 #ifdef CONFIG_NETLABEL
 /**
  * mls_export_netlbl_lvl - Export the MLS sensitivity levels to NetLabel
+ * @p: the policy
  * @context: the security context
  * @secattr: the NetLabel security attributes
  *
@@ -572,6 +574,7 @@ void mls_export_netlbl_lvl(struct policydb *p,
 
 /**
  * mls_import_netlbl_lvl - Import the NetLabel MLS sensitivity levels
+ * @p: the policy
  * @context: the security context
  * @secattr: the NetLabel security attributes
  *
@@ -593,6 +596,7 @@ void mls_import_netlbl_lvl(struct policydb *p,
 
 /**
  * mls_export_netlbl_cat - Export the MLS categories to NetLabel
+ * @p: the policy
  * @context: the security context
  * @secattr: the NetLabel security attributes
  *
@@ -620,6 +624,7 @@ int mls_export_netlbl_cat(struct policydb *p,
 
 /**
  * mls_import_netlbl_cat - Import the MLS categories from NetLabel
+ * @p: the policy
  * @context: the security context
  * @secattr: the NetLabel security attributes
  *

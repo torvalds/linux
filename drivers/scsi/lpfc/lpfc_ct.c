@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -44,7 +44,6 @@
 #include "lpfc_disc.h"
 #include "lpfc.h"
 #include "lpfc_scsi.h"
-#include "lpfc_nvme.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_version.h"
@@ -76,6 +75,9 @@
 
 
 static char *lpfc_release_version = LPFC_DRIVER_VERSION;
+static void
+lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		      struct lpfc_iocbq *rspiocb);
 
 static void
 lpfc_ct_ignore_hbq_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
@@ -85,12 +87,12 @@ lpfc_ct_ignore_hbq_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 		lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 				"0146 Ignoring unsolicited CT No HBQ "
 				"status = x%x\n",
-				piocbq->iocb.ulpStatus);
+				get_job_ulpstatus(phba, piocbq));
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"0145 Ignoring unsolicted CT HBQ Size:%d "
 			"status = x%x\n",
-			size, piocbq->iocb.ulpStatus);
+			size, get_job_ulpstatus(phba, piocbq));
 }
 
 static void
@@ -100,79 +102,348 @@ lpfc_ct_unsol_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 	lpfc_ct_ignore_hbq_buffer(phba, piocbq, mp, size);
 }
 
-void
-lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-		    struct lpfc_iocbq *piocbq)
+/**
+ * lpfc_ct_unsol_cmpl : Completion callback function for unsol ct commands
+ * @phba : pointer to lpfc hba data structure.
+ * @cmdiocb : pointer to lpfc command iocb data structure.
+ * @rspiocb : pointer to lpfc response iocb data structure.
+ *
+ * This routine is the callback function for issuing unsol ct reject command.
+ * The memory allocated in the reject command path is freed up here.
+ **/
+static void
+lpfc_ct_unsol_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		   struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_dmabuf *mp = NULL;
-	IOCB_t *icmd = &piocbq->iocb;
-	int i;
-	struct lpfc_iocbq *iocbq;
-	dma_addr_t paddr;
-	uint32_t size;
-	struct list_head head;
-	struct lpfc_dmabuf *bdeBuf;
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_dmabuf *mp, *bmp;
 
-	if (lpfc_bsg_ct_unsol_event(phba, pring, piocbq) == 0)
+	ndlp = cmdiocb->ndlp;
+	if (ndlp)
+		lpfc_nlp_put(ndlp);
+
+	mp = cmdiocb->rsp_dmabuf;
+	bmp = cmdiocb->bpl_dmabuf;
+	if (mp) {
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
+		cmdiocb->rsp_dmabuf = NULL;
+	}
+
+	if (bmp) {
+		lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
+		kfree(bmp);
+		cmdiocb->bpl_dmabuf = NULL;
+	}
+
+	lpfc_sli_release_iocbq(phba, cmdiocb);
+}
+
+/**
+ * lpfc_ct_reject_event - Issue reject for unhandled CT MIB commands
+ * @ndlp: pointer to a node-list data structure.
+ * @ct_req: pointer to the CT request data structure.
+ * @ulp_context: context of received UNSOL CT command
+ * @ox_id: ox_id of the UNSOL CT command
+ *
+ * This routine is invoked by the lpfc_ct_handle_mibreq routine for sending
+ * a reject response. Reject response is sent for the unhandled commands.
+ **/
+static void
+lpfc_ct_reject_event(struct lpfc_nodelist *ndlp,
+		     struct lpfc_sli_ct_request *ct_req,
+		     u16 ulp_context, u16 ox_id)
+{
+	struct lpfc_vport *vport = ndlp->vport;
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_sli_ct_request *ct_rsp;
+	struct lpfc_iocbq *cmdiocbq = NULL;
+	struct lpfc_dmabuf *bmp = NULL;
+	struct lpfc_dmabuf *mp = NULL;
+	struct ulp_bde64 *bpl;
+	u8 rc = 0;
+	u32 tmo;
+
+	/* fill in BDEs for command */
+	mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+	if (!mp) {
+		rc = 1;
+		goto ct_exit;
+	}
+
+	mp->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &mp->phys);
+	if (!mp->virt) {
+		rc = 2;
+		goto ct_free_mp;
+	}
+
+	/* Allocate buffer for Buffer ptr list */
+	bmp = kmalloc(sizeof(*bmp), GFP_KERNEL);
+	if (!bmp) {
+		rc = 3;
+		goto ct_free_mpvirt;
+	}
+
+	bmp->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &bmp->phys);
+	if (!bmp->virt) {
+		rc = 4;
+		goto ct_free_bmp;
+	}
+
+	INIT_LIST_HEAD(&mp->list);
+	INIT_LIST_HEAD(&bmp->list);
+
+	bpl = (struct ulp_bde64 *)bmp->virt;
+	memset(bpl, 0, sizeof(struct ulp_bde64));
+	bpl->addrHigh = le32_to_cpu(putPaddrHigh(mp->phys));
+	bpl->addrLow = le32_to_cpu(putPaddrLow(mp->phys));
+	bpl->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+	bpl->tus.f.bdeSize = (LPFC_CT_PREAMBLE - 4);
+	bpl->tus.w = le32_to_cpu(bpl->tus.w);
+
+	ct_rsp = (struct lpfc_sli_ct_request *)mp->virt;
+	memset(ct_rsp, 0, sizeof(struct lpfc_sli_ct_request));
+
+	ct_rsp->RevisionId.bits.Revision = SLI_CT_REVISION;
+	ct_rsp->RevisionId.bits.InId = 0;
+	ct_rsp->FsType = ct_req->FsType;
+	ct_rsp->FsSubType = ct_req->FsSubType;
+	ct_rsp->CommandResponse.bits.Size = 0;
+	ct_rsp->CommandResponse.bits.CmdRsp =
+		cpu_to_be16(SLI_CT_RESPONSE_FS_RJT);
+	ct_rsp->ReasonCode = SLI_CT_REQ_NOT_SUPPORTED;
+	ct_rsp->Explanation = SLI_CT_NO_ADDITIONAL_EXPL;
+
+	cmdiocbq = lpfc_sli_get_iocbq(phba);
+	if (!cmdiocbq) {
+		rc = 5;
+		goto ct_free_bmpvirt;
+	}
+
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		lpfc_sli_prep_xmit_seq64(phba, cmdiocbq, bmp,
+					 phba->sli4_hba.rpi_ids[ndlp->nlp_rpi],
+					 ox_id, 1, FC_RCTL_DD_SOL_CTL, 1,
+					 CMD_XMIT_SEQUENCE64_WQE);
+	} else {
+		lpfc_sli_prep_xmit_seq64(phba, cmdiocbq, bmp, 0, ulp_context, 1,
+					 FC_RCTL_DD_SOL_CTL, 1,
+					 CMD_XMIT_SEQUENCE64_CX);
+	}
+
+	/* Save for completion so we can release these resources */
+	cmdiocbq->rsp_dmabuf = mp;
+	cmdiocbq->bpl_dmabuf = bmp;
+	cmdiocbq->cmd_cmpl = lpfc_ct_unsol_cmpl;
+	tmo = (3 * phba->fc_ratov);
+
+	cmdiocbq->retry = 0;
+	cmdiocbq->vport = vport;
+	cmdiocbq->drvrTimeout = tmo + LPFC_DRVR_TIMEOUT;
+
+	cmdiocbq->ndlp = lpfc_nlp_get(ndlp);
+	if (!cmdiocbq->ndlp)
+		goto ct_no_ndlp;
+
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
+	if (rc) {
+		lpfc_nlp_put(ndlp);
+		goto ct_no_ndlp;
+	}
+	return;
+
+ct_no_ndlp:
+	rc = 6;
+	lpfc_sli_release_iocbq(phba, cmdiocbq);
+ct_free_bmpvirt:
+	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
+ct_free_bmp:
+	kfree(bmp);
+ct_free_mpvirt:
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+ct_free_mp:
+	kfree(mp);
+ct_exit:
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			 "6440 Unsol CT: Rsp err %d Data: x%x\n",
+			 rc, vport->fc_flag);
+}
+
+/**
+ * lpfc_ct_handle_mibreq - Process an unsolicited CT MIB request data buffer
+ * @phba: pointer to lpfc hba data structure.
+ * @ctiocbq: pointer to lpfc CT command iocb data structure.
+ *
+ * This routine is used for processing the IOCB associated with a unsolicited
+ * CT MIB request. It first determines whether there is an existing ndlp that
+ * matches the DID from the unsolicited IOCB. If not, it will return.
+ **/
+static void
+lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
+{
+	struct lpfc_sli_ct_request *ct_req;
+	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_vport *vport = ctiocbq->vport;
+	u32 ulp_status = get_job_ulpstatus(phba, ctiocbq);
+	u32 ulp_word4 = get_job_word4(phba, ctiocbq);
+	u32 did;
+	u32 mi_cmd;
+
+	did = bf_get(els_rsp64_sid, &ctiocbq->wqe.xmit_els_rsp);
+	if (ulp_status) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "6438 Unsol CT: status:x%x/x%x did : x%x\n",
+				 ulp_status, ulp_word4, did);
+		return;
+	}
+
+	/* Ignore traffic received during vport shutdown */
+	if (vport->fc_flag & FC_UNLOADING)
 		return;
 
-	if (unlikely(icmd->ulpStatus == IOSTAT_NEED_BUFFER)) {
+	ndlp = lpfc_findnode_did(vport, did);
+	if (!ndlp) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "6439 Unsol CT: NDLP Not Found for DID : x%x",
+				 did);
+		return;
+	}
+
+	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
+
+	mi_cmd = ct_req->CommandResponse.bits.CmdRsp;
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "6442 : MI Cmd : x%x Not Supported\n", mi_cmd);
+	lpfc_ct_reject_event(ndlp, ct_req,
+			     bf_get(wqe_ctxt_tag,
+				    &ctiocbq->wqe.xmit_els_rsp.wqe_com),
+			     bf_get(wqe_rcvoxid,
+				    &ctiocbq->wqe.xmit_els_rsp.wqe_com));
+}
+
+/**
+ * lpfc_ct_unsol_event - Process an unsolicited event from a ct sli ring
+ * @phba: pointer to lpfc hba data structure.
+ * @pring: pointer to a SLI ring.
+ * @ctiocbq: pointer to lpfc ct iocb data structure.
+ *
+ * This routine is used to process an unsolicited event received from a SLI
+ * (Service Level Interface) ring. The actual processing of the data buffer
+ * associated with the unsolicited event is done by invoking appropriate routine
+ * after properly set up the iocb buffer from the SLI ring on which the
+ * unsolicited event was received.
+ **/
+void
+lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+		    struct lpfc_iocbq *ctiocbq)
+{
+	struct lpfc_dmabuf *mp = NULL;
+	IOCB_t *icmd = &ctiocbq->iocb;
+	int i;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_iocbq *iocb;
+	dma_addr_t dma_addr;
+	uint32_t size;
+	struct list_head head;
+	struct lpfc_sli_ct_request *ct_req;
+	struct lpfc_dmabuf *bdeBuf1 = ctiocbq->cmd_dmabuf;
+	struct lpfc_dmabuf *bdeBuf2 = ctiocbq->bpl_dmabuf;
+	u32 status, parameter, bde_count = 0;
+	struct lpfc_wcqe_complete *wcqe_cmpl = NULL;
+
+	ctiocbq->cmd_dmabuf = NULL;
+	ctiocbq->rsp_dmabuf = NULL;
+	ctiocbq->bpl_dmabuf = NULL;
+
+	wcqe_cmpl = &ctiocbq->wcqe_cmpl;
+	status = get_job_ulpstatus(phba, ctiocbq);
+	parameter = get_job_word4(phba, ctiocbq);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		bde_count = wcqe_cmpl->word3;
+	else
+		bde_count = icmd->ulpBdeCount;
+
+	if (unlikely(status == IOSTAT_NEED_BUFFER)) {
 		lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
-	} else if ((icmd->ulpStatus == IOSTAT_LOCAL_REJECT) &&
-		   ((icmd->un.ulpWord[4] & IOERR_PARAM_MASK) ==
+	} else if ((status == IOSTAT_LOCAL_REJECT) &&
+		   ((parameter & IOERR_PARAM_MASK) ==
 		   IOERR_RCV_BUFFER_WAITING)) {
 		/* Not enough posted buffers; Try posting more buffers */
 		phba->fc_stat.NoRcvBuf++;
 		if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
-			lpfc_post_buffer(phba, pring, 2);
+			lpfc_sli3_post_buffer(phba, pring, 2);
 		return;
 	}
 
-	/* If there are no BDEs associated with this IOCB,
-	 * there is nothing to do.
+	/* If there are no BDEs associated
+	 * with this IOCB, there is nothing to do.
 	 */
-	if (icmd->ulpBdeCount == 0)
+	if (bde_count == 0)
 		return;
+
+	ctiocbq->cmd_dmabuf = bdeBuf1;
+	if (bde_count == 2)
+		ctiocbq->bpl_dmabuf = bdeBuf2;
+
+	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
+
+	if (ct_req->FsType == SLI_CT_MANAGEMENT_SERVICE &&
+	    ct_req->FsSubType == SLI_CT_MIB_Subtypes) {
+		lpfc_ct_handle_mibreq(phba, ctiocbq);
+	} else {
+		if (!lpfc_bsg_ct_unsol_event(phba, pring, ctiocbq))
+			return;
+	}
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 		INIT_LIST_HEAD(&head);
-		list_add_tail(&head, &piocbq->list);
-		list_for_each_entry(iocbq, &head, list) {
-			icmd = &iocbq->iocb;
-			if (icmd->ulpBdeCount == 0)
+		list_add_tail(&head, &ctiocbq->list);
+		list_for_each_entry(iocb, &head, list) {
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				bde_count = iocb->wcqe_cmpl.word3;
+			else
+				bde_count = iocb->iocb.ulpBdeCount;
+
+			if (!bde_count)
 				continue;
-			bdeBuf = iocbq->context2;
-			iocbq->context2 = NULL;
-			size  = icmd->un.cont64[0].tus.f.bdeSize;
-			lpfc_ct_unsol_buffer(phba, piocbq, bdeBuf, size);
-			lpfc_in_buf_free(phba, bdeBuf);
-			if (icmd->ulpBdeCount == 2) {
-				bdeBuf = iocbq->context3;
-				iocbq->context3 = NULL;
-				size  = icmd->unsli3.rcvsli3.bde2.tus.f.bdeSize;
-				lpfc_ct_unsol_buffer(phba, piocbq, bdeBuf,
+			bdeBuf1 = iocb->cmd_dmabuf;
+			iocb->cmd_dmabuf = NULL;
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				size = iocb->wqe.gen_req.bde.tus.f.bdeSize;
+			else
+				size  = iocb->iocb.un.cont64[0].tus.f.bdeSize;
+			lpfc_ct_unsol_buffer(phba, ctiocbq, bdeBuf1, size);
+			lpfc_in_buf_free(phba, bdeBuf1);
+			if (bde_count == 2) {
+				bdeBuf2 = iocb->bpl_dmabuf;
+				iocb->bpl_dmabuf = NULL;
+				if (phba->sli_rev == LPFC_SLI_REV4)
+					size = iocb->unsol_rcv_len;
+				else
+					size = iocb->iocb.unsli3.rcvsli3.bde2.tus.f.bdeSize;
+				lpfc_ct_unsol_buffer(phba, ctiocbq, bdeBuf2,
 						     size);
-				lpfc_in_buf_free(phba, bdeBuf);
+				lpfc_in_buf_free(phba, bdeBuf2);
 			}
 		}
 		list_del(&head);
 	} else {
 		INIT_LIST_HEAD(&head);
-		list_add_tail(&head, &piocbq->list);
+		list_add_tail(&head, &ctiocbq->list);
 		list_for_each_entry(iocbq, &head, list) {
 			icmd = &iocbq->iocb;
 			if (icmd->ulpBdeCount == 0)
 				lpfc_ct_unsol_buffer(phba, iocbq, NULL, 0);
 			for (i = 0; i < icmd->ulpBdeCount; i++) {
-				paddr = getPaddr(icmd->un.cont64[i].addrHigh,
-						 icmd->un.cont64[i].addrLow);
+				dma_addr = getPaddr(icmd->un.cont64[i].addrHigh,
+						    icmd->un.cont64[i].addrLow);
 				mp = lpfc_sli_ringpostbuf_get(phba, pring,
-							      paddr);
+							      dma_addr);
 				size = icmd->un.cont64[i].tus.f.bdeSize;
 				lpfc_ct_unsol_buffer(phba, iocbq, mp, size);
 				lpfc_in_buf_free(phba, mp);
 			}
-			lpfc_post_buffer(phba, pring, i);
+			lpfc_sli3_post_buffer(phba, pring, i);
 		}
 		list_del(&head);
 	}
@@ -276,32 +547,31 @@ lpfc_ct_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocb)
 {
 	struct lpfc_dmabuf *buf_ptr;
 
-	if (ctiocb->context_un.ndlp) {
-		lpfc_nlp_put(ctiocb->context_un.ndlp);
-		ctiocb->context_un.ndlp = NULL;
-	}
-	if (ctiocb->context1) {
-		buf_ptr = (struct lpfc_dmabuf *) ctiocb->context1;
+	/* IOCBQ job structure gets cleaned during release.  Just release
+	 * the dma buffers here.
+	 */
+	if (ctiocb->cmd_dmabuf) {
+		buf_ptr = ctiocb->cmd_dmabuf;
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
 		kfree(buf_ptr);
-		ctiocb->context1 = NULL;
+		ctiocb->cmd_dmabuf = NULL;
 	}
-	if (ctiocb->context2) {
-		lpfc_free_ct_rsp(phba, (struct lpfc_dmabuf *) ctiocb->context2);
-		ctiocb->context2 = NULL;
+	if (ctiocb->rsp_dmabuf) {
+		lpfc_free_ct_rsp(phba, ctiocb->rsp_dmabuf);
+		ctiocb->rsp_dmabuf = NULL;
 	}
 
-	if (ctiocb->context3) {
-		buf_ptr = (struct lpfc_dmabuf *) ctiocb->context3;
+	if (ctiocb->bpl_dmabuf) {
+		buf_ptr = ctiocb->bpl_dmabuf;
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
 		kfree(buf_ptr);
-		ctiocb->context3 = NULL;
+		ctiocb->bpl_dmabuf = NULL;
 	}
 	lpfc_sli_release_iocbq(phba, ctiocb);
 	return 0;
 }
 
-/**
+/*
  * lpfc_gen_req - Build and issue a GEN_REQUEST command  to the SLI Layer
  * @vport: pointer to a host virtual N_Port data structure.
  * @bmp: Pointer to BPL for SLI command
@@ -315,15 +585,15 @@ lpfc_ct_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocb)
 static int
 lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	     struct lpfc_dmabuf *inp, struct lpfc_dmabuf *outp,
-	     void (*cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
-		     struct lpfc_iocbq *),
-	     struct lpfc_nodelist *ndlp, uint32_t usr_flg, uint32_t num_entry,
+	     void (*cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
+			  struct lpfc_iocbq *),
+	     struct lpfc_nodelist *ndlp, uint32_t event_tag, uint32_t num_entry,
 	     uint32_t tmo, uint8_t retry)
 {
 	struct lpfc_hba  *phba = vport->phba;
-	IOCB_t *icmd;
 	struct lpfc_iocbq *geniocb;
 	int rc;
+	u16 ulp_context;
 
 	/* Allocate buffer for  command iocb */
 	geniocb = lpfc_sli_get_iocbq(phba);
@@ -331,71 +601,56 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	if (geniocb == NULL)
 		return 1;
 
-	icmd = &geniocb->iocb;
-	icmd->un.genreq64.bdl.ulpIoTag32 = 0;
-	icmd->un.genreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
-	icmd->un.genreq64.bdl.addrLow = putPaddrLow(bmp->phys);
-	icmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
-	icmd->un.genreq64.bdl.bdeSize = (num_entry * sizeof(struct ulp_bde64));
+	/* Update the num_entry bde count */
+	geniocb->num_bdes = num_entry;
 
-	if (usr_flg)
-		geniocb->context3 = NULL;
-	else
-		geniocb->context3 = (uint8_t *) bmp;
+	geniocb->bpl_dmabuf = bmp;
 
 	/* Save for completion so we can release these resources */
-	geniocb->context1 = (uint8_t *) inp;
-	geniocb->context2 = (uint8_t *) outp;
-	geniocb->context_un.ndlp = lpfc_nlp_get(ndlp);
+	geniocb->cmd_dmabuf = inp;
+	geniocb->rsp_dmabuf = outp;
 
-	/* Fill in payload, bp points to frame payload */
-	icmd->ulpCommand = CMD_GEN_REQUEST64_CR;
-
-	/* Fill in rest of iocb */
-	icmd->un.genreq64.w5.hcsw.Fctl = (SI | LA);
-	icmd->un.genreq64.w5.hcsw.Dfctl = 0;
-	icmd->un.genreq64.w5.hcsw.Rctl = FC_RCTL_DD_UNSOL_CTL;
-	icmd->un.genreq64.w5.hcsw.Type = FC_TYPE_CT;
+	geniocb->event_tag = event_tag;
 
 	if (!tmo) {
 		 /* FC spec states we need 3 * ratov for CT requests */
 		tmo = (3 * phba->fc_ratov);
 	}
-	icmd->ulpTimeout = tmo;
-	icmd->ulpBdeCount = 1;
-	icmd->ulpLe = 1;
-	icmd->ulpClass = CLASS3;
-	icmd->ulpContext = ndlp->nlp_rpi;
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		icmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 
-	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
-		/* For GEN_REQUEST64_CR, use the RPI */
-		icmd->ulpCt_h = 0;
-		icmd->ulpCt_l = 0;
-	}
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		ulp_context = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+	else
+		ulp_context = ndlp->nlp_rpi;
+
+	lpfc_sli_prep_gen_req(phba, geniocb, bmp, ulp_context, num_entry, tmo);
 
 	/* Issue GEN REQ IOCB for NPORT <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0119 Issue GEN REQ IOCB to NPORT x%x "
 			 "Data: x%x x%x\n",
-			 ndlp->nlp_DID, icmd->ulpIoTag,
+			 ndlp->nlp_DID, geniocb->iotag,
 			 vport->port_state);
-	geniocb->iocb_cmpl = cmpl;
-	geniocb->drvrTimeout = icmd->ulpTimeout + LPFC_DRVR_TIMEOUT;
+	geniocb->cmd_cmpl = cmpl;
+	geniocb->drvrTimeout = tmo + LPFC_DRVR_TIMEOUT;
 	geniocb->vport = vport;
 	geniocb->retry = retry;
-	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, geniocb, 0);
+	geniocb->ndlp = lpfc_nlp_get(ndlp);
+	if (!geniocb->ndlp)
+		goto out;
 
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, geniocb, 0);
 	if (rc == IOCB_ERROR) {
-		lpfc_sli_release_iocbq(phba, geniocb);
-		return 1;
+		lpfc_nlp_put(ndlp);
+		goto out;
 	}
 
 	return 0;
+out:
+	lpfc_sli_release_iocbq(phba, geniocb);
+	return 1;
 }
 
-/**
+/*
  * lpfc_ct_cmd - Build and issue a CT command
  * @vport: pointer to a host virtual N_Port data structure.
  * @inmp: Pointer to data buffer for response data.
@@ -431,8 +686,8 @@ lpfc_ct_cmd(struct lpfc_vport *vport, struct lpfc_dmabuf *inmp,
 	 * lpfc_alloc_ct_rsp.
 	 */
 	cnt += 1;
-	status = lpfc_gen_req(vport, bmp, inmp, outmp, cmpl, ndlp, 0,
-			      cnt, 0, retry);
+	status = lpfc_gen_req(vport, bmp, inmp, outmp, cmpl, ndlp,
+			phba->fc_eventTag, cnt, 0, retry);
 	if (status) {
 		lpfc_free_ct_rsp(phba, outmp);
 		return -ENOMEM;
@@ -466,7 +721,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 		ndlp = lpfc_setup_disc_node(vport, Did);
 
-		if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+		if (ndlp) {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Parse GID_FTrsp: did:x%x flg:x%x x%x",
 				Did, ndlp->nlp_flag, vport->fc_flag);
@@ -480,10 +735,20 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0238 Process x%06x NameServer Rsp "
-					 "Data: x%x x%x x%x x%x\n", Did,
+					 "Data: x%x x%x x%x x%x x%x\n", Did,
 					 ndlp->nlp_flag, ndlp->nlp_fc4_type,
-					 vport->fc_flag,
+					 ndlp->nlp_state, vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
+
+			/* if ndlp needs to be discovered and prior
+			 * state of ndlp hit devloss, change state to
+			 * allow rediscovery.
+			 */
+			if (ndlp->nlp_flag & NLP_NPR_2B_DISC &&
+			    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_NPR_NODE);
+			}
 		} else {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip1 GID_FTrsp: did:x%x flg:x%x cnt:%d",
@@ -491,9 +756,9 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0239 Skip x%06x NameServer Rsp "
-					 "Data: x%x x%x\n", Did,
-					 vport->fc_flag,
-					 vport->fc_rscn_id_cnt);
+					 "Data: x%x x%x x%px\n",
+					 Did, vport->fc_flag,
+					 vport->fc_rscn_id_cnt, ndlp);
 		}
 	} else {
 		if (!(vport->fc_flag & FC_RSCN_MODE) ||
@@ -507,7 +772,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			 * Don't even bother to send GFF_ID.
 			 */
 			ndlp = lpfc_findnode_did(vport, Did);
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+			if (ndlp &&
 			    (ndlp->nlp_type &
 			    (NLP_FCP_TARGET | NLP_NVME_TARGET))) {
 				if (fc4_type == FC_TYPE_FCP)
@@ -539,7 +804,6 @@ lpfc_ns_rsp_audit_did(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	char *str;
 
 	if (phba->cfg_ns_query == LPFC_NS_QUERY_GID_FT)
@@ -568,12 +832,12 @@ lpfc_ns_rsp_audit_did(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			if (ndlp->nlp_type != NLP_NVME_INITIATOR ||
 			    ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
 				continue;
-			spin_lock_irq(shost->host_lock);
+			spin_lock_irq(&ndlp->lock);
 			if (ndlp->nlp_DID == Did)
 				ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
 			else
 				ndlp->nlp_flag |= NLP_NVMET_RECOV;
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irq(&ndlp->lock);
 		}
 	}
 }
@@ -589,7 +853,6 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 	uint32_t Did, CTentry;
 	int Cnt;
 	struct list_head head;
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp = NULL;
 
 	lpfc_set_disctmo(vport);
@@ -635,9 +898,9 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 				continue;
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 						NLP_EVT_DEVICE_RECOVERY);
-			spin_lock_irq(shost->host_lock);
+			spin_lock_irq(&ndlp->lock);
 			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irq(&ndlp->lock);
 		}
 	}
 
@@ -652,26 +915,33 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	IOCB_t *irsp;
 	struct lpfc_dmabuf *outp;
 	struct lpfc_dmabuf *inp;
 	struct lpfc_sli_ct_request *CTrsp;
 	struct lpfc_sli_ct_request *CTreq;
 	struct lpfc_nodelist *ndlp;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 	int rc, type;
 
 	/* First save ndlp, before we overwrite it */
-	ndlp = cmdiocb->context_un.ndlp;
+	ndlp = cmdiocb->ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
-	cmdiocb->context_un.rsp_iocb = rspiocb;
-	inp = (struct lpfc_dmabuf *) cmdiocb->context1;
-	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-	irsp = &rspiocb->iocb;
+	cmdiocb->rsp_iocb = rspiocb;
+	inp = cmdiocb->cmd_dmabuf;
+	outp = cmdiocb->rsp_dmabuf;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		 "GID_FT cmpl:     status:x%x/x%x rtry:%d",
-		irsp->ulpStatus, irsp->un.ulpWord[4], vport->fc_ns_retry);
+		ulp_status, ulp_word4, vport->fc_ns_retry);
+
+	/* Ignore response if link flipped after this request was made */
+	if (cmdiocb->event_tag != phba->fc_eventTag) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "9043 Event tag mismatch. Ignoring NS rsp\n");
+		goto out;
+	}
 
 	/* Don't bother processing response if vport is being torn down. */
 	if (vport->load_flag & FC_UNLOADING) {
@@ -688,11 +958,17 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
-	if (lpfc_error_lost_link(irsp)) {
+	if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "0226 NS query failed due to link event\n");
+				 "0226 NS query failed due to link event: "
+				 "ulp_status x%x ulp_word4 x%x fc_flag x%x "
+				 "port_state x%x gidft_inp x%x\n",
+				 ulp_status, ulp_word4, vport->fc_flag,
+				 vport->port_state, vport->gidft_inp);
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 		goto out;
 	}
 
@@ -704,7 +980,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* This is a GID_FT completing so the gidft_inp counter was
 		 * incremented before the GID_FT was issued to the wire.
 		 */
-		vport->gidft_inp--;
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 
 		/*
 		 * Skip processing the NS response
@@ -719,11 +996,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	if (irsp->ulpStatus) {
+	if (ulp_status) {
 		/* Check for retry */
 		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
-			if (irsp->ulpStatus != IOSTAT_LOCAL_REJECT ||
-			    (irsp->un.ulpWord[4] & IOERR_PARAM_MASK) !=
+			if (ulp_status != IOSTAT_LOCAL_REJECT ||
+			    (ulp_word4 & IOERR_PARAM_MASK) !=
 			    IOERR_NO_RESOURCES)
 				vport->fc_ns_retry++;
 
@@ -732,18 +1009,21 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				goto out;
 
 			/* CT command is being retried */
-			vport->gidft_inp--;
 			rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_FT,
 					 vport->fc_ns_retry, type);
 			if (rc == 0)
 				goto out;
+			else { /* Unable to send NS cmd */
+				if (vport->gidft_inp)
+					vport->gidft_inp--;
+			}
 		}
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0257 GID_FT Query error: 0x%x 0x%x\n",
-				 irsp->ulpStatus, vport->fc_ns_retry);
+				 ulp_status, vport->fc_ns_retry);
 	} else {
 		/* Good status, continue checking */
 		CTreq = (struct lpfc_sli_ct_request *) inp->virt;
@@ -751,14 +1031,18 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    cpu_to_be16(SLI_CT_RESPONSE_FS_ACC)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "0208 NameServer Rsp Data: x%x x%x\n",
+					 "0208 NameServer Rsp Data: x%x x%x "
+					 "x%x x%x sz x%x\n",
 					 vport->fc_flag,
-					 CTreq->un.gid.Fc4Type);
+					 CTreq->un.gid.Fc4Type,
+					 vport->num_disc_nodes,
+					 vport->gidft_inp,
+					 get_job_data_placed(phba, rspiocb));
 
 			lpfc_ns_rsp(vport,
 				    outp,
 				    CTreq->un.gid.Fc4Type,
-				    (uint32_t) (irsp->un.genreq64.bdl.bdeSize));
+				    get_job_data_placed(phba, rspiocb));
 		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
 			   be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 			/* NameServer Rsp Error */
@@ -798,7 +1082,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		} else {
 			/* NameServer Rsp Error */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					"0241 NameServer Rsp Error "
 					"Data: x%x x%x x%x x%x\n",
 					CTrsp->CommandResponse.bits.CmdRsp,
@@ -812,8 +1096,14 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				(uint32_t) CTrsp->ReasonCode,
 				(uint32_t) CTrsp->Explanation);
 		}
-		vport->gidft_inp--;
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 	}
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "4216 GID_FT cmpl inp %d disc %d\n",
+			 vport->gidft_inp, vport->num_disc_nodes);
+
 	/* Link up / RSCN discovery */
 	if ((vport->num_disc_nodes == 0) &&
 	    (vport->gidft_inp == 0)) {
@@ -836,8 +1126,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_disc_start(vport);
 	}
 out:
-	cmdiocb->context_un.ndlp = ndlp; /* Now restore ndlp for free */
 	lpfc_ct_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(ndlp);
 	return;
 }
 
@@ -847,27 +1137,34 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	IOCB_t *irsp;
 	struct lpfc_dmabuf *outp;
 	struct lpfc_dmabuf *inp;
 	struct lpfc_sli_ct_request *CTrsp;
 	struct lpfc_sli_ct_request *CTreq;
 	struct lpfc_nodelist *ndlp;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 	int rc;
 
 	/* First save ndlp, before we overwrite it */
-	ndlp = cmdiocb->context_un.ndlp;
+	ndlp = cmdiocb->ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
-	cmdiocb->context_un.rsp_iocb = rspiocb;
-	inp = (struct lpfc_dmabuf *)cmdiocb->context1;
-	outp = (struct lpfc_dmabuf *)cmdiocb->context2;
-	irsp = &rspiocb->iocb;
+	cmdiocb->rsp_iocb = rspiocb;
+	inp = cmdiocb->cmd_dmabuf;
+	outp = cmdiocb->rsp_dmabuf;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 			      "GID_PT cmpl:     status:x%x/x%x rtry:%d",
-			      irsp->ulpStatus, irsp->un.ulpWord[4],
+			      ulp_status, ulp_word4,
 			      vport->fc_ns_retry);
+
+	/* Ignore response if link flipped after this request was made */
+	if (cmdiocb->event_tag != phba->fc_eventTag) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "9044 Event tag mismatch. Ignoring NS rsp\n");
+		goto out;
+	}
 
 	/* Don't bother processing response if vport is being torn down. */
 	if (vport->load_flag & FC_UNLOADING) {
@@ -884,11 +1181,17 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
-	if (lpfc_error_lost_link(irsp)) {
+	if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "4101 NS query failed due to link event\n");
+				 "4166 NS query failed due to link event: "
+				 "ulp_status x%x ulp_word4 x%x fc_flag x%x "
+				 "port_state x%x gidft_inp x%x\n",
+				 ulp_status, ulp_word4, vport->fc_flag,
+				 vport->port_state, vport->gidft_inp);
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 		goto out;
 	}
 
@@ -900,14 +1203,15 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* This is a GID_PT completing so the gidft_inp counter was
 		 * incremented before the GID_PT was issued to the wire.
 		 */
-		vport->gidft_inp--;
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 
 		/*
 		 * Skip processing the NS response
 		 * Re-issue the NS cmd
 		 */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "4102 Process Deferred RSCN Data: x%x x%x\n",
+				 "4167 Process Deferred RSCN Data: x%x x%x\n",
 				 vport->fc_flag, vport->fc_rscn_id_cnt);
 		lpfc_els_handle_rscn(vport);
 
@@ -915,27 +1219,30 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	if (irsp->ulpStatus) {
+	if (ulp_status) {
 		/* Check for retry */
 		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
-			if (irsp->ulpStatus != IOSTAT_LOCAL_REJECT ||
-			    (irsp->un.ulpWord[4] & IOERR_PARAM_MASK) !=
+			if (ulp_status != IOSTAT_LOCAL_REJECT ||
+			    (ulp_word4 & IOERR_PARAM_MASK) !=
 			    IOERR_NO_RESOURCES)
 				vport->fc_ns_retry++;
 
 			/* CT command is being retried */
-			vport->gidft_inp--;
 			rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_PT,
 					 vport->fc_ns_retry, GID_PT_N_PORT);
 			if (rc == 0)
 				goto out;
+			else { /* Unable to send NS cmd */
+				if (vport->gidft_inp)
+					vport->gidft_inp--;
+			}
 		}
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "4103 GID_FT Query error: 0x%x 0x%x\n",
-				 irsp->ulpStatus, vport->fc_ns_retry);
+				 ulp_status, vport->fc_ns_retry);
 	} else {
 		/* Good status, continue checking */
 		CTreq = (struct lpfc_sli_ct_request *)inp->virt;
@@ -943,14 +1250,18 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    cpu_to_be16(SLI_CT_RESPONSE_FS_ACC)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "4105 NameServer Rsp Data: x%x x%x\n",
+					 "4105 NameServer Rsp Data: x%x x%x "
+					 "x%x x%x sz x%x\n",
 					 vport->fc_flag,
-					 CTreq->un.gid.Fc4Type);
+					 CTreq->un.gid.Fc4Type,
+					 vport->num_disc_nodes,
+					 vport->gidft_inp,
+					 get_job_data_placed(phba, rspiocb));
 
 			lpfc_ns_rsp(vport,
 				    outp,
 				    CTreq->un.gid.Fc4Type,
-				    (uint32_t)(irsp->un.genreq64.bdl.bdeSize));
+				    get_job_data_placed(phba, rspiocb));
 		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
 			   be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 			/* NameServer Rsp Error */
@@ -990,7 +1301,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 		} else {
 			/* NameServer Rsp Error */
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "4109 NameServer Rsp Error "
 					 "Data: x%x x%x x%x x%x\n",
 					 CTrsp->CommandResponse.bits.CmdRsp,
@@ -1005,8 +1316,14 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				(uint32_t)CTrsp->ReasonCode,
 				(uint32_t)CTrsp->Explanation);
 		}
-		vport->gidft_inp--;
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 	}
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "6450 GID_PT cmpl inp %d disc %d\n",
+			 vport->gidft_inp, vport->num_disc_nodes);
+
 	/* Link up / RSCN discovery */
 	if ((vport->num_disc_nodes == 0) &&
 	    (vport->gidft_inp == 0)) {
@@ -1029,8 +1346,8 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_disc_start(vport);
 	}
 out:
-	cmdiocb->context_un.ndlp = ndlp; /* Now restore ndlp for free */
 	lpfc_ct_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(ndlp);
 }
 
 static void
@@ -1039,22 +1356,30 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	IOCB_t *irsp = &rspiocb->iocb;
-	struct lpfc_dmabuf *inp = (struct lpfc_dmabuf *) cmdiocb->context1;
-	struct lpfc_dmabuf *outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *CTrsp;
 	int did, rc, retry;
 	uint8_t fbits;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *ndlp = NULL, *free_ndlp = NULL;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 
 	did = ((struct lpfc_sli_ct_request *) inp->virt)->un.gff.PortId;
 	did = be32_to_cpu(did);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		"GFF_ID cmpl:     status:x%x/x%x did:x%x",
-		irsp->ulpStatus, irsp->un.ulpWord[4], did);
+		ulp_status, ulp_word4, did);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	/* Ignore response if link flipped after this request was made */
+	if (cmdiocb->event_tag != phba->fc_eventTag) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "9045 Event tag mismatch. Ignoring NS rsp\n");
+		goto iocb_free;
+	}
+
+	if (ulp_status == IOSTAT_SUCCESS) {
 		/* Good status, continue checking */
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		fbits = CTrsp->un.gff_acc.fbits[FCP_TYPE_FEATURE_OFFSET];
@@ -1084,8 +1409,8 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* Check for retry */
 		if (cmdiocb->retry < LPFC_MAX_NS_RETRY) {
 			retry = 1;
-			if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-				switch ((irsp->un.ulpWord[4] &
+			if (ulp_status == IOSTAT_LOCAL_REJECT) {
+				switch ((ulp_word4 &
 					IOERR_PARAM_MASK)) {
 
 				case IOERR_NO_RESOURCES:
@@ -1111,21 +1436,23 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					 cmdiocb->retry, did);
 				if (rc == 0) {
 					/* success */
+					free_ndlp = cmdiocb->ndlp;
 					lpfc_ct_free_iocb(phba, cmdiocb);
+					lpfc_nlp_put(free_ndlp);
 					return;
 				}
 			}
 		}
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0267 NameServer GFF Rsp "
 				 "x%x Error (%d %d) Data: x%x x%x\n",
-				 did, irsp->ulpStatus, irsp->un.ulpWord[4],
+				 did, ulp_status, ulp_word4,
 				 vport->fc_flag, vport->fc_rscn_id_cnt);
 	}
 
 	/* This is a target port, unregistered port, or the GFF_ID failed */
 	ndlp = lpfc_setup_disc_node(vport, did);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+	if (ndlp) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0242 Process x%x GFF "
 				 "NameServer Rsp Data: x%x x%x x%x\n",
@@ -1141,6 +1468,11 @@ out:
 	/* Link up / RSCN discovery */
 	if (vport->num_disc_nodes)
 		vport->num_disc_nodes--;
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "6451 GFF_ID cmpl inp %d disc %d\n",
+			 vport->gidft_inp, vport->num_disc_nodes);
+
 	if (vport->num_disc_nodes == 0) {
 		/*
 		 * The driver has cycled through all Nports in the RSCN payload.
@@ -1159,31 +1491,47 @@ out:
 		}
 		lpfc_disc_start(vport);
 	}
+
+iocb_free:
+	free_ndlp = cmdiocb->ndlp;
 	lpfc_ct_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(free_ndlp);
 	return;
 }
 
 static void
 lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
-				struct lpfc_iocbq *rspiocb)
+			struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	IOCB_t *irsp = &rspiocb->iocb;
-	struct lpfc_dmabuf *inp = (struct lpfc_dmabuf *)cmdiocb->context1;
-	struct lpfc_dmabuf *outp = (struct lpfc_dmabuf *)cmdiocb->context2;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *CTrsp;
 	int did;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ns_ndlp = NULL;
 	uint32_t fc4_data_0, fc4_data_1;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 
 	did = ((struct lpfc_sli_ct_request *)inp->virt)->un.gft.PortId;
 	did = be32_to_cpu(did);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 			      "GFT_ID cmpl: status:x%x/x%x did:x%x",
-			      irsp->ulpStatus, irsp->un.ulpWord[4], did);
+			      ulp_status, ulp_word4, did);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	/* Ignore response if link flipped after this request was made */
+	if ((uint32_t) cmdiocb->event_tag != phba->fc_eventTag) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "9046 Event tag mismatch. Ignoring NS rsp\n");
+		goto out;
+	}
+
+	/* Preserve the nameserver node to release the reference. */
+	ns_ndlp = cmdiocb->ndlp;
+
+	if (ulp_status == IOSTAT_SUCCESS) {
 		/* Good status, continue checking */
 		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		fc4_data_0 = be32_to_cpu(CTrsp->un.gft_acc.fc4_types[0]);
@@ -1198,6 +1546,10 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 (fc4_data_1 & LPFC_FC4_TYPE_BITMASK) ?
 				  "NVME" : " ");
 
+		/* Lookup the NPort_ID queried in the GFT_ID and find the
+		 * driver's local node.  It's an error if the driver
+		 * doesn't have one.
+		 */
 		ndlp = lpfc_findnode_did(vport, did);
 		if (ndlp) {
 			/* The bitmask value for FCP and NVME FCP types is
@@ -1209,20 +1561,42 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (fc4_data_1 &  LPFC_FC4_TYPE_BITMASK)
 				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "3064 Setting ndlp %p, DID x%06x with "
-					 "FC4 x%08x, Data: x%08x x%08x\n",
+					 "3064 Setting ndlp x%px, DID x%06x "
+					 "with FC4 x%08x, Data: x%08x x%08x "
+					 "%d\n",
 					 ndlp, did, ndlp->nlp_fc4_type,
-					 FC_TYPE_FCP, FC_TYPE_NVME);
-			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+					 FC_TYPE_FCP, FC_TYPE_NVME,
+					 ndlp->nlp_state);
 
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
-			lpfc_issue_els_prli(vport, ndlp, 0);
+			if (ndlp->nlp_state == NLP_STE_REG_LOGIN_ISSUE &&
+			    ndlp->nlp_fc4_type) {
+				ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_PRLI_ISSUE);
+				lpfc_issue_els_prli(vport, ndlp, 0);
+			} else if (!ndlp->nlp_fc4_type) {
+				/* If fc4 type is still unknown, then LOGO */
+				lpfc_printf_vlog(vport, KERN_INFO,
+						 LOG_DISCOVERY,
+						 "6443 Sending LOGO ndlp x%px,"
+						 "DID x%06x with fc4_type: "
+						 "x%08x, state: %d\n",
+						 ndlp, did, ndlp->nlp_fc4_type,
+						 ndlp->nlp_state);
+				lpfc_issue_els_logo(vport, ndlp, 0);
+				ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_NPR_NODE);
+			}
 		}
 	} else
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-				 "3065 GFT_ID failed x%08x\n", irsp->ulpStatus);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "3065 GFT_ID failed x%08x\n", ulp_status);
 
+out:
 	lpfc_ct_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(ns_ndlp);
 }
 
 static void
@@ -1232,22 +1606,22 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct lpfc_dmabuf *inp;
 	struct lpfc_dmabuf *outp;
-	IOCB_t *irsp;
 	struct lpfc_sli_ct_request *CTrsp;
 	struct lpfc_nodelist *ndlp;
 	int cmdcode, rc;
 	uint8_t retry;
 	uint32_t latt;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 
 	/* First save ndlp, before we overwrite it */
-	ndlp = cmdiocb->context_un.ndlp;
+	ndlp = cmdiocb->ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
-	cmdiocb->context_un.rsp_iocb = rspiocb;
+	cmdiocb->rsp_iocb = rspiocb;
 
-	inp = (struct lpfc_dmabuf *) cmdiocb->context1;
-	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-	irsp = &rspiocb->iocb;
+	inp = cmdiocb->cmd_dmabuf;
+	outp = cmdiocb->rsp_dmabuf;
 
 	cmdcode = be16_to_cpu(((struct lpfc_sli_ct_request *) inp->virt)->
 					CommandResponse.bits.CmdRsp);
@@ -1255,28 +1629,28 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	latt = lpfc_els_chk_latt(vport);
 
-	/* RFT request completes status <ulpStatus> CmdRsp <CmdRsp> */
+	/* RFT request completes status <ulp_status> CmdRsp <CmdRsp> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0209 CT Request completes, latt %d, "
-			 "ulpStatus x%x CmdRsp x%x, Context x%x, Tag x%x\n",
-			 latt, irsp->ulpStatus,
+			 "ulp_status x%x CmdRsp x%x, Context x%x, Tag x%x\n",
+			 latt, ulp_status,
 			 CTrsp->CommandResponse.bits.CmdRsp,
-			 cmdiocb->iocb.ulpContext, cmdiocb->iocb.ulpIoTag);
+			 get_job_ulpcontext(phba, cmdiocb), cmdiocb->iotag);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		"CT cmd cmpl:     status:x%x/x%x cmd:x%x",
-		irsp->ulpStatus, irsp->un.ulpWord[4], cmdcode);
+		ulp_status, ulp_word4, cmdcode);
 
-	if (irsp->ulpStatus) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+	if (ulp_status) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0268 NS cmd x%x Error (x%x x%x)\n",
-				 cmdcode, irsp->ulpStatus, irsp->un.ulpWord[4]);
+				 cmdcode, ulp_status, ulp_word4);
 
-		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
-			(((irsp->un.ulpWord[4] & IOERR_PARAM_MASK) ==
-			  IOERR_SLI_DOWN) ||
-			 ((irsp->un.ulpWord[4] & IOERR_PARAM_MASK) ==
-			  IOERR_SLI_ABORTED)))
+		if (ulp_status == IOSTAT_LOCAL_REJECT &&
+		    (((ulp_word4 & IOERR_PARAM_MASK) ==
+		      IOERR_SLI_DOWN) ||
+		     ((ulp_word4 & IOERR_PARAM_MASK) ==
+		      IOERR_SLI_ABORTED)))
 			goto out;
 
 		retry = cmdiocb->retry;
@@ -1292,8 +1666,8 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 out:
-	cmdiocb->context_un.ndlp = ndlp; /* Now restore ndlp for free */
 	lpfc_ct_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(ndlp);
 	return;
 }
 
@@ -1301,15 +1675,15 @@ static void
 lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			struct lpfc_iocbq *rspiocb)
 {
-	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	if (ulp_status == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		outp = cmdiocb->rsp_dmabuf;
+		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
 			vport->ct_flags |= FC_CT_RFT_ID;
@@ -1322,14 +1696,14 @@ static void
 lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			struct lpfc_iocbq *rspiocb)
 {
-	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	if (ulp_status == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
@@ -1343,15 +1717,15 @@ static void
 lpfc_cmpl_ct_cmd_rspn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 struct lpfc_iocbq *rspiocb)
 {
-	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	if (ulp_status == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		outp = cmdiocb->rsp_dmabuf;
+		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
 			vport->ct_flags |= FC_CT_RSPN_ID;
@@ -1364,14 +1738,14 @@ static void
 lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 struct lpfc_iocbq *rspiocb)
 {
-	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	if (ulp_status == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
@@ -1397,15 +1771,15 @@ static void
 lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			struct lpfc_iocbq *rspiocb)
 {
-	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+	if (ulp_status == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		outp = cmdiocb->rsp_dmabuf;
+		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
 			vport->ct_flags |= FC_CT_RFF_ID;
@@ -1430,7 +1804,7 @@ lpfc_vport_symbolic_port_name(struct lpfc_vport *vport, char *symbol,
 	 * Name object.  NPIV is not in play so this integer
 	 * value is sufficient and unique per FC-ID.
 	 */
-	n = snprintf(symbol, size, "%d", vport->phba->brd_no);
+	n = scnprintf(symbol, size, "%d", vport->phba->brd_no);
 	return n;
 }
 
@@ -1439,33 +1813,35 @@ int
 lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
 	size_t size)
 {
-	char fwrev[FW_REV_STR_SIZE];
-	int n;
+	char fwrev[FW_REV_STR_SIZE] = {0};
+	char tmp[MAXHOSTNAMELEN] = {0};
+
+	memset(symbol, 0, size);
+
+	scnprintf(tmp, sizeof(tmp), "Emulex %s", vport->phba->ModelName);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
 	lpfc_decode_firmware_rev(vport->phba, fwrev, 0);
+	scnprintf(tmp, sizeof(tmp), " FV%s", fwrev);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
-	n = snprintf(symbol, size, "Emulex %s", vport->phba->ModelName);
-	if (size < n)
-		return n;
+	scnprintf(tmp, sizeof(tmp), " DV%s", lpfc_release_version);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
-	n += snprintf(symbol + n, size - n, " FV%s", fwrev);
-	if (size < n)
-		return n;
-
-	n += snprintf(symbol + n, size - n, " DV%s.",
-		      lpfc_release_version);
-	if (size < n)
-		return n;
-
-	n += snprintf(symbol + n, size - n, " HN:%s.",
-		      init_utsname()->nodename);
-	if (size < n)
-		return n;
+	scnprintf(tmp, sizeof(tmp), " HN:%s", vport->phba->os_host_name);
+	if (strlcat(symbol, tmp, size) >= size)
+		goto buffer_done;
 
 	/* Note :- OS name is "Linux" */
-	n += snprintf(symbol + n, size - n, " OS:%s\n",
-		      init_utsname()->sysname);
-	return n;
+	scnprintf(tmp, sizeof(tmp), " OS:%s", init_utsname()->sysname);
+	strlcat(symbol, tmp, size);
+
+buffer_done:
+	return strnlen(symbol, size);
+
 }
 
 static uint32_t
@@ -1499,7 +1875,7 @@ lpfc_get_gidft_type(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb)
 	struct lpfc_dmabuf *mp;
 	uint32_t type;
 
-	mp = cmdiocb->context1;
+	mp = cmdiocb->cmd_dmabuf;
 	if (mp == NULL)
 		return 0;
 	CtReq = (struct lpfc_sli_ct_request *)mp->virt;
@@ -1533,8 +1909,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	int rc = 0;
 
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)
-	    || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) {
+	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) {
 		rc=1;
 		goto ns_cmd_exit;
 	}
@@ -1653,28 +2028,30 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		vport->ct_flags &= ~FC_CT_RFT_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    cpu_to_be16(SLI_CTNS_RFT_ID);
-		CtReq->un.rft.PortId = cpu_to_be32(vport->fc_myDID);
+		CtReq->un.rft.port_id = cpu_to_be32(vport->fc_myDID);
+
+		/* Register Application Services type if vmid enabled. */
+		if (phba->cfg_vmid_app_header)
+			CtReq->un.rft.app_serv_reg =
+				cpu_to_be32(RFT_APP_SERV_REG);
 
 		/* Register FC4 FCP type if enabled.  */
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP))
-			CtReq->un.rft.fcpReg = 1;
+		if (vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH ||
+		    vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)
+			CtReq->un.rft.fcp_reg = cpu_to_be32(RFT_FCP_REG);
 
-		/* Register NVME type if enabled.  Defined LE and swapped.
-		 * rsvd[0] is used as word1 because of the hard-coded
-		 * word0 usage in the ct_request data structure.
-		 */
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
-			CtReq->un.rft.rsvd[0] =
-				cpu_to_be32(LPFC_FC4_TYPE_BITMASK);
+		/* Register NVME type if enabled. */
+		if (vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH ||
+		    vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
+			CtReq->un.rft.nvme_reg = cpu_to_be32(RFT_NVME_REG);
 
 		ptr = (uint32_t *)CtReq;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "6433 Issue RFT (%s %s): %08x %08x %08x %08x "
-				 "%08x %08x %08x %08x\n",
-				 CtReq->un.rft.fcpReg ? "FCP" : " ",
-				 CtReq->un.rft.rsvd[0] ? "NVME" : " ",
+				 "6433 Issue RFT (%s %s %s): %08x %08x %08x "
+				 "%08x %08x %08x %08x %08x\n",
+				 CtReq->un.rft.fcp_reg ? "FCP" : " ",
+				 CtReq->un.rft.nvme_reg ? "NVME" : " ",
+				 CtReq->un.rft.app_serv_reg ? "APPS" : " ",
 				 *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3),
 				 *(ptr + 4), *(ptr + 5),
 				 *(ptr + 6), *(ptr + 7));
@@ -1732,8 +2109,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		 * caller can specify NVME (type x28) as well.  But only
 		 * these that FC4 type is supported.
 		 */
-		if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
+		if (((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		     (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
 		    (context == FC_TYPE_NVME)) {
 			if ((vport == phba->pport) && phba->nvmet_support) {
 				CtReq->un.rff.fbits = (FC4_FEATURE_TARGET |
@@ -1744,8 +2121,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 			}
 			CtReq->un.rff.type_code = context;
 
-		} else if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-			    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) &&
+		} else if (((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			    (vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) &&
 			   (context == FC_TYPE_FCP))
 			CtReq->un.rff.type_code = context;
 
@@ -1775,11 +2152,6 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	}
 	rc=6;
 
-	/* Decrement ndlp reference count to release ndlp reference held
-	 * for the failed command's callback function.
-	 */
-	lpfc_nlp_put(ndlp);
-
 ns_cmd_free_bmpvirt:
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 ns_cmd_free_bmp:
@@ -1789,10 +2161,45 @@ ns_cmd_free_mpvirt:
 ns_cmd_free_mp:
 	kfree(mp);
 ns_cmd_exit:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0266 Issue NameServer Req x%x err %d Data: x%x x%x\n",
 			 cmdcode, rc, vport->fc_flag, vport->fc_rscn_id_cnt);
 	return 1;
+}
+
+/**
+ * lpfc_fdmi_rprt_defer - Check for any deferred FDMI RPRT commands
+ * @phba: Pointer to HBA context object.
+ * @mask: Initial port attributes mask
+ *
+ * This function checks to see if any vports have deferred their FDMI RPRT.
+ * A vports RPRT may be deferred if it is issued before the primary ports
+ * RHBA completes.
+ */
+static void
+lpfc_fdmi_rprt_defer(struct lpfc_hba *phba, uint32_t mask)
+{
+	struct lpfc_vport **vports;
+	struct lpfc_vport *vport;
+	struct lpfc_nodelist *ndlp;
+	int i;
+
+	phba->hba_flag |= HBA_RHBA_CMPL;
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports) {
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			vport = vports[i];
+			ndlp = lpfc_findnode_did(phba->pport, FDMI_DID);
+			if (!ndlp)
+				continue;
+			if (vport->ct_flags & FC_CT_RPRT_DEFER) {
+				vport->ct_flags &= ~FC_CT_RPRT_DEFER;
+				vport->fdmi_port_mask = mask;
+				lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPRT, 0);
+			}
+		}
+	}
+	lpfc_destroy_vport_work_array(phba, vports);
 }
 
 /**
@@ -1809,27 +2216,34 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		       struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_dmabuf *inp = cmdiocb->context1;
-	struct lpfc_dmabuf *outp = cmdiocb->context2;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *CTcmd = inp->virt;
 	struct lpfc_sli_ct_request *CTrsp = outp->virt;
 	uint16_t fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
 	uint16_t fdmi_rsp = CTrsp->CommandResponse.bits.CmdRsp;
-	IOCB_t *irsp = &rspiocb->iocb;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *ndlp, *free_ndlp = NULL;
 	uint32_t latt, cmd, err;
+	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
+	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 
 	latt = lpfc_els_chk_latt(vport);
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		"FDMI cmpl:       status:x%x/x%x latt:%d",
-		irsp->ulpStatus, irsp->un.ulpWord[4], latt);
+		ulp_status, ulp_word4, latt);
 
-	if (latt || irsp->ulpStatus) {
+	if (latt || ulp_status) {
 
 		/* Look for a retryable error */
-		if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-			switch ((irsp->un.ulpWord[4] & IOERR_PARAM_MASK)) {
+		if (ulp_status == IOSTAT_LOCAL_REJECT) {
+			switch ((ulp_word4 & IOERR_PARAM_MASK)) {
 			case IOERR_SLI_ABORTED:
+			case IOERR_SLI_DOWN:
+				/* Driver aborted this IO.  No retry as error
+				 * is likely Offline->Online or some adapter
+				 * error.  Recovery will try again.
+				 */
+				break;
 			case IOERR_ABORT_IN_PROGRESS:
 			case IOERR_SEQUENCE_TIMEOUT:
 			case IOERR_ILLEGAL_FRAME:
@@ -1852,29 +2266,36 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0229 FDMI cmd %04x failed, latt = %d "
-				 "ulpStatus: x%x, rid x%x\n",
-				 be16_to_cpu(fdmi_cmd), latt, irsp->ulpStatus,
-				 irsp->un.ulpWord[4]);
+				 "ulp_status: x%x, rid x%x\n",
+				 be16_to_cpu(fdmi_cmd), latt, ulp_status,
+				 ulp_word4);
 	}
+
+	free_ndlp = cmdiocb->ndlp;
 	lpfc_ct_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(free_ndlp);
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+	if (!ndlp)
 		return;
 
 	/* Check for a CT LS_RJT response */
 	cmd =  be16_to_cpu(fdmi_cmd);
 	if (fdmi_rsp == cpu_to_be16(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY | LOG_ELS,
 				 "0220 FDMI cmd failed FS_RJT Data: x%x", cmd);
 
 		/* Should we fallback to FDMI-2 / FDMI-1 ? */
 		switch (cmd) {
 		case SLI_MGMT_RHBA:
 			if (vport->fdmi_hba_mask == LPFC_FDMI2_HBA_ATTR) {
-				/* Fallback to FDMI-1 */
+				/* Fallback to FDMI-1 for HBA attributes */
 				vport->fdmi_hba_mask = LPFC_FDMI1_HBA_ATTR;
+
+				/* If HBA attributes are FDMI1, so should
+				 * port attributes be for consistency.
+				 */
 				vport->fdmi_port_mask = LPFC_FDMI1_PORT_ATTR;
 				/* Start over */
 				lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA, 0);
@@ -1882,11 +2303,17 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			return;
 
 		case SLI_MGMT_RPRT:
+			if (vport->port_type != LPFC_PHYSICAL_PORT) {
+				ndlp = lpfc_findnode_did(phba->pport, FDMI_DID);
+				if (!ndlp)
+					return;
+			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_PORT_ATTR) {
 				/* Fallback to FDMI-1 */
 				vport->fdmi_port_mask = LPFC_FDMI1_PORT_ATTR;
 				/* Start over */
 				lpfc_fdmi_cmd(vport, ndlp, cmd, 0);
+				return;
 			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_SMART_ATTR) {
 				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
@@ -1896,12 +2323,23 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			return;
 
 		case SLI_MGMT_RPA:
+			/* No retry on Vendor, RPA only done on physical port */
+			if (phba->link_flag & LS_CT_VEN_RPA) {
+				phba->link_flag &= ~LS_CT_VEN_RPA;
+				if (phba->cmf_active_mode == LPFC_CFG_OFF)
+					return;
+				lpfc_printf_log(phba, KERN_WARNING,
+						LOG_DISCOVERY | LOG_ELS,
+						"6460 VEN FDMI RPA RJT\n");
+				return;
+			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_PORT_ATTR) {
 				/* Fallback to FDMI-1 */
 				vport->fdmi_hba_mask = LPFC_FDMI1_HBA_ATTR;
 				vport->fdmi_port_mask = LPFC_FDMI1_PORT_ATTR;
 				/* Start over */
 				lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA, 0);
+				return;
 			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_SMART_ATTR) {
 				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
@@ -1919,6 +2357,9 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	 */
 	switch (cmd) {
 	case SLI_MGMT_RHBA:
+		/* Check for any RPRTs deferred till after RHBA completes */
+		lpfc_fdmi_rprt_defer(phba, vport->fdmi_port_mask);
+
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPA, 0);
 		break;
 
@@ -1927,10 +2368,60 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		break;
 
 	case SLI_MGMT_DPRT:
-		if (vport->port_type == LPFC_PHYSICAL_PORT)
+		if (vport->port_type == LPFC_PHYSICAL_PORT) {
 			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RHBA, 0);
-		else
-			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPRT, 0);
+		} else {
+			ndlp = lpfc_findnode_did(phba->pport, FDMI_DID);
+			if (!ndlp)
+				return;
+
+			/* Only issue a RPRT for the vport if the RHBA
+			 * for the physical port completes successfully.
+			 * We may have to defer the RPRT accordingly.
+			 */
+			if (phba->hba_flag & HBA_RHBA_CMPL) {
+				lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPRT, 0);
+			} else {
+				lpfc_printf_vlog(vport, KERN_INFO,
+						 LOG_DISCOVERY,
+						 "6078 RPRT deferred\n");
+				vport->ct_flags |= FC_CT_RPRT_DEFER;
+			}
+		}
+		break;
+	case SLI_MGMT_RPA:
+		if (vport->port_type == LPFC_PHYSICAL_PORT &&
+		    phba->sli4_hba.pc_sli4_params.mi_ver) {
+			/* mi is only for the phyical port, no vports */
+			if (phba->link_flag & LS_CT_VEN_RPA) {
+				lpfc_printf_vlog(vport, KERN_INFO,
+						 LOG_DISCOVERY | LOG_ELS |
+						 LOG_CGN_MGMT,
+						 "6449 VEN RPA FDMI Success\n");
+				phba->link_flag &= ~LS_CT_VEN_RPA;
+				break;
+			}
+
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_DISCOVERY | LOG_CGN_MGMT,
+					"6210 Issue Vendor MI FDMI %x\n",
+					phba->sli4_hba.pc_sli4_params.mi_ver);
+
+			/* CGN is only for the physical port, no vports */
+			if (lpfc_fdmi_cmd(vport, ndlp, cmd,
+					  LPFC_FDMI_VENDOR_ATTR_mi) == 0)
+				phba->link_flag |= LS_CT_VEN_RPA;
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_DISCOVERY | LOG_ELS,
+					"6458 Send MI FDMI:%x Flag x%x\n",
+					phba->sli4_hba.pc_sli4_params.mi_ver,
+					phba->link_flag);
+		} else {
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_DISCOVERY | LOG_ELS,
+					"6459 No FDMI VEN MI support - "
+					"RPA Success\n");
+		}
 		break;
 	}
 	return;
@@ -1938,14 +2429,16 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 
 /**
- * lpfc_fdmi_num_disc_check - Check how many mapped NPorts we are connected to
+ * lpfc_fdmi_change_check - Check for changed FDMI parameters
  * @vport: pointer to a host virtual N_Port data structure.
  *
- * Called from hbeat timeout routine to check if the number of discovered
- * ports has changed. If so, re-register thar port Attribute.
+ * Check how many mapped NPorts we are connected to
+ * Check if our hostname changed
+ * Called from hbeat timeout routine to check if any FDMI parameters
+ * changed. If so, re-register those Attributes.
  */
 void
-lpfc_fdmi_num_disc_check(struct lpfc_vport *vport)
+lpfc_fdmi_change_check(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_nodelist *ndlp;
@@ -1958,21 +2451,54 @@ lpfc_fdmi_num_disc_check(struct lpfc_vport *vport)
 	if (!(vport->fc_flag & FC_FABRIC))
 		return;
 
+	ndlp = lpfc_findnode_did(vport, FDMI_DID);
+	if (!ndlp)
+		return;
+
+	/* Check if system hostname changed */
+	if (strcmp(phba->os_host_name, init_utsname()->nodename)) {
+		memset(phba->os_host_name, 0, sizeof(phba->os_host_name));
+		scnprintf(phba->os_host_name, sizeof(phba->os_host_name), "%s",
+			  init_utsname()->nodename);
+		lpfc_ns_cmd(vport, SLI_CTNS_RSNN_NN, 0, 0);
+
+		/* Since this effects multiple HBA and PORT attributes, we need
+		 * de-register and go thru the whole FDMI registration cycle.
+		 * DHBA -> DPRT -> RHBA -> RPA  (physical port)
+		 * DPRT -> RPRT (vports)
+		 */
+		if (vport->port_type == LPFC_PHYSICAL_PORT) {
+			/* For extra Vendor RPA */
+			phba->link_flag &= ~LS_CT_VEN_RPA;
+			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA, 0);
+		} else {
+			ndlp = lpfc_findnode_did(phba->pport, FDMI_DID);
+			if (!ndlp)
+				return;
+			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DPRT, 0);
+		}
+
+		/* Since this code path registers all the port attributes
+		 * we can just return without further checking.
+		 */
+		return;
+	}
+
 	if (!(vport->fdmi_port_mask & LPFC_FDMI_PORT_ATTR_num_disc))
 		return;
 
+	/* Check if the number of mapped NPorts changed */
 	cnt = lpfc_find_map_node(vport);
 	if (cnt == vport->fdmi_num_disc)
-		return;
-
-	ndlp = lpfc_findnode_did(vport, FDMI_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
 		return;
 
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPA,
 			      LPFC_FDMI_PORT_ATTR_num_disc);
 	} else {
+		ndlp = lpfc_findnode_did(phba->pport, FDMI_DID);
+		if (!ndlp)
+			return;
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPRT,
 			      LPFC_FDMI_PORT_ATTR_num_disc);
 	}
@@ -1985,8 +2511,8 @@ lpfc_fdmi_hba_attr_wwnn(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad)
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, sizeof(struct lpfc_name));
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	memcpy(&ae->un.AttrWWN, &vport->fc_sparam.nodeName,
 	       sizeof(struct lpfc_name));
@@ -2002,11 +2528,14 @@ lpfc_fdmi_hba_attr_manufacturer(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
+	/* This string MUST be consistent with other FC platforms
+	 * supported by Broadcom.
+	 */
 	strncpy(ae->un.AttrString,
-		"Broadcom Inc.",
+		"Emulex Corporation",
 		       sizeof(ae->un.AttrString));
 	len = strnlen(ae->un.AttrString,
 			  sizeof(ae->un.AttrString));
@@ -2024,8 +2553,8 @@ lpfc_fdmi_hba_attr_sn(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad)
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, phba->SerialNumber,
 		sizeof(ae->un.AttrString));
@@ -2046,8 +2575,8 @@ lpfc_fdmi_hba_attr_model(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, phba->ModelName,
 		sizeof(ae->un.AttrString));
@@ -2067,8 +2596,8 @@ lpfc_fdmi_hba_attr_description(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, phba->ModelDesc,
 		sizeof(ae->un.AttrString));
@@ -2090,8 +2619,8 @@ lpfc_fdmi_hba_attr_hdw_ver(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t i, j, incr, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	/* Convert JEDEC ID to ascii for hardware version */
 	incr = vp->rev.biuRev;
@@ -2120,8 +2649,8 @@ lpfc_fdmi_hba_attr_drvr_ver(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, lpfc_release_version,
 		sizeof(ae->un.AttrString));
@@ -2142,8 +2671,8 @@ lpfc_fdmi_hba_attr_rom_ver(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		lpfc_decode_firmware_rev(phba, ae->un.AttrString, 1);
@@ -2167,8 +2696,8 @@ lpfc_fdmi_hba_attr_fmw_ver(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	lpfc_decode_firmware_rev(phba, ae->un.AttrString, 1);
 	len = strnlen(ae->un.AttrString,
@@ -2187,8 +2716,8 @@ lpfc_fdmi_hba_attr_os_ver(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	snprintf(ae->un.AttrString, sizeof(ae->un.AttrString), "%s %s %s",
 		 init_utsname()->sysname,
@@ -2210,7 +2739,7 @@ lpfc_fdmi_hba_attr_ct_len(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	ae->un.AttrInt =  cpu_to_be32(LPFC_MAX_CT_SIZE);
 	size = FOURBYTES + sizeof(uint32_t);
@@ -2226,8 +2755,8 @@ lpfc_fdmi_hba_attr_symbolic_name(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	len = lpfc_vport_symbolic_node_name(vport,
 				ae->un.AttrString, 256);
@@ -2245,7 +2774,7 @@ lpfc_fdmi_hba_attr_vendor_info(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	/* Nothing is defined for this currently */
 	ae->un.AttrInt =  cpu_to_be32(0);
@@ -2262,7 +2791,7 @@ lpfc_fdmi_hba_attr_num_ports(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	/* Each driver instance corresponds to a single port */
 	ae->un.AttrInt =  cpu_to_be32(1);
@@ -2279,8 +2808,8 @@ lpfc_fdmi_hba_attr_fabric_wwnn(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, sizeof(struct lpfc_name));
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	memcpy(&ae->un.AttrWWN, &vport->fabric_nodename,
 	       sizeof(struct lpfc_name));
@@ -2298,10 +2827,11 @@ lpfc_fdmi_hba_attr_bios_ver(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
-	lpfc_decode_firmware_rev(phba, ae->un.AttrString, 1);
+	strlcat(ae->un.AttrString, phba->BIOSVersion,
+		sizeof(ae->un.AttrString));
 	len = strnlen(ae->un.AttrString,
 			  sizeof(ae->un.AttrString));
 	len += (len & 3) ? (4 - (len & 3)) : 4;
@@ -2318,7 +2848,7 @@ lpfc_fdmi_hba_attr_bios_state(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	/* Driver doesn't have access to this information */
 	ae->un.AttrInt =  cpu_to_be32(0);
@@ -2335,8 +2865,8 @@ lpfc_fdmi_hba_attr_vendor_id(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, "EMULEX",
 		sizeof(ae->un.AttrString));
@@ -2354,16 +2884,21 @@ static int
 lpfc_fdmi_port_attr_fc4type(struct lpfc_vport *vport,
 			    struct lpfc_fdmi_attr_def *ad)
 {
+	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 32);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
-	ae->un.AttrTypes[3] = 0x02; /* Type 1 - ELS */
-	ae->un.AttrTypes[2] = 0x01; /* Type 8 - FCP */
-	ae->un.AttrTypes[6] = 0x01; /* Type 40 - NVME */
-	ae->un.AttrTypes[7] = 0x01; /* Type 32 - CT */
+	ae->un.AttrTypes[2] = 0x01; /* Type 0x8 - FCP */
+	ae->un.AttrTypes[7] = 0x01; /* Type 0x20 - CT */
+
+	/* Check to see if Firmware supports NVME and on physical port */
+	if ((phba->sli_rev == LPFC_SLI_REV4) && (vport == phba->pport) &&
+	    phba->sli4_hba.pc_sli4_params.nvme)
+		ae->un.AttrTypes[6] = 0x01; /* Type 0x28 - NVME */
+
 	size = FOURBYTES + 32;
 	ad->AttrLen = cpu_to_be16(size);
 	ad->AttrType = cpu_to_be16(RPRT_SUPPORTED_FC4_TYPES);
@@ -2377,29 +2912,59 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport,
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
+	u32 tcfg;
+	u8 i, cnt;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	ae->un.AttrInt = 0;
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
-		if (phba->lmt & LMT_128Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_128GFC;
-		if (phba->lmt & LMT_64Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_64GFC;
-		if (phba->lmt & LMT_32Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_32GFC;
-		if (phba->lmt & LMT_16Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_16GFC;
-		if (phba->lmt & LMT_10Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_10GFC;
-		if (phba->lmt & LMT_8Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_8GFC;
-		if (phba->lmt & LMT_4Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_4GFC;
-		if (phba->lmt & LMT_2Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_2GFC;
-		if (phba->lmt & LMT_1Gb)
-			ae->un.AttrInt |= HBA_PORTSPEED_1GFC;
+		cnt = 0;
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			tcfg = phba->sli4_hba.conf_trunk;
+			for (i = 0; i < 4; i++, tcfg >>= 1)
+				if (tcfg & 1)
+					cnt++;
+		}
+
+		if (cnt > 2) { /* 4 lane trunk group */
+			if (phba->lmt & LMT_64Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_256GFC;
+			if (phba->lmt & LMT_32Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_128GFC;
+			if (phba->lmt & LMT_16Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_64GFC;
+		} else if (cnt) { /* 2 lane trunk group */
+			if (phba->lmt & LMT_128Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_256GFC;
+			if (phba->lmt & LMT_64Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_128GFC;
+			if (phba->lmt & LMT_32Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_64GFC;
+			if (phba->lmt & LMT_16Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_32GFC;
+		} else {
+			if (phba->lmt & LMT_256Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_256GFC;
+			if (phba->lmt & LMT_128Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_128GFC;
+			if (phba->lmt & LMT_64Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_64GFC;
+			if (phba->lmt & LMT_32Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_32GFC;
+			if (phba->lmt & LMT_16Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_16GFC;
+			if (phba->lmt & LMT_10Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_10GFC;
+			if (phba->lmt & LMT_8Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_8GFC;
+			if (phba->lmt & LMT_4Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_4GFC;
+			if (phba->lmt & LMT_2Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_2GFC;
+			if (phba->lmt & LMT_1Gb)
+				ae->un.AttrInt |= HBA_PORTSPEED_1GFC;
+		}
 	} else {
 		/* FCoE links support only one speed */
 		switch (phba->fc_linkspeed) {
@@ -2432,7 +2997,7 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
 		switch (phba->fc_linkspeed) {
@@ -2462,6 +3027,9 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 			break;
 		case LPFC_LINK_SPEED_128GHZ:
 			ae->un.AttrInt = HBA_PORTSPEED_128GFC;
+			break;
+		case LPFC_LINK_SPEED_256GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_256GFC;
 			break;
 		default:
 			ae->un.AttrInt = HBA_PORTSPEED_UNKNOWN;
@@ -2502,10 +3070,10 @@ lpfc_fdmi_port_attr_max_frame(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	hsp = (struct serv_parm *)&vport->fc_sparam;
-	ae->un.AttrInt = (((uint32_t) hsp->cmn.bbRcvSizeMsb) << 8) |
+	ae->un.AttrInt = (((uint32_t) hsp->cmn.bbRcvSizeMsb & 0x0F) << 8) |
 			  (uint32_t) hsp->cmn.bbRcvSizeLsb;
 	ae->un.AttrInt = cpu_to_be32(ae->un.AttrInt);
 	size = FOURBYTES + sizeof(uint32_t);
@@ -2522,8 +3090,8 @@ lpfc_fdmi_port_attr_os_devname(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	snprintf(ae->un.AttrString, sizeof(ae->un.AttrString),
 		 "/sys/class/scsi_host/host%d", shost->host_no);
@@ -2543,11 +3111,11 @@ lpfc_fdmi_port_attr_host_name(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
-	snprintf(ae->un.AttrString, sizeof(ae->un.AttrString), "%s",
-		 init_utsname()->nodename);
+	scnprintf(ae->un.AttrString, sizeof(ae->un.AttrString), "%s",
+		  vport->phba->os_host_name);
 
 	len = strnlen(ae->un.AttrString, sizeof(ae->un.AttrString));
 	len += (len & 3) ? (4 - (len & 3)) : 4;
@@ -2564,8 +3132,8 @@ lpfc_fdmi_port_attr_wwnn(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0,  sizeof(struct lpfc_name));
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	memcpy(&ae->un.AttrWWN, &vport->fc_sparam.nodeName,
 	       sizeof(struct lpfc_name));
@@ -2582,8 +3150,8 @@ lpfc_fdmi_port_attr_wwpn(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0,  sizeof(struct lpfc_name));
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	memcpy(&ae->un.AttrWWN, &vport->fc_sparam.portName,
 	       sizeof(struct lpfc_name));
@@ -2600,8 +3168,8 @@ lpfc_fdmi_port_attr_symbolic_name(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	len = lpfc_vport_symbolic_port_name(vport, ae->un.AttrString, 256);
 	len += (len & 3) ? (4 - (len & 3)) : 4;
@@ -2619,7 +3187,7 @@ lpfc_fdmi_port_attr_port_type(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP)
 		ae->un.AttrInt =  cpu_to_be32(LPFC_FDMI_PORTTYPE_NLPORT);
 	else
@@ -2637,7 +3205,7 @@ lpfc_fdmi_port_attr_class(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 	ae->un.AttrInt = cpu_to_be32(FC_COS_CLASS2 | FC_COS_CLASS3);
 	size = FOURBYTES + sizeof(uint32_t);
 	ad->AttrLen = cpu_to_be16(size);
@@ -2652,8 +3220,8 @@ lpfc_fdmi_port_attr_fabric_wwpn(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0,  sizeof(struct lpfc_name));
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	memcpy(&ae->un.AttrWWN, &vport->fabric_portname,
 	       sizeof(struct lpfc_name));
@@ -2667,15 +3235,21 @@ static int
 lpfc_fdmi_port_attr_active_fc4type(struct lpfc_vport *vport,
 				   struct lpfc_fdmi_attr_def *ad)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 32);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
-	ae->un.AttrTypes[3] = 0x02; /* Type 1 - ELS */
-	ae->un.AttrTypes[2] = 0x01; /* Type 8 - FCP */
-	ae->un.AttrTypes[7] = 0x01; /* Type 32 - CT */
+	ae->un.AttrTypes[2] = 0x01; /* Type 0x8 - FCP */
+	ae->un.AttrTypes[7] = 0x01; /* Type 0x20 - CT */
+
+	/* Check to see if NVME is configured or not */
+	if (vport == phba->pport &&
+	    phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+		ae->un.AttrTypes[6] = 0x1; /* Type 0x28 - NVME */
+
 	size = FOURBYTES + 32;
 	ad->AttrLen = cpu_to_be16(size);
 	ad->AttrType = cpu_to_be16(RPRT_ACTIVE_FC4_TYPES);
@@ -2689,7 +3263,7 @@ lpfc_fdmi_port_attr_port_state(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 	/* Link Up - operational */
 	ae->un.AttrInt =  cpu_to_be32(LPFC_FDMI_PORTSTATE_ONLINE);
 	size = FOURBYTES + sizeof(uint32_t);
@@ -2705,7 +3279,7 @@ lpfc_fdmi_port_attr_num_disc(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 	vport->fdmi_num_disc = lpfc_find_map_node(vport);
 	ae->un.AttrInt = cpu_to_be32(vport->fdmi_num_disc);
 	size = FOURBYTES + sizeof(uint32_t);
@@ -2721,7 +3295,7 @@ lpfc_fdmi_port_attr_nportid(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 	ae->un.AttrInt =  cpu_to_be32(vport->fc_myDID);
 	size = FOURBYTES + sizeof(uint32_t);
 	ad->AttrLen = cpu_to_be16(size);
@@ -2736,8 +3310,8 @@ lpfc_fdmi_smart_attr_service(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, "Smart SAN Initiator",
 		sizeof(ae->un.AttrString));
@@ -2757,8 +3331,8 @@ lpfc_fdmi_smart_attr_guid(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	memcpy(&ae->un.AttrString, &vport->fc_sparam.nodeName,
 	       sizeof(struct lpfc_name));
@@ -2778,8 +3352,8 @@ lpfc_fdmi_smart_attr_version(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, "Smart SAN Version 2.0",
 		sizeof(ae->un.AttrString));
@@ -2800,8 +3374,8 @@ lpfc_fdmi_smart_attr_model(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t len, size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	memset(ae, 0, 256);
+	ae = &ad->AttrValue;
+	memset(ae, 0, sizeof(*ae));
 
 	strncpy(ae->un.AttrString, phba->ModelName,
 		sizeof(ae->un.AttrString));
@@ -2820,7 +3394,7 @@ lpfc_fdmi_smart_attr_port_info(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 
 	/* SRIOV (type 3) is not supported */
 	if (vport->vpi)
@@ -2840,7 +3414,7 @@ lpfc_fdmi_smart_attr_qos(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 	ae->un.AttrInt =  cpu_to_be32(0);
 	size = FOURBYTES + sizeof(uint32_t);
 	ad->AttrLen = cpu_to_be16(size);
@@ -2855,11 +3429,33 @@ lpfc_fdmi_smart_attr_security(struct lpfc_vport *vport,
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
-	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	ae = &ad->AttrValue;
 	ae->un.AttrInt =  cpu_to_be32(1);
 	size = FOURBYTES + sizeof(uint32_t);
 	ad->AttrLen = cpu_to_be16(size);
 	ad->AttrType = cpu_to_be16(RPRT_SMART_SECURITY);
+	return size;
+}
+
+static int
+lpfc_fdmi_vendor_attr_mi(struct lpfc_vport *vport,
+			  struct lpfc_fdmi_attr_def *ad)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_fdmi_attr_entry *ae;
+	uint32_t len, size;
+	char mibrevision[16];
+
+	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	memset(ae, 0, 256);
+	sprintf(mibrevision, "ELXE2EM:%04d",
+		phba->sli4_hba.pc_sli4_params.mi_ver);
+	strncpy(ae->un.AttrString, &mibrevision[0], sizeof(ae->un.AttrString));
+	len = strnlen(ae->un.AttrString, sizeof(ae->un.AttrString));
+	len += (len & 3) ? (4 - (len & 3)) : 4;
+	size = FOURBYTES + len;
+	ad->AttrLen = cpu_to_be16(size);
+	ad->AttrType = cpu_to_be16(RPRT_VENDOR_MI);
 	return size;
 }
 
@@ -2914,14 +3510,15 @@ int (*lpfc_fdmi_port_action[])
 	lpfc_fdmi_smart_attr_port_info,     /* bit20  RPRT_SMART_PORT_INFO    */
 	lpfc_fdmi_smart_attr_qos,           /* bit21  RPRT_SMART_QOS          */
 	lpfc_fdmi_smart_attr_security,      /* bit22  RPRT_SMART_SECURITY     */
+	lpfc_fdmi_vendor_attr_mi,           /* bit23  RPRT_VENDOR_MI          */
 };
 
 /**
  * lpfc_fdmi_cmd - Build and send a FDMI cmd to the specified NPort
  * @vport: pointer to a host virtual N_Port data structure.
  * @ndlp: ndlp to send FDMI cmd to (if NULL use FDMI_DID)
- * cmdcode: FDMI command to send
- * mask: Mask of HBA or PORT Attributes to send
+ * @cmdcode: FDMI command to send
+ * @new_mask: Mask of HBA or PORT Attributes to send
  *
  * Builds and sends a FDMI command using the CT subsystem.
  */
@@ -2945,7 +3542,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	void (*cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
 		     struct lpfc_iocbq *);
 
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+	if (!ndlp)
 		return 0;
 
 	cmpl = lpfc_cmpl_ct_disc_fdmi; /* called from discovery */
@@ -2974,8 +3571,10 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* FDMI request */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-			 "0218 FDMI Request Data: x%x x%x x%x\n",
-			 vport->fc_flag, vport->port_state, cmdcode);
+			 "0218 FDMI Request x%x mask x%x Data: x%x x%x x%x\n",
+			 cmdcode, new_mask, vport->fdmi_port_mask,
+			 vport->fc_flag, vport->port_state);
+
 	CtReq = (struct lpfc_sli_ct_request *)mp->virt;
 
 	/* First populate the CT_IU preamble */
@@ -3003,7 +3602,8 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			/* Registered Port List */
 			/* One entry (port) per adapter */
 			rh->rpl.EntryCnt = cpu_to_be32(1);
-			memcpy(&rh->rpl.pe, &phba->pport->fc_sparam.portName,
+			memcpy(&rh->rpl.pe.PortName,
+			       &phba->pport->fc_sparam.portName,
 			       sizeof(struct lpfc_name));
 
 			/* point to the HBA attribute block */
@@ -3043,6 +3643,12 @@ hba_out:
 		break;
 
 	case SLI_MGMT_RPRT:
+		if (vport->port_type != LPFC_PHYSICAL_PORT) {
+			ndlp = lpfc_findnode_did(phba->pport, FDMI_DID);
+			if (!ndlp)
+				return 0;
+		}
+		fallthrough;
 	case SLI_MGMT_RPA:
 		pab = (struct lpfc_fdmi_reg_portattr *)&CtReq->un.PortID;
 		if (cmdcode == SLI_MGMT_RPRT) {
@@ -3092,6 +3698,7 @@ port_out:
 	case SLI_MGMT_GHAT:
 	case SLI_MGMT_GRPL:
 		rsp_size = FC_MAX_NS_RSP;
+		fallthrough;
 	case SLI_MGMT_DHBA:
 	case SLI_MGMT_DHAT:
 		pe = (struct lpfc_fdmi_port_entry *)&CtReq->un.PortID;
@@ -3104,7 +3711,14 @@ port_out:
 	case SLI_MGMT_GPAT:
 	case SLI_MGMT_GPAS:
 		rsp_size = FC_MAX_NS_RSP;
+		fallthrough;
 	case SLI_MGMT_DPRT:
+		if (vport->port_type != LPFC_PHYSICAL_PORT) {
+			ndlp = lpfc_findnode_did(phba->pport, FDMI_DID);
+			if (!ndlp)
+				return 0;
+		}
+		fallthrough;
 	case SLI_MGMT_DPA:
 		pe = (struct lpfc_fdmi_port_entry *)&CtReq->un.PortID;
 		memcpy((uint8_t *)&pe->PortName,
@@ -3136,12 +3750,6 @@ port_out:
 	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, 0))
 		return 0;
 
-	/*
-	 * Decrement ndlp reference count to release ndlp reference held
-	 * for the failed command's callback function.
-	 */
-	lpfc_nlp_put(ndlp);
-
 fdmi_cmd_free_bmpvirt:
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 fdmi_cmd_free_bmp:
@@ -3160,7 +3768,7 @@ fdmi_cmd_exit:
 
 /**
  * lpfc_delayed_disc_tmo - Timeout handler for delayed discovery timer.
- * @ptr - Context object of the timer.
+ * @t: Context object of the timer.
  *
  * This function set the WORKER_DELAYED_DISC_TMO flag and wake up
  * the worker thread.
@@ -3291,4 +3899,255 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 		sprintf(fwrevision, "%d.%d%d%c%d", b1, b2, b3, c, b4);
 	}
 	return;
+}
+
+static void
+lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		      struct lpfc_iocbq *rspiocb)
+{
+	struct lpfc_vport *vport = cmdiocb->vport;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
+	struct lpfc_sli_ct_request *ctcmd = inp->virt;
+	struct lpfc_sli_ct_request *ctrsp = outp->virt;
+	u16 rsp = ctrsp->CommandResponse.bits.CmdRsp;
+	struct app_id_object *app;
+	u32 cmd, hash, bucket;
+	struct lpfc_vmid *vmp, *cur;
+	u8 *data = outp->virt;
+	int i;
+
+	cmd = be16_to_cpu(ctcmd->CommandResponse.bits.CmdRsp);
+	if (cmd == SLI_CTAS_DALLAPP_ID)
+		lpfc_ct_free_iocb(phba, cmdiocb);
+
+	if (lpfc_els_chk_latt(vport) || get_job_ulpstatus(phba, rspiocb)) {
+		if (cmd != SLI_CTAS_DALLAPP_ID)
+			return;
+	}
+	/* Check for a CT LS_RJT response */
+	if (rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
+		if (cmd != SLI_CTAS_DALLAPP_ID)
+			lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+					 "3306 VMID FS_RJT Data: x%x x%x x%x\n",
+					 cmd, ctrsp->ReasonCode,
+					 ctrsp->Explanation);
+		if ((cmd != SLI_CTAS_DALLAPP_ID) ||
+		    (ctrsp->ReasonCode != SLI_CT_UNABLE_TO_PERFORM_REQ) ||
+		    (ctrsp->Explanation != SLI_CT_APP_ID_NOT_AVAILABLE)) {
+			/* If DALLAPP_ID failed retry later */
+			if (cmd == SLI_CTAS_DALLAPP_ID)
+				vport->load_flag |= FC_DEREGISTER_ALL_APP_ID;
+			return;
+		}
+	}
+
+	switch (cmd) {
+	case SLI_CTAS_RAPP_IDENT:
+		app = (struct app_id_object *)(RAPP_IDENT_OFFSET + data);
+		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+				 "6712 RAPP_IDENT app id %d  port id x%x id "
+				 "len %d\n", be32_to_cpu(app->app_id),
+				 be32_to_cpu(app->port_id),
+				 app->obj.entity_id_len);
+
+		if (app->obj.entity_id_len == 0 || app->port_id == 0)
+			return;
+
+		hash = lpfc_vmid_hash_fn(app->obj.entity_id,
+					 app->obj.entity_id_len);
+		vmp = lpfc_get_vmid_from_hashtable(vport, hash,
+						  app->obj.entity_id);
+		if (vmp) {
+			write_lock(&vport->vmid_lock);
+			vmp->un.app_id = be32_to_cpu(app->app_id);
+			vmp->flag |= LPFC_VMID_REGISTERED;
+			vmp->flag &= ~LPFC_VMID_REQ_REGISTER;
+			write_unlock(&vport->vmid_lock);
+			/* Set IN USE flag */
+			vport->vmid_flag |= LPFC_VMID_IN_USE;
+		} else {
+			lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+					 "6901 No entry found %s hash %d\n",
+					 app->obj.entity_id, hash);
+		}
+		break;
+	case SLI_CTAS_DAPP_IDENT:
+		app = (struct app_id_object *)(DAPP_IDENT_OFFSET + data);
+		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+				 "6713 DAPP_IDENT app id %d  port id x%x\n",
+				 be32_to_cpu(app->app_id),
+				 be32_to_cpu(app->port_id));
+		break;
+	case SLI_CTAS_DALLAPP_ID:
+		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+				 "8856 Deregistered all app ids\n");
+		read_lock(&vport->vmid_lock);
+		for (i = 0; i < phba->cfg_max_vmid; i++) {
+			vmp = &vport->vmid[i];
+			if (vmp->flag != LPFC_VMID_SLOT_FREE)
+				memset(vmp, 0, sizeof(struct lpfc_vmid));
+		}
+		read_unlock(&vport->vmid_lock);
+		/* for all elements in the hash table */
+		if (!hash_empty(vport->hash_table))
+			hash_for_each(vport->hash_table, bucket, cur, hnode)
+				hash_del(&cur->hnode);
+		vport->load_flag |= FC_ALLOW_VMID;
+		break;
+	default:
+		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+				 "8857 Invalid command code\n");
+	}
+}
+
+/**
+ * lpfc_vmid_cmd - Build and send a FDMI cmd to the specified NPort
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @cmdcode: application server command code to send
+ * @vmid: pointer to vmid info structure
+ *
+ * Builds and sends a FDMI command using the CT subsystem.
+ */
+int
+lpfc_vmid_cmd(struct lpfc_vport *vport,
+	      int cmdcode, struct lpfc_vmid *vmid)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_dmabuf *mp, *bmp;
+	struct lpfc_sli_ct_request *ctreq;
+	struct ulp_bde64 *bpl;
+	u32 size;
+	u32 rsp_size;
+	u8 *data;
+	struct lpfc_vmid_rapp_ident_list *rap;
+	struct lpfc_vmid_dapp_ident_list *dap;
+	u8 retry = 0;
+	struct lpfc_nodelist *ndlp;
+
+	void (*cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		     struct lpfc_iocbq *rspiocb);
+
+	ndlp = lpfc_findnode_did(vport, FDMI_DID);
+	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
+		return 0;
+
+	cmpl = lpfc_cmpl_ct_cmd_vmid;
+
+	/* fill in BDEs for command */
+	/* Allocate buffer for command payload */
+	mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+	if (!mp)
+		goto vmid_free_mp_exit;
+
+	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp->virt)
+		goto vmid_free_mp_virt_exit;
+
+	/* Allocate buffer for Buffer ptr list */
+	bmp = kmalloc(sizeof(*bmp), GFP_KERNEL);
+	if (!bmp)
+		goto vmid_free_bmp_exit;
+
+	bmp->virt = lpfc_mbuf_alloc(phba, 0, &bmp->phys);
+	if (!bmp->virt)
+		goto vmid_free_bmp_virt_exit;
+
+	INIT_LIST_HEAD(&mp->list);
+	INIT_LIST_HEAD(&bmp->list);
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "3275 VMID Request Data: x%x x%x x%x\n",
+			 vport->fc_flag, vport->port_state, cmdcode);
+	ctreq = (struct lpfc_sli_ct_request *)mp->virt;
+	data = mp->virt;
+	/* First populate the CT_IU preamble */
+	memset(data, 0, LPFC_BPL_SIZE);
+	ctreq->RevisionId.bits.Revision = SLI_CT_REVISION;
+	ctreq->RevisionId.bits.InId = 0;
+
+	ctreq->FsType = SLI_CT_MANAGEMENT_SERVICE;
+	ctreq->FsSubType = SLI_CT_APP_SEV_Subtypes;
+
+	ctreq->CommandResponse.bits.CmdRsp = cpu_to_be16(cmdcode);
+	rsp_size = LPFC_BPL_SIZE;
+	size = 0;
+
+	switch (cmdcode) {
+	case SLI_CTAS_RAPP_IDENT:
+		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+				 "1329 RAPP_IDENT for %s\n", vmid->host_vmid);
+		ctreq->un.PortID = cpu_to_be32(vport->fc_myDID);
+		rap = (struct lpfc_vmid_rapp_ident_list *)
+			(DAPP_IDENT_OFFSET + data);
+		rap->no_of_objects = cpu_to_be32(1);
+		rap->obj[0].entity_id_len = vmid->vmid_len;
+		memcpy(rap->obj[0].entity_id, vmid->host_vmid, vmid->vmid_len);
+		size = RAPP_IDENT_OFFSET +
+			sizeof(struct lpfc_vmid_rapp_ident_list);
+		retry = 1;
+		break;
+
+	case SLI_CTAS_GALLAPPIA_ID:
+		ctreq->un.PortID = cpu_to_be32(vport->fc_myDID);
+		size = GALLAPPIA_ID_SIZE;
+		break;
+
+	case SLI_CTAS_DAPP_IDENT:
+		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+				 "1469 DAPP_IDENT for %s\n", vmid->host_vmid);
+		ctreq->un.PortID = cpu_to_be32(vport->fc_myDID);
+		dap = (struct lpfc_vmid_dapp_ident_list *)
+			(DAPP_IDENT_OFFSET + data);
+		dap->no_of_objects = cpu_to_be32(1);
+		dap->obj[0].entity_id_len = vmid->vmid_len;
+		memcpy(dap->obj[0].entity_id, vmid->host_vmid, vmid->vmid_len);
+		size = DAPP_IDENT_OFFSET +
+			sizeof(struct lpfc_vmid_dapp_ident_list);
+		write_lock(&vport->vmid_lock);
+		vmid->flag &= ~LPFC_VMID_REGISTERED;
+		write_unlock(&vport->vmid_lock);
+		retry = 1;
+		break;
+
+	case SLI_CTAS_DALLAPP_ID:
+		ctreq->un.PortID = cpu_to_be32(vport->fc_myDID);
+		size = DALLAPP_ID_SIZE;
+		break;
+
+	default:
+		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+				 "7062 VMID cmdcode x%x not supported\n",
+				 cmdcode);
+		goto vmid_free_all_mem;
+	}
+
+	ctreq->CommandResponse.bits.Size = cpu_to_be16(rsp_size);
+
+	bpl = (struct ulp_bde64 *)bmp->virt;
+	bpl->addrHigh = putPaddrHigh(mp->phys);
+	bpl->addrLow = putPaddrLow(mp->phys);
+	bpl->tus.f.bdeFlags = 0;
+	bpl->tus.f.bdeSize = size;
+
+	/* The lpfc_ct_cmd/lpfc_get_req shall increment ndlp reference count
+	 * to hold ndlp reference for the corresponding callback function.
+	 */
+	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, retry))
+		return 0;
+
+ vmid_free_all_mem:
+	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
+ vmid_free_bmp_virt_exit:
+	kfree(bmp);
+ vmid_free_bmp_exit:
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+ vmid_free_mp_virt_exit:
+	kfree(mp);
+ vmid_free_mp_exit:
+
+	/* Issue CT request failed */
+	lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,
+			 "3276 VMID CT request failed Data: x%x\n", cmdcode);
+	return -EIO;
 }

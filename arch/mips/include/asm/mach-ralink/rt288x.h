@@ -1,7 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Parts of this file are based on Ralink's 2.6.21 BSP
  *
@@ -34,15 +32,6 @@
 #define SYSTEM_CONFIG_CPUCLK_266	0x1
 #define SYSTEM_CONFIG_CPUCLK_280	0x2
 #define SYSTEM_CONFIG_CPUCLK_300	0x3
-
-#define RT2880_GPIO_MODE_I2C		BIT(0)
-#define RT2880_GPIO_MODE_UART0		BIT(1)
-#define RT2880_GPIO_MODE_SPI		BIT(2)
-#define RT2880_GPIO_MODE_UART1		BIT(3)
-#define RT2880_GPIO_MODE_JTAG		BIT(4)
-#define RT2880_GPIO_MODE_MDIO		BIT(5)
-#define RT2880_GPIO_MODE_SDRAM		BIT(6)
-#define RT2880_GPIO_MODE_PCI		BIT(7)
 
 #define CLKCFG_SRAM_CS_N_WDT		BIT(9)
 

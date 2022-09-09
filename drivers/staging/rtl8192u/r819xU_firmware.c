@@ -54,11 +54,9 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		if ((buffer_len - frag_offset) > frag_threshold) {
 			frag_length = frag_threshold;
 			bLastIniPkt = 0;
-
 		} else {
 			frag_length = buffer_len - frag_offset;
 			bLastIniPkt = 1;
-
 		}
 
 		/* Allocate skb buffer to contain firmware info and tx descriptor info
@@ -104,7 +102,6 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	} while (frag_offset < buffer_len);
 
 	return rt_status;
-
 }
 
 /*
@@ -172,7 +169,6 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 
 static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
-
 	bool		rt_status = true;
 	int		check_time = 200000;
 	u32		CPU_status = 0;
@@ -197,7 +193,6 @@ CPUCheckFirmwareReady_Fail:
 	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
-
 }
 
 bool init_firmware(struct net_device *dev)
@@ -231,7 +226,7 @@ bool init_firmware(struct net_device *dev)
 		rst_opt = OPT_FIRMWARE_RESET;
 		starting_state = FW_INIT_STEP2_DATA;
 	} else {
-		 RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined firmware state\n");
+		RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined firmware state\n");
 	}
 
 	/*
@@ -338,7 +333,6 @@ download_firmware_fail:
 	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
-
 }
 
 MODULE_FIRMWARE("RTL8192U/boot.img");

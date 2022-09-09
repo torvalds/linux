@@ -49,10 +49,8 @@ static u32 mii_get_an(struct mii_if_info *mii, u16 addr)
  *
  * The @ecmd parameter is expected to have been cleared before calling
  * mii_ethtool_gset().
- *
- * Returns 0 for success, negative on error.
  */
-int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
+void mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 {
 	struct net_device *dev = mii->dev;
 	u16 bmcr, bmsr, ctrl1000 = 0, stat1000 = 0;
@@ -81,17 +79,18 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 	bmcr = mii->mdio_read(dev, mii->phy_id, MII_BMCR);
 	bmsr = mii->mdio_read(dev, mii->phy_id, MII_BMSR);
 	if (mii->supports_gmii) {
- 		ctrl1000 = mii->mdio_read(dev, mii->phy_id, MII_CTRL1000);
+		ctrl1000 = mii->mdio_read(dev, mii->phy_id, MII_CTRL1000);
 		stat1000 = mii->mdio_read(dev, mii->phy_id, MII_STAT1000);
 	}
+
+	ecmd->advertising |= mii_get_an(mii, MII_ADVERTISE);
+	if (mii->supports_gmii)
+		ecmd->advertising |=
+			mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
+
 	if (bmcr & BMCR_ANENABLE) {
 		ecmd->advertising |= ADVERTISED_Autoneg;
 		ecmd->autoneg = AUTONEG_ENABLE;
-
-		ecmd->advertising |= mii_get_an(mii, MII_ADVERTISE);
-		if (mii->supports_gmii)
-			ecmd->advertising |=
-					mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
 
 		if (bmsr & BMSR_ANEGCOMPLETE) {
 			ecmd->lp_advertising = mii_get_an(mii, MII_LPA);
@@ -130,8 +129,6 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 	mii->full_duplex = ecmd->duplex;
 
 	/* ignore maxtxpkt, maxrxpkt for now */
-
-	return 0;
 }
 
 /**
@@ -171,13 +168,14 @@ void mii_ethtool_get_link_ksettings(struct mii_if_info *mii,
 		ctrl1000 = mii->mdio_read(dev, mii->phy_id, MII_CTRL1000);
 		stat1000 = mii->mdio_read(dev, mii->phy_id, MII_STAT1000);
 	}
+
+	advertising |= mii_get_an(mii, MII_ADVERTISE);
+	if (mii->supports_gmii)
+		advertising |= mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
+
 	if (bmcr & BMCR_ANENABLE) {
 		advertising |= ADVERTISED_Autoneg;
 		cmd->base.autoneg = AUTONEG_ENABLE;
-
-		advertising |= mii_get_an(mii, MII_ADVERTISE);
-		if (mii->supports_gmii)
-			advertising |= mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
 
 		if (bmsr & BMSR_ANEGCOMPLETE) {
 			lp_advertising = mii_get_an(mii, MII_LPA);
@@ -597,7 +595,7 @@ int generic_mii_ioctl(struct mii_if_info *mii_if,
 	switch(cmd) {
 	case SIOCGMIIPHY:
 		mii_data->phy_id = mii_if->phy_id;
-		/* fall through */
+		fallthrough;
 
 	case SIOCGMIIREG:
 		mii_data->val_out =

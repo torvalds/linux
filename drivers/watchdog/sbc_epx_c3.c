@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	SBC EPX C3 0.1	A Hardware Watchdog Device for the Winsystems EPX-C3
  *	single board computer
  *
  *	(c) Copyright 2006 Calin A. Culianu <calin@ajvar.org>, All Rights
  *	Reserved.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	based on softdog.c by Alan Cox <alan@lxorguk.ukuu.org.uk>
  */
@@ -78,7 +74,7 @@ static int epx_c3_open(struct inode *inode, struct file *file)
 	epx_c3_alive = 1;
 	pr_info("Started watchdog timer\n");
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int epx_c3_release(struct inode *inode, struct file *file)
@@ -160,6 +156,7 @@ static const struct file_operations epx_c3_fops = {
 	.llseek		= no_llseek,
 	.write		= epx_c3_write,
 	.unlocked_ioctl	= epx_c3_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= epx_c3_open,
 	.release	= epx_c3_release,
 };

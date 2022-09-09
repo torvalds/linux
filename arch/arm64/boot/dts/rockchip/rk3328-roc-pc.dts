@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2021 T-Chip Intelligent Technology Co., Ltd
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+
+#include "rk3328-roc-cc.dts"
+
+/ {
+	model = "Firefly ROC-RK3328-PC";
+	compatible = "firefly,roc-rk3328-pc", "rockchip,rk3328";
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1750000>;
+
+		/* This button is unpopulated out of the factory. */
+		button-recovery {
+			label = "Recovery";
+			linux,code = <KEY_VENDOR>;
+			press-threshold-microvolt = <10000>;
+		};
+	};
+
+	ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
+		linux,rc-map-name = "rc-khadas";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ir_int>;
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_en>, <&wifi_host_wake>;
+		reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&codec {
+	mute-gpios = <&grf_gpio 0 GPIO_ACTIVE_LOW>;
+};
+
+&gpu {
+	mali-supply = <&vdd_logic>;
+};
+
+&pinctrl {
+	ir {
+		ir_int: ir-int {
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sdmmcio {
+		sdio_per_pin: sdio-per-pin {
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	wifi {
+		wifi_en: wifi-en {
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		wifi_host_wake: wifi-host-wake {
+			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none_4ma>;
+		};
+
+		bt_rst: bt-rst {
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_en: bt-en {
+			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pmic_int_l {
+	rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+};
+
+&rk805 {
+	interrupt-parent = <&gpio0>;
+	interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
+};
+
+&saradc {
+	vref-supply = <&vcc_18>;
+	status = "okay";
+};
+
+&usb20_host_drv {
+	rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
+};
+
+&vcc_host1_5v {
+	gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+};
+
+&vcc_sdio {
+	gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio_per_pin>;
+};

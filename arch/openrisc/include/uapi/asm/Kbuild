@@ -1,5 +1,2 @@
-include include/uapi/asm-generic/Kbuild.asm
-
-generic-y += kvm_para.h
-generic-y += shmparam.h
+# SPDX-License-Identifier: GPL-2.0
 generic-y += ucontext.h

@@ -118,10 +118,6 @@ struct lance_private {
 	int auto_select;	      /* cable-selection by carrier */
 	unsigned short busmaster_regval;
 
-#ifdef CONFIG_SUNLANCE
-	struct Linux_SBus_DMA *ledma; /* if set this points to ledma and arch=4m */
-	int burst_sizes;	      /* ledma SBus burst sizes */
-#endif
 	struct timer_list         multicast_timer;
 	struct net_device	  *dev;
 };
@@ -522,7 +518,7 @@ static inline int lance_reset(struct net_device *dev)
 	return status;
 }
 
-static void lance_tx_timeout(struct net_device *dev)
+static void lance_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
@@ -551,11 +547,10 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 	if (!lance_tx_buffs_avail(lp))
 		goto out_free;
 
-#ifdef DEBUG
 	/* dump the packet */
-	print_hex_dump(KERN_DEBUG, "skb->data: ", DUMP_PREFIX_NONE,
-		       16, 1, skb->data, 64, true);
-#endif
+	print_hex_dump_debug("skb->data: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
+			     64, true);
+
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
 	ib->btx_ring[entry].length = (-skblen) | 0xf000;
 	ib->btx_ring[entry].misc = 0;
@@ -685,6 +680,7 @@ static int a2065_init_one(struct zorro_dev *z,
 	unsigned long base_addr = board + A2065_LANCE;
 	unsigned long mem_start = board + A2065_RAM;
 	struct resource *r1, *r2;
+	u8 addr[ETH_ALEN];
 	u32 serial;
 	int err;
 
@@ -711,17 +707,18 @@ static int a2065_init_one(struct zorro_dev *z,
 	r2->name = dev->name;
 
 	serial = be32_to_cpu(z->rom.er_SerialNumber);
-	dev->dev_addr[0] = 0x00;
+	addr[0] = 0x00;
 	if (z->id != ZORRO_PROD_AMERISTAR_A2065) {	/* Commodore */
-		dev->dev_addr[1] = 0x80;
-		dev->dev_addr[2] = 0x10;
+		addr[1] = 0x80;
+		addr[2] = 0x10;
 	} else {					/* Ameristar */
-		dev->dev_addr[1] = 0x00;
-		dev->dev_addr[2] = 0x9f;
+		addr[1] = 0x00;
+		addr[2] = 0x9f;
 	}
-	dev->dev_addr[3] = (serial >> 16) & 0xff;
-	dev->dev_addr[4] = (serial >> 8) & 0xff;
-	dev->dev_addr[5] = serial & 0xff;
+	addr[3] = (serial >> 16) & 0xff;
+	addr[4] = (serial >> 8) & 0xff;
+	addr[5] = serial & 0xff;
+	eth_hw_addr_set(dev, addr);
 	dev->base_addr = (unsigned long)ZTWO_VADDR(base_addr);
 	dev->mem_start = (unsigned long)ZTWO_VADDR(mem_start);
 	dev->mem_end = dev->mem_start + A2065_RAM_SIZE;

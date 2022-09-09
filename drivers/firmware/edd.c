@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/firmware/edd.c
  *  Copyright (C) 2002, 2003, 2004 Dell Inc.
@@ -17,16 +18,6 @@
  *
  * Please see http://linux.dell.com/edd/results.html for
  * the list of BIOSs which have been reported to implement EDD.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -350,7 +341,7 @@ edd_show_legacy_max_cylinder(struct edd_device *edev, char *buf)
 	if (!info || !buf)
 		return -EINVAL;
 
-	p += snprintf(p, left, "%u\n", info->legacy_max_cylinder);
+	p += scnprintf(p, left, "%u\n", info->legacy_max_cylinder);
 	return (p - buf);
 }
 
@@ -365,7 +356,7 @@ edd_show_legacy_max_head(struct edd_device *edev, char *buf)
 	if (!info || !buf)
 		return -EINVAL;
 
-	p += snprintf(p, left, "%u\n", info->legacy_max_head);
+	p += scnprintf(p, left, "%u\n", info->legacy_max_head);
 	return (p - buf);
 }
 
@@ -380,7 +371,7 @@ edd_show_legacy_sectors_per_track(struct edd_device *edev, char *buf)
 	if (!info || !buf)
 		return -EINVAL;
 
-	p += snprintf(p, left, "%u\n", info->legacy_sectors_per_track);
+	p += scnprintf(p, left, "%u\n", info->legacy_sectors_per_track);
 	return (p - buf);
 }
 
@@ -583,14 +574,6 @@ static EDD_DEVICE_ATTR(interface, 0444, edd_show_interface, edd_has_edd30);
 static EDD_DEVICE_ATTR(host_bus, 0444, edd_show_host_bus, edd_has_edd30);
 static EDD_DEVICE_ATTR(mbr_signature, 0444, edd_show_mbr_signature, edd_has_mbr_signature);
 
-
-/* These are default attributes that are added for every edd
- * device discovered.  There are none.
- */
-static struct attribute * def_attrs[] = {
-	NULL,
-};
-
 /* These attributes are conditional and only added for some devices. */
 static struct edd_attribute * edd_attrs[] = {
 	&edd_attr_raw_data,
@@ -628,7 +611,6 @@ static void edd_release(struct kobject * kobj)
 static struct kobj_type edd_ktype = {
 	.release	= edd_release,
 	.sysfs_ops	= &edd_attr_ops,
-	.default_attrs	= def_attrs,
 };
 
 static struct kset *edd_kset;
@@ -703,8 +685,7 @@ static void edd_populate_dir(struct edd_device * edev)
 	int i;
 
 	for (i = 0; (attr = edd_attrs[i]) && !error; i++) {
-		if (!attr->test ||
-		    (attr->test && attr->test(edev)))
+		if (!attr->test || attr->test(edev))
 			error = sysfs_create_file(&edev->kobj,&attr->attr);
 	}
 

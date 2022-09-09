@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
  * This file contains AppArmor label definitions
  *
  * Copyright 2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/audit.h>
@@ -80,7 +76,7 @@ void __aa_proxy_redirect(struct aa_label *orig, struct aa_label *new)
 
 	AA_BUG(!orig);
 	AA_BUG(!new);
-	lockdep_assert_held_exclusive(&labels_set(orig)->lock);
+	lockdep_assert_held_write(&labels_set(orig)->lock);
 
 	tmp = rcu_dereference_protected(orig->proxy->label,
 					&labels_ns(orig)->lock);
@@ -201,18 +197,18 @@ static bool vec_is_stale(struct aa_profile **vec, int n)
 	return false;
 }
 
-static bool vec_unconfined(struct aa_profile **vec, int n)
+static long union_vec_flags(struct aa_profile **vec, int n, long mask)
 {
+	long u = 0;
 	int i;
 
 	AA_BUG(!vec);
 
 	for (i = 0; i < n; i++) {
-		if (!profile_unconfined(vec[i]))
-			return false;
+		u |= vec[i]->label.flags & mask;
 	}
 
-	return true;
+	return u;
 }
 
 static int sort_cmp(const void *a, const void *b)
@@ -313,10 +309,8 @@ out:
 }
 
 
-static void label_destroy(struct aa_label *label)
+void aa_label_destroy(struct aa_label *label)
 {
-	struct aa_label *tmp;
-
 	AA_BUG(!label);
 
 	if (!label_isprofile(label)) {
@@ -332,16 +326,13 @@ static void label_destroy(struct aa_label *label)
 		}
 	}
 
-	if (rcu_dereference_protected(label->proxy->label, true) == label)
-		rcu_assign_pointer(label->proxy->label, NULL);
-
+	if (label->proxy) {
+		if (rcu_dereference_protected(label->proxy->label, true) == label)
+			rcu_assign_pointer(label->proxy->label, NULL);
+		aa_put_proxy(label->proxy);
+	}
 	aa_free_secid(label->secid);
 
-	tmp = rcu_dereference_protected(label->proxy->label, true);
-	if (tmp == label)
-		rcu_assign_pointer(label->proxy->label, NULL);
-
-	aa_put_proxy(label->proxy);
 	label->proxy = (struct aa_proxy *) PROXY_POISON + 1;
 }
 
@@ -350,7 +341,7 @@ void aa_label_free(struct aa_label *label)
 	if (!label)
 		return;
 
-	label_destroy(label);
+	aa_label_destroy(label);
 	kfree(label);
 }
 
@@ -434,8 +425,7 @@ struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp)
 	AA_BUG(size < 1);
 
 	/*  + 1 for null terminator entry on vec */
-	new = kzalloc(sizeof(*new) + sizeof(struct aa_profile *) * (size + 1),
-			gfp);
+	new = kzalloc(struct_size(new, vec, size + 1), gfp);
 	AA_DEBUG("%s (%p)\n", __func__, new);
 	if (!new)
 		goto fail;
@@ -495,7 +485,7 @@ int aa_label_next_confined(struct aa_label *label, int i)
 }
 
 /**
- * aa_label_next_not_in_set - return the next profile of @sub not in @set
+ * __aa_label_next_not_in_set - return the next profile of @sub not in @set
  * @I: label iterator
  * @set: label to test against
  * @sub: label to if is subset of @set
@@ -554,6 +544,39 @@ bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
 	return __aa_label_next_not_in_set(&i, set, sub) == NULL;
 }
 
+/**
+ * aa_label_is_unconfined_subset - test if @sub is a subset of @set
+ * @set: label to test against
+ * @sub: label to test if is subset of @set
+ *
+ * This checks for subset but taking into account unconfined. IF
+ * @sub contains an unconfined profile that does not have a matching
+ * unconfined in @set then this will not cause the test to fail.
+ * Conversely we don't care about an unconfined in @set that is not in
+ * @sub
+ *
+ * Returns: true if @sub is special_subset of @set
+ *     else false
+ */
+bool aa_label_is_unconfined_subset(struct aa_label *set, struct aa_label *sub)
+{
+	struct label_it i = { };
+	struct aa_profile *p;
+
+	AA_BUG(!set);
+	AA_BUG(!sub);
+
+	if (sub == set)
+		return true;
+
+	do {
+		p = __aa_label_next_not_in_set(&i, set, sub);
+		if (p && !profile_unconfined(p))
+			break;
+	} while (p);
+
+	return p == NULL;
+}
 
 
 /**
@@ -570,7 +593,7 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
 
 	AA_BUG(!ls);
 	AA_BUG(!label);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 
 	if (new)
 		__aa_proxy_redirect(label, new);
@@ -607,7 +630,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 	AA_BUG(!ls);
 	AA_BUG(!old);
 	AA_BUG(!new);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(new->flags & FLAG_IN_TREE);
 
 	if (!label_is_stale(old))
@@ -644,7 +667,7 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	AA_BUG(!ls);
 	AA_BUG(!label);
 	AA_BUG(labels_set(label) != ls);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(label->flags & FLAG_IN_TREE);
 
 	/* Figure out where to put new node */
@@ -1074,8 +1097,8 @@ static struct aa_label *label_merge_insert(struct aa_label *new,
 		else if (k == b->size)
 			return aa_get_label(b);
 	}
-	if (vec_unconfined(new->vec, new->size))
-		new->flags |= FLAG_UNCONFINED;
+	new->flags |= union_vec_flags(new->vec, new->size, FLAG_UNCONFINED |
+					      FLAG_DEBUG1 | FLAG_DEBUG2);
 	ls = labels_set(new);
 	write_lock_irqsave(&ls->lock, flags);
 	label = __label_insert(labels_set(new), new, false);
@@ -1430,7 +1453,7 @@ bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp)
 	if (label->hname || labels_ns(label) != ns)
 		return res;
 
-	if (aa_label_acntsxprint(&name, ns, label, FLAGS_NONE, gfp) == -1)
+	if (aa_label_acntsxprint(&name, ns, label, FLAGS_NONE, gfp) < 0)
 		return res;
 
 	ls = labels_set(label);
@@ -1462,11 +1485,13 @@ static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label,
 /* helper macro for snprint routines */
 #define update_for_len(total, len, size, str)	\
 do {					\
+	size_t ulen = len;		\
+					\
 	AA_BUG(len < 0);		\
-	total += len;			\
-	len = min(len, size);		\
-	size -= len;			\
-	str += len;			\
+	total += ulen;			\
+	ulen = min(ulen, size);		\
+	size -= ulen;			\
+	str += ulen;			\
 } while (0)
 
 /**
@@ -1533,13 +1558,13 @@ static const char *label_modename(struct aa_ns *ns, struct aa_label *label,
 
 	label_for_each(i, label, profile) {
 		if (aa_ns_visible(ns, profile->ns, flags & FLAG_VIEW_SUBNS)) {
-			if (profile->mode == APPARMOR_UNCONFINED)
+			count++;
+			if (profile == profile->ns->unconfined)
 				/* special case unconfined so stacks with
 				 * unconfined don't report as mixed. ie.
 				 * profile_foo//&:ns1:unconfined (mixed)
 				 */
 				continue;
-			count++;
 			if (mode == -1)
 				mode = profile->mode;
 			else if (mode != profile->mode)
@@ -1601,14 +1626,14 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	struct aa_ns *prev_ns = NULL;
 	struct label_it i;
 	int count = 0, total = 0;
-	size_t len;
+	ssize_t len;
 
 	AA_BUG(!str && size != 0);
 	AA_BUG(!label);
 
-	if (flags & FLAG_ABS_ROOT) {
+	if (AA_DEBUG_LABEL && (flags & FLAG_ABS_ROOT)) {
 		ns = root_ns;
-		len = snprintf(str, size, "=");
+		len = snprintf(str, size, "_");
 		update_for_len(total, len, size, str);
 	} else if (!ns) {
 		ns = labels_ns(label);
@@ -1678,7 +1703,7 @@ int aa_label_asxprint(char **strp, struct aa_ns *ns, struct aa_label *label,
 
 /**
  * aa_label_acntsxprint - allocate a __counted string buffer and print label
- * @strp: buffer to write to. (MAY BE NULL if @size == 0)
+ * @strp: buffer to write to.
  * @ns: namespace profile is being viewed from
  * @label: label to view (NOT NULL)
  * @flags: flags controlling what label info is printed
@@ -1719,7 +1744,7 @@ void aa_label_xaudit(struct audit_buffer *ab, struct aa_ns *ns,
 	if (!use_label_hname(ns, label, flags) ||
 	    display_mode(ns, label, flags)) {
 		len  = aa_label_asxprint(&name, ns, label, flags, gfp);
-		if (len == -1) {
+		if (len < 0) {
 			AA_DEBUG("label print error");
 			return;
 		}
@@ -1747,17 +1772,17 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 		int len;
 
 		len = aa_label_asxprint(&str, ns, label, flags, gfp);
-		if (len == -1) {
+		if (len < 0) {
 			AA_DEBUG("label print error");
 			return;
 		}
-		seq_printf(f, "%s", str);
+		seq_puts(f, str);
 		kfree(str);
 	} else if (display_mode(ns, label, flags))
 		seq_printf(f, "%s (%s)", label->hname,
 			   label_modename(ns, label, flags));
 	else
-		seq_printf(f, "%s", label->hname);
+		seq_puts(f, label->hname);
 }
 
 void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
@@ -1770,7 +1795,7 @@ void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 		int len;
 
 		len = aa_label_asxprint(&str, ns, label, flags, gfp);
-		if (len == -1) {
+		if (len < 0) {
 			AA_DEBUG("label print error");
 			return;
 		}
@@ -1870,7 +1895,8 @@ struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
 	AA_BUG(!str);
 
 	str = skipn_spaces(str, n);
-	if (str == NULL || (*str == '=' && base != &root_ns->unconfined->label))
+	if (str == NULL || (AA_DEBUG_LABEL && *str == '_' &&
+			    base != &root_ns->unconfined->label))
 		return ERR_PTR(-EINVAL);
 
 	len = label_count_strn_entries(str, end - str);
@@ -2111,7 +2137,7 @@ static void __labelset_update(struct aa_ns *ns)
 }
 
 /**
- * __aa_labelset_udate_subtree - update all labels with a stale component
+ * __aa_labelset_update_subtree - update all labels with a stale component
  * @ns: ns to start update at (NOT NULL)
  *
  * Requires: @ns lock be held

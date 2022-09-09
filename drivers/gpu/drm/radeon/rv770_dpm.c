@@ -22,14 +22,15 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "rv770.h"
 #include "rv770d.h"
 #include "r600_dpm.h"
 #include "rv770_dpm.h"
 #include "cypress_dpm.h"
 #include "atom.h"
+#include "evergreen.h"
 #include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/boot/bootp/init.S
  *
  *  Copyright (C) 2000-2003 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  "Header" file for splitting kernel + initrd.  Note that we pass
  *  r0 through to r3 straight through.
@@ -16,7 +13,7 @@
  *  size immediately following the kernel, we could build this into
  *  a binary blob, and concatenate the zImage using the cat command.
  */
-		.section .start,#alloc,#execinstr
+		.section .start, "ax"
 		.type	_start, #function
 		.globl	_start
 
@@ -44,7 +41,7 @@ _start:		add	lr, pc, #-0x8		@ lr = current load addr
  */
 		movne	r10, #0			@ terminator
 		movne	r4, #2			@ Size of this entry (2 words)
-		stmneia	r9, {r4, r5, r10}	@ Size, ATAG_CORE, terminator
+		stmiane	r9, {r4, r5, r10}	@ Size, ATAG_CORE, terminator
 
 /*
  * find the end of the tag list, and then add an INITRD tag on the end.

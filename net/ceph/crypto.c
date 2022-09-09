@@ -96,6 +96,7 @@ int ceph_crypto_key_decode(struct ceph_crypto_key *key, void **p, void *end)
 	key->len = ceph_decode_16(p);
 	ceph_decode_need(p, end, key->len, bad);
 	ret = set_secret(key, *p);
+	memzero_explicit(*p, key->len);
 	*p += key->len;
 	return ret;
 
@@ -134,17 +135,19 @@ int ceph_crypto_key_unarmor(struct ceph_crypto_key *key, const char *inkey)
 void ceph_crypto_key_destroy(struct ceph_crypto_key *key)
 {
 	if (key) {
-		kfree(key->key);
+		kfree_sensitive(key->key);
 		key->key = NULL;
-		crypto_free_sync_skcipher(key->tfm);
-		key->tfm = NULL;
+		if (key->tfm) {
+			crypto_free_sync_skcipher(key->tfm);
+			key->tfm = NULL;
+		}
 	}
 }
 
 static const u8 *aes_iv = (u8 *)CEPH_AES_IV;
 
 /*
- * Should be used for buffers allocated with ceph_kvmalloc().
+ * Should be used for buffers allocated with kvmalloc().
  * Currently these are encrypt out-buffer (ceph_buffer) and decrypt
  * in-buffer (msg front).
  *

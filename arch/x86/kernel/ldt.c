@@ -8,7 +8,7 @@
  *
  * Lock order:
  *	contex.ldt_usr_sem
- *	  mmap_sem
+ *	  mmap_lock
  *	    context.lock
  */
 
@@ -27,7 +27,91 @@
 #include <asm/tlb.h>
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
-#include <asm/syscalls.h>
+#include <asm/pgtable_areas.h>
+
+#include <xen/xen.h>
+
+/* This is a multiple of PAGE_SIZE. */
+#define LDT_SLOT_STRIDE (LDT_ENTRIES * LDT_ENTRY_SIZE)
+
+static inline void *ldt_slot_va(int slot)
+{
+	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
+}
+
+void load_mm_ldt(struct mm_struct *mm)
+{
+	struct ldt_struct *ldt;
+
+	/* READ_ONCE synchronizes with smp_store_release */
+	ldt = READ_ONCE(mm->context.ldt);
+
+	/*
+	 * Any change to mm->context.ldt is followed by an IPI to all
+	 * CPUs with the mm active.  The LDT will not be freed until
+	 * after the IPI is handled by all such CPUs.  This means that,
+	 * if the ldt_struct changes before we return, the values we see
+	 * will be safe, and the new values will be loaded before we run
+	 * any user code.
+	 *
+	 * NB: don't try to convert this to use RCU without extreme care.
+	 * We would still need IRQs off, because we don't want to change
+	 * the local LDT after an IPI loaded a newer value than the one
+	 * that we can see.
+	 */
+
+	if (unlikely(ldt)) {
+		if (static_cpu_has(X86_FEATURE_PTI)) {
+			if (WARN_ON_ONCE((unsigned long)ldt->slot > 1)) {
+				/*
+				 * Whoops -- either the new LDT isn't mapped
+				 * (if slot == -1) or is mapped into a bogus
+				 * slot (if slot > 1).
+				 */
+				clear_LDT();
+				return;
+			}
+
+			/*
+			 * If page table isolation is enabled, ldt->entries
+			 * will not be mapped in the userspace pagetables.
+			 * Tell the CPU to access the LDT through the alias
+			 * at ldt_slot_va(ldt->slot).
+			 */
+			set_ldt(ldt_slot_va(ldt->slot), ldt->nr_entries);
+		} else {
+			set_ldt(ldt->entries, ldt->nr_entries);
+		}
+	} else {
+		clear_LDT();
+	}
+}
+
+void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
+{
+	/*
+	 * Load the LDT if either the old or new mm had an LDT.
+	 *
+	 * An mm will never go from having an LDT to not having an LDT.  Two
+	 * mms never share an LDT, so we don't gain anything by checking to
+	 * see whether the LDT changed.  There's also no guarantee that
+	 * prev->context.ldt actually matches LDTR, but, if LDTR is non-NULL,
+	 * then prev->context.ldt will also be non-NULL.
+	 *
+	 * If we really cared, we could optimize the case where prev == next
+	 * and we're exiting lazy mode.  Most of the time, if this happens,
+	 * we don't actually need to reload LDTR, but modify_ldt() is mostly
+	 * used by legacy code and emulators where we don't need this level of
+	 * performance.
+	 *
+	 * This uses | instead of || because it generates better code.
+	 */
+	if (unlikely((unsigned long)prev->context.ldt |
+		     (unsigned long)next->context.ldt))
+		load_mm_ldt(next);
+
+	DEBUG_LOCKS_WARN_ON(preemptible());
+}
 
 static void refresh_ldt_segments(void)
 {
@@ -70,7 +154,7 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
 	if (num_entries > LDT_ENTRIES)
 		return NULL;
 
-	new_ldt = kmalloc(sizeof(struct ldt_struct), GFP_KERNEL);
+	new_ldt = kmalloc(sizeof(struct ldt_struct), GFP_KERNEL_ACCOUNT);
 	if (!new_ldt)
 		return NULL;
 
@@ -84,9 +168,9 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
 	 * than PAGE_SIZE.
 	 */
 	if (alloc_size > PAGE_SIZE)
-		new_ldt->entries = vzalloc(alloc_size);
+		new_ldt->entries = __vmalloc(alloc_size, GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	else
-		new_ldt->entries = (void *)get_zeroed_page(GFP_KERNEL);
+		new_ldt->entries = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 
 	if (!new_ldt->entries) {
 		kfree(new_ldt);
@@ -113,7 +197,7 @@ static void do_sanity_check(struct mm_struct *mm,
 		 * tables.
 		 */
 		WARN_ON(!had_kernel_mapping);
-		if (static_cpu_has(X86_FEATURE_PTI))
+		if (boot_cpu_has(X86_FEATURE_PTI))
 			WARN_ON(!had_user_mapping);
 	} else {
 		/*
@@ -121,7 +205,7 @@ static void do_sanity_check(struct mm_struct *mm,
 		 * Sync the pgd to the usermode tables.
 		 */
 		WARN_ON(had_kernel_mapping);
-		if (static_cpu_has(X86_FEATURE_PTI))
+		if (boot_cpu_has(X86_FEATURE_PTI))
 			WARN_ON(had_user_mapping);
 	}
 }
@@ -156,7 +240,7 @@ static void map_ldt_struct_to_user(struct mm_struct *mm)
 	k_pmd = pgd_to_pmd_walk(k_pgd, LDT_BASE_ADDR);
 	u_pmd = pgd_to_pmd_walk(u_pgd, LDT_BASE_ADDR);
 
-	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
+	if (boot_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
 		set_pmd(u_pmd, *k_pmd);
 }
 
@@ -181,7 +265,7 @@ static void map_ldt_struct_to_user(struct mm_struct *mm)
 {
 	pgd_t *pgd = pgd_offset(mm, LDT_BASE_ADDR);
 
-	if (static_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
+	if (boot_cpu_has(X86_FEATURE_PTI) && !mm->context.ldt)
 		set_pgd(kernel_to_user_pgdp(pgd), *pgd);
 }
 
@@ -208,7 +292,7 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 	spinlock_t *ptl;
 	int i, nr_pages;
 
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!boot_cpu_has(X86_FEATURE_PTI))
 		return 0;
 
 	/*
@@ -271,7 +355,7 @@ static void unmap_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt)
 		return;
 
 	/* LDT map/unmap is only required for PTI */
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!boot_cpu_has(X86_FEATURE_PTI))
 		return;
 
 	nr_pages = DIV_ROUND_UP(ldt->nr_entries * LDT_ENTRY_SIZE, PAGE_SIZE);
@@ -311,12 +395,18 @@ static void free_ldt_pgtables(struct mm_struct *mm)
 	unsigned long start = LDT_BASE_ADDR;
 	unsigned long end = LDT_END_ADDR;
 
-	if (!static_cpu_has(X86_FEATURE_PTI))
+	if (!boot_cpu_has(X86_FEATURE_PTI))
 		return;
 
-	tlb_gather_mmu(&tlb, mm, start, end);
+	/*
+	 * Although free_pgd_range() is intended for freeing user
+	 * page-tables, it also works out for kernel mappings on x86.
+	 * We use tlb_gather_mmu_fullmm() to avoid confusing the
+	 * range-tracking logic in __tlb_adjust_range().
+	 */
+	tlb_gather_mmu_fullmm(&tlb, mm);
 	free_pgd_range(&tlb, start, end, start, end);
-	tlb_finish_mmu(&tlb, start, end);
+	tlb_finish_mmu(&tlb);
 #endif
 }
 
@@ -461,6 +551,28 @@ static int read_default_ldt(void __user *ptr, unsigned long bytecount)
 	return bytecount;
 }
 
+static bool allow_16bit_segments(void)
+{
+	if (!IS_ENABLED(CONFIG_X86_16BIT))
+		return false;
+
+#ifdef CONFIG_XEN_PV
+	/*
+	 * Xen PV does not implement ESPFIX64, which means that 16-bit
+	 * segments will not work correctly.  Until either Xen PV implements
+	 * ESPFIX64 and can signal this fact to the guest or unless someone
+	 * provides compelling evidence that allowing broken 16-bit segments
+	 * is worthwhile, disallow 16-bit segments under Xen PV.
+	 */
+	if (xen_pv_domain()) {
+		pr_info_once("Warning: 16-bit segments do not work correctly in a Xen PV guest\n");
+		return false;
+	}
+#endif
+
+	return true;
+}
+
 static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 {
 	struct mm_struct *mm = current->mm;
@@ -492,7 +604,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 		/* The user wants to clear the entry. */
 		memset(&ldt, 0, sizeof(ldt));
 	} else {
-		if (!IS_ENABLED(CONFIG_X86_16BIT) && !ldt_info.seg_32bit) {
+		if (!ldt_info.seg_32bit && !allow_16bit_segments()) {
 			error = -EINVAL;
 			goto out;
 		}

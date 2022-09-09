@@ -90,7 +90,7 @@
 		};
 
 		internal-regs {
-			sdramc@1400 {
+			sdramc: sdramc@1400 {
 				compatible = "marvell,armada-xp-sdram-controller";
 				reg = <0x1400 0x500>;
 			};
@@ -264,11 +264,8 @@
 &i2c0 {
 	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
 	reg = <0x11000 0x100>;
-};
-
-&i2c1 {
-	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-	reg = <0x11100 0x100>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
 };
 
 &mpic {
@@ -324,6 +321,11 @@
 			       "mpp2", "mpp3";
 		marvell,function = "spi0";
 	};
+
+	i2c0_pins: i2c-pins-0 {
+		marvell,pins = "mpp14", "mpp15";
+		marvell,function = "i2c0";
+	};
 };
 
 &spi0 {
@@ -334,5 +336,13 @@
 
 &sdio {
 	status = "disabled";
+};
+
+&uart0 {
+	compatible = "marvell,armada-38x-uart";
+};
+
+&uart1 {
+	compatible = "marvell,armada-38x-uart";
 };
 

@@ -1,23 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux-DVB Driver for DiBcom's DiB0090 base-band RF Tuner.
  *
  * Copyright (C) 2005-9 DiBcom (http://www.dibcom.fr/)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
- *
- *
  * This code is more or less generated from another driver, please
  * excuse some codingstyle oddities.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1705,7 +1693,7 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 		if (state->identity.p1g)
 			state->dc = dc_p1g_table;
 
-		/* fall through */
+		fallthrough;
 	case CT_TUNER_STEP_0:
 		dprintk("Start/continue DC calibration for %s path\n",
 			(state->dc->i == 1) ? "I" : "Q");
@@ -1760,7 +1748,8 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 			}
 
 			dib0090_set_trim(state);
-			dprintk("BB Offset Cal, BBreg=%hd,Offset=%hd,Value Set=%hd\n", state->dc->addr, state->adc_diff, state->step);
+			dprintk("BB Offset Cal, BBreg=%u,Offset=%d,Value Set=%d\n",
+				state->dc->addr, state->adc_diff, state->step);
 
 			state->dc++;
 			if (state->dc->addr == 0)	/* done */
@@ -1776,6 +1765,8 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 		dib0090_write_reg(state, 0x1f, 0x7);
 		*tune_state = CT_TUNER_START;	/* reset done -> real tuning can now begin */
 		state->calibrate &= ~DC_CAL;
+		break;
+
 	default:
 		break;
 	}
@@ -2459,7 +2450,7 @@ static int dib0090_tune(struct dvb_frontend *fe)
 		state->current_standard = state->fe->dtv_property_cache.delivery_system;
 
 		ret = 20;
-		state->calibrate = CAPTRIM_CAL;	/* captrim serach now */
+		state->calibrate = CAPTRIM_CAL;	/* captrim search now */
 	}
 
 	else if (*tune_state == CT_TUNER_STEP_0) {	/* Warning : because of captrim cal, if you change this step, change it also in _cal.c file because it is the step following captrim cal state machine */

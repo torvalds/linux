@@ -23,6 +23,7 @@
 #include "debug.h"
 
 #define TOPAZ_TX_BD_SIZE_DEFAULT	128
+#define TOPAZ_RX_BD_SIZE_DEFAULT	256
 
 struct qtnf_topaz_tx_bd {
 	__le32 addr;
@@ -199,8 +200,6 @@ static int topaz_alloc_bd_table(struct qtnf_pcie_topaz_state *ts,
 	if (!vaddr)
 		return -ENOMEM;
 
-	memset(vaddr, 0, len);
-
 	/* tx bd */
 
 	ts->tx_bd_vbase = vaddr;
@@ -248,7 +247,7 @@ topaz_skb2rbd_attach(struct qtnf_pcie_topaz_state *ts, u16 index, u32 wrap)
 	struct sk_buff *skb;
 	dma_addr_t paddr;
 
-	skb = __netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE, GFP_ATOMIC);
+	skb = netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE);
 	if (!skb) {
 		ts->base.rx_skb[index] = NULL;
 		return -ENOMEM;
@@ -256,9 +255,9 @@ topaz_skb2rbd_attach(struct qtnf_pcie_topaz_state *ts, u16 index, u32 wrap)
 
 	ts->base.rx_skb[index] = skb;
 
-	paddr = pci_map_single(ts->base.pdev, skb->data,
-			       SKB_BUF_SIZE, PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(ts->base.pdev, paddr)) {
+	paddr = dma_map_single(&ts->base.pdev->dev, skb->data, SKB_BUF_SIZE,
+			       DMA_FROM_DEVICE);
+	if (dma_mapping_error(&ts->base.pdev->dev, paddr)) {
 		pr_err("skb mapping error: %pad\n", &paddr);
 		return -ENOMEM;
 	}
@@ -307,8 +306,8 @@ static void qtnf_topaz_free_xfer_buffers(struct qtnf_pcie_topaz_state *ts)
 			rxbd = &ts->rx_bd_vbase[i];
 			skb = priv->rx_skb[i];
 			paddr = QTN_HOST_ADDR(0x0, le32_to_cpu(rxbd->addr));
-			pci_unmap_single(priv->pdev, paddr, SKB_BUF_SIZE,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, paddr,
+					 SKB_BUF_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb_any(skb);
 			priv->rx_skb[i] = NULL;
 			rxbd->addr = 0;
@@ -322,8 +321,8 @@ static void qtnf_topaz_free_xfer_buffers(struct qtnf_pcie_topaz_state *ts)
 			txbd = &ts->tx_bd_vbase[i];
 			skb = priv->tx_skb[i];
 			paddr = QTN_HOST_ADDR(0x0, le32_to_cpu(txbd->addr));
-			pci_unmap_single(priv->pdev, paddr, SKB_BUF_SIZE,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&priv->pdev->dev, paddr,
+					 SKB_BUF_SIZE, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			priv->tx_skb[i] = NULL;
 			txbd->addr = 0;
@@ -333,7 +332,8 @@ static void qtnf_topaz_free_xfer_buffers(struct qtnf_pcie_topaz_state *ts)
 }
 
 static int qtnf_pcie_topaz_init_xfer(struct qtnf_pcie_topaz_state *ts,
-				     unsigned int tx_bd_size)
+				     unsigned int tx_bd_size,
+				     unsigned int rx_bd_size)
 {
 	struct qtnf_topaz_bda __iomem *bda = ts->bda;
 	struct qtnf_pcie_bus_priv *priv = &ts->base;
@@ -351,6 +351,17 @@ static int qtnf_pcie_topaz_init_xfer(struct qtnf_pcie_topaz_state *ts,
 
 	priv->tx_bd_num = tx_bd_size;
 	qtnf_non_posted_write(priv->tx_bd_num, &bda->bda_rc_tx_bd_num);
+
+	if (rx_bd_size == 0)
+		rx_bd_size = TOPAZ_RX_BD_SIZE_DEFAULT;
+
+	if (rx_bd_size > TOPAZ_RX_BD_SIZE_DEFAULT) {
+		pr_warn("RX BD queue cannot exceed %d\n",
+			TOPAZ_RX_BD_SIZE_DEFAULT);
+		rx_bd_size = TOPAZ_RX_BD_SIZE_DEFAULT;
+	}
+
+	priv->rx_bd_num = rx_bd_size;
 	qtnf_non_posted_write(priv->rx_bd_num, &bda->bda_rc_rx_bd_num);
 
 	priv->rx_bd_w_index = 0;
@@ -403,11 +414,11 @@ static void qtnf_topaz_data_tx_reclaim(struct qtnf_pcie_topaz_state *ts)
 		if (likely(skb)) {
 			txbd = &ts->tx_bd_vbase[i];
 			paddr = QTN_HOST_ADDR(0x0, le32_to_cpu(txbd->addr));
-			pci_unmap_single(priv->pdev, paddr, skb->len,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&priv->pdev->dev, paddr, skb->len,
+					 DMA_TO_DEVICE);
 
 			if (skb->dev) {
-				qtnf_update_tx_stats(skb->dev, skb);
+				dev_sw_netstats_tx_add(skb->dev, 1, skb->len);
 				if (unlikely(priv->tx_stopped)) {
 					qtnf_wake_all_queues(skb->dev);
 					priv->tx_stopped = 0;
@@ -486,7 +497,8 @@ static int qtnf_tx_queue_ready(struct qtnf_pcie_topaz_state *ts)
 	return 1;
 }
 
-static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
+static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb,
+			     unsigned int macid, unsigned int vifid)
 {
 	struct qtnf_pcie_topaz_state *ts = (void *)get_bus_priv(bus);
 	struct qtnf_pcie_bus_priv *priv = &ts->base;
@@ -510,9 +522,9 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	priv->tx_skb[i] = skb;
 	len = skb->len;
 
-	skb_paddr = pci_map_single(priv->pdev, skb->data,
-				   skb->len, PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(priv->pdev, skb_paddr)) {
+	skb_paddr = dma_map_single(&priv->pdev->dev, skb->data, skb->len,
+				   DMA_TO_DEVICE);
+	if (dma_mapping_error(&priv->pdev->dev, skb_paddr)) {
 		ret = -ENOMEM;
 		goto tx_done;
 	}
@@ -559,6 +571,9 @@ static irqreturn_t qtnf_pcie_topaz_interrupt(int irq, void *data)
 	if (!priv->msi_enabled && !qtnf_topaz_intx_asserted(ts))
 		return IRQ_NONE;
 
+	if (!priv->msi_enabled)
+		qtnf_deassert_intx(ts);
+
 	priv->pcie_irq_count++;
 
 	qtnf_shm_ipc_irq_handler(&priv->shm_ipc_ep_in);
@@ -570,9 +585,6 @@ static irqreturn_t qtnf_pcie_topaz_interrupt(int irq, void *data)
 	}
 
 	tasklet_hi_schedule(&priv->reclaim_tq);
-
-	if (!priv->msi_enabled)
-		qtnf_deassert_intx(ts);
 
 	return IRQ_HANDLED;
 }
@@ -641,8 +653,8 @@ static int qtnf_topaz_rx_poll(struct napi_struct *napi, int budget)
 
 		if (skb) {
 			skb_paddr = QTN_HOST_ADDR(0x0, le32_to_cpu(rxbd->addr));
-			pci_unmap_single(priv->pdev, skb_paddr, SKB_BUF_SIZE,
-					 PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, skb_paddr,
+					 SKB_BUF_SIZE, DMA_FROM_DEVICE);
 		}
 
 		if (consume) {
@@ -650,7 +662,7 @@ static int qtnf_topaz_rx_poll(struct napi_struct *napi, int budget)
 			skb_put(skb, psize);
 			ndev = qtnf_classify_skb(bus, skb);
 			if (likely(ndev)) {
-				qtnf_update_rx_stats(ndev, skb);
+				dev_sw_netstats_rx_add(ndev, skb->len);
 				skb->protocol = eth_type_trans(skb, ndev);
 				netif_receive_skb(skb);
 			} else {
@@ -729,7 +741,7 @@ static void qtnf_pcie_data_rx_stop(struct qtnf_bus *bus)
 	napi_disable(&bus->mux_napi);
 }
 
-static const struct qtnf_bus_ops qtnf_pcie_topaz_bus_ops = {
+static struct qtnf_bus_ops qtnf_pcie_topaz_bus_ops = {
 	/* control path methods */
 	.control_tx	= qtnf_pcie_control_tx,
 
@@ -1023,8 +1035,9 @@ static void qtnf_topaz_fw_work_handler(struct work_struct *work)
 {
 	struct qtnf_bus *bus = container_of(work, struct qtnf_bus, fw_work);
 	struct qtnf_pcie_topaz_state *ts = (void *)get_bus_priv(bus);
-	int ret;
 	int bootloader_needed = readl(&ts->bda->bda_flags) & QTN_BDA_XMIT_UBOOT;
+	struct pci_dev *pdev = ts->base.pdev;
+	int ret;
 
 	qtnf_set_state(&ts->bda->bda_bootstate, QTN_BDA_FW_TARGET_BOOT);
 
@@ -1073,24 +1086,28 @@ static void qtnf_topaz_fw_work_handler(struct work_struct *work)
 		}
 	}
 
+	ret = qtnf_post_init_ep(ts);
+	if (ret) {
+		pr_err("FW runtime failure\n");
+		goto fw_load_exit;
+	}
+
 	pr_info("firmware is up and running\n");
 
-	ret = qtnf_post_init_ep(ts);
+	ret = qtnf_pcie_fw_boot_done(bus);
 	if (ret)
-		pr_err("FW runtime failure\n");
+		goto fw_load_exit;
+
+	qtnf_debugfs_add_entry(bus, "pkt_stats", qtnf_dbg_pkt_stats);
+	qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
 
 fw_load_exit:
-	qtnf_pcie_fw_boot_done(bus, ret ? false : true);
-
-	if (ret == 0) {
-		qtnf_debugfs_add_entry(bus, "pkt_stats", qtnf_dbg_pkt_stats);
-		qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
-	}
+	put_device(&pdev->dev);
 }
 
-static void qtnf_reclaim_tasklet_fn(unsigned long data)
+static void qtnf_reclaim_tasklet_fn(struct tasklet_struct *t)
 {
-	struct qtnf_pcie_topaz_state *ts = (void *)data;
+	struct qtnf_pcie_topaz_state *ts = from_tasklet(ts, t, base.reclaim_tq);
 
 	qtnf_topaz_data_tx_reclaim(ts);
 }
@@ -1100,7 +1117,8 @@ static u64 qtnf_topaz_dma_mask_get(void)
 	return DMA_BIT_MASK(32);
 }
 
-static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus, unsigned int tx_bd_num)
+static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus,
+				 unsigned int tx_bd_num, unsigned int rx_bd_num)
 {
 	struct qtnf_pcie_topaz_state *ts = get_bus_priv(bus);
 	struct pci_dev *pdev = ts->base.pdev;
@@ -1134,16 +1152,15 @@ static int qtnf_pcie_topaz_probe(struct qtnf_bus *bus, unsigned int tx_bd_num)
 		return ret;
 	}
 
-	ret = qtnf_pcie_topaz_init_xfer(ts, tx_bd_num);
+	ret = qtnf_pcie_topaz_init_xfer(ts, tx_bd_num, rx_bd_num);
 	if (ret) {
 		pr_err("PCIE xfer init failed\n");
 		return ret;
 	}
 
-	tasklet_init(&ts->base.reclaim_tq, qtnf_reclaim_tasklet_fn,
-		     (unsigned long)ts);
-	netif_napi_add(&bus->mux_dev, &bus->mux_napi,
-		       qtnf_topaz_rx_poll, 10);
+	tasklet_setup(&ts->base.reclaim_tq, qtnf_reclaim_tasklet_fn);
+	netif_napi_add_weight(&bus->mux_dev, &bus->mux_napi,
+			      qtnf_topaz_rx_poll, 10);
 
 	ipc_int.fn = qtnf_topaz_ipc_gen_ep_int;
 	ipc_int.arg = ts;

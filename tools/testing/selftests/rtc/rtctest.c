@@ -20,6 +20,8 @@
 
 #define NUM_UIE 3
 #define ALARM_DELTA 3
+#define READ_LOOP_DURATION_SEC 30
+#define READ_LOOP_SLEEP_MS 11
 
 static char *rtc_file = "/dev/rtc0";
 
@@ -49,7 +51,71 @@ TEST_F(rtc, date_read) {
 	       rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
 }
 
-TEST_F(rtc, uie_read) {
+static time_t rtc_time_to_timestamp(struct rtc_time *rtc_time)
+{
+	struct tm tm_time = {
+	       .tm_sec = rtc_time->tm_sec,
+	       .tm_min = rtc_time->tm_min,
+	       .tm_hour = rtc_time->tm_hour,
+	       .tm_mday = rtc_time->tm_mday,
+	       .tm_mon = rtc_time->tm_mon,
+	       .tm_year = rtc_time->tm_year,
+	};
+
+	return mktime(&tm_time);
+}
+
+static void nanosleep_with_retries(long ns)
+{
+	struct timespec req = {
+		.tv_sec = 0,
+		.tv_nsec = ns,
+	};
+	struct timespec rem;
+
+	while (nanosleep(&req, &rem) != 0) {
+		req.tv_sec = rem.tv_sec;
+		req.tv_nsec = rem.tv_nsec;
+	}
+}
+
+TEST_F_TIMEOUT(rtc, date_read_loop, READ_LOOP_DURATION_SEC + 2) {
+	int rc;
+	long iter_count = 0;
+	struct rtc_time rtc_tm;
+	time_t start_rtc_read, prev_rtc_read;
+
+	TH_LOG("Continuously reading RTC time for %ds (with %dms breaks after every read).",
+	       READ_LOOP_DURATION_SEC, READ_LOOP_SLEEP_MS);
+
+	rc = ioctl(self->fd, RTC_RD_TIME, &rtc_tm);
+	ASSERT_NE(-1, rc);
+	start_rtc_read = rtc_time_to_timestamp(&rtc_tm);
+	prev_rtc_read = start_rtc_read;
+
+	do  {
+		time_t rtc_read;
+
+		rc = ioctl(self->fd, RTC_RD_TIME, &rtc_tm);
+		ASSERT_NE(-1, rc);
+
+		rtc_read = rtc_time_to_timestamp(&rtc_tm);
+		/* Time should not go backwards */
+		ASSERT_LE(prev_rtc_read, rtc_read);
+		/* Time should not increase more then 1s at a time */
+		ASSERT_GE(prev_rtc_read + 1, rtc_read);
+
+		/* Sleep 11ms to avoid killing / overheating the RTC */
+		nanosleep_with_retries(READ_LOOP_SLEEP_MS * 1000000);
+
+		prev_rtc_read = rtc_read;
+		iter_count++;
+	} while (prev_rtc_read <= start_rtc_read + READ_LOOP_DURATION_SEC);
+
+	TH_LOG("Performed %ld RTC time reads.", iter_count);
+}
+
+TEST_F_TIMEOUT(rtc, uie_read, NUM_UIE + 2) {
 	int i, rc, irq = 0;
 	unsigned long data;
 
@@ -145,14 +211,11 @@ TEST_F(rtc, alarm_alm_set) {
 
 	rc = select(self->fd + 1, &readfds, NULL, NULL, &tv);
 	ASSERT_NE(-1, rc);
-	EXPECT_NE(0, rc);
+	ASSERT_NE(0, rc);
 
 	/* Disable alarm interrupts */
 	rc = ioctl(self->fd, RTC_AIE_OFF, 0);
 	ASSERT_NE(-1, rc);
-
-	if (rc == 0)
-		return;
 
 	rc = read(self->fd, &data, sizeof(unsigned long));
 	ASSERT_NE(-1, rc);
@@ -202,7 +265,109 @@ TEST_F(rtc, alarm_wkalm_set) {
 
 	rc = select(self->fd + 1, &readfds, NULL, NULL, &tv);
 	ASSERT_NE(-1, rc);
-	EXPECT_NE(0, rc);
+	ASSERT_NE(0, rc);
+
+	rc = read(self->fd, &data, sizeof(unsigned long));
+	ASSERT_NE(-1, rc);
+
+	rc = ioctl(self->fd, RTC_RD_TIME, &tm);
+	ASSERT_NE(-1, rc);
+
+	new = timegm((struct tm *)&tm);
+	ASSERT_EQ(new, secs);
+}
+
+TEST_F_TIMEOUT(rtc, alarm_alm_set_minute, 65) {
+	struct timeval tv = { .tv_sec = 62 };
+	unsigned long data;
+	struct rtc_time tm;
+	fd_set readfds;
+	time_t secs, new;
+	int rc;
+
+	rc = ioctl(self->fd, RTC_RD_TIME, &tm);
+	ASSERT_NE(-1, rc);
+
+	secs = timegm((struct tm *)&tm) + 60 - tm.tm_sec;
+	gmtime_r(&secs, (struct tm *)&tm);
+
+	rc = ioctl(self->fd, RTC_ALM_SET, &tm);
+	if (rc == -1) {
+		ASSERT_EQ(EINVAL, errno);
+		TH_LOG("skip alarms are not supported.");
+		return;
+	}
+
+	rc = ioctl(self->fd, RTC_ALM_READ, &tm);
+	ASSERT_NE(-1, rc);
+
+	TH_LOG("Alarm time now set to %02d:%02d:%02d.",
+	       tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+	/* Enable alarm interrupts */
+	rc = ioctl(self->fd, RTC_AIE_ON, 0);
+	ASSERT_NE(-1, rc);
+
+	FD_ZERO(&readfds);
+	FD_SET(self->fd, &readfds);
+
+	rc = select(self->fd + 1, &readfds, NULL, NULL, &tv);
+	ASSERT_NE(-1, rc);
+	ASSERT_NE(0, rc);
+
+	/* Disable alarm interrupts */
+	rc = ioctl(self->fd, RTC_AIE_OFF, 0);
+	ASSERT_NE(-1, rc);
+
+	rc = read(self->fd, &data, sizeof(unsigned long));
+	ASSERT_NE(-1, rc);
+	TH_LOG("data: %lx", data);
+
+	rc = ioctl(self->fd, RTC_RD_TIME, &tm);
+	ASSERT_NE(-1, rc);
+
+	new = timegm((struct tm *)&tm);
+	ASSERT_EQ(new, secs);
+}
+
+TEST_F_TIMEOUT(rtc, alarm_wkalm_set_minute, 65) {
+	struct timeval tv = { .tv_sec = 62 };
+	struct rtc_wkalrm alarm = { 0 };
+	struct rtc_time tm;
+	unsigned long data;
+	fd_set readfds;
+	time_t secs, new;
+	int rc;
+
+	rc = ioctl(self->fd, RTC_RD_TIME, &alarm.time);
+	ASSERT_NE(-1, rc);
+
+	secs = timegm((struct tm *)&alarm.time) + 60 - alarm.time.tm_sec;
+	gmtime_r(&secs, (struct tm *)&alarm.time);
+
+	alarm.enabled = 1;
+
+	rc = ioctl(self->fd, RTC_WKALM_SET, &alarm);
+	if (rc == -1) {
+		ASSERT_EQ(EINVAL, errno);
+		TH_LOG("skip alarms are not supported.");
+		return;
+	}
+
+	rc = ioctl(self->fd, RTC_WKALM_RD, &alarm);
+	ASSERT_NE(-1, rc);
+
+	TH_LOG("Alarm time now set to %02d/%02d/%02d %02d:%02d:%02d.",
+	       alarm.time.tm_mday, alarm.time.tm_mon + 1,
+	       alarm.time.tm_year + 1900, alarm.time.tm_hour,
+	       alarm.time.tm_min, alarm.time.tm_sec);
+
+	FD_ZERO(&readfds);
+	FD_SET(self->fd, &readfds);
+
+	rc = select(self->fd + 1, &readfds, NULL, NULL, &tv);
+	ASSERT_NE(-1, rc);
+	ASSERT_NE(0, rc);
 
 	rc = read(self->fd, &data, sizeof(unsigned long));
 	ASSERT_NE(-1, rc);

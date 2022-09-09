@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Source for:
  * Cypress TrueTouch(TM) Standard Product (TTSP) SPI touchscreen driver.
@@ -10,18 +11,7 @@
  * Copyright (C) 2012 Javier Martinez Canillas <javier@dowhile0.org>
  * Copyright (C) 2013 Cypress Semiconductor
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, and only version 2, as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Contact Cypress Semiconductor at www.cypress.com <ttdrivers@cypress.com>
- *
  */
 
 #include "cyttsp4_core.h"
@@ -174,12 +164,10 @@ static int cyttsp4_spi_probe(struct spi_device *spi)
 	return PTR_ERR_OR_ZERO(ts);
 }
 
-static int cyttsp4_spi_remove(struct spi_device *spi)
+static void cyttsp4_spi_remove(struct spi_device *spi)
 {
 	struct cyttsp4 *ts = spi_get_drvdata(spi);
 	cyttsp4_remove(ts);
-
-	return 0;
 }
 
 static struct spi_driver cyttsp4_spi_driver = {

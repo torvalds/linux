@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB frontend part of the Linux driver for the TwinhanDTV StarBox USB2.0
  * DVB-S receiver.
  *
@@ -11,12 +12,7 @@
  * This file can be removed soon, after the DST-driver is rewritten to provice
  * the frontend-controlling separately.
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
- *
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "vp702x.h"
 

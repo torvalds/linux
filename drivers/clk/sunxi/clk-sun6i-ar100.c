@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Free Electrons
  *
- * License Terms: GNU General Public License v2
  * Author: Boris BREZILLON <boris.brezillon@free-electrons.com>
  *
  * Allwinner A31 AR100 clock driver
- *
  */
 
 #include <linux/bitops.h>
@@ -17,7 +16,7 @@
 
 #include "clk-factors.h"
 
-/**
+/*
  * sun6i_get_ar100_factors - Calculates factors p, m for AR100
  *
  * AR100 rate is calculated as follows
@@ -72,12 +71,10 @@ static DEFINE_SPINLOCK(sun6i_ar100_lock);
 static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *r;
 	void __iomem *reg;
 	struct clk *clk;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(&pdev->dev, r);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 

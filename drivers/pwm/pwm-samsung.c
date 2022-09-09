@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007 Ben Dooks
  * Copyright (c) 2008 Simtec Electronics
@@ -6,10 +7,6 @@
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *
  * PWM driver for Samsung SoCs
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 
 #include <linux/bitops.h>
@@ -120,6 +117,20 @@ static inline unsigned int to_tcon_channel(unsigned int channel)
 	return (channel == 0) ? 0 : (channel + 1);
 }
 
+static void __pwm_samsung_manual_update(struct samsung_pwm_chip *chip,
+				      struct pwm_device *pwm)
+{
+	unsigned int tcon_chan = to_tcon_channel(pwm->hwpwm);
+	u32 tcon;
+
+	tcon = readl(chip->base + REG_TCON);
+	tcon |= TCON_MANUALUPDATE(tcon_chan);
+	writel(tcon, chip->base + REG_TCON);
+
+	tcon &= ~TCON_MANUALUPDATE(tcon_chan);
+	writel(tcon, chip->base + REG_TCON);
+}
+
 static void pwm_samsung_set_divisor(struct samsung_pwm_chip *pwm,
 				    unsigned int channel, u8 divisor)
 {
@@ -226,7 +237,7 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return -EINVAL;
 	}
 
-	our_chan = devm_kzalloc(chip->dev, sizeof(*our_chan), GFP_KERNEL);
+	our_chan = kzalloc(sizeof(*our_chan), GFP_KERNEL);
 	if (!our_chan)
 		return -ENOMEM;
 
@@ -237,8 +248,7 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 static void pwm_samsung_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	devm_kfree(chip->dev, pwm_get_chip_data(pwm));
-	pwm_set_chip_data(pwm, NULL);
+	kfree(pwm_get_chip_data(pwm));
 }
 
 static int pwm_samsung_enable(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -280,6 +290,13 @@ static void pwm_samsung_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	tcon &= ~TCON_AUTORELOAD(tcon_chan);
 	writel(tcon, our_chip->base + REG_TCON);
 
+	/*
+	 * In case the PWM is at 100% duty cycle, force a manual
+	 * update to prevent the signal from staying high.
+	 */
+	if (readl(our_chip->base + REG_TCMPB(pwm->hwpwm)) == (u32)-1U)
+		__pwm_samsung_manual_update(our_chip, pwm);
+
 	our_chip->disabled_mask |= BIT(pwm->hwpwm);
 
 	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
@@ -288,18 +305,11 @@ static void pwm_samsung_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 static void pwm_samsung_manual_update(struct samsung_pwm_chip *chip,
 				      struct pwm_device *pwm)
 {
-	unsigned int tcon_chan = to_tcon_channel(pwm->hwpwm);
-	u32 tcon;
 	unsigned long flags;
 
 	spin_lock_irqsave(&samsung_pwm_lock, flags);
 
-	tcon = readl(chip->base + REG_TCON);
-	tcon |= TCON_MANUALUPDATE(tcon_chan);
-	writel(tcon, chip->base + REG_TCON);
-
-	tcon &= ~TCON_MANUALUPDATE(tcon_chan);
-	writel(tcon, chip->base + REG_TCON);
+	__pwm_samsung_manual_update(chip, pwm);
 
 	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
 }
@@ -310,14 +320,6 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
 	struct samsung_pwm_channel *chan = pwm_get_chip_data(pwm);
 	u32 tin_ns = chan->tin_ns, tcnt, tcmp, oldtcmp;
-
-	/*
-	 * We currently avoid using 64bit arithmetic by using the
-	 * fact that anything faster than 1Hz is easily representable
-	 * by 32bits.
-	 */
-	if (period_ns > NSEC_PER_SEC)
-		return -ERANGE;
 
 	tcnt = readl(our_chip->base + REG_TCNTB(pwm->hwpwm));
 	oldtcmp = readl(our_chip->base + REG_TCMPB(pwm->hwpwm));
@@ -428,13 +430,51 @@ static int pwm_samsung_set_polarity(struct pwm_chip *chip,
 	return 0;
 }
 
+static int pwm_samsung_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
+{
+	int err, enabled = pwm->state.enabled;
+
+	if (state->polarity != pwm->state.polarity) {
+		if (enabled) {
+			pwm_samsung_disable(chip, pwm);
+			enabled = false;
+		}
+
+		err = pwm_samsung_set_polarity(chip, pwm, state->polarity);
+		if (err)
+			return err;
+	}
+
+	if (!state->enabled) {
+		if (enabled)
+			pwm_samsung_disable(chip, pwm);
+
+		return 0;
+	}
+
+	/*
+	 * We currently avoid using 64bit arithmetic by using the
+	 * fact that anything faster than 1Hz is easily representable
+	 * by 32bits.
+	 */
+	if (state->period > NSEC_PER_SEC)
+		return -ERANGE;
+
+	err = pwm_samsung_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = pwm_samsung_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops pwm_samsung_ops = {
 	.request	= pwm_samsung_request,
 	.free		= pwm_samsung_free,
-	.enable		= pwm_samsung_enable,
-	.disable	= pwm_samsung_disable,
-	.config		= pwm_samsung_config,
-	.set_polarity	= pwm_samsung_set_polarity,
+	.apply		= pwm_samsung_apply,
 	.owner		= THIS_MODULE,
 };
 
@@ -514,7 +554,6 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct samsung_pwm_chip *chip;
-	struct resource *res;
 	unsigned int chan;
 	int ret;
 
@@ -524,7 +563,6 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 
 	chip->chip.dev = &pdev->dev;
 	chip->chip.ops = &pwm_samsung_ops;
-	chip->chip.base = -1;
 	chip->chip.npwm = SAMSUNG_PWM_NUM;
 	chip->inverter_mask = BIT(SAMSUNG_PWM_NUM) - 1;
 
@@ -532,9 +570,6 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 		ret = pwm_samsung_parse_dt(chip);
 		if (ret)
 			return ret;
-
-		chip->chip.of_xlate = of_pwm_xlate_with_flags;
-		chip->chip.of_pwm_n_cells = 3;
 	} else {
 		if (!pdev->dev.platform_data) {
 			dev_err(&pdev->dev, "no platform data specified\n");
@@ -545,8 +580,7 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 							sizeof(chip->variant));
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->base = devm_ioremap_resource(&pdev->dev, res);
+	chip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->base))
 		return PTR_ERR(chip->base);
 
@@ -590,11 +624,8 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 static int pwm_samsung_remove(struct platform_device *pdev)
 {
 	struct samsung_pwm_chip *chip = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pwmchip_remove(&chip->chip);
-	if (ret < 0)
-		return ret;
+	pwmchip_remove(&chip->chip);
 
 	clk_disable_unprepare(chip->base_clk);
 

@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/crypto.h>
-#include <linux/err.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/list.h>
 #include <linux/tcp.h>
 #include <linux/rcupdate.h>
-#include <linux/rculist.h>
-#include <net/inetpeer.h>
 #include <net/tcp.h>
 
 void tcp_fastopen_init_key_once(struct net *net)
@@ -30,15 +24,15 @@ void tcp_fastopen_init_key_once(struct net *net)
 	 * for a valid cookie, so this is an acceptable risk.
 	 */
 	get_random_bytes(key, sizeof(key));
-	tcp_fastopen_reset_cipher(net, NULL, key, sizeof(key));
+	tcp_fastopen_reset_cipher(net, NULL, key, NULL);
 }
 
 static void tcp_fastopen_ctx_free(struct rcu_head *head)
 {
 	struct tcp_fastopen_context *ctx =
 	    container_of(head, struct tcp_fastopen_context, rcu);
-	crypto_free_cipher(ctx->tfm);
-	kfree(ctx);
+
+	kfree_sensitive(ctx);
 }
 
 void tcp_fastopen_destroy_cipher(struct sock *sk)
@@ -55,119 +49,119 @@ void tcp_fastopen_ctx_destroy(struct net *net)
 {
 	struct tcp_fastopen_context *ctxt;
 
-	spin_lock(&net->ipv4.tcp_fastopen_ctx_lock);
-
-	ctxt = rcu_dereference_protected(net->ipv4.tcp_fastopen_ctx,
-				lockdep_is_held(&net->ipv4.tcp_fastopen_ctx_lock));
-	rcu_assign_pointer(net->ipv4.tcp_fastopen_ctx, NULL);
-	spin_unlock(&net->ipv4.tcp_fastopen_ctx_lock);
+	ctxt = xchg((__force struct tcp_fastopen_context **)&net->ipv4.tcp_fastopen_ctx, NULL);
 
 	if (ctxt)
 		call_rcu(&ctxt->rcu, tcp_fastopen_ctx_free);
 }
 
 int tcp_fastopen_reset_cipher(struct net *net, struct sock *sk,
-			      void *key, unsigned int len)
+			      void *primary_key, void *backup_key)
 {
 	struct tcp_fastopen_context *ctx, *octx;
 	struct fastopen_queue *q;
-	int err;
+	int err = 0;
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-	ctx->tfm = crypto_alloc_cipher("aes", 0, 0);
-
-	if (IS_ERR(ctx->tfm)) {
-		err = PTR_ERR(ctx->tfm);
-error:		kfree(ctx);
-		pr_err("TCP: TFO aes cipher alloc error: %d\n", err);
-		return err;
+	if (!ctx) {
+		err = -ENOMEM;
+		goto out;
 	}
-	err = crypto_cipher_setkey(ctx->tfm, key, len);
-	if (err) {
-		pr_err("TCP: TFO cipher key error: %d\n", err);
-		crypto_free_cipher(ctx->tfm);
-		goto error;
+
+	ctx->key[0].key[0] = get_unaligned_le64(primary_key);
+	ctx->key[0].key[1] = get_unaligned_le64(primary_key + 8);
+	if (backup_key) {
+		ctx->key[1].key[0] = get_unaligned_le64(backup_key);
+		ctx->key[1].key[1] = get_unaligned_le64(backup_key + 8);
+		ctx->num = 2;
+	} else {
+		ctx->num = 1;
 	}
-	memcpy(ctx->key, key, len);
 
-
-	spin_lock(&net->ipv4.tcp_fastopen_ctx_lock);
 	if (sk) {
 		q = &inet_csk(sk)->icsk_accept_queue.fastopenq;
-		octx = rcu_dereference_protected(q->ctx,
-			lockdep_is_held(&net->ipv4.tcp_fastopen_ctx_lock));
-		rcu_assign_pointer(q->ctx, ctx);
+		octx = xchg((__force struct tcp_fastopen_context **)&q->ctx, ctx);
 	} else {
-		octx = rcu_dereference_protected(net->ipv4.tcp_fastopen_ctx,
-			lockdep_is_held(&net->ipv4.tcp_fastopen_ctx_lock));
-		rcu_assign_pointer(net->ipv4.tcp_fastopen_ctx, ctx);
+		octx = xchg((__force struct tcp_fastopen_context **)&net->ipv4.tcp_fastopen_ctx, ctx);
 	}
-	spin_unlock(&net->ipv4.tcp_fastopen_ctx_lock);
 
 	if (octx)
 		call_rcu(&octx->rcu, tcp_fastopen_ctx_free);
+out:
 	return err;
 }
 
-static bool __tcp_fastopen_cookie_gen(struct sock *sk, const void *path,
-				      struct tcp_fastopen_cookie *foc)
+int tcp_fastopen_get_cipher(struct net *net, struct inet_connection_sock *icsk,
+			    u64 *key)
 {
 	struct tcp_fastopen_context *ctx;
-	bool ok = false;
+	int n_keys = 0, i;
 
 	rcu_read_lock();
-
-	ctx = rcu_dereference(inet_csk(sk)->icsk_accept_queue.fastopenq.ctx);
-	if (!ctx)
-		ctx = rcu_dereference(sock_net(sk)->ipv4.tcp_fastopen_ctx);
-
+	if (icsk)
+		ctx = rcu_dereference(icsk->icsk_accept_queue.fastopenq.ctx);
+	else
+		ctx = rcu_dereference(net->ipv4.tcp_fastopen_ctx);
 	if (ctx) {
-		crypto_cipher_encrypt_one(ctx->tfm, foc->val, path);
-		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
-		ok = true;
+		n_keys = tcp_fastopen_context_len(ctx);
+		for (i = 0; i < n_keys; i++) {
+			put_unaligned_le64(ctx->key[i].key[0], key + (i * 2));
+			put_unaligned_le64(ctx->key[i].key[1], key + (i * 2) + 1);
+		}
 	}
 	rcu_read_unlock();
-	return ok;
+
+	return n_keys;
 }
 
-/* Generate the fastopen cookie by doing aes128 encryption on both
- * the source and destination addresses. Pad 0s for IPv4 or IPv4-mapped-IPv6
- * addresses. For the longer IPv6 addresses use CBC-MAC.
- *
- * XXX (TFO) - refactor when TCP_FASTOPEN_COOKIE_SIZE != AES_BLOCK_SIZE.
- */
-static bool tcp_fastopen_cookie_gen(struct sock *sk,
-				    struct request_sock *req,
-				    struct sk_buff *syn,
-				    struct tcp_fastopen_cookie *foc)
+static bool __tcp_fastopen_cookie_gen_cipher(struct request_sock *req,
+					     struct sk_buff *syn,
+					     const siphash_key_t *key,
+					     struct tcp_fastopen_cookie *foc)
 {
+	BUILD_BUG_ON(TCP_FASTOPEN_COOKIE_SIZE != sizeof(u64));
+
 	if (req->rsk_ops->family == AF_INET) {
 		const struct iphdr *iph = ip_hdr(syn);
 
-		__be32 path[4] = { iph->saddr, iph->daddr, 0, 0 };
-		return __tcp_fastopen_cookie_gen(sk, path, foc);
+		foc->val[0] = cpu_to_le64(siphash(&iph->saddr,
+					  sizeof(iph->saddr) +
+					  sizeof(iph->daddr),
+					  key));
+		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
+		return true;
 	}
-
 #if IS_ENABLED(CONFIG_IPV6)
 	if (req->rsk_ops->family == AF_INET6) {
 		const struct ipv6hdr *ip6h = ipv6_hdr(syn);
-		struct tcp_fastopen_cookie tmp;
 
-		if (__tcp_fastopen_cookie_gen(sk, &ip6h->saddr, &tmp)) {
-			struct in6_addr *buf = &tmp.addr;
-			int i;
-
-			for (i = 0; i < 4; i++)
-				buf->s6_addr32[i] ^= ip6h->daddr.s6_addr32[i];
-			return __tcp_fastopen_cookie_gen(sk, buf, foc);
-		}
+		foc->val[0] = cpu_to_le64(siphash(&ip6h->saddr,
+					  sizeof(ip6h->saddr) +
+					  sizeof(ip6h->daddr),
+					  key));
+		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
+		return true;
 	}
 #endif
 	return false;
 }
 
+/* Generate the fastopen cookie by applying SipHash to both the source and
+ * destination addresses.
+ */
+static void tcp_fastopen_cookie_gen(struct sock *sk,
+				    struct request_sock *req,
+				    struct sk_buff *syn,
+				    struct tcp_fastopen_cookie *foc)
+{
+	struct tcp_fastopen_context *ctx;
+
+	rcu_read_lock();
+	ctx = tcp_fastopen_get_ctx(sk);
+	if (ctx)
+		__tcp_fastopen_cookie_gen_cipher(req, syn, &ctx->key[0], foc);
+	rcu_read_unlock();
+}
 
 /* If an incoming SYN or SYNACK frame contains a payload and/or FIN,
  * queue this additional data / FIN.
@@ -212,6 +206,35 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 		tcp_fin(sk);
 }
 
+/* returns 0 - no key match, 1 for primary, 2 for backup */
+static int tcp_fastopen_cookie_gen_check(struct sock *sk,
+					 struct request_sock *req,
+					 struct sk_buff *syn,
+					 struct tcp_fastopen_cookie *orig,
+					 struct tcp_fastopen_cookie *valid_foc)
+{
+	struct tcp_fastopen_cookie search_foc = { .len = -1 };
+	struct tcp_fastopen_cookie *foc = valid_foc;
+	struct tcp_fastopen_context *ctx;
+	int i, ret = 0;
+
+	rcu_read_lock();
+	ctx = tcp_fastopen_get_ctx(sk);
+	if (!ctx)
+		goto out;
+	for (i = 0; i < tcp_fastopen_context_len(ctx); i++) {
+		__tcp_fastopen_cookie_gen_cipher(req, syn, &ctx->key[i], foc);
+		if (tcp_fastopen_cookie_match(foc, orig)) {
+			ret = i + 1;
+			goto out;
+		}
+		foc = &search_foc;
+	}
+out:
+	rcu_read_unlock();
+	return ret;
+}
+
 static struct sock *tcp_fastopen_create_child(struct sock *sk,
 					      struct sk_buff *skb,
 					      struct request_sock *req)
@@ -220,10 +243,6 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 	struct sock *child;
 	bool own_req;
-
-	req->num_retrans = 0;
-	req->num_timeout = 0;
-	req->sk = NULL;
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL,
 							 NULL, &own_req);
@@ -240,7 +259,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	 */
 	tp = tcp_sk(child);
 
-	tp->fastopen_rsk = req;
+	rcu_assign_pointer(tp->fastopen_rsk, req);
 	tcp_rsk(req)->tfo_listener = true;
 
 	/* RFC1323: The window in SYN & SYN/ACK segments is never
@@ -259,7 +278,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	refcount_set(&req->rsk_refcnt, 2);
 
 	/* Now finish processing the fastopen child socket. */
-	tcp_init_transfer(child, BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB);
+	tcp_init_transfer(child, BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB, skb);
 
 	tp->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
 
@@ -313,7 +332,7 @@ static bool tcp_fastopen_no_cookie(const struct sock *sk,
 				   const struct dst_entry *dst,
 				   int flag)
 {
-	return (sock_net(sk)->ipv4.sysctl_tcp_fastopen & flag) ||
+	return (READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fastopen) & flag) ||
 	       tcp_sk(sk)->fastopen_no_cookie ||
 	       (dst && dst_metric(dst, RTAX_FASTOPEN_NO_COOKIE));
 }
@@ -328,9 +347,10 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      const struct dst_entry *dst)
 {
 	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
-	int tcp_fastopen = sock_net(sk)->ipv4.sysctl_tcp_fastopen;
+	int tcp_fastopen = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fastopen);
 	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
 	struct sock *child;
+	int ret = 0;
 
 	if (foc->len == 0) /* Client requests a cookie */
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPFASTOPENCOOKIEREQD);
@@ -342,35 +362,47 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 		return NULL;
 	}
 
-	if (syn_data &&
-	    tcp_fastopen_no_cookie(sk, dst, TFO_SERVER_COOKIE_NOT_REQD))
+	if (tcp_fastopen_no_cookie(sk, dst, TFO_SERVER_COOKIE_NOT_REQD))
 		goto fastopen;
 
-	if (foc->len >= 0 &&  /* Client presents or requests a cookie */
-	    tcp_fastopen_cookie_gen(sk, req, skb, &valid_foc) &&
-	    foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
-	    foc->len == valid_foc.len &&
-	    !memcmp(foc->val, valid_foc.val, foc->len)) {
-		/* Cookie is valid. Create a (full) child socket to accept
-		 * the data in SYN before returning a SYN-ACK to ack the
-		 * data. If we fail to create the socket, fall back and
-		 * ack the ISN only but includes the same cookie.
-		 *
-		 * Note: Data-less SYN with valid cookie is allowed to send
-		 * data in SYN_RECV state.
-		 */
-fastopen:
-		child = tcp_fastopen_create_child(sk, skb, req);
-		if (child) {
-			foc->len = -1;
+	if (foc->len == 0) {
+		/* Client requests a cookie. */
+		tcp_fastopen_cookie_gen(sk, req, skb, &valid_foc);
+	} else if (foc->len > 0) {
+		ret = tcp_fastopen_cookie_gen_check(sk, req, skb, foc,
+						    &valid_foc);
+		if (!ret) {
 			NET_INC_STATS(sock_net(sk),
-				      LINUX_MIB_TCPFASTOPENPASSIVE);
-			return child;
+				      LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
+		} else {
+			/* Cookie is valid. Create a (full) child socket to
+			 * accept the data in SYN before returning a SYN-ACK to
+			 * ack the data. If we fail to create the socket, fall
+			 * back and ack the ISN only but includes the same
+			 * cookie.
+			 *
+			 * Note: Data-less SYN with valid cookie is allowed to
+			 * send data in SYN_RECV state.
+			 */
+fastopen:
+			child = tcp_fastopen_create_child(sk, skb, req);
+			if (child) {
+				if (ret == 2) {
+					valid_foc.exp = foc->exp;
+					*foc = valid_foc;
+					NET_INC_STATS(sock_net(sk),
+						      LINUX_MIB_TCPFASTOPENPASSIVEALTKEY);
+				} else {
+					foc->len = -1;
+				}
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_TCPFASTOPENPASSIVE);
+				return child;
+			}
+			NET_INC_STATS(sock_net(sk),
+				      LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
 		}
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
-	} else if (foc->len > 0) /* Client presents an invalid cookie */
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
-
+	}
 	valid_foc.exp = foc->exp;
 	*foc = valid_foc;
 	return NULL;
@@ -395,7 +427,10 @@ bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 		cookie->len = -1;
 		return true;
 	}
-	return cookie->len > 0;
+	if (cookie->len > 0)
+		return true;
+	tcp_sk(sk)->fastopen_client_fail = TFO_COOKIE_UNAVAILABLE;
+	return false;
 }
 
 /* This function checks if we want to defer sending SYN until the first
@@ -454,8 +489,18 @@ void tcp_fastopen_active_disable(struct sock *sk)
 {
 	struct net *net = sock_net(sk);
 
+	if (!READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fastopen_blackhole_timeout))
+		return;
+
+	/* Paired with READ_ONCE() in tcp_fastopen_active_should_disable() */
+	WRITE_ONCE(net->ipv4.tfo_active_disable_stamp, jiffies);
+
+	/* Paired with smp_rmb() in tcp_fastopen_active_should_disable().
+	 * We want net->ipv4.tfo_active_disable_stamp to be updated first.
+	 */
+	smp_mb__before_atomic();
 	atomic_inc(&net->ipv4.tfo_active_disable_times);
-	net->ipv4.tfo_active_disable_stamp = jiffies;
+
 	NET_INC_STATS(net, LINUX_MIB_TCPFASTOPENBLACKHOLE);
 }
 
@@ -465,18 +510,29 @@ void tcp_fastopen_active_disable(struct sock *sk)
  */
 bool tcp_fastopen_active_should_disable(struct sock *sk)
 {
-	unsigned int tfo_bh_timeout = sock_net(sk)->ipv4.sysctl_tcp_fastopen_blackhole_timeout;
-	int tfo_da_times = atomic_read(&sock_net(sk)->ipv4.tfo_active_disable_times);
+	unsigned int tfo_bh_timeout =
+		READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fastopen_blackhole_timeout);
 	unsigned long timeout;
+	int tfo_da_times;
 	int multiplier;
 
+	if (!tfo_bh_timeout)
+		return false;
+
+	tfo_da_times = atomic_read(&sock_net(sk)->ipv4.tfo_active_disable_times);
 	if (!tfo_da_times)
 		return false;
 
-	/* Limit timout to max: 2^6 * initial timeout */
+	/* Paired with smp_mb__before_atomic() in tcp_fastopen_active_disable() */
+	smp_rmb();
+
+	/* Limit timeout to max: 2^6 * initial timeout */
 	multiplier = 1 << min(tfo_da_times - 1, 6);
-	timeout = multiplier * tfo_bh_timeout * HZ;
-	if (time_before(jiffies, sock_net(sk)->ipv4.tfo_active_disable_stamp + timeout))
+
+	/* Paired with the WRITE_ONCE() in tcp_fastopen_active_disable(). */
+	timeout = READ_ONCE(sock_net(sk)->ipv4.tfo_active_disable_stamp) +
+		  multiplier * tfo_bh_timeout * HZ;
+	if (time_before(jiffies, timeout))
 		return true;
 
 	/* Mark check bit so we can check for successful active TFO

@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2004-2006  Sebastian Witt <se.witt@gmx.net>
  *
- *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon reverse engineered information
  *
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
@@ -291,7 +291,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
  * nforce2_verify - verifies a new CPUFreq policy
  * @policy: new policy
  */
-static int nforce2_verify(struct cpufreq_policy *policy)
+static int nforce2_verify(struct cpufreq_policy_data *policy)
 {
 	unsigned int fsb_pol_max;
 

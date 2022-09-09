@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FSP-2 board specific routines
  *
@@ -10,19 +11,14 @@
  *
  *    Rewritten and ported to the merged powerpc tree:
  *    Copyright 2007 David Gibson <dwg@au1.ibm.com>, IBM Corporation.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/init.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/rtc.h>
 
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>
@@ -201,7 +197,7 @@ static irqreturn_t rst_wrn_handler(int irq, void *data) {
 	}
 }
 
-static void node_irq_request(const char *compat, irq_handler_t errirq_handler)
+static void __init node_irq_request(const char *compat, irq_handler_t errirq_handler)
 {
 	struct device_node *np;
 	unsigned int irq;
@@ -212,6 +208,7 @@ static void node_irq_request(const char *compat, irq_handler_t errirq_handler)
 		if (irq == NO_IRQ) {
 			pr_err("device tree node %pOFn is missing a interrupt",
 			      np);
+			of_node_put(np);
 			return;
 		}
 
@@ -219,12 +216,13 @@ static void node_irq_request(const char *compat, irq_handler_t errirq_handler)
 		if (rc) {
 			pr_err("fsp_of_probe: request_irq failed: np=%pOF rc=%d",
 			      np, rc);
+			of_node_put(np);
 			return;
 		}
 	}
 }
 
-static void critical_irq_setup(void)
+static void __init critical_irq_setup(void)
 {
 	node_irq_request(FSP2_CMU_ERR, cmu_err_handler);
 	node_irq_request(FSP2_BUS_ERR, bus_err_handler);

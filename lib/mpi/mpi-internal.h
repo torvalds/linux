@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* mpi-internal.h  -  Internal to the Multi Precision Integers
  *	Copyright (C) 1994, 1996 Free Software Foundation, Inc.
  *	Copyright (C) 1998, 2000 Free Software Foundation, Inc.
  *
  * This file is part of GnuPG.
- *
- * GnuPG is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * GnuPG is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *
  * Note: This code is heavily based on the GNU MP Library.
  *	 Actually it's the same code with only minor changes in the
@@ -65,6 +52,12 @@
 typedef mpi_limb_t *mpi_ptr_t;	/* pointer to a limb */
 typedef int mpi_size_t;		/* (must be a signed type) */
 
+#define RESIZE_IF_NEEDED(a, b)			\
+	do {					\
+		if ((a)->alloced < (b))		\
+			mpi_resize((a), (b));	\
+	} while (0)
+
 /* Copy N limbs from S to D.  */
 #define MPN_COPY(d, s, n) \
 	do {					\
@@ -72,6 +65,14 @@ typedef int mpi_size_t;		/* (must be a signed type) */
 		for (_i = 0; _i < (n); _i++)	\
 			(d)[_i] = (s)[_i];	\
 	} while (0)
+
+#define MPN_COPY_INCR(d, s, n)		\
+	do {					\
+		mpi_size_t _i;			\
+		for (_i = 0; _i < (n); _i++)	\
+			(d)[_i] = (s)[_i];	\
+	} while (0)
+
 
 #define MPN_COPY_DECR(d, s, n) \
 	do {					\
@@ -104,6 +105,38 @@ typedef int mpi_size_t;		/* (must be a signed type) */
 		else						\
 			mul_n(prodp, up, vp, size, tspace);	\
 	} while (0);
+
+/* Divide the two-limb number in (NH,,NL) by D, with DI being the largest
+ * limb not larger than (2**(2*BITS_PER_MP_LIMB))/D - (2**BITS_PER_MP_LIMB).
+ * If this would yield overflow, DI should be the largest possible number
+ * (i.e., only ones).  For correct operation, the most significant bit of D
+ * has to be set.  Put the quotient in Q and the remainder in R.
+ */
+#define UDIV_QRNND_PREINV(q, r, nh, nl, d, di)				\
+	do {								\
+		mpi_limb_t _ql __maybe_unused;				\
+		mpi_limb_t _q, _r;					\
+		mpi_limb_t _xh, _xl;					\
+		umul_ppmm(_q, _ql, (nh), (di));				\
+		_q += (nh);	/* DI is 2**BITS_PER_MPI_LIMB too small */ \
+		umul_ppmm(_xh, _xl, _q, (d));				\
+		sub_ddmmss(_xh, _r, (nh), (nl), _xh, _xl);		\
+		if (_xh) {						\
+			sub_ddmmss(_xh, _r, _xh, _r, 0, (d));		\
+			_q++;						\
+			if (_xh) {					\
+				sub_ddmmss(_xh, _r, _xh, _r, 0, (d));	\
+				_q++;					\
+			}						\
+		}							\
+		if (_r >= (d)) {					\
+			_r -= (d);					\
+			_q++;						\
+		}							\
+		(r) = _r;						\
+		(q) = _q;						\
+	} while (0)
+
 
 /*-- mpiutil.c --*/
 mpi_ptr_t mpi_alloc_limb_space(unsigned nlimbs);
@@ -148,6 +181,8 @@ int mpihelp_mul(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t usize,
 void mpih_sqr_n_basecase(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t size);
 void mpih_sqr_n(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t size,
 		mpi_ptr_t tspace);
+void mpihelp_mul_n(mpi_ptr_t prodp,
+		mpi_ptr_t up, mpi_ptr_t vp, mpi_size_t size);
 
 int mpihelp_mul_karatsuba_case(mpi_ptr_t prodp,
 			       mpi_ptr_t up, mpi_size_t usize,
@@ -159,9 +194,14 @@ mpi_limb_t mpihelp_mul_1(mpi_ptr_t res_ptr, mpi_ptr_t s1_ptr,
 			 mpi_size_t s1_size, mpi_limb_t s2_limb);
 
 /*-- mpih-div.c --*/
+mpi_limb_t mpihelp_mod_1(mpi_ptr_t dividend_ptr, mpi_size_t dividend_size,
+			 mpi_limb_t divisor_limb);
 mpi_limb_t mpihelp_divrem(mpi_ptr_t qp, mpi_size_t qextra_limbs,
 			  mpi_ptr_t np, mpi_size_t nsize,
 			  mpi_ptr_t dp, mpi_size_t dsize);
+mpi_limb_t mpihelp_divmod_1(mpi_ptr_t quot_ptr,
+			    mpi_ptr_t dividend_ptr, mpi_size_t dividend_size,
+			    mpi_limb_t divisor_limb);
 
 /*-- generic_mpih-[lr]shift.c --*/
 mpi_limb_t mpihelp_lshift(mpi_ptr_t wp, mpi_ptr_t up, mpi_size_t usize,

@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for pcf857x, pca857x, and pca967x I2C GPIO expanders
  *
  * Copyright (C) 2007 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/gpio/driver.h>
@@ -88,7 +75,6 @@ struct pcf857x {
 	struct mutex		lock;		/* protect 'out' */
 	unsigned		out;		/* software latch */
 	unsigned		status;		/* current status */
-	unsigned int		irq_parent;
 	unsigned		irq_enabled;	/* enabled irqs */
 
 	int (*write)(struct i2c_client *client, unsigned data);
@@ -210,32 +196,25 @@ static int pcf857x_irq_set_wake(struct irq_data *data, unsigned int on)
 {
 	struct pcf857x *gpio = irq_data_get_irq_chip_data(data);
 
-	int error = 0;
-
-	if (gpio->irq_parent) {
-		error = irq_set_irq_wake(gpio->irq_parent, on);
-		if (error) {
-			dev_dbg(&gpio->client->dev,
-				"irq %u doesn't support irq_set_wake\n",
-				gpio->irq_parent);
-			gpio->irq_parent = 0;
-		}
-	}
-	return error;
+	return irq_set_irq_wake(gpio->client->irq, on);
 }
 
 static void pcf857x_irq_enable(struct irq_data *data)
 {
 	struct pcf857x *gpio = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 
-	gpio->irq_enabled |= (1 << data->hwirq);
+	gpiochip_enable_irq(&gpio->chip, hwirq);
+	gpio->irq_enabled |= (1 << hwirq);
 }
 
 static void pcf857x_irq_disable(struct irq_data *data)
 {
 	struct pcf857x *gpio = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 
-	gpio->irq_enabled &= ~(1 << data->hwirq);
+	gpio->irq_enabled &= ~(1 << hwirq);
+	gpiochip_disable_irq(&gpio->chip, hwirq);
 }
 
 static void pcf857x_irq_bus_lock(struct irq_data *data)
@@ -252,16 +231,18 @@ static void pcf857x_irq_bus_sync_unlock(struct irq_data *data)
 	mutex_unlock(&gpio->lock);
 }
 
-static struct irq_chip pcf857x_irq_chip = {
-	.name		= "pcf857x",
-	.irq_enable	= pcf857x_irq_enable,
-	.irq_disable	= pcf857x_irq_disable,
-	.irq_ack	= noop,
-	.irq_mask	= noop,
-	.irq_unmask	= noop,
-	.irq_set_wake	= pcf857x_irq_set_wake,
+static const struct irq_chip pcf857x_irq_chip = {
+	.name			= "pcf857x",
+	.irq_enable		= pcf857x_irq_enable,
+	.irq_disable		= pcf857x_irq_disable,
+	.irq_ack		= noop,
+	.irq_mask		= noop,
+	.irq_unmask		= noop,
+	.irq_set_wake		= pcf857x_irq_set_wake,
 	.irq_bus_lock		= pcf857x_irq_bus_lock,
 	.irq_bus_sync_unlock	= pcf857x_irq_bus_sync_unlock,
+	.flags			= IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -368,22 +349,11 @@ static int pcf857x_probe(struct i2c_client *client,
 	 * reset state.  Otherwise it flags pins to be driven low.
 	 */
 	gpio->out = ~n_latch;
-	gpio->status = gpio->out;
-
-	status = devm_gpiochip_add_data(&client->dev, &gpio->chip, gpio);
-	if (status < 0)
-		goto fail;
+	gpio->status = gpio->read(gpio->client);
 
 	/* Enable irqchip if we have an interrupt */
 	if (client->irq) {
-		status = gpiochip_irqchip_add_nested(&gpio->chip,
-						     &pcf857x_irq_chip,
-						     0, handle_level_irq,
-						     IRQ_TYPE_NONE);
-		if (status) {
-			dev_err(&client->dev, "cannot add irqchip\n");
-			goto fail;
-		}
+		struct gpio_irq_chip *girq;
 
 		status = devm_request_threaded_irq(&client->dev, client->irq,
 					NULL, pcf857x_irq, IRQF_ONESHOT |
@@ -392,10 +362,20 @@ static int pcf857x_probe(struct i2c_client *client,
 		if (status)
 			goto fail;
 
-		gpiochip_set_nested_irqchip(&gpio->chip, &pcf857x_irq_chip,
-					    client->irq);
-		gpio->irq_parent = client->irq;
+		girq = &gpio->chip.irq;
+		gpio_irq_chip_set_chip(girq, &pcf857x_irq_chip);
+		/* This will let us handle the parent IRQ in the driver */
+		girq->parent_handler = NULL;
+		girq->num_parents = 0;
+		girq->parents = NULL;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
+		girq->threaded = true;
 	}
+
+	status = devm_gpiochip_add_data(&client->dev, &gpio->chip, gpio);
+	if (status < 0)
+		goto fail;
 
 	/* Let platform code set up the GPIOs and their users.
 	 * Now is the first time anyone could use them.
@@ -423,20 +403,12 @@ static int pcf857x_remove(struct i2c_client *client)
 {
 	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct pcf857x			*gpio = i2c_get_clientdata(client);
-	int				status = 0;
 
-	if (pdata && pdata->teardown) {
-		status = pdata->teardown(client,
-				gpio->chip.base, gpio->chip.ngpio,
+	if (pdata && pdata->teardown)
+		pdata->teardown(client, gpio->chip.base, gpio->chip.ngpio,
 				pdata->context);
-		if (status < 0) {
-			dev_err(&client->dev, "%s --> %d\n",
-					"teardown", status);
-			return status;
-		}
-	}
 
-	return status;
+	return 0;
 }
 
 static void pcf857x_shutdown(struct i2c_client *client)

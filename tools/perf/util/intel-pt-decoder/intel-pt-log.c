@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pt_log.c: Intel Processor Trace support
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <stdio.h>
@@ -91,10 +82,10 @@ static int intel_pt_log_open(void)
 	if (f)
 		return 0;
 
-	if (!log_name[0])
-		return -1;
-
-	f = fopen(log_name, "w+");
+	if (log_name[0])
+		f = fopen(log_name, "w+");
+	else
+		f = stdout;
 	if (!f) {
 		intel_pt_enable_logging = false;
 		return -1;

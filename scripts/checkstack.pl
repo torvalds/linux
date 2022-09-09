@@ -16,6 +16,7 @@
 #	AArch64, PARISC ports by Kyle McMartin
 #	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
 #	ppc64le port by Breno Leitao <leitao@debian.org>
+#	riscv port by Wadim Mueller <wafgo01@gmail.com>
 #
 #	Usage:
 #	objdump -d vmlinux | scripts/checkstack.pl [arch]
@@ -34,8 +35,10 @@ use strict;
 # $& (whole re) matches the complete objdump line with the stack growth
 # $1 (first bracket) matches the dynamic amount of the stack growth
 #
+# $sub: subroutine for special handling to check stack usage.
+#
 # use anything else and feel the pain ;)
-my (@stack, $re, $dre, $x, $xs, $funcre);
+my (@stack, $re, $dre, $sub, $x, $xs, $funcre, $min_stack);
 {
 	my $arch = shift;
 	if ($arch eq "") {
@@ -43,17 +46,23 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 		chomp($arch);
 	}
 
+	$min_stack = shift;
+	if ($min_stack eq "" || $min_stack !~ /^\d+$/) {
+		$min_stack = 100;
+	}
+
 	$x	= "[0-9a-f]";	# hex character
 	$xs	= "[0-9a-f ]";	# hex character or space
 	$funcre = qr/^$x* <(.*)>:$/;
-	if ($arch eq 'aarch64') {
+	if ($arch =~ '^(aarch|arm)64$') {
 		#ffffffc0006325cc:       a9bb7bfd        stp     x29, x30, [sp, #-80]!
 		#a110:       d11643ff        sub     sp, sp, #0x590
 		$re = qr/^.*stp.*sp, \#-([0-9]{1,8})\]\!/o;
 		$dre = qr/^.*sub.*sp, sp, #(0x$x{1,8})/o;
 	} elsif ($arch eq 'arm') {
 		#c0008ffc:	e24dd064	sub	sp, sp, #100	; 0x64
-		$re = qr/.*sub.*sp, sp, #(([0-9]{2}|[3-9])[0-9]{2})/o;
+		$re = qr/.*sub.*sp, sp, #([0-9]{1,4})/o;
+		$sub = \&arm_push_handling;
 	} elsif ($arch =~ /^x86(_64)?$/ || $arch =~ /^i[3456]86$/) {
 		#c0105234:       81 ec ac 05 00 00       sub    $0x5ac,%esp
 		# or
@@ -100,6 +109,9 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 	} elsif ($arch eq 'sparc' || $arch eq 'sparc64') {
 		# f0019d10:       9d e3 bf 90     save  %sp, -112, %sp
 		$re = qr/.*save.*%sp, -(([0-9]{2}|[3-9])[0-9]{2}), %sp/o;
+	} elsif ($arch =~ /^riscv(64)?$/) {
+		#ffffffff8036e868:	c2010113          	addi	sp,sp,-992
+		$re = qr/.*addi.*sp,sp,-(([0-9]{2}|[3-9])[0-9]{2})/o;
 	} else {
 		print("wrong or unknown architecture \"$arch\"\n");
 		exit
@@ -107,13 +119,50 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 }
 
 #
+# To count stack usage of push {*, fp, ip, lr, pc} instruction in ARM,
+# if FRAME POINTER is enabled.
+# e.g. c01f0d48: e92ddff0 push {r4, r5, r6, r7, r8, r9, sl, fp, ip, lr, pc}
+#
+sub arm_push_handling {
+	my $regex = qr/.*push.*fp, ip, lr, pc}/o;
+	my $size = 0;
+	my $line_arg = shift;
+
+	if ($line_arg =~ m/$regex/) {
+		$size = $line_arg =~ tr/,//;
+		$size = ($size + 1) * 4;
+	}
+
+	return $size;
+}
+
+#
 # main()
 #
-my ($func, $file, $lastslash);
+my ($func, $file, $lastslash, $total_size, $addr, $intro);
+
+$total_size = 0;
 
 while (my $line = <STDIN>) {
 	if ($line =~ m/$funcre/) {
 		$func = $1;
+		next if $line !~ m/^($xs*)/;
+		if ($total_size > $min_stack) {
+			push @stack, "$intro$total_size\n";
+		}
+
+		$addr = $1;
+		$addr =~ s/ /0/g;
+		$addr = "0x$addr";
+
+		$intro = "$addr $func [$file]:";
+		my $padlen = 56 - length($intro);
+		while ($padlen > 0) {
+			$intro .= '	';
+			$padlen -= 8;
+		}
+
+		$total_size = 0;
 	}
 	elsif ($line =~ m/(.*):\s*file format/) {
 		$file = $1;
@@ -134,36 +183,22 @@ while (my $line = <STDIN>) {
 		}
 		next if ($size > 0x10000000);
 
-		next if $line !~ m/^($xs*)/;
-		my $addr = $1;
-		$addr =~ s/ /0/g;
-		$addr = "0x$addr";
-
-		my $intro = "$addr $func [$file]:";
-		my $padlen = 56 - length($intro);
-		while ($padlen > 0) {
-			$intro .= '	';
-			$padlen -= 8;
-		}
-		next if ($size < 100);
-		push @stack, "$intro$size\n";
+		$total_size += $size;
 	}
 	elsif (defined $dre && $line =~ m/$dre/) {
-		my $size = "Dynamic ($1)";
+		my $size = $1;
 
-		next if $line !~ m/^($xs*)/;
-		my $addr = $1;
-		$addr =~ s/ /0/g;
-		$addr = "0x$addr";
-
-		my $intro = "$addr $func [$file]:";
-		my $padlen = 56 - length($intro);
-		while ($padlen > 0) {
-			$intro .= '	';
-			$padlen -= 8;
-		}
-		push @stack, "$intro$size\n";
+		$size = hex($size) if ($size =~ /^0x/);
+		$total_size += $size;
 	}
+	elsif (defined $sub) {
+		my $size = &$sub($line);
+
+		$total_size += $size;
+	}
+}
+if ($total_size > $min_stack) {
+	push @stack, "$intro$total_size\n";
 }
 
 # Sort output by size (last field)

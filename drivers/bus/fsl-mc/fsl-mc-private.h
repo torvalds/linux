@@ -10,6 +10,8 @@
 
 #include <linux/fsl/mc.h>
 #include <linux/mutex.h>
+#include <linux/ioctl.h>
+#include <linux/miscdevice.h>
 
 /*
  * Data Path Management Complex (DPMNG) General API
@@ -46,7 +48,6 @@ struct dpmng_rsp_get_version {
 
 /* DPMCP command IDs */
 #define DPMCP_CMDID_CLOSE		DPMCP_CMD(0x800)
-#define DPMCP_CMDID_OPEN		DPMCP_CMD(0x80b)
 #define DPMCP_CMDID_RESET		DPMCP_CMD(0x005)
 
 struct dpmcp_cmd_open {
@@ -79,16 +80,21 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 
 /* DPRC command versioning */
 #define DPRC_CMD_BASE_VERSION			1
+#define DPRC_CMD_2ND_VERSION			2
+#define DPRC_CMD_3RD_VERSION			3
 #define DPRC_CMD_ID_OFFSET			4
 
 #define DPRC_CMD(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_BASE_VERSION)
+#define DPRC_CMD_V2(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_2ND_VERSION)
+#define DPRC_CMD_V3(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_3RD_VERSION)
 
 /* DPRC command IDs */
 #define DPRC_CMDID_CLOSE                        DPRC_CMD(0x800)
-#define DPRC_CMDID_OPEN                         DPRC_CMD(0x805)
 #define DPRC_CMDID_GET_API_VERSION              DPRC_CMD(0xa05)
 
 #define DPRC_CMDID_GET_ATTR                     DPRC_CMD(0x004)
+#define DPRC_CMDID_RESET_CONT                   DPRC_CMD(0x005)
+#define DPRC_CMDID_RESET_CONT_V2                DPRC_CMD_V2(0x005)
 
 #define DPRC_CMDID_SET_IRQ                      DPRC_CMD(0x010)
 #define DPRC_CMDID_SET_IRQ_ENABLE               DPRC_CMD(0x012)
@@ -100,10 +106,19 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 #define DPRC_CMDID_GET_OBJ_COUNT                DPRC_CMD(0x159)
 #define DPRC_CMDID_GET_OBJ                      DPRC_CMD(0x15A)
 #define DPRC_CMDID_GET_OBJ_REG                  DPRC_CMD(0x15E)
+#define DPRC_CMDID_GET_OBJ_REG_V2               DPRC_CMD_V2(0x15E)
+#define DPRC_CMDID_GET_OBJ_REG_V3               DPRC_CMD_V3(0x15E)
 #define DPRC_CMDID_SET_OBJ_IRQ                  DPRC_CMD(0x15F)
+
+#define DPRC_CMDID_GET_CONNECTION               DPRC_CMD(0x16C)
 
 struct dprc_cmd_open {
 	__le32 container_id;
+};
+
+struct dprc_cmd_reset_container {
+	__le32 child_container_id;
+	__le32 options;
 };
 
 struct dprc_cmd_set_irq {
@@ -147,8 +162,7 @@ struct dprc_cmd_clear_irq_status {
 struct dprc_rsp_get_attributes {
 	/* response word 0 */
 	__le32 container_id;
-	__le16 icid;
-	__le16 pad;
+	__le32 icid;
 	/* response word 1 */
 	__le32 options;
 	__le32 portal_id;
@@ -197,11 +211,19 @@ struct dprc_cmd_get_obj_region {
 
 struct dprc_rsp_get_obj_region {
 	/* response word 0 */
-	__le64 pad;
+	__le64 pad0;
 	/* response word 1 */
-	__le64 base_addr;
+	__le64 base_offset;
 	/* response word 2 */
 	__le32 size;
+	u8 type;
+	u8 pad2[3];
+	/* response word 3 */
+	__le32 flags;
+	__le32 pad3;
+	/* response word 4 */
+	/* base_addr may be zero if older MC firmware is used */
+	__le64 base_addr;
 };
 
 struct dprc_cmd_set_obj_irq {
@@ -216,6 +238,22 @@ struct dprc_cmd_set_obj_irq {
 	__le32 obj_id;
 	/* cmd word 3-4 */
 	u8 obj_type[16];
+};
+
+struct dprc_cmd_get_connection {
+	__le32 ep1_id;
+	__le16 ep1_interface_id;
+	u8 pad[2];
+	u8 ep1_type[16];
+};
+
+struct dprc_rsp_get_connection {
+	__le64 pad[3];
+	__le32 ep2_id;
+	__le16 ep2_interface_id;
+	__le16 pad1;
+	u8 ep2_type[16];
+	__le32 state;
 };
 
 /*
@@ -302,7 +340,7 @@ int dprc_clear_irq_status(struct fsl_mc_io *mc_io,
  */
 struct dprc_attributes {
 	int container_id;
-	u16 icid;
+	u32 icid;
 	int portal_id;
 	u64 options;
 };
@@ -330,11 +368,6 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 		     int obj_id,
 		     u8 irq_index,
 		     struct dprc_irq_cfg *irq_cfg);
-
-/* Region flags */
-/* Cacheable - Indicates that region should be mapped as cacheable */
-#define DPRC_REGION_CACHEABLE	0x00000001
-
 /**
  * enum dprc_region_type - Region type
  * @DPRC_REGION_TYPE_MC_PORTAL: MC portal region
@@ -342,7 +375,8 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
  */
 enum dprc_region_type {
 	DPRC_REGION_TYPE_MC_PORTAL,
-	DPRC_REGION_TYPE_QBMAN_PORTAL
+	DPRC_REGION_TYPE_QBMAN_PORTAL,
+	DPRC_REGION_TYPE_QBMAN_MEM_BACKED_PORTAL
 };
 
 /**
@@ -360,6 +394,7 @@ struct dprc_region_desc {
 	u32 size;
 	u32 flags;
 	enum dprc_region_type type;
+	u64 base_address;
 };
 
 int dprc_get_obj_region(struct fsl_mc_io *mc_io,
@@ -379,6 +414,27 @@ int dprc_get_container_id(struct fsl_mc_io *mc_io,
 			  u32 cmd_flags,
 			  int *container_id);
 
+/**
+ * struct dprc_endpoint - Endpoint description for link connect/disconnect
+ *			operations
+ * @type:	Endpoint object type: NULL terminated string
+ * @id:		Endpoint object ID
+ * @if_id:	Interface ID; should be set for endpoints with multiple
+ *		interfaces ("dpsw", "dpdmux"); for others, always set to 0
+ */
+struct dprc_endpoint {
+	char type[16];
+	int id;
+	u16 if_id;
+};
+
+int dprc_get_connection(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dprc_endpoint *endpoint1,
+			struct dprc_endpoint *endpoint2,
+			int *state);
+
 /*
  * Data Path Buffer Pool (DPBP) API
  */
@@ -395,7 +451,6 @@ int dprc_get_container_id(struct fsl_mc_io *mc_io,
 
 /* Command IDs */
 #define DPBP_CMDID_CLOSE		DPBP_CMD(0x800)
-#define DPBP_CMDID_OPEN			DPBP_CMD(0x804)
 
 #define DPBP_CMDID_ENABLE		DPBP_CMD(0x002)
 #define DPBP_CMDID_DISABLE		DPBP_CMD(0x003)
@@ -434,7 +489,6 @@ struct dpbp_rsp_get_attributes {
 
 /* Command IDs */
 #define DPCON_CMDID_CLOSE			DPCON_CMD(0x800)
-#define DPCON_CMDID_OPEN			DPCON_CMD(0x808)
 
 #define DPCON_CMDID_ENABLE			DPCON_CMD(0x002)
 #define DPCON_CMDID_DISABLE			DPCON_CMD(0x003)
@@ -466,11 +520,41 @@ struct dpcon_cmd_set_notification {
 	__le64 user_ctx;
 };
 
-/**
- * Maximum number of total IRQs that can be pre-allocated for an MC bus'
- * IRQ pool
+/*
+ * Generic FSL MC API
  */
-#define FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS	256
+
+/* generic command versioning */
+#define OBJ_CMD_BASE_VERSION		1
+#define OBJ_CMD_ID_OFFSET		4
+
+#define OBJ_CMD(id)	(((id) << OBJ_CMD_ID_OFFSET) | OBJ_CMD_BASE_VERSION)
+
+/* open command codes */
+#define DPRTC_CMDID_OPEN		OBJ_CMD(0x810)
+#define DPNI_CMDID_OPEN		OBJ_CMD(0x801)
+#define DPSW_CMDID_OPEN		OBJ_CMD(0x802)
+#define DPIO_CMDID_OPEN		OBJ_CMD(0x803)
+#define DPBP_CMDID_OPEN		OBJ_CMD(0x804)
+#define DPRC_CMDID_OPEN		OBJ_CMD(0x805)
+#define DPDMUX_CMDID_OPEN		OBJ_CMD(0x806)
+#define DPCI_CMDID_OPEN		OBJ_CMD(0x807)
+#define DPCON_CMDID_OPEN		OBJ_CMD(0x808)
+#define DPSECI_CMDID_OPEN		OBJ_CMD(0x809)
+#define DPAIOP_CMDID_OPEN		OBJ_CMD(0x80a)
+#define DPMCP_CMDID_OPEN		OBJ_CMD(0x80b)
+#define DPMAC_CMDID_OPEN		OBJ_CMD(0x80c)
+#define DPDCEI_CMDID_OPEN		OBJ_CMD(0x80d)
+#define DPDMAI_CMDID_OPEN		OBJ_CMD(0x80e)
+#define DPDBG_CMDID_OPEN		OBJ_CMD(0x80f)
+
+/* Generic object command IDs */
+#define OBJ_CMDID_CLOSE		OBJ_CMD(0x800)
+#define OBJ_CMDID_RESET		OBJ_CMD(0x005)
+
+struct fsl_mc_obj_cmd_open {
+	__le32 obj_id;
+};
 
 /**
  * struct fsl_mc_resource_pool - Pool of MC resources of a given
@@ -492,6 +576,22 @@ struct fsl_mc_resource_pool {
 };
 
 /**
+ * struct fsl_mc_uapi - information associated with a device file
+ * @misc: struct miscdevice linked to the root dprc
+ * @device: newly created device in /dev
+ * @mutex: mutex lock to serialize the open/release operations
+ * @local_instance_in_use: local MC I/O instance in use or not
+ * @static_mc_io: pointer to the static MC I/O object
+ */
+struct fsl_mc_uapi {
+	struct miscdevice misc;
+	struct device *device;
+	struct mutex mutex; /* serialize open/release operations */
+	u32 local_instance_in_use;
+	struct fsl_mc_io *static_mc_io;
+};
+
+/**
  * struct fsl_mc_bus - logical bus that corresponds to a physical DPRC
  * @mc_dev: fsl-mc device for the bus device itself.
  * @resource_pools: array of resource pools (one pool per resource type)
@@ -500,6 +600,7 @@ struct fsl_mc_resource_pool {
  * @irq_resources: Pointer to array of IRQ objects for the IRQ pool
  * @scan_mutex: Serializes bus scanning
  * @dprc_attr: DPRC attributes
+ * @uapi_misc: struct that abstracts the interaction with userspace
  */
 struct fsl_mc_bus {
 	struct fsl_mc_device mc_dev;
@@ -507,6 +608,8 @@ struct fsl_mc_bus {
 	struct fsl_mc_device_irq *irq_resources;
 	struct mutex scan_mutex;    /* serializes bus scanning */
 	struct dprc_attributes dprc_attr;
+	struct fsl_mc_uapi uapi_misc;
+	int irq_enabled;
 };
 
 #define to_fsl_mc_bus(_mc_dev) \
@@ -522,6 +625,9 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev);
 int __init dprc_driver_init(void);
 
 void dprc_driver_exit(void);
+
+int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
+		      bool alloc_interrupts);
 
 int __init fsl_mc_allocator_driver_init(void);
 
@@ -543,13 +649,7 @@ int fsl_mc_msi_domain_alloc_irqs(struct device *dev,
 
 void fsl_mc_msi_domain_free_irqs(struct device *dev);
 
-int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
-			   struct irq_domain **mc_msi_domain);
-
-int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
-			     unsigned int irq_count);
-
-void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus);
+struct irq_domain *fsl_mc_find_msi_domain(struct device *dev);
 
 int __must_check fsl_create_mc_io(struct device *dev,
 				  phys_addr_t mc_portal_phys_addr,
@@ -560,5 +660,36 @@ int __must_check fsl_create_mc_io(struct device *dev,
 void fsl_destroy_mc_io(struct fsl_mc_io *mc_io);
 
 bool fsl_mc_is_root_dprc(struct device *dev);
+
+void fsl_mc_get_root_dprc(struct device *dev,
+			 struct device **root_dprc_dev);
+
+struct fsl_mc_device *fsl_mc_device_lookup(struct fsl_mc_obj_desc *obj_desc,
+					   struct fsl_mc_device *mc_bus_dev);
+
+u16 mc_cmd_hdr_read_cmdid(struct fsl_mc_command *cmd);
+
+#ifdef CONFIG_FSL_MC_UAPI_SUPPORT
+
+int fsl_mc_uapi_create_device_file(struct fsl_mc_bus *mc_bus);
+
+void fsl_mc_uapi_remove_device_file(struct fsl_mc_bus *mc_bus);
+
+#else
+
+static inline int fsl_mc_uapi_create_device_file(struct fsl_mc_bus *mc_bus)
+{
+	return 0;
+}
+
+static inline void fsl_mc_uapi_remove_device_file(struct fsl_mc_bus *mc_bus)
+{
+}
+
+#endif
+
+int disable_dprc_irq(struct fsl_mc_device *mc_dev);
+int enable_dprc_irq(struct fsl_mc_device *mc_dev);
+int get_dprc_irq_state(struct fsl_mc_device *mc_dev);
 
 #endif /* _FSL_MC_PRIVATE_H_ */

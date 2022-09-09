@@ -46,14 +46,12 @@ static int isa_bus_probe(struct device *dev)
 	return 0;
 }
 
-static int isa_bus_remove(struct device *dev)
+static void isa_bus_remove(struct device *dev)
 {
 	struct isa_driver *isa_driver = dev->platform_data;
 
 	if (isa_driver && isa_driver->remove)
-		return isa_driver->remove(dev, to_isa_dev(dev)->id);
-
-	return 0;
+		isa_driver->remove(dev, to_isa_dev(dev)->id);
 }
 
 static void isa_bus_shutdown(struct device *dev)

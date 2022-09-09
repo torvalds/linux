@@ -9,6 +9,7 @@
  *
  */
 
+#include <dt-bindings/clock/fsl,qoriq-clockgen.h>
 #include "fsl-ls208xa.dtsi"
 
 &cpu {
@@ -16,7 +17,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x0>;
-		clocks = <&clockgen 1 0>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 0>;
 		cpu-idle-states = <&CPU_PW20>;
 		next-level-cache = <&cluster0_l2>;
 		#cooling-cells = <2>;
@@ -26,7 +27,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x1>;
-		clocks = <&clockgen 1 0>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 0>;
 		cpu-idle-states = <&CPU_PW20>;
 		next-level-cache = <&cluster0_l2>;
 		#cooling-cells = <2>;
@@ -36,7 +37,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x100>;
-		clocks = <&clockgen 1 1>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 1>;
 		cpu-idle-states = <&CPU_PW20>;
 		next-level-cache = <&cluster1_l2>;
 		#cooling-cells = <2>;
@@ -46,7 +47,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x101>;
-		clocks = <&clockgen 1 1>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 1>;
 		cpu-idle-states = <&CPU_PW20>;
 		next-level-cache = <&cluster1_l2>;
 		#cooling-cells = <2>;
@@ -56,7 +57,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x200>;
-		clocks = <&clockgen 1 2>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 2>;
 		next-level-cache = <&cluster2_l2>;
 		cpu-idle-states = <&CPU_PW20>;
 		#cooling-cells = <2>;
@@ -66,7 +67,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x201>;
-		clocks = <&clockgen 1 2>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 2>;
 		cpu-idle-states = <&CPU_PW20>;
 		next-level-cache = <&cluster2_l2>;
 		#cooling-cells = <2>;
@@ -76,7 +77,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x300>;
-		clocks = <&clockgen 1 3>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 3>;
 		cpu-idle-states = <&CPU_PW20>;
 		next-level-cache = <&cluster3_l2>;
 		#cooling-cells = <2>;
@@ -86,7 +87,7 @@
 		device_type = "cpu";
 		compatible = "arm,cortex-a72";
 		reg = <0x301>;
-		clocks = <&clockgen 1 3>;
+		clocks = <&clockgen QORIQ_CLK_CMUX 3>;
 		cpu-idle-states = <&CPU_PW20>;
 		next-level-cache = <&cluster3_l2>;
 		#cooling-cells = <2>;
@@ -120,8 +121,8 @@
 
 &pcie1 {
 	compatible = "fsl,ls2088a-pcie";
-	reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
-	       0x20 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+	      <0x20 0x00000000 0x0 0x00002000>; /* configuration space */
 
 	ranges = <0x81000000 0x0 0x00000000 0x20 0x00010000 0x0 0x00010000
 		  0x82000000 0x0 0x40000000 0x20 0x40000000 0x0 0x40000000>;
@@ -129,8 +130,8 @@
 
 &pcie2 {
 	compatible = "fsl,ls2088a-pcie";
-	reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
-	       0x28 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
+	      <0x28 0x00000000 0x0 0x00002000>; /* configuration space */
 
 	ranges = <0x81000000 0x0 0x00000000 0x28 0x00010000 0x0 0x00010000
 		  0x82000000 0x0 0x40000000 0x28 0x40000000 0x0 0x40000000>;
@@ -138,8 +139,8 @@
 
 &pcie3 {
 	compatible = "fsl,ls2088a-pcie";
-	reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
-	       0x30 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
+	      <0x30 0x00000000 0x0 0x00002000>; /* configuration space */
 
 	ranges = <0x81000000 0x0 0x00000000 0x30 0x00010000 0x0 0x00010000
 		  0x82000000 0x0 0x40000000 0x30 0x40000000 0x0 0x40000000>;
@@ -147,8 +148,8 @@
 
 &pcie4 {
 	compatible = "fsl,ls2088a-pcie";
-	reg = <0x00 0x03700000 0x0 0x00100000   /* controller registers */
-	       0x38 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg = <0x00 0x03700000 0x0 0x00100000>, /* controller registers */
+	      <0x38 0x00000000 0x0 0x00002000>; /* configuration space */
 
 	ranges = <0x81000000 0x0 0x00000000 0x38 0x00010000 0x0 0x00010000
 		  0x82000000 0x0 0x40000000 0x38 0x40000000 0x0 0x40000000>;

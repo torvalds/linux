@@ -19,9 +19,10 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	memory {
-		reg = <0x00000000 0x08000000
-		       0x88000000 0x08000000>;
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x08000000>;
 	};
 
 	leds {
@@ -68,22 +69,20 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		rfkill {
+		button-rfkill {
 			label = "WiFi";
 			linux,code = <KEY_RFKILL>;
 			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
 		};
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 
-		wps {
+		button-wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;

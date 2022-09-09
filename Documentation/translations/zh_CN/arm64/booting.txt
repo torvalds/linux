@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/arm64/booting.txt
+Chinese translated version of Documentation/arm64/booting.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -10,7 +10,7 @@ M:	Will Deacon <will.deacon@arm.com>
 zh_CN:	Fu Wei <wefu@redhat.com>
 C:	55f058e7574c3615dea4615573a19bdb258696c6
 ---------------------------------------------------------------------
-Documentation/arm64/booting.txt 的中文翻译
+Documentation/arm64/booting.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -67,8 +67,8 @@ RAM，或可能使用对这个设备已知的 RAM 信息，还可能是引导装
 必要性: 强制
 
 设备树数据块（dtb）必须 8 字节对齐，且大小不能超过 2MB。由于设备树
-数据块将在使能缓存的情况下以 2MB 粒度被映射，故其不能被置于带任意
-特定属性被映射的 2MB 区域内。
+数据块将在使能缓存的情况下以 2MB 粒度被映射，故其不能被置于必须以特定
+属性映射的2M区域内。
 
 注： v4.2 之前的版本同时要求设备树数据块被置于从内核映像以下
 text_offset 字节处算起第一个 512MB 内。
@@ -236,7 +236,7 @@ AArch64 内核当前没有提供自解压代码，因此如果使用了压缩内
   *译者注: ARM DEN 0022A 已更新到 ARM DEN 0022C。
 
   设备树必须包含一个 ‘psci’ 节点，请参考以下文档：
-  Documentation/devicetree/bindings/arm/psci.txt
+  Documentation/devicetree/bindings/arm/psci.yaml
 
 
 - 辅助 CPU 通用寄存器设置

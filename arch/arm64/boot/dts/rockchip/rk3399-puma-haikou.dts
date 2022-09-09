@@ -10,14 +10,18 @@
 	model = "Theobroma Systems RK3399-Q7 SoM";
 	compatible = "tsd,rk3399-puma-haikou", "rockchip,rk3399";
 
+	aliases {
+		mmc1 = &sdmmc;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
 	leds {
-		pinctrl-0 = <&led_pin_module>, <&led_sd_haikou>;
+		pinctrl-0 = <&module_led_pin>, <&sd_card_led_pin>;
 
-		sd-card-led {
+		sd_card_led: led-1 {
 			label = "sd_card_led";
 			gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
@@ -45,7 +49,7 @@
 	sgtl5000_clk: sgtl5000-oscillator  {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency  = <24576000>;
+			clock-frequency = <24576000>;
 	};
 
 	dc_12v: dc-12v {
@@ -168,27 +172,27 @@
 		haikou_pin_hog: haikou-pin-hog {
 			rockchip,pins =
 			  /* LID_BTN */
-			  <RK_GPIO0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
+			  <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* BATLOW# */
-			  <RK_GPIO0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
+			  <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* SLP_BTN# */
-			  <RK_GPIO0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>,
+			  <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* BIOS_DISABLE# */
-			  <RK_GPIO0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+			  <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	leds {
-		led_sd_haikou: led-sd-gpio {
+		sd_card_led_pin: sd-card-led-pin {
 			rockchip,pins =
-			  <RK_GPIO1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb2 {
 		otg_vbus_drv: otg-vbus-drv {
 			rockchip,pins =
-			  <RK_GPIO0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -228,6 +232,7 @@
 
 &usbdrd_dwc3_0 {
 	dr_mode = "otg";
+	extcon = <&extcon_usb3>;
 	status = "okay";
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  net/dccp/ccid.c
  *
@@ -5,10 +6,6 @@
  *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  *  CCID infrastructure
- *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License version 2 as
- *	published by the Free Software Foundation.
  */
 
 #include <linux/slab.h>
@@ -79,7 +76,7 @@ int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 	return err;
 }
 
-static struct kmem_cache *ccid_kmem_cache_create(int obj_size, char *slab_name_fmt, const char *fmt,...)
+static __printf(3, 4) struct kmem_cache *ccid_kmem_cache_create(int obj_size, char *slab_name_fmt, const char *fmt,...)
 {
 	struct kmem_cache *slab;
 	va_list args;

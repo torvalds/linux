@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
-extern unsigned long shm_align_mask;
+#include <asm/shmparam.h>
+
 extern void flush_dcache_page(struct page *page);
 
 static inline unsigned long pages_do_alias(unsigned long addr1,
 					   unsigned long addr2)
 {
-	return (addr1 ^ addr2) & shm_align_mask;
+	return (addr1 ^ addr2) & (SHMLBA-1);
 }
 
 static inline void clear_user_page(void *addr, unsigned long vaddr,

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8804-i2c.c  --  WM8804 S/PDIF transceiver driver - I2C
  *
  * Copyright 2015 Cirrus Logic Inc
  *
  * Author: Charles Keepax <ckeepax@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -17,8 +14,7 @@
 
 #include "wm8804.h"
 
-static int wm8804_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8804_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 
@@ -65,7 +61,7 @@ static struct i2c_driver wm8804_i2c_driver = {
 		.of_match_table = of_match_ptr(wm8804_of_match),
 		.acpi_match_table = ACPI_PTR(wm8804_acpi_match),
 	},
-	.probe = wm8804_i2c_probe,
+	.probe_new = wm8804_i2c_probe,
 	.remove = wm8804_i2c_remove,
 	.id_table = wm8804_i2c_id
 };

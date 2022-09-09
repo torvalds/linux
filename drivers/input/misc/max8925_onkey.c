@@ -1,4 +1,4 @@
-/**
+/*
  * MAX8925 ONKEY driver
  *
  * Copyright (C) 2009 Marvell International Ltd.
@@ -71,16 +71,12 @@ static int max8925_onkey_probe(struct platform_device *pdev)
 	int irq[2], error;
 
 	irq[0] = platform_get_irq(pdev, 0);
-	if (irq[0] < 0) {
-		dev_err(&pdev->dev, "No IRQ resource!\n");
+	if (irq[0] < 0)
 		return -EINVAL;
-	}
 
 	irq[1] = platform_get_irq(pdev, 1);
-	if (irq[1] < 0) {
-		dev_err(&pdev->dev, "No IRQ resource!\n");
+	if (irq[1] < 0)
 		return -EINVAL;
-	}
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_onkey_info),
 			    GFP_KERNEL);

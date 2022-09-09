@@ -45,12 +45,7 @@ static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
 	u32 len;
 
 	len = ((psn - wqe->psn) & QIB_PSN_MASK) * pmtu;
-	ss->sge = wqe->sg_list[0];
-	ss->sg_list = wqe->sg_list + 1;
-	ss->num_sge = wqe->wr.num_sge;
-	ss->total_len = wqe->length;
-	rvt_skip_sge(ss, len, false);
-	return wqe->length - len;
+	return rvt_restart_sge(ss, wqe, len);
 }
 
 /**
@@ -88,7 +83,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 			rvt_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(ATOMIC_ACKNOWLEDGE):
 		/*
 		 * We can increment the tail pointer now that the last
@@ -97,7 +92,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 		 */
 		if (++qp->s_tail_ack_queue > QIB_MAX_RDMA_ATOMIC)
 			qp->s_tail_ack_queue = 0;
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_ONLY):
 	case OP(ACKNOWLEDGE):
 		/* Check for no next entry in the queue. */
@@ -154,7 +149,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 
 	case OP(RDMA_READ_RESPONSE_FIRST):
 		qp->s_ack_state = OP(RDMA_READ_RESPONSE_MIDDLE);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(RDMA_READ_RESPONSE_MIDDLE):
 		qp->s_cur_sge = &qp->s_ack_rdma_sge;
 		qp->s_rdma_mr = qp->s_ack_rdma_sge.sge.mr;
@@ -212,6 +207,7 @@ bail:
 /**
  * qib_make_rc_req - construct a request packet (SEND, RDMA r/w, ATOMIC)
  * @qp: a pointer to the QP
+ * @flags: unused
  *
  * Assumes the s_lock is held.
  *
@@ -318,11 +314,8 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 		case IB_WR_SEND:
 		case IB_WR_SEND_WITH_IMM:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 			if (len > pmtu) {
 				qp->s_state = OP(SEND_FIRST);
 				len = pmtu;
@@ -349,11 +342,8 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 			goto no_flow_control;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 no_flow_control:
 			ohdr->u.rc.reth.vaddr =
 				cpu_to_be64(wqe->rdma_wr.remote_addr);
@@ -482,10 +472,10 @@ no_flow_control:
 		 * See qib_restart_rc().
 		 */
 		qp->s_len = restart_sge(&qp->s_sge, wqe, qp->s_psn, pmtu);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_FIRST):
 		qp->s_state = OP(SEND_MIDDLE);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_MIDDLE):
 		bth2 = qp->s_psn++ & QIB_PSN_MASK;
 		ss = &qp->s_sge;
@@ -521,10 +511,10 @@ no_flow_control:
 		 * See qib_restart_rc().
 		 */
 		qp->s_len = restart_sge(&qp->s_sge, wqe, qp->s_psn, pmtu);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(RDMA_WRITE_FIRST):
 		qp->s_state = OP(RDMA_WRITE_MIDDLE);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(RDMA_WRITE_MIDDLE):
 		bth2 = qp->s_psn++ & QIB_PSN_MASK;
 		ss = &qp->s_sge;
@@ -926,20 +916,11 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		rvt_add_retry_timer(qp);
 
 	while (qp->s_last != qp->s_acked) {
-		u32 s_last;
-
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		if (qib_cmp24(wqe->lpsn, qp->s_sending_psn) >= 0 &&
 		    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)
 			break;
-		s_last = qp->s_last;
-		if (++s_last >= qp->s_size)
-			s_last = 0;
-		qp->s_last = s_last;
-		/* see post_send() */
-		barrier();
-		rvt_put_swqe(wqe);
-		rvt_qp_swqe_complete(qp,
+		rvt_qp_complete_swqe(qp,
 				     wqe,
 				     ib_qib_wc_opcode[wqe->wr.opcode],
 				     IB_WC_SUCCESS);
@@ -977,21 +958,12 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	 * is finished.
 	 */
 	if (qib_cmp24(wqe->lpsn, qp->s_sending_psn) < 0 ||
-	    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
-		u32 s_last;
-
-		rvt_put_swqe(wqe);
-		s_last = qp->s_last;
-		if (++s_last >= qp->s_size)
-			s_last = 0;
-		qp->s_last = s_last;
-		/* see post_send() */
-		barrier();
-		rvt_qp_swqe_complete(qp,
+	    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) > 0)
+		rvt_qp_complete_swqe(qp,
 				     wqe,
 				     ib_qib_wc_opcode[wqe->wr.opcode],
 				     IB_WC_SUCCESS);
-	} else
+	else
 		this_cpu_inc(*ibp->rvp.rc_delayed_comp);
 
 	qp->s_retry = qp->s_retry_cnt;
@@ -1021,7 +993,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	return wqe;
 }
 
-/**
+/*
  * do_rc_ack - process an incoming RC ACK
  * @qp: the QP the ACK came in on
  * @psn: the packet sequence number of the ACK
@@ -1288,6 +1260,7 @@ static void rdma_seq_err(struct rvt_qp *qp, struct qib_ibport *ibp, u32 psn,
  * @psn: the packet sequence number for this packet
  * @hdrsize: the header length
  * @pmtu: the path MTU
+ * @rcd: the context pointer
  *
  * This is called from qib_rc_rcv() to process an incoming RC response
  * packet for the given QP.
@@ -1509,6 +1482,7 @@ bail:
  * @opcode: the opcode for this packet
  * @psn: the packet sequence number for this packet
  * @diff: the difference between the PSN and the expected PSN
+ * @rcd: the context pointer
  *
  * This is called from qib_rc_rcv() to process an unexpected
  * incoming RC packet for the given QP.
@@ -1836,7 +1810,7 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 		if (!ret)
 			goto rnr_nak;
 		qp->r_rcv_len = 0;
-		/* FALLTHROUGH */
+		fallthrough;
 	case OP(SEND_MIDDLE):
 	case OP(RDMA_WRITE_MIDDLE):
 send_middle:
@@ -1868,7 +1842,7 @@ send_middle:
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
 			goto no_immediate_data;
-		/* fall through -- for SEND_ONLY_WITH_IMMEDIATE */
+		fallthrough;	/* for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
@@ -1914,8 +1888,7 @@ send_last:
 		wc.dlid_path_bits = 0;
 		wc.port_num = 0;
 		/* Signal completion event if the solicited bit is set. */
-		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
-			     ib_bth_is_solicited(ohdr));
+		rvt_recv_cq(qp, &wc, ib_bth_is_solicited(ohdr));
 		break;
 
 	case OP(RDMA_WRITE_FIRST):

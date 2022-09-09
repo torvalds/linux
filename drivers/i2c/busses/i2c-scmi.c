@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SMBus driver for ACPI SMBus CMI
  *
  * Copyright (C) 2009 Crane Cai <crane.cai@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2.
  */
 
 #include <linux/module.h>
@@ -20,8 +17,6 @@
 
 /* SMBUS HID definition as supported by Microsoft Windows */
 #define ACPI_SMBUS_MS_HID		"SMB0001"
-
-ACPI_MODULE_NAME("smbus_cmi");
 
 struct smbus_methods_t {
 	char *mt_info;

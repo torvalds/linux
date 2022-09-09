@@ -18,7 +18,6 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK01.1";
-	compatible = "qcom,ipq4019";
 
 	aliases {
 		serial0 = &blsp1_uart1;
@@ -30,7 +29,7 @@
 
 	soc {
 		rng@22000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		pinctrl@1000000 {
@@ -65,14 +64,14 @@
 			};
 		};
 
-		blsp_dma: dma@7884000 {
-			status = "ok";
+		blsp_dma: dma-controller@7884000 {
+			status = "okay";
 		};
 
 		spi@78b5000 {
 			pinctrl-0 = <&spi_0_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 			cs-gpios = <&tlmm 54 0>;
 
 			mx25l25635e@0 {
@@ -87,27 +86,27 @@
 		serial@78af000 {
 			pinctrl-0 = <&serial_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 		};
 
-		cryptobam: dma@8e04000 {
-			status = "ok";
+		cryptobam: dma-controller@8e04000 {
+			status = "okay";
 		};
 
 		crypto@8e3a000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		watchdog@b017000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		wifi@a000000 {
-			status = "ok";
+			status = "okay";
 		};
 
 		wifi@a800000 {
-			status = "ok";
+			status = "okay";
 		};
 	};
 };

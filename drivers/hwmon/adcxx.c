@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * adcxx.c
  *
@@ -18,20 +19,6 @@
  *
  * Handling of 8, 10 and 12 bits converters are the same, the
  * unavailable bits are 0 :)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -207,7 +194,7 @@ out_err:
 	return status;
 }
 
-static int adcxx_remove(struct spi_device *spi)
+static void adcxx_remove(struct spi_device *spi)
 {
 	struct adcxx *adc = spi_get_drvdata(spi);
 	int i;
@@ -218,8 +205,6 @@ static int adcxx_remove(struct spi_device *spi)
 		device_remove_file(&spi->dev, &ad_input[i].dev_attr);
 
 	mutex_unlock(&adc->lock);
-
-	return 0;
 }
 
 static const struct spi_device_id adcxx_ids[] = {

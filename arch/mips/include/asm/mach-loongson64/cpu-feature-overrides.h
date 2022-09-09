@@ -26,7 +26,6 @@
 #define cpu_has_counter		1
 #define cpu_has_dc_aliases	(PAGE_SIZE < 0x4000)
 #define cpu_has_divec		0
-#define cpu_has_ejtag		0
 #define cpu_has_inclusive_pcaches	1
 #define cpu_has_llsc		1
 #define cpu_has_mcheck		0
@@ -37,18 +36,15 @@
 #define cpu_has_mipsmt		0
 #define cpu_has_smartmips	0
 #define cpu_has_tlb		1
-#define cpu_has_tx39_cache	0
 #define cpu_has_vce		0
 #define cpu_has_veic		0
 #define cpu_has_vint		0
 #define cpu_has_vtag_icache	0
-#define cpu_has_watch		1
-#define cpu_has_local_ebase	0
-
-#ifdef CONFIG_CPU_LOONGSON3
 #define cpu_has_wsbh		1
 #define cpu_has_ic_fills_f_dc	1
 #define cpu_hwrena_impl_bits	0xc0000000
-#endif
+#define cpu_has_mac2008_only	1
+#define cpu_has_mips_r2_exec_hazard 0
+#define cpu_has_perf_cntr_intr_bit	0
 
 #endif /* __ASM_MACH_LOONGSON64_CPU_FEATURE_OVERRIDES_H */

@@ -91,7 +91,7 @@ extern bool qid_valid(struct kqid qid);
  *
  *	When there is no mapping defined for the user-namespace, type,
  *	qid tuple an invalid kqid is returned.  Callers are expected to
- *	test for and handle handle invalid kqids being returned.
+ *	test for and handle invalid kqids being returned.
  *	Invalid kqids may be tested for using qid_valid().
  */
 static inline struct kqid make_kqid(struct user_namespace *from,
@@ -263,7 +263,7 @@ enum {
 };
 
 struct dqstats {
-	int stat[_DQST_DQSTAT_LAST];
+	unsigned long stat[_DQST_DQSTAT_LAST];
 	struct percpu_counter counter[_DQST_DQSTAT_LAST];
 };
 
@@ -448,17 +448,18 @@ struct quota_format_type {
 };
 
 /**
- * Quota state flags - they actually come in two flavors - for users and groups.
+ * Quota state flags - they come in three flavors - for users, groups and projects.
  *
  * Actual typed flags layout:
- *				USRQUOTA	GRPQUOTA
- *  DQUOT_USAGE_ENABLED		0x0001		0x0002
- *  DQUOT_LIMITS_ENABLED	0x0004		0x0008
- *  DQUOT_SUSPENDED		0x0010		0x0020
+ *				USRQUOTA	GRPQUOTA	PRJQUOTA
+ *  DQUOT_USAGE_ENABLED		0x0001		0x0002		0x0004
+ *  DQUOT_LIMITS_ENABLED	0x0008		0x0010		0x0020
+ *  DQUOT_SUSPENDED		0x0040		0x0080		0x0100
  *
  * Following bits are used for non-typed flags:
- *  DQUOT_QUOTA_SYS_FILE	0x0040
- *  DQUOT_NEGATIVE_USAGE	0x0080
+ *  DQUOT_QUOTA_SYS_FILE	0x0200
+ *  DQUOT_NEGATIVE_USAGE	0x0400
+ *  DQUOT_NOLIST_DIRTY		0x0800
  */
 enum {
 	_DQUOT_USAGE_ENABLED = 0,		/* Track disk usage for users */

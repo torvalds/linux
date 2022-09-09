@@ -66,12 +66,7 @@ static inline void linkmode_mod_bit(int nr, volatile unsigned long *addr,
 		linkmode_clear_bit(nr, addr);
 }
 
-static inline void linkmode_change_bit(int nr, volatile unsigned long *addr)
-{
-	__change_bit(nr, addr);
-}
-
-static inline int linkmode_test_bit(int nr, volatile unsigned long *addr)
+static inline int linkmode_test_bit(int nr, const volatile unsigned long *addr)
 {
 	return test_bit(nr, addr);
 }
@@ -81,5 +76,23 @@ static inline int linkmode_equal(const unsigned long *src1,
 {
 	return bitmap_equal(src1, src2, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
+
+static inline int linkmode_intersects(const unsigned long *src1,
+				      const unsigned long *src2)
+{
+	return bitmap_intersects(src1, src2, __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
+static inline int linkmode_subset(const unsigned long *src1,
+				  const unsigned long *src2)
+{
+	return bitmap_subset(src1, src2, __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
+void linkmode_resolve_pause(const unsigned long *local_adv,
+			    const unsigned long *partner_adv,
+			    bool *tx_pause, bool *rx_pause);
+
+void linkmode_set_pause(unsigned long *advertisement, bool tx, bool rx);
 
 #endif /* __LINKMODE_H */

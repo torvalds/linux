@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 /*
  *  linux/net/sunrpc/gss_krb5_mech.c
  *
@@ -6,32 +7,6 @@
  *
  *  Andy Adamson <andros@umich.edu>
  *  J. Bruce Fields <bfields@umich.edu>
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #include <crypto/hash.h>
@@ -46,6 +21,8 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/gss_krb5_enctypes.h>
 
+#include "auth_gss_internal.h"
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
@@ -53,6 +30,7 @@
 static struct gss_api_mech gss_kerberos_mech;	/* forward declaration */
 
 static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
+#ifndef CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
 	/*
 	 * DES (All DES enctypes are mapped to the same gss functionality)
 	 */
@@ -74,27 +52,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksumlength = 8,
 	  .keyed_cksum = 0,
 	},
-	/*
-	 * RC4-HMAC
-	 */
-	{
-	  .etype = ENCTYPE_ARCFOUR_HMAC,
-	  .ctype = CKSUMTYPE_HMAC_MD5_ARCFOUR,
-	  .name = "rc4-hmac",
-	  .encrypt_name = "ecb(arc4)",
-	  .cksum_name = "hmac(md5)",
-	  .encrypt = krb5_encrypt,
-	  .decrypt = krb5_decrypt,
-	  .mk_key = NULL,
-	  .signalg = SGN_ALG_HMAC_MD5,
-	  .sealalg = SEAL_ALG_MICROSOFT_RC4,
-	  .keybytes = 16,
-	  .keylength = 16,
-	  .blocksize = 1,
-	  .conflen = 8,
-	  .cksumlength = 8,
-	  .keyed_cksum = 1,
-	},
+#endif	/* CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES */
 	/*
 	 * 3DES
 	 */
@@ -187,35 +145,6 @@ get_gss_krb5_enctype(int etype)
 	return NULL;
 }
 
-static const void *
-simple_get_bytes(const void *p, const void *end, void *res, int len)
-{
-	const void *q = (const void *)((const char *)p + len);
-	if (unlikely(q > end || q < p))
-		return ERR_PTR(-EFAULT);
-	memcpy(res, p, len);
-	return q;
-}
-
-static const void *
-simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
-{
-	const void *q;
-	unsigned int len;
-
-	p = simple_get_bytes(p, end, &len, sizeof(len));
-	if (IS_ERR(p))
-		return p;
-	q = (const void *)((const char *)p + len);
-	if (unlikely(q > end || q < p))
-		return ERR_PTR(-EFAULT);
-	res->data = kmemdup(p, len, GFP_NOFS);
-	if (unlikely(res->data == NULL))
-		return ERR_PTR(-ENOMEM);
-	res->len = len;
-	return q;
-}
-
 static inline const void *
 get_key(const void *p, const void *end,
 	struct krb5_ctx *ctx, struct crypto_sync_skcipher **res)
@@ -276,6 +205,7 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 {
 	u32 seq_send;
 	int tmp;
+	u32 time32;
 
 	p = simple_get_bytes(p, end, &ctx->initiate, sizeof(ctx->initiate));
 	if (IS_ERR(p))
@@ -313,9 +243,11 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 		p = ERR_PTR(-ENOSYS);
 		goto out_err;
 	}
-	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
+	p = simple_get_bytes(p, end, &time32, sizeof(time32));
 	if (IS_ERR(p))
 		goto out_err;
+	/* unsigned 32-bit time overflows in year 2106 */
+	ctx->endtime = (time64_t)time32;
 	p = simple_get_bytes(p, end, &seq_send, sizeof(seq_send));
 	if (IS_ERR(p))
 		goto out_err;
@@ -419,79 +351,6 @@ out_free_seq:
 	crypto_free_sync_skcipher(ctx->seq);
 out_err:
 	return -EINVAL;
-}
-
-/*
- * Note that RC4 depends on deriving keys using the sequence
- * number or the checksum of a token.  Therefore, the final keys
- * cannot be calculated until the token is being constructed!
- */
-static int
-context_derive_keys_rc4(struct krb5_ctx *ctx)
-{
-	struct crypto_shash *hmac;
-	char sigkeyconstant[] = "signaturekey";
-	int slen = strlen(sigkeyconstant) + 1;	/* include null terminator */
-	struct shash_desc *desc;
-	int err;
-
-	dprintk("RPC:       %s: entered\n", __func__);
-	/*
-	 * derive cksum (aka Ksign) key
-	 */
-	hmac = crypto_alloc_shash(ctx->gk5e->cksum_name, 0, 0);
-	if (IS_ERR(hmac)) {
-		dprintk("%s: error %ld allocating hash '%s'\n",
-			__func__, PTR_ERR(hmac), ctx->gk5e->cksum_name);
-		err = PTR_ERR(hmac);
-		goto out_err;
-	}
-
-	err = crypto_shash_setkey(hmac, ctx->Ksess, ctx->gk5e->keylength);
-	if (err)
-		goto out_err_free_hmac;
-
-
-	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac), GFP_NOFS);
-	if (!desc) {
-		dprintk("%s: failed to allocate hash descriptor for '%s'\n",
-			__func__, ctx->gk5e->cksum_name);
-		err = -ENOMEM;
-		goto out_err_free_hmac;
-	}
-
-	desc->tfm = hmac;
-	desc->flags = 0;
-
-	err = crypto_shash_digest(desc, sigkeyconstant, slen, ctx->cksum);
-	kzfree(desc);
-	if (err)
-		goto out_err_free_hmac;
-	/*
-	 * allocate hash, and skciphers for data and seqnum encryption
-	 */
-	ctx->enc = crypto_alloc_sync_skcipher(ctx->gk5e->encrypt_name, 0, 0);
-	if (IS_ERR(ctx->enc)) {
-		err = PTR_ERR(ctx->enc);
-		goto out_err_free_hmac;
-	}
-
-	ctx->seq = crypto_alloc_sync_skcipher(ctx->gk5e->encrypt_name, 0, 0);
-	if (IS_ERR(ctx->seq)) {
-		crypto_free_sync_skcipher(ctx->enc);
-		err = PTR_ERR(ctx->seq);
-		goto out_err_free_hmac;
-	}
-
-	dprintk("RPC:       %s: returning success\n", __func__);
-
-	err = 0;
-
-out_err_free_hmac:
-	crypto_free_shash(hmac);
-out_err:
-	dprintk("RPC:       %s: returning %d\n", __func__, err);
-	return err;
 }
 
 static int
@@ -611,15 +470,18 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 {
 	u64 seq_send64;
 	int keylen;
+	u32 time32;
 
 	p = simple_get_bytes(p, end, &ctx->flags, sizeof(ctx->flags));
 	if (IS_ERR(p))
 		goto out_err;
 	ctx->initiate = ctx->flags & KRB5_CTX_FLAG_INITIATOR;
 
-	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
+	p = simple_get_bytes(p, end, &time32, sizeof(time32));
 	if (IS_ERR(p))
 		goto out_err;
+	/* unsigned 32-bit time overflows in year 2106 */
+	ctx->endtime = (time64_t)time32;
 	p = simple_get_bytes(p, end, &seq_send64, sizeof(seq_send64));
 	if (IS_ERR(p))
 		goto out_err;
@@ -667,8 +529,6 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	switch (ctx->enctype) {
 	case ENCTYPE_DES3_CBC_RAW:
 		return context_derive_keys_des3(ctx, gfp_mask);
-	case ENCTYPE_ARCFOUR_HMAC:
-		return context_derive_keys_rc4(ctx);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
 		return context_derive_keys_new(ctx, gfp_mask);
@@ -683,7 +543,7 @@ out_err:
 static int
 gss_import_sec_context_kerberos(const void *p, size_t len,
 				struct gss_ctx *ctx_id,
-				time_t *endtime,
+				time64_t *endtime,
 				gfp_t gfp_mask)
 {
 	const void *end = (const void *)((const char *)p + len);

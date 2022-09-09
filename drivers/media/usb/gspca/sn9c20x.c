@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Sonix sn9c201 sn9c202 library
  *
  * Copyright (C) 2012 Jean-Francois Moine <http://moinejf.free.fr>
  *	Copyright (C) 2008-2009 microdia project <microdia@googlegroups.com>
  *	Copyright (C) 2009 Brian Johnson <brijohn@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -59,6 +50,7 @@ MODULE_LICENSE("GPL");
 #define HAS_NO_BUTTON	0x1
 #define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
 #define FLIP_DETECT	0x4
+#define HAS_LED_TORCH	0x8
 
 /* specific webcam descriptor */
 struct sd {
@@ -85,6 +77,8 @@ struct sd {
 		struct v4l2_ctrl *gain;
 	};
 	struct v4l2_ctrl *jpegqual;
+
+	struct v4l2_ctrl *led_mode;
 
 	struct work_struct work;
 
@@ -130,6 +124,13 @@ static const struct dmi_system_id flip_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT'L CO.,LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1034"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "0341")
+		}
+	},
+	{
+		.ident = "MSI MS-1039",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT'L CO.,LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1039"),
 		}
 	},
 	{
@@ -918,6 +919,11 @@ static void reg_r(struct gspca_dev *gspca_dev, u16 reg, u16 length)
 	if (unlikely(result < 0 || result != length)) {
 		pr_err("Read register %02x failed %d\n", reg, result);
 		gspca_dev->usb_err = result;
+		/*
+		 * Make sure the buffer is zeroed to avoid uninitialized
+		 * values.
+		 */
+		memset(gspca_dev->usb_buf, 0, USB_BUF_SZ);
 	}
 }
 
@@ -1530,6 +1536,12 @@ static void set_gain(struct gspca_dev *gspca_dev, s32 g)
 	i2c_w(gspca_dev, gain);
 }
 
+static void set_led_mode(struct gspca_dev *gspca_dev, s32 val)
+{
+	reg_w1(gspca_dev, 0x1007, 0x60);
+	reg_w1(gspca_dev, 0x1006, val ? 0x40 : 0x00);
+}
+
 static void set_quality(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1634,7 +1646,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	case SENSOR_HV7131R:
 		sd->i2c_intf = 0x81;			/* i2c 400 Kb/s */
-		/* fall thru */
+		fallthrough;
 	default:
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
@@ -1696,6 +1708,9 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
 		set_quality(gspca_dev, ctrl->val);
 		break;
+	case V4L2_CID_FLASH_LED_MODE:
+		set_led_mode(gspca_dev, ctrl->val);
+		break;
 	}
 	return gspca_dev->usb_err;
 }
@@ -1754,6 +1769,12 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 
 	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_JPEG_COMPRESSION_QUALITY, 50, 90, 1, 80);
+
+	if (sd->flags & HAS_LED_TORCH)
+		sd->led_mode = v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
+				V4L2_CID_FLASH_LED_MODE, V4L2_FLASH_LED_MODE_TORCH,
+				~0x5, V4L2_FLASH_LED_MODE_NONE);
+
 	if (hdl->error) {
 		pr_err("Could not initialize controls\n");
 		return hdl->error;
@@ -2045,6 +2066,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		sd->pktsz = sd->npkt = 0;
 		sd->nchg = 0;
 	}
+	if (sd->led_mode)
+		v4l2_ctrl_s_ctrl(sd->led_mode, 0);
 
 	return gspca_dev->usb_err;
 }
@@ -2322,7 +2345,7 @@ static const struct sd_desc sd_desc = {
 
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6240), SN9C20X(MT9M001, 0x5d, 0)},
-	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, 0)},
+	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, HAS_LED_TORCH)},
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x624c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, LED_REVERSE)},

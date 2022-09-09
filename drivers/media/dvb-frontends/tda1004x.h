@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
   /*
      Driver for Philips tda1004xh OFDM Frontend
 
      (c) 2004 Andrew de Quincey
 
-     This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License as published by
-     the Free Software Foundation; either version 2 of the License, or
-     (at your option) any later version.
-
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-     GNU General Public License for more details.
-
-     You should have received a copy of the GNU General Public License
-     along with this program; if not, write to the Free Software
-     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    */
 
@@ -33,7 +20,7 @@ enum tda10046_xtal {
 
 enum tda10046_agc {
 	TDA10046_AGC_DEFAULT,		/* original configuration */
-	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negtive */
+	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negative */
 	TDA10046_AGC_IFO_AUTO_POS,	/* IF AGC only, automatic, positive */
 	TDA10046_AGC_TDA827X,		/* IF AGC only, special setup for tda827x */
 };

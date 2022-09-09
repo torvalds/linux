@@ -18,7 +18,7 @@
  *    flags field of the struct page
  */
 
-#ifdef CONFIG_NEED_MULTIPLE_NODES
+#ifdef CONFIG_NUMA
 
 extern struct pglist_data *node_data[];
 /*
@@ -41,9 +41,14 @@ u64 memory_hotplug_max(void);
 
 #else
 #define memory_hotplug_max() memblock_end_of_DRAM()
-#endif /* CONFIG_NEED_MULTIPLE_NODES */
+#endif /* CONFIG_NUMA */
 #ifdef CONFIG_FA_DUMP
 #define __HAVE_ARCH_RESERVED_KERNEL_PAGES
+#endif
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern int create_section_mapping(unsigned long start, unsigned long end,
+				  int nid, pgprot_t prot);
 #endif
 
 #endif /* __KERNEL__ */

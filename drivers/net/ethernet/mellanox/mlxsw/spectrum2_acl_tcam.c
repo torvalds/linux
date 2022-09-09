@@ -77,7 +77,14 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 	int i;
 	int err;
 
+	/* Some TCAM regions are not exposed to the host and used internally
+	 * by the device. Allocate KVDL entries for the default actions of
+	 * these regions to avoid the host from overwriting them.
+	 */
 	tcam->kvdl_count = _tcam->max_regions;
+	if (MLXSW_CORE_RES_VALID(mlxsw_sp->core, ACL_MAX_DEFAULT_ACTIONS))
+		tcam->kvdl_count = MLXSW_CORE_RES_GET(mlxsw_sp->core,
+						      ACL_MAX_DEFAULT_ACTIONS);
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
 				  tcam->kvdl_count, &tcam->kvdl_index);
 	if (err)
@@ -88,8 +95,8 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 	 * to be written using PEFA register to all indexes for all regions.
 	 */
 	afa_block = mlxsw_afa_block_create(mlxsw_sp->afa);
-	if (!afa_block) {
-		err = -ENOMEM;
+	if (IS_ERR(afa_block)) {
+		err = PTR_ERR(afa_block);
 		goto err_afa_block;
 	}
 	err = mlxsw_afa_block_continue(afa_block);
@@ -97,7 +104,10 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 		goto err_afa_block_continue;
 	enc_actions = mlxsw_afa_block_cur_set(afa_block);
 
-	for (i = 0; i < tcam->kvdl_count; i++) {
+	/* Only write to KVDL entries used by TCAM regions exposed to the
+	 * host.
+	 */
+	for (i = 0; i < _tcam->max_regions; i++) {
 		mlxsw_reg_pefa_pack(pefa_pl, tcam->kvdl_index + i,
 				    true, enc_actions);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
@@ -139,7 +149,8 @@ static void mlxsw_sp2_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
 static int
 mlxsw_sp2_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			       void *tcam_priv,
-			       struct mlxsw_sp_acl_tcam_region *_region)
+			       struct mlxsw_sp_acl_tcam_region *_region,
+			       void *hints_priv)
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
 	struct mlxsw_sp2_acl_tcam *tcam = tcam_priv;
@@ -147,7 +158,8 @@ mlxsw_sp2_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 	region->region = _region;
 
 	return mlxsw_sp_acl_atcam_region_init(mlxsw_sp, &tcam->atcam,
-					      &region->aregion, _region,
+					      &region->aregion,
+					      _region, hints_priv,
 					      &mlxsw_sp2_acl_ctcam_region_ops);
 }
 
@@ -164,6 +176,18 @@ mlxsw_sp2_acl_tcam_region_associate(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_acl_tcam_region *region)
 {
 	return mlxsw_sp_acl_atcam_region_associate(mlxsw_sp, region->id);
+}
+
+static void *mlxsw_sp2_acl_tcam_region_rehash_hints_get(void *region_priv)
+{
+	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
+
+	return mlxsw_sp_acl_atcam_rehash_hints_get(&region->aregion);
+}
+
+static void mlxsw_sp2_acl_tcam_region_rehash_hints_put(void *hints_priv)
+{
+	mlxsw_sp_acl_atcam_rehash_hints_put(hints_priv);
 }
 
 static void mlxsw_sp2_acl_tcam_chunk_init(void *region_priv, void *chunk_priv,
@@ -212,18 +236,15 @@ static void mlxsw_sp2_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp2_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
-					void *region_priv, void *chunk_priv,
-					void *entry_priv,
+					void *region_priv, void *entry_priv,
 					struct mlxsw_sp_acl_rule_info *rulei)
 {
 	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
-	struct mlxsw_sp2_acl_tcam_chunk *chunk = chunk_priv;
 	struct mlxsw_sp2_acl_tcam_entry *entry = entry_priv;
 
 	entry->act_block = rulei->act_block;
 	return mlxsw_sp_acl_atcam_entry_action_replace(mlxsw_sp,
 						       &region->aregion,
-						       &chunk->achunk,
 						       &entry->aentry, rulei);
 }
 
@@ -246,6 +267,8 @@ const struct mlxsw_sp_acl_tcam_ops mlxsw_sp2_acl_tcam_ops = {
 	.region_init		= mlxsw_sp2_acl_tcam_region_init,
 	.region_fini		= mlxsw_sp2_acl_tcam_region_fini,
 	.region_associate	= mlxsw_sp2_acl_tcam_region_associate,
+	.region_rehash_hints_get = mlxsw_sp2_acl_tcam_region_rehash_hints_get,
+	.region_rehash_hints_put = mlxsw_sp2_acl_tcam_region_rehash_hints_put,
 	.chunk_priv_size	= sizeof(struct mlxsw_sp2_acl_tcam_chunk),
 	.chunk_init		= mlxsw_sp2_acl_tcam_chunk_init,
 	.chunk_fini		= mlxsw_sp2_acl_tcam_chunk_fini,

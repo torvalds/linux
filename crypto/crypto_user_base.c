@@ -1,30 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Crypto user configuration API.
  *
  * Copyright (C) 2011 secunet Security Networks AG
  * Copyright (C) 2011 Steffen Klassert <steffen.klassert@secunet.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/cryptouser.h>
 #include <linux/sched.h>
-#include <net/netlink.h>
 #include <linux/security.h>
+#include <net/netlink.h>
 #include <net/net_namespace.h>
+#include <net/sock.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/rng.h>
 #include <crypto/akcipher.h>
@@ -36,9 +25,6 @@
 #define null_terminated(x)	(strnlen(x, sizeof(x)) < sizeof(x))
 
 static DEFINE_MUTEX(crypto_cfg_mutex);
-
-/* The crypto netlink socket */
-struct sock *crypto_nlsk;
 
 struct crypto_dump_info {
 	struct sk_buff *in_skb;
@@ -55,6 +41,9 @@ struct crypto_alg *crypto_alg_match(struct crypto_user_alg *p, int exact)
 
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		int match = 0;
+
+		if (crypto_is_larval(q))
+			continue;
 
 		if ((q->cra_flags ^ p->cru_type) & p->cru_mask)
 			continue;
@@ -195,6 +184,7 @@ out:
 static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 			 struct nlattr **attrs)
 {
+	struct net *net = sock_net(in_skb->sk);
 	struct crypto_user_alg *p = nlmsg_data(in_nlh);
 	struct crypto_alg *alg;
 	struct sk_buff *skb;
@@ -223,10 +213,12 @@ static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 drop_alg:
 	crypto_mod_put(alg);
 
-	if (err)
+	if (err) {
+		kfree_skb(skb);
 		return err;
+	}
 
-	return nlmsg_unicast(crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
+	return nlmsg_unicast(net->crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
 }
 
 static int crypto_dump_report(struct sk_buff *skb, struct netlink_callback *cb)
@@ -331,7 +323,8 @@ static int crypto_del_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (refcount_read(&alg->cra_refcnt) > 2)
 		goto drop_alg;
 
-	err = crypto_unregister_instance((struct crypto_instance *)alg);
+	crypto_unregister_instance((struct crypto_instance *)alg);
+	err = 0;
 
 drop_alg:
 	crypto_mod_put(alg);
@@ -429,6 +422,7 @@ static const struct crypto_link {
 static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			       struct netlink_ext_ack *extack)
 {
+	struct net *net = sock_net(skb->sk);
 	struct nlattr *attrs[CRYPTOCFGA_MAX+1];
 	const struct crypto_link *link;
 	int type, err;
@@ -459,14 +453,14 @@ static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 				.done = link->done,
 				.min_dump_alloc = min(dump_alloc, 65535UL),
 			};
-			err = netlink_dump_start(crypto_nlsk, skb, nlh, &c);
+			err = netlink_dump_start(net->crypto_nlsk, skb, nlh, &c);
 		}
 
 		return err;
 	}
 
-	err = nlmsg_parse(nlh, crypto_msg_min[type], attrs, CRYPTOCFGA_MAX,
-			  crypto_policy, extack);
+	err = nlmsg_parse_deprecated(nlh, crypto_msg_min[type], attrs,
+				     CRYPTOCFGA_MAX, crypto_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -483,22 +477,35 @@ static void crypto_netlink_rcv(struct sk_buff *skb)
 	mutex_unlock(&crypto_cfg_mutex);
 }
 
-static int __init crypto_user_init(void)
+static int __net_init crypto_netlink_init(struct net *net)
 {
 	struct netlink_kernel_cfg cfg = {
 		.input	= crypto_netlink_rcv,
 	};
 
-	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO, &cfg);
-	if (!crypto_nlsk)
-		return -ENOMEM;
+	net->crypto_nlsk = netlink_kernel_create(net, NETLINK_CRYPTO, &cfg);
+	return net->crypto_nlsk == NULL ? -ENOMEM : 0;
+}
 
-	return 0;
+static void __net_exit crypto_netlink_exit(struct net *net)
+{
+	netlink_kernel_release(net->crypto_nlsk);
+	net->crypto_nlsk = NULL;
+}
+
+static struct pernet_operations crypto_netlink_net_ops = {
+	.init = crypto_netlink_init,
+	.exit = crypto_netlink_exit,
+};
+
+static int __init crypto_user_init(void)
+{
+	return register_pernet_subsys(&crypto_netlink_net_ops);
 }
 
 static void __exit crypto_user_exit(void)
 {
-	netlink_kernel_release(crypto_nlsk);
+	unregister_pernet_subsys(&crypto_netlink_net_ops);
 }
 
 module_init(crypto_user_init);

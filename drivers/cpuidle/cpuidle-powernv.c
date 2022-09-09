@@ -56,13 +56,10 @@ static u64 get_snooze_timeout(struct cpuidle_device *dev,
 		return default_snooze_timeout;
 
 	for (i = index + 1; i < drv->state_count; i++) {
-		struct cpuidle_state *s = &drv->states[i];
-		struct cpuidle_state_usage *su = &dev->states_usage[i];
-
-		if (s->disabled || su->disable)
+		if (dev->states_usage[i].disable)
 			continue;
 
-		return s->target_residency * tb_ticks_per_usec;
+		return drv->states[i].target_residency * tb_ticks_per_usec;
 	}
 
 	return default_snooze_timeout;
@@ -144,7 +141,7 @@ static int stop_loop(struct cpuidle_device *dev,
 		     struct cpuidle_driver *drv,
 		     int index)
 {
-	power9_idle_type(stop_psscr_table[index].val,
+	arch300_idle_type(stop_psscr_table[index].val,
 			 stop_psscr_table[index].mask);
 	return index;
 }
@@ -245,20 +242,6 @@ static inline void add_powernv_state(int index, const char *name,
 	/* For power8 and below psscr_* will be 0 */
 	stop_psscr_table[index].val = psscr_val;
 	stop_psscr_table[index].mask = psscr_mask;
-}
-
-/*
- * Returns 0 if prop1_len == prop2_len. Else returns -1
- */
-static inline int validate_dt_prop_sizes(const char *prop1, int prop1_len,
-					 const char *prop2, int prop2_len)
-{
-	if (prop1_len == prop2_len)
-		return 0;
-
-	pr_warn("cpuidle-powernv: array sizes don't match for %s and %s\n",
-		prop1, prop2);
-	return -1;
 }
 
 extern u32 pnv_get_supported_cpuidle_states(void);

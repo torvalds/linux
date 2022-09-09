@@ -18,7 +18,7 @@
 #include "bits.h"
 #include "otg.h"
 
-/**
+/*
  * ci_device_show: prints information about device capabilities and status
  */
 static int ci_device_show(struct seq_file *s, void *data)
@@ -47,7 +47,7 @@ static int ci_device_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(ci_device);
 
-/**
+/*
  * ci_port_test_show: reads port test mode
  */
 static int ci_port_test_show(struct seq_file *s, void *data)
@@ -67,7 +67,7 @@ static int ci_port_test_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-/**
+/*
  * ci_port_test_write: writes port test mode
  */
 static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
@@ -115,7 +115,7 @@ static const struct file_operations ci_port_test_fops = {
 	.release	= single_release,
 };
 
-/**
+/*
  * ci_qheads_show: DMA contents of all queue heads
  */
 static int ci_qheads_show(struct seq_file *s, void *data)
@@ -147,7 +147,7 @@ static int ci_qheads_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(ci_qheads);
 
-/**
+/*
  * ci_requests_show: DMA contents of all requests currently queued (all endpts)
  */
 static int ci_requests_show(struct seq_file *s, void *data)
@@ -342,26 +342,20 @@ DEFINE_SHOW_ATTRIBUTE(ci_registers);
  */
 void dbg_create_files(struct ci_hdrc *ci)
 {
-	ci->debugfs = debugfs_create_dir(dev_name(ci->dev), NULL);
+	struct dentry *dir;
 
-	debugfs_create_file("device", S_IRUGO, ci->debugfs, ci,
-			    &ci_device_fops);
-	debugfs_create_file("port_test", S_IRUGO | S_IWUSR, ci->debugfs, ci,
-			    &ci_port_test_fops);
-	debugfs_create_file("qheads", S_IRUGO, ci->debugfs, ci,
-			    &ci_qheads_fops);
-	debugfs_create_file("requests", S_IRUGO, ci->debugfs, ci,
-			    &ci_requests_fops);
+	dir = debugfs_create_dir(dev_name(ci->dev), usb_debug_root);
 
-	if (ci_otg_is_fsm_mode(ci)) {
-		debugfs_create_file("otg", S_IRUGO, ci->debugfs, ci,
-				    &ci_otg_fops);
-	}
+	debugfs_create_file("device", S_IRUGO, dir, ci, &ci_device_fops);
+	debugfs_create_file("port_test", S_IRUGO | S_IWUSR, dir, ci, &ci_port_test_fops);
+	debugfs_create_file("qheads", S_IRUGO, dir, ci, &ci_qheads_fops);
+	debugfs_create_file("requests", S_IRUGO, dir, ci, &ci_requests_fops);
 
-	debugfs_create_file("role", S_IRUGO | S_IWUSR, ci->debugfs, ci,
-			    &ci_role_fops);
-	debugfs_create_file("registers", S_IRUGO, ci->debugfs, ci,
-			    &ci_registers_fops);
+	if (ci_otg_is_fsm_mode(ci))
+		debugfs_create_file("otg", S_IRUGO, dir, ci, &ci_otg_fops);
+
+	debugfs_create_file("role", S_IRUGO | S_IWUSR, dir, ci, &ci_role_fops);
+	debugfs_create_file("registers", S_IRUGO, dir, ci, &ci_registers_fops);
 }
 
 /**
@@ -370,5 +364,5 @@ void dbg_create_files(struct ci_hdrc *ci)
  */
 void dbg_remove_files(struct ci_hdrc *ci)
 {
-	debugfs_remove_recursive(ci->debugfs);
+	debugfs_remove(debugfs_lookup(dev_name(ci->dev), usb_debug_root));
 }

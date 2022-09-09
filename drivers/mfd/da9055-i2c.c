@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
  /* I2C access for DA9055 PMICs.
  *
  * Copyright(c) 2012 Dialog Semiconductor Ltd.
  *
  * Author: David Dajun Chen <dchen@diasemi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -79,7 +74,7 @@ static struct i2c_driver da9055_i2c_driver = {
 	.id_table = da9055_i2c_id,
 	.driver = {
 		.name = "da9055-pmic",
-		.of_match_table = of_match_ptr(da9055_of_match),
+		.of_match_table = da9055_of_match,
 	},
 };
 

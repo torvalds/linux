@@ -88,14 +88,17 @@ int xen_smp_intr_init(unsigned int cpu)
 	per_cpu(xen_callfunc_irq, cpu).irq = rc;
 	per_cpu(xen_callfunc_irq, cpu).name = callfunc_name;
 
-	debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
-	rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu, xen_debug_interrupt,
-				     IRQF_PERCPU | IRQF_NOBALANCING,
-				     debug_name, NULL);
-	if (rc < 0)
-		goto fail;
-	per_cpu(xen_debug_irq, cpu).irq = rc;
-	per_cpu(xen_debug_irq, cpu).name = debug_name;
+	if (!xen_fifo_events) {
+		debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
+		rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu,
+					     xen_debug_interrupt,
+					     IRQF_PERCPU | IRQF_NOBALANCING,
+					     debug_name, NULL);
+		if (rc < 0)
+			goto fail;
+		per_cpu(xen_debug_irq, cpu).irq = rc;
+		per_cpu(xen_debug_irq, cpu).name = debug_name;
+	}
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfuncsingle%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,
@@ -118,34 +121,10 @@ int xen_smp_intr_init(unsigned int cpu)
 
 void __init xen_smp_cpus_done(unsigned int max_cpus)
 {
-	int cpu, rc, count = 0;
-
 	if (xen_hvm_domain())
 		native_smp_cpus_done(max_cpus);
 	else
 		calculate_max_logical_packages();
-
-	if (xen_have_vcpu_info_placement)
-		return;
-
-	for_each_online_cpu(cpu) {
-		if (xen_vcpu_nr(cpu) < MAX_VIRT_CPUS)
-			continue;
-
-		rc = cpu_down(cpu);
-
-		if (rc == 0) {
-			/*
-			 * Reset vcpu_info so this cpu cannot be onlined again.
-			 */
-			xen_vcpu_info_reset(cpu);
-			count++;
-		} else {
-			pr_warn("%s: failed to bring CPU %d down, error %d\n",
-				__func__, cpu, rc);
-		}
-	}
-	WARN(count, "%s: brought %d CPUs offline\n", __func__, count);
 }
 
 void xen_smp_send_reschedule(int cpu)
@@ -265,20 +244,16 @@ void xen_send_IPI_allbutself(int vector)
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
 {
-	irq_enter();
 	generic_smp_call_function_interrupt();
 	inc_irq_stat(irq_call_count);
-	irq_exit();
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 {
-	irq_enter();
 	generic_smp_call_function_single_interrupt();
 	inc_irq_stat(irq_call_count);
-	irq_exit();
 
 	return IRQ_HANDLED;
 }

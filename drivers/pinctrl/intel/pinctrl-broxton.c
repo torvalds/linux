@@ -15,8 +15,9 @@
 #include "pinctrl-intel.h"
 
 #define BXT_PAD_OWN	0x020
-#define BXT_HOSTSW_OWN	0x080
 #define BXT_PADCFGLOCK	0x060
+#define BXT_HOSTSW_OWN	0x080
+#define BXT_GPI_IS	0x100
 #define BXT_GPI_IE	0x110
 
 #define BXT_COMMUNITY(s, e)				\
@@ -24,6 +25,7 @@
 		.padown_offset = BXT_PAD_OWN,		\
 		.padcfglock_offset = BXT_PADCFGLOCK,	\
 		.hostown_offset = BXT_HOSTSW_OWN,	\
+		.is_offset = BXT_GPI_IS,		\
 		.ie_offset = BXT_GPI_IE,		\
 		.gpp_size = 32,                         \
 		.pin_base = (s),			\
@@ -1033,4 +1035,5 @@ module_exit(bxt_pinctrl_exit);
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel Broxton SoC pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:apollolake-pinctrl");
 MODULE_ALIAS("platform:broxton-pinctrl");

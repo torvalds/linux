@@ -1,28 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aic94xx SAS/SATA driver access to shared data structures and memory
  * maps.
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file is part of the aic94xx driver.
- *
- * The aic94xx driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * The aic94xx driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the aic94xx driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/pci.h>
@@ -424,7 +406,7 @@ struct asd_manuf_sec {
 	u8    sas_addr[SAS_ADDR_SIZE];
 	u8    pcba_sn[ASD_PCBA_SN_SIZE];
 	/* Here start the other segments */
-	u8    linked_list[0];
+	u8    linked_list[];
 } __attribute__ ((packed));
 
 struct asd_manuf_phy_desc {
@@ -467,7 +449,7 @@ struct asd_ms_sb_desc {
 	u8    type;
 	u8    node_desc_index;
 	u8    conn_desc_index;
-	u8    _recvd[0];
+	u8    _recvd[];
 } __attribute__ ((packed));
 
 #if 0
@@ -496,12 +478,12 @@ struct asd_ms_conn_desc {
 	u8    size_sideband_desc;
 	u32   _resvd;
 	u8    name[16];
-	struct asd_ms_sb_desc sb_desc[0];
+	struct asd_ms_sb_desc sb_desc[];
 } __attribute__ ((packed));
 
 struct asd_nd_phy_desc {
 	u8    vp_attch_type;
-	u8    attch_specific[0];
+	u8    attch_specific[];
 } __attribute__ ((packed));
 
 #if 0
@@ -521,7 +503,7 @@ struct asd_ms_node_desc {
 	u8    size_phy_desc;
 	u8    _resvd;
 	u8    name[16];
-	struct asd_nd_phy_desc phy_desc[0];
+	struct asd_nd_phy_desc phy_desc[];
 } __attribute__ ((packed));
 
 struct asd_ms_conn_map {
@@ -535,8 +517,10 @@ struct asd_ms_conn_map {
 	u8    num_nodes;
 	u8    usage_model_id;
 	u32   _resvd;
-	struct asd_ms_conn_desc conn_desc[0];
-	struct asd_ms_node_desc node_desc[0];
+	union {
+		DECLARE_FLEX_ARRAY(struct asd_ms_conn_desc, conn_desc);
+		DECLARE_FLEX_ARRAY(struct asd_ms_node_desc, node_desc);
+	};
 } __attribute__ ((packed));
 
 struct asd_ctrla_phy_entry {
@@ -560,7 +544,7 @@ struct asd_ll_el {
 	u8   id0;
 	u8   id1;
 	__le16  next;
-	u8   something_here[0];
+	u8   something_here[];
 } __attribute__ ((packed));
 
 static int asd_poll_flash(struct asd_ha_struct *asd_ha)
@@ -736,10 +720,12 @@ static void *asd_find_ll_by_id(void * const start, const u8 id0, const u8 id1)
 	do {
 		switch (id1) {
 		default:
-			if (el->id1 == id1)
+			if (el->id1 == id1) {
+			fallthrough;
 		case 0xFF:
 				if (el->id0 == id0)
 					return el;
+			}
 		}
 		el = start + le16_to_cpu(el->next);
 	} while (el != start);
@@ -1262,7 +1248,7 @@ int asd_chk_write_status(struct asd_ha_struct *asd_ha,
 }
 
 /**
- * asd_hwi_erase_nv_sector - Erase the flash memory sectors.
+ * asd_erase_nv_sector - Erase the flash memory sectors.
  * @asd_ha: pointer to the host adapter structure
  * @flash_addr: pointer to offset from flash memory
  * @size: total bytes to erase.

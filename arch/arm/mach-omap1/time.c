@@ -47,12 +47,14 @@
 
 #include <asm/irq.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#include "hardware.h"
+#include "mux.h"
 #include "iomap.h"
 #include "common.h"
+#include "clock.h"
 
 #ifdef CONFIG_OMAP_MPU_TIMER
 
@@ -155,15 +157,11 @@ static irqreturn_t omap_mpu_timer1_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction omap_mpu_timer1_irq = {
-	.name		= "mpu_timer1",
-	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= omap_mpu_timer1_interrupt,
-};
-
 static __init void omap_init_mpu_timer(unsigned long rate)
 {
-	setup_irq(INT_TIMER1, &omap_mpu_timer1_irq);
+	if (request_irq(INT_TIMER1, omap_mpu_timer1_interrupt,
+			IRQF_TIMER | IRQF_IRQPOLL, "mpu_timer1", NULL))
+		pr_err("Failed to request irq %d (mpu_timer1)\n", INT_TIMER1);
 	omap_mpu_timer_start(0, (rate / HZ) - 1, 1);
 
 	clockevent_mpu_timer1.cpumask = cpumask_of(0);
@@ -228,6 +226,9 @@ static inline void omap_mpu_timer_init(void)
  */
 void __init omap1_timer_init(void)
 {
+	omap1_clk_init();
+	omap1_mux_init();
+
 	if (omap_32k_timer_init() != 0)
 		omap_mpu_timer_init();
 }

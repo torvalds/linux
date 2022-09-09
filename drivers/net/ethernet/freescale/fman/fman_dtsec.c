@@ -366,13 +366,26 @@ static void set_dflts(struct dtsec_cfg *cfg)
 	cfg->maximum_frame = DEFAULT_MAXIMUM_FRAME;
 }
 
+static void set_mac_address(struct dtsec_regs __iomem *regs, const u8 *adr)
+{
+	u32 tmp;
+
+	tmp = (u32)((adr[5] << 24) |
+		    (adr[4] << 16) | (adr[3] << 8) | adr[2]);
+	iowrite32be(tmp, &regs->macstnaddr1);
+
+	tmp = (u32)((adr[1] << 24) | (adr[0] << 16));
+	iowrite32be(tmp, &regs->macstnaddr2);
+}
+
 static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
-		phy_interface_t iface, u16 iface_speed, u8 *macaddr,
+		phy_interface_t iface, u16 iface_speed, u64 addr,
 		u32 exception_mask, u8 tbi_addr)
 {
 	bool is_rgmii, is_sgmii, is_qsgmii;
-	int i;
+	enet_addr_t eth_addr;
 	u32 tmp;
+	int i;
 
 	/* Soft reset */
 	iowrite32be(MACCFG1_SOFT_RESET, &regs->maccfg1);
@@ -501,12 +514,10 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 
 	iowrite32be(0xffffffff, &regs->ievent);
 
-	tmp = (u32)((macaddr[5] << 24) |
-		    (macaddr[4] << 16) | (macaddr[3] << 8) | macaddr[2]);
-	iowrite32be(tmp, &regs->macstnaddr1);
-
-	tmp = (u32)((macaddr[1] << 24) | (macaddr[0] << 16));
-	iowrite32be(tmp, &regs->macstnaddr2);
+	if (addr) {
+		MAKE_ENET_ADDR_FROM_UINT64(addr, eth_addr);
+		set_mac_address(regs, (const u8 *)eth_addr);
+	}
 
 	/* HASH */
 	for (i = 0; i < NUM_OF_HASH_REGS; i++) {
@@ -517,18 +528,6 @@ static int init(struct dtsec_regs __iomem *regs, struct dtsec_cfg *cfg,
 	}
 
 	return 0;
-}
-
-static void set_mac_address(struct dtsec_regs __iomem *regs, u8 *adr)
-{
-	u32 tmp;
-
-	tmp = (u32)((adr[5] << 24) |
-		    (adr[4] << 16) | (adr[3] << 8) | adr[2]);
-	iowrite32be(tmp, &regs->macstnaddr1);
-
-	tmp = (u32)((adr[1] << 24) | (adr[0] << 16));
-	iowrite32be(tmp, &regs->macstnaddr2);
 }
 
 static void set_bucket(struct dtsec_regs __iomem *regs, int bucket,
@@ -554,10 +553,6 @@ static int check_init_parameters(struct fman_mac *dtsec)
 {
 	if (dtsec->max_speed >= SPEED_10000) {
 		pr_err("1G MAC driver supports 1G or lower speeds\n");
-		return -EINVAL;
-	}
-	if (dtsec->addr == 0) {
-		pr_err("Ethernet MAC Must have a valid MAC Address\n");
 		return -EINVAL;
 	}
 	if ((dtsec->dtsec_drv_param)->rx_prepend >
@@ -1027,7 +1022,7 @@ int dtsec_accept_rx_pause_frames(struct fman_mac *dtsec, bool en)
 	return 0;
 }
 
-int dtsec_modify_mac_address(struct fman_mac *dtsec, enet_addr_t *enet_addr)
+int dtsec_modify_mac_address(struct fman_mac *dtsec, const enet_addr_t *enet_addr)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;
 	enum comm_mode mode = COMM_MODE_NONE;
@@ -1046,7 +1041,7 @@ int dtsec_modify_mac_address(struct fman_mac *dtsec, enet_addr_t *enet_addr)
 	 * Station address have to be swapped (big endian to little endian
 	 */
 	dtsec->addr = ENET_ADDR_TO_UINT64(*enet_addr);
-	set_mac_address(dtsec->regs, (u8 *)(*enet_addr));
+	set_mac_address(dtsec->regs, (const u8 *)(*enet_addr));
 
 	graceful_start(dtsec, mode);
 
@@ -1205,7 +1200,7 @@ int dtsec_del_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 		list_for_each(pos,
 			      &dtsec->multicast_addr_hash->lsts[bucket]) {
 			hash_entry = ETH_HASH_ENTRY_OBJ(pos);
-			if (hash_entry->addr == addr) {
+			if (hash_entry && hash_entry->addr == addr) {
 				list_del_init(&hash_entry->node);
 				kfree(hash_entry);
 				break;
@@ -1218,7 +1213,7 @@ int dtsec_del_hash_mac_address(struct fman_mac *dtsec, enet_addr_t *eth_addr)
 		list_for_each(pos,
 			      &dtsec->unicast_addr_hash->lsts[bucket]) {
 			hash_entry = ETH_HASH_ENTRY_OBJ(pos);
-			if (hash_entry->addr == addr) {
+			if (hash_entry && hash_entry->addr == addr) {
 				list_del_init(&hash_entry->node);
 				kfree(hash_entry);
 				break;
@@ -1391,9 +1386,8 @@ int dtsec_init(struct fman_mac *dtsec)
 {
 	struct dtsec_regs __iomem *regs = dtsec->regs;
 	struct dtsec_cfg *dtsec_drv_param;
-	int err;
 	u16 max_frm_ln;
-	enet_addr_t eth_addr;
+	int err;
 
 	if (is_init_done(dtsec->dtsec_drv_param))
 		return -EINVAL;
@@ -1410,10 +1404,8 @@ int dtsec_init(struct fman_mac *dtsec)
 
 	dtsec_drv_param = dtsec->dtsec_drv_param;
 
-	MAKE_ENET_ADDR_FROM_UINT64(dtsec->addr, eth_addr);
-
 	err = init(dtsec->regs, dtsec_drv_param, dtsec->phy_if,
-		   dtsec->max_speed, (u8 *)eth_addr, dtsec->exceptions,
+		   dtsec->max_speed, dtsec->addr, dtsec->exceptions,
 		   dtsec->tbiphy->mdio.addr);
 	if (err) {
 		free_init_resources(dtsec);

@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FIPS 200 support.
  *
  * Copyright (c) 2008 Neil Horman <nhorman@tuxdriver.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <linux/export.h>
@@ -16,9 +11,14 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sysctl.h>
+#include <linux/notifier.h>
+#include <generated/utsrelease.h>
 
 int fips_enabled;
 EXPORT_SYMBOL_GPL(fips_enabled);
+
+ATOMIC_NOTIFIER_HEAD(fips_fail_notif_chain);
+EXPORT_SYMBOL_GPL(fips_fail_notif_chain);
 
 /* Process kernel command-line parameter at boot time. fips=0 or fips=1 */
 static int fips_enable(char *str)
@@ -31,13 +31,37 @@ static int fips_enable(char *str)
 
 __setup("fips=", fips_enable);
 
+#define FIPS_MODULE_NAME CONFIG_CRYPTO_FIPS_NAME
+#ifdef CONFIG_CRYPTO_FIPS_CUSTOM_VERSION
+#define FIPS_MODULE_VERSION CONFIG_CRYPTO_FIPS_VERSION
+#else
+#define FIPS_MODULE_VERSION UTS_RELEASE
+#endif
+
+static char fips_name[] = FIPS_MODULE_NAME;
+static char fips_version[] = FIPS_MODULE_VERSION;
+
 static struct ctl_table crypto_sysctl_table[] = {
 	{
-		.procname       = "fips_enabled",
-		.data           = &fips_enabled,
-		.maxlen         = sizeof(int),
-		.mode           = 0444,
-		.proc_handler   = proc_dointvec
+		.procname	= "fips_enabled",
+		.data		= &fips_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "fips_name",
+		.data		= &fips_name,
+		.maxlen		= 64,
+		.mode		= 0444,
+		.proc_handler	= proc_dostring
+	},
+	{
+		.procname	= "fips_version",
+		.data		= &fips_version,
+		.maxlen		= 64,
+		.mode		= 0444,
+		.proc_handler	= proc_dostring
 	},
 	{}
 };
@@ -63,6 +87,13 @@ static void crypto_proc_fips_exit(void)
 	unregister_sysctl_table(crypto_sysctls);
 }
 
+void fips_fail_notify(void)
+{
+	if (fips_enabled)
+		atomic_notifier_call_chain(&fips_fail_notif_chain, 0, NULL);
+}
+EXPORT_SYMBOL_GPL(fips_fail_notify);
+
 static int __init fips_init(void)
 {
 	crypto_proc_fips_init();
@@ -74,5 +105,5 @@ static void __exit fips_exit(void)
 	crypto_proc_fips_exit();
 }
 
-module_init(fips_init);
+subsys_initcall(fips_init);
 module_exit(fips_exit);

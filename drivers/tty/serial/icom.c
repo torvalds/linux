@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
+#include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/major.h>
 #include <linux/string.h>
@@ -37,19 +38,277 @@
 #include <linux/firmware.h>
 #include <linux/bitops.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
-
-#include "icom.h"
 
 /*#define ICOM_TRACE		 enable port trace capabilities */
 
 #define ICOM_DRIVER_NAME "icom"
-#define ICOM_VERSION_STR "1.3.1"
 #define NR_PORTS	       128
-#define ICOM_PORT ((struct icom_port *)port)
-#define to_icom_adapter(d) container_of(d, struct icom_adapter, kref)
+
+static const unsigned int icom_acfg_baud[] = {
+	300,
+	600,
+	900,
+	1200,
+	1800,
+	2400,
+	3600,
+	4800,
+	7200,
+	9600,
+	14400,
+	19200,
+	28800,
+	38400,
+	57600,
+	76800,
+	115200,
+	153600,
+	230400,
+	307200,
+	460800,
+};
+#define BAUD_TABLE_LIMIT	(ARRAY_SIZE(icom_acfg_baud) - 1)
+
+struct icom_regs {
+	u32 control;		/* Adapter Control Register     */
+	u32 interrupt;		/* Adapter Interrupt Register   */
+	u32 int_mask;		/* Adapter Interrupt Mask Reg   */
+	u32 int_pri;		/* Adapter Interrupt Priority r */
+	u32 int_reg_b;		/* Adapter non-masked Interrupt */
+	u32 resvd01;
+	u32 resvd02;
+	u32 resvd03;
+	u32 control_2;		/* Adapter Control Register 2   */
+	u32 interrupt_2;	/* Adapter Interrupt Register 2 */
+	u32 int_mask_2;		/* Adapter Interrupt Mask 2     */
+	u32 int_pri_2;		/* Adapter Interrupt Prior 2    */
+	u32 int_reg_2b;		/* Adapter non-masked 2         */
+};
+
+struct func_dram {
+	u32 reserved[108];	/* 0-1B0   reserved by personality code */
+	u32 RcvStatusAddr;	/* 1B0-1B3 Status Address for Next rcv */
+	u8 RcvStnAddr;		/* 1B4     Receive Station Addr */
+	u8 IdleState;		/* 1B5     Idle State */
+	u8 IdleMonitor;		/* 1B6     Idle Monitor */
+	u8 FlagFillIdleTimer;	/* 1B7     Flag Fill Idle Timer */
+	u32 XmitStatusAddr;	/* 1B8-1BB Transmit Status Address */
+	u8 StartXmitCmd;	/* 1BC     Start Xmit Command */
+	u8 HDLCConfigReg;	/* 1BD     Reserved */
+	u8 CauseCode;		/* 1BE     Cause code for fatal error */
+	u8 xchar;		/* 1BF     High priority send */
+	u32 reserved3;		/* 1C0-1C3 Reserved */
+	u8 PrevCmdReg;		/* 1C4     Reserved */
+	u8 CmdReg;		/* 1C5     Command Register */
+	u8 async_config2;	/* 1C6     Async Config Byte 2 */
+	u8 async_config3;	/* 1C7     Async Config Byte 3 */
+	u8 dce_resvd[20];	/* 1C8-1DB DCE Rsvd           */
+	u8 dce_resvd21;		/* 1DC     DCE Rsvd (21st byte */
+	u8 misc_flags;		/* 1DD     misc flags         */
+#define V2_HARDWARE     0x40
+#define ICOM_HDW_ACTIVE 0x01
+	u8 call_length;		/* 1DE     Phone #/CFI buff ln */
+	u8 call_length2;	/* 1DF     Upper byte (unused) */
+	u32 call_addr;		/* 1E0-1E3 Phn #/CFI buff addr */
+	u16 timer_value;	/* 1E4-1E5 general timer value */
+	u8 timer_command;	/* 1E6     general timer cmd  */
+	u8 dce_command;		/* 1E7     dce command reg    */
+	u8 dce_cmd_status;	/* 1E8     dce command stat   */
+	u8 x21_r1_ioff;		/* 1E9     dce ready counter  */
+	u8 x21_r0_ioff;		/* 1EA     dce not ready ctr  */
+	u8 x21_ralt_ioff;	/* 1EB     dce CNR counter    */
+	u8 x21_r1_ion;		/* 1EC     dce ready I on ctr */
+	u8 rsvd_ier;		/* 1ED     Rsvd for IER (if ne */
+	u8 ier;			/* 1EE     Interrupt Enable   */
+	u8 isr;			/* 1EF     Input Signal Reg   */
+	u8 osr;			/* 1F0     Output Signal Reg  */
+	u8 reset;		/* 1F1     Reset/Reload Reg   */
+	u8 disable;		/* 1F2     Disable Reg        */
+	u8 sync;		/* 1F3     Sync Reg           */
+	u8 error_stat;		/* 1F4     Error Status       */
+	u8 cable_id;		/* 1F5     Cable ID           */
+	u8 cs_length;		/* 1F6     CS Load Length     */
+	u8 mac_length;		/* 1F7     Mac Load Length    */
+	u32 cs_load_addr;	/* 1F8-1FB Call Load PCI Addr */
+	u32 mac_load_addr;	/* 1FC-1FF Mac Load PCI Addr  */
+};
+
+/*
+ * adapter defines and structures
+ */
+#define ICOM_CONTROL_START_A         0x00000008
+#define ICOM_CONTROL_STOP_A          0x00000004
+#define ICOM_CONTROL_START_B         0x00000002
+#define ICOM_CONTROL_STOP_B          0x00000001
+#define ICOM_CONTROL_START_C         0x00000008
+#define ICOM_CONTROL_STOP_C          0x00000004
+#define ICOM_CONTROL_START_D         0x00000002
+#define ICOM_CONTROL_STOP_D          0x00000001
+#define ICOM_IRAM_OFFSET             0x1000
+#define ICOM_IRAM_SIZE               0x0C00
+#define ICOM_DCE_IRAM_OFFSET         0x0A00
+#define ICOM_CABLE_ID_VALID          0x01
+#define ICOM_CABLE_ID_MASK           0xF0
+#define ICOM_DISABLE                 0x80
+#define CMD_XMIT_RCV_ENABLE          0xC0
+#define CMD_XMIT_ENABLE              0x40
+#define CMD_RCV_DISABLE              0x00
+#define CMD_RCV_ENABLE               0x80
+#define CMD_RESTART                  0x01
+#define CMD_HOLD_XMIT                0x02
+#define CMD_SND_BREAK                0x04
+#define RS232_CABLE                  0x06
+#define V24_CABLE                    0x0E
+#define V35_CABLE                    0x0C
+#define V36_CABLE                    0x02
+#define NO_CABLE                     0x00
+#define START_DOWNLOAD               0x80
+#define ICOM_INT_MASK_PRC_A          0x00003FFF
+#define ICOM_INT_MASK_PRC_B          0x3FFF0000
+#define ICOM_INT_MASK_PRC_C          0x00003FFF
+#define ICOM_INT_MASK_PRC_D          0x3FFF0000
+#define INT_RCV_COMPLETED            0x1000
+#define INT_XMIT_COMPLETED           0x2000
+#define INT_IDLE_DETECT              0x0800
+#define INT_RCV_DISABLED             0x0400
+#define INT_XMIT_DISABLED            0x0200
+#define INT_RCV_XMIT_SHUTDOWN        0x0100
+#define INT_FATAL_ERROR              0x0080
+#define INT_CABLE_PULL               0x0020
+#define INT_SIGNAL_CHANGE            0x0010
+#define HDLC_PPP_PURE_ASYNC          0x02
+#define HDLC_FF_FILL                 0x00
+#define HDLC_HDW_FLOW                0x01
+#define START_XMIT                   0x80
+#define ICOM_ACFG_DRIVE1             0x20
+#define ICOM_ACFG_NO_PARITY          0x00
+#define ICOM_ACFG_PARITY_ENAB        0x02
+#define ICOM_ACFG_PARITY_ODD         0x01
+#define ICOM_ACFG_8BPC               0x00
+#define ICOM_ACFG_7BPC               0x04
+#define ICOM_ACFG_6BPC               0x08
+#define ICOM_ACFG_5BPC               0x0C
+#define ICOM_ACFG_1STOP_BIT          0x00
+#define ICOM_ACFG_2STOP_BIT          0x10
+#define ICOM_DTR                     0x80
+#define ICOM_RTS                     0x40
+#define ICOM_RI                      0x08
+#define ICOM_DSR                     0x80
+#define ICOM_DCD                     0x20
+#define ICOM_CTS                     0x40
+
+#define NUM_XBUFFS 1
+#define NUM_RBUFFS 2
+#define RCV_BUFF_SZ 0x0200
+#define XMIT_BUFF_SZ 0x1000
+struct statusArea {
+    /**********************************************/
+	/* Transmit Status Area                       */
+    /**********************************************/
+	struct xmit_status_area{
+		__le32 leNext;	/* Next entry in Little Endian on Adapter */
+		__le32 leNextASD;
+		__le32 leBuffer;	/* Buffer for entry in LE for Adapter */
+		__le16 leLengthASD;
+		__le16 leOffsetASD;
+		__le16 leLength;	/* Length of data in segment */
+		__le16 flags;
+#define SA_FLAGS_DONE           0x0080	/* Done with Segment */
+#define SA_FLAGS_CONTINUED      0x8000	/* More Segments */
+#define SA_FLAGS_IDLE           0x4000	/* Mark IDLE after frm */
+#define SA_FLAGS_READY_TO_XMIT  0x0800
+#define SA_FLAGS_STAT_MASK      0x007F
+	} xmit[NUM_XBUFFS];
+
+    /**********************************************/
+	/* Receive Status Area                        */
+    /**********************************************/
+	struct {
+		__le32 leNext;	/* Next entry in Little Endian on Adapter */
+		__le32 leNextASD;
+		__le32 leBuffer;	/* Buffer for entry in LE for Adapter */
+		__le16 WorkingLength;	/* size of segment */
+		__le16 reserv01;
+		__le16 leLength;	/* Length of data in segment */
+		__le16 flags;
+#define SA_FL_RCV_DONE           0x0010	/* Data ready */
+#define SA_FLAGS_OVERRUN         0x0040
+#define SA_FLAGS_PARITY_ERROR    0x0080
+#define SA_FLAGS_FRAME_ERROR     0x0001
+#define SA_FLAGS_FRAME_TRUNC     0x0002
+#define SA_FLAGS_BREAK_DET       0x0004	/* set conditionally by device driver, not hardware */
+#define SA_FLAGS_RCV_MASK        0xFFE6
+	} rcv[NUM_RBUFFS];
+};
+
+struct icom_adapter;
+
+
+#define ICOM_MAJOR       243
+#define ICOM_MINOR_START 0
+
+struct icom_port {
+	struct uart_port uart_port;
+	unsigned char cable_id;
+	unsigned char read_status_mask;
+	unsigned char ignore_status_mask;
+	void __iomem * int_reg;
+	struct icom_regs __iomem *global_reg;
+	struct func_dram __iomem *dram;
+	int port;
+	struct statusArea *statStg;
+	dma_addr_t statStg_pci;
+	__le32 *xmitRestart;
+	dma_addr_t xmitRestart_pci;
+	unsigned char *xmit_buf;
+	dma_addr_t xmit_buf_pci;
+	unsigned char *recv_buf;
+	dma_addr_t recv_buf_pci;
+	int next_rcv;
+	int status;
+#define ICOM_PORT_ACTIVE	1	/* Port exists. */
+#define ICOM_PORT_OFF		0	/* Port does not exist. */
+	struct icom_adapter *adapter;
+};
+
+struct icom_adapter {
+	void __iomem * base_addr;
+	unsigned long base_addr_pci;
+	struct pci_dev *pci_dev;
+	struct icom_port port_info[4];
+	int index;
+	int version;
+#define ADAPTER_V1	0x0001
+#define ADAPTER_V2	0x0002
+	u32 subsystem_id;
+#define FOUR_PORT_MODEL				0x0252
+#define V2_TWO_PORTS_RVX			0x021A
+#define V2_ONE_PORT_RVX_ONE_PORT_IMBED_MDM	0x0251
+	int numb_ports;
+	struct list_head icom_adapter_entry;
+	struct kref kref;
+};
+
+/* prototype */
+extern void iCom_sercons_init(void);
+
+struct lookup_proc_table {
+	u32	__iomem *global_control_reg;
+	unsigned long	processor_id;
+};
+
+struct lookup_int_table {
+	u32	__iomem *global_int_mask;
+	unsigned long	processor_id;
+};
+
+static inline struct icom_port *to_icom_port(struct uart_port *port)
+{
+	return container_of(port, struct icom_port, uart_port);
+}
 
 static const struct pci_device_id icom_pci_table[] = {
 	{
@@ -118,7 +377,7 @@ MODULE_DEVICE_TABLE(pci, icom_pci_table);
 static LIST_HEAD(icom_adapter_head);
 
 /* spinlock for adapter initialization and changing adapter operations */
-static spinlock_t icom_lock;
+static DEFINE_SPINLOCK(icom_lock);
 
 #ifdef ICOM_TRACE
 static inline void trace(struct icom_port *icom_port, char *trace_pt,
@@ -138,24 +397,24 @@ static void free_port_memory(struct icom_port *icom_port)
 
 	trace(icom_port, "RET_PORT_MEM", 0);
 	if (icom_port->recv_buf) {
-		pci_free_consistent(dev, 4096, icom_port->recv_buf,
-				    icom_port->recv_buf_pci);
+		dma_free_coherent(&dev->dev, 4096, icom_port->recv_buf,
+				  icom_port->recv_buf_pci);
 		icom_port->recv_buf = NULL;
 	}
 	if (icom_port->xmit_buf) {
-		pci_free_consistent(dev, 4096, icom_port->xmit_buf,
-				    icom_port->xmit_buf_pci);
+		dma_free_coherent(&dev->dev, 4096, icom_port->xmit_buf,
+				  icom_port->xmit_buf_pci);
 		icom_port->xmit_buf = NULL;
 	}
 	if (icom_port->statStg) {
-		pci_free_consistent(dev, 4096, icom_port->statStg,
-				    icom_port->statStg_pci);
+		dma_free_coherent(&dev->dev, 4096, icom_port->statStg,
+				  icom_port->statStg_pci);
 		icom_port->statStg = NULL;
 	}
 
 	if (icom_port->xmitRestart) {
-		pci_free_consistent(dev, 4096, icom_port->xmitRestart,
-				    icom_port->xmitRestart_pci);
+		dma_free_coherent(&dev->dev, 4096, icom_port->xmitRestart,
+				  icom_port->xmitRestart_pci);
 		icom_port->xmitRestart = NULL;
 	}
 }
@@ -169,7 +428,8 @@ static int get_port_memory(struct icom_port *icom_port)
 	struct pci_dev *dev = icom_port->adapter->pci_dev;
 
 	icom_port->xmit_buf =
-	    pci_alloc_consistent(dev, 4096, &icom_port->xmit_buf_pci);
+	    dma_alloc_coherent(&dev->dev, 4096, &icom_port->xmit_buf_pci,
+			       GFP_KERNEL);
 	if (!icom_port->xmit_buf) {
 		dev_err(&dev->dev, "Can not allocate Transmit buffer\n");
 		return -ENOMEM;
@@ -179,7 +439,8 @@ static int get_port_memory(struct icom_port *icom_port)
 	      (unsigned long) icom_port->xmit_buf);
 
 	icom_port->recv_buf =
-	    pci_alloc_consistent(dev, 4096, &icom_port->recv_buf_pci);
+	    dma_alloc_coherent(&dev->dev, 4096, &icom_port->recv_buf_pci,
+			       GFP_KERNEL);
 	if (!icom_port->recv_buf) {
 		dev_err(&dev->dev, "Can not allocate Receive buffer\n");
 		free_port_memory(icom_port);
@@ -189,7 +450,8 @@ static int get_port_memory(struct icom_port *icom_port)
 	      (unsigned long) icom_port->recv_buf);
 
 	icom_port->statStg =
-	    pci_alloc_consistent(dev, 4096, &icom_port->statStg_pci);
+	    dma_alloc_coherent(&dev->dev, 4096, &icom_port->statStg_pci,
+			       GFP_KERNEL);
 	if (!icom_port->statStg) {
 		dev_err(&dev->dev, "Can not allocate Status buffer\n");
 		free_port_memory(icom_port);
@@ -199,15 +461,14 @@ static int get_port_memory(struct icom_port *icom_port)
 	      (unsigned long) icom_port->statStg);
 
 	icom_port->xmitRestart =
-	    pci_alloc_consistent(dev, 4096, &icom_port->xmitRestart_pci);
+	    dma_alloc_coherent(&dev->dev, 4096, &icom_port->xmitRestart_pci,
+			       GFP_KERNEL);
 	if (!icom_port->xmitRestart) {
 		dev_err(&dev->dev,
 			"Can not allocate xmit Restart buffer\n");
 		free_port_memory(icom_port);
 		return -ENOMEM;
 	}
-
-	memset(icom_port->statStg, 0, 4096);
 
 	/* FODs: Frame Out Descriptor Queue, this is a FIFO queue that
            indicates that frames are to be transmitted
@@ -220,7 +481,7 @@ static int get_port_memory(struct icom_port *icom_port)
 		if (index < (NUM_XBUFFS - 1)) {
 			memset(&icom_port->statStg->xmit[index], 0, sizeof(struct xmit_status_area));
 			icom_port->statStg->xmit[index].leLengthASD =
-			    (unsigned short int) cpu_to_le16(XMIT_BUFF_SZ);
+			    cpu_to_le16(XMIT_BUFF_SZ);
 			trace(icom_port, "FOD_ADDR", stgAddr);
 			trace(icom_port, "FOD_XBUFF",
 			      (unsigned long) icom_port->xmit_buf);
@@ -229,7 +490,7 @@ static int get_port_memory(struct icom_port *icom_port)
 		} else if (index == (NUM_XBUFFS - 1)) {
 			memset(&icom_port->statStg->xmit[index], 0, sizeof(struct xmit_status_area));
 			icom_port->statStg->xmit[index].leLengthASD =
-			    (unsigned short int) cpu_to_le16(XMIT_BUFF_SZ);
+			    cpu_to_le16(XMIT_BUFF_SZ);
 			trace(icom_port, "FOD_XBUFF",
 			      (unsigned long) icom_port->xmit_buf);
 			icom_port->statStg->xmit[index].leBuffer =
@@ -247,7 +508,7 @@ static int get_port_memory(struct icom_port *icom_port)
 		stgAddr = stgAddr + sizeof(icom_port->statStg->rcv[0]);
 		icom_port->statStg->rcv[index].leLength = 0;
 		icom_port->statStg->rcv[index].WorkingLength =
-		    (unsigned short int) cpu_to_le16(RCV_BUFF_SZ);
+		    cpu_to_le16(RCV_BUFF_SZ);
 		if (index < (NUM_RBUFFS - 1) ) {
 			offset = stgAddr - (unsigned long) icom_port->statStg;
 			icom_port->statStg->rcv[index].leNext =
@@ -416,7 +677,7 @@ static void load_code(struct icom_port *icom_port)
 	/*Set up data in icom DRAM to indicate where personality
 	 *code is located and its length.
 	 */
-	new_page = pci_alloc_consistent(dev, 4096, &temp_pci);
+	new_page = dma_alloc_coherent(&dev->dev, 4096, &temp_pci, GFP_KERNEL);
 
 	if (!new_page) {
 		dev_err(&dev->dev, "Can not allocate DMA buffer\n");
@@ -496,7 +757,7 @@ static void load_code(struct icom_port *icom_port)
 	}
 
 	if (new_page != NULL)
-		pci_free_consistent(dev, 4096, new_page, temp_pci);
+		dma_free_coherent(&dev->dev, 4096, new_page, temp_pci);
 }
 
 static int startup(struct icom_port *icom_port)
@@ -615,16 +876,17 @@ unlock:
 
 static int icom_write(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned long data_count;
 	unsigned char cmdReg;
 	unsigned long offset;
 	int temp_tail = port->state->xmit.tail;
 
-	trace(ICOM_PORT, "WRITE", 0);
+	trace(icom_port, "WRITE", 0);
 
-	if (cpu_to_le16(ICOM_PORT->statStg->xmit[0].flags) &
+	if (le16_to_cpu(icom_port->statStg->xmit[0].flags) &
 	    SA_FLAGS_READY_TO_XMIT) {
-		trace(ICOM_PORT, "WRITE_FULL", 0);
+		trace(icom_port, "WRITE_FULL", 0);
 		return 0;
 	}
 
@@ -632,7 +894,7 @@ static int icom_write(struct uart_port *port)
 	while ((port->state->xmit.head != temp_tail) &&
 	       (data_count <= XMIT_BUFF_SZ)) {
 
-		ICOM_PORT->xmit_buf[data_count++] =
+		icom_port->xmit_buf[data_count++] =
 		    port->state->xmit.buf[temp_tail];
 
 		temp_tail++;
@@ -640,22 +902,22 @@ static int icom_write(struct uart_port *port)
 	}
 
 	if (data_count) {
-		ICOM_PORT->statStg->xmit[0].flags =
+		icom_port->statStg->xmit[0].flags =
 		    cpu_to_le16(SA_FLAGS_READY_TO_XMIT);
-		ICOM_PORT->statStg->xmit[0].leLength =
+		icom_port->statStg->xmit[0].leLength =
 		    cpu_to_le16(data_count);
 		offset =
-		    (unsigned long) &ICOM_PORT->statStg->xmit[0] -
-		    (unsigned long) ICOM_PORT->statStg;
-		*ICOM_PORT->xmitRestart =
-		    cpu_to_le32(ICOM_PORT->statStg_pci + offset);
-		cmdReg = readb(&ICOM_PORT->dram->CmdReg);
+		    (unsigned long) &icom_port->statStg->xmit[0] -
+		    (unsigned long) icom_port->statStg;
+		*icom_port->xmitRestart =
+		    cpu_to_le32(icom_port->statStg_pci + offset);
+		cmdReg = readb(&icom_port->dram->CmdReg);
 		writeb(cmdReg | CMD_XMIT_RCV_ENABLE,
-		       &ICOM_PORT->dram->CmdReg);
-		writeb(START_XMIT, &ICOM_PORT->dram->StartXmitCmd);
-		trace(ICOM_PORT, "WRITE_START", data_count);
+		       &icom_port->dram->CmdReg);
+		writeb(START_XMIT, &icom_port->dram->StartXmitCmd);
+		trace(icom_port, "WRITE_START", data_count);
 		/* write flush */
-		readb(&ICOM_PORT->dram->StartXmitCmd);
+		readb(&icom_port->dram->StartXmitCmd);
 	}
 
 	return data_count;
@@ -694,8 +956,7 @@ static inline void check_modem_status(struct icom_port *icom_port)
 
 static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
-	unsigned short int count;
-	int i;
+	u16 count, i;
 
 	if (port_int_reg & (INT_XMIT_COMPLETED)) {
 		trace(icom_port, "XMIT_COMPLETE", 0);
@@ -704,8 +965,7 @@ static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 		icom_port->statStg->xmit[0].flags &=
 			cpu_to_le16(~SA_FLAGS_READY_TO_XMIT);
 
-		count = (unsigned short int)
-			cpu_to_le16(icom_port->statStg->xmit[0].leLength);
+		count = le16_to_cpu(icom_port->statStg->xmit[0].leLength);
 		icom_port->uart_port.icount.tx += count;
 
 		for (i=0; i<count &&
@@ -727,7 +987,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
 	short int count, rcv_buff;
 	struct tty_port *port = &icom_port->uart_port.state->port;
-	unsigned short int status;
+	u16 status;
 	struct uart_icount *icount;
 	unsigned long offset;
 	unsigned char flag;
@@ -735,19 +995,18 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 	trace(icom_port, "RCV_COMPLETE", 0);
 	rcv_buff = icom_port->next_rcv;
 
-	status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
+	status = le16_to_cpu(icom_port->statStg->rcv[rcv_buff].flags);
 	while (status & SA_FL_RCV_DONE) {
 		int first = -1;
 
 		trace(icom_port, "FID_STATUS", status);
-		count = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].leLength);
+		count = le16_to_cpu(icom_port->statStg->rcv[rcv_buff].leLength);
 
 		trace(icom_port, "RCV_COUNT", count);
 
 		trace(icom_port, "REAL_COUNT", count);
 
-		offset =
-			cpu_to_le32(icom_port->statStg->rcv[rcv_buff].leBuffer) -
+		offset = le32_to_cpu(icom_port->statStg->rcv[rcv_buff].leBuffer) -
 			icom_port->recv_buf_pci;
 
 		/* Block copy all but the last byte as this may have status */
@@ -817,19 +1076,17 @@ ignore_char:
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
 		icom_port->statStg->rcv[rcv_buff].WorkingLength =
-			(unsigned short int) cpu_to_le16(RCV_BUFF_SZ);
+			cpu_to_le16(RCV_BUFF_SZ);
 
 		rcv_buff++;
 		if (rcv_buff == NUM_RBUFFS)
 			rcv_buff = 0;
 
-		status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
+		status = le16_to_cpu(icom_port->statStg->rcv[rcv_buff].flags);
 	}
 	icom_port->next_rcv = rcv_buff;
 
-	spin_unlock(&icom_port->uart_port.lock);
 	tty_flip_buffer_push(port);
-	spin_lock(&icom_port->uart_port.lock);
 }
 
 static void process_interrupt(u16 port_int_reg,
@@ -925,11 +1182,12 @@ static irqreturn_t icom_interrupt(int irq, void *dev_id)
  */
 static unsigned int icom_tx_empty(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (cpu_to_le16(ICOM_PORT->statStg->xmit[0].flags) &
+	if (le16_to_cpu(icom_port->statStg->xmit[0].flags) &
 	    SA_FLAGS_READY_TO_XMIT)
 		ret = TIOCSER_TEMT;
 	else
@@ -941,38 +1199,40 @@ static unsigned int icom_tx_empty(struct uart_port *port)
 
 static void icom_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char local_osr;
 
-	trace(ICOM_PORT, "SET_MODEM", 0);
-	local_osr = readb(&ICOM_PORT->dram->osr);
+	trace(icom_port, "SET_MODEM", 0);
+	local_osr = readb(&icom_port->dram->osr);
 
 	if (mctrl & TIOCM_RTS) {
-		trace(ICOM_PORT, "RAISE_RTS", 0);
+		trace(icom_port, "RAISE_RTS", 0);
 		local_osr |= ICOM_RTS;
 	} else {
-		trace(ICOM_PORT, "LOWER_RTS", 0);
+		trace(icom_port, "LOWER_RTS", 0);
 		local_osr &= ~ICOM_RTS;
 	}
 
 	if (mctrl & TIOCM_DTR) {
-		trace(ICOM_PORT, "RAISE_DTR", 0);
+		trace(icom_port, "RAISE_DTR", 0);
 		local_osr |= ICOM_DTR;
 	} else {
-		trace(ICOM_PORT, "LOWER_DTR", 0);
+		trace(icom_port, "LOWER_DTR", 0);
 		local_osr &= ~ICOM_DTR;
 	}
 
-	writeb(local_osr, &ICOM_PORT->dram->osr);
+	writeb(local_osr, &icom_port->dram->osr);
 }
 
 static unsigned int icom_get_mctrl(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char status;
 	unsigned int result;
 
-	trace(ICOM_PORT, "GET_MODEM", 0);
+	trace(icom_port, "GET_MODEM", 0);
 
-	status = readb(&ICOM_PORT->dram->isr);
+	status = readb(&icom_port->dram->isr);
 
 	result = ((status & ICOM_DCD) ? TIOCM_CAR : 0)
 	    | ((status & ICOM_RI) ? TIOCM_RNG : 0)
@@ -983,44 +1243,47 @@ static unsigned int icom_get_mctrl(struct uart_port *port)
 
 static void icom_stop_tx(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char cmdReg;
 
-	trace(ICOM_PORT, "STOP", 0);
-	cmdReg = readb(&ICOM_PORT->dram->CmdReg);
-	writeb(cmdReg | CMD_HOLD_XMIT, &ICOM_PORT->dram->CmdReg);
+	trace(icom_port, "STOP", 0);
+	cmdReg = readb(&icom_port->dram->CmdReg);
+	writeb(cmdReg | CMD_HOLD_XMIT, &icom_port->dram->CmdReg);
 }
 
 static void icom_start_tx(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char cmdReg;
 
-	trace(ICOM_PORT, "START", 0);
-	cmdReg = readb(&ICOM_PORT->dram->CmdReg);
+	trace(icom_port, "START", 0);
+	cmdReg = readb(&icom_port->dram->CmdReg);
 	if ((cmdReg & CMD_HOLD_XMIT) == CMD_HOLD_XMIT)
 		writeb(cmdReg & ~CMD_HOLD_XMIT,
-		       &ICOM_PORT->dram->CmdReg);
+		       &icom_port->dram->CmdReg);
 
 	icom_write(port);
 }
 
 static void icom_send_xchar(struct uart_port *port, char ch)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char xdata;
 	int index;
 	unsigned long flags;
 
-	trace(ICOM_PORT, "SEND_XCHAR", ch);
+	trace(icom_port, "SEND_XCHAR", ch);
 
 	/* wait .1 sec to send char */
 	for (index = 0; index < 10; index++) {
 		spin_lock_irqsave(&port->lock, flags);
-		xdata = readb(&ICOM_PORT->dram->xchar);
+		xdata = readb(&icom_port->dram->xchar);
 		if (xdata == 0x00) {
-			trace(ICOM_PORT, "QUICK_WRITE", 0);
-			writeb(ch, &ICOM_PORT->dram->xchar);
+			trace(icom_port, "QUICK_WRITE", 0);
+			writeb(ch, &icom_port->dram->xchar);
 
 			/* flush write operation */
-			xdata = readb(&ICOM_PORT->dram->xchar);
+			xdata = readb(&icom_port->dram->xchar);
 			spin_unlock_irqrestore(&port->lock, flags);
 			break;
 		}
@@ -1031,38 +1294,41 @@ static void icom_send_xchar(struct uart_port *port, char ch)
 
 static void icom_stop_rx(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char cmdReg;
 
-	cmdReg = readb(&ICOM_PORT->dram->CmdReg);
-	writeb(cmdReg & ~CMD_RCV_ENABLE, &ICOM_PORT->dram->CmdReg);
+	cmdReg = readb(&icom_port->dram->CmdReg);
+	writeb(cmdReg & ~CMD_RCV_ENABLE, &icom_port->dram->CmdReg);
 }
 
 static void icom_break(struct uart_port *port, int break_state)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char cmdReg;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	trace(ICOM_PORT, "BREAK", 0);
-	cmdReg = readb(&ICOM_PORT->dram->CmdReg);
+	trace(icom_port, "BREAK", 0);
+	cmdReg = readb(&icom_port->dram->CmdReg);
 	if (break_state == -1) {
-		writeb(cmdReg | CMD_SND_BREAK, &ICOM_PORT->dram->CmdReg);
+		writeb(cmdReg | CMD_SND_BREAK, &icom_port->dram->CmdReg);
 	} else {
-		writeb(cmdReg & ~CMD_SND_BREAK, &ICOM_PORT->dram->CmdReg);
+		writeb(cmdReg & ~CMD_SND_BREAK, &icom_port->dram->CmdReg);
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int icom_open(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	int retval;
 
-	kref_get(&ICOM_PORT->adapter->kref);
-	retval = startup(ICOM_PORT);
+	kref_get(&icom_port->adapter->kref);
+	retval = startup(icom_port);
 
 	if (retval) {
-		kref_put(&ICOM_PORT->adapter->kref, icom_kref_release);
-		trace(ICOM_PORT, "STARTUP_ERROR", 0);
+		kref_put(&icom_port->adapter->kref, icom_kref_release);
+		trace(icom_port, "STARTUP_ERROR", 0);
 		return retval;
 	}
 
@@ -1071,23 +1337,25 @@ static int icom_open(struct uart_port *port)
 
 static void icom_close(struct uart_port *port)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	unsigned char cmdReg;
 
-	trace(ICOM_PORT, "CLOSE", 0);
+	trace(icom_port, "CLOSE", 0);
 
 	/* stop receiver */
-	cmdReg = readb(&ICOM_PORT->dram->CmdReg);
-	writeb(cmdReg & ~CMD_RCV_ENABLE, &ICOM_PORT->dram->CmdReg);
+	cmdReg = readb(&icom_port->dram->CmdReg);
+	writeb(cmdReg & ~CMD_RCV_ENABLE, &icom_port->dram->CmdReg);
 
-	shutdown(ICOM_PORT);
+	shutdown(icom_port);
 
-	kref_put(&ICOM_PORT->adapter->kref, icom_kref_release);
+	kref_put(&icom_port->adapter->kref, icom_kref_release);
 }
 
 static void icom_set_termios(struct uart_port *port,
 			     struct ktermios *termios,
 			     struct ktermios *old_termios)
 {
+	struct icom_port *icom_port = to_icom_port(port);
 	int baud;
 	unsigned cflag, iflag;
 	char new_config2;
@@ -1099,7 +1367,7 @@ static void icom_set_termios(struct uart_port *port,
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	trace(ICOM_PORT, "CHANGE_SPEED", 0);
+	trace(icom_port, "CHANGE_SPEED", 0);
 
 	cflag = termios->c_cflag;
 	iflag = termios->c_iflag;
@@ -1130,12 +1398,12 @@ static void icom_set_termios(struct uart_port *port,
 	if (cflag & PARENB) {
 		/* parity bit enabled */
 		new_config2 |= ICOM_ACFG_PARITY_ENAB;
-		trace(ICOM_PORT, "PARENB", 0);
+		trace(icom_port, "PARENB", 0);
 	}
 	if (cflag & PARODD) {
 		/* odd parity */
 		new_config2 |= ICOM_ACFG_PARITY_ODD;
-		trace(ICOM_PORT, "PARODD", 0);
+		trace(icom_port, "PARODD", 0);
 	}
 
 	/* Determine divisor based on baud rate */
@@ -1155,100 +1423,99 @@ static void icom_set_termios(struct uart_port *port,
 	uart_update_timeout(port, cflag, baud);
 
 	/* CTS flow control flag and modem status interrupts */
-	tmp_byte = readb(&(ICOM_PORT->dram->HDLCConfigReg));
+	tmp_byte = readb(&(icom_port->dram->HDLCConfigReg));
 	if (cflag & CRTSCTS)
 		tmp_byte |= HDLC_HDW_FLOW;
 	else
 		tmp_byte &= ~HDLC_HDW_FLOW;
-	writeb(tmp_byte, &(ICOM_PORT->dram->HDLCConfigReg));
+	writeb(tmp_byte, &(icom_port->dram->HDLCConfigReg));
 
 	/*
 	 * Set up parity check flag
 	 */
-	ICOM_PORT->read_status_mask = SA_FLAGS_OVERRUN | SA_FL_RCV_DONE;
+	icom_port->read_status_mask = SA_FLAGS_OVERRUN | SA_FL_RCV_DONE;
 	if (iflag & INPCK)
-		ICOM_PORT->read_status_mask |=
+		icom_port->read_status_mask |=
 		    SA_FLAGS_FRAME_ERROR | SA_FLAGS_PARITY_ERROR;
 
 	if ((iflag & BRKINT) || (iflag & PARMRK))
-		ICOM_PORT->read_status_mask |= SA_FLAGS_BREAK_DET;
+		icom_port->read_status_mask |= SA_FLAGS_BREAK_DET;
 
 	/*
 	 * Characters to ignore
 	 */
-	ICOM_PORT->ignore_status_mask = 0;
+	icom_port->ignore_status_mask = 0;
 	if (iflag & IGNPAR)
-		ICOM_PORT->ignore_status_mask |=
+		icom_port->ignore_status_mask |=
 		    SA_FLAGS_PARITY_ERROR | SA_FLAGS_FRAME_ERROR;
 	if (iflag & IGNBRK) {
-		ICOM_PORT->ignore_status_mask |= SA_FLAGS_BREAK_DET;
+		icom_port->ignore_status_mask |= SA_FLAGS_BREAK_DET;
 		/*
 		 * If we're ignore parity and break indicators, ignore
 		 * overruns too.  (For real raw support).
 		 */
 		if (iflag & IGNPAR)
-			ICOM_PORT->ignore_status_mask |= SA_FLAGS_OVERRUN;
+			icom_port->ignore_status_mask |= SA_FLAGS_OVERRUN;
 	}
 
 	/*
 	 * !!! ignore all characters if CREAD is not set
 	 */
 	if ((cflag & CREAD) == 0)
-		ICOM_PORT->ignore_status_mask |= SA_FL_RCV_DONE;
+		icom_port->ignore_status_mask |= SA_FL_RCV_DONE;
 
 	/* Turn off Receiver to prepare for reset */
-	writeb(CMD_RCV_DISABLE, &ICOM_PORT->dram->CmdReg);
+	writeb(CMD_RCV_DISABLE, &icom_port->dram->CmdReg);
 
 	for (index = 0; index < 10; index++) {
-		if (readb(&ICOM_PORT->dram->PrevCmdReg) == 0x00) {
+		if (readb(&icom_port->dram->PrevCmdReg) == 0x00) {
 			break;
 		}
 	}
 
 	/* clear all current buffers of data */
 	for (rcv_buff = 0; rcv_buff < NUM_RBUFFS; rcv_buff++) {
-		ICOM_PORT->statStg->rcv[rcv_buff].flags = 0;
-		ICOM_PORT->statStg->rcv[rcv_buff].leLength = 0;
-		ICOM_PORT->statStg->rcv[rcv_buff].WorkingLength =
-		    (unsigned short int) cpu_to_le16(RCV_BUFF_SZ);
+		icom_port->statStg->rcv[rcv_buff].flags = 0;
+		icom_port->statStg->rcv[rcv_buff].leLength = 0;
+		icom_port->statStg->rcv[rcv_buff].WorkingLength =
+		    cpu_to_le16(RCV_BUFF_SZ);
 	}
 
 	for (xmit_buff = 0; xmit_buff < NUM_XBUFFS; xmit_buff++) {
-		ICOM_PORT->statStg->xmit[xmit_buff].flags = 0;
+		icom_port->statStg->xmit[xmit_buff].flags = 0;
 	}
 
 	/* activate changes and start xmit and receiver here */
 	/* Enable the receiver */
-	writeb(new_config3, &(ICOM_PORT->dram->async_config3));
-	writeb(new_config2, &(ICOM_PORT->dram->async_config2));
-	tmp_byte = readb(&(ICOM_PORT->dram->HDLCConfigReg));
+	writeb(new_config3, &(icom_port->dram->async_config3));
+	writeb(new_config2, &(icom_port->dram->async_config2));
+	tmp_byte = readb(&(icom_port->dram->HDLCConfigReg));
 	tmp_byte |= HDLC_PPP_PURE_ASYNC | HDLC_FF_FILL;
-	writeb(tmp_byte, &(ICOM_PORT->dram->HDLCConfigReg));
-	writeb(0x04, &(ICOM_PORT->dram->FlagFillIdleTimer));	/* 0.5 seconds */
-	writeb(0xFF, &(ICOM_PORT->dram->ier));	/* enable modem signal interrupts */
+	writeb(tmp_byte, &(icom_port->dram->HDLCConfigReg));
+	writeb(0x04, &(icom_port->dram->FlagFillIdleTimer));	/* 0.5 seconds */
+	writeb(0xFF, &(icom_port->dram->ier));	/* enable modem signal interrupts */
 
 	/* reset processor */
-	writeb(CMD_RESTART, &ICOM_PORT->dram->CmdReg);
+	writeb(CMD_RESTART, &icom_port->dram->CmdReg);
 
 	for (index = 0; index < 10; index++) {
-		if (readb(&ICOM_PORT->dram->CmdReg) == 0x00) {
+		if (readb(&icom_port->dram->CmdReg) == 0x00) {
 			break;
 		}
 	}
 
 	/* Enable Transmitter and Receiver */
 	offset =
-	    (unsigned long) &ICOM_PORT->statStg->rcv[0] -
-	    (unsigned long) ICOM_PORT->statStg;
-	writel(ICOM_PORT->statStg_pci + offset,
-	       &ICOM_PORT->dram->RcvStatusAddr);
-	ICOM_PORT->next_rcv = 0;
-	ICOM_PORT->put_length = 0;
-	*ICOM_PORT->xmitRestart = 0;
-	writel(ICOM_PORT->xmitRestart_pci,
-	       &ICOM_PORT->dram->XmitStatusAddr);
-	trace(ICOM_PORT, "XR_ENAB", 0);
-	writeb(CMD_XMIT_RCV_ENABLE, &ICOM_PORT->dram->CmdReg);
+	    (unsigned long) &icom_port->statStg->rcv[0] -
+	    (unsigned long) icom_port->statStg;
+	writel(icom_port->statStg_pci + offset,
+	       &icom_port->dram->RcvStatusAddr);
+	icom_port->next_rcv = 0;
+	*icom_port->xmitRestart = 0;
+	writel(icom_port->xmitRestart_pci,
+	       &icom_port->dram->XmitStatusAddr);
+	trace(icom_port, "XR_ENAB", 0);
+	writeb(CMD_XMIT_RCV_ENABLE, &icom_port->dram->CmdReg);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -1256,15 +1523,6 @@ static void icom_set_termios(struct uart_port *port,
 static const char *icom_type(struct uart_port *port)
 {
 	return "icom";
-}
-
-static void icom_release_port(struct uart_port *port)
-{
-}
-
-static int icom_request_port(struct uart_port *port)
-{
-	return 0;
 }
 
 static void icom_config_port(struct uart_port *port, int flags)
@@ -1285,8 +1543,6 @@ static const struct uart_ops icom_ops = {
 	.shutdown = icom_close,
 	.set_termios = icom_set_termios,
 	.type = icom_type,
-	.release_port = icom_release_port,
-	.request_port = icom_request_port,
 	.config_port = icom_config_port,
 };
 
@@ -1315,7 +1571,6 @@ static int icom_init_ports(struct icom_adapter *icom_adapter)
 			icom_port = &icom_adapter->port_info[i];
 			icom_port->port = i;
 			icom_port->status = ICOM_PORT_ACTIVE;
-			icom_port->imbed_modem = ICOM_UNKNOWN;
 		}
 	} else {
 		if (subsystem_id == PCI_DEVICE_ID_IBM_ICOM_FOUR_PORT_MODEL) {
@@ -1326,26 +1581,15 @@ static int icom_init_ports(struct icom_adapter *icom_adapter)
 
 				icom_port->port = i;
 				icom_port->status = ICOM_PORT_ACTIVE;
-				icom_port->imbed_modem = ICOM_IMBED_MODEM;
 			}
 		} else {
 			icom_adapter->numb_ports = 4;
 
 			icom_adapter->port_info[0].port = 0;
 			icom_adapter->port_info[0].status = ICOM_PORT_ACTIVE;
-
-			if (subsystem_id ==
-			    PCI_DEVICE_ID_IBM_ICOM_V2_ONE_PORT_RVX_ONE_PORT_MDM) {
-				icom_adapter->port_info[0].imbed_modem = ICOM_IMBED_MODEM;
-			} else {
-				icom_adapter->port_info[0].imbed_modem = ICOM_RVX;
-			}
-
 			icom_adapter->port_info[1].status = ICOM_PORT_OFF;
-
 			icom_adapter->port_info[2].port = 2;
 			icom_adapter->port_info[2].status = ICOM_PORT_ACTIVE;
-			icom_adapter->port_info[2].imbed_modem = ICOM_RVX;
 			icom_adapter->port_info[3].status = ICOM_PORT_OFF;
 		}
 	}
@@ -1401,7 +1645,6 @@ static int icom_alloc_adapter(struct icom_adapter
 	int adapter_count = 0;
 	struct icom_adapter *icom_adapter;
 	struct icom_adapter *cur_adapter_entry;
-	struct list_head *tmp;
 
 	icom_adapter = kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
 
@@ -1409,10 +1652,8 @@ static int icom_alloc_adapter(struct icom_adapter
 		return -ENOMEM;
 	}
 
-	list_for_each(tmp, &icom_adapter_head) {
-		cur_adapter_entry =
-		    list_entry(tmp, struct icom_adapter,
-			       icom_adapter_entry);
+	list_for_each_entry(cur_adapter_entry, &icom_adapter_head,
+			icom_adapter_entry) {
 		if (cur_adapter_entry->index != adapter_count) {
 			break;
 		}
@@ -1420,7 +1661,8 @@ static int icom_alloc_adapter(struct icom_adapter
 	}
 
 	icom_adapter->index = adapter_count;
-	list_add_tail(&icom_adapter->icom_adapter_entry, tmp);
+	list_add_tail(&icom_adapter->icom_adapter_entry,
+			&cur_adapter_entry->icom_adapter_entry);
 
 	*icom_adapter_ref = icom_adapter;
 	return 0;
@@ -1432,8 +1674,10 @@ static void icom_free_adapter(struct icom_adapter *icom_adapter)
 	kfree(icom_adapter);
 }
 
-static void icom_remove_adapter(struct icom_adapter *icom_adapter)
+static void icom_kref_release(struct kref *kref)
 {
+	struct icom_adapter *icom_adapter = container_of(kref,
+			struct icom_adapter, kref);
 	struct icom_port *icom_port;
 	int index;
 
@@ -1466,14 +1710,6 @@ static void icom_remove_adapter(struct icom_adapter *icom_adapter)
 	icom_free_adapter(icom_adapter);
 }
 
-static void icom_kref_release(struct kref *kref)
-{
-	struct icom_adapter *icom_adapter;
-
-	icom_adapter = to_icom_adapter(kref);
-	icom_remove_adapter(icom_adapter);
-}
-
 static int icom_probe(struct pci_dev *dev,
 				const struct pci_device_id *ent)
 {
@@ -1501,7 +1737,7 @@ static int icom_probe(struct pci_dev *dev,
 	retval = pci_read_config_dword(dev, PCI_COMMAND, &command_reg);
 	if (retval) {
 		dev_err(&dev->dev, "PCI Config read FAILED\n");
-		return retval;
+		goto probe_exit0;
 	}
 
 	pci_write_config_dword(dev, PCI_COMMAND,
@@ -1589,11 +1825,9 @@ probe_exit0:
 static void icom_remove(struct pci_dev *dev)
 {
 	struct icom_adapter *icom_adapter;
-	struct list_head *tmp;
 
-	list_for_each(tmp, &icom_adapter_head) {
-		icom_adapter = list_entry(tmp, struct icom_adapter,
-					  icom_adapter_entry);
+	list_for_each_entry(icom_adapter, &icom_adapter_head,
+			icom_adapter_entry) {
 		if (icom_adapter->pci_dev == dev) {
 			kref_put(&icom_adapter->kref, icom_kref_release);
 			return;
@@ -1613,8 +1847,6 @@ static struct pci_driver icom_pci_driver = {
 static int __init icom_init(void)
 {
 	int ret;
-
-	spin_lock_init(&icom_lock);
 
 	ret = uart_register_driver(&icom_uart_driver);
 	if (ret)
@@ -1639,8 +1871,6 @@ module_exit(icom_exit);
 
 MODULE_AUTHOR("Michael Anderson <mjanders@us.ibm.com>");
 MODULE_DESCRIPTION("IBM iSeries Serial IOA driver");
-MODULE_SUPPORTED_DEVICE
-    ("IBM iSeries 2745, 2771, 2772, 2742, 2793 and 2805 Communications adapters");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("icom_call_setup.bin");
 MODULE_FIRMWARE("icom_res_dce.bin");

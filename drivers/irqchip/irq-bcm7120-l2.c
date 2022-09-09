@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom BCM7120 style Level 2 interrupt controller driver
  *
  * Copyright (C) 2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME	": " fmt
@@ -77,10 +74,8 @@ static void bcm7120_l2_intc_irq_handle(struct irq_desc *desc)
 					    data->irq_map_mask[idx];
 		irq_gc_unlock(gc);
 
-		for_each_set_bit(hwirq, &pending, IRQS_PER_WORD) {
-			generic_handle_irq(irq_find_mapping(b->domain,
-					   base + hwirq));
-		}
+		for_each_set_bit(hwirq, &pending, IRQS_PER_WORD)
+			generic_handle_domain_irq(b->domain, base + hwirq);
 	}
 
 	chained_irq_exit(chip, desc);
@@ -146,6 +141,9 @@ static int bcm7120_l2_intc_init_one(struct device_node *dn,
 
 	irq_set_chained_handler_and_data(parent_irq,
 					 bcm7120_l2_intc_irq_handle, l1_data);
+	if (data->can_wake)
+		enable_irq_wake(parent_irq);
+
 	return 0;
 }
 
@@ -222,6 +220,7 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct bcm7120_l2_intc_data *data;
+	struct platform_device *pdev;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 	int ret = 0;
@@ -232,7 +231,14 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 	if (!data)
 		return -ENOMEM;
 
-	data->num_parent_irqs = of_irq_count(dn);
+	pdev = of_find_device_by_node(dn);
+	if (!pdev) {
+		ret = -ENODEV;
+		goto out_free_data;
+	}
+
+	data->num_parent_irqs = platform_irq_count(pdev);
+	put_device(&pdev->dev);
 	if (data->num_parent_irqs <= 0) {
 		pr_err("invalid number of parent interrupts\n");
 		ret = -ENOMEM;
@@ -249,6 +255,8 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 	ret = iomap_regs_fn(dn, data);
 	if (ret < 0)
 		goto out_free_l1_data;
+
+	data->can_wake = of_property_read_bool(dn, "brcm,irq-can-wake");
 
 	for (irq = 0; irq < data->num_parent_irqs; irq++) {
 		ret = bcm7120_l2_intc_init_one(dn, data, irq, valid_mask);
@@ -276,9 +284,6 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 		pr_err("failed to allocate generic irq chip\n");
 		goto out_free_domain;
 	}
-
-	if (of_property_read_bool(dn, "brcm,irq-can-wake"))
-		data->can_wake = true;
 
 	for (idx = 0; idx < data->n_words; idx++) {
 		irq = idx * IRQS_PER_WORD;
@@ -310,13 +315,16 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 
 		if (data->can_wake) {
 			/* This IRQ chip can wake the system, set all
-			 * relevant child interupts in wake_enabled mask
+			 * relevant child interrupts in wake_enabled mask
 			 */
 			gc->wake_enabled = 0xffffffff;
 			gc->wake_enabled &= ~gc->unused;
 			ct->chip.irq_set_wake = irq_gc_set_wake;
 		}
 	}
+
+	pr_info("registered %s intc (%pOF, parent IRQ(s): %d)\n",
+		intc_name, dn, data->num_parent_irqs);
 
 	return 0;
 
@@ -329,6 +337,7 @@ out_unmap:
 		if (data->map_base[idx])
 			iounmap(data->map_base[idx]);
 	}
+out_free_data:
 	kfree(data);
 	return ret;
 }
@@ -347,8 +356,9 @@ static int __init bcm7120_l2_intc_probe_3380(struct device_node *dn,
 				     "BCM3380 L2");
 }
 
-IRQCHIP_DECLARE(bcm7120_l2_intc, "brcm,bcm7120-l2-intc",
-		bcm7120_l2_intc_probe_7120);
-
-IRQCHIP_DECLARE(bcm3380_l2_intc, "brcm,bcm3380-l2-intc",
-		bcm7120_l2_intc_probe_3380);
+IRQCHIP_PLATFORM_DRIVER_BEGIN(bcm7120_l2)
+IRQCHIP_MATCH("brcm,bcm7120-l2-intc", bcm7120_l2_intc_probe_7120)
+IRQCHIP_MATCH("brcm,bcm3380-l2-intc", bcm7120_l2_intc_probe_3380)
+IRQCHIP_PLATFORM_DRIVER_END(bcm7120_l2)
+MODULE_DESCRIPTION("Broadcom STB 7120-style L2 interrupt controller driver");
+MODULE_LICENSE("GPL v2");

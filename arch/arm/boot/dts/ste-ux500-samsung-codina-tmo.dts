@@ -1,0 +1,785 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Devicetree for the Samsung Galaxy Exhibit SGH-T599 also known as Codina-TMO,
+ * the "TMO" shall be read "T-Mobile" as this phone was produced exlusively
+ * for T-Mobile in the United States.
+ *
+ * This phone is closely related to the Codina, but has:
+ * - No CPU speed cap, full ~1GHz rate
+ * - Different power management IC, AB8505
+ * - As AB8505 has a micro USB phy, no TI TSU6111
+ * - Different power routing such as the removal of the external LDO for the
+ *   touchscreen in favor of using the AB8505
+ * - Using a regulator for the key backlight LED
+ * - Using the Samsung S6D27A1 panel by default
+ * - The panel is using one of the ordinary AB8505 regulators for 1.8V
+ * - WiFi/Bluetooth combi chip upgraded to BCM4334
+ * - GPIO for backlight control moved from 68 to 69
+ */
+
+/dts-v1/;
+#include "ste-db8500.dtsi"
+#include "ste-ab8505.dtsi"
+#include "ste-dbx5x0-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	model = "Samsung Galaxy Exhibit (SGH-T599)";
+	compatible = "samsung,codina-tmo", "st-ericsson,u8500";
+
+	chosen {
+		stdout-path = &serial2;
+	};
+
+	battery: battery {
+		compatible = "samsung,eb425161lu";
+	};
+
+	thermal-zones {
+		battery-thermal {
+			/* This zone will be polled by the battery temperature code */
+			polling-delay = <0>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&bat_therm>;
+		};
+	};
+
+	bat_therm: thermistor {
+		compatible = "samsung,1404-001221";
+		io-channels = <&gpadc 0x02>; /* BatTemp */
+		pullup-uv = <1800000>;
+		pullup-ohm = <230000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
+	/* TI TXS0206 level translator for 2.9 V */
+	sd_level_translator: regulator-gpio {
+		compatible = "regulator-fixed";
+
+		/* GPIO87 EN */
+		gpios = <&gpio2 23 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		regulator-name = "sd-level-translator";
+		regulator-min-microvolt = <2900000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-type = "voltage";
+
+		startup-delay-us = <200>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_level_translator_default>;
+	};
+
+	/* External LDO MIC5366-3.3YMT for eMMC */
+	ldo_3v3_reg: regulator-gpio-ldo-3v3 {
+		compatible = "regulator-fixed";
+		/* Supplied in turn by VBAT */
+		regulator-name = "VMEM_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio6 31 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&emmc_ldo_en_default_mode>;
+	};
+
+	/*
+	 * External Ricoh RP152L010B-TR LCD LDO regulator for the display.
+	 * LCD_PWR_EN controls both the 3.0V output.
+	 */
+	lcd_3v0_reg: regulator-gpio-lcd-3v0 {
+		compatible = "regulator-fixed";
+		/* Supplied in turn by VBAT */
+		regulator-name = "VREG_LCD_3.0V";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		/* GPIO219 controls this regulator */
+		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_pwr_en_default_mode>;
+	};
+
+	/*
+	 * This regulator is a GPIO line that drives the Broadcom WLAN
+	 * line WL_REG_ON high and enables the internal regulators
+	 * inside the chip. Unfortunatley it is erroneously named
+	 * WLAN_RST_N on the schematic but it is not a reset line.
+	 *
+	 * The voltage specified here is only used to determine the OCR mask,
+	 * the for the SDIO connector, the chip is actually connected
+	 * directly to VBAT.
+	 */
+	wl_reg: regulator-gpio-wlan {
+		compatible = "regulator-fixed";
+		regulator-name = "WL_REG_ON";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		startup-delay-us = <100000>;
+		/* GPIO215 (WLAN_RST_N to WL_REG_ON) */
+		gpio = <&gpio6 23 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_ldo_en_default>;
+	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		/* GPIO195 "MOT_EN" */
+		enable-gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vibrator_default>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_default_mode>;
+
+		button-home {
+			linux,code = <KEY_HOME>;
+			label = "HOME";
+			/* GPIO91 */
+			gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
+		};
+		button-volup {
+			linux,code = <KEY_VOLUMEUP>;
+			label = "VOL+";
+			/* GPIO67 */
+			gpios = <&gpio2 3 GPIO_ACTIVE_LOW>;
+		};
+		button-voldown {
+			linux,code = <KEY_VOLUMEDOWN>;
+			label = "VOL-";
+			/* GPIO92 */
+			gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	led-touchkeys {
+		compatible = "regulator-led";
+		vled-supply = <&ab8500_ldo_aux4_reg>; // 3.3V
+		default-state = "on";
+		function = LED_FUNCTION_KBD_BACKLIGHT;
+		color = <LED_COLOR_ID_WHITE>;
+	};
+
+	ktd253: backlight {
+		compatible = "kinetic,ktd253";
+		/* GPIO69 is used on Codina R0.4 and Codina TMO */
+		enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		/* Default to 13/32 brightness */
+		default-brightness = <13>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ktd253_backlight_default_mode>;
+	};
+
+	/* Richtek RT8515GQW Flash LED Driver IC */
+	flash {
+		compatible = "richtek,rt8515";
+		/* GPIO 140 */
+		enf-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		/* GPIO 141 */
+		ent-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		/*
+		 * RFS is 16 kOhm and RTS is 100 kOhm giving
+		 * the flash max current 343mA and torch max
+		 * current 55 mA.
+		 */
+		richtek,rfs-ohms = <16000>;
+		richtek,rts-ohms = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_flash_default_mode>;
+
+		led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+			flash-max-microamp = <343750>;
+			led-max-microamp = <55000>;
+		};
+	};
+
+	/* Bit-banged I2C on GPIO143 and GPIO144 also called "SUBPMU I2C" */
+	i2c-gpio-0 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio4 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio4 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_gpio_0_default>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* TODO: this should also be used by the SM5103 Camera power management unit */
+	};
+
+	/* Bit-banged I2C on GPIO151 and GPIO152 also called "COMP I2C" */
+	i2c-gpio-1 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio4 24 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio4 23 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_gpio_1_default>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		magnetometer@c {
+			compatible = "alps,hscdtd008a";
+			reg = <0x0c>;
+			clock-frequency = <400000>;
+
+			avdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
+			dvdd-supply = <&ab8500_ldo_aux8_reg>; // 1.8V
+		};
+	};
+
+	spi-gpio-0 {
+		compatible = "spi-gpio";
+		/* Clock on GPIO220, pin SCL */
+		sck-gpios = <&gpio6 28 GPIO_ACTIVE_HIGH>;
+		/* MOSI on GPIO224, pin SDI "slave data in" */
+		mosi-gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
+		/* MISO on GPIO225, pin SDO "slave data out" */
+		miso-gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
+		/* Chip select on GPIO201 */
+		cs-gpios = <&gpio6 9 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi_gpio_0_default>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		panel@0 {
+			compatible = "samsung,s6d27a1";
+			spi-max-frequency = <1200000>;
+			/* TYPE 3: inverse clock polarity and phase */
+			spi-cpha;
+			spi-cpol;
+
+			reg = <0>;
+			vci-supply = <&lcd_3v0_reg>;
+			vccio-supply = <&ab8500_ldo_aux6_reg>;
+
+			/* Reset on GPIO139 */
+			reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+			/* LCD_VGH/LCD_DETECT, ESD IRQ on GPIO93 */
+			interrupt-parent = <&gpio2>;
+			interrupts = <29 IRQ_TYPE_EDGE_RISING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&panel_default_mode>;
+			backlight = <&ktd253>;
+
+			port {
+				panel_in: endpoint {
+					remote-endpoint = <&display_out>;
+				};
+			};
+		};
+	};
+
+	soc {
+		/* External Micro SD slot */
+		mmc@80126000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			st,sig-pin-fbclk;
+			full-pwr-cycle;
+			/* MMC is powered by AUX3 1.2V .. 2.91V */
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			/* 2.9 V level translator is using AUX3 at 2.9 V as well */
+			vqmmc-supply = <&sd_level_translator>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc0_a_2_default>;
+			pinctrl-1 = <&mc0_a_2_sleep>;
+			cd-gpios  = <&gpio6 25 GPIO_ACTIVE_LOW>; // GPIO217
+			status = "okay";
+		};
+
+		/* WLAN SDIO channel */
+		mmc@80118000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <50000000>;
+			bus-width = <4>;
+			non-removable;
+			cap-sd-highspeed;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc1_a_2_default>;
+			pinctrl-1 = <&mc1_a_2_sleep>;
+			/*
+			 * GPIO-controlled voltage enablement: this drives
+			 * the WL_REG_ON line high when we use this device.
+			 * Represented as regulator to fill OCR mask.
+			 */
+			vmmc-supply = <&wl_reg>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			wifi@1 {
+				compatible = "brcm,bcm4334-fmac", "brcm,bcm4329-fmac";
+				reg = <1>;
+				/* GPIO216 WL_HOST_WAKE */
+				interrupt-parent = <&gpio6>;
+				interrupts = <24 IRQ_TYPE_EDGE_FALLING>;
+				interrupt-names = "host-wake";
+				pinctrl-names = "default";
+				pinctrl-0 = <&wlan_default_mode>;
+			};
+		};
+
+		/* eMMC */
+		mmc@80005000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <8>;
+			non-removable;
+			cap-mmc-highspeed;
+			mmc-ddr-1_8v;
+			no-sdio;
+			no-sd;
+			vmmc-supply = <&ldo_3v3_reg>;
+			pinctrl-names = "default", "sleep";
+			/*
+			 * GPIO130 will be set to input no pull-up resulting in a resistor
+			 * pulling the reset high and taking the memory out of reset.
+			 */
+			pinctrl-0 = <&mc2_a_1_default>;
+			pinctrl-1 = <&mc2_a_1_sleep>;
+			status = "okay";
+		};
+
+		/* GBF (Bluetooth) UART */
+		uart@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u0_a_1_default>;
+			pinctrl-1 = <&u0_a_1_sleep>;
+			status = "okay";
+
+			bluetooth {
+				/* BCM4334B0 actually */
+				compatible = "brcm,bcm4330-bt";
+				/* GPIO222 rail BT_VREG_EN to BT_REG_ON */
+				shutdown-gpios = <&gpio6 30 GPIO_ACTIVE_HIGH>;
+				/* BT_WAKE on GPIO199 */
+				device-wakeup-gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
+				/* BT_HOST_WAKE on GPIO97 */
+				/* FIXME: convert to interrupt */
+				host-wakeup-gpios = <&gpio3 1 GPIO_ACTIVE_HIGH>;
+				/* BT_RST_N on GPIO209 */
+				reset-gpios = <&gpio6 17 GPIO_ACTIVE_LOW>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&bluetooth_default_mode>;
+			};
+		};
+
+		/* GPS UART */
+		uart@80121000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			/* CTS/RTS is not used, CTS is repurposed as GPIO */
+			pinctrl-0 = <&u1rxtx_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep>;
+			/* FIXME: add a device for the GPS here */
+		};
+
+		/* Debugging console UART connected to AB8505 */
+		uart@80007000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u2rxtx_c_1_default>;
+			pinctrl-1 = <&u2rxtx_c_1_sleep>;
+		};
+
+		prcmu@80157000 {
+			ab8505 {
+				phy {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&usb_a_1_default>;
+					pinctrl-1 = <&usb_a_1_sleep>;
+				};
+
+				ab8500_fg {
+					line-impedance-micro-ohms = <36000>;
+				};
+
+				/* This is mostly identical to the Codina v0.4 regulators */
+				regulator {
+					ab8500_ldo_aux1 {
+						regulator-name = "v-sensors-vdd";
+						regulator-min-microvolt = <3000000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux2 {
+						regulator-name = "v-aux2";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux3 {
+						regulator-name = "v-mmc-sd";
+					};
+
+					ab8500_ldo_aux4 {
+						regulator-name = "v-aux4";
+						/*
+						 * Providing some span here makes the touchkey
+						 * LEDs actually dimmable.
+						 */
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					ab8500_ldo_aux5 {
+						regulator-name = "v-aux5";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					ab8500_ldo_aux6 {
+						/* 1.8 V to the display */
+						regulator-name = "v-aux6";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					ab8500_ldo_aux8 {
+						regulator-name = "v-sensors-vio";
+					};
+				};
+			};
+		};
+
+		/* I2C0 also known as "AGC I2C" */
+		i2c@80004000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c0_a_1_default>;
+			pinctrl-1 = <&i2c0_a_1_sleep>;
+
+			proximity@39 {
+				/* Codina has the Amstaos TMD2672 */
+				compatible = "amstaos,tmd2672";
+				clock-frequency = <400000>;
+				reg = <0x39>;
+
+				/* IRQ on GPIO146 "PS_INT" */
+				interrupt-parent = <&gpio4>;
+				interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&ab8500_ldo_aux8_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tmd2672_codina_default>;
+			};
+		};
+
+		/* I2C2 on GPIO10 and GPIO11 also called "SENSORS I2C" */
+		i2c@80128000 {
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c2_b_2_default>;
+			pinctrl-1 = <&i2c2_b_2_sleep>;
+
+			/* Bosch BMA254 accelerometer */
+			accelerometer@18 {
+				compatible = "bosch,bma254";
+				reg = <0x18>;
+				mount-matrix = "0", "1", "0",
+					       "-1", "0", "0",
+					       "0", "0", "1";
+				vddio-supply = <&ab8500_ldo_aux8_reg>; // 1.8V
+				vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
+			};
+		};
+
+		/* I2C3 */
+		i2c@80110000 {
+			status = "okay";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&i2c3_c_2_default>;
+			pinctrl-1 = <&i2c3_c_2_sleep>;
+
+			/* TODO: write bindings and driver for this touchscreen */
+
+			/* Zinitix BT404 ISP part */
+			isp@50 {
+				compatible = "zinitix,bt404-isp";
+				reg = <0x50>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tsp_default>;
+			};
+
+			/* Zinitix BT404 touchscreen, also has the touchkeys for menu and back */
+			touchscreen@20 {
+				compatible = "zinitix,bt404";
+				reg = <0x20>;
+				/* GPIO218 (TSP_INT_1V8) */
+				interrupt-parent = <&gpio6>;
+				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
+				vcca-supply = <&ab8500_ldo_aux2_reg>; // 3.3V
+				vdd-supply = <&ab8500_ldo_aux5_reg>; // 1.8V
+				zinitix,mode = <2>;
+				touchscreen-size-x = <480>;
+				touchscreen-size-y = <800>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tsp_default>;
+			};
+		};
+
+		mcde@a0350000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dpi_default_mode>;
+
+			port {
+				display_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	/*
+	 * This extends the MC0_A_2 default config to include
+	 * the card detect GPIO217 line.
+	 */
+	sdi0 {
+		mc0_a_2_default {
+			default_cfg4 {
+				pins = "GPIO217_AH12"; /* card detect */
+				ste,config = <&gpio_in_pd>;
+			};
+		};
+	};
+	sdi2 {
+		/*
+		 * GPIO130 should be set in GPIO mode and
+		 * pulled down. (Not connected.)
+		 */
+		mc2_a_1_default {
+			default_cfg2 {
+				pins = "GPIO130_C8"; /* FBCLK */
+				ste,config = <&gpio_in_pd>;
+			};
+		};
+	};
+	/* GPIO that enables the 2.9V SD card level translator */
+	sd-level-translator {
+		sd_level_translator_default: sd_level_translator_default {
+			/* level shifter on GPIO87 */
+			codina_cfg1 {
+				pins = "GPIO87_B3";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+	/* GPIO that enables the LDO regulator for the eMMC */
+	emmc-ldo {
+		emmc_ldo_en_default_mode: emmc_ldo_default {
+			/* LDO enable on GPIO223 */
+			codina_cfg1 {
+				pins = "GPIO223_AH9";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+	/* GPIOs for panel control */
+	panel {
+		panel_default_mode: panel_default {
+			codina_cfg1 {
+				/* Reset line */
+				pins = "GPIO139_C9";
+				ste,config = <&gpio_out_lo>;
+			};
+			codina_cfg2 {
+				/* ESD IRQ line "LCD detect" */
+				pins = "GPIO93_B7";
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	/* GPIO that enables the LDO regulator for the LCD display */
+	lcd-ldo {
+		lcd_pwr_en_default_mode: lcd_pwr_en_default {
+			/* LCD_PWR_EN on GPIO219 */
+			codina_cfg1 {
+				pins = "GPIO219_AG10";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+	/* GPIO that enables the WLAN internal LDO regulators */
+	wlan-ldo {
+		wlan_ldo_en_default: wlan_ldo_default {
+			/* GPIO215 named WLAN_RST_N */
+			codina_cfg1 {
+				pins = "GPIO215_AH13";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	/* Backlight GPIO */
+	backlight {
+		ktd253_backlight_default_mode: backlight_default {
+			skomer_cfg1 {
+				pins = "GPIO69_E2"; /* LCD_BL_CTRL */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	/* Flash and torch */
+	flash {
+		gpio_flash_default_mode: flash_default {
+			codina_cfg1 {
+				pins = "GPIO140_B11", "GPIO141_C12";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	/* GPIO keys */
+	gpio-keys {
+		gpio_keys_default_mode: gpio_keys_default {
+			skomer_cfg1 {
+				pins = "GPIO67_G2", /* VOL UP */
+				       "GPIO91_B6", /* HOME */
+				       "GPIO92_D6"; /* VOL DOWN */
+				ste,config = <&gpio_in_pu>;
+			};
+		};
+	};
+	/* Interrupt line for the Zinitix BT404 touchscreen */
+	tsp {
+		tsp_default: tsp_default {
+			codina_cfg1 {
+				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	/* Interrupt line for light/proximity sensor TMD2672 */
+	tmd2672 {
+		tmd2672_codina_default: tmd2672_codina {
+			codina_cfg1 {
+				pins = "GPIO146_D13";
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	/* GPIO-based I2C bus for subpmu */
+	i2c-gpio-0 {
+		i2c_gpio_0_default: i2c_gpio_0 {
+			codina_cfg1 {
+				pins = "GPIO143_D12", "GPIO144_B13";
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	/* GPIO-based I2C bus for the NFC */
+	i2c-gpio-1 {
+		i2c_gpio_1_default: i2c_gpio_1 {
+			codina_cfg1 {
+				pins = "GPIO151_D17", "GPIO152_D16";
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	/* GPIO-based SPI bus for the display */
+	spi-gpio-0 {
+		spi_gpio_0_default: spi_gpio_0_d {
+			codina_cfg1 {
+				pins = "GPIO220_AH10", "GPIO201_AF24", "GPIO224_AG9";
+				ste,config = <&gpio_out_hi>;
+			};
+			codina_cfg2 {
+				pins = "GPIO225_AG8";
+				/* Needs pull down, no pull down resistor on board */
+				ste,config = <&gpio_in_pd>;
+			};
+		};
+		spi_gpio_0_sleep: spi_gpio_0_s {
+			codina_cfg1 {
+				pins = "GPIO220_AH10", "GPIO201_AF24",
+				       "GPIO224_AG9", "GPIO225_AG8";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+	wlan {
+		wlan_default_mode: wlan_default {
+			/* GPIO216 for WL_HOST_WAKE */
+			codina_cfg2 {
+				pins = "GPIO216_AG12";
+				ste,config = <&gpio_in_pd>;
+			};
+		};
+	};
+	bluetooth {
+		bluetooth_default_mode: bluetooth_default {
+			/* GPIO199 BT_WAKE and GPIO222 BT_VREG_ON */
+			codina_cfg1 {
+				pins = "GPIO199_AH23", "GPIO222_AJ9";
+				ste,config = <&gpio_out_lo>;
+			};
+			/* GPIO97 BT_HOST_WAKE */
+			codina_cfg2 {
+				pins = "GPIO97_D9";
+				ste,config = <&gpio_in_nopull>;
+			};
+			/* GPIO209 BT_RST_N */
+			codina_cfg3 {
+				pins = "GPIO209_AG15";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+	vibrator {
+		vibrator_default: vibrator_default {
+			codina_cfg1 {
+				pins = "GPIO195_AG28";	/* MOT_EN */
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	mcde {
+		dpi_default_mode: dpi_default {
+			default_mux1 {
+				/* Mux in all the data lines */
+				function = "lcd";
+				groups =
+					/* Data lines D0-D7 GPIO70..GPIO77 */
+					"lcd_d0_d7_a_1",
+					/* Data lines D8-D11 GPIO78..GPIO81 */
+					"lcd_d8_d11_a_1",
+					/* Data lines D12-D15 GPIO82..GPIO85 */
+					"lcd_d12_d15_a_1",
+					/* Data lines D16-D23 GPIO161..GPIO168 */
+					"lcd_d16_d23_b_1";
+			};
+			default_mux2 {
+				function = "lcda";
+				/* Clock line on GPIO150, DE, VSO, HSO on GPIO169..GPIO171 */
+				groups = "lcdaclk_b_1", "lcda_b_1";
+			};
+			/* Input, no pull-up is the default state for pins used for an alt function */
+			default_cfg1 {
+				pins = "GPIO150_C14", "GPIO169_D22", "GPIO170_C23", "GPIO171_D23";
+				ste,config = <&in_nopull>;
+			};
+		};
+	};
+};

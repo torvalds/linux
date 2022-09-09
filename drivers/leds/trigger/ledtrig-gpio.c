@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ledtrig-gio.c - LED Trigger Based on GPIO events
  *
  * Copyright 2009 Felipe Balbi <me@felipebalbi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -102,7 +99,8 @@ static ssize_t gpio_trig_inverted_store(struct device *dev,
 	gpio_data->inverted = inverted;
 
 	/* After inverting, we need to update the LED. */
-	gpio_trig_irq(0, led);
+	if (gpio_is_valid(gpio_data->gpio))
+		gpio_trig_irq(0, led);
 
 	return n;
 }
@@ -134,10 +132,10 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 	if (gpio_data->gpio == gpio)
 		return n;
 
-	if (!gpio) {
-		if (gpio_data->gpio != 0)
+	if (!gpio_is_valid(gpio)) {
+		if (gpio_is_valid(gpio_data->gpio))
 			free_irq(gpio_to_irq(gpio_data->gpio), led);
-		gpio_data->gpio = 0;
+		gpio_data->gpio = gpio;
 		return n;
 	}
 
@@ -147,7 +145,7 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 	if (ret) {
 		dev_err(dev, "request_irq failed with error %d\n", ret);
 	} else {
-		if (gpio_data->gpio != 0)
+		if (gpio_is_valid(gpio_data->gpio))
 			free_irq(gpio_to_irq(gpio_data->gpio), led);
 		gpio_data->gpio = gpio;
 		/* After changing the GPIO, we need to update the LED. */
@@ -175,6 +173,8 @@ static int gpio_trig_activate(struct led_classdev *led)
 		return -ENOMEM;
 
 	gpio_data->led = led;
+	gpio_data->gpio = -ENOENT;
+
 	led_set_trigger_data(led, gpio_data);
 
 	return 0;
@@ -184,7 +184,7 @@ static void gpio_trig_deactivate(struct led_classdev *led)
 {
 	struct gpio_trig_data *gpio_data = led_get_trigger_data(led);
 
-	if (gpio_data->gpio != 0)
+	if (gpio_is_valid(gpio_data->gpio))
 		free_irq(gpio_to_irq(gpio_data->gpio), led);
 	kfree(gpio_data);
 }

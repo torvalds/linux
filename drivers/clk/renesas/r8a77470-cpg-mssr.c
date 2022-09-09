@@ -85,7 +85,7 @@ static const struct mssr_mod_clk r8a77470_mod_clks[] __initconst = {
 	DEF_MOD("tmu2",			 122,	R8A77470_CLK_P),
 	DEF_MOD("cmt0",			 124,	R8A77470_CLK_R),
 	DEF_MOD("vsp1du0",		 128,	R8A77470_CLK_ZS),
-	DEF_MOD("vsp1-sy",		 131,	R8A77470_CLK_ZS),
+	DEF_MOD("vsps",			 131,	R8A77470_CLK_ZS),
 	DEF_MOD("msiof2",		 205,	R8A77470_CLK_MP),
 	DEF_MOD("msiof1",		 208,	R8A77470_CLK_MP),
 	DEF_MOD("sys-dmac1",		 218,	R8A77470_CLK_ZS),
@@ -175,7 +175,7 @@ static const unsigned int r8a77470_crit_mod_clks[] __initconst = {
  *---------------------------------------------------
  * 0  0		20		x80	x78	x50
  * 0  1		26		x60	x60	x56
- * 1  0		Prohibitted setting
+ * 1  0		Prohibited setting
  * 1  1		30		x52	x52	x50
  *
  * *1 :	Table 7.4 indicates VCO output (PLL0 = VCO)

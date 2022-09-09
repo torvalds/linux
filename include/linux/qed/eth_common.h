@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef __ETH_COMMON__
@@ -38,9 +12,11 @@
 /********************/
 
 #define ETH_HSI_VER_MAJOR		3
-#define ETH_HSI_VER_MINOR		10
+#define ETH_HSI_VER_MINOR		11
 
-#define ETH_HSI_VER_NO_PKT_LEN_TUNN	5
+#define ETH_HSI_VER_NO_PKT_LEN_TUNN         5
+/* Maximum number of pinned L2 connections (CIDs) */
+#define ETH_PINNED_CONN_MAX_NUM             32
 
 #define ETH_CACHE_LINE_SIZE		64
 #define ETH_RX_CQE_GAP			32
@@ -61,6 +37,7 @@
 #define ETH_TX_MIN_BDS_PER_TUNN_IPV6_WITH_EXT_PKT	3
 #define ETH_TX_MIN_BDS_PER_IPV6_WITH_EXT_PKT		2
 #define ETH_TX_MIN_BDS_PER_PKT_W_LOOPBACK_MODE		2
+#define ETH_TX_MIN_BDS_PER_PKT_W_VPORT_FORWARDING	4
 #define ETH_TX_MAX_NON_LSO_PKT_LEN		(9700 - (4 + 4 + 12 + 8))
 #define ETH_TX_MAX_LSO_HDR_BYTES			510
 #define ETH_TX_LSO_WINDOW_BDS_NUM			(18 - 1)
@@ -75,9 +52,8 @@
 #define ETH_NUM_STATISTIC_COUNTERS_QUAD_VF_ZONE \
 	(ETH_NUM_STATISTIC_COUNTERS - 3 * MAX_NUM_VFS / 4)
 
-/* Maximum number of buffers, used for RX packet placement */
 #define ETH_RX_MAX_BUFF_PER_PKT		5
-#define ETH_RX_BD_THRESHOLD		12
+#define ETH_RX_BD_THRESHOLD             16
 
 /* Num of MAC/VLAN filters */
 #define ETH_NUM_MAC_FILTERS		512
@@ -91,29 +67,30 @@
 /* Ethernet vport update constants */
 #define ETH_FILTER_RULES_COUNT		10
 #define ETH_RSS_IND_TABLE_ENTRIES_NUM	128
+#define ETH_RSS_IND_TABLE_MASK_SIZE_REGS    (ETH_RSS_IND_TABLE_ENTRIES_NUM / 32)
 #define ETH_RSS_KEY_SIZE_REGS		10
 #define ETH_RSS_ENGINE_NUM_K2		207
 #define ETH_RSS_ENGINE_NUM_BB		127
 
 /* TPA constants */
-#define ETH_TPA_MAX_AGGS_NUM		64
-#define ETH_TPA_CQE_START_LEN_LIST_SIZE	ETH_RX_MAX_BUFF_PER_PKT
-#define ETH_TPA_CQE_CONT_LEN_LIST_SIZE	6
-#define ETH_TPA_CQE_END_LEN_LIST_SIZE	4
+#define ETH_TPA_MAX_AGGS_NUM                64
+#define ETH_TPA_CQE_START_BW_LEN_LIST_SIZE  2
+#define ETH_TPA_CQE_CONT_LEN_LIST_SIZE      6
+#define ETH_TPA_CQE_END_LEN_LIST_SIZE       4
 
 /* Control frame check constants */
-#define ETH_CTL_FRAME_ETH_TYPE_NUM	4
+#define ETH_CTL_FRAME_ETH_TYPE_NUM        4
 
 /* GFS constants */
 #define ETH_GFT_TRASHCAN_VPORT         0x1FF	/* GFT drop flow vport number */
 
 /* Destination port mode */
-enum dest_port_mode {
-	DEST_PORT_PHY,
-	DEST_PORT_LOOPBACK,
-	DEST_PORT_PHY_LOOPBACK,
-	DEST_PORT_DROP,
-	MAX_DEST_PORT_MODE
+enum dst_port_mode {
+	DST_PORT_PHY,
+	DST_PORT_LOOPBACK,
+	DST_PORT_PHY_LOOPBACK,
+	DST_PORT_DROP,
+	MAX_DST_PORT_MODE
 };
 
 /* Ethernet address type */
@@ -167,8 +144,8 @@ struct eth_tx_data_2nd_bd {
 #define ETH_TX_DATA_2ND_BD_TUNN_INNER_L2_HDR_SIZE_W_SHIFT	0
 #define ETH_TX_DATA_2ND_BD_TUNN_INNER_ETH_TYPE_MASK		0x3
 #define ETH_TX_DATA_2ND_BD_TUNN_INNER_ETH_TYPE_SHIFT		4
-#define ETH_TX_DATA_2ND_BD_DEST_PORT_MODE_MASK			0x3
-#define ETH_TX_DATA_2ND_BD_DEST_PORT_MODE_SHIFT			6
+#define ETH_TX_DATA_2ND_BD_DST_PORT_MODE_MASK			0x3
+#define ETH_TX_DATA_2ND_BD_DST_PORT_MODE_SHIFT			6
 #define ETH_TX_DATA_2ND_BD_START_BD_MASK			0x1
 #define ETH_TX_DATA_2ND_BD_START_BD_SHIFT			8
 #define ETH_TX_DATA_2ND_BD_TUNN_TYPE_MASK			0x3
@@ -244,8 +221,9 @@ struct eth_fast_path_rx_reg_cqe {
 	struct eth_tunnel_parsing_flags tunnel_pars_flags;
 	u8 bd_num;
 	u8 reserved;
-	__le16 flow_id;
-	u8 reserved1[11];
+	__le16 reserved2;
+	__le32 flow_id_or_resource_id;
+	u8 reserved1[7];
 	struct eth_pmd_flow_flags pmd_flags;
 };
 
@@ -296,9 +274,10 @@ struct eth_fast_path_rx_tpa_start_cqe {
 	struct eth_tunnel_parsing_flags tunnel_pars_flags;
 	u8 tpa_agg_index;
 	u8 header_len;
-	__le16 ext_bd_len_list[ETH_TPA_CQE_START_LEN_LIST_SIZE];
-	__le16 flow_id;
-	u8 reserved;
+	__le16 bw_ext_bd_len_list[ETH_TPA_CQE_START_BW_LEN_LIST_SIZE];
+	__le16 reserved2;
+	__le32 flow_id_or_resource_id;
+	u8 reserved[3];
 	struct eth_pmd_flow_flags pmd_flags;
 };
 
@@ -407,6 +386,29 @@ struct eth_tx_3rd_bd {
 	struct eth_tx_data_3rd_bd data;
 };
 
+/* The parsing information data for the forth tx bd of a given packet. */
+struct eth_tx_data_4th_bd {
+	u8 dst_vport_id;
+	u8 reserved4;
+	__le16 bitfields;
+#define ETH_TX_DATA_4TH_BD_DST_VPORT_ID_VALID_MASK  0x1
+#define ETH_TX_DATA_4TH_BD_DST_VPORT_ID_VALID_SHIFT 0
+#define ETH_TX_DATA_4TH_BD_RESERVED1_MASK           0x7F
+#define ETH_TX_DATA_4TH_BD_RESERVED1_SHIFT          1
+#define ETH_TX_DATA_4TH_BD_START_BD_MASK            0x1
+#define ETH_TX_DATA_4TH_BD_START_BD_SHIFT           8
+#define ETH_TX_DATA_4TH_BD_RESERVED2_MASK           0x7F
+#define ETH_TX_DATA_4TH_BD_RESERVED2_SHIFT          9
+	__le16 reserved3;
+};
+
+/* The forth tx bd of a given packet */
+struct eth_tx_4th_bd {
+	struct regpair addr; /* Single continuous buffer */
+	__le16 nbytes; /* Number of bytes in this BD */
+	struct eth_tx_data_4th_bd data; /* Parsing information data */
+};
+
 /* Complementary information for the regular tx bd of a given packet */
 struct eth_tx_data_bd {
 	__le16 reserved0;
@@ -431,6 +433,7 @@ union eth_tx_bd_types {
 	struct eth_tx_1st_bd first_bd;
 	struct eth_tx_2nd_bd second_bd;
 	struct eth_tx_3rd_bd third_bd;
+	struct eth_tx_4th_bd fourth_bd;
 	struct eth_tx_bd reg_bd;
 };
 
@@ -441,6 +444,12 @@ enum eth_tx_tunn_type {
 	ETH_TX_TUNN_GRE,
 	ETH_TX_TUNN_VXLAN,
 	MAX_ETH_TX_TUNN_TYPE
+};
+
+/* Mstorm Queue Zone */
+struct mstorm_eth_queue_zone {
+	struct eth_rx_prod_data rx_producers;
+	__le32 reserved[3];
 };
 
 /* Ystorm Queue Zone */

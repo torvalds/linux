@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * libata-trace.c - trace functions for libata
  *
  * Copyright 2015 Hannes Reinecke
  * Copyright 2015 SUSE Linux GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -45,6 +32,24 @@ libata_trace_parse_status(struct trace_seq *p, unsigned char status)
 		trace_seq_printf(p, "SENSE ");
 	if (status & ATA_ERR)
 		trace_seq_printf(p, "ERR ");
+	trace_seq_putc(p, '}');
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+const char *
+libata_trace_parse_host_stat(struct trace_seq *p, unsigned char host_stat)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_printf(p, "{ ");
+	if (host_stat & ATA_DMA_INTR)
+		trace_seq_printf(p, "INTR ");
+	if (host_stat & ATA_DMA_ERR)
+		trace_seq_printf(p, "ERR ");
+	if (host_stat & ATA_DMA_ACTIVE)
+		trace_seq_printf(p, "ACTIVE ");
 	trace_seq_putc(p, '}');
 	trace_seq_putc(p, 0);
 
@@ -143,6 +148,35 @@ libata_trace_parse_qc_flags(struct trace_seq *p, unsigned int qc_flags)
 			trace_seq_printf(p, "SENSE_VALID ");
 		if (qc_flags & ATA_QCFLAG_EH_SCHEDULED)
 			trace_seq_printf(p, "EH_SCHEDULED ");
+		trace_seq_putc(p, '}');
+	}
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+const char *
+libata_trace_parse_tf_flags(struct trace_seq *p, unsigned int tf_flags)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_printf(p, "%x", tf_flags);
+	if (tf_flags) {
+		trace_seq_printf(p, "{ ");
+		if (tf_flags & ATA_TFLAG_LBA48)
+			trace_seq_printf(p, "LBA48 ");
+		if (tf_flags & ATA_TFLAG_ISADDR)
+			trace_seq_printf(p, "ISADDR ");
+		if (tf_flags & ATA_TFLAG_DEVICE)
+			trace_seq_printf(p, "DEV ");
+		if (tf_flags & ATA_TFLAG_WRITE)
+			trace_seq_printf(p, "WRITE ");
+		if (tf_flags & ATA_TFLAG_LBA)
+			trace_seq_printf(p, "LBA ");
+		if (tf_flags & ATA_TFLAG_FUA)
+			trace_seq_printf(p, "FUA ");
+		if (tf_flags & ATA_TFLAG_POLLING)
+			trace_seq_printf(p, "POLL ");
 		trace_seq_putc(p, '}');
 	}
 	trace_seq_putc(p, 0);

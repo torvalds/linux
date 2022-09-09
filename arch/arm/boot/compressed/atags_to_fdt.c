@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/libfdt_env.h>
 #include <asm/setup.h>
 #include <libfdt.h>
 
@@ -14,12 +15,13 @@ static int node_offset(void *fdt, const char *node_path)
 {
 	int offset = fdt_path_offset(fdt, node_path);
 	if (offset == -FDT_ERR_NOTFOUND)
-		offset = fdt_add_subnode(fdt, 0, node_path);
+		/* Add the node to root if not found, dropping the leading '/' */
+		offset = fdt_add_subnode(fdt, 0, node_path + 1);
 	return offset;
 }
 
 static int setprop(void *fdt, const char *node_path, const char *property,
-		   uint32_t *val_array, int size)
+		   void *val_array, int size)
 {
 	int offset = node_offset(fdt, node_path);
 	if (offset < 0)
@@ -60,7 +62,7 @@ static uint32_t get_cell_size(const void *fdt)
 {
 	int len;
 	uint32_t cell_size = 1;
-	const uint32_t *size_len =  getprop(fdt, "/", "#size-cells", &len);
+	const __be32 *size_len =  getprop(fdt, "/", "#size-cells", &len);
 
 	if (size_len)
 		cell_size = fdt32_to_cpu(*size_len);
@@ -119,7 +121,7 @@ static void hex_str(char *out, uint32_t value)
 /*
  * Convert and fold provided ATAGs into the provided FDT.
  *
- * REturn values:
+ * Return values:
  *    = 0 -> pretend success
  *    = 1 -> bad ATAG (may retry with another possible ATAG pointer)
  *    < 0 -> error from libfdt
@@ -129,7 +131,7 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 	struct tag *atag = atag_list;
 	/* In the case of 64 bits memory size, need to reserve 2 cells for
 	 * address and size for each bank */
-	uint32_t mem_reg_property[2 * 2 * NR_BANKS];
+	__be32 mem_reg_property[2 * 2 * NR_BANKS];
 	int memcount = 0;
 	int ret, memsize;
 
@@ -138,7 +140,7 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 		return 1;
 
 	/* if we get a DTB here we're done already */
-	if (*(u32 *)atag_list == fdt32_to_cpu(FDT_MAGIC))
+	if (*(__be32 *)atag_list == cpu_to_fdt32(FDT_MAGIC))
 	       return 0;
 
 	/* validate the ATAG */
@@ -177,8 +179,8 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 				/* if memsize is 2, that means that
 				 * each data needs 2 cells of 32 bits,
 				 * so the data are 64 bits */
-				uint64_t *mem_reg_prop64 =
-					(uint64_t *)mem_reg_property;
+				__be64 *mem_reg_prop64 =
+					(__be64 *)mem_reg_property;
 				mem_reg_prop64[memcount++] =
 					cpu_to_fdt64(atag->u.mem.start);
 				mem_reg_prop64[memcount++] =

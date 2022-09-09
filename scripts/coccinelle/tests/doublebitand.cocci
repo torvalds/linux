@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Find bit operations that include the same argument more than once
 //# One source of false positives is when the argument performs a side
 //# effect.  Another source of false positives is when a neutral value
@@ -5,10 +6,10 @@
 //# same structure as other similar expressions
 ///
 // Confidence: Moderate
-// Copyright: (C) 2010 Nicolas Palix, DIKU.  GPLv2.
-// Copyright: (C) 2010 Julia Lawall, DIKU.  GPLv2.
-// Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2010 Nicolas Palix, DIKU.
+// Copyright: (C) 2010 Julia Lawall, DIKU.
+// Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 

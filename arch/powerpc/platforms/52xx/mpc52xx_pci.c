@@ -13,6 +13,7 @@
 #undef DEBUG
 
 #include <linux/pci.h>
+#include <linux/of_address.h>
 #include <asm/mpc52xx.h>
 #include <asm/delay.h>
 #include <asm/machdep.h>
@@ -242,7 +243,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	u32 tmp;
 	int iwcr0 = 0, iwcr1 = 0, iwcr2 = 0;
 
-	pr_debug("mpc52xx_pci_setup(hose=%p, pci_regs=%p)\n", hose, pci_regs);
+	pr_debug("%s(hose=%p, pci_regs=%p)\n", __func__, hose, pci_regs);
 
 	/* pci_process_bridge_OF_ranges() found all our addresses for us;
 	 * now store them in the right places */
@@ -257,11 +258,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	/* Memory windows */
 	res = &hose->mem_resources[0];
 	if (res->flags) {
-		pr_debug("mem_resource[0] = "
-		         "{.start=%llx, .end=%llx, .flags=%llx}\n",
-		         (unsigned long long)res->start,
-			 (unsigned long long)res->end,
-			 (unsigned long long)res->flags);
+		pr_debug("mem_resource[0] = %pr\n", res);
 		out_be32(&pci_regs->iw0btar,
 		         MPC52xx_PCI_IWBTAR_TRANSLATION(res->start, res->start,
 							resource_size(res)));
@@ -274,8 +271,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 
 	res = &hose->mem_resources[1];
 	if (res->flags) {
-		pr_debug("mem_resource[1] = {.start=%x, .end=%x, .flags=%lx}\n",
-		         res->start, res->end, res->flags);
+		pr_debug("mem_resource[1] = %pr\n", res);
 		out_be32(&pci_regs->iw1btar,
 		         MPC52xx_PCI_IWBTAR_TRANSLATION(res->start, res->start,
 							resource_size(res)));
@@ -292,11 +288,8 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 		printk(KERN_ERR "%s: Didn't find IO resources\n", __FILE__);
 		return;
 	}
-	pr_debug(".io_resource={.start=%llx,.end=%llx,.flags=%llx} "
-	         ".io_base_phys=0x%p\n",
-	         (unsigned long long)res->start,
-		 (unsigned long long)res->end,
-		 (unsigned long long)res->flags, (void*)hose->io_base_phys);
+	pr_debug(".io_resource = %pr .io_base_phys=0x%pa\n",
+		 res, &hose->io_base_phys);
 	out_be32(&pci_regs->iw2btar,
 	         MPC52xx_PCI_IWBTAR_TRANSLATION(hose->io_base_phys,
 	                                        res->start,
@@ -336,8 +329,7 @@ mpc52xx_pci_fixup_resources(struct pci_dev *dev)
 {
 	int i;
 
-	pr_debug("mpc52xx_pci_fixup_resources() %.4x:%.4x\n",
-	         dev->vendor, dev->device);
+	pr_debug("%s() %.4x:%.4x\n", __func__, dev->vendor, dev->device);
 
 	/* We don't rely on boot loader for PCI and resets all
 	   devices */

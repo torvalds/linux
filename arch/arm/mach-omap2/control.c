@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP2/3 System Control Module register access
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2007 Nokia Corporation
  *
  * Written by Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #undef DEBUG
 
@@ -138,11 +135,6 @@ struct omap3_control_regs {
 
 static struct omap3_control_regs control_context;
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
-
-void __init omap2_set_globals_control(void __iomem *ctrl)
-{
-	omap2_ctrl_base = ctrl;
-}
 
 u8 omap_ctrl_readb(u16 offset)
 {
@@ -687,7 +679,7 @@ static u32 am33xx_control_vals[ARRAY_SIZE(am43xx_control_reg_offsets)];
  *
  * Save the wkup domain registers
  */
-void am43xx_control_save_context(void)
+static void am43xx_control_save_context(void)
 {
 	int i;
 
@@ -701,7 +693,7 @@ void am43xx_control_save_context(void)
  *
  * Restore the wkup domain registers
  */
-void am43xx_control_restore_context(void)
+static void am43xx_control_restore_context(void)
 {
 	int i;
 
@@ -777,8 +769,10 @@ int __init omap2_control_base_init(void)
 		data = (struct control_init_data *)match->data;
 
 		mem = of_iomap(np, 0);
-		if (!mem)
+		if (!mem) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 
 		if (data->index == TI_CLKM_CTRL) {
 			omap2_ctrl_base = mem;
@@ -818,22 +812,24 @@ int __init omap_control_init(void)
 		if (scm_conf) {
 			syscon = syscon_node_to_regmap(scm_conf);
 
-			if (IS_ERR(syscon))
-				return PTR_ERR(syscon);
+			if (IS_ERR(syscon)) {
+				ret = PTR_ERR(syscon);
+				goto of_node_put;
+			}
 
 			if (of_get_child_by_name(scm_conf, "clocks")) {
 				ret = omap2_clk_provider_init(scm_conf,
 							      data->index,
 							      syscon, NULL);
 				if (ret)
-					return ret;
+					goto of_node_put;
 			}
 		} else {
 			/* No scm_conf found, direct access */
 			ret = omap2_clk_provider_init(np, data->index, NULL,
 						      data->mem);
 			if (ret)
-				return ret;
+				goto of_node_put;
 		}
 	}
 
@@ -844,6 +840,11 @@ int __init omap_control_init(void)
 	}
 
 	return 0;
+
+of_node_put:
+	of_node_put(np);
+	return ret;
+
 }
 
 /**

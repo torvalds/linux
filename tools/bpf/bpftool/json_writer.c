@@ -1,14 +1,9 @@
-// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
  * Simple streaming JSON writer
  *
  * This takes care of the annoying bits of JSON syntax like the commas
  * after elements
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Authors:	Stephen Hemminger <stephen@networkplumber.org>
  */
@@ -20,7 +15,6 @@
 #include <malloc.h>
 #include <inttypes.h>
 #include <stdint.h>
-#include <linux/compiler.h>
 
 #include "json_writer.h"
 
@@ -125,6 +119,12 @@ void jsonw_pretty(json_writer_t *self, bool on)
 	self->pretty = on;
 }
 
+void jsonw_reset(json_writer_t *self)
+{
+	assert(self->depth == 0);
+	self->sep = '\0';
+}
+
 /* Basic blocks */
 static void jsonw_begin(json_writer_t *self, int c)
 {
@@ -158,8 +158,7 @@ void jsonw_name(json_writer_t *self, const char *name)
 		putc(' ', self->out);
 }
 
-void __printf(2, 0)
-jsonw_vprintf_enquote(json_writer_t *self, const char *fmt, va_list ap)
+void jsonw_vprintf_enquote(json_writer_t *self, const char *fmt, va_list ap)
 {
 	jsonw_eor(self);
 	putc('"', self->out);
@@ -167,7 +166,7 @@ jsonw_vprintf_enquote(json_writer_t *self, const char *fmt, va_list ap)
 	putc('"', self->out);
 }
 
-void __printf(2, 3) jsonw_printf(json_writer_t *self, const char *fmt, ...)
+void jsonw_printf(json_writer_t *self, const char *fmt, ...)
 {
 	va_list ap;
 

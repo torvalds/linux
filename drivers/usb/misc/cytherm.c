@@ -36,20 +36,6 @@ struct usb_cytherm {
 };
 
 
-/* local function prototypes */
-static int cytherm_probe(struct usb_interface *interface, 
-			 const struct usb_device_id *id);
-static void cytherm_disconnect(struct usb_interface *interface);
-
-
-/* usb specific object needed to register this driver with the usb subsystem */
-static struct usb_driver cytherm_driver = {
-	.name =		"cytherm",
-	.probe =	cytherm_probe,
-	.disconnect =	cytherm_disconnect,
-	.id_table =	id_table,
-};
-
 /* Vendor requests */
 /* They all operate on one byte at a time */
 #define PING       0x00
@@ -304,6 +290,15 @@ static ssize_t port1_store(struct device *dev, struct device_attribute *attr, co
 }
 static DEVICE_ATTR_RW(port1);
 
+static struct attribute *cytherm_attrs[] = {
+	&dev_attr_brightness.attr,
+	&dev_attr_temp.attr,
+	&dev_attr_button.attr,
+	&dev_attr_port0.attr,
+	&dev_attr_port1.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(cytherm);
 
 static int cytherm_probe(struct usb_interface *interface, 
 			 const struct usb_device_id *id)
@@ -322,34 +317,10 @@ static int cytherm_probe(struct usb_interface *interface,
 
 	dev->brightness = 0xFF;
 
-	retval = device_create_file(&interface->dev, &dev_attr_brightness);
-	if (retval)
-		goto error;
-	retval = device_create_file(&interface->dev, &dev_attr_temp);
-	if (retval)
-		goto error;
-	retval = device_create_file(&interface->dev, &dev_attr_button);
-	if (retval)
-		goto error;
-	retval = device_create_file(&interface->dev, &dev_attr_port0);
-	if (retval)
-		goto error;
-	retval = device_create_file(&interface->dev, &dev_attr_port1);
-	if (retval)
-		goto error;
-
 	dev_info (&interface->dev,
 		  "Cypress thermometer device now attached\n");
 	return 0;
-error:
-	device_remove_file(&interface->dev, &dev_attr_brightness);
-	device_remove_file(&interface->dev, &dev_attr_temp);
-	device_remove_file(&interface->dev, &dev_attr_button);
-	device_remove_file(&interface->dev, &dev_attr_port0);
-	device_remove_file(&interface->dev, &dev_attr_port1);
-	usb_set_intfdata (interface, NULL);
-	usb_put_dev(dev->udev);
-	kfree(dev);
+
 error_mem:
 	return retval;
 }
@@ -360,12 +331,6 @@ static void cytherm_disconnect(struct usb_interface *interface)
 
 	dev = usb_get_intfdata (interface);
 
-	device_remove_file(&interface->dev, &dev_attr_brightness);
-	device_remove_file(&interface->dev, &dev_attr_temp);
-	device_remove_file(&interface->dev, &dev_attr_button);
-	device_remove_file(&interface->dev, &dev_attr_port0);
-	device_remove_file(&interface->dev, &dev_attr_port1);
-
 	/* first remove the files, then NULL the pointer */
 	usb_set_intfdata (interface, NULL);
 
@@ -375,6 +340,15 @@ static void cytherm_disconnect(struct usb_interface *interface)
 
 	dev_info(&interface->dev, "Cypress thermometer now disconnected\n");
 }
+
+/* usb specific object needed to register this driver with the usb subsystem */
+static struct usb_driver cytherm_driver = {
+	.name =		"cytherm",
+	.probe =	cytherm_probe,
+	.disconnect =	cytherm_disconnect,
+	.id_table =	id_table,
+	.dev_groups =	cytherm_groups,
+};
 
 module_usb_driver(cytherm_driver);
 

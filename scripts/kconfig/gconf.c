@@ -3,10 +3,6 @@
  * Copyright (C) 2002-2003 Romain Lievin <roms@tilp.info>
  */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
 #include <stdlib.h>
 #include "lkc.h"
 #include "images.h"
@@ -18,6 +14,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <time.h>
 
@@ -638,7 +635,7 @@ on_set_option_mode3_activate(GtkMenuItem *menuitem, gpointer user_data)
 void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
-	const gchar *intro_text = 
+	const gchar *intro_text =
 	    "Welcome to gkc, the GTK+ graphical configuration tool\n"
 	    "For each option, a blank box indicates the feature is disabled, a\n"
 	    "check indicates it is enabled, and a dot indicates that it is to\n"
@@ -1047,8 +1044,13 @@ static gchar **fill_row(struct menu *menu)
 		g_free(row[i]);
 	bzero(row, sizeof(row));
 
+	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+
 	row[COL_OPTION] =
-	    g_strdup_printf("%s %s", menu_get_prompt(menu),
+	    g_strdup_printf("%s %s %s %s",
+			    ptype == P_COMMENT ? "***" : "",
+			    menu_get_prompt(menu),
+			    ptype == P_COMMENT ? "***" : "",
 			    sym && !sym_has_value(sym) ? "(NEW)" : "");
 
 	if (opt_mode == OPT_ALL && !menu_is_visible(menu))
@@ -1059,7 +1061,6 @@ static gchar **fill_row(struct menu *menu)
 	else
 		row[COL_COLOR] = g_strdup("Black");
 
-	ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
 	switch (ptype) {
 	case P_MENU:
 		row[COL_PIXBUF] = (gchar *) xpm_menu;
@@ -1450,9 +1451,6 @@ int main(int ac, char *av[])
 	gtk_set_locale();
 	gtk_init(&ac, &av);
 	glade_init();
-
-	//add_pixmap_directory (PACKAGE_DATA_DIR "/" PACKAGE "/pixmaps");
-	//add_pixmap_directory (PACKAGE_SOURCE_DIR "/pixmaps");
 
 	/* Determine GUI path */
 	env = getenv(SRCTREE);

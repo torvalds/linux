@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPIO driver for the SMSC SCH311x Super-I/O chips
  *
@@ -5,11 +6,6 @@
  *
  * SuperIO functions and chip detection:
  * (c) Copyright 2008 Wim Van Sebroeck <wim@iguana.be>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/ioport.h>
@@ -232,7 +228,10 @@ static int sch311x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	data = inb(block->runtime_reg + block->config_regs[offset]);
 	spin_unlock(&block->lock);
 
-	return !!(data & SCH311X_GPIO_CONF_DIR);
+	if (data & SCH311X_GPIO_CONF_DIR)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int sch311x_gpio_set_config(struct gpio_chip *chip, unsigned offset,

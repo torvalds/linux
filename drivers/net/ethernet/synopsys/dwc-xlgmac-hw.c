@@ -57,7 +57,7 @@ static int xlgmac_enable_rx_csum(struct xlgmac_pdata *pdata)
 	return 0;
 }
 
-static int xlgmac_set_mac_address(struct xlgmac_pdata *pdata, u8 *addr)
+static int xlgmac_set_mac_address(struct xlgmac_pdata *pdata, const u8 *addr)
 {
 	unsigned int mac_addr_hi, mac_addr_lo;
 
@@ -995,7 +995,7 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 	smp_wmb();
 
 	ring->cur = cur_index + 1;
-	if (!pkt_info->skb->xmit_more ||
+	if (!netdev_xmit_more() ||
 	    netif_xmit_stopped(netdev_get_tx_queue(pdata->netdev,
 						   channel->queue_index)))
 		xlgmac_tx_start_xmit(channel, ring);

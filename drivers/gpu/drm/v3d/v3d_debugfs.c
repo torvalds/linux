@@ -4,9 +4,10 @@
 #include <linux/circ_buf.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
-#include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
-#include <drm/drmP.h>
+#include <linux/string_helpers.h>
+
+#include <drm/drm_debugfs.h>
 
 #include "v3d_drv.h"
 #include "v3d_regs.h"
@@ -26,6 +27,11 @@ static const struct v3d_reg_def v3d_hub_reg_defs[] = {
 	REGDEF(V3D_HUB_IDENT3),
 	REGDEF(V3D_HUB_INT_STS),
 	REGDEF(V3D_HUB_INT_MSK_STS),
+
+	REGDEF(V3D_MMU_CTL),
+	REGDEF(V3D_MMU_VIO_ADDR),
+	REGDEF(V3D_MMU_VIO_ID),
+	REGDEF(V3D_MMU_DEBUG_INFO),
 };
 
 static const struct v3d_reg_def v3d_gca_reg_defs[] = {
@@ -50,12 +56,25 @@ static const struct v3d_reg_def v3d_core_reg_defs[] = {
 	REGDEF(V3D_PTB_BPCA),
 	REGDEF(V3D_PTB_BPCS),
 
-	REGDEF(V3D_MMU_CTL),
-	REGDEF(V3D_MMU_VIO_ADDR),
-
 	REGDEF(V3D_GMP_STATUS),
 	REGDEF(V3D_GMP_CFG),
 	REGDEF(V3D_GMP_VIO_ADDR),
+
+	REGDEF(V3D_ERR_FDBGO),
+	REGDEF(V3D_ERR_FDBGB),
+	REGDEF(V3D_ERR_FDBGS),
+	REGDEF(V3D_ERR_STAT),
+};
+
+static const struct v3d_reg_def v3d_csd_reg_defs[] = {
+	REGDEF(V3D_CSD_STATUS),
+	REGDEF(V3D_CSD_CURRENT_CFG0),
+	REGDEF(V3D_CSD_CURRENT_CFG1),
+	REGDEF(V3D_CSD_CURRENT_CFG2),
+	REGDEF(V3D_CSD_CURRENT_CFG3),
+	REGDEF(V3D_CSD_CURRENT_CFG4),
+	REGDEF(V3D_CSD_CURRENT_CFG5),
+	REGDEF(V3D_CSD_CURRENT_CFG6),
 };
 
 static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
@@ -89,6 +108,17 @@ static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
 				   V3D_CORE_READ(core,
 						 v3d_core_reg_defs[i].reg));
 		}
+
+		if (v3d_has_csd(v3d)) {
+			for (i = 0; i < ARRAY_SIZE(v3d_csd_reg_defs); i++) {
+				seq_printf(m, "core %d %s (0x%04x): 0x%08x\n",
+					   core,
+					   v3d_csd_reg_defs[i].name,
+					   v3d_csd_reg_defs[i].reg,
+					   V3D_CORE_READ(core,
+							 v3d_csd_reg_defs[i].reg));
+			}
+		}
 	}
 
 	return 0;
@@ -100,11 +130,7 @@ static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	u32 ident0, ident1, ident2, ident3, cores;
-	int ret, core;
-
-	ret = pm_runtime_get_sync(v3d->dev);
-	if (ret < 0)
-		return ret;
+	int core;
 
 	ident0 = V3D_READ(V3D_HUB_IDENT0);
 	ident1 = V3D_READ(V3D_HUB_IDENT1);
@@ -118,15 +144,15 @@ static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 		   V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPREV),
 		   V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPIDX));
 	seq_printf(m, "MMU:        %s\n",
-		   (ident2 & V3D_HUB_IDENT2_WITH_MMU) ? "yes" : "no");
+		   str_yes_no(ident2 & V3D_HUB_IDENT2_WITH_MMU));
 	seq_printf(m, "TFU:        %s\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_TFU) ? "yes" : "no");
+		   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_TFU));
 	seq_printf(m, "TSY:        %s\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_TSY) ? "yes" : "no");
+		   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_TSY));
 	seq_printf(m, "MSO:        %s\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_MSO) ? "yes" : "no");
+		   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_MSO));
 	seq_printf(m, "L3C:        %s (%dkb)\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_L3C) ? "yes" : "no",
+		   str_yes_no(ident1 & V3D_HUB_IDENT1_WITH_L3C),
 		   V3D_GET_FIELD(ident2, V3D_HUB_IDENT2_L3C_NKB));
 
 	for (core = 0; core < cores; core++) {
@@ -156,9 +182,6 @@ static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 		seq_printf(m, "  Override TMU: %d\n",
 			   (misccfg & V3D_MISCCFG_OVRTMUOUT) != 0);
 	}
-
-	pm_runtime_mark_last_busy(v3d->dev);
-	pm_runtime_put_autosuspend(v3d->dev);
 
 	return 0;
 }
@@ -220,10 +243,10 @@ static const struct drm_info_list v3d_debugfs_list[] = {
 	{"bo_stats", v3d_debugfs_bo_stats, 0},
 };
 
-int
+void
 v3d_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(v3d_debugfs_list,
-					ARRAY_SIZE(v3d_debugfs_list),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(v3d_debugfs_list,
+				 ARRAY_SIZE(v3d_debugfs_list),
+				 minor->debugfs_root, minor);
 }

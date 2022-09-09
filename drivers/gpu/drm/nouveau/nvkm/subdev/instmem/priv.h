@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_INSTMEM_PRIV_H__
 #define __NVKM_INSTMEM_PRIV_H__
 #define nvkm_instmem(p) container_of((p), struct nvkm_instmem, subdev)
@@ -16,7 +16,7 @@ struct nvkm_instmem_func {
 };
 
 void nvkm_instmem_ctor(const struct nvkm_instmem_func *, struct nvkm_device *,
-		       int index, struct nvkm_instmem *);
+		       enum nvkm_subdev_type, int, struct nvkm_instmem *);
 void nvkm_instmem_boot(struct nvkm_instmem *);
 
 #include <core/memory.h>

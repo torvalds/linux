@@ -257,7 +257,7 @@ static const struct regmap_config max2175_regmap_config = {
 	.reg_defaults = max2175_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(max2175_reg_defaults),
 	.volatile_table = &max2175_volatile_regs,
-	.cache_type = REGCACHE_FLAT,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 struct max2175 {
@@ -503,7 +503,7 @@ static void max2175_set_bbfilter(struct max2175 *ctx)
 	}
 }
 
-static bool max2175_set_csm_mode(struct max2175 *ctx,
+static int max2175_set_csm_mode(struct max2175 *ctx,
 			  enum max2175_csm_mode new_mode)
 {
 	int ret = max2175_poll_csm_ready(ctx);
@@ -591,8 +591,8 @@ static int max2175_set_lo_freq(struct max2175 *ctx, u32 lo_freq)
 		lo_freq *= lo_mult;
 
 	int_desired = lo_freq / ctx->xtal_freq;
-	frac_desired = div_u64((u64)(lo_freq % ctx->xtal_freq) << 20,
-			       ctx->xtal_freq);
+	frac_desired = div64_ul((u64)(lo_freq % ctx->xtal_freq) << 20,
+				ctx->xtal_freq);
 
 	/* Check CSM is not busy */
 	ret = max2175_poll_csm_ready(ctx);
@@ -1125,7 +1125,6 @@ static int max2175_g_frequency(struct v4l2_subdev *sd,
 			       struct v4l2_frequency *vf)
 {
 	struct max2175 *ctx = max2175_from_sd(sd);
-	int ret = 0;
 
 	if (vf->tuner != 0)
 		return -EINVAL;
@@ -1134,7 +1133,7 @@ static int max2175_g_frequency(struct v4l2_subdev *sd,
 	vf->type = V4L2_TUNER_RF;
 	vf->frequency = ctx->freq;
 
-	return ret;
+	return 0;
 }
 
 static int max2175_enum_freq_bands(struct v4l2_subdev *sd,
@@ -1194,7 +1193,7 @@ static const struct v4l2_ctrl_ops max2175_ctrl_ops = {
 
 /*
  * I2S output enable/disable configuration. This is a private control.
- * Refer to Documentation/media/v4l-drivers/max2175.rst for more details.
+ * Refer to Documentation/userspace-api/media/drivers/max2175.rst for more details.
  */
 static const struct v4l2_ctrl_config max2175_i2s_en = {
 	.ops = &max2175_ctrl_ops,
@@ -1210,7 +1209,7 @@ static const struct v4l2_ctrl_config max2175_i2s_en = {
 
 /*
  * HSLS value control LO freq adjacent location configuration.
- * Refer to Documentation/media/v4l-drivers/max2175.rst for more details.
+ * Refer to Documentation/userspace-api/media/drivers/max2175.rst for more details.
  */
 static const struct v4l2_ctrl_config max2175_hsls = {
 	.ops = &max2175_ctrl_ops,
@@ -1226,7 +1225,7 @@ static const struct v4l2_ctrl_config max2175_hsls = {
 /*
  * Rx modes below are a set of preset configurations that decides the tuner's
  * sck and sample rate of transmission. They are separate for EU & NA regions.
- * Refer to Documentation/media/v4l-drivers/max2175.rst for more details.
+ * Refer to Documentation/userspace-api/media/drivers/max2175.rst for more details.
  */
 static const char * const max2175_ctrl_eu_rx_modes[] = {
 	[MAX2175_EU_FM_1_2]	= "EU FM 1.2",
@@ -1271,8 +1270,7 @@ static int max2175_refout_load_to_bits(struct i2c_client *client, u32 load,
 	return 0;
 }
 
-static int max2175_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int max2175_probe(struct i2c_client *client)
 {
 	bool master = true, am_hiz = false;
 	u32 refout_load, refout_bits = 0;	/* REFOUT disabled */
@@ -1433,7 +1431,7 @@ static struct i2c_driver max2175_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = max2175_of_ids,
 	},
-	.probe		= max2175_probe,
+	.probe_new	= max2175_probe,
 	.remove		= max2175_remove,
 	.id_table	= max2175_id,
 };

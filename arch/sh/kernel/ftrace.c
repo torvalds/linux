@@ -67,7 +67,7 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * Modifying code must take extra care. On an SMP machine, if
  * the code being modified is also being executed on another CPU
  * that CPU will have undefined results and possibly take a GPF.
- * We use kstop_machine to stop other CPUS from exectuing code.
+ * We use kstop_machine to stop other CPUS from executing code.
  * But this does not stop NMIs from happening. We still need
  * to protect against that. We separate out the modification of
  * the code to take care of this.
@@ -119,7 +119,7 @@ static void ftrace_mod_code(void)
 	 * But if one were to fail, then they all should, and if one were
 	 * to succeed, then they all should.
 	 */
-	mod_code_status = probe_kernel_write(mod_code_ip, mod_code_newcode,
+	mod_code_status = copy_to_kernel_nofault(mod_code_ip, mod_code_newcode,
 					     MCOUNT_INSN_SIZE);
 
 	/* if we fail, then kill any new writers */
@@ -203,7 +203,7 @@ static int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 */
 
 	/* read the text we want to modify */
-	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/* Make sure it is what we expect it to be */
@@ -252,11 +252,6 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	return ftrace_modify_code(rec->ip, old, new);
 }
-
-int __init ftrace_dyn_arch_init(void)
-{
-	return 0;
-}
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -268,7 +263,7 @@ static int ftrace_mod(unsigned long ip, unsigned long old_addr,
 {
 	unsigned char code[MCOUNT_INSN_SIZE];
 
-	if (probe_kernel_read(code, (void *)ip, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(code, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	if (old_addr != __raw_readl((unsigned long *)code))

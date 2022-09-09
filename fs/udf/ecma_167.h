@@ -2,9 +2,10 @@
  * ecma_167.h
  *
  * This file is based on ECMA-167 3rd edition (June 1997)
- * http://www.ecma.ch
+ * https://www.ecma.ch
  *
- * Copyright (c) 2001-2002  Ben Fennema <bfennema@falcon.csc.calpoly.edu>
+ * Copyright (c) 2001-2002  Ben Fennema
+ * Copyright (c) 2017-2019  Pali Rohár <pali@kernel.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +33,18 @@
  * SUCH DAMAGE.
  */
 
+/**
+ * @file
+ * ECMA-167r3 defines and structure definitions
+ */
+
 #include <linux/types.h>
 
 #ifndef _ECMA_167_H
 #define _ECMA_167_H 1
+
+/* Character sets and coding - d-characters (ECMA 167r3 1/7.2) */
+typedef uint8_t		dchars;
 
 /* Character set specification (ECMA 167r3 1/7.2.1) */
 struct charspec {
@@ -54,6 +63,7 @@ struct charspec {
 #define CHARSPEC_TYPE_CS7		0x07	/* (1/7.2.9) */
 #define CHARSPEC_TYPE_CS8		0x08	/* (1/7.2.10) */
 
+/* Fixed-length character fields - d-string (EMCA 167r3 1/7.2.12) */
 typedef uint8_t		dstring;
 
 /* Timestamp (ECMA 167r3 1/7.3) */
@@ -85,8 +95,8 @@ struct regid {
 } __packed;
 
 /* Flags (ECMA 167r3 1/7.4.1) */
-#define ENTITYID_FLAGS_DIRTY		0x00
-#define ENTITYID_FLAGS_PROTECTED	0x01
+#define ENTITYID_FLAGS_DIRTY		0x01
+#define ENTITYID_FLAGS_PROTECTED	0x02
 
 /* Volume Structure Descriptor (ECMA 167r3 2/9.1) */
 #define VSD_STD_ID_LEN			5
@@ -186,6 +196,13 @@ struct NSRDesc {
 	uint8_t		structVersion;
 	uint8_t		reserved;
 	uint8_t		structData[2040];
+} __packed;
+
+/* Generic Descriptor */
+struct genericDesc {
+	struct tag	descTag;
+	__le32		volDescSeqNum;
+	uint8_t		reserved[492];
 } __packed;
 
 /* Primary Volume Descriptor (ECMA 167r3 3/10.1) */
@@ -290,19 +307,19 @@ struct logicalVolDesc {
 	struct regid		impIdent;
 	uint8_t			impUse[128];
 	struct extent_ad	integritySeqExt;
-	uint8_t			partitionMaps[0];
+	uint8_t			partitionMaps[];
 } __packed;
 
 /* Generic Partition Map (ECMA 167r3 3/10.7.1) */
 struct genericPartitionMap {
 	uint8_t		partitionMapType;
 	uint8_t		partitionMapLength;
-	uint8_t		partitionMapping[0];
+	uint8_t		partitionMapping[];
 } __packed;
 
 /* Partition Map Type (ECMA 167r3 3/10.7.1.1) */
 #define GP_PARTITION_MAP_TYPE_UNDEF	0x00
-#define GP_PARTIITON_MAP_TYPE_1		0x01
+#define GP_PARTITION_MAP_TYPE_1		0x01
 #define GP_PARTITION_MAP_TYPE_2		0x02
 
 /* Type 1 Partition Map (ECMA 167r3 3/10.7.2) */
@@ -325,7 +342,7 @@ struct unallocSpaceDesc {
 	struct tag		descTag;
 	__le32			volDescSeqNum;
 	__le32			numAllocDescs;
-	struct extent_ad	allocDescs[0];
+	struct extent_ad	allocDescs[];
 } __packed;
 
 /* Terminating Descriptor (ECMA 167r3 3/10.9) */
@@ -343,9 +360,9 @@ struct logicalVolIntegrityDesc {
 	uint8_t			logicalVolContentsUse[32];
 	__le32			numOfPartitions;
 	__le32			lengthOfImpUse;
-	__le32			freeSpaceTable[0];
-	__le32			sizeTable[0];
-	uint8_t			impUse[0];
+	__le32			freeSpaceTable[];
+	/* __le32		sizeTable[]; */
+	/* uint8_t		impUse[]; */
 } __packed;
 
 /* Integrity Type (ECMA 167r3 3/10.10.3) */
@@ -454,9 +471,9 @@ struct fileIdentDesc {
 	uint8_t		lengthFileIdent;
 	struct long_ad	icb;
 	__le16		lengthOfImpUse;
-	uint8_t		impUse[0];
-	uint8_t		fileIdent[0];
-	uint8_t		padding[0];
+	uint8_t		impUse[];
+	/* uint8_t	fileIdent[]; */
+	/* uint8_t	padding[]; */
 } __packed;
 
 /* File Characteristics (ECMA 167r3 4/14.4.3) */
@@ -561,8 +578,8 @@ struct fileEntry {
 	__le64			uniqueID;
 	__le32			lengthExtendedAttr;
 	__le32			lengthAllocDescs;
-	uint8_t			extendedAttr[0];
-	uint8_t			allocDescs[0];
+	uint8_t			extendedAttr[];
+	/* uint8_t		allocDescs[]; */
 } __packed;
 
 /* Permissions (ECMA 167r3 4/14.9.5) */
@@ -615,7 +632,7 @@ struct genericFormat {
 	uint8_t		attrSubtype;
 	uint8_t		reserved[3];
 	__le32		attrLength;
-	uint8_t		attrData[0];
+	uint8_t		attrData[];
 } __packed;
 
 /* Character Set Information (ECMA 167r3 4/14.10.3) */
@@ -626,7 +643,7 @@ struct charSetInfo {
 	__le32		attrLength;
 	__le32		escapeSeqLength;
 	uint8_t		charSetType;
-	uint8_t		escapeSeq[0];
+	uint8_t		escapeSeq[];
 } __packed;
 
 /* Alternate Permissions (ECMA 167r3 4/14.10.4) */
@@ -665,7 +682,7 @@ struct infoTimesExtAttr {
 	__le32		attrLength;
 	__le32		dataLength;
 	__le32		infoTimeExistence;
-	uint8_t		infoTimes[0];
+	uint8_t		infoTimes[];
 } __packed;
 
 /* Device Specification (ECMA 167r3 4/14.10.7) */
@@ -677,7 +694,7 @@ struct deviceSpec {
 	__le32		impUseLength;
 	__le32		majorDeviceIdent;
 	__le32		minorDeviceIdent;
-	uint8_t		impUse[0];
+	uint8_t		impUse[];
 } __packed;
 
 /* Implementation Use Extended Attr (ECMA 167r3 4/14.10.8) */
@@ -688,7 +705,7 @@ struct impUseExtAttr {
 	__le32		attrLength;
 	__le32		impUseLength;
 	struct regid	impIdent;
-	uint8_t		impUse[0];
+	uint8_t		impUse[];
 } __packed;
 
 /* Application Use Extended Attribute (ECMA 167r3 4/14.10.9) */
@@ -699,7 +716,7 @@ struct appUseExtAttr {
 	__le32		attrLength;
 	__le32		appUseLength;
 	struct regid	appIdent;
-	uint8_t		appUse[0];
+	uint8_t		appUse[];
 } __packed;
 
 #define EXTATTR_CHAR_SET		1
@@ -709,13 +726,14 @@ struct appUseExtAttr {
 #define EXTATTR_DEV_SPEC		12
 #define EXTATTR_IMP_USE			2048
 #define EXTATTR_APP_USE			65536
+#define EXTATTR_SUBTYPE			1
 
 /* Unallocated Space Entry (ECMA 167r3 4/14.11) */
 struct unallocSpaceEntry {
 	struct tag	descTag;
 	struct icbtag	icbTag;
 	__le32		lengthAllocDescs;
-	uint8_t		allocDescs[0];
+	uint8_t		allocDescs[];
 } __packed;
 
 /* Space Bitmap Descriptor (ECMA 167r3 4/14.12) */
@@ -723,7 +741,7 @@ struct spaceBitmapDesc {
 	struct tag	descTag;
 	__le32		numOfBits;
 	__le32		numOfBytes;
-	uint8_t		bitmap[0];
+	uint8_t		bitmap[];
 } __packed;
 
 /* Partition Integrity Entry (ECMA 167r3 4/14.13) */
@@ -740,10 +758,12 @@ struct partitionIntegrityEntry {
 /* Short Allocation Descriptor (ECMA 167r3 4/14.14.1) */
 
 /* Extent Length (ECMA 167r3 4/14.14.1.1) */
+#define EXT_LENGTH_MASK			0x3FFFFFFF
+#define EXT_TYPE_MASK			0xC0000000
 #define EXT_RECORDED_ALLOCATED		0x00000000
 #define EXT_NOT_RECORDED_ALLOCATED	0x40000000
 #define EXT_NOT_RECORDED_NOT_ALLOCATED	0x80000000
-#define EXT_NEXT_EXTENT_ALLOCDECS	0xC0000000
+#define EXT_NEXT_EXTENT_ALLOCDESCS	0xC0000000
 
 /* Long Allocation Descriptor (ECMA 167r3 4/14.14.2) */
 
@@ -760,7 +780,7 @@ struct pathComponent {
 	uint8_t		componentType;
 	uint8_t		lengthComponentIdent;
 	__le16		componentFileVersionNum;
-	dstring		componentIdent[0];
+	dchars		componentIdent[];
 } __packed;
 
 /* File Entry (ECMA 167r3 4/14.17) */
@@ -789,8 +809,8 @@ struct extendedFileEntry {
 	__le64			uniqueID;
 	__le32			lengthExtendedAttr;
 	__le32			lengthAllocDescs;
-	uint8_t			extendedAttr[0];
-	uint8_t			allocDescs[0];
+	uint8_t			extendedAttr[];
+	/* uint8_t		allocDescs[]; */
 } __packed;
 
 #endif /* _ECMA_167_H */

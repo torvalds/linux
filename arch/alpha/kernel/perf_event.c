@@ -574,7 +574,7 @@ static void alpha_pmu_start(struct perf_event *event, int flags)
  * Check that CPU performance counters are supported.
  * - currently support EV67 and later CPUs.
  * - actually some later revisions of the EV6 have the same PMC model as the
- *     EV67 but we don't do suffiently deep CPU detection to detect them.
+ *     EV67 but we don't do sufficiently deep CPU detection to detect them.
  *     Bad luck to the very few people who might have one, I guess.
  */
 static int supported_cpu(void)
@@ -628,12 +628,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	if (ev < 0) {
 		return ev;
-	}
-
-	/* The EV67 does not support mode exclusion */
-	if (attr->exclude_kernel || attr->exclude_user
-			|| attr->exclude_hv || attr->exclude_idle) {
-		return -EPERM;
 	}
 
 	/*
@@ -771,6 +765,7 @@ static struct pmu pmu = {
 	.start		= alpha_pmu_start,
 	.stop		= alpha_pmu_stop,
 	.read		= alpha_pmu_read,
+	.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 };
 
 
@@ -829,7 +824,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 	if (unlikely(la_ptr >= alpha_pmu->num_pmcs)) {
 		/* This should never occur! */
 		irq_err_count++;
-		pr_warning("PMI: silly index %ld\n", la_ptr);
+		pr_warn("PMI: silly index %ld\n", la_ptr);
 		wrperfmon(PERFMON_CMD_ENABLE, cpuc->idx_mask);
 		return;
 	}
@@ -852,7 +847,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 	if (unlikely(!event)) {
 		/* This should never occur! */
 		irq_err_count++;
-		pr_warning("PMI: No event at index %d!\n", idx);
+		pr_warn("PMI: No event at index %d!\n", idx);
 		wrperfmon(PERFMON_CMD_ENABLE, cpuc->idx_mask);
 		return;
 	}

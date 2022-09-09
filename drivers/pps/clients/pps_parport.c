@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pps_parport.c -- kernel parallel port PPS client
  *
- *
  * Copyright (C) 2009   Alexander Gordeev <lasaine@lvk.cs.msu.su>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -35,8 +21,6 @@
 #include <linux/slab.h>
 #include <linux/parport.h>
 #include <linux/pps_kernel.h>
-
-#define DRVDESC "parallel port PPS client"
 
 /* module parameters */
 
@@ -152,6 +136,12 @@ static void parport_attach(struct parport *port)
 		.dev		= NULL
 	};
 
+	if (clear_wait > CLEAR_WAIT_MAX) {
+		pr_err("clear_wait value should be not greater then %d\n",
+		       CLEAR_WAIT_MAX);
+		return;
+	}
+
 	device = kzalloc(sizeof(struct pps_client_pp), GFP_KERNEL);
 	if (!device) {
 		pr_err("memory allocation failed, not attaching\n");
@@ -228,38 +218,8 @@ static struct parport_driver pps_parport_driver = {
 	.detach = parport_detach,
 	.devmodel = true,
 };
-
-/* module staff */
-
-static int __init pps_parport_init(void)
-{
-	int ret;
-
-	pr_info(DRVDESC "\n");
-
-	if (clear_wait > CLEAR_WAIT_MAX) {
-		pr_err("clear_wait value should be not greater"
-				" then %d\n", CLEAR_WAIT_MAX);
-		return -EINVAL;
-	}
-
-	ret = parport_register_driver(&pps_parport_driver);
-	if (ret) {
-		pr_err("unable to register with parport\n");
-		return ret;
-	}
-
-	return  0;
-}
-
-static void __exit pps_parport_exit(void)
-{
-	parport_unregister_driver(&pps_parport_driver);
-}
-
-module_init(pps_parport_init);
-module_exit(pps_parport_exit);
+module_parport_driver(pps_parport_driver);
 
 MODULE_AUTHOR("Alexander Gordeev <lasaine@lvk.cs.msu.su>");
-MODULE_DESCRIPTION(DRVDESC);
+MODULE_DESCRIPTION("parallel port PPS client");
 MODULE_LICENSE("GPL");

@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/opcodes.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_ARM_OPCODES_H
@@ -113,12 +110,17 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
 #define __opcode_to_mem_thumb16(x) ___opcode_identity16(x)
 #define ___asm_opcode_to_mem_arm(x) ___asm_opcode_identity32(x)
 #define ___asm_opcode_to_mem_thumb16(x) ___asm_opcode_identity16(x)
-#ifndef CONFIG_CPU_ENDIAN_BE32
+#ifdef CONFIG_CPU_ENDIAN_BE32
+#ifndef __ASSEMBLY__
 /*
  * On BE32 systems, using 32-bit accesses to store Thumb instructions will not
  * work in all cases, due to alignment constraints.  For now, a correct
- * version is not provided for BE32.
+ * version is not provided for BE32, but the prototype needs to be there
+ * to compile patch.c.
  */
+extern __u32 __opcode_to_mem_thumb32(__u32);
+#endif
+#else
 #define __opcode_to_mem_thumb32(x) ___opcode_swahw32(x)
 #define ___asm_opcode_to_mem_thumb32(x) ___asm_opcode_swahw32(x)
 #endif

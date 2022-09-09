@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADIS16080/100 Yaw Rate Gyroscope with SPI driver
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -39,12 +38,14 @@ struct adis16080_chip_info {
  * @us:			actual spi_device to write data
  * @info:		chip specific parameters
  * @buf:		transmit or receive buffer
+ * @lock:		lock to protect buffer during reads
  **/
 struct adis16080_state {
 	struct spi_device		*us;
 	const struct adis16080_chip_info *info;
+	struct mutex			lock;
 
-	__be16 buf ____cacheline_aligned;
+	__be16 buf __aligned(IIO_DMA_MINALIGN);
 };
 
 static int adis16080_read_sample(struct iio_dev *indio_dev,
@@ -83,9 +84,9 @@ static int adis16080_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 		ret = adis16080_read_sample(indio_dev, chan->address, val);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 		return ret ? ret : IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
@@ -194,8 +195,8 @@ static int adis16080_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
-	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, indio_dev);
+
+	mutex_init(&st->lock);
 
 	/* Allocate the comms buffers */
 	st->us = spi;
@@ -204,17 +205,10 @@ static int adis16080_probe(struct spi_device *spi)
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->channels = adis16080_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16080_channels);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16080_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	return iio_device_register(indio_dev);
-}
-
-static int adis16080_remove(struct spi_device *spi)
-{
-	iio_device_unregister(spi_get_drvdata(spi));
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id adis16080_ids[] = {
@@ -229,7 +223,6 @@ static struct spi_driver adis16080_driver = {
 		.name = "adis16080",
 	},
 	.probe = adis16080_probe,
-	.remove = adis16080_remove,
 	.id_table = adis16080_ids,
 };
 module_spi_driver(adis16080_driver);

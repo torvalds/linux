@@ -26,7 +26,7 @@
 
 struct lsm_network_audit {
 	int netif;
-	struct sock *sk;
+	const struct sock *sk;
 	u16 family;
 	__be16 dport;
 	__be16 sport;
@@ -48,13 +48,13 @@ struct lsm_ioctlop_audit {
 };
 
 struct lsm_ibpkey_audit {
-	u64	subnet_prefix;
-	u16	pkey;
+	u64 subnet_prefix;
+	u16 pkey;
 };
 
 struct lsm_ibendport_audit {
-	char	dev_name[IB_DEVICE_NAME_MAX];
-	u8	port;
+	const char *dev_name;
+	u8 port;
 };
 
 /* Auxiliary data to use in generating the audit record. */
@@ -74,6 +74,9 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_FILE	12
 #define LSM_AUDIT_DATA_IBPKEY	13
 #define LSM_AUDIT_DATA_IBENDPORT 14
+#define LSM_AUDIT_DATA_LOCKDOWN 15
+#define LSM_AUDIT_DATA_NOTIFICATION 16
+#define LSM_AUDIT_DATA_ANONINODE	17
 	union 	{
 		struct path path;
 		struct dentry *dentry;
@@ -93,6 +96,8 @@ struct common_audit_data {
 		struct file *file;
 		struct lsm_ibpkey_audit *ibpkey;
 		struct lsm_ibendport_audit *ibendport;
+		int reason;
+		const char *anonclass;
 	} u;
 	/* this union contains LSM specific data */
 	union {

@@ -31,6 +31,7 @@
 #include <bpf/bpf.h>
 
 #include "bpf_insn.h"
+#include "bpf_util.h"
 
 enum {
 	MAP_KEY_PACKETS,
@@ -53,7 +54,7 @@ static int prog_load(int map_fd, int verdict)
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
 		BPF_MOV64_IMM(BPF_REG_1, 1), /* r1 = 1 */
-		BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_DW, BPF_REG_0, BPF_REG_1, 0, 0), /* xadd r0 += r1 */
+		BPF_ATOMIC_OP(BPF_DW, BPF_ADD, BPF_REG_0, BPF_REG_1, 0),
 
 		/* Count bytes */
 		BPF_MOV64_IMM(BPF_REG_0, MAP_KEY_BYTES), /* r0 = 1 */
@@ -64,16 +65,20 @@ static int prog_load(int map_fd, int verdict)
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
 		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_6, offsetof(struct __sk_buff, len)), /* r1 = skb->len */
-		BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_DW, BPF_REG_0, BPF_REG_1, 0, 0), /* xadd r0 += r1 */
+
+		BPF_ATOMIC_OP(BPF_DW, BPF_ADD, BPF_REG_0, BPF_REG_1, 0),
 
 		BPF_MOV64_IMM(BPF_REG_0, verdict), /* r0 = verdict */
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
+	size_t insns_cnt = ARRAY_SIZE(prog);
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.log_buf = bpf_log_buf,
+		.log_size = BPF_LOG_BUF_SIZE,
+	);
 
-	return bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
-				prog, insns_cnt, "GPL", 0,
-				bpf_log_buf, BPF_LOG_BUF_SIZE);
+	return bpf_prog_load(BPF_PROG_TYPE_CGROUP_SKB, NULL, "GPL",
+			     prog, insns_cnt, &opts);
 }
 
 static int usage(const char *argv0)
@@ -89,9 +94,9 @@ static int attach_filter(int cg_fd, int type, int verdict)
 	int prog_fd, map_fd, ret, key;
 	long long pkt_cnt, byte_cnt;
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY,
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL,
 				sizeof(key), sizeof(byte_cnt),
-				256, 0);
+				256, NULL);
 	if (map_fd < 0) {
 		printf("Failed to create map: '%s'\n", strerror(errno));
 		return EXIT_FAILURE;

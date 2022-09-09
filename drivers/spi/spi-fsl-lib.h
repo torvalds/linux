@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Freescale SPI/eSPI controller driver library.
  *
@@ -9,11 +10,6 @@
  * CPM SPI and QE buffer descriptors mode support:
  * Copyright (c) 2009  MontaVista Software, Inc.
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #ifndef __SPI_FSL_LIB_H__
 #define __SPI_FSL_LIB_H__
@@ -95,8 +91,7 @@ static inline u32 mpc8xxx_spi_read_reg(__be32 __iomem *reg)
 
 struct mpc8xxx_spi_probe_info {
 	struct fsl_spi_platform_data pdata;
-	int *gpios;
-	bool *alow_flags;
+	__be32 __iomem *immr_spi_cs;
 };
 
 extern u32 mpc8xxx_spi_tx_buf_u8(struct mpc8xxx_spi *mpc8xxx_spi);

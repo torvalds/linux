@@ -37,15 +37,16 @@
 #include "i915_drv.h"
 #include "gvt.h"
 #include "i915_pvinfo.h"
+#include "i915_reg.h"
 
 #define PRIMARY_FORMAT_NUM	16
 struct pixel_format {
-	int	drm_format;	/* Pixel format in DRM definition */
-	int	bpp;		/* Bits per pixel, 0 indicates invalid */
-	char	*desc;		/* The description */
+	int drm_format;	/* Pixel format in DRM definition */
+	int bpp; /* Bits per pixel, 0 indicates invalid */
+	const char *desc; /* The description */
 };
 
-static struct pixel_format bdw_pixel_formats[] = {
+static const struct pixel_format bdw_pixel_formats[] = {
 	{DRM_FORMAT_C8, 8, "8-bit Indexed"},
 	{DRM_FORMAT_RGB565, 16, "16-bit BGRX (5:6:5 MSB-R:G:B)"},
 	{DRM_FORMAT_XRGB8888, 32, "32-bit BGRX (8:8:8:8 MSB-X:R:G:B)"},
@@ -58,7 +59,7 @@ static struct pixel_format bdw_pixel_formats[] = {
 	{0, 0, NULL},
 };
 
-static struct pixel_format skl_pixel_formats[] = {
+static const struct pixel_format skl_pixel_formats[] = {
 	{DRM_FORMAT_YUYV, 16, "16-bit packed YUYV (8:8:8:8 MSB-V:Y2:U:Y1)"},
 	{DRM_FORMAT_UYVY, 16, "16-bit packed UYVY (8:8:8:8 MSB-Y2:V:Y1:U)"},
 	{DRM_FORMAT_YVYU, 16, "16-bit packed YVYU (8:8:8:8 MSB-U:Y2:V:Y1)"},
@@ -83,22 +84,22 @@ static int bdw_format_to_drm(int format)
 	int bdw_pixel_formats_index = 6;
 
 	switch (format) {
-	case DISPPLANE_8BPP:
+	case DISP_FORMAT_8BPP:
 		bdw_pixel_formats_index = 0;
 		break;
-	case DISPPLANE_BGRX565:
+	case DISP_FORMAT_BGRX565:
 		bdw_pixel_formats_index = 1;
 		break;
-	case DISPPLANE_BGRX888:
+	case DISP_FORMAT_BGRX888:
 		bdw_pixel_formats_index = 2;
 		break;
-	case DISPPLANE_RGBX101010:
+	case DISP_FORMAT_RGBX101010:
 		bdw_pixel_formats_index = 3;
 		break;
-	case DISPPLANE_BGRX101010:
+	case DISP_FORMAT_BGRX101010:
 		bdw_pixel_formats_index = 4;
 		break;
-	case DISPPLANE_RGBX888:
+	case DISP_FORMAT_RGBX888:
 		bdw_pixel_formats_index = 5;
 		break;
 
@@ -146,14 +147,12 @@ static int skl_format_to_drm(int format, bool rgb_order, bool alpha,
 static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 tiled, int stride_mask, int bpp)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 
 	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (GRAPHICS_VER(dev_priv) >= 9) {
 		switch (tiled) {
 		case PLANE_CTL_TILED_LINEAR:
 			stride = stride_reg * 64;
@@ -204,8 +203,8 @@ static int get_active_pipe(struct intel_vgpu *vgpu)
 int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_primary_plane_format *plane)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	u32 val, fmt;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
 	pipe = get_active_pipe(vgpu);
@@ -213,16 +212,14 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		return -ENODEV;
 
 	val = vgpu_vreg_t(vgpu, DSPCNTR(pipe));
-	plane->enabled = !!(val & DISPLAY_PLANE_ENABLE);
+	plane->enabled = !!(val & DISP_ENABLE);
 	if (!plane->enabled)
 		return -ENODEV;
 
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (GRAPHICS_VER(dev_priv) >= 9) {
 		plane->tiled = val & PLANE_CTL_TILED_MASK;
 		fmt = skl_format_to_drm(
-			val & PLANE_CTL_FORMAT_MASK,
+			val & PLANE_CTL_FORMAT_MASK_SKL,
 			val & PLANE_CTL_ORDER_RGBX,
 			val & PLANE_CTL_ALPHA_MASK,
 			val & PLANE_CTL_YUV422_ORDER_MASK);
@@ -235,8 +232,8 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		plane->bpp = skl_pixel_formats[fmt].bpp;
 		plane->drm_format = skl_pixel_formats[fmt].drm_format;
 	} else {
-		plane->tiled = val & DISPPLANE_TILED;
-		fmt = bdw_format_to_drm(val & DISPPLANE_PIXFORMAT_MASK);
+		plane->tiled = val & DISP_TILED;
+		fmt = bdw_format_to_drm(val & DISP_FORMAT_MASK);
 		plane->bpp = bdw_pixel_formats[fmt].bpp;
 		plane->drm_format = bdw_pixel_formats[fmt].drm_format;
 	}
@@ -249,7 +246,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	plane->hw_format = fmt;
 
 	plane->base = vgpu_vreg_t(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
@@ -260,11 +257,9 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	}
 
 	plane->stride = intel_vgpu_get_stride(vgpu, pipe, plane->tiled,
-		(IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) ?
-			(_PRI_PLANE_STRIDE_MASK >> 6) :
-				_PRI_PLANE_STRIDE_MASK, plane->bpp);
+		(GRAPHICS_VER(dev_priv) >= 9) ?
+		(_PRI_PLANE_STRIDE_MASK >> 6) :
+		_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
 	plane->width = (vgpu_vreg_t(vgpu, PIPESRC(pipe)) & _PIPE_H_SRCSZ_MASK) >>
 		_PIPE_H_SRCSZ_SHIFT;
@@ -284,14 +279,14 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 
 #define CURSOR_FORMAT_NUM	(1 << 6)
 struct cursor_mode_format {
-	int	drm_format;	/* Pixel format in DRM definition */
-	u8	bpp;		/* Bits per pixel; 0 indicates invalid */
-	u32	width;		/* In pixel */
-	u32	height;		/* In lines */
-	char	*desc;		/* The description */
+	int drm_format;	/* Pixel format in DRM definition */
+	u8 bpp; /* Bits per pixel; 0 indicates invalid */
+	u32 width; /* In pixel */
+	u32 height; /* In lines */
+	const char *desc; /* The description */
 };
 
-static struct cursor_mode_format cursor_pixel_formats[] = {
+static const struct cursor_mode_format cursor_pixel_formats[] = {
 	{DRM_FORMAT_ARGB8888, 32, 128, 128, "128x128 32bpp ARGB"},
 	{DRM_FORMAT_ARGB8888, 32, 256, 256, "256x256 32bpp ARGB"},
 	{DRM_FORMAT_ARGB8888, 32, 64, 64, "64x64 32bpp ARGB"},
@@ -338,9 +333,9 @@ static int cursor_mode_to_drm(int mode)
 int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_cursor_plane_format *plane)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	u32 val, mode, index;
 	u32 alpha_plane, alpha_force;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
 	pipe = get_active_pipe(vgpu);
@@ -348,7 +343,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		return -ENODEV;
 
 	val = vgpu_vreg_t(vgpu, CURCNTR(pipe));
-	mode = val & MCURSOR_MODE;
+	mode = val & MCURSOR_MODE_MASK;
 	plane->enabled = (mode != MCURSOR_MODE_DISABLE);
 	if (!plane->enabled)
 		return -ENODEV;
@@ -374,7 +369,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 			alpha_plane, alpha_force);
 
 	plane->base = vgpu_vreg_t(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
@@ -397,7 +392,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 
 #define SPRITE_FORMAT_NUM	(1 << 3)
 
-static struct pixel_format sprite_pixel_formats[SPRITE_FORMAT_NUM] = {
+static const struct pixel_format sprite_pixel_formats[SPRITE_FORMAT_NUM] = {
 	[0x0] = {DRM_FORMAT_YUV422, 16, "YUV 16-bit 4:2:2 packed"},
 	[0x1] = {DRM_FORMAT_XRGB2101010, 32, "RGB 32-bit 2:10:10:10"},
 	[0x2] = {DRM_FORMAT_XRGB8888, 32, "RGB 32-bit 8:8:8:8"},
@@ -433,10 +428,10 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 
 	plane->tiled = !!(val & SPRITE_TILED);
 	color_order = !!(val & SPRITE_RGB_ORDER_RGBX);
-	yuv_order = (val & SPRITE_YUV_BYTE_ORDER_MASK) >>
+	yuv_order = (val & SPRITE_YUV_ORDER_MASK) >>
 				_SPRITE_YUV_ORDER_SHIFT;
 
-	fmt = (val & SPRITE_PIXFORMAT_MASK) >> _SPRITE_FMT_SHIFT;
+	fmt = (val & SPRITE_FORMAT_MASK) >> _SPRITE_FMT_SHIFT;
 	if (!sprite_pixel_formats[fmt].bpp) {
 		gvt_vgpu_err("Non-supported pixel format (0x%x)\n", fmt);
 		return -EINVAL;
@@ -478,7 +473,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	plane->drm_format = drm_format;
 
 	plane->base = vgpu_vreg_t(vgpu, SPRSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);

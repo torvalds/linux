@@ -58,7 +58,8 @@ enum {
 enum {
 	rpcrdma_fixed_maxsz	= 4,
 	rpcrdma_segment_maxsz	= 4,
-	rpcrdma_readchunk_maxsz	= 2 + rpcrdma_segment_maxsz,
+	rpcrdma_readseg_maxsz	= 1 + rpcrdma_segment_maxsz,
+	rpcrdma_readchunk_maxsz	= 1 + rpcrdma_readseg_maxsz,
 };
 
 /*
@@ -121,6 +122,80 @@ static inline unsigned int
 rpcrdma_decode_buffer_size(u8 val)
 {
 	return ((unsigned int)val + 1) << 10;
+}
+
+/**
+ * xdr_encode_rdma_segment - Encode contents of an RDMA segment
+ * @p: Pointer into a send buffer
+ * @handle: The RDMA handle to encode
+ * @length: The RDMA length to encode
+ * @offset: The RDMA offset to encode
+ *
+ * Return value:
+ *   Pointer to the XDR position that follows the encoded RDMA segment
+ */
+static inline __be32 *xdr_encode_rdma_segment(__be32 *p, u32 handle,
+					      u32 length, u64 offset)
+{
+	*p++ = cpu_to_be32(handle);
+	*p++ = cpu_to_be32(length);
+	return xdr_encode_hyper(p, offset);
+}
+
+/**
+ * xdr_encode_read_segment - Encode contents of a Read segment
+ * @p: Pointer into a send buffer
+ * @position: The position to encode
+ * @handle: The RDMA handle to encode
+ * @length: The RDMA length to encode
+ * @offset: The RDMA offset to encode
+ *
+ * Return value:
+ *   Pointer to the XDR position that follows the encoded Read segment
+ */
+static inline __be32 *xdr_encode_read_segment(__be32 *p, u32 position,
+					      u32 handle, u32 length,
+					      u64 offset)
+{
+	*p++ = cpu_to_be32(position);
+	return xdr_encode_rdma_segment(p, handle, length, offset);
+}
+
+/**
+ * xdr_decode_rdma_segment - Decode contents of an RDMA segment
+ * @p: Pointer to the undecoded RDMA segment
+ * @handle: Upon return, the RDMA handle
+ * @length: Upon return, the RDMA length
+ * @offset: Upon return, the RDMA offset
+ *
+ * Return value:
+ *   Pointer to the XDR item that follows the RDMA segment
+ */
+static inline __be32 *xdr_decode_rdma_segment(__be32 *p, u32 *handle,
+					      u32 *length, u64 *offset)
+{
+	*handle = be32_to_cpup(p++);
+	*length = be32_to_cpup(p++);
+	return xdr_decode_hyper(p, offset);
+}
+
+/**
+ * xdr_decode_read_segment - Decode contents of a Read segment
+ * @p: Pointer to the undecoded Read segment
+ * @position: Upon return, the segment's position
+ * @handle: Upon return, the RDMA handle
+ * @length: Upon return, the RDMA length
+ * @offset: Upon return, the RDMA offset
+ *
+ * Return value:
+ *   Pointer to the XDR item that follows the Read segment
+ */
+static inline __be32 *xdr_decode_read_segment(__be32 *p, u32 *position,
+					      u32 *handle, u32 *length,
+					      u64 *offset)
+{
+	*position = be32_to_cpup(p++);
+	return xdr_decode_rdma_segment(p, handle, length, offset);
 }
 
 #endif				/* _LINUX_SUNRPC_RPC_RDMA_H */

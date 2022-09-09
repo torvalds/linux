@@ -11,6 +11,8 @@
 #ifndef __ASM_SNI_H
 #define __ASM_SNI_H
 
+#include <linux/irqreturn.h>
+
 extern unsigned int sni_brd_type;
 
 #define SNI_BRD_10		   2
@@ -239,6 +241,6 @@ static inline int sni_eisa_root_init(void)
 
 /* common irq stuff */
 extern void (*sni_hwint)(void);
-extern struct irqaction sni_isa_irq;
+extern irqreturn_t sni_isa_irq_handler(int dummy, void *p);
 
 #endif /* __ASM_SNI_H */

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cs43130.c  --  CS43130 ALSA Soc Audio driver
  *
  * Copyright 2017 Cirrus Logic, Inc.
  *
  * Authors: Li Xu <li.xu@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -39,6 +36,7 @@
 #include <sound/jack.h>
 
 #include "cs43130.h"
+#include "cirrus_legacy.h"
 
 static const struct reg_default cs43130_reg_defaults[] = {
 	{CS43130_SYS_CLK_CTL_1, 0x06},
@@ -714,30 +712,30 @@ static int cs43130_set_sp_fmt(int dai_id, unsigned int bitwidth_sclk,
 	case CS43130_ASP_PCM_DAI:
 	case CS43130_ASP_DOP_DAI:
 		regmap_write(cs43130->regmap, CS43130_ASP_DEN_1,
-			     (clk_gen->den & CS43130_SP_M_LSB_DATA_MASK) >>
+			     (clk_gen->v.denominator & CS43130_SP_M_LSB_DATA_MASK) >>
 			     CS43130_SP_M_LSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_ASP_DEN_2,
-			     (clk_gen->den & CS43130_SP_M_MSB_DATA_MASK) >>
+			     (clk_gen->v.denominator & CS43130_SP_M_MSB_DATA_MASK) >>
 			     CS43130_SP_M_MSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_ASP_NUM_1,
-			     (clk_gen->num & CS43130_SP_N_LSB_DATA_MASK) >>
+			     (clk_gen->v.numerator & CS43130_SP_N_LSB_DATA_MASK) >>
 			     CS43130_SP_N_LSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_ASP_NUM_2,
-			     (clk_gen->num & CS43130_SP_N_MSB_DATA_MASK) >>
+			     (clk_gen->v.numerator & CS43130_SP_N_MSB_DATA_MASK) >>
 			     CS43130_SP_N_MSB_DATA_SHIFT);
 		break;
 	case CS43130_XSP_DOP_DAI:
 		regmap_write(cs43130->regmap, CS43130_XSP_DEN_1,
-			     (clk_gen->den & CS43130_SP_M_LSB_DATA_MASK) >>
+			     (clk_gen->v.denominator & CS43130_SP_M_LSB_DATA_MASK) >>
 			     CS43130_SP_M_LSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_XSP_DEN_2,
-			     (clk_gen->den & CS43130_SP_M_MSB_DATA_MASK) >>
+			     (clk_gen->v.denominator & CS43130_SP_M_MSB_DATA_MASK) >>
 			     CS43130_SP_M_MSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_XSP_NUM_1,
-			     (clk_gen->num & CS43130_SP_N_LSB_DATA_MASK) >>
+			     (clk_gen->v.numerator & CS43130_SP_N_LSB_DATA_MASK) >>
 			     CS43130_SP_N_LSB_DATA_SHIFT);
 		regmap_write(cs43130->regmap, CS43130_XSP_NUM_2,
-			     (clk_gen->num & CS43130_SP_N_MSB_DATA_MASK) >>
+			     (clk_gen->v.numerator & CS43130_SP_N_MSB_DATA_MASK) >>
 			     CS43130_SP_N_MSB_DATA_SHIFT);
 		break;
 	default:
@@ -1584,7 +1582,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.formats = CS43130_PCM_FORMATS,
 		},
 		.ops = &cs43130_pcm_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "cs43130-asp-dop",
@@ -1597,7 +1595,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.formats = CS43130_DOP_FORMATS,
 		},
 		.ops = &cs43130_dop_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "cs43130-xsp-dop",
@@ -1610,7 +1608,7 @@ static struct snd_soc_dai_driver cs43130_dai[] = {
 			.formats = CS43130_DOP_FORMATS,
 		},
 		.ops = &cs43130_dop_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 	{
 		.name = "cs43130-xsp-dsd",
@@ -1674,14 +1672,14 @@ static int cs43130_show_dc(struct device *dev, char *buf, u8 ch)
 				 cs43130->hpload_dc[ch]);
 }
 
-static ssize_t cs43130_show_dc_l(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_dc_l_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_dc(dev, buf, HP_LEFT);
 }
 
-static ssize_t cs43130_show_dc_r(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_dc_r_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_dc(dev, buf, HP_RIGHT);
 }
@@ -1721,22 +1719,30 @@ static int cs43130_show_ac(struct device *dev, char *buf, u8 ch)
 	}
 }
 
-static ssize_t cs43130_show_ac_l(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_ac_l_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_ac(dev, buf, HP_LEFT);
 }
 
-static ssize_t cs43130_show_ac_r(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t hpload_ac_r_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return cs43130_show_ac(dev, buf, HP_RIGHT);
 }
 
-static DEVICE_ATTR(hpload_dc_l, 0444, cs43130_show_dc_l, NULL);
-static DEVICE_ATTR(hpload_dc_r, 0444, cs43130_show_dc_r, NULL);
-static DEVICE_ATTR(hpload_ac_l, 0444, cs43130_show_ac_l, NULL);
-static DEVICE_ATTR(hpload_ac_r, 0444, cs43130_show_ac_r, NULL);
+static DEVICE_ATTR_RO(hpload_dc_l);
+static DEVICE_ATTR_RO(hpload_dc_r);
+static DEVICE_ATTR_RO(hpload_ac_l);
+static DEVICE_ATTR_RO(hpload_ac_r);
+
+static struct attribute *hpload_attrs[] = {
+	&dev_attr_hpload_dc_l.attr,
+	&dev_attr_hpload_dc_r.attr,
+	&dev_attr_hpload_ac_l.attr,
+	&dev_attr_hpload_ac_r.attr,
+};
+ATTRIBUTE_GROUPS(hpload);
 
 static struct reg_sequence hp_en_cal_seq[] = {
 	{CS43130_INT_MASK_4, CS43130_INT_MASK_ALL},
@@ -2297,7 +2303,7 @@ static int cs43130_probe(struct snd_soc_component *component)
 	}
 
 	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
-				    &cs43130->jack, NULL, 0);
+				    &cs43130->jack);
 	if (ret < 0) {
 		dev_err(component->dev, "Cannot create jack\n");
 		return ret;
@@ -2305,23 +2311,15 @@ static int cs43130_probe(struct snd_soc_component *component)
 
 	cs43130->hpload_done = false;
 	if (cs43130->dc_meas) {
-		ret = device_create_file(component->dev, &dev_attr_hpload_dc_l);
-		if (ret < 0)
-			return ret;
-
-		ret = device_create_file(component->dev, &dev_attr_hpload_dc_r);
-		if (ret < 0)
-			return ret;
-
-		ret = device_create_file(component->dev, &dev_attr_hpload_ac_l);
-		if (ret < 0)
-			return ret;
-
-		ret = device_create_file(component->dev, &dev_attr_hpload_ac_r);
-		if (ret < 0)
+		ret = sysfs_create_groups(&component->dev->kobj, hpload_groups);
+		if (ret)
 			return ret;
 
 		cs43130->wq = create_singlethread_workqueue("cs43130_hp");
+		if (!cs43130->wq) {
+			sysfs_remove_groups(&component->dev->kobj, hpload_groups);
+			return -ENOMEM;
+		}
 		INIT_WORK(&cs43130->work, cs43130_imp_meas);
 	}
 
@@ -2347,7 +2345,6 @@ static struct snd_soc_component_driver soc_component_dev_cs43130 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs43130_regmap = {
@@ -2420,14 +2417,12 @@ static int cs43130_handle_device_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
-static int cs43130_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cs43130_i2c_probe(struct i2c_client *client)
 {
 	struct cs43130_private *cs43130;
 	int ret;
-	unsigned int devid = 0;
 	unsigned int reg;
-	int i;
+	int i, devid;
 
 	cs43130 = devm_kzalloc(&client->dev, sizeof(*cs43130), GFP_KERNEL);
 	if (!cs43130)
@@ -2465,20 +2460,21 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 
 	cs43130->reset_gpio = devm_gpiod_get_optional(&client->dev,
 						      "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(cs43130->reset_gpio))
-		return PTR_ERR(cs43130->reset_gpio);
+	if (IS_ERR(cs43130->reset_gpio)) {
+		ret = PTR_ERR(cs43130->reset_gpio);
+		goto err_supplies;
+	}
 
 	gpiod_set_value_cansleep(cs43130->reset_gpio, 1);
 
 	usleep_range(2000, 2050);
 
-	ret = regmap_read(cs43130->regmap, CS43130_DEVID_AB, &reg);
-
-	devid = (reg & 0xFF) << 12;
-	ret = regmap_read(cs43130->regmap, CS43130_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-	ret = regmap_read(cs43130->regmap, CS43130_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs43130->regmap, CS43130_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&client->dev, "Failed to read device ID: %d\n", ret);
+		goto err;
+	}
 
 	switch (devid) {
 	case CS43130_CHIP_ID:
@@ -2518,7 +2514,7 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 					"cs43130", cs43130);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to request IRQ: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	cs43130->mclk_int_src = CS43130_MCLK_SRC_RCO;
@@ -2577,7 +2573,13 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 			   CS43130_XSP_3ST_MASK, 0);
 
 	return 0;
+
 err:
+	gpiod_set_value_cansleep(cs43130->reset_gpio, 0);
+err_supplies:
+	regulator_bulk_disable(ARRAY_SIZE(cs43130->supplies),
+			       cs43130->supplies);
+
 	return ret;
 }
 
@@ -2698,7 +2700,7 @@ static struct i2c_driver cs43130_i2c_driver = {
 		.pm             = &cs43130_runtime_pm,
 	},
 	.id_table	= cs43130_i2c_id,
-	.probe		= cs43130_i2c_probe,
+	.probe_new	= cs43130_i2c_probe,
 	.remove		= cs43130_i2c_remove,
 };
 

@@ -13,7 +13,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/usb_phy_generic.h>
@@ -24,10 +24,6 @@
 #include <asm/mach-types.h>
 
 #include "musb_core.h"
-
-#ifdef CONFIG_MACH_DAVINCI_EVM
-#define GPIO_nVBUS_DRV		160
-#endif
 
 #include "davinci.h"
 #include "cppi_dma.h"
@@ -40,6 +36,9 @@ struct davinci_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
 	struct clk		*clk;
+	bool			vbus_state;
+	struct gpio_desc	*vbus;
+	struct work_struct	vbus_work;
 };
 
 /* REVISIT (PM) we should be able to keep the PHY in low power mode most
@@ -135,43 +134,44 @@ static void davinci_musb_disable(struct musb *musb)
  * when J10 is out, and TI documents it as handling OTG.
  */
 
-#ifdef CONFIG_MACH_DAVINCI_EVM
-
-static int vbus_state = -1;
-
 /* I2C operations are always synchronous, and require a task context.
  * With unloaded systems, using the shared workqueue seems to suffice
  * to satisfy the 100msec A_WAIT_VRISE timeout...
  */
-static void evm_deferred_drvvbus(struct work_struct *ignored)
+static void evm_deferred_drvvbus(struct work_struct *work)
 {
-	gpio_set_value_cansleep(GPIO_nVBUS_DRV, vbus_state);
-	vbus_state = !vbus_state;
+	struct davinci_glue *glue = container_of(work, struct davinci_glue,
+						 vbus_work);
+
+	gpiod_set_value_cansleep(glue->vbus, glue->vbus_state);
+	glue->vbus_state = !glue->vbus_state;
 }
 
-#endif	/* EVM */
-
-static void davinci_musb_source_power(struct musb *musb, int is_on, int immediate)
+static void davinci_musb_source_power(struct musb *musb, int is_on,
+				      int immediate)
 {
-#ifdef CONFIG_MACH_DAVINCI_EVM
+	struct davinci_glue *glue = dev_get_drvdata(musb->controller->parent);
+
+	/* This GPIO handling is entirely optional */
+	if (!glue->vbus)
+		return;
+
 	if (is_on)
 		is_on = 1;
 
-	if (vbus_state == is_on)
+	if (glue->vbus_state == is_on)
 		return;
-	vbus_state = !is_on;		/* 0/1 vs "-1 == unknown/init" */
+	/* 0/1 vs "-1 == unknown/init" */
+	glue->vbus_state = !is_on;
 
 	if (machine_is_davinci_evm()) {
-		static DECLARE_WORK(evm_vbus_work, evm_deferred_drvvbus);
-
 		if (immediate)
-			gpio_set_value_cansleep(GPIO_nVBUS_DRV, vbus_state);
+			gpiod_set_value_cansleep(glue->vbus, glue->vbus_state);
 		else
-			schedule_work(&evm_vbus_work);
+			schedule_work(&glue->vbus_work);
 	}
 	if (immediate)
-		vbus_state = is_on;
-#endif
+		glue->vbus_state = is_on;
 }
 
 static void davinci_musb_set_vbus(struct musb *musb, int is_on)
@@ -523,6 +523,15 @@ static int davinci_probe(struct platform_device *pdev)
 	glue->clk			= clk;
 
 	pdata->platform_ops		= &davinci_ops;
+
+	glue->vbus = devm_gpiod_get_optional(&pdev->dev, NULL, GPIOD_OUT_LOW);
+	if (IS_ERR(glue->vbus)) {
+		ret = PTR_ERR(glue->vbus);
+		goto err0;
+	} else {
+		glue->vbus_state = -1;
+		INIT_WORK(&glue->vbus_work, evm_deferred_drvvbus);
+	}
 
 	usb_phy_generic_register();
 	platform_set_drvdata(pdev, glue);

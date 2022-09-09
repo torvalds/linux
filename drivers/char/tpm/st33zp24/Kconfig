@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config TCG_TIS_ST33ZP24
 	tristate
-	---help---
+	help
 	  STMicroelectronics ST33ZP24 core driver. It implements the core
 	  TPM1.2 logic and hooks into the TPM kernel APIs. Physical layers will
 	  register against it.
@@ -12,7 +13,7 @@ config TCG_TIS_ST33ZP24_I2C
 	tristate "STMicroelectronics TPM Interface Specification 1.2 Interface (I2C)"
 	depends on I2C
 	select TCG_TIS_ST33ZP24
-	---help---
+	help
 	  This module adds support for the STMicroelectronics TPM security chip
 	  ST33ZP24 with i2c interface.
 	  To compile this driver as a module, choose M here; the module will be
@@ -22,7 +23,7 @@ config TCG_TIS_ST33ZP24_SPI
 	tristate "STMicroelectronics TPM Interface Specification 1.2 Interface (SPI)"
 	depends on SPI
 	select TCG_TIS_ST33ZP24
-	---help---
+	help
 	  This module adds support for the STMicroelectronics TPM security chip
 	  ST33ZP24 with spi interface.
 	  To compile this driver as a module, choose M here; the module will be

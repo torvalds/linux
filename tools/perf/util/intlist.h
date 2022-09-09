@@ -9,7 +9,7 @@
 
 struct int_node {
 	struct rb_node rb_node;
-	int i;
+	unsigned long i;
 	void *priv;
 };
 
@@ -21,13 +21,13 @@ struct intlist *intlist__new(const char *slist);
 void intlist__delete(struct intlist *ilist);
 
 void intlist__remove(struct intlist *ilist, struct int_node *in);
-int intlist__add(struct intlist *ilist, int i);
+int intlist__add(struct intlist *ilist, unsigned long i);
 
 struct int_node *intlist__entry(const struct intlist *ilist, unsigned int idx);
-struct int_node *intlist__find(struct intlist *ilist, int i);
-struct int_node *intlist__findnew(struct intlist *ilist, int i);
+struct int_node *intlist__find(struct intlist *ilist, unsigned long i);
+struct int_node *intlist__findnew(struct intlist *ilist, unsigned long i);
 
-static inline bool intlist__has_entry(struct intlist *ilist, int i)
+static inline bool intlist__has_entry(struct intlist *ilist, unsigned long i)
 {
 	return intlist__find(ilist, i) != NULL;
 }
@@ -45,7 +45,7 @@ static inline unsigned int intlist__nr_entries(const struct intlist *ilist)
 /* For intlist iteration */
 static inline struct int_node *intlist__first(struct intlist *ilist)
 {
-	struct rb_node *rn = rb_first(&ilist->rblist.entries);
+	struct rb_node *rn = rb_first_cached(&ilist->rblist.entries);
 	return rn ? rb_entry(rn, struct int_node, rb_node) : NULL;
 }
 static inline struct int_node *intlist__next(struct int_node *in)

@@ -774,12 +774,12 @@ static int max77843_init_muic_regmap(struct max77693_dev *max77843)
 {
 	int ret;
 
-	max77843->i2c_muic = i2c_new_dummy(max77843->i2c->adapter,
+	max77843->i2c_muic = i2c_new_dummy_device(max77843->i2c->adapter,
 			I2C_ADDR_MUIC);
-	if (!max77843->i2c_muic) {
+	if (IS_ERR(max77843->i2c_muic)) {
 		dev_err(&max77843->i2c->dev,
 				"Cannot allocate I2C device for MUIC\n");
-		return -ENOMEM;
+		return PTR_ERR(max77843->i2c_muic);
 	}
 
 	i2c_set_clientdata(max77843->i2c_muic, max77843);
@@ -845,7 +845,7 @@ static int max77843_muic_probe(struct platform_device *pdev)
 			max77843_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "Failed to allocate memory for extcon\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(info->edev);
 		goto err_muic_irq;
 	}
 

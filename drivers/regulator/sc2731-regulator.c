@@ -1,4 +1,4 @@
- //SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Spreadtrum Communications Inc.
  */
@@ -146,7 +146,7 @@ static const struct regulator_ops sc2731_regu_linear_ops = {
 	.vsel_mask		= vmask,			\
 }
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	SC2731_REGU_LINEAR(BUCK_CPU0, SC2731_POWER_PD_SW,
 			   SC2731_DCDC_CPU0_PD_MASK, SC2731_DCDC_CPU0_VOL,
 			   SC2731_DCDC_CPU0_VOL_MASK, 3125, 400000, 1996875),

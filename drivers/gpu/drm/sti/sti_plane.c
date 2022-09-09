@@ -6,8 +6,12 @@
  *          for STMicroelectronics.
  */
 
-#include <drm/drmP.h>
+#include <linux/types.h>
+
+#include <drm/drm_blend.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "sti_compositor.h"
@@ -108,12 +112,6 @@ static int sti_plane_get_default_zpos(enum drm_plane_type type)
 		return 7;
 	}
 	return 0;
-}
-
-void sti_plane_reset(struct drm_plane *plane)
-{
-	drm_atomic_helper_plane_reset(plane);
-	plane->state->zpos = sti_plane_get_default_zpos(plane->type);
 }
 
 static void sti_plane_attach_zorder_property(struct drm_plane *drm_plane,

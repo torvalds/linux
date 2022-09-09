@@ -9,7 +9,7 @@ Description:
 		 The file supports poll() to detect virtual
 		 console switches.
 
-What:		/sys/class/tty/tty0/active
+What:		/sys/class/tty/tty<x>/active
 Date:		Nov 2010
 Contact:	Kay Sievers <kay.sievers@vrfy.org>
 Description:
@@ -18,7 +18,7 @@ Description:
 		 The file supports poll() to detect virtual
 		 console switches.
 
-What:		/sys/class/tty/ttyS0/uartclk
+What:		/sys/class/tty/ttyS<x>/uartclk
 Date:		Sep 2012
 Contact:	Tomas Hlavacek <tmshlvck@gmail.com>
 Description:
@@ -29,7 +29,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/type
+What:		/sys/class/tty/ttyS<x>/type
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -38,7 +38,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/line
+What:		/sys/class/tty/ttyS<x>/line
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -47,7 +47,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/port
+What:		/sys/class/tty/ttyS<x>/port
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -56,7 +56,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/irq
+What:		/sys/class/tty/ttyS<x>/irq
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -65,7 +65,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/flags
+What:		/sys/class/tty/ttyS<x>/flags
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -74,7 +74,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/xmit_fifo_size
+What:		/sys/class/tty/ttyS<x>/xmit_fifo_size
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -83,7 +83,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/close_delay
+What:		/sys/class/tty/ttyS<x>/close_delay
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -92,7 +92,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/closing_wait
+What:		/sys/class/tty/ttyS<x>/closing_wait
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -101,7 +101,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/custom_divisor
+What:		/sys/class/tty/ttyS<x>/custom_divisor
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -110,7 +110,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/io_type
+What:		/sys/class/tty/ttyS<x>/io_type
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -120,7 +120,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/iomem_base
+What:		/sys/class/tty/ttyS<x>/iomem_base
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -129,7 +129,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/iomem_reg_shift
+What:		/sys/class/tty/ttyS<x>/iomem_reg_shift
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
@@ -139,7 +139,7 @@ Description:
 		 These sysfs values expose the TIOCGSERIAL interface via
 		 sysfs rather than via ioctls.
 
-What:		/sys/class/tty/ttyS0/rx_trig_bytes
+What:		/sys/class/tty/ttyS<x>/rx_trig_bytes
 Date:		May 2014
 Contact:	Yoshihiro YUNOMAE <yoshihiro.yunomae.ez@hitachi.com>
 Description:
@@ -154,3 +154,10 @@ Description:
 		 device specification. For example, when user sets 7bytes on
 		 16550A, which has 1/4/8/14 bytes trigger, the RX trigger is
 		 automatically changed to 4 bytes.
+
+What:		/sys/class/tty/ttyS<x>/console
+Date:		February 2020
+Contact:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Description:
+		 Allows user to detach or attach back the given device as
+		 kernel console. It shows and accepts a boolean variable.

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
-/* p80211mgmt.h
+/*
  *
  * Macros, types, and functions to handle 802.11 mgmt frames
  *
@@ -299,7 +299,7 @@ struct wlan_fr_mgmt {
 	u16 type;
 	u16 len;		/* DOES NOT include CRC !!!! */
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -311,7 +311,7 @@ struct wlan_fr_beacon {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -334,7 +334,7 @@ struct wlan_fr_ibssatim {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 
@@ -350,7 +350,7 @@ struct wlan_fr_disassoc {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -365,7 +365,7 @@ struct wlan_fr_assocreq {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -382,7 +382,7 @@ struct wlan_fr_assocresp {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -399,7 +399,7 @@ struct wlan_fr_reassocreq {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -417,7 +417,7 @@ struct wlan_fr_reassocresp {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -434,7 +434,7 @@ struct wlan_fr_probereq {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -449,7 +449,7 @@ struct wlan_fr_proberesp {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -470,7 +470,7 @@ struct wlan_fr_authen {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/
@@ -487,7 +487,7 @@ struct wlan_fr_deauthen {
 	u16 type;
 	u16 len;
 	u8 *buf;
-	union p80211_hdr *hdr;
+	struct p80211_hdr *hdr;
 	/* used for target specific data, skb in Linux */
 	void *priv;
 	/*-- fixed fields -----------*/

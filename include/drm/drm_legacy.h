@@ -1,8 +1,5 @@
 #ifndef __DRM_DRM_LEGACY_H__
 #define __DRM_DRM_LEGACY_H__
-
-#include <drm/drm_auth.h>
-
 /*
  * Legacy driver interfaces for the Direct Rendering Manager
  *
@@ -36,6 +33,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/agp_backend.h>
+
+#include <drm/drm.h>
+#include <drm/drm_auth.h>
+
+struct drm_device;
+struct drm_driver;
+struct file;
+struct pci_driver;
 
 /*
  * Legacy Support for palateontologic DRM drivers
@@ -43,6 +49,20 @@
  * If you add a new driver and it uses any of these functions or structures,
  * you're doing it terribly wrong.
  */
+
+/*
+ * Hash-table Support
+ */
+
+struct drm_hash_item {
+	struct hlist_node head;
+	unsigned long key;
+};
+
+struct drm_open_hash {
+	struct hlist_head *table;
+	u8 order;
+};
 
 /**
  * DMA buffer.
@@ -131,7 +151,7 @@ struct drm_sg_mem {
  * Kernel side of a mapping
  */
 struct drm_local_map {
-	resource_size_t offset;	 /**< Requested physical address (0 for SAREA)*/
+	dma_addr_t offset;	 /**< Requested physical address (0 for SAREA)*/
 	unsigned long size;	 /**< Requested physical size (bytes) */
 	enum drm_map_type type;	 /**< Type of memory to map */
 	enum drm_map_flags flags;	 /**< Flags */
@@ -156,10 +176,9 @@ struct drm_map_list {
 int drm_legacy_addmap(struct drm_device *d, resource_size_t offset,
 		      unsigned int size, enum drm_map_type type,
 		      enum drm_map_flags flags, struct drm_local_map **map_p);
+struct drm_local_map *drm_legacy_findmap(struct drm_device *dev, unsigned int token);
 void drm_legacy_rmmap(struct drm_device *d, struct drm_local_map *map);
 int drm_legacy_rmmap_locked(struct drm_device *d, struct drm_local_map *map);
-void drm_legacy_master_rmmaps(struct drm_device *dev,
-			      struct drm_master *master);
 struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev);
 int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma);
 
@@ -186,22 +205,127 @@ do {										\
 void drm_legacy_idlelock_take(struct drm_lock_data *lock);
 void drm_legacy_idlelock_release(struct drm_lock_data *lock);
 
-/* drm_pci.c dma alloc wrappers */
-void __drm_legacy_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
+/* drm_irq.c */
+int drm_legacy_irq_uninstall(struct drm_device *dev);
+
+/* drm_pci.c */
+
+#ifdef CONFIG_PCI
+
+int drm_legacy_pci_init(const struct drm_driver *driver,
+			struct pci_driver *pdriver);
+void drm_legacy_pci_exit(const struct drm_driver *driver,
+			 struct pci_driver *pdriver);
+
+#else
+
+static inline struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev,
+						   size_t size, size_t align)
+{
+	return NULL;
+}
+
+static inline void drm_pci_free(struct drm_device *dev,
+				struct drm_dma_handle *dmah)
+{
+}
+
+static inline int drm_legacy_pci_init(const struct drm_driver *driver,
+				      struct pci_driver *pdriver)
+{
+	return -EINVAL;
+}
+
+static inline void drm_legacy_pci_exit(const struct drm_driver *driver,
+				       struct pci_driver *pdriver)
+{
+}
+
+#endif
+
+/*
+ * AGP Support
+ */
+
+struct drm_agp_head {
+	struct agp_kern_info agp_info;
+	struct list_head memory;
+	unsigned long mode;
+	struct agp_bridge_data *bridge;
+	int enabled;
+	int acquired;
+	unsigned long base;
+	int agp_mtrr;
+	int cant_use_aperture;
+	unsigned long page_mask;
+};
+
+#if IS_ENABLED(CONFIG_DRM_LEGACY) && IS_ENABLED(CONFIG_AGP)
+struct drm_agp_head *drm_legacy_agp_init(struct drm_device *dev);
+int drm_legacy_agp_acquire(struct drm_device *dev);
+int drm_legacy_agp_release(struct drm_device *dev);
+int drm_legacy_agp_enable(struct drm_device *dev, struct drm_agp_mode mode);
+int drm_legacy_agp_info(struct drm_device *dev, struct drm_agp_info *info);
+int drm_legacy_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request);
+int drm_legacy_agp_free(struct drm_device *dev, struct drm_agp_buffer *request);
+int drm_legacy_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request);
+int drm_legacy_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
+#else
+static inline struct drm_agp_head *drm_legacy_agp_init(struct drm_device *dev)
+{
+	return NULL;
+}
+
+static inline int drm_legacy_agp_acquire(struct drm_device *dev)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_release(struct drm_device *dev)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_enable(struct drm_device *dev,
+					struct drm_agp_mode mode)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_info(struct drm_device *dev,
+				      struct drm_agp_info *info)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_alloc(struct drm_device *dev,
+				       struct drm_agp_buffer *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_free(struct drm_device *dev,
+				      struct drm_agp_buffer *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_unbind(struct drm_device *dev,
+					struct drm_agp_binding *request)
+{
+	return -ENODEV;
+}
+
+static inline int drm_legacy_agp_bind(struct drm_device *dev,
+				      struct drm_agp_binding *request)
+{
+	return -ENODEV;
+}
+#endif
 
 /* drm_memory.c */
 void drm_legacy_ioremap(struct drm_local_map *map, struct drm_device *dev);
 void drm_legacy_ioremap_wc(struct drm_local_map *map, struct drm_device *dev);
 void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev);
-
-static inline struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
-						       unsigned int token)
-{
-	struct drm_map_list *_entry;
-	list_for_each_entry(_entry, &dev->maplist, head)
-	    if (_entry->user_token == token)
-		return _entry->map;
-	return NULL;
-}
 
 #endif /* __DRM_DRM_LEGACY_H__ */

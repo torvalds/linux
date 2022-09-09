@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * dice_transaction.c - a part of driver for Dice based devices
  *
  * Copyright (c) Clemens Ladisch
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "dice.h"
@@ -156,7 +155,7 @@ static void dice_notification(struct fw_card *card, struct fw_request *request,
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 
-	if (bits & NOTIFY_LOCK_CHG)
+	if (bits & NOTIFY_CLOCK_ACCEPTED)
 		complete(&dice->clock_accepted);
 	wake_up(&dice->hwdep_wait);
 }

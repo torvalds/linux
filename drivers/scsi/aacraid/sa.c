@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Adaptec AAC series RAID controller driver
  *	(c) Copyright 2001 Red Hat Inc.
@@ -9,25 +10,10 @@
  *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Module Name:
  *  sa.c
  *
  * Abstract: Drawbridge specific support functions
- *
  */
 
 #include <linux/kernel.h>
@@ -149,13 +135,21 @@ static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
  *	@dev: Adapter
  *	@command: Command to execute
  *	@p1: first parameter
+ *	@p2: second parameter
+ *	@p3: third parameter
+ *	@p4: forth parameter
+ *	@p5: fifth parameter
+ *	@p6: sixth parameter
  *	@ret: adapter status
+ *	@r1: first return value
+ *	@r2: second return value
+ *	@r3: third return value
+ *	@r4: forth return value
  *
- *	This routine will send a synchronous command to the adapter and wait 
+ *	This routine will send a synchronous command to the adapter and wait
  *	for its	completion.
  */
-
-static int sa_sync_cmd(struct aac_dev *dev, u32 command, 
+static int sa_sync_cmd(struct aac_dev *dev, u32 command,
 		u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6,
 		u32 *ret, u32 *r1, u32 *r2, u32 *r3, u32 *r4)
 {
@@ -297,6 +291,7 @@ static int aac_sa_check_health(struct aac_dev *dev)
 
 /**
  *	aac_sa_ioremap
+ *	@dev: device to ioremap
  *	@size: mapping resize request
  *
  */
@@ -314,8 +309,8 @@ static int aac_sa_ioremap(struct aac_dev * dev, u32 size)
  *	aac_sa_init	-	initialize an ARM based AAC card
  *	@dev: device to configure
  *
- *	Allocate and set up resources for the ARM based AAC variants. The 
- *	device_interface in the commregion will be allocated and linked 
+ *	Allocate and set up resources for the ARM based AAC variants. The
+ *	device_interface in the commregion will be allocated and linked
  *	to the comm region.
  */
 

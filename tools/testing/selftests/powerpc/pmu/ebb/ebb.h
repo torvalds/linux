@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #ifndef _SELFTESTS_POWERPC_PMU_EBB_EBB_H
@@ -55,8 +55,6 @@ void ebb_global_disable(void);
 bool ebb_is_supported(void);
 void ebb_freeze_pmcs(void);
 void ebb_unfreeze_pmcs(void);
-void event_ebb_init(struct event *e);
-void event_leader_ebb_init(struct event *e);
 int count_pmc(int pmc, uint32_t sample_period);
 void dump_ebb_state(void);
 void dump_summary_ebb_state(void);

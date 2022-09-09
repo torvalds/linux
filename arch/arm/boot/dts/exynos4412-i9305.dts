@@ -5,12 +5,13 @@
 / {
 	model = "Samsung Galaxy S3 (GT-I9305) based on Exynos4412";
 	compatible = "samsung,i9305", "samsung,midas", "samsung,exynos4412", "samsung,exynos4";
+	chassis-type = "handset";
 
 	/* bootargs are passed in by bootloader */
 
 	memory@40000000 {
 		device_type = "memory";
-		reg =  <0x40000000 0x80000000>;
+		reg = <0x40000000 0x80000000>;
 	};
 };
 

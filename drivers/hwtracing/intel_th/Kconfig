@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INTEL_TH
 	tristate "Intel(R) Trace Hub controller"
 	depends on HAS_DMA && HAS_IOMEM

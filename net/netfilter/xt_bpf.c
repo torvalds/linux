@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Xtables module to match packets using a BPF filter.
  * Copyright 2013 Google Inc.
  * Written by Willem de Bruijn <willemb@google.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -93,7 +90,7 @@ static bool bpf_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_bpf_info *info = par->matchinfo;
 
-	return BPF_PROG_RUN(info->filter, skb);
+	return bpf_prog_run(info->filter, skb);
 }
 
 static bool bpf_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)

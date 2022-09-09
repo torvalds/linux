@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2015, 2017, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (c) 2012-2015, 2017, 2021, The Linux Foundation. All rights reserved.
  */
 #include <linux/bitmap.h>
 #include <linux/delay.h>
@@ -269,20 +261,21 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 
 		if (status & PMIC_ARB_STATUS_DONE) {
 			if (status & PMIC_ARB_STATUS_DENIED) {
-				dev_err(&ctrl->dev, "%s: transaction denied (0x%x)\n",
-					__func__, status);
+				dev_err(&ctrl->dev, "%s: %#x %#x: transaction denied (%#x)\n",
+					__func__, sid, addr, status);
 				return -EPERM;
 			}
 
 			if (status & PMIC_ARB_STATUS_FAILURE) {
-				dev_err(&ctrl->dev, "%s: transaction failed (0x%x)\n",
-					__func__, status);
+				dev_err(&ctrl->dev, "%s: %#x %#x: transaction failed (%#x)\n",
+					__func__, sid, addr, status);
+				WARN_ON(1);
 				return -EIO;
 			}
 
 			if (status & PMIC_ARB_STATUS_DROPPED) {
-				dev_err(&ctrl->dev, "%s: transaction dropped (0x%x)\n",
-					__func__, status);
+				dev_err(&ctrl->dev, "%s: %#x %#x: transaction dropped (%#x)\n",
+					__func__, sid, addr, status);
 				return -EIO;
 			}
 
@@ -291,8 +284,8 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 		udelay(1);
 	}
 
-	dev_err(&ctrl->dev, "%s: timeout, status 0x%x\n",
-		__func__, status);
+	dev_err(&ctrl->dev, "%s: %#x %#x: timeout, status %#x\n",
+		__func__, sid, addr, status);
 	return -ETIMEDOUT;
 }
 
@@ -341,24 +334,20 @@ static int pmic_arb_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid)
 	return pmic_arb->ver_ops->non_data_cmd(ctrl, opc, sid);
 }
 
-static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
-			     u16 addr, u8 *buf, size_t len)
+static int pmic_arb_fmt_read_cmd(struct spmi_pmic_arb *pmic_arb, u8 opc, u8 sid,
+				 u16 addr, size_t len, u32 *cmd, u32 *offset)
 {
-	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
-	unsigned long flags;
 	u8 bc = len - 1;
-	u32 cmd;
 	int rc;
-	u32 offset;
 
 	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr,
 				       PMIC_ARB_CHANNEL_OBS);
 	if (rc < 0)
 		return rc;
 
-	offset = rc;
+	*offset = rc;
 	if (bc >= PMIC_ARB_MAX_TRANS_BYTES) {
-		dev_err(&ctrl->dev, "pmic-arb supports 1..%d bytes per trans, but:%zu requested",
+		dev_err(&pmic_arb->spmic->dev, "pmic-arb supports 1..%d bytes per trans, but:%zu requested",
 			PMIC_ARB_MAX_TRANS_BYTES, len);
 		return  -EINVAL;
 	}
@@ -373,14 +362,24 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	else
 		return -EINVAL;
 
-	cmd = pmic_arb->ver_ops->fmt_cmd(opc, sid, addr, bc);
+	*cmd = pmic_arb->ver_ops->fmt_cmd(opc, sid, addr, bc);
 
-	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
+	return 0;
+}
+
+static int pmic_arb_read_cmd_unlocked(struct spmi_controller *ctrl, u32 cmd,
+				      u32 offset, u8 sid, u16 addr, u8 *buf,
+				      size_t len)
+{
+	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
+	u8 bc = len - 1;
+	int rc;
+
 	pmic_arb_set_rd_cmd(pmic_arb, offset + PMIC_ARB_CMD, cmd);
 	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->rd_base, sid, addr,
 				    PMIC_ARB_CHANNEL_OBS);
 	if (rc)
-		goto done;
+		return rc;
 
 	pmic_arb_read_data(pmic_arb, buf, offset + PMIC_ARB_RDATA0,
 		     min_t(u8, bc, 3));
@@ -388,30 +387,44 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	if (bc > 3)
 		pmic_arb_read_data(pmic_arb, buf + 4, offset + PMIC_ARB_RDATA1,
 					bc - 4);
-
-done:
-	raw_spin_unlock_irqrestore(&pmic_arb->lock, flags);
-	return rc;
+	return 0;
 }
 
-static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
-			u16 addr, const u8 *buf, size_t len)
+static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
+			     u16 addr, u8 *buf, size_t len)
 {
 	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
 	unsigned long flags;
-	u8 bc = len - 1;
-	u32 cmd;
+	u32 cmd, offset;
 	int rc;
-	u32 offset;
+
+	rc = pmic_arb_fmt_read_cmd(pmic_arb, opc, sid, addr, len, &cmd,
+				   &offset);
+	if (rc)
+		return rc;
+
+	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
+	rc = pmic_arb_read_cmd_unlocked(ctrl, cmd, offset, sid, addr, buf, len);
+	raw_spin_unlock_irqrestore(&pmic_arb->lock, flags);
+
+	return rc;
+}
+
+static int pmic_arb_fmt_write_cmd(struct spmi_pmic_arb *pmic_arb, u8 opc,
+				  u8 sid, u16 addr, size_t len, u32 *cmd,
+				  u32 *offset)
+{
+	u8 bc = len - 1;
+	int rc;
 
 	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr,
 					PMIC_ARB_CHANNEL_RW);
 	if (rc < 0)
 		return rc;
 
-	offset = rc;
+	*offset = rc;
 	if (bc >= PMIC_ARB_MAX_TRANS_BYTES) {
-		dev_err(&ctrl->dev, "pmic-arb supports 1..%d bytes per trans, but:%zu requested",
+		dev_err(&pmic_arb->spmic->dev, "pmic-arb supports 1..%d bytes per trans, but:%zu requested",
 			PMIC_ARB_MAX_TRANS_BYTES, len);
 		return  -EINVAL;
 	}
@@ -428,10 +441,19 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	else
 		return -EINVAL;
 
-	cmd = pmic_arb->ver_ops->fmt_cmd(opc, sid, addr, bc);
+	*cmd = pmic_arb->ver_ops->fmt_cmd(opc, sid, addr, bc);
+
+	return 0;
+}
+
+static int pmic_arb_write_cmd_unlocked(struct spmi_controller *ctrl, u32 cmd,
+				      u32 offset, u8 sid, u16 addr,
+				      const u8 *buf, size_t len)
+{
+	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
+	u8 bc = len - 1;
 
 	/* Write data to FIFOs */
-	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
 	pmic_arb_write_data(pmic_arb, buf, offset + PMIC_ARB_WDATA0,
 				min_t(u8, bc, 3));
 	if (bc > 3)
@@ -440,8 +462,62 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 
 	/* Start the transaction */
 	pmic_arb_base_write(pmic_arb, offset + PMIC_ARB_CMD, cmd);
-	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->wr_base, sid, addr,
-				    PMIC_ARB_CHANNEL_RW);
+	return pmic_arb_wait_for_done(ctrl, pmic_arb->wr_base, sid, addr,
+				      PMIC_ARB_CHANNEL_RW);
+}
+
+static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
+			      u16 addr, const u8 *buf, size_t len)
+{
+	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
+	unsigned long flags;
+	u32 cmd, offset;
+	int rc;
+
+	rc = pmic_arb_fmt_write_cmd(pmic_arb, opc, sid, addr, len, &cmd,
+				    &offset);
+	if (rc)
+		return rc;
+
+	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
+	rc = pmic_arb_write_cmd_unlocked(ctrl, cmd, offset, sid, addr, buf,
+					 len);
+	raw_spin_unlock_irqrestore(&pmic_arb->lock, flags);
+
+	return rc;
+}
+
+static int pmic_arb_masked_write(struct spmi_controller *ctrl, u8 sid, u16 addr,
+				 const u8 *buf, const u8 *mask, size_t len)
+{
+	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
+	u32 read_cmd, read_offset, write_cmd, write_offset;
+	u8 temp[PMIC_ARB_MAX_TRANS_BYTES];
+	unsigned long flags;
+	int rc, i;
+
+	rc = pmic_arb_fmt_read_cmd(pmic_arb, SPMI_CMD_EXT_READL, sid, addr, len,
+				   &read_cmd, &read_offset);
+	if (rc)
+		return rc;
+
+	rc = pmic_arb_fmt_write_cmd(pmic_arb, SPMI_CMD_EXT_WRITEL, sid, addr,
+				    len, &write_cmd, &write_offset);
+	if (rc)
+		return rc;
+
+	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
+	rc = pmic_arb_read_cmd_unlocked(ctrl, read_cmd, read_offset, sid, addr,
+					temp, len);
+	if (rc)
+		goto done;
+
+	for (i = 0; i < len; i++)
+		temp[i] = (temp[i] & ~mask[i]) | (buf[i] & mask[i]);
+
+	rc = pmic_arb_write_cmd_unlocked(ctrl, write_cmd, write_offset, sid,
+					 addr, temp, len);
+done:
 	raw_spin_unlock_irqrestore(&pmic_arb->lock, flags);
 
 	return rc;
@@ -490,6 +566,23 @@ static void qpnpint_spmi_read(struct irq_data *d, u8 reg, void *buf, size_t len)
 				    d->irq);
 }
 
+static int qpnpint_spmi_masked_write(struct irq_data *d, u8 reg,
+				     const void *buf, const void *mask,
+				     size_t len)
+{
+	struct spmi_pmic_arb *pmic_arb = irq_data_get_irq_chip_data(d);
+	u8 sid = hwirq_to_sid(d->hwirq);
+	u8 per = hwirq_to_per(d->hwirq);
+	int rc;
+
+	rc = pmic_arb_masked_write(pmic_arb->spmic, sid, (per << 8) + reg, buf,
+				   mask, len);
+	if (rc)
+		dev_err_ratelimited(&pmic_arb->spmic->dev, "failed irqchip transaction on %x rc=%d\n",
+				    d->irq, rc);
+	return rc;
+}
+
 static void cleanup_irq(struct spmi_pmic_arb *pmic_arb, u16 apid, int id)
 {
 	u16 ppid = pmic_arb->apid_data[apid].ppid;
@@ -513,8 +606,7 @@ static void cleanup_irq(struct spmi_pmic_arb *pmic_arb, u16 apid, int id)
 static void periph_interrupt(struct spmi_pmic_arb *pmic_arb, u16 apid)
 {
 	unsigned int irq;
-	u32 status;
-	int id;
+	u32 status, id;
 	u8 sid = (pmic_arb->apid_data[apid].ppid >> 8) & 0xF;
 	u8 per = pmic_arb->apid_data[apid].ppid & 0xFF;
 
@@ -609,18 +701,18 @@ static void qpnpint_irq_unmask(struct irq_data *d)
 
 static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct spmi_pmic_arb_qpnpint_type type;
+	struct spmi_pmic_arb_qpnpint_type type = {0};
+	struct spmi_pmic_arb_qpnpint_type mask;
 	irq_flow_handler_t flow_handler;
-	u8 irq = hwirq_to_irq(d->hwirq);
-
-	qpnpint_spmi_read(d, QPNPINT_REG_SET_TYPE, &type, sizeof(type));
+	u8 irq_bit = BIT(hwirq_to_irq(d->hwirq));
+	int rc;
 
 	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
-		type.type |= BIT(irq);
+		type.type = irq_bit;
 		if (flow_type & IRQF_TRIGGER_RISING)
-			type.polarity_high |= BIT(irq);
+			type.polarity_high = irq_bit;
 		if (flow_type & IRQF_TRIGGER_FALLING)
-			type.polarity_low  |= BIT(irq);
+			type.polarity_low = irq_bit;
 
 		flow_handler = handle_edge_irq;
 	} else {
@@ -628,19 +720,23 @@ static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 		    (flow_type & (IRQF_TRIGGER_LOW)))
 			return -EINVAL;
 
-		type.type &= ~BIT(irq); /* level trig */
 		if (flow_type & IRQF_TRIGGER_HIGH)
-			type.polarity_high |= BIT(irq);
+			type.polarity_high = irq_bit;
 		else
-			type.polarity_low  |= BIT(irq);
+			type.polarity_low = irq_bit;
 
 		flow_handler = handle_level_irq;
 	}
 
-	qpnpint_spmi_write(d, QPNPINT_REG_SET_TYPE, &type, sizeof(type));
+	mask.type = irq_bit;
+	mask.polarity_high = irq_bit;
+	mask.polarity_low = irq_bit;
+
+	rc = qpnpint_spmi_masked_write(d, QPNPINT_REG_SET_TYPE, &type, &mask,
+				       sizeof(type));
 	irq_set_handler_locked(d, flow_handler);
 
-	return 0;
+	return rc;
 }
 
 static int qpnpint_irq_set_wake(struct irq_data *d, unsigned int on)
@@ -666,7 +762,8 @@ static int qpnpint_get_irqchip_state(struct irq_data *d,
 	return 0;
 }
 
-static int qpnpint_irq_request_resources(struct irq_data *d)
+static int qpnpint_irq_domain_activate(struct irq_domain *domain,
+				       struct irq_data *d, bool reserve)
 {
 	struct spmi_pmic_arb *pmic_arb = irq_data_get_irq_chip_data(d);
 	u16 periph = hwirq_to_per(d->hwirq);
@@ -692,27 +789,25 @@ static struct irq_chip pmic_arb_irqchip = {
 	.irq_set_type	= qpnpint_irq_set_type,
 	.irq_set_wake	= qpnpint_irq_set_wake,
 	.irq_get_irqchip_state	= qpnpint_get_irqchip_state,
-	.irq_request_resources = qpnpint_irq_request_resources,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND,
 };
 
-static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
-					   struct device_node *controller,
-					   const u32 *intspec,
-					   unsigned int intsize,
-					   unsigned long *out_hwirq,
-					   unsigned int *out_type)
+static int qpnpint_irq_domain_translate(struct irq_domain *d,
+					struct irq_fwspec *fwspec,
+					unsigned long *out_hwirq,
+					unsigned int *out_type)
 {
 	struct spmi_pmic_arb *pmic_arb = d->host_data;
+	u32 *intspec = fwspec->param;
 	u16 apid, ppid;
 	int rc;
 
 	dev_dbg(&pmic_arb->spmic->dev, "intspec[0] 0x%1x intspec[1] 0x%02x intspec[2] 0x%02x\n",
 		intspec[0], intspec[1], intspec[2]);
 
-	if (irq_domain_get_of_node(d) != controller)
+	if (irq_domain_get_of_node(d) != pmic_arb->spmic->dev.of_node)
 		return -EINVAL;
-	if (intsize != 4)
+	if (fwspec->param_count != 4)
 		return -EINVAL;
 	if (intspec[0] > 0xF || intspec[1] > 0xFF || intspec[2] > 0x7)
 		return -EINVAL;
@@ -740,17 +835,47 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 	return 0;
 }
 
-static int qpnpint_irq_domain_map(struct irq_domain *d,
-				  unsigned int virq,
-				  irq_hw_number_t hwirq)
+static struct lock_class_key qpnpint_irq_lock_class, qpnpint_irq_request_class;
+
+static void qpnpint_irq_domain_map(struct spmi_pmic_arb *pmic_arb,
+				   struct irq_domain *domain, unsigned int virq,
+				   irq_hw_number_t hwirq, unsigned int type)
 {
-	struct spmi_pmic_arb *pmic_arb = d->host_data;
+	irq_flow_handler_t handler;
 
-	dev_dbg(&pmic_arb->spmic->dev, "virq = %u, hwirq = %lu\n", virq, hwirq);
+	dev_dbg(&pmic_arb->spmic->dev, "virq = %u, hwirq = %lu, type = %u\n",
+		virq, hwirq, type);
 
-	irq_set_chip_and_handler(virq, &pmic_arb_irqchip, handle_level_irq);
-	irq_set_chip_data(virq, d->host_data);
-	irq_set_noprobe(virq);
+	if (type & IRQ_TYPE_EDGE_BOTH)
+		handler = handle_edge_irq;
+	else
+		handler = handle_level_irq;
+
+
+	irq_set_lockdep_class(virq, &qpnpint_irq_lock_class,
+			      &qpnpint_irq_request_class);
+	irq_domain_set_info(domain, virq, hwirq, &pmic_arb_irqchip, pmic_arb,
+			    handler, NULL, NULL);
+}
+
+static int qpnpint_irq_domain_alloc(struct irq_domain *domain,
+				    unsigned int virq, unsigned int nr_irqs,
+				    void *data)
+{
+	struct spmi_pmic_arb *pmic_arb = domain->host_data;
+	struct irq_fwspec *fwspec = data;
+	irq_hw_number_t hwirq;
+	unsigned int type;
+	int ret, i;
+
+	ret = qpnpint_irq_domain_translate(domain, fwspec, &hwirq, &type);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < nr_irqs; i++)
+		qpnpint_irq_domain_map(pmic_arb, domain, virq + i, hwirq + i,
+				       type);
+
 	return 0;
 }
 
@@ -1126,8 +1251,10 @@ static const struct pmic_arb_ver_ops pmic_arb_v5 = {
 };
 
 static const struct irq_domain_ops pmic_arb_irq_domain_ops = {
-	.map	= qpnpint_irq_domain_map,
-	.xlate	= qpnpint_irq_domain_dt_translate,
+	.activate = qpnpint_irq_domain_activate,
+	.alloc = qpnpint_irq_domain_alloc,
+	.free = irq_domain_free_irqs_common,
+	.translate = qpnpint_irq_domain_translate,
 };
 
 static int spmi_pmic_arb_probe(struct platform_device *pdev)

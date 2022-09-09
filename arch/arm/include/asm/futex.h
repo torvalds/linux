@@ -110,10 +110,11 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	preempt_disable();
 	__ua_flags = uaccess_save_and_enable();
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
+	"	.syntax unified\n"
 	"1:	" TUSER(ldr) "	%1, [%4]\n"
 	"	teq	%1, %2\n"
 	"	it	eq	@ explicit IT needed for the 2b label\n"
-	"2:	" TUSER(streq) "	%3, [%4]\n"
+	"2:	" TUSERCOND(str, eq) "	%3, [%4]\n"
 	__futex_atomic_ex_table("%5")
 	: "+r" (ret), "=&r" (val)
 	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
@@ -133,10 +134,12 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 {
 	int oldval = 0, ret, tmp;
 
+	if (!access_ok(uaddr, sizeof(u32)))
+		return -EFAULT;
+
 #ifndef CONFIG_SMP
 	preempt_disable();
 #endif
-	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -158,13 +161,17 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 		ret = -ENOSYS;
 	}
 
-	pagefault_enable();
 #ifndef CONFIG_SMP
 	preempt_enable();
 #endif
 
-	if (!ret)
-		*oval = oldval;
+	/*
+	 * Store unconditionally. If ret != 0 the extra store is the least
+	 * of the worries but GCC cannot figure out that __futex_atomic_op()
+	 * is either setting ret to -EFAULT or storing the old value in
+	 * oldval which results in a uninitialized warning at the call site.
+	 */
+	*oval = oldval;
 
 	return ret;
 }

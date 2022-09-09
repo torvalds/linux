@@ -122,10 +122,10 @@ do {									\
  *	On success, return a pointer to struct mem_ctl_info pointer;
  *	%NULL otherwise
  */
-struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
-				   unsigned n_layers,
+struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
+				   unsigned int n_layers,
 				   struct edac_mc_layer *layers,
-				   unsigned sz_pvt);
+				   unsigned int sz_pvt);
 
 /**
  * edac_get_owner - Return the owner's mod_name of EDAC MC
@@ -212,17 +212,13 @@ extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
  * edac_raw_mc_handle_error() - Reports a memory event to userspace without
  *	doing anything to discover the error location.
  *
- * @type:		severity of the error (CE/UE/Fatal)
- * @mci:		a struct mem_ctl_info pointer
  * @e:			error description
  *
  * This raw function is used internally by edac_mc_handle_error(). It should
  * only be called directly when the hardware error come directly from BIOS,
  * like in the case of APEI GHES driver.
  */
-void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
-			      struct mem_ctl_info *mci,
-			      struct edac_raw_error_desc *e);
+void edac_raw_mc_handle_error(struct edac_raw_error_desc *e);
 
 /**
  * edac_mc_handle_error() - Reports a memory event to userspace.

@@ -650,6 +650,7 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		 */
 		*interrupt_mask = (pisr & AR5K_INT_COMMON) & ah->ah_imr;
 
+		ah->ah_txq_isr_txok_all = 0;
 
 		/* We treat TXOK,TXDESC, TXERR and TXEOL
 		 * the same way (schedule the tx tasklet)
@@ -669,13 +670,6 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		if (pisr & AR5K_ISR_TXEOL)
 			ah->ah_txq_isr_txok_all |= AR5K_REG_MS(sisr1,
 						AR5K_SISR1_QCU_TXEOL);
-
-		/* Currently this is not much useful since we treat
-		 * all queues the same way if we get a TXURN (update
-		 * tx trigger level) but we might need it later on*/
-		if (pisr & AR5K_ISR_TXURN)
-			ah->ah_txq_isr_txurn |= AR5K_REG_MS(sisr2,
-						AR5K_SISR2_QCU_TXURN);
 
 		/* Misc Beacon related interrupts */
 
@@ -709,25 +703,16 @@ ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 			*interrupt_mask |= AR5K_INT_BNR;
 
 		/* A queue got CBR overrun */
-		if (unlikely(pisr & (AR5K_ISR_QCBRORN))) {
+		if (unlikely(pisr & (AR5K_ISR_QCBRORN)))
 			*interrupt_mask |= AR5K_INT_QCBRORN;
-			ah->ah_txq_isr_qcborn |= AR5K_REG_MS(sisr3,
-						AR5K_SISR3_QCBRORN);
-		}
 
 		/* A queue got CBR underrun */
-		if (unlikely(pisr & (AR5K_ISR_QCBRURN))) {
+		if (unlikely(pisr & (AR5K_ISR_QCBRURN)))
 			*interrupt_mask |= AR5K_INT_QCBRURN;
-			ah->ah_txq_isr_qcburn |= AR5K_REG_MS(sisr3,
-						AR5K_SISR3_QCBRURN);
-		}
 
 		/* A queue got triggered */
-		if (unlikely(pisr & (AR5K_ISR_QTRIG))) {
+		if (unlikely(pisr & (AR5K_ISR_QTRIG)))
 			*interrupt_mask |= AR5K_INT_QTRIG;
-			ah->ah_txq_isr_qtrig |= AR5K_REG_MS(sisr4,
-						AR5K_SISR4_QTRIG);
-		}
 
 		data = pisr;
 	}

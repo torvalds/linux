@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of 16-bit SoundBlaster cards and clones
@@ -15,22 +16,6 @@
  *        16bit DMA transfers from DSP chip (capture) until 8bit transfer
  *        to DSP chip (playback) starts. This bug can be avoided with
  *        "16bit DMA Allocation" setting set to Playback or Capture.
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -245,18 +230,6 @@ static void snd_sb16_setup_rate(struct snd_sb *chip,
 		snd_sbdsp_command(chip, rate & 0xff);
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
-}
-
-static int snd_sb16_hw_params(struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
-}
-
-static int snd_sb16_hw_free(struct snd_pcm_substream *substream)
-{
-	snd_pcm_lib_free_pages(substream);
-	return 0;
 }
 
 static int snd_sb16_playback_prepare(struct snd_pcm_substream *substream)
@@ -730,7 +703,8 @@ static int snd_sb16_dma_control_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	unsigned char nval, oval;
 	int change;
 	
-	if ((nval = ucontrol->value.enumerated.item[0]) > 2)
+	nval = ucontrol->value.enumerated.item[0];
+	if (nval > 2)
 		return -EINVAL;
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	oval = snd_sb16_get_dma_mode(chip);
@@ -844,9 +818,6 @@ int snd_sb16dsp_configure(struct snd_sb * chip)
 static const struct snd_pcm_ops snd_sb16_playback_ops = {
 	.open =		snd_sb16_playback_open,
 	.close =	snd_sb16_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_sb16_hw_params,
-	.hw_free =	snd_sb16_hw_free,
 	.prepare =	snd_sb16_playback_prepare,
 	.trigger =	snd_sb16_playback_trigger,
 	.pointer =	snd_sb16_playback_pointer,
@@ -855,9 +826,6 @@ static const struct snd_pcm_ops snd_sb16_playback_ops = {
 static const struct snd_pcm_ops snd_sb16_capture_ops = {
 	.open =		snd_sb16_capture_open,
 	.close =	snd_sb16_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_sb16_hw_params,
-	.hw_free =	snd_sb16_hw_free,
 	.prepare =	snd_sb16_capture_prepare,
 	.trigger =	snd_sb16_capture_trigger,
 	.pointer =	snd_sb16_capture_pointer,
@@ -869,7 +837,8 @@ int snd_sb16dsp_pcm(struct snd_sb *chip, int device)
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(card, "SB16 DSP", device, 1, 1, &pcm)) < 0)
+	err = snd_pcm_new(card, "SB16 DSP", device, 1, 1, &pcm);
+	if (err < 0)
 		return err;
 	sprintf(pcm->name, "DSP v%i.%i", chip->version >> 8, chip->version & 0xff);
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
@@ -884,9 +853,8 @@ int snd_sb16dsp_pcm(struct snd_sb *chip, int device)
 	else
 		pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
-					      64*1024, 128*1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+				       card->dev, 64*1024, 128*1024);
 	return 0;
 }
 

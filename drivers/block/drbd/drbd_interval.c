@@ -3,7 +3,7 @@
 #include <linux/rbtree_augmented.h>
 #include "drbd_interval.h"
 
-/**
+/*
  * interval_end  -  return end of @node
  */
 static inline
@@ -13,35 +13,12 @@ sector_t interval_end(struct rb_node *node)
 	return this->end;
 }
 
-/**
- * compute_subtree_last  -  compute end of @node
- *
- * The end of an interval is the highest (start + (size >> 9)) value of this
- * node and of its children.  Called for @node and its parents whenever the end
- * may have changed.
- */
-static inline sector_t
-compute_subtree_last(struct drbd_interval *node)
-{
-	sector_t max = node->sector + (node->size >> 9);
+#define NODE_END(node) ((node)->sector + ((node)->size >> 9))
 
-	if (node->rb.rb_left) {
-		sector_t left = interval_end(node->rb.rb_left);
-		if (left > max)
-			max = left;
-	}
-	if (node->rb.rb_right) {
-		sector_t right = interval_end(node->rb.rb_right);
-		if (right > max)
-			max = right;
-	}
-	return max;
-}
+RB_DECLARE_CALLBACKS_MAX(static, augment_callbacks,
+			 struct drbd_interval, rb, sector_t, end, NODE_END);
 
-RB_DECLARE_CALLBACKS(static, augment_callbacks, struct drbd_interval, rb,
-		     sector_t, end, compute_subtree_last);
-
-/**
+/*
  * drbd_insert_interval  -  insert a new interval into a tree
  */
 bool
@@ -79,6 +56,7 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
 
 /**
  * drbd_contains_interval  -  check if a tree contains a given interval
+ * @root:	red black tree root
  * @sector:	start sector of @interval
  * @interval:	may not be a valid pointer
  *
@@ -111,7 +89,7 @@ drbd_contains_interval(struct rb_root *root, sector_t sector,
 	return false;
 }
 
-/**
+/*
  * drbd_remove_interval  -  remove an interval from a tree
  */
 void
@@ -122,6 +100,7 @@ drbd_remove_interval(struct rb_root *root, struct drbd_interval *this)
 
 /**
  * drbd_find_overlap  - search for an interval overlapping with [sector, sector + size)
+ * @root:	red black tree root
  * @sector:	start sector
  * @size:	size, aligned to 512 bytes
  *

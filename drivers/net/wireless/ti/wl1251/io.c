@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of wl12xx
  *
  * Copyright (C) 2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include "wl1251.h"
@@ -135,7 +121,13 @@ void wl1251_set_partition(struct wl1251 *wl,
 			  u32 mem_start, u32 mem_size,
 			  u32 reg_start, u32 reg_size)
 {
-	struct wl1251_partition partition[2];
+	struct wl1251_partition_set *partition;
+
+	partition = kmalloc(sizeof(*partition), GFP_KERNEL);
+	if (!partition) {
+		wl1251_error("can not allocate partition buffer");
+		return;
+	}
 
 	wl1251_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
 		     mem_start, mem_size);
@@ -178,10 +170,10 @@ void wl1251_set_partition(struct wl1251 *wl,
 			     reg_start, reg_size);
 	}
 
-	partition[0].start = mem_start;
-	partition[0].size  = mem_size;
-	partition[1].start = reg_start;
-	partition[1].size  = reg_size;
+	partition->mem.start = mem_start;
+	partition->mem.size  = mem_size;
+	partition->reg.start = reg_start;
+	partition->reg.size  = reg_size;
 
 	wl->physical_mem_addr = mem_start;
 	wl->physical_reg_addr = reg_start;
@@ -190,5 +182,7 @@ void wl1251_set_partition(struct wl1251 *wl,
 	wl->virtual_reg_addr = mem_size;
 
 	wl->if_ops->write(wl, HW_ACCESS_PART0_SIZE_ADDR, partition,
-		sizeof(partition));
+		sizeof(*partition));
+
+	kfree(partition);
 }

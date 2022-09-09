@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright © 2009 - Maxim Levitsky
  * driver for Ricoh xD readers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/pci.h>
@@ -107,6 +104,7 @@
 #define DMA_MEMORY	1
 
 struct r852_device {
+	struct nand_controller		controller;
 	void __iomem *mmio;		/* mmio */
 	struct nand_chip *chip;		/* nand chip backpointer */
 	struct pci_dev *pci_dev;	/* pci backpointer */

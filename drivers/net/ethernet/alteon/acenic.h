@@ -633,6 +633,7 @@ struct ace_skb
  */
 struct ace_private
 {
+	struct net_device	*ndev;		/* backpointer */
 	struct ace_info		*info;
 	struct ace_regs	__iomem	*regs;		/* register base */
 	struct ace_skb		*skb;
@@ -691,7 +692,6 @@ struct ace_private
 				__attribute__ ((aligned (SMP_CACHE_BYTES)));
 	u32			last_tx, last_std_rx, last_mini_rx;
 #endif
-	int			pci_using_dac;
 	u8			firmware_major;
 	u8			firmware_minor;
 	u8			firmware_fix;
@@ -776,7 +776,7 @@ static int ace_open(struct net_device *dev);
 static netdev_tx_t ace_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev);
 static int ace_close(struct net_device *dev);
-static void ace_tasklet(unsigned long dev);
+static void ace_tasklet(struct tasklet_struct *t);
 static void ace_dump_trace(struct ace_private *ap);
 static void ace_set_multicast_list(struct net_device *dev);
 static int ace_change_mtu(struct net_device *dev, int new_mtu);

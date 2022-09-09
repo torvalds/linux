@@ -8,8 +8,8 @@
 #include <linux/time.h>
 
 #include <linux/coda.h>
-#include <linux/coda_psdev.h>
 #include <linux/pagemap.h>
+#include "coda_psdev.h"
 #include "coda_linux.h"
 
 static inline int coda_fideq(struct CodaFid *fid1, struct CodaFid *fid2)
@@ -63,9 +63,10 @@ struct inode * coda_iget(struct super_block * sb, struct CodaFid * fid,
 	struct inode *inode;
 	struct coda_inode_info *cii;
 	unsigned long hash = coda_f2i(fid);
+	umode_t inode_type = coda_inode_type(attr);
 
+retry:
 	inode = iget5_locked(sb, hash, coda_test_inode, coda_set_inode, fid);
-
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
@@ -75,11 +76,15 @@ struct inode * coda_iget(struct super_block * sb, struct CodaFid * fid,
 		inode->i_ino = hash;
 		/* inode is locked and unique, no need to grab cii->c_lock */
 		cii->c_mapcount = 0;
+		coda_fill_inode(inode, attr);
 		unlock_new_inode(inode);
+	} else if ((inode->i_mode & S_IFMT) != inode_type) {
+		/* Inode has changed type, mark bad and grab a new one */
+		remove_inode_hash(inode);
+		coda_flag_inode(inode, C_PURGE);
+		iput(inode);
+		goto retry;
 	}
-
-	/* always replace the attributes, type might have changed */
-	coda_fill_inode(inode, attr);
 	return inode;
 }
 
@@ -137,11 +142,6 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 	struct inode *inode;
 	unsigned long hash = coda_f2i(fid);
 
-	if ( !sb ) {
-		pr_warn("%s: no sb!\n", __func__);
-		return NULL;
-	}
-
 	inode = ilookup5(sb, hash, coda_test_inode, fid);
 	if ( !inode )
 		return NULL;
@@ -151,6 +151,16 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 	BUG_ON(inode->i_state & I_NEW);
 
 	return inode;
+}
+
+struct coda_file_info *coda_ftoc(struct file *file)
+{
+	struct coda_file_info *cfi = file->private_data;
+
+	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+
+	return cfi;
+
 }
 
 /* the CONTROL inode is made without asking attributes from Venus */

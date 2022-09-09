@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # HSI driver configuration
 #
 menuconfig HSI
 	tristate "HSI support"
-	---help---
+	help
 	  The "High speed synchronous Serial Interface" is
 	  synchronous serial interface used mainly to connect
 	  application engines and cellular modems.

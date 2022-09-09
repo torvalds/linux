@@ -116,20 +116,13 @@ struct pxa25x_udc {
 	struct usb_phy				*transceiver;
 	u64					dma_mask;
 	struct pxa25x_ep			ep [PXA_UDC_NUM_ENDPOINTS];
-
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
-	struct dentry				*debugfs_udc;
-#endif
 	void __iomem				*regs;
+	int					usb_irq;
+	int					usb_disc_irq;
 };
 #define to_pxa25x(g)	(container_of((g), struct pxa25x_udc, gadget))
 
 /*-------------------------------------------------------------------------*/
-
-#ifdef CONFIG_ARCH_LUBBOCK
-#include <mach/lubbock.h>
-/* lubbock can also report usb connect/disconnect irqs */
-#endif
 
 static struct pxa25x_udc *the_controller;
 

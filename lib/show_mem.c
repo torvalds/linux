@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic show_mem() implementation
  *
  * Copyright (C) 2008 Johannes Weiner <hannes@saeurebad.de>
- * All code subject to the GPL version 2.
  */
 
 #include <linux/mm.h>
-#include <linux/quicklist.h>
 #include <linux/cma.h>
 
 void show_mem(unsigned int filter, nodemask_t *nodemask)
@@ -38,10 +37,6 @@ void show_mem(unsigned int filter, nodemask_t *nodemask)
 	printk("%lu pages reserved\n", reserved);
 #ifdef CONFIG_CMA
 	printk("%lu pages cma reserved\n", totalcma_pages);
-#endif
-#ifdef CONFIG_QUICKLIST
-	printk("%lu pages in pagetable cache\n",
-		quicklist_total_size());
 #endif
 #ifdef CONFIG_MEMORY_FAILURE
 	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));

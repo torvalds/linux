@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ASoC driver for PROTO AudioCODEC (with a WM8731)
  *
  * Author:      Florian Meier, <koalo@koalo.de>
  *	      Copyright 2013
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -24,7 +21,7 @@
 static int snd_proto_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 
 	/* Set proto sysclk */
 	int ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL,
@@ -66,6 +63,7 @@ static struct snd_soc_card snd_proto = {
 static int snd_proto_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link *dai;
+	struct snd_soc_dai_link_component *comp;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *codec_np, *cpu_np;
 	struct device_node *bitclkmaster = NULL;
@@ -87,12 +85,24 @@ static int snd_proto_probe(struct platform_device *pdev)
 	if (!dai)
 		return -ENOMEM;
 
+	/* for cpus/codecs/platforms */
+	comp = devm_kzalloc(&pdev->dev, 3 * sizeof(*comp), GFP_KERNEL);
+	if (!comp)
+		return -ENOMEM;
+
 	snd_proto.dai_link = dai;
 	snd_proto.num_links = 1;
 
+	dai->cpus = &comp[0];
+	dai->num_cpus = 1;
+	dai->codecs = &comp[1];
+	dai->num_codecs = 1;
+	dai->platforms = &comp[2];
+	dai->num_platforms = 1;
+
 	dai->name = "WM8731";
 	dai->stream_name = "WM8731 HiFi";
-	dai->codec_dai_name = "wm8731-hifi";
+	dai->codecs->dai_name = "wm8731-hifi";
 	dai->init = &snd_proto_init;
 
 	codec_np = of_parse_phandle(np, "audio-codec", 0);
@@ -100,47 +110,56 @@ static int snd_proto_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "audio-codec node missing\n");
 		return -EINVAL;
 	}
-	dai->codec_of_node = codec_np;
+	dai->codecs->of_node = codec_np;
 
 	cpu_np = of_parse_phandle(np, "i2s-controller", 0);
 	if (!cpu_np) {
 		dev_err(&pdev->dev, "i2s-controller missing\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto put_codec_node;
 	}
-	dai->cpu_of_node = cpu_np;
-	dai->platform_of_node = cpu_np;
+	dai->cpus->of_node = cpu_np;
+	dai->platforms->of_node = cpu_np;
 
-	dai_fmt = snd_soc_of_parse_daifmt(np, NULL,
-					  &bitclkmaster, &framemaster);
+	dai_fmt = snd_soc_daifmt_parse_format(np, NULL);
+	snd_soc_daifmt_parse_clock_provider_as_phandle(np, NULL,
+						       &bitclkmaster, &framemaster);
 	if (bitclkmaster != framemaster) {
 		dev_err(&pdev->dev, "Must be the same bitclock and frame master\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto put_cpu_node;
 	}
 	if (bitclkmaster) {
-		dai_fmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
 		if (codec_np == bitclkmaster)
-			dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+			dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
 		else
-			dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+			dai_fmt |= SND_SOC_DAIFMT_CBC_CFC;
+	} else {
+		dai_fmt |= snd_soc_daifmt_parse_clock_provider_as_flag(np, NULL);
 	}
+
+
+	dai->dai_fmt = dai_fmt;
+	ret = snd_soc_register_card(&snd_proto);
+	if (ret)
+		dev_err_probe(&pdev->dev, ret,
+			"snd_soc_register_card() failed\n");
+
+
+put_cpu_node:
 	of_node_put(bitclkmaster);
 	of_node_put(framemaster);
-	dai->dai_fmt = dai_fmt;
-
-	of_node_put(codec_np);
 	of_node_put(cpu_np);
-
-	ret = snd_soc_register_card(&snd_proto);
-	if (ret && ret != -EPROBE_DEFER)
-		dev_err(&pdev->dev,
-			"snd_soc_register_card() failed: %d\n", ret);
-
+put_codec_node:
+	of_node_put(codec_np);
 	return ret;
 }
 
 static int snd_proto_remove(struct platform_device *pdev)
 {
-	return snd_soc_unregister_card(&snd_proto);
+	snd_soc_unregister_card(&snd_proto);
+
+	return 0;
 }
 
 static const struct of_device_id snd_proto_of_match[] = {

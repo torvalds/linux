@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /* 
  * Copyright (C) 2000, 2002 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 #include <linux/fs.h>
@@ -12,7 +12,6 @@
 #include <linux/console.h>
 #include <asm/termbits.h>
 #include <asm/irq.h>
-#include "ssl.h"
 #include "chan.h"
 #include <init.h>
 #include <irq_user.h>
@@ -48,9 +47,7 @@ static struct line_driver driver = {
 	.minor_start 		= 64,
 	.type 		 	= TTY_DRIVER_TYPE_SERIAL,
 	.subtype 	 	= 0,
-	.read_irq 		= SSL_IRQ,
 	.read_irq_name 		= "ssl",
-	.write_irq 		= SSL_WRITE_IRQ,
 	.write_irq_name 	= "ssl-write",
 	.mc  = {
 		.list		= LIST_HEAD_INIT(driver.mc.list),
@@ -96,12 +93,10 @@ static const struct tty_operations ssl_ops = {
 	.open 	 		= line_open,
 	.close 	 		= line_close,
 	.write 	 		= line_write,
-	.put_char 		= line_put_char,
 	.write_room		= line_write_room,
 	.chars_in_buffer 	= line_chars_in_buffer,
 	.flush_buffer 		= line_flush_buffer,
 	.flush_chars 		= line_flush_chars,
-	.set_termios 		= line_set_termios,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
 	.install		= ssl_install,
@@ -197,3 +192,11 @@ static int ssl_chan_setup(char *str)
 
 __setup("ssl", ssl_chan_setup);
 __channel_help(ssl_chan_setup, "ssl");
+
+static int ssl_non_raw_setup(char *str)
+{
+	opts.raw = 0;
+	return 1;
+}
+__setup("ssl-non-raw", ssl_non_raw_setup);
+__channel_help(ssl_non_raw_setup, "set serial lines to non-raw mode");

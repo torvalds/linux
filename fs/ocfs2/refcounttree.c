@@ -1,18 +1,8 @@
-/* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
- *
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  * refcounttree.c
  *
  * Copyright (C) 2009 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/sort.h>
@@ -162,6 +152,7 @@ ocfs2_refcount_cache_get_super(struct ocfs2_caching_info *ci)
 }
 
 static void ocfs2_refcount_cache_lock(struct ocfs2_caching_info *ci)
+__acquires(&rf->rf_lock)
 {
 	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
 
@@ -169,6 +160,7 @@ static void ocfs2_refcount_cache_lock(struct ocfs2_caching_info *ci)
 }
 
 static void ocfs2_refcount_cache_unlock(struct ocfs2_caching_info *ci)
+__releases(&rf->rf_lock)
 {
 	struct ocfs2_refcount_tree *rf = cache_info_to_refcount(ci);
 
@@ -984,7 +976,7 @@ static int ocfs2_get_refcount_cpos_end(struct ocfs2_caching_info *ci,
 		return 0;
 	}
 
-	if (!eb || (eb && !eb->h_next_leaf_blk)) {
+	if (!eb || !eb->h_next_leaf_blk) {
 		/*
 		 * We are the last extent rec, so any high cpos should
 		 * be stored in this leaf refcount block.
@@ -1069,7 +1061,7 @@ static int ocfs2_get_refcount_rec(struct ocfs2_caching_info *ci,
 				  struct buffer_head **ret_bh)
 {
 	int ret = 0, i, found;
-	u32 low_cpos, uninitialized_var(cpos_end);
+	u32 low_cpos, cpos_end;
 	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_rec *rec = NULL;
 	struct ocfs2_extent_block *eb = NULL;
@@ -2969,12 +2961,14 @@ retry:
 		}
 
 		if (!PageUptodate(page)) {
-			ret = block_read_full_page(page, ocfs2_get_block);
+			struct folio *folio = page_folio(page);
+
+			ret = block_read_full_folio(folio, ocfs2_get_block);
 			if (ret) {
 				mlog_errno(ret);
 				goto unlock;
 			}
-			lock_page(page);
+			folio_lock(folio);
 		}
 
 		if (page_has_buffers(page)) {
@@ -3152,48 +3146,18 @@ int ocfs2_cow_sync_writeback(struct super_block *sb,
 			     struct inode *inode,
 			     u32 cpos, u32 num_clusters)
 {
-	int ret = 0;
-	loff_t offset, end, map_end;
-	pgoff_t page_index;
-	struct page *page;
+	int ret;
+	loff_t start, end;
 
 	if (ocfs2_should_order_data(inode))
 		return 0;
 
-	offset = ((loff_t)cpos) << OCFS2_SB(sb)->s_clustersize_bits;
-	end = offset + (num_clusters << OCFS2_SB(sb)->s_clustersize_bits);
+	start = ((loff_t)cpos) << OCFS2_SB(sb)->s_clustersize_bits;
+	end = start + (num_clusters << OCFS2_SB(sb)->s_clustersize_bits) - 1;
 
-	ret = filemap_fdatawrite_range(inode->i_mapping,
-				       offset, end - 1);
-	if (ret < 0) {
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret < 0)
 		mlog_errno(ret);
-		return ret;
-	}
-
-	while (offset < end) {
-		page_index = offset >> PAGE_SHIFT;
-		map_end = ((loff_t)page_index + 1) << PAGE_SHIFT;
-		if (map_end > end)
-			map_end = end;
-
-		page = find_or_create_page(inode->i_mapping,
-					   page_index, GFP_NOFS);
-		BUG_ON(!page);
-
-		wait_on_page_writeback(page);
-		if (PageError(page)) {
-			ret = -EIO;
-			mlog_errno(ret);
-		} else
-			mark_page_accessed(page);
-
-		unlock_page(page);
-		put_page(page);
-		page = NULL;
-		offset = map_end;
-		if (ret)
-			break;
-	}
 
 	return ret;
 }
@@ -4352,7 +4316,7 @@ static inline int ocfs2_may_create(struct inode *dir, struct dentry *child)
 		return -EEXIST;
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
-	return inode_permission(dir, MAY_WRITE | MAY_EXEC);
+	return inode_permission(&init_user_ns, dir, MAY_WRITE | MAY_EXEC);
 }
 
 /**
@@ -4406,7 +4370,7 @@ static int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
 	 * file.
 	 */
 	if (!preserve) {
-		error = inode_permission(inode, MAY_READ);
+		error = inode_permission(&init_user_ns, inode, MAY_READ);
 		if (error)
 			return error;
 	}
@@ -4719,22 +4683,23 @@ out:
 
 /* Lock an inode and grab a bh pointing to the inode. */
 int ocfs2_reflink_inodes_lock(struct inode *s_inode,
-			      struct buffer_head **bh1,
+			      struct buffer_head **bh_s,
 			      struct inode *t_inode,
-			      struct buffer_head **bh2)
+			      struct buffer_head **bh_t)
 {
-	struct inode *inode1;
-	struct inode *inode2;
+	struct inode *inode1 = s_inode;
+	struct inode *inode2 = t_inode;
 	struct ocfs2_inode_info *oi1;
 	struct ocfs2_inode_info *oi2;
+	struct buffer_head *bh1 = NULL;
+	struct buffer_head *bh2 = NULL;
 	bool same_inode = (s_inode == t_inode);
+	bool need_swap = (inode1->i_ino > inode2->i_ino);
 	int status;
 
 	/* First grab the VFS and rw locks. */
 	lock_two_nondirectories(s_inode, t_inode);
-	inode1 = s_inode;
-	inode2 = t_inode;
-	if (inode1->i_ino > inode2->i_ino)
+	if (need_swap)
 		swap(inode1, inode2);
 
 	status = ocfs2_rw_lock(inode1, 1);
@@ -4757,17 +4722,13 @@ int ocfs2_reflink_inodes_lock(struct inode *s_inode,
 	trace_ocfs2_double_lock((unsigned long long)oi1->ip_blkno,
 				(unsigned long long)oi2->ip_blkno);
 
-	if (*bh1)
-		*bh1 = NULL;
-	if (*bh2)
-		*bh2 = NULL;
-
 	/* We always want to lock the one with the lower lockid first. */
 	if (oi1->ip_blkno > oi2->ip_blkno)
 		mlog_errno(-ENOLCK);
 
 	/* lock id1 */
-	status = ocfs2_inode_lock_nested(inode1, bh1, 1, OI_LS_REFLINK_TARGET);
+	status = ocfs2_inode_lock_nested(inode1, &bh1, 1,
+					 OI_LS_REFLINK_TARGET);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -4776,15 +4737,25 @@ int ocfs2_reflink_inodes_lock(struct inode *s_inode,
 
 	/* lock id2 */
 	if (!same_inode) {
-		status = ocfs2_inode_lock_nested(inode2, bh2, 1,
+		status = ocfs2_inode_lock_nested(inode2, &bh2, 1,
 						 OI_LS_REFLINK_TARGET);
 		if (status < 0) {
 			if (status != -ENOENT)
 				mlog_errno(status);
 			goto out_cl1;
 		}
-	} else
-		*bh2 = *bh1;
+	} else {
+		bh2 = bh1;
+	}
+
+	/*
+	 * If we swapped inode order above, we have to swap the buffer heads
+	 * before passing them back to the caller.
+	 */
+	if (need_swap)
+		swap(bh1, bh2);
+	*bh_s = bh1;
+	*bh_t = bh2;
 
 	trace_ocfs2_double_lock_end(
 			(unsigned long long)oi1->ip_blkno,
@@ -4794,8 +4765,7 @@ int ocfs2_reflink_inodes_lock(struct inode *s_inode,
 
 out_cl1:
 	ocfs2_inode_unlock(inode1, 1);
-	brelse(*bh1);
-	*bh1 = NULL;
+	brelse(bh1);
 out_rw2:
 	ocfs2_rw_unlock(inode2, 1);
 out_i2:

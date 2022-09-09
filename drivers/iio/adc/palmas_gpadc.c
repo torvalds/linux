@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * palmas-adc.c -- TI PALMAS GPADC.
  *
  * Copyright (c) 2013, NVIDIA Corporation. All rights reserved.
  *
  * Author: Pradeep Goudagunta <pgoudagunta@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
  */
 
 #include <linux/module.h>
@@ -79,7 +76,7 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
 	PALMAS_ADC_INFO(IN15, 0, 0, 0, 0, INVALID, INVALID, true),
 };
 
-/**
+/*
  * struct palmas_gpadc - the palmas_gpadc structure
  * @ch0_current:	channel 0 current source setting
  *			0: 0 uA
@@ -93,11 +90,16 @@ static struct palmas_gpadc_info palmas_gpadc_info[] = {
  *			3: 800 uA
  * @extended_delay:	enable the gpadc extended delay mode
  * @auto_conversion_period:	define the auto_conversion_period
+ * @lock:	Lock to protect the device state during a potential concurrent
+ *		read access from userspace. Reading a raw value requires a sequence
+ *		of register writes, then a wait for a completion callback,
+ *		and finally a register read, during which userspace could issue
+ *		another read request. This lock protects a read access from
+ *		ocurring before another one has finished.
  *
  * This is the palmas_gpadc structure to store run-time information
  * and pointers for this driver instance.
  */
-
 struct palmas_gpadc {
 	struct device			*dev;
 	struct palmas			*palmas;
@@ -114,6 +116,7 @@ struct palmas_gpadc {
 	bool				wakeup1_enable;
 	bool				wakeup2_enable;
 	int				auto_conversion_period;
+	struct mutex			lock;
 };
 
 /*
@@ -373,7 +376,8 @@ static int palmas_gpadc_get_calibrated_code(struct palmas_gpadc *adc,
 					adc->adc_info[adc_chan].gain_error;
 
 	if (val < 0) {
-		dev_err(adc->dev, "Mismatch with calibration\n");
+		if (val < -10)
+			dev_err(adc->dev, "Mismatch with calibration var = %d\n", val);
 		return 0;
 	}
 
@@ -392,7 +396,7 @@ static int palmas_gpadc_read_raw(struct iio_dev *indio_dev,
 	if (adc_chan > PALMAS_ADC_CH_MAX)
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&adc->lock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -418,12 +422,12 @@ static int palmas_gpadc_read_raw(struct iio_dev *indio_dev,
 		goto out;
 	}
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&adc->lock);
 	return ret;
 
 out:
 	palmas_gpadc_read_done(adc, adc_chan);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&adc->lock);
 
 	return ret;
 }
@@ -520,8 +524,11 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	adc->dev = &pdev->dev;
 	adc->palmas = dev_get_drvdata(pdev->dev.parent);
 	adc->adc_info = palmas_gpadc_info;
+
+	mutex_init(&adc->lock);
+
 	init_completion(&adc->conv_completion);
-	dev_set_drvdata(&pdev->dev, indio_dev);
+	platform_set_drvdata(pdev, indio_dev);
 
 	adc->auto_conversion_period = gpadc_pdata->auto_conversion_period_ms;
 	adc->irq = palmas_irq_get_virq(adc->palmas, PALMAS_GPADC_EOC_SW_IRQ);
@@ -596,7 +603,6 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	adc->extended_delay = gpadc_pdata->extended_delay;
 
 	indio_dev->name = MOD_NAME;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &palmas_gpadc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = palmas_gpadc_iio_channel;
@@ -648,7 +654,6 @@ static int palmas_gpadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int palmas_adc_wakeup_configure(struct palmas_gpadc *adc)
 {
 	int adc_period, conv;
@@ -659,8 +664,8 @@ static int palmas_adc_wakeup_configure(struct palmas_gpadc *adc)
 
 	adc_period = adc->auto_conversion_period;
 	for (i = 0; i < 16; ++i) {
-		if (((1000 * (1 << i)) / 32) < adc_period)
-			continue;
+		if (((1000 * (1 << i)) / 32) >= adc_period)
+			break;
 	}
 	if (i > 0)
 		i--;
@@ -817,12 +822,9 @@ static int palmas_gpadc_resume(struct device *dev)
 
 	return 0;
 };
-#endif
 
-static const struct dev_pm_ops palmas_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(palmas_gpadc_suspend,
-				palmas_gpadc_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(palmas_pm_ops, palmas_gpadc_suspend,
+				palmas_gpadc_resume);
 
 static const struct of_device_id of_palmas_gpadc_match_tbl[] = {
 	{ .compatible = "ti,palmas-gpadc", },
@@ -835,22 +837,11 @@ static struct platform_driver palmas_gpadc_driver = {
 	.remove = palmas_gpadc_remove,
 	.driver = {
 		.name = MOD_NAME,
-		.pm = &palmas_pm_ops,
+		.pm = pm_sleep_ptr(&palmas_pm_ops),
 		.of_match_table = of_palmas_gpadc_match_tbl,
 	},
 };
-
-static int __init palmas_gpadc_init(void)
-{
-	return platform_driver_register(&palmas_gpadc_driver);
-}
-module_init(palmas_gpadc_init);
-
-static void __exit palmas_gpadc_exit(void)
-{
-	platform_driver_unregister(&palmas_gpadc_driver);
-}
-module_exit(palmas_gpadc_exit);
+module_platform_driver(palmas_gpadc_driver);
 
 MODULE_DESCRIPTION("palmas GPADC driver");
 MODULE_AUTHOR("Pradeep Goudagunta<pgoudagunta@nvidia.com>");

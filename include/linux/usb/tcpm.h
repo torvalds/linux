@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2015-2017 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __LINUX_USB_TCPM_H
@@ -27,6 +18,10 @@ enum typec_cc_status {
 	TYPEC_CC_RP_1_5,
 	TYPEC_CC_RP_3_0,
 };
+
+/* Collision Avoidance */
+#define SINK_TX_NG	TYPEC_CC_RP_1_5
+#define SINK_TX_OK	TYPEC_CC_RP_3_0
 
 enum typec_cc_polarity {
 	TYPEC_POLARITY_CC1,
@@ -55,45 +50,6 @@ enum tcpm_transmit_type {
 	TCPC_TX_BIST_MODE_2 = 7
 };
 
-/**
- * struct tcpc_config - Port configuration
- * @src_pdo:	PDO parameters sent to port partner as response to
- *		PD_CTRL_GET_SOURCE_CAP message
- * @nr_src_pdo:	Number of entries in @src_pdo
- * @snk_pdo:	PDO parameters sent to partner as response to
- *		PD_CTRL_GET_SINK_CAP message
- * @nr_snk_pdo:	Number of entries in @snk_pdo
- * @operating_snk_mw:
- *		Required operating sink power in mW
- * @type:	Port type (TYPEC_PORT_DFP, TYPEC_PORT_UFP, or
- *		TYPEC_PORT_DRP)
- * @default_role:
- *		Default port role (TYPEC_SINK or TYPEC_SOURCE).
- *		Set to TYPEC_NO_PREFERRED_ROLE if no default role.
- * @try_role_hw:True if try.{Src,Snk} is implemented in hardware
- * @alt_modes:	List of supported alternate modes
- */
-struct tcpc_config {
-	const u32 *src_pdo;
-	unsigned int nr_src_pdo;
-
-	const u32 *snk_pdo;
-	unsigned int nr_snk_pdo;
-
-	const u32 *snk_vdo;
-	unsigned int nr_snk_vdo;
-
-	unsigned int operating_snk_mw;
-
-	enum typec_port_type type;
-	enum typec_port_data data;
-	enum typec_role default_role;
-	bool try_role_hw;	/* try.{src,snk} implemented in hardware */
-	bool self_powered;	/* port belongs to a self powered device */
-
-	const struct typec_altmode_desc *alt_modes;
-};
-
 /* Mux state attributes */
 #define TCPC_MUX_USB_ENABLED		BIT(0)	/* USB enabled */
 #define TCPC_MUX_DP_ENABLED		BIT(1)	/* DP enabled */
@@ -101,7 +57,6 @@ struct tcpc_config {
 
 /**
  * struct tcpc_dev - Port configuration and callback functions
- * @config:	Pointer to port configuration
  * @fwnode:	Pointer to port fwnode
  * @get_vbus:	Called to read current VBUS state
  * @get_current_limit:
@@ -111,6 +66,8 @@ struct tcpc_config {
  *		For example, some tcpcs may include BC1.2 charger detection
  *		and use that in this case.
  * @set_cc:	Called to set value of CC pins
+ * @apply_rc:	Optional; Needed to move TCPCI based chipset to APPLY_RC state
+ *		as stated by the TCPCI specification.
  * @get_cc:	Called to read current CC pin values
  * @set_polarity:
  *		Called to set polarity
@@ -121,22 +78,52 @@ struct tcpc_config {
  *		with partner.
  * @set_pd_rx:	Called to enable or disable reception of PD messages
  * @set_roles:	Called to set power and data roles
- * @start_drp_toggling:
- *		Optional; if supported by hardware, called to start DRP
- *		toggling. DRP toggling is stopped automatically if
- *		a connection is established.
+ * @start_toggling:
+ *		Optional; if supported by hardware, called to start dual-role
+ *		toggling or single-role connection detection. Toggling stops
+ *		automatically if a connection is established.
  * @try_role:	Optional; called to set a preferred role
  * @pd_transmit:Called to transmit PD message
- * @mux:	Pointer to multiplexer data
+ * @set_bist_data: Turn on/off bist data mode for compliance testing
+ * @enable_frs:
+ *		Optional; Called to enable/disable PD 3.0 fast role swap.
+ *		Enabling frs is accessory dependent as not all PD3.0
+ *		accessories support fast role swap.
+ * @frs_sourcing_vbus:
+ *		Optional; Called to notify that vbus is now being sourced.
+ *		Low level drivers can perform chip specific operations, if any.
+ * @enable_auto_vbus_discharge:
+ *		Optional; TCPCI spec based TCPC implementations can optionally
+ *		support hardware to autonomously dischrge vbus upon disconnecting
+ *		as sink or source. TCPM signals TCPC to enable the mechanism upon
+ *		entering connected state and signals disabling upon disconnect.
+ * @set_auto_vbus_discharge_threshold:
+ *		Mandatory when enable_auto_vbus_discharge is implemented. TCPM
+ *		calls this function to allow lower levels drivers to program the
+ *		vbus threshold voltage below which the vbus discharge circuit
+ *		will be turned on. requested_vbus_voltage is set to 0 when vbus
+ *		is going to disappear knowingly i.e. during PR_SWAP and
+ *		HARD_RESET etc.
+ * @is_vbus_vsafe0v:
+ *		Optional; TCPCI spec based TCPC implementations are expected to
+ *		detect VSAFE0V voltage level at vbus. When detection of VSAFE0V
+ *		is supported by TCPC, set this callback for TCPM to query
+ *		whether vbus is at VSAFE0V when needed.
+ *		Returns true when vbus is at VSAFE0V, false otherwise.
+ * @set_partner_usb_comm_capable:
+ *              Optional; The USB Communications Capable bit indicates if port
+ *              partner is capable of communication over the USB data lines
+ *              (e.g. D+/- or SS Tx/Rx). Called to notify the status of the bit.
  */
 struct tcpc_dev {
-	const struct tcpc_config *config;
 	struct fwnode_handle *fwnode;
 
 	int (*init)(struct tcpc_dev *dev);
 	int (*get_vbus)(struct tcpc_dev *dev);
 	int (*get_current_limit)(struct tcpc_dev *dev);
 	int (*set_cc)(struct tcpc_dev *dev, enum typec_cc_status cc);
+	int (*apply_rc)(struct tcpc_dev *dev, enum typec_cc_status cc,
+			enum typec_cc_polarity polarity);
 	int (*get_cc)(struct tcpc_dev *dev, enum typec_cc_status *cc1,
 		      enum typec_cc_status *cc2);
 	int (*set_polarity)(struct tcpc_dev *dev,
@@ -147,11 +134,20 @@ struct tcpc_dev {
 	int (*set_pd_rx)(struct tcpc_dev *dev, bool on);
 	int (*set_roles)(struct tcpc_dev *dev, bool attached,
 			 enum typec_role role, enum typec_data_role data);
-	int (*start_drp_toggling)(struct tcpc_dev *dev,
-				  enum typec_cc_status cc);
+	int (*start_toggling)(struct tcpc_dev *dev,
+			      enum typec_port_type port_type,
+			      enum typec_cc_status cc);
 	int (*try_role)(struct tcpc_dev *dev, int role);
 	int (*pd_transmit)(struct tcpc_dev *dev, enum tcpm_transmit_type type,
-			   const struct pd_message *msg);
+			   const struct pd_message *msg, unsigned int negotiated_rev);
+	int (*set_bist_data)(struct tcpc_dev *dev, bool on);
+	int (*enable_frs)(struct tcpc_dev *dev, bool enable);
+	void (*frs_sourcing_vbus)(struct tcpc_dev *dev);
+	int (*enable_auto_vbus_discharge)(struct tcpc_dev *dev, bool enable);
+	int (*set_auto_vbus_discharge_threshold)(struct tcpc_dev *dev, enum typec_pwr_opmode mode,
+						 bool pps_active, u32 requested_vbus_voltage);
+	bool (*is_vbus_vsafe0v)(struct tcpc_dev *dev);
+	void (*set_partner_usb_comm_capable)(struct tcpc_dev *dev, bool enable);
 };
 
 struct tcpm_port;
@@ -159,14 +155,10 @@ struct tcpm_port;
 struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc);
 void tcpm_unregister_port(struct tcpm_port *port);
 
-int tcpm_update_source_capabilities(struct tcpm_port *port, const u32 *pdo,
-				    unsigned int nr_pdo);
-int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo,
-				  unsigned int nr_pdo,
-				  unsigned int operating_snk_mw);
-
 void tcpm_vbus_change(struct tcpm_port *port);
 void tcpm_cc_change(struct tcpm_port *port);
+void tcpm_sink_frs(struct tcpm_port *port);
+void tcpm_sourcing_vbus(struct tcpm_port *port);
 void tcpm_pd_receive(struct tcpm_port *port,
 		     const struct pd_message *msg);
 void tcpm_pd_transmit_complete(struct tcpm_port *port,

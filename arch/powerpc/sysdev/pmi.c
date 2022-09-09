@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pmi driver
  *
@@ -8,20 +9,6 @@
  * Unlike IPMI it is bidirectional and has a low latency.
  *
  * Author: Christian Krafft <krafft@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/interrupt.h>
@@ -30,12 +17,13 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include <asm/io.h>
 #include <asm/pmi.h>
-#include <asm/prom.h>
 
 struct pmi_data {
 	struct list_head	handler;

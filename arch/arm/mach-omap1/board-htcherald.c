@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HTC Herald board configuration
  * Copyright (C) 2009 Cory Maccarrone <darkstar6262@gmail.com>
@@ -6,22 +7,6 @@
  * Based on the board-htcwizard.c file from the linwizard project:
  * Copyright (C) 2006 Unai Uribarri
  * Copyright (C) 2008 linwizard.sourceforge.net
- *
- * This  program is  free  software; you  can  redistribute it  and/or
- * modify  it under the  terms of  the GNU  General Public  License as
- * published by the Free Software  Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT  ANY  WARRANTY;  without   even  the  implied  warranty  of
- * MERCHANTABILITY or  FITNESS FOR A PARTICULAR PURPOSE.   See the GNU
- * General Public License for more details.
- *
- * You should have  received a copy of the  GNU General Public License
- * along  with  this program;  if  not,  write  to the  Free  Software
- * Foundation,  Inc.,  51 Franklin  Street,  Fifth  Floor, Boston,  MA
- * 02110-1301, USA.
- *
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -38,16 +23,16 @@
 #include <linux/spi/ads7846.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/keypad-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/omap7xx.h>
+#include "hardware.h"
+#include "omap7xx.h"
 #include "mmc.h"
-
-#include <mach/irqs.h>
-#include <mach/usb.h>
-
+#include "irqs.h"
+#include "usb.h"
 #include "common.h"
 
 /* LCD register definition */
@@ -185,7 +170,7 @@ static const unsigned int htc_herald_keymap[] = {
 	KEY(3, 0, KEY_VOLUMEUP), /* Volume up */
 	KEY(4, 0, KEY_F2),  /* Right bar (landscape) */
 	KEY(5, 0, KEY_MAIL), /* Win key (portrait) */
-	KEY(6, 0, KEY_DIRECTORY), /* Right bar (protrait) */
+	KEY(6, 0, KEY_DIRECTORY), /* Right bar (portrait) */
 	KEY(0, 1, KEY_LEFTCTRL), /* Windows key */
 	KEY(1, 1, KEY_COMMA),
 	KEY(2, 1, KEY_M),

@@ -59,6 +59,7 @@ int dpio_disable(struct fsl_mc_io	*mc_io,
  * @num_priorities: Number of priorities for the notification channel (1-8);
  *			relevant only if 'channel_mode = DPIO_LOCAL_CHANNEL'
  * @qbman_version: QBMAN version
+ * @clk: QBMAN clock frequency value in Hz
  */
 struct dpio_attr {
 	int			id;
@@ -68,6 +69,7 @@ struct dpio_attr {
 	enum dpio_channel_mode	channel_mode;
 	u8			num_priorities;
 	u32		qbman_version;
+	u32		clk;
 };
 
 int dpio_get_attributes(struct fsl_mc_io	*mc_io,
@@ -75,9 +77,18 @@ int dpio_get_attributes(struct fsl_mc_io	*mc_io,
 			u16		token,
 			struct dpio_attr	*attr);
 
+int dpio_set_stashing_destination(struct fsl_mc_io *mc_io,
+				  u32 cmd_flags,
+				  u16 token,
+				  u8 dest);
+
 int dpio_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
 			 u16 *minor_ver);
+
+int dpio_reset(struct fsl_mc_io	*mc_io,
+	       u32 cmd_flags,
+	       u16 token);
 
 #endif /* __FSL_DPIO_H */

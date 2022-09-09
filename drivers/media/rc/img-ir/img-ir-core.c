@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ImgTec IR Decoder found in PowerDown Controller.
  *
  * Copyright 2010-2014 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * This contains core img-ir code for setting up the driver. The two interfaces
  * (raw and hardware decode) are handled separately.
@@ -80,15 +76,12 @@ static void img_ir_ident(struct img_ir_priv *priv)
 static int img_ir_probe(struct platform_device *pdev)
 {
 	struct img_ir_priv *priv;
-	struct resource *res_regs;
 	int irq, error, error2;
 
 	/* Get resources from platform device */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "cannot find IRQ resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	/* Private driver data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -100,8 +93,7 @@ static int img_ir_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 
 	/* Ioremap the registers */
-	res_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->reg_base = devm_ioremap_resource(&pdev->dev, res_regs);
+	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->reg_base))
 		return PTR_ERR(priv->reg_base);
 

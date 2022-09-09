@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EFI support for Xen.
  *
@@ -39,7 +40,7 @@
 
 #define efi_data(op)	(op.u.efi_runtime_call)
 
-efi_status_t xen_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
+static efi_status_t xen_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_time);
 
@@ -60,9 +61,8 @@ efi_status_t xen_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_get_time);
 
-efi_status_t xen_efi_set_time(efi_time_t *tm)
+static efi_status_t xen_efi_set_time(efi_time_t *tm)
 {
 	struct xen_platform_op op = INIT_EFI_OP(set_time);
 
@@ -74,10 +74,10 @@ efi_status_t xen_efi_set_time(efi_time_t *tm)
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_set_time);
 
-efi_status_t xen_efi_get_wakeup_time(efi_bool_t *enabled, efi_bool_t *pending,
-				     efi_time_t *tm)
+static efi_status_t xen_efi_get_wakeup_time(efi_bool_t *enabled,
+					    efi_bool_t *pending,
+					    efi_time_t *tm)
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_wakeup_time);
 
@@ -97,9 +97,8 @@ efi_status_t xen_efi_get_wakeup_time(efi_bool_t *enabled, efi_bool_t *pending,
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_get_wakeup_time);
 
-efi_status_t xen_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
+static efi_status_t xen_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 {
 	struct xen_platform_op op = INIT_EFI_OP(set_wakeup_time);
 
@@ -116,11 +115,10 @@ efi_status_t xen_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_set_wakeup_time);
 
-efi_status_t xen_efi_get_variable(efi_char16_t *name, efi_guid_t *vendor,
-				  u32 *attr, unsigned long *data_size,
-				  void *data)
+static efi_status_t xen_efi_get_variable(efi_char16_t *name, efi_guid_t *vendor,
+					 u32 *attr, unsigned long *data_size,
+					 void *data)
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_variable);
 
@@ -140,11 +138,10 @@ efi_status_t xen_efi_get_variable(efi_char16_t *name, efi_guid_t *vendor,
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_get_variable);
 
-efi_status_t xen_efi_get_next_variable(unsigned long *name_size,
-				       efi_char16_t *name,
-				       efi_guid_t *vendor)
+static efi_status_t xen_efi_get_next_variable(unsigned long *name_size,
+					      efi_char16_t *name,
+					      efi_guid_t *vendor)
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_next_variable_name);
 
@@ -164,11 +161,10 @@ efi_status_t xen_efi_get_next_variable(unsigned long *name_size,
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_get_next_variable);
 
-efi_status_t xen_efi_set_variable(efi_char16_t *name, efi_guid_t *vendor,
-				 u32 attr, unsigned long data_size,
-				 void *data)
+static efi_status_t xen_efi_set_variable(efi_char16_t *name, efi_guid_t *vendor,
+					 u32 attr, unsigned long data_size,
+					 void *data)
 {
 	struct xen_platform_op op = INIT_EFI_OP(set_variable);
 
@@ -185,11 +181,10 @@ efi_status_t xen_efi_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_set_variable);
 
-efi_status_t xen_efi_query_variable_info(u32 attr, u64 *storage_space,
-					 u64 *remaining_space,
-					 u64 *max_variable_size)
+static efi_status_t xen_efi_query_variable_info(u32 attr, u64 *storage_space,
+						u64 *remaining_space,
+						u64 *max_variable_size)
 {
 	struct xen_platform_op op = INIT_EFI_OP(query_variable_info);
 
@@ -207,9 +202,8 @@ efi_status_t xen_efi_query_variable_info(u32 attr, u64 *storage_space,
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_query_variable_info);
 
-efi_status_t xen_efi_get_next_high_mono_count(u32 *count)
+static efi_status_t xen_efi_get_next_high_mono_count(u32 *count)
 {
 	struct xen_platform_op op = INIT_EFI_OP(get_next_high_monotonic_count);
 
@@ -220,10 +214,9 @@ efi_status_t xen_efi_get_next_high_mono_count(u32 *count)
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_get_next_high_mono_count);
 
-efi_status_t xen_efi_update_capsule(efi_capsule_header_t **capsules,
-				    unsigned long count, unsigned long sg_list)
+static efi_status_t xen_efi_update_capsule(efi_capsule_header_t **capsules,
+				unsigned long count, unsigned long sg_list)
 {
 	struct xen_platform_op op = INIT_EFI_OP(update_capsule);
 
@@ -240,11 +233,9 @@ efi_status_t xen_efi_update_capsule(efi_capsule_header_t **capsules,
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_update_capsule);
 
-efi_status_t xen_efi_query_capsule_caps(efi_capsule_header_t **capsules,
-					unsigned long count, u64 *max_size,
-					int *reset_type)
+static efi_status_t xen_efi_query_capsule_caps(efi_capsule_header_t **capsules,
+			unsigned long count, u64 *max_size, int *reset_type)
 {
 	struct xen_platform_op op = INIT_EFI_OP(query_capsule_capabilities);
 
@@ -263,10 +254,9 @@ efi_status_t xen_efi_query_capsule_caps(efi_capsule_header_t **capsules,
 
 	return efi_data(op).status;
 }
-EXPORT_SYMBOL_GPL(xen_efi_query_capsule_caps);
 
-void xen_efi_reset_system(int reset_type, efi_status_t status,
-			  unsigned long data_size, efi_char16_t *data)
+static void xen_efi_reset_system(int reset_type, efi_status_t status,
+				 unsigned long data_size, efi_char16_t *data)
 {
 	switch (reset_type) {
 	case EFI_RESET_COLD:
@@ -280,4 +270,25 @@ void xen_efi_reset_system(int reset_type, efi_status_t status,
 		BUG();
 	}
 }
-EXPORT_SYMBOL_GPL(xen_efi_reset_system);
+
+/*
+ * Set XEN EFI runtime services function pointers. Other fields of struct efi,
+ * e.g. efi.systab, will be set like normal EFI.
+ */
+void __init xen_efi_runtime_setup(void)
+{
+	efi.get_time			= xen_efi_get_time;
+	efi.set_time			= xen_efi_set_time;
+	efi.get_wakeup_time		= xen_efi_get_wakeup_time;
+	efi.set_wakeup_time		= xen_efi_set_wakeup_time;
+	efi.get_variable		= xen_efi_get_variable;
+	efi.get_next_variable		= xen_efi_get_next_variable;
+	efi.set_variable		= xen_efi_set_variable;
+	efi.set_variable_nonblocking	= xen_efi_set_variable;
+	efi.query_variable_info		= xen_efi_query_variable_info;
+	efi.query_variable_info_nonblocking = xen_efi_query_variable_info;
+	efi.update_capsule		= xen_efi_update_capsule;
+	efi.query_capsule_caps		= xen_efi_query_capsule_caps;
+	efi.get_next_high_mono_count	= xen_efi_get_next_high_mono_count;
+	efi.reset_system		= xen_efi_reset_system;
+}

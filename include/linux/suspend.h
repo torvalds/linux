@@ -190,8 +190,9 @@ struct platform_suspend_ops {
 struct platform_s2idle_ops {
 	int (*begin)(void);
 	int (*prepare)(void);
-	void (*wake)(void);
-	void (*sync)(void);
+	int (*prepare_late)(void);
+	bool (*wake)(void);
+	void (*restore_early)(void);
 	void (*restore)(void);
 	void (*end)(void);
 };
@@ -209,8 +210,9 @@ extern int suspend_valid_only_mem(suspend_state_t state);
 
 extern unsigned int pm_suspend_global_flags;
 
-#define PM_SUSPEND_FLAG_FW_SUSPEND	(1 << 0)
-#define PM_SUSPEND_FLAG_FW_RESUME	(1 << 1)
+#define PM_SUSPEND_FLAG_FW_SUSPEND	BIT(0)
+#define PM_SUSPEND_FLAG_FW_RESUME	BIT(1)
+#define PM_SUSPEND_FLAG_NO_PLATFORM	BIT(2)
 
 static inline void pm_suspend_clear_flags(void)
 {
@@ -227,14 +229,66 @@ static inline void pm_set_resume_via_firmware(void)
 	pm_suspend_global_flags |= PM_SUSPEND_FLAG_FW_RESUME;
 }
 
+static inline void pm_set_suspend_no_platform(void)
+{
+	pm_suspend_global_flags |= PM_SUSPEND_FLAG_NO_PLATFORM;
+}
+
+/**
+ * pm_suspend_via_firmware - Check if platform firmware will suspend the system.
+ *
+ * To be called during system-wide power management transitions to sleep states
+ * or during the subsequent system-wide transitions back to the working state.
+ *
+ * Return 'true' if the platform firmware is going to be invoked at the end of
+ * the system-wide power management transition (to a sleep state) in progress in
+ * order to complete it, or if the platform firmware has been invoked in order
+ * to complete the last (or preceding) transition of the system to a sleep
+ * state.
+ *
+ * This matters if the caller needs or wants to carry out some special actions
+ * depending on whether or not control will be passed to the platform firmware
+ * subsequently (for example, the device may need to be reset before letting the
+ * platform firmware manipulate it, which is not necessary when the platform
+ * firmware is not going to be invoked) or when such special actions may have
+ * been carried out during the preceding transition of the system to a sleep
+ * state (as they may need to be taken into account).
+ */
 static inline bool pm_suspend_via_firmware(void)
 {
 	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_SUSPEND);
 }
 
+/**
+ * pm_resume_via_firmware - Check if platform firmware has woken up the system.
+ *
+ * To be called during system-wide power management transitions from sleep
+ * states.
+ *
+ * Return 'true' if the platform firmware has passed control to the kernel at
+ * the beginning of the system-wide power management transition in progress, so
+ * the event that woke up the system from sleep has been handled by the platform
+ * firmware.
+ */
 static inline bool pm_resume_via_firmware(void)
 {
 	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_RESUME);
+}
+
+/**
+ * pm_suspend_no_platform - Check if platform may change device power states.
+ *
+ * To be called during system-wide power management transitions to sleep states
+ * or during the subsequent system-wide transitions back to the working state.
+ *
+ * Return 'true' if the power states of devices remain under full control of the
+ * kernel throughout the system-wide suspend and resume cycle in progress (that
+ * is, if a device is put into a certain power state during suspend, it can be
+ * expected to remain in that state during resume).
+ */
+static inline bool pm_suspend_no_platform(void)
+{
+	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_NO_PLATFORM);
 }
 
 /* Suspend-to-idle state machnine. */
@@ -251,7 +305,7 @@ static inline bool idle_should_enter_s2idle(void)
 	return unlikely(s2idle_state == S2IDLE_STATE_ENTER);
 }
 
-extern bool pm_suspend_via_s2idle(void);
+extern bool pm_suspend_default_s2idle(void);
 extern void __init pm_states_init(void);
 extern void s2idle_set_ops(const struct platform_s2idle_ops *ops);
 extern void s2idle_wake(void);
@@ -275,6 +329,7 @@ extern void arch_suspend_disable_irqs(void);
 extern void arch_suspend_enable_irqs(void);
 
 extern int pm_suspend(suspend_state_t state);
+extern bool sync_on_suspend_enabled;
 #else /* !CONFIG_SUSPEND */
 #define suspend_valid_only_mem	NULL
 
@@ -283,10 +338,12 @@ static inline void pm_set_suspend_via_firmware(void) {}
 static inline void pm_set_resume_via_firmware(void) {}
 static inline bool pm_suspend_via_firmware(void) { return false; }
 static inline bool pm_resume_via_firmware(void) { return false; }
-static inline bool pm_suspend_via_s2idle(void) { return false; }
+static inline bool pm_suspend_no_platform(void) { return false; }
+static inline bool pm_suspend_default_s2idle(void) { return false; }
 
 static inline void suspend_set_ops(const struct platform_suspend_ops *ops) {}
 static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
+static inline bool sync_on_suspend_enabled(void) { return true; }
 static inline bool idle_should_enter_s2idle(void) { return false; }
 static inline void __init pm_states_init(void) {}
 static inline void s2idle_set_ops(const struct platform_s2idle_ops *ops) {}
@@ -359,7 +416,7 @@ extern void mark_free_pages(struct zone *zone);
  *	platforms which require special recovery actions in that situation.
  */
 struct platform_hibernation_ops {
-	int (*begin)(void);
+	int (*begin)(pm_message_t stage);
 	void (*end)(void);
 	int (*pre_snapshot)(void);
 	void (*finish)(void);
@@ -373,15 +430,7 @@ struct platform_hibernation_ops {
 
 #ifdef CONFIG_HIBERNATION
 /* kernel/power/snapshot.c */
-extern void __register_nosave_region(unsigned long b, unsigned long e, int km);
-static inline void __init register_nosave_region(unsigned long b, unsigned long e)
-{
-	__register_nosave_region(b, e, 0);
-}
-static inline void __init register_nosave_region_late(unsigned long b, unsigned long e)
-{
-	__register_nosave_region(b, e, 1);
-}
+extern void register_nosave_region(unsigned long b, unsigned long e);
 extern int swsusp_page_is_forbidden(struct page *);
 extern void swsusp_set_page_free(struct page *);
 extern void swsusp_unset_page_free(struct page *);
@@ -389,15 +438,18 @@ extern unsigned long get_safe_page(gfp_t gfp_mask);
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
 
+extern u32 swsusp_hardware_signature;
 extern void hibernation_set_ops(const struct platform_hibernation_ops *ops);
 extern int hibernate(void);
 extern bool system_entering_hibernation(void);
 extern bool hibernation_available(void);
 asmlinkage int swsusp_save(void);
 extern struct pbe *restore_pblist;
+int pfn_is_nosave(unsigned long pfn);
+
+int hibernate_quiet_exec(int (*func)(void *data), void *data);
 #else /* CONFIG_HIBERNATION */
 static inline void register_nosave_region(unsigned long b, unsigned long e) {}
-static inline void register_nosave_region_late(unsigned long b, unsigned long e) {}
 static inline int swsusp_page_is_forbidden(struct page *p) { return 0; }
 static inline void swsusp_set_page_free(struct page *p) {}
 static inline void swsusp_unset_page_free(struct page *p) {}
@@ -406,7 +458,17 @@ static inline void hibernation_set_ops(const struct platform_hibernation_ops *op
 static inline int hibernate(void) { return -ENOSYS; }
 static inline bool system_entering_hibernation(void) { return false; }
 static inline bool hibernation_available(void) { return false; }
+
+static inline int hibernate_quiet_exec(int (*func)(void *data), void *data) {
+	return -ENOTSUPP;
+}
 #endif /* CONFIG_HIBERNATION */
+
+#ifdef CONFIG_HIBERNATION_SNAPSHOT_DEV
+int is_hibernate_resume_dev(dev_t dev);
+#else
+static inline int is_hibernate_resume_dev(dev_t dev) { return 0; }
+#endif
 
 /* Hibernation and suspend events */
 #define PM_HIBERNATION_PREPARE	0x0001 /* Going to hibernate */
@@ -425,6 +487,7 @@ void restore_processor_state(void);
 /* kernel/power/main.c */
 extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
+extern void ksys_sync_helper(void);
 
 #define pm_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
@@ -434,14 +497,14 @@ extern int unregister_pm_notifier(struct notifier_block *nb);
 
 /* drivers/base/power/wakeup.c */
 extern bool events_check_enabled;
-extern unsigned int pm_wakeup_irq;
 extern suspend_state_t pm_suspend_target_state;
 
 extern bool pm_wakeup_pending(void);
 extern void pm_system_wakeup(void);
 extern void pm_system_cancel_wakeup(void);
-extern void pm_wakeup_clear(bool reset);
+extern void pm_wakeup_clear(unsigned int irq_number);
 extern void pm_system_irq_wakeup(unsigned int irq_number);
+extern unsigned int pm_wakeup_irq(void);
 extern bool pm_get_wakeup_count(unsigned int *count, bool block);
 extern bool pm_save_wakeup_count(unsigned int count);
 extern void pm_wakep_autosleep_enabled(bool set);
@@ -462,6 +525,8 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 	return 0;
 }
 
+static inline void ksys_sync_helper(void) {}
+
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
 
 static inline bool pm_wakeup_pending(void) { return false; }
@@ -477,22 +542,56 @@ static inline void unlock_system_sleep(void) {}
 #ifdef CONFIG_PM_SLEEP_DEBUG
 extern bool pm_print_times_enabled;
 extern bool pm_debug_messages_on;
-extern __printf(2, 3) void __pm_pr_dbg(bool defer, const char *fmt, ...);
+static inline int pm_dyn_debug_messages_on(void)
+{
+#ifdef CONFIG_DYNAMIC_DEBUG
+	return 1;
+#else
+	return 0;
+#endif
+}
+#ifndef pr_fmt
+#define pr_fmt(fmt) "PM: " fmt
+#endif
+#define __pm_pr_dbg(fmt, ...)					\
+	do {							\
+		if (pm_debug_messages_on)			\
+			printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
+		else if (pm_dyn_debug_messages_on())		\
+			pr_debug(fmt, ##__VA_ARGS__);	\
+	} while (0)
+#define __pm_deferred_pr_dbg(fmt, ...)				\
+	do {							\
+		if (pm_debug_messages_on)			\
+			printk_deferred(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
+	} while (0)
 #else
 #define pm_print_times_enabled	(false)
 #define pm_debug_messages_on	(false)
 
 #include <linux/printk.h>
 
-#define __pm_pr_dbg(defer, fmt, ...) \
-	no_printk(KERN_DEBUG fmt, ##__VA_ARGS__)
+#define __pm_pr_dbg(fmt, ...) \
+	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#define __pm_deferred_pr_dbg(fmt, ...) \
+	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
+/**
+ * pm_pr_dbg - print pm sleep debug messages
+ *
+ * If pm_debug_messages_on is enabled, print message.
+ * If pm_debug_messages_on is disabled and CONFIG_DYNAMIC_DEBUG is enabled,
+ *	print message only from instances explicitly enabled on dynamic debug's
+ *	control.
+ * If pm_debug_messages_on is disabled and CONFIG_DYNAMIC_DEBUG is disabled,
+ *	don't print message.
+ */
 #define pm_pr_dbg(fmt, ...) \
-	__pm_pr_dbg(false, fmt, ##__VA_ARGS__)
+	__pm_pr_dbg(fmt, ##__VA_ARGS__)
 
 #define pm_deferred_pr_dbg(fmt, ...) \
-	__pm_pr_dbg(true, fmt, ##__VA_ARGS__)
+	__pm_deferred_pr_dbg(fmt, ##__VA_ARGS__)
 
 #ifdef CONFIG_PM_AUTOSLEEP
 
@@ -504,39 +603,5 @@ void queue_up_suspend_work(void);
 static inline void queue_up_suspend_work(void) {}
 
 #endif /* !CONFIG_PM_AUTOSLEEP */
-
-#ifdef CONFIG_ARCH_SAVE_PAGE_KEYS
-/*
- * The ARCH_SAVE_PAGE_KEYS functions can be used by an architecture
- * to save/restore additional information to/from the array of page
- * frame numbers in the hibernation image. For s390 this is used to
- * save and restore the storage key for each page that is included
- * in the hibernation image.
- */
-unsigned long page_key_additional_pages(unsigned long pages);
-int page_key_alloc(unsigned long pages);
-void page_key_free(void);
-void page_key_read(unsigned long *pfn);
-void page_key_memorize(unsigned long *pfn);
-void page_key_write(void *address);
-
-#else /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
-
-static inline unsigned long page_key_additional_pages(unsigned long pages)
-{
-	return 0;
-}
-
-static inline int  page_key_alloc(unsigned long pages)
-{
-	return 0;
-}
-
-static inline void page_key_free(void) {}
-static inline void page_key_read(unsigned long *pfn) {}
-static inline void page_key_memorize(unsigned long *pfn) {}
-static inline void page_key_write(void *address) {}
-
-#endif /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
 
 #endif /* _LINUX_SUSPEND_H */

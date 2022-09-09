@@ -218,7 +218,7 @@
 	flash0-supply = <&vcc_flash>;
 	flash1-supply = <&vccio_pmu>;
 	gpio30-supply = <&vccio_pmu>;
-	gpio1830 = <&vcc_io>;
+	gpio1830-supply = <&vcc_io>;
 	lcdc-supply = <&vcc_io>;
 	sdcard-supply = <&vccio_sd>;
 	wifi-supply = <&vcc_18>;
@@ -230,14 +230,14 @@
 	};
 
 	emmc {
-			emmc_reset: emmc-reset {
-				rockchip,pins = <3 9 RK_FUNC_GPIO &pcfg_pull_none>;
-			};
+		emmc_reset: emmc-reset {
+			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 
 	gmac {
 		phy_rst: phy-rst {
-			rockchip,pins = <4 8 RK_FUNC_GPIO  &pcfg_output_high>;
+			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 };

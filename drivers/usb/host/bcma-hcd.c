@@ -168,7 +168,7 @@ static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
 	}
 }
 
-/**
+/*
  * bcma_hcd_usb20_old_arm_init - Initialize old USB 2.0 controller on ARM
  *
  * Old USB 2.0 core is identified as BCMA_CORE_USB20_HOST and was introduced
@@ -261,7 +261,7 @@ static void bcma_hcd_usb20_ns_init_hc(struct bcma_device *dev)
 	usleep_range(1000, 2000);
 }
 
-/**
+/*
  * bcma_hcd_usb20_ns_init - Initialize Northstar USB 2.0 controller
  */
 static int bcma_hcd_usb20_ns_init(struct bcma_hcd_device *bcma_hcd)
@@ -495,15 +495,4 @@ static struct bcma_driver bcma_hcd_driver = {
 	.suspend	= bcma_hcd_suspend,
 	.resume		= bcma_hcd_resume,
 };
-
-static int __init bcma_hcd_init(void)
-{
-	return bcma_driver_register(&bcma_hcd_driver);
-}
-module_init(bcma_hcd_init);
-
-static void __exit bcma_hcd_exit(void)
-{
-	bcma_driver_unregister(&bcma_hcd_driver);
-}
-module_exit(bcma_hcd_exit);
+module_bcma_driver(bcma_hcd_driver);

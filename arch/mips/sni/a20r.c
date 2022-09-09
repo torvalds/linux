@@ -143,7 +143,10 @@ static struct platform_device sc26xx_pdev = {
 	},
 };
 
-static u32 a20r_ack_hwint(void)
+/*
+ * Trigger chipset to update CPU's CAUSE IP field
+ */
+static u32 a20r_update_cause_ip(void)
 {
 	u32 status = read_c0_status();
 
@@ -205,12 +208,14 @@ static void a20r_hwint(void)
 	int irq;
 
 	clear_c0_status(IE_IRQ0);
-	status = a20r_ack_hwint();
+	status = a20r_update_cause_ip();
 	cause = read_c0_cause();
 
 	irq = ffs(((cause & status) >> 8) & 0xf8);
 	if (likely(irq > 0))
 		do_IRQ(SNI_A20R_IRQ_BASE + irq - 1);
+
+	a20r_update_cause_ip();
 	set_c0_status(IE_IRQ0);
 }
 
@@ -222,7 +227,9 @@ void __init sni_a20r_irq_init(void)
 		irq_set_chip_and_handler(i, &a20r_irq_type, handle_level_irq);
 	sni_hwint = a20r_hwint;
 	change_c0_status(ST0_IM, IE_IRQ0);
-	setup_irq(SNI_A20R_IRQ_BASE + 3, &sni_isa_irq);
+	if (request_irq(SNI_A20R_IRQ_BASE + 3, sni_isa_irq_handler,
+			IRQF_SHARED, "ISA", sni_isa_irq_handler))
+		pr_err("Failed to register ISA interrupt\n");
 }
 
 void sni_a20r_init(void)

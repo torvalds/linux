@@ -213,8 +213,10 @@ static int bt_start_transaction(struct si_sm_data *bt,
 	if (bt->state == BT_STATE_LONG_BUSY)
 		return IPMI_NODE_BUSY_ERR;
 
-	if (bt->state != BT_STATE_IDLE)
+	if (bt->state != BT_STATE_IDLE) {
+		dev_warn(bt->io->dev, "BT in invalid state %d\n", bt->state);
 		return IPMI_NOT_IN_MY_STATE_ERR;
+	}
 
 	if (bt_debug & BT_DEBUG_MSG) {
 		dev_dbg(bt->io->dev, "+++++++++++++++++ New command\n");

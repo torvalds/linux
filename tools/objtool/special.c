@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -23,25 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "special.h"
-#include "warn.h"
-
-#define EX_ENTRY_SIZE		12
-#define EX_ORIG_OFFSET		0
-#define EX_NEW_OFFSET		4
-
-#define JUMP_ENTRY_SIZE		16
-#define JUMP_ORIG_OFFSET	0
-#define JUMP_NEW_OFFSET		4
-
-#define ALT_ENTRY_SIZE		13
-#define ALT_ORIG_OFFSET		0
-#define ALT_NEW_OFFSET		4
-#define ALT_FEATURE_OFFSET	8
-#define ALT_ORIG_LEN_OFFSET	10
-#define ALT_NEW_LEN_OFFSET	11
-
-#define X86_FEATURE_POPCNT (4*32+23)
+#include <arch/special.h>
+#include <objtool/builtin.h>
+#include <objtool/special.h>
+#include <objtool/warn.h>
+#include <objtool/endianness.h>
 
 struct special_entry {
 	const char *sec;
@@ -49,6 +23,7 @@ struct special_entry {
 	unsigned char size, orig, new;
 	unsigned char orig_len, new_len; /* group only */
 	unsigned char feature; /* ALTERNATIVE macro CPU feature */
+	unsigned char key; /* jump_label key */
 };
 
 struct special_entry entries[] = {
@@ -68,6 +43,7 @@ struct special_entry entries[] = {
 		.size = JUMP_ENTRY_SIZE,
 		.orig = JUMP_ORIG_OFFSET,
 		.new = JUMP_NEW_OFFSET,
+		.key = JUMP_KEY_OFFSET,
 	},
 	{
 		.sec = "__ex_table",
@@ -78,11 +54,22 @@ struct special_entry entries[] = {
 	{},
 };
 
+void __weak arch_handle_alternative(unsigned short feature, struct special_alt *alt)
+{
+}
+
+static void reloc_to_sec_off(struct reloc *reloc, struct section **sec,
+			     unsigned long *off)
+{
+	*sec = reloc->sym->sec;
+	*off = reloc->sym->offset + reloc->addend;
+}
+
 static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 			 struct section *sec, int idx,
 			 struct special_alt *alt)
 {
-	struct rela *orig_rela, *new_rela;
+	struct reloc *orig_reloc, *new_reloc;
 	unsigned long offset;
 
 	offset = idx * entry->size;
@@ -100,46 +87,45 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 	if (entry->feature) {
 		unsigned short feature;
 
-		feature = *(unsigned short *)(sec->data->d_buf + offset +
-					      entry->feature);
-
-		/*
-		 * It has been requested that we don't validate the !POPCNT
-		 * feature path which is a "very very small percentage of
-		 * machines".
-		 */
-		if (feature == X86_FEATURE_POPCNT)
-			alt->skip_orig = true;
+		feature = bswap_if_needed(*(unsigned short *)(sec->data->d_buf +
+							      offset +
+							      entry->feature));
+		arch_handle_alternative(feature, alt);
 	}
 
-	orig_rela = find_rela_by_dest(sec, offset + entry->orig);
-	if (!orig_rela) {
-		WARN_FUNC("can't find orig rela", sec, offset + entry->orig);
-		return -1;
-	}
-	if (orig_rela->sym->type != STT_SECTION) {
-		WARN_FUNC("don't know how to handle non-section rela symbol %s",
-			   sec, offset + entry->orig, orig_rela->sym->name);
+	orig_reloc = find_reloc_by_dest(elf, sec, offset + entry->orig);
+	if (!orig_reloc) {
+		WARN_FUNC("can't find orig reloc", sec, offset + entry->orig);
 		return -1;
 	}
 
-	alt->orig_sec = orig_rela->sym->sec;
-	alt->orig_off = orig_rela->addend;
+	reloc_to_sec_off(orig_reloc, &alt->orig_sec, &alt->orig_off);
 
 	if (!entry->group || alt->new_len) {
-		new_rela = find_rela_by_dest(sec, offset + entry->new);
-		if (!new_rela) {
-			WARN_FUNC("can't find new rela",
+		new_reloc = find_reloc_by_dest(elf, sec, offset + entry->new);
+		if (!new_reloc) {
+			WARN_FUNC("can't find new reloc",
 				  sec, offset + entry->new);
 			return -1;
 		}
 
-		alt->new_sec = new_rela->sym->sec;
-		alt->new_off = (unsigned int)new_rela->addend;
+		reloc_to_sec_off(new_reloc, &alt->new_sec, &alt->new_off);
 
 		/* _ASM_EXTABLE_EX hack */
 		if (alt->new_off >= 0x7ffffff0)
 			alt->new_off -= 0x7ffffff0;
+	}
+
+	if (entry->key) {
+		struct reloc *key_reloc;
+
+		key_reloc = find_reloc_by_dest(elf, sec, offset + entry->key);
+		if (!key_reloc) {
+			WARN_FUNC("can't find key reloc",
+				  sec, offset + entry->key);
+			return -1;
+		}
+		alt->key_addend = key_reloc->addend;
 	}
 
 	return 0;
@@ -165,13 +151,13 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 		if (!sec)
 			continue;
 
-		if (sec->len % entry->size != 0) {
+		if (sec->sh.sh_size % entry->size != 0) {
 			WARN("%s size not a multiple of %d",
 			     sec->name, entry->size);
 			return -1;
 		}
 
-		nr_entries = sec->len / entry->size;
+		nr_entries = sec->sh.sh_size / entry->size;
 
 		for (idx = 0; idx < nr_entries; idx++) {
 			alt = malloc(sizeof(*alt));
@@ -182,7 +168,9 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 			memset(alt, 0, sizeof(*alt));
 
 			ret = get_alt_entry(elf, entry, sec, idx, alt);
-			if (ret)
+			if (ret > 0)
+				continue;
+			if (ret < 0)
 				return ret;
 
 			list_add_tail(&alt->list, alts);

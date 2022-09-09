@@ -16,10 +16,12 @@
 #ifdef CONFIG_STACKLEAK_RUNTIME_DISABLE
 #include <linux/jump_label.h>
 #include <linux/sysctl.h>
+#include <linux/init.h>
 
 static DEFINE_STATIC_KEY_FALSE(stack_erasing_bypass);
 
-int stack_erasing_sysctl(struct ctl_table *table, int write,
+#ifdef CONFIG_SYSCTL
+static int stack_erasing_sysctl(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = 0;
@@ -42,81 +44,112 @@ int stack_erasing_sysctl(struct ctl_table *table, int write,
 					state ? "enabled" : "disabled");
 	return ret;
 }
+static struct ctl_table stackleak_sysctls[] = {
+	{
+		.procname	= "stack_erasing",
+		.data		= NULL,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= stack_erasing_sysctl,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+	{}
+};
+
+static int __init stackleak_sysctls_init(void)
+{
+	register_sysctl_init("kernel", stackleak_sysctls);
+	return 0;
+}
+late_initcall(stackleak_sysctls_init);
+#endif /* CONFIG_SYSCTL */
 
 #define skip_erasing()	static_branch_unlikely(&stack_erasing_bypass)
 #else
 #define skip_erasing()	false
 #endif /* CONFIG_STACKLEAK_RUNTIME_DISABLE */
 
-asmlinkage void notrace stackleak_erase(void)
+static __always_inline void __stackleak_erase(bool on_task_stack)
 {
-	/* It would be nice not to have 'kstack_ptr' and 'boundary' on stack */
-	unsigned long kstack_ptr = current->lowest_stack;
-	unsigned long boundary = (unsigned long)end_of_stack(current);
-	unsigned int poison_count = 0;
-	const unsigned int depth = STACKLEAK_SEARCH_DEPTH / sizeof(unsigned long);
+	const unsigned long task_stack_low = stackleak_task_low_bound(current);
+	const unsigned long task_stack_high = stackleak_task_high_bound(current);
+	unsigned long erase_low, erase_high;
 
-	if (skip_erasing())
-		return;
-
-	/* Check that 'lowest_stack' value is sane */
-	if (unlikely(kstack_ptr - boundary >= THREAD_SIZE))
-		kstack_ptr = boundary;
-
-	/* Search for the poison value in the kernel stack */
-	while (kstack_ptr > boundary && poison_count <= depth) {
-		if (*(unsigned long *)kstack_ptr == STACKLEAK_POISON)
-			poison_count++;
-		else
-			poison_count = 0;
-
-		kstack_ptr -= sizeof(unsigned long);
-	}
-
-	/*
-	 * One 'long int' at the bottom of the thread stack is reserved and
-	 * should not be poisoned (see CONFIG_SCHED_STACK_END_CHECK=y).
-	 */
-	if (kstack_ptr == boundary)
-		kstack_ptr += sizeof(unsigned long);
+	erase_low = stackleak_find_top_of_poison(task_stack_low,
+						 current->lowest_stack);
 
 #ifdef CONFIG_STACKLEAK_METRICS
-	current->prev_lowest_stack = kstack_ptr;
+	current->prev_lowest_stack = erase_low;
 #endif
 
 	/*
-	 * Now write the poison value to the kernel stack. Start from
-	 * 'kstack_ptr' and move up till the new 'boundary'. We assume that
-	 * the stack pointer doesn't change when we write poison.
+	 * Write poison to the task's stack between 'erase_low' and
+	 * 'erase_high'.
+	 *
+	 * If we're running on a different stack (e.g. an entry trampoline
+	 * stack) we can erase everything below the pt_regs at the top of the
+	 * task stack.
+	 *
+	 * If we're running on the task stack itself, we must not clobber any
+	 * stack used by this function and its caller. We assume that this
+	 * function has a fixed-size stack frame, and the current stack pointer
+	 * doesn't change while we write poison.
 	 */
-	if (on_thread_stack())
-		boundary = current_stack_pointer;
+	if (on_task_stack)
+		erase_high = current_stack_pointer;
 	else
-		boundary = current_top_of_stack();
+		erase_high = task_stack_high;
 
-	while (kstack_ptr < boundary) {
-		*(unsigned long *)kstack_ptr = STACKLEAK_POISON;
-		kstack_ptr += sizeof(unsigned long);
+	while (erase_low < erase_high) {
+		*(unsigned long *)erase_low = STACKLEAK_POISON;
+		erase_low += sizeof(unsigned long);
 	}
 
 	/* Reset the 'lowest_stack' value for the next syscall */
-	current->lowest_stack = current_top_of_stack() - THREAD_SIZE/64;
+	current->lowest_stack = task_stack_high;
 }
-NOKPROBE_SYMBOL(stackleak_erase);
 
-void __used notrace stackleak_track_stack(void)
+/*
+ * Erase and poison the portion of the task stack used since the last erase.
+ * Can be called from the task stack or an entry stack when the task stack is
+ * no longer in use.
+ */
+asmlinkage void noinstr stackleak_erase(void)
 {
-	/*
-	 * N.B. stackleak_erase() fills the kernel stack with the poison value,
-	 * which has the register width. That code assumes that the value
-	 * of 'lowest_stack' is aligned on the register width boundary.
-	 *
-	 * That is true for x86 and x86_64 because of the kernel stack
-	 * alignment on these platforms (for details, see 'cc_stack_align' in
-	 * arch/x86/Makefile). Take care of that when you port STACKLEAK to
-	 * new platforms.
-	 */
-	unsigned long sp = (unsigned long)&sp;
+	if (skip_erasing())
+		return;
+
+	__stackleak_erase(on_thread_stack());
+}
+
+/*
+ * Erase and poison the portion of the task stack used since the last erase.
+ * Can only be called from the task stack.
+ */
+asmlinkage void noinstr stackleak_erase_on_task_stack(void)
+{
+	if (skip_erasing())
+		return;
+
+	__stackleak_erase(true);
+}
+
+/*
+ * Erase and poison the portion of the task stack used since the last erase.
+ * Can only be called from a stack other than the task stack.
+ */
+asmlinkage void noinstr stackleak_erase_off_task_stack(void)
+{
+	if (skip_erasing())
+		return;
+
+	__stackleak_erase(false);
+}
+
+void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
+{
+	unsigned long sp = current_stack_pointer;
 
 	/*
 	 * Having CONFIG_STACKLEAK_TRACK_MIN_SIZE larger than
@@ -125,9 +158,10 @@ void __used notrace stackleak_track_stack(void)
 	 */
 	BUILD_BUG_ON(CONFIG_STACKLEAK_TRACK_MIN_SIZE > STACKLEAK_SEARCH_DEPTH);
 
+	/* 'lowest_stack' should be aligned on the register width boundary */
+	sp = ALIGN(sp, sizeof(unsigned long));
 	if (sp < current->lowest_stack &&
-	    sp >= (unsigned long)task_stack_page(current) +
-						sizeof(unsigned long)) {
+	    sp >= stackleak_task_low_bound(current)) {
 		current->lowest_stack = sp;
 	}
 }

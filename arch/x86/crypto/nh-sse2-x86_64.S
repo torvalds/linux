@@ -71,7 +71,7 @@
  *
  * It's guaranteed that message_len % 16 == 0.
  */
-ENTRY(nh_sse2)
+SYM_FUNC_START(nh_sse2)
 
 	movdqu		0x00(KEY), K0
 	movdqu		0x10(KEY), K1
@@ -119,5 +119,5 @@ ENTRY(nh_sse2)
 	paddq		PASS2_SUMS, T1
 	movdqu		T0, 0x00(HASH)
 	movdqu		T1, 0x10(HASH)
-	ret
-ENDPROC(nh_sse2)
+	RET
+SYM_FUNC_END(nh_sse2)

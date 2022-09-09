@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # I2C subsystem configuration
 #
@@ -8,7 +9,7 @@ config I2C
 	tristate "I2C support"
 	select RT_MUTEXES
 	select IRQ_DOMAIN
-	---help---
+	help
 	  I2C (pronounce: I-squared-C) is a slow serial bus protocol used in
 	  many micro controller applications and developed by Philips.  SMBus,
 	  or System Management Bus is a subset of the I2C protocol.  More
@@ -53,7 +54,7 @@ config I2C_CHARDEV
 	  Say Y here to use i2c-* device files, usually found in the /dev
 	  directory on your system.  They make it possible to have user-space
 	  programs use the I2C bus.  Information on how to do this is
-	  contained in the file <file:Documentation/i2c/dev-interface>.
+	  contained in the file <file:Documentation/i2c/dev-interface.rst>.
 
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-dev.
@@ -100,23 +101,37 @@ source "drivers/i2c/busses/Kconfig"
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"
 	depends on m
-	default 'n'
 	help
 	  This module may be useful to developers of SMBus client drivers,
 	  especially for certain kinds of sensor chips.
 
 	  If you do build this module, be sure to read the notes and warnings
-	  in <file:Documentation/i2c/i2c-stub>.
+	  in <file:Documentation/i2c/i2c-stub.rst>.
 
 	  If you don't know what to do here, definitely say N.
 
 config I2C_SLAVE
 	bool "I2C slave support"
+	help
+	  This enables Linux to act as an I2C slave device. Note that your I2C
+	  bus master driver also needs to support this functionality. Please
+	  read Documentation/i2c/slave-interface.rst for further details.
 
 if I2C_SLAVE
 
 config I2C_SLAVE_EEPROM
 	tristate "I2C eeprom slave driver"
+	help
+	  This backend makes Linux behave like an I2C EEPROM. Please read
+	  Documentation/i2c/slave-eeprom-backend.rst for further details.
+
+config I2C_SLAVE_TESTUNIT
+	tristate "I2C eeprom testunit driver"
+	help
+	  This backend can be used to trigger test cases for I2C bus masters
+	  which require a remote device with certain capabilities, e.g.
+	  multi-master, SMBus Host Notify, etc. Please read
+	  Documentation/i2c/slave-testunit-backend.rst for further details.
 
 endif
 

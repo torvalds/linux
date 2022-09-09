@@ -167,7 +167,7 @@ static int nfeth_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static void nfeth_tx_timeout(struct net_device *dev)
+static void nfeth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);
@@ -200,7 +200,7 @@ static struct net_device * __init nfeth_probe(int unit)
 	dev->irq = nfEtherIRQ;
 	dev->netdev_ops = &nfeth_netdev_ops;
 
-	memcpy(dev->dev_addr, mac, ETH_ALEN);
+	eth_hw_addr_set(dev, mac);
 
 	priv = netdev_priv(dev);
 	priv->ethX = unit;
@@ -254,8 +254,8 @@ static void __exit nfeth_cleanup(void)
 
 	for (i = 0; i < MAX_UNIT; i++) {
 		if (nfeth_dev[i]) {
-			unregister_netdev(nfeth_dev[0]);
-			free_netdev(nfeth_dev[0]);
+			unregister_netdev(nfeth_dev[i]);
+			free_netdev(nfeth_dev[i]);
 		}
 	}
 	free_irq(nfEtherIRQ, nfeth_interrupt);

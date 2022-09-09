@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kernel/freezer.c - Function to freeze a process
  *
@@ -20,12 +21,6 @@ EXPORT_SYMBOL(system_freezing_cnt);
  */
 bool pm_freezing;
 bool pm_nosig_freezing;
-
-/*
- * Temporary export for the deadlock workaround in ata_scsi_hotplug().
- * Remove once the hack becomes unnecessary.
- */
-EXPORT_SYMBOL_GPL(pm_freezing);
 
 /* protects freezing and frozen transitions */
 static DEFINE_SPINLOCK(freezer_lock);
@@ -63,7 +58,7 @@ bool __refrigerator(bool check_kthr_stop)
 	/* Hmm, should we be allowed to suspend when there are realtime
 	   processes around? */
 	bool was_frozen = false;
-	long save = current->state;
+	unsigned int save = get_current_state();
 
 	pr_debug("%s entered refrigerator\n", current->comm);
 

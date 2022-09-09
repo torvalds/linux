@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -8,11 +9,6 @@
  * Version:	@(#)raw.h	1.0.2	05/07/93
  *
  * Author:	Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _RAW_H
 #define _RAW_H
@@ -24,9 +20,8 @@
 extern struct proto raw_prot;
 
 extern struct raw_hashinfo raw_v4_hashinfo;
-struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
-			     unsigned short num, __be32 raddr,
-			     __be32 laddr, int dif, int sdif);
+bool raw_v4_match(struct net *net, struct sock *sk, unsigned short num,
+		  __be32 raddr, __be32 laddr, int dif, int sdif);
 
 int raw_abort(struct sock *sk, int err);
 void raw_icmp_error(struct sk_buff *, int, u32);
@@ -37,9 +32,18 @@ int raw_rcv(struct sock *, struct sk_buff *);
 #define RAW_HTABLE_SIZE	MAX_INET_PROTOS
 
 struct raw_hashinfo {
-	rwlock_t lock;
-	struct hlist_head ht[RAW_HTABLE_SIZE];
+	spinlock_t lock;
+	struct hlist_nulls_head ht[RAW_HTABLE_SIZE];
 };
+
+static inline void raw_hashinfo_init(struct raw_hashinfo *hashinfo)
+{
+	int i;
+
+	spin_lock_init(&hashinfo->lock);
+	for (i = 0; i < RAW_HTABLE_SIZE; i++)
+		INIT_HLIST_NULLS_HEAD(&hashinfo->ht[i], i);
+}
 
 #ifdef CONFIG_PROC_FS
 int raw_proc_init(void);
@@ -79,7 +83,7 @@ static inline bool raw_sk_bound_dev_eq(struct net *net, int bound_dev_if,
 				       int dif, int sdif)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
-	return inet_bound_dev_eq(!!net->ipv4.sysctl_raw_l3mdev_accept,
+	return inet_bound_dev_eq(READ_ONCE(net->ipv4.sysctl_raw_l3mdev_accept),
 				 bound_dev_if, dif, sdif);
 #else
 	return inet_bound_dev_eq(true, bound_dev_if, dif, sdif);

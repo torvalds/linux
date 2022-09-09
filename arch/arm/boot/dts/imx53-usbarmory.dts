@@ -120,7 +120,7 @@
 	};
 
 	/*
-	 * UART mode pin header configration
+	 * UART mode pin header configuration
 	 * 3 - GPIO5[26], pull-down 100K
 	 * 4 - GPIO5[27], pull-down 100K
 	 * 5 - TX, pull-up 100K

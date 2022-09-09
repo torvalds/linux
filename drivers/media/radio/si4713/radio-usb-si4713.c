@@ -70,9 +70,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(v->driver, "radio-usb-si4713", sizeof(v->driver));
 	strscpy(v->card, "Si4713 FM Transmitter", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_MODULATOR | V4L2_CAP_RDS_OUTPUT;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -417,7 +414,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 	struct si4713_usb_device *radio;
 	struct i2c_adapter *adapter;
 	struct v4l2_subdev *sd;
-	int retval = -ENOMEM;
+	int retval;
 
 	dev_info(&intf->dev, "Si4713 development board discovered: (%04X:%04X)\n",
 			id->idVendor, id->idProduct);
@@ -475,6 +472,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 	radio->vdev.lock = &radio->lock;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.vfl_dir = VFL_DIR_TX;
+	radio->vdev.device_caps = V4L2_CAP_MODULATOR | V4L2_CAP_RDS_OUTPUT;
 
 	video_set_drvdata(&radio->vdev, radio);
 

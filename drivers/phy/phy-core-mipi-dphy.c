@@ -12,12 +12,10 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-mipi-dphy.h>
 
-#define PSEC_PER_SEC	1000000000000LL
-
 /*
  * Minimum D-PHY timings based on MIPI D-PHY specification. Derived
  * from the valid ranges specified in Section 6.9, Table 14, Page 41
- * of the D-PHY specification (v2.1).
+ * of the D-PHY specification (v1.2).
  */
 int phy_mipi_dphy_get_default_config(unsigned long pixel_clock,
 				     unsigned int bpp,
@@ -38,7 +36,7 @@ int phy_mipi_dphy_get_default_config(unsigned long pixel_clock,
 
 	cfg->clk_miss = 0;
 	cfg->clk_post = 60000 + 52 * ui;
-	cfg->clk_pre = 8000;
+	cfg->clk_pre = 8;
 	cfg->clk_prepare = 38000;
 	cfg->clk_settle = 95000;
 	cfg->clk_term_en = 0;
@@ -65,12 +63,12 @@ int phy_mipi_dphy_get_default_config(unsigned long pixel_clock,
 	 */
 	cfg->hs_trail = max(4 * 8 * ui, 60000 + 4 * 4 * ui);
 
-	cfg->init = 100000000;
-	cfg->lpx = 60000;
+	cfg->init = 100;
+	cfg->lpx = 50000;
 	cfg->ta_get = 5 * cfg->lpx;
 	cfg->ta_go = 4 * cfg->lpx;
-	cfg->ta_sure = 2 * cfg->lpx;
-	cfg->wakeup = 1000000000;
+	cfg->ta_sure = cfg->lpx;
+	cfg->wakeup = 1000;
 
 	cfg->hs_clk_rate = hs_clk_rate;
 	cfg->lanes = lanes;
@@ -99,7 +97,7 @@ int phy_mipi_dphy_config_validate(struct phy_configure_opts_mipi_dphy *cfg)
 	if (cfg->clk_post < (60000 + 52 * ui))
 		return -EINVAL;
 
-	if (cfg->clk_pre < 8000)
+	if (cfg->clk_pre < 8)
 		return -EINVAL;
 
 	if (cfg->clk_prepare < 38000 || cfg->clk_prepare > 95000)
@@ -143,7 +141,7 @@ int phy_mipi_dphy_config_validate(struct phy_configure_opts_mipi_dphy *cfg)
 	if (cfg->hs_trail < max(8 * ui, 60000 + 4 * ui))
 		return -EINVAL;
 
-	if (cfg->init < 100000000)
+	if (cfg->init < 100)
 		return -EINVAL;
 
 	if (cfg->lpx < 50000)
@@ -158,7 +156,7 @@ int phy_mipi_dphy_config_validate(struct phy_configure_opts_mipi_dphy *cfg)
 	if (cfg->ta_sure < cfg->lpx || cfg->ta_sure > (2 * cfg->lpx))
 		return -EINVAL;
 
-	if (cfg->wakeup < 1000000000)
+	if (cfg->wakeup < 1000)
 		return -EINVAL;
 
 	return 0;

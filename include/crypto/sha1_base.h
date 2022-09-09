@@ -1,17 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * sha1_base.h - core logic for SHA-1 implementations
  *
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#ifndef _CRYPTO_SHA1_BASE_H
+#define _CRYPTO_SHA1_BASE_H
+
 #include <crypto/internal/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 #include <asm/unaligned.h>
 
@@ -101,6 +102,8 @@ static inline int sha1_base_finish(struct shash_desc *desc, u8 *out)
 	for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(__be32); i++)
 		put_unaligned_be32(sctx->state[i], digest++);
 
-	*sctx = (struct sha1_state){};
+	memzero_explicit(sctx, sizeof(*sctx));
 	return 0;
 }
+
+#endif /* _CRYPTO_SHA1_BASE_H */

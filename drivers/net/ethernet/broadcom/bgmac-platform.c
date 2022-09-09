@@ -131,7 +131,7 @@ static void bgmac_nicpm_speed_set(struct net_device *net_dev)
 	switch (bgmac->net_dev->phydev->speed) {
 	default:
 		netdev_err(net_dev, "Unsupported speed. Defaulting to 1000Mb\n");
-		/* fall through */
+		fallthrough;
 	case SPEED_1000:
 		val |= NICPM_IOMUX_CTRL_SPD_1000M << NICPM_IOMUX_CTRL_SPD_SHIFT;
 		break;
@@ -173,7 +173,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct bgmac *bgmac;
 	struct resource *regs;
-	const u8 *mac_addr;
+	int ret;
 
 	bgmac = bgmac_alloc(&pdev->dev);
 	if (!bgmac)
@@ -192,28 +192,24 @@ static int bgmac_probe(struct platform_device *pdev)
 	bgmac->dev = &pdev->dev;
 	bgmac->dma_dev = &pdev->dev;
 
-	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
-		ether_addr_copy(bgmac->net_dev->dev_addr, mac_addr);
-	else
-		dev_warn(&pdev->dev, "MAC address not present in device tree\n");
+	ret = of_get_ethdev_address(np, bgmac->net_dev);
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
+	if (ret)
+		dev_warn(&pdev->dev,
+			 "MAC address not present in device tree\n");
 
 	bgmac->irq = platform_get_irq(pdev, 0);
-	if (bgmac->irq < 0) {
-		dev_err(&pdev->dev, "Unable to obtain IRQ\n");
+	if (bgmac->irq < 0)
 		return bgmac->irq;
-	}
 
-	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "amac_base");
-	if (!regs) {
-		dev_err(&pdev->dev, "Unable to obtain base resource\n");
-		return -EINVAL;
-	}
-
-	bgmac->plat.base = devm_ioremap_resource(&pdev->dev, regs);
+	bgmac->plat.base =
+		devm_platform_ioremap_resource_byname(pdev, "amac_base");
 	if (IS_ERR(bgmac->plat.base))
 		return PTR_ERR(bgmac->plat.base);
 
+	/* The idm_base resource is optional for some platforms */
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "idm_base");
 	if (regs) {
 		bgmac->plat.idm_base = devm_ioremap_resource(&pdev->dev, regs);
@@ -222,6 +218,7 @@ static int bgmac_probe(struct platform_device *pdev)
 		bgmac->feature_flags &= ~BGMAC_FEAT_IDM_MASK;
 	}
 
+	/* The nicpm_base resource is optional for some platforms */
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nicpm_base");
 	if (regs) {
 		bgmac->plat.nicpm_base = devm_ioremap_resource(&pdev->dev,

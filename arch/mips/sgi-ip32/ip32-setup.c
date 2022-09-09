@@ -12,12 +12,10 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/mc146818rtc.h>
 #include <linux/param.h>
 #include <linux/sched.h>
 
 #include <asm/bootinfo.h>
-#include <asm/mc146818-time.h>
 #include <asm/mipsregs.h>
 #include <asm/mmu_context.h>
 #include <asm/sgialib.h>

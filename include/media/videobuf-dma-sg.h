@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * helper functions for SG DMA video4linux capture buffers
  *
@@ -12,10 +13,6 @@
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2
  */
 #ifndef _VIDEOBUF_DMA_SG_H
 #define _VIDEOBUF_DMA_SG_H
@@ -34,7 +31,7 @@
  *	does memory allocation too using vmalloc_32().
  *
  * videobuf_dma_*()
- *	see Documentation/DMA-API-HOWTO.txt, these functions to
+ *	see Documentation/core-api/dma-api-howto.rst, these functions to
  *	basically the same.  The map function does also build a
  *	scatterlist for the buffer (and unmap frees it ...)
  *
@@ -63,7 +60,7 @@ struct videobuf_dmabuf {
 	/* common */
 	struct scatterlist  *sglist;
 	int                 sglen;
-	int                 nr_pages;
+	unsigned long       nr_pages;
 	int                 direction;
 };
 

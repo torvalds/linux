@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Abilis Systems TB10x pin control driver
  *
  * Copyright (C) Abilis Systems 2012
  *
  * Author: Christian Ruppert <christian.ruppert@abilis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/stringify.h>
@@ -483,22 +471,22 @@ struct tb10x_port {
  * @base: register set base address.
  * @pingroups: pointer to an array of the pin groups this driver manages.
  * @pinfuncgrpcnt: number of pingroups in @pingroups.
- * @pinfuncs: pointer to an array of pin functions this driver manages.
  * @pinfuncnt: number of pin functions in @pinfuncs.
  * @mutex: mutex for exclusive access to a pin controller's state.
  * @ports: current state of each port.
  * @gpios: Indicates if a given pin is currently used as GPIO (1) or not (0).
+ * @pinfuncs: flexible array of pin functions this driver manages.
  */
 struct tb10x_pinctrl {
 	struct pinctrl_dev *pctl;
 	void *base;
 	const struct tb10x_pinfuncgrp *pingroups;
 	unsigned int pinfuncgrpcnt;
-	struct tb10x_of_pinfunc *pinfuncs;
 	unsigned int pinfuncnt;
 	struct mutex mutex;
 	struct tb10x_port ports[TB10X_PORTS];
 	DECLARE_BITMAP(gpios, MAX_PIN + 1);
+	struct tb10x_of_pinfunc pinfuncs[];
 };
 
 static inline void tb10x_pinctrl_set_config(struct tb10x_pinctrl *state,
@@ -759,7 +747,6 @@ static struct pinctrl_desc tb10x_pindesc = {
 static int tb10x_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret = -EINVAL;
-	struct resource *mem;
 	struct device *dev = &pdev->dev;
 	struct device_node *of_node = dev->of_node;
 	struct device_node *child;
@@ -771,19 +758,16 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	state = devm_kzalloc(dev, sizeof(struct tb10x_pinctrl) +
-					of_get_child_count(of_node)
-					* sizeof(struct tb10x_of_pinfunc),
-				GFP_KERNEL);
+	state = devm_kzalloc(dev, struct_size(state, pinfuncs,
+					      of_get_child_count(of_node)),
+			     GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, state);
-	state->pinfuncs = (struct tb10x_of_pinfunc *)(state + 1);
 	mutex_init(&state->mutex);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	state->base = devm_ioremap_resource(dev, mem);
+	state->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(state->base)) {
 		ret = PTR_ERR(state->base);
 		goto fail;

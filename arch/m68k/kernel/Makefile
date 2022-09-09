@@ -11,6 +11,7 @@ extra-$(CONFIG_VME)	:= head.o
 extra-$(CONFIG_HP300)	:= head.o
 extra-$(CONFIG_Q40)	:= head.o
 extra-$(CONFIG_SUN3X)	:= head.o
+extra-$(CONFIG_VIRT)	:= head.o
 extra-$(CONFIG_SUN3)	:= sun3-head.o
 extra-y			+= vmlinux.lds
 

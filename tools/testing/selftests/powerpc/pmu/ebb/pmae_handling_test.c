@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <sched.h>
@@ -81,8 +81,6 @@ static int test_body(void)
 
 	ebb_global_disable();
 	ebb_freeze_pmcs();
-
-	count_pmc(1, sample_period);
 
 	dump_ebb_state();
 

@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Device node iterators put the previous value of the index variable, so an
 /// explicit put causes a double put.
 ///
 // Confidence: High
-// Copyright: (C) 2015 Julia Lawall, Inria. GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2015 Julia Lawall, Inria.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --no-includes --include-headers
 // Requires: 1.0.4
 // Keywords: for_each_child_of_node, etc.

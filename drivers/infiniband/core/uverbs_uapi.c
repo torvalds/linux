@@ -22,6 +22,8 @@ static void *uapi_add_elm(struct uverbs_api *uapi, u32 key, size_t alloc_size)
 		return ERR_PTR(-EOVERFLOW);
 
 	elm = kzalloc(alloc_size, GFP_KERNEL);
+	if (!elm)
+		return ERR_PTR(-ENOMEM);
 	rc = radix_tree_insert(&uapi->radix, key, elm);
 	if (rc) {
 		kfree(elm);
@@ -77,10 +79,7 @@ static int uapi_create_write(struct uverbs_api *uapi,
 
 	method_elm->is_ex = def->write.is_ex;
 	method_elm->handler = def->func_write;
-	if (def->write.is_ex)
-		method_elm->disabled = !(ibdev->uverbs_ex_cmd_mask &
-					 BIT_ULL(def->write.command_num));
-	else
+	if (!def->write.is_ex)
 		method_elm->disabled = !(ibdev->uverbs_cmd_mask &
 					 BIT_ULL(def->write.command_num));
 
@@ -188,13 +187,18 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 		obj_elm->type_attrs = obj->type_attrs;
 		obj_elm->type_class = obj->type_attrs->type_class;
 		/*
-		 * Today drivers are only permitted to use idr_class
-		 * types. They cannot use FD types because we currently have
-		 * no way to revoke the fops pointer after device
-		 * disassociation.
+		 * Today drivers are only permitted to use idr_class and
+		 * fd_class types. We can revoke the IDR types during
+		 * disassociation, and the FD types require the driver to use
+		 * struct file_operations.owner to prevent the driver module
+		 * code from unloading while the file is open. This provides
+		 * enough safety that uverbs_uobject_fd_release() will
+		 * continue to work.  Drivers using FD are responsible to
+		 * handle disassociation of the device on their own.
 		 */
 		if (WARN_ON(is_driver &&
-			    obj->type_attrs->type_class != &uverbs_idr_class))
+			    obj->type_attrs->type_class != &uverbs_idr_class &&
+			    obj->type_attrs->type_class != &uverbs_fd_class))
 			return -EINVAL;
 	}
 
@@ -443,6 +447,9 @@ static int uapi_finalize(struct uverbs_api *uapi)
 	uapi->num_write_ex = max_write_ex + 1;
 	data = kmalloc_array(uapi->num_write + uapi->num_write_ex,
 			     sizeof(*uapi->write_methods), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	for (i = 0; i != uapi->num_write + uapi->num_write_ex; i++)
 		data[i] = &uapi->notsupp_method;
 	uapi->write_methods = data;
@@ -513,7 +520,7 @@ static void uapi_key_okay(u32 key)
 		count++;
 	if (uapi_key_is_attr(key))
 		count++;
-	WARN(count != 1, "Bad count %d key=%x", count, key);
+	WARN(count != 1, "Bad count %u key=%x", count, key);
 }
 
 static void uapi_finalize_disable(struct uverbs_api *uapi)
@@ -619,6 +626,7 @@ void uverbs_destroy_api(struct uverbs_api *uapi)
 }
 
 static const struct uapi_definition uverbs_core_api[] = {
+	UAPI_DEF_CHAIN(uverbs_def_obj_async_fd),
 	UAPI_DEF_CHAIN(uverbs_def_obj_counters),
 	UAPI_DEF_CHAIN(uverbs_def_obj_cq),
 	UAPI_DEF_CHAIN(uverbs_def_obj_device),
@@ -626,6 +634,9 @@ static const struct uapi_definition uverbs_core_api[] = {
 	UAPI_DEF_CHAIN(uverbs_def_obj_flow_action),
 	UAPI_DEF_CHAIN(uverbs_def_obj_intf),
 	UAPI_DEF_CHAIN(uverbs_def_obj_mr),
+	UAPI_DEF_CHAIN(uverbs_def_obj_qp),
+	UAPI_DEF_CHAIN(uverbs_def_obj_srq),
+	UAPI_DEF_CHAIN(uverbs_def_obj_wq),
 	UAPI_DEF_CHAIN(uverbs_def_write_intf),
 	{},
 };
@@ -640,7 +651,7 @@ struct uverbs_api *uverbs_alloc_api(struct ib_device *ibdev)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_RADIX_TREE(&uapi->radix, GFP_KERNEL);
-	uapi->driver_id = ibdev->driver_id;
+	uapi->driver_id = ibdev->ops.driver_id;
 
 	rc = uapi_merge_def(uapi, ibdev, uverbs_core_api, false);
 	if (rc)

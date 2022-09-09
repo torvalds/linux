@@ -1,16 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2010
  *
@@ -25,18 +14,7 @@
 #include <asm/book3s/64/mmu-hash.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/ppc-opcode.h>
-
-#ifdef CONFIG_PPC_PSERIES
-static inline bool kvmhv_on_pseries(void)
-{
-	return !cpu_has_feature(CPU_FTR_HVMODE);
-}
-#else
-static inline bool kvmhv_on_pseries(void)
-{
-	return false;
-}
-#endif
+#include <asm/pte-walk.h>
 
 /*
  * Structure for a nested guest, that is, for a guest that is managed by
@@ -53,7 +31,6 @@ struct kvm_nested_guest {
 	struct mutex tlb_lock;		/* serialize page faults and tlbies */
 	struct kvm_nested_guest *next;
 	cpumask_t need_tlb_flush;
-	cpumask_t cpu_in_guest;
 	short prev_cpu[NR_CPUS];
 	u8 radix;			/* is this nested guest radix */
 };
@@ -163,8 +140,18 @@ static inline bool kvmhv_vcpu_is_radix(struct kvm_vcpu *vcpu)
 	return radix;
 }
 
+unsigned long kvmppc_msr_hard_disable_set_facilities(struct kvm_vcpu *vcpu, unsigned long msr);
+
+int kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpcr, u64 *tb);
+
 #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
 #endif
+
+/*
+ * Invalid HDSISR value which is used to indicate when HW has not set the reg.
+ * Used to work around an errata.
+ */
+#define HDSISR_CANARY	0x7fff
 
 /*
  * We use a lock bit in HPTE dword 0 to synchronize updates and
@@ -379,6 +366,10 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		rb |= 1;		/* L field */
 		rb |= r & 0xff000 & ((1ul << a_pgshift) - 1); /* LP field */
 	}
+	/*
+	 * This sets both bits of the B field in the PTE. 0b1x values are
+	 * reserved, but those will have been filtered by kvmppc_do_h_enter.
+	 */
 	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/* B field */
 	return rb;
 }
@@ -445,7 +436,7 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 			continue;
 		}
 		/* If pte is not present return None */
-		if (unlikely(!(pte_val(old_pte) & _PAGE_PRESENT)))
+		if (unlikely(!pte_present(old_pte)))
 			return __pte(0);
 
 		new_pte = pte_mkyoung(old_pte);
@@ -546,7 +537,7 @@ static inline void note_hpte_modification(struct kvm *kvm,
  */
 static inline struct kvm_memslots *kvm_memslots_raw(struct kvm *kvm)
 {
-	return rcu_dereference_raw_notrace(kvm->memslots[0]);
+	return rcu_dereference_raw_check(kvm->memslots[0]);
 }
 
 extern void kvmppc_mmu_debugfs_init(struct kvm *kvm);
@@ -644,6 +635,47 @@ extern void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
 				const struct kvm_memory_slot *memslot,
 				unsigned long gpa, unsigned long hpa,
 				unsigned long nbytes);
+
+static inline pte_t *
+find_kvm_secondary_pte_unlocked(struct kvm *kvm, unsigned long ea,
+				unsigned *hshift)
+{
+	pte_t *pte;
+
+	pte = __find_linux_pte(kvm->arch.pgtable, ea, NULL, hshift);
+	return pte;
+}
+
+static inline pte_t *find_kvm_secondary_pte(struct kvm *kvm, unsigned long ea,
+					    unsigned *hshift)
+{
+	pte_t *pte;
+
+	VM_WARN(!spin_is_locked(&kvm->mmu_lock),
+		"%s called with kvm mmu_lock not held \n", __func__);
+	pte = __find_linux_pte(kvm->arch.pgtable, ea, NULL, hshift);
+
+	return pte;
+}
+
+static inline pte_t *find_kvm_host_pte(struct kvm *kvm, unsigned long mmu_seq,
+				       unsigned long ea, unsigned *hshift)
+{
+	pte_t *pte;
+
+	VM_WARN(!spin_is_locked(&kvm->mmu_lock),
+		"%s called with kvm mmu_lock not held \n", __func__);
+
+	if (mmu_invalidate_retry(kvm, mmu_seq))
+		return NULL;
+
+	pte = __find_linux_pte(kvm->mm->pgd, ea, NULL, hshift);
+
+	return pte;
+}
+
+extern pte_t *find_kvm_nested_guest_pte(struct kvm *kvm, unsigned long lpid,
+					unsigned long ea, unsigned *hshift);
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 

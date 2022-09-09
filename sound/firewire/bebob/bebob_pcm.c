@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bebob_pcm.c - a part of driver for BeBoB based devices
  *
  * Copyright (c) 2013-2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "./bebob.h"
@@ -130,18 +129,17 @@ end:
 	return err;
 }
 
-static int
-pcm_open(struct snd_pcm_substream *substream)
+static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 	const struct snd_bebob_rate_spec *spec = bebob->spec->rate;
-	unsigned int sampling_rate;
+	struct amdtp_domain *d = &bebob->domain;
 	enum snd_bebob_clock_type src;
 	int err;
 
 	err = snd_bebob_stream_lock_try(bebob);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = pcm_init_hw_params(bebob, substream);
 	if (err < 0)
@@ -151,15 +149,20 @@ pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto err_locked;
 
-	/*
-	 * When source of clock is internal or any PCM stream are running,
-	 * the available sampling rate is limited at current sampling rate.
-	 */
+	mutex_lock(&bebob->mutex);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
 	if (src == SND_BEBOB_CLOCK_TYPE_EXTERNAL ||
-	    amdtp_stream_pcm_running(&bebob->tx_stream) ||
-	    amdtp_stream_pcm_running(&bebob->rx_stream)) {
+	    (bebob->substreams_counter > 0 && d->events_per_period > 0)) {
+		unsigned int frames_per_period = d->events_per_period;
+		unsigned int frames_per_buffer = d->events_per_buffer;
+		unsigned int sampling_rate;
+
 		err = spec->get(bebob, &sampling_rate);
 		if (err < 0) {
+			mutex_unlock(&bebob->mutex);
 			dev_err(&bebob->unit->device,
 				"fail to get sampling rate: %d\n", err);
 			goto err_locked;
@@ -167,11 +170,31 @@ pcm_open(struct snd_pcm_substream *substream)
 
 		substream->runtime->hw.rate_min = sampling_rate;
 		substream->runtime->hw.rate_max = sampling_rate;
+
+		if (frames_per_period > 0) {
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&bebob->mutex);
+				goto err_locked;
+			}
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
+			if (err < 0) {
+				mutex_unlock(&bebob->mutex);
+				goto err_locked;
+			}
+		}
 	}
 
+	mutex_unlock(&bebob->mutex);
+
 	snd_pcm_set_sync(substream);
-end:
-	return err;
+
+	return 0;
 err_locked:
 	snd_bebob_stream_lock_release(bebob);
 	return err;
@@ -185,86 +208,51 @@ pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int
-pcm_capture_hw_params(struct snd_pcm_substream *substream,
-		      struct snd_pcm_hw_params *hw_params)
+static int pcm_hw_params(struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_bebob *bebob = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
+	int err = 0;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
+		unsigned int frames_per_buffer = params_buffer_size(hw_params);
+
 		mutex_lock(&bebob->mutex);
-		bebob->substreams_counter++;
+		err = snd_bebob_stream_reserve_duplex(bebob, rate,
+					frames_per_period, frames_per_buffer);
+		if (err >= 0)
+			++bebob->substreams_counter;
 		mutex_unlock(&bebob->mutex);
 	}
 
-	return 0;
-}
-static int
-pcm_playback_hw_params(struct snd_pcm_substream *substream,
-		       struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_bebob *bebob = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
-
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&bebob->mutex);
-		bebob->substreams_counter++;
-		mutex_unlock(&bebob->mutex);
-	}
-
-	return 0;
+	return err;
 }
 
-static int
-pcm_capture_hw_free(struct snd_pcm_substream *substream)
+static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&bebob->mutex);
+	mutex_lock(&bebob->mutex);
+
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
 		bebob->substreams_counter--;
-		mutex_unlock(&bebob->mutex);
-	}
 
 	snd_bebob_stream_stop_duplex(bebob);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
-}
-static int
-pcm_playback_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_bebob *bebob = substream->private_data;
+	mutex_unlock(&bebob->mutex);
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&bebob->mutex);
-		bebob->substreams_counter--;
-		mutex_unlock(&bebob->mutex);
-	}
-
-	snd_bebob_stream_stop_duplex(bebob);
-
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+	return 0;
 }
 
 static int
 pcm_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_bebob_stream_start_duplex(bebob, runtime->rate);
+	err = snd_bebob_stream_start_duplex(bebob);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&bebob->tx_stream);
 
@@ -274,10 +262,9 @@ static int
 pcm_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_bebob_stream_start_duplex(bebob, runtime->rate);
+	err = snd_bebob_stream_start_duplex(bebob);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&bebob->rx_stream);
 
@@ -321,31 +308,33 @@ pcm_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
-static snd_pcm_uframes_t
-pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
+static snd_pcm_uframes_t pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_bebob *bebob = sbstrm->private_data;
-	return amdtp_stream_pcm_pointer(&bebob->tx_stream);
+
+	return amdtp_domain_stream_pcm_pointer(&bebob->domain,
+					       &bebob->tx_stream);
 }
-static snd_pcm_uframes_t
-pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
+static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_bebob *bebob = sbstrm->private_data;
-	return amdtp_stream_pcm_pointer(&bebob->rx_stream);
+
+	return amdtp_domain_stream_pcm_pointer(&bebob->domain,
+					       &bebob->rx_stream);
 }
 
 static int pcm_capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&bebob->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&bebob->domain, &bebob->tx_stream);
 }
 
 static int pcm_playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&bebob->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&bebob->domain, &bebob->rx_stream);
 }
 
 int snd_bebob_create_pcm_devices(struct snd_bebob *bebob)
@@ -353,26 +342,22 @@ int snd_bebob_create_pcm_devices(struct snd_bebob *bebob)
 	static const struct snd_pcm_ops capture_ops = {
 		.open		= pcm_open,
 		.close		= pcm_close,
-		.ioctl		= snd_pcm_lib_ioctl,
-		.hw_params	= pcm_capture_hw_params,
-		.hw_free	= pcm_capture_hw_free,
+		.hw_params	= pcm_hw_params,
+		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_capture_prepare,
 		.trigger	= pcm_capture_trigger,
 		.pointer	= pcm_capture_pointer,
 		.ack		= pcm_capture_ack,
-		.page		= snd_pcm_lib_get_vmalloc_page,
 	};
 	static const struct snd_pcm_ops playback_ops = {
 		.open		= pcm_open,
 		.close		= pcm_close,
-		.ioctl		= snd_pcm_lib_ioctl,
-		.hw_params	= pcm_playback_hw_params,
-		.hw_free	= pcm_playback_hw_free,
+		.hw_params	= pcm_hw_params,
+		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_playback_prepare,
 		.trigger	= pcm_playback_trigger,
 		.pointer	= pcm_playback_pointer,
 		.ack		= pcm_playback_ack,
-		.page		= snd_pcm_lib_get_vmalloc_page,
 	};
 	struct snd_pcm *pcm;
 	int err;
@@ -386,6 +371,7 @@ int snd_bebob_create_pcm_devices(struct snd_bebob *bebob)
 		 "%s PCM", bebob->card->shortname);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_ops);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 end:
 	return err;
 }

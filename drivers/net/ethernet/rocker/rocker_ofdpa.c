@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/rocker/rocker_ofdpa.c - Rocker switch OF-DPA-like
  *					        implementation
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
  * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -22,6 +18,7 @@
 #include <net/neighbour.h>
 #include <net/switchdev.h>
 #include <net/ip_fib.h>
+#include <net/nexthop.h>
 #include <net/arp.h>
 
 #include "rocker.h"
@@ -926,7 +923,7 @@ static int ofdpa_flow_tbl_bridge(struct ofdpa_port *ofdpa_port,
 	struct ofdpa_flow_tbl_entry *entry;
 	u32 priority;
 	bool vlan_bridging = !!vlan_id;
-	bool dflt = !eth_dst || (eth_dst && eth_dst_mask);
+	bool dflt = !eth_dst || eth_dst_mask;
 	bool wild = false;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
@@ -1276,7 +1273,7 @@ static int ofdpa_port_ipv4_neigh(struct ofdpa_port *ofdpa_port,
 	bool removing;
 	int err = 0;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1825,7 +1822,7 @@ static void ofdpa_port_fdb_learn_work(struct work_struct *work)
 		container_of(work, struct ofdpa_fdb_learn_work, work);
 	bool removing = (lw->flags & OFDPA_OP_FLAG_REMOVE);
 	bool learned = (lw->flags & OFDPA_OP_FLAG_LEARNED);
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info = {};
 
 	info.addr = lw->addr;
 	info.vid = lw->vid;
@@ -1833,10 +1830,10 @@ static void ofdpa_port_fdb_learn_work(struct work_struct *work)
 	rtnl_lock();
 	if (learned && removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
-					 lw->ofdpa_port->dev, &info.info);
+					 lw->ofdpa_port->dev, &info.info, NULL);
 	else if (learned && !removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
-					 lw->ofdpa_port->dev, &info.info);
+					 lw->ofdpa_port->dev, &info.info, NULL);
 	rtnl_unlock();
 
 	kfree(work);
@@ -2286,13 +2283,13 @@ static int ofdpa_port_fib_ipv4(struct ofdpa_port *ofdpa_port,  __be32 dst,
 
 	/* XXX support ECMP */
 
-	nh = fi->fib_nh;
-	nh_on_port = (fi->fib_dev == ofdpa_port->dev);
-	has_gw = !!nh->nh_gw;
+	nh = fib_info_nh(fi, 0);
+	nh_on_port = (nh->fib_nh_dev == ofdpa_port->dev);
+	has_gw = !!nh->fib_nh_gw4;
 
 	if (has_gw && nh_on_port) {
 		err = ofdpa_port_ipv4_nh(ofdpa_port, flags,
-					 nh->nh_gw, &index);
+					 nh->fib_nh_gw4, &index);
 		if (err)
 			return err;
 
@@ -2491,8 +2488,7 @@ static int ofdpa_port_attr_stp_state_set(struct rocker_port *rocker_port,
 }
 
 static int ofdpa_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
-					    unsigned long brport_flags,
-					    struct switchdev_trans *trans)
+					    unsigned long brport_flags)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	unsigned long orig_flags;
@@ -2500,25 +2496,12 @@ static int ofdpa_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
 
 	orig_flags = ofdpa_port->brport_flags;
 	ofdpa_port->brport_flags = brport_flags;
-	if ((orig_flags ^ ofdpa_port->brport_flags) & BR_LEARNING &&
-	    !switchdev_trans_ph_prepare(trans))
+
+	if ((orig_flags ^ ofdpa_port->brport_flags) & BR_LEARNING)
 		err = rocker_port_set_learning(ofdpa_port->rocker_port,
 					       !!(ofdpa_port->brport_flags & BR_LEARNING));
 
-	if (switchdev_trans_ph_prepare(trans))
-		ofdpa_port->brport_flags = orig_flags;
-
 	return err;
-}
-
-static int
-ofdpa_port_attr_bridge_flags_get(const struct rocker_port *rocker_port,
-				 unsigned long *p_brport_flags)
-{
-	const struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-
-	*p_brport_flags = ofdpa_port->brport_flags;
-	return 0;
 }
 
 static int
@@ -2533,18 +2516,15 @@ ofdpa_port_attr_bridge_flags_support_get(const struct rocker_port *
 
 static int
 ofdpa_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
-				       u32 ageing_time,
-				       struct switchdev_trans *trans)
+				       u32 ageing_time)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	struct ofdpa *ofdpa = ofdpa_port->ofdpa;
 
-	if (!switchdev_trans_ph_prepare(trans)) {
-		ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
-		if (ofdpa_port->ageing_time < ofdpa->ageing_time)
-			ofdpa->ageing_time = ofdpa_port->ageing_time;
-		mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
-	}
+	ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
+	if (ofdpa_port->ageing_time < ofdpa->ageing_time)
+		ofdpa->ageing_time = ofdpa_port->ageing_time;
+	mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
 
 	return 0;
 }
@@ -2553,32 +2533,16 @@ static int ofdpa_port_obj_vlan_add(struct rocker_port *rocker_port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ofdpa_port_vlan_add(ofdpa_port, vid, vlan->flags);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ofdpa_port_vlan_add(ofdpa_port, vlan->vid, vlan->flags);
 }
 
 static int ofdpa_port_obj_vlan_del(struct rocker_port *rocker_port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	u16 vid;
-	int err;
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		err = ofdpa_port_vlan_del(ofdpa_port, vid, vlan->flags);
-		if (err)
-			return err;
-	}
-
-	return 0;
+	return ofdpa_port_vlan_del(ofdpa_port, vlan->vid, vlan->flags);
 }
 
 static int ofdpa_port_obj_fdb_add(struct rocker_port *rocker_port,
@@ -2607,8 +2571,10 @@ static int ofdpa_port_obj_fdb_del(struct rocker_port *rocker_port,
 }
 
 static int ofdpa_port_bridge_join(struct ofdpa_port *ofdpa_port,
-				  struct net_device *bridge)
+				  struct net_device *bridge,
+				  struct netlink_ext_ack *extack)
 {
+	struct net_device *dev = ofdpa_port->dev;
 	int err;
 
 	/* Port is joining bridge, so the internal VLAN for the
@@ -2628,12 +2594,20 @@ static int ofdpa_port_bridge_join(struct ofdpa_port *ofdpa_port,
 
 	ofdpa_port->bridge_dev = bridge;
 
-	return ofdpa_port_vlan_add(ofdpa_port, OFDPA_UNTAGGED_VID, 0);
+	err = ofdpa_port_vlan_add(ofdpa_port, OFDPA_UNTAGGED_VID, 0);
+	if (err)
+		return err;
+
+	return switchdev_bridge_port_offload(dev, dev, NULL, NULL, NULL,
+					     false, extack);
 }
 
 static int ofdpa_port_bridge_leave(struct ofdpa_port *ofdpa_port)
 {
+	struct net_device *dev = ofdpa_port->dev;
 	int err;
+
+	switchdev_bridge_port_unoffload(dev, NULL, NULL, NULL);
 
 	err = ofdpa_port_vlan_del(ofdpa_port, OFDPA_UNTAGGED_VID, 0);
 	if (err)
@@ -2673,13 +2647,14 @@ static int ofdpa_port_ovs_changed(struct ofdpa_port *ofdpa_port,
 }
 
 static int ofdpa_port_master_linked(struct rocker_port *rocker_port,
-				    struct net_device *master)
+				    struct net_device *master,
+				    struct netlink_ext_ack *extack)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	int err = 0;
 
 	if (netif_is_bridge_master(master))
-		err = ofdpa_port_bridge_join(ofdpa_port, master);
+		err = ofdpa_port_bridge_join(ofdpa_port, master, extack);
 	else if (netif_is_ovs_master(master))
 		err = ofdpa_port_ovs_changed(ofdpa_port, master);
 	return err;
@@ -2747,11 +2722,13 @@ static int ofdpa_fib4_add(struct rocker *rocker,
 {
 	struct ofdpa *ofdpa = rocker->wpriv;
 	struct ofdpa_port *ofdpa_port;
+	struct fib_nh *nh;
 	int err;
 
 	if (ofdpa->fib_aborted)
 		return 0;
-	ofdpa_port = ofdpa_port_dev_lower_find(fen_info->fi->fib_dev, rocker);
+	nh = fib_info_nh(fen_info->fi, 0);
+	ofdpa_port = ofdpa_port_dev_lower_find(nh->fib_nh_dev, rocker);
 	if (!ofdpa_port)
 		return 0;
 	err = ofdpa_port_fib_ipv4(ofdpa_port, htonl(fen_info->dst),
@@ -2759,7 +2736,7 @@ static int ofdpa_fib4_add(struct rocker *rocker,
 				  fen_info->tb_id, 0);
 	if (err)
 		return err;
-	fen_info->fi->fib_nh->nh_flags |= RTNH_F_OFFLOAD;
+	nh->fib_nh_flags |= RTNH_F_OFFLOAD;
 	return 0;
 }
 
@@ -2768,13 +2745,15 @@ static int ofdpa_fib4_del(struct rocker *rocker,
 {
 	struct ofdpa *ofdpa = rocker->wpriv;
 	struct ofdpa_port *ofdpa_port;
+	struct fib_nh *nh;
 
 	if (ofdpa->fib_aborted)
 		return 0;
-	ofdpa_port = ofdpa_port_dev_lower_find(fen_info->fi->fib_dev, rocker);
+	nh = fib_info_nh(fen_info->fi, 0);
+	ofdpa_port = ofdpa_port_dev_lower_find(nh->fib_nh_dev, rocker);
 	if (!ofdpa_port)
 		return 0;
-	fen_info->fi->fib_nh->nh_flags &= ~RTNH_F_OFFLOAD;
+	nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
 	return ofdpa_port_fib_ipv4(ofdpa_port, htonl(fen_info->dst),
 				   fen_info->dst_len, fen_info->fi,
 				   fen_info->tb_id, OFDPA_OP_FLAG_REMOVE);
@@ -2794,15 +2773,18 @@ static void ofdpa_fib4_abort(struct rocker *rocker)
 
 	spin_lock_irqsave(&ofdpa->flow_tbl_lock, flags);
 	hash_for_each_safe(ofdpa->flow_tbl, bkt, tmp, flow_entry, entry) {
+		struct fib_nh *nh;
+
 		if (flow_entry->key.tbl_id !=
 		    ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING)
 			continue;
-		ofdpa_port = ofdpa_port_dev_lower_find(flow_entry->fi->fib_dev,
-						       rocker);
+		nh = fib_info_nh(flow_entry->fi, 0);
+		ofdpa_port = ofdpa_port_dev_lower_find(nh->fib_nh_dev, rocker);
 		if (!ofdpa_port)
 			continue;
-		flow_entry->fi->fib_nh->nh_flags &= ~RTNH_F_OFFLOAD;
-		ofdpa_flow_tbl_del(ofdpa_port, OFDPA_OP_FLAG_REMOVE,
+		nh->fib_nh_flags &= ~RTNH_F_OFFLOAD;
+		ofdpa_flow_tbl_del(ofdpa_port,
+				   OFDPA_OP_FLAG_REMOVE | OFDPA_OP_FLAG_NOWAIT,
 				   flow_entry);
 	}
 	spin_unlock_irqrestore(&ofdpa->flow_tbl_lock, flags);
@@ -2823,7 +2805,6 @@ struct rocker_world_ops rocker_ofdpa_ops = {
 	.port_stop = ofdpa_port_stop,
 	.port_attr_stp_state_set = ofdpa_port_attr_stp_state_set,
 	.port_attr_bridge_flags_set = ofdpa_port_attr_bridge_flags_set,
-	.port_attr_bridge_flags_get = ofdpa_port_attr_bridge_flags_get,
 	.port_attr_bridge_flags_support_get = ofdpa_port_attr_bridge_flags_support_get,
 	.port_attr_bridge_ageing_time_set = ofdpa_port_attr_bridge_ageing_time_set,
 	.port_obj_vlan_add = ofdpa_port_obj_vlan_add,

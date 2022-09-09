@@ -7,6 +7,8 @@
 
 #include "pmc.h"
 
+static DEFINE_SPINLOCK(mck_lock);
+
 static const struct clk_master_characteristics mck_characteristics = {
 	.output = { .min = 0, .max = 133333333 },
 	.divisors = { 1, 2, 4, 3 },
@@ -17,7 +19,7 @@ static u8 plla_out[] = { 0, 1, 2, 3, 0, 1, 2, 3 };
 
 static u16 plla_icpll[] = { 0, 0, 0, 0, 1, 1, 1, 1 };
 
-static struct clk_range plla_outputs[] = {
+static const struct clk_range plla_outputs[] = {
 	{ .min = 745000000, .max = 800000000 },
 	{ .min = 695000000, .max = 750000000 },
 	{ .min = 645000000, .max = 700000000 },
@@ -41,12 +43,19 @@ static const struct {
 	char *p;
 	u8 id;
 } at91sam9x5_systemck[] = {
-	{ .n = "ddrck", .p = "masterck", .id = 2 },
+	{ .n = "ddrck", .p = "masterck_div", .id = 2 },
 	{ .n = "smdck", .p = "smdclk",   .id = 4 },
 	{ .n = "uhpck", .p = "usbck",    .id = 6 },
 	{ .n = "udpck", .p = "usbck",    .id = 7 },
 	{ .n = "pck0",  .p = "prog0",    .id = 8 },
 	{ .n = "pck1",  .p = "prog1",    .id = 9 },
+};
+
+static const struct clk_pcr_layout at91sam9x5_pcr_layout = {
+	.offset = 0x10c,
+	.cmd = BIT(12),
+	.pid_mask = GENMASK(5, 0),
+	.div_mask = GENMASK(17, 16),
 };
 
 struct pck {
@@ -139,13 +148,12 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = device_node_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
-	at91sam9x5_pmc = pmc_data_allocate(PMC_MAIN + 1,
-					   nck(at91sam9x5_systemck),
-					   nck(at91sam9x35_periphck), 0);
+	at91sam9x5_pmc = pmc_data_allocate(PMC_PLLACK + 1,
+					   nck(at91sam9x5_systemck), 31, 0, 2);
 	if (!at91sam9x5_pmc)
 		return;
 
@@ -178,6 +186,8 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	if (IS_ERR(hw))
 		goto err_free;
 
+	at91sam9x5_pmc->chws[PMC_PLLACK] = hw;
+
 	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
 	if (IS_ERR(hw))
 		goto err_free;
@@ -188,9 +198,18 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	parent_names[1] = "mainck";
 	parent_names[2] = "plladivck";
 	parent_names[3] = "utmick";
-	hw = at91_clk_register_master(regmap, "masterck", 4, parent_names,
-				      &at91sam9x5_master_layout,
-				      &mck_characteristics);
+	hw = at91_clk_register_master_pres(regmap, "masterck_pres", 4,
+					   parent_names,
+					   &at91sam9x5_master_layout,
+					   &mck_characteristics, &mck_lock);
+	if (IS_ERR(hw))
+		goto err_free;
+
+	hw = at91_clk_register_master_div(regmap, "masterck_div",
+					  "masterck_pres",
+					  &at91sam9x5_master_layout,
+					  &mck_characteristics, &mck_lock,
+					  CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -210,7 +229,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	parent_names[1] = "mainck";
 	parent_names[2] = "plladivck";
 	parent_names[3] = "utmick";
-	parent_names[4] = "mck";
+	parent_names[4] = "masterck_div";
 	for (i = 0; i < 2; i++) {
 		char name[6];
 
@@ -218,9 +237,12 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 
 		hw = at91_clk_register_programmable(regmap, name,
 						    parent_names, 5, i,
-						    &at91sam9x5_programmable_layout);
+						    &at91sam9x5_programmable_layout,
+						    NULL);
 		if (IS_ERR(hw))
 			goto err_free;
+
+		at91sam9x5_pmc->pchws[i] = hw;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(at91sam9x5_systemck); i++) {
@@ -234,7 +256,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	}
 
 	if (has_lcdck) {
-		hw = at91_clk_register_system(regmap, "lcdck", "masterck", 3);
+		hw = at91_clk_register_system(regmap, "lcdck", "masterck_div", 3);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -243,10 +265,11 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 
 	for (i = 0; i < ARRAY_SIZE(at91sam9x5_periphck); i++) {
 		hw = at91_clk_register_sam9x5_peripheral(regmap, &pmc_pcr_lock,
+							 &at91sam9x5_pcr_layout,
 							 at91sam9x5_periphck[i].n,
-							 "masterck",
+							 "masterck_div",
 							 at91sam9x5_periphck[i].id,
-							 &range);
+							 &range, INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -255,10 +278,11 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 
 	for (i = 0; extra_pcks[i].id; i++) {
 		hw = at91_clk_register_sam9x5_peripheral(regmap, &pmc_pcr_lock,
+							 &at91sam9x5_pcr_layout,
 							 extra_pcks[i].n,
-							 "masterck",
+							 "masterck_div",
 							 extra_pcks[i].id,
-							 &range);
+							 &range, INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -270,40 +294,40 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	return;
 
 err_free:
-	pmc_data_free(at91sam9x5_pmc);
+	kfree(at91sam9x5_pmc);
 }
 
 static void __init at91sam9g15_pmc_setup(struct device_node *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g15_periphck, true);
 }
-CLK_OF_DECLARE_DRIVER(at91sam9g15_pmc, "atmel,at91sam9g15-pmc",
-		      at91sam9g15_pmc_setup);
+
+CLK_OF_DECLARE(at91sam9g15_pmc, "atmel,at91sam9g15-pmc", at91sam9g15_pmc_setup);
 
 static void __init at91sam9g25_pmc_setup(struct device_node *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g25_periphck, false);
 }
-CLK_OF_DECLARE_DRIVER(at91sam9g25_pmc, "atmel,at91sam9g25-pmc",
-		      at91sam9g25_pmc_setup);
+
+CLK_OF_DECLARE(at91sam9g25_pmc, "atmel,at91sam9g25-pmc", at91sam9g25_pmc_setup);
 
 static void __init at91sam9g35_pmc_setup(struct device_node *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9g35_periphck, true);
 }
-CLK_OF_DECLARE_DRIVER(at91sam9g35_pmc, "atmel,at91sam9g35-pmc",
-		      at91sam9g35_pmc_setup);
+
+CLK_OF_DECLARE(at91sam9g35_pmc, "atmel,at91sam9g35-pmc", at91sam9g35_pmc_setup);
 
 static void __init at91sam9x25_pmc_setup(struct device_node *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9x25_periphck, false);
 }
-CLK_OF_DECLARE_DRIVER(at91sam9x25_pmc, "atmel,at91sam9x25-pmc",
-		      at91sam9x25_pmc_setup);
+
+CLK_OF_DECLARE(at91sam9x25_pmc, "atmel,at91sam9x25-pmc", at91sam9x25_pmc_setup);
 
 static void __init at91sam9x35_pmc_setup(struct device_node *np)
 {
 	at91sam9x5_pmc_setup(np, at91sam9x35_periphck, true);
 }
-CLK_OF_DECLARE_DRIVER(at91sam9x35_pmc, "atmel,at91sam9x35-pmc",
-		      at91sam9x35_pmc_setup);
+
+CLK_OF_DECLARE(at91sam9x35_pmc, "atmel,at91sam9x35-pmc", at91sam9x35_pmc_setup);

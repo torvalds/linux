@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* linux/amba/pl093.h
  *
  * Copyright (c) 2008 Simtec Electronics
@@ -6,10 +7,6 @@
  *
  * AMBA PL093 SSMC (synchronous static memory controller)
  *  See DDI0236.pdf (r0p4) for more details
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #define SMB_BANK(x)	((x) * 0x20) /* each bank control set is 0x20 apart */

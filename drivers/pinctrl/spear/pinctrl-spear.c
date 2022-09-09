@@ -14,6 +14,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -157,12 +158,16 @@ static int spear_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	/* calculate number of maps required */
 	for_each_child_of_node(np_config, np) {
 		ret = of_property_read_string(np, "st,function", &function);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(np);
 			return ret;
+		}
 
 		ret = of_property_count_strings(np, "st,pins");
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(np);
 			return ret;
+		}
 
 		count += ret;
 	}
@@ -354,7 +359,6 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 			struct spear_pinctrl_machdata *machdata)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *res;
 	struct spear_pmx *pmx;
 
 	if (!machdata)
@@ -364,10 +368,12 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 	if (!pmx)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmx->vbase = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pmx->vbase))
-		return PTR_ERR(pmx->vbase);
+	pmx->regmap = device_node_to_regmap(np);
+	if (IS_ERR(pmx->regmap)) {
+		dev_err(&pdev->dev, "Init regmap failed (%pe).\n",
+			pmx->regmap);
+		return PTR_ERR(pmx->regmap);
+	}
 
 	pmx->dev = &pdev->dev;
 	pmx->machdata = machdata;

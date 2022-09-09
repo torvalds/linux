@@ -10,12 +10,10 @@
 #include <linux/string.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
 #include <asm/sun3xprom.h>
 #include <asm/idprom.h>
-#include <asm/segment.h>
 #include <asm/sun3ints.h>
 #include <asm/openprom.h>
 #include <asm/machines.h>

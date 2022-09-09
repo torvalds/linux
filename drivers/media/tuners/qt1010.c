@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Quantek QT1010 silicon tuner
  *
  *  Copyright (C) 2006 Antti Palosaari <crope@iki.fi>
  *                     Aapo Tahkola <aet@rasterburn.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 #include "qt1010.h"
 #include "qt1010_priv.h"
@@ -224,30 +215,31 @@ static int qt1010_set_params(struct dvb_frontend *fe)
 static int qt1010_init_meas1(struct qt1010_priv *priv,
 			     u8 oper, u8 reg, u8 reg_init_val, u8 *retval)
 {
-	u8 i, val1, uninitialized_var(val2);
+	u8 i, val1, val2;
 	int err;
 
 	qt1010_i2c_oper_t i2c_data[] = {
 		{ QT1010_WR, reg, reg_init_val },
 		{ QT1010_WR, 0x1e, 0x00 },
 		{ QT1010_WR, 0x1e, oper },
-		{ QT1010_RD, reg, 0xff }
 	};
 
 	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
-		if (i2c_data[i].oper == QT1010_WR) {
-			err = qt1010_writereg(priv, i2c_data[i].reg,
-					      i2c_data[i].val);
-		} else {
-			err = qt1010_readreg(priv, i2c_data[i].reg, &val2);
-		}
-		if (err) return err;
+		err = qt1010_writereg(priv, i2c_data[i].reg,
+				      i2c_data[i].val);
+		if (err)
+			return err;
 	}
 
+	err = qt1010_readreg(priv, reg, &val2);
+	if (err)
+		return err;
 	do {
 		val1 = val2;
 		err = qt1010_readreg(priv, reg, &val2);
-		if (err) return err;
+		if (err)
+			return err;
+
 		dev_dbg(&priv->i2c->dev, "%s: compare reg:%02x %02x %02x\n",
 				__func__, reg, val1, val2);
 	} while (val1 != val2);
@@ -259,7 +251,7 @@ static int qt1010_init_meas1(struct qt1010_priv *priv,
 static int qt1010_init_meas2(struct qt1010_priv *priv,
 			    u8 reg_init_val, u8 *retval)
 {
-	u8 i, uninitialized_var(val);
+	u8 i, val = 0xff;
 	int err;
 	qt1010_i2c_oper_t i2c_data[] = {
 		{ QT1010_WR, 0x07, reg_init_val },
@@ -270,6 +262,7 @@ static int qt1010_init_meas2(struct qt1010_priv *priv,
 		{ QT1010_WR, 0x1e, 0x00 },
 		{ QT1010_WR, 0x22, 0xff }
 	};
+
 	for (i = 0; i < ARRAY_SIZE(i2c_data); i++) {
 		if (i2c_data[i].oper == QT1010_WR) {
 			err = qt1010_writereg(priv, i2c_data[i].reg,
@@ -277,7 +270,8 @@ static int qt1010_init_meas2(struct qt1010_priv *priv,
 		} else {
 			err = qt1010_readreg(priv, i2c_data[i].reg, &val);
 		}
-		if (err) return err;
+		if (err)
+			return err;
 	}
 	*retval = val;
 	return 0;

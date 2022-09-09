@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -41,6 +41,7 @@ enum lpfc_work_type {
 	LPFC_EVT_DEV_LOSS,
 	LPFC_EVT_FASTPATH_MGMT_EVT,
 	LPFC_EVT_RESET_HBA,
+	LPFC_EVT_RECOVER_PORT
 };
 
 /* structure used to queue event to the discovery tasklet */
@@ -76,10 +77,29 @@ struct lpfc_node_rrqs {
 	unsigned long xri_bitmap[XRI_BITMAP_ULONGS];
 };
 
+enum lpfc_fc4_xpt_flags {
+	NLP_XPT_REGD		= 0x1,
+	SCSI_XPT_REGD		= 0x2,
+	NVME_XPT_REGD		= 0x4,
+	NVME_XPT_UNREG_WAIT	= 0x8,
+	NLP_XPT_HAS_HH		= 0x10
+};
+
+enum lpfc_nlp_save_flags {
+	/* devloss occurred during recovery */
+	NLP_IN_RECOV_POST_DEV_LOSS	= 0x1,
+	/* wait for outstanding LOGO to cmpl */
+	NLP_WAIT_FOR_LOGO		= 0x2,
+};
+
 struct lpfc_nodelist {
 	struct list_head nlp_listp;
+	struct serv_parm fc_sparam;		/* buffer for service params */
 	struct lpfc_name nlp_portname;
 	struct lpfc_name nlp_nodename;
+
+	spinlock_t	lock;			/* Node management lock */
+
 	uint32_t         nlp_flag;		/* entry flags */
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	uint32_t         nlp_last_elscmd;	/* Last ELS cmd sent */
@@ -112,12 +132,9 @@ struct lpfc_nodelist {
 	uint8_t         nlp_retry;		/* used for ELS retries */
 	uint8_t         nlp_fcp_info;	        /* class info, bits 0-3 */
 #define NLP_FCP_2_DEVICE   0x10			/* FCP-2 device */
-
-	uint16_t        nlp_usg_map;	/* ndlp management usage bitmap */
-#define NLP_USG_NODE_ACT_BIT	0x1	/* Indicate ndlp is actively used */
-#define NLP_USG_IACT_REQ_BIT	0x2	/* Request to inactivate ndlp */
-#define NLP_USG_FREE_REQ_BIT	0x4	/* Request to invoke ndlp memory free */
-#define NLP_USG_FREE_ACK_BIT	0x8	/* Indicate ndlp memory free invoked */
+	u8		nlp_nvme_info;	        /* NVME NSLER Support */
+	uint8_t		vmid_support;		/* destination VMID support */
+#define NLP_NVME_NSLER     0x1			/* NVME NSLER device */
 
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
 	struct lpfc_hba *phba;
@@ -126,6 +143,7 @@ struct lpfc_nodelist {
 	struct lpfc_vport *vport;
 	struct lpfc_work_evt els_retry_evt;
 	struct lpfc_work_evt dev_loss_evt;
+	struct lpfc_work_evt recovery_evt;
 	struct kref     kref;
 	atomic_t cmd_pending;
 	uint32_t cmd_qdepth;
@@ -133,13 +151,18 @@ struct lpfc_nodelist {
 	unsigned long *active_rrqs_xri_bitmap;
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
 	uint32_t fc4_prli_sent;
-	uint32_t upcall_flags;
-#define NLP_WAIT_FOR_UNREG    0x1
+
+	/* flags to keep ndlp alive until special conditions are met */
+	enum lpfc_nlp_save_flags save_flags;
+
+	enum lpfc_fc4_xpt_flags fc4_xpt_flags;
 
 	uint32_t nvme_fb_size; /* NVME target's supported byte cnt */
 #define NVME_FB_BIT_SHIFT 9    /* PRLI Rsp first burst in 512B units. */
 	uint32_t nlp_defer_did;
+	wait_queue_head_t *logo_waitq;
 };
+
 struct lpfc_node_rrq {
 	struct list_head list;
 	uint16_t xritag;
@@ -147,7 +170,6 @@ struct lpfc_node_rrq {
 	uint16_t rxid;
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	struct lpfc_vport *vport;
-	struct lpfc_nodelist *ndlp;
 	unsigned long rrq_stop_time;
 };
 
@@ -157,6 +179,7 @@ struct lpfc_node_rrq {
 /* Defines for nlp_flag (uint32) */
 #define NLP_IGNR_REG_CMPL  0x00000001 /* Rcvd rscn before we cmpl reg login */
 #define NLP_REG_LOGIN_SEND 0x00000002   /* sent reglogin to adapter */
+#define NLP_RELEASE_RPI    0x00000004   /* Release RPI to free pool */
 #define NLP_SUPPRESS_RSP   0x00000010	/* Remote NPort supports suppress rsp */
 #define NLP_PLOGI_SND      0x00000020	/* sent PLOGI request for this entry */
 #define NLP_PRLI_SND       0x00000040	/* sent PRLI request for this entry */
@@ -167,7 +190,7 @@ struct lpfc_node_rrq {
 #define NLP_NVMET_RECOV    0x00001000   /* NVMET auditing node for recovery. */
 #define NLP_FCP_PRLI_RJT   0x00002000   /* Rport does not support FCP PRLI. */
 #define NLP_UNREG_INP      0x00008000	/* UNREG_RPI cmd is in progress */
-#define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if no longer used */
+#define NLP_DROPPED        0x00010000	/* Init ref count has been dropped */
 #define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
 #define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */
 #define NLP_RCV_PLOGI      0x00080000	/* Rcv'ed PLOGI from remote system */
@@ -185,32 +208,6 @@ struct lpfc_node_rrq {
 #define NLP_SC_REQ         0x20000000	/* Target requires authentication */
 #define NLP_FIRSTBURST     0x40000000	/* Target supports FirstBurst */
 #define NLP_RPI_REGISTERED 0x80000000	/* nlp_rpi is valid */
-
-
-/* ndlp usage management macros */
-#define NLP_CHK_NODE_ACT(ndlp)		(((ndlp)->nlp_usg_map \
-						& NLP_USG_NODE_ACT_BIT) \
-					&& \
-					!((ndlp)->nlp_usg_map \
-						& NLP_USG_FREE_ACK_BIT))
-#define NLP_SET_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
-						|= NLP_USG_NODE_ACT_BIT)
-#define NLP_INT_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
-						= NLP_USG_NODE_ACT_BIT)
-#define NLP_CLR_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
-						&= ~NLP_USG_NODE_ACT_BIT)
-#define NLP_CHK_IACT_REQ(ndlp)          ((ndlp)->nlp_usg_map \
-						& NLP_USG_IACT_REQ_BIT)
-#define NLP_SET_IACT_REQ(ndlp)          ((ndlp)->nlp_usg_map \
-						|= NLP_USG_IACT_REQ_BIT)
-#define NLP_CHK_FREE_REQ(ndlp)		((ndlp)->nlp_usg_map \
-						& NLP_USG_FREE_REQ_BIT)
-#define NLP_SET_FREE_REQ(ndlp)		((ndlp)->nlp_usg_map \
-						|= NLP_USG_FREE_REQ_BIT)
-#define NLP_CHK_FREE_ACK(ndlp)		((ndlp)->nlp_usg_map \
-						& NLP_USG_FREE_ACK_BIT)
-#define NLP_SET_FREE_ACK(ndlp)		((ndlp)->nlp_usg_map \
-						|= NLP_USG_FREE_ACK_BIT)
 
 /* There are 4 different double linked lists nodelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used

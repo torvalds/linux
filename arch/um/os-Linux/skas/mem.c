@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <stddef.h>
@@ -40,6 +40,8 @@ static int __init init_syscall_regs(void)
 	syscall_regs[REGS_IP_INDEX] = STUB_CODE +
 		((unsigned long) batch_syscall_stub -
 		 (unsigned long) __syscall_stub_start);
+	syscall_regs[REGS_SP_INDEX] = STUB_DATA;
+
 	return 0;
 }
 

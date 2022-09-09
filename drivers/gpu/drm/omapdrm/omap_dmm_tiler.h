@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *         Andy Gross <andy.gross@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef OMAP_DMM_TILER_H
 #define OMAP_DMM_TILER_H
@@ -113,7 +105,7 @@ extern struct platform_driver omap_dmm_driver;
 /* GEM bo flags -> tiler fmt */
 static inline enum tiler_fmt gem2fmt(u32 flags)
 {
-	switch (flags & OMAP_BO_TILED) {
+	switch (flags & OMAP_BO_TILED_MASK) {
 	case OMAP_BO_TILED_8:
 		return TILFMT_8BIT;
 	case OMAP_BO_TILED_16:

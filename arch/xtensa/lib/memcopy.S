@@ -10,8 +10,8 @@
  */
 
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * void *memcpy(void *dst, const void *src, size_t len);
@@ -79,7 +79,7 @@
 	bne	a3, a7, .Lnextbyte # continue loop if $a3:src != $a7:src_end
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbytecopydone:
-	retw
+	abi_ret_default
 
 /*
  * Destination is unaligned
@@ -112,7 +112,7 @@
 ENTRY(__memcpy)
 WEAK(memcpy)
 
-	entry	sp, 16		# minimal stack frame
+	abi_entry_default
 	# a2/ dst, a3/ src, a4/ len
 	mov	a5, a2		# copy dst so that a2 is return value
 .Lcommon:
@@ -161,7 +161,7 @@ WEAK(memcpy)
 	bbsi.l	a4, 2, .L3
 	bbsi.l	a4, 1, .L4
 	bbsi.l	a4, 0, .L5
-	retw
+	abi_ret_default
 .L3:
 	# copy 4 bytes
 	l32i	a6, a3,  0
@@ -170,7 +170,7 @@ WEAK(memcpy)
 	addi	a5, a5,  4
 	bbsi.l	a4, 1, .L4
 	bbsi.l	a4, 0, .L5
-	retw
+	abi_ret_default
 .L4:
 	# copy 2 bytes
 	l16ui	a6, a3,  0
@@ -178,12 +178,12 @@ WEAK(memcpy)
 	s16i	a6, a5,  0
 	addi	a5, a5,  2
 	bbsi.l	a4, 0, .L5
-	retw
+	abi_ret_default
 .L5:
 	# copy 1 byte
 	l8ui	a6, a3,  0
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
 /*
  * Destination is aligned, Source is unaligned
@@ -255,7 +255,7 @@ WEAK(memcpy)
 #endif
 	bbsi.l	a4, 1, .L14
 	bbsi.l	a4, 0, .L15
-.Ldone:	retw
+.Ldone:	abi_ret_default
 .L14:
 	# copy 2 bytes
 	l8ui	a6, a3,  0
@@ -265,12 +265,12 @@ WEAK(memcpy)
 	s8i	a7, a5,  1
 	addi	a5, a5,  2
 	bbsi.l	a4, 0, .L15
-	retw
+	abi_ret_default
 .L15:
 	# copy 1 byte
 	l8ui	a6, a3,  0
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
 ENDPROC(__memcpy)
 
@@ -280,7 +280,7 @@ ENDPROC(__memcpy)
 
 ENTRY(bcopy)
 
-	entry	sp, 16		# minimal stack frame
+	abi_entry_default
 	# a2=src, a3=dst, a4=len
 	mov	a5, a3
 	mov	a3, a2
@@ -346,7 +346,7 @@ ENDPROC(bcopy)
 				       # $a3:src != $a7:src_start
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbackbytecopydone:
-	retw
+	abi_ret_default
 
 /*
  * Destination is unaligned
@@ -380,7 +380,7 @@ ENDPROC(bcopy)
 ENTRY(__memmove)
 WEAK(memmove)
 
-	entry	sp, 16		# minimal stack frame
+	abi_entry_default
 	# a2/ dst, a3/ src, a4/ len
 	mov	a5, a2		# copy dst so that a2 is return value
 .Lmovecommon:
@@ -402,13 +402,13 @@ WEAK(memmove)
 	 */
 	# copy 16 bytes per iteration for word-aligned dst and word-aligned src
 #if XCHAL_HAVE_LOOPS
-	loopnez	a7, .backLoop1done
+	loopnez	a7, .LbackLoop1done
 #else /* !XCHAL_HAVE_LOOPS */
-	beqz	a7, .backLoop1done
+	beqz	a7, .LbackLoop1done
 	slli	a8, a7, 4
 	sub	a8, a3, a8	# a8 = start of first 16B source chunk
 #endif /* !XCHAL_HAVE_LOOPS */
-.backLoop1:
+.LbackLoop1:
 	addi	a3, a3, -16
 	l32i	a7, a3, 12
 	l32i	a6, a3,  8
@@ -420,9 +420,9 @@ WEAK(memmove)
 	s32i	a7, a5,  4
 	s32i	a6, a5,  0
 #if !XCHAL_HAVE_LOOPS
-	bne	a3, a8, .backLoop1  # continue loop if a3:src != a8:src_start
+	bne	a3, a8, .LbackLoop1  # continue loop if a3:src != a8:src_start
 #endif /* !XCHAL_HAVE_LOOPS */
-.backLoop1done:
+.LbackLoop1done:
 	bbci.l	a4, 3, .Lback2
 	# copy 8 bytes
 	addi	a3, a3, -8
@@ -435,7 +435,7 @@ WEAK(memmove)
 	bbsi.l	a4, 2, .Lback3
 	bbsi.l	a4, 1, .Lback4
 	bbsi.l	a4, 0, .Lback5
-	retw
+	abi_ret_default
 .Lback3:
 	# copy 4 bytes
 	addi	a3, a3, -4
@@ -444,7 +444,7 @@ WEAK(memmove)
 	s32i	a6, a5,  0
 	bbsi.l	a4, 1, .Lback4
 	bbsi.l	a4, 0, .Lback5
-	retw
+	abi_ret_default
 .Lback4:
 	# copy 2 bytes
 	addi	a3, a3, -2
@@ -452,14 +452,14 @@ WEAK(memmove)
 	addi	a5, a5, -2
 	s16i	a6, a5,  0
 	bbsi.l	a4, 0, .Lback5
-	retw
+	abi_ret_default
 .Lback5:
 	# copy 1 byte
 	addi	a3, a3, -1
 	l8ui	a6, a3,  0
 	addi	a5, a5, -1
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
 /*
  * Destination is aligned, Source is unaligned
@@ -479,13 +479,13 @@ WEAK(memmove)
 #endif
 	l32i	a6, a3, 0	# load first word
 #if XCHAL_HAVE_LOOPS
-	loopnez	a7, .backLoop2done
+	loopnez	a7, .LbackLoop2done
 #else /* !XCHAL_HAVE_LOOPS */
-	beqz	a7, .backLoop2done
+	beqz	a7, .LbackLoop2done
 	slli	a10, a7, 4
 	sub	a10, a3, a10	# a10 = start of first 16B source chunk
 #endif /* !XCHAL_HAVE_LOOPS */
-.backLoop2:
+.LbackLoop2:
 	addi	a3, a3, -16
 	l32i	a7, a3, 12
 	l32i	a8, a3,  8
@@ -501,9 +501,9 @@ WEAK(memmove)
 	__src_b	a9, a6, a9
 	s32i	a9, a5,  0
 #if !XCHAL_HAVE_LOOPS
-	bne	a3, a10, .backLoop2 # continue loop if a3:src != a10:src_start
+	bne	a3, a10, .LbackLoop2 # continue loop if a3:src != a10:src_start
 #endif /* !XCHAL_HAVE_LOOPS */
-.backLoop2done:
+.LbackLoop2done:
 	bbci.l	a4, 3, .Lback12
 	# copy 8 bytes
 	addi	a3, a3, -8
@@ -531,7 +531,7 @@ WEAK(memmove)
 	bbsi.l	a4, 1, .Lback14
 	bbsi.l	a4, 0, .Lback15
 .Lbackdone:
-	retw
+	abi_ret_default
 .Lback14:
 	# copy 2 bytes
 	addi	a3, a3, -2
@@ -541,13 +541,13 @@ WEAK(memmove)
 	s8i	a6, a5,  0
 	s8i	a7, a5,  1
 	bbsi.l	a4, 0, .Lback15
-	retw
+	abi_ret_default
 .Lback15:
 	# copy 1 byte
 	addi	a3, a3, -1
 	addi	a5, a5, -1
 	l8ui	a6, a3,  0
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
 ENDPROC(__memmove)

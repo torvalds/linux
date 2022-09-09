@@ -71,6 +71,14 @@
 #define MFP_DS13X	< (0x7 << 10) MFP_DSMSK >
 
 /*
+ * MFP bias pull mode for pins.
+ * Example of use: pinctrl-single,bias-pullup = MPF_PULL_UP;
+ */
+#define MPF_PULL_MSK	(0x7 << 13)
+#define MPF_PULL_DOWN	< (0x5 << 13) (0x5 << 13) 0 MPF_PULL_MSK >
+#define MPF_PULL_UP	< (0x6 << 13) (0x6 << 13) 0 MPF_PULL_MSK >
+
+/*
  * MFP low power mode for pins.
  * Example of use:
  *   pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_LOW|MFP_LPM_EDGE_FALL);
@@ -114,9 +122,12 @@
 			compatible = "marvell,pdma-1.0";
 			reg = <0x40000000 0x10000>;
 			interrupts = <25>;
-			#dma-channels = <32>;
 			#dma-cells = <2>;
+			/* For backwards compatibility: */
+			#dma-channels = <32>;
+			dma-channels = <32>;
 			#dma-requests = <100>;
+			dma-requests = <100>;
 			status = "okay";
 		};
 
@@ -162,7 +173,7 @@
 			clocks = <&clks CLK_GPIO>;
 			gpio-ranges = <&pinctrl 0 0 128>;
 			interrupt-names = "gpio0", "gpio1", "gpio_mux";
-			interrupts = <8 9 10>;
+			interrupts = <8>, <9>, <10>;
 			gpio-controller;
 			#gpio-cells = <0x2>;
 			interrupt-controller;

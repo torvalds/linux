@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C driver for the X-Powers' Power Management ICs
  *
@@ -10,10 +11,6 @@
  * Copyright (C) 2014 Carlo Caione
  *
  * Author: Carlo Caione <carlo@caione.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -57,29 +54,38 @@ static int axp20x_i2c_remove(struct i2c_client *i2c)
 {
 	struct axp20x_dev *axp20x = i2c_get_clientdata(i2c);
 
-	return axp20x_device_remove(axp20x);
+	axp20x_device_remove(axp20x);
+
+	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id axp20x_i2c_of_match[] = {
 	{ .compatible = "x-powers,axp152", .data = (void *)AXP152_ID },
 	{ .compatible = "x-powers,axp202", .data = (void *)AXP202_ID },
 	{ .compatible = "x-powers,axp209", .data = (void *)AXP209_ID },
 	{ .compatible = "x-powers,axp221", .data = (void *)AXP221_ID },
+	{ .compatible = "x-powers,axp223", .data = (void *)AXP223_ID },
+	{ .compatible = "x-powers,axp803", .data = (void *)AXP803_ID },
 	{ .compatible = "x-powers,axp806", .data = (void *)AXP806_ID },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, axp20x_i2c_of_match);
+#endif
 
 static const struct i2c_device_id axp20x_i2c_id[] = {
 	{ "axp152", 0 },
 	{ "axp202", 0 },
 	{ "axp209", 0 },
 	{ "axp221", 0 },
+	{ "axp223", 0 },
+	{ "axp803", 0 },
 	{ "axp806", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, axp20x_i2c_id);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id axp20x_i2c_acpi_match[] = {
 	{
 		.id = "INT33F4",
@@ -88,6 +94,7 @@ static const struct acpi_device_id axp20x_i2c_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, axp20x_i2c_acpi_match);
+#endif
 
 static struct i2c_driver axp20x_i2c_driver = {
 	.driver = {

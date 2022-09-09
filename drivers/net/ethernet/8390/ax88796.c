@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/net/ethernet/8390/ax88796.c
  *
  * Copyright 2005,2007 Simtec Electronics
@@ -5,10 +6,6 @@
  *
  * Asix AX88796 10/100 Ethernet controller support
  *	Based on ne.c, by Donald Becker, et-al.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -103,6 +100,13 @@ static inline struct ax_device *to_ax_dev(struct net_device *dev)
 	struct ei_device *ei_local = netdev_priv(dev);
 	return (struct ax_device *)(ei_local + 1);
 }
+
+void ax_NS8390_reinit(struct net_device *dev)
+{
+	ax_NS8390_init(dev, 1);
+}
+
+EXPORT_SYMBOL_GPL(ax_NS8390_reinit);
 
 /*
  * ax_initial_check
@@ -638,7 +642,7 @@ static void ax_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 static const struct net_device_ops ax_netdev_ops = {
 	.ndo_open		= ax_open,
 	.ndo_stop		= ax_close,
-	.ndo_do_ioctl		= ax_ioctl,
+	.ndo_eth_ioctl		= ax_ioctl,
 
 	.ndo_start_xmit		= ax_ei_start_xmit,
 	.ndo_tx_timeout		= ax_ei_tx_timeout,
@@ -712,7 +716,7 @@ static int ax_init_dev(struct net_device *dev)
 			for (i = 0; i < 16; i++)
 				SA_prom[i] = SA_prom[i+i];
 
-		memcpy(dev->dev_addr, SA_prom, ETH_ALEN);
+		eth_hw_addr_set(dev, SA_prom);
 	}
 
 #ifdef CONFIG_AX88796_93CX6
@@ -729,7 +733,7 @@ static int ax_init_dev(struct net_device *dev)
 				       (__le16 __force *)mac_addr,
 				       sizeof(mac_addr) >> 1);
 
-		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, mac_addr);
 	}
 #endif
 	if (ax->plat->wordlength == 2) {
@@ -744,16 +748,18 @@ static int ax_init_dev(struct net_device *dev)
 
 	/* load the mac-address from the device */
 	if (ax->plat->flags & AXFLG_MAC_FROMDEV) {
+		u8 addr[ETH_ALEN];
+
 		ei_outb(E8390_NODMA + E8390_PAGE1 + E8390_STOP,
 			ei_local->mem + E8390_CMD); /* 0x61 */
 		for (i = 0; i < ETH_ALEN; i++)
-			dev->dev_addr[i] =
-				ei_inb(ioaddr + EN1_PHYS_SHIFT(i));
+			addr[i] = ei_inb(ioaddr + EN1_PHYS_SHIFT(i));
+		eth_hw_addr_set(dev, addr);
 	}
 
 	if ((ax->plat->flags & AXFLG_MAC_FROMPLATFORM) &&
 	    ax->plat->mac_addr)
-		memcpy(dev->dev_addr, ax->plat->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(dev, ax->plat->mac_addr);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		eth_hw_addr_random(dev);

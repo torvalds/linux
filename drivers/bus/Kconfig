@@ -20,8 +20,17 @@ config ARM_CCI400_PORT_CTRL
 	  Low level power management driver for CCI400 cache coherent
 	  interconnect for ARM platforms.
 
+config ARM_INTEGRATOR_LM
+	bool "ARM Integrator Logic Module bus"
+	depends on HAS_IOMEM
+	depends on ARCH_INTEGRATOR || COMPILE_TEST
+	default ARCH_INTEGRATOR
+	help
+	  Say y here to enable support for the ARM Logic Module bus
+	  found on the ARM Integrator AP (Application Platform)
+
 config BRCMSTB_GISB_ARB
-	bool "Broadcom STB GISB bus arbiter"
+	tristate "Broadcom STB GISB bus arbiter"
 	depends on ARM || ARM64 || MIPS
 	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
@@ -29,10 +38,51 @@ config BRCMSTB_GISB_ARB
 	  arbiter. This driver provides timeout and target abort error handling
 	  and internal bus master decoding.
 
+config BT1_APB
+	bool "Baikal-T1 APB-bus driver"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  Baikal-T1 AXI-APB bridge is used to access the SoC subsystem CSRs.
+	  IO requests are routed to this bus by means of the DW AMBA 3 AXI
+	  Interconnect. In case of any APB protocol collisions, slave device
+	  not responding on timeout an IRQ is raised with an erroneous address
+	  reported to the APB terminator (APB Errors Handler Block). This
+	  driver provides the interrupt handler to detect the erroneous
+	  address, prints an error message about the address fault, updates an
+	  errors counter. The counter and the APB-bus operations timeout can be
+	  accessed via corresponding sysfs nodes.
+
+config BT1_AXI
+	bool "Baikal-T1 AXI-bus driver"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  AXI3-bus is the main communication bus connecting all high-speed
+	  peripheral IP-cores with RAM controller and with MIPS P5600 cores on
+	  Baikal-T1 SoC. Traffic arbitration is done by means of DW AMBA 3 AXI
+	  Interconnect (so called AXI Main Interconnect) routing IO requests
+	  from one SoC block to another. This driver provides a way to detect
+	  any bus protocol errors and device not responding situations by
+	  means of an embedded on top of the interconnect errors handler
+	  block (EHB). AXI Interconnect QoS arbitration tuning is currently
+	  unsupported.
+
+config MOXTET
+	tristate "CZ.NIC Turris Mox module configuration bus"
+	depends on SPI_MASTER && OF
+	help
+	  Say yes here to add support for the module configuration bus found
+	  on CZ.NIC's Turris Mox. This is needed for the ability to discover
+	  the order in which the modules are connected and to get/set some of
+	  their settings. For example the GPIOs on Mox SFP module are
+	  configured through this bus.
+
 config HISILICON_LPC
 	bool "Support for ISA I/O space on HiSilicon Hip06/7"
-	depends on ARM64 && (ARCH_HISI || COMPILE_TEST)
-	select INDIRECT_PIO
+	depends on (ARM64 && ARCH_HISI) || (COMPILE_TEST && !ALPHA && !HEXAGON && !PARISC)
+	depends on HAS_IOMEM
+	select INDIRECT_PIO if ARM64
 	help
 	  Driver to enable I/O access to devices attached to the Low Pin
 	  Count bus on the HiSilicon Hip06/7 SoC.
@@ -45,9 +95,20 @@ config IMX_WEIM
 	  The WEIM(Wireless External Interface Module) works like a bus.
 	  You can attach many different devices on it, such as NOR, onenand.
 
+config INTEL_IXP4XX_EB
+	bool "Intel IXP4xx expansion bus interface driver"
+	depends on HAS_IOMEM
+	depends on ARCH_IXP4XX || COMPILE_TEST
+	default ARCH_IXP4XX
+	select MFD_SYSCON
+	help
+	  Driver for the Intel IXP4xx expansion bus interface. The driver is
+	  needed to set up various chip select configuration parameters before
+	  devices on the expansion bus can be discovered.
+
 config MIPS_CDMM
 	bool "MIPS Common Device Memory Map (CDMM) Driver"
-	depends on CPU_MIPSR2
+	depends on CPU_MIPSR2 || CPU_MIPSR5
 	help
 	  Driver needed for the MIPS Common Device Memory Map bus in MIPS
 	  cores. This bus is for per-CPU tightly coupled devices such as the
@@ -91,17 +152,16 @@ config QCOM_EBI2
 	  Interface 2, which can be used to connect things like NAND Flash,
 	  SRAM, ethernet adapters, FPGAs and LCD displays.
 
-config SIMPLE_PM_BUS
-	tristate "Simple Power-Managed Bus Driver"
-	depends on OF && PM
-	help
-	  Driver for transparent busses that don't need a real driver, but
-	  where the bus controller is part of a PM domain, or under the control
-	  of a functional clock, and thus relies on runtime PM for managing
-	  this PM domain and/or clock.
-	  An example of such a bus controller is the Renesas Bus State
-	  Controller (BSC, sometimes called "LBSC within Bus Bridge", or
-	  "External Bus Interface") as found on several Renesas ARM SoCs.
+config QCOM_SSC_BLOCK_BUS
+	bool "Qualcomm SSC Block Bus Init Driver"
+	  depends on ARCH_QCOM
+	  help
+	  Say y here to enable support for initializing the bus that connects
+	  the SSC block's internal bus to the cNoC (configurantion NoC) on
+	  (some) qcom SoCs.
+	  The SSC (Snapdragon Sensor Core) block contains a gpio controller,
+	  i2c/spi/uart controllers, a hexagon core, and a clock controller
+	  which provides clocks for the above.
 
 config SUN50I_DE2_BUS
 	bool "Allwinner A64 DE2 Bus Driver"
@@ -128,7 +188,6 @@ config TEGRA_ACONNECT
 	tristate "Tegra ACONNECT Bus Driver"
 	depends on ARCH_TEGRA_210_SOC
 	depends on OF && PM
-	select PM_CLK
 	help
 	  Driver for the Tegra ACONNECT bus which is used to interface with
 	  the devices inside the Audio Processing Engine (APE) for Tegra210.
@@ -139,6 +198,15 @@ config TEGRA_GMI
 	help
 	  Driver for the Tegra Generic Memory Interface bus which can be used
 	  to attach devices such as NOR, UART, FPGA and more.
+
+config  TI_PWMSS
+	bool
+	default y if (ARCH_OMAP2PLUS) && (PWM_TIECAP || PWM_TIEHRPWM || TI_EQEP)
+	help
+	  PWM Subsystem driver support for AM33xx SOC.
+
+	  PWM submodules require PWM config space access from submodule
+	  drivers and require common parent driver support.
 
 config TI_SYSC
 	bool "TI sysc interconnect target module driver"
@@ -164,7 +232,7 @@ config UNIPHIER_SYSTEM_BUS
 	  needed to use on-board devices connected to UniPhier SoCs.
 
 config VEXPRESS_CONFIG
-	bool "Versatile Express configuration bus"
+	tristate "Versatile Express configuration bus"
 	default y if ARCH_VEXPRESS
 	depends on ARM || ARM64
 	depends on OF
@@ -182,5 +250,6 @@ config DA8XX_MSTPRI
 	  peripherals.
 
 source "drivers/bus/fsl-mc/Kconfig"
+source "drivers/bus/mhi/Kconfig"
 
 endmenu

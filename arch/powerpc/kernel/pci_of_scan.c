@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Helper routines to scan the device tree for PCI devices and busses
  *
@@ -8,16 +9,12 @@
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *   Rework, based on alpha PCI code.
  * Copyright (c) 2009 Secret Lab Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/pci.h>
 #include <linux/export.h>
+#include <linux/of.h>
 #include <asm/pci-bridge.h>
-#include <asm/prom.h>
 
 /**
  * get_int_prop - Decode a u32 from a device tree property
@@ -37,29 +34,75 @@ static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
  * pci_parse_of_flags - Parse the flags cell of a device tree PCI address
  * @addr0: value of 1st cell of a device tree PCI address.
  * @bridge: Set this flag if the address is from a bridge 'ranges' property
+ *
+ * PCI Bus Binding to IEEE Std 1275-1994
+ *
+ * Bit#            33222222 22221111 11111100 00000000
+ *                 10987654 32109876 54321098 76543210
+ * phys.hi cell:   npt000ss bbbbbbbb dddddfff rrrrrrrr
+ * phys.mid cell:  hhhhhhhh hhhhhhhh hhhhhhhh hhhhhhhh
+ * phys.lo cell:   llllllll llllllll llllllll llllllll
+ *
+ * where:
+ * n        is 0 if the address is relocatable, 1 otherwise
+ * p        is 1 if the addressable region is "prefetchable", 0 otherwise
+ * t        is 1 if the address is aliased (for non-relocatable I/O),
+ *          below 1 MB (for Memory),or below 64 KB (for relocatable I/O).
+ * ss       is the space code, denoting the address space:
+ *              00 denotes Configuration Space
+ *              01 denotes I/O Space
+ *              10 denotes 32-bit-address Memory Space
+ *              11 denotes 64-bit-address Memory Space
+ * bbbbbbbb is the 8-bit Bus Number
+ * ddddd    is the 5-bit Device Number
+ * fff      is the 3-bit Function Number
+ * rrrrrrrr is the 8-bit Register Number
  */
+#define OF_PCI_ADDR0_SPACE(ss)		(((ss)&3)<<24)
+#define OF_PCI_ADDR0_SPACE_CFG		OF_PCI_ADDR0_SPACE(0)
+#define OF_PCI_ADDR0_SPACE_IO		OF_PCI_ADDR0_SPACE(1)
+#define OF_PCI_ADDR0_SPACE_MMIO32	OF_PCI_ADDR0_SPACE(2)
+#define OF_PCI_ADDR0_SPACE_MMIO64	OF_PCI_ADDR0_SPACE(3)
+#define OF_PCI_ADDR0_SPACE_MASK		OF_PCI_ADDR0_SPACE(3)
+#define OF_PCI_ADDR0_RELOC		(1UL<<31)
+#define OF_PCI_ADDR0_PREFETCH		(1UL<<30)
+#define OF_PCI_ADDR0_ALIAS		(1UL<<29)
+#define OF_PCI_ADDR0_BUS		0x00FF0000UL
+#define OF_PCI_ADDR0_DEV		0x0000F800UL
+#define OF_PCI_ADDR0_FN			0x00000700UL
+#define OF_PCI_ADDR0_BARREG		0x000000FFUL
+
 unsigned int pci_parse_of_flags(u32 addr0, int bridge)
 {
-	unsigned int flags = 0;
+	unsigned int flags = 0, as = addr0 & OF_PCI_ADDR0_SPACE_MASK;
 
-	if (addr0 & 0x02000000) {
+	if (as == OF_PCI_ADDR0_SPACE_MMIO32 || as == OF_PCI_ADDR0_SPACE_MMIO64) {
 		flags = IORESOURCE_MEM | PCI_BASE_ADDRESS_SPACE_MEMORY;
-		flags |= (addr0 >> 22) & PCI_BASE_ADDRESS_MEM_TYPE_64;
-		flags |= (addr0 >> 28) & PCI_BASE_ADDRESS_MEM_TYPE_1M;
-		if (addr0 & 0x40000000)
-			flags |= IORESOURCE_PREFETCH
-				 | PCI_BASE_ADDRESS_MEM_PREFETCH;
+
+		if (as == OF_PCI_ADDR0_SPACE_MMIO64)
+			flags |= PCI_BASE_ADDRESS_MEM_TYPE_64 | IORESOURCE_MEM_64;
+
+		if (addr0 & OF_PCI_ADDR0_ALIAS)
+			flags |= PCI_BASE_ADDRESS_MEM_TYPE_1M;
+
+		if (addr0 & OF_PCI_ADDR0_PREFETCH)
+			flags |= IORESOURCE_PREFETCH |
+				 PCI_BASE_ADDRESS_MEM_PREFETCH;
+
 		/* Note: We don't know whether the ROM has been left enabled
 		 * by the firmware or not. We mark it as disabled (ie, we do
 		 * not set the IORESOURCE_ROM_ENABLE flag) for now rather than
 		 * do a config space read, it will be force-enabled if needed
 		 */
-		if (!bridge && (addr0 & 0xff) == 0x30)
+		if (!bridge && (addr0 & OF_PCI_ADDR0_BARREG) == PCI_ROM_ADDRESS)
 			flags |= IORESOURCE_READONLY;
-	} else if (addr0 & 0x01000000)
+
+	} else if (as == OF_PCI_ADDR0_SPACE_IO)
 		flags = IORESOURCE_IO | PCI_BASE_ADDRESS_SPACE_IO;
+
 	if (flags)
 		flags |= IORESOURCE_SIZEALIGN;
+
 	return flags;
 }
 
@@ -80,10 +123,16 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
 	const __be32 *addrs;
 	u32 i;
 	int proplen;
+	bool mark_unset = false;
 
 	addrs = of_get_property(node, "assigned-addresses", &proplen);
-	if (!addrs)
-		return;
+	if (!addrs || !proplen) {
+		addrs = of_get_property(node, "reg", &proplen);
+		if (!addrs || !proplen)
+			return;
+		mark_unset = true;
+	}
+
 	pr_debug("    parse addresses (%d bytes) @ %p\n", proplen, addrs);
 	for (; proplen >= 20; proplen -= 20, addrs += 5) {
 		flags = pci_parse_of_flags(of_read_number(addrs, 1), 0);
@@ -108,6 +157,8 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
 			continue;
 		}
 		res->flags = flags;
+		if (mark_unset)
+			res->flags |= IORESOURCE_UNSET;
 		res->name = pci_name(dev);
 		region.start = base;
 		region.end = base + size - 1;
@@ -193,7 +244,7 @@ EXPORT_SYMBOL(of_create_pci_dev);
  * @dev: pci_dev structure for the bridge
  *
  * of_scan_bus() calls this routine for each PCI bridge that it finds, and
- * this routine in turn call of_scan_bus() recusively to scan for more child
+ * this routine in turn call of_scan_bus() recursively to scan for more child
  * devices.
  */
 void of_scan_pci_bridge(struct pci_dev *dev)
@@ -363,7 +414,6 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 	 */
 	if (!rescan_existing)
 		pcibios_setup_bus_self(bus);
-	pcibios_setup_bus_devices(bus);
 
 	/* Now scan child busses */
 	for_each_pci_bridge(dev, bus)

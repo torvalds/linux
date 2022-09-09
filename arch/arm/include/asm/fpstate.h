@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/fpstate.h
  *
  *  Copyright (C) 1995 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_ARM_FPSTATE_H
@@ -79,14 +76,6 @@ union fp_state {
 };
 
 #define FP_SIZE (sizeof(union fp_state) / sizeof(int))
-
-struct crunch_state {
-	unsigned int	mvdx[16][2];
-	unsigned int	mvax[4][3];
-	unsigned int	dspsc[2];
-};
-
-#define CRUNCH_SIZE	sizeof(struct crunch_state)
 
 #endif
 

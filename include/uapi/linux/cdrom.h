@@ -103,7 +103,7 @@
 #define CDROMREADALL		0x5318	/* read all 2646 bytes */
 
 /* 
- * These ioctls are (now) only in ide-cd.c for controlling 
+ * These ioctls were only in (now removed) ide-cd.c for controlling
  * drive spindown time.  They should be implemented in the
  * Uniform driver, via generic packet commands, GPCMD_MODE_SELECT_10,
  * GPCMD_MODE_SENSE_10 and the GPMODE_POWER_PAGE...
@@ -146,6 +146,8 @@
 #define CDROM_SEND_PACKET	0x5393	/* send a packet to the drive */
 #define CDROM_NEXT_WRITABLE	0x5394	/* get next writable block */
 #define CDROM_LAST_WRITTEN	0x5395	/* get last block written on disc */
+
+#define CDROM_TIMED_MEDIA_CHANGE   0x5396  /* get the timestamp of the last media change */
 
 /*******************************************************
  * CDROM IOCTL structures
@@ -289,8 +291,28 @@ struct cdrom_generic_command
 	unsigned char		data_direction;
 	int			quiet;
 	int			timeout;
-	void			__user *reserved[1];	/* unused, actually */
+	union {
+		void		__user *reserved[1];	/* unused, actually */
+		void            __user *unused;
+	};
 };
+
+/* This struct is used by CDROM_TIMED_MEDIA_CHANGE */
+struct cdrom_timed_media_change_info {
+	__s64	last_media_change;	/* Timestamp of the last detected media
+					 * change in ms. May be set by caller,
+					 * updated upon successful return of
+					 * ioctl.
+					 */
+	__u64	media_flags;		/* Flags returned by ioctl to indicate
+					 * media status.
+					 */
+};
+#define MEDIA_CHANGED_FLAG	0x1	/* Last detected media change was more
+					 * recent than last_media_change set by
+					 * caller.
+					 */
+/* other bits of media_flags available for future use */
 
 /*
  * A CD-ROM physical sector size is 2048, 2052, 2056, 2324, 2332, 2336, 

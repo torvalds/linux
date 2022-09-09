@@ -1,67 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2019, 2021 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_mac_cfg_h__
 #define __iwl_fw_api_mac_cfg_h__
 
@@ -74,14 +16,41 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	LOW_LATENCY_CMD = 0x3,
 	/**
+	 * @CHANNEL_SWITCH_TIME_EVENT_CMD: &struct iwl_chan_switch_te_cmd
+	 */
+	CHANNEL_SWITCH_TIME_EVENT_CMD = 0x4,
+	/**
+	 * @MISSED_VAP_NOTIF: &struct iwl_missed_vap_notif
+	 */
+	MISSED_VAP_NOTIF = 0xFA,
+	/**
+	 * @SESSION_PROTECTION_CMD: &struct iwl_mvm_session_prot_cmd
+	 */
+	SESSION_PROTECTION_CMD = 0x5,
+	/**
+	 * @CANCEL_CHANNEL_SWITCH_CMD: &struct iwl_cancel_channel_switch_cmd
+	 */
+	CANCEL_CHANNEL_SWITCH_CMD = 0x6,
+
+	/**
+	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
+	 */
+	SESSION_PROTECTION_NOTIF = 0xFB,
+
+	/**
 	 * @PROBE_RESPONSE_DATA_NOTIF: &struct iwl_probe_resp_data_notif
 	 */
 	PROBE_RESPONSE_DATA_NOTIF = 0xFC,
 
 	/**
-	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
+	 * @CHANNEL_SWITCH_START_NOTIF: &struct iwl_channel_switch_start_notif
 	 */
-	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
+	CHANNEL_SWITCH_START_NOTIF = 0xFF,
+
+	/**
+	 *@CHANNEL_SWITCH_ERROR_NOTIF: &struct iwl_channel_switch_error_notif
+	 */
+	CHANNEL_SWITCH_ERROR_NOTIF = 0xF9,
 };
 
 #define IWL_P2P_NOA_DESC_COUNT	(2)
@@ -127,13 +96,76 @@ struct iwl_probe_resp_data_notif {
 } __packed; /* PROBE_RESPONSE_DATA_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
+ * struct iwl_missed_vap_notif - notification of missing vap detection
+ *
+ * @mac_id: the mac for which the ucode sends the notification for
+ * @num_beacon_intervals_elapsed: beacons elpased with no vap profile inside
+ * @profile_periodicity: beacons period to have our profile inside
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_missed_vap_notif {
+	__le32 mac_id;
+	u8 num_beacon_intervals_elapsed;
+	u8 profile_periodicity;
+	u8 reserved[2];
+} __packed; /* MISSED_VAP_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_channel_switch_start_notif - Channel switch start notification
  *
  * @id_and_color: ID and color of the MAC
  */
-struct iwl_channel_switch_noa_notif {
+struct iwl_channel_switch_start_notif {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+#define CS_ERR_COUNT_ERROR BIT(0)
+#define CS_ERR_LONG_DELAY_AFTER_CS BIT(1)
+#define CS_ERR_LONG_TX_BLOCK BIT(2)
+#define CS_ERR_TX_BLOCK_TIMER_EXPIRED BIT(3)
+
+/**
+ * struct iwl_channel_switch_error_notif - Channel switch error notification
+ *
+ * @mac_id: the mac for which the ucode sends the notification for
+ * @csa_err_mask: mask of channel switch error that can occur
+ */
+struct iwl_channel_switch_error_notif {
+	__le32 mac_id;
+	__le32 csa_err_mask;
+} __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_cancel_channel_switch_cmd - Cancel Channel Switch command
+ *
+ * @mac_id: the mac that should cancel the channel switch
+ */
+struct iwl_cancel_channel_switch_cmd {
+	__le32 mac_id;
+} __packed; /* MAC_CANCEL_CHANNEL_SWITCH_S_VER_1 */
+
+/**
+ * struct iwl_chan_switch_te_cmd - Channel Switch Time Event command
+ *
+ * @mac_id: MAC ID for channel switch
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @tsf: beacon tsf
+ * @cs_count: channel switch count from CSA/eCSA IE
+ * @cs_delayed_bcn_count: if set to N (!= 0) GO/AP can delay N beacon intervals
+ *	at the new channel after the channel switch, otherwise (N == 0) expect
+ *	beacon right after the channel switch.
+ * @cs_mode: 1 - quiet, 0 - otherwise
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_chan_switch_te_cmd {
+	__le32 mac_id;
+	__le32 action;
+	__le32 tsf;
+	u8 cs_count;
+	u8 cs_delayed_bcn_count;
+	u8 cs_mode;
+	u8 reserved;
+} __packed; /* MAC_CHANNEL_SWITCH_TIME_EVENT_S_VER_2 */
 
 /**
  * struct iwl_mac_low_latency_cmd - set/clear mac to 'low-latency mode'

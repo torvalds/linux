@@ -1,10 +1,14 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 ===================
 System Sleep States
 ===================
 
-::
+:Copyright: |copy| 2017 Intel Corporation
 
- Copyright (c) 2017 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+
 
 Sleep states are global low-power states of the entire system in which user
 space code cannot be executed and the overall system activity is significantly
@@ -149,8 +153,11 @@ for the given CPU architecture includes the low-level code for system resume.
 Basic ``sysfs`` Interfaces for System Suspend and Hibernation
 =============================================================
 
-The following files located in the :file:`/sys/power/` directory can be used by
-user space for sleep states control.
+The power management subsystem provides userspace with a unified ``sysfs``
+interface for system sleep regardless of the underlying system architecture or
+platform.  That interface is located in the :file:`/sys/power/` directory
+(assuming that ``sysfs`` is mounted at :file:`/sys`) and it consists of the
+following attributes (files):
 
 ``state``
 	This file contains a list of strings representing sleep states supported
@@ -158,9 +165,9 @@ user space for sleep states control.
 	to start a transition of the system into the sleep state represented by
 	that string.
 
-	In particular, the strings "disk", "freeze" and "standby" represent the
+	In particular, the "disk", "freeze" and "standby" strings represent the
 	:ref:`hibernation <hibernation>`, :ref:`suspend-to-idle <s2idle>` and
-	:ref:`standby <standby>` sleep states, respectively.  The string "mem"
+	:ref:`standby <standby>` sleep states, respectively.  The "mem" string
 	is interpreted in accordance with the contents of the ``mem_sleep`` file
 	described below.
 
@@ -173,7 +180,7 @@ user space for sleep states control.
 	associated with the "mem" string in the ``state`` file described above.
 
 	The strings that may be present in this file are "s2idle", "shallow"
-	and "deep".  The string "s2idle" always represents :ref:`suspend-to-idle
+	and "deep".  The "s2idle" string always represents :ref:`suspend-to-idle
 	<s2idle>` and, by convention, "shallow" and "deep" represent
 	:ref:`standby <standby>` and :ref:`suspend-to-RAM <s2ram>`,
 	respectively.
@@ -181,21 +188,28 @@ user space for sleep states control.
 	Writing one of the listed strings into this file causes the system
 	suspend variant represented by it to be associated with the "mem" string
 	in the ``state`` file.  The string representing the suspend variant
-	currently associated with the "mem" string in the ``state`` file
-	is listed in square brackets.
+	currently associated with the "mem" string in the ``state`` file is
+	shown in square brackets.
 
 	If the kernel does not support system suspend, this file is not present.
 
 ``disk``
-	This file contains a list of strings representing different operations
-	that can be carried out after the hibernation image has been saved.  The
-	possible options are as follows:
+	This file controls the operating mode of hibernation (Suspend-to-Disk).
+	Specifically, it tells the kernel what to do after creating a
+	hibernation image.
+
+	Reading from it returns a list of supported options encoded as:
 
 	``platform``
 		Put the system into a special low-power state (e.g. ACPI S4) to
 		make additional wakeup options available and possibly allow the
 		platform firmware to take a simplified initialization path after
 		wakeup.
+
+		It is only available if the platform provides a special
+		mechanism to put the system to sleep after creating a
+		hibernation image (platforms with ACPI do that as a rule, for
+		example).
 
 	``shutdown``
 		Power off the system.
@@ -210,21 +224,52 @@ user space for sleep states control.
 		the hibernation image and continue.  Otherwise, use the image
 		to restore the previous state of the system.
 
+		It is available if system suspend is supported.
+
 	``test_resume``
 		Diagnostic operation.  Load the image as though the system had
 		just woken up from hibernation and the currently running kernel
 		instance was a restore kernel and follow up with full system
 		resume.
 
-	Writing one of the listed strings into this file causes the option
+	Writing one of the strings listed above into this file causes the option
 	represented by it to be selected.
 
-	The currently selected option is shown in square brackets which means
+	The currently selected option is shown in square brackets, which means
 	that the operation represented by it will be carried out after creating
-	and saving the image next time hibernation is triggered by writing
-	``disk`` to :file:`/sys/power/state`.
+	and saving the image when hibernation is triggered by writing ``disk``
+	to :file:`/sys/power/state`.
 
 	If the kernel does not support hibernation, this file is not present.
+
+``image_size``
+	This file controls the size of hibernation images.
+
+	It can be written a string representing a non-negative integer that will
+	be used as a best-effort upper limit of the image size, in bytes.  The
+	hibernation core will do its best to ensure that the image size will not
+	exceed that number, but if that turns out to be impossible to achieve, a
+	hibernation image will still be created and its size will be as small as
+	possible.  In particular, writing '0' to this file causes the size of
+	hibernation images to be minimum.
+
+	Reading from it returns the current image size limit, which is set to
+	around 2/5 of the available RAM size by default.
+
+``pm_trace``
+	This file controls the "PM trace" mechanism saving the last suspend
+	or resume event point in the RTC memory across reboots.  It helps to
+	debug hard lockups or reboots due to device driver failures that occur
+	during system suspend or resume (which is more common) more effectively.
+
+	If it contains "1", the fingerprint of each suspend/resume event point
+	in turn will be stored in the RTC memory (overwriting the actual RTC
+	information), so it will survive a system crash if one occurs right
+	after storing it and it can be used later to identify the driver that
+	caused the crash to happen.
+
+	It contains "0" by default, which may be changed to "1" by writing a
+	string representing a nonzero integer into it.
 
 According to the above, there are two ways to make the system go into the
 :ref:`suspend-to-idle <s2idle>` state.  The first one is to write "freeze"
@@ -240,6 +285,7 @@ system go into the :ref:`suspend-to-RAM <s2ram>` state (write "deep" into
 The default suspend variant (ie. the one to be used without writing anything
 into :file:`/sys/power/mem_sleep`) is either "deep" (on the majority of systems
 supporting :ref:`suspend-to-RAM <s2ram>`) or "s2idle", but it can be overridden
-by the value of the "mem_sleep_default" parameter in the kernel command line.
-On some ACPI-based systems, depending on the information in the ACPI tables, the
-default may be "s2idle" even if :ref:`suspend-to-RAM <s2ram>` is supported.
+by the value of the ``mem_sleep_default`` parameter in the kernel command line.
+On some systems with ACPI, depending on the information in the ACPI tables, the
+default may be "s2idle" even if :ref:`suspend-to-RAM <s2ram>` is supported in
+principle.

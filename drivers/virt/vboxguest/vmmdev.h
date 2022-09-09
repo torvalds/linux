@@ -98,8 +98,8 @@ struct vmmdev_request_header {
 	s32 rc;
 	/** Reserved field no.1. MBZ. */
 	u32 reserved1;
-	/** Reserved field no.2. MBZ. */
-	u32 reserved2;
+	/** IN: Requestor information (VMMDEV_REQUESTOR_*) */
+	u32 requestor;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_request_header, 24);
 
@@ -206,6 +206,8 @@ VMMDEV_ASSERT_SIZE(vmmdev_mask, 24 + 8);
  * not.
  */
 #define VMMDEV_GUEST_SUPPORTS_GRAPHICS                      BIT(2)
+/* The mask of valid capabilities, for sanity checking. */
+#define VMMDEV_GUEST_CAPABILITIES_MASK                      0x00000007U
 
 /** struct vmmdev_hypervisorinfo - Hypervisor info structure. */
 struct vmmdev_hypervisorinfo {
@@ -247,6 +249,8 @@ struct vmmdev_guest_info {
 };
 VMMDEV_ASSERT_SIZE(vmmdev_guest_info, 24 + 8);
 
+#define VMMDEV_GUEST_INFO2_ADDITIONS_FEATURES_REQUESTOR_INFO	BIT(0)
+
 /** struct vmmdev_guestinfo2 - Guest information report, version 2. */
 struct vmmdev_guest_info2 {
 	/** Header. */
@@ -259,7 +263,7 @@ struct vmmdev_guest_info2 {
 	u32 additions_build;
 	/** SVN revision. */
 	u32 additions_revision;
-	/** Feature mask, currently unused. */
+	/** Feature mask. */
 	u32 additions_features;
 	/**
 	 * The intentional meaning of this field was:

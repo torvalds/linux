@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -31,8 +31,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -41,14 +39,14 @@
 #include "lpfc_disc.h"
 #include "lpfc.h"
 #include "lpfc_scsi.h"
-#include "lpfc_nvme.h"
-#include "lpfc_nvmet.h"
 #include "lpfc_crtn.h"
 #include "lpfc_logmsg.h"
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
 #define LPFC_DEVICE_DATA_POOL_SIZE 64   /* max elements in device data pool */
+#define LPFC_RRQ_POOL_SIZE	256	/* max elements in non-DMA  pool */
+#define LPFC_MBX_POOL_SIZE	256	/* max elements in MBX non-DMA pool */
 
 int
 lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
@@ -71,9 +69,10 @@ lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
 /**
  * lpfc_mem_alloc - create and allocate all PCI and memory pools
  * @phba: HBA to allocate pools for
+ * @align: alignment requirement for blocks; must be a power of two
  *
- * Description: Creates and allocates PCI pools lpfc_sg_dma_buf_pool,
- * lpfc_mbuf_pool, lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
+ * Description: Creates and allocates PCI pools lpfc_mbuf_pool,
+ * lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
  * for LPFC_MBOXQ_t and lpfc_nodelist.  Also allocates the VPI bitmask.
  *
  * Notes: Not interrupt-safe.  Must be called with no locks held.  If any
@@ -89,36 +88,12 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
 	int i;
 
-	if (phba->sli_rev == LPFC_SLI_REV4) {
-		/* Calculate alignment */
-		if (phba->cfg_sg_dma_buf_size < SLI4_PAGE_SIZE)
-			i = phba->cfg_sg_dma_buf_size;
-		else
-			i = SLI4_PAGE_SIZE;
-
-		phba->lpfc_sg_dma_buf_pool =
-			dma_pool_create("lpfc_sg_dma_buf_pool",
-					&phba->pcidev->dev,
-					phba->cfg_sg_dma_buf_size,
-					i, 0);
-		if (!phba->lpfc_sg_dma_buf_pool)
-			goto fail;
-
-	} else {
-		phba->lpfc_sg_dma_buf_pool =
-			dma_pool_create("lpfc_sg_dma_buf_pool",
-					&phba->pcidev->dev, phba->cfg_sg_dma_buf_size,
-					align, 0);
-
-		if (!phba->lpfc_sg_dma_buf_pool)
-			goto fail;
-	}
 
 	phba->lpfc_mbuf_pool = dma_pool_create("lpfc_mbuf_pool", &phba->pcidev->dev,
 							LPFC_BPL_SIZE,
 							align, 0);
 	if (!phba->lpfc_mbuf_pool)
-		goto fail_free_dma_buf_pool;
+		goto fail;
 
 	pool->elements = kmalloc_array(LPFC_MBUF_POOL_SIZE,
 				       sizeof(struct lpfc_dmabuf),
@@ -137,8 +112,8 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		pool->current_count++;
 	}
 
-	phba->mbox_mem_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
-							 sizeof(LPFC_MBOXQ_t));
+	phba->mbox_mem_pool = mempool_create_kmalloc_pool(LPFC_MBX_POOL_SIZE,
+							  sizeof(LPFC_MBOXQ_t));
 	if (!phba->mbox_mem_pool)
 		goto fail_free_mbuf_pool;
 
@@ -149,7 +124,7 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		phba->rrq_pool =
-			mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
+			mempool_create_kmalloc_pool(LPFC_RRQ_POOL_SIZE,
 						sizeof(struct lpfc_node_rrq));
 		if (!phba->rrq_pool)
 			goto fail_free_nlp_mem_pool;
@@ -208,9 +183,6 @@ fail_free_drb_pool:
  fail_free_lpfc_mbuf_pool:
 	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
- fail_free_dma_buf_pool:
-	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
-	phba->lpfc_sg_dma_buf_pool = NULL;
  fail:
 	return -ENOMEM;
 }
@@ -248,25 +220,19 @@ lpfc_mem_free(struct lpfc_hba *phba)
 
 	/* Free HBQ pools */
 	lpfc_sli_hbqbuf_free_all(phba);
-	if (phba->lpfc_nvmet_drb_pool)
-		dma_pool_destroy(phba->lpfc_nvmet_drb_pool);
+	dma_pool_destroy(phba->lpfc_nvmet_drb_pool);
 	phba->lpfc_nvmet_drb_pool = NULL;
-	if (phba->lpfc_drb_pool)
-		dma_pool_destroy(phba->lpfc_drb_pool);
-	phba->lpfc_drb_pool = NULL;
-	if (phba->lpfc_hrb_pool)
-		dma_pool_destroy(phba->lpfc_hrb_pool);
-	phba->lpfc_hrb_pool = NULL;
-	if (phba->txrdy_payload_pool)
-		dma_pool_destroy(phba->txrdy_payload_pool);
-	phba->txrdy_payload_pool = NULL;
 
-	if (phba->lpfc_hbq_pool)
-		dma_pool_destroy(phba->lpfc_hbq_pool);
+	dma_pool_destroy(phba->lpfc_drb_pool);
+	phba->lpfc_drb_pool = NULL;
+
+	dma_pool_destroy(phba->lpfc_hrb_pool);
+	phba->lpfc_hrb_pool = NULL;
+
+	dma_pool_destroy(phba->lpfc_hbq_pool);
 	phba->lpfc_hbq_pool = NULL;
 
-	if (phba->rrq_pool)
-		mempool_destroy(phba->rrq_pool);
+	mempool_destroy(phba->rrq_pool);
 	phba->rrq_pool = NULL;
 
 	/* Free NLP memory pool */
@@ -289,10 +255,6 @@ lpfc_mem_free(struct lpfc_hba *phba)
 
 	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
-
-	/* Free DMA buffer memory pool */
-	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
-	phba->lpfc_sg_dma_buf_pool = NULL;
 
 	/* Free Device Data memory pool */
 	if (phba->device_data_mem_pool) {
@@ -365,6 +327,26 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 
 	/* Free and destroy all the allocated memory pools */
 	lpfc_mem_free(phba);
+
+	/* Free DMA buffer memory pool */
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
+
+	dma_pool_destroy(phba->lpfc_cmd_rsp_buf_pool);
+	phba->lpfc_cmd_rsp_buf_pool = NULL;
+
+	/* Free Congestion Data buffer */
+	if (phba->cgn_i) {
+		dma_free_coherent(&phba->pcidev->dev,
+				  sizeof(struct lpfc_cgn_info),
+				  phba->cgn_i->virt, phba->cgn_i->phys);
+		kfree(phba->cgn_i);
+		phba->cgn_i = NULL;
+	}
+
+	/* Free RX table */
+	kfree(phba->rxtable);
+	phba->rxtable = NULL;
 
 	/* Free the iocb lookup array */
 	kfree(psli->iocbq_lookup);
@@ -620,8 +602,6 @@ lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
  * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
  * pool along a non-DMA-mapped container for it.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.
- *
  * Returns:
  *   pointer to HBQ on success
  *   NULL on failure
@@ -631,7 +611,7 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 {
 	struct rqb_dmabuf *dma_buf;
 
-	dma_buf = kzalloc(sizeof(struct rqb_dmabuf), GFP_KERNEL);
+	dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
 	if (!dma_buf)
 		return NULL;
 
@@ -754,7 +734,6 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	drqe.address_hi = putPaddrHigh(rqb_entry->dbuf.phys);
 	rc = lpfc_sli4_rq_put(rqb_entry->hrq, rqb_entry->drq, &hrqe, &drqe);
 	if (rc < 0) {
-		(rqbp->rqb_free_buffer)(phba, rqb_entry);
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"6409 Cannot post to HRQ %d: %x %x %x "
 				"DRQ %x %x\n",
@@ -764,6 +743,7 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 				rqb_entry->hrq->entry_count,
 				rqb_entry->drq->host_index,
 				rqb_entry->drq->hba_index);
+		(rqbp->rqb_free_buffer)(phba, rqb_entry);
 	} else {
 		list_add_tail(&rqb_entry->hbuf.list, &rqbp->rqb_buffer_list);
 		rqbp->buffer_count++;

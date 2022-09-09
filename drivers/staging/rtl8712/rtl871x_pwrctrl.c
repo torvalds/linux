@@ -32,7 +32,7 @@ void r8712_set_rpwm(struct _adapter *padapter, u8 val8)
 		if (pwrpriv->rpwm_retry == 0)
 			return;
 	}
-	if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
+	if (padapter->driver_stopped || padapter->surprise_removed)
 		return;
 	rpwm = val8 | pwrpriv->tog;
 	switch (val8) {
@@ -117,7 +117,7 @@ static void _rpwm_check_handler (struct _adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
-	if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
+	if (padapter->driver_stopped || padapter->surprise_removed)
 		return;
 	if (pwrpriv->cpwm != pwrpriv->rpwm)
 		schedule_work(&pwrpriv->rpwm_workitem);
@@ -184,19 +184,19 @@ void r8712_init_pwrctrl_priv(struct _adapter *padapter)
  * will raise the cpwm to be greater than or equal to P2.
  * Calling Context: Passive
  * Return Value:
- * _SUCCESS: r8712_cmd_thread can issue cmds to firmware afterwards.
- * _FAIL: r8712_cmd_thread can not do anything.
+ * 0:	    r8712_cmd_thread can issue cmds to firmware afterwards.
+ * -EINVAL: r8712_cmd_thread can not do anything.
  */
-sint r8712_register_cmd_alive(struct _adapter *padapter)
+int r8712_register_cmd_alive(struct _adapter *padapter)
 {
-	uint res = _SUCCESS;
+	int res = 0;
 	struct pwrctrl_priv *pwrctrl = &padapter->pwrctrlpriv;
 
 	mutex_lock(&pwrctrl->mutex_lock);
 	register_task_alive(pwrctrl, CMD_ALIVE);
 	if (pwrctrl->cpwm < PS_STATE_S2) {
 		r8712_set_rpwm(padapter, PS_STATE_S3);
-		res = _FAIL;
+		res = -EINVAL;
 	}
 	mutex_unlock(&pwrctrl->mutex_lock);
 	return res;
@@ -223,4 +223,12 @@ void r8712_unregister_cmd_alive(struct _adapter *padapter)
 		}
 	}
 	mutex_unlock(&pwrctrl->mutex_lock);
+}
+
+void r8712_flush_rwctrl_works(struct _adapter *padapter)
+{
+	struct pwrctrl_priv *pwrctrl = &padapter->pwrctrlpriv;
+
+	flush_work(&pwrctrl->SetPSModeWorkItem);
+	flush_work(&pwrctrl->rpwm_workitem);
 }

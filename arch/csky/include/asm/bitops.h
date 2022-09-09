@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_BITOPS_H
 #define __ASM_CSKY_BITOPS_H
@@ -60,7 +59,6 @@ static __always_inline unsigned long __fls(unsigned long x)
 
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/fls64.h>
-#include <asm-generic/bitops/find.h>
 
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly
@@ -75,7 +73,6 @@ static __always_inline unsigned long __fls(unsigned long x)
  * bug fix, why only could use atomic!!!!
  */
 #include <asm-generic/bitops/non-atomic.h>
-#define __clear_bit(nr, vaddr) clear_bit(nr, vaddr)
 
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>

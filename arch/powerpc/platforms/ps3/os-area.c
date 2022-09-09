@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 flash memory os area.
  *
  *  Copyright (C) 2006 Sony Computer Entertainment Inc.
  *  Copyright 2006 Sony Corp.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -28,8 +16,6 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-
-#include <asm/prom.h>
 
 #include "platform.h"
 
@@ -205,11 +191,11 @@ static const struct os_area_db_id os_area_db_id_rtc_diff = {
  *  3) The number of seconds from 1970 to 2000.
  */
 
-struct saved_params {
+static struct saved_params {
 	unsigned int valid;
 	s64 rtc_diff;
 	unsigned int av_multi_out;
-} static saved_params;
+} saved_params;
 
 static struct property property_rtc_diff = {
 	.name = "linux,rtc_diff",
@@ -513,7 +499,7 @@ static int db_set_64(struct os_area_db *db, const struct os_area_db_id *id,
 	return -1;
 }
 
-static int db_get_64(const struct os_area_db *db,
+static int __init db_get_64(const struct os_area_db *db,
 	const struct os_area_db_id *id, uint64_t *value)
 {
 	struct db_iterator i;
@@ -529,7 +515,7 @@ static int db_get_64(const struct os_area_db *db,
 	return -1;
 }
 
-static int db_get_rtc_diff(const struct os_area_db *db, int64_t *rtc_diff)
+static int __init db_get_rtc_diff(const struct os_area_db *db, int64_t *rtc_diff)
 {
 	return db_get_64(db, &os_area_db_id_rtc_diff, (uint64_t*)rtc_diff);
 }
@@ -625,10 +611,8 @@ static int update_flash_db(void)
 	/* Read in header and db from flash. */
 
 	header = kmalloc(buf_len, GFP_KERNEL);
-	if (!header) {
-		pr_debug("%s: kmalloc failed\n", __func__);
+	if (!header)
 		return -ENOMEM;
-	}
 
 	count = os_area_flash_read(header, buf_len, 0);
 	if (count < 0) {

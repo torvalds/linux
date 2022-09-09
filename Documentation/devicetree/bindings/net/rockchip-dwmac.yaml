@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/net/rockchip-dwmac.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Rockchip 10/100/1000 Ethernet driver(GMAC)
+
+maintainers:
+  - David Wu <david.wu@rock-chips.com>
+
+# We need a select here so we don't match all nodes with 'snps,dwmac'
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - rockchip,px30-gmac
+          - rockchip,rk3128-gmac
+          - rockchip,rk3228-gmac
+          - rockchip,rk3288-gmac
+          - rockchip,rk3308-gmac
+          - rockchip,rk3328-gmac
+          - rockchip,rk3366-gmac
+          - rockchip,rk3368-gmac
+          - rockchip,rk3399-gmac
+          - rockchip,rk3568-gmac
+          - rockchip,rv1108-gmac
+  required:
+    - compatible
+
+allOf:
+  - $ref: "snps,dwmac.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - rockchip,px30-gmac
+              - rockchip,rk3128-gmac
+              - rockchip,rk3228-gmac
+              - rockchip,rk3288-gmac
+              - rockchip,rk3308-gmac
+              - rockchip,rk3328-gmac
+              - rockchip,rk3366-gmac
+              - rockchip,rk3368-gmac
+              - rockchip,rk3399-gmac
+              - rockchip,rv1108-gmac
+      - items:
+          - enum:
+              - rockchip,rk3568-gmac
+          - const: snps,dwmac-4.20a
+
+  clocks:
+    minItems: 5
+    maxItems: 8
+
+  clock-names:
+    contains:
+      enum:
+        - stmmaceth
+        - mac_clk_tx
+        - mac_clk_rx
+        - aclk_mac
+        - pclk_mac
+        - clk_mac_ref
+        - clk_mac_refout
+        - clk_mac_speed
+
+  clock_in_out:
+    description:
+      For RGMII, it must be "input", means main clock(125MHz)
+      is not sourced from SoC's PLL, but input from PHY.
+      For RMII, "input" means PHY provides the reference clock(50MHz),
+      "output" means GMAC provides the reference clock.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [input, output]
+
+  rockchip,grf:
+    description: The phandle of the syscon node for the general register file.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  tx_delay:
+    description: Delay value for TXD timing. Range value is 0~0x7F, 0x30 as default.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  rx_delay:
+    description: Delay value for RXD timing. Range value is 0~0x7F, 0x10 as default.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  phy-supply:
+    description: PHY regulator
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/rk3288-cru.h>
+
+    gmac: ethernet@ff290000 {
+        compatible = "rockchip,rk3288-gmac";
+        reg = <0xff290000 0x10000>;
+        interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "macirq";
+        clocks = <&cru SCLK_MAC>,
+                 <&cru SCLK_MAC_RX>, <&cru SCLK_MAC_TX>,
+                 <&cru SCLK_MACREF>, <&cru SCLK_MACREF_OUT>,
+                 <&cru ACLK_GMAC>, <&cru PCLK_GMAC>;
+        clock-names = "stmmaceth",
+                      "mac_clk_rx", "mac_clk_tx",
+                      "clk_mac_ref", "clk_mac_refout",
+                      "aclk_mac", "pclk_mac";
+        assigned-clocks = <&cru SCLK_MAC>;
+        assigned-clock-parents = <&ext_gmac>;
+
+        rockchip,grf = <&grf>;
+        phy-mode = "rgmii";
+        clock_in_out = "input";
+        tx_delay = <0x30>;
+        rx_delay = <0x10>;
+    };

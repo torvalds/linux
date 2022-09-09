@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP2xxx DVFS virtual clock functions
  *
@@ -10,10 +11,6 @@
  *
  * Based on earlier work by Tuukka Tikkanen, Tony Lindgren,
  * Gordon McNutt and RidgeRun, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * XXX Some of this code should be replaceable by the upcoming OPP layer
  * code.  However, some notion of "rate set" is probably still necessary
@@ -238,7 +235,7 @@ void omap2xxx_clkt_vps_init(void)
 
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		goto cleanup;
+		return;
 	init.name = "virt_prcm_set";
 	init.ops = &virt_prcm_set_ops;
 	init.parent_names = &parent_name;
@@ -247,9 +244,12 @@ void omap2xxx_clkt_vps_init(void)
 	hw->hw.init = &init;
 
 	clk = clk_register(NULL, &hw->hw);
+	if (IS_ERR(clk)) {
+		printk(KERN_ERR "Failed to register clock\n");
+		kfree(hw);
+		return;
+	}
+
 	clkdev_create(clk, "cpufreq_ck", NULL);
-	return;
-cleanup:
-	kfree(hw);
 }
 #endif

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2012 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/netdevice.h>
@@ -68,7 +65,7 @@ static const char *const ef4_interrupt_mode_names[] = {
 	STRING_TABLE_LOOKUP(efx->interrupt_mode, ef4_interrupt_mode)
 
 /**
- * ef4_loopback_state - persistent state during a loopback selftest
+ * struct ef4_loopback_state - persistent state during a loopback selftest
  * @flush:		Drop all packets in ef4_loopback_rx_packet
  * @packet_count:	Number of packets being used in this test
  * @skbs:		An array of skbs transmitted

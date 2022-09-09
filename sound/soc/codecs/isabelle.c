@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isabelle.c - Low power high fidelity audio codec driver
  *
  * Copyright (c) 2012 Texas Instruments, Inc
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- *
  * Initially based on sound/soc/codecs/twl6040.c
- *
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -865,7 +860,7 @@ static const struct snd_soc_dapm_route isabelle_intercon[] = {
 	{ "LINEOUT2", NULL, "LINEOUT2 Driver" },
 };
 
-static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute)
+static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, ISABELLE_DAC1_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
@@ -873,7 +868,7 @@ static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute)
+static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, ISABELLE_DAC2_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
@@ -881,7 +876,7 @@ static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static int isabelle_line_mute(struct snd_soc_dai *dai, int mute)
+static int isabelle_line_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	snd_soc_component_update_bits(dai->component, ISABELLE_DAC3_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
@@ -978,11 +973,11 @@ static int isabelle_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int aif_val = 0;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		aif_val &= ~ISABELLE_AIF_MS;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		aif_val |= ISABELLE_AIF_MS;
 		break;
 	default:
@@ -1019,19 +1014,22 @@ static int isabelle_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 static const struct snd_soc_dai_ops isabelle_hs_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
-	.digital_mute	= isabelle_hs_mute,
+	.mute_stream	= isabelle_hs_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops isabelle_hf_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
-	.digital_mute	= isabelle_hf_mute,
+	.mute_stream	= isabelle_hf_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops isabelle_line_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
-	.digital_mute	= isabelle_line_mute,
+	.mute_stream	= isabelle_line_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops isabelle_ul_dai_ops = {
@@ -1097,7 +1095,6 @@ static const struct snd_soc_component_driver soc_component_dev_isabelle = {
 	.num_dapm_routes	= ARRAY_SIZE(isabelle_intercon),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config isabelle_regmap_config = {
@@ -1110,8 +1107,7 @@ static const struct regmap_config isabelle_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int isabelle_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int isabelle_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *isabelle_regmap;
 	int ret = 0;
@@ -1146,7 +1142,7 @@ static struct i2c_driver isabelle_i2c_driver = {
 	.driver = {
 		.name = "isabelle",
 	},
-	.probe = isabelle_i2c_probe,
+	.probe_new = isabelle_i2c_probe,
 	.id_table = isabelle_i2c_id,
 };
 

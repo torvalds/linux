@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006 Ben Dooks
  * Copyright 2006-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
 */
 
 #include <linux/spinlock.h>
@@ -16,23 +12,21 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/s3c24xx.h>
+#include <linux/spi/s3c24xx-fiq.h>
 #include <linux/module.h>
-
-#include <plat/regs-spi.h>
 
 #include <asm/fiq.h>
 
-#include "spi-s3c24xx-fiq.h"
+#include "spi-s3c24xx-regs.h"
 
 /**
- * s3c24xx_spi_devstate - per device data
+ * struct s3c24xx_spi_devstate - per device data
  * @hz: Last frequency calculated for @sppre field.
  * @mode: Last mode setting for the @spcon field.
  * @spcon: Value to write to the SPCON register.
@@ -67,9 +61,6 @@ struct s3c24xx_spi {
 	unsigned char		 fiq_inuse;
 	unsigned char		 fiq_claimed;
 
-	void			(*set_cs)(struct s3c2410_spi_info *spi,
-					  int cs, int pol);
-
 	/* data buffers */
 	const unsigned char	*tx;
 	unsigned char		*rx;
@@ -89,29 +80,21 @@ static inline struct s3c24xx_spi *to_hw(struct spi_device *sdev)
 	return spi_master_get_devdata(sdev->master);
 }
 
-static void s3c24xx_spi_gpiocs(struct s3c2410_spi_info *spi, int cs, int pol)
-{
-	gpio_set_value(spi->pin_cs, pol);
-}
-
 static void s3c24xx_spi_chipsel(struct spi_device *spi, int value)
 {
 	struct s3c24xx_spi_devstate *cs = spi->controller_state;
 	struct s3c24xx_spi *hw = to_hw(spi);
-	unsigned int cspol = spi->mode & SPI_CS_HIGH ? 1 : 0;
 
 	/* change the chipselect state and the state of the spi engine clock */
 
 	switch (value) {
 	case BITBANG_CS_INACTIVE:
-		hw->set_cs(hw->pdata, spi->chip_select, cspol^1);
 		writeb(cs->spcon, hw->regs + S3C2410_SPCON);
 		break;
 
 	case BITBANG_CS_ACTIVE:
 		writeb(cs->spcon | S3C2410_SPCON_ENSCK,
 		       hw->regs + S3C2410_SPCON);
-		hw->set_cs(hw->pdata, spi->chip_select, cspol);
 		break;
 	}
 }
@@ -231,23 +214,8 @@ static inline unsigned int hw_txbyte(struct s3c24xx_spi *hw, int count)
 struct spi_fiq_code {
 	u32	length;
 	u32	ack_offset;
-	u8	data[0];
+	u8	data[];
 };
-
-extern struct spi_fiq_code s3c24xx_spi_fiq_txrx;
-extern struct spi_fiq_code s3c24xx_spi_fiq_tx;
-extern struct spi_fiq_code s3c24xx_spi_fiq_rx;
-
-/**
- * ack_bit - turn IRQ into IRQ acknowledgement bit
- * @irq: The interrupt number
- *
- * Returns the bit to write to the interrupt acknowledge register.
- */
-static inline u32 ack_bit(unsigned int irq)
-{
-	return 1 << (irq - IRQ_EINT0);
-}
 
 /**
  * s3c24xx_spi_tryfiq - attempt to claim and setup FIQ for transfer
@@ -265,6 +233,7 @@ static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 	struct pt_regs regs;
 	enum spi_fiq_mode mode;
 	struct spi_fiq_code *code;
+	u32 *ack_ptr = NULL;
 	int ret;
 
 	if (!hw->fiq_claimed) {
@@ -287,13 +256,10 @@ static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 	regs.uregs[fiq_rrx]  = (long)hw->rx;
 	regs.uregs[fiq_rtx]  = (long)hw->tx + 1;
 	regs.uregs[fiq_rcount] = hw->len - 1;
-	regs.uregs[fiq_rirq] = (long)S3C24XX_VA_IRQ;
 
 	set_fiq_regs(&regs);
 
 	if (hw->fiq_mode != mode) {
-		u32 *ack_ptr;
-
 		hw->fiq_mode = mode;
 
 		switch (mode) {
@@ -313,12 +279,10 @@ static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 		BUG_ON(!code);
 
 		ack_ptr = (u32 *)&code->data[code->ack_offset];
-		*ack_ptr = ack_bit(hw->irq);
-
 		set_fiq_handler(&code->data, code->length);
 	}
 
-	s3c24xx_set_fiq(hw->irq, true);
+	s3c24xx_set_fiq(hw->irq, ack_ptr, true);
 
 	hw->fiq_mode = mode;
 	hw->fiq_inuse = 1;
@@ -476,14 +440,6 @@ static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
 	writeb(0xff, hw->regs + S3C2410_SPPRE);
 	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
 	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
-
-	if (hw->pdata) {
-		if (hw->set_cs == s3c24xx_spi_gpiocs)
-			gpio_direction_output(hw->pdata->pin_cs, 1);
-
-		if (hw->pdata->gpio_setup)
-			hw->pdata->gpio_setup(hw->pdata, 1);
-	}
 }
 
 static int s3c24xx_spi_probe(struct platform_device *pdev)
@@ -491,7 +447,6 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	struct s3c2410_spi_info *pdata;
 	struct s3c24xx_spi *hw;
 	struct spi_master *master;
-	struct resource *res;
 	int err = 0;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct s3c24xx_spi));
@@ -527,6 +482,9 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = hw->pdata->num_cs;
 	master->bus_num = pdata->bus_num;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	/* we need to call the local chipselect callback */
+	master->flags = SPI_MASTER_GPIO_SS;
+	master->use_gpio_descriptors = true;
 
 	/* setup the state for the bitbang driver */
 
@@ -540,8 +498,7 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	dev_dbg(hw->dev, "bitbang at %p\n", &hw->bitbang);
 
 	/* find and map our resources */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hw->regs = devm_ioremap_resource(&pdev->dev, res);
+	hw->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hw->regs)) {
 		err = PTR_ERR(hw->regs);
 		goto err_no_pdata;
@@ -549,7 +506,6 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 
 	hw->irq = platform_get_irq(pdev, 0);
 	if (hw->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ specified\n");
 		err = -ENOENT;
 		goto err_no_pdata;
 	}
@@ -567,27 +523,6 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 		err = PTR_ERR(hw->clk);
 		goto err_no_pdata;
 	}
-
-	/* setup any gpio we can */
-
-	if (!pdata->set_cs) {
-		if (pdata->pin_cs < 0) {
-			dev_err(&pdev->dev, "No chipselect pin\n");
-			err = -EINVAL;
-			goto err_register;
-		}
-
-		err = devm_gpio_request(&pdev->dev, pdata->pin_cs,
-					dev_name(&pdev->dev));
-		if (err) {
-			dev_err(&pdev->dev, "Failed to get gpio for cs\n");
-			goto err_register;
-		}
-
-		hw->set_cs = s3c24xx_spi_gpiocs;
-		gpio_direction_output(pdata->pin_cs, 1);
-	} else
-		hw->set_cs = pdata->set_cs;
 
 	s3c24xx_spi_initialsetup(hw);
 
@@ -630,9 +565,6 @@ static int s3c24xx_spi_suspend(struct device *dev)
 	ret = spi_master_suspend(hw->master);
 	if (ret)
 		return ret;
-
-	if (hw->pdata && hw->pdata->gpio_setup)
-		hw->pdata->gpio_setup(hw->pdata, 0);
 
 	clk_disable(hw->clk);
 	return 0;

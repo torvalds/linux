@@ -33,6 +33,17 @@ struct a6xx_hfi_queue {
 	spinlock_t lock;
 	u32 *data;
 	atomic_t seqnum;
+
+	/*
+	 * Tracking for the start index of the last N messages in the
+	 * queue, for the benefit of devcore dump / crashdec (since
+	 * parsing in the reverse direction to decode the last N
+	 * messages is difficult to do and would rely on heuristics
+	 * which are not guaranteed to be correct)
+	 */
+#define HFI_HISTORY_SZ 8
+	s32 history[HFI_HISTORY_SZ];
+	u8  history_idx;
 };
 
 /* This is the outgoing queue to the GMU */
@@ -51,7 +62,8 @@ struct a6xx_hfi_queue {
 /* HFI message types */
 
 #define HFI_MSG_CMD 0
-#define HFI_MSG_ACK 2
+#define HFI_MSG_ACK 1
+#define HFI_MSG_ACK_V1 2
 
 #define HFI_F2H_MSG_ACK 126
 
@@ -94,12 +106,27 @@ struct perf_level {
 	u32 freq;
 };
 
-struct a6xx_hfi_msg_perf_table {
+struct perf_gx_level {
+	u32 vote;
+	u32 acd;
+	u32 freq;
+};
+
+struct a6xx_hfi_msg_perf_table_v1 {
 	u32 header;
 	u32 num_gpu_levels;
 	u32 num_gmu_levels;
 
 	struct perf_level gx_votes[16];
+	struct perf_level cx_votes[4];
+};
+
+struct a6xx_hfi_msg_perf_table {
+	u32 header;
+	u32 num_gpu_levels;
+	u32 num_gmu_levels;
+
+	struct perf_gx_level gx_votes[16];
 	struct perf_level cx_votes[4];
 };
 
@@ -122,6 +149,36 @@ struct a6xx_hfi_msg_bw_table {
 
 struct a6xx_hfi_msg_test {
 	u32 header;
+};
+
+#define HFI_H2F_MSG_START 10
+
+struct a6xx_hfi_msg_start {
+	u32 header;
+};
+
+#define HFI_H2F_MSG_CORE_FW_START 14
+
+struct a6xx_hfi_msg_core_fw_start {
+	u32 header;
+	u32 handle;
+};
+
+#define HFI_H2F_MSG_GX_BW_PERF_VOTE 30
+
+struct a6xx_hfi_gx_bw_perf_vote_cmd {
+	u32 header;
+	u32 ack_type;
+	u32 freq;
+	u32 bw;
+};
+
+#define HFI_H2F_MSG_PREPARE_SLUMBER 33
+
+struct a6xx_hfi_prep_slumber_cmd {
+	u32 header;
+	u32 bw;
+	u32 freq;
 };
 
 #endif

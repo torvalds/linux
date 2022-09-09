@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PM_OPP
 	bool
 	select SRCU
-	---help---
+	help
 	  SOCs have a standard set of tuples consisting of frequency and
 	  voltage pairs that the device will support per voltage domain. This
 	  is called Operating Performance Point or OPP. The actual definitions
@@ -10,4 +11,4 @@ config PM_OPP
 	  OPP layer organizes the data internally using device pointers
 	  representing individual voltage domains and provides SOC
 	  implementations a ready to use framework to manage OPPs.
-	  For more information, read <file:Documentation/power/opp.txt>
+	  For more information, read <file:Documentation/power/opp.rst>

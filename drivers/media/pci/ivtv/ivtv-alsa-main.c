@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ALSA interface to ivtv PCM capture streams
  *
@@ -5,16 +6,6 @@
  *  Copyright (C) 2009  Devin Heitmueller <dheitmueller@kernellabs.com>
  *
  *  Portions of this work were sponsored by ONELAN Limited for the cx18 driver
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "ivtv-driver.h"
@@ -47,7 +38,6 @@ MODULE_PARM_DESC(index,
 
 MODULE_AUTHOR("Andy Walls");
 MODULE_DESCRIPTION("CX23415/CX23416 ALSA Interface");
-MODULE_SUPPORTED_DEVICE("CX23415/CX23416 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(IVTV_VERSION);
@@ -56,12 +46,6 @@ static inline
 struct snd_ivtv_card *to_snd_ivtv_card(struct v4l2_device *v4l2_dev)
 {
 	return to_ivtv(v4l2_dev)->alsa;
-}
-
-static inline
-struct snd_ivtv_card *p_to_snd_ivtv_card(struct v4l2_device **v4l2_dev)
-{
-	return container_of(v4l2_dev, struct snd_ivtv_card, v4l2_dev);
 }
 
 static void snd_ivtv_card_free(struct snd_ivtv_card *itvsc)

@@ -16,6 +16,7 @@
 
 #define CAMSS_CSI_PHY_LNn_CFG2(n)		(0x004 + 0x40 * (n))
 #define CAMSS_CSI_PHY_LNn_CFG3(n)		(0x008 + 0x40 * (n))
+#define		CAMSS_CSI_PHY_LN_CLK		1
 #define CAMSS_CSI_PHY_GLBL_RESET		0x140
 #define CAMSS_CSI_PHY_GLBL_PWR_CFG		0x144
 #define CAMSS_CSI_PHY_GLBL_IRQ_CMD		0x164
@@ -25,6 +26,19 @@
 #define CAMSS_CSI_PHY_INTERRUPT_CLEARn(n)	(0x1cc + 0x4 * (n))
 #define CAMSS_CSI_PHY_GLBL_T_INIT_CFG0		0x1ec
 #define CAMSS_CSI_PHY_T_WAKEUP_CFG0		0x1f4
+
+static u8 csiphy_get_lane_mask(struct csiphy_lanes_cfg *lane_cfg)
+{
+	u8 lane_mask;
+	int i;
+
+	lane_mask = 1 << CAMSS_CSI_PHY_LN_CLK;
+
+	for (i = 0; i < lane_cfg->num_data; i++)
+		lane_mask |= 1 << lane_cfg->data[i].pos;
+
+	return lane_mask;
+}
 
 static void csiphy_hw_version_read(struct csiphy_device *csiphy,
 				   struct device *dev)
@@ -51,16 +65,13 @@ static void csiphy_reset(struct csiphy_device *csiphy)
  *
  * Helper function to calculate settle count value. This is
  * based on the CSI2 T_hs_settle parameter which in turn
- * is calculated based on the CSI2 transmitter pixel clock
- * frequency.
+ * is calculated based on the CSI2 transmitter link frequency.
  *
- * Return settle count value or 0 if the CSI2 pixel clock
- * frequency is not available
+ * Return settle count value or 0 if the CSI2 link frequency
+ * is not available
  */
-static u8 csiphy_settle_cnt_calc(u32 pixel_clock, u8 bpp, u8 num_lanes,
-				 u32 timer_clk_rate)
+static u8 csiphy_settle_cnt_calc(s64 link_freq, u32 timer_clk_rate)
 {
-	u32 mipi_clock; /* Hz */
 	u32 ui; /* ps */
 	u32 timer_period; /* ps */
 	u32 t_hs_prepare_max; /* ps */
@@ -68,8 +79,10 @@ static u8 csiphy_settle_cnt_calc(u32 pixel_clock, u8 bpp, u8 num_lanes,
 	u32 t_hs_settle; /* ps */
 	u8 settle_cnt;
 
-	mipi_clock = pixel_clock * bpp / (2 * num_lanes);
-	ui = div_u64(1000000000000LL, mipi_clock);
+	if (link_freq <= 0)
+		return 0;
+
+	ui = div_u64(1000000000000LL, link_freq);
 	ui /= 2;
 	t_hs_prepare_max = 85000 + 6 * ui;
 	t_hs_prepare_zero_min = 145000 + 10 * ui;
@@ -83,15 +96,14 @@ static u8 csiphy_settle_cnt_calc(u32 pixel_clock, u8 bpp, u8 num_lanes,
 
 static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 				struct csiphy_config *cfg,
-				u32 pixel_clock, u8 bpp, u8 lane_mask)
+				s64 link_freq, u8 lane_mask)
 {
 	struct csiphy_lanes_cfg *c = &cfg->csi2->lane_cfg;
 	u8 settle_cnt;
 	u8 val, l = 0;
 	int i = 0;
 
-	settle_cnt = csiphy_settle_cnt_calc(pixel_clock, bpp, c->num_data,
-					    csiphy->timer_clk_rate);
+	settle_cnt = csiphy_settle_cnt_calc(link_freq, csiphy->timer_clk_rate);
 
 	writel_relaxed(0x1, csiphy->base +
 		       CAMSS_CSI_PHY_GLBL_T_INIT_CFG0);
@@ -107,7 +119,7 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 
 	for (i = 0; i <= c->num_data; i++) {
 		if (i == c->num_data)
-			l = c->clk.pos;
+			l = CAMSS_CSI_PHY_LN_CLK;
 		else
 			l = c->data[i].pos;
 
@@ -131,7 +143,7 @@ static void csiphy_lanes_disable(struct csiphy_device *csiphy,
 
 	for (i = 0; i <= c->num_data; i++) {
 		if (i == c->num_data)
-			l = c->clk.pos;
+			l = CAMSS_CSI_PHY_LN_CLK;
 		else
 			l = c->data[i].pos;
 
@@ -169,6 +181,7 @@ static irqreturn_t csiphy_isr(int irq, void *dev)
 }
 
 const struct csiphy_hw_ops csiphy_ops_2ph_1_0 = {
+	.get_lane_mask = csiphy_get_lane_mask,
 	.hw_version_read = csiphy_hw_version_read,
 	.reset = csiphy_reset,
 	.lanes_enable = csiphy_lanes_enable,

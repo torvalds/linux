@@ -306,7 +306,9 @@ static int ip6addrlbl_del(struct net *net,
 /* add default label */
 static int __net_init ip6addrlbl_net_init(struct net *net)
 {
-	int err = 0;
+	struct ip6addrlbl_entry *p = NULL;
+	struct hlist_node *n;
+	int err;
 	int i;
 
 	ADDRLABEL(KERN_DEBUG "%s\n", __func__);
@@ -315,14 +317,20 @@ static int __net_init ip6addrlbl_net_init(struct net *net)
 	INIT_HLIST_HEAD(&net->ipv6.ip6addrlbl_table.head);
 
 	for (i = 0; i < ARRAY_SIZE(ip6addrlbl_init_table); i++) {
-		int ret = ip6addrlbl_add(net,
-					 ip6addrlbl_init_table[i].prefix,
-					 ip6addrlbl_init_table[i].prefixlen,
-					 0,
-					 ip6addrlbl_init_table[i].label, 0);
-		/* XXX: should we free all rules when we catch an error? */
-		if (ret && (!err || err != -ENOMEM))
-			err = ret;
+		err = ip6addrlbl_add(net,
+				     ip6addrlbl_init_table[i].prefix,
+				     ip6addrlbl_init_table[i].prefixlen,
+				     0,
+				     ip6addrlbl_init_table[i].label, 0);
+		if (err)
+			goto err_ip6addrlbl_add;
+	}
+	return 0;
+
+err_ip6addrlbl_add:
+	hlist_for_each_entry_safe(p, n, &net->ipv6.ip6addrlbl_table.head, list) {
+		hlist_del_rcu(&p->list);
+		kfree_rcu(p, rcu);
 	}
 	return err;
 }
@@ -383,8 +391,8 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 label;
 	int err = 0;
 
-	err = nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX, ifal_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifal), tb, IFAL_MAX,
+				     ifal_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -476,7 +484,7 @@ static int ip6addrlbl_valid_dump_req(const struct nlmsghdr *nlh,
 	}
 
 	if (nlmsg_attrlen(nlh, sizeof(*ifal))) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header for address label dump requewst");
+		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header for address label dump request");
 		return -EINVAL;
 	}
 
@@ -523,6 +531,50 @@ static inline int ip6addrlbl_msgsize(void)
 		+ nla_total_size(4);	/* IFAL_LABEL */
 }
 
+static int ip6addrlbl_valid_get_req(struct sk_buff *skb,
+				    const struct nlmsghdr *nlh,
+				    struct nlattr **tb,
+				    struct netlink_ext_ack *extack)
+{
+	struct ifaddrlblmsg *ifal;
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifal))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for addrlabel get request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse_deprecated(nlh, sizeof(*ifal), tb,
+					      IFAL_MAX, ifal_policy, extack);
+
+	ifal = nlmsg_data(nlh);
+	if (ifal->__ifal_reserved || ifal->ifal_flags || ifal->ifal_seq) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for addrlabel get request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*ifal), tb, IFAL_MAX,
+					    ifal_policy, extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= IFAL_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case IFAL_ADDRESS:
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in addrlabel get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			  struct netlink_ext_ack *extack)
 {
@@ -535,8 +587,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct ip6addrlbl_entry *p;
 	struct sk_buff *skb;
 
-	err = nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX, ifal_policy,
-			  extack);
+	err = ip6addrlbl_valid_get_req(in_skb, nlh, tb, extack);
 	if (err < 0)
 		return err;
 

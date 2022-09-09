@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2012 Creative Product Design
  * Marc Reilly <marc@cpdesign.com.au>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 #ifndef __DRIVERS_MFD_MC13XXX_H
 #define __DRIVERS_MFD_MC13XXX_H
@@ -47,6 +44,6 @@ struct mc13xxx {
 };
 
 int mc13xxx_common_init(struct device *dev);
-int mc13xxx_common_exit(struct device *dev);
+void mc13xxx_common_exit(struct device *dev);
 
 #endif /* __DRIVERS_MFD_MC13XXX_H */

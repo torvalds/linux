@@ -6,8 +6,10 @@
  *
  * Supported:
  * - Panasonic AMG88xx Grid-Eye Sensors
+ * - Melexis MLX90640 Thermal Cameras
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/hwmon.h>
@@ -18,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/nvmem-provider.h>
 #include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -31,6 +34,37 @@
 #include <media/videobuf2-vmalloc.h>
 
 #define VIDEO_I2C_DRIVER	"video-i2c"
+
+/* Power control register */
+#define AMG88XX_REG_PCTL	0x00
+#define AMG88XX_PCTL_NORMAL		0x00
+#define AMG88XX_PCTL_SLEEP		0x10
+
+/* Reset register */
+#define AMG88XX_REG_RST		0x01
+#define AMG88XX_RST_FLAG		0x30
+#define AMG88XX_RST_INIT		0x3f
+
+/* Frame rate register */
+#define AMG88XX_REG_FPSC	0x02
+#define AMG88XX_FPSC_1FPS		BIT(0)
+
+/* Thermistor register */
+#define AMG88XX_REG_TTHL	0x0e
+
+/* Temperature register */
+#define AMG88XX_REG_T01L	0x80
+
+/* RAM */
+#define MLX90640_RAM_START_ADDR		0x0400
+
+/* EEPROM */
+#define MLX90640_EEPROM_START_ADDR	0x2400
+
+/* Control register */
+#define MLX90640_REG_CTL1		0x800d
+#define MLX90640_REG_CTL1_MASK		GENMASK(9, 7)
+#define MLX90640_REG_CTL1_MASK_SHIFT	7
 
 struct video_i2c_chip;
 
@@ -66,10 +100,24 @@ static const struct v4l2_frmsize_discrete amg88xx_size = {
 	.height = 8,
 };
 
+static const struct v4l2_fmtdesc mlx90640_format = {
+	.pixelformat = V4L2_PIX_FMT_Y16_BE,
+};
+
+static const struct v4l2_frmsize_discrete mlx90640_size = {
+	.width = 32,
+	.height = 26, /* 24 lines of pixel data + 2 lines of processing data */
+};
+
 static const struct regmap_config amg88xx_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0xff
+};
+
+static const struct regmap_config mlx90640_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 16,
 };
 
 struct video_i2c_chip {
@@ -88,6 +136,7 @@ struct video_i2c_chip {
 	unsigned int bpp;
 
 	const struct regmap_config *regmap_config;
+	struct nvmem_config *nvmem_config;
 
 	/* setup function */
 	int (*setup)(struct video_i2c_data *data);
@@ -102,29 +151,31 @@ struct video_i2c_chip {
 	int (*hwmon_init)(struct video_i2c_data *data);
 };
 
-/* Power control register */
-#define AMG88XX_REG_PCTL	0x00
-#define AMG88XX_PCTL_NORMAL		0x00
-#define AMG88XX_PCTL_SLEEP		0x10
+static int mlx90640_nvram_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	struct video_i2c_data *data = priv;
 
-/* Reset register */
-#define AMG88XX_REG_RST		0x01
-#define AMG88XX_RST_FLAG		0x30
-#define AMG88XX_RST_INIT		0x3f
+	return regmap_bulk_read(data->regmap, MLX90640_EEPROM_START_ADDR + offset, val, bytes);
+}
 
-/* Frame rate register */
-#define AMG88XX_REG_FPSC	0x02
-#define AMG88XX_FPSC_1FPS		BIT(0)
-
-/* Thermistor register */
-#define AMG88XX_REG_TTHL	0x0e
-
-/* Temperature register */
-#define AMG88XX_REG_T01L	0x80
+static struct nvmem_config mlx90640_nvram_config = {
+	.name = "mlx90640_nvram",
+	.word_size = 2,
+	.stride = 1,
+	.size = 1664,
+	.reg_read = mlx90640_nvram_read,
+};
 
 static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 {
 	return regmap_bulk_read(data->regmap, AMG88XX_REG_T01L, buf,
+				data->chip->buffer_size);
+}
+
+static int mlx90640_xfer(struct video_i2c_data *data, char *buf)
+{
+	return regmap_bulk_read(data->regmap, MLX90640_RAM_START_ADDR, buf,
 				data->chip->buffer_size);
 }
 
@@ -139,6 +190,23 @@ static int amg88xx_setup(struct video_i2c_data *data)
 		val = 0;
 
 	return regmap_update_bits(data->regmap, AMG88XX_REG_FPSC, mask, val);
+}
+
+static int mlx90640_setup(struct video_i2c_data *data)
+{
+	unsigned int n, idx;
+
+	for (n = 0; n < data->chip->num_frame_intervals - 1; n++) {
+		if (V4L2_FRACT_COMPARE(data->frame_interval, ==,
+				       data->chip->frame_intervals[n]))
+			break;
+	}
+
+	idx = data->chip->num_frame_intervals - n - 1;
+
+	return regmap_update_bits(data->regmap, MLX90640_REG_CTL1,
+				  MLX90640_REG_CTL1_MASK,
+				  idx << MLX90640_REG_CTL1_MASK_SHIFT);
 }
 
 static int amg88xx_set_power_on(struct video_i2c_data *data)
@@ -194,7 +262,7 @@ static int amg88xx_set_power(struct video_i2c_data *data, bool on)
 	return amg88xx_set_power_off(data);
 }
 
-#if IS_ENABLED(CONFIG_HWMON)
+#if IS_REACHABLE(CONFIG_HWMON)
 
 static const u32 amg88xx_temp_config[] = {
 	HWMON_T_INPUT,
@@ -225,11 +293,9 @@ static int amg88xx_read(struct device *dev, enum hwmon_sensor_types type,
 	__le16 buf;
 	int tmp;
 
-	tmp = pm_runtime_get_sync(regmap_get_device(data->regmap));
-	if (tmp < 0) {
-		pm_runtime_put_noidle(regmap_get_device(data->regmap));
+	tmp = pm_runtime_resume_and_get(regmap_get_device(data->regmap));
+	if (tmp < 0)
 		return tmp;
-	}
 
 	tmp = regmap_bulk_read(data->regmap, AMG88XX_REG_TTHL, &buf, 2);
 	pm_runtime_mark_last_busy(regmap_get_device(data->regmap));
@@ -274,11 +340,25 @@ static int amg88xx_hwmon_init(struct video_i2c_data *data)
 #define	amg88xx_hwmon_init	NULL
 #endif
 
-#define AMG88XX		0
+enum {
+	AMG88XX,
+	MLX90640,
+};
 
 static const struct v4l2_fract amg88xx_frame_intervals[] = {
 	{ 1, 10 },
 	{ 1, 1 },
+};
+
+static const struct v4l2_fract mlx90640_frame_intervals[] = {
+	{ 1, 64 },
+	{ 1, 32 },
+	{ 1, 16 },
+	{ 1, 8 },
+	{ 1, 4 },
+	{ 1, 2 },
+	{ 1, 1 },
+	{ 2, 1 },
 };
 
 static const struct video_i2c_chip video_i2c_chip[] = {
@@ -294,6 +374,18 @@ static const struct video_i2c_chip video_i2c_chip[] = {
 		.xfer		= &amg88xx_xfer,
 		.set_power	= amg88xx_set_power,
 		.hwmon_init	= amg88xx_hwmon_init,
+	},
+	[MLX90640] = {
+		.size		= &mlx90640_size,
+		.format		= &mlx90640_format,
+		.frame_intervals	= mlx90640_frame_intervals,
+		.num_frame_intervals	= ARRAY_SIZE(mlx90640_frame_intervals),
+		.buffer_size	= 1664,
+		.bpp		= 16,
+		.regmap_config	= &mlx90640_regmap_config,
+		.nvmem_config	= &mlx90640_nvram_config,
+		.setup		= mlx90640_setup,
+		.xfer		= mlx90640_xfer,
 	},
 };
 
@@ -356,14 +448,15 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int video_i2c_thread_vid_cap(void *priv)
 {
 	struct video_i2c_data *data = priv;
-	unsigned int delay = mult_frac(HZ, data->frame_interval.numerator,
-				       data->frame_interval.denominator);
+	u32 delay = mult_frac(1000000UL, data->frame_interval.numerator,
+			       data->frame_interval.denominator);
+	s64 end_us = ktime_to_us(ktime_get());
 
 	set_freezable();
 
 	do {
-		unsigned long start_jiffies = jiffies;
 		struct video_i2c_buffer *vid_cap_buf = NULL;
+		s64 current_us;
 		int schedule_delay;
 
 		try_to_freeze();
@@ -390,12 +483,14 @@ static int video_i2c_thread_vid_cap(void *priv)
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		}
 
-		schedule_delay = delay - (jiffies - start_jiffies);
-
-		if (time_after(jiffies, start_jiffies + delay))
-			schedule_delay = delay;
-
-		schedule_timeout_interruptible(schedule_delay);
+		end_us += delay;
+		current_us = ktime_to_us(ktime_get());
+		if (current_us < end_us) {
+			schedule_delay = end_us - current_us;
+			usleep_range(schedule_delay * 3 / 4, schedule_delay);
+		} else {
+			end_us = current_us;
+		}
 	} while (!kthread_should_stop());
 
 	return 0;
@@ -425,11 +520,9 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (data->kthread_vid_cap)
 		return 0;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		goto error_del_list;
-	}
 
 	ret = data->chip->setup(data);
 	if (ret)
@@ -756,7 +849,22 @@ static int video_i2c_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = video_register_device(&data->vdev, VFL_TYPE_GRABBER, -1);
+	if (data->chip->nvmem_config) {
+		struct nvmem_config *config = data->chip->nvmem_config;
+		struct nvmem_device *device;
+
+		config->priv = data;
+		config->dev = &client->dev;
+
+		device = devm_nvmem_register(&client->dev, config);
+
+		if (IS_ERR(device)) {
+			dev_warn(&client->dev,
+				 "failed to register nvmem device\n");
+		}
+	}
+
+	ret = video_register_device(&data->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error_pm_disable;
 
@@ -835,12 +943,14 @@ static const struct dev_pm_ops video_i2c_pm_ops = {
 
 static const struct i2c_device_id video_i2c_id_table[] = {
 	{ "amg88xx", AMG88XX },
+	{ "mlx90640", MLX90640 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, video_i2c_id_table);
 
 static const struct of_device_id video_i2c_of_match[] = {
 	{ .compatible = "panasonic,amg88xx", .data = &video_i2c_chip[AMG88XX] },
+	{ .compatible = "melexis,mlx90640", .data = &video_i2c_chip[MLX90640] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, video_i2c_of_match);

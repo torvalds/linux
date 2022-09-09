@@ -127,8 +127,8 @@ g84_cipher = {
 };
 
 int
-g84_cipher_new(struct nvkm_device *device, int index,
+g84_cipher_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_engine **pengine)
 {
-	return nvkm_engine_new_(&g84_cipher, device, index, true, pengine);
+	return nvkm_engine_new_(&g84_cipher, device, type, inst, true, pengine);
 }

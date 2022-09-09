@@ -49,6 +49,7 @@ Optional properties:
 - interrupt-controller: Marks the device node as a interrupt controller.
 - drive-open-drain: Sets the ODR flag in the IOCON register. This configures
         the IRQ output as open drain active low.
+- reset-gpios: Corresponds to the active-low RESET# pin for the chip
 
 Optional device specific properties:
 - microchip,irq-mirror: Sets the mirror flag in the IOCON register. Devices
@@ -82,7 +83,7 @@ gpiom1: gpio@0 {
         compatible = "microchip,mcp23s17";
         gpio-controller;
         #gpio-cells = <2>;
-        spi-present-mask = <0x01>;
+        microchip,spi-present-mask = <0x01>;
         reg = <0>;
         spi-max-frequency = <1000000>;
 };
@@ -134,7 +135,8 @@ gpio21: gpio@21 {
 	#interrupt-cells = <0x2>;
 	microchip,irq-mirror;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2cgpio0irq &gpio21pullups>;
+	pinctrl-0 = <&i2cgpio0irq>, <&gpio21pullups>;
+	reset-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
 
 	gpio21pullups: pinmux {
 		pins =	"gpio0", "gpio1", "gpio2", "gpio3",

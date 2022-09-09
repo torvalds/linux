@@ -189,8 +189,10 @@ int cpqhp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
 		/* This should only be for x86 as it sets the Edge Level
 		 * Control Register
 		 */
-		outb((u8) (temp_word & 0xFF), 0x4d0); outb((u8) ((temp_word &
-		0xFF00) >> 8), 0x4d1); rc = 0; }
+		outb((u8)(temp_word & 0xFF), 0x4d0);
+		outb((u8)((temp_word & 0xFF00) >> 8), 0x4d1);
+		rc = 0;
+	}
 
 	return rc;
 }
@@ -471,7 +473,7 @@ int cpqhp_save_slot_config(struct controller *ctrl, struct pci_func *new_slot)
 	int sub_bus;
 	int max_functions;
 	int function = 0;
-	int cloop = 0;
+	int cloop;
 	int stop_it;
 
 	ID = 0xFFFFFFFF;

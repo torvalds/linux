@@ -1,33 +1,28 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 # Most of this file is copied from tools/lib/traceevent/Makefile
 
-BPF_VERSION = 0
-BPF_PATCHLEVEL = 0
-BPF_EXTRAVERSION = 1
+RM ?= rm
+srctree = $(abs_srctree)
+
+VERSION_SCRIPT := libbpf.map
+LIBBPF_VERSION := $(shell \
+	grep -oE '^LIBBPF_([0-9.]+)' $(VERSION_SCRIPT) | \
+	sort -rV | head -n1 | cut -d'_' -f2)
+LIBBPF_MAJOR_VERSION := $(word 1,$(subst ., ,$(LIBBPF_VERSION)))
+LIBBPF_MINOR_VERSION := $(word 2,$(subst ., ,$(LIBBPF_VERSION)))
 
 MAKEFLAGS += --no-print-directory
 
-ifeq ($(srctree),)
+# This will work when bpf is built in tools env. where srctree
+# isn't set and when invoked from selftests build, where srctree
+# is a ".". building_out_of_srctree is undefined for in srctree
+# builds
+ifndef building_out_of_srctree
 srctree := $(patsubst %/,%,$(dir $(CURDIR)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
 endif
-
-# Makefiles suck: This macro sets a default value of $(2) for the
-# variable named by $(1), unless the variable has been set by
-# environment or command line. This is necessary for CC and AR
-# because make sets default values, so the simpler ?= approach
-# won't work as expected.
-define allow-override
-  $(if $(or $(findstring environment,$(origin $(1))),\
-            $(findstring command line,$(origin $(1)))),,\
-    $(eval $(1) = $(2)))
-endef
-
-# Allow setting CC and AR, or setting CROSS_COMPILE as a prefix.
-$(call allow-override,CC,$(CROSS_COMPILE)gcc)
-$(call allow-override,AR,$(CROSS_COMPILE)ar)
 
 INSTALL = install
 
@@ -54,7 +49,7 @@ man_dir_SQ = '$(subst ','\'',$(man_dir))'
 export man_dir man_dir_SQ INSTALL
 export DESTDIR DESTDIR_SQ
 
-include ../../scripts/Makefile.include
+include $(srctree)/tools/scripts/Makefile.include
 
 # copy a bit from Linux kbuild
 
@@ -65,28 +60,8 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
-FEATURE_USER = .libbpf
-FEATURE_TESTS = libelf libelf-mmap bpf reallocarray cxx
-FEATURE_DISPLAY = libelf bpf
-
-INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi
-FEATURE_CHECK_CFLAGS-bpf = $(INCLUDES)
-
-check_feat := 1
-NON_CHECK_FEAT_TARGETS := clean TAGS tags cscope help
-ifdef MAKECMDGOALS
-ifeq ($(filter-out $(NON_CHECK_FEAT_TARGETS),$(MAKECMDGOALS)),)
-  check_feat := 0
-endif
-endif
-
-ifeq ($(check_feat),1)
-ifeq ($(FEATURES_DUMP),)
-include $(srctree)/tools/build/Makefile.feature
-else
-include $(FEATURES_DUMP)
-endif
-endif
+INCLUDES = -I$(or $(OUTPUT),.) \
+	   -I$(srctree)/tools/include -I$(srctree)/tools/include/uapi
 
 export prefix libdir src obj
 
@@ -94,38 +69,31 @@ export prefix libdir src obj
 libdir_SQ = $(subst ','\'',$(libdir))
 libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
 
-LIB_FILE = libbpf.a libbpf.so
-
-VERSION		= $(BPF_VERSION)
-PATCHLEVEL	= $(BPF_PATCHLEVEL)
-EXTRAVERSION	= $(BPF_EXTRAVERSION)
-
 OBJ		= $@
 N		=
 
-LIBBPF_VERSION = $(BPF_VERSION).$(BPF_PATCHLEVEL).$(BPF_EXTRAVERSION)
+LIB_TARGET	= libbpf.a libbpf.so.$(LIBBPF_VERSION)
+LIB_FILE	= libbpf.a libbpf.so*
+PC_FILE		= libbpf.pc
 
 # Set compile option CFLAGS
 ifdef EXTRA_CFLAGS
   CFLAGS := $(EXTRA_CFLAGS)
 else
-  CFLAGS := -g -Wall
-endif
-
-ifeq ($(feature-libelf-mmap), 1)
-  override CFLAGS += -DHAVE_LIBELF_MMAP_SUPPORT
-endif
-
-ifeq ($(feature-reallocarray), 0)
-  override CFLAGS += -DCOMPAT_NEED_REALLOCARRAY
+  CFLAGS := -g -O2
 endif
 
 # Append required CFLAGS
-override CFLAGS += $(EXTRA_WARNINGS)
+override CFLAGS += -std=gnu89
+override CFLAGS += $(EXTRA_WARNINGS) -Wno-switch-enum
 override CFLAGS += -Werror -Wall
-override CFLAGS += -fPIC
 override CFLAGS += $(INCLUDES)
 override CFLAGS += -fvisibility=hidden
+override CFLAGS += -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
+override CFLAGS += $(CLANG_CROSS_FLAGS)
+
+# flags specific for shared library
+SHLIB_FLAGS := -DSHARED -fPIC
 
 ifeq ($(VERBOSE),1)
   Q =
@@ -143,107 +111,178 @@ all:
 export srctree OUTPUT CC LD CFLAGS V
 include $(srctree)/tools/build/Makefile.include
 
-BPF_IN    := $(OUTPUT)libbpf-in.o
-LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
-VERSION_SCRIPT := libbpf.map
+SHARED_OBJDIR	:= $(OUTPUT)sharedobjs/
+STATIC_OBJDIR	:= $(OUTPUT)staticobjs/
+BPF_IN_SHARED	:= $(SHARED_OBJDIR)libbpf-in.o
+BPF_IN_STATIC	:= $(STATIC_OBJDIR)libbpf-in.o
+BPF_HELPER_DEFS	:= $(OUTPUT)bpf_helper_defs.h
+BPF_GENERATED	:= $(BPF_HELPER_DEFS)
 
-GLOBAL_SYM_COUNT = $(shell readelf -s $(BPF_IN) | \
-			   awk '/GLOBAL/ && /DEFAULT/ && !/UND/ {s++} END{print s}')
-VERSIONED_SYM_COUNT = $(shell readelf -s $(OUTPUT)libbpf.so | \
+LIB_TARGET	:= $(addprefix $(OUTPUT),$(LIB_TARGET))
+LIB_FILE	:= $(addprefix $(OUTPUT),$(LIB_FILE))
+PC_FILE		:= $(addprefix $(OUTPUT),$(PC_FILE))
+
+TAGS_PROG := $(if $(shell which etags 2>/dev/null),etags,ctags)
+
+GLOBAL_SYM_COUNT = $(shell readelf -s --wide $(BPF_IN_SHARED) | \
+			   cut -d "@" -f1 | sed 's/_v[0-9]_[0-9]_[0-9].*//' | \
+			   sed 's/\[.*\]//' | \
+			   awk '/GLOBAL/ && /DEFAULT/ && !/UND|ABS/ {print $$NF}' | \
+			   sort -u | wc -l)
+VERSIONED_SYM_COUNT = $(shell readelf --dyn-syms --wide $(OUTPUT)libbpf.so | \
+			      sed 's/\[.*\]//' | \
+			      awk '/GLOBAL/ && /DEFAULT/ && !/UND|ABS/ {print $$NF}' | \
 			      grep -Eo '[^ ]+@LIBBPF_' | cut -d@ -f1 | sort -u | wc -l)
 
-CMD_TARGETS = $(LIB_FILE)
+CMD_TARGETS = $(LIB_TARGET) $(PC_FILE)
 
-CXX_TEST_TARGET = $(OUTPUT)test_libbpf
-
-ifeq ($(feature-cxx), 1)
-	CMD_TARGETS += $(CXX_TEST_TARGET)
-endif
-
-TARGETS = $(CMD_TARGETS)
-
-all: fixdep all_cmd
+all: fixdep
+	$(Q)$(MAKE) all_cmd
 
 all_cmd: $(CMD_TARGETS) check
 
-$(BPF_IN): force elfdep bpfdep
+$(BPF_IN_SHARED): force $(BPF_GENERATED)
 	@(test -f ../../include/uapi/linux/bpf.h -a -f ../../../include/uapi/linux/bpf.h && ( \
 	(diff -B ../../include/uapi/linux/bpf.h ../../../include/uapi/linux/bpf.h >/dev/null) || \
 	echo "Warning: Kernel ABI header at 'tools/include/uapi/linux/bpf.h' differs from latest version at 'include/uapi/linux/bpf.h'" >&2 )) || true
 	@(test -f ../../include/uapi/linux/bpf_common.h -a -f ../../../include/uapi/linux/bpf_common.h && ( \
 	(diff -B ../../include/uapi/linux/bpf_common.h ../../../include/uapi/linux/bpf_common.h >/dev/null) || \
 	echo "Warning: Kernel ABI header at 'tools/include/uapi/linux/bpf_common.h' differs from latest version at 'include/uapi/linux/bpf_common.h'" >&2 )) || true
-	@(test -f ../../include/uapi/linux/netlink.h -a -f ../../../include/uapi/linux/netlink.h && ( \
-	(diff -B ../../include/uapi/linux/netlink.h ../../../include/uapi/linux/netlink.h >/dev/null) || \
-	echo "Warning: Kernel ABI header at 'tools/include/uapi/linux/netlink.h' differs from latest version at 'include/uapi/linux/netlink.h'" >&2 )) || true
-	@(test -f ../../include/uapi/linux/if_link.h -a -f ../../../include/uapi/linux/if_link.h && ( \
-	(diff -B ../../include/uapi/linux/if_link.h ../../../include/uapi/linux/if_link.h >/dev/null) || \
-	echo "Warning: Kernel ABI header at 'tools/include/uapi/linux/if_link.h' differs from latest version at 'include/uapi/linux/if_link.h'" >&2 )) || true
-	$(Q)$(MAKE) $(build)=libbpf
+	@(test -f ../../include/uapi/linux/if_xdp.h -a -f ../../../include/uapi/linux/if_xdp.h && ( \
+	(diff -B ../../include/uapi/linux/if_xdp.h ../../../include/uapi/linux/if_xdp.h >/dev/null) || \
+	echo "Warning: Kernel ABI header at 'tools/include/uapi/linux/if_xdp.h' differs from latest version at 'include/uapi/linux/if_xdp.h'" >&2 )) || true
+	$(Q)$(MAKE) $(build)=libbpf OUTPUT=$(SHARED_OBJDIR) CFLAGS="$(CFLAGS) $(SHLIB_FLAGS)"
 
-$(OUTPUT)libbpf.so: $(BPF_IN)
-	$(QUIET_LINK)$(CC) --shared -Wl,--version-script=$(VERSION_SCRIPT) \
-		$^ -o $@
+$(BPF_IN_STATIC): force $(BPF_GENERATED)
+	$(Q)$(MAKE) $(build)=libbpf OUTPUT=$(STATIC_OBJDIR)
 
-$(OUTPUT)libbpf.a: $(BPF_IN)
-	$(QUIET_LINK)$(RM) $@; $(AR) rcs $@ $^
+$(BPF_HELPER_DEFS): $(srctree)/tools/include/uapi/linux/bpf.h
+	$(QUIET_GEN)$(srctree)/scripts/bpf_doc.py --header \
+		--file $(srctree)/tools/include/uapi/linux/bpf.h > $(BPF_HELPER_DEFS)
 
-$(OUTPUT)test_libbpf: test_libbpf.cpp $(OUTPUT)libbpf.a
-	$(QUIET_LINK)$(CXX) $^ -lelf -o $@
+$(OUTPUT)libbpf.so: $(OUTPUT)libbpf.so.$(LIBBPF_VERSION)
 
-check: check_abi
+$(OUTPUT)libbpf.so.$(LIBBPF_VERSION): $(BPF_IN_SHARED) $(VERSION_SCRIPT)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) \
+		--shared -Wl,-soname,libbpf.so.$(LIBBPF_MAJOR_VERSION) \
+		-Wl,--version-script=$(VERSION_SCRIPT) $< -lelf -lz -o $@
+	@ln -sf $(@F) $(OUTPUT)libbpf.so
+	@ln -sf $(@F) $(OUTPUT)libbpf.so.$(LIBBPF_MAJOR_VERSION)
 
-check_abi: $(OUTPUT)libbpf.so
+$(OUTPUT)libbpf.a: $(BPF_IN_STATIC)
+	$(QUIET_LINK)$(RM) -f $@; $(AR) rcs $@ $^
+
+$(OUTPUT)libbpf.pc:
+	$(QUIET_GEN)sed -e "s|@PREFIX@|$(prefix)|" \
+		-e "s|@LIBDIR@|$(libdir_SQ)|" \
+		-e "s|@VERSION@|$(LIBBPF_VERSION)|" \
+		< libbpf.pc.template > $@
+
+check: check_abi check_version
+
+check_abi: $(OUTPUT)libbpf.so $(VERSION_SCRIPT)
 	@if [ "$(GLOBAL_SYM_COUNT)" != "$(VERSIONED_SYM_COUNT)" ]; then	 \
-		echo "Warning: Num of global symbols in $(BPF_IN)"	 \
+		echo "Warning: Num of global symbols in $(BPF_IN_SHARED)"	 \
 		     "($(GLOBAL_SYM_COUNT)) does NOT match with num of"	 \
 		     "versioned symbols in $^ ($(VERSIONED_SYM_COUNT))." \
 		     "Please make sure all LIBBPF_API symbols are"	 \
 		     "versioned in $(VERSION_SCRIPT)." >&2;		 \
+		readelf -s --wide $(BPF_IN_SHARED) |			 \
+		    cut -d "@" -f1 | sed 's/_v[0-9]_[0-9]_[0-9].*//' |	 \
+		    sed 's/\[.*\]//' |					 \
+		    awk '/GLOBAL/ && /DEFAULT/ && !/UND/ {print $$NF}'|  \
+		    sort -u > $(OUTPUT)libbpf_global_syms.tmp;		 \
+		readelf --dyn-syms --wide $(OUTPUT)libbpf.so |		 \
+		    sed 's/\[.*\]//' |					 \
+		    awk '/GLOBAL/ && /DEFAULT/ && !/UND|ABS/ {print $$NF}'|  \
+		    grep -Eo '[^ ]+@LIBBPF_' | cut -d@ -f1 |		 \
+		    sort -u > $(OUTPUT)libbpf_versioned_syms.tmp; 	 \
+		diff -u $(OUTPUT)libbpf_global_syms.tmp			 \
+		     $(OUTPUT)libbpf_versioned_syms.tmp;		 \
+		rm $(OUTPUT)libbpf_global_syms.tmp			 \
+		   $(OUTPUT)libbpf_versioned_syms.tmp;			 \
 		exit 1;							 \
 	fi
+
+HDR_MAJ_VERSION := $(shell grep -oE '^$(pound)define LIBBPF_MAJOR_VERSION ([0-9]+)$$' libbpf_version.h | cut -d' ' -f3)
+HDR_MIN_VERSION := $(shell grep -oE '^$(pound)define LIBBPF_MINOR_VERSION ([0-9]+)$$' libbpf_version.h | cut -d' ' -f3)
+
+check_version: $(VERSION_SCRIPT) libbpf_version.h
+	@if [ "$(HDR_MAJ_VERSION)" != "$(LIBBPF_MAJOR_VERSION)" ]; then        \
+		echo "Error: libbpf major version mismatch detected: "	       \
+		     "'$(HDR_MAJ_VERSION)' != '$(LIBBPF_MAJOR_VERSION)'" >&2;  \
+		exit 1;							       \
+	fi
+	@if [ "$(HDR_MIN_VERSION)" != "$(LIBBPF_MINOR_VERSION)" ]; then	       \
+		echo "Error: libbpf minor version mismatch detected: "	       \
+		     "'$(HDR_MIN_VERSION)' != '$(LIBBPF_MINOR_VERSION)'" >&2;  \
+		exit 1;							       \
+	fi
+
+define do_install_mkdir
+	if [ ! -d '$(DESTDIR_SQ)$1' ]; then		\
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$1';	\
+	fi
+endef
 
 define do_install
 	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
 	fi;						\
-	$(INSTALL) $1 $(if $3,-m $3,) '$(DESTDIR_SQ)$2'
+	$(INSTALL) $(if $3,-m $3,) $1 '$(DESTDIR_SQ)$2'
 endef
 
 install_lib: all_cmd
-	$(call QUIET_INSTALL, $(LIB_FILE)) \
-		$(call do_install,$(LIB_FILE),$(libdir_SQ))
+	$(call QUIET_INSTALL, $(LIB_TARGET)) \
+		$(call do_install_mkdir,$(libdir_SQ)); \
+		cp -fpR $(LIB_FILE) $(DESTDIR)$(libdir_SQ)
 
-install_headers:
-	$(call QUIET_INSTALL, headers) \
-		$(call do_install,bpf.h,$(prefix)/include/bpf,644); \
-		$(call do_install,libbpf.h,$(prefix)/include/bpf,644);
-		$(call do_install,btf.h,$(prefix)/include/bpf,644);
+SRC_HDRS := bpf.h libbpf.h btf.h libbpf_common.h libbpf_legacy.h	     \
+	    bpf_helpers.h bpf_tracing.h bpf_endian.h bpf_core_read.h	     \
+	    skel_internal.h libbpf_version.h usdt.bpf.h
+GEN_HDRS := $(BPF_GENERATED)
 
-install: install_lib
+INSTALL_PFX := $(DESTDIR)$(prefix)/include/bpf
+INSTALL_SRC_HDRS := $(addprefix $(INSTALL_PFX)/, $(SRC_HDRS))
+INSTALL_GEN_HDRS := $(addprefix $(INSTALL_PFX)/, $(notdir $(GEN_HDRS)))
 
-### Cleaning rules
+$(INSTALL_SRC_HDRS): $(INSTALL_PFX)/%.h: %.h
+	$(call QUIET_INSTALL, $@) \
+		$(call do_install,$<,$(prefix)/include/bpf,644)
 
-config-clean:
-	$(call QUIET_CLEAN, config)
-	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
+$(INSTALL_GEN_HDRS): $(INSTALL_PFX)/%.h: $(OUTPUT)%.h
+	$(call QUIET_INSTALL, $@) \
+		$(call do_install,$<,$(prefix)/include/bpf,644)
+
+install_headers: $(BPF_GENERATED) $(INSTALL_SRC_HDRS) $(INSTALL_GEN_HDRS)
+
+install_pkgconfig: $(PC_FILE)
+	$(call QUIET_INSTALL, $(PC_FILE)) \
+		$(call do_install,$(PC_FILE),$(libdir_SQ)/pkgconfig,644)
+
+install: install_lib install_pkgconfig install_headers
 
 clean:
-	$(call QUIET_CLEAN, libbpf) $(RM) $(TARGETS) $(CXX_TEST_TARGET) \
-		*.o *~ *.a *.so .*.d .*.cmd LIBBPF-CFLAGS
-	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP.libbpf
+	$(call QUIET_CLEAN, libbpf) $(RM) -rf $(CMD_TARGETS)		     \
+		*~ .*.d .*.cmd LIBBPF-CFLAGS $(BPF_GENERATED)		     \
+		$(SHARED_OBJDIR) $(STATIC_OBJDIR)			     \
+		$(addprefix $(OUTPUT),					     \
+			    *.o *.a *.so *.so.$(LIBBPF_MAJOR_VERSION) *.pc)
 
-
-
-PHONY += force elfdep bpfdep
+PHONY += force cscope tags check check_abi check_version
 force:
 
-elfdep:
-	@if [ "$(feature-libelf)" != "1" ]; then echo "No libelf found"; exit 1 ; fi
+cscope:
+	ls *.c *.h > cscope.files
+	cscope -b -q -I $(srctree)/include -f cscope.out
 
-bpfdep:
-	@if [ "$(feature-bpf)" != "1" ]; then echo "BPF API too old"; exit 1 ; fi
+tags:
+	$(RM) -f TAGS tags
+	ls *.c *.h | xargs $(TAGS_PROG) -a
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.
 .PHONY: $(PHONY)
+
+# Delete partially updated (corrupted) files on error
+.DELETE_ON_ERROR:

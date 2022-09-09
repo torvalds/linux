@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: MIT
 #include "nv20.h"
 #include "regs.h"
 
@@ -131,7 +131,7 @@ nv35_gr = {
 };
 
 int
-nv35_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+nv35_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return nv20_gr_new_(&nv35_gr, device, index, pgr);
+	return nv20_gr_new_(&nv35_gr, device, type, inst, pgr);
 }

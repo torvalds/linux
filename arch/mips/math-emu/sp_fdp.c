@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* IEEE754 floating point arithmetic
  * single precision
  */
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
 #include "ieee754sp.h"
@@ -46,8 +34,7 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 	case IEEE754_CLASS_SNAN:
 		x = ieee754dp_nanxcpt(x);
 		EXPLODEXDP;
-		/* fall through */
-
+		fallthrough;
 	case IEEE754_CLASS_QNAN:
 		y = ieee754sp_nan_fdp(xs, xm);
 		if (!ieee754_csr.nan2008) {

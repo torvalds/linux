@@ -43,9 +43,63 @@ nvkm_uvmm_search(struct nvkm_client *client, u64 handle)
 }
 
 static int
+nvkm_uvmm_mthd_pfnclr(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+{
+	union {
+		struct nvif_vmm_pfnclr_v0 v0;
+	} *args = argv;
+	struct nvkm_vmm *vmm = uvmm->vmm;
+	int ret = -ENOSYS;
+	u64 addr, size;
+
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
+		addr = args->v0.addr;
+		size = args->v0.size;
+	} else
+		return ret;
+
+	if (size) {
+		mutex_lock(&vmm->mutex);
+		ret = nvkm_vmm_pfn_unmap(vmm, addr, size);
+		mutex_unlock(&vmm->mutex);
+	}
+
+	return ret;
+}
+
+static int
+nvkm_uvmm_mthd_pfnmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+{
+	union {
+		struct nvif_vmm_pfnmap_v0 v0;
+	} *args = argv;
+	struct nvkm_vmm *vmm = uvmm->vmm;
+	int ret = -ENOSYS;
+	u64 addr, size, *phys;
+	u8  page;
+
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, true))) {
+		page = args->v0.page;
+		addr = args->v0.addr;
+		size = args->v0.size;
+		phys = args->v0.phys;
+		if (argc != (size >> page) * sizeof(args->v0.phys[0]))
+			return -EINVAL;
+	} else
+		return ret;
+
+	if (size) {
+		mutex_lock(&vmm->mutex);
+		ret = nvkm_vmm_pfn_map(vmm, page, addr, size, phys);
+		mutex_unlock(&vmm->mutex);
+	}
+
+	return ret;
+}
+
+static int
 nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 {
-	struct nvkm_client *client = uvmm->object.client;
 	union {
 		struct nvif_vmm_unmap_v0 v0;
 	} *args = argv;
@@ -67,9 +121,8 @@ nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		goto done;
 	}
 
-	if (ret = -ENOENT, (!vma->user && !client->super) || vma->busy) {
-		VMM_DEBUG(vmm, "denied %016llx: %d %d %d", addr,
-			  vma->user, !client->super, vma->busy);
+	if (ret = -ENOENT, vma->busy) {
+		VMM_DEBUG(vmm, "denied %016llx: %d", addr, vma->busy);
 		goto done;
 	}
 
@@ -78,7 +131,7 @@ nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		goto done;
 	}
 
-	nvkm_vmm_unmap_locked(vmm, vma);
+	nvkm_vmm_unmap_locked(vmm, vma, false);
 	ret = 0;
 done:
 	mutex_unlock(&vmm->mutex);
@@ -118,9 +171,13 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		goto fail;
 	}
 
-	if (ret = -ENOENT, (!vma->user && !client->super) || vma->busy) {
-		VMM_DEBUG(vmm, "denied %016llx: %d %d %d", addr,
-			  vma->user, !client->super, vma->busy);
+	if (ret = -ENOENT, vma->busy) {
+		VMM_DEBUG(vmm, "denied %016llx: %d", addr, vma->busy);
+		goto fail;
+	}
+
+	if (ret = -EINVAL, vma->mapped && !vma->memory) {
+		VMM_DEBUG(vmm, "pfnmap %016llx", addr);
 		goto fail;
 	}
 
@@ -162,7 +219,6 @@ fail:
 static int
 nvkm_uvmm_mthd_put(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 {
-	struct nvkm_client *client = uvmm->object.client;
 	union {
 		struct nvif_vmm_put_v0 v0;
 	} *args = argv;
@@ -184,9 +240,8 @@ nvkm_uvmm_mthd_put(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		goto done;
 	}
 
-	if (ret = -ENOENT, (!vma->user && !client->super) || vma->busy) {
-		VMM_DEBUG(vmm, "denied %016llx: %d %d %d", addr,
-			  vma->user, !client->super, vma->busy);
+	if (ret = -ENOENT, vma->busy) {
+		VMM_DEBUG(vmm, "denied %016llx: %d", addr, vma->busy);
 		goto done;
 	}
 
@@ -200,7 +255,6 @@ done:
 static int
 nvkm_uvmm_mthd_get(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 {
-	struct nvkm_client *client = uvmm->object.client;
 	union {
 		struct nvif_vmm_get_v0 v0;
 	} *args = argv;
@@ -229,7 +283,6 @@ nvkm_uvmm_mthd_get(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		return ret;
 
 	args->v0.addr = vma->addr;
-	vma->user = !client->super;
 	return ret;
 }
 
@@ -246,7 +299,7 @@ nvkm_uvmm_mthd_page(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	page = uvmm->vmm->func->page;
 	for (nr = 0; page[nr].shift; nr++);
 
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
+	if (!(nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		if ((index = args->v0.index) >= nr)
 			return -EINVAL;
 		type = page[index].type;
@@ -271,6 +324,15 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 	case NVIF_VMM_V0_PUT   : return nvkm_uvmm_mthd_put   (uvmm, argv, argc);
 	case NVIF_VMM_V0_MAP   : return nvkm_uvmm_mthd_map   (uvmm, argv, argc);
 	case NVIF_VMM_V0_UNMAP : return nvkm_uvmm_mthd_unmap (uvmm, argv, argc);
+	case NVIF_VMM_V0_PFNMAP: return nvkm_uvmm_mthd_pfnmap(uvmm, argv, argc);
+	case NVIF_VMM_V0_PFNCLR: return nvkm_uvmm_mthd_pfnclr(uvmm, argv, argc);
+	case NVIF_VMM_V0_MTHD(0x00) ... NVIF_VMM_V0_MTHD(0x7f):
+		if (uvmm->vmm->func->mthd) {
+			return uvmm->vmm->func->mthd(uvmm->vmm,
+						     uvmm->object.client,
+						     mthd, argv, argc);
+		}
+		break;
 	default:
 		break;
 	}
@@ -304,8 +366,10 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	struct nvkm_uvmm *uvmm;
 	int ret = -ENOSYS;
 	u64 addr, size;
+	bool managed;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, more))) {
+		managed = args->v0.managed != 0;
 		addr = args->v0.addr;
 		size = args->v0.size;
 	} else
@@ -317,7 +381,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	*pobject = &uvmm->object;
 
 	if (!mmu->vmm) {
-		ret = mmu->func->vmm.ctor(mmu, addr, size, argv, argc,
+		ret = mmu->func->vmm.ctor(mmu, managed, addr, size, argv, argc,
 					  NULL, "user", &uvmm->vmm);
 		if (ret)
 			return ret;

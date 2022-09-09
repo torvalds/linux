@@ -1,27 +1,25 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Internal header file for QE TDM mode routines.
  *
  * Copyright (C) 2016 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Authors:	Zhao Qiang <qiang.zhao@nxp.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version
  */
 
 #ifndef _QE_TDM_H_
 #define _QE_TDM_H_
 
-#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/types.h>
 
 #include <soc/fsl/qe/immap_qe.h>
 #include <soc/fsl/qe/qe.h>
 
 #include <soc/fsl/qe/ucc.h>
 #include <soc/fsl/qe/ucc_fast.h>
+
+struct device_node;
 
 /* SI RAM entries */
 #define SIR_LAST	0x0001

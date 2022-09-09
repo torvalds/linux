@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of wl1251
  *
  * Copyright (C) 2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/interrupt.h>
@@ -341,14 +327,12 @@ out_free:
 	return ret;
 }
 
-static int wl1251_spi_remove(struct spi_device *spi)
+static void wl1251_spi_remove(struct spi_device *spi)
 {
 	struct wl1251 *wl = spi_get_drvdata(spi);
 
 	wl1251_free_hw(wl);
 	regulator_disable(wl->vio);
-
-	return 0;
 }
 
 static struct spi_driver wl1251_spi_driver = {

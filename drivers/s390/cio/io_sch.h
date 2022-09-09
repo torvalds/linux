@@ -9,15 +9,20 @@
 #include "css.h"
 #include "orb.h"
 
+struct io_subchannel_dma_area {
+	struct ccw1 sense_ccw;	/* static ccw for sense command */
+};
+
 struct io_subchannel_private {
 	union orb orb;		/* operation request block */
-	struct ccw1 sense_ccw;	/* static ccw for sense command */
 	struct ccw_device *cdev;/* pointer to the child ccw device */
 	struct {
 		unsigned int suspend:1;	/* allow suspend */
 		unsigned int prefetch:1;/* deny prefetch */
 		unsigned int inter:1;	/* suppress intermediate interrupts */
 	} __packed options;
+	struct io_subchannel_dma_area *dma_area;
+	dma_addr_t dma_area_dma;
 } __aligned(8);
 
 #define to_io_private(n) ((struct io_subchannel_private *) \
@@ -115,6 +120,13 @@ enum cdev_todo {
 #define FAKE_CMD_IRB	1
 #define FAKE_TM_IRB	2
 
+struct ccw_device_dma_area {
+	struct senseid senseid;	/* SenseID info */
+	struct ccw1 iccws[2];	/* ccws for SNID/SID/SPGID commands */
+	struct irb irb;		/* device status */
+	struct pgid pgid[8];	/* path group IDs per chpid*/
+};
+
 struct ccw_device_private {
 	struct ccw_device *cdev;
 	struct subchannel *sch;
@@ -148,7 +160,6 @@ struct ccw_device_private {
 		unsigned int donotify:1;    /* call notify function */
 		unsigned int recog_done:1;  /* dev. recog. complete */
 		unsigned int fake_irb:2;    /* deliver faked irb */
-		unsigned int resuming:1;    /* recognition while resume */
 		unsigned int pgroup:1;	    /* pathgroup is set up */
 		unsigned int mpath:1;	    /* multipathing is set up */
 		unsigned int pgid_unknown:1;/* unknown pgid state */
@@ -156,11 +167,7 @@ struct ccw_device_private {
 	} __attribute__((packed)) flags;
 	unsigned long intparm;	/* user interruption parameter */
 	struct qdio_irq *qdio_data;
-	struct irb irb;		/* device status */
 	int async_kill_io_rc;
-	struct senseid senseid;	/* SenseID info */
-	struct pgid pgid[8];	/* path group IDs per chpid*/
-	struct ccw1 iccws[2];	/* ccws for SNID/SID/SPGID commands */
 	struct work_struct todo_work;
 	enum cdev_todo todo;
 	wait_queue_head_t wait_q;
@@ -169,6 +176,8 @@ struct ccw_device_private {
 	struct list_head cmb_list;	/* list of measured devices */
 	u64 cmb_start_time;		/* clock value of cmb reset */
 	void *cmb_wait;			/* deferred cmb enable/disable */
+	struct gen_pool *dma_pool;
+	struct ccw_device_dma_area *dma_area;
 	enum interruption_class int_class;
 };
 

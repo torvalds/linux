@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-footbridge/common.c
  *
  *  Copyright (C) 1998-2000 Russell King, Dave Gilbert.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/types.h>
@@ -15,9 +12,9 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/dma-direct.h>
 #include <video/vga.h>
 
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -30,6 +27,91 @@
 #include <asm/mach/pci.h>
 
 #include "common.h"
+
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <asm/hardware/dec21285.h>
+
+static int dc21285_get_irq(void)
+{
+	void __iomem *irqstatus = (void __iomem *)CSR_IRQ_STATUS;
+	u32 mask = readl(irqstatus);
+
+	if (mask & IRQ_MASK_SDRAMPARITY)
+		return IRQ_SDRAMPARITY;
+
+	if (mask & IRQ_MASK_UART_RX)
+		return IRQ_CONRX;
+
+	if (mask & IRQ_MASK_DMA1)
+		return IRQ_DMA1;
+
+	if (mask & IRQ_MASK_DMA2)
+		return IRQ_DMA2;
+
+	if (mask & IRQ_MASK_IN0)
+		return IRQ_IN0;
+
+	if (mask & IRQ_MASK_IN1)
+		return IRQ_IN1;
+
+	if (mask & IRQ_MASK_IN2)
+		return IRQ_IN2;
+
+	if (mask & IRQ_MASK_IN3)
+		return IRQ_IN3;
+
+	if (mask & IRQ_MASK_PCI)
+		return IRQ_PCI;
+
+	if (mask & IRQ_MASK_DOORBELLHOST)
+		return IRQ_DOORBELLHOST;
+
+	if (mask & IRQ_MASK_I2OINPOST)
+		return IRQ_I2OINPOST;
+
+	if (mask & IRQ_MASK_TIMER1)
+		return IRQ_TIMER1;
+
+	if (mask & IRQ_MASK_TIMER2)
+		return IRQ_TIMER2;
+
+	if (mask & IRQ_MASK_TIMER3)
+		return IRQ_TIMER3;
+
+	if (mask & IRQ_MASK_UART_TX)
+		return IRQ_CONTX;
+
+	if (mask & IRQ_MASK_PCI_ABORT)
+		return IRQ_PCI_ABORT;
+
+	if (mask & IRQ_MASK_PCI_SERR)
+		return IRQ_PCI_SERR;
+
+	if (mask & IRQ_MASK_DISCARD_TIMER)
+		return IRQ_DISCARD_TIMER;
+
+	if (mask & IRQ_MASK_PCI_DPERR)
+		return IRQ_PCI_DPERR;
+
+	if (mask & IRQ_MASK_PCI_PERR)
+		return IRQ_PCI_PERR;
+
+	return 0;
+}
+
+static void dc21285_handle_irq(struct pt_regs *regs)
+{
+	int irq;
+	do {
+		irq = dc21285_get_irq();
+		if (!irq)
+			break;
+
+		generic_handle_irq(irq);
+	} while (1);
+}
+
 
 unsigned int mem_fclk_21285 = 50000000;
 
@@ -112,6 +194,8 @@ static void __init __fb_init_irq(void)
 
 void __init footbridge_init_irq(void)
 {
+	set_handle_irq(dc21285_handle_irq);
+
 	__fb_init_irq();
 
 	if (!footbridge_cfn_mode())
@@ -252,17 +336,19 @@ unsigned long __bus_to_virt(unsigned long res)
 	return res;
 }
 EXPORT_SYMBOL(__bus_to_virt);
-
-unsigned long __pfn_to_bus(unsigned long pfn)
+#else
+static inline unsigned long fb_bus_sdram_offset(void)
 {
-	return __pfn_to_phys(pfn) + (fb_bus_sdram_offset() - PHYS_OFFSET);
+	return BUS_OFFSET;
 }
-EXPORT_SYMBOL(__pfn_to_bus);
+#endif /* CONFIG_FOOTBRIDGE_ADDIN */
 
-unsigned long __bus_to_pfn(unsigned long bus)
+dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	return __phys_to_pfn(bus - (fb_bus_sdram_offset() - PHYS_OFFSET));
+	return paddr + (fb_bus_sdram_offset() - PHYS_OFFSET);
 }
-EXPORT_SYMBOL(__bus_to_pfn);
 
-#endif
+phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dev_addr)
+{
+	return dev_addr - (fb_bus_sdram_offset() - PHYS_OFFSET);
+}

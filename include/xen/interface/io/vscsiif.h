@@ -1,25 +1,8 @@
+/* SPDX-License-Identifier: MIT */
 /******************************************************************************
  * vscsiif.h
  *
  * Based on the blkif.h code.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to
- * deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- * sell copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
  *
  * Copyright(c) FUJITSU Limited 2008.
  */
@@ -60,7 +43,7 @@
  *
  *      A string specifying the backend device: either a 4-tuple "h:c:t:l"
  *      (host, controller, target, lun, all integers), or a WWN (e.g.
- *      "naa.60014054ac780582").
+ *      "naa.60014054ac780582:0").
  *
  * v-dev
  *      Values:         string
@@ -104,6 +87,75 @@
  *      response structures.
  */
 
+/*
+ * Xenstore format in practice
+ * ===========================
+ *
+ * The backend driver uses a single_host:many_devices notation to manage domU
+ * devices. Everything is stored in /local/domain/<backend_domid>/backend/vscsi/.
+ * The xenstore layout looks like this (dom0 is assumed to be the backend_domid):
+ *
+ *     <domid>/<vhost>/feature-host = "0"
+ *     <domid>/<vhost>/frontend = "/local/domain/<domid>/device/vscsi/0"
+ *     <domid>/<vhost>/frontend-id = "<domid>"
+ *     <domid>/<vhost>/online = "1"
+ *     <domid>/<vhost>/state = "4"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/p-dev = "8:0:2:1" or "naa.wwn:lun"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/state = "4"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/v-dev = "0:0:0:0"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/p-dev = "8:0:2:2"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/state = "4"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/v-dev = "0:0:1:0"
+ *
+ * The frontend driver maintains its state in
+ * /local/domain/<domid>/device/vscsi/.
+ *
+ *     <vhost>/backend = "/local/domain/0/backend/vscsi/<domid>/<vhost>"
+ *     <vhost>/backend-id = "0"
+ *     <vhost>/event-channel = "20"
+ *     <vhost>/ring-ref = "43"
+ *     <vhost>/state = "4"
+ *     <vhost>/vscsi-devs/dev-0/state = "4"
+ *     <vhost>/vscsi-devs/dev-1/state = "4"
+ *
+ * In addition to the entries for backend and frontend these flags are stored
+ * for the toolstack:
+ *
+ *     <domid>/<vhost>/vscsi-devs/dev-1/p-devname = "/dev/$device"
+ *     <domid>/<vhost>/libxl_ctrl_index = "0"
+ *
+ *
+ * Backend/frontend protocol
+ * =========================
+ *
+ * To create a vhost along with a device:
+ *     <domid>/<vhost>/feature-host = "0"
+ *     <domid>/<vhost>/frontend = "/local/domain/<domid>/device/vscsi/0"
+ *     <domid>/<vhost>/frontend-id = "<domid>"
+ *     <domid>/<vhost>/online = "1"
+ *     <domid>/<vhost>/state = "1"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/p-dev = "8:0:2:1"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/state = "1"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/v-dev = "0:0:0:0"
+ * Wait for <domid>/<vhost>/state + <domid>/<vhost>/vscsi-devs/dev-0/state become 4
+ *
+ * To add another device to a vhost:
+ *     <domid>/<vhost>/state = "7"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/p-dev = "8:0:2:2"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/state = "1"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/v-dev = "0:0:1:0"
+ * Wait for <domid>/<vhost>/state + <domid>/<vhost>/vscsi-devs/dev-1/state become 4
+ *
+ * To remove a device from a vhost:
+ *     <domid>/<vhost>/state = "7"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/state = "5"
+ * Wait for <domid>/<vhost>/state to become 4
+ * Wait for <domid>/<vhost>/vscsi-devs/dev-1/state become 6
+ * Remove <domid>/<vhost>/vscsi-devs/dev-1/{state,p-dev,v-dev,p-devname}
+ * Remove <domid>/<vhost>/vscsi-devs/dev-1/
+ *
+ */
+
 /* Requests from the frontend to the backend */
 
 /*
@@ -134,7 +186,8 @@
  * (plus the set VSCSIIF_SG_GRANT bit), the number of scsiif_request_segment
  * elements referencing the target data buffers is calculated from the lengths
  * of the seg[] elements (the sum of all valid seg[].length divided by the
- * size of one scsiif_request_segment structure).
+ * size of one scsiif_request_segment structure). The frontend may use a mix of
+ * direct and indirect requests.
  */
 #define VSCSIIF_ACT_SCSI_CDB		1
 
@@ -171,12 +224,14 @@
 
 /*
  * based on Linux kernel 2.6.18, still valid
+ *
  * Changing these values requires support of multiple protocols via the rings
  * as "old clients" will blindly use these values and the resulting structure
  * sizes.
  */
 #define VSCSIIF_MAX_COMMAND_SIZE	16
 #define VSCSIIF_SENSE_BUFFERSIZE	96
+#define VSCSIIF_PAGE_SIZE		4096
 
 struct scsiif_request_segment {
 	grant_ref_t gref;
@@ -184,7 +239,8 @@ struct scsiif_request_segment {
 	uint16_t length;
 };
 
-#define VSCSIIF_SG_PER_PAGE (PAGE_SIZE / sizeof(struct scsiif_request_segment))
+#define VSCSIIF_SG_PER_PAGE	(VSCSIIF_PAGE_SIZE / \
+				 sizeof(struct scsiif_request_segment))
 
 /* Size of one request is 252 bytes */
 struct vscsiif_request {
@@ -224,6 +280,58 @@ struct vscsiif_response {
 	uint32_t reserved[36];
 };
 
+/* SCSI I/O status from vscsiif_response->rslt */
+#define XEN_VSCSIIF_RSLT_STATUS(x)  ((x) & 0x00ff)
+
+/* Host I/O status from vscsiif_response->rslt */
+#define XEN_VSCSIIF_RSLT_HOST(x)    (((x) & 0x00ff0000) >> 16)
+#define XEN_VSCSIIF_RSLT_HOST_OK                   0
+/* Couldn't connect before timeout */
+#define XEN_VSCSIIF_RSLT_HOST_NO_CONNECT           1
+/* Bus busy through timeout */
+#define XEN_VSCSIIF_RSLT_HOST_BUS_BUSY             2
+/* Timed out for other reason */
+#define XEN_VSCSIIF_RSLT_HOST_TIME_OUT             3
+/* Bad target */
+#define XEN_VSCSIIF_RSLT_HOST_BAD_TARGET           4
+/* Abort for some other reason */
+#define XEN_VSCSIIF_RSLT_HOST_ABORT                5
+/* Parity error */
+#define XEN_VSCSIIF_RSLT_HOST_PARITY               6
+/* Internal error */
+#define XEN_VSCSIIF_RSLT_HOST_ERROR                7
+/* Reset by somebody */
+#define XEN_VSCSIIF_RSLT_HOST_RESET                8
+/* Unexpected interrupt */
+#define XEN_VSCSIIF_RSLT_HOST_BAD_INTR             9
+/* Force command past mid-layer */
+#define XEN_VSCSIIF_RSLT_HOST_PASSTHROUGH         10
+/* Retry requested */
+#define XEN_VSCSIIF_RSLT_HOST_SOFT_ERROR          11
+/* Hidden retry requested */
+#define XEN_VSCSIIF_RSLT_HOST_IMM_RETRY           12
+/* Requeue command requested */
+#define XEN_VSCSIIF_RSLT_HOST_REQUEUE             13
+/* Transport error disrupted I/O */
+#define XEN_VSCSIIF_RSLT_HOST_TRANSPORT_DISRUPTED 14
+/* Transport class fastfailed */
+#define XEN_VSCSIIF_RSLT_HOST_TRANSPORT_FAILFAST  15
+/* Permanent target failure */
+#define XEN_VSCSIIF_RSLT_HOST_TARGET_FAILURE      16
+/* Permanent nexus failure on path */
+#define XEN_VSCSIIF_RSLT_HOST_NEXUS_FAILURE       17
+/* Space allocation on device failed */
+#define XEN_VSCSIIF_RSLT_HOST_ALLOC_FAILURE       18
+/* Medium error */
+#define XEN_VSCSIIF_RSLT_HOST_MEDIUM_ERROR        19
+/* Transport marginal errors */
+#define XEN_VSCSIIF_RSLT_HOST_TRANSPORT_MARGINAL  20
+
+/* Result values of reset operations */
+#define XEN_VSCSIIF_RSLT_RESET_SUCCESS  0x2002
+#define XEN_VSCSIIF_RSLT_RESET_FAILED   0x2003
+
 DEFINE_RING_TYPES(vscsiif, struct vscsiif_request, struct vscsiif_response);
 
-#endif /*__XEN__PUBLIC_IO_SCSI_H__*/
+
+#endif  /*__XEN__PUBLIC_IO_SCSI_H__*/

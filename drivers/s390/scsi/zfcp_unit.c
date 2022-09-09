@@ -111,9 +111,9 @@ static void zfcp_unit_release(struct device *dev)
 }
 
 /**
- * zfcp_unit_enqueue - enqueue unit to unit list of a port.
+ * zfcp_unit_add - add unit to unit list of a port.
  * @port: pointer to port where unit is added
- * @fcp_lun: FCP LUN of unit to be enqueued
+ * @fcp_lun: FCP LUN of unit to be added
  * Returns: 0 success
  *
  * Sets up some unit internal structures and creates sysfs entry.
@@ -124,7 +124,7 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	int retval = 0;
 
 	mutex_lock(&zfcp_sysfs_port_units_mutex);
-	if (atomic_read(&port->units) == -1) {
+	if (zfcp_sysfs_port_is_removing(port)) {
 		/* port is already gone */
 		retval = -ENODEV;
 		goto out;
@@ -168,8 +168,14 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	write_lock_irq(&port->unit_list_lock);
 	list_add_tail(&unit->list, &port->unit_list);
 	write_unlock_irq(&port->unit_list_lock);
+	/*
+	 * lock order: shost->scan_mutex before zfcp_sysfs_port_units_mutex
+	 * due to      zfcp_unit_scsi_scan() => zfcp_scsi_slave_alloc()
+	 */
+	mutex_unlock(&zfcp_sysfs_port_units_mutex);
 
 	zfcp_unit_scsi_scan(unit);
+	return retval;
 
 out:
 	mutex_unlock(&zfcp_sysfs_port_units_mutex);
@@ -249,9 +255,9 @@ int zfcp_unit_remove(struct zfcp_port *port, u64 fcp_lun)
 		scsi_device_put(sdev);
 	}
 
-	put_device(&unit->dev);
-
 	device_unregister(&unit->dev);
+
+	put_device(&unit->dev); /* undo _zfcp_unit_find() */
 
 	return 0;
 }

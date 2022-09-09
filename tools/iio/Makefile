@@ -27,25 +27,30 @@ include $(srctree)/tools/build/Makefile.include
 #
 $(OUTPUT)include/linux/iio: ../../include/uapi/linux/iio
 	mkdir -p $(OUTPUT)include/linux/iio 2>&1 || true
+	ln -sf $(CURDIR)/../../include/uapi/linux/iio/buffer.h $@
 	ln -sf $(CURDIR)/../../include/uapi/linux/iio/events.h $@
 	ln -sf $(CURDIR)/../../include/uapi/linux/iio/types.h $@
 
 prepare: $(OUTPUT)include/linux/iio
 
+IIO_UTILS_IN := $(OUTPUT)iio_utils-in.o
+$(IIO_UTILS_IN): prepare FORCE
+	$(Q)$(MAKE) $(build)=iio_utils
+
 LSIIO_IN := $(OUTPUT)lsiio-in.o
-$(LSIIO_IN): prepare FORCE
+$(LSIIO_IN): prepare FORCE $(OUTPUT)iio_utils-in.o
 	$(Q)$(MAKE) $(build)=lsiio
 $(OUTPUT)lsiio: $(LSIIO_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
 IIO_EVENT_MONITOR_IN := $(OUTPUT)iio_event_monitor-in.o
-$(IIO_EVENT_MONITOR_IN): prepare FORCE
+$(IIO_EVENT_MONITOR_IN): prepare FORCE $(OUTPUT)iio_utils-in.o
 	$(Q)$(MAKE) $(build)=iio_event_monitor
 $(OUTPUT)iio_event_monitor: $(IIO_EVENT_MONITOR_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
 IIO_GENERIC_BUFFER_IN := $(OUTPUT)iio_generic_buffer-in.o
-$(IIO_GENERIC_BUFFER_IN): prepare FORCE
+$(IIO_GENERIC_BUFFER_IN): prepare FORCE $(OUTPUT)iio_utils-in.o
 	$(Q)$(MAKE) $(build)=iio_generic_buffer
 $(OUTPUT)iio_generic_buffer: $(IIO_GENERIC_BUFFER_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
@@ -53,7 +58,7 @@ $(OUTPUT)iio_generic_buffer: $(IIO_GENERIC_BUFFER_IN)
 clean:
 	rm -f $(ALL_PROGRAMS)
 	rm -rf $(OUTPUT)include/linux/iio
-	find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.d' -delete
+	find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '\.*.d' -delete
 
 install: $(ALL_PROGRAMS)
 	install -d -m 755 $(DESTDIR)$(bindir);		\

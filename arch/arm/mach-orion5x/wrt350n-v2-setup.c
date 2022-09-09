@@ -1,10 +1,5 @@
-/*
- * arch/arm/mach-orion5x/wrt350n-v2-setup.c
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// arch/arm/mach-orion5x/wrt350n-v2-setup.c
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -18,7 +13,7 @@
 #include <linux/leds.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
-#include <net/dsa.h>
+#include <linux/platform_data/dsa.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>

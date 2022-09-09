@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Industrial I/O driver for Microchip digital potentiometers
  *
  * Copyright (c) 2016 Slawomir Stepien
  * Based on: Peter Rosin's code from mcp4531.c
  *
- * Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/22060b.pdf
+ * Datasheet: https://ww1.microchip.com/downloads/en/DeviceDoc/22060b.pdf
  *
  * DEVID	#Wipers	#Positions	Resistor Opts (kOhm)
  * mcp4131	1	129		5, 10, 50, 100
@@ -23,10 +24,6 @@
  * mcp4252	2	257		5, 10, 50, 100
  * mcp4261	2	257		5, 10, 50, 100
  * mcp4262	2	257		5, 10, 50, 100
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 /*
@@ -40,9 +37,9 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 
 #define MCP4131_WRITE		(0x00 << 2)
@@ -132,7 +129,7 @@ struct mcp4131_data {
 	struct spi_device *spi;
 	const struct mcp4131_cfg *cfg;
 	struct mutex lock;
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define MCP4131_CHANNEL(ch) {					\
@@ -255,7 +252,7 @@ static int mcp4131_probe(struct spi_device *spi)
 	data = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
 	data->spi = spi;
-	data->cfg = of_device_get_match_data(&spi->dev);
+	data->cfg = device_get_match_data(&spi->dev);
 	if (!data->cfg) {
 		devid = spi_get_device_id(spi)->driver_data;
 		data->cfg = &mcp4131_cfg[devid];
@@ -263,7 +260,6 @@ static int mcp4131_probe(struct spi_device *spi)
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mcp4131_info;
 	indio_dev->channels = mcp4131_channels;
 	indio_dev->num_channels = data->cfg->wipers;
@@ -483,7 +479,7 @@ MODULE_DEVICE_TABLE(spi, mcp4131_id);
 static struct spi_driver mcp4131_driver = {
 	.driver = {
 		.name	= "mcp4131",
-		.of_match_table = of_match_ptr(mcp4131_dt_ids),
+		.of_match_table = mcp4131_dt_ids,
 	},
 	.probe		= mcp4131_probe,
 	.id_table	= mcp4131_id,

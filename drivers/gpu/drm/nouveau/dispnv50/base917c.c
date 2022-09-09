@@ -22,7 +22,7 @@
 #include "base.h"
 #include "atom.h"
 
-const u32
+static const u32
 base917c_format[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_XRGB8888,
@@ -36,6 +36,8 @@ base917c_format[] = {
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_XBGR16161616F,
+	DRM_FORMAT_ABGR16161616F,
 	0
 };
 

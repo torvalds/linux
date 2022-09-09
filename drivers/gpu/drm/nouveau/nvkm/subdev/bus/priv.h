@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_BUS_PRIV_H__
 #define __NVKM_BUS_PRIV_H__
 #define nvkm_bus(p) container_of((p), struct nvkm_bus, subdev)
@@ -11,7 +11,7 @@ struct nvkm_bus_func {
 	u32 hwsq_size;
 };
 
-int nvkm_bus_new_(const struct nvkm_bus_func *, struct nvkm_device *, int,
+int nvkm_bus_new_(const struct nvkm_bus_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_bus **);
 
 void nv50_bus_init(struct nvkm_bus *);

@@ -21,7 +21,7 @@
  * |                                                               |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- * C bit indicates contol message when set, data message when unset.
+ * C bit indicates control message when set, data message when unset.
  * For a control message, proto/ctype is interpreted as a type of
  * control message. For data messages, proto/ctype is the IP protocol
  * of the next header.
@@ -29,6 +29,9 @@
  * P bit indicates private flags field is present. The private flags
  * may refer to options placed after this field.
  */
+
+#include <asm/byteorder.h>
+#include <linux/types.h>
 
 struct guehdr {
 	union {
@@ -60,7 +63,7 @@ struct guehdr {
 
 /* Private flags in the private option extension */
 
-#define GUE_PFLAG_REMCSUM	htonl(1 << 31)
+#define GUE_PFLAG_REMCSUM	htonl(1U << 31)
 #define GUE_PLEN_REMCSUM	4
 
 #define GUE_PFLAGS_ALL	(GUE_PFLAG_REMCSUM)

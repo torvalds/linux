@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/video/backlight/vgg2432a4.c
  *
  * VGG2432A4 (ILI9320) LCD controller driver.
@@ -5,10 +6,6 @@
  * Copyright 2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <linux/delay.h>
@@ -236,9 +233,9 @@ static int vgg2432a4_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int vgg2432a4_remove(struct spi_device *spi)
+static void vgg2432a4_remove(struct spi_device *spi)
 {
-	return ili9320_remove(spi_get_drvdata(spi));
+	ili9320_remove(spi_get_drvdata(spi));
 }
 
 static void vgg2432a4_shutdown(struct spi_device *spi)

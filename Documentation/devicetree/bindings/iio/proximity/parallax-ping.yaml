@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/proximity/parallax-ping.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Parallax PING))) and LaserPING range finder
+
+maintainers:
+  - Andreas Klinger <ak@it-klinger.de>
+
+description: |
+  Bit-banging driver using one GPIO:
+  - ping-gpios is raised by the driver to start measurement
+  - direction of ping-gpio is then switched into input with an interrupt
+    for receiving distance value as PWM signal
+
+  Specifications about the devices can be found at:
+  http://parallax.com/sites/default/files/downloads/28041-LaserPING-2m-Rangefinder-Guide.pdf
+  http://parallax.com/sites/default/files/downloads/28015-PING-Documentation-v1.6.pdf
+
+properties:
+  compatible:
+    enum:
+      - parallax,ping
+      - parallax,laserping
+
+  ping-gpios:
+    description:
+      Definition of the GPIO for the triggering and echo (output and input)
+      This GPIO is set for about 5 us by the driver to tell the device it
+      should initiate the measurement cycle. Afterwards the GPIO is switched
+      to input direction with an interrupt. The device sets it and the
+      length of the input signal corresponds to the measured distance.
+      It needs to be an GPIO which is able to deliver an interrupt because
+      the time between two interrupts is measured in the driver.
+      See Documentation/devicetree/bindings/gpio/gpio.txt for information
+      on how to specify a consumer gpio.
+    maxItems: 1
+
+required:
+  - compatible
+  - ping-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    proximity {
+        compatible = "parallax,laserping";
+        ping-gpios = <&gpio0 26 GPIO_ACTIVE_HIGH>;
+    };

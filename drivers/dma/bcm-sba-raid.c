@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2017 Broadcom
 
 /*
  * Broadcom SBA RAID Driver
@@ -120,7 +110,7 @@ struct sba_request {
 	struct brcm_message msg;
 	struct dma_async_tx_descriptor tx;
 	/* SBA commands */
-	struct brcm_sba_command cmds[0];
+	struct brcm_sba_command cmds[];
 };
 
 enum sba_version {
@@ -164,7 +154,6 @@ struct sba_device {
 	struct list_head reqs_free_list;
 	/* DebugFS directory entries */
 	struct dentry *root;
-	struct dentry *stats;
 };
 
 /* ====== Command helper routines ===== */
@@ -1459,8 +1448,7 @@ static void sba_receive_message(struct mbox_client *cl, void *msg)
 
 static int sba_debugfs_stats_show(struct seq_file *file, void *offset)
 {
-	struct platform_device *pdev = to_platform_device(file->private);
-	struct sba_device *sba = platform_get_drvdata(pdev);
+	struct sba_device *sba = dev_get_drvdata(file->private);
 
 	/* Write stats in file */
 	sba_write_stats_in_seqfile(sba, file);
@@ -1717,17 +1705,11 @@ static int sba_probe(struct platform_device *pdev)
 
 	/* Create debugfs root entry */
 	sba->root = debugfs_create_dir(dev_name(sba->dev), NULL);
-	if (IS_ERR_OR_NULL(sba->root)) {
-		dev_err(sba->dev, "failed to create debugfs root entry\n");
-		sba->root = NULL;
-		goto skip_debugfs;
-	}
 
 	/* Create debugfs stats entry */
-	sba->stats = debugfs_create_devm_seqfile(sba->dev, "stats", sba->root,
-						 sba_debugfs_stats_show);
-	if (IS_ERR_OR_NULL(sba->stats))
-		dev_err(sba->dev, "failed to create debugfs stats file\n");
+	debugfs_create_devm_seqfile(sba->dev, "stats", sba->root,
+				    sba_debugfs_stats_show);
+
 skip_debugfs:
 
 	/* Register DMA device with Linux async framework */

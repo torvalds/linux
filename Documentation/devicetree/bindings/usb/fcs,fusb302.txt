@@ -9,14 +9,7 @@ Required sub-node:
 - connector : The "usb-c-connector" attached to the FUSB302 IC. The bindings
   of the connector node are specified in:
 
-	Documentation/devicetree/bindings/connector/usb-connector.txt
-
-Deprecated properties :
-- fcs,max-sink-microvolt : Maximum sink voltage accepted by port controller
-- fcs,max-sink-microamp : Maximum sink current accepted by port controller
-- fcs,max-sink-microwatt : Maximum sink power accepted by port controller
-- fcs,operating-sink-microwatt : Minimum amount of power accepted from a sink
-  when negotiating
+	Documentation/devicetree/bindings/connector/usb-connector.yaml
 
 
 Example:

@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Find duplicate field initializations.  This has a high rate of false
 /// positives due to #ifdefs, which Coccinelle is not aware of in a structure
 /// initialization.
 ///
 // Confidence: Low
-// Copyright: (C) 2010-2012 Nicolas Palix.  GPLv2.
-// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2010-2012 Nicolas Palix.
+// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments: requires at least Coccinelle 0.2.4, lex or parse error otherwise
 // Options: --no-includes --include-headers
 

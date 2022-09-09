@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2009
  *
@@ -34,20 +23,6 @@
 #else
 #define dprintk(X...) do { } while(0)
 #endif
-
-static void kvmppc_mmu_book3s_64_reset_msr(struct kvm_vcpu *vcpu)
-{
-	unsigned long msr = vcpu->arch.intr_msr;
-	unsigned long cur_msr = kvmppc_get_msr(vcpu);
-
-	/* If transactional, change to suspend mode on IRQ delivery */
-	if (MSR_TM_TRANSACTIONAL(cur_msr))
-		msr |= MSR_TS_S;
-	else
-		msr |= cur_msr & MSR_TS_MASK;
-
-	kvmppc_set_msr(vcpu, msr);
-}
 
 static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(
 				struct kvm_vcpu *vcpu,
@@ -221,7 +196,7 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	hva_t ptegp;
 	u64 pteg[16];
 	u64 avpn = 0;
-	u64 v, r;
+	u64 r;
 	u64 v_val, v_mask;
 	u64 eaddr_mask;
 	int i;
@@ -310,7 +285,6 @@ do_second:
 		goto do_second;
 	}
 
-	v = be64_to_cpu(pteg[i]);
 	r = be64_to_cpu(pteg[i+1]);
 	pp = (r & HPTE_R_PP) | key;
 	if (r & HPTE_R_PP0)
@@ -336,7 +310,7 @@ do_second:
 	case 2:
 	case 6:
 		gpte->may_write = true;
-		/* fall through */
+		fallthrough;
 	case 3:
 	case 5:
 	case 7:
@@ -433,6 +407,19 @@ static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 
 	/* Map the new segment */
 	kvmppc_mmu_map_segment(vcpu, esid << SID_SHIFT);
+}
+
+static int kvmppc_mmu_book3s_64_slbfee(struct kvm_vcpu *vcpu, gva_t eaddr,
+				       ulong *ret_slb)
+{
+	struct kvmppc_slb *slbe = kvmppc_mmu_book3s_64_find_slbe(vcpu, eaddr);
+
+	if (slbe) {
+		*ret_slb = slbe->origv;
+		return 0;
+	}
+	*ret_slb = 0;
+	return -ENOENT;
 }
 
 static u64 kvmppc_mmu_book3s_64_slbmfee(struct kvm_vcpu *vcpu, u64 slb_nr)
@@ -543,7 +530,7 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 				       bool large)
 {
 	u64 mask = 0xFFFFFFFFFULL;
-	long i;
+	unsigned long i;
 	struct kvm_vcpu *v;
 
 	dprintk("KVM MMU: tlbie(0x%lx)\n", va);
@@ -670,10 +657,10 @@ void kvmppc_mmu_book3s_64_init(struct kvm_vcpu *vcpu)
 	mmu->slbmte = kvmppc_mmu_book3s_64_slbmte;
 	mmu->slbmfee = kvmppc_mmu_book3s_64_slbmfee;
 	mmu->slbmfev = kvmppc_mmu_book3s_64_slbmfev;
+	mmu->slbfee = kvmppc_mmu_book3s_64_slbfee;
 	mmu->slbie = kvmppc_mmu_book3s_64_slbie;
 	mmu->slbia = kvmppc_mmu_book3s_64_slbia;
 	mmu->xlate = kvmppc_mmu_book3s_64_xlate;
-	mmu->reset_msr = kvmppc_mmu_book3s_64_reset_msr;
 	mmu->tlbie = kvmppc_mmu_book3s_64_tlbie;
 	mmu->esid_to_vsid = kvmppc_mmu_book3s_64_esid_to_vsid;
 	mmu->ea_to_vp = kvmppc_mmu_book3s_64_ea_to_vp;

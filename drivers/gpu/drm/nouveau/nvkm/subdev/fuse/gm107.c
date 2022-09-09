@@ -36,7 +36,8 @@ gm107_fuse = {
 };
 
 int
-gm107_fuse_new(struct nvkm_device *device, int index, struct nvkm_fuse **pfuse)
+gm107_fuse_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fuse **pfuse)
 {
-	return nvkm_fuse_new_(&gm107_fuse, device, index, pfuse);
+	return nvkm_fuse_new_(&gm107_fuse, device, type, inst, pfuse);
 }

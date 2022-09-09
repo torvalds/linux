@@ -47,9 +47,6 @@
 
 #include <linux/delay.h>
 
-
-#define VERSION_STRING DRIVER_DESC " 2.1d"
-
 /* Default debug printout level */
 #define NOZOMI_DEBUG_LEVEL 0x00
 static int debug = NOZOMI_DEBUG_LEVEL;
@@ -89,7 +86,6 @@ do {							\
 /*    Defines */
 #define NOZOMI_NAME		"nozomi"
 #define NOZOMI_NAME_TTY		"nozomi_tty"
-#define DRIVER_DESC		"Nozomi driver"
 
 #define NTTY_TTY_MAXMINORS	256
 #define NTTY_FIFO_BUFFER_SIZE	8192
@@ -301,7 +297,7 @@ struct ctrl_dl {
 	unsigned int DCD:1;
 	unsigned int RI:1;
 	unsigned int CTS:1;
-	unsigned int reserverd:4;
+	unsigned int reserved:4;
 	u8 port;
 } __attribute__ ((packed));
 
@@ -359,12 +355,6 @@ struct nozomi {
 	u32 open_ttys;
 };
 
-/* This is a data packet that is read or written to/from card */
-struct buffer {
-	u32 size;		/* size is the length of the data buffer */
-	u8 *data;
-} __attribute__ ((packed));
-
 /* Global variables */
 static const struct pci_device_id nozomi_pci_tbl[] = {
 	{PCI_DEVICE(0x1931, 0x000c)},	/* Nozomi HSDPA */
@@ -414,11 +404,9 @@ static void read_mem32(u32 *buf, const void __iomem *mem_addr_start,
 		buf16 = (u16 *) buf;
 		*buf16 = __le16_to_cpu(readw(ptr));
 		goto out;
-		break;
 	case 4:	/* 4 bytes */
 		*(buf) = __le32_to_cpu(readl(ptr));
 		goto out;
-		break;
 	}
 
 	while (i < size_bytes) {
@@ -460,15 +448,14 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 		buf16 = (const u16 *)buf;
 		writew(__cpu_to_le16(*buf16), ptr);
 		return 2;
-		break;
 	case 1: /*
 		 * also needs to write 4 bytes in this case
 		 * so falling through..
 		 */
+		fallthrough;
 	case 4: /* 4 bytes */
 		writel(__cpu_to_le32(*buf), ptr);
 		return 4;
-		break;
 	}
 
 	while (i < size_bytes) {
@@ -790,7 +777,6 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	int i, ret;
 
 	size = __le32_to_cpu(readl(addr));
-	/*  DBG1( "%d bytes port: %d", size, index); */
 
 	if (tty && tty_throttled(tty)) {
 		DBG1("No room in tty, don't read data, don't ack interrupt, "
@@ -839,40 +825,39 @@ static char *interrupt2str(u16 interrupt)
 	static char buf[TMP_BUF_MAX];
 	char *p = buf;
 
-	interrupt & MDM_DL1 ? p += snprintf(p, TMP_BUF_MAX, "MDM_DL1 ") : NULL;
-	interrupt & MDM_DL2 ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"MDM_DL2 ") : NULL;
+	if (interrupt & MDM_DL1)
+		p += scnprintf(p, TMP_BUF_MAX, "MDM_DL1 ");
+	if (interrupt & MDM_DL2)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "MDM_DL2 ");
+	if (interrupt & MDM_UL1)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "MDM_UL1 ");
+	if (interrupt & MDM_UL2)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "MDM_UL2 ");
+	if (interrupt & DIAG_DL1)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "DIAG_DL1 ");
+	if (interrupt & DIAG_DL2)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "DIAG_DL2 ");
 
-	interrupt & MDM_UL1 ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"MDM_UL1 ") : NULL;
-	interrupt & MDM_UL2 ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"MDM_UL2 ") : NULL;
+	if (interrupt & DIAG_UL)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "DIAG_UL ");
 
-	interrupt & DIAG_DL1 ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"DIAG_DL1 ") : NULL;
-	interrupt & DIAG_DL2 ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"DIAG_DL2 ") : NULL;
+	if (interrupt & APP1_DL)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "APP1_DL ");
+	if (interrupt & APP2_DL)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "APP2_DL ");
 
-	interrupt & DIAG_UL ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"DIAG_UL ") : NULL;
+	if (interrupt & APP1_UL)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "APP1_UL ");
+	if (interrupt & APP2_UL)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "APP2_UL ");
 
-	interrupt & APP1_DL ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"APP1_DL ") : NULL;
-	interrupt & APP2_DL ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"APP2_DL ") : NULL;
+	if (interrupt & CTRL_DL)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "CTRL_DL ");
+	if (interrupt & CTRL_UL)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "CTRL_UL ");
 
-	interrupt & APP1_UL ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"APP1_UL ") : NULL;
-	interrupt & APP2_UL ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"APP2_UL ") : NULL;
-
-	interrupt & CTRL_DL ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"CTRL_DL ") : NULL;
-	interrupt & CTRL_UL ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"CTRL_UL ") : NULL;
-
-	interrupt & RESET ? p += snprintf(p, TMP_BUF_MAX - (p - buf),
-					"RESET ") : NULL;
+	if (interrupt & RESET)
+		p += scnprintf(p, TMP_BUF_MAX - (p - buf), "RESET ");
 
 	return buf;
 }
@@ -1282,7 +1267,7 @@ static void nozomi_setup_private_data(struct nozomi *dc)
 static ssize_t card_type_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", dc->card_type);
 }
@@ -1291,7 +1276,7 @@ static DEVICE_ATTR_RO(card_type);
 static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", dc->open_ttys);
 }
@@ -1317,13 +1302,10 @@ static void remove_sysfs_files(struct nozomi *dc)
 static int nozomi_card_init(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
-	resource_size_t start;
 	int ret;
 	struct nozomi *dc = NULL;
 	int ndev_idx;
 	int i;
-
-	dev_dbg(&pdev->dev, "Init, new card found\n");
 
 	for (ndev_idx = 0; ndev_idx < ARRAY_SIZE(ndevs); ndev_idx++)
 		if (!ndevs[ndev_idx])
@@ -1357,17 +1339,10 @@ static int nozomi_card_init(struct pci_dev *pdev,
 		goto err_disable_device;
 	}
 
-	start = pci_resource_start(dc->pdev, 0);
-	if (start == 0) {
-		dev_err(&pdev->dev, "No I/O address for card detected\n");
-		ret = -ENODEV;
-		goto err_rel_regs;
-	}
-
 	/* Find out what card type it is */
 	nozomi_get_card_type(dc);
 
-	dc->base_addr = ioremap_nocache(start, dc->card_type);
+	dc->base_addr = pci_iomap(dc->pdev, 0, dc->card_type);
 	if (!dc->base_addr) {
 		dev_err(&pdev->dev, "Unable to map card MMIO\n");
 		ret = -ENODEV;
@@ -1403,7 +1378,7 @@ static int nozomi_card_init(struct pci_dev *pdev,
 			NOZOMI_NAME, dc);
 	if (unlikely(ret)) {
 		dev_err(&pdev->dev, "can't request irq %d\n", pdev->irq);
-		goto err_free_kfifo;
+		goto err_free_all_kfifo;
 	}
 
 	DBG1("base_addr: %p", dc->base_addr);
@@ -1441,12 +1416,15 @@ static int nozomi_card_init(struct pci_dev *pdev,
 	return 0;
 
 err_free_tty:
-	for (i = 0; i < MAX_PORT; ++i) {
+	for (i--; i >= 0; i--) {
 		tty_unregister_device(ntty_driver, dc->index_start + i);
 		tty_port_destroy(&dc->port[i].port);
 	}
+	free_irq(pdev->irq, dc);
+err_free_all_kfifo:
+	i = MAX_PORT;
 err_free_kfifo:
-	for (i = 0; i < MAX_PORT; i++)
+	for (i--; i >= PORT_MDM; i--)
 		kfifo_free(&dc->port[i].fifo_ul);
 err_free_sbuf:
 	kfree(dc->send_buf);
@@ -1464,8 +1442,6 @@ err:
 static void tty_exit(struct nozomi *dc)
 {
 	unsigned int i;
-
-	DBG1(" ");
 
 	for (i = 0; i < MAX_PORT; ++i)
 		tty_port_tty_hangup(&dc->port[i].port, false);
@@ -1631,8 +1607,6 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	struct port *port = tty->driver_data;
 	unsigned long flags;
 
-	/* DBG1( "WRITEx: %d, index = %d", count, index); */
-
 	if (!dc || !port)
 		return -ENODEV;
 
@@ -1665,10 +1639,10 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
  * If the port is unplugged report lots of room and let the bits
  * dribble away so we don't block anything.
  */
-static int ntty_write_room(struct tty_struct *tty)
+static unsigned int ntty_write_room(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
-	int room = 4096;
+	unsigned int room = 4096;
 	const struct nozomi *dc = get_dc_by_tty(tty);
 
 	if (dc)
@@ -1758,8 +1732,6 @@ static int ntty_ioctl(struct tty_struct *tty,
 	struct port *port = tty->driver_data;
 	int rval = -ENOIOCTLCMD;
 
-	DBG1("******** IOCTL, cmd: %d", cmd);
-
 	switch (cmd) {
 	case TIOCMIWAIT: {
 		struct async_icount cprev = port->tty_icount;
@@ -1785,7 +1757,6 @@ static void ntty_unthrottle(struct tty_struct *tty)
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
-	DBG1("UNTHROTTLE");
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	enable_transmit_dl(tty->index % MAX_PORT, dc);
 	set_rts(tty, 1);
@@ -1802,27 +1773,21 @@ static void ntty_throttle(struct tty_struct *tty)
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
-	DBG1("THROTTLE");
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	set_rts(tty, 0);
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
 }
 
 /* Returns number of chars in buffer, called by tty layer */
-static s32 ntty_chars_in_buffer(struct tty_struct *tty)
+static unsigned int ntty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
 	struct nozomi *dc = get_dc_by_tty(tty);
-	s32 rval = 0;
 
-	if (unlikely(!dc || !port)) {
-		goto exit_in_buffer;
-	}
+	if (unlikely(!dc || !port))
+		return 0;
 
-	rval = kfifo_len(&port->fifo_ul);
-
-exit_in_buffer:
-	return rval;
+	return kfifo_len(&port->fifo_ul);
 }
 
 static const struct tty_port_operations noz_tty_port_ops = {
@@ -1859,18 +1824,16 @@ static __init int nozomi_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Initializing %s\n", VERSION_STRING);
-
-	ntty_driver = alloc_tty_driver(NTTY_TTY_MAXMINORS);
-	if (!ntty_driver)
-		return -ENOMEM;
+	ntty_driver = tty_alloc_driver(NTTY_TTY_MAXMINORS, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(ntty_driver))
+		return PTR_ERR(ntty_driver);
 
 	ntty_driver->driver_name = NOZOMI_NAME_TTY;
 	ntty_driver->name = "noz";
 	ntty_driver->major = 0;
 	ntty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	ntty_driver->subtype = SERIAL_TYPE_NORMAL;
-	ntty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	ntty_driver->init_termios = tty_std_termios;
 	ntty_driver->init_termios.c_cflag = B115200 | CS8 | CREAD | \
 						HUPCL | CLOCAL;
@@ -1894,20 +1857,19 @@ static __init int nozomi_init(void)
 unr_tty:
 	tty_unregister_driver(ntty_driver);
 free_tty:
-	put_tty_driver(ntty_driver);
+	tty_driver_kref_put(ntty_driver);
 	return ret;
 }
 
 static __exit void nozomi_exit(void)
 {
-	printk(KERN_INFO "Unloading %s\n", DRIVER_DESC);
 	pci_unregister_driver(&nozomi_driver);
 	tty_unregister_driver(ntty_driver);
-	put_tty_driver(ntty_driver);
+	tty_driver_kref_put(ntty_driver);
 }
 
 module_init(nozomi_init);
 module_exit(nozomi_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_DESCRIPTION("Nozomi driver");

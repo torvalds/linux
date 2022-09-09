@@ -31,7 +31,7 @@ static bool ok_to_run;
  * it simply writes "START". As the first write is cold cache and
  * the rest is hot, we save off that time in bm_first and it is
  * reported as "first", which is shown in the second write to the
- * tracepoint. The "first" field is writen within the statics from
+ * tracepoint. The "first" field is written within the statics from
  * then on but never changes.
  */
 static void trace_do_benchmark(void)
@@ -112,7 +112,7 @@ static void trace_do_benchmark(void)
 		int i = 0;
 		/*
 		 * stddev is the square of standard deviation but
-		 * we want the actualy number. Use the average
+		 * we want the actually number. Use the average
 		 * as our seed to find the std.
 		 *
 		 * The next try is:
@@ -155,7 +155,7 @@ static int benchmark_event_kthread(void *arg)
 
 		/*
 		 * We don't go to sleep, but let others run as well.
-		 * This is bascially a "yield()" to let any task that
+		 * This is basically a "yield()" to let any task that
 		 * wants to run, schedule in, but if the CPU is idle,
 		 * we'll keep burning cycles.
 		 *
@@ -178,14 +178,14 @@ static int benchmark_event_kthread(void *arg)
 int trace_benchmark_reg(void)
 {
 	if (!ok_to_run) {
-		pr_warning("trace benchmark cannot be started via kernel command line\n");
+		pr_warn("trace benchmark cannot be started via kernel command line\n");
 		return -EBUSY;
 	}
 
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
 	if (IS_ERR(bm_event_thread)) {
-		pr_warning("trace benchmark failed to create kernel thread\n");
+		pr_warn("trace benchmark failed to create kernel thread\n");
 		return PTR_ERR(bm_event_thread);
 	}
 

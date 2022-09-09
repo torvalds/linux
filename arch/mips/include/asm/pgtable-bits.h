@@ -52,6 +52,12 @@ enum pgtable_bits {
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
+#if defined(CONFIG_ARCH_HAS_PTE_SPECIAL)
+	_PAGE_SPECIAL_SHIFT,
+#endif
+#if defined(CONFIG_HAVE_ARCH_SOFT_DIRTY)
+	_PAGE_SOFT_DIRTY_SHIFT,
+#endif
 };
 
 /*
@@ -78,9 +84,15 @@ enum pgtable_bits {
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
+#if defined(CONFIG_ARCH_HAS_PTE_SPECIAL)
+	_PAGE_SPECIAL_SHIFT,
+#endif
+#if defined(CONFIG_HAVE_ARCH_SOFT_DIRTY)
+	_PAGE_SOFT_DIRTY_SHIFT,
+#endif
 };
 
-#elif defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#elif defined(CONFIG_CPU_R3K_TLB)
 
 /* Page table bits used for r3k systems */
 enum pgtable_bits {
@@ -90,6 +102,12 @@ enum pgtable_bits {
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
+#if defined(CONFIG_ARCH_HAS_PTE_SPECIAL)
+	_PAGE_SPECIAL_SHIFT,
+#endif
+#if defined(CONFIG_HAVE_ARCH_SOFT_DIRTY)
+	_PAGE_SOFT_DIRTY_SHIFT,
+#endif
 
 	/* Used by TLB hardware (placed in EntryLo) */
 	_PAGE_GLOBAL_SHIFT = 8,
@@ -110,10 +128,15 @@ enum pgtable_bits {
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
-#if defined(CONFIG_64BIT) && defined(CONFIG_MIPS_HUGE_TLB_SUPPORT)
+#if defined(CONFIG_MIPS_HUGE_TLB_SUPPORT)
 	_PAGE_HUGE_SHIFT,
 #endif
-
+#if defined(CONFIG_ARCH_HAS_PTE_SPECIAL)
+	_PAGE_SPECIAL_SHIFT,
+#endif
+#if defined(CONFIG_HAVE_ARCH_SOFT_DIRTY)
+	_PAGE_SOFT_DIRTY_SHIFT,
+#endif
 	/* Used by TLB hardware (placed in EntryLo*) */
 #if defined(CONFIG_CPU_HAS_RIXI)
 	_PAGE_NO_EXEC_SHIFT,
@@ -132,8 +155,18 @@ enum pgtable_bits {
 #define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
 #define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
 #define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
-#if defined(CONFIG_64BIT) && defined(CONFIG_MIPS_HUGE_TLB_SUPPORT)
+#if defined(CONFIG_MIPS_HUGE_TLB_SUPPORT)
 # define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
+#endif
+#if defined(CONFIG_ARCH_HAS_PTE_SPECIAL)
+# define _PAGE_SPECIAL		(1 << _PAGE_SPECIAL_SHIFT)
+#else
+# define _PAGE_SPECIAL		0
+#endif
+#if defined(CONFIG_HAVE_ARCH_SOFT_DIRTY)
+# define _PAGE_SOFT_DIRTY	(1 << _PAGE_SOFT_DIRTY_SHIFT)
+#else
+# define _PAGE_SOFT_DIRTY	0
 #endif
 
 /* Used by TLB hardware (placed in EntryLo*) */
@@ -146,7 +179,7 @@ enum pgtable_bits {
 #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
 #define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
 #define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3K_TLB)
 # define _CACHE_UNCACHED	(1 << _CACHE_UNCACHED_SHIFT)
 # define _CACHE_MASK		_CACHE_UNCACHED
 # define _PFN_SHIFT		PAGE_SHIFT
@@ -204,7 +237,7 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 /*
  * Cache attributes
  */
-#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
+#if defined(CONFIG_CPU_R3K_TLB)
 
 #define _CACHE_CACHABLE_NONCOHERENT 0
 #define _CACHE_UNCACHED_ACCELERATED _CACHE_UNCACHED
@@ -215,18 +248,6 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
    use it for "noncoherent" spaces, too.  Shouldn't hurt. */
 
 #define _CACHE_CACHABLE_NONCOHERENT (5<<_CACHE_SHIFT)
-
-#elif defined(CONFIG_CPU_LOONGSON3)
-
-/* Using COHERENT flag for NONCOHERENT doesn't hurt. */
-
-#define _CACHE_CACHABLE_NONCOHERENT (3<<_CACHE_SHIFT)  /* LOONGSON       */
-#define _CACHE_CACHABLE_COHERENT    (3<<_CACHE_SHIFT)  /* LOONGSON-3     */
-
-#elif defined(CONFIG_MACH_INGENIC)
-
-/* Ingenic uses the WA bit to achieve write-combine memory writes */
-#define _CACHE_UNCACHED_ACCELERATED (1<<_CACHE_SHIFT)
 
 #endif
 
@@ -259,6 +280,6 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #define __WRITEABLE	(_PAGE_SILENT_WRITE | _PAGE_WRITE | _PAGE_MODIFIED)
 
 #define _PAGE_CHG_MASK	(_PAGE_ACCESSED | _PAGE_MODIFIED |	\
-			 _PFN_MASK | _CACHE_MASK)
+			 _PAGE_SOFT_DIRTY | _PFN_MASK | _CACHE_MASK)
 
 #endif /* _ASM_PGTABLE_BITS_H */

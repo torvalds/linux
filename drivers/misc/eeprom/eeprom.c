@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
  *                           Philip Edelbrock <phil@netroedge.com>
  * Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (C) 2003 IBM Corp.
  * Copyright (C) 2004 Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -85,7 +76,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(kobj_to_dev(kobj));
+	struct i2c_client *client = kobj_to_i2c_client(kobj);
 	struct eeprom_data *data = i2c_get_clientdata(client);
 	u8 slice;
 
@@ -183,6 +174,10 @@ static int eeprom_probe(struct i2c_client *client,
 			data->nature = VAIO;
 		}
 	}
+
+	/* Let the users know they are using deprecated driver */
+	dev_notice(&client->dev,
+		   "eeprom driver is deprecated, please use at24 instead\n");
 
 	/* create the sysfs eeprom file */
 	return sysfs_create_bin_file(&client->dev.kobj, &eeprom_attr);

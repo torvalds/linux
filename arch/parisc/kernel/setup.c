@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Initial setup-routines for HP 9000 based hardware.
  *
@@ -9,21 +10,6 @@
  *    Modifications copyright 2001 Ryan Bradetich <rbradetich@uswest.net>
  *
  *    Initial PA-RISC Version: 04-23-1999 by Helge Deller
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -40,6 +26,7 @@
 #include <linux/sched/clock.h>
 #include <linux/start_kernel.h>
 
+#include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/pdc.h>
@@ -61,6 +48,7 @@ struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
 void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
+	char *p;
 
 	/* Collect stuff passed in from the boot loader */
 
@@ -69,8 +57,18 @@ void __init setup_cmdline(char **cmdline_p)
 		/* called from hpux boot loader */
 		boot_command_line[0] = '\0';
 	} else {
-		strlcpy(boot_command_line, (char *)__va(boot_args[1]),
+		strscpy(boot_command_line, (char *)__va(boot_args[1]),
 			COMMAND_LINE_SIZE);
+
+	/* autodetect console type (if not done by palo yet) */
+	p = boot_command_line;
+	if (!str_has_prefix(p, "console=") && !strstr(p, " console=")) {
+		strlcat(p, " console=", COMMAND_LINE_SIZE);
+		if (PAGE0->mem_cons.cl_class == CL_DUPLEX)
+			strlcat(p, "ttyS0", COMMAND_LINE_SIZE);
+		else
+			strlcat(p, "tty0", COMMAND_LINE_SIZE);
+	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 		if (boot_args[2] != 0) /* did palo pass us a ramdisk? */
@@ -81,7 +79,7 @@ void __init setup_cmdline(char **cmdline_p)
 #endif
 	}
 
-	strcpy(command_line, boot_command_line);
+	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 }
 
@@ -162,10 +160,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_PA11
 	dma_ops_init();
-#endif
-
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
 #endif
 
 	clear_sched_clock_stable();
@@ -285,7 +279,7 @@ static int __init parisc_init_resources(void)
 	result = request_resource(&iomem_resource, &local_broadcast);
 	if (result < 0) {
 		printk(KERN_ERR 
-		       "%s: failed to claim %saddress space!\n", 
+		       "%s: failed to claim %s address space!\n",
 		       __FILE__, local_broadcast.name);
 		return result;
 	}
@@ -342,6 +336,12 @@ static int __init parisc_init(void)
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
+	/* Don't serialize TLB flushes if we run on one CPU only. */
+	if (num_online_cpus() == 1)
+		pa_serialize_tlb_flushes = 0;
+#endif
+
 	apply_alternatives_all();
 	parisc_setup_cache_timing();
 
@@ -395,6 +395,9 @@ void __init start_parisc(void)
 
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
+
+	/* check QEMU/SeaBIOS marker in PAGE0 */
+	running_on_qemu = (memcmp(&PAGE0->pad0, "SeaBIOS", 8) == 0);
 
 	cpunum = smp_processor_id();
 

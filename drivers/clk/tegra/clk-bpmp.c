@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2016 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2016-2020 NVIDIA Corporation
  */
 
 #include <linux/clk-provider.h>
@@ -167,17 +164,20 @@ static unsigned long tegra_bpmp_clk_recalc_rate(struct clk_hw *hw,
 	return response.rate;
 }
 
-static long tegra_bpmp_clk_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *parent_rate)
+static int tegra_bpmp_clk_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *rate_req)
 {
 	struct tegra_bpmp_clk *clk = to_tegra_bpmp_clk(hw);
 	struct cmd_clk_round_rate_response response;
 	struct cmd_clk_round_rate_request request;
 	struct tegra_bpmp_clk_message msg;
+	unsigned long rate;
 	int err;
 
+	rate = min(max(rate_req->rate, rate_req->min_rate), rate_req->max_rate);
+
 	memset(&request, 0, sizeof(request));
-	request.rate = rate;
+	request.rate = min_t(u64, rate, S64_MAX);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.cmd = CMD_CLK_ROUND_RATE;
@@ -191,7 +191,9 @@ static long tegra_bpmp_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (err < 0)
 		return err;
 
-	return response.rate;
+	rate_req->rate = (unsigned long)response.rate;
+
+	return 0;
 }
 
 static int tegra_bpmp_clk_set_parent(struct clk_hw *hw, u8 index)
@@ -259,7 +261,7 @@ static int tegra_bpmp_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct tegra_bpmp_clk_message msg;
 
 	memset(&request, 0, sizeof(request));
-	request.rate = rate;
+	request.rate = min_t(u64, rate, S64_MAX);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.cmd = CMD_CLK_SET_RATE;
@@ -293,7 +295,7 @@ static const struct clk_ops tegra_bpmp_clk_rate_ops = {
 	.unprepare = tegra_bpmp_clk_unprepare,
 	.is_prepared = tegra_bpmp_clk_is_prepared,
 	.recalc_rate = tegra_bpmp_clk_recalc_rate,
-	.round_rate = tegra_bpmp_clk_round_rate,
+	.determine_rate = tegra_bpmp_clk_determine_rate,
 	.set_rate = tegra_bpmp_clk_set_rate,
 };
 
@@ -302,7 +304,7 @@ static const struct clk_ops tegra_bpmp_clk_mux_rate_ops = {
 	.unprepare = tegra_bpmp_clk_unprepare,
 	.is_prepared = tegra_bpmp_clk_is_prepared,
 	.recalc_rate = tegra_bpmp_clk_recalc_rate,
-	.round_rate = tegra_bpmp_clk_round_rate,
+	.determine_rate = tegra_bpmp_clk_determine_rate,
 	.set_parent = tegra_bpmp_clk_set_parent,
 	.get_parent = tegra_bpmp_clk_get_parent,
 	.set_rate = tegra_bpmp_clk_set_rate,
@@ -451,15 +453,29 @@ static int tegra_bpmp_probe_clocks(struct tegra_bpmp *bpmp,
 	return count;
 }
 
+static unsigned int
+tegra_bpmp_clk_id_to_index(const struct tegra_bpmp_clk_info *clocks,
+			   unsigned int num_clocks, unsigned int id)
+{
+	unsigned int i;
+
+	for (i = 0; i < num_clocks; i++)
+		if (clocks[i].id == id)
+			return i;
+
+	return UINT_MAX;
+}
+
 static const struct tegra_bpmp_clk_info *
 tegra_bpmp_clk_find(const struct tegra_bpmp_clk_info *clocks,
 		    unsigned int num_clocks, unsigned int id)
 {
 	unsigned int i;
 
-	for (i = 0; i < num_clocks; i++)
-		if (clocks[i].id == id)
-			return &clocks[i];
+	i = tegra_bpmp_clk_id_to_index(clocks, num_clocks, id);
+
+	if (i < num_clocks)
+		return &clocks[i];
 
 	return NULL;
 }
@@ -542,31 +558,57 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 	return clk;
 }
 
+static void tegra_bpmp_register_clocks_one(struct tegra_bpmp *bpmp,
+					   struct tegra_bpmp_clk_info *infos,
+					   unsigned int i,
+					   unsigned int count)
+{
+	unsigned int j;
+	struct tegra_bpmp_clk_info *info;
+	struct tegra_bpmp_clk *clk;
+
+	if (bpmp->clocks[i]) {
+		/* already registered */
+		return;
+	}
+
+	info = &infos[i];
+	for (j = 0; j < info->num_parents; ++j) {
+		unsigned int p_id = info->parents[j];
+		unsigned int p_i = tegra_bpmp_clk_id_to_index(infos, count,
+							      p_id);
+		if (p_i < count)
+			tegra_bpmp_register_clocks_one(bpmp, infos, p_i, count);
+	}
+
+	clk = tegra_bpmp_clk_register(bpmp, info, infos, count);
+	if (IS_ERR(clk)) {
+		dev_err(bpmp->dev,
+			"failed to register clock %u (%s): %ld\n",
+			info->id, info->name, PTR_ERR(clk));
+		/* intentionally store the error pointer to
+		 * bpmp->clocks[i] to avoid re-attempting the
+		 * registration later
+		 */
+	}
+
+	bpmp->clocks[i] = clk;
+}
+
 static int tegra_bpmp_register_clocks(struct tegra_bpmp *bpmp,
 				      struct tegra_bpmp_clk_info *infos,
 				      unsigned int count)
 {
-	struct tegra_bpmp_clk *clk;
 	unsigned int i;
 
 	bpmp->num_clocks = count;
 
-	bpmp->clocks = devm_kcalloc(bpmp->dev, count, sizeof(clk), GFP_KERNEL);
+	bpmp->clocks = devm_kcalloc(bpmp->dev, count, sizeof(struct tegra_bpmp_clk), GFP_KERNEL);
 	if (!bpmp->clocks)
 		return -ENOMEM;
 
 	for (i = 0; i < count; i++) {
-		struct tegra_bpmp_clk_info *info = &infos[i];
-
-		clk = tegra_bpmp_clk_register(bpmp, info, infos, count);
-		if (IS_ERR(clk)) {
-			dev_err(bpmp->dev,
-				"failed to register clock %u (%s): %ld\n",
-				info->id, info->name, PTR_ERR(clk));
-			continue;
-		}
-
-		bpmp->clocks[i] = clk;
+		tegra_bpmp_register_clocks_one(bpmp, infos, i, count);
 	}
 
 	return 0;

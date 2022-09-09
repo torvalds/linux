@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; see the file COPYING. If not, write to the Free Software
- * Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Test OOB read and write on MTD device.
  *
@@ -518,7 +506,6 @@ static int __init mtd_oobtest_init(void)
 	err = mtd_write_oob(mtd, addr0, &ops);
 	if (err) {
 		pr_info("error occurred as expected\n");
-		err = 0;
 	} else {
 		pr_err("error: can write past end of OOB\n");
 		errcnt += 1;
@@ -541,7 +528,6 @@ static int __init mtd_oobtest_init(void)
 
 	if (err) {
 		pr_info("error occurred as expected\n");
-		err = 0;
 	} else {
 		pr_err("error: can read past end of OOB\n");
 		errcnt += 1;
@@ -565,7 +551,6 @@ static int __init mtd_oobtest_init(void)
 		err = mtd_write_oob(mtd, mtd->size - mtd->writesize, &ops);
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: wrote past end of device\n");
 			errcnt += 1;
@@ -588,7 +573,6 @@ static int __init mtd_oobtest_init(void)
 
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: read past end of device\n");
 			errcnt += 1;
@@ -612,7 +596,6 @@ static int __init mtd_oobtest_init(void)
 		err = mtd_write_oob(mtd, mtd->size - mtd->writesize, &ops);
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: wrote past end of device\n");
 			errcnt += 1;
@@ -635,7 +618,6 @@ static int __init mtd_oobtest_init(void)
 
 		if (err) {
 			pr_info("error occurred as expected\n");
-			err = 0;
 		} else {
 			pr_err("error: read past end of device\n");
 			errcnt += 1;
@@ -713,6 +695,7 @@ static int __init mtd_oobtest_init(void)
 			       (long long)addr);
 			errcnt += 1;
 			if (errcnt > 1000) {
+				err = -EINVAL;
 				pr_err("error: too many errors\n");
 				goto out;
 			}

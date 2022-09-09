@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * clk-si5351.c: Silicon Laboratories Si5351A/B/C I2C Clock Generator
+ * clk-si5351.c: Skyworks / Silicon Labs Si5351A/B/C I2C Clock Generator
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Rabeeh Khoury <rabeeh@solid-run.com>
  *
  * References:
  * [1] "Si5351A/B/C Data Sheet"
- *     http://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
- * [2] "Manually Generating an Si5351 Register Map"
- *     http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
+ *     https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/data-sheets/Si5351-B.pdf
+ * [2] "AN619: Manually Generating an Si5351 Register Map"
+ *     https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN619.pdf
  */
 
 #include <linux/module.h>
@@ -906,6 +902,10 @@ static int _si5351_clkout_set_disable_state(
 static void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num)
 {
 	u8 val = si5351_reg_read(drvdata, SI5351_CLK0_CTRL + num);
+	u8 mask = val & SI5351_CLK_PLL_SELECT ? SI5351_PLL_RESET_B :
+						       SI5351_PLL_RESET_A;
+	unsigned int v;
+	int err;
 
 	switch (val & SI5351_CLK_INPUT_MASK) {
 	case SI5351_CLK_INPUT_XTAL:
@@ -913,9 +913,12 @@ static void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num
 		return;  /* pll not used, no need to reset */
 	}
 
-	si5351_reg_write(drvdata, SI5351_PLL_RESET,
-			 val & SI5351_CLK_PLL_SELECT ? SI5351_PLL_RESET_B :
-						       SI5351_PLL_RESET_A);
+	si5351_reg_write(drvdata, SI5351_PLL_RESET, mask);
+
+	err = regmap_read_poll_timeout(drvdata->regmap, SI5351_PLL_RESET, v,
+				 !(v & mask), 0, 20000);
+	if (err < 0)
+		dev_err(&drvdata->client->dev, "Reset bit didn't clear\n");
 
 	dev_dbg(&drvdata->client->dev, "%s - %s: pll = %d\n",
 		__func__, clk_hw_get_name(&drvdata->clkout[num].hw),
@@ -1364,9 +1367,18 @@ si53351_of_clk_get(struct of_phandle_args *clkspec, void *data)
 }
 #endif /* CONFIG_OF */
 
-static int si5351_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static const struct i2c_device_id si5351_i2c_ids[] = {
+	{ "si5351a", SI5351_VARIANT_A },
+	{ "si5351a-msop", SI5351_VARIANT_A3 },
+	{ "si5351b", SI5351_VARIANT_B },
+	{ "si5351c", SI5351_VARIANT_C },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, si5351_i2c_ids);
+
+static int si5351_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_match_id(si5351_i2c_ids, client);
 	enum si5351_variant variant = (enum si5351_variant)id->driver_data;
 	struct si5351_platform_data *pdata;
 	struct si5351_driver_data *drvdata;
@@ -1646,21 +1658,12 @@ static int si5351_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id si5351_i2c_ids[] = {
-	{ "si5351a", SI5351_VARIANT_A },
-	{ "si5351a-msop", SI5351_VARIANT_A3 },
-	{ "si5351b", SI5351_VARIANT_B },
-	{ "si5351c", SI5351_VARIANT_C },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, si5351_i2c_ids);
-
 static struct i2c_driver si5351_driver = {
 	.driver = {
 		.name = "si5351",
 		.of_match_table = of_match_ptr(si5351_dt_ids),
 	},
-	.probe = si5351_i2c_probe,
+	.probe_new = si5351_i2c_probe,
 	.remove = si5351_i2c_remove,
 	.id_table = si5351_i2c_ids,
 };

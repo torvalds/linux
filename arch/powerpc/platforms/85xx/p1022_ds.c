@@ -18,6 +18,7 @@
 
 #include <linux/fsl/guts.h>
 #include <linux/pci.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <asm/div64.h>
 #include <asm/mpic.h>
@@ -547,8 +548,6 @@ static void __init p1022_ds_setup_arch(void)
 }
 
 machine_arch_initcall(p1022_ds, mpc85xx_common_publish_devices);
-
-machine_arch_initcall(p1022_ds, swiotlb_setup_bus_notifier);
 
 /*
  * Called very early, device-tree isn't unflattened

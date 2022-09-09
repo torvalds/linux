@@ -14,7 +14,7 @@
 #define EX(insn,reg,addr,handler)			\
 9:	insn	reg, addr;				\
 	.section __ex_table,"a";			\
-	PTR	9b, handler;				\
+	PTR_WD	9b, handler;				\
 	.previous
 
 /*
@@ -26,12 +26,7 @@
  *	 bytes.	 There's nothing secret there.	On 64-bit accessing beyond
  *	 the maximum is a tad hairier ...
  */
-	.macro __BUILD_STRNLEN_ASM func
-LEAF(__strnlen_\func\()_asm)
-	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
-	and		v0, a0
-	bnez		v0, .Lfault\@
-
+LEAF(__strnlen_user_asm)
 	move		v0, a0
 	PTR_ADDU	a1, a0			# stop pointer
 1:
@@ -40,11 +35,14 @@ LEAF(__strnlen_\func\()_asm)
 	li		AT, 1
 #endif
 	beq		v0, a1, 1f		# limit reached?
-.ifeqs "\func", "kernel"
-	EX(lb, t0, (v0), .Lfault\@)
-.else
-	EX(lbe, t0, (v0), .Lfault\@)
-.endif
+#ifdef CONFIG_EVA
+	.set push
+	.set eva
+	EX(lbe, t0, (v0), .Lfault)
+	.set pop
+#else
+	EX(lb, t0, (v0), .Lfault)
+#endif
 	.set		noreorder
 	bnez		t0, 1b
 1:
@@ -57,28 +55,10 @@ LEAF(__strnlen_\func\()_asm)
 	.set		reorder
 	PTR_SUBU	v0, a0
 	jr		ra
-	END(__strnlen_\func\()_asm)
+	END(__strnlen_user_asm)
 
-.Lfault\@:
+.Lfault:
 	move		v0, zero
 	jr		ra
-	.endm
 
-#ifndef CONFIG_EVA
-	/* Set aliases */
-	.global __strnlen_user_asm
-	.set __strnlen_user_asm, __strnlen_kernel_asm
-EXPORT_SYMBOL(__strnlen_user_asm)
-#endif
-
-__BUILD_STRNLEN_ASM kernel
-EXPORT_SYMBOL(__strnlen_kernel_asm)
-
-#ifdef CONFIG_EVA
-
-	.set push
-	.set eva
-__BUILD_STRNLEN_ASM user
-	.set pop
-EXPORT_SYMBOL(__strnlen_user_asm)
-#endif
+	EXPORT_SYMBOL(__strnlen_user_asm)

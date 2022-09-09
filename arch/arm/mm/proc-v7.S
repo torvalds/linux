@@ -1,22 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/mm/proc-v7.S
  *
  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This is the "shell" of the ARMv7 processor support.
  */
 #include <linux/arm-smccc.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/hwcap.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/pgtable.h>
 #include <asm/memory.h>
 
 #include "proc-macros.S"
@@ -259,6 +256,20 @@ ENDPROC(cpu_pj4b_do_resume)
 
 #endif
 
+	@
+	@ Invoke the v7_invalidate_l1() function, which adheres to the AAPCS
+	@ rules, and so it may corrupt registers that we need to preserve.
+	@
+	.macro	do_invalidate_l1
+	mov	r6, r1
+	mov	r7, r2
+	mov	r10, lr
+	bl	v7_invalidate_l1		@ corrupts {r0-r3, ip, lr}
+	mov	r1, r6
+	mov	r2, r7
+	mov	lr, r10
+	.endm
+
 /*
  *	__v7_setup
  *
@@ -280,6 +291,7 @@ __v7_ca5mp_setup:
 __v7_ca9mp_setup:
 __v7_cr7mp_setup:
 __v7_cr8mp_setup:
+	do_invalidate_l1
 	mov	r10, #(1 << 0)			@ Cache/TLB ops broadcasting
 	b	1f
 __v7_ca7mp_setup:
@@ -287,13 +299,9 @@ __v7_ca12mp_setup:
 __v7_ca15mp_setup:
 __v7_b15mp_setup:
 __v7_ca17mp_setup:
+	do_invalidate_l1
 	mov	r10, #0
-1:	adr	r0, __v7_setup_stack_ptr
-	ldr	r12, [r0]
-	add	r12, r12, r0			@ the local stack
-	stmia	r12, {r1-r6, lr}		@ v7_invalidate_l1 touches r0-r6
-	bl      v7_invalidate_l1
-	ldmia	r12, {r1-r6, lr}
+1:
 #ifdef CONFIG_SMP
 	orr	r10, r10, #(1 << 6)		@ Enable SMP/nAMP mode
 	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)
@@ -392,6 +400,11 @@ __ca12_errata:
 	orr	r10, r10, #1 << 24		@ set bit #24
 	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
+#ifdef CONFIG_ARM_ERRATA_857271
+	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orr	r10, r10, #3 << 10		@ set bits #10 and #11
+	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
 	b	__errata_finish
 
 __ca17_errata:
@@ -406,6 +419,11 @@ __ca17_errata:
 	mrcle	p15, 0, r10, c15, c0, 1		@ read diagnostic register
 	orrle	r10, r10, #1 << 12		@ set bit #12
 	mcrle	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
+#ifdef CONFIG_ARM_ERRATA_857272
+	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orr	r10, r10, #3 << 10		@ set bits #10 and #11
+	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
 	b	__errata_finish
 
@@ -464,12 +482,7 @@ __v7_pj4b_setup:
 #endif /* CONFIG_CPU_PJ4B */
 
 __v7_setup:
-	adr	r0, __v7_setup_stack_ptr
-	ldr	r12, [r0]
-	add	r12, r12, r0			@ the local stack
-	stmia	r12, {r1-r6, lr}		@ v7_invalidate_l1 touches r0-r6
-	bl      v7_invalidate_l1
-	ldmia	r12, {r1-r6, lr}
+	do_invalidate_l1
 
 __v7_setup_cont:
 	and	r0, r9, #0xff000000		@ ARM?
@@ -541,16 +554,7 @@ __errata_finish:
 	orr	r0, r0, r6			@ set them
  THUMB(	orr	r0, r0, #1 << 30	)	@ Thumb exceptions
 	ret	lr				@ return to head.S:__ret
-
-	.align	2
-__v7_setup_stack_ptr:
-	.word	PHYS_RELATIVE(__v7_setup_stack, .)
 ENDPROC(__v7_setup)
-
-	.bss
-	.align	2
-__v7_setup_stack:
-	.space	4 * 7				@ 7 registers
 
 	__INITDATA
 
@@ -637,7 +641,7 @@ __v7_setup_stack:
 	string	cpu_elf_name, "v7"
 	.align
 
-	.section ".proc.info.init", #alloc
+	.section ".proc.info.init", "a"
 
 	/*
 	 * Standard v7 proc info content

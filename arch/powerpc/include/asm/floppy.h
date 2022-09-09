@@ -13,8 +13,8 @@
 
 #include <asm/machdep.h>
 
-#define fd_inb(port)		inb_p(port)
-#define fd_outb(value,port)	outb_p(value,port)
+#define fd_inb(base, reg)		inb_p((base) + (reg))
+#define fd_outb(value, base, reg)	outb_p(value, (base) + (reg))
 
 #define fd_enable_dma()         enable_dma(FLOPPY_DMA)
 #define fd_disable_dma()	 fd_ops->_disable_dma(FLOPPY_DMA)
@@ -61,21 +61,22 @@ static irqreturn_t floppy_hardint(int irq, void *dev_id)
 	st = 1;
 	for (lcount=virtual_dma_count, lptr=virtual_dma_addr;
 	     lcount; lcount--, lptr++) {
-		st=inb(virtual_dma_port+4) & 0xa0 ;
-		if (st != 0xa0)
+		st = inb(virtual_dma_port + FD_STATUS);
+		st &= STATUS_DMA | STATUS_READY;
+		if (st != (STATUS_DMA | STATUS_READY))
 			break;
 		if (virtual_dma_mode)
-			outb_p(*lptr, virtual_dma_port+5);
+			outb_p(*lptr, virtual_dma_port + FD_DATA);
 		else
-			*lptr = inb_p(virtual_dma_port+5);
+			*lptr = inb_p(virtual_dma_port + FD_DATA);
 	}
 	virtual_dma_count = lcount;
 	virtual_dma_addr = lptr;
-	st = inb(virtual_dma_port+4);
+	st = inb(virtual_dma_port + FD_STATUS);
 
-	if (st == 0x20)
+	if (st == STATUS_DMA)
 		return IRQ_HANDLED;
-	if (!(st & 0x20)) {
+	if (!(st & STATUS_DMA)) {
 		virtual_dma_residue += virtual_dma_count;
 		virtual_dma_count=0;
 		doing_vdma = 0;
@@ -133,17 +134,19 @@ static int hard_dma_setup(char *addr, unsigned long size, int mode, int io)
 	int dir;
 
 	doing_vdma = 0;
-	dir = (mode == DMA_MODE_READ) ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE;
+	dir = (mode == DMA_MODE_READ) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 	if (bus_addr 
 	    && (addr != prev_addr || size != prev_size || dir != prev_dir)) {
 		/* different from last time -- unmap prev */
-		pci_unmap_single(isa_bridge_pcidev, bus_addr, prev_size, prev_dir);
+		dma_unmap_single(&isa_bridge_pcidev->dev, bus_addr, prev_size,
+				 prev_dir);
 		bus_addr = 0;
 	}
 
 	if (!bus_addr)	/* need to map it */
-		bus_addr = pci_map_single(isa_bridge_pcidev, addr, size, dir);
+		bus_addr = dma_map_single(&isa_bridge_pcidev->dev, addr, size,
+					  dir);
 
 	/* remember this one as prev */
 	prev_addr = addr;

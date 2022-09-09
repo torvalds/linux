@@ -42,14 +42,20 @@ struct gpio_service {
 };
 
 enum gpio_result dal_gpio_service_open(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en,
-	enum gpio_mode mode,
-	struct hw_gpio_pin **ptr);
+	struct gpio *gpio);
 
 void dal_gpio_service_close(
 	struct gpio_service *service,
 	struct hw_gpio_pin **ptr);
+
+enum gpio_result dal_gpio_service_lock(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en);
+
+enum gpio_result dal_gpio_service_unlock(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en);
 
 #endif

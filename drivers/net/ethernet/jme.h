@@ -1,25 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * JMicron JMC2x0 series PCIe Ethernet Linux Device Driver
  *
  * Copyright 2008 JMicron Technology Corporation
- * http://www.jmicron.com/
+ * https://www.jmicron.com/
  * Copyright (c) 2009 - 2010 Guo-Fu Tseng <cooldavid@cooldavid.org>
  *
  * Author: Guo-Fu Tseng <cooldavid@cooldavid.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef __JME_H_INCLUDED__
@@ -392,8 +379,6 @@ struct jme_ring {
 #define DECLARE_NET_DEVICE_STATS
 
 #define DECLARE_NAPI_STRUCT struct napi_struct napi;
-#define NETIF_NAPI_SET(dev, napis, pollfn, q) \
-	netif_napi_add(dev, napis, pollfn, q);
 #define JME_NAPI_HOLDER(holder) struct napi_struct *holder
 #define JME_NAPI_WEIGHT(w) int w
 #define JME_NAPI_WEIGHT_VAL(w) w
@@ -424,7 +409,7 @@ struct jme_adapter {
 	struct tasklet_struct	rxempty_task;
 	struct tasklet_struct	rxclean_task;
 	struct tasklet_struct	txclean_task;
-	struct tasklet_struct	linkch_task;
+	struct work_struct	linkch_task;
 	struct tasklet_struct	pcc_task;
 	unsigned long		flags;
 	u32			reg_txcs;

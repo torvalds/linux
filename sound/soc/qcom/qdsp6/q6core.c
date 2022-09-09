@@ -98,13 +98,13 @@ static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 	}
 	case AVCS_CMDRSP_GET_FWK_VERSION: {
 		struct avcs_cmdrsp_get_fwk_version *fwk;
-		int bytes;
 
 		fwk = data->payload;
-		bytes = sizeof(*fwk) + fwk->num_services *
-				sizeof(fwk->svc_api_info[0]);
 
-		core->fwk_version = kmemdup(data->payload, bytes, GFP_ATOMIC);
+		core->fwk_version = kmemdup(data->payload,
+					    struct_size(fwk, svc_api_info,
+							fwk->num_services),
+					    GFP_ATOMIC);
 		if (!core->fwk_version)
 			return -ENOMEM;
 
@@ -115,13 +115,13 @@ static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 	}
 	case AVCS_GET_VERSIONS_RSP: {
 		struct avcs_cmdrsp_get_version *v;
-		int len;
 
 		v = data->payload;
 
-		len = sizeof(*v) + v->num_services * sizeof(v->svc_api_info[0]);
-
-		core->svc_version = kmemdup(data->payload, len, GFP_ATOMIC);
+		core->svc_version = kmemdup(data->payload,
+					    struct_size(v, svc_api_info,
+							v->num_services),
+					    GFP_ATOMIC);
 		if (!core->svc_version)
 			return -ENOMEM;
 
@@ -354,11 +354,13 @@ static int q6core_exit(struct apr_device *adev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id q6core_device_id[]  = {
 	{ .compatible = "qcom,q6core" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, q6core_device_id);
+#endif
 
 static struct apr_driver qcom_q6core_driver = {
 	.probe = q6core_probe,

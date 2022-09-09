@@ -12,8 +12,8 @@ typedef uint32_t	xfs_agblock_t;	/* blockno in alloc. group */
 typedef uint32_t	xfs_agino_t;	/* inode # within allocation grp */
 typedef uint32_t	xfs_extlen_t;	/* extent length in blocks */
 typedef uint32_t	xfs_agnumber_t;	/* allocation group number */
-typedef int32_t		xfs_extnum_t;	/* # of extents in a file */
-typedef int16_t		xfs_aextnum_t;	/* # extents in an attribute fork */
+typedef uint64_t	xfs_extnum_t;	/* # of extents in a file */
+typedef uint32_t	xfs_aextnum_t;	/* # extents in an attribute fork */
 typedef int64_t		xfs_fsize_t;	/* bytes in a file */
 typedef uint64_t	xfs_ufsize_t;	/* unsigned bytes in a file */
 
@@ -21,7 +21,7 @@ typedef int32_t		xfs_suminfo_t;	/* type of bitmap summary info */
 typedef uint32_t	xfs_rtword_t;	/* word type for bitmap manipulations */
 
 typedef int64_t		xfs_lsn_t;	/* log sequence number */
-typedef int32_t		xfs_tid_t;	/* transaction identifier */
+typedef int64_t		xfs_csn_t;	/* CIL sequence number */
 
 typedef uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
 typedef uint32_t	xfs_dahash_t;	/* dir/attr hash value */
@@ -33,7 +33,6 @@ typedef uint64_t	xfs_fileoff_t;	/* block number in a file */
 typedef uint64_t	xfs_filblks_t;	/* number of blocks in a file */
 
 typedef int64_t		xfs_srtblock_t;	/* signed version of xfs_rtblock_t */
-typedef int64_t		xfs_sfiloff_t;	/* signed block number in a file */
 
 /*
  * New verifiers will return the instruction address of the failing check.
@@ -58,13 +57,6 @@ typedef void *		xfs_failaddr_t;
 #define	NULLAGINO	((xfs_agino_t)-1)
 
 /*
- * Max values for extlen, extnum, aextnum.
- */
-#define	MAXEXTLEN	((xfs_extlen_t)0x001fffff)	/* 21 bits */
-#define	MAXEXTNUM	((xfs_extnum_t)0x7fffffff)	/* signed int */
-#define	MAXAEXTNUM	((xfs_aextnum_t)0x7fff)		/* signed short */
-
-/*
  * Minimum and maximum blocksize and sectorsize.
  * The blocksize upper limit is pretty much arbitrary.
  * The sectorsize upper limit is due to sizeof(sb_sectsize).
@@ -87,6 +79,11 @@ typedef void *		xfs_failaddr_t;
 #define	XFS_DATA_FORK	0
 #define	XFS_ATTR_FORK	1
 #define	XFS_COW_FORK	2
+
+#define XFS_WHICHFORK_STRINGS \
+	{ XFS_DATA_FORK, 	"data" }, \
+	{ XFS_ATTR_FORK,	"attr" }, \
+	{ XFS_COW_FORK,		"cow" }
 
 /*
  * Min numbers of data/attr fork btree root pointers.
@@ -169,24 +166,35 @@ typedef struct xfs_bmbt_irec
 	xfs_exntst_t	br_state;	/* extent state */
 } xfs_bmbt_irec_t;
 
+/* per-AG block reservation types */
+enum xfs_ag_resv_type {
+	XFS_AG_RESV_NONE = 0,
+	XFS_AG_RESV_AGFL,
+	XFS_AG_RESV_METADATA,
+	XFS_AG_RESV_RMAPBT,
+};
+
 /*
  * Type verifier functions
  */
 struct xfs_mount;
 
-xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agno);
-bool xfs_verify_agbno(struct xfs_mount *mp, xfs_agnumber_t agno,
-		xfs_agblock_t agbno);
 bool xfs_verify_fsbno(struct xfs_mount *mp, xfs_fsblock_t fsbno);
+bool xfs_verify_fsbext(struct xfs_mount *mp, xfs_fsblock_t fsbno,
+		xfs_fsblock_t len);
 
-void xfs_agino_range(struct xfs_mount *mp, xfs_agnumber_t agno,
-		xfs_agino_t *first, xfs_agino_t *last);
-bool xfs_verify_agino(struct xfs_mount *mp, xfs_agnumber_t agno,
-		xfs_agino_t agino);
 bool xfs_verify_ino(struct xfs_mount *mp, xfs_ino_t ino);
 bool xfs_internal_inum(struct xfs_mount *mp, xfs_ino_t ino);
 bool xfs_verify_dir_ino(struct xfs_mount *mp, xfs_ino_t ino);
 bool xfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
+bool xfs_verify_rtext(struct xfs_mount *mp, xfs_rtblock_t rtbno,
+		xfs_rtblock_t len);
 bool xfs_verify_icount(struct xfs_mount *mp, unsigned long long icount);
+bool xfs_verify_dablk(struct xfs_mount *mp, xfs_fileoff_t off);
+void xfs_icount_range(struct xfs_mount *mp, unsigned long long *min,
+		unsigned long long *max);
+bool xfs_verify_fileoff(struct xfs_mount *mp, xfs_fileoff_t off);
+bool xfs_verify_fileext(struct xfs_mount *mp, xfs_fileoff_t off,
+		xfs_fileoff_t len);
 
 #endif	/* __XFS_TYPES_H__ */

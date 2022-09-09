@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     mxb - v4l2 driver for the Multimedia eXtension Board
 
@@ -6,19 +7,6 @@
     Visit http://www.themm.net/~mihu/linux/saa7146/mxb.html
     for further details about this card.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -352,7 +340,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	struct tuner_setup tun_setup;
 	v4l2_std_id std = V4L2_STD_PAL_BG;
 
-	int i = 0, err = 0;
+	int i, err = 0;
 
 	/* mute audio on tea6420s */
 	tea6420_route(mxb, 6);
@@ -361,7 +349,6 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	saa7111a_call(mxb, video, s_std, std);
 
 	/* select tuner-output on saa7111a */
-	i = 0;
 	saa7111a_call(mxb, video, s_routing, SAA7115_COMPOSITE0,
 		SAA7111_FMT_CCIR, 0);
 
@@ -399,7 +386,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 
 	/* check if the saa7740 (aka 'sound arena module') is present
 	   on the mxb. if so, we must initialize it. due to lack of
-	   informations about the saa7740, the values were reverse
+	   information about the saa7740, the values were reverse
 	   engineered. */
 	msg.addr = 0x1b;
 	msg.flags = 0;
@@ -495,7 +482,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 			input_port_selection[input].hps_sync);
 
 	/* prepare switching of tea6415c and saa7111a;
-	   have a look at the 'background'-file for further informations  */
+	   have a look at the 'background'-file for further information  */
 	switch (input) {
 	case TUNER:
 		i = SAA7115_COMPOSITE0;
@@ -653,16 +640,17 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
 	DEB_D("VIDIOC_S_AUDIO %d\n", a->index);
-	if (mxb_inputs[mxb->cur_input].audioset & (1 << a->index)) {
-		if (mxb->cur_audinput != a->index) {
-			mxb->cur_audinput = a->index;
-			tea6420_route(mxb, a->index);
-			if (mxb->cur_audinput == 0)
-				mxb_update_audmode(mxb);
-		}
-		return 0;
+	if (a->index >= 32 ||
+	    !(mxb_inputs[mxb->cur_input].audioset & (1 << a->index)))
+		return -EINVAL;
+
+	if (mxb->cur_audinput != a->index) {
+		mxb->cur_audinput = a->index;
+		tea6420_route(mxb, a->index);
+		if (mxb->cur_audinput == 0)
+			mxb_update_audmode(mxb);
 	}
-	return -EINVAL;
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -694,10 +682,16 @@ static struct saa7146_ext_vv vv_data;
 static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
 {
 	struct mxb *mxb;
+	int ret;
 
 	DEB_EE("dev:%p\n", dev);
 
-	saa7146_vv_init(dev, &vv_data);
+	ret = saa7146_vv_init(dev, &vv_data);
+	if (ret) {
+		ERR("Error in saa7146_vv_init()");
+		return ret;
+	}
+
 	if (mxb_probe(dev)) {
 		saa7146_vv_release(dev);
 		return -1;
@@ -719,7 +713,7 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.vid_ops.vidioc_g_register = vidioc_g_register;
 	vv_data.vid_ops.vidioc_s_register = vidioc_s_register;
 #endif
-	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_GRABBER)) {
+	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_VIDEO)) {
 		ERR("cannot register capture v4l2 device. skipping.\n");
 		saa7146_vv_release(dev);
 		return -1;

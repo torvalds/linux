@@ -44,11 +44,14 @@
 .endm
 
 .macro MEMSWAP dst,src,buf,len
-10:	cghi	\len,bufsz
+10:	larl	%r0,purgatory_end
+	larl	%r1,stack
+	slgr	%r0,%r1
+	cgr	\len,%r0
 	jh	11f
 	lgr	%r4,\len
 	j	12f
-11:	lghi	%r4,bufsz
+11:	lgr	%r4,%r0
 
 12:	MEMCPY	\buf,\dst,%r4
 	MEMCPY	\dst,\src,%r4
@@ -62,14 +65,15 @@
 	jh	10b
 .endm
 
-.macro START_NEXT_KERNEL base
+.macro START_NEXT_KERNEL base subcode
 	lg	%r4,kernel_entry-\base(%r13)
 	lg	%r5,load_psw_mask-\base(%r13)
 	ogr	%r4,%r5
 	stg	%r4,0(%r0)
 
 	xgr	%r0,%r0
-	diag	%r0,%r0,0x308
+	lghi	%r1,\subcode
+	diag	%r0,%r1,0x308
 .endm
 
 .text
@@ -123,7 +127,7 @@ ENTRY(purgatory_start)
 	je	.start_crash_kernel
 
 	/* start normal kernel */
-	START_NEXT_KERNEL .base_crash
+	START_NEXT_KERNEL .base_crash 0
 
 .return_old_kernel:
 	lmg	%r6,%r15,gprregs-.base_crash(%r13)
@@ -134,12 +138,18 @@ ENTRY(purgatory_start)
 
 .start_crash_kernel:
 	/* Location of purgatory_start in crash memory */
+	larl	%r0,.base_crash
+	larl	%r1,purgatory_start
+	slgr	%r0,%r1
 	lgr	%r8,%r13
-	aghi	%r8,-(.base_crash-purgatory_start)
+	sgr	%r8,%r0
 
 	/* Destination for this code i.e. end of memory to be swapped. */
+	larl	%r0,purgatory_end
+	larl	%r1,purgatory_start
+	slgr	%r0,%r1
 	lg	%r9,crash_size-.base_crash(%r13)
-	aghi	%r9,-(purgatory_end-purgatory_start)
+	sgr	%r9,%r0
 
 	/* Destination in crash memory, i.e. same as r9 but in crash memory. */
 	lg	%r10,crash_start-.base_crash(%r13)
@@ -148,15 +158,19 @@ ENTRY(purgatory_start)
 	/* Buffer location (in crash memory) and size. As the purgatory is
 	 * behind the point of no return it can re-use the stack as buffer.
 	 */
-	lghi	%r11,bufsz
+	larl	%r11,purgatory_end
 	larl	%r12,stack
+	slgr	%r11,%r12
 
 	MEMCPY	%r12,%r9,%r11	/* dst	-> (crash) buf */
 	MEMCPY	%r9,%r8,%r11	/* self -> dst */
 
 	/* Jump to new location. */
 	lgr	%r7,%r9
-	aghi	%r7,.jump_to_dst-purgatory_start
+	larl	%r0,.jump_to_dst
+	larl	%r1,purgatory_start
+	slgr	%r0,%r1
+	agr	%r7,%r0
 	br	%r7
 
 .jump_to_dst:
@@ -168,7 +182,10 @@ ENTRY(purgatory_start)
 
 	/* Load new buffer location after jump */
 	larl	%r7,stack
-	aghi	%r10,stack-purgatory_start
+	lgr	%r0,%r7
+	larl	%r1,purgatory_start
+	slgr	%r0,%r1
+	agr	%r10,%r0
 	MEMCPY	%r10,%r7,%r11	/* (new) buf -> (crash) buf */
 
 	/* Now the code is set up to run from its designated location. Start
@@ -227,7 +244,7 @@ ENTRY(purgatory_start)
 	MEMCPY	%r9,%r10,%r11
 
 	/* start crash kernel */
-	START_NEXT_KERNEL .base_dst
+	START_NEXT_KERNEL .base_dst 1
 
 
 load_psw_mask:

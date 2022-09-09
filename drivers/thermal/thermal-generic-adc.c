@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic ADC thermal driver
  *
  * Copyright (C) 2016 NVIDIA CORPORATION. All rights reserved.
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/iio/consumer.h>
 #include <linux/kernel.h>
@@ -28,6 +25,9 @@ static int gadc_thermal_adc_to_temp(struct gadc_thermal_info *gti, int val)
 {
 	int temp, temp_hi, temp_lo, adc_hi, adc_lo;
 	int i;
+
+	if (!gti->lookup_table)
+		return val;
 
 	for (i = 0; i < gti->nlookup_table; i++) {
 		if (val >= gti->lookup_table[2 * i + 1])
@@ -76,14 +76,18 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 						 struct gadc_thermal_info *gti)
 {
 	struct device_node *np = dev->of_node;
+	enum iio_chan_type chan_type;
 	int ntable;
 	int ret;
 
 	ntable = of_property_count_elems_of_size(np, "temperature-lookup-table",
 						 sizeof(u32));
-	if (ntable < 0) {
-		dev_err(dev, "Lookup table is not provided\n");
-		return ntable;
+	if (ntable <= 0) {
+		ret = iio_get_channel_type(gti->channel, &chan_type);
+		if (ret || chan_type != IIO_TEMP)
+			dev_notice(dev,
+				   "no lookup table, assuming DAC channel returns milliCelcius\n");
+		return 0;
 	}
 
 	if (ntable % 2) {
@@ -124,6 +128,14 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 	if (!gti)
 		return -ENOMEM;
 
+	gti->channel = devm_iio_channel_get(&pdev->dev, "sensor-channel");
+	if (IS_ERR(gti->channel)) {
+		ret = PTR_ERR(gti->channel);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "IIO channel not found: %d\n", ret);
+		return ret;
+	}
+
 	ret = gadc_thermal_read_linear_lookup_table(&pdev->dev, gti);
 	if (ret < 0)
 		return ret;
@@ -131,19 +143,14 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 	gti->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gti);
 
-	gti->channel = devm_iio_channel_get(&pdev->dev, "sensor-channel");
-	if (IS_ERR(gti->channel)) {
-		ret = PTR_ERR(gti->channel);
-		dev_err(&pdev->dev, "IIO channel not found: %d\n", ret);
-		return ret;
-	}
-
 	gti->tz_dev = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, gti,
 							   &gadc_thermal_ops);
 	if (IS_ERR(gti->tz_dev)) {
 		ret = PTR_ERR(gti->tz_dev);
-		dev_err(&pdev->dev, "Thermal zone sensor register failed: %d\n",
-			ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"Thermal zone sensor register failed: %d\n",
+				ret);
 		return ret;
 	}
 

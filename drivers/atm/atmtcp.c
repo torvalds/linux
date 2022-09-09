@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/atm/atmtcp.c - ATM over TCP "device" driver */
 
 /* Written 1997-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -326,7 +327,7 @@ done:
  */
 
 
-static struct atmdev_ops atmtcp_v_dev_ops = {
+static const struct atmdev_ops atmtcp_v_dev_ops = {
 	.dev_close	= atmtcp_v_dev_close,
 	.open		= atmtcp_v_open,
 	.close		= atmtcp_v_close,
@@ -432,9 +433,15 @@ static int atmtcp_remove_persistent(int itf)
 		return -EMEDIUMTYPE;
 	}
 	dev_data = PRIV(dev);
-	if (!dev_data->persist) return 0;
+	if (!dev_data->persist) {
+		atm_dev_put(dev);
+		return 0;
+	}
 	dev_data->persist = 0;
-	if (PRIV(dev)->vcc) return 0;
+	if (PRIV(dev)->vcc) {
+		atm_dev_put(dev);
+		return 0;
+	}
 	kfree(dev_data);
 	atm_dev_put(dev);
 	atm_dev_deregister(dev);

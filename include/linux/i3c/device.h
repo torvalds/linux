@@ -176,7 +176,7 @@ struct i3c_device;
 struct i3c_driver {
 	struct device_driver driver;
 	int (*probe)(struct i3c_device *dev);
-	int (*remove)(struct i3c_device *dev);
+	void (*remove)(struct i3c_device *dev);
 	const struct i3c_device_id *id_table;
 };
 
@@ -187,6 +187,10 @@ static inline struct i3c_driver *drv_to_i3cdrv(struct device_driver *drv)
 
 struct device *i3cdev_to_dev(struct i3c_device *i3cdev);
 struct i3c_device *dev_to_i3cdev(struct device *dev);
+
+const struct i3c_device_id *
+i3c_device_match_id(struct i3c_device *i3cdev,
+		    const struct i3c_device_id *id_table);
 
 static inline void i3cdev_set_drvdata(struct i3c_device *i3cdev,
 				      void *data)

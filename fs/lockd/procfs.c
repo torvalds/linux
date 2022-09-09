@@ -60,11 +60,11 @@ nlm_end_grace_read(struct file *file, char __user *buf, size_t size,
 	return simple_read_from_buffer(buf, size, pos, resp, sizeof(resp));
 }
 
-static const struct file_operations lockd_end_grace_operations = {
-	.write		= nlm_end_grace_write,
-	.read		= nlm_end_grace_read,
-	.llseek		= default_llseek,
-	.release	= simple_transaction_release,
+static const struct proc_ops lockd_end_grace_proc_ops = {
+	.proc_write	= nlm_end_grace_write,
+	.proc_read	= nlm_end_grace_read,
+	.proc_lseek	= default_llseek,
+	.proc_release	= simple_transaction_release,
 };
 
 int __init
@@ -76,7 +76,7 @@ lockd_create_procfs(void)
 	if (!entry)
 		return -ENOMEM;
 	entry = proc_create("nlm_end_grace", S_IRUGO|S_IWUSR, entry,
-				 &lockd_end_grace_operations);
+			    &lockd_end_grace_proc_ops);
 	if (!entry) {
 		remove_proc_entry("fs/lockd", NULL);
 		return -ENOMEM;

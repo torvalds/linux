@@ -109,7 +109,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	struct nvkm_device *device = bar->base.subdev.device;
 	static struct lock_class_key bar1_lock;
 	static struct lock_class_key bar2_lock;
-	u64 start, limit;
+	u64 start, limit, size;
 	int ret;
 
 	ret = nvkm_gpuobj_new(device, 0x20000, 0, false, NULL, &bar->mem);
@@ -127,7 +127,10 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 
 	/* BAR2 */
 	start = 0x0100000000ULL;
-	limit = start + device->func->resource_size(device, 3);
+	size = device->func->resource_size(device, 3);
+	if (!size)
+		return -ENOMEM;
+	limit = start + size;
 
 	ret = nvkm_vmm_new(device, start, limit-- - start, NULL, 0,
 			   &bar2_lock, "bar2", &bar->bar2_vmm);
@@ -164,10 +167,15 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 
 	/* BAR1 */
 	start = 0x0000000000ULL;
-	limit = start + device->func->resource_size(device, 1);
+	size = device->func->resource_size(device, 1);
+	if (!size)
+		return -ENOMEM;
+	limit = start + size;
 
 	ret = nvkm_vmm_new(device, start, limit-- - start, NULL, 0,
 			   &bar1_lock, "bar1", &bar->bar1_vmm);
+	if (ret)
+		return ret;
 
 	atomic_inc(&bar->bar1_vmm->engref[NVKM_SUBDEV_BAR]);
 	bar->bar1_vmm->debug = bar->base.subdev.debug;
@@ -212,12 +220,12 @@ nv50_bar_dtor(struct nvkm_bar *base)
 
 int
 nv50_bar_new_(const struct nvkm_bar_func *func, struct nvkm_device *device,
-	      int index, u32 pgd_addr, struct nvkm_bar **pbar)
+	      enum nvkm_subdev_type type, int inst, u32 pgd_addr, struct nvkm_bar **pbar)
 {
 	struct nv50_bar *bar;
 	if (!(bar = kzalloc(sizeof(*bar), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_bar_ctor(func, device, index, &bar->base);
+	nvkm_bar_ctor(func, device, type, inst, &bar->base);
 	bar->pgd_addr = pgd_addr;
 	*pbar = &bar->base;
 	return 0;
@@ -240,7 +248,8 @@ nv50_bar_func = {
 };
 
 int
-nv50_bar_new(struct nvkm_device *device, int index, struct nvkm_bar **pbar)
+nv50_bar_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_bar **pbar)
 {
-	return nv50_bar_new_(&nv50_bar_func, device, index, 0x1400, pbar);
+	return nv50_bar_new_(&nv50_bar_func, device, type, inst, 0x1400, pbar);
 }

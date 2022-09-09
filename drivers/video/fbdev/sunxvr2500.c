@@ -63,7 +63,7 @@ static int s3d_setcolreg(unsigned regno,
 	return 0;
 }
 
-static struct fb_ops s3d_ops = {
+static const struct fb_ops s3d_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= s3d_setcolreg,
 	.fb_fillrect		= cfb_fillrect,
@@ -84,7 +84,7 @@ static int s3d_set_fbinfo(struct s3d_info *sp)
 	info->pseudo_palette = sp->pseudo_palette;
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, "s3d", sizeof(info->fix.id));
+	strscpy(info->fix.id, "s3d", sizeof(info->fix.id));
         info->fix.smem_start = sp->fb_base_phys;
         info->fix.smem_len = sp->fb_size;
         info->fix.type = FB_TYPE_PACKED_PIXELS;
@@ -132,7 +132,6 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct s3d_info), &pdev->dev);
 	if (!info) {
-		printk(KERN_ERR "s3d: Cannot allocate fb_info\n");
 		err = -ENOMEM;
 		goto err_disable;
 	}

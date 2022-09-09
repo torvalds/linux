@@ -1,6 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/bitmap.h>
-#include "cpumap.h"
+#include <linux/kernel.h>
+#include <linux/zalloc.h>
+#include <perf/cpumap.h>
+#include <internal/cpumap.h>
+#include "debug.h"
+#include "env.h"
 #include "mem2node.h"
 #include "tests.h"
 
@@ -17,27 +23,28 @@ static struct node {
 
 static unsigned long *get_bitmap(const char *str, int nbits)
 {
-	struct cpu_map *map = cpu_map__new(str);
+	struct perf_cpu_map *map = perf_cpu_map__new(str);
 	unsigned long *bm = NULL;
-	int i;
 
-	bm = bitmap_alloc(nbits);
+	bm = bitmap_zalloc(nbits);
 
 	if (map && bm) {
-		for (i = 0; i < map->nr; i++) {
-			set_bit(map->map[i], bm);
-		}
+		struct perf_cpu cpu;
+		int i;
+
+		perf_cpu_map__for_each_cpu(cpu, i, map)
+			set_bit(cpu.cpu, bm);
 	}
 
 	if (map)
-		cpu_map__put(map);
+		perf_cpu_map__put(map);
 	else
 		free(bm);
 
 	return bm && map ? bm : NULL;
 }
 
-int test__mem2node(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__mem2node(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
 	struct mem2node map;
 	struct memory_node nodes[3];
@@ -66,8 +73,10 @@ int test__mem2node(struct test *t __maybe_unused, int subtest __maybe_unused)
 	T("failed: mem2node__node", -1 == mem2node__node(&map, 0x1050));
 
 	for (i = 0; i < ARRAY_SIZE(nodes); i++)
-		free(nodes[i].set);
+		zfree(&nodes[i].set);
 
 	mem2node__exit(&map);
 	return 0;
 }
+
+DEFINE_SUITE("mem2node", mem2node);

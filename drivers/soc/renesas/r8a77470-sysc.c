@@ -5,7 +5,6 @@
  * Copyright (C) 2018 Renesas Electronics Corp.
  */
 
-#include <linux/bug.h>
 #include <linux/kernel.h>
 
 #include <dt-bindings/power/r8a77470-sysc.h>

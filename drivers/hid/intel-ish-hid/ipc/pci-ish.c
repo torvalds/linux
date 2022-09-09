@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCI glue for ISHTP provider device (ISH) driver
  *
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -22,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
+#include <linux/suspend.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #define CREATE_TRACE_POINTS
@@ -40,6 +34,16 @@ static const struct pci_device_id ish_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CNL_H_DEVICE_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ICL_MOBILE_DEVICE_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, SPT_H_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CML_LP_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, CMP_H_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, EHL_Ax_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, TGL_LP_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, TGL_H_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ADL_S_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ADL_P_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ADL_N_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, RPL_S_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MTL_P_DEVICE_ID)},
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, ish_pci_tbl);
@@ -104,6 +108,52 @@ static const struct pci_device_id ish_invalid_pci_ids[] = {
 	{}
 };
 
+static inline bool ish_should_enter_d0i3(struct pci_dev *pdev)
+{
+	return !pm_suspend_via_firmware() || pdev->device == CHV_DEVICE_ID;
+}
+
+static inline bool ish_should_leave_d0i3(struct pci_dev *pdev)
+{
+	return !pm_resume_via_firmware() || pdev->device == CHV_DEVICE_ID;
+}
+
+static int enable_gpe(struct device *dev)
+{
+#ifdef CONFIG_ACPI
+	acpi_status acpi_sts;
+	struct acpi_device *adev;
+	struct acpi_device_wakeup *wakeup;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev) {
+		dev_err(dev, "get acpi handle failed\n");
+		return -ENODEV;
+	}
+	wakeup = &adev->wakeup;
+
+	acpi_sts = acpi_enable_gpe(wakeup->gpe_device, wakeup->gpe_number);
+	if (ACPI_FAILURE(acpi_sts)) {
+		dev_err(dev, "enable ose_gpe failed\n");
+		return -EIO;
+	}
+
+	return 0;
+#else
+	return -ENODEV;
+#endif
+}
+
+static void enable_pme_wake(struct pci_dev *pdev)
+{
+	if ((pci_pme_capable(pdev, PCI_D0) ||
+	     pci_pme_capable(pdev, PCI_D3hot) ||
+	     pci_pme_capable(pdev, PCI_D3cold)) && !enable_gpe(&pdev->dev)) {
+		pci_pme_active(pdev, true);
+		dev_dbg(&pdev->dev, "ish ipc driver pme wake enabled\n");
+	}
+}
+
 /**
  * ish_probe() - PCI driver probe callback
  * @pdev:	pci device
@@ -154,7 +204,6 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* mapping IO device memory */
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
 	ishtp->pdev = pdev;
-	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
 
 	/* request and enable interrupt */
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
@@ -172,6 +221,10 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	init_waitqueue_head(&ishtp->suspend_wait);
 	init_waitqueue_head(&ishtp->resume_wait);
+
+	/* Enable PME for EHL */
+	if (pdev->device == EHL_Ax_DEVICE_ID)
+		enable_pme_wake(pdev);
 
 	ret = ish_init(ishtp);
 	if (ret)
@@ -212,34 +265,36 @@ static void __maybe_unused ish_resume_handler(struct work_struct *work)
 {
 	struct pci_dev *pdev = to_pci_dev(ish_resume_device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
-	uint32_t fwsts;
-	int ret;
+	uint32_t fwsts = dev->ops->get_fw_status(dev);
 
-	/* Get ISH FW status */
-	fwsts = IPC_GET_ISH_FWSTS(dev->ops->get_fw_status(dev));
+	if (ish_should_leave_d0i3(pdev) && !dev->suspend_flag
+			&& IPC_IS_ISH_ILUP(fwsts)) {
+		if (device_may_wakeup(&pdev->dev))
+			disable_irq_wake(pdev->irq);
 
-	/*
-	 * If currently, in ISH FW, sensor app is loaded or beyond that,
-	 * it means ISH isn't powered off, in this case, send a resume message.
-	 */
-	if (fwsts >= FWSTS_SENSOR_APP_LOADED) {
+		ish_set_host_ready(dev);
+
 		ishtp_send_resume(dev);
 
 		/* Waiting to get resume response */
 		if (dev->resume_flag)
-			ret = wait_event_interruptible_timeout(dev->resume_wait,
+			wait_event_interruptible_timeout(dev->resume_wait,
 				!dev->resume_flag,
 				msecs_to_jiffies(WAIT_FOR_RESUME_ACK_MS));
-	}
 
-	/*
-	 * If in ISH FW, sensor app isn't loaded yet, or no resume response.
-	 * That means this platform is not S0ix compatible, or something is
-	 * wrong with ISH FW. So on resume, full reboot of ISH processor will
-	 * happen, so need to go through init sequence again.
-	 */
-	if (dev->resume_flag)
+		/*
+		 * If the flag is not cleared, something is wrong with ISH FW.
+		 * So on resume, need to go through init sequence again.
+		 */
+		if (dev->resume_flag)
+			ish_init(dev);
+	} else {
+		/*
+		 * Resume from the D3, full reboot of ISH processor will happen,
+		 * so need to go through init sequence again.
+		 */
 		ish_init(dev);
+	}
 }
 
 /**
@@ -255,23 +310,47 @@ static int __maybe_unused ish_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
 
-	enable_irq_wake(pdev->irq);
-	/*
-	 * If previous suspend hasn't been asnwered then ISH is likely dead,
-	 * don't attempt nested notification
-	 */
-	if (dev->suspend_flag)
-		return	0;
+	if (ish_should_enter_d0i3(pdev)) {
+		/*
+		 * If previous suspend hasn't been asnwered then ISH is likely
+		 * dead, don't attempt nested notification
+		 */
+		if (dev->suspend_flag)
+			return	0;
 
-	dev->resume_flag = 0;
-	dev->suspend_flag = 1;
-	ishtp_send_suspend(dev);
+		dev->resume_flag = 0;
+		dev->suspend_flag = 1;
+		ishtp_send_suspend(dev);
 
-	/* 25 ms should be enough for live ISH to flush all IPC buf */
-	if (dev->suspend_flag)
-		wait_event_interruptible_timeout(dev->suspend_wait,
-						 !dev->suspend_flag,
-						  msecs_to_jiffies(25));
+		/* 25 ms should be enough for live ISH to flush all IPC buf */
+		if (dev->suspend_flag)
+			wait_event_interruptible_timeout(dev->suspend_wait,
+					!dev->suspend_flag,
+					msecs_to_jiffies(25));
+
+		if (dev->suspend_flag) {
+			/*
+			 * It looks like FW halt, clear the DMA bit, and put
+			 * ISH into D3, and FW would reset on resume.
+			 */
+			ish_disable_dma(dev);
+		} else {
+			/*
+			 * Save state so PCI core will keep the device at D0,
+			 * the ISH would enter D0i3
+			 */
+			pci_save_state(pdev);
+
+			if (device_may_wakeup(&pdev->dev))
+				enable_irq_wake(pdev->irq);
+		}
+	} else {
+		/*
+		 * Clear the DMA bit before putting ISH into D3,
+		 * or ISH FW would reset automatically.
+		 */
+		ish_disable_dma(dev);
+	}
 
 	return 0;
 }
@@ -290,10 +369,16 @@ static int __maybe_unused ish_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
 
+	/* add this to finish power flow for EHL */
+	if (dev->pdev->device == EHL_Ax_DEVICE_ID) {
+		pci_set_power_state(pdev, PCI_D0);
+		enable_pme_wake(pdev);
+		dev_dbg(dev->devc, "set power state to D0 for ehl\n");
+	}
+
 	ish_resume_device = device;
 	dev->resume_flag = 1;
 
-	disable_irq_wake(pdev->irq);
 	schedule_work(&resume_work);
 
 	return 0;

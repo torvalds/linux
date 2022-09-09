@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_TRIDENT_H
 #define __SOUND_TRIDENT_H
 
@@ -5,22 +6,6 @@
  *  audio@tridentmicro.com
  *  Fri Feb 19 15:55:28 MST 1999
  *  Definitions for Trident 4DWave DX/NX chips
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <sound/pcm.h>
@@ -266,10 +251,9 @@ struct snd_trident_memblk_arg {
 struct snd_trident_tlb {
 	__le32 *entries;		/* 16k-aligned TLB table */
 	dma_addr_t entries_dmaaddr;	/* 16k-aligned PCI address to TLB table */
-	unsigned long * shadow_entries;	/* shadow entries with virtual addresses */
-	struct snd_dma_buffer buffer;
+	struct snd_dma_buffer *buffer;
 	struct snd_util_memhdr * memhdr;	/* page allocation list */
-	struct snd_dma_buffer silent_page;
+	struct snd_dma_buffer *silent_page;
 };
 
 struct snd_trident_voice {
@@ -416,8 +400,7 @@ int snd_trident_create(struct snd_card *card,
 		       struct pci_dev *pci,
 		       int pcm_streams,
 		       int pcm_spdif_device,
-		       int max_wavetable_size,
-		       struct snd_trident ** rtrident);
+		       int max_wavetable_size);
 int snd_trident_create_gameport(struct snd_trident *trident);
 
 int snd_trident_pcm(struct snd_trident *trident, int device);

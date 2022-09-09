@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2002 - 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *  Copyright (C) 2004        John Steele Scott <toojays@toojays.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * TODO: Need a big cleanup here. Basically, we need to have different
  * cpufreq_driver structures for the different type of HW instead of the
  * current mess. We also need to better deal with the detection of the
  * type of machine.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -28,7 +24,7 @@
 #include <linux/device.h>
 #include <linux/hardirq.h>
 #include <linux/of_device.h>
-#include <asm/prom.h>
+
 #include <asm/machdep.h>
 #include <asm/irq.h>
 #include <asm/pmac_feature.h>
@@ -376,7 +372,8 @@ static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
 
 static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	return cpufreq_generic_init(policy, pmac_cpu_freqs, transition_latency);
+	cpufreq_generic_init(policy, pmac_cpu_freqs, transition_latency);
+	return 0;
 }
 
 static u32 read_gpio(struct device_node *np)
@@ -442,8 +439,7 @@ static struct cpufreq_driver pmac_cpufreq_driver = {
 	.init		= pmac_cpufreq_cpu_init,
 	.suspend	= pmac_cpufreq_suspend,
 	.resume		= pmac_cpufreq_resume,
-	.flags		= CPUFREQ_PM_NO_WARN |
-			  CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
+	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.attr		= cpufreq_generic_attr,
 	.name		= "powermac",
 };
@@ -473,6 +469,10 @@ static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 		frequency_gpio = read_gpio(freq_gpio_np);
 	if (slew_done_gpio_np)
 		slew_done_gpio = read_gpio(slew_done_gpio_np);
+
+	of_node_put(volt_gpio_np);
+	of_node_put(freq_gpio_np);
+	of_node_put(slew_done_gpio_np);
 
 	/* If we use the frequency GPIOs, calculate the min/max speeds based
 	 * on the bus frequencies
@@ -552,6 +552,7 @@ static int pmac_cpufreq_init_7447A(struct device_node *cpunode)
 	volt_gpio_np = of_find_node_by_name(NULL, "cpu-vcore-select");
 	if (volt_gpio_np)
 		voltage_gpio = read_gpio(volt_gpio_np);
+	of_node_put(volt_gpio_np);
 	if (!voltage_gpio){
 		pr_err("missing cpu-vcore-select gpio\n");
 		return 1;
@@ -588,6 +589,7 @@ static int pmac_cpufreq_init_750FX(struct device_node *cpunode)
 	if (volt_gpio_np)
 		voltage_gpio = read_gpio(volt_gpio_np);
 
+	of_node_put(volt_gpio_np);
 	pvr = mfspr(SPRN_PVR);
 	has_cpu_l2lve = !((pvr & 0xf00) == 0x100);
 

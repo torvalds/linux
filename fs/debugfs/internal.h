@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  internal.h - declarations internal to debugfs
  *
@@ -28,5 +28,19 @@ struct debugfs_fsdata {
  * pointer gets its lowest bit set.
  */
 #define DEBUGFS_FSDATA_IS_REAL_FOPS_BIT BIT(0)
+
+/* Access BITS */
+#define DEBUGFS_ALLOW_API	BIT(0)
+#define DEBUGFS_ALLOW_MOUNT	BIT(1)
+
+#ifdef CONFIG_DEBUG_FS_ALLOW_ALL
+#define DEFAULT_DEBUGFS_ALLOW_BITS (DEBUGFS_ALLOW_MOUNT | DEBUGFS_ALLOW_API)
+#endif
+#ifdef CONFIG_DEBUG_FS_DISALLOW_MOUNT
+#define DEFAULT_DEBUGFS_ALLOW_BITS (DEBUGFS_ALLOW_API)
+#endif
+#ifdef CONFIG_DEBUG_FS_ALLOW_NONE
+#define DEFAULT_DEBUGFS_ALLOW_BITS (0)
+#endif
 
 #endif /* _DEBUGFS_INTERNAL_H_ */

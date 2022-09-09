@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: 802.11n Aggregation
+ * NXP Wireless LAN device driver: 802.11n Aggregation
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include "decl.h"
@@ -155,7 +143,7 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 int
 mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			  struct mwifiex_ra_list_tbl *pra_list,
-			  int ptrindex, unsigned long ra_list_flags)
+			  int ptrindex)
 			  __releases(&priv->wmm.ra_list_spinlock)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -168,8 +156,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	skb_src = skb_peek(&pra_list->skb_head);
 	if (!skb_src) {
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		return 0;
 	}
 
@@ -177,8 +164,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	skb_aggr = mwifiex_alloc_dma_align_buf(adapter->tx_buf_size,
 					       GFP_ATOMIC);
 	if (!skb_aggr) {
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		return -1;
 	}
 
@@ -208,17 +194,15 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		pra_list->total_pkt_count--;
 		atomic_dec(&priv->wmm.tx_pkts_queued);
 		aggr_num++;
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		mwifiex_11n_form_amsdu_pkt(skb_aggr, skb_src, &pad);
 
 		mwifiex_write_data_complete(adapter, skb_src, 0, 0);
 
-		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
+		spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 		if (!mwifiex_is_ralist_valid(priv, pra_list, ptrindex)) {
-			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-					       ra_list_flags);
+			spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 			return -1;
 		}
 
@@ -232,7 +216,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	} while (skb_src);
 
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 
 	/* Last AMSDU packet does not need padding */
 	skb_trim(skb_aggr, skb_aggr->len - pad);
@@ -265,10 +249,9 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	}
 	switch (ret) {
 	case -EBUSY:
-		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
+		spin_lock_bh(&priv->wmm.ra_list_spinlock);
 		if (!mwifiex_is_ralist_valid(priv, pra_list, ptrindex)) {
-			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-					       ra_list_flags);
+			spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 			mwifiex_write_data_complete(adapter, skb_aggr, 1, -1);
 			return -1;
 		}
@@ -286,8 +269,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		atomic_inc(&priv->wmm.tx_pkts_queued);
 
 		tx_info_aggr->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
 		break;
 	case -1:

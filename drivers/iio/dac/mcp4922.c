@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mcp4922.c
  *
@@ -5,17 +6,6 @@
  * Supports MCP4902, MCP4912, and MCP4922.
  *
  * Copyright (c) 2014 EMAC Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -27,10 +17,12 @@
 #include <linux/bitops.h>
 
 #define MCP4922_NUM_CHANNELS	2
+#define MCP4921_NUM_CHANNELS	1
 
 enum mcp4922_supported_device_ids {
 	ID_MCP4902,
 	ID_MCP4912,
+	ID_MCP4921,
 	ID_MCP4922,
 };
 
@@ -39,7 +31,7 @@ struct mcp4922_state {
 	unsigned int value[MCP4922_NUM_CHANNELS];
 	unsigned int vref_mv;
 	struct regulator *vref_reg;
-	u8 mosi[2] ____cacheline_aligned;
+	u8 mosi[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define MCP4922_CHAN(chan, bits) {			\
@@ -115,9 +107,10 @@ static int mcp4922_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static const struct iio_chan_spec mcp4922_channels[3][MCP4922_NUM_CHANNELS] = {
+static const struct iio_chan_spec mcp4922_channels[4][MCP4922_NUM_CHANNELS] = {
 	[ID_MCP4902] = { MCP4922_CHAN(0, 8),	MCP4922_CHAN(1, 8) },
 	[ID_MCP4912] = { MCP4922_CHAN(0, 10),	MCP4922_CHAN(1, 10) },
+	[ID_MCP4921] = { MCP4922_CHAN(0, 12),	{} },
 	[ID_MCP4922] = { MCP4922_CHAN(0, 12),	MCP4922_CHAN(1, 12) },
 };
 
@@ -140,10 +133,9 @@ static int mcp4922_probe(struct spi_device *spi)
 	state = iio_priv(indio_dev);
 	state->spi = spi;
 	state->vref_reg = devm_regulator_get(&spi->dev, "vref");
-	if (IS_ERR(state->vref_reg)) {
-		dev_err(&spi->dev, "Vref regulator not specified\n");
-		return PTR_ERR(state->vref_reg);
-	}
+	if (IS_ERR(state->vref_reg))
+		return dev_err_probe(&spi->dev, PTR_ERR(state->vref_reg),
+				     "Vref regulator not specified\n");
 
 	ret = regulator_enable(state->vref_reg);
 	if (ret) {
@@ -162,11 +154,13 @@ static int mcp4922_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, indio_dev);
 	id = spi_get_device_id(spi);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &mcp4922_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mcp4922_channels[id->driver_data];
-	indio_dev->num_channels = MCP4922_NUM_CHANNELS;
+	if (id->driver_data == ID_MCP4921)
+		indio_dev->num_channels = MCP4921_NUM_CHANNELS;
+	else
+		indio_dev->num_channels = MCP4922_NUM_CHANNELS;
 	indio_dev->name = id->name;
 
 	ret = iio_device_register(indio_dev);
@@ -184,7 +178,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int mcp4922_remove(struct spi_device *spi)
+static void mcp4922_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct mcp4922_state *state;
@@ -192,13 +186,12 @@ static int mcp4922_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	state = iio_priv(indio_dev);
 	regulator_disable(state->vref_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id mcp4922_id[] = {
 	{"mcp4902", ID_MCP4902},
 	{"mcp4912", ID_MCP4912},
+	{"mcp4921", ID_MCP4921},
 	{"mcp4922", ID_MCP4922},
 	{}
 };

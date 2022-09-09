@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2013-2016, Intel Corporation. All rights reserved.
+ */
 #ifndef _LINUX_MEI_CL_BUS_H
 #define _LINUX_MEI_CL_BUS_H
 
@@ -55,6 +58,8 @@ struct mei_cl_device {
 	void *priv_data;
 };
 
+#define to_mei_cl_device(d) container_of(d, struct mei_cl_device, dev)
+
 struct mei_cl_driver {
 	struct device_driver driver;
 	const char *name;
@@ -63,7 +68,7 @@ struct mei_cl_driver {
 
 	int (*probe)(struct mei_cl_device *cldev,
 		     const struct mei_cl_device_id *id);
-	int (*remove)(struct mei_cl_device *cldev);
+	void (*remove)(struct mei_cl_device *cldev);
 };
 
 int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,
@@ -86,10 +91,17 @@ void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
 		      mei_cldev_driver_register,\
 		      mei_cldev_driver_unregister)
 
-ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length);
+ssize_t mei_cldev_send(struct mei_cl_device *cldev, const u8 *buf,
+		       size_t length);
 ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
 ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
 				size_t length);
+ssize_t mei_cldev_send_vtag(struct mei_cl_device *cldev, const u8 *buf,
+			    size_t length, u8 vtag);
+ssize_t mei_cldev_recv_vtag(struct mei_cl_device *cldev, u8 *buf, size_t length,
+			    u8 *vtag);
+ssize_t mei_cldev_recv_nonblock_vtag(struct mei_cl_device *cldev, u8 *buf,
+				     size_t length, u8 *vtag);
 
 int mei_cldev_register_rx_cb(struct mei_cl_device *cldev, mei_cldev_cb_t rx_cb);
 int mei_cldev_register_notif_cb(struct mei_cl_device *cldev,
@@ -103,6 +115,9 @@ void mei_cldev_set_drvdata(struct mei_cl_device *cldev, void *data);
 
 int mei_cldev_enable(struct mei_cl_device *cldev);
 int mei_cldev_disable(struct mei_cl_device *cldev);
-bool mei_cldev_enabled(struct mei_cl_device *cldev);
+bool mei_cldev_enabled(const struct mei_cl_device *cldev);
+
+void *mei_cldev_dma_map(struct mei_cl_device *cldev, u8 buffer_id, size_t size);
+int mei_cldev_dma_unmap(struct mei_cl_device *cldev);
 
 #endif /* _LINUX_MEI_CL_BUS_H */

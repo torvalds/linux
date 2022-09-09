@@ -4,6 +4,7 @@ Required properties:
  - compatible: must be one of:
 	- "aspeed,ast2400-wdt"
 	- "aspeed,ast2500-wdt"
+	- "aspeed,ast2600-wdt"
 
  - reg: physical base address of the controller and length of memory mapped
    region
@@ -19,7 +20,7 @@ Optional properties:
    This is useful in situations where another watchdog engine on chip is
    to perform the reset.
 
-   If 'aspeed,reset-type=' is not specfied the default is to enable system
+   If 'aspeed,reset-type=' is not specified the default is to enable system
    reset.
 
    Reset types:

@@ -680,26 +680,6 @@ test_pvid()
 	log_test "VXLAN: flood after vlan re-add"
 }
 
-vxlan_ping_test()
-{
-	local ping_dev=$1; shift
-	local ping_dip=$1; shift
-	local ping_args=$1; shift
-	local capture_dev=$1; shift
-	local capture_dir=$1; shift
-	local capture_pref=$1; shift
-	local expect=$1; shift
-
-	local t0=$(tc_rule_stats_get $capture_dev $capture_pref $capture_dir)
-	ping_do $ping_dev $ping_dip "$ping_args"
-	local t1=$(tc_rule_stats_get $capture_dev $capture_pref $capture_dir)
-	local delta=$((t1 - t0))
-
-	# Tolerate a couple stray extra packets.
-	((expect <= delta && delta <= expect + 2))
-	check_err $? "$capture_dev: Expected to capture $expect packets, got $delta."
-}
-
 __test_learning()
 {
 	local -a expects=(0 0 0 0 0)

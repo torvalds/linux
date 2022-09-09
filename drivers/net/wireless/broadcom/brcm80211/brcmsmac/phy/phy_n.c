@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -17759,7 +17748,7 @@ static void wlc_phy_txpwrctrl_pwr_setup_nphy(struct brcms_phy *pi)
 			num = 8 *
 			      (16 * b0[tbl_id - 26] + b1[tbl_id - 26] * idx);
 			den = 32768 + a1[tbl_id - 26] * idx;
-			pwr_est = max(((4 * num + den / 2) / den), -8);
+			pwr_est = max(DIV_ROUND_CLOSEST(4 * num, den), -8);
 			if (NREV_LT(pi->pubpi.phy_rev, 3)) {
 				if (idx <=
 				    (uint) (31 - idle_tssi[tbl_id - 26] + 1))
@@ -19044,7 +19033,6 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 	u32 nphy_adj_noise_var_buf[] = { 0x3ff, 0x3ff };
 	bool isAdjustNoiseVar = false;
 	uint numTonesAdjust = 0;
-	u32 tempval = 0;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		if (pi->phyhang_avoid)
@@ -19150,9 +19138,6 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 					numTonesAdjust,
 					nphy_adj_tone_id_buf,
 					nphy_adj_noise_var_buf);
-
-				tempval = 0;
-
 			} else {
 				wlc_phy_adjust_min_noisevar_nphy(pi, 0, NULL,
 								 NULL);
@@ -20046,7 +20031,7 @@ static void wlc_phy_radio_init_2056(struct brcms_phy *pi)
 			break;
 
 		default:
-			break;
+			return;
 		}
 	}
 
@@ -21991,7 +21976,7 @@ s16 wlc_phy_tempsense_nphy(struct brcms_phy *pi)
 		u16 auxADC_rssi_ctrlL, auxADC_rssi_ctrlH;
 		s32 auxADC_Vl;
 		u16 RfctrlOverride5_save, RfctrlOverride6_save;
-		u16 RfctrlMiscReg5_save, RfctrlMiscReg6_save;
+		u16 RfctrlMiscReg5_save;
 		u16 RSSIMultCoef0QPowerDet_save;
 		u16 tempsense_Rcal;
 
@@ -22006,7 +21991,7 @@ s16 wlc_phy_tempsense_nphy(struct brcms_phy *pi)
 		RfctrlOverride5_save = read_phy_reg(pi, 0x346);
 		RfctrlOverride6_save = read_phy_reg(pi, 0x347);
 		RfctrlMiscReg5_save = read_phy_reg(pi, 0x344);
-		RfctrlMiscReg6_save = read_phy_reg(pi, 0x345);
+		read_phy_reg(pi, 0x345); /* RfctrlMiscReg6_save */
 
 		wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_AFECTRL, 1, 0x0A, 16,
 					&auxADC_Vmid_save);
@@ -22994,7 +22979,7 @@ int
 wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct d11rxhdr *rxh)
 {
 	s16 rxpwr, rxpwr0, rxpwr1;
-	s16 phyRx0_l, phyRx2_l;
+	s16 phyRx2_l;
 
 	rxpwr = 0;
 	rxpwr0 = rxh->PhyRxStatus_1 & PRXS1_nphy_PWR0_MASK;
@@ -23005,7 +22990,6 @@ wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct d11rxhdr *rxh)
 	if (rxpwr1 > 127)
 		rxpwr1 -= 256;
 
-	phyRx0_l = rxh->PhyRxStatus_0 & 0x00ff;
 	phyRx2_l = rxh->PhyRxStatus_2 & 0x00ff;
 	if (phyRx2_l > 127)
 		phyRx2_l -= 256;
@@ -23108,8 +23092,7 @@ wlc_phy_runsamples_nphy(struct brcms_phy *pi, u16 num_samps, u16 loops,
 	u16 bb_mult;
 	u8 phy_bw, sample_cmd;
 	u16 orig_RfseqCoreActv;
-	u16 lpf_bw_ctl_override3, lpf_bw_ctl_override4, lpf_bw_ctl_miscreg3,
-	    lpf_bw_ctl_miscreg4;
+	u16 lpf_bw_ctl_override3, lpf_bw_ctl_override4;
 
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, true);
@@ -23122,12 +23105,7 @@ wlc_phy_runsamples_nphy(struct brcms_phy *pi, u16 num_samps, u16 loops,
 
 		lpf_bw_ctl_override3 = read_phy_reg(pi, 0x342) & (0x1 << 7);
 		lpf_bw_ctl_override4 = read_phy_reg(pi, 0x343) & (0x1 << 7);
-		if (lpf_bw_ctl_override3 | lpf_bw_ctl_override4) {
-			lpf_bw_ctl_miscreg3 = read_phy_reg(pi, 0x340) &
-					      (0x7 << 8);
-			lpf_bw_ctl_miscreg4 = read_phy_reg(pi, 0x341) &
-					      (0x7 << 8);
-		} else {
+		if (!(lpf_bw_ctl_override3 | lpf_bw_ctl_override4)) {
 			wlc_phy_rfctrl_override_nphy_rev7(
 				pi,
 				(0x1 << 7),
@@ -23137,12 +23115,9 @@ wlc_phy_runsamples_nphy(struct brcms_phy *pi, u16 num_samps, u16 loops,
 				NPHY_REV7_RFCTRLOVERRIDE_ID1);
 
 			pi->nphy_sample_play_lpf_bw_ctl_ovr = true;
-
-			lpf_bw_ctl_miscreg3 = read_phy_reg(pi, 0x340) &
-					      (0x7 << 8);
-			lpf_bw_ctl_miscreg4 = read_phy_reg(pi, 0x341) &
-					      (0x7 << 8);
 		}
+		read_phy_reg(pi, 0x340); /* lpf_bw_ctl_miscreg3 */
+		read_phy_reg(pi, 0x341); /* lpf_bw_ctl_miscreg4 */
 	}
 
 	if ((pi->nphy_bb_mult_save & BB_MULT_VALID_MASK) == 0) {
@@ -23414,7 +23389,6 @@ wlc_phy_iqcal_gainparams_nphy(struct brcms_phy *pi, u16 core_no,
 			      struct nphy_iqcal_params *params)
 {
 	u8 k;
-	int idx;
 	u16 gain_index;
 	u8 band_idx = (CHSPEC_IS5G(pi->radio_chanspec) ? 1 : 0);
 
@@ -23447,13 +23421,10 @@ wlc_phy_iqcal_gainparams_nphy(struct brcms_phy *pi, u16 core_no,
 			      (target_gain.pga[core_no] << 4) |
 			      (target_gain.txgm[core_no] << 8));
 
-		idx = -1;
 		for (k = 0; k < NPHY_IQCAL_NUMGAINS; k++) {
 			if (tbl_iqcal_gainparams_nphy[band_idx][k][0] ==
-			    gain_index) {
-				idx = k;
+			    gain_index)
 				break;
-			}
 		}
 
 		params->txgm = tbl_iqcal_gainparams_nphy[band_idx][k][1];
@@ -24715,7 +24686,6 @@ wlc_phy_a2_nphy(struct brcms_phy *pi, struct nphy_ipa_txcalgains *txgains,
 {
 	u16 phy_a1, phy_a2, phy_a3;
 	u16 phy_a4, phy_a5;
-	bool phy_a6;
 	u8 phy_a7, m[2];
 	u32 phy_a8 = 0;
 	struct nphy_txgains phy_a9;
@@ -24724,9 +24694,6 @@ wlc_phy_a2_nphy(struct brcms_phy *pi, struct nphy_ipa_txcalgains *txgains,
 		return;
 
 	phy_a7 = (core == PHY_CORE_0) ? 1 : 0;
-
-	phy_a6 = ((cal_mode == CAL_GCTRL)
-		  || (cal_mode == CAL_SOFT)) ? true : false;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
 
@@ -25007,7 +24974,6 @@ static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
 	s32 phy_a7, phy_a8;
 	u32 phy_a9;
 	int phy_a10;
-	bool phy_a11 = false;
 	int phy_a12;
 	u8 phy_a13 = 0;
 	u8 phy_a14;
@@ -25075,8 +25041,6 @@ static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
 			if (!phy_a6 && (phy_a3 != phy_a5)) {
 				if (!phy_a3)
 					phy_a12 -= (u8) phy_a1;
-
-				phy_a11 = true;
 				break;
 			}
 
@@ -25090,8 +25054,6 @@ static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
 					phy_a12 = phy_a14;
 				else
 					phy_a12 = phy_a13;
-
-				phy_a11 = true;
 				break;
 			}
 
@@ -25121,8 +25083,6 @@ static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
 			if (!phy_a6 && (phy_a3 != phy_a5)) {
 				if (!phy_a3)
 					phy_a12 -= (u8) phy_a1;
-
-				phy_a11 = true;
 				break;
 			}
 
@@ -25136,8 +25096,6 @@ static u8 wlc_phy_a3_nphy(struct brcms_phy *pi, u8 start_gain, u8 core)
 					phy_a12 = 0;
 				else
 					phy_a12 = 127;
-
-				phy_a11 = true;
 				break;
 			}
 
@@ -27001,8 +26959,8 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(struct brcms_phy *pi, u8 rx_core,
 				     NPHY_RXCAL_TONEAMP, 0, cal_type, false);
 
 		wlc_phy_rx_iq_est_nphy(pi, est, num_samps, 32, 0);
-		i_pwr = (est[rx_core].i_pwr + num_samps / 2) / num_samps;
-		q_pwr = (est[rx_core].q_pwr + num_samps / 2) / num_samps;
+		i_pwr = DIV_ROUND_CLOSEST(est[rx_core].i_pwr, num_samps);
+		q_pwr = DIV_ROUND_CLOSEST(est[rx_core].q_pwr, num_samps);
 		curr_pwr = i_pwr + q_pwr;
 
 		switch (gainctrl_dirn) {
@@ -27684,10 +27642,10 @@ wlc_phy_cal_rxiq_nphy_rev2(struct brcms_phy *pi,
 					wlc_phy_rx_iq_est_nphy(pi, est,
 							       num_samps, 32,
 							       0);
-					i_pwr =	(est[rx_core].i_pwr +
-						 num_samps / 2) / num_samps;
-					q_pwr =	(est[rx_core].q_pwr +
-						 num_samps / 2) / num_samps;
+					i_pwr = DIV_ROUND_CLOSEST(est[rx_core].i_pwr,
+									 num_samps);
+					q_pwr = DIV_ROUND_CLOSEST(est[rx_core].q_pwr,
+									 num_samps);
 					tot_pwr[gain_pass] = i_pwr + q_pwr;
 				} else {
 

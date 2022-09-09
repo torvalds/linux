@@ -24,9 +24,9 @@
 #ifdef CONFIG_ALTIVEC
 
 #include <altivec.h>
+#include <asm/ppc-opcode.h>
 #ifdef __KERNEL__
 #include <asm/cputable.h>
-#include <asm/ppc-opcode.h>
 #include <asm/switch_to.h>
 #endif
 

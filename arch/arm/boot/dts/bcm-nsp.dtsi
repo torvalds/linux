@@ -34,9 +34,9 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm-nsp.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "brcm,nsp";
 	model = "Broadcom Northstar Plus SoC";
 	interrupt-parent = <&gic>;
@@ -77,7 +77,7 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
-	mpcore {
+	mpcore-bus@19000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x00023000>;
 		#address-cells = <1>;
@@ -122,7 +122,7 @@
 			      <0x20100 0x100>;
 		};
 
-		L2: l2-cache {
+		L2: cache-controller@22000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x22000 0x1000>;
 			cache-unified;
@@ -166,7 +166,7 @@
 		};
 	};
 
-	axi {
+	axi: axi@18000000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x0011c40c>;
 		#address-cells = <1>;
@@ -200,7 +200,7 @@
 			status = "disabled";
 		};
 
-		dma@20000 {
+		dma: dma@20000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x20000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
@@ -215,9 +215,11 @@
 			clocks = <&iprocslow>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
+			dma-coherent;
+			status = "disabled";
 		};
 
-		sdio: sdhci@21000 {
+		sdio: mmc@21000 {
 			compatible = "brcm,sdhci-iproc-cygnus";
 			reg = <0x21000 0x100>;
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
@@ -257,17 +259,17 @@
 			status = "disabled";
 		};
 
-		mailbox: mailbox@25000 {
+		mailbox: mailbox@25c00 {
 			compatible = "brcm,iproc-fa2-mbox";
-			reg = <0x25000 0x445>;
-			interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x25c00 0x400>;
+			interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
 			dma-coherent;
 		};
 
-		nand: nand@26000 {
+		nand_controller: nand-controller@26000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x026000 0x600>,
 			      <0x11b408 0x600>,
@@ -282,7 +284,7 @@
 		};
 
 		qspi: spi@27200 {
-			compatible = "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi";
+			compatible = "brcm,spi-nsp-qspi", "brcm,spi-bcm-qspi";
 			reg = <0x027200 0x184>,
 			      <0x027000 0x124>,
 			      <0x11c408 0x004>,
@@ -308,6 +310,7 @@
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		xhci: usb@29000 {
@@ -360,13 +363,49 @@
 			status = "disabled";
 		};
 
+		mdio: mdio@32000 {
+			compatible = "brcm,iproc-mdio";
+			reg = <0x32000 0x8>;
+			#size-cells = <0>;
+			#address-cells = <1>;
+		};
+
+		mdio-mux@32000 {
+			compatible = "mdio-mux-mmioreg", "mdio-mux";
+			reg = <0x32000 0x4>;
+			mux-mask = <0x200>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mdio-parent-bus = <&mdio>;
+
+			mdio_int: mdio@0 {
+				reg = <0x0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				usb3_phy: usb3-phy@10 {
+					compatible = "brcm,ns-bx-usb3-phy";
+					reg = <0x10>;
+					usb3-dmp-syscon = <&usb3_dmp>;
+					#phy-cells = <0>;
+					status = "disabled";
+				};
+			};
+
+			mdio_ext: mdio@200 {
+				reg = <0x200>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
 		rng: rng@33000 {
 			compatible = "brcm,bcm-nsp-rng";
 			reg = <0x33000 0x14>;
 		};
 
 		ccbtimer0: timer@34000 {
-			compatible = "arm,sp804";
+			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x34000 0x1000>;
 			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
@@ -375,7 +414,7 @@
 		};
 
 		ccbtimer1: timer@35000 {
-			compatible = "arm,sp804";
+			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x35000 0x1000>;
 			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
@@ -383,12 +422,12 @@
 			clock-names = "apb_pclk";
 		};
 
-		srab: srab@36000 {
+		srab: ethernet-switch@36000 {
 			compatible = "brcm,nsp-srab";
 			reg = <0x36000 0x1000>,
 			      <0x3f308 0x8>,
 			      <0x3f410 0xc>;
-			reg-names = "srab", "mux_config", "sgmii";
+			reg-names = "srab", "mux_config", "sgmii_config";
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
@@ -415,12 +454,13 @@
 					  "imp_sleep_timer_p5",
 					  "imp_sleep_timer_p7",
 					  "imp_sleep_timer_p8";
-			#address-cells = <1>;
-			#size-cells = <0>;
-
 			status = "disabled";
 
 			/* ports are defined in board DTS */
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		i2c0: i2c@38000 {
@@ -439,7 +479,7 @@
 			reg = <0x39000 0x1000>;
 			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>, <&iprocslow>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		lcpll0: lcpll0@3f100 {
@@ -494,7 +534,7 @@
 			};
 		};
 
-		sata: ahci@41000 {
+		sata: sata@41000 {
 			compatible = "brcm,bcm-nsp-ahci";
 			reg-names = "ahci", "top-ctrl";
 			reg = <0x41000 0x1000>, <0x40020 0x1c>;
@@ -517,13 +557,8 @@
 			};
 		};
 
-		usb3_phy: usb3-phy@104000 {
-			compatible = "brcm,ns-bx-usb3-phy";
-			reg = <0x104000 0x1000>,
-			      <0x032000 0x1000>;
-			reg-names = "dmp", "ccb-mii";
-			#phy-cells = <0>;
-			status = "disabled";
+		usb3_dmp: syscon@104000 {
+			reg = <0x104000 0x1000>;
 		};
 	};
 
@@ -552,7 +587,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi0>;
-		msi0: msi-controller {
+		msi0: msi {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;
@@ -589,7 +624,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi1>;
-		msi1: msi-controller {
+		msi1: msi {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;
@@ -626,7 +661,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi2>;
-		msi2: msi-controller {
+		msi2: msi {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;

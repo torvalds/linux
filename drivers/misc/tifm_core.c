@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  tifm_core.c - TI FlashMedia driver
  *
  *  Copyright (C) 2006 Alex Dubov <oakad@yahoo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/tifm.h>
@@ -91,7 +87,7 @@ static void tifm_dummy_event(struct tifm_dev *sock)
 	return;
 }
 
-static int tifm_device_remove(struct device *dev)
+static void tifm_device_remove(struct device *dev)
 {
 	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
 	struct tifm_driver *drv = container_of(dev->driver, struct tifm_driver,
@@ -105,7 +101,6 @@ static int tifm_device_remove(struct device *dev)
 	}
 
 	put_device(dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -181,8 +176,7 @@ struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
 {
 	struct tifm_adapter *fm;
 
-	fm = kzalloc(sizeof(struct tifm_adapter)
-		     + sizeof(struct tifm_dev*) * num_sockets, GFP_KERNEL);
+	fm = kzalloc(struct_size(fm, sockets, num_sockets), GFP_KERNEL);
 	if (fm) {
 		fm->dev.class = &tifm_adapter_class;
 		fm->dev.parent = dev;
@@ -298,14 +292,15 @@ EXPORT_SYMBOL(tifm_has_ms_pif);
 int tifm_map_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		int direction)
 {
-	return pci_map_sg(to_pci_dev(sock->dev.parent), sg, nents, direction);
+	return dma_map_sg(&to_pci_dev(sock->dev.parent)->dev, sg, nents,
+			  direction);
 }
 EXPORT_SYMBOL(tifm_map_sg);
 
 void tifm_unmap_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		   int direction)
 {
-	pci_unmap_sg(to_pci_dev(sock->dev.parent), sg, nents, direction);
+	dma_unmap_sg(&to_pci_dev(sock->dev.parent)->dev, sg, nents, direction);
 }
 EXPORT_SYMBOL(tifm_unmap_sg);
 

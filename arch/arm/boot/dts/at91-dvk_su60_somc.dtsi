@@ -44,7 +44,7 @@
 	status = "okay";
 
 	/* spi0.0: 4M Flash Macronix MX25R4035FM1IL0 */
-	spi-flash@0 {
+	flash@0 {
 		compatible = "mxicy,mx25u4035", "jedec,spi-nor";
 		spi-max-frequency = <33000000>;
 		reg = <0>;
@@ -62,7 +62,7 @@
 	wm8904: wm8904@1a {
 		compatible = "wlf,wm8904";
 		reg = <0x1a>;
-		clocks = <&pck2>;
+		clocks = <&pmc PMC_TYPE_SYSTEM 10>;
 		clock-names = "mclk";
 	};
 };

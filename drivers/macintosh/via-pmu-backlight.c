@@ -12,7 +12,6 @@
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <asm/backlight.h>
-#include <asm/prom.h>
 
 #define MAX_PMU_LEVEL 0xFF
 

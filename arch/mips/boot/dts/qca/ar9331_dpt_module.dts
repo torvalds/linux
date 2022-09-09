@@ -3,6 +3,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 #include "ar9331.dtsi"
 
@@ -22,8 +23,9 @@
 	leds {
 		compatible = "gpio-leds";
 
-		system {
-			label = "dpt-module:green:system";
+		led-0 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
@@ -31,10 +33,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
+		button-0 {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
@@ -75,4 +75,25 @@
 		spi-max-frequency = <104000000>;
 		reg = <0>;
 	};
+};
+
+&eth0 {
+	status = "okay";
+};
+
+&eth1 {
+	status = "okay";
+};
+
+&switch_port1 {
+	label = "lan0";
+	status = "okay";
+};
+
+&phy_port0 {
+	status = "okay";
+};
+
+&phy_port4 {
+	status = "okay";
 };

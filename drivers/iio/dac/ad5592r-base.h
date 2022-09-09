@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AD5592R / AD5593R Digital <-> Analog converters driver
  *
  * Copyright 2015-2016 Analog Devices Inc.
  * Author: Paul Cercueil <paul.cercueil@analog.com>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef __DRIVERS_IIO_DAC_AD5592R_BASE_H__
@@ -14,6 +13,8 @@
 #include <linux/cache.h>
 #include <linux/mutex.h>
 #include <linux/gpio/driver.h>
+
+#include <linux/iio/iio.h>
 
 struct device;
 struct ad5592r_state;
@@ -53,6 +54,7 @@ struct ad5592r_state {
 	struct regulator *reg;
 	struct gpio_chip gpiochip;
 	struct mutex gpio_lock;	/* Protect cached gpio_out, gpio_val, etc. */
+	struct mutex lock;
 	unsigned int num_channels;
 	const struct ad5592r_rw_ops *ops;
 	int scale_avail[2][2];
@@ -65,12 +67,12 @@ struct ad5592r_state {
 	u8 gpio_in;
 	u8 gpio_val;
 
-	__be16 spi_msg ____cacheline_aligned;
+	__be16 spi_msg __aligned(IIO_DMA_MINALIGN);
 	__be16 spi_msg_nop;
 };
 
 int ad5592r_probe(struct device *dev, const char *name,
 		const struct ad5592r_rw_ops *ops);
-int ad5592r_remove(struct device *dev);
+void ad5592r_remove(struct device *dev);
 
 #endif /* __DRIVERS_IIO_DAC_AD5592R_BASE_H__ */

@@ -503,7 +503,7 @@ static int xlgmac_map_tx_skb(struct xlgmac_channel *channel,
 	struct xlgmac_desc_data *desc_data;
 	unsigned int offset, datalen, len;
 	struct xlgmac_pkt_info *pkt_info;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned int tso, vlan;
 	dma_addr_t skb_dma;
 	unsigned int i;
@@ -634,7 +634,7 @@ err_out:
 
 void xlgmac_init_desc_ops(struct xlgmac_desc_ops *desc_ops)
 {
-	desc_ops->alloc_channles_and_rings = xlgmac_alloc_channels_and_rings;
+	desc_ops->alloc_channels_and_rings = xlgmac_alloc_channels_and_rings;
 	desc_ops->free_channels_and_rings = xlgmac_free_channels_and_rings;
 	desc_ops->map_tx_skb = xlgmac_map_tx_skb;
 	desc_ops->map_rx_buffer = xlgmac_map_rx_buffer;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* 
  * Generate definitions needed by assembly language modules.
  * This code generates raw asm output which is post-processed to extract
@@ -11,20 +12,6 @@
  *    Copyright (C) 2001 Richard Hirst <rhirst at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  *    Copyright (C) 2003 James Bottomley <jejb at parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
@@ -33,19 +20,17 @@
 #include <linux/ptrace.h>
 #include <linux/hardirq.h>
 #include <linux/kbuild.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
+#include <asm/assembly.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/pdc.h>
+#include <uapi/asm/sigcontext.h>
+#include <asm/ucontext.h>
+#include <asm/rt_sigframe.h>
 #include <linux/uaccess.h>
-
-#ifdef CONFIG_64BIT
-#define FRAME_SIZE	128
-#else
-#define FRAME_SIZE	64
-#endif
-#define FRAME_ALIGN	64
+#include "signal32.h"
 
 /* Add FRAME_SIZE to the size x and align it to y. All definitions
  * that use align_frame will include space for a frame.
@@ -54,14 +39,12 @@
 
 int main(void)
 {
-	DEFINE(TASK_THREAD_INFO, offsetof(struct task_struct, stack));
-	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
-	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
-	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, pending));
-	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
-	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
-	DEFINE(TASK_PERSONALITY, offsetof(struct task_struct, personality));
-	DEFINE(TASK_PID, offsetof(struct task_struct, pid));
+	DEFINE(TASK_TI_FLAGS, offsetof(struct task_struct, thread_info.flags));
+#ifdef CONFIG_SMP
+	DEFINE(TASK_TI_CPU, offsetof(struct task_struct, thread_info.cpu));
+#endif
+	DEFINE(TASK_STACK, offsetof(struct task_struct, stack));
+	DEFINE(TASK_PAGEFAULT_DISABLED, offsetof(struct task_struct, pagefault_disabled));
 	BLANK();
 	DEFINE(TASK_REGS, offsetof(struct task_struct, thread.regs));
 	DEFINE(TASK_PT_PSW, offsetof(struct task_struct, thread.regs.gr[ 0]));
@@ -149,10 +132,6 @@ int main(void)
 	DEFINE(TASK_PT_ISR, offsetof(struct task_struct, thread.regs.isr));
 	DEFINE(TASK_PT_IOR, offsetof(struct task_struct, thread.regs.ior));
 	BLANK();
-	DEFINE(TASK_SZ, sizeof(struct task_struct));
-	/* TASK_SZ_ALGN includes space for a stack frame. */
-	DEFINE(TASK_SZ_ALGN, align_frame(sizeof(struct task_struct), FRAME_ALIGN));
-	BLANK();
 	DEFINE(PT_PSW, offsetof(struct pt_regs, gr[ 0]));
 	DEFINE(PT_GR1, offsetof(struct pt_regs, gr[ 1]));
 	DEFINE(PT_GR2, offsetof(struct pt_regs, gr[ 2]));
@@ -237,18 +216,21 @@ int main(void)
 	DEFINE(PT_IIR, offsetof(struct pt_regs, iir));
 	DEFINE(PT_ISR, offsetof(struct pt_regs, isr));
 	DEFINE(PT_IOR, offsetof(struct pt_regs, ior));
-	DEFINE(PT_SIZE, sizeof(struct pt_regs));
 	/* PT_SZ_ALGN includes space for a stack frame. */
 	DEFINE(PT_SZ_ALGN, align_frame(sizeof(struct pt_regs), FRAME_ALIGN));
 	BLANK();
-	DEFINE(TI_TASK, offsetof(struct thread_info, task));
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
-	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
-	DEFINE(TI_SEGMENT, offsetof(struct thread_info, addr_limit));
-	DEFINE(TI_PRE_COUNT, offsetof(struct thread_info, preempt_count));
-	DEFINE(THREAD_SZ, sizeof(struct thread_info));
-	/* THREAD_SZ_ALGN includes space for a stack frame. */
-	DEFINE(THREAD_SZ_ALGN, align_frame(sizeof(struct thread_info), FRAME_ALIGN));
+	DEFINE(TI_PRE_COUNT, offsetof(struct task_struct, thread_info.preempt_count));
+	BLANK();
+	DEFINE(ASM_SIGFRAME_SIZE, PARISC_RT_SIGFRAME_SIZE);
+	DEFINE(SIGFRAME_CONTEXT_REGS, offsetof(struct rt_sigframe, uc.uc_mcontext) - PARISC_RT_SIGFRAME_SIZE);
+#ifdef CONFIG_64BIT
+	DEFINE(ASM_SIGFRAME_SIZE32, PARISC_RT_SIGFRAME_SIZE32);
+	DEFINE(SIGFRAME_CONTEXT_REGS32, offsetof(struct compat_rt_sigframe, uc.uc_mcontext) - PARISC_RT_SIGFRAME_SIZE32);
+#else
+	DEFINE(ASM_SIGFRAME_SIZE32, PARISC_RT_SIGFRAME_SIZE);
+	DEFINE(SIGFRAME_CONTEXT_REGS32, offsetof(struct rt_sigframe, uc.uc_mcontext) - PARISC_RT_SIGFRAME_SIZE);
+#endif
 	BLANK();
 	DEFINE(ICACHE_BASE, offsetof(struct pdc_cache_info, ic_base));
 	DEFINE(ICACHE_STRIDE, offsetof(struct pdc_cache_info, ic_stride));
@@ -281,7 +263,6 @@ int main(void)
 	DEFINE(ASM_BITS_PER_PGD, BITS_PER_PGD);
 	DEFINE(ASM_BITS_PER_PMD, BITS_PER_PMD);
 	DEFINE(ASM_BITS_PER_PTE, BITS_PER_PTE);
-	DEFINE(ASM_PGD_PMD_OFFSET, -(PAGE_SIZE << PGD_ORDER));
 	DEFINE(ASM_PMD_ENTRY, ((PAGE_OFFSET & PMD_MASK) >> PMD_SHIFT));
 	DEFINE(ASM_PGD_ENTRY, PAGE_OFFSET >> PGDIR_SHIFT);
 	DEFINE(ASM_PGD_ENTRY_SIZE, PGD_ENTRY_SIZE);

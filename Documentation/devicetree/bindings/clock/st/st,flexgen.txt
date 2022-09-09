@@ -64,11 +64,21 @@ Required properties:
   audio use case)
   "st,flexgen-video", "st,flexgen" (enable clock propagation on parent
 					and activate synchronous mode)
+  "st,flexgen-stih407-a0"
+  "st,flexgen-stih410-a0"
+  "st,flexgen-stih407-c0"
+  "st,flexgen-stih410-c0"
+  "st,flexgen-stih418-c0"
+  "st,flexgen-stih407-d0"
+  "st,flexgen-stih410-d0"
+  "st,flexgen-stih407-d2"
+  "st,flexgen-stih418-d2"
+  "st,flexgen-stih407-d3"
 
 - #clock-cells : from common clock binding; shall be set to 1 (multiple clock
   outputs).
 
-- clocks : must be set to the parent's phandle. it's could be output clocks of
+- clocks : must be set to the parent's phandle. it could be output clocks of
   a quadsfs or/and a pll or/and clk_sysin (up to 7 clocks)
 
 - clock-output-names : List of strings used to name the clock outputs.

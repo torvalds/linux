@@ -25,7 +25,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel ip=dhcp root=/dev/nfs rw";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -63,7 +63,7 @@
 
 &bsc {
 	ethernet@18300000 {
-		compatible = "smsc,lan9220", "smsc,lan9115";
+		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18300000 0x1000>;
 
 		phy-mode = "mii";

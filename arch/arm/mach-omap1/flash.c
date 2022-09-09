@@ -1,19 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Flash support for OMAP1
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
+#include <linux/soc/ti/omap1-io.h>
 
-#include <mach/tc.h>
+#include "tc.h"
+
 #include "flash.h"
 
-#include <mach/hardware.h>
 
 void omap1_set_vpp(struct platform_device *pdev, int enable)
 {

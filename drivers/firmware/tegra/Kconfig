@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Tegra firmware driver"
 
 config TEGRA_IVC
@@ -6,7 +7,7 @@ config TEGRA_IVC
 	help
 	  IVC (Inter-VM Communication) protocol is part of the IPC
 	  (Inter Processor Communication) framework on Tegra. It maintains the
-	  data and the different commuication channels in SysRAM or RAM and
+	  data and the different communication channels in SysRAM or RAM and
 	  keeps the content is synchronization between host CPU and remote
 	  processors.
 

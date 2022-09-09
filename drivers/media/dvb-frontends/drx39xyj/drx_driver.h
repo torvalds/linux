@@ -94,7 +94,7 @@ int drxbsp_i2c_term(void);
 * \param r_count   The number of bytes to read
 * \param r_data    The array to read the data from
 * \return int Return status.
-* \retval 0 Succes.
+* \retval 0 Success.
 * \retval -EIO Failure.
 * \retval -EINVAL Parameter 'wcount' is not zero but parameter
 *                                       'wdata' contains NULL.
@@ -986,7 +986,7 @@ struct drx_filter_info {
 * \struct struct drx_channel * \brief The set of parameters describing a single channel.
 *
 * Used by DRX_CTRL_SET_CHANNEL and DRX_CTRL_GET_CHANNEL.
-* Only certain fields need to be used for a specfic standard.
+* Only certain fields need to be used for a specific standard.
 *
 */
 struct drx_channel {
@@ -1606,7 +1606,7 @@ struct drx_version_list {
 		DRX_AUD_I2S_MATRIX_B_MONO,
 					/*< B sound only, stereo or mono     */
 		DRX_AUD_I2S_MATRIX_STEREO,
-					/*< A+B sound, transparant           */
+					/*< A+B sound, transparent           */
 		DRX_AUD_I2S_MATRIX_MONO	/*< A+B mixed to mono sum, (L+R)/2   */};
 
 /*
@@ -1870,7 +1870,7 @@ struct drx_reg_dump {
 				      /*< current power management mode      */
 
 		/* Tuner */
-		u8 tuner_port_nr;     /*< nr of I2C port to wich tuner is    */
+		u8 tuner_port_nr;     /*< nr of I2C port to which tuner is    */
 		s32 tuner_min_freq_rf;
 				      /*< minimum RF input frequency, in kHz */
 		s32 tuner_max_freq_rf;

@@ -4,9 +4,24 @@
 
 #include <linux/types.h>
 
+/*
+ * Argument for KCOV_REMOTE_ENABLE ioctl, see Documentation/dev-tools/kcov.rst
+ * and the comment before kcov_remote_start() for usage details.
+ */
+struct kcov_remote_arg {
+	__u32		trace_mode;	/* KCOV_TRACE_PC or KCOV_TRACE_CMP */
+	__u32		area_size;	/* Length of coverage buffer in words */
+	__u32		num_handles;	/* Size of handles array */
+	__aligned_u64	common_handle;
+	__aligned_u64	handles[];
+};
+
+#define KCOV_REMOTE_MAX_HANDLES		0x100
+
 #define KCOV_INIT_TRACE			_IOR('c', 1, unsigned long)
 #define KCOV_ENABLE			_IO('c', 100)
 #define KCOV_DISABLE			_IO('c', 101)
+#define KCOV_REMOTE_ENABLE		_IOW('c', 102, struct kcov_remote_arg)
 
 enum {
 	/*
@@ -31,5 +46,18 @@ enum {
 #define KCOV_CMP_CONST          (1 << 0)
 #define KCOV_CMP_SIZE(n)        ((n) << 1)
 #define KCOV_CMP_MASK           KCOV_CMP_SIZE(3)
+
+#define KCOV_SUBSYSTEM_COMMON	(0x00ull << 56)
+#define KCOV_SUBSYSTEM_USB	(0x01ull << 56)
+
+#define KCOV_SUBSYSTEM_MASK	(0xffull << 56)
+#define KCOV_INSTANCE_MASK	(0xffffffffull)
+
+static inline __u64 kcov_remote_handle(__u64 subsys, __u64 inst)
+{
+	if (subsys & ~KCOV_SUBSYSTEM_MASK || inst & ~KCOV_INSTANCE_MASK)
+		return 0;
+	return subsys | inst;
+}
 
 #endif /* _LINUX_KCOV_IOCTLS_H */

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NTFS_FS
 	tristate "NTFS file system support"
 	select NLS
@@ -17,7 +18,7 @@ config NTFS_FS
 	  the Linux 2.4 kernel series is separately available as a patch
 	  from the project web site.
 
-	  For more information see <file:Documentation/filesystems/ntfs.txt>
+	  For more information see <file:Documentation/filesystems/ntfs.rst>
 	  and <http://www.linux-ntfs.org/>.
 
 	  To compile this file system support as a module, choose M here: the
@@ -51,6 +52,7 @@ config NTFS_DEBUG
 config NTFS_RW
 	bool "NTFS write support"
 	depends on NTFS_FS
+	depends on PAGE_SIZE_LESS_THAN_64KB
 	help
 	  This enables the partial, but safe, write support in the NTFS driver.
 

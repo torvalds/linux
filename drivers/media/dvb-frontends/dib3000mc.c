@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for DiBcom DiB3000MC/P-demodulator.
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * This code is partially based on the previous dib3000mc.c .
- *
- * This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -862,7 +859,7 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 	int k;
 	u8 new_addr;
 
-	static u8 DIB3000MC_I2C_ADDRESS[] = {20,22,24,26};
+	static const u8 DIB3000MC_I2C_ADDRESS[] = { 20, 22, 24, 26 };
 
 	dmcst = kzalloc(sizeof(struct dib3000mc_state), GFP_KERNEL);
 	if (dmcst == NULL)

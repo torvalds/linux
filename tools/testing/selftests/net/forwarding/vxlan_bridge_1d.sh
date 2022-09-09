@@ -516,9 +516,9 @@ test_tos()
 	RET=0
 
 	tc filter add dev v1 egress pref 77 prot ip \
-		flower ip_tos 0x40 action pass
-	vxlan_ping_test $h1 192.0.2.3 "-Q 0x40" v1 egress 77 10
-	vxlan_ping_test $h1 192.0.2.3 "-Q 0x30" v1 egress 77 0
+		flower ip_tos 0x14 action pass
+	vxlan_ping_test $h1 192.0.2.3 "-Q 0x14" v1 egress 77 10
+	vxlan_ping_test $h1 192.0.2.3 "-Q 0x18" v1 egress 77 0
 	tc filter del dev v1 egress pref 77 prot ip
 
 	log_test "VXLAN: envelope TOS inheritance"
@@ -629,7 +629,7 @@ __test_ecn_decap()
 	RET=0
 
 	tc filter add dev $h1 ingress pref 77 prot ip \
-		flower ip_tos $decapped_tos action pass
+		flower ip_tos $decapped_tos action drop
 	sleep 1
 	vxlan_encapped_ping_test v2 v1 192.0.2.17 \
 				 $orig_inner_tos $orig_outer_tos \
@@ -657,10 +657,21 @@ test_ecn_decap()
 {
 	# In accordance with INET_ECN_decapsulate()
 	__test_ecn_decap 00 00 0x00
+	__test_ecn_decap 00 01 0x00
+	__test_ecn_decap 00 02 0x00
+	# 00 03 is tested in test_ecn_decap_error()
+	__test_ecn_decap 01 00 0x01
 	__test_ecn_decap 01 01 0x01
-	__test_ecn_decap 02 01 0x02
+	__test_ecn_decap 01 02 0x01
 	__test_ecn_decap 01 03 0x03
+	__test_ecn_decap 02 00 0x02
+	__test_ecn_decap 02 01 0x01
+	__test_ecn_decap 02 02 0x02
 	__test_ecn_decap 02 03 0x03
+	__test_ecn_decap 03 00 0x03
+	__test_ecn_decap 03 01 0x03
+	__test_ecn_decap 03 02 0x03
+	__test_ecn_decap 03 03 0x03
 	test_ecn_decap_error
 }
 

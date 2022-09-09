@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Myricom device configuration
 #
@@ -6,7 +7,7 @@ config NET_VENDOR_MYRI
 	bool "Myricom devices"
 	default y
 	depends on PCI && INET
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,7 +22,7 @@ config MYRI10GE
 	depends on PCI && INET
 	select FW_LOADER
 	select CRC32
-	---help---
+	help
 	  This driver supports Myricom Myri-10G Dual Protocol interface in
 	  Ethernet mode. If the eeprom on your board is not recent enough,
 	  you will need a newer firmware image.
@@ -36,7 +37,7 @@ config MYRI10GE_DCA
 	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on MYRI10GE && DCA && !(MYRI10GE=y && DCA=m)
-	---help---
+	help
 	  Say Y here if you want to use Direct Cache Access (DCA) in the
 	  driver.  DCA is a method for warming the CPU cache before data
 	  is used, with the intent of lessening the impact of cache misses.

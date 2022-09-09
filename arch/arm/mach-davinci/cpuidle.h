@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * TI DaVinci cpuidle platform support
  *
- * 2009 (C) Texas Instruments, Inc. http://www.ti.com/
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
+ * 2009 (C) Texas Instruments, Inc. https://www.ti.com/
  */
 #ifndef _MACH_DAVINCI_CPUIDLE_H
 #define _MACH_DAVINCI_CPUIDLE_H

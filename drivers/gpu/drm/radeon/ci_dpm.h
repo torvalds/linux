@@ -24,6 +24,7 @@
 #define __CI_DPM_H__
 
 #include "ppsmc.h"
+#include "radeon.h"
 
 #define SMU__NUM_SCLK_DPM_STATE  8
 #define SMU__NUM_MCLK_DPM_LEVELS 6

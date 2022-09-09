@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Find a use after free.
 //# Values of variables may imply that some
 //# execution paths are not possible, resulting in false positives.
@@ -5,10 +6,10 @@
 //# SCTP_DBG_OBJCNT_DEC that do not actually evaluate their argument
 ///
 // Confidence: Moderate
-// Copyright: (C) 2010-2012 Nicolas Palix.  GPLv2.
-// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2010-2012 Nicolas Palix.
+// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 
@@ -21,9 +22,9 @@ position p1;
 @@
 
 (
-* kfree@p1(E)
+ kfree@p1(E)
 |
-* kzfree@p1(E)
+ kfree_sensitive@p1(E)
 )
 
 @print expression@
@@ -65,9 +66,9 @@ position ok;
 
 while (1) { ...
 (
-* kfree@ok(E)
+ kfree@ok(E)
 |
-* kzfree@ok(E)
+ kfree_sensitive@ok(E)
 )
   ... when != break;
       when != goto l;
@@ -83,9 +84,9 @@ position free.p1!=loop.ok,p2!={print.p,sz.p};
 @@
 
 (
-* kfree@p1(E,...)
+ kfree@p1(E,...)
 |
-* kzfree@p1(E,...)
+ kfree_sensitive@p1(E,...)
 )
 ...
 (

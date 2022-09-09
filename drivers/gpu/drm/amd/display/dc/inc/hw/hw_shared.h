@@ -34,7 +34,12 @@
  * Data types shared between different Virtual HW blocks
  ******************************************************************************/
 
+#define MAX_AUDIOS 7
 #define MAX_PIPES 6
+#define MAX_DIG_LINK_ENCODERS 7
+#define MAX_DWB_PIPES	1
+#define MAX_HPO_DP2_ENCODERS	4
+#define MAX_HPO_DP2_LINK_ENCODERS	2
 
 struct gamma_curve {
 	uint32_t offset;
@@ -75,6 +80,35 @@ struct pwl_result_data {
 	uint32_t delta_red_reg;
 	uint32_t delta_green_reg;
 	uint32_t delta_blue_reg;
+};
+
+struct dc_rgb {
+	uint32_t red;
+	uint32_t green;
+	uint32_t blue;
+};
+
+struct tetrahedral_17x17x17 {
+	struct dc_rgb lut0[1229];
+	struct dc_rgb lut1[1228];
+	struct dc_rgb lut2[1228];
+	struct dc_rgb lut3[1228];
+};
+struct tetrahedral_9x9x9 {
+	struct dc_rgb lut0[183];
+	struct dc_rgb lut1[182];
+	struct dc_rgb lut2[182];
+	struct dc_rgb lut3[182];
+};
+
+struct tetrahedral_params {
+	union {
+		struct tetrahedral_17x17x17 tetrahedral_17;
+		struct tetrahedral_9x9x9 tetrahedral_9;
+	};
+	bool use_tetrahedral_9;
+	bool use_12bits;
+
 };
 
 /* arr_curve_points - regamma regions/segments specification
@@ -119,6 +153,13 @@ enum ipp_degamma_mode {
 	IPP_DEGAMMA_MODE_USER_PWL
 };
 
+enum gamcor_mode {
+	GAMCOR_MODE_BYPASS,
+	GAMCOR_MODE_RESERVED_1,
+	GAMCOR_MODE_USER_PWL,
+	GAMCOR_MODE_RESERVED_3
+};
+
 enum ipp_output_format {
 	IPP_OUTPUT_FORMAT_12_BIT_FIX,
 	IPP_OUTPUT_FORMAT_16_BIT_BYPASS,
@@ -146,12 +187,24 @@ struct out_csc_color_matrix {
 	uint16_t regval[12];
 };
 
+enum gamut_remap_select {
+	GAMUT_REMAP_BYPASS = 0,
+	GAMUT_REMAP_COEFF,
+	GAMUT_REMAP_COMA_COEFF,
+	GAMUT_REMAP_COMB_COEFF
+};
 
 enum opp_regamma {
 	OPP_REGAMMA_BYPASS = 0,
 	OPP_REGAMMA_SRGB,
 	OPP_REGAMMA_XVYCC,
 	OPP_REGAMMA_USER
+};
+
+enum optc_dsc_mode {
+	OPTC_DSC_DISABLED = 0,
+	OPTC_DSC_ENABLED_444 = 1, /* 'RGB 444' or 'Simple YCbCr 4:2:2' (4:2:2 upsampled to 4:4:4) */
+	OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED = 2 /* Native 4:2:2 or 4:2:0 */
 };
 
 struct dc_bias_and_scale {
@@ -175,7 +228,8 @@ enum test_pattern_mode {
 	TEST_PATTERN_MODE_VERTICALBARS,
 	TEST_PATTERN_MODE_HORIZONTALBARS,
 	TEST_PATTERN_MODE_SINGLERAMP_RGB,
-	TEST_PATTERN_MODE_DUALRAMP_RGB
+	TEST_PATTERN_MODE_DUALRAMP_RGB,
+	TEST_PATTERN_MODE_XR_BIAS_RGB
 };
 
 enum test_pattern_color_format {
@@ -197,7 +251,15 @@ enum controller_dp_test_pattern {
 	CONTROLLER_DP_TEST_PATTERN_RESERVED_8,
 	CONTROLLER_DP_TEST_PATTERN_RESERVED_9,
 	CONTROLLER_DP_TEST_PATTERN_RESERVED_A,
-	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA
+	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA,
+	CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR
+};
+
+enum controller_dp_color_space {
+	CONTROLLER_DP_COLOR_SPACE_RGB,
+	CONTROLLER_DP_COLOR_SPACE_YCBCR601,
+	CONTROLLER_DP_COLOR_SPACE_YCBCR709,
+	CONTROLLER_DP_COLOR_SPACE_UDEFINED
 };
 
 enum dc_lut_mode {
@@ -205,4 +267,88 @@ enum dc_lut_mode {
 	LUT_RAM_A,
 	LUT_RAM_B
 };
+
+/**
+ * speakersToChannels
+ *
+ * @brief
+ *  translate speakers to channels
+ *
+ *  FL  - Front Left
+ *  FR  - Front Right
+ *  RL  - Rear Left
+ *  RR  - Rear Right
+ *  RC  - Rear Center
+ *  FC  - Front Center
+ *  FLC - Front Left Center
+ *  FRC - Front Right Center
+ *  RLC - Rear Left Center
+ *  RRC - Rear Right Center
+ *  LFE - Low Freq Effect
+ *
+ *               FC
+ *          FLC      FRC
+ *    FL                    FR
+ *
+ *                    LFE
+ *              ()
+ *
+ *
+ *    RL                    RR
+ *          RLC      RRC
+ *               RC
+ *
+ *             ch  8   7   6   5   4   3   2   1
+ * 0b00000011      -   -   -   -   -   -   FR  FL
+ * 0b00000111      -   -   -   -   -   LFE FR  FL
+ * 0b00001011      -   -   -   -   FC  -   FR  FL
+ * 0b00001111      -   -   -   -   FC  LFE FR  FL
+ * 0b00010011      -   -   -   RC  -   -   FR  FL
+ * 0b00010111      -   -   -   RC  -   LFE FR  FL
+ * 0b00011011      -   -   -   RC  FC  -   FR  FL
+ * 0b00011111      -   -   -   RC  FC  LFE FR  FL
+ * 0b00110011      -   -   RR  RL  -   -   FR  FL
+ * 0b00110111      -   -   RR  RL  -   LFE FR  FL
+ * 0b00111011      -   -   RR  RL  FC  -   FR  FL
+ * 0b00111111      -   -   RR  RL  FC  LFE FR  FL
+ * 0b01110011      -   RC  RR  RL  -   -   FR  FL
+ * 0b01110111      -   RC  RR  RL  -   LFE FR  FL
+ * 0b01111011      -   RC  RR  RL  FC  -   FR  FL
+ * 0b01111111      -   RC  RR  RL  FC  LFE FR  FL
+ * 0b11110011      RRC RLC RR  RL  -   -   FR  FL
+ * 0b11110111      RRC RLC RR  RL  -   LFE FR  FL
+ * 0b11111011      RRC RLC RR  RL  FC  -   FR  FL
+ * 0b11111111      RRC RLC RR  RL  FC  LFE FR  FL
+ * 0b11000011      FRC FLC -   -   -   -   FR  FL
+ * 0b11000111      FRC FLC -   -   -   LFE FR  FL
+ * 0b11001011      FRC FLC -   -   FC  -   FR  FL
+ * 0b11001111      FRC FLC -   -   FC  LFE FR  FL
+ * 0b11010011      FRC FLC -   RC  -   -   FR  FL
+ * 0b11010111      FRC FLC -   RC  -   LFE FR  FL
+ * 0b11011011      FRC FLC -   RC  FC  -   FR  FL
+ * 0b11011111      FRC FLC -   RC  FC  LFE FR  FL
+ * 0b11110011      FRC FLC RR  RL  -   -   FR  FL
+ * 0b11110111      FRC FLC RR  RL  -   LFE FR  FL
+ * 0b11111011      FRC FLC RR  RL  FC  -   FR  FL
+ * 0b11111111      FRC FLC RR  RL  FC  LFE FR  FL
+ *
+ * @param
+ *  speakers - speaker information as it comes from CEA audio block
+ */
+/* translate speakers to channels */
+
+union audio_cea_channels {
+	uint8_t all;
+	struct audio_cea_channels_bits {
+		uint32_t FL:1;
+		uint32_t FR:1;
+		uint32_t LFE:1;
+		uint32_t FC:1;
+		uint32_t RL_RC:1;
+		uint32_t RR:1;
+		uint32_t RC_RLC_FLC:1;
+		uint32_t RRC_FRC:1;
+	} channels;
+};
+
 #endif /* __DAL_HW_SHARED_H__ */

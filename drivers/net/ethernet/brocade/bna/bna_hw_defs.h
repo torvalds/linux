@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Linux network driver for QLogic BR-series Converged Network Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
@@ -226,17 +218,17 @@ do {									\
 
 /* Set the coalescing timer for the given ib */
 #define bna_ib_coalescing_timer_set(_i_dbell, _cls_timer)		\
-	((_i_dbell)->doorbell_ack = BNA_DOORBELL_IB_INT_ACK((_cls_timer), 0));
+	((_i_dbell)->doorbell_ack = BNA_DOORBELL_IB_INT_ACK((_cls_timer), 0))
 
 /* Acks 'events' # of events for a given ib while disabling interrupts */
 #define bna_ib_ack_disable_irq(_i_dbell, _events)			\
-	(writel(BNA_DOORBELL_IB_INT_ACK(0, (_events)), \
-		(_i_dbell)->doorbell_addr));
+	(writel(BNA_DOORBELL_IB_INT_ACK(0, (_events)),			\
+		(_i_dbell)->doorbell_addr))
 
 /* Acks 'events' # of events for a given ib */
 #define bna_ib_ack(_i_dbell, _events)					\
-	(writel(((_i_dbell)->doorbell_ack | (_events)), \
-		(_i_dbell)->doorbell_addr));
+	(writel(((_i_dbell)->doorbell_ack | (_events)),		\
+		(_i_dbell)->doorbell_addr))
 
 #define bna_ib_start(_bna, _ib, _is_regular)				\
 {									\
@@ -267,12 +259,12 @@ do {									\
 }
 
 #define bna_txq_prod_indx_doorbell(_tcb)				\
-	(writel(BNA_DOORBELL_Q_PRD_IDX((_tcb)->producer_index), \
-		(_tcb)->q_dbell));
+	(writel(BNA_DOORBELL_Q_PRD_IDX((_tcb)->producer_index),		\
+		(_tcb)->q_dbell))
 
 #define bna_rxq_prod_indx_doorbell(_rcb)				\
-	(writel(BNA_DOORBELL_Q_PRD_IDX((_rcb)->producer_index), \
-		(_rcb)->q_dbell));
+	(writel(BNA_DOORBELL_Q_PRD_IDX((_rcb)->producer_index),		\
+		(_rcb)->q_dbell))
 
 /* TxQ, RxQ, CQ related bits, offsets, macros */
 

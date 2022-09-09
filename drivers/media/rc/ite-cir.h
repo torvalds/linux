@@ -1,36 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Driver for ITE Tech Inc. IT8712F/IT8512F CIR
  *
  * Copyright (C) 2010 Juan Jesús García de Soria <skandalfo@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 
 /* platform driver name to register */
 #define ITE_DRIVER_NAME "ite-cir"
-
-/* logging macros */
-#define ite_pr(level, text, ...) \
-	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
-#define ite_dbg(text, ...) do { \
-	if (debug) \
-		printk(KERN_DEBUG \
-			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
-} while (0)
-
-#define ite_dbg_verbose(text, ...) do {\
-	if (debug > 1) \
-		printk(KERN_DEBUG \
-			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
-} while (0)
 
 /* FIFO sizes */
 #define ITE_TX_FIFO_LEN 32
@@ -54,24 +30,6 @@ struct ite_dev_params {
 
 	/* IR pnp I/O resource number */
 	int io_rsrc_no;
-
-	/* true if the hardware supports transmission */
-	bool hw_tx_capable;
-
-	/* base sampling period, in ns */
-	u32 sample_period;
-
-	/* rx low carrier frequency, in Hz, 0 means no demodulation */
-	unsigned int rx_low_carrier_freq;
-
-	/* tx high carrier frequency, in Hz, 0 means no demodulation */
-	unsigned int rx_high_carrier_freq;
-
-	/* tx carrier frequency, in Hz */
-	unsigned int tx_carrier_freq;
-
-	/* duty cycle, 0-100 */
-	int tx_duty_cycle;
 
 	/* hw-specific operation function pointers; most of these must be
 	 * called while holding the spin lock, except for the TX FIFO length
@@ -120,22 +78,32 @@ struct ite_dev_params {
 struct ite_dev {
 	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
-	struct ir_raw_event rawir;
 
 	/* sync data */
 	spinlock_t lock;
-	bool in_use, transmitting;
+	bool transmitting;
 
 	/* transmit support */
-	int tx_fifo_allowance;
 	wait_queue_head_t tx_queue, tx_ended;
+
+	/* rx low carrier frequency, in Hz, 0 means no demodulation */
+	unsigned int rx_low_carrier_freq;
+
+	/* tx high carrier frequency, in Hz, 0 means no demodulation */
+	unsigned int rx_high_carrier_freq;
+
+	/* tx carrier frequency, in Hz */
+	unsigned int tx_carrier_freq;
+
+	/* duty cycle, 0-100 */
+	int tx_duty_cycle;
 
 	/* hardware I/O settings */
 	unsigned long cir_addr;
 	int cir_irq;
 
 	/* overridable copy of model parameters */
-	struct ite_dev_params params;
+	const struct ite_dev_params *params;
 };
 
 /* common values for all kinds of hardware */
@@ -155,8 +123,8 @@ struct ite_dev {
 #define ITE_DEFAULT_CARRIER_FREQ	38000
 
 /* convert bits to us */
-#define ITE_BITS_TO_NS(bits, sample_period) \
-((u32) ((bits) * ITE_BAUDRATE_DIVISOR * sample_period))
+#define ITE_BITS_TO_US(bits, sample_period) \
+((u32)((bits) * ITE_BAUDRATE_DIVISOR * (sample_period) / 1000))
 
 /*
  * n in RDCR produces a tolerance of +/- n * 6.25% around the center
@@ -199,7 +167,7 @@ struct ite_dev {
  * hardware data obtained from:
  *
  * IT8712F
- * Environment Control – Low Pin Count Input / Output
+ * Environment Control - Low Pin Count Input / Output
  * (EC - LPC I/O)
  * Preliminary Specification V0. 81
  */

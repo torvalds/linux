@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AD5415, AD5426, AD5429, AD5432, AD5439, AD5443, AD5449 Digital to Analog
  * Converter driver.
  *
  * Copyright 2012 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef __LINUX_PLATFORM_DATA_AD5449_H__

@@ -1,67 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
+ * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ */
 #ifndef __iwl_fw_api_rx_h__
 #define __iwl_fw_api_rx_h__
 
@@ -71,7 +13,6 @@
 #define IWL_RX_INFO_ENERGY_ANT_ABC_IDX 1
 #define IWL_RX_INFO_ENERGY_ANT_A_MSK 0x000000ff
 #define IWL_RX_INFO_ENERGY_ANT_B_MSK 0x0000ff00
-#define IWL_RX_INFO_ENERGY_ANT_C_MSK 0x00ff0000
 #define IWL_RX_INFO_ENERGY_ANT_A_POS 0
 #define IWL_RX_INFO_ENERGY_ANT_B_POS 8
 #define IWL_RX_INFO_ENERGY_ANT_C_POS 16
@@ -184,40 +125,33 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was no RXE overflow
  * @RX_MPDU_RES_STATUS_SRC_STA_FOUND: station was found
  * @RX_MPDU_RES_STATUS_KEY_VALID: key was valid
- * @RX_MPDU_RES_STATUS_KEY_PARAM_OK: key parameters were usable
  * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if not, the packet is destroyed
  * @RX_MPDU_RES_STATUS_MIC_OK: used for CCM alg only. TKIP MIC is checked
  *	in the driver.
  * @RX_MPDU_RES_STATUS_TTAK_OK: TTAK is fine
  * @RX_MPDU_RES_STATUS_MNG_FRAME_REPLAY_ERR:  valid for alg = CCM_CMAC or
- *	alg = CCM only. Checks replay attack for 11w frames. Relevant only if
- *	%RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME is set.
+ *	alg = CCM only. Checks replay attack for 11w frames.
  * @RX_MPDU_RES_STATUS_SEC_NO_ENC: this frame is not encrypted
  * @RX_MPDU_RES_STATUS_SEC_WEP_ENC: this frame is encrypted using WEP
  * @RX_MPDU_RES_STATUS_SEC_CCM_ENC: this frame is encrypted using CCM
  * @RX_MPDU_RES_STATUS_SEC_TKIP_ENC: this frame is encrypted using TKIP
  * @RX_MPDU_RES_STATUS_SEC_EXT_ENC: this frame is encrypted using extension
  *	algorithm
- * @RX_MPDU_RES_STATUS_SEC_CCM_CMAC_ENC: this frame is encrypted using CCM_CMAC
+ * @RX_MPDU_RES_STATUS_SEC_CMAC_GMAC_ENC: this frame is protected using
+ *	CMAC or GMAC
  * @RX_MPDU_RES_STATUS_SEC_ENC_ERR: this frame couldn't be decrypted
  * @RX_MPDU_RES_STATUS_SEC_ENC_MSK: bitmask of the encryption algorithm
  * @RX_MPDU_RES_STATUS_DEC_DONE: this frame has been successfully decrypted
- * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP: extended IV (set with TKIP)
- * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT: key ID comparison done
- * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
  * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
  * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
  * @RX_MPDU_RES_STATUS_STA_ID_MSK: station ID mask
  * @RX_MDPU_RES_STATUS_STA_ID_SHIFT: station ID bit shift
- * @RX_MPDU_RES_STATUS_FILTERING_MSK: filter status
- * @RX_MPDU_RES_STATUS2_FILTERING_MSK: filter status 2
  */
 enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_CRC_OK			= BIT(0),
 	RX_MPDU_RES_STATUS_OVERRUN_OK			= BIT(1),
 	RX_MPDU_RES_STATUS_SRC_STA_FOUND		= BIT(2),
 	RX_MPDU_RES_STATUS_KEY_VALID			= BIT(3),
-	RX_MPDU_RES_STATUS_KEY_PARAM_OK			= BIT(4),
 	RX_MPDU_RES_STATUS_ICV_OK			= BIT(5),
 	RX_MPDU_RES_STATUS_MIC_OK			= BIT(6),
 	RX_MPDU_RES_STATUS_TTAK_OK			= BIT(7),
@@ -227,19 +161,14 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_SEC_CCM_ENC			= (2 << 8),
 	RX_MPDU_RES_STATUS_SEC_TKIP_ENC			= (3 << 8),
 	RX_MPDU_RES_STATUS_SEC_EXT_ENC			= (4 << 8),
-	RX_MPDU_RES_STATUS_SEC_CCM_CMAC_ENC		= (6 << 8),
+	RX_MPDU_RES_STATUS_SEC_CMAC_GMAC_ENC		= (6 << 8),
 	RX_MPDU_RES_STATUS_SEC_ENC_ERR			= (7 << 8),
 	RX_MPDU_RES_STATUS_SEC_ENC_MSK			= (7 << 8),
 	RX_MPDU_RES_STATUS_DEC_DONE			= BIT(11),
-	RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP		= BIT(13),
-	RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT		= BIT(14),
-	RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME		= BIT(15),
 	RX_MPDU_RES_STATUS_CSUM_DONE			= BIT(16),
 	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
 	RX_MDPU_RES_STATUS_STA_ID_SHIFT			= 24,
 	RX_MPDU_RES_STATUS_STA_ID_MSK			= 0x1f << RX_MDPU_RES_STATUS_STA_ID_SHIFT,
-	RX_MPDU_RES_STATUS_FILTERING_MSK		= (0xc00000),
-	RX_MPDU_RES_STATUS2_FILTERING_MSK		= (0xc0000000),
 };
 
 /* 9000 series API */
@@ -263,6 +192,11 @@ enum iwl_rx_mpdu_amsdu_info {
 	IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK	= 0x7f,
 	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
+
+#define RX_MPDU_BAND_POS 6
+#define RX_MPDU_BAND_MASK 0xC0
+#define BAND_IN_RX_STATUS(_val) \
+	(((_val) & RX_MPDU_BAND_MASK) >> RX_MPDU_BAND_POS)
 
 enum iwl_rx_l3_proto_values {
 	IWL_RX_L3_TYPE_NONE,
@@ -292,10 +226,11 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_OVERRUN_OK		= BIT(1),
 	IWL_RX_MPDU_STATUS_SRC_STA_FOUND	= BIT(2),
 	IWL_RX_MPDU_STATUS_KEY_VALID		= BIT(3),
-	IWL_RX_MPDU_STATUS_KEY_PARAM_OK		= BIT(4),
 	IWL_RX_MPDU_STATUS_ICV_OK		= BIT(5),
 	IWL_RX_MPDU_STATUS_MIC_OK		= BIT(6),
 	IWL_RX_MPDU_RES_STATUS_TTAK_OK		= BIT(7),
+	/* overlayed since IWL_UCODE_TLV_API_DEPRECATE_TTAK */
+	IWL_RX_MPDU_STATUS_REPLAY_ERROR		= BIT(7),
 	IWL_RX_MPDU_STATUS_SEC_MASK		= 0x7 << 8,
 	IWL_RX_MPDU_STATUS_SEC_UNKNOWN		= IWL_RX_MPDU_STATUS_SEC_MASK,
 	IWL_RX_MPDU_STATUS_SEC_NONE		= 0x0 << 8,
@@ -305,21 +240,11 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_SEC_EXT_ENC		= 0x4 << 8,
 	IWL_RX_MPDU_STATUS_SEC_GCM		= 0x5 << 8,
 	IWL_RX_MPDU_STATUS_DECRYPTED		= BIT(11),
-	IWL_RX_MPDU_STATUS_WEP_MATCH		= BIT(12),
-	IWL_RX_MPDU_STATUS_EXT_IV_MATCH		= BIT(13),
-	IWL_RX_MPDU_STATUS_KEY_ID_MATCH		= BIT(14),
 	IWL_RX_MPDU_STATUS_ROBUST_MNG_FRAME	= BIT(15),
-};
 
-enum iwl_rx_mpdu_hash_filter {
-	IWL_RX_MPDU_HF_A1_HASH_MASK		= 0x3f,
-	IWL_RX_MPDU_HF_FILTER_STATUS_MASK	= 0xc0,
-};
+	IWL_RX_MPDU_STATUS_DUPLICATE		= BIT(22),
 
-enum iwl_rx_mpdu_sta_id_flags {
-	IWL_RX_MPDU_SIF_STA_ID_MASK		= 0x1f,
-	IWL_RX_MPDU_SIF_RRF_ABORT		= 0x20,
-	IWL_RX_MPDU_SIF_FILTER_STATUS_MASK	= 0xc0,
+	IWL_RX_MPDU_STATUS_STA_ID		= 0x1f000000,
 };
 
 #define IWL_RX_REORDER_DATA_INVALID_BAID 0x7f
@@ -337,6 +262,8 @@ enum iwl_rx_mpdu_phy_info {
 	IWL_RX_MPDU_PHY_AMPDU		= BIT(5),
 	IWL_RX_MPDU_PHY_AMPDU_TOGGLE	= BIT(6),
 	IWL_RX_MPDU_PHY_SHORT_PREAMBLE	= BIT(7),
+	/* short preamble is only for CCK, for non-CCK overridden by this */
+	IWL_RX_MPDU_PHY_NCCK_ADDTL_NTFY	= BIT(7),
 	IWL_RX_MPDU_PHY_TSF_OVERLOAD	= BIT(8),
 };
 
@@ -518,7 +445,7 @@ struct iwl_rx_mpdu_desc_v1 {
 			__le32 phy_data1;
 		};
 	};
-} __packed;
+} __packed; /* RX_MPDU_RES_START_API_S_VER_4 */
 
 /**
  * struct iwl_rx_mpdu_desc_v3 - RX MPDU descriptor
@@ -532,9 +459,9 @@ struct iwl_rx_mpdu_desc_v3 {
 		__le32 filter_match;
 
 		/**
-		 * @phy_data2: depends on info type (see @phy_data1)
+		 * @phy_data3: depends on info type (see @phy_data1)
 		 */
-		__le32 phy_data2;
+		__le32 phy_data3;
 	};
 
 	/* DW8 - carries rss_hash only when rpa_en == 1 */
@@ -545,9 +472,9 @@ struct iwl_rx_mpdu_desc_v3 {
 		__le32 rss_hash;
 
 		/**
-		 * @phy_data3: depends on info type (see @phy_data1)
+		 * @phy_data2: depends on info type (see @phy_data1)
 		 */
-		__le32 phy_data3;
+		__le32 phy_data2;
 	};
 	/* DW9 */
 	/**
@@ -559,7 +486,11 @@ struct iwl_rx_mpdu_desc_v3 {
 	/**
 	 * @raw_xsum: raw xsum value
 	 */
-	__le32 raw_xsum;
+	__be16 raw_xsum;
+	/**
+	 * @reserved_xsum: reserved high bits in the raw checksum
+	 */
+	__le16 reserved_xsum;
 	/* DW11 */
 	/**
 	 * @rate_n_flags: RX rate/flags encoding
@@ -614,7 +545,8 @@ struct iwl_rx_mpdu_desc_v3 {
 	 * @reserved: reserved
 	 */
 	__le32 reserved[2];
-} __packed; /* RX_MPDU_RES_START_API_S_VER_3 */
+} __packed; /* RX_MPDU_RES_START_API_S_VER_3,
+	       RX_MPDU_RES_START_API_S_VER_5 */
 
 /**
  * struct iwl_rx_mpdu_desc - RX MPDU descriptor
@@ -667,15 +599,8 @@ struct iwl_rx_mpdu_desc {
 	/**
 	 * @status: &enum iwl_rx_mpdu_status
 	 */
-	__le16 status;
-	/**
-	 * @hash_filter: hash filter value
-	 */
-	u8 hash_filter;
-	/**
-	 * @sta_id_flags: &enum iwl_rx_mpdu_sta_id_flags
-	 */
-	u8 sta_id_flags;
+	__le32 status;
+
 	/* DW6 */
 	/**
 	 * @reorder_data: &enum iwl_rx_mpdu_reorder_data
@@ -686,16 +611,11 @@ struct iwl_rx_mpdu_desc {
 		struct iwl_rx_mpdu_desc_v1 v1;
 		struct iwl_rx_mpdu_desc_v3 v3;
 	};
-} __packed; /* RX_MPDU_RES_START_API_S_VER_3 */
+} __packed; /* RX_MPDU_RES_START_API_S_VER_3,
+	       RX_MPDU_RES_START_API_S_VER_4,
+	       RX_MPDU_RES_START_API_S_VER_5 */
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
-
-#define IWL_CD_STTS_OPTIMIZED_POS	0
-#define IWL_CD_STTS_OPTIMIZED_MSK	0x01
-#define IWL_CD_STTS_TRANSFER_STATUS_POS	1
-#define IWL_CD_STTS_TRANSFER_STATUS_MSK	0x0E
-#define IWL_CD_STTS_WIFI_STATUS_POS	4
-#define IWL_CD_STTS_WIFI_STATUS_MSK	0xF0
 
 #define RX_NO_DATA_CHAIN_A_POS		0
 #define RX_NO_DATA_CHAIN_A_MSK		(0xff << RX_NO_DATA_CHAIN_A_POS)
@@ -723,6 +643,9 @@ struct iwl_rx_mpdu_desc {
 #define RX_NO_DATA_FRAME_TIME_POS	0
 #define RX_NO_DATA_FRAME_TIME_MSK	(0xfffff << RX_NO_DATA_FRAME_TIME_POS)
 
+#define RX_NO_DATA_RX_VEC0_HE_NSTS_MSK	0x03800000
+#define RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
+
 /**
  * struct iwl_rx_no_data - RX no data descriptor
  * @info: 7:0 frame type, 15:8 RX error type
@@ -743,70 +666,47 @@ struct iwl_rx_no_data {
 	__le32 fr_time;
 	__le32 rate;
 	__le32 phy_info[2];
-	__le32 rx_vec[3];
-} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1 */
-
-/**
- * enum iwl_completion_desc_transfer_status -  transfer status (bits 1-3)
- * @IWL_CD_STTS_UNUSED: unused
- * @IWL_CD_STTS_UNUSED_2: unused
- * @IWL_CD_STTS_END_TRANSFER: successful transfer complete.
- *	In sniffer mode, when split is used, set in last CD completion. (RX)
- * @IWL_CD_STTS_OVERFLOW: In sniffer mode, when using split - used for
- *	all CD completion. (RX)
- * @IWL_CD_STTS_ABORTED: CR abort / close flow. (RX)
- * @IWL_CD_STTS_ERROR: general error (RX)
- */
-enum iwl_completion_desc_transfer_status {
-	IWL_CD_STTS_UNUSED,
-	IWL_CD_STTS_UNUSED_2,
-	IWL_CD_STTS_END_TRANSFER,
-	IWL_CD_STTS_OVERFLOW,
-	IWL_CD_STTS_ABORTED,
-	IWL_CD_STTS_ERROR,
-};
-
-/**
- * enum iwl_completion_desc_wifi_status - wifi status (bits 4-7)
- * @IWL_CD_STTS_VALID: the packet is valid (RX)
- * @IWL_CD_STTS_FCS_ERR: frame check sequence error (RX)
- * @IWL_CD_STTS_SEC_KEY_ERR: error handling the security key of rx (RX)
- * @IWL_CD_STTS_DECRYPTION_ERR: error decrypting the frame (RX)
- * @IWL_CD_STTS_DUP: duplicate packet (RX)
- * @IWL_CD_STTS_ICV_MIC_ERR: MIC error (RX)
- * @IWL_CD_STTS_INTERNAL_SNAP_ERR: problems removing the snap (RX)
- * @IWL_CD_STTS_SEC_PORT_FAIL: security port fail (RX)
- * @IWL_CD_STTS_BA_OLD_SN: block ack received old SN (RX)
- * @IWL_CD_STTS_QOS_NULL: QoS null packet (RX)
- * @IWL_CD_STTS_MAC_HDR_ERR: MAC header conversion error (RX)
- * @IWL_CD_STTS_MAX_RETRANS: reached max number of retransmissions (TX)
- * @IWL_CD_STTS_EX_LIFETIME: exceeded lifetime (TX)
- * @IWL_CD_STTS_NOT_USED: completed but not used (RX)
- * @IWL_CD_STTS_REPLAY_ERR: pn check failed, replay error (RX)
- */
-enum iwl_completion_desc_wifi_status {
-	IWL_CD_STTS_VALID,
-	IWL_CD_STTS_FCS_ERR,
-	IWL_CD_STTS_SEC_KEY_ERR,
-	IWL_CD_STTS_DECRYPTION_ERR,
-	IWL_CD_STTS_DUP,
-	IWL_CD_STTS_ICV_MIC_ERR,
-	IWL_CD_STTS_INTERNAL_SNAP_ERR,
-	IWL_CD_STTS_SEC_PORT_FAIL,
-	IWL_CD_STTS_BA_OLD_SN,
-	IWL_CD_STTS_QOS_NULL,
-	IWL_CD_STTS_MAC_HDR_ERR,
-	IWL_CD_STTS_MAX_RETRANS,
-	IWL_CD_STTS_EX_LIFETIME,
-	IWL_CD_STTS_NOT_USED,
-	IWL_CD_STTS_REPLAY_ERR,
-};
+	__le32 rx_vec[2];
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
+	       TX_NO_DATA_NTFY_API_S_VER_2 */
 
 struct iwl_frame_release {
 	u8 baid;
 	u8 reserved;
 	__le16 nssn;
 };
+
+/**
+ * enum iwl_bar_frame_release_sta_tid - STA/TID information for BAR release
+ * @IWL_BAR_FRAME_RELEASE_TID_MASK: TID mask
+ * @IWL_BAR_FRAME_RELEASE_STA_MASK: STA mask
+ */
+enum iwl_bar_frame_release_sta_tid {
+	IWL_BAR_FRAME_RELEASE_TID_MASK = 0x0000000f,
+	IWL_BAR_FRAME_RELEASE_STA_MASK = 0x000001f0,
+};
+
+/**
+ * enum iwl_bar_frame_release_ba_info - BA information for BAR release
+ * @IWL_BAR_FRAME_RELEASE_NSSN_MASK: NSSN mask
+ * @IWL_BAR_FRAME_RELEASE_SN_MASK: SN mask (ignored by driver)
+ * @IWL_BAR_FRAME_RELEASE_BAID_MASK: BAID mask
+ */
+enum iwl_bar_frame_release_ba_info {
+	IWL_BAR_FRAME_RELEASE_NSSN_MASK	= 0x00000fff,
+	IWL_BAR_FRAME_RELEASE_SN_MASK	= 0x00fff000,
+	IWL_BAR_FRAME_RELEASE_BAID_MASK	= 0x3f000000,
+};
+
+/**
+ * struct iwl_bar_frame_release - frame release from BAR info
+ * @sta_tid: STA & TID information, see &enum iwl_bar_frame_release_sta_tid.
+ * @ba_info: BA information, see &enum iwl_bar_frame_release_ba_info.
+ */
+struct iwl_bar_frame_release {
+	__le32 sta_tid;
+	__le32 ba_info;
+} __packed; /* RX_BAR_TO_FRAME_RELEASE_API_S_VER_1 */
 
 enum iwl_rss_hash_func_en {
 	IWL_RSS_HASH_TYPE_IPV4_TCP,
@@ -838,7 +738,6 @@ struct iwl_rss_config_cmd {
 	u8 indirection_table[IWL_RSS_INDIRECTION_TABLE_SIZE];
 } __packed; /* RSS_CONFIG_CMD_API_S_VER_1 */
 
-#define IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE 128
 #define IWL_MULTI_QUEUE_SYNC_SENDER_POS 0
 #define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
 
@@ -868,34 +767,6 @@ struct iwl_rxq_sync_notification {
 	__le32 count;
 	u8 payload[];
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
-
-/**
- * enum iwl_mvm_rxq_notif_type - Internal message identifier
- *
- * @IWL_MVM_RXQ_EMPTY: empty sync notification
- * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
- */
-enum iwl_mvm_rxq_notif_type {
-	IWL_MVM_RXQ_EMPTY,
-	IWL_MVM_RXQ_NOTIF_DEL_BA,
-};
-
-/**
- * struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
- * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
- * FW is agnostic to the payload, so there are no endianity requirements.
- *
- * @type: value from &iwl_mvm_rxq_notif_type
- * @sync: ctrl path is waiting for all notifications to be received
- * @cookie: internal cookie to identify old notifications
- * @data: payload
- */
-struct iwl_mvm_internal_rxq_notif {
-	u16 type;
-	u16 sync;
-	u32 cookie;
-	u8 data[];
-} __packed;
 
 /**
  * enum iwl_mvm_pm_event - type of station PM event

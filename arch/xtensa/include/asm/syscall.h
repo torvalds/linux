@@ -14,7 +14,7 @@
 #include <asm/ptrace.h>
 #include <uapi/linux/audit.h>
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
 	return AUDIT_ARCH_XTENSA;
 }
@@ -51,7 +51,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 					    struct pt_regs *regs,
 					    int error, long val)
 {
-	regs->areg[0] = (long) error ? error : val;
+	regs->areg[2] = (long) error ? error : val;
 }
 
 #define SYSCALL_MAX_ARGS 6
@@ -59,48 +59,16 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
 	static const unsigned int reg[] = XTENSA_SYSCALL_ARGUMENT_REGS;
-	unsigned int j;
+	unsigned int i;
 
-	if (n == 0)
-		return;
-
-	WARN_ON_ONCE(i + n > SYSCALL_MAX_ARGS);
-
-	for (j = 0; j < n; ++j) {
-		if (i + j < SYSCALL_MAX_ARGS)
-			args[j] = regs->areg[reg[i + j]];
-		else
-			args[j] = 0;
-	}
+	for (i = 0; i < 6; ++i)
+		args[i] = regs->areg[reg[i]];
 }
 
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
-					 const unsigned long *args)
-{
-	static const unsigned int reg[] = XTENSA_SYSCALL_ARGUMENT_REGS;
-	unsigned int j;
-
-	if (n == 0)
-		return;
-
-	if (WARN_ON_ONCE(i + n > SYSCALL_MAX_ARGS)) {
-		if (i < SYSCALL_MAX_ARGS)
-			n = SYSCALL_MAX_ARGS - i;
-		else
-			return;
-	}
-
-	for (j = 0; j < n; ++j)
-		regs->areg[reg[i + j]] = args[j];
-}
-
-asmlinkage long xtensa_rt_sigreturn(struct pt_regs*);
+asmlinkage long xtensa_rt_sigreturn(void);
 asmlinkage long xtensa_shmat(int, char __user *, int);
 asmlinkage long xtensa_fadvise64_64(int, int,
 				    unsigned long long, unsigned long long);

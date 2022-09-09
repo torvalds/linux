@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Elantech Touchpad driver (v6)
  *
  * Copyright (C) 2007-2009 Arjan Opmeer <arjan@opmeer.net>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Trademarks are the property of their respective owners.
  */
@@ -90,6 +87,47 @@ static int elantech_ps2_command(struct psmouse *psmouse,
 		psmouse_err(psmouse, "ps2 command 0x%02x failed.\n", command);
 
 	return rc;
+}
+
+/*
+ * Send an Elantech style special command to read 3 bytes from a register
+ */
+static int elantech_read_reg_params(struct psmouse *psmouse, u8 reg, u8 *param)
+{
+	if (elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_REGISTER_READWRITE) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, reg) ||
+	    elantech_ps2_command(psmouse, param, PSMOUSE_CMD_GETINFO)) {
+		psmouse_err(psmouse,
+			    "failed to read register %#02x\n", reg);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
+ * Send an Elantech style special command to write a register with a parameter
+ */
+static int elantech_write_reg_params(struct psmouse *psmouse, u8 reg, u8 *param)
+{
+	if (elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_REGISTER_READWRITE) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, reg) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, param[0]) ||
+	    elantech_ps2_command(psmouse, NULL, ETP_PS2_CUSTOM_COMMAND) ||
+	    elantech_ps2_command(psmouse, NULL, param[1]) ||
+	    elantech_ps2_command(psmouse, NULL, PSMOUSE_CMD_SETSCALE11)) {
+		psmouse_err(psmouse,
+			    "failed to write register %#02x with value %#02x%#02x\n",
+			    reg, param[0], param[1]);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /*
@@ -230,6 +268,52 @@ static void elantech_packet_dump(struct psmouse *psmouse)
 }
 
 /*
+ * Advertise INPUT_PROP_BUTTONPAD for clickpads. The testing of bit 12 in
+ * fw_version for this is based on the following fw_version & caps table:
+ *
+ * Laptop-model:           fw_version:     caps:           buttons:
+ * Acer S3                 0x461f00        10, 13, 0e      clickpad
+ * Acer S7-392             0x581f01        50, 17, 0d      clickpad
+ * Acer V5-131             0x461f02        01, 16, 0c      clickpad
+ * Acer V5-551             0x461f00        ?               clickpad
+ * Asus K53SV              0x450f01        78, 15, 0c      2 hw buttons
+ * Asus G46VW              0x460f02        00, 18, 0c      2 hw buttons
+ * Asus G750JX             0x360f00        00, 16, 0c      2 hw buttons
+ * Asus TP500LN            0x381f17        10, 14, 0e      clickpad
+ * Asus X750JN             0x381f17        10, 14, 0e      clickpad
+ * Asus UX31               0x361f00        20, 15, 0e      clickpad
+ * Asus UX32VD             0x361f02        00, 15, 0e      clickpad
+ * Avatar AVIU-145A2       0x361f00        ?               clickpad
+ * Fujitsu CELSIUS H760    0x570f02        40, 14, 0c      3 hw buttons (**)
+ * Fujitsu CELSIUS H780    0x5d0f02        41, 16, 0d      3 hw buttons (**)
+ * Fujitsu LIFEBOOK E544   0x470f00        d0, 12, 09      2 hw buttons
+ * Fujitsu LIFEBOOK E546   0x470f00        50, 12, 09      2 hw buttons
+ * Fujitsu LIFEBOOK E547   0x470f00        50, 12, 09      2 hw buttons
+ * Fujitsu LIFEBOOK E554   0x570f01        40, 14, 0c      2 hw buttons
+ * Fujitsu LIFEBOOK E557   0x570f01        40, 14, 0c      2 hw buttons
+ * Fujitsu T725            0x470f01        05, 12, 09      2 hw buttons
+ * Fujitsu H730            0x570f00        c0, 14, 0c      3 hw buttons (**)
+ * Gigabyte U2442          0x450f01        58, 17, 0c      2 hw buttons
+ * Lenovo L430             0x350f02        b9, 15, 0c      2 hw buttons (*)
+ * Lenovo L530             0x350f02        b9, 15, 0c      2 hw buttons (*)
+ * Samsung NF210           0x150b00        78, 14, 0a      2 hw buttons
+ * Samsung NP770Z5E        0x575f01        10, 15, 0f      clickpad
+ * Samsung NP700Z5B        0x361f06        21, 15, 0f      clickpad
+ * Samsung NP900X3E-A02    0x575f03        ?               clickpad
+ * Samsung NP-QX410        0x851b00        19, 14, 0c      clickpad
+ * Samsung RC512           0x450f00        08, 15, 0c      2 hw buttons
+ * Samsung RF710           0x450f00        ?               2 hw buttons
+ * System76 Pangolin       0x250f01        ?               2 hw buttons
+ * (*) + 3 trackpoint buttons
+ * (**) + 0 trackpoint buttons
+ * Note: Lenovo L430 and Lenovo L530 have the same fw_version/caps
+ */
+static inline int elantech_is_buttonpad(struct elantech_device_info *info)
+{
+	return info->fw_version & 0x001000;
+}
+
+/*
  * Interpret complete data packets and report absolute mode input events for
  * hardware version 1. (4 byte packets)
  */
@@ -340,7 +424,7 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		 */
 		if (packet[3] & 0x80)
 			fingers = 4;
-		/* fall through */
+		fallthrough;
 	case 1:
 		/*
 		 * byte 1:  .   .   .   .  x11 x10 x9  x8
@@ -433,6 +517,19 @@ static void elantech_report_trackpoint(struct psmouse *psmouse,
 	case 0x16008020U:
 	case 0x26800010U:
 	case 0x36808000U:
+
+		/*
+		 * This firmware misreport coordinates for trackpoint
+		 * occasionally. Discard packets outside of [-127, 127] range
+		 * to prevent cursor jumps.
+		 */
+		if (packet[4] == 0x80 || packet[5] == 0x80 ||
+		    packet[1] >> 7 == packet[4] >> 7 ||
+		    packet[2] >> 7 == packet[5] >> 7) {
+			elantech_debug("discarding packet [%6ph]\n", packet);
+			break;
+
+		}
 		x = packet[4] - (int)((packet[1]^0x80) << 1);
 		y = (int)((packet[2]^0x80) << 1) - packet[5];
 
@@ -526,7 +623,7 @@ static void elantech_report_absolute_v3(struct psmouse *psmouse,
 	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
 
 	/* For clickpads map both buttons to BTN_LEFT */
-	if (etd->info.fw_version & 0x001000)
+	if (elantech_is_buttonpad(&etd->info))
 		input_report_key(dev, BTN_LEFT, packet[0] & 0x03);
 	else
 		psmouse_report_standard_buttons(dev, packet[0]);
@@ -544,7 +641,7 @@ static void elantech_input_sync_v4(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 
 	/* For clickpads map both buttons to BTN_LEFT */
-	if (etd->info.fw_version & 0x001000)
+	if (elantech_is_buttonpad(&etd->info))
 		input_report_key(dev, BTN_LEFT, packet[0] & 0x03);
 	else
 		psmouse_report_standard_buttons(dev, packet[0]);
@@ -994,88 +1091,6 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 	return rc;
 }
 
-static int elantech_set_range(struct psmouse *psmouse,
-			      unsigned int *x_min, unsigned int *y_min,
-			      unsigned int *x_max, unsigned int *y_max,
-			      unsigned int *width)
-{
-	struct elantech_data *etd = psmouse->private;
-	struct elantech_device_info *info = &etd->info;
-	unsigned char param[3];
-	unsigned char traces;
-
-	switch (info->hw_version) {
-	case 1:
-		*x_min = ETP_XMIN_V1;
-		*y_min = ETP_YMIN_V1;
-		*x_max = ETP_XMAX_V1;
-		*y_max = ETP_YMAX_V1;
-		break;
-
-	case 2:
-		if (info->fw_version == 0x020800 ||
-		    info->fw_version == 0x020b00 ||
-		    info->fw_version == 0x020030) {
-			*x_min = ETP_XMIN_V2;
-			*y_min = ETP_YMIN_V2;
-			*x_max = ETP_XMAX_V2;
-			*y_max = ETP_YMAX_V2;
-		} else {
-			int i;
-			int fixed_dpi;
-
-			i = (info->fw_version > 0x020800 &&
-			     info->fw_version < 0x020900) ? 1 : 2;
-
-			if (info->send_cmd(psmouse, ETP_FW_ID_QUERY, param))
-				return -1;
-
-			fixed_dpi = param[1] & 0x10;
-
-			if (((info->fw_version >> 16) == 0x14) && fixed_dpi) {
-				if (info->send_cmd(psmouse, ETP_SAMPLE_QUERY, param))
-					return -1;
-
-				*x_max = (info->capabilities[1] - i) * param[1] / 2;
-				*y_max = (info->capabilities[2] - i) * param[2] / 2;
-			} else if (info->fw_version == 0x040216) {
-				*x_max = 819;
-				*y_max = 405;
-			} else if (info->fw_version == 0x040219 || info->fw_version == 0x040215) {
-				*x_max = 900;
-				*y_max = 500;
-			} else {
-				*x_max = (info->capabilities[1] - i) * 64;
-				*y_max = (info->capabilities[2] - i) * 64;
-			}
-		}
-		break;
-
-	case 3:
-		if (info->send_cmd(psmouse, ETP_FW_ID_QUERY, param))
-			return -1;
-
-		*x_max = (0x0f & param[0]) << 8 | param[1];
-		*y_max = (0xf0 & param[0]) << 4 | param[2];
-		break;
-
-	case 4:
-		if (info->send_cmd(psmouse, ETP_FW_ID_QUERY, param))
-			return -1;
-
-		*x_max = (0x0f & param[0]) << 8 | param[1];
-		*y_max = (0xf0 & param[0]) << 4 | param[2];
-		traces = info->capabilities[1];
-		if ((traces < 2) || (traces > *x_max))
-			return -1;
-
-		*width = *x_max / (traces - 1);
-		break;
-	}
-
-	return 0;
-}
-
 /*
  * (value from firmware) * 10 + 790 = dpi
  * we also have to convert dpi to dots/mm (*10/254 to avoid floating point)
@@ -1102,51 +1117,12 @@ static int elantech_get_resolution_v4(struct psmouse *psmouse,
 	return 0;
 }
 
-/*
- * Advertise INPUT_PROP_BUTTONPAD for clickpads. The testing of bit 12 in
- * fw_version for this is based on the following fw_version & caps table:
- *
- * Laptop-model:           fw_version:     caps:           buttons:
- * Acer S3                 0x461f00        10, 13, 0e      clickpad
- * Acer S7-392             0x581f01        50, 17, 0d      clickpad
- * Acer V5-131             0x461f02        01, 16, 0c      clickpad
- * Acer V5-551             0x461f00        ?               clickpad
- * Asus K53SV              0x450f01        78, 15, 0c      2 hw buttons
- * Asus G46VW              0x460f02        00, 18, 0c      2 hw buttons
- * Asus G750JX             0x360f00        00, 16, 0c      2 hw buttons
- * Asus TP500LN            0x381f17        10, 14, 0e      clickpad
- * Asus X750JN             0x381f17        10, 14, 0e      clickpad
- * Asus UX31               0x361f00        20, 15, 0e      clickpad
- * Asus UX32VD             0x361f02        00, 15, 0e      clickpad
- * Avatar AVIU-145A2       0x361f00        ?               clickpad
- * Fujitsu LIFEBOOK E544   0x470f00        d0, 12, 09      2 hw buttons
- * Fujitsu LIFEBOOK E546   0x470f00        50, 12, 09      2 hw buttons
- * Fujitsu LIFEBOOK E547   0x470f00        50, 12, 09      2 hw buttons
- * Fujitsu LIFEBOOK E554   0x570f01        40, 14, 0c      2 hw buttons
- * Fujitsu LIFEBOOK E557   0x570f01        40, 14, 0c      2 hw buttons
- * Fujitsu T725            0x470f01        05, 12, 09      2 hw buttons
- * Fujitsu H730            0x570f00        c0, 14, 0c      3 hw buttons (**)
- * Gigabyte U2442          0x450f01        58, 17, 0c      2 hw buttons
- * Lenovo L430             0x350f02        b9, 15, 0c      2 hw buttons (*)
- * Lenovo L530             0x350f02        b9, 15, 0c      2 hw buttons (*)
- * Samsung NF210           0x150b00        78, 14, 0a      2 hw buttons
- * Samsung NP770Z5E        0x575f01        10, 15, 0f      clickpad
- * Samsung NP700Z5B        0x361f06        21, 15, 0f      clickpad
- * Samsung NP900X3E-A02    0x575f03        ?               clickpad
- * Samsung NP-QX410        0x851b00        19, 14, 0c      clickpad
- * Samsung RC512           0x450f00        08, 15, 0c      2 hw buttons
- * Samsung RF710           0x450f00        ?               2 hw buttons
- * System76 Pangolin       0x250f01        ?               2 hw buttons
- * (*) + 3 trackpoint buttons
- * (**) + 0 trackpoint buttons
- * Note: Lenovo L430 and Lenovo L530 have the same fw_version/caps
- */
 static void elantech_set_buttonpad_prop(struct psmouse *psmouse)
 {
 	struct input_dev *dev = psmouse->dev;
 	struct elantech_data *etd = psmouse->private;
 
-	if (etd->info.fw_version & 0x001000) {
+	if (elantech_is_buttonpad(&etd->info)) {
 		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
 		__clear_bit(BTN_RIGHT, dev->keybit);
 	}
@@ -1171,16 +1147,15 @@ static const struct dmi_system_id elantech_dmi_has_middle_button[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "CELSIUS H760"),
 		},
 	},
+	{
+		/* Fujitsu H780 also has a middle button */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CELSIUS H780"),
+		},
+	},
 #endif
 	{ }
-};
-
-static const char * const middle_button_pnp_ids[] = {
-	"LEN2131", /* ThinkPad P52 w/ NFC */
-	"LEN2132", /* ThinkPad P52 */
-	"LEN2133", /* ThinkPad P72 w/ NFC */
-	"LEN2134", /* ThinkPad P72 */
-	NULL
 };
 
 /*
@@ -1191,10 +1166,9 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 	struct input_dev *dev = psmouse->dev;
 	struct elantech_data *etd = psmouse->private;
 	struct elantech_device_info *info = &etd->info;
-	unsigned int x_min = 0, y_min = 0, x_max = 0, y_max = 0, width = 0;
-
-	if (elantech_set_range(psmouse, &x_min, &y_min, &x_max, &y_max, &width))
-		return -1;
+	unsigned int x_min = info->x_min, y_min = info->y_min,
+		     x_max = info->x_max, y_max = info->y_max,
+		     width = info->width;
 
 	__set_bit(INPUT_PROP_POINTER, dev->propbit);
 	__set_bit(EV_KEY, dev->evbit);
@@ -1202,8 +1176,7 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 	__clear_bit(EV_REL, dev->evbit);
 
 	__set_bit(BTN_LEFT, dev->keybit);
-	if (dmi_check_system(elantech_dmi_has_middle_button) ||
-			psmouse_matches_pnp_id(psmouse, middle_button_pnp_ids))
+	if (info->has_middle_button)
 		__set_bit(BTN_MIDDLE, dev->keybit);
 	__set_bit(BTN_RIGHT, dev->keybit);
 
@@ -1227,7 +1200,7 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 	case 2:
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
-		/* fall through */
+		fallthrough;
 	case 3:
 		if (info->hw_version == 3)
 			elantech_set_buttonpad_prop(psmouse);
@@ -1611,18 +1584,40 @@ static const struct dmi_system_id no_hw_res_dmi_table[] = {
 };
 
 /*
+ * Change Report id 0x5E to 0x5F.
+ */
+static int elantech_change_report_id(struct psmouse *psmouse)
+{
+	/*
+	 * NOTE: the code is expecting to receive param[] as an array of 3
+	 * items (see __ps2_command()), even if in this case only 2 are
+	 * actually needed. Make sure the array size is 3 to avoid potential
+	 * stack out-of-bound accesses.
+	 */
+	unsigned char param[3] = { 0x10, 0x03 };
+
+	if (elantech_write_reg_params(psmouse, 0x7, param) ||
+	    elantech_read_reg_params(psmouse, 0x7, param) ||
+	    param[0] != 0x10 || param[1] != 0x03) {
+		psmouse_err(psmouse, "Unable to change report ID to 0x5f.\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+/*
  * determine hardware version and set some properties according to it.
  */
 static int elantech_set_properties(struct elantech_device_info *info)
 {
 	/* This represents the version of IC body. */
-	int ver = (info->fw_version & 0x0f0000) >> 16;
+	info->ic_version = (info->fw_version & 0x0f0000) >> 16;
 
 	/* Early version of Elan touchpads doesn't obey the rule. */
 	if (info->fw_version < 0x020030 || info->fw_version == 0x020600)
 		info->hw_version = 1;
 	else {
-		switch (ver) {
+		switch (info->ic_version) {
 		case 2:
 		case 4:
 			info->hw_version = 2;
@@ -1637,6 +1632,11 @@ static int elantech_set_properties(struct elantech_device_info *info)
 			return -1;
 		}
 	}
+
+	/* Get information pattern for hw_version 4 */
+	info->pattern = 0x00;
+	if (info->ic_version == 0x0f && (info->fw_version & 0xff) <= 0x02)
+		info->pattern = info->fw_version & 0xff;
 
 	/* decide which send_cmd we're gonna use early */
 	info->send_cmd = info->hw_version >= 3 ? elantech_send_cmd :
@@ -1678,6 +1678,8 @@ static int elantech_query_info(struct psmouse *psmouse,
 			       struct elantech_device_info *info)
 {
 	unsigned char param[3];
+	unsigned char traces;
+	unsigned char ic_body[3];
 
 	memset(info, 0, sizeof(*info));
 
@@ -1720,6 +1722,21 @@ static int elantech_query_info(struct psmouse *psmouse,
 			     info->samples[2]);
 	}
 
+	if (info->pattern > 0x00 && info->ic_version == 0xf) {
+		if (info->send_cmd(psmouse, ETP_ICBODY_QUERY, ic_body)) {
+			psmouse_err(psmouse, "failed to query ic body\n");
+			return -EINVAL;
+		}
+		info->ic_version = be16_to_cpup((__be16 *)ic_body);
+		psmouse_info(psmouse,
+			     "Elan ic body: %#04x, current fw version: %#02x\n",
+			     info->ic_version, ic_body[2]);
+	}
+
+	info->product_id = be16_to_cpup((__be16 *)info->samples);
+	if (info->pattern == 0x00)
+		info->product_id &= 0xff;
+
 	if (info->samples[1] == 0x74 && info->hw_version == 0x03) {
 		/*
 		 * This module has a bug which makes absolute mode
@@ -1734,6 +1751,23 @@ static int elantech_query_info(struct psmouse *psmouse,
 	/* The MSB indicates the presence of the trackpoint */
 	info->has_trackpoint = (info->capabilities[0] & 0x80) == 0x80;
 
+	if (info->has_trackpoint && info->ic_version == 0x0011 &&
+	    (info->product_id == 0x08 || info->product_id == 0x09 ||
+	     info->product_id == 0x0d || info->product_id == 0x0e)) {
+		/*
+		 * This module has a bug which makes trackpoint in SMBus
+		 * mode return invalid data unless trackpoint is switched
+		 * from using 0x5e reports to 0x5f. If we are not able to
+		 * make the switch, let's abort initialization so we'll be
+		 * using standard PS/2 protocol.
+		 */
+		if (elantech_change_report_id(psmouse)) {
+			psmouse_info(psmouse,
+				     "Trackpoint report is broken, forcing standard PS/2 protocol\n");
+			return -ENODEV;
+		}
+	}
+
 	info->x_res = 31;
 	info->y_res = 31;
 	if (info->hw_version == 4) {
@@ -1745,6 +1779,90 @@ static int elantech_query_info(struct psmouse *psmouse,
 				     "failed to query resolution data.\n");
 		}
 	}
+
+	/* query range information */
+	switch (info->hw_version) {
+	case 1:
+		info->x_min = ETP_XMIN_V1;
+		info->y_min = ETP_YMIN_V1;
+		info->x_max = ETP_XMAX_V1;
+		info->y_max = ETP_YMAX_V1;
+		break;
+
+	case 2:
+		if (info->fw_version == 0x020800 ||
+		    info->fw_version == 0x020b00 ||
+		    info->fw_version == 0x020030) {
+			info->x_min = ETP_XMIN_V2;
+			info->y_min = ETP_YMIN_V2;
+			info->x_max = ETP_XMAX_V2;
+			info->y_max = ETP_YMAX_V2;
+		} else {
+			int i;
+			int fixed_dpi;
+
+			i = (info->fw_version > 0x020800 &&
+			     info->fw_version < 0x020900) ? 1 : 2;
+
+			if (info->send_cmd(psmouse, ETP_FW_ID_QUERY, param))
+				return -EINVAL;
+
+			fixed_dpi = param[1] & 0x10;
+
+			if (((info->fw_version >> 16) == 0x14) && fixed_dpi) {
+				if (info->send_cmd(psmouse, ETP_SAMPLE_QUERY, param))
+					return -EINVAL;
+
+				info->x_max = (info->capabilities[1] - i) * param[1] / 2;
+				info->y_max = (info->capabilities[2] - i) * param[2] / 2;
+			} else if (info->fw_version == 0x040216) {
+				info->x_max = 819;
+				info->y_max = 405;
+			} else if (info->fw_version == 0x040219 || info->fw_version == 0x040215) {
+				info->x_max = 900;
+				info->y_max = 500;
+			} else {
+				info->x_max = (info->capabilities[1] - i) * 64;
+				info->y_max = (info->capabilities[2] - i) * 64;
+			}
+		}
+		break;
+
+	case 3:
+		if (info->send_cmd(psmouse, ETP_FW_ID_QUERY, param))
+			return -EINVAL;
+
+		info->x_max = (0x0f & param[0]) << 8 | param[1];
+		info->y_max = (0xf0 & param[0]) << 4 | param[2];
+		break;
+
+	case 4:
+		if (info->send_cmd(psmouse, ETP_FW_ID_QUERY, param))
+			return -EINVAL;
+
+		info->x_max = (0x0f & param[0]) << 8 | param[1];
+		info->y_max = (0xf0 & param[0]) << 4 | param[2];
+		traces = info->capabilities[1];
+		if ((traces < 2) || (traces > info->x_max))
+			return -EINVAL;
+
+		info->width = info->x_max / (traces - 1);
+
+		/* column number of traces */
+		info->x_traces = traces;
+
+		/* row number of traces */
+		traces = info->capabilities[2];
+		if ((traces >= 2) && (traces <= info->y_max))
+			info->y_traces = traces;
+
+		break;
+	}
+
+	/* check for the middle button: DMI matching or new v4 firmwares */
+	info->has_middle_button = dmi_check_system(elantech_dmi_has_middle_button) ||
+				  (ETP_NEW_IC_SMBUS_HOST_NOTIFY(info->fw_version) &&
+				   !elantech_is_buttonpad(info));
 
 	return 0;
 }
@@ -1772,10 +1890,6 @@ static const char * const i2c_blacklist_pnp_ids[] = {
 	 * These are known to not be working properly as bits are missing
 	 * in elan_i2c.
 	 */
-	"LEN2131", /* ThinkPad P52 w/ NFC */
-	"LEN2132", /* ThinkPad P52 */
-	"LEN2133", /* ThinkPad P72 w/ NFC */
-	"LEN2134", /* ThinkPad P72 */
 	NULL
 };
 
@@ -1783,23 +1897,53 @@ static int elantech_create_smbus(struct psmouse *psmouse,
 				 struct elantech_device_info *info,
 				 bool leave_breadcrumbs)
 {
-	const struct property_entry i2c_properties[] = {
-		PROPERTY_ENTRY_BOOL("elan,trackpoint"),
-		{ },
-	};
+	struct property_entry i2c_props[11] = {};
 	struct i2c_board_info smbus_board = {
 		I2C_BOARD_INFO("elan_i2c", 0x15),
 		.flags = I2C_CLIENT_HOST_NOTIFY,
 	};
+	unsigned int idx = 0;
+
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-size-x",
+						   info->x_max + 1);
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-size-y",
+						   info->y_max + 1);
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-min-x",
+						   info->x_min);
+	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-min-y",
+						   info->y_min);
+	if (info->x_res)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-x-mm",
+						      (info->x_max + 1) / info->x_res);
+	if (info->y_res)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-y-mm",
+						      (info->y_max + 1) / info->y_res);
 
 	if (info->has_trackpoint)
-		smbus_board.properties = i2c_properties;
+		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,trackpoint");
+
+	if (info->has_middle_button)
+		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,middle-button");
+
+	if (info->x_traces)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("elan,x_traces",
+						      info->x_traces);
+	if (info->y_traces)
+		i2c_props[idx++] = PROPERTY_ENTRY_U32("elan,y_traces",
+						      info->y_traces);
+
+	if (elantech_is_buttonpad(info))
+		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,clickpad");
+
+	smbus_board.fwnode = fwnode_create_software_node(i2c_props, NULL);
+	if (IS_ERR(smbus_board.fwnode))
+		return PTR_ERR(smbus_board.fwnode);
 
 	return psmouse_smbus_init(psmouse, &smbus_board, NULL, 0, false,
 				  leave_breadcrumbs);
 }
 
-/**
+/*
  * elantech_setup_smbus - called once the PS/2 devices are enumerated
  * and decides to instantiate a SMBus InterTouch device.
  */
@@ -1849,12 +1993,10 @@ static bool elantech_use_host_notify(struct psmouse *psmouse,
 		/* expected case */
 		break;
 	case ETP_BUS_SMB_ALERT_ONLY:
-		/* fall-through  */
 	case ETP_BUS_PS2_SMB_ALERT:
 		psmouse_dbg(psmouse, "Ignoring SMBus provider through alert protocol.\n");
 		break;
 	case ETP_BUS_SMB_HST_NTFY_ONLY:
-		/* fall-through  */
 	case ETP_BUS_PS2_SMB_HST_NTFY:
 		return true;
 	default:
@@ -1869,7 +2011,7 @@ static bool elantech_use_host_notify(struct psmouse *psmouse,
 int elantech_init_smbus(struct psmouse *psmouse)
 {
 	struct elantech_device_info info;
-	int error = -EINVAL;
+	int error;
 
 	psmouse_reset(psmouse);
 
@@ -1987,7 +2129,7 @@ static int elantech_setup_ps2(struct psmouse *psmouse,
 int elantech_init_ps2(struct psmouse *psmouse)
 {
 	struct elantech_device_info info;
-	int error = -EINVAL;
+	int error;
 
 	psmouse_reset(psmouse);
 
@@ -2008,7 +2150,7 @@ int elantech_init_ps2(struct psmouse *psmouse)
 int elantech_init(struct psmouse *psmouse)
 {
 	struct elantech_device_info info;
-	int error = -EINVAL;
+	int error;
 
 	psmouse_reset(psmouse);
 

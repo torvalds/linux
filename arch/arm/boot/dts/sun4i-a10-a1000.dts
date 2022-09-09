@@ -60,15 +60,26 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
-		red {
+		led-0 {
 			label = "a1000:red:usr";
 			gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>;
 		};
 
-		blue {
+		led-1 {
 			label = "a1000:blue:pwr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
@@ -125,12 +136,26 @@
 };
 
 &emac {
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	status = "okay";
 };
 
 &emac_sram {
 	status = "okay";
+};
+
+&de {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
 };
 
 &i2c0 {

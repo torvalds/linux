@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO driver for Marvell SoCs
  *
@@ -6,10 +7,6 @@
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  * Andrew Lunn <andrew@lunn.ch>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This driver is a fairly straightforward GPIO driver for the
  * complete family of Marvell EBU SoC platforms (Orion, Dove,
@@ -38,6 +35,7 @@
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -45,7 +43,6 @@
 #include <linux/irqdomain.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -70,7 +67,12 @@
  */
 #define PWM_BLINK_ON_DURATION_OFF	0x0
 #define PWM_BLINK_OFF_DURATION_OFF	0x4
+#define PWM_BLINK_COUNTER_B_OFF		0x8
 
+/* Armada 8k variant gpios register offsets */
+#define AP80X_GPIO0_OFF_A8K		0x1040
+#define CP11X_GPIO0_OFF_A8K		0x100
+#define CP11X_GPIO1_OFF_A8K		0x140
 
 /* The MV78200 has per-CPU registers for edge mask and level mask */
 #define GPIO_EDGE_MASK_MV78200_OFF(cpu)	  ((cpu) ? 0x30 : 0x18)
@@ -78,8 +80,7 @@
 
 /*
  * The Armada XP has per-CPU registers for interrupt cause, interrupt
- * mask and interrupt level mask. Those are relative to the
- * percpu_membase.
+ * mask and interrupt level mask. Those are in percpu_regs range.
  */
 #define GPIO_EDGE_CAUSE_ARMADAXP_OFF(cpu) ((cpu) * 0x4)
 #define GPIO_EDGE_MASK_ARMADAXP_OFF(cpu)  (0x10 + (cpu) * 0x4)
@@ -93,7 +94,8 @@
 #define MVEBU_MAX_GPIO_PER_BANK		32
 
 struct mvebu_pwm {
-	void __iomem		*membase;
+	struct regmap		*regs;
+	u32			 offset;
 	unsigned long		 clk_rate;
 	struct gpio_desc	*gpiod;
 	struct pwm_chip		 chip;
@@ -279,17 +281,17 @@ mvebu_gpio_write_level_mask(struct mvebu_gpio_chip *mvchip, u32 val)
 }
 
 /*
- * Functions returning addresses of individual registers for a given
+ * Functions returning offsets of individual registers for a given
  * PWM controller.
  */
-static void __iomem *mvebu_pwmreg_blink_on_duration(struct mvebu_pwm *mvpwm)
+static unsigned int mvebu_pwmreg_blink_on_duration(struct mvebu_pwm *mvpwm)
 {
-	return mvpwm->membase + PWM_BLINK_ON_DURATION_OFF;
+	return mvpwm->offset + PWM_BLINK_ON_DURATION_OFF;
 }
 
-static void __iomem *mvebu_pwmreg_blink_off_duration(struct mvebu_pwm *mvpwm)
+static unsigned int mvebu_pwmreg_blink_off_duration(struct mvebu_pwm *mvpwm)
 {
-	return mvpwm->membase + PWM_BLINK_OFF_DURATION_OFF;
+	return mvpwm->offset + PWM_BLINK_OFF_DURATION_OFF;
 }
 
 /*
@@ -376,6 +378,19 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned int pin,
 	return 0;
 }
 
+static int mvebu_gpio_get_direction(struct gpio_chip *chip, unsigned int pin)
+{
+	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
+	u32 u;
+
+	regmap_read(mvchip->regs, GPIO_IO_CONF_OFF + mvchip->offset, &u);
+
+	if (u & BIT(pin))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
+}
+
 static int mvebu_gpio_to_irq(struct gpio_chip *chip, unsigned int pin)
 {
 	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
@@ -418,6 +433,7 @@ static void mvebu_gpio_edge_irq_unmask(struct irq_data *d)
 	u32 mask = d->mask;
 
 	irq_gc_lock(gc);
+	mvebu_gpio_write_edge_cause(mvchip, ~mask);
 	ct->mask_cache_priv |= mask;
 	mvebu_gpio_write_edge_mask(mvchip, ct->mask_cache_priv);
 	irq_gc_unlock(gc);
@@ -586,6 +602,13 @@ static void mvebu_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static const struct regmap_config mvebu_gpio_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.fast_io = true,
+};
+
 /*
  * Functions implementing the pwm_chip methods
  */
@@ -608,15 +631,11 @@ static int mvebu_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		ret = -EBUSY;
 	} else {
 		desc = gpiochip_request_own_desc(&mvchip->chip,
-						 pwm->hwpwm, "mvebu-pwm", 0);
+						 pwm->hwpwm, "mvebu-pwm",
+						 GPIO_ACTIVE_HIGH,
+						 GPIOD_OUT_LOW);
 		if (IS_ERR(desc)) {
 			ret = PTR_ERR(desc);
-			goto out;
-		}
-
-		ret = gpiod_direction_output(desc, 0);
-		if (ret) {
-			gpiochip_free_own_desc(desc);
 			goto out;
 		}
 
@@ -650,32 +669,22 @@ static void mvebu_pwm_get_state(struct pwm_chip *chip,
 
 	spin_lock_irqsave(&mvpwm->lock, flags);
 
-	val = (unsigned long long)
-		readl_relaxed(mvebu_pwmreg_blink_on_duration(mvpwm));
-	val *= NSEC_PER_SEC;
-	do_div(val, mvpwm->clk_rate);
-	if (val > UINT_MAX)
-		state->duty_cycle = UINT_MAX;
-	else if (val)
-		state->duty_cycle = val;
+	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_on_duration(mvpwm), &u);
+	/* Hardware treats zero as 2^32. See mvebu_pwm_apply(). */
+	if (u > 0)
+		val = u;
 	else
-		state->duty_cycle = 1;
+		val = UINT_MAX + 1ULL;
+	state->duty_cycle = DIV_ROUND_UP_ULL(val * NSEC_PER_SEC,
+			mvpwm->clk_rate);
 
-	val = (unsigned long long)
-		readl_relaxed(mvebu_pwmreg_blink_off_duration(mvpwm));
-	val *= NSEC_PER_SEC;
-	do_div(val, mvpwm->clk_rate);
-	if (val < state->duty_cycle) {
-		state->period = 1;
-	} else {
-		val -= state->duty_cycle;
-		if (val > UINT_MAX)
-			state->period = UINT_MAX;
-		else if (val)
-			state->period = val;
-		else
-			state->period = 1;
-	}
+	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_off_duration(mvpwm), &u);
+	/* period = on + off duration */
+	if (u > 0)
+		val += u;
+	else
+		val += UINT_MAX + 1ULL;
+	state->period = DIV_ROUND_UP_ULL(val * NSEC_PER_SEC, mvpwm->clk_rate);
 
 	regmap_read(mvchip->regs, GPIO_BLINK_EN_OFF + mvchip->offset, &u);
 	if (u)
@@ -687,7 +696,7 @@ static void mvebu_pwm_get_state(struct pwm_chip *chip,
 }
 
 static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			   struct pwm_state *state)
+			   const struct pwm_state *state)
 {
 	struct mvebu_pwm *mvpwm = to_mvebu_pwm(chip);
 	struct mvebu_gpio_chip *mvchip = mvpwm->mvchip;
@@ -695,29 +704,40 @@ static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long flags;
 	unsigned int on, off;
 
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
 	val = (unsigned long long) mvpwm->clk_rate * state->duty_cycle;
 	do_div(val, NSEC_PER_SEC);
-	if (val > UINT_MAX)
+	if (val > UINT_MAX + 1ULL)
 		return -EINVAL;
-	if (val)
+	/*
+	 * Zero on/off values don't work as expected. Experimentation shows
+	 * that zero value is treated as 2^32. This behavior is not documented.
+	 */
+	if (val == UINT_MAX + 1ULL)
+		on = 0;
+	else if (val)
 		on = val;
 	else
 		on = 1;
 
-	val = (unsigned long long) mvpwm->clk_rate *
-		(state->period - state->duty_cycle);
+	val = (unsigned long long) mvpwm->clk_rate * state->period;
 	do_div(val, NSEC_PER_SEC);
-	if (val > UINT_MAX)
+	val -= on;
+	if (val > UINT_MAX + 1ULL)
 		return -EINVAL;
-	if (val)
+	if (val == UINT_MAX + 1ULL)
+		off = 0;
+	else if (val)
 		off = val;
 	else
 		off = 1;
 
 	spin_lock_irqsave(&mvpwm->lock, flags);
 
-	writel_relaxed(on, mvebu_pwmreg_blink_on_duration(mvpwm));
-	writel_relaxed(off, mvebu_pwmreg_blink_off_duration(mvpwm));
+	regmap_write(mvpwm->regs, mvebu_pwmreg_blink_on_duration(mvpwm), on);
+	regmap_write(mvpwm->regs, mvebu_pwmreg_blink_off_duration(mvpwm), off);
 	if (state->enabled)
 		mvebu_gpio_blink(&mvchip->chip, pwm->hwpwm, 1);
 	else
@@ -742,10 +762,10 @@ static void __maybe_unused mvebu_pwm_suspend(struct mvebu_gpio_chip *mvchip)
 
 	regmap_read(mvchip->regs, GPIO_BLINK_CNT_SELECT_OFF + mvchip->offset,
 		    &mvpwm->blink_select);
-	mvpwm->blink_on_duration =
-		readl_relaxed(mvebu_pwmreg_blink_on_duration(mvpwm));
-	mvpwm->blink_off_duration =
-		readl_relaxed(mvebu_pwmreg_blink_off_duration(mvpwm));
+	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_on_duration(mvpwm),
+		    &mvpwm->blink_on_duration);
+	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_off_duration(mvpwm),
+		    &mvpwm->blink_off_duration);
 }
 
 static void __maybe_unused mvebu_pwm_resume(struct mvebu_gpio_chip *mvchip)
@@ -754,10 +774,10 @@ static void __maybe_unused mvebu_pwm_resume(struct mvebu_gpio_chip *mvchip)
 
 	regmap_write(mvchip->regs, GPIO_BLINK_CNT_SELECT_OFF + mvchip->offset,
 		     mvpwm->blink_select);
-	writel_relaxed(mvpwm->blink_on_duration,
-		       mvebu_pwmreg_blink_on_duration(mvpwm));
-	writel_relaxed(mvpwm->blink_off_duration,
-		       mvebu_pwmreg_blink_off_duration(mvpwm));
+	regmap_write(mvpwm->regs, mvebu_pwmreg_blink_on_duration(mvpwm),
+		     mvpwm->blink_on_duration);
+	regmap_write(mvpwm->regs, mvebu_pwmreg_blink_off_duration(mvpwm),
+		     mvpwm->blink_off_duration);
 }
 
 static int mvebu_pwm_probe(struct platform_device *pdev,
@@ -766,48 +786,81 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct mvebu_pwm *mvpwm;
-	struct resource *res;
+	void __iomem *base;
+	u32 offset;
 	u32 set;
 
-	if (!of_device_is_compatible(mvchip->chip.of_node,
-				     "marvell,armada-370-gpio"))
+	if (of_device_is_compatible(mvchip->chip.of_node,
+				    "marvell,armada-370-gpio")) {
+		/*
+		 * There are only two sets of PWM configuration registers for
+		 * all the GPIO lines on those SoCs which this driver reserves
+		 * for the first two GPIO chips. So if the resource is missing
+		 * we can't treat it as an error.
+		 */
+		if (!platform_get_resource_byname(pdev, IORESOURCE_MEM, "pwm"))
+			return 0;
+		offset = 0;
+	} else if (mvchip->soc_variant == MVEBU_GPIO_SOC_VARIANT_A8K) {
+		int ret = of_property_read_u32(dev->of_node,
+					       "marvell,pwm-offset", &offset);
+		if (ret < 0)
+			return 0;
+	} else {
 		return 0;
-
-	/*
-	 * There are only two sets of PWM configuration registers for
-	 * all the GPIO lines on those SoCs which this driver reserves
-	 * for the first two GPIO chips. So if the resource is missing
-	 * we can't treat it as an error.
-	 */
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pwm");
-	if (!res)
-		return 0;
+	}
 
 	if (IS_ERR(mvchip->clk))
 		return PTR_ERR(mvchip->clk);
-
-	/*
-	 * Use set A for lines of GPIO chip with id 0, B for GPIO chip
-	 * with id 1. Don't allow further GPIO chips to be used for PWM.
-	 */
-	if (id == 0)
-		set = 0;
-	else if (id == 1)
-		set = U32_MAX;
-	else
-		return -EINVAL;
-	regmap_write(mvchip->regs,
-		     GPIO_BLINK_CNT_SELECT_OFF + mvchip->offset, set);
 
 	mvpwm = devm_kzalloc(dev, sizeof(struct mvebu_pwm), GFP_KERNEL);
 	if (!mvpwm)
 		return -ENOMEM;
 	mvchip->mvpwm = mvpwm;
 	mvpwm->mvchip = mvchip;
+	mvpwm->offset = offset;
 
-	mvpwm->membase = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mvpwm->membase))
-		return PTR_ERR(mvpwm->membase);
+	if (mvchip->soc_variant == MVEBU_GPIO_SOC_VARIANT_A8K) {
+		mvpwm->regs = mvchip->regs;
+
+		switch (mvchip->offset) {
+		case AP80X_GPIO0_OFF_A8K:
+		case CP11X_GPIO0_OFF_A8K:
+			/* Blink counter A */
+			set = 0;
+			break;
+		case CP11X_GPIO1_OFF_A8K:
+			/* Blink counter B */
+			set = U32_MAX;
+			mvpwm->offset += PWM_BLINK_COUNTER_B_OFF;
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		base = devm_platform_ioremap_resource_byname(pdev, "pwm");
+		if (IS_ERR(base))
+			return PTR_ERR(base);
+
+		mvpwm->regs = devm_regmap_init_mmio(&pdev->dev, base,
+						    &mvebu_gpio_regmap_config);
+		if (IS_ERR(mvpwm->regs))
+			return PTR_ERR(mvpwm->regs);
+
+		/*
+		 * Use set A for lines of GPIO chip with id 0, B for GPIO chip
+		 * with id 1. Don't allow further GPIO chips to be used for PWM.
+		 */
+		if (id == 0)
+			set = 0;
+		else if (id == 1)
+			set = U32_MAX;
+		else
+			return -EINVAL;
+	}
+
+	regmap_write(mvchip->regs,
+		     GPIO_BLINK_CNT_SELECT_OFF + mvchip->offset, set);
 
 	mvpwm->clk_rate = clk_get_rate(mvchip->clk);
 	if (!mvpwm->clk_rate) {
@@ -818,13 +871,6 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	mvpwm->chip.dev = dev;
 	mvpwm->chip.ops = &mvebu_pwm_ops;
 	mvpwm->chip.npwm = mvchip->chip.ngpio;
-	/*
-	 * There may already be some PWM allocated, so we can't force
-	 * mvpwm->chip.base to a fixed point like mvchip->chip.base.
-	 * So, we let pwmchip_add() do the numbering and take the next free
-	 * region.
-	 */
-	mvpwm->chip.base = -1;
 
 	spin_lock_init(&mvpwm->lock);
 
@@ -838,6 +884,7 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
 	u32 out, io_conf, blink, in_pol, data_in, cause, edg_msk, lvl_msk;
+	const char *label;
 	int i;
 
 	regmap_read(mvchip->regs, GPIO_OUT_OFF + mvchip->offset, &out);
@@ -849,14 +896,9 @@ static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	edg_msk	= mvebu_gpio_read_edge_mask(mvchip);
 	lvl_msk	= mvebu_gpio_read_level_mask(mvchip);
 
-	for (i = 0; i < chip->ngpio; i++) {
-		const char *label;
+	for_each_requested_gpio(chip, i, label) {
 		u32 msk;
 		bool is_out;
-
-		label = gpiochip_is_requested(chip, i);
-		if (!label)
-			continue;
 
 		msk = BIT(i);
 		is_out = !(io_conf & msk);
@@ -1018,21 +1060,12 @@ static int mvebu_gpio_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct regmap_config mvebu_gpio_regmap_config = {
-	.reg_bits = 32,
-	.reg_stride = 4,
-	.val_bits = 32,
-	.fast_io = true,
-};
-
 static int mvebu_gpio_probe_raw(struct platform_device *pdev,
 				struct mvebu_gpio_chip *mvchip)
 {
-	struct resource *res;
 	void __iomem *base;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -1052,8 +1085,7 @@ static int mvebu_gpio_probe_raw(struct platform_device *pdev,
 	 * per-CPU registers
 	 */
 	if (mvchip->soc_variant == MVEBU_GPIO_SOC_VARIANT_ARMADAXP) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		base = devm_ioremap_resource(&pdev->dev, res);
+		base = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(base))
 			return PTR_ERR(base);
 
@@ -1100,7 +1132,11 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
 	/* Some gpio controllers do not provide irq support */
-	have_irqs = of_irq_count(np) != 0;
+	err = platform_irq_count(pdev);
+	if (err < 0)
+		return err;
+
+	have_irqs = err != 0;
 
 	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip),
 			      GFP_KERNEL);
@@ -1130,6 +1166,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.parent = &pdev->dev;
 	mvchip->chip.request = gpiochip_generic_request;
 	mvchip->chip.free = gpiochip_generic_free;
+	mvchip->chip.get_direction = mvebu_gpio_get_direction;
 	mvchip->chip.direction_input = mvebu_gpio_direction_input;
 	mvchip->chip.get = mvebu_gpio_get;
 	mvchip->chip.direction_output = mvebu_gpio_direction_output;
@@ -1139,7 +1176,6 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.base = id * MVEBU_MAX_GPIO_PER_BANK;
 	mvchip->chip.ngpio = ngpios;
 	mvchip->chip.can_sleep = false;
-	mvchip->chip.of_node = np;
 	mvchip->chip.dbg_show = mvebu_gpio_dbg_show;
 
 	if (soc_variant == MVEBU_GPIO_SOC_VARIANT_A8K)
@@ -1191,6 +1227,13 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	devm_gpiochip_add_data(&pdev->dev, &mvchip->chip, mvchip);
 
+	/* Some MVEBU SoCs have simple PWM support for GPIO lines */
+	if (IS_ENABLED(CONFIG_PWM)) {
+		err = mvebu_pwm_probe(pdev, mvchip, id);
+		if (err)
+			return err;
+	}
+
 	/* Some gpio controllers do not provide irq support */
 	if (!have_irqs)
 		return 0;
@@ -1200,7 +1243,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	if (!mvchip->domain) {
 		dev_err(&pdev->dev, "couldn't allocate irq domain %s (DT).\n",
 			mvchip->chip.label);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_pwm;
 	}
 
 	err = irq_alloc_domain_generic_chips(
@@ -1240,7 +1284,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	 * pins.
 	 */
 	for (i = 0; i < 4; i++) {
-		int irq = platform_get_irq(pdev, i);
+		int irq = platform_get_irq_optional(pdev, i);
 
 		if (irq < 0)
 			continue;
@@ -1248,14 +1292,12 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 						 mvchip);
 	}
 
-	/* Some MVEBU SoCs have simple PWM support for GPIO lines */
-	if (IS_ENABLED(CONFIG_PWM))
-		return mvebu_pwm_probe(pdev, mvchip, id);
-
 	return 0;
 
 err_domain:
 	irq_domain_remove(mvchip->domain);
+err_pwm:
+	pwmchip_remove(&mvchip->mvpwm->chip);
 
 	return err;
 }

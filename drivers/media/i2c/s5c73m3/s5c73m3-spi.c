@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung LSI S5C73M3 8M pixel camera driver
  *
  * Copyright (C) 2012, Samsung Electronics, Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
  * Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/sizes.h>
@@ -138,16 +130,10 @@ static int s5c73m3_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int s5c73m3_spi_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 int s5c73m3_register_spi_driver(struct s5c73m3 *state)
 {
 	struct spi_driver *spidrv = &state->spidrv;
 
-	spidrv->remove = s5c73m3_spi_remove;
 	spidrv->probe = s5c73m3_spi_probe;
 	spidrv->driver.name = S5C73M3_SPI_DRV_NAME;
 	spidrv->driver.of_match_table = s5c73m3_spi_ids;

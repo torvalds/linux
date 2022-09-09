@@ -10,7 +10,7 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "earlyprintk";
+		bootargs = "earlycon";
 	};
 
 	memory@80000000 {
@@ -22,9 +22,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		vga_memory: framebuffer@7f000000 {
+		vga_memory: framebuffer@9f000000 {
 			no-map;
-			reg = <0x7f000000 0x01000000>;
+			reg = <0x9f000000 0x01000000>; /* 16M */
 		};
 	};
 
@@ -69,6 +69,9 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii1_default>;
+	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
+		 <&syscon ASPEED_CLK_MAC1RCLK>;
+	clock-names = "MACCLK", "RCLK";
 	use-ncsi;
 };
 

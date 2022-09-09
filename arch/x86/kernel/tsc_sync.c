@@ -30,6 +30,7 @@ struct tsc_adjust {
 };
 
 static DEFINE_PER_CPU(struct tsc_adjust, tsc_adjust);
+static struct timer_list tsc_sync_check_timer;
 
 /*
  * TSC's on different sockets may be reset asynchronously.
@@ -76,6 +77,46 @@ void tsc_verify_tsc_adjust(bool resume)
 		adj->warned = true;
 	}
 }
+
+/*
+ * Normally the tsc_sync will be checked every time system enters idle
+ * state, but there is still caveat that a system won't enter idle,
+ * either because it's too busy or configured purposely to not enter
+ * idle.
+ *
+ * So setup a periodic timer (every 10 minutes) to make sure the check
+ * is always on.
+ */
+
+#define SYNC_CHECK_INTERVAL		(HZ * 600)
+
+static void tsc_sync_check_timer_fn(struct timer_list *unused)
+{
+	int next_cpu;
+
+	tsc_verify_tsc_adjust(false);
+
+	/* Run the check for all onlined CPUs in turn */
+	next_cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
+	if (next_cpu >= nr_cpu_ids)
+		next_cpu = cpumask_first(cpu_online_mask);
+
+	tsc_sync_check_timer.expires += SYNC_CHECK_INTERVAL;
+	add_timer_on(&tsc_sync_check_timer, next_cpu);
+}
+
+static int __init start_sync_check_timer(void)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_TSC_ADJUST) || tsc_clocksource_reliable)
+		return 0;
+
+	timer_setup(&tsc_sync_check_timer, tsc_sync_check_timer_fn, 0);
+	tsc_sync_check_timer.expires = jiffies + SYNC_CHECK_INTERVAL;
+	add_timer(&tsc_sync_check_timer);
+
+	return 0;
+}
+late_initcall(start_sync_check_timer);
 
 static void tsc_sanitize_first_cpu(struct tsc_adjust *cur, s64 bootval,
 				   unsigned int cpu, bool bootcpu)
@@ -233,7 +274,6 @@ static cycles_t check_tsc_warp(unsigned int timeout)
 	 * The measurement runs for 'timeout' msecs:
 	 */
 	end = start + (cycles_t) tsc_khz * timeout;
-	now = start;
 
 	for (i = 0; ; i++) {
 		/*
@@ -296,7 +336,7 @@ static cycles_t check_tsc_warp(unsigned int timeout)
  * But as the TSC is per-logical CPU and can potentially be modified wrongly
  * by the bios, TSC sync test for smaller duration should be able
  * to catch such errors. Also this will catch the condition where all the
- * cores in the socket doesn't get reset at the same time.
+ * cores in the socket don't get reset at the same time.
  */
 static inline unsigned int loop_timeout(int cpu)
 {
@@ -364,12 +404,12 @@ retry:
 		/* Force it to 0 if random warps brought us here */
 		atomic_set(&test_runs, 0);
 
-		pr_warning("TSC synchronization [CPU#%d -> CPU#%d]:\n",
+		pr_warn("TSC synchronization [CPU#%d -> CPU#%d]:\n",
 			smp_processor_id(), cpu);
-		pr_warning("Measured %Ld cycles TSC warp between CPUs, "
-			   "turning off TSC clock.\n", max_warp);
+		pr_warn("Measured %Ld cycles TSC warp between CPUs, "
+			"turning off TSC clock.\n", max_warp);
 		if (random_warps)
-			pr_warning("TSC warped randomly between CPUs\n");
+			pr_warn("TSC warped randomly between CPUs\n");
 		mark_tsc_unstable("check_tsc_sync_source failed");
 	}
 
@@ -473,7 +513,7 @@ retry:
 	/*
 	 * Add the result to the previous adjustment value.
 	 *
-	 * The adjustement value is slightly off by the overhead of the
+	 * The adjustment value is slightly off by the overhead of the
 	 * sync mechanism (observed values are ~200 TSC cycles), but this
 	 * really depends on CPU, node distance and frequency. So
 	 * compensating for this is hard to get right. Experiments show

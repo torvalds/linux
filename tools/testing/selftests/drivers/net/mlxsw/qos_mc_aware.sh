@@ -67,6 +67,8 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 NUM_NETIFS=6
 source $lib_dir/lib.sh
+source $lib_dir/devlink_lib.sh
+source qos_lib.sh
 
 h1_create()
 {
@@ -140,10 +142,33 @@ switch_create()
 	ip link set dev br111 up
 	ip link set dev $swp2.111 master br111
 	ip link set dev $swp3.111 master br111
+
+	# Make sure that ingress quotas are smaller than egress so that there is
+	# room for both streams of traffic to be admitted to shared buffer.
+	devlink_port_pool_th_save $swp1 0
+	devlink_port_pool_th_set $swp1 0 5
+	devlink_tc_bind_pool_th_save $swp1 0 ingress
+	devlink_tc_bind_pool_th_set $swp1 0 ingress 0 5
+
+	devlink_port_pool_th_save $swp2 0
+	devlink_port_pool_th_set $swp2 0 5
+	devlink_tc_bind_pool_th_save $swp2 1 ingress
+	devlink_tc_bind_pool_th_set $swp2 1 ingress 0 5
+
+	devlink_port_pool_th_save $swp3 4
+	devlink_port_pool_th_set $swp3 4 12
 }
 
 switch_destroy()
 {
+	devlink_port_pool_th_restore $swp3 4
+
+	devlink_tc_bind_pool_th_restore $swp2 1 ingress
+	devlink_port_pool_th_restore $swp2 0
+
+	devlink_tc_bind_pool_th_restore $swp1 0 ingress
+	devlink_port_pool_th_restore $swp1 0
+
 	ip link del dev br111
 	ip link del dev br1
 
@@ -201,107 +226,28 @@ ping_ipv4()
 	ping_test $h2 192.0.2.130
 }
 
-humanize()
-{
-	local speed=$1; shift
-
-	for unit in bps Kbps Mbps Gbps; do
-		if (($(echo "$speed < 1024" | bc))); then
-			break
-		fi
-
-		speed=$(echo "scale=1; $speed / 1024" | bc)
-	done
-
-	echo "$speed${unit}"
-}
-
-rate()
-{
-	local t0=$1; shift
-	local t1=$1; shift
-	local interval=$1; shift
-
-	echo $((8 * (t1 - t0) / interval))
-}
-
-check_rate()
-{
-	local rate=$1; shift
-	local min=$1; shift
-	local what=$1; shift
-
-	if ((rate > min)); then
-		return 0
-	fi
-
-	echo "$what $(humanize $ir) < $(humanize $min_ingress)" > /dev/stderr
-	return 1
-}
-
-measure_uc_rate()
-{
-	local what=$1; shift
-
-	local interval=10
-	local i
-	local ret=0
-
-	# Dips in performance might cause momentary ingress rate to drop below
-	# 1Gbps. That wouldn't saturate egress and MC would thus get through,
-	# seemingly winning bandwidth on account of UC. Demand at least 2Gbps
-	# average ingress rate to somewhat mitigate this.
-	local min_ingress=2147483648
-
-	$MZ $h2.111 -p 8000 -A 192.0.2.129 -B 192.0.2.130 -c 0 \
-		-a own -b $h3mac -t udp -q &
-	sleep 1
-
-	for i in {5..0}; do
-		local t0=$(ethtool_stats_get $h3 rx_octets_prio_1)
-		local u0=$(ethtool_stats_get $swp2 rx_octets_prio_1)
-		sleep $interval
-		local t1=$(ethtool_stats_get $h3 rx_octets_prio_1)
-		local u1=$(ethtool_stats_get $swp2 rx_octets_prio_1)
-
-		local ir=$(rate $u0 $u1 $interval)
-		local er=$(rate $t0 $t1 $interval)
-
-		if check_rate $ir $min_ingress "$what ingress rate"; then
-			break
-		fi
-
-		# Fail the test if we can't get the throughput.
-		if ((i == 0)); then
-			ret=1
-		fi
-	done
-
-	# Suppress noise from killing mausezahn.
-	{ kill %% && wait; } 2>/dev/null
-
-	echo $ir $er
-	exit $ret
-}
-
 test_mc_aware()
 {
 	RET=0
 
 	local -a uc_rate
-	uc_rate=($(measure_uc_rate "UC-only"))
+	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
+	uc_rate=($(measure_rate $swp2 $h3 rx_octets_prio_1 "UC-only"))
 	check_err $? "Could not get high enough UC-only ingress rate"
+	stop_traffic
 	local ucth1=${uc_rate[1]}
 
-	$MZ $h1 -p 8000 -c 0 -a own -b bc -t udp -q &
+	start_traffic $h1 192.0.2.65 bc bc
 
 	local d0=$(date +%s)
 	local t0=$(ethtool_stats_get $h3 rx_octets_prio_0)
 	local u0=$(ethtool_stats_get $swp1 rx_octets_prio_0)
 
 	local -a uc_rate_2
-	uc_rate_2=($(measure_uc_rate "UC+MC"))
+	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
+	uc_rate_2=($(measure_rate $swp2 $h3 rx_octets_prio_1 "UC+MC"))
 	check_err $? "Could not get high enough UC+MC ingress rate"
+	stop_traffic
 	local ucth2=${uc_rate_2[1]}
 
 	local d1=$(date +%s)
@@ -313,16 +259,19 @@ test_mc_aware()
 			ret = 100 * ($ucth1 - $ucth2) / $ucth1
 			if (ret > 0) { ret } else { 0 }
 		    ")
-	check_err $(bc <<< "$deg > 25")
+
+	# Minimum shaper of 200Mbps on MC TCs should cause about 20% of
+	# degradation on 1Gbps link.
+	check_err $(bc <<< "$deg < 15") "Minimum shaper not in effect"
+	check_err $(bc <<< "$deg > 25") "MC traffic degrades UC performance too much"
 
 	local interval=$((d1 - d0))
 	local mc_ir=$(rate $u0 $u1 $interval)
 	local mc_er=$(rate $t0 $t1 $interval)
 
-	# Suppress noise from killing mausezahn.
-	{ kill %% && wait; } 2>/dev/null
+	stop_traffic
 
-	log_test "UC performace under MC overload"
+	log_test "UC performance under MC overload"
 
 	echo "UC-only throughput  $(humanize $ucth1)"
 	echo "UC+MC throughput    $(humanize $ucth2)"
@@ -344,8 +293,7 @@ test_uc_aware()
 {
 	RET=0
 
-	$MZ $h2.111 -p 8000 -A 192.0.2.129 -B 192.0.2.130 -c 0 \
-		-a own -b $h3mac -t udp -q &
+	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
 
 	local d0=$(date +%s)
 	local t0=$(ethtool_stats_get $h3 rx_octets_prio_1)
@@ -357,7 +305,7 @@ test_uc_aware()
 	local i
 
 	for ((i = 0; i < attempts; ++i)); do
-		if $ARPING -c 1 -I $h1 -b 192.0.2.66 -q -w 0.1; then
+		if $ARPING -c 1 -I $h1 -b 192.0.2.66 -q -w 1; then
 			((passes++))
 		fi
 
@@ -375,10 +323,9 @@ test_uc_aware()
 	((attempts == passes))
 	check_err $?
 
-	# Suppress noise from killing mausezahn.
-	{ kill %% && wait; } 2>/dev/null
+	stop_traffic
 
-	log_test "MC performace under UC overload"
+	log_test "MC performance under UC overload"
 	echo "    ingress UC throughput $(humanize ${uc_ir})"
 	echo "    egress UC throughput  $(humanize ${uc_er})"
 	echo "    sent $attempts BC ARPs, got $passes responses"

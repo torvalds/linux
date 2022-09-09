@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_CL5070_H__
 #define __NVIF_CL5070_H__
 
@@ -30,7 +30,6 @@ struct nv50_disp_mthd_v1 {
 	__u8  version;
 #define NV50_DISP_MTHD_V1_ACQUIRE                                          0x01
 #define NV50_DISP_MTHD_V1_RELEASE                                          0x02
-#define NV50_DISP_MTHD_V1_DAC_LOAD                                         0x11
 #define NV50_DISP_MTHD_V1_SOR_HDA_ELD                                      0x21
 #define NV50_DISP_MTHD_V1_SOR_HDMI_PWR                                     0x22
 #define NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT                                  0x23
@@ -46,14 +45,8 @@ struct nv50_disp_acquire_v0 {
 	__u8  version;
 	__u8  or;
 	__u8  link;
-	__u8  pad03[5];
-};
-
-struct nv50_disp_dac_load_v0 {
-	__u8  version;
-	__u8  load;
-	__u8  pad02[2];
-	__u32 data;
+	__u8  hda;
+	__u8  pad04[4];
 };
 
 struct nv50_disp_sor_hda_eld_v0 {

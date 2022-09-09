@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/test-component.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Test Component Device Tree Bindings
+
+maintainers:
+  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+properties:
+  compatible:
+    enum:
+      - test-cpu
+      - test-cpu-verbose
+      - test-cpu-verbose-dai
+      - test-cpu-verbose-component
+      - test-codec
+      - test-codec-verbose
+      - test-codec-verbose-dai
+      - test-codec-verbose-component
+
+required:
+  - compatible
+
+additionalProperties: true
+
+examples:
+  - |
+    test_cpu {
+        compatible = "test-cpu";
+    };

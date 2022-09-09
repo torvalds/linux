@@ -6,23 +6,29 @@
  */
 #include <linux/types.h>
 
-#include <asm-generic/compat.h>
+#define compat_mode_t	compat_mode_t
+typedef u16		compat_mode_t;
 
-#define COMPAT_USER_HZ		100
-#define COMPAT_UTS_MACHINE	"sparc\0\0"
-
+#define __compat_uid_t	__compat_uid_t
 typedef u16		__compat_uid_t;
 typedef u16		__compat_gid_t;
-typedef u32		__compat_uid32_t;
-typedef u32		__compat_gid32_t;
-typedef u16		compat_mode_t;
+
+#define compat_dev_t	compat_dev_t
 typedef u16		compat_dev_t;
+
+#define compat_ipc_pid_t compat_ipc_pid_t
+typedef u16		 compat_ipc_pid_t;
+
+#define compat_ipc64_perm compat_ipc64_perm
+
+#define COMPAT_RLIM_INFINITY 0x7fffffff
+
+#include <asm-generic/compat.h>
+
+#define COMPAT_UTS_MACHINE	"sparc\0\0"
+
 typedef s16		compat_nlink_t;
-typedef u16		compat_ipc_pid_t;
-typedef u32		compat_caddr_t;
-typedef __kernel_fsid_t	compat_fsid_t;
-typedef s64		compat_s64;
-typedef u64		compat_u64;
+
 struct compat_stat {
 	compat_dev_t	st_dev;
 	compat_ino_t	st_ino;
@@ -77,89 +83,7 @@ struct compat_stat64 {
 	unsigned int	__unused5;
 };
 
-struct compat_flock {
-	short		l_type;
-	short		l_whence;
-	compat_off_t	l_start;
-	compat_off_t	l_len;
-	compat_pid_t	l_pid;
-	short		__unused;
-};
-
-#define F_GETLK64	12
-#define F_SETLK64	13
-#define F_SETLKW64	14
-
-struct compat_flock64 {
-	short		l_type;
-	short		l_whence;
-	compat_loff_t	l_start;
-	compat_loff_t	l_len;
-	compat_pid_t	l_pid;
-	short		__unused;
-};
-
-struct compat_statfs {
-	int		f_type;
-	int		f_bsize;
-	int		f_blocks;
-	int		f_bfree;
-	int		f_bavail;
-	int		f_files;
-	int		f_ffree;
-	compat_fsid_t	f_fsid;
-	int		f_namelen;	/* SunOS ignores this field. */
-	int		f_frsize;
-	int		f_flags;
-	int		f_spare[4];
-};
-
-#define COMPAT_RLIM_INFINITY 0x7fffffff
-
-typedef u32		compat_old_sigset_t;
-
-#define _COMPAT_NSIG		64
-#define _COMPAT_NSIG_BPW	32
-
-typedef u32		compat_sigset_word;
-
-#define COMPAT_OFF_T_MAX	0x7fffffff
-
-/*
- * A pointer passed in from user mode. This should not
- * be used for syscall parameters, just declare them
- * as pointers because the syscall entry code will have
- * appropriately converted them already.
- */
-
-static inline void __user *compat_ptr(compat_uptr_t uptr)
-{
-	return (void __user *)(unsigned long)uptr;
-}
-
-static inline compat_uptr_t ptr_to_compat(void __user *uptr)
-{
-	return (u32)(unsigned long)uptr;
-}
-
-#ifdef CONFIG_COMPAT
-static inline void __user *arch_compat_alloc_user_space(long len)
-{
-	struct pt_regs *regs = current_thread_info()->kregs;
-	unsigned long usp = regs->u_regs[UREG_I6];
-
-	if (test_thread_64bit_stack(usp))
-		usp += STACK_BIAS;
-
-	if (test_thread_flag(TIF_32BIT))
-		usp &= 0xffffffffUL;
-
-	usp -= len;
-	usp &= ~0x7UL;
-
-	return (void __user *) usp;
-}
-#endif
+#define __ARCH_COMPAT_FLOCK_PAD		short __unused;
 
 struct compat_ipc64_perm {
 	compat_key_t key;

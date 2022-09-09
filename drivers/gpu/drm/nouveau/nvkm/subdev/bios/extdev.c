@@ -46,6 +46,19 @@ extdev_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 	return extdev + *hdr;
 }
 
+bool
+nvbios_extdev_skip_probe(struct nvkm_bios *bios)
+{
+	u8  ver, hdr, len, cnt;
+	u16 data = extdev_table(bios, &ver, &hdr, &len, &cnt);
+	if (data && ver == 0x40 && hdr >= 5) {
+		u8 flags = nvbios_rd08(bios, data - hdr + 4);
+		if (flags & 1)
+			return true;
+	}
+	return false;
+}
+
 static u16
 nvbios_extdev_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {

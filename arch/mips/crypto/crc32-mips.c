@@ -8,13 +8,13 @@
  * Copyright (C) 2018 MIPS Tech, LLC
  */
 
-#include <linux/unaligned/access_ok.h>
 #include <linux/cpufeature.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <asm/mipsregs.h>
+#include <asm/unaligned.h>
 
 #include <crypto/internal/hash.h>
 
@@ -28,7 +28,7 @@ enum crc_type {
 };
 
 #ifndef TOOLCHAIN_SUPPORTS_CRC
-#define _ASM_MACRO_CRC32(OP, SZ, TYPE)					  \
+#define _ASM_SET_CRC(OP, SZ, TYPE)					  \
 _ASM_MACRO_3R(OP, rt, rs, rt2,						  \
 	".ifnc	\\rt, \\rt2\n\t"					  \
 	".error	\"invalid operands \\\"" #OP " \\rt,\\rs,\\rt2\\\"\"\n\t" \
@@ -37,29 +37,35 @@ _ASM_MACRO_3R(OP, rt, rs, rt2,						  \
 			  ((SZ) <<  6) | ((TYPE) << 8))			  \
 	_ASM_INSN32_IF_MM(0x00000030 | (__rs << 16) | (__rt << 21) |	  \
 			  ((SZ) << 14) | ((TYPE) << 3)))
-_ASM_MACRO_CRC32(crc32b,  0, 0);
-_ASM_MACRO_CRC32(crc32h,  1, 0);
-_ASM_MACRO_CRC32(crc32w,  2, 0);
-_ASM_MACRO_CRC32(crc32d,  3, 0);
-_ASM_MACRO_CRC32(crc32cb, 0, 1);
-_ASM_MACRO_CRC32(crc32ch, 1, 1);
-_ASM_MACRO_CRC32(crc32cw, 2, 1);
-_ASM_MACRO_CRC32(crc32cd, 3, 1);
-#define _ASM_SET_CRC ""
+#define _ASM_UNSET_CRC(op, SZ, TYPE) ".purgem " #op "\n\t"
 #else /* !TOOLCHAIN_SUPPORTS_CRC */
-#define _ASM_SET_CRC ".set\tcrc\n\t"
+#define _ASM_SET_CRC(op, SZ, TYPE) ".set\tcrc\n\t"
+#define _ASM_UNSET_CRC(op, SZ, TYPE)
 #endif
 
-#define _CRC32(crc, value, size, type)		\
-do {						\
-	__asm__ __volatile__(			\
-		".set	push\n\t"		\
-		_ASM_SET_CRC			\
-		#type #size "	%0, %1, %0\n\t"	\
-		".set	pop"			\
-		: "+r" (crc)			\
-		: "r" (value));			\
+#define __CRC32(crc, value, op, SZ, TYPE)		\
+do {							\
+	__asm__ __volatile__(				\
+		".set	push\n\t"			\
+		_ASM_SET_CRC(op, SZ, TYPE)		\
+		#op "	%0, %1, %0\n\t"			\
+		_ASM_UNSET_CRC(op, SZ, TYPE)		\
+		".set	pop"				\
+		: "+r" (crc)				\
+		: "r" (value));				\
 } while (0)
+
+#define _CRC32_crc32b(crc, value)	__CRC32(crc, value, crc32b, 0, 0)
+#define _CRC32_crc32h(crc, value)	__CRC32(crc, value, crc32h, 1, 0)
+#define _CRC32_crc32w(crc, value)	__CRC32(crc, value, crc32w, 2, 0)
+#define _CRC32_crc32d(crc, value)	__CRC32(crc, value, crc32d, 3, 0)
+#define _CRC32_crc32cb(crc, value)	__CRC32(crc, value, crc32cb, 0, 1)
+#define _CRC32_crc32ch(crc, value)	__CRC32(crc, value, crc32ch, 1, 1)
+#define _CRC32_crc32cw(crc, value)	__CRC32(crc, value, crc32cw, 2, 1)
+#define _CRC32_crc32cd(crc, value)	__CRC32(crc, value, crc32cd, 3, 1)
+
+#define _CRC32(crc, value, size, op) \
+	_CRC32_##op##size(crc, value)
 
 #define CRC32(crc, value, size) \
 	_CRC32(crc, value, size, crc32)
@@ -177,10 +183,8 @@ static int chksum_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct chksum_ctx *mctx = crypto_shash_ctx(tfm);
 
-	if (keylen != sizeof(mctx->key)) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != sizeof(mctx->key))
 		return -EINVAL;
-	}
 	mctx->key = get_unaligned_le32(key);
 	return 0;
 }

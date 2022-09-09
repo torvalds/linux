@@ -8,7 +8,7 @@
  *implementation for lzma.
  *Copyright (C) 2006  Aurelien Jacobs < aurel@gnuage.org >
  *
- *Based on LzmaDecode.c from the LZMA SDK 4.22 (http://www.7-zip.org/)
+ *Based on LzmaDecode.c from the LZMA SDK 4.22 (https://www.7-zip.org/)
  *Copyright (C) 1999-2005  Igor Pavlov
  *
  *Copyrights of the parts, see headers below.
@@ -56,7 +56,7 @@ static long long INIT read_int(unsigned char *ptr, int size)
 /* Small range coder implementation for lzma.
  *Copyright (C) 2006  Aurelien Jacobs < aurel@gnuage.org >
  *
- *Based on LzmaDecode.c from the LZMA SDK 4.22 (http://www.7-zip.org/)
+ *Based on LzmaDecode.c from the LZMA SDK 4.22 (https://www.7-zip.org/)
  *Copyright (c) 1999-2005  Igor Pavlov
  */
 
@@ -213,7 +213,7 @@ rc_bit_tree_decode(struct rc *rc, uint16_t *p, int num_levels, int *symbol)
  * Small lzma deflate implementation.
  * Copyright (C) 2006  Aurelien Jacobs < aurel@gnuage.org >
  *
- * Based on LzmaDecode.c from the LZMA SDK 4.22 (http://www.7-zip.org/)
+ * Based on LzmaDecode.c from the LZMA SDK 4.22 (https://www.7-zip.org/)
  * Copyright (C) 1999-2005  Igor Pavlov
  */
 
@@ -391,7 +391,7 @@ static inline int INIT process_bit0(struct writer *wr, struct rc *rc,
 static inline int INIT process_bit1(struct writer *wr, struct rc *rc,
 					    struct cstate *cst, uint16_t *p,
 					    int pos_state, uint16_t *prob) {
-  int offset;
+	int offset;
 	uint16_t *prob_len;
 	int num_bits;
 	int len;

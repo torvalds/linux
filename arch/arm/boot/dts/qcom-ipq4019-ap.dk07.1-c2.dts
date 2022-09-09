@@ -5,7 +5,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK07.1-C2";
-	compatible = "qcom,ipq4019-ap-dk07.1-c2";
+	compatible = "qcom,ipq4019-ap-dk07.1-c2", "qcom,ipq4019";
 
 	soc {
 		pinctrl@1000000 {
@@ -19,7 +19,7 @@
 		serial@78b0000 {
 			pinctrl-0 = <&serial_1_pins>;
 			pinctrl-names = "default";
-			status = "ok";
+			status = "okay";
 		};
 	};
 };

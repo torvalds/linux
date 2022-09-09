@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NET4:	Sysctl interface to net af_unix subsystem.
  *
  * Authors:	Mike Shaver.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #include <linux/mm.h>
@@ -30,15 +26,16 @@ int __net_init unix_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 
-	table = kmemdup(unix_table, sizeof(unix_table), GFP_KERNEL);
-	if (table == NULL)
-		goto err_alloc;
+	if (net_eq(net, &init_net)) {
+		table = unix_table;
+	} else {
+		table = kmemdup(unix_table, sizeof(unix_table), GFP_KERNEL);
+		if (!table)
+			goto err_alloc;
 
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		table[0].procname = NULL;
+		table[0].data = &net->unx.sysctl_max_dgram_qlen;
+	}
 
-	table[0].data = &net->unx.sysctl_max_dgram_qlen;
 	net->unx.ctl = register_net_sysctl(net, "net/unix", table);
 	if (net->unx.ctl == NULL)
 		goto err_reg;
@@ -46,7 +43,8 @@ int __net_init unix_sysctl_register(struct net *net)
 	return 0;
 
 err_reg:
-	kfree(table);
+	if (!net_eq(net, &init_net))
+		kfree(table);
 err_alloc:
 	return -ENOMEM;
 }
@@ -57,5 +55,6 @@ void unix_sysctl_unregister(struct net *net)
 
 	table = net->unx.ctl->ctl_table_arg;
 	unregister_net_sysctl_table(net->unx.ctl);
-	kfree(table);
+	if (!net_eq(net, &init_net))
+		kfree(table);
 }

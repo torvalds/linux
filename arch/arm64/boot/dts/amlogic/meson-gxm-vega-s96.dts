@@ -35,3 +35,11 @@
 		reg = <0>;
 	};
 };
+
+&ir {
+	linux,rc-map-name = "rc-vega-s9x";
+};
+
+&usb {
+	dr_mode = "host";
+};

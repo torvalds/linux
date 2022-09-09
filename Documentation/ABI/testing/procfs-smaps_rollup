@@ -3,29 +3,40 @@ Date:		August 2017
 Contact:	Daniel Colascione <dancol@google.com>
 Description:
 		This file provides pre-summed memory information for a
-		process.  The format is identical to /proc/pid/smaps,
+		process.  The format is almost identical to /proc/pid/smaps,
 		except instead of an entry for each VMA in a process,
 		smaps_rollup has a single entry (tagged "[rollup]")
 		for which each field is the sum of the corresponding
 		fields from all the maps in /proc/pid/smaps.
-		For more details, see the procfs man page.
+		Additionally, the fields Pss_Anon, Pss_File and Pss_Shmem
+		are not present in /proc/pid/smaps.  These fields represent
+		the sum of the Pss field of each type (anon, file, shmem).
+		For more details, see Documentation/filesystems/proc.rst
+		and the procfs man page.
 
-		Typical output looks like this:
+		Typical output looks like this::
 
-		00100000-ff709000 ---p 00000000 00:00 0		 [rollup]
-		Rss:		     884 kB
-		Pss:		     385 kB
-		Shared_Clean:	     696 kB
-		Shared_Dirty:	       0 kB
-		Private_Clean:	     120 kB
-		Private_Dirty:	      68 kB
-		Referenced:	     884 kB
-		Anonymous:	      68 kB
-		LazyFree:	       0 kB
-		AnonHugePages:	       0 kB
-		ShmemPmdMapped:	       0 kB
-		Shared_Hugetlb:	       0 kB
-		Private_Hugetlb:       0 kB
-		Swap:		       0 kB
-		SwapPss:	       0 kB
-		Locked:		     385 kB
+			00100000-ff709000 ---p 00000000 00:00 0		 [rollup]
+			Size:               1192 kB
+			KernelPageSize:        4 kB
+			MMUPageSize:           4 kB
+			Rss:		     884 kB
+			Pss:		     385 kB
+			Pss_Dirty:	      68 kB
+			Pss_Anon:	     301 kB
+			Pss_File:	      80 kB
+			Pss_Shmem:	       4 kB
+			Shared_Clean:	     696 kB
+			Shared_Dirty:	       0 kB
+			Private_Clean:	     120 kB
+			Private_Dirty:	      68 kB
+			Referenced:	     884 kB
+			Anonymous:	      68 kB
+			LazyFree:	       0 kB
+			AnonHugePages:	       0 kB
+			ShmemPmdMapped:	       0 kB
+			Shared_Hugetlb:	       0 kB
+			Private_Hugetlb:       0 kB
+			Swap:		       0 kB
+			SwapPss:	       0 kB
+			Locked:		     385 kB

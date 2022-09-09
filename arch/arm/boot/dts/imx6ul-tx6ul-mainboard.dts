@@ -119,7 +119,7 @@
 	/delete-node/ codec@a;
 	/delete-node/ touchscreen@48;
 
-	rtc: mcp7940x@6f {
+	rtc: rtc@6f {
 		compatible = "microchip,mcp7940x";
 		reg = <0x6f>;
 	};

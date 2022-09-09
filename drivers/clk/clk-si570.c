@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Silicon Labs Si570/Si571 Programmable XO/VCXO
  *
  * Copyright (C) 2010, 2011 Ericsson AB.
  * Copyright (C) 2011 Guenter Roeck.
- * Copyright (C) 2011 - 2013 Xilinx Inc.
+ * Copyright (C) 2011 - 2021 Xilinx Inc.
  *
  * Author: Guenter Roeck <guenter.roeck@ericsson.com>
  *	   Sören Brinkmann <soren.brinkmann@xilinx.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -132,14 +123,18 @@ static int si570_get_divs(struct clk_si570 *data, u64 *rfreq,
  * si570_get_defaults() - Get default values
  * @data:	Driver data structure
  * @fout:	Factory frequency output
+ * @skip_recall:	If true, don't recall NVM into RAM
  * Returns 0 on success, negative errno otherwise.
  */
-static int si570_get_defaults(struct clk_si570 *data, u64 fout)
+static int si570_get_defaults(struct clk_si570 *data, u64 fout,
+			      bool skip_recall)
 {
 	int err;
 	u64 fdco;
 
-	regmap_write(data->regmap, SI570_REG_CONTROL, SI570_CNTRL_RECALL);
+	if (!skip_recall)
+		regmap_write(data->regmap, SI570_REG_CONTROL,
+			     SI570_CNTRL_RECALL);
 
 	err = si570_get_divs(data, &data->rfreq, &data->n1, &data->hs_div);
 	if (err)
@@ -403,12 +398,22 @@ static const struct regmap_config si570_regmap_config = {
 	.volatile_reg = si570_regmap_is_volatile,
 };
 
-static int si570_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static const struct i2c_device_id si570_id[] = {
+	{ "si570", si57x },
+	{ "si571", si57x },
+	{ "si598", si59x },
+	{ "si599", si59x },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, si570_id);
+
+static int si570_probe(struct i2c_client *client)
 {
 	struct clk_si570 *data;
 	struct clk_init_data init;
+	const struct i2c_device_id *id = i2c_match_id(si570_id, client);
 	u32 initial_fout, factory_fout, stability;
+	bool skip_recall;
 	int err;
 	enum clk_si570_variant variant = id->driver_data;
 
@@ -450,6 +455,9 @@ static int si570_probe(struct i2c_client *client,
 		return err;
 	}
 
+	skip_recall = of_property_read_bool(client->dev.of_node,
+					    "silabs,skip-recall");
+
 	data->regmap = devm_regmap_init_i2c(client, &si570_regmap_config);
 	if (IS_ERR(data->regmap)) {
 		dev_err(&client->dev, "failed to allocate register map\n");
@@ -457,7 +465,7 @@ static int si570_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, data);
-	err = si570_get_defaults(data, factory_fout);
+	err = si570_get_defaults(data, factory_fout, skip_recall);
 	if (err)
 		return err;
 
@@ -496,15 +504,6 @@ static int si570_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id si570_id[] = {
-	{ "si570", si57x },
-	{ "si571", si57x },
-	{ "si598", si59x },
-	{ "si599", si59x },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, si570_id);
-
 static const struct of_device_id clk_si570_of_match[] = {
 	{ .compatible = "silabs,si570" },
 	{ .compatible = "silabs,si571" },
@@ -519,7 +518,7 @@ static struct i2c_driver si570_driver = {
 		.name = "si570",
 		.of_match_table = clk_si570_of_match,
 	},
-	.probe		= si570_probe,
+	.probe_new	= si570_probe,
 	.remove		= si570_remove,
 	.id_table	= si570_id,
 };

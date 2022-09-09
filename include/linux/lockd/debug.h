@@ -10,8 +10,6 @@
 #ifndef LINUX_LOCKD_DEBUG_H
 #define LINUX_LOCKD_DEBUG_H
 
-#ifdef __KERNEL__
-
 #include <linux/sunrpc/debug.h>
 
 /*
@@ -24,8 +22,6 @@
 #else
 # define ifdebug(flag)		if (0)
 #endif
-
-#endif /* __KERNEL__ */
 
 /*
  * Debug flags

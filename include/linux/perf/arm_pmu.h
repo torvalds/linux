@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/include/asm/pmu.h
  *
  *  Copyright (C) 2009 picoChip Designs Ltd, Jamie Iles
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef __ARM_PMU_H__
@@ -30,6 +26,8 @@
  */
 /* Event uses a 64bit counter */
 #define ARMPMU_EVT_64BIT		1
+/* Event uses a 47bit counter */
+#define ARMPMU_EVT_47BIT		2
 
 #define HW_OP_UNSUPPORTED		0xFFFF
 #define C(_x)				PERF_COUNT_HW_CACHE_##_x
@@ -77,6 +75,7 @@ enum armpmu_attr_groups {
 	ARMPMU_ATTR_GROUP_COMMON,
 	ARMPMU_ATTR_GROUP_EVENTS,
 	ARMPMU_ATTR_GROUP_FORMATS,
+	ARMPMU_ATTR_GROUP_CAPS,
 	ARMPMU_NR_ATTR_GROUPS
 };
 
@@ -84,6 +83,7 @@ struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	supported_cpus;
 	char		*name;
+	int		pmuver;
 	irqreturn_t	(*handle_irq)(struct arm_pmu *pmu);
 	void		(*enable)(struct perf_event *event);
 	void		(*disable)(struct perf_event *event);
@@ -112,6 +112,8 @@ struct arm_pmu {
 	struct notifier_block	cpu_pm_nb;
 	/* the attr_groups array must be NULL-terminated */
 	const struct attribute_group *attr_groups[ARMPMU_NR_ATTR_GROUPS + 1];
+	/* store the PMMIR_EL1 to expose slots */
+	u64		reg_pmmir;
 
 	/* Only to be used by ACPI probing code */
 	unsigned long acpi_cpuid;
@@ -163,6 +165,12 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn);
 static inline int arm_pmu_acpi_probe(armpmu_init_fn init_fn) { return 0; }
 #endif
 
+#ifdef CONFIG_KVM
+void kvm_host_pmu_init(struct arm_pmu *pmu);
+#else
+#define kvm_host_pmu_init(x)	do { } while(0)
+#endif
+
 /* Internal functions only for core arm_pmu code */
 struct arm_pmu *armpmu_alloc(void);
 struct arm_pmu *armpmu_alloc_atomic(void);
@@ -174,5 +182,7 @@ void armpmu_free_irq(int irq, int cpu);
 #define ARMV8_PMU_PDEV_NAME "armv8-pmu"
 
 #endif /* CONFIG_ARM_PMU */
+
+#define ARMV8_SPE_PDEV_NAME "arm,spe-v1"
 
 #endif /* __ARM_PMU_H__ */

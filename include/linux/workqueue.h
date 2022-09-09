@@ -29,7 +29,7 @@ void delayed_work_timer_fn(struct timer_list *t);
 
 enum {
 	WORK_STRUCT_PENDING_BIT	= 0,	/* work item is pending execution */
-	WORK_STRUCT_DELAYED_BIT	= 1,	/* work item is delayed */
+	WORK_STRUCT_INACTIVE_BIT= 1,	/* work item is inactive */
 	WORK_STRUCT_PWQ_BIT	= 2,	/* data points to pwq */
 	WORK_STRUCT_LINKED_BIT	= 3,	/* next work is linked to this one */
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
@@ -42,7 +42,7 @@ enum {
 	WORK_STRUCT_COLOR_BITS	= 4,
 
 	WORK_STRUCT_PENDING	= 1 << WORK_STRUCT_PENDING_BIT,
-	WORK_STRUCT_DELAYED	= 1 << WORK_STRUCT_DELAYED_BIT,
+	WORK_STRUCT_INACTIVE	= 1 << WORK_STRUCT_INACTIVE_BIT,
 	WORK_STRUCT_PWQ		= 1 << WORK_STRUCT_PWQ_BIT,
 	WORK_STRUCT_LINKED	= 1 << WORK_STRUCT_LINKED_BIT,
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
@@ -51,19 +51,14 @@ enum {
 	WORK_STRUCT_STATIC	= 0,
 #endif
 
-	/*
-	 * The last color is no color used for works which don't
-	 * participate in workqueue flushing.
-	 */
-	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS) - 1,
-	WORK_NO_COLOR		= WORK_NR_COLORS,
+	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS),
 
 	/* not bound to any CPU, prefer the local CPU */
 	WORK_CPU_UNBOUND	= NR_CPUS,
 
 	/*
-	 * Reserve 7 bits off of pwq pointer w/ debugobjects turned off.
-	 * This makes pwqs aligned to 256 bytes and allows 15 workqueue
+	 * Reserve 8 bits off of pwq pointer w/ debugobjects turned off.
+	 * This makes pwqs aligned to 256 bytes and allows 16 workqueue
 	 * flush colors.
 	 */
 	WORK_STRUCT_FLAG_BITS	= WORK_STRUCT_COLOR_SHIFT +
@@ -311,7 +306,7 @@ enum {
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu intensive workqueue */
-	WQ_SYSFS		= 1 << 6, /* visible in sysfs, see wq_sysfs_register() */
+	WQ_SYSFS		= 1 << 6, /* visible in sysfs, see workqueue_sysfs_register() */
 
 	/*
 	 * Per-cpu workqueues are generally preferred because they tend to
@@ -324,7 +319,7 @@ enum {
 	 * to execute and tries to keep idle cores idle to conserve power;
 	 * however, for example, a per-cpu work item scheduled from an
 	 * interrupt handler on an idle CPU will force the scheduler to
-	 * excute the work item on that CPU breaking the idleness, which in
+	 * execute the work item on that CPU breaking the idleness, which in
 	 * turn may lead to more scheduling choices which are sub-optimal
 	 * in terms of power consumption.
 	 *
@@ -390,49 +385,28 @@ extern struct workqueue_struct *system_freezable_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
 extern struct workqueue_struct *system_freezable_power_efficient_wq;
 
-extern struct workqueue_struct *
-__alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
-	struct lock_class_key *key, const char *lock_name, ...) __printf(1, 6);
-
 /**
  * alloc_workqueue - allocate a workqueue
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags
  * @max_active: max in-flight work items, 0 for default
- * @args...: args for @fmt
+ * remaining args: args for @fmt
  *
  * Allocate a workqueue with the specified parameters.  For detailed
  * information on WQ_* flags, please refer to
  * Documentation/core-api/workqueue.rst.
  *
- * The __lock_name macro dance is to guarantee that single lock_class_key
- * doesn't end up with different namesm, which isn't allowed by lockdep.
- *
  * RETURNS:
  * Pointer to the allocated workqueue on success, %NULL on failure.
  */
-#ifdef CONFIG_LOCKDEP
-#define alloc_workqueue(fmt, flags, max_active, args...)		\
-({									\
-	static struct lock_class_key __key;				\
-	const char *__lock_name;					\
-									\
-	__lock_name = "(wq_completion)"#fmt#args;			\
-									\
-	__alloc_workqueue_key((fmt), (flags), (max_active),		\
-			      &__key, __lock_name, ##args);		\
-})
-#else
-#define alloc_workqueue(fmt, flags, max_active, args...)		\
-	__alloc_workqueue_key((fmt), (flags), (max_active),		\
-			      NULL, NULL, ##args)
-#endif
+__printf(1, 4) struct workqueue_struct *
+alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
 
 /**
  * alloc_ordered_workqueue - allocate an ordered workqueue
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags (only WQ_FREEZABLE and WQ_MEM_RECLAIM are meaningful)
- * @args...: args for @fmt
+ * @args: args for @fmt
  *
  * Allocate an ordered workqueue.  An ordered workqueue executes at
  * most one work item at any given time in the queued order.  They are
@@ -455,7 +429,7 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
-struct workqueue_attrs *alloc_workqueue_attrs(gfp_t gfp_mask);
+struct workqueue_attrs *alloc_workqueue_attrs(void);
 void free_workqueue_attrs(struct workqueue_attrs *attrs);
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs);
@@ -463,13 +437,15 @@ int workqueue_set_unbound_cpumask(cpumask_var_t cpumask);
 
 extern bool queue_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work);
+extern bool queue_work_node(int node, struct workqueue_struct *wq,
+			    struct work_struct *work);
 extern bool queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct delayed_work *work, unsigned long delay);
 extern bool mod_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct delayed_work *dwork, unsigned long delay);
 extern bool queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork);
 
-extern void flush_workqueue(struct workqueue_struct *wq);
+extern void __flush_workqueue(struct workqueue_struct *wq);
 extern void drain_workqueue(struct workqueue_struct *wq);
 
 extern int schedule_on_each_cpu(work_func_t func);
@@ -477,6 +453,7 @@ extern int schedule_on_each_cpu(work_func_t func);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
 
 extern bool flush_work(struct work_struct *work);
+extern bool cancel_work(struct work_struct *work);
 extern bool cancel_work_sync(struct work_struct *work);
 
 extern bool flush_delayed_work(struct delayed_work *dwork);
@@ -493,7 +470,8 @@ extern bool workqueue_congested(int cpu, struct workqueue_struct *wq);
 extern unsigned int work_busy(struct work_struct *work);
 extern __printf(1, 2) void set_worker_desc(const char *fmt, ...);
 extern void print_worker_info(const char *log_lvl, struct task_struct *task);
-extern void show_workqueue_state(void);
+extern void show_all_workqueues(void);
+extern void show_one_workqueue(struct workqueue_struct *wq);
 extern void wq_worker_comm(char *buf, size_t size, struct task_struct *task);
 
 /**
@@ -505,6 +483,19 @@ extern void wq_worker_comm(char *buf, size_t size, struct task_struct *task);
  *
  * We queue the work to the CPU on which it was submitted, but if the CPU dies
  * it can be processed by another CPU.
+ *
+ * Memory-ordering properties:  If it returns %true, guarantees that all stores
+ * preceding the call to queue_work() in the program order will be visible from
+ * the CPU which will execute @work by the time such work executes, e.g.,
+ *
+ * { x is initially 0 }
+ *
+ *   CPU0				CPU1
+ *
+ *   WRITE_ONCE(x, 1);			[ @work is being executed ]
+ *   r0 = queue_work(wq, work);		  r1 = READ_ONCE(x);
+ *
+ * Forbids: r0 == true && r1 == 0
  */
 static inline bool queue_work(struct workqueue_struct *wq,
 			      struct work_struct *work)
@@ -564,11 +555,23 @@ static inline bool schedule_work_on(int cpu, struct work_struct *work)
  * This puts a job in the kernel-global workqueue if it was not already
  * queued and leaves it in the same position on the kernel-global
  * workqueue otherwise.
+ *
+ * Shares the same memory-ordering properties of queue_work(), cf. the
+ * DocBook header of queue_work().
  */
 static inline bool schedule_work(struct work_struct *work)
 {
 	return queue_work(system_wq, work);
 }
+
+/*
+ * Detect attempt to flush system-wide workqueues at compile time when possible.
+ *
+ * See https://lkml.kernel.org/r/49925af7-78a8-a3dd-bce6-cfc02e1a9236@I-love.SAKURA.ne.jp
+ * for reasons and steps for converting system-wide workqueues into local workqueues.
+ */
+extern void __warn_flushing_systemwide_wq(void)
+	__compiletime_warning("Please avoid flushing system-wide workqueues.");
 
 /**
  * flush_scheduled_work - ensure that any scheduled work has run to completion.
@@ -576,9 +579,8 @@ static inline bool schedule_work(struct work_struct *work)
  * Forces execution of the kernel-global workqueue and blocks until its
  * completion.
  *
- * Think twice before calling this function!  It's very easy to get into
- * trouble if you don't take great care.  Either of the following situations
- * will lead to deadlock:
+ * It's very easy to get into trouble if you don't take great care.
+ * Either of the following situations will lead to deadlock:
  *
  *	One of the work items currently on the workqueue needs to acquire
  *	a lock held by your code or its caller.
@@ -593,11 +595,51 @@ static inline bool schedule_work(struct work_struct *work)
  * need to know that a particular work item isn't queued and isn't running.
  * In such cases you should use cancel_delayed_work_sync() or
  * cancel_work_sync() instead.
+ *
+ * Please stop calling this function! A conversion to stop flushing system-wide
+ * workqueues is in progress. This function will be removed after all in-tree
+ * users stopped calling this function.
  */
-static inline void flush_scheduled_work(void)
-{
-	flush_workqueue(system_wq);
-}
+/*
+ * The background of commit 771c035372a036f8 ("deprecate the
+ * '__deprecated' attribute warnings entirely and for good") is that,
+ * since Linus builds all modules between every single pull he does,
+ * the standard kernel build needs to be _clean_ in order to be able to
+ * notice when new problems happen. Therefore, don't emit warning while
+ * there are in-tree users.
+ */
+#define flush_scheduled_work()						\
+({									\
+	if (0)								\
+		__warn_flushing_systemwide_wq();			\
+	__flush_workqueue(system_wq);					\
+})
+
+/*
+ * Although there is no longer in-tree caller, for now just emit warning
+ * in order to give out-of-tree callers time to update.
+ */
+#define flush_workqueue(wq)						\
+({									\
+	struct workqueue_struct *_wq = (wq);				\
+									\
+	if ((__builtin_constant_p(_wq == system_wq) &&			\
+	     _wq == system_wq) ||					\
+	    (__builtin_constant_p(_wq == system_highpri_wq) &&		\
+	     _wq == system_highpri_wq) ||				\
+	    (__builtin_constant_p(_wq == system_long_wq) &&		\
+	     _wq == system_long_wq) ||					\
+	    (__builtin_constant_p(_wq == system_unbound_wq) &&		\
+	     _wq == system_unbound_wq) ||				\
+	    (__builtin_constant_p(_wq == system_freezable_wq) &&	\
+	     _wq == system_freezable_wq) ||				\
+	    (__builtin_constant_p(_wq == system_power_efficient_wq) &&	\
+	     _wq == system_power_efficient_wq) ||			\
+	    (__builtin_constant_p(_wq == system_freezable_power_efficient_wq) && \
+	     _wq == system_freezable_power_efficient_wq))		\
+		__warn_flushing_systemwide_wq();			\
+	__flush_workqueue(_wq);						\
+})
 
 /**
  * schedule_delayed_work_on - queue work in global workqueue on CPU after delay
@@ -667,7 +709,7 @@ int workqueue_online_cpu(unsigned int cpu);
 int workqueue_offline_cpu(unsigned int cpu);
 #endif
 
-int __init workqueue_init_early(void);
-int __init workqueue_init(void);
+void __init workqueue_init_early(void);
+void __init workqueue_init(void);
 
 #endif

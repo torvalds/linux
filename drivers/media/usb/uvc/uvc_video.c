@@ -1,21 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      uvc_video.c  --  USB Video Class driver - Video handling
  *
  *      Copyright (C) 2005-2010
  *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
  */
 
+#include <linux/dma-mapping.h>
+#include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
@@ -81,9 +79,9 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 	if (likely(ret == size))
 		return 0;
 
-	uvc_printk(KERN_ERR,
-		   "Failed to query (%s) UVC control %u on unit %u: %d (exp. %u).\n",
-		   uvc_query_name(query), cs, unit, ret, size);
+	dev_err(&dev->udev->dev,
+		"Failed to query (%s) UVC control %u on unit %u: %d (exp. %u).\n",
+		uvc_query_name(query), cs, unit, ret, size);
 
 	if (ret != -EPIPE)
 		return ret;
@@ -100,7 +98,7 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 	if (ret != 1)
 		return ret < 0 ? ret : -EPIPE;
 
-	uvc_trace(UVC_TRACE_CONTROL, "Control error %u\n", error);
+	uvc_dbg(dev, CONTROL, "Control error %u\n", error);
 
 	switch (error) {
 	case 0:
@@ -117,6 +115,11 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 	case 5: /* Invalid unit */
 	case 6: /* Invalid control */
 	case 7: /* Invalid Request */
+		/*
+		 * The firmware has not properly implemented
+		 * the control or there has been a HW error.
+		 */
+		return -EIO;
 	case 8: /* Invalid value within range */
 		return -EINVAL;
 	default: /* reserved or unknown */
@@ -129,9 +132,36 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	struct uvc_streaming_control *ctrl)
 {
+	static const struct usb_device_id elgato_cam_link_4k = {
+		USB_DEVICE(0x0fd9, 0x0066)
+	};
 	struct uvc_format *format = NULL;
 	struct uvc_frame *frame = NULL;
 	unsigned int i;
+
+	/*
+	 * The response of the Elgato Cam Link 4K is incorrect: The second byte
+	 * contains bFormatIndex (instead of being the second byte of bmHint).
+	 * The first byte is always zero. The third byte is always 1.
+	 *
+	 * The UVC 1.5 class specification defines the first five bits in the
+	 * bmHint bitfield. The remaining bits are reserved and should be zero.
+	 * Therefore a valid bmHint will be less than 32.
+	 *
+	 * Latest Elgato Cam Link 4K firmware as of 2021-03-23 needs this fix.
+	 * MCU: 20.02.19, FPGA: 67
+	 */
+	if (usb_match_one_id(stream->dev->intf, &elgato_cam_link_4k) &&
+	    ctrl->bmHint > 255) {
+		u8 corrected_format_index = ctrl->bmHint >> 8;
+
+		uvc_dbg(stream->dev, VIDEO,
+			"Correct USB video probe response from {bmHint: 0x%04x, bFormatIndex: %u} to {bmHint: 0x%04x, bFormatIndex: %u}\n",
+			ctrl->bmHint, ctrl->bFormatIndex,
+			1, corrected_format_index);
+		ctrl->bmHint = 1;
+		ctrl->bFormatIndex = corrected_format_index;
+	}
 
 	for (i = 0; i < stream->nformats; ++i) {
 		if (stream->format[i].index == ctrl->bFormatIndex) {
@@ -159,7 +189,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 		ctrl->dwMaxVideoFrameSize =
 			frame->dwMaxVideoFrameBufferSize;
 
-	/* The "TOSHIBA Web Camera - 5M" Chicony device (04f2:b50b) seems to
+	/*
+	 * The "TOSHIBA Web Camera - 5M" Chicony device (04f2:b50b) seems to
 	 * compute the bandwidth on 16 bits and erroneously sign-extend it to
 	 * 32 bits, resulting in a huge bandwidth value. Detect and fix that
 	 * condition by setting the 16 MSBs to 0 when they're all equal to 1.
@@ -177,7 +208,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 			 ? ctrl->dwFrameInterval
 			 : frame->dwFrameInterval[0];
 
-		/* Compute a bandwidth estimation by multiplying the frame
+		/*
+		 * Compute a bandwidth estimation by multiplying the frame
 		 * size by the number of video frames per second, divide the
 		 * result by the number of USB frames (or micro-frames for
 		 * high-speed devices) per second and add the UVC header size
@@ -190,7 +222,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 			bandwidth /= 8;
 		bandwidth += 12;
 
-		/* The bandwidth estimate is too low for many cameras. Don't use
+		/*
+		 * The bandwidth estimate is too low for many cameras. Don't use
 		 * maximum packet sizes lower than 1024 bytes to try and work
 		 * around the problem. According to measurements done on two
 		 * different camera models, the value is high enough to get most
@@ -237,7 +270,8 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		size, uvc_timeout_param);
 
 	if ((query == UVC_GET_MIN || query == UVC_GET_MAX) && ret == 2) {
-		/* Some cameras, mostly based on Bison Electronics chipsets,
+		/*
+		 * Some cameras, mostly based on Bison Electronics chipsets,
 		 * answer a GET_MIN or GET_MAX request with the wCompQuality
 		 * field only.
 		 */
@@ -249,7 +283,8 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		ret = 0;
 		goto out;
 	} else if (query == UVC_GET_DEF && probe == 1 && ret != size) {
-		/* Many cameras don't support the GET_DEF request on their
+		/*
+		 * Many cameras don't support the GET_DEF request on their
 		 * video probe control. Warn once and return, the caller will
 		 * fall back to GET_CUR.
 		 */
@@ -259,9 +294,9 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		ret = -EIO;
 		goto out;
 	} else if (ret != size) {
-		uvc_printk(KERN_ERR, "Failed to query (%u) UVC %s control : "
-			"%d (exp. %u).\n", query, probe ? "probe" : "commit",
-			ret, size);
+		dev_err(&stream->intf->dev,
+			"Failed to query (%u) UVC %s control : %d (exp. %u).\n",
+			query, probe ? "probe" : "commit", ret, size);
 		ret = -EIO;
 		goto out;
 	}
@@ -292,7 +327,8 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		ctrl->bMaxVersion = 0;
 	}
 
-	/* Some broken devices return null or wrong dwMaxVideoFrameSize and
+	/*
+	 * Some broken devices return null or wrong dwMaxVideoFrameSize and
 	 * dwMaxPayloadTransferSize fields. Try to get the value from the
 	 * format and frame descriptors.
 	 */
@@ -339,9 +375,9 @@ static int uvc_set_video_ctrl(struct uvc_streaming *stream,
 		probe ? UVC_VS_PROBE_CONTROL : UVC_VS_COMMIT_CONTROL, data,
 		size, uvc_timeout_param);
 	if (ret != size) {
-		uvc_printk(KERN_ERR, "Failed to set UVC %s control : "
-			"%d (exp. %u).\n", probe ? "probe" : "commit",
-			ret, size);
+		dev_err(&stream->intf->dev,
+			"Failed to set UVC %s control : %d (exp. %u).\n",
+			probe ? "probe" : "commit", ret, size);
 		ret = -EIO;
 	}
 
@@ -353,11 +389,11 @@ int uvc_probe_video(struct uvc_streaming *stream,
 	struct uvc_streaming_control *probe)
 {
 	struct uvc_streaming_control probe_min, probe_max;
-	u16 bandwidth;
 	unsigned int i;
 	int ret;
 
-	/* Perform probing. The device should adjust the requested values
+	/*
+	 * Perform probing. The device should adjust the requested values
 	 * according to its capabilities. However, some devices, namely the
 	 * first generation UVC Logitech webcams, don't implement the Video
 	 * Probe control properly, and just return the needed bandwidth. For
@@ -391,8 +427,7 @@ int uvc_probe_video(struct uvc_streaming *stream,
 		if (stream->intf->num_altsetting == 1)
 			break;
 
-		bandwidth = probe->dwMaxPayloadTransferSize;
-		if (bandwidth <= stream->maxpsize)
+		if (probe->dwMaxPayloadTransferSize <= stream->maxpsize)
 			break;
 
 		if (stream->dev->quirks & UVC_QUIRK_PROBE_MINMAX) {
@@ -465,7 +500,8 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	if (len < header_size)
 		return;
 
-	/* Extract the timestamps:
+	/*
+	 * Extract the timestamps:
 	 *
 	 * - store the frame PTS in the buffer structure
 	 * - if the SCR field is present, retrieve the host SOF counter and
@@ -478,7 +514,8 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	if (!has_scr)
 		return;
 
-	/* To limit the amount of data, drop SCRs with an SOF identical to the
+	/*
+	 * To limit the amount of data, drop SCRs with an SOF identical to the
 	 * previous one.
 	 */
 	dev_sof = get_unaligned_le16(&data[header_size - 2]);
@@ -490,7 +527,8 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	host_sof = usb_get_current_frame_number(stream->dev->udev);
 	time = uvc_video_get_time();
 
-	/* The UVC specification allows device implementations that can't obtain
+	/*
+	 * The UVC specification allows device implementations that can't obtain
 	 * the USB frame number to keep their own frame counters as long as they
 	 * match the size and frequency of the frame number associated with USB
 	 * SOF tokens. The SOF values sent by such devices differ from the USB
@@ -627,7 +665,7 @@ static u16 uvc_video_clock_host_sof(const struct uvc_clock_sample *sample)
  * to avoid losing precision in the division. Similarly, the host timestamp is
  * computed with
  *
- * TS = ((TS2 - TS1) * PTS + TS1 * SOF2 - TS2 * SOF1) / (SOF2 - SOF1)	     (2)
+ * TS = ((TS2 - TS1) * SOF + TS1 * SOF2 - TS2 * SOF1) / (SOF2 - SOF1)	     (2)
  *
  * SOF values are coded on 11 bits by USB. We extend their precision with 16
  * decimal bits, leading to a 11.16 coding.
@@ -676,6 +714,14 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 	if (!uvc_hw_timestamps_param)
 		return;
 
+	/*
+	 * We will get called from __vb2_queue_cancel() if there are buffers
+	 * done but not dequeued by the user, but the sample array has already
+	 * been released at that time. Just bail out in that case.
+	 */
+	if (!clock->samples)
+		return;
+
 	spin_lock_irqsave(&clock->lock, flags);
 
 	if (clock->count < clock->size)
@@ -702,12 +748,12 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 
 	sof = y;
 
-	uvc_trace(UVC_TRACE_CLOCK, "%s: PTS %u y %llu.%06llu SOF %u.%06llu "
-		  "(x1 %u x2 %u y1 %u y2 %u SOF offset %u)\n",
-		  stream->dev->name, buf->pts,
-		  y >> 16, div_u64((y & 0xffff) * 1000000, 65536),
-		  sof >> 16, div_u64(((u64)sof & 0xffff) * 1000000LLU, 65536),
-		  x1, x2, y1, y2, clock->sof_offset);
+	uvc_dbg(stream->dev, CLOCK,
+		"%s: PTS %u y %llu.%06llu SOF %u.%06llu (x1 %u x2 %u y1 %u y2 %u SOF offset %u)\n",
+		stream->dev->name, buf->pts,
+		y >> 16, div_u64((y & 0xffff) * 1000000, 65536),
+		sof >> 16, div_u64(((u64)sof & 0xffff) * 1000000LLU, 65536),
+		x1, x2, y1, y2, clock->sof_offset);
 
 	/* Second step, SOF to host clock conversion. */
 	x1 = (uvc_video_clock_host_sof(first) + 2048) << 16;
@@ -720,7 +766,8 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 	y1 = NSEC_PER_SEC;
 	y2 = (u32)ktime_to_ns(ktime_sub(last->host_time, first->host_time)) + y1;
 
-	/* Interpolated and host SOF timestamps can wrap around at slightly
+	/*
+	 * Interpolated and host SOF timestamps can wrap around at slightly
 	 * different times. Handle this by adding or removing 2048 to or from
 	 * the computed SOF value to keep it close to the SOF samples mean
 	 * value.
@@ -737,13 +784,13 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 
 	timestamp = ktime_to_ns(first->host_time) + y - y1;
 
-	uvc_trace(UVC_TRACE_CLOCK, "%s: SOF %u.%06llu y %llu ts %llu "
-		  "buf ts %llu (x1 %u/%u/%u x2 %u/%u/%u y1 %u y2 %u)\n",
-		  stream->dev->name,
-		  sof >> 16, div_u64(((u64)sof & 0xffff) * 1000000LLU, 65536),
-		  y, timestamp, vbuf->vb2_buf.timestamp,
-		  x1, first->host_sof, first->dev_sof,
-		  x2, last->host_sof, last->dev_sof, y1, y2);
+	uvc_dbg(stream->dev, CLOCK,
+		"%s: SOF %u.%06llu y %llu ts %llu buf ts %llu (x1 %u/%u/%u x2 %u/%u/%u y1 %u y2 %u)\n",
+		stream->dev->name,
+		sof >> 16, div_u64(((u64)sof & 0xffff) * 1000000LLU, 65536),
+		y, timestamp, vbuf->vb2_buf.timestamp,
+		x1, first->host_sof, first->dev_sof,
+		x2, last->host_sof, last->dev_sof, y1, y2);
 
 	/* Update the V4L2 buffer. */
 	vbuf->vb2_buf.timestamp = timestamp;
@@ -762,9 +809,9 @@ static void uvc_video_stats_decode(struct uvc_streaming *stream,
 	unsigned int header_size;
 	bool has_pts = false;
 	bool has_scr = false;
-	u16 uninitialized_var(scr_sof);
-	u32 uninitialized_var(scr_stc);
-	u32 uninitialized_var(pts);
+	u16 scr_sof;
+	u32 scr_stc;
+	u32 pts;
 
 	if (stream->stats.stream.nb_frames == 0 &&
 	    stream->stats.frame.nb_packets == 0)
@@ -818,7 +865,8 @@ static void uvc_video_stats_decode(struct uvc_streaming *stream,
 		stream->stats.frame.pts = pts;
 	}
 
-	/* Do all frames have a PTS in their first non-empty packet, or before
+	/*
+	 * Do all frames have a PTS in their first non-empty packet, or before
 	 * their first empty packet ?
 	 */
 	if (stream->stats.frame.size == 0) {
@@ -872,16 +920,15 @@ static void uvc_video_stats_update(struct uvc_streaming *stream)
 {
 	struct uvc_stats_frame *frame = &stream->stats.frame;
 
-	uvc_trace(UVC_TRACE_STATS, "frame %u stats: %u/%u/%u packets, "
-		  "%u/%u/%u pts (%searly %sinitial), %u/%u scr, "
-		  "last pts/stc/sof %u/%u/%u\n",
-		  stream->sequence, frame->first_data,
-		  frame->nb_packets - frame->nb_empty, frame->nb_packets,
-		  frame->nb_pts_diffs, frame->last_pts_diff, frame->nb_pts,
-		  frame->has_early_pts ? "" : "!",
-		  frame->has_initial_pts ? "" : "!",
-		  frame->nb_scr_diffs, frame->nb_scr,
-		  frame->pts, frame->scr_stc, frame->scr_sof);
+	uvc_dbg(stream->dev, STATS,
+		"frame %u stats: %u/%u/%u packets, %u/%u/%u pts (%searly %sinitial), %u/%u scr, last pts/stc/sof %u/%u/%u\n",
+		stream->sequence, frame->first_data,
+		frame->nb_packets - frame->nb_empty, frame->nb_packets,
+		frame->nb_pts_diffs, frame->last_pts_diff, frame->nb_pts,
+		frame->has_early_pts ? "" : "!",
+		frame->has_initial_pts ? "" : "!",
+		frame->nb_scr_diffs, frame->nb_scr,
+		frame->pts, frame->scr_stc, frame->scr_sof);
 
 	stream->stats.stream.nb_frames++;
 	stream->stats.stream.nb_packets += stream->stats.frame.nb_packets;
@@ -910,7 +957,8 @@ size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,
 	unsigned int duration;
 	size_t count = 0;
 
-	/* Compute the SCR.SOF frequency estimate. At the nominal 1kHz SOF
+	/*
+	 * Compute the SCR.SOF frequency estimate. At the nominal 1kHz SOF
 	 * frequency this will not overflow before more than 1h.
 	 */
 	duration = ktime_ms_delta(stream->stats.stream.stop_ts,
@@ -962,7 +1010,8 @@ static void uvc_video_stats_stop(struct uvc_streaming *stream)
  * Video codecs
  */
 
-/* Video payload decoding is handled by uvc_video_decode_start(),
+/*
+ * Video payload decoding is handled by uvc_video_decode_start(),
  * uvc_video_decode_data() and uvc_video_decode_end().
  *
  * uvc_video_decode_start is called with URB data at the start of a bulk or
@@ -1002,7 +1051,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 {
 	u8 fid;
 
-	/* Sanity checks:
+	/*
+	 * Sanity checks:
 	 * - packet must be at least 2 bytes long
 	 * - bHeaderLength value must be at least 2 bytes (see above)
 	 * - bHeaderLength value can't be larger than the packet size.
@@ -1014,7 +1064,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 
 	fid = data[1] & UVC_STREAM_FID;
 
-	/* Increase the sequence number regardless of any buffer states, so
+	/*
+	 * Increase the sequence number regardless of any buffer states, so
 	 * that discontinuous sequence numbers always indicate lost frames.
 	 */
 	if (stream->last_fid != fid) {
@@ -1026,7 +1077,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	uvc_video_clock_decode(stream, buf, data, len);
 	uvc_video_stats_decode(stream, data, len);
 
-	/* Store the payload FID bit and return immediately when the buffer is
+	/*
+	 * Store the payload FID bit and return immediately when the buffer is
 	 * NULL.
 	 */
 	if (buf == NULL) {
@@ -1036,12 +1088,13 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 
 	/* Mark the buffer as bad if the error bit is set. */
 	if (data[1] & UVC_STREAM_ERR) {
-		uvc_trace(UVC_TRACE_FRAME, "Marking buffer as bad (error bit "
-			  "set).\n");
+		uvc_dbg(stream->dev, FRAME,
+			"Marking buffer as bad (error bit set)\n");
 		buf->error = 1;
 	}
 
-	/* Synchronize to the input stream by waiting for the FID bit to be
+	/*
+	 * Synchronize to the input stream by waiting for the FID bit to be
 	 * toggled when the the buffer state is not UVC_BUF_STATE_ACTIVE.
 	 * stream->last_fid is initialized to -1, so the first isochronous
 	 * frame will always be in sync.
@@ -1051,8 +1104,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	 */
 	if (buf->state != UVC_BUF_STATE_ACTIVE) {
 		if (fid == stream->last_fid) {
-			uvc_trace(UVC_TRACE_FRAME, "Dropping payload (out of "
-				"sync).\n");
+			uvc_dbg(stream->dev, FRAME,
+				"Dropping payload (out of sync)\n");
 			if ((stream->dev->quirks & UVC_QUIRK_STREAM_NO_FID) &&
 			    (data[1] & UVC_STREAM_EOF))
 				stream->last_fid ^= UVC_STREAM_FID;
@@ -1067,7 +1120,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 		buf->state = UVC_BUF_STATE_ACTIVE;
 	}
 
-	/* Mark the buffer as done if we're at the beginning of a new frame.
+	/*
+	 * Mark the buffer as done if we're at the beginning of a new frame.
 	 * End of frame detection is better implemented by checking the EOF
 	 * bit (FID bit toggling is delayed by one frame compared to the EOF
 	 * bit), but some devices don't set the bit at end of frame (and the
@@ -1083,8 +1137,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	 * previous payload had the EOF bit set.
 	 */
 	if (fid != stream->last_fid && buf->bytesused != 0) {
-		uvc_trace(UVC_TRACE_FRAME, "Frame complete (FID bit "
-				"toggled).\n");
+		uvc_dbg(stream->dev, FRAME,
+			"Frame complete (FID bit toggled)\n");
 		buf->state = UVC_BUF_STATE_READY;
 		return -EAGAIN;
 	}
@@ -1092,6 +1146,29 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	stream->last_fid = fid;
 
 	return data[0];
+}
+
+static inline enum dma_data_direction uvc_stream_dir(
+				struct uvc_streaming *stream)
+{
+	if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return DMA_FROM_DEVICE;
+	else
+		return DMA_TO_DEVICE;
+}
+
+static inline struct device *uvc_stream_to_dmadev(struct uvc_streaming *stream)
+{
+	return bus_to_hcd(stream->dev->udev->bus)->self.sysdev;
+}
+
+static int uvc_submit_urb(struct uvc_urb *uvc_urb, gfp_t mem_flags)
+{
+	/* Sync DMA. */
+	dma_sync_sgtable_for_device(uvc_stream_to_dmadev(uvc_urb->stream),
+				    uvc_urb->sgt,
+				    uvc_stream_dir(uvc_urb->stream));
+	return usb_submit_urb(uvc_urb->urb, mem_flags);
 }
 
 /*
@@ -1115,10 +1192,10 @@ static void uvc_video_copy_data_work(struct work_struct *work)
 		uvc_queue_buffer_release(op->buf);
 	}
 
-	ret = usb_submit_urb(uvc_urb->urb, GFP_KERNEL);
+	ret = uvc_submit_urb(uvc_urb, GFP_KERNEL);
 	if (ret < 0)
-		uvc_printk(KERN_ERR, "Failed to resubmit video URB (%d).\n",
-			   ret);
+		dev_err(&uvc_urb->stream->intf->dev,
+			"Failed to resubmit video URB (%d).\n", ret);
 }
 
 static void uvc_video_decode_data(struct uvc_urb *uvc_urb,
@@ -1145,7 +1222,8 @@ static void uvc_video_decode_data(struct uvc_urb *uvc_urb,
 
 	/* Complete the current frame if the buffer size was exceeded. */
 	if (len > maxlen) {
-		uvc_trace(UVC_TRACE_FRAME, "Frame complete (overflow).\n");
+		uvc_dbg(uvc_urb->stream->dev, FRAME,
+			"Frame complete (overflow)\n");
 		buf->error = 1;
 		buf->state = UVC_BUF_STATE_READY;
 	}
@@ -1158,16 +1236,17 @@ static void uvc_video_decode_end(struct uvc_streaming *stream,
 {
 	/* Mark the buffer as done if the EOF marker is set. */
 	if (data[1] & UVC_STREAM_EOF && buf->bytesused != 0) {
-		uvc_trace(UVC_TRACE_FRAME, "Frame complete (EOF found).\n");
+		uvc_dbg(stream->dev, FRAME, "Frame complete (EOF found)\n");
 		if (data[0] == len)
-			uvc_trace(UVC_TRACE_FRAME, "EOF in empty payload.\n");
+			uvc_dbg(stream->dev, FRAME, "EOF in empty payload\n");
 		buf->state = UVC_BUF_STATE_READY;
 		if (stream->dev->quirks & UVC_QUIRK_STREAM_NO_FID)
 			stream->last_fid ^= UVC_STREAM_FID;
 	}
 }
 
-/* Video payload encoding is handled by uvc_video_encode_header() and
+/*
+ * Video payload encoding is handled by uvc_video_encode_header() and
  * uvc_video_encode_data(). Only bulk transfers are currently supported.
  *
  * uvc_video_encode_header is called at the start of a payload. It adds header
@@ -1276,13 +1355,13 @@ static void uvc_video_decode_meta(struct uvc_streaming *stream,
 	memcpy(&meta->length, mem, length);
 	meta_buf->bytesused += length + sizeof(meta->ns) + sizeof(meta->sof);
 
-	uvc_trace(UVC_TRACE_FRAME,
-		  "%s(): t-sys %lluns, SOF %u, len %u, flags 0x%x, PTS %u, STC %u frame SOF %u\n",
-		  __func__, ktime_to_ns(time), meta->sof, meta->length,
-		  meta->flags,
-		  has_pts ? *(u32 *)meta->buf : 0,
-		  has_scr ? *(u32 *)scr : 0,
-		  has_scr ? *(u32 *)(scr + 4) & 0x7ff : 0);
+	uvc_dbg(stream->dev, FRAME,
+		"%s(): t-sys %lluns, SOF %u, len %u, flags 0x%x, PTS %u, STC %u frame SOF %u\n",
+		__func__, ktime_to_ns(time), meta->sof, meta->length,
+		meta->flags,
+		has_pts ? *(u32 *)meta->buf : 0,
+		has_scr ? *(u32 *)scr : 0,
+		has_scr ? *(u32 *)(scr + 4) & 0x7ff : 0);
 }
 
 /* ------------------------------------------------------------------------
@@ -1336,8 +1415,9 @@ static void uvc_video_decode_isoc(struct uvc_urb *uvc_urb,
 
 	for (i = 0; i < urb->number_of_packets; ++i) {
 		if (urb->iso_frame_desc[i].status < 0) {
-			uvc_trace(UVC_TRACE_FRAME, "USB isochronous frame "
-				"lost (%d).\n", urb->iso_frame_desc[i].status);
+			uvc_dbg(stream->dev, FRAME,
+				"USB isochronous frame lost (%d)\n",
+				urb->iso_frame_desc[i].status);
 			/* Mark the buffer as faulty. */
 			if (buf != NULL)
 				buf->error = 1;
@@ -1390,7 +1470,8 @@ static void uvc_video_decode_bulk(struct uvc_urb *uvc_urb,
 	len = urb->actual_length;
 	stream->bulk.payload_size += len;
 
-	/* If the URB is the first of its payload, decode and save the
+	/*
+	 * If the URB is the first of its payload, decode and save the
 	 * header.
 	 */
 	if (stream->bulk.header_size == 0 && !stream->bulk.skip_payload) {
@@ -1414,7 +1495,8 @@ static void uvc_video_decode_bulk(struct uvc_urb *uvc_urb,
 		}
 	}
 
-	/* The buffer queue might have been cancelled while a bulk transfer
+	/*
+	 * The buffer queue might have been cancelled while a bulk transfer
 	 * was in progress, so we can reach here with buf equal to NULL. Make
 	 * sure buf is never dereferenced if NULL.
 	 */
@@ -1423,7 +1505,8 @@ static void uvc_video_decode_bulk(struct uvc_urb *uvc_urb,
 	if (!stream->bulk.skip_payload && buf != NULL)
 		uvc_video_decode_data(uvc_urb, buf, mem, len);
 
-	/* Detect the payload end by a URB smaller than the maximum size (or
+	/*
+	 * Detect the payload end by a URB smaller than the maximum size (or
 	 * a payload size equal to the maximum) and process the header again.
 	 */
 	if (urb->actual_length < urb->transfer_buffer_length ||
@@ -1504,13 +1587,14 @@ static void uvc_video_complete(struct urb *urb)
 		break;
 
 	default:
-		uvc_printk(KERN_WARNING, "Non-zero status (%d) in video "
-			"completion handler.\n", urb->status);
-		/* fall through */
+		dev_warn(&stream->intf->dev,
+			 "Non-zero status (%d) in video completion handler.\n",
+			 urb->status);
+		fallthrough;
 	case -ENOENT:		/* usb_poison_urb() called. */
 		if (stream->frozen)
 			return;
-		/* fall through */
+		fallthrough;
 	case -ECONNRESET:	/* usb_unlink_urb() called. */
 	case -ESHUTDOWN:	/* The endpoint is being disabled. */
 		uvc_queue_cancel(queue, urb->status == -ESHUTDOWN);
@@ -1532,6 +1616,12 @@ static void uvc_video_complete(struct urb *urb)
 	/* Re-initialise the URB async work. */
 	uvc_urb->async_operations = 0;
 
+	/* Sync DMA and invalidate vmap range. */
+	dma_sync_sgtable_for_cpu(uvc_stream_to_dmadev(uvc_urb->stream),
+				 uvc_urb->sgt, uvc_stream_dir(stream));
+	invalidate_kernel_vmap_range(uvc_urb->buffer,
+				     uvc_urb->stream->urb_size);
+
 	/*
 	 * Process the URB headers, and optionally queue expensive memcpy tasks
 	 * to be deferred to a work queue.
@@ -1540,11 +1630,10 @@ static void uvc_video_complete(struct urb *urb)
 
 	/* If no async work is needed, resubmit the URB immediately. */
 	if (!uvc_urb->async_operations) {
-		ret = usb_submit_urb(uvc_urb->urb, GFP_ATOMIC);
+		ret = uvc_submit_urb(uvc_urb, GFP_ATOMIC);
 		if (ret < 0)
-			uvc_printk(KERN_ERR,
-				   "Failed to resubmit video URB (%d).\n",
-				   ret);
+			dev_err(&stream->intf->dev,
+				"Failed to resubmit video URB (%d).\n", ret);
 		return;
 	}
 
@@ -1556,22 +1645,47 @@ static void uvc_video_complete(struct urb *urb)
  */
 static void uvc_free_urb_buffers(struct uvc_streaming *stream)
 {
+	struct device *dma_dev = uvc_stream_to_dmadev(stream);
 	struct uvc_urb *uvc_urb;
 
 	for_each_uvc_urb(uvc_urb, stream) {
 		if (!uvc_urb->buffer)
 			continue;
 
-#ifndef CONFIG_DMA_NONCOHERENT
-		usb_free_coherent(stream->dev->udev, stream->urb_size,
-				  uvc_urb->buffer, uvc_urb->dma);
-#else
-		kfree(uvc_urb->buffer);
-#endif
+		dma_vunmap_noncontiguous(dma_dev, uvc_urb->buffer);
+		dma_free_noncontiguous(dma_dev, stream->urb_size, uvc_urb->sgt,
+				       uvc_stream_dir(stream));
+
 		uvc_urb->buffer = NULL;
+		uvc_urb->sgt = NULL;
 	}
 
 	stream->urb_size = 0;
+}
+
+static bool uvc_alloc_urb_buffer(struct uvc_streaming *stream,
+				 struct uvc_urb *uvc_urb, gfp_t gfp_flags)
+{
+	struct device *dma_dev = uvc_stream_to_dmadev(stream);
+
+	uvc_urb->sgt = dma_alloc_noncontiguous(dma_dev, stream->urb_size,
+					       uvc_stream_dir(stream),
+					       gfp_flags, 0);
+	if (!uvc_urb->sgt)
+		return false;
+	uvc_urb->dma = uvc_urb->sgt->sgl->dma_address;
+
+	uvc_urb->buffer = dma_vmap_noncontiguous(dma_dev, stream->urb_size,
+						 uvc_urb->sgt);
+	if (!uvc_urb->buffer) {
+		dma_free_noncontiguous(dma_dev, stream->urb_size,
+				       uvc_urb->sgt,
+				       uvc_stream_dir(stream));
+		uvc_urb->sgt = NULL;
+		return false;
+	}
+
+	return true;
 }
 
 /*
@@ -1595,7 +1709,8 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 	if (stream->urb_size)
 		return stream->urb_size / psize;
 
-	/* Compute the number of packets. Bulk endpoints might transfer UVC
+	/*
+	 * Compute the number of packets. Bulk endpoints might transfer UVC
 	 * payloads across multiple URBs.
 	 */
 	npackets = DIV_ROUND_UP(size, psize);
@@ -1604,19 +1719,12 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 
 	/* Retry allocations until one succeed. */
 	for (; npackets > 1; npackets /= 2) {
+		stream->urb_size = psize * npackets;
+
 		for (i = 0; i < UVC_URBS; ++i) {
 			struct uvc_urb *uvc_urb = &stream->uvc_urb[i];
 
-			stream->urb_size = psize * npackets;
-#ifndef CONFIG_DMA_NONCOHERENT
-			uvc_urb->buffer = usb_alloc_coherent(
-				stream->dev->udev, stream->urb_size,
-				gfp_flags | __GFP_NOWARN, &uvc_urb->dma);
-#else
-			uvc_urb->buffer =
-			    kmalloc(stream->urb_size, gfp_flags | __GFP_NOWARN);
-#endif
-			if (!uvc_urb->buffer) {
+			if (!uvc_alloc_urb_buffer(stream, uvc_urb, gfp_flags)) {
 				uvc_free_urb_buffers(stream);
 				break;
 			}
@@ -1625,15 +1733,16 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 		}
 
 		if (i == UVC_URBS) {
-			uvc_trace(UVC_TRACE_VIDEO, "Allocated %u URB buffers "
-				"of %ux%u bytes each.\n", UVC_URBS, npackets,
-				psize);
+			uvc_dbg(stream->dev, VIDEO,
+				"Allocated %u URB buffers of %ux%u bytes each\n",
+				UVC_URBS, npackets, psize);
 			return npackets;
 		}
 	}
 
-	uvc_trace(UVC_TRACE_VIDEO, "Failed to allocate URB buffers (%u bytes "
-		"per packet).\n", psize);
+	uvc_dbg(stream->dev, VIDEO,
+		"Failed to allocate URB buffers (%u bytes per packet)\n",
+		psize);
 	return 0;
 }
 
@@ -1669,25 +1778,17 @@ static void uvc_video_stop_transfer(struct uvc_streaming *stream,
 /*
  * Compute the maximum number of bytes per interval for an endpoint.
  */
-static unsigned int uvc_endpoint_max_bpi(struct usb_device *dev,
-					 struct usb_host_endpoint *ep)
+u16 uvc_endpoint_max_bpi(struct usb_device *dev, struct usb_host_endpoint *ep)
 {
 	u16 psize;
-	u16 mult;
 
 	switch (dev->speed) {
 	case USB_SPEED_SUPER:
 	case USB_SPEED_SUPER_PLUS:
 		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
-	case USB_SPEED_HIGH:
-		psize = usb_endpoint_maxp(&ep->desc);
-		mult = usb_endpoint_maxp_mult(&ep->desc);
-		return psize * mult;
-	case USB_SPEED_WIRELESS:
-		psize = usb_endpoint_maxp(&ep->desc);
-		return psize;
 	default:
 		psize = usb_endpoint_maxp(&ep->desc);
+		psize *= usb_endpoint_maxp_mult(&ep->desc);
 		return psize;
 	}
 }
@@ -1725,12 +1826,8 @@ static int uvc_init_video_isoc(struct uvc_streaming *stream,
 		urb->context = uvc_urb;
 		urb->pipe = usb_rcvisocpipe(stream->dev->udev,
 				ep->desc.bEndpointAddress);
-#ifndef CONFIG_DMA_NONCOHERENT
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_dma = uvc_urb->dma;
-#else
-		urb->transfer_flags = URB_ISO_ASAP;
-#endif
 		urb->interval = ep->desc.bInterval;
 		urb->transfer_buffer = uvc_urb->buffer;
 		urb->complete = uvc_video_complete;
@@ -1790,10 +1887,8 @@ static int uvc_init_video_bulk(struct uvc_streaming *stream,
 
 		usb_fill_bulk_urb(urb, stream->dev->udev, pipe,	uvc_urb->buffer,
 				  size, uvc_video_complete, uvc_urb);
-#ifndef CONFIG_DMA_NONCOHERENT
 		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_dma = uvc_urb->dma;
-#endif
 
 		uvc_urb->urb = urb;
 	}
@@ -1825,19 +1920,20 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 		struct usb_host_endpoint *best_ep = NULL;
 		unsigned int best_psize = UINT_MAX;
 		unsigned int bandwidth;
-		unsigned int uninitialized_var(altsetting);
+		unsigned int altsetting;
 		int intfnum = stream->intfnum;
 
 		/* Isochronous endpoint, select the alternate setting. */
 		bandwidth = stream->ctrl.dwMaxPayloadTransferSize;
 
 		if (bandwidth == 0) {
-			uvc_trace(UVC_TRACE_VIDEO, "Device requested null "
-				"bandwidth, defaulting to lowest.\n");
+			uvc_dbg(stream->dev, VIDEO,
+				"Device requested null bandwidth, defaulting to lowest\n");
 			bandwidth = 1;
 		} else {
-			uvc_trace(UVC_TRACE_VIDEO, "Device requested %u "
-				"B/frame bandwidth.\n", bandwidth);
+			uvc_dbg(stream->dev, VIDEO,
+				"Device requested %u B/frame bandwidth\n",
+				bandwidth);
 		}
 
 		for (i = 0; i < intf->num_altsetting; ++i) {
@@ -1860,13 +1956,14 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 		}
 
 		if (best_ep == NULL) {
-			uvc_trace(UVC_TRACE_VIDEO, "No fast enough alt setting "
-				"for requested bandwidth.\n");
+			uvc_dbg(stream->dev, VIDEO,
+				"No fast enough alt setting for requested bandwidth\n");
 			return -EIO;
 		}
 
-		uvc_trace(UVC_TRACE_VIDEO, "Selecting alternate setting %u "
-			"(%u B/frame bandwidth).\n", altsetting, best_psize);
+		uvc_dbg(stream->dev, VIDEO,
+			"Selecting alternate setting %u (%u B/frame bandwidth)\n",
+			altsetting, best_psize);
 
 		ret = usb_set_interface(stream->dev->udev, intfnum, altsetting);
 		if (ret < 0)
@@ -1880,6 +1977,10 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 		if (ep == NULL)
 			return -EIO;
 
+		/* Reject broken descriptors. */
+		if (usb_endpoint_maxp(&ep->desc) == 0)
+			return -EIO;
+
 		ret = uvc_init_video_bulk(stream, ep, gfp_flags);
 	}
 
@@ -1888,16 +1989,18 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 
 	/* Submit the URBs. */
 	for_each_uvc_urb(uvc_urb, stream) {
-		ret = usb_submit_urb(uvc_urb->urb, gfp_flags);
+		ret = uvc_submit_urb(uvc_urb, gfp_flags);
 		if (ret < 0) {
-			uvc_printk(KERN_ERR, "Failed to submit URB %u (%d).\n",
-				   uvc_urb_index(uvc_urb), ret);
+			dev_err(&stream->intf->dev,
+				"Failed to submit URB %u (%d).\n",
+				uvc_urb_index(uvc_urb), ret);
 			uvc_video_stop_transfer(stream, 1);
 			return ret;
 		}
 	}
 
-	/* The Logitech C920 temporarily forgets that it should not be adjusting
+	/*
+	 * The Logitech C920 temporarily forgets that it should not be adjusting
 	 * Exposure Absolute during init so restore controls to stored values.
 	 */
 	if (stream->dev->quirks & UVC_QUIRK_RESTORE_CTRLS_ON_INIT)
@@ -1940,7 +2043,8 @@ int uvc_video_resume(struct uvc_streaming *stream, int reset)
 {
 	int ret;
 
-	/* If the bus has been reset on resume, set the alternate setting to 0.
+	/*
+	 * If the bus has been reset on resume, set the alternate setting to 0.
 	 * This should be the default value, but some devices crash or otherwise
 	 * misbehave if they don't receive a SET_INTERFACE request before any
 	 * other video control request.
@@ -1986,28 +2090,32 @@ int uvc_video_init(struct uvc_streaming *stream)
 	int ret;
 
 	if (stream->nformats == 0) {
-		uvc_printk(KERN_INFO, "No supported video formats found.\n");
+		dev_info(&stream->intf->dev,
+			 "No supported video formats found.\n");
 		return -EINVAL;
 	}
 
 	atomic_set(&stream->active, 0);
 
-	/* Alternate setting 0 should be the default, yet the XBox Live Vision
+	/*
+	 * Alternate setting 0 should be the default, yet the XBox Live Vision
 	 * Cam (and possibly other devices) crash or otherwise misbehave if
 	 * they don't receive a SET_INTERFACE request before any other video
 	 * control request.
 	 */
 	usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 
-	/* Set the streaming probe control with default streaming parameters
-	 * retrieved from the device. Webcams that don't suport GET_DEF
+	/*
+	 * Set the streaming probe control with default streaming parameters
+	 * retrieved from the device. Webcams that don't support GET_DEF
 	 * requests on the probe control will just keep their current streaming
 	 * parameters.
 	 */
 	if (uvc_get_video_ctrl(stream, probe, 1, UVC_GET_DEF) == 0)
 		uvc_set_video_ctrl(stream, probe, 1);
 
-	/* Initialize the streaming parameters with the probe control current
+	/*
+	 * Initialize the streaming parameters with the probe control current
 	 * value. This makes sure SET_CUR requests on the streaming commit
 	 * control will always use values retrieved from a successful GET_CUR
 	 * request on the probe control, as required by the UVC specification.
@@ -2016,7 +2124,8 @@ int uvc_video_init(struct uvc_streaming *stream)
 	if (ret < 0)
 		return ret;
 
-	/* Check if the default format descriptor exists. Use the first
+	/*
+	 * Check if the default format descriptor exists. Use the first
 	 * available format otherwise.
 	 */
 	for (i = stream->nformats; i > 0; --i) {
@@ -2026,12 +2135,13 @@ int uvc_video_init(struct uvc_streaming *stream)
 	}
 
 	if (format->nframes == 0) {
-		uvc_printk(KERN_INFO, "No frame descriptor found for the "
-			"default format.\n");
+		dev_info(&stream->intf->dev,
+			 "No frame descriptor found for the default format.\n");
 		return -EINVAL;
 	}
 
-	/* Zero bFrameIndex might be correct. Stream-based formats (including
+	/*
+	 * Zero bFrameIndex might be correct. Stream-based formats (including
 	 * MPEG-2 TS and DV) do not support frames but have a dummy frame
 	 * descriptor with bFrameIndex set to zero. If the default frame
 	 * descriptor is not found, use the first available frame.
@@ -2061,8 +2171,8 @@ int uvc_video_init(struct uvc_streaming *stream)
 		if (stream->intf->num_altsetting == 1)
 			stream->decode = uvc_video_encode_bulk;
 		else {
-			uvc_printk(KERN_INFO, "Isochronous endpoints are not "
-				"supported for video output devices.\n");
+			dev_info(&stream->intf->dev,
+				 "Isochronous endpoints are not supported for video output devices.\n");
 			return -EINVAL;
 		}
 	}
@@ -2108,7 +2218,8 @@ void uvc_video_stop_streaming(struct uvc_streaming *stream)
 	if (stream->intf->num_altsetting > 1) {
 		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 	} else {
-		/* UVC doesn't specify how to inform a bulk-based device
+		/*
+		 * UVC doesn't specify how to inform a bulk-based device
 		 * when the video stream is stopped. Windows sends a
 		 * CLEAR_FEATURE(HALT) request to the video streaming
 		 * bulk endpoint, mimic the same behaviour.

@@ -20,11 +20,13 @@ source "arch/powerpc/platforms/embedded6xx/Kconfig"
 source "arch/powerpc/platforms/44x/Kconfig"
 source "arch/powerpc/platforms/40x/Kconfig"
 source "arch/powerpc/platforms/amigaone/Kconfig"
+source "arch/powerpc/platforms/book3s/Kconfig"
+source "arch/powerpc/platforms/microwatt/Kconfig"
 
 config KVM_GUEST
 	bool "KVM Guest support"
 	select EPAPR_PARAVIRT
-	---help---
+	help
 	  This option enables various optimizations for running under the KVM
 	  hypervisor. Overhead for the kernel when not running inside KVM should
 	  be minimal.
@@ -38,9 +40,9 @@ config EPAPR_PARAVIRT
 
 	  In case of doubt, say Y
 
-config PPC_NATIVE
+config PPC_HASH_MMU_NATIVE
 	bool
-	depends on PPC_BOOK3S_32 || PPC64
+	depends on PPC_BOOK3S
 	help
 	  Support for running natively on the hardware, i.e. without
 	  a hypervisor. This option is not user-selectable but should
@@ -49,6 +51,7 @@ config PPC_NATIVE
 config PPC_OF_BOOT_TRAMPOLINE
 	bool "Support booting from Open Firmware or yaboot"
 	depends on PPC_BOOK3S_32 || PPC64
+	select RELOCATABLE if PPC64
 	default y
 	help
 	  Support from booting from Open Firmware or yaboot using an
@@ -177,6 +180,10 @@ config PPC_970_NAP
 config PPC_P7_NAP
 	bool
 
+config PPC_BOOK3S_IDLE
+	def_bool y
+	depends on (PPC_970_NAP || PPC_P7_NAP)
+
 config PPC_INDIRECT_PIO
 	bool
 	select GENERIC_IOMAP
@@ -195,20 +202,6 @@ source "drivers/cpuidle/Kconfig"
 
 endmenu
 
-config PPC601_SYNC_FIX
-	bool "Workarounds for PPC601 bugs"
-	depends on PPC_BOOK3S_32 && PPC_PMAC
-	help
-	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
-	  mean that extra synchronization instructions are required near
-	  certain instructions, typically those that make major changes to the
-	  CPU state.  These extra instructions reduce performance slightly.
-	  If you say N here, these extra instructions will not be included,
-	  resulting in a kernel which will run faster but may not run at all
-	  on some systems with the PPC601 chip.
-
-	  If in doubt, say Y here.
-
 config TAU
 	bool "On-chip CPU temperature sensor support"
 	depends on PPC_BOOK3S_32
@@ -218,30 +211,24 @@ config TAU
 	  temperature within 2-4 degrees Celsius. This option shows the current
 	  on-die temperature in /proc/cpuinfo if the cpu supports it.
 
-	  Unfortunately, on some chip revisions, this sensor is very inaccurate
-	  and in many cases, does not work at all, so don't assume the cpu
-	  temp is actually what /proc/cpuinfo says it is.
+	  Unfortunately, this sensor is very inaccurate when uncalibrated, so
+	  don't assume the cpu temp is actually what /proc/cpuinfo says it is.
 
 config TAU_INT
-	bool "Interrupt driven TAU driver (DANGEROUS)"
+	bool "Interrupt driven TAU driver (EXPERIMENTAL)"
 	depends on TAU
-	---help---
+	help
 	  The TAU supports an interrupt driven mode which causes an interrupt
 	  whenever the temperature goes out of range. This is the fastest way
 	  to get notified the temp has exceeded a range. With this option off,
 	  a timer is used to re-check the temperature periodically.
 
-	  However, on some cpus it appears that the TAU interrupt hardware
-	  is buggy and can cause a situation which would lead unexplained hard
-	  lockups.
-
-	  Unless you are extending the TAU driver, or enjoy kernel/hardware
-	  debugging, leave this option off.
+	  If in doubt, say N here.
 
 config TAU_AVERAGE
 	bool "Average high and low temp"
 	depends on TAU
-	---help---
+	help
 	  The TAU hardware can compare the temperature to an upper and lower
 	  bound.  The default behavior is to show both the upper and lower
 	  bound in /proc/cpuinfo. If the range is large, the temperature is
@@ -302,16 +289,6 @@ config GEN_RTC
 	  replacing their get_rtc_time/set_rtc_time callbacks with
 	  a proper RTC device driver.
 
-config SIMPLE_GPIO
-	bool "Support for simple, memory-mapped GPIO controllers"
-	depends on PPC
-	select GPIOLIB
-	help
-	  Say Y here to support simple, memory-mapped GPIO controllers.
-	  These are usually BCSRs used to control board's switches, LEDs,
-	  chip-selects, Ethernet/USB PHY's power and various other small
-	  on-board peripherals.
-
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
 	depends on I2C=y && PPC_83xx
@@ -321,9 +298,5 @@ config MCU_MPC8349EMITX
 	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will
 	  also register MCU GPIOs with the generic GPIO API, so you'll able
 	  to use MCU pins as GPIOs.
-
-config XILINX_PCI
-	bool "Xilinx PCI host bridge support"
-	depends on PCI && XILINX_VIRTEX
 
 endmenu

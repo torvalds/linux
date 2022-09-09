@@ -11,7 +11,7 @@
  *
  * You can read about it more here:
  *  https://gcc.gnu.org/viewcvs/gcc?limit_changes=0&view=revision&revision=231296
- *  http://lwn.net/Articles/674854/
+ *  https://lwn.net/Articles/674854/
  *  https://github.com/google/syzkaller
  *  https://lwn.net/Articles/677764/
  *
@@ -26,7 +26,7 @@ __visible int plugin_is_GPL_compatible;
 tree sancov_fndecl;
 
 static struct plugin_info sancov_plugin_info = {
-	.version	= "20160402",
+	.version	= PLUGIN_VERSION,
 	.help		= "sancov plugin\n",
 };
 
@@ -80,10 +80,8 @@ static void sancov_start_unit(void __unused *gcc_data, void __unused *user_data)
 	nothrow_attr = tree_cons(get_identifier("nothrow"), NULL, NULL);
 	decl_attributes(&sancov_fndecl, nothrow_attr, 0);
 	gcc_assert(TREE_NOTHROW(sancov_fndecl));
-#if BUILDING_GCC_VERSION > 4005
 	leaf_attr = tree_cons(get_identifier("leaf"), NULL, NULL);
 	decl_attributes(&sancov_fndecl, leaf_attr, 0);
-#endif
 }
 
 __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gcc_version *version)
@@ -106,11 +104,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	};
 
 	/* BBs can be split afterwards?? */
-#if BUILDING_GCC_VERSION >= 4009
 	PASS_INFO(sancov, "asan", 0, PASS_POS_INSERT_BEFORE);
-#else
-	PASS_INFO(sancov, "nrv", 1, PASS_POS_INSERT_BEFORE);
-#endif
 
 	if (!plugin_default_version_check(version, &gcc_version)) {
 		error(G_("incompatible gcc/plugin versions"));

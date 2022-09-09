@@ -6,7 +6,7 @@
 menuconfig HOTPLUG_PCI
 	bool "Support for PCI Hotplug"
 	depends on PCI && SYSFS
-	---help---
+	help
 	  Say Y here if you have a motherboard with a PCI Hotplug controller.
 	  This allows you to add and remove PCI cards while the machine is
 	  powered up and running.
@@ -83,7 +83,7 @@ config HOTPLUG_PCI_CPCI_ZT5550
 	depends on HOTPLUG_PCI_CPCI && X86
 	help
 	  Say Y here if you have an Performance Technologies (formerly Intel,
-          formerly just Ziatech) Ziatech ZT5550 CompactPCI system card.
+	  formerly just Ziatech) Ziatech ZT5550 CompactPCI system card.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpcihp_zt5550.
@@ -144,15 +144,6 @@ config HOTPLUG_PCI_RPA_DLPAR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rpadlpar_io.
-
-	  When in doubt, say N.
-
-config HOTPLUG_PCI_SGI
-	tristate "SGI PCI Hotplug Support"
-	depends on IA64_SGI_SN2 || IA64_GENERIC
-	help
-	  Say Y here if you want to use the SGI Altix Hotplug
-	  Driver for PCI devices.
 
 	  When in doubt, say N.
 

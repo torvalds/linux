@@ -28,6 +28,9 @@
 
 #include "mem_input.h"
 
+#define OPP_ID_INVALID 0xf
+#define MAX_TTU 0xffffff
+
 
 enum cursor_pitch {
 	CURSOR_PITCH_64_PIXELS = 0,
@@ -36,10 +39,18 @@ enum cursor_pitch {
 };
 
 enum cursor_lines_per_chunk {
+	CURSOR_LINE_PER_CHUNK_1 = 0, /* new for DCN2 */
 	CURSOR_LINE_PER_CHUNK_2 = 1,
 	CURSOR_LINE_PER_CHUNK_4,
 	CURSOR_LINE_PER_CHUNK_8,
 	CURSOR_LINE_PER_CHUNK_16
+};
+
+enum hubp_ind_block_size {
+	hubp_ind_block_unconstrained = 0,
+	hubp_ind_block_64b,
+	hubp_ind_block_128b,
+	hubp_ind_block_64b_no_128bcl,
 };
 
 struct hubp {
@@ -52,7 +63,28 @@ struct hubp {
 	int opp_id;
 	int mpcc_id;
 	struct dc_cursor_attributes curs_attr;
+	struct dc_cursor_position curs_pos;
 	bool power_gated;
+};
+
+struct surface_flip_registers {
+	uint32_t DCSURF_SURFACE_CONTROL;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS;
+	bool tmz_surface;
+	bool immediate;
+	uint8_t vmid;
+	bool grph_stereo;
 };
 
 struct hubp_funcs {
@@ -69,7 +101,8 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
 
 	void (*dcc_control)(struct hubp *hubp, bool enable,
-			bool independent_64b_blks);
+			enum hubp_ind_block_size blk_size);
+
 	void (*mem_program_viewport)(
 			struct hubp *hubp,
 			const struct rect *viewport,
@@ -98,7 +131,7 @@ struct hubp_funcs {
 		struct hubp *hubp,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
-		union plane_size *plane_size,
+		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
 		bool horizontal_mirror,
@@ -106,10 +139,11 @@ struct hubp_funcs {
 
 	bool (*hubp_is_flip_pending)(struct hubp *hubp);
 
-	void (*hubp_update_dchub)(struct hubp *hubp,
-				struct dchub_init_data *dh_data);
-
 	void (*set_blank)(struct hubp *hubp, bool blank);
+	void (*set_blank_regs)(struct hubp *hubp, bool blank);
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	void (*phantom_hubp_post_enable)(struct hubp *hubp);
+#endif
 	void (*set_hubp_blank_en)(struct hubp *hubp, bool blank);
 
 	void (*set_cursor_attributes)(
@@ -129,7 +163,50 @@ struct hubp_funcs {
 	void (*hubp_clear_underflow)(struct hubp *hubp);
 	void (*hubp_disable_control)(struct hubp *hubp, bool disable_hubp);
 	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);
+	void (*hubp_init)(struct hubp *hubp);
 
+	void (*dmdata_set_attributes)(
+			struct hubp *hubp,
+			const struct dc_dmdata_attributes *attr);
+
+	void (*dmdata_load)(
+			struct hubp *hubp,
+			uint32_t dmdata_sw_size,
+			const uint32_t *dmdata_sw_data);
+	bool (*dmdata_status_done)(struct hubp *hubp);
+	void (*hubp_enable_tripleBuffer)(
+		struct hubp *hubp,
+		bool enable);
+
+	bool (*hubp_is_triplebuffer_enabled)(
+		struct hubp *hubp);
+
+	void (*hubp_set_flip_control_surface_gsl)(
+		struct hubp *hubp,
+		bool enable);
+
+	void (*validate_dml_output)(
+			struct hubp *hubp,
+			struct dc_context *ctx,
+			struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
+			struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
+			struct _vcs_dpi_display_ttu_regs_st *dml_ttu_attr);
+	void (*set_unbounded_requesting)(
+		struct hubp *hubp,
+		bool enable);
+	bool (*hubp_in_blank)(struct hubp *hubp);
+	void (*hubp_soft_reset)(struct hubp *hubp, bool reset);
+
+	void (*hubp_update_force_pstate_disallow)(struct hubp *hubp, bool allow);
+	void (*hubp_update_mall_sel)(struct hubp *hubp, uint32_t mall_sel, bool c_cursor);
+	void (*hubp_prepare_subvp_buffering)(struct hubp *hubp, bool enable);
+
+	void (*hubp_set_flip_int)(struct hubp *hubp);
+
+	void (*program_extended_blank)(struct hubp *hubp,
+			unsigned int min_dst_y_next_start_optimized);
+
+	void (*hubp_wait_pipe_read_start)(struct hubp *hubp);
 };
 
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* bw2.c: BWTWO frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
@@ -36,7 +37,7 @@ static int bw2_ioctl(struct fb_info *, unsigned int, unsigned long);
  *  Frame buffer operations
  */
 
-static struct fb_ops bw2_ops = {
+static const struct fb_ops bw2_ops = {
 	.owner			= THIS_MODULE,
 	.fb_blank		= bw2_blank,
 	.fb_fillrect		= cfb_fillrect,
@@ -115,7 +116,7 @@ struct bw2_par {
 
 /**
  *      bw2_blank - Optional function.  Blanks the display.
- *      @blank_mode: the blank mode we want.
+ *      @blank: the blank mode we want.
  *      @info: frame buffer structure that represents a single frame buffer
  */
 static int
@@ -181,7 +182,7 @@ static int bw2_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
 static void bw2_init_fix(struct fb_info *info, int linebytes)
 {
-	strlcpy(info->fix.id, "bwtwo", sizeof(info->fix.id));
+	strscpy(info->fix.id, "bwtwo", sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_MONO01;

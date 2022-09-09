@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 glue code for mac80211 Prism54 drivers
  *
@@ -10,10 +11,6 @@
  *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/slab.h>
@@ -142,7 +139,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	struct sk_buff *beacon;
 	int ret;
 
-	beacon = ieee80211_beacon_get(priv->hw, vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon)
 		return -ENOMEM;
 	ret = p54_beacon_format_ie_tim(beacon);
@@ -407,19 +404,17 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 }
 
 static int p54_conf_tx(struct ieee80211_hw *dev,
-		       struct ieee80211_vif *vif, u16 queue,
+		       struct ieee80211_vif *vif,
+		       unsigned int link_id, u16 queue,
 		       const struct ieee80211_tx_queue_params *params)
 {
 	struct p54_common *priv = dev->priv;
 	int ret;
 
 	mutex_lock(&priv->conf_mutex);
-	if (queue < dev->queues) {
-		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
-			params->cw_min, params->cw_max, params->txop);
-		ret = p54_set_edcf(priv);
-	} else
-		ret = -EINVAL;
+	P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
+		      params->cw_min, params->cw_max, params->txop);
+	ret = p54_set_edcf(priv);
 	mutex_unlock(&priv->conf_mutex);
 	return ret;
 }
@@ -455,7 +450,7 @@ static int p54_get_stats(struct ieee80211_hw *dev,
 static void p54_bss_info_changed(struct ieee80211_hw *dev,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
-				 u32 changed)
+				 u64 changed)
 {
 	struct p54_common *priv = dev->priv;
 
@@ -486,8 +481,8 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 			p54_scan(priv, P54_SCAN_EXIT, 0);
 	}
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc) {
-			priv->aid = info->aid;
+		if (vif->cfg.assoc) {
+			priv->aid = vif->cfg.aid;
 			priv->wakeup_timer = info->beacon_int *
 					     info->dtim_period * 5;
 			p54_setup_mac(priv);
@@ -688,7 +683,7 @@ static void p54_flush(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 	 * queues have already been stopped and no new frames can sneak
 	 * up from behind.
 	 */
-	while ((total = p54_flush_count(priv) && i--)) {
+	while ((total = p54_flush_count(priv)) && i--) {
 		/* waste time */
 		msleep(20);
 	}
@@ -836,7 +831,7 @@ void p54_free_common(struct ieee80211_hw *dev)
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
 	kfree(priv->rssi_db);
-	kfree(priv->used_rxkeys);
+	bitmap_free(priv->used_rxkeys);
 	kfree(priv->survey);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;

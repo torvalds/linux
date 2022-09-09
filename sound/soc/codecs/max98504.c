@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MAX98504 ALSA SoC Audio driver
  *
  * Copyright 2013 - 2014 Maxim Integrated Products
  * Copyright 2016 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -294,6 +291,7 @@ static const struct snd_soc_component_driver max98504_component_driver = {
 	.num_dapm_widgets	= ARRAY_SIZE(max98504_dapm_widgets),
 	.dapm_routes		= max98504_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(max98504_dapm_routes),
+	.endianness		= 1,
 };
 
 static const struct regmap_config max98504_regmap = {
@@ -307,8 +305,7 @@ static const struct regmap_config max98504_regmap = {
 	.cache_type		= REGCACHE_RBTREE,
 };
 
-static int max98504_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int max98504_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
@@ -374,7 +371,7 @@ static struct i2c_driver max98504_i2c_driver = {
 		.name = "max98504",
 		.of_match_table = of_match_ptr(max98504_of_match),
 	},
-	.probe = max98504_i2c_probe,
+	.probe_new = max98504_i2c_probe,
 	.id_table = max98504_i2c_id,
 };
 module_i2c_driver(max98504_i2c_driver);

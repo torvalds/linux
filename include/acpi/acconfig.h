@@ -3,7 +3,7 @@
  *
  * Name: acconfig.h - Global configuration constants
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -95,9 +95,9 @@
 
 #define ACPI_DEFAULT_PAGE_SIZE          4096	/* Must be power of 2 */
 
-/* owner_id tracking. 8 entries allows for 255 owner_ids */
+/* owner_id tracking. 128 entries allows for 4095 owner_ids */
 
-#define ACPI_NUM_OWNERID_MASKS          8
+#define ACPI_NUM_OWNERID_MASKS          128
 
 /* Size of the root table array is increased by this increment */
 
@@ -121,7 +121,7 @@
  *
  *****************************************************************************/
 
-/* Method info (in WALK_STATE), containing local variables and argumetns */
+/* Method info (in WALK_STATE), containing local variables and arguments */
 
 #define ACPI_METHOD_NUM_LOCALS          8
 #define ACPI_METHOD_MAX_LOCAL           7
@@ -141,7 +141,7 @@
 
 /*
  * Maximal number of elements the Result Stack can contain,
- * it may be an arbitray value not exceeding the types of
+ * it may be an arbitrary value not exceeding the types of
  * result_size and result_count (now u8).
  */
 #define ACPI_RESULTS_OBJ_NUM_MAX        255
@@ -187,6 +187,8 @@
 
 #define ACPI_MAX_GSBUS_DATA_SIZE        255
 #define ACPI_MAX_GSBUS_BUFFER_SIZE      ACPI_SERIAL_HEADER_SIZE + ACPI_MAX_GSBUS_DATA_SIZE
+
+#define ACPI_PRM_INPUT_BUFFER_SIZE      26
 
 /* _sx_d and _sx_w control methods */
 

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Sunplus spca561 subdriver
  *
  * Copyright (C) 2004 Michel Xhaard mxhaard@magic.fr
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -519,7 +510,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	/* We choose to use the high bits setting the fixed framerate divisor
 	   asap, as setting high basic exposure setting without the fixed
 	   divider in combination with high gains makes the cam stop */
-	int table[] =  { 0, 450, 550, 625, EXPOSURE_MAX };
+	static const int table[] =  { 0, 450, 550, 625, EXPOSURE_MAX };
 
 	for (i = 0; i < ARRAY_SIZE(table) - 1; i++) {
 		if (val <= table[i + 1]) {

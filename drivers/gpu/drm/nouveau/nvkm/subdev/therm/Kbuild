@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/subdev/therm/base.o
 nvkm-y += nvkm/subdev/therm/fan.o
 nvkm-y += nvkm/subdev/therm/fannil.o

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on
@@ -34,7 +35,7 @@
 #include "tda8290.h"
 #include "tea5761.h"
 #include "tea5767.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "tuner-simple.h"
 #include "tda9887.h"
 #include "xc5000.h"
@@ -1117,7 +1118,7 @@ static void tuner_status(struct dvb_frontend *fe)
 	if (t->mode != V4L2_TUNER_RADIO)
 		return;
 	if (fe_tuner_ops->get_status) {
-		u32 tuner_status;
+		u32 tuner_status = 0;
 
 		fe_tuner_ops->get_status(&t->fe, &tuner_status);
 		if (tuner_status & TUNER_STATUS_LOCKED)
@@ -1257,7 +1258,7 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if (vt->type == t->mode) {
 		vt->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 		if (fe_tuner_ops->get_status) {
-			u32 tuner_status;
+			u32 tuner_status = 0;
 
 			fe_tuner_ops->get_status(&t->fe, &tuner_status);
 			vt->rxsubchans =

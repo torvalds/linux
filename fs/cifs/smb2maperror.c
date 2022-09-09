@@ -1,24 +1,11 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
- *   fs/smb2/smb2maperror.c
  *
  *   Functions which do error mapping of SMB2 status codes to POSIX errors
  *
  *   Copyright (C) International Business Machines  Corp., 2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- *   This library is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Lesser General Public License as published
- *   by the Free Software Foundation; either version 2.1 of the License, or
- *   (at your option) any later version.
- *
- *   This library is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU Lesser General Public License for more details.
- *
- *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/errno.h>
 #include "cifsglob.h"
@@ -457,7 +444,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_FILE_INVALID, -EIO, "STATUS_FILE_INVALID"},
 	{STATUS_ALLOTTED_SPACE_EXCEEDED, -EIO,
 	"STATUS_ALLOTTED_SPACE_EXCEEDED"},
-	{STATUS_INSUFFICIENT_RESOURCES, -EREMOTEIO,
+	{STATUS_INSUFFICIENT_RESOURCES, -EAGAIN,
 				"STATUS_INSUFFICIENT_RESOURCES"},
 	{STATUS_DFS_EXIT_PATH_FOUND, -EIO, "STATUS_DFS_EXIT_PATH_FOUND"},
 	{STATUS_DEVICE_DATA_ERROR, -EIO, "STATUS_DEVICE_DATA_ERROR"},
@@ -488,7 +475,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_PIPE_CONNECTED, -EIO, "STATUS_PIPE_CONNECTED"},
 	{STATUS_PIPE_LISTENING, -EIO, "STATUS_PIPE_LISTENING"},
 	{STATUS_INVALID_READ_MODE, -EIO, "STATUS_INVALID_READ_MODE"},
-	{STATUS_IO_TIMEOUT, -ETIMEDOUT, "STATUS_IO_TIMEOUT"},
+	{STATUS_IO_TIMEOUT, -EAGAIN, "STATUS_IO_TIMEOUT"},
 	{STATUS_FILE_FORCED_CLOSED, -EIO, "STATUS_FILE_FORCED_CLOSED"},
 	{STATUS_PROFILING_NOT_STARTED, -EIO, "STATUS_PROFILING_NOT_STARTED"},
 	{STATUS_PROFILING_NOT_STOPPED, -EIO, "STATUS_PROFILING_NOT_STOPPED"},
@@ -511,7 +498,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_PRINT_QUEUE_FULL, -EIO, "STATUS_PRINT_QUEUE_FULL"},
 	{STATUS_NO_SPOOL_SPACE, -EIO, "STATUS_NO_SPOOL_SPACE"},
 	{STATUS_PRINT_CANCELLED, -EIO, "STATUS_PRINT_CANCELLED"},
-	{STATUS_NETWORK_NAME_DELETED, -EIO, "STATUS_NETWORK_NAME_DELETED"},
+	{STATUS_NETWORK_NAME_DELETED, -EREMCHG, "STATUS_NETWORK_NAME_DELETED"},
 	{STATUS_NETWORK_ACCESS_DENIED, -EACCES, "STATUS_NETWORK_ACCESS_DENIED"},
 	{STATUS_BAD_DEVICE_TYPE, -EIO, "STATUS_BAD_DEVICE_TYPE"},
 	{STATUS_BAD_NETWORK_NAME, -ENOENT, "STATUS_BAD_NETWORK_NAME"},
@@ -814,7 +801,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_INVALID_VARIANT, -EIO, "STATUS_INVALID_VARIANT"},
 	{STATUS_DOMAIN_CONTROLLER_NOT_FOUND, -EIO,
 	"STATUS_DOMAIN_CONTROLLER_NOT_FOUND"},
-	{STATUS_ACCOUNT_LOCKED_OUT, -EIO, "STATUS_ACCOUNT_LOCKED_OUT"},
+	{STATUS_ACCOUNT_LOCKED_OUT, -EACCES, "STATUS_ACCOUNT_LOCKED_OUT"},
 	{STATUS_HANDLE_NOT_CLOSABLE, -EIO, "STATUS_HANDLE_NOT_CLOSABLE"},
 	{STATUS_CONNECTION_REFUSED, -EIO, "STATUS_CONNECTION_REFUSED"},
 	{STATUS_GRACEFUL_DISCONNECT, -EIO, "STATUS_GRACEFUL_DISCONNECT"},
@@ -1036,7 +1023,8 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_UNFINISHED_CONTEXT_DELETED, -EIO,
 	"STATUS_UNFINISHED_CONTEXT_DELETED"},
 	{STATUS_NO_TGT_REPLY, -EIO, "STATUS_NO_TGT_REPLY"},
-	{STATUS_OBJECTID_NOT_FOUND, -EIO, "STATUS_OBJECTID_NOT_FOUND"},
+	/* Note that ENOATTTR and ENODATA are the same errno */
+	{STATUS_OBJECTID_NOT_FOUND, -ENODATA, "STATUS_OBJECTID_NOT_FOUND"},
 	{STATUS_NO_IP_ADDRESSES, -EIO, "STATUS_NO_IP_ADDRESSES"},
 	{STATUS_WRONG_CREDENTIAL_HANDLE, -EIO,
 	"STATUS_WRONG_CREDENTIAL_HANDLE"},
@@ -2451,14 +2439,16 @@ smb2_print_status(__le32 status)
 int
 map_smb2_to_linux_error(char *buf, bool log_err)
 {
-	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
+	struct smb2_hdr *shdr = (struct smb2_hdr *)buf;
 	unsigned int i;
 	int rc = -EIO;
 	__le32 smb2err = shdr->Status;
 
 	if (smb2err == 0) {
-		trace_smb3_cmd_done(shdr->TreeId, shdr->SessionId,
-			le16_to_cpu(shdr->Command), le64_to_cpu(shdr->MessageId));
+		trace_smb3_cmd_done(le32_to_cpu(shdr->Id.SyncId.TreeId),
+			      le64_to_cpu(shdr->SessionId),
+			      le16_to_cpu(shdr->Command),
+			      le64_to_cpu(shdr->MessageId));
 		return 0;
 	}
 
@@ -2482,8 +2472,10 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 	cifs_dbg(FYI, "Mapping SMB2 status code 0x%08x to POSIX err %d\n",
 		 __le32_to_cpu(smb2err), rc);
 
-	trace_smb3_cmd_err(shdr->TreeId, shdr->SessionId,
-			le16_to_cpu(shdr->Command),
-			le64_to_cpu(shdr->MessageId), le32_to_cpu(smb2err), rc);
+	trace_smb3_cmd_err(le32_to_cpu(shdr->Id.SyncId.TreeId),
+			   le64_to_cpu(shdr->SessionId),
+			   le16_to_cpu(shdr->Command),
+			   le64_to_cpu(shdr->MessageId),
+			   le32_to_cpu(smb2err), rc);
 	return rc;
 }

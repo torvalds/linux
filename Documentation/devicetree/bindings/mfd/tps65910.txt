@@ -26,8 +26,8 @@ Required properties:
             ldo6, ldo7, ldo8
 
 - xxx-supply: Input voltage supply regulator.
-  These entries are require if regulators are enabled for a device. Missing of these
-  properties can cause the regulator registration fails.
+  These entries are required if regulators are enabled for a device. Missing these
+  properties can cause the regulator registration to fail.
   If some of input supply is powered through battery or always-on supply then
   also it is require to have these parameters with proper node handle of always
   on power supply.

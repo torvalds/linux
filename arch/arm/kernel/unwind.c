@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/kernel/unwind.c
  *
  * Copyright (C) 2008 ARM Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  *
  * Stack unwinding support for ARM
  *
@@ -31,9 +18,6 @@
 #warning Your compiler does not have EABI support.
 #warning    ARM unwind is known to compile only with EABI compilers.
 #warning    Change compiler or disable ARM_UNWIND option.
-#elif (__GNUC__ == 4 && __GNUC_MINOR__ <= 2) && !defined(__clang__)
-#warning Your compiler is too buggy; it is known to not compile ARM unwind support.
-#warning    Change compiler or disable ARM_UNWIND option.
 #endif
 #endif /* __CHECKER__ */
 
@@ -48,6 +32,8 @@
 #include <asm/stacktrace.h>
 #include <asm/traps.h>
 #include <asm/unwind.h>
+
+#include "reboot.h"
 
 /* Dummy functions to avoid linker complaints */
 void __aeabi_unwind_cpp_pr0(void)
@@ -69,6 +55,7 @@ struct unwind_ctrl_block {
 	unsigned long vrs[16];		/* virtual register set */
 	const unsigned long *insn;	/* pointer to the current instructions word */
 	unsigned long sp_high;		/* highest value of sp allowed */
+	unsigned long *lr_addr;		/* address of LR value on the stack */
 	/*
 	 * 1 : check for stack overflow for each register pop.
 	 * 0 : save overhead if there is plenty of stack remaining.
@@ -93,7 +80,7 @@ extern const struct unwind_idx __start_unwind_idx[];
 static const struct unwind_idx *__origin_unwind_idx;
 extern const struct unwind_idx __stop_unwind_idx[];
 
-static DEFINE_SPINLOCK(unwind_lock);
+static DEFINE_RAW_SPINLOCK(unwind_lock);
 static LIST_HEAD(unwind_tables);
 
 /* Convert a prel31 symbol to an absolute address */
@@ -201,7 +188,7 @@ static const struct unwind_idx *unwind_find_idx(unsigned long addr)
 		/* module unwind tables */
 		struct unwind_table *table;
 
-		spin_lock_irqsave(&unwind_lock, flags);
+		raw_spin_lock_irqsave(&unwind_lock, flags);
 		list_for_each_entry(table, &unwind_tables, list) {
 			if (addr >= table->begin_addr &&
 			    addr < table->end_addr) {
@@ -213,7 +200,7 @@ static const struct unwind_idx *unwind_find_idx(unsigned long addr)
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&unwind_lock, flags);
+		raw_spin_unlock_irqrestore(&unwind_lock, flags);
 	}
 
 	pr_debug("%s: idx = %p\n", __func__, idx);
@@ -249,7 +236,13 @@ static int unwind_pop_register(struct unwind_ctrl_block *ctrl,
 		if (*vsp >= (unsigned long *)ctrl->sp_high)
 			return -URC_FAILURE;
 
-	ctrl->vrs[reg] = *(*vsp)++;
+	/* Use READ_ONCE_NOCHECK here to avoid this memory access
+	 * from being tracked by KASAN.
+	 */
+	ctrl->vrs[reg] = READ_ONCE_NOCHECK(*(*vsp));
+	if (reg == 14)
+		ctrl->lr_addr = *vsp;
+	(*vsp)++;
 	return URC_OK;
 }
 
@@ -268,8 +261,9 @@ static int unwind_exec_pop_subset_r4_to_r13(struct unwind_ctrl_block *ctrl,
 		mask >>= 1;
 		reg++;
 	}
-	if (!load_sp)
+	if (!load_sp) {
 		ctrl->vrs[SP] = (unsigned long)vsp;
+	}
 
 	return URC_OK;
 }
@@ -325,9 +319,9 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 
 	if ((insn & 0xc0) == 0x00)
 		ctrl->vrs[SP] += ((insn & 0x3f) << 2) + 4;
-	else if ((insn & 0xc0) == 0x40)
+	else if ((insn & 0xc0) == 0x40) {
 		ctrl->vrs[SP] -= ((insn & 0x3f) << 2) + 4;
-	else if ((insn & 0xf0) == 0x80) {
+	} else if ((insn & 0xf0) == 0x80) {
 		unsigned long mask;
 
 		insn = (insn << 8) | unwind_get_byte(ctrl);
@@ -342,9 +336,9 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 		if (ret)
 			goto error;
 	} else if ((insn & 0xf0) == 0x90 &&
-		   (insn & 0x0d) != 0x0d)
+		   (insn & 0x0d) != 0x0d) {
 		ctrl->vrs[SP] = ctrl->vrs[insn & 0x0f];
-	else if ((insn & 0xf0) == 0xa0) {
+	} else if ((insn & 0xf0) == 0xa0) {
 		ret = unwind_exec_pop_r4_to_rN(ctrl, insn);
 		if (ret)
 			goto error;
@@ -387,23 +381,22 @@ error:
  */
 int unwind_frame(struct stackframe *frame)
 {
-	unsigned long low;
 	const struct unwind_idx *idx;
 	struct unwind_ctrl_block ctrl;
+	unsigned long sp_low;
 
 	/* store the highest address on the stack to avoid crossing it*/
-	low = frame->sp;
-	ctrl.sp_high = ALIGN(low, THREAD_SIZE);
+	sp_low = frame->sp;
+	ctrl.sp_high = ALIGN(sp_low - THREAD_SIZE, THREAD_ALIGN)
+		       + THREAD_SIZE;
 
 	pr_debug("%s(pc = %08lx lr = %08lx sp = %08lx)\n", __func__,
 		 frame->pc, frame->lr, frame->sp);
 
-	if (!kernel_text_address(frame->pc))
-		return -URC_FAILURE;
-
 	idx = unwind_find_idx(frame->pc);
 	if (!idx) {
-		pr_warn("unwind: Index not found %08lx\n", frame->pc);
+		if (frame->pc && kernel_text_address(frame->pc))
+			pr_warn("unwind: Index not found %08lx\n", frame->pc);
 		return -URC_FAILURE;
 	}
 
@@ -415,7 +408,20 @@ int unwind_frame(struct stackframe *frame)
 	if (idx->insn == 1)
 		/* can't unwind */
 		return -URC_FAILURE;
-	else if ((idx->insn & 0x80000000) == 0)
+	else if (frame->pc == prel31_to_addr(&idx->addr_offset)) {
+		/*
+		 * Unwinding is tricky when we're halfway through the prologue,
+		 * since the stack frame that the unwinder expects may not be
+		 * fully set up yet. However, one thing we do know for sure is
+		 * that if we are unwinding from the very first instruction of
+		 * a function, we are still effectively in the stack frame of
+		 * the caller, and the unwind info has no relevance yet.
+		 */
+		if (frame->pc == frame->lr)
+			return -URC_FAILURE;
+		frame->pc = frame->lr;
+		return URC_OK;
+	} else if ((idx->insn & 0x80000000) == 0)
 		/* prel31 to the unwind table */
 		ctrl.insn = (unsigned long *)prel31_to_addr(&idx->insn);
 	else if ((idx->insn & 0xff000000) == 0x80000000)
@@ -442,6 +448,16 @@ int unwind_frame(struct stackframe *frame)
 
 	ctrl.check_each_pop = 0;
 
+	if (prel31_to_addr(&idx->addr_offset) == (u32)&call_with_stack) {
+		/*
+		 * call_with_stack() is the only place where we permit SP to
+		 * jump from one stack to another, and since we know it is
+		 * guaranteed to happen, set up the SP bounds accordingly.
+		 */
+		sp_low = frame->fp;
+		ctrl.sp_high = ALIGN(frame->fp, THREAD_SIZE);
+	}
+
 	while (ctrl.entries > 0) {
 		int urc;
 		if ((ctrl.sp_high - ctrl.vrs[SP]) < sizeof(ctrl.vrs))
@@ -449,7 +465,7 @@ int unwind_frame(struct stackframe *frame)
 		urc = unwind_exec_insn(&ctrl);
 		if (urc < 0)
 			return urc;
-		if (ctrl.vrs[SP] < low || ctrl.vrs[SP] >= ctrl.sp_high)
+		if (ctrl.vrs[SP] < sp_low || ctrl.vrs[SP] > ctrl.sp_high)
 			return -URC_FAILURE;
 	}
 
@@ -457,18 +473,20 @@ int unwind_frame(struct stackframe *frame)
 		ctrl.vrs[PC] = ctrl.vrs[LR];
 
 	/* check for infinite loop */
-	if (frame->pc == ctrl.vrs[PC])
+	if (frame->pc == ctrl.vrs[PC] && frame->sp == ctrl.vrs[SP])
 		return -URC_FAILURE;
 
 	frame->fp = ctrl.vrs[FP];
 	frame->sp = ctrl.vrs[SP];
 	frame->lr = ctrl.vrs[LR];
 	frame->pc = ctrl.vrs[PC];
+	frame->lr_addr = ctrl.lr_addr;
 
 	return URC_OK;
 }
 
-void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		      const char *loglvl)
 {
 	struct stackframe frame;
 
@@ -486,7 +504,12 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_stack_pointer;
 		frame.lr = (unsigned long)__builtin_return_address(0);
-		frame.pc = (unsigned long)unwind_backtrace;
+		/* We are saving the stack and execution state at this
+		 * point, so we should ensure that frame.pc is within
+		 * this block of code.
+		 */
+here:
+		frame.pc = (unsigned long)&&here;
 	} else {
 		/* task blocked in __switch_to */
 		frame.fp = thread_saved_fp(tsk);
@@ -506,7 +529,7 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		urc = unwind_frame(&frame);
 		if (urc < 0)
 			break;
-		dump_backtrace_entry(where, frame.pc, frame.sp - 4);
+		dump_backtrace_entry(where, frame.pc, frame.sp - 4, loglvl);
 	}
 }
 
@@ -529,9 +552,9 @@ struct unwind_table *unwind_table_add(unsigned long start, unsigned long size,
 	tab->begin_addr = text_addr;
 	tab->end_addr = text_addr + text_size;
 
-	spin_lock_irqsave(&unwind_lock, flags);
+	raw_spin_lock_irqsave(&unwind_lock, flags);
 	list_add_tail(&tab->list, &unwind_tables);
-	spin_unlock_irqrestore(&unwind_lock, flags);
+	raw_spin_unlock_irqrestore(&unwind_lock, flags);
 
 	return tab;
 }
@@ -543,9 +566,9 @@ void unwind_table_del(struct unwind_table *tab)
 	if (!tab)
 		return;
 
-	spin_lock_irqsave(&unwind_lock, flags);
+	raw_spin_lock_irqsave(&unwind_lock, flags);
 	list_del(&tab->list);
-	spin_unlock_irqrestore(&unwind_lock, flags);
+	raw_spin_unlock_irqrestore(&unwind_lock, flags);
 
 	kfree(tab);
 }

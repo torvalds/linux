@@ -5,7 +5,7 @@
  * Copyright (C) 2017 Cogent Embedded Inc.
  */
 
-#include <linux/bug.h>
+#include <linux/bits.h>
 #include <linux/kernel.h>
 
 #include <dt-bindings/power/r8a77970-sysc.h>
@@ -32,4 +32,6 @@ static const struct rcar_sysc_area r8a77970_areas[] __initconst = {
 const struct rcar_sysc_info r8a77970_sysc_info __initconst = {
 	.areas = r8a77970_areas,
 	.num_areas = ARRAY_SIZE(r8a77970_areas),
+	.extmask_offs = 0x1b0,
+	.extmask_val = BIT(0),
 };

@@ -32,44 +32,8 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
-
-/**
- * DOC: overview
- *
- * FB_DAMAGE_CLIPS is an optional plane property which provides a means to
- * specify a list of damage rectangles on a plane in framebuffer coordinates of
- * the framebuffer attached to the plane. In current context damage is the area
- * of plane framebuffer that has changed since last plane update (also called
- * page-flip), irrespective of whether currently attached framebuffer is same as
- * framebuffer attached during last plane update or not.
- *
- * FB_DAMAGE_CLIPS is a hint to kernel which could be helpful for some drivers
- * to optimize internally especially for virtual devices where each framebuffer
- * change needs to be transmitted over network, usb, etc.
- *
- * Since FB_DAMAGE_CLIPS is a hint so it is an optional property. User-space can
- * ignore damage clips property and in that case driver will do a full plane
- * update. In case damage clips are provided then it is guaranteed that the area
- * inside damage clips will be updated to plane. For efficiency driver can do
- * full update or can update more than specified in damage clips. Since driver
- * is free to read more, user-space must always render the entire visible
- * framebuffer. Otherwise there can be corruptions. Also, if a user-space
- * provides damage clips which doesn't encompass the actual damage to
- * framebuffer (since last plane update) can result in incorrect rendering.
- *
- * FB_DAMAGE_CLIPS is a blob property with the layout of blob data is simply an
- * array of &drm_mode_rect. Unlike plane &drm_plane_state.src coordinates,
- * damage clips are not in 16.16 fixed point. Similar to plane src in
- * framebuffer, damage clips cannot be negative. In damage clip, x1/y1 are
- * inclusive and x2/y2 are exclusive. While kernel does not error for overlapped
- * damage clips, it is strongly discouraged.
- *
- * Drivers that are interested in damage interface for plane should enable
- * FB_DAMAGE_CLIPS property by calling drm_plane_enable_fb_damage_clips().
- * Drivers implementing damage can use drm_atomic_helper_damage_iter_init() and
- * drm_atomic_helper_damage_iter_next() helper iterator function to get damage
- * rectangles clipped to &drm_plane_state.src.
- */
+#include <drm/drm_device.h>
+#include <drm/drm_framebuffer.h>
 
 static void convert_clip_rect_to_rect(const struct drm_clip_rect *src,
 				      struct drm_mode_rect *dest,
@@ -85,22 +49,6 @@ static void convert_clip_rect_to_rect(const struct drm_clip_rect *src,
 		num_clips--;
 	}
 }
-
-/**
- * drm_plane_enable_fb_damage_clips - Enables plane fb damage clips property.
- * @plane: Plane on which to enable damage clips property.
- *
- * This function lets driver to enable the damage clips property on a plane.
- */
-void drm_plane_enable_fb_damage_clips(struct drm_plane *plane)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-
-	drm_object_attach_property(&plane->base, config->prop_fb_damage_clips,
-				   0);
-}
-EXPORT_SYMBOL(drm_plane_enable_fb_damage_clips);
 
 /**
  * drm_atomic_helper_check_plane_damage - Verify plane damage on atomic_check.
@@ -169,7 +117,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	int ret = 0;
 
 	/*
-	 * When called from ioctl, we are interruptable, but not when called
+	 * When called from ioctl, we are interruptible, but not when called
 	 * internally (ie. defio worker)
 	 */
 	drm_modeset_acquire_init(&ctx,
@@ -211,8 +159,14 @@ retry:
 	drm_for_each_plane(plane, fb->dev) {
 		struct drm_plane_state *plane_state;
 
-		if (plane->state->fb != fb)
+		ret = drm_modeset_lock(&plane->mutex, state->acquire_ctx);
+		if (ret)
+			goto out;
+
+		if (plane->state->fb != fb) {
+			drm_modeset_unlock(&plane->mutex);
 			continue;
+		}
 
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
@@ -275,7 +229,7 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 	if (!state || !state->crtc || !state->fb || !state->visible)
 		return;
 
-	iter->clips = drm_helper_get_plane_damage_clips(state);
+	iter->clips = (struct drm_rect *)drm_plane_get_damage_clips(state);
 	iter->num_clips = drm_plane_get_damage_clips_count(state);
 
 	/* Round down for x1/y1 and round up for x2/y2 to catch all pixels */
@@ -285,7 +239,7 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 	iter->plane_src.y2 = (state->src.y2 >> 16) + !!(state->src.y2 & 0xFFFF);
 
 	if (!iter->clips || !drm_rect_equals(&state->src, &old_state->src)) {
-		iter->clips = 0;
+		iter->clips = NULL;
 		iter->num_clips = 0;
 		iter->full_update = true;
 	}
@@ -333,3 +287,44 @@ drm_atomic_helper_damage_iter_next(struct drm_atomic_helper_damage_iter *iter,
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_damage_iter_next);
+
+/**
+ * drm_atomic_helper_damage_merged - Merged plane damage
+ * @old_state: Old plane state for validation.
+ * @state: Plane state from which to iterate the damage clips.
+ * @rect: Returns the merged damage rectangle
+ *
+ * This function merges any valid plane damage clips into one rectangle and
+ * returns it in @rect.
+ *
+ * For details see: drm_atomic_helper_damage_iter_init() and
+ * drm_atomic_helper_damage_iter_next().
+ *
+ * Returns:
+ * True if there is valid plane damage otherwise false.
+ */
+bool drm_atomic_helper_damage_merged(const struct drm_plane_state *old_state,
+				     struct drm_plane_state *state,
+				     struct drm_rect *rect)
+{
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect clip;
+	bool valid = false;
+
+	rect->x1 = INT_MAX;
+	rect->y1 = INT_MAX;
+	rect->x2 = 0;
+	rect->y2 = 0;
+
+	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+	drm_atomic_for_each_plane_damage(&iter, &clip) {
+		rect->x1 = min(rect->x1, clip.x1);
+		rect->y1 = min(rect->y1, clip.y1);
+		rect->x2 = max(rect->x2, clip.x2);
+		rect->y2 = max(rect->y2, clip.y2);
+		valid = true;
+	}
+
+	return valid;
+}
+EXPORT_SYMBOL(drm_atomic_helper_damage_merged);

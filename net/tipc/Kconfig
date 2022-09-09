@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # TIPC configuration
 #
@@ -5,7 +6,8 @@
 menuconfig TIPC
 	tristate "The TIPC Protocol"
 	depends on INET
-	---help---
+	depends on IPV6 || IPV6=n
+	help
 	  The Transparent Inter Process Communication (TIPC) protocol is
 	  specially designed for intra cluster communication. This protocol
 	  originates from Ericsson where it has been used in carrier grade
@@ -16,7 +18,7 @@ menuconfig TIPC
 	  This protocol support is also available as a module ( = code which
 	  can be inserted in and removed from the running kernel whenever you
 	  want). The module will be called tipc. If you want to compile it
-	  as a module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  as a module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If in doubt, say N.
 
@@ -34,11 +36,26 @@ config TIPC_MEDIA_UDP
 	  Saying Y here will enable support for running TIPC over IP/UDP
 	bool
 	default y
+config TIPC_CRYPTO
+	bool "TIPC encryption support"
+	depends on TIPC
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_GCM
+	help
+	  Saying Y here will enable support for TIPC encryption.
+	  All TIPC messages will be encrypted/decrypted by using the currently most
+	  advanced algorithm: AEAD AES-GCM (like IPSec or TLS) before leaving/
+	  entering the TIPC stack.
+	  Key setting from user-space is performed via netlink by a user program
+	  (e.g. the iproute2 'tipc' tool).
+	bool
+	default y
 
 config TIPC_DIAG
 	tristate "TIPC: socket monitoring interface"
 	depends on TIPC
 	default y
-	---help---
+	help
 	Support for TIPC socket monitoring interface used by ss tool.
 	If unsure, say Y.

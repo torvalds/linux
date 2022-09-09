@@ -472,7 +472,7 @@ extern int mpic_cpu_get_priority(void);
 extern void mpic_cpu_set_priority(int prio);
 
 /* Request IPIs on primary mpic */
-extern void mpic_request_ipis(void);
+void __init mpic_request_ipis(void);
 
 /* Send a message (IPI) to a given target (cpu number or MSG_*) */
 void smp_mpic_message_pass(int target, int msg);

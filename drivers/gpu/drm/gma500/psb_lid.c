@@ -1,32 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2007, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors: Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  **************************************************************************/
 
-#include <drm/drmP.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
 #include <linux/spinlock.h>
+
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static void psb_lid_timer_func(struct timer_list *t)
 {
 	struct drm_psb_private *dev_priv = from_timer(dev_priv, t, lid_timer);
-	struct drm_device *dev = (struct drm_device *)dev_priv->dev;
+	struct drm_device *dev = (struct drm_device *)&dev_priv->dev;
 	struct timer_list *lid_timer = &dev_priv->lid_timer;
 	unsigned long irq_flags;
 	u32 __iomem *lid_state = dev_priv->opregion.lid_state;

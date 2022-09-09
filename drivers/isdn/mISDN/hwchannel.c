@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Author	Karsten Keil <kkeil@novell.com>
  *
  * Copyright 2008  by Karsten Keil <kkeil@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/gfp.h>
@@ -483,8 +474,8 @@ bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
 	if (bch->rx_skb) {
 		len = skb_tailroom(bch->rx_skb);
 		if (len < reqlen) {
-			pr_warning("B%d no space for %d (only %d) bytes\n",
-				   bch->nr, reqlen, len);
+			pr_warn("B%d no space for %d (only %d) bytes\n",
+				bch->nr, reqlen, len);
 			if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
 				/* send what we have now and try a new buffer */
 				recv_Bchannel(bch, 0, true);
@@ -517,8 +508,7 @@ bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
 	}
 	bch->rx_skb = mI_alloc_skb(len, GFP_ATOMIC);
 	if (!bch->rx_skb) {
-		pr_warning("B%d receive no memory for %d bytes\n",
-			   bch->nr, len);
+		pr_warn("B%d receive no memory for %d bytes\n", bch->nr, len);
 		len = -ENOMEM;
 	}
 	return len;

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8741.c  --  WM8741 ALSA SoC Audio driver
  *
  * Copyright 2010-1 Wolfson Microelectronics plc
  *
  * Author: Ian Lartey <ian@opensource.wolfsonmicro.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -196,7 +192,7 @@ static int wm8741_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8741_priv *wm8741 = snd_soc_component_get_drvdata(component);
-	unsigned int iface;
+	unsigned int iface, mode;
 	int i;
 
 	/* The set of sample rates that can be supported depends on the
@@ -240,11 +236,21 @@ static int wm8741_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	/* oversampling rate */
+	if (params_rate(params) > 96000)
+		mode = 0x40;
+	else if (params_rate(params) > 48000)
+		mode = 0x20;
+	else
+		mode = 0x00;
+
 	dev_dbg(component->dev, "wm8741_hw_params:    bit size param = %d, rate param = %d",
 		params_width(params), params_rate(params));
 
 	snd_soc_component_update_bits(component, WM8741_FORMAT_CONTROL, WM8741_IWL_MASK,
 			    iface);
+	snd_soc_component_update_bits(component, WM8741_MODE_CONTROL_1, WM8741_OSR_MASK,
+			    mode);
 
 	return 0;
 }
@@ -358,6 +364,15 @@ static int wm8741_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+static int wm8741_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
+{
+	struct snd_soc_component *component = codec_dai->component;
+
+	snd_soc_component_update_bits(component, WM8741_VOLUME_CONTROL,
+			WM8741_SOFT_MASK, !!mute << WM8741_SOFT_SHIFT);
+	return 0;
+}
+
 #define WM8741_RATES (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | \
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | \
@@ -371,6 +386,8 @@ static const struct snd_soc_dai_ops wm8741_dai_ops = {
 	.hw_params	= wm8741_hw_params,
 	.set_sysclk	= wm8741_set_dai_sysclk,
 	.set_fmt	= wm8741_set_dai_fmt,
+	.mute_stream	= wm8741_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8741_dai = {
@@ -511,7 +528,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8741 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8741_of_match[] = {
@@ -548,8 +564,7 @@ static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
 }
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8741_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8741_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8741_priv *wm8741;
 	int ret, i;
@@ -601,7 +616,7 @@ static struct i2c_driver wm8741_i2c_driver = {
 		.name = "wm8741",
 		.of_match_table = wm8741_of_match,
 	},
-	.probe =    wm8741_i2c_probe,
+	.probe_new = wm8741_i2c_probe,
 	.id_table = wm8741_i2c_id,
 };
 #endif

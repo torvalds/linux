@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Fraunhofer ITWM
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by:
  * Phoebe Buckheister <phoebe.buckheister@itwm.fraunhofer.de>
@@ -57,7 +49,7 @@ void mac802154_llsec_destroy(struct mac802154_llsec *sec)
 
 		msl = container_of(sl, struct mac802154_llsec_seclevel, level);
 		list_del(&sl->list);
-		kzfree(msl);
+		kfree_sensitive(msl);
 	}
 
 	list_for_each_entry_safe(dev, dn, &sec->table.devices, list) {
@@ -74,7 +66,7 @@ void mac802154_llsec_destroy(struct mac802154_llsec *sec)
 		mkey = container_of(key->key, struct mac802154_llsec_key, key);
 		list_del(&key->list);
 		llsec_key_put(mkey);
-		kzfree(key);
+		kfree_sensitive(key);
 	}
 }
 
@@ -160,10 +152,10 @@ err_tfm0:
 	crypto_free_sync_skcipher(key->tfm0);
 err_tfm:
 	for (i = 0; i < ARRAY_SIZE(key->tfm); i++)
-		if (key->tfm[i])
+		if (!IS_ERR_OR_NULL(key->tfm[i]))
 			crypto_free_aead(key->tfm[i]);
 
-	kzfree(key);
+	kfree_sensitive(key);
 	return NULL;
 }
 
@@ -178,7 +170,7 @@ static void llsec_key_release(struct kref *ref)
 		crypto_free_aead(key->tfm[i]);
 
 	crypto_free_sync_skcipher(key->tfm0);
-	kzfree(key);
+	kfree_sensitive(key);
 }
 
 static struct mac802154_llsec_key*
@@ -269,7 +261,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 	return 0;
 
 fail:
-	kzfree(new);
+	kfree_sensitive(new);
 	return -ENOMEM;
 }
 
@@ -349,10 +341,10 @@ static void llsec_dev_free(struct mac802154_llsec_device *dev)
 				      devkey);
 
 		list_del(&pos->list);
-		kzfree(devkey);
+		kfree_sensitive(devkey);
 	}
 
-	kzfree(dev);
+	kfree_sensitive(dev);
 }
 
 int mac802154_llsec_dev_add(struct mac802154_llsec *sec,
@@ -690,7 +682,7 @@ llsec_do_encrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 
 	rc = crypto_aead_encrypt(req);
 
-	kzfree(req);
+	kfree_sensitive(req);
 
 	return rc;
 }
@@ -894,7 +886,7 @@ llsec_do_decrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 
 	rc = crypto_aead_decrypt(req);
 
-	kzfree(req);
+	kfree_sensitive(req);
 	skb_trim(skb, skb->len - authlen);
 
 	return rc;
@@ -934,7 +926,7 @@ llsec_update_devkey_record(struct mac802154_llsec_device *dev,
 		if (!devkey)
 			list_add_rcu(&next->devkey.list, &dev->dev.keys);
 		else
-			kzfree(next);
+			kfree_sensitive(next);
 
 		spin_unlock_bh(&dev->lock);
 	}

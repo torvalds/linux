@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	w83627hf/thf WDT driver
  *
@@ -16,11 +17,6 @@
  *
  *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
  *	warranty for any of this software. This material is provided
@@ -53,7 +49,7 @@ static int wdt_cfg_leave = 0xAA;/* key to lock configuration space */
 enum chips { w83627hf, w83627s, w83697hf, w83697ug, w83637hf, w83627thf,
 	     w83687thf, w83627ehf, w83627dhg, w83627uhg, w83667hg, w83627dhg_p,
 	     w83667hg_b, nct6775, nct6776, nct6779, nct6791, nct6792, nct6793,
-	     nct6795, nct6796, nct6102 };
+	     nct6795, nct6796, nct6102, nct6116 };
 
 static int timeout;			/* in seconds */
 module_param(timeout, int, 0);
@@ -98,6 +94,7 @@ MODULE_PARM_DESC(early_disable, "Disable watchdog at boot time (default=0)");
 #define NCT6775_ID		0xb4
 #define NCT6776_ID		0xc3
 #define NCT6102_ID		0xc4
+#define NCT6116_ID		0xd2
 #define NCT6779_ID		0xc5
 #define NCT6791_ID		0xc8
 #define NCT6792_ID		0xc9
@@ -215,6 +212,7 @@ static int w83627hf_init(struct watchdog_device *wdog, enum chips chip)
 	case nct6795:
 	case nct6796:
 	case nct6102:
+	case nct6116:
 		/*
 		 * These chips have a fixed WDTO# output pin (W83627UHG),
 		 * or support more than one WDTO# output pin.
@@ -421,6 +419,12 @@ static int wdt_find(int addr)
 		cr_wdt_control = NCT6102D_WDT_CONTROL;
 		cr_wdt_csr = NCT6102D_WDT_CSR;
 		break;
+	case NCT6116_ID:
+		ret = nct6116;
+		cr_wdt_timeout = NCT6102D_WDT_TIMEOUT;
+		cr_wdt_control = NCT6102D_WDT_CONTROL;
+		cr_wdt_csr = NCT6102D_WDT_CSR;
+		break;
 	case 0xff:
 		ret = -ENODEV;
 		break;
@@ -486,6 +490,7 @@ static int __init wdt_init(void)
 		"NCT6795",
 		"NCT6796",
 		"NCT6102",
+		"NCT6116",
 	};
 
 	/* Apply system-specific quirks */

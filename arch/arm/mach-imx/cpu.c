@@ -4,8 +4,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/slab.h>
-#include <linux/sys_soc.h>
 
 #include "hardware.h"
 #include "common.h"
@@ -71,103 +69,4 @@ void __init imx_aips_allow_unprivileged_access(
 		WARN_ON(!aips_base_addr);
 		imx_set_aips(aips_base_addr);
 	}
-}
-
-struct device * __init imx_soc_device_init(void)
-{
-	struct soc_device_attribute *soc_dev_attr;
-	struct soc_device *soc_dev;
-	struct device_node *root;
-	const char *soc_id;
-	int ret;
-
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
-	if (!soc_dev_attr)
-		return NULL;
-
-	soc_dev_attr->family = "Freescale i.MX";
-
-	root = of_find_node_by_path("/");
-	ret = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	of_node_put(root);
-	if (ret)
-		goto free_soc;
-
-	switch (__mxc_cpu_type) {
-	case MXC_CPU_MX1:
-		soc_id = "i.MX1";
-		break;
-	case MXC_CPU_MX21:
-		soc_id = "i.MX21";
-		break;
-	case MXC_CPU_MX25:
-		soc_id = "i.MX25";
-		break;
-	case MXC_CPU_MX27:
-		soc_id = "i.MX27";
-		break;
-	case MXC_CPU_MX31:
-		soc_id = "i.MX31";
-		break;
-	case MXC_CPU_MX35:
-		soc_id = "i.MX35";
-		break;
-	case MXC_CPU_MX51:
-		soc_id = "i.MX51";
-		break;
-	case MXC_CPU_MX53:
-		soc_id = "i.MX53";
-		break;
-	case MXC_CPU_IMX6SL:
-		soc_id = "i.MX6SL";
-		break;
-	case MXC_CPU_IMX6DL:
-		soc_id = "i.MX6DL";
-		break;
-	case MXC_CPU_IMX6SX:
-		soc_id = "i.MX6SX";
-		break;
-	case MXC_CPU_IMX6Q:
-		soc_id = "i.MX6Q";
-		break;
-	case MXC_CPU_IMX6UL:
-		soc_id = "i.MX6UL";
-		break;
-	case MXC_CPU_IMX6ULL:
-		soc_id = "i.MX6ULL";
-		break;
-	case MXC_CPU_IMX6ULZ:
-		soc_id = "i.MX6ULZ";
-		break;
-	case MXC_CPU_IMX6SLL:
-		soc_id = "i.MX6SLL";
-		break;
-	case MXC_CPU_IMX7D:
-		soc_id = "i.MX7D";
-		break;
-	case MXC_CPU_IMX7ULP:
-		soc_id = "i.MX7ULP";
-		break;
-	default:
-		soc_id = "Unknown";
-	}
-	soc_dev_attr->soc_id = soc_id;
-
-	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d.%d",
-					   (imx_soc_revision >> 4) & 0xf,
-					   imx_soc_revision & 0xf);
-	if (!soc_dev_attr->revision)
-		goto free_soc;
-
-	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev))
-		goto free_rev;
-
-	return soc_device_to_device(soc_dev);
-
-free_rev:
-	kfree(soc_dev_attr->revision);
-free_soc:
-	kfree(soc_dev_attr);
-	return NULL;
 }

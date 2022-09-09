@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * jc42.c - driver for Jedec JC42.4 compliant temperature sensors
  *
@@ -6,20 +7,6 @@
  * Derived from lm77.c by Andras BALI <drewie@freemail.hu>.
  *
  * JC42.4 compliant temperature sensors are typically used on memory modules.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/bitops.h>
@@ -76,6 +63,7 @@ static const unsigned short normal_i2c[] = {
 #define STM_MANID		0x104a  /* ST Microelectronics */
 #define GT_MANID		0x1c68	/* Giantec */
 #define GT_MANID2		0x132d	/* Giantec, 2nd mfg ID */
+#define SI_MANID		0x1c85	/* Seiko Instruments */
 
 /* SMBUS register */
 #define SMBUS_STMOUT		BIT(7)  /* SMBus time-out, active low */
@@ -150,6 +138,9 @@ static const unsigned short normal_i2c[] = {
 #define CAT34TS04_DEVID		0x2200
 #define CAT34TS04_DEVID_MASK	0xfff0
 
+#define N34TS04_DEVID		0x2230
+#define N34TS04_DEVID_MASK	0xfff0
+
 /* ST Microelectronics */
 #define STTS424_DEVID		0x0101
 #define STTS424_DEVID_MASK	0xffff
@@ -165,6 +156,10 @@ static const unsigned short normal_i2c[] = {
 
 #define STTS3000_DEVID		0x0200
 #define STTS3000_DEVID_MASK	0xffff
+
+/* Seiko Instruments */
+#define S34TS04A_DEVID		0x2221
+#define S34TS04A_DEVID_MASK	0xffff
 
 static u16 jc42_hysteresis[] = { 0, 1500, 3000, 6000 };
 
@@ -194,7 +189,9 @@ static struct jc42_chips jc42_chips[] = {
 	{ ONS_MANID, CAT6095_DEVID, CAT6095_DEVID_MASK },
 	{ ONS_MANID, CAT34TS02C_DEVID, CAT34TS02C_DEVID_MASK },
 	{ ONS_MANID, CAT34TS04_DEVID, CAT34TS04_DEVID_MASK },
+	{ ONS_MANID, N34TS04_DEVID, N34TS04_DEVID_MASK },
 	{ NXP_MANID, SE98_DEVID, SE98_DEVID_MASK },
+	{ SI_MANID,  S34TS04A_DEVID, S34TS04A_DEVID_MASK },
 	{ STM_MANID, STTS424_DEVID, STTS424_DEVID_MASK },
 	{ STM_MANID, STTS424E_DEVID, STTS424E_DEVID_MASK },
 	{ STM_MANID, STTS2002_DEVID, STTS2002_DEVID_MASK },
@@ -390,21 +387,21 @@ static umode_t jc42_is_visible(const void *_data, enum hwmon_sensor_types type,
 {
 	const struct jc42_data *data = _data;
 	unsigned int config = data->config;
-	umode_t mode = S_IRUGO;
+	umode_t mode = 0444;
 
 	switch (attr) {
 	case hwmon_temp_min:
 	case hwmon_temp_max:
 		if (!(config & JC42_CFG_EVENT_LOCK))
-			mode |= S_IWUSR;
+			mode |= 0200;
 		break;
 	case hwmon_temp_crit:
 		if (!(config & JC42_CFG_TCRIT_LOCK))
-			mode |= S_IWUSR;
+			mode |= 0200;
 		break;
 	case hwmon_temp_crit_hyst:
 		if (!(config & (JC42_CFG_EVENT_LOCK | JC42_CFG_TCRIT_LOCK)))
-			mode |= S_IWUSR;
+			mode |= 0200;
 		break;
 	case hwmon_temp_input:
 	case hwmon_temp_max_hyst:
@@ -451,20 +448,14 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return -ENODEV;
 }
 
-static const u32 jc42_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX | HWMON_T_CRIT |
-	HWMON_T_MAX_HYST | HWMON_T_CRIT_HYST |
-	HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info jc42_temp = {
-	.type = hwmon_temp,
-	.config = jc42_temp_config,
-};
-
 static const struct hwmon_channel_info *jc42_info[] = {
-	&jc42_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM),
 	NULL
 };
 
@@ -479,7 +470,7 @@ static const struct hwmon_chip_info jc42_chip_info = {
 	.info = jc42_info,
 };
 
-static int jc42_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int jc42_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -527,7 +518,7 @@ static int jc42_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 	data->config = config;
 
-	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, "jc42",
 							 data, &jc42_chip_info,
 							 NULL);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
@@ -602,7 +593,7 @@ static struct i2c_driver jc42_driver = {
 		.pm = JC42_DEV_PM_OPS,
 		.of_match_table = of_match_ptr(jc42_of_ids),
 	},
-	.probe		= jc42_probe,
+	.probe_new	= jc42_probe,
 	.remove		= jc42_remove,
 	.id_table	= jc42_id,
 	.detect		= jc42_detect,

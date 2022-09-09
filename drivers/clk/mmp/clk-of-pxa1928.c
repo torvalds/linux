@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pxa1928 clock framework source file
  *
@@ -7,10 +8,6 @@
  * Based on drivers/clk/mmp/clk-of-mmp2.c:
  * Copyright (C) 2012 Marvell
  * Chao Xie <xiechao.mail@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -68,7 +65,6 @@ static struct mmp_clk_factor_tbl uart_factor_tbl[] = {
 
 static void pxa1928_pll_init(struct pxa1928_clk_unit *pxa_unit)
 {
-	struct clk *clk;
 	struct mmp_clk_unit *unit = &pxa_unit->unit;
 
 	mmp_register_fixed_rate_clks(unit, fixed_rate_clks,
@@ -77,7 +73,7 @@ static void pxa1928_pll_init(struct pxa1928_clk_unit *pxa_unit)
 	mmp_register_fixed_factor_clks(unit, fixed_factor_clks,
 					ARRAY_SIZE(fixed_factor_clks));
 
-	clk = mmp_clk_register_factor("uart_pll", "pll1_416",
+	mmp_clk_register_factor("uart_pll", "pll1_416",
 				CLK_SET_RATE_PARENT,
 				pxa_unit->mpmu_base + MPMU_UART_PLL,
 				&uart_factor_masks, uart_factor_tbl,

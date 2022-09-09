@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TS3A227E Autonomous Audio Accessory Detection and Configuration Switch
  *
  * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/gpio.h>
@@ -285,8 +282,7 @@ static int ts3a227e_parse_device_property(struct ts3a227e *ts3a227e,
 	return 0;
 }
 
-static int ts3a227e_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int ts3a227e_i2c_probe(struct i2c_client *i2c)
 {
 	struct ts3a227e *ts3a227e;
 	struct device *dev = &i2c->dev;
@@ -369,11 +365,13 @@ static const struct i2c_device_id ts3a227e_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ts3a227e_i2c_ids);
 
+#ifdef CONFIG_OF
 static const struct of_device_id ts3a227e_of_match[] = {
 	{ .compatible = "ti,ts3a227e", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ts3a227e_of_match);
+#endif
 
 #ifdef CONFIG_ACPI
 static struct acpi_device_id ts3a227e_acpi_match[] = {
@@ -390,7 +388,7 @@ static struct i2c_driver ts3a227e_driver = {
 		.of_match_table = of_match_ptr(ts3a227e_of_match),
 		.acpi_match_table = ACPI_PTR(ts3a227e_acpi_match),
 	},
-	.probe = ts3a227e_i2c_probe,
+	.probe_new = ts3a227e_i2c_probe,
 	.id_table = ts3a227e_i2c_ids,
 };
 module_i2c_driver(ts3a227e_driver);

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * pm_clock.h - Definitions and headers related to device clocks.
  *
  * Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef _LINUX_PM_CLOCK_H
@@ -48,6 +47,7 @@ extern void pm_clk_remove(struct device *dev, const char *con_id);
 extern void pm_clk_remove_clk(struct device *dev, struct clk *clk);
 extern int pm_clk_suspend(struct device *dev);
 extern int pm_clk_resume(struct device *dev);
+extern int devm_pm_clk_create(struct device *dev);
 #else
 static inline bool pm_clk_no_clocks(struct device *dev)
 {
@@ -83,6 +83,10 @@ static inline void pm_clk_remove(struct device *dev, const char *con_id)
 #define pm_clk_resume	NULL
 static inline void pm_clk_remove_clk(struct device *dev, struct clk *clk)
 {
+}
+static inline int devm_pm_clk_create(struct device *dev)
+{
+	return -EINVAL;
 }
 #endif
 

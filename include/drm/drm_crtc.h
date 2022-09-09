@@ -25,36 +25,24 @@
 #ifndef __DRM_CRTC_H__
 #define __DRM_CRTC_H__
 
-#include <linux/i2c.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
-#include <linux/fb.h>
-#include <linux/hdmi.h>
-#include <linux/media-bus-format.h>
-#include <uapi/drm/drm_mode.h>
-#include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
-#include <drm/drm_rect.h>
 #include <drm/drm_mode_object.h>
-#include <drm/drm_framebuffer.h>
 #include <drm/drm_modes.h>
-#include <drm/drm_connector.h>
-#include <drm/drm_property.h>
-#include <drm/drm_bridge.h>
-#include <drm/drm_edid.h>
+#include <drm/drm_device.h>
 #include <drm/drm_plane.h>
-#include <drm/drm_blend.h>
-#include <drm/drm_color_mgmt.h>
 #include <drm/drm_debugfs_crc.h>
 #include <drm/drm_mode_config.h>
 
+struct drm_connector;
 struct drm_device;
+struct drm_framebuffer;
 struct drm_mode_set;
 struct drm_file;
-struct drm_clip_rect;
 struct drm_printer;
+struct drm_self_refresh_data;
 struct device_node;
-struct dma_fence;
 struct edid;
 
 static inline int64_t U642I64(uint64_t val)
@@ -78,7 +66,7 @@ struct drm_plane_helper_funcs;
 /**
  * struct drm_crtc_state - mutable CRTC state
  *
- * Note that the distinction between @enable and @active is rather subtile:
+ * Note that the distinction between @enable and @active is rather subtle:
  * Flipping @active while @enable is set without changing anything else may
  * never return in a failure from the &drm_mode_config_funcs.atomic_check
  * callback. Userspace assumes that a DPMS On will always succeed. In other
@@ -173,12 +161,25 @@ struct drm_crtc_state {
 	 * @no_vblank:
 	 *
 	 * Reflects the ability of a CRTC to send VBLANK events. This state
-	 * usually depends on the pipeline configuration, and the main usuage
-	 * is CRTCs feeding a writeback connector operating in oneshot mode.
-	 * In this case the VBLANK event is only generated when a job is queued
-	 * to the writeback connector, and we want the core to fake VBLANK
-	 * events when this part of the pipeline hasn't changed but others had
-	 * or when the CRTC and connectors are being disabled.
+	 * usually depends on the pipeline configuration. If set to true, DRM
+	 * atomic helpers will send out a fake VBLANK event during display
+	 * updates after all hardware changes have been committed. This is
+	 * implemented in drm_atomic_helper_fake_vblank().
+	 *
+	 * One usage is for drivers and/or hardware without support for VBLANK
+	 * interrupts. Such drivers typically do not initialize vblanking
+	 * (i.e., call drm_vblank_init() with the number of CRTCs). For CRTCs
+	 * without initialized vblanking, this field is set to true in
+	 * drm_atomic_helper_check_modeset(), and a fake VBLANK event will be
+	 * send out on each update of the display pipeline by
+	 * drm_atomic_helper_fake_vblank().
+	 *
+	 * Another usage is CRTCs feeding a writeback connector operating in
+	 * oneshot mode. In this case the fake VBLANK event is only generated
+	 * when a job is queued to the writeback connector, and we want the
+	 * core to fake VBLANK events when this part of the pipeline hasn't
+	 * changed but others had or when the CRTC and connectors are being
+	 * disabled.
 	 *
 	 * __drm_atomic_helper_crtc_duplicate_state() will not reset the value
 	 * from the current state, the CRTC driver is then responsible for
@@ -271,6 +272,10 @@ struct drm_crtc_state {
 	 * Lookup table for converting pixel data after the color conversion
 	 * matrix @ctm.  See drm_crtc_enable_color_mgmt(). The blob (if not
 	 * NULL) is an array of &struct drm_color_lut.
+	 *
+	 * Note that for mostly historical reasons stemming from Xorg heritage,
+	 * this is also used to store the color map (also sometimes color lut,
+	 * CLUT or color palette) for indexed formats like DRM_FORMAT_C8.
 	 */
 	struct drm_property_blob *gamma_lut;
 
@@ -283,12 +288,12 @@ struct drm_crtc_state {
 	u32 target_vblank;
 
 	/**
-	 * @pageflip_flags:
+	 * @async_flip:
 	 *
-	 * DRM_MODE_PAGE_FLIP_* flags, as passed to the page flip ioctl.
-	 * Zero in any other case.
+	 * This is set when DRM_MODE_PAGE_FLIP_ASYNC is set in the legacy
+	 * PAGE_FLIP IOCTL. It's not wired up for the atomic IOCTL itself yet.
 	 */
-	u32 pageflip_flags;
+	bool async_flip;
 
 	/**
 	 * @vrr_enabled:
@@ -298,6 +303,24 @@ struct drm_crtc_state {
 	 * hardware capabiltiy - lacking support is not treated as failure.
 	 */
 	bool vrr_enabled;
+
+	/**
+	 * @self_refresh_active:
+	 *
+	 * Used by the self refresh helpers to denote when a self refresh
+	 * transition is occurring. This will be set on enable/disable callbacks
+	 * when self refresh is being enabled or disabled. In some cases, it may
+	 * not be desirable to fully shut off the crtc during self refresh.
+	 * CRTC's can inspect this flag and determine the best course of action.
+	 */
+	bool self_refresh_active;
+
+	/**
+	 * @scaling_filter:
+	 *
+	 * Scaling filter to be applied
+	 */
+	enum drm_scaling_filter scaling_filter;
 
 	/**
 	 * @event:
@@ -323,7 +346,14 @@ struct drm_crtc_state {
 	 *  - Events for disabled CRTCs are not allowed, and drivers can ignore
 	 *    that case.
 	 *
-	 * This can be handled by the drm_crtc_send_vblank_event() function,
+	 * For very simple hardware without VBLANK interrupt, enabling
+	 * &struct drm_crtc_state.no_vblank makes DRM's atomic commit helpers
+	 * send a fake VBLANK event at the end of the display update after all
+	 * hardware changes have been applied. See
+	 * drm_atomic_helper_fake_vblank().
+	 *
+	 * For more complex hardware this
+	 * can be handled by the drm_crtc_send_vblank_event() function,
 	 * which the driver should call on the provided event upon completion of
 	 * the atomic commit. Note that if the driver supports vblank signalling
 	 * and timestamping the vblank counters and timestamps must agree with
@@ -472,7 +502,7 @@ struct drm_crtc_funcs {
 	/**
 	 * @destroy:
 	 *
-	 * Clean up plane resources. This is only called at driver unload time
+	 * Clean up CRTC resources. This is only called at driver unload time
 	 * through drm_mode_config_cleanup() since a CRTC cannot be hotplugged
 	 * in DRM.
 	 */
@@ -743,6 +773,9 @@ struct drm_crtc_funcs {
 	 * provided from the configured source. Drivers must accept an "auto"
 	 * source name that will select a default source for this CRTC.
 	 *
+	 * This may trigger an atomic modeset commit if necessary, to enable CRC
+	 * generation.
+	 *
 	 * Note that "auto" can depend upon the current modeset configuration,
 	 * e.g. it could pick an encoder or output specific CRC sampling point.
 	 *
@@ -754,6 +787,7 @@ struct drm_crtc_funcs {
 	 * 0 on success or a negative error code on failure.
 	 */
 	int (*set_crc_source)(struct drm_crtc *crtc, const char *source);
+
 	/**
 	 * @verify_crc_source:
 	 *
@@ -851,6 +885,47 @@ struct drm_crtc_funcs {
 	 * new drivers as the replacement of &drm_driver.disable_vblank hook.
 	 */
 	void (*disable_vblank)(struct drm_crtc *crtc);
+
+	/**
+	 * @get_vblank_timestamp:
+	 *
+	 * Called by drm_get_last_vbltimestamp(). Should return a precise
+	 * timestamp when the most recent vblank interval ended or will end.
+	 *
+	 * Specifically, the timestamp in @vblank_time should correspond as
+	 * closely as possible to the time when the first video scanline of
+	 * the video frame after the end of vblank will start scanning out,
+	 * the time immediately after end of the vblank interval. If the
+	 * @crtc is currently inside vblank, this will be a time in the future.
+	 * If the @crtc is currently scanning out a frame, this will be the
+	 * past start time of the current scanout. This is meant to adhere
+	 * to the OpenML OML_sync_control extension specification.
+	 *
+	 * Parameters:
+	 *
+	 * crtc:
+	 *     CRTC for which timestamp should be returned.
+	 * max_error:
+	 *     Maximum allowable timestamp error in nanoseconds.
+	 *     Implementation should strive to provide timestamp
+	 *     with an error of at most max_error nanoseconds.
+	 *     Returns true upper bound on error for timestamp.
+	 * vblank_time:
+	 *     Target location for returned vblank timestamp.
+	 * in_vblank_irq:
+	 *     True when called from drm_crtc_handle_vblank().  Some drivers
+	 *     need to apply some workarounds for gpu-specific vblank irq quirks
+	 *     if flag is set.
+	 *
+	 * Returns:
+	 *
+	 * True on success, false on failure, which means the core should
+	 * fallback to a simple timestamp taken in drm_crtc_handle_vblank().
+	 */
+	bool (*get_vblank_timestamp)(struct drm_crtc *crtc,
+				     int *max_error,
+				     ktime_t *vblank_time,
+				     bool in_vblank_irq);
 };
 
 /**
@@ -958,11 +1033,12 @@ struct drm_crtc {
 	 * Programmed mode in hw, after adjustments for encoders, crtc, panel
 	 * scaling etc. Should only be used by legacy drivers, for high
 	 * precision vblank timestamps in
-	 * drm_calc_vbltimestamp_from_scanoutpos().
+	 * drm_crtc_vblank_helper_get_vblank_timestamp().
 	 *
 	 * Note that atomic drivers should not use this, but instead use
 	 * &drm_crtc_state.adjusted_mode. And for high-precision timestamps
-	 * drm_calc_vbltimestamp_from_scanoutpos() used &drm_vblank_crtc.hwmode,
+	 * drm_crtc_vblank_helper_get_vblank_timestamp() used
+	 * &drm_vblank_crtc.hwmode,
 	 * which is filled out by calling drm_calc_timestamping_constants().
 	 */
 	struct drm_display_mode hwmode;
@@ -990,12 +1066,18 @@ struct drm_crtc {
 	/**
 	 * @gamma_size: Size of legacy gamma ramp reported to userspace. Set up
 	 * by calling drm_mode_crtc_set_gamma_size().
+	 *
+	 * Note that atomic drivers need to instead use
+	 * &drm_crtc_state.gamma_lut. See drm_crtc_enable_color_mgmt().
 	 */
 	uint32_t gamma_size;
 
 	/**
 	 * @gamma_store: Gamma ramp values used by the legacy SETGAMMA and
 	 * GETGAMMA IOCTls. Set up by calling drm_mode_crtc_set_gamma_size().
+	 *
+	 * Note that atomic drivers need to instead use
+	 * &drm_crtc_state.gamma_lut. See drm_crtc_enable_color_mgmt().
 	 */
 	uint16_t *gamma_store;
 
@@ -1004,6 +1086,12 @@ struct drm_crtc {
 
 	/** @properties: property tracking for this CRTC */
 	struct drm_object_properties properties;
+
+	/**
+	 * @scaling_filter_property: property to apply a particular filter while
+	 * scaling.
+	 */
+	struct drm_property *scaling_filter_property;
 
 	/**
 	 * @state:
@@ -1044,14 +1132,12 @@ struct drm_crtc {
 	 */
 	spinlock_t commit_lock;
 
-#ifdef CONFIG_DEBUG_FS
 	/**
 	 * @debugfs_entry:
 	 *
 	 * Debugfs directory for this CRTC.
 	 */
 	struct dentry *debugfs_entry;
-#endif
 
 	/**
 	 * @crc:
@@ -1087,6 +1173,13 @@ struct drm_crtc {
 	 * The name of the CRTC's fence timeline.
 	 */
 	char timeline_name[32];
+
+	/**
+	 * @self_refresh_data: Holds the state for the self refresh helpers
+	 *
+	 * Initialized via drm_self_refresh_helper_init().
+	 */
+	struct drm_self_refresh_data *self_refresh_data;
 };
 
 /**
@@ -1125,6 +1218,39 @@ int drm_crtc_init_with_planes(struct drm_device *dev,
 			      const char *name, ...);
 void drm_crtc_cleanup(struct drm_crtc *crtc);
 
+__printf(7, 8)
+void *__drmm_crtc_alloc_with_planes(struct drm_device *dev,
+				    size_t size, size_t offset,
+				    struct drm_plane *primary,
+				    struct drm_plane *cursor,
+				    const struct drm_crtc_funcs *funcs,
+				    const char *name, ...);
+
+/**
+ * drmm_crtc_alloc_with_planes - Allocate and initialize a new CRTC object with
+ *    specified primary and cursor planes.
+ * @dev: DRM device
+ * @type: the type of the struct which contains struct &drm_crtc
+ * @member: the name of the &drm_crtc within @type.
+ * @primary: Primary plane for CRTC
+ * @cursor: Cursor plane for CRTC
+ * @funcs: callbacks for the new CRTC
+ * @name: printf style format string for the CRTC name, or NULL for default name
+ *
+ * Allocates and initializes a new crtc object. Cleanup is automatically
+ * handled through registering drmm_crtc_cleanup() with drmm_add_action().
+ *
+ * The @drm_crtc_funcs.destroy hook must be NULL.
+ *
+ * Returns:
+ * Pointer to new crtc, or ERR_PTR on failure.
+ */
+#define drmm_crtc_alloc_with_planes(dev, type, member, primary, cursor, funcs, name, ...) \
+	((type *)__drmm_crtc_alloc_with_planes(dev, sizeof(type), \
+					       offsetof(type, member), \
+					       primary, cursor, funcs, \
+					       name, ##__VA_ARGS__))
+
 /**
  * drm_crtc_index - find the index of a registered CRTC
  * @crtc: CRTC to find index for
@@ -1148,9 +1274,6 @@ static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 {
 	return 1 << drm_crtc_index(crtc);
 }
-
-int drm_crtc_force_disable(struct drm_crtc *crtc);
-int drm_crtc_force_disable_all(struct drm_device *dev);
 
 int drm_mode_set_config_internal(struct drm_mode_set *set);
 struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
@@ -1183,5 +1306,18 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
  */
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
+
+/**
+ * drm_for_each_crtc_reverse - iterate over all CRTCs in reverse order
+ * @crtc: a &struct drm_crtc as the loop cursor
+ * @dev: the &struct drm_device
+ *
+ * Iterate over all CRTCs of @dev.
+ */
+#define drm_for_each_crtc_reverse(crtc, dev) \
+	list_for_each_entry_reverse(crtc, &(dev)->mode_config.crtc_list, head)
+
+int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
+					    unsigned int supported_filters);
 
 #endif /* __DRM_CRTC_H__ */

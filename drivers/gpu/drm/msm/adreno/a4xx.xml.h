@@ -8,19 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno.xml                     (    594 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/freedreno_copyright.xml        (   1572 bytes, from 2020-12-31 19:26:32)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a2xx.xml                (  90810 bytes, from 2021-06-21 15:24:24)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_common.xml       (  14609 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pm4.xml          (  69086 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a3xx.xml                (  84231 bytes, from 2021-11-24 23:05:10)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a4xx.xml                ( 113358 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a5xx.xml                ( 149512 bytes, from 2022-01-31 23:06:21)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx.xml                ( 184954 bytes, from 2022-03-03 16:41:33)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/a6xx_gmu.xml            (  11331 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/ocmem.xml               (   1773 bytes, from 2021-01-30 18:25:22)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_control_regs.xml (   6038 bytes, from 2021-07-22 15:21:56)
+- /home/robclark/tmp/mesa/src/freedreno/registers/adreno/adreno_pipe_regs.xml    (   2924 bytes, from 2021-07-22 15:21:56)
 
-Copyright (C) 2013-2018 by the following authors:
+Copyright (C) 2013-2022 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -91,6 +93,7 @@ enum a4xx_color_fmt {
 	RB4_R32G32B32A32_FLOAT = 60,
 	RB4_R32G32B32A32_UINT = 61,
 	RB4_R32G32B32A32_SINT = 62,
+	RB4_NONE = 255,
 };
 
 enum a4xx_tile_mode {
@@ -161,6 +164,7 @@ enum a4xx_vtx_fmt {
 	VFMT4_2_10_10_10_UNORM = 61,
 	VFMT4_2_10_10_10_SINT = 62,
 	VFMT4_2_10_10_10_SNORM = 63,
+	VFMT4_NONE = 255,
 };
 
 enum a4xx_tex_fmt {
@@ -248,14 +252,7 @@ enum a4xx_tex_fmt {
 	TFMT4_ASTC_10x10 = 122,
 	TFMT4_ASTC_12x10 = 123,
 	TFMT4_ASTC_12x12 = 124,
-};
-
-enum a4xx_tex_fetchsize {
-	TFETCH4_1_BYTE = 0,
-	TFETCH4_2_BYTE = 1,
-	TFETCH4_4_BYTE = 2,
-	TFETCH4_8_BYTE = 3,
-	TFETCH4_16_BYTE = 4,
+	TFMT4_NONE = 255,
 };
 
 enum a4xx_depth_format {
@@ -840,6 +837,7 @@ enum a4xx_tex_type {
 	A4XX_TEX_2D = 1,
 	A4XX_TEX_CUBE = 2,
 	A4XX_TEX_3D = 3,
+	A4XX_TEX_BUFFER = 4,
 };
 
 #define A4XX_CGC_HLSQ_EARLY_CYC__MASK				0x00700000
@@ -949,10 +947,12 @@ static inline uint32_t A4XX_RB_MSAA_CONTROL_SAMPLES(uint32_t val)
 }
 
 #define REG_A4XX_RB_RENDER_CONTROL2				0x000020a3
-#define A4XX_RB_RENDER_CONTROL2_XCOORD				0x00000001
-#define A4XX_RB_RENDER_CONTROL2_YCOORD				0x00000002
-#define A4XX_RB_RENDER_CONTROL2_ZCOORD				0x00000004
-#define A4XX_RB_RENDER_CONTROL2_WCOORD				0x00000008
+#define A4XX_RB_RENDER_CONTROL2_COORD_MASK__MASK		0x0000000f
+#define A4XX_RB_RENDER_CONTROL2_COORD_MASK__SHIFT		0
+static inline uint32_t A4XX_RB_RENDER_CONTROL2_COORD_MASK(uint32_t val)
+{
+	return ((val) << A4XX_RB_RENDER_CONTROL2_COORD_MASK__SHIFT) & A4XX_RB_RENDER_CONTROL2_COORD_MASK__MASK;
+}
 #define A4XX_RB_RENDER_CONTROL2_SAMPLEMASK			0x00000010
 #define A4XX_RB_RENDER_CONTROL2_FACENESS			0x00000020
 #define A4XX_RB_RENDER_CONTROL2_SAMPLEID			0x00000040
@@ -963,7 +963,10 @@ static inline uint32_t A4XX_RB_RENDER_CONTROL2_MSAA_SAMPLES(uint32_t val)
 	return ((val) << A4XX_RB_RENDER_CONTROL2_MSAA_SAMPLES__SHIFT) & A4XX_RB_RENDER_CONTROL2_MSAA_SAMPLES__MASK;
 }
 #define A4XX_RB_RENDER_CONTROL2_SAMPLEID_HR			0x00000800
-#define A4XX_RB_RENDER_CONTROL2_VARYING				0x00001000
+#define A4XX_RB_RENDER_CONTROL2_IJ_PERSP_PIXEL			0x00001000
+#define A4XX_RB_RENDER_CONTROL2_IJ_PERSP_CENTROID		0x00002000
+#define A4XX_RB_RENDER_CONTROL2_IJ_PERSP_SAMPLE			0x00004000
+#define A4XX_RB_RENDER_CONTROL2_SIZE				0x00008000
 
 static inline uint32_t REG_A4XX_RB_MRT(uint32_t i0) { return 0x000020a4 + 0x5*i0; }
 
@@ -1083,7 +1086,7 @@ static inline uint32_t A4XX_RB_BLEND_RED_SINT(uint32_t val)
 #define A4XX_RB_BLEND_RED_FLOAT__SHIFT				16
 static inline uint32_t A4XX_RB_BLEND_RED_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A4XX_RB_BLEND_RED_FLOAT__SHIFT) & A4XX_RB_BLEND_RED_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A4XX_RB_BLEND_RED_FLOAT__SHIFT) & A4XX_RB_BLEND_RED_FLOAT__MASK;
 }
 
 #define REG_A4XX_RB_BLEND_RED_F32				0x000020f1
@@ -1111,7 +1114,7 @@ static inline uint32_t A4XX_RB_BLEND_GREEN_SINT(uint32_t val)
 #define A4XX_RB_BLEND_GREEN_FLOAT__SHIFT			16
 static inline uint32_t A4XX_RB_BLEND_GREEN_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A4XX_RB_BLEND_GREEN_FLOAT__SHIFT) & A4XX_RB_BLEND_GREEN_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A4XX_RB_BLEND_GREEN_FLOAT__SHIFT) & A4XX_RB_BLEND_GREEN_FLOAT__MASK;
 }
 
 #define REG_A4XX_RB_BLEND_GREEN_F32				0x000020f3
@@ -1139,7 +1142,7 @@ static inline uint32_t A4XX_RB_BLEND_BLUE_SINT(uint32_t val)
 #define A4XX_RB_BLEND_BLUE_FLOAT__SHIFT				16
 static inline uint32_t A4XX_RB_BLEND_BLUE_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A4XX_RB_BLEND_BLUE_FLOAT__SHIFT) & A4XX_RB_BLEND_BLUE_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A4XX_RB_BLEND_BLUE_FLOAT__SHIFT) & A4XX_RB_BLEND_BLUE_FLOAT__MASK;
 }
 
 #define REG_A4XX_RB_BLEND_BLUE_F32				0x000020f5
@@ -1167,7 +1170,7 @@ static inline uint32_t A4XX_RB_BLEND_ALPHA_SINT(uint32_t val)
 #define A4XX_RB_BLEND_ALPHA_FLOAT__SHIFT			16
 static inline uint32_t A4XX_RB_BLEND_ALPHA_FLOAT(float val)
 {
-	return ((util_float_to_half(val)) << A4XX_RB_BLEND_ALPHA_FLOAT__SHIFT) & A4XX_RB_BLEND_ALPHA_FLOAT__MASK;
+	return ((_mesa_float_to_half(val)) << A4XX_RB_BLEND_ALPHA_FLOAT__SHIFT) & A4XX_RB_BLEND_ALPHA_FLOAT__MASK;
 }
 
 #define REG_A4XX_RB_BLEND_ALPHA_F32				0x000020f7
@@ -1358,7 +1361,7 @@ static inline uint32_t A4XX_RB_FS_OUTPUT_REG_MRT(uint32_t val)
 
 #define REG_A4XX_RB_DEPTH_CONTROL				0x00002101
 #define A4XX_RB_DEPTH_CONTROL_FRAG_WRITES_Z			0x00000001
-#define A4XX_RB_DEPTH_CONTROL_Z_ENABLE				0x00000002
+#define A4XX_RB_DEPTH_CONTROL_Z_TEST_ENABLE			0x00000002
 #define A4XX_RB_DEPTH_CONTROL_Z_WRITE_ENABLE			0x00000004
 #define A4XX_RB_DEPTH_CONTROL_ZFUNC__MASK			0x00000070
 #define A4XX_RB_DEPTH_CONTROL_ZFUNC__SHIFT			4
@@ -1369,7 +1372,7 @@ static inline uint32_t A4XX_RB_DEPTH_CONTROL_ZFUNC(enum adreno_compare_func val)
 #define A4XX_RB_DEPTH_CONTROL_Z_CLAMP_ENABLE			0x00000080
 #define A4XX_RB_DEPTH_CONTROL_EARLY_Z_DISABLE			0x00010000
 #define A4XX_RB_DEPTH_CONTROL_FORCE_FRAGZ_TO_FS			0x00020000
-#define A4XX_RB_DEPTH_CONTROL_Z_TEST_ENABLE			0x80000000
+#define A4XX_RB_DEPTH_CONTROL_Z_READ_ENABLE			0x80000000
 
 #define REG_A4XX_RB_DEPTH_CLEAR					0x00002102
 
@@ -1877,10 +1880,6 @@ static inline uint32_t REG_A4XX_RBBM_CLOCK_DELAY_TP_REG(uint32_t i0) { return 0x
 
 #define REG_A4XX_RBBM_PERFCTR_TP_0_HI				0x00000115
 
-#define REG_A4XX_RBBM_PERFCTR_TP_0_LO				0x00000114
-
-#define REG_A4XX_RBBM_PERFCTR_TP_0_HI				0x00000115
-
 #define REG_A4XX_RBBM_PERFCTR_TP_1_LO				0x00000116
 
 #define REG_A4XX_RBBM_PERFCTR_TP_1_HI				0x00000117
@@ -2061,8 +2060,6 @@ static inline uint32_t REG_A4XX_RBBM_CLOCK_DELAY_RB_MARB_CCU_L1_REG(uint32_t i0)
 
 #define REG_A4XX_RBBM_SP_REGFILE_SLEEP_CNTL_1			0x0000009a
 
-#define REG_A4XX_RBBM_PERFCTR_PWR_1_LO				0x00000168
-
 #define REG_A4XX_RBBM_PERFCTR_CTL				0x00000170
 
 #define REG_A4XX_RBBM_PERFCTR_LOAD_CMD0				0x00000171
@@ -2210,8 +2207,18 @@ static inline uint32_t A4XX_CP_PROTECT_REG_MASK_LEN(uint32_t val)
 {
 	return ((val) << A4XX_CP_PROTECT_REG_MASK_LEN__SHIFT) & A4XX_CP_PROTECT_REG_MASK_LEN__MASK;
 }
-#define A4XX_CP_PROTECT_REG_TRAP_WRITE				0x20000000
-#define A4XX_CP_PROTECT_REG_TRAP_READ				0x40000000
+#define A4XX_CP_PROTECT_REG_TRAP_WRITE__MASK			0x20000000
+#define A4XX_CP_PROTECT_REG_TRAP_WRITE__SHIFT			29
+static inline uint32_t A4XX_CP_PROTECT_REG_TRAP_WRITE(uint32_t val)
+{
+	return ((val) << A4XX_CP_PROTECT_REG_TRAP_WRITE__SHIFT) & A4XX_CP_PROTECT_REG_TRAP_WRITE__MASK;
+}
+#define A4XX_CP_PROTECT_REG_TRAP_READ__MASK			0x40000000
+#define A4XX_CP_PROTECT_REG_TRAP_READ__SHIFT			30
+static inline uint32_t A4XX_CP_PROTECT_REG_TRAP_READ(uint32_t val)
+{
+	return ((val) << A4XX_CP_PROTECT_REG_TRAP_READ__SHIFT) & A4XX_CP_PROTECT_REG_TRAP_READ__MASK;
+}
 
 #define REG_A4XX_CP_PROTECT_CTRL				0x00000250
 
@@ -2535,6 +2542,8 @@ static inline uint32_t A4XX_SP_FS_MRT_REG_REGID(uint32_t val)
 	return ((val) << A4XX_SP_FS_MRT_REG_REGID__SHIFT) & A4XX_SP_FS_MRT_REG_REGID__MASK;
 }
 #define A4XX_SP_FS_MRT_REG_HALF_PRECISION			0x00000100
+#define A4XX_SP_FS_MRT_REG_COLOR_SINT				0x00000400
+#define A4XX_SP_FS_MRT_REG_COLOR_UINT				0x00000800
 #define A4XX_SP_FS_MRT_REG_MRTFORMAT__MASK			0x0003f000
 #define A4XX_SP_FS_MRT_REG_MRTFORMAT__SHIFT			12
 static inline uint32_t A4XX_SP_FS_MRT_REG_MRTFORMAT(enum a4xx_color_fmt val)
@@ -2544,6 +2553,40 @@ static inline uint32_t A4XX_SP_FS_MRT_REG_MRTFORMAT(enum a4xx_color_fmt val)
 #define A4XX_SP_FS_MRT_REG_COLOR_SRGB				0x00040000
 
 #define REG_A4XX_SP_CS_CTRL_REG0				0x00002300
+#define A4XX_SP_CS_CTRL_REG0_THREADMODE__MASK			0x00000001
+#define A4XX_SP_CS_CTRL_REG0_THREADMODE__SHIFT			0
+static inline uint32_t A4XX_SP_CS_CTRL_REG0_THREADMODE(enum a3xx_threadmode val)
+{
+	return ((val) << A4XX_SP_CS_CTRL_REG0_THREADMODE__SHIFT) & A4XX_SP_CS_CTRL_REG0_THREADMODE__MASK;
+}
+#define A4XX_SP_CS_CTRL_REG0_VARYING				0x00000002
+#define A4XX_SP_CS_CTRL_REG0_CACHEINVALID			0x00000004
+#define A4XX_SP_CS_CTRL_REG0_HALFREGFOOTPRINT__MASK		0x000003f0
+#define A4XX_SP_CS_CTRL_REG0_HALFREGFOOTPRINT__SHIFT		4
+static inline uint32_t A4XX_SP_CS_CTRL_REG0_HALFREGFOOTPRINT(uint32_t val)
+{
+	return ((val) << A4XX_SP_CS_CTRL_REG0_HALFREGFOOTPRINT__SHIFT) & A4XX_SP_CS_CTRL_REG0_HALFREGFOOTPRINT__MASK;
+}
+#define A4XX_SP_CS_CTRL_REG0_FULLREGFOOTPRINT__MASK		0x0000fc00
+#define A4XX_SP_CS_CTRL_REG0_FULLREGFOOTPRINT__SHIFT		10
+static inline uint32_t A4XX_SP_CS_CTRL_REG0_FULLREGFOOTPRINT(uint32_t val)
+{
+	return ((val) << A4XX_SP_CS_CTRL_REG0_FULLREGFOOTPRINT__SHIFT) & A4XX_SP_CS_CTRL_REG0_FULLREGFOOTPRINT__MASK;
+}
+#define A4XX_SP_CS_CTRL_REG0_INOUTREGOVERLAP__MASK		0x000c0000
+#define A4XX_SP_CS_CTRL_REG0_INOUTREGOVERLAP__SHIFT		18
+static inline uint32_t A4XX_SP_CS_CTRL_REG0_INOUTREGOVERLAP(uint32_t val)
+{
+	return ((val) << A4XX_SP_CS_CTRL_REG0_INOUTREGOVERLAP__SHIFT) & A4XX_SP_CS_CTRL_REG0_INOUTREGOVERLAP__MASK;
+}
+#define A4XX_SP_CS_CTRL_REG0_THREADSIZE__MASK			0x00100000
+#define A4XX_SP_CS_CTRL_REG0_THREADSIZE__SHIFT			20
+static inline uint32_t A4XX_SP_CS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
+{
+	return ((val) << A4XX_SP_CS_CTRL_REG0_THREADSIZE__SHIFT) & A4XX_SP_CS_CTRL_REG0_THREADSIZE__MASK;
+}
+#define A4XX_SP_CS_CTRL_REG0_SUPERTHREADMODE			0x00200000
+#define A4XX_SP_CS_CTRL_REG0_PIXLODENABLE			0x00400000
 
 #define REG_A4XX_SP_CS_OBJ_OFFSET_REG				0x00002301
 
@@ -3151,8 +3194,9 @@ static inline uint32_t A4XX_TPL1_TP_TEX_COUNT_GS(uint32_t val)
 #define A4XX_GRAS_CL_CLIP_CNTL_ZFAR_CLIP_DISABLE		0x00020000
 #define A4XX_GRAS_CL_CLIP_CNTL_ZERO_GB_SCALE_Z			0x00400000
 
-#define REG_A4XX_GRAS_CLEAR_CNTL				0x00002003
-#define A4XX_GRAS_CLEAR_CNTL_NOT_FASTCLEAR			0x00000001
+#define REG_A4XX_GRAS_CNTL					0x00002003
+#define A4XX_GRAS_CNTL_IJ_PERSP					0x00000001
+#define A4XX_GRAS_CNTL_IJ_LINEAR				0x00000002
 
 #define REG_A4XX_GRAS_CL_GB_CLIP_ADJ				0x00002004
 #define A4XX_GRAS_CL_GB_CLIP_ADJ_HORZ__MASK			0x000003ff
@@ -3524,14 +3568,44 @@ static inline uint32_t A4XX_HLSQ_CONTROL_2_REG_SAMPLEMASK_REGID(uint32_t val)
 }
 
 #define REG_A4XX_HLSQ_CONTROL_3_REG				0x000023c3
-#define A4XX_HLSQ_CONTROL_3_REG_REGID__MASK			0x000000ff
-#define A4XX_HLSQ_CONTROL_3_REG_REGID__SHIFT			0
-static inline uint32_t A4XX_HLSQ_CONTROL_3_REG_REGID(uint32_t val)
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__MASK		0x000000ff
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__SHIFT		0
+static inline uint32_t A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL(uint32_t val)
 {
-	return ((val) << A4XX_HLSQ_CONTROL_3_REG_REGID__SHIFT) & A4XX_HLSQ_CONTROL_3_REG_REGID__MASK;
+	return ((val) << A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__SHIFT) & A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_PIXEL__MASK;
+}
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__MASK		0x0000ff00
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__SHIFT		8
+static inline uint32_t A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__SHIFT) & A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_PIXEL__MASK;
+}
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__MASK		0x00ff0000
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__SHIFT	16
+static inline uint32_t A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__SHIFT) & A4XX_HLSQ_CONTROL_3_REG_IJ_PERSP_CENTROID__MASK;
+}
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__MASK	0xff000000
+#define A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__SHIFT	24
+static inline uint32_t A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__SHIFT) & A4XX_HLSQ_CONTROL_3_REG_IJ_LINEAR_CENTROID__MASK;
 }
 
 #define REG_A4XX_HLSQ_CONTROL_4_REG				0x000023c4
+#define A4XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__MASK		0x000000ff
+#define A4XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__SHIFT		0
+static inline uint32_t A4XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__SHIFT) & A4XX_HLSQ_CONTROL_4_REG_IJ_PERSP_SAMPLE__MASK;
+}
+#define A4XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__MASK		0x0000ff00
+#define A4XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__SHIFT		8
+static inline uint32_t A4XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__SHIFT) & A4XX_HLSQ_CONTROL_4_REG_IJ_LINEAR_SAMPLE__MASK;
+}
 
 #define REG_A4XX_HLSQ_VS_CONTROL_REG				0x000023c5
 #define A4XX_HLSQ_VS_CONTROL_REG_CONSTLENGTH__MASK		0x000000ff
@@ -3758,11 +3832,17 @@ static inline uint32_t A4XX_HLSQ_CL_NDRANGE_5_SIZE_Z(uint32_t val)
 #define REG_A4XX_HLSQ_CL_NDRANGE_6				0x000023d3
 
 #define REG_A4XX_HLSQ_CL_CONTROL_0				0x000023d4
-#define A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__MASK		0x000000ff
+#define A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__MASK		0x00000fff
 #define A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__SHIFT		0
 static inline uint32_t A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID(uint32_t val)
 {
 	return ((val) << A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__SHIFT) & A4XX_HLSQ_CL_CONTROL_0_WGIDCONSTID__MASK;
+}
+#define A4XX_HLSQ_CL_CONTROL_0_KERNELDIMCONSTID__MASK		0x00fff000
+#define A4XX_HLSQ_CL_CONTROL_0_KERNELDIMCONSTID__SHIFT		12
+static inline uint32_t A4XX_HLSQ_CL_CONTROL_0_KERNELDIMCONSTID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_CONTROL_0_KERNELDIMCONSTID__SHIFT) & A4XX_HLSQ_CL_CONTROL_0_KERNELDIMCONSTID__MASK;
 }
 #define A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID__MASK		0xff000000
 #define A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID__SHIFT		24
@@ -3772,8 +3852,32 @@ static inline uint32_t A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID(uint32_t val)
 }
 
 #define REG_A4XX_HLSQ_CL_CONTROL_1				0x000023d5
+#define A4XX_HLSQ_CL_CONTROL_1_UNK0CONSTID__MASK		0x00000fff
+#define A4XX_HLSQ_CL_CONTROL_1_UNK0CONSTID__SHIFT		0
+static inline uint32_t A4XX_HLSQ_CL_CONTROL_1_UNK0CONSTID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_CONTROL_1_UNK0CONSTID__SHIFT) & A4XX_HLSQ_CL_CONTROL_1_UNK0CONSTID__MASK;
+}
+#define A4XX_HLSQ_CL_CONTROL_1_WORKGROUPSIZECONSTID__MASK	0x00fff000
+#define A4XX_HLSQ_CL_CONTROL_1_WORKGROUPSIZECONSTID__SHIFT	12
+static inline uint32_t A4XX_HLSQ_CL_CONTROL_1_WORKGROUPSIZECONSTID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_CONTROL_1_WORKGROUPSIZECONSTID__SHIFT) & A4XX_HLSQ_CL_CONTROL_1_WORKGROUPSIZECONSTID__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_KERNEL_CONST				0x000023d6
+#define A4XX_HLSQ_CL_KERNEL_CONST_UNK0CONSTID__MASK		0x00000fff
+#define A4XX_HLSQ_CL_KERNEL_CONST_UNK0CONSTID__SHIFT		0
+static inline uint32_t A4XX_HLSQ_CL_KERNEL_CONST_UNK0CONSTID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_KERNEL_CONST_UNK0CONSTID__SHIFT) & A4XX_HLSQ_CL_KERNEL_CONST_UNK0CONSTID__MASK;
+}
+#define A4XX_HLSQ_CL_KERNEL_CONST_NUMWGCONSTID__MASK		0x00fff000
+#define A4XX_HLSQ_CL_KERNEL_CONST_NUMWGCONSTID__SHIFT		12
+static inline uint32_t A4XX_HLSQ_CL_KERNEL_CONST_NUMWGCONSTID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_KERNEL_CONST_NUMWGCONSTID__SHIFT) & A4XX_HLSQ_CL_KERNEL_CONST_NUMWGCONSTID__MASK;
+}
 
 #define REG_A4XX_HLSQ_CL_KERNEL_GROUP_X				0x000023d7
 
@@ -3782,6 +3886,12 @@ static inline uint32_t A4XX_HLSQ_CL_CONTROL_0_LOCALIDREGID(uint32_t val)
 #define REG_A4XX_HLSQ_CL_KERNEL_GROUP_Z				0x000023d9
 
 #define REG_A4XX_HLSQ_CL_WG_OFFSET				0x000023da
+#define A4XX_HLSQ_CL_WG_OFFSET_UNK0CONSTID__MASK		0x00000fff
+#define A4XX_HLSQ_CL_WG_OFFSET_UNK0CONSTID__SHIFT		0
+static inline uint32_t A4XX_HLSQ_CL_WG_OFFSET_UNK0CONSTID(uint32_t val)
+{
+	return ((val) << A4XX_HLSQ_CL_WG_OFFSET_UNK0CONSTID__SHIFT) & A4XX_HLSQ_CL_WG_OFFSET_UNK0CONSTID__MASK;
+}
 
 #define REG_A4XX_HLSQ_UPDATE_CONTROL				0x000023db
 
@@ -4093,7 +4203,7 @@ static inline uint32_t A4XX_TEX_CONST_0_FMT(enum a4xx_tex_fmt val)
 {
 	return ((val) << A4XX_TEX_CONST_0_FMT__SHIFT) & A4XX_TEX_CONST_0_FMT__MASK;
 }
-#define A4XX_TEX_CONST_0_TYPE__MASK				0x60000000
+#define A4XX_TEX_CONST_0_TYPE__MASK				0xe0000000
 #define A4XX_TEX_CONST_0_TYPE__SHIFT				29
 static inline uint32_t A4XX_TEX_CONST_0_TYPE(enum a4xx_tex_type val)
 {
@@ -4115,12 +4225,13 @@ static inline uint32_t A4XX_TEX_CONST_1_WIDTH(uint32_t val)
 }
 
 #define REG_A4XX_TEX_CONST_2					0x00000002
-#define A4XX_TEX_CONST_2_FETCHSIZE__MASK			0x0000000f
-#define A4XX_TEX_CONST_2_FETCHSIZE__SHIFT			0
-static inline uint32_t A4XX_TEX_CONST_2_FETCHSIZE(enum a4xx_tex_fetchsize val)
+#define A4XX_TEX_CONST_2_PITCHALIGN__MASK			0x0000000f
+#define A4XX_TEX_CONST_2_PITCHALIGN__SHIFT			0
+static inline uint32_t A4XX_TEX_CONST_2_PITCHALIGN(uint32_t val)
 {
-	return ((val) << A4XX_TEX_CONST_2_FETCHSIZE__SHIFT) & A4XX_TEX_CONST_2_FETCHSIZE__MASK;
+	return ((val) << A4XX_TEX_CONST_2_PITCHALIGN__SHIFT) & A4XX_TEX_CONST_2_PITCHALIGN__MASK;
 }
+#define A4XX_TEX_CONST_2_BUFFER					0x00000040
 #define A4XX_TEX_CONST_2_PITCH__MASK				0x3ffffe00
 #define A4XX_TEX_CONST_2_PITCH__SHIFT				9
 static inline uint32_t A4XX_TEX_CONST_2_PITCH(uint32_t val)

@@ -1,14 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fireworks_midi.c - a part of driver for Fireworks based devices
  *
  * Copyright (c) 2009-2010 Clemens Ladisch
  * Copyright (c) 2013-2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 #include "fireworks.h"
 
-static int midi_capture_open(struct snd_rawmidi_substream *substream)
+static int midi_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_efw *efw = substream->rmidi->private_data;
 	int err;
@@ -18,28 +17,13 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 		goto end;
 
 	mutex_lock(&efw->mutex);
-	efw->capture_substreams++;
-	err = snd_efw_stream_start_duplex(efw, 0);
-	mutex_unlock(&efw->mutex);
-	if (err < 0)
-		snd_efw_stream_lock_release(efw);
-
-end:
-	return err;
-}
-
-static int midi_playback_open(struct snd_rawmidi_substream *substream)
-{
-	struct snd_efw *efw = substream->rmidi->private_data;
-	int err;
-
-	err = snd_efw_stream_lock_try(efw);
-	if (err < 0)
-		goto end;
-
-	mutex_lock(&efw->mutex);
-	efw->playback_substreams++;
-	err = snd_efw_stream_start_duplex(efw, 0);
+	err = snd_efw_stream_reserve_duplex(efw, 0, 0, 0);
+	if (err >= 0) {
+		++efw->substreams_counter;
+		err = snd_efw_stream_start_duplex(efw);
+		if (err < 0)
+			--efw->substreams_counter;
+	}
 	mutex_unlock(&efw->mutex);
 	if (err < 0)
 		snd_efw_stream_lock_release(efw);
@@ -47,25 +31,12 @@ end:
 	return err;
 }
 
-static int midi_capture_close(struct snd_rawmidi_substream *substream)
+static int midi_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_efw *efw = substream->rmidi->private_data;
 
 	mutex_lock(&efw->mutex);
-	efw->capture_substreams--;
-	snd_efw_stream_stop_duplex(efw);
-	mutex_unlock(&efw->mutex);
-
-	snd_efw_stream_lock_release(efw);
-	return 0;
-}
-
-static int midi_playback_close(struct snd_rawmidi_substream *substream)
-{
-	struct snd_efw *efw = substream->rmidi->private_data;
-
-	mutex_lock(&efw->mutex);
-	efw->playback_substreams--;
+	--efw->substreams_counter;
 	snd_efw_stream_stop_duplex(efw);
 	mutex_unlock(&efw->mutex);
 
@@ -121,13 +92,13 @@ static void set_midi_substream_names(struct snd_efw *efw,
 int snd_efw_create_midi_devices(struct snd_efw *efw)
 {
 	static const struct snd_rawmidi_ops capture_ops = {
-		.open		= midi_capture_open,
-		.close		= midi_capture_close,
+		.open		= midi_open,
+		.close		= midi_close,
 		.trigger	= midi_capture_trigger,
 	};
 	static const struct snd_rawmidi_ops playback_ops = {
-		.open		= midi_playback_open,
-		.close		= midi_playback_close,
+		.open		= midi_open,
+		.close		= midi_close,
 		.trigger	= midi_playback_trigger,
 	};
 	struct snd_rawmidi *rmidi;

@@ -135,6 +135,7 @@ struct link_config {
 
 	enum cc_pause	requested_fc;	/* flow control user has requested */
 	enum cc_pause	fc;		/* actual link flow control */
+	enum cc_pause   advertised_fc;  /* actual advertised flow control */
 
 	enum cc_fec	auto_fec;	/* Forward Error Correction: */
 	enum cc_fec	requested_fec;	/*   "automatic" (IEEE 802.3), */
@@ -414,7 +415,7 @@ int t4vf_eth_eq_free(struct adapter *, unsigned int);
 int t4vf_update_port_info(struct port_info *pi);
 int t4vf_handle_fw_rpl(struct adapter *, const __be64 *);
 int t4vf_prep_adapter(struct adapter *);
-int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int port,
 			unsigned int *naddr, u8 *addr);
 int t4vf_get_vf_vlan_acl(struct adapter *adapter);
 

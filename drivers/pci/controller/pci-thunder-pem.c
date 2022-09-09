@@ -6,17 +6,28 @@
 #include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/pci.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include "../pci.h"
 
 #if defined(CONFIG_PCI_HOST_THUNDER_PEM) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 
 #define PEM_CFG_WR 0x28
 #define PEM_CFG_RD 0x30
+
+/*
+ * Enhanced Configuration Access Mechanism (ECAM)
+ *
+ * N.B. This is a non-standard platform-specific ECAM bus shift value.  For
+ * standard values defined in the PCI Express Base Specification see
+ * include/linux/pci-ecam.h.
+ */
+#define THUNDER_PCIE_ECAM_BUS_SHIFT	24
 
 struct thunder_pem_pci {
 	u32		ea_entry[3];
@@ -30,10 +41,8 @@ static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 	struct pci_config_window *cfg = bus->sysdata;
 	struct thunder_pem_pci *pem_pci = (struct thunder_pem_pci *)cfg->priv;
 
-	if (devfn != 0 || where >= 2048) {
-		*val = ~0;
+	if (devfn != 0 || where >= 2048)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	}
 
 	/*
 	 * 32-bit accesses only.  Write the address to the low order
@@ -314,9 +323,9 @@ static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg,
 	 * structure here for the BAR.
 	 */
 	bar4_start = res_pem->start + 0xf00000;
-	pem_pci->ea_entry[0] = (u32)bar4_start | 2;
-	pem_pci->ea_entry[1] = (u32)(res_pem->end - bar4_start) & ~3u;
-	pem_pci->ea_entry[2] = (u32)(bar4_start >> 32);
+	pem_pci->ea_entry[0] = lower_32_bits(bar4_start) | 2;
+	pem_pci->ea_entry[1] = lower_32_bits(res_pem->end - bar4_start) & ~3u;
+	pem_pci->ea_entry[2] = upper_32_bits(bar4_start);
 
 	cfg->priv = pem_pci;
 	return 0;
@@ -324,9 +333,9 @@ static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg,
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 
-#define PEM_RES_BASE		0x87e0c0000000UL
-#define PEM_NODE_MASK		GENMASK(45, 44)
-#define PEM_INDX_MASK		GENMASK(26, 24)
+#define PEM_RES_BASE		0x87e0c0000000ULL
+#define PEM_NODE_MASK		GENMASK_ULL(45, 44)
+#define PEM_INDX_MASK		GENMASK_ULL(26, 24)
 #define PEM_MIN_DOM_IN_NODE	4
 #define PEM_MAX_DOM_IN_NODE	10
 
@@ -402,8 +411,8 @@ static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 	return thunder_pem_init(dev, cfg, res_pem);
 }
 
-struct pci_ecam_ops thunder_pem_ecam_ops = {
-	.bus_shift	= 24,
+const struct pci_ecam_ops thunder_pem_ecam_ops = {
+	.bus_shift	= THUNDER_PCIE_ECAM_BUS_SHIFT,
 	.init		= thunder_pem_acpi_init,
 	.pci_ops	= {
 		.map_bus	= pci_ecam_map_bus,
@@ -439,8 +448,8 @@ static int thunder_pem_platform_init(struct pci_config_window *cfg)
 	return thunder_pem_init(dev, cfg, res_pem);
 }
 
-static struct pci_ecam_ops pci_thunder_pem_ops = {
-	.bus_shift	= 24,
+static const struct pci_ecam_ops pci_thunder_pem_ops = {
+	.bus_shift	= THUNDER_PCIE_ECAM_BUS_SHIFT,
 	.init		= thunder_pem_platform_init,
 	.pci_ops	= {
 		.map_bus	= pci_ecam_map_bus,
@@ -450,14 +459,12 @@ static struct pci_ecam_ops pci_thunder_pem_ops = {
 };
 
 static const struct of_device_id thunder_pem_of_match[] = {
-	{ .compatible = "cavium,pci-host-thunder-pem" },
+	{
+		.compatible = "cavium,pci-host-thunder-pem",
+		.data = &pci_thunder_pem_ops,
+	},
 	{ },
 };
-
-static int thunder_pem_probe(struct platform_device *pdev)
-{
-	return pci_host_common_probe(pdev, &pci_thunder_pem_ops);
-}
 
 static struct platform_driver thunder_pem_driver = {
 	.driver = {
@@ -465,7 +472,7 @@ static struct platform_driver thunder_pem_driver = {
 		.of_match_table = thunder_pem_of_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = thunder_pem_probe,
+	.probe = pci_host_common_probe,
 };
 builtin_platform_driver(thunder_pem_driver);
 

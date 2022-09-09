@@ -1,14 +1,5 @@
-#
-# Generated files
-#
-*.moc
-*conf-cfg
-
-#
-# configuration programs
-#
-conf
-mconf
-nconf
-qconf
-gconf
+# SPDX-License-Identifier: GPL-2.0-only
+/conf
+/[gmnq]conf
+/[gmnq]conf-cfg
+/qconf-moc.cc

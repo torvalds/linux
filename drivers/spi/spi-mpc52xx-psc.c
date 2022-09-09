@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MPC52xx PSC in SPI mode driver.
  *
  * Maintainer: Dragos Carp
  *
  * Copyright (C) 2006 TOPTICA Photonics AG.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -24,6 +20,7 @@
 #include <linux/spi/spi.h>
 #include <linux/fsl_devices.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 
 #include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>
@@ -40,12 +37,6 @@ struct mpc52xx_psc_spi {
 	struct mpc52xx_psc_fifo __iomem *fifo;
 	unsigned int irq;
 	u8 bits_per_word;
-	u8 busy;
-
-	struct work_struct work;
-
-	struct list_head queue;
-	spinlock_t lock;
 
 	struct completion done;
 };
@@ -201,76 +192,59 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 	return 0;
 }
 
-static void mpc52xx_psc_spi_work(struct work_struct *work)
+int mpc52xx_psc_spi_transfer_one_message(struct spi_controller *ctlr,
+					 struct spi_message *m)
 {
-	struct mpc52xx_psc_spi *mps =
-		container_of(work, struct mpc52xx_psc_spi, work);
+	struct spi_device *spi;
+	struct spi_transfer *t = NULL;
+	unsigned cs_change;
+	int status;
 
-	spin_lock_irq(&mps->lock);
-	mps->busy = 1;
-	while (!list_empty(&mps->queue)) {
-		struct spi_message *m;
-		struct spi_device *spi;
-		struct spi_transfer *t = NULL;
-		unsigned cs_change;
-		int status;
-
-		m = container_of(mps->queue.next, struct spi_message, queue);
-		list_del_init(&m->queue);
-		spin_unlock_irq(&mps->lock);
-
-		spi = m->spi;
-		cs_change = 1;
-		status = 0;
-		list_for_each_entry (t, &m->transfers, transfer_list) {
-			if (t->bits_per_word || t->speed_hz) {
-				status = mpc52xx_psc_spi_transfer_setup(spi, t);
-				if (status < 0)
-					break;
-			}
-
-			if (cs_change)
-				mpc52xx_psc_spi_activate_cs(spi);
-			cs_change = t->cs_change;
-
-			status = mpc52xx_psc_spi_transfer_rxtx(spi, t);
-			if (status)
+	spi = m->spi;
+	cs_change = 1;
+	status = 0;
+	list_for_each_entry (t, &m->transfers, transfer_list) {
+		if (t->bits_per_word || t->speed_hz) {
+			status = mpc52xx_psc_spi_transfer_setup(spi, t);
+			if (status < 0)
 				break;
-			m->actual_length += t->len;
-
-			if (t->delay_usecs)
-				udelay(t->delay_usecs);
-
-			if (cs_change)
-				mpc52xx_psc_spi_deactivate_cs(spi);
 		}
 
-		m->status = status;
-		if (m->complete)
-			m->complete(m->context);
+		if (cs_change)
+			mpc52xx_psc_spi_activate_cs(spi);
+		cs_change = t->cs_change;
 
-		if (status || !cs_change)
+		status = mpc52xx_psc_spi_transfer_rxtx(spi, t);
+		if (status)
+			break;
+		m->actual_length += t->len;
+
+		spi_transfer_delay_exec(t);
+
+		if (cs_change)
 			mpc52xx_psc_spi_deactivate_cs(spi);
-
-		mpc52xx_psc_spi_transfer_setup(spi, NULL);
-
-		spin_lock_irq(&mps->lock);
 	}
-	mps->busy = 0;
-	spin_unlock_irq(&mps->lock);
+
+	m->status = status;
+	if (status || !cs_change)
+		mpc52xx_psc_spi_deactivate_cs(spi);
+
+	mpc52xx_psc_spi_transfer_setup(spi, NULL);
+
+	spi_finalize_current_message(ctlr);
+
+	return 0;
 }
 
 static int mpc52xx_psc_spi_setup(struct spi_device *spi)
 {
-	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(spi->master);
 	struct mpc52xx_psc_spi_cs *cs = spi->controller_state;
-	unsigned long flags;
 
 	if (spi->bits_per_word%8)
 		return -EINVAL;
 
 	if (!cs) {
-		cs = kzalloc(sizeof *cs, GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 		spi->controller_state = cs;
@@ -278,28 +252,6 @@ static int mpc52xx_psc_spi_setup(struct spi_device *spi)
 
 	cs->bits_per_word = spi->bits_per_word;
 	cs->speed_hz = spi->max_speed_hz;
-
-	spin_lock_irqsave(&mps->lock, flags);
-	if (!mps->busy)
-		mpc52xx_psc_spi_deactivate_cs(spi);
-	spin_unlock_irqrestore(&mps->lock, flags);
-
-	return 0;
-}
-
-static int mpc52xx_psc_spi_transfer(struct spi_device *spi,
-		struct spi_message *m)
-{
-	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(spi->master);
-	unsigned long flags;
-
-	m->actual_length = 0;
-	m->status = -EINPROGRESS;
-
-	spin_lock_irqsave(&mps->lock, flags);
-	list_add_tail(&m->queue, &mps->queue);
-	schedule_work(&mps->work);
-	spin_unlock_irqrestore(&mps->lock, flags);
 
 	return 0;
 }
@@ -370,7 +322,7 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	struct spi_master *master;
 	int ret;
 
-	master = spi_alloc_master(dev, sizeof *mps);
+	master = spi_alloc_master(dev, sizeof(*mps));
 	if (master == NULL)
 		return -ENOMEM;
 
@@ -395,7 +347,7 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 		master->num_chipselect = pdata->max_chipselect;
 	}
 	master->setup = mpc52xx_psc_spi_setup;
-	master->transfer = mpc52xx_psc_spi_transfer;
+	master->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
 	master->cleanup = mpc52xx_psc_spi_cleanup;
 	master->dev.of_node = dev->of_node;
 
@@ -419,10 +371,7 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 		goto free_irq;
 	}
 
-	spin_lock_init(&mps->lock);
 	init_completion(&mps->done);
-	INIT_WORK(&mps->work, mpc52xx_psc_spi_work);
-	INIT_LIST_HEAD(&mps->queue);
 
 	ret = spi_register_master(master);
 	if (ret < 0)
@@ -474,7 +423,6 @@ static int mpc52xx_psc_spi_of_remove(struct platform_device *op)
 	struct spi_master *master = spi_master_get(platform_get_drvdata(op));
 	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
 
-	flush_work(&mps->work);
 	spi_unregister_master(master);
 	free_irq(mps->irq, mps);
 	if (mps->psc)

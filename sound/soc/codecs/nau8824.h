@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * NAU88L24 ALSA SoC audio driver
  *
  * Copyright 2016 Nuvoton Technology Corp.
  * Author: John Hsu <KCHSU0@nuvoton.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __NAU8824_H__
@@ -200,7 +197,7 @@
 /* JACK_DET_CTRL (0x0D) */
 #define NAU8824_JACK_EJECT_DT_SFT	2
 #define NAU8824_JACK_EJECT_DT_MASK (0x3 << NAU8824_JACK_EJECT_DT_SFT)
-#define NAU8824_JACK_LOGIC		0x1
+#define NAU8824_JACK_LOGIC		(0x1 << 1)
 
 
 /* INTERRUPT_SETTING_1 (0x0F) */
@@ -473,6 +470,7 @@ struct nau8824_osr_attr {
 
 int nau8824_enable_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
+const char *nau8824_components(void);
 
 #endif				/* _NAU8824_H */
 

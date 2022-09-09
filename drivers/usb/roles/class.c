@@ -8,6 +8,7 @@
  */
 
 #include <linux/usb/role.h>
+#include <linux/property.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -47,9 +48,11 @@ int usb_role_switch_set_role(struct usb_role_switch *sw, enum usb_role role)
 
 	mutex_lock(&sw->lock);
 
-	ret = sw->set(sw->dev.parent, role);
-	if (!ret)
+	ret = sw->set(sw, role);
+	if (!ret) {
 		sw->role = role;
+		kobject_uevent(&sw->dev.kobj, KOBJ_CHANGE);
+	}
 
 	mutex_unlock(&sw->lock);
 
@@ -74,7 +77,7 @@ enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw)
 	mutex_lock(&sw->lock);
 
 	if (sw->get)
-		role = sw->get(sw->dev.parent);
+		role = sw->get(sw);
 	else
 		role = sw->role;
 
@@ -84,19 +87,29 @@ enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw)
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_get_role);
 
-static int __switch_match(struct device *dev, const void *name)
-{
-	return !strcmp((const char *)name, dev_name(dev));
-}
-
-static void *usb_role_switch_match(struct device_connection *con, int ep,
+static void *usb_role_switch_match(struct fwnode_handle *fwnode, const char *id,
 				   void *data)
 {
 	struct device *dev;
 
-	dev = class_find_device(role_class, NULL, con->endpoint[ep],
-				__switch_match);
+	if (id && !fwnode_property_present(fwnode, id))
+		return NULL;
 
+	dev = class_find_device_by_fwnode(role_class, fwnode);
+
+	return dev ? to_role_switch(dev) : ERR_PTR(-EPROBE_DEFER);
+}
+
+static struct usb_role_switch *
+usb_role_switch_is_parent(struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *parent = fwnode_get_parent(fwnode);
+	struct device *dev;
+
+	if (!parent || !fwnode_property_present(parent, "usb-role-switch"))
+		return NULL;
+
+	dev = class_find_device_by_fwnode(role_class, parent);
 	return dev ? to_role_switch(dev) : ERR_PTR(-EPROBE_DEFER);
 }
 
@@ -111,8 +124,10 @@ struct usb_role_switch *usb_role_switch_get(struct device *dev)
 {
 	struct usb_role_switch *sw;
 
-	sw = device_connection_find_match(dev, "usb-role-switch", NULL,
-					  usb_role_switch_match);
+	sw = usb_role_switch_is_parent(dev_fwnode(dev));
+	if (!sw)
+		sw = device_connection_find_match(dev, "usb-role-switch", NULL,
+						  usb_role_switch_match);
 
 	if (!IS_ERR_OR_NULL(sw))
 		WARN_ON(!try_module_get(sw->dev.parent->driver->owner));
@@ -120,6 +135,28 @@ struct usb_role_switch *usb_role_switch_get(struct device *dev)
 	return sw;
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_get);
+
+/**
+ * fwnode_usb_role_switch_get - Find USB role switch linked with the caller
+ * @fwnode: The caller device node
+ *
+ * This is similar to the usb_role_switch_get() function above, but it searches
+ * the switch using fwnode instead of device entry.
+ */
+struct usb_role_switch *fwnode_usb_role_switch_get(struct fwnode_handle *fwnode)
+{
+	struct usb_role_switch *sw;
+
+	sw = usb_role_switch_is_parent(fwnode);
+	if (!sw)
+		sw = fwnode_connection_find_match(fwnode, "usb-role-switch",
+						  NULL, usb_role_switch_match);
+	if (!IS_ERR_OR_NULL(sw))
+		WARN_ON(!try_module_get(sw->dev.parent->driver->owner));
+
+	return sw;
+}
+EXPORT_SYMBOL_GPL(fwnode_usb_role_switch_get);
 
 /**
  * usb_role_switch_put - Release handle to a switch
@@ -130,16 +167,39 @@ EXPORT_SYMBOL_GPL(usb_role_switch_get);
 void usb_role_switch_put(struct usb_role_switch *sw)
 {
 	if (!IS_ERR_OR_NULL(sw)) {
-		put_device(&sw->dev);
 		module_put(sw->dev.parent->driver->owner);
+		put_device(&sw->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_put);
 
+/**
+ * usb_role_switch_find_by_fwnode - Find USB role switch with its fwnode
+ * @fwnode: fwnode of the USB Role Switch
+ *
+ * Finds and returns role switch with @fwnode. The reference count for the
+ * found switch is incremented.
+ */
+struct usb_role_switch *
+usb_role_switch_find_by_fwnode(const struct fwnode_handle *fwnode)
+{
+	struct device *dev;
+
+	if (!fwnode)
+		return NULL;
+
+	dev = class_find_device_by_fwnode(role_class, fwnode);
+	if (dev)
+		WARN_ON(!try_module_get(dev->parent->driver->owner));
+
+	return dev ? to_role_switch(dev) : NULL;
+}
+EXPORT_SYMBOL_GPL(usb_role_switch_find_by_fwnode);
+
 static umode_t
 usb_role_switch_is_visible(struct kobject *kobj, struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct usb_role_switch *sw = to_role_switch(dev);
 
 	if (sw->allow_userspace_control)
@@ -153,6 +213,15 @@ static const char * const usb_roles[] = {
 	[USB_ROLE_HOST]		= "host",
 	[USB_ROLE_DEVICE]	= "device",
 };
+
+const char *usb_role_string(enum usb_role role)
+{
+	if (role < 0 || role >= ARRAY_SIZE(usb_roles))
+		return "unknown";
+
+	return usb_roles[role];
+}
+EXPORT_SYMBOL_GPL(usb_role_string);
 
 static ssize_t
 role_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -266,9 +335,12 @@ usb_role_switch_register(struct device *parent,
 	sw->get = desc->get;
 
 	sw->dev.parent = parent;
+	sw->dev.fwnode = desc->fwnode;
 	sw->dev.class = role_class;
 	sw->dev.type = &usb_role_dev_type;
-	dev_set_name(&sw->dev, "%s-role-switch", dev_name(parent));
+	dev_set_drvdata(&sw->dev, desc->driver_data);
+	dev_set_name(&sw->dev, "%s-role-switch",
+		     desc->name ? desc->name : dev_name(parent));
 
 	ret = device_register(&sw->dev);
 	if (ret) {
@@ -294,6 +366,27 @@ void usb_role_switch_unregister(struct usb_role_switch *sw)
 		device_unregister(&sw->dev);
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_unregister);
+
+/**
+ * usb_role_switch_set_drvdata - Assign private data pointer to a switch
+ * @sw: USB Role Switch
+ * @data: Private data pointer
+ */
+void usb_role_switch_set_drvdata(struct usb_role_switch *sw, void *data)
+{
+	dev_set_drvdata(&sw->dev, data);
+}
+EXPORT_SYMBOL_GPL(usb_role_switch_set_drvdata);
+
+/**
+ * usb_role_switch_get_drvdata - Get the private data pointer of a switch
+ * @sw: USB Role Switch
+ */
+void *usb_role_switch_get_drvdata(struct usb_role_switch *sw)
+{
+	return dev_get_drvdata(&sw->dev);
+}
+EXPORT_SYMBOL_GPL(usb_role_switch_get_drvdata);
 
 static int __init usb_roles_init(void)
 {

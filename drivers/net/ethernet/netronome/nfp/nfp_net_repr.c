@@ -5,7 +5,6 @@
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/lockdep.h>
 #include <net/dst_metadata.h>
-#include <net/switchdev.h>
 
 #include "nfpcore/nfp_cpp.h"
 #include "nfpcore/nfp_nsp.h"
@@ -21,7 +20,7 @@ struct net_device *
 nfp_repr_get_locked(struct nfp_app *app, struct nfp_reprs *set, unsigned int id)
 {
 	return rcu_dereference_protected(set->reprs[id],
-					 lockdep_is_held(&app->pf->lock));
+					 nfp_app_is_locked(app));
 }
 
 static void
@@ -104,6 +103,7 @@ nfp_repr_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	case NFP_PORT_PF_PORT:
 	case NFP_PORT_VF_PORT:
 		nfp_repr_vnic_get_stats64(repr->port, stats);
+		break;
 	default:
 		break;
 	}
@@ -196,7 +196,7 @@ static netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = dev_queue_xmit(skb);
 	nfp_repr_inc_tx_stats(netdev, len, ret);
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 static int nfp_repr_stop(struct net_device *netdev)
@@ -268,11 +268,14 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_set_vf_mac		= nfp_app_set_vf_mac,
 	.ndo_set_vf_vlan	= nfp_app_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= nfp_app_set_vf_spoofchk,
+	.ndo_set_vf_trust	= nfp_app_set_vf_trust,
 	.ndo_get_vf_config	= nfp_app_get_vf_config,
 	.ndo_set_vf_link_state	= nfp_app_set_vf_link_state,
 	.ndo_fix_features	= nfp_repr_fix_features,
 	.ndo_set_features	= nfp_port_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
+	.ndo_get_port_parent_id	= nfp_port_get_port_parent_id,
+	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 
 void
@@ -283,8 +286,7 @@ nfp_repr_transfer_features(struct net_device *netdev, struct net_device *lower)
 	if (repr->dst->u.port_info.lower_dev != lower)
 		return;
 
-	netdev->gso_max_size = lower->gso_max_size;
-	netdev->gso_max_segs = lower->gso_max_segs;
+	netif_inherit_tso_max(netdev, lower);
 
 	netdev_update_features(netdev);
 }
@@ -298,7 +300,6 @@ static void nfp_repr_clean(struct nfp_repr *repr)
 }
 
 static struct lock_class_key nfp_repr_netdev_xmit_lock_key;
-static struct lock_class_key nfp_repr_netdev_addr_lock_key;
 
 static void nfp_repr_set_lockdep_class_one(struct net_device *dev,
 					   struct netdev_queue *txq,
@@ -309,7 +310,6 @@ static void nfp_repr_set_lockdep_class_one(struct net_device *dev,
 
 static void nfp_repr_set_lockdep_class(struct net_device *dev)
 {
-	lockdep_set_class(&dev->addr_list_lock, &nfp_repr_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, nfp_repr_set_lockdep_class_one, NULL);
 }
 
@@ -335,8 +335,6 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	netdev->ethtool_ops = &nfp_port_ethtool_ops;
 
 	netdev->max_mtu = pf_netdev->max_mtu;
-
-	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
 
 	/* Set features the lower device can support with representors */
 	if (repr_cap & NFP_NET_CFG_CTRL_LIVE_ADDR)
@@ -367,9 +365,9 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 
 	netdev->vlan_features = netdev->hw_features;
 
-	if (repr_cap & NFP_NET_CFG_CTRL_RXVLAN)
+	if (repr_cap & NFP_NET_CFG_CTRL_RXVLAN_ANY)
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
-	if (repr_cap & NFP_NET_CFG_CTRL_TXVLAN) {
+	if (repr_cap & NFP_NET_CFG_CTRL_TXVLAN_ANY) {
 		if (repr_cap & NFP_NET_CFG_CTRL_LSO2)
 			netdev_warn(netdev, "Device advertises both TSO2 and TXVLAN. Refusing to enable TXVLAN.\n");
 		else
@@ -377,14 +375,18 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	}
 	if (repr_cap & NFP_NET_CFG_CTRL_CTAG_FILTER)
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	if (repr_cap & NFP_NET_CFG_CTRL_RXQINQ)
+		netdev->hw_features |= NETIF_F_HW_VLAN_STAG_RX;
 
 	netdev->features = netdev->hw_features;
 
-	/* Advertise but disable TSO by default. */
-	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-	netdev->gso_max_segs = NFP_NET_LSO_MAX_SEGS;
+	/* C-Tag strip and S-Tag strip can't be supported simultaneously,
+	 * so enable C-Tag strip and disable S-Tag strip by default.
+	 */
+	netdev->features &= ~NETIF_F_HW_VLAN_STAG_RX;
+	netif_set_tso_max_segs(netdev, NFP_NET_LSO_MAX_SEGS);
 
-	netdev->priv_flags |= IFF_NO_QUEUE;
+	netdev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
 	netdev->features |= NETIF_F_LLTX;
 
 	if (nfp_app_has_tc(app)) {
@@ -477,7 +479,7 @@ nfp_reprs_clean_and_free_by_type(struct nfp_app *app, enum nfp_repr_type type)
 	int i;
 
 	reprs = rcu_dereference_protected(app->reprs[type],
-					  lockdep_is_held(&app->pf->lock));
+					  nfp_app_is_locked(app));
 	if (!reprs)
 		return;
 
@@ -500,8 +502,7 @@ struct nfp_reprs *nfp_reprs_alloc(unsigned int num_reprs)
 {
 	struct nfp_reprs *reprs;
 
-	reprs = kzalloc(sizeof(*reprs) +
-			num_reprs * sizeof(struct net_device *), GFP_KERNEL);
+	reprs = kzalloc(struct_size(reprs, reprs, num_reprs), GFP_KERNEL);
 	if (!reprs)
 		return NULL;
 	reprs->num_reprs = num_reprs;

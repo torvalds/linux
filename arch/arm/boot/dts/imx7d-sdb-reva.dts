@@ -7,6 +7,9 @@
 #include "imx7d-sdb.dts"
 
 / {
+	model = "Freescale i.MX7 SabreSD RevA Board";
+	compatible = "fsl,imx7d-sdb-reva", "fsl,imx7d";
+
 	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
 		pinctrl-0 = <&pinctrl_usb_otg2_vbus_reg_reva>;
 		gpio = <&gpio4 7 GPIO_ACTIVE_HIGH>;

@@ -41,6 +41,9 @@
 		bank-width = <4>;
 		device-width = <1>;
 
+		clocks = <&mstp9_clks R7S72100_CLK_SPIBSC0>;
+		power-domains = <&cpg_clocks>;
+
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -126,6 +129,8 @@
 	phy-handle = <&phy0>;
 
 	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id0007.c0f0",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 
 		reset-gpios = <&port4 2 GPIO_ACTIVE_LOW>;

@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic iSCSI HBA Driver
  * Copyright (c)  2003-2013 QLogic Corporation
- *
- * See LICENSE.qla4xxx for copyright and licensing details.
  */
 #ifndef __QLA_NX_H
 #define __QLA_NX_H
@@ -597,23 +596,6 @@ enum qla_regs {
 	QLA8XXX_FW_VERSION_SUB,
 	QLA8XXX_CRB_CMDPEG_STATE,
 	QLA8XXX_CRB_TEMP_STATE,
-};
-
-static const uint32_t qla4_82xx_reg_tbl[] = {
-	QLA82XX_PEG_HALT_STATUS1,
-	QLA82XX_PEG_HALT_STATUS2,
-	QLA82XX_PEG_ALIVE_COUNTER,
-	QLA82XX_CRB_DRV_ACTIVE,
-	QLA82XX_CRB_DEV_STATE,
-	QLA82XX_CRB_DRV_STATE,
-	QLA82XX_CRB_DRV_SCRATCH,
-	QLA82XX_CRB_DEV_PART_INFO,
-	QLA82XX_CRB_DRV_IDC_VERSION,
-	QLA82XX_FW_VERSION_MAJOR,
-	QLA82XX_FW_VERSION_MINOR,
-	QLA82XX_FW_VERSION_SUB,
-	CRB_CMDPEG_STATE,
-	CRB_TEMP_STATE,
 };
 
 /* Every driver should use these Device State */

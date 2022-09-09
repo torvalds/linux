@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  leds-blinkm.c
  *  (c) Jan-Simon Möller (dl9pf@gmx.de)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -205,13 +192,13 @@ static int store_color_common(struct device *dev, const char *buf, int color)
 	return 0;
 }
 
-static ssize_t show_red(struct device *dev, struct device_attribute *attr,
+static ssize_t red_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	return show_color_common(dev, buf, RED);
 }
 
-static ssize_t store_red(struct device *dev, struct device_attribute *attr,
+static ssize_t red_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	int ret;
@@ -222,15 +209,15 @@ static ssize_t store_red(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(red, S_IRUGO | S_IWUSR, show_red, store_red);
+static DEVICE_ATTR_RW(red);
 
-static ssize_t show_green(struct device *dev, struct device_attribute *attr,
+static ssize_t green_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	return show_color_common(dev, buf, GREEN);
 }
 
-static ssize_t store_green(struct device *dev, struct device_attribute *attr,
+static ssize_t green_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 
@@ -242,15 +229,15 @@ static ssize_t store_green(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(green, S_IRUGO | S_IWUSR, show_green, store_green);
+static DEVICE_ATTR_RW(green);
 
-static ssize_t show_blue(struct device *dev, struct device_attribute *attr,
+static ssize_t blue_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	return show_color_common(dev, buf, BLUE);
 }
 
-static ssize_t store_blue(struct device *dev, struct device_attribute *attr,
+static ssize_t blue_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	int ret;
@@ -261,16 +248,16 @@ static ssize_t store_blue(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(blue, S_IRUGO | S_IWUSR, show_blue, store_blue);
+static DEVICE_ATTR_RW(blue);
 
-static ssize_t show_test(struct device *dev, struct device_attribute *attr,
+static ssize_t test_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE,
 			 "#Write into test to start test sequence!#\n");
 }
 
-static ssize_t store_test(struct device *dev, struct device_attribute *attr,
+static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 
@@ -286,7 +273,7 @@ static ssize_t store_test(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(test, S_IRUGO | S_IWUSR, show_test, store_test);
+static DEVICE_ATTR_RW(test);
 
 /* TODO: HSB, fade, timeadj, script ... */
 
@@ -493,9 +480,8 @@ static int blinkm_led_blue_set(struct led_classdev *led_cdev,
 
 static void blinkm_init_hw(struct i2c_client *client)
 {
-	int ret;
-	ret = blinkm_transfer_hw(client, BLM_STOP_SCRIPT);
-	ret = blinkm_transfer_hw(client, BLM_GO_RGB);
+	blinkm_transfer_hw(client, BLM_STOP_SCRIPT);
+	blinkm_transfer_hw(client, BLM_GO_RGB);
 }
 
 static int blinkm_test_run(struct i2c_client *client)
@@ -594,7 +580,6 @@ static int blinkm_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	data->i2c_addr = 0x09;
 	data->i2c_addr = 0x08;
 	/* i2c addr  - use fake addr of 0x08 initially (real is 0x09) */
 	data->fw_ver = 0xfe;

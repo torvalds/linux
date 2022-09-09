@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Miscellaneous procedures for dealing with the PowerMac hardware.
  * Contains support for the backlight.
@@ -14,7 +15,6 @@
 #include <linux/pmu.h>
 #include <linux/atomic.h>
 #include <linux/export.h>
-#include <asm/prom.h>
 #include <asm/backlight.h>
 
 #define OLD_BACKLIGHT_MAX 15

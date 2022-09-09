@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Spreadtrum Communications Inc.
  *
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/bitops.h>
@@ -138,7 +138,7 @@ static int sprd_rtc_lock_alarm(struct sprd_rtc *rtc, bool lock)
 	if (ret)
 		return ret;
 
-	val &= ~(SPRD_RTC_ALMLOCK_MASK | SPRD_RTC_POWEROFF_ALM_FLAG);
+	val &= ~SPRD_RTC_ALMLOCK_MASK;
 	if (lock)
 		val |= SPRD_RTC_ALM_LOCK;
 	else
@@ -299,33 +299,6 @@ static int sprd_rtc_set_secs(struct sprd_rtc *rtc, enum sprd_rtc_reg_types type,
 			    sts_mask);
 }
 
-static int sprd_rtc_read_aux_alarm(struct device *dev, struct rtc_wkalrm *alrm)
-{
-	struct sprd_rtc *rtc = dev_get_drvdata(dev);
-	time64_t secs;
-	u32 val;
-	int ret;
-
-	ret = sprd_rtc_get_secs(rtc, SPRD_RTC_AUX_ALARM, &secs);
-	if (ret)
-		return ret;
-
-	rtc_time64_to_tm(secs, &alrm->time);
-
-	ret = regmap_read(rtc->regmap, rtc->base + SPRD_RTC_INT_EN, &val);
-	if (ret)
-		return ret;
-
-	alrm->enabled = !!(val & SPRD_RTC_AUXALM_EN);
-
-	ret = regmap_read(rtc->regmap, rtc->base + SPRD_RTC_INT_RAW_STS, &val);
-	if (ret)
-		return ret;
-
-	alrm->pending = !!(val & SPRD_RTC_AUXALM_EN);
-	return 0;
-}
-
 static int sprd_rtc_set_aux_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct sprd_rtc *rtc = dev_get_drvdata(dev);
@@ -415,16 +388,9 @@ static int sprd_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u32 val;
 
 	/*
-	 * Before RTC device is registered, it will check to see if there is an
-	 * alarm already set in RTC hardware, and we always read the normal
-	 * alarm at this time.
-	 *
-	 * Or if aie_timer is enabled, we should get the normal alarm time.
-	 * Otherwise we should get auxiliary alarm time.
+	 * The RTC core checks to see if there is an alarm already set in RTC
+	 * hardware, and we always read the normal alarm at this time.
 	 */
-	if (rtc->rtc && rtc->rtc->registered && rtc->rtc->aie_timer.enabled == 0)
-		return sprd_rtc_read_aux_alarm(dev, alrm);
-
 	ret = sprd_rtc_get_secs(rtc, SPRD_RTC_ALARM, &secs);
 	if (ret)
 		return ret;
@@ -563,7 +529,7 @@ static int sprd_rtc_check_power_down(struct sprd_rtc *rtc)
 	 * means the RTC has been powered down, so the RTC time values are
 	 * invalid.
 	 */
-	rtc->valid = val == SPRD_RTC_POWER_RESET_VALUE ? false : true;
+	rtc->valid = val != SPRD_RTC_POWER_RESET_VALUE;
 	return 0;
 }
 
@@ -614,10 +580,8 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->irq = platform_get_irq(pdev, 0);
-	if (rtc->irq < 0) {
-		dev_err(&pdev->dev, "failed to get RTC irq number\n");
+	if (rtc->irq < 0)
 		return rtc->irq;
-	}
 
 	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc))
@@ -654,19 +618,12 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->ops = &sprd_rtc_ops;
 	rtc->rtc->range_min = 0;
 	rtc->rtc->range_max = 5662310399LL;
-	ret = rtc_register_device(rtc->rtc);
+	ret = devm_rtc_register_device(rtc->rtc);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register rtc device\n");
 		device_init_wakeup(&pdev->dev, 0);
 		return ret;
 	}
 
-	return 0;
-}
-
-static int sprd_rtc_remove(struct platform_device *pdev)
-{
-	device_init_wakeup(&pdev->dev, 0);
 	return 0;
 }
 
@@ -682,7 +639,6 @@ static struct platform_driver sprd_rtc_driver = {
 		.of_match_table = sprd_rtc_of_match,
 	},
 	.probe	= sprd_rtc_probe,
-	.remove = sprd_rtc_remove,
 };
 module_platform_driver(sprd_rtc_driver);
 

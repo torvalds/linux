@@ -254,8 +254,7 @@ max9485_of_clk_get(struct of_phandle_args *clkspec, void *data)
 	return &drvdata->hw[idx].hw;
 }
 
-static int max9485_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int max9485_i2c_probe(struct i2c_client *client)
 {
 	struct max9485_driver_data *drvdata;
 	struct device *dev = &client->dev;
@@ -377,7 +376,7 @@ static struct i2c_driver max9485_driver = {
 		.pm		= &max9485_pm_ops,
 		.of_match_table	= max9485_dt_ids,
 	},
-	.probe = max9485_i2c_probe,
+	.probe_new = max9485_i2c_probe,
 	.id_table = max9485_i2c_ids,
 };
 module_i2c_driver(max9485_driver);

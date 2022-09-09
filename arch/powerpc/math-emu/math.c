@@ -225,7 +225,7 @@ record_exception(struct pt_regs *regs, int eflag)
 int
 do_mathemu(struct pt_regs *regs)
 {
-	void *op0 = 0, *op1 = 0, *op2 = 0, *op3 = 0;
+	void *op0 = NULL, *op1 = NULL, *op2 = NULL, *op3 = NULL;
 	unsigned long pc = regs->nip;
 	signed short sdisp;
 	u32 insn = 0;
@@ -234,7 +234,7 @@ do_mathemu(struct pt_regs *regs)
 	int type = 0;
 	int eflag, trap;
 
-	if (get_user(insn, (u32 *)pc))
+	if (get_user(insn, (u32 __user *)pc))
 		return -EFAULT;
 
 	switch (insn >> 26) {
@@ -453,7 +453,7 @@ do_mathemu(struct pt_regs *regs)
 		break;
 	}
 
-	regs->nip += 4;
+	regs_add_return_ip(regs, 4);
 	return 0;
 
 illegal:

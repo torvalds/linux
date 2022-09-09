@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * efibc: control EFI bootloaders which obey LoaderEntryOneShot var
  * Copyright (c) 2013-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #define pr_fmt(fmt) "efibc: " fmt
@@ -18,67 +10,51 @@
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
+#include <linux/ucs2_string.h>
 
-static void efibc_str_to_str16(const char *str, efi_char16_t *str16)
+#define MAX_DATA_LEN	512
+
+static int efibc_set_variable(efi_char16_t *name, efi_char16_t *value,
+			      unsigned long len)
 {
-	size_t i;
+	efi_status_t status;
 
-	for (i = 0; i < strlen(str); i++)
-		str16[i] = str[i];
+	status = efi.set_variable(name, &LINUX_EFI_LOADER_ENTRY_GUID,
+				  EFI_VARIABLE_NON_VOLATILE
+				  | EFI_VARIABLE_BOOTSERVICE_ACCESS
+				  | EFI_VARIABLE_RUNTIME_ACCESS,
+				  len * sizeof(efi_char16_t), value);
 
-	str16[i] = '\0';
-}
-
-static int efibc_set_variable(const char *name, const char *value)
-{
-	int ret;
-	efi_guid_t guid = LINUX_EFI_LOADER_ENTRY_GUID;
-	struct efivar_entry *entry;
-	size_t size = (strlen(value) + 1) * sizeof(efi_char16_t);
-
-	if (size > sizeof(entry->var.Data)) {
-		pr_err("value is too large (%zu bytes) for '%s' EFI variable\n", size, name);
-		return -EINVAL;
+	if (status != EFI_SUCCESS) {
+		pr_err("failed to set EFI variable: 0x%lx\n", status);
+		return -EIO;
 	}
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
-		pr_err("failed to allocate efivar entry for '%s' EFI variable\n", name);
-		return -ENOMEM;
-	}
-
-	efibc_str_to_str16(name, entry->var.VariableName);
-	efibc_str_to_str16(value, (efi_char16_t *)entry->var.Data);
-	memcpy(&entry->var.VendorGuid, &guid, sizeof(guid));
-
-	ret = efivar_entry_set(entry,
-			       EFI_VARIABLE_NON_VOLATILE
-			       | EFI_VARIABLE_BOOTSERVICE_ACCESS
-			       | EFI_VARIABLE_RUNTIME_ACCESS,
-			       size, entry->var.Data, NULL);
-	if (ret)
-		pr_err("failed to set %s EFI variable: 0x%x\n",
-		       name, ret);
-
-	kfree(entry);
-	return ret;
+	return 0;
 }
 
 static int efibc_reboot_notifier_call(struct notifier_block *notifier,
 				      unsigned long event, void *data)
 {
-	const char *reason = "shutdown";
+	efi_char16_t *reason = event == SYS_RESTART ? L"reboot"
+						    : L"shutdown";
+	const u8 *str = data;
+	efi_char16_t *wdata;
+	unsigned long l;
 	int ret;
 
-	if (event == SYS_RESTART)
-		reason = "reboot";
-
-	ret = efibc_set_variable("LoaderEntryRebootReason", reason);
+	ret = efibc_set_variable(L"LoaderEntryRebootReason", reason,
+				 ucs2_strlen(reason));
 	if (ret || !data)
 		return NOTIFY_DONE;
 
-	efibc_set_variable("LoaderEntryOneShot", (char *)data);
+	wdata = kmalloc(MAX_DATA_LEN * sizeof(efi_char16_t), GFP_KERNEL);
+	for (l = 0; l < MAX_DATA_LEN - 1 && str[l] != '\0'; l++)
+		wdata[l] = str[l];
+	wdata[l] = L'\0';
 
+	efibc_set_variable(L"LoaderEntryOneShot", wdata, l);
+
+	kfree(wdata);
 	return NOTIFY_DONE;
 }
 
@@ -90,7 +66,7 @@ static int __init efibc_init(void)
 {
 	int ret;
 
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_SET_VARIABLE))
 		return -ENODEV;
 
 	ret = register_reboot_notifier(&efibc_reboot_notifier);

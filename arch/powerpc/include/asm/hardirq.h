@@ -13,7 +13,6 @@ typedef struct {
 	unsigned int pmu_irqs;
 	unsigned int mce_exceptions;
 	unsigned int spurious_irqs;
-	unsigned int hmi_exceptions;
 	unsigned int sreset_irqs;
 #ifdef CONFIG_PPC_WATCHDOG
 	unsigned int soft_nmi_irqs;

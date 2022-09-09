@@ -23,10 +23,10 @@ MODULE_PARM_DESC(nforce_wa, "Apply NForce chipset workaround "
 #define DMIX_WANTS_S16	1
 
 /*
- * Call snd_pcm_period_elapsed in a tasklet
+ * Call snd_pcm_period_elapsed in a work
  * This avoids spinlock messes and long-running irq contexts
  */
-static void pcsp_call_pcm_elapsed(unsigned long priv)
+static void pcsp_call_pcm_elapsed(struct work_struct *work)
 {
 	if (atomic_read(&pcsp_chip.timer_active)) {
 		struct snd_pcm_substream *substream;
@@ -36,7 +36,7 @@ static void pcsp_call_pcm_elapsed(unsigned long priv)
 	}
 }
 
-static DECLARE_TASKLET(pcsp_pcm_tasklet, pcsp_call_pcm_elapsed, 0);
+static DECLARE_WORK(pcsp_pcm_work, pcsp_call_pcm_elapsed);
 
 /* write the port and returns the next expire time in ns;
  * called at the trigger-start and in hrtimer callback
@@ -119,11 +119,9 @@ static void pcsp_pointer_update(struct snd_pcsp *chip)
 	if (periods_elapsed) {
 		chip->period_ptr += periods_elapsed * period_bytes;
 		chip->period_ptr %= buffer_bytes;
+		queue_work(system_highpri_wq, &pcsp_pcm_work);
 	}
 	spin_unlock_irqrestore(&chip->substream_lock, flags);
-
-	if (periods_elapsed)
-		tasklet_schedule(&pcsp_pcm_tasklet);
 }
 
 enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
@@ -145,7 +143,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 	if (pointer_update)
 		pcsp_pointer_update(chip);
 
-	hrtimer_forward(handle, hrtimer_get_expires(handle), ns_to_ktime(ns));
+	hrtimer_forward_now(handle, ns_to_ktime(ns));
 
 	return HRTIMER_RESTART;
 }
@@ -196,7 +194,7 @@ void pcsp_sync_stop(struct snd_pcsp *chip)
 	pcsp_stop_playing(chip);
 	local_irq_enable();
 	hrtimer_cancel(&chip->timer);
-	tasklet_kill(&pcsp_pcm_tasklet);
+	cancel_work_sync(&pcsp_pcm_work);
 }
 
 static int snd_pcsp_playback_close(struct snd_pcm_substream *substream)
@@ -214,12 +212,7 @@ static int snd_pcsp_playback_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
-	int err;
 	pcsp_sync_stop(chip);
-	err = snd_pcm_lib_malloc_pages(substream,
-				      params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	return 0;
 }
 
@@ -230,7 +223,7 @@ static int snd_pcsp_playback_hw_free(struct snd_pcm_substream *substream)
 	printk(KERN_INFO "PCSP: hw_free called\n");
 #endif
 	pcsp_sync_stop(chip);
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int snd_pcsp_playback_prepare(struct snd_pcm_substream *substream)
@@ -327,7 +320,6 @@ static int snd_pcsp_playback_open(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_pcsp_playback_ops = {
 	.open = snd_pcsp_playback_open,
 	.close = snd_pcsp_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_pcsp_playback_hw_params,
 	.hw_free = snd_pcsp_playback_hw_free,
 	.prepare = snd_pcsp_playback_prepare,
@@ -350,11 +342,11 @@ int snd_pcsp_new_pcm(struct snd_pcsp *chip)
 	chip->pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
 	strcpy(chip->pcm->name, "pcsp");
 
-	snd_pcm_lib_preallocate_pages_for_all(chip->pcm,
-					      SNDRV_DMA_TYPE_CONTINUOUS,
-					      snd_dma_continuous_data
-					      (GFP_KERNEL), PCSP_BUFFER_SIZE,
-					      PCSP_BUFFER_SIZE);
+	snd_pcm_set_managed_buffer_all(chip->pcm,
+				       SNDRV_DMA_TYPE_CONTINUOUS,
+				       NULL,
+				       PCSP_BUFFER_SIZE,
+				       PCSP_BUFFER_SIZE);
 
 	return 0;
 }

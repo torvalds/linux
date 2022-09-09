@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -20,6 +20,10 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
+#define CONFIG_SCSI_LPFC_DEBUG_FS
+#endif
+
 /* forward declaration for LPFC_IOCB_t's use */
 struct lpfc_hba;
 struct lpfc_vport;
@@ -31,8 +35,21 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
+/* Enumeration to describe the thread lock context. */
+enum lpfc_mbox_ctx {
+	MBOX_THD_UNLOCKED,
+	MBOX_THD_LOCKED
+};
+
+union lpfc_vmid_tag {
+	uint32_t app_id;
+	uint8_t cs_ctl_vmid;
+	struct lpfc_vmid_context *vmid_context;	/* UVEM context information */
+};
+
 struct lpfc_cq_event {
 	struct list_head list;
+	uint16_t hdwq;
 	union {
 		struct lpfc_mcqe		mcqe_cmpl;
 		struct lpfc_acqe_link		acqe_link;
@@ -58,16 +75,25 @@ struct lpfc_iocbq {
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	uint16_t hba_wqidx;     /* index to HBA work queue */
 	struct lpfc_cq_event cq_event;
-	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 	uint64_t isr_timestamp;
 
 	union lpfc_wqe128 wqe;	/* SLI-4 */
 	IOCB_t iocb;		/* SLI-3 */
+	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 
-	uint8_t rsvd2;
-	uint8_t priority;	/* OAS priority */
-	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
-	uint32_t iocb_flag;
+	u32 unsol_rcv_len;	/* Receive len in usol path */
+
+	/* Pack the u8's together and make them module-4. */
+	u8 num_bdes;	/* Number of BDEs */
+	u8 abort_bls;	/* ABTS by initiator or responder */
+	u8 abort_rctl;	/* ACC or RJT flag */
+	u8 priority;	/* OAS priority */
+	u8 retry;	/* retry counter for IOCB cmd - if needed */
+	u8 rsvd1;       /* Pad for u32 */
+	u8 rsvd2;       /* Pad for u32 */
+	u8 rsvd3;	/* Pad for u32 */
+
+	u32 cmd_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
 #define LPFC_IO_WAKE		2	/* Synchronous I/O completed */
 #define LPFC_IO_WAKE_TMO	LPFC_IO_WAKE /* Synchronous I/O timed out */
@@ -95,28 +121,34 @@ struct lpfc_iocbq {
 #define LPFC_IO_NVME	        0x200000 /* NVME FCP command */
 #define LPFC_IO_NVME_LS		0x400000 /* NVME LS command */
 #define LPFC_IO_NVMET		0x800000 /* NVMET command */
+#define LPFC_IO_VMID            0x1000000 /* VMID tagged IO */
+#define LPFC_IO_CMF		0x4000000 /* CMF command */
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	struct lpfc_vport *vport;/* virtual port pointer */
-	void *context1;		/* caller context information */
-	void *context2;		/* caller context information */
-	void *context3;		/* caller context information */
+	struct lpfc_dmabuf *cmd_dmabuf;
+	struct lpfc_dmabuf *rsp_dmabuf;
+	struct lpfc_dmabuf *bpl_dmabuf;
+	uint32_t event_tag;	/* LA Event tag */
 	union {
 		wait_queue_head_t    *wait_queue;
-		struct lpfc_iocbq    *rsp_iocb;
 		struct lpfcMboxq     *mbox;
-		struct lpfc_nodelist *ndlp;
 		struct lpfc_node_rrq *rrq;
+		struct nvmefc_ls_req *nvme_lsreq;
+		struct lpfc_async_xchg_ctx *axchg;
+		struct bsg_job_data *dd_data;
 	} context_un;
 
-	void (*fabric_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*wait_iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*iocb_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			   struct lpfc_iocbq *);
-	void (*wqe_cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
-			  struct lpfc_wcqe_complete *);
+	struct lpfc_io_buf *io_buf;
+	struct lpfc_iocbq *rsp_iocb;
+	struct lpfc_nodelist *ndlp;
+	union lpfc_vmid_tag vmid_tag;
+	void (*fabric_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+				struct lpfc_iocbq *rsp);
+	void (*wait_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+			      struct lpfc_iocbq *rsp);
+	void (*cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
+			 struct lpfc_iocbq *rsp);
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */
@@ -125,6 +157,9 @@ struct lpfc_iocbq {
 #define IOCB_BUSY           1
 #define IOCB_ERROR          2
 #define IOCB_TIMEDOUT       3
+#define IOCB_ABORTED        4
+#define IOCB_ABORTING	    5
+#define IOCB_NORESOURCE	    6
 
 #define SLI_WQE_RET_WQE    1    /* Return WQE if cmd ring full */
 
@@ -133,6 +168,8 @@ struct lpfc_iocbq {
 #define WQE_ERROR          2
 #define WQE_TIMEDOUT       3
 #define WQE_ABORTED        4
+#define WQE_ABORTING	   5
+#define WQE_NORESOURCE	   6
 
 #define LPFC_MBX_WAKE		1
 #define LPFC_MBX_IMED_UNREG	2
@@ -318,10 +355,13 @@ struct lpfc_sli {
 #define LPFC_SLI_ACTIVE           0x200	/* SLI in firmware is active */
 #define LPFC_PROCESS_LA           0x400	/* Able to process link attention */
 #define LPFC_BLOCK_MGMT_IO        0x800	/* Don't allow mgmt mbx or iocb cmds */
-#define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 #define LPFC_SLI_SUPPRESS_RSP     0x4000 /* Suppress RSP feature is supported */
 #define LPFC_SLI_USE_EQDR         0x8000 /* EQ Delay Register is supported */
+#define LPFC_QUEUE_FREE_INIT	  0x10000 /* Queue freeing is in progress */
+#define LPFC_QUEUE_FREE_WAIT	  0x20000 /* Hold Queue free as it is being
+					   * used outside worker thread
+					   */
 
 	struct lpfc_sli_ring *sli3_ring;
 
@@ -351,3 +391,93 @@ struct lpfc_sli {
 #define LPFC_MBOX_SLI4_CONFIG_EXTENDED_TMO	300
 /* Timeout for other flash-based outstanding mbox command (Seconds) */
 #define LPFC_MBOX_TMO_FLASH_CMD			300
+
+struct lpfc_io_buf {
+	/* Common fields */
+	struct list_head list;
+	void *data;
+
+	dma_addr_t dma_handle;
+	dma_addr_t dma_phys_sgl;
+
+	struct sli4_sge *dma_sgl; /* initial segment chunk */
+
+	/* linked list of extra sli4_hybrid_sge */
+	struct list_head dma_sgl_xtra_list;
+
+	/* list head for fcp_cmd_rsp buf */
+	struct list_head dma_cmd_rsp_list;
+
+	struct lpfc_iocbq cur_iocbq;
+	struct lpfc_sli4_hdw_queue *hdwq;
+	uint16_t hdwq_no;
+	uint16_t cpu;
+
+	struct lpfc_nodelist *ndlp;
+	uint32_t timeout;
+	uint16_t flags;
+#define LPFC_SBUF_XBUSY		0x1	/* SLI4 hba reported XB on WCQE cmpl */
+#define LPFC_SBUF_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
+					/* External DIF device IO conversions */
+#define LPFC_SBUF_NORMAL_DIF	0x4	/* normal mode to insert/strip */
+#define LPFC_SBUF_PASS_DIF	0x8	/* insert/strip mode to passthru */
+#define LPFC_SBUF_NOT_POSTED    0x10    /* SGL failed post to FW. */
+	uint16_t status;	/* From IOCB Word 7- ulpStatus */
+	uint32_t result;	/* From IOCB Word 4. */
+
+	uint32_t   seg_cnt;	/* Number of scatter-gather segments returned by
+				 * dma_map_sg.  The driver needs this for calls
+				 * to dma_unmap_sg.
+				 */
+	unsigned long start_time;
+	spinlock_t buf_lock;	/* lock used in case of simultaneous abort */
+	bool expedite;		/* this is an expedite io_buf */
+
+	union {
+		/* SCSI specific fields */
+		struct {
+			struct scsi_cmnd *pCmd;
+			struct lpfc_rport_data *rdata;
+			uint32_t prot_seg_cnt;  /* seg_cnt's counterpart for
+						 * protection data
+						 */
+
+			/*
+			 * data and dma_handle are the kernel virtual and bus
+			 * address of the dma-able buffer containing the
+			 * fcp_cmd, fcp_rsp and a scatter gather bde list that
+			 * supports the sg_tablesize value.
+			 */
+			struct fcp_cmnd *fcp_cmnd;
+			struct fcp_rsp *fcp_rsp;
+
+			wait_queue_head_t *waitq;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+			/* Used to restore any changes to protection data for
+			 * error injection
+			 */
+			void *prot_data_segment;
+			uint32_t prot_data;
+			uint32_t prot_data_type;
+#define	LPFC_INJERR_REFTAG	1
+#define	LPFC_INJERR_APPTAG	2
+#define	LPFC_INJERR_GUARD	3
+#endif
+		};
+
+		/* NVME specific fields */
+		struct {
+			struct nvmefc_fcp_req *nvmeCmd;
+			uint16_t qidx;
+		};
+	};
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint64_t ts_cmd_start;
+	uint64_t ts_last_cmd;
+	uint64_t ts_cmd_wqput;
+	uint64_t ts_isr_cmpl;
+	uint64_t ts_data_io;
+#endif
+	uint64_t rx_cmd_start;
+};

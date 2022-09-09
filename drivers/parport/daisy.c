@@ -30,12 +30,6 @@
 
 #undef DEBUG
 
-#ifdef DEBUG
-#define DPRINTK(stuff...) printk(stuff)
-#else
-#define DPRINTK(stuff...)
-#endif
-
 static struct daisydev {
 	struct daisydev *next;
 	struct parport *port;
@@ -45,6 +39,7 @@ static struct daisydev {
 static DEFINE_SPINLOCK(topology_lock);
 
 static int numdevs;
+static bool daisy_init_done;
 
 /* Forward-declaration of lower-level functions. */
 static int mux_present(struct parport *port);
@@ -87,6 +82,24 @@ static struct parport *clone_parport(struct parport *real, int muxport)
 	return extra;
 }
 
+static int daisy_drv_probe(struct pardevice *par_dev)
+{
+	struct device_driver *drv = par_dev->dev.driver;
+
+	if (strcmp(drv->name, "daisy_drv"))
+		return -ENODEV;
+	if (strcmp(par_dev->name, daisy_dev_name))
+		return -ENODEV;
+
+	return 0;
+}
+
+static struct parport_driver daisy_driver = {
+	.name = "daisy_drv",
+	.probe = daisy_drv_probe,
+	.devmodel = true,
+};
+
 /* Discover the IEEE1284.3 topology on a port -- muxes and daisy chains.
  * Return value is number of devices actually detected. */
 int parport_daisy_init(struct parport *port)
@@ -97,6 +110,23 @@ int parport_daisy_init(struct parport *port)
 	int num_ports;
 	int i;
 	int last_try = 0;
+
+	if (!daisy_init_done) {
+		/*
+		 * flag should be marked true first as
+		 * parport_register_driver() might try to load the low
+		 * level driver which will lead to announcing new ports
+		 * and which will again come back here at
+		 * parport_daisy_init()
+		 */
+		daisy_init_done = true;
+		i = parport_register_driver(&daisy_driver);
+		if (i) {
+			pr_err("daisy registration failed\n");
+			daisy_init_done = false;
+			return i;
+		}
+	}
 
 again:
 	/* Because this is called before any other devices exist,
@@ -109,8 +139,7 @@ again:
 	    ((num_ports = num_mux_ports(port)) == 2 || num_ports == 4)) {
 		/* Leave original as port zero. */
 		port->muxport = 0;
-		printk(KERN_INFO
-			"%s: 1st (default) port of %d-way multiplexor\n",
+		pr_info("%s: 1st (default) port of %d-way multiplexor\n",
 			port->name, num_ports);
 		for (i = 1; i < num_ports; i++) {
 			/* Clone the port. */
@@ -123,8 +152,7 @@ again:
 				continue;
 			}
 
-			printk(KERN_INFO
-				"%s: %d%s port of %d-way multiplexor on %s\n",
+			pr_info("%s: %d%s port of %d-way multiplexor on %s\n",
 				extra->name, i + 1, th[i + 1], num_ports,
 				port->name);
 
@@ -213,10 +241,12 @@ void parport_daisy_fini(struct parport *port)
 struct pardevice *parport_open(int devnum, const char *name)
 {
 	struct daisydev *p = topology;
+	struct pardev_cb par_cb;
 	struct parport *port;
 	struct pardevice *dev;
 	int daisy;
 
+	memset(&par_cb, 0, sizeof(par_cb));
 	spin_lock(&topology_lock);
 	while (p && p->devnum != devnum)
 		p = p->next;
@@ -230,7 +260,7 @@ struct pardevice *parport_open(int devnum, const char *name)
 	port = parport_get_port(p->port);
 	spin_unlock(&topology_lock);
 
-	dev = parport_register_device(port, name, NULL, NULL, NULL, 0, NULL);
+	dev = parport_register_dev_model(port, name, &par_cb, devnum);
 	parport_put_port(port);
 	if (!dev)
 		return NULL;
@@ -285,8 +315,7 @@ static int cpp_daisy(struct parport *port, int cmd)
 		  | PARPORT_STATUS_PAPEROUT
 		  | PARPORT_STATUS_SELECT
 		  | PARPORT_STATUS_ERROR)) {
-		DPRINTK(KERN_DEBUG "%s: cpp_daisy: aa5500ff(%02x)\n",
-			 port->name, s);
+		pr_debug("%s: cpp_daisy: aa5500ff(%02x)\n", port->name, s);
 		return -ENXIO;
 	}
 
@@ -296,8 +325,7 @@ static int cpp_daisy(struct parport *port, int cmd)
 					  | PARPORT_STATUS_SELECT
 					  | PARPORT_STATUS_ERROR);
 	if (s != (PARPORT_STATUS_SELECT | PARPORT_STATUS_ERROR)) {
-		DPRINTK(KERN_DEBUG "%s: cpp_daisy: aa5500ff87(%02x)\n",
-			 port->name, s);
+		pr_debug("%s: cpp_daisy: aa5500ff87(%02x)\n", port->name, s);
 		return -ENXIO;
 	}
 
@@ -332,7 +360,7 @@ static int cpp_mux(struct parport *port, int cmd)
 
 	s = parport_read_status(port);
 	if (!(s & PARPORT_STATUS_ACK)) {
-		DPRINTK(KERN_DEBUG "%s: cpp_mux: aa55f00f52ad%02x(%02x)\n",
+		pr_debug("%s: cpp_mux: aa55f00f52ad%02x(%02x)\n",
 			 port->name, cmd, s);
 		return -EIO;
 	}
@@ -418,8 +446,7 @@ static int assign_addrs(struct parport *port)
 		  | PARPORT_STATUS_PAPEROUT
 		  | PARPORT_STATUS_SELECT
 		  | PARPORT_STATUS_ERROR)) {
-		DPRINTK(KERN_DEBUG "%s: assign_addrs: aa5500ff(%02x)\n",
-			 port->name, s);
+		pr_debug("%s: assign_addrs: aa5500ff(%02x)\n", port->name, s);
 		return 0;
 	}
 
@@ -429,8 +456,7 @@ static int assign_addrs(struct parport *port)
 					  | PARPORT_STATUS_SELECT
 					  | PARPORT_STATUS_ERROR);
 	if (s != (PARPORT_STATUS_SELECT | PARPORT_STATUS_ERROR)) {
-		DPRINTK(KERN_DEBUG "%s: assign_addrs: aa5500ff87(%02x)\n",
-			 port->name, s);
+		pr_debug("%s: assign_addrs: aa5500ff87(%02x)\n", port->name, s);
 		return 0;
 	}
 
@@ -467,8 +493,7 @@ static int assign_addrs(struct parport *port)
 
 	parport_write_data(port, 0xff); udelay(2);
 	detected = numdevs - thisdev;
-	DPRINTK(KERN_DEBUG "%s: Found %d daisy-chained devices\n", port->name,
-		 detected);
+	pr_debug("%s: Found %d daisy-chained devices\n", port->name, detected);
 
 	/* Ask the new devices to introduce themselves. */
 	deviceid = kmalloc(1024, GFP_KERNEL);

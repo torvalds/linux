@@ -1,11 +1,6 @@
-/* sound/soc/samsung/s3c24xx_simtec_hermes.c
- *
- * Copyright 2009 Simtec Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2009 Simtec Electronics
 
 #include <linux/module.h>
 #include <sound/soc.h>
@@ -68,14 +63,17 @@ static int simtec_hermes_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+SND_SOC_DAILINK_DEFS(tlv320aic33,
+	DAILINK_COMP_ARRAY(COMP_CPU("s3c24xx-iis")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.0-001a",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("s3c24xx-iis")));
+
 static struct snd_soc_dai_link simtec_dai_aic33 = {
 	.name		= "tlv320aic33",
 	.stream_name	= "TLV320AIC33",
-	.codec_name	= "tlv320aic3x-codec.0-001a",
-	.cpu_dai_name	= "s3c24xx-iis",
-	.codec_dai_name = "tlv320aic3x-hifi",
-	.platform_name	= "s3c24xx-iis",
 	.init		= simtec_hermes_init,
+	SND_SOC_DAILINK_REG(tlv320aic33),
 };
 
 /* simtec audio machine driver */

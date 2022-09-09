@@ -1,20 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * leds-bd2802.c - RGB LED Driver
  *
  * Copyright (C) 2009 Samsung Electronics
  * Kim Kyuwon <q1.kim@samsung.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Datasheet: http://www.rohm.com/products/databook/driver/pdf/bd2802gu-e.pdf
- *
  */
 
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/leds.h>
 #include <linux/leds-bd2802.h>
@@ -71,6 +67,7 @@ struct led_state {
 struct bd2802_led {
 	struct bd2802_led_platform_data	*pdata;
 	struct i2c_client		*client;
+	struct gpio_desc		*reset;
 	struct rw_semaphore		rwsem;
 
 	struct led_state		led[2];
@@ -204,7 +201,7 @@ static void bd2802_update_state(struct bd2802_led *led, enum led_ids id,
 		return;
 
 	if (bd2802_is_all_off(led) && !led->adf_on) {
-		gpio_set_value(led->pdata->reset_gpio, 0);
+		gpiod_set_value(led->reset, 1);
 		return;
 	}
 
@@ -230,7 +227,7 @@ static void bd2802_configure(struct bd2802_led *led)
 
 static void bd2802_reset_cancel(struct bd2802_led *led)
 {
-	gpio_set_value(led->pdata->reset_gpio, 1);
+	gpiod_set_value(led->reset, 0);
 	udelay(100);
 	bd2802_configure(led);
 }
@@ -424,7 +421,7 @@ static void bd2802_disable_adv_conf(struct bd2802_led *led)
 						bd2802_addr_attributes[i]);
 
 	if (bd2802_is_all_off(led))
-		gpio_set_value(led->pdata->reset_gpio, 0);
+		gpiod_set_value(led->reset, 1);
 
 	led->adf_on = 0;
 }
@@ -663,7 +660,6 @@ static int bd2802_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct bd2802_led *led;
-	struct bd2802_led_platform_data *pdata;
 	int ret, i;
 
 	led = devm_kzalloc(&client->dev, sizeof(struct bd2802_led), GFP_KERNEL);
@@ -671,11 +667,18 @@ static int bd2802_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	led->client = client;
-	pdata = led->pdata = dev_get_platdata(&client->dev);
 	i2c_set_clientdata(client, led);
 
-	/* Configure RESET GPIO (L: RESET, H: RESET cancel) */
-	gpio_request_one(pdata->reset_gpio, GPIOF_OUT_INIT_HIGH, "RGB_RESETB");
+	/*
+	 * Configure RESET GPIO (L: RESET, H: RESET cancel)
+	 *
+	 * We request the reset GPIO as OUT_LOW which means de-asserted,
+	 * board files specifying this GPIO line in a machine descriptor
+	 * table should take care to specify GPIO_ACTIVE_LOW for this line.
+	 */
+	led->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(led->reset))
+		return PTR_ERR(led->reset);
 
 	/* Tacss = min 0.1ms */
 	udelay(100);
@@ -689,7 +692,7 @@ static int bd2802_probe(struct i2c_client *client,
 		dev_info(&client->dev, "return 0x%02x\n", ret);
 
 	/* To save the power, reset BD2802 after detecting */
-	gpio_set_value(led->pdata->reset_gpio, 0);
+	gpiod_set_value(led->reset, 1);
 
 	/* Default attributes */
 	led->wave_pattern = BD2802_PATTERN_HALF;
@@ -724,7 +727,7 @@ static int bd2802_remove(struct i2c_client *client)
 	struct bd2802_led *led = i2c_get_clientdata(client);
 	int i;
 
-	gpio_set_value(led->pdata->reset_gpio, 0);
+	gpiod_set_value(led->reset, 1);
 	bd2802_unregister_led_classdev(led);
 	if (led->adf_on)
 		bd2802_disable_adv_conf(led);
@@ -754,7 +757,7 @@ static int bd2802_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bd2802_led *led = i2c_get_clientdata(client);
 
-	gpio_set_value(led->pdata->reset_gpio, 0);
+	gpiod_set_value(led->reset, 1);
 
 	return 0;
 }

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware parameter area specific to Sharp SL series devices
  *
  * Copyright (c) 2005 Richard Purdie
  *
  * Based on Sharp's 2.4 kernel patches
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -44,7 +40,9 @@ EXPORT_SYMBOL(sharpsl_param);
 
 void sharpsl_save_param(void)
 {
-	memcpy(&sharpsl_param, param_start(PARAM_BASE), sizeof(struct sharpsl_param_info));
+	struct sharpsl_param_info *params = param_start(PARAM_BASE);
+
+	memcpy(&sharpsl_param, params, sizeof(*params));
 
 	if (sharpsl_param.comadj_keyword != COMADJ_MAGIC)
 		sharpsl_param.comadj=-1;

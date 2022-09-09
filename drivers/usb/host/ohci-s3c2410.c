@@ -293,7 +293,6 @@ static int ohci_s3c2410_hub_control(
 static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
 {
 	struct s3c2410_hcd_port *port;
-	struct usb_hcd *hcd;
 	unsigned long flags;
 	int portno;
 
@@ -301,7 +300,6 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
 		return;
 
 	port = &info->port[0];
-	hcd = info->hcd;
 
 	local_irq_save(flags);
 
@@ -326,14 +324,13 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
 /*
  * ohci_hcd_s3c2410_remove - shutdown processing for HCD
  * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of ohci_hcd_3c2410_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
- *
-*/
-
+ */
 static int
 ohci_hcd_s3c2410_remove(struct platform_device *dev)
 {
@@ -345,20 +342,21 @@ ohci_hcd_s3c2410_remove(struct platform_device *dev)
 	return 0;
 }
 
-/**
+/*
  * ohci_hcd_s3c2410_probe - initialize S3C2410-based HCDs
- * Context: !in_interrupt()
+ * @dev: USB Host Controller to be probed
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
- *
  */
 static int ohci_hcd_s3c2410_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	struct s3c2410_hcd_info *info = dev_get_platdata(&dev->dev);
-	int retval;
+	int retval, irq;
 
 	s3c2410_usb_set_power(info, 1, 1);
 	s3c2410_usb_set_power(info, 2, 1);
@@ -390,9 +388,15 @@ static int ohci_hcd_s3c2410_probe(struct platform_device *dev)
 		goto err_put;
 	}
 
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
+		retval = irq;
+		goto err_put;
+	}
+
 	s3c2410_start_hc(dev, hcd);
 
-	retval = usb_add_hcd(hcd, dev->resource[1].start, 0);
+	retval = usb_add_hcd(hcd, irq, 0);
 	if (retval != 0)
 		goto err_ioremap;
 

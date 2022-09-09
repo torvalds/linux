@@ -33,6 +33,10 @@ OPTIONS
 -k::
 --kernel::
 	Show running kernel build id.
+-m::
+--kernel-maps::
+	Show buildid, start/end text address, and path of running kernel and
+	its modules.
 -v::
 --verbose::
 	Be more verbose.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to generic timeout handling of requests.
  */
@@ -19,13 +20,11 @@ static int __init setup_fail_io_timeout(char *str)
 }
 __setup("fail_io_timeout=", setup_fail_io_timeout);
 
-int blk_should_fake_timeout(struct request_queue *q)
+bool __blk_should_fake_timeout(struct request_queue *q)
 {
-	if (!test_bit(QUEUE_FLAG_FAIL_IO, &q->queue_flags))
-		return 0;
-
 	return should_fail(&fail_io_timeout, 1);
 }
+EXPORT_SYMBOL_GPL(__blk_should_fake_timeout);
 
 static int __init fail_io_timeout_debugfs(void)
 {
@@ -69,7 +68,7 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
 #endif /* CONFIG_FAIL_IO_TIMEOUT */
 
 /**
- * blk_abort_request -- Request request recovery for the specified command
+ * blk_abort_request - Request recovery for the specified command
  * @req:	pointer to the request of interest
  *
  * This function requests that the block layer start recovery for the
@@ -89,11 +88,29 @@ void blk_abort_request(struct request *req)
 }
 EXPORT_SYMBOL_GPL(blk_abort_request);
 
+static unsigned long blk_timeout_mask __read_mostly;
+
+static int __init blk_timeout_init(void)
+{
+	blk_timeout_mask = roundup_pow_of_two(HZ) - 1;
+	return 0;
+}
+
+late_initcall(blk_timeout_init);
+
+/*
+ * Just a rough estimate, we don't care about specific values for timeouts.
+ */
+static inline unsigned long blk_round_jiffies(unsigned long j)
+{
+	return (j + blk_timeout_mask) + 1;
+}
+
 unsigned long blk_rq_timeout(unsigned long timeout)
 {
 	unsigned long maxt;
 
-	maxt = round_jiffies_up(jiffies + BLK_MAX_TIMEOUT);
+	maxt = blk_round_jiffies(jiffies + BLK_MAX_TIMEOUT);
 	if (time_after(timeout, maxt))
 		timeout = maxt;
 
@@ -130,7 +147,7 @@ void blk_add_timer(struct request *req)
 	 * than an existing one, modify the timer. Round up to next nearest
 	 * second.
 	 */
-	expiry = blk_rq_timeout(round_jiffies_up(expiry));
+	expiry = blk_rq_timeout(blk_round_jiffies(expiry));
 
 	if (!timer_pending(&q->timeout) ||
 	    time_before(expiry, q->timeout.expires)) {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VFIO platform driver specialized for Calxeda xgmac reset
  * reset code is inherited from calxeda xgmac native driver
@@ -5,18 +6,6 @@
  * Copyright 2010-2011 Calxeda, Inc.
  * Copyright (c) 2015 Linaro Ltd.
  *              www.linaro.org
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -24,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-#include "vfio_platform_private.h"
+#include "../vfio_platform_private.h"
 
 #define DRIVER_VERSION  "0.1"
 #define DRIVER_AUTHOR   "Eric Auger <eric.auger@linaro.org>"
@@ -37,7 +26,7 @@
 #define XGMAC_DMA_CONTROL       0x00000f18      /* Ctrl (Operational Mode) */
 #define XGMAC_DMA_INTR_ENA      0x00000f1c      /* Interrupt Enable */
 
-/* DMA Control registe defines */
+/* DMA Control register defines */
 #define DMA_CONTROL_ST          0x00002000      /* Start/Stop Transmission */
 #define DMA_CONTROL_SR          0x00000002      /* Start/Stop Receive */
 
@@ -63,7 +52,7 @@ static int vfio_platform_calxedaxgmac_reset(struct vfio_platform_device *vdev)
 
 	if (!reg->ioaddr) {
 		reg->ioaddr =
-			ioremap_nocache(reg->addr, reg->size);
+			ioremap(reg->addr, reg->size);
 		if (!reg->ioaddr)
 			return -ENOMEM;
 	}

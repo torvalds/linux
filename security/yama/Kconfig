@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_YAMA
 	bool "Yama support"
 	depends on SECURITY

@@ -132,10 +132,6 @@ precludes passing these pages to userspace.
 P2P memory is also technically IO memory but should never have any side
 effects behind it. Thus, the order of loads and stores should not be important
 and ioreadX(), iowriteX() and friends should not be necessary.
-However, as the memory is not cache coherent, if access ever needs to
-be protected by a spinlock then :c:func:`mmiowb()` must be used before
-unlocking the lock. (See ACQUIRES VS I/O ACCESSES in
-Documentation/memory-barriers.txt)
 
 
 P2P DMA Support Library

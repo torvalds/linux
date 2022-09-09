@@ -97,23 +97,23 @@ static inline unsigned int calc_px(dma_addr_t ptr)
 	return ((unsigned long) ptr >> PAGE_SHIFT) & ZPCI_PT_MASK;
 }
 
-static inline void set_pt_pfaa(unsigned long *entry, void *pfaa)
+static inline void set_pt_pfaa(unsigned long *entry, phys_addr_t pfaa)
 {
 	*entry &= ZPCI_PTE_FLAG_MASK;
-	*entry |= ((unsigned long) pfaa & ZPCI_PTE_ADDR_MASK);
+	*entry |= (pfaa & ZPCI_PTE_ADDR_MASK);
 }
 
-static inline void set_rt_sto(unsigned long *entry, void *sto)
+static inline void set_rt_sto(unsigned long *entry, phys_addr_t sto)
 {
 	*entry &= ZPCI_RTE_FLAG_MASK;
-	*entry |= ((unsigned long) sto & ZPCI_RTE_ADDR_MASK);
+	*entry |= (sto & ZPCI_RTE_ADDR_MASK);
 	*entry |= ZPCI_TABLE_TYPE_RTX;
 }
 
-static inline void set_st_pto(unsigned long *entry, void *pto)
+static inline void set_st_pto(unsigned long *entry, phys_addr_t pto)
 {
 	*entry &= ZPCI_STE_FLAG_MASK;
-	*entry |= ((unsigned long) pto & ZPCI_STE_ADDR_MASK);
+	*entry |= (pto & ZPCI_STE_ADDR_MASK);
 	*entry |= ZPCI_TABLE_TYPE_SX;
 }
 
@@ -129,12 +129,6 @@ static inline void validate_st_entry(unsigned long *entry)
 {
 	*entry &= ~ZPCI_TABLE_VALID_MASK;
 	*entry |= ZPCI_TABLE_VALID;
-}
-
-static inline void invalidate_table_entry(unsigned long *entry)
-{
-	*entry &= ~ZPCI_TABLE_VALID_MASK;
-	*entry |= ZPCI_TABLE_INVALID;
 }
 
 static inline void invalidate_pt_entry(unsigned long *entry)
@@ -173,33 +167,29 @@ static inline int pt_entry_isvalid(unsigned long entry)
 	return (entry & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID;
 }
 
-static inline int entry_isprotected(unsigned long entry)
-{
-	return (entry & ZPCI_TABLE_PROT_MASK) == ZPCI_TABLE_PROTECTED;
-}
-
 static inline unsigned long *get_rt_sto(unsigned long entry)
 {
-	return ((entry & ZPCI_TABLE_TYPE_MASK) == ZPCI_TABLE_TYPE_RTX)
-		? (unsigned long *) (entry & ZPCI_RTE_ADDR_MASK)
-		: NULL;
+	if ((entry & ZPCI_TABLE_TYPE_MASK) == ZPCI_TABLE_TYPE_RTX)
+		return phys_to_virt(entry & ZPCI_RTE_ADDR_MASK);
+	else
+		return NULL;
+
 }
 
 static inline unsigned long *get_st_pto(unsigned long entry)
 {
-	return ((entry & ZPCI_TABLE_TYPE_MASK) == ZPCI_TABLE_TYPE_SX)
-		? (unsigned long *) (entry & ZPCI_STE_ADDR_MASK)
-		: NULL;
+	if ((entry & ZPCI_TABLE_TYPE_MASK) == ZPCI_TABLE_TYPE_SX)
+		return phys_to_virt(entry & ZPCI_STE_ADDR_MASK);
+	else
+		return NULL;
 }
 
 /* Prototypes */
-int zpci_dma_init_device(struct zpci_dev *);
-void zpci_dma_exit_device(struct zpci_dev *);
 void dma_free_seg_table(unsigned long);
 unsigned long *dma_alloc_cpu_table(void);
 void dma_cleanup_tables(unsigned long *);
 unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr);
-void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags);
+void dma_update_cpu_trans(unsigned long *entry, phys_addr_t page_addr, int flags);
 
 extern const struct dma_map_ops s390_pci_dma_ops;
 

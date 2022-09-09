@@ -1,30 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006 Intel Corporation
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Authors:
  *    Eric Anholt <eric@anholt.net>
- *
  */
-#include <drm/drmP.h>
+
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
+
+#include "intel_bios.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "intel_bios.h"
 
 #define	SLAVE_ADDR1	0x70
 #define	SLAVE_ADDR2	0x72
@@ -63,7 +51,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	uint8_t	panel_type;
 
 	edp = find_section(bdb, BDB_EDP);
-	
+
 	dev_priv->edp.bpp = 18;
 	if (!edp) {
 		if (dev_priv->edp.support) {
@@ -93,7 +81,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->edp.pps = *edp_pps;
 
 	DRM_DEBUG_KMS("EDP timing in vbt t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
-				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8, 
+				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8,
 				dev_priv->edp.pps.t9, dev_priv->edp.pps.t10,
 				dev_priv->edp.pps.t11_t12);
 
@@ -220,7 +208,7 @@ static void parse_backlight_data(struct drm_psb_private *dev_priv,
 
 	lvds_bl = kmemdup(vbt_lvds_bl, sizeof(*vbt_lvds_bl), GFP_KERNEL);
 	if (!lvds_bl) {
-		dev_err(dev_priv->dev->dev, "out of memory for backlight data\n");
+		dev_err(dev_priv->dev.dev, "out of memory for backlight data\n");
 		return;
 	}
 	dev_priv->lvds_bl = lvds_bl;
@@ -261,7 +249,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode),
 				      GFP_KERNEL);
 	if (panel_fixed_mode == NULL) {
-		dev_err(dev_priv->dev->dev, "out of memory for fixed panel mode\n");
+		dev_err(dev_priv->dev.dev, "out of memory for fixed panel mode\n");
 		return;
 	}
 
@@ -272,7 +260,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
 		drm_mode_debug_printmodeline(panel_fixed_mode);
 	} else {
-		dev_dbg(dev_priv->dev->dev, "ignoring invalid LVDS VBT\n");
+		dev_dbg(dev_priv->dev.dev, "ignoring invalid LVDS VBT\n");
 		dev_priv->lvds_vbt = 0;
 		kfree(panel_fixed_mode);
 	}
@@ -436,6 +424,9 @@ parse_driver_features(struct drm_psb_private *dev_priv,
 	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
 		dev_priv->edp.support = 1;
 
+	dev_priv->lvds_enabled_in_vbt = driver->lvds_config != 0;
+	DRM_DEBUG_KMS("LVDS VBT config bits: 0x%x\n", driver->lvds_config);
+
 	/* This bit means to use 96Mhz for DPLL_A or not */
 	if (driver->primary_lfp_id)
 		dev_priv->dplla_96mhz = true;
@@ -525,8 +516,8 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
  */
 int psb_intel_init_bios(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct vbt_header *vbt = NULL;
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
@@ -584,12 +575,12 @@ int psb_intel_init_bios(struct drm_device *dev)
 	return 0;
 }
 
-/**
+/*
  * Destroy and free VBT data
  */
 void psb_intel_destroy_bios(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	kfree(dev_priv->sdvo_lvds_vbt_mode);
 	kfree(dev_priv->lfp_lvds_vbt_mode);

@@ -70,9 +70,6 @@ static inline int get_hugepd_cache_index(int index)
 	/* should not reach */
 }
 
-#else /* !CONFIG_HUGETLB_PAGE */
-static inline int pmd_huge(pmd_t pmd) { return 0; }
-static inline int pud_huge(pud_t pud) { return 0; }
 #endif /* CONFIG_HUGETLB_PAGE */
 
 #endif /* __ASSEMBLY__ */

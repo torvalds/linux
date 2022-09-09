@@ -72,7 +72,7 @@ __visible u32 pnp_bios_fault_esp;
 __visible u32 pnp_bios_fault_eip;
 __visible u32 pnp_bios_is_utter_crap = 0;
 
-static spinlock_t pnp_bios_lock;
+static DEFINE_SPINLOCK(pnp_bios_lock);
 
 /*
  * Support Functions
@@ -473,7 +473,6 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
 {
 	int i;
 
-	spin_lock_init(&pnp_bios_lock);
 	pnp_bios_callpoint.offset = header->fields.pm16offset;
 	pnp_bios_callpoint.segment = PNP_CS16;
 

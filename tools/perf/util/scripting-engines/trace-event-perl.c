@@ -34,9 +34,11 @@
 #include <EXTERN.h>
 #include <perl.h>
 
-#include "../../perf.h"
 #include "../callchain.h"
+#include "../dso.h"
 #include "../machine.h"
+#include "../map.h"
+#include "../symbol.h"
 #include "../thread.h"
 #include "../event.h"
 #include "../trace-event.h"
@@ -256,7 +258,7 @@ static void define_event_symbols(struct tep_event *event,
 }
 
 static SV *perl_process_callchain(struct perf_sample *sample,
-				  struct perf_evsel *evsel,
+				  struct evsel *evsel,
 				  struct addr_location *al)
 {
 	AV *list;
@@ -292,17 +294,17 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 			goto exit;
 		}
 
-		if (node->sym) {
+		if (node->ms.sym) {
 			HV *sym = newHV();
 			if (!sym) {
 				hv_undef(elem);
 				goto exit;
 			}
-			if (!hv_stores(sym, "start",   newSVuv(node->sym->start)) ||
-			    !hv_stores(sym, "end",     newSVuv(node->sym->end)) ||
-			    !hv_stores(sym, "binding", newSVuv(node->sym->binding)) ||
-			    !hv_stores(sym, "name",    newSVpvn(node->sym->name,
-								node->sym->namelen)) ||
+			if (!hv_stores(sym, "start",   newSVuv(node->ms.sym->start)) ||
+			    !hv_stores(sym, "end",     newSVuv(node->ms.sym->end)) ||
+			    !hv_stores(sym, "binding", newSVuv(node->ms.sym->binding)) ||
+			    !hv_stores(sym, "name",    newSVpvn(node->ms.sym->name,
+								node->ms.sym->namelen)) ||
 			    !hv_stores(elem, "sym",    newRV_noinc((SV*)sym))) {
 				hv_undef(sym);
 				hv_undef(elem);
@@ -310,8 +312,8 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 			}
 		}
 
-		if (node->map) {
-			struct map *map = node->map;
+		if (node->ms.map) {
+			struct map *map = node->ms.map;
 			const char *dsoname = "[unknown]";
 			if (map && map->dso) {
 				if (symbol_conf.show_kernel_path && map->dso->long_name)
@@ -334,7 +336,7 @@ exit:
 }
 
 static void perl_process_tracepoint(struct perf_sample *sample,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct addr_location *al)
 {
 	struct thread *thread = al->thread;
@@ -351,11 +353,11 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 
 	dSP;
 
-	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 		return;
 
 	if (!event) {
-		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		return;
 	}
 
@@ -368,9 +370,6 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 
 	s = nsecs / NSEC_PER_SEC;
 	ns = nsecs - s * NSEC_PER_SEC;
-
-	scripting_context->event_data = data;
-	scripting_context->pevent = evsel->tp_format->pevent;
 
 	ENTER;
 	SAVETMPS;
@@ -393,6 +392,8 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 			if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 				offset = *(int *)(data + field->offset);
 				offset &= 0xffff;
+				if (field->flags & TEP_FIELD_IS_RELATIVE)
+					offset += field->offset + field->size;
 			} else
 				offset = field->offset;
 			XPUSHs(sv_2mortal(newSVpv((char *)data + offset, 0)));
@@ -429,7 +430,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 
 static void perl_process_event_generic(union perf_event *event,
 				       struct perf_sample *sample,
-				       struct perf_evsel *evsel)
+				       struct evsel *evsel)
 {
 	dSP;
 
@@ -440,7 +441,7 @@ static void perl_process_event_generic(union perf_event *event,
 	SAVETMPS;
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSVpvn((const char *)event, event->header.size)));
-	XPUSHs(sv_2mortal(newSVpvn((const char *)&evsel->attr, sizeof(evsel->attr))));
+	XPUSHs(sv_2mortal(newSVpvn((const char *)&evsel->core.attr, sizeof(evsel->core.attr))));
 	XPUSHs(sv_2mortal(newSVpvn((const char *)sample, sizeof(*sample))));
 	XPUSHs(sv_2mortal(newSVpvn((const char *)sample->raw_data, sample->raw_size)));
 	PUTBACK;
@@ -453,9 +454,11 @@ static void perl_process_event_generic(union perf_event *event,
 
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
-			       struct perf_evsel *evsel,
-			       struct addr_location *al)
+			       struct evsel *evsel,
+			       struct addr_location *al,
+			       struct addr_location *addr_al)
 {
+	scripting_context__update(scripting_context, event, sample, evsel, al, addr_al);
 	perl_process_tracepoint(sample, evsel, al);
 	perl_process_event_generic(event, sample, evsel);
 }
@@ -472,10 +475,13 @@ static void run_start_sub(void)
 /*
  * Start trace script
  */
-static int perl_start_script(const char *script, int argc, const char **argv)
+static int perl_start_script(const char *script, int argc, const char **argv,
+			     struct perf_session *session)
 {
 	const char **command_line;
 	int i, err = 0;
+
+	scripting_context->session = session;
 
 	command_line = malloc((argc + 2) * sizeof(const char *));
 	command_line[0] = "";
@@ -537,10 +543,11 @@ static int perl_stop_script(void)
 
 static int perl_generate_script(struct tep_handle *pevent, const char *outfile)
 {
+	int i, not_first, count, nr_events;
+	struct tep_event **all_events;
 	struct tep_event *event = NULL;
 	struct tep_format_field *f;
 	char fname[PATH_MAX];
-	int not_first, count;
 	FILE *ofp;
 
 	sprintf(fname, "%s.pl", outfile);
@@ -601,8 +608,11 @@ sub print_backtrace\n\
 }\n\n\
 ");
 
+	nr_events = tep_get_events_count(pevent);
+	all_events = tep_list_events(pevent, TEP_EVENT_SORT_ID);
 
-	while ((event = trace_find_next_event(pevent, event))) {
+	for (i = 0; all_events && i < nr_events; i++) {
+		event = all_events[i];
 		fprintf(ofp, "sub %s::%s\n{\n", event->system, event->name);
 		fprintf(ofp, "\tmy (");
 
@@ -744,6 +754,7 @@ sub print_backtrace\n\
 
 struct scripting_ops perl_scripting_ops = {
 	.name = "Perl",
+	.dirname = "perl",
 	.start_script = perl_start_script,
 	.flush_script = perl_flush_script,
 	.stop_script = perl_stop_script,

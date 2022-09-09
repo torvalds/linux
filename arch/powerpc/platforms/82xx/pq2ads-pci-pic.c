@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PQ2 ADS-style PCI interrupt controller
  *
@@ -6,10 +7,6 @@
  *
  * Loosely based on mpc82xx ADS support by Vitaly Bordug <vbordug@ru.mvista.com>
  * Copyright (c) 2006 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -17,9 +14,9 @@
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/cpm2.h>
 
 #include "pq2.h"
@@ -94,10 +91,8 @@ static void pq2ads_pci_irq_demux(struct irq_desc *desc)
 			break;
 
 		for (bit = 0; pend != 0; ++bit, pend <<= 1) {
-			if (pend & 0x80000000) {
-				int virq = irq_linear_revmap(priv->host, bit);
-				generic_handle_irq(virq);
-			}
+			if (pend & 0x80000000)
+				generic_handle_domain_irq(priv->host, bit);
 		}
 	}
 }
@@ -126,20 +121,17 @@ int __init pq2ads_pci_init_irq(void)
 	np = of_find_compatible_node(NULL, NULL, "fsl,pq2ads-pci-pic");
 	if (!np) {
 		printk(KERN_ERR "No pci pic node in device tree.\n");
-		of_node_put(np);
 		goto out;
 	}
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
 		printk(KERN_ERR "No interrupt in pci pic node.\n");
-		of_node_put(np);
-		goto out;
+		goto out_put_node;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		of_node_put(np);
 		ret = -ENOMEM;
 		goto out_unmap_irq;
 	}
@@ -164,17 +156,17 @@ int __init pq2ads_pci_init_irq(void)
 	priv->host = host;
 	irq_set_handler_data(irq, priv);
 	irq_set_chained_handler(irq, pq2ads_pci_irq_demux);
-
-	of_node_put(np);
-	return 0;
+	ret = 0;
+	goto out_put_node;
 
 out_unmap_regs:
 	iounmap(priv->regs);
 out_free_kmalloc:
 	kfree(priv);
-	of_node_put(np);
 out_unmap_irq:
 	irq_dispose_mapping(irq);
+out_put_node:
+	of_node_put(np);
 out:
 	return ret;
 }

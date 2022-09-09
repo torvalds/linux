@@ -100,7 +100,7 @@
 				status = "disabled";
 			};
 
-			gpmi: gpmi-nand@8000c000 {
+			gpmi: nand-controller@8000c000 {
 				compatible = "fsl,imx28-gpmi-nand";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -110,6 +110,8 @@
 				interrupt-names = "bch";
 				clocks = <&clks 50>;
 				clock-names = "gpmi_io";
+				assigned-clocks = <&clks 13>;
+				assigned-clock-parents = <&clks 10>;
 				dmas = <&dma_apbh 4>;
 				dma-names = "rx-tx";
 				status = "disabled";
@@ -948,6 +950,16 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
+				usb1_pins_b: usb1@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM2__USB1_OVERCURRENT
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
 				usb0_id_pins_a: usb0id@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -998,7 +1010,7 @@
 				clocks = <&clks 26>;
 			};
 
-			dcp: dcp@80028000 {
+			dcp: crypto@80028000 {
 				compatible = "fsl,imx28-dcp", "fsl,imx23-dcp";
 				reg = <0x80028000 0x2000>;
 				interrupts = <52 53 54>;
@@ -1011,7 +1023,7 @@
 				status = "disabled";
 			};
 
-			ocotp: ocotp@8002c000 {
+			ocotp: efuse@8002c000 {
 				compatible = "fsl,imx28-ocotp", "fsl,ocotp";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -1317,7 +1329,7 @@
 			status = "disabled";
 		};
 
-		etn_switch: switch@800f8000 {
+		eth_switch: switch@800f8000 {
 			reg = <0x800f8000 0x8000>;
 			status = "disabled";
 		};

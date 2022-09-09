@@ -9,8 +9,11 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <dt-bindings/clock/jz4725b-cgu.h>
+
+#include <dt-bindings/clock/ingenic,jz4725b-cgu.h>
+
 #include "cgu.h"
+#include "pm.h"
 
 /* CGU register offsets */
 #define CGU_REG_CPCCR		0x00
@@ -33,6 +36,14 @@ static const s8 pll_od_encoding[4] = {
 	0x0, 0x1, -1, 0x3,
 };
 
+static const u8 jz4725b_cgu_cpccr_div_table[] = {
+	1, 2, 3, 4, 6, 8,
+};
+
+static const u8 jz4725b_cgu_pll_half_div_table[] = {
+	2, 1,
+};
+
 static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 
 	/* External clocks */
@@ -45,6 +56,7 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 		.parents = { JZ4725B_CLK_EXT, -1, -1, -1 },
 		.pll = {
 			.reg = CGU_REG_CPPCR,
+			.rate_multiplier = 1,
 			.m_shift = 23,
 			.m_bits = 9,
 			.m_offset = 2,
@@ -56,6 +68,7 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 			.od_max = 4,
 			.od_encoding = pll_od_encoding,
 			.stable_bit = 10,
+			.bypass_reg = CGU_REG_CPPCR,
 			.bypass_bit = 9,
 			.enable_bit = 8,
 		},
@@ -66,37 +79,65 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 	[JZ4725B_CLK_PLL_HALF] = {
 		"pll half", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 21, 1, 1, -1, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 21, 1, 1, -1, -1, -1, 0,
+			jz4725b_cgu_pll_half_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_CCLK] = {
 		"cclk", CGU_CLK_DIV,
+		/*
+		 * Disabling the CPU clock or any parent clocks will hang the
+		 * system; mark it critical.
+		 */
+		.flags = CLK_IS_CRITICAL,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1, 0,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_HCLK] = {
 		"hclk", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1, 0,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_PCLK] = {
 		"pclk", CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1, 0,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_MCLK] = {
 		"mclk", CGU_CLK_DIV,
+		/*
+		 * Disabling MCLK or its parents will render DRAM
+		 * inaccessible; mark it critical.
+		 */
+		.flags = CLK_IS_CRITICAL,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1, 0,
+			jz4725b_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4725B_CLK_IPU] = {
 		"ipu", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4725B_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 16, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 16, 1, 4, 22, -1, -1, 0,
+			jz4725b_cgu_cpccr_div_table,
+		},
 		.gate = { CGU_REG_CLKGR, 13 },
 	},
 
@@ -108,11 +149,10 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 	},
 
 	[JZ4725B_CLK_I2S] = {
-		"i2s", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
+		"i2s", CGU_CLK_MUX | CGU_CLK_DIV,
 		.parents = { JZ4725B_CLK_EXT, JZ4725B_CLK_PLL_HALF, -1, -1 },
 		.mux = { CGU_REG_CPCCR, 31, 1 },
 		.div = { CGU_REG_I2SCDR, 0, 1, 9, -1, -1, -1 },
-		.gate = { CGU_REG_CLKGR, 6 },
 	},
 
 	[JZ4725B_CLK_SPI] = {
@@ -205,6 +245,12 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 		.parents = { JZ4725B_CLK_EXT512, JZ4725B_CLK_OSC32K, -1, -1 },
 		.mux = { CGU_REG_OPCR, 2, 1},
 	},
+
+	[JZ4725B_CLK_UDC_PHY] = {
+		"udc_phy", CGU_CLK_GATE,
+		.parents = { JZ4725B_CLK_EXT, -1, -1, -1 },
+		.gate = { CGU_REG_OPCR, 6, true },
+	},
 };
 
 static void __init jz4725b_cgu_init(struct device_node *np)
@@ -221,5 +267,7 @@ static void __init jz4725b_cgu_init(struct device_node *np)
 	retval = ingenic_cgu_register_clocks(cgu);
 	if (retval)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
+
+	ingenic_cgu_register_syscore_ops(cgu);
 }
-CLK_OF_DECLARE(jz4725b_cgu, "ingenic,jz4725b-cgu", jz4725b_cgu_init);
+CLK_OF_DECLARE_DRIVER(jz4725b_cgu, "ingenic,jz4725b-cgu", jz4725b_cgu_init);

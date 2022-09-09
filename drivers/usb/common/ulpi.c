@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * ulpi.c - USB ULPI PHY bus
  *
  * Copyright (C) 2015 Intel Corporation
@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/clk/clk-conf.h>
@@ -39,8 +40,11 @@ static int ulpi_match(struct device *dev, struct device_driver *driver)
 	struct ulpi *ulpi = to_ulpi_dev(dev);
 	const struct ulpi_device_id *id;
 
-	/* Some ULPI devices don't have a vendor id so rely on OF match */
-	if (ulpi->id.vendor == 0)
+	/*
+	 * Some ULPI devices don't have a vendor id
+	 * or provide an id_table so rely on OF match.
+	 */
+	if (ulpi->id.vendor == 0 || !drv->id_table)
 		return of_driver_match_device(dev, driver);
 
 	for (id = drv->id_table; id->vendor; id++)
@@ -78,14 +82,12 @@ static int ulpi_probe(struct device *dev)
 	return drv->probe(to_ulpi_dev(dev));
 }
 
-static int ulpi_remove(struct device *dev)
+static void ulpi_remove(struct device *dev)
 {
 	struct ulpi_driver *drv = to_ulpi_driver(dev->driver);
 
 	if (drv->remove)
 		drv->remove(to_ulpi_dev(dev));
-
-	return 0;
 }
 
 static struct bus_type ulpi_bus = {
@@ -118,7 +120,7 @@ static struct attribute *ulpi_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group ulpi_dev_attr_group = {
+static const struct attribute_group ulpi_dev_attr_group = {
 	.attrs = ulpi_dev_attrs,
 };
 
@@ -129,6 +131,7 @@ static const struct attribute_group *ulpi_dev_attr_groups[] = {
 
 static void ulpi_dev_release(struct device *dev)
 {
+	of_node_put(dev->of_node);
 	kfree(to_ulpi_dev(dev));
 }
 
@@ -141,8 +144,9 @@ static const struct device_type ulpi_dev_type = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * ulpi_register_driver - register a driver with the ULPI bus
+ * __ulpi_register_driver - register a driver with the ULPI bus
  * @drv: driver being registered
+ * @module: ends up being THIS_MODULE
  *
  * Registers a driver with the ULPI bus.
  */
@@ -229,9 +233,64 @@ err:
 	return 0;
 }
 
+static int ulpi_regs_read(struct seq_file *seq, void *data)
+{
+	struct ulpi *ulpi = seq->private;
+
+#define ulpi_print(name, reg) do { \
+	int ret = ulpi_read(ulpi, reg); \
+	if (ret < 0) \
+		return ret; \
+	seq_printf(seq, name " %.02x\n", ret); \
+} while (0)
+
+	ulpi_print("Vendor ID Low               ", ULPI_VENDOR_ID_LOW);
+	ulpi_print("Vendor ID High              ", ULPI_VENDOR_ID_HIGH);
+	ulpi_print("Product ID Low              ", ULPI_PRODUCT_ID_LOW);
+	ulpi_print("Product ID High             ", ULPI_PRODUCT_ID_HIGH);
+	ulpi_print("Function Control            ", ULPI_FUNC_CTRL);
+	ulpi_print("Interface Control           ", ULPI_IFC_CTRL);
+	ulpi_print("OTG Control                 ", ULPI_OTG_CTRL);
+	ulpi_print("USB Interrupt Enable Rising ", ULPI_USB_INT_EN_RISE);
+	ulpi_print("USB Interrupt Enable Falling", ULPI_USB_INT_EN_FALL);
+	ulpi_print("USB Interrupt Status        ", ULPI_USB_INT_STS);
+	ulpi_print("USB Interrupt Latch         ", ULPI_USB_INT_LATCH);
+	ulpi_print("Debug                       ", ULPI_DEBUG);
+	ulpi_print("Scratch Register            ", ULPI_SCRATCH);
+	ulpi_print("Carkit Control              ", ULPI_CARKIT_CTRL);
+	ulpi_print("Carkit Interrupt Delay      ", ULPI_CARKIT_INT_DELAY);
+	ulpi_print("Carkit Interrupt Enable     ", ULPI_CARKIT_INT_EN);
+	ulpi_print("Carkit Interrupt Status     ", ULPI_CARKIT_INT_STS);
+	ulpi_print("Carkit Interrupt Latch      ", ULPI_CARKIT_INT_LATCH);
+	ulpi_print("Carkit Pulse Control        ", ULPI_CARKIT_PLS_CTRL);
+	ulpi_print("Transmit Positive Width     ", ULPI_TX_POS_WIDTH);
+	ulpi_print("Transmit Negative Width     ", ULPI_TX_NEG_WIDTH);
+	ulpi_print("Receive Polarity Recovery   ", ULPI_POLARITY_RECOVERY);
+
+	return 0;
+}
+
+static int ulpi_regs_open(struct inode *inode, struct file *f)
+{
+	struct ulpi *ulpi = inode->i_private;
+
+	return single_open(f, ulpi_regs_read, ulpi);
+}
+
+static const struct file_operations ulpi_regs_ops = {
+	.owner = THIS_MODULE,
+	.open = ulpi_regs_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
+};
+
+#define ULPI_ROOT debugfs_lookup(KBUILD_MODNAME, NULL)
+
 static int ulpi_register(struct device *dev, struct ulpi *ulpi)
 {
 	int ret;
+	struct dentry *root;
 
 	ulpi->dev.parent = dev; /* needed early for ops */
 	ulpi->dev.bus = &ulpi_bus;
@@ -245,12 +304,19 @@ static int ulpi_register(struct device *dev, struct ulpi *ulpi)
 		return ret;
 
 	ret = ulpi_read_id(ulpi);
-	if (ret)
+	if (ret) {
+		of_node_put(ulpi->dev.of_node);
 		return ret;
+	}
 
 	ret = device_register(&ulpi->dev);
-	if (ret)
+	if (ret) {
+		put_device(&ulpi->dev);
 		return ret;
+	}
+
+	root = debugfs_create_dir(dev_name(dev), ULPI_ROOT);
+	debugfs_create_file("regs", 0444, root, ulpi, &ulpi_regs_ops);
 
 	dev_dbg(&ulpi->dev, "registered ULPI PHY: vendor %04x, product %04x\n",
 		ulpi->id.vendor, ulpi->id.product);
@@ -290,14 +356,15 @@ EXPORT_SYMBOL_GPL(ulpi_register_interface);
 
 /**
  * ulpi_unregister_interface - unregister ULPI interface
- * @intrf: struct ulpi_interface
+ * @ulpi: struct ulpi_interface
  *
  * Unregisters a ULPI device and it's interface that was created with
  * ulpi_create_interface().
  */
 void ulpi_unregister_interface(struct ulpi *ulpi)
 {
-	of_node_put(ulpi->dev.of_node);
+	debugfs_remove_recursive(debugfs_lookup(dev_name(&ulpi->dev),
+						ULPI_ROOT));
 	device_unregister(&ulpi->dev);
 }
 EXPORT_SYMBOL_GPL(ulpi_unregister_interface);
@@ -306,13 +373,21 @@ EXPORT_SYMBOL_GPL(ulpi_unregister_interface);
 
 static int __init ulpi_init(void)
 {
-	return bus_register(&ulpi_bus);
+	int ret;
+	struct dentry *root;
+
+	root = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	ret = bus_register(&ulpi_bus);
+	if (ret)
+		debugfs_remove(root);
+	return ret;
 }
 subsys_initcall(ulpi_init);
 
 static void __exit ulpi_exit(void)
 {
 	bus_unregister(&ulpi_bus);
+	debugfs_remove_recursive(ULPI_ROOT);
 }
 module_exit(ulpi_exit);
 

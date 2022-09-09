@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PXA930 track ball mouse driver
  *
  * Copyright (C) 2007 Marvell International Ltd.
  * 2008-02-28: Yong Yao <yaoyong@marvell.com>
  *             initial version
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/input.h>
@@ -18,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#include <mach/hardware.h>
 #include <linux/platform_data/mouse-pxa930_trkball.h>
 
 /* Trackball Controller Register Definitions */
@@ -150,10 +146,8 @@ static int pxa930_trkball_probe(struct platform_device *pdev)
 	int irq, error;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get trkball irq\n");
+	if (irq < 0)
 		return -ENXIO;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -172,7 +166,7 @@ static int pxa930_trkball_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	trkball->mmio_base = ioremap_nocache(res->start, resource_size(res));
+	trkball->mmio_base = ioremap(res->start, resource_size(res));
 	if (!trkball->mmio_base) {
 		dev_err(&pdev->dev, "failed to ioremap registers\n");
 		error = -ENXIO;

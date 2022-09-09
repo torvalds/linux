@@ -1,22 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ti-dac082s085.c - Texas Instruments 8/10/12-bit 2/4-channel DAC driver
  *
  * Copyright (C) 2017 KUNBUS GmbH
  *
- * http://www.ti.com/lit/ds/symlink/dac082s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac102s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac122s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac084s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac104s085.pdf
- * http://www.ti.com/lit/ds/symlink/dac124s085.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2) as
- * published by the Free Software Foundation.
+ * https://www.ti.com/lit/ds/symlink/dac082s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac102s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac122s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac084s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac104s085.pdf
+ * https://www.ti.com/lit/ds/symlink/dac124s085.pdf
  */
 
 #include <linux/iio/iio.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
@@ -57,7 +55,7 @@ struct ti_dac_chip {
 	bool powerdown;
 	u8 powerdown_mode;
 	u8 resolution;
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define WRITE_NOT_UPDATE(chan)	(0x00 | (chan) << 6)
@@ -123,7 +121,7 @@ static ssize_t ti_dac_read_powerdown(struct iio_dev *indio_dev,
 {
 	struct ti_dac_chip *ti_dac = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", ti_dac->powerdown);
+	return sysfs_emit(buf, "%d\n", ti_dac->powerdown);
 }
 
 static ssize_t ti_dac_write_powerdown(struct iio_dev *indio_dev,
@@ -135,7 +133,7 @@ static ssize_t ti_dac_write_powerdown(struct iio_dev *indio_dev,
 	bool powerdown;
 	int ret;
 
-	ret = strtobool(buf, &powerdown);
+	ret = kstrtobool(buf, &powerdown);
 	if (ret)
 		return ret;
 
@@ -162,7 +160,7 @@ static const struct iio_chan_spec_ext_info ti_dac_ext_info[] = {
 		.shared	   = IIO_SHARED_BY_TYPE,
 	},
 	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &ti_dac_powerdown_mode),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
 	{ },
 };
 
@@ -271,7 +269,6 @@ static int ti_dac_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &ti_dac_info;
 	indio_dev->name = spi->modalias;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -316,7 +313,7 @@ err:
 	return ret;
 }
 
-static int ti_dac_remove(struct spi_device *spi)
+static void ti_dac_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ti_dac_chip *ti_dac = iio_priv(indio_dev);
@@ -324,11 +321,8 @@ static int ti_dac_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	mutex_destroy(&ti_dac->lock);
 	regulator_disable(ti_dac->vref);
-
-	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id ti_dac_of_id[] = {
 	{ .compatible = "ti,dac082s085" },
 	{ .compatible = "ti,dac102s085" },
@@ -339,7 +333,6 @@ static const struct of_device_id ti_dac_of_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ti_dac_of_id);
-#endif
 
 static const struct spi_device_id ti_dac_spi_id[] = {
 	{ "dac082s085", dual_8bit  },
@@ -355,7 +348,7 @@ MODULE_DEVICE_TABLE(spi, ti_dac_spi_id);
 static struct spi_driver ti_dac_driver = {
 	.driver = {
 		.name		= "ti-dac082s085",
-		.of_match_table	= of_match_ptr(ti_dac_of_id),
+		.of_match_table	= ti_dac_of_id,
 	},
 	.probe	  = ti_dac_probe,
 	.remove   = ti_dac_remove,

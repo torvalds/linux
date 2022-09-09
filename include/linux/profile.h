@@ -15,7 +15,6 @@
 #define KVM_PROFILING	4
 
 struct proc_dir_entry;
-struct pt_regs;
 struct notifier_block;
 
 #if defined(CONFIG_PROFILING) && defined(CONFIG_PROC_FS)
@@ -31,11 +30,6 @@ static inline int create_proc_profile(void)
 	return 0;
 }
 #endif
-
-enum profile_type {
-	PROFILE_TASK_EXIT,
-	PROFILE_MUNMAP
-};
 
 #ifdef CONFIG_PROFILING
 
@@ -67,25 +61,6 @@ static inline void profile_hit(int type, void *ip)
 struct task_struct;
 struct mm_struct;
 
-/* task is in do_exit() */
-void profile_task_exit(struct task_struct * task);
-
-/* task is dead, free task struct ? Returns 1 if
- * the task was taken, 0 if the task should be freed.
- */
-int profile_handoff_task(struct task_struct * task);
-
-/* sys_munmap */
-void profile_munmap(unsigned long addr);
-
-int task_handoff_register(struct notifier_block * n);
-int task_handoff_unregister(struct notifier_block * n);
-
-int profile_event_register(enum profile_type, struct notifier_block * n);
-int profile_event_unregister(enum profile_type, struct notifier_block * n);
-
-struct pt_regs;
-
 #else
 
 #define prof_on 0
@@ -110,29 +85,6 @@ static inline void profile_hit(int type, void *ip)
 	return;
 }
 
-static inline int task_handoff_register(struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-static inline int task_handoff_unregister(struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-static inline int profile_event_register(enum profile_type t, struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-static inline int profile_event_unregister(enum profile_type t, struct notifier_block * n)
-{
-	return -ENOSYS;
-}
-
-#define profile_task_exit(a) do { } while (0)
-#define profile_handoff_task(a) (0)
-#define profile_munmap(a) do { } while (0)
 
 #endif /* CONFIG_PROFILING */
 

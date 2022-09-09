@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91rm9200ek.dts - Device Tree file for Atmel AT91RM9200 evaluation kit
  *
  *  Copyright (C) 2012 Joachim Eastwood <manabian@gmail.com>
- *
- * Licensed under GPLv2 only
  */
 /dts-v1/;
 #include "at91rm9200.dtsi"
@@ -16,7 +15,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 
@@ -74,7 +73,7 @@
 			spi0: spi@fffe0000 {
 				status = "okay";
 				cs-gpios = <&pioA 3 0>, <0>, <0>, <0>;
-				mtd_dataflash@0 {
+				flash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";
 					spi-max-frequency = <15000000>;
 					reg = <0>;
@@ -95,7 +94,7 @@
 			status = "okay";
 		};
 
-		nor_flash@10000000 {
+		flash@10000000 {
 			compatible = "cfi-flash";
 			reg = <0x10000000 0x800000>;
 			linux,mtd-name = "physmap-flash.0";

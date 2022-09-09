@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *
- *   This file is part of the Linux kernel, and is made available under
- *   the terms of the GNU General Public License version 2.
  *
  * ----------------------------------------------------------------------- */
 
@@ -56,7 +54,7 @@ int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *b
 			/* else */
 			state = st_wordcmp;
 			opptr = option;
-			/* fall through */
+			fallthrough;
 
 		case st_wordcmp:
 			if (c == '=' && !*opptr) {
@@ -131,7 +129,7 @@ int __cmdline_find_option_bool(unsigned long cmdline_ptr, const char *option)
 			state = st_wordcmp;
 			opptr = option;
 			wstart = pos;
-			/* fall through */
+			fallthrough;
 
 		case st_wordcmp:
 			if (!*opptr)

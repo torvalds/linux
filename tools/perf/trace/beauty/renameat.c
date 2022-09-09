@@ -2,7 +2,6 @@
 // Copyright (C) 2018, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
 
 #include "trace/beauty/beauty.h"
-#include <uapi/linux/fs.h>
 
 static size_t renameat2__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {

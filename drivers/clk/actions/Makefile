@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_CLK_ACTIONS)	+= clk-owl.o
 
 clk-owl-y			+= owl-common.o
@@ -10,5 +11,6 @@ clk-owl-y			+= owl-pll.o
 clk-owl-y			+= owl-reset.o
 
 # SoC support
+obj-$(CONFIG_CLK_OWL_S500)	+= owl-s500.o
 obj-$(CONFIG_CLK_OWL_S700)	+= owl-s700.o
 obj-$(CONFIG_CLK_OWL_S900)	+= owl-s900.o

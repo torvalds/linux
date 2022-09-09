@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  SYSCON GPIO driver
  *
  *  Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/err.h>
@@ -28,21 +24,20 @@
 
 /**
  * struct syscon_gpio_data - Configuration for the device.
- * compatible:		SYSCON driver compatible string.
- * flags:		Set of GPIO_SYSCON_FEAT_ flags:
+ * @compatible:		SYSCON driver compatible string.
+ * @flags:		Set of GPIO_SYSCON_FEAT_ flags:
  *			GPIO_SYSCON_FEAT_IN:	GPIOs supports input,
  *			GPIO_SYSCON_FEAT_OUT:	GPIOs supports output,
  *			GPIO_SYSCON_FEAT_DIR:	GPIOs supports switch direction.
- * bit_count:		Number of bits used as GPIOs.
- * dat_bit_offset:	Offset (in bits) to the first GPIO bit.
- * dir_bit_offset:	Optional offset (in bits) to the first bit to switch
+ * @bit_count:		Number of bits used as GPIOs.
+ * @dat_bit_offset:	Offset (in bits) to the first GPIO bit.
+ * @dir_bit_offset:	Optional offset (in bits) to the first bit to switch
  *			GPIO direction (Used with GPIO_SYSCON_FEAT_DIR flag).
- * set:		HW specific callback to assigns output value
+ * @set:		HW specific callback to assigns output value
  *			for signal "offset"
  */
 
 struct syscon_gpio_data {
-	const char	*compatible;
 	unsigned int	flags;
 	unsigned int	bit_count;
 	unsigned int	dat_bit_offset;
@@ -129,7 +124,6 @@ static int syscon_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int val)
 
 static const struct syscon_gpio_data clps711x_mctrl_gpio = {
 	/* ARM CLPS711X SYSFLG1 Bits 8-10 */
-	.compatible	= "cirrus,ep7209-syscon1",
 	.flags		= GPIO_SYSCON_FEAT_IN,
 	.bit_count	= 3,
 	.dat_bit_offset	= 0x40 * 8 + 8,
@@ -186,7 +180,6 @@ static void keystone_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 
 static const struct syscon_gpio_data keystone_dsp_gpio = {
 	/* ARM Keystone 2 */
-	.compatible	= NULL,
 	.flags		= GPIO_SYSCON_FEAT_OUT,
 	.bit_count	= 28,
 	.dat_bit_offset	= 4,
@@ -223,33 +216,25 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 
 	priv->data = of_device_get_match_data(dev);
 
-	if (priv->data->compatible) {
-		priv->syscon = syscon_regmap_lookup_by_compatible(
-					priv->data->compatible);
-		if (IS_ERR(priv->syscon))
-			return PTR_ERR(priv->syscon);
-	} else {
-		priv->syscon =
-			syscon_regmap_lookup_by_phandle(np, "gpio,syscon-dev");
-		if (IS_ERR(priv->syscon) && np->parent)
-			priv->syscon = syscon_node_to_regmap(np->parent);
-		if (IS_ERR(priv->syscon))
-			return PTR_ERR(priv->syscon);
+	priv->syscon = syscon_regmap_lookup_by_phandle(np, "gpio,syscon-dev");
+	if (IS_ERR(priv->syscon) && np->parent)
+		priv->syscon = syscon_node_to_regmap(np->parent);
+	if (IS_ERR(priv->syscon))
+		return PTR_ERR(priv->syscon);
 
-		ret = of_property_read_u32_index(np, "gpio,syscon-dev", 1,
-						 &priv->dreg_offset);
-		if (ret)
-			dev_err(dev, "can't read the data register offset!\n");
+	ret = of_property_read_u32_index(np, "gpio,syscon-dev", 1,
+					 &priv->dreg_offset);
+	if (ret)
+		dev_err(dev, "can't read the data register offset!\n");
 
-		priv->dreg_offset <<= 3;
+	priv->dreg_offset <<= 3;
 
-		ret = of_property_read_u32_index(np, "gpio,syscon-dev", 2,
-						 &priv->dir_reg_offset);
-		if (ret)
-			dev_dbg(dev, "can't read the dir register offset!\n");
+	ret = of_property_read_u32_index(np, "gpio,syscon-dev", 2,
+					 &priv->dir_reg_offset);
+	if (ret)
+		dev_dbg(dev, "can't read the dir register offset!\n");
 
-		priv->dir_reg_offset <<= 3;
-	}
+	priv->dir_reg_offset <<= 3;
 
 	priv->chip.parent = dev;
 	priv->chip.owner = THIS_MODULE;

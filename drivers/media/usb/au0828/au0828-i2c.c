@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Auvitek AU0828 USB bridge
  *
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "au0828.h"
@@ -32,13 +22,6 @@ MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
 #define I2C_WAIT_DELAY 25
 #define I2C_WAIT_RETRY 1000
-
-static inline int i2c_slave_did_write_ack(struct i2c_adapter *i2c_adap)
-{
-	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, AU0828_I2C_STATUS_201) &
-		AU0828_I2C_STATUS_NO_WRITE_ACK ? 0 : 1;
-}
 
 static inline int i2c_slave_did_read_ack(struct i2c_adapter *i2c_adap)
 {

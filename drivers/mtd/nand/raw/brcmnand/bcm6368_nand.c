@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015 Simon Arlott
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  *
  * Derived from bcm63138_nand.c:
  * Copyright © 2015 Broadcom Corporation
@@ -96,16 +88,13 @@ static int bcm6368_nand_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct bcm6368_nand_soc *priv;
 	struct brcmnand_soc *soc;
-	struct resource *res;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	soc = &priv->soc;
 
-	res = platform_get_resource_byname(pdev,
-		IORESOURCE_MEM, "nand-int-base");
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource_byname(pdev, "nand-int-base");
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

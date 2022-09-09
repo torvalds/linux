@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Packet configuration
 #
 
 config PACKET
 	tristate "Packet socket"
-	---help---
+	help
 	  The Packet protocol is used by applications which communicate
 	  directly with network devices without an intermediate network
 	  protocol implemented in the kernel, e.g. tcpdump.  If you want them
@@ -19,6 +20,6 @@ config PACKET_DIAG
 	tristate "Packet: sockets monitoring interface"
 	depends on PACKET
 	default n
-	---help---
+	help
 	  Support for PF_PACKET sockets monitoring interface used by the ss tool.
 	  If unsure, say Y.

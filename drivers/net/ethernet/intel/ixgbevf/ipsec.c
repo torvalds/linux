@@ -25,7 +25,7 @@ static int ixgbevf_ipsec_set_pf_sa(struct ixgbevf_adapter *adapter,
 
 	/* send the important bits to the PF */
 	sam = (struct sa_mbx_msg *)(&msgbuf[1]);
-	sam->flags = xs->xso.flags;
+	sam->dir = xs->xso.dir;
 	sam->spi = xs->id.spi;
 	sam->proto = xs->id.proto;
 	sam->family = xs->props.family;
@@ -40,16 +40,16 @@ static int ixgbevf_ipsec_set_pf_sa(struct ixgbevf_adapter *adapter,
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	ret = hw->mbx.ops.write_posted(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
+	ret = ixgbevf_write_mbx(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
 	if (ret)
 		goto out;
 
-	ret = hw->mbx.ops.read_posted(hw, msgbuf, 2);
+	ret = ixgbevf_poll_mbx(hw, msgbuf, 2);
 	if (ret)
 		goto out;
 
 	ret = (int)msgbuf[1];
-	if (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK && ret >= 0)
+	if (msgbuf[0] & IXGBE_VT_MSGTYPE_FAILURE && ret >= 0)
 		ret = -1;
 
 out:
@@ -77,11 +77,11 @@ static int ixgbevf_ipsec_del_pf_sa(struct ixgbevf_adapter *adapter, int pfsa)
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	err = hw->mbx.ops.write_posted(hw, msgbuf, 2);
+	err = ixgbevf_write_mbx(hw, msgbuf, 2);
 	if (err)
 		goto out;
 
-	err = hw->mbx.ops.read_posted(hw, msgbuf, 2);
+	err = ixgbevf_poll_mbx(hw, msgbuf, 2);
 	if (err)
 		goto out;
 
@@ -211,7 +211,7 @@ struct xfrm_state *ixgbevf_ipsec_find_rx_state(struct ixgbevf_ipsec *ipsec,
 static int ixgbevf_ipsec_parse_proto_keys(struct xfrm_state *xs,
 					  u32 *mykey, u32 *mysalt)
 {
-	struct net_device *dev = xs->xso.dev;
+	struct net_device *dev = xs->xso.real_dev;
 	unsigned char *key_data;
 	char *alg_name = NULL;
 	int key_len;
@@ -260,11 +260,14 @@ static int ixgbevf_ipsec_parse_proto_keys(struct xfrm_state *xs,
  **/
 static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 {
-	struct net_device *dev = xs->xso.dev;
-	struct ixgbevf_adapter *adapter = netdev_priv(dev);
-	struct ixgbevf_ipsec *ipsec = adapter->ipsec;
+	struct net_device *dev = xs->xso.real_dev;
+	struct ixgbevf_adapter *adapter;
+	struct ixgbevf_ipsec *ipsec;
 	u16 sa_idx;
 	int ret;
+
+	adapter = netdev_priv(dev);
+	ipsec = adapter->ipsec;
 
 	if (xs->id.proto != IPPROTO_ESP && xs->id.proto != IPPROTO_AH) {
 		netdev_err(dev, "Unsupported protocol 0x%04x for IPsec offload\n",
@@ -272,7 +275,12 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 		return -EINVAL;
 	}
 
-	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND) {
+	if (xs->props.mode != XFRM_MODE_TRANSPORT) {
+		netdev_err(dev, "Unsupported mode for ipsec offload\n");
+		return -EINVAL;
+	}
+
+	if (xs->xso.dir == XFRM_DEV_OFFLOAD_IN) {
 		struct rx_sa rsa;
 
 		if (xs->calg) {
@@ -378,12 +386,15 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
  **/
 static void ixgbevf_ipsec_del_sa(struct xfrm_state *xs)
 {
-	struct net_device *dev = xs->xso.dev;
-	struct ixgbevf_adapter *adapter = netdev_priv(dev);
-	struct ixgbevf_ipsec *ipsec = adapter->ipsec;
+	struct net_device *dev = xs->xso.real_dev;
+	struct ixgbevf_adapter *adapter;
+	struct ixgbevf_ipsec *ipsec;
 	u16 sa_idx;
 
-	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND) {
+	adapter = netdev_priv(dev);
+	ipsec = adapter->ipsec;
+
+	if (xs->xso.dir == XFRM_DEV_OFFLOAD_IN) {
 		sa_idx = xs->xso.offload_handle - IXGBE_IPSEC_BASE_RX_INDEX;
 
 		if (!ipsec->rx_tbl[sa_idx].used) {
@@ -612,6 +623,7 @@ void ixgbevf_init_ipsec_offload(struct ixgbevf_adapter *adapter)
 
 	switch (adapter->hw.api_version) {
 	case ixgbe_mbox_api_14:
+	case ixgbe_mbox_api_15:
 		break;
 	default:
 		return;

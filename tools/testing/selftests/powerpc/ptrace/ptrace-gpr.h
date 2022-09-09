@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Anshuman Khandual, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #define GPR_1	1
 #define GPR_2	2
@@ -16,10 +12,10 @@
 #define FPR_3	0.003
 #define FPR_4	0.004
 
-#define FPR_1_REP 0x3f50624de0000000
-#define FPR_2_REP 0x3f60624de0000000
-#define FPR_3_REP 0x3f689374c0000000
-#define FPR_4_REP 0x3f70624de0000000
+#define FPR_1_REP 0x3f50624dd2f1a9fcull
+#define FPR_2_REP 0x3f60624dd2f1a9fcull
+#define FPR_3_REP 0x3f689374bc6a7efaull
+#define FPR_4_REP 0x3f70624dd2f1a9fcull
 
 /* Buffer must have 18 elements */
 int validate_gpr(unsigned long *gpr, unsigned long val)
@@ -40,13 +36,13 @@ int validate_gpr(unsigned long *gpr, unsigned long val)
 }
 
 /* Buffer must have 32 elements */
-int validate_fpr(unsigned long *fpr, unsigned long val)
+int validate_fpr(__u64 *fpr, __u64 val)
 {
 	int i, found = 1;
 
 	for (i = 0; i < 32; i++) {
 		if (fpr[i] != val) {
-			printf("FPR[%d]: %lx Expected: %lx\n", i, fpr[i], val);
+			printf("FPR[%d]: %llx Expected: %llx\n", i, fpr[i], val);
 			found = 0;
 		}
 	}
@@ -57,7 +53,7 @@ int validate_fpr(unsigned long *fpr, unsigned long val)
 }
 
 /* Buffer must have 32 elements */
-int validate_fpr_float(float *fpr, float val)
+int validate_fpr_double(double *fpr, double val)
 {
 	int i, found = 1;
 

@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #include <stdio.h>
@@ -17,7 +14,7 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
-#include "bpf_rlimit.h"
+#include "testing_helpers.h"
 
 #define DEV_CGROUP_PROG "./dev_cgroup.o"
 
@@ -30,27 +27,19 @@ int main(int argc, char **argv)
 	int prog_fd, cgroup_fd;
 	__u32 prog_cnt;
 
-	if (bpf_prog_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
+
+	if (bpf_prog_test_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
 			  &obj, &prog_fd)) {
 		printf("Failed to load DEV_CGROUP program\n");
 		goto out;
 	}
 
-	if (setup_cgroup_environment()) {
-		printf("Failed to load DEV_CGROUP program\n");
-		goto err;
-	}
-
-	/* Create a cgroup, get fd, and join it */
-	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	if (!cgroup_fd) {
+	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
+	if (cgroup_fd < 0) {
 		printf("Failed to create test cgroup\n");
-		goto err;
-	}
-
-	if (join_cgroup(TEST_CGROUP)) {
-		printf("Failed to join cgroup\n");
-		goto err;
+		goto out;
 	}
 
 	/* Attach bpf program */

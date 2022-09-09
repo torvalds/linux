@@ -5,12 +5,17 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <linux/string.h>
 
 #include "tests.h"
+#include "util/debug.h"
 #include "util/evsel.h"
 #include "util/evlist.h"
 #include "util/cpumap.h"
+#include "util/mmap.h"
 #include "util/thread_map.h"
+#include <perf/evlist.h>
+#include <perf/mmap.h>
 
 #define NR_LOOPS  10000000
 
@@ -27,8 +32,8 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	int nr_samples = 0;
 	char sbuf[STRERR_BUFSIZE];
 	union perf_event *event;
-	struct perf_evsel *evsel;
-	struct perf_evlist *evlist;
+	struct evsel *evsel;
+	struct evlist *evlist;
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_SOFTWARE,
 		.config = clock_id,
@@ -37,39 +42,36 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		.disabled = 1,
 		.freq = 1,
 	};
-	struct cpu_map *cpus;
-	struct thread_map *threads;
-	struct perf_mmap *md;
+	struct perf_cpu_map *cpus = NULL;
+	struct perf_thread_map *threads = NULL;
+	struct mmap *md;
 
 	attr.sample_freq = 500;
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (evlist == NULL) {
-		pr_debug("perf_evlist__new\n");
+		pr_debug("evlist__new\n");
 		return -1;
 	}
 
-	evsel = perf_evsel__new(&attr);
+	evsel = evsel__new(&attr);
 	if (evsel == NULL) {
-		pr_debug("perf_evsel__new\n");
+		pr_debug("evsel__new\n");
 		goto out_delete_evlist;
 	}
-	perf_evlist__add(evlist, evsel);
+	evlist__add(evlist, evsel);
 
-	cpus = cpu_map__dummy_new();
+	cpus = perf_cpu_map__dummy_new();
 	threads = thread_map__new_by_tid(getpid());
 	if (!cpus || !threads) {
 		err = -ENOMEM;
 		pr_debug("Not enough memory to create thread/cpu maps\n");
-		goto out_free_maps;
+		goto out_delete_evlist;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
-	cpus	= NULL;
-	threads = NULL;
-
-	if (perf_evlist__open(evlist)) {
+	if (evlist__open(evlist)) {
 		const char *knob = "/proc/sys/kernel/perf_event_max_sample_rate";
 
 		err = -errno;
@@ -79,32 +81,32 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		goto out_delete_evlist;
 	}
 
-	err = perf_evlist__mmap(evlist, 128);
+	err = evlist__mmap(evlist, 128);
 	if (err < 0) {
 		pr_debug("failed to mmap event: %d (%s)\n", errno,
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	/* collect samples */
 	for (i = 0; i < NR_LOOPS; i++)
 		tmp++;
 
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	md = &evlist->mmap[0];
-	if (perf_mmap__read_init(md) < 0)
+	if (perf_mmap__read_init(&md->core) < 0)
 		goto out_init;
 
-	while ((event = perf_mmap__read_event(md)) != NULL) {
+	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE)
 			goto next_event;
 
-		err = perf_evlist__parse_sample(evlist, event, &sample);
+		err = evlist__parse_sample(evlist, event, &sample);
 		if (err < 0) {
 			pr_debug("Error during parse sample\n");
 			goto out_delete_evlist;
@@ -113,9 +115,9 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		total_periods += sample.period;
 		nr_samples++;
 next_event:
-		perf_mmap__consume(md);
+		perf_mmap__consume(&md->core);
 	}
-	perf_mmap__read_done(md);
+	perf_mmap__read_done(&md->core);
 
 out_init:
 	if ((u64) nr_samples == total_periods) {
@@ -124,15 +126,14 @@ out_init:
 		err = -1;
 	}
 
-out_free_maps:
-	cpu_map__put(cpus);
-	thread_map__put(threads);
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	perf_cpu_map__put(cpus);
+	perf_thread_map__put(threads);
+	evlist__delete(evlist);
 	return err;
 }
 
-int test__sw_clock_freq(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__sw_clock_freq(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret;
 
@@ -142,3 +143,5 @@ int test__sw_clock_freq(struct test *test __maybe_unused, int subtest __maybe_un
 
 	return ret;
 }
+
+DEFINE_SUITE("Software clock events period values", sw_clock_freq);

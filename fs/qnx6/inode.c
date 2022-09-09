@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QNX6 file system, Linux implementation.
  *
@@ -29,14 +30,14 @@ static const struct super_operations qnx6_sops;
 
 static void qnx6_put_super(struct super_block *sb);
 static struct inode *qnx6_alloc_inode(struct super_block *sb);
-static void qnx6_destroy_inode(struct inode *inode);
+static void qnx6_free_inode(struct inode *inode);
 static int qnx6_remount(struct super_block *sb, int *flags, char *data);
 static int qnx6_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int qnx6_show_options(struct seq_file *seq, struct dentry *root);
 
 static const struct super_operations qnx6_sops = {
 	.alloc_inode	= qnx6_alloc_inode,
-	.destroy_inode	= qnx6_destroy_inode,
+	.free_inode	= qnx6_free_inode,
 	.put_super	= qnx6_put_super,
 	.statfs		= qnx6_statfs,
 	.remount_fs	= qnx6_remount,
@@ -93,15 +94,14 @@ static int qnx6_check_blockptr(__fs32 ptr)
 	return 1;
 }
 
-static int qnx6_readpage(struct file *file, struct page *page)
+static int qnx6_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, qnx6_get_block);
+	return mpage_read_folio(folio, qnx6_get_block);
 }
 
-static int qnx6_readpages(struct file *file, struct address_space *mapping,
-		   struct list_head *pages, unsigned nr_pages)
+static void qnx6_readahead(struct readahead_control *rac)
 {
-	return mpage_readpages(mapping, pages, nr_pages, qnx6_get_block);
+	mpage_readahead(rac, qnx6_get_block);
 }
 
 /*
@@ -166,8 +166,7 @@ static int qnx6_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_ffree   = fs32_to_cpu(sbi, sbi->sb->sb_free_inodes);
 	buf->f_bavail  = buf->f_bfree;
 	buf->f_namelen = QNX6_LONG_NAME_MAX;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid    = u64_to_fsid(id);
 
 	return 0;
 }
@@ -428,6 +427,8 @@ mmi_success:
 	s->s_op = &qnx6_sops;
 	s->s_magic = QNX6_SUPER_MAGIC;
 	s->s_flags |= SB_RDONLY;        /* Yup, read-only yet */
+	s->s_time_min = 0;
+	s->s_time_max = U32_MAX;
 
 	/* ease the later tree level calculations */
 	sbi = QNX6_SB(s);
@@ -495,8 +496,8 @@ static sector_t qnx6_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, qnx6_get_block);
 }
 static const struct address_space_operations qnx6_aops = {
-	.readpage	= qnx6_readpage,
-	.readpages	= qnx6_readpages,
+	.read_folio	= qnx6_read_folio,
+	.readahead	= qnx6_readahead,
 	.bmap		= qnx6_bmap
 };
 
@@ -596,21 +597,15 @@ static struct kmem_cache *qnx6_inode_cachep;
 static struct inode *qnx6_alloc_inode(struct super_block *sb)
 {
 	struct qnx6_inode_info *ei;
-	ei = kmem_cache_alloc(qnx6_inode_cachep, GFP_KERNEL);
+	ei = alloc_inode_sb(sb, qnx6_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
 }
 
-static void qnx6_i_callback(struct rcu_head *head)
+static void qnx6_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(qnx6_inode_cachep, QNX6_I(inode));
-}
-
-static void qnx6_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, qnx6_i_callback);
 }
 
 static void init_once(void *foo)

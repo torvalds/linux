@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MIPS cacheinfo support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/cacheinfo.h>
 
@@ -28,7 +17,7 @@ do {								\
 	leaf++;							\
 } while (0)
 
-static int __init_cache_level(unsigned int cpu)
+int init_cache_level(unsigned int cpu)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
@@ -46,6 +35,11 @@ static int __init_cache_level(unsigned int cpu)
 
 	leaves += (c->icache.waysize) ? 2 : 1;
 
+	if (c->vcache.waysize) {
+		levels++;
+		leaves++;
+	}
+
 	if (c->scache.waysize) {
 		levels++;
 		leaves++;
@@ -61,27 +55,62 @@ static int __init_cache_level(unsigned int cpu)
 	return 0;
 }
 
-static int __populate_cache_leaves(unsigned int cpu)
+static void fill_cpumask_siblings(int cpu, cpumask_t *cpu_map)
+{
+	int cpu1;
+
+	for_each_possible_cpu(cpu1)
+		if (cpus_are_siblings(cpu, cpu1))
+			cpumask_set_cpu(cpu1, cpu_map);
+}
+
+static void fill_cpumask_cluster(int cpu, cpumask_t *cpu_map)
+{
+	int cpu1;
+	int cluster = cpu_cluster(&cpu_data[cpu]);
+
+	for_each_possible_cpu(cpu1)
+		if (cpu_cluster(&cpu_data[cpu1]) == cluster)
+			cpumask_set_cpu(cpu1, cpu_map);
+}
+
+int populate_cache_leaves(unsigned int cpu)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	struct cacheinfo *this_leaf = this_cpu_ci->info_list;
+	int level = 1;
 
 	if (c->icache.waysize) {
-		populate_cache(dcache, this_leaf, 1, CACHE_TYPE_DATA);
-		populate_cache(icache, this_leaf, 1, CACHE_TYPE_INST);
+		/* I/D caches are per core */
+		fill_cpumask_siblings(cpu, &this_leaf->shared_cpu_map);
+		populate_cache(dcache, this_leaf, level, CACHE_TYPE_DATA);
+		fill_cpumask_siblings(cpu, &this_leaf->shared_cpu_map);
+		populate_cache(icache, this_leaf, level, CACHE_TYPE_INST);
+		level++;
 	} else {
-		populate_cache(dcache, this_leaf, 1, CACHE_TYPE_UNIFIED);
+		populate_cache(dcache, this_leaf, level, CACHE_TYPE_UNIFIED);
+		level++;
 	}
 
-	if (c->scache.waysize)
-		populate_cache(scache, this_leaf, 2, CACHE_TYPE_UNIFIED);
+	if (c->vcache.waysize) {
+		/* Vcache is per core as well */
+		fill_cpumask_siblings(cpu, &this_leaf->shared_cpu_map);
+		populate_cache(vcache, this_leaf, level, CACHE_TYPE_UNIFIED);
+		level++;
+	}
+
+	if (c->scache.waysize) {
+		/* Scache is per cluster */
+		fill_cpumask_cluster(cpu, &this_leaf->shared_cpu_map);
+		populate_cache(scache, this_leaf, level, CACHE_TYPE_UNIFIED);
+		level++;
+	}
 
 	if (c->tcache.waysize)
-		populate_cache(tcache, this_leaf, 3, CACHE_TYPE_UNIFIED);
+		populate_cache(tcache, this_leaf, level, CACHE_TYPE_UNIFIED);
+
+	this_cpu_ci->cpu_map_populated = true;
 
 	return 0;
 }
-
-DEFINE_SMP_CALL_CACHE_FUNCTION(init_cache_level)
-DEFINE_SMP_CALL_CACHE_FUNCTION(populate_cache_leaves)

@@ -24,7 +24,8 @@
 
 #include "tests.h"
 #include "debug.h"
-#include "perf.h"
+#include "event.h"
+#include "../perf-sys.h"
 #include "cloexec.h"
 
 static int overflows;
@@ -58,12 +59,17 @@ static long long bp_count(int fd)
 #define EXECUTIONS 10000
 #define THRESHOLD  100
 
-int test__bp_signal_overflow(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__bp_signal_overflow(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_event_attr pe;
 	struct sigaction sa;
 	long long count;
 	int fd, i, fails = 0;
+
+	if (!BP_SIGNAL_IS_SUPPORTED) {
+		pr_debug("Test not supported on this architecture");
+		return TEST_SKIP;
+	}
 
 	/* setup SIGIO signal handler */
 	memset(&sa, 0, sizeof(struct sigaction));
@@ -132,3 +138,5 @@ int test__bp_signal_overflow(struct test *test __maybe_unused, int subtest __may
 
 	return fails ? TEST_FAIL : TEST_OK;
 }
+
+DEFINE_SUITE("Breakpoint overflow sampling", bp_signal_overflow);

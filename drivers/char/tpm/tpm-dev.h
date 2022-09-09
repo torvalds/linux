@@ -14,7 +14,7 @@ struct file_priv {
 	struct work_struct timeout_work;
 	struct work_struct async_work;
 	wait_queue_head_t async_wait;
-	size_t response_length;
+	ssize_t response_length;
 	bool response_read;
 	bool command_enqueued;
 

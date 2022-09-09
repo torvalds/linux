@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID Sensor Time Driver
  * Copyright (c) 2012, Alexander Holler.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -205,8 +192,7 @@ static int hid_time_parse_report(struct platform_device *pdev,
 static int hid_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long flags;
-	struct hid_time_state *time_state =
-		platform_get_drvdata(to_platform_device(dev));
+	struct hid_time_state *time_state = dev_get_drvdata(dev);
 	int ret;
 
 	reinit_completion(&time_state->comp_last_time);
@@ -252,7 +238,9 @@ static int hid_time_probe(struct platform_device *pdev)
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
 				HID_USAGE_SENSOR_TIME,
-				&time_state->common_attributes);
+				&time_state->common_attributes,
+				NULL,
+				0);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes!\n");
 		return ret;
@@ -340,3 +328,4 @@ module_platform_driver(hid_time_platform_driver);
 MODULE_DESCRIPTION("HID Sensor Time");
 MODULE_AUTHOR("Alexander Holler <holler@ahsoftware.de>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_HID);

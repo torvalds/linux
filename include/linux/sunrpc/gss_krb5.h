@@ -83,7 +83,7 @@ struct gss_krb5_enctype {
 	u32 (*encrypt_v2) (struct krb5_ctx *kctx, u32 offset,
 			   struct xdr_buf *buf,
 			   struct page **pages); /* v2 encryption function */
-	u32 (*decrypt_v2) (struct krb5_ctx *kctx, u32 offset,
+	u32 (*decrypt_v2) (struct krb5_ctx *kctx, u32 offset, u32 len,
 			   struct xdr_buf *buf, u32 *headskip,
 			   u32 *tailskip);	/* v2 decryption function */
 };
@@ -106,9 +106,9 @@ struct krb5_ctx {
 	struct crypto_sync_skcipher *initiator_enc_aux;
 	u8			Ksess[GSS_KRB5_MAX_KEYLEN]; /* session key */
 	u8			cksum[GSS_KRB5_MAX_KEYLEN];
-	s32			endtime;
 	atomic_t		seq_send;
 	atomic64_t		seq_send64;
+	time64_t		endtime;
 	struct xdr_netobj	mech_used;
 	u8			initiator_sign[GSS_KRB5_MAX_KEYLEN];
 	u8			acceptor_sign[GSS_KRB5_MAX_KEYLEN];
@@ -141,14 +141,12 @@ enum sgn_alg {
 	SGN_ALG_MD2_5 = 0x0001,
 	SGN_ALG_DES_MAC = 0x0002,
 	SGN_ALG_3 = 0x0003,		/* not published */
-	SGN_ALG_HMAC_MD5 = 0x0011,	/* microsoft w2k; no support */
 	SGN_ALG_HMAC_SHA1_DES3_KD = 0x0004
 };
 enum seal_alg {
 	SEAL_ALG_NONE = 0xffff,
 	SEAL_ALG_DES = 0x0000,
 	SEAL_ALG_1 = 0x0001,		/* not published */
-	SEAL_ALG_MICROSOFT_RC4 = 0x0010,/* microsoft w2k; no support */
 	SEAL_ALG_DES3KD = 0x0002
 };
 
@@ -255,7 +253,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx_id, int offset,
 		struct xdr_buf *outbuf, struct page **pages);
 
 u32
-gss_unwrap_kerberos(struct gss_ctx *ctx_id, int offset,
+gss_unwrap_kerberos(struct gss_ctx *ctx_id, int offset, int len,
 		struct xdr_buf *buf);
 
 
@@ -312,18 +310,9 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 		     struct page **pages);
 
 u32
-gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset,
+gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		     struct xdr_buf *buf, u32 *plainoffset,
 		     u32 *plainlen);
 
-int
-krb5_rc4_setup_seq_key(struct krb5_ctx *kctx,
-		       struct crypto_sync_skcipher *cipher,
-		       unsigned char *cksum);
-
-int
-krb5_rc4_setup_enc_key(struct krb5_ctx *kctx,
-		       struct crypto_sync_skcipher *cipher,
-		       s32 seqnum);
 void
 gss_krb5_make_confounder(char *p, u32 conflen);

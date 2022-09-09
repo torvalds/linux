@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * driver/media/radio/radio-tea5764.c
  *
@@ -8,16 +9,6 @@
  * Based in radio-tea5761.c Copyright (C) 2005 Nokia Corporation
  *
  *  Copyright (c) 2008 Fabio Belavenuto <belavenuto@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * History:
  * 2008-12-06   Fabio Belavenuto <belavenuto@gmail.com>
@@ -291,8 +282,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(v->card, dev->name, sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info),
 		 "I2C:%s", dev_name(&dev->dev));
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -474,6 +463,7 @@ static int tea5764_i2c_probe(struct i2c_client *client,
 	video_set_drvdata(&radio->vdev, radio);
 	radio->vdev.lock = &radio->mutex;
 	radio->vdev.v4l2_dev = v4l2_dev;
+	radio->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 
 	/* initialize and power off the chip */
 	tea5764_i2c_read(radio);

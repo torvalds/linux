@@ -58,6 +58,17 @@ struct btrfs_delayed_node {
 	u64 index_cnt;
 	unsigned long flags;
 	int count;
+	/*
+	 * The size of the next batch of dir index items to insert (if this
+	 * node is from a directory inode). Protected by @mutex.
+	 */
+	u32 curr_index_batch_size;
+	/*
+	 * Number of leaves reserved for inserting dir index items (if this
+	 * node belongs to a directory inode). This may be larger then the
+	 * actual number of leaves we end up using. Protected by @mutex.
+	 */
+	u32 index_item_leaves;
 };
 
 struct btrfs_delayed_item {
@@ -70,7 +81,7 @@ struct btrfs_delayed_item {
 	refcount_t refs;
 	int ins_or_del;
 	u32 data_len;
-	char data[0];
+	char data[];
 };
 
 static inline void btrfs_init_delayed_root(
@@ -110,7 +121,8 @@ int btrfs_commit_inode_delayed_inode(struct btrfs_inode *inode);
 
 
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root, struct inode *inode);
+			       struct btrfs_root *root,
+			       struct btrfs_inode *inode);
 int btrfs_fill_inode(struct inode *inode, u32 *rdev);
 int btrfs_delayed_delete_inode_ref(struct btrfs_inode *inode);
 

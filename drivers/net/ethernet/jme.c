@@ -1,25 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * JMicron JMC2x0 series PCIe Ethernet Linux Device Driver
  *
  * Copyright 2008 JMicron Technology Corporation
- * http://www.jmicron.com/
+ * https://www.jmicron.com/
  * Copyright (c) 2009 - 2010 Guo-Fu Tseng <cooldavid@cooldavid.org>
  *
  * Author: Guo-Fu Tseng <cooldavid@cooldavid.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -27,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/pci-aspm.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -42,6 +28,7 @@
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
 #include "jme.h"
 
@@ -327,7 +314,7 @@ jme_load_macaddr(struct net_device *netdev)
 	val = jread32(jme, JME_RXUMA_HI);
 	macaddr[4] = (val >>  0) & 0xFF;
 	macaddr[5] = (val >>  8) & 0xFF;
-	memcpy(netdev->dev_addr, macaddr, ETH_ALEN);
+	eth_hw_addr_set(netdev, macaddr);
 	spin_unlock_bh(&jme->macaddr_lock);
 }
 
@@ -595,11 +582,6 @@ jme_setup_tx_resources(struct jme_adapter *jme)
 	if (unlikely(!(txring->bufinf)))
 		goto err_free_txring;
 
-	/*
-	 * Initialize Transmit Descriptors
-	 */
-	memset(txring->alloc, 0, TX_RING_ALLOC_SIZE(jme->tx_ring_size));
-
 	return 0;
 
 err_free_txring:
@@ -753,17 +735,17 @@ jme_make_new_rx_buf(struct jme_adapter *jme, int i)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	mapping = pci_map_page(jme->pdev, virt_to_page(skb->data),
+	mapping = dma_map_page(&jme->pdev->dev, virt_to_page(skb->data),
 			       offset_in_page(skb->data), skb_tailroom(skb),
-			       PCI_DMA_FROMDEVICE);
-	if (unlikely(pci_dma_mapping_error(jme->pdev, mapping))) {
+			       DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(&jme->pdev->dev, mapping))) {
 		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 
 	if (likely(rxbi->mapping))
-		pci_unmap_page(jme->pdev, rxbi->mapping,
-			       rxbi->len, PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&jme->pdev->dev, rxbi->mapping, rxbi->len,
+			       DMA_FROM_DEVICE);
 
 	rxbi->skb = skb;
 	rxbi->len = skb_tailroom(skb);
@@ -779,10 +761,8 @@ jme_free_rx_buf(struct jme_adapter *jme, int i)
 	rxbi += i;
 
 	if (rxbi->skb) {
-		pci_unmap_page(jme->pdev,
-				 rxbi->mapping,
-				 rxbi->len,
-				 PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&jme->pdev->dev, rxbi->mapping, rxbi->len,
+			       DMA_FROM_DEVICE);
 		dev_kfree_skb(rxbi->skb);
 		rxbi->skb = NULL;
 		rxbi->mapping = 0;
@@ -1024,16 +1004,12 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 	rxbi += idx;
 
 	skb = rxbi->skb;
-	pci_dma_sync_single_for_cpu(jme->pdev,
-					rxbi->mapping,
-					rxbi->len,
-					PCI_DMA_FROMDEVICE);
+	dma_sync_single_for_cpu(&jme->pdev->dev, rxbi->mapping, rxbi->len,
+				DMA_FROM_DEVICE);
 
 	if (unlikely(jme_make_new_rx_buf(jme, idx))) {
-		pci_dma_sync_single_for_device(jme->pdev,
-						rxbi->mapping,
-						rxbi->len,
-						PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_device(&jme->pdev->dev, rxbi->mapping,
+					   rxbi->len, DMA_FROM_DEVICE);
 
 		++(NET_STAT(jme).rx_dropped);
 	} else {
@@ -1206,9 +1182,9 @@ jme_shutdown_nic(struct jme_adapter *jme)
 }
 
 static void
-jme_pcc_tasklet(unsigned long arg)
+jme_pcc_tasklet(struct tasklet_struct *t)
 {
-	struct jme_adapter *jme = (struct jme_adapter *)arg;
+	struct jme_adapter *jme = from_tasklet(jme, t, pcc_task);
 	struct net_device *netdev = jme->dev;
 
 	if (unlikely(test_bit(JME_FLAG_SHUTDOWN, &jme->flags))) {
@@ -1284,10 +1260,9 @@ jme_stop_shutdown_timer(struct jme_adapter *jme)
 	jwrite32f(jme, JME_APMC, apmc);
 }
 
-static void
-jme_link_change_tasklet(unsigned long arg)
+static void jme_link_change_work(struct work_struct *work)
 {
-	struct jme_adapter *jme = (struct jme_adapter *)arg;
+	struct jme_adapter *jme = container_of(work, struct jme_adapter, linkch_task);
 	struct net_device *netdev = jme->dev;
 	int rc;
 
@@ -1364,9 +1339,9 @@ out:
 }
 
 static void
-jme_rx_clean_tasklet(unsigned long arg)
+jme_rx_clean_tasklet(struct tasklet_struct *t)
 {
-	struct jme_adapter *jme = (struct jme_adapter *)arg;
+	struct jme_adapter *jme = from_tasklet(jme, t, rxclean_task);
 	struct dynpcc_info *dpi = &(jme->dpi);
 
 	jme_process_receive(jme, jme->rx_ring_size);
@@ -1399,9 +1374,9 @@ jme_poll(JME_NAPI_HOLDER(holder), JME_NAPI_WEIGHT(budget))
 }
 
 static void
-jme_rx_empty_tasklet(unsigned long arg)
+jme_rx_empty_tasklet(struct tasklet_struct *t)
 {
-	struct jme_adapter *jme = (struct jme_adapter *)arg;
+	struct jme_adapter *jme = from_tasklet(jme, t, rxempty_task);
 
 	if (unlikely(atomic_read(&jme->link_changing) != 1))
 		return;
@@ -1411,7 +1386,7 @@ jme_rx_empty_tasklet(unsigned long arg)
 
 	netif_info(jme, rx_status, jme->dev, "RX Queue Full!\n");
 
-	jme_rx_clean_tasklet(arg);
+	jme_rx_clean_tasklet(&jme->rxclean_task);
 
 	while (atomic_read(&jme->rx_empty) > 0) {
 		atomic_dec(&jme->rx_empty);
@@ -1435,10 +1410,9 @@ jme_wake_queue_if_stopped(struct jme_adapter *jme)
 
 }
 
-static void
-jme_tx_clean_tasklet(unsigned long arg)
+static void jme_tx_clean_tasklet(struct tasklet_struct *t)
 {
-	struct jme_adapter *jme = (struct jme_adapter *)arg;
+	struct jme_adapter *jme = from_tasklet(jme, t, txclean_task);
 	struct jme_ring *txring = &(jme->txring[0]);
 	struct txdesc *txdesc = txring->desc;
 	struct jme_buffer_info *txbi = txring->bufinf, *ctxbi, *ttxbi;
@@ -1474,10 +1448,9 @@ jme_tx_clean_tasklet(unsigned long arg)
 				ttxbi = txbi + ((i + j) & (mask));
 				txdesc[(i + j) & (mask)].dw[0] = 0;
 
-				pci_unmap_page(jme->pdev,
-						 ttxbi->mapping,
-						 ttxbi->len,
-						 PCI_DMA_TODEVICE);
+				dma_unmap_page(&jme->pdev->dev,
+					       ttxbi->mapping, ttxbi->len,
+					       DMA_TO_DEVICE);
 
 				ttxbi->mapping = 0;
 				ttxbi->len = 0;
@@ -1531,7 +1504,7 @@ jme_intr_msi(struct jme_adapter *jme, u32 intrstat)
 		 * all other events are ignored
 		 */
 		jwrite32(jme, JME_IEVE, intrstat);
-		tasklet_schedule(&jme->linkch_task);
+		schedule_work(&jme->linkch_task);
 		goto out_reenable;
 	}
 
@@ -1853,14 +1826,9 @@ jme_open(struct net_device *netdev)
 	jme_clear_pm_disable_wol(jme);
 	JME_NAPI_ENABLE(jme);
 
-	tasklet_init(&jme->linkch_task, jme_link_change_tasklet,
-		     (unsigned long) jme);
-	tasklet_init(&jme->txclean_task, jme_tx_clean_tasklet,
-		     (unsigned long) jme);
-	tasklet_init(&jme->rxclean_task, jme_rx_clean_tasklet,
-		     (unsigned long) jme);
-	tasklet_init(&jme->rxempty_task, jme_rx_empty_tasklet,
-		     (unsigned long) jme);
+	tasklet_setup(&jme->txclean_task, jme_tx_clean_tasklet);
+	tasklet_setup(&jme->rxclean_task, jme_rx_clean_tasklet);
+	tasklet_setup(&jme->rxempty_task, jme_rx_empty_tasklet);
 
 	rc = jme_request_irq(jme);
 	if (rc)
@@ -1945,7 +1913,7 @@ jme_close(struct net_device *netdev)
 
 	JME_NAPI_DISABLE(jme);
 
-	tasklet_kill(&jme->linkch_task);
+	cancel_work_sync(&jme->linkch_task);
 	tasklet_kill(&jme->txclean_task);
 	tasklet_kill(&jme->rxclean_task);
 	tasklet_kill(&jme->rxempty_task);
@@ -1992,19 +1960,13 @@ jme_fill_tx_map(struct pci_dev *pdev,
 {
 	dma_addr_t dmaaddr;
 
-	dmaaddr = pci_map_page(pdev,
-				page,
-				page_offset,
-				len,
-				PCI_DMA_TODEVICE);
+	dmaaddr = dma_map_page(&pdev->dev, page, page_offset, len,
+			       DMA_TO_DEVICE);
 
-	if (unlikely(pci_dma_mapping_error(pdev, dmaaddr)))
+	if (unlikely(dma_mapping_error(&pdev->dev, dmaaddr)))
 		return -EINVAL;
 
-	pci_dma_sync_single_for_device(pdev,
-				       dmaaddr,
-				       len,
-				       PCI_DMA_TODEVICE);
+	dma_sync_single_for_device(&pdev->dev, dmaaddr, len, DMA_TO_DEVICE);
 
 	txdesc->dw[0] = 0;
 	txdesc->dw[1] = 0;
@@ -2029,15 +1991,12 @@ static void jme_drop_tx_map(struct jme_adapter *jme, int startidx, int count)
 
 	for (j = 0 ; j < count ; j++) {
 		ctxbi = txbi + ((startidx + j + 2) & (mask));
-		pci_unmap_page(jme->pdev,
-				ctxbi->mapping,
-				ctxbi->len,
-				PCI_DMA_TODEVICE);
+		dma_unmap_page(&jme->pdev->dev, ctxbi->mapping, ctxbi->len,
+			       DMA_TO_DEVICE);
 
-				ctxbi->mapping = 0;
-				ctxbi->len = 0;
+		ctxbi->mapping = 0;
+		ctxbi->len = 0;
 	}
-
 }
 
 static int
@@ -2049,23 +2008,22 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	bool hidma = jme->dev->features & NETIF_F_HIGHDMA;
 	int i, nr_frags = skb_shinfo(skb)->nr_frags;
 	int mask = jme->tx_ring_mask;
-	const struct skb_frag_struct *frag;
 	u32 len;
 	int ret = 0;
 
 	for (i = 0 ; i < nr_frags ; ++i) {
-		frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
 		ctxdesc = txdesc + ((idx + i + 2) & (mask));
 		ctxbi = txbi + ((idx + i + 2) & (mask));
 
 		ret = jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi,
-				skb_frag_page(frag),
-				frag->page_offset, skb_frag_size(frag), hidma);
+				      skb_frag_page(frag), skb_frag_off(frag),
+				      skb_frag_size(frag), hidma);
 		if (ret) {
 			jme_drop_tx_map(jme, idx, i);
 			goto out;
 		}
-
 	}
 
 	len = skb_is_nonlinear(skb) ? skb_headlen(skb) : skb->len;
@@ -2098,12 +2056,7 @@ jme_tx_tso(struct sk_buff *skb, __le16 *mss, u8 *flags)
 								IPPROTO_TCP,
 								0);
 		} else {
-			struct ipv6hdr *ip6h = ipv6_hdr(skb);
-
-			tcp_hdr(skb)->check = ~csum_ipv6_magic(&ip6h->saddr,
-								&ip6h->daddr, 0,
-								IPPROTO_TCP,
-								0);
+			tcp_v6_gso_csum_prep(skb);
 		}
 
 		return 0;
@@ -2227,7 +2180,7 @@ jme_stop_queue_if_full(struct jme_adapter *jme)
 	}
 
 	if (unlikely(txbi->start_xmit &&
-			(jiffies - txbi->start_xmit) >= TX_TIMEOUT &&
+			time_is_before_eq_jiffies(txbi->start_xmit + TX_TIMEOUT) &&
 			txbi->skb)) {
 		netif_stop_queue(jme->dev);
 		netif_info(jme, tx_queued, jme->dev,
@@ -2302,7 +2255,7 @@ jme_set_macaddr(struct net_device *netdev, void *p)
 		return -EBUSY;
 
 	spin_lock_bh(&jme->macaddr_lock);
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	jme_set_unicastaddr(netdev);
 	spin_unlock_bh(&jme->macaddr_lock);
 
@@ -2358,7 +2311,7 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 static void
-jme_tx_timeout(struct net_device *netdev)
+jme_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
@@ -2433,8 +2386,10 @@ jme_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	mdio_memcpy(jme, p32, JME_PHY_REG_NR);
 }
 
-static int
-jme_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecmd)
+static int jme_get_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ecmd,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
@@ -2470,8 +2425,10 @@ jme_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecmd)
 	return 0;
 }
 
-static int
-jme_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecmd)
+static int jme_set_coalesce(struct net_device *netdev,
+			    struct ethtool_coalesce *ecmd,
+			    struct kernel_ethtool_coalesce *kernel_coal,
+			    struct netlink_ext_ack *extack)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 	struct dynpcc_info *dpi = &(jme->dpi);
@@ -2865,6 +2822,9 @@ jme_set_eeprom(struct net_device *netdev,
 }
 
 static const struct ethtool_ops jme_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_drvinfo            = jme_get_drvinfo,
 	.get_regs_len		= jme_get_regs_len,
 	.get_regs		= jme_get_regs,
@@ -2889,18 +2849,15 @@ static int
 jme_pci_dma64(struct pci_dev *pdev)
 {
 	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
-			return 1;
+	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
+		return 1;
 
 	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(40)))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40)))
-			return 1;
+	    !dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40)))
+		return 1;
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
-			return 0;
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
+		return 0;
 
 	return -1;
 }
@@ -2931,7 +2888,7 @@ static const struct net_device_ops jme_netdev_ops = {
 	.ndo_open		= jme_open,
 	.ndo_stop		= jme_close,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= jme_ioctl,
+	.ndo_eth_ioctl		= jme_ioctl,
 	.ndo_start_xmit		= jme_start_xmit,
 	.ndo_set_mac_address	= jme_set_macaddr,
 	.ndo_set_rx_mode	= jme_set_multi,
@@ -3052,7 +3009,7 @@ jme_init_one(struct pci_dev *pdev,
 		jwrite32(jme, JME_APMC, apmc);
 	}
 
-	NETIF_NAPI_SET(netdev, &jme->napi, jme_poll, NAPI_POLL_WEIGHT)
+	netif_napi_add(netdev, &jme->napi, jme_poll, NAPI_POLL_WEIGHT);
 
 	spin_lock_init(&jme->phy_lock);
 	spin_lock_init(&jme->macaddr_lock);
@@ -3063,9 +3020,8 @@ jme_init_one(struct pci_dev *pdev,
 	atomic_set(&jme->tx_cleaning, 1);
 	atomic_set(&jme->rx_empty, 1);
 
-	tasklet_init(&jme->pcc_task,
-		     jme_pcc_tasklet,
-		     (unsigned long) jme);
+	tasklet_setup(&jme->pcc_task, jme_pcc_tasklet);
+	INIT_WORK(&jme->linkch_task, jme_link_change_work);
 	jme->dpi.cur = PCC_P1;
 
 	jme->reg_ghc = 0;
@@ -3212,8 +3168,7 @@ jme_shutdown(struct pci_dev *pdev)
 static int
 jme_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
 	if (!netif_running(netdev))
@@ -3255,8 +3210,7 @@ jme_suspend(struct device *dev)
 static int
 jme_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
 	if (!netif_running(netdev))

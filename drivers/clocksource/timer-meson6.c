@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Amlogic Meson6 SoCs timer handling.
  *
  * Copyright (C) 2014 Carlo Caione <carlo@caione.org>
  *
  * Based on code from Amlogic, Inc
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/bitfield.h>
@@ -153,13 +150,6 @@ static irqreturn_t meson6_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction meson6_timer_irq = {
-	.name		= "meson6_timer",
-	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= meson6_timer_interrupt,
-	.dev_id		= &meson6_clockevent,
-};
-
 static int __init meson6_timer_init(struct device_node *node)
 {
 	u32 val;
@@ -197,7 +187,9 @@ static int __init meson6_timer_init(struct device_node *node)
 	/* Stop the timer A */
 	meson6_clkevt_time_stop();
 
-	ret = setup_irq(irq, &meson6_timer_irq);
+	ret = request_irq(irq, meson6_timer_interrupt,
+			  IRQF_TIMER | IRQF_IRQPOLL, "meson6_timer",
+			  &meson6_clockevent);
 	if (ret) {
 		pr_warn("failed to setup irq %d\n", irq);
 		return ret;

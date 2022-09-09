@@ -11,22 +11,28 @@ config NET_VENDOR_MICROSEMI
 
 if NET_VENDOR_MICROSEMI
 
+# Users should depend on NET_SWITCHDEV, HAS_IOMEM, BRIDGE
+config MSCC_OCELOT_SWITCH_LIB
+	select NET_DEVLINK
+	select REGMAP_MMIO
+	select PACKING
+	select PHYLINK
+	tristate
+	help
+	  This is a hardware support library for Ocelot network switches. It is
+	  used by switchdev as well as by DSA drivers.
+
 config MSCC_OCELOT_SWITCH
 	tristate "Ocelot switch driver"
+	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on BRIDGE || BRIDGE=n
 	depends on NET_SWITCHDEV
 	depends on HAS_IOMEM
-	select PHYLIB
-	select REGMAP_MMIO
-	help
-	  This driver supports the Ocelot network switch device.
-
-config MSCC_OCELOT_SWITCH_OCELOT
-	tristate "Ocelot switch driver on Ocelot"
-	depends on MSCC_OCELOT_SWITCH
-	depends on GENERIC_PHY
-	depends on OF_NET
+	depends on OF
+	select MSCC_OCELOT_SWITCH_LIB
+	select GENERIC_PHY
 	help
 	  This driver supports the Ocelot network switch device as present on
-	  the Ocelot SoCs.
+	  the Ocelot SoCs (VSC7514).
 
 endif # NET_VENDOR_MICROSEMI

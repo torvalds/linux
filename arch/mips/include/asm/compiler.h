@@ -43,19 +43,17 @@
 #undef barrier_before_unreachable
 #define barrier_before_unreachable() asm volatile(".insn")
 
-#if !defined(CONFIG_CC_IS_GCC) || \
-    (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-# define GCC_OFF_SMALL_ASM() "ZC"
-#elif defined(CONFIG_CPU_MICROMIPS)
-# error "microMIPS compilation unsupported with GCC older than 4.9"
-#else
-# define GCC_OFF_SMALL_ASM() "R"
-#endif
+#define GCC_OFF_SMALL_ASM() "ZC"
 
 #ifdef CONFIG_CPU_MIPSR6
 #define MIPS_ISA_LEVEL "mips64r6"
 #define MIPS_ISA_ARCH_LEVEL MIPS_ISA_LEVEL
 #define MIPS_ISA_LEVEL_RAW mips64r6
+#define MIPS_ISA_ARCH_LEVEL_RAW MIPS_ISA_LEVEL_RAW
+#elif defined(CONFIG_CPU_MIPSR5)
+#define MIPS_ISA_LEVEL "mips64r5"
+#define MIPS_ISA_ARCH_LEVEL MIPS_ISA_LEVEL
+#define MIPS_ISA_LEVEL_RAW mips64r5
 #define MIPS_ISA_ARCH_LEVEL_RAW MIPS_ISA_LEVEL_RAW
 #else
 /* MIPS64 is a superset of MIPS32 */

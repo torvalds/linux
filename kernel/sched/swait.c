@@ -2,7 +2,6 @@
 /*
  * <linux/swait.h> (simple wait queues ) implementation:
  */
-#include "sched.h"
 
 void __init_swait_queue_head(struct swait_queue_head *q, const char *name,
 			     struct lock_class_key *key)
@@ -31,6 +30,19 @@ void swake_up_locked(struct swait_queue_head *q)
 	list_del_init(&curr->task_list);
 }
 EXPORT_SYMBOL(swake_up_locked);
+
+/*
+ * Wake up all waiters. This is an interface which is solely exposed for
+ * completions and not for general usage.
+ *
+ * It is intentionally different from swake_up_all() to allow usage from
+ * hard interrupt context and interrupt disabled regions.
+ */
+void swake_up_all_locked(struct swait_queue_head *q)
+{
+	while (!list_empty(&q->task_list))
+		swake_up_locked(q);
+}
 
 void swake_up_one(struct swait_queue_head *q)
 {
@@ -69,7 +81,7 @@ void swake_up_all(struct swait_queue_head *q)
 }
 EXPORT_SYMBOL(swake_up_all);
 
-static void __prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait)
+void __prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait)
 {
 	wait->task = current;
 	if (list_empty(&wait->task_list))

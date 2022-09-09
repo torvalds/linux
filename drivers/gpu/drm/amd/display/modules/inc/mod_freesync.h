@@ -83,6 +83,8 @@ struct mod_freesync_config {
 	bool btr;
 	unsigned int min_refresh_in_uhz;
 	unsigned int max_refresh_in_uhz;
+	unsigned int fixed_refresh_in_uhz;
+
 };
 
 struct mod_vrr_params_btr {
@@ -92,6 +94,7 @@ struct mod_vrr_params_btr {
 	uint32_t inserted_duration_in_us;
 	uint32_t frames_to_insert;
 	uint32_t frame_counter;
+	uint32_t margin_in_us;
 };
 
 struct mod_vrr_params_fixed_refresh {
@@ -102,21 +105,34 @@ struct mod_vrr_params_fixed_refresh {
 	uint32_t frame_counter;
 };
 
+struct mod_vrr_params_flip_interval {
+	bool flip_interval_workaround_active;
+	bool program_flip_interval_workaround;
+	bool do_flip_interval_workaround_cleanup;
+	uint32_t flip_interval_detect_counter;
+	uint32_t vsyncs_between_flip;
+	uint32_t vsync_to_flip_in_us;
+	uint32_t v_update_timestamp_in_us;
+};
+
 struct mod_vrr_params {
 	bool supported;
-	bool send_vsif;
+	bool send_info_frame;
 	enum mod_vrr_state state;
 
 	uint32_t min_refresh_in_uhz;
 	uint32_t max_duration_in_us;
 	uint32_t max_refresh_in_uhz;
 	uint32_t min_duration_in_us;
+	uint32_t fixed_refresh_in_uhz;
 
 	struct dc_crtc_timing_adjust adjust;
 
 	struct mod_vrr_params_fixed_refresh fixed;
 
 	struct mod_vrr_params_btr btr;
+
+	struct mod_vrr_params_flip_interval flip_interval;
 };
 
 struct mod_freesync *mod_freesync_create(struct dc *dc);
@@ -145,8 +161,9 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
 		enum vrr_packet_type packet_type,
-		const enum color_transfer_func *app_tf,
-		struct dc_info_packet *infopacket);
+		enum color_transfer_func app_tf,
+		struct dc_info_packet *infopacket,
+		bool pack_sdp_v1_3);
 
 void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
@@ -166,11 +183,18 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 unsigned long long mod_freesync_calc_nominal_field_rate(
 			const struct dc_stream_state *stream);
 
-bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
-		const struct dc_stream_state *stream,
-		uint32_t min_refresh_cap_in_uhz,
+unsigned long long mod_freesync_calc_field_rate_from_timing(
+		unsigned int vtotal, unsigned int htotal, unsigned int pix_clk);
+
+bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 		uint32_t max_refresh_cap_in_uhz,
-		uint32_t min_refresh_request_in_uhz,
-		uint32_t max_refresh_request_in_uhz);
+		uint32_t nominal_field_rate_in_uhz);
+
+unsigned int mod_freesync_calc_v_total_from_refresh(
+		const struct dc_stream_state *stream,
+		unsigned int refresh_in_uhz);
+
+// Returns true when FreeSync is supported and enabled (even if it is inactive)
+bool mod_freesync_get_freesync_enabled(struct mod_vrr_params *pVrr);
 
 #endif

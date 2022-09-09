@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * Device driver for GPIO attached remote control interfaces
@@ -6,16 +7,6 @@
  * Copyright (c) 2003 Pavel Machek
  * Copyright (c) 2004 Gerd Knorr
  * Copyright (c) 2004, 2005 Chris Pascoe
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -176,14 +167,14 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 static enum hrtimer_restart cx88_ir_work(struct hrtimer *timer)
 {
-	unsigned long missed;
+	u64 missed;
 	struct cx88_IR *ir = container_of(timer, struct cx88_IR, timer);
 
 	cx88_ir_handle_key(ir);
 	missed = hrtimer_forward_now(&ir->timer,
 				     ktime_set(0, ir->polling * 1000000));
 	if (missed > 1)
-		ir_dprintk("Missed ticks %ld\n", missed - 1);
+		ir_dprintk("Missed ticks %llu\n", missed - 1);
 
 	return HRTIMER_RESTART;
 }
@@ -488,7 +479,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	dev->scancode_mask = hardware_mask;
 
 	if (ir->sampling) {
-		dev->timeout = 10 * 1000 * 1000; /* 10 ms */
+		dev->timeout = MS_TO_US(10); /* 10 ms */
 	} else {
 		dev->driver_type = RC_DRIVER_SCANCODE;
 		dev->allowed_protocols = rc_proto;
@@ -553,7 +544,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	for (todo = 32; todo > 0; todo -= bits) {
 		ev.pulse = samples & 0x80000000 ? false : true;
 		bits = min(todo, 32U - fls(ev.pulse ? samples : ~samples));
-		ev.duration = (bits * (NSEC_PER_SEC / 1000)) / ir_samplerate;
+		ev.duration = (bits * (USEC_PER_SEC / 1000)) / ir_samplerate;
 		ir_raw_event_store_with_filter(ir->dev, &ev);
 		samples <<= bits;
 	}
@@ -622,7 +613,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 	}
 
 	/*
-	 * We can't call i2c_new_probed_device() because it uses
+	 * We can't call i2c_new_scanned_device() because it uses
 	 * quick writes for probing and at least some RC receiver
 	 * devices only reply to reads.
 	 * Also, Hauppauge XVR needs to be specified, as address 0x71
@@ -647,7 +638,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 				   I2C_SMBUS_READ, 0,
 				   I2C_SMBUS_QUICK, NULL) >= 0) {
 			info.addr = *addrp;
-			i2c_new_device(&core->i2c_adap, &info);
+			i2c_new_client_device(&core->i2c_adap, &info);
 			break;
 		}
 	}

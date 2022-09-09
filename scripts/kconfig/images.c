@@ -5,7 +5,7 @@
 
 #include "images.h"
 
-const char *xpm_load[] = {
+const char * const xpm_load[] = {
 "22 22 5 1",
 ". c None",
 "# c #000000",
@@ -35,7 +35,7 @@ const char *xpm_load[] = {
 "###############.......",
 "......................"};
 
-const char *xpm_save[] = {
+const char * const xpm_save[] = {
 "22 22 5 1",
 ". c None",
 "# c #000000",
@@ -65,7 +65,7 @@ const char *xpm_save[] = {
 "..##################..",
 "......................"};
 
-const char *xpm_back[] = {
+const char * const xpm_back[] = {
 "22 22 3 1",
 ". c None",
 "# c #000083",
@@ -93,7 +93,7 @@ const char *xpm_back[] = {
 "......................",
 "......................"};
 
-const char *xpm_tree_view[] = {
+const char * const xpm_tree_view[] = {
 "22 22 2 1",
 ". c None",
 "# c #000000",
@@ -120,7 +120,7 @@ const char *xpm_tree_view[] = {
 "......................",
 "......................"};
 
-const char *xpm_single_view[] = {
+const char * const xpm_single_view[] = {
 "22 22 2 1",
 ". c None",
 "# c #000000",
@@ -147,7 +147,7 @@ const char *xpm_single_view[] = {
 "......................",
 "......................"};
 
-const char *xpm_split_view[] = {
+const char * const xpm_split_view[] = {
 "22 22 2 1",
 ". c None",
 "# c #000000",
@@ -174,7 +174,7 @@ const char *xpm_split_view[] = {
 "......................",
 "......................"};
 
-const char *xpm_symbol_no[] = {
+const char * const xpm_symbol_no[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -191,7 +191,7 @@ const char *xpm_symbol_no[] = {
 " .......... ",
 "            "};
 
-const char *xpm_symbol_mod[] = {
+const char * const xpm_symbol_mod[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -208,7 +208,7 @@ const char *xpm_symbol_mod[] = {
 " .......... ",
 "            "};
 
-const char *xpm_symbol_yes[] = {
+const char * const xpm_symbol_yes[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -225,7 +225,7 @@ const char *xpm_symbol_yes[] = {
 " .......... ",
 "            "};
 
-const char *xpm_choice_no[] = {
+const char * const xpm_choice_no[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -242,7 +242,7 @@ const char *xpm_choice_no[] = {
 "    ....    ",
 "            "};
 
-const char *xpm_choice_yes[] = {
+const char * const xpm_choice_yes[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -259,7 +259,7 @@ const char *xpm_choice_yes[] = {
 "    ....    ",
 "            "};
 
-const char *xpm_menu[] = {
+const char * const xpm_menu[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -276,7 +276,7 @@ const char *xpm_menu[] = {
 " .......... ",
 "            "};
 
-const char *xpm_menu_inv[] = {
+const char * const xpm_menu_inv[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -293,7 +293,7 @@ const char *xpm_menu_inv[] = {
 " .......... ",
 "            "};
 
-const char *xpm_menuback[] = {
+const char * const xpm_menuback[] = {
 "12 12 2 1",
 "  c white",
 ". c black",
@@ -310,7 +310,7 @@ const char *xpm_menuback[] = {
 " .......... ",
 "            "};
 
-const char *xpm_void[] = {
+const char * const xpm_void[] = {
 "12 12 2 1",
 "  c white",
 ". c black",

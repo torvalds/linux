@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Texas Instruments' TPS65217 and TPS65218 Power Button Input Driver
  *
  * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Felipe Balbi <balbi@ti.com>
  * Author: Marcin Niestroj <m.niestroj@grinn-global.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -124,10 +116,8 @@ static int tps6521x_pb_probe(struct platform_device *pdev)
 	device_init_wakeup(dev, true);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "No IRQ resource!\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 
 	error = devm_request_threaded_irq(dev, irq, NULL, tps6521x_pb_irq,
 					  IRQF_TRIGGER_RISING |

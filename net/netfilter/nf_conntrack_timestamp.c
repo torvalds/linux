@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) 2010 Pablo Neira Ayuso <pablo@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation (or any later at your option).
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -22,27 +19,7 @@ static bool nf_ct_tstamp __read_mostly;
 module_param_named(tstamp, nf_ct_tstamp, bool, 0644);
 MODULE_PARM_DESC(tstamp, "Enable connection tracking flow timestamping.");
 
-static const struct nf_ct_ext_type tstamp_extend = {
-	.len	= sizeof(struct nf_conn_tstamp),
-	.align	= __alignof__(struct nf_conn_tstamp),
-	.id	= NF_CT_EXT_TSTAMP,
-};
-
 void nf_conntrack_tstamp_pernet_init(struct net *net)
 {
 	net->ct.sysctl_tstamp = nf_ct_tstamp;
-}
-
-int nf_conntrack_tstamp_init(void)
-{
-	int ret;
-	ret = nf_ct_extend_register(&tstamp_extend);
-	if (ret < 0)
-		pr_err("Unable to register extension\n");
-	return ret;
-}
-
-void nf_conntrack_tstamp_fini(void)
-{
-	nf_ct_extend_unregister(&tstamp_extend);
 }

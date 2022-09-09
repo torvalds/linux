@@ -81,7 +81,6 @@ struct csi2rx_priv {
 	struct media_pad		pads[CSI2RX_PAD_MAX];
 
 	/* Remote source */
-	struct v4l2_async_subdev	asd;
 	struct v4l2_subdev		*source_subdev;
 	int				source_pad;
 };
@@ -129,7 +128,7 @@ static int csi2rx_start(struct csi2rx_priv *csi2rx)
 	 */
 	for (i = csi2rx->num_lanes; i < csi2rx->max_lanes; i++) {
 		unsigned int idx = find_first_zero_bit(&lanes_used,
-						       sizeof(lanes_used));
+						       csi2rx->max_lanes);
 		set_bit(idx, &lanes_used);
 		reg |= CSI2RX_STATIC_CFG_DLANE_MAP(i, i + 1);
 	}
@@ -280,12 +279,11 @@ static const struct v4l2_async_notifier_operations csi2rx_notifier_ops = {
 static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 				struct platform_device *pdev)
 {
-	struct resource *res;
 	unsigned char i;
 	u32 dev_cfg;
+	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	csi2rx->base = devm_ioremap_resource(&pdev->dev, res);
+	csi2rx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi2rx->base))
 		return PTR_ERR(csi2rx->base);
 
@@ -316,7 +314,12 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 		return -EINVAL;
 	}
 
-	clk_prepare_enable(csi2rx->p_clk);
+	ret = clk_prepare_enable(csi2rx->p_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "Couldn't prepare and enable P clock\n");
+		return ret;
+	}
+
 	dev_cfg = readl(csi2rx->base + CSI2RX_DEVICE_CFG_REG);
 	clk_disable_unprepare(csi2rx->p_clk);
 
@@ -362,6 +365,7 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 {
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
+	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *fwh;
 	struct device_node *ep;
 	int ret;
@@ -395,24 +399,19 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 		return -EINVAL;
 	}
 
-	csi2rx->asd.match.fwnode = fwnode_graph_get_remote_port_parent(fwh);
-	csi2rx->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	v4l2_async_nf_init(&csi2rx->notifier);
+
+	asd = v4l2_async_nf_add_fwnode_remote(&csi2rx->notifier, fwh,
+					      struct v4l2_async_subdev);
 	of_node_put(ep);
-
-	v4l2_async_notifier_init(&csi2rx->notifier);
-
-	ret = v4l2_async_notifier_add_subdev(&csi2rx->notifier, &csi2rx->asd);
-	if (ret) {
-		fwnode_handle_put(csi2rx->asd.match.fwnode);
-		return ret;
-	}
+	if (IS_ERR(asd))
+		return PTR_ERR(asd);
 
 	csi2rx->notifier.ops = &csi2rx_notifier_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&csi2rx->subdev,
-						  &csi2rx->notifier);
+	ret = v4l2_async_subdev_nf_register(&csi2rx->subdev, &csi2rx->notifier);
 	if (ret)
-		v4l2_async_notifier_cleanup(&csi2rx->notifier);
+		v4l2_async_nf_cleanup(&csi2rx->notifier);
 
 	return ret;
 }
@@ -468,7 +467,7 @@ static int csi2rx_probe(struct platform_device *pdev)
 	return 0;
 
 err_cleanup:
-	v4l2_async_notifier_cleanup(&csi2rx->notifier);
+	v4l2_async_nf_cleanup(&csi2rx->notifier);
 err_free_priv:
 	kfree(csi2rx);
 	return ret;

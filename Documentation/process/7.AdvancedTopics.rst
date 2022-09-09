@@ -29,9 +29,9 @@ long document in its own right.  Instead, the focus here will be on how git
 fits into the kernel development process in particular.  Developers who
 wish to come up to speed with git will find more information at:
 
-	http://git-scm.com/
+	https://git-scm.com/
 
-	http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+	https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
 
 and on various tutorials found on the web.
 
@@ -55,7 +55,7 @@ server with git-daemon is relatively straightforward if you have a system
 which is accessible to the Internet.  Otherwise, free, public hosting sites
 (Github, for example) are starting to appear on the net.  Established
 developers can get an account on kernel.org, but those are not easy to come
-by; see http://kernel.org/faq/ for more information.
+by; see https://kernel.org/faq/ for more information.
 
 The normal git workflow involves the use of a lot of branches.  Each line
 of development can be separated into a separate "topic branch" and
@@ -125,7 +125,7 @@ can affect your ability to get trees pulled in the future.  Quoting Linus:
 	to trust things *without* then having to go and check every
 	individual change by hand.
 
-(http://lwn.net/Articles/224135/).
+(https://lwn.net/Articles/224135/).
 
 To avoid this kind of situation, ensure that all patches within a given
 branch stick closely to the associated topic; a "driver fixes" branch

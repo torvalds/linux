@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright(c) 2004 - 2009 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called COPYING.
  */
 #ifndef _IOAT_HW_H_
 #define _IOAT_HW_H_
@@ -66,11 +54,14 @@
 
 #define PCI_DEVICE_ID_INTEL_IOAT_SKX	0x2021
 
+#define PCI_DEVICE_ID_INTEL_IOAT_ICX	0x0b00
+
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */
 #define IOAT_VER_3_0            0x30    /* Version 3.0 */
 #define IOAT_VER_3_2            0x32    /* Version 3.2 */
 #define IOAT_VER_3_3            0x33    /* Version 3.3 */
+#define IOAT_VER_3_4		0x34	/* Version 3.4 */
 
 
 int system_has_dca_enabled(struct pci_dev *pdev);

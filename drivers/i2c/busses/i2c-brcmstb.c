@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2014 Broadcom Corporation
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -22,7 +12,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 
 #define N_DATA_REGS					8
 
@@ -165,12 +154,10 @@ static const struct bsc_clk_param bsc_clk[] = {
 struct brcmstb_i2c_dev {
 	struct device *device;
 	void __iomem *base;
-	void __iomem *irq_base;
 	int irq;
 	struct bsc_regs *bsc_regmap;
 	struct i2c_adapter adapter;
 	struct completion done;
-	bool is_suspended;
 	u32 clk_freq_hz;
 	int data_regsz;
 };
@@ -318,7 +305,7 @@ static int brcmstb_send_i2c_cmd(struct brcmstb_i2c_dev *dev,
 		goto cmd_out;
 	}
 
-	if ((CMD_RD || CMD_WR) &&
+	if ((cmd == CMD_RD || cmd == CMD_WR) &&
 	    bsc_readl(dev, iic_enable) & BSC_IIC_EN_NOACK_MASK) {
 		rc = -EREMOTEIO;
 		dev_dbg(dev->device, "controller received NOACK intr for %s\n",
@@ -467,9 +454,6 @@ static int brcmstb_i2c_xfer(struct i2c_adapter *adapter,
 	int xfersz = brcmstb_i2c_get_xfersz(dev);
 	u32 cond, cond_per_msg;
 
-	if (dev->is_suspended)
-		return -EBUSY;
-
 	/* Loop through all messages */
 	for (i = 0; i < num; i++) {
 		pmsg = &msgs[i];
@@ -585,6 +569,31 @@ static void brcmstb_i2c_set_bsc_reg_defaults(struct brcmstb_i2c_dev *dev)
 	brcmstb_i2c_set_bus_speed(dev);
 }
 
+#define AUTOI2C_CTRL0		0x26c
+#define AUTOI2C_CTRL0_RELEASE_BSC	BIT(1)
+
+static int bcm2711_release_bsc(struct brcmstb_i2c_dev *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev->device);
+	struct resource *iomem;
+	void __iomem *autoi2c;
+
+	/* Map hardware registers */
+	iomem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "auto-i2c");
+	autoi2c = devm_ioremap_resource(&pdev->dev, iomem);
+	if (IS_ERR(autoi2c))
+		return PTR_ERR(autoi2c);
+
+	writel(AUTOI2C_CTRL0_RELEASE_BSC, autoi2c + AUTOI2C_CTRL0);
+	devm_iounmap(&pdev->dev, autoi2c);
+
+	/* We need to reset the controller after the release */
+	dev->bsc_regmap->iic_enable = 0;
+	bsc_writel(dev, dev->bsc_regmap->iic_enable, iic_enable);
+
+	return 0;
+}
+
 static int brcmstb_i2c_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -614,26 +623,35 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 		goto probe_errorout;
 	}
 
+	if (of_device_is_compatible(dev->device->of_node,
+				    "brcm,bcm2711-hdmi-i2c")) {
+		rc = bcm2711_release_bsc(dev);
+		if (rc)
+			goto probe_errorout;
+	}
+
 	rc = of_property_read_string(dev->device->of_node, "interrupt-names",
 				     &int_name);
 	if (rc < 0)
 		int_name = NULL;
 
 	/* Get the interrupt number */
-	dev->irq = platform_get_irq(pdev, 0);
+	dev->irq = platform_get_irq_optional(pdev, 0);
 
 	/* disable the bsc interrupt line */
 	brcmstb_i2c_enable_disable_irq(dev, INT_DISABLE);
 
 	/* register the ISR handler */
-	rc = devm_request_irq(&pdev->dev, dev->irq, brcmstb_i2c_isr,
-			      IRQF_SHARED,
-			      int_name ? int_name : pdev->name,
-			      dev);
+	if (dev->irq >= 0) {
+		rc = devm_request_irq(&pdev->dev, dev->irq, brcmstb_i2c_isr,
+				      IRQF_SHARED,
+				      int_name ? int_name : pdev->name,
+				      dev);
 
-	if (rc) {
-		dev_dbg(dev->device, "falling back to polling mode");
-		dev->irq = -1;
+		if (rc) {
+			dev_dbg(dev->device, "falling back to polling mode");
+			dev->irq = -1;
+		}
 	}
 
 	if (of_property_read_u32(dev->device->of_node,
@@ -645,7 +663,7 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 
 	/* set the data in/out register size for compatible SoCs */
 	if (of_device_is_compatible(dev->device->of_node,
-				    "brcmstb,brcmper-i2c"))
+				    "brcm,brcmper-i2c"))
 		dev->data_regsz = sizeof(u8);
 	else
 		dev->data_regsz = sizeof(u32);
@@ -656,9 +674,7 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 	adap = &dev->adapter;
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
-	strlcpy(adap->name, "Broadcom STB : ", sizeof(adap->name));
-	if (int_name)
-		strlcat(adap->name, int_name, sizeof(adap->name));
+	strscpy(adap->name, dev_name(&pdev->dev), sizeof(adap->name));
 	adap->algo = &brcmstb_i2c_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
@@ -689,10 +705,7 @@ static int brcmstb_i2c_suspend(struct device *dev)
 {
 	struct brcmstb_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
-	i2c_lock_bus(&i2c_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
-	i2c_dev->is_suspended = true;
-	i2c_unlock_bus(&i2c_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
-
+	i2c_mark_adapter_suspended(&i2c_dev->adapter);
 	return 0;
 }
 
@@ -700,10 +713,8 @@ static int brcmstb_i2c_resume(struct device *dev)
 {
 	struct brcmstb_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
-	i2c_lock_bus(&i2c_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
 	brcmstb_i2c_set_bsc_reg_defaults(i2c_dev);
-	i2c_dev->is_suspended = false;
-	i2c_unlock_bus(&i2c_dev->adapter, I2C_LOCK_ROOT_ADAPTER);
+	i2c_mark_adapter_resumed(&i2c_dev->adapter);
 
 	return 0;
 }
@@ -715,6 +726,7 @@ static SIMPLE_DEV_PM_OPS(brcmstb_i2c_pm, brcmstb_i2c_suspend,
 static const struct of_device_id brcmstb_i2c_of_match[] = {
 	{.compatible = "brcm,brcmstb-i2c"},
 	{.compatible = "brcm,brcmper-i2c"},
+	{.compatible = "brcm,bcm2711-hdmi-i2c"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, brcmstb_i2c_of_match);

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OF helpers for regulator framework
  *
  * Copyright (C) 2011 Texas Instruments, Inc.
  * Rajendra Nayak <rnayak@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -25,7 +21,64 @@ static const char *const regulator_states[PM_SUSPEND_MAX + 1] = {
 	[PM_SUSPEND_MAX]	= "regulator-state-disk",
 };
 
-static void of_get_regulation_constraints(struct device_node *np,
+static void fill_limit(int *limit, int val)
+{
+	if (val)
+		if (val == 1)
+			*limit = REGULATOR_NOTIF_LIMIT_ENABLE;
+		else
+			*limit = val;
+	else
+		*limit = REGULATOR_NOTIF_LIMIT_DISABLE;
+}
+
+static void of_get_regulator_prot_limits(struct device_node *np,
+				struct regulation_constraints *constraints)
+{
+	u32 pval;
+	int i;
+	static const char *const props[] = {
+		"regulator-oc-%s-microamp",
+		"regulator-ov-%s-microvolt",
+		"regulator-temp-%s-kelvin",
+		"regulator-uv-%s-microvolt",
+	};
+	struct notification_limit *limits[] = {
+		&constraints->over_curr_limits,
+		&constraints->over_voltage_limits,
+		&constraints->temp_limits,
+		&constraints->under_voltage_limits,
+	};
+	bool set[4] = {0};
+
+	/* Protection limits: */
+	for (i = 0; i < ARRAY_SIZE(props); i++) {
+		char prop[255];
+		bool found;
+		int j;
+		static const char *const lvl[] = {
+			"protection", "error", "warn"
+		};
+		int *l[] = {
+			&limits[i]->prot, &limits[i]->err, &limits[i]->warn,
+		};
+
+		for (j = 0; j < ARRAY_SIZE(lvl); j++) {
+			snprintf(prop, 255, props[i], lvl[j]);
+			found = !of_property_read_u32(np, prop, &pval);
+			if (found)
+				fill_limit(l[j], pval);
+			set[i] |= found;
+		}
+	}
+	constraints->over_current_detection = set[0];
+	constraints->over_voltage_detection = set[1];
+	constraints->over_temp_detection = set[2];
+	constraints->under_voltage_detection = set[3];
+}
+
+static int of_get_regulation_constraints(struct device *dev,
+					struct device_node *np,
 					struct regulator_init_data **init_data,
 					const struct regulator_desc *desc)
 {
@@ -34,7 +87,12 @@ static void of_get_regulation_constraints(struct device_node *np,
 	struct device_node *suspend_np;
 	unsigned int mode;
 	int ret, i, len;
+	int n_phandles;
 	u32 pval;
+
+	n_phandles = of_count_phandle_with_args(np, "regulator-coupled-with",
+						NULL);
+	n_phandles = max(n_phandles, 0);
 
 	constraints->name = of_get_property(np, "regulator-name", NULL);
 
@@ -167,9 +225,17 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!of_property_read_u32(np, "regulator-system-load", &pval))
 		constraints->system_load = pval;
 
-	if (!of_property_read_u32(np, "regulator-coupled-max-spread",
-				  &pval))
-		constraints->max_spread = pval;
+	if (n_phandles) {
+		constraints->max_spread = devm_kzalloc(dev,
+				sizeof(*constraints->max_spread) * n_phandles,
+				GFP_KERNEL);
+
+		if (!constraints->max_spread)
+			return -ENOMEM;
+
+		of_property_read_u32_array(np, "regulator-coupled-max-spread",
+					   constraints->max_spread, n_phandles);
+	}
 
 	if (!of_property_read_u32(np, "regulator-max-step-microvolt",
 				  &pval))
@@ -177,6 +243,8 @@ static void of_get_regulation_constraints(struct device_node *np,
 
 	constraints->over_current_protection = of_property_read_bool(np,
 					"regulator-over-current-protection");
+
+	of_get_regulator_prot_limits(np, constraints);
 
 	for (i = 0; i < ARRAY_SIZE(regulator_states); i++) {
 		switch (i) {
@@ -196,8 +264,12 @@ static void of_get_regulation_constraints(struct device_node *np,
 		}
 
 		suspend_np = of_get_child_by_name(np, regulator_states[i]);
-		if (!suspend_np || !suspend_state)
+		if (!suspend_np)
 			continue;
+		if (!suspend_state) {
+			of_node_put(suspend_np);
+			continue;
+		}
 
 		if (!of_property_read_u32(suspend_np, "regulator-mode",
 					  &pval)) {
@@ -221,12 +293,12 @@ static void of_get_regulation_constraints(struct device_node *np,
 					"regulator-off-in-suspend"))
 			suspend_state->enabled = DISABLE_IN_SUSPEND;
 
-		if (!of_property_read_u32(np, "regulator-suspend-min-microvolt",
-					  &pval))
+		if (!of_property_read_u32(suspend_np,
+				"regulator-suspend-min-microvolt", &pval))
 			suspend_state->min_uV = pval;
 
-		if (!of_property_read_u32(np, "regulator-suspend-max-microvolt",
-					  &pval))
+		if (!of_property_read_u32(suspend_np,
+				"regulator-suspend-max-microvolt", &pval))
 			suspend_state->max_uV = pval;
 
 		if (!of_property_read_u32(suspend_np,
@@ -246,6 +318,8 @@ static void of_get_regulation_constraints(struct device_node *np,
 		suspend_state = NULL;
 		suspend_np = NULL;
 	}
+
+	return 0;
 }
 
 /**
@@ -255,7 +329,7 @@ static void of_get_regulation_constraints(struct device_node *np,
  * @desc: regulator description
  *
  * Populates regulator_init_data structure by extracting data from device
- * tree node, returns a pointer to the populated struture or NULL if memory
+ * tree node, returns a pointer to the populated structure or NULL if memory
  * alloc fails.
  */
 struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
@@ -271,7 +345,9 @@ struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
 	if (!init_data)
 		return NULL; /* Out of memory? */
 
-	of_get_regulation_constraints(node, &init_data, desc);
+	if (of_get_regulation_constraints(dev, node, &init_data, desc))
+		return NULL;
+
 	return init_data;
 }
 EXPORT_SYMBOL_GPL(of_get_regulator_init_data);
@@ -371,8 +447,9 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(of_regulator_match);
 
-struct device_node *regulator_of_get_init_node(struct device *dev,
-					       const struct regulator_desc *desc)
+static struct
+device_node *regulator_of_get_init_node(struct device *dev,
+					const struct regulator_desc *desc)
 {
 	struct device_node *search, *child;
 	const char *name;
@@ -398,11 +475,21 @@ struct device_node *regulator_of_get_init_node(struct device *dev,
 
 	for_each_available_child_of_node(search, child) {
 		name = of_get_property(child, "regulator-compatible", NULL);
-		if (!name)
-			name = child->name;
+		if (!name) {
+			if (!desc->of_match_full_name)
+				name = child->name;
+			else
+				name = child->full_name;
+		}
 
-		if (!strcmp(desc->of_match, name))
-			return of_node_get(child);
+		if (!strcmp(desc->of_match, name)) {
+			of_node_put(search);
+			/*
+			 * 'of_node_get(child)' is already performed by the
+			 * for_each loop.
+			 */
+			return child;
+		}
 	}
 
 	of_node_put(search);
@@ -428,11 +515,20 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		goto error;
 	}
 
-	if (desc->of_parse_cb && desc->of_parse_cb(child, desc, config)) {
-		dev_err(dev,
-			"driver callback failed to parse DT for regulator %pOFn\n",
-			child);
-		goto error;
+	if (desc->of_parse_cb) {
+		int ret;
+
+		ret = desc->of_parse_cb(child, desc, config);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				of_node_put(child);
+				return ERR_PTR(-EPROBE_DEFER);
+			}
+			dev_err(dev,
+				"driver callback failed to parse DT for regulator %pOFn\n",
+				child);
+			goto error;
+		}
 	}
 
 	*node = child;
@@ -445,16 +541,11 @@ error:
 	return NULL;
 }
 
-static int of_node_match(struct device *dev, const void *data)
-{
-	return dev->of_node == data;
-}
-
 struct regulator_dev *of_find_regulator_by_node(struct device_node *np)
 {
 	struct device *dev;
 
-	dev = class_find_device(&regulator_class, NULL, np, of_node_match);
+	dev = class_find_device_by_of_node(&regulator_class, np);
 
 	return dev ? dev_to_rdev(dev) : NULL;
 }
@@ -476,7 +567,8 @@ int of_get_n_coupled(struct regulator_dev *rdev)
 
 /* Looks for "to_find" device_node in src's "regulator-coupled-with" property */
 static bool of_coupling_find_node(struct device_node *src,
-				  struct device_node *to_find)
+				  struct device_node *to_find,
+				  int *index)
 {
 	int n_phandles, i;
 	bool found = false;
@@ -498,8 +590,10 @@ static bool of_coupling_find_node(struct device_node *src,
 
 		of_node_put(tmp);
 
-		if (found)
+		if (found) {
+			*index = i;
 			break;
+		}
 	}
 
 	return found;
@@ -508,7 +602,7 @@ static bool of_coupling_find_node(struct device_node *src,
 /**
  * of_check_coupling_data - Parse rdev's coupling properties and check data
  *			    consistency
- * @rdev - pointer to regulator_dev whose data is checked
+ * @rdev: pointer to regulator_dev whose data is checked
  *
  * Function checks if all the following conditions are met:
  * - rdev's max_spread is greater than 0
@@ -520,21 +614,22 @@ static bool of_coupling_find_node(struct device_node *src,
  */
 bool of_check_coupling_data(struct regulator_dev *rdev)
 {
-	int max_spread = rdev->constraints->max_spread;
 	struct device_node *node = rdev->dev.of_node;
 	int n_phandles = of_get_n_coupled(rdev);
 	struct device_node *c_node;
+	int index;
 	int i;
 	bool ret = true;
 
-	if (max_spread <= 0) {
-		dev_err(&rdev->dev, "max_spread value invalid\n");
-		return false;
-	}
-
 	/* iterate over rdev's phandles */
 	for (i = 0; i < n_phandles; i++) {
+		int max_spread = rdev->constraints->max_spread[i];
 		int c_max_spread, c_n_phandles;
+
+		if (max_spread <= 0) {
+			dev_err(&rdev->dev, "max_spread value invalid\n");
+			return false;
+		}
 
 		c_node = of_parse_phandle(node,
 					  "regulator-coupled-with", i);
@@ -547,13 +642,19 @@ bool of_check_coupling_data(struct regulator_dev *rdev)
 							  NULL);
 
 		if (c_n_phandles != n_phandles) {
-			dev_err(&rdev->dev, "number of couped reg phandles mismatch\n");
+			dev_err(&rdev->dev, "number of coupled reg phandles mismatch\n");
 			ret = false;
 			goto clean;
 		}
 
-		if (of_property_read_u32(c_node, "regulator-coupled-max-spread",
-					 &c_max_spread)) {
+		if (!of_coupling_find_node(c_node, node, &index)) {
+			dev_err(&rdev->dev, "missing 2-way linking for coupled regulators\n");
+			ret = false;
+			goto clean;
+		}
+
+		if (of_property_read_u32_index(c_node, "regulator-coupled-max-spread",
+					       index, &c_max_spread)) {
 			ret = false;
 			goto clean;
 		}
@@ -563,11 +664,6 @@ bool of_check_coupling_data(struct regulator_dev *rdev)
 				"coupled regulators max_spread mismatch\n");
 			ret = false;
 			goto clean;
-		}
-
-		if (!of_coupling_find_node(c_node, node)) {
-			dev_err(&rdev->dev, "missing 2-way linking for coupled regulators\n");
-			ret = false;
 		}
 
 clean:

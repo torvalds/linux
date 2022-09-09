@@ -23,9 +23,6 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
-#define MD5_DIGEST_WORDS 4
-#define MD5_MESSAGE_BYTES 64
-
 const u8 md5_zero_message_hash[MD5_DIGEST_SIZE] = {
 	0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04,
 	0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
@@ -228,9 +225,10 @@ static struct shash_alg alg = {
 	.descsize	=	sizeof(struct md5_state),
 	.statesize	=	sizeof(struct md5_state),
 	.base		=	{
-		.cra_name	=	"md5",
-		.cra_blocksize	=	MD5_HMAC_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"md5",
+		.cra_driver_name =	"md5-generic",
+		.cra_blocksize	 =	MD5_HMAC_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 };
 
@@ -244,7 +242,7 @@ static void __exit md5_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(md5_mod_init);
+subsys_initcall(md5_mod_init);
 module_exit(md5_mod_fini);
 
 MODULE_LICENSE("GPL");

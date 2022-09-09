@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TDA7419 audio processor driver
  *
  * Copyright 2018 Konsulko Group
  *
  * Author: Matt Porter <mporter@konsulko.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/i2c.h>
@@ -195,18 +187,13 @@ static int tda7419_vol_get(struct snd_kcontrol *kcontrol,
 	int thresh = tvc->thresh;
 	unsigned int invert = tvc->invert;
 	int val;
-	int ret;
 
-	ret = snd_soc_component_read(component, reg, &val);
-	if (ret < 0)
-		return ret;
+	val = snd_soc_component_read(component, reg);
 	ucontrol->value.integer.value[0] =
 		tda7419_vol_get_value(val, mask, min, thresh, invert);
 
 	if (tda7419_vol_is_stereo(tvc)) {
-		ret = snd_soc_component_read(component, rreg, &val);
-		if (ret < 0)
-			return ret;
+		val = snd_soc_component_read(component, rreg);
 		ucontrol->value.integer.value[1] =
 			tda7419_vol_get_value(val, mask, min, thresh, invert);
 	}
@@ -584,8 +571,7 @@ static const struct snd_soc_component_driver tda7419_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(tda7419_dapm_routes),
 };
 
-static int tda7419_probe(struct i2c_client *i2c,
-			 const struct i2c_device_id *id)
+static int tda7419_probe(struct i2c_client *i2c)
 {
 	struct tda7419_data *tda7419;
 	int i, ret;
@@ -643,7 +629,7 @@ static struct i2c_driver tda7419_driver = {
 		.name   = "tda7419",
 		.of_match_table = tda7419_of_match,
 	},
-	.probe          = tda7419_probe,
+	.probe_new      = tda7419_probe,
 	.id_table       = tda7419_i2c_id,
 };
 

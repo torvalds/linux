@@ -66,7 +66,7 @@ struct ieee80211_header {
 	u8 sa[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	__le16 seq_ctl;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct wl12xx_ie_header {

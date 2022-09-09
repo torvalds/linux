@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A hwmon driver for the Intel 5000 series chipset FB-DIMM AMB
  * temperature sensors
  * Copyright (C) 2007 IBM
  *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -296,7 +283,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_label", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0444;
 			iattr->s_attr.dev_attr.show = show_label;
 			iattr->s_attr.index = k;
 			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
@@ -311,7 +298,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_input", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0444;
 			iattr->s_attr.dev_attr.show = show_amb_temp;
 			iattr->s_attr.index = k;
 			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
@@ -326,7 +313,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_min", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0644;
 			iattr->s_attr.dev_attr.show = show_amb_min;
 			iattr->s_attr.dev_attr.store = store_amb_min;
 			iattr->s_attr.index = k;
@@ -342,7 +329,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_mid", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0644;
 			iattr->s_attr.dev_attr.show = show_amb_mid;
 			iattr->s_attr.dev_attr.store = store_amb_mid;
 			iattr->s_attr.index = k;
@@ -358,7 +345,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_max", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0644;
 			iattr->s_attr.dev_attr.show = show_amb_max;
 			iattr->s_attr.dev_attr.store = store_amb_max;
 			iattr->s_attr.index = k;
@@ -374,7 +361,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_alarm", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0444;
 			iattr->s_attr.dev_attr.show = show_amb_alarm;
 			iattr->s_attr.index = k;
 			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
@@ -409,7 +396,7 @@ exit_remove:
 
 static int i5k_amb_add(void)
 {
-	int res = -ENODEV;
+	int res;
 
 	/* only ever going to be one of these */
 	amb_pdev = platform_device_alloc(DRVNAME, 0);
@@ -440,11 +427,13 @@ static int i5k_find_amb_registers(struct i5k_amb_data *data,
 	if (!pcidev)
 		return -ENODEV;
 
-	if (pci_read_config_dword(pcidev, I5K_REG_AMB_BASE_ADDR, &val32))
+	pci_read_config_dword(pcidev, I5K_REG_AMB_BASE_ADDR, &val32);
+	if (val32 == (u32)~0)
 		goto out;
 	data->amb_base = val32;
 
-	if (pci_read_config_dword(pcidev, I5K_REG_AMB_LEN_ADDR, &val32))
+	pci_read_config_dword(pcidev, I5K_REG_AMB_LEN_ADDR, &val32);
+	if (val32 == (u32)~0)
 		goto out;
 	data->amb_len = val32;
 
@@ -471,11 +460,13 @@ static int i5k_channel_probe(u16 *amb_present, unsigned long dev_id)
 	if (!pcidev)
 		return -ENODEV;
 
-	if (pci_read_config_word(pcidev, I5K_REG_CHAN0_PRESENCE_ADDR, &val16))
+	pci_read_config_word(pcidev, I5K_REG_CHAN0_PRESENCE_ADDR, &val16);
+	if (val16 == (u16)~0)
 		goto out;
 	amb_present[0] = val16;
 
-	if (pci_read_config_word(pcidev, I5K_REG_CHAN1_PRESENCE_ADDR, &val16))
+	pci_read_config_word(pcidev, I5K_REG_CHAN1_PRESENCE_ADDR, &val16);
+	if (val16 == (u16)~0)
 		goto out;
 	amb_present[1] = val16;
 
@@ -541,7 +532,7 @@ static int i5k_amb_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	data->amb_mmio = ioremap_nocache(data->amb_base, data->amb_len);
+	data->amb_mmio = ioremap(data->amb_base, data->amb_len);
 	if (!data->amb_mmio) {
 		res = -EBUSY;
 		goto err_map_failed;

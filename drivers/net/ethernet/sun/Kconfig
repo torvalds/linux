@@ -7,7 +7,7 @@ config NET_VENDOR_SUN
 	bool "Sun devices"
 	default y
 	depends on SUN3 || SBUS || PCI || SUN_LDOMS
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,7 +21,7 @@ config HAPPYMEAL
 	tristate "Sun Happy Meal 10/100baseT support"
 	depends on (SBUS || PCI)
 	select CRC32
-	---help---
+	help
 	  This driver supports the "hme" interface present on most Ultra
 	  systems and as an option on older Sbus systems. This driver supports
 	  both PCI and Sbus devices. This driver also supports the "qfe" quad
@@ -34,7 +34,7 @@ config SUNBMAC
 	tristate "Sun BigMAC 10/100baseT support"
 	depends on SBUS
 	select CRC32
-	---help---
+	help
 	  This driver supports the "be" interface available as an Sbus option.
 	  This is Sun's older 100baseT Ethernet device.
 
@@ -45,7 +45,7 @@ config SUNQE
 	tristate "Sun QuadEthernet support"
 	depends on SBUS
 	select CRC32
-	---help---
+	help
 	  This driver supports the "qe" 10baseT Ethernet device, available as
 	  an Sbus option. Note that this is not the same as Quad FastEthernet
 	  "qfe" which is supported by the Happy Meal driver instead.
@@ -58,7 +58,7 @@ config SUNGEM
 	depends on PCI
 	select CRC32
 	select SUNGEM_PHY
-	---help---
+	help
 	  Support for the Sun GEM chip, aka Sun GigabitEthernet/P 2.0.  See also
 	  <http://docs.oracle.com/cd/E19455-01/806-3985-10/806-3985-10.pdf>.
 
@@ -66,13 +66,14 @@ config CASSINI
 	tristate "Sun Cassini support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  Support for the Sun Cassini chip, aka Sun GigaSwift Ethernet. See also
 	  <http://docs.oracle.com/cd/E19113-01/giga.ether.pci/817-4341-10/817-4341-10.pdf>.
 
 config SUNVNET_COMMON
 	tristate "Common routines to support Sun Virtual Networking"
 	depends on SUN_LDOMS
+	depends on INET
 	default m
 
 config SUNVNET
@@ -80,7 +81,7 @@ config SUNVNET
 	default m
 	depends on SUN_LDOMS
 	depends on SUNVNET_COMMON
-	---help---
+	help
 	  Support for virtual network devices under Sun Logical Domains.
 
 config LDMVSW
@@ -88,7 +89,7 @@ config LDMVSW
 	default m
 	depends on SUN_LDOMS
 	depends on SUNVNET_COMMON
-	---help---
+	help
 	  Support for virtual switch devices under Sun4v Logical Domains.
 	  This driver adds a network interface for every vsw-port node
 	  found in the machine description of a service domain.
@@ -100,7 +101,7 @@ config NIU
 	tristate "Sun Neptune 10Gbit Ethernet support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This enables support for cards based upon Sun's
 	  Neptune chipset.
 

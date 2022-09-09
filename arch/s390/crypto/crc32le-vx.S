@@ -105,13 +105,14 @@
 ENTRY(crc32_le_vgfm_16)
 	larl	%r5,.Lconstants_CRC_32_LE
 	j	crc32_le_vgfm_generic
+ENDPROC(crc32_le_vgfm_16)
 
 ENTRY(crc32c_le_vgfm_16)
 	larl	%r5,.Lconstants_CRC_32C_LE
 	j	crc32_le_vgfm_generic
+ENDPROC(crc32c_le_vgfm_16)
 
-
-crc32_le_vgfm_generic:
+ENTRY(crc32_le_vgfm_generic)
 	/* Load CRC-32 constants */
 	VLM	CONST_PERM_LE2BE,CONST_CRC_POLY,0,%r5
 
@@ -267,5 +268,6 @@ crc32_le_vgfm_generic:
 .Ldone:
 	VLGVF	%r2,%v2,2
 	BR_EX	%r14
+ENDPROC(crc32_le_vgfm_generic)
 
 .previous

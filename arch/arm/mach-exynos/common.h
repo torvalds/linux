@@ -3,7 +3,7 @@
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Common Header for EXYNOS machines
+ * Common Header for Exynos machines
  */
 
 #ifndef __ARCH_ARM_MACH_EXYNOS_COMMON_H
@@ -24,12 +24,12 @@
 #define EXYNOS5800_SOC_ID	0xE5422000
 #define EXYNOS5_SOC_MASK	0xFFFFF000
 
-extern unsigned long samsung_cpu_id;
+extern unsigned long exynos_cpu_id;
 
 #define IS_SAMSUNG_CPU(name, id, mask)		\
 static inline int is_samsung_##name(void)	\
 {						\
-	return ((samsung_cpu_id & mask) == (id & mask));	\
+	return ((exynos_cpu_id & mask) == (id & mask));	\
 }
 
 IS_SAMSUNG_CPU(exynos3250, EXYNOS3250_SOC_ID, EXYNOS3_SOC_MASK)
@@ -91,6 +91,7 @@ extern u32 cp15_save_power;
 
 extern void __iomem *sysram_ns_base_addr;
 extern void __iomem *sysram_base_addr;
+extern phys_addr_t sysram_base_phys;
 extern void __iomem *pmu_base_addr;
 void exynos_sysram_init(void);
 
@@ -105,7 +106,7 @@ void exynos_firmware_init(void);
 #define C2_STATE	(1 << 3)
 /*
  * Magic values for bootloader indicating chosen low power mode.
- * See also Documentation/arm/Samsung/Bootloader-interface.txt
+ * See also Documentation/arm/samsung/bootloader-interface.rst
  */
 #define EXYNOS_SLEEP_MAGIC	0x00000bad
 #define EXYNOS_AFTR_MAGIC	0xfcba0d10
@@ -146,7 +147,7 @@ extern struct cpuidle_exynos_data cpuidle_coupled_exynos_data;
 
 extern void exynos_set_delayed_reset_assertion(bool enable);
 
-extern unsigned int samsung_rev(void);
+extern unsigned int exynos_rev(void);
 extern void exynos_core_restart(u32 core_id);
 extern int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr);
 extern int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr);

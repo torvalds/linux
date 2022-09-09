@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * descriptions + helper functions for simple dvb plls.
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/idr.h>
 #include <linux/dvb/frontend.h>
 #include <asm/types.h>
 
@@ -43,8 +35,7 @@ struct dvb_pll_priv {
 };
 
 #define DVB_PLL_MAX 64
-
-static unsigned int dvb_pll_devcount;
+static DEFINE_IDA(pll_ida);
 
 static int debug;
 module_param(debug, int, 0644);
@@ -796,6 +787,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
 	const struct dvb_pll_desc *desc;
+	int nr;
 
 	b1 = kmalloc(1, GFP_KERNEL);
 	if (!b1)
@@ -804,9 +796,14 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	b1[0] = 0;
 	msg.buf = b1;
 
-	if ((id[dvb_pll_devcount] > DVB_PLL_UNDEFINED) &&
-	    (id[dvb_pll_devcount] < ARRAY_SIZE(pll_list)))
-		pll_desc_id = id[dvb_pll_devcount];
+	nr = ida_simple_get(&pll_ida, 0, DVB_PLL_MAX, GFP_KERNEL);
+	if (nr < 0) {
+		kfree(b1);
+		return NULL;
+	}
+
+	if (id[nr] > DVB_PLL_UNDEFINED && id[nr] < ARRAY_SIZE(pll_list))
+		pll_desc_id = id[nr];
 
 	BUG_ON(pll_desc_id < 1 || pll_desc_id >= ARRAY_SIZE(pll_list));
 
@@ -817,29 +814,25 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
 		ret = i2c_transfer (i2c, &msg, 1);
-		if (ret != 1) {
-			kfree(b1);
-			return NULL;
-		}
+		if (ret != 1)
+			goto out;
 		if (fe->ops.i2c_gate_ctrl)
 			     fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	priv = kzalloc(sizeof(struct dvb_pll_priv), GFP_KERNEL);
-	if (!priv) {
-		kfree(b1);
-		return NULL;
-	}
+	if (!priv)
+		goto out;
 
 	priv->pll_i2c_address = pll_addr;
 	priv->i2c = i2c;
 	priv->pll_desc = desc;
-	priv->nr = dvb_pll_devcount++;
+	priv->nr = nr;
 
 	memcpy(&fe->ops.tuner_ops, &dvb_pll_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	strncpy(fe->ops.tuner_ops.info.name, desc->name,
+	strscpy(fe->ops.tuner_ops.info.name, desc->name,
 		sizeof(fe->ops.tuner_ops.info.name));
 
 	fe->ops.tuner_ops.info.frequency_min_hz = desc->min;
@@ -867,6 +860,11 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	kfree(b1);
 
 	return fe;
+out:
+	kfree(b1);
+	ida_simple_remove(&pll_ida, nr);
+
+	return NULL;
 }
 EXPORT_SYMBOL(dvb_pll_attach);
 
@@ -903,9 +901,10 @@ dvb_pll_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 static int dvb_pll_remove(struct i2c_client *client)
 {
-	struct dvb_frontend *fe;
+	struct dvb_frontend *fe = i2c_get_clientdata(client);
+	struct dvb_pll_priv *priv = fe->tuner_priv;
 
-	fe = i2c_get_clientdata(client);
+	ida_simple_remove(&pll_ida, priv->nr);
 	dvb_pll_release(fe);
 	return 0;
 }

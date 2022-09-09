@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright 2016-2018 Toradex AG
  */
@@ -132,7 +132,7 @@
 	};
 
 	/* Apalis MMC1 */
-	sdhci@700b0000 {
+	mmc@700b0000 {
 		status = "okay";
 		bus-width = <4>;
 		/* MMC1_CD# */
@@ -141,7 +141,7 @@
 	};
 
 	/* Apalis SD1 */
-	sdhci@700b0400 {
+	mmc@700b0400 {
 		status = "okay";
 		bus-width = <4>;
 		/* SD1_CD# */
@@ -193,7 +193,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wakeup {
+		key-wakeup {
 			label = "WAKE1_MICO";
 			gpios = <&gpio TEGRA_GPIO(DD, 3) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
@@ -248,7 +248,7 @@
 
 &gpio {
 	/* Apalis GPIO7 MXM3 pin 15 PLX PEX 8605 PCIe Switch Reset */
-	pex-perst-n {
+	pex-perst-n-hog {
 		gpio-hog;
 		gpios = <TEGRA_GPIO(DD, 1) GPIO_ACTIVE_HIGH>;
 		output-high;

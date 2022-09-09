@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP2/3/4 DPLL clock functions
  *
@@ -7,10 +8,6 @@
  * Contacts:
  * Richard Woodruff <r-woodruff2@ti.com>
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #undef DEBUG
 
@@ -272,8 +269,9 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 
 /**
  * omap2_dpll_round_rate - round a target rate for an OMAP DPLL
- * @clk: struct clk * for a DPLL
+ * @hw: struct clk_hw containing the struct clk * for a DPLL
  * @target_rate: desired DPLL clock rate
+ * @parent_rate: parent's DPLL clock rate
  *
  * Given a DPLL and a desired target rate, round the target rate to a
  * possible, programmable rate for this DPLL.  Attempts to select the

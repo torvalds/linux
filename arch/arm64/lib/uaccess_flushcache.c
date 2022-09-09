@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/uaccess.h>
@@ -26,7 +15,7 @@ void memcpy_flushcache(void *dst, const void *src, size_t cnt)
 	 * barrier to order the cache maintenance against the memcpy.
 	 */
 	memcpy(dst, src, cnt);
-	__clean_dcache_area_pop(dst, cnt);
+	dcache_clean_pop((unsigned long)dst, (unsigned long)dst + cnt);
 }
 EXPORT_SYMBOL_GPL(memcpy_flushcache);
 
@@ -39,9 +28,11 @@ void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
 unsigned long __copy_user_flushcache(void *to, const void __user *from,
 				     unsigned long n)
 {
-	unsigned long rc = __arch_copy_from_user(to, from, n);
+	unsigned long rc;
+
+	rc = raw_copy_from_user(to, from, n);
 
 	/* See above */
-	__clean_dcache_area_pop(to, n - rc);
+	dcache_clean_pop((unsigned long)to, (unsigned long)to + n - rc);
 	return rc;
 }

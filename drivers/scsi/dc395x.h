@@ -156,15 +156,6 @@
 #define H_ABORT				0x0FF
 
 /* SCSI BUS Status byte codes */
-#define SCSI_STAT_GOOD			0x0	/* Good status				*/
-#define SCSI_STAT_CHECKCOND		0x02	/* SCSI Check Condition			*/
-#define SCSI_STAT_CONDMET		0x04	/* Condition Met			*/
-#define SCSI_STAT_BUSY			0x08	/* Target busy status			*/
-#define SCSI_STAT_INTER			0x10	/* Intermediate status			*/
-#define SCSI_STAT_INTERCONDMET		0x14	/* Intermediate condition met		*/
-#define SCSI_STAT_RESCONFLICT		0x18	/* Reservation conflict			*/
-#define SCSI_STAT_CMDTERM		0x22	/* Command Terminated			*/
-#define SCSI_STAT_QUEUEFULL		0x28	/* Queue Full				*/
 #define SCSI_STAT_UNEXP_BUS_F		0xFD	/* Unexpect Bus Free			*/
 #define SCSI_STAT_BUS_RST_DETECT	0xFE	/* Scsi Bus Reset detected		*/
 #define SCSI_STAT_SEL_TIMEOUT		0xFF	/* Selection Time out			*/
@@ -180,35 +171,6 @@
 #define EN_ATN_STOP			BIT6
 
 #define SYNC_NEGO_OFFSET		15
-
-/* SCSI MSG BYTE */
-#define MSG_COMPLETE			0x00
-#define MSG_EXTENDED			0x01
-#define MSG_SAVE_PTR			0x02
-#define MSG_RESTORE_PTR			0x03
-#define MSG_DISCONNECT			0x04
-#define MSG_INITIATOR_ERROR		0x05
-#define MSG_ABORT			0x06
-#define MSG_REJECT_			0x07
-#define MSG_NOP				0x08
-#define MSG_PARITY_ERROR		0x09
-#define MSG_LINK_CMD_COMPL		0x0A
-#define MSG_LINK_CMD_COMPL_FLG		0x0B
-#define MSG_BUS_RESET			0x0C
-#define MSG_ABORT_TAG			0x0D
-#define MSG_SIMPLE_QTAG			0x20
-#define MSG_HEAD_QTAG			0x21
-#define MSG_ORDER_QTAG			0x22
-#define MSG_IGNOREWIDE			0x23
-#define MSG_IDENTIFY			0x80
-#define MSG_HOST_ID			0xC0
-
-/* SCSI STATUS BYTE */
-#define STATUS_GOOD			0x00
-#define CHECK_CONDITION_		0x02
-#define STATUS_BUSY			0x08
-#define STATUS_INTERMEDIATE		0x10
-#define RESERVE_CONFLICT		0x18
 
 /* cmd->result */
 #define STATUS_MASK_			0xFF

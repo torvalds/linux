@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 functions to query card hardware
  *
@@ -5,16 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx18-driver.h"
@@ -44,7 +35,7 @@ static struct cx18_card_tuner_i2c cx18_i2c_nxp = {
 	.tv    = { 0x61, 0x60, I2C_CLIENT_END },
 };
 
-/* Please add new PCI IDs to: http://pci-ids.ucw.cz/
+/* Please add new PCI IDs to: https://pci-ids.ucw.cz/
    This keeps the PCI ID database up to date. Note that the entries
    must be added under vendor 0x4444 (Conexant) as subsystem IDs.
    New vendor IDs should still be added to the vendor ID list. */
@@ -254,7 +245,7 @@ static const struct cx18_card cx18_card_mpc718 = {
 	.type = CX18_CARD_YUAN_MPC718,
 	.name = "Yuan MPC718 MiniPCI DVB-T/Analog",
 	.comment = "Experimenters needed for device to work well.\n"
-		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
+		  "\tTo help, mail the linux-media list (www.linuxtv.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_GPIO_MUX,
@@ -314,7 +305,7 @@ static const struct cx18_card cx18_card_gotview_dvd3 = {
 	.type = CX18_CARD_GOTVIEW_PCI_DVD3,
 	.name = "GoTView PCI DVD3 Hybrid",
 	.comment = "Experimenters needed for device to work well.\n"
-		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
+		  "\tTo help, mail the linux-media list (www.linuxtv.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_GPIO_MUX,
@@ -428,7 +419,7 @@ static const struct cx18_card cx18_card_toshiba_qosmio_dvbt = {
 	.type = CX18_CARD_TOSHIBA_QOSMIO_DVBT,
 	.name = "Toshiba Qosmio DVB-T/Analog",
 	.comment = "Experimenters and photos needed for device to work well.\n"
-		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
+		  "\tTo help, mail the linux-media list (www.linuxtv.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_RESET_CTRL,
@@ -471,7 +462,7 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	.type = CX18_CARD_LEADTEK_PVR2100,
 	.name = "Leadtek WinFast PVR2100",
 	.comment = "Experimenters and photos needed for device to work well.\n"
-		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
+		  "\tTo help, mail the linux-media list (www.linuxtv.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_GPIO_MUX,

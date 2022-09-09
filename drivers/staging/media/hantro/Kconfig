@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_HANTRO
+	tristate "Hantro VPU driver"
+	depends on ARCH_MXC || ARCH_ROCKCHIP || ARCH_AT91 || ARCH_SUNXI || COMPILE_TEST
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select MEDIA_CONTROLLER_REQUEST_API
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	select V4L2_H264
+	select V4L2_VP9
+	help
+	  Support for the Hantro IP based Video Processing Units present on
+	  Rockchip and NXP i.MX8M SoCs, which accelerate video and image
+	  encoding and decoding.
+	  To compile this driver as a module, choose M here: the module
+	  will be called hantro-vpu.
+
+config VIDEO_HANTRO_IMX8M
+	bool "Hantro VPU i.MX8M support"
+	depends on VIDEO_HANTRO
+	depends on ARCH_MXC || COMPILE_TEST
+	default y
+	help
+	  Enable support for i.MX8M SoCs.
+
+config VIDEO_HANTRO_SAMA5D4
+	bool "Hantro VDEC SAMA5D4 support"
+	depends on VIDEO_HANTRO
+	depends on ARCH_AT91 || COMPILE_TEST
+	default y
+	help
+	  Enable support for Microchip SAMA5D4 SoCs.
+
+config VIDEO_HANTRO_ROCKCHIP
+	bool "Hantro VPU Rockchip support"
+	depends on VIDEO_HANTRO
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	default y
+	help
+	  Enable support for RK3288, RK3328, and RK3399 SoCs.
+
+config VIDEO_HANTRO_SUNXI
+	bool "Hantro VPU Allwinner support"
+	depends on VIDEO_HANTRO
+	depends on ARCH_SUNXI || COMPILE_TEST
+	default y
+	help
+	  Enable support for H6 SoC.

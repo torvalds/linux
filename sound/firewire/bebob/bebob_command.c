@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bebob_command.c - driver for BeBoB based devices
  *
  * Copyright (c) 2013-2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "./bebob.h"
@@ -138,6 +137,42 @@ int avc_bridgeco_get_plug_type(struct fw_unit *unit,
 		goto end;
 
 	*type = buf[10];
+	err = 0;
+end:
+	kfree(buf);
+	return err;
+}
+
+int avc_bridgeco_get_plug_ch_count(struct fw_unit *unit, u8 addr[AVC_BRIDGECO_ADDR_BYTES],
+				   unsigned int *ch_count)
+{
+	u8 *buf;
+	int err;
+
+	buf = kzalloc(12, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	// Info type is 'plug type'.
+	avc_bridgeco_fill_plug_info_extension_command(buf, addr, 0x02);
+
+	err = fcp_avc_transaction(unit, buf, 12, buf, 12,
+				  BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) |
+				  BIT(6) | BIT(7) | BIT(9));
+	if (err < 0)
+		;
+	else if (err < 11)
+		err = -EIO;
+	else if (buf[0] == 0x08) // NOT IMPLEMENTED
+		err = -ENOSYS;
+	else if (buf[0] == 0x0a) // REJECTED
+		err = -EINVAL;
+	else if (buf[0] == 0x0b) // IN TRANSITION
+		err = -EAGAIN;
+	if (err < 0)
+		goto end;
+
+	*ch_count = buf[10];
 	err = 0;
 end:
 	kfree(buf);

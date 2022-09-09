@@ -37,13 +37,13 @@
 
 / {
 	model = "NorthStar Plus SVK (BCM958625HR)";
-	compatible = "brcm,bcm58625", "brcm,nsp";
+	compatible = "brcm,bcm958625hr", "brcm,bcm58625", "brcm,nsp";
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x20000000>;
 	};
@@ -55,23 +55,22 @@
 		priority = <200>;
 	};
 
-	/* Hardware I2C block cannot do more than 63 bytes per transfer,
-	 * which would prevent reading from a SFP's EEPROM (256 byte).
-	 */
-	i2c1: i2c {
-		compatible = "i2c-gpio";
-		sda-gpios = <&gpioa 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&gpioa 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
-	};
-
 	sfp: sfp {
 		compatible = "sff,sfp";
-		i2c-bus = <&i2c1>;
+		i2c-bus = <&i2c0>;
 		mod-def0-gpios = <&gpioa 28 GPIO_ACTIVE_LOW>;
 		los-gpios = <&gpioa 24 GPIO_ACTIVE_HIGH>;
 		tx-fault-gpios = <&gpioa 30 GPIO_ACTIVE_HIGH>;
 		tx-disable-gpios = <&gpioa 26 GPIO_ACTIVE_HIGH>;
 	};
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&dma {
+	status = "okay";
 };
 
 &amac0 {
@@ -90,8 +89,8 @@
 	status = "okay";
 };
 
-&nand {
-	nandcs@0 {
+&nand_controller {
+	nand@0 {
 		compatible = "brcm,nandcs";
 		reg = <0>;
 		nand-on-flash-bbt;
@@ -150,8 +149,9 @@
 };
 
 &qspi {
+	status = "okay";
 	bspi-sel = <0>;
-	flash: m25p80@0 {
+	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "m25p80";
@@ -196,9 +196,6 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			label = "port0";
 			reg = <0>;

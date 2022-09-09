@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # QLogic BR-series network device configuration
 #
@@ -5,7 +6,7 @@
 config BNA
 	tristate "QLogic BR-series 1010/1020/1860 10Gb Ethernet Driver support"
 	depends on PCI
-	---help---
+	help
 	  This driver supports QLogic BR-series 1010/1020/1860 10Gb CEE capable
 	  Ethernet cards.
 	  To compile this driver as a module, choose M here: the module

@@ -1,0 +1,140 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/mailbox/xlnx,zynqmp-ipi-mailbox.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Xilinx IPI(Inter Processor Interrupt) mailbox controller
+
+description: |
+  The Xilinx IPI(Inter Processor Interrupt) mailbox controller is to manage
+  messaging between two Xilinx Zynq UltraScale+ MPSoC IPI agents. Each IPI
+  agent owns registers used for notification and buffers for message.
+
+               +-------------------------------------+
+               | Xilinx ZynqMP IPI Controller        |
+               +-------------------------------------+
+    +--------------------------------------------------+
+  TF-A                   |                     |
+                         |                     |
+                         |                     |
+    +--------------------------+               |
+                         |                     |
+                         |                     |
+    +--------------------------------------------------+
+              +------------------------------------------+
+              |  +----------------+   +----------------+ |
+  Hardware    |  |  IPI Agent     |   |  IPI Buffers   | |
+              |  |  Registers     |   |                | |
+              |  |                |   |                | |
+              |  +----------------+   +----------------+ |
+              |                                          |
+              | Xilinx IPI Agent Block                   |
+              +------------------------------------------+
+
+maintainers:
+  - Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
+
+properties:
+  compatible:
+    const: xlnx,zynqmp-ipi-mailbox
+
+  method:
+    description: |
+      The method of calling the PM-API firmware layer.
+      Permitted values are.
+      - "smc" : SMC #0, following the SMCCC
+      - "hvc" : HVC #0, following the SMCCC
+
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - smc
+      - hvc
+    default: smc
+
+  '#address-cells':
+    const: 2
+
+  '#size-cells':
+    const: 2
+
+  xlnx,ipi-id:
+    description: |
+      Remote Xilinx IPI agent ID of which the mailbox is connected to.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  interrupts:
+    maxItems: 1
+
+  ranges: true
+
+patternProperties:
+  '^mailbox@[0-9a-f]+$':
+    description: Internal ipi mailbox node
+    type: object  # DT nodes are json objects
+    properties:
+      xlnx,ipi-id:
+        description:
+          Remote Xilinx IPI agent ID of which the mailbox is connected to.
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      '#mbox-cells':
+        const: 1
+        description:
+          It contains tx(0) or rx(1) channel IPI id number.
+
+      reg:
+        maxItems: 4
+
+      reg-names:
+        items:
+          - const: local_request_region
+          - const: local_response_region
+          - const: remote_request_region
+          - const: remote_response_region
+
+    required:
+      - reg
+      - reg-names
+      - "#mbox-cells"
+
+additionalProperties: false
+
+required:
+  - compatible
+  - interrupts
+  - '#address-cells'
+  - '#size-cells'
+  - xlnx,ipi-id
+
+examples:
+  - |
+    #include<dt-bindings/interrupt-controller/arm-gic.h>
+
+    amba {
+      #address-cells = <0x2>;
+      #size-cells = <0x2>;
+      zynqmp-mailbox {
+        compatible = "xlnx,zynqmp-ipi-mailbox";
+        interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+        xlnx,ipi-id = <0>;
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        mailbox: mailbox@ff9905c0 {
+          reg = <0x0 0xff9905c0 0x0 0x20>,
+                <0x0 0xff9905e0 0x0 0x20>,
+                <0x0 0xff990e80 0x0 0x20>,
+                <0x0 0xff990ea0 0x0 0x20>;
+          reg-names = "local_request_region",
+                      "local_response_region",
+                      "remote_request_region",
+                      "remote_response_region";
+          #mbox-cells = <1>;
+          xlnx,ipi-id = <4>;
+        };
+      };
+    };
+
+...

@@ -51,8 +51,8 @@
  */
 
 struct gpio_service *dal_gpio_service_create(
-	enum dce_version dce_version_major,
-	enum dce_version dce_version_minor,
+	enum dce_version dce_version,
+	enum dce_environment dce_environment,
 	struct dc_context *ctx)
 {
 	struct gpio_service *service;
@@ -65,14 +65,14 @@ struct gpio_service *dal_gpio_service_create(
 		return NULL;
 	}
 
-	if (!dal_hw_translate_init(&service->translate, dce_version_major,
-			dce_version_minor)) {
+	if (!dal_hw_translate_init(&service->translate, dce_version,
+			dce_environment)) {
 		BREAK_TO_DEBUGGER();
 		goto failure_1;
 	}
 
-	if (!dal_hw_factory_init(&service->factory, dce_version_major,
-			dce_version_minor)) {
+	if (!dal_hw_factory_init(&service->factory, dce_version,
+			dce_environment)) {
 		BREAK_TO_DEBUGGER();
 		goto failure_1;
 	}
@@ -139,6 +139,57 @@ struct gpio *dal_gpio_service_create_irq(
 	return dal_gpio_create_irq(service, id, en);
 }
 
+struct gpio *dal_gpio_service_create_generic_mux(
+	struct gpio_service *service,
+	uint32_t offset,
+	uint32_t mask)
+{
+	enum gpio_id id;
+	uint32_t en;
+	struct gpio *generic;
+
+	if (!service->translate.funcs->offset_to_id(offset, mask, &id, &en)) {
+		ASSERT_CRITICAL(false);
+		return NULL;
+	}
+
+	generic = dal_gpio_create(
+		service, id, en, GPIO_PIN_OUTPUT_STATE_DEFAULT);
+
+	return generic;
+}
+
+void dal_gpio_destroy_generic_mux(
+	struct gpio **mux)
+{
+	if (!mux || !*mux) {
+		ASSERT_CRITICAL(false);
+		return;
+	}
+
+	dal_gpio_destroy(mux);
+	kfree(*mux);
+
+	*mux = NULL;
+}
+
+struct gpio_pin_info dal_gpio_get_generic_pin_info(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en)
+{
+	struct gpio_pin_info pin;
+
+	if (service->translate.funcs->id_to_offset) {
+		service->translate.funcs->id_to_offset(id, en, &pin);
+	} else {
+		pin.mask = 0xFFFFFFFF;
+		pin.offset = 0xFFFFFFFF;
+	}
+
+	return pin;
+}
+
 void dal_gpio_service_destroy(
 	struct gpio_service **ptr)
 {
@@ -161,6 +212,21 @@ void dal_gpio_service_destroy(
 	kfree(*ptr);
 
 	*ptr = NULL;
+}
+
+enum gpio_result dal_mux_setup_config(
+	struct gpio *mux,
+	struct gpio_generic_mux_config *config)
+{
+	struct gpio_config_data config_data;
+
+	if (!config)
+		return GPIO_RESULT_INVALID_DATA;
+
+	config_data.config.generic_mux = *config;
+	config_data.type = GPIO_CONFIG_TYPE_GENERIC_MUX;
+
+	return dal_gpio_set_config(mux, &config_data);
 }
 
 /*
@@ -192,14 +258,44 @@ static void set_pin_free(
 	service->busyness[id][en] = false;
 }
 
-enum gpio_result dal_gpio_service_open(
+enum gpio_result dal_gpio_service_lock(
 	struct gpio_service *service,
 	enum gpio_id id,
-	uint32_t en,
-	enum gpio_mode mode,
-	struct hw_gpio_pin **ptr)
+	uint32_t en)
 {
-	struct hw_gpio_pin *pin;
+	if (!service->busyness[id]) {
+		ASSERT_CRITICAL(false);
+		return GPIO_RESULT_OPEN_FAILED;
+	}
+
+	set_pin_busy(service, id, en);
+	return GPIO_RESULT_OK;
+}
+
+enum gpio_result dal_gpio_service_unlock(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en)
+{
+	if (!service->busyness[id]) {
+		ASSERT_CRITICAL(false);
+		return GPIO_RESULT_OPEN_FAILED;
+	}
+
+	set_pin_free(service, id, en);
+	return GPIO_RESULT_OK;
+}
+
+enum gpio_result dal_gpio_service_open(
+	struct gpio *gpio)
+{
+	struct gpio_service *service = gpio->service;
+	enum gpio_id id = gpio->id;
+	uint32_t en = gpio->en;
+	enum gpio_mode mode = gpio->mode;
+
+	struct hw_gpio_pin **pin = &gpio->pin;
+
 
 	if (!service->busyness[id]) {
 		ASSERT_CRITICAL(false);
@@ -213,50 +309,43 @@ enum gpio_result dal_gpio_service_open(
 
 	switch (id) {
 	case GPIO_ID_DDC_DATA:
-		pin = service->factory.funcs->create_ddc_data(
-			service->ctx, id, en);
-		service->factory.funcs->define_ddc_registers(pin, en);
+		*pin = service->factory.funcs->get_ddc_pin(gpio);
+		service->factory.funcs->define_ddc_registers(*pin, en);
 	break;
 	case GPIO_ID_DDC_CLOCK:
-		pin = service->factory.funcs->create_ddc_clock(
-			service->ctx, id, en);
-		service->factory.funcs->define_ddc_registers(pin, en);
+		*pin = service->factory.funcs->get_ddc_pin(gpio);
+		service->factory.funcs->define_ddc_registers(*pin, en);
 	break;
 	case GPIO_ID_GENERIC:
-		pin = service->factory.funcs->create_generic(
-			service->ctx, id, en);
+		*pin = service->factory.funcs->get_generic_pin(gpio);
+		service->factory.funcs->define_generic_registers(*pin, en);
 	break;
 	case GPIO_ID_HPD:
-		pin = service->factory.funcs->create_hpd(
-			service->ctx, id, en);
-		service->factory.funcs->define_hpd_registers(pin, en);
+		*pin = service->factory.funcs->get_hpd_pin(gpio);
+		service->factory.funcs->define_hpd_registers(*pin, en);
 	break;
+
+	//TODO: gsl and sync support? create_sync and create_gsl are NULL
 	case GPIO_ID_SYNC:
-		pin = service->factory.funcs->create_sync(
-			service->ctx, id, en);
-	break;
 	case GPIO_ID_GSL:
-		pin = service->factory.funcs->create_gsl(
-			service->ctx, id, en);
 	break;
 	default:
 		ASSERT_CRITICAL(false);
 		return GPIO_RESULT_NON_SPECIFIC_ERROR;
 	}
 
-	if (!pin) {
+	if (!*pin) {
 		ASSERT_CRITICAL(false);
 		return GPIO_RESULT_NON_SPECIFIC_ERROR;
 	}
 
-	if (!pin->funcs->open(pin, mode)) {
+	if (!(*pin)->funcs->open(*pin, mode)) {
 		ASSERT_CRITICAL(false);
-		dal_gpio_service_close(service, &pin);
+		dal_gpio_service_close(service, pin);
 		return GPIO_RESULT_OPEN_FAILED;
 	}
 
 	set_pin_busy(service, id, en);
-	*ptr = pin;
 	return GPIO_RESULT_OK;
 }
 
@@ -278,10 +367,9 @@ void dal_gpio_service_close(
 
 		pin->funcs->close(pin);
 
-		pin->funcs->destroy(ptr);
+		*ptr = NULL;
 	}
 }
-
 
 enum dc_irq_source dal_irq_get_source(
 	const struct gpio *irq)
@@ -369,7 +457,6 @@ void dal_gpio_destroy_irq(
 		return;
 	}
 
-	dal_gpio_close(*irq);
 	dal_gpio_destroy(irq);
 	kfree(*irq);
 
@@ -558,7 +645,9 @@ enum gpio_result dal_ddc_set_config(
 void dal_ddc_close(
 	struct ddc *ddc)
 {
-	dal_gpio_close(ddc->pin_clock);
-	dal_gpio_close(ddc->pin_data);
+	if (ddc != NULL) {
+		dal_gpio_close(ddc->pin_clock);
+		dal_gpio_close(ddc->pin_data);
+	}
 }
 

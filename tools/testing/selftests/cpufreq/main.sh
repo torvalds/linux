@@ -194,5 +194,5 @@ prerequisite
 
 # Run requested functions
 clear_dumps $OUTFILE
-do_test >> $OUTFILE.txt
+do_test | tee -a $OUTFILE.txt
 dmesg_dumps $OUTFILE

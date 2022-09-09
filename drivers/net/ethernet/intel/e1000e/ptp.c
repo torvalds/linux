@@ -15,14 +15,16 @@
 #endif
 
 /**
- * e1000e_phc_adjfreq - adjust the frequency of the hardware clock
+ * e1000e_phc_adjfine - adjust the frequency of the hardware clock
  * @ptp: ptp clock structure
- * @delta: Desired frequency change in parts per billion
+ * @delta: Desired frequency chance in scaled parts per million
  *
  * Adjust the frequency of the PHC cycle counter by the indicated delta from
  * the base frequency.
+ *
+ * Scaled parts per million is ppm but with a 16 bit binary fractional field.
  **/
-static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
+static int e1000e_phc_adjfine(struct ptp_clock_info *ptp, long delta)
 {
 	struct e1000_adapter *adapter = container_of(ptp, struct e1000_adapter,
 						     ptp_clock_info);
@@ -32,9 +34,6 @@ static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	u64 adjustment;
 	u32 timinca, incvalue;
 	s32 ret_val;
-
-	if ((delta > ptp->max_adj) || (delta <= -1000000000))
-		return -EINVAL;
 
 	if (delta < 0) {
 		neg_adj = true;
@@ -50,9 +49,8 @@ static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 
 	incvalue = timinca & E1000_TIMINCA_INCVALUE_MASK;
 
-	adjustment = incvalue;
-	adjustment *= delta;
-	adjustment = div_u64(adjustment, 1000000000);
+	adjustment = mul_u64_u64_div_u64(incvalue, (u64)delta,
+					 1000000ULL << 16);
 
 	incvalue = neg_adj ? (incvalue - adjustment) : (incvalue + adjustment);
 
@@ -142,9 +140,9 @@ static int e1000e_phc_get_syncdevicetime(ktime_t *device,
 }
 
 /**
- * e1000e_phc_getsynctime - Reads the current system/device cross timestamp
+ * e1000e_phc_getcrosststamp - Reads the current system/device cross timestamp
  * @ptp: ptp clock structure
- * @cts: structure containing timestamp
+ * @xtstamp: structure containing timestamp
  *
  * Read device and system (ART) clock simultaneously and return the scaled
  * clock values in ns.
@@ -260,7 +258,7 @@ static const struct ptp_clock_info e1000e_ptp_clock_info = {
 	.n_per_out	= 0,
 	.n_pins		= 0,
 	.pps		= 0,
-	.adjfreq	= e1000e_phc_adjfreq,
+	.adjfine	= e1000e_phc_adjfine,
 	.adjtime	= e1000e_phc_adjtime,
 	.gettimex64	= e1000e_phc_gettimex,
 	.settime64	= e1000e_phc_settime,
@@ -295,12 +293,16 @@ void e1000e_ptp_init(struct e1000_adapter *adapter)
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
+	case e1000_pch_lnp:
 		if ((hw->mac.type < e1000_pch_lpt) ||
 		    (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI)) {
 			adapter->ptp_clock_info.max_adj = 24000000 - 1;
 			break;
 		}
-		/* fall-through */
+		fallthrough;
 	case e1000_82574:
 	case e1000_82583:
 		adapter->ptp_clock_info.max_adj = 600000000 - 1;

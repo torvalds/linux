@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	Driver for ZyDAS zd1201 based wireless USB devices.
  *
  *	Copyright (c) 2004, 2005 Jeroen Vreeken (pe1rxq@amsat.org)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	version 2 as published by the Free Software Foundation.
  *
  *	Parts of this driver have been derived from a wlan-ng version
  *	modified by ZyDAS. They also made documentation available, thanks!
@@ -510,7 +507,7 @@ static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,
  *		byte	data[12]
  *	total: 16
  */
-static int zd1201_setconfig(struct zd1201 *zd, int rid, void *buf, int len, int wait)
+static int zd1201_setconfig(struct zd1201 *zd, int rid, const void *buf, int len, int wait)
 {
 	int err;
 	unsigned char *request;
@@ -524,7 +521,7 @@ static int zd1201_setconfig(struct zd1201 *zd, int rid, void *buf, int len, int 
 	zd->rxdatas = 0;
 	zd->rxlen = 0;
 	for (seq=0; len > 0; seq++) {
-		request = kmalloc(16, gfp_mask);
+		request = kzalloc(16, gfp_mask);
 		if (!request)
 			return -ENOMEM;
 		urb = usb_alloc_urb(0, gfp_mask);
@@ -532,7 +529,6 @@ static int zd1201_setconfig(struct zd1201 *zd, int rid, void *buf, int len, int 
 			kfree(request);
 			return -ENOMEM;
 		}
-		memset(request, 0, 16);
 		reqlen = len>12 ? 12 : len;
 		request[0] = ZD1201_USB_RESREQ;
 		request[1] = seq;
@@ -833,7 +829,7 @@ static netdev_tx_t zd1201_hard_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static void zd1201_tx_timeout(struct net_device *dev)
+static void zd1201_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct zd1201 *zd = netdev_priv(dev);
 
@@ -860,7 +856,7 @@ static int zd1201_set_mac_address(struct net_device *dev, void *p)
 	    addr->sa_data, dev->addr_len, 1);
 	if (err)
 		return err;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return zd1201_mac_reset(zd);
 }
@@ -969,7 +965,7 @@ static int zd1201_set_mode(struct net_device *dev,
 			 */
 			zd1201_join(zd, "\0-*#\0", 5);
 			/* Put port in pIBSS */
-			/* Fall through */
+			fallthrough;
 		case 8: /* No pseudo-IBSS in wireless extensions (yet) */
 			porttype = ZD1201_PORTTYPE_PSEUDOIBSS;
 			break;
@@ -1655,15 +1651,11 @@ static int zd1201_set_maxassoc(struct net_device *dev,
     struct iw_request_info *info, struct iw_param *rrq, char *extra)
 {
 	struct zd1201 *zd = netdev_priv(dev);
-	int err;
 
 	if (!zd->ap)
 		return -EOPNOTSUPP;
 
-	err = zd1201_setconfig16(zd, ZD1201_RID_CNFMAXASSOCSTATIONS, rrq->value);
-	if (err)
-		return err;
-	return 0;
+	return zd1201_setconfig16(zd, ZD1201_RID_CNFMAXASSOCSTATIONS, rrq->value);
 }
 
 static int zd1201_get_maxassoc(struct net_device *dev,
@@ -1736,6 +1728,7 @@ static int zd1201_probe(struct usb_interface *interface,
 	int err;
 	short porttype;
 	char buf[IW_ESSID_MAX_SIZE+2];
+	u8 addr[ETH_ALEN];
 
 	usb = interface_to_usbdev(interface);
 
@@ -1786,10 +1779,10 @@ static int zd1201_probe(struct usb_interface *interface,
 	dev->watchdog_timeo = ZD1201_TX_TIMEOUT;
 	strcpy(dev->name, "wlan%d");
 
-	err = zd1201_getconfig(zd, ZD1201_RID_CNFOWNMACADDR, 
-	    dev->dev_addr, dev->addr_len);
+	err = zd1201_getconfig(zd, ZD1201_RID_CNFOWNMACADDR, addr, ETH_ALEN);
 	if (err)
 		goto err_start;
+	eth_hw_addr_set(dev, addr);
 
 	/* Set wildcard essid to match zd->essid */
 	*(__le16 *)buf = cpu_to_le16(0);

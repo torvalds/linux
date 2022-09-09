@@ -34,8 +34,8 @@ struct parisc_driver {
 	struct parisc_driver *next;
 	char *name; 
 	const struct parisc_device_id *id_table;
-	int (*probe) (struct parisc_device *dev); /* New device discovered */
-	int (*remove) (struct parisc_device *dev);
+	int (*probe)(struct parisc_device *dev); /* New device discovered */
+	void (*remove)(struct parisc_device *dev);
 	struct device_driver drv;
 };
 

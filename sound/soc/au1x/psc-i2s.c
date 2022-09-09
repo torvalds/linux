@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Au12x0/Au1550 PSC ALSA ASoC audio support.
  *
  * (c) 2007-2008 MSC Vertriebsges.m.b.H.,
  *	Manuel Lauss <manuel.lauss@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Au1xxx-PSC I2S glue.
  *
@@ -93,12 +90,12 @@ static int au1xpsc_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		goto out;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:	/* CODEC master */
-		ct |= PSC_I2SCFG_MS;	/* PSC I2S slave mode */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BC_FC:	/* CODEC provider */
+		ct |= PSC_I2SCFG_MS;	/* PSC I2S consumer mode */
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:	/* CODEC slave */
-		ct &= ~PSC_I2SCFG_MS;	/* PSC I2S Master mode */
+	case SND_SOC_DAIFMT_BP_FP:	/* CODEC consumer */
+		ct &= ~PSC_I2SCFG_MS;	/* PSC I2S provider mode */
 		break;
 	default:
 		goto out;
@@ -289,12 +286,13 @@ static const struct snd_soc_dai_driver au1xpsc_i2s_dai_template = {
 };
 
 static const struct snd_soc_component_driver au1xpsc_i2s_component = {
-	.name		= "au1xpsc-i2s",
+	.name			= "au1xpsc-i2s",
+	.legacy_dai_naming	= 1,
 };
 
 static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 {
-	struct resource *iores, *dmares;
+	struct resource *dmares;
 	unsigned long sel;
 	struct au1xpsc_audio_data *wd;
 
@@ -303,8 +301,7 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	if (!wd)
 		return -ENOMEM;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wd->mmio = devm_ioremap_resource(&pdev->dev, iores);
+	wd->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wd->mmio))
 		return PTR_ERR(wd->mmio);
 
@@ -343,15 +340,13 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wd);
 
-	return snd_soc_register_component(&pdev->dev, &au1xpsc_i2s_component,
-					  &wd->dai_drv, 1);
+	return devm_snd_soc_register_component(&pdev->dev,
+				&au1xpsc_i2s_component, &wd->dai_drv, 1);
 }
 
 static int au1xpsc_i2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_component(&pdev->dev);
 
 	__raw_writel(0, I2S_CFG(wd));
 	wmb(); /* drain writebuffer */

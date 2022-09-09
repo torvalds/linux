@@ -11,6 +11,7 @@
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
 #include <linux/uaccess.h>
+#include <registers.h>
 #include <asm/ptrace-abi.h>
 
 /*
@@ -52,14 +53,6 @@ static const int reg_offsets[] =
 
 int putreg(struct task_struct *child, int regno, unsigned long value)
 {
-#ifdef TIF_IA32
-	/*
-	 * Some code in the 64bit emulation may not be 64bit clean.
-	 * Don't take any chances.
-	 */
-	if (test_tsk_thread_flag(child, TIF_IA32))
-		value &= 0xffffffff;
-#endif
 	switch (regno) {
 	case R8:
 	case R9:
@@ -137,10 +130,7 @@ int poke_user(struct task_struct *child, long addr, long data)
 unsigned long getreg(struct task_struct *child, int regno)
 {
 	unsigned long mask = ~0UL;
-#ifdef TIF_IA32
-	if (test_tsk_thread_flag(child, TIF_IA32))
-		mask = 0xffffffff;
-#endif
+
 	switch (regno) {
 	case R8:
 	case R9:

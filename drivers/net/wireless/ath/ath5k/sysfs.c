@@ -14,7 +14,7 @@ static ssize_t ath5k_attr_show_##name(struct device *dev,		\
 {									\
 	struct ieee80211_hw *hw = dev_get_drvdata(dev);			\
 	struct ath5k_hw *ah = hw->priv;				\
-	return snprintf(buf, PAGE_SIZE, "%d\n", get);			\
+	return sysfs_emit(buf, "%d\n", get);			\
 }									\
 									\
 static ssize_t ath5k_attr_store_##name(struct device *dev,		\
@@ -41,7 +41,7 @@ static ssize_t ath5k_attr_show_##name(struct device *dev,		\
 {									\
 	struct ieee80211_hw *hw = dev_get_drvdata(dev);			\
 	struct ath5k_hw *ah = hw->priv;				\
-	return snprintf(buf, PAGE_SIZE, "%d\n", get);			\
+	return sysfs_emit(buf, "%d\n", get);			\
 }									\
 static DEVICE_ATTR(name, 0444, ath5k_attr_show_##name, NULL)
 
@@ -64,7 +64,7 @@ static ssize_t ath5k_attr_show_noise_immunity_level_max(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ATH5K_ANI_MAX_NOISE_IMM_LVL);
+	return sysfs_emit(buf, "%d\n", ATH5K_ANI_MAX_NOISE_IMM_LVL);
 }
 static DEVICE_ATTR(noise_immunity_level_max, 0444,
 		   ath5k_attr_show_noise_immunity_level_max, NULL);
@@ -73,7 +73,7 @@ static ssize_t ath5k_attr_show_firstep_level_max(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", ATH5K_ANI_MAX_FIRSTEP_LVL);
+	return sysfs_emit(buf, "%d\n", ATH5K_ANI_MAX_FIRSTEP_LVL);
 }
 static DEVICE_ATTR(firstep_level_max, 0444,
 		   ath5k_attr_show_firstep_level_max, NULL);

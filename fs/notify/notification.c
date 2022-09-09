@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2008 Red Hat, Inc., Eric Paris <eparis@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -60,18 +47,11 @@ u32 fsnotify_get_cookie(void)
 }
 EXPORT_SYMBOL_GPL(fsnotify_get_cookie);
 
-/* return true if the notify queue is empty, false otherwise */
-bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group)
-{
-	assert_spin_locked(&group->notification_lock);
-	return list_empty(&group->notification_list) ? true : false;
-}
-
 void fsnotify_destroy_event(struct fsnotify_group *group,
 			    struct fsnotify_event *event)
 {
 	/* Overflow events are per-group and we don't want to free them */
-	if (!event || event->mask == FS_Q_OVERFLOW)
+	if (!event || event == group->overflow_event)
 		return;
 	/*
 	 * If the event is still queued, we have a problem... Do an unreliable
@@ -84,20 +64,26 @@ void fsnotify_destroy_event(struct fsnotify_group *group,
 		WARN_ON(!list_empty(&event->list));
 		spin_unlock(&group->notification_lock);
 	}
-	group->ops->free_event(event);
+	group->ops->free_event(group, event);
 }
 
 /*
- * Add an event to the group notification queue.  The group can later pull this
- * event off the queue to deal with.  The function returns 0 if the event was
- * added to the queue, 1 if the event was merged with some other queued event,
+ * Try to add an event to the notification queue.
+ * The group can later pull this event off the queue to deal with.
+ * The group can use the @merge hook to merge the event with a queued event.
+ * The group can use the @insert hook to insert the event into hash table.
+ * The function returns:
+ * 0 if the event was added to a queue
+ * 1 if the event was merged with some other queued event
  * 2 if the event was not queued - either the queue of events has overflown
- * or the group is shutting down.
+ *   or the group is shutting down.
  */
-int fsnotify_add_event(struct fsnotify_group *group,
-		       struct fsnotify_event *event,
-		       int (*merge)(struct list_head *,
-				    struct fsnotify_event *))
+int fsnotify_insert_event(struct fsnotify_group *group,
+			  struct fsnotify_event *event,
+			  int (*merge)(struct fsnotify_group *,
+				       struct fsnotify_event *),
+			  void (*insert)(struct fsnotify_group *,
+					 struct fsnotify_event *))
 {
 	int ret = 0;
 	struct list_head *list = &group->notification_list;
@@ -124,7 +110,7 @@ int fsnotify_add_event(struct fsnotify_group *group,
 	}
 
 	if (!list_empty(list) && merge) {
-		ret = merge(list, event);
+		ret = merge(group, event);
 		if (ret) {
 			spin_unlock(&group->notification_lock);
 			return ret;
@@ -134,11 +120,40 @@ int fsnotify_add_event(struct fsnotify_group *group,
 queue:
 	group->q_len++;
 	list_add_tail(&event->list, list);
+	if (insert)
+		insert(group, event);
 	spin_unlock(&group->notification_lock);
 
 	wake_up(&group->notification_waitq);
 	kill_fasync(&group->fsn_fa, SIGIO, POLL_IN);
 	return ret;
+}
+
+void fsnotify_remove_queued_event(struct fsnotify_group *group,
+				  struct fsnotify_event *event)
+{
+	assert_spin_locked(&group->notification_lock);
+	/*
+	 * We need to init list head for the case of overflow event so that
+	 * check in fsnotify_add_event() works
+	 */
+	list_del_init(&event->list);
+	group->q_len--;
+}
+
+/*
+ * Return the first event on the notification list without removing it.
+ * Returns NULL if the list is empty.
+ */
+struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group)
+{
+	assert_spin_locked(&group->notification_lock);
+
+	if (fsnotify_notify_queue_is_empty(group))
+		return NULL;
+
+	return list_first_entry(&group->notification_list,
+				struct fsnotify_event, list);
 }
 
 /*
@@ -147,34 +162,16 @@ queue:
  */
 struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group)
 {
-	struct fsnotify_event *event;
+	struct fsnotify_event *event = fsnotify_peek_first_event(group);
 
-	assert_spin_locked(&group->notification_lock);
+	if (!event)
+		return NULL;
 
-	pr_debug("%s: group=%p\n", __func__, group);
+	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	event = list_first_entry(&group->notification_list,
-				 struct fsnotify_event, list);
-	/*
-	 * We need to init list head for the case of overflow event so that
-	 * check in fsnotify_add_event() works
-	 */
-	list_del_init(&event->list);
-	group->q_len--;
+	fsnotify_remove_queued_event(group, event);
 
 	return event;
-}
-
-/*
- * This will not remove the event, that must be done with
- * fsnotify_remove_first_event()
- */
-struct fsnotify_event *fsnotify_peek_first_event(struct fsnotify_group *group)
-{
-	assert_spin_locked(&group->notification_lock);
-
-	return list_first_entry(&group->notification_list,
-				struct fsnotify_event, list);
 }
 
 /*
@@ -193,24 +190,4 @@ void fsnotify_flush_notify(struct fsnotify_group *group)
 		spin_lock(&group->notification_lock);
 	}
 	spin_unlock(&group->notification_lock);
-}
-
-/*
- * fsnotify_create_event - Allocate a new event which will be sent to each
- * group's handle_event function if the group was interested in this
- * particular event.
- *
- * @inode the inode which is supposed to receive the event (sometimes a
- *	parent of the inode to which the event happened.
- * @mask what actually happened.
- * @data pointer to the object which was actually affected
- * @data_type flag indication if the data is a file, path, inode, nothing...
- * @name the filename, if available
- */
-void fsnotify_init_event(struct fsnotify_event *event, struct inode *inode,
-			 u32 mask)
-{
-	INIT_LIST_HEAD(&event->list);
-	event->inode = inode;
-	event->mask = mask;
 }

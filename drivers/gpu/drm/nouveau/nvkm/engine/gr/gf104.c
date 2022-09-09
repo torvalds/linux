@@ -144,8 +144,15 @@ gf104_gr = {
 	}
 };
 
+static const struct gf100_gr_fwif
+gf104_gr_fwif[] = {
+	{ -1, gf100_gr_load, &gf104_gr },
+	{ -1, gf100_gr_nofw, &gf104_gr },
+	{}
+};
+
 int
-gf104_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gf104_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return gf100_gr_new_(&gf104_gr, device, index, pgr);
+	return gf100_gr_new_(gf104_gr_fwif, device, type, inst, pgr);
 }

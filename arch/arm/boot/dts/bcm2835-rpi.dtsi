@@ -1,15 +1,10 @@
 #include <dt-bindings/power/raspberrypi-power.h>
 
 / {
-	memory {
-		device_type = "memory";
-		reg = <0 0x10000000>;
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
-		act {
+		led-act {
 			label = "ACT";
 			default-state = "keep";
 			linux,default-trigger = "heartbeat";
@@ -18,10 +13,12 @@
 
 	soc {
 		firmware: firmware {
-			compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
-			#address-cells = <0>;
-			#size-cells = <0>;
+			compatible = "raspberrypi,bcm2835-firmware", "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
 			mboxes = <&mailbox>;
+			dma-ranges;
 		};
 
 		power: power {
@@ -66,34 +63,8 @@
 	clock-frequency = <100000>;
 };
 
-&i2c2 {
-	status = "okay";
-};
-
-&sdhci {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_gpio48>;
-	bus-width = <4>;
-};
-
-&sdhost {
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhost_gpio48>;
-	status = "okay";
-	bus-width = <4>;
-};
-
 &usb {
 	power-domains = <&power RPI_POWER_DOMAIN_USB>;
-};
-
-&v3d {
-	power-domains = <&power RPI_POWER_DOMAIN_V3D>;
-};
-
-&hdmi {
-	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
-	status = "okay";
 };
 
 &vec {

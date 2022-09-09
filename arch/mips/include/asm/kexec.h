@@ -1,9 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * kexec.h for kexec
  * Created by <nschichan@corp.free.fr> on Thu Oct 12 14:59:34 2006
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #ifndef _MIPS_KEXEC

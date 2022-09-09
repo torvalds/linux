@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Marvell 88E6xxx Switch hardware timestamping support
  *
@@ -7,11 +8,6 @@
  *      Erik Hons <erik.hons@ni.com>
  *      Brandon Streiff <brandon.streiff@ni.com>
  *      Dane Wagner <dane.wagner@ni.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MV88E6XXX_HWTSTAMP_H
@@ -121,8 +117,8 @@ int mv88e6xxx_port_hwtstamp_get(struct dsa_switch *ds, int port,
 
 bool mv88e6xxx_port_rxtstamp(struct dsa_switch *ds, int port,
 			     struct sk_buff *clone, unsigned int type);
-bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
-			     struct sk_buff *clone, unsigned int type);
+void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
+			     struct sk_buff *skb);
 
 int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 			  struct ethtool_ts_info *info);
@@ -155,11 +151,9 @@ static inline bool mv88e6xxx_port_rxtstamp(struct dsa_switch *ds, int port,
 	return false;
 }
 
-static inline bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
-					   struct sk_buff *clone,
-					   unsigned int type)
+static inline void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
+					   struct sk_buff *skb)
 {
-	return false;
 }
 
 static inline int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,

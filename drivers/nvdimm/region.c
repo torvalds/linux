@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/cpumask.h>
 #include <linux/module.h>
@@ -23,6 +15,10 @@ static int nd_region_probe(struct device *dev)
 	static unsigned long once;
 	struct nd_region_data *ndrd;
 	struct nd_region *nd_region = to_nd_region(dev);
+	struct range range = {
+		.start = nd_region->ndr_start,
+		.end = nd_region->ndr_start + nd_region->ndr_size - 1,
+	};
 
 	if (nd_region->num_lanes > num_online_cpus()
 			&& nd_region->num_lanes < num_possible_cpus()
@@ -38,9 +34,13 @@ static int nd_region_probe(struct device *dev)
 	if (rc)
 		return rc;
 
-	rc = nd_blk_region_init(nd_region);
-	if (rc)
-		return rc;
+	if (devm_init_badblocks(dev, &nd_region->bb))
+		return -ENODEV;
+	nd_region->bb_state =
+		sysfs_get_dirent(nd_region->dev.kobj.sd, "badblocks");
+	if (!nd_region->bb_state)
+		dev_warn(dev, "'badblocks' notification disabled\n");
+	nvdimm_badblocks_populate(nd_region, &nd_region->bb, &range);
 
 	rc = nd_region_register_namespaces(nd_region, &err);
 	if (rc < 0)
@@ -52,21 +52,6 @@ static int nd_region_probe(struct device *dev)
 
 	if (rc && err && rc == err)
 		return -ENODEV;
-
-	if (is_nd_pmem(&nd_region->dev)) {
-		struct resource ndr_res;
-
-		if (devm_init_badblocks(dev, &nd_region->bb))
-			return -ENODEV;
-		nd_region->bb_state = sysfs_get_dirent(nd_region->dev.kobj.sd,
-						       "badblocks");
-		if (!nd_region->bb_state)
-			dev_warn(&nd_region->dev,
-					"'badblocks' notification disabled\n");
-		ndr_res.start = nd_region->ndr_start;
-		ndr_res.end = nd_region->ndr_start + nd_region->ndr_size - 1;
-		nvdimm_badblocks_populate(nd_region, &nd_region->bb, &ndr_res);
-	}
 
 	nd_region->btt_seed = nd_btt_create(nd_region);
 	nd_region->pfn_seed = nd_pfn_create(nd_region);
@@ -94,7 +79,7 @@ static int child_unregister(struct device *dev, void *data)
 	return 0;
 }
 
-static int nd_region_remove(struct device *dev)
+static void nd_region_remove(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev);
 
@@ -115,8 +100,6 @@ static int nd_region_remove(struct device *dev)
 	 */
 	sysfs_put(nd_region->bb_state);
 	nd_region->bb_state = NULL;
-
-	return 0;
 }
 
 static int child_notify(struct device *dev, void *data)
@@ -129,14 +112,16 @@ static void nd_region_notify(struct device *dev, enum nvdimm_event event)
 {
 	if (event == NVDIMM_REVALIDATE_POISON) {
 		struct nd_region *nd_region = to_nd_region(dev);
-		struct resource res;
 
-		if (is_nd_pmem(&nd_region->dev)) {
-			res.start = nd_region->ndr_start;
-			res.end = nd_region->ndr_start +
-				nd_region->ndr_size - 1;
+		if (is_memory(&nd_region->dev)) {
+			struct range range = {
+				.start = nd_region->ndr_start,
+				.end = nd_region->ndr_start +
+					nd_region->ndr_size - 1,
+			};
+
 			nvdimm_badblocks_populate(nd_region,
-					&nd_region->bb, &res);
+					&nd_region->bb, &range);
 			if (nd_region->bb_state)
 				sysfs_notify_dirent(nd_region->bb_state);
 		}
@@ -165,4 +150,3 @@ void nd_region_exit(void)
 }
 
 MODULE_ALIAS_ND_DEVICE(ND_DEVICE_REGION_PMEM);
-MODULE_ALIAS_ND_DEVICE(ND_DEVICE_REGION_BLK);

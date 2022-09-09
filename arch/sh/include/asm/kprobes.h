@@ -26,7 +26,7 @@ typedef insn_size_t kprobe_opcode_t;
 struct kprobe;
 
 void arch_remove_kprobe(struct kprobe *);
-void kretprobe_trampoline(void);
+void __kretprobe_trampoline(void);
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {

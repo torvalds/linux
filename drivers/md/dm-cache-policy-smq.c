@@ -1026,7 +1026,9 @@ static unsigned default_promote_level(struct smq_policy *mq)
 	 * This scheme reminds me of a graph of entropy vs probability of a
 	 * binary variable.
 	 */
-	static unsigned table[] = {1, 1, 1, 2, 4, 6, 7, 8, 7, 6, 4, 4, 3, 3, 2, 2, 1};
+	static const unsigned int table[] = {
+		1, 1, 1, 2, 4, 6, 7, 8, 7, 6, 4, 4, 3, 3, 2, 2, 1
+	};
 
 	unsigned hits = mq->cache_stats.hits;
 	unsigned misses = mq->cache_stats.misses;

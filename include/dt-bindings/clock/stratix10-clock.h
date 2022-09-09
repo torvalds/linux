@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier:	GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2017, Intel Corporation
  */
@@ -79,6 +79,8 @@
 #define STRATIX10_USB_CLK		59
 #define STRATIX10_SPI_M_CLK		60
 #define STRATIX10_NAND_CLK		61
-#define STRATIX10_NUM_CLKS		62
+#define STRATIX10_NAND_X_CLK		62
+#define STRATIX10_NAND_ECC_CLK		63
+#define STRATIX10_NUM_CLKS		64
 
 #endif	/* __STRATIX10_CLOCK_H */

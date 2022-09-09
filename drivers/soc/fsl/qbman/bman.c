@@ -635,31 +635,32 @@ int bman_p_irqsource_add(struct bman_portal *p, u32 bits)
 	return 0;
 }
 
-static int bm_shutdown_pool(u32 bpid)
+int bm_shutdown_pool(u32 bpid)
 {
+	int err = 0;
 	struct bm_mc_command *bm_cmd;
 	union bm_mc_result *bm_res;
 
+
+	struct bman_portal *p = get_affine_portal();
 	while (1) {
-		struct bman_portal *p = get_affine_portal();
 		/* Acquire buffers until empty */
 		bm_cmd = bm_mc_start(&p->p);
 		bm_cmd->bpid = bpid;
 		bm_mc_commit(&p->p, BM_MCC_VERB_CMD_ACQUIRE | 1);
 		if (!bm_mc_result_timeout(&p->p, &bm_res)) {
-			put_affine_portal();
 			pr_crit("BMan Acquire Command timedout\n");
-			return -ETIMEDOUT;
+			err = -ETIMEDOUT;
+			goto done;
 		}
 		if (!(bm_res->verb & BM_MCR_VERB_ACQUIRE_BUFCOUNT)) {
-			put_affine_portal();
 			/* Pool is empty */
-			return 0;
+			goto done;
 		}
-		put_affine_portal();
 	}
-
-	return 0;
+done:
+	put_affine_portal();
+	return err;
 }
 
 struct gen_pool *bm_bpalloc;
@@ -708,7 +709,6 @@ struct bman_pool *bman_new_pool(void)
 	return pool;
 err:
 	bm_release_bpid(bpid);
-	kfree(pool);
 	return NULL;
 }
 EXPORT_SYMBOL(bman_new_pool);

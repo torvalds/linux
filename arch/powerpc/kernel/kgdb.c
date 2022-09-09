@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PowerPC backend to the KGDB stub.
  *
@@ -8,10 +9,6 @@
  * PPC32 support restored by Vitaly Wool <vwool@ru.mvista.com> and
  * Sergei Shtylyov <sshtylyov@ru.mvista.com>
  * Copyright (C) 2007-2008 Wind River Systems, Inc.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program as licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -26,6 +23,7 @@
 #include <asm/debug.h>
 #include <asm/code-patching.h>
 #include <linux/slab.h>
+#include <asm/inst.h>
 
 /*
  * This table contains the mapping between PowerPC hardware trap types, and
@@ -47,7 +45,7 @@ static struct hard_trap_info
 	{ 0x0800, 0x08 /* SIGFPE */  },		/* fp unavailable */
 	{ 0x0900, 0x0e /* SIGALRM */ },		/* decrementer */
 	{ 0x0c00, 0x14 /* SIGCHLD */ },		/* system call */
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_BOOKE_OR_40x
 	{ 0x2002, 0x05 /* SIGTRAP */ },		/* debug */
 #if defined(CONFIG_FSL_BOOKE)
 	{ 0x2010, 0x08 /* SIGFPE */  },		/* spe unavailable */
@@ -66,7 +64,7 @@ static struct hard_trap_info
 	{ 0x2010, 0x08 /* SIGFPE */  },		/* fp unavailable */
 	{ 0x2020, 0x08 /* SIGFPE */  },		/* ap unavailable */
 #endif
-#else /* ! (defined(CONFIG_40x) || defined(CONFIG_BOOKE)) */
+#else /* !CONFIG_BOOKE_OR_40x */
 	{ 0x0d00, 0x05 /* SIGTRAP */ },		/* single-step */
 #if defined(CONFIG_PPC_8xx)
 	{ 0x1000, 0x04 /* SIGILL */  },		/* software emulation */
@@ -146,45 +144,17 @@ static int kgdb_handle_breakpoint(struct pt_regs *regs)
 		return 0;
 
 	if (*(u32 *)regs->nip == BREAK_INSTR)
-		regs->nip += BREAK_INSTR_SIZE;
+		regs_add_return_ip(regs, BREAK_INSTR_SIZE);
 
 	return 1;
 }
 
-static DEFINE_PER_CPU(struct thread_info, kgdb_thread_info);
 static int kgdb_singlestep(struct pt_regs *regs)
 {
-	struct thread_info *thread_info, *exception_thread_info;
-	struct thread_info *backup_current_thread_info =
-		this_cpu_ptr(&kgdb_thread_info);
-
 	if (user_mode(regs))
 		return 0;
 
-	/*
-	 * On Book E and perhaps other processors, singlestep is handled on
-	 * the critical exception stack.  This causes current_thread_info()
-	 * to fail, since it it locates the thread_info by masking off
-	 * the low bits of the current stack pointer.  We work around
-	 * this issue by copying the thread_info from the kernel stack
-	 * before calling kgdb_handle_exception, and copying it back
-	 * afterwards.  On most processors the copy is avoided since
-	 * exception_thread_info == thread_info.
-	 */
-	thread_info = (struct thread_info *)(regs->gpr[1] & ~(THREAD_SIZE-1));
-	exception_thread_info = current_thread_info();
-
-	if (thread_info != exception_thread_info) {
-		/* Save the original current_thread_info. */
-		memcpy(backup_current_thread_info, exception_thread_info, sizeof *thread_info);
-		memcpy(exception_thread_info, thread_info, sizeof *thread_info);
-	}
-
 	kgdb_handle_exception(0, SIGTRAP, 0, regs);
-
-	if (thread_info != exception_thread_info)
-		/* Restore current_thread_info lastly. */
-		memcpy(exception_thread_info, backup_current_thread_info, sizeof *thread_info);
 
 	return 1;
 }
@@ -399,11 +369,11 @@ int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
 
 void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
 {
-	regs->nip = pc;
+	regs_set_return_ip(regs, pc);
 }
 
 /*
- * This function does PowerPC specific procesing for interfacing to gdb.
+ * This function does PowerPC specific processing for interfacing to gdb.
  */
 int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
@@ -421,7 +391,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	case 'c':
 		/* handle the optional parameter */
 		if (kgdb_hex2long(&ptr, &addr))
-			linux_regs->nip = addr;
+			regs_set_return_ip(linux_regs, addr);
 
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 		/* set the trace bit if we're stepping */
@@ -429,9 +399,9 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 			mtspr(SPRN_DBCR0,
 			      mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
-			linux_regs->msr |= MSR_DE;
+			regs_set_return_msr(linux_regs, linux_regs->msr | MSR_DE);
 #else
-			linux_regs->msr |= MSR_SE;
+			regs_set_return_msr(linux_regs, linux_regs->msr | MSR_SE);
 #endif
 			atomic_set(&kgdb_cpu_doing_single_step,
 				   raw_smp_processor_id());
@@ -444,19 +414,18 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 
 int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
+	u32 instr, *addr = (u32 *)bpt->bpt_addr;
 	int err;
-	unsigned int instr;
-	unsigned int *addr = (unsigned int *)bpt->bpt_addr;
 
-	err = probe_kernel_address(addr, instr);
+	err = get_kernel_nofault(instr, addr);
 	if (err)
 		return err;
 
-	err = patch_instruction(addr, BREAK_INSTR);
+	err = patch_instruction(addr, ppc_inst(BREAK_INSTR));
 	if (err)
 		return -EFAULT;
 
-	*(unsigned int *)bpt->saved_instr = instr;
+	*(u32 *)bpt->saved_instr = instr;
 
 	return 0;
 }
@@ -465,9 +434,9 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
 	unsigned int instr = *(unsigned int *)bpt->saved_instr;
-	unsigned int *addr = (unsigned int *)bpt->bpt_addr;
+	u32 *addr = (u32 *)bpt->bpt_addr;
 
-	err = patch_instruction(addr, instr);
+	err = patch_instruction(addr, ppc_inst(instr));
 	if (err)
 		return -EFAULT;
 

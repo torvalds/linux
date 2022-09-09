@@ -1,69 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
 /*
+ * Copyright(c) 2020 Cornelis Networks, Inc.
  * Copyright(c) 2016 - 2017 Intel Corporation.
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
+
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/mmu_notifier.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/sched/mm.h>
 
 #include "mmu_rb.h"
 #include "trace.h"
-
-struct mmu_rb_handler {
-	struct mmu_notifier mn;
-	struct rb_root_cached root;
-	void *ops_arg;
-	spinlock_t lock;        /* protect the RB tree */
-	struct mmu_rb_ops *ops;
-	struct mm_struct *mm;
-	struct list_head lru_list;
-	struct work_struct del_work;
-	struct list_head del_list;
-	struct workqueue_struct *wq;
-};
 
 static unsigned long mmu_node_start(struct mmu_rb_node *);
 static unsigned long mmu_node_last(struct mmu_rb_node *);
@@ -92,37 +40,36 @@ static unsigned long mmu_node_last(struct mmu_rb_node *node)
 	return PAGE_ALIGN(node->addr + node->len) - 1;
 }
 
-int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
+int hfi1_mmu_rb_register(void *ops_arg,
 			 struct mmu_rb_ops *ops,
 			 struct workqueue_struct *wq,
 			 struct mmu_rb_handler **handler)
 {
-	struct mmu_rb_handler *handlr;
+	struct mmu_rb_handler *h;
 	int ret;
 
-	handlr = kmalloc(sizeof(*handlr), GFP_KERNEL);
-	if (!handlr)
+	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	if (!h)
 		return -ENOMEM;
 
-	handlr->root = RB_ROOT_CACHED;
-	handlr->ops = ops;
-	handlr->ops_arg = ops_arg;
-	INIT_HLIST_NODE(&handlr->mn.hlist);
-	spin_lock_init(&handlr->lock);
-	handlr->mn.ops = &mn_opts;
-	handlr->mm = mm;
-	INIT_WORK(&handlr->del_work, handle_remove);
-	INIT_LIST_HEAD(&handlr->del_list);
-	INIT_LIST_HEAD(&handlr->lru_list);
-	handlr->wq = wq;
+	h->root = RB_ROOT_CACHED;
+	h->ops = ops;
+	h->ops_arg = ops_arg;
+	INIT_HLIST_NODE(&h->mn.hlist);
+	spin_lock_init(&h->lock);
+	h->mn.ops = &mn_opts;
+	INIT_WORK(&h->del_work, handle_remove);
+	INIT_LIST_HEAD(&h->del_list);
+	INIT_LIST_HEAD(&h->lru_list);
+	h->wq = wq;
 
-	ret = mmu_notifier_register(&handlr->mn, handlr->mm);
+	ret = mmu_notifier_register(&h->mn, current->mm);
 	if (ret) {
-		kfree(handlr);
+		kfree(h);
 		return ret;
 	}
 
-	*handler = handlr;
+	*handler = h;
 	return 0;
 }
 
@@ -133,8 +80,11 @@ void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 	unsigned long flags;
 	struct list_head del_list;
 
+	/* Prevent freeing of mm until we are completely finished. */
+	mmgrab(handler->mn.mm);
+
 	/* Unregister first so we don't get any more notifications. */
-	mmu_notifier_unregister(&handler->mn, handler->mm);
+	mmu_notifier_unregister(&handler->mn, handler->mn.mm);
 
 	/*
 	 * Make sure the wq delete handler is finished running.  It will not
@@ -155,6 +105,9 @@ void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 
 	do_remove(handler, &del_list);
 
+	/* Now the mm may be freed. */
+	mmdrop(handler->mn.mm);
+
 	kfree(handler);
 }
 
@@ -166,6 +119,10 @@ int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
 	int ret = 0;
 
 	trace_hfi1_mmu_rb_insert(mnode->addr, mnode->len);
+
+	if (current->mm != handler->mn.mm)
+		return -EPERM;
+
 	spin_lock_irqsave(&handler->lock, flags);
 	node = __mmu_rb_search(handler, mnode->addr, mnode->len);
 	if (node) {
@@ -180,6 +137,7 @@ int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
 		__mmu_int_rb_remove(mnode, &handler->root);
 		list_del(&mnode->list); /* remove from LRU list */
 	}
+	mnode->handler = handler;
 unlock:
 	spin_unlock_irqrestore(&handler->lock, flags);
 	return ret;
@@ -217,6 +175,9 @@ bool hfi1_mmu_rb_remove_unless_exact(struct mmu_rb_handler *handler,
 	unsigned long flags;
 	bool ret = false;
 
+	if (current->mm != handler->mn.mm)
+		return ret;
+
 	spin_lock_irqsave(&handler->lock, flags);
 	node = __mmu_rb_search(handler, addr, len);
 	if (node) {
@@ -238,6 +199,9 @@ void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
 	struct list_head del_list;
 	unsigned long flags;
 	bool stop = false;
+
+	if (current->mm != handler->mn.mm)
+		return;
 
 	INIT_LIST_HEAD(&del_list);
 
@@ -271,6 +235,9 @@ void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
 			struct mmu_rb_node *node)
 {
 	unsigned long flags;
+
+	if (current->mm != handler->mn.mm)
+		return;
 
 	/* Validity of handler and node pointers has been checked by caller. */
 	trace_hfi1_mmu_rb_remove(node->addr, node->len);
@@ -333,7 +300,7 @@ static void do_remove(struct mmu_rb_handler *handler,
 
 /*
  * Work queue function to remove all nodes that have been queued up to
- * be removed.  The key feature is that mm->mmap_sem is not being held
+ * be removed.  The key feature is that mm->mmap_lock is not being held
  * and the remove callback can sleep while taking it, if needed.
  */
 static void handle_remove(struct work_struct *work)

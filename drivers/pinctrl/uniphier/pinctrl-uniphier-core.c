@@ -29,7 +29,7 @@ struct uniphier_pinctrl_reg_region {
 	struct list_head node;
 	unsigned int base;
 	unsigned int nregs;
-	u32 vals[0];
+	u32 vals[];
 };
 
 struct uniphier_pinctrl_priv {

@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
@@ -116,7 +116,7 @@ static int cfrfml_receive(struct cflayer *layr, struct cfpkt *pkt)
 	if (segmented) {
 		if (rfml->incomplete_frm == NULL) {
 			/* Initial Segment */
-			if (cfpkt_peek_head(pkt, rfml->seghead, 6) < 0)
+			if (cfpkt_peek_head(pkt, rfml->seghead, 6) != 0)
 				goto out;
 
 			rfml->pdu_size = get_unaligned_le16(rfml->seghead+4);
@@ -233,7 +233,7 @@ static int cfrfml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	if (cfpkt_getlen(pkt) > rfml->fragment_size + RFM_HEAD_SIZE)
 		err = cfpkt_peek_head(pkt, head, 6);
 
-	if (err < 0)
+	if (err != 0)
 		goto out;
 
 	while (cfpkt_getlen(frontpkt) > rfml->fragment_size + RFM_HEAD_SIZE) {

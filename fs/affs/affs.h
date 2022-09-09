@@ -43,8 +43,8 @@ struct affs_ext_key {
  */
 struct affs_inode_info {
 	atomic_t i_opencnt;
-	struct semaphore i_link_lock;		/* Protects internal inode access. */
-	struct semaphore i_ext_lock;		/* Protects internal inode access. */
+	struct mutex i_link_lock;		/* Protects internal inode access. */
+	struct mutex i_ext_lock;		/* Protects internal inode access. */
 #define i_hash_lock i_ext_lock
 	u32	 i_blkcnt;			/* block count */
 	u32	 i_extcnt;			/* extended block count */
@@ -167,27 +167,33 @@ extern const struct export_operations affs_export_ops;
 extern int	affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len);
 extern struct dentry *affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int);
 extern int	affs_unlink(struct inode *dir, struct dentry *dentry);
-extern int	affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool);
-extern int	affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
+extern int	affs_create(struct user_namespace *mnt_userns, struct inode *dir,
+			struct dentry *dentry, umode_t mode, bool);
+extern int	affs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+			struct dentry *dentry, umode_t mode);
 extern int	affs_rmdir(struct inode *dir, struct dentry *dentry);
 extern int	affs_link(struct dentry *olddentry, struct inode *dir,
 			  struct dentry *dentry);
-extern int	affs_symlink(struct inode *dir, struct dentry *dentry,
-			     const char *symname);
-extern int	affs_rename2(struct inode *old_dir, struct dentry *old_dentry,
-			    struct inode *new_dir, struct dentry *new_dentry,
-			    unsigned int flags);
+extern int	affs_symlink(struct user_namespace *mnt_userns,
+			struct inode *dir, struct dentry *dentry,
+			const char *symname);
+extern int	affs_rename2(struct user_namespace *mnt_userns,
+			struct inode *old_dir, struct dentry *old_dentry,
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags);
 
 /* inode.c */
 
 extern struct inode		*affs_new_inode(struct inode *dir);
-extern int			 affs_notify_change(struct dentry *dentry, struct iattr *attr);
+extern int			 affs_notify_change(struct user_namespace *mnt_userns,
+					struct dentry *dentry, struct iattr *attr);
 extern void			 affs_evict_inode(struct inode *inode);
 extern struct inode		*affs_iget(struct super_block *sb,
 					unsigned long ino);
 extern int			 affs_write_inode(struct inode *inode,
 					struct writeback_control *wbc);
-extern int			 affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s32 type);
+extern int			 affs_add_entry(struct inode *dir, struct inode *inode,
+					struct dentry *dentry, s32 type);
 
 /* file.c */
 
@@ -293,30 +299,30 @@ affs_adjust_bitmapchecksum(struct buffer_head *bh, u32 val)
 static inline void
 affs_lock_link(struct inode *inode)
 {
-	down(&AFFS_I(inode)->i_link_lock);
+	mutex_lock(&AFFS_I(inode)->i_link_lock);
 }
 static inline void
 affs_unlock_link(struct inode *inode)
 {
-	up(&AFFS_I(inode)->i_link_lock);
+	mutex_unlock(&AFFS_I(inode)->i_link_lock);
 }
 static inline void
 affs_lock_dir(struct inode *inode)
 {
-	down(&AFFS_I(inode)->i_hash_lock);
+	mutex_lock_nested(&AFFS_I(inode)->i_hash_lock, SINGLE_DEPTH_NESTING);
 }
 static inline void
 affs_unlock_dir(struct inode *inode)
 {
-	up(&AFFS_I(inode)->i_hash_lock);
+	mutex_unlock(&AFFS_I(inode)->i_hash_lock);
 }
 static inline void
 affs_lock_ext(struct inode *inode)
 {
-	down(&AFFS_I(inode)->i_ext_lock);
+	mutex_lock(&AFFS_I(inode)->i_ext_lock);
 }
 static inline void
 affs_unlock_ext(struct inode *inode)
 {
-	up(&AFFS_I(inode)->i_ext_lock);
+	mutex_unlock(&AFFS_I(inode)->i_ext_lock);
 }

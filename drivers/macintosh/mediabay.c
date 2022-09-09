@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the media bay on the PowerBook 3400 and 2400.
  *
  * Copyright (C) 1998 Paul Mackerras.
  *
  * Various evolutions by Benjamin Herrenschmidt & Henry Worth
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -20,8 +16,8 @@
 #include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
-#include <asm/prom.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
+
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
@@ -707,7 +703,7 @@ static const struct mb_ops keylargo_mb_ops = {
  * Therefore we do it all by polling the media bay once each tick.
  */
 
-static struct of_device_id media_bay_match[] =
+static const struct of_device_id media_bay_match[] =
 {
 	{
 	.name		= "media-bay",

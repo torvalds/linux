@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Remote processor messaging transport (OMAP platform-specific bits)
  *
@@ -6,18 +7,11 @@
  *
  * Ohad Ben-Cohen <ohad@wizery.com>
  * Brian Swetland <swetland@google.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
+#include <linux/dma-map-ops.h>
 #include <linux/export.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/remoteproc.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
@@ -28,6 +22,18 @@
 #include <linux/slab.h>
 
 #include "remoteproc_internal.h"
+
+static struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
+{
+	return container_of(vdev->dev.parent, struct rproc_vdev, dev);
+}
+
+static  struct rproc *vdev_to_rproc(struct virtio_device *vdev)
+{
+	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
+
+	return rvdev->rproc;
+}
 
 /* kick the remote processor, and let it know which virtqueue to poke at */
 static bool rproc_virtio_notify(struct virtqueue *vq)
@@ -51,7 +57,7 @@ static bool rproc_virtio_notify(struct virtqueue *vq)
  * when the remote processor signals that a specific virtqueue has pending
  * messages available.
  *
- * Returns IRQ_NONE if no message was found in the @notifyid virtqueue,
+ * Return: IRQ_NONE if no message was found in the @notifyid virtqueue,
  * and otherwise returns IRQ_HANDLED.
  */
 irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int notifyid)
@@ -81,7 +87,7 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	struct fw_rsc_vdev *rsc;
 	struct virtqueue *vq;
 	void *addr;
-	int len, size;
+	int num, size;
 
 	/* we're temporarily limited to two virtqueues per rvdev */
 	if (id >= ARRAY_SIZE(rvdev->vring))
@@ -98,26 +104,28 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 
 	rvring = &rvdev->vring[id];
 	addr = mem->va;
-	len = rvring->len;
+	num = rvring->num;
 
 	/* zero vring */
-	size = vring_size(len, rvring->align);
+	size = vring_size(num, rvring->align);
 	memset(addr, 0, size);
 
 	dev_dbg(dev, "vring%d: va %pK qsz %d notifyid %d\n",
-		id, addr, len, rvring->notifyid);
+		id, addr, num, rvring->notifyid);
 
 	/*
 	 * Create the new vq, and tell virtio we're not interested in
 	 * the 'weak' smp barriers, since we're talking with a real device.
 	 */
-	vq = vring_new_virtqueue(id, len, rvring->align, vdev, false, ctx,
+	vq = vring_new_virtqueue(id, num, rvring->align, vdev, false, ctx,
 				 addr, rproc_virtio_notify, callback, name);
 	if (!vq) {
 		dev_err(dev, "vring_new_virtqueue %s failed\n", name);
 		rproc_free_vring(rvring);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	vq->num_max = num;
 
 	rvring->vq = vq;
 	vq->priv = rvring;
@@ -153,10 +161,15 @@ static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				 const bool * ctx,
 				 struct irq_affinity *desc)
 {
-	int i, ret;
+	int i, ret, queue_idx = 0;
 
 	for (i = 0; i < nvqs; ++i) {
-		vqs[i] = rp_find_vq(vdev, i, callbacks[i], names[i],
+		if (!names[i]) {
+			vqs[i] = NULL;
+			continue;
+		}
+
+		vqs[i] = rp_find_vq(vdev, queue_idx++, callbacks[i], names[i],
 				    ctx ? ctx[i] : false);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
@@ -311,6 +324,8 @@ static void rproc_virtio_dev_release(struct device *dev)
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 
+	kfree(vdev);
+
 	kref_put(&rvdev->refcount, rproc_vdev_release);
 
 	put_device(&rproc->dev);
@@ -319,19 +334,81 @@ static void rproc_virtio_dev_release(struct device *dev)
 /**
  * rproc_add_virtio_dev() - register an rproc-induced virtio device
  * @rvdev: the remote vdev
+ * @id: the device type identification (used to match it with a driver).
  *
  * This function registers a virtio device. This vdev's partent is
  * the rproc device.
  *
- * Returns 0 on success or an appropriate error value otherwise.
+ * Return: 0 on success or an appropriate error value otherwise
  */
 int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 {
 	struct rproc *rproc = rvdev->rproc;
-	struct device *dev = &rproc->dev;
-	struct virtio_device *vdev = &rvdev->vdev;
+	struct device *dev = &rvdev->dev;
+	struct virtio_device *vdev;
+	struct rproc_mem_entry *mem;
 	int ret;
 
+	if (rproc->ops->kick == NULL) {
+		ret = -EINVAL;
+		dev_err(dev, ".kick method not defined for %s\n", rproc->name);
+		goto out;
+	}
+
+	/* Try to find dedicated vdev buffer carveout */
+	mem = rproc_find_carveout_by_name(rproc, "vdev%dbuffer", rvdev->index);
+	if (mem) {
+		phys_addr_t pa;
+
+		if (mem->of_resm_idx != -1) {
+			struct device_node *np = rproc->dev.parent->of_node;
+
+			/* Associate reserved memory to vdev device */
+			ret = of_reserved_mem_device_init_by_idx(dev, np,
+								 mem->of_resm_idx);
+			if (ret) {
+				dev_err(dev, "Can't associate reserved memory\n");
+				goto out;
+			}
+		} else {
+			if (mem->va) {
+				dev_warn(dev, "vdev %d buffer already mapped\n",
+					 rvdev->index);
+				pa = rproc_va_to_pa(mem->va);
+			} else {
+				/* Use dma address as carveout no memmapped yet */
+				pa = (phys_addr_t)mem->dma;
+			}
+
+			/* Associate vdev buffer memory pool to vdev subdev */
+			ret = dma_declare_coherent_memory(dev, pa,
+							   mem->da,
+							   mem->len);
+			if (ret < 0) {
+				dev_err(dev, "Failed to associate buffer\n");
+				goto out;
+			}
+		}
+	} else {
+		struct device_node *np = rproc->dev.parent->of_node;
+
+		/*
+		 * If we don't have dedicated buffer, just attempt to re-assign
+		 * the reserved memory from our parent. A default memory-region
+		 * at index 0 from the parent's memory-regions is assigned for
+		 * the rvdev dev to allocate from. Failure is non-critical and
+		 * the allocations will fall back to global pools, so don't
+		 * check return value either.
+		 */
+		of_reserved_mem_device_init_by_idx(dev, np, 0);
+	}
+
+	/* Allocate virtio device */
+	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	if (!vdev) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	vdev->id.device	= id,
 	vdev->config = &rproc_virtio_config_ops,
 	vdev->dev.parent = dev;
@@ -365,11 +442,17 @@ out:
 
 /**
  * rproc_remove_virtio_dev() - remove an rproc-induced virtio device
- * @rvdev: the remote vdev
+ * @dev: the virtio device
+ * @data: must be null
  *
  * This function unregisters an existing virtio device.
+ *
+ * Return: 0
  */
-void rproc_remove_virtio_dev(struct rproc_vdev *rvdev)
+int rproc_remove_virtio_dev(struct device *dev, void *data)
 {
-	unregister_virtio_device(&rvdev->vdev);
+	struct virtio_device *vdev = dev_to_virtio(dev);
+
+	unregister_virtio_device(vdev);
+	return 0;
 }

@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config EROFS_FS
+	tristate "EROFS filesystem support"
+	depends on BLOCK
+	select FS_IOMAP
+	select LIBCRC32C
+	help
+	  EROFS (Enhanced Read-Only File System) is a lightweight read-only
+	  file system with modern designs (e.g. no buffer heads, inline
+	  xattrs/data, chunk-based deduplication, multiple devices, etc.) for
+	  scenarios which need high-performance read-only solutions, e.g.
+	  smartphones with Android OS, LiveCDs and high-density hosts with
+	  numerous containers;
+
+	  It also provides fixed-sized output compression support in order to
+	  improve storage density as well as keep relatively higher compression
+	  ratios and implements in-place decompression to reuse the file page
+	  for compressed data temporarily with proper strategies, which is
+	  quite useful to ensure guaranteed end-to-end runtime decompression
+	  performance under extremely memory pressure without extra cost.
+
+	  See the documentation at <file:Documentation/filesystems/erofs.rst>
+	  for more details.
+
+	  If unsure, say N.
+
+config EROFS_FS_DEBUG
+	bool "EROFS debugging feature"
+	depends on EROFS_FS
+	help
+	  Print debugging messages and enable more BUG_ONs which check
+	  filesystem consistency and find potential issues aggressively,
+	  which can be used for Android eng build, for example.
+
+	  For daily use, say N.
+
+config EROFS_FS_XATTR
+	bool "EROFS extended attributes"
+	depends on EROFS_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+config EROFS_FS_POSIX_ACL
+	bool "EROFS Access Control Lists"
+	depends on EROFS_FS_XATTR
+	select FS_POSIX_ACL
+	default y
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N.
+
+config EROFS_FS_SECURITY
+	bool "EROFS Security Labels"
+	depends on EROFS_FS_XATTR
+	default y
+	help
+	  Security labels provide an access control facility to support Linux
+	  Security Models (LSMs) accepted by AppArmor, SELinux, Smack and TOMOYO
+	  Linux. This option enables an extended attribute handler for file
+	  security labels in the erofs filesystem, so that it requires enabling
+	  the extended attribute support in advance.
+
+	  If you are not using a security module, say N.
+
+config EROFS_FS_ZIP
+	bool "EROFS Data Compression Support"
+	depends on EROFS_FS
+	select LZ4_DECOMPRESS
+	default y
+	help
+	  Enable fixed-sized output compression for EROFS.
+
+	  If you don't want to enable compression feature, say N.
+
+config EROFS_FS_ZIP_LZMA
+	bool "EROFS LZMA compressed data support"
+	depends on EROFS_FS_ZIP
+	select XZ_DEC
+	select XZ_DEC_MICROLZMA
+	help
+	  Saying Y here includes support for reading EROFS file systems
+	  containing LZMA compressed data, specifically called microLZMA. it
+	  gives better compression ratios than the LZ4 algorithm, at the
+	  expense of more CPU overhead.
+
+	  LZMA support is an experimental feature for now and so most file
+	  systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
+config EROFS_FS_ONDEMAND
+	bool "EROFS fscache-based on-demand read support"
+	depends on CACHEFILES_ONDEMAND && (EROFS_FS=m && FSCACHE || EROFS_FS=y && FSCACHE=y)
+	default n
+	help
+	  This permits EROFS to use fscache-backed data blobs with on-demand
+	  read support.
+
+	  If unsure, say N.

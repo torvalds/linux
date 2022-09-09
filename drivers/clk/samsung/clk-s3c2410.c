@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Common Clock Framework support for S3C2410 and following SoCs.
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk/samsung.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
@@ -325,6 +323,7 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 				    void __iomem *base)
 {
 	struct samsung_clk_provider *ctx;
+	struct clk_hw **hws;
 	reg_base = base;
 
 	if (np) {
@@ -334,13 +333,14 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 	}
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
+	hws = ctx->clk_data.hws;
 
 	/* Register external clocks only in non-dt cases */
 	if (!np)
 		s3c2410_common_clk_register_fixed_ext(ctx, xti_f);
 
 	if (current_soc == S3C2410) {
-		if (_get_rate("xti") == 12 * MHZ) {
+		if (clk_hw_get_rate(hws[XTI]) == 12 * MHZ) {
 			s3c2410_plls[mpll].rate_table = pll_s3c2410_12mhz_tbl;
 			s3c2410_plls[upll].rate_table = pll_s3c2410_12mhz_tbl;
 		}
@@ -350,7 +350,7 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 				ARRAY_SIZE(s3c2410_plls), reg_base);
 
 	} else { /* S3C2440, S3C2442 */
-		if (_get_rate("xti") == 12 * MHZ) {
+		if (clk_hw_get_rate(hws[XTI]) == 12 * MHZ) {
 			/*
 			 * plls follow different calculation schemes, with the
 			 * upll following the same scheme as the s3c2410 plls

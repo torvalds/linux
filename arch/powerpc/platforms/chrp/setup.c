@@ -32,10 +32,11 @@
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
 #include <linux/timer.h>
+#include <linux/of_address.h>
+#include <linux/of_fdt.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
-#include <asm/pgtable.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>
@@ -252,7 +253,7 @@ static void __noreturn briq_restart(char *cmd)
  * Per default, input/output-device points to the keyboard/screen
  * If no card is installed, the built-in serial port is used as a fallback.
  * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
- * the the built-in serial node. Instead, a /failsafe node is created.
+ * to the built-in serial node. Instead, a /failsafe node is created.
  */
 static __init void chrp_init(void)
 {
@@ -335,21 +336,10 @@ static void __init chrp_setup_arch(void)
 	/* On pegasos, enable the L2 cache if not already done by OF */
 	pegasos_set_l2cr();
 
-	/* Lookup PCI host bridges */
-	chrp_find_bridges();
-
-	/*
-	 *  Temporary fixes for PCI devices.
-	 *  -- Geert
-	 */
-	hydra_init();		/* Mac I/O */
-
 	/*
 	 *  Fix the Super I/O configuration
 	 */
 	sio_init();
-
-	pci_create_OF_bus_map();
 
 	/*
 	 * Print the banner, then scroll down so boot progress
@@ -451,13 +441,6 @@ static void __init chrp_find_openpic(void)
 	of_node_put(np);
 }
 
-#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
-static struct irqaction xmon_irqaction = {
-	.handler = xmon_irq,
-	.name = "XMON break",
-};
-#endif
-
 static void __init chrp_find_8259(void)
 {
 	struct device_node *np, *pic = NULL;
@@ -538,19 +521,21 @@ static void __init chrp_init_IRQ(void)
 	/* see if there is a keyboard in the device tree
 	   with a parent of type "adb" */
 	for_each_node_by_name(kbd, "keyboard")
-		if (kbd->parent && kbd->parent->type
-		    && strcmp(kbd->parent->type, "adb") == 0)
+		if (of_node_is_type(kbd->parent, "adb"))
 			break;
 	of_node_put(kbd);
-	if (kbd)
-		setup_irq(HYDRA_INT_ADB_NMI, &xmon_irqaction);
+	if (kbd) {
+		if (request_irq(HYDRA_INT_ADB_NMI, xmon_irq, 0, "XMON break",
+				NULL))
+			pr_err("Failed to register XMON break interrupt\n");
+	}
 #endif
 }
 
 static void __init
 chrp_init2(void)
 {
-#ifdef CONFIG_NVRAM
+#if IS_ENABLED(CONFIG_NVRAM)
 	chrp_nvram_init();
 #endif
 
@@ -574,7 +559,6 @@ static int __init chrp_probe(void)
  	if (strcmp(dtype, "chrp"))
 		return 0;
 
-	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
 
@@ -589,6 +573,7 @@ define_machine(chrp) {
 	.name			= "CHRP",
 	.probe			= chrp_probe,
 	.setup_arch		= chrp_setup_arch,
+	.discover_phbs		= chrp_find_bridges,
 	.init			= chrp_init2,
 	.show_cpuinfo		= chrp_show_cpuinfo,
 	.init_IRQ		= chrp_init_IRQ,

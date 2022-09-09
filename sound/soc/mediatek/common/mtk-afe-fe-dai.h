@@ -31,7 +31,23 @@ extern const struct snd_soc_dai_ops mtk_afe_fe_ops;
 
 int mtk_dynamic_irq_acquire(struct mtk_base_afe *afe);
 int mtk_dynamic_irq_release(struct mtk_base_afe *afe, int irq_id);
-int mtk_afe_dai_suspend(struct snd_soc_dai *dai);
-int mtk_afe_dai_resume(struct snd_soc_dai *dai);
+int mtk_afe_suspend(struct snd_soc_component *component);
+int mtk_afe_resume(struct snd_soc_component *component);
 
+int mtk_memif_set_enable(struct mtk_base_afe *afe, int id);
+int mtk_memif_set_disable(struct mtk_base_afe *afe, int id);
+int mtk_memif_set_addr(struct mtk_base_afe *afe, int id,
+		       unsigned char *dma_area,
+		       dma_addr_t dma_addr,
+		       size_t dma_bytes);
+int mtk_memif_set_channel(struct mtk_base_afe *afe,
+			  int id, unsigned int channel);
+int mtk_memif_set_rate(struct mtk_base_afe *afe,
+		       int id, unsigned int rate);
+int mtk_memif_set_rate_substream(struct snd_pcm_substream *substream,
+				 int id, unsigned int rate);
+int mtk_memif_set_format(struct mtk_base_afe *afe,
+			 int id, snd_pcm_format_t format);
+int mtk_memif_set_pbuf_size(struct mtk_base_afe *afe,
+			    int id, int pbuf_size);
 #endif

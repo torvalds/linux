@@ -7,7 +7,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.46
+ *    mpi2_cnfg.h Version:  02.00.47
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -244,6 +244,13 @@
  *                     Added DMDReport Delay Time defines to
  *                     PCIeIOUnitPage1
  * --------------------------------------------------------------------------
+ * 08-02-18  02.00.44  Added Slotx2, Slotx4 to ManPage 7.
+ * 08-15-18  02.00.45  Added ProductSpecific field at end of IOC Page 1
+ * 08-28-18  02.00.46  Added NVMs Write Cache flag to IOUnitPage1
+ *                     Added DMDReport Delay Time defines to PCIeIOUnitPage1
+ * 12-17-18  02.00.47  Swap locations of Slotx2 and Slotx4 in ManPage 7.
+ * 08-01-19  02.00.49  Add MPI26_MANPAGE7_FLAG_X2_X4_SLOT_INFO_VALID
+ *                     Add MPI26_IOUNITPAGE1_NVME_WRCACHE_SHIFT
  */
 
 #ifndef MPI2_CNFG_H
@@ -548,7 +555,8 @@ typedef struct _MPI2_CONFIG_REPLY {
 #define MPI2_MFGPAGE_DEVID_SAS2308_1                (0x0086)
 #define MPI2_MFGPAGE_DEVID_SAS2308_2                (0x0087)
 #define MPI2_MFGPAGE_DEVID_SAS2308_3                (0x006E)
-#define MPI2_MFGPAGE_DEVID_SAS2308_MPI_EP           (0x02B0)
+#define MPI2_MFGPAGE_DEVID_SWITCH_MPI_EP            (0x02B0)
+#define MPI2_MFGPAGE_DEVID_SWITCH_MPI_EP_1          (0x02B1)
 
 /*MPI v2.5 SAS products */
 #define MPI25_MFGPAGE_DEVID_SAS3004                 (0x0096)
@@ -809,7 +817,8 @@ typedef struct _MPI2_MANPAGE7_CONNECTOR_INFO {
 	U8                          Location;               /*0x14 */
 	U8                          ReceptacleID;           /*0x15 */
 	U16                         Slot;                   /*0x16 */
-	U32                         Reserved2;              /*0x18 */
+	U16                         Slotx2;                 /*0x18 */
+	U16                         Slotx4;                 /*0x1A */
 } MPI2_MANPAGE7_CONNECTOR_INFO,
 	*PTR_MPI2_MANPAGE7_CONNECTOR_INFO,
 	Mpi2ManPage7ConnectorInfo_t,
@@ -884,6 +893,8 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_7 {
 #define MPI2_MANPAGE7_FLAG_EVENTREPLAY_SLOT_ORDER       (0x00000002)
 #define MPI2_MANPAGE7_FLAG_USE_SLOT_INFO                (0x00000001)
 
+#define MPI26_MANPAGE7_FLAG_CONN_LANE_USE_PINOUT        (0x00000020)
+#define MPI26_MANPAGE7_FLAG_X2_X4_SLOT_INFO_VALID       (0x00000010)
 
 /*
  *Generic structure to use for product-specific manufacturing pages
@@ -955,9 +966,10 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1 {
 
 /* IO Unit Page 1 Flags defines */
 #define MPI26_IOUNITPAGE1_NVME_WRCACHE_MASK             (0x00030000)
-#define MPI26_IOUNITPAGE1_NVME_WRCACHE_ENABLE           (0x00000000)
-#define MPI26_IOUNITPAGE1_NVME_WRCACHE_DISABLE          (0x00010000)
-#define MPI26_IOUNITPAGE1_NVME_WRCACHE_NO_CHANGE        (0x00020000)
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_SHIFT            (16)
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_NO_CHANGE        (0x00000000)
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_ENABLE           (0x00010000)
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_DISABLE          (0x00020000)
 #define MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK       (0x00004000)
 #define MPI25_IOUNITPAGE1_NEW_DEVICE_FAST_PATH_DISABLE  (0x00002000)
 #define MPI25_IOUNITPAGE1_DISABLE_FAST_PATH             (0x00001000)
@@ -980,7 +992,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1 {
  *one and check the value returned for GPIOCount at runtime.
  */
 #ifndef MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX
-#define MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX    (1)
+#define MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX    (36)
 #endif
 
 typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_3 {
@@ -1397,7 +1409,7 @@ typedef struct _MPI2_CONFIG_PAGE_IOC_1 {
 	U8                      PCIBusNum;                  /*0x0E */
 	U8                      PCIDomainSegment;           /*0x0F */
 	U32                     Reserved1;                  /*0x10 */
-	U32                     Reserved2;                  /*0x14 */
+	U32                     ProductSpecific;            /* 0x14 */
 } MPI2_CONFIG_PAGE_IOC_1,
 	*PTR_MPI2_CONFIG_PAGE_IOC_1,
 	Mpi2IOCPage1_t, *pMpi2IOCPage1_t;
@@ -3924,7 +3936,13 @@ typedef struct _MPI26_CONFIG_PAGE_PCIEDEV_2 {
 	U32	MaximumDataTransferSize;	/*0x0C */
 	U32	Capabilities;		/*0x10 */
 	U16	NOIOB;		/* 0x14 */
-	U16	Reserved2;		/* 0x16 */
+	U16     ShutdownLatency;        /* 0x16 */
+	U16     VendorID;               /* 0x18 */
+	U16     DeviceID;               /* 0x1A */
+	U16     SubsystemVendorID;      /* 0x1C */
+	U16     SubsystemID;            /* 0x1E */
+	U8      RevisionID;             /* 0x20 */
+	U8      Reserved21[3];          /* 0x21 */
 } MPI26_CONFIG_PAGE_PCIEDEV_2, *PTR_MPI26_CONFIG_PAGE_PCIEDEV_2,
 	Mpi26PCIeDevicePage2_t, *pMpi26PCIeDevicePage2_t;
 

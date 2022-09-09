@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2007-2012 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #ifndef VPORT_H
@@ -33,7 +20,7 @@
 struct vport;
 struct vport_parms;
 
-/* The following definitions are for users of the vport subsytem: */
+/* The following definitions are for users of the vport subsystem: */
 
 int ovs_vport_init(void);
 void ovs_vport_exit(void);
@@ -71,6 +58,7 @@ struct vport_portids {
 /**
  * struct vport - one port within a datapath
  * @dev: Pointer to net_device.
+ * @dev_tracker: refcount tracker for @dev reference
  * @dp: Datapath to which this port belongs.
  * @upcall_portids: RCU protected 'struct vport_portids'.
  * @port_no: Index into @dp's @ports array.
@@ -82,6 +70,7 @@ struct vport_portids {
  */
 struct vport {
 	struct net_device *dev;
+	netdevice_tracker dev_tracker;
 	struct datapath	*dp;
 	struct vport_portids __rcu *upcall_portids;
 	u16 port_no;

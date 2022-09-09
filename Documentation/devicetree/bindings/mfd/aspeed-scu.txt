@@ -4,9 +4,7 @@ configuring elements such as clocks, pinmux, and reset.
 Required properties:
 - compatible:	One of:
 		"aspeed,ast2400-scu", "syscon", "simple-mfd"
-		"aspeed,g4-scu", "syscon", "simple-mfd"
 		"aspeed,ast2500-scu", "syscon", "simple-mfd"
-		"aspeed,g5-scu", "syscon", "simple-mfd"
 
 - reg:		contains the offset and length of the SCU memory region
 - #clock-cells: should be set to <1> - the system controller is also a
@@ -21,4 +19,30 @@ syscon: syscon@1e6e2000 {
 	reg = <0x1e6e2000 0x1a8>;
 	#clock-cells = <1>;
 	#reset-cells = <1>;
+};
+
+Silicon ID
+-----------------
+
+Families have unique hardware silicon identifiers within the SoC.
+
+Required properties:
+
+ - compatible:		"aspeed,silicon-id" or:
+			"aspeed,ast2400-silicon-id" or
+			"aspeed,ast2500-silicon-id" or
+			"aspeed,ast2600-silicon-id"
+
+ - reg:			offset and length of the silicon id information
+			optionally, a second offset and length describes the unique chip id
+
+			The reg should be the unique silicon id register, and
+			not backwards compatible one in eg. the 2600.
+
+Example:
+
+
+silicon-id@7c {
+        compatible = "aspeed,ast2500-silicon-id", "aspeed,silicon-id";
+        reg = <0x7c 0x4 0x150 0x8>;
 };

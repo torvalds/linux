@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*****************************************************************************/
 /* srp.h -- SCSI RDMA Protocol definitions                                   */
 /*                                                                           */
@@ -5,15 +6,6 @@
 /*                                                                           */
 /* Copyright (C) 2003 IBM Corporation                                        */
 /*                                                                           */
-/* This program is free software; you can redistribute it and/or modify      */
-/* it under the terms of the GNU General Public License as published by      */
-/* the Free Software Foundation; either version 2 of the License, or         */
-/* (at your option) any later version.                                       */
-/*                                                                           */
-/* This program is distributed in the hope that it will be useful,           */
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
-/* GNU General Public License for more details.                              */
 /*                                                                           */
 /* This file contains structures and definitions for IBM RPA (RS/6000        */
 /* platform architecture) implementation of the SRP (SCSI RDMA Protocol)     */
@@ -78,12 +70,17 @@ enum viosrp_crq_status {
 };
 
 struct viosrp_crq {
-	u8 valid;		/* used by RPA */
-	u8 format;		/* SCSI vs out-of-band */
-	u8 reserved;
-	u8 status;		/* non-scsi failure? (e.g. DMA failure) */
-	__be16 timeout;		/* in seconds */
-	__be16 IU_length;		/* in bytes */
+	union {
+		__be64 high;			/* High 64 bits */
+		struct {
+			u8 valid;		/* used by RPA */
+			u8 format;		/* SCSI vs out-of-band */
+			u8 reserved;
+			u8 status;		/* non-scsi failure? (e.g. DMA failure) */
+			__be16 timeout;		/* in seconds */
+			__be16 IU_length;	/* in bytes */
+		};
+	};
 	__be64 IU_data_ptr;	/* the TCE for transferring data */
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cpia CPiA (1) gspca driver
  *
@@ -9,17 +10,6 @@
  * (C) Copyright 1999-2000 Scott J. Bertin
  * (C) Copyright 1999-2000 Johannes Erdfelt <johannes@erdfelt.com>
  * (C) Copyright 2000 STMicroelectronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -375,8 +365,9 @@ struct sd {
 static const struct v4l2_pix_format mode[] = {
 	{160, 120, V4L2_PIX_FMT_CPIA1, V4L2_FIELD_NONE,
 		/* The sizeimage is trial and error, as with low framerates
-		   the camera will pad out usb frames, making the image
-		   data larger then strictly necessary */
+		 *  the camera will pad out usb frames, making the image
+		 *  data larger than strictly necessary
+		 */
 		.bytesperline = 160,
 		.sizeimage = 65536,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -547,10 +538,14 @@ static int do_command(struct gspca_dev *gspca_dev, u16 command,
 		}
 		if (sd->params.qx3.button) {
 			/* button pressed - unlock the latch */
-			do_command(gspca_dev, CPIA_COMMAND_WriteMCPort,
+			ret = do_command(gspca_dev, CPIA_COMMAND_WriteMCPort,
 				   3, 0xdf, 0xdf, 0);
-			do_command(gspca_dev, CPIA_COMMAND_WriteMCPort,
+			if (ret)
+				return ret;
+			ret = do_command(gspca_dev, CPIA_COMMAND_WriteMCPort,
 				   3, 0xff, 0xff, 0);
+			if (ret)
+				return ret;
 		}
 
 		/* test whether microscope is cradled */

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -21,6 +17,7 @@ enum max31785_regs {
 
 #define MAX31785			0x3030
 #define MAX31785A			0x3040
+#define MAX31785B			0x3061
 
 #define MFR_FAN_CONFIG_DUAL_TACH	BIT(12)
 
@@ -76,7 +73,7 @@ static int max31785_read_long_data(struct i2c_client *client, int page,
 
 	cmdbuf[0] = reg;
 
-	rc = pmbus_set_page(client, page);
+	rc = pmbus_set_page(client, page, 0xff);
 	if (rc < 0)
 		return rc;
 
@@ -114,7 +111,7 @@ static int max31785_get_pwm_mode(struct i2c_client *client, int page)
 	if (config < 0)
 		return config;
 
-	command = pmbus_read_word_data(client, page, PMBUS_FAN_COMMAND_1);
+	command = pmbus_read_word_data(client, page, 0xff, PMBUS_FAN_COMMAND_1);
 	if (command < 0)
 		return command;
 
@@ -130,7 +127,7 @@ static int max31785_get_pwm_mode(struct i2c_client *client, int page)
 }
 
 static int max31785_read_word_data(struct i2c_client *client, int page,
-				   int reg)
+				   int phase, int reg)
 {
 	u32 val;
 	int rv;
@@ -248,8 +245,6 @@ static int max31785_write_word_data(struct i2c_client *client, int page,
 #define MAX31785_VOUT_FUNCS \
 	(PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT)
 
-#define MAX37185_NUM_FAN_PAGES 6
-
 static const struct pmbus_driver_info max31785_info = {
 	.pages = MAX31785_NR_PAGES,
 
@@ -330,13 +325,12 @@ static int max31785_configure_dual_tach(struct i2c_client *client,
 	return 0;
 }
 
-static int max31785_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max31785_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct pmbus_driver_info *info;
 	bool dual_tach = false;
-	s64 ret;
+	int ret;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA |
@@ -357,12 +351,14 @@ static int max31785_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	if (ret == MAX31785A) {
+	if (ret == MAX31785A || ret == MAX31785B) {
 		dual_tach = true;
 	} else if (ret == MAX31785) {
-		if (!strcmp("max31785a", id->name))
-			dev_warn(dev, "Expected max3175a, found max31785: cannot provide secondary tachometer readings\n");
+		if (!strcmp("max31785a", client->name) ||
+		    !strcmp("max31785b", client->name))
+			dev_warn(dev, "Expected max31785a/b, found max31785: cannot provide secondary tachometer readings\n");
 	} else {
+		dev_err(dev, "Unrecognized MAX31785 revision: %x\n", ret);
 		return -ENODEV;
 	}
 
@@ -372,12 +368,13 @@ static int max31785_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id max31785_id[] = {
 	{ "max31785", 0 },
 	{ "max31785a", 0 },
+	{ "max31785b", 0 },
 	{ },
 };
 
@@ -386,6 +383,7 @@ MODULE_DEVICE_TABLE(i2c, max31785_id);
 static const struct of_device_id max31785_of_match[] = {
 	{ .compatible = "maxim,max31785" },
 	{ .compatible = "maxim,max31785a" },
+	{ .compatible = "maxim,max31785b" },
 	{ },
 };
 
@@ -396,8 +394,7 @@ static struct i2c_driver max31785_driver = {
 		.name = "max31785",
 		.of_match_table = max31785_of_match,
 	},
-	.probe = max31785_probe,
-	.remove = pmbus_do_remove,
+	.probe_new = max31785_probe,
 	.id_table = max31785_id,
 };
 
@@ -406,3 +403,4 @@ module_i2c_driver(max31785_driver);
 MODULE_AUTHOR("Andrew Jeffery <andrew@aj.id.au>");
 MODULE_DESCRIPTION("PMBus driver for the Maxim MAX31785");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(PMBUS);

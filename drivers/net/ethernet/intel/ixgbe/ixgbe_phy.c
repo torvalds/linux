@@ -380,6 +380,9 @@ static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 	case X557_PHY_ID2:
 		phy_type = ixgbe_phy_x550em_ext_t;
 		break;
+	case BCM54616S_E_PHY_ID:
+		phy_type = ixgbe_phy_ext_1g_t;
+		break;
 	default:
 		phy_type = ixgbe_phy_unknown;
 		break;
@@ -461,12 +464,13 @@ s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_read_phy_mdi - Reads a value from a specified PHY register without
- *  the SWFW lock
+ *  ixgbe_read_phy_reg_mdi - read PHY register
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit address of PHY register to read
  *  @device_type: 5 bit device type
  *  @phy_data: Pointer to read data from PHY register
+ *
+ *  Reads a value from a specified PHY register without the SWFW lock
  **/
 s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
 		       u16 *phy_data)
@@ -771,7 +775,7 @@ mii_bus_write_done:
 
 /**
  *  ixgbe_mii_bus_read - Read a clause 22/45 register
- *  @hw: pointer to hardware structure
+ *  @bus: pointer to mii_bus structure which points to our driver private
  *  @addr: address
  *  @regnum: register number
  **/
@@ -786,7 +790,7 @@ static s32 ixgbe_mii_bus_read(struct mii_bus *bus, int addr, int regnum)
 
 /**
  *  ixgbe_mii_bus_write - Write a clause 22/45 register
- *  @hw: pointer to hardware structure
+ *  @bus: pointer to mii_bus structure which points to our driver private
  *  @addr: address
  *  @regnum: register number
  *  @val: value to write
@@ -803,7 +807,7 @@ static s32 ixgbe_mii_bus_write(struct mii_bus *bus, int addr, int regnum,
 
 /**
  *  ixgbe_x550em_a_mii_bus_read - Read a clause 22/45 register on x550em_a
- *  @hw: pointer to hardware structure
+ *  @bus: pointer to mii_bus structure which points to our driver private
  *  @addr: address
  *  @regnum: register number
  **/
@@ -820,7 +824,7 @@ static s32 ixgbe_x550em_a_mii_bus_read(struct mii_bus *bus, int addr,
 
 /**
  *  ixgbe_x550em_a_mii_bus_write - Write a clause 22/45 register on x550em_a
- *  @hw: pointer to hardware structure
+ *  @bus: pointer to mii_bus structure which points to our driver private
  *  @addr: address
  *  @regnum: register number
  *  @val: value to write
@@ -901,16 +905,12 @@ static bool ixgbe_x550em_a_has_mii(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 {
+	s32 (*write)(struct mii_bus *bus, int addr, int regnum, u16 val);
+	s32 (*read)(struct mii_bus *bus, int addr, int regnum);
 	struct ixgbe_adapter *adapter = hw->back;
 	struct pci_dev *pdev = adapter->pdev;
 	struct device *dev = &adapter->netdev->dev;
 	struct mii_bus *bus;
-
-	adapter->mii_bus = devm_mdiobus_alloc(dev);
-	if (!adapter->mii_bus)
-		return -ENOMEM;
-
-	bus = adapter->mii_bus;
 
 	switch (hw->device_id) {
 	/* C3000 SoCs */
@@ -924,15 +924,22 @@ s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_A_1G_T:
 	case IXGBE_DEV_ID_X550EM_A_1G_T_L:
 		if (!ixgbe_x550em_a_has_mii(hw))
-			goto ixgbe_no_mii_bus;
-		bus->read = &ixgbe_x550em_a_mii_bus_read;
-		bus->write = &ixgbe_x550em_a_mii_bus_write;
+			return 0;
+		read = &ixgbe_x550em_a_mii_bus_read;
+		write = &ixgbe_x550em_a_mii_bus_write;
 		break;
 	default:
-		bus->read = &ixgbe_mii_bus_read;
-		bus->write = &ixgbe_mii_bus_write;
+		read = &ixgbe_mii_bus_read;
+		write = &ixgbe_mii_bus_write;
 		break;
 	}
+
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus)
+		return -ENOMEM;
+
+	bus->read = read;
+	bus->write = write;
 
 	/* Use the position of the device in the PCI hierarchy as the id */
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mdio-%s", ixgbe_driver_name,
@@ -949,12 +956,8 @@ s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 	 */
 	hw->phy.mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_SUPPORTS_C22;
 
+	adapter->mii_bus = bus;
 	return mdiobus_register(bus);
-
-ixgbe_no_mii_bus:
-	devm_mdiobus_free(dev, bus);
-	adapter->mii_bus = NULL;
-	return -ENODEV;
 }
 
 /**

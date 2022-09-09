@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * altera.c
  *
@@ -6,21 +7,6 @@
  * Copyright (C) Altera Corporation 1998-2001
  * Copyright (C) 2010,2011 NetUP Inc.
  * Copyright (C) 2010,2011 Igor M. Liplianin <liplianin@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <asm/unaligned.h>
@@ -544,11 +530,8 @@ exit_done:
 			}
 			break;
 		case OP_SWP:
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 			break;
 		case OP_ADD:
 			if (altera_check_stack(stack_ptr, 2, &status)) {
@@ -926,34 +909,22 @@ exit_done:
 			 */
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* SWPN 7 */
 			index = 7 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* SWPN 6 */
 			index = 6 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* DUPN 8 */
 			index = 8 + 1;
@@ -964,18 +935,12 @@ exit_done:
 
 			/* SWPN 2 */
 			index = 2 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* DUPN 6 */
 			index = 6 + 1;
@@ -1089,11 +1054,8 @@ exit_done:
 			 * to swap with top element
 			 */
 			index = (args[0]) + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 			break;
 		case OP_DUPN:
 			/*
@@ -2126,8 +2088,8 @@ exit_done:
 	return status;
 }
 
-static int altera_get_note(u8 *p, s32 program_size,
-			s32 *offset, char *key, char *value, int length)
+static int altera_get_note(u8 *p, s32 program_size, s32 *offset,
+			   char *key, char *value, int keylen, int vallen)
 /*
  * Gets key and value of NOTE fields in the JBC file.
  * Can be called in two modes:  if offset pointer is NULL,
@@ -2184,7 +2146,7 @@ static int altera_get_note(u8 *p, s32 program_size,
 						&p[note_table + (8 * i) + 4])];
 
 				if (value != NULL)
-					strlcpy(value, value_ptr, length);
+					strlcpy(value, value_ptr, vallen);
 
 			}
 		}
@@ -2203,13 +2165,13 @@ static int altera_get_note(u8 *p, s32 program_size,
 				strlcpy(key, &p[note_strings +
 						get_unaligned_be32(
 						&p[note_table + (8 * i)])],
-					length);
+					keylen);
 
 			if (value != NULL)
 				strlcpy(value, &p[note_strings +
 						get_unaligned_be32(
 						&p[note_table + (8 * i) + 4])],
-					length);
+					vallen);
 
 			*offset = i + 1;
 		}
@@ -2277,11 +2239,6 @@ static int altera_check_crc(u8 *p, s32 program_size)
 		case -EILSEQ:
 			printk(KERN_ERR "%s: CRC mismatch: expected %04x, "
 				"actual %04x\n", __func__, local_expected,
-				local_actual);
-			break;
-		case -ENODATA:
-			printk(KERN_ERR "%s: expected CRC not found, "
-				"actual CRC = %04x\n", __func__,
 				local_actual);
 			break;
 		case -EIO:
@@ -2463,7 +2420,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 			__func__, (format_version == 2) ? "Jam STAPL" :
 						"pre-standardized Jam 1.1");
 		while (altera_get_note((u8 *)fw->data, fw->size,
-					&offset, key, value, 256) == 0)
+					&offset, key, value, 32, 256) == 0)
 			printk(KERN_INFO "%s: NOTE \"%s\" = \"%s\"\n",
 					__func__, key, value);
 	}

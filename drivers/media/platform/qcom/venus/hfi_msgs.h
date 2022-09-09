@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #ifndef __VENUS_HFI_MSGS_H__
 #define __VENUS_HFI_MSGS_H__
@@ -122,7 +113,8 @@ struct hfi_msg_sys_ping_ack_pkt {
 struct hfi_msg_sys_property_info_pkt {
 	struct hfi_pkt_hdr hdr;
 	u32 num_properties;
-	u32 data[1];
+	u32 property;
+	u8 data[];
 };
 
 struct hfi_msg_session_load_resources_done_pkt {
@@ -164,7 +156,7 @@ struct hfi_msg_session_empty_buffer_done_pkt {
 	u32 input_tag;
 	u32 packet_buffer;
 	u32 extradata_buffer;
-	u32 data[0];
+	u32 data[];
 };
 
 struct hfi_msg_session_fbd_compressed_pkt {
@@ -184,7 +176,7 @@ struct hfi_msg_session_fbd_compressed_pkt {
 	u32 picture_type;
 	u32 packet_buffer;
 	u32 extradata_buffer;
-	u32 data[0];
+	u32 data[];
 };
 
 struct hfi_msg_session_fbd_uncompressed_plane0_pkt {
@@ -211,7 +203,7 @@ struct hfi_msg_session_fbd_uncompressed_plane0_pkt {
 	u32 picture_type;
 	u32 packet_buffer;
 	u32 extradata_buffer;
-	u32 data[0];
+	u32 data[];
 };
 
 struct hfi_msg_session_fbd_uncompressed_plane1_pkt {
@@ -220,7 +212,7 @@ struct hfi_msg_session_fbd_uncompressed_plane1_pkt {
 	u32 filled_len;
 	u32 offset;
 	u32 packet_buffer2;
-	u32 data[0];
+	u32 data[];
 };
 
 struct hfi_msg_session_fbd_uncompressed_plane2_pkt {
@@ -229,7 +221,7 @@ struct hfi_msg_session_fbd_uncompressed_plane2_pkt {
 	u32 filled_len;
 	u32 offset;
 	u32 packet_buffer3;
-	u32 data[0];
+	u32 data[];
 };
 
 struct hfi_msg_session_parse_sequence_header_done_pkt {
@@ -242,7 +234,8 @@ struct hfi_msg_session_parse_sequence_header_done_pkt {
 struct hfi_msg_session_property_info_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 num_properties;
-	u32 data[1];
+	u32 property;
+	u8 data[];
 };
 
 struct hfi_msg_session_release_resources_done_pkt {

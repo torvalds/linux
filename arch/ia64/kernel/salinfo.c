@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * salinfo.c
  *
@@ -281,7 +282,7 @@ salinfo_event_open(struct inode *inode, struct file *file)
 static ssize_t
 salinfo_event_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = pde_data(file_inode(file));
 	char cmd[32];
 	size_t size;
 	int i, n, cpu = -1;
@@ -330,16 +331,16 @@ retry:
 	return size;
 }
 
-static const struct file_operations salinfo_event_fops = {
-	.open  = salinfo_event_open,
-	.read  = salinfo_event_read,
-	.llseek = noop_llseek,
+static const struct proc_ops salinfo_event_proc_ops = {
+	.proc_open	= salinfo_event_open,
+	.proc_read	= salinfo_event_read,
+	.proc_lseek	= noop_llseek,
 };
 
 static int
 salinfo_log_open(struct inode *inode, struct file *file)
 {
-	struct salinfo_data *data = PDE_DATA(inode);
+	struct salinfo_data *data = pde_data(inode);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -364,7 +365,7 @@ salinfo_log_open(struct inode *inode, struct file *file)
 static int
 salinfo_log_release(struct inode *inode, struct file *file)
 {
-	struct salinfo_data *data = PDE_DATA(inode);
+	struct salinfo_data *data = pde_data(inode);
 
 	if (data->state == STATE_NO_DATA) {
 		vfree(data->log_buffer);
@@ -432,7 +433,7 @@ retry:
 static ssize_t
 salinfo_log_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = pde_data(file_inode(file));
 	u8 *buf;
 	u64 bufsize;
 
@@ -493,7 +494,7 @@ salinfo_log_clear(struct salinfo_data *data, int cpu)
 static ssize_t
 salinfo_log_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = pde_data(file_inode(file));
 	char cmd[32];
 	size_t size;
 	u32 offset;
@@ -533,12 +534,12 @@ salinfo_log_write(struct file *file, const char __user *buffer, size_t count, lo
 	return count;
 }
 
-static const struct file_operations salinfo_data_fops = {
-	.open    = salinfo_log_open,
-	.release = salinfo_log_release,
-	.read    = salinfo_log_read,
-	.write   = salinfo_log_write,
-	.llseek  = default_llseek,
+static const struct proc_ops salinfo_data_proc_ops = {
+	.proc_open	= salinfo_log_open,
+	.proc_release	= salinfo_log_release,
+	.proc_read	= salinfo_log_read,
+	.proc_write	= salinfo_log_write,
+	.proc_lseek	= default_llseek,
 };
 
 static int salinfo_cpu_online(unsigned int cpu)
@@ -616,13 +617,13 @@ salinfo_init(void)
 			continue;
 
 		entry = proc_create_data("event", S_IRUSR, dir,
-					 &salinfo_event_fops, data);
+					 &salinfo_event_proc_ops, data);
 		if (!entry)
 			continue;
 		*sdir++ = entry;
 
 		entry = proc_create_data("data", S_IRUSR | S_IWUSR, dir,
-					 &salinfo_data_fops, data);
+					 &salinfo_data_proc_ops, data);
 		if (!entry)
 			continue;
 		*sdir++ = entry;

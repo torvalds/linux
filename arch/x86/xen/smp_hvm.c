@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/thread_info.h>
 #include <asm/smp.h>
 
 #include <xen/events.h>
@@ -19,6 +20,12 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 	xen_vcpu_setup(0);
 
 	/*
+	 * Called again in case the kernel boots on vcpu >= MAX_VIRT_CPUS.
+	 * Refer to comments in xen_hvm_init_time_ops().
+	 */
+	xen_hvm_init_time_ops();
+
+	/*
 	 * The alternative logic (which patches the unlock/lock) runs before
 	 * the smp bootup up code is activated. Hence we need to set this up
 	 * the core kernel is being patched. Otherwise we will have only
@@ -32,9 +39,11 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	int cpu;
 
 	native_smp_prepare_cpus(max_cpus);
-	WARN_ON(xen_smp_intr_init(0));
 
-	xen_init_lock_cpu(0);
+	if (xen_have_vector_callback) {
+		WARN_ON(xen_smp_intr_init(0));
+		xen_init_lock_cpu(0);
+	}
 
 	for_each_possible_cpu(cpu) {
 		if (cpu == 0)
@@ -49,9 +58,11 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 static void xen_hvm_cpu_die(unsigned int cpu)
 {
 	if (common_cpu_die(cpu) == 0) {
-		xen_smp_intr_free(cpu);
-		xen_uninit_lock_cpu(cpu);
-		xen_teardown_timer(cpu);
+		if (xen_have_vector_callback) {
+			xen_smp_intr_free(cpu);
+			xen_uninit_lock_cpu(cpu);
+			xen_teardown_timer(cpu);
+		}
 	}
 }
 #else
@@ -63,14 +74,19 @@ static void xen_hvm_cpu_die(unsigned int cpu)
 
 void __init xen_hvm_smp_init(void)
 {
-	if (!xen_have_vector_callback)
-		return;
-
+	smp_ops.smp_prepare_boot_cpu = xen_hvm_smp_prepare_boot_cpu;
 	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
-	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
+	smp_ops.smp_cpus_done = xen_smp_cpus_done;
 	smp_ops.cpu_die = xen_hvm_cpu_die;
+
+	if (!xen_have_vector_callback) {
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+		nopvspin = true;
+#endif
+		return;
+	}
+
+	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
-	smp_ops.smp_prepare_boot_cpu = xen_hvm_smp_prepare_boot_cpu;
-	smp_ops.smp_cpus_done = xen_smp_cpus_done;
 }

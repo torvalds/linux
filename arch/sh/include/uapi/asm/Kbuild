@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-include include/uapi/asm-generic/Kbuild.asm
 
 generated-y += unistd_32.h
-generic-y += kvm_para.h
 generic-y += ucontext.h

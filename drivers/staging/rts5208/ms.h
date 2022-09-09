@@ -92,37 +92,37 @@
 #define PRO_FORMAT		0x10
 #define PRO_SLEEP		0x11
 
-#define	IntReg			0x01
-#define StatusReg0		0x02
-#define StatusReg1		0x03
+#define INT_REG			0x01
+#define STATUS_REG0		0x02
+#define STATUS_REG1		0x03
 
-#define SystemParm		0x10
-#define BlockAdrs		0x11
-#define CMDParm			0x14
-#define PageAdrs		0x15
+#define SYSTEM_PARAM		0x10
+#define BLOCK_ADRS		0x11
+#define CMD_PARM		0x14
+#define PAGE_ADRS		0x15
 
-#define OverwriteFlag		0x16
-#define ManagemenFlag		0x17
-#define LogicalAdrs		0x18
-#define ReserveArea		0x1A
+#define OVERWRITE_FLAG		0x16
+#define MANAGEMEN_FLAG		0x17
+#define LOGICAL_ADRS		0x18
+#define RESERVE_AREA		0x1A
 
-#define	Pro_IntReg		0x01
-#define Pro_StatusReg		0x02
-#define Pro_TypeReg		0x04
-#define	Pro_IFModeReg		0x05
-#define Pro_CatagoryReg		0x06
-#define Pro_ClassReg		0x07
+#define PRO_INT_REG		0x01
+#define PRO_STATUS_REG		0x02
+#define PRO_TYPE_REG		0x04
+#define PRO_IF_mode_REG		0x05
+#define PRO_CATEGORY_REG	0x06
+#define PRO_CLASS_REG		0x07
 
-#define Pro_SystemParm		0x10
-#define Pro_DataCount1		0x11
-#define Pro_DataCount0		0x12
-#define Pro_DataAddr3		0x13
-#define Pro_DataAddr2		0x14
-#define Pro_DataAddr1		0x15
-#define Pro_DataAddr0		0x16
+#define PRO_SYSTEM_PARAM		0x10
+#define PRO_DATA_COUNT1		0x11
+#define PRO_DATA_COUNT0		0x12
+#define PRO_DATA_ADDR3		0x13
+#define PRO_DATA_ADDR2		0x14
+#define PRO_DATA_ADDR1		0x15
+#define PRO_DATA_ADDR0		0x16
 
-#define Pro_TPCParm		0x17
-#define Pro_CMDParm		0x18
+#define PRO_TPC_PARM		0x17
+#define PRO_CMD_PARM		0x18
 
 #define	INT_REG_CED		0x80
 #define	INT_REG_ERR		0x40
@@ -152,12 +152,12 @@
 #define	PAGE_SIZE_0		(PPBUF_BASE2 + 0x1a0 + 8)
 #define	PAGE_SIZE_1		(PPBUF_BASE2 + 0x1a0 + 9)
 
-#define MS_Device_Type		(PPBUF_BASE2 + 0x1D8)
+#define MS_device_type		(PPBUF_BASE2 + 0x1D8)
 
-#define	MS_4bit_Support		(PPBUF_BASE2 + 0x1D3)
+#define MS_4bit_support		(PPBUF_BASE2 + 0x1D3)
 
-#define setPS_NG	1
-#define setPS_Error	0
+#define set_PS_NG	1
+#define set_PS_error	0
 
 #define	PARALLEL_8BIT_IF	0x40
 #define	PARALLEL_4BIT_IF	0x00

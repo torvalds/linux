@@ -1,0 +1,377 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/sunplus,sp7021-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SP7021 Pin Controller Device Tree Bindings
+
+maintainers:
+  - Dvorkin Dmitry <dvorkin@tibbo.com>
+  - Wells Lu <wellslutw@gmail.com>
+
+description: |
+  The Sunplus SP7021 pin controller is used to control SoC pins. Please
+  refer to pinctrl-bindings.txt in this directory for details of the common
+  pinctrl bindings used by client devices.
+
+  SP7021 has 99 digital GPIO pins which are numbered from GPIO 0 to 98. All
+  are multiplexed with some special function pins. SP7021 has 3 types of
+  special function pins:
+
+  (1) function-group pins:
+      Ex 1 (SPI-NOR flash):
+        If control-field SPI_FLASH_SEL is set to 1, GPIO 83, 84, 86 and 87
+        will be pins of SPI-NOR flash. If it is set to 2, GPIO 76, 78, 79
+        and 81 will be pins of SPI-NOR flash.
+
+      Ex 2 (UART_0):
+        If control-bit UA0_SEL is set to 1, GPIO 88 and 89 will be TX and
+        RX pins of UART_0 (UART channel 0).
+
+      Ex 3 (eMMC):
+        If control-bit EMMC_SEL is set to 1, GPIO 72, 73, 74, 75, 76, 77,
+        78, 79, 80, 81 will be pins of an eMMC device.
+
+      Properties "function" and "groups" are used to select function-group
+      pins.
+
+  (2) fully pin-mux (like phone exchange mux) pins:
+      GPIO 8 to 71 are 'fully pin-mux' pins. Any pins of peripherals of
+      SP7021 (ex: UART_1, UART_2, UART_3, UART_4, I2C_0, I2C_1, and etc.)
+      can be routed to any pins of fully pin-mux pins.
+
+      Ex 1 (UART channel 1):
+        If control-field UA1_TX_SEL is set to 3, TX pin of UART_1 will be
+        routed to GPIO 10 (3 - 1 + 8 = 10).
+        If control-field UA1_RX_SEL is set to 4, RX pin of UART_1 will be
+        routed to GPIO 11 (4 - 1 + 8 = 11).
+        If control-field UA1_RTS_SEL is set to 5, RTS pin of UART_1 will
+        be routed to GPIO 12 (5 - 1 + 8 = 12).
+        If control-field UA1_CTS_SEL is set to 6, CTS pin of UART_1 will
+        be routed to GPIO 13 (6 - 1 + 8 = 13).
+
+      Ex 2 (I2C channel 0):
+        If control-field I2C0_CLK_SEL is set to 20, CLK pin of I2C_0 will
+        be routed to GPIO 27 (20 - 1 + 8 = 27).
+        If control-field I2C0_DATA_SEL is set to 21, DATA pin of I2C_0
+        will be routed to GPIO 28 (21 - 1 + 9 = 28).
+
+      Totally, SP7021 has 120 peripheral pins. The peripheral pins can be
+      routed to any of 64 'fully pin-mux' pins.
+
+  (3) I/O processor pins
+      SP7021 has a built-in I/O processor.
+      Any GPIO pins (GPIO 0 to 98) can be set to pins of I/O processor.
+
+  Vendor property "sunplus,pins" is used to select "fully pin-mux" pins,
+  "I/O processor pins" and "digital GPIO" pins.
+
+  The device node of pin controller of Sunplus SP7021 has following
+  properties.
+
+properties:
+  compatible:
+    const: sunplus,sp7021-pctl
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  reg:
+    items:
+      - description: the MOON2 registers
+      - description: the GPIOXT registers
+      - description: the FIRST registers
+      - description: the MOON1 registers
+
+  reg-names:
+    items:
+      - const: moon2
+      - const: gpioxt
+      - const: first
+      - const: moon1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+patternProperties:
+  '-pins$':
+    type: object
+    description: |
+      A pinctrl node should contain at least one subnodes representing the
+      pins or function-pins group available on the machine. Each subnode
+      will list the pins it needs, and how they should be configured.
+
+      Pinctrl node's client devices use subnodes for desired pin
+      configuration. Client device subnodes use below standard properties.
+    $ref: pinmux-node.yaml#
+
+    properties:
+      sunplus,pins:
+        description: |
+          Define 'sunplus,pins' which are used by pinctrl node's client
+          device.
+
+          It consists of one or more integers which represents the config
+          setting for corresponding pin. Each integer defines a individual
+          pin in which:
+
+          Bit 32~24: defines GPIO number. Its range is 0 ~ 98.
+          Bit 23~16: defines types: (1) fully pin-mux pins
+                                    (2) IO processor pins
+                                    (3) digital GPIO pins
+          Bit 15~8:  defines pins of peripherals (which are defined in
+                     'include/dt-binging/pinctrl/sppctl.h').
+          Bit 7~0:   defines types or initial-state of digital GPIO pins.
+
+          Please use macro SPPCTL_IOPAD to define the integers for pins.
+
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+
+      function:
+        description: |
+          Define pin-function which is used by pinctrl node's client device.
+          The name should be one of string in the following enumeration.
+        $ref: "/schemas/types.yaml#/definitions/string"
+        enum: [ SPI_FLASH, SPI_FLASH_4BIT, SPI_NAND, CARD0_EMMC, SD_CARD,
+                UA0, FPGA_IFX, HDMI_TX, LCDIF, USB0_OTG, USB1_OTG ]
+
+      groups:
+        description: |
+          Define pin-group in a specified pin-function.
+          The name should be one of string in the following enumeration.
+        $ref: "/schemas/types.yaml#/definitions/string"
+        enum: [ SPI_FLASH1, SPI_FLASH2, SPI_FLASH_4BIT1, SPI_FLASH_4BIT2,
+                SPI_NAND, CARD0_EMMC, SD_CARD, UA0, FPGA_IFX, HDMI_TX1,
+                HDMI_TX2, HDMI_TX3, LCDIF, USB0_OTG, USB1_OTG ]
+
+      sunplus,zerofunc:
+        description: |
+          This is a vendor specific property. It is used to disable pins
+          which are not used by pinctrl node's client device.
+          Some pins may be enabled by boot-loader. We can use this
+          property to disable them.
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+
+    additionalProperties: false
+
+    allOf:
+      - if:
+          properties:
+            function:
+              enum:
+                - SPI_FLASH
+        then:
+          properties:
+            groups:
+              enum:
+                - SPI_FLASH1
+                - SPI_FLASH2
+      - if:
+          properties:
+            function:
+              enum:
+                - SPI_FLASH_4BIT
+        then:
+          properties:
+            groups:
+              enum:
+                - SPI_FLASH_4BIT1
+                - SPI_FLASH_4BIT2
+      - if:
+          properties:
+            function:
+              enum:
+                - SPI_NAND
+        then:
+          properties:
+            groups:
+              enum:
+                - SPI_NAND
+      - if:
+          properties:
+            function:
+              enum:
+                - CARD0_EMMC
+        then:
+          properties:
+            groups:
+              enum:
+                - CARD0_EMMC
+      - if:
+          properties:
+            function:
+              enum:
+                - SD_CARD
+        then:
+          properties:
+            groups:
+              enum:
+                - SD_CARD
+      - if:
+          properties:
+            function:
+              enum:
+                - UA0
+        then:
+          properties:
+            groups:
+              enum:
+                - UA0
+      - if:
+          properties:
+            function:
+              enum:
+                - FPGA_IFX
+        then:
+          properties:
+            groups:
+              enum:
+                - FPGA_IFX
+      - if:
+          properties:
+            function:
+              enum:
+                - HDMI_TX
+        then:
+          properties:
+            groups:
+              enum:
+                - HDMI_TX1
+                - HDMI_TX2
+                - HDMI_TX3
+      - if:
+          properties:
+            function:
+              enum:
+                - LCDIF
+        then:
+          properties:
+            groups:
+              enum:
+                - LCDIF
+      - if:
+          properties:
+            function:
+              enum:
+                - USB0_OTG
+        then:
+          properties:
+            groups:
+              enum:
+                - USB0_OTG
+      - if:
+          properties:
+            function:
+              enum:
+                - USB1_OTG
+        then:
+          properties:
+            groups:
+              enum:
+                - USB1_OTG
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - "#gpio-cells"
+  - gpio-controller
+  - clocks
+  - resets
+
+additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/sppctl-sp7021.h>
+
+    pinctrl@9c000100 {
+        compatible = "sunplus,sp7021-pctl";
+        reg = <0x9c000100 0x100>, <0x9c000300 0x100>,
+              <0x9c0032e4 0x1c>, <0x9c000080 0x20>;
+        reg-names = "moon2", "gpioxt", "first", "moon1";
+        gpio-controller;
+        #gpio-cells = <2>;
+        clocks = <&clkc 0x83>;
+        resets = <&rstc 0x73>;
+
+        uart0-pins {
+            function = "UA0";
+            groups = "UA0";
+        };
+
+        spinand0-pins {
+            function = "SPI_NAND";
+            groups = "SPI_NAND";
+        };
+
+        uart1-pins {
+            sunplus,pins = <
+                SPPCTL_IOPAD(11, SPPCTL_PCTL_G_PMUX, MUXF_UA1_TX, 0)
+                SPPCTL_IOPAD(10, SPPCTL_PCTL_G_PMUX, MUXF_UA1_RX, 0)
+            >;
+        };
+
+        uart2-pins {
+            sunplus,pins = <
+                SPPCTL_IOPAD(20, SPPCTL_PCTL_G_PMUX, MUXF_UA1_TX, 0)
+                SPPCTL_IOPAD(21, SPPCTL_PCTL_G_PMUX, MUXF_UA1_RX, 0)
+                SPPCTL_IOPAD(22, SPPCTL_PCTL_G_PMUX, MUXF_UA1_RTS, 0)
+                SPPCTL_IOPAD(23, SPPCTL_PCTL_G_PMUX, MUXF_UA1_CTS, 0)
+            >;
+        };
+
+        emmc-pins {
+            function = "CARD0_EMMC";
+            groups = "CARD0_EMMC";
+        };
+
+        sdcard-pins {
+            function = "SD_CARD";
+            groups = "SD_CARD";
+            sunplus,pins = < SPPCTL_IOPAD(91, SPPCTL_PCTL_G_GPIO, 0, 0) >;
+        };
+
+        hdmi_A_tx1-pins {
+            function = "HDMI_TX";
+            groups = "HDMI_TX1";
+        };
+        hdmi_A_tx2-pins {
+            function = "HDMI_TX";
+            groups = "HDMI_TX2";
+        };
+        hdmi_A_tx3-pins {
+            function = "HDMI_TX";
+            groups = "HDMI_TX3";
+        };
+
+        ethernet-pins {
+            sunplus,pins = <
+                SPPCTL_IOPAD(49,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_CLK_OUT,0)
+                SPPCTL_IOPAD(44,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_MAC_SMI_MDC,0)
+                SPPCTL_IOPAD(43,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_MAC_SMI_MDIO,0)
+                SPPCTL_IOPAD(52,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_P0_MAC_RMII_TXEN,0)
+                SPPCTL_IOPAD(50,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_P0_MAC_RMII_TXD0,0)
+                SPPCTL_IOPAD(51,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_P0_MAC_RMII_TXD1,0)
+                SPPCTL_IOPAD(46,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_P0_MAC_RMII_CRSDV,0)
+                SPPCTL_IOPAD(47,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_P0_MAC_RMII_RXD0,0)
+                SPPCTL_IOPAD(48,SPPCTL_PCTL_G_PMUX,MUXF_L2SW_P0_MAC_RMII_RXD1,0)
+            >;
+            sunplus,zerofunc = <
+                MUXF_L2SW_LED_FLASH0
+                MUXF_L2SW_LED_ON0
+                MUXF_L2SW_P0_MAC_RMII_RXER
+            >;
+        };
+    };
+...

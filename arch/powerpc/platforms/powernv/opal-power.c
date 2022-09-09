@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV OPAL power control for graceful shutdown handling
  *
  * Copyright 2015 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)	"opal-power: "	fmt
@@ -57,7 +53,7 @@ static bool detect_epow(void)
 }
 
 /* Check for existing EPOW, DPO events */
-static bool poweroff_pending(void)
+static bool __init poweroff_pending(void)
 {
 	int rc;
 	__be64 opal_dpo_timeout;

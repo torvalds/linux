@@ -8,10 +8,6 @@
 #include "igc_phy.h"
 #include "igc_defines.h"
 
-#ifndef IGC_REMOVED
-#define IGC_REMOVED(a) (0)
-#endif /* IGC_REMOVED */
-
 /* forward declaration */
 s32 igc_disable_pcie_master(struct igc_hw *hw);
 s32 igc_check_for_copper_link(struct igc_hw *hw);
@@ -29,6 +25,8 @@ s32 igc_get_speed_and_duplex_copper(struct igc_hw *hw, u16 *speed,
 				    u16 *duplex);
 
 bool igc_enable_mng_pass_thru(struct igc_hw *hw);
+void igc_update_mc_addr_list(struct igc_hw *hw,
+			     u8 *mc_addr_list, u32 mc_addr_count);
 
 enum igc_mng_mode {
 	igc_mng_mode_none = 0,

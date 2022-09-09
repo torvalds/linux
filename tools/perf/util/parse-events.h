@@ -11,44 +11,42 @@
 #include <linux/perf_event.h>
 #include <string.h>
 
-struct list_head;
-struct perf_evsel;
-struct perf_evlist;
+struct evsel;
+struct evlist;
 struct parse_events_error;
 
 struct option;
+struct perf_pmu;
 
-struct tracepoint_path {
-	char *system;
-	char *name;
-	struct tracepoint_path *next;
-};
-
-struct tracepoint_path *tracepoint_id_to_path(u64 config);
-struct tracepoint_path *tracepoint_name_to_path(const char *name);
 bool have_tracepoints(struct list_head *evlist);
 
 const char *event_type(int type);
 
 int parse_events_option(const struct option *opt, const char *str, int unset);
-int parse_events(struct perf_evlist *evlist, const char *str,
-		 struct parse_events_error *error);
+int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
+__attribute__((nonnull(1, 2, 3)))
+int __parse_events(struct evlist *evlist, const char *str, struct parse_events_error *error,
+		   struct perf_pmu *fake_pmu);
+
+__attribute__((nonnull))
+static inline int parse_events(struct evlist *evlist, const char *str,
+			       struct parse_events_error *err)
+{
+	return __parse_events(evlist, str, err, NULL);
+}
+
+int parse_event(struct evlist *evlist, const char *str);
+
 int parse_events_terms(struct list_head *terms, const char *str);
 int parse_filter(const struct option *opt, const char *str, int unset);
 int exclude_perf(const struct option *opt, const char *arg, int unset);
-
-#define EVENTS_HELP_MAX (128*1024)
 
 enum perf_pmu_event_symbol_type {
 	PMU_EVENT_SYMBOL_ERR,		/* not a PMU EVENT */
 	PMU_EVENT_SYMBOL,		/* normal style PMU event */
 	PMU_EVENT_SYMBOL_PREFIX,	/* prefix of pre-suf style event */
 	PMU_EVENT_SYMBOL_SUFFIX,	/* suffix of pre-suf style event */
-};
-
-struct perf_pmu_event_symbol {
-	char	*symbol;
-	enum perf_pmu_event_symbol_type	type;
+	PMU_EVENT_SYMBOL_SUFFIX2,	/* suffix of pre-suf2 style event */
 };
 
 enum {
@@ -75,6 +73,10 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_NOOVERWRITE,
 	PARSE_EVENTS__TERM_TYPE_OVERWRITE,
 	PARSE_EVENTS__TERM_TYPE_DRV_CFG,
+	PARSE_EVENTS__TERM_TYPE_PERCORE,
+	PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT,
+	PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE,
+	PARSE_EVENTS__TERM_TYPE_METRIC_ID,
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
@@ -108,9 +110,13 @@ struct parse_events_term {
 };
 
 struct parse_events_error {
+	int   num_errors;       /* number of errors encountered */
 	int   idx;	/* index in the parsed string */
 	char *str;      /* string to display at the index */
 	char *help;	/* optional help string */
+	int   first_idx;/* as above, but for the first encountered error */
+	char *first_str;
+	char *first_help;
 };
 
 struct parse_events_state {
@@ -118,8 +124,11 @@ struct parse_events_state {
 	int			   idx;
 	int			   nr_groups;
 	struct parse_events_error *error;
-	struct perf_evlist	  *evlist;
+	struct evlist		  *evlist;
 	struct list_head	  *terms;
+	int			   stoken;
+	struct perf_pmu		  *fake_pmu;
+	char			  *hybrid_pmu_name;
 };
 
 void parse_events__shrink_config_terms(void);
@@ -135,12 +144,13 @@ int parse_events_term__sym_hw(struct parse_events_term **term,
 			      char *config, unsigned idx);
 int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term);
+void parse_events_term__delete(struct parse_events_term *term);
 void parse_events_terms__delete(struct list_head *terms);
 void parse_events_terms__purge(struct list_head *terms);
 void parse_events__clear_array(struct parse_events_array *a);
 int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);
-int parse_events_name(struct list_head *list, char *name);
+int parse_events_name(struct list_head *list, const char *name);
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				const char *sys, const char *event,
 				struct parse_events_error *error,
@@ -160,20 +170,29 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 			     struct list_head *list,
 			     u32 type, u64 config,
 			     struct list_head *head_config);
+int parse_events_add_tool(struct parse_events_state *parse_state,
+			  struct list_head *list,
+			  int tool_event);
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2,
 			   struct parse_events_error *error,
-			   struct list_head *head_config);
+			   struct list_head *head_config,
+			   struct parse_events_state *parse_state);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
-				void *ptr, char *type, u64 len);
+				u64 addr, char *type, u64 len);
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
 			 bool auto_merge_stats,
 			 bool use_alias);
 
+struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
+				      const char *name, const char *metric_id,
+				      struct perf_pmu *pmu);
+
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       char *str,
+			       struct list_head *head_config,
 			       struct list_head **listp);
 
 int parse_events_copy_term_list(struct list_head *old,
@@ -188,30 +207,21 @@ void parse_events_update_lists(struct list_head *list_event,
 void parse_events_evlist_error(struct parse_events_state *parse_state,
 			       int idx, const char *str);
 
-void print_events(const char *event_glob, bool name_only, bool quiet,
-		  bool long_desc, bool details_flag);
-
 struct event_symbol {
 	const char	*symbol;
 	const char	*alias;
 };
 extern struct event_symbol event_symbols_hw[];
 extern struct event_symbol event_symbols_sw[];
-void print_symbol_events(const char *event_glob, unsigned type,
-				struct event_symbol *syms, unsigned max,
-				bool name_only);
-void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
-			     bool name_only);
-int print_hwcache_events(const char *event_glob, bool name_only);
-void print_sdt_events(const char *subsys_glob, const char *event_glob,
-		      bool name_only);
-int is_valid_tracepoint(const char *event_string);
 
-int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
 
-void parse_events_print_error(struct parse_events_error *err,
-			      const char *event);
+void parse_events_error__init(struct parse_events_error *err);
+void parse_events_error__exit(struct parse_events_error *err);
+void parse_events_error__handle(struct parse_events_error *err, int idx,
+				char *str, char *help);
+void parse_events_error__print(struct parse_events_error *err,
+			       const char *event);
 
 #ifdef HAVE_LIBELF_SUPPORT
 /*
@@ -231,5 +241,14 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 	return false;
 }
 #endif /* HAVE_LIBELF_SUPPORT */
+
+int perf_pmu__test_parse_init(void);
+
+struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
+					     struct perf_event_attr *attr,
+					     const char *name,
+					     const char *metric_id,
+					     struct perf_pmu *pmu,
+					     struct list_head *config_terms);
 
 #endif /* __PERF_PARSE_EVENTS_H */

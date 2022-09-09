@@ -1,16 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADC0831/ADC0832/ADC0834/ADC0838 8-bit ADC driver
  *
  * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
  *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
- *
- * Datasheet: http://www.ti.com/lit/ds/symlink/adc0832-n.pdf
+ * Datasheet: https://www.ti.com/lit/ds/symlink/adc0832-n.pdf
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
@@ -31,8 +29,14 @@ struct adc0832 {
 	struct regulator *reg;
 	struct mutex lock;
 	u8 mux_bits;
+	/*
+	 * Max size needed: 16x 1 byte ADC data + 8 bytes timestamp
+	 * May be shorter if not all channels are enabled subject
+	 * to the timestamp remaining 8 byte aligned.
+	 */
+	u8 data[24] __aligned(8);
 
-	u8 tx_buf[2] ____cacheline_aligned;
+	u8 tx_buf[2] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[2];
 };
 
@@ -202,7 +206,6 @@ static irqreturn_t adc0832_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adc0832 *adc = iio_priv(indio_dev);
-	u8 data[24] = { }; /* 16x 1 byte ADC data + 8 bytes timestamp */
 	int scan_index;
 	int i = 0;
 
@@ -220,10 +223,10 @@ static irqreturn_t adc0832_trigger_handler(int irq, void *p)
 			goto out;
 		}
 
-		data[i] = ret;
+		adc->data[i] = ret;
 		i++;
 	}
-	iio_push_to_buffers_with_timestamp(indio_dev, data,
+	iio_push_to_buffers_with_timestamp(indio_dev, adc->data,
 					   iio_get_time_ns(indio_dev));
 out:
 	mutex_unlock(&adc->lock);
@@ -231,6 +234,11 @@ out:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
+}
+
+static void adc0832_reg_disable(void *reg)
+{
+	regulator_disable(reg);
 }
 
 static int adc0832_probe(struct spi_device *spi)
@@ -248,8 +256,6 @@ static int adc0832_probe(struct spi_device *spi)
 	mutex_init(&adc->lock);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->info = &adc0832_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -286,39 +292,18 @@ static int adc0832_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, indio_dev);
-
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 adc0832_trigger_handler, NULL);
+	ret = devm_add_action_or_reset(&spi->dev, adc0832_reg_disable,
+				       adc->reg);
 	if (ret)
-		goto err_reg_disable;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      adc0832_trigger_handler, NULL);
 	if (ret)
-		goto err_buffer_cleanup;
+		return ret;
 
-	return 0;
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-err_reg_disable:
-	regulator_disable(adc->reg);
-
-	return ret;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
-
-static int adc0832_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct adc0832 *adc = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	regulator_disable(adc->reg);
-
-	return 0;
-}
-
-#ifdef CONFIG_OF
 
 static const struct of_device_id adc0832_dt_ids[] = {
 	{ .compatible = "ti,adc0831", },
@@ -328,8 +313,6 @@ static const struct of_device_id adc0832_dt_ids[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, adc0832_dt_ids);
-
-#endif
 
 static const struct spi_device_id adc0832_id[] = {
 	{ "adc0831", adc0831 },
@@ -343,10 +326,9 @@ MODULE_DEVICE_TABLE(spi, adc0832_id);
 static struct spi_driver adc0832_driver = {
 	.driver = {
 		.name = "adc0832",
-		.of_match_table = of_match_ptr(adc0832_dt_ids),
+		.of_match_table = adc0832_dt_ids,
 	},
 	.probe = adc0832_probe,
-	.remove = adc0832_remove,
 	.id_table = adc0832_id,
 };
 module_spi_driver(adc0832_driver);

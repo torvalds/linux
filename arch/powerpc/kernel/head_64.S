@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
@@ -15,11 +16,6 @@
  *  This file contains the entry point for the 64-bit kernel along
  *  with some early initialization code common to all 64-bit powerpc
  *  variants.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -45,6 +41,11 @@
 #include <asm/ppc-opcode.h>
 #include <asm/export.h>
 #include <asm/feature-fixups.h>
+#ifdef CONFIG_PPC_BOOK3S
+#include <asm/exception-64s.h>
+#else
+#include <asm/exception-64e.h>
+#endif
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -110,7 +111,7 @@ __secondary_hold_acknowledge:
 #ifdef CONFIG_RELOCATABLE
 	/* This flag is set to 1 by a loader if the kernel should run
 	 * at the loaded address instead of the linked address.  This
-	 * is used by kexec-tools to keep the the kdump kernel in the
+	 * is used by kexec-tools to keep the kdump kernel in the
 	 * crash_kernel region.  The loader is responsible for
 	 * observing the alignment requirement.
 	 */
@@ -125,7 +126,7 @@ __secondary_hold_acknowledge:
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
-DEFINE_FIXED_SYMBOL(__run_at_load)
+DEFINE_FIXED_SYMBOL(__run_at_load, first_256B)
 	.long	RUN_AT_LOAD_DEFAULT
 #endif
 
@@ -155,7 +156,7 @@ __secondary_hold:
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
 	/* than 0x100, so only need to grab low order offset.    */
-	std	r24,(ABS_ADDR(__secondary_hold_acknowledge))(0)
+	std	r24,(ABS_ADDR(__secondary_hold_acknowledge, first_256B))(0)
 	sync
 
 	li	r26,0
@@ -163,7 +164,7 @@ __secondary_hold:
 	tovirt(r26,r26)
 #endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop))(r26)
+100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(r26)
 	cmpdi	0,r12,0
 	beq	100b
 
@@ -186,14 +187,16 @@ __secondary_hold:
 	isync
 	bctr
 #else
-	BUG_OPCODE
+0:	trap
+	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
 #endif
 CLOSE_FIXED_SECTION(first_256B)
 
 /* This value is used to mark exception frames on the stack. */
 	.section ".toc","aw"
+/* This value is used to mark exception frames on the stack. */
 exception_marker:
-	.tc	ID_72656773_68657265[TC],0x7265677368657265
+	.tc	ID_EXC_MARKER[TC],STACK_FRAME_REGS_MARKER
 	.previous
 
 /*
@@ -208,6 +211,8 @@ OPEN_TEXT_SECTION(0x100)
 #endif
 
 USE_TEXT_SECTION()
+
+#include "interrupt_64.S"
 
 #ifdef CONFIG_PPC_BOOK3E
 /*
@@ -303,9 +308,6 @@ _GLOBAL(fsl_secondary_thread_init)
 	rlwimi	r3, r3, 30, 2, 30
 	mtspr	SPRN_PIR, r3
 1:
-#endif
-
-_GLOBAL(generic_secondary_thread_init)
 	mr	r24,r3
 
 	/* turn on 64-bit mode */
@@ -315,12 +317,12 @@ _GLOBAL(generic_secondary_thread_init)
 	bl	relative_toc
 	tovirt(r2,r2)
 
-#ifdef CONFIG_PPC_BOOK3E
 	/* Book3E initialization */
 	mr	r3,r24
 	bl	book3e_secondary_thread_init
-#endif
 	b	generic_secondary_common_init
+
+#endif /* CONFIG_PPC_BOOK3E */
 
 /*
  * On pSeries and most other platforms, secondary processors spin
@@ -423,13 +425,17 @@ generic_secondary_common_init:
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 
+	/* Create a temp kernel stack for use before relocation is on.	*/
+	ld	r1,PACAEMERGSP(r13)
+	subi	r1,r1,STACK_FRAME_OVERHEAD
+
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
 	ld	r23,0(r23)
 	ld	r12,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r12,0
 	beq	3f
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	ld	r12,0(r12)
 #endif
 	mtctr	r12
@@ -450,10 +456,6 @@ generic_secondary_common_init:
 
 	sync				/* order paca.run and cur_cpu_spec */
 	isync				/* In case code patching happened */
-
-	/* Create a temp kernel stack for use before relocation is on.	*/
-	ld	r1,PACAEMERGSP(r13)
-	subi	r1,r1,STACK_FRAME_OVERHEAD
 
 	b	__secondary_start
 #endif /* SMP */
@@ -540,6 +542,7 @@ __start_initialization_multiplatform:
 	b	__after_prom_start
 #endif /* CONFIG_PPC_BOOK3E */
 
+__REF
 __boot_from_prom:
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 	/* Save parameters */
@@ -577,6 +580,7 @@ __boot_from_prom:
 	/* We never return. We also hit that trap if trying to boot
 	 * from OF while CONFIG_PPC_OF_BOOT_TRAMPOLINE isn't selected */
 	trap
+	.previous
 
 __after_prom_start:
 #ifdef CONFIG_RELOCATABLE
@@ -639,21 +643,21 @@ __after_prom_start:
 	sub	r5,r5,r11
 #else
 	/* just copy interrupts */
-	LOAD_REG_IMMEDIATE(r5, FIXED_SYMBOL_ABS_ADDR(__end_interrupts))
+	LOAD_REG_IMMEDIATE_SYM(r5, r11, FIXED_SYMBOL_ABS_ADDR(__end_interrupts))
 #endif
 	b	5f
 3:
 #endif
 	/* # bytes of memory to copy */
-	lis	r5,(ABS_ADDR(copy_to_here))@ha
-	addi	r5,r5,(ABS_ADDR(copy_to_here))@l
+	lis	r5,(ABS_ADDR(copy_to_here, text))@ha
+	addi	r5,r5,(ABS_ADDR(copy_to_here, text))@l
 
 	bl	copy_and_flush		/* copy the first n bytes	 */
 					/* this includes the code being	 */
 					/* executed here.		 */
 	/* Jump to the copy of this code that we just made */
-	addis	r8,r3,(ABS_ADDR(4f))@ha
-	addi	r12,r8,(ABS_ADDR(4f))@l
+	addis	r8,r3,(ABS_ADDR(4f, text))@ha
+	addi	r12,r8,(ABS_ADDR(4f, text))@l
 	mtctr	r12
 	bctr
 
@@ -665,8 +669,8 @@ p_end: .8byte _end - copy_to_here
 	 * Now copy the rest of the kernel up to _end, add
 	 * _end - copy_to_here to the copy limit and run again.
 	 */
-	addis   r8,r26,(ABS_ADDR(p_end))@ha
-	ld      r8,(ABS_ADDR(p_end))@l(r8)
+	addis   r8,r26,(ABS_ADDR(p_end, text))@ha
+	ld      r8,(ABS_ADDR(p_end, text))@l(r8)
 	add	r5,r5,r8
 5:	bl	copy_and_flush		/* copy the rest */
 
@@ -707,6 +711,8 @@ _GLOBAL(copy_and_flush)
 	addi	r6,r6,8
 	isync
 	blr
+
+_ASM_NOKPROBE_SYMBOL(copy_and_flush); /* Called in real mode */
 
 .align 8
 copy_to_here:
@@ -801,21 +807,19 @@ __secondary_start:
 	/* Set thread priority to MEDIUM */
 	HMT_MEDIUM
 
-	/* Initialize the kernel stack */
-	LOAD_REG_ADDR(r3, current_set)
-	sldi	r28,r24,3		/* get current_set[cpu#]	 */
-	ldx	r14,r3,r28
-	addi	r14,r14,THREAD_SIZE-STACK_FRAME_OVERHEAD
-	std	r14,PACAKSAVE(r13)
-
-	/* Do early setup for that CPU (SLB and hash table pointer) */
+	/*
+	 * Do early setup for this CPU, in particular initialising the MMU so we
+	 * can turn it on below. This is a call to C, which is OK, we're still
+	 * running on the emergency stack.
+	 */
 	bl	early_setup_secondary
 
 	/*
-	 * setup the new stack pointer, but *don't* use this until
-	 * translation is on.
+	 * The primary has initialized our kernel stack for us in the paca, grab
+	 * it and put it in r1. We must *not* use it until we turn on the MMU
+	 * below, because it may not be inside the RMO.
 	 */
-	mr	r1, r14
+	ld	r1, PACAKSAVE(r13)
 
 	/* Clear backchain so we get nice backtraces */
 	li	r7,0
@@ -835,7 +839,7 @@ __secondary_start:
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	RFI
+	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
 
 /* 
@@ -871,8 +875,7 @@ enable_64b_mode:
 	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
 	mtmsr	r11
 #else /* CONFIG_PPC_BOOK3E */
-	li	r12,(MSR_64BIT | MSR_ISF)@highest
-	sldi	r12,r12,48
+	LOAD_REG_IMMEDIATE(r12, MSR_64BIT)
 	or	r11,r11,r12
 	mtmsrd	r11
 	isync
@@ -901,11 +904,12 @@ _GLOBAL(relative_toc)
 	blr
 
 .balign 8
-p_toc:	.8byte	__toc_start + 0x8000 - 0b
+p_toc:	.8byte	.TOC. - 0b
 
 /*
  * This is where the main kernel code starts.
  */
+__REF
 start_here_multiplatform:
 	/* set up the TOC */
 	bl      relative_toc
@@ -949,15 +953,8 @@ start_here_multiplatform:
 	std	r0,0(r4)
 #endif
 
-	/* The following gets the stack set up with the regs */
-	/* pointing to the real addr of the kernel stack.  This is   */
-	/* all done to support the C function call below which sets  */
-	/* up the htab.  This is done because we have relocated the  */
-	/* kernel but are still running in real mode. */
-
-	LOAD_REG_ADDR(r3,init_thread_union)
-
 	/* set up a stack pointer */
+	LOAD_REG_ADDR(r3,init_thread_union)
 	LOAD_REG_IMMEDIATE(r1,THREAD_SIZE)
 	add	r1,r3,r1
 	li	r0,0
@@ -968,15 +965,20 @@ start_here_multiplatform:
 	 * and SLB setup before we turn on relocation.
 	 */
 
+#ifdef CONFIG_KASAN
+	bl	kasan_early_init
+#endif
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
-	bl	early_setup		/* also sets r13 and SPRG_PACA */
+	LOAD_REG_ADDR(r12, DOTSYM(early_setup))
+	mtctr	r12
+	bctrl		/* also sets r13 and SPRG_PACA */
 
 	LOAD_REG_ADDR(r3, start_here_common)
 	ld	r4,PACAKMSR(r13)
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	RFI
+	RFI_TO_KERNEL
 	b	.	/* prevent speculative execution */
 
 	/* This is where all platforms converge execution */
@@ -1000,24 +1002,6 @@ start_here_common:
 	bl	start_kernel
 
 	/* Not reached */
-	BUG_OPCODE
-
-/*
- * We put a few things here that have to be page-aligned.
- * This stuff goes at the beginning of the bss, which is page-aligned.
- */
-	.section ".bss"
-/*
- * pgd dir should be aligned to PGD_TABLE_SIZE which is 64K.
- * We will need to find a better way to fix this
- */
-	.align	16
-
-	.globl	swapper_pg_dir
-swapper_pg_dir:
-	.space	PGD_TABLE_SIZE
-
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	PAGE_SIZE
-EXPORT_SYMBOL(empty_zero_page)
+0:	trap
+	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
+	.previous

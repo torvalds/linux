@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1992-1997, 2000-2003 Silicon Graphics, Inc.
  * Copyright (C) 2004 Christoph Hellwig.
- *	Released under GPL v2.
  *
  * Support functions for the HUB ASIC - mostly PIO mapping related.
  */
@@ -11,7 +11,9 @@
 #include <linux/mmzone.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
-#include <asm/sn/hub.h>
+#include <asm/sn/agent.h>
+#include <asm/sn/io.h>
+#include <asm/xtalk/xtalk.h>
 
 
 static int force_fire_and_forget = 1;
@@ -25,10 +27,9 @@ static int force_fire_and_forget = 1;
  * @size:	size of the PIO mapping
  *
  **/
-unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
+unsigned long hub_pio_map(nasid_t nasid, xwidgetnum_t widget,
 			  unsigned long xtalk_addr, size_t size)
 {
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 	unsigned i;
 
 	/* use small-window mapping if possible */
@@ -44,7 +45,7 @@ unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
 
 	xtalk_addr &= ~(BWIN_SIZE-1);
 	for (i = 0; i < HUB_NUM_BIG_WINDOW; i++) {
-		if (test_and_set_bit(i, hub_data(cnode)->h_bigwin_used))
+		if (test_and_set_bit(i, hub_data(nasid)->h_bigwin_used))
 			continue;
 
 		/*
@@ -63,7 +64,7 @@ unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
 		 * after we write it.
 		 */
 		IIO_ITTE_PUT(nasid, i, HUB_PIO_MAP_TO_MEM, widget, xtalk_addr);
-		(void) HUB_L(IIO_ITTE_GET(nasid, i));
+		__raw_readq(IIO_ITTE_GET(nasid, i));
 
 		return NODE_BWIN_BASE(nasid, widget) + (xtalk_addr % BWIN_SIZE);
 	}
@@ -83,7 +84,7 @@ unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
  */
 static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
 {
-	iprb_t prb;
+	union iprb_u prb;
 	int prb_offset;
 
 	/*
@@ -135,8 +136,8 @@ static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
  **/
 static void hub_set_piomode(nasid_t nasid)
 {
-	hubreg_t ii_iowa;
-	hubii_wcr_t ii_wcr;
+	u64 ii_iowa;
+	union hubii_wcr_u ii_wcr;
 	unsigned i;
 
 	ii_iowa = REMOTE_HUB_L(nasid, IIO_OUTWIDGET_ACCESS);
@@ -171,13 +172,12 @@ static void hub_set_piomode(nasid_t nasid)
  *
  * @hub:	hubinfo structure for our hub
  */
-void hub_pio_init(cnodeid_t cnode)
+void hub_pio_init(nasid_t nasid)
 {
-	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 	unsigned i;
 
 	/* initialize big window piomaps for this hub */
-	bitmap_zero(hub_data(cnode)->h_bigwin_used, HUB_NUM_BIG_WINDOW);
+	bitmap_zero(hub_data(nasid)->h_bigwin_used, HUB_NUM_BIG_WINDOW);
 	for (i = 0; i < HUB_NUM_BIG_WINDOW; i++)
 		IIO_ITTE_DISABLE(nasid, i);
 

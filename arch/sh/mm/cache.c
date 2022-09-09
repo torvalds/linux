@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sh/mm/cache.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  * Copyright (C) 2002 - 2010  Paul Mundt
- *
- * Released under the terms of the GNU GPL v2.0.
  */
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -354,12 +353,6 @@ void __init cpu_cache_init(void)
 
 			shx3_cache_init();
 		}
-	}
-
-	if (boot_cpu_data.family == CPU_FAMILY_SH5) {
-		extern void __weak sh5_cache_init(void);
-
-		sh5_cache_init();
 	}
 
 skip:

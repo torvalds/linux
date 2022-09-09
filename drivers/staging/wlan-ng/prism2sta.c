@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
-/* src/prism2/driver/prism2sta.c
+/*
  *
  * Implements the station functionality for prism2
  *
@@ -103,7 +103,7 @@ static int prism2sta_open(struct wlandevice *wlandev);
 static int prism2sta_close(struct wlandevice *wlandev);
 static void prism2sta_reset(struct wlandevice *wlandev);
 static int prism2sta_txframe(struct wlandevice *wlandev, struct sk_buff *skb,
-			     union p80211_hdr *p80211_hdr,
+			     struct p80211_hdr *p80211_hdr,
 			     struct p80211_metawep *p80211_wep);
 static int prism2sta_mlmerequest(struct wlandevice *wlandev,
 				 struct p80211msg *msg);
@@ -242,7 +242,7 @@ static void prism2sta_reset(struct wlandevice *wlandev)
  *	process thread
  */
 static int prism2sta_txframe(struct wlandevice *wlandev, struct sk_buff *skb,
-			     union p80211_hdr *p80211_hdr,
+			     struct p80211_hdr *p80211_hdr,
 			     struct p80211_metawep *p80211_wep)
 {
 	struct hfa384x *hw = wlandev->priv;
@@ -250,7 +250,7 @@ static int prism2sta_txframe(struct wlandevice *wlandev, struct sk_buff *skb,
 	/* If necessary, set the 802.11 WEP bit */
 	if ((wlandev->hostwep & (HOSTWEP_PRIVACYINVOKED | HOSTWEP_ENCRYPT)) ==
 	    HOSTWEP_PRIVACYINVOKED) {
-		p80211_hdr->a3.fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
+		p80211_hdr->frame_control |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
 	}
 
 	return hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);
@@ -461,7 +461,7 @@ u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate)
 		case WLAN_MSD_FWLOAD:
 			wlandev->msdstate = WLAN_MSD_RUNNING_PENDING;
 			/* Initialize the device+driver for full
-			 * operation. Note that this might me an FWLOAD to
+			 * operation. Note that this might me an FWLOAD
 			 * to RUNNING transition so we must not do a chip
 			 * or board level reset.  Note that on failure,
 			 * the MSD state is set to HWPRESENT because we
@@ -585,6 +585,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	struct hfa384x *hw = wlandev->priv;
 	u16 temp;
 	u8 snum[HFA384x_RID_NICSERIALNUMBER_LEN];
+	u8 addr[ETH_ALEN];
 
 	/* Collect version and compatibility info */
 	/*  Some are critical, some are not */
@@ -846,7 +847,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICSERIALNUMBER,
 					snum, HFA384x_RID_NICSERIALNUMBER_LEN);
 	if (!result) {
-		netdev_info(wlandev->netdev, "Prism2 card SN: %*pEhp\n",
+		netdev_info(wlandev->netdev, "Prism2 card SN: %*pE\n",
 			    HFA384x_RID_NICSERIALNUMBER_LEN, snum);
 	} else {
 		netdev_err(wlandev->netdev, "Failed to retrieve Prism2 Card SN\n");
@@ -855,11 +856,12 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 
 	/* Collect the MAC address */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CNFOWNMACADDR,
-					wlandev->netdev->dev_addr, ETH_ALEN);
+					addr, ETH_ALEN);
 	if (result != 0) {
 		netdev_err(wlandev->netdev, "Failed to retrieve mac address\n");
 		goto failed;
 	}
+	eth_hw_addr_set(wlandev->netdev, addr);
 
 	/* short preamble is always implemented */
 	wlandev->nsdcaps |= P80211_NSDCAP_SHORT_PREAMBLE;
@@ -1352,7 +1354,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * we get back in range.  We should block transmits and
 		 * receives in this state.  Do we need an indication here?
 		 * Probably not since a polling user-mode element would
-		 * get this status from from p2PortStatus(FD40). What about
+		 * get this status from p2PortStatus(FD40). What about
 		 * p80211?
 		 * Response:
 		 * Block Transmits, Ignore receives of data frames

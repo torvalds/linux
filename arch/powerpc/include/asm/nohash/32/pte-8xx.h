@@ -39,12 +39,14 @@
  * into the TLB.
  */
 #define _PAGE_GUARDED	0x0010	/* Copied to L1 G entry in DTLB */
-#define _PAGE_SPECIAL	0x0020	/* SW entry */
+#define _PAGE_ACCESSED	0x0020	/* Copied to L1 APG 1 entry in I/DTLB */
 #define _PAGE_EXEC	0x0040	/* Copied to PP (bit 21) in ITLB */
-#define _PAGE_ACCESSED	0x0080	/* software: page referenced */
+#define _PAGE_SPECIAL	0x0080	/* SW entry */
 
 #define _PAGE_NA	0x0200	/* Supervisor NA, User no access */
 #define _PAGE_RO	0x0600	/* Supervisor RO, User no access */
+
+#define _PAGE_HUGE	0x0800	/* Copied to L1 PS bit 29 */
 
 /* cache related flags non existing on 8xx */
 #define _PAGE_COHERENT	0
@@ -57,11 +59,12 @@
 
 #define _PMD_PRESENT	0x0001
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
-#define _PMD_BAD	0x0fd0
+#define _PMD_BAD	0x0f90
 #define _PMD_PAGE_MASK	0x000c
 #define _PMD_PAGE_8M	0x000c
 #define _PMD_PAGE_512K	0x0004
-#define _PMD_USER	0x0020	/* APG 1 */
+#define _PMD_ACCESSED	0x0020	/* APG 1 */
+#define _PMD_USER	0x0040	/* APG 2 */
 
 #define _PTE_NONE_MASK	0
 
@@ -128,10 +131,55 @@ static inline pte_t pte_mkuser(pte_t pte)
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_SPS);
+	return __pte(pte_val(pte) | _PAGE_SPS | _PAGE_HUGE);
 }
 
 #define pte_mkhuge pte_mkhuge
+
+static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
+				     unsigned long clr, unsigned long set, int huge);
+
+static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	pte_update(mm, addr, ptep, 0, _PAGE_RO, 0);
+}
+#define ptep_set_wrprotect ptep_set_wrprotect
+
+static inline void __ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
+					   pte_t entry, unsigned long address, int psize)
+{
+	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_EXEC);
+	unsigned long clr = ~pte_val(entry) & _PAGE_RO;
+	int huge = psize > mmu_virtual_psize ? 1 : 0;
+
+	pte_update(vma->vm_mm, address, ptep, clr, set, huge);
+
+	flush_tlb_page(vma, address);
+}
+#define __ptep_set_access_flags __ptep_set_access_flags
+
+static inline unsigned long pgd_leaf_size(pgd_t pgd)
+{
+	if (pgd_val(pgd) & _PMD_PAGE_8M)
+		return SZ_8M;
+	return SZ_4M;
+}
+
+#define pgd_leaf_size pgd_leaf_size
+
+static inline unsigned long pte_leaf_size(pte_t pte)
+{
+	pte_basic_t val = pte_val(pte);
+
+	if (val & _PAGE_HUGE)
+		return SZ_512K;
+	if (val & _PAGE_SPS)
+		return SZ_16K;
+	return SZ_4K;
+}
+
+#define pte_leaf_size pte_leaf_size
+
 #endif
 
 #endif /* __KERNEL__ */

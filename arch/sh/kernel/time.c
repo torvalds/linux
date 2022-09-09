@@ -18,6 +18,7 @@
 #include <linux/rtc.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
+#include <asm/platform_early.h>
 
 static void __init sh_late_time_init(void)
 {
@@ -30,8 +31,8 @@ static void __init sh_late_time_init(void)
 	 * clocksource and the jiffies clocksource is used transparently
 	 * instead. No error handling is necessary here.
 	 */
-	early_platform_driver_register_all("earlytimer");
-	early_platform_driver_probe("earlytimer", 2, 0);
+	sh_early_platform_driver_register_all("earlytimer");
+	sh_early_platform_driver_probe("earlytimer", 2, 0);
 }
 
 void __init time_init(void)

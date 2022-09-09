@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv4 over IEEE 1394, per RFC 2734
  * IPv6 over IEEE 1394, per RFC 3146
@@ -201,15 +202,6 @@ struct fwnet_packet_task {
 };
 
 /*
- * Get fifo address embedded in hwaddr
- */
-static __u64 fwnet_hwaddr_fifo(union fwnet_hwaddr *ha)
-{
-	return (u64)get_unaligned_be16(&ha->uc.fifo_hi) << 32
-	       | get_unaligned_be32(&ha->uc.fifo_lo);
-}
-
-/*
  * saddr == NULL means use device source address.
  * daddr == NULL means leave destination address (eg unresolved arp).
  */
@@ -249,7 +241,11 @@ static int fwnet_header_cache(const struct neighbour *neigh,
 	h = (struct fwnet_header *)((u8 *)hh->hh_data + HH_DATA_OFF(sizeof(*h)));
 	h->h_proto = type;
 	memcpy(h->h_dest, neigh->ha, net->addr_len);
-	hh->hh_len = FWNET_HLEN;
+
+	/* Pairs with the READ_ONCE() in neigh_resolve_output(),
+	 * neigh_hh_output() and neigh_update_hhs().
+	 */
+	smp_store_release(&hh->hh_len, FWNET_HLEN);
 
 	return 0;
 }
@@ -483,9 +479,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 					struct sk_buff *skb, u16 source_node_id,
 					bool is_broadcast, u16 ether_type)
 {
-	struct fwnet_device *dev;
 	int status;
-	__be64 guid;
 
 	switch (ether_type) {
 	case ETH_P_ARP:
@@ -498,7 +492,6 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 		goto err;
 	}
 
-	dev = netdev_priv(net);
 	/* Write metadata, and then pass to the receive level */
 	skb->dev = net;
 	skb->ip_summed = CHECKSUM_NONE;
@@ -507,7 +500,6 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	 * Parse the encapsulation header. This actually does the job of
 	 * converting to an ethernet-like pseudo frame header.
 	 */
-	guid = cpu_to_be64(dev->card->guid);
 	if (dev_hard_header(skb, net, ether_type,
 			   is_broadcast ? net->broadcast : net->dev_addr,
 			   NULL, skb->len) >= 0) {
@@ -1305,7 +1297,7 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 		max_payload        = peer->max_payload;
 		datagram_label_ptr = &peer->datagram_label;
 
-		ptask->fifo_addr   = fwnet_hwaddr_fifo(ha);
+		ptask->fifo_addr   = get_unaligned_be48(ha->uc.fifo);
 		ptask->generation  = generation;
 		ptask->dest_node   = dest_node;
 		ptask->speed       = peer->speed;
@@ -1442,8 +1434,8 @@ static int fwnet_probe(struct fw_unit *unit,
 	struct net_device *net;
 	bool allocated_netdev = false;
 	struct fwnet_device *dev;
+	union fwnet_hwaddr ha;
 	int ret;
-	union fwnet_hwaddr *ha;
 
 	mutex_lock(&fwnet_device_mutex);
 
@@ -1490,12 +1482,11 @@ static int fwnet_probe(struct fw_unit *unit,
 	net->max_mtu = 4096U;
 
 	/* Set our hardware address while we're at it */
-	ha = (union fwnet_hwaddr *)net->dev_addr;
-	put_unaligned_be64(card->guid, &ha->uc.uniq_id);
-	ha->uc.max_rec = dev->card->max_receive;
-	ha->uc.sspd = dev->card->link_speed;
-	put_unaligned_be16(dev->local_fifo >> 32, &ha->uc.fifo_hi);
-	put_unaligned_be32(dev->local_fifo & 0xffffffff, &ha->uc.fifo_lo);
+	ha.uc.uniq_id = cpu_to_be64(card->guid);
+	ha.uc.max_rec = dev->card->max_receive;
+	ha.uc.sspd = dev->card->link_speed;
+	put_unaligned_be48(dev->local_fifo, ha.uc.fifo);
+	dev_addr_set(net, ha.u);
 
 	memset(net->broadcast, -1, net->addr_len);
 

@@ -9,51 +9,71 @@
 
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
-#include <linux/kprobes.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/sched/cputime.h>
+#include <trace/events/power.h>
+#include <asm/cpu_mf.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include "entry.h"
 
 static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
-void enabled_wait(void)
+void account_idle_time_irq(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
-	unsigned long long idle_time;
-	unsigned long psw_mask;
+	u64 cycles_new[8];
+	int i;
 
-	trace_hardirqs_on();
+	clear_cpu_flag(CIF_ENABLED_WAIT);
+	if (smp_cpu_mtid) {
+		stcctm(MT_DIAG, smp_cpu_mtid, cycles_new);
+		for (i = 0; i < smp_cpu_mtid; i++)
+			this_cpu_add(mt_cycles[i], cycles_new[i] - idle->mt_cycles_enter[i]);
+	}
+
+	idle->clock_idle_exit = S390_lowcore.int_clock;
+	idle->timer_idle_exit = S390_lowcore.sys_enter_timer;
+
+	S390_lowcore.steal_timer += idle->clock_idle_enter - S390_lowcore.last_update_clock;
+	S390_lowcore.last_update_clock = idle->clock_idle_exit;
+
+	S390_lowcore.system_timer += S390_lowcore.last_update_timer - idle->timer_idle_enter;
+	S390_lowcore.last_update_timer = idle->timer_idle_exit;
+}
+
+void arch_cpu_idle(void)
+{
+	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
+	unsigned long idle_time;
+	unsigned long psw_mask;
 
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
 		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 
-	/* Call the assembler magic in entry.S */
+	/* psw_idle() returns with interrupts disabled. */
 	psw_idle(idle, psw_mask);
 
-	trace_hardirqs_off();
-
 	/* Account time spent with enabled wait psw loaded as idle time. */
-	write_seqcount_begin(&idle->seqcount);
+	raw_write_seqcount_begin(&idle->seqcount);
 	idle_time = idle->clock_idle_exit - idle->clock_idle_enter;
 	idle->clock_idle_enter = idle->clock_idle_exit = 0ULL;
 	idle->idle_time += idle_time;
 	idle->idle_count++;
 	account_idle_time(cputime_to_nsecs(idle_time));
-	write_seqcount_end(&idle->seqcount);
+	raw_write_seqcount_end(&idle->seqcount);
+	raw_local_irq_enable();
 }
-NOKPROBE_SYMBOL(enabled_wait);
 
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
-	unsigned long long idle_count;
+	unsigned long idle_count;
 	unsigned int seq;
 
 	do {
@@ -62,63 +82,66 @@ static ssize_t show_idle_count(struct device *dev,
 		if (READ_ONCE(idle->clock_idle_enter))
 			idle_count++;
 	} while (read_seqcount_retry(&idle->seqcount, seq));
-	return sprintf(buf, "%llu\n", idle_count);
+	return sprintf(buf, "%lu\n", idle_count);
 }
 DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
 
 static ssize_t show_idle_time(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	unsigned long now, idle_time, idle_enter, idle_exit, in_idle;
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
-	unsigned long long now, idle_time, idle_enter, idle_exit;
 	unsigned int seq;
 
 	do {
-		now = get_tod_clock();
 		seq = read_seqcount_begin(&idle->seqcount);
 		idle_time = READ_ONCE(idle->idle_time);
 		idle_enter = READ_ONCE(idle->clock_idle_enter);
 		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
-	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
-	return sprintf(buf, "%llu\n", idle_time >> 12);
+	in_idle = 0;
+	now = get_tod_clock();
+	if (idle_enter) {
+		if (idle_exit) {
+			in_idle = idle_exit - idle_enter;
+		} else if (now > idle_enter) {
+			in_idle = now - idle_enter;
+		}
+	}
+	idle_time += in_idle;
+	return sprintf(buf, "%lu\n", idle_time >> 12);
 }
 DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
 u64 arch_cpu_idle_time(int cpu)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
-	unsigned long long now, idle_enter, idle_exit;
+	unsigned long now, idle_enter, idle_exit, in_idle;
 	unsigned int seq;
 
 	do {
-		now = get_tod_clock();
 		seq = read_seqcount_begin(&idle->seqcount);
 		idle_enter = READ_ONCE(idle->clock_idle_enter);
 		idle_exit = READ_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
-
-	return cputime_to_nsecs(idle_enter ? ((idle_exit ?: now) - idle_enter) : 0);
+	in_idle = 0;
+	now = get_tod_clock();
+	if (idle_enter) {
+		if (idle_exit) {
+			in_idle = idle_exit - idle_enter;
+		} else if (now > idle_enter) {
+			in_idle = now - idle_enter;
+		}
+	}
+	return cputime_to_nsecs(in_idle);
 }
 
 void arch_cpu_idle_enter(void)
 {
-	local_mcck_disable();
-}
-
-void arch_cpu_idle(void)
-{
-	if (!test_cpu_flag(CIF_MCCK_PENDING))
-		/* Halt the cpu and keep track of cpu time accounting. */
-		enabled_wait();
-	local_irq_enable();
 }
 
 void arch_cpu_idle_exit(void)
 {
-	local_mcck_enable();
-	if (test_cpu_flag(CIF_MCCK_PENDING))
-		s390_handle_mcck();
 }
 
 void arch_cpu_idle_dead(void)

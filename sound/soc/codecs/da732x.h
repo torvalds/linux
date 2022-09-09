@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * da732x.h -- Dialog DA732X ALSA SoC Audio Driver Header File
  *
  * Copyright (C) 2012 Dialog Semiconductor GmbH
  *
  * Author: Michal Hajduk <Michal.Hajduk@diasemi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __DA732X_H_
@@ -51,14 +48,10 @@
 #define	DA732X_MCLK_20MHZ		20000000
 #define	DA732X_MCLK_40MHZ		40000000
 #define	DA732X_MCLK_54MHZ		54000000
-#define	DA732X_MCLK_RET_0_10MHZ		0
-#define	DA732X_MCLK_VAL_0_10MHZ		1
-#define	DA732X_MCLK_RET_10_20MHZ	1
-#define	DA732X_MCLK_VAL_10_20MHZ	2
-#define	DA732X_MCLK_RET_20_40MHZ	2
-#define	DA732X_MCLK_VAL_20_40MHZ	4
-#define	DA732X_MCLK_RET_40_54MHZ	3
-#define	DA732X_MCLK_VAL_40_54MHZ	8
+#define	DA732X_MCLK_VAL_0_10MHZ		0
+#define	DA732X_MCLK_VAL_10_20MHZ	1
+#define	DA732X_MCLK_VAL_20_40MHZ	2
+#define	DA732X_MCLK_VAL_40_54MHZ	3
 #define	DA732X_DAI_ID1			0
 #define	DA732X_DAI_ID2			1
 #define	DA732X_SRCCLK_PLL		0

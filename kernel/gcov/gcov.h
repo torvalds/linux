@@ -15,6 +15,7 @@
 #ifndef GCOV_H
 #define GCOV_H GCOV_H
 
+#include <linux/module.h>
 #include <linux/types.h>
 
 /*
@@ -46,6 +47,8 @@ unsigned int gcov_info_version(struct gcov_info *info);
 struct gcov_info *gcov_info_next(struct gcov_info *info);
 void gcov_info_link(struct gcov_info *info);
 void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info);
+bool gcov_info_within_module(struct gcov_info *info, struct module *mod);
+size_t convert_to_gcda(char *buffer, struct gcov_info *info);
 
 /* Base interface. */
 enum gcov_action {
@@ -56,16 +59,9 @@ enum gcov_action {
 void gcov_event(enum gcov_action action, struct gcov_info *info);
 void gcov_enable_events(void);
 
-/* Iterator control. */
-struct seq_file;
-struct gcov_iterator;
-
-struct gcov_iterator *gcov_iter_new(struct gcov_info *info);
-void gcov_iter_free(struct gcov_iterator *iter);
-void gcov_iter_start(struct gcov_iterator *iter);
-int gcov_iter_next(struct gcov_iterator *iter);
-int gcov_iter_write(struct gcov_iterator *iter, struct seq_file *seq);
-struct gcov_info *gcov_iter_get_info(struct gcov_iterator *iter);
+/* writing helpers */
+size_t store_gcov_u32(void *buffer, size_t off, u32 v);
+size_t store_gcov_u64(void *buffer, size_t off, u64 v);
 
 /* gcov_info control. */
 void gcov_info_reset(struct gcov_info *info);
@@ -82,5 +78,8 @@ struct gcov_link {
 	const char *ext;
 };
 extern const struct gcov_link gcov_link[];
+
+extern int gcov_events_enabled;
+extern struct mutex gcov_lock;
 
 #endif /* GCOV_H */

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tests.h"
 #include "dso.h"
 #include "debug.h"
+#include "event.h"
 
 static int test(const char *path, bool alloc_name, bool kmod,
 		int comp, const char *name)
@@ -45,7 +47,7 @@ static int test_is_kernel_module(const char *path, int cpumode, bool expect)
 #define M(path, c, e) \
 	TEST_ASSERT_VAL("failed", !test_is_kernel_module(path, c, e))
 
-int test__kmod_path__parse(struct test *t __maybe_unused, int subtest __maybe_unused)
+static int test__kmod_path__parse(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
 	/* path                alloc_name  kmod  comp   name   */
 	T("/xxxx/xxxx/x-x.ko", true      , true, 0    , "[x_x]");
@@ -157,3 +159,5 @@ int test__kmod_path__parse(struct test *t __maybe_unused, int subtest __maybe_un
 
 	return 0;
 }
+
+DEFINE_SUITE("kmod_path__parse", kmod_path__parse);

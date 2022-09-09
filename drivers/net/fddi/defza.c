@@ -33,6 +33,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -59,7 +60,7 @@
 static const char version[] =
 	DRV_NAME ": " DRV_VERSION "  " DRV_RELDATE "  Maciej W. Rozycki\n";
 
-MODULE_AUTHOR("Maciej W. Rozycki <macro@linux-mips.org>");
+MODULE_AUTHOR("Maciej W. Rozycki <macro@orcam.me.uk>");
 MODULE_DESCRIPTION("DEC FDDIcontroller 700 (DEFZA-xx) driver");
 MODULE_LICENSE("GPL");
 
@@ -1317,7 +1318,7 @@ static int fza_probe(struct device *bdev)
 	}
 
 	/* MMIO mapping setup. */
-	mmio = ioremap_nocache(start, len);
+	mmio = ioremap(start, len);
 	if (!mmio) {
 		pr_err("%s: cannot map MMIO\n", fp->name);
 		ret = -ENOMEM;
@@ -1379,7 +1380,7 @@ static int fza_probe(struct device *bdev)
 		goto err_out_irq;
 
 	fza_reads(&init->hw_addr, &hw_addr, sizeof(hw_addr));
-	memcpy(dev->dev_addr, &hw_addr, FDDI_K_ALEN);
+	dev_addr_set(dev, (u8 *)&hw_addr);
 
 	fza_reads(&init->rom_rev, &rom_rev, sizeof(rom_rev));
 	fza_reads(&init->fw_rev, &fw_rev, sizeof(fw_rev));
@@ -1503,9 +1504,8 @@ err_out_resource:
 	release_mem_region(start, len);
 
 err_out_kfree:
-	free_netdev(dev);
-
 	pr_err("%s: initialization failure, aborting!\n", fp->name);
+	free_netdev(dev);
 	return ret;
 }
 

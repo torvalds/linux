@@ -20,6 +20,8 @@
 #define PAGE_SIZE	_PAGE_SIZE
 #define PAGE_MASK	_PAGE_MASK
 #define PAGE_DEFAULT_ACC	0
+/* storage-protection override */
+#define PAGE_SPO_ACC		9
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
 #define HPAGE_SHIFT	20
@@ -33,6 +35,8 @@
 #define ARCH_HAS_PREPARE_HUGEPAGE
 #define ARCH_HAS_HUGEPAGE_CLEAR_FLUSH
 
+#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
@@ -40,7 +44,7 @@ void __storage_key_init_range(unsigned long start, unsigned long end);
 
 static inline void storage_key_init_range(unsigned long start, unsigned long end)
 {
-	if (PAGE_DEFAULT_KEY)
+	if (PAGE_DEFAULT_KEY != 0)
 		__storage_key_init_range(start, end);
 }
 
@@ -53,22 +57,25 @@ static inline void storage_key_init_range(unsigned long start, unsigned long end
  */
 static inline void copy_page(void *to, void *from)
 {
-	register void *reg2 asm ("2") = to;
-	register unsigned long reg3 asm ("3") = 0x1000;
-	register void *reg4 asm ("4") = from;
-	register unsigned long reg5 asm ("5") = 0xb0001000;
+	union register_pair dst, src;
+
+	dst.even = (unsigned long) to;
+	dst.odd  = 0x1000;
+	src.even = (unsigned long) from;
+	src.odd  = 0xb0001000;
+
 	asm volatile(
-		"	mvcl	2,4"
-		: "+d" (reg2), "+d" (reg3), "+d" (reg4), "+d" (reg5)
+		"	mvcl	%[dst],%[src]"
+		: [dst] "+&d" (dst.pair), [src] "+&d" (src.pair)
 		: : "memory", "cc");
 }
 
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
-#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
-	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+#define alloc_zeroed_user_highpage_movable(vma, vaddr) \
+	alloc_page_vma(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, vma, vaddr)
+#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
 
 /*
  * These are used to make use of C type-checking..
@@ -85,11 +92,31 @@ typedef pte_t *pgtable_t;
 
 #define pgprot_val(x)	((x).pgprot)
 #define pgste_val(x)	((x).pgste)
-#define pte_val(x)	((x).pte)
-#define pmd_val(x)	((x).pmd)
-#define pud_val(x)	((x).pud)
-#define p4d_val(x)	((x).p4d)
-#define pgd_val(x)      ((x).pgd)
+
+static inline unsigned long pte_val(pte_t pte)
+{
+	return pte.pte;
+}
+
+static inline unsigned long pmd_val(pmd_t pmd)
+{
+	return pmd.pmd;
+}
+
+static inline unsigned long pud_val(pud_t pud)
+{
+	return pud.pud;
+}
+
+static inline unsigned long p4d_val(p4d_t p4d)
+{
+	return p4d.p4d;
+}
+
+static inline unsigned long pgd_val(pgd_t pgd)
+{
+	return pgd.pgd;
+}
 
 #define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
@@ -139,9 +166,6 @@ struct page;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);
 void arch_set_page_dat(struct page *page, int order);
-void arch_set_page_nodat(struct page *page, int order);
-int arch_test_page_nodat(struct page *page);
-void arch_set_page_states(int make_stable);
 
 static inline int devmem_is_allowed(unsigned long pfn)
 {
@@ -151,6 +175,11 @@ static inline int devmem_is_allowed(unsigned long pfn)
 #define HAVE_ARCH_FREE_PAGE
 #define HAVE_ARCH_ALLOC_PAGE
 
+#if IS_ENABLED(CONFIG_PGSTE)
+int arch_make_page_accessible(struct page *page);
+#define HAVE_ARCH_MAKE_PAGE_ACCESSIBLE
+#endif
+
 #endif /* !__ASSEMBLY__ */
 
 #define __PAGE_OFFSET		0x0UL
@@ -159,23 +188,22 @@ static inline int devmem_is_allowed(unsigned long pfn)
 #define __pa(x)			((unsigned long)(x))
 #define __va(x)			((void *)(unsigned long)(x))
 
-#define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
-#define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+#define phys_to_pfn(phys)	((phys) >> PAGE_SHIFT)
+#define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+
+#define phys_to_page(phys)	pfn_to_page(phys_to_pfn(phys))
+#define page_to_phys(page)	pfn_to_phys(page_to_pfn(page))
+
+#define pfn_to_virt(pfn)	__va(pfn_to_phys(pfn))
+#define virt_to_pfn(kaddr)	(phys_to_pfn(__pa(kaddr)))
 #define pfn_to_kaddr(pfn)	pfn_to_virt(pfn)
 
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
 
-#define phys_to_pfn(kaddr)	((kaddr) >> PAGE_SHIFT)
-#define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+#define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
 
-#define phys_to_page(kaddr)	pfn_to_page(phys_to_pfn(kaddr))
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
-
-#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
-
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

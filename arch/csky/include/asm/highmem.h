@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #ifndef __ASM_CSKY_HIGHMEM_H
 #define __ASM_CSKY_HIGHMEM_H
@@ -9,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
-#include <asm/kmap_types.h>
+#include <asm/kmap_size.h>
 #include <asm/cache.h>
 
 /* undef for production */
@@ -30,21 +29,15 @@ extern pte_t *pkmap_page_table;
 #define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
 
-extern void *kmap_high(struct page *page);
-extern void kunmap_high(struct page *page);
-
-extern void *kmap(struct page *page);
-extern void kunmap(struct page *page);
-extern void *kmap_atomic(struct page *page);
-extern void __kunmap_atomic(void *kvaddr);
-extern void *kmap_atomic_pfn(unsigned long pfn);
-extern struct page *kmap_atomic_to_page(void *ptr);
+#define ARCH_HAS_KMAP_FLUSH_TLB
+extern void kmap_flush_tlb(unsigned long addr);
 
 #define flush_cache_kmaps() do {} while (0)
 
-extern void kmap_init(void);
+#define arch_kmap_local_post_map(vaddr, pteval)	kmap_flush_tlb(vaddr)
+#define arch_kmap_local_post_unmap(vaddr)	kmap_flush_tlb(vaddr)
 
-#define kmap_prot PAGE_KERNEL
+extern void kmap_init(void);
 
 #endif /* __KERNEL__ */
 

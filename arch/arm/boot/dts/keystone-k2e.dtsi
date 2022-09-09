@@ -52,7 +52,7 @@
 
 		usb: usb@2680000 {
 			interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
-			dwc3@2690000 {
+			usb@2690000 {
 				interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
 			};
 		};
@@ -78,22 +78,22 @@
 			dma-ranges;
 			status = "disabled";
 
-			usb1: dwc3@25010000 {
-				compatible = "synopsys,dwc3";
+			usb1: usb@25010000 {
+				compatible = "snps,dwc3";
 				reg = <0x25010000 0x70000>;
 				interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
 				usb-phy = <&usb1_phy>, <&usb1_phy>;
 			};
 		};
 
-		msm_ram: msmram@c000000 {
+		msm_ram: sram@c000000 {
 			compatible = "mmio-sram";
 			reg = <0x0c000000 0x200000>;
 			ranges = <0x0 0x0c000000 0x200000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			sram-bm@1f0000 {
+			bm-sram@1f0000 {
 				reg = <0x001f0000 0x8000>;
 			};
 		};
@@ -141,7 +141,7 @@
 			clock-names = "pcie";
 			#address-cells = <3>;
 			#size-cells = <2>;
-			reg =  <0x21021000 0x2000>, <0x21020000 0x1000>, <0x02620128 4>;
+			reg = <0x21021000 0x2000>, <0x21020000 0x1000>, <0x02620128 4>;
 			ranges = <0x82000000 0 0x60000000 0x60000000
 				  0 0x10000000>;
 
@@ -185,14 +185,14 @@
 		};
 
 		mdio: mdio@24200f00 {
-			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			compatible = "ti,keystone_mdio", "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x24200f00 0x100>;
 			status = "disabled";
 			clocks = <&clkcpgmac>;
 			clock-names = "fck";
-			bus_freq	= <2500000>;
+			bus_freq = <2500000>;
 		};
 		/include/ "keystone-k2e-netcp.dtsi"
 };

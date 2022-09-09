@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* sb1000.c: A General Instruments SB1000 driver for linux. */
 /*
 	Written 1998 by Franco Venturi.
@@ -11,11 +12,6 @@
 
 	The author may be reached as fventuri@mediaone.net
 
-	This program is free software; you can redistribute it
-	and/or  modify it under  the terms of  the GNU General
-	Public  License as  published  by  the  Free  Software
-	Foundation;  either  version 2 of the License, or  (at
-	your option) any later version.
 
 	Changes:
 
@@ -82,7 +78,8 @@ struct sb1000_private {
 /* prototypes for Linux interface */
 extern int sb1000_probe(struct net_device *dev);
 static int sb1000_open(struct net_device *dev);
-static int sb1000_dev_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd);
+static int sb1000_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				 void __user *data, int cmd);
 static netdev_tx_t sb1000_start_xmit(struct sk_buff *skb,
 				     struct net_device *dev);
 static irqreturn_t sb1000_interrupt(int irq, void *dev_id);
@@ -139,7 +136,7 @@ MODULE_DEVICE_TABLE(pnp, sb1000_pnp_ids);
 static const struct net_device_ops sb1000_netdev_ops = {
 	.ndo_open		= sb1000_open,
 	.ndo_start_xmit		= sb1000_start_xmit,
-	.ndo_do_ioctl		= sb1000_dev_ioctl,
+	.ndo_siocdevprivate	= sb1000_siocdevprivate,
 	.ndo_stop		= sb1000_close,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -152,6 +149,7 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	unsigned short ioaddr[2], irq;
 	unsigned int serial_number;
 	int error = -ENODEV;
+	u8 addr[ETH_ALEN];
 
 	if (pnp_device_attach(pdev) < 0)
 		return -ENODEV;
@@ -206,10 +204,13 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	dev->netdev_ops	= &sb1000_netdev_ops;
 
 	/* hardware address is 0:0:serial_number */
-	dev->dev_addr[2]	= serial_number >> 24 & 0xff;
-	dev->dev_addr[3]	= serial_number >> 16 & 0xff;
-	dev->dev_addr[4]	= serial_number >>  8 & 0xff;
-	dev->dev_addr[5]	= serial_number >>  0 & 0xff;
+	addr[0] = 0;
+	addr[1] = 0;
+	addr[2]	= serial_number >> 24 & 0xff;
+	addr[3]	= serial_number >> 16 & 0xff;
+	addr[4]	= serial_number >>  8 & 0xff;
+	addr[5]	= serial_number >>  0 & 0xff;
+	eth_hw_addr_set(dev, addr);
 
 	pnp_set_drvdata(pdev, dev);
 
@@ -316,7 +317,7 @@ static int
 card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[])
 {
-	int status, x;
+	int status;
 
 	if ((status = card_wait_for_busy_clear(ioaddr, name)))
 		return status;
@@ -345,9 +346,7 @@ card_send_command(const int ioaddr[], const char* name,
 				out[0], out[1], out[2], out[3], out[4], out[5]);
 	}
 
-	if (out[1] == 0x1b) {
-		x = (out[2] == 0x02);
-	} else {
+	if (out[1] != 0x1b) {
 		if (out[0] >= 0x80 && in[0] != (out[1] | 0x80))
 			return -EIO;
 	}
@@ -490,14 +489,13 @@ sb1000_check_CRC(const int ioaddr[], const char* name)
 	static const unsigned char Command0[6] = {0x80, 0x1f, 0x00, 0x00, 0x00, 0x00};
 
 	unsigned char st[7];
-	int crc, status;
+	int status;
 
 	/* check CRC */
 	if ((status = card_send_command(ioaddr, name, Command0, st)))
 		return status;
 	if (st[1] != st[3] || st[2] != st[4])
 		return -EIO;
-	crc = st[1] << 8 | st[2];
 	return 0;
 }
 
@@ -535,17 +533,20 @@ sb1000_activate(const int ioaddr[], const char* name)
 	int status;
 
 	ssleep(1);
-	if ((status = card_send_command(ioaddr, name, Command0, st)))
+	status = card_send_command(ioaddr, name, Command0, st);
+	if (status)
 		return status;
-	if ((status = card_send_command(ioaddr, name, Command1, st)))
+	status = card_send_command(ioaddr, name, Command1, st);
+	if (status)
 		return status;
 	if (st[3] != 0xf1) {
-    	if ((status = sb1000_start_get_set_command(ioaddr, name)))
+		status = sb1000_start_get_set_command(ioaddr, name);
+		if (status)
 			return status;
 		return -EIO;
 	}
 	udelay(1000);
-    return sb1000_start_get_set_command(ioaddr, name);
+	return sb1000_start_get_set_command(ioaddr, name);
 }
 
 /* get SB1000 firmware version */
@@ -871,7 +872,7 @@ printk("cm0: IP identification: %02x%02x  fragment offset: %02x%02x\n", buffer[3
 
 	/* datagram completed: send to upper level */
 	skb_trim(skb, dlen);
-	netif_rx(skb);
+	__netif_rx(skb);
 	stats->rx_bytes+=dlen;
 	stats->rx_packets++;
 	lp->rx_skb[ns] = NULL;
@@ -991,7 +992,8 @@ sb1000_open(struct net_device *dev)
 	return 0;					/* Always succeed */
 }
 
-static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int sb1000_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				 void __user *data, int cmd)
 {
 	char* name;
 	unsigned char version[2];
@@ -1015,7 +1017,7 @@ static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		stats[2] = dev->stats.rx_packets;
 		stats[3] = dev->stats.rx_errors;
 		stats[4] = dev->stats.rx_dropped;
-		if(copy_to_user(ifr->ifr_data, stats, sizeof(stats)))
+		if (copy_to_user(data, stats, sizeof(stats)))
 			return -EFAULT;
 		status = 0;
 		break;
@@ -1023,21 +1025,21 @@ static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGCMFIRMWARE:		/* get firmware version */
 		if ((status = sb1000_get_firmware_version(ioaddr, name, version, 1)))
 			return status;
-		if(copy_to_user(ifr->ifr_data, version, sizeof(version)))
+		if (copy_to_user(data, version, sizeof(version)))
 			return -EFAULT;
 		break;
 
 	case SIOCGCMFREQUENCY:		/* get frequency */
 		if ((status = sb1000_get_frequency(ioaddr, name, &frequency)))
 			return status;
-		if(put_user(frequency, (int __user *) ifr->ifr_data))
+		if (put_user(frequency, (int __user *)data))
 			return -EFAULT;
 		break;
 
 	case SIOCSCMFREQUENCY:		/* set frequency */
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if(get_user(frequency, (int __user *) ifr->ifr_data))
+		if (get_user(frequency, (int __user *)data))
 			return -EFAULT;
 		if ((status = sb1000_set_frequency(ioaddr, name, frequency)))
 			return status;
@@ -1046,14 +1048,14 @@ static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGCMPIDS:			/* get PIDs */
 		if ((status = sb1000_get_PIDs(ioaddr, name, PID)))
 			return status;
-		if(copy_to_user(ifr->ifr_data, PID, sizeof(PID)))
+		if (copy_to_user(data, PID, sizeof(PID)))
 			return -EFAULT;
 		break;
 
 	case SIOCSCMPIDS:			/* set PIDs */
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if(copy_from_user(PID, ifr->ifr_data, sizeof(PID)))
+		if (copy_from_user(PID, data, sizeof(PID)))
 			return -EFAULT;
 		if ((status = sb1000_set_PIDs(ioaddr, name, PID)))
 			return status;

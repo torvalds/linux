@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram miXart soundcards
  *
  * DSP firmware management
  *
  * Copyright (c) 2003 by Digigram <alsa@digigram.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/interrupt.h>
@@ -35,7 +22,8 @@
 
 
 /**
- * wait for a value on a peudo register, exit with a timeout
+ * mixart_wait_nice_for_register_value - wait for a value on a peudo register,
+ * exit with a timeout
  *
  * @mgr: pointer to miXart manager structure
  * @offset: unsigned pseudo_register base + offset of value
@@ -318,9 +306,13 @@ static int mixart_first_init(struct mixart_mgr *mgr)
 	int err;
 	struct mixart_msg request;
 
-	if((err = mixart_enum_connectors(mgr)) < 0) return err;
+	err = mixart_enum_connectors(mgr);
+	if (err < 0)
+		return err;
 
-	if((err = mixart_enum_physio(mgr)) < 0) return err;
+	err = mixart_enum_physio(mgr);
+	if (err < 0)
+		return err;
 
 	/* send a synchro command to card (necessary to do this before first MSG_STREAM_START_STREAM_GRP_PACKET) */
 	/* though why not here */
@@ -540,15 +532,18 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
         for (card_index = 0; card_index < mgr->num_cards; card_index++) {
 		struct snd_mixart *chip = mgr->chip[card_index];
 
-		if ((err = snd_mixart_create_pcm(chip)) < 0)
+		err = snd_mixart_create_pcm(chip);
+		if (err < 0)
 			return err;
 
 		if (card_index == 0) {
-			if ((err = snd_mixart_create_mixer(chip->mgr)) < 0)
+			err = snd_mixart_create_mixer(chip->mgr);
+			if (err < 0)
 	        		return err;
 		}
 
-		if ((err = snd_card_register(chip->card)) < 0)
+		err = snd_card_register(chip->card);
+		if (err < 0)
 			return err;
 	}
 
@@ -561,7 +556,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 
 int snd_mixart_setup_firmware(struct mixart_mgr *mgr)
 {
-	static char *fw_files[3] = {
+	static const char * const fw_files[3] = {
 		"miXart8.xlx", "miXart8.elf", "miXart8AES.xlx"
 	};
 	char path[32];

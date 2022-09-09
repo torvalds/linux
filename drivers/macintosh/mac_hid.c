@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/macintosh/mac_hid.c
  *
@@ -182,8 +183,7 @@ static void mac_hid_stop_emulation(void)
 }
 
 static int mac_hid_toggle_emumouse(struct ctl_table *table, int write,
-				   void __user *buffer, size_t *lenp,
-				   loff_t *ppos)
+				   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = table->data;
 	int old_val = *valp;
@@ -239,33 +239,11 @@ static struct ctl_table mac_hid_files[] = {
 	{ }
 };
 
-/* dir in /proc/sys/dev */
-static struct ctl_table mac_hid_dir[] = {
-	{
-		.procname	= "mac_hid",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= mac_hid_files,
-	},
-	{ }
-};
-
-/* /proc/sys/dev itself, in case that is not there yet */
-static struct ctl_table mac_hid_root_dir[] = {
-	{
-		.procname	= "dev",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= mac_hid_dir,
-	},
-	{ }
-};
-
 static struct ctl_table_header *mac_hid_sysctl_header;
 
 static int __init mac_hid_init(void)
 {
-	mac_hid_sysctl_header = register_sysctl_table(mac_hid_root_dir);
+	mac_hid_sysctl_header = register_sysctl("dev/mac_hid", mac_hid_files);
 	if (!mac_hid_sysctl_header)
 		return -ENOMEM;
 

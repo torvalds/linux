@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/panic_notifier.h>
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/timer.h>
@@ -35,8 +36,8 @@
 #define SCLP_VT220_MINOR		65
 #define SCLP_VT220_DRIVER_NAME		"sclp_vt220"
 #define SCLP_VT220_DEVICE_NAME		"ttysclp"
-#define SCLP_VT220_CONSOLE_NAME		"ttyS"
-#define SCLP_VT220_CONSOLE_INDEX	1	/* console=ttyS1 */
+#define SCLP_VT220_CONSOLE_NAME		"ttysclp"
+#define SCLP_VT220_CONSOLE_INDEX	0	/* console=ttysclp0 */
 
 /* Representation of a single write request */
 struct sclp_vt220_request {
@@ -61,16 +62,13 @@ static struct tty_driver *sclp_vt220_driver;
 static struct tty_port sclp_vt220_port;
 
 /* Lock to protect internal data from concurrent access */
-static spinlock_t sclp_vt220_lock;
+static DEFINE_SPINLOCK(sclp_vt220_lock);
 
 /* List of empty pages to be used as write request buffers */
-static struct list_head sclp_vt220_empty;
+static LIST_HEAD(sclp_vt220_empty);
 
 /* List of pending requests */
-static struct list_head sclp_vt220_outqueue;
-
-/* Suspend mode flag */
-static int sclp_vt220_suspended;
+static LIST_HEAD(sclp_vt220_outqueue);
 
 /* Flag that output queue is currently running */
 static int sclp_vt220_queue_running;
@@ -95,15 +93,12 @@ static int __initdata sclp_vt220_init_count;
 static int sclp_vt220_flush_later;
 
 static void sclp_vt220_receiver_fn(struct evbuf_header *evbuf);
-static void sclp_vt220_pm_event_fn(struct sclp_register *reg,
-				   enum sclp_pm_event sclp_pm_event);
 static int __sclp_vt220_emit(struct sclp_vt220_request *request);
 static void sclp_vt220_emit_current(void);
 
 /* Registration structure for SCLP output event buffers */
 static struct sclp_register sclp_vt220_register = {
 	.send_mask		= EVTYP_VT220MSG_MASK,
-	.pm_event_fn		= sclp_vt220_pm_event_fn,
 };
 
 /* Registration structure for SCLP input event buffers */
@@ -135,7 +130,7 @@ sclp_vt220_process_queue(struct sclp_vt220_request *request)
 		if (!list_empty(&sclp_vt220_outqueue))
 			request = list_entry(sclp_vt220_outqueue.next,
 					     struct sclp_vt220_request, list);
-		if (!request || sclp_vt220_suspended) {
+		if (!request) {
 			sclp_vt220_queue_running = 0;
 			spin_unlock_irqrestore(&sclp_vt220_lock, flags);
 			break;
@@ -236,12 +231,11 @@ sclp_vt220_emit_current(void)
 			list_add_tail(&sclp_vt220_current_request->list,
 				      &sclp_vt220_outqueue);
 			sclp_vt220_current_request = NULL;
-			if (timer_pending(&sclp_vt220_timer))
-				del_timer(&sclp_vt220_timer);
+			del_timer(&sclp_vt220_timer);
 		}
 		sclp_vt220_flush_later = 0;
 	}
-	if (sclp_vt220_queue_running || sclp_vt220_suspended)
+	if (sclp_vt220_queue_running)
 		goto out_unlock;
 	if (list_empty(&sclp_vt220_outqueue))
 		goto out_unlock;
@@ -420,7 +414,7 @@ __sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
 			if (list_empty(&sclp_vt220_empty))
 				sclp_console_full++;
 			while (list_empty(&sclp_vt220_empty)) {
-				if (may_fail || sclp_vt220_suspended)
+				if (may_fail)
 					goto out;
 				if (sclp_vt220_drop_buffer())
 					break;
@@ -560,7 +554,6 @@ sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 {
 	if (tty->count == 1) {
 		tty_port_tty_set(&sclp_vt220_port, tty);
-		sclp_vt220_port.low_latency = 0;
 		if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 			tty->winsize.ws_row = 24;
 			tty->winsize.ws_col = 80;
@@ -610,12 +603,12 @@ sclp_vt220_flush_chars(struct tty_struct *tty)
  * to change as output buffers get emptied, or if the output flow
  * control is acted.
  */
-static int
+static unsigned int
 sclp_vt220_write_room(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct list_head *l;
-	int count;
+	unsigned int count;
 
 	spin_lock_irqsave(&sclp_vt220_lock, flags);
 	count = 0;
@@ -630,16 +623,15 @@ sclp_vt220_write_room(struct tty_struct *tty)
 /*
  * Return number of buffered chars.
  */
-static int
+static unsigned int
 sclp_vt220_chars_in_buffer(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct list_head *l;
 	struct sclp_vt220_request *r;
-	int count;
+	unsigned int count = 0;
 
 	spin_lock_irqsave(&sclp_vt220_lock, flags);
-	count = 0;
 	if (sclp_vt220_current_request != NULL)
 		count = sclp_vt220_chars_stored(sclp_vt220_current_request);
 	list_for_each(l, &sclp_vt220_outqueue) {
@@ -694,9 +686,6 @@ static int __init __sclp_vt220_init(int num_pages)
 	sclp_vt220_init_count++;
 	if (sclp_vt220_init_count != 1)
 		return 0;
-	spin_lock_init(&sclp_vt220_lock);
-	INIT_LIST_HEAD(&sclp_vt220_empty);
-	INIT_LIST_HEAD(&sclp_vt220_outqueue);
 	timer_setup(&sclp_vt220_timer, sclp_vt220_timeout, 0);
 	tty_port_init(&sclp_vt220_port);
 	sclp_vt220_current_request = NULL;
@@ -742,9 +731,9 @@ static int __init sclp_vt220_tty_init(void)
 
 	/* Note: we're not testing for CONSOLE_IS_SCLP here to preserve
 	 * symmetry between VM and LPAR systems regarding ttyS1. */
-	driver = alloc_tty_driver(1);
-	if (!driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 	rc = __sclp_vt220_init(MAX_KMEM_PAGES);
 	if (rc)
 		goto out_driver;
@@ -756,7 +745,6 @@ static int __init sclp_vt220_tty_init(void)
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
-	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &sclp_vt220_ops);
 	tty_port_link_device(&sclp_vt220_port, driver, 0);
 
@@ -774,66 +762,10 @@ out_reg:
 out_init:
 	__sclp_vt220_cleanup();
 out_driver:
-	put_tty_driver(driver);
+	tty_driver_kref_put(driver);
 	return rc;
 }
 __initcall(sclp_vt220_tty_init);
-
-static void __sclp_vt220_flush_buffer(void)
-{
-	unsigned long flags;
-
-	sclp_vt220_emit_current();
-	spin_lock_irqsave(&sclp_vt220_lock, flags);
-	if (timer_pending(&sclp_vt220_timer))
-		del_timer(&sclp_vt220_timer);
-	while (sclp_vt220_queue_running) {
-		spin_unlock_irqrestore(&sclp_vt220_lock, flags);
-		sclp_sync_wait();
-		spin_lock_irqsave(&sclp_vt220_lock, flags);
-	}
-	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
-}
-
-/*
- * Resume console: If there are cached messages, emit them.
- */
-static void sclp_vt220_resume(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sclp_vt220_lock, flags);
-	sclp_vt220_suspended = 0;
-	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
-	sclp_vt220_emit_current();
-}
-
-/*
- * Suspend console: Set suspend flag and flush console
- */
-static void sclp_vt220_suspend(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sclp_vt220_lock, flags);
-	sclp_vt220_suspended = 1;
-	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
-	__sclp_vt220_flush_buffer();
-}
-
-static void sclp_vt220_pm_event_fn(struct sclp_register *reg,
-				   enum sclp_pm_event sclp_pm_event)
-{
-	switch (sclp_pm_event) {
-	case SCLP_PM_EVENT_FREEZE:
-		sclp_vt220_suspend();
-		break;
-	case SCLP_PM_EVENT_RESTORE:
-	case SCLP_PM_EVENT_THAW:
-		sclp_vt220_resume();
-		break;
-	}
-}
 
 #ifdef CONFIG_SCLP_VT220_CONSOLE
 
@@ -850,22 +782,41 @@ sclp_vt220_con_device(struct console *c, int *index)
 	return sclp_vt220_driver;
 }
 
+/*
+ * This panic/reboot notifier runs in atomic context, so
+ * locking restrictions apply to prevent potential lockups.
+ */
 static int
 sclp_vt220_notify(struct notifier_block *self,
 			  unsigned long event, void *data)
 {
-	__sclp_vt220_flush_buffer();
-	return NOTIFY_OK;
+	unsigned long flags;
+
+	if (spin_is_locked(&sclp_vt220_lock))
+		return NOTIFY_DONE;
+
+	sclp_vt220_emit_current();
+
+	spin_lock_irqsave(&sclp_vt220_lock, flags);
+	del_timer(&sclp_vt220_timer);
+	while (sclp_vt220_queue_running) {
+		spin_unlock_irqrestore(&sclp_vt220_lock, flags);
+		sclp_sync_wait();
+		spin_lock_irqsave(&sclp_vt220_lock, flags);
+	}
+	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
+
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = sclp_vt220_notify,
-	.priority = 1,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 static struct notifier_block on_reboot_nb = {
 	.notifier_call = sclp_vt220_notify,
-	.priority = 1,
+	.priority = INT_MIN + 1, /* run the callback late */
 };
 
 /* Structure needed to register with printk */

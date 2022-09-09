@@ -34,6 +34,8 @@
 #include <crypto/scatterwalk.h>
 #include <net/ip6_checksum.h>
 
+#include "tls.h"
+
 static void chain_to_walk(struct scatterlist *sg, struct scatter_walk *walk)
 {
 	struct scatterlist *src = walk->sg;
@@ -49,7 +51,8 @@ static int tls_enc_record(struct aead_request *aead_req,
 			  struct crypto_aead *aead, char *aad,
 			  char *iv, __be64 rcd_sn,
 			  struct scatter_walk *in,
-			  struct scatter_walk *out, int *in_len)
+			  struct scatter_walk *out, int *in_len,
+			  struct tls_prot_info *prot)
 {
 	unsigned char buf[TLS_HEADER_SIZE + TLS_CIPHER_AES_GCM_128_IV_SIZE];
 	struct scatterlist sg_in[3];
@@ -73,7 +76,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 	len -= TLS_CIPHER_AES_GCM_128_IV_SIZE;
 
 	tls_make_aad(aad, len - TLS_CIPHER_AES_GCM_128_TAG_SIZE,
-		     (char *)&rcd_sn, sizeof(rcd_sn), buf[0]);
+		(char *)&rcd_sn, buf[0], prot);
 
 	memcpy(iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, buf + TLS_HEADER_SIZE,
 	       TLS_CIPHER_AES_GCM_128_IV_SIZE);
@@ -139,7 +142,7 @@ static struct aead_request *tls_alloc_aead_request(struct crypto_aead *aead,
 static int tls_enc_records(struct aead_request *aead_req,
 			   struct crypto_aead *aead, struct scatterlist *sg_in,
 			   struct scatterlist *sg_out, char *aad, char *iv,
-			   u64 rcd_sn, int len)
+			   u64 rcd_sn, int len, struct tls_prot_info *prot)
 {
 	struct scatter_walk out, in;
 	int rc;
@@ -149,7 +152,7 @@ static int tls_enc_records(struct aead_request *aead_req,
 
 	do {
 		rc = tls_enc_record(aead_req, aead, aad, iv,
-				    cpu_to_be64(rcd_sn), &in, &out, &len);
+				    cpu_to_be64(rcd_sn), &in, &out, &len, prot);
 		rcd_sn++;
 
 	} while (rc == 0 && len);
@@ -193,18 +196,30 @@ static void update_chksum(struct sk_buff *skb, int headln)
 
 static void complete_skb(struct sk_buff *nskb, struct sk_buff *skb, int headln)
 {
+	struct sock *sk = skb->sk;
+	int delta;
+
 	skb_copy_header(nskb, skb);
 
 	skb_put(nskb, skb->len);
 	memcpy(nskb->data, skb->data, headln);
-	update_chksum(nskb, headln);
 
 	nskb->destructor = skb->destructor;
-	nskb->sk = skb->sk;
+	nskb->sk = sk;
 	skb->destructor = NULL;
 	skb->sk = NULL;
-	refcount_add(nskb->truesize - skb->truesize,
-		     &nskb->sk->sk_wmem_alloc);
+
+	update_chksum(nskb, headln);
+
+	/* sock_efree means skb must gone through skb_orphan_partial() */
+	if (nskb->destructor == sock_efree)
+		return;
+
+	delta = nskb->truesize - skb->truesize;
+	if (likely(delta < 0))
+		WARN_ON_ONCE(refcount_sub_and_test(-delta, &sk->sk_wmem_alloc));
+	else if (delta)
+		refcount_add(delta, &sk->sk_wmem_alloc);
 }
 
 /* This function may be called after the user socket is already
@@ -219,7 +234,7 @@ static int fill_sg_in(struct scatterlist *sg_in,
 		      s32 *sync_size,
 		      int *resync_sgs)
 {
-	int tcp_payload_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	int tcp_payload_offset = skb_tcp_all_headers(skb);
 	int payload_len = skb->len - tcp_payload_offset;
 	u32 tcp_seq = ntohl(tcp_hdr(skb)->seq);
 	struct tls_record_info *record;
@@ -231,7 +246,6 @@ static int fill_sg_in(struct scatterlist *sg_in,
 	record = tls_get_record(ctx, tcp_seq, rcd_sn);
 	if (!record) {
 		spin_unlock_irqrestore(&ctx->lock, flags);
-		WARN(1, "Record not found for seq %u\n", tcp_seq);
 		return -EINVAL;
 	}
 
@@ -261,7 +275,7 @@ static int fill_sg_in(struct scatterlist *sg_in,
 
 		__skb_frag_ref(frag);
 		sg_set_page(sg_in + i, skb_frag_page(frag),
-			    skb_frag_size(frag), frag->page_offset);
+			    skb_frag_size(frag), skb_frag_off(frag));
 
 		remaining -= skb_frag_size(frag);
 
@@ -298,8 +312,8 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 				   struct sk_buff *skb,
 				   s32 sync_size, u64 rcd_sn)
 {
-	int tcp_payload_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
+	int tcp_payload_offset = skb_tcp_all_headers(skb);
 	int payload_len = skb->len - tcp_payload_offset;
 	void *buf, *iv, *aad, *dummy_buf;
 	struct aead_request *aead_req;
@@ -336,7 +350,8 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 		    payload_len, sync_size, dummy_buf);
 
 	if (tls_enc_records(aead_req, ctx->aead_send, sg_in, sg_out, aad, iv,
-			    rcd_sn, sync_size + payload_len) < 0)
+			    rcd_sn, sync_size + payload_len,
+			    &tls_ctx->prot_info) < 0)
 		goto free_nskb;
 
 	complete_skb(nskb, skb, tcp_payload_offset);
@@ -359,7 +374,7 @@ free_nskb:
 
 static struct sk_buff *tls_sw_fallback(struct sock *sk, struct sk_buff *skb)
 {
-	int tcp_payload_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	int tcp_payload_offset = skb_tcp_all_headers(skb);
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 	int payload_len = skb->len - tcp_payload_offset;
@@ -400,7 +415,10 @@ put_sg:
 		put_page(sg_page(&sg_in[--resync_sgs]));
 	kfree(sg_in);
 free_orig:
-	kfree_skb(skb);
+	if (nskb)
+		consume_skb(skb);
+	else
+		kfree_skb(skb);
 	return nskb;
 }
 
@@ -408,12 +426,26 @@ struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
 				      struct net_device *dev,
 				      struct sk_buff *skb)
 {
-	if (dev == tls_get_ctx(sk)->netdev)
+	if (dev == rcu_dereference_bh(tls_get_ctx(sk)->netdev) ||
+	    netif_is_bond_master(dev))
 		return skb;
 
 	return tls_sw_fallback(sk, skb);
 }
 EXPORT_SYMBOL_GPL(tls_validate_xmit_skb);
+
+struct sk_buff *tls_validate_xmit_skb_sw(struct sock *sk,
+					 struct net_device *dev,
+					 struct sk_buff *skb)
+{
+	return tls_sw_fallback(sk, skb);
+}
+
+struct sk_buff *tls_encrypt_skb(struct sk_buff *skb)
+{
+	return tls_sw_fallback(skb->sk, skb);
+}
+EXPORT_SYMBOL_GPL(tls_encrypt_skb);
 
 int tls_sw_fallback_init(struct sock *sk,
 			 struct tls_offload_context_tx *offload_ctx,

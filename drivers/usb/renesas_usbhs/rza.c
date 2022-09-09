@@ -3,7 +3,7 @@
  * Renesas USB driver RZ/A initialization and power control
  *
  * Copyright (C) 2018 Chris Brandt
- * Copyright (C) 2018 Renesas Electronics Corporation
+ * Copyright (C) 2018-2019 Renesas Electronics Corporation
  */
 
 #include <linux/delay.h>
@@ -23,6 +23,10 @@ static int usbhs_rza1_hardware_init(struct platform_device *pdev)
 	extal_clk = of_find_node_by_name(NULL, "extal");
 	of_property_read_u32(usb_x1_clk, "clock-frequency", &freq_usb);
 	of_property_read_u32(extal_clk, "clock-frequency", &freq_extal);
+
+	of_node_put(usb_x1_clk);
+	of_node_put(extal_clk);
+
 	if (freq_usb == 0) {
 		if (freq_extal == 12000000) {
 			/* Select 12MHz XTAL */
@@ -35,18 +39,18 @@ static int usbhs_rza1_hardware_init(struct platform_device *pdev)
 
 	/* Enable USB PLL (NOTE: ch0 controls both ch0 and ch1) */
 	usbhs_bset(priv, SYSCFG, UPLLE, UPLLE);
-	udelay(1000);
+	usleep_range(1000, 2000);
 	usbhs_bset(priv, SUSPMODE, SUSPM, SUSPM);
 
 	return 0;
 }
 
-static int usbhs_rza_get_id(struct platform_device *pdev)
-{
-	return USBHS_GADGET;
-}
-
-const struct renesas_usbhs_platform_callback usbhs_rza1_ops = {
-	.hardware_init = usbhs_rza1_hardware_init,
-	.get_id = usbhs_rza_get_id,
+const struct renesas_usbhs_platform_info usbhs_rza1_plat_info = {
+	.platform_callback = {
+		.hardware_init = usbhs_rza1_hardware_init,
+		.get_id = usbhs_get_id_as_gadget,
+	},
+	.driver_param = {
+		.has_new_pipe_configs = 1,
+	},
 };

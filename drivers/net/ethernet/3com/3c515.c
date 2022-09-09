@@ -23,11 +23,6 @@
 */
 
 #define DRV_NAME		"3c515"
-#define DRV_VERSION		"0.99t-ac"
-#define DRV_RELDATE		"28-Oct-2002"
-
-static char *version =
-DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " becker@scyld.com and others\n";
 
 #define CORKSCREW 1
 
@@ -84,7 +79,6 @@ static int max_interrupt_work = 20;
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("3Com 3c515 Corkscrew driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 /* "Knobs" for adjusting internal parameters. */
 /* Put out somewhat more debugging messages. (0 - no msg, 1 minimal msgs). */
@@ -371,7 +365,7 @@ static void corkscrew_timer(struct timer_list *t);
 static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
 static int corkscrew_rx(struct net_device *dev);
-static void corkscrew_timeout(struct net_device *dev);
+static void corkscrew_timeout(struct net_device *dev, unsigned int txqueue);
 static int boomerang_rx(struct net_device *dev);
 static irqreturn_t corkscrew_interrupt(int irq, void *dev_id);
 static int corkscrew_close(struct net_device *dev);
@@ -413,31 +407,24 @@ MODULE_PARM_DESC(max_interrupt_work, "3c515 maximum events handled per interrupt
 /* we will need locking (and refcounting) if we ever use it for more */
 static LIST_HEAD(root_corkscrew_dev);
 
-int init_module(void)
+static int corkscrew_init_module(void)
 {
 	int found = 0;
 	if (debug >= 0)
 		corkscrew_debug = debug;
-	if (corkscrew_debug)
-		pr_debug("%s", version);
 	while (corkscrew_scan(-1))
 		found++;
 	return found ? 0 : -ENODEV;
 }
+module_init(corkscrew_init_module);
 
 #else
 struct net_device *tc515_probe(int unit)
 {
 	struct net_device *dev = corkscrew_scan(unit);
-	static int printed;
 
 	if (!dev)
 		return ERR_PTR(-ENODEV);
-
-	if (corkscrew_debug > 0 && !printed) {
-		printed = 1;
-		pr_debug("%s", version);
-	}
 
 	return dev;
 }
@@ -580,6 +567,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 {
 	struct corkscrew_private *vp = netdev_priv(dev);
 	unsigned int eeprom[0x40], checksum = 0;	/* EEPROM contents */
+	__be16 addr[ETH_ALEN / 2];
 	int i;
 	int irq;
 
@@ -632,7 +620,6 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
 	for (i = 0; i < 0x18; i++) {
-		__be16 *phys_addr = (__be16 *) dev->dev_addr;
 		int timer;
 		outw(EEPROM_Read + i, ioaddr + Wn0EepromCmd);
 		/* Pause for at least 162 us. for the read to take place. */
@@ -644,8 +631,9 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 		eeprom[i] = inw(ioaddr + Wn0EepromData);
 		checksum ^= eeprom[i];
 		if (i < 3)
-			phys_addr[i] = htons(eeprom[i]);
+			addr[i] = htons(eeprom[i]);
 	}
+	eth_hw_addr_set(dev, (u8 *)addr);
 	checksum = (checksum ^ (checksum >> 8)) & 0xff;
 	if (checksum != 0x00)
 		pr_cont(" ***INVALID CHECKSUM %4.4x*** ", checksum);
@@ -961,7 +949,7 @@ static void corkscrew_timer(struct timer_list *t)
 #endif				/* AUTOMEDIA */
 }
 
-static void corkscrew_timeout(struct net_device *dev)
+static void corkscrew_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	int i;
 	struct corkscrew_private *vp = netdev_priv(dev);
@@ -1063,7 +1051,7 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 #ifdef VORTEX_BUS_MASTER
 	if (vp->bus_master) {
 		/* Set the bus-master controller to transfer the packet. */
-		outl((int) (skb->data), ioaddr + Wn7_MasterAddr);
+		outl(isa_virt_to_bus(skb->data), ioaddr + Wn7_MasterAddr);
 		outw((skb->len + 3) & ~3, ioaddr + Wn7_MasterLen);
 		vp->tx_skb = skb;
 		outw(StartDMADown, ioaddr + EL3_CMD);
@@ -1177,7 +1165,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 				if (inl(ioaddr + DownListPtr) == isa_virt_to_bus(&lp->tx_ring[entry]))
 					break;	/* It still hasn't been processed. */
 				if (lp->tx_skbuff[entry]) {
-					dev_kfree_skb_irq(lp->tx_skbuff[entry]);
+					dev_consume_skb_irq(lp->tx_skbuff[entry]);
 					lp->tx_skbuff[entry] = NULL;
 				}
 				dirty_tx++;
@@ -1192,7 +1180,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 #ifdef VORTEX_BUS_MASTER
 		if (status & DMADone) {
 			outw(0x1000, ioaddr + Wn7_MasterStatus);	/* Ack the event. */
-			dev_kfree_skb_irq(lp->tx_skb);	/* Release the transferred buffer */
+			dev_consume_skb_irq(lp->tx_skb);	/* Release the transferred buffer */
 			netif_wake_queue(dev);
 		}
 #endif
@@ -1521,7 +1509,7 @@ static void update_stats(int ioaddr, struct net_device *dev)
 static void set_rx_mode(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
-	short new_mode;
+	unsigned short new_mode;
 
 	if (dev->flags & IFF_PROMISC) {
 		if (corkscrew_debug > 3)
@@ -1540,7 +1528,6 @@ static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "ISA 0x%lx",
 		 dev->base_addr);
 }

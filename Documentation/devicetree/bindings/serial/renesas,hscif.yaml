@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/serial/renesas,hscif.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Renesas High Speed Serial Communication Interface with FIFO (HSCIF)
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+allOf:
+  - $ref: serial.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,hscif-r8a7778      # R-Car M1
+              - renesas,hscif-r8a7779      # R-Car H1
+          - const: renesas,rcar-gen1-hscif # R-Car Gen1
+          - const: renesas,hscif           # generic HSCIF compatible UART
+
+      - items:
+          - enum:
+              - renesas,hscif-r8a7742      # RZ/G1H
+              - renesas,hscif-r8a7743      # RZ/G1M
+              - renesas,hscif-r8a7744      # RZ/G1N
+              - renesas,hscif-r8a7745      # RZ/G1E
+              - renesas,hscif-r8a77470     # RZ/G1C
+              - renesas,hscif-r8a7790      # R-Car H2
+              - renesas,hscif-r8a7791      # R-Car M2-W
+              - renesas,hscif-r8a7792      # R-Car V2H
+              - renesas,hscif-r8a7793      # R-Car M2-N
+              - renesas,hscif-r8a7794      # R-Car E2
+          - const: renesas,rcar-gen2-hscif # R-Car Gen2 and RZ/G1
+          - const: renesas,hscif           # generic HSCIF compatible UART
+
+      - items:
+          - enum:
+              - renesas,hscif-r8a774a1     # RZ/G2M
+              - renesas,hscif-r8a774b1     # RZ/G2N
+              - renesas,hscif-r8a774c0     # RZ/G2E
+              - renesas,hscif-r8a774e1     # RZ/G2H
+              - renesas,hscif-r8a7795      # R-Car H3
+              - renesas,hscif-r8a7796      # R-Car M3-W
+              - renesas,hscif-r8a77961     # R-Car M3-W+
+              - renesas,hscif-r8a77965     # R-Car M3-N
+              - renesas,hscif-r8a77970     # R-Car V3M
+              - renesas,hscif-r8a77980     # R-Car V3H
+              - renesas,hscif-r8a77990     # R-Car E3
+              - renesas,hscif-r8a77995     # R-Car D3
+          - const: renesas,rcar-gen3-hscif # R-Car Gen3 and RZ/G2
+          - const: renesas,hscif           # generic HSCIF compatible UART
+
+      - items:
+          - enum:
+              - renesas,hscif-r8a779a0     # R-Car V3U
+              - renesas,hscif-r8a779f0     # R-Car S4-8
+              - renesas,hscif-r8a779g0     # R-Car V4H
+          - const: renesas,rcar-gen4-hscif # R-Car Gen4
+          - const: renesas,hscif           # generic HSCIF compatible UART
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      enum:
+        - fck # UART functional clock
+        - hsck # optional external clock input
+        - brg_int # optional internal clock source for BRG frequency divider
+        - scif_clk # optional external clock source for BRG frequency divider
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  dmas:
+    minItems: 2
+    maxItems: 4
+    description:
+      Must contain a list of pairs of references to DMA specifiers, one for
+      transmission, and one for reception.
+
+  dma-names:
+    minItems: 2
+    maxItems: 4
+    items:
+      enum:
+        - tx
+        - rx
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - power-domains
+
+unevaluatedProperties: false
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - renesas,rcar-gen2-hscif
+          - renesas,rcar-gen3-hscif
+          - renesas,rcar-gen4-hscif
+then:
+  required:
+    - resets
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7795-sysc.h>
+    aliases {
+            serial1 = &hscif1;
+    };
+
+    hscif1: serial@e6550000 {
+            compatible = "renesas,hscif-r8a7795", "renesas,rcar-gen3-hscif",
+                         "renesas,hscif";
+            reg = <0xe6550000 96>;
+            interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 519>, <&cpg CPG_CORE R8A7795_CLK_S3D1>,
+                     <&scif_clk>;
+            clock-names = "fck", "brg_int", "scif_clk";
+            dmas = <&dmac1 0x33>, <&dmac1 0x32>, <&dmac2 0x33>, <&dmac2 0x32>;
+            dma-names = "tx", "rx", "tx", "rx";
+            power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+            resets = <&cpg 519>;
+            uart-has-rtscts;
+    };

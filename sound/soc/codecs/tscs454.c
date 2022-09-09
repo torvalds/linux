@@ -22,7 +22,6 @@
 
 #include "tscs454.h"
 
-static const unsigned int PLL_48K_RATE = (48000 * 256);
 static const unsigned int PLL_44_1K_RATE = (44100 * 256);
 
 #define COEFF_SIZE 3
@@ -58,7 +57,7 @@ struct internal_rate {
 
 struct aif {
 	unsigned int id;
-	bool master;
+	bool provider;
 	struct pll *pll;
 };
 
@@ -178,7 +177,7 @@ static bool tscs454_volatile(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tscs454_writable(struct device *dev, unsigned int reg)
@@ -198,7 +197,7 @@ static bool tscs454_writable(struct device *dev, unsigned int reg)
 		return false;
 	default:
 		return true;
-	};
+	}
 }
 
 static bool tscs454_readable(struct device *dev, unsigned int reg)
@@ -218,7 +217,7 @@ static bool tscs454_readable(struct device *dev, unsigned int reg)
 		return false;
 	default:
 		return true;
-	};
+	}
 }
 
 static bool tscs454_precious(struct device *dev, unsigned int reg)
@@ -247,7 +246,7 @@ static bool tscs454_precious(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_range_cfg tscs454_regmap_range_cfg = {
@@ -354,12 +353,7 @@ static int write_coeff_ram(struct snd_soc_component *component, u8 *coeff_ram,
 	for (cnt = 0; cnt < coeff_cnt; cnt++, coeff_addr++) {
 
 		for (trys = 0; trys < DACCRSTAT_MAX_TRYS; trys++) {
-			ret = snd_soc_component_read(component, r_stat, &val);
-			if (ret < 0) {
-				dev_err(component->dev,
-					"Failed to read stat (%d)\n", ret);
-				return ret;
-			}
+			val = snd_soc_component_read(component, r_stat);
 			if (!val)
 				break;
 		}
@@ -445,12 +439,7 @@ static int coeff_ram_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&tscs454->pll1.lock);
 	mutex_lock(&tscs454->pll2.lock);
 
-	ret = snd_soc_component_read(component, R_PLLSTAT, &val);
-	if (ret < 0) {
-		dev_err(component->dev, "Failed to read PLL status (%d)\n",
-				ret);
-		goto exit;
-	}
+	val = snd_soc_component_read(component, R_PLLSTAT);
 	if (val) { /* PLLs locked */
 		ret = write_coeff_ram(component, coeff_ram,
 			r_stat, r_addr, r_wr,
@@ -738,7 +727,12 @@ static int pll_power_event(struct snd_soc_dapm_widget *w,
 	if (enable)
 		val = pll1 ? FV_PLL1CLKEN_ENABLE : FV_PLL2CLKEN_ENABLE;
 	else
-		val = pll1 ? FV_PLL1CLKEN_DISABLE : FV_PLL2CLKEN_DISABLE;
+		/*
+		 * FV_PLL1CLKEN_DISABLE and FV_PLL2CLKEN_DISABLE are
+		 * identical zero vzalues, there is no need to test
+		 * the PLL index
+		 */
+		val = FV_PLL1CLKEN_DISABLE;
 
 	ret = snd_soc_component_update_bits(component, R_PLLCTL, msk, val);
 	if (ret < 0) {
@@ -762,8 +756,8 @@ static int pll_power_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static inline int aif_set_master(struct snd_soc_component *component,
-		unsigned int aif_id, bool master)
+static inline int aif_set_provider(struct snd_soc_component *component,
+		unsigned int aif_id, bool provider)
 {
 	unsigned int reg;
 	unsigned int mask;
@@ -786,12 +780,12 @@ static inline int aif_set_master(struct snd_soc_component *component,
 		return ret;
 	}
 	mask = FM_I2SPCTL_PORTMS;
-	val = master ? FV_PORTMS_MASTER : FV_PORTMS_SLAVE;
+	val = provider ? FV_PORTMS_MASTER : FV_PORTMS_SLAVE;
 
 	ret = snd_soc_component_update_bits(component, reg, mask, val);
 	if (ret < 0) {
 		dev_err(component->dev, "Failed to set DAI %d to %s (%d)\n",
-			aif_id, master ? "master" : "slave", ret);
+			aif_id, provider ? "provider" : "consumer", ret);
 		return ret;
 	}
 
@@ -803,7 +797,7 @@ int aif_prepare(struct snd_soc_component *component, struct aif *aif)
 {
 	int ret;
 
-	ret = aif_set_master(component, aif->id, aif->master);
+	ret = aif_set_provider(component, aif->id, aif->provider);
 	if (ret < 0)
 		return ret;
 
@@ -826,7 +820,7 @@ static inline int aif_free(struct snd_soc_component *component,
 
 	if (!aif_active(&tscs454->aifs_status, aif->id)) {
 		/* Do config in slave mode */
-		aif_set_master(component, aif->id, false);
+		aif_set_provider(component, aif->id, false);
 		dev_dbg(component->dev, "Freeing pll %d from aif %d\n",
 				aif->pll->id, aif->id);
 		free_pll(aif->pll);
@@ -2643,13 +2637,10 @@ static int tscs454_set_sysclk(struct snd_soc_dai *dai,
 	struct tscs454 *tscs454 = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 	int bclk_dai;
-	int ret;
 
 	dev_dbg(component->dev, "%s(): freq = %u\n", __func__, freq);
 
-	ret = snd_soc_component_read(component, R_PLLCTL, &val);
-	if (ret < 0)
-		return ret;
+	val = snd_soc_component_read(component, R_PLLCTL);
 
 	bclk_dai = (val & FM_PLLCTL_BCLKSEL) >> FB_PLLCTL_BCLKSEL;
 	if (bclk_dai != dai->id)
@@ -2717,17 +2708,17 @@ static int tscs454_set_bclk_ratio(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static inline int set_aif_master_from_fmt(struct snd_soc_component *component,
+static inline int set_aif_provider_from_fmt(struct snd_soc_component *component,
 		struct aif *aif, unsigned int fmt)
 {
 	int ret;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		aif->master = true;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		aif->provider = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		aif->master = false;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		aif->provider = false;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2897,7 +2888,7 @@ static int tscs454_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct aif *aif = &tscs454->aifs[dai->id];
 	int ret;
 
-	ret = set_aif_master_from_fmt(component, aif, fmt);
+	ret = set_aif_provider_from_fmt(component, aif, fmt);
 	if (ret < 0)
 		return ret;
 
@@ -3129,18 +3120,17 @@ static int set_aif_sample_format(struct snd_soc_component *component,
 	unsigned int width;
 	int ret;
 
-	switch (format) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (snd_pcm_format_width(format)) {
+	case 16:
 		width = FV_WL_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		width = FV_WL_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_3LE:
+	case 24:
 		width = FV_WL_24;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		width = FV_WL_32;
 		break;
 	default:
@@ -3205,10 +3195,7 @@ static int tscs454_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!aifs_active(&tscs454->aifs_status)) { /* First active aif */
-		ret = snd_soc_component_read(component, R_ISRC, &val);
-		if (ret < 0)
-			goto exit;
-
+		val = snd_soc_component_read(component, R_ISRC);
 		if ((val & FM_ISRC_IBR) == FV_IBR_48)
 			tscs454->internal_rate.pll = &tscs454->pll1;
 		else
@@ -3338,6 +3325,7 @@ static const struct snd_soc_component_driver soc_component_dev_tscs454 = {
 	.num_dapm_routes = ARRAY_SIZE(tscs454_intercon),
 	.controls =	tscs454_snd_controls,
 	.num_controls = ARRAY_SIZE(tscs454_snd_controls),
+	.endianness = 1,
 };
 
 #define TSCS454_RATES SNDRV_PCM_RATE_8000_96000
@@ -3363,9 +3351,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai1_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "tscs454-dai2",
@@ -3383,9 +3371,9 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai23_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 	{
 		.name = "tscs454-dai3",
@@ -3403,17 +3391,16 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 			.rates = TSCS454_RATES,
 			.formats = TSCS454_FORMATS,},
 		.ops = &tscs454_dai23_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 		.symmetric_channels = 1,
-		.symmetric_samplebits = 1,
+		.symmetric_sample_bits = 1,
 	},
 };
 
 static char const * const src_names[] = {
 	"xtal", "mclk1", "mclk2", "bclk"};
 
-static int tscs454_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int tscs454_i2c_probe(struct i2c_client *i2c)
 {
 	struct tscs454 *tscs454;
 	int src;
@@ -3486,7 +3473,7 @@ static struct i2c_driver tscs454_i2c_driver = {
 		.name = "tscs454",
 		.of_match_table = tscs454_of_match,
 	},
-	.probe =    tscs454_i2c_probe,
+	.probe_new = tscs454_i2c_probe,
 	.id_table = tscs454_i2c_id,
 };
 

@@ -231,13 +231,33 @@ static int intel_cht_wc_pmic_update_power(struct regmap *regmap, int reg,
 	return regmap_update_bits(regmap, reg, bitmask, on ? 1 : 0);
 }
 
+static int intel_cht_wc_exec_mipi_pmic_seq_element(struct regmap *regmap,
+						   u16 i2c_client_address,
+						   u32 reg_address,
+						   u32 value, u32 mask)
+{
+	u32 address;
+
+	if (i2c_client_address > 0xff || reg_address > 0xff) {
+		pr_warn("%s warning addresses too big client 0x%x reg 0x%x\n",
+			__func__, i2c_client_address, reg_address);
+		return -ERANGE;
+	}
+
+	address = (i2c_client_address << 8) | reg_address;
+
+	return regmap_update_bits(regmap, address, mask, value);
+}
+
 /*
  * The thermal table and ops are empty, we do not support the Thermal opregion
  * (DPTF) due to lacking documentation.
  */
-static struct intel_pmic_opregion_data intel_cht_wc_pmic_opregion_data = {
+static const struct intel_pmic_opregion_data intel_cht_wc_pmic_opregion_data = {
 	.get_power		= intel_cht_wc_pmic_get_power,
 	.update_power		= intel_cht_wc_pmic_update_power,
+	.exec_mipi_pmic_seq_element = intel_cht_wc_exec_mipi_pmic_seq_element,
+	.lpat_raw_to_temp	= acpi_lpat_raw_to_temp,
 	.power_table		= power_table,
 	.power_table_count	= ARRAY_SIZE(power_table),
 };

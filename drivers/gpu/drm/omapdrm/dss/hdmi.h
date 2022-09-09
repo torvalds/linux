@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * HDMI driver definition for TI OMAP4 Processor.
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef _HDMI_H
@@ -25,6 +14,7 @@
 #include <linux/hdmi.h>
 #include <sound/omap-hdmi-audio.h>
 #include <media/cec.h>
+#include <drm/drm_bridge.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -375,6 +365,7 @@ struct omap_hdmi {
 	bool core_enabled;
 
 	struct omap_dss_device output;
+	struct drm_bridge bridge;
 
 	struct platform_device *audio_pdev;
 	void (*audio_abort_cb)(struct device *dev);
@@ -389,6 +380,6 @@ struct omap_hdmi {
 	bool display_enabled;
 };
 
-#define dssdev_to_hdmi(dssdev) container_of(dssdev, struct omap_hdmi, output)
+#define drm_bridge_to_hdmi(b) container_of(b, struct omap_hdmi, bridge)
 
 #endif

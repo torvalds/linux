@@ -13,15 +13,19 @@
 
 #include <linux/spinlock_types.h>
 #include <linux/log2.h>
+#include <linux/hashtable.h>
 
 #include "context.h"
 
-struct sidtab_entry_leaf {
+struct sidtab_entry {
+	u32 sid;
+	u32 hash;
 	struct context context;
+#if CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0
+	struct sidtab_str_cache __rcu *cache;
+#endif
+	struct hlist_node list;
 };
-
-struct sidtab_node_inner;
-struct sidtab_node_leaf;
 
 union sidtab_entry_inner {
 	struct sidtab_node_inner *ptr_inner;
@@ -38,17 +42,17 @@ union sidtab_entry_inner {
 	(SIDTAB_NODE_ALLOC_SHIFT - size_to_shift(sizeof(union sidtab_entry_inner)))
 #define SIDTAB_INNER_ENTRIES ((size_t)1 << SIDTAB_INNER_SHIFT)
 #define SIDTAB_LEAF_ENTRIES \
-	(SIDTAB_NODE_ALLOC_SIZE / sizeof(struct sidtab_entry_leaf))
+	(SIDTAB_NODE_ALLOC_SIZE / sizeof(struct sidtab_entry))
 
-#define SIDTAB_MAX_BITS 31 /* limited to INT_MAX due to atomic_t range */
-#define SIDTAB_MAX (((u32)1 << SIDTAB_MAX_BITS) - 1)
+#define SIDTAB_MAX_BITS 32
+#define SIDTAB_MAX U32_MAX
 /* ensure enough tree levels for SIDTAB_MAX entries */
 #define SIDTAB_MAX_LEVEL \
 	DIV_ROUND_UP(SIDTAB_MAX_BITS - size_to_shift(SIDTAB_LEAF_ENTRIES), \
 		     SIDTAB_INNER_SHIFT)
 
 struct sidtab_node_leaf {
-	struct sidtab_entry_leaf entries[SIDTAB_LEAF_ENTRIES];
+	struct sidtab_entry entries[SIDTAB_LEAF_ENTRIES];
 };
 
 struct sidtab_node_inner {
@@ -57,7 +61,7 @@ struct sidtab_node_inner {
 
 struct sidtab_isid_entry {
 	int set;
-	struct context context;
+	struct sidtab_entry entry;
 };
 
 struct sidtab_convert_params {
@@ -66,31 +70,89 @@ struct sidtab_convert_params {
 	struct sidtab *target;
 };
 
-#define SIDTAB_RCACHE_SIZE 3
+#define SIDTAB_HASH_BITS CONFIG_SECURITY_SELINUX_SIDTAB_HASH_BITS
+#define SIDTAB_HASH_BUCKETS (1 << SIDTAB_HASH_BITS)
 
 struct sidtab {
+	/*
+	 * lock-free read access only for as many items as a prior read of
+	 * 'count'
+	 */
 	union sidtab_entry_inner roots[SIDTAB_MAX_LEVEL + 1];
-	atomic_t count;
+	/*
+	 * access atomically via {READ|WRITE}_ONCE(); only increment under
+	 * spinlock
+	 */
+	u32 count;
+	/* access only under spinlock */
 	struct sidtab_convert_params *convert;
+	bool frozen;
 	spinlock_t lock;
 
-	/* reverse lookup cache */
-	atomic_t rcache[SIDTAB_RCACHE_SIZE];
+#if CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0
+	/* SID -> context string cache */
+	u32 cache_free_slots;
+	struct list_head cache_lru_list;
+	spinlock_t cache_lock;
+#endif
 
 	/* index == SID - 1 (no entry for SECSID_NULL) */
 	struct sidtab_isid_entry isids[SECINITSID_NUM];
+
+	/* Hash table for fast reverse context-to-sid lookups. */
+	DECLARE_HASHTABLE(context_to_sid, SIDTAB_HASH_BITS);
 };
 
 int sidtab_init(struct sidtab *s);
 int sidtab_set_initial(struct sidtab *s, u32 sid, struct context *context);
-struct context *sidtab_search(struct sidtab *s, u32 sid);
-struct context *sidtab_search_force(struct sidtab *s, u32 sid);
+struct sidtab_entry *sidtab_search_entry(struct sidtab *s, u32 sid);
+struct sidtab_entry *sidtab_search_entry_force(struct sidtab *s, u32 sid);
+
+static inline struct context *sidtab_search(struct sidtab *s, u32 sid)
+{
+	struct sidtab_entry *entry = sidtab_search_entry(s, sid);
+
+	return entry ? &entry->context : NULL;
+}
+
+static inline struct context *sidtab_search_force(struct sidtab *s, u32 sid)
+{
+	struct sidtab_entry *entry = sidtab_search_entry_force(s, sid);
+
+	return entry ? &entry->context : NULL;
+}
 
 int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params);
+
+void sidtab_cancel_convert(struct sidtab *s);
+
+void sidtab_freeze_begin(struct sidtab *s, unsigned long *flags) __acquires(&s->lock);
+void sidtab_freeze_end(struct sidtab *s, unsigned long *flags) __releases(&s->lock);
 
 int sidtab_context_to_sid(struct sidtab *s, struct context *context, u32 *sid);
 
 void sidtab_destroy(struct sidtab *s);
+
+int sidtab_hash_stats(struct sidtab *sidtab, char *page);
+
+#if CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0
+void sidtab_sid2str_put(struct sidtab *s, struct sidtab_entry *entry,
+			const char *str, u32 str_len);
+int sidtab_sid2str_get(struct sidtab *s, struct sidtab_entry *entry,
+		       char **out, u32 *out_len);
+#else
+static inline void sidtab_sid2str_put(struct sidtab *s,
+				      struct sidtab_entry *entry,
+				      const char *str, u32 str_len)
+{
+}
+static inline int sidtab_sid2str_get(struct sidtab *s,
+				     struct sidtab_entry *entry,
+				     char **out, u32 *out_len)
+{
+	return -ENOENT;
+}
+#endif /* CONFIG_SECURITY_SELINUX_SID2STR_CACHE_SIZE > 0 */
 
 #endif	/* _SS_SIDTAB_H_ */
 

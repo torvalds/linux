@@ -241,7 +241,7 @@ static int hwicap_command_desync(struct hwicap_drvdata *drvdata)
 	buffer[index++] = XHI_NOOP_PACKET;
 
 	/*
-	 * Write the data to the FIFO and intiate the transfer of data present
+	 * Write the data to the FIFO and initiate the transfer of data present
 	 * in the FIFO to the ICAP device.
 	 */
 	return drvdata->config->set_configuration(drvdata,
@@ -297,7 +297,7 @@ static int hwicap_get_configuration_register(struct hwicap_drvdata *drvdata,
 	buffer[index++] = XHI_NOOP_PACKET;
 
 	/*
-	 * Write the data to the FIFO and intiate the transfer of data present
+	 * Write the data to the FIFO and initiate the transfer of data present
 	 * in the FIFO to the ICAP device.
 	 */
 	status = drvdata->config->set_configuration(drvdata,
@@ -384,7 +384,7 @@ hwicap_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		       drvdata->read_buffer + bytes_to_read,
 		       4 - bytes_to_read);
 	} else {
-		/* Get new data from the ICAP, and return was was requested. */
+		/* Get new data from the ICAP, and return what was requested. */
 		kbuf = (u32 *) get_zeroed_page(GFP_KERNEL);
 		if (!kbuf) {
 			status = -ENOMEM;

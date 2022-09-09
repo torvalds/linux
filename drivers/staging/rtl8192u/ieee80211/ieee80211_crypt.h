@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Original code based on Host AP (software wireless LAN access point) driver
  * for Intersil Prism2/2.5/3.
@@ -10,11 +11,6 @@
  * <jketreno@linux.intel.com>
  *
  * Copyright (c) 2004, Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 /*

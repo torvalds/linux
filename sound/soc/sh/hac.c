@@ -270,7 +270,6 @@ static const struct snd_soc_dai_ops hac_dai_ops = {
 static struct snd_soc_dai_driver sh4_hac_dai[] = {
 {
 	.name			= "hac-dai.0",
-	.bus_control		= true,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -308,7 +307,8 @@ static struct snd_soc_dai_driver sh4_hac_dai[] = {
 };
 
 static const struct snd_soc_component_driver sh4_hac_component = {
-	.name		= "sh4-hac",
+	.name			= "sh4-hac",
+	.legacy_dai_naming	= 1,
 };
 
 static int hac_soc_platform_probe(struct platform_device *pdev)

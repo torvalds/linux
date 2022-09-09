@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
     Functions to query card hardware
     Copyright (C) 2003-2004  Kevin Thayer <nufan_wfk at yahoo.com>
     Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef IVTV_CARDS_H
@@ -90,27 +78,53 @@
 #define IVTV_PCI_ID_SONY		0x104d
 
 /* hardware flags, no gaps allowed */
-#define IVTV_HW_CX25840			(1 << 0)
-#define IVTV_HW_SAA7115			(1 << 1)
-#define IVTV_HW_SAA7127			(1 << 2)
-#define IVTV_HW_MSP34XX			(1 << 3)
-#define IVTV_HW_TUNER			(1 << 4)
-#define IVTV_HW_WM8775			(1 << 5)
-#define IVTV_HW_CS53L32A		(1 << 6)
-#define IVTV_HW_TVEEPROM		(1 << 7)
-#define IVTV_HW_SAA7114			(1 << 8)
-#define IVTV_HW_UPD64031A		(1 << 9)
-#define IVTV_HW_UPD6408X		(1 << 10)
-#define IVTV_HW_SAA717X			(1 << 11)
-#define IVTV_HW_WM8739			(1 << 12)
-#define IVTV_HW_VP27SMPX		(1 << 13)
-#define IVTV_HW_M52790			(1 << 14)
-#define IVTV_HW_GPIO			(1 << 15)
-#define IVTV_HW_I2C_IR_RX_AVER		(1 << 16)
-#define IVTV_HW_I2C_IR_RX_HAUP_EXT	(1 << 17) /* External before internal */
-#define IVTV_HW_I2C_IR_RX_HAUP_INT	(1 << 18)
-#define IVTV_HW_Z8F0811_IR_HAUP		(1 << 19)
-#define IVTV_HW_I2C_IR_RX_ADAPTEC	(1 << 20)
+enum ivtv_hw_bits {
+	IVTV_HW_BIT_CX25840,
+	IVTV_HW_BIT_SAA7115,
+	IVTV_HW_BIT_SAA7127,
+	IVTV_HW_BIT_MSP34XX,
+	IVTV_HW_BIT_TUNER,
+	IVTV_HW_BIT_WM8775,
+	IVTV_HW_BIT_CS53L32A,
+	IVTV_HW_BIT_TVEEPROM,
+	IVTV_HW_BIT_SAA7114,
+	IVTV_HW_BIT_UPD64031A,
+	IVTV_HW_BIT_UPD6408X,
+	IVTV_HW_BIT_SAA717X,
+	IVTV_HW_BIT_WM8739,
+	IVTV_HW_BIT_VP27SMPX,
+	IVTV_HW_BIT_M52790,
+	IVTV_HW_BIT_GPIO,
+	IVTV_HW_BIT_I2C_IR_RX_AVER,
+	IVTV_HW_BIT_I2C_IR_RX_HAUP_EXT,		 /* External before internal */
+	IVTV_HW_BIT_I2C_IR_RX_HAUP_INT,
+	IVTV_HW_BIT_Z8F0811_IR_HAUP,
+	IVTV_HW_BIT_I2C_IR_RX_ADAPTEC,
+
+	IVTV_HW_MAX_BITS	/* Should be the last one */
+};
+
+#define IVTV_HW_CX25840			BIT(IVTV_HW_BIT_CX25840)
+#define IVTV_HW_SAA7115			BIT(IVTV_HW_BIT_SAA7115)
+#define IVTV_HW_SAA7127			BIT(IVTV_HW_BIT_SAA7127)
+#define IVTV_HW_MSP34XX			BIT(IVTV_HW_BIT_MSP34XX)
+#define IVTV_HW_TUNER			BIT(IVTV_HW_BIT_TUNER)
+#define IVTV_HW_WM8775			BIT(IVTV_HW_BIT_WM8775)
+#define IVTV_HW_CS53L32A		BIT(IVTV_HW_BIT_CS53L32A)
+#define IVTV_HW_TVEEPROM		BIT(IVTV_HW_BIT_TVEEPROM)
+#define IVTV_HW_SAA7114			BIT(IVTV_HW_BIT_SAA7114)
+#define IVTV_HW_UPD64031A		BIT(IVTV_HW_BIT_UPD64031A)
+#define IVTV_HW_UPD6408X		BIT(IVTV_HW_BIT_UPD6408X)
+#define IVTV_HW_SAA717X			BIT(IVTV_HW_BIT_SAA717X)
+#define IVTV_HW_WM8739			BIT(IVTV_HW_BIT_WM8739)
+#define IVTV_HW_VP27SMPX		BIT(IVTV_HW_BIT_VP27SMPX)
+#define IVTV_HW_M52790			BIT(IVTV_HW_BIT_M52790)
+#define IVTV_HW_GPIO			BIT(IVTV_HW_BIT_GPIO)
+#define IVTV_HW_I2C_IR_RX_AVER		BIT(IVTV_HW_BIT_I2C_IR_RX_AVER)
+#define IVTV_HW_I2C_IR_RX_HAUP_EXT	BIT(IVTV_HW_BIT_I2C_IR_RX_HAUP_EXT)
+#define IVTV_HW_I2C_IR_RX_HAUP_INT	BIT(IVTV_HW_BIT_I2C_IR_RX_HAUP_INT)
+#define IVTV_HW_Z8F0811_IR_HAUP		BIT(IVTV_HW_BIT_Z8F0811_IR_HAUP)
+#define IVTV_HW_I2C_IR_RX_ADAPTEC	BIT(IVTV_HW_BIT_I2C_IR_RX_ADAPTEC)
 
 #define IVTV_HW_SAA711X   (IVTV_HW_SAA7115 | IVTV_HW_SAA7114)
 
@@ -168,8 +182,7 @@
 #define IVTV_CAP_ENCODER (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER | \
 			  V4L2_CAP_AUDIO | V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE | \
 			  V4L2_CAP_SLICED_VBI_CAPTURE)
-#define IVTV_CAP_DECODER (V4L2_CAP_VIDEO_OUTPUT | \
-			  V4L2_CAP_SLICED_VBI_OUTPUT | V4L2_CAP_VIDEO_OUTPUT_OVERLAY)
+#define IVTV_CAP_DECODER (V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_SLICED_VBI_OUTPUT)
 
 struct ivtv_card_video_input {
 	u8  video_type;		/* video input type */

@@ -122,7 +122,35 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 		nvkm_debug(subdev, "%d comptags\n", tags);
 	}
 
-	return nvkm_mm_init(&fb->tags, 0, 0, tags, 1);
+	return nvkm_mm_init(&fb->tags.mm, 0, 0, tags, 1);
+}
+
+static int
+nvkm_fb_init_scrub_vpr(struct nvkm_fb *fb)
+{
+	struct nvkm_subdev *subdev = &fb->subdev;
+	int ret;
+
+	nvkm_debug(subdev, "VPR locked, running scrubber binary\n");
+
+	if (!fb->vpr_scrubber.size) {
+		nvkm_warn(subdev, "VPR locked, but no scrubber binary!\n");
+		return 0;
+	}
+
+	ret = fb->func->vpr.scrub(fb);
+	if (ret) {
+		nvkm_error(subdev, "VPR scrubber binary failed\n");
+		return ret;
+	}
+
+	if (fb->func->vpr.scrub_required(fb)) {
+		nvkm_error(subdev, "VPR still locked after scrub!\n");
+		return -EIO;
+	}
+
+	nvkm_debug(subdev, "VPR scrubber binary successful\n");
+	return 0;
 }
 
 static int
@@ -154,6 +182,14 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 
 	if (fb->func->init_unkn)
 		fb->func->init_unkn(fb);
+
+	if (fb->func->vpr.scrub_required &&
+	    fb->func->vpr.scrub_required(fb)) {
+		ret = nvkm_fb_init_scrub_vpr(fb);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -169,8 +205,12 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 	for (i = 0; i < fb->tile.regions; i++)
 		fb->func->tile.fini(fb, i, &fb->tile.region[i]);
 
-	nvkm_mm_fini(&fb->tags);
+	nvkm_mm_fini(&fb->tags.mm);
+	mutex_destroy(&fb->tags.mutex);
+
 	nvkm_ram_del(&fb->ram);
+
+	nvkm_blob_dtor(&fb->vpr_scrubber);
 
 	if (fb->func->dtor)
 		return fb->func->dtor(fb);
@@ -187,21 +227,21 @@ nvkm_fb = {
 
 void
 nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_fb *fb)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_fb *fb)
 {
-	nvkm_subdev_ctor(&nvkm_fb, device, index, &fb->subdev);
+	nvkm_subdev_ctor(&nvkm_fb, device, type, inst, &fb->subdev);
 	fb->func = func;
 	fb->tile.regions = fb->func->tile.regions;
-	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage",
-				fb->func->default_bigpage);
+	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage", fb->func->default_bigpage);
+	mutex_init(&fb->tags.mutex);
 }
 
 int
 nvkm_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
-	     int index, struct nvkm_fb **pfb)
+	     enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
 	if (!(*pfb = kzalloc(sizeof(**pfb), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_fb_ctor(func, device, index, *pfb);
+	nvkm_fb_ctor(func, device, type, inst, *pfb);
 	return 0;
 }

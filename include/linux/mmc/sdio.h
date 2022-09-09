@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  include/linux/mmc/sdio.h
  *
  *  Copyright 2006-2007 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #ifndef LINUX_MMC_SDIO_H
@@ -86,7 +82,7 @@
 #define  SDIO_SD_REV_1_01	0	/* SD Physical Spec Version 1.01 */
 #define  SDIO_SD_REV_1_10	1	/* SD Physical Spec Version 1.10 */
 #define  SDIO_SD_REV_2_00	2	/* SD Physical Spec Version 2.00 */
-#define  SDIO_SD_REV_3_00	3	/* SD Physical Spev Version 3.00 */
+#define  SDIO_SD_REV_3_00	3	/* SD Physical Spec Version 3.00 */
 
 #define SDIO_CCCR_IOEx		0x02
 #define SDIO_CCCR_IORx		0x03
@@ -163,6 +159,11 @@
 #define  SDIO_DTSx_SET_TYPE_A	(1 << SDIO_DRIVE_DTSx_SHIFT)
 #define  SDIO_DTSx_SET_TYPE_C	(2 << SDIO_DRIVE_DTSx_SHIFT)
 #define  SDIO_DTSx_SET_TYPE_D	(3 << SDIO_DRIVE_DTSx_SHIFT)
+
+#define SDIO_CCCR_INTERRUPT_EXT	0x16
+#define SDIO_INTERRUPT_EXT_SAI	(1 << 0)
+#define SDIO_INTERRUPT_EXT_EAI	(1 << 1)
+
 /*
  * Function Basic Registers (FBR)
  */

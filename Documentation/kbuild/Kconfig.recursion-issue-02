@@ -6,7 +6,7 @@
 # make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
 #
 # The recursive limitations with Kconfig has some non intuitive implications on
-# kconfig sematics which are documented here. One known practical implication
+# kconfig semantics which are documented here. One known practical implication
 # of the recursive limitation is that drivers cannot negate features from other
 # drivers if they share a common core requirement and use disjoint semantics to
 # annotate those requirements, ie, some drivers use "depends on" while others
@@ -42,7 +42,7 @@
 # "select FW_LOADER" [0], in the end the simple alternative solution to this
 # problem consisted on matching semantics with newly introduced features.
 #
-# [0] http://lkml.kernel.org/r/1432241149-8762-1-git-send-email-mcgrof@do-not-panic.com
+# [0] https://lore.kernel.org/r/1432241149-8762-1-git-send-email-mcgrof@do-not-panic.com
 
 mainmenu "Simple example to demo cumulative kconfig recursive dependency implication"
 

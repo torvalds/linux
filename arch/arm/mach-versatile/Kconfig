@@ -2,13 +2,13 @@
 config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
 	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
 	select ARM_AMBA
 	select ARM_TIMER_SP804
 	select ARM_VIC
 	select CLKSRC_VERSATILE
-	select COMMON_CLK_VERSATILE
 	select CPU_ARM926T
-	select ICST
+	select CLK_ICST
 	select MFD_SYSCON
 	select PLAT_VERSATILE
 	select POWER_RESET
@@ -17,3 +17,311 @@ config ARCH_VERSATILE
 	help
 	  This enables support for ARM Ltd Versatile board.
 
+menuconfig ARCH_INTEGRATOR
+	bool "ARM Ltd. Integrator family"
+	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V6
+	depends on CPU_LITTLE_ENDIAN || ARCH_MULTI_V6
+	select ARM_AMBA
+	select CMA
+	select DMA_CMA
+	select HAVE_TCM
+	select CLK_ICST
+	select MFD_SYSCON
+	select PLAT_VERSATILE
+	select POWER_RESET
+	select POWER_RESET_VERSATILE
+	select POWER_SUPPLY
+	select SOC_INTEGRATOR_CM
+	select VERSATILE_FPGA_IRQ
+	help
+	  Support for ARM's Integrator platform.
+
+if ARCH_INTEGRATOR
+
+config ARCH_INTEGRATOR_AP
+	bool "Support Integrator/AP and Integrator/PP2 platforms"
+	select INTEGRATOR_AP_TIMER
+	select SERIAL_AMBA_PL010 if TTY
+	select SERIAL_AMBA_PL010_CONSOLE if TTY
+	select SOC_BUS
+	help
+	  Include support for the ARM(R) Integrator/AP and
+	  Integrator/PP2 platforms.
+
+config INTEGRATOR_IMPD1
+	bool "Include support for Integrator/IM-PD1"
+	depends on ARCH_INTEGRATOR_AP
+	select ARM_VIC
+	select GPIO_PL061
+	select GPIOLIB
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  The IM-PD1 is an add-on logic module for the Integrator which
+	  allows ARM(R) Ltd PrimeCells to be developed and evaluated.
+	  The IM-PD1 can be found on the Integrator/PP2 platform.
+
+config INTEGRATOR_CM720T
+	bool "Integrator/CM720T core module"
+	depends on ARCH_INTEGRATOR_AP
+	depends on ARCH_MULTI_V4T
+	select CPU_ARM720T
+
+config INTEGRATOR_CM920T
+	bool "Integrator/CM920T core module"
+	depends on ARCH_INTEGRATOR_AP
+	depends on ARCH_MULTI_V4T
+	select CPU_ARM920T
+
+config INTEGRATOR_CM922T_XA10
+	bool "Integrator/CM922T-XA10 core module"
+	depends on ARCH_MULTI_V4T
+	depends on ARCH_INTEGRATOR_AP
+	select CPU_ARM922T
+
+config INTEGRATOR_CM926EJS
+	bool "Integrator/CM926EJ-S core module"
+	depends on ARCH_INTEGRATOR_AP
+	depends on ARCH_MULTI_V5
+	select CPU_ARM926T
+
+config INTEGRATOR_CM10200E_REV0
+	bool "Integrator/CM10200E rev.0 core module"
+	depends on ARCH_INTEGRATOR_AP && n
+	depends on ARCH_MULTI_V5
+	select CPU_ARM1020
+
+config INTEGRATOR_CM10200E
+	bool "Integrator/CM10200E core module"
+	depends on ARCH_INTEGRATOR_AP && n
+	depends on ARCH_MULTI_V5
+	select CPU_ARM1020E
+
+config INTEGRATOR_CM10220E
+	bool "Integrator/CM10220E core module"
+	depends on ARCH_INTEGRATOR_AP
+	depends on ARCH_MULTI_V5
+	select CPU_ARM1022
+
+config INTEGRATOR_CM1026EJS
+	bool "Integrator/CM1026EJ-S core module"
+	depends on ARCH_INTEGRATOR_AP
+	depends on ARCH_MULTI_V5
+	select CPU_ARM1026
+
+config INTEGRATOR_CM1136JFS
+	bool "Integrator/CM1136JF-S core module"
+	depends on ARCH_INTEGRATOR_AP
+	depends on ARCH_MULTI_V6
+	select CPU_V6
+
+config ARCH_INTEGRATOR_CP
+	bool "Support Integrator/CP platform"
+	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6
+	select ARM_TIMER_SP804
+	select SERIAL_AMBA_PL011 if TTY
+	select SERIAL_AMBA_PL011_CONSOLE if TTY
+	select SOC_BUS
+	help
+	  Include support for the ARM(R) Integrator CP platform.
+
+config INTEGRATOR_CT926
+	bool "Integrator/CT926 (ARM926EJ-S) core tile"
+	depends on ARCH_INTEGRATOR_CP
+	depends on ARCH_MULTI_V5
+	select CPU_ARM926T
+
+config INTEGRATOR_CTB36
+	bool "Integrator/CTB36 (ARM1136JF-S) core tile"
+	depends on ARCH_INTEGRATOR_CP
+	depends on ARCH_MULTI_V6
+	select CPU_V6
+
+config ARCH_CINTEGRATOR
+	depends on ARCH_INTEGRATOR_CP
+	def_bool y
+
+endif
+
+menuconfig ARCH_REALVIEW
+	bool "ARM Ltd. RealView family"
+	depends on (CPU_LITTLE_ENDIAN && ARCH_MULTI_V5) || ARCH_MULTI_V6 || ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CLK_SP810
+	select GPIO_PL061 if GPIOLIB
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select HAVE_PATA_PLATFORM
+	select HAVE_TCM
+	select CLK_ICST
+	select MACH_REALVIEW_EB if ARCH_MULTI_V5
+	select MFD_SYSCON
+	select PLAT_VERSATILE
+	select POWER_RESET
+	select POWER_RESET_VERSATILE
+	select POWER_SUPPLY
+	select SOC_REALVIEW
+	help
+	  This enables support for ARM Ltd RealView boards.
+
+if ARCH_REALVIEW
+
+config MACH_REALVIEW_EB
+	bool "Support RealView(R) Emulation Baseboard"
+	select ARM_GIC
+	select CPU_ARM926T if ARCH_MULTI_V5
+	help
+	  Include support for the ARM(R) RealView(R) Emulation Baseboard
+	  platform. On an ARMv5 kernel, this will include support for
+	  the ARM926EJ-S core tile, while on an ARMv6/v7 kernel, at least
+	  one of the ARM1136, ARM1176, ARM11MPCore or Cortex-A9MPCore
+	  core tile options should be enabled.
+
+config REALVIEW_EB_ARM1136
+	bool "Support ARM1136J(F)-S Tile"
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V6
+	select CPU_V6
+	help
+	  Enable support for the ARM1136 tile fitted to the
+	  Realview(R) Emulation Baseboard platform.
+
+config REALVIEW_EB_ARM1176
+	bool "Support ARM1176JZ(F)-S Tile"
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V6
+	help
+	  Enable support for the ARM1176 tile fitted to the
+	  Realview(R) Emulation Baseboard platform.
+
+config REALVIEW_EB_A9MP
+	bool "Support Multicore Cortex-A9 Tile"
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V7
+	help
+	  Enable support for the Cortex-A9MPCore tile fitted to the
+	  Realview(R) Emulation Baseboard platform.
+
+config REALVIEW_EB_ARM11MP
+	bool "Support ARM11MPCore Tile"
+	depends on MACH_REALVIEW_EB && ARCH_MULTI_V6
+	select HAVE_SMP
+	help
+	  Enable support for the ARM11MPCore tile fitted to the Realview(R)
+	  Emulation Baseboard platform.
+
+config MACH_REALVIEW_PB11MP
+	bool "Support RealView(R) Platform Baseboard for ARM11MPCore"
+	depends on ARCH_MULTI_V6
+	select HAVE_SMP
+	help
+	  Include support for the ARM(R) RealView(R) Platform Baseboard for
+	  the ARM11MPCore.  This platform has an on-board ARM11MPCore and has
+	  support for PCI-E and Compact Flash.
+
+# ARMv6 CPU without K extensions, but does have the new exclusive ops
+config MACH_REALVIEW_PB1176
+	bool "Support RealView(R) Platform Baseboard for ARM1176JZF-S"
+	depends on ARCH_MULTI_V6
+	select CPU_V6
+	select HAVE_TCM
+	help
+	  Include support for the ARM(R) RealView(R) Platform Baseboard for
+	  ARM1176JZF-S.
+
+config MACH_REALVIEW_PBA8
+	bool "Support RealView(R) Platform Baseboard for Cortex(tm)-A8 platform"
+	depends on ARCH_MULTI_V7
+	help
+	  Include support for the ARM(R) RealView Platform Baseboard for
+	  Cortex(tm)-A8.  This platform has an on-board Cortex-A8 and has
+	  support for PCI-E and Compact Flash.
+
+config MACH_REALVIEW_PBX
+	bool "Support RealView(R) Platform Baseboard Explore for Cortex-A9"
+	depends on ARCH_MULTI_V7
+	select ZONE_DMA
+	help
+	  Include support for the ARM(R) RealView(R) Platform Baseboard
+	  Explore.
+
+endif
+
+menuconfig ARCH_VEXPRESS
+	bool "ARM Ltd. Versatile Express family"
+	depends on ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_GLOBAL_TIMER
+	select ARM_TIMER_SP804
+	select GPIOLIB
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select HAVE_PATA_PLATFORM
+	select CLK_ICST
+	select NO_IOPORT_MAP
+	select PLAT_VERSATILE
+	select POWER_RESET
+	select POWER_RESET_VEXPRESS
+	select POWER_SUPPLY
+	select REGULATOR if MMC_ARMMMCI
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select VEXPRESS_CONFIG
+	help
+	  This option enables support for systems using Cortex processor based
+	  ARM core and logic (FPGA) tiles on the Versatile Express motherboard,
+	  for example:
+
+	  - CoreTile Express A5x2 (V2P-CA5s)
+	  - CoreTile Express A9x4 (V2P-CA9)
+	  - CoreTile Express A15x2 (V2P-CA15)
+	  - LogicTile Express 13MG (V2F-2XV6) with A5, A7, A9 or A15 SMMs
+	    (Soft Macrocell Models)
+	  - Versatile Express RTSMs (Models)
+
+	  You must boot using a Flattened Device Tree in order to use these
+	  platforms. The traditional (ATAGs) boot method is not usable on
+	  these boards with this option.
+
+if ARCH_VEXPRESS
+
+config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
+	bool "Enable A5 and A9 only errata work-arounds"
+	default y
+	select ARM_ERRATA_643719 if SMP
+	select ARM_ERRATA_720789
+	select PL310_ERRATA_753970 if CACHE_L2X0
+	help
+	  Provides common dependencies for Versatile Express platforms
+	  based on Cortex-A5 and Cortex-A9 processors. In order to
+	  build a working kernel, you must also enable relevant core
+	  tile support or Flattened Device Tree based support options.
+
+config ARCH_VEXPRESS_DCSCB
+	bool "Dual Cluster System Control Block (DCSCB) support"
+	depends on MCPM
+	select ARM_CCI400_PORT_CTRL
+	help
+	  Support for the Dual Cluster System Configuration Block (DCSCB).
+	  This is needed to provide CPU and cluster power management
+	  on RTSM implementing big.LITTLE.
+
+config ARCH_VEXPRESS_SPC
+	bool "Versatile Express Serial Power Controller (SPC)"
+	select PM_OPP
+	help
+	  The TC2 (A15x2 A7x3) versatile express core tile integrates a logic
+	  block called Serial Power Controller (SPC) that provides the interface
+	  between the dual cluster test-chip and the M3 microcontroller that
+	  carries out power management.
+
+config ARCH_VEXPRESS_TC2_PM
+	bool "Versatile Express TC2 power management"
+	depends on MCPM
+	select ARM_CCI400_PORT_CTRL
+	select ARCH_VEXPRESS_SPC
+	select ARM_CPU_SUSPEND
+	help
+	  Support for CPU and cluster power management on Versatile Express
+	  with a TC2 (A15x2 A7x3) big.LITTLE core tile.
+
+endif

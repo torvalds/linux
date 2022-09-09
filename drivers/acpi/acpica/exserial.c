@@ -3,7 +3,7 @@
  *
  * Module Name: exserial - field_unit support for serial address spaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("exserial")
  * FUNCTION:    acpi_ex_read_gpio
  *
  * PARAMETERS:  obj_desc            - The named field to read
- *              buffer              - Where the return data is returnd
+ *              buffer              - Where the return data is returned
  *
  * RETURN:      Status
  *
@@ -195,6 +195,12 @@ acpi_ex_read_serial_bus(union acpi_operand_object *obj_desc,
 		function = ACPI_READ | (accessor_type << 16);
 		break;
 
+	case ACPI_ADR_SPACE_PLATFORM_RT:
+
+		buffer_length = ACPI_PRM_INPUT_BUFFER_SIZE;
+		function = ACPI_READ;
+		break;
+
 	default:
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
@@ -309,6 +315,12 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 
 		buffer_length += ACPI_SERIAL_HEADER_SIZE;
 		function = ACPI_WRITE | (accessor_type << 16);
+		break;
+
+	case ACPI_ADR_SPACE_PLATFORM_RT:
+
+		buffer_length = ACPI_PRM_INPUT_BUFFER_SIZE;
+		function = ACPI_WRITE;
 		break;
 
 	default:

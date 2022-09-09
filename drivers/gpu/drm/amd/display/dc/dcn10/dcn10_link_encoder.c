@@ -85,7 +85,10 @@ static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.enable_hpd = dcn10_link_encoder_enable_hpd,
 	.disable_hpd = dcn10_link_encoder_disable_hpd,
 	.is_dig_enabled = dcn10_is_dig_enabled,
-	.destroy = dcn10_link_encoder_destroy
+	.get_dig_frontend = dcn10_get_dig_frontend,
+	.get_dig_mode = dcn10_get_dig_mode,
+	.destroy = dcn10_link_encoder_destroy,
+	.get_max_link_cap = dcn10_link_encoder_get_max_link_cap,
 };
 
 static enum bp_result link_transmitter_control(
@@ -228,7 +231,9 @@ static void setup_panel_mode(
 {
 	uint32_t value;
 
-	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
+	if (!REG(DP_DPHY_INTERNAL_CTRL))
+		return;
+
 	value = REG_READ(DP_DPHY_INTERNAL_CTRL);
 
 	switch (panel_mode) {
@@ -440,7 +445,46 @@ static uint8_t get_frontend_source(
 	}
 }
 
-void configure_encoder(
+unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	int32_t value;
+	enum engine_id result;
+
+	REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &value);
+
+	switch (value) {
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGA:
+		result = ENGINE_ID_DIGA;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGB:
+		result = ENGINE_ID_DIGB;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGC:
+		result = ENGINE_ID_DIGC;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGD:
+		result = ENGINE_ID_DIGD;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGE:
+		result = ENGINE_ID_DIGE;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGF:
+		result = ENGINE_ID_DIGF;
+		break;
+	case DCN10_DIG_FE_SOURCE_SELECT_DIGG:
+		result = ENGINE_ID_DIGG;
+		break;
+	default:
+		// invalid source select DIG
+		result = ENGINE_ID_UNKNOWN;
+	}
+
+	return result;
+
+}
+
+void enc1_configure_encoder(
 	struct dcn10_link_encoder *enc10,
 	const struct dc_link_settings *link_settings)
 {
@@ -543,12 +587,12 @@ bool dcn10_link_encoder_validate_dvi_output(
 	if ((connector_signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
 		connector_signal == SIGNAL_TYPE_HDMI_TYPE_A) &&
 		signal != SIGNAL_TYPE_HDMI_TYPE_A &&
-		crtc_timing->pix_clk_khz > TMDS_MAX_PIXEL_CLOCK)
+		crtc_timing->pix_clk_100hz > (TMDS_MAX_PIXEL_CLOCK * 10))
 		return false;
-	if (crtc_timing->pix_clk_khz < TMDS_MIN_PIXEL_CLOCK)
+	if (crtc_timing->pix_clk_100hz < (TMDS_MIN_PIXEL_CLOCK * 10))
 		return false;
 
-	if (crtc_timing->pix_clk_khz > max_pixel_clock)
+	if (crtc_timing->pix_clk_100hz > (max_pixel_clock * 10))
 		return false;
 
 	/* DVI supports 6/8bpp single-link and 10/16bpp dual-link */
@@ -571,21 +615,27 @@ bool dcn10_link_encoder_validate_dvi_output(
 static bool dcn10_link_encoder_validate_hdmi_output(
 	const struct dcn10_link_encoder *enc10,
 	const struct dc_crtc_timing *crtc_timing,
-	int adjusted_pix_clk_khz)
+	const struct dc_edid_caps *edid_caps,
+	int adjusted_pix_clk_100hz)
 {
 	enum dc_color_depth max_deep_color =
 			enc10->base.features.max_hdmi_deep_color;
+
+	// check pixel clock against edid specified max TMDS clk
+	if (edid_caps->max_tmds_clk_mhz != 0 &&
+			adjusted_pix_clk_100hz > edid_caps->max_tmds_clk_mhz * 10000)
+		return false;
 
 	if (max_deep_color < crtc_timing->display_color_depth)
 		return false;
 
 	if (crtc_timing->display_color_depth < COLOR_DEPTH_888)
 		return false;
-	if (adjusted_pix_clk_khz < TMDS_MIN_PIXEL_CLOCK)
+	if (adjusted_pix_clk_100hz < (TMDS_MIN_PIXEL_CLOCK * 10))
 		return false;
 
-	if ((adjusted_pix_clk_khz == 0) ||
-		(adjusted_pix_clk_khz > enc10->base.features.max_hdmi_pixel_clock))
+	if ((adjusted_pix_clk_100hz == 0) ||
+		(adjusted_pix_clk_100hz > (enc10->base.features.max_hdmi_pixel_clock * 10)))
 		return false;
 
 	/* DCE11 HW does not support 420 */
@@ -593,8 +643,9 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 
-	if (!enc10->base.features.flags.bits.HDMI_6GB_EN &&
-		adjusted_pix_clk_khz >= 300000)
+	if ((!enc10->base.features.flags.bits.HDMI_6GB_EN ||
+			enc10->base.ctx->dc->debug.hdmi20_disable) &&
+			adjusted_pix_clk_100hz >= 3000000)
 		return false;
 	if (enc10->base.ctx->dc->debug.hdmi20_disable &&
 		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
@@ -716,6 +767,8 @@ void dcn10_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 		enc10->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
+		enc10->base.features.flags.bits.DP_IS_USB_C =
+				bp_cap_info.DP_IS_USB_C;
 	} else {
 		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
 				__func__,
@@ -733,12 +786,17 @@ bool dcn10_link_encoder_validate_output_with_stream(
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	bool is_valid;
 
+	//if SCDC (340-600MHz) is disabled, set to HDMI 1.4 timing limit
+	if (stream->sink->edid_caps.panel_patch.skip_scdc_overwrite &&
+		enc10->base.features.max_hdmi_pixel_clock > 300000)
+		enc10->base.features.max_hdmi_pixel_clock = 300000;
+
 	switch (stream->signal) {
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 		is_valid = dcn10_link_encoder_validate_dvi_output(
 			enc10,
-			stream->sink->link->connector_signal,
+			stream->link->connector_signal,
 			stream->signal,
 			&stream->timing);
 	break;
@@ -746,7 +804,8 @@ bool dcn10_link_encoder_validate_output_with_stream(
 		is_valid = dcn10_link_encoder_validate_hdmi_output(
 				enc10,
 				&stream->timing,
-				stream->phy_pix_clk);
+				&stream->sink->edid_caps,
+				stream->phy_pix_clk * 10);
 	break;
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
@@ -894,6 +953,21 @@ void dcn10_link_encoder_enable_tmds_output(
 	}
 }
 
+void dcn10_link_encoder_enable_tmds_output_with_clk_pattern_wa(
+	struct link_encoder *enc,
+	enum clock_source_id clock_source,
+	enum dc_color_depth color_depth,
+	enum signal_type signal,
+	uint32_t pixel_clock)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	dcn10_link_encoder_enable_tmds_output(
+		enc, clock_source, color_depth, signal, pixel_clock);
+
+	REG_UPDATE(DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, 0x1F);
+}
+
 /* enables DP PHY output */
 void dcn10_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
@@ -910,7 +984,7 @@ void dcn10_link_encoder_enable_dp_output(
 	 * but it's not passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
-	configure_encoder(enc10, link_settings);
+	enc1_configure_encoder(enc10, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = enc->preferred_engine;
@@ -949,7 +1023,7 @@ void dcn10_link_encoder_enable_dp_mst_output(
 	 * but it's not passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
-	configure_encoder(enc10, link_settings);
+	enc1_configure_encoder(enc10, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = ENGINE_ID_UNKNOWN;
@@ -1024,7 +1098,8 @@ void dcn10_link_encoder_disable_output(
 
 void dcn10_link_encoder_dp_set_lane_settings(
 	struct link_encoder *enc,
-	const struct link_training_settings *link_settings)
+	const struct dc_link_settings *link_settings,
+	const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	union dpcd_training_lane_set training_lane_set = { { 0 } };
@@ -1039,26 +1114,25 @@ void dcn10_link_encoder_dp_set_lane_settings(
 	cntl.action = TRANSMITTER_CONTROL_SET_VOLTAGE_AND_PREEMPASIS;
 	cntl.transmitter = enc10->base.transmitter;
 	cntl.connector_obj_id = enc10->base.connector;
-	cntl.lanes_number = link_settings->link_settings.lane_count;
+	cntl.lanes_number = link_settings->lane_count;
 	cntl.hpd_sel = enc10->base.hpd_source;
-	cntl.pixel_clock = link_settings->link_settings.link_rate *
-						LINK_RATE_REF_FREQ_IN_KHZ;
+	cntl.pixel_clock = link_settings->link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
 
-	for (lane = 0; lane < link_settings->link_settings.lane_count; lane++) {
+	for (lane = 0; lane < link_settings->lane_count; lane++) {
 		/* translate lane settings */
 
 		training_lane_set.bits.VOLTAGE_SWING_SET =
-			link_settings->lane_settings[lane].VOLTAGE_SWING;
+				lane_settings[lane].VOLTAGE_SWING;
 		training_lane_set.bits.PRE_EMPHASIS_SET =
-			link_settings->lane_settings[lane].PRE_EMPHASIS;
+				lane_settings[lane].PRE_EMPHASIS;
 
 		/* post cursor 2 setting only applies to HBR2 link rate */
-		if (link_settings->link_settings.link_rate == LINK_RATE_HIGH2) {
+		if (link_settings->link_rate == LINK_RATE_HIGH2) {
 			/* this is passed to VBIOS
 			 * to program post cursor 2 level
 			 */
 			training_lane_set.bits.POST_CURSOR2_SET =
-				link_settings->lane_settings[lane].POST_CURSOR2;
+					lane_settings[lane].POST_CURSOR2;
 		}
 
 		cntl.lane_select = lane;
@@ -1294,7 +1368,6 @@ void dcn10_link_encoder_connect_dig_be_to_fe(
 #define HPD_REG_UPDATE_N(reg_name, n, ...)	\
 		generic_reg_update_ex(CTX, \
 				HPD_REG(reg_name), \
-				HPD_REG_READ(reg_name), \
 				n, __VA_ARGS__)
 
 #define HPD_REG_UPDATE(reg_name, field, val)	\
@@ -1317,7 +1390,6 @@ void dcn10_link_encoder_disable_hpd(struct link_encoder *enc)
 			DC_HPD_EN, 0);
 }
 
-
 #define AUX_REG(reg)\
 	(enc10->aux_regs->reg)
 
@@ -1327,7 +1399,6 @@ void dcn10_link_encoder_disable_hpd(struct link_encoder *enc)
 #define AUX_REG_UPDATE_N(reg_name, n, ...)	\
 		generic_reg_update_ex(CTX, \
 				AUX_REG(reg_name), \
-				AUX_REG_READ(reg_name), \
 				n, __VA_ARGS__)
 
 #define AUX_REG_UPDATE(reg_name, field, val)	\
@@ -1349,5 +1420,52 @@ void dcn10_aux_initialize(struct dcn10_link_encoder *enc10)
 
 	/* 1/4 window (the maximum allowed) */
 	AUX_REG_UPDATE(AUX_DPHY_RX_CONTROL0,
-			AUX_RX_RECEIVE_WINDOW, 1);
+			AUX_RX_RECEIVE_WINDOW, 0);
+}
+
+enum signal_type dcn10_get_dig_mode(
+	struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+	REG_GET(DIG_BE_CNTL, DIG_MODE, &value);
+	switch (value) {
+	case 1:
+		return SIGNAL_TYPE_DISPLAY_PORT;
+	case 2:
+		return SIGNAL_TYPE_DVI_SINGLE_LINK;
+	case 3:
+		return SIGNAL_TYPE_HDMI_TYPE_A;
+	case 5:
+		return SIGNAL_TYPE_DISPLAY_PORT_MST;
+	default:
+		return SIGNAL_TYPE_NONE;
+	}
+	return SIGNAL_TYPE_NONE;
+}
+
+void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings)
+{
+	/* Set Default link settings */
+	struct dc_link_settings max_link_cap = {LANE_COUNT_FOUR, LINK_RATE_HIGH,
+			LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0};
+
+	/* Higher link settings based on feature supported */
+	if (enc->features.flags.bits.IS_HBR2_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_HIGH2;
+
+	if (enc->features.flags.bits.IS_HBR3_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_HIGH3;
+
+	if (enc->features.flags.bits.IS_UHBR10_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_UHBR10;
+
+	if (enc->features.flags.bits.IS_UHBR13_5_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_UHBR13_5;
+
+	if (enc->features.flags.bits.IS_UHBR20_CAPABLE)
+		max_link_cap.link_rate = LINK_RATE_UHBR20;
+
+	*link_settings = max_link_cap;
 }

@@ -7,8 +7,6 @@
 #ifndef __RTL8723B_SPEC_H__
 #define __RTL8723B_SPEC_H__
 
-#include <autoconf.h>
-
 #define HAL_NAV_UPPER_UNIT_8723B		128		/*  micro-second */
 
 /*  */
@@ -96,10 +94,6 @@
 #define REG_TXPKTBUF_BCNQ_BDNY_8723B	0x0424
 #define REG_TXPKTBUF_MGQ_BDNY_8723B	0x0425
 #define REG_TXPKTBUF_WMAC_LBK_BF_HD_8723B	0x045D
-#ifdef CONFIG_WOWLAN
-#define REG_TXPKTBUF_IV_LOW             0x0484
-#define REG_TXPKTBUF_IV_HIGH            0x0488
-#endif
 #define REG_AMPDU_BURST_MODE_8723B	0x04BC
 
 /*  */
@@ -163,12 +157,6 @@
 /*  */
 #define BIT_USB_RXDMA_AGG_EN	BIT(31)
 #define RXDMA_AGG_MODE_EN		BIT(1)
-
-#ifdef CONFIG_WOWLAN
-#define RXPKT_RELEASE_POLL		BIT(16)
-#define RXDMA_IDLE				BIT(17)
-#define RW_RELEASE_EN			BIT(18)
-#endif
 
 /*  */
 /*  */

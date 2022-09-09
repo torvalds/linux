@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sst25l.c
  *
@@ -8,11 +9,6 @@
  * Author: Ryan Mallon
  *
  * Based on m25p80.c
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -402,11 +398,11 @@ static int sst25l_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int sst25l_remove(struct spi_device *spi)
+static void sst25l_remove(struct spi_device *spi)
 {
 	struct sst25l_flash *flash = spi_get_drvdata(spi);
 
-	return mtd_device_unregister(&flash->mtd);
+	WARN_ON(mtd_device_unregister(&flash->mtd));
 }
 
 static struct spi_driver sst25l_driver = {

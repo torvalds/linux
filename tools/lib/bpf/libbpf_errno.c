@@ -12,6 +12,10 @@
 #include <string.h>
 
 #include "libbpf.h"
+#include "libbpf_internal.h"
+
+/* make sure libbpf doesn't use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
 #define ERRNO_OFFSET(e)		((e) - __LIBBPF_ERRNO__START)
 #define ERRCODE_OFFSET(c)	ERRNO_OFFSET(LIBBPF_ERRNO__##c)
@@ -36,7 +40,7 @@ static const char *libbpf_strerror_table[NR_ERRNO] = {
 int libbpf_strerror(int err, char *buf, size_t size)
 {
 	if (!buf || !size)
-		return -1;
+		return libbpf_err(-EINVAL);
 
 	err = err > 0 ? err : -err;
 
@@ -45,7 +49,7 @@ int libbpf_strerror(int err, char *buf, size_t size)
 
 		ret = strerror_r(err, buf, size);
 		buf[size - 1] = '\0';
-		return ret;
+		return libbpf_err_errno(ret);
 	}
 
 	if (err < __LIBBPF_ERRNO__END) {
@@ -59,5 +63,5 @@ int libbpf_strerror(int err, char *buf, size_t size)
 
 	snprintf(buf, size, "Unknown libbpf error %d", err);
 	buf[size - 1] = '\0';
-	return -1;
+	return libbpf_err(-ENOENT);
 }

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Red Hat, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/cred.h>
@@ -11,7 +8,21 @@
 #include <linux/mount.h>
 #include <linux/xattr.h>
 #include <linux/uio.h>
+#include <linux/uaccess.h>
+#include <linux/splice.h>
+#include <linux/security.h>
+#include <linux/mm.h>
+#include <linux/fs.h>
 #include "overlayfs.h"
+
+struct ovl_aio_req {
+	struct kiocb iocb;
+	refcount_t ref;
+	struct kiocb *orig_iocb;
+	struct fd fd;
+};
+
+static struct kmem_cache *ovl_aio_request_cachep;
 
 static char ovl_whatisit(struct inode *inode, struct inode *realinode)
 {
@@ -23,16 +34,36 @@ static char ovl_whatisit(struct inode *inode, struct inode *realinode)
 		return 'm';
 }
 
+/* No atime modificaton nor notify on underlying */
+#define OVL_OPEN_FLAGS (O_NOATIME | FMODE_NONOTIFY)
+
 static struct file *ovl_open_realfile(const struct file *file,
-				      struct inode *realinode)
+				      struct path *realpath)
 {
+	struct inode *realinode = d_inode(realpath->dentry);
 	struct inode *inode = file_inode(file);
+	struct user_namespace *real_mnt_userns;
 	struct file *realfile;
 	const struct cred *old_cred;
+	int flags = file->f_flags | OVL_OPEN_FLAGS;
+	int acc_mode = ACC_MODE(flags);
+	int err;
+
+	if (flags & O_APPEND)
+		acc_mode |= MAY_APPEND;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-	realfile = open_with_fake_path(&file->f_path, file->f_flags | O_NOATIME,
-				       realinode, current_cred());
+	real_mnt_userns = mnt_user_ns(realpath->mnt);
+	err = inode_permission(real_mnt_userns, realinode, MAY_OPEN | acc_mode);
+	if (err) {
+		realfile = ERR_PTR(err);
+	} else {
+		if (!inode_owner_or_capable(real_mnt_userns, realinode))
+			flags &= ~O_NOATIME;
+
+		realfile = open_with_fake_path(&file->f_path, flags, realinode,
+					       current_cred());
+	}
 	revert_creds(old_cred);
 
 	pr_debug("open(%p[%pD2/%c], 0%o) -> (%p, 0%o)\n",
@@ -49,23 +80,13 @@ static int ovl_change_flags(struct file *file, unsigned int flags)
 	struct inode *inode = file_inode(file);
 	int err;
 
-	/* No atime modificaton on underlying */
-	flags |= O_NOATIME;
-
-	/* If some flag changed that cannot be changed then something's amiss */
-	if (WARN_ON((file->f_flags ^ flags) & ~OVL_SETFL_MASK))
-		return -EIO;
-
 	flags &= OVL_SETFL_MASK;
 
 	if (((flags ^ file->f_flags) & O_APPEND) && IS_APPEND(inode))
 		return -EPERM;
 
-	if (flags & O_DIRECT) {
-		if (!file->f_mapping->a_ops ||
-		    !file->f_mapping->a_ops->direct_IO)
-			return -EINVAL;
-	}
+	if ((flags & O_DIRECT) && !(file->f_mode & FMODE_CAN_ODIRECT))
+		return -EINVAL;
 
 	if (file->f_op->check_flags) {
 		err = file->f_op->check_flags(flags);
@@ -83,27 +104,27 @@ static int ovl_change_flags(struct file *file, unsigned int flags)
 static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 			       bool allow_meta)
 {
-	struct inode *inode = file_inode(file);
-	struct inode *realinode;
+	struct dentry *dentry = file_dentry(file);
+	struct path realpath;
 
 	real->flags = 0;
 	real->file = file->private_data;
 
 	if (allow_meta)
-		realinode = ovl_inode_real(inode);
+		ovl_path_real(dentry, &realpath);
 	else
-		realinode = ovl_inode_realdata(inode);
+		ovl_path_realdata(dentry, &realpath);
 
 	/* Has it been copied up since we'd opened it? */
-	if (unlikely(file_inode(real->file) != realinode)) {
+	if (unlikely(file_inode(real->file) != d_inode(realpath.dentry))) {
 		real->flags = FDPUT_FPUT;
-		real->file = ovl_open_realfile(file, realinode);
+		real->file = ovl_open_realfile(file, &realpath);
 
 		return PTR_ERR_OR_ZERO(real->file);
 	}
 
 	/* Did the flags change since open? */
-	if (unlikely((file->f_flags ^ real->file->f_flags) & ~O_NOATIME))
+	if (unlikely((file->f_flags ^ real->file->f_flags) & ~OVL_OPEN_FLAGS))
 		return ovl_change_flags(real->file, file->f_flags);
 
 	return 0;
@@ -111,6 +132,13 @@ static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 
 static int ovl_real_fdget(const struct file *file, struct fd *real)
 {
+	if (d_is_dir(file_dentry(file))) {
+		real->flags = 0;
+		real->file = ovl_dir_real_file(file, false);
+
+		return PTR_ERR_OR_ZERO(real->file);
+	}
+
 	return ovl_real_fdget_meta(file, real, false);
 }
 
@@ -118,16 +146,18 @@ static int ovl_open(struct inode *inode, struct file *file)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct file *realfile;
+	struct path realpath;
 	int err;
 
-	err = ovl_open_maybe_copy_up(dentry, file->f_flags);
+	err = ovl_maybe_copy_up(dentry, file->f_flags);
 	if (err)
 		return err;
 
 	/* No longer need these flags, so don't pass them on to underlying fs */
 	file->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
-	realfile = ovl_open_realfile(file, ovl_inode_realdata(inode));
+	ovl_path_realdata(dentry, &realpath);
+	realfile = ovl_open_realfile(file, &realpath);
 	if (IS_ERR(realfile))
 		return PTR_ERR(realfile);
 
@@ -145,11 +175,47 @@ static int ovl_release(struct inode *inode, struct file *file)
 
 static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *realinode = ovl_inode_real(file_inode(file));
+	struct inode *inode = file_inode(file);
+	struct fd real;
+	const struct cred *old_cred;
+	loff_t ret;
 
-	return generic_file_llseek_size(file, offset, whence,
-					realinode->i_sb->s_maxbytes,
-					i_size_read(realinode));
+	/*
+	 * The two special cases below do not need to involve real fs,
+	 * so we can optimizing concurrent callers.
+	 */
+	if (offset == 0) {
+		if (whence == SEEK_CUR)
+			return file->f_pos;
+
+		if (whence == SEEK_SET)
+			return vfs_setpos(file, 0, 0);
+	}
+
+	ret = ovl_real_fdget(file, &real);
+	if (ret)
+		return ret;
+
+	/*
+	 * Overlay file f_pos is the master copy that is preserved
+	 * through copy up and modified on read/write, but only real
+	 * fs knows how to SEEK_HOLE/SEEK_DATA and real fs may impose
+	 * limitations that are more strict than ->s_maxbytes for specific
+	 * files, so we use the real file to perform seeks.
+	 */
+	ovl_inode_lock(inode);
+	real.file->f_pos = file->f_pos;
+
+	old_cred = ovl_override_creds(inode->i_sb);
+	ret = vfs_llseek(real.file, offset, whence);
+	revert_creds(old_cred);
+
+	file->f_pos = real.file->f_pos;
+	ovl_inode_unlock(inode);
+
+	fdput(real);
+
+	return ret;
 }
 
 static void ovl_file_accessed(struct file *file)
@@ -174,9 +240,8 @@ static void ovl_file_accessed(struct file *file)
 	touch_atime(&file->f_path);
 }
 
-static rwf_t ovl_iocb_to_rwf(struct kiocb *iocb)
+static rwf_t ovl_iocb_to_rwf(int ifl)
 {
-	int ifl = iocb->ki_flags;
 	rwf_t flags = 0;
 
 	if (ifl & IOCB_NOWAIT)
@@ -189,6 +254,43 @@ static rwf_t ovl_iocb_to_rwf(struct kiocb *iocb)
 		flags |= RWF_SYNC;
 
 	return flags;
+}
+
+static inline void ovl_aio_put(struct ovl_aio_req *aio_req)
+{
+	if (refcount_dec_and_test(&aio_req->ref)) {
+		fdput(aio_req->fd);
+		kmem_cache_free(ovl_aio_request_cachep, aio_req);
+	}
+}
+
+static void ovl_aio_cleanup_handler(struct ovl_aio_req *aio_req)
+{
+	struct kiocb *iocb = &aio_req->iocb;
+	struct kiocb *orig_iocb = aio_req->orig_iocb;
+
+	if (iocb->ki_flags & IOCB_WRITE) {
+		struct inode *inode = file_inode(orig_iocb->ki_filp);
+
+		/* Actually acquired in ovl_write_iter() */
+		__sb_writers_acquired(file_inode(iocb->ki_filp)->i_sb,
+				      SB_FREEZE_WRITE);
+		file_end_write(iocb->ki_filp);
+		ovl_copyattr(inode);
+	}
+
+	orig_iocb->ki_pos = iocb->ki_pos;
+	ovl_aio_put(aio_req);
+}
+
+static void ovl_aio_rw_complete(struct kiocb *iocb, long res)
+{
+	struct ovl_aio_req *aio_req = container_of(iocb,
+						   struct ovl_aio_req, iocb);
+	struct kiocb *orig_iocb = aio_req->orig_iocb;
+
+	ovl_aio_cleanup_handler(aio_req);
+	orig_iocb->ki_complete(orig_iocb, res);
 }
 
 static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
@@ -205,13 +307,38 @@ static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (ret)
 		return ret;
 
+	ret = -EINVAL;
+	if (iocb->ki_flags & IOCB_DIRECT &&
+	    !(real.file->f_mode & FMODE_CAN_ODIRECT))
+		goto out_fdput;
+
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_iter_read(real.file, iter, &iocb->ki_pos,
-			    ovl_iocb_to_rwf(iocb));
+	if (is_sync_kiocb(iocb)) {
+		ret = vfs_iter_read(real.file, iter, &iocb->ki_pos,
+				    ovl_iocb_to_rwf(iocb->ki_flags));
+	} else {
+		struct ovl_aio_req *aio_req;
+
+		ret = -ENOMEM;
+		aio_req = kmem_cache_zalloc(ovl_aio_request_cachep, GFP_KERNEL);
+		if (!aio_req)
+			goto out;
+
+		aio_req->fd = real;
+		real.flags = 0;
+		aio_req->orig_iocb = iocb;
+		kiocb_clone(&aio_req->iocb, iocb, real.file);
+		aio_req->iocb.ki_complete = ovl_aio_rw_complete;
+		refcount_set(&aio_req->ref, 2);
+		ret = vfs_iocb_iter_read(real.file, &aio_req->iocb, iter);
+		ovl_aio_put(aio_req);
+		if (ret != -EIOCBQUEUED)
+			ovl_aio_cleanup_handler(aio_req);
+	}
+out:
 	revert_creds(old_cred);
-
 	ovl_file_accessed(file);
-
+out_fdput:
 	fdput(real);
 
 	return ret;
@@ -224,13 +351,14 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct fd real;
 	const struct cred *old_cred;
 	ssize_t ret;
+	int ifl = iocb->ki_flags;
 
 	if (!iov_iter_count(iter))
 		return 0;
 
 	inode_lock(inode);
 	/* Update mode */
-	ovl_copyattr(ovl_inode_real(inode), inode);
+	ovl_copyattr(inode);
 	ret = file_remove_privs(file);
 	if (ret)
 		goto out_unlock;
@@ -239,16 +367,93 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (ret)
 		goto out_unlock;
 
+	ret = -EINVAL;
+	if (iocb->ki_flags & IOCB_DIRECT &&
+	    !(real.file->f_mode & FMODE_CAN_ODIRECT))
+		goto out_fdput;
+
+	if (!ovl_should_sync(OVL_FS(inode->i_sb)))
+		ifl &= ~(IOCB_DSYNC | IOCB_SYNC);
+
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	file_start_write(real.file);
-	ret = vfs_iter_write(real.file, iter, &iocb->ki_pos,
-			     ovl_iocb_to_rwf(iocb));
-	file_end_write(real.file);
+	if (is_sync_kiocb(iocb)) {
+		file_start_write(real.file);
+		ret = vfs_iter_write(real.file, iter, &iocb->ki_pos,
+				     ovl_iocb_to_rwf(ifl));
+		file_end_write(real.file);
+		/* Update size */
+		ovl_copyattr(inode);
+	} else {
+		struct ovl_aio_req *aio_req;
+
+		ret = -ENOMEM;
+		aio_req = kmem_cache_zalloc(ovl_aio_request_cachep, GFP_KERNEL);
+		if (!aio_req)
+			goto out;
+
+		file_start_write(real.file);
+		/* Pacify lockdep, same trick as done in aio_write() */
+		__sb_writers_release(file_inode(real.file)->i_sb,
+				     SB_FREEZE_WRITE);
+		aio_req->fd = real;
+		real.flags = 0;
+		aio_req->orig_iocb = iocb;
+		kiocb_clone(&aio_req->iocb, iocb, real.file);
+		aio_req->iocb.ki_flags = ifl;
+		aio_req->iocb.ki_complete = ovl_aio_rw_complete;
+		refcount_set(&aio_req->ref, 2);
+		ret = vfs_iocb_iter_write(real.file, &aio_req->iocb, iter);
+		ovl_aio_put(aio_req);
+		if (ret != -EIOCBQUEUED)
+			ovl_aio_cleanup_handler(aio_req);
+	}
+out:
 	revert_creds(old_cred);
+out_fdput:
+	fdput(real);
 
+out_unlock:
+	inode_unlock(inode);
+
+	return ret;
+}
+
+/*
+ * Calling iter_file_splice_write() directly from overlay's f_op may deadlock
+ * due to lock order inversion between pipe->mutex in iter_file_splice_write()
+ * and file_start_write(real.file) in ovl_write_iter().
+ *
+ * So do everything ovl_write_iter() does and call iter_file_splice_write() on
+ * the real file.
+ */
+static ssize_t ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
+				loff_t *ppos, size_t len, unsigned int flags)
+{
+	struct fd real;
+	const struct cred *old_cred;
+	struct inode *inode = file_inode(out);
+	ssize_t ret;
+
+	inode_lock(inode);
+	/* Update mode */
+	ovl_copyattr(inode);
+	ret = file_remove_privs(out);
+	if (ret)
+		goto out_unlock;
+
+	ret = ovl_real_fdget(out, &real);
+	if (ret)
+		goto out_unlock;
+
+	old_cred = ovl_override_creds(inode->i_sb);
+	file_start_write(real.file);
+
+	ret = iter_file_splice_write(pipe, real.file, ppos, len, flags);
+
+	file_end_write(real.file);
 	/* Update size */
-	ovl_copyattr(ovl_inode_real(inode), inode);
-
+	ovl_copyattr(inode);
+	revert_creds(old_cred);
 	fdput(real);
 
 out_unlock:
@@ -262,6 +467,10 @@ static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct fd real;
 	const struct cred *old_cred;
 	int ret;
+
+	ret = ovl_sync_status(OVL_FS(file_inode(file)->i_sb));
+	if (ret <= 0)
+		return ret;
 
 	ret = ovl_real_fdget_meta(file, &real, !datasync);
 	if (ret)
@@ -291,20 +500,11 @@ static int ovl_mmap(struct file *file, struct vm_area_struct *vma)
 	if (WARN_ON(file != vma->vm_file))
 		return -EIO;
 
-	vma->vm_file = get_file(realfile);
+	vma_set_file(vma, realfile);
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
 	ret = call_mmap(vma->vm_file, vma);
 	revert_creds(old_cred);
-
-	if (ret) {
-		/* Drop reference count from new vm_file value */
-		fput(realfile);
-	} else {
-		/* Drop reference count from previous vm_file value */
-		fput(file);
-	}
-
 	ovl_file_accessed(file);
 
 	return ret;
@@ -326,7 +526,7 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 	revert_creds(old_cred);
 
 	/* Update size */
-	ovl_copyattr(ovl_inode_real(inode), inode);
+	ovl_copyattr(inode);
 
 	fdput(real);
 
@@ -350,82 +550,6 @@ static int ovl_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 	fdput(real);
 
 	return ret;
-}
-
-static long ovl_real_ioctl(struct file *file, unsigned int cmd,
-			   unsigned long arg)
-{
-	struct fd real;
-	const struct cred *old_cred;
-	long ret;
-
-	ret = ovl_real_fdget(file, &real);
-	if (ret)
-		return ret;
-
-	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_ioctl(real.file, cmd, arg);
-	revert_creds(old_cred);
-
-	fdput(real);
-
-	return ret;
-}
-
-static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	long ret;
-	struct inode *inode = file_inode(file);
-
-	switch (cmd) {
-	case FS_IOC_GETFLAGS:
-		ret = ovl_real_ioctl(file, cmd, arg);
-		break;
-
-	case FS_IOC_SETFLAGS:
-		if (!inode_owner_or_capable(inode))
-			return -EACCES;
-
-		ret = mnt_want_write_file(file);
-		if (ret)
-			return ret;
-
-		ret = ovl_copy_up_with_data(file_dentry(file));
-		if (!ret) {
-			ret = ovl_real_ioctl(file, cmd, arg);
-
-			inode_lock(inode);
-			ovl_copyflags(ovl_inode_real(inode), inode);
-			inode_unlock(inode);
-		}
-
-		mnt_drop_write_file(file);
-		break;
-
-	default:
-		ret = -ENOTTY;
-	}
-
-	return ret;
-}
-
-static long ovl_compat_ioctl(struct file *file, unsigned int cmd,
-			     unsigned long arg)
-{
-	switch (cmd) {
-	case FS_IOC32_GETFLAGS:
-		cmd = FS_IOC_GETFLAGS;
-		break;
-
-	case FS_IOC32_SETFLAGS:
-		cmd = FS_IOC_SETFLAGS;
-		break;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
-
-	return ovl_ioctl(file, cmd, arg);
 }
 
 enum ovl_copyop {
@@ -474,7 +598,7 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 	revert_creds(old_cred);
 
 	/* Update size */
-	ovl_copyattr(ovl_inode_real(inode_out), inode_out);
+	ovl_copyattr(inode_out);
 
 	fdput(real_in);
 	fdput(real_out);
@@ -517,6 +641,26 @@ static loff_t ovl_remap_file_range(struct file *file_in, loff_t pos_in,
 			    remap_flags, op);
 }
 
+static int ovl_flush(struct file *file, fl_owner_t id)
+{
+	struct fd real;
+	const struct cred *old_cred;
+	int err;
+
+	err = ovl_real_fdget(file, &real);
+	if (err)
+		return err;
+
+	if (real.file->f_op->flush) {
+		old_cred = ovl_override_creds(file_inode(file)->i_sb);
+		err = real.file->f_op->flush(real.file, id);
+		revert_creds(old_cred);
+	}
+	fdput(real);
+
+	return err;
+}
+
 const struct file_operations ovl_file_operations = {
 	.open		= ovl_open,
 	.release	= ovl_release,
@@ -527,9 +671,26 @@ const struct file_operations ovl_file_operations = {
 	.mmap		= ovl_mmap,
 	.fallocate	= ovl_fallocate,
 	.fadvise	= ovl_fadvise,
-	.unlocked_ioctl	= ovl_ioctl,
-	.compat_ioctl	= ovl_compat_ioctl,
+	.flush		= ovl_flush,
+	.splice_read    = generic_file_splice_read,
+	.splice_write   = ovl_splice_write,
 
 	.copy_file_range	= ovl_copy_file_range,
 	.remap_file_range	= ovl_remap_file_range,
 };
+
+int __init ovl_aio_request_cache_init(void)
+{
+	ovl_aio_request_cachep = kmem_cache_create("ovl_aio_req",
+						   sizeof(struct ovl_aio_req),
+						   0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!ovl_aio_request_cachep)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void ovl_aio_request_cache_destroy(void)
+{
+	kmem_cache_destroy(ovl_aio_request_cachep);
+}

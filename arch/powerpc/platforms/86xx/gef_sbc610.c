@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GE SBC610 board support
  *
  * Author: Martyn Welch <martyn.welch@ge.com>
  *
  * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Based on: mpc86xx_hpcn.c (MPC86xx HPCN board specific routines)
  * Copyright 2006 Freescale Semiconductor Inc.
@@ -22,12 +18,12 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
-#include <asm/prom.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
 
@@ -161,7 +157,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
  *
  * This function is called to determine whether the BSP is compatible with the
  * supplied device-tree, which is assumed to be the correct one for the actual
- * board. It is expected thati, in the future, a kernel may support multiple
+ * board. It is expected that, in the future, a kernel may support multiple
  * boards.
  */
 static int __init gef_sbc610_probe(void)

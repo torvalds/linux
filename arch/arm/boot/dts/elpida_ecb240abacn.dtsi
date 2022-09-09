@@ -5,7 +5,7 @@
 
 / {
 	elpida_ECB240ABACN: lpddr2 {
-		compatible	= "Elpida,ECB240ABACN","jedec,lpddr2-s4";
+		compatible	= "elpida,ECB240ABACN","jedec,lpddr2-s4";
 		density		= <2048>;
 		io-width	= <32>;
 

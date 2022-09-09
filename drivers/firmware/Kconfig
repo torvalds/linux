@@ -1,57 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 
 menu "Firmware Drivers"
 
-config ARM_PSCI_FW
-	bool
-
-config ARM_PSCI_CHECKER
-	bool "ARM PSCI checker"
-	depends on ARM_PSCI_FW && HOTPLUG_CPU && CPU_IDLE && !TORTURE_TEST
-	help
-	  Run the PSCI checker during startup. This checks that hotplug and
-	  suspend operations work correctly when using PSCI.
-
-	  The torture tests may interfere with the PSCI checker by turning CPUs
-	  on and off through hotplug, so for now torture tests and PSCI checker
-	  are mutually exclusive.
-
-config ARM_SCMI_PROTOCOL
-	bool "ARM System Control and Management Interface (SCMI) Message Protocol"
-	depends on ARM || ARM64 || COMPILE_TEST
-	depends on MAILBOX
-	help
-	  ARM System Control and Management Interface (SCMI) protocol is a
-	  set of operating system-independent software interfaces that are
-	  used in system management. SCMI is extensible and currently provides
-	  interfaces for: Discovery and self-description of the interfaces
-	  it supports, Power domain management which is the ability to place
-	  a given device or domain into the various power-saving states that
-	  it supports, Performance management which is the ability to control
-	  the performance of a domain that is composed of compute engines
-	  such as application processors and other accelerators, Clock
-	  management which is the ability to set and inquire rates on platform
-	  managed clocks and Sensor management which is the ability to read
-	  sensor data, and be notified of sensor value.
-
-	  This protocol library provides interface for all the client drivers
-	  making use of the features offered by the SCMI.
-
-config ARM_SCMI_POWER_DOMAIN
-	tristate "SCMI power domain driver"
-	depends on ARM_SCMI_PROTOCOL || (COMPILE_TEST && OF)
-	default y
-	select PM_GENERIC_DOMAINS if PM
-	help
-	  This enables support for the SCMI power domains which can be
-	  enabled or disabled via the SCP firmware
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called scmi_pm_domain. Note this may needed early in boot
-	  before rootfs may be available.
+source "drivers/firmware/arm_scmi/Kconfig"
 
 config ARM_SCPI_PROTOCOL
 	tristate "ARM System Control and Power Interface (SCPI) Message Protocol"
@@ -64,7 +19,7 @@ config ARM_SCPI_PROTOCOL
 	  provides a mechanism for inter-processor communication between SCP
 	  and AP.
 
-	  SCP controls most of the power managament on the Application
+	  SCP controls most of the power management on the Application
 	  Processors. It offers control and management of: the core/cluster
 	  power states, various power domain DVFS including the core/cluster,
 	  certain system clocks configuration, thermal sensors and many
@@ -85,6 +40,7 @@ config ARM_SCPI_POWER_DOMAIN
 config ARM_SDE_INTERFACE
 	bool "ARM Software Delegated Exception Interface (SDEI)"
 	depends on ARM64
+	depends on ACPI_APEI_GHES
 	help
 	  The Software Delegated Exception Interface (SDEI) is an ARM
 	  standard for registering callbacks from the platform firmware
@@ -170,7 +126,7 @@ config DMI_SCAN_MACHINE_NON_EFI_FALLBACK
 
 config ISCSI_IBFT_FIND
 	bool "iSCSI Boot Firmware Table Attributes"
-	depends on X86 && ACPI
+	depends on X86 && ISCSI_IBFT
 	default n
 	help
 	  This option enables the kernel to find the region of memory
@@ -181,7 +137,8 @@ config ISCSI_IBFT_FIND
 config ISCSI_IBFT
 	tristate "iSCSI Boot Firmware Table Attributes module"
 	select ISCSI_BOOT_SYSFS
-	depends on ISCSI_IBFT_FIND && SCSI && SCSI_LOWLEVEL
+	select ISCSI_IBFT_FIND if X86
+	depends on ACPI && SCSI && SCSI_LOWLEVEL
 	default	n
 	help
 	  This option enables support for detection and exposing of iSCSI
@@ -198,7 +155,7 @@ config RASPBERRYPI_FIRMWARE
 
 config FW_CFG_SYSFS
 	tristate "QEMU fw_cfg device support in sysfs"
-	depends on SYSFS && (ARM || ARM64 || PPC_PMAC || SPARC || X86)
+	depends on SYSFS && (ARM || ARM64 || PARISC || PPC_PMAC || SPARC || X86)
 	depends on HAS_IOPORT_MAP
 	default n
 	help
@@ -218,7 +175,7 @@ config FW_CFG_SYSFS_CMDLINE
 
 config INTEL_STRATIX10_SERVICE
 	tristate "Intel Stratix10 Service Layer"
-	depends on HAVE_ARM_SMCCC
+	depends on ARCH_INTEL_SOCFPGA && ARM64 && HAVE_ARM_SMCCC
 	default n
 	help
 	  Intel Stratix10 service layer runs at privileged exception level,
@@ -228,18 +185,35 @@ config INTEL_STRATIX10_SERVICE
 
 	  Say Y here if you want Stratix10 service layer support.
 
+config INTEL_STRATIX10_RSU
+	tristate "Intel Stratix10 Remote System Update"
+	depends on INTEL_STRATIX10_SERVICE
+	help
+	  The Intel Remote System Update (RSU) driver exposes interfaces
+	  access through the Intel Service Layer to user space via sysfs
+	  device attribute nodes. The RSU interfaces report/control some of
+	  the optional RSU features of the Stratix 10 SoC FPGA.
+
+	  The RSU provides a way for customers to update the boot
+	  configuration of a Stratix 10 SoC device with significantly reduced
+	  risk of corrupting the bitstream storage and bricking the system.
+
+	  Enable RSU support if you are using an Intel SoC FPGA with the RSU
+	  feature enabled and you want Linux user space control.
+
+	  Say Y here if you want Intel RSU support.
+
+config MTK_ADSP_IPC
+	tristate "MTK ADSP IPC Protocol driver"
+	depends on MTK_ADSP_MBOX
+	help
+	  Say yes here to add support for the MediaTek ADSP IPC
+	  between host AP (Linux) and the firmware running on ADSP.
+	  ADSP exists on some mtk processors.
+	  Client might use shared memory to exchange information with ADSP.
+
 config QCOM_SCM
-	bool
-	depends on ARM || ARM64
-	select RESET_CONTROLLER
-
-config QCOM_SCM_32
-	def_bool y
-	depends on QCOM_SCM && ARM
-
-config QCOM_SCM_64
-	def_bool y
-	depends on QCOM_SCM && ARM64
+	tristate
 
 config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 	bool "Qualcomm download mode enabled by default"
@@ -251,6 +225,38 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 	  The feature can be enabled/disabled on the kernel command line.
 
 	  Say Y here to enable "download mode" by default.
+
+config SYSFB
+	bool
+	select BOOT_VESA_SUPPORT
+
+config SYSFB_SIMPLEFB
+	bool "Mark VGA/VBE/EFI FB as generic system framebuffer"
+	depends on X86 || EFI
+	select SYSFB
+	help
+	  Firmwares often provide initial graphics framebuffers so the BIOS,
+	  bootloader or kernel can show basic video-output during boot for
+	  user-guidance and debugging. Historically, x86 used the VESA BIOS
+	  Extensions and EFI-framebuffers for this, which are mostly limited
+	  to x86 BIOS or EFI systems.
+	  This option, if enabled, marks VGA/VBE/EFI framebuffers as generic
+	  framebuffers so the new generic system-framebuffer drivers can be
+	  used instead. If the framebuffer is not compatible with the generic
+	  modes, it is advertised as fallback platform framebuffer so legacy
+	  drivers like efifb, vesafb and uvesafb can pick it up.
+	  If this option is not selected, all system framebuffers are always
+	  marked as fallback platform framebuffers as usual.
+
+	  Note: Legacy fbdev drivers, including vesafb, efifb, uvesafb, will
+	  not be able to pick up generic system framebuffers if this option
+	  is selected. You are highly encouraged to enable simplefb as
+	  replacement if you select this option. simplefb can correctly deal
+	  with generic system framebuffers. But you should still keep vesafb
+	  and others enabled as fallback if a system framebuffer is
+	  incompatible with simplefb.
+
+	  If unsure, say Y.
 
 config TI_SCI_PROTOCOL
 	tristate "TI System Control Interface (TISCI) Message Protocol"
@@ -267,14 +273,45 @@ config TI_SCI_PROTOCOL
 	  This protocol library is used by client drivers to use the features
 	  provided by the system controller.
 
-config HAVE_ARM_SMCCC
-	bool
+config TRUSTED_FOUNDATIONS
+	bool "Trusted Foundations secure monitor support"
+	depends on ARM && CPU_V7
+	help
+	  Some devices (including most early Tegra-based consumer devices on
+	  the market) are booted with the Trusted Foundations secure monitor
+	  active, requiring some core operations to be performed by the secure
+	  monitor instead of the kernel.
 
+	  This option allows the kernel to invoke the secure monitor whenever
+	  required on devices using Trusted Foundations. See the functions and
+	  comments in linux/firmware/trusted_foundations.h or the device tree
+	  bindings for "tlm,trusted-foundations" for details on how to use it.
+
+	  Choose N if you don't know what this is about.
+
+config TURRIS_MOX_RWTM
+	tristate "Turris Mox rWTM secure firmware driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on HAS_DMA && OF
+	depends on MAILBOX
+	select HW_RANDOM
+	select ARMADA_37XX_RWTM_MBOX
+	help
+	  This driver communicates with the firmware on the Cortex-M3 secure
+	  processor of the Turris Mox router. Enable if you are building for
+	  Turris Mox, and you will be able to read the device serial number and
+	  other manufacturing data and also utilize the Entropy Bit Generator
+	  for hardware random number generation.
+
+source "drivers/firmware/arm_ffa/Kconfig"
 source "drivers/firmware/broadcom/Kconfig"
+source "drivers/firmware/cirrus/Kconfig"
 source "drivers/firmware/google/Kconfig"
 source "drivers/firmware/efi/Kconfig"
 source "drivers/firmware/imx/Kconfig"
 source "drivers/firmware/meson/Kconfig"
+source "drivers/firmware/psci/Kconfig"
+source "drivers/firmware/smccc/Kconfig"
 source "drivers/firmware/tegra/Kconfig"
 source "drivers/firmware/xilinx/Kconfig"
 

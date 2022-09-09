@@ -45,10 +45,12 @@
 static char jit_path[PATH_MAX];
 static void *marker_addr;
 
+#ifndef HAVE_GETTID
 static inline pid_t gettid(void)
 {
 	return (pid_t)syscall(__NR_gettid);
 }
+#endif
 
 static int get_e_machine(struct jitheader *hdr)
 {
@@ -388,7 +390,7 @@ jvmti_write_code(void *agent, char const *sym,
 		rec.p.total_size += size;
 
 	/*
-	 * If JVM is multi-threaded, nultiple concurrent calls to agent
+	 * If JVM is multi-threaded, multiple concurrent calls to agent
 	 * may be possible, so protect file writes
 	 */
 	flockfile(fp);
@@ -455,7 +457,7 @@ jvmti_write_debug_info(void *agent, uint64_t code,
 	rec.p.total_size = size;
 
 	/*
-	 * If JVM is multi-threaded, nultiple concurrent calls to agent
+	 * If JVM is multi-threaded, multiple concurrent calls to agent
 	 * may be possible, so protect file writes
 	 */
 	flockfile(fp);

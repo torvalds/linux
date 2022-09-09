@@ -17,38 +17,32 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
+#include <linux/clocksource.h>
 #include <linux/console.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/major.h>
-#include <linux/genhd.h>
 #include <linux/rtc.h>
 #include <linux/interrupt.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-vme.h>
 #include <asm/byteorder.h>
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/mvme147hw.h>
+#include <asm/config.h>
 
 
 static void mvme147_get_model(char *model);
-extern void mvme147_sched_init(irq_handler_t handler);
-extern u32 mvme147_gettimeoffset(void);
+extern void mvme147_sched_init(void);
 extern int mvme147_hwclk (int, struct rtc_time *);
 extern void mvme147_reset (void);
 
 
 static int bcd2int (unsigned char b);
-
-/* Save tick handler routine pointer, will point to xtime_update() in
- * kernel/time/timekeeping.c, called via mvme147_process_int() */
-
-irq_handler_t tick_handler;
 
 
 int __init mvme147_parse_bootinfo(const struct bi_record *bi)
@@ -86,10 +80,8 @@ void __init mvme147_init_IRQ(void)
 
 void __init config_mvme147(void)
 {
-	mach_max_dma_address	= 0x01000000;
 	mach_sched_init		= mvme147_sched_init;
 	mach_init_IRQ		= mvme147_init_IRQ;
-	arch_gettimeoffset	= mvme147_gettimeoffset;
 	mach_hwclk		= mvme147_hwclk;
 	mach_reset		= mvme147_reset;
 	mach_get_model		= mvme147_get_model;
@@ -99,45 +91,77 @@ void __init config_mvme147(void)
 		vme_brdtype = VME_TYPE_MVME147;
 }
 
+static u64 mvme147_read_clk(struct clocksource *cs);
+
+static struct clocksource mvme147_clk = {
+	.name   = "pcc",
+	.rating = 250,
+	.read   = mvme147_read_clk,
+	.mask   = CLOCKSOURCE_MASK(32),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static u32 clk_total;
+
+#define PCC_TIMER_CLOCK_FREQ 160000
+#define PCC_TIMER_CYCLES     (PCC_TIMER_CLOCK_FREQ / HZ)
+#define PCC_TIMER_PRELOAD    (0x10000 - PCC_TIMER_CYCLES)
 
 /* Using pcc tick timer 1 */
 
 static irqreturn_t mvme147_timer_int (int irq, void *dev_id)
 {
-	m147_pcc->t1_int_cntrl = PCC_TIMER_INT_CLR;
-	m147_pcc->t1_int_cntrl = PCC_INT_ENAB|PCC_LEVEL_TIMER1;
-	return tick_handler(irq, dev_id);
+	unsigned long flags;
+
+	local_irq_save(flags);
+	m147_pcc->t1_cntrl = PCC_TIMER_CLR_OVF | PCC_TIMER_COC_EN |
+			     PCC_TIMER_TIC_EN;
+	m147_pcc->t1_int_cntrl = PCC_INT_ENAB | PCC_TIMER_INT_CLR |
+				 PCC_LEVEL_TIMER1;
+	clk_total += PCC_TIMER_CYCLES;
+	legacy_timer_tick(1);
+	local_irq_restore(flags);
+
+	return IRQ_HANDLED;
 }
 
 
-void mvme147_sched_init (irq_handler_t timer_routine)
+void mvme147_sched_init (void)
 {
-	tick_handler = timer_routine;
-	if (request_irq(PCC_IRQ_TIMER1, mvme147_timer_int, 0, "timer 1", NULL))
+	if (request_irq(PCC_IRQ_TIMER1, mvme147_timer_int, IRQF_TIMER,
+			"timer 1", NULL))
 		pr_err("Couldn't register timer interrupt\n");
 
 	/* Init the clock with a value */
-	/* our clock goes off every 6.25us */
+	/* The clock counter increments until 0xFFFF then reloads */
 	m147_pcc->t1_preload = PCC_TIMER_PRELOAD;
-	m147_pcc->t1_cntrl = 0x0;	/* clear timer */
-	m147_pcc->t1_cntrl = 0x3;	/* start timer */
-	m147_pcc->t1_int_cntrl = PCC_TIMER_INT_CLR;  /* clear pending ints */
-	m147_pcc->t1_int_cntrl = PCC_INT_ENAB|PCC_LEVEL_TIMER1;
+	m147_pcc->t1_cntrl = PCC_TIMER_CLR_OVF | PCC_TIMER_COC_EN |
+			     PCC_TIMER_TIC_EN;
+	m147_pcc->t1_int_cntrl = PCC_INT_ENAB | PCC_TIMER_INT_CLR |
+				 PCC_LEVEL_TIMER1;
+
+	clocksource_register_hz(&mvme147_clk, PCC_TIMER_CLOCK_FREQ);
 }
 
-/* This is always executed with interrupts disabled.  */
-/* XXX There are race hazards in this code XXX */
-u32 mvme147_gettimeoffset(void)
+static u64 mvme147_read_clk(struct clocksource *cs)
 {
-	volatile unsigned short *cp = (volatile unsigned short *)0xfffe1012;
-	unsigned short n;
+	unsigned long flags;
+	u8 overflow, tmp;
+	u16 count;
+	u32 ticks;
 
-	n = *cp;
-	while (n != *cp)
-		n = *cp;
+	local_irq_save(flags);
+	tmp = m147_pcc->t1_cntrl >> 4;
+	count = m147_pcc->t1_count;
+	overflow = m147_pcc->t1_cntrl >> 4;
+	if (overflow != tmp)
+		count = m147_pcc->t1_count;
+	count -= PCC_TIMER_PRELOAD;
+	ticks = count + overflow * PCC_TIMER_CYCLES;
+	ticks += clk_total;
+	local_irq_restore(flags);
 
-	n -= PCC_TIMER_PRELOAD;
-	return ((unsigned long)n * 25 / 4) * 1000;
+	return ticks;
 }
 
 static int bcd2int (unsigned char b)
@@ -147,7 +171,6 @@ static int bcd2int (unsigned char b)
 
 int mvme147_hwclk(int op, struct rtc_time *t)
 {
-#warning check me!
 	if (!op) {
 		m147_rtc->ctrl = RTC_READ;
 		t->tm_year = bcd2int (m147_rtc->bcd_year);
@@ -159,6 +182,9 @@ int mvme147_hwclk(int op, struct rtc_time *t)
 		m147_rtc->ctrl = 0;
 		if (t->tm_year < 70)
 			t->tm_year += 100;
+	} else {
+		/* FIXME Setting the time is not yet supported */
+		return -EOPNOTSUPP;
 	}
 	return 0;
 }

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 STMicroelectronics (R&D) Limited.
  * Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <dt-bindings/clock/stih407-clks.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -49,7 +46,7 @@
 			/* DAC */
 			format = "i2s";
 			mclk-fs = <256>;
-			frame-inversion = <1>;
+			frame-inversion;
 			cpu {
 				sound-dai = <&sti_uni_player2>;
 			};
@@ -71,6 +68,17 @@
 			codec {
 				sound-dai = <&sti_sasg_codec 0>;
 			};
+		};
+	};
+
+	miphy28lp_phy: miphy28lp {
+
+		phy_port0: port@9b22000 {
+			st,osc-rdy;
+		};
+
+		phy_port1: port@9b2a000 {
+			st,osc-force-ext;
 		};
 	};
 
@@ -131,17 +139,6 @@
 			st,i2c-min-sda-pulse-width-us = <5>;
 		};
 
-		miphy28lp_phy: miphy28lp@0 {
-
-			phy_port0: port@9b22000 {
-				st,osc-rdy;
-			};
-
-			phy_port1: port@9b2a000 {
-				st,osc-force-ext;
-			};
-		};
-
 		st_dwc3: dwc3@8f94000 {
 			status = "okay";
 		};
@@ -178,11 +175,11 @@
 
 			/* tsin0 is TSA on NIMA */
 			tsin0: port {
-				tsin-num	= <0>;
+				tsin-num = <0>;
 				serial-not-parallel;
-				i2c-bus		= <&ssc2>;
-				reset-gpios	= <&pio15 4 GPIO_ACTIVE_HIGH>;
-				dvb-card	= <STV0367_TDA18212_NIMA_1>;
+				i2c-bus = <&ssc2>;
+				reset-gpios = <&pio15 4 GPIO_ACTIVE_HIGH>;
+				dvb-card = <STV0367_TDA18212_NIMA_1>;
 			};
 		};
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	STV6110(A) Silicon tuner driver
 
@@ -5,19 +6,6 @@
 
 	Copyright (C) ST Microelectronics
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/init.h>
@@ -345,6 +333,41 @@ static void stv6110x_release(struct dvb_frontend *fe)
 	kfree(stv6110x);
 }
 
+static void st6110x_init_regs(struct stv6110x_state *stv6110x)
+{
+	u8 default_regs[] = {0x07, 0x11, 0xdc, 0x85, 0x17, 0x01, 0xe6, 0x1e};
+
+	memcpy(stv6110x->regs, default_regs, 8);
+}
+
+static void stv6110x_setup_divider(struct stv6110x_state *stv6110x)
+{
+	switch (stv6110x->config->clk_div) {
+	default:
+	case 1:
+		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2],
+				  CTRL2_CO_DIV,
+				  0);
+		break;
+	case 2:
+		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2],
+				  CTRL2_CO_DIV,
+				  1);
+		break;
+	case 4:
+		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2],
+				  CTRL2_CO_DIV,
+				  2);
+		break;
+	case 8:
+	case 0:
+		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2],
+				  CTRL2_CO_DIV,
+				  3);
+		break;
+	}
+}
+
 static const struct dvb_tuner_ops stv6110x_ops = {
 	.info = {
 		.name		  = "STV6110(A) Silicon Tuner",
@@ -354,7 +377,7 @@ static const struct dvb_tuner_ops stv6110x_ops = {
 	.release		= stv6110x_release
 };
 
-static const struct stv6110x_devctl stv6110x_ctl = {
+static struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_init		= stv6110x_init,
 	.tuner_sleep		= stv6110x_sleep,
 	.tuner_set_mode		= stv6110x_set_mode,
@@ -368,47 +391,103 @@ static const struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_get_status	= stv6110x_get_status,
 };
 
+static void stv6110x_set_frontend_opts(struct stv6110x_state *stv6110x)
+{
+	stv6110x->frontend->tuner_priv		= stv6110x;
+	stv6110x->frontend->ops.tuner_ops	= stv6110x_ops;
+}
+
+static struct stv6110x_devctl *stv6110x_get_devctl(struct i2c_client *client)
+{
+	struct stv6110x_state *stv6110x = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return stv6110x->devctl;
+}
+
+static int stv6110x_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
+{
+	struct stv6110x_config *config = client->dev.platform_data;
+
+	struct stv6110x_state *stv6110x;
+
+	stv6110x = kzalloc(sizeof(*stv6110x), GFP_KERNEL);
+	if (!stv6110x)
+		return -ENOMEM;
+
+	stv6110x->frontend	= config->frontend;
+	stv6110x->i2c		= client->adapter;
+	stv6110x->config	= config;
+	stv6110x->devctl	= &stv6110x_ctl;
+
+	st6110x_init_regs(stv6110x);
+	stv6110x_setup_divider(stv6110x);
+	stv6110x_set_frontend_opts(stv6110x);
+
+	dev_info(&stv6110x->i2c->dev, "Probed STV6110x\n");
+
+	i2c_set_clientdata(client, stv6110x);
+
+	/* setup callbacks */
+	config->get_devctl = stv6110x_get_devctl;
+
+	return 0;
+}
+
+static int stv6110x_remove(struct i2c_client *client)
+{
+	struct stv6110x_state *stv6110x = i2c_get_clientdata(client);
+
+	stv6110x_release(stv6110x->frontend);
+	return 0;
+}
+
 const struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 					const struct stv6110x_config *config,
 					struct i2c_adapter *i2c)
 {
 	struct stv6110x_state *stv6110x;
-	u8 default_regs[] = {0x07, 0x11, 0xdc, 0x85, 0x17, 0x01, 0xe6, 0x1e};
 
-	stv6110x = kzalloc(sizeof (struct stv6110x_state), GFP_KERNEL);
+	stv6110x = kzalloc(sizeof(*stv6110x), GFP_KERNEL);
 	if (!stv6110x)
 		return NULL;
 
+	stv6110x->frontend	= fe;
 	stv6110x->i2c		= i2c;
 	stv6110x->config	= config;
 	stv6110x->devctl	= &stv6110x_ctl;
-	memcpy(stv6110x->regs, default_regs, 8);
 
-	/* setup divider */
-	switch (stv6110x->config->clk_div) {
-	default:
-	case 1:
-		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2], CTRL2_CO_DIV, 0);
-		break;
-	case 2:
-		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2], CTRL2_CO_DIV, 1);
-		break;
-	case 4:
-		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2], CTRL2_CO_DIV, 2);
-		break;
-	case 8:
-	case 0:
-		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2], CTRL2_CO_DIV, 3);
-		break;
-	}
+	st6110x_init_regs(stv6110x);
+	stv6110x_setup_divider(stv6110x);
+	stv6110x_set_frontend_opts(stv6110x);
 
 	fe->tuner_priv		= stv6110x;
 	fe->ops.tuner_ops	= stv6110x_ops;
 
-	printk(KERN_INFO "%s: Attaching STV6110x\n", __func__);
+	dev_info(&stv6110x->i2c->dev, "Attaching STV6110x\n");
 	return stv6110x->devctl;
 }
 EXPORT_SYMBOL(stv6110x_attach);
+
+static const struct i2c_device_id stv6110x_id_table[] = {
+	{"stv6110x", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, stv6110x_id_table);
+
+static struct i2c_driver stv6110x_driver = {
+	.driver = {
+		.name	= "stv6110x",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= stv6110x_probe,
+	.remove		= stv6110x_remove,
+	.id_table	= stv6110x_id_table,
+};
+
+module_i2c_driver(stv6110x_driver);
 
 MODULE_AUTHOR("Manu Abraham");
 MODULE_DESCRIPTION("STV6110x Silicon tuner");

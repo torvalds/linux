@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for TWL4030/6030 Pulse Width Modulator used as LED driver
  *
@@ -7,17 +8,21 @@
  * This driver is a complete rewrite of the former pwm-twl6030.c authorded by:
  * Hemanth V <hemanthv@ti.com>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
+ * Reference manual for the twl6030 is available at:
+ * https://www.ti.com/lit/ds/symlink/twl6030.pdf
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Limitations:
+ * - The twl6030 hardware only supports two period lengths (128 clock ticks and
+ *   64 clock ticks), the driver only uses 128 ticks
+ * - The hardware doesn't support ON = 0, so the active part of a period doesn't
+ *   start at its beginning.
+ * - The hardware could support inverted polarity (with a similar limitation as
+ *   for normal: the last clock tick is always inactive).
+ * - The hardware emits a constant low output when disabled.
+ * - A request for .duty_cycle = 0 results in an output wave with one active
+ *   clock tick per period. This should better use the disabled state.
+ * - The driver only implements setting the relative duty cycle.
+ * - The driver doesn't implement .get_state().
  */
 
 #include <linux/module.h>
@@ -148,6 +153,45 @@ out:
 	mutex_unlock(&twl->mutex);
 }
 
+static int twl4030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+				const struct pwm_state *state)
+{
+	int ret;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			twl4030_pwmled_disable(chip, pwm);
+
+		return 0;
+	}
+
+	/*
+	 * We cannot skip calling ->config even if state->period ==
+	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
+	 * because we might have exited early in the last call to
+	 * pwm_apply_state because of !state->enabled and so the two values in
+	 * pwm->state might not be configured in hardware.
+	 */
+	ret = twl4030_pwmled_config(pwm->chip, pwm,
+				    state->duty_cycle, state->period);
+	if (ret)
+		return ret;
+
+	if (!pwm->state.enabled)
+		ret = twl4030_pwmled_enable(chip, pwm);
+
+	return ret;
+}
+
+
+static const struct pwm_ops twl4030_pwmled_ops = {
+	.apply = twl4030_pwmled_apply,
+	.owner = THIS_MODULE,
+};
+
 static int twl6030_pwmled_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			      int duty_ns, int period_ns)
 {
@@ -217,6 +261,32 @@ out:
 	mutex_unlock(&twl->mutex);
 }
 
+static int twl6030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+				const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != pwm->state.polarity)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			twl6030_pwmled_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = twl6030_pwmled_config(pwm->chip, pwm,
+				    state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = twl6030_pwmled_enable(chip, pwm);
+
+	return err;
+}
+
 static int twl6030_pwmled_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct twl_pwmled_chip *twl = to_twl(chip);
@@ -268,17 +338,8 @@ out:
 	mutex_unlock(&twl->mutex);
 }
 
-static const struct pwm_ops twl4030_pwmled_ops = {
-	.enable = twl4030_pwmled_enable,
-	.disable = twl4030_pwmled_disable,
-	.config = twl4030_pwmled_config,
-	.owner = THIS_MODULE,
-};
-
 static const struct pwm_ops twl6030_pwmled_ops = {
-	.enable = twl6030_pwmled_enable,
-	.disable = twl6030_pwmled_disable,
-	.config = twl6030_pwmled_config,
+	.apply = twl6030_pwmled_apply,
 	.request = twl6030_pwmled_request,
 	.free = twl6030_pwmled_free,
 	.owner = THIS_MODULE,
@@ -287,7 +348,6 @@ static const struct pwm_ops twl6030_pwmled_ops = {
 static int twl_pwmled_probe(struct platform_device *pdev)
 {
 	struct twl_pwmled_chip *twl;
-	int ret;
 
 	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
@@ -302,24 +362,10 @@ static int twl_pwmled_probe(struct platform_device *pdev)
 	}
 
 	twl->chip.dev = &pdev->dev;
-	twl->chip.base = -1;
 
 	mutex_init(&twl->mutex);
 
-	ret = pwmchip_add(&twl->chip);
-	if (ret < 0)
-		return ret;
-
-	platform_set_drvdata(pdev, twl);
-
-	return 0;
-}
-
-static int twl_pwmled_remove(struct platform_device *pdev)
-{
-	struct twl_pwmled_chip *twl = platform_get_drvdata(pdev);
-
-	return pwmchip_remove(&twl->chip);
+	return devm_pwmchip_add(&pdev->dev, &twl->chip);
 }
 
 #ifdef CONFIG_OF
@@ -337,7 +383,6 @@ static struct platform_driver twl_pwmled_driver = {
 		.of_match_table = of_match_ptr(twl_pwmled_of_match),
 	},
 	.probe = twl_pwmled_probe,
-	.remove = twl_pwmled_remove,
 };
 module_platform_driver(twl_pwmled_driver);
 

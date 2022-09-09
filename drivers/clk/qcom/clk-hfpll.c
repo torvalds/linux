@@ -72,13 +72,16 @@ static void __clk_hfpll_enable(struct clk_hw *hw)
 	regmap_update_bits(regmap, hd->mode_reg, PLL_RESET_N, PLL_RESET_N);
 
 	/* Wait for PLL to lock. */
-	if (hd->status_reg) {
-		do {
-			regmap_read(regmap, hd->status_reg, &val);
-		} while (!(val & BIT(hd->lock_bit)));
-	} else {
+	if (hd->status_reg)
+		/*
+		 * Busy wait. Should never timeout, we add a timeout to
+		 * prevent any sort of stall.
+		 */
+		regmap_read_poll_timeout(regmap, hd->status_reg, val,
+					 !(val & BIT(hd->lock_bit)), 0,
+					 100 * USEC_PER_MSEC);
+	else
 		udelay(60);
-	}
 
 	/* Enable PLL output. */
 	regmap_update_bits(regmap, hd->mode_reg, PLL_OUTCTRL, PLL_OUTCTRL);
@@ -196,7 +199,7 @@ static unsigned long clk_hfpll_recalc_rate(struct clk_hw *hw,
 	return l_val * parent_rate;
 }
 
-static void clk_hfpll_init(struct clk_hw *hw)
+static int clk_hfpll_init(struct clk_hw *hw)
 {
 	struct clk_hfpll *h = to_clk_hfpll(hw);
 	struct hfpll_data const *hd = h->d;
@@ -206,7 +209,7 @@ static void clk_hfpll_init(struct clk_hw *hw)
 	regmap_read(regmap, hd->mode_reg, &mode);
 	if (mode != (PLL_BYPASSNL | PLL_RESET_N | PLL_OUTCTRL)) {
 		__clk_hfpll_init_once(hw);
-		return;
+		return 0;
 	}
 
 	if (hd->status_reg) {
@@ -218,6 +221,8 @@ static void clk_hfpll_init(struct clk_hw *hw)
 			__clk_hfpll_init_once(hw);
 		}
 	}
+
+	return 0;
 }
 
 static int hfpll_is_enabled(struct clk_hw *hw)

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright Everest Semiconductor Co.,Ltd
  *
  * Author: David Yang <yangxiaohua@everest-semi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _ES8316_H
@@ -125,5 +121,12 @@
 #define ES8316_SERDATA2_LEN_18		0x08
 #define ES8316_SERDATA2_LEN_16		0x0c
 #define ES8316_SERDATA2_LEN_32		0x10
+
+/* ES8316_GPIO_DEBOUNCE	*/
+#define ES8316_GPIO_ENABLE_INTERRUPT		0x02
+
+/* ES8316_GPIO_FLAG */
+#define ES8316_GPIO_FLAG_GM_NOT_SHORTED		0x02
+#define ES8316_GPIO_FLAG_HP_NOT_INSERTED	0x04
 
 #endif

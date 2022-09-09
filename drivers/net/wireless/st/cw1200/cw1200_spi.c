@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Mac80211 SPI driver for ST-Ericsson CW1200 device
  *
@@ -7,10 +8,6 @@
  * Based on cw1200_sdio.c
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -271,15 +268,11 @@ exit:
 	return ret;
 }
 
-static int cw1200_spi_irq_unsubscribe(struct hwbus_priv *self)
+static void cw1200_spi_irq_unsubscribe(struct hwbus_priv *self)
 {
-	int ret = 0;
-
 	pr_debug("SW IRQ unsubscribe\n");
 	disable_irq_wake(self->func->irq);
 	free_irq(self->func->irq, self);
-
-	return ret;
 }
 
 static int cw1200_spi_off(const struct cw1200_platform_data_spi *pdata)
@@ -430,7 +423,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 }
 
 /* Disconnect Function to be called by SPI stack when device is disconnected */
-static int cw1200_spi_disconnect(struct spi_device *func)
+static void cw1200_spi_disconnect(struct spi_device *func)
 {
 	struct hwbus_priv *self = spi_get_drvdata(func);
 
@@ -442,8 +435,6 @@ static int cw1200_spi_disconnect(struct spi_device *func)
 		}
 	}
 	cw1200_spi_off(dev_get_platdata(&func->dev));
-
-	return 0;
 }
 
 static int __maybe_unused cw1200_spi_suspend(struct device *dev)

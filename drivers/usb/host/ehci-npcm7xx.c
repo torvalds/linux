@@ -37,8 +37,7 @@ static const char hcd_name[] = "npcm7xx-ehci";
 
 static struct hc_driver __read_mostly ehci_npcm7xx_hc_driver;
 
-#ifdef CONFIG_PM_SLEEP
-static int ehci_npcm7xx_drv_suspend(struct device *dev)
+static int __maybe_unused ehci_npcm7xx_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	bool do_wakeup = device_may_wakeup(dev);
@@ -46,14 +45,13 @@ static int ehci_npcm7xx_drv_suspend(struct device *dev)
 	return ehci_suspend(hcd, do_wakeup);
 }
 
-static int ehci_npcm7xx_drv_resume(struct device *dev)
+static int __maybe_unused ehci_npcm7xx_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
 	ehci_resume(hcd, false);
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(ehci_npcm7xx_pm_ops, ehci_npcm7xx_drv_suspend,
 		ehci_npcm7xx_drv_resume);
@@ -183,7 +181,7 @@ static struct platform_driver npcm7xx_ehci_hcd_driver = {
 	.driver		= {
 		.name = "npcm7xx-ehci",
 		.bus = &platform_bus_type,
-		.pm = &ehci_npcm7xx_pm_ops,
+		.pm = pm_ptr(&ehci_npcm7xx_pm_ops),
 		.of_match_table = npcm7xx_ehci_id_table,
 	}
 };

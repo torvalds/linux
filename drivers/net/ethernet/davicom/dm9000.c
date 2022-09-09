@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      Davicom DM9000 Fast Ethernet driver for Linux.
  * 	Copyright (C) 1997  Sten Wang
- *
- * 	This program is free software; you can redistribute it and/or
- * 	modify it under the terms of the GNU General Public License
- * 	as published by the Free Software Foundation; either version 2
- * 	of the License, or (at your option) any later version.
- *
- * 	This program is distributed in the hope that it will be useful,
- * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
- * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * 	GNU General Public License for more details.
  *
  * (C) Copyright 1997-1998 DAVICOM Semiconductor,Inc. All Rights Reserved.
  *
@@ -51,7 +42,6 @@
 #define DM9000_PHY		0x40	/* PHY address 0x01 */
 
 #define CARDNAME	"dm9000"
-#define DRV_VERSION	"1.31"
 
 /*
  * Transmit timeout, default 5 seconds.
@@ -143,6 +133,8 @@ struct board_info {
 	u32		wake_state;
 
 	int		ip_summed;
+
+	struct regulator *power_supply;
 };
 
 /* debug code */
@@ -242,32 +234,29 @@ static void dm9000_inblk_32bit(void __iomem *reg, void *data, int count)
 static void dm9000_dumpblk_8bit(void __iomem *reg, int count)
 {
 	int i;
-	int tmp;
 
 	for (i = 0; i < count; i++)
-		tmp = readb(reg);
+		readb(reg);
 }
 
 static void dm9000_dumpblk_16bit(void __iomem *reg, int count)
 {
 	int i;
-	int tmp;
 
 	count = (count + 1) >> 1;
 
 	for (i = 0; i < count; i++)
-		tmp = readw(reg);
+		readw(reg);
 }
 
 static void dm9000_dumpblk_32bit(void __iomem *reg, int count)
 {
 	int i;
-	int tmp;
 
 	count = (count + 3) >> 2;
 
 	for (i = 0; i < count; i++)
-		tmp = readl(reg);
+		readl(reg);
 }
 
 /*
@@ -395,6 +384,7 @@ static void dm9000_set_io(struct board_info *db, int byte_width)
 
 	case 3:
 		dev_dbg(db->dev, ": 3 byte IO, falling back to 16bit\n");
+		fallthrough;
 	case 2:
 		db->dumpblk = dm9000_dumpblk_16bit;
 		db->outblk  = dm9000_outblk_16bit;
@@ -551,7 +541,6 @@ static void dm9000_get_drvinfo(struct net_device *dev,
 	struct board_info *dm = to_dm9000_board(dev);
 
 	strlcpy(info->driver, CARDNAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, to_platform_device(dm->dev)->name,
 		sizeof(info->bus_info));
 }
@@ -972,7 +961,7 @@ dm9000_init_dm9000(struct net_device *dev)
 }
 
 /* Our watchdog timed out. Called by the networking layer */
-static void dm9000_timeout(struct net_device *dev)
+static void dm9000_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct board_info *db = netdev_priv(dev);
 	u8 reg_save;
@@ -1383,7 +1372,7 @@ static const struct net_device_ops dm9000_netdev_ops = {
 	.ndo_start_xmit		= dm9000_start_xmit,
 	.ndo_tx_timeout		= dm9000_timeout,
 	.ndo_set_rx_mode	= dm9000_hash_table,
-	.ndo_do_ioctl		= dm9000_ioctl,
+	.ndo_eth_ioctl		= dm9000_ioctl,
 	.ndo_set_features	= dm9000_set_features,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -1396,7 +1385,7 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 {
 	struct dm9000_plat_data *pdata;
 	struct device_node *np = dev->of_node;
-	const void *mac_addr;
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !np)
 		return ERR_PTR(-ENXIO);
@@ -1410,9 +1399,9 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 	if (of_find_property(np, "davicom,no-eeprom", NULL))
 		pdata->flags |= DM9000_PLATF_NO_EEPROM;
 
-	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
-		memcpy(pdata->dev_addr, mac_addr, sizeof(pdata->dev_addr));
+	ret = of_get_mac_address(np, pdata->dev_addr);
+	if (ret == -EPROBE_DEFER)
+		return ERR_PTR(ret);
 
 	return pdata;
 }
@@ -1436,6 +1425,7 @@ dm9000_probe(struct platform_device *pdev)
 	enum of_gpio_flags flags;
 	struct regulator *power;
 	bool inv_mac_addr = false;
+	u8 addr[ETH_ALEN];
 
 	power = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(power)) {
@@ -1460,7 +1450,7 @@ dm9000_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(dev, "failed to request reset gpio %d: %d\n",
 				reset_gpios, ret);
-			return -ENODEV;
+			goto out_regulator_disable;
 		}
 
 		/* According to manual PWRST# Low Period Min 1ms */
@@ -1472,14 +1462,18 @@ dm9000_probe(struct platform_device *pdev)
 
 	if (!pdata) {
 		pdata = dm9000_parse_dt(&pdev->dev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
+		if (IS_ERR(pdata)) {
+			ret = PTR_ERR(pdata);
+			goto out_regulator_disable;
+		}
 	}
 
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof(struct board_info));
-	if (!ndev)
-		return -ENOMEM;
+	if (!ndev) {
+		ret = -ENOMEM;
+		goto out_regulator_disable;
+	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -1490,6 +1484,8 @@ dm9000_probe(struct platform_device *pdev)
 
 	db->dev = &pdev->dev;
 	db->ndev = ndev;
+	if (!IS_ERR(power))
+		db->power_supply = power;
 
 	spin_lock_init(&db->lock);
 	mutex_init(&db->addr_lock);
@@ -1508,13 +1504,11 @@ dm9000_probe(struct platform_device *pdev)
 
 	ndev->irq = platform_get_irq(pdev, 0);
 	if (ndev->irq < 0) {
-		dev_err(db->dev, "interrupt resource unavailable: %d\n",
-			ndev->irq);
 		ret = ndev->irq;
 		goto out;
 	}
 
-	db->irq_wake = platform_get_irq(pdev, 1);
+	db->irq_wake = platform_get_irq_optional(pdev, 1);
 	if (db->irq_wake >= 0) {
 		dev_dbg(db->dev, "wakeup irq %d\n", db->irq_wake);
 
@@ -1529,7 +1523,6 @@ dm9000_probe(struct platform_device *pdev)
 			if (ret) {
 				dev_err(db->dev, "irq %d cannot set wakeup (%d)\n",
 					db->irq_wake, ret);
-				ret = 0;
 			} else {
 				irq_set_irq_wake(db->irq_wake, 0);
 				db->wake_supported = 1;
@@ -1674,11 +1667,12 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* try reading the node address from the attached EEPROM */
 	for (i = 0; i < 6; i += 2)
-		dm9000_read_eeprom(db, i / 2, ndev->dev_addr+i);
+		dm9000_read_eeprom(db, i / 2, addr + i);
+	eth_hw_addr_set(ndev, addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr) && pdata != NULL) {
 		mac_src = "platform data";
-		memcpy(ndev->dev_addr, pdata->dev_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, pdata->dev_addr);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
@@ -1686,7 +1680,8 @@ dm9000_probe(struct platform_device *pdev)
 
 		mac_src = "chip";
 		for (i = 0; i < 6; i++)
-			ndev->dev_addr[i] = ior(db, i+DM9000_PAR);
+			addr[i] = ior(db, i + DM9000_PAR);
+		eth_hw_addr_set(ndev, pdata->dev_addr);
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
@@ -1715,6 +1710,10 @@ out:
 
 	dm9000_release_board(pdev, db);
 	free_netdev(ndev);
+
+out_regulator_disable:
+	if (!IS_ERR(power))
+		regulator_disable(power);
 
 	return ret;
 }
@@ -1773,10 +1772,13 @@ static int
 dm9000_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct board_info *dm = to_dm9000_board(ndev);
 
 	unregister_netdev(ndev);
-	dm9000_release_board(pdev, netdev_priv(ndev));
+	dm9000_release_board(pdev, dm);
 	free_netdev(ndev);		/* free device structure */
+	if (dm->power_supply)
+		regulator_disable(dm->power_supply);
 
 	dev_dbg(&pdev->dev, "released and freed device\n");
 	return 0;

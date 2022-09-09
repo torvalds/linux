@@ -21,7 +21,7 @@
 #ifdef SAVAGEFB_DEBUG
 # define DBG(x)		printk (KERN_DEBUG "savagefb: %s\n", (x));
 #else
-# define DBG(x)
+# define DBG(x)		no_printk(x)
 # define SavagePrintRegs(...)
 #endif
 
@@ -195,7 +195,6 @@ struct savagefb_par {
 	struct savage_reg initial;
 	struct vgastate vgastate;
 	struct mutex open_lock;
-	unsigned char   *edid;
 	u32 pseudo_palette[16];
 	u32 open_count;
 	int paletteEnabled;

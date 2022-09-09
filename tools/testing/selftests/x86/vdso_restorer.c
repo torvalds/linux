@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vdso_restorer.c - tests vDSO-based signal restore
  * Copyright (c) 2015 Andrew Lutomirski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  *
  * This makes sure that sa_restorer == NULL keeps working on 32-bit
  * configurations.  Modern glibc doesn't use it under any circumstances,
@@ -23,6 +15,7 @@
 
 #include <err.h>
 #include <stdio.h>
+#include <dlfcn.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
@@ -54,10 +47,22 @@ int main()
 	int nerrs = 0;
 	struct real_sigaction sa;
 
+	void *vdso = dlopen("linux-vdso.so.1",
+			    RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+	if (!vdso)
+		vdso = dlopen("linux-gate.so.1",
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+	if (!vdso) {
+		printf("[SKIP]\tFailed to find vDSO.  Tests are not expected to work.\n");
+		return 0;
+	}
+
 	memset(&sa, 0, sizeof(sa));
 	sa.handler = handler_with_siginfo;
 	sa.flags = SA_SIGINFO;
 	sa.restorer = NULL;	/* request kernel-provided restorer */
+
+	printf("[RUN]\tRaise a signal, SA_SIGINFO, sa.restorer == NULL\n");
 
 	if (syscall(SYS_rt_sigaction, SIGUSR1, &sa, NULL, 8) != 0)
 		err(1, "raw rt_sigaction syscall");
@@ -70,6 +75,8 @@ int main()
 		printf("[FAIL]\tSA_SIGINFO handler was not called\n");
 		nerrs++;
 	}
+
+	printf("[RUN]\tRaise a signal, !SA_SIGINFO, sa.restorer == NULL\n");
 
 	sa.flags = 0;
 	sa.handler = handler_without_siginfo;

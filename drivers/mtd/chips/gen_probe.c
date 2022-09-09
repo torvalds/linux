@@ -20,7 +20,7 @@ static int genprobe_new_chip(struct map_info *map, struct chip_probe *cp,
 
 struct mtd_info *mtd_do_chip_probe(struct map_info *map, struct chip_probe *cp)
 {
-	struct mtd_info *mtd = NULL;
+	struct mtd_info *mtd;
 	struct cfi_private *cfi;
 
 	/* First probe the map to see if we have CFI stuff there. */
@@ -61,8 +61,8 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	struct cfi_private cfi;
 	struct cfi_private *retcfi;
 	unsigned long *chip_map;
-	int i, j, mapsize;
 	int max_chips;
+	int i, j;
 
 	memset(&cfi, 0, sizeof(cfi));
 
@@ -111,8 +111,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 		max_chips = 1;
 	}
 
-	mapsize = sizeof(long) * DIV_ROUND_UP(max_chips, BITS_PER_LONG);
-	chip_map = kzalloc(mapsize, GFP_KERNEL);
+	chip_map = bitmap_zalloc(max_chips, GFP_KERNEL);
 	if (!chip_map) {
 		kfree(cfi.cfiq);
 		return NULL;
@@ -135,11 +134,11 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	 * our caller, and copy the appropriate data into them.
 	 */
 
-	retcfi = kmalloc(sizeof(struct cfi_private) + cfi.numchips * sizeof(struct flchip), GFP_KERNEL);
+	retcfi = kmalloc(struct_size(retcfi, chips, cfi.numchips), GFP_KERNEL);
 
 	if (!retcfi) {
 		kfree(cfi.cfiq);
-		kfree(chip_map);
+		bitmap_free(chip_map);
 		return NULL;
 	}
 
@@ -157,7 +156,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 		}
 	}
 
-	kfree(chip_map);
+	bitmap_free(chip_map);
 	return retcfi;
 }
 

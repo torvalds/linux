@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <inttypes.h>
+#include <linux/string.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 
 #include <sched.h>
+#include <perf/mmap.h>
 #include "evlist.h"
 #include "evsel.h"
-#include "perf.h"
 #include "debug.h"
+#include "record.h"
 #include "tests.h"
+#include "util/mmap.h"
 
 static int sched__get_first_possible_cpu(pid_t pid, cpu_set_t *maskp)
 {
@@ -38,7 +41,7 @@ realloc:
 	return cpu;
 }
 
-int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {
@@ -50,8 +53,8 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	};
 	cpu_set_t cpu_mask;
 	size_t cpu_mask_size = sizeof(cpu_mask);
-	struct perf_evlist *evlist = perf_evlist__new_dummy();
-	struct perf_evsel *evsel;
+	struct evlist *evlist = evlist__new_dummy();
+	struct evsel *evsel;
 	struct perf_sample sample;
 	const char *cmd = "sleep";
 	const char *argv[] = { cmd, "1", NULL, };
@@ -68,7 +71,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	char sbuf[STRERR_BUFSIZE];
 
 	if (evlist == NULL) /* Fallback for kernels lacking PERF_COUNT_SW_DUMMY */
-		evlist = perf_evlist__new_default();
+		evlist = evlist__new_default();
 
 	if (evlist == NULL) {
 		pr_debug("Not enough memory to create evlist\n");
@@ -78,10 +81,10 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	/*
 	 * Create maps of threads and cpus to monitor. In this case
 	 * we start with all threads and cpus (-1, -1) but then in
-	 * perf_evlist__prepare_workload we'll fill in the only thread
+	 * evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
-	err = perf_evlist__create_maps(evlist, &opts.target);
+	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
@@ -89,11 +92,11 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 
 	/*
 	 * Prepare the workload in argv[] to run, it'll fork it, and then wait
-	 * for perf_evlist__start_workload() to exec it. This is done this way
+	 * for evlist__start_workload() to exec it. This is done this way
 	 * so that we have time to open the evlist (calling sys_perf_event_open
 	 * on all the fds) and then mmap them.
 	 */
-	err = perf_evlist__prepare_workload(evlist, &opts.target, argv, false, NULL);
+	err = evlist__prepare_workload(evlist, &opts.target, argv, false, NULL);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
 		goto out_delete_evlist;
@@ -102,11 +105,11 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	/*
 	 * Config the evsels, setting attr->comm on the first one, etc.
 	 */
-	evsel = perf_evlist__first(evlist);
-	perf_evsel__set_sample_bit(evsel, CPU);
-	perf_evsel__set_sample_bit(evsel, TID);
-	perf_evsel__set_sample_bit(evsel, TIME);
-	perf_evlist__config(evlist, &opts, NULL);
+	evsel = evlist__first(evlist);
+	evsel__set_sample_bit(evsel, CPU);
+	evsel__set_sample_bit(evsel, TID);
+	evsel__set_sample_bit(evsel, TIME);
+	evlist__config(evlist, &opts, NULL);
 
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {
@@ -130,7 +133,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 * Call sys_perf_event_open on all the fds on all the evsels,
 	 * grouping them if asked to.
 	 */
-	err = perf_evlist__open(evlist);
+	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -142,9 +145,9 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 * fds in the same CPU to be injected in the same mmap ring buffer
 	 * (using ioctl(PERF_EVENT_IOC_SET_OUTPUT)).
 	 */
-	err = perf_evlist__mmap(evlist, opts.mmap_pages);
+	err = evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -153,25 +156,25 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 * Now that all is properly set up, enable the events, they will
 	 * count just on workload.pid, which will start...
 	 */
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	/*
 	 * Now!
 	 */
-	perf_evlist__start_workload(evlist);
+	evlist__start_workload(evlist);
 
 	while (1) {
 		int before = total_events;
 
-		for (i = 0; i < evlist->nr_mmaps; i++) {
+		for (i = 0; i < evlist->core.nr_mmaps; i++) {
 			union perf_event *event;
-			struct perf_mmap *md;
+			struct mmap *md;
 
 			md = &evlist->mmap[i];
-			if (perf_mmap__read_init(md) < 0)
+			if (perf_mmap__read_init(&md->core) < 0)
 				continue;
 
-			while ((event = perf_mmap__read_event(md)) != NULL) {
+			while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 				const u32 type = event->header.type;
 				const char *name = perf_event__name(type);
 
@@ -179,17 +182,17 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				if (type < PERF_RECORD_MAX)
 					nr_events[type]++;
 
-				err = perf_evlist__parse_sample(evlist, event, &sample);
+				err = evlist__parse_sample(evlist, event, &sample);
 				if (err < 0) {
 					if (verbose > 0)
-						perf_event__fprintf(event, stderr);
+						perf_event__fprintf(event, NULL, stderr);
 					pr_debug("Couldn't parse sample\n");
 					goto out_delete_evlist;
 				}
 
 				if (verbose > 0) {
 					pr_info("%" PRIu64" %d ", sample.time, sample.cpu);
-					perf_event__fprintf(event, stderr);
+					perf_event__fprintf(event, NULL, stderr);
 				}
 
 				if (prev_time > sample.time) {
@@ -274,9 +277,9 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 					++errs;
 				}
 
-				perf_mmap__consume(md);
+				perf_mmap__consume(&md->core);
 			}
-			perf_mmap__read_done(md);
+			perf_mmap__read_done(&md->core);
 		}
 
 		/*
@@ -285,7 +288,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 		 * perf_event_attr.wakeup_events, just PERF_EVENT_SAMPLE does.
 		 */
 		if (total_events == before && false)
-			perf_evlist__poll(evlist, -1);
+			evlist__poll(evlist, -1);
 
 		sleep(1);
 		if (++wakeups > 5) {
@@ -325,7 +328,23 @@ found_exit:
 		++errs;
 	}
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 out:
-	return (err < 0 || errs > 0) ? -1 : 0;
+	if (err == -EACCES)
+		return TEST_SKIP;
+	if (err < 0)
+		return TEST_FAIL;
+	return TEST_OK;
 }
+
+static struct test_case tests__PERF_RECORD[] = {
+	TEST_CASE_REASON("PERF_RECORD_* events & perf_sample fields",
+			 PERF_RECORD,
+			 "permissions"),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__PERF_RECORD = {
+	.desc = "PERF_RECORD_* events & perf_sample fields",
+	.test_cases = tests__PERF_RECORD,
+};

@@ -1,13 +1,16 @@
-.. |struct cpufreq_policy| replace:: :c:type:`struct cpufreq_policy <cpufreq_policy>`
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 .. |intel_pstate| replace:: :doc:`intel_pstate <intel_pstate>`
 
 =======================
 CPU Performance Scaling
 =======================
 
-::
+:Copyright: |copy| 2017 Intel Corporation
 
- Copyright (c) 2017 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+
 
 The Concept of CPU Performance Scaling
 ======================================
@@ -88,16 +91,16 @@ control the P-state of multiple CPUs at the same time and writing to it affects
 all of those CPUs simultaneously.
 
 Sets of CPUs sharing hardware P-state control interfaces are represented by
-``CPUFreq`` as |struct cpufreq_policy| objects.  For consistency,
-|struct cpufreq_policy| is also used when there is only one CPU in the given
+``CPUFreq`` as struct cpufreq_policy objects.  For consistency,
+struct cpufreq_policy is also used when there is only one CPU in the given
 set.
 
-The ``CPUFreq`` core maintains a pointer to a |struct cpufreq_policy| object for
+The ``CPUFreq`` core maintains a pointer to a struct cpufreq_policy object for
 every CPU in the system, including CPUs that are currently offline.  If multiple
 CPUs share the same hardware P-state control interface, all of the pointers
-corresponding to them point to the same |struct cpufreq_policy| object.
+corresponding to them point to the same struct cpufreq_policy object.
 
-``CPUFreq`` uses |struct cpufreq_policy| as its basic data type and the design
+``CPUFreq`` uses struct cpufreq_policy as its basic data type and the design
 of its user space interface is based on the policy concept.
 
 
@@ -143,9 +146,9 @@ CPUs in it.
 
 The next major initialization step for a new policy object is to attach a
 scaling governor to it (to begin with, that is the default scaling governor
-determined by the kernel configuration, but it may be changed later
-via ``sysfs``).  First, a pointer to the new policy object is passed to the
-governor's ``->init()`` callback which is expected to initialize all of the
+determined by the kernel command line or configuration, but it may be changed
+later via ``sysfs``).  First, a pointer to the new policy object is passed to
+the governor's ``->init()`` callback which is expected to initialize all of the
 data structures necessary to handle the given policy and, possibly, to add
 a governor ``sysfs`` interface to it.  Next, the governor is started by
 invoking its ``->start()`` callback.
@@ -396,8 +399,8 @@ RT or deadline scheduling classes, the governor will increase the frequency to
 the allowed maximum (that is, the ``scaling_max_freq`` policy limit).  In turn,
 if it is invoked by the CFS scheduling class, the governor will use the
 Per-Entity Load Tracking (PELT) metric for the root control group of the
-given CPU as the CPU utilization estimate (see the `Per-entity load tracking`_
-LWN.net article for a description of the PELT mechanism).  Then, the new
+given CPU as the CPU utilization estimate (see the *Per-entity load tracking*
+LWN.net article [1]_ for a description of the PELT mechanism).  Then, the new
 CPU frequency to apply is computed in accordance with the formula
 
 	f = 1.25 * ``f_0`` * ``util`` / ``max``
@@ -698,4 +701,8 @@ hardware feature (e.g. all Intel ones), even if the
 :c:macro:`CONFIG_X86_ACPI_CPUFREQ_CPB` configuration option is set.
 
 
-.. _Per-entity load tracking: https://lwn.net/Articles/531853/
+References
+==========
+
+.. [1] Jonathan Corbet, *Per-entity load tracking*,
+       https://lwn.net/Articles/531853/

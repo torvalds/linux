@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __BMAP_DOT_H__
@@ -47,14 +44,19 @@ static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
 }
 
 extern const struct iomap_ops gfs2_iomap_ops;
+extern const struct iomap_writeback_ops gfs2_writeback_ops;
 
-extern int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page);
+extern int gfs2_unstuff_dinode(struct gfs2_inode *ip);
 extern int gfs2_block_map(struct inode *inode, sector_t lblock,
 			  struct buffer_head *bh, int create);
-extern int gfs2_iomap_get_alloc(struct inode *inode, loff_t pos, loff_t length,
-				struct iomap *iomap);
-extern int gfs2_extent_map(struct inode *inode, u64 lblock, int *new,
-			   u64 *dblock, unsigned *extlen);
+extern int gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
+			  struct iomap *iomap);
+extern int gfs2_iomap_alloc(struct inode *inode, loff_t pos, loff_t length,
+			    struct iomap *iomap);
+extern int gfs2_get_extent(struct inode *inode, u64 lblock, u64 *dblock,
+			   unsigned int *extlen);
+extern int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
+			     unsigned *extlen, bool *new);
 extern int gfs2_setattr_size(struct inode *inode, u64 size);
 extern void gfs2_trim_blocks(struct inode *inode);
 extern int gfs2_truncatei_resume(struct gfs2_inode *ip);

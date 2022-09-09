@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Plantronics USB HID Driver
  *
@@ -6,16 +7,13 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include "hid-ids.h"
 
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/jiffies.h>
 
 #define PLT_HID_1_0_PAGE	0xffa00000
 #define PLT_HID_2_0_PAGE	0xffa20000
@@ -39,6 +37,16 @@
 #define PLT_ALLOW_CONSUMER (field->application == HID_CP_CONSUMERCONTROL && \
 			    (usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER)
 
+#define PLT_QUIRK_DOUBLE_VOLUME_KEYS BIT(0)
+
+#define PLT_DOUBLE_KEY_TIMEOUT 5 /* ms */
+
+struct plt_drv_data {
+	unsigned long device_type;
+	unsigned long last_volume_key_ts;
+	u32 quirks;
+};
+
 static int plantronics_input_mapping(struct hid_device *hdev,
 				     struct hid_input *hi,
 				     struct hid_field *field,
@@ -46,7 +54,8 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 				     unsigned long **bit, int *max)
 {
 	unsigned short mapped_key;
-	unsigned long plt_type = (unsigned long)hid_get_drvdata(hdev);
+	struct plt_drv_data *drv_data = hid_get_drvdata(hdev);
+	unsigned long plt_type = drv_data->device_type;
 
 	/* special case for PTT products */
 	if (field->application == HID_GD_JOYSTICK)
@@ -108,6 +117,30 @@ mapped:
 	return 1;
 }
 
+static int plantronics_event(struct hid_device *hdev, struct hid_field *field,
+			     struct hid_usage *usage, __s32 value)
+{
+	struct plt_drv_data *drv_data = hid_get_drvdata(hdev);
+
+	if (drv_data->quirks & PLT_QUIRK_DOUBLE_VOLUME_KEYS) {
+		unsigned long prev_ts, cur_ts;
+
+		/* Usages are filtered in plantronics_usages. */
+
+		if (!value) /* Handle key presses only. */
+			return 0;
+
+		prev_ts = drv_data->last_volume_key_ts;
+		cur_ts = jiffies;
+		if (jiffies_to_msecs(cur_ts - prev_ts) <= PLT_DOUBLE_KEY_TIMEOUT)
+			return 1; /* Ignore the repeated key. */
+
+		drv_data->last_volume_key_ts = cur_ts;
+	}
+
+	return 0;
+}
+
 static unsigned long plantronics_device_type(struct hid_device *hdev)
 {
 	unsigned i, col_page;
@@ -136,7 +169,12 @@ exit:
 static int plantronics_probe(struct hid_device *hdev,
 			     const struct hid_device_id *id)
 {
+	struct plt_drv_data *drv_data;
 	int ret;
+
+	drv_data = devm_kzalloc(&hdev->dev, sizeof(*drv_data), GFP_KERNEL);
+	if (!drv_data)
+		return -ENOMEM;
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -144,7 +182,11 @@ static int plantronics_probe(struct hid_device *hdev,
 		goto err;
 	}
 
-	hid_set_drvdata(hdev, (void *)plantronics_device_type(hdev));
+	drv_data->device_type = plantronics_device_type(hdev);
+	drv_data->quirks = id->driver_data;
+	drv_data->last_volume_key_ts = jiffies - msecs_to_jiffies(PLT_DOUBLE_KEY_TIMEOUT);
+
+	hid_set_drvdata(hdev, drv_data);
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT |
 		HID_CONNECT_HIDINPUT_FORCE | HID_CONNECT_HIDDEV_FORCE);
@@ -156,15 +198,26 @@ err:
 }
 
 static const struct hid_device_id plantronics_devices[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_PLANTRONICS,
+					 USB_DEVICE_ID_PLANTRONICS_BLACKWIRE_3220_SERIES),
+		.driver_data = PLT_QUIRK_DOUBLE_VOLUME_KEYS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PLANTRONICS, HID_ANY_ID) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, plantronics_devices);
 
+static const struct hid_usage_id plantronics_usages[] = {
+	{ HID_CP_VOLUMEUP, EV_KEY, HID_ANY_ID },
+	{ HID_CP_VOLUMEDOWN, EV_KEY, HID_ANY_ID },
+	{ HID_TERMINATOR, HID_TERMINATOR, HID_TERMINATOR }
+};
+
 static struct hid_driver plantronics_driver = {
 	.name = "plantronics",
 	.id_table = plantronics_devices,
+	.usage_table = plantronics_usages,
 	.input_mapping = plantronics_input_mapping,
+	.event = plantronics_event,
 	.probe = plantronics_probe,
 };
 module_hid_driver(plantronics_driver);

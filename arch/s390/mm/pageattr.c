@@ -7,8 +7,8 @@
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
 #include <asm/facility.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/kfence.h>
 #include <asm/page.h>
 #include <asm/set_memory.h>
 
@@ -57,7 +57,7 @@ void arch_report_meminfo(struct seq_file *m)
 static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 		    unsigned long dtt)
 {
-	unsigned long table, mask;
+	unsigned long *table, mask;
 
 	mask = 0;
 	if (MACHINE_HAS_EDAT2) {
@@ -72,7 +72,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 			mask = ~(PTRS_PER_PTE * sizeof(pte_t) - 1);
 			break;
 		}
-		table = (unsigned long)old & mask;
+		table = (unsigned long *)((unsigned long)old & mask);
 		crdte(*old, new, table, dtt, addr, S390_lowcore.kernel_asce);
 	} else if (MACHINE_HAS_IDTE) {
 		cspg(old, *old, new);
@@ -86,7 +86,9 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 {
 	pte_t *ptep, new;
 
-	ptep = pte_offset(pmdp, addr);
+	if (flags == SET_MEMORY_4K)
+		return 0;
+	ptep = pte_offset_kernel(pmdp, addr);
 	do {
 		new = *ptep;
 		if (pte_none(new))
@@ -96,9 +98,9 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		else if (flags & SET_MEMORY_RW)
 			new = pte_mkwrite(pte_mkdirty(new));
 		if (flags & SET_MEMORY_NX)
-			pte_val(new) |= _PAGE_NOEXEC;
+			new = set_pte_bit(new, __pgprot(_PAGE_NOEXEC));
 		else if (flags & SET_MEMORY_X)
-			pte_val(new) &= ~_PAGE_NOEXEC;
+			new = clear_pte_bit(new, __pgprot(_PAGE_NOEXEC));
 		pgt_set((unsigned long *)ptep, pte_val(new), addr, CRDTE_DTT_PAGE);
 		ptep++;
 		addr += PAGE_SIZE;
@@ -125,11 +127,11 @@ static int split_pmd_page(pmd_t *pmdp, unsigned long addr)
 		prot &= ~_PAGE_NOEXEC;
 	ptep = pt_dir;
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		pte_val(*ptep) = pte_addr | prot;
+		set_pte(ptep, __pte(pte_addr | prot));
 		pte_addr += PAGE_SIZE;
 		ptep++;
 	}
-	pmd_val(new) = __pa(pt_dir) | _SEGMENT_ENTRY;
+	new = __pmd(__pa(pt_dir) | _SEGMENT_ENTRY);
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
 	update_page_count(PG_DIRECT_MAP_4K, PTRS_PER_PTE);
 	update_page_count(PG_DIRECT_MAP_1M, -1);
@@ -146,9 +148,9 @@ static void modify_pmd_page(pmd_t *pmdp, unsigned long addr,
 	else if (flags & SET_MEMORY_RW)
 		new = pmd_mkwrite(pmd_mkdirty(new));
 	if (flags & SET_MEMORY_NX)
-		pmd_val(new) |= _SEGMENT_ENTRY_NOEXEC;
+		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 	else if (flags & SET_MEMORY_X)
-		pmd_val(new) &= ~_SEGMENT_ENTRY_NOEXEC;
+		new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
 }
 
@@ -156,6 +158,7 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 			  unsigned long flags)
 {
 	unsigned long next;
+	int need_split;
 	pmd_t *pmdp;
 	int rc = 0;
 
@@ -165,7 +168,10 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 			return -EINVAL;
 		next = pmd_addr_end(addr, end);
 		if (pmd_large(*pmdp)) {
-			if (addr & ~PMD_MASK || addr + PMD_SIZE > next) {
+			need_split  = !!(flags & SET_MEMORY_4K);
+			need_split |= !!(addr & ~PMD_MASK);
+			need_split |= !!(addr + PMD_SIZE > next);
+			if (need_split) {
 				rc = split_pmd_page(pmdp, addr);
 				if (rc)
 					return rc;
@@ -202,11 +208,11 @@ static int split_pud_page(pud_t *pudp, unsigned long addr)
 		prot &= ~_SEGMENT_ENTRY_NOEXEC;
 	pmdp = pm_dir;
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		pmd_val(*pmdp) = pmd_addr | prot;
+		set_pmd(pmdp, __pmd(pmd_addr | prot));
 		pmd_addr += PMD_SIZE;
 		pmdp++;
 	}
-	pud_val(new) = __pa(pm_dir) | _REGION3_ENTRY;
+	new = __pud(__pa(pm_dir) | _REGION3_ENTRY);
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 	update_page_count(PG_DIRECT_MAP_1M, PTRS_PER_PMD);
 	update_page_count(PG_DIRECT_MAP_2G, -1);
@@ -223,9 +229,9 @@ static void modify_pud_page(pud_t *pudp, unsigned long addr,
 	else if (flags & SET_MEMORY_RW)
 		new = pud_mkwrite(pud_mkdirty(new));
 	if (flags & SET_MEMORY_NX)
-		pud_val(new) |= _REGION_ENTRY_NOEXEC;
+		new = set_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
 	else if (flags & SET_MEMORY_X)
-		pud_val(new) &= ~_REGION_ENTRY_NOEXEC;
+		new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 }
 
@@ -233,6 +239,7 @@ static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 			  unsigned long flags)
 {
 	unsigned long next;
+	int need_split;
 	pud_t *pudp;
 	int rc = 0;
 
@@ -242,7 +249,10 @@ static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 			return -EINVAL;
 		next = pud_addr_end(addr, end);
 		if (pud_large(*pudp)) {
-			if (addr & ~PUD_MASK || addr + PUD_SIZE > next) {
+			need_split  = !!(flags & SET_MEMORY_4K);
+			need_split |= !!(addr & ~PUD_MASK);
+			need_split |= !!(addr + PUD_SIZE > next);
+			if (need_split) {
 				rc = split_pud_page(pudp, addr);
 				if (rc)
 					break;
@@ -279,7 +289,7 @@ static int walk_p4d_level(pgd_t *pgd, unsigned long addr, unsigned long end,
 	return rc;
 }
 
-static DEFINE_MUTEX(cpa_mutex);
+DEFINE_MUTEX(cpa_mutex);
 
 static int change_page_attr(unsigned long addr, unsigned long end,
 			    unsigned long flags)
@@ -317,7 +327,7 @@ int __set_memory(unsigned long addr, int numpages, unsigned long flags)
 	return change_page_attr(addr, addr + numpages * PAGE_SIZE, flags);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)
 
 static void ipte_range(pte_t *pte, unsigned long address, int nr)
 {
@@ -337,50 +347,27 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long address;
+	pte_t *ptep, pte;
 	int nr, i, j;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
 
 	for (i = 0; i < numpages;) {
-		address = page_to_phys(page + i);
-		pgd = pgd_offset_k(address);
-		p4d = p4d_offset(pgd, address);
-		pud = pud_offset(p4d, address);
-		pmd = pmd_offset(pud, address);
-		pte = pte_offset_kernel(pmd, address);
-		nr = (unsigned long)pte >> ilog2(sizeof(long));
+		address = (unsigned long)page_to_virt(page + i);
+		ptep = virt_to_kpte(address);
+		nr = (unsigned long)ptep >> ilog2(sizeof(long));
 		nr = PTRS_PER_PTE - (nr & (PTRS_PER_PTE - 1));
 		nr = min(numpages - i, nr);
 		if (enable) {
 			for (j = 0; j < nr; j++) {
-				pte_val(*pte) &= ~_PAGE_INVALID;
+				pte = clear_pte_bit(*ptep, __pgprot(_PAGE_INVALID));
+				set_pte(ptep, pte);
 				address += PAGE_SIZE;
-				pte++;
+				ptep++;
 			}
 		} else {
-			ipte_range(pte, address, nr);
+			ipte_range(ptep, address, nr);
 		}
 		i += nr;
 	}
 }
-
-#ifdef CONFIG_HIBERNATION
-bool kernel_page_present(struct page *page)
-{
-	unsigned long addr;
-	int cc;
-
-	addr = page_to_phys(page);
-	asm volatile(
-		"	lra	%1,0(%1)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (cc), "+a" (addr) : : "cc");
-	return cc == 0;
-}
-#endif /* CONFIG_HIBERNATION */
 
 #endif /* CONFIG_DEBUG_PAGEALLOC */

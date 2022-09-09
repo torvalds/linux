@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_HW_BREAKPOINT_H
 #define __ASM_HW_BREAKPOINT_H
@@ -20,8 +9,6 @@
 #include <asm/cpufeature.h>
 #include <asm/sysreg.h>
 #include <asm/virt.h>
-
-#ifdef __KERNEL__
 
 struct arch_hw_breakpoint_ctrl {
 	u32 __reserved	: 19,
@@ -167,5 +154,4 @@ static inline int get_num_wrps(void)
 						ID_AA64DFR0_WRPS_SHIFT);
 }
 
-#endif	/* __KERNEL__ */
 #endif	/* __ASM_BREAKPOINT_H */

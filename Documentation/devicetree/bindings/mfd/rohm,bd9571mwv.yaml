@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/rohm,bd9571mwv.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM BD9571MWV/BD9574MWF Power Management Integrated Circuit (PMIC)
+
+maintainers:
+  - Marek Vasut <marek.vasut@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - rohm,bd9571mwv
+      - rohm,bd9574mwf
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  rohm,ddr-backup-power:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0x0
+    maximum: 0xf
+    description: |
+      Value to use for DDR-Backup Power (default 0).
+      This is a bitmask that specifies which DDR power rails need to be kept
+      powered when backup mode is entered, for system suspend:
+        - bit 0: DDR0
+        - bit 1: DDR1
+        - bit 2: DDR0C
+        - bit 3: DDR1C
+      These bits match the KEEPON_DDR* bits in the documentation for the "BKUP
+      Mode Cnt" register.
+
+  rohm,rstbmode-level:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The RSTB signal is configured for level mode, to accommodate a toggle
+      power switch (the RSTBMODE pin is strapped low).
+
+  rohm,rstbmode-pulse:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The RSTB signal is configured for pulse mode, to accommodate a momentary
+      power switch (the RSTBMODE pin is strapped high).
+
+  regulators:
+    type: object
+    description:
+      List of child nodes that specify the regulator initialization data.
+      Child nodes must be named after their hardware counterparts.
+
+    patternProperties:
+      "^(vd09|vd18|vd25|vd33|dvfs)$":
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+        properties:
+          regulator-name:
+            pattern: "^(vd09|vd18|vd25|vd33|dvfs)$"
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-controller
+  - '#interrupt-cells'
+  - gpio-controller
+  - '#gpio-cells'
+
+oneOf:
+  - required:
+      - rohm,rstbmode-level
+  - required:
+      - rohm,rstbmode-pulse
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          pmic: pmic@30 {
+                  compatible = "rohm,bd9571mwv";
+                  reg = <0x30>;
+                  interrupt-parent = <&gpio2>;
+                  interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+                  interrupt-controller;
+                  #interrupt-cells = <2>;
+                  gpio-controller;
+                  #gpio-cells = <2>;
+                  rohm,ddr-backup-power = <0xf>;
+                  rohm,rstbmode-pulse;
+
+                  regulators {
+                          dvfs: dvfs {
+                                  regulator-name = "dvfs";
+                                  regulator-min-microvolt = <750000>;
+                                  regulator-max-microvolt = <1030000>;
+                                  regulator-boot-on;
+                                  regulator-always-on;
+                          };
+                  };
+          };
+    };

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Control socket for client/server test execution
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
  * Author: Stefan Hajnoczi <stefanha@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 /* The client and server may need to coordinate to avoid race conditions like
@@ -209,11 +205,22 @@ void control_expectln(const char *str)
 	char *line;
 
 	line = control_readln();
-	if (strcmp(str, line) != 0) {
+
+	control_cmpln(line, str, true);
+
+	free(line);
+}
+
+bool control_cmpln(char *line, const char *str, bool fail)
+{
+	if (strcmp(str, line) == 0)
+		return true;
+
+	if (fail) {
 		fprintf(stderr, "expected \"%s\" on control socket, got \"%s\"\n",
 			str, line);
 		exit(EXIT_FAILURE);
 	}
 
-	free(line);
+	return false;
 }

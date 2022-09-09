@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	sch311x_wdt.c - Driver for the SCH311x Super-I/O chips
  *			integrated watchdog.
  *
  *	(c) Copyright 2008 Wim Van Sebroeck <wim@iguana.be>.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Neither Wim Van Sebroeck nor Iguana vzw. admit liability nor
  *	provide warranty for any of this software. This material is
@@ -299,7 +295,7 @@ static long sch311x_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (sch311x_wdt_set_heartbeat(new_timeout))
 			return -EINVAL;
 		sch311x_wdt_keepalive();
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:
@@ -316,7 +312,7 @@ static int sch311x_wdt_open(struct inode *inode, struct file *file)
 	 *	Activate
 	 */
 	sch311x_wdt_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int sch311x_wdt_close(struct inode *inode, struct file *file)
@@ -341,6 +337,7 @@ static const struct file_operations sch311x_wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= sch311x_wdt_write,
 	.unlocked_ioctl	= sch311x_wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= sch311x_wdt_open,
 	.release	= sch311x_wdt_close,
 };

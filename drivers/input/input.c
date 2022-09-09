@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * The input core
  *
  * Copyright (c) 1999-2002 Vojtech Pavlik
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- */
 
 #define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
 
@@ -28,6 +24,8 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include "input-compat.h"
+#include "input-core-private.h"
+#include "input-poller.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
@@ -49,6 +47,17 @@ static LIST_HEAD(input_handler_list);
 static DEFINE_MUTEX(input_mutex);
 
 static const struct input_value input_value_sync = { EV_SYN, SYN_REPORT, 1 };
+
+static const unsigned int input_max_code[EV_CNT] = {
+	[EV_KEY] = KEY_MAX,
+	[EV_REL] = REL_MAX,
+	[EV_ABS] = ABS_MAX,
+	[EV_MSC] = MSC_MAX,
+	[EV_SW] = SW_MAX,
+	[EV_LED] = LED_MAX,
+	[EV_SND] = SND_MAX,
+	[EV_FF] = FF_MAX,
+};
 
 static inline int is_event_supported(unsigned int code,
 				     unsigned long *bm, unsigned int max)
@@ -134,6 +143,8 @@ static void input_pass_values(struct input_dev *dev,
 	struct input_handle *handle;
 	struct input_value *v;
 
+	lockdep_assert_held(&dev->event_lock);
+
 	if (!count)
 		return;
 
@@ -164,43 +175,6 @@ static void input_pass_values(struct input_dev *dev,
 			}
 		}
 	}
-}
-
-static void input_pass_event(struct input_dev *dev,
-			     unsigned int type, unsigned int code, int value)
-{
-	struct input_value vals[] = { { type, code, value } };
-
-	input_pass_values(dev, vals, ARRAY_SIZE(vals));
-}
-
-/*
- * Generate software autorepeat event. Note that we take
- * dev->event_lock here to avoid racing with input_event
- * which may cause keys get "stuck".
- */
-static void input_repeat_key(struct timer_list *t)
-{
-	struct input_dev *dev = from_timer(dev, t, timer);
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-
-	if (test_bit(dev->repeat_key, dev->key) &&
-	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
-		struct input_value vals[] =  {
-			{ EV_KEY, dev->repeat_key, 2 },
-			input_value_sync
-		};
-
-		input_pass_values(dev, vals, ARRAY_SIZE(vals));
-
-		if (dev->rep[REP_PERIOD])
-			mod_timer(&dev->timer, jiffies +
-					msecs_to_jiffies(dev->rep[REP_PERIOD]));
-	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 #define INPUT_IGNORE_EVENT	0
@@ -265,6 +239,10 @@ static int input_get_disposition(struct input_dev *dev,
 {
 	int disposition = INPUT_IGNORE_EVENT;
 	int value = *pval;
+
+	/* filter-out events from inhibited devices */
+	if (dev->inhibited)
+		return INPUT_IGNORE_EVENT;
 
 	switch (type) {
 
@@ -366,14 +344,9 @@ static int input_get_disposition(struct input_dev *dev,
 	return disposition;
 }
 
-static void input_handle_event(struct input_dev *dev,
-			       unsigned int type, unsigned int code, int value)
+static void input_event_dispose(struct input_dev *dev, int disposition,
+				unsigned int type, unsigned int code, int value)
 {
-	int disposition = input_get_disposition(dev, type, code, &value);
-
-	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
-		add_input_randomness(type, code, value);
-
 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
 		dev->event(dev, type, code, value);
 
@@ -400,12 +373,34 @@ static void input_handle_event(struct input_dev *dev,
 		if (dev->num_vals >= 2)
 			input_pass_values(dev, dev->vals, dev->num_vals);
 		dev->num_vals = 0;
+		/*
+		 * Reset the timestamp on flush so we won't end up
+		 * with a stale one. Note we only need to reset the
+		 * monolithic one as we use its presence when deciding
+		 * whether to generate a synthetic timestamp.
+		 */
+		dev->timestamp[INPUT_CLK_MONO] = ktime_set(0, 0);
 	} else if (dev->num_vals >= dev->max_vals - 2) {
 		dev->vals[dev->num_vals++] = input_value_sync;
 		input_pass_values(dev, dev->vals, dev->num_vals);
 		dev->num_vals = 0;
 	}
+}
 
+void input_handle_event(struct input_dev *dev,
+			unsigned int type, unsigned int code, int value)
+{
+	int disposition;
+
+	lockdep_assert_held(&dev->event_lock);
+
+	disposition = input_get_disposition(dev, type, code, &value);
+	if (disposition != INPUT_IGNORE_EVENT) {
+		if (type != EV_SYN)
+			add_input_randomness(type, code, value);
+
+		input_event_dispose(dev, disposition, type, code, value);
+	}
 }
 
 /**
@@ -501,6 +496,9 @@ void input_set_abs_params(struct input_dev *dev, unsigned int axis,
 {
 	struct input_absinfo *absinfo;
 
+	__set_bit(EV_ABS, dev->evbit);
+	__set_bit(axis, dev->absbit);
+
 	input_alloc_absinfo(dev);
 	if (!dev->absinfo)
 		return;
@@ -510,12 +508,45 @@ void input_set_abs_params(struct input_dev *dev, unsigned int axis,
 	absinfo->maximum = max;
 	absinfo->fuzz = fuzz;
 	absinfo->flat = flat;
-
-	__set_bit(EV_ABS, dev->evbit);
-	__set_bit(axis, dev->absbit);
 }
 EXPORT_SYMBOL(input_set_abs_params);
 
+/**
+ * input_copy_abs - Copy absinfo from one input_dev to another
+ * @dst: Destination input device to copy the abs settings to
+ * @dst_axis: ABS_* value selecting the destination axis
+ * @src: Source input device to copy the abs settings from
+ * @src_axis: ABS_* value selecting the source axis
+ *
+ * Set absinfo for the selected destination axis by copying it from
+ * the specified source input device's source axis.
+ * This is useful to e.g. setup a pen/stylus input-device for combined
+ * touchscreen/pen hardware where the pen uses the same coordinates as
+ * the touchscreen.
+ */
+void input_copy_abs(struct input_dev *dst, unsigned int dst_axis,
+		    const struct input_dev *src, unsigned int src_axis)
+{
+	/* src must have EV_ABS and src_axis set */
+	if (WARN_ON(!(test_bit(EV_ABS, src->evbit) &&
+		      test_bit(src_axis, src->absbit))))
+		return;
+
+	/*
+	 * input_alloc_absinfo() may have failed for the source. Our caller is
+	 * expected to catch this when registering the input devices, which may
+	 * happen after the input_copy_abs() call.
+	 */
+	if (!src->absinfo)
+		return;
+
+	input_set_capability(dst, EV_ABS, dst_axis);
+	if (!dst->absinfo)
+		return;
+
+	dst->absinfo[dst_axis] = src->absinfo[src_axis];
+}
+EXPORT_SYMBOL(input_copy_abs);
 
 /**
  * input_grab_device - grabs device for exclusive use
@@ -556,7 +587,7 @@ static void __input_release_device(struct input_handle *handle)
 					    lockdep_is_held(&dev->mutex));
 	if (grabber == handle) {
 		rcu_assign_pointer(dev->grab, NULL);
-		/* Make sure input_pass_event() notices that grab is gone */
+		/* Make sure input_pass_values() notices that grab is gone */
 		synchronize_rcu();
 
 		list_for_each_entry(handle, &dev->h_list, d_node)
@@ -607,19 +638,30 @@ int input_open_device(struct input_handle *handle)
 
 	handle->open++;
 
-	if (!dev->users++ && dev->open)
-		retval = dev->open(dev);
+	if (dev->users++ || dev->inhibited) {
+		/*
+		 * Device is already opened and/or inhibited,
+		 * so we can exit immediately and report success.
+		 */
+		goto out;
+	}
 
-	if (retval) {
-		dev->users--;
-		if (!--handle->open) {
+	if (dev->open) {
+		retval = dev->open(dev);
+		if (retval) {
+			dev->users--;
+			handle->open--;
 			/*
 			 * Make sure we are not delivering any more events
 			 * through this handle
 			 */
 			synchronize_rcu();
+			goto out;
 		}
 	}
+
+	if (dev->poller)
+		input_dev_poller_start(dev->poller);
 
  out:
 	mutex_unlock(&dev->mutex);
@@ -659,12 +701,16 @@ void input_close_device(struct input_handle *handle)
 
 	__input_release_device(handle);
 
-	if (!--dev->users && dev->close)
-		dev->close(dev);
+	if (!dev->inhibited && !--dev->users) {
+		if (dev->poller)
+			input_dev_poller_stop(dev->poller);
+		if (dev->close)
+			dev->close(dev);
+	}
 
 	if (!--handle->open) {
 		/*
-		 * synchronize_rcu() makes sure that input_pass_event()
+		 * synchronize_rcu() makes sure that input_pass_values()
 		 * completed and that no more input events are delivered
 		 * through this handle
 		 */
@@ -679,22 +725,21 @@ EXPORT_SYMBOL(input_close_device);
  * Simulate keyup events for all keys that are marked as pressed.
  * The function must be called with dev->event_lock held.
  */
-static void input_dev_release_keys(struct input_dev *dev)
+static bool input_dev_release_keys(struct input_dev *dev)
 {
 	bool need_sync = false;
 	int code;
 
+	lockdep_assert_held(&dev->event_lock);
+
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for_each_set_bit(code, dev->key, KEY_CNT) {
-			input_pass_event(dev, EV_KEY, code, 0);
+			input_handle_event(dev, EV_KEY, code, 0);
 			need_sync = true;
 		}
-
-		if (need_sync)
-			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
-
-		memset(dev->key, 0, sizeof(dev->key));
 	}
+
+	return need_sync;
 }
 
 /*
@@ -721,7 +766,8 @@ static void input_disconnect_device(struct input_dev *dev)
 	 * generate events even after we done here but they will not
 	 * reach any handlers.
 	 */
-	input_dev_release_keys(dev);
+	if (input_dev_release_keys(dev))
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 
 	list_for_each_entry(handle, &dev->h_list, d_node)
 		handle->open = 0;
@@ -858,16 +904,18 @@ static int input_default_setkeycode(struct input_dev *dev,
 		}
 	}
 
-	__clear_bit(*old_keycode, dev->keybit);
-	__set_bit(ke->keycode, dev->keybit);
-
-	for (i = 0; i < dev->keycodemax; i++) {
-		if (input_fetch_keycode(dev, i) == *old_keycode) {
-			__set_bit(*old_keycode, dev->keybit);
-			break; /* Setting the bit twice is useless, so break */
+	if (*old_keycode <= KEY_MAX) {
+		__clear_bit(*old_keycode, dev->keybit);
+		for (i = 0; i < dev->keycodemax; i++) {
+			if (input_fetch_keycode(dev, i) == *old_keycode) {
+				__set_bit(*old_keycode, dev->keybit);
+				/* Setting the bit twice is useless, so break */
+				break;
+			}
 		}
 	}
 
+	__set_bit(ke->keycode, dev->keybit);
 	return 0;
 }
 
@@ -923,15 +971,23 @@ int input_set_keycode(struct input_dev *dev,
 	 * Simulate keyup event if keycode is not present
 	 * in the keymap anymore
 	 */
-	if (test_bit(EV_KEY, dev->evbit) &&
-	    !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
-	    __test_and_clear_bit(old_keycode, dev->key)) {
-		struct input_value vals[] =  {
-			{ EV_KEY, old_keycode, 0 },
-			input_value_sync
-		};
-
-		input_pass_values(dev, vals, ARRAY_SIZE(vals));
+	if (old_keycode > KEY_MAX) {
+		dev_warn(dev->dev.parent ?: &dev->dev,
+			 "%s: got too big old keycode %#x\n",
+			 __func__, old_keycode);
+	} else if (test_bit(EV_KEY, dev->evbit) &&
+		   !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
+		   __test_and_clear_bit(old_keycode, dev->key)) {
+		/*
+		 * We have to use input_event_dispose() here directly instead
+		 * of input_handle_event() because the key we want to release
+		 * here is considered no longer supported by the device and
+		 * input_handle_event() will ignore it.
+		 */
+		input_event_dispose(dev, INPUT_PASS_TO_HANDLERS,
+				    EV_KEY, old_keycode, 0);
+		input_event_dispose(dev, INPUT_PASS_TO_HANDLERS | INPUT_FLUSH,
+				    EV_SYN, SYN_REPORT, 1);
 	}
 
  out:
@@ -1190,13 +1246,12 @@ static int input_proc_devices_open(struct inode *inode, struct file *file)
 	return seq_open(file, &input_devices_seq_ops);
 }
 
-static const struct file_operations input_devices_fileops = {
-	.owner		= THIS_MODULE,
-	.open		= input_proc_devices_open,
-	.poll		= input_proc_devices_poll,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops input_devices_proc_ops = {
+	.proc_open	= input_proc_devices_open,
+	.proc_poll	= input_proc_devices_poll,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
@@ -1254,12 +1309,11 @@ static int input_proc_handlers_open(struct inode *inode, struct file *file)
 	return seq_open(file, &input_handlers_seq_ops);
 }
 
-static const struct file_operations input_handlers_fileops = {
-	.owner		= THIS_MODULE,
-	.open		= input_proc_handlers_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops input_handlers_proc_ops = {
+	.proc_open	= input_proc_handlers_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 
 static int __init input_proc_init(void)
@@ -1271,12 +1325,12 @@ static int __init input_proc_init(void)
 		return -ENOMEM;
 
 	entry = proc_create("devices", 0, proc_bus_input_dir,
-			    &input_devices_fileops);
+			    &input_devices_proc_ops);
 	if (!entry)
 		goto fail1;
 
 	entry = proc_create("handlers", 0, proc_bus_input_dir,
-			    &input_handlers_fileops);
+			    &input_handlers_proc_ops);
 	if (!entry)
 		goto fail2;
 
@@ -1391,12 +1445,49 @@ static ssize_t input_dev_show_properties(struct device *dev,
 }
 static DEVICE_ATTR(properties, S_IRUGO, input_dev_show_properties, NULL);
 
+static int input_inhibit_device(struct input_dev *dev);
+static int input_uninhibit_device(struct input_dev *dev);
+
+static ssize_t inhibited_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", input_dev->inhibited);
+}
+
+static ssize_t inhibited_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t len)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	ssize_t rv;
+	bool inhibited;
+
+	if (strtobool(buf, &inhibited))
+		return -EINVAL;
+
+	if (inhibited)
+		rv = input_inhibit_device(input_dev);
+	else
+		rv = input_uninhibit_device(input_dev);
+
+	if (rv != 0)
+		return rv;
+
+	return len;
+}
+
+static DEVICE_ATTR_RW(inhibited);
+
 static struct attribute *input_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_phys.attr,
 	&dev_attr_uniq.attr,
 	&dev_attr_modalias.attr,
 	&dev_attr_properties.attr,
+	&dev_attr_inhibited.attr,
 	NULL
 };
 
@@ -1506,6 +1597,7 @@ static const struct attribute_group *input_dev_attr_groups[] = {
 	&input_dev_attr_group,
 	&input_dev_id_attr_group,
 	&input_dev_caps_attr_group,
+	&input_poller_attribute_group,
 	NULL
 };
 
@@ -1515,6 +1607,7 @@ static void input_dev_release(struct device *device)
 
 	input_ff_destroy(dev);
 	input_mt_destroy_slots(dev);
+	kfree(dev->poller);
 	kfree(dev->absinfo);
 	kfree(dev->vals);
 	kfree(dev);
@@ -1669,12 +1762,70 @@ void input_reset_device(struct input_dev *dev)
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	input_dev_toggle(dev, true);
-	input_dev_release_keys(dev);
+	if (input_dev_release_keys(dev))
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL(input_reset_device);
+
+static int input_inhibit_device(struct input_dev *dev)
+{
+	mutex_lock(&dev->mutex);
+
+	if (dev->inhibited)
+		goto out;
+
+	if (dev->users) {
+		if (dev->close)
+			dev->close(dev);
+		if (dev->poller)
+			input_dev_poller_stop(dev->poller);
+	}
+
+	spin_lock_irq(&dev->event_lock);
+	input_mt_release_slots(dev);
+	input_dev_release_keys(dev);
+	input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
+	input_dev_toggle(dev, false);
+	spin_unlock_irq(&dev->event_lock);
+
+	dev->inhibited = true;
+
+out:
+	mutex_unlock(&dev->mutex);
+	return 0;
+}
+
+static int input_uninhibit_device(struct input_dev *dev)
+{
+	int ret = 0;
+
+	mutex_lock(&dev->mutex);
+
+	if (!dev->inhibited)
+		goto out;
+
+	if (dev->users) {
+		if (dev->open) {
+			ret = dev->open(dev);
+			if (ret)
+				goto out;
+		}
+		if (dev->poller)
+			input_dev_poller_start(dev->poller);
+	}
+
+	dev->inhibited = false;
+	spin_lock_irq(&dev->event_lock);
+	input_dev_toggle(dev, true);
+	spin_unlock_irq(&dev->event_lock);
+
+out:
+	mutex_unlock(&dev->mutex);
+	return ret;
+}
 
 #ifdef CONFIG_PM_SLEEP
 static int input_dev_suspend(struct device *dev)
@@ -1687,7 +1838,8 @@ static int input_dev_suspend(struct device *dev)
 	 * Keys that are pressed now are unlikely to be
 	 * still pressed when we resume.
 	 */
-	input_dev_release_keys(input_dev);
+	if (input_dev_release_keys(input_dev))
+		input_handle_event(input_dev, EV_SYN, SYN_REPORT, 1);
 
 	/* Turn off LEDs and sounds, if any are active. */
 	input_dev_toggle(input_dev, false);
@@ -1721,7 +1873,8 @@ static int input_dev_freeze(struct device *dev)
 	 * Keys that are pressed now are unlikely to be
 	 * still pressed when we resume.
 	 */
-	input_dev_release_keys(input_dev);
+	if (input_dev_release_keys(input_dev))
+		input_handle_event(input_dev, EV_SYN, SYN_REPORT, 1);
 
 	spin_unlock_irq(&input_dev->event_lock);
 
@@ -1899,6 +2052,46 @@ void input_free_device(struct input_dev *dev)
 EXPORT_SYMBOL(input_free_device);
 
 /**
+ * input_set_timestamp - set timestamp for input events
+ * @dev: input device to set timestamp for
+ * @timestamp: the time at which the event has occurred
+ *   in CLOCK_MONOTONIC
+ *
+ * This function is intended to provide to the input system a more
+ * accurate time of when an event actually occurred. The driver should
+ * call this function as soon as a timestamp is acquired ensuring
+ * clock conversions in input_set_timestamp are done correctly.
+ *
+ * The system entering suspend state between timestamp acquisition and
+ * calling input_set_timestamp can result in inaccurate conversions.
+ */
+void input_set_timestamp(struct input_dev *dev, ktime_t timestamp)
+{
+	dev->timestamp[INPUT_CLK_MONO] = timestamp;
+	dev->timestamp[INPUT_CLK_REAL] = ktime_mono_to_real(timestamp);
+	dev->timestamp[INPUT_CLK_BOOT] = ktime_mono_to_any(timestamp,
+							   TK_OFFS_BOOT);
+}
+EXPORT_SYMBOL(input_set_timestamp);
+
+/**
+ * input_get_timestamp - get timestamp for input events
+ * @dev: input device to get timestamp from
+ *
+ * A valid timestamp is a timestamp of non-zero value.
+ */
+ktime_t *input_get_timestamp(struct input_dev *dev)
+{
+	const ktime_t invalid_timestamp = ktime_set(0, 0);
+
+	if (!ktime_compare(dev->timestamp[INPUT_CLK_MONO], invalid_timestamp))
+		input_set_timestamp(dev, ktime_get());
+
+	return dev->timestamp;
+}
+EXPORT_SYMBOL(input_get_timestamp);
+
+/**
  * input_set_capability - mark device as capable of a certain event
  * @dev: device that is capable of emitting or accepting event
  * @type: type of the event (EV_KEY, EV_REL, etc...)
@@ -1909,6 +2102,14 @@ EXPORT_SYMBOL(input_free_device);
  */
 void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code)
 {
+	if (type < EV_CNT && input_max_code[type] &&
+	    code > input_max_code[type]) {
+		pr_err("%s: invalid code %u for type %u\n", __func__, code,
+		       type);
+		dump_stack();
+		return;
+	}
+
 	switch (type) {
 	case EV_KEY:
 		__set_bit(code, dev->keybit);
@@ -1920,9 +2121,6 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 
 	case EV_ABS:
 		input_alloc_absinfo(dev);
-		if (!dev->absinfo)
-			return;
-
 		__set_bit(code, dev->absbit);
 		break;
 
@@ -2044,6 +2242,34 @@ static void devm_input_device_unregister(struct device *dev, void *res)
 	__input_unregister_device(input);
 }
 
+/*
+ * Generate software autorepeat event. Note that we take
+ * dev->event_lock here to avoid racing with input_event
+ * which may cause keys get "stuck".
+ */
+static void input_repeat_key(struct timer_list *t)
+{
+	struct input_dev *dev = from_timer(dev, t, timer);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+
+	if (!dev->inhibited &&
+	    test_bit(dev->repeat_key, dev->key) &&
+	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
+
+		input_set_timestamp(dev, ktime_get());
+		input_handle_event(dev, EV_KEY, dev->repeat_key, 2);
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
+
+		if (dev->rep[REP_PERIOD])
+			mod_timer(&dev->timer, jiffies +
+					msecs_to_jiffies(dev->rep[REP_PERIOD]));
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
+
 /**
  * input_enable_softrepeat - enable software autorepeat
  * @dev: input device
@@ -2059,6 +2285,14 @@ void input_enable_softrepeat(struct input_dev *dev, int delay, int period)
 	dev->rep[REP_PERIOD] = period;
 }
 EXPORT_SYMBOL(input_enable_softrepeat);
+
+bool input_device_enabled(struct input_dev *dev)
+{
+	lockdep_assert_held(&dev->mutex);
+
+	return !dev->inhibited && dev->users > 0;
+}
+EXPORT_SYMBOL_GPL(input_device_enabled);
 
 /**
  * input_register_device - register device with input core
@@ -2138,6 +2372,9 @@ int input_register_device(struct input_dev *dev)
 
 	if (!dev->setkeycode)
 		dev->setkeycode = input_default_setkeycode;
+
+	if (dev->poller)
+		input_dev_poller_finalize(dev->poller);
 
 	error = device_add(&dev->dev);
 	if (error)

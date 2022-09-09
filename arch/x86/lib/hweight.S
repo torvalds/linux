@@ -8,7 +8,7 @@
  * unsigned int __sw_hweight32(unsigned int w)
  * %rdi: w
  */
-ENTRY(__sw_hweight32)
+SYM_FUNC_START(__sw_hweight32)
 
 #ifdef CONFIG_X86_64
 	movl %edi, %eax				# w
@@ -32,11 +32,11 @@ ENTRY(__sw_hweight32)
 	imull $0x01010101, %eax, %eax		# w_tmp *= 0x01010101
 	shrl $24, %eax				# w = w_tmp >> 24
 	__ASM_SIZE(pop,) %__ASM_REG(dx)
-	ret
-ENDPROC(__sw_hweight32)
+	RET
+SYM_FUNC_END(__sw_hweight32)
 EXPORT_SYMBOL(__sw_hweight32)
 
-ENTRY(__sw_hweight64)
+SYM_FUNC_START(__sw_hweight64)
 #ifdef CONFIG_X86_64
 	pushq   %rdi
 	pushq   %rdx
@@ -65,7 +65,7 @@ ENTRY(__sw_hweight64)
 
 	popq    %rdx
 	popq    %rdi
-	ret
+	RET
 #else /* CONFIG_X86_32 */
 	/* We're getting an u64 arg in (%eax,%edx): unsigned long hweight64(__u64 w) */
 	pushl   %ecx
@@ -77,7 +77,7 @@ ENTRY(__sw_hweight64)
 	addl    %ecx, %eax                      # result
 
 	popl    %ecx
-	ret
+	RET
 #endif
-ENDPROC(__sw_hweight64)
+SYM_FUNC_END(__sw_hweight64)
 EXPORT_SYMBOL(__sw_hweight64)

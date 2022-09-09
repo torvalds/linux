@@ -1,26 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Signal support for Hexagon processor
  *
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #include <linux/linkage.h>
 #include <linux/syscalls.h>
-#include <linux/tracehook.h>
 #include <linux/sched/task_stack.h>
 
 #include <asm/registers.h>
@@ -168,7 +154,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->r00 = -EINTR;
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->r06 = regs->syscall_nr;
 			pt_set_elr(regs, pt_elr(regs) - 4);
@@ -265,6 +251,6 @@ asmlinkage int sys_rt_sigreturn(void)
 	return regs->r00;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }

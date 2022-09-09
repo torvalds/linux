@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
 * alc5632.h  --  ALC5632 ALSA SoC Audio Codec
 *
@@ -9,10 +10,6 @@
 *           Marc Dietrich <marvin24@gmx.de>
 *
 * Based on alc5623.h by Arnaud Patard
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
 */
 
 #ifndef _ALC5632_H

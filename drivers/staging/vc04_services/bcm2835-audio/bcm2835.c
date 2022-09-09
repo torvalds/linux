@@ -10,17 +10,13 @@
 #include "bcm2835.h"
 
 static bool enable_hdmi;
-static bool enable_headphones;
-static bool enable_compat_alsa = true;
+static bool enable_headphones = true;
 static int num_channels = MAX_SUBSTREAMS;
 
 module_param(enable_hdmi, bool, 0444);
 MODULE_PARM_DESC(enable_hdmi, "Enables HDMI virtual audio device");
 module_param(enable_headphones, bool, 0444);
 MODULE_PARM_DESC(enable_headphones, "Enables Headphones virtual audio device");
-module_param(enable_compat_alsa, bool, 0444);
-MODULE_PARM_DESC(enable_compat_alsa,
-		 "Enables ALSA compatibility virtual audio device");
 module_param(num_channels, int, 0644);
 MODULE_PARM_DESC(num_channels, "Number of audio channels (default: 8)");
 
@@ -52,36 +48,31 @@ static int bcm2835_devm_add_vchi_ctx(struct device *dev)
 	return 0;
 }
 
-typedef int (*bcm2835_audio_newpcm_func)(struct bcm2835_chip *chip,
-					 const char *name,
-					 enum snd_bcm2835_route route,
-					 u32 numchannels);
-
-typedef int (*bcm2835_audio_newctl_func)(struct bcm2835_chip *chip);
-
 struct bcm2835_audio_driver {
 	struct device_driver driver;
 	const char *shortname;
 	const char *longname;
 	int minchannels;
-	bcm2835_audio_newpcm_func newpcm;
-	bcm2835_audio_newctl_func newctl;
+	int (*newpcm)(struct bcm2835_chip *chip, const char *name,
+		      enum snd_bcm2835_route route, u32 numchannels);
+	int (*newctl)(struct bcm2835_chip *chip);
 	enum snd_bcm2835_route route;
 };
 
-static int bcm2835_audio_alsa_newpcm(struct bcm2835_chip *chip,
+static int bcm2835_audio_dual_newpcm(struct bcm2835_chip *chip,
 				     const char *name,
 				     enum snd_bcm2835_route route,
 				     u32 numchannels)
 {
 	int err;
 
-	err = snd_bcm2835_new_pcm(chip, "bcm2835 ALSA", 0, AUDIO_DEST_AUTO,
-				  numchannels - 1, false);
+	err = snd_bcm2835_new_pcm(chip, name, 0, route,
+				  numchannels, false);
+
 	if (err)
 		return err;
 
-	err = snd_bcm2835_new_pcm(chip, "bcm2835 IEC958/HDMI", 1, 0, 1, true);
+	err = snd_bcm2835_new_pcm(chip, "IEC958", 1, route, 1, true);
 	if (err)
 		return err;
 
@@ -96,18 +87,6 @@ static int bcm2835_audio_simple_newpcm(struct bcm2835_chip *chip,
 	return snd_bcm2835_new_pcm(chip, name, 0, route, numchannels, false);
 }
 
-static struct bcm2835_audio_driver bcm2835_audio_alsa = {
-	.driver = {
-		.name = "bcm2835_alsa",
-		.owner = THIS_MODULE,
-	},
-	.shortname = "bcm2835 ALSA",
-	.longname  = "bcm2835 ALSA",
-	.minchannels = 2,
-	.newpcm = bcm2835_audio_alsa_newpcm,
-	.newctl = snd_bcm2835_new_ctl,
-};
-
 static struct bcm2835_audio_driver bcm2835_audio_hdmi = {
 	.driver = {
 		.name = "bcm2835_hdmi",
@@ -116,7 +95,7 @@ static struct bcm2835_audio_driver bcm2835_audio_hdmi = {
 	.shortname = "bcm2835 HDMI",
 	.longname  = "bcm2835 HDMI",
 	.minchannels = 1,
-	.newpcm = bcm2835_audio_simple_newpcm,
+	.newpcm = bcm2835_audio_dual_newpcm,
 	.newctl = snd_bcm2835_new_hdmi_ctl,
 	.route = AUDIO_DEST_HDMI
 };
@@ -140,10 +119,6 @@ struct bcm2835_audio_drivers {
 };
 
 static struct bcm2835_audio_drivers children_devices[] = {
-	{
-		.audio_driver = &bcm2835_audio_alsa,
-		.is_enabled = &enable_compat_alsa,
-	},
 	{
 		.audio_driver = &bcm2835_audio_hdmi,
 		.is_enabled = &enable_hdmi,
@@ -185,9 +160,9 @@ static int snd_add_child_device(struct device *dev,
 		goto error;
 	}
 
-	strcpy(card->driver, audio_driver->driver.name);
-	strcpy(card->shortname, audio_driver->shortname);
-	strcpy(card->longname, audio_driver->longname);
+	strscpy(card->driver, audio_driver->driver.name, sizeof(card->driver));
+	strscpy(card->shortname, audio_driver->shortname, sizeof(card->shortname));
+	strscpy(card->longname, audio_driver->longname, sizeof(card->longname));
 
 	err = audio_driver->newpcm(chip, audio_driver->shortname,
 		audio_driver->route,

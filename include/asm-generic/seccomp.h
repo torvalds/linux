@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/asm-generic/seccomp.h
  *
  * Copyright (C) 2014 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _ASM_GENERIC_SECCOMP_H
 #define _ASM_GENERIC_SECCOMP_H
@@ -36,7 +33,7 @@ static inline const int *get_compat_mode1_syscalls(void)
 	static const int mode1_syscalls_32[] = {
 		__NR_seccomp_read_32, __NR_seccomp_write_32,
 		__NR_seccomp_exit_32, __NR_seccomp_sigreturn_32,
-		0, /* null terminated */
+		-1, /* negative terminated */
 	};
 	return mode1_syscalls_32;
 }

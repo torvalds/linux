@@ -16,6 +16,9 @@ LDO:
   ldo_vemc3v3, ldo_vgp1, ldo_vgp2, ldo_vgp3, ldo_vgp4, ldo_vgp5, ldo_vgp6,
   ldo_vibr
 
+BUCK regulators can set regulator-initial-mode and regulator-allowed-modes to
+values specified in dt-bindings/regulator/mediatek,mt6397-regulator.h
+
 Example:
 	pmic {
 		compatible = "mediatek,mt6397";

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8727.c
  *
@@ -5,11 +6,6 @@
  *      Author: neil.jones@imgtec.com
  *
  * Copyright (C) 2009 Imagination Technologies Ltd.
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/init.h>
@@ -59,7 +55,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8727 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int wm8727_probe(struct platform_device *pdev)

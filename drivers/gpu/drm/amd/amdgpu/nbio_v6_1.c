@@ -27,16 +27,43 @@
 #include "nbio/nbio_6_1_default.h"
 #include "nbio/nbio_6_1_offset.h"
 #include "nbio/nbio_6_1_sh_mask.h"
+#include "nbio/nbio_6_1_smn.h"
 #include "vega10_enum.h"
+#include <uapi/linux/kfd_ioctl.h>
 
-#define smnCPM_CONTROL                                                                                  0x11180460
-#define smnPCIE_CNTL2                                                                                   0x11180070
-#define smnPCIE_CONFIG_CNTL                                                                             0x11180044
-#define smnPCIE_CI_CNTL                                                                                 0x11180080
+#define smnPCIE_LC_CNTL		0x11140280
+#define smnPCIE_LC_CNTL3	0x111402d4
+#define smnPCIE_LC_CNTL6	0x111402ec
+#define smnPCIE_LC_CNTL7	0x111402f0
+#define smnNBIF_MGCG_CTRL_LCLK	0x1013a05c
+#define NBIF_MGCG_CTRL_LCLK__NBIF_MGCG_REG_DIS_LCLK_MASK	0x00001000L
+#define RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER_MASK	0x0000FFFFL
+#define RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER_MASK	0xFFFF0000L
+#define smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL	0x10123530
+#define smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2	0x1014008c
+#define smnBIF_CFG_DEV0_EPF0_PCIE_LTR_CAP	0x10140324
+#define smnPSWUSP0_PCIE_LC_CNTL2		0x111402c4
+#define smnRCC_BIF_STRAP2	0x10123488
+#define smnRCC_BIF_STRAP3	0x1012348c
+#define smnRCC_BIF_STRAP5	0x10123494
+#define BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK			0x0400L
+#define RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER_MASK	0x0000FFFFL
+#define RCC_BIF_STRAP2__STRAP_LTR_IN_ASPML1_DIS_MASK	0x00004000L
+#define RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER__SHIFT	0x0
+#define RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER__SHIFT	0x10
+#define RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER__SHIFT	0x0
+
+static void nbio_v6_1_remap_hdp_registers(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_REG_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+}
 
 static u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev)
 {
-        u32 tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
+	u32 tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
 
 	tmp &= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK;
 	tmp >>= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT;
@@ -54,25 +81,13 @@ static void nbio_v6_1_mc_access_enable(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(NBIO, 0, mmBIF_FB_EN, 0);
 }
 
-static void nbio_v6_1_hdp_flush(struct amdgpu_device *adev,
-				struct amdgpu_ring *ring)
-{
-	if (!ring || !ring->funcs->emit_wreg)
-		WREG32_SOC15_NO_KIQ(NBIO, 0,
-				    mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL,
-				    0);
-	else
-		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
-			NBIO, 0, mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL), 0);
-}
-
 static u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
 {
 	return RREG32_SOC15(NBIO, 0, mmRCC_PF_0_0_RCC_CONFIG_MEMSIZE);
 }
 
 static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
-				  bool use_doorbell, int doorbell_index)
+			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
 	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
@@ -81,7 +96,7 @@ static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
-		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 2);
+		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, doorbell_size);
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
 
@@ -118,11 +133,12 @@ static void nbio_v6_1_enable_doorbell_selfring_aperture(struct amdgpu_device *ad
 static void nbio_v6_1_ih_doorbell_range(struct amdgpu_device *adev,
 					bool use_doorbell, int doorbell_index)
 {
-	u32 ih_doorbell_range = RREG32_SOC15(NBIO, 0 , mmBIF_IH_DOORBELL_RANGE);
+	u32 ih_doorbell_range = RREG32_SOC15(NBIO, 0, mmBIF_IH_DOORBELL_RANGE);
 
 	if (use_doorbell) {
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, OFFSET, doorbell_index);
-		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 2);
+		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range,
+						  BIF_IH_DOORBELL_RANGE, SIZE, 6);
 	} else
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 0);
 
@@ -194,7 +210,7 @@ static void nbio_v6_1_update_medium_grain_light_sleep(struct amdgpu_device *adev
 }
 
 static void nbio_v6_1_get_clockgating_state(struct amdgpu_device *adev,
-					    u32 *flags)
+					    u64 *flags)
 {
 	int data;
 
@@ -229,7 +245,7 @@ static u32 nbio_v6_1_get_pcie_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 }
 
-static const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
+const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
 	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
 	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
 	.ref_and_mask_cp2 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP2_MASK,
@@ -243,23 +259,6 @@ static const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
 	.ref_and_mask_sdma0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA0_MASK,
 	.ref_and_mask_sdma1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA1_MASK
 };
-
-static void nbio_v6_1_detect_hw_virt(struct amdgpu_device *adev)
-{
-	uint32_t reg;
-
-	reg = RREG32_SOC15(NBIO, 0, mmRCC_PF_0_0_RCC_IOV_FUNC_IDENTIFIER);
-	if (reg & 1)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
-
-	if (reg & 0x80000000)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
-
-	if (!reg) {
-		if (is_virtual_machine())	/* passthrough mode exclus sriov mod */
-			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
-	}
-}
 
 static void nbio_v6_1_init_registers(struct amdgpu_device *adev)
 {
@@ -277,17 +276,124 @@ static void nbio_v6_1_init_registers(struct amdgpu_device *adev)
 
 	if (def != data)
 		WREG32_PCIE(smnPCIE_CI_CNTL, data);
+
+	if (amdgpu_sriov_vf(adev))
+		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
+			mmBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+}
+
+static void nbio_v6_1_program_ltr(struct amdgpu_device *adev)
+{
+	uint32_t def, data;
+
+	WREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL, 0x75EB);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP2);
+	data &= ~RCC_BIF_STRAP2__STRAP_LTR_IN_ASPML1_DIS_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP2, data);
+
+	def = data = RREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL);
+	data &= ~EP_PCIE_TX_LTR_CNTL__LTR_PRIV_MSG_DIS_IN_PM_NON_D0_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_EP_DEV0_0_EP_PCIE_TX_LTR_CNTL, data);
+
+	def = data = RREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2);
+	data |= BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2, data);
+}
+
+static void nbio_v6_1_program_aspm(struct amdgpu_device *adev)
+{
+	uint32_t def, data;
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);
+	data &= ~PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK;
+	data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
+	data |= PCIE_LC_CNTL__LC_PMI_TO_L1_DIS_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL7);
+	data |= PCIE_LC_CNTL7__LC_NBIF_ASPM_INPUT_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL7, data);
+
+	def = data = RREG32_PCIE(smnNBIF_MGCG_CTRL_LCLK);
+	data |= NBIF_MGCG_CTRL_LCLK__NBIF_MGCG_REG_DIS_LCLK_MASK;
+	if (def != data)
+		WREG32_PCIE(smnNBIF_MGCG_CTRL_LCLK, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL3);
+	data |= PCIE_LC_CNTL3__LC_DSC_DONT_ENTER_L23_AFTER_PME_ACK_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL3, data);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP3);
+	data &= ~RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER_MASK;
+	data &= ~RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP3, data);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP5);
+	data &= ~RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER_MASK;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP5, data);
+
+	def = data = RREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2);
+	data &= ~BIF_CFG_DEV0_EPF0_DEVICE_CNTL2__LTR_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnBIF_CFG_DEV0_EPF0_DEVICE_CNTL2, data);
+
+	WREG32_PCIE(smnBIF_CFG_DEV0_EPF0_PCIE_LTR_CAP, 0x10011001);
+
+	def = data = RREG32_PCIE(smnPSWUSP0_PCIE_LC_CNTL2);
+	data |= PSWUSP0_PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L1_MASK |
+		PSWUSP0_PCIE_LC_CNTL2__LC_ALLOW_PDWN_IN_L23_MASK;
+	data &= ~PSWUSP0_PCIE_LC_CNTL2__LC_RCV_L0_TO_RCV_L0S_DIS_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPSWUSP0_PCIE_LC_CNTL2, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL6);
+	data |= PCIE_LC_CNTL6__LC_L1_POWERDOWN_MASK |
+		PCIE_LC_CNTL6__LC_RX_L0S_STANDBY_EN_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL6, data);
+
+	nbio_v6_1_program_ltr(adev);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP3);
+	data |= 0x5DE0 << RCC_BIF_STRAP3__STRAP_VLINK_ASPM_IDLE_TIMER__SHIFT;
+	data |= 0x0010 << RCC_BIF_STRAP3__STRAP_VLINK_PM_L1_ENTRY_TIMER__SHIFT;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP3, data);
+
+	def = data = RREG32_PCIE(smnRCC_BIF_STRAP5);
+	data |= 0x0010 << RCC_BIF_STRAP5__STRAP_VLINK_LDN_ENTRY_TIMER__SHIFT;
+	if (def != data)
+		WREG32_PCIE(smnRCC_BIF_STRAP5, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);
+	data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
+	data |= 0x9 << PCIE_LC_CNTL__LC_L1_INACTIVITY__SHIFT;
+	data |= 0x1 << PCIE_LC_CNTL__LC_PMI_TO_L1_DIS__SHIFT;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL, data);
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL3);
+	data &= ~PCIE_LC_CNTL3__LC_DSC_DONT_ENTER_L23_AFTER_PME_ACK_MASK;
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL3, data);
 }
 
 const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {
-	.hdp_flush_reg = &nbio_v6_1_hdp_flush_reg,
 	.get_hdp_flush_req_offset = nbio_v6_1_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v6_1_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v6_1_get_pcie_index_offset,
 	.get_pcie_data_offset = nbio_v6_1_get_pcie_data_offset,
 	.get_rev_id = nbio_v6_1_get_rev_id,
 	.mc_access_enable = nbio_v6_1_mc_access_enable,
-	.hdp_flush = nbio_v6_1_hdp_flush,
 	.get_memsize = nbio_v6_1_get_memsize,
 	.sdma_doorbell_range = nbio_v6_1_sdma_doorbell_range,
 	.enable_doorbell_aperture = nbio_v6_1_enable_doorbell_aperture,
@@ -298,5 +404,6 @@ const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {
 	.get_clockgating_state = nbio_v6_1_get_clockgating_state,
 	.ih_control = nbio_v6_1_ih_control,
 	.init_registers = nbio_v6_1_init_registers,
-	.detect_hw_virt = nbio_v6_1_detect_hw_virt,
+	.remap_hdp_registers = nbio_v6_1_remap_hdp_registers,
+	.program_aspm =  nbio_v6_1_program_aspm,
 };

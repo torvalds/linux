@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2010 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
  */
 
 #include <linux/miscdevice.h>
@@ -49,7 +46,7 @@ struct dlm_lock_params32 {
 	__u32 bastaddr;
 	__u32 lksb;
 	char lvb[DLM_USER_LVB_LEN];
-	char name[0];
+	char name[];
 };
 
 struct dlm_write_request32 {
@@ -111,11 +108,11 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lock.parent = kb32->i.lock.parent;
 		kb->i.lock.xid = kb32->i.lock.xid;
 		kb->i.lock.timeout = kb32->i.lock.timeout;
-		kb->i.lock.castparam = (void *)(long)kb32->i.lock.castparam;
-		kb->i.lock.castaddr = (void *)(long)kb32->i.lock.castaddr;
-		kb->i.lock.bastparam = (void *)(long)kb32->i.lock.bastparam;
-		kb->i.lock.bastaddr = (void *)(long)kb32->i.lock.bastaddr;
-		kb->i.lock.lksb = (void *)(long)kb32->i.lock.lksb;
+		kb->i.lock.castparam = (__user void *)(long)kb32->i.lock.castparam;
+		kb->i.lock.castaddr = (__user void *)(long)kb32->i.lock.castaddr;
+		kb->i.lock.bastparam = (__user void *)(long)kb32->i.lock.bastparam;
+		kb->i.lock.bastaddr = (__user void *)(long)kb32->i.lock.bastaddr;
+		kb->i.lock.lksb = (__user void *)(long)kb32->i.lock.lksb;
 		memcpy(kb->i.lock.lvb, kb32->i.lock.lvb, DLM_USER_LVB_LEN);
 		memcpy(kb->i.lock.name, kb32->i.lock.name, namelen);
 	}
@@ -130,9 +127,9 @@ static void compat_output(struct dlm_lock_result *res,
 	res32->version[1] = res->version[1];
 	res32->version[2] = res->version[2];
 
-	res32->user_astaddr = (__u32)(long)res->user_astaddr;
-	res32->user_astparam = (__u32)(long)res->user_astparam;
-	res32->user_lksb = (__u32)(long)res->user_lksb;
+	res32->user_astaddr = (__u32)(__force long)res->user_astaddr;
+	res32->user_astparam = (__u32)(__force long)res->user_astparam;
+	res32->user_lksb = (__u32)(__force long)res->user_lksb;
 	res32->bast_mode = res->bast_mode;
 
 	res32->lvb_offset = res->lvb_offset;
@@ -253,6 +250,14 @@ static int device_user_lock(struct dlm_user_proc *proc,
 		goto out;
 	}
 
+#ifdef CONFIG_DLM_DEPRECATED_API
+	if (params->timeout)
+		pr_warn_once("========================================================\n"
+			     "WARNING: the lkb timeout feature is being deprecated and\n"
+			     "         will be removed in v6.2!\n"
+			     "========================================================\n");
+#endif
+
 	ua = kzalloc(sizeof(struct dlm_user_args), GFP_NOFS);
 	if (!ua)
 		goto out;
@@ -265,23 +270,34 @@ static int device_user_lock(struct dlm_user_proc *proc,
 	ua->xid = params->xid;
 
 	if (params->flags & DLM_LKF_CONVERT) {
+#ifdef CONFIG_DLM_DEPRECATED_API
 		error = dlm_user_convert(ls, ua,
 				         params->mode, params->flags,
 				         params->lkid, params->lvb,
 					 (unsigned long) params->timeout);
+#else
+		error = dlm_user_convert(ls, ua,
+					 params->mode, params->flags,
+					 params->lkid, params->lvb);
+#endif
 	} else if (params->flags & DLM_LKF_ORPHAN) {
 		error = dlm_user_adopt_orphan(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,
-					 (unsigned long) params->timeout,
 					 &lkid);
 		if (!error)
 			error = lkid;
 	} else {
+#ifdef CONFIG_DLM_DEPRECATED_API
 		error = dlm_user_request(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,
 					 (unsigned long) params->timeout);
+#else
+		error = dlm_user_request(ls, ua,
+					 params->mode, params->flags,
+					 params->name, params->namelen);
+#endif
 		if (!error)
 			error = ua->lksb.sb_lkid;
 	}

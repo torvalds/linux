@@ -1,21 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <https://www.bluecherrydvr.com>
  *
  * Original author:
  * Ben Collins <bcollins@ubuntu.com>
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -46,16 +37,16 @@ int solo_p2m_dma(struct solo_dev *solo_dev, int wr,
 	if (WARN_ON_ONCE(!size))
 		return -EINVAL;
 
-	dma_addr = pci_map_single(solo_dev->pdev, sys_addr, size,
-				  wr ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(solo_dev->pdev, dma_addr))
+	dma_addr = dma_map_single(&solo_dev->pdev->dev, sys_addr, size,
+				  wr ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	if (dma_mapping_error(&solo_dev->pdev->dev, dma_addr))
 		return -ENOMEM;
 
 	ret = solo_p2m_dma_t(solo_dev, wr, dma_addr, ext_addr, size,
 			     repeat, ext_size);
 
-	pci_unmap_single(solo_dev->pdev, dma_addr, size,
-			 wr ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&solo_dev->pdev->dev, dma_addr, size,
+			 wr ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 	return ret;
 }

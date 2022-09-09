@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MCE grading rules.
  * Copyright 2008, 2009 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Author: Andi Kleen
  */
@@ -13,8 +9,13 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
-#include <asm/mce.h>
 #include <linux/uaccess.h>
+
+#include <asm/mce.h>
+#include <asm/intel-family.h>
+#include <asm/traps.h>
+#include <asm/insn.h>
+#include <asm/insn-eval.h>
 
 #include "internal.h"
 
@@ -44,9 +45,14 @@ static struct severity {
 	unsigned char context;
 	unsigned char excp;
 	unsigned char covered;
+	unsigned char cpu_model;
+	unsigned char cpu_minstepping;
+	unsigned char bank_lo, bank_hi;
 	char *msg;
 } severities[] = {
 #define MCESEV(s, m, c...) { .sev = MCE_ ## s ## _SEVERITY, .msg = m, ## c }
+#define BANK_RANGE(l, h) .bank_lo = l, .bank_hi = h
+#define MODEL_STEPPING(m, s) .cpu_model = m, .cpu_minstepping = s
 #define  KERNEL		.context = IN_KERNEL
 #define  USER		.context = IN_USER
 #define  KERNEL_RECOV	.context = IN_KERNEL_RECOV
@@ -94,14 +100,9 @@ static struct severity {
 		EXCP, KERNEL_RECOV, MCGMASK(MCG_STATUS_RIPV, 0)
 		),
 	MCESEV(
-		DEFERRED, "Deferred error",
-		NOSER, MASK(MCI_STATUS_UC|MCI_STATUS_DEFERRED|MCI_STATUS_POISON, MCI_STATUS_DEFERRED)
-		),
-	MCESEV(
 		KEEP, "Corrected error",
 		NOSER, BITCLR(MCI_STATUS_UC)
 		),
-
 	/*
 	 * known AO MCACODs reported via MCE or CMC:
 	 *
@@ -111,12 +112,24 @@ static struct severity {
 	 */
 	MCESEV(
 		AO, "Action optional: memory scrubbing error",
-		SER, MASK(MCI_STATUS_OVER|MCI_UC_AR|MCACOD_SCRUBMSK, MCI_STATUS_UC|MCACOD_SCRUB)
+		SER, MASK(MCI_UC_AR|MCACOD_SCRUBMSK, MCI_STATUS_UC|MCACOD_SCRUB)
 		),
 	MCESEV(
 		AO, "Action optional: last level cache writeback error",
-		SER, MASK(MCI_STATUS_OVER|MCI_UC_AR|MCACOD, MCI_STATUS_UC|MCACOD_L3WB)
+		SER, MASK(MCI_UC_AR|MCACOD, MCI_STATUS_UC|MCACOD_L3WB)
 		),
+	/*
+	 * Quirk for Skylake/Cascade Lake. Patrol scrubber may be configured
+	 * to report uncorrected errors using CMCI with a special signature.
+	 * UC=0, MSCOD=0x0010, MCACOD=binary(000X 0000 1100 XXXX) reported
+	 * in one of the memory controller banks.
+	 * Set severity to "AO" for same action as normal patrol scrub error.
+	 */
+	MCESEV(
+		AO, "Uncorrected Patrol Scrub Error",
+		SER, MASK(MCI_STATUS_UC|MCI_ADDR|0xffffeff0, MCI_ADDR|0x001000c0),
+		MODEL_STEPPING(INTEL_FAM6_SKYLAKE_X, 4), BANK_RANGE(13, 18)
+	),
 
 	/* ignore OVER for UCNA */
 	MCESEV(
@@ -129,7 +142,7 @@ static struct severity {
 		MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_UC|MCI_STATUS_AR)
 		),
 	MCESEV(
-		KEEP, "Non signalled machine check",
+		KEEP, "Non signaled machine check",
 		SER, BITCLR(MCI_STATUS_S)
 		),
 
@@ -165,6 +178,11 @@ static struct severity {
 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
 		KERNEL
 		),
+	MCESEV(
+		PANIC, "Instruction fetch error in kernel",
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_INSTR),
+		KERNEL
+		),
 #endif
 	MCESEV(
 		PANIC, "Action required: unknown MCACOD",
@@ -197,6 +215,46 @@ static struct severity {
 #define mc_recoverable(mcg) (((mcg) & (MCG_STATUS_RIPV|MCG_STATUS_EIPV)) == \
 				(MCG_STATUS_RIPV|MCG_STATUS_EIPV))
 
+static bool is_copy_from_user(struct pt_regs *regs)
+{
+	u8 insn_buf[MAX_INSN_SIZE];
+	unsigned long addr;
+	struct insn insn;
+	int ret;
+
+	if (!regs)
+		return false;
+
+	if (copy_from_kernel_nofault(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
+		return false;
+
+	ret = insn_decode_kernel(&insn, insn_buf);
+	if (ret < 0)
+		return false;
+
+	switch (insn.opcode.value) {
+	/* MOV mem,reg */
+	case 0x8A: case 0x8B:
+	/* MOVZ mem,reg */
+	case 0xB60F: case 0xB70F:
+		addr = (unsigned long)insn_get_addr_ref(&insn, regs);
+		break;
+	/* REP MOVS */
+	case 0xA4: case 0xA5:
+		addr = regs->si;
+		break;
+	default:
+		return false;
+	}
+
+	if (fault_in_kernel_space(addr))
+		return false;
+
+	current->mce_vaddr = (void __user *)addr;
+
+	return true;
+}
+
 /*
  * If mcgstatus indicated that ip/cs on the stack were
  * no good, then "m->cs" will be zero and we will have
@@ -208,102 +266,106 @@ static struct severity {
  * distinguish an exception taken in user from from one
  * taken in the kernel.
  */
-static int error_context(struct mce *m)
+static noinstr int error_context(struct mce *m, struct pt_regs *regs)
 {
+	int fixup_type;
+	bool copy_user;
+
 	if ((m->cs & 3) == 3)
 		return IN_USER;
-	if (mc_recoverable(m->mcgstatus) && ex_has_fault_handler(m->ip))
+
+	if (!mc_recoverable(m->mcgstatus))
+		return IN_KERNEL;
+
+	/* Allow instrumentation around external facilities usage. */
+	instrumentation_begin();
+	fixup_type = ex_get_fixup_type(m->ip);
+	copy_user  = is_copy_from_user(regs);
+	instrumentation_end();
+
+	switch (fixup_type) {
+	case EX_TYPE_UACCESS:
+	case EX_TYPE_COPY:
+		if (!copy_user)
+			return IN_KERNEL;
+		m->kflags |= MCE_IN_KERNEL_COPYIN;
+		fallthrough;
+
+	case EX_TYPE_FAULT_MCE_SAFE:
+	case EX_TYPE_DEFAULT_MCE_SAFE:
+		m->kflags |= MCE_IN_KERNEL_RECOV;
 		return IN_KERNEL_RECOV;
-	return IN_KERNEL;
+
+	default:
+		return IN_KERNEL;
+	}
 }
 
-static int mce_severity_amd_smca(struct mce *m, enum context err_ctx)
+/* See AMD PPR(s) section Machine Check Error Handling. */
+static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
-	u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
-	u32 low, high;
+	char *panic_msg = NULL;
+	int ret;
 
 	/*
-	 * We need to look at the following bits:
-	 * - "succor" bit (data poisoning support), and
-	 * - TCC bit (Task Context Corrupt)
-	 * in MCi_STATUS to determine error severity.
+	 * Default return value: Action required, the error must be handled
+	 * immediately.
 	 */
-	if (!mce_flags.succor)
-		return MCE_PANIC_SEVERITY;
-
-	if (rdmsr_safe(addr, &low, &high))
-		return MCE_PANIC_SEVERITY;
-
-	/* TCC (Task context corrupt). If set and if IN_KERNEL, panic. */
-	if ((low & MCI_CONFIG_MCAX) &&
-	    (m->status & MCI_STATUS_TCC) &&
-	    (err_ctx == IN_KERNEL))
-		return MCE_PANIC_SEVERITY;
-
-	 /* ...otherwise invoke hwpoison handler. */
-	return MCE_AR_SEVERITY;
-}
-
-/*
- * See AMD Error Scope Hierarchy table in a newer BKDG. For example
- * 49125_15h_Models_30h-3Fh_BKDG.pdf, section "RAS Features"
- */
-static int mce_severity_amd(struct mce *m, int tolerant, char **msg, bool is_excp)
-{
-	enum context ctx = error_context(m);
+	ret = MCE_AR_SEVERITY;
 
 	/* Processor Context Corrupt, no need to fumble too much, die! */
-	if (m->status & MCI_STATUS_PCC)
-		return MCE_PANIC_SEVERITY;
+	if (m->status & MCI_STATUS_PCC) {
+		panic_msg = "Processor Context Corrupt";
+		ret = MCE_PANIC_SEVERITY;
+		goto out;
+	}
 
-	if (m->status & MCI_STATUS_UC) {
-
-		if (ctx == IN_KERNEL)
-			return MCE_PANIC_SEVERITY;
-
-		/*
-		 * On older systems where overflow_recov flag is not present, we
-		 * should simply panic if an error overflow occurs. If
-		 * overflow_recov flag is present and set, then software can try
-		 * to at least kill process to prolong system operation.
-		 */
-		if (mce_flags.overflow_recov) {
-			if (mce_flags.smca)
-				return mce_severity_amd_smca(m, ctx);
-
-			/* kill current process */
-			return MCE_AR_SEVERITY;
-		} else {
-			/* at least one error was not logged */
-			if (m->status & MCI_STATUS_OVER)
-				return MCE_PANIC_SEVERITY;
-		}
-
-		/*
-		 * For any other case, return MCE_UC_SEVERITY so that we log the
-		 * error and exit #MC handler.
-		 */
-		return MCE_UC_SEVERITY;
+	if (m->status & MCI_STATUS_DEFERRED) {
+		ret = MCE_DEFERRED_SEVERITY;
+		goto out;
 	}
 
 	/*
-	 * deferred error: poll handler catches these and adds to mce_ring so
-	 * memory-failure can take recovery actions.
+	 * If the UC bit is not set, the system either corrected or deferred
+	 * the error. No action will be required after logging the error.
 	 */
-	if (m->status & MCI_STATUS_DEFERRED)
-		return MCE_DEFERRED_SEVERITY;
+	if (!(m->status & MCI_STATUS_UC)) {
+		ret = MCE_KEEP_SEVERITY;
+		goto out;
+	}
 
 	/*
-	 * corrected error: poll handler catches these and passes responsibility
-	 * of decoding the error to EDAC
+	 * On MCA overflow, without the MCA overflow recovery feature the
+	 * system will not be able to recover, panic.
 	 */
-	return MCE_KEEP_SEVERITY;
+	if ((m->status & MCI_STATUS_OVER) && !mce_flags.overflow_recov) {
+		panic_msg = "Overflowed uncorrected error without MCA Overflow Recovery";
+		ret = MCE_PANIC_SEVERITY;
+		goto out;
+	}
+
+	if (!mce_flags.succor) {
+		panic_msg = "Uncorrected error without MCA Recovery";
+		ret = MCE_PANIC_SEVERITY;
+		goto out;
+	}
+
+	if (error_context(m, regs) == IN_KERNEL) {
+		panic_msg = "Uncorrected unrecoverable error in kernel context";
+		ret = MCE_PANIC_SEVERITY;
+	}
+
+out:
+	if (msg && panic_msg)
+		*msg = panic_msg;
+
+	return ret;
 }
 
-static int mce_severity_intel(struct mce *m, int tolerant, char **msg, bool is_excp)
+static noinstr int mce_severity_intel(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
 	enum exception excp = (is_excp ? EXCP_CONTEXT : NO_EXCP);
-	enum context ctx = error_context(m);
+	enum context ctx = error_context(m, regs);
 	struct severity *s;
 
 	for (s = severities;; s++) {
@@ -319,26 +381,30 @@ static int mce_severity_intel(struct mce *m, int tolerant, char **msg, bool is_e
 			continue;
 		if (s->excp && excp != s->excp)
 			continue;
+		if (s->cpu_model && boot_cpu_data.x86_model != s->cpu_model)
+			continue;
+		if (s->cpu_minstepping && boot_cpu_data.x86_stepping < s->cpu_minstepping)
+			continue;
+		if (s->bank_lo && (m->bank < s->bank_lo || m->bank > s->bank_hi))
+			continue;
 		if (msg)
 			*msg = s->msg;
 		s->covered = 1;
-		if (s->sev >= MCE_UC_SEVERITY && ctx == IN_KERNEL) {
-			if (tolerant < 1)
-				return MCE_PANIC_SEVERITY;
-		}
+
+		if (s->sev >= MCE_UC_SEVERITY && ctx == IN_KERNEL)
+			return MCE_PANIC_SEVERITY;
+
 		return s->sev;
 	}
 }
 
-/* Default to mce_severity_intel */
-int (*mce_severity)(struct mce *m, int tolerant, char **msg, bool is_excp) =
-		    mce_severity_intel;
-
-void __init mcheck_vendor_init_severity(void)
+int noinstr mce_severity(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
 	    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
-		mce_severity = mce_severity_amd;
+		return mce_severity_amd(m, regs, msg, is_excp);
+	else
+		return mce_severity_intel(m, regs, msg, is_excp);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -399,21 +465,13 @@ static const struct file_operations severities_coverage_fops = {
 
 static int __init severities_debugfs_init(void)
 {
-	struct dentry *dmce, *fsev;
+	struct dentry *dmce;
 
 	dmce = mce_get_debugfs_dir();
-	if (!dmce)
-		goto err_out;
 
-	fsev = debugfs_create_file("severities-coverage", 0444, dmce, NULL,
-				   &severities_coverage_fops);
-	if (!fsev)
-		goto err_out;
-
+	debugfs_create_file("severities-coverage", 0444, dmce, NULL,
+			    &severities_coverage_fops);
 	return 0;
-
-err_out:
-	return -ENOMEM;
 }
 late_initcall(severities_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */

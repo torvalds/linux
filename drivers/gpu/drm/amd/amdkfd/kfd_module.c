@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,22 +24,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include "kfd_priv.h"
-
-static const struct kgd2kfd_calls kgd2kfd = {
-	.exit		= kgd2kfd_exit,
-	.probe		= kgd2kfd_probe,
-	.device_init	= kgd2kfd_device_init,
-	.device_exit	= kgd2kfd_device_exit,
-	.interrupt	= kgd2kfd_interrupt,
-	.suspend	= kgd2kfd_suspend,
-	.resume		= kgd2kfd_resume,
-	.quiesce_mm	= kgd2kfd_quiesce_mm,
-	.resume_mm	= kgd2kfd_resume_mm,
-	.schedule_evict_and_restore_process =
-			  kgd2kfd_schedule_evict_and_restore_process,
-	.pre_reset	= kgd2kfd_pre_reset,
-	.post_reset	= kgd2kfd_post_reset,
-};
+#include "amdgpu_amdkfd.h"
 
 static int kfd_init(void)
 {
@@ -71,6 +57,11 @@ static int kfd_init(void)
 	if (err < 0)
 		goto err_create_wq;
 
+	/* Ignore the return value, so that we can continue
+	 * to init the KFD, even if procfs isn't craated
+	 */
+	kfd_procfs_init();
+
 	kfd_debugfs_init();
 
 	return 0;
@@ -80,6 +71,7 @@ err_create_wq:
 err_topology:
 	kfd_chardev_exit();
 err_ioctl:
+	pr_err("KFD is disabled due to module initialization failure\n");
 	return err;
 }
 
@@ -87,24 +79,15 @@ static void kfd_exit(void)
 {
 	kfd_debugfs_fini();
 	kfd_process_destroy_wq();
+	kfd_procfs_shutdown();
 	kfd_topology_shutdown();
 	kfd_chardev_exit();
 }
 
-int kgd2kfd_init(unsigned int interface_version,
-		const struct kgd2kfd_calls **g2f)
+int kgd2kfd_init(void)
 {
-	int err;
-
-	err = kfd_init();
-	if (err)
-		return err;
-
-	*g2f = &kgd2kfd;
-
-	return 0;
+	return kfd_init();
 }
-EXPORT_SYMBOL(kgd2kfd_init);
 
 void kgd2kfd_exit(void)
 {

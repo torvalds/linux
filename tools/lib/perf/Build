@@ -1,0 +1,15 @@
+libperf-y += core.o
+libperf-y += cpumap.o
+libperf-y += threadmap.o
+libperf-y += evsel.o
+libperf-y += evlist.o
+libperf-y += mmap.o
+libperf-y += zalloc.o
+libperf-y += xyarray.o
+libperf-y += lib.o
+
+$(OUTPUT)zalloc.o: ../../lib/zalloc.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+tests-y += tests/

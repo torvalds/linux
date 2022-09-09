@@ -71,6 +71,19 @@
 	};
 };
 
+&i2c0 {
+	clock-frequency = <400000>;
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	eeprom@53 {
+		compatible = "atmel,24c02";
+		reg = <0x53>;
+		pagesize = <16>;
+	};
+};
+
 &pinctrl {
 	microsom_phy_clk_pins: microsom-phy-clk-pins {
 		marvell,pins = "mpp45";
@@ -88,7 +101,7 @@
 	/* The microsom has an optional W25Q32 on board, connected to CS0 */
 	pinctrl-0 = <&spi1_pins>;
 
-	w25q32: spi-flash@0 {
+	w25q32: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "w25q32", "jedec,spi-nor";

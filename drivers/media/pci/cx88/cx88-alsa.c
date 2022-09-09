@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Support for audio capture
  *  PCI function #1 of the cx2388x.
@@ -7,16 +8,6 @@
  *    (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
  *    Based on dummy.c by Jaroslav Kysela <perex@perex.cz>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -51,12 +42,12 @@
  */
 
 struct cx88_audio_buffer {
-	unsigned int               bpl;
-	struct cx88_riscmem        risc;
+	unsigned int		bpl;
+	struct cx88_riscmem	risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
 	int                     sglen;
-	int                     nr_pages;
+	unsigned long		nr_pages;
 };
 
 struct cx88_audio_dev {
@@ -104,10 +95,9 @@ MODULE_PARM_DESC(index, "Index value for cx88x capture interface(s).");
 MODULE_DESCRIPTION("ALSA driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Ricardo Cerqueira");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(CX88_VERSION);
 
-MODULE_SUPPORTED_DEVICE("{{Conexant,23881},{{Conexant,23882},{{Conexant,23883}");
 static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
@@ -280,7 +270,8 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
+static int cx88_alsa_dma_init(struct cx88_audio_dev *chip,
+			      unsigned long nr_pages)
 {
 	struct cx88_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -288,11 +279,11 @@ static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (!buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+	dprintk(1, "vmalloc is at addr %p, size=%lu\n",
 		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
@@ -325,7 +316,7 @@ static int cx88_alsa_dma_map(struct cx88_audio_dev *dev)
 	struct cx88_audio_buffer *buf = dev->buf;
 
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
-			buf->nr_pages, PCI_DMA_FROMDEVICE);
+			buf->nr_pages, DMA_FROM_DEVICE);
 
 	if (buf->sglen == 0) {
 		pr_warn("%s: cx88_alsa_map_sg failed\n", __func__);
@@ -341,8 +332,8 @@ static int cx88_alsa_dma_unmap(struct cx88_audio_dev *dev)
 	if (!buf->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen,
-		     PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->nr_pages,
+		     DMA_FROM_DEVICE);
 	buf->sglen = 0;
 	return 0;
 }
@@ -366,8 +357,8 @@ static int dsp_buffer_free(struct cx88_audio_dev *chip)
 	cx88_alsa_dma_unmap(chip);
 	cx88_alsa_dma_free(chip->buf);
 	if (risc->cpu)
-		pci_free_consistent(chip->pci, risc->size,
-				    risc->cpu, risc->dma);
+		dma_free_coherent(&chip->pci->dev, risc->size, risc->cpu,
+				  risc->dma);
 	kfree(chip->buf);
 
 	chip->buf = NULL;
@@ -594,7 +585,6 @@ static struct page *snd_cx88_page(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_cx88_pcm_ops = {
 	.open = snd_cx88_pcm_open,
 	.close = snd_cx88_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_cx88_hw_params,
 	.hw_free = snd_cx88_hw_free,
 	.prepare = snd_cx88_prepare,
@@ -878,7 +868,7 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
-	err = pci_set_dma_mask(pci, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
 	if (err) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n", core->name);
 		cx88_core_put(core, pci);

@@ -12,6 +12,11 @@
 	model = "bq Curie 2";
 	compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";
 
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+	};
+
 	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
@@ -43,7 +48,7 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		power {
+		key-power {
 			gpios = <&gpio6 RK_PA2 GPIO_ACTIVE_LOW>; /* GPIO6_A2 */
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
@@ -51,7 +56,7 @@
 			wakeup-source;
 			debounce-interval = <100>;
 		};
-		volume-down {
+		key-volume-down {
 			gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>; /* GPIO4_C5 */
 			linux,code = <KEY_VOLUMEDOWN>;
 			label = "GPIO Key Vol-";
@@ -63,7 +68,11 @@
 };
 
 &cpu0 {
-	cpu0-supply = <&vdd_arm>;
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu1 {
+	cpu-supply = <&vdd_arm>;
 };
 
 &i2c1 {
@@ -171,7 +180,6 @@
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
 
 	bus-width = <4>;
-	disable-wp;
 };
 
 &pwm3 {

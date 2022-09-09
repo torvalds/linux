@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015, 2016 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * IMG Marduk board is also known as Creator Ci40.
  */
@@ -49,9 +46,10 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
-	leds {
+	led-controller {
 		compatible = "pwm-leds";
-		heartbeat {
+
+		led-1 {
 			label = "marduk:red:heartbeat";
 			pwms = <&pwm 3 300000>;
 			max-brightness = <255>;
@@ -61,12 +59,12 @@
 
 	keys {
 		compatible = "gpio-keys";
-		button@1 {
+		button-1 {
 			label = "Button 1";
 			linux,code = <0x101>; /* BTN_1 */
 			gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
 		};
-		button@2 {
+		button-2 {
 			label = "Button 2";
 			linux,code = <0x102>; /* BTN_2 */
 			gpios = <&gpio2 14 GPIO_ACTIVE_LOW>;

@@ -44,14 +44,7 @@ static struct cvmx_bootmem_desc *cvmx_bootmem_desc;
 
 /* See header file for descriptions of functions */
 
-/**
- * This macro returns the size of a member of a structure.
- * Logically it is the same as "sizeof(s::field)" in C++, but
- * C lacks the "::" operator.
- */
-#define SIZEOF_FIELD(s, field) sizeof(((s *)NULL)->field)
-
-/**
+/*
  * This macro returns a member of the
  * cvmx_bootmem_named_block_desc_t structure. These members can't
  * be directly addressed as they might be in memory not directly
@@ -65,9 +58,9 @@ static struct cvmx_bootmem_desc *cvmx_bootmem_desc;
 #define CVMX_BOOTMEM_NAMED_GET_FIELD(addr, field)			\
 	__cvmx_bootmem_desc_get(addr,					\
 		offsetof(struct cvmx_bootmem_named_block_desc, field),	\
-		SIZEOF_FIELD(struct cvmx_bootmem_named_block_desc, field))
+		sizeof_field(struct cvmx_bootmem_named_block_desc, field))
 
-/**
+/*
  * This function is the implementation of the get macros defined
  * for individual structure members. The argument are generated
  * by the macros inorder to read only the needed memory.
@@ -122,7 +115,7 @@ static uint64_t cvmx_bootmem_phy_get_next(uint64_t addr)
 	return cvmx_read64_uint64((addr + NEXT_OFFSET) | (1ull << 63));
 }
 
-/**
+/*
  * Allocate a block of memory from the free list that was
  * passed to the application by the bootloader within a specified
  * address range. This is an allocate-only algorithm, so
@@ -325,7 +318,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 		}
 
 		/*
-		 * Determine if this is an entry that can satisify the
+		 * Determine if this is an entry that can satisfy the
 		 * request Check to make sure entry is large enough to
 		 * satisfy request.
 		 */
@@ -557,7 +550,7 @@ bootmem_free_done:
 
 }
 
-/**
+/*
  * Finds a named memory block by name.
  * Also used for finding an unused entry in the named block table.
  *
@@ -664,7 +657,7 @@ struct cvmx_bootmem_named_block_desc *cvmx_bootmem_find_named_block(char *name)
 }
 EXPORT_SYMBOL(cvmx_bootmem_find_named_block);
 
-/**
+/*
  * Frees a named block.
  *
  * @name:   name of block to free

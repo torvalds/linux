@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HCI based Driver for Inside Secure microread NFC Chip
  *
  * Copyright (C) 2013  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -26,7 +15,6 @@
 #include <linux/nfc.h>
 #include <net/nfc/nfc.h>
 #include <net/nfc/hci.h>
-#include <net/nfc/llc.h>
 
 #include "microread.h"
 
@@ -142,7 +130,7 @@
 #define MICROREAD_ELT_ID_SE2 0x04
 #define MICROREAD_ELT_ID_SE3 0x05
 
-static struct nfc_hci_gate microread_gates[] = {
+static const struct nfc_hci_gate microread_gates[] = {
 	{MICROREAD_GATE_ID_ADM, MICROREAD_PIPE_ID_ADMIN},
 	{MICROREAD_GATE_ID_LOOPBACK, MICROREAD_PIPE_ID_HDS_LOOPBACK},
 	{MICROREAD_GATE_ID_IDT, MICROREAD_PIPE_ID_HDS_IDT},
@@ -163,7 +151,7 @@ static struct nfc_hci_gate microread_gates[] = {
 #define MICROREAD_CMD_TAILROOM	2
 
 struct microread_info {
-	struct nfc_phy_ops *phy_ops;
+	const struct nfc_phy_ops *phy_ops;
 	void *phy_id;
 
 	struct nfc_hci_dev *hdev;
@@ -369,13 +357,12 @@ static int microread_complete_target_discovered(struct nfc_hci_dev *hdev,
 static void microread_im_transceive_cb(void *context, struct sk_buff *skb,
 				       int err)
 {
-	struct microread_info *info = context;
+	const struct microread_info *info = context;
 
 	switch (info->async_cb_type) {
 	case MICROREAD_CB_TYPE_READER_ALL:
 		if (err == 0) {
 			if (skb->len == 0) {
-				err = -EPROTO;
 				kfree_skb(skb);
 				info->async_cb(info->async_cb_context, NULL,
 					       -EPROTO);
@@ -637,7 +624,7 @@ static int microread_event_received(struct nfc_hci_dev *hdev, u8 pipe,
 	return r;
 }
 
-static struct nfc_hci_ops microread_hci_ops = {
+static const struct nfc_hci_ops microread_hci_ops = {
 	.open = microread_open,
 	.close = microread_close,
 	.hci_ready = microread_hci_ready,
@@ -653,9 +640,9 @@ static struct nfc_hci_ops microread_hci_ops = {
 	.event_received = microread_event_received,
 };
 
-int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
-		    int phy_headroom, int phy_tailroom, int phy_payload,
-		    struct nfc_hci_dev **hdev)
+int microread_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
+		    const char *llc_name, int phy_headroom, int phy_tailroom,
+		    int phy_payload, struct nfc_hci_dev **hdev)
 {
 	struct microread_info *info;
 	unsigned long quirks = 0;

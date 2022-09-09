@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/generic-ohci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: USB OHCI Controller Device Tree Bindings
+
+allOf:
+  - $ref: "usb-hcd.yaml"
+
+maintainers:
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - allwinner,sun4i-a10-ohci
+              - allwinner,sun50i-a64-ohci
+              - allwinner,sun50i-h6-ohci
+              - allwinner,sun5i-a13-ohci
+              - allwinner,sun6i-a31-ohci
+              - allwinner,sun7i-a20-ohci
+              - allwinner,sun8i-a23-ohci
+              - allwinner,sun8i-a83t-ohci
+              - allwinner,sun8i-h3-ohci
+              - allwinner,sun8i-r40-ohci
+              - allwinner,sun9i-a80-ohci
+              - allwinner,sun20i-d1-ohci
+              - brcm,bcm3384-ohci
+              - brcm,bcm63268-ohci
+              - brcm,bcm6328-ohci
+              - brcm,bcm6358-ohci
+              - brcm,bcm6362-ohci
+              - brcm,bcm6368-ohci
+              - brcm,bcm7125-ohci
+              - brcm,bcm7346-ohci
+              - brcm,bcm7358-ohci
+              - brcm,bcm7360-ohci
+              - brcm,bcm7362-ohci
+              - brcm,bcm7420-ohci
+              - brcm,bcm7425-ohci
+              - brcm,bcm7435-ohci
+              - hpe,gxp-ohci
+              - ibm,476gtr-ohci
+              - ingenic,jz4740-ohci
+              - snps,hsdk-v1.0-ohci
+          - const: generic-ohci
+      - const: generic-ohci
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  resets:
+    minItems: 1
+    maxItems: 2
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+    description: |
+      In case the Renesas R-Car Gen3 SoCs:
+        - if a host only channel: first clock should be host.
+        - if a USB DRD channel: first clock should be host and second
+          one should be peripheral
+
+  power-domains:
+    maxItems: 1
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag for HCDs with big endian descriptors and big
+      endian registers.
+
+  big-endian-desc:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag for HCDs with big endian descriptors.
+
+  big-endian-regs:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set this flag for HCDs with big endian registers.
+
+  remote-wakeup-connected:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Remote wakeup is wired on the platform.
+
+  no-big-frame-no:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set if frame_no lives in bits [15:0] of HCCA
+
+  num-ports:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Overrides the detected port count
+
+  phys:
+    minItems: 1
+    maxItems: 3
+
+  phy-names:
+    const: usb
+
+  iommus:
+    maxItems: 1
+
+  dr_mode:
+    enum:
+      - host
+      - otg
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+      ohci0: usb@1c14400 {
+          compatible = "allwinner,sun4i-a10-ohci", "generic-ohci";
+          reg = <0x01c14400 0x100>;
+          interrupts = <64>;
+          clocks = <&usb_clk 6>, <&ahb_gates 2>;
+          phys = <&usbphy 1>;
+          phy-names = "usb";
+      };
+
+...

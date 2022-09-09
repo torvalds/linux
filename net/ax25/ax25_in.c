@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright (C) Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
@@ -184,7 +181,7 @@ static int ax25_process_rx_frame(ax25_cb *ax25, struct sk_buff *skb, int type, i
 }
 
 static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
-	ax25_address *dev_addr, struct packet_type *ptype)
+		    const ax25_address *dev_addr, struct packet_type *ptype)
 {
 	ax25_address src, dest, *next_digi = NULL;
 	int type = 0, mine = 0, dama;
@@ -359,7 +356,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		make->sk_state = TCP_ESTABLISHED;
 
-		sk->sk_ack_backlog++;
+		sk_acceptq_added(sk);
 		bh_unlock_sock(sk);
 	} else {
 		if (!mine)
@@ -450,5 +447,5 @@ int ax25_kiss_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	skb_pull(skb, AX25_KISS_HEADER_LEN);	/* Remove the KISS byte */
 
-	return ax25_rcv(skb, dev, (ax25_address *)dev->dev_addr, ptype);
+	return ax25_rcv(skb, dev, (const ax25_address *)dev->dev_addr, ptype);
 }

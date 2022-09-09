@@ -49,6 +49,19 @@
 		ethernet0 = &sdio_wifi;
 	};
 
+	panel: panel {
+		/* Tablet dts should provide panel compatible */
+		backlight = <&backlight>;
+		enable-gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>; /* PH7 */
+		power-supply = <&reg_dc1sw>;
+
+		port {
+			panel_input: endpoint {
+				remote-endpoint = <&tcon0_out_lcd>;
+			};
+		};
+	};
+
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		/*
@@ -62,6 +75,10 @@
 		/* The esp8089 needs 200 ms after driving wifi-en high */
 		post-power-on-delay-ms = <200>;
 	};
+};
+
+&de {
+	status = "okay";
 };
 
 &ehci0 {
@@ -88,6 +105,12 @@
 		function = "gpio_in";
 		bias-pull-up;
 	};
+};
+
+&tcon0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rgb666_pins>;
+	status = "okay";
 };
 
 &usbphy {

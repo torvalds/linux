@@ -1,20 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pmic.c - Intel PMIC operation region driver
  *
  * Copyright (C) 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/export.h>
 #include <linux/acpi.h>
+#include <linux/mfd/intel_soc_pmic.h>
 #include <linux/regmap.h>
 #include <acpi/acpi_lpat.h>
 #include "intel_pmic.h"
@@ -32,9 +25,11 @@ struct intel_pmic_opregion {
 	struct mutex lock;
 	struct acpi_lpat_conversion_table *lpat_table;
 	struct regmap *regmap;
-	struct intel_pmic_opregion_data *data;
+	const struct intel_pmic_opregion_data *data;
 	struct intel_pmic_regs_handler_ctx ctx;
 };
+
+static struct intel_pmic_opregion *intel_pmic_opregion;
 
 static int pmic_get_reg_bit(int address, struct pmic_table *table,
 			    int count, int *reg, int *bit)
@@ -58,7 +53,7 @@ static acpi_status intel_pmic_power_handler(u32 function,
 {
 	struct intel_pmic_opregion *opregion = region_context;
 	struct regmap *regmap = opregion->regmap;
-	struct intel_pmic_opregion_data *d = opregion->data;
+	const struct intel_pmic_opregion_data *d = opregion->data;
 	int reg, bit, result;
 
 	if (bits != 32 || !value64)
@@ -100,7 +95,7 @@ static int pmic_read_temp(struct intel_pmic_opregion *opregion,
 		return 0;
 	}
 
-	temp = acpi_lpat_raw_to_temp(opregion->lpat_table, raw_temp);
+	temp = opregion->data->lpat_raw_to_temp(opregion->lpat_table, raw_temp);
 	if (temp < 0)
 		return temp;
 
@@ -140,7 +135,7 @@ static int pmic_thermal_aux(struct intel_pmic_opregion *opregion, int reg,
 static int pmic_thermal_pen(struct intel_pmic_opregion *opregion, int reg,
 			    int bit, u32 function, u64 *value)
 {
-	struct intel_pmic_opregion_data *d = opregion->data;
+	const struct intel_pmic_opregion_data *d = opregion->data;
 	struct regmap *regmap = opregion->regmap;
 
 	if (!d->get_policy || !d->update_policy)
@@ -176,7 +171,7 @@ static acpi_status intel_pmic_thermal_handler(u32 function,
 		void *handler_context, void *region_context)
 {
 	struct intel_pmic_opregion *opregion = region_context;
-	struct intel_pmic_opregion_data *d = opregion->data;
+	const struct intel_pmic_opregion_data *d = opregion->data;
 	int reg, bit, result;
 
 	if (bits != 32 || !value64)
@@ -216,31 +211,36 @@ static acpi_status intel_pmic_regs_handler(u32 function,
 		void *handler_context, void *region_context)
 {
 	struct intel_pmic_opregion *opregion = region_context;
-	int result = 0;
+	int result = -EINVAL;
 
-	switch (address) {
-	case 0:
-		return AE_OK;
-	case 1:
-		opregion->ctx.addr |= (*value64 & 0xff) << 8;
-		return AE_OK;
-	case 2:
-		opregion->ctx.addr |= *value64 & 0xff;
-		return AE_OK;
-	case 3:
-		opregion->ctx.val = *value64 & 0xff;
-		return AE_OK;
-	case 4:
-		if (*value64) {
-			result = regmap_write(opregion->regmap, opregion->ctx.addr,
-					      opregion->ctx.val);
-		} else {
-			result = regmap_read(opregion->regmap, opregion->ctx.addr,
-					     &opregion->ctx.val);
-			if (result == 0)
-				*value64 = opregion->ctx.val;
+	if (function == ACPI_WRITE) {
+		switch (address) {
+		case 0:
+			return AE_OK;
+		case 1:
+			opregion->ctx.addr |= (*value64 & 0xff) << 8;
+			return AE_OK;
+		case 2:
+			opregion->ctx.addr |= *value64 & 0xff;
+			return AE_OK;
+		case 3:
+			opregion->ctx.val = *value64 & 0xff;
+			return AE_OK;
+		case 4:
+			if (*value64) {
+				result = regmap_write(opregion->regmap, opregion->ctx.addr,
+						      opregion->ctx.val);
+			} else {
+				result = regmap_read(opregion->regmap, opregion->ctx.addr,
+						     &opregion->ctx.val);
+			}
+			opregion->ctx.addr = 0;
 		}
-		memset(&opregion->ctx, 0x00, sizeof(opregion->ctx));
+	}
+
+	if (function == ACPI_READ && address == 3) {
+		*value64 = opregion->ctx.val;
+		return AE_OK;
 	}
 
 	if (result < 0) {
@@ -255,9 +255,9 @@ static acpi_status intel_pmic_regs_handler(u32 function,
 
 int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 					struct regmap *regmap,
-					struct intel_pmic_opregion_data *d)
+					const struct intel_pmic_opregion_data *d)
 {
-	acpi_status status;
+	acpi_status status = AE_OK;
 	struct intel_pmic_opregion *opregion;
 	int ret;
 
@@ -275,7 +275,8 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 	opregion->regmap = regmap;
 	opregion->lpat_table = acpi_lpat_get_conversion_table(handle);
 
-	status = acpi_install_address_space_handler(handle,
+	if (d->power_table_count)
+		status = acpi_install_address_space_handler(handle,
 						    PMIC_POWER_OPREGION_ID,
 						    intel_pmic_power_handler,
 						    NULL, opregion);
@@ -284,13 +285,12 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 		goto out_error;
 	}
 
-	status = acpi_install_address_space_handler(handle,
+	if (d->thermal_table_count)
+		status = acpi_install_address_space_handler(handle,
 						    PMIC_THERMAL_OPREGION_ID,
 						    intel_pmic_thermal_handler,
 						    NULL, opregion);
 	if (ACPI_FAILURE(status)) {
-		acpi_remove_address_space_handler(handle, PMIC_POWER_OPREGION_ID,
-						  intel_pmic_power_handler);
 		ret = -ENODEV;
 		goto out_remove_power_handler;
 	}
@@ -304,18 +304,80 @@ int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 	}
 
 	opregion->data = d;
+	intel_pmic_opregion = opregion;
 	return 0;
 
 out_remove_thermal_handler:
-	acpi_remove_address_space_handler(handle, PMIC_THERMAL_OPREGION_ID,
-					  intel_pmic_thermal_handler);
+	if (d->thermal_table_count)
+		acpi_remove_address_space_handler(handle,
+						  PMIC_THERMAL_OPREGION_ID,
+						  intel_pmic_thermal_handler);
 
 out_remove_power_handler:
-	acpi_remove_address_space_handler(handle, PMIC_POWER_OPREGION_ID,
-					  intel_pmic_power_handler);
+	if (d->power_table_count)
+		acpi_remove_address_space_handler(handle,
+						  PMIC_POWER_OPREGION_ID,
+						  intel_pmic_power_handler);
 
 out_error:
 	acpi_lpat_free_conversion_table(opregion->lpat_table);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(intel_pmic_install_opregion_handler);
+
+/**
+ * intel_soc_pmic_exec_mipi_pmic_seq_element - Execute PMIC MIPI sequence
+ * @i2c_address:  I2C client address for the PMIC
+ * @reg_address:  PMIC register address
+ * @value:        New value for the register bits to change
+ * @mask:         Mask indicating which register bits to change
+ *
+ * DSI LCD panels describe an initialization sequence in the i915 VBT (Video
+ * BIOS Tables) using so called MIPI sequences. One possible element in these
+ * sequences is a PMIC specific element of 15 bytes.
+ *
+ * This function executes these PMIC specific elements sending the embedded
+ * commands to the PMIC.
+ *
+ * Return 0 on success, < 0 on failure.
+ */
+int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,
+					      u32 value, u32 mask)
+{
+	const struct intel_pmic_opregion_data *d;
+	int ret;
+
+	if (!intel_pmic_opregion) {
+		pr_warn("%s: No PMIC registered\n", __func__);
+		return -ENXIO;
+	}
+
+	d = intel_pmic_opregion->data;
+
+	mutex_lock(&intel_pmic_opregion->lock);
+
+	if (d->exec_mipi_pmic_seq_element) {
+		ret = d->exec_mipi_pmic_seq_element(intel_pmic_opregion->regmap,
+						    i2c_address, reg_address,
+						    value, mask);
+	} else if (d->pmic_i2c_address) {
+		if (i2c_address == d->pmic_i2c_address) {
+			ret = regmap_update_bits(intel_pmic_opregion->regmap,
+						 reg_address, mask, value);
+		} else {
+			pr_err("%s: Unexpected i2c-addr: 0x%02x (reg-addr 0x%x value 0x%x mask 0x%x)\n",
+			       __func__, i2c_address, reg_address, value, mask);
+			ret = -ENXIO;
+		}
+	} else {
+		pr_warn("%s: Not implemented\n", __func__);
+		pr_warn("%s: i2c-addr: 0x%x reg-addr 0x%x value 0x%x mask 0x%x\n",
+			__func__, i2c_address, reg_address, value, mask);
+		ret = -EOPNOTSUPP;
+	}
+
+	mutex_unlock(&intel_pmic_opregion->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(intel_soc_pmic_exec_mipi_pmic_seq_element);

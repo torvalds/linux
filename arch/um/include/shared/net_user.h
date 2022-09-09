@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #ifndef __UM_NET_USER_H__
@@ -24,7 +24,6 @@ struct net_user_info {
 	int mtu;
 };
 
-extern void ether_user_init(void *data, void *dev);
 extern void iter_addresses(void *d, void (*cb)(unsigned char *,
 					       unsigned char *, void *),
 			   void *arg);

@@ -358,8 +358,6 @@ static void idt_sw_write(struct idt_ntb_dev *ndev,
 	iowrite32((u32)reg, ndev->cfgspc + (ptrdiff_t)IDT_NT_GASAADDR);
 	/* Put the new value of the register */
 	iowrite32(data, ndev->cfgspc + (ptrdiff_t)IDT_NT_GASADATA);
-	/* Make sure the PCIe transactions are executed */
-	mmiowb();
 	/* Unlock GASA registers operations */
 	spin_unlock_irqrestore(&ndev->gasa_lock, irqflags);
 }
@@ -750,7 +748,6 @@ static void idt_ntb_local_link_enable(struct idt_ntb_dev *ndev)
 	spin_lock_irqsave(&ndev->mtbl_lock, irqflags);
 	idt_nt_write(ndev, IDT_NT_NTMTBLADDR, ndev->part);
 	idt_nt_write(ndev, IDT_NT_NTMTBLDATA, mtbldata);
-	mmiowb();
 	spin_unlock_irqrestore(&ndev->mtbl_lock, irqflags);
 
 	/* Notify the peers by setting and clearing the global signal bit */
@@ -778,7 +775,6 @@ static void idt_ntb_local_link_disable(struct idt_ntb_dev *ndev)
 	spin_lock_irqsave(&ndev->mtbl_lock, irqflags);
 	idt_nt_write(ndev, IDT_NT_NTMTBLADDR, ndev->part);
 	idt_nt_write(ndev, IDT_NT_NTMTBLDATA, 0);
-	mmiowb();
 	spin_unlock_irqrestore(&ndev->mtbl_lock, irqflags);
 
 	/* Notify the peers by setting and clearing the global signal bit */
@@ -1339,7 +1335,6 @@ static int idt_ntb_peer_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 		idt_nt_write(ndev, IDT_NT_LUTLDATA, (u32)addr);
 		idt_nt_write(ndev, IDT_NT_LUTMDATA, (u32)(addr >> 32));
 		idt_nt_write(ndev, IDT_NT_LUTUDATA, data);
-		mmiowb();
 		spin_unlock_irqrestore(&ndev->lut_lock, irqflags);
 		/* Limit address isn't specified since size is fixed for LUT */
 	}
@@ -1393,7 +1388,6 @@ static int idt_ntb_peer_mw_clear_trans(struct ntb_dev *ntb, int pidx,
 		idt_nt_write(ndev, IDT_NT_LUTLDATA, 0);
 		idt_nt_write(ndev, IDT_NT_LUTMDATA, 0);
 		idt_nt_write(ndev, IDT_NT_LUTUDATA, 0);
-		mmiowb();
 		spin_unlock_irqrestore(&ndev->lut_lock, irqflags);
 	}
 
@@ -1812,7 +1806,6 @@ static int idt_ntb_peer_msg_write(struct ntb_dev *ntb, int pidx, int midx,
 	/* Set the route and send the data */
 	idt_sw_write(ndev, partdata_tbl[ndev->part].msgctl[midx], swpmsgctl);
 	idt_nt_write(ndev, ntdata_tbl.msgs[midx].out, msg);
-	mmiowb();
 	/* Unlock the messages routing table */
 	spin_unlock_irqrestore(&ndev->msg_locks[midx], irqflags);
 
@@ -2413,7 +2406,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 				"\t%hhu.\t", idx);
 		else
 			off += scnprintf(strbuf + off, size - off,
-				"\t%hhu-%hhu.\t", idx, idx + cnt - 1);
+				"\t%hhu-%d.\t", idx, idx + cnt - 1);
 
 		off += scnprintf(strbuf + off, size - off, "%s BAR%hhu, ",
 			idt_get_mw_name(data), ndev->mws[idx].bar);
@@ -2442,7 +2435,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 					"\t%hhu.\t", idx);
 			else
 				off += scnprintf(strbuf + off, size - off,
-					"\t%hhu-%hhu.\t", idx, idx + cnt - 1);
+					"\t%hhu-%d.\t", idx, idx + cnt - 1);
 
 			off += scnprintf(strbuf + off, size - off,
 				"%s BAR%hhu, ", idt_get_mw_name(data),
@@ -2487,7 +2480,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 		int src;
 		data = idt_ntb_msg_read(&ndev->ntb, &src, idx);
 		off += scnprintf(strbuf + off, size - off,
-			"\t%hhu. 0x%08x from peer %hhu (Port %hhu)\n",
+			"\t%hhu. 0x%08x from peer %d (Port %hhu)\n",
 			idx, data, src, ndev->peers[src].port);
 	}
 	off += scnprintf(strbuf + off, size - off, "\n");
@@ -2518,7 +2511,7 @@ static int idt_init_dbgfs(struct idt_ntb_dev *ndev)
 	/* If the top directory is not created then do nothing */
 	if (IS_ERR_OR_NULL(dbgfs_topdir)) {
 		dev_info(&ndev->ntb.pdev->dev, "Top DebugFS directory absent");
-		return PTR_ERR(dbgfs_topdir);
+		return PTR_ERR_OR_ZERO(dbgfs_topdir);
 	}
 
 	/* Create the info file node */
@@ -2647,31 +2640,14 @@ static int idt_init_pci(struct idt_ntb_dev *ndev)
 	int ret;
 
 	/* Initialize the bit mask of PCI/NTB DMA */
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret != 0) {
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret != 0) {
 			dev_err(&pdev->dev, "Failed to set DMA bit mask\n");
 			return ret;
 		}
 		dev_warn(&pdev->dev, "Cannot set DMA highmem bit mask\n");
-	}
-	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (ret != 0) {
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (ret != 0) {
-			dev_err(&pdev->dev,
-				"Failed to set consistent DMA bit mask\n");
-			return ret;
-		}
-		dev_warn(&pdev->dev,
-			"Cannot set consistent DMA highmem bit mask\n");
-	}
-	ret = dma_coerce_mask_and_coherent(&ndev->ntb.dev,
-					   dma_get_mask(&pdev->dev));
-	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to set NTB device DMA bit mask\n");
-		return ret;
 	}
 
 	/*
@@ -2681,8 +2657,8 @@ static int idt_init_pci(struct idt_ntb_dev *ndev)
 	ret = pci_enable_pcie_error_reporting(pdev);
 	if (ret != 0)
 		dev_warn(&pdev->dev, "PCIe AER capability disabled\n");
-	else /* Cleanup uncorrectable error status before getting to init */
-		pci_cleanup_aer_uncorrect_error_status(pdev);
+	else /* Cleanup nonfatal error status before getting to init */
+		pci_aer_clear_nonfatal_status(pdev);
 
 	/* First enable the PCI device */
 	ret = pcim_enable_device(pdev);
@@ -2769,7 +2745,7 @@ static int idt_pci_probe(struct pci_dev *pdev,
 
 	/* Allocate the memory for IDT NTB device data */
 	ndev = idt_create_dev(pdev, id);
-	if (IS_ERR_OR_NULL(ndev))
+	if (IS_ERR(ndev))
 		return PTR_ERR(ndev);
 
 	/* Initialize the basic PCI subsystem of the device */

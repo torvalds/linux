@@ -33,9 +33,6 @@
 #define DRV_NAME "pata_falcon"
 #define DRV_VERSION "0.1.0"
 
-#define ATA_HD_BASE	0xfff00000
-#define ATA_HD_CONTROL	0x39
-
 static struct scsi_host_template pata_falcon_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
@@ -51,21 +48,21 @@ static unsigned int pata_falcon_data_xfer(struct ata_queued_cmd *qc,
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	bool swap = 1;
 
-	if (dev->class == ATA_DEV_ATA && cmd && cmd->request &&
-	    !blk_rq_is_passthrough(cmd->request))
+	if (dev->class == ATA_DEV_ATA && cmd &&
+	    !blk_rq_is_passthrough(scsi_cmd_to_rq(cmd)))
 		swap = 0;
 
 	/* Transfer multiple of 2 bytes */
 	if (rw == READ) {
 		if (swap)
-			raw_insw_swapw((u16 *)data_addr, (u16 *)buf, words);
+			raw_insw_swapw(data_addr, (u16 *)buf, words);
 		else
-			raw_insw((u16 *)data_addr, (u16 *)buf, words);
+			raw_insw(data_addr, (u16 *)buf, words);
 	} else {
 		if (swap)
-			raw_outsw_swapw((u16 *)data_addr, (u16 *)buf, words);
+			raw_outsw_swapw(data_addr, (u16 *)buf, words);
 		else
-			raw_outsw((u16 *)data_addr, (u16 *)buf, words);
+			raw_outsw(data_addr, (u16 *)buf, words);
 	}
 
 	/* Transfer trailing byte, if any. */
@@ -77,16 +74,16 @@ static unsigned int pata_falcon_data_xfer(struct ata_queued_cmd *qc,
 
 		if (rw == READ) {
 			if (swap)
-				raw_insw_swapw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_insw_swapw(data_addr, (u16 *)pad, 1);
 			else
-				raw_insw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_insw(data_addr, (u16 *)pad, 1);
 			*buf = pad[0];
 		} else {
 			pad[0] = *buf;
 			if (swap)
-				raw_outsw_swapw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_outsw_swapw(data_addr, (u16 *)pad, 1);
 			else
-				raw_outsw((u16 *)data_addr, (u16 *)pad, 1);
+				raw_outsw(data_addr, (u16 *)pad, 1);
 		}
 		words++;
 	}
@@ -120,26 +117,43 @@ static struct ata_port_operations pata_falcon_ops = {
 	.set_mode	= pata_falcon_set_mode,
 };
 
-static int pata_falcon_init_one(void)
+static int __init pata_falcon_init_one(struct platform_device *pdev)
 {
+	struct resource *base_mem_res, *ctl_mem_res;
+	struct resource *base_res, *ctl_res, *irq_res;
 	struct ata_host *host;
 	struct ata_port *ap;
-	struct platform_device *pdev;
 	void __iomem *base;
+	int irq = 0;
 
-	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(IDE))
-		return -ENODEV;
+	dev_info(&pdev->dev, "Atari Falcon and Q40/Q60 PATA controller\n");
 
-	pr_info(DRV_NAME ": Atari Falcon PATA controller\n");
-
-	pdev = platform_device_register_simple(DRV_NAME, 0, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	if (!devm_request_mem_region(&pdev->dev, ATA_HD_BASE, 0x40, DRV_NAME)) {
-		pr_err(DRV_NAME ": resources busy\n");
+	base_res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (base_res && !devm_request_region(&pdev->dev, base_res->start,
+					   resource_size(base_res), DRV_NAME)) {
+		dev_err(&pdev->dev, "resources busy\n");
 		return -EBUSY;
 	}
+
+	ctl_res = platform_get_resource(pdev, IORESOURCE_IO, 1);
+	if (ctl_res && !devm_request_region(&pdev->dev, ctl_res->start,
+					    resource_size(ctl_res), DRV_NAME)) {
+		dev_err(&pdev->dev, "resources busy\n");
+		return -EBUSY;
+	}
+
+	base_mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!base_mem_res)
+		return -ENODEV;
+	if (!devm_request_mem_region(&pdev->dev, base_mem_res->start,
+				     resource_size(base_mem_res), DRV_NAME)) {
+		dev_err(&pdev->dev, "resources busy\n");
+		return -EBUSY;
+	}
+
+	ctl_mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!ctl_mem_res)
+		return -ENODEV;
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
@@ -150,10 +164,10 @@ static int pata_falcon_init_one(void)
 	ap->ops = &pata_falcon_ops;
 	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_IORDY;
-	ap->flags |= ATA_FLAG_PIO_POLLING;
 
-	base = (void __iomem *)ATA_HD_BASE;
-	ap->ioaddr.data_addr		= base;
+	base = (void __iomem *)base_mem_res->start;
+	/* N.B. this assumes data_addr will be used for word-sized I/O only */
+	ap->ioaddr.data_addr		= base + 0 + 0 * 4;
 	ap->ioaddr.error_addr		= base + 1 + 1 * 4;
 	ap->ioaddr.feature_addr		= base + 1 + 1 * 4;
 	ap->ioaddr.nsect_addr		= base + 1 + 2 * 4;
@@ -164,19 +178,47 @@ static int pata_falcon_init_one(void)
 	ap->ioaddr.status_addr		= base + 1 + 7 * 4;
 	ap->ioaddr.command_addr		= base + 1 + 7 * 4;
 
-	ap->ioaddr.altstatus_addr	= base + ATA_HD_CONTROL;
-	ap->ioaddr.ctl_addr		= base + ATA_HD_CONTROL;
+	base = (void __iomem *)ctl_mem_res->start;
+	ap->ioaddr.altstatus_addr	= base + 1;
+	ap->ioaddr.ctl_addr		= base + 1;
 
-	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", (unsigned long)base,
-		      (unsigned long)base + ATA_HD_CONTROL);
+	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx",
+		      (unsigned long)base_mem_res->start,
+		      (unsigned long)ctl_mem_res->start);
+
+	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (irq_res && irq_res->start > 0) {
+		irq = irq_res->start;
+	} else {
+		ap->flags |= ATA_FLAG_PIO_POLLING;
+		ata_port_desc(ap, "no IRQ, using PIO polling");
+	}
 
 	/* activate */
-	return ata_host_activate(host, 0, NULL, 0, &pata_falcon_sht);
+	return ata_host_activate(host, irq, irq ? ata_sff_interrupt : NULL,
+				 IRQF_SHARED, &pata_falcon_sht);
 }
 
-module_init(pata_falcon_init_one);
+static int __exit pata_falcon_remove_one(struct platform_device *pdev)
+{
+	struct ata_host *host = platform_get_drvdata(pdev);
+
+	ata_host_detach(host);
+
+	return 0;
+}
+
+static struct platform_driver pata_falcon_driver = {
+	.remove = __exit_p(pata_falcon_remove_one),
+	.driver   = {
+		.name	= "atari-falcon-ide",
+	},
+};
+
+module_platform_driver_probe(pata_falcon_driver, pata_falcon_init_one);
 
 MODULE_AUTHOR("Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("low-level driver for Atari Falcon PATA");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:atari-falcon-ide");
 MODULE_VERSION(DRV_VERSION);

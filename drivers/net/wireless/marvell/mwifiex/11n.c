@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Marvell Wireless LAN device driver: 802.11n
+ * NXP Wireless LAN device driver: 802.11n
  *
- * Copyright (C) 2011-2014, Marvell International Ltd.
- *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
+ * Copyright 2011-2020 NXP
  */
 
 #include "decl.h"
@@ -84,17 +72,15 @@ mwifiex_get_ba_status(struct mwifiex_private *priv,
 		      enum mwifiex_ba_status ba_status)
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		if (tx_ba_tsr_tbl->ba_status == ba_status) {
-			spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock,
-					       flags);
+			spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 			return tx_ba_tsr_tbl;
 		}
 	}
-	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 	return NULL;
 }
 
@@ -127,7 +113,7 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 					   tx_ba_tbl->ra);
 	} else { /*
 		  * In case of failure, recreate the deleted stream in case
-		  * we initiated the ADDBA
+		  * we initiated the DELBA
 		  */
 		if (!INITIATOR_BIT(del_ba_param_set))
 			return 0;
@@ -516,13 +502,12 @@ void mwifiex_11n_delete_all_tx_ba_stream_tbl(struct mwifiex_private *priv)
 {
 	int i;
 	struct mwifiex_tx_ba_stream_tbl *del_tbl_ptr, *tmp_node;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 	list_for_each_entry_safe(del_tbl_ptr, tmp_node,
 				 &priv->tx_ba_stream_tbl_ptr, list)
 		mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, del_tbl_ptr);
-	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 
 	INIT_LIST_HEAD(&priv->tx_ba_stream_tbl_ptr);
 
@@ -539,18 +524,16 @@ struct mwifiex_tx_ba_stream_tbl *
 mwifiex_get_ba_tbl(struct mwifiex_private *priv, int tid, u8 *ra)
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		if (ether_addr_equal_unaligned(tx_ba_tsr_tbl->ra, ra) &&
 		    tx_ba_tsr_tbl->tid == tid) {
-			spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock,
-					       flags);
+			spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 			return tx_ba_tsr_tbl;
 		}
 	}
-	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 	return NULL;
 }
 
@@ -563,7 +546,6 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 {
 	struct mwifiex_tx_ba_stream_tbl *new_node;
 	struct mwifiex_ra_list_tbl *ra_list;
-	unsigned long flags;
 	int tid_down;
 
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
@@ -584,9 +566,9 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 		new_node->ba_status = ba_status;
 		memcpy(new_node->ra, ra, ETH_ALEN);
 
-		spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+		spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 		list_add_tail(&new_node->list, &priv->tx_ba_stream_tbl_ptr);
-		spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+		spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 	}
 }
 
@@ -599,7 +581,6 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	u32 tx_win_size = priv->add_ba_param.tx_win_size;
 	static u8 dialog_tok;
 	int ret;
-	unsigned long flags;
 	u16 block_ack_param_set;
 
 	mwifiex_dbg(priv->adapter, CMD, "cmd: %s: tid %d\n", __func__, tid);
@@ -612,10 +593,10 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	    memcmp(priv->cfg_bssid, peer_mac, ETH_ALEN)) {
 		struct mwifiex_sta_node *sta_ptr;
 
-		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		spin_lock_bh(&priv->sta_list_spinlock);
 		sta_ptr = mwifiex_get_sta_entry(priv, peer_mac);
 		if (!sta_ptr) {
-			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+			spin_unlock_bh(&priv->sta_list_spinlock);
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "BA setup with unknown TDLS peer %pM!\n",
 				    peer_mac);
@@ -623,7 +604,7 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 		}
 		if (sta_ptr->is_11ac_enabled)
 			tx_win_size = MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE;
-		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+		spin_unlock_bh(&priv->sta_list_spinlock);
 	}
 
 	block_ack_param_set = (u16)((tid << BLOCKACKPARAM_TID_POS) |
@@ -664,14 +645,15 @@ int mwifiex_send_delba(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 	uint16_t del_ba_param_set;
 
 	memset(&delba, 0, sizeof(delba));
-	delba.del_ba_param_set = cpu_to_le16(tid << DELBA_TID_POS);
 
-	del_ba_param_set = le16_to_cpu(delba.del_ba_param_set);
+	del_ba_param_set = tid << DELBA_TID_POS;
+
 	if (initiator)
 		del_ba_param_set |= IEEE80211_DELBA_PARAM_INITIATOR_MASK;
 	else
 		del_ba_param_set &= ~IEEE80211_DELBA_PARAM_INITIATOR_MASK;
 
+	delba.del_ba_param_set = cpu_to_le16(del_ba_param_set);
 	memcpy(&delba.peer_mac_addr, peer_mac, ETH_ALEN);
 
 	/* We don't wait for the response of this command */
@@ -687,9 +669,8 @@ int mwifiex_send_delba(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 void mwifiex_11n_delba(struct mwifiex_private *priv, int tid)
 {
 	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	spin_lock_bh(&priv->rx_reorder_tbl_lock);
 	list_for_each_entry(rx_reor_tbl_ptr, &priv->rx_reorder_tbl_ptr, list) {
 		if (rx_reor_tbl_ptr->tid == tid) {
 			dev_dbg(priv->adapter->dev,
@@ -700,7 +681,7 @@ void mwifiex_11n_delba(struct mwifiex_private *priv, int tid)
 		}
 	}
 exit:
-	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
+	spin_unlock_bh(&priv->rx_reorder_tbl_lock);
 }
 
 /*
@@ -729,9 +710,8 @@ int mwifiex_get_rx_reorder_tbl(struct mwifiex_private *priv,
 	struct mwifiex_ds_rx_reorder_tbl *rx_reo_tbl = buf;
 	struct mwifiex_rx_reorder_tbl *rx_reorder_tbl_ptr;
 	int count = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	spin_lock_bh(&priv->rx_reorder_tbl_lock);
 	list_for_each_entry(rx_reorder_tbl_ptr, &priv->rx_reorder_tbl_ptr,
 			    list) {
 		rx_reo_tbl->tid = (u16) rx_reorder_tbl_ptr->tid;
@@ -750,7 +730,7 @@ int mwifiex_get_rx_reorder_tbl(struct mwifiex_private *priv,
 		if (count >= MWIFIEX_MAX_RX_BASTREAM_SUPPORTED)
 			break;
 	}
-	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
+	spin_unlock_bh(&priv->rx_reorder_tbl_lock);
 
 	return count;
 }
@@ -764,9 +744,8 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl;
 	struct mwifiex_ds_tx_ba_stream_tbl *rx_reo_tbl = buf;
 	int count = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		rx_reo_tbl->tid = (u16) tx_ba_tsr_tbl->tid;
 		mwifiex_dbg(priv->adapter, DATA, "data: %s tid=%d\n",
@@ -778,7 +757,7 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 		if (count >= MWIFIEX_MAX_TX_BASTREAM_SUPPORTED)
 			break;
 	}
-	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 
 	return count;
 }
@@ -790,16 +769,15 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra)
 {
 	struct mwifiex_tx_ba_stream_tbl *tbl, *tmp;
-	unsigned long flags;
 
 	if (!ra)
 		return;
 
-	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 	list_for_each_entry_safe(tbl, tmp, &priv->tx_ba_stream_tbl_ptr, list)
 		if (!memcmp(tbl->ra, ra, ETH_ALEN))
 			mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, tbl);
-	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 
 	return;
 }

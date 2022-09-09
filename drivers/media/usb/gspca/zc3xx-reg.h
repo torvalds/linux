@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * zc030x registers
  *
@@ -5,8 +6,6 @@
  *
  * The register aliases used here came from this driver:
  *	http://zc0302.sourceforge.net/zc0302.php
- *
- * This code is placed under the terms of the GNU General Public License v2
  */
 
 /* Define the register map */
@@ -26,7 +25,7 @@
 /* Test mode */
 #define ZC3XX_R00B_TESTMODECONTROL     0x000b
 
-/* Frame retreiving */
+/* Frame retrieving */
 #define ZC3XX_R00C_LASTACQTIME         0x000c
 #define ZC3XX_R00D_MONITORRES          0x000d
 #define ZC3XX_R00E_TIMESTAMPHIGH       0x000e

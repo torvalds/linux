@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/em_cmp.c	Simple packet data comparison ematch
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Thomas Graf <tgraf@suug.ch>
  */
@@ -45,7 +41,7 @@ static int em_cmp_match(struct sk_buff *skb, struct tcf_ematch *em,
 		break;
 
 	case TCF_EM_ALIGN_U32:
-		/* Worth checking boundries? The branching seems
+		/* Worth checking boundaries? The branching seems
 		 * to get worse. Visit again.
 		 */
 		val = get_unaligned_be32(ptr);

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /*
@@ -116,10 +103,8 @@ int diMount(struct inode *ipimap)
 	 */
 	/* allocate the in-memory inode map control structure. */
 	imap = kmalloc(sizeof(struct inomap), GFP_KERNEL);
-	if (imap == NULL) {
-		jfs_err("diMount: kmalloc returned NULL!");
+	if (imap == NULL)
 		return -ENOMEM;
-	}
 
 	/* read the on-disk inode map control structure. */
 
@@ -776,7 +761,7 @@ int diWrite(tid_t tid, struct inode *ip)
 		lv = & dilinelock->lv[dilinelock->index];
 		lv->offset = (dioffset + 2 * 128) >> L2INODESLOTSIZE;
 		lv->length = 2;
-		memcpy(&dp->di_fastsymlink, jfs_ip->i_inline, IDATASIZE);
+		memcpy(&dp->di_inline_all, jfs_ip->i_inline_all, IDATASIZE);
 		dilinelock->index++;
 	}
 	/*
@@ -3097,7 +3082,7 @@ static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 	}
 
 	if (S_ISDIR(ip->i_mode)) {
-		memcpy(&jfs_ip->i_dirtable, &dip->di_dirtable, 384);
+		memcpy(&jfs_ip->u.dir, &dip->u._dir, 384);
 	} else if (S_ISREG(ip->i_mode) || S_ISLNK(ip->i_mode)) {
 		memcpy(&jfs_ip->i_xtroot, &dip->di_xtroot, 288);
 	} else

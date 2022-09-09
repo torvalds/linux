@@ -1,8 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_QXL
 	tristate "QXL virtual GPU"
 	depends on DRM && PCI && MMU
 	select DRM_KMS_HELPER
 	select DRM_TTM
+	select DRM_TTM_HELPER
 	select CRC32
 	help
 	  QXL virtual GPU for Spice virtualization desktop integration.

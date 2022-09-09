@@ -1,23 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  * Author: Vinay Simha <vinaysimha@inforcecomputing.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/delay.h>
+
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "mdp4_kms.h"
 
@@ -39,51 +30,10 @@ static struct mdp4_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-#include <mach/board.h>
-static void bs_init(struct mdp4_lcdc_encoder *mdp4_lcdc_encoder)
-{
-	struct drm_device *dev = mdp4_lcdc_encoder->base.dev;
-	struct lcdc_platform_data *lcdc_pdata = mdp4_find_pdata("lvds.0");
-
-	if (!lcdc_pdata) {
-		DRM_DEV_ERROR(dev->dev, "could not find lvds pdata\n");
-		return;
-	}
-
-	if (lcdc_pdata->bus_scale_table) {
-		mdp4_lcdc_encoder->bsc = msm_bus_scale_register_client(
-				lcdc_pdata->bus_scale_table);
-		DBG("lvds : bus scale client: %08x", mdp4_lcdc_encoder->bsc);
-	}
-}
-
-static void bs_fini(struct mdp4_lcdc_encoder *mdp4_lcdc_encoder)
-{
-	if (mdp4_lcdc_encoder->bsc) {
-		msm_bus_scale_unregister_client(mdp4_lcdc_encoder->bsc);
-		mdp4_lcdc_encoder->bsc = 0;
-	}
-}
-
-static void bs_set(struct mdp4_lcdc_encoder *mdp4_lcdc_encoder, int idx)
-{
-	if (mdp4_lcdc_encoder->bsc) {
-		DBG("set bus scaling: %d", idx);
-		msm_bus_scale_client_update_request(mdp4_lcdc_encoder->bsc, idx);
-	}
-}
-#else
-static void bs_init(struct mdp4_lcdc_encoder *mdp4_lcdc_encoder) {}
-static void bs_fini(struct mdp4_lcdc_encoder *mdp4_lcdc_encoder) {}
-static void bs_set(struct mdp4_lcdc_encoder *mdp4_lcdc_encoder, int idx) {}
-#endif
-
 static void mdp4_lcdc_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct mdp4_lcdc_encoder *mdp4_lcdc_encoder =
 			to_mdp4_lcdc_encoder(encoder);
-	bs_fini(mdp4_lcdc_encoder);
 	drm_encoder_cleanup(encoder);
 	kfree(mdp4_lcdc_encoder);
 }
@@ -273,14 +223,7 @@ static void mdp4_lcdc_encoder_mode_set(struct drm_encoder *encoder,
 
 	mode = adjusted_mode;
 
-	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 
 	mdp4_lcdc_encoder->pixclock = mode->clock * 1000;
 
@@ -364,8 +307,6 @@ static void mdp4_lcdc_encoder_disable(struct drm_encoder *encoder)
 			DRM_DEV_ERROR(dev->dev, "failed to disable regulator: %d\n", ret);
 	}
 
-	bs_set(mdp4_lcdc_encoder, 0);
-
 	mdp4_lcdc_encoder->enabled = false;
 }
 
@@ -397,8 +338,6 @@ static void mdp4_lcdc_encoder_enable(struct drm_encoder *encoder)
 
 	mdp4_crtc_set_config(encoder->crtc, config);
 	mdp4_crtc_set_intf(encoder->crtc, INTF_LCDC_DTV, 0);
-
-	bs_set(mdp4_lcdc_encoder, 1);
 
 	for (i = 0; i < ARRAY_SIZE(mdp4_lcdc_encoder->regs); i++) {
 		ret = regulator_enable(mdp4_lcdc_encoder->regs[i]);
@@ -495,8 +434,6 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 		goto fail;
 	}
 	mdp4_lcdc_encoder->regs[2] = reg;
-
-	bs_init(mdp4_lcdc_encoder);
 
 	return encoder;
 

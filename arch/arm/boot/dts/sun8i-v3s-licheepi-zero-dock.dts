@@ -49,16 +49,18 @@
 	compatible = "licheepi,licheepi-zero-dock", "licheepi,licheepi-zero",
 		     "allwinner,sun8i-v3s";
 
+	aliases {
+		ethernet0 = &emac;
+	};
+
 	leds {
 		/* The LEDs use PG0~2 pins, which conflict with MMC1 */
 		status = "disabled";
 	};
 };
 
-&mmc1 {
-	broken-cd;
-	bus-width = <4>;
-	vmmc-supply = <&reg_vcc3v3>;
+&emac {
+	allwinner,leds-active-low;
 	status = "okay";
 };
 
@@ -93,4 +95,11 @@
 		channel = <0>;
 		voltage = <800000>;
 	};
+};
+
+&mmc1 {
+	broken-cd;
+	bus-width = <4>;
+	vmmc-supply = <&reg_vcc3v3>;
+	status = "okay";
 };

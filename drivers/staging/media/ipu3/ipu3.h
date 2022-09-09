@@ -32,7 +32,7 @@
 #define IMGU_NODE_STAT_3A		4 /* 3A statistics */
 #define IMGU_NODE_NUM			5
 
-#define file_to_intel_ipu3_node(__file) \
+#define file_to_intel_imgu_node(__file) \
 	container_of(video_devdata(__file), struct imgu_video_device, vdev)
 
 #define IPU3_INPUT_MIN_WIDTH		0U
@@ -44,7 +44,7 @@
 #define IPU3_OUTPUT_MAX_WIDTH		4480U
 #define IPU3_OUTPUT_MAX_HEIGHT		34004U
 
-struct ipu3_vb2_buffer {
+struct imgu_vb2_buffer {
 	/* Public fields */
 	struct vb2_v4l2_buffer vbb;	/* Must be the first field */
 
@@ -53,9 +53,9 @@ struct ipu3_vb2_buffer {
 };
 
 struct imgu_buffer {
-	struct ipu3_vb2_buffer vid_buf;	/* Must be the first field */
-	struct ipu3_css_buffer css_buf;
-	struct ipu3_css_map map;
+	struct imgu_vb2_buffer vid_buf;	/* Must be the first field */
+	struct imgu_css_buffer css_buf;
+	struct imgu_css_map map;
 };
 
 struct imgu_node_mapping {
@@ -63,11 +63,6 @@ struct imgu_node_mapping {
 	const char *name;
 };
 
-/**
- * struct imgu_video_device
- * each node registers as video device and maintains its
- * own vb2_queue.
- */
 struct imgu_video_device {
 	const char *name;
 	bool output;
@@ -107,8 +102,8 @@ struct imgu_media_pipe {
 
 	/* Internally enabled queues */
 	struct {
-		struct ipu3_css_map dmap;
-		struct ipu3_css_buffer dummybufs[IMGU_MAX_QUEUE_DEPTH];
+		struct imgu_css_map dmap;
+		struct imgu_css_buffer dummybufs[IMGU_MAX_QUEUE_DEPTH];
 	} queues[IPU3_CSS_QUEUES];
 	struct imgu_video_device nodes[IMGU_NODE_NUM];
 	bool queue_enabled[IMGU_NODE_NUM];
@@ -135,18 +130,22 @@ struct imgu_device {
 	struct v4l2_file_operations v4l2_file_ops;
 
 	/* MMU driver for css */
-	struct ipu3_mmu_info *mmu;
+	struct imgu_mmu_info *mmu;
 	struct iova_domain iova_domain;
 
 	/* css - Camera Sub-System */
-	struct ipu3_css css;
+	struct imgu_css css;
 
 	/*
 	 * Coarse-grained lock to protect
 	 * vid_buf.list and css->queue
 	 */
 	struct mutex lock;
-	/* Forbit streaming and buffer queuing during system suspend. */
+
+	/* Lock to protect writes to streaming flag in this struct */
+	struct mutex streaming_lock;
+
+	/* Forbid streaming and buffer queuing during system suspend. */
 	atomic_t qbuf_barrier;
 	/* Indicate if system suspend take place while imgu is streaming. */
 	bool suspend_in_stream;
@@ -164,5 +163,17 @@ int imgu_v4l2_unregister(struct imgu_device *dev);
 void imgu_v4l2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state);
 
 int imgu_s_stream(struct imgu_device *imgu, int enable);
+
+static inline u32 imgu_bytesperline(const unsigned int width,
+				    enum imgu_abi_frame_format frame_format)
+{
+	if (frame_format == IMGU_ABI_FRAME_FORMAT_NV12)
+		return ALIGN(width, IPU3_UAPI_ISP_VEC_ELEMS);
+	/*
+	 * 64 bytes for every 50 pixels, the line length
+	 * in bytes is multiple of 64 (line end alignment).
+	 */
+	return DIV_ROUND_UP(width, 50) * 64;
+}
 
 #endif

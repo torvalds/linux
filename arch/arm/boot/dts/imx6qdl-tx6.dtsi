@@ -259,28 +259,11 @@
 		&gpio3 19 GPIO_ACTIVE_HIGH
 	>;
 	status = "disabled";
-
-	spidev0: spi@0 {
-		compatible = "spidev";
-		reg = <0>;
-		spi-max-frequency = <54000000>;
-	};
-
-	spidev1: spi@1 {
-		compatible = "spidev";
-		reg = <1>;
-		spi-max-frequency = <54000000>;
-	};
 };
 
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet &pinctrl_enet_mdio &pinctrl_etnphy_rst>;
-	clocks = <&clks IMX6QDL_CLK_ENET>,
-		 <&clks IMX6QDL_CLK_ENET>,
-		 <&clks IMX6QDL_CLK_ENET_REF>,
-		 <&clks IMX6QDL_CLK_ENET_REF>;
-	clock-names = "ipg", "ahb", "ptp", "enet_out";
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	phy-reset-post-delay = <10>;
@@ -738,14 +721,12 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
-	#pwm-cells = <3>;
 	status = "disabled";
 };
 
 &pwm2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
-	#pwm-cells = <3>;
 	status = "okay";
 };
 

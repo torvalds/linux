@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -65,6 +53,9 @@
 
 static int get_default_compressor(struct ubifs_info *c)
 {
+	if (ubifs_compr_present(c, UBIFS_COMPR_ZSTD))
+		return UBIFS_COMPR_ZSTD;
+
 	if (ubifs_compr_present(c, UBIFS_COMPR_LZO))
 		return UBIFS_COMPR_LZO;
 
@@ -96,7 +87,6 @@ static int create_default_filesystem(struct ubifs_info *c)
 	int idx_node_size;
 	long long tmp64, main_bytes;
 	__le64 tmp_le64;
-	__le32 tmp_le32;
 	struct timespec64 ts;
 	u8 hash[UBIFS_HASH_ARR_SZ];
 	u8 hash_lpt[UBIFS_HASH_ARR_SZ];
@@ -173,7 +163,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	sup = kzalloc(ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size), GFP_KERNEL);
 	mst = kzalloc(c->mst_node_alsz, GFP_KERNEL);
 	idx_node_size = ubifs_idx_node_sz(c, 1);
-	idx = kzalloc(ALIGN(tmp, c->min_io_size), GFP_KERNEL);
+	idx = kzalloc(ALIGN(idx_node_size, c->min_io_size), GFP_KERNEL);
 	ino = kzalloc(ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size), GFP_KERNEL);
 	cs = kzalloc(ALIGN(UBIFS_CS_NODE_SZ, c->min_io_size), GFP_KERNEL);
 
@@ -187,7 +177,8 @@ static int create_default_filesystem(struct ubifs_info *c)
 	tmp64 = (long long)max_buds * c->leb_size;
 	if (big_lpt)
 		sup_flags |= UBIFS_FLG_BIGLPT;
-	sup_flags |= UBIFS_FLG_DOUBLE_HASH;
+	if (ubifs_default_version > 4)
+		sup_flags |= UBIFS_FLG_DOUBLE_HASH;
 
 	if (ubifs_authenticated(c)) {
 		sup_flags |= UBIFS_FLG_AUTHENTICATION;
@@ -196,7 +187,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 		if (err)
 			goto out;
 	} else {
-		sup->hash_algo = 0xffff;
+		sup->hash_algo = cpu_to_le16(0xffff);
 	}
 
 	sup->ch.node_type  = UBIFS_SB_NODE;
@@ -213,7 +204,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	sup->jhead_cnt     = cpu_to_le32(DEFAULT_JHEADS_CNT);
 	sup->fanout        = cpu_to_le32(DEFAULT_FANOUT);
 	sup->lsave_cnt     = cpu_to_le32(c->lsave_cnt);
-	sup->fmt_version   = cpu_to_le32(UBIFS_FORMAT_VERSION);
+	sup->fmt_version   = cpu_to_le32(ubifs_default_version);
 	sup->time_gran     = cpu_to_le32(DEFAULT_TIME_GRAN);
 	if (c->mount_opts.override_compr)
 		sup->default_compr = cpu_to_le16(c->mount_opts.compr_type);
@@ -303,16 +294,14 @@ static int create_default_filesystem(struct ubifs_info *c)
 	ino->creat_sqnum = cpu_to_le64(++c->max_sqnum);
 	ino->nlink = cpu_to_le32(2);
 
-	ktime_get_real_ts64(&ts);
-	ts = timespec64_trunc(ts, DEFAULT_TIME_GRAN);
+	ktime_get_coarse_real_ts64(&ts);
 	tmp_le64 = cpu_to_le64(ts.tv_sec);
 	ino->atime_sec   = tmp_le64;
 	ino->ctime_sec   = tmp_le64;
 	ino->mtime_sec   = tmp_le64;
-	tmp_le32 = cpu_to_le32(ts.tv_nsec);
-	ino->atime_nsec  = tmp_le32;
-	ino->ctime_nsec  = tmp_le32;
-	ino->mtime_nsec  = tmp_le32;
+	ino->atime_nsec  = 0;
+	ino->ctime_nsec  = 0;
+	ino->mtime_nsec  = 0;
 	ino->mode = cpu_to_le32(S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO);
 	ino->size = cpu_to_le64(UBIFS_INO_NODE_SZ);
 
@@ -517,7 +506,7 @@ static int validate_sb(struct ubifs_info *c, struct ubifs_sb_node *sup)
 
 failed:
 	ubifs_err(c, "bad superblock, error %d", err);
-	ubifs_dump_node(c, sup);
+	ubifs_dump_node(c, sup, ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size));
 	return -EINVAL;
 }
 
@@ -590,17 +579,26 @@ static int authenticate_sb_node(struct ubifs_info *c,
 		return -EINVAL;
 	}
 
-	err = ubifs_hmac_wkm(c, hmac_wkm);
-	if (err)
-		return err;
-
-	if (ubifs_check_hmac(c, hmac_wkm, sup->hmac_wkm)) {
-		ubifs_err(c, "provided key does not fit");
-		return -ENOKEY;
+	/*
+	 * The super block node can either be authenticated by a HMAC or
+	 * by a signature in a ubifs_sig_node directly following the
+	 * super block node to support offline image creation.
+	 */
+	if (ubifs_hmac_zero(c, sup->hmac)) {
+		err = ubifs_sb_verify_signature(c, sup);
+	} else {
+		err = ubifs_hmac_wkm(c, hmac_wkm);
+		if (err)
+			return err;
+		if (ubifs_check_hmac(c, hmac_wkm, sup->hmac_wkm)) {
+			ubifs_err(c, "provided key does not fit");
+			return -ENOKEY;
+		}
+		err = ubifs_node_verify_hmac(c, sup, sizeof(*sup),
+					     offsetof(struct ubifs_sb_node,
+						      hmac));
 	}
 
-	err = ubifs_node_verify_hmac(c, sup, sizeof(*sup),
-				     offsetof(struct ubifs_sb_node, hmac));
 	if (err)
 		ubifs_err(c, "Failed to authenticate superblock: %d", err);
 
@@ -748,31 +746,24 @@ int ubifs_read_superblock(struct ubifs_info *c)
 		goto out;
 	}
 
-#ifndef CONFIG_UBIFS_FS_ENCRYPTION
-	if (c->encrypted) {
+	if (!IS_ENABLED(CONFIG_FS_ENCRYPTION) && c->encrypted) {
 		ubifs_err(c, "file system contains encrypted files but UBIFS"
 			     " was built without crypto support.");
 		err = -EINVAL;
 		goto out;
 	}
-#endif
 
 	/* Automatically increase file system size to the maximum size */
-	c->old_leb_cnt = c->leb_cnt;
 	if (c->leb_cnt < c->vi.size && c->leb_cnt < c->max_leb_cnt) {
+		int old_leb_cnt = c->leb_cnt;
+
 		c->leb_cnt = min_t(int, c->max_leb_cnt, c->vi.size);
-		if (c->ro_mount)
-			dbg_mnt("Auto resizing (ro) from %d LEBs to %d LEBs",
-				c->old_leb_cnt,	c->leb_cnt);
-		else {
-			dbg_mnt("Auto resizing (sb) from %d LEBs to %d LEBs",
-				c->old_leb_cnt, c->leb_cnt);
-			sup->leb_cnt = cpu_to_le32(c->leb_cnt);
-			err = ubifs_write_sb_node(c, sup);
-			if (err)
-				goto out;
-			c->old_leb_cnt = c->leb_cnt;
-		}
+		sup->leb_cnt = cpu_to_le32(c->leb_cnt);
+
+		c->superblock_need_write = 1;
+
+		dbg_mnt("Auto resizing from %d LEBs to %d LEBs",
+			old_leb_cnt, c->leb_cnt);
 	}
 
 	c->log_bytes = (long long)c->log_lebs * c->leb_size;
@@ -930,9 +921,7 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	c->space_fixup = 0;
 	sup->flags &= cpu_to_le32(~UBIFS_FLG_SPACE_FIXUP);
 
-	err = ubifs_write_sb_node(c, sup);
-	if (err)
-		return err;
+	c->superblock_need_write = 1;
 
 	ubifs_msg(c, "free space fixup complete");
 	return err;
@@ -942,6 +931,9 @@ int ubifs_enable_encryption(struct ubifs_info *c)
 {
 	int err;
 	struct ubifs_sb_node *sup = c->sup_node;
+
+	if (!IS_ENABLED(CONFIG_FS_ENCRYPTION))
+		return -EOPNOTSUPP;
 
 	if (c->encrypted)
 		return 0;

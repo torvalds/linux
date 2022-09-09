@@ -937,31 +937,16 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit PCI DMA mask.\n");
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting.\n");
-			goto err_free_res;
-		}
-	}
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (err) {
-		dev_warn(&pdev->dev, "Warning: couldn't set 64-bit "
-			 "consistent PCI DMA mask.\n");
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "Can't set consistent PCI DMA mask, "
-				"aborting.\n");
-			goto err_free_res;
-		}
+		dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting.\n");
+		goto err_free_res;
 	}
 
 	/* We can handle large RDMA requests, so allow larger segments. */
 	dma_set_max_seg_size(&pdev->dev, 1024 * 1024 * 1024);
 
-	mdev = (struct mthca_dev *) ib_alloc_device(sizeof *mdev);
+	mdev = ib_alloc_device(mthca_dev, ib_dev);
 	if (!mdev) {
 		dev_err(&pdev->dev, "Device struct alloc failed, "
 			"aborting.\n");

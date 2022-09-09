@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Low-level SPU handling
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #undef DEBUG
@@ -37,7 +24,6 @@
 #include <asm/spu_priv1.h>
 #include <asm/spu_csa.h>
 #include <asm/xmon.h>
-#include <asm/prom.h>
 #include <asm/kexec.h>
 
 const struct spu_management_ops *spu_management_ops;
@@ -194,7 +180,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	 * faults need to be deferred to process context.
 	 */
 	if ((dsisr & MFC_DSISR_PTE_NOT_FOUND) &&
-	    (REGION_ID(ea) != USER_REGION_ID)) {
+	    (get_region_id(ea) != USER_REGION_ID)) {
 
 		spin_unlock(&spu->register_lock);
 		ret = hash_page(ea,
@@ -224,7 +210,7 @@ static void __spu_kernel_slb(void *addr, struct copro_slb *slb)
 	unsigned long ea = (unsigned long)addr;
 	u64 llp;
 
-	if (REGION_ID(ea) == KERNEL_REGION_ID)
+	if (get_region_id(ea) == LINEAR_MAP_REGION_ID)
 		llp = mmu_psize_defs[mmu_linear_psize].sllp;
 	else
 		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
@@ -400,7 +386,7 @@ spu_irq_class_2(int irq, void *data)
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static int spu_request_irqs(struct spu *spu)
+static int __init spu_request_irqs(struct spu *spu)
 {
 	int ret = 0;
 
@@ -503,7 +489,7 @@ int spu_add_dev_attr(struct device_attribute *attr)
 }
 EXPORT_SYMBOL_GPL(spu_add_dev_attr);
 
-int spu_add_dev_attr_group(struct attribute_group *attrs)
+int spu_add_dev_attr_group(const struct attribute_group *attrs)
 {
 	struct spu *spu;
 	int rc = 0;
@@ -542,7 +528,7 @@ void spu_remove_dev_attr(struct device_attribute *attr)
 }
 EXPORT_SYMBOL_GPL(spu_remove_dev_attr);
 
-void spu_remove_dev_attr_group(struct attribute_group *attrs)
+void spu_remove_dev_attr_group(const struct attribute_group *attrs)
 {
 	struct spu *spu;
 
@@ -553,7 +539,7 @@ void spu_remove_dev_attr_group(struct attribute_group *attrs)
 }
 EXPORT_SYMBOL_GPL(spu_remove_dev_attr_group);
 
-static int spu_create_dev(struct spu *spu)
+static int __init spu_create_dev(struct spu *spu)
 {
 	int ret;
 
@@ -724,7 +710,7 @@ static void crash_kexec_stop_spus(void)
 	}
 }
 
-static void crash_register_spus(struct list_head *list)
+static void __init crash_register_spus(struct list_head *list)
 {
 	struct spu *spu;
 	int ret;

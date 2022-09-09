@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Hardware accelerated Matrox Millennium I, II, Mystique, G100, G200 and G400
@@ -672,7 +673,10 @@ static int parse_pins5(struct matrox_fb_info *minfo,
 	if (bd->pins[115] & 4) {
 		minfo->values.reg.mctlwtst_core = minfo->values.reg.mctlwtst;
 	} else {
-		u_int32_t wtst_xlat[] = { 0, 1, 5, 6, 7, 5, 2, 3 };
+		static const u8 wtst_xlat[] = {
+			0, 1, 5, 6, 7, 5, 2, 3
+		};
+
 		minfo->values.reg.mctlwtst_core = (minfo->values.reg.mctlwtst & ~7) |
 						  wtst_xlat[minfo->values.reg.mctlwtst & 7];
 	}

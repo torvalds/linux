@@ -1,17 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod_2xxx_interconnect_data.c - common interconnect data for OMAP2xxx
  *
  * Copyright (C) 2009-2011 Nokia Corporation
  * Paul Walmsley
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include "omap_hwmod.h"
 #include "l3_2xxx.h"
@@ -95,14 +92,6 @@ struct omap_hwmod_ocp_if omap2xxx_l4_core__mcspi2 = {
 	.master		= &omap2xxx_l4_core_hwmod,
 	.slave		= &omap2xxx_mcspi2_hwmod,
 	.clk		= "mcspi2_ick",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4_core -> timer2 */
-struct omap_hwmod_ocp_if omap2xxx_l4_core__timer2 = {
-	.master		= &omap2xxx_l4_core_hwmod,
-	.slave		= &omap2xxx_timer2_hwmod,
-	.clk		= "gpt2_ick",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

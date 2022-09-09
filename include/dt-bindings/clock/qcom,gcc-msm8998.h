@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DT_BINDINGS_CLK_MSM_GCC_COBALT_H
@@ -185,6 +177,19 @@
 #define GCC_UFS_CLKREF_CLK					168
 #define GCC_PCIE_CLKREF_CLK					169
 #define GCC_RX1_USB2_CLKREF_CLK					170
+#define GCC_MSS_CFG_AHB_CLK					171
+#define GCC_BOOT_ROM_AHB_CLK					172
+#define GCC_MSS_GPLL0_DIV_CLK_SRC				173
+#define GCC_MSS_SNOC_AXI_CLK					174
+#define GCC_MSS_MNOC_BIMC_AXI_CLK				175
+#define GCC_BIMC_GFX_CLK					176
+#define UFS_UNIPRO_CORE_CLK_SRC					177
+#define GCC_MMSS_GPLL0_CLK					178
+#define HMSS_GPLL0_CLK_SRC					179
+#define GCC_IM_SLEEP						180
+#define AGGRE2_SNOC_NORTH_AXI					181
+#define SSC_XO							182
+#define SSC_CNOC_AHBS_CLK					183
 
 #define PCIE_0_GDSC						0
 #define UFS_GDSC						1
@@ -298,5 +303,6 @@
 #define GCC_MSMPU_BCR						105
 #define GCC_QUSB2PHY_PRIM_BCR					106
 #define GCC_QUSB2PHY_SEC_BCR					107
+#define GCC_MSS_RESTART						108
 
 #endif

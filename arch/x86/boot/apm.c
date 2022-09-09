@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
@@ -6,9 +7,6 @@
  *
  *   Original APM BIOS checking by Stephen Rothwell, May 1994
  *   (sfr@canb.auug.org.au)
- *
- *   This file is part of the Linux kernel, and is made available under
- *   the terms of the GNU General Public License version 2.
  *
  * ----------------------------------------------------------------------- */
 
@@ -62,7 +60,7 @@ int query_apm_bios(void)
 	intcall(0x15, &ireg, &oreg);
 
 	if ((oreg.eflags & X86_EFLAGS_CF) || oreg.bx != 0x504d) {
-		/* Failure with 32-bit connect, try to disconect and ignore */
+		/* Failure with 32-bit connect, try to disconnect and ignore */
 		ireg.al = 0x04;
 		intcall(0x15, &ireg, NULL);
 		return -1;

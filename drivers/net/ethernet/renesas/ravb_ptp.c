@@ -179,8 +179,16 @@ static int ravb_ptp_extts(struct ptp_clock_info *ptp,
 {
 	struct ravb_private *priv = container_of(ptp, struct ravb_private,
 						 ptp.info);
+	const struct ravb_hw_info *info = priv->info;
 	struct net_device *ndev = priv->ndev;
 	unsigned long flags;
+
+	/* Reject requests with unsupported flags */
+	if (req->flags & ~(PTP_ENABLE_FEATURE |
+			   PTP_RISING_EDGE |
+			   PTP_FALLING_EDGE |
+			   PTP_STRICT_FLAGS))
+		return -EOPNOTSUPP;
 
 	if (req->index)
 		return -EINVAL;
@@ -190,13 +198,12 @@ static int ravb_ptp_extts(struct ptp_clock_info *ptp,
 	priv->ptp.extts[req->index] = on;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->chip_id == RCAR_GEN2)
+	if (!info->irq_en_dis)
 		ravb_modify(ndev, GIC, GIC_PTCE, on ? GIC_PTCE : 0);
 	else if (on)
 		ravb_write(ndev, GIE_PTCS, GIE);
 	else
 		ravb_write(ndev, GID_PTCD, GID);
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -207,10 +214,15 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 {
 	struct ravb_private *priv = container_of(ptp, struct ravb_private,
 						 ptp.info);
+	const struct ravb_hw_info *info = priv->info;
 	struct net_device *ndev = priv->ndev;
 	struct ravb_ptp_perout *perout;
 	unsigned long flags;
 	int error = 0;
+
+	/* Reject requests with unsupported flags */
+	if (req->flags)
+		return -EOPNOTSUPP;
 
 	if (req->index)
 		return -EINVAL;
@@ -242,7 +254,7 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 		error = ravb_ptp_update_compare(priv, (u32)start_ns);
 		if (!error) {
 			/* Unmask interrupt */
-			if (priv->chip_id == RCAR_GEN2)
+			if (!info->irq_en_dis)
 				ravb_modify(ndev, GIC, GIC_PTME, GIC_PTME);
 			else
 				ravb_write(ndev, GIE_PTMS0, GIE);
@@ -254,12 +266,11 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 		perout->period = 0;
 
 		/* Mask interrupt */
-		if (priv->chip_id == RCAR_GEN2)
+		if (!info->irq_en_dis)
 			ravb_modify(ndev, GIC, GIC_PTME, 0);
 		else
 			ravb_write(ndev, GID_PTMD0, GID);
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return error;
@@ -331,7 +342,6 @@ void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	spin_lock_irqsave(&priv->lock, flags);
 	ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_NOREQ);
 	ravb_modify(ndev, GCCR, GCCR_TCSS, GCCR_TCSS_ADJGPTP);
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	priv->ptp.clock = ptp_clock_register(&priv->ptp.info, &pdev->dev);

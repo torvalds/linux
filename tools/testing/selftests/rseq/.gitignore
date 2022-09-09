@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 basic_percpu_ops_test
 basic_test
 basic_rseq_op_test

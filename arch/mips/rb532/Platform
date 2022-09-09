@@ -1,7 +1,6 @@
 #
 # Routerboard 532
 #
-platform-$(CONFIG_MIKROTIK_RB532)	+= rb532/
 cflags-$(CONFIG_MIKROTIK_RB532)		+=				\
 		-I$(srctree)/arch/mips/include/asm/mach-rc32434
 load-$(CONFIG_MIKROTIK_RB532)		+= 0xffffffff80101000

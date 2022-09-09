@@ -3,7 +3,7 @@ LEDs connected to Broadcom BCM6358 controller
 This controller is present on BCM6358 and BCM6368.
 In these SoCs there are Serial LEDs (LEDs connected to a 74x164 controller),
 which can either be controlled by software (exporting the 74x164 as spi-gpio.
-See Documentation/devicetree/bindings/gpio/gpio-74x164.txt), or
+See Documentation/devicetree/bindings/gpio/fairchild,74hc595.yaml), or
 by hardware using this driver.
 
 Required properties:

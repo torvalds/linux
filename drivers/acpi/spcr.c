@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012, Intel Corporation
  * Copyright (c) 2015, Red Hat, Inc.
  * Copyright (c) 2015, 2016 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) "ACPI: SPCR: " fmt
@@ -28,7 +24,7 @@ EXPORT_SYMBOL(qdf2400_e44_present);
 
 /*
  * Some Qualcomm Datacenter Technologies SoCs have a defective UART BUSY bit.
- * Detect them by examining the OEM fields in the SPCR header, similiar to PCI
+ * Detect them by examining the OEM fields in the SPCR header, similar to PCI
  * quirk detection in pci_mcfg.c.
  */
 static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
@@ -111,11 +107,16 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 		pr_info("SPCR table version %d\n", table->header.revision);
 
 	if (table->serial_port.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		switch (ACPI_ACCESS_BIT_WIDTH((
-			table->serial_port.access_width))) {
+		u32 bit_width = table->serial_port.access_width;
+
+		if (bit_width > ACPI_ACCESS_BIT_MAX) {
+			pr_err("Unacceptable wide SPCR Access Width.  Defaulting to byte size\n");
+			bit_width = ACPI_ACCESS_BIT_DEFAULT;
+		}
+		switch (ACPI_ACCESS_BIT_WIDTH((bit_width))) {
 		default:
 			pr_err("Unexpected SPCR Access Width.  Defaulting to byte size\n");
-			/* fall through */
+			fallthrough;
 		case 8:
 			iotype = "mmio";
 			break;
@@ -132,7 +133,7 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 	switch (table->interface_type) {
 	case ACPI_DBG2_ARM_SBSA_32BIT:
 		iotype = "mmio32";
-		/* fall through */
+		fallthrough;
 	case ACPI_DBG2_ARM_PL011:
 	case ACPI_DBG2_ARM_SBSA_GENERIC:
 	case ACPI_DBG2_BCM2835:
@@ -140,6 +141,8 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 		break;
 	case ACPI_DBG2_16550_COMPATIBLE:
 	case ACPI_DBG2_16550_SUBSET:
+	case ACPI_DBG2_16550_WITH_GAS:
+	case ACPI_DBG2_16550_NVIDIA:
 		uart = "uart";
 		break;
 	default:

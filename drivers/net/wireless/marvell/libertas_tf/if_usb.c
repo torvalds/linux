@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2008, cozybit Inc.
  *  Copyright (C) 2003-2006, Marvell International Ltd.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
  */
 #define DRV_NAME "lbtf_usb"
 
@@ -42,19 +38,19 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
-static int if_usb_prog_firmware(struct if_usb_card *cardp);
+static int if_usb_prog_firmware(struct lbtf_private *priv);
 static int if_usb_host_to_card(struct lbtf_private *priv, uint8_t type,
 			       uint8_t *payload, uint16_t nb);
 static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload,
 			uint16_t nb, u8 data);
 static void if_usb_free(struct if_usb_card *cardp);
 static int if_usb_submit_rx_urb(struct if_usb_card *cardp);
-static int if_usb_reset_device(struct if_usb_card *cardp);
+static int if_usb_reset_device(struct lbtf_private *priv);
 
 /**
- *  if_usb_wrike_bulk_callback -  call back to handle URB status
+ *  if_usb_write_bulk_callback -  call back to handle URB status
  *
- *  @param urb		pointer to urb structure
+ *  @urb:		pointer to urb structure
  */
 static void if_usb_write_bulk_callback(struct urb *urb)
 {
@@ -71,7 +67,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 /**
  *  if_usb_free - free tx/rx urb, skb and rx buffer
  *
- *  @param cardp	pointer if_usb_card
+ *  @cardp:	pointer if_usb_card
  */
 static void if_usb_free(struct if_usb_card *cardp)
 {
@@ -131,11 +127,17 @@ static void if_usb_fw_timeo(struct timer_list *t)
 	lbtf_deb_leave(LBTF_DEB_USB);
 }
 
+static const struct lbtf_ops if_usb_ops = {
+	.hw_host_to_card = if_usb_host_to_card,
+	.hw_prog_firmware = if_usb_prog_firmware,
+	.hw_reset_device = if_usb_reset_device,
+};
+
 /**
  *  if_usb_probe - sets the configuration values
  *
- *  @ifnum	interface number
- *  @id		pointer to usb_device_id
+ *  @intf:	USB interface structure
+ *  @id:	pointer to usb_device_id
  *
  *  Returns: 0 on success, error code on failure
  */
@@ -216,16 +218,10 @@ static int if_usb_probe(struct usb_interface *intf,
 		goto dealloc;
 	}
 
-	priv = lbtf_add_card(cardp, &udev->dev);
+	cardp->boot2_version = udev->descriptor.bcdDevice;
+	priv = lbtf_add_card(cardp, &udev->dev, &if_usb_ops);
 	if (!priv)
 		goto dealloc;
-
-	cardp->priv = priv;
-
-	priv->hw_host_to_card = if_usb_host_to_card;
-	priv->hw_prog_firmware = if_usb_prog_firmware;
-	priv->hw_reset_device = if_usb_reset_device;
-	cardp->boot2_version = udev->descriptor.bcdDevice;
 
 	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);
@@ -234,6 +230,7 @@ static int if_usb_probe(struct usb_interface *intf,
 
 dealloc:
 	if_usb_free(cardp);
+	kfree(cardp);
 error:
 lbtf_deb_leave(LBTF_DEB_MAIN);
 	return -ENOMEM;
@@ -242,7 +239,7 @@ lbtf_deb_leave(LBTF_DEB_MAIN);
 /**
  *  if_usb_disconnect -  free resource and cleanup
  *
- *  @intf	USB interface structure
+ *  @intf:	USB interface structure
  */
 static void if_usb_disconnect(struct usb_interface *intf)
 {
@@ -251,13 +248,14 @@ static void if_usb_disconnect(struct usb_interface *intf)
 
 	lbtf_deb_enter(LBTF_DEB_MAIN);
 
-	if_usb_reset_device(cardp);
-
-	if (priv)
+	if (priv) {
+		if_usb_reset_device(priv);
 		lbtf_remove_card(priv);
+	}
 
 	/* Unlink and free urb */
 	if_usb_free(cardp);
+	kfree(cardp);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
@@ -268,7 +266,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 /**
  *  if_usb_send_fw_pkt -  This function downloads the FW
  *
- *  @priv	pointer to struct lbtf_private
+ *  @cardp:	pointer if_usb_card
  *
  *  Returns: 0
  */
@@ -319,7 +317,7 @@ static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 	} else if (fwdata->hdr.dnldcmd == cpu_to_le32(FW_HAS_LAST_BLOCK)) {
 		lbtf_deb_usb2(&cardp->udev->dev,
 			"Host has finished FW downloading\n");
-		lbtf_deb_usb2(&cardp->udev->dev, "Donwloading FW JUMP BLOCK\n");
+		lbtf_deb_usb2(&cardp->udev->dev, "Downloading FW JUMP BLOCK\n");
 
 		/* Host has finished FW downloading
 		 * Donwloading FW JUMP BLOCK
@@ -334,8 +332,9 @@ static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 	return 0;
 }
 
-static int if_usb_reset_device(struct if_usb_card *cardp)
+static int if_usb_reset_device(struct lbtf_private *priv)
 {
+	struct if_usb_card *cardp = priv->card;
 	struct cmd_ds_802_11_reset *cmd = cardp->ep_out_buf + 4;
 	int ret;
 
@@ -363,10 +362,10 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 /**
  *  usb_tx_block - transfer data to the device
  *
- *  @priv	pointer to struct lbtf_private
- *  @payload	pointer to payload data
- *  @nb		data length
- *  @data	non-zero for data, zero for commands
+ *  @cardp:	pointer if_usb_card
+ *  @payload:	pointer to payload data
+ *  @nb:	data length
+ *  @data:	non-zero for data, zero for commands
  *
  *  Returns: 0 on success, nonzero otherwise.
  */
@@ -432,8 +431,6 @@ static int __if_usb_submit_rx_urb(struct if_usb_card *cardp,
 			  usb_rcvbulkpipe(cardp->udev, cardp->ep_in),
 			  skb_tail_pointer(skb),
 			  MRVDRV_ETH_RX_PACKET_BUFFER_SIZE, callbackfn, cardp);
-
-	cardp->rx_urb->transfer_flags |= URB_ZERO_PACKET;
 
 	lbtf_deb_usb2(&cardp->udev->dev, "Pointer for rx_urb %p\n",
 		cardp->rx_urb);
@@ -624,7 +621,7 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 /**
  *  if_usb_receive - read data received from the device.
  *
- *  @urb		pointer to struct urb
+ *  @urb:		pointer to struct urb
  */
 static void if_usb_receive(struct urb *urb)
 {
@@ -707,10 +704,10 @@ setup_for_next:
 /**
  *  if_usb_host_to_card -  Download data to the device
  *
- *  @priv		pointer to struct lbtf_private structure
- *  @type		type of data
- *  @buf		pointer to data buffer
- *  @len		number of bytes
+ *  @priv:		pointer to struct lbtf_private structure
+ *  @type:		type of data
+ *  @payload:		pointer to payload buffer
+ *  @nb:		number of bytes
  *
  *  Returns: 0 on success, nonzero otherwise
  */
@@ -739,7 +736,8 @@ static int if_usb_host_to_card(struct lbtf_private *priv, uint8_t type,
 /**
  *  if_usb_issue_boot_command - Issue boot command to Boot2.
  *
- *  @ivalue   1 boots from FW by USB-Download, 2 boots from FW in EEPROM.
+ *  @cardp:	pointer if_usb_card
+ *  @ivalue:   1 boots from FW by USB-Download, 2 boots from FW in EEPROM.
  *
  *  Returns: 0
  */
@@ -762,8 +760,8 @@ static int if_usb_issue_boot_command(struct if_usb_card *cardp, int ivalue)
 /**
  *  check_fwfile_format - Check the validity of Boot2/FW image.
  *
- *  @data	pointer to image
- *  @totlen	image length
+ *  @data:	pointer to image
+ *  @totlen:	image length
  *
  *  Returns: 0 if the image is valid, nonzero otherwise.
  */
@@ -808,13 +806,16 @@ static int check_fwfile_format(const u8 *data, u32 totlen)
 }
 
 
-static int if_usb_prog_firmware(struct if_usb_card *cardp)
+static int if_usb_prog_firmware(struct lbtf_private *priv)
 {
+	struct if_usb_card *cardp = priv->card;
 	int i = 0;
 	static int reset_count = 10;
 	int ret = 0;
 
 	lbtf_deb_enter(LBTF_DEB_USB);
+
+	cardp->priv = priv;
 
 	kernel_param_lock(THIS_MODULE);
 	ret = request_firmware(&cardp->fw, lbtf_fw_name, &cardp->udev->dev);
@@ -851,7 +852,7 @@ restart:
 
 	if (cardp->bootcmdresp <= 0) {
 		if (--reset_count >= 0) {
-			if_usb_reset_device(cardp);
+			if_usb_reset_device(priv);
 			goto restart;
 		}
 		return -1;
@@ -880,7 +881,7 @@ restart:
 	if (!cardp->fwdnldover) {
 		pr_info("failed to load fw, resetting device!\n");
 		if (--reset_count >= 0) {
-			if_usb_reset_device(cardp);
+			if_usb_reset_device(priv);
 			goto restart;
 		}
 
@@ -888,8 +889,6 @@ restart:
 		ret = -1;
 		goto release_fw;
 	}
-
-	cardp->priv->fw_ready = 1;
 
  release_fw:
 	release_firmware(cardp->fw);

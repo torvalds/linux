@@ -626,8 +626,7 @@ static void pt3_cleanup_adapter(struct pt3_board *pt3, int index)
 
 static int pt3_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pt3_board *pt3 = pci_get_drvdata(pdev);
+	struct pt3_board *pt3 = dev_get_drvdata(dev);
 	int i;
 	struct pt3_adapter *adap;
 
@@ -646,8 +645,7 @@ static int pt3_suspend(struct device *dev)
 
 static int pt3_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pt3_board *pt3 = pci_get_drvdata(pdev);
+	struct pt3_board *pt3 = dev_get_drvdata(dev);
 	int i, ret;
 	struct pt3_adapter *adap;
 
@@ -687,12 +685,6 @@ static void pt3_remove(struct pci_dev *pdev)
 	for (i = PT3_NUM_FE - 1; i >= 0; i--)
 		pt3_cleanup_adapter(pt3, i);
 	i2c_del_adapter(&pt3->i2c_adap);
-	kfree(pt3->i2c_buf);
-	pci_iounmap(pt3->pdev, pt3->regs[0]);
-	pci_iounmap(pt3->pdev, pt3->regs[1]);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-	kfree(pt3);
 }
 
 static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -706,14 +698,14 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_read_config_byte(pdev, PCI_REVISION_ID, &rev) || rev != 1)
 		return -ENODEV;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret < 0)
 		return -ENODEV;
 	pci_set_master(pdev);
 
-	ret = pci_request_regions(pdev, DRV_NAME);
+	ret = pcim_iomap_regions(pdev, BIT(0) | BIT(2), DRV_NAME);
 	if (ret < 0)
-		goto err_disable_device;
+		return ret;
 
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret == 0)
@@ -724,42 +716,32 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 		else {
 			dev_err(&pdev->dev, "Failed to set DMA mask\n");
-			goto err_release_regions;
+			return ret;
 		}
 		dev_info(&pdev->dev, "Use 32bit DMA\n");
 	}
 
-	pt3 = kzalloc(sizeof(*pt3), GFP_KERNEL);
-	if (!pt3) {
-		ret = -ENOMEM;
-		goto err_release_regions;
-	}
+	pt3 = devm_kzalloc(&pdev->dev, sizeof(*pt3), GFP_KERNEL);
+	if (!pt3)
+		return -ENOMEM;
 	pci_set_drvdata(pdev, pt3);
 	pt3->pdev = pdev;
 	mutex_init(&pt3->lock);
-	pt3->regs[0] = pci_ioremap_bar(pdev, 0);
-	pt3->regs[1] = pci_ioremap_bar(pdev, 2);
-	if (pt3->regs[0] == NULL || pt3->regs[1] == NULL) {
-		dev_err(&pdev->dev, "Failed to ioremap\n");
-		ret = -ENOMEM;
-		goto err_kfree;
-	}
+	pt3->regs[0] = pcim_iomap_table(pdev)[0];
+	pt3->regs[1] = pcim_iomap_table(pdev)[2];
 
 	ver = ioread32(pt3->regs[0] + REG_VERSION);
 	if ((ver >> 16) != 0x0301) {
 		dev_warn(&pdev->dev, "PT%d, I/F-ver.:%d not supported\n",
 			 ver >> 24, (ver & 0x00ff0000) >> 16);
-		ret = -ENODEV;
-		goto err_iounmap;
+		return -ENODEV;
 	}
 
 	pt3->num_bufs = clamp_val(num_bufs, MIN_DATA_BUFS, MAX_DATA_BUFS);
 
-	pt3->i2c_buf = kmalloc(sizeof(*pt3->i2c_buf), GFP_KERNEL);
-	if (pt3->i2c_buf == NULL) {
-		ret = -ENOMEM;
-		goto err_iounmap;
-	}
+	pt3->i2c_buf = devm_kmalloc(&pdev->dev, sizeof(*pt3->i2c_buf), GFP_KERNEL);
+	if (!pt3->i2c_buf)
+		return -ENOMEM;
 	i2c = &pt3->i2c_adap;
 	i2c->owner = THIS_MODULE;
 	i2c->algo = &pt3_i2c_algo;
@@ -769,7 +751,7 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	i2c_set_adapdata(i2c, pt3);
 	ret = i2c_add_adapter(i2c);
 	if (ret < 0)
-		goto err_i2cbuf;
+		return ret;
 
 	for (i = 0; i < PT3_NUM_FE; i++) {
 		ret = pt3_alloc_adapter(pt3, i);
@@ -801,21 +783,7 @@ err_cleanup_adapters:
 	while (i >= 0)
 		pt3_cleanup_adapter(pt3, i--);
 	i2c_del_adapter(i2c);
-err_i2cbuf:
-	kfree(pt3->i2c_buf);
-err_iounmap:
-	if (pt3->regs[0])
-		pci_iounmap(pdev, pt3->regs[0]);
-	if (pt3->regs[1])
-		pci_iounmap(pdev, pt3->regs[1]);
-err_kfree:
-	kfree(pt3);
-err_release_regions:
-	pci_release_regions(pdev);
-err_disable_device:
-	pci_disable_device(pdev);
 	return ret;
-
 }
 
 static const struct pci_device_id pt3_id_table[] = {

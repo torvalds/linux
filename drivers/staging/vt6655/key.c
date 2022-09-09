@@ -3,8 +3,6 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * File: key.c
- *
  * Purpose: Implement functions for 802.11i Key management
  *
  * Author: Jerry Chen
@@ -13,7 +11,6 @@
  *
  */
 
-#include "tmacro.h"
 #include "key.h"
 #include "mac.h"
 
@@ -51,15 +48,15 @@ static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 		/* default key last entry */
 		entry = MAX_KEY_TABLE - 1;
 		key->hw_key_idx = entry;
-		/* fall through */
+		fallthrough;
 	case VNT_KEY_ALLGROUP:
 		key_mode |= VNT_KEY_ALLGROUP;
 		if (onfly_latch)
 			key_mode |= VNT_KEY_ONFLY_ALL;
-		/* fall through */
+		fallthrough;
 	case VNT_KEY_GROUP_ADDRESS:
 		key_mode |= mode;
-		/* fall through */
+		fallthrough;
 	case VNT_KEY_GROUP:
 		key_mode |= (mode << 4);
 		key_mode |= VNT_KEY_GROUP;
@@ -83,7 +80,7 @@ static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 	}
 
 	MACvSetKeyEntry(priv, key_mode, entry, key_inx,
-			bssid, (u32 *)key->key, priv->byLocalID);
+			bssid, (u32 *)key->key, priv->local_id);
 
 	return 0;
 }

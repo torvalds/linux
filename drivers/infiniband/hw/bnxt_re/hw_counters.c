@@ -57,69 +57,208 @@
 #include "bnxt_re.h"
 #include "hw_counters.h"
 
-static const char * const bnxt_re_stat_name[] = {
-	[BNXT_RE_ACTIVE_QP]		=  "active_qps",
-	[BNXT_RE_ACTIVE_SRQ]		=  "active_srqs",
-	[BNXT_RE_ACTIVE_CQ]		=  "active_cqs",
-	[BNXT_RE_ACTIVE_MR]		=  "active_mrs",
-	[BNXT_RE_ACTIVE_MW]		=  "active_mws",
-	[BNXT_RE_RX_PKTS]		=  "rx_pkts",
-	[BNXT_RE_RX_BYTES]		=  "rx_bytes",
-	[BNXT_RE_TX_PKTS]		=  "tx_pkts",
-	[BNXT_RE_TX_BYTES]		=  "tx_bytes",
-	[BNXT_RE_RECOVERABLE_ERRORS]	=  "recoverable_errors",
-	[BNXT_RE_RX_DROPS]		=  "rx_roce_drops",
-	[BNXT_RE_RX_DISCARDS]		=  "rx_roce_discards",
-	[BNXT_RE_TO_RETRANSMITS]        = "to_retransmits",
-	[BNXT_RE_SEQ_ERR_NAKS_RCVD]     = "seq_err_naks_rcvd",
-	[BNXT_RE_MAX_RETRY_EXCEEDED]    = "max_retry_exceeded",
-	[BNXT_RE_RNR_NAKS_RCVD]         = "rnr_naks_rcvd",
-	[BNXT_RE_MISSING_RESP]          = "missin_resp",
-	[BNXT_RE_UNRECOVERABLE_ERR]     = "unrecoverable_err",
-	[BNXT_RE_BAD_RESP_ERR]          = "bad_resp_err",
-	[BNXT_RE_LOCAL_QP_OP_ERR]       = "local_qp_op_err",
-	[BNXT_RE_LOCAL_PROTECTION_ERR]  = "local_protection_err",
-	[BNXT_RE_MEM_MGMT_OP_ERR]       = "mem_mgmt_op_err",
-	[BNXT_RE_REMOTE_INVALID_REQ_ERR] = "remote_invalid_req_err",
-	[BNXT_RE_REMOTE_ACCESS_ERR]     = "remote_access_err",
-	[BNXT_RE_REMOTE_OP_ERR]         = "remote_op_err",
-	[BNXT_RE_DUP_REQ]               = "dup_req",
-	[BNXT_RE_RES_EXCEED_MAX]        = "res_exceed_max",
-	[BNXT_RE_RES_LENGTH_MISMATCH]   = "res_length_mismatch",
-	[BNXT_RE_RES_EXCEEDS_WQE]       = "res_exceeds_wqe",
-	[BNXT_RE_RES_OPCODE_ERR]        = "res_opcode_err",
-	[BNXT_RE_RES_RX_INVALID_RKEY]   = "res_rx_invalid_rkey",
-	[BNXT_RE_RES_RX_DOMAIN_ERR]     = "res_rx_domain_err",
-	[BNXT_RE_RES_RX_NO_PERM]        = "res_rx_no_perm",
-	[BNXT_RE_RES_RX_RANGE_ERR]      = "res_rx_range_err",
-	[BNXT_RE_RES_TX_INVALID_RKEY]   = "res_tx_invalid_rkey",
-	[BNXT_RE_RES_TX_DOMAIN_ERR]     = "res_tx_domain_err",
-	[BNXT_RE_RES_TX_NO_PERM]        = "res_tx_no_perm",
-	[BNXT_RE_RES_TX_RANGE_ERR]      = "res_tx_range_err",
-	[BNXT_RE_RES_IRRQ_OFLOW]        = "res_irrq_oflow",
-	[BNXT_RE_RES_UNSUP_OPCODE]      = "res_unsup_opcode",
-	[BNXT_RE_RES_UNALIGNED_ATOMIC]  = "res_unaligned_atomic",
-	[BNXT_RE_RES_REM_INV_ERR]       = "res_rem_inv_err",
-	[BNXT_RE_RES_MEM_ERROR]         = "res_mem_err",
-	[BNXT_RE_RES_SRQ_ERR]           = "res_srq_err",
-	[BNXT_RE_RES_CMP_ERR]           = "res_cmp_err",
-	[BNXT_RE_RES_INVALID_DUP_RKEY]  = "res_invalid_dup_rkey",
-	[BNXT_RE_RES_WQE_FORMAT_ERR]    = "res_wqe_format_err",
-	[BNXT_RE_RES_CQ_LOAD_ERR]       = "res_cq_load_err",
-	[BNXT_RE_RES_SRQ_LOAD_ERR]      = "res_srq_load_err",
-	[BNXT_RE_RES_TX_PCI_ERR]        = "res_tx_pci_err",
-	[BNXT_RE_RES_RX_PCI_ERR]        = "res_rx_pci_err",
-	[BNXT_RE_OUT_OF_SEQ_ERR]        = "oos_drop_count"
+static const struct rdma_stat_desc bnxt_re_stat_descs[] = {
+	[BNXT_RE_ACTIVE_PD].name		=  "active_pds",
+	[BNXT_RE_ACTIVE_AH].name		=  "active_ahs",
+	[BNXT_RE_ACTIVE_QP].name		=  "active_qps",
+	[BNXT_RE_ACTIVE_SRQ].name		=  "active_srqs",
+	[BNXT_RE_ACTIVE_CQ].name		=  "active_cqs",
+	[BNXT_RE_ACTIVE_MR].name		=  "active_mrs",
+	[BNXT_RE_ACTIVE_MW].name		=  "active_mws",
+	[BNXT_RE_RX_PKTS].name		=  "rx_pkts",
+	[BNXT_RE_RX_BYTES].name		=  "rx_bytes",
+	[BNXT_RE_TX_PKTS].name		=  "tx_pkts",
+	[BNXT_RE_TX_BYTES].name		=  "tx_bytes",
+	[BNXT_RE_RECOVERABLE_ERRORS].name	=  "recoverable_errors",
+	[BNXT_RE_RX_ERRORS].name		=  "rx_roce_errors",
+	[BNXT_RE_RX_DISCARDS].name		=  "rx_roce_discards",
+	[BNXT_RE_TO_RETRANSMITS].name        = "to_retransmits",
+	[BNXT_RE_SEQ_ERR_NAKS_RCVD].name     = "seq_err_naks_rcvd",
+	[BNXT_RE_MAX_RETRY_EXCEEDED].name    = "max_retry_exceeded",
+	[BNXT_RE_RNR_NAKS_RCVD].name         = "rnr_naks_rcvd",
+	[BNXT_RE_MISSING_RESP].name          = "missing_resp",
+	[BNXT_RE_UNRECOVERABLE_ERR].name     = "unrecoverable_err",
+	[BNXT_RE_BAD_RESP_ERR].name          = "bad_resp_err",
+	[BNXT_RE_LOCAL_QP_OP_ERR].name       = "local_qp_op_err",
+	[BNXT_RE_LOCAL_PROTECTION_ERR].name  = "local_protection_err",
+	[BNXT_RE_MEM_MGMT_OP_ERR].name       = "mem_mgmt_op_err",
+	[BNXT_RE_REMOTE_INVALID_REQ_ERR].name = "remote_invalid_req_err",
+	[BNXT_RE_REMOTE_ACCESS_ERR].name     = "remote_access_err",
+	[BNXT_RE_REMOTE_OP_ERR].name         = "remote_op_err",
+	[BNXT_RE_DUP_REQ].name               = "dup_req",
+	[BNXT_RE_RES_EXCEED_MAX].name        = "res_exceed_max",
+	[BNXT_RE_RES_LENGTH_MISMATCH].name   = "res_length_mismatch",
+	[BNXT_RE_RES_EXCEEDS_WQE].name       = "res_exceeds_wqe",
+	[BNXT_RE_RES_OPCODE_ERR].name        = "res_opcode_err",
+	[BNXT_RE_RES_RX_INVALID_RKEY].name   = "res_rx_invalid_rkey",
+	[BNXT_RE_RES_RX_DOMAIN_ERR].name     = "res_rx_domain_err",
+	[BNXT_RE_RES_RX_NO_PERM].name        = "res_rx_no_perm",
+	[BNXT_RE_RES_RX_RANGE_ERR].name      = "res_rx_range_err",
+	[BNXT_RE_RES_TX_INVALID_RKEY].name   = "res_tx_invalid_rkey",
+	[BNXT_RE_RES_TX_DOMAIN_ERR].name     = "res_tx_domain_err",
+	[BNXT_RE_RES_TX_NO_PERM].name        = "res_tx_no_perm",
+	[BNXT_RE_RES_TX_RANGE_ERR].name      = "res_tx_range_err",
+	[BNXT_RE_RES_IRRQ_OFLOW].name        = "res_irrq_oflow",
+	[BNXT_RE_RES_UNSUP_OPCODE].name      = "res_unsup_opcode",
+	[BNXT_RE_RES_UNALIGNED_ATOMIC].name  = "res_unaligned_atomic",
+	[BNXT_RE_RES_REM_INV_ERR].name       = "res_rem_inv_err",
+	[BNXT_RE_RES_MEM_ERROR].name         = "res_mem_err",
+	[BNXT_RE_RES_SRQ_ERR].name           = "res_srq_err",
+	[BNXT_RE_RES_CMP_ERR].name           = "res_cmp_err",
+	[BNXT_RE_RES_INVALID_DUP_RKEY].name  = "res_invalid_dup_rkey",
+	[BNXT_RE_RES_WQE_FORMAT_ERR].name    = "res_wqe_format_err",
+	[BNXT_RE_RES_CQ_LOAD_ERR].name       = "res_cq_load_err",
+	[BNXT_RE_RES_SRQ_LOAD_ERR].name      = "res_srq_load_err",
+	[BNXT_RE_RES_TX_PCI_ERR].name        = "res_tx_pci_err",
+	[BNXT_RE_RES_RX_PCI_ERR].name        = "res_rx_pci_err",
+	[BNXT_RE_OUT_OF_SEQ_ERR].name        = "oos_drop_count",
+	[BNXT_RE_TX_ATOMIC_REQ].name	     = "tx_atomic_req",
+	[BNXT_RE_TX_READ_REQ].name	     = "tx_read_req",
+	[BNXT_RE_TX_READ_RES].name	     = "tx_read_resp",
+	[BNXT_RE_TX_WRITE_REQ].name	     = "tx_write_req",
+	[BNXT_RE_TX_SEND_REQ].name	     = "tx_send_req",
+	[BNXT_RE_RX_ATOMIC_REQ].name	     = "rx_atomic_req",
+	[BNXT_RE_RX_READ_REQ].name	     = "rx_read_req",
+	[BNXT_RE_RX_READ_RESP].name	     = "rx_read_resp",
+	[BNXT_RE_RX_WRITE_REQ].name	     = "rx_write_req",
+	[BNXT_RE_RX_SEND_REQ].name	     = "rx_send_req",
+	[BNXT_RE_RX_ROCE_GOOD_PKTS].name     = "rx_roce_good_pkts",
+	[BNXT_RE_RX_ROCE_GOOD_BYTES].name    = "rx_roce_good_bytes",
+	[BNXT_RE_OOB].name		     = "rx_out_of_buffer"
 };
+
+static void bnxt_re_copy_ext_stats(struct bnxt_re_dev *rdev,
+				   struct rdma_hw_stats *stats,
+				   struct bnxt_qplib_ext_stat *s)
+{
+	stats->value[BNXT_RE_TX_ATOMIC_REQ] = s->tx_atomic_req;
+	stats->value[BNXT_RE_TX_READ_REQ]   = s->tx_read_req;
+	stats->value[BNXT_RE_TX_READ_RES]   = s->tx_read_res;
+	stats->value[BNXT_RE_TX_WRITE_REQ]  = s->tx_write_req;
+	stats->value[BNXT_RE_TX_SEND_REQ]   = s->tx_send_req;
+	stats->value[BNXT_RE_RX_ATOMIC_REQ] = s->rx_atomic_req;
+	stats->value[BNXT_RE_RX_READ_REQ]   = s->rx_read_req;
+	stats->value[BNXT_RE_RX_READ_RESP]  = s->rx_read_res;
+	stats->value[BNXT_RE_RX_WRITE_REQ]  = s->rx_write_req;
+	stats->value[BNXT_RE_RX_SEND_REQ]   = s->rx_send_req;
+	stats->value[BNXT_RE_RX_ROCE_GOOD_PKTS] = s->rx_roce_good_pkts;
+	stats->value[BNXT_RE_RX_ROCE_GOOD_BYTES] = s->rx_roce_good_bytes;
+	stats->value[BNXT_RE_OOB] = s->rx_out_of_buffer;
+}
+
+static int bnxt_re_get_ext_stat(struct bnxt_re_dev *rdev,
+				struct rdma_hw_stats *stats)
+{
+	struct bnxt_qplib_ext_stat *estat = &rdev->stats.rstat.ext_stat;
+	u32 fid;
+	int rc;
+
+	fid = PCI_FUNC(rdev->en_dev->pdev->devfn);
+	rc = bnxt_qplib_qext_stat(&rdev->rcfw, fid, estat);
+	if (rc)
+		goto done;
+	bnxt_re_copy_ext_stats(rdev, stats, estat);
+
+done:
+	return rc;
+}
+
+static void bnxt_re_copy_err_stats(struct bnxt_re_dev *rdev,
+				   struct rdma_hw_stats *stats,
+				   struct bnxt_qplib_roce_stats *err_s)
+{
+	stats->value[BNXT_RE_TO_RETRANSMITS] =
+				err_s->to_retransmits;
+	stats->value[BNXT_RE_SEQ_ERR_NAKS_RCVD] =
+				err_s->seq_err_naks_rcvd;
+	stats->value[BNXT_RE_MAX_RETRY_EXCEEDED] =
+				err_s->max_retry_exceeded;
+	stats->value[BNXT_RE_RNR_NAKS_RCVD] =
+				err_s->rnr_naks_rcvd;
+	stats->value[BNXT_RE_MISSING_RESP] =
+				err_s->missing_resp;
+	stats->value[BNXT_RE_UNRECOVERABLE_ERR] =
+				err_s->unrecoverable_err;
+	stats->value[BNXT_RE_BAD_RESP_ERR] =
+				err_s->bad_resp_err;
+	stats->value[BNXT_RE_LOCAL_QP_OP_ERR]	=
+			err_s->local_qp_op_err;
+	stats->value[BNXT_RE_LOCAL_PROTECTION_ERR] =
+			err_s->local_protection_err;
+	stats->value[BNXT_RE_MEM_MGMT_OP_ERR] =
+			err_s->mem_mgmt_op_err;
+	stats->value[BNXT_RE_REMOTE_INVALID_REQ_ERR] =
+			err_s->remote_invalid_req_err;
+	stats->value[BNXT_RE_REMOTE_ACCESS_ERR] =
+			err_s->remote_access_err;
+	stats->value[BNXT_RE_REMOTE_OP_ERR] =
+			err_s->remote_op_err;
+	stats->value[BNXT_RE_DUP_REQ] =
+			err_s->dup_req;
+	stats->value[BNXT_RE_RES_EXCEED_MAX] =
+			err_s->res_exceed_max;
+	stats->value[BNXT_RE_RES_LENGTH_MISMATCH] =
+			err_s->res_length_mismatch;
+	stats->value[BNXT_RE_RES_EXCEEDS_WQE] =
+			err_s->res_exceeds_wqe;
+	stats->value[BNXT_RE_RES_OPCODE_ERR] =
+			err_s->res_opcode_err;
+	stats->value[BNXT_RE_RES_RX_INVALID_RKEY] =
+			err_s->res_rx_invalid_rkey;
+	stats->value[BNXT_RE_RES_RX_DOMAIN_ERR] =
+			err_s->res_rx_domain_err;
+	stats->value[BNXT_RE_RES_RX_NO_PERM] =
+			err_s->res_rx_no_perm;
+	stats->value[BNXT_RE_RES_RX_RANGE_ERR]  =
+			err_s->res_rx_range_err;
+	stats->value[BNXT_RE_RES_TX_INVALID_RKEY] =
+			err_s->res_tx_invalid_rkey;
+	stats->value[BNXT_RE_RES_TX_DOMAIN_ERR] =
+			err_s->res_tx_domain_err;
+	stats->value[BNXT_RE_RES_TX_NO_PERM] =
+			err_s->res_tx_no_perm;
+	stats->value[BNXT_RE_RES_TX_RANGE_ERR]  =
+			err_s->res_tx_range_err;
+	stats->value[BNXT_RE_RES_IRRQ_OFLOW] =
+			err_s->res_irrq_oflow;
+	stats->value[BNXT_RE_RES_UNSUP_OPCODE]  =
+			err_s->res_unsup_opcode;
+	stats->value[BNXT_RE_RES_UNALIGNED_ATOMIC] =
+			err_s->res_unaligned_atomic;
+	stats->value[BNXT_RE_RES_REM_INV_ERR]   =
+			err_s->res_rem_inv_err;
+	stats->value[BNXT_RE_RES_MEM_ERROR] =
+			err_s->res_mem_error;
+	stats->value[BNXT_RE_RES_SRQ_ERR] =
+			err_s->res_srq_err;
+	stats->value[BNXT_RE_RES_CMP_ERR] =
+			err_s->res_cmp_err;
+	stats->value[BNXT_RE_RES_INVALID_DUP_RKEY] =
+			err_s->res_invalid_dup_rkey;
+	stats->value[BNXT_RE_RES_WQE_FORMAT_ERR] =
+			err_s->res_wqe_format_err;
+	stats->value[BNXT_RE_RES_CQ_LOAD_ERR]   =
+			err_s->res_cq_load_err;
+	stats->value[BNXT_RE_RES_SRQ_LOAD_ERR]  =
+			err_s->res_srq_load_err;
+	stats->value[BNXT_RE_RES_TX_PCI_ERR]    =
+			err_s->res_tx_pci_err;
+	stats->value[BNXT_RE_RES_RX_PCI_ERR]    =
+			err_s->res_rx_pci_err;
+	stats->value[BNXT_RE_OUT_OF_SEQ_ERR]    =
+			err_s->res_oos_drop_count;
+}
 
 int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 			    struct rdma_hw_stats *stats,
-			    u8 port, int index)
+			    u32 port, int index)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
-	struct ctx_hw_stats *bnxt_re_stats = rdev->qplib_ctx.stats.dma;
+	struct ctx_hw_stats *hw_stats = NULL;
+	struct bnxt_qplib_roce_stats *err_s = NULL;
 	int rc  = 0;
 
+	hw_stats = rdev->qplib_ctx.stats.dma;
 	if (!port || !stats)
 		return -EINVAL;
 
@@ -128,121 +267,61 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 	stats->value[BNXT_RE_ACTIVE_CQ] = atomic_read(&rdev->cq_count);
 	stats->value[BNXT_RE_ACTIVE_MR] = atomic_read(&rdev->mr_count);
 	stats->value[BNXT_RE_ACTIVE_MW] = atomic_read(&rdev->mw_count);
-	if (bnxt_re_stats) {
+	stats->value[BNXT_RE_ACTIVE_PD] = atomic_read(&rdev->pd_count);
+	stats->value[BNXT_RE_ACTIVE_AH] = atomic_read(&rdev->ah_count);
+
+	if (hw_stats) {
 		stats->value[BNXT_RE_RECOVERABLE_ERRORS] =
-			le64_to_cpu(bnxt_re_stats->tx_bcast_pkts);
-		stats->value[BNXT_RE_RX_DROPS] =
-			le64_to_cpu(bnxt_re_stats->rx_drop_pkts);
+			le64_to_cpu(hw_stats->tx_bcast_pkts);
+		stats->value[BNXT_RE_RX_ERRORS] =
+			le64_to_cpu(hw_stats->rx_error_pkts);
 		stats->value[BNXT_RE_RX_DISCARDS] =
-			le64_to_cpu(bnxt_re_stats->rx_discard_pkts);
+			le64_to_cpu(hw_stats->rx_discard_pkts);
 		stats->value[BNXT_RE_RX_PKTS] =
-			le64_to_cpu(bnxt_re_stats->rx_ucast_pkts);
+			le64_to_cpu(hw_stats->rx_ucast_pkts);
 		stats->value[BNXT_RE_RX_BYTES] =
-			le64_to_cpu(bnxt_re_stats->rx_ucast_bytes);
+			le64_to_cpu(hw_stats->rx_ucast_bytes);
 		stats->value[BNXT_RE_TX_PKTS] =
-			le64_to_cpu(bnxt_re_stats->tx_ucast_pkts);
+			le64_to_cpu(hw_stats->tx_ucast_pkts);
 		stats->value[BNXT_RE_TX_BYTES] =
-			le64_to_cpu(bnxt_re_stats->tx_ucast_bytes);
+			le64_to_cpu(hw_stats->tx_ucast_bytes);
 	}
+	err_s = &rdev->stats.rstat.errs;
 	if (test_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS, &rdev->flags)) {
-		rc = bnxt_qplib_get_roce_stats(&rdev->rcfw, &rdev->stats);
-		if (rc)
+		rc = bnxt_qplib_get_roce_stats(&rdev->rcfw, err_s);
+		if (rc) {
 			clear_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS,
 				  &rdev->flags);
-		stats->value[BNXT_RE_TO_RETRANSMITS] =
-					rdev->stats.to_retransmits;
-		stats->value[BNXT_RE_SEQ_ERR_NAKS_RCVD] =
-					rdev->stats.seq_err_naks_rcvd;
-		stats->value[BNXT_RE_MAX_RETRY_EXCEEDED] =
-					rdev->stats.max_retry_exceeded;
-		stats->value[BNXT_RE_RNR_NAKS_RCVD] =
-					rdev->stats.rnr_naks_rcvd;
-		stats->value[BNXT_RE_MISSING_RESP] =
-					rdev->stats.missing_resp;
-		stats->value[BNXT_RE_UNRECOVERABLE_ERR] =
-					rdev->stats.unrecoverable_err;
-		stats->value[BNXT_RE_BAD_RESP_ERR] =
-					rdev->stats.bad_resp_err;
-		stats->value[BNXT_RE_LOCAL_QP_OP_ERR]	=
-				rdev->stats.local_qp_op_err;
-		stats->value[BNXT_RE_LOCAL_PROTECTION_ERR] =
-				rdev->stats.local_protection_err;
-		stats->value[BNXT_RE_MEM_MGMT_OP_ERR] =
-				rdev->stats.mem_mgmt_op_err;
-		stats->value[BNXT_RE_REMOTE_INVALID_REQ_ERR] =
-				rdev->stats.remote_invalid_req_err;
-		stats->value[BNXT_RE_REMOTE_ACCESS_ERR] =
-				rdev->stats.remote_access_err;
-		stats->value[BNXT_RE_REMOTE_OP_ERR] =
-				rdev->stats.remote_op_err;
-		stats->value[BNXT_RE_DUP_REQ] =
-				rdev->stats.dup_req;
-		stats->value[BNXT_RE_RES_EXCEED_MAX] =
-				rdev->stats.res_exceed_max;
-		stats->value[BNXT_RE_RES_LENGTH_MISMATCH] =
-				rdev->stats.res_length_mismatch;
-		stats->value[BNXT_RE_RES_EXCEEDS_WQE] =
-				rdev->stats.res_exceeds_wqe;
-		stats->value[BNXT_RE_RES_OPCODE_ERR] =
-				rdev->stats.res_opcode_err;
-		stats->value[BNXT_RE_RES_RX_INVALID_RKEY] =
-				rdev->stats.res_rx_invalid_rkey;
-		stats->value[BNXT_RE_RES_RX_DOMAIN_ERR] =
-				rdev->stats.res_rx_domain_err;
-		stats->value[BNXT_RE_RES_RX_NO_PERM] =
-				rdev->stats.res_rx_no_perm;
-		stats->value[BNXT_RE_RES_RX_RANGE_ERR]  =
-				rdev->stats.res_rx_range_err;
-		stats->value[BNXT_RE_RES_TX_INVALID_RKEY] =
-				rdev->stats.res_tx_invalid_rkey;
-		stats->value[BNXT_RE_RES_TX_DOMAIN_ERR] =
-				rdev->stats.res_tx_domain_err;
-		stats->value[BNXT_RE_RES_TX_NO_PERM] =
-				rdev->stats.res_tx_no_perm;
-		stats->value[BNXT_RE_RES_TX_RANGE_ERR]  =
-				rdev->stats.res_tx_range_err;
-		stats->value[BNXT_RE_RES_IRRQ_OFLOW] =
-				rdev->stats.res_irrq_oflow;
-		stats->value[BNXT_RE_RES_UNSUP_OPCODE]  =
-				rdev->stats.res_unsup_opcode;
-		stats->value[BNXT_RE_RES_UNALIGNED_ATOMIC] =
-				rdev->stats.res_unaligned_atomic;
-		stats->value[BNXT_RE_RES_REM_INV_ERR]   =
-				rdev->stats.res_rem_inv_err;
-		stats->value[BNXT_RE_RES_MEM_ERROR] =
-				rdev->stats.res_mem_error;
-		stats->value[BNXT_RE_RES_SRQ_ERR] =
-				rdev->stats.res_srq_err;
-		stats->value[BNXT_RE_RES_CMP_ERR] =
-				rdev->stats.res_cmp_err;
-		stats->value[BNXT_RE_RES_INVALID_DUP_RKEY] =
-				rdev->stats.res_invalid_dup_rkey;
-		stats->value[BNXT_RE_RES_WQE_FORMAT_ERR] =
-				rdev->stats.res_wqe_format_err;
-		stats->value[BNXT_RE_RES_CQ_LOAD_ERR]   =
-				rdev->stats.res_cq_load_err;
-		stats->value[BNXT_RE_RES_SRQ_LOAD_ERR]  =
-				rdev->stats.res_srq_load_err;
-		stats->value[BNXT_RE_RES_TX_PCI_ERR]    =
-				rdev->stats.res_tx_pci_err;
-		stats->value[BNXT_RE_RES_RX_PCI_ERR]    =
-				rdev->stats.res_rx_pci_err;
-		stats->value[BNXT_RE_OUT_OF_SEQ_ERR]    =
-				rdev->stats.res_oos_drop_count;
+			goto done;
+		}
+		if (_is_ext_stats_supported(rdev->dev_attr.dev_cap_flags) &&
+		    !rdev->is_virtfn) {
+			rc = bnxt_re_get_ext_stat(rdev, stats);
+			if (rc) {
+				clear_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS,
+					  &rdev->flags);
+				goto done;
+			}
+		}
+		bnxt_re_copy_err_stats(rdev, stats, err_s);
 	}
 
-	return ARRAY_SIZE(bnxt_re_stat_name);
+done:
+	return bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
+		BNXT_RE_NUM_EXT_COUNTERS : BNXT_RE_NUM_STD_COUNTERS;
 }
 
-struct rdma_hw_stats *bnxt_re_ib_alloc_hw_stats(struct ib_device *ibdev,
-						u8 port_num)
+struct rdma_hw_stats *bnxt_re_ib_alloc_hw_port_stats(struct ib_device *ibdev,
+						     u32 port_num)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(bnxt_re_stat_name) != BNXT_RE_NUM_COUNTERS);
-	/* We support only per port stats */
-	if (!port_num)
-		return NULL;
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	int num_counters = 0;
 
-	return rdma_alloc_hw_stats_struct(bnxt_re_stat_name,
-					  ARRAY_SIZE(bnxt_re_stat_name),
+	if (bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))
+		num_counters = BNXT_RE_NUM_EXT_COUNTERS;
+	else
+		num_counters = BNXT_RE_NUM_STD_COUNTERS;
+
+	return rdma_alloc_hw_stats_struct(bnxt_re_stat_descs, num_counters,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }

@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Tegra host1x Syncpoints
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __HOST1X_SYNCPT_H
@@ -22,6 +11,7 @@
 #include <linux/atomic.h>
 #include <linux/host1x.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/sched.h>
 
 #include "intr.h"
@@ -37,6 +27,8 @@ struct host1x_syncpt_base {
 };
 
 struct host1x_syncpt {
+	struct kref ref;
+
 	unsigned int id;
 	atomic_t min_val;
 	atomic_t max_val;
@@ -44,11 +36,17 @@ struct host1x_syncpt {
 	const char *name;
 	bool client_managed;
 	struct host1x *host;
-	struct host1x_client *client;
 	struct host1x_syncpt_base *base;
 
 	/* interrupt data */
 	struct host1x_syncpt_intr intr;
+
+	/*
+	 * If a submission incrementing this syncpoint fails, lock it so that
+	 * further submission cannot be made until application has handled the
+	 * failure.
+	 */
+	bool locked;
 };
 
 /* Initialize sync point array  */
@@ -122,6 +120,11 @@ u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);
 static inline int host1x_syncpt_is_valid(struct host1x_syncpt *sp)
 {
 	return sp->id < host1x_syncpt_nb_pts(sp->host);
+}
+
+static inline void host1x_syncpt_set_locked(struct host1x_syncpt *sp)
+{
+	sp->locked = true;
 }
 
 #endif

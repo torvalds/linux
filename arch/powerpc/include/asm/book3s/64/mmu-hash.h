@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
 #define _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
 /*
@@ -5,11 +6,6 @@
  *
  * Dave Engebretsen & Mike Corrigan <{engebret|mikejc}@us.ibm.com>
  *   PPC64 rework.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <asm/page.h>
@@ -22,8 +18,8 @@
  * complete pgtable.h but only a portion of it.
  */
 #include <asm/book3s/64/pgtable.h>
-#include <asm/bug.h>
-#include <asm/processor.h>
+#include <asm/book3s/64/slice.h>
+#include <asm/task_size_64.h>
 #include <asm/cpu_has_feature.h>
 
 /*
@@ -90,8 +86,8 @@
 #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
 #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
 #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
-#define HPTE_R_KEY_BIT0		ASM_CONST(0x2000000000000000)
-#define HPTE_R_KEY_BIT1		ASM_CONST(0x1000000000000000)
+#define HPTE_R_KEY_BIT4		ASM_CONST(0x2000000000000000)
+#define HPTE_R_KEY_BIT3		ASM_CONST(0x1000000000000000)
 #define HPTE_R_RPN_SHIFT	12
 #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
 #define HPTE_R_RPN_3_0		ASM_CONST(0x01fffffffffff000)
@@ -107,8 +103,8 @@
 #define HPTE_R_R		ASM_CONST(0x0000000000000100)
 #define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
 #define HPTE_R_KEY_BIT2		ASM_CONST(0x0000000000000800)
-#define HPTE_R_KEY_BIT3		ASM_CONST(0x0000000000000400)
-#define HPTE_R_KEY_BIT4		ASM_CONST(0x0000000000000200)
+#define HPTE_R_KEY_BIT1		ASM_CONST(0x0000000000000400)
+#define HPTE_R_KEY_BIT0		ASM_CONST(0x0000000000000200)
 #define HPTE_R_KEY		(HPTE_R_KEY_LO | HPTE_R_KEY_HI)
 
 #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
@@ -456,7 +452,10 @@ static inline unsigned long hpt_hash(unsigned long vpn,
 
 #define HPTE_LOCAL_UPDATE	0x1
 #define HPTE_NOHPTE_UPDATE	0x2
+#define HPTE_USE_KERNEL_KEY	0x4
 
+long hpte_insert_repeating(unsigned long hash, unsigned long vpn, unsigned long pa,
+			   unsigned long rlags, unsigned long vflags, int psize, int ssize);
 extern int __hash_page_4K(unsigned long ea, unsigned long access,
 			  unsigned long vsid, pte_t *ptep, unsigned long trap,
 			  unsigned long flags, int ssize, int subpage_prot);
@@ -470,6 +469,8 @@ extern int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			unsigned long flags);
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
 		     unsigned long dsisr);
+void low_hash_fault(struct pt_regs *regs, unsigned long address, int rc);
+int __hash_page(unsigned long trap, unsigned long ea, unsigned long dsisr, unsigned long msr);
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, unsigned long flags,
 		     int ssize, unsigned int shift, unsigned int mmu_psize);
@@ -523,7 +524,14 @@ void slb_save_contents(struct slb_entry *slb_ptr);
 void slb_dump_contents(struct slb_entry *slb_ptr);
 
 extern void slb_vmalloc_update(void);
-extern void slb_set_size(u16 size);
+void preload_new_slb_context(unsigned long start, unsigned long sp);
+
+#ifdef CONFIG_PPC_64S_HASH_MMU
+void slb_set_size(u16 size);
+#else
+static inline void slb_set_size(u16 size) { }
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 /*
@@ -581,14 +589,15 @@ extern void slb_set_size(u16 size);
  * For vmalloc and memmap, we use just one context with 512TB. With 64 byte
  * struct page size, we need ony 32 TB in memmap for 2PB (51 bits (MAX_PHYSMEM_BITS)).
  */
-#if (MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
-#define MAX_KERNEL_CTX_CNT	(1UL << (MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
+#if (H_MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
+#define MAX_KERNEL_CTX_CNT	(1UL << (H_MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
 #else
 #define MAX_KERNEL_CTX_CNT	1
 #endif
 
 #define MAX_VMALLOC_CTX_CNT	1
-#define MAX_MEMMAP_CTX_CNT	1
+#define MAX_IO_CTX_CNT		1
+#define MAX_VMEMMAP_CTX_CNT	1
 
 /*
  * 256MB segment
@@ -601,12 +610,12 @@ extern void slb_set_size(u16 size);
  * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
  * because of the modulo operation in vsid scramble.
  *
- * We add one extra context to MIN_USER_CONTEXT so that we can map kernel
- * context easily. The +1 is to map the unused 0xe region mapping.
  */
 #define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
+
+// The + 2 accounts for INVALID_REGION and 1 more to avoid overlap with kernel
 #define MIN_USER_CONTEXT	(MAX_KERNEL_CTX_CNT + MAX_VMALLOC_CTX_CNT + \
-				 MAX_MEMMAP_CTX_CNT + 2)
+				 MAX_IO_CTX_CNT + MAX_VMEMMAP_CTX_CNT + 2)
 
 /*
  * For platforms that support on 65bit VA we limit the context bits
@@ -657,8 +666,8 @@ extern void slb_set_size(u16 size);
 
 /* 4 bits per slice and we have one slice per 1TB */
 #define SLICE_ARRAY_SIZE	(H_PGTABLE_RANGE >> 41)
-#define TASK_SLICE_ARRAY_SZ(x)	((x)->context.slb_addr_limit >> 41)
-
+#define LOW_SLICE_ARRAY_SZ	(BITS_PER_LONG / BITS_PER_BYTE)
+#define TASK_SLICE_ARRAY_SZ(x)	((x)->hash_context->slb_addr_limit >> 41)
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_PPC_SUBPAGE_PROT
@@ -687,11 +696,40 @@ struct subpage_prot_table {
 #define SBP_L3_SHIFT		(SBP_L2_SHIFT + SBP_L2_BITS)
 
 extern void subpage_prot_free(struct mm_struct *mm);
-extern void subpage_prot_init_new_context(struct mm_struct *mm);
 #else
 static inline void subpage_prot_free(struct mm_struct *mm) {}
-static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 #endif /* CONFIG_PPC_SUBPAGE_PROT */
+
+/*
+ * One bit per slice. We have lower slices which cover 256MB segments
+ * upto 4G range. That gets us 16 low slices. For the rest we track slices
+ * in 1TB size.
+ */
+struct slice_mask {
+	u64 low_slices;
+	DECLARE_BITMAP(high_slices, SLICE_NUM_HIGH);
+};
+
+struct hash_mm_context {
+	u16 user_psize; /* page size index */
+
+	/* SLB page size encodings*/
+	unsigned char low_slices_psize[LOW_SLICE_ARRAY_SZ];
+	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long slb_addr_limit;
+#ifdef CONFIG_PPC_64K_PAGES
+	struct slice_mask mask_64k;
+#endif
+	struct slice_mask mask_4k;
+#ifdef CONFIG_HUGETLB_PAGE
+	struct slice_mask mask_16m;
+	struct slice_mask mask_16g;
+#endif
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+	struct subpage_prot_table *spt;
+#endif /* CONFIG_PPC_SUBPAGE_PROT */
+};
 
 #if 0
 /*
@@ -747,7 +785,7 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 	/*
 	 * Bad address. We return VSID 0 for that
 	 */
-	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
+	if ((ea & EA_MASK)  >= H_PGTABLE_RANGE)
 		return 0;
 
 	if (!mmu_has_feature(MMU_FTR_68_BIT_VA))
@@ -767,35 +805,36 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 }
 
 /*
- * For kernel space, we use context ids as below
+ * For kernel space, we use context ids as
  * below. Range is 512TB per context.
  *
  * 0x00001 -  [ 0xc000000000000000 - 0xc001ffffffffffff]
  * 0x00002 -  [ 0xc002000000000000 - 0xc003ffffffffffff]
  * 0x00003 -  [ 0xc004000000000000 - 0xc005ffffffffffff]
  * 0x00004 -  [ 0xc006000000000000 - 0xc007ffffffffffff]
-
- * 0x00005 -  [ 0xd000000000000000 - 0xd001ffffffffffff ]
- * 0x00006 -  Not used - Can map 0xe000000000000000 range.
- * 0x00007 -  [ 0xf000000000000000 - 0xf001ffffffffffff ]
  *
- * So we can compute the context from the region (top nibble) by
- * subtracting 11, or 0xc - 1.
+ * vmap, IO, vmemap
+ *
+ * 0x00005 -  [ 0xc008000000000000 - 0xc009ffffffffffff]
+ * 0x00006 -  [ 0xc00a000000000000 - 0xc00bffffffffffff]
+ * 0x00007 -  [ 0xc00c000000000000 - 0xc00dffffffffffff]
+ *
  */
 static inline unsigned long get_kernel_context(unsigned long ea)
 {
-	unsigned long region_id = REGION_ID(ea);
+	unsigned long region_id = get_region_id(ea);
 	unsigned long ctx;
 	/*
-	 * For linear mapping we do support multiple context
+	 * Depending on Kernel config, kernel region can have one context
+	 * or more.
 	 */
-	if (region_id == KERNEL_REGION_ID) {
+	if (region_id == LINEAR_MAP_REGION_ID) {
 		/*
 		 * We already verified ea to be not beyond the addr limit.
 		 */
-		ctx =  1 + ((ea & ~REGION_MASK) >> MAX_EA_BITS_PER_CONTEXT);
+		ctx =  1 + ((ea & EA_MASK) >> MAX_EA_BITS_PER_CONTEXT);
 	} else
-		ctx = (region_id - 0xc) + MAX_KERNEL_CTX_CNT;
+		ctx = region_id + MAX_KERNEL_CTX_CNT - 1;
 	return ctx;
 }
 
@@ -815,6 +854,32 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 
 unsigned htab_shift_for_mem_size(unsigned long mem_size);
 
-#endif /* __ASSEMBLY__ */
+enum slb_index {
+	LINEAR_INDEX	= 0, /* Kernel linear map  (0xc000000000000000) */
+	KSTACK_INDEX	= 1, /* Kernel stack map */
+};
 
+#define slb_esid_mask(ssize)	\
+	(((ssize) == MMU_SEGSIZE_256M) ? ESID_MASK : ESID_MASK_1T)
+
+static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
+					 enum slb_index index)
+{
+	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | index;
+}
+
+static inline unsigned long __mk_vsid_data(unsigned long vsid, int ssize,
+					   unsigned long flags)
+{
+	return (vsid << slb_vsid_shift(ssize)) | flags |
+		((unsigned long)ssize << SLB_VSID_SSIZE_SHIFT);
+}
+
+static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
+					 unsigned long flags)
+{
+	return __mk_vsid_data(get_kernel_vsid(ea, ssize), ssize, flags);
+}
+
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_ */

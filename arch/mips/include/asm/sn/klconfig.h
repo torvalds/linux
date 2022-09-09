@@ -889,10 +889,6 @@ typedef union {
 extern lboard_t *find_lboard(lboard_t *start, unsigned char type);
 extern klinfo_t *find_component(lboard_t *brd, klinfo_t *kli, unsigned char type);
 extern klinfo_t *find_first_component(lboard_t *brd, unsigned char type);
-extern klcpu_t *nasid_slice_to_cpuinfo(nasid_t, int);
 extern lboard_t *find_lboard_class(lboard_t *start, unsigned char brd_class);
-
-
-extern klcpu_t *sn_get_cpuinfo(cpuid_t cpu);
 
 #endif /* _ASM_SN_KLCONFIG_H */

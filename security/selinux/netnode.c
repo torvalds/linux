@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network node table
  *
@@ -11,21 +12,10 @@
  * This code is heavily based on the "netif" concept originally developed by
  * James Morris <jmorris@redhat.com>
  *   (see security/selinux/netif.c for more information)
- *
  */
 
 /*
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2007
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/types.h>
@@ -64,7 +54,6 @@ struct sel_netnode {
  * if this becomes a problem we can always add a hash table for each address
  * family later */
 
-static LIST_HEAD(sel_netnode_list);
 static DEFINE_SPINLOCK(sel_netnode_lock);
 static struct sel_netnode_bkt sel_netnode_hash[SEL_NETNODE_HASH_SIZE];
 
@@ -118,7 +107,7 @@ static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
 
 	switch (family) {
 	case PF_INET:
-		idx = sel_netnode_hashfn_ipv4(*(__be32 *)addr);
+		idx = sel_netnode_hashfn_ipv4(*(const __be32 *)addr);
 		break;
 	case PF_INET6:
 		idx = sel_netnode_hashfn_ipv6(addr);
@@ -132,7 +121,7 @@ static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
 		if (node->nsec.family == family)
 			switch (family) {
 			case PF_INET:
-				if (node->nsec.addr.ipv4 == *(__be32 *)addr)
+				if (node->nsec.addr.ipv4 == *(const __be32 *)addr)
 					return node;
 				break;
 			case PF_INET6:
@@ -175,8 +164,9 @@ static void sel_netnode_insert(struct sel_netnode *node)
 	if (sel_netnode_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
 		struct sel_netnode *tail;
 		tail = list_entry(
-			rcu_dereference_protected(sel_netnode_hash[idx].list.prev,
-						  lockdep_is_held(&sel_netnode_lock)),
+			rcu_dereference_protected(
+				list_tail_rcu(&sel_netnode_hash[idx].list),
+				lockdep_is_held(&sel_netnode_lock)),
 			struct sel_netnode, list);
 		list_del_rcu(&tail->list);
 		kfree_rcu(tail, rcu);
@@ -191,7 +181,7 @@ static void sel_netnode_insert(struct sel_netnode *node)
  * @sid: node SID
  *
  * Description:
- * This function determines the SID of a network address by quering the
+ * This function determines the SID of a network address by querying the
  * security policy.  The result is added to the network address table to
  * speedup future queries.  Returns zero on success, negative values on
  * failure.
@@ -199,9 +189,9 @@ static void sel_netnode_insert(struct sel_netnode *node)
  */
 static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 {
-	int ret = -ENOMEM;
+	int ret;
 	struct sel_netnode *node;
-	struct sel_netnode *new = NULL;
+	struct sel_netnode *new;
 
 	spin_lock_bh(&sel_netnode_lock);
 	node = sel_netnode_find(addr, family);
@@ -210,38 +200,36 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 		spin_unlock_bh(&sel_netnode_lock);
 		return 0;
 	}
+
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new == NULL)
-		goto out;
 	switch (family) {
 	case PF_INET:
 		ret = security_node_sid(&selinux_state, PF_INET,
 					addr, sizeof(struct in_addr), sid);
-		new->nsec.addr.ipv4 = *(__be32 *)addr;
+		if (new)
+			new->nsec.addr.ipv4 = *(__be32 *)addr;
 		break;
 	case PF_INET6:
 		ret = security_node_sid(&selinux_state, PF_INET6,
 					addr, sizeof(struct in6_addr), sid);
-		new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
+		if (new)
+			new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
 		break;
 	default:
 		BUG();
 		ret = -EINVAL;
 	}
-	if (ret != 0)
-		goto out;
+	if (ret == 0 && new) {
+		new->nsec.family = family;
+		new->nsec.sid = *sid;
+		sel_netnode_insert(new);
+	} else
+		kfree(new);
 
-	new->nsec.family = family;
-	new->nsec.sid = *sid;
-	sel_netnode_insert(new);
-
-out:
 	spin_unlock_bh(&sel_netnode_lock);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		pr_warn("SELinux: failure in %s(), unable to determine network node label\n",
 			__func__);
-		kfree(new);
-	}
 	return ret;
 }
 
@@ -303,7 +291,7 @@ static __init int sel_netnode_init(void)
 {
 	int iter;
 
-	if (!selinux_enabled)
+	if (!selinux_enabled_boot)
 		return 0;
 
 	for (iter = 0; iter < SEL_NETNODE_HASH_SIZE; iter++) {

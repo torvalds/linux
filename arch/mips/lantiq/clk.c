@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  * Copyright (C) 2010 Thomas Langer <thomas.langer@lantiq.com>
  * Copyright (C) 2010 John Crispin <john@phrozen.org>
@@ -159,6 +157,18 @@ void clk_deactivate(struct clk *clk)
 		clk->deactivate(clk);
 }
 EXPORT_SYMBOL(clk_deactivate);
+
+struct clk *clk_get_parent(struct clk *clk)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(clk_get_parent);
+
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_set_parent);
 
 static inline u32 get_counter_resolution(void)
 {

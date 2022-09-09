@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  * Copyright (c) BayLibre, SAS.
  * Author : Neil Armstrong <narmstrong@baylibre.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -1702,6 +1694,8 @@ static const struct qcom_cc_desc gcc_mdm9615_desc = {
 	.num_clks = ARRAY_SIZE(gcc_mdm9615_clks),
 	.resets = gcc_mdm9615_resets,
 	.num_resets = ARRAY_SIZE(gcc_mdm9615_resets),
+	.clk_hws = gcc_mdm9615_hws,
+	.num_clk_hws = ARRAY_SIZE(gcc_mdm9615_hws),
 };
 
 static const struct of_device_id gcc_mdm9615_match_table[] = {
@@ -1712,20 +1706,11 @@ MODULE_DEVICE_TABLE(of, gcc_mdm9615_match_table);
 
 static int gcc_mdm9615_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
-	int ret;
-	int i;
 
 	regmap = qcom_cc_map(pdev, &gcc_mdm9615_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-
-	for (i = 0; i < ARRAY_SIZE(gcc_mdm9615_hws); i++) {
-		ret = devm_clk_hw_register(dev, gcc_mdm9615_hws[i]);
-		if (ret)
-			return ret;
-	}
 
 	return qcom_cc_really_probe(pdev, &gcc_mdm9615_desc, regmap);
 }

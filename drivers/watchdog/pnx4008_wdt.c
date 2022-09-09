@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/char/watchdog/pnx4008_wdt.c
  *
@@ -11,10 +12,6 @@
  * 2005-2006 (c) MontaVista Software, Inc.
  *
  * (C) 2012 Wolfram Sang, Pengutronix
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -33,7 +30,6 @@
 #include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
-#include <mach/hardware.h>
 
 /* WatchDog Timer - Chapter 23 Page 207 */
 
@@ -183,54 +179,48 @@ static struct watchdog_device pnx4008_wdd = {
 	.max_timeout = MAX_HEARTBEAT,
 };
 
+static void pnx4008_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int pnx4008_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *r;
+	struct device *dev = &pdev->dev;
 	int ret = 0;
 
-	watchdog_init_timeout(&pnx4008_wdd, heartbeat, &pdev->dev);
+	watchdog_init_timeout(&pnx4008_wdd, heartbeat, dev);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt_base = devm_ioremap_resource(&pdev->dev, r);
+	wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt_base))
 		return PTR_ERR(wdt_base);
 
-	wdt_clk = devm_clk_get(&pdev->dev, NULL);
+	wdt_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(wdt_clk))
 		return PTR_ERR(wdt_clk);
 
 	ret = clk_prepare_enable(wdt_clk);
 	if (ret)
 		return ret;
+	ret = devm_add_action_or_reset(dev, pnx4008_clk_disable_unprepare,
+				       wdt_clk);
+	if (ret)
+		return ret;
 
 	pnx4008_wdd.bootstatus = (readl(WDTIM_RES(wdt_base)) & WDOG_RESET) ?
 			WDIOF_CARDRESET : 0;
-	pnx4008_wdd.parent = &pdev->dev;
+	pnx4008_wdd.parent = dev;
 	watchdog_set_nowayout(&pnx4008_wdd, nowayout);
 	watchdog_set_restart_priority(&pnx4008_wdd, 128);
 
-	pnx4008_wdt_stop(&pnx4008_wdd);	/* disable for now */
+	if (readl(WDTIM_CTRL(wdt_base)) & COUNT_ENAB)
+		set_bit(WDOG_HW_RUNNING, &pnx4008_wdd.status);
 
-	ret = watchdog_register_device(&pnx4008_wdd);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot register watchdog device\n");
-		goto disable_clk;
-	}
+	ret = devm_watchdog_register_device(dev, &pnx4008_wdd);
+	if (ret < 0)
+		return ret;
 
-	dev_info(&pdev->dev, "heartbeat %d sec\n", pnx4008_wdd.timeout);
-
-	return 0;
-
-disable_clk:
-	clk_disable_unprepare(wdt_clk);
-	return ret;
-}
-
-static int pnx4008_wdt_remove(struct platform_device *pdev)
-{
-	watchdog_unregister_device(&pnx4008_wdd);
-
-	clk_disable_unprepare(wdt_clk);
+	dev_info(dev, "heartbeat %d sec\n", pnx4008_wdd.timeout);
 
 	return 0;
 }
@@ -249,7 +239,6 @@ static struct platform_driver platform_wdt_driver = {
 		.of_match_table = of_match_ptr(pnx4008_wdt_match),
 	},
 	.probe = pnx4008_wdt_probe,
-	.remove = pnx4008_wdt_remove,
 };
 
 module_platform_driver(platform_wdt_driver);

@@ -1,0 +1,22 @@
+What:		/sys/devices/platform/<platform>/etr3
+Date:		Apr 2021
+KernelVersion:	5.13
+Contact:	"Tomas Winkler" <tomas.winkler@intel.com>
+Description:
+		The file exposes "Extended Test Mode Register 3" global
+		reset bits. The bits are used during an Intel platform
+		manufacturing process to indicate that consequent reset
+		of the platform is a "global reset". This type of reset
+		is required in order for manufacturing configurations
+		to take effect.
+
+		Display global reset setting bits for PMC.
+
+			* bit 31 - global reset is locked
+			* bit 20 - global reset is set
+
+		Writing bit 20 value to the etr3 will induce
+		a platform "global reset" upon consequent platform reset,
+		in case the register is not locked.
+		The "global reset bit" should be locked on a production
+		system and the file is in read-only mode.

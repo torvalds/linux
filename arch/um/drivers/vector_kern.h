@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2002 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #ifndef __UM_VECTOR_KERN_H
@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+
 #include "vector_user.h"
 
 /* Queue structure specially adapted for multiple enqueue/dequeue
@@ -29,9 +30,12 @@
 #define VECTOR_TX (1 << 1)
 #define VECTOR_BPF (1 << 2)
 #define VECTOR_QDISC_BYPASS (1 << 3)
+#define VECTOR_BPF_FLASH (1 << 4)
 
 #define ETH_MAX_PACKET 1500
 #define ETH_HEADER_OTHER 32 /* just in case someone decides to go mad on QnQ */
+
+#define MAX_FILTER_PROG (2 << 16)
 
 struct vector_queue {
 	struct mmsghdr *mmsg_vector;
@@ -69,6 +73,7 @@ struct vector_private {
 	struct list_head list;
 	spinlock_t lock;
 	struct net_device *dev;
+	struct napi_struct		napi	____cacheline_aligned;
 
 	int unit;
 
@@ -112,17 +117,20 @@ struct vector_private {
 
 	spinlock_t stats_lock;
 
-	struct tasklet_struct tx_poll;
 	bool rexmit_scheduled;
 	bool opened;
 	bool in_write_poll;
+	bool in_error;
+
+	/* guest allowed to use ethtool flash to load bpf */
+	bool bpf_via_flash;
 
 	/* ethtool stats */
 
 	struct vector_estats estats;
-	void *bpf;
+	struct sock_fprog *bpf;
 
-	char user[0];
+	char user[];
 };
 
 extern int build_transport_data(struct vector_private *vp);

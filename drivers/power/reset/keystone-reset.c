@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI keystone reboot driver
  *
- * Copyright (C) 2014 Texas Instruments Incorporated. http://www.ti.com/
+ * Copyright (C) 2014 Texas Instruments Incorporated. https://www.ti.com/
  *
  * Author: Ivan Khoronzhuk <ivan.khoronzhuk@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>
@@ -74,6 +71,7 @@ static const struct of_device_id rsctrl_of_match[] = {
 	{.compatible = "ti,keystone-reset", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, rsctrl_of_match);
 
 static int rsctrl_probe(struct platform_device *pdev)
 {

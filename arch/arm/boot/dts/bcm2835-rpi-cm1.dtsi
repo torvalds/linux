@@ -5,9 +5,14 @@
 
 / {
 	leds {
-		act {
+		led-act {
 			gpios = <&gpio 47 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x20000000>;
 	};
 
 	reg_3v3: fixed-regulator {

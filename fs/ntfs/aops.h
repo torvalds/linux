@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /**
  * aops.h - Defines for NTFS kernel address space operations and page cache
  *	    handling.  Part of the Linux-NTFS project.
  *
  * Copyright (c) 2001-2004 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
- *
- * This program/include file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as published
- * by the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program/include file is distributed in the hope that it will be
- * useful, but WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program (in the main directory of the Linux-NTFS
- * distribution in the file COPYING); if not, write to the Free Software
- * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _LINUX_NTFS_AOPS_H
@@ -51,9 +37,9 @@ static inline void ntfs_unmap_page(struct page *page)
  * Read a page from the page cache of the address space @mapping at position
  * @index, where @index is in units of PAGE_SIZE, and not in bytes.
  *
- * If the page is not in memory it is loaded from disk first using the readpage
- * method defined in the address space operations of @mapping and the page is
- * added to the page cache of @mapping in the process.
+ * If the page is not in memory it is loaded from disk first using the
+ * read_folio method defined in the address space operations of @mapping
+ * and the page is added to the page cache of @mapping in the process.
  *
  * If the page belongs to an mst protected attribute and it is marked as such
  * in its ntfs inode (NInoMstProtected()) the mst fixups are applied but no
@@ -88,13 +74,8 @@ static inline struct page *ntfs_map_page(struct address_space *mapping,
 {
 	struct page *page = read_mapping_page(mapping, index, NULL);
 
-	if (!IS_ERR(page)) {
+	if (!IS_ERR(page))
 		kmap(page);
-		if (!PageError(page))
-			return page;
-		ntfs_unmap_page(page);
-		return ERR_PTR(-EIO);
-	}
 	return page;
 }
 

@@ -13,8 +13,8 @@
 
 #include <linux/errno.h>
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * char *__strncpy_user(char *dst, const char *src, size_t len)
@@ -45,12 +45,11 @@
 #   a9/ tmp
 #   a10/ tmp
 #   a11/ dst
-#   a12/ tmp
 
 .text
 ENTRY(__strncpy_user)
 
-	entry	sp, 16		# minimal stack frame
+	abi_entry_default
 	# a2/ dst, a3/ src, a4/ len
 	mov	a11, a2		# leave dst in return value register
 	beqz	a4, .Lret	# if len is zero
@@ -61,7 +60,7 @@ ENTRY(__strncpy_user)
 	bbsi.l	a3, 0, .Lsrc1mod2 # if only  8-bit aligned
 	bbsi.l	a3, 1, .Lsrc2mod4 # if only 16-bit aligned
 .Lsrcaligned:	# return here when src is word-aligned
-	srli	a12, a4, 2	# number of loop iterations with 4B per loop
+	srli	a10, a4, 2	# number of loop iterations with 4B per loop
 	movi	a9, 3
 	bnone	a11, a9, .Laligned
 	j	.Ldstunaligned
@@ -93,7 +92,7 @@ EX(10f)	s8i	a9, a11, 0		# store byte 0
 	bnez	a4, .Lsrcaligned	# if len is nonzero
 .Lret:
 	sub	a2, a11, a2		# compute strlen
-	retw
+	abi_ret_default
 
 /*
  * dst is word-aligned, src is word-aligned
@@ -102,11 +101,11 @@ EX(10f)	s8i	a9, a11, 0		# store byte 0
 	.byte	0		# (0 mod 4 alignment for LBEG)
 .Laligned:
 #if XCHAL_HAVE_LOOPS
-	loopnez	a12, .Loop1done
+	loopnez	a10, .Loop1done
 #else
-	beqz	a12, .Loop1done
-	slli	a12, a12, 2
-	add	a12, a12, a11	# a12 = end of last 4B chunck
+	beqz	a10, .Loop1done
+	slli	a10, a10, 2
+	add	a10, a10, a11	# a10 = end of last 4B chunck
 #endif
 .Loop1:
 EX(11f)	l32i	a9, a3, 0		# get word from src
@@ -118,7 +117,7 @@ EX(10f)	s32i	a9, a11, 0		# store word to dst
 	bnone	a9, a8, .Lz3		# if byte 3 is zero
 	addi	a11, a11, 4		# advance dst pointer
 #if !XCHAL_HAVE_LOOPS
-	blt	a11, a12, .Loop1
+	blt	a11, a10, .Loop1
 #endif
 
 .Loop1done:
@@ -148,14 +147,14 @@ EX(10f)	s8i	a9, a11, 0
 .Lz3:	# byte 3 is zero
 	addi	a11, a11, 3		# advance dst pointer
 	sub	a2, a11, a2		# compute strlen
-	retw
+	abi_ret_default
 .Lz0:	# byte 0 is zero
 #ifdef __XTENSA_EB__
 	movi	a9, 0
 #endif /* __XTENSA_EB__ */
 EX(10f)	s8i	a9, a11, 0
 	sub	a2, a11, a2		# compute strlen
-	retw
+	abi_ret_default
 .Lz1:	# byte 1 is zero
 #ifdef __XTENSA_EB__
 	extui   a9, a9, 16, 16
@@ -163,7 +162,7 @@ EX(10f)	s8i	a9, a11, 0
 EX(10f)	s16i	a9, a11, 0
 	addi	a11, a11, 1		# advance dst pointer
 	sub	a2, a11, a2		# compute strlen
-	retw
+	abi_ret_default
 .Lz2:	# byte 2 is zero
 #ifdef __XTENSA_EB__
 	extui   a9, a9, 16, 16
@@ -173,7 +172,7 @@ EX(10f)	s16i	a9, a11, 0
 EX(10f)	s8i	a9, a11, 2
 	addi	a11, a11, 2		# advance dst pointer
 	sub	a2, a11, a2		# compute strlen
-	retw
+	abi_ret_default
 
 	.align	4		# 1 mod 4 alignment for LOOPNEZ
 	.byte	0		# (0 mod 4 alignment for LBEG)
@@ -185,7 +184,7 @@ EX(10f)	s8i	a9, a11, 2
 	loopnez	a4, .Lunalignedend
 #else
 	beqz	a4, .Lunalignedend
-	add	a12, a11, a4		# a12 = ending address
+	add	a10, a11, a4		# a10 = ending address
 #endif /* XCHAL_HAVE_LOOPS */
 .Lnextbyte:
 EX(11f)	l8ui	a9, a3, 0
@@ -194,12 +193,12 @@ EX(10f)	s8i	a9, a11, 0
 	beqz	a9, .Lunalignedend
 	addi	a11, a11, 1
 #if !XCHAL_HAVE_LOOPS
-	blt	a11, a12, .Lnextbyte
+	blt	a11, a10, .Lnextbyte
 #endif
 
 .Lunalignedend:
 	sub	a2, a11, a2		# compute strlen
-	retw
+	abi_ret_default
 
 ENDPROC(__strncpy_user)
 
@@ -214,4 +213,4 @@ ENDPROC(__strncpy_user)
 10:
 11:
 	movi	a2, -EFAULT
-	retw
+	abi_ret_default

@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
  * This file contains AppArmor lib definitions
  *
  * 2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_LIB_H
@@ -16,6 +12,7 @@
 
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/lsm_hooks.h>
 
 #include "match.h"
 
@@ -25,6 +22,11 @@
  */
 
 #define DEBUG_ON (aa_g_debug)
+/*
+ * split individual debug cases out in preparation for finer grained
+ * debug controls in the future.
+ */
+#define AA_DEBUG_LABEL DEBUG_ON
 #define dbg_printk(__fmt, __args...) pr_debug(__fmt, ##__args)
 #define AA_DEBUG(fmt, args...)						\
 	do {								\
@@ -34,12 +36,17 @@
 
 #define AA_WARN(X) WARN((X), "APPARMOR WARN %s: %s\n", __func__, #X)
 
-#define AA_BUG(X, args...) AA_BUG_FMT((X), "" args)
+#define AA_BUG(X, args...)						    \
+	do {								    \
+		_Pragma("GCC diagnostic ignored \"-Wformat-zero-length\""); \
+		AA_BUG_FMT((X), "" args);				    \
+		_Pragma("GCC diagnostic warning \"-Wformat-zero-length\""); \
+	} while (0)
 #ifdef CONFIG_SECURITY_APPARMOR_DEBUG_ASSERTS
 #define AA_BUG_FMT(X, fmt, args...)					\
 	WARN((X), "AppArmor WARN %s: (" #X "): " fmt, __func__, ##args)
 #else
-#define AA_BUG_FMT(X, fmt, args...)
+#define AA_BUG_FMT(X, fmt, args...) no_printk(fmt, ##args)
 #endif
 
 #define AA_ERROR(fmt, args...)						\
@@ -54,6 +61,9 @@ char *aa_split_fqname(char *args, char **ns_name);
 const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 			     size_t *ns_len);
 void aa_info_message(const char *str);
+
+/* Security blob offsets */
+extern struct lsm_blob_sizes apparmor_blob_sizes;
 
 /**
  * aa_strneq - compare null terminated @str to a non null terminated substring

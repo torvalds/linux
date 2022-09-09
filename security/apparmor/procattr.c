@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include "include/apparmor.h"
@@ -24,8 +20,6 @@
  * aa_getprocattr - Return the profile information for @profile
  * @profile: the profile to print profile info about  (NOT NULL)
  * @string: Returns - string containing the profile info (NOT NULL)
- *
- * Returns: length of @string on success else error on failure
  *
  * Requires: profile != NULL
  *
@@ -96,7 +90,7 @@ static char *split_token_from_name(const char *op, char *args, u64 *token)
 }
 
 /**
- * aa_setprocattr_chagnehat - handle procattr interface to change_hat
+ * aa_setprocattr_changehat - handle procattr interface to change_hat
  * @args: args received from writing to /proc/<pid>/attr/current (NOT NULL)
  * @size: size of the args
  * @flags: set of flags governing behavior

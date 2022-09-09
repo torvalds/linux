@@ -30,19 +30,6 @@
 
 #include <nvif/user.h>
 
-void
-OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
-{
-	bool is_iomem;
-	u32 *mem = ttm_kmap_obj_virtual(&chan->push.buffer->kmap, &is_iomem);
-	mem = &mem[chan->dma.cur];
-	if (is_iomem)
-		memcpy_toio((void __force __iomem *)mem, data, nr_dwords * 4);
-	else
-		memcpy(mem, data, nr_dwords * 4);
-	chan->dma.cur += nr_dwords;
-}
-
 /* Fetch and adjust GPU GET pointer
  *
  * Returns:
@@ -118,7 +105,7 @@ nv50_dma_push_wait(struct nouveau_channel *chan, int count)
 		}
 
 		if ((++cnt & 0xff) == 0) {
-			DRM_UDELAY(1);
+			udelay(1);
 			if (cnt > 100000)
 				return -EBUSY;
 		}

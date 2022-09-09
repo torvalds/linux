@@ -227,7 +227,7 @@ incompetence will grudgingly admit that you at least didn't try to weasel
 out of it.
 
 Then make the developer who really screwed up (if you can find them) know
-**in_private** that they screwed up.  Not just so they can avoid it in the
+**in private** that they screwed up.  Not just so they can avoid it in the
 future, but so that they know they owe you one.  And, perhaps even more
 importantly, they're also likely the person who can fix it.  Because, let's
 face it, it sure ain't you.

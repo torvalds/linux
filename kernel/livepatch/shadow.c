@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * shadow.c - Shadow Variables
  *
  * Copyright (C) 2014 Josh Poimboeuf <jpoimboe@redhat.com>
  * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
  * Copyright (C) 2017 Joe Lawrence <joe.lawrence@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -284,12 +272,12 @@ void klp_shadow_free(void *obj, unsigned long id, klp_shadow_dtor_t dtor)
 EXPORT_SYMBOL_GPL(klp_shadow_free);
 
 /**
- * klp_shadow_free_all() - detach and free all <*, id> shadow variables
+ * klp_shadow_free_all() - detach and free all <_, id> shadow variables
  * @id:		data identifier
  * @dtor:	custom callback that can be used to unregister the variable
  *		and/or free data that the shadow variable points to (optional)
  *
- * This function releases the memory for all <*, id> shadow variable
+ * This function releases the memory for all <_, id> shadow variable
  * instances, callers should stop referencing them accordingly.
  */
 void klp_shadow_free_all(unsigned long id, klp_shadow_dtor_t dtor)
@@ -300,7 +288,7 @@ void klp_shadow_free_all(unsigned long id, klp_shadow_dtor_t dtor)
 
 	spin_lock_irqsave(&klp_shadow_lock, flags);
 
-	/* Delete all <*, id> from hash */
+	/* Delete all <_, id> from hash */
 	hash_for_each(klp_shadow_hash, i, shadow, node) {
 		if (klp_shadow_match(shadow, shadow->obj, id))
 			klp_shadow_free_struct(shadow, dtor);

@@ -9,7 +9,7 @@ Introduction
 Architecture
 ============
 
-Input subsystem  a collection of drivers that is designed to support
+Input subsystem is a collection of drivers that is designed to support
 all input devices under Linux. Most of the drivers reside in
 drivers/input, although quite a few live in drivers/hid and
 drivers/platform.
@@ -50,7 +50,7 @@ will be available as a character device on major 13, minor 63::
 
 	crw-r--r--   1 root     root      13,  63 Mar 28 22:45 mice
 
-This device usually created automatically by the system. The commands
+This device is usually created automatically by the system. The commands
 to create it by hand are::
 
 	cd /dev
@@ -180,7 +180,7 @@ whole suite. It handles all HID devices, and because there is a very
 wide variety of them, and because the USB HID specification isn't
 simple, it needs to be this big.
 
-Currently, it handles USB mice, joysticks, gamepads, steering wheels
+Currently, it handles USB mice, joysticks, gamepads, steering wheels,
 keyboards, trackballs and digitizers.
 
 However, USB uses HID also for monitor controls, speaker controls, UPSs,
@@ -188,7 +188,7 @@ LCDs and many other purposes.
 
 The monitor and speaker controls should be easy to add to the hid/input
 interface, but for the UPSs and LCDs it doesn't make much sense. For this,
-the hiddev interface was designed. See Documentation/hid/hiddev.txt
+the hiddev interface was designed. See Documentation/hid/hiddev.rst
 for more information about it.
 
 The usage of the usbhid module is very simple, it takes no parameters,
@@ -268,7 +268,7 @@ events on a read. Their layout is::
     };
 
 ``time`` is the timestamp, it returns the time at which the event happened.
-Type is for example EV_REL for relative moment, EV_KEY for a keypress or
+Type is for example EV_REL for relative movement, EV_KEY for a keypress or
 release. More types are defined in include/uapi/linux/input-event-codes.h.
 
 ``code`` is event code, for example REL_X or KEY_BACKSPACE, again a complete

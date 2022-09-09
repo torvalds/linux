@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,rpmhcc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. RPMh Clocks Bindings
+
+maintainers:
+  - Taniya Das <tdas@codeaurora.org>
+
+description: |
+  Resource Power Manager Hardened (RPMh) manages shared resources on
+  some Qualcomm Technologies Inc. SoCs. It accepts clock requests from
+  other hardware subsystems via RSC to control clocks.
+
+properties:
+  compatible:
+    enum:
+      - qcom,sc7180-rpmh-clk
+      - qcom,sc7280-rpmh-clk
+      - qcom,sc8180x-rpmh-clk
+      - qcom,sc8280xp-rpmh-clk
+      - qcom,sdm845-rpmh-clk
+      - qcom,sdx55-rpmh-clk
+      - qcom,sdx65-rpmh-clk
+      - qcom,sm6350-rpmh-clk
+      - qcom,sm8150-rpmh-clk
+      - qcom,sm8250-rpmh-clk
+      - qcom,sm8350-rpmh-clk
+      - qcom,sm8450-rpmh-clk
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: xo
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  # Example for GCC for SDM845: The below node should be defined inside
+  # &apps_rsc node.
+  - |
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    rpmhcc: clock-controller {
+      compatible = "qcom,sdm845-rpmh-clk";
+      clocks = <&xo_board>;
+      clock-names = "xo";
+      #clock-cells = <1>;
+    };
+...

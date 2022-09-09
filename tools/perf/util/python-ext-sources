@@ -6,20 +6,24 @@
 #
 
 util/python.c
-util/ctype.c
+../lib/ctype.c
+util/cap.c
 util/evlist.c
 util/evsel.c
+util/evsel_fprintf.c
+util/perf_event_attr_fprintf.c
 util/cpumap.c
 util/memswap.c
 util/mmap.c
 util/namespaces.c
 ../lib/bitmap.c
 ../lib/find_bit.c
+../lib/list_sort.c
 ../lib/hweight.c
+../lib/string.c
 ../lib/vsprintf.c
 util/thread_map.c
 util/util.c
-util/xyarray.c
 util/cgroup.c
 util/parse-branch-options.c
 util/rblist.c
@@ -31,3 +35,9 @@ util/trace-event.c
 util/string.c
 util/symbol_fprintf.c
 util/units.c
+util/affinity.c
+util/rwsem.c
+util/hashmap.c
+util/perf_regs.c
+util/pmu-hybrid.c
+util/fncache.c

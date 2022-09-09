@@ -1,7 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
 # Translate the bits making up a GFP mask
 # (c) 2009, Mel Gorman <mel@csn.ul.ie>
-# Licensed under the terms of the GNU GPL License version 2
 SOURCE=
 GFPMASK=none
 

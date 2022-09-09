@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014 Belkin Inc.
  * Copyright 2015 Andrew Lunn <andrew@lunn.ch>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/i2c.h>
@@ -16,6 +13,7 @@
 #include <linux/slab.h>
 
 #define TLC591XX_MAX_LEDS	16
+#define TLC591XX_MAX_BRIGHTNESS	256
 
 #define TLC591XX_REG_MODE1	0x00
 #define MODE1_RESPON_ADDR_MASK	0xF0
@@ -115,11 +113,11 @@ tlc591xx_brightness_set(struct led_classdev *led_cdev,
 	struct tlc591xx_priv *priv = led->priv;
 	int err;
 
-	switch (brightness) {
+	switch ((int)brightness) {
 	case 0:
 		err = tlc591xx_set_ledout(priv, led, LEDOUT_OFF);
 		break;
-	case LED_FULL:
+	case TLC591XX_MAX_BRIGHTNESS:
 		err = tlc591xx_set_ledout(priv, led, LEDOUT_ON);
 		break;
 	default:
@@ -128,51 +126,6 @@ tlc591xx_brightness_set(struct led_classdev *led_cdev,
 			err = tlc591xx_set_pwm(priv, led, brightness);
 	}
 
-	return err;
-}
-
-static void
-tlc591xx_destroy_devices(struct tlc591xx_priv *priv, unsigned int j)
-{
-	int i = j;
-
-	while (--i >= 0) {
-		if (priv->leds[i].active)
-			led_classdev_unregister(&priv->leds[i].ldev);
-	}
-}
-
-static int
-tlc591xx_configure(struct device *dev,
-		   struct tlc591xx_priv *priv,
-		   const struct tlc591xx *tlc591xx)
-{
-	unsigned int i;
-	int err = 0;
-
-	tlc591xx_set_mode(priv->regmap, MODE2_DIM);
-	for (i = 0; i < TLC591XX_MAX_LEDS; i++) {
-		struct tlc591xx_led *led = &priv->leds[i];
-
-		if (!led->active)
-			continue;
-
-		led->priv = priv;
-		led->led_no = i;
-		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;
-		led->ldev.max_brightness = LED_FULL;
-		err = led_classdev_register(dev, &led->ldev);
-		if (err < 0) {
-			dev_err(dev, "couldn't register LED %s\n",
-				led->ldev.name);
-			goto exit;
-		}
-	}
-
-	return 0;
-
-exit:
-	tlc591xx_destroy_devices(priv, i);
 	return err;
 }
 
@@ -195,22 +148,21 @@ static int
 tlc591xx_probe(struct i2c_client *client,
 	       const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_node *np, *child;
 	struct device *dev = &client->dev;
-	const struct of_device_id *match;
 	const struct tlc591xx *tlc591xx;
 	struct tlc591xx_priv *priv;
 	int err, count, reg;
 
-	match = of_match_device(of_tlc591xx_leds_match, dev);
-	if (!match)
-		return -ENODEV;
-
-	tlc591xx = match->data;
+	np = dev_of_node(dev);
 	if (!np)
 		return -ENODEV;
 
-	count = of_get_child_count(np);
+	tlc591xx = device_get_match_data(dev);
+	if (!tlc591xx)
+		return -ENODEV;
+
+	count = of_get_available_child_count(np);
 	if (!count || count > tlc591xx->max_leds)
 		return -EINVAL;
 
@@ -228,7 +180,16 @@ tlc591xx_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, priv);
 
-	for_each_child_of_node(np, child) {
+	err = tlc591xx_set_mode(priv->regmap, MODE2_DIM);
+	if (err < 0)
+		return err;
+
+	for_each_available_child_of_node(np, child) {
+		struct tlc591xx_led *led;
+		struct led_init_data init_data = {};
+
+		init_data.fwnode = of_fwnode_handle(child);
+
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err) {
 			of_node_put(child);
@@ -239,22 +200,22 @@ tlc591xx_probe(struct i2c_client *client,
 			of_node_put(child);
 			return -EINVAL;
 		}
-		priv->leds[reg].active = true;
-		priv->leds[reg].ldev.name =
-			of_get_property(child, "label", NULL) ? : child->name;
-		priv->leds[reg].ldev.default_trigger =
-			of_get_property(child, "linux,default-trigger", NULL);
+		led = &priv->leds[reg];
+
+		led->active = true;
+		led->priv = priv;
+		led->led_no = reg;
+		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;
+		led->ldev.max_brightness = TLC591XX_MAX_BRIGHTNESS;
+		err = devm_led_classdev_register_ext(dev, &led->ldev,
+						     &init_data);
+		if (err < 0) {
+			of_node_put(child);
+			return dev_err_probe(dev, err,
+					     "couldn't register LED %s\n",
+					     led->ldev.name);
+		}
 	}
-	return tlc591xx_configure(dev, priv, tlc591xx);
-}
-
-static int
-tlc591xx_remove(struct i2c_client *client)
-{
-	struct tlc591xx_priv *priv = i2c_get_clientdata(client);
-
-	tlc591xx_destroy_devices(priv, TLC591XX_MAX_LEDS);
-
 	return 0;
 }
 
@@ -271,7 +232,6 @@ static struct i2c_driver tlc591xx_driver = {
 		.of_match_table = of_match_ptr(of_tlc591xx_leds_match),
 	},
 	.probe = tlc591xx_probe,
-	.remove = tlc591xx_remove,
 	.id_table = tlc591xx_id,
 };
 

@@ -64,7 +64,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led {
 			label = "m3:blue:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};
@@ -82,13 +82,9 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_mii_pins>;
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &i2c0 {
@@ -109,6 +105,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
+};
+
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mmc0 {

@@ -3,7 +3,7 @@
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -207,8 +207,6 @@ acpi_ns_dump_object_paths(acpi_object_type type,
  */
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
 
-void acpi_ns_exec_module_code_list(void);
-
 /*
  * nsarguments - Argument count/type checking for predefined/reserved names
  */
@@ -257,6 +255,8 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node);
 u32
 acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 			      char *full_path, u32 path_size, u8 no_trailing);
+
+void acpi_ns_normalize_pathname(char *original_path);
 
 char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 				      u8 no_trailing);

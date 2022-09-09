@@ -6,7 +6,7 @@
 
 / {
 	model = "Altera SOCFPGA Arria 10";
-	compatible = "altr,socfpga-arria10", "altr,socfpga";
+	compatible = "altr,socfpga-arria10-socdk", "altr,socfpga-arria10", "altr,socfpga";
 
 	aliases {
 		ethernet0 = &gmac0;
@@ -46,6 +46,13 @@
 			label = "a10sr-led3";
 			gpios = <&a10sr_gpio 3 1>;
 		};
+	};
+
+	ref_033v: 033-v-ref {
+		compatible = "regulator-fixed";
+		regulator-name = "0.33V";
+		regulator-min-microvolt = <330000>;
+		regulator-max-microvolt = <330000>;
 	};
 
 	soc {
@@ -128,6 +135,18 @@
 	i2c-sda-falling-time-ns = <6000>;
 	i2c-scl-falling-time-ns = <6000>;
 
+	adc@14 {
+		compatible = "lltc,ltc2497";
+		reg = <0x14>;
+		vref-supply = <&ref_033v>;
+	};
+
+	adc@16 {
+		compatible = "lltc,ltc2497";
+		reg = <0x16>;
+		vref-supply = <&ref_033v>;
+	};
+
 	eeprom@51 {
 		compatible = "atmel,24c32";
 		reg = <0x51>;
@@ -142,6 +161,11 @@
 	ltc@5c {
 		compatible = "ltc2977";
 		reg = <0x5c>;
+	};
+
+	temp@4c {
+		compatible = "maxim,max1619";
+		reg = <0x4c>;
 	};
 };
 

@@ -48,8 +48,8 @@ SECTIONS
 		*(.rodata.compressed)
 	}
 
-	/* bootloader code and data starts behind area of extracted kernel */
-	. = (SZ_end - SZparisc_kernel_start + KERNEL_BINARY_TEXT_START);
+	/* bootloader code and data starts at least behind area of extracted kernel */
+	. = MAX(ABSOLUTE(.), (SZ_end - SZparisc_kernel_start + KERNEL_BINARY_TEXT_START));
 
 	/* align on next page boundary */
 	. = ALIGN(4096);
@@ -84,6 +84,7 @@ SECTIONS
 	}
 
 	STABS_DEBUG
+	ELF_DETAILS
 	.note 0 : { *(.note) }
 
 	/* Sections to be discarded */

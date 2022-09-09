@@ -25,13 +25,13 @@
  */
 
 #include <linux/hw_random.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/stop_machine.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <asm/io.h>
 
 
 #define PFX	KBUILD_MODNAME ": "
@@ -317,7 +317,7 @@ PFX "RNG, try using the 'no_fwh_detect' option.\n";
 		return -EBUSY;
 	}
 
-	intel_rng_hw->mem = ioremap_nocache(INTEL_FWH_ADDR, INTEL_FWH_ADDR_LEN);
+	intel_rng_hw->mem = ioremap(INTEL_FWH_ADDR, INTEL_FWH_ADDR_LEN);
 	if (intel_rng_hw->mem == NULL)
 		return -EBUSY;
 
@@ -325,12 +325,12 @@ PFX "RNG, try using the 'no_fwh_detect' option.\n";
 }
 
 
-static int __init mod_init(void)
+static int __init intel_rng_mod_init(void)
 {
 	int err = -ENODEV;
 	int i;
 	struct pci_dev *dev = NULL;
-	void __iomem *mem = mem;
+	void __iomem *mem;
 	u8 hw_status;
 	struct intel_rng_hw *intel_rng_hw;
 
@@ -403,7 +403,7 @@ out:
 
 }
 
-static void __exit mod_exit(void)
+static void __exit intel_rng_mod_exit(void)
 {
 	void __iomem *mem = (void __iomem *)intel_rng.priv;
 
@@ -411,8 +411,8 @@ static void __exit mod_exit(void)
 	iounmap(mem);
 }
 
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(intel_rng_mod_init);
+module_exit(intel_rng_mod_exit);
 
 MODULE_DESCRIPTION("H/W RNG driver for Intel chipsets");
 MODULE_LICENSE("GPL");

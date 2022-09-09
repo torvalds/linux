@@ -9,17 +9,17 @@
 &qspi {
 	status = "okay";
 
-	flash0: n25q00@0 {
+	flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q00aa";
+		compatible = "micron,mt25qu02g", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <100000000>;
 
 		m25p,fast-read;
 		cdns,page-size = <256>;
 		cdns,block-size = <16>;
-		cdns,read-delay = <4>;
+		cdns,read-delay = <3>;
 		cdns,tshsl-ns = <50>;
 		cdns,tsd2d-ns = <50>;
 		cdns,tchsh-ns = <4>;

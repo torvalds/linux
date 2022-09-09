@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2009-2013  LSI Corporation
  *  Copyright (c) 2013-2016  Avago Technologies
  *  Copyright (c) 2016-2018  Broadcom Inc.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  FILE: megaraid_sas_fp.c
  *
@@ -45,6 +33,7 @@
 #include <linux/compat.h>
 #include <linux/blkdev.h>
 #include <linux/poll.h>
+#include <linux/irq_poll.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -57,7 +46,7 @@
 
 #define LB_PENDING_CMDS_DEFAULT 4
 static unsigned int lb_pending_cmds = LB_PENDING_CMDS_DEFAULT;
-module_param(lb_pending_cmds, int, S_IRUGO);
+module_param(lb_pending_cmds, int, 0444);
 MODULE_PARM_DESC(lb_pending_cmds, "Change raid-1 load balancing outstanding "
 	"threshold. Valid Values are 1-128. Default: 4");
 
@@ -91,21 +80,20 @@ u32 mega_mod64(u64 dividend, u32 divisor)
 }
 
 /**
- * @param dividend    : Dividend
- * @param divisor    : Divisor
+ * mega_div64_32 - Do a 64-bit division
+ * @dividend:	Dividend
+ * @divisor:	Divisor
  *
  * @return quotient
  **/
-u64 mega_div64_32(uint64_t dividend, uint32_t divisor)
+static u64 mega_div64_32(uint64_t dividend, uint32_t divisor)
 {
-	u32 remainder;
-	u64 d;
+	u64 d = dividend;
 
 	if (!divisor)
 		printk(KERN_ERR "megasas : DIVISOR is zero in mod fn\n");
 
-	d = dividend;
-	remainder = do_div(d, divisor);
+	do_div(d, divisor);
 
 	return d;
 }
@@ -361,6 +349,10 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance, u64 map_id)
 
 	num_lds = le16_to_cpu(drv_map->raidMap.ldCount);
 
+	memcpy(instance->ld_ids_prev,
+	       instance->ld_ids_from_raidmap,
+	       sizeof(instance->ld_ids_from_raidmap));
+	memset(instance->ld_ids_from_raidmap, 0xff, MEGASAS_MAX_LD_IDS);
 	/*Convert Raid capability values to CPU arch */
 	for (i = 0; (num_lds > 0) && (i < MAX_LOGICAL_DRIVES_EXT); i++) {
 		ld = MR_TargetIdToLdGet(i, drv_map);
@@ -371,14 +363,14 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance, u64 map_id)
 
 		raid = MR_LdRaidGet(ld, drv_map);
 		le32_to_cpus((u32 *)&raid->capability);
-
+		instance->ld_ids_from_raidmap[i] = i;
 		num_lds--;
 	}
 
 	return 1;
 }
 
-u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
+static u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
 		    struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_SPAN_BLOCK_INFO *pSpanBlock = MR_LdSpanInfoGet(ld, map);
@@ -397,9 +389,8 @@ u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
 				le64_to_cpu(quad->logEnd) && (mega_mod64(row - le64_to_cpu(quad->logStart),
 				le32_to_cpu(quad->diff))) == 0) {
 				if (span_blk != NULL) {
-					u64  blk, debugBlk;
+					u64  blk;
 					blk =  mega_div64_32((row-le64_to_cpu(quad->logStart)), le32_to_cpu(quad->diff));
-					debugBlk = blk;
 
 					blk = (blk + le64_to_cpu(quad->offsetInSpan)) << raid->stripeShift;
 					*span_blk = blk;
@@ -429,7 +420,7 @@ u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
 *    div_error	   - Devide error code.
 */
 
-u32 mr_spanset_get_span_block(struct megasas_instance *instance,
+static u32 mr_spanset_get_span_block(struct megasas_instance *instance,
 		u32 ld, u64 row, u64 *span_blk, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct fusion_context *fusion = instance->ctrl_context;
@@ -654,7 +645,7 @@ static u32 get_arm_from_strip(struct megasas_instance *instance,
 }
 
 /* This Function will return Phys arm */
-u8 get_arm(struct megasas_instance *instance, u32 ld, u8 span, u64 stripe,
+static u8 get_arm(struct megasas_instance *instance, u32 ld, u8 span, u64 stripe,
 		struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
@@ -710,9 +701,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 	__le16	*pDevHandle = &io_info->devHandle;
 	u8	*pPdInterface = &io_info->pd_interface;
 	u32	logArm, rowMod, armQ, arm;
-	struct fusion_context *fusion;
 
-	fusion = instance->ctrl_context;
 	*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 
 	/*Get row and span from io_info for Uneven Span IO.*/
@@ -799,7 +788,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 *    span          - Span number
 *    block         - Absolute Block number in the physical disk
 */
-u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
+static u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 		u16 stripRef, struct IO_REQUEST_INFO *io_info,
 		struct RAID_CONTEXT *pRAID_Context,
 		struct MR_DRV_RAID_MAP_ALL *map)
@@ -812,9 +801,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	u64	    *pdBlock = &io_info->pdBlock;
 	__le16	    *pDevHandle = &io_info->devHandle;
 	u8	    *pPdInterface = &io_info->pd_interface;
-	struct fusion_context *fusion;
 
-	fusion = instance->ctrl_context;
 	*pDevHandle = cpu_to_le16(MR_DEVHANDLE_INVALID);
 
 	row =  mega_div64_32(stripRow, raid->rowDataSize);
@@ -901,6 +888,77 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 }
 
 /*
+ * mr_get_phy_params_r56_rmw -  Calculate parameters for R56 CTIO write operation
+ * @instance:			Adapter soft state
+ * @ld:				LD index
+ * @stripNo:			Strip Number
+ * @io_info:			IO info structure pointer
+ * pRAID_Context:		RAID context pointer
+ * map:				RAID map pointer
+ *
+ * This routine calculates the logical arm, data Arm, row number and parity arm
+ * for R56 CTIO write operation.
+ */
+static void mr_get_phy_params_r56_rmw(struct megasas_instance *instance,
+			    u32 ld, u64 stripNo,
+			    struct IO_REQUEST_INFO *io_info,
+			    struct RAID_CONTEXT_G35 *pRAID_Context,
+			    struct MR_DRV_RAID_MAP_ALL *map)
+{
+	struct MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
+	u8          span, dataArms, arms, dataArm, logArm;
+	s8          rightmostParityArm, PParityArm;
+	u64         rowNum;
+	u64 *pdBlock = &io_info->pdBlock;
+
+	dataArms = raid->rowDataSize;
+	arms = raid->rowSize;
+
+	rowNum =  mega_div64_32(stripNo, dataArms);
+	/* parity disk arm, first arm is 0 */
+	rightmostParityArm = (arms - 1) - mega_mod64(rowNum, arms);
+
+	/* logical arm within row */
+	logArm =  mega_mod64(stripNo, dataArms);
+	/* physical arm for data */
+	dataArm = mega_mod64((rightmostParityArm + 1 + logArm), arms);
+
+	if (raid->spanDepth == 1) {
+		span = 0;
+	} else {
+		span = (u8)MR_GetSpanBlock(ld, rowNum, pdBlock, map);
+		if (span == SPAN_INVALID)
+			return;
+	}
+
+	if (raid->level == 6) {
+		/* P Parity arm, note this can go negative adjust if negative */
+		PParityArm = (arms - 2) - mega_mod64(rowNum, arms);
+
+		if (PParityArm < 0)
+			PParityArm += arms;
+
+		/* rightmostParityArm is P-Parity for RAID 5 and Q-Parity for RAID */
+		pRAID_Context->flow_specific.r56_arm_map = rightmostParityArm;
+		pRAID_Context->flow_specific.r56_arm_map |=
+				    (u16)(PParityArm << RAID_CTX_R56_P_ARM_SHIFT);
+	} else {
+		pRAID_Context->flow_specific.r56_arm_map |=
+				    (u16)(rightmostParityArm << RAID_CTX_R56_P_ARM_SHIFT);
+	}
+
+	pRAID_Context->reg_lock_row_lba = cpu_to_le64(rowNum);
+	pRAID_Context->flow_specific.r56_arm_map |=
+				   (u16)(logArm << RAID_CTX_R56_LOG_ARM_SHIFT);
+	cpu_to_le16s(&pRAID_Context->flow_specific.r56_arm_map);
+	pRAID_Context->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | dataArm;
+	pRAID_Context->raid_flags = (MR_RAID_FLAGS_IO_SUB_TYPE_R56_DIV_OFFLOAD <<
+				    MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT);
+
+	return;
+}
+
+/*
 ******************************************************************************
 *
 * MR_BuildRaidContext function
@@ -966,6 +1024,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 	stripSize = 1 << raid->stripeShift;
 	stripe_mask = stripSize-1;
 
+	io_info->data_arms = raid->rowDataSize;
 
 	/*
 	 * calculate starting row and stripe, and number of strips and rows
@@ -1107,6 +1166,13 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 	/* save pointer to raid->LUN array */
 	*raidLUN = raid->LUN;
 
+	/* Aero R5/6 Division Offload for WRITE */
+	if (fusion->r56_div_offload && (raid->level >= 5) && !isRead) {
+		mr_get_phy_params_r56_rmw(instance, ld, start_strip, io_info,
+				       (struct RAID_CONTEXT_G35 *)pRAID_Context,
+				       map);
+		return true;
+	}
 
 	/*Get Phy Params only if FP capable, or else leave it to MR firmware
 	  to do the calculation.*/
@@ -1279,7 +1345,7 @@ void mr_update_load_balance_params(struct MR_DRV_RAID_MAP_ALL *drv_map,
 	}
 }
 
-u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
+static u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
 			   struct LD_LOAD_BALANCE_INFO *lbInfo,
 			   struct IO_REQUEST_INFO *io_info,
 			   struct MR_DRV_RAID_MAP_ALL *drv_map)

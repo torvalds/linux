@@ -1,15 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pin controller and GPIO driver for Amlogic Meson8b.
  *
  * Copyright (C) 2015 Endless Mobile, Inc.
  * Author: Carlo Caione <carlo@endlessm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <dt-bindings/gpio/meson8b-gpio.h>
@@ -239,6 +233,8 @@ static const unsigned int hdmi_scl_pins[]	= { GPIOH_2 };
 static const unsigned int hdmi_cec_0_pins[]	= { GPIOH_3 };
 static const unsigned int eth_txd1_0_pins[]	= { GPIOH_5 };
 static const unsigned int eth_txd0_0_pins[]	= { GPIOH_6 };
+static const unsigned int eth_rxd3_h_pins[]	= { GPIOH_5 };
+static const unsigned int eth_rxd2_h_pins[]	= { GPIOH_6 };
 static const unsigned int clk_24m_out_pins[]	= { GPIOH_9 };
 
 static const unsigned int spi_ss1_pins[]	= { GPIOH_0 };
@@ -346,6 +342,8 @@ static const unsigned int eth_rx_dv_pins[]	= { DIF_1_P };
 static const unsigned int eth_rx_clk_pins[]	= { DIF_1_N };
 static const unsigned int eth_txd0_1_pins[]	= { DIF_2_P };
 static const unsigned int eth_txd1_1_pins[]	= { DIF_2_N };
+static const unsigned int eth_rxd3_pins[]	= { DIF_2_P };
+static const unsigned int eth_rxd2_pins[]	= { DIF_2_N };
 static const unsigned int eth_tx_en_pins[]	= { DIF_3_P };
 static const unsigned int eth_ref_clk_pins[]	= { DIF_3_N };
 static const unsigned int eth_mdc_pins[]	= { DIF_4_P };
@@ -539,6 +537,8 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(spi_miso_1,	9,	12),
 	GROUP(spi_mosi_1,	9,	11),
 	GROUP(spi_sclk_1,	9,	10),
+	GROUP(eth_rxd3_h,	6,	15),
+	GROUP(eth_rxd2_h,	6,	14),
 	GROUP(eth_txd3,		6,	13),
 	GROUP(eth_txd2,		6,	12),
 	GROUP(eth_tx_clk,	6,	11),
@@ -599,6 +599,8 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(eth_ref_clk,	6,	8),
 	GROUP(eth_mdc,		6,	9),
 	GROUP(eth_mdio_en,	6,	10),
+	GROUP(eth_rxd3,		7,	22),
+	GROUP(eth_rxd2,		7,	23),
 };
 
 static struct meson_pmx_group meson8b_aobus_groups[] = {
@@ -693,7 +695,7 @@ static const char * const sd_a_groups[] = {
 
 static const char * const sdxc_a_groups[] = {
 	"sdxc_d0_0_a", "sdxc_d13_0_a", "sdxc_d47_a", "sdxc_clk_a",
-	"sdxc_cmd_a", "sdxc_d0_1_a", "sdxc_d0_13_1_a"
+	"sdxc_cmd_a", "sdxc_d0_1_a", "sdxc_d13_1_a"
 };
 
 static const char * const pcm_a_groups[] = {
@@ -748,7 +750,8 @@ static const char * const ethernet_groups[] = {
 	"eth_tx_clk", "eth_tx_en", "eth_txd1_0", "eth_txd1_1",
 	"eth_txd0_0", "eth_txd0_1", "eth_rx_clk", "eth_rx_dv",
 	"eth_rxd1", "eth_rxd0", "eth_mdio_en", "eth_mdc", "eth_ref_clk",
-	"eth_txd2", "eth_txd3"
+	"eth_txd2", "eth_txd3", "eth_rxd3", "eth_rxd2",
+	"eth_rxd3_h", "eth_rxd2_h"
 };
 
 static const char * const i2c_a_groups[] = {
@@ -964,6 +967,7 @@ static struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
 	.num_funcs	= ARRAY_SIZE(meson8b_aobus_functions),
 	.num_banks	= ARRAY_SIZE(meson8b_aobus_banks),
 	.pmx_ops	= &meson8_pmx_ops,
+	.parse_dt	= &meson8_aobus_parse_dt_extra,
 };
 
 static const struct of_device_id meson8b_pinctrl_dt_match[] = {

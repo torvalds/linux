@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/eeti,exc3000.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: EETI EXC3000 series touchscreen controller
+
+maintainers:
+  - Dmitry Torokhov <dmitry.torokhov@gmail.com>
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  compatible:
+    enum:
+      - eeti,exc3000
+      - eeti,exc80h60
+      - eeti,exc80h84
+  reg:
+    const: 0x2a
+  interrupts:
+    maxItems: 1
+  reset-gpios:
+    maxItems: 1
+  touchscreen-size-x: true
+  touchscreen-size-y: true
+  touchscreen-inverted-x: true
+  touchscreen-inverted-y: true
+  touchscreen-swapped-x-y: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - touchscreen-size-x
+  - touchscreen-size-y
+
+additionalProperties: false
+
+examples:
+  - |
+    #include "dt-bindings/interrupt-controller/irq.h"
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        touchscreen@2a {
+                compatible = "eeti,exc3000";
+                reg = <0x2a>;
+                interrupt-parent = <&gpio1>;
+                interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+                touchscreen-size-x = <4096>;
+                touchscreen-size-y = <4096>;
+                touchscreen-inverted-x;
+                touchscreen-swapped-x-y;
+        };
+    };

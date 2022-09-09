@@ -624,7 +624,7 @@ static void __init dns323_init(void)
 		 dns323ab_leds[0].active_low = 1;
 		 gpio_request(DNS323_GPIO_LED_POWER1, "Power Led Enable");
 		 gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
-		/* Fall through */
+		fallthrough;
 	case DNS323_REV_B1:
 		i2c_register_board_info(0, dns323ab_i2c_devices,
 				ARRAY_SIZE(dns323ab_i2c_devices));
@@ -696,12 +696,12 @@ static void __init dns323_init(void)
 			pr_err("DNS-323: failed to setup power-off GPIO\n");
 		pm_power_off = dns323c_power_off;
 
-		/* Now, -this- should theorically be done by the sata_mv driver
+		/* Now, -this- should theoretically be done by the sata_mv driver
 		 * once I figure out what's going on there. Maybe the behaviour
 		 * of the LEDs should be somewhat passed via the platform_data.
 		 * for now, just whack the register and make the LEDs happy
 		 *
-		 * Note: AFAIK, rev B1 needs the same treatement but I'll let
+		 * Note: AFAIK, rev B1 needs the same treatment but I'll let
 		 * somebody else test it.
 		 */
 		writel(0x5, ORION5X_SATA_VIRT_BASE + 0x2c);

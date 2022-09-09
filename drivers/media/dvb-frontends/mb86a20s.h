@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *   Fujitsu mb86a20s driver
  *
  *   Copyright (C) 2010 Mauro Carvalho Chehab
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License as
- *   published by the Free Software Foundation version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *   General Public License for more details.
  */
 
 #ifndef MB86A20S_H
@@ -34,7 +26,7 @@ struct mb86a20s_config {
 
 #if IS_REACHABLE(CONFIG_DVB_MB86A20S)
 /**
- * Attach a mb86a20s demod
+ * mb86a20s_attach - Attach a mb86a20s demod
  *
  * @config: pointer to &struct mb86a20s_config with demod configuration.
  * @i2c: i2c adapter to use.

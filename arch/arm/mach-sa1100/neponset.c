@@ -11,7 +11,6 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/serial_core.h>
@@ -21,7 +20,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/sa1111.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <mach/hardware.h>
 #include <mach/assabet.h>
@@ -49,23 +48,8 @@
 #define IRR_SA1111	(1 << 2)
 
 #define NCR_NGPIO	7
-
-#define MDM_CTL0_RTS1	(1 << 0)
-#define MDM_CTL0_DTR1	(1 << 1)
-#define MDM_CTL0_RTS2	(1 << 2)
-#define MDM_CTL0_DTR2	(1 << 3)
 #define MDM_CTL0_NGPIO	4
-
-#define MDM_CTL1_CTS1	(1 << 0)
-#define MDM_CTL1_DSR1	(1 << 1)
-#define MDM_CTL1_DCD1	(1 << 2)
-#define MDM_CTL1_CTS2	(1 << 3)
-#define MDM_CTL1_DSR2	(1 << 4)
-#define MDM_CTL1_DCD2	(1 << 5)
 #define MDM_CTL1_NGPIO	6
-
-#define AUD_SEL_1341	(1 << 0)
-#define AUD_MUTE_1341	(1 << 1)
 #define AUD_NGPIO	2
 
 extern void sa1110_mb_disable(void);
@@ -97,6 +81,30 @@ struct neponset_drvdata {
 	struct gpio_chip *gpio[4];
 };
 
+static struct gpiod_lookup_table neponset_uart1_gpio_table = {
+	.dev_id = "sa11x0-uart.1",
+	.table = {
+		GPIO_LOOKUP("neponset-mdm-ctl0", 2, "rts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl0", 3, "dtr", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl1", 3, "cts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl1", 4, "dsr", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl1", 5, "dcd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table neponset_uart3_gpio_table = {
+	.dev_id = "sa11x0-uart.3",
+	.table = {
+		GPIO_LOOKUP("neponset-mdm-ctl0", 0, "rts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl0", 1, "dtr", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl1", 0, "cts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl1", 1, "dsr", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("neponset-mdm-ctl1", 2, "dcd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct gpiod_lookup_table neponset_pcmcia_table = {
 	.dev_id = "1800",
 	.table = {
@@ -123,69 +131,6 @@ void neponset_ncr_frob(unsigned int mask, unsigned int val)
 		WARN(1, "nep unset\n");
 }
 EXPORT_SYMBOL(neponset_ncr_frob);
-
-static void neponset_set_mctrl(struct uart_port *port, u_int mctrl)
-{
-	struct neponset_drvdata *n = nep;
-	unsigned long mask, val = 0;
-
-	if (!n)
-		return;
-
-	if (port->mapbase == _Ser1UTCR0) {
-		mask = MDM_CTL0_RTS2 | MDM_CTL0_DTR2;
-
-		if (!(mctrl & TIOCM_RTS))
-			val |= MDM_CTL0_RTS2;
-
-		if (!(mctrl & TIOCM_DTR))
-			val |= MDM_CTL0_DTR2;
-	} else if (port->mapbase == _Ser3UTCR0) {
-		mask = MDM_CTL0_RTS1 | MDM_CTL0_DTR1;
-
-		if (!(mctrl & TIOCM_RTS))
-			val |= MDM_CTL0_RTS1;
-
-		if (!(mctrl & TIOCM_DTR))
-			val |= MDM_CTL0_DTR1;
-	}
-
-	n->gpio[1]->set_multiple(n->gpio[1], &mask, &val);
-}
-
-static u_int neponset_get_mctrl(struct uart_port *port)
-{
-	void __iomem *base = nep->base;
-	u_int ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
-	u_int mdm_ctl1;
-
-	if (!base)
-		return ret;
-
-	mdm_ctl1 = readb_relaxed(base + MDM_CTL_1);
-	if (port->mapbase == _Ser1UTCR0) {
-		if (mdm_ctl1 & MDM_CTL1_DCD2)
-			ret &= ~TIOCM_CD;
-		if (mdm_ctl1 & MDM_CTL1_CTS2)
-			ret &= ~TIOCM_CTS;
-		if (mdm_ctl1 & MDM_CTL1_DSR2)
-			ret &= ~TIOCM_DSR;
-	} else if (port->mapbase == _Ser3UTCR0) {
-		if (mdm_ctl1 & MDM_CTL1_DCD1)
-			ret &= ~TIOCM_CD;
-		if (mdm_ctl1 & MDM_CTL1_CTS1)
-			ret &= ~TIOCM_CTS;
-		if (mdm_ctl1 & MDM_CTL1_DSR1)
-			ret &= ~TIOCM_DSR;
-	}
-
-	return ret;
-}
-
-static struct sa1100_port_fns neponset_port_fns = {
-	.set_mctrl	= neponset_set_mctrl,
-	.get_mctrl	= neponset_get_mctrl,
-};
 
 /*
  * Install handler for Neponset IRQ.  Note that we have to loop here
@@ -388,6 +333,8 @@ static int neponset_probe(struct platform_device *dev)
 			   d->base + AUD_CTL, AUD_NGPIO, false,
 			   neponset_aud_names);
 
+	gpiod_add_lookup_table(&neponset_uart1_gpio_table);
+	gpiod_add_lookup_table(&neponset_uart3_gpio_table);
 	gpiod_add_lookup_table(&neponset_pcmcia_table);
 
 	/*
@@ -401,8 +348,6 @@ static int neponset_probe(struct platform_device *dev)
 	dev_info(&dev->dev, "Neponset daughter board, providing IRQ%u-%u\n",
 		 d->irq_base, d->irq_base + NEP_IRQ_NR - 1);
 	nep = d;
-
-	sa1100_register_uart_fns(&neponset_port_fns);
 
 	/* Ensure that the memory bus request/grant signals are setup */
 	sa1110_mb_disable();
@@ -442,6 +387,8 @@ static int neponset_remove(struct platform_device *dev)
 		platform_device_unregister(d->smc91x);
 
 	gpiod_remove_lookup_table(&neponset_pcmcia_table);
+	gpiod_remove_lookup_table(&neponset_uart3_gpio_table);
+	gpiod_remove_lookup_table(&neponset_uart1_gpio_table);
 
 	irq_set_chained_handler(irq, NULL);
 	irq_free_descs(d->irq_base, NEP_IRQ_NR);

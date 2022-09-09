@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Old U-boot compatibility for Esteem 195E Hotfoot CPU Board
  *
  * Author: Solomon Peachy <solomon@linux-wlan.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include "ops.h"
@@ -73,7 +70,7 @@ static void hotfoot_fixups(void)
 
 		printf("Fixing devtree for 4M Flash\n");
 		
-		/* First fix up the base addresse */
+		/* First fix up the base address */
 		getprop(devp, "reg", regs, sizeof(regs));
 		regs[0] = 0;
 		regs[1] = 0xffc00000;

@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2014, Samsung Electronics Co. Ltd. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/iio/common/ssp_sensors.h>
@@ -42,7 +32,7 @@ int ssp_common_buffer_postenable(struct iio_dev *indio_dev)
 	return ssp_enable_sensor(data, spd->type,
 				 ssp_get_sensor_delay(data, spd->type));
 }
-EXPORT_SYMBOL(ssp_common_buffer_postenable);
+EXPORT_SYMBOL_NS(ssp_common_buffer_postenable, IIO_SSP_SENSORS);
 
 /**
  * ssp_common_buffer_postdisable() - generic postdisable callback for ssp buffer
@@ -65,7 +55,7 @@ int ssp_common_buffer_postdisable(struct iio_dev *indio_dev)
 
 	return ret;
 }
-EXPORT_SYMBOL(ssp_common_buffer_postdisable);
+EXPORT_SYMBOL_NS(ssp_common_buffer_postdisable, IIO_SSP_SENSORS);
 
 /**
  * ssp_common_process_data() - Common process data callback for ssp sensors
@@ -81,7 +71,7 @@ int ssp_common_process_data(struct iio_dev *indio_dev, void *buf,
 			    unsigned int len, int64_t timestamp)
 {
 	__le32 time;
-	int64_t calculated_time;
+	int64_t calculated_time = 0;
 	struct ssp_sensor_data *spd = iio_priv(indio_dev);
 
 	if (indio_dev->scan_bytes == 0)
@@ -101,8 +91,9 @@ int ssp_common_process_data(struct iio_dev *indio_dev, void *buf,
 	return iio_push_to_buffers_with_timestamp(indio_dev, spd->buffer,
 						  calculated_time);
 }
-EXPORT_SYMBOL(ssp_common_process_data);
+EXPORT_SYMBOL_NS(ssp_common_process_data, IIO_SSP_SENSORS);
 
 MODULE_AUTHOR("Karol Wrona <k.wrona@samsung.com>");
 MODULE_DESCRIPTION("Samsung sensorhub commons");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_SSP_SENSORS);

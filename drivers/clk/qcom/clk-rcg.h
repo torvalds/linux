@@ -71,7 +71,6 @@ struct src_sel {
  * @freq_tbl: frequency table
  * @clkr: regmap clock handle
  * @lock: register lock
- *
  */
 struct clk_rcg {
 	u32		ns_reg;
@@ -87,6 +86,7 @@ struct clk_rcg {
 };
 
 extern const struct clk_ops clk_rcg_ops;
+extern const struct clk_ops clk_rcg_floor_ops;
 extern const struct clk_ops clk_rcg_bypass_ops;
 extern const struct clk_ops clk_rcg_bypass2_ops;
 extern const struct clk_ops clk_rcg_pixel_ops;
@@ -107,7 +107,6 @@ extern const struct clk_ops clk_rcg_lcc_ops;
  * @freq_tbl: frequency table
  * @clkr: regmap clock handle
  * @lock: register lock
- *
  */
 struct clk_dyn_rcg {
 	u32	ns_reg[2];
@@ -140,7 +139,8 @@ extern const struct clk_ops clk_dyn_rcg_ops;
  * @parent_map: map from software's parent index to hardware's src_sel field
  * @freq_tbl: frequency table
  * @clkr: regmap clock handle
- *
+ * @cfg_off: defines the cfg register offset from the CMD_RCGR + CFG_REG
+ * @parked_cfg: cached value of the CFG register for parked RCGs
  */
 struct clk_rcg2 {
 	u32			cmd_rcgr;
@@ -150,9 +150,20 @@ struct clk_rcg2 {
 	const struct parent_map	*parent_map;
 	const struct freq_tbl	*freq_tbl;
 	struct clk_regmap	clkr;
+	u8			cfg_off;
+	u32			parked_cfg;
 };
 
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)
+
+struct clk_rcg2_gfx3d {
+	u8 div;
+	struct clk_rcg2 rcg;
+	struct clk_hw **hws;
+};
+
+#define to_clk_rcg2_gfx3d(_hw) \
+	container_of(to_clk_rcg2(_hw), struct clk_rcg2_gfx3d, rcg)
 
 extern const struct clk_ops clk_rcg2_ops;
 extern const struct clk_ops clk_rcg2_floor_ops;
@@ -162,6 +173,7 @@ extern const struct clk_ops clk_byte2_ops;
 extern const struct clk_ops clk_pixel_ops;
 extern const struct clk_ops clk_gfx3d_ops;
 extern const struct clk_ops clk_rcg2_shared_ops;
+extern const struct clk_ops clk_dp_ops;
 
 struct clk_rcg_dfs_data {
 	struct clk_rcg2 *rcg;
@@ -169,7 +181,7 @@ struct clk_rcg_dfs_data {
 };
 
 #define DEFINE_RCG_DFS(r) \
-	{ .rcg = &r##_src, .init = &r##_init }
+	{ .rcg = &r, .init = &r##_init }
 
 extern int qcom_cc_register_rcg_dfs(struct regmap *regmap,
 				    const struct clk_rcg_dfs_data *rcgs,

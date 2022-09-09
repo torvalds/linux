@@ -8,35 +8,31 @@ Slow Clock controller:
 
 Required properties:
 - compatible : shall be one of the following:
-	"atmel,at91sam9x5-sckc" or
-	"atmel,sama5d4-sckc":
+	"atmel,at91sam9x5-sckc",
+	"atmel,sama5d3-sckc",
+	"atmel,sama5d4-sckc" or
+	"microchip,sam9x60-sckc":
 		at91 SCKC (Slow Clock Controller)
-		This node contains the slow clock definitions.
+- #clock-cells : shall be 1 for "microchip,sam9x60-sckc" otherwise shall be 0.
+- clocks : shall be the input parent clock phandle for the clock.
 
-	"atmel,at91sam9x5-clk-slow-osc":
-		at91 slow oscillator
-
-	"atmel,at91sam9x5-clk-slow-rc-osc":
-		at91 internal slow RC oscillator
-- reg : defines the IO memory reserved for the SCKC.
-- #size-cells : shall be 0 (reg is used to encode clk id).
-- #address-cells : shall be 1 (reg is used to encode clk id).
-
+Optional properties:
+- atmel,osc-bypass : boolean property. Set this when a clock signal is directly
+  provided on XIN.
 
 For example:
-	sckc: sckc@fffffe50 {
-		compatible = "atmel,sama5d3-pmc";
-		reg = <0xfffffe50 0x4>
-		#size-cells = <0>;
-		#address-cells = <1>;
-
-		/* put at91 slow clocks here */
+	sckc@fffffe50 {
+		compatible = "atmel,at91sam9x5-sckc";
+		reg = <0xfffffe50 0x4>;
+		clocks = <&slow_xtal>;
+		#clock-cells = <0>;
 	};
 
 Power Management Controller (PMC):
 
 Required properties:
-- compatible : shall be "atmel,<chip>-pmc", "syscon":
+- compatible : shall be "atmel,<chip>-pmc", "syscon" or
+	"microchip,sam9x60-pmc"
 	<chip> can be: at91rm9200, at91sam9260, at91sam9261,
 	at91sam9263, at91sam9g45, at91sam9n12, at91sam9rl, at91sam9g15,
 	at91sam9g25, at91sam9g35, at91sam9x25, at91sam9x35, at91sam9x5,

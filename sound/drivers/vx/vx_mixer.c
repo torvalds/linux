@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram VX soundcards
  *
  * Common mixer part
  *
  * Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <sound/core.h>
@@ -923,7 +910,8 @@ int snd_vx_mixer_new(struct vx_core *chip)
 		temp = vx_control_output_level;
 		temp.index = i;
 		temp.tlv.p = chip->hw->output_level_db_scale;
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+		if (err < 0)
 			return err;
 	}
 
@@ -934,22 +922,26 @@ int snd_vx_mixer_new(struct vx_core *chip)
 		temp.index = i;
 		temp.name = "PCM Playback Volume";
 		temp.private_value = val;
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+		if (err < 0)
 			return err;
 		temp = vx_control_output_switch;
 		temp.index = i;
 		temp.private_value = val;
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+		if (err < 0)
 			return err;
 		temp = vx_control_monitor_gain;
 		temp.index = i;
 		temp.private_value = val;
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+		if (err < 0)
 			return err;
 		temp = vx_control_monitor_switch;
 		temp.index = i;
 		temp.private_value = val;
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+		if (err < 0)
 			return err;
 	}
 	for (i = 0; i < chip->hw->num_outs; i++) {
@@ -957,31 +949,37 @@ int snd_vx_mixer_new(struct vx_core *chip)
 		temp.index = i;
 		temp.name = "PCM Capture Volume";
 		temp.private_value = (i * 2) | (1 << 8);
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+		if (err < 0)
 			return err;
 	}
 
 	/* Audio source */
-	if ((err = snd_ctl_add(card, snd_ctl_new1(&vx_control_audio_src, chip))) < 0)
+	err = snd_ctl_add(card, snd_ctl_new1(&vx_control_audio_src, chip));
+	if (err < 0)
 		return err;
 	/* clock mode */
-	if ((err = snd_ctl_add(card, snd_ctl_new1(&vx_control_clock_mode, chip))) < 0)
+	err = snd_ctl_add(card, snd_ctl_new1(&vx_control_clock_mode, chip));
+	if (err < 0)
 		return err;
 	/* IEC958 controls */
-	if ((err = snd_ctl_add(card, snd_ctl_new1(&vx_control_iec958_mask, chip))) < 0)
+	err = snd_ctl_add(card, snd_ctl_new1(&vx_control_iec958_mask, chip));
+	if (err < 0)
 		return err;
-	if ((err = snd_ctl_add(card, snd_ctl_new1(&vx_control_iec958, chip))) < 0)
+	err = snd_ctl_add(card, snd_ctl_new1(&vx_control_iec958, chip));
+	if (err < 0)
 		return err;
 	/* VU, peak, saturation meters */
 	for (c = 0; c < 2; c++) {
-		static char *dir[2] = { "Output", "Input" };
+		static const char * const dir[2] = { "Output", "Input" };
 		for (i = 0; i < chip->hw->num_ins; i++) {
 			int val = (i * 2) | (c << 8);
 			if (c == 1) {
 				temp = vx_control_saturation;
 				temp.index = i;
 				temp.private_value = val;
-				if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+				err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+				if (err < 0)
 					return err;
 			}
 			sprintf(name, "%s VU Meter", dir[c]);
@@ -989,14 +987,16 @@ int snd_vx_mixer_new(struct vx_core *chip)
 			temp.index = i;
 			temp.name = name;
 			temp.private_value = val;
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+			err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+			if (err < 0)
 				return err;
 			sprintf(name, "%s Peak Meter", dir[c]);
 			temp = vx_control_peak_meter;
 			temp.index = i;
 			temp.name = name;
 			temp.private_value = val;
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&temp, chip))) < 0)
+			err = snd_ctl_add(card, snd_ctl_new1(&temp, chip));
+			if (err < 0)
 				return err;
 		}
 	}

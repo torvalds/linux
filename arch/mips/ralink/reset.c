@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2008-2009 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
@@ -29,7 +27,7 @@ static int ralink_assert_device(struct reset_controller_dev *rcdev,
 {
 	u32 val;
 
-	if (id < 8)
+	if (id == 0)
 		return -1;
 
 	val = rt_sysc_r32(SYSC_REG_RESET_CTRL);
@@ -44,7 +42,7 @@ static int ralink_deassert_device(struct reset_controller_dev *rcdev,
 {
 	u32 val;
 
-	if (id < 8)
+	if (id == 0)
 		return -1;
 
 	val = rt_sysc_r32(SYSC_REG_RESET_CTRL);

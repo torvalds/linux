@@ -4,7 +4,7 @@
  *     Version: 0.1.0
  * Description: cfag12864b LCD userspace example program
  *
- *      Author: Copyright (C) Miguel Ojeda Sandonis
+ *      Author: Copyright (C) Miguel Ojeda <ojeda@kernel.org>
  *        Date: 2006-10-31
  */
 
@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 
 	if (argc != 2) {
 		printf(
-			"Sintax:  %s fbdev\n"
+			"Syntax:  %s fbdev\n"
 			"Usually: /dev/fb0, /dev/fb1...\n", argv[0]);
 		return -1;
 	}

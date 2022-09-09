@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Geode LX framebuffer driver.
  *
  * Copyright (C) 2007 Advanced Micro Devices, Inc.
  * Built from gxfb (which is Copyright (C) 2006 Arcom Control Systems Ltd.)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -22,6 +18,8 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
+
+#include <asm/olpc.h>
 
 #include "lxfb.h"
 
@@ -216,9 +214,6 @@ static struct fb_videomode geode_modedb[] = {
 	  0, FB_VMODE_NONINTERLACED, 0 },
 };
 
-#ifdef CONFIG_OLPC
-#include <asm/olpc.h>
-
 static struct fb_videomode olpc_dcon_modedb[] = {
 	/* The only mode the DCON has is 1200x900 */
 	{ NULL, 50, 1200, 900, 17460, 24, 8, 4, 5, 8, 3,
@@ -236,14 +231,6 @@ static void get_modedb(struct fb_videomode **modedb, unsigned int *size)
 		*size = ARRAY_SIZE(geode_modedb);
 	}
 }
-
-#else
-static void get_modedb(struct fb_videomode **modedb, unsigned int *size)
-{
-	*modedb = (struct fb_videomode *) geode_modedb;
-	*size = ARRAY_SIZE(geode_modedb);
-}
-#endif
 
 static int lxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -399,7 +386,7 @@ static int lxfb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 	return 0;
 }
 
-static struct fb_ops lxfb_ops = {
+static const struct fb_ops lxfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= lxfb_check_var,
 	.fb_set_par	= lxfb_set_par,
@@ -456,17 +443,14 @@ static struct fb_info *lxfb_init_fbinfo(struct device *dev)
 	return info;
 }
 
-#ifdef CONFIG_PM
-static int lxfb_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused lxfb_suspend(struct device *dev)
 {
-	struct fb_info *info = pci_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
 
-	if (state.event == PM_EVENT_SUSPEND) {
-		console_lock();
-		lx_powerdown(info);
-		fb_set_suspend(info, 1);
-		console_unlock();
-	}
+	console_lock();
+	lx_powerdown(info);
+	fb_set_suspend(info, 1);
+	console_unlock();
 
 	/* there's no point in setting PCI states; we emulate PCI, so
 	 * we don't end up getting power savings anyways */
@@ -474,9 +458,9 @@ static int lxfb_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int lxfb_resume(struct pci_dev *pdev)
+static int __maybe_unused lxfb_resume(struct device *dev)
 {
-	struct fb_info *info = pci_get_drvdata(pdev);
+	struct fb_info *info = dev_get_drvdata(dev);
 	int ret;
 
 	console_lock();
@@ -490,10 +474,6 @@ static int lxfb_resume(struct pci_dev *pdev)
 	console_unlock();
 	return 0;
 }
-#else
-#define lxfb_suspend NULL
-#define lxfb_resume NULL
-#endif
 
 static int lxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -613,13 +593,23 @@ static struct pci_device_id lxfb_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, lxfb_id_table);
 
+static const struct dev_pm_ops lxfb_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend	= lxfb_suspend,
+	.resume		= lxfb_resume,
+	.freeze		= NULL,
+	.thaw		= lxfb_resume,
+	.poweroff	= NULL,
+	.restore	= lxfb_resume,
+#endif
+};
+
 static struct pci_driver lxfb_driver = {
 	.name		= "lxfb",
 	.id_table	= lxfb_id_table,
 	.probe		= lxfb_probe,
 	.remove		= lxfb_remove,
-	.suspend	= lxfb_suspend,
-	.resume		= lxfb_resume,
+	.driver.pm	= &lxfb_pm_ops,
 };
 
 #ifndef MODULE

@@ -61,10 +61,8 @@ static inline u8 byte(const u32 x, const unsigned n)
 	return x >> (n << 3);
 }
 
-static const u32 rco_tab[10] = { 1, 2, 4, 8, 16, 32, 64, 128, 27, 54 };
-
 /* cacheline-aligned to facilitate prefetching into cache */
-__visible const u32 crypto_ft_tab[4][256] __cacheline_aligned = {
+__visible const u32 crypto_ft_tab[4][256] ____cacheline_aligned = {
 	{
 		0xa56363c6, 0x847c7cf8, 0x997777ee, 0x8d7b7bf6,
 		0x0df2f2ff, 0xbd6b6bd6, 0xb16f6fde, 0x54c5c591,
@@ -328,7 +326,7 @@ __visible const u32 crypto_ft_tab[4][256] __cacheline_aligned = {
 	}
 };
 
-__visible const u32 crypto_fl_tab[4][256] __cacheline_aligned = {
+static const u32 crypto_fl_tab[4][256] ____cacheline_aligned = {
 	{
 		0x00000063, 0x0000007c, 0x00000077, 0x0000007b,
 		0x000000f2, 0x0000006b, 0x0000006f, 0x000000c5,
@@ -592,7 +590,7 @@ __visible const u32 crypto_fl_tab[4][256] __cacheline_aligned = {
 	}
 };
 
-__visible const u32 crypto_it_tab[4][256] __cacheline_aligned = {
+__visible const u32 crypto_it_tab[4][256] ____cacheline_aligned = {
 	{
 		0x50a7f451, 0x5365417e, 0xc3a4171a, 0x965e273a,
 		0xcb6bab3b, 0xf1459d1f, 0xab58faac, 0x9303e34b,
@@ -856,7 +854,7 @@ __visible const u32 crypto_it_tab[4][256] __cacheline_aligned = {
 	}
 };
 
-__visible const u32 crypto_il_tab[4][256] __cacheline_aligned = {
+static const u32 crypto_il_tab[4][256] ____cacheline_aligned = {
 	{
 		0x00000052, 0x00000009, 0x0000006a, 0x000000d5,
 		0x00000030, 0x00000036, 0x000000a5, 0x00000038,
@@ -1121,158 +1119,7 @@ __visible const u32 crypto_il_tab[4][256] __cacheline_aligned = {
 };
 
 EXPORT_SYMBOL_GPL(crypto_ft_tab);
-EXPORT_SYMBOL_GPL(crypto_fl_tab);
 EXPORT_SYMBOL_GPL(crypto_it_tab);
-EXPORT_SYMBOL_GPL(crypto_il_tab);
-
-/* initialise the key schedule from the user supplied key */
-
-#define star_x(x) (((x) & 0x7f7f7f7f) << 1) ^ ((((x) & 0x80808080) >> 7) * 0x1b)
-
-#define imix_col(y, x)	do {		\
-	u	= star_x(x);		\
-	v	= star_x(u);		\
-	w	= star_x(v);		\
-	t	= w ^ (x);		\
-	(y)	= u ^ v ^ w;		\
-	(y)	^= ror32(u ^ t, 8) ^	\
-		ror32(v ^ t, 16) ^	\
-		ror32(t, 24);		\
-} while (0)
-
-#define ls_box(x)		\
-	crypto_fl_tab[0][byte(x, 0)] ^	\
-	crypto_fl_tab[1][byte(x, 1)] ^	\
-	crypto_fl_tab[2][byte(x, 2)] ^	\
-	crypto_fl_tab[3][byte(x, 3)]
-
-#define loop4(i)	do {		\
-	t = ror32(t, 8);		\
-	t = ls_box(t) ^ rco_tab[i];	\
-	t ^= ctx->key_enc[4 * i];		\
-	ctx->key_enc[4 * i + 4] = t;		\
-	t ^= ctx->key_enc[4 * i + 1];		\
-	ctx->key_enc[4 * i + 5] = t;		\
-	t ^= ctx->key_enc[4 * i + 2];		\
-	ctx->key_enc[4 * i + 6] = t;		\
-	t ^= ctx->key_enc[4 * i + 3];		\
-	ctx->key_enc[4 * i + 7] = t;		\
-} while (0)
-
-#define loop6(i)	do {		\
-	t = ror32(t, 8);		\
-	t = ls_box(t) ^ rco_tab[i];	\
-	t ^= ctx->key_enc[6 * i];		\
-	ctx->key_enc[6 * i + 6] = t;		\
-	t ^= ctx->key_enc[6 * i + 1];		\
-	ctx->key_enc[6 * i + 7] = t;		\
-	t ^= ctx->key_enc[6 * i + 2];		\
-	ctx->key_enc[6 * i + 8] = t;		\
-	t ^= ctx->key_enc[6 * i + 3];		\
-	ctx->key_enc[6 * i + 9] = t;		\
-	t ^= ctx->key_enc[6 * i + 4];		\
-	ctx->key_enc[6 * i + 10] = t;		\
-	t ^= ctx->key_enc[6 * i + 5];		\
-	ctx->key_enc[6 * i + 11] = t;		\
-} while (0)
-
-#define loop8tophalf(i)	do {			\
-	t = ror32(t, 8);			\
-	t = ls_box(t) ^ rco_tab[i];		\
-	t ^= ctx->key_enc[8 * i];			\
-	ctx->key_enc[8 * i + 8] = t;			\
-	t ^= ctx->key_enc[8 * i + 1];			\
-	ctx->key_enc[8 * i + 9] = t;			\
-	t ^= ctx->key_enc[8 * i + 2];			\
-	ctx->key_enc[8 * i + 10] = t;			\
-	t ^= ctx->key_enc[8 * i + 3];			\
-	ctx->key_enc[8 * i + 11] = t;			\
-} while (0)
-
-#define loop8(i)	do {				\
-	loop8tophalf(i);				\
-	t  = ctx->key_enc[8 * i + 4] ^ ls_box(t);	\
-	ctx->key_enc[8 * i + 12] = t;			\
-	t ^= ctx->key_enc[8 * i + 5];			\
-	ctx->key_enc[8 * i + 13] = t;			\
-	t ^= ctx->key_enc[8 * i + 6];			\
-	ctx->key_enc[8 * i + 14] = t;			\
-	t ^= ctx->key_enc[8 * i + 7];			\
-	ctx->key_enc[8 * i + 15] = t;			\
-} while (0)
-
-/**
- * crypto_aes_expand_key - Expands the AES key as described in FIPS-197
- * @ctx:	The location where the computed key will be stored.
- * @in_key:	The supplied key.
- * @key_len:	The length of the supplied key.
- *
- * Returns 0 on success. The function fails only if an invalid key size (or
- * pointer) is supplied.
- * The expanded key size is 240 bytes (max of 14 rounds with a unique 16 bytes
- * key schedule plus a 16 bytes key which is used before the first round).
- * The decryption key is prepared for the "Equivalent Inverse Cipher" as
- * described in FIPS-197. The first slot (16 bytes) of each key (enc or dec) is
- * for the initial combination, the second slot for the first round and so on.
- */
-int crypto_aes_expand_key(struct crypto_aes_ctx *ctx, const u8 *in_key,
-		unsigned int key_len)
-{
-	u32 i, t, u, v, w, j;
-
-	if (key_len != AES_KEYSIZE_128 && key_len != AES_KEYSIZE_192 &&
-			key_len != AES_KEYSIZE_256)
-		return -EINVAL;
-
-	ctx->key_length = key_len;
-
-	ctx->key_enc[0] = get_unaligned_le32(in_key);
-	ctx->key_enc[1] = get_unaligned_le32(in_key + 4);
-	ctx->key_enc[2] = get_unaligned_le32(in_key + 8);
-	ctx->key_enc[3] = get_unaligned_le32(in_key + 12);
-
-	ctx->key_dec[key_len + 24] = ctx->key_enc[0];
-	ctx->key_dec[key_len + 25] = ctx->key_enc[1];
-	ctx->key_dec[key_len + 26] = ctx->key_enc[2];
-	ctx->key_dec[key_len + 27] = ctx->key_enc[3];
-
-	switch (key_len) {
-	case AES_KEYSIZE_128:
-		t = ctx->key_enc[3];
-		for (i = 0; i < 10; ++i)
-			loop4(i);
-		break;
-
-	case AES_KEYSIZE_192:
-		ctx->key_enc[4] = get_unaligned_le32(in_key + 16);
-		t = ctx->key_enc[5] = get_unaligned_le32(in_key + 20);
-		for (i = 0; i < 8; ++i)
-			loop6(i);
-		break;
-
-	case AES_KEYSIZE_256:
-		ctx->key_enc[4] = get_unaligned_le32(in_key + 16);
-		ctx->key_enc[5] = get_unaligned_le32(in_key + 20);
-		ctx->key_enc[6] = get_unaligned_le32(in_key + 24);
-		t = ctx->key_enc[7] = get_unaligned_le32(in_key + 28);
-		for (i = 0; i < 6; ++i)
-			loop8(i);
-		loop8tophalf(i);
-		break;
-	}
-
-	ctx->key_dec[0] = ctx->key_enc[key_len + 24];
-	ctx->key_dec[1] = ctx->key_enc[key_len + 25];
-	ctx->key_dec[2] = ctx->key_enc[key_len + 26];
-	ctx->key_dec[3] = ctx->key_enc[key_len + 27];
-
-	for (i = 4; i < key_len + 24; ++i) {
-		j = key_len + 24 - (i & ~3) + (i & 3);
-		imix_col(ctx->key_dec[j], ctx->key_enc[i]);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(crypto_aes_expand_key);
 
 /**
  * crypto_aes_set_key - Set the AES key.
@@ -1280,24 +1127,18 @@ EXPORT_SYMBOL_GPL(crypto_aes_expand_key);
  * @in_key:	The input key.
  * @key_len:	The size of the key.
  *
- * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
- * is set. The function uses crypto_aes_expand_key() to expand the key.
- * &crypto_aes_ctx _must_ be the private data embedded in @tfm which is
- * retrieved with crypto_tfm_ctx().
+ * This function uses aes_expand_key() to expand the key.  &crypto_aes_ctx
+ * _must_ be the private data embedded in @tfm which is retrieved with
+ * crypto_tfm_ctx().
+ *
+ * Return: 0 on success; -EINVAL on failure (only happens for bad key lengths)
  */
 int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	int ret;
 
-	ret = crypto_aes_expand_key(ctx, in_key, key_len);
-	if (!ret)
-		return 0;
-
-	*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-	return -EINVAL;
+	return aes_expandkey(ctx, in_key, key_len);
 }
 EXPORT_SYMBOL_GPL(crypto_aes_set_key);
 
@@ -1332,7 +1173,7 @@ EXPORT_SYMBOL_GPL(crypto_aes_set_key);
 	f_rl(bo, bi, 3, k);	\
 } while (0)
 
-static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void crypto_aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 b0[4], b1[4];
@@ -1402,7 +1243,7 @@ static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	i_rl(bo, bi, 3, k);	\
 } while (0)
 
-static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void crypto_aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 b0[4], b1[4];
@@ -1454,8 +1295,8 @@ static struct crypto_alg aes_alg = {
 			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
 			.cia_max_keysize	=	AES_MAX_KEY_SIZE,
 			.cia_setkey		=	crypto_aes_set_key,
-			.cia_encrypt		=	aes_encrypt,
-			.cia_decrypt		=	aes_decrypt
+			.cia_encrypt		=	crypto_aes_encrypt,
+			.cia_decrypt		=	crypto_aes_decrypt
 		}
 	}
 };
@@ -1470,7 +1311,7 @@ static void __exit aes_fini(void)
 	crypto_unregister_alg(&aes_alg);
 }
 
-module_init(aes_init);
+subsys_initcall(aes_init);
 module_exit(aes_fini);
 
 MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm");

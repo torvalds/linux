@@ -3,7 +3,7 @@
 
 #include <linux/syscalls.h>
 #include <asm/page.h>
-#include <asm/cache.h>
+#include <asm/cacheflush.h>
 #include <asm/cachectl.h>
 
 SYSCALL_DEFINE3(cacheflush,
@@ -12,17 +12,17 @@ SYSCALL_DEFINE3(cacheflush,
 		int, cache)
 {
 	switch (cache) {
-	case ICACHE:
-		icache_inv_range((unsigned long)addr,
-				 (unsigned long)addr + bytes);
-		break;
+	case BCACHE:
 	case DCACHE:
 		dcache_wb_range((unsigned long)addr,
 				(unsigned long)addr + bytes);
-		break;
-	case BCACHE:
-		cache_wbinv_range((unsigned long)addr,
-				  (unsigned long)addr + bytes);
+		if (cache != BCACHE)
+			break;
+		fallthrough;
+	case ICACHE:
+		flush_icache_mm_range(current->mm,
+				(unsigned long)addr,
+				(unsigned long)addr + bytes);
 		break;
 	default:
 		return -EINVAL;

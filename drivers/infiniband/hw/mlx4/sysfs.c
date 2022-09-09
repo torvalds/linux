@@ -56,7 +56,7 @@ static ssize_t show_admin_alias_guid(struct device *dev,
 					      mlx4_ib_iov_dentry->entry_num,
 					      port->num);
 
-	return sprintf(buf, "%llx\n", be64_to_cpu(sysadmin_ag_val));
+	return sysfs_emit(buf, "%llx\n", be64_to_cpu(sysadmin_ag_val));
 }
 
 /* store_admin_alias_guid stores the (new) administratively assigned value of that GUID.
@@ -117,22 +117,24 @@ static ssize_t show_port_gid(struct device *dev,
 	struct mlx4_ib_iov_port *port = mlx4_ib_iov_dentry->ctx;
 	struct mlx4_ib_dev *mdev = port->dev;
 	union ib_gid gid;
-	ssize_t ret;
+	int ret;
+	__be16 *raw;
 
 	ret = __mlx4_ib_query_gid(&mdev->ib_dev, port->num,
 				  mlx4_ib_iov_dentry->entry_num, &gid, 1);
 	if (ret)
 		return ret;
-	ret = sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-		      be16_to_cpu(((__be16 *) gid.raw)[0]),
-		      be16_to_cpu(((__be16 *) gid.raw)[1]),
-		      be16_to_cpu(((__be16 *) gid.raw)[2]),
-		      be16_to_cpu(((__be16 *) gid.raw)[3]),
-		      be16_to_cpu(((__be16 *) gid.raw)[4]),
-		      be16_to_cpu(((__be16 *) gid.raw)[5]),
-		      be16_to_cpu(((__be16 *) gid.raw)[6]),
-		      be16_to_cpu(((__be16 *) gid.raw)[7]));
-	return ret;
+
+	raw = (__be16 *)gid.raw;
+	return sysfs_emit(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+			  be16_to_cpu(raw[0]),
+			  be16_to_cpu(raw[1]),
+			  be16_to_cpu(raw[2]),
+			  be16_to_cpu(raw[3]),
+			  be16_to_cpu(raw[4]),
+			  be16_to_cpu(raw[5]),
+			  be16_to_cpu(raw[6]),
+			  be16_to_cpu(raw[7]));
 }
 
 static ssize_t show_phys_port_pkey(struct device *dev,
@@ -151,7 +153,7 @@ static ssize_t show_phys_port_pkey(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "0x%04x\n", pkey);
+	return sysfs_emit(buf, "0x%04x\n", pkey);
 }
 
 #define DENTRY_REMOVE(_dentry)						\
@@ -441,16 +443,12 @@ static ssize_t show_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
 {
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
-	ssize_t ret = -ENODEV;
+	struct pkey_mgt *m = &p->dev->pkeys;
+	u8 key = m->virt2phys_pkey[p->slave][p->port_num - 1][tab_attr->index];
 
-	if (p->dev->pkeys.virt2phys_pkey[p->slave][p->port_num - 1][tab_attr->index] >=
-	    (p->dev->dev->caps.pkey_table_len[p->port_num]))
-		ret = sprintf(buf, "none\n");
-	else
-		ret = sprintf(buf, "%d\n",
-			      p->dev->pkeys.virt2phys_pkey[p->slave]
-			      [p->port_num - 1][tab_attr->index]);
-	return ret;
+	if (key >= p->dev->dev->caps.pkey_table_len[p->port_num])
+		return sysfs_emit(buf, "none\n");
+	return sysfs_emit(buf, "%d\n", key);
 }
 
 static ssize_t store_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
@@ -488,7 +486,7 @@ static ssize_t store_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
 static ssize_t show_port_gid_idx(struct mlx4_port *p,
 				 struct port_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", p->slave);
+	return sysfs_emit(buf, "%d\n", p->slave);
 }
 
 static struct attribute **
@@ -542,14 +540,10 @@ static ssize_t sysfs_show_smi_enabled(struct device *dev,
 {
 	struct mlx4_port *p =
 		container_of(attr, struct mlx4_port, smi_enabled);
-	ssize_t len = 0;
 
-	if (mlx4_vf_smi_enabled(p->dev->dev, p->slave, p->port_num))
-		len = sprintf(buf, "%d\n", 1);
-	else
-		len = sprintf(buf, "%d\n", 0);
-
-	return len;
+	return sysfs_emit(buf, "%d\n",
+			  !!mlx4_vf_smi_enabled(p->dev->dev, p->slave,
+						p->port_num));
 }
 
 static ssize_t sysfs_show_enable_smi_admin(struct device *dev,
@@ -558,14 +552,10 @@ static ssize_t sysfs_show_enable_smi_admin(struct device *dev,
 {
 	struct mlx4_port *p =
 		container_of(attr, struct mlx4_port, enable_smi_admin);
-	ssize_t len = 0;
 
-	if (mlx4_vf_get_enable_smi_admin(p->dev->dev, p->slave, p->port_num))
-		len = sprintf(buf, "%d\n", 1);
-	else
-		len = sprintf(buf, "%d\n", 0);
-
-	return len;
+	return sysfs_emit(buf, "%d\n",
+			  !!mlx4_vf_get_enable_smi_admin(p->dev->dev, p->slave,
+							 p->port_num));
 }
 
 static ssize_t sysfs_store_enable_smi_admin(struct device *dev,
@@ -808,7 +798,7 @@ static void unregister_pkey_tree(struct mlx4_ib_dev *device)
 
 int mlx4_ib_device_register_sysfs(struct mlx4_ib_dev *dev)
 {
-	int i;
+	unsigned int i;
 	int ret = 0;
 
 	if (!mlx4_is_master(dev->dev))
@@ -827,7 +817,7 @@ int mlx4_ib_device_register_sysfs(struct mlx4_ib_dev *dev)
 		goto err_ports;
 	}
 
-	for (i = 1; i <= dev->ib_dev.phys_port_cnt; ++i) {
+	rdma_for_each_port(&dev->ib_dev, i) {
 		ret = add_port_entries(dev, i);
 		if (ret)
 			goto err_add_entries;

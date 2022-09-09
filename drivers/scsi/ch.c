@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SCSI Media Changer device driver for Linux 2.6
  *
@@ -43,7 +44,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(SCSI_CHANGER_MAJOR);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_MEDIUM_CHANGER);
 
-static DEFINE_MUTEX(ch_mutex);
 static int init = 1;
 module_param(init, int, 0444);
 MODULE_PARM_DESC(init, \
@@ -63,7 +63,7 @@ static int verbose = 1;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose,"be verbose (default: on)");
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable/disable debug messages, also prints more "
 		 "detailed sense codes on scsi errors (default: off)");
@@ -198,8 +198,9 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 	result = scsi_execute_req(ch->device, cmd, direction, buffer,
 				  buflength, &sshdr, timeout * HZ,
 				  MAX_RETRIES, NULL);
-
-	if (driver_byte(result) == DRIVER_SENSE) {
+	if (result < 0)
+		return result;
+	if (scsi_sense_valid(&sshdr)) {
 		if (debug)
 			scsi_print_sense_hdr(ch->device, ch->name, &sshdr);
 		errno = ch_find_errno(&sshdr);
@@ -238,7 +239,7 @@ ch_read_element_status(scsi_changer *ch, u_int elem, char *data)
 	u_char  *buffer;
 	int     result;
 
-	buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(512, GFP_KERNEL);
 	if(!buffer)
 		return -ENOMEM;
 
@@ -296,7 +297,7 @@ ch_readconfig(scsi_changer *ch)
 	int     result,id,lun,i;
 	u_int   elem;
 
-	buffer = kzalloc(512, GFP_KERNEL | GFP_DMA);
+	buffer = kzalloc(512, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -568,6 +569,7 @@ static void ch_destroy(struct kref *ref)
 {
 	scsi_changer *ch = container_of(ref, scsi_changer, ref);
 
+	ch->device = NULL;
 	kfree(ch->dt);
 	kfree(ch);
 }
@@ -578,7 +580,6 @@ ch_release(struct inode *inode, struct file *file)
 	scsi_changer *ch = file->private_data;
 
 	scsi_device_put(ch->device);
-	ch->device = NULL;
 	file->private_data = NULL;
 	kref_put(&ch->ref, ch_destroy);
 	return 0;
@@ -590,20 +591,22 @@ ch_open(struct inode *inode, struct file *file)
 	scsi_changer *ch;
 	int minor = iminor(inode);
 
-	mutex_lock(&ch_mutex);
 	spin_lock(&ch_index_lock);
 	ch = idr_find(&ch_index_idr, minor);
 
-	if (NULL == ch || scsi_device_get(ch->device)) {
+	if (ch == NULL || !kref_get_unless_zero(&ch->ref)) {
 		spin_unlock(&ch_index_lock);
-		mutex_unlock(&ch_mutex);
 		return -ENXIO;
 	}
-	kref_get(&ch->ref);
 	spin_unlock(&ch_index_lock);
-
+	if (scsi_device_get(ch->device)) {
+		kref_put(&ch->ref, ch_destroy);
+		return -ENXIO;
+	}
+	/* Synchronize with ch_probe() */
+	mutex_lock(&ch->lock);
 	file->private_data = ch;
-	mutex_unlock(&ch_mutex);
+	mutex_unlock(&ch->lock);
 	return 0;
 }
 
@@ -614,6 +617,12 @@ ch_checkrange(scsi_changer *ch, unsigned int type, unsigned int unit)
 		return -1;
 	return 0;
 }
+
+struct changer_element_status32 {
+	int		ces_type;
+	compat_uptr_t	ces_data;
+};
+#define CHIOGSTATUS32  _IOW('c', 8, struct changer_element_status32)
 
 static long ch_ioctl(struct file *file,
 		    unsigned int cmd, unsigned long arg)
@@ -745,7 +754,20 @@ static long ch_ioctl(struct file *file,
 
 		return ch_gstatus(ch, ces.ces_type, ces.ces_data);
 	}
+#ifdef CONFIG_COMPAT
+	case CHIOGSTATUS32:
+	{
+		struct changer_element_status32 ces32;
 
+		if (copy_from_user(&ces32, argp, sizeof(ces32)))
+			return -EFAULT;
+		if (ces32.ces_type < 0 || ces32.ces_type >= CH_TYPES)
+			return -EINVAL;
+
+		return ch_gstatus(ch, ces32.ces_type,
+				  compat_ptr(ces32.ces_data));
+	}
+#endif
 	case CHIOGELEM:
 	{
 		struct changer_get_element cge;
@@ -761,7 +783,7 @@ static long ch_ioctl(struct file *file,
 			return -EINVAL;
 		elem = ch->firsts[cge.cge_type] + cge.cge_unit;
 
-		buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
+		buffer = kmalloc(512, GFP_KERNEL);
 		if (!buffer)
 			return -ENOMEM;
 		mutex_lock(&ch->lock);
@@ -855,55 +877,10 @@ static long ch_ioctl(struct file *file,
 	}
 
 	default:
-		return scsi_ioctl(ch->device, cmd, argp);
+		return scsi_ioctl(ch->device, file->f_mode, cmd, argp);
 
 	}
 }
-
-#ifdef CONFIG_COMPAT
-
-struct changer_element_status32 {
-	int		ces_type;
-	compat_uptr_t	ces_data;
-};
-#define CHIOGSTATUS32  _IOW('c', 8,struct changer_element_status32)
-
-static long ch_ioctl_compat(struct file * file,
-			    unsigned int cmd, unsigned long arg)
-{
-	scsi_changer *ch = file->private_data;
-
-	switch (cmd) {
-	case CHIOGPARAMS:
-	case CHIOGVPARAMS:
-	case CHIOPOSITION:
-	case CHIOMOVE:
-	case CHIOEXCHANGE:
-	case CHIOGELEM:
-	case CHIOINITELEM:
-	case CHIOSVOLTAG:
-		/* compatible */
-		return ch_ioctl(file, cmd, arg);
-	case CHIOGSTATUS32:
-	{
-		struct changer_element_status32 ces32;
-		unsigned char __user *data;
-
-		if (copy_from_user(&ces32, (void __user *)arg, sizeof (ces32)))
-			return -EFAULT;
-		if (ces32.ces_type < 0 || ces32.ces_type >= CH_TYPES)
-			return -EINVAL;
-
-		data = compat_ptr(ces32.ces_data);
-		return ch_gstatus(ch, ces32.ces_type, data);
-	}
-	default:
-		// return scsi_ioctl_compat(ch->device, cmd, (void*)arg);
-		return -ENOIOCTLCMD;
-
-	}
-}
-#endif
 
 /* ------------------------------------------------------------------------ */
 
@@ -935,7 +912,16 @@ static int ch_probe(struct device *dev)
 
 	ch->minor = ret;
 	sprintf(ch->name,"ch%d",ch->minor);
+	ret = scsi_device_get(sd);
+	if (ret) {
+		sdev_printk(KERN_WARNING, sd, "ch%d: failed to get device\n",
+			    ch->minor);
+		goto remove_idr;
+	}
 
+	mutex_init(&ch->lock);
+	kref_init(&ch->ref);
+	ch->device = sd;
 	class_dev = device_create(ch_sysfs_class, dev,
 				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
 				  "s%s", ch->name);
@@ -943,24 +929,27 @@ static int ch_probe(struct device *dev)
 		sdev_printk(KERN_WARNING, sd, "ch%d: device_create failed\n",
 			    ch->minor);
 		ret = PTR_ERR(class_dev);
-		goto remove_idr;
+		goto put_device;
 	}
 
-	mutex_init(&ch->lock);
-	kref_init(&ch->ref);
-	ch->device = sd;
+	mutex_lock(&ch->lock);
 	ret = ch_readconfig(ch);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&ch->lock);
 		goto destroy_dev;
+	}
 	if (init)
 		ch_init_elem(ch);
 
+	mutex_unlock(&ch->lock);
 	dev_set_drvdata(dev, ch);
 	sdev_printk(KERN_INFO, sd, "Attached scsi changer %s\n", ch->name);
 
 	return 0;
 destroy_dev:
 	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
+put_device:
+	scsi_device_put(sd);
 remove_idr:
 	idr_remove(&ch_index_idr, ch->minor);
 free_ch:
@@ -974,9 +963,11 @@ static int ch_remove(struct device *dev)
 
 	spin_lock(&ch_index_lock);
 	idr_remove(&ch_index_idr, ch->minor);
+	dev_set_drvdata(dev, NULL);
 	spin_unlock(&ch_index_lock);
 
 	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
+	scsi_device_put(ch->device);
 	kref_put(&ch->ref, ch_destroy);
 	return 0;
 }
@@ -995,9 +986,7 @@ static const struct file_operations changer_fops = {
 	.open		= ch_open,
 	.release	= ch_release,
 	.unlocked_ioctl	= ch_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ch_ioctl_compat,
-#endif
+	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= noop_llseek,
 };
 
@@ -1039,9 +1028,3 @@ static void __exit exit_ch_module(void)
 
 module_init(init_ch_module);
 module_exit(exit_ch_module);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

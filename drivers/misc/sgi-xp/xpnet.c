@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (C) 1999-2009 Silicon Graphics, Inc. All rights reserved.
  */
 
@@ -96,7 +97,7 @@ struct xpnet_pending_msg {
 	atomic_t use_count;
 };
 
-struct net_device *xpnet_device;
+static struct net_device *xpnet_device;
 
 /*
  * When we are notified of other partitions activating, we add them to
@@ -131,16 +132,16 @@ static DEFINE_SPINLOCK(xpnet_broadcast_lock);
 
 /* Define the XPNET debug device structures to be used with dev_dbg() et al */
 
-struct device_driver xpnet_dbg_name = {
+static struct device_driver xpnet_dbg_name = {
 	.name = "xpnet"
 };
 
-struct device xpnet_dbg_subname = {
+static struct device xpnet_dbg_subname = {
 	.init_name = "",	/* set to "" */
 	.driver = &xpnet_dbg_name
 };
 
-struct device *xpnet = &xpnet_dbg_subname;
+static struct device *xpnet = &xpnet_dbg_subname;
 
 /*
  * Packet was recevied by XPC and forwarded to us.
@@ -207,7 +208,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 	} else {
 		dst = (void *)((u64)skb->data & ~(L1_CACHE_BYTES - 1));
 		dev_dbg(xpnet, "transferring buffer to the skb->data area;\n\t"
-			"xp_remote_memcpy(0x%p, 0x%p, %hu)\n", dst,
+			"xp_remote_memcpy(0x%p, 0x%p, %u)\n", dst,
 					  (void *)msg->buf_pa, msg->size);
 
 		ret = xp_remote_memcpy(xp_pa(dst), msg->buf_pa, msg->size);
@@ -217,7 +218,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 			 * !!! appears in_use and we can't just call
 			 * !!! dev_kfree_skb.
 			 */
-			dev_err(xpnet, "xp_remote_memcpy(0x%p, 0x%p, 0x%hx) "
+			dev_err(xpnet, "xp_remote_memcpy(0x%p, 0x%p, 0x%x) "
 				"returned error=0x%x\n", dst,
 				(void *)msg->buf_pa, msg->size, ret);
 
@@ -246,7 +247,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 	xpnet_device->stats.rx_packets++;
 	xpnet_device->stats.rx_bytes += skb->len + ETH_HLEN;
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 	xpc_received(partid, channel, (void *)msg);
 }
 
@@ -284,7 +285,7 @@ xpnet_connection_activity(enum xp_retval reason, short partid, int channel,
 		__clear_bit(partid, xpnet_broadcast_partitions);
 		spin_unlock_bh(&xpnet_broadcast_lock);
 
-		if (bitmap_empty((unsigned long *)xpnet_broadcast_partitions,
+		if (bitmap_empty(xpnet_broadcast_partitions,
 				 xp_max_npartitions)) {
 			netif_carrier_off(xpnet_device);
 		}
@@ -496,7 +497,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * Deal with transmit timeouts coming from the network layer.
  */
 static void
-xpnet_dev_tx_timeout(struct net_device *dev)
+xpnet_dev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	dev->stats.tx_errors++;
 }
@@ -513,16 +514,16 @@ static const struct net_device_ops xpnet_netdev_ops = {
 static int __init
 xpnet_init(void)
 {
+	u8 addr[ETH_ALEN];
 	int result;
 
-	if (!is_shub() && !is_uv())
+	if (!is_uv_system())
 		return -ENODEV;
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
-	xpnet_broadcast_partitions = kcalloc(BITS_TO_LONGS(xp_max_npartitions),
-					     sizeof(long),
-					     GFP_KERNEL);
+	xpnet_broadcast_partitions = bitmap_zalloc(xp_max_npartitions,
+						   GFP_KERNEL);
 	if (xpnet_broadcast_partitions == NULL)
 		return -ENOMEM;
 
@@ -533,7 +534,7 @@ xpnet_init(void)
 	xpnet_device = alloc_netdev(0, XPNET_DEVICE_NAME, NET_NAME_UNKNOWN,
 				    ether_setup);
 	if (xpnet_device == NULL) {
-		kfree(xpnet_broadcast_partitions);
+		bitmap_free(xpnet_broadcast_partitions);
 		return -ENOMEM;
 	}
 
@@ -544,15 +545,17 @@ xpnet_init(void)
 	xpnet_device->min_mtu = XPNET_MIN_MTU;
 	xpnet_device->max_mtu = XPNET_MAX_MTU;
 
+	memset(addr, 0, sizeof(addr));
 	/*
 	 * Multicast assumes the LSB of the first octet is set for multicast
 	 * MAC addresses.  We chose the first octet of the MAC to be unlikely
 	 * to collide with any vendor's officially issued MAC.
 	 */
-	xpnet_device->dev_addr[0] = 0x02;     /* locally administered, no OUI */
+	addr[0] = 0x02;     /* locally administered, no OUI */
 
-	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 1] = xp_partition_id;
-	xpnet_device->dev_addr[XPNET_PARTID_OCTET + 0] = (xp_partition_id >> 8);
+	addr[XPNET_PARTID_OCTET + 1] = xp_partition_id;
+	addr[XPNET_PARTID_OCTET + 0] = (xp_partition_id >> 8);
+	eth_hw_addr_set(xpnet_device, addr);
 
 	/*
 	 * ether_setup() sets this to a multicast device.  We are
@@ -570,7 +573,7 @@ xpnet_init(void)
 	result = register_netdev(xpnet_device);
 	if (result != 0) {
 		free_netdev(xpnet_device);
-		kfree(xpnet_broadcast_partitions);
+		bitmap_free(xpnet_broadcast_partitions);
 	}
 
 	return result;
@@ -586,7 +589,7 @@ xpnet_exit(void)
 
 	unregister_netdev(xpnet_device);
 	free_netdev(xpnet_device);
-	kfree(xpnet_broadcast_partitions);
+	bitmap_free(xpnet_broadcast_partitions);
 }
 
 module_exit(xpnet_exit);

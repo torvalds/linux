@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Atheros AR71XX/AR724X/AR913X common definitions
  *
@@ -5,10 +6,6 @@
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
  *  Parts of this file are based on Atheros' 2.6.15 BSP
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #ifndef __ASM_MACH_ATH79_H
@@ -177,9 +174,5 @@ static inline u32 ath79_reset_rr(unsigned reg)
 
 void ath79_device_reset_set(u32 mask);
 void ath79_device_reset_clear(u32 mask);
-
-void ath79_cpu_irq_init(unsigned irq_wb_chan2, unsigned irq_wb_chan3);
-void ath79_misc_irq_init(void __iomem *regs, int irq,
-			int irq_base, bool is_ar71xx);
 
 #endif /* __ASM_MACH_ATH79_H */

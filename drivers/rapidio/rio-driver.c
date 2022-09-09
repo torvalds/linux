@@ -1,19 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RapidIO driver support
  *
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/rio.h>
 #include <linux/rio_ids.h>
+#include <linux/rio_drv.h>
 
 #include "rio.h"
 
@@ -115,7 +112,7 @@ static int rio_device_probe(struct device *dev)
  * driver, then run the driver remove() method.  Then update
  * the reference count.
  */
-static int rio_device_remove(struct device *dev)
+static void rio_device_remove(struct device *dev)
 {
 	struct rio_dev *rdev = to_rio_dev(dev);
 	struct rio_driver *rdrv = rdev->driver;
@@ -127,8 +124,6 @@ static int rio_device_remove(struct device *dev)
 	}
 
 	rio_dev_put(rdev);
-
-	return 0;
 }
 
 static void rio_device_shutdown(struct device *dev)

@@ -1,15 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Asynchronous Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
  *          Giovanni Cabiddu <giovanni.cabiddu@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_ACOMP_INT_H
 #define _CRYPTO_ACOMP_INT_H
@@ -51,7 +46,7 @@ static inline struct acomp_req *__acomp_request_alloc(struct crypto_acomp *tfm)
 
 static inline void __acomp_request_free(struct acomp_req *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 /**
@@ -73,10 +68,8 @@ int crypto_register_acomp(struct acomp_alg *alg);
  * compression algorithm
  *
  * @alg:	algorithm definition
- *
- * Return:	zero on success; error code in case of error
  */
-int crypto_unregister_acomp(struct acomp_alg *alg);
+void crypto_unregister_acomp(struct acomp_alg *alg);
 
 int crypto_register_acomps(struct acomp_alg *algs, int count);
 void crypto_unregister_acomps(struct acomp_alg *algs, int count);

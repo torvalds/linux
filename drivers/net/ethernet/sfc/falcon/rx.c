@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2005-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/socket.h>
@@ -113,6 +110,8 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
 	struct ef4_rx_page_state *state;
 	unsigned index;
 
+	if (unlikely(!rx_queue->page_ring))
+		return NULL;
 	index = rx_queue->page_remove & rx_queue->page_ptr_mask;
 	page = rx_queue->page_ring[index];
 	if (page == NULL)
@@ -143,6 +142,7 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
  * ef4_init_rx_buffers - create EF4_RX_BATCH page-based RX buffers
  *
  * @rx_queue:		Efx RX queue
+ * @atomic:		control memory allocation flags
  *
  * This allocates a batch of pages, maps them for DMA, and populates
  * struct ef4_rx_buffers for each one. Return a negative error code or
@@ -295,6 +295,9 @@ static void ef4_recycle_rx_pages(struct ef4_channel *channel,
 {
 	struct ef4_rx_queue *rx_queue = ef4_channel_get_rx_queue(channel);
 
+	if (unlikely(!rx_queue->page_ring))
+		return;
+
 	do {
 		ef4_recycle_rx_page(channel, rx_buf);
 		rx_buf = ef4_rx_buf_next(rx_queue, rx_buf);
@@ -319,6 +322,7 @@ static void ef4_discard_rx_packet(struct ef4_channel *channel,
  * This will aim to fill the RX descriptor queue up to
  * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.
+ * @atomic: control memory allocation flags
  *
  * The caller must provide serialisation (none is used here). In practise,
  * this means this function must run from the NAPI handler, or be called
@@ -427,7 +431,6 @@ ef4_rx_packet_gro(struct ef4_channel *channel, struct ef4_rx_buffer *rx_buf,
 		  unsigned int n_frags, u8 *eh)
 {
 	struct napi_struct *napi = &channel->napi_str;
-	gro_result_t gro_result;
 	struct ef4_nic *efx = channel->efx;
 	struct sk_buff *skb;
 
@@ -463,9 +466,7 @@ ef4_rx_packet_gro(struct ef4_channel *channel, struct ef4_rx_buffer *rx_buf,
 
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
-	gro_result = napi_gro_frags(napi);
-	if (gro_result != GRO_DROP)
-		channel->irq_mod_score += 2;
+	napi_gro_frags(napi);
 }
 
 /* Allocate and construct an SKB around page fragments */
@@ -717,12 +718,14 @@ static void ef4_init_rx_recycle_ring(struct ef4_nic *efx,
 				     struct ef4_rx_queue *rx_queue)
 {
 	unsigned int bufs_in_recycle_ring, page_ring_size;
+	struct iommu_domain __maybe_unused *domain;
 
 	/* Set the RX recycle ring size */
 #ifdef CONFIG_PPC64
 	bufs_in_recycle_ring = EF4_RECYCLE_RING_SIZE_IOMMU;
 #else
-	if (iommu_present(&pci_bus_type))
+	domain = iommu_get_domain_for_dev(&efx->pci_dev->dev);
+	if (domain && domain->type != IOMMU_DOMAIN_IDENTITY)
 		bufs_in_recycle_ring = EF4_RECYCLE_RING_SIZE_IOMMU;
 	else
 		bufs_in_recycle_ring = EF4_RECYCLE_RING_SIZE_NOIOMMU;
@@ -732,7 +735,10 @@ static void ef4_init_rx_recycle_ring(struct ef4_nic *efx,
 					    efx->rx_bufs_per_page);
 	rx_queue->page_ring = kcalloc(page_ring_size,
 				      sizeof(*rx_queue->page_ring), GFP_KERNEL);
-	rx_queue->page_ptr_mask = page_ring_size - 1;
+	if (!rx_queue->page_ring)
+		rx_queue->page_ptr_mask = 0;
+	else
+		rx_queue->page_ptr_mask = page_ring_size - 1;
 }
 
 void ef4_init_rx_queue(struct ef4_rx_queue *rx_queue)

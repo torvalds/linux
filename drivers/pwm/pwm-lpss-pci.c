@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Low Power Subsystem PWM controller PCI driver
  *
  * Copyright (C) 2014, Intel Corporation
  *
  * Derived from the original pwm-lpss.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -72,12 +69,8 @@ static int pwm_lpss_probe_pci(struct pci_dev *pdev,
 
 static void pwm_lpss_remove_pci(struct pci_dev *pdev)
 {
-	struct pwm_lpss_chip *lpwm = pci_get_drvdata(pdev);
-
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
-
-	pwm_lpss_remove(lpwm);
 }
 
 #ifdef CONFIG_PM

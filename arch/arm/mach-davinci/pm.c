@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DaVinci Power Management Routines
  *
- * Copyright (C) 2009 Texas Instruments, Inc. http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2009 Texas Instruments, Inc. https://www.ti.com/
  */
 
 #include <linux/pm.h>
@@ -19,11 +16,10 @@
 #include <asm/delay.h>
 #include <asm/io.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
-#include <mach/mux.h>
-#include <mach/pm.h>
-
+#include "common.h"
+#include "da8xx.h"
+#include "mux.h"
+#include "pm.h"
 #include "clock.h"
 #include "psc.h"
 #include "sram.h"

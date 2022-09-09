@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
 #include "mt76x2.h"
 #include "eeprom.h"
@@ -26,14 +16,14 @@ mt76x2_eeprom_get_macaddr(struct mt76x02_dev *dev)
 {
 	void *src = dev->mt76.eeprom.data + MT_EE_MAC_ADDR;
 
-	memcpy(dev->mt76.macaddr, src, ETH_ALEN);
+	memcpy(dev->mphy.macaddr, src, ETH_ALEN);
 	return 0;
 }
 
 static bool
 mt76x2_has_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 {
-	u16 *efuse_w = (u16 *) efuse;
+	u16 *efuse_w = (u16 *)efuse;
 
 	if (efuse_w[MT_EE_NIC_CONF_0] != 0)
 		return false;
@@ -87,6 +77,7 @@ mt76x2_apply_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN,
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN + 1,
 	};
+	struct device_node *np = dev->mt76.dev->of_node;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u8 prev_grp0[4] = {
 		eeprom[MT_EE_TX_POWER_0_START_5G],
@@ -96,6 +87,9 @@ mt76x2_apply_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 	};
 	u16 val;
 	int i;
+
+	if (!np || !of_property_read_bool(np, "mediatek,eeprom-merge-otp"))
+		return;
 
 	if (!mt76x2_has_cal_free_data(dev, efuse))
 		return;
@@ -259,7 +253,7 @@ mt76x2_get_5g_rx_gain(struct mt76x02_dev *dev, u8 channel)
 
 void mt76x2_read_rx_gain(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	int channel = chan->hw_value;
 	s8 lna_5g[3], lna_2g;
 	u8 lna;
@@ -372,7 +366,8 @@ mt76x2_get_power_info_2g(struct mt76x02_dev *dev,
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
 	t->chain[chain].target_power = data[2];
-	t->chain[chain].delta = mt76x02_sign_extend_optional(data[delta_idx], 7);
+	t->chain[chain].delta =
+		mt76x02_sign_extend_optional(data[delta_idx], 7);
 
 	val = mt76x02_eeprom_get(dev, MT_EE_RF_2G_TSSI_OFF_TXPOWER);
 	t->target_power = val >> 8;
@@ -381,7 +376,7 @@ mt76x2_get_power_info_2g(struct mt76x02_dev *dev,
 static void
 mt76x2_get_power_info_5g(struct mt76x02_dev *dev,
 			 struct mt76x2_tx_power_info *t,
-		         struct ieee80211_channel *chan,
+			 struct ieee80211_channel *chan,
 			 int chain, int offset)
 {
 	int channel = chan->hw_value;
@@ -423,7 +418,8 @@ mt76x2_get_power_info_5g(struct mt76x02_dev *dev,
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
 	t->chain[chain].target_power = data[2];
-	t->chain[chain].delta = mt76x02_sign_extend_optional(data[delta_idx], 7);
+	t->chain[chain].delta =
+		mt76x02_sign_extend_optional(data[delta_idx], 7);
 
 	val = mt76x02_eeprom_get(dev, MT_EE_RF_2G_RX_HIGH_GAIN);
 	t->target_power = val & 0xff;
@@ -464,7 +460,7 @@ EXPORT_SYMBOL_GPL(mt76x2_get_power_info);
 
 int mt76x2_get_temp_comp(struct mt76x02_dev *dev, struct mt76x2_temp_comp *t)
 {
-	enum nl80211_band band = dev->mt76.chandef.chan->band;
+	enum nl80211_band band = dev->mphy.chandef.chan->band;
 	u16 val, slope;
 	u8 bounds;
 
@@ -506,8 +502,8 @@ int mt76x2_eeprom_init(struct mt76x02_dev *dev)
 
 	mt76x02_eeprom_parse_hw_cap(dev);
 	mt76x2_eeprom_get_macaddr(dev);
-	mt76_eeprom_override(&dev->mt76);
-	dev->mt76.macaddr[0] &= ~BIT(1);
+	mt76_eeprom_override(&dev->mphy);
+	dev->mphy.macaddr[0] &= ~BIT(1);
 
 	return 0;
 }

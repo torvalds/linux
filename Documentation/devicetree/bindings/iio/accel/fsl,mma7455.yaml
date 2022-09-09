@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/accel/fsl,mma7455.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale MMA7455 and MMA7456 three axis accelerometers
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+description:
+  Devices support both SPI and I2C interfaces.
+
+properties:
+  compatible:
+    enum:
+      - fsl,mma7455
+      - fsl,mma7456
+  reg:
+    maxItems: 1
+
+  avdd-supply: true
+  vddio-supply: true
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    description:
+      Data ready is only available on INT1, but events can use either or
+      both pins.  If not specified, first element assumed to correspond
+      to INT1 and second (where present) to INT2.
+    minItems: 1
+    maxItems: 2
+    items:
+      enum:
+        - "INT1"
+        - "INT2"
+
+  spi-max-frequency: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    # include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        accelerometer@18 {
+            compatible = "fsl,mma7455";
+            reg = <0x18>;
+            vddio-supply = <&iovdd>;
+            avdd-supply = <&avdd>;
+            interrupts = <57 IRQ_TYPE_EDGE_FALLING>, <58 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "INT2", "INT1";
+        };
+    };
+  - |
+    # include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        accelerometer@0 {
+            compatible = "fsl,mma7456";
+            reg = <0>;
+            spi-max-frequency = <10000000>;
+            vddio-supply = <&iovdd>;
+            avdd-supply = <&avdd>;
+            interrupts = <57 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-names = "INT1";
+        };
+    };
+...

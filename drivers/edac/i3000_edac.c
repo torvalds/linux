@@ -273,7 +273,6 @@ static void i3000_check(struct mem_ctl_info *mci)
 {
 	struct i3000_error_info info;
 
-	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i3000_get_error_info(mci, &info);
 	i3000_process_error_info(mci, &info, 1);
 }
@@ -324,7 +323,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	pci_read_config_dword(pdev, I3000_MCHBAR, (u32 *) & mchbar);
 	mchbar &= I3000_MCHBAR_MASK;
-	window = ioremap_nocache(mchbar, I3000_MMR_WINDOW_SIZE);
+	window = ioremap(mchbar, I3000_MMR_WINDOW_SIZE);
 	if (!window) {
 		printk(KERN_ERR "i3000: cannot map mmio space at 0x%lx\n",
 			mchbar);

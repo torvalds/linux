@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hibernation support specific for i386 - temporary page tables
- *
- * Distribute under GPLv2
  *
  * Copyright (c) 2006 Rafael J. Wysocki <rjw@sisk.pl>
  */
@@ -9,9 +8,9 @@
 #include <linux/gfp.h>
 #include <linux/suspend.h>
 #include <linux/memblock.h>
+#include <linux/pgtable.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mmzone.h>
 #include <asm/sections.h>
 #include <asm/suspend.h>

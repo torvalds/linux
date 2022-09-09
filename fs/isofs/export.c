@@ -10,7 +10,7 @@
  *
  * The following files are helpful:
  *
- *     Documentation/filesystems/nfs/Exporting
+ *     Documentation/filesystems/nfs/exporting.rst
  *     fs/exportfs/expfs.c.
  */
 

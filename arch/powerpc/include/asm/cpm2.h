@@ -594,7 +594,7 @@ typedef struct fcc_enet {
 	uint	fen_p256c;	/* Total packets 256 < bytes <= 511 */
 	uint	fen_p512c;	/* Total packets 512 < bytes <= 1023 */
 	uint	fen_p1024c;	/* Total packets 1024 < bytes <= 1518 */
-	uint	fen_cambuf;	/* Internal CAM buffer poiner */
+	uint	fen_cambuf;	/* Internal CAM buffer pointer */
 	ushort	fen_rfthr;	/* Received frames threshold */
 	ushort	fen_rfcnt;	/* Received frames count */
 } fcc_enet_t;
@@ -1133,8 +1133,8 @@ enum cpm_clk {
 	CPM_CLK_DUMMY
 };
 
-extern int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode);
-extern int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock);
+int __init cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode);
+int __init cpm2_smc_clk_setup(enum cpm_clk_target target, int clock);
 
 #define CPM_PIN_INPUT     0
 #define CPM_PIN_OUTPUT    1
@@ -1143,7 +1143,7 @@ extern int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock);
 #define CPM_PIN_GPIO      4
 #define CPM_PIN_OPENDRAIN 8
 
-void cpm2_set_pin(int port, int pin, int flags);
+void __init cpm2_set_pin(int port, int pin, int flags);
 
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */

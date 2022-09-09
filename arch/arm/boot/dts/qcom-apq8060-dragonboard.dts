@@ -1,27 +1,7 @@
-/*
- * Copyright 2016 Linaro Ltd
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 #include "qcom-msm8660.dtsi"
@@ -93,9 +73,8 @@
 		vdd-supply = <&pm8058_l14>; // 2.85V
 		aset-gpios = <&pm8058_gpio 35 GPIO_ACTIVE_LOW>;
 		capella,aset-resistance-ohms = <100000>;
-		/* GPIO34 has interrupt 225 on the PM8058 */
 		/* Trig on both edges - getting close or far away */
-		interrupts-extended = <&pm8058 225 IRQ_TYPE_EDGE_BOTH>;
+		interrupts-extended = <&pm8058_gpio 34 IRQ_TYPE_EDGE_BOTH>;
 		/* MPP05 analog input to the XOADC */
 		io-channels = <&xoadc 0x00 0x05>;
 		io-channel-names = "aout";
@@ -105,7 +84,7 @@
 
 	soc {
 		pinctrl@800000 {
-			/* eMMMC pins, all 8 data lines connected */
+			/* eMMC pins, all 8 data lines connected */
 			dragon_sdcc1_pins: sdcc1 {
 				mux {
 					pins = "gpio159", "gpio160", "gpio161",
@@ -295,7 +274,7 @@
 				};
 
 				gpio@150 {
-					dragon_ethernet_gpios: ethernet-gpios {
+					dragon_ethernet_gpios: ethernet-state {
 						pinconf {
 							pins = "gpio7";
 							function = "normal";
@@ -304,7 +283,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_bmp085_gpios: bmp085-gpios {
+					dragon_bmp085_gpios: bmp085-state {
 						pinconf {
 							pins = "gpio16";
 							function = "normal";
@@ -313,7 +292,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_mpu3050_gpios: mpu3050-gpios {
+					dragon_mpu3050_gpios: mpu3050-state {
 						pinconf {
 							pins = "gpio17";
 							function = "normal";
@@ -322,7 +301,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_sdcc3_gpios: sdcc3-gpios {
+					dragon_sdcc3_gpios: sdcc3-state {
 						pinconf {
 							pins = "gpio22";
 							function = "normal";
@@ -331,7 +310,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_sdcc5_gpios: sdcc5-gpios {
+					dragon_sdcc5_gpios: sdcc5-state {
 						pinconf {
 							pins = "gpio26";
 							function = "normal";
@@ -341,7 +320,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_ak8975_gpios: ak8975-gpios {
+					dragon_ak8975_gpios: ak8975-state {
 						pinconf {
 							pins = "gpio33";
 							function = "normal";
@@ -350,9 +329,9 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_cm3605_gpios: cm3605-gpios {
+					dragon_cm3605_gpios: cm3605-state {
 						/* Pin 34 connected to the proxy IRQ */
-						pinconf_gpio34 {
+						gpio34-pins {
 							pins = "gpio34";
 							function = "normal";
 							input-enable;
@@ -360,7 +339,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 						/* Pin 35 connected to ASET */
-						pinconf_gpio35 {
+						gpio35-pins {
 							pins = "gpio35";
 							function = "normal";
 							output-high;
@@ -368,7 +347,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_veth_gpios: veth-gpios {
+					dragon_veth_gpios: veth-state {
 						pinconf {
 							pins = "gpio40";
 							function = "normal";
@@ -379,8 +358,8 @@
 				};
 
 				mpps@50 {
-					dragon_cm3605_mpps: cm3605-mpps {
-						pinconf {
+					dragon_cm3605_mpps: cm3605-mpps-state {
+						mpp5 {
 							pins = "mpp5";
 							function = "analog";
 							input-enable;
@@ -438,6 +417,7 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x131>;
 					label = "pm8058:red";
+					color = <LED_COLOR_ID_RED>;
 					default-state = "off";
 				};
 				led@132 {
@@ -448,6 +428,7 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x132>;
 					label = "pm8058:yellow";
+					color = <LED_COLOR_ID_YELLOW>;
 					default-state = "off";
 					linux,default-trigger = "mmc0";
 				};
@@ -455,6 +436,8 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x133>;
 					label = "pm8058:green";
+					function = LED_FUNCTION_HEARTBEAT;
+					color = <LED_COLOR_ID_GREEN>;
 					default-state = "on";
 					linux,default-trigger = "heartbeat";
 				};
@@ -462,11 +445,11 @@
 		};
 
 		gsbi@19800000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C>;
 
 			i2c@19880000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi8_i2c_pins>;
 
@@ -498,26 +481,25 @@
 		};
 
 		gsbi@19c00000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 
 			serial@19c40000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi12_serial_pins>;
 			};
 
 			i2c@19c80000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi12_i2c_pins>;
 
 				ak8975@c {
 					compatible = "asahi-kasei,ak8975";
 					reg = <0x0c>;
-					/* FIXME: GPIO33 has interrupt 224 on the PM8058 */
-					interrupt-parent = <&pm8058>;
-					interrupts = <224 IRQ_TYPE_EDGE_RISING>;
+					interrupt-parent = <&pm8058_gpio>;
+					interrupts = <33 IRQ_TYPE_EDGE_RISING>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&dragon_ak8975_gpios>;
 					vid-supply = <&pm8058_lvs0>; // 1.8V
@@ -526,9 +508,8 @@
 				bmp085@77 {
 					compatible = "bosch,bmp085";
 					reg = <0x77>;
-					/* FIXME: GPIO16 has interrupt 207 on the PM8058 */
-					interrupt-parent = <&pm8058>;
-					interrupts = <207 IRQ_TYPE_EDGE_RISING>;
+					interrupt-parent = <&pm8058_gpio>;
+					interrupts = <16 IRQ_TYPE_EDGE_RISING>;
 					reset-gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&dragon_bmp085_gpios>;
@@ -539,12 +520,11 @@
 					compatible = "invensense,mpu3050";
 					reg = <0x68>;
 					/*
-					 * GPIO17 has interrupt 208 on the
-					 * PM8058, it is pulled high by a 10k
+					 * GPIO17 is pulled high by a 10k
 					 * resistor to VLOGIC so needs to be
 					 * active low/falling edge.
 					 */
-					interrupts-extended = <&pm8058 208 IRQ_TYPE_EDGE_FALLING>;
+					interrupts-extended = <&pm8058_gpio 17 IRQ_TYPE_EDGE_FALLING>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&dragon_mpu3050_gpios>;
 					vlogic-supply = <&pm8058_lvs0>; // 1.8V
@@ -575,7 +555,7 @@
 
 		external-bus@1a100000 {
 			/* The EBI2 will instantiate first, then populate its children */
-			status = "ok";
+			status = "okay";
 			pinctrl-names = "default";
 			pinctrl-0 = <&dragon_ebi2_pins>;
 
@@ -585,15 +565,14 @@
 			 * EBI2. This has a 25MHz chrystal next to it, so no
 			 * clocking is needed.
 			 */
-			ethernet-ebi2@2,0 {
+			ethernet@2,0 {
 				compatible = "smsc,lan9221", "smsc,lan9115";
 				reg = <2 0x0 0x100>;
 				/*
-				 * GPIO7 has interrupt 198 on the PM8058
 				 * The second interrupt is the PME interrupt
 				 * for network wakeup, connected to the TLMM.
 				 */
-				interrupts-extended = <&pm8058 198 IRQ_TYPE_EDGE_FALLING>,
+				interrupts-extended = <&pm8058_gpio 7 IRQ_TYPE_EDGE_FALLING>,
 						    <&tlmm 29 IRQ_TYPE_EDGE_RISING>;
 				reset-gpios = <&tlmm 30 GPIO_ACTIVE_LOW>;
 				vdd33a-supply = <&dragon_veth>;
@@ -603,8 +582,6 @@
 				phy-mode = "mii";
 				reg-io-width = <2>;
 				smsc,force-external-phy;
-				/* IRQ on edge falling = active low */
-				smsc,irq-active-low;
 				smsc,irq-push-pull;
 
 				/*
@@ -702,14 +679,14 @@
 					bias-pull-down;
 				};
 
-				/* LVS0 thru 3 and mvs0 are just switches */
+				/* LVS0 thru 3 and mvs are just switches */
 				lvs0 {
 					regulator-always-on;
 				};
 				lvs1 { };
 				lvs2 { };
 				lvs3 { };
-				mvs0 {};
+				mvs { };
 
 			};
 
@@ -927,7 +904,7 @@
 		};
 		amba {
 			/* Internal 3.69 GiB eMMC */
-			sdcc@12400000 {
+			mmc@12400000 {
 				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_sdcc1_pins>;
@@ -936,7 +913,7 @@
 			};
 
 			/* External micro SD card, directly connected, pulled up to 2.85 V */
-			sdcc@12180000 {
+			mmc@12180000 {
 				status = "okay";
 				/* Enable SSBI GPIO 22 as input, use for card detect */
 				pinctrl-names = "default";
@@ -950,7 +927,7 @@
 			 * Second external micro SD card, using two TXB104RGYR levelshifters
 			 * to lift from 1.8 V to 2.85 V
 			 */
-			sdcc@12200000 {
+			mmc@12200000 {
 				status = "okay";
 				/* Enable SSBI GPIO 26 as input, use for card detect */
 				pinctrl-names = "default";

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/acorn/net/ether1.c
  *
  *  Copyright (C) 1996-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Acorn ether1 driver (82586 chip) for Acorn machines
  *
@@ -23,7 +20,7 @@
  * 1.02	RMK	25/05/1997	Added code to restart RU if it goes not ready
  * 1.03	RMK	14/09/1997	Cleaned up the handling of a reset during the TX interrupt.
  *				Should prevent lockup.
- * 1.04 RMK	17/09/1997	Added more info when initialsation of chip goes wrong.
+ * 1.04 RMK	17/09/1997	Added more info when initialisation of chip goes wrong.
  *				TDR now only reports failure when chip reports non-zero
  *				TDR time-distance.
  * 1.05	RMK	31/12/1997	Removed calls to dev_tint for 2.1
@@ -69,7 +66,7 @@ static netdev_tx_t ether1_sendpacket(struct sk_buff *skb,
 static irqreturn_t ether1_interrupt(int irq, void *dev_id);
 static int ether1_close(struct net_device *dev);
 static void ether1_setmulticastlist(struct net_device *dev);
-static void ether1_timeout(struct net_device *dev);
+static void ether1_timeout(struct net_device *dev, unsigned int txqueue);
 
 /* ------------------------------------------------------------------------- */
 
@@ -120,7 +117,7 @@ ether1_outw_p (struct net_device *dev, unsigned short val, int addr, int svflgs)
  * Some inline assembler to allow fast transfers on to/off of the card.
  * Since this driver depends on some features presented by the ARM
  * specific architecture, and that you can't configure this driver
- * without specifiing ARM mode, this is not a problem.
+ * without specifying ARM mode, this is not a problem.
  *
  * This routine is essentially an optimised memcpy from the card's
  * onboard RAM to kernel memory.
@@ -653,7 +650,7 @@ ether1_open (struct net_device *dev)
 }
 
 static void
-ether1_timeout(struct net_device *dev)
+ether1_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	printk(KERN_WARNING "%s: transmit timeout, network cable problem?\n",
 		dev->name);
@@ -989,6 +986,7 @@ static int
 ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct net_device *dev;
+	u8 addr[ETH_ALEN];
 	int i, ret = 0;
 
 	ether1_banner();
@@ -1018,7 +1016,8 @@ ether1_probe(struct expansion_card *ec, const struct ecard_id *id)
 	}
 
 	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = readb(IDPROM_ADDRESS + (i << 2));
+		addr[i] = readb(IDPROM_ADDRESS + (i << 2));
+	eth_hw_addr_set(dev, addr);
 
 	if (ether1_init_2(dev)) {
 		ret = -ENODEV;

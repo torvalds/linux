@@ -1,108 +1,78 @@
 [
     {
-        "ArchStdEvent": "L1D_CACHE_RD",
+        "ArchStdEvent": "L1D_CACHE_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_WR",
+        "ArchStdEvent": "L1D_CACHE_WR"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_REFILL_RD",
+        "ArchStdEvent": "L1D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_INVAL",
+        "ArchStdEvent": "L1D_CACHE_INVAL"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_RD",
+        "ArchStdEvent": "L1D_TLB_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_TLB_REFILL_WR",
+        "ArchStdEvent": "L1D_TLB_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_RD",
+        "ArchStdEvent": "L2D_CACHE_RD"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WR",
+        "ArchStdEvent": "L2D_CACHE_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_REFILL_RD",
+        "ArchStdEvent": "L2D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_REFILL_WR",
+        "ArchStdEvent": "L2D_CACHE_REFILL_WR"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WB_VICTIM",
+        "ArchStdEvent": "L2D_CACHE_WB_VICTIM"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_WB_CLEAN",
+        "ArchStdEvent": "L2D_CACHE_WB_CLEAN"
     },
     {
-        "ArchStdEvent": "L2D_CACHE_INVAL",
+        "ArchStdEvent": "L2D_CACHE_INVAL"
     },
     {
-        "PublicDescription": "Level 1 instruction cache refill",
-        "EventCode": "0x01",
-        "EventName": "L1I_CACHE_REFILL",
-        "BriefDescription": "L1I cache refill"
+        "ArchStdEvent": "L1I_CACHE_REFILL"
     },
     {
-        "PublicDescription": "Level 1 instruction TLB refill",
-        "EventCode": "0x02",
-        "EventName": "L1I_TLB_REFILL",
-        "BriefDescription": "L1I TLB refill"
+        "ArchStdEvent": "L1I_TLB_REFILL"
     },
     {
-        "PublicDescription": "Level 1 data cache refill",
-        "EventCode": "0x03",
-        "EventName": "L1D_CACHE_REFILL",
-        "BriefDescription": "L1D cache refill"
+        "ArchStdEvent": "L1D_CACHE_REFILL"
     },
     {
-        "PublicDescription": "Level 1 data cache access",
-        "EventCode": "0x04",
-        "EventName": "L1D_CACHE_ACCESS",
-        "BriefDescription": "L1D cache access"
+        "ArchStdEvent": "L1D_CACHE"
     },
     {
-        "PublicDescription": "Level 1 data TLB refill",
-        "EventCode": "0x05",
-        "EventName": "L1D_TLB_REFILL",
-        "BriefDescription": "L1D TLB refill"
+        "ArchStdEvent": "L1D_TLB_REFILL"
     },
     {
-        "PublicDescription": "Level 1 instruction cache access",
-        "EventCode": "0x14",
-        "EventName": "L1I_CACHE_ACCESS",
-        "BriefDescription": "L1I cache access"
+        "ArchStdEvent": "L1I_CACHE"
     },
     {
-        "PublicDescription": "Level 2 data cache access",
-        "EventCode": "0x16",
-        "EventName": "L2D_CACHE_ACCESS",
-        "BriefDescription": "L2D cache access"
+        "ArchStdEvent": "L2D_CACHE"
     },
     {
-        "PublicDescription": "Level 2 data refill",
-        "EventCode": "0x17",
-        "EventName": "L2D_CACHE_REFILL",
-        "BriefDescription": "L2D cache refill"
+        "ArchStdEvent": "L2D_CACHE_REFILL"
     },
     {
-        "PublicDescription": "Level 2 data cache, Write-Back",
-        "EventCode": "0x18",
-        "EventName": "L2D_CACHE_WB",
-        "BriefDescription": "L2D cache Write-Back"
+        "ArchStdEvent": "L2D_CACHE_WB"
     },
     {
-        "PublicDescription": "Level 1 data TLB access. This event counts any load or store operation which accesses the data L1 TLB",
-        "EventCode": "0x25",
-        "EventName": "L1D_TLB_ACCESS",
+        "PublicDescription": "This event counts any load or store operation which accesses the data L1 TLB",
+        "ArchStdEvent": "L1D_TLB",
         "BriefDescription": "L1D TLB access"
     },
     {
-        "PublicDescription": "Level 1 instruction TLB access. This event counts any instruction fetch which accesses the instruction L1 TLB",
-        "EventCode": "0x26",
-        "EventName": "L1I_TLB_ACCESS",
-        "BriefDescription": "L1I TLB access"
+        "PublicDescription": "This event counts any instruction fetch which accesses the instruction L1 TLB",
+        "ArchStdEvent": "L1I_TLB"
     },
     {
         "PublicDescription": "Level 2 access to data TLB that caused a page table walk. This event counts on any data access which causes L2D_TLB_REFILL to count",
@@ -114,7 +84,7 @@
         "PublicDescription": "Level 2 access to instruciton TLB that caused a page table walk. This event counts on any instruciton access which causes L2I_TLB_REFILL to count",
         "EventCode": "0x35",
         "EventName": "L2I_TLB_ACCESS",
-        "BriefDescription": "L2D TLB access"
+        "BriefDescription": "L2I TLB access"
     },
     {
         "PublicDescription": "Branch target buffer misprediction",
@@ -187,5 +157,5 @@
         "EventCode": "0x116",
         "EventName": "PAGE_WALK_L2_STAGE2_HIT",
         "BriefDescription": "Page walk, L2 stage-2 hit"
-    },
+    }
 ]

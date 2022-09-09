@@ -1,8 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 / {
 	gpio_keys {
@@ -69,6 +65,7 @@
 		pinctrl-0 = <&pwm_pins>;
 		ti,timers = <&timer10>;
 		#pwm-cells = <3>;
+		ti,clock-source = <0x01>;
 	};
 
 };
@@ -84,6 +81,8 @@
 };
 
 &mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
 	status = "okay";
 };
 
@@ -94,7 +93,8 @@
 
 &gpmc {
 	ranges = <0 0 0x30000000 0x1000000	/* CS0: 16MB for NAND */
-		  1 0 0x2c000000 0x1000000>;	/* CS1: 16MB for LAN9221 */
+		  1 0 0x2c000000 0x1000000	/* CS1: 16MB for LAN9221 */
+		  6 0 0x28000000 0x1000000>;	/* CS6: 16MB for ISP1763 */
 
 	ethernet@gpmc {
 		pinctrl-names = "default";
@@ -103,16 +103,60 @@
 		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;		/* gpio129 */
 		reg = <1 0 0xff>;
 	};
+
+	usb@6,0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&isp1763_pins>;
+		compatible = "nxp,usb-isp1763";
+		reg = <0x6 0x0 0xff>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "host";
+		bus-width = <16>;
+		dr_mode = "host";
+		gpmc,mux-add-data = <0>;
+		gpmc,device-width = <2>;
+		gpmc,wait-pin = <0>;
+		gpmc,burst-length = <4>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <45>;
+		gpmc,cs-wr-off-ns = <45>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <0>;
+		gpmc,adv-wr-off-ns = <0>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <45>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <25>;
+		gpmc,rd-cycle-ns = <60>;
+		gpmc,wr-cycle-ns = <45>;
+		gpmc,access-ns = <35>;
+		gpmc,page-burst-access-ns = <0>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <60>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wr-data-mux-bus-ns = <5>;
+		gpmc,wr-access-ns = <20>;
+	};
 };
+
+&hdqw1w {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdq_pins>;
+};
+
 
 &vpll2 {
 	regulator-always-on;
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 	vdds_dsi-supply = <&vpll2>;
-	vdda_video-supply = <&video_reg>;
+	vdda_video-supply = <&vpll2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_dpi_pins1>;
 	port {
@@ -128,43 +172,18 @@
 		display0 = &lcd0;
 	};
 
-	video_reg: video_reg {
+	lcd0: display {
+		/* This isn't the exact LCD, but the timings meet spec */
+		compatible = "newhaven,nhd-4.3-480272ef-atxl";
+		label = "15";
 		pinctrl-names = "default";
 		pinctrl-0 = <&panel_pwr_pins>;
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-supply";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio5 27 GPIO_ACTIVE_HIGH>;	/* gpio155, lcd INI */
-	};
-
-	lcd0: display {
-		compatible = "panel-dpi";
-		label = "15";
-		status = "okay";
-		/* default-on; */
-		pinctrl-names = "default";
-
+		backlight = <&bl>;
+		enable-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;
 		port {
 			lcd_in: endpoint {
 				remote-endpoint = <&dpi_out>;
 			};
-		};
-
-		panel-timing {
-			clock-frequency = <9000000>;
-			hactive = <480>;
-			vactive = <272>;
-			hfront-porch = <3>;
-			hback-porch = <2>;
-			hsync-len = <42>;
-			vback-porch = <3>;
-			vfront-porch = <4>;
-			vsync-len = <11>;
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <1>;
-			pixelclk-active = <1>;
 		};
 	};
 
@@ -194,6 +213,12 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21d6, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_clk.gpio_178 */
 			OMAP3_CORE1_IOPAD(0x21dc, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcspi2_cs0.gpio_181 */
+		>;
+	};
+
+	hdq_pins: hdq_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE0) /* hdq_sio */
 		>;
 	};
 

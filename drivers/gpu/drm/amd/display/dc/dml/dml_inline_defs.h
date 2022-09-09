@@ -26,8 +26,7 @@
 #ifndef __DML_INLINE_DEFS_H__
 #define __DML_INLINE_DEFS_H__
 
-#include "dml_common_defs.h"
-#include "../calcs/dcn_calc_math.h"
+#include "dcn_calc_math.h"
 #include "dml_logger.h"
 
 static inline double dml_min(double a, double b)
@@ -75,9 +74,32 @@ static inline double dml_floor(double a, double granularity)
 	return (double) dcn_bw_floor2(a, granularity);
 }
 
+static inline double dml_round(double a)
+{
+	double round_pt = 0.5;
+	double ceil = dml_ceil(a, 1);
+	double floor = dml_floor(a, 1);
+
+	if (a - floor >= round_pt)
+		return ceil;
+	else
+		return floor;
+}
+
+/* float
+static inline int dml_log2(float x)
+{
+	unsigned int ix = *((unsigned int *)&x);
+
+	return (int)((ix >> 23) & 0xff) - 127;
+}*/
+
+/* double */
 static inline int dml_log2(double x)
 {
-	return dml_round((double)dcn_bw_log(x, 2));
+	unsigned long long ix = *((unsigned long long *)&x);
+
+	return (int)((ix >> 52) & 0x7ff) - 1023;
 }
 
 static inline double dml_pow(double a, int exp)
@@ -105,14 +127,9 @@ static inline double dml_floor_ex(double x, double granularity)
 	return (double) dcn_bw_floor2(x, granularity);
 }
 
-static inline double dml_log(double x, double base)
-{
-	return (double) dcn_bw_log(x, base);
-}
-
 static inline unsigned int dml_round_to_multiple(unsigned int num,
 						 unsigned int multiple,
-						 bool up)
+						 unsigned char up)
 {
 	unsigned int remainder;
 
@@ -129,4 +146,12 @@ static inline unsigned int dml_round_to_multiple(unsigned int num,
 	else
 		return (num - remainder);
 }
+static inline double dml_abs(double a)
+{
+	if (a > 0)
+		return a;
+	else
+		return (a*(-1));
+}
+
 #endif

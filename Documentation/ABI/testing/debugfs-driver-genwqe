@@ -31,7 +31,7 @@ What:           /sys/kernel/debug/genwqe/genwqe<n>_card/prev_regs
 Date:           Oct 2013
 Contact:        haver@linux.vnet.ibm.com
 Description:    Dump of the error registers before the last reset of
-                the card occured.
+                the card occurred.
                 Only available for PF.
 
 What:           /sys/kernel/debug/genwqe/genwqe<n>_card/prev_dbg_uid0

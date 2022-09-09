@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * iSCSI User/Kernel Shares (Defines, Constants, Protocol definitions, etc)
  *
  * Copyright (C) 2005 Dmitry Yusupov
  * Copyright (C) 2005 Alex Aizman
  * maintained by open-iscsi@googlegroups.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * See the file COPYING included with this distribution for more details.
  */
 
 #ifndef ISCSI_IF_H
@@ -71,6 +60,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_LOGOUT_FLASHNODE_SID	= UEVENT_BASE + 30,
 	ISCSI_UEVENT_SET_CHAP		= UEVENT_BASE + 31,
 	ISCSI_UEVENT_GET_HOST_STATS	= UEVENT_BASE + 32,
+	ISCSI_UEVENT_DESTROY_SESSION_ASYNC	= UEVENT_BASE + 33,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -322,7 +312,7 @@ enum iscsi_param_type {
 struct iscsi_param_info {
 	uint32_t len;		/* Actual length of the param value */
 	uint16_t param;		/* iscsi param */
-	uint8_t value[0];	/* length sized value follows */
+	uint8_t value[];	/* length sized value follows */
 } __packed;
 
 struct iscsi_iface_param_info {
@@ -331,7 +321,7 @@ struct iscsi_iface_param_info {
 	uint16_t param;		/* iscsi param value */
 	uint8_t iface_type;	/* IPv4 or IPv6 */
 	uint8_t param_type;	/* iscsi_param_type */
-	uint8_t value[0];	/* length sized value follows */
+	uint8_t value[];	/* length sized value follows */
 } __packed;
 
 /*
@@ -708,7 +698,7 @@ enum iscsi_flashnode_param {
 struct iscsi_flashnode_param_info {
 	uint32_t len;		/* Actual length of the param */
 	uint16_t param;		/* iscsi param value */
-	uint8_t value[0];	/* length sized value follows */
+	uint8_t value[];	/* length sized value follows */
 } __packed;
 
 enum iscsi_discovery_parent_type {
@@ -826,7 +816,7 @@ struct iscsi_stats {
 	 * up to ISCSI_STATS_CUSTOM_MAX
 	 */
 	uint32_t custom_length;
-	struct iscsi_stats_custom custom[0]
+	struct iscsi_stats_custom custom[]
 		__attribute__ ((aligned (sizeof(uint64_t))));
 };
 
@@ -957,7 +947,7 @@ struct iscsi_offload_host_stats {
 	 * up to ISCSI_HOST_STATS_CUSTOM_MAX
 	 */
 	uint32_t custom_length;
-	struct iscsi_host_stats_custom custom[0]
+	struct iscsi_host_stats_custom custom[]
 		__aligned(sizeof(uint64_t));
 };
 

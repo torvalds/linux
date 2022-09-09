@@ -1,0 +1,1856 @@
+[
+    {
+        "BriefDescription": "2LM Tag Check : Hit in Near Memory Cache",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.HIT",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "2LM Tag Check : Miss, no data in this line",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.MISS_CLEAN",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "2LM Tag Check : Miss, existing data may be evicted to Far Memory",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.MISS_DIRTY",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "2LM Tag Check : Read Hit in Near Memory Cache",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.NM_RD_HIT",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "2LM Tag Check : Write Hit in Near Memory Cache",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.NM_WR_HIT",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Precharge due to read",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x02",
+        "EventName": "UNC_M_PRE_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Precharge due to write",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x02",
+        "EventName": "UNC_M_PRE_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM read CAS commands issued (including underfills)",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x0f",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM write CAS commands issued",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0x30",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM CAS commands issued",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.ALL",
+        "PerPkg": "1",
+        "UMask": "0x3f",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.OPPORTUNISTIC",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.PANIC",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of DRAM Refreshes Issued",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x45",
+        "EventName": "UNC_M_DRAM_REFRESH.HIGH",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x10",
+        "EventName": "UNC_M_RPQ_INSERTS.PCH0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x10",
+        "EventName": "UNC_M_RPQ_INSERTS.PCH1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x20",
+        "EventName": "UNC_M_WPQ_INSERTS.PCH0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x20",
+        "EventName": "UNC_M_WPQ_INSERTS.PCH1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Precharge due to page table",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x02",
+        "EventName": "UNC_M_PRE_COUNT.PGT",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Clockticks",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventName": "UNC_M_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Half clockticks for IMC",
+        "Counter": "FIXED",
+        "CounterType": "FIXED",
+        "EventCode": "0xff",
+        "EventName": "UNC_M_HCLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x80",
+        "EventName": "UNC_M_RPQ_OCCUPANCY_PCH0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x81",
+        "EventName": "UNC_M_RPQ_OCCUPANCY_PCH1",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x82",
+        "EventName": "UNC_M_WPQ_OCCUPANCY_PCH0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_WPQ_OCCUPANCY_PCH1",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Activate Count : All Activates",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x01",
+        "EventName": "UNC_M_ACT_COUNT.ALL",
+        "PerPkg": "1",
+        "UMask": "0x0B",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x02",
+        "EventName": "UNC_M_PRE_COUNT.ALL",
+        "PerPkg": "1",
+        "UMask": "0x1C",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Queue Inserts",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE3",
+        "EventName": "UNC_M_PMM_RPQ_INSERTS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Queue Inserts",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE7",
+        "EventName": "UNC_M_PMM_WPQ_INSERTS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : All",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.ALL",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : Reads - RPQ",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.RD",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : Writes",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.WR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : Underfill reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.UFILL_RD",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Data Buffer Inserts",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x17",
+        "EventName": "UNC_M_RDB_INSERTS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : Scoreboard Accesses Accepted",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.ACCEPTS",
+        "PerPkg": "1",
+        "UMask": "0x05",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : Scoreboard Accesses Rejected",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.REJECTS",
+        "PerPkg": "1",
+        "UMask": "0x0A",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM read CAS commands issued (does not include underfills)",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.RD_REG",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM underfill read CAS commands issued",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.RD_UNDERFILL",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Activate Count : Activate due to Bypass",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x01",
+        "EventName": "UNC_M_ACT_COUNT.BYP",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM RD_CAS commands w/auto-pre",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.RD_PRE_REG",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.RD_PRE_UNDERFILL",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM WR_CAS commands w/ auto-pre",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.WR_PRE",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_2",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank : DIMM ID",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x47",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.LOW_3",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x86",
+        "EventName": "UNC_M_POWER_CRIT_THROTTLE_CYCLES.SLOT0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x86",
+        "EventName": "UNC_M_POWER_CRIT_THROTTLE_CYCLES.SLOT1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x46",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.SLOT0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x46",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.SLOT1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x11",
+        "EventName": "UNC_M_RPQ_CYCLES_NE.PCH0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x11",
+        "EventName": "UNC_M_RPQ_CYCLES_NE.PCH1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : Read Accepts",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.RD_ACCEPTS",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : Read Rejects",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.RD_REJECTS",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : NM read completions",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.WR_ACCEPTS",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : NM write completions",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.WR_REJECTS",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : FM read completions",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.NM_RD_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : FM write completions",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.NM_WR_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : Write Accepts",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.FM_RD_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses : Write Rejects",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.FM_WR_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Alloc",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.ALLOC",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Dealloc",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.DEALLOC",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Reject",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.VLD",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_CANARY.NM_RD_STARVED",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd9",
+        "EventName": "UNC_M_SB_CANARY.NMRD_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_CANARY.NM_WR_STARVED",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd9",
+        "EventName": "UNC_M_SB_CANARY.NMWR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_CANARY.FM_RD_STARVED",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd9",
+        "EventName": "UNC_M_SB_CANARY.FMRD_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_CANARY.FM_WR_STARVED",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd9",
+        "EventName": "UNC_M_SB_CANARY.FMWR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_CANARY.FM_TGR_WR_STARVED",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd9",
+        "EventName": "UNC_M_SB_CANARY.FMTGRWR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts : Reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.RDS",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts : Writes",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.WRS",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts : Block region reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.BLOCK_RDS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts : Block region writes",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.BLOCK_WRS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy : Reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.RDS",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy : Block region reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.BLOCK_RDS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy : Block region writes",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.BLOCK_WRS",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected : NM requests rejected due to set conflict",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.NM_SET_CNFLT",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected : FM requests rejected due to full address conflict",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.FM_ADDR_CNFLT",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected : Patrol requests rejected due to set conflict",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.PATROL_SET_CNFLT",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.CANARY",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_ALLOC.NM_RD",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NMRD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_ALLOC.FM_RD",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FMRD",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_ALLOC.NM_WR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NMWR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_ALLOC.FM_WR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FMWR",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_ALLOC.FM_TGR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FMTGR",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_DEALLOC.NM_RD",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xde",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.NMRD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_DEALLOC.FM_RD",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xde",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.FMRD",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_DEALLOC.NM_WR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xde",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.NMWR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_DEALLOC.FM_WR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xde",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.FMWR",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_DEALLOC.FM_TGR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xde",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.FMTGR",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_OCC.NM_RD",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd8",
+        "EventName": "UNC_M_SB_STRV_OCC.NMRD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_OCC.FM_RD",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd8",
+        "EventName": "UNC_M_SB_STRV_OCC.FMRD",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_OCC.NM_WR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd8",
+        "EventName": "UNC_M_SB_STRV_OCC.NMWR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_OCC.FM_WR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd8",
+        "EventName": "UNC_M_SB_STRV_OCC.FMWR",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_STRV_OCC.FM_TGR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd8",
+        "EventName": "UNC_M_SB_STRV_OCC.FMTGR",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.NEW",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.NEW",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.RD_HIT",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.RD_HIT",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.RD_MISS",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.RD_MISS",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.DDR4_CMP",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.DDR4_CMP",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.OCC",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.OCC",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x21",
+        "EventName": "UNC_M_WPQ_CYCLES_NE.PCH0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x21",
+        "EventName": "UNC_M_WPQ_CYCLES_NE.PCH1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x23",
+        "EventName": "UNC_M_WPQ_READ_HIT.PCH0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x23",
+        "EventName": "UNC_M_WPQ_READ_HIT.PCH1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x24",
+        "EventName": "UNC_M_WPQ_WRITE_HIT.PCH0",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x24",
+        "EventName": "UNC_M_WPQ_WRITE_HIT.PCH1",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PCLS.RD",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xA0",
+        "EventName": "UNC_M_PCLS.RD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PCLS.WR",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xA0",
+        "EventName": "UNC_M_PCLS.WR",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PCLS.TOTAL",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xA0",
+        "EventName": "UNC_M_PCLS.TOTAL",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Prefetch Inserts : All",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDA",
+        "EventName": "UNC_M_SB_PREF_INSERTS.ALL",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Prefetch Occupancy : All",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDB",
+        "EventName": "UNC_M_SB_PREF_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.DDR_EARLY_CMP",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge All Commands",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x44",
+        "EventName": "UNC_M_DRAM_PRE_ALL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PARITY_ERRORS",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x2c",
+        "EventName": "UNC_M_PARITY_ERRORS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Channel PPD Cycles",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x85",
+        "EventName": "UNC_M_POWER_CHANNEL_PPD",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Clock-Enabled Self-Refresh",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x43",
+        "EventName": "UNC_M_POWER_SELF_REFRESH",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Data Buffer Full",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x19",
+        "EventName": "UNC_M_RDB_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Data Buffer Not Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x18",
+        "EventName": "UNC_M_RDB_NOT_EMPTY",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Data Buffer Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x1A",
+        "EventName": "UNC_M_RDB_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Full Cycles",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x12",
+        "EventName": "UNC_M_RPQ_CYCLES_FULL_PCH0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Full Cycles",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x15",
+        "EventName": "UNC_M_RPQ_CYCLES_FULL_PCH1",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Cycles Full",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD1",
+        "EventName": "UNC_M_SB_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Cycles Not-Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD0",
+        "EventName": "UNC_M_SB_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Full Cycles",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x22",
+        "EventName": "UNC_M_WPQ_CYCLES_FULL_PCH0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Full Cycles",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x16",
+        "EventName": "UNC_M_WPQ_CYCLES_FULL_PCH1",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM RD_CAS and WR_CAS Commands. : DRAM WR_CAS commands w/o auto-pre",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x04",
+        "EventName": "UNC_M_CAS_COUNT.WR_NONPRE",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands. : Precharge due to page miss",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x02",
+        "EventName": "UNC_M_PRE_COUNT.PAGE_MISS",
+        "PerPkg": "1",
+        "UMask": "0x0c",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_M_SB_PREF_OCCUPANCY.PMM",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xdb",
+        "EventName": "UNC_M_SB_PREF_OCCUPANCY.PMEM",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. ",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd2",
+        "EventName": "UNC_M_SB_ACCESSES.NMRD_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. ",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd2",
+        "EventName": "UNC_M_SB_ACCESSES.NMWR_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : RPQ GNTs",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.RPQ_GNTS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : Underfill GNTs",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.WPQ_GNTS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : Misc GNTs",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.MISC_GNT",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands : Misc Commands (error, flow ACKs)",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.MISC",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2 : Opportunistic Reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.OPP_RD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2 : Expected No data packet (ERID matched NDP encoding)",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.NODATA_EXP",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2 : Unexpected No data packet (ERID matched a Read, but data was a NDP)",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.NODATA_UNEXP",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2 : Read Requests - Slot 0",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.REQS_SLOT0",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2 : Read Requests - Slot 1",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.REQS_SLOT1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2 : ECC Errors",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.PMM_ECC_ERROR",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2 : ERID detectable parity error",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.PMM_ERID_ERROR",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Commands - Part 2",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.PMM_ERID_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.NO_GNT",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.GNT_WAIT",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.CAS",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.PWR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. ",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd2",
+        "EventName": "UNC_M_SB_ACCESSES.FMRD_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "This event is deprecated. ",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "Deprecated": "1",
+        "EventCode": "0xd2",
+        "EventName": "UNC_M_SB_ACCESSES.FMWR_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts : Persistent Mem reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.PMM_RDS",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts : Persistent Mem writes",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.PMM_WRS",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy : Persistent Mem reads",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.PMM_RDS",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy : Persistent Mem writes",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.PMM_WRS",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.PMM0_CMP",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.PMM0_CMP",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.PMM1_CMP",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.PMM1_CMP",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.PMM2_CMP",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.PMM2_CMP",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Prefetch Inserts : DDR4",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDA",
+        "EventName": "UNC_M_SB_PREF_INSERTS.DDR",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Prefetch Inserts : Persistent Mem",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDA",
+        "EventName": "UNC_M_SB_PREF_INSERTS.PMM",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Prefetch Occupancy : DDR4",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDB",
+        "EventName": "UNC_M_SB_PREF_OCCUPANCY.DDR",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Queue Cycles Full",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE2",
+        "EventName": "UNC_M_PMM_RPQ_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Queue Cycles Not Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE1",
+        "EventName": "UNC_M_PMM_RPQ_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Queue Cycles Full",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE6",
+        "EventName": "UNC_M_PMM_WPQ_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Queue Cycles Not Empty",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xE5",
+        "EventName": "UNC_M_PMM_WPQ_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PMM_WPQ_FLUSH",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xe8",
+        "EventName": "UNC_M_PMM_WPQ_FLUSH",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PMM_WPQ_FLUSH_CYC",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xe9",
+        "EventName": "UNC_M_PMM_WPQ_FLUSH_CYC",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Prefetch Occupancy : Persistent Mem",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xdb",
+        "EventName": "UNC_M_SB_PREF_OCCUPANCY.PMM",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Free running counter that increments for the Memory Controller",
+        "Counter": "4",
+        "CounterType": "FREERUN",
+        "EventName": "UNC_M_CLOCKTICKS_FREERUN",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Valid",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.NM_RD_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Read Starved",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.NM_WR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Write Starved",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.FM_RD_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Read Starved",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.FM_WR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Write Starved",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.FM_TGR_WR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Read - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NM_RD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Read - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FM_RD",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Write - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NM_WR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Write - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FM_WR",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Read - Clear",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FM_TGR",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Read - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDE",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.NM_RD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Read - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDE",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.FM_RD",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Write - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDE",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.NM_WR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Write - Set",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDE",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.FM_WR",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Read - Clear",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xDE",
+        "EventName": "UNC_M_SB_STRV_DEALLOC.FM_TGR",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Read",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.NM_RD",
+        "PerPkg": "1",
+        "UMask": "0x01",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Read",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.FM_RD",
+        "PerPkg": "1",
+        "UMask": "0x02",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Write",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.NM_WR",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Far Mem Write",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.FM_WR",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": ": Near Mem Read - Clear",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.FM_TGR",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    }
+]

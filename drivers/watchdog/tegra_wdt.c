@@ -181,15 +181,14 @@ static const struct watchdog_ops tegra_wdt_ops = {
 
 static int tegra_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdd;
 	struct tegra_wdt *wdt;
-	struct resource *res;
 	void __iomem *regs;
 	int ret;
 
 	/* This is the timer base. */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -197,7 +196,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 	 * Allocate our watchdog driver data, which has the
 	 * struct watchdog_device nested within it.
 	 */
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -212,41 +211,26 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 	wdd->ops = &tegra_wdt_ops;
 	wdd->min_timeout = MIN_WDT_TIMEOUT;
 	wdd->max_timeout = MAX_WDT_TIMEOUT;
-	wdd->parent = &pdev->dev;
+	wdd->parent = dev;
 
 	watchdog_set_drvdata(wdd, wdt);
 
 	watchdog_set_nowayout(wdd, nowayout);
 
-	ret = devm_watchdog_register_device(&pdev->dev, wdd);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"failed to register watchdog device\n");
+	watchdog_stop_on_unregister(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(&pdev->dev,
-		 "initialized (heartbeat = %d sec, nowayout = %d)\n",
+	dev_info(dev, "initialized (heartbeat = %d sec, nowayout = %d)\n",
 		 heartbeat, nowayout);
 
 	return 0;
 }
 
-static int tegra_wdt_remove(struct platform_device *pdev)
-{
-	struct tegra_wdt *wdt = platform_get_drvdata(pdev);
-
-	tegra_wdt_stop(&wdt->wdd);
-
-	dev_info(&pdev->dev, "removed wdt\n");
-
-	return 0;
-}
-
-#ifdef CONFIG_PM_SLEEP
-static int tegra_wdt_runtime_suspend(struct device *dev)
+static int tegra_wdt_suspend(struct device *dev)
 {
 	struct tegra_wdt *wdt = dev_get_drvdata(dev);
 
@@ -256,7 +240,7 @@ static int tegra_wdt_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_wdt_runtime_resume(struct device *dev)
+static int tegra_wdt_resume(struct device *dev)
 {
 	struct tegra_wdt *wdt = dev_get_drvdata(dev);
 
@@ -265,7 +249,6 @@ static int tegra_wdt_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct of_device_id tegra_wdt_of_match[] = {
 	{ .compatible = "nvidia,tegra30-timer", },
@@ -273,17 +256,14 @@ static const struct of_device_id tegra_wdt_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_wdt_of_match);
 
-static const struct dev_pm_ops tegra_wdt_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tegra_wdt_runtime_suspend,
-				tegra_wdt_runtime_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(tegra_wdt_pm_ops,
+				tegra_wdt_suspend, tegra_wdt_resume);
 
 static struct platform_driver tegra_wdt_driver = {
 	.probe		= tegra_wdt_probe,
-	.remove		= tegra_wdt_remove,
 	.driver		= {
 		.name	= "tegra-wdt",
-		.pm	= &tegra_wdt_pm_ops,
+		.pm	= pm_sleep_ptr(&tegra_wdt_pm_ops),
 		.of_match_table = tegra_wdt_of_match,
 	},
 };

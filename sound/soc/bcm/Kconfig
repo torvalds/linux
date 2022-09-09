@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_BCM2835_SOC_I2S
 	tristate "SoC Audio support for the Broadcom BCM2835 I2S module"
 	depends on ARCH_BCM2835 || COMPILE_TEST
@@ -16,3 +17,12 @@ config SND_SOC_CYGNUS
 	  Cygnus chips (bcm958300, bcm958305, bcm911360)
 
 	  If you don't know what to do here, say N.
+
+config SND_BCM63XX_I2S_WHISTLER
+	tristate "SoC Audio support for the Broadcom BCM63XX I2S module"
+	select REGMAP_MMIO
+	help
+	  Say Y if you want to add support for ASoC audio on Broadcom
+	  DSL/PON chips (bcm63158, bcm63178)
+
+	  If you don't know what to do here, say N

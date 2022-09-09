@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cs35l33.c -- CS35L33 ALSA SoC audio driver
  *
  * Copyright 2016 Cirrus Logic, Inc.
  *
  * Author: Paul Handrigan <paul.handrigan@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -38,6 +34,7 @@
 #include <linux/of_irq.h>
 
 #include "cs35l33.h"
+#include "cirrus_legacy.h"
 
 #define CS35L33_BOOT_DELAY	50
 
@@ -695,7 +692,7 @@ static struct snd_soc_dai_driver cs35l33_dai = {
 			.formats = CS35L33_FORMATS,
 		},
 		.ops = &cs35l33_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 };
 
 static int cs35l33_set_hg_data(struct snd_soc_component *component,
@@ -843,7 +840,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l33 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs35l33_audio_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs35l33_regmap = {
@@ -1119,8 +1115,7 @@ static int cs35l33_of_get_pdata(struct device *dev,
 	return 0;
 }
 
-static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
-				       const struct i2c_device_id *id)
+static int cs35l33_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs35l33_private *cs35l33;
 	struct cs35l33_pdata *pdata = dev_get_platdata(&i2c_client->dev);
@@ -1194,17 +1189,18 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	regcache_cache_only(cs35l33->regmap, false);
 
 	/* initialize codec */
-	ret = regmap_read(cs35l33->regmap, CS35L33_DEVID_AB, &reg);
-	devid = (reg & 0xFF) << 12;
-	ret = regmap_read(cs35l33->regmap, CS35L33_DEVID_CD, &reg);
-	devid |= (reg & 0xFF) << 4;
-	ret = regmap_read(cs35l33->regmap, CS35L33_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs35l33->regmap, CS35L33_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(&i2c_client->dev, "Failed to read device ID: %d\n", ret);
+		goto err_enable;
+	}
 
 	if (devid != CS35L33_CHIP_ID) {
 		dev_err(&i2c_client->dev,
 			"CS35L33 Device ID (%X). Expected ID %X\n",
 			devid, CS35L33_CHIP_ID);
+		ret = -EINVAL;
 		goto err_enable;
 	}
 
@@ -1246,6 +1242,8 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 	return 0;
 
 err_enable:
+	gpiod_set_value_cansleep(cs35l33->reset_gpio, 0);
+
 	regulator_bulk_disable(cs35l33->num_core_supplies,
 			       cs35l33->core_supplies);
 
@@ -1286,7 +1284,7 @@ static struct i2c_driver cs35l33_i2c_driver = {
 
 		},
 	.id_table = cs35l33_id,
-	.probe = cs35l33_i2c_probe,
+	.probe_new = cs35l33_i2c_probe,
 	.remove = cs35l33_i2c_remove,
 
 };

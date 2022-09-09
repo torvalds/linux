@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0+
- *
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
  * enumerations for HopeRf rf69 radio module
  *
  * Copyright (C) 2016 Wolf-Entwicklungen
@@ -84,38 +84,30 @@ enum threshold_decrement {
 	dec_16times
 };
 
-enum flag {
-	mode_switch_completed,
-	ready_to_receive,
-	ready_to_send,
-	pll_locked,
-	rssi_exceeded_threshold,
-	timeout,
-	automode,
-	sync_address_match,
-	fifo_full,
-//	fifo_not_empty, collision with next enum; replaced by following enum...
-	fifo_empty,
-	fifo_level_below_threshold,
-	fifo_overrun,
-	packet_sent,
-	payload_ready,
-	crc_ok,
-	battery_low
-};
-
 enum fifo_fill_condition {
 	after_sync_interrupt,
 	always
 };
 
 enum packet_format {
+	/*
+	 * Used when the size of payload is fixed in advance. This mode of
+	 * operation may be of interest to minimize RF overhead by 1 byte as
+	 * no length byte field is required
+	 */
 	packet_length_fix,
+	/*
+	 * Used when the size of payload isn't known in advance. It requires the
+	 * transmitter to send the length byte in each packet so the receiver
+	 * would know how to operate properly
+	 */
 	packet_length_var
 };
 
 enum tx_start_condition {
+	/* the number of bytes in the FIFO exceeds FIFO_THRESHOLD */
 	fifo_level,
+	/* at least one byte in the FIFO */
 	fifo_not_empty
 };
 

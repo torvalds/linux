@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/trizeps4.c
  *
@@ -6,10 +7,6 @@
  *  Author:	Jürgen Schindele
  *  Created:	20 02, 2006
  *  Copyright:	Jürgen Schindele
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -35,7 +32,7 @@
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -43,13 +40,13 @@
 #include <asm/mach/flash.h>
 
 #include "pxa27x.h"
-#include <mach/trizeps4.h>
-#include <mach/audio.h>
+#include "trizeps4.h"
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"

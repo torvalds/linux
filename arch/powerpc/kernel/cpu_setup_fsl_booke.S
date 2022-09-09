@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains low level CPU setup functions.
  * Kumar Gala <galak@kernel.crashing.org>
@@ -5,12 +6,6 @@
  *
  * Based on cpu_setup_6xx code by
  * Benjamin Herrenschmidt <benh@kernel.crashing.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 
 #include <asm/page.h>
@@ -113,15 +108,6 @@ _GLOBAL(__setup_cpu_e6500)
 #endif /* CONFIG_PPC_E500MC */
 
 #ifdef CONFIG_PPC32
-#ifdef CONFIG_E200
-_GLOBAL(__setup_cpu_e200)
-	/* enable dedicated debug exception handling resources (Debug APU) */
-	mfspr	r3,SPRN_HID0
-	ori	r3,r3,HID0_DAPUEN@l
-	mtspr	SPRN_HID0,r3
-	b	__setup_e200_ivors
-#endif /* CONFIG_E200 */
-
 #ifdef CONFIG_E500
 #ifndef CONFIG_PPC_E500MC
 _GLOBAL(__setup_cpu_e500v1)
@@ -236,7 +222,7 @@ _GLOBAL(__setup_cpu_e5500)
 	blr
 #endif
 
-/* flush L1 date cache, it can apply to e500v2, e500mc and e5500 */
+/* flush L1 data cache, it can apply to e500v2, e500mc and e5500 */
 _GLOBAL(flush_dcache_L1)
 	mfmsr	r10
 	wrteei	0

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drxd_firm.c : DRXD firmware tables
  *
  * Copyright (C) 2006-2007 Micronas
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /* TODO: generate this file with a script from a settings file */
@@ -890,7 +878,7 @@ u8 DRXD_StartDiversityEnd[] = {
 	/* End demod, combining RF in and diversity in, MPEG TS out */
 	WR16(B_FE_CF_REG_IMP_VAL__A, 0x0),	/* disable impulse noise cruncher */
 	WR16(B_FE_AD_REG_INVEXT__A, 0x0),	/* clock inversion (for sohard board) */
-	WR16(B_CP_REG_BR_STR_DEL__A, 10),	/* apperently no mb delay matching is best */
+	WR16(B_CP_REG_BR_STR_DEL__A, 10),	/* apparently no mb delay matching is best */
 
 	WR16(B_EQ_REG_RC_SEL_CAR__A, B_EQ_REG_RC_SEL_CAR_DIV_ON |	/* org = 0x81 combining enabled */
 	     B_EQ_REG_RC_SEL_CAR_MEAS_A_CC |

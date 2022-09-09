@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/remoteproc/qcom,qcs404-cdsp-pil.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm QCS404 CDSP Peripheral Image Loader
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description:
+  This document defines the binding for a component that loads and boots firmware
+  on the Qualcomm Technology Inc. CDSP (Compute DSP).
+
+properties:
+  compatible:
+    enum:
+      - qcom,qcs404-cdsp-pil
+
+  reg:
+    maxItems: 1
+    description:
+      The base address and size of the qdsp6ss register
+
+  interrupts:
+    items:
+      - description: Watchdog interrupt
+      - description: Fatal interrupt
+      - description: Ready interrupt
+      - description: Handover interrupt
+      - description: Stop acknowledge interrupt
+
+  interrupt-names:
+    items:
+      - const: wdog
+      - const: fatal
+      - const: ready
+      - const: handover
+      - const: stop-ack
+
+  clocks:
+    items:
+      - description: XO clock
+      - description: SWAY clock
+      - description: TBU clock
+      - description: BIMC clock
+      - description: AHB AON clock
+      - description: Q6SS SLAVE clock
+      - description: Q6SS MASTER clock
+      - description: Q6 AXIM clock
+
+  clock-names:
+    items:
+      - const: xo
+      - const: sway
+      - const: tbu
+      - const: bimc
+      - const: ahb_aon
+      - const: q6ss_slave
+      - const: q6ss_master
+      - const: q6_axim
+
+  power-domains:
+    items:
+      - description: CX power domain
+
+  resets:
+    items:
+      - description: AOSS restart
+
+  reset-names:
+    items:
+      - const: restart
+
+  memory-region:
+    maxItems: 1
+    description: Reference to the reserved-memory for the Hexagon core
+
+  qcom,halt-regs:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      Phandle reference to a syscon representing TCSR followed by the
+      three offsets within syscon for q6, modem and nc halt registers.
+
+  qcom,smem-states:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: States used by the AP to signal the Hexagon core
+    items:
+      - description: Stop the modem
+
+  qcom,smem-state-names:
+    description: The names of the state bits used for SMP2P output
+    items:
+      - const: stop
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - power-domains
+  - resets
+  - reset-names
+  - qcom,halt-regs
+  - memory-region
+  - qcom,smem-states
+  - qcom,smem-state-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/qcom,gcc-qcs404.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/clock/qcom,turingcc-qcs404.h>
+    remoteproc@b00000 {
+        compatible = "qcom,qcs404-cdsp-pil";
+        reg = <0x00b00000 0x4040>;
+
+        interrupts-extended = <&intc GIC_SPI 229 IRQ_TYPE_EDGE_RISING>,
+                              <&cdsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+                              <&cdsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+                              <&cdsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+                              <&cdsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+        interrupt-names = "wdog", "fatal", "ready",
+                          "handover", "stop-ack";
+
+        clocks = <&xo_board>,
+                 <&gcc GCC_CDSP_CFG_AHB_CLK>,
+                 <&gcc GCC_CDSP_TBU_CLK>,
+                 <&gcc GCC_BIMC_CDSP_CLK>,
+                 <&turingcc TURING_WRAPPER_AON_CLK>,
+                 <&turingcc TURING_Q6SS_AHBS_AON_CLK>,
+                 <&turingcc TURING_Q6SS_AHBM_AON_CLK>,
+                 <&turingcc TURING_Q6SS_Q6_AXIM_CLK>;
+        clock-names = "xo",
+                      "sway",
+                      "tbu",
+                      "bimc",
+                      "ahb_aon",
+                      "q6ss_slave",
+                      "q6ss_master",
+                      "q6_axim";
+
+        power-domains = <&rpmhpd SDM845_CX>;
+
+        resets = <&gcc GCC_CDSP_RESTART>;
+        reset-names = "restart";
+
+        qcom,halt-regs = <&tcsr 0x19004>;
+
+        memory-region = <&cdsp_fw_mem>;
+
+        qcom,smem-states = <&cdsp_smp2p_out 0>;
+        qcom,smem-state-names = "stop";
+    };

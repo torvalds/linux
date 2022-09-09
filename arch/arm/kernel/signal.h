@@ -9,3 +9,5 @@ struct rt_sigframe {
 	struct siginfo info;
 	struct sigframe sig;
 };
+
+extern struct page *get_signal_page(void);

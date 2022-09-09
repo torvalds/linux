@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS vlserver list management.
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -21,10 +17,11 @@ struct afs_vlserver *afs_alloc_vlserver(const char *name, size_t name_len,
 	vlserver = kzalloc(struct_size(vlserver, name, name_len + 1),
 			   GFP_KERNEL);
 	if (vlserver) {
-		atomic_set(&vlserver->usage, 1);
+		refcount_set(&vlserver->ref, 1);
 		rwlock_init(&vlserver->lock);
 		init_waitqueue_head(&vlserver->probe_wq);
 		spin_lock_init(&vlserver->probe_lock);
+		vlserver->rtt = UINT_MAX;
 		vlserver->name_len = name_len;
 		vlserver->port = port;
 		memcpy(vlserver->name, name, name_len);
@@ -42,13 +39,9 @@ static void afs_vlserver_rcu(struct rcu_head *rcu)
 
 void afs_put_vlserver(struct afs_net *net, struct afs_vlserver *vlserver)
 {
-	if (vlserver) {
-		unsigned int u = atomic_dec_return(&vlserver->usage);
-		//_debug("VL PUT %p{%u}", vlserver, u);
-
-		if (u == 0)
-			call_rcu(&vlserver->rcu, afs_vlserver_rcu);
-	}
+	if (vlserver &&
+	    refcount_dec_and_test(&vlserver->ref))
+		call_rcu(&vlserver->rcu, afs_vlserver_rcu);
 }
 
 struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int nr_servers)
@@ -57,7 +50,7 @@ struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int nr_servers)
 
 	vllist = kzalloc(struct_size(vllist, servers, nr_servers), GFP_KERNEL);
 	if (vllist) {
-		atomic_set(&vllist->usage, 1);
+		refcount_set(&vllist->ref, 1);
 		rwlock_init(&vllist->lock);
 	}
 
@@ -67,10 +60,7 @@ struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int nr_servers)
 void afs_put_vlserverlist(struct afs_net *net, struct afs_vlserver_list *vllist)
 {
 	if (vllist) {
-		unsigned int u = atomic_dec_return(&vllist->usage);
-
-		//_debug("VLLS PUT %p{%u}", vllist, u);
-		if (u == 0) {
+		if (refcount_dec_and_test(&vllist->ref)) {
 			int i;
 
 			for (i = 0; i < vllist->nr_servers; i++) {
@@ -232,18 +222,16 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		if (bs.status > NR__dns_lookup_status)
 			bs.status = NR__dns_lookup_status;
 
+		/* See if we can update an old server record */
 		server = NULL;
-		if (previous) {
-			/* See if we can update an old server record */
-			for (i = 0; i < previous->nr_servers; i++) {
-				struct afs_vlserver *p = previous->servers[i].server;
+		for (i = 0; i < previous->nr_servers; i++) {
+			struct afs_vlserver *p = previous->servers[i].server;
 
-				if (p->name_len == bs.name_len &&
-				    p->port == bs.port &&
-				    strncasecmp(b, p->name, bs.name_len) == 0) {
-					server = afs_get_vlserver(p);
-					break;
-				}
+			if (p->name_len == bs.name_len &&
+			    p->port == bs.port &&
+			    strncasecmp(b, p->name, bs.name_len) == 0) {
+				server = afs_get_vlserver(p);
+				break;
 			}
 		}
 
@@ -285,8 +273,8 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 			struct afs_addr_list *old = addrs;
 
 			write_lock(&server->lock);
-			rcu_swap_protected(server->addresses, old,
-					   lockdep_is_held(&server->lock));
+			old = rcu_replace_pointer(server->addresses, old,
+						  lockdep_is_held(&server->lock));
 			write_unlock(&server->lock);
 			afs_put_addrlist(old);
 		}

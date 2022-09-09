@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2003-2005	Devicescape Software, Inc.
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright (C) 2015	Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2021-2022   Intel Corporation
  */
 
 #include <linux/kobject.h>
@@ -25,7 +23,6 @@ static ssize_t key_##name##_read(struct file *file,			\
 	return mac80211_format_buffer(userbuf, count, ppos, 		\
 				      format_string, key->prop);	\
 }
-#define KEY_READ_D(name) KEY_READ(name, name, "%d\n")
 #define KEY_READ_X(name) KEY_READ(name, name, "0x%x\n")
 
 #define KEY_OPS(name)							\
@@ -322,7 +319,7 @@ KEY_OPS(key);
 
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, key->debugfs.dir, \
-			    key, &key_##name##_ops);
+			    key, &key_##name##_ops)
 #define DEBUGFS_ADD_W(name) \
 	debugfs_create_file(#name, 0600, key->debugfs.dir, \
 			    key, &key_##name##_ops);
@@ -341,9 +338,6 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	keycount++;
 	key->debugfs.dir = debugfs_create_dir(buf,
 					key->local->debugfs.keys);
-
-	if (!key->debugfs.dir)
-		return;
 
 	sta = key->sta;
 	if (sta) {
@@ -401,9 +395,9 @@ void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 	debugfs_remove(sdata->debugfs.default_multicast_key);
 	sdata->debugfs.default_multicast_key = NULL;
 
-	if (sdata->default_multicast_key) {
+	if (sdata->deflink.default_multicast_key) {
 		key = key_mtx_dereference(sdata->local,
-					  sdata->default_multicast_key);
+					  sdata->deflink.default_multicast_key);
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_multicast_key =
 			debugfs_create_symlink("default_multicast_key",
@@ -420,7 +414,7 @@ void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	key = key_mtx_dereference(sdata->local,
-				  sdata->default_mgmt_key);
+				  sdata->deflink.default_mgmt_key);
 	if (key) {
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_mgmt_key =
@@ -437,6 +431,37 @@ void ieee80211_debugfs_key_remove_mgmt_default(struct ieee80211_sub_if_data *sda
 
 	debugfs_remove(sdata->debugfs.default_mgmt_key);
 	sdata->debugfs.default_mgmt_key = NULL;
+}
+
+void
+ieee80211_debugfs_key_add_beacon_default(struct ieee80211_sub_if_data *sdata)
+{
+	char buf[50];
+	struct ieee80211_key *key;
+
+	if (!sdata->vif.debugfs_dir)
+		return;
+
+	key = key_mtx_dereference(sdata->local,
+				  sdata->deflink.default_beacon_key);
+	if (key) {
+		sprintf(buf, "../keys/%d", key->debugfs.cnt);
+		sdata->debugfs.default_beacon_key =
+			debugfs_create_symlink("default_beacon_key",
+					       sdata->vif.debugfs_dir, buf);
+	} else {
+		ieee80211_debugfs_key_remove_beacon_default(sdata);
+	}
+}
+
+void
+ieee80211_debugfs_key_remove_beacon_default(struct ieee80211_sub_if_data *sdata)
+{
+	if (!sdata)
+		return;
+
+	debugfs_remove(sdata->debugfs.default_beacon_key);
+	sdata->debugfs.default_beacon_key = NULL;
 }
 
 void ieee80211_debugfs_key_sta_del(struct ieee80211_key *key,

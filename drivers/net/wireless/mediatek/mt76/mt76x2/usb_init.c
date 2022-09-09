@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/delay.h>
@@ -134,30 +123,6 @@ static int mt76x2u_init_eeprom(struct mt76x02_dev *dev)
 	return 0;
 }
 
-struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev)
-{
-	static const struct mt76_driver_ops drv_ops = {
-		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
-		.tx_complete_skb = mt76x02u_tx_complete_skb,
-		.tx_status_data = mt76x02_tx_status_data,
-		.rx_skb = mt76x02_queue_rx_skb,
-		.sta_add = mt76x02_sta_add,
-		.sta_remove = mt76x02_sta_remove,
-	};
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
-
-	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2u_ops);
-	if (!mdev)
-		return NULL;
-
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mdev->dev = pdev;
-	mdev->drv = &drv_ops;
-
-	return dev;
-}
-
 int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 {
 	int i, k, err;
@@ -207,11 +172,7 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 	}
 
-	mt76_clear(dev, MT_BEACON_TIME_CFG,
-		   MT_BEACON_TIME_CFG_TIMER_EN |
-		   MT_BEACON_TIME_CFG_SYNC_MODE |
-		   MT_BEACON_TIME_CFG_TBTT_EN |
-		   MT_BEACON_TIME_CFG_BEACON_TX);
+	mt76x02u_init_beacon_config(dev);
 
 	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
@@ -229,20 +190,24 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 int mt76x2u_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct mt76_usb *usb = &dev->mt76.usb;
 	int err;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2u_phy_calibrate);
-	mt76x02_init_device(dev);
+	err = mt76x02_init_device(dev);
+	if (err)
+		return err;
 
 	err = mt76x2u_init_eeprom(dev);
 	if (err < 0)
 		return err;
 
-	err = mt76u_alloc_queues(&dev->mt76);
-	if (err < 0)
-		goto fail;
+	usb->mcu.data = devm_kmalloc(dev->mt76.dev, MCU_RESP_URB_SIZE,
+				     GFP_KERNEL);
+	if (!usb->mcu.data)
+		return -ENOMEM;
 
-	err = mt76u_mcu_init_rx(&dev->mt76);
+	err = mt76u_alloc_queues(&dev->mt76);
 	if (err < 0)
 		goto fail;
 
@@ -250,22 +215,18 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		goto fail;
 
+	/* check hw sg support in order to enable AMSDU */
+	hw->max_tx_fragments = dev->mt76.usb.sg_en ? MT_TX_SG_MAX_SIZE : 1;
 	err = mt76_register_device(&dev->mt76, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));
 	if (err)
 		goto fail;
 
-	/* check hw sg support in order to enable AMSDU */
-	if (mt76u_check_sg(&dev->mt76))
-		hw->max_tx_fragments = MT_SG_MAX_SIZE;
-	else
-		hw->max_tx_fragments = 1;
-
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	mt76x02_init_debugfs(dev);
-	mt76x2_init_txpower(dev, &dev->mt76.sband_2g.sband);
-	mt76x2_init_txpower(dev, &dev->mt76.sband_5g.sband);
+	mt76x2_init_txpower(dev, &dev->mphy.sband_2g.sband);
+	mt76x2_init_txpower(dev, &dev->mphy.sband_5g.sband);
 
 	return 0;
 
@@ -276,9 +237,8 @@ fail:
 
 void mt76x2u_stop_hw(struct mt76x02_dev *dev)
 {
-	mt76u_stop_stat_wk(&dev->mt76);
 	cancel_delayed_work_sync(&dev->cal_work);
-	cancel_delayed_work_sync(&dev->mac_work);
+	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	mt76x2u_mac_stop(dev);
 }
 
@@ -287,5 +247,4 @@ void mt76x2u_cleanup(struct mt76x02_dev *dev)
 	mt76x02_mcu_set_radio_state(dev, false);
 	mt76x2u_stop_hw(dev);
 	mt76u_queues_deinit(&dev->mt76);
-	mt76u_mcu_deinit(&dev->mt76);
 }

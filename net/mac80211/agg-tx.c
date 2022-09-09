@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HT handling
  *
@@ -8,11 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2018 - 2022 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -85,7 +82,7 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+		memcpy(mgmt->bssid, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		memcpy(mgmt->bssid, sdata->u.ibss.bssid, ETH_ALEN);
 
@@ -98,10 +95,10 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.addba_req.action_code = WLAN_ACTION_ADDBA_REQ;
 
 	mgmt->u.action.u.addba_req.dialog_token = dialog_token;
-	capab = (u16)(1 << 0);		/* bit 0 A-MSDU support */
-	capab |= (u16)(1 << 1);		/* bit 1 aggregation policy */
-	capab |= (u16)(tid << 2); 	/* bit 5:2 TID number */
-	capab |= (u16)(agg_size << 6);	/* bit 15:6 max size of aggergation */
+	capab = IEEE80211_ADDBA_PARAM_AMSDU_MASK;
+	capab |= IEEE80211_ADDBA_PARAM_POLICY_MASK;
+	capab |= u16_encode_bits(tid, IEEE80211_ADDBA_PARAM_TID_MASK);
+	capab |= u16_encode_bits(agg_size, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 
 	mgmt->u.action.u.addba_req.capab = cpu_to_le16(capab);
 
@@ -109,7 +106,7 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.addba_req.start_seq_num =
 					cpu_to_le16(start_seq_num << 4);
 
-	ieee80211_tx_skb(sdata, skb);
+	ieee80211_tx_skb_tid(sdata, skb, tid, -1);
 }
 
 void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn)
@@ -138,7 +135,7 @@ void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn)
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
 					IEEE80211_TX_CTL_REQ_TX_STATUS;
-	ieee80211_tx_skb_tid(sdata, skb, tid);
+	ieee80211_tx_skb_tid(sdata, skb, tid, -1);
 }
 EXPORT_SYMBOL(ieee80211_send_bar);
 
@@ -216,6 +213,8 @@ ieee80211_agg_start_txq(struct sta_info *sta, int tid, bool enable)
 	struct ieee80211_txq *txq = sta->sta.txq[tid];
 	struct txq_info *txqi;
 
+	lockdep_assert_held(&sta->ampdu_mlme.mtx);
+
 	if (!txq)
 		return;
 
@@ -229,7 +228,7 @@ ieee80211_agg_start_txq(struct sta_info *sta, int tid, bool enable)
 	clear_bit(IEEE80211_TXQ_STOP, &txqi->flags);
 	local_bh_disable();
 	rcu_read_lock();
-	drv_wake_tx_queue(sta->sdata->local, txqi);
+	schedule_and_wake_txq(sta->sdata->local, txqi);
 	rcu_read_unlock();
 	local_bh_enable();
 }
@@ -293,7 +292,6 @@ static void ieee80211_remove_tid_tx(struct sta_info *sta, int tid)
 	ieee80211_assign_tid_tx(sta, tid, NULL);
 
 	ieee80211_agg_splice_finish(sta->sdata, tid);
-	ieee80211_agg_start_txq(sta, tid, false);
 
 	kfree_rcu(tid_tx, rcu_head);
 }
@@ -365,6 +363,8 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	}
 
 	set_bit(HT_AGG_STATE_STOPPING, &tid_tx->state);
+
+	ieee80211_agg_stop_txq(sta, tid);
 
 	spin_unlock_bh(&sta->lock);
 
@@ -449,6 +449,44 @@ static void sta_addba_resp_timer_expired(struct timer_list *t)
 	ieee80211_stop_tx_ba_session(&sta->sta, tid);
 }
 
+static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
+					      struct tid_ampdu_tx *tid_tx)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sta->local;
+	u8 tid = tid_tx->tid;
+	u16 buf_size;
+
+	/* activate the timer for the recipient's addBA response */
+	mod_timer(&tid_tx->addba_resp_timer, jiffies + ADDBA_RESP_INTERVAL);
+	ht_dbg(sdata, "activated addBA response timer on %pM tid %d\n",
+	       sta->sta.addr, tid);
+
+	spin_lock_bh(&sta->lock);
+	sta->ampdu_mlme.last_addba_req_time[tid] = jiffies;
+	sta->ampdu_mlme.addba_req_num[tid]++;
+	spin_unlock_bh(&sta->lock);
+
+	if (sta->sta.deflink.he_cap.has_he) {
+		buf_size = local->hw.max_tx_aggregation_subframes;
+	} else {
+		/*
+		 * We really should use what the driver told us it will
+		 * transmit as the maximum, but certain APs (e.g. the
+		 * LinkSys WRT120N with FW v1.0.07 build 002 Jun 18 2012)
+		 * will crash when we use a lower number.
+		 */
+		buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
+	}
+
+	/* send AddBA request */
+	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
+				     tid_tx->dialog_token, tid_tx->ssn,
+				     buf_size, tid_tx->timeout);
+
+	WARN_ON(test_and_set_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state));
+}
+
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 {
 	struct tid_ampdu_tx *tid_tx;
@@ -463,7 +501,6 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 		.timeout = 0,
 	};
 	int ret;
-	u16 buf_size;
 
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
@@ -486,7 +523,17 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 
 	params.ssn = sta->tid_seq[tid] >> 4;
 	ret = drv_ampdu_action(local, sdata, &params);
-	if (ret) {
+	tid_tx->ssn = params.ssn;
+	if (ret == IEEE80211_AMPDU_TX_START_DELAY_ADDBA) {
+		return;
+	} else if (ret == IEEE80211_AMPDU_TX_START_IMMEDIATE) {
+		/*
+		 * We didn't send the request yet, so don't need to check
+		 * here if we already got a response, just mark as driver
+		 * ready immediately.
+		 */
+		set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state);
+	} else if (ret) {
 		ht_dbg(sdata,
 		       "BA request denied - HW unavailable for %pM tid %d\n",
 		       sta->sta.addr, tid);
@@ -502,32 +549,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 		return;
 	}
 
-	/* activate the timer for the recipient's addBA response */
-	mod_timer(&tid_tx->addba_resp_timer, jiffies + ADDBA_RESP_INTERVAL);
-	ht_dbg(sdata, "activated addBA response timer on %pM tid %d\n",
-	       sta->sta.addr, tid);
-
-	spin_lock_bh(&sta->lock);
-	sta->ampdu_mlme.last_addba_req_time[tid] = jiffies;
-	sta->ampdu_mlme.addba_req_num[tid]++;
-	spin_unlock_bh(&sta->lock);
-
-	if (sta->sta.he_cap.has_he) {
-		buf_size = local->hw.max_tx_aggregation_subframes;
-	} else {
-		/*
-		 * We really should use what the driver told us it will
-		 * transmit as the maximum, but certain APs (e.g. the
-		 * LinkSys WRT120N with FW v1.0.07 build 002 Jun 18 2012)
-		 * will crash when we use a lower number.
-		 */
-		buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
-	}
-
-	/* send AddBA request */
-	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
-				     tid_tx->dialog_token, params.ssn,
-				     buf_size, tid_tx->timeout);
+	ieee80211_send_addba_with_timeout(sta, tid_tx);
 }
 
 /*
@@ -572,7 +594,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		 "Requested to start BA session on reserved tid=%d", tid))
 		return -EINVAL;
 
-	if (!pubsta->ht_cap.ht_supported)
+	if (!pubsta->deflink.ht_cap.ht_supported &&
+	    sta->sdata->vif.bss_conf.chandef.chan->band != NL80211_BAND_6GHZ)
 		return -EINVAL;
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))
@@ -603,6 +626,14 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		return -EINVAL;
 	}
 
+	if (test_sta_flag(sta, WLAN_STA_MFP) &&
+	    !test_sta_flag(sta, WLAN_STA_AUTHORIZED)) {
+		ht_dbg(sdata,
+		       "MFP STA not authorized - deny BA session request %pM tid %d\n",
+		       sta->sta.addr, tid);
+		return -EINVAL;
+	}
+
 	/*
 	 * 802.11n-2009 11.5.1.1: If the initiating STA is an HT STA, is a
 	 * member of an IBSS, and has no other existing Block Ack agreement
@@ -616,7 +647,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	 * is set when we receive a bss info from a probe response or a beacon.
 	 */
 	if (sta->sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	    !sta->sta.ht_cap.ht_supported) {
+	    !sta->sta.deflink.ht_cap.ht_supported) {
 		ht_dbg(sdata,
 		       "BA request denied - IBSS STA %pM does not advertise HT support\n",
 		       pubsta->addr);
@@ -748,6 +779,12 @@ void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
 	if (WARN_ON(test_and_set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state)))
 		return;
 
+	if (!test_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state)) {
+		ieee80211_send_addba_with_timeout(sta, tid_tx);
+		/* RESPONSE_RECEIVED state whould trigger the flow again */
+		return;
+	}
+
 	if (test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state))
 		ieee80211_agg_tx_operational(local, sta, tid);
 }
@@ -861,6 +898,7 @@ void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	bool send_delba = false;
+	bool start_txq = false;
 
 	ht_dbg(sdata, "Stopping Tx BA session for %pM tid %d\n",
 	       sta->sta.addr, tid);
@@ -878,9 +916,13 @@ void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
 		send_delba = true;
 
 	ieee80211_remove_tid_tx(sta, tid);
+	start_txq = true;
 
  unlock_sta:
 	spin_unlock_bh(&sta->lock);
+
+	if (start_txq)
+		ieee80211_agg_start_txq(sta, tid, false);
 
 	if (send_delba)
 		ieee80211_send_delba(sdata, sta->sta.addr, tid,
@@ -922,8 +964,8 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
 	amsdu = capab & IEEE80211_ADDBA_PARAM_AMSDU_MASK;
-	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
-	buf_size = (capab & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK) >> 6;
+	tid = u16_get_bits(capab, IEEE80211_ADDBA_PARAM_TID_MASK);
+	buf_size = u16_get_bits(capab, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 	buf_size = min(buf_size, local->hw.max_tx_aggregation_subframes);
 
 	txq = sta->sta.txq[tid];

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Miro PCM20 radio driver for Linux radio support
  * (c) 1998 Ruurd Reitsma <R.A.Reitsma@wbmt.tudelft.nl>
@@ -203,8 +204,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(v->driver, "Miro PCM20", sizeof(v->driver));
 	strscpy(v->card, "Miro PCM20", sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "ISA:%s", dev->v4l2_dev.name);
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -480,6 +479,8 @@ static int __init pcm20_init(void)
 	dev->vdev.ioctl_ops = &pcm20_ioctl_ops;
 	dev->vdev.release = video_device_release_empty;
 	dev->vdev.lock = &dev->lock;
+	dev->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+				V4L2_CAP_RDS_CAPTURE;
 	video_set_drvdata(&dev->vdev, dev);
 	snd_aci_cmd(dev->aci, ACI_SET_TUNERMONO,
 			dev->audmode == V4L2_TUNER_MODE_MONO, -1);

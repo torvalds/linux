@@ -84,7 +84,7 @@ static const int slim_presence_rate_table[] = {
 	512000,
 };
 
-/*
+/**
  * slim_stream_allocate() - Allocate a new SLIMbus Stream
  * @dev:Slim device to be associated with
  * @name: name of the stream
@@ -189,7 +189,7 @@ static int slim_get_prate_code(int rate)
 	return -EINVAL;
 }
 
-/*
+/**
  * slim_stream_prepare() - Prepare a SLIMbus Stream
  *
  * @rt: instance of slim stream runtime to configure
@@ -336,7 +336,7 @@ static int slim_activate_channel(struct slim_stream_runtime *stream,
 	return slim_do_transfer(sdev->ctrl, &txn);
 }
 
-/*
+/**
  * slim_stream_enable() - Enable a prepared SLIMbus Stream
  *
  * @stream: instance of slim stream runtime to enable
@@ -389,7 +389,7 @@ int slim_stream_enable(struct slim_stream_runtime *stream)
 }
 EXPORT_SYMBOL_GPL(slim_stream_enable);
 
-/*
+/**
  * slim_stream_disable() - Disable a SLIMbus Stream
  *
  * @stream: instance of slim stream runtime to disable
@@ -423,7 +423,7 @@ int slim_stream_disable(struct slim_stream_runtime *stream)
 }
 EXPORT_SYMBOL_GPL(slim_stream_disable);
 
-/*
+/**
  * slim_stream_unprepare() - Un-prepare a SLIMbus Stream
  *
  * @stream: instance of slim stream runtime to unprepare
@@ -449,7 +449,7 @@ int slim_stream_unprepare(struct slim_stream_runtime *stream)
 }
 EXPORT_SYMBOL_GPL(slim_stream_unprepare);
 
-/*
+/**
  * slim_stream_free() - Free a SLIMbus Stream
  *
  * @stream: instance of slim stream runtime to free

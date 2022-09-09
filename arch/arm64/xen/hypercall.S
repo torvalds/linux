@@ -56,11 +56,11 @@
 #define XEN_IMM 0xEA1
 
 #define HYPERCALL_SIMPLE(hypercall)		\
-ENTRY(HYPERVISOR_##hypercall)			\
+SYM_FUNC_START(HYPERVISOR_##hypercall)		\
 	mov x16, #__HYPERVISOR_##hypercall;	\
 	hvc XEN_IMM;				\
 	ret;					\
-ENDPROC(HYPERVISOR_##hypercall)
+SYM_FUNC_END(HYPERVISOR_##hypercall)
 
 #define HYPERCALL0 HYPERCALL_SIMPLE
 #define HYPERCALL1 HYPERCALL_SIMPLE
@@ -80,13 +80,12 @@ HYPERCALL2(hvm_op);
 HYPERCALL2(memory_op);
 HYPERCALL2(physdev_op);
 HYPERCALL3(vcpu_op);
-HYPERCALL1(tmem_op);
 HYPERCALL1(platform_op_raw);
 HYPERCALL2(multicall);
 HYPERCALL2(vm_assist);
 HYPERCALL3(dm_op);
 
-ENTRY(privcmd_call)
+SYM_FUNC_START(privcmd_call)
 	mov x16, x0
 	mov x0, x1
 	mov x1, x2
@@ -109,4 +108,4 @@ ENTRY(privcmd_call)
 	 */
 	uaccess_ttbr0_disable x6, x7
 	ret
-ENDPROC(privcmd_call);
+SYM_FUNC_END(privcmd_call);

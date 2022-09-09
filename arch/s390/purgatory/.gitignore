@@ -1,2 +1,5 @@
-kexec-purgatory.c
+# SPDX-License-Identifier: GPL-2.0-only
+purgatory
+purgatory.chk
+purgatory.lds
 purgatory.ro

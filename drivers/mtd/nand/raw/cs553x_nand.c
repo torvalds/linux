@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2005, 2006 Red Hat Inc.
  *
  * Author: David Woodhouse <dwmw2@infradead.org>
  *	   Tom Sylla <tom.sylla@amd.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *  Overview:
  *   This is a device driver for the NAND flash controller found on
  *   the AMD CS5535/CS5536 companion chipsets for the Geode processor.
  *   mtd-id for command line partitioning is cs553x_nand_cs[0-3]
  *   where 0-3 reflects the chip select for NAND.
- *
  */
 
 #include <linux/kernel.h>
@@ -23,11 +19,10 @@
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
+#include <linux/iopoll.h>
 
 #include <asm/msr.h>
-#include <asm/io.h>
 
 #define NR_CS553X_CONTROLLERS	4
 
@@ -93,76 +88,146 @@
 #define CS_NAND_ECC_CLRECC	(1<<1)
 #define CS_NAND_ECC_ENECC	(1<<0)
 
-static void cs553x_read_buf(struct nand_chip *this, u_char *buf, int len)
+struct cs553x_nand_controller {
+	struct nand_controller base;
+	struct nand_chip chip;
+	void __iomem *mmio;
+};
+
+static struct cs553x_nand_controller *
+to_cs553x(struct nand_controller *controller)
 {
+	return container_of(controller, struct cs553x_nand_controller, base);
+}
+
+static int cs553x_write_ctrl_byte(struct cs553x_nand_controller *cs553x,
+				  u32 ctl, u8 data)
+{
+	u8 status;
+
+	writeb(ctl, cs553x->mmio + MM_NAND_CTL);
+	writeb(data, cs553x->mmio + MM_NAND_IO);
+	return readb_poll_timeout_atomic(cs553x->mmio + MM_NAND_STS, status,
+					!(status & CS_NAND_CTLR_BUSY), 1,
+					100000);
+}
+
+static void cs553x_data_in(struct cs553x_nand_controller *cs553x, void *buf,
+			   unsigned int len)
+{
+	writeb(0, cs553x->mmio + MM_NAND_CTL);
 	while (unlikely(len > 0x800)) {
-		memcpy_fromio(buf, this->legacy.IO_ADDR_R, 0x800);
+		memcpy_fromio(buf, cs553x->mmio, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_fromio(buf, this->legacy.IO_ADDR_R, len);
+	memcpy_fromio(buf, cs553x->mmio, len);
 }
 
-static void cs553x_write_buf(struct nand_chip *this, const u_char *buf, int len)
+static void cs553x_data_out(struct cs553x_nand_controller *cs553x,
+			    const void *buf, unsigned int len)
 {
+	writeb(0, cs553x->mmio + MM_NAND_CTL);
 	while (unlikely(len > 0x800)) {
-		memcpy_toio(this->legacy.IO_ADDR_R, buf, 0x800);
+		memcpy_toio(cs553x->mmio, buf, 0x800);
 		buf += 0x800;
 		len -= 0x800;
 	}
-	memcpy_toio(this->legacy.IO_ADDR_R, buf, len);
+	memcpy_toio(cs553x->mmio, buf, len);
 }
 
-static unsigned char cs553x_read_byte(struct nand_chip *this)
+static int cs553x_wait_ready(struct cs553x_nand_controller *cs553x,
+			     unsigned int timeout_ms)
 {
-	return readb(this->legacy.IO_ADDR_R);
+	u8 mask = CS_NAND_CTLR_BUSY | CS_NAND_STS_FLASH_RDY;
+	u8 status;
+
+	return readb_poll_timeout(cs553x->mmio + MM_NAND_STS, status,
+				  (status & mask) == CS_NAND_STS_FLASH_RDY, 100,
+				  timeout_ms * 1000);
 }
 
-static void cs553x_write_byte(struct nand_chip *this, u_char byte)
+static int cs553x_exec_instr(struct cs553x_nand_controller *cs553x,
+			     const struct nand_op_instr *instr)
 {
-	int i = 100000;
+	unsigned int i;
+	int ret = 0;
 
-	while (i && readb(this->legacy.IO_ADDR_R + MM_NAND_STS) & CS_NAND_CTLR_BUSY) {
-		udelay(1);
-		i--;
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		ret = cs553x_write_ctrl_byte(cs553x, CS_NAND_CTL_CLE,
+					     instr->ctx.cmd.opcode);
+		break;
+
+	case NAND_OP_ADDR_INSTR:
+		for (i = 0; i < instr->ctx.addr.naddrs; i++) {
+			ret = cs553x_write_ctrl_byte(cs553x, CS_NAND_CTL_ALE,
+						     instr->ctx.addr.addrs[i]);
+			if (ret)
+				break;
+		}
+		break;
+
+	case NAND_OP_DATA_IN_INSTR:
+		cs553x_data_in(cs553x, instr->ctx.data.buf.in,
+			       instr->ctx.data.len);
+		break;
+
+	case NAND_OP_DATA_OUT_INSTR:
+		cs553x_data_out(cs553x, instr->ctx.data.buf.out,
+				instr->ctx.data.len);
+		break;
+
+	case NAND_OP_WAITRDY_INSTR:
+		ret = cs553x_wait_ready(cs553x, instr->ctx.waitrdy.timeout_ms);
+		break;
 	}
-	writeb(byte, this->legacy.IO_ADDR_W + 0x801);
+
+	if (instr->delay_ns)
+		ndelay(instr->delay_ns);
+
+	return ret;
 }
 
-static void cs553x_hwcontrol(struct nand_chip *this, int cmd,
-			     unsigned int ctrl)
+static int cs553x_exec_op(struct nand_chip *this,
+			  const struct nand_operation *op,
+			  bool check_only)
 {
-	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
-	if (ctrl & NAND_CTRL_CHANGE) {
-		unsigned char ctl = (ctrl & ~NAND_CTRL_CHANGE ) ^ 0x01;
-		writeb(ctl, mmio_base + MM_NAND_CTL);
+	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
+	unsigned int i;
+	int ret;
+
+	if (check_only)
+		return true;
+
+	/* De-assert the CE pin */
+	writeb(0, cs553x->mmio + MM_NAND_CTL);
+	for (i = 0; i < op->ninstrs; i++) {
+		ret = cs553x_exec_instr(cs553x, &op->instrs[i]);
+		if (ret)
+			break;
 	}
-	if (cmd != NAND_CMD_NONE)
-		cs553x_write_byte(this, cmd);
-}
 
-static int cs553x_device_ready(struct nand_chip *this)
-{
-	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
-	unsigned char foo = readb(mmio_base + MM_NAND_STS);
+	/* Re-assert the CE pin. */
+	writeb(CS_NAND_CTL_CE, cs553x->mmio + MM_NAND_CTL);
 
-	return (foo & CS_NAND_STS_FLASH_RDY) && !(foo & CS_NAND_CTLR_BUSY);
+	return ret;
 }
 
 static void cs_enable_hwecc(struct nand_chip *this, int mode)
 {
-	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
+	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
 
-	writeb(0x07, mmio_base + MM_NAND_ECC_CTL);
+	writeb(0x07, cs553x->mmio + MM_NAND_ECC_CTL);
 }
 
 static int cs_calculate_ecc(struct nand_chip *this, const u_char *dat,
 			    u_char *ecc_code)
 {
+	struct cs553x_nand_controller *cs553x = to_cs553x(this->controller);
 	uint32_t ecc;
-	void __iomem *mmio_base = this->legacy.IO_ADDR_R;
 
-	ecc = readl(mmio_base + MM_NAND_STS);
+	ecc = readl(cs553x->mmio + MM_NAND_STS);
 
 	ecc_code[1] = ecc >> 8;
 	ecc_code[0] = ecc >> 16;
@@ -170,10 +235,31 @@ static int cs_calculate_ecc(struct nand_chip *this, const u_char *dat,
 	return 0;
 }
 
-static struct mtd_info *cs553x_mtd[4];
+static struct cs553x_nand_controller *controllers[4];
+
+static int cs553x_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.size = 256;
+	chip->ecc.bytes = 3;
+	chip->ecc.hwctl  = cs_enable_hwecc;
+	chip->ecc.calculate = cs_calculate_ecc;
+	chip->ecc.correct  = rawnand_sw_hamming_correct;
+	chip->ecc.strength = 1;
+
+	return 0;
+}
+
+static const struct nand_controller_ops cs553x_nand_controller_ops = {
+	.exec_op = cs553x_exec_op,
+	.attach_chip = cs553x_attach_chip,
+};
 
 static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 {
+	struct cs553x_nand_controller *controller;
 	int err = 0;
 	struct nand_chip *this;
 	struct mtd_info *new_mtd;
@@ -187,40 +273,28 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	}
 
 	/* Allocate memory for MTD device structure and private data */
-	this = kzalloc(sizeof(struct nand_chip), GFP_KERNEL);
-	if (!this) {
+	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
+	if (!controller) {
 		err = -ENOMEM;
 		goto out;
 	}
 
+	this = &controller->chip;
+	nand_controller_init(&controller->base);
+	controller->base.ops = &cs553x_nand_controller_ops;
+	this->controller = &controller->base;
 	new_mtd = nand_to_mtd(this);
 
 	/* Link the private data with the MTD structure */
 	new_mtd->owner = THIS_MODULE;
 
 	/* map physical address */
-	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = ioremap(adr, 4096);
-	if (!this->legacy.IO_ADDR_R) {
+	controller->mmio = ioremap(adr, 4096);
+	if (!controller->mmio) {
 		pr_warn("ioremap cs553x NAND @0x%08lx failed\n", adr);
 		err = -EIO;
 		goto out_mtd;
 	}
-
-	this->legacy.cmd_ctrl = cs553x_hwcontrol;
-	this->legacy.dev_ready = cs553x_device_ready;
-	this->legacy.read_byte = cs553x_read_byte;
-	this->legacy.read_buf = cs553x_read_buf;
-	this->legacy.write_buf = cs553x_write_buf;
-
-	this->legacy.chip_delay = 0;
-
-	this->ecc.mode = NAND_ECC_HW;
-	this->ecc.size = 256;
-	this->ecc.bytes = 3;
-	this->ecc.hwctl  = cs_enable_hwecc;
-	this->ecc.calculate = cs_calculate_ecc;
-	this->ecc.correct  = nand_correct_data;
-	this->ecc.strength = 1;
 
 	/* Enable the following for a flash based bad block table */
 	this->bbt_options = NAND_BBT_USE_FLASH;
@@ -236,15 +310,15 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	if (err)
 		goto out_free;
 
-	cs553x_mtd[cs] = new_mtd;
+	controllers[cs] = controller;
 	goto out;
 
 out_free:
 	kfree(new_mtd->name);
 out_ior:
-	iounmap(this->legacy.IO_ADDR_R);
+	iounmap(controller->mmio);
 out_mtd:
-	kfree(this);
+	kfree(controller);
 out:
 	return err;
 }
@@ -299,9 +373,10 @@ static int __init cs553x_init(void)
 	/* Register all devices together here. This means we can easily hack it to
 	   do mtdconcat etc. if we want to. */
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
-		if (cs553x_mtd[i]) {
+		if (controllers[i]) {
 			/* If any devices registered, return success. Else the last error. */
-			mtd_device_register(cs553x_mtd[i], NULL, 0);
+			mtd_device_register(nand_to_mtd(&controllers[i]->chip),
+					    NULL, 0);
 			err = 0;
 		}
 	}
@@ -316,26 +391,26 @@ static void __exit cs553x_cleanup(void)
 	int i;
 
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
-		struct mtd_info *mtd = cs553x_mtd[i];
-		struct nand_chip *this;
-		void __iomem *mmio_base;
+		struct cs553x_nand_controller *controller = controllers[i];
+		struct nand_chip *this = &controller->chip;
+		struct mtd_info *mtd = nand_to_mtd(this);
+		int ret;
 
 		if (!mtd)
 			continue;
 
-		this = mtd_to_nand(mtd);
-		mmio_base = this->legacy.IO_ADDR_R;
-
 		/* Release resources, unregister device */
-		nand_release(this);
+		ret = mtd_device_unregister(mtd);
+		WARN_ON(ret);
+		nand_cleanup(this);
 		kfree(mtd->name);
-		cs553x_mtd[i] = NULL;
+		controllers[i] = NULL;
 
 		/* unmap physical address */
-		iounmap(mmio_base);
+		iounmap(controller->mmio);
 
 		/* Free the MTD device structure */
-		kfree(this);
+		kfree(controller);
 	}
 }
 

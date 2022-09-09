@@ -433,6 +433,10 @@ The main syscalls are:
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
+     To link a key into the destination keyring the key must grant link
+     permission on the key to the caller and the keyring must grant write
+     permission.
+
      See also Documentation/security/keys/request-key.rst.
 
 
@@ -575,6 +579,27 @@ The keyctl syscall functions are:
      Any links within the keyring to keys that match the new key in terms of
      type and description will be discarded from the keyring as the new one is
      added.
+
+
+  *  Move a key from one keyring to another::
+
+	long keyctl(KEYCTL_MOVE,
+		    key_serial_t id,
+		    key_serial_t from_ring_id,
+		    key_serial_t to_ring_id,
+		    unsigned int flags);
+
+     Move the key specified by "id" from the keyring specified by
+     "from_ring_id" to the keyring specified by "to_ring_id".  If the two
+     keyrings are the same, nothing is done.
+
+     "flags" can have KEYCTL_MOVE_EXCL set in it to cause the operation to fail
+     with EEXIST if a matching key exists in the destination keyring, otherwise
+     such a key will be replaced.
+
+     A process must have link permission on the key for this function to be
+     successful and write permission on both keyrings.  Any errors that can
+     occur from KEYCTL_LINK also apply on the destination keyring here.
 
 
   *  Unlink a key or keyring from another keyring::
@@ -887,7 +912,7 @@ The keyctl syscall functions are:
 
      One application of restricted keyrings is to verify X.509 certificate
      chains or individual certificate signatures using the asymmetric key type.
-     See Documentation/crypto/asymmetric-keys.txt for specific restrictions
+     See Documentation/crypto/asymmetric-keys.rst for specific restrictions
      applicable to the asymmetric key type.
 
 
@@ -895,10 +920,14 @@ The keyctl syscall functions are:
 
 	long keyctl(KEYCTL_PKEY_QUERY,
 		    key_serial_t key_id, unsigned long reserved,
+		    const char *params,
 		    struct keyctl_pkey_query *info);
 
-     Get information about an asymmetric key.  The information is returned in
-     the keyctl_pkey_query struct::
+     Get information about an asymmetric key.  Specific algorithms and
+     encodings may be queried by using the ``params`` argument.  This is a
+     string containing a space- or tab-separated string of key-value pairs.
+     Currently supported keys include ``enc`` and ``hash``.  The information
+     is returned in the keyctl_pkey_query struct::
 
 	__u32	supported_ops;
 	__u32	key_size;
@@ -1001,6 +1030,63 @@ The keyctl syscall functions are:
      written into the output buffer.  Verification returns 0 on success.
 
 
+  *  Watch a key or keyring for changes::
+
+	long keyctl(KEYCTL_WATCH_KEY, key_serial_t key, int queue_fd,
+		    const struct watch_notification_filter *filter);
+
+     This will set or remove a watch for changes on the specified key or
+     keyring.
+
+     "key" is the ID of the key to be watched.
+
+     "queue_fd" is a file descriptor referring to an open pipe which
+     manages the buffer into which notifications will be delivered.
+
+     "filter" is either NULL to remove a watch or a filter specification to
+     indicate what events are required from the key.
+
+     See Documentation/core-api/watch_queue.rst for more information.
+
+     Note that only one watch may be emplaced for any particular { key,
+     queue_fd } combination.
+
+     Notification records look like::
+
+	struct key_notification {
+		struct watch_notification watch;
+		__u32	key_id;
+		__u32	aux;
+	};
+
+     In this, watch::type will be "WATCH_TYPE_KEY_NOTIFY" and subtype will be
+     one of::
+
+	NOTIFY_KEY_INSTANTIATED
+	NOTIFY_KEY_UPDATED
+	NOTIFY_KEY_LINKED
+	NOTIFY_KEY_UNLINKED
+	NOTIFY_KEY_CLEARED
+	NOTIFY_KEY_REVOKED
+	NOTIFY_KEY_INVALIDATED
+	NOTIFY_KEY_SETATTR
+
+     Where these indicate a key being instantiated/rejected, updated, a link
+     being made in a keyring, a link being removed from a keyring, a keyring
+     being cleared, a key being revoked, a key being invalidated or a key
+     having one of its attributes changed (user, group, perm, timeout,
+     restriction).
+
+     If a watched key is deleted, a basic watch_notification will be issued
+     with "type" set to WATCH_TYPE_META and "subtype" set to
+     watch_meta_removal_notification.  The watchpoint ID will be set in the
+     "info" field.
+
+     This needs to be configured by enabling:
+
+	"Provide key/keyring change notifications" (KEY_NOTIFICATIONS)
+
+
 Kernel Services
 ===============
 
@@ -1077,49 +1163,43 @@ payload contents" for more information.
     See also Documentation/security/keys/request-key.rst.
 
 
+ *  To search for a key in a specific domain, call::
+
+	struct key *request_key_tag(const struct key_type *type,
+				    const char *description,
+				    struct key_tag *domain_tag,
+				    const char *callout_info);
+
+    This is identical to request_key(), except that a domain tag may be
+    specifies that causes search algorithm to only match keys matching that
+    tag.  The domain_tag may be NULL, specifying a global domain that is
+    separate from any nominated domain.
+
+
  *  To search for a key, passing auxiliary data to the upcaller, call::
 
 	struct key *request_key_with_auxdata(const struct key_type *type,
 					     const char *description,
+					     struct key_tag *domain_tag,
 					     const void *callout_info,
 					     size_t callout_len,
 					     void *aux);
 
-    This is identical to request_key(), except that the auxiliary data is
-    passed to the key_type->request_key() op if it exists, and the callout_info
-    is a blob of length callout_len, if given (the length may be 0).
+    This is identical to request_key_tag(), except that the auxiliary data is
+    passed to the key_type->request_key() op if it exists, and the
+    callout_info is a blob of length callout_len, if given (the length may be
+    0).
 
 
- *  A key can be requested asynchronously by calling one of::
+ *  To search for a key under RCU conditions, call::
 
-	struct key *request_key_async(const struct key_type *type,
-				      const char *description,
-				      const void *callout_info,
-				      size_t callout_len);
+	struct key *request_key_rcu(const struct key_type *type,
+				    const char *description,
+				    struct key_tag *domain_tag);
 
-    or::
-
-	struct key *request_key_async_with_auxdata(const struct key_type *type,
-						   const char *description,
-						   const char *callout_info,
-					     	   size_t callout_len,
-					     	   void *aux);
-
-    which are asynchronous equivalents of request_key() and
-    request_key_with_auxdata() respectively.
-
-    These two functions return with the key potentially still under
-    construction.  To wait for construction completion, the following should be
-    called::
-
-	int wait_for_key_construction(struct key *key, bool intr);
-
-    The function will wait for the key to finish being constructed and then
-    invokes key_validate() to return an appropriate value to indicate the state
-    of the key (0 indicates the key is usable).
-
-    If intr is true, then the wait can be interrupted by a signal, in which
-    case error ERESTARTSYS will be returned.
+    which is similar to request_key_tag() except that it does not check for
+    keys that are under construction and it will not call out to userspace to
+    construct a key if it can't find a match.
 
 
  *  When it is no longer required, the key should be released using::
@@ -1159,11 +1239,13 @@ payload contents" for more information.
 
 	key_ref_t keyring_search(key_ref_t keyring_ref,
 				 const struct key_type *type,
-				 const char *description)
+				 const char *description,
+				 bool recurse)
 
-    This searches the keyring tree specified for a matching key. Error ENOKEY
-    is returned upon failure (use IS_ERR/PTR_ERR to determine). If successful,
-    the returned key will need to be released.
+    This searches the specified keyring only (recurse == false) or keyring tree
+    (recurse == true) specified for a matching key. Error ENOKEY is returned
+    upon failure (use IS_ERR/PTR_ERR to determine). If successful, the returned
+    key will need to be released.
 
     The possession attribute from the keyring reference is used to control
     access through the permissions mask and is propagated to the returned key
@@ -1594,10 +1676,12 @@ The structure has a number of fields, some of which are mandatory:
      attempted key link operation. If there is no match, -EINVAL is returned.
 
 
-  *  ``int (*asym_eds_op)(struct kernel_pkey_params *params,
-			  const void *in, void *out);``
-     ``int (*asym_verify_signature)(struct kernel_pkey_params *params,
-				    const void *in, const void *in2);``
+  *  ``asym_eds_op`` and ``asym_verify_signature``::
+
+       int (*asym_eds_op)(struct kernel_pkey_params *params,
+			  const void *in, void *out);
+       int (*asym_verify_signature)(struct kernel_pkey_params *params,
+				    const void *in, const void *in2);
 
      These methods are optional.  If provided the first allows a key to be
      used to encrypt, decrypt or sign a blob of data, and the second allows a
@@ -1662,8 +1746,10 @@ The structure has a number of fields, some of which are mandatory:
      required crypto isn't available.
 
 
-  *  ``int (*asym_query)(const struct kernel_pkey_params *params,
-			 struct kernel_pkey_query *info);``
+  *  ``asym_query``::
+
+       int (*asym_query)(const struct kernel_pkey_params *params,
+			 struct kernel_pkey_query *info);
 
      This method is optional.  If provided it allows information about the
      public or asymmetric key held in the key to be determined.

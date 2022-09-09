@@ -1,16 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Generic dynamic event - add/remove kprobe events
-
-[ -f dynamic_events ] || exit_unsupported
-
-grep -q "place: \[<module>:\]<symbol>" README || exit_unsupported
-grep -q "place (kretprobe): \[<module>:\]<symbol>" README || exit_unsupported
+# requires: dynamic_events "place: [<module>:]<symbol>":README "place (kretprobe): [<module>:]<symbol>":README
 
 echo 0 > events/enable
 echo > dynamic_events
 
-PLACE=_do_fork
+PLACE=$FUNCTION_FORK
 
 echo "p:myevent1 $PLACE" >> dynamic_events
 echo "r:myevent2 $PLACE" >> dynamic_events
@@ -26,5 +22,12 @@ grep -q myevent1 dynamic_events
 ! grep -q myevent2 dynamic_events
 
 echo > dynamic_events
+
+if grep -q "p\[:\[<group>/]\[<event>]]" README; then
+	echo "p:mygroup/ $PLACE" >> dynamic_events
+	test -d events/mygroup
+	echo "-:mygroup/" >> dynamic_events
+	! test -d events/mygroup
+fi
 
 clear_trace

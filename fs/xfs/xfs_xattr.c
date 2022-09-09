@@ -5,84 +5,152 @@
  */
 
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
+#include "xfs_da_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
 #include "xfs_inode.h"
+#include "xfs_da_btree.h"
 #include "xfs_attr.h"
-#include "xfs_attr_leaf.h"
 #include "xfs_acl.h"
+#include "xfs_log.h"
+#include "xfs_xattr.h"
 
 #include <linux/posix_acl_xattr.h>
-#include <linux/xattr.h>
+
+/*
+ * Get permission to use log-assisted atomic exchange of file extents.
+ *
+ * Callers must not be running any transactions or hold any inode locks, and
+ * they must release the permission by calling xlog_drop_incompat_feat
+ * when they're done.
+ */
+static inline int
+xfs_attr_grab_log_assist(
+	struct xfs_mount	*mp)
+{
+	int			error = 0;
+
+	/*
+	 * Protect ourselves from an idle log clearing the logged xattrs log
+	 * incompat feature bit.
+	 */
+	xlog_use_incompat_feat(mp->m_log);
+
+	/*
+	 * If log-assisted xattrs are already enabled, the caller can use the
+	 * log assisted swap functions with the log-incompat reference we got.
+	 */
+	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
+		return 0;
+
+	/* Enable log-assisted xattrs. */
+	error = xfs_add_incompat_log_feature(mp,
+			XFS_SB_FEAT_INCOMPAT_LOG_XATTRS);
+	if (error)
+		goto drop_incompat;
+
+	xfs_warn_mount(mp, XFS_OPSTATE_WARNED_LARP,
+ "EXPERIMENTAL logged extended attributes feature in use. Use at your own risk!");
+
+	return 0;
+drop_incompat:
+	xlog_drop_incompat_feat(mp->m_log);
+	return error;
+}
+
+static inline void
+xfs_attr_rele_log_assist(
+	struct xfs_mount	*mp)
+{
+	xlog_drop_incompat_feat(mp->m_log);
+}
+
+static inline bool
+xfs_attr_want_log_assist(
+	struct xfs_mount	*mp)
+{
+#ifdef DEBUG
+	/* Logged xattrs require a V5 super for log_incompat */
+	return xfs_has_crc(mp) && xfs_globals.larp;
+#else
+	return false;
+#endif
+}
+
+/*
+ * Set or remove an xattr, having grabbed the appropriate logging resources
+ * prior to calling libxfs.
+ */
+int
+xfs_attr_change(
+	struct xfs_da_args	*args)
+{
+	struct xfs_mount	*mp = args->dp->i_mount;
+	bool			use_logging = false;
+	int			error;
+
+	ASSERT(!(args->op_flags & XFS_DA_OP_LOGGED));
+
+	if (xfs_attr_want_log_assist(mp)) {
+		error = xfs_attr_grab_log_assist(mp);
+		if (error)
+			return error;
+
+		args->op_flags |= XFS_DA_OP_LOGGED;
+		use_logging = true;
+	}
+
+	error = xfs_attr_set(args);
+
+	if (use_logging)
+		xfs_attr_rele_log_assist(mp);
+	return error;
+}
 
 
 static int
 xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 		struct inode *inode, const char *name, void *value, size_t size)
 {
-	int xflags = handler->flags;
-	struct xfs_inode *ip = XFS_I(inode);
-	int error, asize = size;
+	struct xfs_da_args	args = {
+		.dp		= XFS_I(inode),
+		.attr_filter	= handler->flags,
+		.name		= name,
+		.namelen	= strlen(name),
+		.value		= value,
+		.valuelen	= size,
+	};
+	int			error;
 
-	/* Convert Linux syscall to XFS internal ATTR flags */
-	if (!size) {
-		xflags |= ATTR_KERNOVAL;
-		value = NULL;
-	}
-
-	error = xfs_attr_get(ip, (unsigned char *)name, value, &asize, xflags);
+	error = xfs_attr_get(&args);
 	if (error)
 		return error;
-	return asize;
-}
-
-void
-xfs_forget_acl(
-	struct inode		*inode,
-	const char		*name,
-	int			xflags)
-{
-	/*
-	 * Invalidate any cached ACLs if the user has bypassed the ACL
-	 * interface. We don't validate the content whatsoever so it is caller
-	 * responsibility to provide data in valid format and ensure i_mode is
-	 * consistent.
-	 */
-	if (xflags & ATTR_ROOT) {
-#ifdef CONFIG_XFS_POSIX_ACL
-		if (!strcmp(name, SGI_ACL_FILE))
-			forget_cached_acl(inode, ACL_TYPE_ACCESS);
-		else if (!strcmp(name, SGI_ACL_DEFAULT))
-			forget_cached_acl(inode, ACL_TYPE_DEFAULT);
-#endif
-	}
+	return args.valuelen;
 }
 
 static int
-xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
-		struct inode *inode, const char *name, const void *value,
-		size_t size, int flags)
+xfs_xattr_set(const struct xattr_handler *handler,
+	      struct user_namespace *mnt_userns, struct dentry *unused,
+	      struct inode *inode, const char *name, const void *value,
+	      size_t size, int flags)
 {
-	int			xflags = handler->flags;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_da_args	args = {
+		.dp		= XFS_I(inode),
+		.attr_filter	= handler->flags,
+		.attr_flags	= flags,
+		.name		= name,
+		.namelen	= strlen(name),
+		.value		= (void *)value,
+		.valuelen	= size,
+	};
 	int			error;
 
-	/* Convert Linux syscall to XFS internal ATTR flags */
-	if (flags & XATTR_CREATE)
-		xflags |= ATTR_CREATE;
-	if (flags & XATTR_REPLACE)
-		xflags |= ATTR_REPLACE;
-
-	if (!value)
-		return xfs_attr_remove(ip, (unsigned char *)name, xflags);
-	error = xfs_attr_set(ip, (unsigned char *)name,
-				(void *)value, size, xflags);
-	if (!error)
-		xfs_forget_acl(inode, name, xflags);
-
+	error = xfs_attr_change(&args);
+	if (!error && (handler->flags & XFS_ATTR_ROOT))
+		xfs_forget_acl(inode, name);
 	return error;
 }
 
@@ -95,14 +163,14 @@ static const struct xattr_handler xfs_xattr_user_handler = {
 
 static const struct xattr_handler xfs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
-	.flags	= ATTR_ROOT,
+	.flags	= XFS_ATTR_ROOT,
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
 
 static const struct xattr_handler xfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
-	.flags	= ATTR_SECURE,
+	.flags	= XFS_ATTR_SECURE,
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
@@ -129,7 +197,10 @@ __xfs_xattr_put_listent(
 	char *offset;
 	int arraytop;
 
-	if (!context->alist)
+	if (context->count < 0 || context->seen_enough)
+		return;
+
+	if (!context->buffer)
 		goto compute_size;
 
 	arraytop = context->count + prefix_len + namelen + 1;
@@ -138,7 +209,7 @@ __xfs_xattr_put_listent(
 		context->seen_enough = 1;
 		return;
 	}
-	offset = (char *)context->alist + context->count;
+	offset = context->buffer + context->count;
 	strncpy(offset, prefix, prefix_len);
 	offset += prefix_len;
 	strncpy(offset, (char *)name, namelen);			/* real name */
@@ -213,7 +284,6 @@ xfs_vn_listxattr(
 	size_t		size)
 {
 	struct xfs_attr_list_context context;
-	struct attrlist_cursor_kern cursor = { 0 };
 	struct inode	*inode = d_inode(dentry);
 	int		error;
 
@@ -222,14 +292,13 @@ xfs_vn_listxattr(
 	 */
 	memset(&context, 0, sizeof(context));
 	context.dp = XFS_I(inode);
-	context.cursor = &cursor;
 	context.resynch = 1;
-	context.alist = size ? data : NULL;
+	context.buffer = size ? data : NULL;
 	context.bufsize = size;
 	context.firstu = context.bufsize;
 	context.put_listent = xfs_xattr_put_listent;
 
-	error = xfs_attr_list_int(&context);
+	error = xfs_attr_list(&context);
 	if (error)
 		return error;
 	if (context.count < 0)

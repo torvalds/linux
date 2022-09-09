@@ -1,13 +1,9 @@
-/*
- * Register map access API - W1 (1-Wire) support
- *
- * Copyright (c) 2017 Radioavionica Corporation
- * Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Register map access API - W1 (1-Wire) support
+//
+// Copyright (c) 2017 Radioavionica Corporation
+// Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
 
 #include <linux/regmap.h>
 #include <linux/module.h>
@@ -176,17 +172,17 @@ static int w1_reg_a16_v16_write(void *context, unsigned int reg,
  * Various types of supported bus addressing
  */
 
-static struct regmap_bus regmap_w1_bus_a8_v8 = {
+static const struct regmap_bus regmap_w1_bus_a8_v8 = {
 	.reg_read = w1_reg_a8_v8_read,
 	.reg_write = w1_reg_a8_v8_write,
 };
 
-static struct regmap_bus regmap_w1_bus_a8_v16 = {
+static const struct regmap_bus regmap_w1_bus_a8_v16 = {
 	.reg_read = w1_reg_a8_v16_read,
 	.reg_write = w1_reg_a8_v16_write,
 };
 
-static struct regmap_bus regmap_w1_bus_a16_v16 = {
+static const struct regmap_bus regmap_w1_bus_a16_v16 = {
 	.reg_read = w1_reg_a16_v16_read,
 	.reg_write = w1_reg_a16_v16_write,
 };
@@ -219,8 +215,6 @@ struct regmap *__regmap_init_w1(struct device *w1_dev,
 
 	return __regmap_init(w1_dev, bus, w1_dev, config,
 			 lock_key, lock_name);
-
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(__regmap_init_w1);
 
@@ -237,8 +231,6 @@ struct regmap *__devm_regmap_init_w1(struct device *w1_dev,
 
 	return __devm_regmap_init(w1_dev, bus, w1_dev, config,
 				 lock_key, lock_name);
-
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_w1);
 

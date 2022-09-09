@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the pin muxing portions of the pin control subsystem
  *
@@ -8,11 +9,10 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  *
  * Copyright (C) 2012 NVIDIA CORPORATION. All rights reserved.
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #define pr_fmt(fmt) "pinmux core: " fmt
 
+#include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -72,7 +72,33 @@ int pinmux_validate_map(const struct pinctrl_map *map, int i)
 }
 
 /**
+ * pinmux_can_be_used_for_gpio() - check if a specific pin
+ *	is either muxed to a different function or used as gpio.
+ *
+ * @pctldev: the associated pin controller device
+ * @pin: the pin number in the global pin space
+ *
+ * Controllers not defined as strict will always return true,
+ * menaning that the gpio can be used.
+ */
+bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev, unsigned pin)
+{
+	struct pin_desc *desc = pin_desc_get(pctldev, pin);
+	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+
+	/* Can't inspect pin, assume it can be used */
+	if (!desc || !ops)
+		return true;
+
+	if (ops->strict && desc->mux_usecount)
+		return false;
+
+	return !(ops->strict && !!desc->gpio_owner);
+}
+
+/**
  * pin_request() - request a single pin to be muxed in, typically for GPIO
+ * @pctldev: the associated pin controller device
  * @pin: the pin number in the global pin space
  * @owner: a representation of the owner of this pin; typically the device
  *	name that controls its mux function, or the requested GPIO name
@@ -231,6 +257,7 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
  * @pctldev: pin controller device affected
  * @pin: the pin to mux in for GPIO
  * @range: the applicable GPIO range
+ * @gpio: number of requested GPIO
  */
 int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range,
@@ -538,7 +565,7 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 			continue;
 		}
 
-		seq_printf(s, "function: %s, groups = [ ", func);
+		seq_printf(s, "function %d: %s, groups = [ ", func_selector, func);
 		for (i = 0; i < num_groups; i++)
 			seq_printf(s, "%s ", groups[i]);
 		seq_puts(s, "]\n");
@@ -647,13 +674,114 @@ void pinmux_show_setting(struct seq_file *s,
 DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
 DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
 
+#define PINMUX_SELECT_MAX 128
+static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
+				   size_t len, loff_t *ppos)
+{
+	struct seq_file *sfile = file->private_data;
+	struct pinctrl_dev *pctldev = sfile->private;
+	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
+	const char *const *groups;
+	char *buf, *gname, *fname;
+	unsigned int num_groups;
+	int fsel, gsel, ret;
+
+	if (len > PINMUX_SELECT_MAX)
+		return -ENOMEM;
+
+	buf = kzalloc(PINMUX_SELECT_MAX, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = strncpy_from_user(buf, user_buf, PINMUX_SELECT_MAX);
+	if (ret < 0)
+		goto exit_free_buf;
+	buf[len-1] = '\0';
+
+	/* remove leading and trailing spaces of input buffer */
+	gname = strstrip(buf);
+	if (*gname == '\0') {
+		ret = -EINVAL;
+		goto exit_free_buf;
+	}
+
+	/* find a separator which is a spacelike character */
+	for (fname = gname; !isspace(*fname); fname++) {
+		if (*fname == '\0') {
+			ret = -EINVAL;
+			goto exit_free_buf;
+		}
+	}
+	*fname = '\0';
+
+	/* drop extra spaces between function and group names */
+	fname = skip_spaces(fname + 1);
+	if (*fname == '\0') {
+		ret = -EINVAL;
+		goto exit_free_buf;
+	}
+
+	ret = pinmux_func_name_to_selector(pctldev, fname);
+	if (ret < 0) {
+		dev_err(pctldev->dev, "invalid function %s in map table\n", fname);
+		goto exit_free_buf;
+	}
+	fsel = ret;
+
+	ret = pmxops->get_function_groups(pctldev, fsel, &groups, &num_groups);
+	if (ret) {
+		dev_err(pctldev->dev, "no groups for function %d (%s)", fsel, fname);
+		goto exit_free_buf;
+	}
+
+	ret = match_string(groups, num_groups, gname);
+	if (ret < 0) {
+		dev_err(pctldev->dev, "invalid group %s", gname);
+		goto exit_free_buf;
+	}
+
+	ret = pinctrl_get_group_selector(pctldev, gname);
+	if (ret < 0) {
+		dev_err(pctldev->dev, "failed to get group selector for %s", gname);
+		goto exit_free_buf;
+	}
+	gsel = ret;
+
+	ret = pmxops->set_mux(pctldev, fsel, gsel);
+	if (ret) {
+		dev_err(pctldev->dev, "set_mux() failed: %d", ret);
+		goto exit_free_buf;
+	}
+	ret = len;
+
+exit_free_buf:
+	kfree(buf);
+
+	return ret;
+}
+
+static int pinmux_select_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, NULL, inode->i_private);
+}
+
+static const struct file_operations pinmux_select_ops = {
+	.owner = THIS_MODULE,
+	.open = pinmux_select_open,
+	.write = pinmux_select,
+	.llseek = no_llseek,
+	.release = single_release,
+};
+
 void pinmux_init_device_debugfs(struct dentry *devroot,
 			 struct pinctrl_dev *pctldev)
 {
-	debugfs_create_file("pinmux-functions", S_IFREG | S_IRUGO,
+	debugfs_create_file("pinmux-functions", 0444,
 			    devroot, pctldev, &pinmux_functions_fops);
-	debugfs_create_file("pinmux-pins", S_IFREG | S_IRUGO,
+	debugfs_create_file("pinmux-pins", 0444,
 			    devroot, pctldev, &pinmux_pins_fops);
+	debugfs_create_file("pinmux-select", 0200,
+			    devroot, pctldev, &pinmux_select_ops);
 }
 
 #endif /* CONFIG_DEBUG_FS */
@@ -721,7 +849,7 @@ EXPORT_SYMBOL_GPL(pinmux_generic_get_function_groups);
 /**
  * pinmux_generic_get_function() - returns a function based on the number
  * @pctldev: pin controller device
- * @group_selector: function number
+ * @selector: function number
  */
 struct function_desc *pinmux_generic_get_function(struct pinctrl_dev *pctldev,
 						  unsigned int selector)
@@ -747,7 +875,7 @@ EXPORT_SYMBOL_GPL(pinmux_generic_get_function);
  */
 int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 				const char *name,
-				const char **groups,
+				const char * const *groups,
 				const unsigned int num_groups,
 				void *data)
 {

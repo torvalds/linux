@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LED driver for WM831x status LEDs
  *
  * Copyright(C) 2009 Wolfson Microelectronics PLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -159,8 +155,8 @@ static const char * const led_src_texts[] = {
 	"soft",
 };
 
-static ssize_t wm831x_status_src_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t src_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct wm831x_status *led = to_wm831x_status(led_cdev);
@@ -182,9 +178,9 @@ static ssize_t wm831x_status_src_show(struct device *dev,
 	return ret;
 }
 
-static ssize_t wm831x_status_src_store(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t size)
+static ssize_t src_store(struct device *dev,
+			 struct device_attribute *attr,
+			 const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct wm831x_status *led = to_wm831x_status(led_cdev);
@@ -201,7 +197,7 @@ static ssize_t wm831x_status_src_store(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(src, 0644, wm831x_status_src_show, wm831x_status_src_store);
+static DEVICE_ATTR_RW(src);
 
 static struct attribute *wm831x_status_attrs[] = {
 	&dev_attr_src.attr,
@@ -273,11 +269,22 @@ static int wm831x_status_probe(struct platform_device *pdev)
 	drvdata->cdev.blink_set = wm831x_status_blink_set;
 	drvdata->cdev.groups = wm831x_status_groups;
 
-	ret = devm_led_classdev_register(wm831x->dev, &drvdata->cdev);
+	ret = led_classdev_register(wm831x->dev, &drvdata->cdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register LED: %d\n", ret);
 		return ret;
 	}
+
+	platform_set_drvdata(pdev, drvdata);
+
+	return 0;
+}
+
+static int wm831x_status_remove(struct platform_device *pdev)
+{
+	struct wm831x_status *drvdata = platform_get_drvdata(pdev);
+
+	led_classdev_unregister(&drvdata->cdev);
 
 	return 0;
 }
@@ -287,6 +294,7 @@ static struct platform_driver wm831x_status_driver = {
 		   .name = "wm831x-status",
 		   },
 	.probe = wm831x_status_probe,
+	.remove = wm831x_status_remove,
 };
 
 module_platform_driver(wm831x_status_driver);

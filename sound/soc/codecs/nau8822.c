@@ -188,7 +188,7 @@ static int nau8822_eq_get(struct snd_kcontrol *kcontrol,
 	val = (u16 *)ucontrol->value.bytes.data;
 	reg = NAU8822_REG_EQ1;
 	for (i = 0; i < params->max / sizeof(u16); i++) {
-		reg_val = snd_soc_component_read32(component, reg + i);
+		reg_val = snd_soc_component_read(component, reg + i);
 		/* conversion of 16-bit integers between native CPU format
 		 * and big endian format
 		 */
@@ -445,7 +445,7 @@ static int check_mclk_select_pll(struct snd_soc_dapm_widget *source,
 		snd_soc_dapm_to_component(source->dapm);
 	unsigned int value;
 
-	value = snd_soc_component_read32(component, NAU8822_REG_CLOCKING);
+	value = snd_soc_component_read(component, NAU8822_REG_CLOCKING);
 
 	return (value & NAU8822_CLKM_MASK);
 }
@@ -726,6 +726,17 @@ static int nau8822_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	struct nau8822_pll *pll_param = &nau8822->pll;
 	int ret, fs;
 
+	if (freq_in == pll_param->freq_in &&
+	    freq_out == pll_param->freq_out)
+		return 0;
+
+	if (freq_out == 0) {
+		dev_dbg(component->dev, "PLL disabled\n");
+		snd_soc_component_update_bits(component,
+			NAU8822_REG_POWER_MANAGEMENT_1, NAU8822_PLL_EN_MASK, NAU8822_PLL_OFF);
+		return 0;
+	}
+
 	fs = freq_out / 256;
 
 	ret = nau8822_calc_pll(freq_in, fs, pll_param);
@@ -740,6 +751,8 @@ static int nau8822_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		pll_param->pll_int, pll_param->pll_frac,
 		pll_param->mclk_scaler, pll_param->pre_factor);
 
+	snd_soc_component_update_bits(component,
+		NAU8822_REG_POWER_MANAGEMENT_1, NAU8822_PLL_EN_MASK, NAU8822_PLL_OFF);
 	snd_soc_component_update_bits(component,
 		NAU8822_REG_PLL_N, NAU8822_PLLMCLK_DIV2 | NAU8822_PLLN_MASK,
 		(pll_param->pre_factor ? NAU8822_PLLMCLK_DIV2 : 0) |
@@ -757,6 +770,11 @@ static int nau8822_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		pll_param->mclk_scaler << NAU8822_MCLKSEL_SFT);
 	snd_soc_component_update_bits(component,
 		NAU8822_REG_CLOCKING, NAU8822_CLKM_MASK, NAU8822_CLKM_PLL);
+	snd_soc_component_update_bits(component,
+		NAU8822_REG_POWER_MANAGEMENT_1, NAU8822_PLL_EN_MASK, NAU8822_PLL_ON);
+
+	pll_param->freq_in = freq_in;
+	pll_param->freq_out = freq_out;
 
 	return 0;
 }
@@ -828,6 +846,24 @@ static int nau8822_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct nau8822 *nau8822 = snd_soc_component_get_drvdata(component);
 	int val_len = 0, val_rate = 0;
+	unsigned int ctrl_val, bclk_fs, bclk_div;
+
+	/* make BCLK and LRC divide configuration if the codec as master. */
+	ctrl_val = snd_soc_component_read(component, NAU8822_REG_CLOCKING);
+	if (ctrl_val & NAU8822_CLK_MASTER) {
+		/* get the bclk and fs ratio */
+		bclk_fs = snd_soc_params_to_bclk(params) / params_rate(params);
+		if (bclk_fs <= 32)
+			bclk_div = NAU8822_BCLKDIV_8;
+		else if (bclk_fs <= 64)
+			bclk_div = NAU8822_BCLKDIV_4;
+		else if (bclk_fs <= 128)
+			bclk_div = NAU8822_BCLKDIV_2;
+		else
+			return -EINVAL;
+		snd_soc_component_update_bits(component, NAU8822_REG_CLOCKING,
+				NAU8822_BCLKSEL_MASK, bclk_div);
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -882,7 +918,7 @@ static int nau8822_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int nau8822_mute(struct snd_soc_dai *dai, int mute)
+static int nau8822_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -949,10 +985,11 @@ static int nau8822_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops nau8822_dai_ops = {
 	.hw_params	= nau8822_hw_params,
-	.digital_mute	= nau8822_mute,
+	.mute_stream	= nau8822_mute,
 	.set_fmt	= nau8822_set_dai_fmt,
 	.set_sysclk	= nau8822_set_dai_sysclk,
 	.set_pll	= nau8822_set_pll,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver nau8822_dai = {
@@ -972,7 +1009,7 @@ static struct snd_soc_dai_driver nau8822_dai = {
 		.formats = NAU8822_FORMATS,
 	},
 	.ops = &nau8822_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int nau8822_suspend(struct snd_soc_component *component)
@@ -1046,7 +1083,6 @@ static const struct snd_soc_component_driver soc_component_dev_nau8822 = {
 	.idle_bias_on			= 1,
 	.use_pmdown_time		= 1,
 	.endianness			= 1,
-	.non_legacy_dai_naming		= 1,
 };
 
 static const struct regmap_config nau8822_regmap_config = {
@@ -1064,8 +1100,7 @@ static const struct regmap_config nau8822_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(nau8822_reg_defaults),
 };
 
-static int nau8822_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int nau8822_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct nau8822 *nau8822 = dev_get_platdata(dev);
@@ -1122,7 +1157,7 @@ static struct i2c_driver nau8822_i2c_driver = {
 		.name = "nau8822",
 		.of_match_table = of_match_ptr(nau8822_of_match),
 	},
-	.probe =    nau8822_i2c_probe,
+	.probe_new = nau8822_i2c_probe,
 	.id_table = nau8822_i2c_id,
 };
 module_i2c_driver(nau8822_i2c_driver);

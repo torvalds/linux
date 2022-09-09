@@ -1,0 +1,13 @@
+fp-pidbench
+fpsimd-test
+rdvl-sme
+rdvl-sve
+sve-probe-vls
+sve-ptrace
+sve-test
+ssve-test
+vec-syscfg
+vlset
+za-fork
+za-ptrace
+za-test

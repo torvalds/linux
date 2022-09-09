@@ -1,8 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
-	depends on PCI && HAS_IOMEM
+	depends on PCI && HAS_IOMEM && CFG80211
+	depends on IWLMEI || !IWLMEI
 	select FW_LOADER
-	---help---
+	help
 	  Select to build the driver supporting the:
 
 	  Intel Wireless WiFi Link Next-Gen AGN
@@ -30,7 +32,7 @@ config IWLWIFI
 	  In order to use this driver, you will need a firmware
 	  image for it. You can obtain the microcode from:
 
-	          <http://wireless.kernel.org/en/users/Drivers/iwlwifi>.
+	          <https://wireless.wiki.kernel.org/en/users/Drivers/iwlwifi>.
 
 	  The firmware is typically installed in /lib/firmware. You can
 	  look in the hotplug script /etc/hotplug/firmware.agent to
@@ -39,14 +41,15 @@ config IWLWIFI
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  say M here and read <file:Documentation/kbuild/modules.rst>.  The
 	  module will be called iwlwifi.
 
 if IWLWIFI
 
 config IWLWIFI_LEDS
 	bool
-	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
+	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211
+	depends on IWLMVM || IWLDVM
 	select LEDS_TRIGGERS
 	select MAC80211_LEDS
 	default y
@@ -77,38 +80,11 @@ config IWLWIFI_OPMODE_MODULAR
 comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
 	depends on IWLDVM=n && IWLMVM=n
 
-config IWLWIFI_BCAST_FILTERING
-	bool "Enable broadcast filtering"
-	depends on IWLMVM
-	help
-	  Say Y here to enable default bcast filtering configuration.
-
-	  Enabling broadcast filtering will drop any incoming wireless
-	  broadcast frames, except some very specific predefined
-	  patterns (e.g. incoming arp requests).
-
-	  If unsure, don't enable this option, as some programs might
-	  expect incoming broadcasts for their normal operations.
-
-config IWLWIFI_PCIE_RTPM
-       bool "Enable runtime power management mode for PCIe devices"
-       depends on IWLMVM && PM && EXPERT
-       help
-         Say Y here to enable runtime power management for PCIe
-         devices.  If enabled, the device will go into low power mode
-         when idle for a short period of time, allowing for improved
-         power saving during runtime. Note that this feature requires
-         a tight integration with the platform. It is not recommended
-         to enable this feature without proper validation with the
-         specific target platform.
-
-	 If unsure, say N.
-
 menu "Debugging Options"
 
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in the iwlwifi driver"
-	---help---
+	help
 	  This option will enable debug tracing output for the iwlwifi drivers
 
 	  This will result in the kernel module being ~100k larger.  You can
@@ -131,9 +107,9 @@ config IWLWIFI_DEBUG
 	  any problems you may encounter.
 
 config IWLWIFI_DEBUGFS
-        bool "iwlwifi debugfs support"
-        depends on MAC80211_DEBUGFS
-        ---help---
+	bool "iwlwifi debugfs support"
+	depends on MAC80211_DEBUGFS
+	help
 	  Enable creation of debugfs files for the iwlwifi drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.
@@ -158,3 +134,29 @@ config IWLWIFI_DEVICE_TRACING
 endmenu
 
 endif
+
+config IWLMEI
+	tristate "Intel Management Engine communication over WLAN"
+	depends on INTEL_MEI
+	depends on PM
+	depends on CFG80211
+	help
+	  Enables the iwlmei kernel module.
+
+	  CSME stands for Converged Security and Management Engine. It is a CPU
+	  on the chipset and runs a dedicated firmware. AMT (Active Management
+	  Technology) is one of the applications that run on that CPU. AMT
+	  allows to control the platform remotely.
+
+	  This kernel module allows to communicate with the Intel Management
+	  Engine over Wifi. This is supported starting from Tiger Lake
+	  platforms and has been tested on 9260 devices only.
+	  If AMT is configured not to use the wireless device, this module is
+	  harmless (and useless).
+	  Enabling this option on a platform that has a different device and
+	  has Wireless enabled on AMT can prevent WiFi from working correctly.
+
+	  For more information see
+	  <https://software.intel.com/en-us/manageability/>
+
+	  If unsure, say N.

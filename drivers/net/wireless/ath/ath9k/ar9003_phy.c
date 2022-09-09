@@ -157,7 +157,9 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	freq = centers.synth_center;
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
-		if (AR_SREV_9330(ah)) {
+		if (AR_SREV_9330(ah) || AR_SREV_9485(ah) ||
+		    AR_SREV_9531(ah) || AR_SREV_9550(ah) ||
+		    AR_SREV_9561(ah) || AR_SREV_9565(ah)) {
 			if (ah->is_clk_25mhz)
 				div = 75;
 			else
@@ -165,16 +167,6 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 
 			channelSel = (freq * 4) / div;
 			chan_frac = (((freq * 4) % div) * 0x20000) / div;
-			channelSel = (channelSel << 17) | chan_frac;
-		} else if (AR_SREV_9485(ah) || AR_SREV_9565(ah)) {
-			/*
-			 * freq_ref = 40 / (refdiva >> amoderefsel);
-			 * where refdiva=1 and amoderefsel=0
-			 * ndiv = ((chan_mhz * 4) / 3) / freq_ref;
-			 * chansel = int(ndiv), chanfrac = (ndiv - chansel) * 0x20000
-			 */
-			channelSel = (freq * 4) / 120;
-			chan_frac = (((freq * 4) % 120) * 0x20000) / 120;
 			channelSel = (channelSel << 17) | chan_frac;
 		} else if (AR_SREV_9340(ah)) {
 			if (ah->is_clk_25mhz) {
@@ -184,16 +176,6 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			} else {
 				channelSel = CHANSEL_2G(freq) >> 1;
 			}
-		} else if (AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
-			   AR_SREV_9561(ah)) {
-			if (ah->is_clk_25mhz)
-				div = 75;
-			else
-				div = 120;
-
-			channelSel = (freq * 4) / div;
-			chan_frac = (((freq * 4) % div) * 0x20000) / div;
-			channelSel = (channelSel << 17) | chan_frac;
 		} else {
 			channelSel = CHANSEL_2G(freq);
 		}
@@ -541,21 +523,10 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 	int synth_freq;
 	int range = 10;
 	int freq_offset = 0;
-	int mode;
-	u8* spurChansPtr;
+	u8 *spur_fbin_ptr = ar9003_get_spur_chan_ptr(ah, IS_CHAN_2GHZ(chan));
 	unsigned int i;
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 
-	if (IS_CHAN_5GHZ(chan)) {
-		spurChansPtr = &(eep->modalHeader5G.spurChans[0]);
-		mode = 0;
-	}
-	else {
-		spurChansPtr = &(eep->modalHeader2G.spurChans[0]);
-		mode = 1;
-	}
-
-	if (spurChansPtr[0] == 0)
+	if (spur_fbin_ptr[0] == 0)
 		return; /* No spur in the mode */
 
 	if (IS_CHAN_HT40(chan)) {
@@ -572,16 +543,18 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 
 	ar9003_hw_spur_ofdm_clear(ah);
 
-	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spurChansPtr[i]; i++) {
-		freq_offset = ath9k_hw_fbin2freq(spurChansPtr[i], mode);
+	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spur_fbin_ptr[i]; i++) {
+		freq_offset = ath9k_hw_fbin2freq(spur_fbin_ptr[i],
+						 IS_CHAN_2GHZ(chan));
 		freq_offset -= synth_freq;
 		if (abs(freq_offset) < range) {
 			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset,
 						 range, synth_freq);
 
 			if (AR_SREV_9565(ah) && (i < 4)) {
-				freq_offset = ath9k_hw_fbin2freq(spurChansPtr[i + 1],
-								 mode);
+				freq_offset =
+					ath9k_hw_fbin2freq(spur_fbin_ptr[i + 1],
+							   IS_CHAN_2GHZ(chan));
 				freq_offset -= synth_freq;
 				if (abs(freq_offset) < range)
 					ar9003_hw_spur_ofdm_9565(ah, freq_offset);

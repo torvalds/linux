@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 
     AudioScience HPI driver
     Copyright (C) 1997-2011  AudioScience Inc. <support@audioscience.com>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of version 2 of the GNU General Public License as
-    published by the Free Software Foundation;
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
  Hardware Programming Interface (HPI) for AudioScience ASI6200 series adapters.
  These PCI bus adapters are based on the TI C6711 DSP.
@@ -399,7 +388,7 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 /* SUBSYSTEM */
 
 /* create an adapter object and initialise it based on resource information
- * passed in in the message
+ * passed in the message
  * NOTE - you cannot use this function AND the FindAdapters function at the
  * same time, the application must use only one of them to get the adapters
  */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Hardware-specific External Interface I/O core definitions
  * for the BCM47xx family of SiliconBackplane-based chips.
@@ -14,8 +15,6 @@
  *
  * Copyright 2005, Broadcom Corporation
  * Copyright 2006, Michael Buesch
- *
- * Licensed under the GPL version 2. See COPYING for details.
  */
 #ifndef LINUX_SSB_EXTIFCORE_H_
 #define LINUX_SSB_EXTIFCORE_H_
@@ -198,7 +197,7 @@ struct ssb_extif {
 
 static inline bool ssb_extif_available(struct ssb_extif *extif)
 {
-	return 0;
+	return false;
 }
 
 static inline

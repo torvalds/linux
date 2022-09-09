@@ -1,17 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Modified from mach-omap/omap2/board-generic.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
+#include "common.h"
+#include "da8xx.h"
 
 #ifdef CONFIG_ARCH_DAVINCI_DA850
 

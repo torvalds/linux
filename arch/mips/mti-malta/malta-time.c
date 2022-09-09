@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  * Setting up the clock on the MIPS boards.
  */
@@ -77,11 +65,6 @@ static void __init estimate_frequencies(void)
 	unsigned char secs1, secs2, ctrl;
 	int secs;
 	u64 giccount = 0, gicstart = 0;
-
-#if defined(CONFIG_KVM_GUEST) && CONFIG_KVM_GUEST_TIMER_FREQ
-	mips_hpt_frequency = CONFIG_KVM_GUEST_TIMER_FREQ * 1000000;
-	return;
-#endif
 
 	local_irq_save(flags);
 
@@ -150,7 +133,7 @@ int get_c0_fdc_int(void)
 	case CPU_INTERAPTIV:
 	case CPU_PROAPTIV:
 		return -1;
-	};
+	}
 
 	if (cpu_has_veic)
 		return -1;
@@ -231,6 +214,8 @@ static void update_gic_frequency_dt(void)
 
 	if (of_update_property(node, &gic_frequency_prop) < 0)
 		pr_err("error updating gic frequency property\n");
+
+	of_node_put(node);
 }
 
 #endif

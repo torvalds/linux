@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/spinlock.h>
 #include <asm/page.h>
@@ -11,42 +12,55 @@
 #include <asm/cacheflush.h>
 #include <asm/cachectl.h>
 
+#define PG_dcache_clean		PG_arch_1
+
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
-	unsigned long addr;
+	struct address_space *mapping;
 
-	if (mapping && !mapping_mapped(mapping)) {
-		set_bit(PG_arch_1, &(page)->flags);
+	if (page == ZERO_PAGE(0))
 		return;
+
+	mapping = page_mapping_file(page);
+
+	if (mapping && !page_mapcount(page))
+		clear_bit(PG_dcache_clean, &page->flags);
+	else {
+		dcache_wbinv_all();
+		if (mapping)
+			icache_inv_all();
+		set_bit(PG_dcache_clean, &page->flags);
 	}
-
-	/*
-	 * We could delay the flush for the !page_mapping case too.  But that
-	 * case is for exec env/arg pages and those are %99 certainly going to
-	 * get faulted into the tlb (and thus flushed) anyways.
-	 */
-	addr = (unsigned long) page_address(page);
-	dcache_wb_range(addr, addr + PAGE_SIZE);
 }
+EXPORT_SYMBOL(flush_dcache_page);
 
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-		      pte_t *pte)
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
+	pte_t *ptep)
 {
-	unsigned long addr;
+	unsigned long pfn = pte_pfn(*ptep);
 	struct page *page;
-	unsigned long pfn;
 
-	pfn = pte_pfn(*pte);
-	if (unlikely(!pfn_valid(pfn)))
+	if (!pfn_valid(pfn))
 		return;
 
 	page = pfn_to_page(pfn);
-	addr = (unsigned long) page_address(page);
+	if (page == ZERO_PAGE(0))
+		return;
 
-	if (vma->vm_flags & VM_EXEC ||
-	    pages_do_alias(addr, address & PAGE_MASK))
-		cache_wbinv_all();
+	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+		dcache_wbinv_all();
 
-	clear_bit(PG_arch_1, &(page)->flags);
+	if (page_mapping_file(page)) {
+		if (vma->vm_flags & VM_EXEC)
+			icache_inv_all();
+	}
+}
+
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
+	unsigned long end)
+{
+	dcache_wbinv_all();
+
+	if (vma->vm_flags & VM_EXEC)
+		icache_inv_all();
 }

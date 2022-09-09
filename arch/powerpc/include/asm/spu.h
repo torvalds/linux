@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SPU core / file system interface and HW structures
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _SPU_H
@@ -214,20 +201,6 @@ int spu_64k_pages_available(void);
 struct mm_struct;
 extern void spu_flush_all_slbs(struct mm_struct *mm);
 
-/* This interface allows a profiler (e.g., OProfile) to store a ref
- * to spu context information that it creates.	This caching technique
- * avoids the need to recreate this information after a save/restore operation.
- *
- * Assumes the caller has already incremented the ref count to
- * profile_info; then spu_context_destroy must call kref_put
- * on prof_info_kref.
- */
-void spu_set_profile_private_kref(struct spu_context *ctx,
-				  struct kref *prof_info_kref,
-				  void ( * prof_info_release) (struct kref *kref));
-
-void *spu_get_profile_private_kref(struct spu_context *ctx);
-
 /* system callbacks from the SPU */
 struct spu_syscall_block {
 	u64 nr_ret;
@@ -276,27 +249,8 @@ void unregister_spu_syscalls(struct spufs_calls *calls);
 int spu_add_dev_attr(struct device_attribute *attr);
 void spu_remove_dev_attr(struct device_attribute *attr);
 
-int spu_add_dev_attr_group(struct attribute_group *attrs);
-void spu_remove_dev_attr_group(struct attribute_group *attrs);
-
-/*
- * Notifier blocks:
- *
- * oprofile can get notified when a context switch is performed
- * on an spe. The notifer function that gets called is passed
- * a pointer to the SPU structure as well as the object-id that
- * identifies the binary running on that SPU now.
- *
- * For a context save, the object-id that is passed is zero,
- * identifying that the kernel will run from that moment on.
- *
- * For a context restore, the object-id is the value written
- * to object-id spufs file from user space and the notifer
- * function can assume that spu->ctx is valid.
- */
-struct notifier_block;
-int spu_switch_event_register(struct notifier_block * n);
-int spu_switch_event_unregister(struct notifier_block * n);
+int spu_add_dev_attr_group(const struct attribute_group *attrs);
+void spu_remove_dev_attr_group(const struct attribute_group *attrs);
 
 extern void notify_spus_active(void);
 extern void do_notify_spus_active(void);

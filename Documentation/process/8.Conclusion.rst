@@ -5,35 +5,33 @@ For more information
 
 There are numerous sources of information on Linux kernel development and
 related topics.  First among those will always be the Documentation
-directory found in the kernel source distribution.  The top-level :ref:`process/howto.rst <process_howto>`
-file is an important starting point; :ref:`process/submitting-patches.rst <submittingpatches>`
-and :ref:`process/submitting-drivers.rst  <submittingdrivers>`
-are also something which all kernel developers should
-read.  Many internal kernel APIs are documented using the kerneldoc
-mechanism; "make htmldocs" or "make pdfdocs" can be used to generate those
-documents in HTML or PDF format (though the version of TeX shipped by some
-distributions runs into internal limits and fails to process the documents
-properly).
+directory found in the kernel source distribution.  Start with the
+top-level :ref:`process/howto.rst <process_howto>`; also read
+:ref:`process/submitting-patches.rst <submittingpatches>`. Many internal
+kernel APIs are documented using the kerneldoc mechanism; "make htmldocs"
+or "make pdfdocs" can be used to generate those documents in HTML or PDF
+format (though the version of TeX shipped by some distributions runs into
+internal limits and fails to process the documents properly).
 
 Various web sites discuss kernel development at all levels of detail.  Your
-author would like to humbly suggest http://lwn.net/ as a source;
+author would like to humbly suggest https://lwn.net/ as a source;
 information on many specific kernel topics can be found via the LWN kernel
 index at:
 
-	http://lwn.net/Kernel/Index/
+	https://lwn.net/Kernel/Index/
 
 Beyond that, a valuable resource for kernel developers is:
 
-	http://kernelnewbies.org/
+	https://kernelnewbies.org/
 
-And, of course, one should not forget http://kernel.org/, the definitive
+And, of course, one should not forget https://kernel.org/, the definitive
 location for kernel release information.
 
 There are a number of books on kernel development:
 
 	Linux Device Drivers, 3rd Edition (Jonathan Corbet, Alessandro
 	Rubini, and Greg Kroah-Hartman).  Online at
-	http://lwn.net/Kernel/LDD3/.
+	https://lwn.net/Kernel/LDD3/.
 
 	Linux Kernel Development (Robert Love).
 
@@ -46,9 +44,9 @@ information to be found there.
 
 Documentation for git can be found at:
 
-	http://www.kernel.org/pub/software/scm/git/docs/
+	https://www.kernel.org/pub/software/scm/git/docs/
 
-	http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+	https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
 
 
 Conclusion

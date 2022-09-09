@@ -39,6 +39,5 @@
 #define MCS_TXAGC7			(RTL8712_RATECTRL_ + 0x67)
 #define CCK_TXAGC			(RTL8712_RATECTRL_ + 0x68)
 
-
 #endif	/*__RTL8712_RATECTRL_REGDEF_H__*/
 

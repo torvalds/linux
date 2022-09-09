@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the PCM512x CODECs
  *
  * Author:	Mark Brown <broonie@kernel.org>
  *		Copyright 2014 Linaro Ltd
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -21,8 +13,7 @@
 
 #include "pcm512x.h"
 
-static int pcm512x_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int pcm512x_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 	struct regmap_config config = pcm512x_regmap;
@@ -76,7 +67,7 @@ MODULE_DEVICE_TABLE(acpi, pcm512x_acpi_match);
 #endif
 
 static struct i2c_driver pcm512x_i2c_driver = {
-	.probe 		= pcm512x_i2c_probe,
+	.probe_new	= pcm512x_i2c_probe,
 	.remove 	= pcm512x_i2c_remove,
 	.id_table	= pcm512x_i2c_id,
 	.driver		= {

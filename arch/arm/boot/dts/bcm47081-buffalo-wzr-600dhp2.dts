@@ -19,9 +19,10 @@
 		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
-	memory {
-		reg = <0x00000000 0x08000000
-		       0x88000000 0x08000000>;
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x08000000>;
 	};
 
 	spi {
@@ -89,29 +90,27 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		aoss {
+		button-aoss {
 			label = "AOSS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
 		};
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 
 		/* Switch device mode? */
-		mode {
+		button-mode {
 			label = "Mode";
 			linux,code = <KEY_SETUP>;
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
 		};
 
-		eject {
+		button-eject {
 			label = "USB eject";
 			linux,code = <KEY_EJECTCD>;
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
@@ -119,6 +118,39 @@
 	};
 };
 
-&usb3_phy {
+&srab {
 	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			label = "lan1";
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "lan2";
+		};
+
+		port@2 {
+			reg = <2>;
+			label = "lan3";
+		};
+
+		port@3 {
+			reg = <3>;
+			label = "lan4";
+		};
+
+		port@4 {
+			reg = <4>;
+			label = "wan";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
+		};
+	};
 };

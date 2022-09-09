@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Support for the mpeg transport stream transfers
@@ -6,16 +7,6 @@
  *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Chris Pascoe <c.pascoe@itee.uq.edu.au>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -171,6 +162,9 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 	cx_write(MO_TS_GPCNTRL, GP_COUNT_CONTROL_RESET);
 	q->count = 0;
 
+	/* clear interrupt status register */
+	cx_write(MO_TS_INTSTAT,  0x1f1111);
+
 	/* enable irqs */
 	dprintk(1, "setting the interrupt mask\n");
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_TSINT);
@@ -235,8 +229,8 @@ int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
 				  dev->ts_packet_size, dev->ts_packet_count, 0);
 	if (rc) {
 		if (risc->cpu)
-			pci_free_consistent(dev->pci, risc->size,
-					    risc->cpu, risc->dma);
+			dma_free_coherent(&dev->pci->dev, risc->size,
+					  risc->cpu, risc->dma);
 		memset(risc, 0, sizeof(*risc));
 		return rc;
 	}
@@ -395,7 +389,7 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 	if (pci_enable_device(dev->pci))
 		return -EIO;
 	pci_set_master(dev->pci);
-	err = pci_set_dma_mask(dev->pci, DMA_BIT_MASK(32));
+	err = dma_set_mask(&dev->pci->dev, DMA_BIT_MASK(32));
 	if (err) {
 		pr_err("Oops: no 32bit PCI DMA ???\n");
 		return -EIO;
@@ -533,8 +527,7 @@ static int cx8802_request_acquire(struct cx8802_driver *drv)
 		core->last_analog_input = core->input;
 		core->input = 0;
 		for (i = 0;
-		     i < (sizeof(core->board.input) /
-			  sizeof(struct cx88_input));
+		     i < ARRAY_SIZE(core->board.input);
 		     i++) {
 			if (core->board.input[i].type == CX88_VMUX_DVB) {
 				core->input = i;

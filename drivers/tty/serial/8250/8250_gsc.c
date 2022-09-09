@@ -26,7 +26,7 @@ static int __init serial_init_chip(struct parisc_device *dev)
 	unsigned long address;
 	int err;
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && defined(CONFIG_IOSAPIC)
 	if (!dev->irq && (dev->id.sversion == 0xad))
 		dev->irq = iosapic_serial_irq(dev);
 #endif
@@ -55,7 +55,7 @@ static int __init serial_init_chip(struct parisc_device *dev)
 	uart.port.uartclk	= (dev->id.sversion != 0xad) ?
 					7272727 : 1843200;
 	uart.port.mapbase	= address;
-	uart.port.membase	= ioremap_nocache(address, 16);
+	uart.port.membase	= ioremap(address, 16);
 	if (!uart.port.membase) {
 		dev_warn(&dev->dev, "Failed to map memory\n");
 		return -ENOMEM;

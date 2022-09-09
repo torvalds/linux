@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "DSS"
@@ -869,8 +858,11 @@ int dss_runtime_get(struct dss_device *dss)
 	DSSDBG("dss_runtime_get\n");
 
 	r = pm_runtime_get_sync(&dss->pdev->dev);
-	WARN_ON(r < 0);
-	return r < 0 ? r : 0;
+	if (WARN_ON(r < 0)) {
+		pm_runtime_put_noidle(&dss->pdev->dev);
+		return r;
+	}
+	return 0;
 }
 
 void dss_runtime_put(struct dss_device *dss)
@@ -934,7 +926,6 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 			void *data)
 {
 	struct dss_debugfs_entry *entry;
-	struct dentry *d;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -942,15 +933,9 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 
 	entry->show_fn = show_fn;
 	entry->data = data;
+	entry->dentry = debugfs_create_file(name, 0444, dss->debugfs.root,
+					    entry, &dss_debug_fops);
 
-	d = debugfs_create_file(name, 0444, dss->debugfs.root, entry,
-				&dss_debug_fops);
-	if (IS_ERR(d)) {
-		kfree(entry);
-		return ERR_CAST(d);
-	}
-
-	entry->dentry = d;
 	return entry;
 }
 
@@ -1101,7 +1086,7 @@ static const struct dss_features omap34xx_dss_feats = {
 
 static const struct dss_features omap3630_dss_feats = {
 	.model			=	DSS_MODEL_OMAP3,
-	.fck_div_max		=	32,
+	.fck_div_max		=	31,
 	.fck_freq_max		=	173000000,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",
@@ -1169,6 +1154,31 @@ static const struct dss_features dra7xx_dss_feats = {
 	.has_lcd_clk_src	=	true,
 };
 
+static void __dss_uninit_ports(struct dss_device *dss, unsigned int num_ports)
+{
+	struct platform_device *pdev = dss->pdev;
+	struct device_node *parent = pdev->dev.of_node;
+	struct device_node *port;
+	unsigned int i;
+
+	for (i = 0; i < num_ports; i++) {
+		port = of_graph_get_port_by_id(parent, i);
+		if (!port)
+			continue;
+
+		switch (dss->feat->ports[i]) {
+		case OMAP_DISPLAY_TYPE_DPI:
+			dpi_uninit_port(port);
+			break;
+		case OMAP_DISPLAY_TYPE_SDI:
+			sdi_uninit_port(port);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static int dss_init_ports(struct dss_device *dss)
 {
 	struct platform_device *pdev = dss->pdev;
@@ -1186,13 +1196,13 @@ static int dss_init_ports(struct dss_device *dss)
 		case OMAP_DISPLAY_TYPE_DPI:
 			r = dpi_init_port(dss, pdev, port, dss->feat->model);
 			if (r)
-				return r;
+				goto error;
 			break;
 
 		case OMAP_DISPLAY_TYPE_SDI:
 			r = sdi_init_port(dss, pdev, port);
 			if (r)
-				return r;
+				goto error;
 			break;
 
 		default:
@@ -1201,31 +1211,15 @@ static int dss_init_ports(struct dss_device *dss)
 	}
 
 	return 0;
+
+error:
+	__dss_uninit_ports(dss, i);
+	return r;
 }
 
 static void dss_uninit_ports(struct dss_device *dss)
 {
-	struct platform_device *pdev = dss->pdev;
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
-	int i;
-
-	for (i = 0; i < dss->feat->num_ports; i++) {
-		port = of_graph_get_port_by_id(parent, i);
-		if (!port)
-			continue;
-
-		switch (dss->feat->ports[i]) {
-		case OMAP_DISPLAY_TYPE_DPI:
-			dpi_uninit_port(port);
-			break;
-		case OMAP_DISPLAY_TYPE_SDI:
-			sdi_uninit_port(port);
-			break;
-		default:
-			break;
-		}
-	}
+	__dss_uninit_ports(dss, dss->feat->num_ports);
 }
 
 static int dss_video_pll_probe(struct dss_device *dss)
@@ -1314,6 +1308,7 @@ static int dss_bind(struct device *dev)
 {
 	struct dss_device *dss = dev_get_drvdata(dev);
 	struct platform_device *drm_pdev;
+	struct dss_pdata pdata;
 	int r;
 
 	r = component_bind_all(dev, NULL);
@@ -1322,9 +1317,9 @@ static int dss_bind(struct device *dev)
 
 	pm_set_vt_switch(0);
 
-	omapdss_set_dss(dss);
-
-	drm_pdev = platform_device_register_simple("omapdrm", 0, NULL, 0);
+	pdata.dss = dss;
+	drm_pdev = platform_device_register_data(NULL, "omapdrm", 0,
+						 &pdata, sizeof(pdata));
 	if (IS_ERR(drm_pdev)) {
 		component_unbind_all(dev, NULL);
 		return PTR_ERR(drm_pdev);
@@ -1341,8 +1336,6 @@ static void dss_unbind(struct device *dev)
 
 	platform_device_unregister(dss->drm_pdev);
 
-	omapdss_set_dss(NULL);
-
 	component_unbind_all(dev, NULL);
 }
 
@@ -1351,15 +1344,15 @@ static const struct component_master_ops dss_component_ops = {
 	.unbind = dss_unbind,
 };
 
-static int dss_component_compare(struct device *dev, void *data)
-{
-	struct device *child = data;
-	return dev == child;
-}
+struct dss_component_match_data {
+	struct device *dev;
+	struct component_match **match;
+};
 
 static int dss_add_child_component(struct device *dev, void *data)
 {
-	struct component_match **match = data;
+	struct dss_component_match_data *cmatch = data;
+	struct component_match **match = cmatch->match;
 
 	/*
 	 * HACK
@@ -1370,7 +1363,17 @@ static int dss_add_child_component(struct device *dev, void *data)
 	if (strstr(dev_name(dev), "rfbi"))
 		return 0;
 
-	component_match_add(dev->parent, match, dss_component_compare, dev);
+	/*
+	 * Handle possible interconnect target modules defined within the DSS.
+	 * The DSS components can be children of an interconnect target module
+	 * after the device tree has been updated for the module data.
+	 * See also omapdss_boot_init() for compatible fixup.
+	 */
+	if (strstr(dev_name(dev), "target-module"))
+		return device_for_each_child(dev, cmatch,
+					     dss_add_child_component);
+
+	component_match_add(cmatch->dev, match, component_compare_dev, dev);
 
 	return 0;
 }
@@ -1413,8 +1416,8 @@ static int dss_probe_hardware(struct dss_device *dss)
 static int dss_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *soc;
+	struct dss_component_match_data cmatch;
 	struct component_match *match = NULL;
-	struct resource *dss_mem;
 	struct dss_device *dss;
 	int r;
 
@@ -1442,8 +1445,7 @@ static int dss_probe(struct platform_device *pdev)
 		dss->feat = of_match_device(dss_of_match, &pdev->dev)->data;
 
 	/* Map I/O registers, get and setup clocks. */
-	dss_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dss->base = devm_ioremap_resource(&pdev->dev, dss_mem);
+	dss->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dss->base)) {
 		r = PTR_ERR(dss->base);
 		goto err_free_dss;
@@ -1490,7 +1492,9 @@ static int dss_probe(struct platform_device *pdev)
 
 	omapdss_gather_components(&pdev->dev);
 
-	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
+	cmatch.dev = &pdev->dev;
+	cmatch.match = &match;
+	device_for_each_child(&pdev->dev, &cmatch, dss_add_child_component);
 
 	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
 	if (r)
@@ -1556,17 +1560,10 @@ static int dss_remove(struct platform_device *pdev)
 
 static void dss_shutdown(struct platform_device *pdev)
 {
-	struct omap_dss_device *dssdev = NULL;
-
 	DSSDBG("shutdown\n");
-
-	for_each_dss_display(dssdev) {
-		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
-			dssdev->ops->disable(dssdev);
-	}
 }
 
-static int dss_runtime_suspend(struct device *dev)
+static __maybe_unused int dss_runtime_suspend(struct device *dev)
 {
 	struct dss_device *dss = dev_get_drvdata(dev);
 
@@ -1578,7 +1575,7 @@ static int dss_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int dss_runtime_resume(struct device *dev)
+static __maybe_unused int dss_runtime_resume(struct device *dev)
 {
 	struct dss_device *dss = dev_get_drvdata(dev);
 	int r;
@@ -1601,8 +1598,8 @@ static int dss_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dss_pm_ops = {
-	.runtime_suspend = dss_runtime_suspend,
-	.runtime_resume = dss_runtime_resume,
+	SET_RUNTIME_PM_OPS(dss_runtime_suspend, dss_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 struct platform_driver omap_dsshw_driver = {
@@ -1616,3 +1613,33 @@ struct platform_driver omap_dsshw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
+
+/* INIT */
+static struct platform_driver * const omap_dss_drivers[] = {
+	&omap_dsshw_driver,
+	&omap_dispchw_driver,
+#ifdef CONFIG_OMAP2_DSS_DSI
+	&omap_dsihw_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_VENC
+	&omap_venchw_driver,
+#endif
+#ifdef CONFIG_OMAP4_DSS_HDMI
+	&omapdss_hdmi4hw_driver,
+#endif
+#ifdef CONFIG_OMAP5_DSS_HDMI
+	&omapdss_hdmi5hw_driver,
+#endif
+};
+
+int __init omap_dss_init(void)
+{
+	return platform_register_drivers(omap_dss_drivers,
+					 ARRAY_SIZE(omap_dss_drivers));
+}
+
+void omap_dss_exit(void)
+{
+	platform_unregister_drivers(omap_dss_drivers,
+				    ARRAY_SIZE(omap_dss_drivers));
+}

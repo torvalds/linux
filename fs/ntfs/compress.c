@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * compress.c - NTFS kernel compressed attributes handling.
  *		Part of the Linux-NTFS project.
  *
  * Copyright (c) 2001-2004 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
- *
- * This program/include file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as published
- * by the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program/include file is distributed in the hope that it will be
- * useful, but WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program (in the main directory of the Linux-NTFS
- * distribution in the file COPYING); if not, write to the Free Software
- * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/fs.h>
@@ -672,7 +658,7 @@ lock_retry_remap:
 		}
 		get_bh(tbh);
 		tbh->b_end_io = end_buffer_read_sync;
-		submit_bh(REQ_OP_READ, 0, tbh);
+		submit_bh(REQ_OP_READ, tbh);
 	}
 
 	/* Wait for io completion on all buffer heads. */
@@ -794,12 +780,12 @@ lock_retry_remap:
 		/* Uncompressed cb, copy it to the destination pages. */
 		/*
 		 * TODO: As a big optimization, we could detect this case
-		 * before we read all the pages and use block_read_full_page()
+		 * before we read all the pages and use block_read_full_folio()
 		 * on all full pages instead (we still have to treat partial
 		 * pages especially but at least we are getting rid of the
 		 * synchronous io for the majority of pages.
 		 * Or if we choose not to do the read-ahead/-behind stuff, we
-		 * could just return block_read_full_page(pages[xpage]) as long
+		 * could just return block_read_full_folio(pages[xpage]) as long
 		 * as PAGE_SIZE <= cb_size.
 		 */
 		if (cb_max_ofs)

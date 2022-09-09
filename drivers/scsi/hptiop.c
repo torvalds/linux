@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
  * Copyright (C) 2006-2015 HighPoint Technologies, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Please report bugs/comments/suggestions to linux@highpoint-tech.com
  *
@@ -766,10 +758,9 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 		scp->result = SAM_STAT_CHECK_CONDITION;
 		memcpy(scp->sense_buffer, &req->sg_list, SCSI_SENSE_BUFFERSIZE);
 		goto skip_resid;
-		break;
 
 	default:
-		scp->result = DRIVER_INVALID << 24 | DID_ABORT << 16;
+		scp->result = DID_ABORT << 16;
 		break;
 	}
 
@@ -778,7 +769,7 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 
 skip_resid:
 	dprintk("scsi_done(%p)\n", scp);
-	scp->scsi_done(scp);
+	scsi_done(scp);
 	free_req(hba, &hba->reqs[tag]);
 }
 
@@ -1002,17 +993,13 @@ static int hptiop_reset_comm_mvfrey(struct hptiop_hba *hba)
 	return 0;
 }
 
-static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
-				void (*done)(struct scsi_cmnd *))
+static int hptiop_queuecommand_lck(struct scsi_cmnd *scp)
 {
 	struct Scsi_Host *host = scp->device->host;
 	struct hptiop_hba *hba = (struct hptiop_hba *)host->hostdata;
 	struct hpt_iop_request_scsi_command *req;
 	int sg_count = 0;
 	struct hptiop_request *_req;
-
-	BUG_ON(!done);
-	scp->scsi_done = done;
 
 	_req = get_req(hba);
 	if (_req == NULL) {
@@ -1068,7 +1055,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 
 cmd_done:
 	dprintk("scsi_done(scp=%p)\n", scp);
-	scp->scsi_done(scp);
+	scsi_done(scp);
 	return 0;
 }
 
@@ -1159,11 +1146,13 @@ static struct device_attribute hptiop_attr_fw_version = {
 	.show = hptiop_show_fw_version,
 };
 
-static struct device_attribute *hptiop_attrs[] = {
-	&hptiop_attr_version,
-	&hptiop_attr_fw_version,
+static struct attribute *hptiop_host_attrs[] = {
+	&hptiop_attr_version.attr,
+	&hptiop_attr_fw_version.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(hptiop_host);
 
 static int hptiop_slave_config(struct scsi_device *sdev)
 {
@@ -1181,10 +1170,11 @@ static struct scsi_host_template driver_template = {
 	.info                       = hptiop_info,
 	.emulated                   = 0,
 	.proc_name                  = driver_name,
-	.shost_attrs                = hptiop_attrs,
+	.shost_groups		    = hptiop_host_groups,
 	.slave_configure            = hptiop_slave_config,
 	.this_id                    = -1,
 	.change_queue_depth         = hptiop_adjust_disk_queue_depth,
+	.cmd_size		    = sizeof(struct hpt_cmd_priv),
 };
 
 static int hptiop_internal_memalloc_itl(struct hptiop_hba *hba)
@@ -1292,6 +1282,7 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 	dma_addr_t start_phy;
 	void *start_virt;
 	u32 offset, i, req_size;
+	int rc;
 
 	dprintk("hptiop_probe(%p)\n", pcidev);
 
@@ -1308,9 +1299,12 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 
 	/* Enable 64bit DMA if possible */
 	iop_ops = (struct hptiop_adapter_ops *)id->driver_data;
-	if (dma_set_mask(&pcidev->dev,
-			 DMA_BIT_MASK(iop_ops->hw_dma_bit_mask)) ||
-	    dma_set_mask(&pcidev->dev, DMA_BIT_MASK(32))) {
+	rc = dma_set_mask(&pcidev->dev,
+			  DMA_BIT_MASK(iop_ops->hw_dma_bit_mask));
+	if (rc)
+		rc = dma_set_mask(&pcidev->dev, DMA_BIT_MASK(32));
+
+	if (rc) {
 		printk(KERN_ERR "hptiop: fail to set dma_mask\n");
 		goto disable_pci_device;
 	}

@@ -89,16 +89,14 @@
 
 #define SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT      100
 
-/**
- *
- *
+/*
  * The number of milliseconds to wait while a given phy is consuming power
  * before allowing another set of phys to consume power. Ultimately, this will
  * be specified by OEM parameter.
  */
 #define SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL 500
 
-/**
+/*
  * NORMALIZE_PUT_POINTER() -
  *
  * This macro will normalize the completion queue put pointer so its value can
@@ -108,7 +106,7 @@
 	((x) & SMU_COMPLETION_QUEUE_PUT_POINTER_MASK)
 
 
-/**
+/*
  * NORMALIZE_EVENT_POINTER() -
  *
  * This macro will normalize the completion queue event entry so its value can
@@ -120,7 +118,7 @@
 		>> SMU_COMPLETION_QUEUE_GET_EVENT_POINTER_SHIFT	\
 	)
 
-/**
+/*
  * NORMALIZE_GET_POINTER() -
  *
  * This macro will normalize the completion queue get pointer so its value can
@@ -129,7 +127,7 @@
 #define NORMALIZE_GET_POINTER(x) \
 	((x) & SMU_COMPLETION_QUEUE_GET_POINTER_MASK)
 
-/**
+/*
  * NORMALIZE_GET_POINTER_CYCLE_BIT() -
  *
  * This macro will normalize the completion queue cycle pointer so it matches
@@ -138,7 +136,7 @@
 #define NORMALIZE_GET_POINTER_CYCLE_BIT(x) \
 	((SMU_CQGR_CYCLE_BIT & (x)) << (31 - SMU_COMPLETION_QUEUE_GET_CYCLE_BIT_SHIFT))
 
-/**
+/*
  * COMPLETION_QUEUE_CYCLE_BIT() -
  *
  * This macro will return the cycle bit of the completion queue entry
@@ -415,7 +413,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 				dev_warn(&ihost->pdev->dev,
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for io request object "
-					 "that doesnt exist.\n",
+					 "that doesn't exist.\n",
 					 __func__,
 					 ihost,
 					 ent);
@@ -430,7 +428,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 				dev_warn(&ihost->pdev->dev,
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for remote device object "
-					 "that doesnt exist.\n",
+					 "that doesn't exist.\n",
 					 __func__,
 					 ihost,
 					 ent);
@@ -464,7 +462,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 		} else
 			dev_err(&ihost->pdev->dev,
 				"%s: SCIC Controller 0x%p received event 0x%x "
-				"for remote device object 0x%0x that doesnt "
+				"for remote device object 0x%0x that doesn't "
 				"exist.\n",
 				__func__,
 				ihost,
@@ -637,7 +635,7 @@ irqreturn_t isci_error_isr(int vec, void *data)
 /**
  * isci_host_start_complete() - This function is called by the core library,
  *    through the ISCI Module, to indicate controller start status.
- * @isci_host: This parameter specifies the ISCI host object
+ * @ihost: This parameter specifies the ISCI host object
  * @completion_status: This parameter specifies the completion status from the
  *    core library.
  *
@@ -670,7 +668,7 @@ int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
  *    use any timeout value, but this method provides the suggested minimum
  *    start timeout value.  The returned value is based upon empirical
  *    information determined as a result of interoperability testing.
- * @controller: the handle to the controller object for which to return the
+ * @ihost: the handle to the controller object for which to return the
  *    suggested start timeout.
  *
  * This method returns the number of milliseconds for the suggested start
@@ -893,7 +891,7 @@ bool is_controller_start_complete(struct isci_host *ihost)
 
 /**
  * sci_controller_start_next_phy - start phy
- * @scic: controller
+ * @ihost: controller
  *
  * If all the phys have been started, then attempt to transition the
  * controller to the READY state and inform the user
@@ -1145,7 +1143,7 @@ void isci_host_completion_routine(unsigned long data)
  *    controller has been quiesced. This method will ensure that all IO
  *    requests are quiesced, phys are stopped, and all additional operation by
  *    the hardware is halted.
- * @controller: the handle to the controller object to stop.
+ * @ihost: the handle to the controller object to stop.
  * @timeout: This parameter specifies the number of milliseconds in which the
  *    stop operation should complete.
  *
@@ -1174,7 +1172,7 @@ static enum sci_status sci_controller_stop(struct isci_host *ihost, u32 timeout)
  *    considered destructive.  In other words, all current operations are wiped
  *    out.  No IO completions for outstanding devices occur.  Outstanding IO
  *    requests are not aborted or completed at the actual remote device.
- * @controller: the handle to the controller object to reset.
+ * @ihost: the handle to the controller object to reset.
  *
  * Indicate if the controller reset method succeeded or failed in some way.
  * SCI_SUCCESS if the reset operation successfully started. SCI_FATAL_ERROR if
@@ -1331,7 +1329,7 @@ static inline void sci_controller_starting_state_exit(struct sci_base_state_mach
 /**
  * sci_controller_set_interrupt_coalescence() - This method allows the user to
  *    configure the interrupt coalescence.
- * @controller: This parameter represents the handle to the controller object
+ * @ihost: This parameter represents the handle to the controller object
  *    for which its interrupt coalesce register is overridden.
  * @coalesce_number: Used to control the number of entries in the Completion
  *    Queue before an interrupt is generated. If the number of entries exceed
@@ -2479,12 +2477,13 @@ struct isci_request *sci_request_by_tag(struct isci_host *ihost, u16 io_tag)
 }
 
 /**
+ * sci_controller_allocate_remote_node_context()
  * This method allocates remote node index and the reserves the remote node
  *    context space for use. This method can fail if there are no more remote
  *    node index available.
- * @scic: This is the controller object which contains the set of
+ * @ihost: This is the controller object which contains the set of
  *    free remote node ids
- * @sci_dev: This is the device object which is requesting the a remote node
+ * @idev: This is the device object which is requesting the a remote node
  *    id
  * @node_id: This is the remote node id that is assinged to the device if one
  *    is available
@@ -2671,7 +2670,6 @@ enum sci_status sci_controller_complete_io(struct isci_host *ihost,
 					   struct isci_request *ireq)
 {
 	enum sci_status status;
-	u16 index;
 
 	switch (ihost->sm.current_state_id) {
 	case SCIC_STOPPING:
@@ -2682,7 +2680,6 @@ enum sci_status sci_controller_complete_io(struct isci_host *ihost,
 		if (status != SCI_SUCCESS)
 			return status;
 
-		index = ISCI_TAG_TCI(ireq->io_tag);
 		clear_bit(IREQ_ACTIVE, &ireq->flags);
 		return SCI_SUCCESS;
 	default:
@@ -2711,11 +2708,11 @@ enum sci_status sci_controller_continue_io(struct isci_request *ireq)
 /**
  * sci_controller_start_task() - This method is called by the SCIC user to
  *    send/start a framework task management request.
- * @controller: the handle to the controller object for which to start the task
+ * @ihost: the handle to the controller object for which to start the task
  *    management request.
- * @remote_device: the handle to the remote device object for which to start
+ * @idev: the handle to the remote device object for which to start
  *    the task management request.
- * @task_request: the handle to the task request object to start.
+ * @ireq: the handle to the task request object to start.
  */
 enum sci_status sci_controller_start_task(struct isci_host *ihost,
 					  struct isci_remote_device *idev,

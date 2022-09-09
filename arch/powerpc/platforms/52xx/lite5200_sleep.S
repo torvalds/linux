@@ -56,7 +56,7 @@ lite5200_low_power:
 	/*
 	 * save stuff BDI overwrites
 	 * 0xf0 (0xe0->0x100 gets overwritten when BDI connected;
-	 *   even when CONFIG_BDI* is disabled and MMU XLAT commented; heisenbug?))
+	 *   even when CONFIG_BDI_SWITCH is disabled and MMU XLAT commented; heisenbug?))
 	 * WARNING: self-refresh doesn't seem to work when BDI2000 is connected,
 	 *   possibly because BDI sets SDRAM registers before wakeup code does
 	 */
@@ -181,7 +181,7 @@ sram_code:
   udelay: /* r11 - tb_ticks_per_usec, r12 - usecs, overwrites r13 */
 	mullw	r12, r12, r11
 	mftb	r13	/* start */
-	addi	r12, r13, r12 /* end */
+	add	r12, r13, r12 /* end */
     1:
 	mftb	r13	/* current */
 	cmp	cr0, r13, r12
@@ -248,6 +248,7 @@ mmu_on:
 
 
 	blr
+_ASM_NOKPROBE_SYMBOL(lite5200_wakeup)
 
 
 /* ---------------------------------------------------------------------- */
@@ -391,6 +392,7 @@ restore_regs:
 	LOAD_SPRN(TBWU,  0x5b);
 
 	blr
+_ASM_NOKPROBE_SYMBOL(restore_regs)
 
 
 

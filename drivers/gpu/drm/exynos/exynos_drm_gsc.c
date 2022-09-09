@@ -1,30 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2012 Samsung Electronics Co.Ltd
  * Authors:
  *	Eunchul Kim <chulspro.kim@samsung.com>
  *	Jinyoung Jeon <jy0.jeon@samsung.com>
  *	Sangmin Lee <lsmin.lee@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-#include <linux/kernel.h>
-#include <linux/component.h>
-#include <linux/platform_device.h>
+
 #include <linux/clk.h>
-#include <linux/pm_runtime.h>
+#include <linux/component.h>
+#include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 #include <drm/exynos_drm.h>
-#include "regs-gsc.h"
+
 #include "exynos_drm_drv.h"
 #include "exynos_drm_ipp.h"
+#include "regs-gsc.h"
 
 /*
  * GSC stands for General SCaler and
@@ -62,7 +60,7 @@
 #define GSC_COEF_DEPTH	3
 #define GSC_AUTOSUSPEND_DELAY		2000
 
-#define get_gsc_context(dev)	platform_get_drvdata(to_platform_device(dev))
+#define get_gsc_context(dev)	dev_get_drvdata(dev)
 #define gsc_read(offset)		readl(ctx->regs + (offset))
 #define gsc_write(cfg, offset)	writel(cfg, ctx->regs + (offset))
 
@@ -88,7 +86,6 @@ struct gsc_scaler {
 /*
  * A structure of gsc context.
  *
- * @regs_res: register resources.
  * @regs: memory mapped io registers.
  * @gsc_clk: gsc gate clock.
  * @sc: scaler infomations.
@@ -99,12 +96,12 @@ struct gsc_scaler {
 struct gsc_context {
 	struct exynos_drm_ipp ipp;
 	struct drm_device *drm_dev;
+	void		*dma_priv;
 	struct device	*dev;
 	struct exynos_drm_ipp_task	*task;
 	struct exynos_drm_ipp_formats	*formats;
 	unsigned int			num_formats;
 
-	struct resource	*regs_res;
 	void __iomem	*regs;
 	const char	**clk_names;
 	struct clk	*clocks[GSC_MAX_CLOCKS];
@@ -119,6 +116,7 @@ struct gsc_context {
  * struct gsc_driverdata - per device type driver data for init time.
  *
  * @limits: picture size limits array
+ * @num_limits: number of items in the aforementioned array
  * @clk_names: names of clocks needed by this variant
  * @num_clocks: the number of clocks needed by this variant
  */
@@ -395,7 +393,7 @@ static int gsc_sw_reset(struct gsc_context *ctx)
 	}
 
 	if (cfg) {
-		DRM_ERROR("failed to reset gsc h/w.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to reset gsc h/w.\n");
 		return -EBUSY;
 	}
 
@@ -422,8 +420,8 @@ static void gsc_handle_irq(struct gsc_context *ctx, bool enable,
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("enable[%d]overflow[%d]level[%d]\n",
-			enable, overflow, done);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "enable[%d]overflow[%d]level[%d]\n",
+			  enable, overflow, done);
 
 	cfg = gsc_read(GSC_IRQ);
 	cfg |= (GSC_IRQ_OR_MASK | GSC_IRQ_FRMDONE_MASK);
@@ -451,7 +449,7 @@ static void gsc_src_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "fmt[0x%x]\n", fmt);
 
 	cfg = gsc_read(GSC_IN_CON);
 	cfg &= ~(GSC_IN_RGB_TYPE_MASK | GSC_IN_YUV422_1P_ORDER_MASK |
@@ -638,7 +636,7 @@ static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "fmt[0x%x]\n", fmt);
 
 	cfg = gsc_read(GSC_OUT_CON);
 	cfg &= ~(GSC_OUT_RGB_TYPE_MASK | GSC_OUT_YUV422_1P_ORDER_MASK |
@@ -706,12 +704,13 @@ static void gsc_dst_set_fmt(struct gsc_context *ctx, u32 fmt, bool tiled)
 	gsc_write(cfg, GSC_OUT_CON);
 }
 
-static int gsc_get_ratio_shift(u32 src, u32 dst, u32 *ratio)
+static int gsc_get_ratio_shift(struct gsc_context *ctx, u32 src, u32 dst,
+			       u32 *ratio)
 {
-	DRM_DEBUG_KMS("src[%d]dst[%d]\n", src, dst);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "src[%d]dst[%d]\n", src, dst);
 
 	if (src >= dst * 8) {
-		DRM_ERROR("failed to make ratio and shift.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to make ratio and shift.\n");
 		return -EINVAL;
 	} else if (src >= dst * 4)
 		*ratio = 4;
@@ -759,31 +758,31 @@ static int gsc_set_prescaler(struct gsc_context *ctx, struct gsc_scaler *sc,
 		dst_h = dst->h;
 	}
 
-	ret = gsc_get_ratio_shift(src_w, dst_w, &sc->pre_hratio);
+	ret = gsc_get_ratio_shift(ctx, src_w, dst_w, &sc->pre_hratio);
 	if (ret) {
-		dev_err(ctx->dev, "failed to get ratio horizontal.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get ratio horizontal.\n");
 		return ret;
 	}
 
-	ret = gsc_get_ratio_shift(src_h, dst_h, &sc->pre_vratio);
+	ret = gsc_get_ratio_shift(ctx, src_h, dst_h, &sc->pre_vratio);
 	if (ret) {
-		dev_err(ctx->dev, "failed to get ratio vertical.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get ratio vertical.\n");
 		return ret;
 	}
 
-	DRM_DEBUG_KMS("pre_hratio[%d]pre_vratio[%d]\n",
-		sc->pre_hratio, sc->pre_vratio);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "pre_hratio[%d]pre_vratio[%d]\n",
+			  sc->pre_hratio, sc->pre_vratio);
 
 	sc->main_hratio = (src_w << 16) / dst_w;
 	sc->main_vratio = (src_h << 16) / dst_h;
 
-	DRM_DEBUG_KMS("main_hratio[%ld]main_vratio[%ld]\n",
-		sc->main_hratio, sc->main_vratio);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "main_hratio[%ld]main_vratio[%ld]\n",
+			  sc->main_hratio, sc->main_vratio);
 
 	gsc_get_prescaler_shfactor(sc->pre_hratio, sc->pre_vratio,
 		&sc->pre_shfactor);
 
-	DRM_DEBUG_KMS("pre_shfactor[%d]\n", sc->pre_shfactor);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "pre_shfactor[%d]\n", sc->pre_shfactor);
 
 	cfg = (GSC_PRESC_SHFACTOR(sc->pre_shfactor) |
 		GSC_PRESC_H_RATIO(sc->pre_hratio) |
@@ -849,8 +848,8 @@ static void gsc_set_scaler(struct gsc_context *ctx, struct gsc_scaler *sc)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("main_hratio[%ld]main_vratio[%ld]\n",
-		sc->main_hratio, sc->main_vratio);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "main_hratio[%ld]main_vratio[%ld]\n",
+			  sc->main_hratio, sc->main_vratio);
 
 	gsc_set_h_coef(ctx, sc->main_hratio);
 	cfg = GSC_MAIN_H_RATIO_VALUE(sc->main_hratio);
@@ -916,7 +915,7 @@ static int gsc_dst_get_buf_seq(struct gsc_context *ctx)
 		if (cfg & (mask << i))
 			buf_num--;
 
-	DRM_DEBUG_KMS("buf_num[%d]\n", buf_num);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "buf_num[%d]\n", buf_num);
 
 	return buf_num;
 }
@@ -963,7 +962,7 @@ static int gsc_get_src_buf_index(struct gsc_context *ctx)
 	u32 cfg, curr_index, i;
 	u32 buf_id = GSC_MAX_SRC;
 
-	DRM_DEBUG_KMS("gsc id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "gsc id[%d]\n", ctx->id);
 
 	cfg = gsc_read(GSC_IN_BASE_ADDR_Y_MASK);
 	curr_index = GSC_IN_CURR_GET_INDEX(cfg);
@@ -975,11 +974,11 @@ static int gsc_get_src_buf_index(struct gsc_context *ctx)
 		}
 	}
 
-	DRM_DEBUG_KMS("cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
-		curr_index, buf_id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
+			  curr_index, buf_id);
 
 	if (buf_id == GSC_MAX_SRC) {
-		DRM_ERROR("failed to get in buffer index.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get in buffer index.\n");
 		return -EINVAL;
 	}
 
@@ -993,7 +992,7 @@ static int gsc_get_dst_buf_index(struct gsc_context *ctx)
 	u32 cfg, curr_index, i;
 	u32 buf_id = GSC_MAX_DST;
 
-	DRM_DEBUG_KMS("gsc id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "gsc id[%d]\n", ctx->id);
 
 	cfg = gsc_read(GSC_OUT_BASE_ADDR_Y_MASK);
 	curr_index = GSC_OUT_CURR_GET_INDEX(cfg);
@@ -1006,14 +1005,14 @@ static int gsc_get_dst_buf_index(struct gsc_context *ctx)
 	}
 
 	if (buf_id == GSC_MAX_DST) {
-		DRM_ERROR("failed to get out buffer index.\n");
+		DRM_DEV_ERROR(ctx->dev, "failed to get out buffer index.\n");
 		return -EINVAL;
 	}
 
 	gsc_dst_set_buf_seq(ctx, buf_id, false);
 
-	DRM_DEBUG_KMS("cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
-		curr_index, buf_id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "cfg[0x%x]curr_index[%d]buf_id[%d]\n", cfg,
+			  curr_index, buf_id);
 
 	return buf_id;
 }
@@ -1024,7 +1023,7 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 	u32 status;
 	int err = 0;
 
-	DRM_DEBUG_KMS("gsc id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "gsc id[%d]\n", ctx->id);
 
 	status = gsc_read(GSC_IRQ);
 	if (status & GSC_IRQ_STATUS_OR_IRQ) {
@@ -1042,8 +1041,8 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 		src_buf_id = gsc_get_src_buf_index(ctx);
 		dst_buf_id = gsc_get_dst_buf_index(ctx);
 
-		DRM_DEBUG_KMS("buf_id_src[%d]buf_id_dst[%d]\n",	src_buf_id,
-			      dst_buf_id);
+		DRM_DEV_DEBUG_KMS(ctx->dev, "buf_id_src[%d]buf_id_dst[%d]\n",
+				  src_buf_id, dst_buf_id);
 
 		if (src_buf_id < 0 || dst_buf_id < 0)
 			err = -EINVAL;
@@ -1117,7 +1116,12 @@ static int gsc_commit(struct exynos_drm_ipp *ipp,
 	struct gsc_context *ctx = container_of(ipp, struct gsc_context, ipp);
 	int ret;
 
-	pm_runtime_get_sync(ctx->dev);
+	ret = pm_runtime_resume_and_get(ctx->dev);
+	if (ret < 0) {
+		dev_err(ctx->dev, "failed to enable GScaler device.\n");
+		return ret;
+	}
+
 	ctx->task = task;
 
 	ret = gsc_reset(ctx);
@@ -1169,9 +1173,10 @@ static int gsc_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_ipp *ipp = &ctx->ipp;
 
 	ctx->drm_dev = drm_dev;
-	exynos_drm_register_dma(drm_dev, dev);
+	ctx->drm_dev = drm_dev;
+	exynos_drm_register_dma(drm_dev, dev, &ctx->dma_priv);
 
-	exynos_drm_ipp_register(drm_dev, ipp, &ipp_funcs,
+	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
 			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
 			DRM_EXYNOS_IPP_CAP_SCALE | DRM_EXYNOS_IPP_CAP_CONVERT,
 			ctx->formats, ctx->num_formats, "gsc");
@@ -1188,8 +1193,8 @@ static void gsc_unbind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_ipp *ipp = &ctx->ipp;
 
-	exynos_drm_ipp_unregister(drm_dev, ipp);
-	exynos_drm_unregister_dma(drm_dev, dev);
+	exynos_drm_ipp_unregister(dev, ipp);
+	exynos_drm_unregister_dma(drm_dev, dev, &ctx->dma_priv);
 }
 
 static const struct component_ops gsc_component_ops = {
@@ -1215,7 +1220,6 @@ static int gsc_probe(struct platform_device *pdev)
 	struct gsc_driverdata *driver_data;
 	struct exynos_drm_ipp_formats *formats;
 	struct gsc_context *ctx;
-	struct resource *res;
 	int num_formats, ret, i, j;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -1265,20 +1269,15 @@ static int gsc_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* resource memory */
-	ctx->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->regs = devm_ioremap_resource(dev, ctx->regs_res);
+	ctx->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->regs))
 		return PTR_ERR(ctx->regs);
 
 	/* resource irq */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "failed to request irq resource.\n");
-		return -ENOENT;
-	}
+	ctx->irq = platform_get_irq(pdev, 0);
+	if (ctx->irq < 0)
+		return ctx->irq;
 
-	ctx->irq = res->start;
 	ret = devm_request_irq(dev, ctx->irq, gsc_irq_handler, 0,
 			       dev_name(dev), ctx);
 	if (ret < 0) {
@@ -1313,6 +1312,7 @@ static int gsc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
+	component_del(dev, &gsc_component_ops);
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 
@@ -1324,7 +1324,7 @@ static int __maybe_unused gsc_runtime_suspend(struct device *dev)
 	struct gsc_context *ctx = get_gsc_context(dev);
 	int i;
 
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(dev, "id[%d]\n", ctx->id);
 
 	for (i = ctx->num_clocks - 1; i >= 0; i--)
 		clk_disable_unprepare(ctx->clocks[i]);
@@ -1337,7 +1337,7 @@ static int __maybe_unused gsc_runtime_resume(struct device *dev)
 	struct gsc_context *ctx = get_gsc_context(dev);
 	int i, ret;
 
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
+	DRM_DEV_DEBUG_KMS(dev, "id[%d]\n", ctx->id);
 
 	for (i = 0; i < ctx->num_clocks; i++) {
 		ret = clk_prepare_enable(ctx->clocks[i]);

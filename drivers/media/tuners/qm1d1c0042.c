@@ -206,7 +206,7 @@ static int qm1d1c0042_set_params(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	a = (freq + state->cfg.xtal_freq / 2) / state->cfg.xtal_freq;
+	a = DIV_ROUND_CLOSEST(freq, state->cfg.xtal_freq);
 
 	state->regs[0x06] &= 0x40;
 	state->regs[0x06] |= (a - 12) / 4;
@@ -343,8 +343,10 @@ static int qm1d1c0042_init(struct dvb_frontend *fe)
 		if (val == reg_initval[reg_index][0x00])
 			break;
 	}
-	if (reg_index >= QM1D1C0042_NUM_REG_ROWS)
+	if (reg_index >= QM1D1C0042_NUM_REG_ROWS) {
+		ret = -EINVAL;
 		goto failed;
+	}
 	memcpy(state->regs, reg_initval[reg_index], QM1D1C0042_NUM_REGS);
 	usleep_range(2000, 3000);
 

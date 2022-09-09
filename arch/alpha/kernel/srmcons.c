@@ -59,7 +59,7 @@ srmcons_do_receive_chars(struct tty_port *port)
 	} while((result.bits.status & 1) && (++loops < 10));
 
 	if (count)
-		tty_schedule_flip(port);
+		tty_flip_buffer_push(port);
 
 	return count;
 }
@@ -142,16 +142,10 @@ srmcons_write(struct tty_struct *tty,
 	return count;
 }
 
-static int
+static unsigned int
 srmcons_write_room(struct tty_struct *tty)
 {
 	return 512;
-}
-
-static int
-srmcons_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
 }
 
 static int
@@ -200,7 +194,6 @@ static const struct tty_operations srmcons_ops = {
 	.close		= srmcons_close,
 	.write		= srmcons_write,
 	.write_room	= srmcons_write_room,
-	.chars_in_buffer= srmcons_chars_in_buffer,
 };
 
 static int __init
@@ -211,9 +204,9 @@ srmcons_init(void)
 		struct tty_driver *driver;
 		int err;
 
-		driver = alloc_tty_driver(MAX_SRM_CONSOLE_DEVICES);
-		if (!driver)
-			return -ENOMEM;
+		driver = tty_alloc_driver(MAX_SRM_CONSOLE_DEVICES, 0);
+		if (IS_ERR(driver))
+			return PTR_ERR(driver);
 
 		tty_port_init(&srmcons_singleton.port);
 
@@ -228,7 +221,7 @@ srmcons_init(void)
 		tty_port_link_device(&srmcons_singleton.port, driver, 0);
 		err = tty_register_driver(driver);
 		if (err) {
-			put_tty_driver(driver);
+			tty_driver_kref_put(driver);
 			tty_port_destroy(&srmcons_singleton.port);
 			return err;
 		}

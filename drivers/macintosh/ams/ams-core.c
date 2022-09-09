@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Apple Motion Sensor driver
  *
  * Copyright (C) 2005 Stelian Pop (stelian@popies.net)
  * Copyright (C) 2006 Michael Hanselmann (linux-kernel@hansmi.ch)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #include <linux/module.h>
@@ -63,7 +50,7 @@ static ssize_t ams_show_current(struct device *dev,
 	ams_sensors(&x, &y, &z);
 	mutex_unlock(&ams_info.lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d %d %d\n", x, y, z);
+	return sysfs_emit(buf, "%d %d %d\n", x, y, z);
 }
 
 static DEVICE_ATTR(current, S_IRUGO, ams_show_current, NULL);

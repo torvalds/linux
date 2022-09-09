@@ -1,49 +1,5 @@
-/*
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
-
-  GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  Contact Information:
-  qat-linux@intel.com
-
-  BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
+/* Copyright(c) 2014 - 2020 Intel Corporation */
 #ifndef _ICP_QAT_HW_H_
 #define _ICP_QAT_HW_H_
 
@@ -105,8 +61,49 @@ enum icp_qat_hw_auth_mode {
 };
 
 struct icp_qat_hw_auth_config {
-	uint32_t config;
-	uint32_t reserved;
+	__u32 config;
+	__u32 reserved;
+};
+
+struct icp_qat_hw_ucs_cipher_config {
+	__u32 val;
+	__u32 reserved[3];
+};
+
+enum icp_qat_slice_mask {
+	ICP_ACCEL_MASK_CIPHER_SLICE = BIT(0),
+	ICP_ACCEL_MASK_AUTH_SLICE = BIT(1),
+	ICP_ACCEL_MASK_PKE_SLICE = BIT(2),
+	ICP_ACCEL_MASK_COMPRESS_SLICE = BIT(3),
+	ICP_ACCEL_MASK_LZS_SLICE = BIT(4),
+	ICP_ACCEL_MASK_EIA3_SLICE = BIT(5),
+	ICP_ACCEL_MASK_SHA3_SLICE = BIT(6),
+};
+
+enum icp_qat_capabilities_mask {
+	ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC = BIT(0),
+	ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC = BIT(1),
+	ICP_ACCEL_CAPABILITIES_CIPHER = BIT(2),
+	ICP_ACCEL_CAPABILITIES_AUTHENTICATION = BIT(3),
+	ICP_ACCEL_CAPABILITIES_RESERVED_1 = BIT(4),
+	ICP_ACCEL_CAPABILITIES_COMPRESSION = BIT(5),
+	ICP_ACCEL_CAPABILITIES_LZS_COMPRESSION = BIT(6),
+	ICP_ACCEL_CAPABILITIES_RAND = BIT(7),
+	ICP_ACCEL_CAPABILITIES_ZUC = BIT(8),
+	ICP_ACCEL_CAPABILITIES_SHA3 = BIT(9),
+	/* Bits 10-11 are currently reserved */
+	ICP_ACCEL_CAPABILITIES_HKDF = BIT(12),
+	ICP_ACCEL_CAPABILITIES_ECEDMONT = BIT(13),
+	/* Bit 14 is currently reserved */
+	ICP_ACCEL_CAPABILITIES_SHA3_EXT = BIT(15),
+	ICP_ACCEL_CAPABILITIES_AESGCM_SPC = BIT(16),
+	ICP_ACCEL_CAPABILITIES_CHACHA_POLY = BIT(17),
+	/* Bits 18-21 are currently reserved */
+	ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY = BIT(22),
+	ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64 = BIT(23),
+	ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION = BIT(24),
+	ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION = BIT(25),
+	ICP_ACCEL_CAPABILITIES_AES_V2 = BIT(26)
 };
 
 #define QAT_AUTH_MODE_BITPOS 4
@@ -131,7 +128,7 @@ struct icp_qat_hw_auth_config {
 
 struct icp_qat_hw_auth_counter {
 	__be32 counter;
-	uint32_t reserved;
+	__u32 reserved;
 };
 
 #define QAT_AUTH_COUNT_MASK 0xFFFFFFFF
@@ -191,9 +188,9 @@ struct icp_qat_hw_auth_setup {
 
 struct icp_qat_hw_auth_sha512 {
 	struct icp_qat_hw_auth_setup inner_setup;
-	uint8_t state1[ICP_QAT_HW_SHA512_STATE1_SZ];
+	__u8 state1[ICP_QAT_HW_SHA512_STATE1_SZ];
 	struct icp_qat_hw_auth_setup outer_setup;
-	uint8_t state2[ICP_QAT_HW_SHA512_STATE2_SZ];
+	__u8 state2[ICP_QAT_HW_SHA512_STATE2_SZ];
 };
 
 struct icp_qat_hw_auth_algo_blk {
@@ -227,8 +224,8 @@ enum icp_qat_hw_cipher_mode {
 };
 
 struct icp_qat_hw_cipher_config {
-	uint32_t val;
-	uint32_t reserved;
+	__u32 val;
+	__u32 reserved;
 };
 
 enum icp_qat_hw_cipher_dir {
@@ -296,10 +293,18 @@ enum icp_qat_hw_cipher_convert {
 
 struct icp_qat_hw_cipher_aes256_f8 {
 	struct icp_qat_hw_cipher_config cipher_config;
-	uint8_t key[ICP_QAT_HW_AES_256_F8_KEY_SZ];
+	__u8 key[ICP_QAT_HW_AES_256_F8_KEY_SZ];
+};
+
+struct icp_qat_hw_ucs_cipher_aes256_f8 {
+	struct icp_qat_hw_ucs_cipher_config cipher_config;
+	__u8 key[ICP_QAT_HW_AES_256_F8_KEY_SZ];
 };
 
 struct icp_qat_hw_cipher_algo_blk {
-	struct icp_qat_hw_cipher_aes256_f8 aes;
+	union {
+		struct icp_qat_hw_cipher_aes256_f8 aes;
+		struct icp_qat_hw_ucs_cipher_aes256_f8 ucs_aes;
+	};
 } __aligned(64);
 #endif

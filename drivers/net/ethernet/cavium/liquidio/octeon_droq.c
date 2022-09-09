@@ -280,13 +280,10 @@ int octeon_init_droq(struct octeon_device *oct,
 	dev_dbg(&oct->pci_dev->dev, "droq[%d]: num_desc: %d\n", q_no,
 		droq->max_count);
 
-	droq->recv_buf_list = (struct octeon_recv_buffer *)
-	      vzalloc_node(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE),
-			   numa_node);
+	droq->recv_buf_list = vzalloc_node(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE),
+					   numa_node);
 	if (!droq->recv_buf_list)
-		droq->recv_buf_list = (struct octeon_recv_buffer *)
-		      vzalloc(array_size(droq->max_count,
-					 OCT_DROQ_RECVBUF_SIZE));
+		droq->recv_buf_list = vzalloc(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE));
 	if (!droq->recv_buf_list) {
 		dev_err(&oct->pci_dev->dev, "Output queue recv buf list alloc failed\n");
 		goto init_droq_fail;
@@ -513,8 +510,6 @@ int octeon_retry_droq_refill(struct octeon_droq *droq)
 		 */
 		wmb();
 		writel(desc_refilled, droq->pkts_credit_reg);
-		/* make sure mmio write completes */
-		mmiowb();
 
 		if (pkts_credit + desc_refilled >= CN23XX_SLI_DEF_BP)
 			reschedule = 0;
@@ -712,8 +707,6 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 				 */
 				wmb();
 				writel(desc_refilled, droq->pkts_credit_reg);
-				/* make sure mmio write completes */
-				mmiowb();
 			}
 		}
 	}                       /* for (each packet)... */
@@ -781,7 +774,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	return 0;
 }
 
-/**
+/*
  * Utility function to poll for packets. check_hw_for_packets must be
  * called before calling this routine.
  */

@@ -60,7 +60,7 @@ gf108_pm = {
 };
 
 int
-gf108_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
+gf108_pm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_pm **ppm)
 {
-	return gf100_pm_new_(&gf108_pm, device, index, ppm);
+	return gf100_pm_new_(&gf108_pm, device, type, inst, ppm);
 }

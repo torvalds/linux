@@ -441,11 +441,11 @@ static int ariadne_open(struct net_device *dev)
 
 	/* Set the Ethernet Hardware Address */
 	lance->RAP = CSR12;		/* Physical Address Register, PADR[15:0] */
-	lance->RDP = ((u_short *)&dev->dev_addr[0])[0];
+	lance->RDP = ((const u_short *)&dev->dev_addr[0])[0];
 	lance->RAP = CSR13;		/* Physical Address Register, PADR[31:16] */
-	lance->RDP = ((u_short *)&dev->dev_addr[0])[1];
+	lance->RDP = ((const u_short *)&dev->dev_addr[0])[1];
 	lance->RAP = CSR14;		/* Physical Address Register, PADR[47:32] */
-	lance->RDP = ((u_short *)&dev->dev_addr[0])[2];
+	lance->RDP = ((const u_short *)&dev->dev_addr[0])[2];
 
 	/* Set the Init Block Mode */
 	lance->RAP = CSR15;		/* Mode Register */
@@ -530,7 +530,7 @@ static inline void ariadne_reset(struct net_device *dev)
 	netif_start_queue(dev);
 }
 
-static void ariadne_tx_timeout(struct net_device *dev)
+static void ariadne_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	volatile struct Am79C960 *lance = (struct Am79C960 *)dev->base_addr;
 
@@ -717,6 +717,7 @@ static int ariadne_init_one(struct zorro_dev *z,
 	unsigned long mem_start = board + ARIADNE_RAM;
 	struct resource *r1, *r2;
 	struct net_device *dev;
+	u8 addr[ETH_ALEN];
 	u32 serial;
 	int err;
 
@@ -740,12 +741,13 @@ static int ariadne_init_one(struct zorro_dev *z,
 	r2->name = dev->name;
 
 	serial = be32_to_cpu(z->rom.er_SerialNumber);
-	dev->dev_addr[0] = 0x00;
-	dev->dev_addr[1] = 0x60;
-	dev->dev_addr[2] = 0x30;
-	dev->dev_addr[3] = (serial >> 16) & 0xff;
-	dev->dev_addr[4] = (serial >> 8) & 0xff;
-	dev->dev_addr[5] = serial & 0xff;
+	addr[0] = 0x00;
+	addr[1] = 0x60;
+	addr[2] = 0x30;
+	addr[3] = (serial >> 16) & 0xff;
+	addr[4] = (serial >> 8) & 0xff;
+	addr[5] = serial & 0xff;
+	eth_hw_addr_set(dev, addr);
 	dev->base_addr = (unsigned long)ZTWO_VADDR(base_addr);
 	dev->mem_start = (unsigned long)ZTWO_VADDR(mem_start);
 	dev->mem_end = dev->mem_start + ARIADNE_RAM_SIZE;

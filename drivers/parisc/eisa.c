@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * eisa.c - provide support for EISA adapters in PA-RISC machines
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Copyright (c) 2001 Matthew Wilcox for Hewlett Packard
  * Copyright (c) 2001 Daniel Engstrom <5116@telia.com>
@@ -14,7 +10,6 @@
  * Wax ASIC also includes a PS/2 and RS-232 controller, but those are
  * dealt with elsewhere; this file is concerned only with the EISA portions
  * of Wax.
- *
  *
  * HINT:
  * -----
@@ -44,6 +39,8 @@
 #include <asm/delay.h>
 #include <asm/eisa_bus.h>
 #include <asm/eisa_eeprom.h>
+
+#include "iommu.h"
 
 #if 0
 #define EISA_DBG(msg, arg...) printk(KERN_DEBUG "eisa: " msg, ## arg)
@@ -246,11 +243,6 @@ static irqreturn_t dummy_irq2_handler(int _, void *dev)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq2_action = {
-	.handler = dummy_irq2_handler,
-	.name = "cascade",
-};
-
 static void init_eisa_pic(void)
 {
 	unsigned long flags;
@@ -338,7 +330,8 @@ static int __init eisa_probe(struct parisc_device *dev)
 	}
 
 	/* Reserve IRQ2 */
-	setup_irq(2, &irq2_action);
+	if (request_irq(2, dummy_irq2_handler, 0, "cascade", NULL))
+		pr_err("Failed to request irq 2 (cascade)\n");
 	for (i = 0; i < 16; i++) {
 		irq_set_chip_and_handler(i, &eisa_interrupt_type,
 					 handle_simple_irq);
@@ -357,10 +350,10 @@ static int __init eisa_probe(struct parisc_device *dev)
 			eisa_dev.eeprom_addr = MIRAGE_EEPROM_BASE_ADDR;
 		}
 	}
-	eisa_eeprom_addr = ioremap_nocache(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
+	eisa_eeprom_addr = ioremap(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
 	if (!eisa_eeprom_addr) {
 		result = -ENOMEM;
-		printk(KERN_ERR "EISA: ioremap_nocache failed!\n");
+		printk(KERN_ERR "EISA: ioremap failed!\n");
 		goto error_free_irq;
 	}
 	result = eisa_enumerator(eisa_dev.eeprom_addr, &eisa_dev.hba.io_space,

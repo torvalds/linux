@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *   Copyright (C) 2006 by Hans Edgington <hans@edgington.nl>              *
  *   Copyright (C) 2007-2011 Hans de Goede <hdegoede@redhat.com>           *
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -62,6 +49,8 @@
 #define SIO_F81768D_ID		0x1210	/* Chipset ID */
 #define SIO_F81865_ID		0x0704	/* Chipset ID */
 #define SIO_F81866_ID		0x1010	/* Chipset ID */
+#define SIO_F71858AD_ID		0x0903	/* Chipset ID */
+#define SIO_F81966_ID		0x1502	/* Chipset ID */
 
 #define REGION_LENGTH		8
 #define ADDR_REG_OFFSET		5
@@ -266,7 +255,7 @@ struct f71882fg_data {
 
 	struct mutex update_lock;
 	int temp_start;			/* temp numbering start (0 or 1) */
-	char valid;			/* !=0 if following fields are valid */
+	bool valid;			/* true if following fields are valid */
 	char auto_point_temp_signed;
 	unsigned long last_updated;	/* In jiffies */
 	unsigned long last_limits;	/* In jiffies */
@@ -1298,7 +1287,7 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 				data->pwm_auto_point_pwm[nr][0] =
 					f71882fg_read8(data,
 						F71882FG_REG_POINT_PWM(nr, 0));
-				/* Fall through */
+				fallthrough;
 			case f71862fg:
 				data->pwm_auto_point_pwm[nr][1] =
 					f71882fg_read8(data,
@@ -1372,7 +1361,7 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 							F71882FG_REG_IN(nr));
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -1590,8 +1579,9 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
 		temp *= 125;
 		if (sign)
 			temp -= 128000;
-	} else
-		temp = data->temp[nr] * 1000;
+	} else {
+		temp = ((s8)data->temp[nr]) * 1000;
+	}
 
 	return sprintf(buf, "%d\n", temp);
 }
@@ -2455,7 +2445,7 @@ static int f71882fg_probe(struct platform_device *pdev)
 		case f71869a:
 			/* These always have signed auto point temps */
 			data->auto_point_temp_signed = 1;
-			/* Fall through to select correct fan/pwm reg bank! */
+			fallthrough;	/* to select correct fan/pwm reg bank! */
 		case f71889fg:
 		case f71889ed:
 		case f71889a:
@@ -2649,6 +2639,7 @@ static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 		sio_data->type = f71808a;
 		break;
 	case SIO_F71858_ID:
+	case SIO_F71858AD_ID:
 		sio_data->type = f71858fg;
 		break;
 	case SIO_F71862_ID:
@@ -2685,6 +2676,7 @@ static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 		sio_data->type = f81865f;
 		break;
 	case SIO_F81866_ID:
+	case SIO_F81966_ID:
 		sio_data->type = f81866a;
 		break;
 	default:

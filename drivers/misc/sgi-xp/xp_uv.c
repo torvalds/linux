@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -17,7 +18,7 @@
 #include <asm/uv/uv_hub.h>
 #if defined CONFIG_X86_64
 #include <asm/uv/bios.h>
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#elif defined CONFIG_IA64_SGI_UV
 #include <asm/sn/sn_sal.h>
 #endif
 #include "../sgi-gru/grukservices.h"
@@ -99,7 +100,7 @@ xp_expand_memprotect_uv(unsigned long phys_addr, unsigned long size)
 		return xpBiosError;
 	}
 
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#elif defined CONFIG_IA64_SGI_UV
 	u64 nasid_array;
 
 	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_1,
@@ -129,7 +130,7 @@ xp_restrict_memprotect_uv(unsigned long phys_addr, unsigned long size)
 		return xpBiosError;
 	}
 
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#elif defined CONFIG_IA64_SGI_UV
 	u64 nasid_array;
 
 	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_0,
@@ -148,12 +149,15 @@ xp_restrict_memprotect_uv(unsigned long phys_addr, unsigned long size)
 enum xp_retval
 xp_init_uv(void)
 {
-	BUG_ON(!is_uv());
+	WARN_ON(!is_uv_system());
+	if (!is_uv_system())
+		return xpUnsupported;
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_UV;
+#ifdef CONFIG_X86
 	xp_partition_id = sn_partition_id;
 	xp_region_size = sn_region_size;
-
+#endif
 	xp_pa = xp_pa_uv;
 	xp_socket_pa = xp_socket_pa_uv;
 	xp_remote_memcpy = xp_remote_memcpy_uv;
@@ -167,5 +171,5 @@ xp_init_uv(void)
 void
 xp_exit_uv(void)
 {
-	BUG_ON(!is_uv());
+	WARN_ON(!is_uv_system());
 }

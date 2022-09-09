@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Compare pointer-typed values to NULL rather than 0
 ///
 //# This makes an effort to choose between !x and x == NULL.  !x is used
@@ -7,9 +8,9 @@
 //# include path.
 //
 // Confidence: High
-// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.  GPLv2.
-// URL: http://coccinelle.lip6.fr/
+// Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Requires: 1.0.0
 // Options:
 

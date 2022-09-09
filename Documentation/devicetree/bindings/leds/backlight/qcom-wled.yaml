@@ -1,0 +1,255 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/backlight/qcom-wled.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for Qualcomm Technologies, Inc. WLED driver
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+  - Kiran Gunda <kgunda@codeaurora.org>
+
+description: |
+  WLED (White Light Emitting Diode) driver is used for controlling display
+  backlight that is part of PMIC on Qualcomm Technologies, Inc. reference
+  platforms. The PMIC is connected to the host processor via SPMI bus.
+
+properties:
+  compatible:
+    enum:
+      - qcom,pm8941-wled
+      - qcom,pmi8994-wled
+      - qcom,pmi8998-wled
+      - qcom,pm660l-wled
+      - qcom,pm6150l-wled
+      - qcom,pm8150l-wled
+
+  reg:
+    maxItems: 1
+
+  default-brightness:
+    description: |
+      brightness value on boot.
+
+  label: true
+
+  max-brightness:
+    description: |
+      Maximum brightness level.
+
+  qcom,cs-out:
+    description: |
+      enable current sink output.
+      This property is supported only for WLED3.
+    type: boolean
+
+  qcom,cabc:
+    description: |
+      enable content adaptive backlight control.
+    type: boolean
+
+  qcom,ext-gen:
+    description: |
+      use externally generated modulator signal to dim.
+      This property is supported only for WLED3.
+    type: boolean
+
+  qcom,current-limit:
+    description: |
+      mA; per-string current limit.
+      This property is supported only for WLED3.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 20
+    minimum: 0
+    maximum: 25
+
+  qcom,current-limit-microamp:
+    description: |
+      uA; per-string current limit.
+    default: 25
+    minimum: 0
+    maximum: 30000
+    multipleOf: 25
+
+  qcom,current-boost-limit:
+    description: |
+      mA; boost current limit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  qcom,switching-freq:
+    description: |
+      kHz; switching frequency.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 600, 640, 685, 738, 800, 872, 960, 1066, 1200, 1371, 1600, 1920,
+            2400, 3200, 4800, 9600 ]
+
+  qcom,ovp:
+    description: |
+      V; Over-voltage protection limit.
+      This property is supported only for WLED3.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 27, 29, 32, 35 ]
+    default: 29
+
+  qcom,ovp-millivolt:
+    description: |
+      Over-voltage protection limit. This property is for WLED4 only.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 18100, 19600, 29600, 31100 ]
+    default: 29600
+
+  qcom,num-strings:
+    description: |
+      number of led strings attached.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  qcom,enabled-strings:
+    description: |
+      Array of the WLED strings numbered from 0 to 3. Each
+      string of leds are operated individually. Specify the
+      list of strings used by the device. Any combination of
+      led strings can be used.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+
+  qcom,external-pfet:
+    description: |
+      Specify if external PFET control for short circuit
+      protection is used. This property is supported only
+      for WLED4.
+    type: boolean
+
+  qcom,auto-string-detection:
+    description: |
+      Enables auto-detection of the WLED string configuration.
+      This feature is not supported for WLED3.
+    type: boolean
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: over voltage protection interrupt.
+      - description: short circuit interrupt.
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: ovp
+      - const: short
+
+  qcom,modulator-sel:
+    description: |
+      Selects the modulator used for brightness modulation.
+      Allowed values are,
+           0 - Modulator A
+           1 - Modulator B
+      This property is applicable only to WLED5 peripheral.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
+    default: 0
+
+  qcom,cabc-sel:
+    description: |
+      Selects the CABC pin signal used for brightness modulation.
+      Allowed values are,
+           0 - CABC disabled
+           1 - CABC 1
+           2 - CABC 2
+           3 - External signal (e.g. LPG) is used for dimming
+      This property is applicable only to WLED5 peripheral.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1, 2, 3 ]
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,pm8941-wled
+
+    then:
+      properties:
+        qcom,current-boost-limit:
+          enum: [ 105, 385, 525, 805, 980, 1260, 1400, 1680 ]
+          default: 805
+
+        qcom,switching-freq:
+          default: 1600
+
+        qcom,num-strings:
+          enum: [ 1, 2, 3 ]
+
+        interrupts:
+          maxItems: 1
+
+        interrupt-names:
+          maxItems: 1
+
+    else:
+      properties:
+        qcom,current-boost-limit:
+          enum: [ 105, 280, 450, 620, 970, 1150, 1300, 1500 ]
+          default: 970
+
+        qcom,switching-freq:
+          default: 800
+
+        qcom,num-strings:
+          enum: [ 1, 2, 3, 4 ]
+
+        interrupts:
+          minItems: 2
+
+        interrupt-names:
+          minItems: 2
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8150l-wled
+
+    then:
+      properties:
+        default-brightness:
+          minimum: 0
+          maximum: 32767
+
+        max-brightness:
+          minimum: 0
+          maximum: 32767
+
+    else:
+      properties:
+        default-brightness:
+          minimum: 0
+          maximum: 4095
+
+        max-brightness:
+          minimum: 0
+          maximum: 4095
+
+required:
+  - compatible
+  - reg
+  - label
+
+additionalProperties: false
+
+examples:
+  - |
+    backlight@d800 {
+        compatible = "qcom,pm8941-wled";
+        reg = <0xd800 0x100>;
+        label = "backlight";
+
+        qcom,cs-out;
+        qcom,current-limit = <20>;
+        qcom,current-boost-limit = <805>;
+        qcom,switching-freq = <1600>;
+        qcom,ovp = <29>;
+        qcom,num-strings = <2>;
+        qcom,enabled-strings = <0 1>;
+     };

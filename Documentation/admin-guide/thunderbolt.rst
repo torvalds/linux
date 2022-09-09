@@ -1,6 +1,28 @@
-=============
- Thunderbolt
-=============
+.. SPDX-License-Identifier: GPL-2.0
+
+======================
+ USB4 and Thunderbolt
+======================
+USB4 is the public specification based on Thunderbolt 3 protocol with
+some differences at the register level among other things. Connection
+manager is an entity running on the host router (host controller)
+responsible for enumerating routers and establishing tunnels. A
+connection manager can be implemented either in firmware or software.
+Typically PCs come with a firmware connection manager for Thunderbolt 3
+and early USB4 capable systems. Apple systems on the other hand use
+software connection manager and the later USB4 compliant devices follow
+the suit.
+
+The Linux Thunderbolt driver supports both and can detect at runtime which
+connection manager implementation is to be used. To be on the safe side the
+software connection manager in Linux also advertises security level
+``user`` which means PCIe tunneling is disabled by default. The
+documentation below applies to both implementations with the exception that
+the software connection manager only supports ``user`` security level and
+is expected to be accompanied with an IOMMU based DMA protection.
+
+Security levels and how to use them
+-----------------------------------
 The interface presented here is not meant for end users. Instead there
 should be a userspace tool that handles all the low-level details, keeps
 a database of the authorized devices and prompts users for new connections.
@@ -18,14 +40,15 @@ This will authorize all devices automatically when they appear. However,
 keep in mind that this bypasses the security levels and makes the system
 vulnerable to DMA attacks.
 
-Security levels and how to use them
------------------------------------
 Starting with Intel Falcon Ridge Thunderbolt controller there are 4
 security levels available. Intel Titan Ridge added one more security level
 (usbonly). The reason for these is the fact that the connected devices can
 be DMA masters and thus read contents of the host memory without CPU and OS
 knowing about it. There are ways to prevent this by setting up an IOMMU but
 it is not always available for various reasons.
+
+Some USB4 systems have a BIOS setting to disable PCIe tunneling. This is
+treated as another security level (nopcie).
 
 The security levels are as follows:
 
@@ -56,6 +79,10 @@ The security levels are as follows:
     The firmware automatically creates tunnels for the USB controller and
     Display Port in a dock. All PCIe links downstream of the dock are
     removed.
+
+  nopcie
+    PCIe tunneling is disabled/forbidden from the BIOS. Available in some
+    USB4 systems.
 
 The current security level can be read from
 ``/sys/bus/thunderbolt/devices/domainX/security`` where ``domainX`` is
@@ -133,6 +160,22 @@ If the user still wants to connect the device they can either approve
 the device without a key or write a new key and write 1 to the
 ``authorized`` file to get the new key stored on the device NVM.
 
+De-authorizing devices
+----------------------
+It is possible to de-authorize devices by writing ``0`` to their
+``authorized`` attribute. This requires support from the connection
+manager implementation and can be checked by reading domain
+``deauthorization`` attribute. If it reads ``1`` then the feature is
+supported.
+
+When a device is de-authorized the PCIe tunnel from the parent device
+PCIe downstream (or root) port to the device PCIe upstream port is torn
+down. This is essentially the same thing as PCIe hot-remove and the PCIe
+toplogy in question will not be accessible anymore until the device is
+authorized again. If there is storage such as NVMe or similar involved,
+there is a risk for data loss if the filesystem on that storage is not
+properly shut down. You have been warned!
+
 DMA protection utilizing IOMMU
 ------------------------------
 Recent systems from 2018 and forward with Thunderbolt ports may natively
@@ -153,8 +196,8 @@ following ``udev`` rule::
 
   ACTION=="add", SUBSYSTEM=="thunderbolt", ATTRS{iommu_dma_protection}=="1", ATTR{authorized}=="0", ATTR{authorized}="1"
 
-Upgrading NVM on Thunderbolt device or host
--------------------------------------------
+Upgrading NVM on Thunderbolt device, host or retimer
+----------------------------------------------------
 Since most of the functionality is handled in firmware running on a
 host controller or a device, it is important that the firmware can be
 upgraded to the latest where possible bugs in it have been fixed.
@@ -165,9 +208,10 @@ for some machines:
 
   `Thunderbolt Updates <https://thunderbolttechnology.net/updates>`_
 
-Before you upgrade firmware on a device or host, please make sure it is a
-suitable upgrade. Failing to do that may render the device (or host) in a
-state where it cannot be used properly anymore without special tools!
+Before you upgrade firmware on a device, host or retimer, please make
+sure it is a suitable upgrade. Failing to do that may render the device
+in a state where it cannot be used properly anymore without special
+tools!
 
 Host NVM upgrade on Apple Macs is not supported.
 
@@ -211,6 +255,35 @@ of the NVM image failed.
 Note names of the NVMem devices ``nvm_activeN`` and ``nvm_non_activeN``
 depend on the order they are registered in the NVMem subsystem. N in
 the name is the identifier added by the NVMem subsystem.
+
+Upgrading on-board retimer NVM when there is no cable connected
+---------------------------------------------------------------
+If the platform supports, it may be possible to upgrade the retimer NVM
+firmware even when there is nothing connected to the USB4
+ports. When this is the case the ``usb4_portX`` devices have two special
+attributes: ``offline`` and ``rescan``. The way to upgrade the firmware
+is to first put the USB4 port into offline mode::
+
+  # echo 1 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/offline
+
+This step makes sure the port does not respond to any hotplug events,
+and also ensures the retimers are powered on. The next step is to scan
+for the retimers::
+
+  # echo 1 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/rescan
+
+This enumerates and adds the on-board retimers. Now retimer NVM can be
+upgraded in the same way than with cable connected (see previous
+section). However, the retimer is not disconnected as we are offline
+mode) so after writing ``1`` to ``nvm_authenticate`` one should wait for
+5 or more seconds before running rescan again::
+
+  # echo 1 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/rescan
+
+This point if everything went fine, the port can be put back to
+functional state again::
+
+  # echo 0 > /sys/bus/thunderbolt/devices/0-0/usb4_port1/offline
 
 Upgrading NVM when host controller is in safe mode
 --------------------------------------------------

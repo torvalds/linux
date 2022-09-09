@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2017 Broadcom
 
 /*
  * Broadcom FlexRM Mailbox Driver
@@ -296,8 +286,6 @@ struct flexrm_mbox {
 	struct dma_pool *bd_pool;
 	struct dma_pool *cmpl_pool;
 	struct dentry *root;
-	struct dentry *config;
-	struct dentry *stats;
 	struct mbox_controller controller;
 };
 
@@ -425,7 +413,7 @@ static void flexrm_enqueue_desc(u32 nhpos, u32 nhcnt, u32 reqid,
 	 *
 	 * In general use, number of non-HEADER descriptors can easily go
 	 * beyond 31. To tackle this situation, we have packet (or request)
-	 * extenstion bits (STARTPKT and ENDPKT) in the HEADER descriptor.
+	 * extension bits (STARTPKT and ENDPKT) in the HEADER descriptor.
 	 *
 	 * To use packet extension, the first HEADER descriptor of request
 	 * (or packet) will have STARTPKT=1 and ENDPKT=0. The intermediate
@@ -1097,7 +1085,7 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 	/*
 	 * Get current completion read and write offset
 	 *
-	 * Note: We should read completion write pointer atleast once
+	 * Note: We should read completion write pointer at least once
 	 * after we get a MSI interrupt because HW maintains internal
 	 * MSI status which will allow next MSI interrupt only after
 	 * completion write pointer is read.
@@ -1165,8 +1153,7 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 
 static int flexrm_debugfs_conf_show(struct seq_file *file, void *offset)
 {
-	struct platform_device *pdev = to_platform_device(file->private);
-	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
+	struct flexrm_mbox *mbox = dev_get_drvdata(file->private);
 
 	/* Write config in file */
 	flexrm_write_config_in_seqfile(mbox, file);
@@ -1176,8 +1163,7 @@ static int flexrm_debugfs_conf_show(struct seq_file *file, void *offset)
 
 static int flexrm_debugfs_stats_show(struct seq_file *file, void *offset)
 {
-	struct platform_device *pdev = to_platform_device(file->private);
-	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
+	struct flexrm_mbox *mbox = dev_get_drvdata(file->private);
 
 	/* Write stats in file */
 	flexrm_write_stats_in_seqfile(mbox, file);
@@ -1302,7 +1288,7 @@ static int flexrm_startup(struct mbox_chan *chan)
 	val = (num_online_cpus() < val) ? val / num_online_cpus() : 1;
 	cpumask_set_cpu((ring->num / val) % num_online_cpus(),
 			&ring->irq_aff_hint);
-	ret = irq_set_affinity_hint(ring->irq, &ring->irq_aff_hint);
+	ret = irq_update_affinity_hint(ring->irq, &ring->irq_aff_hint);
 	if (ret) {
 		dev_err(ring->mbox->dev,
 			"failed to set IRQ affinity hint for ring%d\n",
@@ -1396,9 +1382,9 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 
 	/* Clear ring flush state */
 	timeout = 1000; /* timeout of 1s */
-	writel_relaxed(0x0, ring + RING_CONTROL);
+	writel_relaxed(0x0, ring->regs + RING_CONTROL);
 	do {
-		if (!(readl_relaxed(ring + RING_FLUSH_DONE) &
+		if (!(readl_relaxed(ring->regs + RING_FLUSH_DONE) &
 		      FLUSH_DONE_MASK))
 			break;
 		mdelay(1);
@@ -1429,7 +1415,7 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 
 	/* Release IRQ */
 	if (ring->irq_requested) {
-		irq_set_affinity_hint(ring->irq, NULL);
+		irq_update_affinity_hint(ring->irq, NULL);
 		free_irq(ring->irq, ring);
 		ring->irq_requested = false;
 	}
@@ -1488,7 +1474,7 @@ static void flexrm_mbox_msi_write(struct msi_desc *desc, struct msi_msg *msg)
 {
 	struct device *dev = msi_desc_to_dev(desc);
 	struct flexrm_mbox *mbox = dev_get_drvdata(dev);
-	struct flexrm_ring *ring = &mbox->rings[desc->platform.msi_index];
+	struct flexrm_ring *ring = &mbox->rings[desc->msi_index];
 
 	/* Configure per-Ring MSI registers */
 	writel_relaxed(msg->address_lo, ring->regs + RING_MSI_ADDR_LS);
@@ -1501,7 +1487,6 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 	int index, ret = 0;
 	void __iomem *regs;
 	void __iomem *regs_end;
-	struct msi_desc *desc;
 	struct resource *iomem;
 	struct flexrm_ring *ring;
 	struct flexrm_mbox *mbox;
@@ -1527,7 +1512,6 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 	mbox->regs = devm_ioremap_resource(&pdev->dev, iomem);
 	if (IS_ERR(mbox->regs)) {
 		ret = PTR_ERR(mbox->regs);
-		dev_err(&pdev->dev, "Failed to remap mailbox regs: %d\n", ret);
 		goto fail;
 	}
 	regs_end = mbox->regs + resource_size(iomem);
@@ -1613,10 +1597,8 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 		goto fail_destroy_cmpl_pool;
 
 	/* Save alloced IRQ numbers for each ring */
-	for_each_msi_entry(desc, dev) {
-		ring = &mbox->rings[desc->platform.msi_index];
-		ring->irq = desc->irq;
-	}
+	for (index = 0; index < mbox->num_rings; index++)
+		mbox->rings[index].irq = msi_get_virq(dev, index);
 
 	/* Check availability of debugfs */
 	if (!debugfs_initialized())
@@ -1624,28 +1606,15 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 
 	/* Create debugfs root entry */
 	mbox->root = debugfs_create_dir(dev_name(mbox->dev), NULL);
-	if (IS_ERR_OR_NULL(mbox->root)) {
-		ret = PTR_ERR_OR_ZERO(mbox->root);
-		goto fail_free_msis;
-	}
 
 	/* Create debugfs config entry */
-	mbox->config = debugfs_create_devm_seqfile(mbox->dev,
-						   "config", mbox->root,
-						   flexrm_debugfs_conf_show);
-	if (IS_ERR_OR_NULL(mbox->config)) {
-		ret = PTR_ERR_OR_ZERO(mbox->config);
-		goto fail_free_debugfs_root;
-	}
+	debugfs_create_devm_seqfile(mbox->dev, "config", mbox->root,
+				    flexrm_debugfs_conf_show);
 
 	/* Create debugfs stats entry */
-	mbox->stats = debugfs_create_devm_seqfile(mbox->dev,
-						  "stats", mbox->root,
-						  flexrm_debugfs_stats_show);
-	if (IS_ERR_OR_NULL(mbox->stats)) {
-		ret = PTR_ERR_OR_ZERO(mbox->stats);
-		goto fail_free_debugfs_root;
-	}
+	debugfs_create_devm_seqfile(mbox->dev, "stats", mbox->root,
+				    flexrm_debugfs_stats_show);
+
 skip_debugfs:
 
 	/* Initialize mailbox controller */
@@ -1676,7 +1645,6 @@ skip_debugfs:
 
 fail_free_debugfs_root:
 	debugfs_remove_recursive(mbox->root);
-fail_free_msis:
 	platform_msi_domain_free_irqs(dev);
 fail_destroy_cmpl_pool:
 	dma_pool_destroy(mbox->cmpl_pool);

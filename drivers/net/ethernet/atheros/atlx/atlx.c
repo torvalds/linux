@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* atlx.c -- common functions for Attansic network drivers
  *
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
@@ -7,20 +8,6 @@
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 /* Including this file like a header is a temporary hack, I promise. -- CHS */
@@ -82,7 +69,7 @@ static int atlx_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	memcpy(adapter->hw.mac_addr, addr->sa_data, netdev->addr_len);
 
 	atlx_set_mac_addr(&adapter->hw);
@@ -196,7 +183,7 @@ static void atlx_clear_phy_int(struct atlx_adapter *adapter)
  * atlx_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
-static void atlx_tx_timeout(struct net_device *netdev)
+static void atlx_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct atlx_adapter *adapter = netdev_priv(netdev);
 	/* Do the reset outside of interrupt context */

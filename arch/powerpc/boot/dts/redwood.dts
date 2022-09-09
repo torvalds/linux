@@ -235,7 +235,7 @@
 				has-new-stacr-staopc;
 			};
 		};
-		PCIE0: pciex@d00000000 {
+		PCIE0: pcie@d00000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -276,7 +276,7 @@
 				0x0 0x0 0x0 0x4 &UIC3 0x3 0x4 /* swizzled int D */>;
 		};
 
-		PCIE1: pciex@d20000000 {
+		PCIE1: pcie@d20000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -317,7 +317,7 @@
 				0x0 0x0 0x0 0x4 &UIC3 0x7 0x4 /* swizzled int D */>;
 		};
 
-		PCIE2: pciex@d40000000 {
+		PCIE2: pcie@d40000000 {
 			device_type = "pci";
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
@@ -356,25 +356,6 @@
 				0x0 0x0 0x0 0x2 &UIC3 0x9 0x4 /* swizzled int B */
 				0x0 0x0 0x0 0x3 &UIC3 0xa 0x4 /* swizzled int C */
 				0x0 0x0 0x0 0x4 &UIC3 0xb 0x4 /* swizzled int D */>;
-		};
-
-		MSI: ppc4xx-msi@400300000 {
-				compatible = "amcc,ppc4xx-msi", "ppc4xx-msi";
-				reg = < 0x4 0x00300000 0x100
-					0x4 0x00300000 0x100>;
-				sdr-base = <0x3B0>;
-				msi-data = <0x00000000>;
-				msi-mask = <0x44440000>;
-				interrupt-count = <3>;
-				interrupts =<0 1 2 3>;
-				interrupt-parent = <&UIC0>;
-				#interrupt-cells = <1>;
-				#address-cells = <0>;
-				#size-cells = <0>;
-				interrupt-map = <0 &UIC0 0xC 1
-					1 &UIC0 0x0D 1
-					2 &UIC0 0x0E 1
-					3 &UIC0 0x0F 1>;
 		};
 
 	};

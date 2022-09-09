@@ -36,15 +36,11 @@
 #define IMX_SC_R_DC_0_BLIT1		20
 #define IMX_SC_R_DC_0_BLIT2		21
 #define IMX_SC_R_DC_0_BLIT_OUT		22
-#define IMX_SC_R_DC_0_CAPTURE0		23
-#define IMX_SC_R_DC_0_CAPTURE1		24
+#define IMX_SC_R_PERF			23
 #define IMX_SC_R_DC_0_WARP		25
-#define IMX_SC_R_DC_0_INTEGRAL0		26
-#define IMX_SC_R_DC_0_INTEGRAL1		27
 #define IMX_SC_R_DC_0_VIDEO0		28
 #define IMX_SC_R_DC_0_VIDEO1		29
 #define IMX_SC_R_DC_0_FRAC0		30
-#define IMX_SC_R_DC_0_FRAC1		31
 #define IMX_SC_R_DC_0			32
 #define IMX_SC_R_GPU_2_PID0		33
 #define IMX_SC_R_DC_0_PLL_0		34
@@ -53,17 +49,11 @@
 #define IMX_SC_R_DC_1_BLIT1		37
 #define IMX_SC_R_DC_1_BLIT2		38
 #define IMX_SC_R_DC_1_BLIT_OUT		39
-#define IMX_SC_R_DC_1_CAPTURE0		40
-#define IMX_SC_R_DC_1_CAPTURE1		41
 #define IMX_SC_R_DC_1_WARP		42
-#define IMX_SC_R_DC_1_INTEGRAL0		43
-#define IMX_SC_R_DC_1_INTEGRAL1		44
 #define IMX_SC_R_DC_1_VIDEO0		45
 #define IMX_SC_R_DC_1_VIDEO1		46
 #define IMX_SC_R_DC_1_FRAC0		47
-#define IMX_SC_R_DC_1_FRAC1		48
 #define IMX_SC_R_DC_1			49
-#define IMX_SC_R_GPU_3_PID0		50
 #define IMX_SC_R_DC_1_PLL_0		51
 #define IMX_SC_R_DC_1_PLL_1		52
 #define IMX_SC_R_SPI_0			53
@@ -121,6 +111,7 @@
 #define IMX_SC_R_CAN_0			105
 #define IMX_SC_R_CAN_1			106
 #define IMX_SC_R_CAN_2			107
+#define IMX_SC_R_CAN(x)			(IMX_SC_R_CAN_0 + (x))
 #define IMX_SC_R_DMA_1_CH0		108
 #define IMX_SC_R_DMA_1_CH1		109
 #define IMX_SC_R_DMA_1_CH2		110
@@ -303,8 +294,6 @@
 #define IMX_SC_R_M4_0_UART		287
 #define IMX_SC_R_M4_0_I2C		288
 #define IMX_SC_R_M4_0_INTMUX		289
-#define IMX_SC_R_M4_0_SIM		290
-#define IMX_SC_R_M4_0_WDOG		291
 #define IMX_SC_R_M4_0_MU_0B		292
 #define IMX_SC_R_M4_0_MU_0A0		293
 #define IMX_SC_R_M4_0_MU_0A1		294
@@ -323,8 +312,6 @@
 #define IMX_SC_R_M4_1_UART		307
 #define IMX_SC_R_M4_1_I2C		308
 #define IMX_SC_R_M4_1_INTMUX		309
-#define IMX_SC_R_M4_1_SIM		310
-#define IMX_SC_R_M4_1_WDOG		311
 #define IMX_SC_R_M4_1_MU_0B		312
 #define IMX_SC_R_M4_1_MU_0A0		313
 #define IMX_SC_R_M4_1_MU_0A1		314
@@ -337,7 +324,7 @@
 #define IMX_SC_R_IRQSTR_SCU2		321
 #define IMX_SC_R_IRQSTR_DSP		322
 #define IMX_SC_R_ELCDIF_PLL		323
-#define IMX_SC_R_UNUSED6		324
+#define IMX_SC_R_OCRAM			324
 #define IMX_SC_R_AUDIO_PLL_0		325
 #define IMX_SC_R_PI_0			326
 #define IMX_SC_R_PI_0_PWM_0		327
@@ -554,6 +541,95 @@
 #define IMX_SC_R_VPU_MU_3		538
 #define IMX_SC_R_VPU_ENC_1		539
 #define IMX_SC_R_VPU			540
-#define IMX_SC_R_LAST			541
+#define IMX_SC_R_DMA_5_CH0		541
+#define IMX_SC_R_DMA_5_CH1		542
+#define IMX_SC_R_DMA_5_CH2		543
+#define IMX_SC_R_DMA_5_CH3		544
+#define IMX_SC_R_ATTESTATION		545
+#define IMX_SC_R_LAST			546
+
+/*
+ * Defines for SC PM CLK
+ */
+#define IMX_SC_PM_CLK_SLV_BUS		0	/* Slave bus clock */
+#define IMX_SC_PM_CLK_MST_BUS		1	/* Master bus clock */
+#define IMX_SC_PM_CLK_PER		2	/* Peripheral clock */
+#define IMX_SC_PM_CLK_PHY		3	/* Phy clock */
+#define IMX_SC_PM_CLK_MISC		4	/* Misc clock */
+#define IMX_SC_PM_CLK_MISC0		0	/* Misc 0 clock */
+#define IMX_SC_PM_CLK_MISC1		1	/* Misc 1 clock */
+#define IMX_SC_PM_CLK_MISC2		2	/* Misc 2 clock */
+#define IMX_SC_PM_CLK_MISC3		3	/* Misc 3 clock */
+#define IMX_SC_PM_CLK_MISC4		4	/* Misc 4 clock */
+#define IMX_SC_PM_CLK_CPU		2	/* CPU clock */
+#define IMX_SC_PM_CLK_PLL		4	/* PLL */
+#define IMX_SC_PM_CLK_BYPASS		4	/* Bypass clock */
+
+/*
+ * Defines for SC CONTROL
+ */
+#define IMX_SC_C_TEMP				0
+#define IMX_SC_C_TEMP_HI			1
+#define IMX_SC_C_TEMP_LOW			2
+#define IMX_SC_C_PXL_LINK_MST1_ADDR		3
+#define IMX_SC_C_PXL_LINK_MST2_ADDR		4
+#define IMX_SC_C_PXL_LINK_MST_ENB		5
+#define IMX_SC_C_PXL_LINK_MST1_ENB		6
+#define IMX_SC_C_PXL_LINK_MST2_ENB		7
+#define IMX_SC_C_PXL_LINK_SLV1_ADDR		8
+#define IMX_SC_C_PXL_LINK_SLV2_ADDR		9
+#define IMX_SC_C_PXL_LINK_MST_VLD		10
+#define IMX_SC_C_PXL_LINK_MST1_VLD		11
+#define IMX_SC_C_PXL_LINK_MST2_VLD		12
+#define IMX_SC_C_SINGLE_MODE			13
+#define IMX_SC_C_ID				14
+#define IMX_SC_C_PXL_CLK_POLARITY		15
+#define IMX_SC_C_LINESTATE			16
+#define IMX_SC_C_PCIE_G_RST			17
+#define IMX_SC_C_PCIE_BUTTON_RST		18
+#define IMX_SC_C_PCIE_PERST			19
+#define IMX_SC_C_PHY_RESET			20
+#define IMX_SC_C_PXL_LINK_RATE_CORRECTION	21
+#define IMX_SC_C_PANIC				22
+#define IMX_SC_C_PRIORITY_GROUP			23
+#define IMX_SC_C_TXCLK				24
+#define IMX_SC_C_CLKDIV				25
+#define IMX_SC_C_DISABLE_50			26
+#define IMX_SC_C_DISABLE_125			27
+#define IMX_SC_C_SEL_125			28
+#define IMX_SC_C_MODE				29
+#define IMX_SC_C_SYNC_CTRL0			30
+#define IMX_SC_C_KACHUNK_CNT			31
+#define IMX_SC_C_KACHUNK_SEL			32
+#define IMX_SC_C_SYNC_CTRL1			33
+#define IMX_SC_C_DPI_RESET			34
+#define IMX_SC_C_MIPI_RESET			35
+#define IMX_SC_C_DUAL_MODE			36
+#define IMX_SC_C_VOLTAGE			37
+#define IMX_SC_C_PXL_LINK_SEL			38
+#define IMX_SC_C_OFS_SEL			39
+#define IMX_SC_C_OFS_AUDIO			40
+#define IMX_SC_C_OFS_PERIPH			41
+#define IMX_SC_C_OFS_IRQ			42
+#define IMX_SC_C_RST0				43
+#define IMX_SC_C_RST1				44
+#define IMX_SC_C_SEL0				45
+#define IMX_SC_C_CALIB0				46
+#define IMX_SC_C_CALIB1				47
+#define IMX_SC_C_CALIB2				48
+#define IMX_SC_C_IPG_DEBUG			49
+#define IMX_SC_C_IPG_DOZE			50
+#define IMX_SC_C_IPG_WAIT			51
+#define IMX_SC_C_IPG_STOP			52
+#define IMX_SC_C_IPG_STOP_MODE			53
+#define IMX_SC_C_IPG_STOP_ACK			54
+#define IMX_SC_C_SYNC_CTRL			55
+#define IMX_SC_C_OFS_AUDIO_ALT			56
+#define IMX_SC_C_DSP_BYP			57
+#define IMX_SC_C_CLK_GEN_EN			58
+#define IMX_SC_C_INTF_SEL			59
+#define IMX_SC_C_RXC_DLY			60
+#define IMX_SC_C_TIMER_SEL			61
+#define IMX_SC_C_LAST				62
 
 #endif /* __DT_BINDINGS_RSCRC_IMX_H */

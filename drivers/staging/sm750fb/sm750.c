@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -111,8 +112,8 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 	crtc = &par->crtc;
 	cursor = &crtc->cursor;
 
-	if (fbcursor->image.width > cursor->maxW ||
-	    fbcursor->image.height > cursor->maxH ||
+	if (fbcursor->image.width > cursor->max_w ||
+	    fbcursor->image.height > cursor->max_h ||
 	    fbcursor->image.depth > 1) {
 		return -ENXIO;
 	}
@@ -174,7 +175,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	 * each time 2d function begin to work,below three variable always need
 	 * be set, seems we can put them together in some place
 	 */
-	base = par->crtc.oScreen;
+	base = par->crtc.o_screen;
 	pitch = info->fix.line_length;
 	Bpp = info->var.bits_per_pixel >> 3;
 
@@ -212,7 +213,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	 * each time 2d function begin to work,below three variable always need
 	 * be set, seems we can put them together in some place
 	 */
-	base = par->crtc.oScreen;
+	base = par->crtc.o_screen;
 	pitch = info->fix.line_length;
 	Bpp = info->var.bits_per_pixel >> 3;
 
@@ -246,7 +247,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	 * each time 2d function begin to work,below three variable always need
 	 * be set, seems we can put them together in some place
 	 */
-	base = par->crtc.oScreen;
+	base = par->crtc.o_screen;
 	pitch = info->fix.line_length;
 	Bpp = info->var.bits_per_pixel >> 3;
 
@@ -296,6 +297,62 @@ static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
 	return hw_sm750_pan_display(crtc, var, info);
 }
 
+static inline void lynxfb_set_visual_mode(struct fb_info *info)
+{
+	switch (info->var.bits_per_pixel) {
+	case 8:
+		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
+		break;
+	case 16:
+	case 24:
+	case 32:
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
+		break;
+	default:
+		break;
+	}
+}
+
+static inline int lynxfb_set_color_offsets(struct fb_info *info)
+{
+	lynxfb_set_visual_mode(info);
+
+	switch (info->var.bits_per_pixel) {
+	case 8:
+		info->var.red.offset = 0;
+		info->var.red.length = 8;
+		info->var.green.offset = 0;
+		info->var.green.length = 8;
+		info->var.blue.offset = 0;
+		info->var.blue.length = 8;
+		info->var.transp.length = 0;
+		info->var.transp.offset = 0;
+		break;
+	case 16:
+		info->var.red.offset = 11;
+		info->var.red.length = 5;
+		info->var.green.offset = 5;
+		info->var.green.length = 6;
+		info->var.blue.offset = 0;
+		info->var.blue.length = 5;
+		info->var.transp.length = 0;
+		info->var.transp.offset = 0;
+		break;
+	case 24:
+	case 32:
+		info->var.red.offset = 16;
+		info->var.red.length = 8;
+		info->var.green.offset = 8;
+		info->var.green.length = 8;
+		info->var.blue.offset = 0;
+		info->var.blue.length = 8;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int lynxfb_ops_set_par(struct fb_info *info)
 {
 	struct lynxfb_par *par;
@@ -327,48 +384,13 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 	 * and these data should be set before setcolreg routine
 	 */
 
-	switch (var->bits_per_pixel) {
-	case 8:
-		fix->visual = FB_VISUAL_PSEUDOCOLOR;
-		var->red.offset = 0;
-		var->red.length = 8;
-		var->green.offset = 0;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		var->transp.length = 0;
-		var->transp.offset = 0;
-		break;
-	case 16:
-		var->red.offset = 11;
-		var->red.length = 5;
-		var->green.offset = 5;
-		var->green.length = 6;
-		var->blue.offset = 0;
-		var->blue.length = 5;
-		var->transp.length = 0;
-		var->transp.offset = 0;
-		fix->visual = FB_VISUAL_TRUECOLOR;
-		break;
-	case 24:
-	case 32:
-		var->red.offset = 16;
-		var->red.length = 8;
-		var->green.offset = 8;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		fix->visual = FB_VISUAL_TRUECOLOR;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
+	ret = lynxfb_set_color_offsets(info);
+
 	var->height = var->width = -1;
 	var->accel_flags = 0;/*FB_ACCELF_TEXT;*/
 
 	if (ret) {
-		pr_err("pixel bpp format not satisfied\n.");
+		pr_err("bpp %d not supported\n", var->bits_per_pixel);
 		return ret;
 	}
 	ret = hw_sm750_crtc_setMode(crtc, var, fix);
@@ -385,61 +407,30 @@ static inline unsigned int chan_to_field(unsigned int chan,
 	return chan << bf->offset;
 }
 
-#ifdef CONFIG_PM
-static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
+static int __maybe_unused lynxfb_suspend(struct device *dev)
 {
 	struct fb_info *info;
 	struct sm750_dev *sm750_dev;
-	int ret;
 
-	if (mesg.event == pdev->dev.power.power_state.event)
-		return 0;
-
-	ret = 0;
-	sm750_dev = pci_get_drvdata(pdev);
-	switch (mesg.event) {
-	case PM_EVENT_FREEZE:
-	case PM_EVENT_PRETHAW:
-		pdev->dev.power.power_state = mesg;
-		return 0;
-	}
+	sm750_dev = dev_get_drvdata(dev);
 
 	console_lock();
-	if (mesg.event & PM_EVENT_SLEEP) {
-		info = sm750_dev->fbinfo[0];
-		if (info)
-			/* 1 means do suspend */
-			fb_set_suspend(info, 1);
-		info = sm750_dev->fbinfo[1];
-		if (info)
-			/* 1 means do suspend */
-			fb_set_suspend(info, 1);
+	info = sm750_dev->fbinfo[0];
+	if (info)
+		/* 1 means do suspend */
+		fb_set_suspend(info, 1);
+	info = sm750_dev->fbinfo[1];
+	if (info)
+		/* 1 means do suspend */
+		fb_set_suspend(info, 1);
 
-		ret = pci_save_state(pdev);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"error:%d occurred in pci_save_state\n", ret);
-			goto lynxfb_suspend_err;
-		}
-
-		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
-		if (ret) {
-			dev_err(&pdev->dev,
-				"error:%d occurred in pci_set_power_state\n",
-				ret);
-			goto lynxfb_suspend_err;
-		}
-	}
-
-	pdev->dev.power.power_state = mesg;
-
-lynxfb_suspend_err:
 	console_unlock();
-	return ret;
+	return 0;
 }
 
-static int lynxfb_resume(struct pci_dev *pdev)
+static int __maybe_unused lynxfb_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct fb_info *info;
 	struct sm750_dev *sm750_dev;
 
@@ -447,31 +438,9 @@ static int lynxfb_resume(struct pci_dev *pdev)
 	struct lynxfb_crtc *crtc;
 	struct lynx_cursor *cursor;
 
-	int ret;
-
-	ret = 0;
 	sm750_dev = pci_get_drvdata(pdev);
 
 	console_lock();
-
-	ret = pci_set_power_state(pdev, PCI_D0);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"error:%d occurred in pci_set_power_state\n", ret);
-		goto lynxfb_resume_err;
-	}
-
-	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
-		pci_restore_state(pdev);
-		ret = pci_enable_device(pdev);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"error:%d occurred in pci_enable_device\n",
-				ret);
-			goto lynxfb_resume_err;
-		}
-		pci_set_master(pdev);
-	}
 
 	hw_sm750_inithw(sm750_dev, pdev);
 
@@ -482,7 +451,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		crtc = &par->crtc;
 		cursor = &crtc->cursor;
 		memset_io(cursor->vstart, 0x0, cursor->size);
-		memset_io(crtc->vScreen, 0x0, crtc->vidmem_size);
+		memset_io(crtc->v_screen, 0x0, crtc->vidmem_size);
 		lynxfb_ops_set_par(info);
 		fb_set_suspend(info, 0);
 	}
@@ -494,26 +463,26 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		crtc = &par->crtc;
 		cursor = &crtc->cursor;
 		memset_io(cursor->vstart, 0x0, cursor->size);
-		memset_io(crtc->vScreen, 0x0, crtc->vidmem_size);
+		memset_io(crtc->v_screen, 0x0, crtc->vidmem_size);
 		lynxfb_ops_set_par(info);
 		fb_set_suspend(info, 0);
 	}
 
 	pdev->dev.power.power_state.event = PM_EVENT_RESUME;
 
-lynxfb_resume_err:
 	console_unlock();
-	return ret;
+	return 0;
 }
-#endif
 
 static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 				struct fb_info *info)
 {
+	int ret;
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
 	resource_size_t request;
 
+	ret = 0;
 	par = info->par;
 	crtc = &par->crtc;
 
@@ -522,47 +491,17 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 		 var->yres,
 		 var->bits_per_pixel);
 
-	switch (var->bits_per_pixel) {
-	case 8:
-		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
-		var->red.offset = 0;
-		var->red.length = 8;
-		var->green.offset = 0;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		var->transp.length = 0;
-		var->transp.offset = 0;
-		break;
-	case 16:
-		var->red.offset = 11;
-		var->red.length = 5;
-		var->green.offset = 5;
-		var->green.length = 6;
-		var->blue.offset = 0;
-		var->blue.length = 5;
-		var->transp.length = 0;
-		var->transp.offset = 0;
-		info->fix.visual = FB_VISUAL_TRUECOLOR;
-		break;
-	case 24:
-	case 32:
-		var->red.offset = 16;
-		var->red.length = 8;
-		var->green.offset = 8;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		info->fix.visual = FB_VISUAL_TRUECOLOR;
-		break;
-	default:
+	ret = lynxfb_set_color_offsets(info);
+
+	if (ret) {
 		pr_err("bpp %d not supported\n", var->bits_per_pixel);
-		return -EINVAL;
+		return ret;
 	}
+
 	var->height = var->width = -1;
 	var->accel_flags = 0;/* FB_ACCELF_TEXT; */
 
-	/* check if current fb's video memory big enought to hold the onscreen*/
+	/* check if current fb's video memory big enough to hold the onscreen*/
 	request = var->xres_virtual * (var->bits_per_pixel >> 3);
 	/* defaulty crtc->channel go with par->index */
 
@@ -675,42 +614,44 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	case sm750_simul_pri:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_primary;
-		crtc->oScreen = 0;
-		crtc->vScreen = sm750_dev->pvMem;
+		crtc->o_screen = 0;
+		crtc->v_screen = sm750_dev->pvMem;
 		pr_info("use simul primary mode\n");
 		break;
 	case sm750_simul_sec:
 		output->paths = sm750_pnc;
 		crtc->channel = sm750_secondary;
-		crtc->oScreen = 0;
-		crtc->vScreen = sm750_dev->pvMem;
+		crtc->o_screen = 0;
+		crtc->v_screen = sm750_dev->pvMem;
 		break;
 	case sm750_dual_normal:
 		if (par->index == 0) {
 			output->paths = sm750_panel;
 			crtc->channel = sm750_primary;
-			crtc->oScreen = 0;
-			crtc->vScreen = sm750_dev->pvMem;
+			crtc->o_screen = 0;
+			crtc->v_screen = sm750_dev->pvMem;
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_secondary;
-			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
-			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
+			/* not consider of padding stuffs for o_screen,need fix */
+			crtc->o_screen = sm750_dev->vidmem_size >> 1;
+			crtc->v_screen = sm750_dev->pvMem + crtc->o_screen;
 		}
 		break;
 	case sm750_dual_swap:
 		if (par->index == 0) {
 			output->paths = sm750_panel;
 			crtc->channel = sm750_secondary;
-			crtc->oScreen = 0;
-			crtc->vScreen = sm750_dev->pvMem;
+			crtc->o_screen = 0;
+			crtc->v_screen = sm750_dev->pvMem;
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_primary;
-			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
-			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
+			/* not consider of padding stuffs for o_screen,
+			 * need fix
+			 */
+			crtc->o_screen = sm750_dev->vidmem_size >> 1;
+			crtc->v_screen = sm750_dev->pvMem + crtc->o_screen;
 		}
 		break;
 	default:
@@ -747,7 +688,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 		lynx750_ext, NULL, vesa_modes,
 	};
 	int cdb[] = {ARRAY_SIZE(lynx750_ext), 0, VESA_MODEDB_SIZE};
-	static const char *mdb_desc[] = {
+	static const char * const mdb_desc[] = {
 		"driver prepared modes",
 		"kernel prepared default modedb",
 		"kernel HELPERS prepared vesa_modes",
@@ -777,13 +718,13 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	 * set current cursor variable and proc pointer,
 	 * must be set after crtc member initialized
 	 */
-	crtc->cursor.offset = crtc->oScreen + crtc->vidmem_size - 1024;
+	crtc->cursor.offset = crtc->o_screen + crtc->vidmem_size - 1024;
 	crtc->cursor.mmio = sm750_dev->pvReg +
 		0x800f0 + (int)crtc->channel * 0x140;
 
 	pr_info("crtc->cursor.mmio = %p\n", crtc->cursor.mmio);
-	crtc->cursor.maxH = crtc->cursor.maxW = 64;
-	crtc->cursor.size = crtc->cursor.maxH * crtc->cursor.maxW * 2 / 8;
+	crtc->cursor.max_h = crtc->cursor.max_w = 64;
+	crtc->cursor.size = crtc->cursor.max_h * crtc->cursor.max_w * 2 / 8;
 	crtc->cursor.vstart = sm750_dev->pvMem + crtc->cursor.offset;
 
 	memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
@@ -860,7 +801,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 			    crtc->line_pad);
 
 	info->pseudo_palette = &par->pseudo_palette[0];
-	info->screen_base = crtc->vScreen;
+	info->screen_base = crtc->v_screen;
 	pr_debug("screen_base vaddr = %p\n", info->screen_base);
 	info->screen_size = line_length * var->yres_virtual;
 	info->flags = FBINFO_FLAG_DEFAULT | 0;
@@ -873,9 +814,9 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	fix->ywrapstep = crtc->ywrapstep;
 	fix->accel = FB_ACCEL_SMI;
 
-	strlcpy(fix->id, fixId[index], sizeof(fix->id));
+	strscpy(fix->id, fixId[index], sizeof(fix->id));
 
-	fix->smem_start = crtc->oScreen + sm750_dev->vidmem_start;
+	fix->smem_start = crtc->o_screen + sm750_dev->vidmem_start;
 	pr_info("fix->smem_start = %lx\n", fix->smem_start);
 	/*
 	 * according to mmap experiment from user space application,
@@ -892,15 +833,8 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	pr_info("fix->mmio_start = %lx\n", fix->mmio_start);
 	fix->mmio_len = sm750_dev->vidreg_size;
 	pr_info("fix->mmio_len = %x\n", fix->mmio_len);
-	switch (var->bits_per_pixel) {
-	case 8:
-		fix->visual = FB_VISUAL_PSEUDOCOLOR;
-		break;
-	case 16:
-	case 32:
-		fix->visual = FB_VISUAL_TRUECOLOR;
-		break;
-	}
+
+	lynxfb_set_visual_mode(info);
 
 	/* set var */
 	var->activate = FB_ACTIVATE_NOW;
@@ -1221,15 +1155,14 @@ static const struct pci_device_id smi_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, smi_pci_table);
 
+static SIMPLE_DEV_PM_OPS(lynxfb_pm_ops, lynxfb_suspend, lynxfb_resume);
+
 static struct pci_driver lynxfb_driver = {
 	.name =		"sm750fb",
 	.id_table =	smi_pci_table,
 	.probe =	lynxfb_pci_probe,
 	.remove =	lynxfb_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = lynxfb_suspend,
-	.resume = lynxfb_resume,
-#endif
+	.driver.pm =	&lynxfb_pm_ops,
 };
 
 static int __init lynxfb_init(void)

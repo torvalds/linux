@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ADC MFD core driver for sunxi platforms
  *
  * Copyright (c) 2016 Quentin Schulz <quentin.schulz@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>
@@ -21,7 +18,7 @@
 #define ARCH_SUN5I_A13 1
 #define ARCH_SUN6I_A31 2
 
-static struct resource adc_resources[] = {
+static const struct resource adc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(SUN4I_GPADC_IRQ_FIFO_DATA, "FIFO_DATA_PENDING"),
 	DEFINE_RES_IRQ_NAMED(SUN4I_GPADC_IRQ_TEMP_DATA, "TEMP_DATA_PENDING"),
 };
@@ -169,7 +166,7 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 static struct platform_driver sun4i_gpadc_driver = {
 	.driver = {
 		.name = "sun4i-gpadc",
-		.of_match_table = of_match_ptr(sun4i_gpadc_of_match),
+		.of_match_table = sun4i_gpadc_of_match,
 	},
 	.probe = sun4i_gpadc_probe,
 };

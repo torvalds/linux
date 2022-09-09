@@ -72,7 +72,7 @@ char *clockstring(int clockid)
 		return "CLOCK_BOOTTIME_ALARM";
 	case CLOCK_TAI:
 		return "CLOCK_TAI";
-	};
+	}
 	return "UNKNOWN_CLOCKID";
 }
 
@@ -122,30 +122,28 @@ int consistency_test(int clock_type, unsigned long seconds)
 		if (inconsistent >= 0) {
 			unsigned long long delta;
 
-			printf("\%s\n", start_str);
+			ksft_print_msg("\%s\n", start_str);
 			for (i = 0; i < CALLS_PER_LOOP; i++) {
 				if (i == inconsistent)
-					printf("--------------------\n");
-				printf("%lu:%lu\n", list[i].tv_sec,
+					ksft_print_msg("--------------------\n");
+				ksft_print_msg("%lu:%lu\n", list[i].tv_sec,
 							list[i].tv_nsec);
 				if (i == inconsistent + 1)
-					printf("--------------------\n");
+					ksft_print_msg("--------------------\n");
 			}
 			delta = list[inconsistent].tv_sec * NSEC_PER_SEC;
 			delta += list[inconsistent].tv_nsec;
 			delta -= list[inconsistent+1].tv_sec * NSEC_PER_SEC;
 			delta -= list[inconsistent+1].tv_nsec;
-			printf("Delta: %llu ns\n", delta);
+			ksft_print_msg("Delta: %llu ns\n", delta);
 			fflush(0);
 			/* timestamp inconsistency*/
 			t = time(0);
-			printf("%s\n", ctime(&t));
-			printf("[FAILED]\n");
+			ksft_print_msg("%s\n", ctime(&t));
 			return -1;
 		}
 		now = list[0].tv_sec;
 	}
-	printf("[OK]\n");
 	return 0;
 }
 
@@ -178,16 +176,22 @@ int main(int argc, char *argv[])
 
 	setbuf(stdout, NULL);
 
+	ksft_print_header();
+	ksft_set_plan(maxclocks - userclock);
+
 	for (clockid = userclock; clockid < maxclocks; clockid++) {
 
-		if (clockid == CLOCK_HWSPECIFIC)
+		if (clockid == CLOCK_HWSPECIFIC || clock_gettime(clockid, &ts)) {
+			ksft_test_result_skip("%-31s\n", clockstring(clockid));
 			continue;
+		}
 
-		if (!clock_gettime(clockid, &ts)) {
-			printf("Consistent %-30s ", clockstring(clockid));
-			if (consistency_test(clockid, runtime))
-				return ksft_exit_fail();
+		if (consistency_test(clockid, runtime)) {
+			ksft_test_result_fail("%-31s\n", clockstring(clockid));
+			ksft_exit_fail();
+		} else {
+			ksft_test_result_pass("%-31s\n", clockstring(clockid));
 		}
 	}
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

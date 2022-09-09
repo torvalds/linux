@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -22,13 +11,14 @@
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
+#include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 #include "blk-rq-qos.h"
 
 static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
 {
 	if (stat->nr_samples) {
-		seq_printf(m, "samples=%d, mean=%lld, min=%llu, max=%llu",
+		seq_printf(m, "samples=%d, mean=%llu, min=%llu, max=%llu",
 			   stat->nr_samples, stat->mean, stat->min, stat->max);
 	} else {
 		seq_puts(m, "samples=0");
@@ -40,13 +30,16 @@ static int queue_poll_stat_show(void *data, struct seq_file *m)
 	struct request_queue *q = data;
 	int bucket;
 
-	for (bucket = 0; bucket < BLK_MQ_POLL_STATS_BKTS/2; bucket++) {
-		seq_printf(m, "read  (%d Bytes): ", 1 << (9+bucket));
-		print_stat(m, &q->poll_stat[2*bucket]);
+	if (!q->poll_stat)
+		return 0;
+
+	for (bucket = 0; bucket < (BLK_MQ_POLL_STATS_BKTS / 2); bucket++) {
+		seq_printf(m, "read  (%d Bytes): ", 1 << (9 + bucket));
+		print_stat(m, &q->poll_stat[2 * bucket]);
 		seq_puts(m, "\n");
 
-		seq_printf(m, "write (%d Bytes): ",  1 << (9+bucket));
-		print_stat(m, &q->poll_stat[2*bucket+1]);
+		seq_printf(m, "write (%d Bytes): ",  1 << (9 + bucket));
+		print_stat(m, &q->poll_stat[2 * bucket + 1]);
 		seq_puts(m, "\n");
 	}
 	return 0;
@@ -115,30 +108,28 @@ static int queue_pm_only_show(void *data, struct seq_file *m)
 static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(STOPPED),
 	QUEUE_FLAG_NAME(DYING),
-	QUEUE_FLAG_NAME(BIDI),
 	QUEUE_FLAG_NAME(NOMERGES),
 	QUEUE_FLAG_NAME(SAME_COMP),
 	QUEUE_FLAG_NAME(FAIL_IO),
 	QUEUE_FLAG_NAME(NONROT),
 	QUEUE_FLAG_NAME(IO_STAT),
-	QUEUE_FLAG_NAME(DISCARD),
 	QUEUE_FLAG_NAME(NOXMERGES),
 	QUEUE_FLAG_NAME(ADD_RANDOM),
-	QUEUE_FLAG_NAME(SECERASE),
 	QUEUE_FLAG_NAME(SAME_FORCE),
-	QUEUE_FLAG_NAME(DEAD),
 	QUEUE_FLAG_NAME(INIT_DONE),
-	QUEUE_FLAG_NAME(NO_SG_MERGE),
+	QUEUE_FLAG_NAME(STABLE_WRITES),
 	QUEUE_FLAG_NAME(POLL),
 	QUEUE_FLAG_NAME(WC),
 	QUEUE_FLAG_NAME(FUA),
-	QUEUE_FLAG_NAME(FLUSH_NQ),
 	QUEUE_FLAG_NAME(DAX),
 	QUEUE_FLAG_NAME(STATS),
-	QUEUE_FLAG_NAME(POLL_STATS),
 	QUEUE_FLAG_NAME(REGISTERED),
-	QUEUE_FLAG_NAME(SCSI_PASSTHROUGH),
 	QUEUE_FLAG_NAME(QUIESCED),
+	QUEUE_FLAG_NAME(PCI_P2PDMA),
+	QUEUE_FLAG_NAME(ZONE_RESETALL),
+	QUEUE_FLAG_NAME(RQ_ALLOC_TIME),
+	QUEUE_FLAG_NAME(HCTX_ACTIVE),
+	QUEUE_FLAG_NAME(NOWAIT),
 };
 #undef QUEUE_FLAG_NAME
 
@@ -159,11 +150,10 @@ static ssize_t queue_state_write(void *data, const char __user *buf,
 	char opbuf[16] = { }, *op;
 
 	/*
-	 * The "state" attribute is removed after blk_cleanup_queue() has called
-	 * blk_mq_free_queue(). Return if QUEUE_FLAG_DEAD has been set to avoid
-	 * triggering a use-after-free.
+	 * The "state" attribute is removed when the queue is removed.  Don't
+	 * allow setting the state on a dying queue to avoid a use-after-free.
 	 */
-	if (blk_queue_dead(q))
+	if (blk_queue_dying(q))
 		return -ENOENT;
 
 	if (count >= sizeof(opbuf)) {
@@ -189,35 +179,11 @@ inval:
 	return count;
 }
 
-static int queue_write_hint_show(void *data, struct seq_file *m)
-{
-	struct request_queue *q = data;
-	int i;
-
-	for (i = 0; i < BLK_MAX_WRITE_HINTS; i++)
-		seq_printf(m, "hint%d: %llu\n", i, q->write_hints[i]);
-
-	return 0;
-}
-
-static ssize_t queue_write_hint_store(void *data, const char __user *buf,
-				      size_t count, loff_t *ppos)
-{
-	struct request_queue *q = data;
-	int i;
-
-	for (i = 0; i < BLK_MAX_WRITE_HINTS; i++)
-		q->write_hints[i] = 0;
-
-	return count;
-}
-
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_queue_attrs[] = {
 	{ "poll_stat", 0400, queue_poll_stat_show },
 	{ "requeue_list", 0400, .seq_ops = &queue_requeue_list_seq_ops },
 	{ "pm_only", 0600, queue_pm_only_show, NULL },
 	{ "state", 0600, queue_state_show, queue_state_write },
-	{ "write_hints", 0600, queue_write_hint_show, queue_write_hint_store },
 	{ "zone_wlock", 0400, queue_zone_wlock_show, NULL },
 	{ },
 };
@@ -227,6 +193,7 @@ static const char *const hctx_state_name[] = {
 	HCTX_STATE_NAME(STOPPED),
 	HCTX_STATE_NAME(TAG_ACTIVE),
 	HCTX_STATE_NAME(SCHED_RESTART),
+	HCTX_STATE_NAME(INACTIVE),
 };
 #undef HCTX_STATE_NAME
 
@@ -250,10 +217,11 @@ static const char *const alloc_policy_name[] = {
 #define HCTX_FLAG_NAME(name) [ilog2(BLK_MQ_F_##name)] = #name
 static const char *const hctx_flag_name[] = {
 	HCTX_FLAG_NAME(SHOULD_MERGE),
-	HCTX_FLAG_NAME(TAG_SHARED),
-	HCTX_FLAG_NAME(SG_MERGE),
+	HCTX_FLAG_NAME(TAG_QUEUE_SHARED),
 	HCTX_FLAG_NAME(BLOCKING),
 	HCTX_FLAG_NAME(NO_SCHED),
+	HCTX_FLAG_NAME(STACKING),
+	HCTX_FLAG_NAME(TAG_HCTX_SHARED),
 };
 #undef HCTX_FLAG_NAME
 
@@ -276,23 +244,6 @@ static int hctx_flags_show(void *data, struct seq_file *m)
 	return 0;
 }
 
-#define REQ_OP_NAME(name) [REQ_OP_##name] = #name
-static const char *const op_name[] = {
-	REQ_OP_NAME(READ),
-	REQ_OP_NAME(WRITE),
-	REQ_OP_NAME(FLUSH),
-	REQ_OP_NAME(DISCARD),
-	REQ_OP_NAME(SECURE_ERASE),
-	REQ_OP_NAME(ZONE_RESET),
-	REQ_OP_NAME(WRITE_SAME),
-	REQ_OP_NAME(WRITE_ZEROES),
-	REQ_OP_NAME(SCSI_IN),
-	REQ_OP_NAME(SCSI_OUT),
-	REQ_OP_NAME(DRV_IN),
-	REQ_OP_NAME(DRV_OUT),
-};
-#undef REQ_OP_NAME
-
 #define CMD_FLAG_NAME(name) [__REQ_##name] = #name
 static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(FAILFAST_DEV),
@@ -308,33 +259,31 @@ static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(PREFLUSH),
 	CMD_FLAG_NAME(RAHEAD),
 	CMD_FLAG_NAME(BACKGROUND),
-	CMD_FLAG_NAME(NOUNMAP),
 	CMD_FLAG_NAME(NOWAIT),
+	CMD_FLAG_NAME(NOUNMAP),
+	CMD_FLAG_NAME(POLLED),
 };
 #undef CMD_FLAG_NAME
 
 #define RQF_NAME(name) [ilog2((__force u32)RQF_##name)] = #name
 static const char *const rqf_name[] = {
-	RQF_NAME(SORTED),
 	RQF_NAME(STARTED),
 	RQF_NAME(SOFTBARRIER),
 	RQF_NAME(FLUSH_SEQ),
 	RQF_NAME(MIXED_MERGE),
 	RQF_NAME(MQ_INFLIGHT),
 	RQF_NAME(DONTPREP),
-	RQF_NAME(PREEMPT),
-	RQF_NAME(COPY_USER),
 	RQF_NAME(FAILED),
 	RQF_NAME(QUIET),
 	RQF_NAME(ELVPRIV),
 	RQF_NAME(IO_STAT),
-	RQF_NAME(ALLOCED),
 	RQF_NAME(PM),
 	RQF_NAME(HASHED),
 	RQF_NAME(STATS),
 	RQF_NAME(SPECIAL_PAYLOAD),
 	RQF_NAME(ZONE_WRITE_LOCKED),
 	RQF_NAME(MQ_POLL_SLEPT),
+	RQF_NAME(ELV),
 };
 #undef RQF_NAME
 
@@ -355,16 +304,17 @@ static const char *blk_mq_rq_state_name(enum mq_rq_state rq_state)
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
-	const unsigned int op = rq->cmd_flags & REQ_OP_MASK;
+	const enum req_op op = req_op(rq);
+	const char *op_str = blk_op_str(op);
 
 	seq_printf(m, "%p {.op=", rq);
-	if (op < ARRAY_SIZE(op_name) && op_name[op])
-		seq_printf(m, "%s", op_name[op]);
+	if (strcmp(op_str, "UNKNOWN") == 0)
+		seq_printf(m, "%u", op);
 	else
-		seq_printf(m, "%d", op);
+		seq_printf(m, "%s", op_str);
 	seq_puts(m, ", .cmd_flags=");
-	blk_flags_show(m, rq->cmd_flags & ~REQ_OP_MASK, cmd_flag_name,
-		       ARRAY_SIZE(cmd_flag_name));
+	blk_flags_show(m, (__force unsigned int)(rq->cmd_flags & ~REQ_OP_MASK),
+		       cmd_flag_name, ARRAY_SIZE(cmd_flag_name));
 	seq_puts(m, ", .rq_flags=");
 	blk_flags_show(m, (__force unsigned int)rq->rq_flags, rqf_name,
 		       ARRAY_SIZE(rqf_name));
@@ -425,13 +375,12 @@ struct show_busy_params {
  * e.g. due to a concurrent blk_mq_finish_request() call. Returns true to
  * keep iterating requests.
  */
-static bool hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
+static bool hctx_show_busy_rq(struct request *rq, void *data)
 {
 	const struct show_busy_params *params = data;
 
 	if (rq->mq_hctx == params->hctx)
-		__blk_mq_debugfs_rq_show(params->m,
-					 list_entry_rq(&rq->queuelist));
+		__blk_mq_debugfs_rq_show(params->m, rq);
 
 	return true;
 }
@@ -555,70 +504,6 @@ out:
 	return res;
 }
 
-static int hctx_io_poll_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	seq_printf(m, "considered=%lu\n", hctx->poll_considered);
-	seq_printf(m, "invoked=%lu\n", hctx->poll_invoked);
-	seq_printf(m, "success=%lu\n", hctx->poll_success);
-	return 0;
-}
-
-static ssize_t hctx_io_poll_write(void *data, const char __user *buf,
-				  size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	hctx->poll_considered = hctx->poll_invoked = hctx->poll_success = 0;
-	return count;
-}
-
-static int hctx_dispatched_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-	int i;
-
-	seq_printf(m, "%8u\t%lu\n", 0U, hctx->dispatched[0]);
-
-	for (i = 1; i < BLK_MQ_MAX_DISPATCH_ORDER - 1; i++) {
-		unsigned int d = 1U << (i - 1);
-
-		seq_printf(m, "%8u\t%lu\n", d, hctx->dispatched[i]);
-	}
-
-	seq_printf(m, "%8u+\t%lu\n", 1U << (i - 1), hctx->dispatched[i]);
-	return 0;
-}
-
-static ssize_t hctx_dispatched_write(void *data, const char __user *buf,
-				     size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-	int i;
-
-	for (i = 0; i < BLK_MQ_MAX_DISPATCH_ORDER; i++)
-		hctx->dispatched[i] = 0;
-	return count;
-}
-
-static int hctx_queued_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	seq_printf(m, "%lu\n", hctx->queued);
-	return 0;
-}
-
-static ssize_t hctx_queued_write(void *data, const char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	hctx->queued = 0;
-	return count;
-}
-
 static int hctx_run_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
@@ -640,7 +525,7 @@ static int hctx_active_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
 
-	seq_printf(m, "%d\n", atomic_read(&hctx->nr_active));
+	seq_printf(m, "%d\n", __blk_mq_active_requests(hctx));
 	return 0;
 }
 
@@ -688,57 +573,6 @@ static const struct seq_operations ctx_##name##_rq_list_seq_ops = {	\
 CTX_RQ_SEQ_OPS(default, HCTX_TYPE_DEFAULT);
 CTX_RQ_SEQ_OPS(read, HCTX_TYPE_READ);
 CTX_RQ_SEQ_OPS(poll, HCTX_TYPE_POLL);
-
-static int ctx_dispatched_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu %lu\n", ctx->rq_dispatched[1], ctx->rq_dispatched[0]);
-	return 0;
-}
-
-static ssize_t ctx_dispatched_write(void *data, const char __user *buf,
-				    size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_dispatched[0] = ctx->rq_dispatched[1] = 0;
-	return count;
-}
-
-static int ctx_merged_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu\n", ctx->rq_merged);
-	return 0;
-}
-
-static ssize_t ctx_merged_write(void *data, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_merged = 0;
-	return count;
-}
-
-static int ctx_completed_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu %lu\n", ctx->rq_completed[1], ctx->rq_completed[0]);
-	return 0;
-}
-
-static ssize_t ctx_completed_write(void *data, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_completed[0] = ctx->rq_completed[1] = 0;
-	return count;
-}
 
 static int blk_mq_debugfs_show(struct seq_file *m, void *v)
 {
@@ -793,8 +627,8 @@ static int blk_mq_debugfs_release(struct inode *inode, struct file *file)
 
 	if (attr->show)
 		return single_release(inode, file);
-	else
-		return seq_release(inode, file);
+
+	return seq_release(inode, file);
 }
 
 static const struct file_operations blk_mq_debugfs_fops = {
@@ -815,9 +649,6 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"tags_bitmap", 0400, hctx_tags_bitmap_show},
 	{"sched_tags", 0400, hctx_sched_tags_show},
 	{"sched_tags_bitmap", 0400, hctx_sched_tags_bitmap_show},
-	{"io_poll", 0600, hctx_io_poll_show, hctx_io_poll_write},
-	{"dispatched", 0600, hctx_dispatched_show, hctx_dispatched_write},
-	{"queued", 0600, hctx_queued_show, hctx_queued_write},
 	{"run", 0600, hctx_run_show, hctx_run_write},
 	{"active", 0400, hctx_active_show},
 	{"dispatch_busy", 0400, hctx_dispatch_busy_show},
@@ -829,41 +660,28 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 	{"default_rq_list", 0400, .seq_ops = &ctx_default_rq_list_seq_ops},
 	{"read_rq_list", 0400, .seq_ops = &ctx_read_rq_list_seq_ops},
 	{"poll_rq_list", 0400, .seq_ops = &ctx_poll_rq_list_seq_ops},
-	{"dispatched", 0600, ctx_dispatched_show, ctx_dispatched_write},
-	{"merged", 0600, ctx_merged_show, ctx_merged_write},
-	{"completed", 0600, ctx_completed_show, ctx_completed_write},
 	{},
 };
 
-static bool debugfs_create_files(struct dentry *parent, void *data,
+static void debugfs_create_files(struct dentry *parent, void *data,
 				 const struct blk_mq_debugfs_attr *attr)
 {
+	if (IS_ERR_OR_NULL(parent))
+		return;
+
 	d_inode(parent)->i_private = data;
 
-	for (; attr->name; attr++) {
-		if (!debugfs_create_file(attr->name, attr->mode, parent,
-					 (void *)attr, &blk_mq_debugfs_fops))
-			return false;
-	}
-	return true;
+	for (; attr->name; attr++)
+		debugfs_create_file(attr->name, attr->mode, parent,
+				    (void *)attr, &blk_mq_debugfs_fops);
 }
 
-int blk_mq_debugfs_register(struct request_queue *q)
+void blk_mq_debugfs_register(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
-	if (!blk_debugfs_root)
-		return -ENOENT;
-
-	q->debugfs_dir = debugfs_create_dir(kobject_name(q->kobj.parent),
-					    blk_debugfs_root);
-	if (!q->debugfs_dir)
-		return -ENOMEM;
-
-	if (!debugfs_create_files(q->debugfs_dir, q,
-				  blk_mq_debugfs_queue_attrs))
-		goto err;
+	debugfs_create_files(q->debugfs_dir, q, blk_mq_debugfs_queue_attrs);
 
 	/*
 	 * blk_mq_init_sched() attempted to do this already, but q->debugfs_dir
@@ -875,11 +693,10 @@ int blk_mq_debugfs_register(struct request_queue *q)
 
 	/* Similarly, blk_mq_init_hctx() couldn't do this previously. */
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (!hctx->debugfs_dir && blk_mq_debugfs_register_hctx(q, hctx))
-			goto err;
-		if (q->elevator && !hctx->sched_debugfs_dir &&
-		    blk_mq_debugfs_register_sched_hctx(q, hctx))
-			goto err;
+		if (!hctx->debugfs_dir)
+			blk_mq_debugfs_register_hctx(q, hctx);
+		if (q->elevator && !hctx->sched_debugfs_dir)
+			blk_mq_debugfs_register_sched_hctx(q, hctx);
 	}
 
 	if (q->rq_qos) {
@@ -890,198 +707,170 @@ int blk_mq_debugfs_register(struct request_queue *q)
 			rqos = rqos->next;
 		}
 	}
-
-	return 0;
-
-err:
-	blk_mq_debugfs_unregister(q);
-	return -ENOMEM;
 }
 
-void blk_mq_debugfs_unregister(struct request_queue *q)
-{
-	debugfs_remove_recursive(q->debugfs_dir);
-	q->sched_debugfs_dir = NULL;
-	q->debugfs_dir = NULL;
-}
-
-static int blk_mq_debugfs_register_ctx(struct blk_mq_hw_ctx *hctx,
-				       struct blk_mq_ctx *ctx)
+static void blk_mq_debugfs_register_ctx(struct blk_mq_hw_ctx *hctx,
+					struct blk_mq_ctx *ctx)
 {
 	struct dentry *ctx_dir;
 	char name[20];
 
 	snprintf(name, sizeof(name), "cpu%u", ctx->cpu);
 	ctx_dir = debugfs_create_dir(name, hctx->debugfs_dir);
-	if (!ctx_dir)
-		return -ENOMEM;
 
-	if (!debugfs_create_files(ctx_dir, ctx, blk_mq_debugfs_ctx_attrs))
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_files(ctx_dir, ctx, blk_mq_debugfs_ctx_attrs);
 }
 
-int blk_mq_debugfs_register_hctx(struct request_queue *q,
-				 struct blk_mq_hw_ctx *hctx)
+void blk_mq_debugfs_register_hctx(struct request_queue *q,
+				  struct blk_mq_hw_ctx *hctx)
 {
 	struct blk_mq_ctx *ctx;
 	char name[20];
 	int i;
 
 	if (!q->debugfs_dir)
-		return -ENOENT;
+		return;
 
 	snprintf(name, sizeof(name), "hctx%u", hctx->queue_num);
 	hctx->debugfs_dir = debugfs_create_dir(name, q->debugfs_dir);
-	if (!hctx->debugfs_dir)
-		return -ENOMEM;
 
-	if (!debugfs_create_files(hctx->debugfs_dir, hctx,
-				  blk_mq_debugfs_hctx_attrs))
-		goto err;
+	debugfs_create_files(hctx->debugfs_dir, hctx, blk_mq_debugfs_hctx_attrs);
 
-	hctx_for_each_ctx(hctx, ctx, i) {
-		if (blk_mq_debugfs_register_ctx(hctx, ctx))
-			goto err;
-	}
-
-	return 0;
-
-err:
-	blk_mq_debugfs_unregister_hctx(hctx);
-	return -ENOMEM;
+	hctx_for_each_ctx(hctx, ctx, i)
+		blk_mq_debugfs_register_ctx(hctx, ctx);
 }
 
 void blk_mq_debugfs_unregister_hctx(struct blk_mq_hw_ctx *hctx)
 {
+	if (!hctx->queue->debugfs_dir)
+		return;
 	debugfs_remove_recursive(hctx->debugfs_dir);
 	hctx->sched_debugfs_dir = NULL;
 	hctx->debugfs_dir = NULL;
 }
 
-int blk_mq_debugfs_register_hctxs(struct request_queue *q)
+void blk_mq_debugfs_register_hctxs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
-	queue_for_each_hw_ctx(q, hctx, i) {
-		if (blk_mq_debugfs_register_hctx(q, hctx))
-			return -ENOMEM;
-	}
-
-	return 0;
+	queue_for_each_hw_ctx(q, hctx, i)
+		blk_mq_debugfs_register_hctx(q, hctx);
 }
 
 void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
-	int i;
+	unsigned long i;
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_debugfs_unregister_hctx(hctx);
 }
 
-int blk_mq_debugfs_register_sched(struct request_queue *q)
+void blk_mq_debugfs_register_sched(struct request_queue *q)
 {
 	struct elevator_type *e = q->elevator->type;
 
+	lockdep_assert_held(&q->debugfs_mutex);
+
+	/*
+	 * If the parent directory has not been created yet, return, we will be
+	 * called again later on and the directory/files will be created then.
+	 */
 	if (!q->debugfs_dir)
-		return -ENOENT;
+		return;
 
 	if (!e->queue_debugfs_attrs)
-		return 0;
+		return;
 
 	q->sched_debugfs_dir = debugfs_create_dir("sched", q->debugfs_dir);
-	if (!q->sched_debugfs_dir)
-		return -ENOMEM;
 
-	if (!debugfs_create_files(q->sched_debugfs_dir, q,
-				  e->queue_debugfs_attrs))
-		goto err;
-
-	return 0;
-
-err:
-	blk_mq_debugfs_unregister_sched(q);
-	return -ENOMEM;
+	debugfs_create_files(q->sched_debugfs_dir, q, e->queue_debugfs_attrs);
 }
 
 void blk_mq_debugfs_unregister_sched(struct request_queue *q)
 {
+	lockdep_assert_held(&q->debugfs_mutex);
+
 	debugfs_remove_recursive(q->sched_debugfs_dir);
 	q->sched_debugfs_dir = NULL;
 }
 
+static const char *rq_qos_id_to_name(enum rq_qos_id id)
+{
+	switch (id) {
+	case RQ_QOS_WBT:
+		return "wbt";
+	case RQ_QOS_LATENCY:
+		return "latency";
+	case RQ_QOS_COST:
+		return "cost";
+	case RQ_QOS_IOPRIO:
+		return "ioprio";
+	}
+	return "unknown";
+}
+
 void blk_mq_debugfs_unregister_rqos(struct rq_qos *rqos)
 {
+	lockdep_assert_held(&rqos->q->debugfs_mutex);
+
+	if (!rqos->q->debugfs_dir)
+		return;
 	debugfs_remove_recursive(rqos->debugfs_dir);
 	rqos->debugfs_dir = NULL;
 }
 
-int blk_mq_debugfs_register_rqos(struct rq_qos *rqos)
+void blk_mq_debugfs_register_rqos(struct rq_qos *rqos)
 {
 	struct request_queue *q = rqos->q;
 	const char *dir_name = rq_qos_id_to_name(rqos->id);
 
-	if (!q->debugfs_dir)
-		return -ENOENT;
+	lockdep_assert_held(&q->debugfs_mutex);
 
 	if (rqos->debugfs_dir || !rqos->ops->debugfs_attrs)
-		return 0;
+		return;
 
-	if (!q->rqos_debugfs_dir) {
+	if (!q->rqos_debugfs_dir)
 		q->rqos_debugfs_dir = debugfs_create_dir("rqos",
 							 q->debugfs_dir);
-		if (!q->rqos_debugfs_dir)
-			return -ENOMEM;
-	}
 
 	rqos->debugfs_dir = debugfs_create_dir(dir_name,
 					       rqos->q->rqos_debugfs_dir);
-	if (!rqos->debugfs_dir)
-		return -ENOMEM;
 
-	if (!debugfs_create_files(rqos->debugfs_dir, rqos,
-				  rqos->ops->debugfs_attrs))
-		goto err;
-	return 0;
- err:
-	blk_mq_debugfs_unregister_rqos(rqos);
-	return -ENOMEM;
+	debugfs_create_files(rqos->debugfs_dir, rqos, rqos->ops->debugfs_attrs);
 }
 
-void blk_mq_debugfs_unregister_queue_rqos(struct request_queue *q)
-{
-	debugfs_remove_recursive(q->rqos_debugfs_dir);
-	q->rqos_debugfs_dir = NULL;
-}
-
-int blk_mq_debugfs_register_sched_hctx(struct request_queue *q,
-				       struct blk_mq_hw_ctx *hctx)
+void blk_mq_debugfs_register_sched_hctx(struct request_queue *q,
+					struct blk_mq_hw_ctx *hctx)
 {
 	struct elevator_type *e = q->elevator->type;
 
+	lockdep_assert_held(&q->debugfs_mutex);
+
+	/*
+	 * If the parent debugfs directory has not been created yet, return;
+	 * We will be called again later on with appropriate parent debugfs
+	 * directory from blk_register_queue()
+	 */
 	if (!hctx->debugfs_dir)
-		return -ENOENT;
+		return;
 
 	if (!e->hctx_debugfs_attrs)
-		return 0;
+		return;
 
 	hctx->sched_debugfs_dir = debugfs_create_dir("sched",
 						     hctx->debugfs_dir);
-	if (!hctx->sched_debugfs_dir)
-		return -ENOMEM;
-
-	if (!debugfs_create_files(hctx->sched_debugfs_dir, hctx,
-				  e->hctx_debugfs_attrs))
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_files(hctx->sched_debugfs_dir, hctx,
+			     e->hctx_debugfs_attrs);
 }
 
 void blk_mq_debugfs_unregister_sched_hctx(struct blk_mq_hw_ctx *hctx)
 {
+	lockdep_assert_held(&hctx->queue->debugfs_mutex);
+
+	if (!hctx->queue->debugfs_dir)
+		return;
 	debugfs_remove_recursive(hctx->sched_debugfs_dir);
 	hctx->sched_debugfs_dir = NULL;
 }

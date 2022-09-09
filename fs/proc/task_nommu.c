@@ -25,7 +25,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 	struct rb_node *p;
 	unsigned long bytes = 0, sbytes = 0, slack = 0, size;
         
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
 
@@ -64,7 +64,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 	else
 		bytes += kobjsize(current->files);
 
-	if (current->sighand && atomic_read(&current->sighand->count) > 1)
+	if (current->sighand && refcount_read(&current->sighand->count) > 1)
 		sbytes += kobjsize(current->sighand);
 	else
 		bytes += kobjsize(current->sighand);
@@ -77,7 +77,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 		"Shared:\t%8lu bytes\n",
 		bytes, slack, sbytes);
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 }
 
 unsigned long task_vsize(struct mm_struct *mm)
@@ -86,12 +86,12 @@ unsigned long task_vsize(struct mm_struct *mm)
 	struct rb_node *p;
 	unsigned long vsize = 0;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
 		vsize += vma->vm_end - vma->vm_start;
 	}
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return vsize;
 }
 
@@ -104,7 +104,7 @@ unsigned long task_statm(struct mm_struct *mm,
 	struct rb_node *p;
 	unsigned long size = kobjsize(mm);
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p)) {
 		vma = rb_entry(p, struct vm_area_struct, vm_rb);
 		size += kobjsize(vma);
@@ -119,7 +119,7 @@ unsigned long task_statm(struct mm_struct *mm,
 		>> PAGE_SHIFT;
 	*data = (PAGE_ALIGN(mm->start_stack) - (mm->start_data & PAGE_MASK))
 		>> PAGE_SHIFT;
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	size >>= PAGE_SHIFT;
 	size += *text + *data;
 	*resident = size;
@@ -178,7 +178,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 		seq_file_path(m, file, "");
 	} else if (mm && is_stack(vma)) {
 		seq_pad(m, ' ');
-		seq_printf(m, "[stack]");
+		seq_puts(m, "[stack]");
 	}
 
 	seq_putc(m, '\n');
@@ -211,13 +211,17 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	if (!mm || !mmget_not_zero(mm))
 		return NULL;
 
-	down_read(&mm->mmap_sem);
+	if (mmap_read_lock_killable(mm)) {
+		mmput(mm);
+		return ERR_PTR(-EINTR);
+	}
+
 	/* start from the Nth VMA */
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p))
 		if (n-- == 0)
 			return p;
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	mmput(mm);
 	return NULL;
 }
@@ -227,7 +231,7 @@ static void m_stop(struct seq_file *m, void *_vml)
 	struct proc_maps_private *priv = m->private;
 
 	if (!IS_ERR_OR_NULL(_vml)) {
-		up_read(&priv->mm->mmap_sem);
+		mmap_read_unlock(priv->mm);
 		mmput(priv->mm);
 	}
 	if (priv->task) {

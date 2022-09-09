@@ -131,7 +131,7 @@
 		ranges;
 		interrupt-parent = <&intc>;
 
-		l2: l2-cache@500c0000 {
+		l2: cache-controller@500c0000 {
 			compatible = "socionext,uniphier-system-cache";
 			reg = <0x500c0000 0x2000>, <0x503c0100 0x8>,
 			      <0x506c0000 0x400>;
@@ -144,7 +144,7 @@
 			next-level-cache = <&l3>;
 		};
 
-		l3: l3-cache@500c8000 {
+		l3: cache-controller@500c8000 {
 			compatible = "socionext,uniphier-system-cache";
 			reg = <0x500c8000 0x2000>, <0x503c8100 0x8>,
 			      <0x506c8000 0x400>;
@@ -160,6 +160,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 39 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi0>;
@@ -171,11 +173,13 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006100 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 216 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1>;
-			clocks = <&peri_clk 11>;
-			resets = <&peri_rst 11>;
+			clocks = <&peri_clk 11>;	/* common with spi0 */
+			resets = <&peri_rst 12>;
 		};
 
 		serial0: serial@54006800 {
@@ -408,7 +412,15 @@
 			};
 		};
 
-		aidet: aidet@5fc20000 {
+		xdmac: dma-controller@5fc10000 {
+			compatible = "socionext,uniphier-xdmac";
+			reg = <0x5fc10000 0x5300>;
+			interrupts = <0 188 4>;
+			dma-channels = <16>;
+			#dma-cells = <2>;
+		};
+
+		aidet: interrupt-controller@5fc20000 {
 			compatible = "socionext,uniphier-pro5-aidet";
 			reg = <0x5fc20000 0x200>;
 			interrupt-controller;
@@ -453,20 +465,201 @@
 			};
 		};
 
-		nand: nand@68000000 {
+		usb0: usb@65a00000 {
+			compatible = "socionext,uniphier-dwc3", "snps,dwc3";
+			status = "disabled";
+			reg = <0x65a00000 0xcd00>;
+			interrupt-names = "host";
+			interrupts = <0 134 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb0>;
+			clock-names = "ref", "bus_early", "suspend";
+			clocks = <&sys_clk 12>, <&sys_clk 12>, <&sys_clk 12>;
+			resets = <&usb0_rst 15>;
+			phys = <&usb0_hsphy0>, <&usb0_ssphy0>;
+			dr_mode = "host";
+		};
+
+		usb-glue@65b00000 {
+			compatible = "socionext,uniphier-pro5-dwc3-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65b00000 0x400>;
+
+			usb0_rst: reset@0 {
+				compatible = "socionext,uniphier-pro5-usb3-reset";
+				reg = <0x0 0x4>;
+				#reset-cells = <1>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 14>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 14>;
+			};
+
+			usb0_vbus0: regulator@100 {
+				compatible = "socionext,uniphier-pro5-usb3-regulator";
+				reg = <0x100 0x10>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 14>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 14>;
+			};
+
+			usb0_hsphy0: hs-phy@280 {
+				compatible = "socionext,uniphier-pro5-usb3-hsphy";
+				reg = <0x280 0x10>;
+				#phy-cells = <0>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 14>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 14>;
+				vbus-supply = <&usb0_vbus0>;
+			};
+
+			usb0_ssphy0: ss-phy@380 {
+				compatible = "socionext,uniphier-pro5-usb3-ssphy";
+				reg = <0x380 0x10>;
+				#phy-cells = <0>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 14>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 14>;
+				vbus-supply = <&usb0_vbus0>;
+			};
+		};
+
+		usb1: usb@65c00000 {
+			compatible = "socionext,uniphier-dwc3", "snps,dwc3";
+			status = "disabled";
+			reg = <0x65c00000 0xcd00>;
+			interrupt-names = "host";
+			interrupts = <0 137 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb1>, <&pinctrl_usb2>;
+			clock-names = "ref", "bus_early", "suspend";
+			clocks = <&sys_clk 12>, <&sys_clk 12>, <&sys_clk 12>;
+			resets = <&usb1_rst 15>;
+			phys = <&usb1_hsphy0>, <&usb1_hsphy1>, <&usb1_ssphy0>;
+			dr_mode = "host";
+		};
+
+		usb-glue@65d00000 {
+			compatible = "socionext,uniphier-pro5-dwc3-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65d00000 0x400>;
+
+			usb1_rst: reset@0 {
+				compatible = "socionext,uniphier-pro5-usb3-reset";
+				reg = <0x0 0x4>;
+				#reset-cells = <1>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 15>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 15>;
+			};
+
+			usb1_vbus0: regulator@100 {
+				compatible = "socionext,uniphier-pro5-usb3-regulator";
+				reg = <0x100 0x10>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 15>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 15>;
+			};
+
+			usb1_vbus1: regulator@110 {
+				compatible = "socionext,uniphier-pro5-usb3-regulator";
+				reg = <0x110 0x10>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 15>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 15>;
+			};
+
+			usb1_hsphy0: hs-phy@280 {
+				compatible = "socionext,uniphier-pro5-usb3-hsphy";
+				reg = <0x280 0x10>;
+				#phy-cells = <0>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 15>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 15>;
+				vbus-supply = <&usb1_vbus0>;
+			};
+
+			usb1_hsphy1: hs-phy@290 {
+				compatible = "socionext,uniphier-pro5-usb3-hsphy";
+				reg = <0x290 0x10>;
+				#phy-cells = <0>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 15>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 15>;
+				vbus-supply = <&usb1_vbus1>;
+			};
+
+			usb1_ssphy0: ss-phy@380 {
+				compatible = "socionext,uniphier-pro5-usb3-ssphy";
+				reg = <0x380 0x10>;
+				#phy-cells = <0>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 15>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 15>;
+				vbus-supply = <&usb1_vbus0>;
+			};
+		};
+
+		pcie_ep: pcie-ep@66000000 {
+			compatible = "socionext,uniphier-pro5-pcie-ep",
+				     "snps,dw-pcie-ep";
+			status = "disabled";
+			reg-names = "dbi", "dbi2", "link", "addr_space";
+			reg = <0x66000000 0x1000>, <0x66001000 0x1000>,
+			      <0x66010000 0x10000>, <0x67000000 0x400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_pcie>;
+			clock-names = "gio", "link";
+			clocks = <&sys_clk 12>, <&sys_clk 24>;
+			reset-names = "gio", "link";
+			resets = <&sys_rst 12>, <&sys_rst 24>;
+			num-ib-windows = <16>;
+			num-ob-windows = <16>;
+			num-lanes = <4>;
+			phy-names = "pcie-phy";
+			phys = <&pcie_phy>;
+		};
+
+		pcie_phy: phy@66038000 {
+			compatible = "socionext,uniphier-pro5-pcie-phy";
+			reg = <0x66038000 0x4000>;
+			#phy-cells = <0>;
+			clock-names = "gio", "link";
+			clocks = <&sys_clk 12>, <&sys_clk 24>;
+			reset-names = "gio", "link";
+			resets = <&sys_rst 12>, <&sys_rst 24>;
+		};
+
+		nand: nand-controller@68000000 {
 			compatible = "socionext,uniphier-denali-nand-v5b";
 			status = "disabled";
 			reg-names = "nand_data", "denali_reg";
 			reg = <0x68000000 0x20>, <0x68100000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 65 4>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand2cs>;
+			pinctrl-0 = <&pinctrl_nand>;
 			clock-names = "nand", "nand_x", "ecc";
 			clocks = <&sys_clk 2>, <&sys_clk 3>, <&sys_clk 3>;
-			resets = <&sys_rst 2>;
+			reset-names = "nand", "reg";
+			resets = <&sys_rst 2>, <&sys_rst 2>;
 		};
 
-		emmc: sdhc@68400000 {
+		emmc: mmc@68400000 {
 			compatible = "socionext,uniphier-sd-v3.1";
 			status = "disabled";
 			reg = <0x68400000 0x800>;
@@ -482,7 +675,7 @@
 			non-removable;
 		};
 
-		sd: sdhc@68800000 {
+		sd: mmc@68800000 {
 			compatible = "socionext,uniphier-sd-v3.1";
 			status = "disabled";
 			reg = <0x68800000 0x800>;

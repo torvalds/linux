@@ -84,9 +84,6 @@ static const struct fb_fix_screeninfo mc68x328fb_fix __initconst = {
     /*
      *  Interface used by the world
      */
-int mc68x328fb_init(void);
-int mc68x328fb_setup(char *);
-
 static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 			 struct fb_info *info);
 static int mc68x328fb_set_par(struct fb_info *info);
@@ -96,7 +93,7 @@ static int mc68x328fb_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *info);
 static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
-static struct fb_ops mc68x328fb_ops = {
+static const struct fb_ops mc68x328fb_ops = {
 	.fb_check_var	= mc68x328fb_check_var,
 	.fb_set_par	= mc68x328fb_set_par,
 	.fb_setcolreg	= mc68x328fb_setcolreg,
@@ -403,22 +400,10 @@ static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 #endif
 }
 
-int __init mc68x328fb_setup(char *options)
+static int __init mc68x328fb_setup(char *options)
 {
-#if 0
-	char *this_opt;
-#endif
-
 	if (!options || !*options)
 		return 1;
-#if 0
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt)
-			continue;
-		if (!strncmp(this_opt, "disable", 7))
-			mc68x328fb_enable = 0;
-	}
-#endif
 	return 1;
 }
 
@@ -426,7 +411,7 @@ int __init mc68x328fb_setup(char *options)
      *  Initialisation
      */
 
-int __init mc68x328fb_init(void)
+static int __init mc68x328fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;

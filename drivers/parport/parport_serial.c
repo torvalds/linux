@@ -61,7 +61,10 @@ enum parport_pc_pci_cards {
 	wch_ch382_0s1p,
 	wch_ch382_2s1p,
 	brainboxes_5s1p,
-	sunix_2s1p,
+	sunix_4008a,
+	sunix_5069a,
+	sunix_5079a,
+	sunix_5099a,
 };
 
 /* each element directly indexed from enum list, above */
@@ -151,7 +154,10 @@ static struct parport_pc_pci cards[] = {
 	/* wch_ch382_0s1p*/		{ 1, { { 2, -1}, } },
 	/* wch_ch382_2s1p*/             { 1, { { 2, -1}, } },
 	/* brainboxes_5s1p */           { 1, { { 3, -1 }, } },
-	/* sunix_2s1p */                { 1, { { 3, -1 }, } },
+	/* sunix_4008a */		{ 1, { { 1, 2 }, } },
+	/* sunix_5069a */		{ 1, { { 1, 2 }, } },
+	/* sunix_5079a */		{ 1, { { 1, 2 }, } },
+	/* sunix_5099a */		{ 1, { { 1, 2 }, } },
 };
 
 static struct pci_device_id parport_serial_pci_tbl[] = {
@@ -261,13 +267,15 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTASHIELD, 0x4100,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, brainboxes_5s1p },
 
-	/*
-	 * More SUNIX variations. At least one of these has part number
-	 * '5079A but subdevice 0x102. That board reports 0x0708 as
-	 * its PCI Class.
-	 */
+	/* Sunix boards */
 	{ PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999, PCI_VENDOR_ID_SUNIX,
-	  0x0102, 0, 0, sunix_2s1p },
+	  0x0100, 0, 0, sunix_4008a },
+	{ PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999, PCI_VENDOR_ID_SUNIX,
+	  0x0101, 0, 0, sunix_5069a },
+	{ PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999, PCI_VENDOR_ID_SUNIX,
+	  0x0102, 0, 0, sunix_5079a },
+	{ PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999, PCI_VENDOR_ID_SUNIX,
+	  0x0104, 0, 0, sunix_5099a },
 
 	{ 0, } /* terminate list */
 };
@@ -516,11 +524,23 @@ static struct pciserial_board pci_parport_serial_boards[] = {
 		.base_baud	= 921600,
 		.uart_offset	= 8,
 	},
-	[sunix_2s1p] = {
-		.flags		= FL_BASE0|FL_BASE_BARS,
+	[sunix_4008a] = {
+		.num_ports	= 0,
+	},
+	[sunix_5069a] = {
+		.num_ports	= 1,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
+	},
+	[sunix_5079a] = {
 		.num_ports	= 2,
-		.base_baud	= 921600,
-		.uart_offset	= 8,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
+	},
+	[sunix_5099a] = {
+		.num_ports	= 4,
+		.base_baud      = 921600,
+		.uart_offset	= 0x8,
 	},
 };
 
@@ -586,12 +606,15 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
                                         "hi" as an offset (see SYBA
                                         def.) */
 		/* TODO: test if sharing interrupts works */
-		irq = dev->irq;
-		if (irq == IRQ_NONE) {
+		irq = pci_irq_vector(dev, 0);
+		if (irq < 0)
+			return irq;
+		if (irq == 0)
+			irq = PARPORT_IRQ_NONE;
+		if (irq == PARPORT_IRQ_NONE) {
 			dev_dbg(&dev->dev,
 				"PCI parallel port detected: I/O at %#lx(%#lx)\n",
 				io_lo, io_hi);
-			irq = PARPORT_IRQ_NONE;
 		} else {
 			dev_dbg(&dev->dev,
 				"PCI parallel port detected: I/O at %#lx(%#lx), IRQ %d\n",
@@ -660,8 +683,7 @@ static void parport_serial_pci_remove(struct pci_dev *dev)
 
 static int __maybe_unused parport_serial_pci_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct parport_serial_private *priv = pci_get_drvdata(pdev);
+	struct parport_serial_private *priv = dev_get_drvdata(dev);
 
 	if (priv->serial)
 		pciserial_suspend_ports(priv->serial);
@@ -672,8 +694,7 @@ static int __maybe_unused parport_serial_pci_suspend(struct device *dev)
 
 static int __maybe_unused parport_serial_pci_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct parport_serial_private *priv = pci_get_drvdata(pdev);
+	struct parport_serial_private *priv = dev_get_drvdata(dev);
 
 	if (priv->serial)
 		pciserial_resume_ports(priv->serial);

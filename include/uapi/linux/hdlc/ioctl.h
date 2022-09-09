@@ -79,6 +79,15 @@ typedef struct {
     unsigned int timeout;
 } cisco_proto;
 
+typedef struct {
+	unsigned short dce; /* 1 for DCE (network side) operation */
+	unsigned int modulo; /* modulo (8 = basic / 128 = extended) */
+	unsigned int window; /* frame window size */
+	unsigned int t1; /* timeout t1 */
+	unsigned int t2; /* timeout t2 */
+	unsigned int n2; /* frame retry counter */
+} x25_hdlc_proto;
+
 /* PPP doesn't need any info now - supply length = 0 to ioctl */
 
 #endif /* __ASSEMBLY__ */

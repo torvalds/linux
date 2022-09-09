@@ -194,16 +194,20 @@ static const struct pinctrl_pin_desc imx8qxp_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(IMX8QXP_COMP_CTL_GPIO_1V8_3V3_QSPI0B),
 };
 
-static struct imx_pinctrl_soc_info imx8qxp_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx8qxp_pinctrl_info = {
 	.pins = imx8qxp_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx8qxp_pinctrl_pads),
 	.flags = IMX_USE_SCU,
+	.imx_pinconf_get = imx_pinconf_get_scu,
+	.imx_pinconf_set = imx_pinconf_set_scu,
+	.imx_pinctrl_parse_pin = imx_pinctrl_parse_pin_scu,
 };
 
 static const struct of_device_id imx8qxp_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx8qxp-iomuxc", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx8qxp_pinctrl_of_match);
 
 static int imx8qxp_pinctrl_probe(struct platform_device *pdev)
 {
@@ -219,7 +223,7 @@ static int imx8qxp_pinctrl_probe(struct platform_device *pdev)
 static struct platform_driver imx8qxp_pinctrl_driver = {
 	.driver = {
 		.name = "imx8qxp-pinctrl",
-		.of_match_table = of_match_ptr(imx8qxp_pinctrl_of_match),
+		.of_match_table = imx8qxp_pinctrl_of_match,
 		.suppress_bind_attrs = true,
 	},
 	.probe = imx8qxp_pinctrl_probe,
@@ -230,3 +234,7 @@ static int __init imx8qxp_pinctrl_init(void)
 	return platform_driver_register(&imx8qxp_pinctrl_driver);
 }
 arch_initcall(imx8qxp_pinctrl_init);
+
+MODULE_AUTHOR("Aisheng Dong <aisheng.dong@nxp.com>");
+MODULE_DESCRIPTION("NXP i.MX8QXP pinctrl driver");
+MODULE_LICENSE("GPL v2");

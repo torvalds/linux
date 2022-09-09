@@ -25,7 +25,6 @@
  *
  * MIPS specific flush operations:
  *
- *  - flush_cache_sigtramp() flush signal trampoline
  *  - flush_icache_all() flush the entire instruction cache
  *  - flush_data_cache_page() flushes a page from the data cache
  *  - __flush_icache_user_range(start, end) flushes range of user instructions
@@ -110,7 +109,6 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
 	unsigned long len);
 
-extern void (*flush_cache_sigtramp)(unsigned long addr);
 extern void (*flush_icache_all)(void);
 extern void (*local_flush_data_cache_page)(void * addr);
 extern void (*flush_data_cache_page)(unsigned long addr);
@@ -127,13 +125,7 @@ static inline void kunmap_noncoherent(void)
 	kunmap_coherent();
 }
 
-#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
-static inline void flush_kernel_dcache_page(struct page *page)
-{
-	BUG_ON(cpu_has_dc_aliases && PageHighMem(page));
-	flush_dcache_page(page);
-}
-
+#define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 /*
  * For now flush_kernel_vmap_range and invalidate_kernel_vmap_range both do a
  * cache writeback and invalidate operation.

@@ -131,8 +131,6 @@ enum SpiceCursorType {
 
 #pragma pack(push, 1)
 
-#define REDHAT_PCI_VENDOR_ID 0x1b36
-
 /* 0x100-0x11f reserved for spice, 0x1ff used for unstable work */
 #define QXL_DEVICE_ID_STABLE 0x0100
 
@@ -273,7 +271,7 @@ struct qxl_mode {
 /* qxl-1 compat: fixed */
 struct qxl_modes {
 	uint32_t n_modes;
-	struct qxl_mode modes[0];
+	struct qxl_mode modes[];
 };
 
 /* qxl-1 compat: append only */
@@ -384,12 +382,12 @@ struct qxl_data_chunk {
 	uint32_t data_size;
 	QXLPHYSICAL prev_chunk;
 	QXLPHYSICAL next_chunk;
-	uint8_t data[0];
+	uint8_t data[];
 };
 
 struct qxl_message {
 	union qxl_release_info release_info;
-	uint8_t data[0];
+	uint8_t data[];
 };
 
 struct qxl_compat_update_cmd {
@@ -471,7 +469,7 @@ struct qxl_raster_glyph {
 	struct qxl_point glyph_origin;
 	uint16_t width;
 	uint16_t height;
-	uint8_t data[0];
+	uint8_t data[];
 };
 
 struct qxl_string {
@@ -770,7 +768,7 @@ enum {
 struct qxl_path_seg {
 	uint32_t flags;
 	uint32_t count;
-	struct qxl_point_fix points[0];
+	struct qxl_point_fix points[];
 };
 
 struct qxl_path {
@@ -821,7 +819,7 @@ struct qxl_image_descriptor {
 struct qxl_palette {
 	uint64_t unique;
 	uint16_t num_ents;
-	uint32_t ents[0];
+	uint32_t ents[];
 };
 
 struct qxl_bitmap {
@@ -840,7 +838,7 @@ struct qxl_surface_id {
 
 struct qxl_encoder_data {
 	uint32_t data_size;
-	uint8_t data[0];
+	uint8_t data[];
 };
 
 struct qxl_image {
@@ -870,7 +868,7 @@ struct qxl_monitors_config {
 	uint16_t count;
 	uint16_t max_allowed; /* If it is 0 no fixed limit is given by the
 				 driver */
-	struct qxl_head heads[0];
+	struct qxl_head heads[];
 };
 
 #pragma pack(pop)

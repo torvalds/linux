@@ -73,7 +73,7 @@ DEFINE_PER_CPU(struct bnx2i_percpu_s, bnx2i_percpu);
 /**
  * bnx2i_identify_device - identifies NetXtreme II device type
  * @hba: 		Adapter structure pointer
- * @cnic:		Corresponding cnic device
+ * @dev:		Corresponding cnic device
  *
  * This function identifies the NX2 device type and sets appropriate
  *	queue mailbox register access method, 5709 requires driver to
@@ -473,8 +473,6 @@ static int __init bnx2i_mod_init(void)
 
 	if (sq_size && !is_power_of_2(sq_size))
 		sq_size = roundup_pow_of_two(sq_size);
-
-	mutex_init(&bnx2i_dev_lock);
 
 	bnx2i_scsi_xport_template =
 			iscsi_register_transport(&bnx2i_iscsi_transport);

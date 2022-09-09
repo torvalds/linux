@@ -9,16 +9,12 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_error.h"
 #include "xfs_btree.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_trace.h"
-#include "xfs_log.h"
 #include "xfs_rmap.h"
 #include "xfs_alloc.h"
 #include "xfs_bit.h"
@@ -28,9 +24,10 @@
 #include "xfs_refcount_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_rtalloc.h"
+#include "xfs_ag.h"
 
 /* Convert an xfs_fsmap to an fsmap. */
-void
+static void
 xfs_fsmap_from_internal(
 	struct fsmap		*dest,
 	struct xfs_fsmap	*src)
@@ -64,7 +61,7 @@ xfs_fsmap_to_internal(
 static int
 xfs_fsmap_owner_to_rmap(
 	struct xfs_rmap_irec	*dest,
-	struct xfs_fsmap	*src)
+	const struct xfs_fsmap	*src)
 {
 	if (!(src->fmr_flags & FMR_OF_SPECIAL_OWNER)) {
 		dest->rm_owner = src->fmr_owner;
@@ -114,8 +111,8 @@ xfs_fsmap_owner_to_rmap(
 /* Convert an rmapbt owner into an fsmap owner. */
 static int
 xfs_fsmap_owner_from_rmap(
-	struct xfs_fsmap	*dest,
-	struct xfs_rmap_irec	*src)
+	struct xfs_fsmap		*dest,
+	const struct xfs_rmap_irec	*src)
 {
 	dest->fmr_flags = 0;
 	if (!XFS_RMAP_NON_INODE_OWNER(src->rm_owner)) {
@@ -150,6 +147,7 @@ xfs_fsmap_owner_from_rmap(
 		dest->fmr_owner = XFS_FMR_OWN_FREE;
 		break;
 	default:
+		ASSERT(0);
 		return -EFSCORRUPTED;
 	}
 	return 0;
@@ -158,13 +156,12 @@ xfs_fsmap_owner_from_rmap(
 /* getfsmap query state */
 struct xfs_getfsmap_info {
 	struct xfs_fsmap_head	*head;
-	xfs_fsmap_format_t	formatter;	/* formatting fn */
-	void			*format_arg;	/* format buffer */
+	struct fsmap		*fsmap_recs;	/* mapping records */
 	struct xfs_buf		*agf_bp;	/* AGF, for refcount queries */
+	struct xfs_perag	*pag;		/* AG info, if applicable */
 	xfs_daddr_t		next_daddr;	/* next daddr we expect */
 	u64			missing_owner;	/* owner of holes */
 	u32			dev;		/* device id */
-	xfs_agnumber_t		agno;		/* AG number, if applicable */
 	struct xfs_rmap_irec	low;		/* low rmap key */
 	struct xfs_rmap_irec	high;		/* high rmap key */
 	bool			last;		/* last extent? */
@@ -174,7 +171,7 @@ struct xfs_getfsmap_info {
 struct xfs_getfsmap_dev {
 	u32			dev;
 	int			(*fn)(struct xfs_trans *tp,
-				      struct xfs_fsmap *keys,
+				      const struct xfs_fsmap *keys,
 				      struct xfs_getfsmap_info *info);
 };
 
@@ -195,7 +192,7 @@ STATIC int
 xfs_getfsmap_is_shared(
 	struct xfs_trans		*tp,
 	struct xfs_getfsmap_info	*info,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	bool				*stat)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
@@ -205,16 +202,15 @@ xfs_getfsmap_is_shared(
 	int				error;
 
 	*stat = false;
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+	if (!xfs_has_reflink(mp))
 		return 0;
-	/* rt files will have agno set to NULLAGNUMBER */
-	if (info->agno == NULLAGNUMBER)
+	/* rt files will have no perag structure */
+	if (!info->pag)
 		return 0;
 
 	/* Are there any shared blocks here? */
 	flen = 0;
-	cur = xfs_refcountbt_init_cursor(mp, tp, info->agf_bp,
-			info->agno);
+	cur = xfs_refcountbt_init_cursor(mp, tp, info->agf_bp, info->pag);
 
 	error = xfs_refcount_find_shared(cur, rec->rm_startblock,
 			rec->rm_blockcount, &fbno, &flen, false);
@@ -227,6 +223,20 @@ xfs_getfsmap_is_shared(
 	return 0;
 }
 
+static inline void
+xfs_getfsmap_format(
+	struct xfs_mount		*mp,
+	struct xfs_fsmap		*xfm,
+	struct xfs_getfsmap_info	*info)
+{
+	struct fsmap			*rec;
+
+	trace_xfs_getfsmap_mapping(mp, xfm);
+
+	rec = &info->fsmap_recs[info->head->fmh_entries++];
+	xfs_fsmap_from_internal(rec, xfm);
+}
+
 /*
  * Format a reverse mapping for getfsmap, having translated rm_startblock
  * into the appropriate daddr units.
@@ -235,7 +245,7 @@ STATIC int
 xfs_getfsmap_helper(
 	struct xfs_trans		*tp,
 	struct xfs_getfsmap_info	*info,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	xfs_daddr_t			rec_daddr)
 {
 	struct xfs_fsmap		fmr;
@@ -254,23 +264,26 @@ xfs_getfsmap_helper(
 		rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 		if (info->next_daddr < rec_daddr)
 			info->next_daddr = rec_daddr;
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	}
 
 	/* Are we just counting mappings? */
 	if (info->head->fmh_count == 0) {
+		if (info->head->fmh_entries == UINT_MAX)
+			return -ECANCELED;
+
 		if (rec_daddr > info->next_daddr)
 			info->head->fmh_entries++;
 
 		if (info->last)
-			return XFS_BTREE_QUERY_RANGE_CONTINUE;
+			return 0;
 
 		info->head->fmh_entries++;
 
 		rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 		if (info->next_daddr < rec_daddr)
 			info->next_daddr = rec_daddr;
-		return XFS_BTREE_QUERY_RANGE_CONTINUE;
+		return 0;
 	}
 
 	/*
@@ -280,7 +293,7 @@ xfs_getfsmap_helper(
 	 */
 	if (rec_daddr > info->next_daddr) {
 		if (info->head->fmh_entries >= info->head->fmh_count)
-			return XFS_BTREE_QUERY_RANGE_ABORT;
+			return -ECANCELED;
 
 		fmr.fmr_device = info->dev;
 		fmr.fmr_physical = info->next_daddr;
@@ -288,10 +301,7 @@ xfs_getfsmap_helper(
 		fmr.fmr_offset = 0;
 		fmr.fmr_length = rec_daddr - info->next_daddr;
 		fmr.fmr_flags = FMR_OF_SPECIAL_OWNER;
-		error = info->formatter(&fmr, info->format_arg);
-		if (error)
-			return error;
-		info->head->fmh_entries++;
+		xfs_getfsmap_format(mp, &fmr, info);
 	}
 
 	if (info->last)
@@ -299,9 +309,10 @@ xfs_getfsmap_helper(
 
 	/* Fill out the extent we found */
 	if (info->head->fmh_entries >= info->head->fmh_count)
-		return XFS_BTREE_QUERY_RANGE_ABORT;
+		return -ECANCELED;
 
-	trace_xfs_fsmap_mapping(mp, info->dev, info->agno, rec);
+	trace_xfs_fsmap_mapping(mp, info->dev,
+			info->pag ? info->pag->pag_agno : NULLAGNUMBER, rec);
 
 	fmr.fmr_device = info->dev;
 	fmr.fmr_physical = rec_daddr;
@@ -323,23 +334,20 @@ xfs_getfsmap_helper(
 		if (shared)
 			fmr.fmr_flags |= FMR_OF_SHARED;
 	}
-	error = info->formatter(&fmr, info->format_arg);
-	if (error)
-		return error;
-	info->head->fmh_entries++;
 
+	xfs_getfsmap_format(mp, &fmr, info);
 out:
 	rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 	if (info->next_daddr < rec_daddr)
 		info->next_daddr = rec_daddr;
-	return XFS_BTREE_QUERY_RANGE_CONTINUE;
+	return 0;
 }
 
 /* Transform a rmapbt irec into a fsmap */
 STATIC int
 xfs_getfsmap_datadev_helper(
 	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*rec,
+	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
 	struct xfs_mount		*mp = cur->bc_mp;
@@ -347,7 +355,7 @@ xfs_getfsmap_datadev_helper(
 	xfs_fsblock_t			fsb;
 	xfs_daddr_t			rec_daddr;
 
-	fsb = XFS_AGB_TO_FSB(mp, cur->bc_private.a.agno, rec->rm_startblock);
+	fsb = XFS_AGB_TO_FSB(mp, cur->bc_ag.pag->pag_agno, rec->rm_startblock);
 	rec_daddr = XFS_FSB_TO_DADDR(mp, fsb);
 
 	return xfs_getfsmap_helper(cur->bc_tp, info, rec, rec_daddr);
@@ -357,7 +365,7 @@ xfs_getfsmap_datadev_helper(
 STATIC int
 xfs_getfsmap_datadev_bnobt_helper(
 	struct xfs_btree_cur		*cur,
-	struct xfs_alloc_rec_incore	*rec,
+	const struct xfs_alloc_rec_incore *rec,
 	void				*priv)
 {
 	struct xfs_mount		*mp = cur->bc_mp;
@@ -365,7 +373,7 @@ xfs_getfsmap_datadev_bnobt_helper(
 	struct xfs_rmap_irec		irec;
 	xfs_daddr_t			rec_daddr;
 
-	rec_daddr = XFS_AGB_TO_DADDR(mp, cur->bc_private.a.agno,
+	rec_daddr = XFS_AGB_TO_DADDR(mp, cur->bc_ag.pag->pag_agno,
 			rec->ar_startblock);
 
 	irec.rm_startblock = rec->ar_startblock;
@@ -381,7 +389,7 @@ xfs_getfsmap_datadev_bnobt_helper(
 static void
 xfs_getfsmap_set_irec_flags(
 	struct xfs_rmap_irec	*irec,
-	struct xfs_fsmap	*fmr)
+	const struct xfs_fsmap	*fmr)
 {
 	irec->rm_flags = 0;
 	if (fmr->fmr_flags & FMR_OF_ATTR_FORK)
@@ -396,7 +404,7 @@ xfs_getfsmap_set_irec_flags(
 STATIC int
 xfs_getfsmap_logdev(
 	struct xfs_trans		*tp,
-	struct xfs_fsmap		*keys,
+	const struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
@@ -422,8 +430,8 @@ xfs_getfsmap_logdev(
 	info->high.rm_flags = XFS_RMAP_KEY_FLAGS | XFS_RMAP_REC_FLAGS;
 	info->missing_owner = XFS_FMR_OWN_FREE;
 
-	trace_xfs_fsmap_low_key(mp, info->dev, info->agno, &info->low);
-	trace_xfs_fsmap_high_key(mp, info->dev, info->agno, &info->high);
+	trace_xfs_fsmap_low_key(mp, info->dev, NULLAGNUMBER, &info->low);
+	trace_xfs_fsmap_high_key(mp, info->dev, NULLAGNUMBER, &info->high);
 
 	if (keys[0].fmr_physical > 0)
 		return 0;
@@ -442,11 +450,11 @@ xfs_getfsmap_logdev(
 /* Transform a rtbitmap "record" into a fsmap */
 STATIC int
 xfs_getfsmap_rtdev_rtbitmap_helper(
+	struct xfs_mount		*mp,
 	struct xfs_trans		*tp,
-	struct xfs_rtalloc_rec		*rec,
+	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
 {
-	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_getfsmap_info	*info = priv;
 	struct xfs_rmap_irec		irec;
 	xfs_daddr_t			rec_daddr;
@@ -465,7 +473,7 @@ xfs_getfsmap_rtdev_rtbitmap_helper(
 STATIC int
 __xfs_getfsmap_rtdev(
 	struct xfs_trans		*tp,
-	struct xfs_fsmap		*keys,
+	const struct xfs_fsmap		*keys,
 	int				(*query_fn)(struct xfs_trans *,
 						    struct xfs_getfsmap_info *),
 	struct xfs_getfsmap_info	*info)
@@ -473,16 +481,14 @@ __xfs_getfsmap_rtdev(
 	struct xfs_mount		*mp = tp->t_mountp;
 	xfs_fsblock_t			start_fsb;
 	xfs_fsblock_t			end_fsb;
-	xfs_daddr_t			eofs;
+	uint64_t			eofs;
 	int				error = 0;
 
 	eofs = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks);
 	if (keys[0].fmr_physical >= eofs)
 		return 0;
-	if (keys[1].fmr_physical >= eofs)
-		keys[1].fmr_physical = eofs - 1;
 	start_fsb = XFS_BB_TO_FSBT(mp, keys[0].fmr_physical);
-	end_fsb = XFS_BB_TO_FSB(mp, keys[1].fmr_physical);
+	end_fsb = XFS_BB_TO_FSB(mp, min(eofs - 1, keys[1].fmr_physical));
 
 	/* Set up search keys */
 	info->low.rm_startblock = start_fsb;
@@ -501,8 +507,8 @@ __xfs_getfsmap_rtdev(
 	info->high.rm_blockcount = 0;
 	xfs_getfsmap_set_irec_flags(&info->high, &keys[1]);
 
-	trace_xfs_fsmap_low_key(mp, info->dev, info->agno, &info->low);
-	trace_xfs_fsmap_high_key(mp, info->dev, info->agno, &info->high);
+	trace_xfs_fsmap_low_key(mp, info->dev, NULLAGNUMBER, &info->low);
+	trace_xfs_fsmap_high_key(mp, info->dev, NULLAGNUMBER, &info->high);
 
 	return query_fn(tp, info);
 }
@@ -515,27 +521,37 @@ xfs_getfsmap_rtdev_rtbitmap_query(
 {
 	struct xfs_rtalloc_rec		alow = { 0 };
 	struct xfs_rtalloc_rec		ahigh = { 0 };
+	struct xfs_mount		*mp = tp->t_mountp;
 	int				error;
 
-	xfs_ilock(tp->t_mountp->m_rbmip, XFS_ILOCK_SHARED);
+	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED);
 
+	/*
+	 * Set up query parameters to return free rtextents covering the range
+	 * we want.
+	 */
 	alow.ar_startext = info->low.rm_startblock;
 	ahigh.ar_startext = info->high.rm_startblock;
-	do_div(alow.ar_startext, tp->t_mountp->m_sb.sb_rextsize);
-	if (do_div(ahigh.ar_startext, tp->t_mountp->m_sb.sb_rextsize))
+	do_div(alow.ar_startext, mp->m_sb.sb_rextsize);
+	if (do_div(ahigh.ar_startext, mp->m_sb.sb_rextsize))
 		ahigh.ar_startext++;
-	error = xfs_rtalloc_query_range(tp, &alow, &ahigh,
+	error = xfs_rtalloc_query_range(mp, tp, &alow, &ahigh,
 			xfs_getfsmap_rtdev_rtbitmap_helper, info);
 	if (error)
 		goto err;
 
-	/* Report any gaps at the end of the rtbitmap */
+	/*
+	 * Report any gaps at the end of the rtbitmap by simulating a null
+	 * rmap starting at the block after the end of the query range.
+	 */
 	info->last = true;
-	error = xfs_getfsmap_rtdev_rtbitmap_helper(tp, &ahigh, info);
+	ahigh.ar_startext = min(mp->m_sb.sb_rextents, ahigh.ar_startext);
+
+	error = xfs_getfsmap_rtdev_rtbitmap_helper(mp, tp, &ahigh, info);
 	if (error)
 		goto err;
 err:
-	xfs_iunlock(tp->t_mountp->m_rbmip, XFS_ILOCK_SHARED);
+	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_SHARED);
 	return error;
 }
 
@@ -543,7 +559,7 @@ err:
 STATIC int
 xfs_getfsmap_rtdev_rtbitmap(
 	struct xfs_trans		*tp,
-	struct xfs_fsmap		*keys,
+	const struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info)
 {
 	info->missing_owner = XFS_FMR_OWN_UNKNOWN;
@@ -556,7 +572,7 @@ xfs_getfsmap_rtdev_rtbitmap(
 STATIC int
 __xfs_getfsmap_datadev(
 	struct xfs_trans		*tp,
-	struct xfs_fsmap		*keys,
+	const struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info,
 	int				(*query_fn)(struct xfs_trans *,
 						    struct xfs_getfsmap_info *,
@@ -565,21 +581,20 @@ __xfs_getfsmap_datadev(
 	void				*priv)
 {
 	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_perag		*pag;
 	struct xfs_btree_cur		*bt_cur = NULL;
 	xfs_fsblock_t			start_fsb;
 	xfs_fsblock_t			end_fsb;
 	xfs_agnumber_t			start_ag;
 	xfs_agnumber_t			end_ag;
-	xfs_daddr_t			eofs;
+	uint64_t			eofs;
 	int				error = 0;
 
 	eofs = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 	if (keys[0].fmr_physical >= eofs)
 		return 0;
-	if (keys[1].fmr_physical >= eofs)
-		keys[1].fmr_physical = eofs - 1;
 	start_fsb = XFS_DADDR_TO_FSB(mp, keys[0].fmr_physical);
-	end_fsb = XFS_DADDR_TO_FSB(mp, keys[1].fmr_physical);
+	end_fsb = XFS_DADDR_TO_FSB(mp, min(eofs - 1, keys[1].fmr_physical));
 
 	/*
 	 * Convert the fsmap low/high keys to AG based keys.  Initialize
@@ -603,20 +618,20 @@ __xfs_getfsmap_datadev(
 	start_ag = XFS_FSB_TO_AGNO(mp, start_fsb);
 	end_ag = XFS_FSB_TO_AGNO(mp, end_fsb);
 
-	/* Query each AG */
-	for (info->agno = start_ag; info->agno <= end_ag; info->agno++) {
+	for_each_perag_range(mp, start_ag, end_ag, pag) {
 		/*
 		 * Set the AG high key from the fsmap high key if this
 		 * is the last AG that we're querying.
 		 */
-		if (info->agno == end_ag) {
+		info->pag = pag;
+		if (pag->pag_agno == end_ag) {
 			info->high.rm_startblock = XFS_FSB_TO_AGBNO(mp,
 					end_fsb);
 			info->high.rm_offset = XFS_BB_TO_FSBT(mp,
 					keys[1].fmr_offset);
 			error = xfs_fsmap_owner_to_rmap(&info->high, &keys[1]);
 			if (error)
-				goto err;
+				break;
 			xfs_getfsmap_set_irec_flags(&info->high, &keys[1]);
 		}
 
@@ -627,44 +642,57 @@ __xfs_getfsmap_datadev(
 			info->agf_bp = NULL;
 		}
 
-		error = xfs_alloc_read_agf(mp, tp, info->agno, 0,
-				&info->agf_bp);
+		error = xfs_alloc_read_agf(pag, tp, 0, &info->agf_bp);
 		if (error)
-			goto err;
+			break;
 
-		trace_xfs_fsmap_low_key(mp, info->dev, info->agno, &info->low);
-		trace_xfs_fsmap_high_key(mp, info->dev, info->agno,
+		trace_xfs_fsmap_low_key(mp, info->dev, pag->pag_agno,
+				&info->low);
+		trace_xfs_fsmap_high_key(mp, info->dev, pag->pag_agno,
 				&info->high);
 
 		error = query_fn(tp, info, &bt_cur, priv);
 		if (error)
-			goto err;
+			break;
 
 		/*
 		 * Set the AG low key to the start of the AG prior to
 		 * moving on to the next AG.
 		 */
-		if (info->agno == start_ag) {
+		if (pag->pag_agno == start_ag) {
 			info->low.rm_startblock = 0;
 			info->low.rm_owner = 0;
 			info->low.rm_offset = 0;
 			info->low.rm_flags = 0;
 		}
+
+		/*
+		 * If this is the last AG, report any gap at the end of it
+		 * before we drop the reference to the perag when the loop
+		 * terminates.
+		 */
+		if (pag->pag_agno == end_ag) {
+			info->last = true;
+			error = query_fn(tp, info, &bt_cur, priv);
+			if (error)
+				break;
+		}
+		info->pag = NULL;
 	}
 
-	/* Report any gap at the end of the AG */
-	info->last = true;
-	error = query_fn(tp, info, &bt_cur, priv);
-	if (error)
-		goto err;
-
-err:
 	if (bt_cur)
 		xfs_btree_del_cursor(bt_cur, error < 0 ? XFS_BTREE_ERROR :
 							 XFS_BTREE_NOERROR);
 	if (info->agf_bp) {
 		xfs_trans_brelse(tp, info->agf_bp);
 		info->agf_bp = NULL;
+	}
+	if (info->pag) {
+		xfs_perag_put(info->pag);
+		info->pag = NULL;
+	} else if (pag) {
+		/* loop termination case */
+		xfs_perag_put(pag);
 	}
 
 	return error;
@@ -684,7 +712,7 @@ xfs_getfsmap_datadev_rmapbt_query(
 
 	/* Allocate cursor for this AG and query_range it. */
 	*curpp = xfs_rmapbt_init_cursor(tp->t_mountp, tp, info->agf_bp,
-			info->agno);
+			info->pag);
 	return xfs_rmap_query_range(*curpp, &info->low, &info->high,
 			xfs_getfsmap_datadev_helper, info);
 }
@@ -693,7 +721,7 @@ xfs_getfsmap_datadev_rmapbt_query(
 STATIC int
 xfs_getfsmap_datadev_rmapbt(
 	struct xfs_trans		*tp,
-	struct xfs_fsmap		*keys,
+	const struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info)
 {
 	info->missing_owner = XFS_FMR_OWN_FREE;
@@ -717,7 +745,7 @@ xfs_getfsmap_datadev_bnobt_query(
 
 	/* Allocate cursor for this AG and query_range it. */
 	*curpp = xfs_allocbt_init_cursor(tp->t_mountp, tp, info->agf_bp,
-			info->agno, XFS_BTNUM_BNO);
+			info->pag, XFS_BTNUM_BNO);
 	key->ar_startblock = info->low.rm_startblock;
 	key[1].ar_startblock = info->high.rm_startblock;
 	return xfs_alloc_query_range(*curpp, key, &key[1],
@@ -728,7 +756,7 @@ xfs_getfsmap_datadev_bnobt_query(
 STATIC int
 xfs_getfsmap_datadev_bnobt(
 	struct xfs_trans		*tp,
-	struct xfs_fsmap		*keys,
+	const struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info)
 {
 	struct xfs_alloc_rec_incore	akeys[2];
@@ -795,11 +823,11 @@ xfs_getfsmap_check_keys(
 #endif /* CONFIG_XFS_RT */
 
 /*
- * Get filesystem's extents as described in head, and format for
- * output.  Calls formatter to fill the user's buffer until all
- * extents are mapped, until the passed-in head->fmh_count slots have
- * been filled, or until the formatter short-circuits the loop, if it
- * is tracking filled-in extents on its own.
+ * Get filesystem's extents as described in head, and format for output. Fills
+ * in the supplied records array until there are no more reverse mappings to
+ * return or head.fmh_entries == head.fmh_count.  In the second case, this
+ * function returns -ECANCELED to indicate that more records would have been
+ * returned.
  *
  * Key to Confusion
  * ----------------
@@ -819,8 +847,7 @@ int
 xfs_getfsmap(
 	struct xfs_mount		*mp,
 	struct xfs_fsmap_head		*head,
-	xfs_fsmap_format_t		formatter,
-	void				*arg)
+	struct fsmap			*fsmap_recs)
 {
 	struct xfs_trans		*tp = NULL;
 	struct xfs_fsmap		dkeys[2];	/* per-dev keys */
@@ -836,8 +863,8 @@ xfs_getfsmap(
 	    !xfs_getfsmap_is_valid_device(mp, &head->fmh_keys[1]))
 		return -EINVAL;
 
-	use_rmap = capable(CAP_SYS_ADMIN) &&
-		   xfs_sb_version_hasrmapbt(&mp->m_sb);
+	use_rmap = xfs_has_rmapbt(mp) &&
+		   has_capability_noaudit(current, CAP_SYS_ADMIN);
 	head->fmh_entries = 0;
 
 	/* Set up our device handlers. */
@@ -895,8 +922,7 @@ xfs_getfsmap(
 
 	info.next_daddr = head->fmh_keys[0].fmr_physical +
 			  head->fmh_keys[0].fmr_length;
-	info.formatter = formatter;
-	info.format_arg = arg;
+	info.fsmap_recs = fsmap_recs;
 	info.head = head;
 
 	/* For each device we support... */
@@ -921,13 +947,18 @@ xfs_getfsmap(
 		if (handlers[i].dev > head->fmh_keys[0].fmr_device)
 			memset(&dkeys[0], 0, sizeof(struct xfs_fsmap));
 
+		/*
+		 * Grab an empty transaction so that we can use its recursive
+		 * buffer locking abilities to detect cycles in the rmapbt
+		 * without deadlocking.
+		 */
 		error = xfs_trans_alloc_empty(mp, &tp);
 		if (error)
 			break;
 
 		info.dev = handlers[i].dev;
 		info.last = false;
-		info.agno = NULLAGNUMBER;
+		info.pag = NULL;
 		error = handlers[i].fn(tp, dkeys, &info);
 		if (error)
 			break;

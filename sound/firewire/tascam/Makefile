@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 snd-firewire-tascam-objs := tascam-proc.o amdtp-tascam.o tascam-stream.o \
 			    tascam-pcm.o tascam-hwdep.o tascam-transaction.o \
 			    tascam-midi.o tascam.o

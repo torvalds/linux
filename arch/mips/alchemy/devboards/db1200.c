@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DBAu1200/PBAu1200 board platform device registration
  *
  * Copyright (C) 2008-2011 Manuel Lauss
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/clk.h>
@@ -848,7 +835,7 @@ int __init db1200_dev_setup(void)
 	if (!IS_ERR(c)) {
 		pfc = clk_round_rate(c, 50000000);
 		if ((pfc < 1) || (abs(50000000 - pfc) > 2500000))
-			pr_warn("DB1200: cant get I2C close to 50MHz\n");
+			pr_warn("DB1200: can't get I2C close to 50MHz\n");
 		else
 			clk_set_rate(c, pfc);
 		clk_prepare_enable(c);

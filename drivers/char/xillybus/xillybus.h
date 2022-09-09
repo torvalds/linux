@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/drivers/misc/xillybus.h
  *
  * Copyright 2011 Xillybus Ltd, http://xillybus.com
  *
  * Header file for the Xillybus FPGA/host framework.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the smems of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #ifndef __XILLYBUS_H
@@ -33,7 +30,8 @@ struct xilly_buffer {
 
 struct xilly_idt_handle {
 	unsigned char *chandesc;
-	unsigned char *idt;
+	unsigned char *names;
+	int names_len;
 	int entries;
 };
 
@@ -89,27 +87,15 @@ struct xilly_channel {
 };
 
 struct xilly_endpoint {
-	/*
-	 * One of pdev and dev is always NULL, and the other is a valid
-	 * pointer, depending on the type of device
-	 */
-	struct pci_dev *pdev;
 	struct device *dev;
-	struct xilly_endpoint_hardware *ephw;
+	struct module *owner;
 
-	struct list_head ep_list;
 	int dma_using_dac; /* =1 if 64-bit DMA is used, =0 otherwise. */
 	__iomem void *registers;
 	int fatal_error;
 
 	struct mutex register_mutex;
 	wait_queue_head_t ep_wait;
-
-	/* Channels and message handling */
-	struct cdev cdev;
-
-	int major;
-	int lowest_minor; /* Highest minor = lowest_minor + num_channels - 1 */
 
 	int num_channels; /* EXCLUDING message buffer */
 	struct xilly_channel **channels;
@@ -122,25 +108,8 @@ struct xilly_endpoint {
 	unsigned int msg_buf_size;
 };
 
-struct xilly_endpoint_hardware {
-	struct module *owner;
-	void (*hw_sync_sgl_for_cpu)(struct xilly_endpoint *,
-				    dma_addr_t,
-				    size_t,
-				    int);
-	void (*hw_sync_sgl_for_device)(struct xilly_endpoint *,
-				       dma_addr_t,
-				       size_t,
-				       int);
-	int (*map_single)(struct xilly_endpoint *,
-			  void *,
-			  size_t,
-			  int,
-			  dma_addr_t *);
-};
-
 struct xilly_mapping {
-	void *device;
+	struct device *device;
 	dma_addr_t dma_addr;
 	size_t size;
 	int direction;
@@ -148,10 +117,7 @@ struct xilly_mapping {
 
 irqreturn_t xillybus_isr(int irq, void *data);
 
-struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
-					      struct device *dev,
-					      struct xilly_endpoint_hardware
-					      *ephw);
+struct xilly_endpoint *xillybus_init_endpoint(struct device *dev);
 
 int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint);
 

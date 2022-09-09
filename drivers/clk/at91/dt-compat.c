@@ -22,6 +22,10 @@
 
 #define SYSTEM_MAX_ID		31
 
+#define GCK_INDEX_DT_AUDIO_PLL	5
+
+static DEFINE_SPINLOCK(mck_lock);
+
 #ifdef CONFIG_HAVE_AT91_AUDIO_PLL
 static void __init of_sama5d2_clk_audio_pll_frac_setup(struct device_node *np)
 {
@@ -93,6 +97,14 @@ CLK_OF_DECLARE(of_sama5d2_clk_audio_pll_pmc_setup,
 	       of_sama5d2_clk_audio_pll_pmc_setup);
 #endif /* CONFIG_HAVE_AT91_AUDIO_PLL */
 
+static const struct clk_pcr_layout dt_pcr_layout = {
+	.offset = 0x10c,
+	.cmd = BIT(12),
+	.pid_mask = GENMASK(5, 0),
+	.div_mask = GENMASK(17, 16),
+	.gckcss_mask = GENMASK(10, 8),
+};
+
 #ifdef CONFIG_HAVE_AT91_GENERATED_CLK
 #define GENERATED_SOURCE_MAX	6
 
@@ -127,7 +139,7 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		return;
 
 	for_each_child_of_node(np, gcknp) {
-		bool pll_audio = false;
+		int chg_pid = INT_MIN;
 
 		if (of_property_read_u32(gcknp, "reg", &id))
 			continue;
@@ -144,11 +156,13 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 		if (of_device_is_compatible(np, "atmel,sama5d2-clk-generated") &&
 		    (id == GCK_ID_I2S0 || id == GCK_ID_I2S1 ||
 		     id == GCK_ID_CLASSD))
-			pll_audio = true;
+			chg_pid = GCK_INDEX_DT_AUDIO_PLL;
 
-		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock, name,
-						 parent_names, num_parents,
-						 id, pll_audio, &range);
+		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock,
+						 &dt_pcr_layout, name,
+						 parent_names, NULL,
+						 num_parents, id, &range,
+						 chg_pid);
 		if (IS_ERR(hw))
 			continue;
 
@@ -376,9 +390,15 @@ of_at91_clk_master_setup(struct device_node *np,
 	if (IS_ERR(regmap))
 		return;
 
-	hw = at91_clk_register_master(regmap, name, num_parents,
-				      parent_names, layout,
-				      characteristics);
+	hw = at91_clk_register_master_pres(regmap, "masterck_pres", num_parents,
+					   parent_names, layout,
+					   characteristics, &mck_lock);
+	if (IS_ERR(hw))
+		goto out_free_characteristics;
+
+	hw = at91_clk_register_master_div(regmap, name, "masterck_pres",
+					  layout, characteristics,
+					  &mck_lock, CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))
 		goto out_free_characteristics;
 
@@ -448,9 +468,11 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 
 			hw = at91_clk_register_sam9x5_peripheral(regmap,
 								 &pmc_pcr_lock,
+								 &dt_pcr_layout,
 								 name,
 								 parent_name,
-								 id, &range);
+								 id, &range,
+								 INT_MIN);
 		}
 
 		if (IS_ERR(hw))
@@ -663,7 +685,8 @@ CLK_OF_DECLARE(at91sam9x5_clk_plldiv, "atmel,at91sam9x5-clk-plldiv",
 
 static void __init
 of_at91_clk_prog_setup(struct device_node *np,
-		       const struct clk_programmable_layout *layout)
+		       const struct clk_programmable_layout *layout,
+		       u32 *mux_table)
 {
 	int num;
 	u32 id;
@@ -697,7 +720,7 @@ of_at91_clk_prog_setup(struct device_node *np,
 
 		hw = at91_clk_register_programmable(regmap, name,
 						    parent_names, num_parents,
-						    id, layout);
+						    id, layout, mux_table);
 		if (IS_ERR(hw))
 			continue;
 
@@ -707,21 +730,21 @@ of_at91_clk_prog_setup(struct device_node *np,
 
 static void __init of_at91rm9200_clk_prog_setup(struct device_node *np)
 {
-	of_at91_clk_prog_setup(np, &at91rm9200_programmable_layout);
+	of_at91_clk_prog_setup(np, &at91rm9200_programmable_layout, NULL);
 }
 CLK_OF_DECLARE(at91rm9200_clk_prog, "atmel,at91rm9200-clk-programmable",
 	       of_at91rm9200_clk_prog_setup);
 
 static void __init of_at91sam9g45_clk_prog_setup(struct device_node *np)
 {
-	of_at91_clk_prog_setup(np, &at91sam9g45_programmable_layout);
+	of_at91_clk_prog_setup(np, &at91sam9g45_programmable_layout, NULL);
 }
 CLK_OF_DECLARE(at91sam9g45_clk_prog, "atmel,at91sam9g45-clk-programmable",
 	       of_at91sam9g45_clk_prog_setup);
 
 static void __init of_at91sam9x5_clk_prog_setup(struct device_node *np)
 {
-	of_at91_clk_prog_setup(np, &at91sam9x5_programmable_layout);
+	of_at91_clk_prog_setup(np, &at91sam9x5_programmable_layout, NULL);
 }
 CLK_OF_DECLARE(at91sam9x5_clk_prog, "atmel,at91sam9x5-clk-programmable",
 	       of_at91sam9x5_clk_prog_setup);

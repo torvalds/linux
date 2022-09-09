@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (C) 2008, cozybit Inc.
  *  Copyright (C) 2007, Red Hat, Inc.
  *  Copyright (C) 2003-2006, Marvell International Ltd.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
  */
 #include <linux/spinlock.h>
 #include <linux/device.h>
@@ -173,10 +169,19 @@ struct channel_range {
 
 struct if_usb_card;
 
+struct lbtf_ops {
+	/** Hardware access */
+	int (*hw_host_to_card)(struct lbtf_private *priv, u8 type,
+			       u8 *payload, u16 nb);
+	int (*hw_prog_firmware)(struct lbtf_private *priv);
+	int (*hw_reset_device)(struct lbtf_private *priv);
+};
+
 /** Private structure for the MV device */
 struct lbtf_private {
 	void *card;
 	struct ieee80211_hw *hw;
+	const struct lbtf_ops *ops;
 
 	/* Command response buffer */
 	u8 cmd_resp_buff[LBS_UPLD_SIZE];
@@ -188,11 +193,6 @@ struct lbtf_private {
 
 	struct work_struct cmd_work;
 	struct work_struct tx_work;
-	/** Hardware access */
-	int (*hw_host_to_card) (struct lbtf_private *priv, u8 type, u8 *payload, u16 nb);
-	int (*hw_prog_firmware) (struct if_usb_card *cardp);
-	int (*hw_reset_device) (struct if_usb_card *cardp);
-
 
 	/** Wlan adapter data structure*/
 	/** STATUS variables */
@@ -250,7 +250,6 @@ struct lbtf_private {
 	struct ieee80211_supported_band band;
 	struct lbtf_offset_value offsetvalue;
 
-	u8 fw_ready;
 	u8 surpriseremoved;
 	struct sk_buff_head bc_ps_buf;
 
@@ -269,10 +268,12 @@ struct txpd {
 	__le32 tx_packet_location;
 	/* Tx packet length */
 	__le16 tx_packet_length;
-	/* First 2 byte of destination MAC address */
-	u8 tx_dest_addr_high[2];
-	/* Last 4 byte of destination MAC address */
-	u8 tx_dest_addr_low[4];
+	struct_group_attr(tx_dest_addr, __packed,
+		/* First 2 byte of destination MAC address */
+		u8 tx_dest_addr_high[2];
+		/* Last 4 byte of destination MAC address */
+		u8 tx_dest_addr_low[4];
+	);
 	/* Pkt Priority */
 	u8 priority;
 	/* Pkt Trasnit Power control */
@@ -281,7 +282,7 @@ struct txpd {
 	u8 pktdelay_2ms;
 	/* reserved */
 	u8 reserved1;
-};
+} __packed;
 
 /* RxPD Descriptor */
 struct rxpd {
@@ -312,7 +313,7 @@ struct rxpd {
 	/* Pkt Priority */
 	u8 priority;
 	u8 reserved[3];
-};
+} __packed;
 
 struct cmd_header {
 	__le16 command;
@@ -378,14 +379,14 @@ struct cmd_ds_mac_control {
 	struct cmd_header hdr;
 	__le16 action;
 	u16 reserved;
-};
+} __packed;
 
 struct cmd_ds_802_11_mac_address {
 	struct cmd_header hdr;
 
 	__le16 action;
 	uint8_t macadd[ETH_ALEN];
-};
+} __packed;
 
 struct cmd_ds_mac_multicast_addr {
 	struct cmd_header hdr;
@@ -393,27 +394,27 @@ struct cmd_ds_mac_multicast_addr {
 	__le16 action;
 	__le16 nr_of_adrs;
 	u8 maclist[ETH_ALEN * MRVDRV_MAX_MULTICAST_LIST_SIZE];
-};
+} __packed;
 
 struct cmd_ds_set_mode {
 	struct cmd_header hdr;
 
 	__le16 mode;
-};
+} __packed;
 
 struct cmd_ds_set_bssid {
 	struct cmd_header hdr;
 
 	u8 bssid[6];
 	u8 activate;
-};
+} __packed;
 
 struct cmd_ds_802_11_radio_control {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 control;
-};
+} __packed;
 
 
 struct cmd_ds_802_11_rf_channel {
@@ -424,20 +425,20 @@ struct cmd_ds_802_11_rf_channel {
 	__le16 rftype;      /* unused */
 	__le16 reserved;    /* unused */
 	u8 channellist[32]; /* unused */
-};
+} __packed;
 
 struct cmd_ds_set_boot2_ver {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 version;
-};
+} __packed;
 
 struct cmd_ds_802_11_reset {
 	struct cmd_header hdr;
 
 	__le16 action;
-};
+} __packed;
 
 struct cmd_ds_802_11_beacon_control {
 	struct cmd_header hdr;
@@ -445,16 +446,15 @@ struct cmd_ds_802_11_beacon_control {
 	__le16 action;
 	__le16 beacon_enable;
 	__le16 beacon_period;
-};
+} __packed;
 
 struct cmd_ds_802_11_beacon_set {
 	struct cmd_header hdr;
 
 	__le16 len;
 	u8 beacon[MRVL_MAX_BCN_SIZE];
-};
+} __packed;
 
-struct lbtf_private;
 struct cmd_ctrl_node;
 
 /** Function Prototype Declaration */
@@ -486,7 +486,8 @@ void lbtf_cmd_response_rx(struct lbtf_private *priv);
 /* main.c */
 struct chan_freq_power *lbtf_get_region_cfp_table(u8 region,
 	int *cfp_no);
-struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev);
+struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev,
+				   const struct lbtf_ops *ops);
 int lbtf_remove_card(struct lbtf_private *priv);
 int lbtf_start_card(struct lbtf_private *priv);
 int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb);

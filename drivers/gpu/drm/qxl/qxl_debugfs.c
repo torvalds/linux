@@ -28,9 +28,9 @@
  *  Alon Levy <alevy@redhat.com>
  */
 
-#include <linux/debugfs.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 
-#include <drm/drmP.h>
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
@@ -39,7 +39,7 @@ static int
 qxl_debugfs_irq_received(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct qxl_device *qdev = node->minor->dev->dev_private;
+	struct qxl_device *qdev = to_qxl(node->minor->dev);
 
 	seq_printf(m, "%d\n", atomic_read(&qdev->irq_received));
 	seq_printf(m, "%d\n", atomic_read(&qdev->irq_received_display));
@@ -53,21 +53,25 @@ static int
 qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct qxl_device *qdev = node->minor->dev->dev_private;
+	struct qxl_device *qdev = to_qxl(node->minor->dev);
 	struct qxl_bo *bo;
 
 	list_for_each_entry(bo, &qdev->gem.objects, list) {
-		struct reservation_object_list *fobj;
-		int rel;
+		struct dma_resv_iter cursor;
+		struct dma_fence *fence;
+		int rel = 0;
 
-		rcu_read_lock();
-		fobj = rcu_dereference(bo->tbo.resv->fence);
-		rel = fobj ? fobj->shared_count : 0;
-		rcu_read_unlock();
+		dma_resv_iter_begin(&cursor, bo->tbo.base.resv,
+				    DMA_RESV_USAGE_BOOKKEEP);
+		dma_resv_for_each_fence_unlocked(&cursor, fence) {
+			if (dma_resv_iter_is_restarted(&cursor))
+				rel = 0;
+			++rel;
+		}
 
 		seq_printf(m, "size %ld, pc %d, num releases %d\n",
-			   (unsigned long)bo->gem_base.size,
-			   bo->pin_count, rel);
+			   (unsigned long)bo->tbo.base.size,
+			   bo->tbo.pin_count, rel);
 	}
 	return 0;
 }
@@ -79,36 +83,29 @@ static struct drm_info_list qxl_debugfs_list[] = {
 #define QXL_DEBUGFS_ENTRIES ARRAY_SIZE(qxl_debugfs_list)
 #endif
 
-int
+void
 qxl_debugfs_init(struct drm_minor *minor)
 {
 #if defined(CONFIG_DEBUG_FS)
-	int r;
-	struct qxl_device *dev =
-		(struct qxl_device *) minor->dev->dev_private;
+	struct qxl_device *dev = to_qxl(minor->dev);
 
 	drm_debugfs_create_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
 				 minor->debugfs_root, minor);
 
-	r = qxl_ttm_debugfs_init(dev);
-	if (r) {
-		DRM_ERROR("Failed to init TTM debugfs\n");
-		return r;
-	}
+	qxl_ttm_debugfs_init(dev);
 #endif
-	return 0;
 }
 
-int qxl_debugfs_add_files(struct qxl_device *qdev,
-			  struct drm_info_list *files,
-			  unsigned int nfiles)
+void qxl_debugfs_add_files(struct qxl_device *qdev,
+			   struct drm_info_list *files,
+			   unsigned int nfiles)
 {
 	unsigned int i;
 
 	for (i = 0; i < qdev->debugfs_count; i++) {
 		if (qdev->debugfs[i].files == files) {
 			/* Already registered */
-			return 0;
+			return;
 		}
 	}
 
@@ -116,7 +113,7 @@ int qxl_debugfs_add_files(struct qxl_device *qdev,
 	if (i > QXL_DEBUGFS_MAX_COMPONENTS) {
 		DRM_ERROR("Reached maximum number of debugfs components.\n");
 		DRM_ERROR("Report so we increase QXL_DEBUGFS_MAX_COMPONENTS.\n");
-		return -EINVAL;
+		return;
 	}
 	qdev->debugfs[qdev->debugfs_count].files = files;
 	qdev->debugfs[qdev->debugfs_count].num_files = nfiles;
@@ -126,5 +123,4 @@ int qxl_debugfs_add_files(struct qxl_device *qdev,
 				 qdev->ddev.primary->debugfs_root,
 				 qdev->ddev.primary);
 #endif
-	return 0;
 }

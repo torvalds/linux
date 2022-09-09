@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AD7879/AD7889 based touchscreen and GPIO driver
  *
  * Copyright (C) 2008-2010 Michael Hennerich, Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  *
  * History:
  * Copyright (c) 2005 David Brownell
@@ -246,11 +245,14 @@ static void ad7879_timer(struct timer_list *t)
 static irqreturn_t ad7879_irq(int irq, void *handle)
 {
 	struct ad7879 *ts = handle;
+	int error;
 
-	regmap_bulk_read(ts->regmap, AD7879_REG_XPLUS,
-			 ts->conversion_data, AD7879_NR_SENSE);
-
-	if (!ad7879_report(ts))
+	error = regmap_bulk_read(ts->regmap, AD7879_REG_XPLUS,
+				 ts->conversion_data, AD7879_NR_SENSE);
+	if (error)
+		dev_err_ratelimited(ts->dev, "failed to read %#02x: %d\n",
+				    AD7879_REG_XPLUS, error);
+	else if (!ad7879_report(ts))
 		mod_timer(&ts->timer, jiffies + TS_PEN_UP_TIMEOUT);
 
 	return IRQ_HANDLED;
@@ -304,7 +306,7 @@ static int __maybe_unused ad7879_suspend(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (!ts->suspended && !ts->disabled && ts->input->users)
+	if (!ts->suspended && !ts->disabled && input_device_enabled(ts->input))
 		__ad7879_disable(ts);
 
 	ts->suspended = true;
@@ -320,7 +322,7 @@ static int __maybe_unused ad7879_resume(struct device *dev)
 
 	mutex_lock(&ts->input->mutex);
 
-	if (ts->suspended && !ts->disabled && ts->input->users)
+	if (ts->suspended && !ts->disabled && input_device_enabled(ts->input))
 		__ad7879_enable(ts);
 
 	ts->suspended = false;
@@ -337,7 +339,7 @@ static void ad7879_toggle(struct ad7879 *ts, bool disable)
 {
 	mutex_lock(&ts->input->mutex);
 
-	if (!ts->suspended && ts->input->users != 0) {
+	if (!ts->suspended && input_device_enabled(ts->input)) {
 
 		if (disable) {
 			if (ts->disabled)

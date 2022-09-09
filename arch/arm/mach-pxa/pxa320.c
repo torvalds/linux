@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/pxa320.c
  *
@@ -7,16 +8,13 @@
  *
  * 2007-08-21: eric miao <eric.miao@marvell.com>
  *             initial version
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include "pxa320.h"
 

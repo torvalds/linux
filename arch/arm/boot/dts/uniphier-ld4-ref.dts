@@ -20,7 +20,7 @@
 
 	aliases {
 		serial0 = &serial0;
-		serial1 = &serial1;
+		serial1 = &serialsc;
 		serial2 = &serial2;
 		serial3 = &serial3;
 		i2c0 = &i2c0;
@@ -36,6 +36,10 @@
 };
 
 &ethsc {
+	interrupts = <1 8>;
+};
+
+&serialsc {
 	interrupts = <1 8>;
 };
 
@@ -77,4 +81,8 @@
 
 &nand {
 	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+	};
 };

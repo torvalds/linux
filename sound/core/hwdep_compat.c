@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   32bit -> 64bit ioctl wrapper for hwdep API
  *   Copyright (c) by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /* This file is included from hwdep.c */
@@ -33,26 +19,17 @@ struct snd_hwdep_dsp_image32 {
 static int snd_hwdep_dsp_load_compat(struct snd_hwdep *hw,
 				     struct snd_hwdep_dsp_image32 __user *src)
 {
-	struct snd_hwdep_dsp_image __user *dst;
+	struct snd_hwdep_dsp_image info = {};
 	compat_caddr_t ptr;
-	u32 val;
 
-	dst = compat_alloc_user_space(sizeof(*dst));
+	if (copy_from_user(&info, src, 4 + 64) ||
+	    get_user(ptr, &src->image) ||
+	    get_user(info.length, &src->length) ||
+	    get_user(info.driver_data, &src->driver_data))
+		return -EFAULT;
+	info.image = compat_ptr(ptr);
 
-	/* index and name */
-	if (copy_in_user(dst, src, 4 + 64))
-		return -EFAULT;
-	if (get_user(ptr, &src->image) ||
-	    put_user(compat_ptr(ptr), &dst->image))
-		return -EFAULT;
-	if (get_user(val, &src->length) ||
-	    put_user(val, &dst->length))
-		return -EFAULT;
-	if (get_user(val, &src->driver_data) ||
-	    put_user(val, &dst->driver_data))
-		return -EFAULT;
-
-	return snd_hwdep_dsp_load(hw, dst);
+	return snd_hwdep_dsp_load(hw, &info);
 }
 
 enum {

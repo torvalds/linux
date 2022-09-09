@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * test/set flag bits stored in conntrack extension area.
  *
  * (C) 2013 Astaro GmbH & Co KG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
@@ -14,7 +11,7 @@
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_labels.h>
 
-static spinlock_t nf_connlabels_lock;
+static DEFINE_SPINLOCK(nf_connlabels_lock);
 
 static int replace_u32(u32 *address, u32 mask, u32 new)
 {
@@ -70,6 +67,8 @@ int nf_connlabels_get(struct net *net, unsigned int bits)
 	net->ct.labels_used++;
 	spin_unlock(&nf_connlabels_lock);
 
+	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE / sizeof(long) >= U8_MAX);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_get);
@@ -81,22 +80,3 @@ void nf_connlabels_put(struct net *net)
 	spin_unlock(&nf_connlabels_lock);
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_put);
-
-static const struct nf_ct_ext_type labels_extend = {
-	.len    = sizeof(struct nf_conn_labels),
-	.align  = __alignof__(struct nf_conn_labels),
-	.id     = NF_CT_EXT_LABELS,
-};
-
-int nf_conntrack_labels_init(void)
-{
-	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE / sizeof(long) >= U8_MAX);
-
-	spin_lock_init(&nf_connlabels_lock);
-	return nf_ct_extend_register(&labels_extend);
-}
-
-void nf_conntrack_labels_fini(void)
-{
-	nf_ct_extend_unregister(&labels_extend);
-}

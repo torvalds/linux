@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig ACCESSIBILITY
 	bool "Accessibility support"
-	---help---
+	help
 	  Accessibility handles all special kinds of hardware devices or
 	  software adapters which help people with disabilities (e.g.
 	  blindness) to use computers.
@@ -21,7 +21,7 @@ config A11Y_BRAILLE_CONSOLE
 	bool "Console on braille device"
 	depends on VT
 	depends on SERIAL_CORE_CONSOLE
-	---help---
+	help
 	  Enables console output on a braille device connected to a 8250
 	  serial port. For now only the VisioBraille device is supported.
 
@@ -30,5 +30,7 @@ config A11Y_BRAILLE_CONSOLE
 	  to the kernel. Options are the same as for serial console.
 
 	  If unsure, say N.
+
+source "drivers/accessibility/speakup/Kconfig"
 
 endif # ACCESSIBILITY

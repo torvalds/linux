@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * da7219-aad.h - DA7322 ASoC AAD Driver
  *
  * Copyright (c) 2015 Dialog Semiconductor Ltd.
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __DA7219_AAD_H
@@ -215,5 +211,8 @@ void da7219_aad_resume(struct snd_soc_component *component);
 /* Init/Exit */
 int da7219_aad_init(struct snd_soc_component *component);
 void da7219_aad_exit(struct snd_soc_component *component);
+
+/* I2C Probe */
+int da7219_aad_probe(struct i2c_client *i2c);
 
 #endif /* __DA7219_AAD_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AHCI SATA platform library
  *
@@ -5,11 +6,6 @@
  *   Jeff Garzik <jgarzik@pobox.com>
  * Copyright 2010  MontaVista Software, LLC.
  *   Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
  */
 
 #include <linux/clk.h>
@@ -47,7 +43,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_ops);
  * RETURNS:
  * 0 on success otherwise a negative error code
  */
-static int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
+int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
 {
 	int rc, i;
 
@@ -55,6 +51,12 @@ static int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
 		rc = phy_init(hpriv->phys[i]);
 		if (rc)
 			goto disable_phys;
+
+		rc = phy_set_mode(hpriv->phys[i], PHY_MODE_SATA);
+		if (rc) {
+			phy_exit(hpriv->phys[i]);
+			goto disable_phys;
+		}
 
 		rc = phy_power_on(hpriv->phys[i]);
 		if (rc) {
@@ -72,6 +74,7 @@ disable_phys:
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ahci_platform_enable_phys);
 
 /**
  * ahci_platform_disable_phys - Disable PHYs
@@ -79,7 +82,7 @@ disable_phys:
  *
  * This function disables all PHYs found in hpriv->phys.
  */
-static void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
+void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
 {
 	int i;
 
@@ -88,6 +91,7 @@ static void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
 		phy_exit(hpriv->phys[i]);
 	}
 }
+EXPORT_SYMBOL_GPL(ahci_platform_disable_phys);
 
 /**
  * ahci_platform_enable_clks - Enable platform clocks
@@ -151,17 +155,13 @@ int ahci_platform_enable_regulators(struct ahci_host_priv *hpriv)
 {
 	int rc, i;
 
-	if (hpriv->ahci_regulator) {
-		rc = regulator_enable(hpriv->ahci_regulator);
-		if (rc)
-			return rc;
-	}
+	rc = regulator_enable(hpriv->ahci_regulator);
+	if (rc)
+		return rc;
 
-	if (hpriv->phy_regulator) {
-		rc = regulator_enable(hpriv->phy_regulator);
-		if (rc)
-			goto disable_ahci_pwrs;
-	}
+	rc = regulator_enable(hpriv->phy_regulator);
+	if (rc)
+		goto disable_ahci_pwrs;
 
 	for (i = 0; i < hpriv->nports; i++) {
 		if (!hpriv->target_pwrs[i])
@@ -179,11 +179,9 @@ disable_target_pwrs:
 		if (hpriv->target_pwrs[i])
 			regulator_disable(hpriv->target_pwrs[i]);
 
-	if (hpriv->phy_regulator)
-		regulator_disable(hpriv->phy_regulator);
+	regulator_disable(hpriv->phy_regulator);
 disable_ahci_pwrs:
-	if (hpriv->ahci_regulator)
-		regulator_disable(hpriv->ahci_regulator);
+	regulator_disable(hpriv->ahci_regulator);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ahci_platform_enable_regulators);
@@ -205,10 +203,8 @@ void ahci_platform_disable_regulators(struct ahci_host_priv *hpriv)
 		regulator_disable(hpriv->target_pwrs[i]);
 	}
 
-	if (hpriv->ahci_regulator)
-		regulator_disable(hpriv->ahci_regulator);
-	if (hpriv->phy_regulator)
-		regulator_disable(hpriv->phy_regulator);
+	regulator_disable(hpriv->ahci_regulator);
+	regulator_disable(hpriv->phy_regulator);
 }
 EXPORT_SYMBOL_GPL(ahci_platform_disable_regulators);
 /**
@@ -330,11 +326,14 @@ static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
 				node);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case -ENODEV:
 		/* continue normally */
 		hpriv->phys[port] = NULL;
 		rc = 0;
+		break;
+	case -EPROBE_DEFER:
+		/* Do not complain yet */
 		break;
 
 	default:
@@ -354,7 +353,7 @@ static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
 	struct regulator *target_pwr;
 	int rc = 0;
 
-	target_pwr = regulator_get_optional(dev, "target");
+	target_pwr = regulator_get(dev, "target");
 
 	if (!IS_ERR(target_pwr))
 		hpriv->target_pwrs[port] = target_pwr;
@@ -406,7 +405,6 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 	hpriv->mmio = devm_ioremap_resource(dev,
 			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
 	if (IS_ERR(hpriv->mmio)) {
-		dev_err(dev, "no mmio space\n");
 		rc = PTR_ERR(hpriv->mmio);
 		goto err_out;
 	}
@@ -432,22 +430,17 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 		hpriv->clks[i] = clk;
 	}
 
-	hpriv->ahci_regulator = devm_regulator_get_optional(dev, "ahci");
+	hpriv->ahci_regulator = devm_regulator_get(dev, "ahci");
 	if (IS_ERR(hpriv->ahci_regulator)) {
 		rc = PTR_ERR(hpriv->ahci_regulator);
-		if (rc == -EPROBE_DEFER)
+		if (rc != 0)
 			goto err_out;
-		rc = 0;
-		hpriv->ahci_regulator = NULL;
 	}
 
-	hpriv->phy_regulator = devm_regulator_get_optional(dev, "phy");
+	hpriv->phy_regulator = devm_regulator_get(dev, "phy");
 	if (IS_ERR(hpriv->phy_regulator)) {
 		rc = PTR_ERR(hpriv->phy_regulator);
-		if (rc == -EPROBE_DEFER)
-			goto err_out;
-		rc = 0;
-		hpriv->phy_regulator = NULL;
+		goto err_out;
 	}
 
 	if (flags & AHCI_PLATFORM_GET_RESETS) {
@@ -493,6 +486,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 			if (of_property_read_u32(child, "reg", &port)) {
 				rc = -EINVAL;
+				of_node_put(child);
 				goto err_out;
 			}
 
@@ -510,14 +504,18 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 			if (port_dev) {
 				rc = ahci_platform_get_regulator(hpriv, port,
 								&port_dev->dev);
-				if (rc == -EPROBE_DEFER)
+				if (rc == -EPROBE_DEFER) {
+					of_node_put(child);
 					goto err_out;
+				}
 			}
 #endif
 
 			rc = ahci_platform_get_phy(hpriv, port, dev, child);
-			if (rc)
+			if (rc) {
+				of_node_put(child);
 				goto err_out;
+			}
 
 			enabled_ports++;
 		}
@@ -581,11 +579,10 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	int i, irq, n_ports, rc;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		if (irq != -EPROBE_DEFER)
-			dev_err(dev, "no irq\n");
+	if (irq < 0)
 		return irq;
-	}
+	if (!irq)
+		return -EINVAL;
 
 	hpriv->irq = irq;
 
@@ -642,13 +639,8 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	if (hpriv->cap & HOST_CAP_64) {
 		rc = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 		if (rc) {
-			rc = dma_coerce_mask_and_coherent(dev,
-							  DMA_BIT_MASK(32));
-			if (rc) {
-				dev_err(dev, "Failed to enable 64-bit DMA.\n");
-				return rc;
-			}
-			dev_warn(dev, "Enable 32-bit DMA instead of 64-bit.\n");
+			dev_err(dev, "Failed to enable 64-bit DMA.\n");
+			return rc;
 		}
 	}
 
@@ -738,7 +730,11 @@ int ahci_platform_suspend_host(struct device *dev)
 	writel(ctl, mmio + HOST_CTL);
 	readl(mmio + HOST_CTL); /* flush */
 
-	return ata_host_suspend(host, PMSG_SUSPEND);
+	if (hpriv->flags & AHCI_HFLAG_SUSPEND_PHYS)
+		ahci_platform_disable_phys(hpriv);
+
+	ata_host_suspend(host, PMSG_SUSPEND);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ahci_platform_suspend_host);
 
@@ -756,6 +752,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_suspend_host);
 int ahci_platform_resume_host(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
 	int rc;
 
 	if (dev->power.power_state.event == PM_EVENT_SUSPEND) {
@@ -765,6 +762,9 @@ int ahci_platform_resume_host(struct device *dev)
 
 		ahci_init_controller(host);
 	}
+
+	if (hpriv->flags & AHCI_HFLAG_SUSPEND_PHYS)
+		ahci_platform_enable_phys(hpriv);
 
 	ata_host_resume(host);
 

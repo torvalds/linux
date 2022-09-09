@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Helpers for controlling modem lines via GPIO
  *
@@ -91,6 +91,16 @@ void mctrl_gpio_enable_ms(struct mctrl_gpios *gpios);
  */
 void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios);
 
+/*
+ * Enable gpio wakeup interrupts to enable wake up source.
+ */
+void mctrl_gpio_enable_irq_wake(struct mctrl_gpios *gpios);
+
+/*
+ * Disable gpio wakeup interrupts to enable wake up source.
+ */
+void mctrl_gpio_disable_irq_wake(struct mctrl_gpios *gpios);
+
 #else /* GPIOLIB */
 
 static inline
@@ -114,19 +124,19 @@ static inline
 struct gpio_desc *mctrl_gpio_to_gpiod(struct mctrl_gpios *gpios,
 				      enum mctrl_gpio_idx gidx)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline
 struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline
 struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline
@@ -139,6 +149,14 @@ static inline void mctrl_gpio_enable_ms(struct mctrl_gpios *gpios)
 }
 
 static inline void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
+{
+}
+
+static inline void mctrl_gpio_enable_irq_wake(struct mctrl_gpios *gpios)
+{
+}
+
+static inline void mctrl_gpio_disable_irq_wake(struct mctrl_gpios *gpios)
 {
 }
 

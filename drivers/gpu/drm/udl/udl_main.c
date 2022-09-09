@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat
  *
@@ -5,13 +6,12 @@
  * Copyright (C) 2009 Roberto De Ioris <roberto@unbit.it>
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License v2. See the file COPYING in the main directory of this archive for
- * more details.
  */
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+
+#include <drm/drm.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+
 #include "udl_drv.h"
 
 /* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */
@@ -26,10 +26,9 @@
 #define GET_URB_TIMEOUT	HZ
 #define FREE_URB_TIMEOUT (HZ*2)
 
-static int udl_parse_vendor_descriptor(struct drm_device *dev,
-				       struct usb_device *usbdev)
+static int udl_parse_vendor_descriptor(struct udl_device *udl)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct usb_device *udev = udl_to_usb_device(udl);
 	char *desc;
 	char *buf;
 	char *desc_end;
@@ -41,7 +40,7 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 		return false;
 	desc = buf;
 
-	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
+	total_len = usb_get_descriptor(udev, 0x5f, /* vendor specific */
 				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (total_len > 5) {
 		DRM_INFO("vendor descriptor length:%x data:%11ph\n",
@@ -98,19 +97,20 @@ success:
  */
 static int udl_select_std_channel(struct udl_device *udl)
 {
-	int ret;
 	static const u8 set_def_chn[] = {0x57, 0xCD, 0xDC, 0xA7,
 					 0x1C, 0x88, 0x5E, 0x15,
 					 0x60, 0xFE, 0xC6, 0x97,
 					 0x16, 0x3D, 0x47, 0xF2};
+
 	void *sendbuf;
+	int ret;
+	struct usb_device *udev = udl_to_usb_device(udl);
 
 	sendbuf = kmemdup(set_def_chn, sizeof(set_def_chn), GFP_KERNEL);
 	if (!sendbuf)
 		return -ENOMEM;
 
-	ret = usb_control_msg(udl->udev,
-			      usb_sndctrlpipe(udl->udev, 0),
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      NR_USB_REQUEST_CHANNEL,
 			      (USB_DIR_OUT | USB_TYPE_VENDOR), 0, 0,
 			      sendbuf, sizeof(set_def_chn),
@@ -140,7 +140,6 @@ void udl_urb_completion(struct urb *urb)
 		    urb->status == -ESHUTDOWN)) {
 			DRM_ERROR("%s - nonzero write bulk status received: %d\n",
 				__func__, urb->status);
-			atomic_set(&udl->lost_pixels, 1);
 		}
 	}
 
@@ -165,7 +164,7 @@ void udl_urb_completion(struct urb *urb)
 
 static void udl_free_urb_list(struct drm_device *dev)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	int count = udl->urbs.count;
 	struct list_head *node;
 	struct urb_node *unode;
@@ -198,11 +197,12 @@ static void udl_free_urb_list(struct drm_device *dev)
 
 static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	struct urb *urb;
 	struct urb_node *unode;
 	char *buf;
 	size_t wanted_size = count * size;
+	struct usb_device *udev = udl_to_usb_device(udl);
 
 	spin_lock_init(&udl->urbs.lock);
 
@@ -230,7 +230,7 @@ retry:
 		}
 		unode->urb = urb;
 
-		buf = usb_alloc_coherent(udl->udev, size, GFP_KERNEL,
+		buf = usb_alloc_coherent(udev, size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
@@ -244,8 +244,8 @@ retry:
 		}
 
 		/* urb->transfer_buffer_length set to actual before submit */
-		usb_fill_bulk_urb(urb, udl->udev, usb_sndbulkpipe(udl->udev, 1),
-			buf, size, udl_urb_completion, unode);
+		usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, 1),
+				  buf, size, udl_urb_completion, unode);
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 		list_add_tail(&unode->entry, &udl->urbs.list);
@@ -262,7 +262,7 @@ retry:
 
 struct urb *udl_get_urb(struct drm_device *dev)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	int ret = 0;
 	struct list_head *entry;
 	struct urb_node *unode;
@@ -271,7 +271,6 @@ struct urb *udl_get_urb(struct drm_device *dev)
 	/* Wait for an in-flight buffer to complete and get re-queued */
 	ret = down_timeout(&udl->urbs.limit_sem, GET_URB_TIMEOUT);
 	if (ret) {
-		atomic_set(&udl->lost_pixels, 1);
 		DRM_INFO("wait for urb interrupted: %x available: %d\n",
 		       ret, udl->urbs.available);
 		goto error;
@@ -295,7 +294,7 @@ error:
 
 int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 {
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	int ret;
 
 	BUG_ON(len > udl->urbs.size);
@@ -304,30 +303,25 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret) {
 		udl_urb_completion(urb); /* because no one else will */
-		atomic_set(&udl->lost_pixels, 1);
 		DRM_ERROR("usb_submit_urb error %x\n", ret);
 	}
 	return ret;
 }
 
-int udl_driver_load(struct drm_device *dev, unsigned long flags)
+int udl_init(struct udl_device *udl)
 {
-	struct usb_device *udev = (void*)flags;
-	struct udl_device *udl;
+	struct drm_device *dev = &udl->drm;
 	int ret = -ENOMEM;
 
 	DRM_DEBUG("\n");
-	udl = kzalloc(sizeof(struct udl_device), GFP_KERNEL);
-	if (!udl)
-		return -ENOMEM;
 
-	udl->udev = udev;
-	udl->ddev = dev;
-	dev->dev_private = udl;
+	udl->dmadev = usb_intf_get_dma_device(to_usb_interface(dev->dev));
+	if (!udl->dmadev)
+		drm_warn(dev, "buffer sharing not supported"); /* not an error */
 
 	mutex_init(&udl->gem_lock);
 
-	if (!udl_parse_vendor_descriptor(dev, udl->udev)) {
+	if (!udl_parse_vendor_descriptor(udl)) {
 		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;
@@ -346,10 +340,6 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err;
 
-	ret = udl_fbdev_init(dev);
-	if (ret)
-		goto err;
-
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
@@ -357,27 +347,18 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 err:
 	if (udl->urbs.count)
 		udl_free_urb_list(dev);
-	kfree(udl);
+	put_device(udl->dmadev);
 	DRM_ERROR("%d\n", ret);
 	return ret;
 }
 
 int udl_drop_usb(struct drm_device *dev)
 {
+	struct udl_device *udl = to_udl(dev);
+
 	udl_free_urb_list(dev);
+	put_device(udl->dmadev);
+	udl->dmadev = NULL;
+
 	return 0;
-}
-
-void udl_driver_unload(struct drm_device *dev)
-{
-	struct udl_device *udl = dev->dev_private;
-
-	drm_kms_helper_poll_fini(dev);
-
-	if (udl->urbs.count)
-		udl_free_urb_list(dev);
-
-	udl_fbdev_cleanup(dev);
-	udl_modeset_cleanup(dev);
-	kfree(udl);
 }

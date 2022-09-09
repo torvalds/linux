@@ -61,11 +61,13 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_OVERRIDE_PHY_CONTROL	BIT(12) /* Glue layer manages phy */
 #define CI_HDRC_REQUIRES_ALIGNED_DMA	BIT(13)
 #define CI_HDRC_IMX_IS_HSIC		BIT(14)
+#define CI_HDRC_PMQOS			BIT(15)
 	enum usb_dr_mode	dr_mode;
 #define CI_HDRC_CONTROLLER_RESET_EVENT		0
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
 #define CI_HDRC_IMX_HSIC_ACTIVE_EVENT		2
 #define CI_HDRC_IMX_HSIC_SUSPEND_EVENT		3
+#define CI_HDRC_CONTROLLER_VBUS_EVENT		4
 	int	(*notify_event) (struct ci_hdrc *ci, unsigned event);
 	struct regulator	*reg_vbus;
 	struct usb_otg_caps	ci_otg_caps;
@@ -86,6 +88,12 @@ struct ci_hdrc_platform_data {
 	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_host;
 	struct pinctrl_state *pins_device;
+
+	/* platform-specific hooks */
+	int (*hub_control)(struct ci_hdrc *ci, u16 typeReq, u16 wValue,
+			   u16 wIndex, char *buf, u16 wLength,
+			   bool *done, unsigned long *flags);
+	void (*enter_lpm)(struct ci_hdrc *ci, bool enable);
 };
 
 /* Default offset of capability registers */
@@ -97,5 +105,7 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 			struct ci_hdrc_platform_data *platdata);
 /* Remove ci hdrc device */
 void ci_hdrc_remove_device(struct platform_device *pdev);
+/* Get current available role */
+enum usb_dr_mode ci_hdrc_query_available_role(struct platform_device *pdev);
 
 #endif

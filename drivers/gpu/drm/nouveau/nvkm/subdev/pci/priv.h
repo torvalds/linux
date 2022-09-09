@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_PCI_PRIV_H__
 #define __NVKM_PCI_PRIV_H__
 #define nvkm_pci(p) container_of((p), struct nvkm_pci, subdev)
 #include <subdev/pci.h>
 
-int nvkm_pci_new_(const struct nvkm_pci_func *, struct nvkm_device *,
-		  int index, struct nvkm_pci **);
+int nvkm_pci_new_(const struct nvkm_pci_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_pci **);
 
 struct nvkm_pci_func {
 	void (*init)(struct nvkm_pci *);

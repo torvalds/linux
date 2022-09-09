@@ -1,11 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
  * Author: Bengt Jonsson <bengt.jonsson@stericsson.com> for ST-Ericsson,
  *	   Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson
- *
- * License Terms: GNU General Public License v2
- *
  */
 
 #ifndef DBX500_REGULATOR_H
@@ -15,18 +13,14 @@
 
 /**
  * struct dbx500_regulator_info - dbx500 regulator information
- * @dev: device pointer
  * @desc: regulator description
- * @rdev: regulator device pointer
  * @is_enabled: status of the regulator
  * @epod_id: id for EPOD (power domain)
  * @is_ramret: RAM retention switch for EPOD (power domain)
  *
  */
 struct dbx500_regulator_info {
-	struct device *dev;
 	struct regulator_desc desc;
-	struct regulator_dev *rdev;
 	bool is_enabled;
 	u16 epod_id;
 	bool is_ramret;

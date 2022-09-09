@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic driver for NXP NCI NFC chips
  *
@@ -7,18 +8,6 @@
  *
  * Derived from PN544 device driver:
  * Copyright (C) 2012  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/completion.h>
@@ -106,10 +95,8 @@ static int nxp_nci_fw_send_chunk(struct nxp_nci_info *info)
 	int r;
 
 	skb = nci_skb_alloc(info->ndev, info->max_payload, GFP_KERNEL);
-	if (!skb) {
-		r = -ENOMEM;
-		goto chunk_exit;
-	}
+	if (!skb)
+		return -ENOMEM;
 
 	chunk_len = info->max_payload - NXP_NCI_FW_HDR_LEN - NXP_NCI_FW_CRC_LEN;
 	remaining_len = fw_info->frame_size - fw_info->written;
@@ -135,7 +122,6 @@ static int nxp_nci_fw_send_chunk(struct nxp_nci_info *info)
 
 	kfree_skb(skb);
 
-chunk_exit:
 	return r;
 }
 

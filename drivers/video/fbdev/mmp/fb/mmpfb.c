@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/video/mmp/fb/mmpfb.c
  * Framebuffer driver for Marvell Display controller.
  *
  * Copyright (C) 2012 Marvell Technology Group Ltd.
  * Authors: Zhou Zhu <zzhu3@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
@@ -103,8 +90,6 @@ static int var_to_pixfmt(struct fb_var_screeninfo *var)
 			else
 				return PIXFMT_BGR888UNPACK;
 		}
-
-		/* fall through */
 	}
 
 	return -EINVAL;
@@ -467,7 +452,7 @@ static int mmpfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops mmpfb_ops = {
+static const struct fb_ops mmpfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_blank	= mmpfb_blank,
 	.fb_check_var	= mmpfb_check_var,
@@ -535,7 +520,7 @@ static int fb_info_setup(struct fb_info *info,
 		info->var.bits_per_pixel / 8;
 	info->fbops = &mmpfb_ops;
 	info->pseudo_palette = fbi->pseudo_palette;
-	info->screen_base = fbi->fb_start;
+	info->screen_buffer = fbi->fb_start;
 	info->screen_size = fbi->fb_size;
 
 	/* For FB framework: Allocate color map and Register framebuffer*/
@@ -625,7 +610,6 @@ static int mmpfb_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto failed_destroy_mutex;
 	}
-	memset(fbi->fb_start, 0, fbi->fb_size);
 	dev_info(fbi->dev, "fb %dk allocated\n", fbi->fb_size/1024);
 
 	/* fb power on */

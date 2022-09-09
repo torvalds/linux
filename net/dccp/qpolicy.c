@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  net/dccp/qpolicy.c
  *
  *  Policy-based packet dequeueing interface for DCCP.
  *
  *  Copyright (c) 2008 Tomasz Grobelny <tomasz@grobelny.oswiecenia.net>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License v2
- *  as published by the Free Software Foundation.
  */
 #include "dccp.h"
 
@@ -68,14 +65,16 @@ static bool qpolicy_prio_full(struct sock *sk)
  * @push: add a new @skb to the write queue
  * @full: indicates that no more packets will be admitted
  * @top:  peeks at whatever the queueing policy defines as its `top'
+ * @params: parameter passed to policy operation
  */
-static struct dccp_qpolicy_operations {
+struct dccp_qpolicy_operations {
 	void		(*push)	(struct sock *sk, struct sk_buff *skb);
 	bool		(*full) (struct sock *sk);
 	struct sk_buff*	(*top)  (struct sock *sk);
 	__be32		params;
+};
 
-} qpol_table[DCCPQ_POLICY_MAX] = {
+static struct dccp_qpolicy_operations qpol_table[DCCPQ_POLICY_MAX] = {
 	[DCCPQ_POLICY_SIMPLE] = {
 		.push   = qpolicy_simple_push,
 		.full   = qpolicy_simple_full,

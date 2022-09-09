@@ -14,8 +14,8 @@
 
 
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/asmmacro.h>
 #include <asm/cacheasm.h>
 #include <asm/tlbflush.h>
@@ -30,7 +30,7 @@
 
 ENTRY(clear_page)
 
-	entry	a1, 16
+	abi_entry_default
 
 	movi	a3, 0
 	__loopi	a2, a7, PAGE_SIZE, 32
@@ -44,7 +44,7 @@ ENTRY(clear_page)
 	s32i	a3, a2, 28
 	__endla	a2, a7, 32
 
-	retw
+	abi_ret_default
 
 ENDPROC(clear_page)
 
@@ -57,7 +57,7 @@ ENDPROC(clear_page)
 
 ENTRY(copy_page)
 
-	entry	a1, 16
+	abi_entry_default
 
 	__loopi a2, a4, PAGE_SIZE, 32
 
@@ -86,7 +86,7 @@ ENTRY(copy_page)
 
 	__endl  a2, a4
 
-	retw
+	abi_ret_default
 
 ENDPROC(copy_page)
 
@@ -116,22 +116,15 @@ ENTRY(__tlbtemp_mapping_start)
 
 ENTRY(clear_page_alias)
 
-	entry	a1, 32
-
-	/* Skip setting up a temporary DTLB if not aliased low page. */
+	abi_entry_default
 
 	movi	a5, PAGE_OFFSET
-	movi	a6, 0
-	beqz	a3, 1f
-
-	/* Setup a temporary DTLB for the addr. */
-
 	addi	a6, a3, (PAGE_KERNEL | _PAGE_HW_WRITE)
 	mov	a4, a2
 	wdtlb	a6, a2
 	dsync
 
-1:	movi	a3, 0
+	movi	a3, 0
 	__loopi	a2, a7, PAGE_SIZE, 32
 	s32i	a3, a2, 0
 	s32i	a3, a2, 4
@@ -143,15 +136,12 @@ ENTRY(clear_page_alias)
 	s32i	a3, a2, 28
 	__endla	a2, a7, 32
 
-	bnez	a6, 1f
-	retw
+	/* We need to invalidate the temporary dtlb entry. */
 
-	/* We need to invalidate the temporary idtlb entry, if any. */
-
-1:	idtlb	a4
+	idtlb	a4
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(clear_page_alias)
 
@@ -164,23 +154,13 @@ ENDPROC(clear_page_alias)
 
 ENTRY(copy_page_alias)
 
-	entry	a1, 32
-
-	/* Skip setting up a temporary DTLB for destination if not aliased. */
-
-	movi	a6, 0
-	movi	a7, 0
-	beqz	a4, 1f
+	abi_entry_default
 
 	/* Setup a temporary DTLB for destination. */
 
 	addi	a6, a4, (PAGE_KERNEL | _PAGE_HW_WRITE)
 	wdtlb	a6, a2
 	dsync
-
-	/* Skip setting up a temporary DTLB for source if not aliased. */
-
-1:	beqz	a5, 1f
 
 	/* Setup a temporary DTLB for source. */
 
@@ -219,21 +199,15 @@ ENTRY(copy_page_alias)
 
 	/* We need to invalidate any temporary mapping! */
 
-	bnez	a6, 1f
-	bnez	a7, 2f
-	retw
-
-1:	addi	a2, a2, -PAGE_SIZE
+	addi	a2, a2, -PAGE_SIZE
 	idtlb	a2
 	dsync
-	bnez	a7, 2f
-	retw
 
-2:	addi	a3, a3, -PAGE_SIZE+1
+	addi	a3, a3, -PAGE_SIZE+1
 	idtlb	a3
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(copy_page_alias)
 
@@ -248,7 +222,7 @@ ENDPROC(copy_page_alias)
 
 ENTRY(__flush_invalidate_dcache_page_alias)
 
-	entry	sp, 16
+	abi_entry_default
 
 	movi	a7, 0			# required for exception handler
 	addi	a6, a3, (PAGE_KERNEL | _PAGE_HW_WRITE)
@@ -261,7 +235,7 @@ ENTRY(__flush_invalidate_dcache_page_alias)
 	idtlb	a4
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__flush_invalidate_dcache_page_alias)
 
@@ -272,7 +246,7 @@ ENDPROC(__flush_invalidate_dcache_page_alias)
 
 ENTRY(__invalidate_dcache_page_alias)
 
-	entry	sp, 16
+	abi_entry_default
 
 	movi	a7, 0			# required for exception handler
 	addi	a6, a3, (PAGE_KERNEL | _PAGE_HW_WRITE)
@@ -285,7 +259,7 @@ ENTRY(__invalidate_dcache_page_alias)
 	idtlb	a4
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_dcache_page_alias)
 #endif
@@ -296,7 +270,7 @@ ENTRY(__tlbtemp_mapping_itlb)
 	
 ENTRY(__invalidate_icache_page_alias)
 
-	entry	sp, 16
+	abi_entry_default
 
 	addi	a6, a3, (PAGE_KERNEL_EXEC | _PAGE_HW_WRITE)
 	mov	a4, a2
@@ -307,7 +281,7 @@ ENTRY(__invalidate_icache_page_alias)
 
 	iitlb	a4
 	isync
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_icache_page_alias)
 
@@ -325,12 +299,12 @@ ENTRY(__tlbtemp_mapping_end)
 
 ENTRY(__invalidate_icache_page)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___invalidate_icache_page a2 a3
 	isync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_icache_page)
 
@@ -340,12 +314,12 @@ ENDPROC(__invalidate_icache_page)
 
 ENTRY(__invalidate_dcache_page)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___invalidate_dcache_page a2 a3
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_dcache_page)
 
@@ -355,12 +329,12 @@ ENDPROC(__invalidate_dcache_page)
 
 ENTRY(__flush_invalidate_dcache_page)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___flush_invalidate_dcache_page a2 a3
 
 	dsync
-	retw
+	abi_ret_default
 
 ENDPROC(__flush_invalidate_dcache_page)
 
@@ -370,12 +344,12 @@ ENDPROC(__flush_invalidate_dcache_page)
 
 ENTRY(__flush_dcache_page)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___flush_dcache_page a2 a3
 
 	dsync
-	retw
+	abi_ret_default
 
 ENDPROC(__flush_dcache_page)
 
@@ -385,12 +359,12 @@ ENDPROC(__flush_dcache_page)
 
 ENTRY(__invalidate_icache_range)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___invalidate_icache_range a2 a3 a4
 	isync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_icache_range)
 
@@ -400,12 +374,12 @@ ENDPROC(__invalidate_icache_range)
 
 ENTRY(__flush_invalidate_dcache_range)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___flush_invalidate_dcache_range a2 a3 a4
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__flush_invalidate_dcache_range)
 
@@ -415,12 +389,12 @@ ENDPROC(__flush_invalidate_dcache_range)
 
 ENTRY(__flush_dcache_range)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___flush_dcache_range a2 a3 a4
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__flush_dcache_range)
 
@@ -430,11 +404,11 @@ ENDPROC(__flush_dcache_range)
 
 ENTRY(__invalidate_dcache_range)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___invalidate_dcache_range a2 a3 a4
 
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_dcache_range)
 
@@ -444,12 +418,12 @@ ENDPROC(__invalidate_dcache_range)
 
 ENTRY(__invalidate_icache_all)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___invalidate_icache_all a2 a3
 	isync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_icache_all)
 
@@ -459,12 +433,12 @@ ENDPROC(__invalidate_icache_all)
 
 ENTRY(__flush_invalidate_dcache_all)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___flush_invalidate_dcache_all a2 a3
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__flush_invalidate_dcache_all)
 
@@ -474,11 +448,11 @@ ENDPROC(__flush_invalidate_dcache_all)
 
 ENTRY(__invalidate_dcache_all)
 
-	entry	sp, 16
+	abi_entry_default
 
 	___invalidate_dcache_all a2 a3
 	dsync
 
-	retw
+	abi_ret_default
 
 ENDPROC(__invalidate_dcache_all)

@@ -52,10 +52,20 @@
 
 /*
  * ADI slave devices include RTC, ADC, regulator, charger, thermal and so on.
- * The slave devices address offset is always 0x8000 and size is 4K.
+ * ADI supports 12/14bit address for r2p0, and additional 17bit for r3p0 or
+ * later versions. Since bit[1:0] are zero, so the spec describe them as
+ * 10/12/15bit address mode.
+ * The 10bit mode supports sigle slave, 12/15bit mode supports 3 slave, the
+ * high two bits is slave_id.
+ * The slave devices address offset is 0x8000 for 10/12bit address mode,
+ * and 0x20000 for 15bit mode.
  */
-#define ADI_SLAVE_ADDR_SIZE		SZ_4K
-#define ADI_SLAVE_OFFSET		0x8000
+#define ADI_10BIT_SLAVE_ADDR_SIZE	SZ_4K
+#define ADI_10BIT_SLAVE_OFFSET		0x8000
+#define ADI_12BIT_SLAVE_ADDR_SIZE	SZ_16K
+#define ADI_12BIT_SLAVE_OFFSET		0x8000
+#define ADI_15BIT_SLAVE_ADDR_SIZE	SZ_128K
+#define ADI_15BIT_SLAVE_OFFSET		0x20000
 
 /* Timeout (ms) for the trylock of hardware spinlocks */
 #define ADI_HWSPINLOCK_TIMEOUT		5000
@@ -67,25 +77,38 @@
 
 #define ADI_FIFO_DRAIN_TIMEOUT		1000
 #define ADI_READ_TIMEOUT		2000
-#define REG_ADDR_LOW_MASK		GENMASK(11, 0)
+
+/*
+ * Read back address from REG_ADI_RD_DATA bit[30:16] which maps to:
+ * REG_ADI_RD_CMD bit[14:0] for r2p0
+ * REG_ADI_RD_CMD bit[16:2] for r3p0
+ */
+#define RDBACK_ADDR_MASK_R2		GENMASK(14, 0)
+#define RDBACK_ADDR_MASK_R3		GENMASK(16, 2)
+#define RDBACK_ADDR_SHIFT_R3		2
 
 /* Registers definitions for PMIC watchdog controller */
-#define REG_WDG_LOAD_LOW		0x80
-#define REG_WDG_LOAD_HIGH		0x84
-#define REG_WDG_CTRL			0x88
-#define REG_WDG_LOCK			0xa0
+#define REG_WDG_LOAD_LOW		0x0
+#define REG_WDG_LOAD_HIGH		0x4
+#define REG_WDG_CTRL			0x8
+#define REG_WDG_LOCK			0x20
 
 /* Bits definitions for register REG_WDG_CTRL */
 #define BIT_WDG_RUN			BIT(1)
+#define BIT_WDG_NEW			BIT(2)
 #define BIT_WDG_RST			BIT(3)
+
+/* Bits definitions for register REG_MODULE_EN */
+#define BIT_WDG_EN			BIT(2)
 
 /* Registers definitions for PMIC */
 #define PMIC_RST_STATUS			0xee8
 #define PMIC_MODULE_EN			0xc08
 #define PMIC_CLK_EN			0xc18
-#define BIT_WDG_EN			BIT(2)
+#define PMIC_WDG_BASE			0x80
 
 /* Definition of PMIC reset status register */
+#define HWRST_STATUS_SECURITY		0x02
 #define HWRST_STATUS_RECOVERY		0x20
 #define HWRST_STATUS_NORMAL		0x40
 #define HWRST_STATUS_ALARM		0x50
@@ -97,11 +120,29 @@
 #define HWRST_STATUS_AUTODLOADER	0xa0
 #define HWRST_STATUS_IQMODE		0xb0
 #define HWRST_STATUS_SPRDISK		0xc0
+#define HWRST_STATUS_FACTORYTEST	0xe0
+#define HWRST_STATUS_WATCHDOG		0xf0
 
 /* Use default timeout 50 ms that converts to watchdog values */
-#define WDG_LOAD_VAL			((50 * 1000) / 32768)
+#define WDG_LOAD_VAL			((50 * 32768) / 1000)
 #define WDG_LOAD_MASK			GENMASK(15, 0)
 #define WDG_UNLOCK_KEY			0xe551
+
+struct sprd_adi_wdg {
+	u32 base;
+	u32 rst_sts;
+	u32 wdg_en;
+	u32 wdg_clk;
+};
+
+struct sprd_adi_data {
+	u32 slave_offset;
+	u32 slave_addr_size;
+	int (*read_check)(u32 val, u32 reg);
+	int (*restart)(struct notifier_block *this,
+		       unsigned long mode, void *cmd);
+	void (*wdg_rst)(void *p);
+};
 
 struct sprd_adi {
 	struct spi_controller	*ctlr;
@@ -111,24 +152,19 @@ struct sprd_adi {
 	unsigned long		slave_vbase;
 	unsigned long		slave_pbase;
 	struct notifier_block	restart_handler;
+	const struct sprd_adi_data *data;
 };
 
-static int sprd_adi_check_paddr(struct sprd_adi *sadi, u32 paddr)
+static int sprd_adi_check_addr(struct sprd_adi *sadi, u32 reg)
 {
-	if (paddr < sadi->slave_pbase || paddr >
-	    (sadi->slave_pbase + ADI_SLAVE_ADDR_SIZE)) {
+	if (reg >= sadi->data->slave_addr_size) {
 		dev_err(sadi->dev,
-			"slave physical address is incorrect, addr = 0x%x\n",
-			paddr);
+			"slave address offset is incorrect, reg = 0x%x\n",
+			reg);
 		return -EINVAL;
 	}
 
 	return 0;
-}
-
-static unsigned long sprd_adi_to_vaddr(struct sprd_adi *sadi, u32 paddr)
-{
-	return (paddr - sadi->slave_pbase + sadi->slave_vbase);
 }
 
 static int sprd_adi_drain_fifo(struct sprd_adi *sadi)
@@ -157,26 +193,56 @@ static int sprd_adi_fifo_is_full(struct sprd_adi *sadi)
 	return readl_relaxed(sadi->base + REG_ADI_ARM_FIFO_STS) & BIT_FIFO_FULL;
 }
 
-static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
+static int sprd_adi_read_check(u32 val, u32 addr)
+{
+	u32 rd_addr;
+
+	rd_addr = (val & RD_ADDR_MASK) >> RD_ADDR_SHIFT;
+
+	if (rd_addr != addr) {
+		pr_err("ADI read error, addr = 0x%x, val = 0x%x\n", addr, val);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int sprd_adi_read_check_r2(u32 val, u32 reg)
+{
+	return sprd_adi_read_check(val, reg & RDBACK_ADDR_MASK_R2);
+}
+
+static int sprd_adi_read_check_r3(u32 val, u32 reg)
+{
+	return sprd_adi_read_check(val, (reg & RDBACK_ADDR_MASK_R3) >> RDBACK_ADDR_SHIFT_R3);
+}
+
+static int sprd_adi_read(struct sprd_adi *sadi, u32 reg, u32 *read_val)
 {
 	int read_timeout = ADI_READ_TIMEOUT;
 	unsigned long flags;
-	u32 val, rd_addr;
-	int ret;
+	u32 val;
+	int ret = 0;
 
-	ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
-					  ADI_HWSPINLOCK_TIMEOUT,
-					  &flags);
-	if (ret) {
-		dev_err(sadi->dev, "get the hw lock failed\n");
-		return ret;
+	if (sadi->hwlock) {
+		ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
+						  ADI_HWSPINLOCK_TIMEOUT,
+						  &flags);
+		if (ret) {
+			dev_err(sadi->dev, "get the hw lock failed\n");
+			return ret;
+		}
 	}
 
+	ret = sprd_adi_check_addr(sadi, reg);
+	if (ret)
+		goto out;
+
 	/*
-	 * Set the physical register address need to read into RD_CMD register,
+	 * Set the slave address offset need to read into RD_CMD register,
 	 * then ADI controller will start to transfer automatically.
 	 */
-	writel_relaxed(reg_paddr, sadi->base + REG_ADI_RD_CMD);
+	writel_relaxed(reg, sadi->base + REG_ADI_RD_CMD);
 
 	/*
 	 * Wait read operation complete, the BIT_RD_CMD_BUSY will be set
@@ -199,41 +265,44 @@ static int sprd_adi_read(struct sprd_adi *sadi, u32 reg_paddr, u32 *read_val)
 	}
 
 	/*
-	 * The return value includes data and read register address, from bit 0
-	 * to bit 15 are data, and from bit 16 to bit 30 are read register
-	 * address. Then we can check the returned register address to validate
-	 * data.
+	 * The return value before adi r5p0 includes data and read register
+	 * address, from bit 0to bit 15 are data, and from bit 16 to bit 30
+	 * are read register address. Then we can check the returned register
+	 * address to validate data.
 	 */
-	rd_addr = (val & RD_ADDR_MASK ) >> RD_ADDR_SHIFT;
-
-	if (rd_addr != (reg_paddr & REG_ADDR_LOW_MASK)) {
-		dev_err(sadi->dev, "read error, reg addr = 0x%x, val = 0x%x\n",
-			reg_paddr, val);
-		ret = -EIO;
-		goto out;
+	if (sadi->data->read_check) {
+		ret = sadi->data->read_check(val, reg);
+		if (ret < 0)
+			goto out;
 	}
 
 	*read_val = val & RD_VALUE_MASK;
 
 out:
-	hwspin_unlock_irqrestore(sadi->hwlock, &flags);
+	if (sadi->hwlock)
+		hwspin_unlock_irqrestore(sadi->hwlock, &flags);
 	return ret;
 }
 
-static int sprd_adi_write(struct sprd_adi *sadi, u32 reg_paddr, u32 val)
+static int sprd_adi_write(struct sprd_adi *sadi, u32 reg, u32 val)
 {
-	unsigned long reg = sprd_adi_to_vaddr(sadi, reg_paddr);
 	u32 timeout = ADI_FIFO_DRAIN_TIMEOUT;
 	unsigned long flags;
 	int ret;
 
-	ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
-					  ADI_HWSPINLOCK_TIMEOUT,
-					  &flags);
-	if (ret) {
-		dev_err(sadi->dev, "get the hw lock failed\n");
-		return ret;
+	if (sadi->hwlock) {
+		ret = hwspin_lock_timeout_irqsave(sadi->hwlock,
+						  ADI_HWSPINLOCK_TIMEOUT,
+						  &flags);
+		if (ret) {
+			dev_err(sadi->dev, "get the hw lock failed\n");
+			return ret;
+		}
 	}
+
+	ret = sprd_adi_check_addr(sadi, reg);
+	if (ret)
+		goto out;
 
 	ret = sprd_adi_drain_fifo(sadi);
 	if (ret < 0)
@@ -245,7 +314,8 @@ static int sprd_adi_write(struct sprd_adi *sadi, u32 reg_paddr, u32 val)
 	 */
 	do {
 		if (!sprd_adi_fifo_is_full(sadi)) {
-			writel_relaxed(val, (void __iomem *)reg);
+			/* we need virtual register address to write. */
+			writel_relaxed(val, (void __iomem *)(sadi->slave_vbase + reg));
 			break;
 		}
 
@@ -258,7 +328,8 @@ static int sprd_adi_write(struct sprd_adi *sadi, u32 reg_paddr, u32 val)
 	}
 
 out:
-	hwspin_unlock_irqrestore(sadi->hwlock, &flags);
+	if (sadi->hwlock)
+		hwspin_unlock_irqrestore(sadi->hwlock, &flags);
 	return ret;
 }
 
@@ -267,48 +338,41 @@ static int sprd_adi_transfer_one(struct spi_controller *ctlr,
 				 struct spi_transfer *t)
 {
 	struct sprd_adi *sadi = spi_controller_get_devdata(ctlr);
-	u32 phy_reg, val;
+	u32 reg, val;
 	int ret;
 
 	if (t->rx_buf) {
-		phy_reg = *(u32 *)t->rx_buf + sadi->slave_pbase;
-
-		ret = sprd_adi_check_paddr(sadi, phy_reg);
-		if (ret)
-			return ret;
-
-		ret = sprd_adi_read(sadi, phy_reg, &val);
-		if (ret)
-			return ret;
-
+		reg = *(u32 *)t->rx_buf;
+		ret = sprd_adi_read(sadi, reg, &val);
 		*(u32 *)t->rx_buf = val;
 	} else if (t->tx_buf) {
 		u32 *p = (u32 *)t->tx_buf;
-
-		/*
-		 * Get the physical register address need to write and convert
-		 * the physical address to virtual address. Since we need
-		 * virtual register address to write.
-		 */
-		phy_reg = *p++ + sadi->slave_pbase;
-		ret = sprd_adi_check_paddr(sadi, phy_reg);
-		if (ret)
-			return ret;
-
+		reg = *p++;
 		val = *p;
-		ret = sprd_adi_write(sadi, phy_reg, val);
-		if (ret)
-			return ret;
+		ret = sprd_adi_write(sadi, reg, val);
 	} else {
 		dev_err(sadi->dev, "no buffer for transfer\n");
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
-static int sprd_adi_restart_handler(struct notifier_block *this,
-				    unsigned long mode, void *cmd)
+static void sprd_adi_set_wdt_rst_mode(void *p)
+{
+#if IS_ENABLED(CONFIG_SPRD_WATCHDOG)
+	u32 val;
+	struct sprd_adi *sadi = (struct sprd_adi *)p;
+
+	/* Init watchdog reset mode */
+	sprd_adi_read(sadi, PMIC_RST_STATUS, &val);
+	val |= HWRST_STATUS_WATCHDOG;
+	sprd_adi_write(sadi, PMIC_RST_STATUS, val);
+#endif
+}
+
+static int sprd_adi_restart(struct notifier_block *this, unsigned long mode,
+				  void *cmd, struct sprd_adi_wdg *wdg)
 {
 	struct sprd_adi *sadi = container_of(this, struct sprd_adi,
 					     restart_handler);
@@ -336,41 +400,66 @@ static int sprd_adi_restart_handler(struct notifier_block *this,
 		reboot_mode = HWRST_STATUS_IQMODE;
 	else if (!strncmp(cmd, "sprdisk", 7))
 		reboot_mode = HWRST_STATUS_SPRDISK;
+	else if (!strncmp(cmd, "tospanic", 8))
+		reboot_mode = HWRST_STATUS_SECURITY;
+	else if (!strncmp(cmd, "factorytest", 11))
+		reboot_mode = HWRST_STATUS_FACTORYTEST;
 	else
 		reboot_mode = HWRST_STATUS_NORMAL;
 
 	/* Record the reboot mode */
-	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_RST_STATUS, &val);
+	sprd_adi_read(sadi, wdg->rst_sts, &val);
+	val &= ~HWRST_STATUS_WATCHDOG;
 	val |= reboot_mode;
-	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_RST_STATUS, val);
+	sprd_adi_write(sadi, wdg->rst_sts, val);
 
 	/* Enable the interface clock of the watchdog */
-	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_MODULE_EN, &val);
+	sprd_adi_read(sadi, wdg->wdg_en, &val);
 	val |= BIT_WDG_EN;
-	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_MODULE_EN, val);
+	sprd_adi_write(sadi, wdg->wdg_en, val);
 
 	/* Enable the work clock of the watchdog */
-	sprd_adi_read(sadi, sadi->slave_pbase + PMIC_CLK_EN, &val);
+	sprd_adi_read(sadi, wdg->wdg_clk, &val);
 	val |= BIT_WDG_EN;
-	sprd_adi_write(sadi, sadi->slave_pbase + PMIC_CLK_EN, val);
+	sprd_adi_write(sadi, wdg->wdg_clk, val);
 
 	/* Unlock the watchdog */
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOCK, WDG_UNLOCK_KEY);
+	sprd_adi_write(sadi, wdg->base + REG_WDG_LOCK, WDG_UNLOCK_KEY);
+
+	sprd_adi_read(sadi, wdg->base + REG_WDG_CTRL, &val);
+	val |= BIT_WDG_NEW;
+	sprd_adi_write(sadi, wdg->base + REG_WDG_CTRL, val);
 
 	/* Load the watchdog timeout value, 50ms is always enough. */
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_LOW,
+	sprd_adi_write(sadi, wdg->base + REG_WDG_LOAD_HIGH, 0);
+	sprd_adi_write(sadi, wdg->base + REG_WDG_LOAD_LOW,
 		       WDG_LOAD_VAL & WDG_LOAD_MASK);
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_LOAD_HIGH, 0);
 
 	/* Start the watchdog to reset system */
-	sprd_adi_read(sadi, sadi->slave_pbase + REG_WDG_CTRL, &val);
+	sprd_adi_read(sadi, wdg->base + REG_WDG_CTRL, &val);
 	val |= BIT_WDG_RUN | BIT_WDG_RST;
-	sprd_adi_write(sadi, sadi->slave_pbase + REG_WDG_CTRL, val);
+	sprd_adi_write(sadi, wdg->base + REG_WDG_CTRL, val);
+
+	/* Lock the watchdog */
+	sprd_adi_write(sadi, wdg->base + REG_WDG_LOCK, ~WDG_UNLOCK_KEY);
 
 	mdelay(1000);
 
 	dev_emerg(sadi->dev, "Unable to restart system\n");
 	return NOTIFY_DONE;
+}
+
+static int sprd_adi_restart_sc9860(struct notifier_block *this,
+					   unsigned long mode, void *cmd)
+{
+	struct sprd_adi_wdg wdg = {
+		.base = PMIC_WDG_BASE,
+		.rst_sts = PMIC_RST_STATUS,
+		.wdg_en = PMIC_MODULE_EN,
+		.wdg_clk = PMIC_CLK_EN,
+	};
+
+	return sprd_adi_restart(this, mode, cmd, &wdg);
 }
 
 static void sprd_adi_hw_init(struct sprd_adi *sadi)
@@ -379,9 +468,6 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 	int i, size, chn_cnt;
 	const __be32 *list;
 	u32 tmp;
-
-	/* Address bits select default 12 bits */
-	writel_relaxed(0, sadi->base + REG_ADI_CTRL0);
 
 	/* Set all channels as default priority */
 	writel_relaxed(0, sadi->base + REG_ADI_CHN_PRIL);
@@ -427,15 +513,22 @@ static void sprd_adi_hw_init(struct sprd_adi *sadi)
 static int sprd_adi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	const struct sprd_adi_data *data;
 	struct spi_controller *ctlr;
 	struct sprd_adi *sadi;
 	struct resource *res;
-	u32 num_chipselect;
+	u16 num_chipselect;
 	int ret;
 
 	if (!np) {
 		dev_err(&pdev->dev, "can not find the adi bus node\n");
 		return -ENODEV;
+	}
+
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data) {
+		dev_err(&pdev->dev, "no matching driver data found\n");
+		return -EINVAL;
 	}
 
 	pdev->id = of_alias_get_id(np, "spi");
@@ -455,23 +548,35 @@ static int sprd_adi_probe(struct platform_device *pdev)
 		goto put_ctlr;
 	}
 
-	sadi->slave_vbase = (unsigned long)sadi->base + ADI_SLAVE_OFFSET;
-	sadi->slave_pbase = res->start + ADI_SLAVE_OFFSET;
+	sadi->slave_vbase = (unsigned long)sadi->base +
+			    data->slave_offset;
+	sadi->slave_pbase = res->start + data->slave_offset;
 	sadi->ctlr = ctlr;
 	sadi->dev = &pdev->dev;
-	ret = of_hwspin_lock_get_id_byname(np, "adi");
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can not get the hardware spinlock\n");
-		goto put_ctlr;
-	}
-
-	sadi->hwlock = devm_hwspin_lock_request_specific(&pdev->dev, ret);
-	if (!sadi->hwlock) {
-		ret = -ENXIO;
-		goto put_ctlr;
+	sadi->data = data;
+	ret = of_hwspin_lock_get_id(np, 0);
+	if (ret > 0 || (IS_ENABLED(CONFIG_HWSPINLOCK) && ret == 0)) {
+		sadi->hwlock =
+			devm_hwspin_lock_request_specific(&pdev->dev, ret);
+		if (!sadi->hwlock) {
+			ret = -ENXIO;
+			goto put_ctlr;
+		}
+	} else {
+		switch (ret) {
+		case -ENOENT:
+			dev_info(&pdev->dev, "no hardware spinlock supplied\n");
+			break;
+		default:
+			dev_err_probe(&pdev->dev, ret, "failed to find hwlock id\n");
+			goto put_ctlr;
+		}
 	}
 
 	sprd_adi_hw_init(sadi);
+
+	if (sadi->data->wdg_rst)
+		sadi->data->wdg_rst(sadi);
 
 	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->bus_num = pdev->id;
@@ -486,12 +591,14 @@ static int sprd_adi_probe(struct platform_device *pdev)
 		goto put_ctlr;
 	}
 
-	sadi->restart_handler.notifier_call = sprd_adi_restart_handler;
-	sadi->restart_handler.priority = 128;
-	ret = register_restart_handler(&sadi->restart_handler);
-	if (ret) {
-		dev_err(&pdev->dev, "can not register restart handler\n");
-		goto put_ctlr;
+	if (sadi->data->restart) {
+		sadi->restart_handler.notifier_call = sadi->data->restart;
+		sadi->restart_handler.priority = 128;
+		ret = register_restart_handler(&sadi->restart_handler);
+		if (ret) {
+			dev_err(&pdev->dev, "can not register restart handler\n");
+			goto put_ctlr;
+		}
 	}
 
 	return 0;
@@ -510,9 +617,38 @@ static int sprd_adi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct sprd_adi_data sc9860_data = {
+	.slave_offset = ADI_10BIT_SLAVE_OFFSET,
+	.slave_addr_size = ADI_10BIT_SLAVE_ADDR_SIZE,
+	.read_check = sprd_adi_read_check_r2,
+	.restart = sprd_adi_restart_sc9860,
+	.wdg_rst = sprd_adi_set_wdt_rst_mode,
+};
+
+static struct sprd_adi_data sc9863_data = {
+	.slave_offset = ADI_12BIT_SLAVE_OFFSET,
+	.slave_addr_size = ADI_12BIT_SLAVE_ADDR_SIZE,
+	.read_check = sprd_adi_read_check_r3,
+};
+
+static struct sprd_adi_data ums512_data = {
+	.slave_offset = ADI_15BIT_SLAVE_OFFSET,
+	.slave_addr_size = ADI_15BIT_SLAVE_ADDR_SIZE,
+	.read_check = sprd_adi_read_check_r3,
+};
+
 static const struct of_device_id sprd_adi_of_match[] = {
 	{
 		.compatible = "sprd,sc9860-adi",
+		.data = &sc9860_data,
+	},
+	{
+		.compatible = "sprd,sc9863-adi",
+		.data = &sc9863_data,
+	},
+	{
+		.compatible = "sprd,ums512-adi",
+		.data = &ums512_data,
 	},
 	{ },
 };

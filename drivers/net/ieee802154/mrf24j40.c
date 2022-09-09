@@ -1,24 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Microchip MRF24J40 802.15.4 Wireless-PAN Networking controller
  *
  * Copyright (C) 2012 Alan Ott <alan@signal11.us>
  *                    Signal 11 Software
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/ieee802154.h>
 #include <linux/irq.h>
@@ -1365,7 +1356,7 @@ err_ret:
 	return ret;
 }
 
-static int mrf24j40_remove(struct spi_device *spi)
+static void mrf24j40_remove(struct spi_device *spi)
 {
 	struct mrf24j40 *devrec = spi_get_drvdata(spi);
 
@@ -1375,8 +1366,6 @@ static int mrf24j40_remove(struct spi_device *spi)
 	ieee802154_free_hw(devrec->hw);
 	/* TODO: Will ieee802154_free_device() wait until ->xmit() is
 	 * complete? */
-
-	return 0;
 }
 
 static const struct of_device_id mrf24j40_of_match[] = {
@@ -1397,7 +1386,7 @@ MODULE_DEVICE_TABLE(spi, mrf24j40_ids);
 
 static struct spi_driver mrf24j40_driver = {
 	.driver = {
-		.of_match_table = of_match_ptr(mrf24j40_of_match),
+		.of_match_table = mrf24j40_of_match,
 		.name = "mrf24j40",
 	},
 	.id_table = mrf24j40_ids,

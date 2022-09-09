@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_X_TABLES_H
 #define _UAPI_X_TABLES_H
-#include <linux/kernel.h>
+#include <linux/const.h>
 #include <linux/types.h>
 
 #define XT_FUNCTION_MAXNAMELEN 30
@@ -28,7 +28,7 @@ struct xt_entry_match {
 		__u16 match_size;
 	} u;
 
-	unsigned char data[0];
+	unsigned char data[];
 };
 
 struct xt_entry_target {
@@ -119,7 +119,7 @@ struct xt_counters_info {
 	unsigned int num_counters;
 
 	/* The counters (actually `number' of these). */
-	struct xt_counters counters[0];
+	struct xt_counters counters[];
 };
 
 #define XT_INV_PROTO		0x40	/* Invert the sense of PROTO. */

@@ -8,9 +8,11 @@
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/driver.h>
@@ -31,13 +33,13 @@ struct max11100_state {
 	struct spi_device *spi;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	u8 buffer[3] ____cacheline_aligned;
+	u8 buffer[3] __aligned(IIO_DMA_MINALIGN);
 };
 
-static struct iio_chan_spec max11100_channels[] = {
+static const struct iio_chan_spec max11100_channels[] = {
 	{ /* [0] */
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
@@ -62,7 +64,7 @@ static int max11100_read_single(struct iio_dev *indio_dev, int *val)
 		return -EINVAL;
 	}
 
-	*val = (state->buffer[1] << 8) | state->buffer[2];
+	*val = get_unaligned_be16(&state->buffer[1]);
 
 	return 0;
 }
@@ -100,6 +102,11 @@ static const struct iio_info max11100_info = {
 	.read_raw = max11100_read_raw,
 };
 
+static void max11100_regulator_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int max11100_probe(struct spi_device *spi)
 {
 	int ret;
@@ -110,13 +117,9 @@ static int max11100_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, indio_dev);
-
 	state = iio_priv(indio_dev);
 	state->spi = spi;
 
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = "max11100";
 	indio_dev->info = &max11100_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -131,27 +134,12 @@ static int max11100_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_add_action_or_reset(&spi->dev, max11100_regulator_disable,
+				       state->vref_reg);
 	if (ret)
-		goto disable_regulator;
+		return ret;
 
-	return 0;
-
-disable_regulator:
-	regulator_disable(state->vref_reg);
-
-	return ret;
-}
-
-static int max11100_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct max11100_state *state = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	regulator_disable(state->vref_reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct of_device_id max11100_ids[] = {
@@ -163,10 +151,9 @@ MODULE_DEVICE_TABLE(of, max11100_ids);
 static struct spi_driver max11100_driver = {
 	.driver = {
 		.name	= "max11100",
-		.of_match_table = of_match_ptr(max11100_ids),
+		.of_match_table = max11100_ids,
 	},
 	.probe		= max11100_probe,
-	.remove		= max11100_remove,
 };
 
 module_spi_driver(max11100_driver);

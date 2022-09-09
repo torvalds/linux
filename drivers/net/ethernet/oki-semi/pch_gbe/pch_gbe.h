@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 1999 - 2010 Intel Corporation.
  * Copyright (C) 2010 OKI SEMICONDUCTOR Co., LTD.
  *
  * This code was derived from the Intel e1000e Linux driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _PCH_GBE_H_
@@ -158,7 +147,7 @@ struct pch_gbe_regs {
 #define PCH_GBE_RH_ALM_FULL_8   0x00001000      /* 8 words */
 #define PCH_GBE_RH_ALM_FULL_16  0x00002000      /* 16 words */
 #define PCH_GBE_RH_ALM_FULL_32  0x00003000      /* 32 words */
-/* RX FIFO Read Triger Threshold */
+/* RX FIFO Read Trigger Threshold */
 #define PCH_GBE_RH_RD_TRG_4     0x00000000      /* 4 words */
 #define PCH_GBE_RH_RD_TRG_8     0x00000200      /* 8 words */
 #define PCH_GBE_RH_RD_TRG_16    0x00000400      /* 16 words */
@@ -607,8 +596,6 @@ struct pch_gbe_adapter {
 
 #define pch_gbe_hw_to_adapter(hw)	container_of(hw, struct pch_gbe_adapter, hw)
 
-extern const char pch_driver_version[];
-
 /* pch_gbe_main.c */
 int pch_gbe_up(struct pch_gbe_adapter *adapter);
 void pch_gbe_down(struct pch_gbe_adapter *adapter);
@@ -623,15 +610,6 @@ void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 			       struct pch_gbe_rx_ring *rx_ring);
 void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
-u32 pch_ch_control_read(struct pci_dev *pdev);
-void pch_ch_control_write(struct pci_dev *pdev, u32 val);
-u32 pch_ch_event_read(struct pci_dev *pdev);
-void pch_ch_event_write(struct pci_dev *pdev, u32 val);
-u32 pch_src_uuid_lo_read(struct pci_dev *pdev);
-u32 pch_src_uuid_hi_read(struct pci_dev *pdev);
-u64 pch_rx_snap_read(struct pci_dev *pdev);
-u64 pch_tx_snap_read(struct pci_dev *pdev);
-int pch_set_station_address(u8 *addr, struct pci_dev *pdev);
 
 /* pch_gbe_param.c */
 void pch_gbe_check_options(struct pch_gbe_adapter *adapter);

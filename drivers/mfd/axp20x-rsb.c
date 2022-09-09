@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RSB driver for the X-Powers' Power Management ICs
  *
@@ -10,10 +11,6 @@
  * Copyright (C) 2015 Chen-Yu Tsai
  *
  * Author: Chen-Yu Tsai <wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -52,11 +49,11 @@ static int axp20x_rsb_probe(struct sunxi_rsb_device *rdev)
 	return axp20x_device_probe(axp20x);
 }
 
-static int axp20x_rsb_remove(struct sunxi_rsb_device *rdev)
+static void axp20x_rsb_remove(struct sunxi_rsb_device *rdev)
 {
 	struct axp20x_dev *axp20x = sunxi_rsb_device_get_drvdata(rdev);
 
-	return axp20x_device_remove(axp20x);
+	axp20x_device_remove(axp20x);
 }
 
 static const struct of_device_id axp20x_rsb_of_match[] = {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43legacy wireless driver
@@ -6,20 +7,6 @@
 
   Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
@@ -67,7 +54,7 @@ struct b43legacy_dfs_file * fops_to_dfs_file(struct b43legacy_wldev *dev,
 #define fappend(fmt, x...)	\
 	do {							\
 		if (bufsize - count)				\
-			count += snprintf(buf + count,		\
+			count += scnprintf(buf + count,		\
 					  bufsize - count,	\
 					  fmt , ##x);		\
 		else						\
@@ -203,7 +190,7 @@ static ssize_t b43legacy_debugfs_read(struct file *file, char __user *userbuf,
 	struct b43legacy_wldev *dev;
 	struct b43legacy_debugfs_fops *dfops;
 	struct b43legacy_dfs_file *dfile;
-	ssize_t uninitialized_var(ret);
+	ssize_t ret;
 	char *buf;
 	const size_t bufsize = 1024 * 16; /* 16 KiB buffer */
 	const size_t buforder = get_order(bufsize);
@@ -349,27 +336,15 @@ int b43legacy_debug(struct b43legacy_wldev *dev, enum b43legacy_dyndbg feature)
 	return !!(dev->dfsentry && dev->dfsentry->dyn_debug[feature]);
 }
 
-static void b43legacy_remove_dynamic_debug(struct b43legacy_wldev *dev)
-{
-	struct b43legacy_dfsentry *e = dev->dfsentry;
-	int i;
-
-	for (i = 0; i < __B43legacy_NR_DYNDBG; i++)
-		debugfs_remove(e->dyn_debug_dentries[i]);
-}
-
 static void b43legacy_add_dynamic_debug(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_dfsentry *e = dev->dfsentry;
-	struct dentry *d;
 
-#define add_dyn_dbg(name, id, initstate) do {		\
-	e->dyn_debug[id] = (initstate);			\
-	d = debugfs_create_bool(name, 0600, e->subdir,	\
-				&(e->dyn_debug[id]));	\
-	if (!IS_ERR(d))					\
-		e->dyn_debug_dentries[id] = d;		\
-				} while (0)
+#define add_dyn_dbg(name, id, initstate) do {			\
+	e->dyn_debug[id] = (initstate);				\
+	debugfs_create_bool(name, 0600, e->subdir,		\
+			    &(e->dyn_debug[id]));		\
+	} while (0)
 
 	add_dyn_dbg("debug_xmitpower", B43legacy_DBG_XMITPOWER, false);
 	add_dyn_dbg("debug_dmaoverflow", B43legacy_DBG_DMAOVERFLOW, false);
@@ -408,29 +383,12 @@ void b43legacy_debugfs_add_device(struct b43legacy_wldev *dev)
 
 	snprintf(devdir, sizeof(devdir), "%s", wiphy_name(dev->wl->hw->wiphy));
 	e->subdir = debugfs_create_dir(devdir, rootdir);
-	if (!e->subdir || IS_ERR(e->subdir)) {
-		if (e->subdir == ERR_PTR(-ENODEV)) {
-			b43legacydbg(dev->wl, "DebugFS (CONFIG_DEBUG_FS) not "
-			       "enabled in kernel config\n");
-		} else {
-			b43legacyerr(dev->wl, "debugfs: cannot create %s directory\n",
-			       devdir);
-		}
-		dev->dfsentry = NULL;
-		kfree(log->log);
-		kfree(e);
-		return;
-	}
 
 #define ADD_FILE(name, mode)	\
 	do {							\
-		struct dentry *d;				\
-		d = debugfs_create_file(__stringify(name),	\
-					mode, e->subdir, dev,	\
-					&fops_##name.fops);	\
-		e->file_##name.dentry = NULL;			\
-		if (!IS_ERR(d))					\
-			e->file_##name.dentry = d;		\
+		debugfs_create_file(__stringify(name), mode,	\
+				    e->subdir, dev,		\
+				    &fops_##name.fops);		\
 	} while (0)
 
 
@@ -454,13 +412,6 @@ void b43legacy_debugfs_remove_device(struct b43legacy_wldev *dev)
 	e = dev->dfsentry;
 	if (!e)
 		return;
-	b43legacy_remove_dynamic_debug(dev);
-
-	debugfs_remove(e->file_tsf.dentry);
-	debugfs_remove(e->file_ucode_regs.dentry);
-	debugfs_remove(e->file_shm.dentry);
-	debugfs_remove(e->file_txstat.dentry);
-	debugfs_remove(e->file_restart.dentry);
 
 	debugfs_remove(e->subdir);
 	kfree(e->txstatlog.log);
@@ -492,8 +443,6 @@ void b43legacy_debugfs_log_txstat(struct b43legacy_wldev *dev,
 void b43legacy_debugfs_init(void)
 {
 	rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (IS_ERR(rootdir))
-		rootdir = NULL;
 }
 
 void b43legacy_debugfs_exit(void)

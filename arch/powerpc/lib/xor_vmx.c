@@ -1,17 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2012
  *
@@ -61,8 +49,9 @@ typedef vector signed char unative_t;
 		V1##_3 = vec_xor(V1##_3, V2##_3);	\
 	} while (0)
 
-void __xor_altivec_2(unsigned long bytes, unsigned long *v1_in,
-		     unsigned long *v2_in)
+void __xor_altivec_2(unsigned long bytes,
+		     unsigned long * __restrict v1_in,
+		     const unsigned long * __restrict v2_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);
@@ -79,8 +68,10 @@ void __xor_altivec_2(unsigned long bytes, unsigned long *v1_in,
 	} while (--lines > 0);
 }
 
-void __xor_altivec_3(unsigned long bytes, unsigned long *v1_in,
-		     unsigned long *v2_in, unsigned long *v3_in)
+void __xor_altivec_3(unsigned long bytes,
+		     unsigned long * __restrict v1_in,
+		     const unsigned long * __restrict v2_in,
+		     const unsigned long * __restrict v3_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);
@@ -101,9 +92,11 @@ void __xor_altivec_3(unsigned long bytes, unsigned long *v1_in,
 	} while (--lines > 0);
 }
 
-void __xor_altivec_4(unsigned long bytes, unsigned long *v1_in,
-		     unsigned long *v2_in, unsigned long *v3_in,
-		     unsigned long *v4_in)
+void __xor_altivec_4(unsigned long bytes,
+		     unsigned long * __restrict v1_in,
+		     const unsigned long * __restrict v2_in,
+		     const unsigned long * __restrict v3_in,
+		     const unsigned long * __restrict v4_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);
@@ -128,9 +121,12 @@ void __xor_altivec_4(unsigned long bytes, unsigned long *v1_in,
 	} while (--lines > 0);
 }
 
-void __xor_altivec_5(unsigned long bytes, unsigned long *v1_in,
-		     unsigned long *v2_in, unsigned long *v3_in,
-		     unsigned long *v4_in, unsigned long *v5_in)
+void __xor_altivec_5(unsigned long bytes,
+		     unsigned long * __restrict v1_in,
+		     const unsigned long * __restrict v2_in,
+		     const unsigned long * __restrict v3_in,
+		     const unsigned long * __restrict v4_in,
+		     const unsigned long * __restrict v5_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);

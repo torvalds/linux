@@ -15,7 +15,7 @@
 #ifndef _XTENSA_XT2000_HARDWARE_H
 #define _XTENSA_XT2000_HARDWARE_H
 
-#include <variant/core.h>
+#include <asm/core.h>
 
 /*
  * On-board components.

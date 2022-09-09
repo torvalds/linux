@@ -1,17 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aes-ce-core.S - AES in CBC/CTR/XTS mode using ARMv8 Crypto Extensions
  *
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
 	.text
+	.arch		armv8-a
 	.fpu		crypto-neon-fp-armv8
 	.align		3
 
@@ -47,63 +45,73 @@
 	veor		q0, q0, \key3
 	.endm
 
-	.macro		enc_dround_3x, key1, key2
+	.macro		enc_dround_4x, key1, key2
 	enc_round	q0, \key1
 	enc_round	q1, \key1
 	enc_round	q2, \key1
+	enc_round	q3, \key1
 	enc_round	q0, \key2
 	enc_round	q1, \key2
 	enc_round	q2, \key2
+	enc_round	q3, \key2
 	.endm
 
-	.macro		dec_dround_3x, key1, key2
+	.macro		dec_dround_4x, key1, key2
 	dec_round	q0, \key1
 	dec_round	q1, \key1
 	dec_round	q2, \key1
+	dec_round	q3, \key1
 	dec_round	q0, \key2
 	dec_round	q1, \key2
 	dec_round	q2, \key2
+	dec_round	q3, \key2
 	.endm
 
-	.macro		enc_fround_3x, key1, key2, key3
+	.macro		enc_fround_4x, key1, key2, key3
 	enc_round	q0, \key1
 	enc_round	q1, \key1
 	enc_round	q2, \key1
+	enc_round	q3, \key1
 	aese.8		q0, \key2
 	aese.8		q1, \key2
 	aese.8		q2, \key2
+	aese.8		q3, \key2
 	veor		q0, q0, \key3
 	veor		q1, q1, \key3
 	veor		q2, q2, \key3
+	veor		q3, q3, \key3
 	.endm
 
-	.macro		dec_fround_3x, key1, key2, key3
+	.macro		dec_fround_4x, key1, key2, key3
 	dec_round	q0, \key1
 	dec_round	q1, \key1
 	dec_round	q2, \key1
+	dec_round	q3, \key1
 	aesd.8		q0, \key2
 	aesd.8		q1, \key2
 	aesd.8		q2, \key2
+	aesd.8		q3, \key2
 	veor		q0, q0, \key3
 	veor		q1, q1, \key3
 	veor		q2, q2, \key3
+	veor		q3, q3, \key3
 	.endm
 
 	.macro		do_block, dround, fround
 	cmp		r3, #12			@ which key size?
-	vld1.8		{q10-q11}, [ip]!
+	vld1.32		{q10-q11}, [ip]!
 	\dround		q8, q9
-	vld1.8		{q12-q13}, [ip]!
+	vld1.32		{q12-q13}, [ip]!
 	\dround		q10, q11
-	vld1.8		{q10-q11}, [ip]!
+	vld1.32		{q10-q11}, [ip]!
 	\dround		q12, q13
-	vld1.8		{q12-q13}, [ip]!
+	vld1.32		{q12-q13}, [ip]!
 	\dround		q10, q11
 	blo		0f			@ AES-128: 10 rounds
-	vld1.8		{q10-q11}, [ip]!
+	vld1.32		{q10-q11}, [ip]!
 	\dround		q12, q13
 	beq		1f			@ AES-192: 12 rounds
-	vld1.8		{q12-q13}, [ip]
+	vld1.32		{q12-q13}, [ip]
 	\dround		q10, q11
 0:	\fround		q12, q13, q14
 	bx		lr
@@ -117,8 +125,9 @@
 	 * transforms. These should preserve all registers except q0 - q2 and ip
 	 * Arguments:
 	 *   q0        : first in/output block
-	 *   q1        : second in/output block (_3x version only)
-	 *   q2        : third in/output block (_3x version only)
+	 *   q1        : second in/output block (_4x version only)
+	 *   q2        : third in/output block (_4x version only)
+	 *   q3        : fourth in/output block (_4x version only)
 	 *   q8        : first round key
 	 *   q9        : secound round key
 	 *   q14       : final round key
@@ -139,44 +148,44 @@ aes_decrypt:
 ENDPROC(aes_decrypt)
 
 	.align		6
-aes_encrypt_3x:
+aes_encrypt_4x:
 	add		ip, r2, #32		@ 3rd round key
-	do_block	enc_dround_3x, enc_fround_3x
-ENDPROC(aes_encrypt_3x)
+	do_block	enc_dround_4x, enc_fround_4x
+ENDPROC(aes_encrypt_4x)
 
 	.align		6
-aes_decrypt_3x:
+aes_decrypt_4x:
 	add		ip, r2, #32		@ 3rd round key
-	do_block	dec_dround_3x, dec_fround_3x
-ENDPROC(aes_decrypt_3x)
+	do_block	dec_dround_4x, dec_fround_4x
+ENDPROC(aes_decrypt_4x)
 
 	.macro		prepare_key, rk, rounds
 	add		ip, \rk, \rounds, lsl #4
-	vld1.8		{q8-q9}, [\rk]		@ load first 2 round keys
-	vld1.8		{q14}, [ip]		@ load last round key
+	vld1.32		{q8-q9}, [\rk]		@ load first 2 round keys
+	vld1.32		{q14}, [ip]		@ load last round key
 	.endm
 
 	/*
-	 * aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_ecb_encrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks)
-	 * aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_ecb_decrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks)
 	 */
 ENTRY(ce_aes_ecb_encrypt)
 	push		{r4, lr}
 	ldr		r4, [sp, #8]
 	prepare_key	r2, r3
-.Lecbencloop3x:
-	subs		r4, r4, #3
+.Lecbencloop4x:
+	subs		r4, r4, #4
 	bmi		.Lecbenc1x
 	vld1.8		{q0-q1}, [r1]!
-	vld1.8		{q2}, [r1]!
-	bl		aes_encrypt_3x
+	vld1.8		{q2-q3}, [r1]!
+	bl		aes_encrypt_4x
 	vst1.8		{q0-q1}, [r0]!
-	vst1.8		{q2}, [r0]!
-	b		.Lecbencloop3x
+	vst1.8		{q2-q3}, [r0]!
+	b		.Lecbencloop4x
 .Lecbenc1x:
-	adds		r4, r4, #3
+	adds		r4, r4, #4
 	beq		.Lecbencout
 .Lecbencloop:
 	vld1.8		{q0}, [r1]!
@@ -192,17 +201,17 @@ ENTRY(ce_aes_ecb_decrypt)
 	push		{r4, lr}
 	ldr		r4, [sp, #8]
 	prepare_key	r2, r3
-.Lecbdecloop3x:
-	subs		r4, r4, #3
+.Lecbdecloop4x:
+	subs		r4, r4, #4
 	bmi		.Lecbdec1x
 	vld1.8		{q0-q1}, [r1]!
-	vld1.8		{q2}, [r1]!
-	bl		aes_decrypt_3x
+	vld1.8		{q2-q3}, [r1]!
+	bl		aes_decrypt_4x
 	vst1.8		{q0-q1}, [r0]!
-	vst1.8		{q2}, [r0]!
-	b		.Lecbdecloop3x
+	vst1.8		{q2-q3}, [r0]!
+	b		.Lecbdecloop4x
 .Lecbdec1x:
-	adds		r4, r4, #3
+	adds		r4, r4, #4
 	beq		.Lecbdecout
 .Lecbdecloop:
 	vld1.8		{q0}, [r1]!
@@ -215,9 +224,9 @@ ENTRY(ce_aes_ecb_decrypt)
 ENDPROC(ce_aes_ecb_decrypt)
 
 	/*
-	 * aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_cbc_encrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks, u8 iv[])
-	 * aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * aes_cbc_decrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks, u8 iv[])
 	 */
 ENTRY(ce_aes_cbc_encrypt)
@@ -239,123 +248,228 @@ ENDPROC(ce_aes_cbc_encrypt)
 ENTRY(ce_aes_cbc_decrypt)
 	push		{r4-r6, lr}
 	ldrd		r4, r5, [sp, #16]
-	vld1.8		{q6}, [r5]		@ keep iv in q6
+	vld1.8		{q15}, [r5]		@ keep iv in q15
 	prepare_key	r2, r3
-.Lcbcdecloop3x:
-	subs		r4, r4, #3
+.Lcbcdecloop4x:
+	subs		r4, r4, #4
 	bmi		.Lcbcdec1x
 	vld1.8		{q0-q1}, [r1]!
-	vld1.8		{q2}, [r1]!
-	vmov		q3, q0
-	vmov		q4, q1
-	vmov		q5, q2
-	bl		aes_decrypt_3x
-	veor		q0, q0, q6
-	veor		q1, q1, q3
-	veor		q2, q2, q4
-	vmov		q6, q5
+	vld1.8		{q2-q3}, [r1]!
+	vmov		q4, q0
+	vmov		q5, q1
+	vmov		q6, q2
+	vmov		q7, q3
+	bl		aes_decrypt_4x
+	veor		q0, q0, q15
+	veor		q1, q1, q4
+	veor		q2, q2, q5
+	veor		q3, q3, q6
+	vmov		q15, q7
 	vst1.8		{q0-q1}, [r0]!
-	vst1.8		{q2}, [r0]!
-	b		.Lcbcdecloop3x
+	vst1.8		{q2-q3}, [r0]!
+	b		.Lcbcdecloop4x
 .Lcbcdec1x:
-	adds		r4, r4, #3
+	adds		r4, r4, #4
 	beq		.Lcbcdecout
-	vmov		q15, q14		@ preserve last round key
+	vmov		q6, q14			@ preserve last round key
 .Lcbcdecloop:
 	vld1.8		{q0}, [r1]!		@ get next ct block
 	veor		q14, q15, q6		@ combine prev ct with last key
-	vmov		q6, q0
+	vmov		q15, q0
 	bl		aes_decrypt
 	vst1.8		{q0}, [r0]!
 	subs		r4, r4, #1
 	bne		.Lcbcdecloop
 .Lcbcdecout:
-	vst1.8		{q6}, [r5]		@ keep iv in q6
+	vst1.8		{q15}, [r5]		@ keep iv in q15
 	pop		{r4-r6, pc}
 ENDPROC(ce_aes_cbc_decrypt)
 
+
 	/*
-	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 * ce_aes_cbc_cts_encrypt(u8 out[], u8 const in[], u32 const rk[],
+	 *			  int rounds, int bytes, u8 const iv[])
+	 * ce_aes_cbc_cts_decrypt(u8 out[], u8 const in[], u32 const rk[],
+	 *			  int rounds, int bytes, u8 const iv[])
+	 */
+
+ENTRY(ce_aes_cbc_cts_encrypt)
+	push		{r4-r6, lr}
+	ldrd		r4, r5, [sp, #16]
+
+	movw		ip, :lower16:.Lcts_permute_table
+	movt		ip, :upper16:.Lcts_permute_table
+	sub		r4, r4, #16
+	add		lr, ip, #32
+	add		ip, ip, r4
+	sub		lr, lr, r4
+	vld1.8		{q5}, [ip]
+	vld1.8		{q6}, [lr]
+
+	add		ip, r1, r4
+	vld1.8		{q0}, [r1]			@ overlapping loads
+	vld1.8		{q3}, [ip]
+
+	vld1.8		{q1}, [r5]			@ get iv
+	prepare_key	r2, r3
+
+	veor		q0, q0, q1			@ xor with iv
+	bl		aes_encrypt
+
+	vtbl.8		d4, {d0-d1}, d10
+	vtbl.8		d5, {d0-d1}, d11
+	vtbl.8		d2, {d6-d7}, d12
+	vtbl.8		d3, {d6-d7}, d13
+
+	veor		q0, q0, q1
+	bl		aes_encrypt
+
+	add		r4, r0, r4
+	vst1.8		{q2}, [r4]			@ overlapping stores
+	vst1.8		{q0}, [r0]
+
+	pop		{r4-r6, pc}
+ENDPROC(ce_aes_cbc_cts_encrypt)
+
+ENTRY(ce_aes_cbc_cts_decrypt)
+	push		{r4-r6, lr}
+	ldrd		r4, r5, [sp, #16]
+
+	movw		ip, :lower16:.Lcts_permute_table
+	movt		ip, :upper16:.Lcts_permute_table
+	sub		r4, r4, #16
+	add		lr, ip, #32
+	add		ip, ip, r4
+	sub		lr, lr, r4
+	vld1.8		{q5}, [ip]
+	vld1.8		{q6}, [lr]
+
+	add		ip, r1, r4
+	vld1.8		{q0}, [r1]			@ overlapping loads
+	vld1.8		{q1}, [ip]
+
+	vld1.8		{q3}, [r5]			@ get iv
+	prepare_key	r2, r3
+
+	bl		aes_decrypt
+
+	vtbl.8		d4, {d0-d1}, d10
+	vtbl.8		d5, {d0-d1}, d11
+	vtbx.8		d0, {d2-d3}, d12
+	vtbx.8		d1, {d2-d3}, d13
+
+	veor		q1, q1, q2
+	bl		aes_decrypt
+	veor		q0, q0, q3			@ xor with iv
+
+	add		r4, r0, r4
+	vst1.8		{q1}, [r4]			@ overlapping stores
+	vst1.8		{q0}, [r0]
+
+	pop		{r4-r6, pc}
+ENDPROC(ce_aes_cbc_cts_decrypt)
+
+
+	/*
+	 * aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[], int rounds,
 	 *		   int blocks, u8 ctr[])
 	 */
 ENTRY(ce_aes_ctr_encrypt)
 	push		{r4-r6, lr}
 	ldrd		r4, r5, [sp, #16]
-	vld1.8		{q6}, [r5]		@ load ctr
+	vld1.8		{q7}, [r5]		@ load ctr
 	prepare_key	r2, r3
-	vmov		r6, s27			@ keep swabbed ctr in r6
+	vmov		r6, s31			@ keep swabbed ctr in r6
 	rev		r6, r6
 	cmn		r6, r4			@ 32 bit overflow?
 	bcs		.Lctrloop
-.Lctrloop3x:
-	subs		r4, r4, #3
+.Lctrloop4x:
+	subs		r4, r4, #4
 	bmi		.Lctr1x
-	add		r6, r6, #1
-	vmov		q0, q6
-	vmov		q1, q6
-	rev		ip, r6
-	add		r6, r6, #1
-	vmov		q2, q6
-	vmov		s7, ip
-	rev		ip, r6
-	add		r6, r6, #1
-	vmov		s11, ip
-	vld1.8		{q3-q4}, [r1]!
-	vld1.8		{q5}, [r1]!
-	bl		aes_encrypt_3x
-	veor		q0, q0, q3
-	veor		q1, q1, q4
-	veor		q2, q2, q5
+
+	/*
+	 * NOTE: the sequence below has been carefully tweaked to avoid
+	 * a silicon erratum that exists in Cortex-A57 (#1742098) and
+	 * Cortex-A72 (#1655431) cores, where AESE/AESMC instruction pairs
+	 * may produce an incorrect result if they take their input from a
+	 * register of which a single 32-bit lane has been updated the last
+	 * time it was modified. To work around this, the lanes of registers
+	 * q0-q3 below are not manipulated individually, and the different
+	 * counter values are prepared by successive manipulations of q7.
+	 */
+	add		ip, r6, #1
+	vmov		q0, q7
+	rev		ip, ip
+	add		lr, r6, #2
+	vmov		s31, ip			@ set lane 3 of q1 via q7
+	add		ip, r6, #3
+	rev		lr, lr
+	vmov		q1, q7
+	vmov		s31, lr			@ set lane 3 of q2 via q7
+	rev		ip, ip
+	vmov		q2, q7
+	vmov		s31, ip			@ set lane 3 of q3 via q7
+	add		r6, r6, #4
+	vmov		q3, q7
+
+	vld1.8		{q4-q5}, [r1]!
+	vld1.8		{q6}, [r1]!
+	vld1.8		{q15}, [r1]!
+	bl		aes_encrypt_4x
+	veor		q0, q0, q4
+	veor		q1, q1, q5
+	veor		q2, q2, q6
+	veor		q3, q3, q15
 	rev		ip, r6
 	vst1.8		{q0-q1}, [r0]!
-	vst1.8		{q2}, [r0]!
-	vmov		s27, ip
-	b		.Lctrloop3x
+	vst1.8		{q2-q3}, [r0]!
+	vmov		s31, ip
+	b		.Lctrloop4x
 .Lctr1x:
-	adds		r4, r4, #3
+	adds		r4, r4, #4
 	beq		.Lctrout
 .Lctrloop:
-	vmov		q0, q6
+	vmov		q0, q7
 	bl		aes_encrypt
+
+	adds		r6, r6, #1		@ increment BE ctr
+	rev		ip, r6
+	vmov		s31, ip
+	bcs		.Lctrcarry
+
+.Lctrcarrydone:
 	subs		r4, r4, #1
 	bmi		.Lctrtailblock		@ blocks < 0 means tail block
 	vld1.8		{q3}, [r1]!
 	veor		q3, q0, q3
 	vst1.8		{q3}, [r0]!
-
-	adds		r6, r6, #1		@ increment BE ctr
-	rev		ip, r6
-	vmov		s27, ip
-	bcs		.Lctrcarry
-	teq		r4, #0
 	bne		.Lctrloop
+
 .Lctrout:
-	vst1.8		{q6}, [r5]
+	vst1.8		{q7}, [r5]		@ return next CTR value
 	pop		{r4-r6, pc}
 
 .Lctrtailblock:
-	vst1.8		{q0}, [r0, :64]		@ return just the key stream
-	pop		{r4-r6, pc}
+	vst1.8		{q0}, [r0, :64]		@ return the key stream
+	b		.Lctrout
 
 .Lctrcarry:
-	.irp		sreg, s26, s25, s24
+	.irp		sreg, s30, s29, s28
 	vmov		ip, \sreg		@ load next word of ctr
 	rev		ip, ip			@ ... to handle the carry
 	adds		ip, ip, #1
 	rev		ip, ip
 	vmov		\sreg, ip
-	bcc		0f
+	bcc		.Lctrcarrydone
 	.endr
-0:	teq		r4, #0
-	beq		.Lctrout
-	b		.Lctrloop
+	b		.Lctrcarrydone
 ENDPROC(ce_aes_ctr_encrypt)
 
 	/*
-	 * aes_xts_encrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 iv[], u8 const rk2[], int first)
-	 * aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 iv[], u8 const rk2[], int first)
+	 * aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[], int rounds,
+	 *		   int bytes, u8 iv[], u32 const rk2[], int first)
+	 * aes_xts_decrypt(u8 out[], u8 const in[], u32 const rk1[], int rounds,
+	 *		   int bytes, u8 iv[], u32 const rk2[], int first)
 	 */
 
 	.macro		next_tweak, out, in, const, tmp
@@ -366,13 +480,10 @@ ENDPROC(ce_aes_ctr_encrypt)
 	veor		\out, \out, \tmp
 	.endm
 
-	.align		3
-.Lxts_mul_x:
-	.quad		1, 0x87
-
 ce_aes_xts_init:
-	vldr		d14, .Lxts_mul_x
-	vldr		d15, .Lxts_mul_x + 8
+	vmov.i32	d30, #0x87		@ compose tweak mask vector
+	vmovl.u32	q15, d30
+	vshr.u64	d30, d31, #7
 
 	ldrd		r4, r5, [sp, #16]	@ load args
 	ldr		r6, [sp, #28]
@@ -393,49 +504,86 @@ ENTRY(ce_aes_xts_encrypt)
 
 	bl		ce_aes_xts_init		@ run shared prologue
 	prepare_key	r2, r3
-	vmov		q3, q0
+	vmov		q4, q0
 
 	teq		r6, #0			@ start of a block?
-	bne		.Lxtsenc3x
+	bne		.Lxtsenc4x
 
-.Lxtsencloop3x:
-	next_tweak	q3, q3, q7, q6
-.Lxtsenc3x:
-	subs		r4, r4, #3
+.Lxtsencloop4x:
+	next_tweak	q4, q4, q15, q10
+.Lxtsenc4x:
+	subs		r4, r4, #64
 	bmi		.Lxtsenc1x
-	vld1.8		{q0-q1}, [r1]!		@ get 3 pt blocks
-	vld1.8		{q2}, [r1]!
-	next_tweak	q4, q3, q7, q6
-	veor		q0, q0, q3
-	next_tweak	q5, q4, q7, q6
-	veor		q1, q1, q4
-	veor		q2, q2, q5
-	bl		aes_encrypt_3x
-	veor		q0, q0, q3
-	veor		q1, q1, q4
-	veor		q2, q2, q5
-	vst1.8		{q0-q1}, [r0]!		@ write 3 ct blocks
-	vst1.8		{q2}, [r0]!
-	vmov		q3, q5
+	vld1.8		{q0-q1}, [r1]!		@ get 4 pt blocks
+	vld1.8		{q2-q3}, [r1]!
+	next_tweak	q5, q4, q15, q10
+	veor		q0, q0, q4
+	next_tweak	q6, q5, q15, q10
+	veor		q1, q1, q5
+	next_tweak	q7, q6, q15, q10
+	veor		q2, q2, q6
+	veor		q3, q3, q7
+	bl		aes_encrypt_4x
+	veor		q0, q0, q4
+	veor		q1, q1, q5
+	veor		q2, q2, q6
+	veor		q3, q3, q7
+	vst1.8		{q0-q1}, [r0]!		@ write 4 ct blocks
+	vst1.8		{q2-q3}, [r0]!
+	vmov		q4, q7
 	teq		r4, #0
-	beq		.Lxtsencout
-	b		.Lxtsencloop3x
+	beq		.Lxtsencret
+	b		.Lxtsencloop4x
 .Lxtsenc1x:
-	adds		r4, r4, #3
+	adds		r4, r4, #64
 	beq		.Lxtsencout
+	subs		r4, r4, #16
+	bmi		.LxtsencctsNx
 .Lxtsencloop:
 	vld1.8		{q0}, [r1]!
-	veor		q0, q0, q3
+.Lxtsencctsout:
+	veor		q0, q0, q4
 	bl		aes_encrypt
-	veor		q0, q0, q3
-	vst1.8		{q0}, [r0]!
-	subs		r4, r4, #1
+	veor		q0, q0, q4
+	teq		r4, #0
 	beq		.Lxtsencout
-	next_tweak	q3, q3, q7, q6
+	subs		r4, r4, #16
+	next_tweak	q4, q4, q15, q6
+	bmi		.Lxtsenccts
+	vst1.8		{q0}, [r0]!
 	b		.Lxtsencloop
 .Lxtsencout:
-	vst1.8		{q3}, [r5]
+	vst1.8		{q0}, [r0]
+.Lxtsencret:
+	vst1.8		{q4}, [r5]
 	pop		{r4-r6, pc}
+
+.LxtsencctsNx:
+	vmov		q0, q3
+	sub		r0, r0, #16
+.Lxtsenccts:
+	movw		ip, :lower16:.Lcts_permute_table
+	movt		ip, :upper16:.Lcts_permute_table
+
+	add		r1, r1, r4		@ rewind input pointer
+	add		r4, r4, #16		@ # bytes in final block
+	add		lr, ip, #32
+	add		ip, ip, r4
+	sub		lr, lr, r4
+	add		r4, r0, r4		@ output address of final block
+
+	vld1.8		{q1}, [r1]		@ load final partial block
+	vld1.8		{q2}, [ip]
+	vld1.8		{q3}, [lr]
+
+	vtbl.8		d4, {d0-d1}, d4
+	vtbl.8		d5, {d0-d1}, d5
+	vtbx.8		d0, {d2-d3}, d6
+	vtbx.8		d1, {d2-d3}, d7
+
+	vst1.8		{q2}, [r4]		@ overlapping stores
+	mov		r4, #0
+	b		.Lxtsencctsout
 ENDPROC(ce_aes_xts_encrypt)
 
 
@@ -444,50 +592,90 @@ ENTRY(ce_aes_xts_decrypt)
 
 	bl		ce_aes_xts_init		@ run shared prologue
 	prepare_key	r2, r3
-	vmov		q3, q0
+	vmov		q4, q0
+
+	/* subtract 16 bytes if we are doing CTS */
+	tst		r4, #0xf
+	subne		r4, r4, #0x10
 
 	teq		r6, #0			@ start of a block?
-	bne		.Lxtsdec3x
+	bne		.Lxtsdec4x
 
-.Lxtsdecloop3x:
-	next_tweak	q3, q3, q7, q6
-.Lxtsdec3x:
-	subs		r4, r4, #3
+.Lxtsdecloop4x:
+	next_tweak	q4, q4, q15, q10
+.Lxtsdec4x:
+	subs		r4, r4, #64
 	bmi		.Lxtsdec1x
-	vld1.8		{q0-q1}, [r1]!		@ get 3 ct blocks
-	vld1.8		{q2}, [r1]!
-	next_tweak	q4, q3, q7, q6
-	veor		q0, q0, q3
-	next_tweak	q5, q4, q7, q6
-	veor		q1, q1, q4
-	veor		q2, q2, q5
-	bl		aes_decrypt_3x
-	veor		q0, q0, q3
-	veor		q1, q1, q4
-	veor		q2, q2, q5
-	vst1.8		{q0-q1}, [r0]!		@ write 3 pt blocks
-	vst1.8		{q2}, [r0]!
-	vmov		q3, q5
+	vld1.8		{q0-q1}, [r1]!		@ get 4 ct blocks
+	vld1.8		{q2-q3}, [r1]!
+	next_tweak	q5, q4, q15, q10
+	veor		q0, q0, q4
+	next_tweak	q6, q5, q15, q10
+	veor		q1, q1, q5
+	next_tweak	q7, q6, q15, q10
+	veor		q2, q2, q6
+	veor		q3, q3, q7
+	bl		aes_decrypt_4x
+	veor		q0, q0, q4
+	veor		q1, q1, q5
+	veor		q2, q2, q6
+	veor		q3, q3, q7
+	vst1.8		{q0-q1}, [r0]!		@ write 4 pt blocks
+	vst1.8		{q2-q3}, [r0]!
+	vmov		q4, q7
 	teq		r4, #0
 	beq		.Lxtsdecout
-	b		.Lxtsdecloop3x
+	b		.Lxtsdecloop4x
 .Lxtsdec1x:
-	adds		r4, r4, #3
+	adds		r4, r4, #64
 	beq		.Lxtsdecout
+	subs		r4, r4, #16
 .Lxtsdecloop:
 	vld1.8		{q0}, [r1]!
-	veor		q0, q0, q3
-	add		ip, r2, #32		@ 3rd round key
+	bmi		.Lxtsdeccts
+.Lxtsdecctsout:
+	veor		q0, q0, q4
 	bl		aes_decrypt
-	veor		q0, q0, q3
+	veor		q0, q0, q4
 	vst1.8		{q0}, [r0]!
-	subs		r4, r4, #1
+	teq		r4, #0
 	beq		.Lxtsdecout
-	next_tweak	q3, q3, q7, q6
+	subs		r4, r4, #16
+	next_tweak	q4, q4, q15, q6
 	b		.Lxtsdecloop
 .Lxtsdecout:
-	vst1.8		{q3}, [r5]
+	vst1.8		{q4}, [r5]
 	pop		{r4-r6, pc}
+
+.Lxtsdeccts:
+	movw		ip, :lower16:.Lcts_permute_table
+	movt		ip, :upper16:.Lcts_permute_table
+
+	add		r1, r1, r4		@ rewind input pointer
+	add		r4, r4, #16		@ # bytes in final block
+	add		lr, ip, #32
+	add		ip, ip, r4
+	sub		lr, lr, r4
+	add		r4, r0, r4		@ output address of final block
+
+	next_tweak	q5, q4, q15, q6
+
+	vld1.8		{q1}, [r1]		@ load final partial block
+	vld1.8		{q2}, [ip]
+	vld1.8		{q3}, [lr]
+
+	veor		q0, q0, q5
+	bl		aes_decrypt
+	veor		q0, q0, q5
+
+	vtbl.8		d4, {d0-d1}, d4
+	vtbl.8		d5, {d0-d1}, d5
+	vtbx.8		d0, {d2-d3}, d6
+	vtbx.8		d1, {d2-d3}, d7
+
+	vst1.8		{q2}, [r4]		@ overlapping stores
+	mov		r4, #0
+	b		.Lxtsdecctsout
 ENDPROC(ce_aes_xts_decrypt)
 
 	/*
@@ -508,8 +696,18 @@ ENDPROC(ce_aes_sub)
 	 *                                        operation on round key *src
 	 */
 ENTRY(ce_aes_invert)
-	vld1.8		{q0}, [r1]
+	vld1.32		{q0}, [r1]
 	aesimc.8	q0, q0
-	vst1.8		{q0}, [r0]
+	vst1.32		{q0}, [r0]
 	bx		lr
 ENDPROC(ce_aes_invert)
+
+	.section	".rodata", "a"
+	.align		6
+.Lcts_permute_table:
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		 0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7
+	.byte		 0x8,  0x9,  0xa,  0xb,  0xc,  0xd,  0xe,  0xf
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff

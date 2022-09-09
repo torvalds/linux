@@ -25,6 +25,8 @@
 #include <subdev/mmu.h>
 #include <engine/fifo.h>
 
+#include <nvif/class.h>
+
 static void
 gv100_fault_buffer_process(struct nvkm_fault_buffer *buffer)
 {
@@ -166,6 +168,13 @@ gv100_fault_intr(struct nvkm_fault *fault)
 		}
 	}
 
+	if (stat & 0x08000000) {
+		if (fault->buffer[1]) {
+			nvkm_event_send(&fault->event, 1, 1, NULL, 0);
+			stat &= ~0x08000000;
+		}
+	}
+
 	if (stat) {
 		nvkm_debug(subdev, "intr %08x\n", stat);
 	}
@@ -205,14 +214,22 @@ gv100_fault = {
 	.buffer.nr = 2,
 	.buffer.entry_size = 32,
 	.buffer.info = gv100_fault_buffer_info,
+	.buffer.pin = gp100_fault_buffer_pin,
 	.buffer.init = gv100_fault_buffer_init,
 	.buffer.fini = gv100_fault_buffer_fini,
 	.buffer.intr = gv100_fault_buffer_intr,
+	/*TODO: Figure out how to expose non-replayable fault buffer, which,
+	 *      for some reason, is where recoverable CE faults appear...
+	 *
+	 * 	It's a bit tricky, as both NVKM and SVM will need access to
+	 * 	the non-replayable fault buffer.
+	 */
+	.user = { { 0, 0, VOLTA_FAULT_BUFFER_A }, 1 },
 };
 
 int
-gv100_fault_new(struct nvkm_device *device, int index,
+gv100_fault_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_fault **pfault)
 {
-	return nvkm_fault_new_(&gv100_fault, device, index, pfault);
+	return nvkm_fault_new_(&gv100_fault, device, type, inst, pfault);
 }

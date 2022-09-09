@@ -64,9 +64,6 @@
 #include <asm/cpu_device_id.h>
 #include <asm/iosf_mbi.h>
 
-#define X86_FAMILY_QUARK	0x5
-#define X86_MODEL_QUARK_X1000	0x9
-
 /* DTS reset is programmed via QRK_MBI_UNIT_SOC */
 #define QRK_DTS_REG_OFFSET_RESET	0x34
 #define QRK_DTS_RESET_BIT		BIT(0)
@@ -106,7 +103,6 @@ struct soc_sensor_entry {
 	bool locked;
 	u32 store_ptps;
 	u32 store_dts_enable;
-	enum thermal_device_mode mode;
 	struct thermal_zone_device *tzone;
 };
 
@@ -130,10 +126,8 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 	if (ret)
 		return ret;
 
-	if (out & QRK_DTS_ENABLE_BIT) {
-		aux_entry->mode = THERMAL_DEVICE_ENABLED;
+	if (out & QRK_DTS_ENABLE_BIT)
 		return 0;
-	}
 
 	if (!aux_entry->locked) {
 		out |= QRK_DTS_ENABLE_BIT;
@@ -141,10 +135,7 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 				     QRK_DTS_REG_OFFSET_ENABLE, out);
 		if (ret)
 			return ret;
-
-		aux_entry->mode = THERMAL_DEVICE_ENABLED;
 	} else {
-		aux_entry->mode = THERMAL_DEVICE_DISABLED;
 		pr_info("DTS is locked. Cannot enable DTS\n");
 		ret = -EPERM;
 	}
@@ -163,10 +154,8 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 	if (ret)
 		return ret;
 
-	if (!(out & QRK_DTS_ENABLE_BIT)) {
-		aux_entry->mode = THERMAL_DEVICE_DISABLED;
+	if (!(out & QRK_DTS_ENABLE_BIT))
 		return 0;
-	}
 
 	if (!aux_entry->locked) {
 		out &= ~QRK_DTS_ENABLE_BIT;
@@ -175,10 +164,7 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 
 		if (ret)
 			return ret;
-
-		aux_entry->mode = THERMAL_DEVICE_DISABLED;
 	} else {
-		aux_entry->mode = THERMAL_DEVICE_ENABLED;
 		pr_info("DTS is locked. Cannot disable DTS\n");
 		ret = -EPERM;
 	}
@@ -312,16 +298,8 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd,
 	return 0;
 }
 
-static int sys_get_mode(struct thermal_zone_device *tzd,
-				enum thermal_device_mode *mode)
-{
-	struct soc_sensor_entry *aux_entry = tzd->devdata;
-	*mode = aux_entry->mode;
-	return 0;
-}
-
-static int sys_set_mode(struct thermal_zone_device *tzd,
-				enum thermal_device_mode mode)
+static int sys_change_mode(struct thermal_zone_device *tzd,
+			   enum thermal_device_mode mode)
 {
 	int ret;
 
@@ -341,8 +319,7 @@ static struct thermal_zone_device_ops tzone_ops = {
 	.get_trip_type = sys_get_trip_type,
 	.set_trip_temp = sys_set_trip_temp,
 	.get_crit_temp = sys_get_crit_temp,
-	.get_mode = sys_get_mode,
-	.set_mode = sys_set_mode,
+	.change_mode = sys_change_mode,
 };
 
 static void free_soc_dts(struct soc_sensor_entry *aux_entry)
@@ -417,9 +394,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 		goto err_ret;
 	}
 
-	mutex_lock(&dts_update_mutex);
-	err = soc_dts_enable(aux_entry->tzone);
-	mutex_unlock(&dts_update_mutex);
+	err = thermal_zone_device_enable(aux_entry->tzone);
 	if (err)
 		goto err_aux_status;
 
@@ -433,7 +408,7 @@ err_ret:
 }
 
 static const struct x86_cpu_id qrk_thermal_ids[] __initconst  = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_QUARK, X86_MODEL_QUARK_X1000 },
+	X86_MATCH_VENDOR_FAM_MODEL(INTEL, 5, INTEL_FAM5_QUARK_X1000, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, qrk_thermal_ids);

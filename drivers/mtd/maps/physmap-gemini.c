@@ -46,11 +46,6 @@
 
 #define FLASH_PARALLEL_HIGH_PIN_CNT	(1 << 20)	/* else low pin cnt */
 
-static const struct of_device_id syscon_match[] = {
-	{ .compatible = "cortina,gemini-syscon" },
-	{ },
-};
-
 struct gemini_flash {
 	struct device *dev;
 	struct pinctrl *p;
@@ -86,7 +81,7 @@ static void gemini_flash_disable_pins(void)
 static map_word __xipram gemini_flash_map_read(struct map_info *map,
 					       unsigned long ofs)
 {
-	map_word __xipram ret;
+	map_word ret;
 
 	gemini_flash_enable_pins();
 	ret = inline_map_read(map, ofs);

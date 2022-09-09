@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IEEE754 floating point arithmetic
  * single precision: MADDF.f (Fused Multiply Add)
@@ -6,10 +7,6 @@
  * MIPS floating point support
  * Copyright (C) 2015 Imagination Technologies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; version 2 of the License.
  */
 
 #include "ieee754sp.h"
@@ -38,6 +35,12 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 	FLUSHZSP;
 
 	ieee754_clearcx();
+
+	rs = xs ^ ys;
+	if (flags & MADDF_NEGATE_PRODUCT)
+		rs ^= 1;
+	if (flags & MADDF_NEGATE_ADDITION)
+		zs ^= 1;
 
 	/*
 	 * Handle the cases when at least one of x, y or z is a NaN.
@@ -76,9 +79,7 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
-		if ((zc == IEEE754_CLASS_INF) &&
-		    ((!(flags & MADDF_NEGATE_PRODUCT) && (zs != (xs ^ ys))) ||
-		     ((flags & MADDF_NEGATE_PRODUCT) && (zs == (xs ^ ys))))) {
+		if ((zc == IEEE754_CLASS_INF) && (zs != rs)) {
 			/*
 			 * Cases of addition of infinities with opposite signs
 			 * or subtraction of infinities with same signs.
@@ -88,15 +89,10 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 		}
 		/*
 		 * z is here either not an infinity, or an infinity having the
-		 * same sign as product (x*y) (in case of MADDF.D instruction)
-		 * or product -(x*y) (in MSUBF.D case). The result must be an
-		 * infinity, and its sign is determined only by the value of
-		 * (flags & MADDF_NEGATE_PRODUCT) and the signs of x and y.
+		 * same sign as product (x*y). The result must be an infinity,
+		 * and its sign is determined only by the sign of product (x*y).
 		 */
-		if (flags & MADDF_NEGATE_PRODUCT)
-			return ieee754sp_inf(1 ^ (xs ^ ys));
-		else
-			return ieee754sp_inf(xs ^ ys);
+		return ieee754sp_inf(rs);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_NORM):
@@ -107,10 +103,7 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 			return ieee754sp_inf(zs);
 		if (zc == IEEE754_CLASS_ZERO) {
 			/* Handle cases +0 + (-0) and similar ones. */
-			if ((!(flags & MADDF_NEGATE_PRODUCT)
-					&& (zs == (xs ^ ys))) ||
-			    ((flags & MADDF_NEGATE_PRODUCT)
-					&& (zs != (xs ^ ys))))
+			if (zs == rs)
 				/*
 				 * Cases of addition of zeros of equal signs
 				 * or subtraction of zeroes of opposite signs.
@@ -126,8 +119,7 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
-		/* fall through */
-
+		fallthrough;
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754sp_inf(zs);
@@ -161,9 +153,6 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 	assert(ym & SP_HIDDEN_BIT);
 
 	re = xe + ye;
-	rs = xs ^ ys;
-	if (flags & MADDF_NEGATE_PRODUCT)
-		rs ^= 1;
 
 	/* Multiple 24 bit xm and ym to give 48 bit results */
 	rm64 = (uint64_t)xm * ym;
@@ -259,6 +248,30 @@ union ieee754sp ieee754sp_maddf(union ieee754sp z, union ieee754sp x,
 }
 
 union ieee754sp ieee754sp_msubf(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y)
+{
+	return _sp_maddf(z, x, y, MADDF_NEGATE_PRODUCT);
+}
+
+union ieee754sp ieee754sp_madd(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y)
+{
+	return _sp_maddf(z, x, y, 0);
+}
+
+union ieee754sp ieee754sp_msub(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y)
+{
+	return _sp_maddf(z, x, y, MADDF_NEGATE_ADDITION);
+}
+
+union ieee754sp ieee754sp_nmadd(union ieee754sp z, union ieee754sp x,
+				union ieee754sp y)
+{
+	return _sp_maddf(z, x, y, MADDF_NEGATE_PRODUCT|MADDF_NEGATE_ADDITION);
+}
+
+union ieee754sp ieee754sp_nmsub(union ieee754sp z, union ieee754sp x,
 				union ieee754sp y)
 {
 	return _sp_maddf(z, x, y, MADDF_NEGATE_PRODUCT);

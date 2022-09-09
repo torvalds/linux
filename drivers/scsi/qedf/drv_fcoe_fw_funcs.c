@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* QLogic FCoE Offload Driver
  * Copyright (c) 2016-2018 Cavium Inc.
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 #include "drv_fcoe_fw_funcs.h"
 #include "drv_scsi_fw_funcs.h"
@@ -25,9 +22,9 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
 				u32 task_retry_id,
 				u8 fcp_cmd_payload[32])
 {
-	struct e4_fcoe_task_context *ctx = task_params->context;
+	struct fcoe_task_context *ctx = task_params->context;
 	const u8 val_byte = ctx->ystorm_ag_context.byte0;
-	struct e4_ustorm_fcoe_task_ag_ctx *u_ag_ctx;
+	struct ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct ystorm_fcoe_task_st_ctx *y_st_ctx;
 	struct tstorm_fcoe_task_st_ctx *t_st_ctx;
 	struct mstorm_fcoe_task_st_ctx *m_st_ctx;
@@ -118,9 +115,9 @@ int init_initiator_midpath_unsolicited_fcoe_task(
 	struct scsi_sgl_task_params *rx_sgl_task_params,
 	u8 fw_to_place_fc_header)
 {
-	struct e4_fcoe_task_context *ctx = task_params->context;
+	struct fcoe_task_context *ctx = task_params->context;
 	const u8 val_byte = ctx->ystorm_ag_context.byte0;
-	struct e4_ustorm_fcoe_task_ag_ctx *u_ag_ctx;
+	struct ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct ystorm_fcoe_task_st_ctx *y_st_ctx;
 	struct tstorm_fcoe_task_st_ctx *t_st_ctx;
 	struct mstorm_fcoe_task_st_ctx *m_st_ctx;

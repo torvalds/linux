@@ -359,7 +359,7 @@ static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 	dev_dbg(xdev->dev, "parsing node %p\n", fwnode);
 
 	while (1) {
-		struct v4l2_async_subdev *asd;
+		struct xvip_graph_entity *xge;
 
 		ep = fwnode_graph_get_next_endpoint(fwnode, ep);
 		if (ep == NULL)
@@ -382,12 +382,11 @@ static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 			continue;
 		}
 
-		asd = v4l2_async_notifier_add_fwnode_subdev(
-			&xdev->notifier, remote,
-			sizeof(struct xvip_graph_entity));
-		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
-			fwnode_handle_put(remote);
+		xge = v4l2_async_nf_add_fwnode(&xdev->notifier, remote,
+					       struct xvip_graph_entity);
+		fwnode_handle_put(remote);
+		if (IS_ERR(xge)) {
+			ret = PTR_ERR(xge);
 			goto err_notifier_cleanup;
 		}
 	}
@@ -395,7 +394,7 @@ static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 	return 0;
 
 err_notifier_cleanup:
-	v4l2_async_notifier_cleanup(&xdev->notifier);
+	v4l2_async_nf_cleanup(&xdev->notifier);
 	fwnode_handle_put(ep);
 	return ret;
 }
@@ -420,7 +419,7 @@ static int xvip_graph_parse(struct xvip_composite_device *xdev)
 		entity = to_xvip_entity(asd);
 		ret = xvip_graph_parse_one(xdev, entity->asd.match.fwnode);
 		if (ret < 0) {
-			v4l2_async_notifier_cleanup(&xdev->notifier);
+			v4l2_async_nf_cleanup(&xdev->notifier);
 			break;
 		}
 	}
@@ -496,8 +495,8 @@ static void xvip_graph_cleanup(struct xvip_composite_device *xdev)
 	struct xvip_dma *dmap;
 	struct xvip_dma *dma;
 
-	v4l2_async_notifier_unregister(&xdev->notifier);
-	v4l2_async_notifier_cleanup(&xdev->notifier);
+	v4l2_async_nf_unregister(&xdev->notifier);
+	v4l2_async_nf_cleanup(&xdev->notifier);
 
 	list_for_each_entry_safe(dma, dmap, &xdev->dmas, list) {
 		xvip_dma_cleanup(dma);
@@ -525,13 +524,14 @@ static int xvip_graph_init(struct xvip_composite_device *xdev)
 
 	if (list_empty(&xdev->notifier.asd_list)) {
 		dev_err(xdev->dev, "no subdev found in graph\n");
+		ret = -ENOENT;
 		goto done;
 	}
 
 	/* Register the subdevices notifier. */
 	xdev->notifier.ops = &xvip_graph_notify_ops;
 
-	ret = v4l2_async_notifier_register(&xdev->v4l2_dev, &xdev->notifier);
+	ret = v4l2_async_nf_register(&xdev->v4l2_dev, &xdev->notifier);
 	if (ret < 0) {
 		dev_err(xdev->dev, "notifier registration failed\n");
 		goto done;
@@ -595,7 +595,7 @@ static int xvip_composite_probe(struct platform_device *pdev)
 
 	xdev->dev = &pdev->dev;
 	INIT_LIST_HEAD(&xdev->dmas);
-	v4l2_async_notifier_init(&xdev->notifier);
+	v4l2_async_nf_init(&xdev->notifier);
 
 	ret = xvip_composite_v4l2_init(xdev);
 	if (ret < 0)

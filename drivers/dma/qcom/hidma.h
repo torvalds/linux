@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Qualcomm Technologies HIDMA data structures
  *
  * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef QCOM_HIDMA_H
@@ -101,8 +93,6 @@ struct hidma_chan {
 	 * It is used by the DMA complete notification to
 	 * locate the descriptor that initiated the transfer.
 	 */
-	struct dentry			*debugfs;
-	struct dentry			*stats;
 	struct hidma_dev		*dmadev;
 	struct hidma_desc		*running;
 
@@ -134,7 +124,6 @@ struct hidma_dev {
 	struct dma_device		ddev;
 
 	struct dentry			*debugfs;
-	struct dentry			*stats;
 
 	/* sysfs entry for the channel id */
 	struct device_attribute		*chid_attrs;
@@ -166,6 +155,6 @@ irqreturn_t hidma_ll_inthandler(int irq, void *arg);
 irqreturn_t hidma_ll_inthandler_msi(int irq, void *arg, int cause);
 void hidma_cleanup_pending_tre(struct hidma_lldev *llhndl, u8 err_info,
 				u8 err_code);
-int hidma_debug_init(struct hidma_dev *dmadev);
+void hidma_debug_init(struct hidma_dev *dmadev);
 void hidma_debug_uninit(struct hidma_dev *dmadev);
 #endif

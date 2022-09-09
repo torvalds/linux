@@ -19,11 +19,14 @@
 #define STREEBOG_BLOCK_SIZE	64
 
 struct streebog_uint512 {
-	u64 qword[8];
+	__le64 qword[8];
 };
 
 struct streebog_state {
-	u8 buffer[STREEBOG_BLOCK_SIZE];
+	union {
+		u8 buffer[STREEBOG_BLOCK_SIZE];
+		struct streebog_uint512 m;
+	};
 	struct streebog_uint512 hash;
 	struct streebog_uint512 h;
 	struct streebog_uint512 N;

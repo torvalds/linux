@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Default kernel keymap. This uses 7 modifier combinations.
 keymaps 0-2,4-5,8,12
 # Change the above line into

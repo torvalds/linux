@@ -12,96 +12,6 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 
-/*
- * int __strncpy_user(char *to, char *from, int len);
- *
- * Returns:
- *  -EFAULT  for an exception
- *  len      if we hit the buffer limit
- *  bytes copied
- */
-
-	.text
-.globl __strncpy_user;
-.type  __strncpy_user, @function
-.align 4;
-__strncpy_user:
-
-	/*
-	 * r5 - to
-	 * r6 - from
-	 * r7 - len
-	 * r3 - temp count
-	 * r4 - temp val
-	 */
-	beqid	r7,3f
-	addik	r3,r7,0		/* temp_count = len */
-1:
-	lbu	r4,r6,r0
-	beqid	r4,2f
-	sb	r4,r5,r0
-
-	addik	r5,r5,1
-	addik	r6,r6,1		/* delay slot */
-
-	addik	r3,r3,-1
-	bnei	r3,1b		/* break on len */
-2:
-	rsubk	r3,r3,r7	/* temp_count = len - temp_count */
-3:
-	rtsd	r15,8
-	nop
-	.size   __strncpy_user, . - __strncpy_user
-
-	.section	.fixup, "ax"
-	.align	2
-4:
-	brid	3b
-	addik	r3,r0, -EFAULT
-
-	.section	__ex_table, "a"
-	.word	1b,4b
-
-/*
- * int __strnlen_user(char __user *str, int maxlen);
- *
- * Returns:
- *  0 on error
- *  maxlen + 1  if no NUL byte found within maxlen bytes
- *  size of the string (including NUL byte)
- */
-
-	.text
-.globl __strnlen_user;
-.type  __strnlen_user, @function
-.align 4;
-__strnlen_user:
-	beqid	r6,3f
-	addik	r3,r6,0
-1:
-	lbu	r4,r5,r0
-	beqid	r4,2f		/* break on NUL */
-	addik	r3,r3,-1	/* delay slot */
-
-	bneid	r3,1b
-	addik	r5,r5,1		/* delay slot */
-
-	addik	r3,r3,-1	/* for break on len */
-2:
-	rsubk	r3,r3,r6
-3:
-	rtsd	r15,8
-	nop
-	.size   __strnlen_user, . - __strnlen_user
-
-	.section	.fixup,"ax"
-4:
-	brid	3b
-	addk	r3,r0,r0
-
-	.section	__ex_table,"a"
-	.word	1b,4b
-
 /* Loop unrolling for __copy_tofrom_user */
 #define COPY(offset)	\
 1:	lwi	r4 , r6, 0x0000 + offset;	\
@@ -188,7 +98,7 @@ w2:	sw	r4, r5, r3
 	.text
 
 .align 4 /* Alignment is important to keep icache happy */
-page:	/* Create room on stack and save registers for storign values */
+page:	/* Create room on stack and save registers for storing values */
 	addik   r1, r1, -40
 	swi	r5, r1, 0
 	swi	r6, r1, 4

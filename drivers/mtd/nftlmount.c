@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NFTL mount code with extensive checks
  *
  * Author: Fabrice Bellard (fabrice.bellard@netgem.com)
  * Copyright © 2000 Netgem S.A.
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -201,17 +188,14 @@ device is already correct.
 		/* memory alloc */
 		nftl->EUNtable = kmalloc_array(nftl->nb_blocks, sizeof(u16),
 					       GFP_KERNEL);
-		if (!nftl->EUNtable) {
-			printk(KERN_NOTICE "NFTL: allocation of EUNtable failed\n");
+		if (!nftl->EUNtable)
 			return -ENOMEM;
-		}
 
 		nftl->ReplUnitTable = kmalloc_array(nftl->nb_blocks,
 						    sizeof(u16),
 						    GFP_KERNEL);
 		if (!nftl->ReplUnitTable) {
 			kfree(nftl->EUNtable);
-			printk(KERN_NOTICE "NFTL: allocation of ReplUnitTable failed\n");
 			return -ENOMEM;
 		}
 
@@ -282,7 +266,7 @@ static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int
 
 	buf = kmalloc(SECTORSIZE + mtd->oobsize, GFP_KERNEL);
 	if (!buf)
-		return -1;
+		return -ENOMEM;
 
 	ret = -1;
 	for (i = 0; i < len; i += SECTORSIZE) {

@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2013, Michael Ellerman, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /* These are ordered and tested with <= */
@@ -19,7 +15,7 @@
 void split_core_secondary_loop(u8 *state);
 extern void update_subcore_sibling_mask(void);
 #else
-static inline void update_subcore_sibling_mask(void) { };
+static inline void update_subcore_sibling_mask(void) { }
 #endif /* CONFIG_SMP */
 
 #endif /* __ASSEMBLY__ */

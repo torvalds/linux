@@ -141,52 +141,19 @@
 #define FUNCTION_TRANSFORM_TODO_FLAGS_START 0
 #endif
 
-#if BUILDING_GCC_VERSION >= 4009
 namespace {
 static const pass_data _PASS_NAME_PASS_DATA = {
-#else
-static struct ipa_opt_pass_d _PASS_NAME_PASS = {
-	.pass = {
-#endif
 		.type			= IPA_PASS,
 		.name			= _PASS_NAME_NAME,
-#if BUILDING_GCC_VERSION >= 4008
 		.optinfo_flags		= OPTGROUP_NONE,
-#endif
-#if BUILDING_GCC_VERSION >= 5000
-#elif BUILDING_GCC_VERSION == 4009
-		.has_gate		= _HAS_GATE,
-		.has_execute		= _HAS_EXECUTE,
-#else
-		.gate			= _GATE,
-		.execute		= _EXECUTE,
-		.sub			= NULL,
-		.next			= NULL,
-		.static_pass_number	= 0,
-#endif
 		.tv_id			= TV_NONE,
 		.properties_required	= PROPERTIES_REQUIRED,
 		.properties_provided	= PROPERTIES_PROVIDED,
 		.properties_destroyed	= PROPERTIES_DESTROYED,
 		.todo_flags_start	= TODO_FLAGS_START,
 		.todo_flags_finish	= TODO_FLAGS_FINISH,
-#if BUILDING_GCC_VERSION < 4009
-	},
-	.generate_summary		= _GENERATE_SUMMARY,
-	.write_summary			= _WRITE_SUMMARY,
-	.read_summary			= _READ_SUMMARY,
-#if BUILDING_GCC_VERSION >= 4006
-	.write_optimization_summary	= _WRITE_OPTIMIZATION_SUMMARY,
-	.read_optimization_summary	= _READ_OPTIMIZATION_SUMMARY,
-#endif
-	.stmt_fixup			= _STMT_FIXUP,
-	.function_transform_todo_flags_start	= FUNCTION_TRANSFORM_TODO_FLAGS_START,
-	.function_transform		= _FUNCTION_TRANSFORM,
-	.variable_transform		= _VARIABLE_TRANSFORM,
-#endif
 };
 
-#if BUILDING_GCC_VERSION >= 4009
 class _PASS_NAME_PASS : public ipa_opt_pass_d {
 public:
 	_PASS_NAME_PASS() : ipa_opt_pass_d(_PASS_NAME_PASS_DATA,
@@ -202,21 +169,12 @@ public:
 			 _VARIABLE_TRANSFORM) {}
 
 #ifndef NO_GATE
-#if BUILDING_GCC_VERSION >= 5000
 	virtual bool gate(function *) { return _GATE(); }
-#else
-	virtual bool gate(void) { return _GATE(); }
-#endif
-#endif
 
 	virtual opt_pass *clone() { return new _PASS_NAME_PASS(); }
 
 #ifndef NO_EXECUTE
-#if BUILDING_GCC_VERSION >= 5000
 	virtual unsigned int execute(function *) { return _EXECUTE(); }
-#else
-	virtual unsigned int execute(void) { return _EXECUTE(); }
-#endif
 #endif
 };
 }

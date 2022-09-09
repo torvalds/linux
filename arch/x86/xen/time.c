@@ -28,7 +28,7 @@
 
 #include "xen-ops.h"
 
-/* Xen may fire a timer up to this many ns early */
+/* Minimum amount of time until next clock event fires */
 #define TIMER_SLOP	100000
 
 static u64 xen_sched_clock_offset __read_mostly;
@@ -39,6 +39,7 @@ static unsigned long xen_tsc_khz(void)
 	struct pvclock_vcpu_time_info *info =
 		&HYPERVISOR_shared_info->vcpu_info[0].time;
 
+	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
 	return pvclock_tsc_khz(info);
 }
 
@@ -145,12 +146,19 @@ static struct notifier_block xen_pvclock_gtod_notifier = {
 	.notifier_call = xen_pvclock_gtod_notify,
 };
 
+static int xen_cs_enable(struct clocksource *cs)
+{
+	vclocks_set_used(VDSO_CLOCKMODE_PVCLOCK);
+	return 0;
+}
+
 static struct clocksource xen_clocksource __read_mostly = {
-	.name = "xen",
-	.rating = 400,
-	.read = xen_clocksource_get_cycles,
-	.mask = ~0,
-	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+	.name	= "xen",
+	.rating	= 400,
+	.read	= xen_clocksource_get_cycles,
+	.mask	= CLOCKSOURCE_MASK(64),
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.enable = xen_cs_enable,
 };
 
 /*
@@ -212,7 +220,7 @@ static int xen_timerop_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static const struct clock_event_device xen_timerop_clockevent = {
+static struct clock_event_device xen_timerop_clockevent __ro_after_init = {
 	.name			= "xen",
 	.features		= CLOCK_EVT_FEAT_ONESHOT,
 
@@ -273,7 +281,7 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	return ret;
 }
 
-static const struct clock_event_device xen_vcpuop_clockevent = {
+static struct clock_event_device xen_vcpuop_clockevent __ro_after_init = {
 	.name = "xen",
 	.features = CLOCK_EVT_FEAT_ONESHOT,
 
@@ -361,8 +369,6 @@ void xen_timer_resume(void)
 {
 	int cpu;
 
-	pvclock_resume();
-
 	if (xen_clockevent != &xen_vcpuop_clockevent)
 		return;
 
@@ -373,17 +379,15 @@ void xen_timer_resume(void)
 	}
 }
 
-static const struct pv_time_ops xen_time_ops __initconst = {
-	.sched_clock = xen_sched_clock,
-	.steal_clock = xen_steal_clock,
-};
-
 static struct pvclock_vsyscall_time_info *xen_clock __read_mostly;
+static u64 xen_clock_value_saved;
 
 void xen_save_time_memory_area(void)
 {
 	struct vcpu_register_time_memory_area t;
 	int ret;
+
+	xen_clock_value_saved = xen_clocksource_read() - xen_sched_clock_offset;
 
 	if (!xen_clock)
 		return;
@@ -404,23 +408,29 @@ void xen_restore_time_memory_area(void)
 	int ret;
 
 	if (!xen_clock)
-		return;
+		goto out;
 
 	t.addr.v = &xen_clock->pvti;
 
 	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
 
 	/*
-	 * We don't disable VCLOCK_PVCLOCK entirely if it fails to register the
-	 * secondary time info with Xen or if we migrated to a host without the
-	 * necessary flags. On both of these cases what happens is either
-	 * process seeing a zeroed out pvti or seeing no PVCLOCK_TSC_STABLE_BIT
-	 * bit set. Userspace checks the latter and if 0, it discards the data
-	 * in pvti and fallbacks to a system call for a reliable timestamp.
+	 * We don't disable VDSO_CLOCKMODE_PVCLOCK entirely if it fails to
+	 * register the secondary time info with Xen or if we migrated to a
+	 * host without the necessary flags. On both of these cases what
+	 * happens is either process seeing a zeroed out pvti or seeing no
+	 * PVCLOCK_TSC_STABLE_BIT bit set. Userspace checks the latter and
+	 * if 0, it discards the data in pvti and fallbacks to a system
+	 * call for a reliable timestamp.
 	 */
 	if (ret != 0)
 		pr_notice("Cannot restore secondary vcpu_time_info (err %d)",
 			  ret);
+
+out:
+	/* Need pvclock_resume() before using xen_clocksource_read(). */
+	pvclock_resume();
+	xen_sched_clock_offset = xen_clocksource_read() - xen_clock_value_saved;
 }
 
 static void xen_setup_vsyscall_time_info(void)
@@ -437,7 +447,7 @@ static void xen_setup_vsyscall_time_info(void)
 
 	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
 	if (ret) {
-		pr_notice("xen: VCLOCK_PVCLOCK not supported (err %d)\n", ret);
+		pr_notice("xen: VDSO_CLOCKMODE_PVCLOCK not supported (err %d)\n", ret);
 		free_page((unsigned long)ti);
 		return;
 	}
@@ -454,14 +464,14 @@ static void xen_setup_vsyscall_time_info(void)
 		if (!ret)
 			free_page((unsigned long)ti);
 
-		pr_notice("xen: VCLOCK_PVCLOCK not supported (tsc unstable)\n");
+		pr_notice("xen: VDSO_CLOCKMODE_PVCLOCK not supported (tsc unstable)\n");
 		return;
 	}
 
 	xen_clock = ti;
 	pvclock_set_pvti_cpu0_va(xen_clock);
 
-	xen_clocksource.archdata.vclock_mode = VCLOCK_PVCLOCK;
+	xen_clocksource.vdso_clock_mode = VDSO_CLOCKMODE_PVCLOCK;
 }
 
 static void __init xen_time_init(void)
@@ -510,17 +520,24 @@ static void __init xen_time_init(void)
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 }
 
-void __init xen_init_time_ops(void)
+static void __init xen_init_time_common(void)
 {
 	xen_sched_clock_offset = xen_clocksource_read();
-	pv_ops.time = xen_time_ops;
+	static_call_update(pv_steal_clock, xen_steal_clock);
+	paravirt_set_sched_clock(xen_sched_clock);
+
+	x86_platform.calibrate_tsc = xen_tsc_khz;
+	x86_platform.get_wallclock = xen_get_wallclock;
+}
+
+void __init xen_init_time_ops(void)
+{
+	xen_init_time_common();
 
 	x86_init.timers.timer_init = xen_time_init;
 	x86_init.timers.setup_percpu_clockev = x86_init_noop;
 	x86_cpuinit.setup_percpu_clockev = x86_init_noop;
 
-	x86_platform.calibrate_tsc = xen_tsc_khz;
-	x86_platform.get_wallclock = xen_get_wallclock;
 	/* Dom0 uses the native method to set the hardware RTC. */
 	if (!xen_initial_domain())
 		x86_platform.set_wallclock = xen_set_wallclock;
@@ -541,6 +558,11 @@ static void xen_hvm_setup_cpu_clockevents(void)
 
 void __init xen_hvm_init_time_ops(void)
 {
+	static bool hvm_time_initialized;
+
+	if (hvm_time_initialized)
+		return;
+
 	/*
 	 * vector callback is needed otherwise we cannot receive interrupts
 	 * on cpu > 0 and at this point we don't know how many cpus are
@@ -550,17 +572,46 @@ void __init xen_hvm_init_time_ops(void)
 		return;
 
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
-		pr_info("Xen doesn't support pvclock on HVM, disable pv timer");
+		pr_info_once("Xen doesn't support pvclock on HVM, disable pv timer");
 		return;
 	}
 
-	xen_sched_clock_offset = xen_clocksource_read();
-	pv_ops.time = xen_time_ops;
+	/*
+	 * Only MAX_VIRT_CPUS 'vcpu_info' are embedded inside 'shared_info'.
+	 * The __this_cpu_read(xen_vcpu) is still NULL when Xen HVM guest
+	 * boots on vcpu >= MAX_VIRT_CPUS (e.g., kexec), To access
+	 * __this_cpu_read(xen_vcpu) via xen_clocksource_read() will panic.
+	 *
+	 * The xen_hvm_init_time_ops() should be called again later after
+	 * __this_cpu_read(xen_vcpu) is available.
+	 */
+	if (!__this_cpu_read(xen_vcpu)) {
+		pr_info("Delay xen_init_time_common() as kernel is running on vcpu=%d\n",
+			xen_vcpu_nr(0));
+		return;
+	}
+
+	xen_init_time_common();
+
 	x86_init.timers.setup_percpu_clockev = xen_time_init;
 	x86_cpuinit.setup_percpu_clockev = xen_hvm_setup_cpu_clockevents;
 
-	x86_platform.calibrate_tsc = xen_tsc_khz;
-	x86_platform.get_wallclock = xen_get_wallclock;
 	x86_platform.set_wallclock = xen_set_wallclock;
+
+	hvm_time_initialized = true;
 }
 #endif
+
+/* Kernel parameter to specify Xen timer slop */
+static int __init parse_xen_timer_slop(char *ptr)
+{
+	unsigned long slop = memparse(ptr, NULL);
+
+	xen_timerop_clockevent.min_delta_ns = slop;
+	xen_timerop_clockevent.min_delta_ticks = slop;
+	xen_vcpuop_clockevent.min_delta_ns = slop;
+	xen_vcpuop_clockevent.min_delta_ticks = slop;
+
+	return 0;
+}
+early_param("xen_timer_slop", parse_xen_timer_slop);

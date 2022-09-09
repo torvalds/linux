@@ -1,24 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * file.c - NTFS kernel file operations.  Part of the Linux-NTFS project.
  *
  * Copyright (c) 2001-2015 Anton Altaparmakov and Tuxera Inc.
- *
- * This program/include file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as published
- * by the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program/include file is distributed in the hope that it will be
- * useful, but WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program (in the main directory of the Linux-NTFS
- * distribution in the file COPYING); if not, write to the Free Software
- * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/gfp.h>
@@ -232,11 +219,6 @@ do_non_resident_extend:
 			err = PTR_ERR(page);
 			goto init_err_out;
 		}
-		if (unlikely(PageError(page))) {
-			put_page(page);
-			err = -EIO;
-			goto init_err_out;
-		}
 		/*
 		 * Update the initialized size in the ntfs inode.  This is
 		 * enough to make ntfs_writepage() work.
@@ -264,14 +246,14 @@ do_non_resident_extend:
 		 *
 		 * TODO: For sparse pages could optimize this workload by using
 		 * the FsMisc / MiscFs page bit as a "PageIsSparse" bit.  This
-		 * would be set in readpage for sparse pages and here we would
+		 * would be set in read_folio for sparse pages and here we would
 		 * not need to mark dirty any pages which have this bit set.
 		 * The only caveat is that we have to clear the bit everywhere
 		 * where we allocate any clusters that lie in the page or that
 		 * contain the page.
 		 *
 		 * TODO: An even greater optimization would be for us to only
-		 * call readpage() on pages which are not in sparse regions as
+		 * call read_folio() on pages which are not in sparse regions as
 		 * determined from the runlist.  This would greatly reduce the
 		 * number of pages we read and make dirty in the case of sparse
 		 * files.
@@ -337,7 +319,7 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 	unsigned long flags;
 	struct file *file = iocb->ki_filp;
 	struct inode *vi = file_inode(file);
-	ntfs_inode *base_ni, *ni = NTFS_I(vi);
+	ntfs_inode *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
 
 	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
@@ -379,9 +361,6 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 		err = -EOPNOTSUPP;
 		goto out;
 	}
-	base_ni = ni;
-	if (NInoAttr(ni))
-		base_ni = ni->ext.base_ntfs_ino;
 	err = file_remove_privs(file);
 	if (unlikely(err))
 		goto out;
@@ -553,7 +532,7 @@ static inline int ntfs_submit_bh_for_read(struct buffer_head *bh)
 	lock_buffer(bh);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_read_sync;
-	return submit_bh(REQ_OP_READ, 0, bh);
+	return submit_bh(REQ_OP_READ, bh);
 }
 
 /**
@@ -1701,20 +1680,17 @@ static size_t ntfs_copy_from_user_iter(struct page **pages, unsigned nr_pages,
 {
 	struct page **last_page = pages + nr_pages;
 	size_t total = 0;
-	struct iov_iter data = *i;
 	unsigned len, copied;
 
 	do {
 		len = PAGE_SIZE - ofs;
 		if (len > bytes)
 			len = bytes;
-		copied = iov_iter_copy_from_user_atomic(*pages, &data, ofs,
-				len);
+		copied = copy_page_from_iter_atomic(*pages, ofs, len, i);
 		total += copied;
 		bytes -= copied;
 		if (!bytes)
 			break;
-		iov_iter_advance(&data, copied);
 		if (copied < len)
 			goto err;
 		ofs = 0;
@@ -1791,11 +1767,11 @@ static ssize_t ntfs_perform_write(struct file *file, struct iov_iter *i,
 	last_vcn = -1;
 	do {
 		VCN vcn;
-		pgoff_t idx, start_idx;
+		pgoff_t start_idx;
 		unsigned ofs, do_pages, u;
 		size_t copied;
 
-		start_idx = idx = pos >> PAGE_SHIFT;
+		start_idx = pos >> PAGE_SHIFT;
 		ofs = pos & ~PAGE_MASK;
 		bytes = PAGE_SIZE - ofs;
 		do_pages = 1;
@@ -1849,7 +1825,7 @@ again:
 		 * pages being swapped out between us bringing them into memory
 		 * and doing the actual copying.
 		 */
-		if (unlikely(iov_iter_fault_in_readable(i, bytes))) {
+		if (unlikely(fault_in_iov_iter_readable(i, bytes))) {
 			status = -EFAULT;
 			break;
 		}
@@ -1883,34 +1859,24 @@ again:
 		if (likely(copied == bytes)) {
 			status = ntfs_commit_pages_after_write(pages, do_pages,
 					pos, bytes);
-			if (!status)
-				status = bytes;
 		}
 		do {
 			unlock_page(pages[--do_pages]);
 			put_page(pages[do_pages]);
 		} while (do_pages);
-		if (unlikely(status < 0))
+		if (unlikely(status < 0)) {
+			iov_iter_revert(i, copied);
 			break;
-		copied = status;
+		}
 		cond_resched();
-		if (unlikely(!copied)) {
-			size_t sc;
-
-			/*
-			 * We failed to copy anything.  Fall back to single
-			 * segment length write.
-			 *
-			 * This is needed to avoid possible livelock in the
-			 * case that all segments in the iov cannot be copied
-			 * at once without a pagefault.
-			 */
-			sc = iov_iter_single_seg_count(i);
-			if (bytes > sc)
-				bytes = sc;
+		if (unlikely(copied < bytes)) {
+			iov_iter_revert(i, copied);
+			if (copied)
+				bytes = copied;
+			else if (bytes > PAGE_SIZE - ofs)
+				bytes = PAGE_SIZE - ofs;
 			goto again;
 		}
-		iov_iter_advance(i, copied);
 		pos += copied;
 		written += copied;
 		balance_dirty_pages_ratelimited(mapping);

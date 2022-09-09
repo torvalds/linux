@@ -47,16 +47,15 @@
  *	criticial.
  */
 
-static unsigned long sil680_selreg(struct ata_port *ap, int r)
+static int sil680_selreg(struct ata_port *ap, int r)
 {
-	unsigned long base = 0xA0 + r;
-	base += (ap->port_no << 4);
-	return base;
+	return 0xA0 + (ap->port_no << 4) + r;
 }
 
 /**
  *	sil680_seldev		-	return register base
  *	@ap: ATA interface
+ *	@adev: ATA device
  *	@r: config offset
  *
  *	Turn a config register offset into the right address in PCI space
@@ -64,12 +63,9 @@ static unsigned long sil680_selreg(struct ata_port *ap, int r)
  *	the unit shift.
  */
 
-static unsigned long sil680_seldev(struct ata_port *ap, struct ata_device *adev, int r)
+static int sil680_seldev(struct ata_port *ap, struct ata_device *adev, int r)
 {
-	unsigned long base = 0xA0 + r;
-	base += (ap->port_no << 4);
-	base |= adev->devno ? 2 : 0;
-	return base;
+	return 0xA0 + (ap->port_no << 4) + r + (adev->devno << 1);
 }
 
 
@@ -84,8 +80,9 @@ static unsigned long sil680_seldev(struct ata_port *ap, struct ata_device *adev,
 static int sil680_cable_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned long addr = sil680_selreg(ap, 0);
+	int addr = sil680_selreg(ap, 0);
 	u8 ata66;
+
 	pci_read_config_byte(pdev, addr, &ata66);
 	if (ata66 & 1)
 		return ATA_CBL_PATA80;
@@ -112,9 +109,9 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		0x328A, 0x2283, 0x1281, 0x10C3, 0x10C1
 	};
 
-	unsigned long tfaddr = sil680_selreg(ap, 0x02);
-	unsigned long addr = sil680_seldev(ap, adev, 0x04);
-	unsigned long addr_mask = 0x80 + 4 * ap->port_no;
+	int tfaddr = sil680_selreg(ap, 0x02);
+	int addr = sil680_seldev(ap, adev, 0x04);
+	int addr_mask = 0x80 + 4 * ap->port_no;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int pio = adev->pio_mode - XFER_PIO_0;
 	int lowest_pio = pio;
@@ -164,9 +161,9 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	static const u16 dma_table[3] = { 0x2208, 0x10C2, 0x10C1 };
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned long ma = sil680_seldev(ap, adev, 0x08);
-	unsigned long ua = sil680_seldev(ap, adev, 0x0C);
-	unsigned long addr_mask = 0x80 + 4 * ap->port_no;
+	int ma = sil680_seldev(ap, adev, 0x08);
+	int ua = sil680_seldev(ap, adev, 0x0C);
+	int addr_mask = 0x80 + 4 * ap->port_no;
 	int port_shift = adev->devno * 4;
 	u8 scsc, mode;
 	u16 multi, ultra;
@@ -211,7 +208,6 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 static void sil680_sff_exec_command(struct ata_port *ap,
 				    const struct ata_taskfile *tf)
 {
-	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 	iowrite8(tf->command, ap->ioaddr.command_addr);
 	ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 }
@@ -219,7 +215,7 @@ static void sil680_sff_exec_command(struct ata_port *ap,
 static bool sil680_sff_irq_check(struct ata_port *ap)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
-	unsigned long addr	= sil680_selreg(ap, 1);
+	int addr		= sil680_selreg(ap, 1);
 	u8 val;
 
 	pci_read_config_byte(pdev, addr, &val);
@@ -244,6 +240,7 @@ static struct ata_port_operations sil680_port_ops = {
 /**
  *	sil680_init_chip		-	chip setup
  *	@pdev: PCI device
+ *	@try_mmio: Indicates to caller whether MMIO should be attempted
  *
  *	Perform all the chip setup which must be done both when the device
  *	is powered up on boot and when we resume in case we resumed from RAM.
@@ -307,17 +304,17 @@ static u8 sil680_init_chip(struct pci_dev *pdev, int *try_mmio)
 
 	switch (tmpbyte & 0x30) {
 	case 0x00:
-		printk(KERN_INFO "sil680: 100MHz clock.\n");
+		dev_info(&pdev->dev, "sil680: 100MHz clock.\n");
 		break;
 	case 0x10:
-		printk(KERN_INFO "sil680: 133MHz clock.\n");
+		dev_info(&pdev->dev, "sil680: 133MHz clock.\n");
 		break;
 	case 0x20:
-		printk(KERN_INFO "sil680: Using PCI clock.\n");
+		dev_info(&pdev->dev, "sil680: Using PCI clock.\n");
 		break;
 	/* This last case is _NOT_ ok */
 	case 0x30:
-		printk(KERN_ERR "sil680: Clock disabled ?\n");
+		dev_err(&pdev->dev, "sil680: Clock disabled ?\n");
 	}
 	return tmpbyte & 0x30;
 }
@@ -374,10 +371,7 @@ static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->iomap = pcim_iomap_table(pdev);
 
 	/* Setup DMA masks */
-	rc = dma_set_mask(&pdev->dev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-	rc = dma_set_coherent_mask(&pdev->dev, ATA_DMA_MASK);
+	rc = dma_set_mask_and_coherent(&pdev->dev, ATA_DMA_MASK);
 	if (rc)
 		return rc;
 	pci_set_master(pdev);

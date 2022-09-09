@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * (c) 2001, 2006 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _ASM_POWERPC_UDBG_H
@@ -27,14 +23,14 @@ extern void udbg_printf(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 extern void udbg_progress(char *s, unsigned short hex);
 
-extern void udbg_uart_init_mmio(void __iomem *addr, unsigned int stride);
-extern void udbg_uart_init_pio(unsigned long port, unsigned int stride);
+void __init udbg_uart_init_mmio(void __iomem *addr, unsigned int stride);
+void __init udbg_uart_init_pio(unsigned long port, unsigned int stride);
 
-extern void udbg_uart_setup(unsigned int speed, unsigned int clock);
-extern unsigned int udbg_probe_uart_speed(unsigned int clock);
+void __init udbg_uart_setup(unsigned int speed, unsigned int clock);
+unsigned int __init udbg_probe_uart_speed(unsigned int clock);
 
 struct device_node;
-extern void udbg_scc_init(int force_scc);
+void __init udbg_scc_init(int force_scc);
 extern int udbg_adb_init(int force_btext);
 extern void udbg_adb_init_early(void);
 

@@ -111,7 +111,7 @@
 		};
 	};
 
-	regulator_3_3v: vcc3p3-regulator {
+	regulator_3_3v: regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC3P3";
 		regulator-min-microvolt = <3300000>;
@@ -169,7 +169,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q00";
+		compatible = "micron,mt25qu02g", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <100000000>;
 

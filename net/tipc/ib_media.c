@@ -42,6 +42,8 @@
 #include "core.h"
 #include "bearer.h"
 
+#define TIPC_MAX_IB_LINK_WIN 500
+
 /* convert InfiniBand address (media address format) media address to string */
 static int tipc_ib_addr2str(struct tipc_media_addr *a, char *str_buf,
 			    int str_size)
@@ -65,7 +67,7 @@ static int tipc_ib_addr2msg(char *msg, struct tipc_media_addr *addr)
 /* Convert raw InfiniBand address format to media addr format */
 static int tipc_ib_raw2addr(struct tipc_bearer *b,
 			    struct tipc_media_addr *addr,
-			    char *msg)
+			    const char *msg)
 {
 	memset(addr, 0, sizeof(*addr));
 	memcpy(addr->value, msg, INFINIBAND_ALEN);
@@ -94,7 +96,8 @@ struct tipc_media ib_media_info = {
 	.raw2addr	= tipc_ib_raw2addr,
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
-	.window		= TIPC_DEF_LINK_WIN,
+	.min_win	= TIPC_DEF_LINK_WIN,
+	.max_win	= TIPC_MAX_IB_LINK_WIN,
 	.type_id	= TIPC_MEDIA_TYPE_IB,
 	.hwaddr_len	= INFINIBAND_ALEN,
 	.name		= "ib"

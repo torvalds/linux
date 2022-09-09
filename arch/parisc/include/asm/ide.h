@@ -12,8 +12,6 @@
 #ifndef __ASM_PARISC_IDE_H
 #define __ASM_PARISC_IDE_H
 
-#ifdef __KERNEL__
-
 /* Generic I/O and MEMIO string operations.  */
 
 #define __ide_insw	insw
@@ -52,7 +50,5 @@ static __inline__ void __ide_mm_outsl(void __iomem *port, void *addr, u32 count)
 		addr += 4;
 	}
 }
-
-#endif /* __KERNEL__ */
 
 #endif /* __ASM_PARISC_IDE_H */

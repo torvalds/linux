@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PTP 1588 clock support
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/idr.h>
 #include <linux/device.h>
@@ -37,10 +24,11 @@
 #define PTP_PPS_EVENT PPS_CAPTUREASSERT
 #define PTP_PPS_MODE (PTP_PPS_DEFAULTS | PPS_CANWAIT | PPS_TSFMT_TSPEC)
 
+struct class *ptp_class;
+
 /* private globals */
 
 static dev_t ptp_devt;
-static struct class *ptp_class;
 
 static DEFINE_IDA(ptp_clocks_map);
 
@@ -76,26 +64,6 @@ static void enqueue_external_timestamp(struct timestamp_event_queue *queue,
 	spin_unlock_irqrestore(&queue->lock, flags);
 }
 
-static s32 scaled_ppm_to_ppb(long ppm)
-{
-	/*
-	 * The 'freq' field in the 'struct timex' is in parts per
-	 * million, but with a 16 bit binary fractional field.
-	 *
-	 * We want to calculate
-	 *
-	 *    ppb = scaled_ppm * 1000 / 2^16
-	 *
-	 * which simplifies to
-	 *
-	 *    ppb = scaled_ppm * 125 / 2^13
-	 */
-	s64 ppb = 1 + ppm;
-	ppb *= 125;
-	ppb >>= 13;
-	return (s32) ppb;
-}
-
 /* posix clock implementation */
 
 static int ptp_clock_getres(struct posix_clock *pc, struct timespec64 *tp)
@@ -108,6 +76,11 @@ static int ptp_clock_getres(struct posix_clock *pc, struct timespec64 *tp)
 static int ptp_clock_settime(struct posix_clock *pc, const struct timespec64 *tp)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
+
+	if (ptp_clock_freerun(ptp)) {
+		pr_err("ptp: physical clock is free running\n");
+		return -EBUSY;
+	}
 
 	return  ptp->info->settime64(ptp->info, tp);
 }
@@ -124,11 +97,16 @@ static int ptp_clock_gettime(struct posix_clock *pc, struct timespec64 *tp)
 	return err;
 }
 
-static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
+static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct ptp_clock_info *ops;
 	int err = -EOPNOTSUPP;
+
+	if (ptp_clock_freerun(ptp)) {
+		pr_err("ptp: physical clock is free running\n");
+		return -EBUSY;
+	}
 
 	ops = ptp->info;
 
@@ -150,7 +128,7 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
 		delta = ktime_to_ns(kt);
 		err = ops->adjtime(ops, delta);
 	} else if (tx->modes & ADJ_FREQUENCY) {
-		s32 ppb = scaled_ppm_to_ppb(tx->freq);
+		long ppb = scaled_ppm_to_ppb(tx->freq);
 		if (ppb > ops->max_adj || ppb < -ops->max_adj)
 			return -ERANGE;
 		if (ops->adjfine)
@@ -158,6 +136,15 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
 		else
 			err = ops->adjfreq(ops, ppb);
 		ptp->dialed_frequency = tx->freq;
+	} else if (tx->modes & ADJ_OFFSET) {
+		if (ops->adjphase) {
+			s32 offset = tx->offset;
+
+			if (!(tx->modes & ADJ_NANO))
+				offset *= NSEC_PER_USEC;
+
+			err = ops->adjphase(ops, offset);
+		}
 	} else if (tx->modes == 0) {
 		tx->freq = ptp->dialed_frequency;
 		err = 0;
@@ -178,14 +165,25 @@ static struct posix_clock_operations ptp_clock_ops = {
 	.read		= ptp_read,
 };
 
-static void delete_ptp_clock(struct posix_clock *pc)
+static void ptp_clock_release(struct device *dev)
 {
-	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
+	struct ptp_clock *ptp = container_of(dev, struct ptp_clock, dev);
 
+	ptp_cleanup_pin_groups(ptp);
+	kfree(ptp->vclock_index);
 	mutex_destroy(&ptp->tsevq_mux);
 	mutex_destroy(&ptp->pincfg_mux);
+	mutex_destroy(&ptp->n_vclocks_mux);
 	ida_simple_remove(&ptp_clocks_map, ptp->index);
 	kfree(ptp);
+}
+
+static int ptp_getcycles64(struct ptp_clock_info *info, struct timespec64 *ts)
+{
+	if (info->getcyclesx64)
+		return info->getcyclesx64(info, ts, NULL);
+	else
+		return info->gettime64(info, ts);
 }
 
 static void ptp_aux_kworker(struct kthread_work *work)
@@ -208,6 +206,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 {
 	struct ptp_clock *ptp;
 	int err = 0, index, major = MAJOR(ptp_devt);
+	size_t size;
 
 	if (info->n_alarm > PTP_MAX_ALARMS)
 		return ERR_PTR(-EINVAL);
@@ -225,14 +224,29 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	}
 
 	ptp->clock.ops = ptp_clock_ops;
-	ptp->clock.release = delete_ptp_clock;
 	ptp->info = info;
 	ptp->devid = MKDEV(major, index);
 	ptp->index = index;
 	spin_lock_init(&ptp->tsevq.lock);
 	mutex_init(&ptp->tsevq_mux);
 	mutex_init(&ptp->pincfg_mux);
+	mutex_init(&ptp->n_vclocks_mux);
 	init_waitqueue_head(&ptp->tsev_wq);
+
+	if (ptp->info->getcycles64 || ptp->info->getcyclesx64) {
+		ptp->has_cycles = true;
+		if (!ptp->info->getcycles64 && ptp->info->getcyclesx64)
+			ptp->info->getcycles64 = ptp_getcycles64;
+	} else {
+		/* Free running cycle counter not supported, use time. */
+		ptp->info->getcycles64 = ptp_getcycles64;
+
+		if (ptp->info->gettimex64)
+			ptp->info->getcyclesx64 = ptp->info->gettimex64;
+
+		if (ptp->info->getcrosststamp)
+			ptp->info->getcrosscycles = ptp->info->getcrosststamp;
+	}
 
 	if (ptp->info->do_aux_work) {
 		kthread_init_delayed_work(&ptp->aux_work, ptp_aux_kworker);
@@ -244,18 +258,25 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		}
 	}
 
+	/* PTP virtual clock is being registered under physical clock */
+	if (parent && parent->class && parent->class->name &&
+	    strcmp(parent->class->name, "ptp") == 0)
+		ptp->is_virtual_clock = true;
+
+	if (!ptp->is_virtual_clock) {
+		ptp->max_vclocks = PTP_DEFAULT_MAX_VCLOCKS;
+
+		size = sizeof(int) * ptp->max_vclocks;
+		ptp->vclock_index = kzalloc(size, GFP_KERNEL);
+		if (!ptp->vclock_index) {
+			err = -ENOMEM;
+			goto no_mem_for_vclocks;
+		}
+	}
+
 	err = ptp_populate_pin_groups(ptp);
 	if (err)
 		goto no_pin_groups;
-
-	/* Create a new device in our class. */
-	ptp->dev = device_create_with_groups(ptp_class, parent, ptp->devid,
-					     ptp, ptp->pin_attr_groups,
-					     "ptp%d", ptp->index);
-	if (IS_ERR(ptp->dev)) {
-		err = PTR_ERR(ptp->dev);
-		goto no_device;
-	}
 
 	/* Register a new PPS source. */
 	if (info->pps) {
@@ -270,30 +291,47 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 			pr_err("failed to register pps source\n");
 			goto no_pps;
 		}
+		ptp->pps_source->lookup_cookie = ptp;
 	}
 
-	/* Create a posix clock. */
-	err = posix_clock_register(&ptp->clock, ptp->devid);
+	/* Initialize a new device of our class in our clock structure. */
+	device_initialize(&ptp->dev);
+	ptp->dev.devt = ptp->devid;
+	ptp->dev.class = ptp_class;
+	ptp->dev.parent = parent;
+	ptp->dev.groups = ptp->pin_attr_groups;
+	ptp->dev.release = ptp_clock_release;
+	dev_set_drvdata(&ptp->dev, ptp);
+	dev_set_name(&ptp->dev, "ptp%d", ptp->index);
+
+	/* Create a posix clock and link it to the device. */
+	err = posix_clock_register(&ptp->clock, &ptp->dev);
 	if (err) {
+		if (ptp->pps_source)
+			pps_unregister_source(ptp->pps_source);
+
+		if (ptp->kworker)
+			kthread_destroy_worker(ptp->kworker);
+
+		put_device(&ptp->dev);
+
 		pr_err("failed to create posix clock\n");
-		goto no_clock;
+		return ERR_PTR(err);
 	}
 
 	return ptp;
 
-no_clock:
-	if (ptp->pps_source)
-		pps_unregister_source(ptp->pps_source);
 no_pps:
-	device_destroy(ptp_class, ptp->devid);
-no_device:
 	ptp_cleanup_pin_groups(ptp);
 no_pin_groups:
+	kfree(ptp->vclock_index);
+no_mem_for_vclocks:
 	if (ptp->kworker)
 		kthread_destroy_worker(ptp->kworker);
 kworker_err:
 	mutex_destroy(&ptp->tsevq_mux);
 	mutex_destroy(&ptp->pincfg_mux);
+	mutex_destroy(&ptp->n_vclocks_mux);
 	ida_simple_remove(&ptp_clocks_map, index);
 no_slot:
 	kfree(ptp);
@@ -302,8 +340,20 @@ no_memory:
 }
 EXPORT_SYMBOL(ptp_clock_register);
 
+static int unregister_vclock(struct device *dev, void *data)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+
+	ptp_vclock_unregister(info_to_vclock(ptp->info));
+	return 0;
+}
+
 int ptp_clock_unregister(struct ptp_clock *ptp)
 {
+	if (ptp_vclock_in_use(ptp)) {
+		device_for_each_child(&ptp->dev, NULL, unregister_vclock);
+	}
+
 	ptp->defunct = 1;
 	wake_up_interruptible(&ptp->tsev_wq);
 
@@ -316,10 +366,8 @@ int ptp_clock_unregister(struct ptp_clock *ptp)
 	if (ptp->pps_source)
 		pps_unregister_source(ptp->pps_source);
 
-	device_destroy(ptp_class, ptp->devid);
-	ptp_cleanup_pin_groups(ptp);
-
 	posix_clock_unregister(&ptp->clock);
+
 	return 0;
 }
 EXPORT_SYMBOL(ptp_clock_unregister);
@@ -363,7 +411,6 @@ int ptp_find_pin(struct ptp_clock *ptp,
 	struct ptp_pin_desc *pin = NULL;
 	int i;
 
-	mutex_lock(&ptp->pincfg_mux);
 	for (i = 0; i < ptp->info->n_pins; i++) {
 		if (ptp->info->pin_config[i].func == func &&
 		    ptp->info->pin_config[i].chan == chan) {
@@ -371,17 +418,37 @@ int ptp_find_pin(struct ptp_clock *ptp,
 			break;
 		}
 	}
-	mutex_unlock(&ptp->pincfg_mux);
 
 	return pin ? i : -1;
 }
 EXPORT_SYMBOL(ptp_find_pin);
+
+int ptp_find_pin_unlocked(struct ptp_clock *ptp,
+			  enum ptp_pin_function func, unsigned int chan)
+{
+	int result;
+
+	mutex_lock(&ptp->pincfg_mux);
+
+	result = ptp_find_pin(ptp, func, chan);
+
+	mutex_unlock(&ptp->pincfg_mux);
+
+	return result;
+}
+EXPORT_SYMBOL(ptp_find_pin_unlocked);
 
 int ptp_schedule_worker(struct ptp_clock *ptp, unsigned long delay)
 {
 	return kthread_mod_delayed_work(ptp->kworker, &ptp->aux_work, delay);
 }
 EXPORT_SYMBOL(ptp_schedule_worker);
+
+void ptp_cancel_worker_sync(struct ptp_clock *ptp)
+{
+	kthread_cancel_delayed_work_sync(&ptp->aux_work);
+}
+EXPORT_SYMBOL(ptp_cancel_worker_sync);
 
 /* module operations */
 

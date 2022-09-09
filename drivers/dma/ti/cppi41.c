@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -314,7 +315,7 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 		val = cppi_readl(cdd->qmgr_mem + QMGR_PEND(i));
 		if (i == QMGR_PENDING_SLOT_Q(first_completion_queue) && val) {
 			u32 mask;
-			/* set corresponding bit for completetion Q 93 */
+			/* set corresponding bit for completion Q 93 */
 			mask = 1 << QMGR_PENDING_BIT_Q(first_completion_queue);
 			/* not set all bits for queues less than Q 93 */
 			mask--;
@@ -585,9 +586,22 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 	enum dma_transfer_direction dir, unsigned long tx_flags, void *context)
 {
 	struct cppi41_channel *c = to_cpp41_chan(chan);
+	struct dma_async_tx_descriptor *txd = NULL;
+	struct cppi41_dd *cdd = c->cdd;
 	struct cppi41_desc *d;
 	struct scatterlist *sg;
 	unsigned int i;
+	int error;
+
+	error = pm_runtime_get(cdd->ddev.dev);
+	if (error < 0) {
+		pm_runtime_put_noidle(cdd->ddev.dev);
+
+		return NULL;
+	}
+
+	if (cdd->is_suspended)
+		goto err_out_not_ready;
 
 	d = c->desc;
 	for_each_sg(sgl, sg, sg_len, i) {
@@ -610,7 +624,13 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 		d++;
 	}
 
-	return &c->txd;
+	txd = &c->txd;
+
+err_out_not_ready:
+	pm_runtime_mark_last_busy(cdd->ddev.dev);
+	pm_runtime_put_autosuspend(cdd->ddev.dev);
+
+	return txd;
 }
 
 static void cppi41_compute_td_desc(struct cppi41_desc *d)
@@ -683,7 +703,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	 * transfer descriptor followed by TD descriptor. Waiting seems not to
 	 * cause any difference.
 	 * RX seems to be thrown out right away. However once the TearDown
-	 * descriptor gets through we are done. If we have seens the transfer
+	 * descriptor gets through we are done. If we have seen the transfer
 	 * descriptor before the TD we fetch it from enqueue, it has to be
 	 * there waiting for us.
 	 */
@@ -727,7 +747,7 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 		struct cppi41_channel *cc, *_ct;
 
 		/*
-		 * channels might still be in the pendling list if
+		 * channels might still be in the pending list if
 		 * cppi41_dma_issue_pending() is called after
 		 * cppi41_runtime_suspend() is called
 		 */
@@ -1085,8 +1105,12 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->qmgr_num_pend = glue_info->qmgr_num_pend;
 	cdd->first_completion_queue = glue_info->first_completion_queue;
 
+	/* Parse new and deprecated dma-channels properties */
 	ret = of_property_read_u32(dev->of_node,
-				   "#dma-channels", &cdd->n_chans);
+				   "dma-channels", &cdd->n_chans);
+	if (ret)
+		ret = of_property_read_u32(dev->of_node,
+					   "#dma-channels", &cdd->n_chans);
 	if (ret)
 		goto err_get_n_chans;
 

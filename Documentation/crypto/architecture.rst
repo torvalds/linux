@@ -201,16 +201,10 @@ the aforementioned cipher types:
 -  CRYPTO_ALG_TYPE_AEAD Authenticated Encryption with Associated Data
    (MAC)
 
--  CRYPTO_ALG_TYPE_BLKCIPHER Synchronous multi-block cipher
-
--  CRYPTO_ALG_TYPE_ABLKCIPHER Asynchronous multi-block cipher
-
 -  CRYPTO_ALG_TYPE_KPP Key-agreement Protocol Primitive (KPP) such as
    an ECDH or DH implementation
 
--  CRYPTO_ALG_TYPE_DIGEST Raw message digest
-
--  CRYPTO_ALG_TYPE_HASH Alias for CRYPTO_ALG_TYPE_DIGEST
+-  CRYPTO_ALG_TYPE_HASH Raw message digest
 
 -  CRYPTO_ALG_TYPE_SHASH Synchronous multi-block hash
 

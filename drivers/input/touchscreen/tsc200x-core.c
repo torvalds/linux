@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TSC2004/TSC2005 touchscreen driver core
  *
@@ -7,16 +8,6 @@
  *
  * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
  * based on TSC2301 driver by Klaus K. Pedersen <klaus.k.pedersen@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -97,6 +88,8 @@ struct tsc200x {
 	int                     in_z1;
 	int			in_z2;
 
+	struct touchscreen_properties prop;
+
 	spinlock_t		lock;
 	struct timer_list	penup_timer;
 
@@ -122,8 +115,7 @@ static void tsc200x_update_pen_state(struct tsc200x *ts,
 				     int x, int y, int pressure)
 {
 	if (pressure) {
-		input_report_abs(ts->idev, ABS_X, x);
-		input_report_abs(ts->idev, ABS_Y, y);
+		touchscreen_report_pos(ts->idev, &ts->prop, x, y, false);
 		input_report_abs(ts->idev, ABS_PRESSURE, pressure);
 		if (!ts->pen_down) {
 			input_report_key(ts->idev, BTN_TOUCH, !!pressure);
@@ -347,7 +339,7 @@ static struct attribute *tsc200x_attrs[] = {
 static umode_t tsc200x_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct tsc200x *ts = dev_get_drvdata(dev);
 	umode_t mode = attr->mode;
 
@@ -542,7 +534,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 	input_set_abs_params(input_dev, ABS_PRESSURE,
 			     0, MAX_12BIT, TSC200X_DEF_P_FUZZ, 0);
 
-	touchscreen_parse_properties(input_dev, false, NULL);
+	touchscreen_parse_properties(input_dev, false, &ts->prop);
 
 	/* Ensure the touchscreen is off */
 	tsc200x_stop_scan(ts);
@@ -586,15 +578,13 @@ disable_regulator:
 }
 EXPORT_SYMBOL_GPL(tsc200x_probe);
 
-int tsc200x_remove(struct device *dev)
+void tsc200x_remove(struct device *dev)
 {
 	struct tsc200x *ts = dev_get_drvdata(dev);
 
 	sysfs_remove_group(&dev->kobj, &tsc200x_attr_group);
 
 	regulator_disable(ts->vio);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(tsc200x_remove);
 

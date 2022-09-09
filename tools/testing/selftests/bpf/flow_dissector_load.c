@@ -11,56 +11,26 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_rlimit.h"
+#include "flow_dissector_load.h"
 
 const char *cfg_pin_path = "/sys/fs/bpf/flow_dissector";
 const char *cfg_map_name = "jmp_table";
 bool cfg_attach = true;
-char *cfg_section_name;
+char *cfg_prog_name;
 char *cfg_path_name;
 
 static void load_and_attach_program(void)
 {
-	struct bpf_program *prog, *main_prog;
-	struct bpf_map *prog_array;
-	int i, fd, prog_fd, ret;
+	int prog_fd, ret;
 	struct bpf_object *obj;
-	int prog_array_fd;
 
-	ret = bpf_prog_load(cfg_path_name, BPF_PROG_TYPE_FLOW_DISSECTOR, &obj,
-			    &prog_fd);
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
+
+	ret = bpf_flow_load(&obj, cfg_path_name, cfg_prog_name,
+			    cfg_map_name, NULL, &prog_fd, NULL);
 	if (ret)
-		error(1, 0, "bpf_prog_load %s", cfg_path_name);
-
-	main_prog = bpf_object__find_program_by_title(obj, cfg_section_name);
-	if (!main_prog)
-		error(1, 0, "bpf_object__find_program_by_title %s",
-		      cfg_section_name);
-
-	prog_fd = bpf_program__fd(main_prog);
-	if (prog_fd < 0)
-		error(1, 0, "bpf_program__fd");
-
-	prog_array = bpf_object__find_map_by_name(obj, cfg_map_name);
-	if (!prog_array)
-		error(1, 0, "bpf_object__find_map_by_name %s", cfg_map_name);
-
-	prog_array_fd = bpf_map__fd(prog_array);
-	if (prog_array_fd < 0)
-		error(1, 0, "bpf_map__fd %s", cfg_map_name);
-
-	i = 0;
-	bpf_object__for_each_program(prog, obj) {
-		fd = bpf_program__fd(prog);
-		if (fd < 0)
-			error(1, 0, "bpf_program__fd");
-
-		if (fd != prog_fd) {
-			printf("%d: %s\n", i, bpf_program__title(prog, false));
-			bpf_map_update_elem(prog_array_fd, &i, &fd, BPF_ANY);
-			++i;
-		}
-	}
+		error(1, 0, "bpf_flow_load %s", cfg_path_name);
 
 	ret = bpf_prog_attach(prog_fd, 0 /* Ignore */, BPF_FLOW_DISSECTOR, 0);
 	if (ret)
@@ -69,7 +39,6 @@ static void load_and_attach_program(void)
 	ret = bpf_object__pin(obj, cfg_pin_path);
 	if (ret)
 		error(1, 0, "bpf_object__pin %s", cfg_pin_path);
-
 }
 
 static void detach_program(void)
@@ -85,7 +54,7 @@ static void detach_program(void)
 	sprintf(command, "rm -r %s", cfg_pin_path);
 	ret = system(command);
 	if (ret)
-		error(1, errno, command);
+		error(1, errno, "%s", command);
 }
 
 static void parse_opts(int argc, char **argv)
@@ -108,15 +77,15 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'p':
 			if (cfg_path_name)
-				error(1, 0, "only one prog name can be given");
+				error(1, 0, "only one path can be given");
 
 			cfg_path_name = optarg;
 			break;
 		case 's':
-			if (cfg_section_name)
-				error(1, 0, "only one section can be given");
+			if (cfg_prog_name)
+				error(1, 0, "only one prog can be given");
 
-			cfg_section_name = optarg;
+			cfg_prog_name = optarg;
 			break;
 		}
 	}
@@ -127,7 +96,7 @@ static void parse_opts(int argc, char **argv)
 	if (cfg_attach && !cfg_path_name)
 		error(1, 0, "must provide a path to the BPF program");
 
-	if (cfg_attach && !cfg_section_name)
+	if (cfg_attach && !cfg_prog_name)
 		error(1, 0, "must provide a section name");
 }
 

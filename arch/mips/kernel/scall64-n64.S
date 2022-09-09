@@ -18,9 +18,8 @@
 #include <asm/sysmips.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/war.h>
 
-#ifndef CONFIG_BINFMT_ELF32
+#ifndef CONFIG_MIPS32_COMPAT
 /* Neither O32 nor N32, so define handle_sys here */
 #define handle_sys64 handle_sys
 #endif
@@ -109,9 +108,8 @@ illegal_syscall:
 	j	n64_syscall_exit
 	END(handle_sys64)
 
-#define __SYSCALL(nr, entry, nargs) PTR entry
+#define __SYSCALL(nr, entry)	PTR_WD entry
 	.align	3
 	.type	sys_call_table, @object
 EXPORT(sys_call_table)
-#include <asm/syscall_table_64_n64.h>
-#undef __SYSCALL
+#include <asm/syscall_table_n64.h>

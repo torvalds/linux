@@ -68,8 +68,15 @@ static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
 static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count);
 
-DEVICE_ATTR(reg_br, S_IRUGO|S_IWUSR|S_IWGRP, reg_show, reg_store);
-DEVICE_ATTR(reg_or, S_IRUGO|S_IWUSR|S_IWGRP, reg_show, reg_store);
+static DEVICE_ATTR(reg_br, 0664, reg_show, reg_store);
+static DEVICE_ATTR(reg_or, 0664, reg_show, reg_store);
+
+static struct attribute *uio_fsl_elbc_gpcm_attrs[] = {
+	&dev_attr_reg_br.attr,
+	&dev_attr_reg_or.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(uio_fsl_elbc_gpcm);
 
 static ssize_t reg_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
@@ -292,7 +299,7 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 	/* get optional uio name */
 	if (of_property_read_string(node, "uio_name", &dt_name) != 0)
 		dt_name = "eLBC_GPCM";
-	*name = kstrdup(dt_name, GFP_KERNEL);
+	*name = devm_kstrdup(priv->dev, dt_name, GFP_KERNEL);
 	if (!*name)
 		return -ENOMEM;
 
@@ -317,7 +324,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* allocate private data */
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = &pdev->dev;
@@ -327,14 +334,12 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	ret = get_of_data(priv, node, &res, &reg_br_new, &reg_or_new,
 			  &irq, &uio_name);
 	if (ret)
-		goto out_err0;
+		return ret;
 
 	/* allocate UIO structure */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		ret = -ENOMEM;
-		goto out_err0;
-	}
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
 
 	/* get current BR/OR values */
 	reg_br_cur = in_be32(&priv->lbc->bank[priv->bank].br);
@@ -347,8 +352,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 		     != fsl_lbc_addr(res.start)) {
 			dev_err(priv->dev,
 				"bank in use by another peripheral\n");
-			ret = -ENODEV;
-			goto out_err1;
+			return -ENODEV;
 		}
 
 		/* warn if behavior settings changing */
@@ -375,12 +379,11 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	info->mem[0].internal_addr = ioremap(res.start, resource_size(&res));
 	if (!info->mem[0].internal_addr) {
 		dev_err(priv->dev, "failed to map chip region\n");
-		ret = -ENODEV;
-		goto out_err1;
+		return -ENODEV;
 	}
 
 	/* set all UIO data */
-	info->mem[0].name = kasprintf(GFP_KERNEL, "%pOFn", node);
+	info->mem[0].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn", node);
 	info->mem[0].addr = res.start;
 	info->mem[0].size = resource_size(&res);
 	info->mem[0].memtype = UIO_MEM_PHYS;
@@ -411,35 +414,16 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	/* store private data */
 	platform_set_drvdata(pdev, info);
 
-	/* create sysfs files */
-	ret = device_create_file(priv->dev, &dev_attr_reg_br);
-	if (ret)
-		goto out_err3;
-	ret = device_create_file(priv->dev, &dev_attr_reg_or);
-	if (ret)
-		goto out_err4;
-
 	dev_info(priv->dev,
 		 "eLBC/GPCM device (%s) at 0x%llx, bank %d, irq=%d\n",
 		 priv->name, (unsigned long long)res.start, priv->bank,
 		 irq != NO_IRQ ? irq : -1);
 
 	return 0;
-out_err4:
-	device_remove_file(priv->dev, &dev_attr_reg_br);
-out_err3:
-	platform_set_drvdata(pdev, NULL);
-	uio_unregister_device(info);
 out_err2:
 	if (priv->shutdown)
 		priv->shutdown(info, true);
 	iounmap(info->mem[0].internal_addr);
-out_err1:
-	kfree(info->mem[0].name);
-	kfree(info);
-out_err0:
-	kfree(uio_name);
-	kfree(priv);
 	return ret;
 }
 
@@ -448,17 +432,11 @@ static int uio_fsl_elbc_gpcm_remove(struct platform_device *pdev)
 	struct uio_info *info = platform_get_drvdata(pdev);
 	struct fsl_elbc_gpcm *priv = info->priv;
 
-	device_remove_file(priv->dev, &dev_attr_reg_or);
-	device_remove_file(priv->dev, &dev_attr_reg_br);
 	platform_set_drvdata(pdev, NULL);
 	uio_unregister_device(info);
 	if (priv->shutdown)
 		priv->shutdown(info, false);
 	iounmap(info->mem[0].internal_addr);
-	kfree(info->mem[0].name);
-	kfree(info->name);
-	kfree(info);
-	kfree(priv);
 
 	return 0;
 
@@ -474,6 +452,7 @@ static struct platform_driver uio_fsl_elbc_gpcm_driver = {
 	.driver = {
 		.name = "fsl,elbc-gpcm-uio",
 		.of_match_table = uio_fsl_elbc_gpcm_match,
+		.dev_groups = uio_fsl_elbc_gpcm_groups,
 	},
 	.probe = uio_fsl_elbc_gpcm_probe,
 	.remove = uio_fsl_elbc_gpcm_remove,

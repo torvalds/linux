@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include <linux/unistd.h>
 #include <linux/bpf.h>
@@ -67,9 +64,9 @@ int main(int argc, char **argv)
 	}
 
 	if (create_array) {
-		array_fd = bpf_create_map(BPF_MAP_TYPE_CGROUP_ARRAY,
+		array_fd = bpf_map_create(BPF_MAP_TYPE_CGROUP_ARRAY, NULL,
 					  sizeof(uint32_t), sizeof(uint32_t),
-					  1, 0);
+					  1, NULL);
 		if (array_fd < 0) {
 			fprintf(stderr,
 				"bpf_create_map(BPF_MAP_TYPE_CGROUP_ARRAY,...): %s(%d)\n",

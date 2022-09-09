@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*	Sysfs attributes of bond slaves
  *
  *      Copyright (c) 2014 Scott Feldman <sfeldma@cumulusnetworks.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/capability.h>
@@ -19,14 +15,8 @@ struct slave_attribute {
 	ssize_t (*show)(struct slave *, char *);
 };
 
-#define SLAVE_ATTR(_name, _mode, _show)				\
-const struct slave_attribute slave_attr_##_name = {		\
-	.attr = {.name = __stringify(_name),			\
-		 .mode = _mode },				\
-	.show	= _show,					\
-};
 #define SLAVE_ATTR_RO(_name)					\
-	SLAVE_ATTR(_name, 0444, _name##_show)
+const struct slave_attribute slave_attr_##_name = __ATTR_RO(_name)
 
 static ssize_t state_show(struct slave *slave, char *buf)
 {
@@ -55,7 +45,9 @@ static SLAVE_ATTR_RO(link_failure_count);
 
 static ssize_t perm_hwaddr_show(struct slave *slave, char *buf)
 {
-	return sprintf(buf, "%pM\n", slave->perm_hwaddr);
+	return sprintf(buf, "%*phC\n",
+		       slave->dev->addr_len,
+		       slave->perm_hwaddr);
 }
 static SLAVE_ATTR_RO(perm_hwaddr);
 
@@ -110,20 +102,19 @@ static ssize_t ad_partner_oper_port_state_show(struct slave *slave, char *buf)
 }
 static SLAVE_ATTR_RO(ad_partner_oper_port_state);
 
-static const struct slave_attribute *slave_attrs[] = {
-	&slave_attr_state,
-	&slave_attr_mii_status,
-	&slave_attr_link_failure_count,
-	&slave_attr_perm_hwaddr,
-	&slave_attr_queue_id,
-	&slave_attr_ad_aggregator_id,
-	&slave_attr_ad_actor_oper_port_state,
-	&slave_attr_ad_partner_oper_port_state,
+static const struct attribute *slave_attrs[] = {
+	&slave_attr_state.attr,
+	&slave_attr_mii_status.attr,
+	&slave_attr_link_failure_count.attr,
+	&slave_attr_perm_hwaddr.attr,
+	&slave_attr_queue_id.attr,
+	&slave_attr_ad_aggregator_id.attr,
+	&slave_attr_ad_actor_oper_port_state.attr,
+	&slave_attr_ad_partner_oper_port_state.attr,
 	NULL
 };
 
 #define to_slave_attr(_at) container_of(_at, struct slave_attribute, attr)
-#define to_slave(obj)	container_of(obj, struct slave, kobj)
 
 static ssize_t slave_show(struct kobject *kobj,
 			  struct attribute *attr, char *buf)
@@ -134,43 +125,16 @@ static ssize_t slave_show(struct kobject *kobj,
 	return slave_attr->show(slave, buf);
 }
 
-static const struct sysfs_ops slave_sysfs_ops = {
+const struct sysfs_ops slave_sysfs_ops = {
 	.show = slave_show,
-};
-
-static struct kobj_type slave_ktype = {
-#ifdef CONFIG_SYSFS
-	.sysfs_ops = &slave_sysfs_ops,
-#endif
 };
 
 int bond_sysfs_slave_add(struct slave *slave)
 {
-	const struct slave_attribute **a;
-	int err;
-
-	err = kobject_init_and_add(&slave->kobj, &slave_ktype,
-				   &(slave->dev->dev.kobj), "bonding_slave");
-	if (err)
-		return err;
-
-	for (a = slave_attrs; *a; ++a) {
-		err = sysfs_create_file(&slave->kobj, &((*a)->attr));
-		if (err) {
-			kobject_put(&slave->kobj);
-			return err;
-		}
-	}
-
-	return 0;
+	return sysfs_create_files(&slave->kobj, slave_attrs);
 }
 
 void bond_sysfs_slave_del(struct slave *slave)
 {
-	const struct slave_attribute **a;
-
-	for (a = slave_attrs; *a; ++a)
-		sysfs_remove_file(&slave->kobj, &((*a)->attr));
-
-	kobject_put(&slave->kobj);
+	sysfs_remove_files(&slave->kobj, slave_attrs);
 }

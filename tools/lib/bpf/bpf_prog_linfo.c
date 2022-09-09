@@ -6,10 +6,7 @@
 #include <linux/err.h>
 #include <linux/bpf.h>
 #include "libbpf.h"
-
-#ifndef min
-#define min(x, y) ((x) < (y) ? (x) : (y))
-#endif
+#include "libbpf_internal.h"
 
 struct bpf_prog_linfo {
 	void *raw_linfo;
@@ -104,11 +101,12 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 {
 	struct bpf_prog_linfo *prog_linfo;
 	__u32 nr_linfo, nr_jited_func;
+	__u64 data_sz;
 
 	nr_linfo = info->nr_line_info;
 
 	if (!nr_linfo)
-		return NULL;
+		return errno = EINVAL, NULL;
 
 	/*
 	 * The min size that bpf_prog_linfo has to access for
@@ -116,20 +114,20 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	 */
 	if (info->line_info_rec_size <
 	    offsetof(struct bpf_line_info, file_name_off))
-		return NULL;
+		return errno = EINVAL, NULL;
 
 	prog_linfo = calloc(1, sizeof(*prog_linfo));
 	if (!prog_linfo)
-		return NULL;
+		return errno = ENOMEM, NULL;
 
 	/* Copy xlated line_info */
 	prog_linfo->nr_linfo = nr_linfo;
 	prog_linfo->rec_size = info->line_info_rec_size;
-	prog_linfo->raw_linfo = malloc(nr_linfo * prog_linfo->rec_size);
+	data_sz = (__u64)nr_linfo * prog_linfo->rec_size;
+	prog_linfo->raw_linfo = malloc(data_sz);
 	if (!prog_linfo->raw_linfo)
 		goto err_free;
-	memcpy(prog_linfo->raw_linfo, (void *)(long)info->line_info,
-	       nr_linfo * prog_linfo->rec_size);
+	memcpy(prog_linfo->raw_linfo, (void *)(long)info->line_info, data_sz);
 
 	nr_jited_func = info->nr_jited_ksyms;
 	if (!nr_jited_func ||
@@ -145,13 +143,12 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	/* Copy jited_line_info */
 	prog_linfo->nr_jited_func = nr_jited_func;
 	prog_linfo->jited_rec_size = info->jited_line_info_rec_size;
-	prog_linfo->raw_jited_linfo = malloc(nr_linfo *
-					     prog_linfo->jited_rec_size);
+	data_sz = (__u64)nr_linfo * prog_linfo->jited_rec_size;
+	prog_linfo->raw_jited_linfo = malloc(data_sz);
 	if (!prog_linfo->raw_jited_linfo)
 		goto err_free;
 	memcpy(prog_linfo->raw_jited_linfo,
-	       (void *)(long)info->jited_line_info,
-	       nr_linfo * prog_linfo->jited_rec_size);
+	       (void *)(long)info->jited_line_info, data_sz);
 
 	/* Number of jited_line_info per jited func */
 	prog_linfo->nr_jited_linfo_per_func = malloc(nr_jited_func *
@@ -177,7 +174,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 
 err_free:
 	bpf_prog_linfo__free(prog_linfo);
-	return NULL;
+	return errno = EINVAL, NULL;
 }
 
 const struct bpf_line_info *
@@ -189,11 +186,11 @@ bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
 	const __u64 *jited_linfo;
 
 	if (func_idx >= prog_linfo->nr_jited_func)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	nr_linfo = prog_linfo->nr_jited_linfo_per_func[func_idx];
 	if (nr_skip >= nr_linfo)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	start = prog_linfo->jited_linfo_func_idx[func_idx] + nr_skip;
 	jited_rec_size = prog_linfo->jited_rec_size;
@@ -201,7 +198,7 @@ bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
 		(start * jited_rec_size);
 	jited_linfo = raw_jited_linfo;
 	if (addr < *jited_linfo)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	nr_linfo -= nr_skip;
 	rec_size = prog_linfo->rec_size;
@@ -228,13 +225,13 @@ bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
 
 	nr_linfo = prog_linfo->nr_linfo;
 	if (nr_skip >= nr_linfo)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	rec_size = prog_linfo->rec_size;
 	raw_linfo = prog_linfo->raw_linfo + (nr_skip * rec_size);
 	linfo = raw_linfo;
 	if (insn_off < linfo->insn_off)
-		return NULL;
+		return errno = ENOENT, NULL;
 
 	nr_linfo -= nr_skip;
 	for (i = 0; i < nr_linfo; i++) {

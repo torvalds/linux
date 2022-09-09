@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 #ifndef _CC_CRYPTO_CTX_H_
 #define _CC_CRYPTO_CTX_H_
@@ -55,6 +55,14 @@
 
 #define CC_DRV_ALG_MAX_BLOCK_SIZE CC_HASH_BLOCK_SIZE_MAX
 
+#define CC_CPP_NUM_SLOTS	8
+#define CC_CPP_NUM_ALGS		2
+
+enum cc_cpp_alg {
+	CC_CPP_SM4 = 1,
+	CC_CPP_AES = 0
+};
+
 enum drv_engine_type {
 	DRV_ENGINE_NULL = 0,
 	DRV_ENGINE_AES = 1,
@@ -100,7 +108,6 @@ enum drv_cipher_mode {
 	DRV_CIPHER_CBC_CTS = 11,
 	DRV_CIPHER_GCTR = 12,
 	DRV_CIPHER_ESSIV = 13,
-	DRV_CIPHER_BITLOCKER = 14,
 	DRV_CIPHER_RESERVE32B = S32_MAX
 };
 

@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADXL345/346 Three-Axis Digital Accelerometers
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2009 Michael Hennerich, Analog Devices Inc.
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -237,7 +237,7 @@ static const struct adxl34x_platform_data adxl34x_default_init = {
 
 static void adxl34x_get_triple(struct adxl34x *ac, struct axis_triple *axis)
 {
-	short buf[3];
+	__le16 buf[3];
 
 	ac->bops->read_block(ac->dev, DATAX0, DATAZ1 - DATAX0 + 1, buf);
 
@@ -696,7 +696,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	struct input_dev *input_dev;
 	const struct adxl34x_platform_data *pdata;
 	int err, range, i;
-	unsigned char revid;
+	int revid;
 
 	if (!irq) {
 		dev_err(dev, "no IRQ?\n");
@@ -896,15 +896,13 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 }
 EXPORT_SYMBOL_GPL(adxl34x_probe);
 
-int adxl34x_remove(struct adxl34x *ac)
+void adxl34x_remove(struct adxl34x *ac)
 {
 	sysfs_remove_group(&ac->dev->kobj, &adxl34x_attr_group);
 	free_irq(ac->irq, ac);
 	input_unregister_device(ac->input);
 	dev_dbg(ac->dev, "unregistered accelerometer\n");
 	kfree(ac);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(adxl34x_remove);
 

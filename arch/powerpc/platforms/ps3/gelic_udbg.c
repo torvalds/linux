@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * udbg debug output routine via GELIC UDP broadcasts
  *
@@ -5,12 +6,6 @@
  * Copyright 2006, 2007 Sony Corporation
  * Copyright (C) 2010 Hector Martin <hector@marcansoft.com>
  * Copyright (C) 2011 Andre Heider <a.heider@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/if_ether.h>
@@ -118,7 +113,7 @@ static int unmap_dma_mem(int bus_id, int dev_id, u64 bus_addr, size_t len)
 	return lv1_free_device_dma_region(bus_id, dev_id, real_bus_addr);
 }
 
-static void gelic_debug_init(void)
+static void __init gelic_debug_init(void)
 {
 	s64 result;
 	u64 v2;

@@ -11,6 +11,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <dt-bindings/clock/r7s9210-cpg-mssr.h>
 #include "renesas-cpg-mssr.h"
 
@@ -92,6 +93,7 @@ static const struct mssr_mod_clk r7s9210_mod_clks[] __initconst = {
 	DEF_MOD_STB("ether1",	 64,	R7S9210_CLK_B),
 	DEF_MOD_STB("ether0",	 65,	R7S9210_CLK_B),
 
+	DEF_MOD_STB("spibsc",	 83,	R7S9210_CLK_P1),
 	DEF_MOD_STB("i2c3",	 84,	R7S9210_CLK_P1),
 	DEF_MOD_STB("i2c2",	 85,	R7S9210_CLK_P1),
 	DEF_MOD_STB("i2c1",	 86,	R7S9210_CLK_P1),
@@ -119,7 +121,7 @@ static void __init r7s9210_update_clk_table(struct clk *extal_clk,
 	if (clk_get_rate(extal_clk) > 12000000)
 		cpg_mode = 1;
 
-	frqcr = clk_readl(base + CPG_FRQCR) & 0xFFF;
+	frqcr = readl(base + CPG_FRQCR) & 0xFFF;
 	if (frqcr == 0x012)
 		index = 0;
 	else if (frqcr == 0x112)
@@ -212,7 +214,7 @@ const struct cpg_mssr_info r7s9210_cpg_mssr_info __initconst = {
 	.cpg_clk_register = rza2_cpg_clk_register,
 
 	/* RZ/A2 has Standby Control Registers */
-	.stbyctrl = true,
+	.reg_layout = CLK_REG_LAYOUT_RZ_A,
 };
 
 static void __init r7s9210_cpg_mssr_early_init(struct device_node *np)

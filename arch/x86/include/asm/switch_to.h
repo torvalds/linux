@@ -12,27 +12,6 @@ struct task_struct *__switch_to_asm(struct task_struct *prev,
 __visible struct task_struct *__switch_to(struct task_struct *prev,
 					  struct task_struct *next);
 
-/* This runs runs on the previous thread's stack. */
-static inline void prepare_switch_to(struct task_struct *next)
-{
-#ifdef CONFIG_VMAP_STACK
-	/*
-	 * If we switch to a stack that has a top-level paging entry
-	 * that is not present in the current mm, the resulting #PF will
-	 * will be promoted to a double-fault and we'll panic.  Probe
-	 * the new stack now so that vmalloc_fault can fix up the page
-	 * tables if needed.  This can only happen if we use a stack
-	 * in vmap space.
-	 *
-	 * We assume that the stack is aligned so that it never spans
-	 * more than one top-level paging entry.
-	 *
-	 * To minimize cache pollution, just follow the stack pointer.
-	 */
-	READ_ONCE(*(unsigned char *)next->thread.sp);
-#endif
-}
-
 asmlinkage void ret_from_fork(void);
 
 /*
@@ -46,6 +25,7 @@ struct inactive_task_frame {
 	unsigned long r13;
 	unsigned long r12;
 #else
+	unsigned long flags;
 	unsigned long si;
 	unsigned long di;
 #endif
@@ -66,8 +46,6 @@ struct fork_frame {
 
 #define switch_to(prev, next, last)					\
 do {									\
-	prepare_switch_to(next);					\
-									\
 	((last) = __switch_to_asm((prev), (next)));			\
 } while (0)
 
@@ -93,16 +71,21 @@ static inline void update_task_stack(struct task_struct *task)
 	else
 		this_cpu_write(cpu_tss_rw.x86_tss.sp1, task->thread.sp0);
 #else
-	/*
-	 * x86-64 updates x86_tss.sp1 via cpu_current_top_of_stack. That
-	 * doesn't work on x86-32 because sp1 and
-	 * cpu_current_top_of_stack have different values (because of
-	 * the non-zero stack-padding on 32bit).
-	 */
+	/* Xen PV enters the kernel on the thread stack. */
 	if (static_cpu_has(X86_FEATURE_XENPV))
 		load_sp0(task_top_of_stack(task));
 #endif
+}
 
+static inline void kthread_frame_init(struct inactive_task_frame *frame,
+				      int (*fun)(void *), void *arg)
+{
+	frame->bx = (unsigned long)fun;
+#ifdef CONFIG_X86_32
+	frame->di = (unsigned long)arg;
+#else
+	frame->r12 = (unsigned long)arg;
+#endif
 }
 
 #endif /* _ASM_X86_SWITCH_TO_H */

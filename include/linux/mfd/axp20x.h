@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Functions and registers to access AXP20X power management chip.
  *
  * Copyright (C) 2013, Carlo Caione <carlo@caione.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_MFD_AXP20X_H
@@ -699,6 +696,6 @@ int axp20x_device_probe(struct axp20x_dev *axp20x);
  *
  * This tells the axp20x core to remove the associated mfd devices
  */
-int axp20x_device_remove(struct axp20x_dev *axp20x);
+void axp20x_device_remove(struct axp20x_dev *axp20x);
 
 #endif /* __LINUX_MFD_AXP20X_H */

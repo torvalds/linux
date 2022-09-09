@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) by Paul Barton-Davis 1998-1999
- *
- * This file is distributed under the GNU GENERAL PUBLIC LICENSE (GPL)
- * Version 2 (June 1991). See the "COPYING" file distributed with this
- * software for more info.  
  */
 
 /* The low level driver for the WaveFront ICS2115 MIDI interface(s)
@@ -242,7 +239,8 @@ static int snd_wavefront_midi_input_open(struct snd_rawmidi_substream *substream
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
-	if ((midi = get_wavefront_midi (substream)) == NULL)
+	midi = get_wavefront_midi(substream);
+	if (!midi)
 	        return -EIO;
 
 	spin_lock_irqsave (&midi->open, flags);
@@ -266,7 +264,8 @@ static int snd_wavefront_midi_output_open(struct snd_rawmidi_substream *substrea
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
-	if ((midi = get_wavefront_midi (substream)) == NULL)
+	midi = get_wavefront_midi(substream);
+	if (!midi)
 	        return -EIO;
 
 	spin_lock_irqsave (&midi->open, flags);
@@ -290,7 +289,8 @@ static int snd_wavefront_midi_input_close(struct snd_rawmidi_substream *substrea
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
-	if ((midi = get_wavefront_midi (substream)) == NULL)
+	midi = get_wavefront_midi(substream);
+	if (!midi)
 	        return -EIO;
 
 	spin_lock_irqsave (&midi->open, flags);
@@ -313,7 +313,8 @@ static int snd_wavefront_midi_output_close(struct snd_rawmidi_substream *substre
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
-	if ((midi = get_wavefront_midi (substream)) == NULL)
+	midi = get_wavefront_midi(substream);
+	if (!midi)
 	        return -EIO;
 
 	spin_lock_irqsave (&midi->open, flags);
@@ -336,9 +337,9 @@ static void snd_wavefront_midi_input_trigger(struct snd_rawmidi_substream *subst
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
-	if ((midi = get_wavefront_midi (substream)) == NULL) {
+	midi = get_wavefront_midi(substream);
+	if (!midi)
 		return;
-	}
 
 	spin_lock_irqsave (&midi->virtual, flags);
 	if (up) {
@@ -375,9 +376,9 @@ static void snd_wavefront_midi_output_trigger(struct snd_rawmidi_substream *subs
 
 	mpu = *((snd_wavefront_mpu_id *) substream->rmidi->private_data);
 
-	if ((midi = get_wavefront_midi (substream)) == NULL) {
+	midi = get_wavefront_midi(substream);
+	if (!midi)
 		return;
-	}
 
 	spin_lock_irqsave (&midi->virtual, flags);
 	if (up) {

@@ -55,7 +55,7 @@
 
 	clocks {
 		clk32 {
-			compatible = "fsl,imx-clk32", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32000>;
 		};
@@ -125,7 +125,7 @@
 			};
 
 			pwm: pwm@208000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx1-pwm";
 				reg = <0x00208000 0x1000>;
 				interrupts = <34>;

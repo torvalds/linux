@@ -6,6 +6,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/hardirq.h>
 
 #include <asm/processor.h>
 #include <asm/traps.h>
@@ -16,24 +17,18 @@
 #include "internal.h"
 
 /* Machine check handler for WinChip C6: */
-static void winchip_machine_check(struct pt_regs *regs, long error_code)
+noinstr void winchip_machine_check(struct pt_regs *regs)
 {
-	ist_enter(regs);
-
+	instrumentation_begin();
 	pr_emerg("CPU0: Machine Check Exception.\n");
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
-
-	ist_exit(regs);
+	instrumentation_end();
 }
 
 /* Set up machine check reporting on the Winchip C6 series */
 void winchip_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 lo, hi;
-
-	machine_check_vector = winchip_machine_check;
-	/* Make sure the vector pointer is visible before we enable MCEs: */
-	wmb();
 
 	rdmsr(MSR_IDT_FCR1, lo, hi);
 	lo |= (1<<2);	/* Enable EIERRINT (int 18 MCE) */

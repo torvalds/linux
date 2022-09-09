@@ -1,151 +1,169 @@
 [
     {
-        "PublicDescription": "Counts number of X87 uops executed.",
-        "EventCode": "0x10",
+        "BriefDescription": "Cycles with any input/output SSE or FP assist",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "FP_COMP_OPS_EXE.X87",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of FP Computational Uops Executed this cycle. The number of FADD, FSUB, FCOM, FMULs, integer MULsand IMULs, FDIVs, FPREMs, FSQRTS, integer DIVs, and IDIVs. This event does not distinguish an FADD used in the middle of a transcendental flow from a s",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Number of SSE* or AVX-128 FP Computational packed double-precision uops issued this cycle.",
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "FP_COMP_OPS_EXE.SSE_PACKED_DOUBLE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of SSE* or AVX-128 FP Computational packed double-precision uops issued this cycle",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Number of SSE* or AVX-128 FP Computational scalar single-precision uops issued this cycle.",
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x20",
-        "EventName": "FP_COMP_OPS_EXE.SSE_SCALAR_SINGLE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of SSE* or AVX-128 FP Computational scalar single-precision uops issued this cycle",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Number of SSE* or AVX-128 FP Computational packed single-precision uops issued this cycle.",
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x40",
-        "EventName": "FP_COMP_OPS_EXE.SSE_PACKED_SINGLE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of SSE* or AVX-128 FP Computational packed single-precision uops issued this cycle",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Counts number of SSE* or AVX-128 double precision FP scalar uops executed.",
-        "EventCode": "0x10",
-        "Counter": "0,1,2,3",
-        "UMask": "0x80",
-        "EventName": "FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of SSE* or AVX-128 FP Computational scalar double-precision uops issued this cycle",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Counts 256-bit packed single-precision floating-point instructions.",
-        "EventCode": "0x11",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "SIMD_FP_256.PACKED_SINGLE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "number of GSSE-256 Computational FP single precision uops issued this cycle",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Counts 256-bit packed double-precision floating-point instructions.",
-        "EventCode": "0x11",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "SIMD_FP_256.PACKED_DOUBLE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "number of AVX-256 Computational FP double precision uops issued this cycle",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Number of assists associated with 256-bit AVX store operations.",
-        "EventCode": "0xC1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "OTHER_ASSISTS.AVX_STORE",
+        "CounterHTOff": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.ANY",
+        "PublicDescription": "Cycles with any input/output SSE* or FP assists.",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of GSSE memory assist for stores. GSSE microcode assist is being invoked whenever the hardware is unable to properly handle GSSE-256b operations.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x1e"
     },
     {
-        "EventCode": "0xC1",
+        "BriefDescription": "Number of SIMD FP assists due to input values",
         "Counter": "0,1,2,3",
-        "UMask": "0x10",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.SIMD_INPUT",
+        "PublicDescription": "Number of SIMD FP assists due to input values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Number of SIMD FP assists due to Output values",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.SIMD_OUTPUT",
+        "PublicDescription": "Number of SIMD FP assists due to output values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Number of X87 assists due to input value.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.X87_INPUT",
+        "PublicDescription": "Number of X87 FP assists due to input values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Number of X87 assists due to output value.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.X87_OUTPUT",
+        "PublicDescription": "Number of X87 FP assists due to output values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Number of SSE* or AVX-128 FP Computational packed double-precision uops issued this cycle",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_PACKED_DOUBLE",
+        "PublicDescription": "Number of SSE* or AVX-128 FP Computational packed double-precision uops issued this cycle.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Number of SSE* or AVX-128 FP Computational packed single-precision uops issued this cycle",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_PACKED_SINGLE",
+        "PublicDescription": "Number of SSE* or AVX-128 FP Computational packed single-precision uops issued this cycle.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Number of SSE* or AVX-128 FP Computational scalar double-precision uops issued this cycle",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_SCALAR_DOUBLE",
+        "PublicDescription": "Counts number of SSE* or AVX-128 double precision FP scalar uops executed.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x80"
+    },
+    {
+        "BriefDescription": "Number of SSE* or AVX-128 FP Computational scalar single-precision uops issued this cycle",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.SSE_SCALAR_SINGLE",
+        "PublicDescription": "Number of SSE* or AVX-128 FP Computational scalar single-precision uops issued this cycle.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Number of FP Computational Uops Executed this cycle. The number of FADD, FSUB, FCOM, FMULs, integer MULsand IMULs, FDIVs, FPREMs, FSQRTS, integer DIVs, and IDIVs. This event does not distinguish an FADD used in the middle of a transcendental flow from a s",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x10",
+        "EventName": "FP_COMP_OPS_EXE.X87",
+        "PublicDescription": "Counts number of X87 uops executed.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Number of SIMD Move Elimination candidate uops that were eliminated.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x58",
+        "EventName": "MOVE_ELIMINATION.SIMD_ELIMINATED",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Number of SIMD Move Elimination candidate uops that were not eliminated.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x58",
+        "EventName": "MOVE_ELIMINATION.SIMD_NOT_ELIMINATED",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Number of GSSE memory assist for stores. GSSE microcode assist is being invoked whenever the hardware is unable to properly handle GSSE-256b operations.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xC1",
+        "EventName": "OTHER_ASSISTS.AVX_STORE",
+        "PublicDescription": "Number of assists associated with 256-bit AVX store operations.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xC1",
         "EventName": "OTHER_ASSISTS.AVX_TO_SSE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0xC1",
+        "BriefDescription": "Number of transitions from SSE to AVX-256 when penalty applicable.",
         "Counter": "0,1,2,3",
-        "UMask": "0x20",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xC1",
         "EventName": "OTHER_ASSISTS.SSE_TO_AVX",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Number of transitions from SSE to AVX-256 when penalty applicable.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x20"
     },
     {
-        "PublicDescription": "Number of X87 FP assists due to output values.",
-        "EventCode": "0xCA",
+        "BriefDescription": "number of AVX-256 Computational FP double precision uops issued this cycle",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "FP_ASSIST.X87_OUTPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of X87 assists due to output value.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x11",
+        "EventName": "SIMD_FP_256.PACKED_DOUBLE",
+        "PublicDescription": "Counts 256-bit packed double-precision floating-point instructions.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
     },
     {
-        "PublicDescription": "Number of X87 FP assists due to input values.",
-        "EventCode": "0xCA",
+        "BriefDescription": "number of GSSE-256 Computational FP single precision uops issued this cycle",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "FP_ASSIST.X87_INPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of X87 assists due to input value.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Number of SIMD FP assists due to output values.",
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "FP_ASSIST.SIMD_OUTPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of SIMD FP assists due to Output values",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Number of SIMD FP assists due to input values.",
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "FP_ASSIST.SIMD_INPUT",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Number of SIMD FP assists due to input values",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Cycles with any input/output SSE* or FP assists.",
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1e",
-        "EventName": "FP_ASSIST.ANY",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Cycles with any input/output SSE or FP assist",
-        "CounterMask": "1",
-        "CounterHTOff": "0,1,2,3"
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x11",
+        "EventName": "SIMD_FP_256.PACKED_SINGLE",
+        "PublicDescription": "Counts 256-bit packed single-precision floating-point instructions.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
     }
 ]

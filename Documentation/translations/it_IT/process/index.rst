@@ -27,6 +27,7 @@ Di seguito le guide che ogni sviluppatore dovrebbe leggere.
    code-of-conduct
    development-process
    submitting-patches
+   programming-language
    coding-style
    maintainer-pgp-guide
    email-clients
@@ -40,12 +41,12 @@ degli sviluppatori:
    :maxdepth: 1
 
    changes
-   submitting-drivers
    stable-api-nonsense
    management-style
    stable-kernel-rules
    submit-checklist
    kernel-docs
+   maintainers
 
 Ed infine, qui ci sono alcune guide più tecniche che son state messe qua solo
 perché non si è trovato un posto migliore.
@@ -58,6 +59,7 @@ perché non si è trovato un posto migliore.
    magic-number
    volatile-considered-harmful
    clang-format
+   ../riscv/patch-acceptance
 
 .. only::  subproject and html
 

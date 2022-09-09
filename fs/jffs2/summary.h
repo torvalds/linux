@@ -61,7 +61,7 @@ struct jffs2_sum_dirent_flash
 	jint32_t ino; 		/* == zero for unlink */
 	uint8_t nsize;		/* dirent name size */
 	uint8_t type;		/* dirent type */
-	uint8_t name[0];	/* dirent name */
+	uint8_t name[];	/* dirent name */
 } __attribute__((packed));
 
 struct jffs2_sum_xattr_flash
@@ -117,7 +117,7 @@ struct jffs2_sum_dirent_mem
 	jint32_t ino; 		/* == zero for unlink */
 	uint8_t nsize;		/* dirent name size */
 	uint8_t type;		/* dirent type */
-	uint8_t name[0];	/* dirent name */
+	uint8_t name[];	/* dirent name */
 } __attribute__((packed));
 
 struct jffs2_sum_xattr_mem
@@ -194,18 +194,18 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 
 #define jffs2_sum_active() (0)
 #define jffs2_sum_init(a) (0)
-#define jffs2_sum_exit(a)
+#define jffs2_sum_exit(a) do { } while (0)
 #define jffs2_sum_disable_collecting(a)
 #define jffs2_sum_is_disabled(a) (0)
-#define jffs2_sum_reset_collected(a)
+#define jffs2_sum_reset_collected(a) do { } while (0)
 #define jffs2_sum_add_kvec(a,b,c,d) (0)
-#define jffs2_sum_move_collected(a,b)
+#define jffs2_sum_move_collected(a,b) do { } while (0)
 #define jffs2_sum_write_sumnode(a) (0)
-#define jffs2_sum_add_padding_mem(a,b)
-#define jffs2_sum_add_inode_mem(a,b,c)
-#define jffs2_sum_add_dirent_mem(a,b,c)
-#define jffs2_sum_add_xattr_mem(a,b,c)
-#define jffs2_sum_add_xref_mem(a,b,c)
+#define jffs2_sum_add_padding_mem(a,b) do { } while (0)
+#define jffs2_sum_add_inode_mem(a,b,c) do { } while (0)
+#define jffs2_sum_add_dirent_mem(a,b,c) do { } while (0)
+#define jffs2_sum_add_xattr_mem(a,b,c) do { } while (0)
+#define jffs2_sum_add_xref_mem(a,b,c) do { } while (0)
 #define jffs2_sum_scan_sumnode(a,b,c,d,e) (0)
 
 #endif /* CONFIG_JFFS2_SUMMARY */

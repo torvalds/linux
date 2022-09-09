@@ -27,6 +27,8 @@
 #include <linux/stmmac.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
+#include <linux/sys_soc.h>
+#include <linux/bitfield.h>
 
 #include "stmmac_platform.h"
 
@@ -64,6 +66,17 @@
 #define NSS_COMMON_CLK_DIV_SGMII_100		4
 #define NSS_COMMON_CLK_DIV_SGMII_10		49
 
+#define QSGMII_PCS_ALL_CH_CTL			0x80
+#define QSGMII_PCS_CH_SPEED_FORCE		BIT(1)
+#define QSGMII_PCS_CH_SPEED_10			0x0
+#define QSGMII_PCS_CH_SPEED_100			BIT(2)
+#define QSGMII_PCS_CH_SPEED_1000		BIT(3)
+#define QSGMII_PCS_CH_SPEED_MASK		(QSGMII_PCS_CH_SPEED_FORCE | \
+						 QSGMII_PCS_CH_SPEED_10 | \
+						 QSGMII_PCS_CH_SPEED_100 | \
+						 QSGMII_PCS_CH_SPEED_1000)
+#define QSGMII_PCS_CH_SPEED_SHIFT(x)		((x) * 4)
+
 #define QSGMII_PCS_CAL_LCKDT_CTL		0x120
 #define QSGMII_PCS_CAL_LCKDT_CTL_RST		BIT(19)
 
@@ -75,11 +88,20 @@
 #define QSGMII_PHY_RX_SIGNAL_DETECT_EN		BIT(2)
 #define QSGMII_PHY_TX_DRIVER_EN			BIT(3)
 #define QSGMII_PHY_QSGMII_EN			BIT(7)
-#define QSGMII_PHY_PHASE_LOOP_GAIN_OFFSET	12
-#define QSGMII_PHY_RX_DC_BIAS_OFFSET		18
-#define QSGMII_PHY_RX_INPUT_EQU_OFFSET		20
-#define QSGMII_PHY_CDR_PI_SLEW_OFFSET		22
-#define QSGMII_PHY_TX_DRV_AMP_OFFSET		28
+#define QSGMII_PHY_DEEMPHASIS_LVL_MASK		GENMASK(11, 10)
+#define QSGMII_PHY_DEEMPHASIS_LVL(x)		FIELD_PREP(QSGMII_PHY_DEEMPHASIS_LVL_MASK, (x))
+#define QSGMII_PHY_PHASE_LOOP_GAIN_MASK		GENMASK(14, 12)
+#define QSGMII_PHY_PHASE_LOOP_GAIN(x)		FIELD_PREP(QSGMII_PHY_PHASE_LOOP_GAIN_MASK, (x))
+#define QSGMII_PHY_RX_DC_BIAS_MASK		GENMASK(19, 18)
+#define QSGMII_PHY_RX_DC_BIAS(x)		FIELD_PREP(QSGMII_PHY_RX_DC_BIAS_MASK, (x))
+#define QSGMII_PHY_RX_INPUT_EQU_MASK		GENMASK(21, 20)
+#define QSGMII_PHY_RX_INPUT_EQU(x)		FIELD_PREP(QSGMII_PHY_RX_INPUT_EQU_MASK, (x))
+#define QSGMII_PHY_CDR_PI_SLEW_MASK		GENMASK(23, 22)
+#define QSGMII_PHY_CDR_PI_SLEW(x)		FIELD_PREP(QSGMII_PHY_CDR_PI_SLEW_MASK, (x))
+#define QSGMII_PHY_TX_SLEW_MASK			GENMASK(27, 26)
+#define QSGMII_PHY_TX_SLEW(x)			FIELD_PREP(QSGMII_PHY_TX_SLEW_MASK, (x))
+#define QSGMII_PHY_TX_DRV_AMP_MASK		GENMASK(31, 28)
+#define QSGMII_PHY_TX_DRV_AMP(x)		FIELD_PREP(QSGMII_PHY_TX_DRV_AMP_MASK, (x))
 
 struct ipq806x_gmac {
 	struct platform_device *pdev;
@@ -189,9 +211,10 @@ static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
 static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 {
 	struct device *dev = &gmac->pdev->dev;
+	int ret;
 
-	gmac->phy_mode = of_get_phy_mode(dev->of_node);
-	if (gmac->phy_mode < 0) {
+	ret = of_get_phy_mode(dev->of_node, &gmac->phy_mode);
+	if (ret) {
 		dev_err(dev, "missing phy mode property\n");
 		return -EINVAL;
 	}
@@ -241,6 +264,113 @@ static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed)
 	ipq806x_gmac_set_speed(gmac, speed);
 }
 
+static int
+ipq806x_gmac_configure_qsgmii_pcs_speed(struct ipq806x_gmac *gmac)
+{
+	struct platform_device *pdev = gmac->pdev;
+	struct device *dev = &pdev->dev;
+	struct device_node *dn;
+	int link_speed;
+	int val = 0;
+	int ret;
+
+	/* Some bootloader may apply wrong configuration and cause
+	 * not functioning port. If fixed link is not set,
+	 * reset the force speed bit.
+	 */
+	if (!of_phy_is_fixed_link(pdev->dev.of_node))
+		goto write;
+
+	dn = of_get_child_by_name(pdev->dev.of_node, "fixed-link");
+	ret = of_property_read_u32(dn, "speed", &link_speed);
+	of_node_put(dn);
+	if (ret) {
+		dev_err(dev, "found fixed-link node with no speed");
+		return ret;
+	}
+
+	val = QSGMII_PCS_CH_SPEED_FORCE;
+
+	switch (link_speed) {
+	case SPEED_1000:
+		val |= QSGMII_PCS_CH_SPEED_1000;
+		break;
+	case SPEED_100:
+		val |= QSGMII_PCS_CH_SPEED_100;
+		break;
+	case SPEED_10:
+		val |= QSGMII_PCS_CH_SPEED_10;
+		break;
+	}
+
+write:
+	regmap_update_bits(gmac->qsgmii_csr, QSGMII_PCS_ALL_CH_CTL,
+			   QSGMII_PCS_CH_SPEED_MASK <<
+			   QSGMII_PCS_CH_SPEED_SHIFT(gmac->id),
+			   val <<
+			   QSGMII_PCS_CH_SPEED_SHIFT(gmac->id));
+
+	return 0;
+}
+
+static const struct soc_device_attribute ipq806x_gmac_soc_v1[] = {
+	{
+		.revision = "1.*",
+	},
+	{
+		/* sentinel */
+	}
+};
+
+static int
+ipq806x_gmac_configure_qsgmii_params(struct ipq806x_gmac *gmac)
+{
+	struct platform_device *pdev = gmac->pdev;
+	const struct soc_device_attribute *soc;
+	struct device *dev = &pdev->dev;
+	u32 qsgmii_param;
+
+	switch (gmac->id) {
+	case 1:
+		soc = soc_device_match(ipq806x_gmac_soc_v1);
+
+		if (soc)
+			qsgmii_param = QSGMII_PHY_TX_DRV_AMP(0xc) |
+				       QSGMII_PHY_TX_SLEW(0x2) |
+				       QSGMII_PHY_DEEMPHASIS_LVL(0x2);
+		else
+			qsgmii_param = QSGMII_PHY_TX_DRV_AMP(0xd) |
+				       QSGMII_PHY_TX_SLEW(0x0) |
+				       QSGMII_PHY_DEEMPHASIS_LVL(0x0);
+
+		qsgmii_param |= QSGMII_PHY_RX_DC_BIAS(0x2);
+		break;
+	case 2:
+	case 3:
+		qsgmii_param = QSGMII_PHY_RX_DC_BIAS(0x3) |
+			       QSGMII_PHY_TX_DRV_AMP(0xc);
+		break;
+	default: /* gmac 0 can't be set in SGMII mode */
+		dev_err(dev, "gmac id %d can't be in SGMII mode", gmac->id);
+		return -EINVAL;
+	}
+
+	/* Common params across all gmac id */
+	qsgmii_param |= QSGMII_PHY_CDR_EN |
+			QSGMII_PHY_RX_FRONT_EN |
+			QSGMII_PHY_RX_SIGNAL_DETECT_EN |
+			QSGMII_PHY_TX_DRIVER_EN |
+			QSGMII_PHY_QSGMII_EN |
+			QSGMII_PHY_PHASE_LOOP_GAIN(0x4) |
+			QSGMII_PHY_RX_INPUT_EQU(0x1) |
+			QSGMII_PHY_CDR_PI_SLEW(0x2);
+
+	regmap_write(gmac->qsgmii_csr, QSGMII_PHY_SGMII_CTL(gmac->id),
+		     qsgmii_param);
+
+	return 0;
+}
+
 static int ipq806x_gmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -254,7 +384,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	if (val)
 		return val;
 
-	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	plat_dat = stmmac_probe_config_dt(pdev, stmmac_res.mac);
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
@@ -288,10 +418,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 		val &= ~NSS_COMMON_GMAC_CTL_PHY_IFACE_SEL;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unsupported PHY mode: \"%s\"\n",
-			phy_modes(gmac->phy_mode));
-		err = -EINVAL;
-		goto err_remove_config_dt;
+		goto err_unsupported_phy;
 	}
 	regmap_write(gmac->nss_common, NSS_COMMON_GMAC_CTL(gmac->id), val);
 
@@ -308,41 +435,54 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 			NSS_COMMON_CLK_SRC_CTRL_OFFSET(gmac->id);
 		break;
 	default:
-		dev_err(&pdev->dev, "Unsupported PHY mode: \"%s\"\n",
-			phy_modes(gmac->phy_mode));
-		err = -EINVAL;
-		goto err_remove_config_dt;
+		goto err_unsupported_phy;
 	}
 	regmap_write(gmac->nss_common, NSS_COMMON_CLK_SRC_CTRL, val);
 
 	/* Enable PTP clock */
 	regmap_read(gmac->nss_common, NSS_COMMON_CLK_GATE, &val);
 	val |= NSS_COMMON_CLK_GATE_PTP_EN(gmac->id);
+	switch (gmac->phy_mode) {
+	case PHY_INTERFACE_MODE_RGMII:
+		val |= NSS_COMMON_CLK_GATE_RGMII_RX_EN(gmac->id) |
+			NSS_COMMON_CLK_GATE_RGMII_TX_EN(gmac->id);
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
+		val |= NSS_COMMON_CLK_GATE_GMII_RX_EN(gmac->id) |
+				NSS_COMMON_CLK_GATE_GMII_TX_EN(gmac->id);
+		break;
+	default:
+		goto err_unsupported_phy;
+	}
 	regmap_write(gmac->nss_common, NSS_COMMON_CLK_GATE, val);
 
 	if (gmac->phy_mode == PHY_INTERFACE_MODE_SGMII) {
-		regmap_write(gmac->qsgmii_csr, QSGMII_PHY_SGMII_CTL(gmac->id),
-			     QSGMII_PHY_CDR_EN |
-			     QSGMII_PHY_RX_FRONT_EN |
-			     QSGMII_PHY_RX_SIGNAL_DETECT_EN |
-			     QSGMII_PHY_TX_DRIVER_EN |
-			     QSGMII_PHY_QSGMII_EN |
-			     0x4ul << QSGMII_PHY_PHASE_LOOP_GAIN_OFFSET |
-			     0x3ul << QSGMII_PHY_RX_DC_BIAS_OFFSET |
-			     0x1ul << QSGMII_PHY_RX_INPUT_EQU_OFFSET |
-			     0x2ul << QSGMII_PHY_CDR_PI_SLEW_OFFSET |
-			     0xCul << QSGMII_PHY_TX_DRV_AMP_OFFSET);
+		err = ipq806x_gmac_configure_qsgmii_params(gmac);
+		if (err)
+			goto err_remove_config_dt;
+
+		err = ipq806x_gmac_configure_qsgmii_pcs_speed(gmac);
+		if (err)
+			goto err_remove_config_dt;
 	}
 
 	plat_dat->has_gmac = true;
 	plat_dat->bsp_priv = gmac;
 	plat_dat->fix_mac_speed = ipq806x_gmac_fix_mac_speed;
+	plat_dat->multicast_filter_bins = 0;
+	plat_dat->tx_fifo_size = 8192;
+	plat_dat->rx_fifo_size = 8192;
 
 	err = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (err)
 		goto err_remove_config_dt;
 
 	return 0;
+
+err_unsupported_phy:
+	dev_err(&pdev->dev, "Unsupported PHY mode: \"%s\"\n",
+		phy_modes(gmac->phy_mode));
+	err = -EINVAL;
 
 err_remove_config_dt:
 	stmmac_remove_config_dt(pdev, plat_dat);

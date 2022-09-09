@@ -3,9 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * This file contains NUMA specific variables and functions which can
- * be split away from DISCONTIGMEM and are used on NUMA machines with
- * contiguous memory.
+ * This file contains NUMA specific variables and functions which are used on
+ * NUMA machines with contiguous memory.
  * 		2002/08/07 Erich Focht <efocht@ess.nec.de>
  * Populate cpu entries in sysfs for non-numa systems as well
  *  	Intel Corporation - Ashok Raj
@@ -42,7 +41,6 @@ EXPORT_SYMBOL_GPL(arch_fix_phys_package_id);
 #ifdef CONFIG_HOTPLUG_CPU
 int __ref arch_register_cpu(int num)
 {
-#ifdef CONFIG_ACPI
 	/*
 	 * If CPEI can be re-targeted or if this is not
 	 * CPEI target, then it is hotpluggable
@@ -50,7 +48,6 @@ int __ref arch_register_cpu(int num)
 	if (can_cpei_retarget() || !is_cpu_cpei_target(num))
 		sysfs_cpus[num].cpu.hotpluggable = 1;
 	map_cpu_to_node(num, node_cpuid[num].nid);
-#endif
 	return register_cpu(&sysfs_cpus[num].cpu, num);
 }
 EXPORT_SYMBOL(arch_register_cpu);
@@ -58,9 +55,7 @@ EXPORT_SYMBOL(arch_register_cpu);
 void __ref arch_unregister_cpu(int num)
 {
 	unregister_cpu(&sysfs_cpus[num].cpu);
-#ifdef CONFIG_ACPI
 	unmap_cpu_from_node(num, cpu_to_node(num));
-#endif
 }
 EXPORT_SYMBOL(arch_unregister_cpu);
 #else
@@ -74,16 +69,6 @@ static int __init arch_register_cpu(int num)
 static int __init topology_init(void)
 {
 	int i, err = 0;
-
-#ifdef CONFIG_NUMA
-	/*
-	 * MCD - Do we want to register all ONLINE nodes, or all POSSIBLE nodes?
-	 */
-	for_each_online_node(i) {
-		if ((err = register_one_node(i)))
-			goto out;
-	}
-#endif
 
 	sysfs_cpus = kcalloc(NR_CPUS, sizeof(struct ia64_cpu), GFP_KERNEL);
 	if (!sysfs_cpus)
@@ -269,6 +254,7 @@ static struct attribute * cache_default_attrs[] = {
 	&shared_cpu_map.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cache_default);
 
 #define to_object(k) container_of(k, struct cache_info, kobj)
 #define to_attr(a) container_of(a, struct cache_attr, attr)
@@ -289,7 +275,7 @@ static const struct sysfs_ops cache_sysfs_ops = {
 
 static struct kobj_type cache_ktype = {
 	.sysfs_ops	= &cache_sysfs_ops,
-	.default_attrs	= cache_default_attrs,
+	.default_groups	= cache_default_groups,
 };
 
 static struct kobj_type cache_ktype_percpu_entry = {

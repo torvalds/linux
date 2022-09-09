@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/arm/ti/davinci.yaml#
+$id: http://devicetree.org/schemas/arm/ti/ti,davinci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Texas Instruments DaVinci Platforms Device Tree Bindings
@@ -23,4 +23,7 @@ properties:
           - enbw,cmc        # EnBW AM1808 based CMC board
           - lego,ev3        # LEGO MINDSTORMS EV3 (AM1808 based)
       - const: ti,da850
+
+additionalProperties: true
+
 ...

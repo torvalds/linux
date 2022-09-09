@@ -243,10 +243,6 @@ DECLARE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
 
 extern void print_cpu_info (struct cpuinfo_ia64 *);
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 #define SET_UNALIGN_CTL(task,value)								\
 ({												\
 	(task)->thread.flags = (((task)->thread.flags & ~IA64_THREAD_UAC_MASK)			\
@@ -280,15 +276,6 @@ struct thread_struct {
 	__u64 map_base;			/* base address for get_unmapped_area() */
 	__u64 rbs_bot;			/* the base address for the RBS */
 	int last_fph_cpu;		/* CPU that may hold the contents of f32-f127 */
-
-#ifdef CONFIG_PERFMON
-	void *pfm_context;		     /* pointer to detailed PMU context */
-	unsigned long pfm_needs_checking;    /* when >0, pending perfmon work on kernel exit */
-# define INIT_THREAD_PM		.pfm_context =		NULL,     \
-				.pfm_needs_checking =	0UL,
-#else
-# define INIT_THREAD_PM
-#endif
 	unsigned long dbr[IA64_NUM_DBG_REGS];
 	unsigned long ibr[IA64_NUM_DBG_REGS];
 	struct ia64_fpreg fph[96];	/* saved/loaded on demand */
@@ -301,7 +288,6 @@ struct thread_struct {
 	.map_base =	DEFAULT_MAP_BASE,			\
 	.rbs_bot =	STACK_TOP - DEFAULT_USER_STACK_SIZE,	\
 	.last_fph_cpu =  -1,					\
-	INIT_THREAD_PM						\
 	.dbr =		{0, },					\
 	.ibr =		{0, },					\
 	.fph =		{{{{0}}}, }				\
@@ -340,7 +326,7 @@ struct task_struct;
 #define release_thread(dead_task)
 
 /* Get wait channel for task P.  */
-extern unsigned long get_wchan (struct task_struct *p);
+extern unsigned long __get_wchan (struct task_struct *p);
 
 /* Return instruction pointer of blocked task TSK.  */
 #define KSTK_EIP(tsk)					\
@@ -552,7 +538,7 @@ ia64_get_irr(unsigned int vector)
 {
 	unsigned int reg = vector / 64;
 	unsigned int bit = vector % 64;
-	u64 irr;
+	unsigned long irr;
 
 	switch (reg) {
 	case 0: irr = ia64_getreg(_IA64_REG_CR_IRR0); break;
@@ -678,8 +664,6 @@ enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_FORCE_MWAIT,
 			 IDLE_NOMWAIT, IDLE_POLL};
 
 void default_idle(void);
-
-#define ia64_platform_is(x) (strcmp(x, ia64_platform_name) == 0)
 
 #endif /* !__ASSEMBLY__ */
 

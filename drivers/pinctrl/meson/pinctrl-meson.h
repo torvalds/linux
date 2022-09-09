@@ -1,14 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Pin controller and GPIO driver for Amlogic Meson SoCs
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/gpio/driver.h>
@@ -16,6 +10,9 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
+#include <linux/module.h>
+
+struct meson_pinctrl;
 
 /**
  * struct meson_pmx_group - a pinmux group
@@ -66,12 +63,23 @@ struct meson_reg_desc {
  * enum meson_reg_type - type of registers encoded in @meson_reg_desc
  */
 enum meson_reg_type {
-	REG_PULLEN,
-	REG_PULL,
-	REG_DIR,
-	REG_OUT,
-	REG_IN,
-	NUM_REG,
+	MESON_REG_PULLEN,
+	MESON_REG_PULL,
+	MESON_REG_DIR,
+	MESON_REG_OUT,
+	MESON_REG_IN,
+	MESON_REG_DS,
+	MESON_NUM_REG,
+};
+
+/**
+ * enum meson_pinconf_drv - value of drive-strength supported
+ */
+enum meson_pinconf_drv {
+	MESON_PINCONF_DRV_500UA,
+	MESON_PINCONF_DRV_2500UA,
+	MESON_PINCONF_DRV_3000UA,
+	MESON_PINCONF_DRV_4000UA,
 };
 
 /**
@@ -94,7 +102,7 @@ struct meson_bank {
 	unsigned int last;
 	int irq_first;
 	int irq_last;
-	struct meson_reg_desc regs[NUM_REG];
+	struct meson_reg_desc regs[MESON_NUM_REG];
 };
 
 struct meson_pinctrl_data {
@@ -109,6 +117,7 @@ struct meson_pinctrl_data {
 	unsigned int num_banks;
 	const struct pinmux_ops *pmx_ops;
 	void *pmx_data;
+	int (*parse_dt)(struct meson_pinctrl *pc);
 };
 
 struct meson_pinctrl {
@@ -120,6 +129,7 @@ struct meson_pinctrl {
 	struct regmap *reg_pullen;
 	struct regmap *reg_pull;
 	struct regmap *reg_gpio;
+	struct regmap *reg_ds;
 	struct gpio_chip chip;
 	struct device_node *of_node;
 };
@@ -131,7 +141,8 @@ struct meson_pinctrl {
 		.num_groups = ARRAY_SIZE(fn ## _groups),		\
 	}
 
-#define BANK(n, f, l, fi, li, per, peb, pr, pb, dr, db, or, ob, ir, ib)	\
+#define BANK_DS(n, f, l, fi, li, per, peb, pr, pb, dr, db, or, ob, ir, ib,     \
+		dsr, dsb)                                                      \
 	{								\
 		.name		= n,					\
 		.first		= f,					\
@@ -139,13 +150,17 @@ struct meson_pinctrl {
 		.irq_first	= fi,					\
 		.irq_last	= li,					\
 		.regs = {						\
-			[REG_PULLEN]	= { per, peb },			\
-			[REG_PULL]	= { pr, pb },			\
-			[REG_DIR]	= { dr, db },			\
-			[REG_OUT]	= { or, ob },			\
-			[REG_IN]	= { ir, ib },			\
+			[MESON_REG_PULLEN]	= { per, peb },		\
+			[MESON_REG_PULL]	= { pr, pb },		\
+			[MESON_REG_DIR]		= { dr, db },		\
+			[MESON_REG_OUT]		= { or, ob },		\
+			[MESON_REG_IN]		= { ir, ib },		\
+			[MESON_REG_DS]		= { dsr, dsb },		\
 		},							\
 	 }
+
+#define BANK(n, f, l, fi, li, per, peb, pr, pb, dr, db, or, ob, ir, ib) \
+	BANK_DS(n, f, l, fi, li, per, peb, pr, pb, dr, db, or, ob, ir, ib, 0, 0)
 
 #define MESON_PIN(x) PINCTRL_PIN(x, #x)
 
@@ -160,3 +175,7 @@ int meson_pmx_get_groups(struct pinctrl_dev *pcdev,
 
 /* Common probe function */
 int meson_pinctrl_probe(struct platform_device *pdev);
+/* Common ao groups extra dt parse function for SoCs before g12a  */
+int meson8_aobus_parse_dt_extra(struct meson_pinctrl *pc);
+/* Common extra dt parse function for SoCs like A1  */
+int meson_a1_parse_dt_extra(struct meson_pinctrl *pc);

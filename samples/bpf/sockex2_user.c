@@ -3,11 +3,10 @@
 #include <assert.h>
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
+#include <bpf/libbpf.h>
 #include "sock_example.h"
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/resource.h>
 
 struct pair {
 	__u64 packets;
@@ -16,33 +15,42 @@ struct pair {
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_program *prog;
+	struct bpf_object *obj;
+	int map_fd, prog_fd;
 	char filename[256];
+	int i, sock, err;
 	FILE *f;
-	int i, sock;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	setrlimit(RLIMIT_MEMLOCK, &r);
-
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return 1;
-	}
+
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_SOCKET_FILTER);
+
+	err = bpf_object__load(obj);
+	if (err)
+		return 1;
+
+	prog_fd = bpf_program__fd(prog);
+	map_fd = bpf_object__find_map_fd_by_name(obj, "hash_map");
 
 	sock = open_raw_sock("lo");
 
-	assert(setsockopt(sock, SOL_SOCKET, SO_ATTACH_BPF, prog_fd,
-			  sizeof(prog_fd[0])) == 0);
+	assert(setsockopt(sock, SOL_SOCKET, SO_ATTACH_BPF, &prog_fd,
+			  sizeof(prog_fd)) == 0);
 
-	f = popen("ping -c5 localhost", "r");
+	f = popen("ping -4 -c5 localhost", "r");
 	(void) f;
 
 	for (i = 0; i < 5; i++) {
 		int key = 0, next_key;
 		struct pair value;
 
-		while (bpf_map_get_next_key(map_fd[0], &key, &next_key) == 0) {
-			bpf_map_lookup_elem(map_fd[0], &next_key, &value);
+		while (bpf_map_get_next_key(map_fd, &key, &next_key) == 0) {
+			bpf_map_lookup_elem(map_fd, &next_key, &value);
 			printf("ip %s bytes %lld packets %lld\n",
 			       inet_ntoa((struct in_addr){htonl(next_key)}),
 			       value.bytes, value.packets);

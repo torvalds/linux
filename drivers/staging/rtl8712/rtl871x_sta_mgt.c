@@ -25,7 +25,7 @@
 static void _init_stainfo(struct sta_info *psta)
 {
 	memset((u8 *)psta, 0, sizeof(struct sta_info));
-	 spin_lock_init(&psta->lock);
+	spin_lock_init(&psta->lock);
 	INIT_LIST_HEAD(&psta->list);
 	INIT_LIST_HEAD(&psta->hash_list);
 	_r8712_init_sta_xmit_priv(&psta->sta_xmitpriv);
@@ -34,7 +34,7 @@ static void _init_stainfo(struct sta_info *psta)
 	INIT_LIST_HEAD(&psta->auth_list);
 }
 
-u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
+int _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 {
 	struct sta_info *psta;
 	s32 i;
@@ -42,7 +42,7 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	pstapriv->pallocated_stainfo_buf = kmalloc(sizeof(struct sta_info) *
 						   NUM_STA + 4, GFP_ATOMIC);
 	if (!pstapriv->pallocated_stainfo_buf)
-		return _FAIL;
+		return -ENOMEM;
 	pstapriv->pstainfo_buf = pstapriv->pallocated_stainfo_buf + 4 -
 		((addr_t)(pstapriv->pallocated_stainfo_buf) & 3);
 	_init_queue(&pstapriv->free_sta_queue);
@@ -59,7 +59,7 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	}
 	INIT_LIST_HEAD(&pstapriv->asoc_list);
 	INIT_LIST_HEAD(&pstapriv->auth_list);
-	return _SUCCESS;
+	return 0;
 }
 
 /* this function is used to free the memory of lock || sema for all stainfos */
@@ -77,14 +77,13 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
 }
 
-u32 _r8712_free_sta_priv(struct sta_priv *pstapriv)
+void _r8712_free_sta_priv(struct sta_priv *pstapriv)
 {
 	if (pstapriv) {
 		/* be done before free sta_hash_lock */
 		mfree_all_stainfo(pstapriv);
 		kfree(pstapriv->pallocated_stainfo_buf);
 	}
-	return _SUCCESS;
 }
 
 struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
@@ -150,7 +149,7 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	struct	xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 
-	if (psta == NULL)
+	if (!psta)
 		return;
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 	pstaxmitpriv = &psta->sta_xmitpriv;
@@ -223,7 +222,7 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	struct sta_info *psta = NULL;
 	u32	index;
 
-	if (hwaddr == NULL)
+	if (!hwaddr)
 		return NULL;
 	index = wifi_mac_hash(hwaddr);
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
@@ -257,7 +256,6 @@ struct sta_info *r8712_get_bcmc_stainfo(struct _adapter *padapter)
 
 	return r8712_get_stainfo(pstapriv, bc_addr);
 }
-
 
 u8 r8712_access_ctrl(struct wlan_acl_pool *pacl_list, u8 *mac_addr)
 {

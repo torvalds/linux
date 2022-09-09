@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Tegra host1x Interrupt Management
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __HOST1X_INTR_H
@@ -43,6 +32,8 @@ enum host1x_intr_action {
 	 * 'data' points to a wait_queue_head_t
 	 */
 	HOST1X_INTR_ACTION_WAKEUP_INTERRUPTIBLE,
+
+	HOST1X_INTR_ACTION_SIGNAL_FENCE,
 
 	HOST1X_INTR_ACTION_COUNT
 };
@@ -85,8 +76,10 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
  * Unreference an action submitted to host1x_intr_add_action().
  * You must call this if you passed non-NULL as ref.
  * @ref the ref returned from host1x_intr_add_action()
+ * @flush wait until any pending handlers have completed before returning.
  */
-void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref);
+void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref,
+			 bool flush);
 
 /* Initialize host1x sync point interrupt */
 int host1x_intr_init(struct host1x *host, unsigned int irq_sync);

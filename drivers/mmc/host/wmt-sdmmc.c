@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  WM8505/WM8650 SD/MMC Host Controller
  *
  *  Copyright (C) 2010 Tony Prisk
  *  Copyright (C) 2008 WonderMedia Technologies, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation
  */
 
 #include <linux/init.h>
@@ -19,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 
 #include <linux/of.h>
@@ -755,18 +751,15 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *of_id =
-		of_match_device(wmt_mci_dt_ids, &pdev->dev);
 	const struct wmt_mci_caps *wmt_caps;
 	int ret;
 	int regular_irq, dma_irq;
 
-	if (!of_id || !of_id->data) {
+	wmt_caps = of_device_get_match_data(&pdev->dev);
+	if (!wmt_caps) {
 		dev_err(&pdev->dev, "Controller capabilities data missing\n");
 		return -EFAULT;
 	}
-
-	wmt_caps = of_id->data;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing SDMMC description in devicetree\n");
@@ -994,6 +987,7 @@ static struct platform_driver wmt_mci_driver = {
 	.remove = wmt_mci_remove,
 	.driver = {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = wmt_mci_pm_ops,
 		.of_match_table = wmt_mci_dt_ids,
 	},

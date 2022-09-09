@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2013 Emilio López
  *
  * Emilio López <emilio@elopez.com.ar>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/reset-controller.h>
@@ -31,7 +23,7 @@ static DEFINE_SPINLOCK(clk_lock);
 /* Maximum number of parents our clocks have */
 #define SUNXI_MAX_PARENTS	5
 
-/**
+/*
  * sun4i_get_pll1_factors() - calculates n, k, m, p factors for PLL1
  * PLL1 rate is calculated as follows
  * rate = (parent_rate * n * (k + 1) >> p) / (m + 1);
@@ -79,7 +71,7 @@ static void sun4i_get_pll1_factors(struct factors_request *req)
 	req->n = div / 4;
 }
 
-/**
+/*
  * sun6i_a31_get_pll1_factors() - calculates n, k and m factors for PLL1
  * PLL1 rate is calculated as follows
  * rate = parent_rate * (n + 1) * (k + 1) / (m + 1);
@@ -98,7 +90,7 @@ static void sun6i_a31_get_pll1_factors(struct factors_request *req)
 	 * Round down the frequency to the closest multiple of either
 	 * 6 or 16
 	 */
-	u32 round_freq_6 = round_down(freq_mhz, 6);
+	u32 round_freq_6 = rounddown(freq_mhz, 6);
 	u32 round_freq_16 = round_down(freq_mhz, 16);
 
 	if (round_freq_6 > round_freq_16)
@@ -155,7 +147,7 @@ static void sun6i_a31_get_pll1_factors(struct factors_request *req)
 	}
 }
 
-/**
+/*
  * sun8i_a23_get_pll1_factors() - calculates n, k, m, p factors for PLL1
  * PLL1 rate is calculated as follows
  * rate = (parent_rate * (n + 1) * (k + 1) >> p) / (m + 1);
@@ -199,7 +191,7 @@ static void sun8i_a23_get_pll1_factors(struct factors_request *req)
 	req->n = div / 4 - 1;
 }
 
-/**
+/*
  * sun4i_get_pll5_factors() - calculates n, k factors for PLL5
  * PLL5 rate is calculated as follows
  * rate = parent_rate * n * (k + 1)
@@ -226,7 +218,7 @@ static void sun4i_get_pll5_factors(struct factors_request *req)
 	req->n = DIV_ROUND_UP(div, (req->k + 1));
 }
 
-/**
+/*
  * sun6i_a31_get_pll6_factors() - calculates n, k factors for A31 PLL6x2
  * PLL6x2 rate is calculated as follows
  * rate = parent_rate * (n + 1) * (k + 1)
@@ -248,7 +240,7 @@ static void sun6i_a31_get_pll6_factors(struct factors_request *req)
 	req->n = DIV_ROUND_UP(div, (req->k + 1)) - 1;
 }
 
-/**
+/*
  * sun5i_a13_get_ahb_factors() - calculates m, p factors for AHB
  * AHB rate is calculated as follows
  * rate = parent_rate >> p
@@ -284,7 +276,7 @@ static void sun5i_a13_get_ahb_factors(struct factors_request *req)
 
 #define SUN6I_AHB1_PARENT_PLL6	3
 
-/**
+/*
  * sun6i_a31_get_ahb_factors() - calculates m, p factors for AHB
  * AHB rate is calculated as follows
  * rate = parent_rate >> p
@@ -328,7 +320,7 @@ static void sun6i_get_ahb1_factors(struct factors_request *req)
 	req->m = calcm - 1;
 }
 
-/**
+/*
  * sun6i_ahb1_recalc() - calculates AHB clock rate from m, p factors and
  *			 parent index
  */
@@ -344,7 +336,7 @@ static void sun6i_ahb1_recalc(struct factors_request *req)
 	req->rate >>= req->p;
 }
 
-/**
+/*
  * sun4i_get_apb1_factors() - calculates m, p factors for APB1
  * APB1 rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
@@ -383,7 +375,7 @@ static void sun4i_get_apb1_factors(struct factors_request *req)
 
 
 
-/**
+/*
  * sun7i_a20_get_out_factors() - calculates m, p factors for CLK_OUT_A/B
  * CLK_OUT rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
@@ -416,7 +408,7 @@ static void sun7i_a20_get_out_factors(struct factors_request *req)
 	req->p = calcp;
 }
 
-/**
+/*
  * sunxi_factors_clk_setup() - Setup function for factor clocks
  */
 
@@ -633,7 +625,7 @@ CLK_OF_DECLARE(sun7i_out, "allwinner,sun7i-a20-out-clk",
 	       sun7i_out_clk_setup);
 
 
-/**
+/*
  * sunxi_mux_clk_setup() - Setup function for muxes
  */
 
@@ -725,7 +717,7 @@ CLK_OF_DECLARE(sun8i_ahb2, "allwinner,sun8i-h3-ahb2-clk",
 	       sun8i_ahb2_clk_setup);
 
 
-/**
+/*
  * sunxi_divider_clk_setup() - Setup function for simple divider clocks
  */
 
@@ -861,7 +853,7 @@ CLK_OF_DECLARE(sun8i_axi, "allwinner,sun8i-a23-axi-clk",
 
 
 
-/**
+/*
  * sunxi_gates_clk_setup() - Setup function for leaf gates on clocks
  */
 
@@ -871,7 +863,7 @@ struct gates_data {
 	DECLARE_BITMAP(mask, SUNXI_GATES_MAX_SIZE);
 };
 
-/**
+/*
  * sunxi_divs_clk_setup() helper data
  */
 
@@ -937,7 +929,7 @@ static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
 	}
 };
 
-/**
+/*
  * sunxi_divs_clk_setup() - Setup function for leaf divisors on clocks
  *
  * These clocks look something like this
@@ -988,6 +980,8 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 		if (endp) {
 			derived_name = kstrndup(clk_name, endp - clk_name,
 						GFP_KERNEL);
+			if (!derived_name)
+				return NULL;
 			factors.name = derived_name;
 		} else {
 			factors.name = clk_name;
@@ -1086,8 +1080,8 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 						 rate_hw, rate_ops,
 						 gate_hw, &clk_gate_ops,
 						 clkflags |
-						 data->div[i].critical ?
-							CLK_IS_CRITICAL : 0);
+						 (data->div[i].critical ?
+							CLK_IS_CRITICAL : 0));
 
 		WARN_ON(IS_ERR(clk_data->clks[i]));
 	}

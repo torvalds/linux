@@ -1,6 +1,6 @@
 What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/a_bus_req
 Date:		Feb 2014
-Contact:	Li Jun <b47624@freescale.com>
+Contact:	Li Jun <jun.li@nxp.com>
 Description:
 		Can be set and read.
 		Set a_bus_req(A-device bus request) input to be 1 if
@@ -17,7 +17,7 @@ Description:
 
 What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/a_bus_drop
 Date:		Feb 2014
-Contact:	Li Jun <b47624@freescale.com>
+Contact:	Li Jun <jun.li@nxp.com>
 Description:
 		Can be set and read
 		The a_bus_drop(A-device bus drop) input is 1 when the
@@ -32,7 +32,7 @@ Description:
 
 What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/b_bus_req
 Date:		Feb 2014
-Contact:	Li Jun <b47624@freescale.com>
+Contact:	Li Jun <jun.li@nxp.com>
 Description:
 		Can be set and read.
 		The b_bus_req(B-device bus request) input is 1 during the time
@@ -47,7 +47,7 @@ Description:
 
 What:		/sys/bus/platform/devices/ci_hdrc.0/inputs/a_clr_err
 Date:		Feb 2014
-Contact:	Li Jun <b47624@freescale.com>
+Contact:	Li Jun <jun.li@nxp.com>
 Description:
 		Only can be set.
 		The a_clr_err(A-device Vbus error clear) input is used to clear

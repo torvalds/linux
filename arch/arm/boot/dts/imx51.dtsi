@@ -48,25 +48,25 @@
 
 	clocks {
 		ckil {
-			compatible = "fsl,imx-ckil", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
 
 		ckih1 {
-			compatible = "fsl,imx-ckih1", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		ckih2 {
-			compatible = "fsl,imx-ckih2", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		osc {
-			compatible = "fsl,imx-osc", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
@@ -104,19 +104,24 @@
 		#phy-cells = <0>;
 	};
 
+	capture-subsystem {
+		compatible = "fsl,imx-capture-subsystem";
+		ports = <&ipu_csi0>, <&ipu_csi1>;
+	};
+
 	display-subsystem {
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&tzic>;
 		ranges;
 
-		iram: iram@1ffe0000 {
+		iram: sram@1ffe0000 {
 			compatible = "mmio-sram";
 			reg = <0x1ffe0000 0x20000>;
 		};
@@ -143,6 +148,14 @@
 			clock-names = "bus", "di0", "di1";
 			resets = <&src 2>;
 
+			ipu_csi0: port@0 {
+				reg = <0>;
+			};
+
+			ipu_csi1: port@1 {
+				reg = <1>;
+			};
+
 			ipu_di0: port@2 {
 				reg = <2>;
 
@@ -158,21 +171,21 @@
 			};
 		};
 
-		aips@70000000 { /* AIPS1 */
+		aips1: bus@70000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x70000000 0x10000000>;
 			ranges;
 
-			spba@70000000 {
+			spba-bus@70000000 {
 				compatible = "fsl,spba-bus", "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0x70000000 0x40000>;
 				ranges;
 
-				esdhc1: esdhc@70004000 {
+				esdhc1: mmc@70004000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70004000 0x4000>;
 					interrupts = <1>;
@@ -183,7 +196,7 @@
 					status = "disabled";
 				};
 
-				esdhc2: esdhc@70008000 {
+				esdhc2: mmc@70008000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70008000 0x4000>;
 					interrupts = <2>;
@@ -202,6 +215,8 @@
 					clocks = <&clks IMX5_CLK_UART3_IPG_GATE>,
 						 <&clks IMX5_CLK_UART3_PER_GATE>;
 					clock-names = "ipg", "per";
+					dmas = <&sdma 43 5 1>, <&sdma 44 5 2>;
+					dma-names = "rx", "tx";
 					status = "disabled";
 				};
 
@@ -232,7 +247,7 @@
 					status = "disabled";
 				};
 
-				esdhc3: esdhc@70020000 {
+				esdhc3: mmc@70020000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70020000 0x4000>;
 					interrupts = <3>;
@@ -244,7 +259,7 @@
 					status = "disabled";
 				};
 
-				esdhc4: esdhc@70024000 {
+				esdhc4: mmc@70024000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70024000 0x4000>;
 					interrupts = <4>;
@@ -357,14 +372,14 @@
 				status = "disabled";
 			};
 
-			wdog1: wdog@73f98000 {
+			wdog1: watchdog@73f98000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f98000 0x4000>;
 				interrupts = <58>;
 				clocks = <&clks IMX5_CLK_DUMMY>;
 			};
 
-			wdog2: wdog@73f9c000 {
+			wdog2: watchdog@73f9c000 {
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f9c000 0x4000>;
 				interrupts = <59>;
@@ -387,7 +402,7 @@
 			};
 
 			pwm1: pwm@73fb4000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx51-pwm", "fsl,imx27-pwm";
 				reg = <0x73fb4000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
@@ -397,7 +412,7 @@
 			};
 
 			pwm2: pwm@73fb8000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx51-pwm", "fsl,imx27-pwm";
 				reg = <0x73fb8000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM2_IPG_GATE>,
@@ -413,6 +428,8 @@
 				clocks = <&clks IMX5_CLK_UART1_IPG_GATE>,
 					 <&clks IMX5_CLK_UART1_PER_GATE>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 18 4 1>, <&sdma 19 4 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -423,12 +440,15 @@
 				clocks = <&clks IMX5_CLK_UART2_IPG_GATE>,
 					 <&clks IMX5_CLK_UART2_PER_GATE>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 16 4 1>, <&sdma 17 4 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
-			src: src@73fd0000 {
+			src: reset-controller@73fd0000 {
 				compatible = "fsl,imx51-src";
 				reg = <0x73fd0000 0x4000>;
+				interrupts = <75>;
 				#reset-cells = <1>;
 			};
 
@@ -440,7 +460,7 @@
 			};
 		};
 
-		aips@80000000 {	/* AIPS2 */
+		aips2: bus@80000000 {	/* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -452,8 +472,8 @@
 				reg = <0x83f00000 0x60>;
 			};
 
-			iim: iim@83f98000 {
-				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
+			iim: efuse@83f98000 {
+				compatible = "fsl,imx51-iim", "fsl,imx27-iim", "syscon";
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
 				clocks = <&clks IMX5_CLK_IIM_GATE>;
@@ -489,7 +509,7 @@
 				reg = <0x83fb0000 0x4000>;
 				interrupts = <6>;
 				clocks = <&clks IMX5_CLK_SDMA_GATE>,
-					 <&clks IMX5_CLK_SDMA_GATE>;
+					 <&clks IMX5_CLK_AHB>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";

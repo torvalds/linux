@@ -22,8 +22,9 @@
  *
  */
 #include <linux/list.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include <linux/firmware.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -59,8 +60,6 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 {
 	CGS_FUNC_ADEV;
 	switch (space) {
-	case CGS_IND_REG__MMIO:
-		return RREG32_IDX(index);
 	case CGS_IND_REG__PCIE:
 		return RREG32_PCIE(index);
 	case CGS_IND_REG__SMC:
@@ -76,6 +75,8 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return 0;
+	default:
+		BUG();
 	}
 	WARN(1, "Invalid indirect register space");
 	return 0;
@@ -87,8 +88,6 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 {
 	CGS_FUNC_ADEV;
 	switch (space) {
-	case CGS_IND_REG__MMIO:
-		return WREG32_IDX(index, value);
 	case CGS_IND_REG__PCIE:
 		return WREG32_PCIE(index, value);
 	case CGS_IND_REG__SMC:
@@ -104,6 +103,8 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return;
+	default:
+		BUG();
 	}
 	WARN(1, "Invalid indirect register space");
 }
@@ -351,17 +352,10 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				break;
 			case CHIP_POLARIS11:
 				if (type == CGS_UCODE_ID_SMU) {
-					if (((adev->pdev->device == 0x67ef) &&
-					     ((adev->pdev->revision == 0xe0) ||
-					      (adev->pdev->revision == 0xe5))) ||
-					    ((adev->pdev->device == 0x67ff) &&
-					     ((adev->pdev->revision == 0xcf) ||
-					      (adev->pdev->revision == 0xef) ||
-					      (adev->pdev->revision == 0xff)))) {
+					if (ASICID_IS_P21(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris11_k_smc.bin");
-					} else if ((adev->pdev->device == 0x67ef) &&
-						   (adev->pdev->revision == 0xe2)) {
+					} else if (ASICID_IS_P31(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris11_k2_smc.bin");
 					} else {
@@ -373,21 +367,10 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				break;
 			case CHIP_POLARIS10:
 				if (type == CGS_UCODE_ID_SMU) {
-					if (((adev->pdev->device == 0x67df) &&
-					     ((adev->pdev->revision == 0xe0) ||
-					      (adev->pdev->revision == 0xe3) ||
-					      (adev->pdev->revision == 0xe4) ||
-					      (adev->pdev->revision == 0xe5) ||
-					      (adev->pdev->revision == 0xe7) ||
-					      (adev->pdev->revision == 0xef))) ||
-					    ((adev->pdev->device == 0x6fdf) &&
-					     ((adev->pdev->revision == 0xef) ||
-					      (adev->pdev->revision == 0xff)))) {
+					if (ASICID_IS_P20(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris10_k_smc.bin");
-					} else if ((adev->pdev->device == 0x67df) &&
-						   ((adev->pdev->revision == 0xe1) ||
-						    (adev->pdev->revision == 0xf7))) {
+					} else if (ASICID_IS_P30(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris10_k2_smc.bin");
 					} else {
@@ -398,13 +381,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				}
 				break;
 			case CHIP_POLARIS12:
-				if (((adev->pdev->device == 0x6987) &&
-				     ((adev->pdev->revision == 0xc0) ||
-				      (adev->pdev->revision == 0xc3))) ||
-				    ((adev->pdev->device == 0x6981) &&
-				     ((adev->pdev->revision == 0x00) ||
-				      (adev->pdev->revision == 0x01) ||
-				      (adev->pdev->revision == 0x10)))) {
+				if (ASICID_IS_P23(adev->pdev->device, adev->pdev->revision)) {
 					info->is_kicker = true;
 					strcpy(fw_name, "amdgpu/polaris12_k_smc.bin");
 				} else {

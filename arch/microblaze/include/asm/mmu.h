@@ -1,19 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License. See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #ifndef _ASM_MICROBLAZE_MMU_H
 #define _ASM_MICROBLAZE_MMU_H
 
-# ifndef CONFIG_MMU
-#  include <asm-generic/mmu.h>
-# else /* CONFIG_MMU */
 #  ifdef __KERNEL__
 #   ifndef __ASSEMBLY__
 
@@ -122,5 +116,4 @@ extern u32 tlb_skip;
 #  define TLB_G			0x00000001 /* Memory is guarded from prefetch */
 
 #  endif /* __KERNEL__ */
-# endif /* CONFIG_MMU */
 #endif /* _ASM_MICROBLAZE_MMU_H */

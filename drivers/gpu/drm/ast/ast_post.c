@@ -26,17 +26,20 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 
-#include <drm/drmP.h>
-#include "ast_drv.h"
+#include <linux/delay.h>
+#include <linux/pci.h>
+
+#include <drm/drm_print.h>
 
 #include "ast_dram_tables.h"
+#include "ast_drv.h"
 
 static void ast_post_chip_2300(struct drm_device *dev);
 static void ast_post_chip_2500(struct drm_device *dev);
 
 void ast_enable_vga(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 
 	ast_io_write8(ast, AST_IO_VGA_ENABLE_PORT, 0x01);
 	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
@@ -44,24 +47,20 @@ void ast_enable_vga(struct drm_device *dev)
 
 void ast_enable_mmio(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa1, 0xff, 0x04);
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
 }
 
 
 bool ast_is_vga_enabled(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u8 ch;
 
-	if (ast->chip == AST1180) {
-		/* TODO 1180 */
-	} else {
-		ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
-		return !!(ch & 0x01);
-	}
-	return false;
+	ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
+
+	return !!(ch & 0x01);
 }
 
 static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };
@@ -71,7 +70,8 @@ static const u8 extreginfo_ast2300[] = { 0x0f, 0x04, 0x1f, 0xff };
 static void
 ast_set_def_ext_reg(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u8 i, index, reg;
 	const u8 *ext_reg_info;
 
@@ -81,7 +81,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 
 	if (ast->chip == AST2300 || ast->chip == AST2400 ||
 	    ast->chip == AST2500) {
-		if (dev->pdev->revision >= 0x20)
+		if (pdev->revision >= 0x20)
 			ext_reg_info = extreginfo_ast2300;
 		else
 			ext_reg_info = extreginfo_ast2300a0;
@@ -273,7 +273,7 @@ cbr_start:
 
 static void ast_init_dram_reg(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u8 j;
 	u32 data, temp, i;
 	const struct ast_dramstruct *dram_reg_info;
@@ -366,19 +366,22 @@ static void ast_init_dram_reg(struct drm_device *dev)
 
 void ast_post_gpu(struct drm_device *dev)
 {
+	struct ast_private *ast = to_ast_private(dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u32 reg;
-	struct ast_private *ast = dev->dev_private;
 
-	pci_read_config_dword(ast->dev->pdev, 0x04, &reg);
+	pci_read_config_dword(pdev, 0x04, &reg);
 	reg |= 0x3;
-	pci_write_config_dword(ast->dev->pdev, 0x04, reg);
+	pci_write_config_dword(pdev, 0x04, reg);
 
 	ast_enable_vga(dev);
 	ast_open_key(ast);
 	ast_enable_mmio(dev);
 	ast_set_def_ext_reg(dev);
 
-	if (ast->config_mode == ast_use_p2a) {
+	if (ast->chip == AST2600) {
+		ast_dp_launch(dev, 1);
+	} else if (ast->config_mode == ast_use_p2a) {
 		if (ast->chip == AST2500)
 			ast_post_chip_2500(dev);
 		else if (ast->chip == AST2300 || ast->chip == AST2400)
@@ -388,7 +391,7 @@ void ast_post_gpu(struct drm_device *dev)
 
 		ast_init_3rdtx(dev);
 	} else {
-		if (ast->tx_chip_type != AST_TX_NONE)
+		if (ast->tx_chip_types & AST_TX_SIL164_BIT)
 			ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xcf, 0x80);	/* Enable DVO */
 	}
 }
@@ -1597,7 +1600,7 @@ ddr2_init_start:
 
 static void ast_post_chip_2300(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	struct ast2300_dram_param param;
 	u32 temp;
 	u8 reg;
@@ -2027,48 +2030,87 @@ static bool ast_dram_init_2500(struct ast_private *ast)
 	return true;
 }
 
+void ast_patch_ahb_2500(struct ast_private *ast)
+{
+	u32	data;
+
+	/* Clear bus lock condition */
+	ast_moutdwm(ast, 0x1e600000, 0xAEED1A03);
+	ast_moutdwm(ast, 0x1e600084, 0x00010000);
+	ast_moutdwm(ast, 0x1e600088, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e2000, 0x1688A8A8);
+	data = ast_mindwm(ast, 0x1e6e2070);
+	if (data & 0x08000000) {					/* check fast reset */
+		/*
+		 * If "Fast restet" is enabled for ARM-ICE debugger,
+		 * then WDT needs to enable, that
+		 * WDT04 is WDT#1 Reload reg.
+		 * WDT08 is WDT#1 counter restart reg to avoid system deadlock
+		 * WDT0C is WDT#1 control reg
+		 *	[6:5]:= 01:Full chip
+		 *	[4]:= 1:1MHz clock source
+		 *	[1]:= 1:WDT will be cleeared and disabled after timeout occurs
+		 *	[0]:= 1:WDT enable
+		 */
+		ast_moutdwm(ast, 0x1E785004, 0x00000010);
+		ast_moutdwm(ast, 0x1E785008, 0x00004755);
+		ast_moutdwm(ast, 0x1E78500c, 0x00000033);
+		udelay(1000);
+	}
+	do {
+		ast_moutdwm(ast, 0x1e6e2000, 0x1688A8A8);
+		data = ast_mindwm(ast, 0x1e6e2000);
+	}	while (data != 1);
+	ast_moutdwm(ast, 0x1e6e207c, 0x08000000);	/* clear fast reset */
+}
+
 void ast_post_chip_2500(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u32 temp;
 	u8 reg;
 
 	reg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
-	if ((reg & 0x80) == 0) {/* vga only */
+	if ((reg & AST_VRAM_INIT_STATUS_MASK) == 0) {/* vga only */
 		/* Clear bus lock condition */
-		ast_moutdwm(ast, 0x1e600000, 0xAEED1A03);
-		ast_moutdwm(ast, 0x1e600084, 0x00010000);
-		ast_moutdwm(ast, 0x1e600088, 0x00000000);
-		ast_moutdwm(ast, 0x1e6e2000, 0x1688A8A8);
-		ast_write32(ast, 0xf004, 0x1e6e0000);
-		ast_write32(ast, 0xf000, 0x1);
-		ast_write32(ast, 0x12000, 0x1688a8a8);
-		while (ast_read32(ast, 0x12000) != 0x1)
-			;
+		ast_patch_ahb_2500(ast);
 
-		ast_write32(ast, 0x10000, 0xfc600309);
-		while (ast_read32(ast, 0x10000) != 0x1)
-			;
+		/* Disable watchdog */
+		ast_moutdwm(ast, 0x1E78502C, 0x00000000);
+		ast_moutdwm(ast, 0x1E78504C, 0x00000000);
+
+		/*
+		 * Reset USB port to patch USB unknown device issue
+		 * SCU90 is Multi-function Pin Control #5
+		 *	[29]:= 1:Enable USB2.0 Host port#1 (that the mutually shared USB2.0 Hub
+		 *				port).
+		 * SCU94 is Multi-function Pin Control #6
+		 *	[14:13]:= 1x:USB2.0 Host2 controller
+		 * SCU70 is Hardware Strap reg
+		 *	[23]:= 1:CLKIN is 25MHz and USBCK1 = 24/48 MHz (determined by
+		 *				[18]: 0(24)/1(48) MHz)
+		 * SCU7C is Write clear reg to SCU70
+		 *	[23]:= write 1 and then SCU70[23] will be clear as 0b.
+		 */
+		ast_moutdwm(ast, 0x1E6E2090, 0x20000000);
+		ast_moutdwm(ast, 0x1E6E2094, 0x00004000);
+		if (ast_mindwm(ast, 0x1E6E2070) & 0x00800000) {
+			ast_moutdwm(ast, 0x1E6E207C, 0x00800000);
+			mdelay(100);
+			ast_moutdwm(ast, 0x1E6E2070, 0x00800000);
+		}
+		/* Modify eSPI reset pin */
+		temp = ast_mindwm(ast, 0x1E6E2070);
+		if (temp & 0x02000000)
+			ast_moutdwm(ast, 0x1E6E207C, 0x00004000);
 
 		/* Slow down CPU/AHB CLK in VGA only mode */
 		temp = ast_read32(ast, 0x12008);
 		temp |= 0x73;
 		ast_write32(ast, 0x12008, temp);
 
-		/* Reset USB port to patch USB unknown device issue */
-		ast_moutdwm(ast, 0x1e6e2090, 0x20000000);
-		temp  = ast_mindwm(ast, 0x1e6e2094);
-		temp |= 0x00004000;
-		ast_moutdwm(ast, 0x1e6e2094, temp);
-		temp  = ast_mindwm(ast, 0x1e6e2070);
-		if (temp & 0x00800000) {
-			ast_moutdwm(ast, 0x1e6e207c, 0x00800000);
-			mdelay(100);
-			ast_moutdwm(ast, 0x1e6e2070, 0x00800000);
-		}
-
 		if (!ast_dram_init_2500(ast))
-			DRM_ERROR("DRAM init failed !\n");
+			drm_err(dev, "DRAM init failed !\n");
 
 		temp = ast_mindwm(ast, 0x1e6e2040);
 		ast_moutdwm(ast, 0x1e6e2040, temp | 0x40);

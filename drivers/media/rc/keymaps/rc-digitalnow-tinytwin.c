@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DigitalNow TinyTwin remote controller keytable
  *
  * Copyright (C) 2010 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <media/rc-map.h>
@@ -25,14 +12,14 @@ static struct rc_map_table digitalnow_tinytwin[] = {
 	{ 0x0000, KEY_MUTE },            /* [symbol speaker] */
 	{ 0x0001, KEY_VOLUMEUP },
 	{ 0x0002, KEY_POWER2 },          /* TV [power button] */
-	{ 0x0003, KEY_2 },
-	{ 0x0004, KEY_3 },
-	{ 0x0005, KEY_4 },
-	{ 0x0006, KEY_6 },
-	{ 0x0007, KEY_7 },
-	{ 0x0008, KEY_8 },
+	{ 0x0003, KEY_NUMERIC_2 },
+	{ 0x0004, KEY_NUMERIC_3 },
+	{ 0x0005, KEY_NUMERIC_4 },
+	{ 0x0006, KEY_NUMERIC_6 },
+	{ 0x0007, KEY_NUMERIC_7 },
+	{ 0x0008, KEY_NUMERIC_8 },
 	{ 0x0009, KEY_NUMERIC_STAR },    /* [*] */
-	{ 0x000a, KEY_0 },
+	{ 0x000a, KEY_NUMERIC_0 },
 	{ 0x000b, KEY_NUMERIC_POUND },   /* [#] */
 	{ 0x000c, KEY_RIGHT },           /* [right arrow] */
 	{ 0x000d, KEY_HOMEPAGE },        /* [symbol home] Start */
@@ -49,10 +36,10 @@ static struct rc_map_table digitalnow_tinytwin[] = {
 	{ 0x0019, KEY_BLUE },            /* [blue] MyTV */
 	{ 0x001a, KEY_REWIND },          /* REW [<<] */
 	{ 0x001b, KEY_PLAY },            /* PLAY */
-	{ 0x001c, KEY_5 },
-	{ 0x001d, KEY_9 },
+	{ 0x001c, KEY_NUMERIC_5 },
+	{ 0x001d, KEY_NUMERIC_9 },
 	{ 0x001e, KEY_VOLUMEDOWN },
-	{ 0x001f, KEY_1 },
+	{ 0x001f, KEY_NUMERIC_1 },
 	{ 0x0040, KEY_STOP },            /* STOP */
 	{ 0x0042, KEY_PAUSE },           /* PAUSE */
 	{ 0x0043, KEY_SCREEN },          /* Aspect */

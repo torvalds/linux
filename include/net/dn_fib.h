@@ -4,6 +4,8 @@
 
 #include <linux/netlink.h>
 #include <linux/refcount.h>
+#include <linux/rtnetlink.h>
+#include <net/fib_rules.h>
 
 extern const struct nla_policy rtm_dn_policy[];
 
@@ -29,7 +31,7 @@ struct dn_fib_nh {
 struct dn_fib_info {
 	struct dn_fib_info	*fib_next;
 	struct dn_fib_info	*fib_prev;
-	int 			fib_treeref;
+	refcount_t		fib_treeref;
 	refcount_t		fib_clntref;
 	int			fib_dead;
 	unsigned int		fib_flags;
@@ -90,7 +92,7 @@ struct dn_fib_table {
 	int (*flush)(struct dn_fib_table *t);
 	int (*dump)(struct dn_fib_table *t, struct sk_buff *skb, struct netlink_callback *cb);
 
-	unsigned char data[0];
+	unsigned char data[];
 };
 
 #ifdef CONFIG_DECNET_ROUTER

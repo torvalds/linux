@@ -11,7 +11,7 @@ User Space Memory Access
 .. kernel-doc:: arch/x86/lib/usercopy_32.c
    :export:
 
-.. kernel-doc:: mm/util.c
+.. kernel-doc:: mm/gup.c
    :functions: get_user_pages_fast
 
 .. _mm-api-gfp-flags:
@@ -19,23 +19,20 @@ User Space Memory Access
 Memory Allocation Controls
 ==========================
 
-Functions which need to allocate memory often use GFP flags to express
-how that memory should be allocated. The GFP acronym stands for "get
-free pages", the underlying memory allocation function. Not every GFP
-flag is allowed to every function which may allocate memory. Most
-users will want to use a plain ``GFP_KERNEL``.
-
 .. kernel-doc:: include/linux/gfp.h
+   :internal:
+
+.. kernel-doc:: include/linux/gfp_types.h
    :doc: Page mobility and placement hints
 
-.. kernel-doc:: include/linux/gfp.h
+.. kernel-doc:: include/linux/gfp_types.h
    :doc: Watermark modifiers
 
-.. kernel-doc:: include/linux/gfp.h
+.. kernel-doc:: include/linux/gfp_types.h
    :doc: Reclaim modifiers
 
-.. kernel-doc:: include/linux/gfp.h
-   :doc: Common combinations
+.. kernel-doc:: include/linux/gfp_types.h
+   :doc: Useful GFP flag combinations
 
 The Slab Cache
 ==============
@@ -61,17 +58,35 @@ Virtually Contiguous Mappings
 File Mapping and Page Cache
 ===========================
 
-.. kernel-doc:: mm/readahead.c
-   :export:
+Filemap
+-------
 
 .. kernel-doc:: mm/filemap.c
    :export:
 
+Readahead
+---------
+
+.. kernel-doc:: mm/readahead.c
+   :doc: Readahead Overview
+
+.. kernel-doc:: mm/readahead.c
+   :export:
+
+Writeback
+---------
+
 .. kernel-doc:: mm/page-writeback.c
    :export:
 
+Truncate
+--------
+
 .. kernel-doc:: mm/truncate.c
    :export:
+
+.. kernel-doc:: include/linux/pagemap.h
+   :internal:
 
 Memory pools
 ============
@@ -92,3 +107,14 @@ More Memory Management Functions
    :export:
 
 .. kernel-doc:: mm/page_alloc.c
+.. kernel-doc:: mm/mempolicy.c
+.. kernel-doc:: include/linux/mm_types.h
+   :internal:
+.. kernel-doc:: include/linux/mm_inline.h
+.. kernel-doc:: include/linux/page-flags.h
+.. kernel-doc:: include/linux/mm.h
+   :internal:
+.. kernel-doc:: include/linux/page_ref.h
+.. kernel-doc:: include/linux/mmzone.h
+.. kernel-doc:: mm/util.c
+   :functions: folio_mapping

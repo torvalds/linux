@@ -1,6 +1,7 @@
-Where:		/sys/fs/pstore/... (or /dev/pstore/...)
+What:		/sys/fs/pstore/...
+What:		/dev/pstore/...
 Date:		March 2011
-Kernel Version: 2.6.39
+KernelVersion: 2.6.39
 Contact:	tony.luck@intel.com
 Description:	Generic interface to platform dependent persistent storage.
 
@@ -9,25 +10,25 @@ Description:	Generic interface to platform dependent persistent storage.
 		provide a generic interface to show records captured in
 		the dying moments.  In the case of a panic the last part
 		of the console log is captured, but other interesting
-		data can also be saved.
+		data can also be saved::
 
-		# mount -t pstore -o kmsg_bytes=8000 - /sys/fs/pstore
+		    # mount -t pstore -o kmsg_bytes=8000 - /sys/fs/pstore
 
-		$ ls -l /sys/fs/pstore/
-		total 0
-		-r--r--r-- 1 root root 7896 Nov 30 15:38 dmesg-erst-1
+		    $ ls -l /sys/fs/pstore/
+		    total 0
+		    -r--r--r-- 1 root root 7896 Nov 30 15:38 dmesg-erst-1
 
 		Different users of this interface will result in different
 		filename prefixes.  Currently two are defined:
 
-		"dmesg"	- saved console log
-		"mce"	- architecture dependent data from fatal h/w error
+		- "dmesg" - saved console log
+		- "mce"   - architecture dependent data from fatal h/w error
 
 		Once the information in a file has been read, removing
 		the file will signal to the underlying persistent storage
-		device that it can reclaim the space for later re-use.
+		device that it can reclaim the space for later re-use::
 
-		$ rm /sys/fs/pstore/dmesg-erst-1
+		    $ rm /sys/fs/pstore/dmesg-erst-1
 
 		The expectation is that all files in /sys/fs/pstore/
 		will be saved elsewhere and erased from persistent store
@@ -44,4 +45,3 @@ Description:	Generic interface to platform dependent persistent storage.
 		backends are available, the preferred backend may be
 		set by passing the pstore.backend= argument to the kernel at
 		boot time.
-

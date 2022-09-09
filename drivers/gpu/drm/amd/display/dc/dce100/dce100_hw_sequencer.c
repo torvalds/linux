@@ -25,7 +25,7 @@
 #include "dm_services.h"
 #include "dc.h"
 #include "core_types.h"
-#include "hw_sequencer.h"
+#include "clk_mgr.h"
 #include "dce100_hw_sequencer.h"
 #include "resource.h"
 
@@ -111,8 +111,8 @@ void dce100_prepare_bandwidth(
 {
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
-	dc->res_pool->clk_mgr->funcs->update_clocks(
-			dc->res_pool->clk_mgr,
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
 			context,
 			false);
 }
@@ -123,8 +123,8 @@ void dce100_optimize_bandwidth(
 {
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
-	dc->res_pool->clk_mgr->funcs->update_clocks(
-			dc->res_pool->clk_mgr,
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
 			context,
 			true);
 }
@@ -135,7 +135,7 @@ void dce100_hw_sequencer_construct(struct dc *dc)
 {
 	dce110_hw_sequencer_construct(dc);
 
-	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
+	dc->hwseq->funcs.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
 	dc->hwss.optimize_bandwidth = dce100_optimize_bandwidth;
 }

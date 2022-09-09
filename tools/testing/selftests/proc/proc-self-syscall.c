@@ -13,14 +13,12 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -39,7 +37,7 @@ int main(void)
 	fd = open("/proc/self/syscall", O_RDONLY);
 	if (fd == -1) {
 		if (errno == ENOENT)
-			return 2;
+			return 4;
 		return 1;
 	}
 

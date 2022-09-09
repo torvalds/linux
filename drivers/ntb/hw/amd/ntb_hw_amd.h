@@ -52,13 +52,9 @@
 #include <linux/ntb.h>
 #include <linux/pci.h>
 
-#define PCI_DEVICE_ID_AMD_NTB	0x145B
 #define AMD_LINK_HB_TIMEOUT	msecs_to_jiffies(1000)
-#define AMD_LINK_STATUS_OFFSET	0x68
-#define NTB_LIN_STA_ACTIVE_BIT	0x00000002
 #define NTB_LNK_STA_SPEED_MASK	0x000F0000
 #define NTB_LNK_STA_WIDTH_MASK	0x03F00000
-#define NTB_LNK_STA_ACTIVE(x)	(!!((x) & NTB_LIN_STA_ACTIVE_BIT))
 #define NTB_LNK_STA_SPEED(x)	(((x) & NTB_LNK_STA_SPEED_MASK) >> 16)
 #define NTB_LNK_STA_WIDTH(x)	(((x) & NTB_LNK_STA_WIDTH_MASK) >> 20)
 
@@ -93,7 +89,6 @@ static inline void _write64(u64 val, void __iomem *mmio)
 
 enum {
 	/* AMD NTB Capability */
-	AMD_MW_CNT		= 3,
 	AMD_DB_CNT		= 16,
 	AMD_MSIX_VECTOR_CNT	= 24,
 	AMD_SPADS_CNT		= 16,
@@ -170,6 +165,11 @@ enum {
 	AMD_PEER_OFFSET		= 0x400,
 };
 
+struct ntb_dev_data {
+	const unsigned char mw_count;
+	const unsigned int mw_idx;
+};
+
 struct amd_ntb_dev;
 
 struct amd_ntb_vec {
@@ -185,6 +185,7 @@ struct amd_ntb_dev {
 	u32 cntl_sta;
 	u32 peer_sta;
 
+	struct ntb_dev_data *dev_data;
 	unsigned char mw_count;
 	unsigned char spad_count;
 	unsigned char db_count;
@@ -192,6 +193,7 @@ struct amd_ntb_dev {
 
 	u64 db_valid_mask;
 	u64 db_mask;
+	u64 db_last_bit;
 	u32 int_mask;
 
 	struct msix_entry *msix;
@@ -213,5 +215,9 @@ struct amd_ntb_dev {
 
 #define ntb_ndev(__ntb) container_of(__ntb, struct amd_ntb_dev, ntb)
 #define hb_ndev(__work) container_of(__work, struct amd_ntb_dev, hb_timer.work)
+
+static void amd_set_side_info_reg(struct amd_ntb_dev *ndev, bool peer);
+static void amd_clear_side_info_reg(struct amd_ntb_dev *ndev, bool peer);
+static int amd_poll_link(struct amd_ntb_dev *ndev);
 
 #endif

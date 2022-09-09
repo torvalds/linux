@@ -11,7 +11,6 @@
 
 #include <linux/linkage.h>
 #include <linux/smp.h>
-#include <linux/irqdomain.h>
 
 #include <asm/mipsmtregs.h>
 
@@ -20,6 +19,7 @@
 #define IRQ_STACK_SIZE			THREAD_SIZE
 #define IRQ_STACK_START			(IRQ_STACK_SIZE - 16)
 
+extern void __init init_IRQ(void);
 extern void *irq_stack[NR_CPUS];
 
 /*
@@ -56,6 +56,9 @@ static inline int irq_canonicalize(int irq)
 asmlinkage void plat_irq_dispatch(void);
 
 extern void do_IRQ(unsigned int irq);
+
+struct irq_domain;
+extern void do_domain_IRQ(struct irq_domain *domain, unsigned int irq);
 
 extern void arch_init_irq(void);
 extern void spurious_interrupt(void);

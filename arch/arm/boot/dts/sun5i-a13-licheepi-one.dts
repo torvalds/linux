@@ -66,19 +66,19 @@
 	leds {
 		compatible = "gpio-leds";
 
-		red {
-			label ="licheepi:red:usr";
+		led-0 {
+			label = "licheepi:red:usr";
 			gpios = <&pio 2 5 GPIO_ACTIVE_LOW>;
 		};
 
-		green {
-			label ="licheepi:green:usr";
+		led-1 {
+			label = "licheepi:green:usr";
 			gpios = <&pio 2 19 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		blue {
-			label ="licheepi:blue:usr";
+		led-2 {
+			label = "licheepi:blue:usr";
 			gpios = <&pio 2 4 GPIO_ACTIVE_LOW>;
 		};
 
@@ -206,9 +206,8 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
-	usb0_vbus_det-gpio = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
+	usb0_id_det-gpios = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
+	usb0_vbus_det-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_vcc5v0>;
 	status = "okay";

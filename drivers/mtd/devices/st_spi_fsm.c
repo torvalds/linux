@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * st_spi_fsm.c	- ST Fast Sequence Mode (FSM) Serial Flash Controller
  *
@@ -6,11 +7,6 @@
  * Copyright (C) 2010-2014 STMicroelectronics Limited
  *
  * JEDEC probe based on drivers/mtd/devices/m25p80.c
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -259,7 +255,6 @@ struct stfsm_seq {
 struct stfsm {
 	struct device		*dev;
 	void __iomem		*base;
-	struct resource		*region;
 	struct mtd_info		mtd;
 	struct mutex		lock;
 	struct flash_info       *info;
@@ -929,7 +924,7 @@ static int stfsm_read_status(struct stfsm *fsm, uint8_t cmd,
 	BUG_ON(bytes != 1 && bytes != 2);
 
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
-			   SEQ_OPC_OPCODE(cmd)),
+			   SEQ_OPC_OPCODE(cmd));
 
 	stfsm_load_seq(fsm, seq);
 
@@ -2089,15 +2084,12 @@ static int stfsm_probe(struct platform_device *pdev)
 	 * Configure READ/WRITE/ERASE sequences according to platform and
 	 * device flags.
 	 */
-	if (info->config) {
+	if (info->config)
 		ret = info->config(fsm);
-		if (ret)
-			goto err_clk_unprepare;
-	} else {
+	else
 		ret = stfsm_prepare_rwe_seqs_default(fsm);
-		if (ret)
-			goto err_clk_unprepare;
-	}
+	if (ret)
+		goto err_clk_unprepare;
 
 	fsm->mtd.name		= info->name;
 	fsm->mtd.dev.parent	= &pdev->dev;
@@ -2120,10 +2112,12 @@ static int stfsm_probe(struct platform_device *pdev)
 		(long long)fsm->mtd.size, (long long)(fsm->mtd.size >> 20),
 		fsm->mtd.erasesize, (fsm->mtd.erasesize >> 10));
 
-	return mtd_device_register(&fsm->mtd, NULL, 0);
-
+	ret = mtd_device_register(&fsm->mtd, NULL, 0);
+	if (ret) {
 err_clk_unprepare:
-	clk_disable_unprepare(fsm->clk);
+		clk_disable_unprepare(fsm->clk);
+	}
+
 	return ret;
 }
 
@@ -2131,7 +2125,11 @@ static int stfsm_remove(struct platform_device *pdev)
 {
 	struct stfsm *fsm = platform_get_drvdata(pdev);
 
-	return mtd_device_unregister(&fsm->mtd);
+	WARN_ON(mtd_device_unregister(&fsm->mtd));
+
+	clk_disable_unprepare(fsm->clk);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

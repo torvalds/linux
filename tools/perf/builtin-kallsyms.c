@@ -1,18 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * builtin-kallsyms.c
  *
  * Builtin command: Look for a symbol in the running kernel and its modules
  *
  * Copyright (C) 2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 #include <inttypes.h>
 #include "builtin.h"
 #include <linux/compiler.h>
 #include <subcmd/parse-options.h>
 #include "debug.h"
+#include "dso.h"
 #include "machine.h"
+#include "map.h"
 #include "symbol.h"
 
 static int __cmd_kallsyms(int argc, const char **argv)

@@ -14,16 +14,16 @@ static struct rc_map_table xbox_dvd[] = {
 	{0xaa9, KEY_LEFT},
 	{0xac3, KEY_INFO},
 
-	{0xac6, KEY_9},
-	{0xac7, KEY_8},
-	{0xac8, KEY_7},
-	{0xac9, KEY_6},
-	{0xaca, KEY_5},
-	{0xacb, KEY_4},
-	{0xacc, KEY_3},
-	{0xacd, KEY_2},
-	{0xace, KEY_1},
-	{0xacf, KEY_0},
+	{0xac6, KEY_NUMERIC_9},
+	{0xac7, KEY_NUMERIC_8},
+	{0xac8, KEY_NUMERIC_7},
+	{0xac9, KEY_NUMERIC_6},
+	{0xaca, KEY_NUMERIC_5},
+	{0xacb, KEY_NUMERIC_4},
+	{0xacc, KEY_NUMERIC_3},
+	{0xacd, KEY_NUMERIC_2},
+	{0xace, KEY_NUMERIC_1},
+	{0xacf, KEY_NUMERIC_0},
 
 	{0xad5, KEY_ANGLE},
 	{0xad8, KEY_BACK},
@@ -42,7 +42,7 @@ static struct rc_map_list xbox_dvd_map = {
 	.map = {
 		.scan     = xbox_dvd,
 		.size     = ARRAY_SIZE(xbox_dvd),
-		.rc_proto = RC_PROTO_UNKNOWN,
+		.rc_proto = RC_PROTO_XBOX_DVD,
 		.name     = RC_MAP_XBOX_DVD,
 	}
 };

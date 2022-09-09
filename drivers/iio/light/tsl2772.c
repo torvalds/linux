@@ -15,7 +15,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/property.h>
 #include <linux/slab.h>
+
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -134,6 +136,12 @@ enum {
 	TSL2772_CHIP_SUSPENDED = 2
 };
 
+enum {
+	TSL2772_SUPPLY_VDD = 0,
+	TSL2772_SUPPLY_VDDIO = 1,
+	TSL2772_NUM_SUPPLIES = 2
+};
+
 /* Per-device data */
 struct tsl2772_als_info {
 	u16 als_ch0;
@@ -161,8 +169,7 @@ struct tsl2772_chip {
 	struct mutex prox_mutex;
 	struct mutex als_mutex;
 	struct i2c_client *client;
-	struct regulator *vdd_supply;
-	struct regulator *vddio_supply;
+	struct regulator_bulk_data supplies[TSL2772_NUM_SUPPLIES];
 	u16 prox_data;
 	struct tsl2772_als_info als_cur_info;
 	struct tsl2772_settings settings;
@@ -544,10 +551,10 @@ prox_poll_err:
 
 static int tsl2772_read_prox_led_current(struct tsl2772_chip *chip)
 {
-	struct device_node *of_node = chip->client->dev.of_node;
+	struct device *dev = &chip->client->dev;
 	int ret, tmp, i;
 
-	ret = of_property_read_u32(of_node, "led-max-microamp", &tmp);
+	ret = device_property_read_u32(dev, "led-max-microamp", &tmp);
 	if (ret < 0)
 		return ret;
 
@@ -558,20 +565,18 @@ static int tsl2772_read_prox_led_current(struct tsl2772_chip *chip)
 		}
 	}
 
-	dev_err(&chip->client->dev, "Invalid value %d for led-max-microamp\n",
-		tmp);
+	dev_err(dev, "Invalid value %d for led-max-microamp\n", tmp);
 
 	return -EINVAL;
-
 }
 
 static int tsl2772_read_prox_diodes(struct tsl2772_chip *chip)
 {
-	struct device_node *of_node = chip->client->dev.of_node;
+	struct device *dev = &chip->client->dev;
 	int i, ret, num_leds, prox_diode_mask;
 	u32 leds[TSL2772_MAX_PROX_LEDS];
 
-	ret = of_property_count_u32_elems(of_node, "amstaos,proximity-diodes");
+	ret = device_property_count_u32(dev, "amstaos,proximity-diodes");
 	if (ret < 0)
 		return ret;
 
@@ -579,12 +584,9 @@ static int tsl2772_read_prox_diodes(struct tsl2772_chip *chip)
 	if (num_leds > TSL2772_MAX_PROX_LEDS)
 		num_leds = TSL2772_MAX_PROX_LEDS;
 
-	ret = of_property_read_u32_array(of_node, "amstaos,proximity-diodes",
-					 leds, num_leds);
+	ret = device_property_read_u32_array(dev, "amstaos,proximity-diodes", leds, num_leds);
 	if (ret < 0) {
-		dev_err(&chip->client->dev,
-			"Invalid value for amstaos,proximity-diodes: %d.\n",
-			ret);
+		dev_err(dev, "Invalid value for amstaos,proximity-diodes: %d.\n", ret);
 		return ret;
 	}
 
@@ -595,9 +597,7 @@ static int tsl2772_read_prox_diodes(struct tsl2772_chip *chip)
 		else if (leds[i] == 1)
 			prox_diode_mask |= TSL2772_DIODE1;
 		else {
-			dev_err(&chip->client->dev,
-				"Invalid value %d in amstaos,proximity-diodes.\n",
-				leds[i]);
+			dev_err(dev, "Invalid value %d in amstaos,proximity-diodes.\n", leds[i]);
 			return -EINVAL;
 		}
 	}
@@ -697,46 +697,7 @@ static void tsl2772_disable_regulators_action(void *_data)
 {
 	struct tsl2772_chip *chip = _data;
 
-	regulator_disable(chip->vdd_supply);
-	regulator_disable(chip->vddio_supply);
-}
-
-static int tsl2772_enable_regulator(struct tsl2772_chip *chip,
-				    struct regulator *regulator)
-{
-	int ret;
-
-	ret = regulator_enable(regulator);
-	if (ret < 0) {
-		dev_err(&chip->client->dev, "Failed to enable regulator: %d\n",
-			ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static struct regulator *tsl2772_get_regulator(struct tsl2772_chip *chip,
-					       char *name)
-{
-	struct regulator *regulator;
-	int ret;
-
-	regulator = devm_regulator_get(&chip->client->dev, name);
-	if (IS_ERR(regulator)) {
-		if (PTR_ERR(regulator) != -EPROBE_DEFER)
-			dev_err(&chip->client->dev,
-				"Failed to get %s regulator %d\n",
-				name, (int)PTR_ERR(regulator));
-
-		return regulator;
-	}
-
-	ret = tsl2772_enable_regulator(chip, regulator);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	return regulator;
+	regulator_bulk_disable(ARRAY_SIZE(chip->supplies), chip->supplies);
 }
 
 static int tsl2772_chip_on(struct iio_dev *indio_dev)
@@ -860,6 +821,13 @@ static int tsl2772_chip_off(struct iio_dev *indio_dev)
 	return tsl2772_write_control_reg(chip, 0x00);
 }
 
+static void tsl2772_chip_off_action(void *data)
+{
+	struct iio_dev *indio_dev = data;
+
+	tsl2772_chip_off(indio_dev);
+}
+
 /**
  * tsl2772_invoke_change - power cycle the device to implement the user
  *                         parameters
@@ -959,7 +927,7 @@ static ssize_t in_illuminance0_target_input_show(struct device *dev,
 {
 	struct tsl2772_chip *chip = iio_priv(dev_to_iio_dev(dev));
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", chip->settings.als_cal_target);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->settings.als_cal_target);
 }
 
 static ssize_t in_illuminance0_target_input_store(struct device *dev,
@@ -1013,7 +981,7 @@ static ssize_t in_illuminance0_lux_table_show(struct device *dev,
 	int offset = 0;
 
 	while (i < TSL2772_MAX_LUX_TABLE_SIZE) {
-		offset += snprintf(buf + offset, PAGE_SIZE, "%u,%u,",
+		offset += scnprintf(buf + offset, PAGE_SIZE - offset, "%u,%u,",
 			chip->tsl2772_device_lux[i].ch0,
 			chip->tsl2772_device_lux[i].ch1);
 		if (chip->tsl2772_device_lux[i].ch0 == 0) {
@@ -1027,7 +995,7 @@ static ssize_t in_illuminance0_lux_table_show(struct device *dev,
 		i++;
 	}
 
-	offset += snprintf(buf + offset, PAGE_SIZE, "\n");
+	offset += scnprintf(buf + offset, PAGE_SIZE - offset, "\n");
 	return offset;
 }
 
@@ -1797,20 +1765,26 @@ static int tsl2772_probe(struct i2c_client *clientp,
 	chip->client = clientp;
 	i2c_set_clientdata(clientp, indio_dev);
 
-	chip->vddio_supply = tsl2772_get_regulator(chip, "vddio");
-	if (IS_ERR(chip->vddio_supply))
-		return PTR_ERR(chip->vddio_supply);
+	chip->supplies[TSL2772_SUPPLY_VDD].supply = "vdd";
+	chip->supplies[TSL2772_SUPPLY_VDDIO].supply = "vddio";
 
-	chip->vdd_supply = tsl2772_get_regulator(chip, "vdd");
-	if (IS_ERR(chip->vdd_supply)) {
-		regulator_disable(chip->vddio_supply);
-		return PTR_ERR(chip->vdd_supply);
+	ret = devm_regulator_bulk_get(&clientp->dev,
+				      ARRAY_SIZE(chip->supplies),
+				      chip->supplies);
+	if (ret < 0)
+		return dev_err_probe(&clientp->dev, ret, "Failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(chip->supplies), chip->supplies);
+	if (ret < 0) {
+		dev_err(&clientp->dev, "Failed to enable regulators: %d\n",
+			ret);
+		return ret;
 	}
 
-	ret = devm_add_action(&clientp->dev, tsl2772_disable_regulators_action,
-			      chip);
+	ret = devm_add_action_or_reset(&clientp->dev,
+					tsl2772_disable_regulators_action,
+					chip);
 	if (ret < 0) {
-		tsl2772_disable_regulators_action(chip);
 		dev_err(&clientp->dev, "Failed to setup regulator cleanup action %d\n",
 			ret);
 		return ret;
@@ -1848,7 +1822,6 @@ static int tsl2772_probe(struct i2c_client *clientp,
 		&tsl2772_chip_info_tbl[device_channel_config[id->driver_data]];
 
 	indio_dev->info = chip->chip_info->info;
-	indio_dev->dev.parent = &clientp->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->name = chip->client->name;
 	indio_dev->num_channels = chip->chip_info->chan_table_elements;
@@ -1877,15 +1850,13 @@ static int tsl2772_probe(struct i2c_client *clientp,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		tsl2772_chip_off(indio_dev);
-		dev_err(&clientp->dev,
-			"%s: iio registration failed\n", __func__);
+	ret = devm_add_action_or_reset(&clientp->dev,
+					tsl2772_chip_off_action,
+					indio_dev);
+	if (ret < 0)
 		return ret;
-	}
 
-	return 0;
+	return devm_iio_device_register(&clientp->dev, indio_dev);
 }
 
 static int tsl2772_suspend(struct device *dev)
@@ -1895,8 +1866,7 @@ static int tsl2772_suspend(struct device *dev)
 	int ret;
 
 	ret = tsl2772_chip_off(indio_dev);
-	regulator_disable(chip->vdd_supply);
-	regulator_disable(chip->vddio_supply);
+	regulator_bulk_disable(ARRAY_SIZE(chip->supplies), chip->supplies);
 
 	return ret;
 }
@@ -1907,30 +1877,13 @@ static int tsl2772_resume(struct device *dev)
 	struct tsl2772_chip *chip = iio_priv(indio_dev);
 	int ret;
 
-	ret = tsl2772_enable_regulator(chip, chip->vddio_supply);
+	ret = regulator_bulk_enable(ARRAY_SIZE(chip->supplies), chip->supplies);
 	if (ret < 0)
 		return ret;
-
-	ret = tsl2772_enable_regulator(chip, chip->vdd_supply);
-	if (ret < 0) {
-		regulator_disable(chip->vddio_supply);
-		return ret;
-	}
 
 	usleep_range(TSL2772_BOOT_MIN_SLEEP_TIME, TSL2772_BOOT_MAX_SLEEP_TIME);
 
 	return tsl2772_chip_on(indio_dev);
-}
-
-static int tsl2772_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	tsl2772_chip_off(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id tsl2772_idtable[] = {
@@ -1944,7 +1897,7 @@ static const struct i2c_device_id tsl2772_idtable[] = {
 	{ "tmd2672", tmd2672 },
 	{ "tsl2772", tsl2772 },
 	{ "tmd2772", tmd2772 },
-	{ "apds9930", apds9930},
+	{ "apds9930", apds9930 },
 	{}
 };
 
@@ -1979,7 +1932,6 @@ static struct i2c_driver tsl2772_driver = {
 	},
 	.id_table = tsl2772_idtable,
 	.probe = tsl2772_probe,
-	.remove = tsl2772_remove,
 };
 
 module_i2c_driver(tsl2772_driver);

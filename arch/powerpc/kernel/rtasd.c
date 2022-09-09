@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2001 Anton Blanchard <anton@au.ibm.com>, IBM
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Communication to userspace based on kernel/printk.c
  */
@@ -26,7 +22,6 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/rtas.h>
-#include <asm/prom.h>
 #include <asm/nvram.h>
 #include <linux/atomic.h>
 #include <asm/machdep.h>
@@ -277,36 +272,14 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 	}
 }
 
-#ifdef CONFIG_PPC_PSERIES
-static void handle_prrn_event(s32 scope)
-{
-	/*
-	 * For PRRN, we must pass the negative of the scope value in
-	 * the RTAS event.
-	 */
-	pseries_devicetree_update(-scope);
-	numa_update_cpu_topology(false);
-}
-
 static void handle_rtas_event(const struct rtas_error_log *log)
 {
-	if (rtas_error_type(log) != RTAS_TYPE_PRRN || !prrn_is_enabled())
+	if (!machine_is(pseries))
 		return;
 
-	/* For PRRN Events the extended log length is used to denote
-	 * the scope for calling rtas update-nodes.
-	 */
-	handle_prrn_event(rtas_error_extended_log_length(log));
+	if (rtas_error_type(log) == RTAS_TYPE_PRRN)
+		pr_info_ratelimited("Platform resource reassignment ignored.\n");
 }
-
-#else
-
-static void handle_rtas_event(const struct rtas_error_log *log)
-{
-	return;
-}
-
-#endif
 
 static int rtas_log_open(struct inode * inode, struct file * file)
 {
@@ -389,12 +362,12 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 	return 0;
 }
 
-static const struct file_operations proc_rtas_log_operations = {
-	.read =		rtas_log_read,
-	.poll =		rtas_log_poll,
-	.open =		rtas_log_open,
-	.release =	rtas_log_release,
-	.llseek =	noop_llseek,
+static const struct proc_ops rtas_log_proc_ops = {
+	.proc_read	= rtas_log_read,
+	.proc_poll	= rtas_log_poll,
+	.proc_open	= rtas_log_open,
+	.proc_release	= rtas_log_release,
+	.proc_lseek	= noop_llseek,
 };
 
 static int enable_surveillance(int timeout)
@@ -455,7 +428,7 @@ static void rtas_event_scan(struct work_struct *w)
 
 	do_event_scan();
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	/* raw_ OK because just using CPU as starting point. */
 	cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
@@ -477,11 +450,11 @@ static void rtas_event_scan(struct work_struct *w)
 	schedule_delayed_work_on(cpu, &event_scan_work,
 		__round_jiffies_relative(event_scan_delay, cpu));
 
-	put_online_cpus();
+	cpus_read_unlock();
 }
 
 #ifdef CONFIG_PPC64
-static void retrieve_nvram_error_log(void)
+static void __init retrieve_nvram_error_log(void)
 {
 	unsigned int err_type ;
 	int rc ;
@@ -499,12 +472,12 @@ static void retrieve_nvram_error_log(void)
 	}
 }
 #else /* CONFIG_PPC64 */
-static void retrieve_nvram_error_log(void)
+static void __init retrieve_nvram_error_log(void)
 {
 }
 #endif /* CONFIG_PPC64 */
 
-static void start_event_scan(void)
+static void __init start_event_scan(void)
 {
 	printk(KERN_DEBUG "RTAS daemon started\n");
 	pr_debug("rtasd: will sleep for %d milliseconds\n",
@@ -576,7 +549,7 @@ static int __init rtas_init(void)
 		return -ENODEV;
 
 	entry = proc_create("powerpc/rtas/error_log", 0400, NULL,
-			    &proc_rtas_log_operations);
+			    &rtas_log_proc_ops);
 	if (!entry)
 		printk(KERN_ERR "Failed to create error_log proc entry\n");
 

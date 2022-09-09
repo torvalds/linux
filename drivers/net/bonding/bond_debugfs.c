@@ -55,11 +55,6 @@ void bond_debug_register(struct bonding *bond)
 	bond->debug_dir =
 		debugfs_create_dir(bond->dev->name, bonding_debug_root);
 
-	if (!bond->debug_dir) {
-		netdev_warn(bond->dev, "failed to register to debugfs\n");
-		return;
-	}
-
 	debugfs_create_file("rlb_hash_table", 0400, bond->debug_dir,
 				bond, &bond_debug_rlb_hash_fops);
 }
@@ -93,9 +88,8 @@ void bond_create_debugfs(void)
 {
 	bonding_debug_root = debugfs_create_dir("bonding", NULL);
 
-	if (!bonding_debug_root) {
+	if (!bonding_debug_root)
 		pr_warn("Warning: Cannot create bonding directory in debugfs\n");
-	}
 }
 
 void bond_destroy_debugfs(void)

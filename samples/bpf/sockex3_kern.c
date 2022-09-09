@@ -5,7 +5,6 @@
  * License as published by the Free Software Foundation.
  */
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
 #include <uapi/linux/in.h>
 #include <uapi/linux/if.h>
 #include <uapi/linux/if_ether.h>
@@ -13,28 +12,32 @@
 #include <uapi/linux/ipv6.h>
 #include <uapi/linux/if_tunnel.h>
 #include <uapi/linux/mpls.h>
+#include <bpf/bpf_helpers.h>
+#include "bpf_legacy.h"
 #define IP_MF		0x2000
 #define IP_OFFSET	0x1FFF
 
 #define PROG(F) SEC("socket/"__stringify(F)) int bpf_func_##F
 
-struct bpf_map_def SEC("maps") jmp_table = {
-	.type = BPF_MAP_TYPE_PROG_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u32),
-	.max_entries = 8,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(u32));
+	__uint(max_entries, 8);
+} jmp_table SEC(".maps");
 
 #define PARSE_VLAN 1
 #define PARSE_MPLS 2
 #define PARSE_IP 3
 #define PARSE_IPV6 4
 
-/* protocol dispatch routine.
- * It tail-calls next BPF program depending on eth proto
- * Note, we could have used:
- * bpf_tail_call(skb, &jmp_table, proto);
- * but it would need large prog_array
+/* Protocol dispatch routine. It tail-calls next BPF program depending
+ * on eth proto. Note, we could have used ...
+ *
+ *   bpf_tail_call(skb, &jmp_table, proto);
+ *
+ * ... but it would need large prog_array and cannot be optimised given
+ * the map key is not static.
  */
 static inline void parse_eth_proto(struct __sk_buff *skb, u32 proto)
 {
@@ -91,12 +94,12 @@ struct globals {
 	struct flow_key_record flow;
 };
 
-struct bpf_map_def SEC("maps") percpu_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct globals),
-	.max_entries = 32,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, struct globals);
+	__uint(max_entries, 32);
+} percpu_map SEC(".maps");
 
 /* user poor man's per_cpu until native support is ready */
 static struct globals *this_cpu_globals(void)
@@ -112,12 +115,12 @@ struct pair {
 	__u64 bytes;
 };
 
-struct bpf_map_def SEC("maps") hash_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct flow_key_record),
-	.value_size = sizeof(struct pair),
-	.max_entries = 1024,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, struct flow_key_record);
+	__type(value, struct pair);
+	__uint(max_entries, 1024);
+} hash_map SEC(".maps");
 
 static void update_stats(struct __sk_buff *skb, struct globals *g)
 {

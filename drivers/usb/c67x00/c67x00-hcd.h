@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * c67x00-hcd.h: Cypress C67X00 USB HCD
  *
@@ -76,7 +76,7 @@ struct c67x00_hcd {
 	u16 next_td_addr;
 	u16 next_buf_addr;
 
-	struct tasklet_struct tasklet;
+	struct work_struct work;
 
 	struct completion endpoint_disable;
 

@@ -7,7 +7,7 @@
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
- * Please see Documentation/filesystems/sysfs.txt for more information.
+ * Please see Documentation/filesystems/sysfs.rst for more information.
  */
 
 #ifndef _SYSFS_H_
@@ -123,6 +123,13 @@ struct attribute_group {
 	.show	= _name##_show,						\
 }
 
+#define __ATTR_RW_MODE(_name, _mode) {					\
+	.attr	= { .name = __stringify(_name),				\
+		    .mode = VERIFY_OCTAL_PERMISSIONS(_mode) },		\
+	.show	= _name##_show,						\
+	.store	= _name##_store,					\
+}
+
 #define __ATTR_WO(_name) {						\
 	.attr	= { .name = __stringify(_name), .mode = 0200 },		\
 	.store	= _name##_store,					\
@@ -155,13 +162,21 @@ static const struct attribute_group _name##_group = {		\
 };								\
 __ATTRIBUTE_GROUPS(_name)
 
+#define BIN_ATTRIBUTE_GROUPS(_name)				\
+static const struct attribute_group _name##_group = {		\
+	.bin_attrs = _name##_attrs,				\
+};								\
+__ATTRIBUTE_GROUPS(_name)
+
 struct file;
 struct vm_area_struct;
+struct address_space;
 
 struct bin_attribute {
 	struct attribute	attr;
 	size_t			size;
 	void			*private;
+	struct address_space *(*f_mapping)(void);
 	ssize_t (*read)(struct file *, struct kobject *, struct bin_attribute *,
 			char *, loff_t, size_t);
 	ssize_t (*write)(struct file *, struct kobject *, struct bin_attribute *,
@@ -196,6 +211,12 @@ struct bin_attribute {
 	.size	= _size,						\
 }
 
+#define __BIN_ATTR_WO(_name, _size) {					\
+	.attr	= { .name = __stringify(_name), .mode = 0200 },		\
+	.write	= _name##_write,					\
+	.size	= _size,						\
+}
+
 #define __BIN_ATTR_RW(_name, _size)					\
 	__BIN_ATTR(_name, 0644, _name##_read, _name##_write, _size)
 
@@ -208,8 +229,27 @@ struct bin_attribute bin_attr_##_name = __BIN_ATTR(_name, _mode, _read,	\
 #define BIN_ATTR_RO(_name, _size)					\
 struct bin_attribute bin_attr_##_name = __BIN_ATTR_RO(_name, _size)
 
+#define BIN_ATTR_WO(_name, _size)					\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR_WO(_name, _size)
+
 #define BIN_ATTR_RW(_name, _size)					\
 struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
+
+
+#define __BIN_ATTR_ADMIN_RO(_name, _size) {					\
+	.attr	= { .name = __stringify(_name), .mode = 0400 },		\
+	.read	= _name##_read,						\
+	.size	= _size,						\
+}
+
+#define __BIN_ATTR_ADMIN_RW(_name, _size)					\
+	__BIN_ATTR(_name, 0600, _name##_read, _name##_write, _size)
+
+#define BIN_ATTR_ADMIN_RO(_name, _size)					\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR_ADMIN_RO(_name, _size)
+
+#define BIN_ATTR_ADMIN_RW(_name, _size)					\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR_ADMIN_RW(_name, _size)
 
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *, char *);
@@ -268,6 +308,8 @@ int __must_check sysfs_create_group(struct kobject *kobj,
 				    const struct attribute_group *grp);
 int __must_check sysfs_create_groups(struct kobject *kobj,
 				     const struct attribute_group **groups);
+int __must_check sysfs_update_groups(struct kobject *kobj,
+				     const struct attribute_group **groups);
 int sysfs_update_group(struct kobject *kobj,
 		       const struct attribute_group *grp);
 void sysfs_remove_group(struct kobject *kobj,
@@ -286,9 +328,10 @@ int sysfs_add_link_to_group(struct kobject *kobj, const char *group_name,
 			    struct kobject *target, const char *link_name);
 void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 				  const char *link_name);
-int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
-				      struct kobject *target_kobj,
-				      const char *target_name);
+int compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
+					 struct kobject *target_kobj,
+					 const char *target_name,
+					 const char *symlink_name);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 
@@ -298,6 +341,22 @@ static inline void sysfs_enable_ns(struct kernfs_node *kn)
 {
 	return kernfs_enable_ns(kn);
 }
+
+int sysfs_file_change_owner(struct kobject *kobj, const char *name, kuid_t kuid,
+			    kgid_t kgid);
+int sysfs_change_owner(struct kobject *kobj, kuid_t kuid, kgid_t kgid);
+int sysfs_link_change_owner(struct kobject *kobj, struct kobject *targ,
+			    const char *name, kuid_t kuid, kgid_t kgid);
+int sysfs_groups_change_owner(struct kobject *kobj,
+			      const struct attribute_group **groups,
+			      kuid_t kuid, kgid_t kgid);
+int sysfs_group_change_owner(struct kobject *kobj,
+			     const struct attribute_group *groups, kuid_t kuid,
+			     kgid_t kgid);
+__printf(2, 3)
+int sysfs_emit(char *buf, const char *fmt, ...);
+__printf(3, 4)
+int sysfs_emit_at(char *buf, int at, const char *fmt, ...);
 
 #else /* CONFIG_SYSFS */
 
@@ -433,6 +492,12 @@ static inline int sysfs_create_groups(struct kobject *kobj,
 	return 0;
 }
 
+static inline int sysfs_update_groups(struct kobject *kobj,
+				      const struct attribute_group **groups)
+{
+	return 0;
+}
+
 static inline int sysfs_update_group(struct kobject *kobj,
 				const struct attribute_group *grp)
 {
@@ -483,10 +548,10 @@ static inline void sysfs_remove_link_from_group(struct kobject *kobj,
 {
 }
 
-static inline int __compat_only_sysfs_link_entry_to_kobj(
-	struct kobject *kobj,
-	struct kobject *target_kobj,
-	const char *target_name)
+static inline int compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
+						       struct kobject *target_kobj,
+						       const char *target_name,
+						       const char *symlink_name)
 {
 	return 0;
 }
@@ -505,6 +570,51 @@ static inline void sysfs_enable_ns(struct kernfs_node *kn)
 {
 }
 
+static inline int sysfs_file_change_owner(struct kobject *kobj,
+					  const char *name, kuid_t kuid,
+					  kgid_t kgid)
+{
+	return 0;
+}
+
+static inline int sysfs_link_change_owner(struct kobject *kobj,
+					  struct kobject *targ,
+					  const char *name, kuid_t kuid,
+					  kgid_t kgid)
+{
+	return 0;
+}
+
+static inline int sysfs_change_owner(struct kobject *kobj, kuid_t kuid, kgid_t kgid)
+{
+	return 0;
+}
+
+static inline int sysfs_groups_change_owner(struct kobject *kobj,
+			  const struct attribute_group **groups,
+			  kuid_t kuid, kgid_t kgid)
+{
+	return 0;
+}
+
+static inline int sysfs_group_change_owner(struct kobject *kobj,
+					   const struct attribute_group *groups,
+					   kuid_t kuid, kgid_t kgid)
+{
+	return 0;
+}
+
+__printf(2, 3)
+static inline int sysfs_emit(char *buf, const char *fmt, ...)
+{
+	return 0;
+}
+
+__printf(3, 4)
+static inline int sysfs_emit_at(char *buf, int at, const char *fmt, ...)
+{
+	return 0;
+}
 #endif /* CONFIG_SYSFS */
 
 static inline int __must_check sysfs_create_file(struct kobject *kobj,

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_DRIVER_H__
 #define __NVIF_DRIVER_H__
 #include <nvif/os.h>
@@ -11,7 +11,7 @@ struct nvif_driver {
 	void (*fini)(void *priv);
 	int (*suspend)(void *priv);
 	int (*resume)(void *priv);
-	int (*ioctl)(void *priv, bool super, void *data, u32 size, void **hack);
+	int (*ioctl)(void *priv, void *data, u32 size, void **hack);
 	void __iomem *(*map)(void *priv, u64 handle, u32 size);
 	void (*unmap)(void *priv, void __iomem *ptr, u32 size);
 	bool keep;

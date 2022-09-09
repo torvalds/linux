@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "../util/cache.h"
-
 struct ui_helpline {
 	void (*pop)(void);
 	void (*push)(const char *msg);

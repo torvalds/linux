@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Message Protocol bus layer
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2021 ARM Ltd.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -28,8 +28,12 @@ scmi_dev_match_id(struct scmi_device *scmi_dev, struct scmi_driver *scmi_drv)
 		return NULL;
 
 	for (; id->protocol_id; id++)
-		if (id->protocol_id == scmi_dev->protocol_id)
-			return id;
+		if (id->protocol_id == scmi_dev->protocol_id) {
+			if (!id->name)
+				return id;
+			else if (!strcmp(id->name, scmi_dev->name))
+				return id;
+		}
 
 	return NULL;
 }
@@ -47,45 +51,73 @@ static int scmi_dev_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int scmi_protocol_init(int protocol_id, struct scmi_handle *handle)
+static int scmi_match_by_id_table(struct device *dev, void *data)
 {
-	scmi_prot_init_fn_t fn = idr_find(&scmi_protocols, protocol_id);
+	struct scmi_device *sdev = to_scmi_dev(dev);
+	struct scmi_device_id *id_table = data;
 
-	if (unlikely(!fn))
-		return -EINVAL;
-	return fn(handle);
+	return sdev->protocol_id == id_table->protocol_id &&
+		!strcmp(sdev->name, id_table->name);
+}
+
+struct scmi_device *scmi_child_dev_find(struct device *parent,
+					int prot_id, const char *name)
+{
+	struct scmi_device_id id_table;
+	struct device *dev;
+
+	id_table.protocol_id = prot_id;
+	id_table.name = name;
+
+	dev = device_find_child(parent, &id_table, scmi_match_by_id_table);
+	if (!dev)
+		return NULL;
+
+	return to_scmi_dev(dev);
+}
+
+const struct scmi_protocol *scmi_protocol_get(int protocol_id)
+{
+	const struct scmi_protocol *proto;
+
+	proto = idr_find(&scmi_protocols, protocol_id);
+	if (!proto || !try_module_get(proto->owner)) {
+		pr_warn("SCMI Protocol 0x%x not found!\n", protocol_id);
+		return NULL;
+	}
+
+	pr_debug("Found SCMI Protocol 0x%x\n", protocol_id);
+
+	return proto;
+}
+
+void scmi_protocol_put(int protocol_id)
+{
+	const struct scmi_protocol *proto;
+
+	proto = idr_find(&scmi_protocols, protocol_id);
+	if (proto)
+		module_put(proto->owner);
 }
 
 static int scmi_dev_probe(struct device *dev)
 {
 	struct scmi_driver *scmi_drv = to_scmi_driver(dev->driver);
 	struct scmi_device *scmi_dev = to_scmi_dev(dev);
-	const struct scmi_device_id *id;
-	int ret;
-
-	id = scmi_dev_match_id(scmi_dev, scmi_drv);
-	if (!id)
-		return -ENODEV;
 
 	if (!scmi_dev->handle)
 		return -EPROBE_DEFER;
 
-	ret = scmi_protocol_init(scmi_dev->protocol_id, scmi_dev->handle);
-	if (ret)
-		return ret;
-
 	return scmi_drv->probe(scmi_dev);
 }
 
-static int scmi_dev_remove(struct device *dev)
+static void scmi_dev_remove(struct device *dev)
 {
 	struct scmi_driver *scmi_drv = to_scmi_driver(dev->driver);
 	struct scmi_device *scmi_dev = to_scmi_dev(dev);
 
 	if (scmi_drv->remove)
 		scmi_drv->remove(scmi_dev);
-
-	return 0;
 }
 
 static struct bus_type scmi_bus_type = {
@@ -99,6 +131,13 @@ int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 			 const char *mod_name)
 {
 	int retval;
+
+	if (!driver->probe)
+		return -EINVAL;
+
+	retval = scmi_protocol_device_request(driver->id_table);
+	if (retval)
+		return retval;
 
 	driver->driver.bus = &scmi_bus_type;
 	driver->driver.name = driver->name;
@@ -116,11 +155,18 @@ EXPORT_SYMBOL_GPL(scmi_driver_register);
 void scmi_driver_unregister(struct scmi_driver *driver)
 {
 	driver_unregister(&driver->driver);
+	scmi_protocol_device_unrequest(driver->id_table);
 }
 EXPORT_SYMBOL_GPL(scmi_driver_unregister);
 
+static void scmi_device_release(struct device *dev)
+{
+	kfree(to_scmi_dev(dev));
+}
+
 struct scmi_device *
-scmi_device_create(struct device_node *np, struct device *parent, int protocol)
+scmi_device_create(struct device_node *np, struct device *parent, int protocol,
+		   const char *name)
 {
 	int id, retval;
 	struct scmi_device *scmi_dev;
@@ -129,15 +175,25 @@ scmi_device_create(struct device_node *np, struct device *parent, int protocol)
 	if (!scmi_dev)
 		return NULL;
 
-	id = ida_simple_get(&scmi_bus_id, 1, 0, GFP_KERNEL);
-	if (id < 0)
-		goto free_mem;
+	scmi_dev->name = kstrdup_const(name ?: "unknown", GFP_KERNEL);
+	if (!scmi_dev->name) {
+		kfree(scmi_dev);
+		return NULL;
+	}
+
+	id = ida_alloc_min(&scmi_bus_id, 1, GFP_KERNEL);
+	if (id < 0) {
+		kfree_const(scmi_dev->name);
+		kfree(scmi_dev);
+		return NULL;
+	}
 
 	scmi_dev->id = id;
 	scmi_dev->protocol_id = protocol;
 	scmi_dev->dev.parent = parent;
 	scmi_dev->dev.of_node = np;
 	scmi_dev->dev.bus = &scmi_bus_type;
+	scmi_dev->dev.release = scmi_device_release;
 	dev_set_name(&scmi_dev->dev, "scmi_dev.%d", id);
 
 	retval = device_register(&scmi_dev->dev);
@@ -146,19 +202,18 @@ scmi_device_create(struct device_node *np, struct device *parent, int protocol)
 
 	return scmi_dev;
 put_dev:
+	kfree_const(scmi_dev->name);
 	put_device(&scmi_dev->dev);
-	ida_simple_remove(&scmi_bus_id, id);
-free_mem:
-	kfree(scmi_dev);
+	ida_free(&scmi_bus_id, id);
 	return NULL;
 }
 
 void scmi_device_destroy(struct scmi_device *scmi_dev)
 {
+	kfree_const(scmi_dev->name);
 	scmi_handle_put(scmi_dev->handle);
+	ida_free(&scmi_bus_id, scmi_dev->id);
 	device_unregister(&scmi_dev->dev);
-	ida_simple_remove(&scmi_bus_id, scmi_dev->id);
-	kfree(scmi_dev);
 }
 
 void scmi_set_handle(struct scmi_device *scmi_dev)
@@ -166,26 +221,45 @@ void scmi_set_handle(struct scmi_device *scmi_dev)
 	scmi_dev->handle = scmi_handle_get(&scmi_dev->dev);
 }
 
-int scmi_protocol_register(int protocol_id, scmi_prot_init_fn_t fn)
+int scmi_protocol_register(const struct scmi_protocol *proto)
 {
 	int ret;
 
-	spin_lock(&protocol_lock);
-	ret = idr_alloc(&scmi_protocols, fn, protocol_id, protocol_id + 1,
-			GFP_ATOMIC);
-	spin_unlock(&protocol_lock);
-	if (ret != protocol_id)
-		pr_err("unable to allocate SCMI idr slot, err %d\n", ret);
+	if (!proto) {
+		pr_err("invalid protocol\n");
+		return -EINVAL;
+	}
 
-	return ret;
+	if (!proto->instance_init) {
+		pr_err("missing init for protocol 0x%x\n", proto->id);
+		return -EINVAL;
+	}
+
+	spin_lock(&protocol_lock);
+	ret = idr_alloc(&scmi_protocols, (void *)proto,
+			proto->id, proto->id + 1, GFP_ATOMIC);
+	spin_unlock(&protocol_lock);
+	if (ret != proto->id) {
+		pr_err("unable to allocate SCMI idr slot for 0x%x - err %d\n",
+		       proto->id, ret);
+		return ret;
+	}
+
+	pr_debug("Registered SCMI Protocol 0x%x\n", proto->id);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(scmi_protocol_register);
 
-void scmi_protocol_unregister(int protocol_id)
+void scmi_protocol_unregister(const struct scmi_protocol *proto)
 {
 	spin_lock(&protocol_lock);
-	idr_remove(&scmi_protocols, protocol_id);
+	idr_remove(&scmi_protocols, proto->id);
 	spin_unlock(&protocol_lock);
+
+	pr_debug("Unregistered SCMI Protocol 0x%x\n", proto->id);
+
+	return;
 }
 EXPORT_SYMBOL_GPL(scmi_protocol_unregister);
 
@@ -202,7 +276,7 @@ static void scmi_devices_unregister(void)
 	bus_for_each_dev(&scmi_bus_type, NULL, NULL, __scmi_devices_unregister);
 }
 
-static int __init scmi_bus_init(void)
+int __init scmi_bus_init(void)
 {
 	int retval;
 
@@ -212,12 +286,10 @@ static int __init scmi_bus_init(void)
 
 	return retval;
 }
-subsys_initcall(scmi_bus_init);
 
-static void __exit scmi_bus_exit(void)
+void __exit scmi_bus_exit(void)
 {
 	scmi_devices_unregister();
 	bus_unregister(&scmi_bus_type);
 	ida_destroy(&scmi_bus_id);
 }
-module_exit(scmi_bus_exit);

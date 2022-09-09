@@ -13,7 +13,7 @@
 
 #include <linux/in6.h>
 #include <linux/uaccess.h>
-#include <variant/core.h>
+#include <asm/core.h>
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -37,29 +37,27 @@ asmlinkage __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 
-asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
-					    int len, __wsum sum,
-					    int *src_err_ptr, int *dst_err_ptr);
+asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst, int len);
 
+#define _HAVE_ARCH_CSUM_AND_COPY
 /*
  *	Note: when you get a NULL pointer exception here this means someone
  *	passed in an incorrect kernel address to one of these functions.
- *
- *	If you use these functions directly please don't forget the access_ok().
  */
 static inline
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
-					int len, __wsum sum)
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
 {
-	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
+	return csum_partial_copy_generic(src, dst, len);
 }
 
+#define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 static inline
-__wsum csum_partial_copy_from_user(const void __user *src, void *dst,
-				   int len, __wsum sum, int *err_ptr)
+__wsum csum_and_copy_from_user(const void __user *src, void *dst,
+				   int len)
 {
-	return csum_partial_copy_generic((__force const void *)src, dst,
-					len, sum, err_ptr, NULL);
+	if (!access_ok(src, len))
+		return 0;
+	return csum_partial_copy_generic((__force const void *)src, dst, len);
 }
 
 /*
@@ -240,15 +238,10 @@ static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
  */
 #define HAVE_CSUM_COPY_USER
 static __inline__ __wsum csum_and_copy_to_user(const void *src,
-					       void __user *dst, int len,
-					       __wsum sum, int *err_ptr)
+					       void __user *dst, int len)
 {
-	if (access_ok(dst, len))
-		return csum_partial_copy_generic(src,dst,len,sum,NULL,err_ptr);
-
-	if (len)
-		*err_ptr = -EFAULT;
-
-	return (__force __wsum)-1; /* invalid checksum */
+	if (!access_ok(dst, len))
+		return 0;
+	return csum_partial_copy_generic(src, (__force void *)dst, len);
 }
 #endif

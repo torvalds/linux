@@ -9,20 +9,14 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_btree.h"
-#include "xfs_bit.h"
-#include "xfs_log_format.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
 #include "xfs_rmap.h"
-#include "scrub/xfs_scrub.h"
+#include "xfs_ag.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
-#include "scrub/trace.h"
 
 /* Superblock */
 
@@ -42,7 +36,7 @@ xchk_superblock_xref(
 
 	agbno = XFS_SB_BLOCK(mp);
 
-	error = xchk_ag_init(sc, agno, &sc->sa);
+	error = xchk_ag_init_existing(sc, agno, &sc->sa);
 	if (!xchk_xref_process_error(sc, agno, agbno, &error))
 		return;
 
@@ -69,6 +63,7 @@ xchk_superblock(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*bp;
 	struct xfs_dsb		*sb;
+	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	uint32_t		v2_ok;
 	__be32			features_mask;
@@ -78,6 +73,15 @@ xchk_superblock(
 	agno = sc->sm->sm_agno;
 	if (agno == 0)
 		return 0;
+
+	/*
+	 * Grab an active reference to the perag structure.  If we can't get
+	 * it, we're racing with something that's tearing down the AG, so
+	 * signal that the AG no longer exists.
+	 */
+	pag = xfs_perag_get(mp, agno);
+	if (!pag)
+		return -ENOENT;
 
 	error = xfs_sb_read_secondary(mp, sc->tp, agno, &bp);
 	/*
@@ -93,13 +97,14 @@ xchk_superblock(
 	case -ENOSYS:
 	case -EFBIG:
 		error = -EFSCORRUPTED;
+		fallthrough;
 	default:
 		break;
 	}
 	if (!xchk_process_error(sc, agno, XFS_SB_BLOCK(mp), &error))
-		return error;
+		goto out_pag;
 
-	sb = XFS_BUF_TO_SBP(bp);
+	sb = bp->b_addr;
 
 	/*
 	 * Verify the geometries match.  Fields that are permanently
@@ -253,7 +258,7 @@ xchk_superblock(
 			xchk_block_set_corrupt(sc, bp);
 	} else {
 		v2_ok = XFS_SB_VERSION2_OKBITS;
-		if (XFS_SB_VERSION_NUM(&mp->m_sb) >= XFS_SB_VERSION_5)
+		if (xfs_sb_is_v5(&mp->m_sb))
 			v2_ok |= XFS_SB_VERSION2_CRCBIT;
 
 		if (!!(sb->sb_features2 & cpu_to_be32(~v2_ok)))
@@ -276,47 +281,46 @@ xchk_superblock(
 	features_mask = cpu_to_be32(XFS_SB_VERSION2_ATTR2BIT);
 	if ((sb->sb_features2 & features_mask) !=
 	    (cpu_to_be32(mp->m_sb.sb_features2) & features_mask))
-		xchk_block_set_corrupt(sc, bp);
+		xchk_block_set_preen(sc, bp);
 
-	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+	if (!xfs_has_crc(mp)) {
 		/* all v5 fields must be zero */
 		if (memchr_inv(&sb->sb_features_compat, 0,
 				sizeof(struct xfs_dsb) -
 				offsetof(struct xfs_dsb, sb_features_compat)))
 			xchk_block_set_corrupt(sc, bp);
 	} else {
-		/* Check compat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_COMPAT_UNKNOWN);
-		if ((sb->sb_features_compat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_compat) & features_mask))
+		/* compat features must match */
+		if (sb->sb_features_compat !=
+				cpu_to_be32(mp->m_sb.sb_features_compat))
 			xchk_block_set_corrupt(sc, bp);
 
-		/* Check ro compat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_RO_COMPAT_UNKNOWN |
-					    XFS_SB_FEAT_RO_COMPAT_FINOBT |
-					    XFS_SB_FEAT_RO_COMPAT_RMAPBT |
-					    XFS_SB_FEAT_RO_COMPAT_REFLINK);
-		if ((sb->sb_features_ro_compat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_ro_compat) &
-		     features_mask))
+		/* ro compat features must match */
+		if (sb->sb_features_ro_compat !=
+				cpu_to_be32(mp->m_sb.sb_features_ro_compat))
 			xchk_block_set_corrupt(sc, bp);
 
-		/* Check incompat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_INCOMPAT_UNKNOWN |
-					    XFS_SB_FEAT_INCOMPAT_FTYPE |
-					    XFS_SB_FEAT_INCOMPAT_SPINODES |
-					    XFS_SB_FEAT_INCOMPAT_META_UUID);
-		if ((sb->sb_features_incompat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_incompat) &
-		     features_mask))
+		/*
+		 * NEEDSREPAIR is ignored on a secondary super, so we should
+		 * clear it when we find it, though it's not a corruption.
+		 */
+		features_mask = cpu_to_be32(XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR);
+		if ((cpu_to_be32(mp->m_sb.sb_features_incompat) ^
+				sb->sb_features_incompat) & features_mask)
+			xchk_block_set_preen(sc, bp);
+
+		/* all other incompat features must match */
+		if ((cpu_to_be32(mp->m_sb.sb_features_incompat) ^
+				sb->sb_features_incompat) & ~features_mask)
 			xchk_block_set_corrupt(sc, bp);
 
-		/* Check log incompat flags; all are set at mkfs time. */
-		features_mask = cpu_to_be32(XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN);
-		if ((sb->sb_features_log_incompat & features_mask) !=
-		    (cpu_to_be32(mp->m_sb.sb_features_log_incompat) &
-		     features_mask))
-			xchk_block_set_corrupt(sc, bp);
+		/*
+		 * log incompat features protect newer log record types from
+		 * older log recovery code.  Log recovery doesn't check the
+		 * secondary supers, so we can clear these if needed.
+		 */
+		if (sb->sb_features_log_incompat)
+			xchk_block_set_preen(sc, bp);
 
 		/* Don't care about sb_crc */
 
@@ -329,7 +333,7 @@ xchk_superblock(
 		/* Don't care about sb_lsn */
 	}
 
-	if (xfs_sb_version_hasmetauuid(&mp->m_sb)) {
+	if (xfs_has_metauuid(mp)) {
 		/* The metadata UUID must be the same for all supers */
 		if (!uuid_equal(&sb->sb_meta_uuid, &mp->m_sb.sb_meta_uuid))
 			xchk_block_set_corrupt(sc, bp);
@@ -341,7 +345,8 @@ xchk_superblock(
 		xchk_block_set_corrupt(sc, bp);
 
 	xchk_superblock_xref(sc, bp);
-
+out_pag:
+	xfs_perag_put(pag);
 	return error;
 }
 
@@ -351,7 +356,7 @@ xchk_superblock(
 STATIC int
 xchk_agf_record_bno_lengths(
 	struct xfs_btree_cur		*cur,
-	struct xfs_alloc_rec_incore	*rec,
+	const struct xfs_alloc_rec_incore *rec,
 	void				*priv)
 {
 	xfs_extlen_t			*blocks = priv;
@@ -365,7 +370,7 @@ static inline void
 xchk_agf_xref_freeblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	xfs_extlen_t		blocks = 0;
 	int			error;
 
@@ -385,7 +390,7 @@ static inline void
 xchk_agf_xref_cntbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	xfs_agblock_t		agbno;
 	xfs_extlen_t		blocks;
 	int			have;
@@ -399,7 +404,7 @@ xchk_agf_xref_cntbt(
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.cnt_cur))
 		return;
 	if (!have) {
-		if (agf->agf_freeblks != be32_to_cpu(0))
+		if (agf->agf_freeblks != cpu_to_be32(0))
 			xchk_block_xref_set_corrupt(sc, sc->sa.agf_bp);
 		return;
 	}
@@ -417,11 +422,15 @@ STATIC void
 xchk_agf_xref_btreeblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		blocks;
 	xfs_agblock_t		btreeblks;
 	int			error;
+
+	/* agf_btreeblks didn't exist before lazysbcount */
+	if (!xfs_has_lazysbcount(sc->mp))
+		return;
 
 	/* Check agf_rmap_blocks; set up for agf_btreeblks check */
 	if (sc->sa.rmap_cur) {
@@ -439,7 +448,7 @@ xchk_agf_xref_btreeblks(
 	 * No rmap cursor; we can't xref if we have the rmapbt feature.
 	 * We also can't do it if we're missing the free space btree cursors.
 	 */
-	if ((xfs_sb_version_hasrmapbt(&mp->m_sb) && !sc->sa.rmap_cur) ||
+	if ((xfs_has_rmapbt(mp) && !sc->sa.rmap_cur) ||
 	    !sc->sa.bno_cur || !sc->sa.cnt_cur)
 		return;
 
@@ -463,7 +472,7 @@ static inline void
 xchk_agf_xref_refcblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	xfs_agblock_t		blocks;
 	int			error;
 
@@ -484,16 +493,13 @@ xchk_agf_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGF_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_agf_xref_freeblks(sc);
@@ -514,7 +520,8 @@ xchk_agf(
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_agf		*agf;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		eoag;
 	xfs_agblock_t		agfl_first;
@@ -524,54 +531,53 @@ xchk_agf(
 	int			level;
 	int			error = 0;
 
-	agno = sc->sa.agno = sc->sm->sm_agno;
-	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
-			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, &sc->sa);
 	if (!xchk_process_error(sc, agno, XFS_AGF_BLOCK(sc->mp), &error))
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agf_bp);
 
-	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	agf = sc->sa.agf_bp->b_addr;
+	pag = sc->sa.pag;
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agf->agf_length);
-	if (eoag != xfs_ag_block_count(mp, agno))
+	if (eoag != pag->block_count)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	/* Check the AGF btree roots and levels */
 	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_BNO]);
-	if (!xfs_verify_agbno(mp, agno, agbno))
+	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_CNT]);
-	if (!xfs_verify_agbno(mp, agno, agbno))
+	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
-	if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+	if (level <= 0 || level > mp->m_alloc_maxlevels)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
-	if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+	if (level <= 0 || level > mp->m_alloc_maxlevels)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
+	if (xfs_has_rmapbt(mp)) {
 		agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_RMAP]);
-		if (!xfs_verify_agbno(mp, agno, agbno))
+		if (!xfs_verify_agbno(pag, agbno))
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 		level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
-		if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+		if (level <= 0 || level > mp->m_rmap_maxlevels)
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	}
 
-	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
+	if (xfs_has_reflink(mp)) {
 		agbno = be32_to_cpu(agf->agf_refcount_root);
-		if (!xfs_verify_agbno(mp, agno, agbno))
+		if (!xfs_verify_agbno(pag, agbno))
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 		level = be32_to_cpu(agf->agf_refcount_level);
-		if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+		if (level <= 0 || level > mp->m_refc_maxlevels)
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 	}
 
@@ -584,6 +590,15 @@ xchk_agf(
 	else
 		fl_count = xfs_agfl_size(mp) - agfl_first + agfl_last + 1;
 	if (agfl_count != 0 && fl_count != agfl_count)
+		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
+
+	/* Do the incore counters match? */
+	if (pag->pagf_freeblks != be32_to_cpu(agf->agf_freeblks))
+		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
+	if (pag->pagf_flcount != be32_to_cpu(agf->agf_flcount))
+		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
+	if (xfs_has_lazysbcount(sc->mp) &&
+	    pag->pagf_btreeblks != be32_to_cpu(agf->agf_btreeblks))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	xchk_agf_xref(sc);
@@ -624,9 +639,8 @@ xchk_agfl_block(
 {
 	struct xchk_agfl_info	*sai = priv;
 	struct xfs_scrub	*sc = sai->sc;
-	xfs_agnumber_t		agno = sc->sa.agno;
 
-	if (xfs_verify_agbno(mp, agno, agbno) &&
+	if (xfs_verify_agbno(sc->sa.pag, agbno) &&
 	    sai->nr_entries < sai->sz_entries)
 		sai->entries[sai->nr_entries++] = agbno;
 	else
@@ -635,7 +649,7 @@ xchk_agfl_block(
 	xchk_agfl_block_xref(sc, agbno);
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		return XFS_BTREE_QUERY_RANGE_ABORT;
+		return -ECANCELED;
 
 	return 0;
 }
@@ -658,16 +672,13 @@ xchk_agfl_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGFL_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
@@ -687,14 +698,12 @@ xchk_agfl(
 {
 	struct xchk_agfl_info	sai;
 	struct xfs_agf		*agf;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	unsigned int		agflcount;
 	unsigned int		i;
 	int			error;
 
-	agno = sc->sa.agno = sc->sm->sm_agno;
-	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
-			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, &sc->sa);
 	if (!xchk_process_error(sc, agno, XFS_AGFL_BLOCK(sc->mp), &error))
 		goto out;
 	if (!sc->sa.agf_bp)
@@ -707,7 +716,7 @@ xchk_agfl(
 		goto out;
 
 	/* Allocate buffer to ensure uniqueness of AGFL entries. */
-	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	agf = sc->sa.agf_bp->b_addr;
 	agflcount = be32_to_cpu(agf->agf_flcount);
 	if (agflcount > xfs_agfl_size(sc->mp)) {
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
@@ -724,9 +733,9 @@ xchk_agfl(
 	}
 
 	/* Check the blocks in the AGFL. */
-	error = xfs_agfl_walk(sc->mp, XFS_BUF_TO_AGF(sc->sa.agf_bp),
+	error = xfs_agfl_walk(sc->mp, sc->sa.agf_bp->b_addr,
 			sc->sa.agfl_bp, xchk_agfl_block, &sai);
-	if (error == XFS_BTREE_QUERY_RANGE_ABORT) {
+	if (error == -ECANCELED) {
 		error = 0;
 		goto out_free;
 	}
@@ -761,7 +770,7 @@ static inline void
 xchk_agi_xref_icounts(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	struct xfs_agi		*agi = sc->sa.agi_bp->b_addr;
 	xfs_agino_t		icount;
 	xfs_agino_t		freecount;
 	int			error;
@@ -777,6 +786,35 @@ xchk_agi_xref_icounts(
 		xchk_block_xref_set_corrupt(sc, sc->sa.agi_bp);
 }
 
+/* Check agi_[fi]blocks against tree size */
+static inline void
+xchk_agi_xref_fiblocks(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_agi		*agi = sc->sa.agi_bp->b_addr;
+	xfs_agblock_t		blocks;
+	int			error = 0;
+
+	if (!xfs_has_inobtcounts(sc->mp))
+		return;
+
+	if (sc->sa.ino_cur) {
+		error = xfs_btree_count_blocks(sc->sa.ino_cur, &blocks);
+		if (!xchk_should_check_xref(sc, &error, &sc->sa.ino_cur))
+			return;
+		if (blocks != be32_to_cpu(agi->agi_iblocks))
+			xchk_block_xref_set_corrupt(sc, sc->sa.agi_bp);
+	}
+
+	if (sc->sa.fino_cur) {
+		error = xfs_btree_count_blocks(sc->sa.fino_cur, &blocks);
+		if (!xchk_should_check_xref(sc, &error, &sc->sa.fino_cur))
+			return;
+		if (blocks != be32_to_cpu(agi->agi_fblocks))
+			xchk_block_xref_set_corrupt(sc, sc->sa.agi_bp);
+	}
+}
+
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_agi_xref(
@@ -784,22 +822,20 @@ xchk_agi_xref(
 {
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
-	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	agbno = XFS_AGI_BLOCK(mp);
 
-	error = xchk_ag_btcur_init(sc, &sc->sa);
-	if (error)
-		return;
+	xchk_ag_btcur_init(sc, &sc->sa);
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
 	xchk_agi_xref_icounts(sc);
 	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_FS);
 	xchk_xref_is_not_shared(sc, agbno, 1);
+	xchk_agi_xref_fiblocks(sc);
 
 	/* scrub teardown will take care of sc->sa for us */
 }
@@ -811,7 +847,9 @@ xchk_agi(
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_agi		*agi;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag;
+	struct xfs_ino_geometry	*igeo = M_IGEO(sc->mp);
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		eoag;
 	xfs_agino_t		agino;
@@ -822,36 +860,35 @@ xchk_agi(
 	int			level;
 	int			error = 0;
 
-	agno = sc->sa.agno = sc->sm->sm_agno;
-	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
-			&sc->sa.agf_bp, &sc->sa.agfl_bp);
+	error = xchk_ag_read_headers(sc, agno, &sc->sa);
 	if (!xchk_process_error(sc, agno, XFS_AGI_BLOCK(sc->mp), &error))
 		goto out;
 	xchk_buffer_recheck(sc, sc->sa.agi_bp);
 
-	agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	agi = sc->sa.agi_bp->b_addr;
+	pag = sc->sa.pag;
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agi->agi_length);
-	if (eoag != xfs_ag_block_count(mp, agno))
+	if (eoag != pag->block_count)
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	/* Check btree roots and levels */
 	agbno = be32_to_cpu(agi->agi_root);
-	if (!xfs_verify_agbno(mp, agno, agbno))
+	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	level = be32_to_cpu(agi->agi_level);
-	if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+	if (level <= 0 || level > igeo->inobt_maxlevels)
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
-	if (xfs_sb_version_hasfinobt(&mp->m_sb)) {
+	if (xfs_has_finobt(mp)) {
 		agbno = be32_to_cpu(agi->agi_free_root);
-		if (!xfs_verify_agbno(mp, agno, agbno))
+		if (!xfs_verify_agbno(pag, agbno))
 			xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 		level = be32_to_cpu(agi->agi_free_level);
-		if (level <= 0 || level > XFS_BTREE_MAXLEVELS)
+		if (level <= 0 || level > igeo->inobt_maxlevels)
 			xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 	}
 
@@ -864,23 +901,27 @@ xchk_agi(
 
 	/* Check inode pointers */
 	agino = be32_to_cpu(agi->agi_newino);
-	if (agino != NULLAGINO && !xfs_verify_agino(mp, agno, agino))
+	if (!xfs_verify_agino_or_null(pag, agino))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	agino = be32_to_cpu(agi->agi_dirino);
-	if (agino != NULLAGINO && !xfs_verify_agino(mp, agno, agino))
+	if (!xfs_verify_agino_or_null(pag, agino))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	/* Check unlinked inode buckets */
 	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++) {
 		agino = be32_to_cpu(agi->agi_unlinked[i]);
-		if (agino == NULLAGINO)
-			continue;
-		if (!xfs_verify_agino(mp, agno, agino))
+		if (!xfs_verify_agino_or_null(pag, agino))
 			xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 	}
 
 	if (agi->agi_pad32 != cpu_to_be32(0))
+		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+
+	/* Do the incore counters match? */
+	if (pag->pagi_count != be32_to_cpu(agi->agi_count))
+		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+	if (pag->pagi_freecount != be32_to_cpu(agi->agi_freecount))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	xchk_agi_xref(sc);

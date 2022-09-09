@@ -3,7 +3,7 @@
  *
  * Module Name: tbutils - ACPI Table utilities
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -328,13 +328,13 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 
 		status = acpi_tb_install_standard_table(address,
 							ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
-							FALSE, TRUE,
+							NULL, FALSE, TRUE,
 							&table_index);
 
 		if (ACPI_SUCCESS(status) &&
-		    ACPI_COMPARE_NAME(&acpi_gbl_root_table_list.
-				      tables[table_index].signature,
-				      ACPI_SIG_FADT)) {
+		    ACPI_COMPARE_NAMESEG(&acpi_gbl_root_table_list.
+					 tables[table_index].signature,
+					 ACPI_SIG_FADT)) {
 			acpi_gbl_fadt_index = table_index;
 			acpi_tb_parse_fadt();
 		}

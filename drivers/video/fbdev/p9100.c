@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* p9100.c: P9100 frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
@@ -36,7 +37,7 @@ static int p9100_ioctl(struct fb_info *, unsigned int, unsigned long);
  *  Frame buffer operations
  */
 
-static struct fb_ops p9100_ops = {
+static const struct fb_ops p9100_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= p9100_setcolreg,
 	.fb_blank		= p9100_blank,
@@ -174,7 +175,7 @@ static int p9100_setcolreg(unsigned regno,
 
 /**
  *      p9100_blank - Optional function.  Blanks the display.
- *      @blank_mode: the blank mode we want.
+ *      @blank: the blank mode we want.
  *      @info: frame buffer structure that represents a single frame buffer
  */
 static int

@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-a2015-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy A5U (EUR)";
+	compatible = "samsung,a5u-eur", "qcom,msm8916";
+	chassis-type = "handset";
+
+	reg_touch_key: regulator-touch-key {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_key";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 97 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tkey_en_default>;
+	};
+};
+
+&accelerometer {
+	mount-matrix = "-1", "0", "0",
+			"0", "1", "0",
+			"0", "0", "1";
+};
+
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen@48 {
+		compatible = "melfas,mms345l";
+
+		reg = <0x48>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
+
+		avdd-supply = <&reg_vdd_tsp>;
+		vdd-supply = <&pm8916_l6>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_default>;
+	};
+};
+
+&pronto {
+	iris {
+		compatible = "qcom,wcn3660b";
+	};
+};
+
+&touchkey {
+	vcc-supply = <&reg_touch_key>;
+	vdd-supply = <&reg_touch_key>;
+};
+
+&msmgpio {
+	tkey_en_default: tkey-en-default {
+		pins = "gpio97";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+};

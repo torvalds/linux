@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Helper functions for jack-detection kcontrols
  *
  * Copyright (c) 2011 Takashi Iwai <tiwai@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/kernel.h>
@@ -39,7 +35,7 @@ static int get_available_index(struct snd_card *card, const char *name)
 
 	sid.index = 0;
 	sid.iface = SNDRV_CTL_ELEM_IFACE_CARD;
-	strlcpy(sid.name, name, sizeof(sid.name));
+	strscpy(sid.name, name, sizeof(sid.name));
 
 	while (snd_ctl_find_id(card, &sid)) {
 		sid.index++;

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * digi00x.h - a part of driver for Digidesign Digi 002/003 family
  *
  * Copyright (c) 2014-2015 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef SOUND_DIGI00X_H_INCLUDED
@@ -38,9 +37,6 @@ struct snd_dg00x {
 	struct mutex mutex;
 	spinlock_t lock;
 
-	bool registered;
-	struct delayed_work dwork;
-
 	struct amdtp_stream tx_stream;
 	struct fw_iso_resources tx_resources;
 
@@ -60,6 +56,8 @@ struct snd_dg00x {
 
 	/* Console models have additional MIDI ports for control surface. */
 	bool is_console;
+
+	struct amdtp_domain domain;
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull
@@ -140,7 +138,10 @@ int snd_dg00x_stream_get_clock(struct snd_dg00x *dg00x,
 int snd_dg00x_stream_check_external_clock(struct snd_dg00x *dg00x,
 					  bool *detect);
 int snd_dg00x_stream_init_duplex(struct snd_dg00x *dg00x);
-int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate);
+int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate,
+				    unsigned int frames_per_period,
+				    unsigned int frames_per_buffer);
+int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_stop_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x);

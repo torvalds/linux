@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/fs/9p/trans_rdma.c
- *
  * RDMA transport layer based on the trans_fd.c implementation.
  *
  *  Copyright (C) 2008 by Tom Tucker <tom@opengridcomputing.com>
@@ -8,22 +7,6 @@
  *  Copyright (C) 2004-2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@sarnoff.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to:
- *  Free Software Foundation
- *  51 Franklin Street, Fifth Floor
- *  Boston, MA  02111-1301  USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -109,14 +92,16 @@ struct p9_trans_rdma {
 	struct completion cm_done;
 };
 
+struct p9_rdma_req;
+
 /**
- * p9_rdma_context - Keeps track of in-process WR
+ * struct p9_rdma_context - Keeps track of in-process WR
  *
+ * @cqe: completion queue entry
  * @busa: Bus address to unmap when the WR completes
  * @req: Keeps track of requests (send)
  * @rc: Keepts track of replies (receive)
  */
-struct p9_rdma_req;
 struct p9_rdma_context {
 	struct ib_cqe cqe;
 	dma_addr_t busa;
@@ -127,8 +112,9 @@ struct p9_rdma_context {
 };
 
 /**
- * p9_rdma_opts - Collection of mount options
+ * struct p9_rdma_opts - Collection of mount options
  * @port: port of connection
+ * @privport: Whether a privileged port may be used
  * @sq_depth: The requested depth of the SQ. This really doesn't need
  * to be any deeper than the number of threads used in the client
  * @rq_depth: The depth of the RQ. Should be greater than or equal to SQ depth
@@ -364,7 +350,7 @@ send_done(struct ib_cq *cq, struct ib_wc *wc)
 			    c->busa, c->req->tc.size,
 			    DMA_TO_DEVICE);
 	up(&rdma->sq_sem);
-	p9_req_put(c->req);
+	p9_req_put(client, c->req);
 	kfree(c);
 }
 
@@ -700,9 +686,9 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 		goto error;
 
 	/* Create the Completion Queue */
-	rdma->cq = ib_alloc_cq(rdma->cm_id->device, client,
-			opts.sq_depth + opts.rq_depth + 1,
-			0, IB_POLL_SOFTIRQ);
+	rdma->cq = ib_alloc_cq_any(rdma->cm_id->device, client,
+				   opts.sq_depth + opts.rq_depth + 1,
+				   IB_POLL_SOFTIRQ);
 	if (IS_ERR(rdma->cq))
 		goto error;
 
@@ -779,6 +765,7 @@ static void __exit p9_trans_rdma_exit(void)
 
 module_init(p9_trans_rdma_init);
 module_exit(p9_trans_rdma_exit);
+MODULE_ALIAS_9P("rdma");
 
 MODULE_AUTHOR("Tom Tucker <tom@opengridcomputing.com>");
 MODULE_DESCRIPTION("RDMA Transport for 9P");

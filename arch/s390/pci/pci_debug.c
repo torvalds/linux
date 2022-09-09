@@ -74,7 +74,7 @@ static void pci_sw_counter_show(struct seq_file *m)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pci_sw_names); i++, counter++)
-		seq_printf(m, "%26s:\t%lu\n", pci_sw_names[i],
+		seq_printf(m, "%26s:\t%llu\n", pci_sw_names[i],
 			   atomic64_read(counter));
 }
 
@@ -172,21 +172,14 @@ static const struct file_operations debugfs_pci_perf_fops = {
 void zpci_debug_init_device(struct zpci_dev *zdev, const char *name)
 {
 	zdev->debugfs_dev = debugfs_create_dir(name, debugfs_root);
-	if (IS_ERR(zdev->debugfs_dev))
-		zdev->debugfs_dev = NULL;
 
-	zdev->debugfs_perf = debugfs_create_file("statistics",
-				S_IFREG | S_IRUGO | S_IWUSR,
-				zdev->debugfs_dev, zdev,
-				&debugfs_pci_perf_fops);
-	if (IS_ERR(zdev->debugfs_perf))
-		zdev->debugfs_perf = NULL;
+	debugfs_create_file("statistics", S_IFREG | S_IRUGO | S_IWUSR,
+			    zdev->debugfs_dev, zdev, &debugfs_pci_perf_fops);
 }
 
 void zpci_debug_exit_device(struct zpci_dev *zdev)
 {
-	debugfs_remove(zdev->debugfs_perf);
-	debugfs_remove(zdev->debugfs_dev);
+	debugfs_remove_recursive(zdev->debugfs_dev);
 }
 
 int __init zpci_debug_init(void)
@@ -203,7 +196,7 @@ int __init zpci_debug_init(void)
 	if (!pci_debug_err_id)
 		return -EINVAL;
 	debug_register_view(pci_debug_err_id, &debug_hex_ascii_view);
-	debug_set_level(pci_debug_err_id, 6);
+	debug_set_level(pci_debug_err_id, 3);
 
 	debugfs_root = debugfs_create_dir("pci", NULL);
 	return 0;

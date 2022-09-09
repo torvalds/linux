@@ -1,50 +1,52 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
+/* Copyright (c) 2019-2020 Marvell International Ltd. */
+
 #ifndef _QED_SELFTEST_API_H
 #define _QED_SELFTEST_API_H
 #include <linux/types.h>
 
 /**
- * @brief qed_selftest_memory - Perform memory test
+ * qed_selftest_memory(): Perform memory test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return int
+ * Return: Int.
  */
 int qed_selftest_memory(struct qed_dev *cdev);
 
 /**
- * @brief qed_selftest_interrupt - Perform interrupt test
+ * qed_selftest_interrupt(): Perform interrupt test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return int
+ * Return: Int.
  */
 int qed_selftest_interrupt(struct qed_dev *cdev);
 
 /**
- * @brief qed_selftest_register - Perform register test
+ * qed_selftest_register(): Perform register test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return int
+ * Return: Int.
  */
 int qed_selftest_register(struct qed_dev *cdev);
 
 /**
- * @brief qed_selftest_clock - Perform clock test
+ * qed_selftest_clock(): Perform clock test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return int
+ * Return: Int.
  */
 int qed_selftest_clock(struct qed_dev *cdev);
 
 /**
- * @brief qed_selftest_nvram - Perform nvram test
+ * qed_selftest_nvram(): Perform nvram test.
  *
- * @param cdev
+ * @cdev: Qed dev pointer.
  *
- * @return int
+ * Return: Int.
  */
 int qed_selftest_nvram(struct qed_dev *cdev);
 

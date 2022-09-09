@@ -22,6 +22,7 @@
 #include <net/tc_act/tc_mirred.h>
 
 #include "main.h"
+#include "../ccm.h"
 #include "../nfp_app.h"
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
@@ -45,9 +46,7 @@ nfp_map_ptr_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 	/* Grab a single ref to the map for our record.  The prog destroy ndo
 	 * happens after free_used_maps().
 	 */
-	map = bpf_map_inc(map, false);
-	if (IS_ERR(map))
-		return PTR_ERR(map);
+	bpf_map_inc(map);
 
 	record = kmalloc(sizeof(*record), GFP_KERNEL);
 	if (!record) {
@@ -112,7 +111,9 @@ static int
 nfp_map_ptrs_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 		    struct bpf_prog *prog)
 {
-	int i, cnt, err;
+	int i, cnt, err = 0;
+
+	mutex_lock(&prog->aux->used_maps_mutex);
 
 	/* Quickly count the maps we will have to remember */
 	cnt = 0;
@@ -120,13 +121,15 @@ nfp_map_ptrs_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 		if (bpf_map_offload_neutral(prog->aux->used_maps[i]))
 			cnt++;
 	if (!cnt)
-		return 0;
+		goto out;
 
 	nfp_prog->map_records = kmalloc_array(cnt,
 					      sizeof(nfp_prog->map_records[0]),
 					      GFP_KERNEL);
-	if (!nfp_prog->map_records)
-		return -ENOMEM;
+	if (!nfp_prog->map_records) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	for (i = 0; i < prog->aux->used_map_cnt; i++)
 		if (bpf_map_offload_neutral(prog->aux->used_maps[i])) {
@@ -134,12 +137,14 @@ nfp_map_ptrs_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 						 prog->aux->used_maps[i]);
 			if (err) {
 				nfp_map_ptrs_forget(bpf, nfp_prog);
-				return err;
+				goto out;
 			}
 		}
 	WARN_ON(cnt != nfp_prog->map_records_cnt);
 
-	return 0;
+out:
+	mutex_unlock(&prog->aux->used_maps_mutex);
+	return err;
 }
 
 static int
@@ -163,8 +168,9 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 
 		list_add_tail(&meta->l, &nfp_prog->insns);
 	}
+	nfp_prog->n_insns = cnt;
 
-	nfp_bpf_jit_prepare(nfp_prog, cnt);
+	nfp_bpf_jit_prepare(nfp_prog);
 
 	return 0;
 }
@@ -184,8 +190,6 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 
 static int nfp_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct nfp_net *nn = netdev_priv(prog->aux->offload->netdev);
-	struct nfp_app *app = nn->app;
 	struct nfp_prog *nfp_prog;
 	int ret;
 
@@ -196,7 +200,7 @@ static int nfp_bpf_verifier_prep(struct bpf_prog *prog)
 
 	INIT_LIST_HEAD(&nfp_prog->insns);
 	nfp_prog->type = prog->type;
-	nfp_prog->bpf = app->priv;
+	nfp_prog->bpf = bpf_offload_dev_priv(prog->aux->offload->offdev);
 
 	ret = nfp_prog_prepare(nfp_prog, prog->insnsi, prog->len);
 	if (ret)
@@ -218,6 +222,10 @@ static int nfp_bpf_translate(struct bpf_prog *prog)
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 	unsigned int max_instr;
 	int err;
+
+	/* We depend on dead code elimination succeeding */
+	if (prog->aux->offload->opt_failed)
+		return -EINVAL;
 
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
@@ -372,7 +380,7 @@ nfp_bpf_map_alloc(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 	}
 
 	use_map_size = DIV_ROUND_UP(offmap->map.value_size, 4) *
-		       FIELD_SIZEOF(struct nfp_bpf_map, use_map[0]);
+		       sizeof_field(struct nfp_bpf_map, use_map[0]);
 
 	nfp_map = kzalloc(sizeof(*nfp_map) + use_map_size, GFP_USER);
 	if (!nfp_map)
@@ -381,6 +389,7 @@ nfp_bpf_map_alloc(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 	offmap->dev_priv = nfp_map;
 	nfp_map->offmap = offmap;
 	nfp_map->bpf = bpf;
+	spin_lock_init(&nfp_map->cache_lock);
 
 	res = nfp_bpf_ctrl_alloc_map(bpf, &offmap->map);
 	if (res < 0) {
@@ -403,6 +412,8 @@ nfp_bpf_map_free(struct nfp_app_bpf *bpf, struct bpf_offloaded_map *offmap)
 	struct nfp_bpf_map *nfp_map = offmap->dev_priv;
 
 	nfp_bpf_ctrl_free_map(bpf, nfp_map);
+	dev_consume_skb_any(nfp_map->cache);
+	WARN_ON_ONCE(nfp_map->cache_blockers);
 	list_del_init(&nfp_map->l);
 	bpf->map_elems_in_use -= offmap->map.max_entries;
 	bpf->maps_in_use--;
@@ -449,12 +460,12 @@ int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
 
 	if (len < sizeof(struct cmsg_bpf_event) + pkt_size + data_size)
 		return -EINVAL;
-	if (cbe->hdr.ver != CMSG_MAP_ABI_VERSION)
+	if (cbe->hdr.ver != NFP_CCM_ABI_VERSION)
 		return -EINVAL;
 
 	rcu_read_lock();
-	record = rhashtable_lookup_fast(&bpf->maps_neutral, &map_id,
-					nfp_bpf_maps_neutral_params);
+	record = rhashtable_lookup(&bpf->maps_neutral, &map_id,
+				   nfp_bpf_maps_neutral_params);
 	if (!record || map_id_full > U32_MAX) {
 		rcu_read_unlock();
 		cmsg_warn(bpf, "perf event: map id %lld (0x%llx) not recognized, dropping event\n",
@@ -470,19 +481,28 @@ int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
 	return 0;
 }
 
+bool nfp_bpf_offload_check_mtu(struct nfp_net *nn, struct bpf_prog *prog,
+			       unsigned int mtu)
+{
+	unsigned int fw_mtu, pkt_off;
+
+	fw_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
+	pkt_off = min(prog->aux->max_pkt_offset, mtu);
+
+	return fw_mtu < pkt_off;
+}
+
 static int
 nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 		 struct netlink_ext_ack *extack)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
-	unsigned int fw_mtu, pkt_off, max_stack, max_prog_len;
+	unsigned int max_stack, max_prog_len;
 	dma_addr_t dma_addr;
 	void *img;
 	int err;
 
-	fw_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
-	pkt_off = min(prog->aux->max_pkt_offset, nn->dp.netdev->mtu);
-	if (fw_mtu < pkt_off) {
+	if (nfp_bpf_offload_check_mtu(nn, prog, nn->dp.netdev->mtu)) {
 		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with potential packet access beyond HW packet split boundary");
 		return -EOPNOTSUPP;
 	}
@@ -591,6 +611,8 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 const struct bpf_prog_offload_ops nfp_bpf_dev_ops = {
 	.insn_hook	= nfp_verify_insn,
 	.finalize	= nfp_bpf_finalize,
+	.replace_insn	= nfp_bpf_opt_replace_insn,
+	.remove_insns	= nfp_bpf_opt_remove_insns,
 	.prepare	= nfp_bpf_verifier_prep,
 	.translate	= nfp_bpf_translate,
 	.destroy	= nfp_bpf_destroy,

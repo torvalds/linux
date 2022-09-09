@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_tmr.c
  *
@@ -6,20 +7,6 @@
  * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  ******************************************************************************/
 
@@ -63,15 +50,6 @@ EXPORT_SYMBOL(core_tmr_alloc_req);
 
 void core_tmr_release_req(struct se_tmr_req *tmr)
 {
-	struct se_device *dev = tmr->tmr_dev;
-	unsigned long flags;
-
-	if (dev) {
-		spin_lock_irqsave(&dev->se_tmr_lock, flags);
-		list_del_init(&tmr->tmr_list);
-		spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
-	}
-
 	kfree(tmr);
 }
 
@@ -91,7 +69,7 @@ static int target_check_cdb_and_preempt(struct list_head *list,
 }
 
 static bool __target_check_io_state(struct se_cmd *se_cmd,
-				    struct se_session *tmr_sess, int tas)
+				    struct se_session *tmr_sess, bool tas)
 {
 	struct se_session *sess = se_cmd->se_sess;
 
@@ -114,21 +92,6 @@ static bool __target_check_io_state(struct se_cmd *se_cmd,
 		spin_unlock(&se_cmd->t_state_lock);
 		return false;
 	}
-	if (se_cmd->transport_state & CMD_T_PRE_EXECUTE) {
-		if (se_cmd->scsi_status) {
-			pr_debug("Attempted to abort io tag: %llu early failure"
-				 " status: 0x%02x\n", se_cmd->tag,
-				 se_cmd->scsi_status);
-			spin_unlock(&se_cmd->t_state_lock);
-			return false;
-		}
-	}
-	if (sess->sess_tearing_down) {
-		pr_debug("Attempted to abort io tag: %llu already shutdown,"
-			" skipping\n", se_cmd->tag);
-		spin_unlock(&se_cmd->t_state_lock);
-		return false;
-	}
 	se_cmd->transport_state |= CMD_T_ABORTED;
 
 	if ((tmr_sess != se_cmd->se_sess) && tas)
@@ -144,50 +107,64 @@ void core_tmr_abort_task(
 	struct se_tmr_req *tmr,
 	struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd;
+	LIST_HEAD(aborted_list);
+	struct se_cmd *se_cmd, *next;
 	unsigned long flags;
+	bool rc;
 	u64 ref_tag;
+	int i;
 
-	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
+	for (i = 0; i < dev->queue_cnt; i++) {
+		flush_work(&dev->queues[i].sq.work);
 
-		if (dev != se_cmd->se_dev)
-			continue;
+		spin_lock_irqsave(&dev->queues[i].lock, flags);
+		list_for_each_entry_safe(se_cmd, next, &dev->queues[i].state_list,
+					 state_list) {
+			if (se_sess != se_cmd->se_sess)
+				continue;
 
-		/* skip task management functions, including tmr->task_cmd */
-		if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
-			continue;
+			/*
+			 * skip task management functions, including
+			 * tmr->task_cmd
+			 */
+			if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
+				continue;
 
-		ref_tag = se_cmd->tag;
-		if (tmr->ref_task_tag != ref_tag)
-			continue;
+			ref_tag = se_cmd->tag;
+			if (tmr->ref_task_tag != ref_tag)
+				continue;
 
-		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
-			se_cmd->se_tfo->fabric_name, ref_tag);
+			pr_err("ABORT_TASK: Found referenced %s task_tag: %llu\n",
+			       se_cmd->se_tfo->fabric_name, ref_tag);
 
-		if (!__target_check_io_state(se_cmd, se_sess,
-					     dev->dev_attrib.emulate_tas))
-			continue;
+			spin_lock(&se_sess->sess_cmd_lock);
+			rc = __target_check_io_state(se_cmd, se_sess, 0);
+			spin_unlock(&se_sess->sess_cmd_lock);
+			if (!rc)
+				continue;
 
-		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+			list_move_tail(&se_cmd->state_list, &aborted_list);
+			se_cmd->state_active = false;
+			spin_unlock_irqrestore(&dev->queues[i].lock, flags);
 
-		/*
-		 * Ensure that this ABORT request is visible to the LU RESET
-		 * code.
-		 */
-		if (!tmr->tmr_dev)
-			WARN_ON_ONCE(transport_lookup_tmr_lun(tmr->task_cmd,
-						se_cmd->orig_fe_lun) < 0);
+			if (dev->transport->tmr_notify)
+				dev->transport->tmr_notify(dev, TMR_ABORT_TASK,
+							   &aborted_list);
 
-		target_put_cmd_and_wait(se_cmd);
+			list_del_init(&se_cmd->state_list);
+			target_put_cmd_and_wait(se_cmd);
 
-		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
-				" ref_tag: %llu\n", ref_tag);
-		tmr->response = TMR_FUNCTION_COMPLETE;
-		atomic_long_inc(&dev->aborts_complete);
-		return;
+			pr_err("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for ref_tag: %llu\n",
+			       ref_tag);
+			tmr->response = TMR_FUNCTION_COMPLETE;
+			atomic_long_inc(&dev->aborts_complete);
+			return;
+		}
+		spin_unlock_irqrestore(&dev->queues[i].lock, flags);
 	}
-	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+	if (dev->transport->tmr_notify)
+		dev->transport->tmr_notify(dev, TMR_ABORT_TASK, &aborted_list);
 
 	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %lld\n",
 			tmr->ref_task_tag);
@@ -232,35 +209,16 @@ static void core_tmr_drain_tmr_list(
 			continue;
 
 		spin_lock(&sess->sess_cmd_lock);
-		spin_lock(&cmd->t_state_lock);
-		if (!(cmd->transport_state & CMD_T_ACTIVE) ||
-		     (cmd->transport_state & CMD_T_FABRIC_STOP)) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		if (cmd->t_state == TRANSPORT_ISTATE_PROCESSING) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		if (sess->sess_tearing_down) {
-			spin_unlock(&cmd->t_state_lock);
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
-		cmd->transport_state |= CMD_T_ABORTED;
-		spin_unlock(&cmd->t_state_lock);
-
-		rc = kref_get_unless_zero(&cmd->cmd_kref);
-		if (!rc) {
-			printk("LUN_RESET TMR: non-zero kref_get_unless_zero\n");
-			spin_unlock(&sess->sess_cmd_lock);
-			continue;
-		}
+		rc = __target_check_io_state(cmd, sess, 0);
 		spin_unlock(&sess->sess_cmd_lock);
 
+		if (!rc) {
+			printk("LUN_RESET TMR: non-zero kref_get_unless_zero\n");
+			continue;
+		}
+
 		list_move_tail(&tmr_p->tmr_list, &drain_tmr_list);
+		tmr_p->tmr_dev = NULL;
 	}
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
@@ -299,14 +257,14 @@ static void core_tmr_drain_state_list(
 	struct se_device *dev,
 	struct se_cmd *prout_cmd,
 	struct se_session *tmr_sess,
-	int tas,
+	bool tas,
 	struct list_head *preempt_and_abort_list)
 {
 	LIST_HEAD(drain_task_list);
 	struct se_session *sess;
 	struct se_cmd *cmd, *next;
 	unsigned long flags;
-	int rc;
+	int rc, i;
 
 	/*
 	 * Complete outstanding commands with TASK_ABORTED SAM status.
@@ -330,35 +288,46 @@ static void core_tmr_drain_state_list(
 	 * Note that this seems to be independent of TAS (Task Aborted Status)
 	 * in the Control Mode Page.
 	 */
-	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	list_for_each_entry_safe(cmd, next, &dev->state_list, state_list) {
-		/*
-		 * For PREEMPT_AND_ABORT usage, only process commands
-		 * with a matching reservation key.
-		 */
-		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
-			continue;
+	for (i = 0; i < dev->queue_cnt; i++) {
+		flush_work(&dev->queues[i].sq.work);
 
-		/*
-		 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
-		 */
-		if (prout_cmd == cmd)
-			continue;
+		spin_lock_irqsave(&dev->queues[i].lock, flags);
+		list_for_each_entry_safe(cmd, next, &dev->queues[i].state_list,
+					 state_list) {
+			/*
+			 * For PREEMPT_AND_ABORT usage, only process commands
+			 * with a matching reservation key.
+			 */
+			if (target_check_cdb_and_preempt(preempt_and_abort_list,
+							 cmd))
+				continue;
 
-		sess = cmd->se_sess;
-		if (WARN_ON_ONCE(!sess))
-			continue;
+			/*
+			 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
+			 */
+			if (prout_cmd == cmd)
+				continue;
 
-		spin_lock(&sess->sess_cmd_lock);
-		rc = __target_check_io_state(cmd, tmr_sess, tas);
-		spin_unlock(&sess->sess_cmd_lock);
-		if (!rc)
-			continue;
+			sess = cmd->se_sess;
+			if (WARN_ON_ONCE(!sess))
+				continue;
 
-		list_move_tail(&cmd->state_list, &drain_task_list);
-		cmd->state_active = false;
+			spin_lock(&sess->sess_cmd_lock);
+			rc = __target_check_io_state(cmd, tmr_sess, tas);
+			spin_unlock(&sess->sess_cmd_lock);
+			if (!rc)
+				continue;
+
+			list_move_tail(&cmd->state_list, &drain_task_list);
+			cmd->state_active = false;
+		}
+		spin_unlock_irqrestore(&dev->queues[i].lock, flags);
 	}
-	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
+
+	if (dev->transport->tmr_notify)
+		dev->transport->tmr_notify(dev, preempt_and_abort_list ?
+					   TMR_LUN_RESET_PRO : TMR_LUN_RESET,
+					   &drain_task_list);
 
 	while (!list_empty(&drain_task_list)) {
 		cmd = list_entry(drain_task_list.next, struct se_cmd, state_list);
@@ -382,7 +351,7 @@ int core_tmr_lun_reset(
 	struct se_node_acl *tmr_nacl = NULL;
 	struct se_portal_group *tmr_tpg = NULL;
 	struct se_session *tmr_sess = NULL;
-	int tas;
+	bool tas;
         /*
 	 * TASK_ABORTED status bit, this is configurable via ConfigFS
 	 * struct se_device attributes.  spc4r17 section 7.4.6 Control mode page
@@ -425,7 +394,7 @@ int core_tmr_lun_reset(
 	if (!preempt_and_abort_list &&
 	     (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)) {
 		spin_lock(&dev->dev_reservation_lock);
-		dev->dev_reserved_node_acl = NULL;
+		dev->reservation_holder = NULL;
 		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
 		spin_unlock(&dev->dev_reservation_lock);
 		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");

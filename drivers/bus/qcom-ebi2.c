@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm External Bus Interface 2 (EBI2) driver
  * an older version of the Qualcomm Parallel Interface Controller (QPIC)
@@ -5,10 +6,6 @@
  * Copyright (C) 2016 Linaro Ltd.
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
  *
  * See the device tree bindings for this block for more details on the
  * hardware.
@@ -105,8 +102,8 @@
 /**
  * struct cs_data - struct with info on a chipselect setting
  * @enable_mask: mask to enable the chipselect in the EBI2 config
- * @slow_cfg0: offset to XMEMC slow CS config
- * @fast_cfg1: offset to XMEMC fast CS config
+ * @slow_cfg: offset to XMEMC slow CS config
+ * @fast_cfg: offset to XMEMC fast CS config
  */
 struct cs_data {
 	u32 enable_mask;
@@ -356,8 +353,10 @@ static int qcom_ebi2_probe(struct platform_device *pdev)
 
 		/* Figure out the chipselect */
 		ret = of_property_read_u32(child, "reg", &csindex);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			return ret;
+		}
 
 		if (csindex > 5) {
 			dev_err(dev,

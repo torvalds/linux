@@ -526,7 +526,7 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 	struct xgbe_ring *ring = channel->tx_ring;
 	struct xgbe_ring_data *rdata;
 	struct xgbe_packet_data *packet;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	dma_addr_t skb_dma;
 	unsigned int start_index, cur_index;
 	unsigned int offset, tso, vlan, datalen, len;

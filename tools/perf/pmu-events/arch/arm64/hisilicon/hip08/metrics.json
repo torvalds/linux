@@ -1,0 +1,233 @@
+[
+    {
+        "MetricExpr": "FETCH_BUBBLE / (4 * CPU_CYCLES)",
+        "PublicDescription": "Frontend bound L1 topdown metric",
+        "BriefDescription": "Frontend bound L1 topdown metric",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "frontend_bound"
+    },
+    {
+        "MetricExpr": "(INST_SPEC - INST_RETIRED) / (4 * CPU_CYCLES)",
+        "PublicDescription": "Bad Speculation L1 topdown metric",
+        "BriefDescription": "Bad Speculation L1 topdown metric",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "bad_speculation"
+    },
+    {
+        "MetricExpr": "INST_RETIRED / (CPU_CYCLES * 4)",
+        "PublicDescription": "Retiring L1 topdown metric",
+        "BriefDescription": "Retiring L1 topdown metric",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "retiring"
+    },
+    {
+        "MetricExpr": "1 - (frontend_bound + bad_speculation + retiring)",
+        "PublicDescription": "Backend Bound L1 topdown metric",
+        "BriefDescription": "Backend Bound L1 topdown metric",
+        "MetricGroup": "TopDownL1",
+        "MetricName": "backend_bound"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x201d@ / CPU_CYCLES",
+        "PublicDescription": "Fetch latency bound L2 topdown metric",
+        "BriefDescription": "Fetch latency bound L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "fetch_latency_bound"
+    },
+    {
+        "MetricExpr": "frontend_bound - fetch_latency_bound",
+        "PublicDescription": "Fetch bandwidth bound L2 topdown metric",
+        "BriefDescription": "Fetch bandwidth bound L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "fetch_bandwidth_bound"
+    },
+    {
+        "MetricExpr": "(bad_speculation * BR_MIS_PRED) / (BR_MIS_PRED + armv8_pmuv3_0@event\\=0x2013@)",
+        "PublicDescription": "Branch mispredicts L2 topdown metric",
+        "BriefDescription": "Branch mispredicts L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "branch_mispredicts"
+    },
+    {
+        "MetricExpr": "bad_speculation - branch_mispredicts",
+        "PublicDescription": "Machine clears L2 topdown metric",
+        "BriefDescription": "Machine clears L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "machine_clears"
+    },
+    {
+        "MetricExpr": "(EXE_STALL_CYCLE - (MEM_STALL_ANYLOAD + armv8_pmuv3_0@event\\=0x7005@)) / CPU_CYCLES",
+        "PublicDescription": "Core bound L2 topdown metric",
+        "BriefDescription": "Core bound L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "core_bound"
+    },
+    {
+        "MetricExpr": "(MEM_STALL_ANYLOAD + armv8_pmuv3_0@event\\=0x7005@) / CPU_CYCLES",
+        "PublicDescription": "Memory bound L2 topdown metric",
+        "BriefDescription": "Memory bound L2 topdown metric",
+        "MetricGroup": "TopDownL2",
+        "MetricName": "memory_bound"
+    },
+    {
+        "MetricExpr": "(((L2I_TLB - L2I_TLB_REFILL) * 15) + (L2I_TLB_REFILL * 100)) / CPU_CYCLES",
+        "PublicDescription": "Idle by itlb miss L3 topdown metric",
+        "BriefDescription": "Idle by itlb miss L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "idle_by_itlb_miss"
+    },
+    {
+        "MetricExpr": "(((L2I_CACHE - L2I_CACHE_REFILL) * 15) + (L2I_CACHE_REFILL * 100)) / CPU_CYCLES",
+        "PublicDescription": "Idle by icache miss L3 topdown metric",
+        "BriefDescription": "Idle by icache miss L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "idle_by_icache_miss"
+    },
+    {
+        "MetricExpr": "(BR_MIS_PRED * 5) / CPU_CYCLES",
+        "PublicDescription": "BP misp flush L3 topdown metric",
+        "BriefDescription": "BP misp flush L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "bp_misp_flush"
+    },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x2013@ * 5) / CPU_CYCLES",
+        "PublicDescription": "OOO flush L3 topdown metric",
+        "BriefDescription": "OOO flush L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "ooo_flush"
+    },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x1001@ * 5) / CPU_CYCLES",
+        "PublicDescription": "Static predictor flush L3 topdown metric",
+        "BriefDescription": "Static predictor flush L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "sp_flush"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x1010@ / BR_MIS_PRED",
+        "PublicDescription": "Indirect branch L3 topdown metric",
+        "BriefDescription": "Indirect branch L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "indirect_branch"
+    },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x1014@ + armv8_pmuv3_0@event\\=0x1018@) / BR_MIS_PRED",
+        "PublicDescription": "Push branch L3 topdown metric",
+        "BriefDescription": "Push branch L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "push_branch"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x100c@ / BR_MIS_PRED",
+        "PublicDescription": "Pop branch L3 topdown metric",
+        "BriefDescription": "Pop branch L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "pop_branch"
+    },
+    {
+        "MetricExpr": "(BR_MIS_PRED - armv8_pmuv3_0@event\\=0x1010@ - armv8_pmuv3_0@event\\=0x1014@ - armv8_pmuv3_0@event\\=0x1018@ - armv8_pmuv3_0@event\\=0x100c@) / BR_MIS_PRED",
+        "PublicDescription": "Other branch L3 topdown metric",
+        "BriefDescription": "Other branch L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "other_branch"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x2012@ / armv8_pmuv3_0@event\\=0x2013@",
+        "PublicDescription": "Nuke flush L3 topdown metric",
+        "BriefDescription": "Nuke flush L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "nuke_flush"
+    },
+    {
+        "MetricExpr": "1 - nuke_flush",
+        "PublicDescription": "Other flush L3 topdown metric",
+        "BriefDescription": "Other flush L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "other_flush"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x2010@ / CPU_CYCLES",
+        "PublicDescription": "Sync stall L3 topdown metric",
+        "BriefDescription": "Sync stall L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "sync_stall"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x2004@ / CPU_CYCLES",
+        "PublicDescription": "Rob stall L3 topdown metric",
+        "BriefDescription": "Rob stall L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "rob_stall"
+    },
+    {
+        "MetricExpr": "(armv8_pmuv3_0@event\\=0x2006@ + armv8_pmuv3_0@event\\=0x2007@ + armv8_pmuv3_0@event\\=0x2008@) / CPU_CYCLES",
+        "PublicDescription": "Ptag stall L3 topdown metric",
+        "BriefDescription": "Ptag stall L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "ptag_stall"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x201e@ / CPU_CYCLES",
+        "PublicDescription": "SaveOpQ stall L3 topdown metric",
+        "BriefDescription": "SaveOpQ stall L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "saveopq_stall"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x2005@ / CPU_CYCLES",
+        "PublicDescription": "PC buffer stall L3 topdown metric",
+        "BriefDescription": "PC buffer stall L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "pc_buffer_stall"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x7002@ / CPU_CYCLES",
+        "PublicDescription": "Divider L3 topdown metric",
+        "BriefDescription": "Divider L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "divider"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x7003@ / CPU_CYCLES",
+        "PublicDescription": "FSU stall L3 topdown metric",
+        "BriefDescription": "FSU stall L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "fsu_stall"
+    },
+    {
+        "MetricExpr": "core_bound - divider - fsu_stall",
+        "PublicDescription": "EXE ports util L3 topdown metric",
+        "BriefDescription": "EXE ports util L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "exe_ports_util"
+    },
+    {
+        "MetricExpr": "(MEM_STALL_ANYLOAD - MEM_STALL_L1MISS) / CPU_CYCLES",
+        "PublicDescription": "L1 bound L3 topdown metric",
+        "BriefDescription": "L1 bound L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "l1_bound"
+    },
+    {
+        "MetricExpr": "(MEM_STALL_L1MISS - MEM_STALL_L2MISS) / CPU_CYCLES",
+        "PublicDescription": "L2 bound L3 topdown metric",
+        "BriefDescription": "L2 bound L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "l2_bound"
+    },
+    {
+        "MetricExpr": "MEM_STALL_L2MISS / CPU_CYCLES",
+        "PublicDescription": "Mem bound L3 topdown metric",
+        "BriefDescription": "Mem bound L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "mem_bound"
+    },
+    {
+        "MetricExpr": "armv8_pmuv3_0@event\\=0x7005@ / CPU_CYCLES",
+        "PublicDescription": "Store bound L3 topdown metric",
+        "BriefDescription": "Store bound L3 topdown metric",
+        "MetricGroup": "TopDownL3",
+        "MetricName": "store_bound"
+    }
+]

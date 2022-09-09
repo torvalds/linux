@@ -25,7 +25,6 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
 #include <asm/ftrace.h>
 #ifdef CONFIG_BLK_DEV_FD
 #include <asm/floppy.h>
@@ -44,7 +43,7 @@ EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(__memset);
 EXPORT_SYMBOL(__memcpy);
 EXPORT_SYMBOL(__memmove);
-#ifndef CONFIG_GENERIC_STRNCPY_FROM_USER
+#ifdef CONFIG_ARCH_HAS_STRNCPY_FROM_USER
 EXPORT_SYMBOL(__strncpy_user);
 #endif
 EXPORT_SYMBOL(clear_page);
@@ -60,40 +59,26 @@ extern long long __ashldi3(long long, int);
 extern long long __lshrdi3(long long, int);
 extern int __divsi3(int, int);
 extern int __modsi3(int, int);
-extern long long __muldi3(long long, long long);
 extern int __mulsi3(int, int);
 extern unsigned int __udivsi3(unsigned int, unsigned int);
 extern unsigned int __umodsi3(unsigned int, unsigned int);
-extern unsigned long long __umoddi3(unsigned long long, unsigned long long);
-extern unsigned long long __udivdi3(unsigned long long, unsigned long long);
-extern int __ucmpdi2(int, int);
 
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(__divsi3);
 EXPORT_SYMBOL(__modsi3);
-EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__mulsi3);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
-EXPORT_SYMBOL(__udivdi3);
-EXPORT_SYMBOL(__umoddi3);
-EXPORT_SYMBOL(__ucmpdi2);
 
-void __xtensa_libgcc_window_spill(void)
-{
-	BUG();
-}
-EXPORT_SYMBOL(__xtensa_libgcc_window_spill);
-
-unsigned long __sync_fetch_and_and_4(unsigned long *p, unsigned long v)
+unsigned int __sync_fetch_and_and_4(volatile void *p, unsigned int v)
 {
 	BUG();
 }
 EXPORT_SYMBOL(__sync_fetch_and_and_4);
 
-unsigned long __sync_fetch_and_or_4(unsigned long *p, unsigned long v)
+unsigned int __sync_fetch_and_or_4(volatile void *p, unsigned int v)
 {
 	BUG();
 }
@@ -118,13 +103,6 @@ EXPORT_SYMBOL(__invalidate_icache_range);
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 // FIXME EXPORT_SYMBOL(screen_info);
 #endif
-
-EXPORT_SYMBOL(outsb);
-EXPORT_SYMBOL(outsw);
-EXPORT_SYMBOL(outsl);
-EXPORT_SYMBOL(insb);
-EXPORT_SYMBOL(insw);
-EXPORT_SYMBOL(insl);
 
 extern long common_exception_return;
 EXPORT_SYMBOL(common_exception_return);

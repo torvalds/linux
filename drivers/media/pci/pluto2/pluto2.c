@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pluto2.c - Satelco Easywatch Mobile Terrestrial Receiver [DVB-T]
  *
@@ -6,17 +7,6 @@
  * based on pluto2.c 1.10 - http://instinct-wp8.no-ip.org/pluto/
  *	by Dany Salman <salmandany@yahoo.fr>
  *	Copyright (c) 2004 TDF
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/i2c.h>
@@ -238,16 +228,16 @@ static void pluto_set_dma_addr(struct pluto *pluto)
 
 static int pluto_dma_map(struct pluto *pluto)
 {
-	pluto->dma_addr = pci_map_single(pluto->pdev, pluto->dma_buf,
-			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
+	pluto->dma_addr = dma_map_single(&pluto->pdev->dev, pluto->dma_buf,
+					 TS_DMA_BYTES, DMA_FROM_DEVICE);
 
-	return pci_dma_mapping_error(pluto->pdev, pluto->dma_addr);
+	return dma_mapping_error(&pluto->pdev->dev, pluto->dma_addr);
 }
 
 static void pluto_dma_unmap(struct pluto *pluto)
 {
-	pci_unmap_single(pluto->pdev, pluto->dma_addr,
-			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&pluto->pdev->dev, pluto->dma_addr, TS_DMA_BYTES,
+			 DMA_FROM_DEVICE);
 }
 
 static int pluto_start_feed(struct dvb_demux_feed *f)
@@ -286,8 +276,8 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 {
 	/* synchronize the DMA transfer with the CPU
 	 * first so that we see updated contents. */
-	pci_dma_sync_single_for_cpu(pluto->pdev, pluto->dma_addr,
-			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
+	dma_sync_single_for_cpu(&pluto->pdev->dev, pluto->dma_addr,
+				TS_DMA_BYTES, DMA_FROM_DEVICE);
 
 	/* Workaround for broken hardware:
 	 * [1] On startup NBPACKETS seems to contain an uninitialized value,
@@ -320,8 +310,8 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 	pluto_set_dma_addr(pluto);
 
 	/* sync the buffer and give it back to the card */
-	pci_dma_sync_single_for_device(pluto->pdev, pluto->dma_addr,
-			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
+	dma_sync_single_for_device(&pluto->pdev->dev, pluto->dma_addr,
+				   TS_DMA_BYTES, DMA_FROM_DEVICE);
 }
 
 static irqreturn_t pluto_irq(int irq, void *dev_id)
@@ -605,7 +595,7 @@ static int pluto2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* enable interrupts */
 	pci_write_config_dword(pdev, 0x6c, 0x8000);
 
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret < 0)
 		goto err_pci_disable_device;
 

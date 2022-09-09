@@ -34,6 +34,7 @@ enum {
 enum {
 	WBT_STATE_ON_DEFAULT	= 1,
 	WBT_STATE_ON_MANUAL	= 2,
+	WBT_STATE_OFF_DEFAULT
 };
 
 struct rq_wb {
@@ -88,37 +89,26 @@ static inline unsigned int wbt_inflight(struct rq_wb *rwb)
 #ifdef CONFIG_BLK_WBT
 
 int wbt_init(struct request_queue *);
-void wbt_update_limits(struct request_queue *);
 void wbt_disable_default(struct request_queue *);
 void wbt_enable_default(struct request_queue *);
 
 u64 wbt_get_min_lat(struct request_queue *q);
 void wbt_set_min_lat(struct request_queue *q, u64 val);
 
-void wbt_set_queue_depth(struct request_queue *, unsigned int);
 void wbt_set_write_cache(struct request_queue *, bool);
 
 u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
 
-static inline void wbt_track(struct request *rq, enum wbt_flags flags)
-{
-}
 static inline int wbt_init(struct request_queue *q)
 {
 	return -EINVAL;
-}
-static inline void wbt_update_limits(struct request_queue *q)
-{
 }
 static inline void wbt_disable_default(struct request_queue *q)
 {
 }
 static inline void wbt_enable_default(struct request_queue *q)
-{
-}
-static inline void wbt_set_queue_depth(struct request_queue *q, unsigned int depth)
 {
 }
 static inline void wbt_set_write_cache(struct request_queue *q, bool wc)

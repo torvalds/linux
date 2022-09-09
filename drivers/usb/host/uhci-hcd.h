@@ -314,7 +314,7 @@ struct uhci_td {
  *
  * There's a special skeleton QH for Isochronous QHs which never appears
  * on the schedule.  Isochronous TDs go on the schedule before the
- * the skeleton QHs.  The hardware accesses them directly rather than
+ * skeleton QHs.  The hardware accesses them directly rather than
  * through their QH, which is used only for bookkeeping purposes.
  * While the UHCI spec doesn't forbid the use of QHs for Isochronous,
  * it doesn't use them either.  And the spec says that queues never
@@ -381,10 +381,6 @@ enum uhci_rh_state {
  * The full UHCI controller information:
  */
 struct uhci_hcd {
-
-	/* debugfs */
-	struct dentry *dentry;
-
 	/* Grabbed from PCI */
 	unsigned long io_addr;
 

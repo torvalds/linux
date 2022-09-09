@@ -39,7 +39,7 @@ nfp_abm_u32_check_knode(struct nfp_abm *abm, struct tc_cls_u32_knode *knode,
 	}
 	if (knode->sel->off || knode->sel->offshift || knode->sel->offmask ||
 	    knode->sel->offoff || knode->fshift) {
-		NL_SET_ERR_MSG_MOD(extack, "variable offseting not supported");
+		NL_SET_ERR_MSG_MOD(extack, "variable offsetting not supported");
 		return false;
 	}
 	if (knode->sel->hoff || knode->sel->hmask) {
@@ -78,7 +78,7 @@ nfp_abm_u32_check_knode(struct nfp_abm *abm, struct tc_cls_u32_knode *knode,
 
 	k = &knode->sel->keys[0];
 	if (k->offmask) {
-		NL_SET_ERR_MSG_MOD(extack, "offset mask - variable offseting not supported");
+		NL_SET_ERR_MSG_MOD(extack, "offset mask - variable offsetting not supported");
 		return false;
 	}
 	if (k->off) {
@@ -262,22 +262,12 @@ static int nfp_abm_setup_tc_block_cb(enum tc_setup_type type,
 	}
 }
 
-int nfp_abm_setup_cls_block(struct net_device *netdev, struct nfp_repr *repr,
-			    struct tc_block_offload *f)
-{
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
-		return -EOPNOTSUPP;
+static LIST_HEAD(nfp_abm_block_cb_list);
 
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block,
-					     nfp_abm_setup_tc_block_cb,
-					     repr, repr, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, nfp_abm_setup_tc_block_cb,
-					repr);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
+int nfp_abm_setup_cls_block(struct net_device *netdev, struct nfp_repr *repr,
+			    struct flow_block_offload *f)
+{
+	return flow_block_cb_setup_simple(f, &nfp_abm_block_cb_list,
+					  nfp_abm_setup_tc_block_cb,
+					  repr, repr, true);
 }

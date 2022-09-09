@@ -237,6 +237,9 @@ static int get_value(struct parse_opt_ctx_t *p,
 		return err;
 
 	case OPTION_CALLBACK:
+		if (opt->set)
+			*(bool *)opt->set = true;
+
 		if (unset)
 			return (*opt->callback)(opt, NULL, 1) ? (-1) : 0;
 		if (opt->flags & PARSE_OPT_NOARG)
@@ -803,9 +806,9 @@ static int option__cmp(const void *va, const void *vb)
 
 static struct option *options__order(const struct option *opts)
 {
-	int nr_opts = 0, len;
+	int nr_opts = 0, nr_group = 0, len;
 	const struct option *o = opts;
-	struct option *ordered;
+	struct option *opt, *ordered, *group;
 
 	for (o = opts; o->type != OPTION_END; o++)
 		++nr_opts;
@@ -816,7 +819,18 @@ static struct option *options__order(const struct option *opts)
 		goto out;
 	memcpy(ordered, opts, len);
 
-	qsort(ordered, nr_opts, sizeof(*o), option__cmp);
+	/* sort each option group individually */
+	for (opt = group = ordered; opt->type != OPTION_END; opt++) {
+		if (opt->type == OPTION_GROUP) {
+			qsort(group, nr_group, sizeof(*opt), option__cmp);
+			group = opt + 1;
+			nr_group = 0;
+			continue;
+		}
+		nr_group++;
+	}
+	qsort(group, nr_group, sizeof(*opt), option__cmp);
+
 out:
 	return ordered;
 }

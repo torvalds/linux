@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_AST
 	tristate "AST server chips"
 	depends on DRM && PCI && MMU
-	select DRM_TTM
 	select DRM_KMS_HELPER
+	select DRM_VRAM_HELPER
 	select DRM_TTM
+	select DRM_TTM_HELPER
 	help
 	 Say yes for experimental AST GPU driver. Do not enable
 	 this driver without having a working -modesetting,

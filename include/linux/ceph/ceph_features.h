@@ -8,17 +8,18 @@
  * feature.  Base case is 1 (first use).
  */
 #define CEPH_FEATURE_INCARNATION_1 (0ull)
-#define CEPH_FEATURE_INCARNATION_2 (1ull<<57) // CEPH_FEATURE_SERVER_JEWEL
+#define CEPH_FEATURE_INCARNATION_2 (1ull<<57)              // SERVER_JEWEL
+#define CEPH_FEATURE_INCARNATION_3 ((1ull<<57)|(1ull<<28)) // SERVER_MIMIC
 
 #define DEFINE_CEPH_FEATURE(bit, incarnation, name)			\
-	static const uint64_t CEPH_FEATURE_##name = (1ULL<<bit);		\
-	static const uint64_t CEPH_FEATUREMASK_##name =			\
+	static const uint64_t __maybe_unused CEPH_FEATURE_##name = (1ULL<<bit);		\
+	static const uint64_t __maybe_unused CEPH_FEATUREMASK_##name =			\
 		(1ULL<<bit | CEPH_FEATURE_INCARNATION_##incarnation);
 
 /* this bit is ignored but still advertised by release *when* */
 #define DEFINE_CEPH_FEATURE_DEPRECATED(bit, incarnation, name, when) \
-	static const uint64_t DEPRECATED_CEPH_FEATURE_##name = (1ULL<<bit); \
-	static const uint64_t DEPRECATED_CEPH_FEATUREMASK_##name =		\
+	static const uint64_t __maybe_unused DEPRECATED_CEPH_FEATURE_##name = (1ULL<<bit);	\
+	static const uint64_t __maybe_unused DEPRECATED_CEPH_FEATUREMASK_##name =		\
 		(1ULL<<bit | CEPH_FEATURE_INCARNATION_##incarnation);
 
 /*
@@ -58,7 +59,7 @@
  *    because 10.2.z (jewel) did not care if its peers advertised this
  *    feature bit.
  *
- *  - In the second phase we stop advertising the the bit and call it
+ *  - In the second phase we stop advertising the bit and call it
  *    RETIRED.  This can normally be done in the *next* major release
  *    following the one in which we marked the feature DEPRECATED.  In
  *    the above example, for 12.0.z (luminous) we can say:
@@ -75,7 +76,7 @@
 DEFINE_CEPH_FEATURE( 0, 1, UID)
 DEFINE_CEPH_FEATURE( 1, 1, NOSRCADDR)
 DEFINE_CEPH_FEATURE_RETIRED( 2, 1, MONCLOCKCHECK, JEWEL, LUMINOUS)
-
+DEFINE_CEPH_FEATURE( 2, 3, SERVER_NAUTILUS)
 DEFINE_CEPH_FEATURE( 3, 1, FLOCK)
 DEFINE_CEPH_FEATURE( 4, 1, SUBSCRIBE2)
 DEFINE_CEPH_FEATURE( 5, 1, MONNAMES)
@@ -114,7 +115,7 @@ DEFINE_CEPH_FEATURE(25, 1, CRUSH_TUNABLES2)
 DEFINE_CEPH_FEATURE(26, 1, CREATEPOOLID)
 DEFINE_CEPH_FEATURE(27, 1, REPLY_CREATE_INODE)
 DEFINE_CEPH_FEATURE_RETIRED(28, 1, OSD_HBMSGS, HAMMER, JEWEL)
-DEFINE_CEPH_FEATURE(28, 2, SERVER_M)
+DEFINE_CEPH_FEATURE(28, 2, SERVER_MIMIC)
 DEFINE_CEPH_FEATURE(29, 1, MDSENC)
 DEFINE_CEPH_FEATURE(30, 1, OSDHASHPSPOOL)
 DEFINE_CEPH_FEATURE(31, 1, MON_SINGLE_PAXOS)  // deprecate me
@@ -177,13 +178,16 @@ DEFINE_CEPH_FEATURE_DEPRECATED(63, 1, RESERVED_BROKEN, LUMINOUS) // client-facin
  */
 #define CEPH_FEATURES_SUPPORTED_DEFAULT		\
 	(CEPH_FEATURE_NOSRCADDR |		\
+	 CEPH_FEATURE_SERVER_NAUTILUS |		\
 	 CEPH_FEATURE_FLOCK |			\
 	 CEPH_FEATURE_SUBSCRIBE2 |		\
+	 CEPH_FEATURE_MONNAMES |		\
 	 CEPH_FEATURE_RECONNECT_SEQ |		\
 	 CEPH_FEATURE_DIRLAYOUTHASH |		\
 	 CEPH_FEATURE_PGID64 |			\
 	 CEPH_FEATURE_PGPOOL3 |			\
 	 CEPH_FEATURE_OSDENC |			\
+	 CEPH_FEATURE_MONENC |			\
 	 CEPH_FEATURE_CRUSH_TUNABLES |		\
 	 CEPH_FEATURE_SERVER_LUMINOUS |		\
 	 CEPH_FEATURE_RESEND_ON_SPLIT |		\
@@ -193,6 +197,7 @@ DEFINE_CEPH_FEATURE_DEPRECATED(63, 1, RESERVED_BROKEN, LUMINOUS) // client-facin
 	 CEPH_FEATURE_MSG_AUTH |		\
 	 CEPH_FEATURE_CRUSH_TUNABLES2 |		\
 	 CEPH_FEATURE_REPLY_CREATE_INODE |	\
+	 CEPH_FEATURE_SERVER_MIMIC |		\
 	 CEPH_FEATURE_MDSENC |			\
 	 CEPH_FEATURE_OSDHASHPSPOOL |		\
 	 CEPH_FEATURE_OSD_CACHEPOOL |		\
@@ -211,6 +216,7 @@ DEFINE_CEPH_FEATURE_DEPRECATED(63, 1, RESERVED_BROKEN, LUMINOUS) // client-facin
 	 CEPH_FEATURE_MON_STATEFUL_SUB |	\
 	 CEPH_FEATURE_CRUSH_TUNABLES5 |		\
 	 CEPH_FEATURE_NEW_OSDOPREPLY_ENCODING |	\
+	 CEPH_FEATURE_MSG_ADDR2 |		\
 	 CEPH_FEATURE_CEPHX_V2)
 
 #define CEPH_FEATURES_REQUIRED_DEFAULT	0

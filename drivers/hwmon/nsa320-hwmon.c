@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/hwmon/nsa320-hwmon.c
  *
@@ -7,15 +8,6 @@
  * Copyright (C) 2016 Adam Baker <linux@baker-net.org.uk>
  * based on a board file driver
  * Copyright (C) 2012 Peter Schildmann <linux@schildmann.info>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License v2 as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/bitops.h>
@@ -114,8 +106,8 @@ static s32 nsa320_hwmon_update(struct device *dev)
 	return mcu_data;
 }
 
-static ssize_t show_label(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+static ssize_t label_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int channel = to_sensor_dev_attr(attr)->index;
 
@@ -144,9 +136,9 @@ static ssize_t fan1_input_show(struct device *dev,
 	return sprintf(buf, "%d\n", ((mcu_data & 0xff0000) >> 16) * 100);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_label, NULL, NSA320_TEMP);
+static SENSOR_DEVICE_ATTR_RO(temp1_label, label, NSA320_TEMP);
 static DEVICE_ATTR_RO(temp1_input);
-static SENSOR_DEVICE_ATTR(fan1_label, S_IRUGO, show_label, NULL, NSA320_FAN);
+static SENSOR_DEVICE_ATTR_RO(fan1_label, label, NSA320_FAN);
 static DEVICE_ATTR_RO(fan1_input);
 
 static struct attribute *nsa320_attrs[] = {

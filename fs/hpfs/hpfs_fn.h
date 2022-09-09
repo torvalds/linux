@@ -280,7 +280,7 @@ void hpfs_init_inode(struct inode *);
 void hpfs_read_inode(struct inode *);
 void hpfs_write_inode(struct inode *);
 void hpfs_write_inode_nolock(struct inode *);
-int hpfs_setattr(struct dentry *, struct iattr *);
+int hpfs_setattr(struct user_namespace *, struct dentry *, struct iattr *);
 void hpfs_write_if_changed(struct inode *);
 void hpfs_evict_inode(struct inode *);
 
@@ -334,7 +334,7 @@ long hpfs_ioctl(struct file *file, unsigned cmd, unsigned long arg);
  * local time (HPFS) to GMT (Unix)
  */
 
-static inline time64_t local_to_gmt(struct super_block *s, time32_t t)
+static inline time64_t local_to_gmt(struct super_block *s, time64_t t)
 {
 	extern struct timezone sys_tz;
 	return t + sys_tz.tz_minuteswest * 60 + hpfs_sb(s)->sb_timeshift;
@@ -343,9 +343,7 @@ static inline time64_t local_to_gmt(struct super_block *s, time32_t t)
 static inline time32_t gmt_to_local(struct super_block *s, time64_t t)
 {
 	extern struct timezone sys_tz;
-	t = t - sys_tz.tz_minuteswest * 60 - hpfs_sb(s)->sb_timeshift;
-
-	return clamp_t(time64_t, t, 0, U32_MAX);
+	return t - sys_tz.tz_minuteswest * 60 - hpfs_sb(s)->sb_timeshift;
 }
 
 static inline time32_t local_get_seconds(struct super_block *s)

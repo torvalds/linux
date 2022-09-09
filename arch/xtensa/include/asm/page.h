@@ -169,7 +169,18 @@ static inline unsigned long ___pa(unsigned long va)
 	if (off >= XCHAL_KSEG_SIZE)
 		off -= XCHAL_KSEG_SIZE;
 
+#ifndef CONFIG_XIP_KERNEL
 	return off + PHYS_OFFSET;
+#else
+	if (off < XCHAL_KSEG_SIZE)
+		return off + PHYS_OFFSET;
+
+	off -= XCHAL_KSEG_SIZE;
+	if (off >= XCHAL_KIO_SIZE)
+		off -= XCHAL_KIO_SIZE;
+
+	return off + XCHAL_KIO_PADDR;
+#endif
 }
 #define __pa(x)	___pa((unsigned long)(x))
 #else
@@ -181,19 +192,12 @@ static inline unsigned long ___pa(unsigned long va)
 #define pfn_valid(pfn) \
 	((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
 
-#ifdef CONFIG_DISCONTIGMEM
-# error CONFIG_DISCONTIGMEM not supported
-#endif
-
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define page_to_virt(page)	__va(page_to_pfn(page) << PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 #endif /* __ASSEMBLY__ */
-
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
 #endif /* _XTENSA_PAGE_H */

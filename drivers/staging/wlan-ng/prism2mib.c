@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
-/* src/prism2/driver/prism2mib.c
+/*
  *
  * Management request for mibset/mibget
  *
@@ -126,13 +126,6 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 				    struct p80211msg_dot11req_mibset *msg,
 				    void *data);
 
-static int prism2mib_excludeunencrypted(struct mibrec *mib,
-					int isget,
-					struct wlandevice *wlandev,
-					struct hfa384x *hw,
-					struct p80211msg_dot11req_mibset *msg,
-					void *data);
-
 static int
 prism2mib_fragmentationthreshold(struct mibrec *mib,
 				 int isget,
@@ -176,7 +169,7 @@ static struct mibrec mibtab[] = {
 	{DIDMIB_DOT11SMT_PRIVACYTABLE_EXCLUDEUNENCRYPTED,
 	 F_STA | F_READ | F_WRITE,
 	 HFA384x_RID_CNFWEPFLAGS, HFA384x_WEPFLAGS_EXCLUDE, 0,
-	 prism2mib_excludeunencrypted},
+	 prism2mib_flag},
 
 	/* dot11mac MIB's */
 
@@ -299,7 +292,7 @@ int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 	/*
 	 ** Determine if this is a "mibget" or a "mibset".  If this is a
 	 ** "mibget", then make sure that the MIB may be read.  Otherwise,
-	 ** this is a "mibset" so make make sure that the MIB may be written.
+	 ** this is a "mibset" so make sure that the MIB may be written.
 	 */
 
 	isget = (msg->msgcode == DIDMSG_DOT11REQ_MIBGET);
@@ -594,41 +587,6 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 }
 
 /*
- * prism2mib_excludeunencrypted
- *
- * Get/set the dot11ExcludeUnencrypted value.
- *
- * MIB record parameters:
- *       parm1    Prism2 RID value.
- *       parm2    Bit value for ExcludeUnencrypted flag.
- *       parm3    Not used.
- *
- * Arguments:
- *       mib      MIB record.
- *       isget    MIBGET/MIBSET flag.
- *       wlandev  wlan device structure.
- *       priv     "priv" structure.
- *       hw       "hw" structure.
- *       msg      Message structure.
- *       data     Data buffer.
- *
- * Returns:
- *       0   - Success.
- *       ~0  - Error.
- *
- */
-
-static int prism2mib_excludeunencrypted(struct mibrec *mib,
-					int isget,
-					struct wlandevice *wlandev,
-					struct hfa384x *hw,
-					struct p80211msg_dot11req_mibset *msg,
-					void *data)
-{
-	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
-}
-
-/*
  * prism2mib_fragmentationthreshold
  *
  * Get/set the fragmentation threshold.
@@ -710,6 +668,10 @@ static int prism2mib_priv(struct mibrec *mib,
 
 	switch (mib->did) {
 	case DIDMIB_LNX_CONFIGTABLE_RSNAIE: {
+		/*
+		 * This can never work: wpa is on the stack
+		 * and has no bytes allocated in wpa.data.
+		 */
 		struct hfa384x_wpa_data wpa;
 
 		if (isget) {
@@ -717,11 +679,9 @@ static int prism2mib_priv(struct mibrec *mib,
 					       HFA384x_RID_CNFWPADATA,
 					       (u8 *)&wpa,
 					       sizeof(wpa));
-			pstr->len = le16_to_cpu(wpa.datalen);
-			memcpy(pstr->data, wpa.data, pstr->len);
+			pstr->len = 0;
 		} else {
-			wpa.datalen = cpu_to_le16(pstr->len);
-			memcpy(wpa.data, pstr->data, pstr->len);
+			wpa.datalen = 0;
 
 			hfa384x_drvr_setconfig(hw,
 					       HFA384x_RID_CNFWPADATA,

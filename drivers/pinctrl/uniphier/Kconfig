@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig PINCTRL_UNIPHIER
 	bool "UniPhier SoC pinctrl drivers"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
@@ -42,6 +43,10 @@ config PINCTRL_UNIPHIER_LD20
 
 config PINCTRL_UNIPHIER_PXS3
 	bool "UniPhier PXs3 SoC pinctrl driver"
+	default ARM64
+
+config PINCTRL_UNIPHIER_NX1
+	bool "UniPhier NX1 SoC pinctrl driver"
 	default ARM64
 
 endif

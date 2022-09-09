@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/ibm/emac/core.c
  *
@@ -16,12 +17,6 @@
  *	(c) 2003 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *      Armin Kuster <akuster@mvista.com>
  * 	Johnnie Peters <jpeters@mvista.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -43,6 +38,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include <asm/processor.h>
@@ -781,7 +777,7 @@ static void emac_reset_work(struct work_struct *work)
 	mutex_unlock(&dev->link_lock);
 }
 
-static void emac_tx_timeout(struct net_device *ndev)
+static void emac_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 
@@ -877,7 +873,7 @@ static void __emac_mdio_write(struct emac_instance *dev, u8 id, u8 reg,
 {
 	struct emac_regs __iomem *p = dev->emacp;
 	u32 r = 0;
-	int n, err = -ETIMEDOUT;
+	int n;
 
 	mutex_lock(&dev->mdio_lock);
 
@@ -924,7 +920,6 @@ static void __emac_mdio_write(struct emac_instance *dev, u8 id, u8 reg,
 			goto bail;
 		}
 	}
-	err = 0;
  bail:
 	if (emac_has_feature(dev, EMAC_FTR_HAS_RGMII))
 		rgmii_put_mdio(dev->rgmii_dev, dev->rgmii_port);
@@ -1018,7 +1013,7 @@ static int emac_set_mac_address(struct net_device *ndev, void *sa)
 
 	mutex_lock(&dev->link_lock);
 
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	emac_rx_disable(dev);
 	emac_tx_disable(dev);
@@ -1071,7 +1066,9 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 
 	/* Second pass, allocate new skbs */
 	for (i = 0; i < NUM_RX_BUFF; ++i) {
-		struct sk_buff *skb = alloc_skb(rx_skb_size, GFP_ATOMIC);
+		struct sk_buff *skb;
+
+		skb = netdev_alloc_skb_ip_align(dev->ndev, rx_skb_size);
 		if (!skb) {
 			ret = -ENOMEM;
 			goto oom;
@@ -1080,10 +1077,10 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 		BUG_ON(!dev->rx_skb[i]);
 		dev_kfree_skb(dev->rx_skb[i]);
 
-		skb_reserve(skb, EMAC_RX_SKB_HEADROOM + 2);
 		dev->rx_desc[i].data_ptr =
-		    dma_map_single(&dev->ofdev->dev, skb->data - 2, rx_sync_size,
-				   DMA_FROM_DEVICE) + 2;
+		    dma_map_single(&dev->ofdev->dev, skb->data - NET_IP_ALIGN,
+				   rx_sync_size, DMA_FROM_DEVICE)
+				   + NET_IP_ALIGN;
 		dev->rx_skb[i] = skb;
 	}
  skip:
@@ -1174,25 +1171,44 @@ static void emac_clean_rx_ring(struct emac_instance *dev)
 	}
 }
 
-static inline int emac_alloc_rx_skb(struct emac_instance *dev, int slot,
-				    gfp_t flags)
+static int
+__emac_prepare_rx_skb(struct sk_buff *skb, struct emac_instance *dev, int slot)
 {
-	struct sk_buff *skb = alloc_skb(dev->rx_skb_size, flags);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
 	dev->rx_skb[slot] = skb;
 	dev->rx_desc[slot].data_len = 0;
 
-	skb_reserve(skb, EMAC_RX_SKB_HEADROOM + 2);
 	dev->rx_desc[slot].data_ptr =
-	    dma_map_single(&dev->ofdev->dev, skb->data - 2, dev->rx_sync_size,
-			   DMA_FROM_DEVICE) + 2;
+	    dma_map_single(&dev->ofdev->dev, skb->data - NET_IP_ALIGN,
+			   dev->rx_sync_size, DMA_FROM_DEVICE) + NET_IP_ALIGN;
 	wmb();
 	dev->rx_desc[slot].ctrl = MAL_RX_CTRL_EMPTY |
 	    (slot == (NUM_RX_BUFF - 1) ? MAL_RX_CTRL_WRAP : 0);
 
 	return 0;
+}
+
+static int
+emac_alloc_rx_skb(struct emac_instance *dev, int slot)
+{
+	struct sk_buff *skb;
+
+	skb = __netdev_alloc_skb_ip_align(dev->ndev, dev->rx_skb_size,
+					  GFP_KERNEL);
+
+	return __emac_prepare_rx_skb(skb, dev, slot);
+}
+
+static int
+emac_alloc_rx_skb_napi(struct emac_instance *dev, int slot)
+{
+	struct sk_buff *skb;
+
+	skb = napi_alloc_skb(&dev->mal->napi, dev->rx_skb_size);
+
+	return __emac_prepare_rx_skb(skb, dev, slot);
 }
 
 static void emac_print_link_status(struct emac_instance *dev)
@@ -1225,7 +1241,7 @@ static int emac_open(struct net_device *ndev)
 
 	/* Allocate RX ring */
 	for (i = 0; i < NUM_RX_BUFF; ++i)
-		if (emac_alloc_rx_skb(dev, i, GFP_KERNEL)) {
+		if (emac_alloc_rx_skb(dev, i)) {
 			printk(KERN_ERR "%s: failed to allocate RX ring\n",
 			       ndev->name);
 			goto oom;
@@ -1533,7 +1549,7 @@ emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
 				       ctrl);
 	/* skb fragments */
 	for (i = 0; i < nr_frags; ++i) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		len = skb_frag_size(frag);
 
 		if (unlikely(dev->tx_cnt + mal_tx_chunks(len) >= NUM_TX_BUFF))
@@ -1660,8 +1676,9 @@ static inline void emac_recycle_rx_skb(struct emac_instance *dev, int slot,
 	DBG2(dev, "recycle %d %d" NL, slot, len);
 
 	if (len)
-		dma_map_single(&dev->ofdev->dev, skb->data - 2,
-			       EMAC_DMA_ALIGN(len + 2), DMA_FROM_DEVICE);
+		dma_map_single(&dev->ofdev->dev, skb->data - NET_IP_ALIGN,
+			       SKB_DATA_ALIGN(len + NET_IP_ALIGN),
+			       DMA_FROM_DEVICE);
 
 	dev->rx_desc[slot].data_len = 0;
 	wmb();
@@ -1713,7 +1730,7 @@ static inline int emac_rx_sg_append(struct emac_instance *dev, int slot)
 		int len = dev->rx_desc[slot].data_len;
 		int tot_len = dev->rx_sg_skb->len + len;
 
-		if (unlikely(tot_len + 2 > dev->rx_skb_size)) {
+		if (unlikely(tot_len + NET_IP_ALIGN > dev->rx_skb_size)) {
 			++dev->estats.rx_dropped_mtu;
 			dev_kfree_skb(dev->rx_sg_skb);
 			dev->rx_sg_skb = NULL;
@@ -1769,16 +1786,18 @@ static int emac_poll_rx(void *param, int budget)
 		}
 
 		if (len && len < EMAC_RX_COPY_THRESH) {
-			struct sk_buff *copy_skb =
-			    alloc_skb(len + EMAC_RX_SKB_HEADROOM + 2, GFP_ATOMIC);
+			struct sk_buff *copy_skb;
+
+			copy_skb = napi_alloc_skb(&dev->mal->napi, len);
 			if (unlikely(!copy_skb))
 				goto oom;
 
-			skb_reserve(copy_skb, EMAC_RX_SKB_HEADROOM + 2);
-			memcpy(copy_skb->data - 2, skb->data - 2, len + 2);
+			memcpy(copy_skb->data - NET_IP_ALIGN,
+			       skb->data - NET_IP_ALIGN,
+			       len + NET_IP_ALIGN);
 			emac_recycle_rx_skb(dev, slot, len);
 			skb = copy_skb;
-		} else if (unlikely(emac_alloc_rx_skb(dev, slot, GFP_ATOMIC)))
+		} else if (unlikely(emac_alloc_rx_skb_napi(dev, slot)))
 			goto oom;
 
 		skb_put(skb, len);
@@ -1799,7 +1818,7 @@ static int emac_poll_rx(void *param, int budget)
 	sg:
 		if (ctrl & MAL_RX_CTRL_FIRST) {
 			BUG_ON(dev->rx_sg_skb);
-			if (unlikely(emac_alloc_rx_skb(dev, slot, GFP_ATOMIC))) {
+			if (unlikely(emac_alloc_rx_skb_napi(dev, slot))) {
 				DBG(dev, "rx OOM %d" NL, slot);
 				++dev->estats.rx_dropped_oom;
 				emac_recycle_rx_skb(dev, slot, 0);
@@ -2118,8 +2137,11 @@ emac_ethtool_set_link_ksettings(struct net_device *ndev,
 	return 0;
 }
 
-static void emac_ethtool_get_ringparam(struct net_device *ndev,
-				       struct ethtool_ringparam *rp)
+static void
+emac_ethtool_get_ringparam(struct net_device *ndev,
+			   struct ethtool_ringparam *rp,
+			   struct kernel_ethtool_ringparam *kernel_rp,
+			   struct netlink_ext_ack *extack)
 {
 	rp->rx_max_pending = rp->rx_pending = NUM_RX_BUFF;
 	rp->tx_max_pending = rp->tx_pending = NUM_TX_BUFF;
@@ -2301,7 +2323,7 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:
 		data->phy_id = dev->phy.address;
-		/* Fall through */
+		fallthrough;
 	case SIOCGMIIREG:
 		data->val_out = emac_mdio_read(ndev, dev->phy.address,
 					       data->reg_num);
@@ -2372,11 +2394,11 @@ static int emac_check_deps(struct emac_instance *dev,
 
 static void emac_put_deps(struct emac_instance *dev)
 {
-	of_dev_put(dev->mal_dev);
-	of_dev_put(dev->zmii_dev);
-	of_dev_put(dev->rgmii_dev);
-	of_dev_put(dev->mdio_dev);
-	of_dev_put(dev->tah_dev);
+	platform_device_put(dev->mal_dev);
+	platform_device_put(dev->zmii_dev);
+	platform_device_put(dev->rgmii_dev);
+	platform_device_put(dev->mdio_dev);
+	platform_device_put(dev->tah_dev);
 }
 
 static int emac_of_bus_notify(struct notifier_block *nb, unsigned long action,
@@ -2417,7 +2439,7 @@ static int emac_wait_deps(struct emac_instance *dev)
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
 		of_node_put(deps[i].node);
 		if (err)
-			of_dev_put(deps[i].ofdev);
+			platform_device_put(deps[i].ofdev);
 	}
 	if (err == 0) {
 		dev->mal_dev = deps[EMAC_DEP_MAL_IDX].ofdev;
@@ -2426,7 +2448,7 @@ static int emac_wait_deps(struct emac_instance *dev)
 		dev->tah_dev = deps[EMAC_DEP_TAH_IDX].ofdev;
 		dev->mdio_dev = deps[EMAC_DEP_MDIO_IDX].ofdev;
 	}
-	of_dev_put(deps[EMAC_DEP_PREV_IDX].ofdev);
+	platform_device_put(deps[EMAC_DEP_PREV_IDX].ofdev);
 	return err;
 }
 
@@ -2829,7 +2851,7 @@ static int emac_init_phy(struct emac_instance *dev)
 static int emac_init_config(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
-	const void *p;
+	int err;
 
 	/* Read config from device-tree */
 	if (emac_read_uint_prop(np, "mal-device", &dev->mal_ph, 1))
@@ -2878,8 +2900,8 @@ static int emac_init_config(struct emac_instance *dev)
 		dev->mal_burst_size = 256;
 
 	/* PHY mode needs some decoding */
-	dev->phy_mode = of_get_phy_mode(np);
-	if (dev->phy_mode < 0)
+	err = of_get_phy_mode(np, &dev->phy_mode);
+	if (err)
 		dev->phy_mode = PHY_INTERFACE_MODE_NA;
 
 	/* Check EMAC version */
@@ -2956,13 +2978,12 @@ static int emac_init_config(struct emac_instance *dev)
 	}
 
 	/* Read MAC-address */
-	p = of_get_property(np, "local-mac-address", NULL);
-	if (p == NULL) {
-		printk(KERN_ERR "%pOF: Can't find local-mac-address property\n",
-		       np);
-		return -ENXIO;
+	err = of_get_ethdev_address(np, dev->ndev);
+	if (err) {
+		if (err != -EPROBE_DEFER)
+			dev_err(&dev->ofdev->dev, "Can't get valid [local-]mac-address from OF !\n");
+		return err;
 	}
-	memcpy(dev->ndev->dev_addr, p, ETH_ALEN);
 
 	/* IAHT and GAHT filter parameterization */
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4SYNC)) {
@@ -2991,7 +3012,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_stop		= emac_close,
 	.ndo_get_stats		= emac_stats,
 	.ndo_set_rx_mode	= emac_set_multicast_list,
-	.ndo_do_ioctl		= emac_ioctl,
+	.ndo_eth_ioctl		= emac_ioctl,
 	.ndo_tx_timeout		= emac_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= emac_set_mac_address,
@@ -3003,7 +3024,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_stop		= emac_close,
 	.ndo_get_stats		= emac_stats,
 	.ndo_set_rx_mode	= emac_set_multicast_list,
-	.ndo_do_ioctl		= emac_ioctl,
+	.ndo_eth_ioctl		= emac_ioctl,
 	.ndo_tx_timeout		= emac_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= emac_set_mac_address,

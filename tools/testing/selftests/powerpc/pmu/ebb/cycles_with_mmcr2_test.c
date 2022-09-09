@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <stdio.h>
@@ -50,6 +50,7 @@ int cycles_with_mmcr2(void)
 	expected[1] = MMCR2_EXPECTED_2;
 	i = 0;
 	bad_mmcr2 = false;
+	actual = 0;
 
 	/* Make sure we loop until we take at least one EBB */
 	while ((ebb_state.stats.ebb_count < 20 && !bad_mmcr2) ||
@@ -70,8 +71,6 @@ int cycles_with_mmcr2(void)
 
 	ebb_global_disable();
 	ebb_freeze_pmcs();
-
-	count_pmc(1, sample_period);
 
 	dump_ebb_state();
 

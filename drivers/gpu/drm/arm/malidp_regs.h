@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Liviu Dudau <Liviu.Dudau@arm.com>
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
  *
  * ARM Mali DP500/DP550/DP650 registers definition.
  */
@@ -198,10 +194,13 @@
 #define MALIDP500_LV_YUV2RGB		((s16)(-0xB8))
 #define MALIDP500_DE_LV_BASE		0x00100
 #define MALIDP500_DE_LV_PTR_BASE	0x00124
+#define MALIDP500_DE_LV_AD_CTRL		0x00400
 #define MALIDP500_DE_LG1_BASE		0x00200
 #define MALIDP500_DE_LG1_PTR_BASE	0x0021c
+#define MALIDP500_DE_LG1_AD_CTRL	0x0040c
 #define MALIDP500_DE_LG2_BASE		0x00300
 #define MALIDP500_DE_LG2_PTR_BASE	0x0031c
+#define MALIDP500_DE_LG2_AD_CTRL	0x00418
 #define MALIDP500_SE_BASE		0x00c00
 #define MALIDP500_SE_CONTROL		0x00c0c
 #define MALIDP500_SE_MEMWRITE_OUT_SIZE	0x00c2c
@@ -210,6 +209,16 @@
 #define MALIDP500_DC_IRQ_BASE		0x00f00
 #define MALIDP500_CONFIG_VALID		0x00f00
 #define MALIDP500_CONFIG_ID		0x00fd4
+
+/*
+ * The quality of service (QoS) register on the DP500. RQOS register values
+ * are driven by the ARQOS signal, using AXI transacations, dependent on the
+ * FIFO input level.
+ * The RQOS register can also set QoS levels for:
+ *    - RED_ARQOS   @ A 4-bit signal value for close to underflow conditions
+ *    - GREEN_ARQOS @ A 4-bit signal value for normal conditions
+ */
+#define MALIDP500_RQOS_QUALITY          0x00500
 
 /* register offsets and bits specific to DP550/DP650 */
 #define MALIDP550_ADDR_SPACE_SIZE	0x10000
@@ -228,10 +237,13 @@
 #define MALIDP550_LV_YUV2RGB		0x00084
 #define MALIDP550_DE_LV1_BASE		0x00100
 #define MALIDP550_DE_LV1_PTR_BASE	0x00124
+#define MALIDP550_DE_LV1_AD_CTRL	0x001B8
 #define MALIDP550_DE_LV2_BASE		0x00200
 #define MALIDP550_DE_LV2_PTR_BASE	0x00224
+#define MALIDP550_DE_LV2_AD_CTRL	0x002B8
 #define MALIDP550_DE_LG_BASE		0x00300
 #define MALIDP550_DE_LG_PTR_BASE	0x0031c
+#define MALIDP550_DE_LG_AD_CTRL		0x00330
 #define MALIDP550_DE_LS_BASE		0x00400
 #define MALIDP550_DE_LS_PTR_BASE	0x0042c
 #define MALIDP550_DE_PERF_BASE		0x00500
@@ -257,6 +269,20 @@
 #define MALIDP_MMU_CTRL_MODE		(1 << 4)
 #define MALIDP_MMU_CTRL_PX_PS(x)	(1 << (8 + (x)))
 #define MALIDP_MMU_CTRL_PP_NUM_REQ(x)	(((x) & 0x7f) << 12)
+
+/* AFBC register offsets relative to MALIDPXXX_DE_LX_AD_CTRL */
+/* The following register offsets are common for DP500, DP550 and DP650 */
+#define MALIDP_AD_CROP_H                0x4
+#define MALIDP_AD_CROP_V                0x8
+#define MALIDP_AD_END_PTR_LOW           0xc
+#define MALIDP_AD_END_PTR_HIGH          0x10
+
+/* AFBC decoder Registers */
+#define MALIDP_AD_EN                    BIT(0)
+#define MALIDP_AD_YTR                   BIT(4)
+#define MALIDP_AD_BS                    BIT(8)
+#define MALIDP_AD_CROP_RIGHT_OFFSET     16
+#define MALIDP_AD_CROP_BOTTOM_OFFSET    16
 
 /*
  * Starting with DP550 the register map blocks has been standardised to the

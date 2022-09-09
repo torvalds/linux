@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG XYREF5260 board device tree source
+ * Samsung XYREF5260 board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -10,7 +10,7 @@
 #include "exynos5260.dtsi"
 
 / {
-	model = "SAMSUNG XYREF5260 board based on EXYNOS5260";
+	model = "Samsung XYREF5260 board based on Exynos5260";
 	compatible = "samsung,xyref5260", "samsung,exynos5260", "samsung,exynos5";
 
 	memory@20000000 {
@@ -19,13 +19,34 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200";
+		stdout-path = "serial2:115200n8";
 	};
 
 	fin_pll: xxti {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
 		clock-output-names = "fin_pll";
+		#clock-cells = <0>;
+	};
+
+	ioclk_pcm: clock-pcm-ext {
+		compatible = "fixed-clock";
+		clock-frequency = <2048000>;
+		clock-output-names = "ioclk_pcm_extclk";
+		#clock-cells = <0>;
+	};
+
+	ioclk_i2s: clock-i2s-cd {
+		compatible = "fixed-clock";
+		clock-frequency = <147456000>;
+		clock-output-names = "ioclk_i2s_cdclk";
+		#clock-cells = <0>;
+	};
+
+	ioclk_spdif: clock-spdif-ext {
+		compatible = "fixed-clock";
+		clock-frequency = <49152000>;
+		clock-output-names = "ioclk_spdif_extclk";
 		#clock-cells = <0>;
 	};
 
@@ -38,7 +59,7 @@
 };
 
 &pinctrl_0 {
-	hdmi_hpd_irq: hdmi-hpd-irq {
+	hdmi_hpd_irq: hdmi-hpd-irq-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;

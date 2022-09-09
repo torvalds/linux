@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _IIO_UTILS_H_
 #define _IIO_UTILS_H_
 
 /* IIO - useful set of util functionality
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <stdint.h>
@@ -15,7 +12,8 @@
 /* Made up value to limit allocation sizes */
 #define IIO_MAX_NAME_LENGTH 64
 
-#define FORMAT_SCAN_ELEMENTS_DIR "%s/scan_elements"
+#define FORMAT_SCAN_ELEMENTS_DIR "%s/buffer%d"
+#define FORMAT_EVENTS_DIR "%s/events"
 #define FORMAT_TYPE_FILE "%s_type"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -60,15 +58,11 @@ static inline int iioutils_check_suffix(const char *str, const char *suffix)
 }
 
 int iioutils_break_up_name(const char *full_name, char **generic_name);
-int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
-		      unsigned *shift, uint64_t *mask, unsigned *be,
-		      const char *device_dir, const char *name,
-		      const char *generic_name);
 int iioutils_get_param_float(float *output, const char *param_name,
 			     const char *device_dir, const char *name,
 			     const char *generic_name);
 void bsort_channel_array_by_index(struct iio_channel_info *ci_array, int cnt);
-int build_channel_array(const char *device_dir,
+int build_channel_array(const char *device_dir, int buffer_idx,
 			struct iio_channel_info **ci_array, int *counter);
 int find_type_by_name(const char *name, const char *type);
 int write_sysfs_int(const char *filename, const char *basedir, int val);

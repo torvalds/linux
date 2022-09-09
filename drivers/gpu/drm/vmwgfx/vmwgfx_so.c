@@ -33,7 +33,7 @@
  * The currently only reason we need to keep track of views is that if we
  * destroy a hardware surface, all views pointing to it must also be destroyed,
  * otherwise the device will error.
- * So in particuar if a surface is evicted, we must destroy all views pointing
+ * So in particular if a surface is evicted, we must destroy all views pointing
  * to it, and all context bindings of that view. Similarly we must restore
  * the view bindings, views and surfaces pointed to by the views when a
  * context is referenced in the command stream.
@@ -42,6 +42,7 @@
 /**
  * struct vmw_view - view metadata
  *
+ * @rcu: RCU callback head
  * @res: The struct vmw_resource we derive from
  * @ctx: Non-refcounted pointer to the context this view belongs to.
  * @srf: Refcounted pointer to the surface pointed to by this view.
@@ -89,7 +90,7 @@ static const struct vmw_res_func vmw_view_func = {
 };
 
 /**
- * struct vmw_view - view define command body stub
+ * struct vmw_view_define - view define command body stub
  *
  * @view_id: The device id of the view being defined
  * @sid: The surface id of the view being defined
@@ -170,19 +171,18 @@ static int vmw_view_create(struct vmw_resource *res)
 		return 0;
 	}
 
-	cmd = vmw_fifo_reserve_dx(res->dev_priv, view->cmd_size,
-				  view->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(res->dev_priv, view->cmd_size, view->ctx->id);
 	if (!cmd) {
-		DRM_ERROR("Failed reserving FIFO space for view creation.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
+
 	memcpy(cmd, &view->cmd, view->cmd_size);
 	WARN_ON(cmd->body.view_id != view->view_id);
 	/* Sid may have changed due to surface eviction. */
 	WARN_ON(view->srf->id == SVGA3D_INVALID_ID);
 	cmd->body.sid = view->srf->id;
-	vmw_fifo_commit(res->dev_priv, view->cmd_size);
+	vmw_cmd_commit(res->dev_priv, view->cmd_size);
 	res->id = view->view_id;
 	list_add_tail(&view->srf_head, &srf->view_list);
 	vmw_cotable_add_resource(view->cotable, &view->cotable_head);
@@ -214,17 +214,14 @@ static int vmw_view_destroy(struct vmw_resource *res)
 	if (!view->committed || res->id == -1)
 		return 0;
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), view->ctx->id);
-	if (!cmd) {
-		DRM_ERROR("Failed reserving FIFO space for view "
-			  "destruction.\n");
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), view->ctx->id);
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	cmd->header.id = vmw_view_destroy_cmds[view->view_type];
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.view_id = view->view_id;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 	res->id = -1;
 	list_del_init(&view->cotable_head);
 	list_del_init(&view->srf_head);
@@ -282,18 +279,15 @@ static bool vmw_view_id_ok(u32 user_key, enum vmw_view_type view_type)
  *
  * @res: Pointer to a struct vmw_resource
  *
- * Frees memory and memory accounting held by a struct vmw_view.
+ * Frees memory held by the struct vmw_view.
  */
 static void vmw_view_res_free(struct vmw_resource *res)
 {
 	struct vmw_view *view = vmw_view(res);
-	size_t size = offsetof(struct vmw_view, cmd) + view->cmd_size;
-	struct vmw_private *dev_priv = res->dev_priv;
 
 	vmw_resource_unreference(&view->cotable);
 	vmw_resource_unreference(&view->srf);
 	kfree_rcu(view, rcu);
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 }
 
 /**
@@ -323,43 +317,31 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 	static const size_t vmw_view_define_sizes[] = {
 		[vmw_view_sr] = sizeof(SVGA3dCmdDXDefineShaderResourceView),
 		[vmw_view_rt] = sizeof(SVGA3dCmdDXDefineRenderTargetView),
-		[vmw_view_ds] = sizeof(SVGA3dCmdDXDefineDepthStencilView)
+		[vmw_view_ds] = sizeof(SVGA3dCmdDXDefineDepthStencilView),
+		[vmw_view_ua] = sizeof(SVGA3dCmdDXDefineUAView)
 	};
 
 	struct vmw_private *dev_priv = ctx->dev_priv;
 	struct vmw_resource *res;
 	struct vmw_view *view;
-	struct ttm_operation_ctx ttm_opt_ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	size_t size;
 	int ret;
 
 	if (cmd_size != vmw_view_define_sizes[view_type] +
 	    sizeof(SVGA3dCmdHeader)) {
-		DRM_ERROR("Illegal view create command size.\n");
+		VMW_DEBUG_USER("Illegal view create command size.\n");
 		return -EINVAL;
 	}
 
 	if (!vmw_view_id_ok(user_key, view_type)) {
-		DRM_ERROR("Illegal view add view id.\n");
+		VMW_DEBUG_USER("Illegal view add view id.\n");
 		return -EINVAL;
 	}
 
 	size = offsetof(struct vmw_view, cmd) + cmd_size;
 
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), size, &ttm_opt_ctx);
-	if (ret) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for view"
-				  " creation.\n");
-		return ret;
-	}
-
 	view = kmalloc(size, GFP_KERNEL);
 	if (!view) {
-		ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 		return -ENOMEM;
 	}
 
@@ -413,7 +395,7 @@ int vmw_view_remove(struct vmw_cmdbuf_res_manager *man,
 		    struct vmw_resource **res_p)
 {
 	if (!vmw_view_id_ok(user_key, view_type)) {
-		DRM_ERROR("Illegal view remove view id.\n");
+		VMW_DEBUG_USER("Illegal view remove view id.\n");
 		return -EINVAL;
 	}
 
@@ -497,16 +479,43 @@ struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
 				     vmw_view_key(user_key, view_type));
 }
 
+/**
+ * vmw_view_dirtying - Return whether a view type is dirtying its resource
+ * @res: Pointer to the view
+ *
+ * Each time a resource is put on the validation list as the result of a
+ * view pointing to it, we need to determine whether that resource will
+ * be dirtied (written to by the GPU) as a result of the corresponding
+ * GPU operation. Currently only rendertarget-, depth-stencil and unordered
+ * access views are capable of dirtying its resource.
+ *
+ * Return: Whether the view type of @res dirties the resource it points to.
+ */
+u32 vmw_view_dirtying(struct vmw_resource *res)
+{
+	static u32 view_is_dirtying[vmw_view_max] = {
+		[vmw_view_rt] = VMW_RES_DIRTY_SET,
+		[vmw_view_ds] = VMW_RES_DIRTY_SET,
+		[vmw_view_ua] = VMW_RES_DIRTY_SET,
+	};
+
+	/* Update this function as we add more view types */
+	BUILD_BUG_ON(vmw_view_max != 4);
+	return view_is_dirtying[vmw_view(res)->view_type];
+}
+
 const u32 vmw_view_destroy_cmds[] = {
 	[vmw_view_sr] = SVGA_3D_CMD_DX_DESTROY_SHADERRESOURCE_VIEW,
 	[vmw_view_rt] = SVGA_3D_CMD_DX_DESTROY_RENDERTARGET_VIEW,
 	[vmw_view_ds] = SVGA_3D_CMD_DX_DESTROY_DEPTHSTENCIL_VIEW,
+	[vmw_view_ua] = SVGA_3D_CMD_DX_DESTROY_UA_VIEW,
 };
 
 const SVGACOTableType vmw_view_cotables[] = {
 	[vmw_view_sr] = SVGA_COTABLE_SRVIEW,
 	[vmw_view_rt] = SVGA_COTABLE_RTVIEW,
 	[vmw_view_ds] = SVGA_COTABLE_DSVIEW,
+	[vmw_view_ua] = SVGA_COTABLE_UAVIEW,
 };
 
 const SVGACOTableType vmw_so_cotables[] = {
@@ -515,7 +524,8 @@ const SVGACOTableType vmw_so_cotables[] = {
 	[vmw_so_ds] = SVGA_COTABLE_DEPTHSTENCIL,
 	[vmw_so_rs] = SVGA_COTABLE_RASTERIZERSTATE,
 	[vmw_so_ss] = SVGA_COTABLE_SAMPLER,
-	[vmw_so_so] = SVGA_COTABLE_STREAMOUTPUT
+	[vmw_so_so] = SVGA_COTABLE_STREAMOUTPUT,
+	[vmw_so_max]= SVGA_COTABLE_MAX
 };
 
 
@@ -557,4 +567,8 @@ static void vmw_so_build_asserts(void)
 		     offsetof(SVGA3dCmdDXDefineRenderTargetView, sid));
 	BUILD_BUG_ON(offsetof(struct vmw_view_define, sid) !=
 		     offsetof(SVGA3dCmdDXDefineDepthStencilView, sid));
+	BUILD_BUG_ON(offsetof(struct vmw_view_define, sid) !=
+		     offsetof(SVGA3dCmdDXDefineUAView, sid));
+	BUILD_BUG_ON(offsetof(struct vmw_view_define, sid) !=
+		     offsetof(SVGA3dCmdDXDefineDepthStencilView_v2, sid));
 }

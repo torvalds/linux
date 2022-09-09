@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * veml6070.c - Support for Vishay VEML6070 UV A light sensor
  *
  * Copyright 2016 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * IIO driver for VEML6070 (7-bit I2C slave addresses 0x38 and 0x39)
  *
@@ -154,17 +151,16 @@ static int veml6070_probe(struct i2c_client *client,
 	data->client1 = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &veml6070_info;
 	indio_dev->channels = veml6070_channels;
 	indio_dev->num_channels = ARRAY_SIZE(veml6070_channels);
 	indio_dev->name = VEML6070_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	data->client2 = i2c_new_dummy(client->adapter, VEML6070_ADDR_DATA_LSB);
-	if (!data->client2) {
+	data->client2 = i2c_new_dummy_device(client->adapter, VEML6070_ADDR_DATA_LSB);
+	if (IS_ERR(data->client2)) {
 		dev_err(&client->dev, "i2c device for second chip address failed\n");
-		return -ENODEV;
+		return PTR_ERR(data->client2);
 	}
 
 	data->config = VEML6070_IT_10 | VEML6070_COMMAND_RSRVD |

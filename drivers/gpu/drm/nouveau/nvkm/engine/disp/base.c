@@ -30,7 +30,7 @@
 
 #include <core/client.h>
 #include <core/notify.h>
-#include <core/oproxy.h>
+#include <core/ramht.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 
@@ -108,7 +108,7 @@ nvkm_disp_hpd_ctor(struct nvkm_object *object, void *data, u32 size,
 
 	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
 		notify->size = sizeof(struct nvif_notify_conn_rep_v0);
-		list_for_each_entry(outp, &disp->outp, head) {
+		list_for_each_entry(outp, &disp->outps, head) {
 			if (ret = -ENXIO, outp->conn->index == req->v0.conn) {
 				if (ret = -ENODEV, outp->conn->hpd.event) {
 					notify->types = req->v0.mask;
@@ -145,45 +145,12 @@ nvkm_disp_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **event)
 	return -EINVAL;
 }
 
-static void
-nvkm_disp_class_del(struct nvkm_oproxy *oproxy)
-{
-	struct nvkm_disp *disp = nvkm_disp(oproxy->base.engine);
-	mutex_lock(&disp->engine.subdev.mutex);
-	if (disp->client == oproxy)
-		disp->client = NULL;
-	mutex_unlock(&disp->engine.subdev.mutex);
-}
-
-static const struct nvkm_oproxy_func
-nvkm_disp_class = {
-	.dtor[1] = nvkm_disp_class_del,
-};
-
 static int
 nvkm_disp_class_new(struct nvkm_device *device,
 		    const struct nvkm_oclass *oclass, void *data, u32 size,
 		    struct nvkm_object **pobject)
 {
-	const struct nvkm_disp_oclass *sclass = oclass->engn;
-	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
-	struct nvkm_oproxy *oproxy;
-	int ret;
-
-	ret = nvkm_oproxy_new_(&nvkm_disp_class, oclass, &oproxy);
-	if (ret)
-		return ret;
-	*pobject = &oproxy->base;
-
-	mutex_lock(&disp->engine.subdev.mutex);
-	if (disp->client) {
-		mutex_unlock(&disp->engine.subdev.mutex);
-		return -EBUSY;
-	}
-	disp->client = oproxy;
-	mutex_unlock(&disp->engine.subdev.mutex);
-
-	return sclass->ctor(disp, oclass, data, size, &oproxy->object);
+	return nvkm_udisp_new(oclass, data, size, pobject);
 }
 
 static const struct nvkm_device_oclass
@@ -197,9 +164,7 @@ nvkm_disp_class_get(struct nvkm_oclass *oclass, int index,
 {
 	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
 	if (index == 0) {
-		const struct nvkm_disp_oclass *root = disp->func->root(disp);
-		oclass->base = root->base;
-		oclass->engn = root;
+		oclass->base = disp->func->root;
 		*class = &nvkm_disp_sclass;
 		return 0;
 	}
@@ -223,11 +188,11 @@ nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
 	if (disp->func->fini)
 		disp->func->fini(disp);
 
-	list_for_each_entry(outp, &disp->outp, head) {
+	list_for_each_entry(outp, &disp->outps, head) {
 		nvkm_outp_fini(outp);
 	}
 
-	list_for_each_entry(conn, &disp->conn, head) {
+	list_for_each_entry(conn, &disp->conns, head) {
 		nvkm_conn_fini(conn);
 	}
 
@@ -242,11 +207,11 @@ nvkm_disp_init(struct nvkm_engine *engine)
 	struct nvkm_outp *outp;
 	struct nvkm_ior *ior;
 
-	list_for_each_entry(conn, &disp->conn, head) {
+	list_for_each_entry(conn, &disp->conns, head) {
 		nvkm_conn_init(conn);
 	}
 
-	list_for_each_entry(outp, &disp->outp, head) {
+	list_for_each_entry(outp, &disp->outps, head) {
 		nvkm_outp_init(outp);
 	}
 
@@ -259,7 +224,7 @@ nvkm_disp_init(struct nvkm_engine *engine)
 	/* Set 'normal' (ie. when it's attached to a head) state for
 	 * each output resource to 'fully enabled'.
 	 */
-	list_for_each_entry(ior, &disp->ior, head) {
+	list_for_each_entry(ior, &disp->iors, head) {
 		ior->func->power(ior, true, true, true, true, true);
 	}
 
@@ -326,12 +291,12 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 			continue;
 		}
 
-		list_add_tail(&outp->head, &disp->outp);
+		list_add_tail(&outp->head, &disp->outps);
 		hpd = max(hpd, (u8)(dcbE.connector + 1));
 	}
 
 	/* Create connector objects based on available output paths. */
-	list_for_each_entry_safe(outp, outt, &disp->outp, head) {
+	list_for_each_entry_safe(outp, outt, &disp->outps, head) {
 		/* VBIOS data *should* give us the most useful information. */
 		data = nvbios_connEp(bios, outp->info.connector, &ver, &hdr,
 				     &connE);
@@ -345,7 +310,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 			 */
 			int ccb_index = outp->info.i2c_index;
 			if (ccb_index != 0xf) {
-				list_for_each_entry(pair, &disp->outp, head) {
+				list_for_each_entry(pair, &disp->outps, head) {
 					if (pair->info.i2c_index == ccb_index) {
 						outp->conn = pair->conn;
 						break;
@@ -365,7 +330,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 		}
 
 		/* Check that we haven't already created this connector. */
-		list_for_each_entry(conn, &disp->conn, head) {
+		list_for_each_entry(conn, &disp->conns, head) {
 			if (conn->index == outp->info.connector) {
 				outp->conn = conn;
 				break;
@@ -387,7 +352,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 			continue;
 		}
 
-		list_add_tail(&outp->conn->head, &disp->conn);
+		list_add_tail(&outp->conn->head, &disp->conns);
 	}
 
 	ret = nvkm_event_init(&nvkm_disp_hpd_func, 3, hpd, &disp->hpd);
@@ -403,7 +368,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	/* Enforce identity-mapped SOR assignment for panels, which have
 	 * certain bits (ie. backlight controls) wired to a specific SOR.
 	 */
-	list_for_each_entry(outp, &disp->outp, head) {
+	list_for_each_entry(outp, &disp->outps, head) {
 		if (outp->conn->info.type == DCB_CONNECTOR_LVDS ||
 		    outp->conn->info.type == DCB_CONNECTOR_eDP) {
 			ior = nvkm_ior_find(disp, SOR, ffs(outp->info.or) - 1);
@@ -414,7 +379,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	}
 
 	i = 0;
-	list_for_each_entry(head, &disp->head, head)
+	list_for_each_entry(head, &disp->heads, head)
 		i = max(i, head->id + 1);
 
 	return nvkm_event_init(&nvkm_disp_vblank_func, 1, i, &disp->vblank);
@@ -426,35 +391,42 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 	struct nvkm_disp *disp = nvkm_disp(engine);
 	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
+	struct nvkm_ior *ior;
+	struct nvkm_head *head;
 	void *data = disp;
 
-	if (disp->func->dtor)
-		data = disp->func->dtor(disp);
+	nvkm_ramht_del(&disp->ramht);
+	nvkm_gpuobj_del(&disp->inst);
+
+	nvkm_event_fini(&disp->uevent);
+
+	if (disp->super.wq) {
+		destroy_workqueue(disp->super.wq);
+		mutex_destroy(&disp->super.mutex);
+	}
 
 	nvkm_event_fini(&disp->vblank);
 	nvkm_event_fini(&disp->hpd);
 
-	while (!list_empty(&disp->conn)) {
-		conn = list_first_entry(&disp->conn, typeof(*conn), head);
+	while (!list_empty(&disp->conns)) {
+		conn = list_first_entry(&disp->conns, typeof(*conn), head);
 		list_del(&conn->head);
 		nvkm_conn_del(&conn);
 	}
 
-	while (!list_empty(&disp->outp)) {
-		outp = list_first_entry(&disp->outp, typeof(*outp), head);
+	while (!list_empty(&disp->outps)) {
+		outp = list_first_entry(&disp->outps, typeof(*outp), head);
 		list_del(&outp->head);
 		nvkm_outp_del(&outp);
 	}
 
-	while (!list_empty(&disp->ior)) {
-		struct nvkm_ior *ior =
-			list_first_entry(&disp->ior, typeof(*ior), head);
+	while (!list_empty(&disp->iors)) {
+		ior = list_first_entry(&disp->iors, typeof(*ior), head);
 		nvkm_ior_del(&ior);
 	}
 
-	while (!list_empty(&disp->head)) {
-		struct nvkm_head *head =
-			list_first_entry(&disp->head, typeof(*head), head);
+	while (!list_empty(&disp->heads)) {
+		head = list_first_entry(&disp->heads, typeof(*head), head);
 		nvkm_head_del(&head);
 	}
 
@@ -472,22 +444,34 @@ nvkm_disp = {
 };
 
 int
-nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_disp *disp)
-{
-	disp->func = func;
-	INIT_LIST_HEAD(&disp->head);
-	INIT_LIST_HEAD(&disp->ior);
-	INIT_LIST_HEAD(&disp->outp);
-	INIT_LIST_HEAD(&disp->conn);
-	return nvkm_engine_ctor(&nvkm_disp, device, index, true, &disp->engine);
-}
-
-int
 nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_disp **pdisp)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
-	if (!(*pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
+	struct nvkm_disp *disp;
+	int ret;
+
+	if (!(disp = *pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_disp_ctor(func, device, index, *pdisp);
+
+	disp->func = func;
+	INIT_LIST_HEAD(&disp->heads);
+	INIT_LIST_HEAD(&disp->iors);
+	INIT_LIST_HEAD(&disp->outps);
+	INIT_LIST_HEAD(&disp->conns);
+	spin_lock_init(&disp->client.lock);
+
+	ret = nvkm_engine_ctor(&nvkm_disp, device, type, inst, true, &disp->engine);
+	if (ret)
+		return ret;
+
+	if (func->super) {
+		disp->super.wq = create_singlethread_workqueue("nvkm-disp");
+		if (!disp->super.wq)
+			return -ENOMEM;
+
+		INIT_WORK(&disp->super.work, func->super);
+		mutex_init(&disp->super.mutex);
+	}
+
+	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan), &disp->uevent);
 }

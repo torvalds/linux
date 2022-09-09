@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ptrace test for VMX/VSX registers in the TM Suspend context
  *
  * Copyright (C) 2015 Anshuman Khandual, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include "ptrace.h"
 #include "tm.h"
@@ -78,8 +74,8 @@ trans:
 		"3: ;"
 		: [res] "=r" (result), [texasr] "=r" (texasr)
 		: [sprn_texasr] "i"  (SPRN_TEXASR)
-		: "memory", "r0", "r1", "r3", "r4",
-		"r7", "r8", "r9", "r10", "r11"
+		: "memory", "r0", "r3", "r4",
+		  "r7", "r8", "r9", "r10", "r11", "lr"
 		);
 
 	if (result) {
@@ -133,6 +129,7 @@ int ptrace_tm_spd_vsx(void)
 	int ret, status, i;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(htm_is_synthetic());
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 3, 0777|IPC_CREAT);
 
 	for (i = 0; i < 128; i++) {

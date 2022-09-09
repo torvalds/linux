@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * C-Media CMI8788 driver - main driver module
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License, version 2.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this driver; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/delay.h>
@@ -244,10 +232,7 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 
 static void oxygen_proc_init(struct oxygen *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(chip->card, "oxygen", &entry))
-		snd_info_set_text_ops(entry, chip, oxygen_proc_read);
+	snd_card_ro_proc_new(chip->card, "oxygen", chip, oxygen_proc_read);
 }
 
 static const struct pci_device_id *
@@ -373,7 +358,7 @@ static void oxygen_init(struct oxygen *chip)
 	for (i = 0; i < 8; ++i)
 		chip->dac_volume[i] = chip->model.dac_volume_min;
 	chip->dac_mute = 1;
-	chip->spdif_playback_enable = 1;
+	chip->spdif_playback_enable = 0;
 	chip->spdif_bits = OXYGEN_SPDIF_C | OXYGEN_SPDIF_ORIGINAL |
 		(IEC958_AES1_CON_PCM_CODER << OXYGEN_SPDIF_CATEGORY_SHIFT);
 	chip->spdif_pcm_bits = chip->spdif_bits;
@@ -585,18 +570,13 @@ static void oxygen_card_free(struct snd_card *card)
 	struct oxygen *chip = card->private_data;
 
 	oxygen_shutdown(chip);
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
 	flush_work(&chip->spdif_input_bits_work);
 	flush_work(&chip->gpio_work);
 	chip->model.cleanup(chip);
-	kfree(chip->model_data);
 	mutex_destroy(&chip->mutex);
-	pci_release_regions(chip->pci);
-	pci_disable_device(chip->pci);
 }
 
-int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
+static int __oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		     struct module *owner,
 		     const struct pci_device_id *ids,
 		     int (*get_model)(struct oxygen *chip,
@@ -609,8 +589,8 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	const struct pci_device_id *pci_id;
 	int err;
 
-	err = snd_card_new(&pci->dev, index, id, owner,
-			   sizeof(*chip), &card);
+	err = snd_devm_card_new(&pci->dev, index, id, owner,
+				sizeof(*chip), &card);
 	if (err < 0)
 		return err;
 
@@ -625,41 +605,38 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	INIT_WORK(&chip->gpio_work, oxygen_gpio_changed);
 	init_waitqueue_head(&chip->ac97_waitqueue);
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0)
-		goto err_card;
+		return err;
 
 	err = pci_request_regions(pci, DRIVER);
 	if (err < 0) {
 		dev_err(card->dev, "cannot reserve PCI resources\n");
-		goto err_pci_enable;
+		return err;
 	}
 
 	if (!(pci_resource_flags(pci, 0) & IORESOURCE_IO) ||
 	    pci_resource_len(pci, 0) < OXYGEN_IO_SIZE) {
 		dev_err(card->dev, "invalid PCI I/O range\n");
-		err = -ENXIO;
-		goto err_pci_regions;
+		return -ENXIO;
 	}
 	chip->addr = pci_resource_start(pci, 0);
 
 	pci_id = oxygen_search_pci_id(chip, ids);
-	if (!pci_id) {
-		err = -ENODEV;
-		goto err_pci_regions;
-	}
+	if (!pci_id)
+		return -ENODEV;
+
 	oxygen_restore_eeprom(chip, pci_id);
 	err = get_model(chip, pci_id);
 	if (err < 0)
-		goto err_pci_regions;
+		return err;
 
 	if (chip->model.model_data_size) {
-		chip->model_data = kzalloc(chip->model.model_data_size,
-					   GFP_KERNEL);
-		if (!chip->model_data) {
-			err = -ENOMEM;
-			goto err_pci_regions;
-		}
+		chip->model_data = devm_kzalloc(&pci->dev,
+						chip->model.model_data_size,
+						GFP_KERNEL);
+		if (!chip->model_data)
+			return -ENOMEM;
 	}
 
 	pci_set_master(pci);
@@ -669,13 +646,14 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	oxygen_init(chip);
 	chip->model.init(chip);
 
-	err = request_irq(pci->irq, oxygen_interrupt, IRQF_SHARED,
-			  KBUILD_MODNAME, chip);
+	err = devm_request_irq(&pci->dev, pci->irq, oxygen_interrupt,
+			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (err < 0) {
 		dev_err(card->dev, "cannot grab interrupt %d\n", pci->irq);
-		goto err_card;
+		return err;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	strcpy(card->driver, chip->model.chip);
 	strcpy(card->shortname, chip->model.shortname);
@@ -686,11 +664,11 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 
 	err = oxygen_pcm_init(chip);
 	if (err < 0)
-		goto err_card;
+		return err;
 
 	err = oxygen_mixer_init(chip);
 	if (err < 0)
-		goto err_card;
+		return err;
 
 	if (chip->model.device_config & (MIDI_OUTPUT | MIDI_INPUT)) {
 		unsigned int info_flags =
@@ -703,7 +681,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 					  chip->addr + OXYGEN_MPU401,
 					  info_flags, -1, &chip->midi);
 		if (err < 0)
-			goto err_card;
+			return err;
 	}
 
 	oxygen_proc_init(chip);
@@ -718,38 +696,31 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 
 	err = snd_card_register(card);
 	if (err < 0)
-		goto err_card;
+		return err;
 
 	pci_set_drvdata(pci, card);
 	return 0;
+}
 
-err_pci_regions:
-	pci_release_regions(pci);
-err_pci_enable:
-	pci_disable_device(pci);
-err_card:
-	snd_card_free(card);
-	return err;
+int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
+		     struct module *owner,
+		     const struct pci_device_id *ids,
+		     int (*get_model)(struct oxygen *chip,
+				      const struct pci_device_id *id))
+{
+	return snd_card_free_on_error(&pci->dev,
+				      __oxygen_pci_probe(pci, index, id, owner, ids, get_model));
 }
 EXPORT_SYMBOL(oxygen_pci_probe);
-
-void oxygen_pci_remove(struct pci_dev *pci)
-{
-	snd_card_free(pci_get_drvdata(pci));
-}
-EXPORT_SYMBOL(oxygen_pci_remove);
 
 #ifdef CONFIG_PM_SLEEP
 static int oxygen_pci_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct oxygen *chip = card->private_data;
-	unsigned int i, saved_interrupt_mask;
+	unsigned int saved_interrupt_mask;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-
-	for (i = 0; i < PCM_COUNT; ++i)
-		snd_pcm_suspend(chip->streams[i]);
 
 	if (chip->model.suspend)
 		chip->model.suspend(chip);
@@ -761,7 +732,6 @@ static int oxygen_pci_suspend(struct device *dev)
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
 	spin_unlock_irq(&chip->reg_lock);
 
-	synchronize_irq(chip->irq);
 	flush_work(&chip->spdif_input_bits_work);
 	flush_work(&chip->gpio_work);
 	chip->interrupt_mask = saved_interrupt_mask;

@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __HNAE_H
@@ -278,9 +274,6 @@ struct hnae_ring {
 	/* statistic */
 	struct ring_stats stats;
 
-	/* ring lock for poll one */
-	spinlock_t lock;
-
 	dma_addr_t desc_dma_addr;
 	u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
 	u16 desc_num;       /* total number of desc */
@@ -357,7 +350,7 @@ struct hnae_buf_ops {
 };
 
 struct hnae_queue {
-	void __iomem *io_base;
+	u8 __iomem *io_base;
 	phys_addr_t phy_base;
 	struct hnae_ae_dev *dev;	/* the device who use this queue */
 	struct hnae_ring rx_ring ____cacheline_internodealigned_in_smp;
@@ -421,10 +414,6 @@ enum hnae_media_type {
  *   get ring bd number limit
  * get_pauseparam()
  *   get tx and rx of pause frame use
- * set_autoneg()
- *   set auto autonegotiation of pause frame use
- * get_autoneg()
- *   get auto autonegotiation of pause frame use
  * set_pauseparam()
  *   set tx and rx of pause frame use
  * get_coalesce_usecs()
@@ -494,8 +483,6 @@ struct hnae_ae_ops {
 				     u32 *uplimit);
 	void (*get_pauseparam)(struct hnae_handle *handle,
 			       u32 *auto_neg, u32 *rx_en, u32 *tx_en);
-	int (*set_autoneg)(struct hnae_handle *handle, u8 enable);
-	int (*get_autoneg)(struct hnae_handle *handle);
 	int (*set_pauseparam)(struct hnae_handle *handle,
 			      u32 auto_neg, u32 rx_en, u32 tx_en);
 	void (*get_coalesce_usecs)(struct hnae_handle *handle,
@@ -512,7 +499,7 @@ struct hnae_ae_ops {
 				   u32 *tx_usecs_high, u32 *rx_usecs_high);
 	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
 	int (*get_mac_addr)(struct hnae_handle *handle, void **p);
-	int (*set_mac_addr)(struct hnae_handle *handle, void *p);
+	int (*set_mac_addr)(struct hnae_handle *handle, const void *p);
 	int (*add_uc_addr)(struct hnae_handle *handle,
 			   const unsigned char *addr);
 	int (*rm_uc_addr)(struct hnae_handle *handle,
@@ -571,7 +558,7 @@ struct hnae_handle {
 	enum hnae_media_type media_type;
 	struct list_head node;    /* list to hnae_ae_dev->handle_list */
 	struct hnae_buf_ops *bops; /* operation for the buffer */
-	struct hnae_queue **qs;  /* array base of all queues */
+	struct hnae_queue *qs[];  /* flexible array of all queues */
 };
 
 #define ring_to_dev(ring) ((ring)->q->dev->dev)

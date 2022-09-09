@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #ifndef _SELFTESTS_POWERPC_PMU_EBB_TRACE_H
@@ -18,7 +18,7 @@ struct trace_entry
 {
 	u8 type;
 	u8 length;
-	u8 data[0];
+	u8 data[];
 };
 
 struct trace_buffer
@@ -26,7 +26,7 @@ struct trace_buffer
 	u64  size;
 	bool overflow;
 	void *tail;
-	u8   data[0];
+	u8   data[];
 };
 
 struct trace_buffer *trace_buffer_allocate(u64 size);

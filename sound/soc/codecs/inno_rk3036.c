@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver of Inno codec for rk3036 by Rockchip Inc.
  *
@@ -47,11 +48,9 @@ static int rk3036_codec_antipop_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	int val, ret, regval;
+	int val, regval;
 
-	ret = snd_soc_component_read(component, INNO_R09, &regval);
-	if (ret)
-		return ret;
+	regval = snd_soc_component_read(component, INNO_R09);
 	val = ((regval >> INNO_R09_HPL_ANITPOP_SHIFT) &
 	       INNO_R09_HP_ANTIPOP_MSK) == INNO_R09_HP_ANTIPOP_ON;
 	ucontrol->value.integer.value[0] = val;
@@ -201,12 +200,12 @@ static int rk3036_codec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	dev_dbg(component->dev, "rk3036_codec dai set fmt : %08x\n", fmt);
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		reg01_val |= INNO_R01_PINDIR_IN_SLAVE |
 			     INNO_R01_I2SMODE_SLAVE;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		reg01_val |= INNO_R01_PINDIR_OUT_MASTER |
 			     INNO_R01_I2SMODE_MASTER;
 		break;
@@ -326,7 +325,7 @@ static struct snd_soc_dai_driver rk3036_codec_dai_driver[] = {
 			.formats = RK3036_CODEC_FMTS,
 		},
 		.ops = &rk3036_codec_dai_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 
@@ -388,7 +387,6 @@ static const struct snd_soc_component_driver rk3036_codec_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rk3036_codec_regmap_config = {
@@ -404,7 +402,6 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 {
 	struct rk3036_codec_priv *priv;
 	struct device_node *of_node = pdev->dev.of_node;
-	struct resource *res;
 	void __iomem *base;
 	struct regmap *grf;
 	int ret;
@@ -413,8 +410,7 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -470,7 +466,7 @@ static int rk3036_codec_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id rk3036_codec_of_match[] = {
+static const struct of_device_id rk3036_codec_of_match[] __maybe_unused = {
 	{ .compatible = "rockchip,rk3036-codec", },
 	{}
 };

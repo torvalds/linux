@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * 3-axis accelerometer driver supporting SPI Bosch-Sensortec accelerometer chip
  * Copyright © 2015 Pengutronix, Markus Pargmann <mpa@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/device.h>
@@ -28,6 +16,8 @@
 static int bmc150_accel_probe(struct spi_device *spi)
 {
 	struct regmap *regmap;
+	const char *name = NULL;
+	enum bmc150_type type = BOSCH_UNKNOWN;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 
 	regmap = devm_regmap_init_spi(spi, &bmc150_regmap_conf);
@@ -36,34 +26,43 @@ static int bmc150_accel_probe(struct spi_device *spi)
 		return PTR_ERR(regmap);
 	}
 
-	return bmc150_accel_core_probe(&spi->dev, regmap, spi->irq, id->name,
+	if (id) {
+		name = id->name;
+		type = id->driver_data;
+	}
+
+	return bmc150_accel_core_probe(&spi->dev, regmap, spi->irq, type, name,
 				       true);
 }
 
-static int bmc150_accel_remove(struct spi_device *spi)
+static void bmc150_accel_remove(struct spi_device *spi)
 {
-	return bmc150_accel_core_remove(&spi->dev);
+	bmc150_accel_core_remove(&spi->dev);
 }
 
 static const struct acpi_device_id bmc150_accel_acpi_match[] = {
-	{"BSBA0150",	bmc150},
-	{"BMC150A",	bmc150},
-	{"BMI055A",	bmi055},
-	{"BMA0255",	bma255},
-	{"BMA250E",	bma250e},
-	{"BMA222E",	bma222e},
-	{"BMA0280",	bma280},
+	{"BMA0255"},
+	{"BMA0280"},
+	{"BMA222"},
+	{"BMA222E"},
+	{"BMA250E"},
+	{"BMC150A"},
+	{"BMI055A"},
+	{"BSBA0150"},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
 
 static const struct spi_device_id bmc150_accel_id[] = {
-	{"bmc150_accel",	bmc150},
-	{"bmi055_accel",	bmi055},
-	{"bma255",		bma255},
-	{"bma250e",		bma250e},
-	{"bma222e",		bma222e},
-	{"bma280",		bma280},
+	{"bma222"},
+	{"bma222e"},
+	{"bma250e"},
+	{"bma253"},
+	{"bma255"},
+	{"bma280"},
+	{"bmc150_accel"},
+	{"bmc156_accel", BOSCH_BMC156},
+	{"bmi055_accel"},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, bmc150_accel_id);
@@ -83,3 +82,4 @@ module_spi_driver(bmc150_accel_driver);
 MODULE_AUTHOR("Markus Pargmann <mpa@pengutronix.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("BMC150 SPI accelerometer driver");
+MODULE_IMPORT_NS(IIO_BMC150);

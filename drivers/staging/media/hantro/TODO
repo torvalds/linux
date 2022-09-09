@@ -1,0 +1,2 @@
+The V4L controls for the HEVC CODEC are not yet part of the stable uABI,
+we are keeping this driver in staging until the HEVC uABI has been merged.

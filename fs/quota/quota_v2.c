@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	vfsv0 quota IO operations on file
  */
@@ -20,8 +21,6 @@
 MODULE_AUTHOR("Jan Kara");
 MODULE_DESCRIPTION("Quota format v2 support");
 MODULE_LICENSE("GPL");
-
-#define __QUOTA_V2_PARANOIA
 
 static void v2r0_mem2diskdqb(void *dp, struct dquot *dquot);
 static void v2r0_disk2memdqb(struct dquot *dquot, void *dp);
@@ -78,7 +77,7 @@ static int v2_check_quota_file(struct super_block *sb, int type)
 	struct v2_disk_dqheader dqhead;
 	static const uint quota_magics[] = V2_INITQMAGICS;
 	static const uint quota_versions[] = V2_INITQVERSIONS;
- 
+
 	if (v2_read_header(sb, type, &dqhead))
 		return 0;
 	if (le32_to_cpu(dqhead.dqh_magic) != quota_magics[type] ||
@@ -158,7 +157,31 @@ static int v2_read_file_info(struct super_block *sb, int type)
 		qinfo->dqi_entry_size = sizeof(struct v2r1_disk_dqblk);
 		qinfo->dqi_ops = &v2r1_qtree_ops;
 	}
+	ret = -EUCLEAN;
+	/* Some sanity checks of the read headers... */
+	if ((loff_t)qinfo->dqi_blocks << qinfo->dqi_blocksize_bits >
+	    i_size_read(sb_dqopt(sb)->files[type])) {
+		quota_error(sb, "Number of blocks too big for quota file size (%llu > %llu).",
+		    (loff_t)qinfo->dqi_blocks << qinfo->dqi_blocksize_bits,
+		    i_size_read(sb_dqopt(sb)->files[type]));
+		goto out_free;
+	}
+	if (qinfo->dqi_free_blk >= qinfo->dqi_blocks) {
+		quota_error(sb, "Free block number too big (%u >= %u).",
+			    qinfo->dqi_free_blk, qinfo->dqi_blocks);
+		goto out_free;
+	}
+	if (qinfo->dqi_free_entry >= qinfo->dqi_blocks) {
+		quota_error(sb, "Block with free entry too big (%u >= %u).",
+			    qinfo->dqi_free_entry, qinfo->dqi_blocks);
+		goto out_free;
+	}
 	ret = 0;
+out_free:
+	if (ret) {
+		kfree(info->dqi_priv);
+		info->dqi_priv = NULL;
+	}
 out:
 	up_read(&dqopt->dqio_sem);
 	return ret;
@@ -283,6 +306,7 @@ static void v2r1_mem2diskdqb(void *dp, struct dquot *dquot)
 	d->dqb_curspace = cpu_to_le64(m->dqb_curspace);
 	d->dqb_btime = cpu_to_le64(m->dqb_btime);
 	d->dqb_id = cpu_to_le32(from_kqid(&init_user_ns, dquot->dq_id));
+	d->dqb_pad = 0;
 	if (qtree_entry_unused(info, dp))
 		d->dqb_itime = cpu_to_le64(1);
 }

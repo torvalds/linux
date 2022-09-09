@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Maxime Ripard
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <linux/delay.h>
@@ -79,3 +75,4 @@ const struct reset_control_ops ccu_reset_ops = {
 	.reset		= ccu_reset_reset,
 	.status		= ccu_reset_status,
 };
+EXPORT_SYMBOL_NS_GPL(ccu_reset_ops, SUNXI_CCU);

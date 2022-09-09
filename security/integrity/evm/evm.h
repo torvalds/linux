@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2005-2010 IBM Corporation
  *
@@ -5,12 +6,7 @@
  * Mimi Zohar <zohar@us.ibm.com>
  * Kylene Hall <kjhall@us.ibm.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
- *
  * File: evm.h
- *
  */
 
 #ifndef __INTEGRITY_EVM_H
@@ -33,6 +29,7 @@
 struct xattr_list {
 	struct list_head list;
 	char *name;
+	bool enabled;
 };
 
 extern int evm_initialized;
@@ -40,9 +37,6 @@ extern int evm_initialized;
 #define EVM_ATTR_FSUUID		0x0001
 
 extern int evm_hmac_attrs;
-
-extern struct crypto_shash *hmac_tfm;
-extern struct crypto_shash *hash_tfm;
 
 /* List of EVM protected security xattrs */
 extern struct list_head evm_config_xattrnames;

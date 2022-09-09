@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -271,9 +272,9 @@ static void ifi_canfd_read_fifo(struct net_device *ndev)
 	dlc = (rxdlc >> IFI_CANFD_RXFIFO_DLC_DLC_OFFSET) &
 	      IFI_CANFD_RXFIFO_DLC_DLC_MASK;
 	if (rxdlc & IFI_CANFD_RXFIFO_DLC_EDL)
-		cf->len = can_dlc2len(dlc);
+		cf->len = can_fd_dlc2len(dlc);
 	else
-		cf->len = get_can_dlc(dlc);
+		cf->len = can_cc_dlc2len(dlc);
 
 	rxid = readl(priv->base + IFI_CANFD_RXFIFO_ID);
 	id = (rxid >> IFI_CANFD_RXFIFO_ID_ID_OFFSET);
@@ -309,14 +310,14 @@ static void ifi_canfd_read_fifo(struct net_device *ndev)
 			*(u32 *)(cf->data + i) =
 				readl(priv->base + IFI_CANFD_RXFIFO_DATA + i);
 		}
+
+		stats->rx_bytes += cf->len;
 	}
+	stats->rx_packets++;
 
 	/* Remove the packet from FIFO */
 	writel(IFI_CANFD_RXSTCMD_REMOVE_MSG, priv->base + IFI_CANFD_RXSTCMD);
 	writel(rx_irq_mask, priv->base + IFI_CANFD_INTERRUPT);
-
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 
 	netif_receive_skb(skb);
 }
@@ -344,9 +345,6 @@ static int ifi_canfd_do_rx_poll(struct net_device *ndev, int quota)
 		pkts++;
 		rxst = readl(priv->base + IFI_CANFD_RXSTCMD);
 	}
-
-	if (pkts)
-		can_led_event(ndev, CAN_LED_EVENT_RX);
 
 	return pkts;
 }
@@ -430,8 +428,6 @@ static int ifi_canfd_handle_lec_err(struct net_device *ndev)
 	       priv->base + IFI_CANFD_INTERRUPT);
 	writel(IFI_CANFD_ERROR_CTR_ER_ENABLE, priv->base + IFI_CANFD_ERROR_CTR);
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -456,7 +452,6 @@ static int ifi_canfd_handle_state_change(struct net_device *ndev,
 					 enum can_state new_state)
 {
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &ndev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
 	struct can_berr_counter bec;
@@ -498,7 +493,7 @@ static int ifi_canfd_handle_state_change(struct net_device *ndev,
 	switch (new_state) {
 	case CAN_STATE_ERROR_WARNING:
 		/* error warning state */
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] = (bec.txerr > bec.rxerr) ?
 			CAN_ERR_CRTL_TX_WARNING :
 			CAN_ERR_CRTL_RX_WARNING;
@@ -507,7 +502,7 @@ static int ifi_canfd_handle_state_change(struct net_device *ndev,
 		break;
 	case CAN_STATE_ERROR_PASSIVE:
 		/* error passive state */
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] |= CAN_ERR_CRTL_RX_PASSIVE;
 		if (bec.txerr > 127)
 			cf->data[1] |= CAN_ERR_CRTL_TX_PASSIVE;
@@ -522,8 +517,6 @@ static int ifi_canfd_handle_state_change(struct net_device *ndev,
 		break;
 	}
 
-	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -629,9 +622,8 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 
 	/* TX IRQ */
 	if (isr & IFI_CANFD_INTERRUPT_TXFIFO_REMOVE) {
-		stats->tx_bytes += can_get_echo_skb(ndev, 0);
+		stats->tx_bytes += can_get_echo_skb(ndev, 0, NULL);
 		stats->tx_packets++;
-		can_led_event(ndev, CAN_LED_EVENT_TX);
 	}
 
 	if (isr & tx_irq_mask)
@@ -835,7 +827,6 @@ static int ifi_canfd_open(struct net_device *ndev)
 
 	ifi_canfd_start(ndev);
 
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
 
@@ -857,8 +848,6 @@ static int ifi_canfd_close(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 
 	close_candev(ndev);
-
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -900,7 +889,7 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 		txid = cf->can_id & CAN_SFF_MASK;
 	}
 
-	txdlc = can_len2dlc(cf->len);
+	txdlc = can_fd_len2dlc(cf->len);
 	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) && can_is_canfd_skb(skb)) {
 		txdlc |= IFI_CANFD_TXFIFO_DLC_EDL;
 		if (cf->flags & CANFD_BRS)
@@ -922,7 +911,7 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 	writel(0, priv->base + IFI_CANFD_TXFIFO_REPEATCOUNT);
 	writel(0, priv->base + IFI_CANFD_TXFIFO_SUSPEND_US);
 
-	can_put_echo_skb(skb, ndev, 0);
+	can_put_echo_skb(skb, ndev, 0, 0);
 
 	/* Start the transmission */
 	writel(IFI_CANFD_TXSTCMD_ADD_MSG, priv->base + IFI_CANFD_TXSTCMD);
@@ -937,20 +926,25 @@ static const struct net_device_ops ifi_canfd_netdev_ops = {
 	.ndo_change_mtu	= can_change_mtu,
 };
 
+static const struct ethtool_ops ifi_canfd_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static int ifi_canfd_plat_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct net_device *ndev;
 	struct ifi_canfd_priv *priv;
-	struct resource *res;
 	void __iomem *addr;
 	int irq, ret;
 	u32 id, rev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(dev, res);
+	addr = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(addr))
+		return PTR_ERR(addr);
+
 	irq = platform_get_irq(pdev, 0);
-	if (IS_ERR(addr) || irq < 0)
+	if (irq < 0)
 		return -EINVAL;
 
 	id = readl(addr + IFI_CANFD_IP_ID);
@@ -973,6 +967,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 	ndev->irq = irq;
 	ndev->flags |= IFF_ECHO;	/* we support local echo */
 	ndev->netdev_ops = &ifi_canfd_netdev_ops;
+	ndev->ethtool_ops = &ifi_canfd_ethtool_ops;
 
 	priv = netdev_priv(ndev);
 	priv->ndev = ndev;
@@ -1007,8 +1002,6 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register (ret=%d)\n", ret);
 		goto err_reg;
 	}
-
-	devm_can_led_init(ndev);
 
 	dev_info(dev, "Driver registered: regs=%p, irq=%d, clock=%d\n",
 		 priv->base, ndev->irq, priv->can.clock.freq);

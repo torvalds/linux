@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP2+ common Clock Management (CM) IP block functions
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * XXX This code should eventually be moved to a CM driver.
  */
@@ -39,19 +36,6 @@ struct omap_domain_base cm2_base;
 
 #define CM_NO_CLOCKS		0x1
 #define CM_SINGLE_INSTANCE	0x2
-
-/**
- * omap2_set_globals_cm - set the CM/CM2 base addresses (for early use)
- * @cm: CM base virtual address
- * @cm2: CM2 base virtual address (if present on the booted SoC)
- *
- * XXX Will be replaced when the PRM/CM drivers are completed.
- */
-void __init omap2_set_globals_cm(void __iomem *cm, void __iomem *cm2)
-{
-	cm_base.va = cm;
-	cm2_base.va = cm2;
-}
 
 /**
  * cm_split_idlest_reg - split CM_IDLEST reg addr into its components
@@ -336,8 +320,10 @@ int __init omap2_cm_base_init(void)
 		data = (struct omap_prcm_init_data *)match->data;
 
 		ret = of_address_to_resource(np, 0, &res);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			return ret;
+		}
 
 		if (data->index == TI_CLKM_CM)
 			mem = &cm_base;
@@ -383,8 +369,10 @@ int __init omap_cm_init(void)
 			continue;
 
 		ret = omap2_clk_provider_init(np, data->index, NULL, data->mem);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			return ret;
+		}
 	}
 
 	return 0;

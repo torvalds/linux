@@ -13,10 +13,10 @@
 #include <asm/ebcdic.h>
 #include <linux/uaccess.h>
 #include <asm/vtoc.h>
+#include <linux/module.h>
+#include <linux/dasd_mod.h>
 
 #include "check.h"
-#include "ibm.h"
-
 
 union label_t {
 	struct vtoc_volume_label_cdl vol;
@@ -198,7 +198,7 @@ static int find_lnx1_partitions(struct parsed_partitions *state,
 				char name[],
 				union label_t *label,
 				sector_t labelsect,
-				loff_t i_size,
+				sector_t nr_sectors,
 				dasd_information2_t *info)
 {
 	loff_t offset, geo_size, size;
@@ -213,14 +213,14 @@ static int find_lnx1_partitions(struct parsed_partitions *state,
 	} else {
 		/*
 		 * Formated w/o large volume support. If the sanity check
-		 * 'size based on geo == size based on i_size' is true, then
+		 * 'size based on geo == size based on nr_sectors' is true, then
 		 * we can safely assume that we know the formatted size of
 		 * the disk, otherwise we need additional information
 		 * that we can only get from a real DASD device.
 		 */
 		geo_size = geo->cylinders * geo->heads
 			* geo->sectors * secperblk;
-		size = i_size >> 9;
+		size = nr_sectors;
 		if (size != geo_size) {
 			if (!info) {
 				strlcat(state->pp_buf, "\n", PAGE_SIZE);
@@ -229,7 +229,7 @@ static int find_lnx1_partitions(struct parsed_partitions *state,
 			if (!strcmp(info->type, "ECKD"))
 				if (geo_size < size)
 					size = geo_size;
-			/* else keep size based on i_size */
+			/* else keep size based on nr_sectors */
 		}
 	}
 	/* first and only partition starts in the first block after the label */
@@ -289,9 +289,12 @@ static int find_cms1_partitions(struct parsed_partitions *state,
  */
 int ibm_partition(struct parsed_partitions *state)
 {
-	struct block_device *bdev = state->bdev;
+	int (*fn)(struct gendisk *disk, dasd_information2_t *info);
+	struct gendisk *disk = state->disk;
+	struct block_device *bdev = disk->part0;
 	int blocksize, res;
-	loff_t i_size, offset, size;
+	loff_t offset, size;
+	sector_t nr_sectors;
 	dasd_information2_t *info;
 	struct hd_geometry *geo;
 	char type[5] = {0,};
@@ -300,24 +303,29 @@ int ibm_partition(struct parsed_partitions *state)
 	union label_t *label;
 
 	res = 0;
+	if (!disk->fops->getgeo)
+		goto out_exit;
+	fn = symbol_get(dasd_biodasdinfo);
 	blocksize = bdev_logical_block_size(bdev);
 	if (blocksize <= 0)
-		goto out_exit;
-	i_size = i_size_read(bdev->bd_inode);
-	if (i_size == 0)
-		goto out_exit;
+		goto out_symbol;
+	nr_sectors = bdev_nr_sectors(bdev);
+	if (nr_sectors == 0)
+		goto out_symbol;
 	info = kmalloc(sizeof(dasd_information2_t), GFP_KERNEL);
 	if (info == NULL)
-		goto out_exit;
+		goto out_symbol;
 	geo = kmalloc(sizeof(struct hd_geometry), GFP_KERNEL);
 	if (geo == NULL)
 		goto out_nogeo;
 	label = kmalloc(sizeof(union label_t), GFP_KERNEL);
 	if (label == NULL)
 		goto out_nolab;
-	if (ioctl_by_bdev(bdev, HDIO_GETGEO, (unsigned long)geo) != 0)
+	/* set start if not filled by getgeo function e.g. virtblk */
+	geo->start = get_start_sect(bdev);
+	if (disk->fops->getgeo(bdev, geo))
 		goto out_freeall;
-	if (ioctl_by_bdev(bdev, BIODASDINFO2, (unsigned long)info) != 0) {
+	if (!fn || fn(disk, info)) {
 		kfree(info);
 		info = NULL;
 	}
@@ -329,7 +337,7 @@ int ibm_partition(struct parsed_partitions *state)
 						   label);
 		} else if (!strncmp(type, "LNX1", 4)) {
 			res = find_lnx1_partitions(state, geo, blocksize, name,
-						   label, labelsect, i_size,
+						   label, labelsect, nr_sectors,
 						   info);
 		} else if (!strncmp(type, "CMS1", 4)) {
 			res = find_cms1_partitions(state, geo, blocksize, name,
@@ -346,7 +354,7 @@ int ibm_partition(struct parsed_partitions *state)
 		res = 1;
 		if (info->format == DASD_FORMAT_LDL) {
 			strlcat(state->pp_buf, "(nonl)", PAGE_SIZE);
-			size = i_size >> 9;
+			size = nr_sectors;
 			offset = (info->label_block + 1) * (blocksize >> 9);
 			put_partition(state, 1, offset, size-offset);
 			strlcat(state->pp_buf, "\n", PAGE_SIZE);
@@ -360,6 +368,9 @@ out_nolab:
 	kfree(geo);
 out_nogeo:
 	kfree(info);
+out_symbol:
+	if (fn)
+		symbol_put(dasd_biodasdinfo);
 out_exit:
 	return res;
 }

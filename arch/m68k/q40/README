@@ -30,11 +30,10 @@ drivers used by the Q40, apart from the very obvious (console etc.):
 		     genrtc.c		# RTC
 		char/joystick/*		# most of this should work, not
 				        # in default config.in
-	        block/q40ide.c		# startup for ide
-		      ide*		# see Documentation/ide/ide.txt
-		      floppy.c		# normal PC driver, DMA emu in asm/floppy.h
+	        block/floppy.c		# normal PC driver, DMA emu in asm/floppy.h
 					# and arch/m68k/kernel/entry.S
 					# see drivers/block/README.fd
+		ata/pata_falcon.c
 		net/ne.c
 		video/q40fb.c
 		parport/*

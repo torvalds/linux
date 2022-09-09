@@ -21,7 +21,6 @@
 #define NUM_STA 32
 #define NUM_ACL 64
 
-
 /* if mode ==0, then the sta is allowed once the addr is hit.
  * if mode ==1, then the sta is rejected once the addr is non-hit.
  */
@@ -36,7 +35,6 @@ struct wlan_acl_pool {
 };
 
 struct	stainfo_stats {
-
 	uint	rx_pkts;
 	uint	rx_bytes;
 	u64	tx_pkts;
@@ -119,8 +117,8 @@ static inline u32 wifi_mac_hash(u8 *mac)
 	return x;
 }
 
-u32 _r8712_init_sta_priv(struct sta_priv *pstapriv);
-u32 _r8712_free_sta_priv(struct sta_priv *pstapriv);
+int _r8712_init_sta_priv(struct sta_priv *pstapriv);
+void _r8712_free_sta_priv(struct sta_priv *pstapriv);
 struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv,
 				     u8 *hwaddr);
 void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta);

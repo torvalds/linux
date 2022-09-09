@@ -1,12 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C bus interface to Cirrus Logic Madera codecs
  *
  * Copyright (C) 2015-2018 Cirrus Logic
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2.
  */
 
 #include <linux/device.h>
@@ -39,6 +35,12 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 		type = id->driver_data;
 
 	switch (type) {
+	case CS47L15:
+		if (IS_ENABLED(CONFIG_MFD_CS47L15)) {
+			regmap_16bit_config = &cs47l15_16bit_i2c_regmap;
+			regmap_32bit_config = &cs47l15_32bit_i2c_regmap;
+		}
+		break;
 	case CS47L35:
 		if (IS_ENABLED(CONFIG_MFD_CS47L35)) {
 			regmap_16bit_config = &cs47l35_16bit_i2c_regmap;
@@ -59,6 +61,14 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 			regmap_32bit_config = &cs47l90_32bit_i2c_regmap;
 		}
 		break;
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
+		if (IS_ENABLED(CONFIG_MFD_CS47L92)) {
+			regmap_16bit_config = &cs47l92_16bit_i2c_regmap;
+			regmap_32bit_config = &cs47l92_32bit_i2c_regmap;
+		}
+		break;
 	default:
 		dev_err(&i2c->dev,
 			"Unknown Madera I2C device type %ld\n", type);
@@ -77,7 +87,6 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	madera = devm_kzalloc(&i2c->dev, sizeof(*madera), GFP_KERNEL);
 	if (!madera)
 		return -ENOMEM;
-
 
 	madera->regmap = devm_regmap_init_i2c(i2c, regmap_16bit_config);
 	if (IS_ERR(madera->regmap)) {
@@ -113,10 +122,14 @@ static int madera_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id madera_i2c_id[] = {
+	{ "cs47l15", CS47L15 },
 	{ "cs47l35", CS47L35 },
 	{ "cs47l85", CS47L85 },
 	{ "cs47l90", CS47L90 },
 	{ "cs47l91", CS47L91 },
+	{ "cs42l92", CS42L92 },
+	{ "cs47l92", CS47L92 },
+	{ "cs47l93", CS47L93 },
 	{ "wm1840", WM1840 },
 	{ }
 };

@@ -9,6 +9,7 @@
 #define _ROSE_H 
 
 #include <linux/rose.h>
+#include <net/ax25.h>
 #include <net/sock.h>
 
 #define	ROSE_ADDR_LEN			5
@@ -131,7 +132,8 @@ struct rose_sock {
 	ax25_address		source_digis[ROSE_MAX_DIGIS];
 	ax25_address		dest_digis[ROSE_MAX_DIGIS];
 	struct rose_neigh	*neighbour;
-	struct net_device		*device;
+	struct net_device	*device;
+	netdevice_tracker	dev_tracker;
 	unsigned int		lci, rand;
 	unsigned char		state, condition, qbitincl, defer;
 	unsigned char		cause, diagnostic;
@@ -162,8 +164,8 @@ extern int  sysctl_rose_link_fail_timeout;
 extern int  sysctl_rose_maximum_vcs;
 extern int  sysctl_rose_window_size;
 
-int rosecmp(rose_address *, rose_address *);
-int rosecmpm(rose_address *, rose_address *, unsigned short);
+int rosecmp(const rose_address *, const rose_address *);
+int rosecmpm(const rose_address *, const rose_address *, unsigned short);
 char *rose2asc(char *buf, const rose_address *);
 struct sock *rose_find_socket(unsigned int, struct rose_neigh *);
 void rose_kill_by_neigh(struct rose_neigh *);
@@ -205,8 +207,8 @@ extern const struct seq_operations rose_node_seqops;
 extern struct seq_operations rose_route_seqops;
 
 void rose_add_loopback_neigh(void);
-int __must_check rose_add_loopback_node(rose_address *);
-void rose_del_loopback_node(rose_address *);
+int __must_check rose_add_loopback_node(const rose_address *);
+void rose_del_loopback_node(const rose_address *);
 void rose_rt_device_down(struct net_device *);
 void rose_link_device_down(struct net_device *);
 struct net_device *rose_dev_first(void);

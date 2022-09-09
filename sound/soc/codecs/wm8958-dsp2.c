@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8958-dsp2.c  --  WM8958 DSP2 support
  *
  * Copyright 2011 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -27,6 +24,8 @@
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/gpio.h>
+
+#include <asm/unaligned.h>
 
 #include "wm8994.h"
 
@@ -61,18 +60,15 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 	}
 
 	if (memcmp(fw->data, "WMFW", 4) != 0) {
-		memcpy(&data32, fw->data, sizeof(data32));
-		data32 = be32_to_cpu(data32);
+		data32 = get_unaligned_be32(fw->data);
 		dev_err(component->dev, "%s: firmware has bad file magic %08x\n",
 			name, data32);
 		goto err;
 	}
 
-	memcpy(&data32, fw->data + 4, sizeof(data32));
-	len = be32_to_cpu(data32);
+	len = get_unaligned_be32(fw->data + 4);
+	data32 = get_unaligned_be32(fw->data + 8);
 
-	memcpy(&data32, fw->data + 8, sizeof(data32));
-	data32 = be32_to_cpu(data32);
 	if ((data32 >> 24) & 0xff) {
 		dev_err(component->dev, "%s: unsupported firmware version %d\n",
 			name, (data32 >> 24) & 0xff);
@@ -90,9 +86,8 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 	}
 
 	if (check) {
-		memcpy(&data64, fw->data + 24, sizeof(u64));
-		dev_info(component->dev, "%s timestamp %llx\n",
-			 name, be64_to_cpu(data64));
+		data64 = get_unaligned_be64(fw->data + 24);
+		dev_info(component->dev, "%s timestamp %llx\n",  name, data64);
 	} else {
 		snd_soc_component_write(component, 0x102, 0x2);
 		snd_soc_component_write(component, 0x900, 0x2);
@@ -107,8 +102,7 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 			goto err;
 		}
 
-		memcpy(&data32, data + 4, sizeof(data32));
-		block_len = be32_to_cpu(data32);
+		block_len = get_unaligned_be32(data + 4);
 		if (block_len + 8 > len) {
 			dev_err(component->dev, "%zd byte block longer than file\n",
 				block_len);
@@ -119,8 +113,7 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 			goto err;
 		}
 
-		memcpy(&data32, data, sizeof(data32));
-		data32 = be32_to_cpu(data32);
+		data32 = get_unaligned_be32(data);
 
 		switch ((data32 >> 24) & 0xff) {
 		case WM_FW_BLOCK_INFO:
@@ -199,7 +192,7 @@ static void wm8958_dsp_start_mbc(struct snd_soc_component *component, int path)
 	int i;
 
 	/* If the DSP is already running then noop */
-	if (snd_soc_component_read32(component, WM8958_DSP2_PROGRAM) & WM8958_DSP2_ENA)
+	if (snd_soc_component_read(component, WM8958_DSP2_PROGRAM) & WM8958_DSP2_ENA)
 		return;
 
 	/* If we have MBC firmware download it */
@@ -331,7 +324,7 @@ static void wm8958_dsp_start_enh_eq(struct snd_soc_component *component, int pat
 static void wm8958_dsp_apply(struct snd_soc_component *component, int path, int start)
 {
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
-	int pwr_reg = snd_soc_component_read32(component, WM8994_POWER_MANAGEMENT_5);
+	int pwr_reg = snd_soc_component_read(component, WM8994_POWER_MANAGEMENT_5);
 	int ena, reg, aif;
 
 	switch (path) {
@@ -359,7 +352,7 @@ static void wm8958_dsp_apply(struct snd_soc_component *component, int path, int 
 	if (!pwr_reg)
 		ena = 0;
 
-	reg = snd_soc_component_read32(component, WM8958_DSP2_PROGRAM);
+	reg = snd_soc_component_read(component, WM8958_DSP2_PROGRAM);
 
 	dev_dbg(component->dev, "DSP path %d %d startup: %d, power: %x, DSP: %x\n",
 		path, wm8994->dsp_active, start, pwr_reg, reg);
@@ -370,9 +363,9 @@ static void wm8958_dsp_apply(struct snd_soc_component *component, int path, int 
 			return;
 
 		/* If either AIFnCLK is not yet enabled postpone */
-		if (!(snd_soc_component_read32(component, WM8994_AIF1_CLOCKING_1)
+		if (!(snd_soc_component_read(component, WM8994_AIF1_CLOCKING_1)
 		      & WM8994_AIF1CLK_ENA_MASK) &&
-		    !(snd_soc_component_read32(component, WM8994_AIF2_CLOCKING_1)
+		    !(snd_soc_component_read(component, WM8994_AIF2_CLOCKING_1)
 		      & WM8994_AIF2CLK_ENA_MASK))
 			return;
 
@@ -419,7 +412,11 @@ int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm8994 *control = dev_get_drvdata(component->dev->parent);
 	int i;
+
+	if (control->type != WM8958)
+		return 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -463,7 +460,7 @@ static int wm8958_put_mbc_enum(struct snd_kcontrol *kcontrol,
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
-	reg = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+	reg = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
@@ -533,7 +530,7 @@ static int wm8958_mbc_put(struct snd_kcontrol *kcontrol,
 
 	wm8958_dsp_apply(component, mbc, wm8994->mbc_ena[mbc]);
 
-	return 0;
+	return 1;
 }
 
 #define WM8958_MBC_SWITCH(xname, xval) {\
@@ -553,7 +550,7 @@ static int wm8958_put_vss_enum(struct snd_kcontrol *kcontrol,
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
-	reg = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+	reg = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
@@ -586,7 +583,7 @@ static int wm8958_put_vss_hpf_enum(struct snd_kcontrol *kcontrol,
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
-	reg = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+	reg = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
@@ -659,7 +656,7 @@ static int wm8958_vss_put(struct snd_kcontrol *kcontrol,
 
 	wm8958_dsp_apply(component, vss, wm8994->vss_ena[vss]);
 
-	return 0;
+	return 1;
 }
 
 
@@ -733,7 +730,7 @@ static int wm8958_hpf_put(struct snd_kcontrol *kcontrol,
 
 	wm8958_dsp_apply(component, hpf % 3, ucontrol->value.integer.value[0]);
 
-	return 0;
+	return 1;
 }
 
 #define WM8958_HPF_SWITCH(xname, xval) {\
@@ -753,7 +750,7 @@ static int wm8958_put_enh_eq_enum(struct snd_kcontrol *kcontrol,
 	int reg;
 
 	/* Don't allow on the fly reconfiguration */
-	reg = snd_soc_component_read32(component, WM8994_CLOCKING_1);
+	reg = snd_soc_component_read(component, WM8994_CLOCKING_1);
 	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
 		return -EBUSY;
 
@@ -827,7 +824,7 @@ static int wm8958_enh_eq_put(struct snd_kcontrol *kcontrol,
 
 	wm8958_dsp_apply(component, eq, ucontrol->value.integer.value[0]);
 
-	return 0;
+	return 1;
 }
 
 #define WM8958_ENH_EQ_SWITCH(xname, xval) {\
@@ -915,18 +912,18 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 
 
 	/* We don't *require* firmware and don't want to delay boot */
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc_vss.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_vss_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_enh_eq.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_enh_eq_loaded);
 
 	if (pdata->num_mbc_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new mbc_control[] = {
 			SOC_ENUM_EXT("MBC Mode", wm8994->mbc_enum,
 				     wm8958_get_mbc_enum, wm8958_put_mbc_enum),
 		};
@@ -945,14 +942,14 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->mbc_enum.texts = wm8994->mbc_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 mbc_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add MBC mode controls: %d\n", ret);
 	}
 
 	if (pdata->num_vss_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new vss_control[] = {
 			SOC_ENUM_EXT("VSS Mode", wm8994->vss_enum,
 				     wm8958_get_vss_enum, wm8958_put_vss_enum),
 		};
@@ -971,14 +968,14 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->vss_enum.texts = wm8994->vss_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 vss_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add VSS mode controls: %d\n", ret);
 	}
 
 	if (pdata->num_vss_hpf_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new hpf_control[] = {
 			SOC_ENUM_EXT("VSS HPF Mode", wm8994->vss_hpf_enum,
 				     wm8958_get_vss_hpf_enum,
 				     wm8958_put_vss_hpf_enum),
@@ -998,7 +995,7 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->vss_hpf_enum.texts = wm8994->vss_hpf_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 hpf_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add VSS HPFmode controls: %d\n",
@@ -1006,7 +1003,7 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 	}
 
 	if (pdata->num_enh_eq_cfgs) {
-		struct snd_kcontrol_new control[] = {
+		struct snd_kcontrol_new eq_control[] = {
 			SOC_ENUM_EXT("Enhanced EQ Mode", wm8994->enh_eq_enum,
 				     wm8958_get_enh_eq_enum,
 				     wm8958_put_enh_eq_enum),
@@ -1026,7 +1023,7 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 		wm8994->enh_eq_enum.texts = wm8994->enh_eq_texts;
 
 		ret = snd_soc_add_component_controls(wm8994->hubs.component,
-						 control, 1);
+						 eq_control, 1);
 		if (ret != 0)
 			dev_err(wm8994->hubs.component->dev,
 				"Failed to add enhanced EQ controls: %d\n",

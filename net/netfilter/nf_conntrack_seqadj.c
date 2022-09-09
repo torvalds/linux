@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <net/tcp.h>
@@ -125,7 +126,7 @@ static unsigned int nf_ct_sack_adjust(struct sk_buff *skb,
 	optoff = protoff + sizeof(struct tcphdr);
 	optend = protoff + tcph->doff * 4;
 
-	if (!skb_make_writable(skb, optend))
+	if (skb_ensure_writable(skb, optend))
 		return 0;
 
 	tcph = (void *)skb->data + protoff;
@@ -175,7 +176,7 @@ int nf_ct_seq_adjust(struct sk_buff *skb,
 	this_way  = &seqadj->seq[dir];
 	other_way = &seqadj->seq[!dir];
 
-	if (!skb_make_writable(skb, protoff + sizeof(*tcph)))
+	if (skb_ensure_writable(skb, protoff + sizeof(*tcph)))
 		return 0;
 
 	tcph = (void *)skb->data + protoff;
@@ -231,19 +232,3 @@ s32 nf_ct_seq_offset(const struct nf_conn *ct,
 		 this_way->offset_after : this_way->offset_before;
 }
 EXPORT_SYMBOL_GPL(nf_ct_seq_offset);
-
-static const struct nf_ct_ext_type nf_ct_seqadj_extend = {
-	.len	= sizeof(struct nf_conn_seqadj),
-	.align	= __alignof__(struct nf_conn_seqadj),
-	.id	= NF_CT_EXT_SEQADJ,
-};
-
-int nf_conntrack_seqadj_init(void)
-{
-	return nf_ct_extend_register(&nf_ct_seqadj_extend);
-}
-
-void nf_conntrack_seqadj_fini(void)
-{
-	nf_ct_extend_unregister(&nf_ct_seqadj_extend);
-}

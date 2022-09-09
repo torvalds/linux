@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC WM9090 driver
  *
  * Copyright 2009-12 Wolfson Microelectronics
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/module.h>
@@ -152,7 +139,7 @@ static void wait_for_dc_servo(struct snd_soc_component *component)
 	do {
 		count++;
 		msleep(1);
-		reg = snd_soc_component_read32(component, WM9090_DC_SERVO_READBACK_0);
+		reg = snd_soc_component_read(component, WM9090_DC_SERVO_READBACK_0);
 		dev_dbg(component->dev, "DC servo status: %x\n", reg);
 	} while ((reg & WM9090_DCS_CAL_COMPLETE_MASK)
 		 != WM9090_DCS_CAL_COMPLETE_MASK && count < 1000);
@@ -252,7 +239,7 @@ static int hp_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	unsigned int reg = snd_soc_component_read32(component, WM9090_ANALOGUE_HP_0);
+	unsigned int reg = snd_soc_component_read(component, WM9090_ANALOGUE_HP_0);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -556,8 +543,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm9090 = {
 	.suspend_bias_off	= 1,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm9090_regmap = {
@@ -574,8 +559,7 @@ static const struct regmap_config wm9090_regmap = {
 };
 
 
-static int wm9090_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm9090_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm9090_priv *wm9090;
 	unsigned int reg;
@@ -632,7 +616,7 @@ static struct i2c_driver wm9090_i2c_driver = {
 	.driver = {
 		.name = "wm9090",
 	},
-	.probe = wm9090_i2c_probe,
+	.probe_new = wm9090_i2c_probe,
 	.id_table = wm9090_id,
 };
 

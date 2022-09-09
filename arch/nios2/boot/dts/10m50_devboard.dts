@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Altera Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /dts-v1/;
@@ -190,8 +179,7 @@
 		led_pio: gpio@180014d0 {
 			compatible = "altr,pio-1.0";
 			reg = <0x180014d0 0x00000010>;
-			altr,gpio-bank-width = <4>;
-			resetvalue = <15>;
+			altr,ngpio = <4>;
 			#gpio-cells = <2>;
 			gpio-controller;
 		};
@@ -201,11 +189,10 @@
 			reg = <0x180014c0 0x00000010>;
 			interrupt-parent = <&cpu>;
 			interrupts = <6>;
-			altr,gpio-bank-width = <3>;
+			altr,ngpio = <3>;
 			altr,interrupt-type = <2>;
 			edge_type = <1>;
 			level_trigger = <0>;
-			resetvalue = <0>;
 			#gpio-cells = <2>;
 			gpio-controller;
 		};

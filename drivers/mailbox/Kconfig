@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig MAILBOX
 	bool "Mailbox Hardware Support"
 	help
@@ -7,6 +8,18 @@ menuconfig MAILBOX
 
 if MAILBOX
 
+config APPLE_MAILBOX
+	tristate "Apple Mailbox driver"
+	depends on ARCH_APPLE || (ARM64 && COMPILE_TEST)
+	default ARCH_APPLE
+	help
+	  Apple SoCs have various co-processors required for certain
+	  peripherals to work (NVMe, display controller, etc.). This
+	  driver adds support for the mailbox controller used to
+	  communicate with those.
+
+	  Say Y here if you have a Apple SoC.
+
 config ARM_MHU
 	tristate "ARM MHU Mailbox"
 	depends on ARM_AMBA
@@ -14,6 +27,13 @@ config ARM_MHU
 	  Say Y here if you want to build the ARM MHU controller driver.
 	  The controller has 3 mailbox channels, the last of which can be
 	  used in Secure mode only.
+
+config ARM_MHU_V2
+	tristate "ARM MHUv2 Mailbox"
+	depends on ARM_AMBA
+	help
+	  Say Y here if you want to build the ARM MHUv2 controller driver,
+	  which provides unidirectional mailboxes between processing elements.
 
 config IMX_MBOX
 	tristate "i.MX Mailbox"
@@ -41,9 +61,19 @@ config PL320_MBOX
 	  Management Engine, primarily for cpufreq. Say Y here if you want
 	  to use the PL320 IPCM support.
 
+config ARMADA_37XX_RWTM_MBOX
+	tristate "Armada 37xx rWTM BIU Mailbox"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
+	help
+	  Mailbox implementation for communication with the the firmware
+	  running on the Cortex-M3 rWTM secure processor of the Armada 37xx
+	  SOC. Say Y here if you are building for such a device (for example
+	  the Turris Mox router).
+
 config OMAP2PLUS_MBOX
 	tristate "OMAP2+ Mailbox framework support"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || ARCH_K3
 	help
 	  Mailbox implementation for OMAP family chips with hardware for
 	  interprocessor communication involving DSP, IVA1.0 and IVA2 in
@@ -60,7 +90,7 @@ config OMAP_MBOX_KFIFO_SIZE
 	  module parameter).
 
 config ROCKCHIP_MBOX
-	bool "Rockchip Soc Intergrated Mailbox Support"
+	bool "Rockchip Soc Integrated Mailbox Support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	help
 	  This driver provides support for inter-processor communication
@@ -142,6 +172,18 @@ config MAILBOX_TEST
 	  Test client to help with testing new Controller driver
 	  implementations.
 
+config POLARFIRE_SOC_MAILBOX
+	tristate "PolarFire SoC (MPFS) Mailbox"
+	depends on HAS_IOMEM
+	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	help
+	  This driver adds support for the PolarFire SoC (MPFS) mailbox controller.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called mailbox-mpfs.
+
+	  If unsure, say N.
+
 config QCOM_APCS_IPC
 	tristate "Qualcomm APCS IPC driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -190,11 +232,20 @@ config BCM_FLEXRM_MBOX
 
 config STM32_IPCC
 	tristate "STM32 IPCC Mailbox"
-	depends on MACH_STM32MP157
+	depends on MACH_STM32MP157 || COMPILE_TEST
 	help
 	  Mailbox implementation for STMicroelectonics STM32 family chips
 	  with hardware for Inter-Processor Communication Controller (IPCC)
 	  between processors. Say Y here if you want to have this support.
+
+config MTK_ADSP_MBOX
+	tristate "MediaTek ADSP Mailbox Controller"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+          Say yes here to add support for "MediaTek ADSP Mailbox Controller.
+          This mailbox driver is used to send notification or short message
+          between processors with ADSP. It will place the message to share
+	  buffer and will access the ipc control.
 
 config MTK_CMDQ_MBOX
 	tristate "MediaTek CMDQ Mailbox Support"
@@ -205,4 +256,42 @@ config MTK_CMDQ_MBOX
 	  mailbox driver. The CMDQ is used to help read/write registers with
 	  critical time limitation, such as updating display configuration
 	  during the vblank.
+
+config ZYNQMP_IPI_MBOX
+	bool "Xilinx ZynqMP IPI Mailbox"
+	depends on ARCH_ZYNQMP && OF
+	help
+	  Say yes here to add support for Xilinx IPI mailbox driver.
+	  This mailbox driver is used to send notification or short message
+	  between processors with Xilinx ZynqMP IPI. It will place the
+	  message to the IPI buffer and will access the IPI control
+	  registers to kick the other processor or enquire status.
+
+config SUN6I_MSGBOX
+	tristate "Allwinner sun6i/sun8i/sun9i/sun50i Message Box"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	default ARCH_SUNXI
+	help
+	  Mailbox implementation for the hardware message box present in
+	  various Allwinner SoCs. This mailbox is used for communication
+	  between the application CPUs and the power management coprocessor.
+
+config SPRD_MBOX
+	tristate "Spreadtrum Mailbox"
+	depends on ARCH_SPRD || COMPILE_TEST
+	help
+	  Mailbox driver implementation for the Spreadtrum platform. It is used
+	  to send message between application processors and MCU. Say Y here if
+	  you want to build the Spreatrum mailbox controller driver.
+
+config QCOM_IPCC
+	tristate "Qualcomm Technologies, Inc. IPCC driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Qualcomm Technologies, Inc. Inter-Processor Communication Controller
+	  (IPCC) driver for MSM devices. The driver provides mailbox support for
+	  sending interrupts to the clients. On the other hand, the driver also
+	  acts as an interrupt controller for receiving interrupts from clients.
+	  Say Y here if you want to build this driver.
+
 endif

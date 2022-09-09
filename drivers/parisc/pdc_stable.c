@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 
  *    Interfaces to retrieve and set PDC Stable options (firmware)
  *
  *    Copyright (C) 2005-2006 Thibaut VARENE <varenet@parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License, version 2, as
- *    published by the Free Software Foundation.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  *
  *    DEV NOTE: the PDC Procedures reference states that:
  *    "A minimum of 96 bytes of Stable Storage is required. Providing more than
@@ -495,11 +482,12 @@ static struct attribute *paths_subsys_attrs[] = {
 	&paths_attr_layer.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(paths_subsys);
 
 /* Specific kobject type for our PDC paths */
 static struct kobj_type ktype_pdcspath = {
 	.sysfs_ops = &pdcspath_attr_ops,
-	.default_attrs = paths_subsys_attrs,
+	.default_groups = paths_subsys_groups,
 };
 
 /* We hard define the 4 types of path we expect to find */
@@ -992,8 +980,10 @@ pdcs_register_pathentries(void)
 		entry->kobj.kset = paths_kset;
 		err = kobject_init_and_add(&entry->kobj, &ktype_pdcspath, NULL,
 					   "%s", entry->name);
-		if (err)
+		if (err) {
+			kobject_put(&entry->kobj);
 			return err;
+		}
 
 		/* kobject is now registered */
 		write_lock(&entry->rw_lock);

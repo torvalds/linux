@@ -1,2 +1,3 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/subdev/iccsense/base.o
 nvkm-y += nvkm/subdev/iccsense/gf100.o

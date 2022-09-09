@@ -16,7 +16,6 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/tty.h>
@@ -26,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/kfifo.h>
 
 #include "u_serial.h"
@@ -82,14 +82,13 @@
 #define GS_CONSOLE_BUF_SIZE	8192
 
 /* console info */
-struct gscons_info {
-	struct gs_port		*port;
-	struct task_struct	*console_thread;
-	struct kfifo		con_buf;
-	/* protect the buf and busy flag */
-	spinlock_t		con_lock;
-	int			req_busy;
-	struct usb_request	*console_req;
+struct gs_console {
+	struct console		console;
+	struct work_struct	work;
+	spinlock_t		lock;
+	struct usb_request	*req;
+	struct kfifo		buf;
+	size_t			missed;
 };
 
 /*
@@ -101,8 +100,10 @@ struct gs_port {
 	spinlock_t		port_lock;	/* guard port_* access */
 
 	struct gserial		*port_usb;
+#ifdef CONFIG_U_SERIAL_CONSOLE
+	struct gs_console	*console;
+#endif
 
-	bool			openclose;	/* open/close in progress */
 	u8			port_num;
 
 	struct list_head	read_pool;
@@ -110,7 +111,7 @@ struct gs_port {
 	int read_allocated;
 	struct list_head	read_queue;
 	unsigned		n_read;
-	struct tasklet_struct	push;
+	struct delayed_work	push;
 
 	struct list_head	write_pool;
 	int write_started;
@@ -119,6 +120,8 @@ struct gs_port {
 	wait_queue_head_t	drain_wait;	/* wait while writes drain */
 	bool                    write_busy;
 	wait_queue_head_t	close_wait;
+	bool			suspended;	/* port suspended */
+	bool			start_delayed;	/* delay start when suspended */
 
 	/* REVISIT this state ... */
 	struct usb_cdc_line_coding port_line_coding;	/* 8-N-1 etc */
@@ -255,9 +258,7 @@ __acquires(&port->port_lock)
 		list_del(&req->list);
 		req->zero = kfifo_is_empty(&port->port_write_buf);
 
-		pr_vdebug("ttyGS%d: tx len=%d, 0x%02x 0x%02x 0x%02x ...\n",
-			  port->port_num, len, *((u8 *)req->buf),
-			  *((u8 *)req->buf+1), *((u8 *)req->buf+2));
+		pr_vdebug("ttyGS%d: tx len=%d, %3ph ...\n", port->port_num, len, req->buf);
 
 		/* Drop lock while we call out of driver; completions
 		 * could be issued while we do so.  Disconnection may
@@ -343,7 +344,7 @@ __acquires(&port->port_lock)
 }
 
 /*
- * RX tasklet takes data out of the RX queue and hands it up to the TTY
+ * RX work takes data out of the RX queue and hands it up to the TTY
  * layer until it refuses to take any more data (or is throttled back).
  * Then it issues reads for any further data.
  *
@@ -352,9 +353,10 @@ __acquires(&port->port_lock)
  * So QUEUE_SIZE packets plus however many the FIFO holds (usually two)
  * can be buffered before the TTY layer's buffers (currently 64 KB).
  */
-static void gs_rx_push(unsigned long _port)
+static void gs_rx_push(struct work_struct *work)
 {
-	struct gs_port		*port = (void *)_port;
+	struct delayed_work	*w = to_delayed_work(work);
+	struct gs_port		*port = container_of(w, struct gs_port, push);
 	struct tty_struct	*tty;
 	struct list_head	*queue = &port->read_queue;
 	bool			disconnect = false;
@@ -382,7 +384,7 @@ static void gs_rx_push(unsigned long _port)
 			/* presumably a transient fault */
 			pr_warn("ttyGS%d: unexpected RX status %d\n",
 				port->port_num, req->status);
-			/* FALLTHROUGH */
+			fallthrough;
 		case 0:
 			/* normal completion */
 			break;
@@ -429,21 +431,13 @@ static void gs_rx_push(unsigned long _port)
 
 	/* We want our data queue to become empty ASAP, keeping data
 	 * in the tty and ldisc (not here).  If we couldn't push any
-	 * this time around, there may be trouble unless there's an
-	 * implicit tty_unthrottle() call on its way...
+	 * this time around, RX may be starved, so wait until next jiffy.
 	 *
-	 * REVISIT we should probably add a timer to keep the tasklet
-	 * from starving ... but it's not clear that case ever happens.
+	 * We may leave non-empty queue only when there is a tty, and
+	 * either it is throttled or there is no more room in flip buffer.
 	 */
-	if (!list_empty(queue) && tty) {
-		if (!tty_throttled(tty)) {
-			if (do_push)
-				tasklet_schedule(&port->push);
-			else
-				pr_warn("ttyGS%d: RX not scheduled?\n",
-					port->port_num);
-		}
-	}
+	if (!list_empty(queue) && !tty_throttled(tty))
+		schedule_delayed_work(&port->push, 1);
 
 	/* If we're still connected, refill the USB RX queue. */
 	if (!disconnect && port->port_usb)
@@ -459,7 +453,7 @@ static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
 	/* Queue all received data until the tty layer is ready for it. */
 	spin_lock(&port->port_lock);
 	list_add_tail(&req->list, &port->read_queue);
-	tasklet_schedule(&port->push);
+	schedule_delayed_work(&port->push, 0);
 	spin_unlock(&port->port_lock);
 }
 
@@ -476,7 +470,7 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 		/* presumably a transient fault */
 		pr_warn("%s: unexpected %s status %d\n",
 			__func__, ep->name, req->status);
-		/* FALL THROUGH */
+		fallthrough;
 	case 0:
 		/* normal completion */
 		gs_start_tx(port);
@@ -531,7 +525,7 @@ static int gs_alloc_requests(struct usb_ep *ep, struct list_head *head,
 
 /**
  * gs_start_io - start USB I/O streams
- * @dev: encapsulates endpoints to use
+ * @port: port to use
  * Context: holding port_lock; port_tty and port_usb are non-null
  *
  * We only start I/O when something is connected to both sides of
@@ -567,8 +561,10 @@ static int gs_start_io(struct gs_port *port)
 	port->n_read = 0;
 	started = gs_start_rx(port);
 
-	/* unblock any pending writes into our circular buffer */
 	if (started) {
+		gs_start_tx(port);
+		/* Unblock any pending writes into our circular buffer, in case
+		 * we didn't in gs_start_tx() */
 		tty_wakeup(port->port.tty);
 	} else {
 		gs_free_requests(ep, head, &port->read_allocated);
@@ -593,109 +589,79 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 {
 	int		port_num = tty->index;
 	struct gs_port	*port;
-	int		status;
+	int		status = 0;
 
-	do {
-		mutex_lock(&ports[port_num].lock);
-		port = ports[port_num].port;
-		if (!port)
-			status = -ENODEV;
-		else {
-			spin_lock_irq(&port->port_lock);
+	mutex_lock(&ports[port_num].lock);
+	port = ports[port_num].port;
+	if (!port) {
+		status = -ENODEV;
+		goto out;
+	}
 
-			/* already open?  Great. */
-			if (port->port.count) {
-				status = 0;
-				port->port.count++;
-
-			/* currently opening/closing? wait ... */
-			} else if (port->openclose) {
-				status = -EBUSY;
-
-			/* ... else we do the work */
-			} else {
-				status = -EAGAIN;
-				port->openclose = true;
-			}
-			spin_unlock_irq(&port->port_lock);
-		}
-		mutex_unlock(&ports[port_num].lock);
-
-		switch (status) {
-		default:
-			/* fully handled */
-			return status;
-		case -EAGAIN:
-			/* must do the work */
-			break;
-		case -EBUSY:
-			/* wait for EAGAIN task to finish */
-			msleep(1);
-			/* REVISIT could have a waitchannel here, if
-			 * concurrent open performance is important
-			 */
-			break;
-		}
-	} while (status != -EAGAIN);
-
-	/* Do the "real open" */
 	spin_lock_irq(&port->port_lock);
 
 	/* allocate circular buffer on first open */
 	if (!kfifo_initialized(&port->port_write_buf)) {
 
 		spin_unlock_irq(&port->port_lock);
+
+		/*
+		 * portmaster's mutex still protects from simultaneous open(),
+		 * and close() can't happen, yet.
+		 */
+
 		status = kfifo_alloc(&port->port_write_buf,
 				     WRITE_BUF_SIZE, GFP_KERNEL);
-		spin_lock_irq(&port->port_lock);
-
 		if (status) {
 			pr_debug("gs_open: ttyGS%d (%p,%p) no buffer\n",
-				port->port_num, tty, file);
-			port->openclose = false;
-			goto exit_unlock_port;
+				 port_num, tty, file);
+			goto out;
 		}
+
+		spin_lock_irq(&port->port_lock);
 	}
 
-	/* REVISIT if REMOVED (ports[].port NULL), abort the open
-	 * to let rmmod work faster (but this way isn't wrong).
-	 */
-
-	/* REVISIT maybe wait for "carrier detect" */
+	/* already open?  Great. */
+	if (port->port.count++)
+		goto exit_unlock_port;
 
 	tty->driver_data = port;
 	port->port.tty = tty;
 
-	port->port.count = 1;
-	port->openclose = false;
-
 	/* if connected, start the I/O stream */
 	if (port->port_usb) {
-		struct gserial	*gser = port->port_usb;
+		/* if port is suspended, wait resume to start I/0 stream */
+		if (!port->suspended) {
+			struct gserial	*gser = port->port_usb;
 
-		pr_debug("gs_open: start ttyGS%d\n", port->port_num);
-		gs_start_io(port);
+			pr_debug("gs_open: start ttyGS%d\n", port->port_num);
+			gs_start_io(port);
 
-		if (gser->connect)
-			gser->connect(gser);
+			if (gser->connect)
+				gser->connect(gser);
+		} else {
+			pr_debug("delay start of ttyGS%d\n", port->port_num);
+			port->start_delayed = true;
+		}
 	}
 
 	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
 
-	status = 0;
-
 exit_unlock_port:
 	spin_unlock_irq(&port->port_lock);
+out:
+	mutex_unlock(&ports[port_num].lock);
 	return status;
 }
 
-static int gs_writes_finished(struct gs_port *p)
+static int gs_close_flush_done(struct gs_port *p)
 {
 	int cond;
 
-	/* return true on disconnect or empty buffer */
+	/* return true on disconnect or empty buffer or if raced with open() */
 	spin_lock_irq(&p->port_lock);
-	cond = (p->port_usb == NULL) || !kfifo_len(&p->port_write_buf);
+	cond = p->port_usb == NULL || !kfifo_len(&p->port_write_buf) ||
+		p->port.count > 1;
 	spin_unlock_irq(&p->port_lock);
 
 	return cond;
@@ -709,6 +675,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	spin_lock_irq(&port->port_lock);
 
 	if (port->port.count != 1) {
+raced_with_open:
 		if (port->port.count == 0)
 			WARN_ON(1);
 		else
@@ -718,14 +685,8 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 
 	pr_debug("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
 
-	/* mark port as closing but in use; we can drop port lock
-	 * and sleep if necessary
-	 */
-	port->openclose = true;
-	port->port.count = 0;
-
 	gser = port->port_usb;
-	if (gser && gser->disconnect)
+	if (gser && !port->suspended && gser->disconnect)
 		gser->disconnect(gser);
 
 	/* wait for circular write buffer to drain, disconnect, or at
@@ -734,24 +695,28 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	if (kfifo_len(&port->port_write_buf) > 0 && gser) {
 		spin_unlock_irq(&port->port_lock);
 		wait_event_interruptible_timeout(port->drain_wait,
-					gs_writes_finished(port),
+					gs_close_flush_done(port),
 					GS_CLOSE_TIMEOUT * HZ);
 		spin_lock_irq(&port->port_lock);
+
+		if (port->port.count != 1)
+			goto raced_with_open;
+
 		gser = port->port_usb;
 	}
 
 	/* Iff we're disconnected, there can be no I/O in flight so it's
 	 * ok to free the circular buffer; else just scrub it.  And don't
-	 * let the push tasklet fire again until we're re-opened.
+	 * let the push async work fire again until we're re-opened.
 	 */
 	if (gser == NULL)
 		kfifo_free(&port->port_write_buf);
 	else
 		kfifo_reset(&port->port_write_buf);
 
+	port->start_delayed = false;
+	port->port.count = 0;
 	port->port.tty = NULL;
-
-	port->openclose = false;
 
 	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
@@ -809,34 +774,34 @@ static void gs_flush_chars(struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
-static int gs_write_room(struct tty_struct *tty)
+static unsigned int gs_write_room(struct tty_struct *tty)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
-	int		room = 0;
+	unsigned int room = 0;
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	if (port->port_usb)
 		room = kfifo_avail(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_write_room: (%d,%p) room=%d\n",
+	pr_vdebug("gs_write_room: (%d,%p) room=%u\n",
 		port->port_num, tty, room);
 
 	return room;
 }
 
-static int gs_chars_in_buffer(struct tty_struct *tty)
+static unsigned int gs_chars_in_buffer(struct tty_struct *tty)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
-	int		chars = 0;
+	unsigned int	chars;
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	chars = kfifo_len(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_chars_in_buffer: (%d,%p) chars=%d\n",
+	pr_vdebug("gs_chars_in_buffer: (%d,%p) chars=%u\n",
 		port->port_num, tty, chars);
 
 	return chars;
@@ -854,8 +819,8 @@ static void gs_unthrottle(struct tty_struct *tty)
 		 * rts/cts, or other handshaking with the host, but if the
 		 * read queue backs up enough we'll be NAKing OUT packets.
 		 */
-		tasklet_schedule(&port->push);
 		pr_vdebug("ttyGS%d: unthrottle\n", port->port_num);
+		schedule_delayed_work(&port->push, 0);
 	}
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
@@ -896,50 +861,23 @@ static struct tty_driver *gs_tty_driver;
 
 #ifdef CONFIG_U_SERIAL_CONSOLE
 
-static struct gscons_info gscons_info;
-static struct console gserial_cons;
-
-static struct usb_request *gs_request_new(struct usb_ep *ep)
+static void gs_console_complete_out(struct usb_ep *ep, struct usb_request *req)
 {
-	struct usb_request *req = usb_ep_alloc_request(ep, GFP_ATOMIC);
-	if (!req)
-		return NULL;
-
-	req->buf = kmalloc(ep->maxpacket, GFP_ATOMIC);
-	if (!req->buf) {
-		usb_ep_free_request(ep, req);
-		return NULL;
-	}
-
-	return req;
-}
-
-static void gs_request_free(struct usb_request *req, struct usb_ep *ep)
-{
-	if (!req)
-		return;
-
-	kfree(req->buf);
-	usb_ep_free_request(ep, req);
-}
-
-static void gs_complete_out(struct usb_ep *ep, struct usb_request *req)
-{
-	struct gscons_info *info = &gscons_info;
+	struct gs_console *cons = req->context;
 
 	switch (req->status) {
 	default:
 		pr_warn("%s: unexpected %s status %d\n",
 			__func__, ep->name, req->status);
-		/* fall through */
+		fallthrough;
 	case 0:
 		/* normal completion */
-		spin_lock(&info->con_lock);
-		info->req_busy = 0;
-		spin_unlock(&info->con_lock);
-
-		wake_up_process(info->console_thread);
+		spin_lock(&cons->lock);
+		req->length = 0;
+		schedule_work(&cons->work);
+		spin_unlock(&cons->lock);
 		break;
+	case -ECONNRESET:
 	case -ESHUTDOWN:
 		/* disconnect */
 		pr_vdebug("%s: %s shutdown\n", __func__, ep->name);
@@ -947,190 +885,250 @@ static void gs_complete_out(struct usb_ep *ep, struct usb_request *req)
 	}
 }
 
-static int gs_console_connect(int port_num)
+static void __gs_console_push(struct gs_console *cons)
 {
-	struct gscons_info *info = &gscons_info;
-	struct gs_port *port;
+	struct usb_request *req = cons->req;
 	struct usb_ep *ep;
+	size_t size;
 
-	if (port_num != gserial_cons.index) {
-		pr_err("%s: port num [%d] is not support console\n",
-		       __func__, port_num);
-		return -ENXIO;
+	if (!req)
+		return;	/* disconnected */
+
+	if (req->length)
+		return;	/* busy */
+
+	ep = cons->console.data;
+	size = kfifo_out(&cons->buf, req->buf, ep->maxpacket);
+	if (!size)
+		return;
+
+	if (cons->missed && ep->maxpacket >= 64) {
+		char buf[64];
+		size_t len;
+
+		len = sprintf(buf, "\n[missed %zu bytes]\n", cons->missed);
+		kfifo_in(&cons->buf, buf, len);
+		cons->missed = 0;
 	}
 
-	port = ports[port_num].port;
-	ep = port->port_usb->in;
-	if (!info->console_req) {
-		info->console_req = gs_request_new(ep);
-		if (!info->console_req)
-			return -ENOMEM;
-		info->console_req->complete = gs_complete_out;
-	}
-
-	info->port = port;
-	spin_lock(&info->con_lock);
-	info->req_busy = 0;
-	spin_unlock(&info->con_lock);
-	pr_vdebug("port[%d] console connect!\n", port_num);
-	return 0;
+	req->length = size;
+	if (usb_ep_queue(ep, req, GFP_ATOMIC))
+		req->length = 0;
 }
 
-static void gs_console_disconnect(struct usb_ep *ep)
+static void gs_console_work(struct work_struct *work)
 {
-	struct gscons_info *info = &gscons_info;
-	struct usb_request *req = info->console_req;
+	struct gs_console *cons = container_of(work, struct gs_console, work);
 
-	gs_request_free(req, ep);
-	info->console_req = NULL;
-}
+	spin_lock_irq(&cons->lock);
 
-static int gs_console_thread(void *data)
-{
-	struct gscons_info *info = &gscons_info;
-	struct gs_port *port;
-	struct usb_request *req;
-	struct usb_ep *ep;
-	int xfer, ret, count, size;
+	__gs_console_push(cons);
 
-	do {
-		port = info->port;
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (!port || !port->port_usb
-		    || !port->port_usb->in || !info->console_req)
-			goto sched;
-
-		req = info->console_req;
-		ep = port->port_usb->in;
-
-		spin_lock_irq(&info->con_lock);
-		count = kfifo_len(&info->con_buf);
-		size = ep->maxpacket;
-
-		if (count > 0 && !info->req_busy) {
-			set_current_state(TASK_RUNNING);
-			if (count < size)
-				size = count;
-
-			xfer = kfifo_out(&info->con_buf, req->buf, size);
-			req->length = xfer;
-
-			spin_unlock(&info->con_lock);
-			ret = usb_ep_queue(ep, req, GFP_ATOMIC);
-			spin_lock(&info->con_lock);
-			if (ret < 0)
-				info->req_busy = 0;
-			else
-				info->req_busy = 1;
-
-			spin_unlock_irq(&info->con_lock);
-		} else {
-			spin_unlock_irq(&info->con_lock);
-sched:
-			if (kthread_should_stop()) {
-				set_current_state(TASK_RUNNING);
-				break;
-			}
-			schedule();
-		}
-	} while (1);
-
-	return 0;
-}
-
-static int gs_console_setup(struct console *co, char *options)
-{
-	struct gscons_info *info = &gscons_info;
-	int status;
-
-	info->port = NULL;
-	info->console_req = NULL;
-	info->req_busy = 0;
-	spin_lock_init(&info->con_lock);
-
-	status = kfifo_alloc(&info->con_buf, GS_CONSOLE_BUF_SIZE, GFP_KERNEL);
-	if (status) {
-		pr_err("%s: allocate console buffer failed\n", __func__);
-		return status;
-	}
-
-	info->console_thread = kthread_create(gs_console_thread,
-					      co, "gs_console");
-	if (IS_ERR(info->console_thread)) {
-		pr_err("%s: cannot create console thread\n", __func__);
-		kfifo_free(&info->con_buf);
-		return PTR_ERR(info->console_thread);
-	}
-	wake_up_process(info->console_thread);
-
-	return 0;
+	spin_unlock_irq(&cons->lock);
 }
 
 static void gs_console_write(struct console *co,
 			     const char *buf, unsigned count)
 {
-	struct gscons_info *info = &gscons_info;
+	struct gs_console *cons = container_of(co, struct gs_console, console);
 	unsigned long flags;
+	size_t n;
 
-	spin_lock_irqsave(&info->con_lock, flags);
-	kfifo_in(&info->con_buf, buf, count);
-	spin_unlock_irqrestore(&info->con_lock, flags);
+	spin_lock_irqsave(&cons->lock, flags);
 
-	wake_up_process(info->console_thread);
+	n = kfifo_in(&cons->buf, buf, count);
+	if (n < count)
+		cons->missed += count - n;
+
+	if (cons->req && !cons->req->length)
+		schedule_work(&cons->work);
+
+	spin_unlock_irqrestore(&cons->lock, flags);
 }
 
 static struct tty_driver *gs_console_device(struct console *co, int *index)
 {
-	struct tty_driver **p = (struct tty_driver **)co->data;
-
-	if (!*p)
-		return NULL;
-
 	*index = co->index;
-	return *p;
+	return gs_tty_driver;
 }
 
-static struct console gserial_cons = {
-	.name =		"ttyGS",
-	.write =	gs_console_write,
-	.device =	gs_console_device,
-	.setup =	gs_console_setup,
-	.flags =	CON_PRINTBUFFER,
-	.index =	-1,
-	.data =		&gs_tty_driver,
-};
-
-static void gserial_console_init(void)
+static int gs_console_connect(struct gs_port *port)
 {
-	register_console(&gserial_cons);
+	struct gs_console *cons = port->console;
+	struct usb_request *req;
+	struct usb_ep *ep;
+
+	if (!cons)
+		return 0;
+
+	ep = port->port_usb->in;
+	req = gs_alloc_req(ep, ep->maxpacket, GFP_ATOMIC);
+	if (!req)
+		return -ENOMEM;
+	req->complete = gs_console_complete_out;
+	req->context = cons;
+	req->length = 0;
+
+	spin_lock(&cons->lock);
+	cons->req = req;
+	cons->console.data = ep;
+	spin_unlock(&cons->lock);
+
+	pr_debug("ttyGS%d: console connected!\n", port->port_num);
+
+	schedule_work(&cons->work);
+
+	return 0;
 }
 
-static void gserial_console_exit(void)
+static void gs_console_disconnect(struct gs_port *port)
 {
-	struct gscons_info *info = &gscons_info;
+	struct gs_console *cons = port->console;
+	struct usb_request *req;
+	struct usb_ep *ep;
 
-	unregister_console(&gserial_cons);
-	if (!IS_ERR_OR_NULL(info->console_thread))
-		kthread_stop(info->console_thread);
-	kfifo_free(&info->con_buf);
+	if (!cons)
+		return;
+
+	spin_lock(&cons->lock);
+
+	req = cons->req;
+	ep = cons->console.data;
+	cons->req = NULL;
+
+	spin_unlock(&cons->lock);
+
+	if (!req)
+		return;
+
+	usb_ep_dequeue(ep, req);
+	gs_free_req(ep, req);
 }
+
+static int gs_console_init(struct gs_port *port)
+{
+	struct gs_console *cons;
+	int err;
+
+	if (port->console)
+		return 0;
+
+	cons = kzalloc(sizeof(*port->console), GFP_KERNEL);
+	if (!cons)
+		return -ENOMEM;
+
+	strcpy(cons->console.name, "ttyGS");
+	cons->console.write = gs_console_write;
+	cons->console.device = gs_console_device;
+	cons->console.flags = CON_PRINTBUFFER;
+	cons->console.index = port->port_num;
+
+	INIT_WORK(&cons->work, gs_console_work);
+	spin_lock_init(&cons->lock);
+
+	err = kfifo_alloc(&cons->buf, GS_CONSOLE_BUF_SIZE, GFP_KERNEL);
+	if (err) {
+		pr_err("ttyGS%d: allocate console buffer failed\n", port->port_num);
+		kfree(cons);
+		return err;
+	}
+
+	port->console = cons;
+	register_console(&cons->console);
+
+	spin_lock_irq(&port->port_lock);
+	if (port->port_usb)
+		gs_console_connect(port);
+	spin_unlock_irq(&port->port_lock);
+
+	return 0;
+}
+
+static void gs_console_exit(struct gs_port *port)
+{
+	struct gs_console *cons = port->console;
+
+	if (!cons)
+		return;
+
+	unregister_console(&cons->console);
+
+	spin_lock_irq(&port->port_lock);
+	if (cons->req)
+		gs_console_disconnect(port);
+	spin_unlock_irq(&port->port_lock);
+
+	cancel_work_sync(&cons->work);
+	kfifo_free(&cons->buf);
+	kfree(cons);
+	port->console = NULL;
+}
+
+ssize_t gserial_set_console(unsigned char port_num, const char *page, size_t count)
+{
+	struct gs_port *port;
+	bool enable;
+	int ret;
+
+	ret = strtobool(page, &enable);
+	if (ret)
+		return ret;
+
+	mutex_lock(&ports[port_num].lock);
+	port = ports[port_num].port;
+
+	if (WARN_ON(port == NULL)) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	if (enable)
+		ret = gs_console_init(port);
+	else
+		gs_console_exit(port);
+out:
+	mutex_unlock(&ports[port_num].lock);
+
+	return ret < 0 ? ret : count;
+}
+EXPORT_SYMBOL_GPL(gserial_set_console);
+
+ssize_t gserial_get_console(unsigned char port_num, char *page)
+{
+	struct gs_port *port;
+	ssize_t ret;
+
+	mutex_lock(&ports[port_num].lock);
+	port = ports[port_num].port;
+
+	if (WARN_ON(port == NULL))
+		ret = -ENXIO;
+	else
+		ret = sprintf(page, "%u\n", !!port->console);
+
+	mutex_unlock(&ports[port_num].lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gserial_get_console);
 
 #else
 
-static int gs_console_connect(int port_num)
+static int gs_console_connect(struct gs_port *port)
 {
 	return 0;
 }
 
-static void gs_console_disconnect(struct usb_ep *ep)
+static void gs_console_disconnect(struct gs_port *port)
 {
 }
 
-static void gserial_console_init(void)
+static int gs_console_init(struct gs_port *port)
 {
+	return -ENOSYS;
 }
 
-static void gserial_console_exit(void)
+static void gs_console_exit(struct gs_port *port)
 {
 }
 
@@ -1159,7 +1157,7 @@ gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
 	init_waitqueue_head(&port->drain_wait);
 	init_waitqueue_head(&port->close_wait);
 
-	tasklet_init(&port->push, gs_rx_push, (unsigned long) port);
+	INIT_DELAYED_WORK(&port->push, gs_rx_push);
 
 	INIT_LIST_HEAD(&port->read_pool);
 	INIT_LIST_HEAD(&port->read_queue);
@@ -1179,14 +1177,15 @@ static int gs_closed(struct gs_port *port)
 	int cond;
 
 	spin_lock_irq(&port->port_lock);
-	cond = (port->port.count == 0) && !port->openclose;
+	cond = port->port.count == 0;
 	spin_unlock_irq(&port->port_lock);
+
 	return cond;
 }
 
 static void gserial_free_port(struct gs_port *port)
 {
-	tasklet_kill(&port->push);
+	cancel_delayed_work_sync(&port->push);
 	/* wait for old opens to finish */
 	wait_event(port->close_wait, gs_closed(port));
 	WARN_ON(port->port_usb != NULL);
@@ -1199,23 +1198,24 @@ void gserial_free_line(unsigned char port_num)
 	struct gs_port	*port;
 
 	mutex_lock(&ports[port_num].lock);
-	if (WARN_ON(!ports[port_num].port)) {
+	if (!ports[port_num].port) {
 		mutex_unlock(&ports[port_num].lock);
 		return;
 	}
 	port = ports[port_num].port;
+	gs_console_exit(port);
 	ports[port_num].port = NULL;
 	mutex_unlock(&ports[port_num].lock);
 
 	gserial_free_port(port);
 	tty_unregister_device(gs_tty_driver, port_num);
-	gserial_console_exit();
 }
 EXPORT_SYMBOL_GPL(gserial_free_line);
 
-int gserial_alloc_line(unsigned char *line_num)
+int gserial_alloc_line_no_console(unsigned char *line_num)
 {
 	struct usb_cdc_line_coding	coding;
+	struct gs_port			*port;
 	struct device			*tty_dev;
 	int				ret;
 	int				port_num;
@@ -1238,22 +1238,33 @@ int gserial_alloc_line(unsigned char *line_num)
 
 	/* ... and sysfs class devices, so mdev/udev make /dev/ttyGS* */
 
-	tty_dev = tty_port_register_device(&ports[port_num].port->port,
+	port = ports[port_num].port;
+	tty_dev = tty_port_register_device(&port->port,
 			gs_tty_driver, port_num, NULL);
 	if (IS_ERR(tty_dev)) {
-		struct gs_port	*port;
 		pr_err("%s: failed to register tty for port %d, err %ld\n",
 				__func__, port_num, PTR_ERR(tty_dev));
 
 		ret = PTR_ERR(tty_dev);
-		port = ports[port_num].port;
+		mutex_lock(&ports[port_num].lock);
 		ports[port_num].port = NULL;
+		mutex_unlock(&ports[port_num].lock);
 		gserial_free_port(port);
 		goto err;
 	}
 	*line_num = port_num;
-	gserial_console_init();
 err:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gserial_alloc_line_no_console);
+
+int gserial_alloc_line(unsigned char *line_num)
+{
+	int ret = gserial_alloc_line_no_console(line_num);
+
+	if (!ret && !*line_num)
+		gs_console_init(ports[*line_num].port);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gserial_alloc_line);
@@ -1334,7 +1345,7 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 			gser->disconnect(gser);
 	}
 
-	status = gs_console_connect(port_num);
+	status = gs_console_connect(port);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
 	return status;
@@ -1366,16 +1377,19 @@ void gserial_disconnect(struct gserial *gser)
 	/* tell the TTY glue not to do I/O here any more */
 	spin_lock_irqsave(&port->port_lock, flags);
 
+	gs_console_disconnect(port);
+
 	/* REVISIT as above: how best to track this? */
 	port->port_line_coding = gser->port_line_coding;
 
 	port->port_usb = NULL;
 	gser->ioport = NULL;
-	if (port->port.count > 0 || port->openclose) {
+	if (port->port.count > 0) {
 		wake_up_interruptible(&port->drain_wait);
 		if (port->port.tty)
 			tty_hangup(port->port.tty);
 	}
+	port->suspended = false;
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
 	/* disable endpoints, aborting down any active I/O */
@@ -1384,7 +1398,7 @@ void gserial_disconnect(struct gserial *gser)
 
 	/* finally, free any unused/unusable I/O buffers */
 	spin_lock_irqsave(&port->port_lock, flags);
-	if (port->port.count == 0 && !port->openclose)
+	if (port->port.count == 0)
 		kfifo_free(&port->port_write_buf);
 	gs_free_requests(gser->out, &port->read_pool, NULL);
 	gs_free_requests(gser->out, &port->read_queue, NULL);
@@ -1393,49 +1407,83 @@ void gserial_disconnect(struct gserial *gser)
 	port->read_allocated = port->read_started =
 		port->write_allocated = port->write_started = 0;
 
-	gs_console_disconnect(gser->in);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 EXPORT_SYMBOL_GPL(gserial_disconnect);
 
+void gserial_suspend(struct gserial *gser)
+{
+	struct gs_port	*port = gser->ioport;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&port->port_lock, flags);
+	port->suspended = true;
+	spin_unlock_irqrestore(&port->port_lock, flags);
+}
+EXPORT_SYMBOL_GPL(gserial_suspend);
+
+void gserial_resume(struct gserial *gser)
+{
+	struct gs_port *port = gser->ioport;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&port->port_lock, flags);
+	port->suspended = false;
+	if (!port->start_delayed) {
+		spin_unlock_irqrestore(&port->port_lock, flags);
+		return;
+	}
+
+	pr_debug("delayed start ttyGS%d\n", port->port_num);
+	gs_start_io(port);
+	if (gser->connect)
+		gser->connect(gser);
+	port->start_delayed = false;
+	spin_unlock_irqrestore(&port->port_lock, flags);
+}
+EXPORT_SYMBOL_GPL(gserial_resume);
+
 static int userial_init(void)
 {
+	struct tty_driver *driver;
 	unsigned			i;
 	int				status;
 
-	gs_tty_driver = alloc_tty_driver(MAX_U_SERIAL_PORTS);
-	if (!gs_tty_driver)
-		return -ENOMEM;
+	driver = tty_alloc_driver(MAX_U_SERIAL_PORTS, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(driver))
+		return PTR_ERR(driver);
 
-	gs_tty_driver->driver_name = "g_serial";
-	gs_tty_driver->name = "ttyGS";
+	driver->driver_name = "g_serial";
+	driver->name = "ttyGS";
 	/* uses dynamically assigned dev_t values */
 
-	gs_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	gs_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	gs_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
-	gs_tty_driver->init_termios = tty_std_termios;
+	driver->type = TTY_DRIVER_TYPE_SERIAL;
+	driver->subtype = SERIAL_TYPE_NORMAL;
+	driver->init_termios = tty_std_termios;
 
 	/* 9600-8-N-1 ... matches defaults expected by "usbser.sys" on
 	 * MS-Windows.  Otherwise, most of these flags shouldn't affect
 	 * anything unless we were to actually hook up to a serial line.
 	 */
-	gs_tty_driver->init_termios.c_cflag =
+	driver->init_termios.c_cflag =
 			B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	gs_tty_driver->init_termios.c_ispeed = 9600;
-	gs_tty_driver->init_termios.c_ospeed = 9600;
+	driver->init_termios.c_ispeed = 9600;
+	driver->init_termios.c_ospeed = 9600;
 
-	tty_set_operations(gs_tty_driver, &gs_tty_ops);
+	tty_set_operations(driver, &gs_tty_ops);
 	for (i = 0; i < MAX_U_SERIAL_PORTS; i++)
 		mutex_init(&ports[i].lock);
 
 	/* export the driver ... */
-	status = tty_register_driver(gs_tty_driver);
+	status = tty_register_driver(driver);
 	if (status) {
 		pr_err("%s: cannot register, err %d\n",
 				__func__, status);
 		goto fail;
 	}
+
+	gs_tty_driver = driver;
 
 	pr_debug("%s: registered %d ttyGS* device%s\n", __func__,
 			MAX_U_SERIAL_PORTS,
@@ -1443,8 +1491,7 @@ static int userial_init(void)
 
 	return status;
 fail:
-	put_tty_driver(gs_tty_driver);
-	gs_tty_driver = NULL;
+	tty_driver_kref_put(driver);
 	return status;
 }
 module_init(userial_init);
@@ -1452,7 +1499,7 @@ module_init(userial_init);
 static void userial_cleanup(void)
 {
 	tty_unregister_driver(gs_tty_driver);
-	put_tty_driver(gs_tty_driver);
+	tty_driver_kref_put(gs_tty_driver);
 	gs_tty_driver = NULL;
 }
 module_exit(userial_cleanup);

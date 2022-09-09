@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for Palm Treo smartphones
  *
@@ -7,12 +8,7 @@
  *
  * Author:     Tomas Cech <sleep_walker@suse.cz>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * (find more info at www.hackndev.com)
- *
  */
 
 #include <linux/platform_device.h>
@@ -33,7 +29,7 @@
 
 #include "pxa27x.h"
 #include "pxa27x-udc.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include "palmtreo.h"
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/video-pxafb.h>
@@ -41,7 +37,7 @@
 #include <linux/platform_data/keypad-pxa27x.h>
 #include "udc.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/pxa2xx-regs.h>
+#include "pxa2xx-regs.h"
 #include <linux/platform_data/asoc-palm27x.h>
 #include <linux/platform_data/media/camera-pxa.h>
 #include "palm27x.h"

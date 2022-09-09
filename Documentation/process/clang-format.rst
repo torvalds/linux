@@ -32,7 +32,7 @@ Linux distributions for a long time. Search for ``clang-format`` in
 your repositories. Otherwise, you can either download pre-built
 LLVM/clang binaries or build the source code from:
 
-    http://releases.llvm.org/download.html
+    https://releases.llvm.org/download.html
 
 See more information about the tool at:
 
@@ -97,7 +97,7 @@ it can be very useful.
 
 There are integrations for many popular text editors. For some of them,
 like vim, emacs, BBEdit and Visual Studio you can find support built-in.
-For instructions, read the appropiate section at:
+For instructions, read the appropriate section at:
 
     https://clang.llvm.org/docs/ClangFormat.html
 

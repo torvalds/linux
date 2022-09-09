@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for AT73C213 16-bit stereo DAC connected to Atmel SSC
  *
  * Copyright (C) 2006-2007 Atmel Norway
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 /*#define DEBUG*/
@@ -39,7 +36,7 @@
 #define BITRATE_MAX	50000 /* Hardware limit. */
 
 /* Initial (hardware reset) AT73C213 register values. */
-static u8 snd_at73c213_original_image[18] =
+static const u8 snd_at73c213_original_image[18] =
 {
 	0x00,	/* 00 - CTRL    */
 	0x05,	/* 01 - LLIG    */
@@ -221,7 +218,9 @@ static int snd_at73c213_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_at73c213_playback_hw;
 	chip->substream = substream;
 
-	clk_enable(chip->ssc->clk);
+	err = clk_enable(chip->ssc->clk);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -245,13 +244,7 @@ static int snd_at73c213_pcm_hw_params(struct snd_pcm_substream *substream,
 	val = SSC_BFINS(TFMR_DATNB, channels - 1, val);
 	ssc_writel(chip->ssc->regs, TFMR, val);
 
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
-}
-
-static int snd_at73c213_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int snd_at73c213_pcm_prepare(struct snd_pcm_substream *substream)
@@ -325,9 +318,7 @@ snd_at73c213_pcm_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops at73c213_playback_ops = {
 	.open		= snd_at73c213_pcm_open,
 	.close		= snd_at73c213_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_at73c213_pcm_hw_params,
-	.hw_free	= snd_at73c213_pcm_hw_free,
 	.prepare	= snd_at73c213_pcm_prepare,
 	.trigger	= snd_at73c213_pcm_trigger,
 	.pointer	= snd_at73c213_pcm_pointer,
@@ -350,7 +341,7 @@ static int snd_at73c213_pcm_new(struct snd_at73c213 *chip, int device)
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &at73c213_playback_ops);
 
-	retval = snd_pcm_lib_preallocate_pages_for_all(chip->pcm,
+	snd_pcm_set_managed_buffer_all(chip->pcm,
 			SNDRV_DMA_TYPE_DEV, &chip->ssc->pdev->dev,
 			64 * 1024, 64 * 1024);
 out:
@@ -668,7 +659,7 @@ static int snd_at73c213_aux_capture_volume_info(
 			| (mask << 24) | (invert << 22))		\
 }
 
-static struct snd_kcontrol_new snd_at73c213_controls[] = {
+static const struct snd_kcontrol_new snd_at73c213_controls[] = {
 AT73C213_STEREO("Master Playback Volume", 0, DAC_LMPG, DAC_RMPG, 0, 0, 0x1f, 1),
 AT73C213_STEREO("Master Playback Switch", 0, DAC_LMPG, DAC_RMPG, 5, 5, 1, 1),
 AT73C213_STEREO("PCM Playback Volume", 0, DAC_LLOG, DAC_RLOG, 0, 0, 0x1f, 1),
@@ -787,7 +778,9 @@ static int snd_at73c213_chip_init(struct snd_at73c213 *chip)
 		goto out;
 
 	/* Enable DAC master clock. */
-	clk_enable(chip->board->dac_clk);
+	retval = clk_enable(chip->board->dac_clk);
+	if (retval)
+		goto out;
 
 	/* Initialize at73c213 on SPI bus. */
 	retval = snd_at73c213_write_reg(chip, DAC_RST, 0x04);
@@ -885,7 +878,7 @@ static int snd_at73c213_dev_free(struct snd_device *device)
 static int snd_at73c213_dev_init(struct snd_card *card,
 				 struct spi_device *spi)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free	= snd_at73c213_dev_free,
 	};
 	struct snd_at73c213 *chip = get_chip(card);
@@ -900,7 +893,9 @@ static int snd_at73c213_dev_init(struct snd_card *card,
 	chip->card = card;
 	chip->irq = -1;
 
-	clk_enable(chip->ssc->clk);
+	retval = clk_enable(chip->ssc->clk);
+	if (retval)
+		return retval;
 
 	retval = request_irq(irq, snd_at73c213_interrupt, 0, "at73c213", chip);
 	if (retval) {
@@ -1012,14 +1007,16 @@ out:
 	return retval;
 }
 
-static int snd_at73c213_remove(struct spi_device *spi)
+static void snd_at73c213_remove(struct spi_device *spi)
 {
 	struct snd_card *card = dev_get_drvdata(&spi->dev);
 	struct snd_at73c213 *chip = card->private_data;
 	int retval;
 
 	/* Stop playback. */
-	clk_enable(chip->ssc->clk);
+	retval = clk_enable(chip->ssc->clk);
+	if (retval)
+		goto out;
 	ssc_writel(chip->ssc->regs, CR, SSC_BIT(CR_TXDIS));
 	clk_disable(chip->ssc->clk);
 
@@ -1077,8 +1074,6 @@ out:
 
 	ssc_free(chip->ssc);
 	snd_card_free(card);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1099,9 +1094,16 @@ static int snd_at73c213_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_at73c213 *chip = card->private_data;
+	int retval;
 
-	clk_enable(chip->board->dac_clk);
-	clk_enable(chip->ssc->clk);
+	retval = clk_enable(chip->board->dac_clk);
+	if (retval)
+		return retval;
+	retval = clk_enable(chip->ssc->clk);
+	if (retval) {
+		clk_disable(chip->board->dac_clk);
+		return retval;
+	}
 	ssc_writel(chip->ssc->regs, CR, SSC_BIT(CR_TXEN));
 
 	return 0;

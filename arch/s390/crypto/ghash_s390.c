@@ -43,10 +43,8 @@ static int ghash_setkey(struct crypto_shash *tfm,
 {
 	struct ghash_ctx *ctx = crypto_shash_ctx(tfm);
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	memcpy(ctx->key, key, GHASH_BLOCK_SIZE);
 
@@ -137,7 +135,7 @@ static struct shash_alg ghash_alg = {
 static int __init ghash_mod_init(void)
 {
 	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_GHASH))
-		return -EOPNOTSUPP;
+		return -ENODEV;
 
 	return crypto_register_shash(&ghash_alg);
 }
@@ -147,10 +145,10 @@ static void __exit ghash_mod_exit(void)
 	crypto_unregister_shash(&ghash_alg);
 }
 
-module_cpu_feature_match(MSA, ghash_mod_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, ghash_mod_init);
 module_exit(ghash_mod_exit);
 
 MODULE_ALIAS_CRYPTO("ghash");
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("GHASH Message Digest Algorithm, s390 implementation");
+MODULE_DESCRIPTION("GHASH hash function, s390 implementation");

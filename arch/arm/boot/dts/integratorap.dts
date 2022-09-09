@@ -4,12 +4,13 @@
  */
 
 /dts-v1/;
-/include/ "integrator.dtsi"
+#include "integrator.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "ARM Integrator/AP";
 	compatible = "arm,integrator-ap";
-	dma-ranges = <0x80000000 0x0 0x80000000>;
 
 	cpus {
 		#address-cells = <1>;
@@ -87,8 +88,9 @@
 		};
 
 		/* Oscillator on the core module, clocks the CPU core */
-		cmosc: cmosc@24M {
+		cmosc: clock-controller@8 {
 			compatible = "arm,syscon-icst525-integratorap-cm";
+			reg = <0x08 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x14>;
 			vco-offset = <0x08>;
@@ -96,8 +98,9 @@
 		};
 
 		/* Auxilary oscillator on the core module, 32.369MHz at boot */
-		auxosc: auxosc@24M {
+		auxosc: clock-controller@1c {
 			compatible = "arm,syscon-icst525";
+			reg = <0x1c 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x14>;
 			vco-offset = <0x1c>;
@@ -108,16 +111,17 @@
 	syscon {
 		compatible = "arm,integrator-ap-syscon", "syscon";
 		reg = <0x11000000 0x100>;
-		interrupt-parent = <&pic>;
-		/* These are the logical module IRQs */
-		interrupts = <9>, <10>, <11>, <12>;
+		ranges = <0x0 0x11000000 0x100>;
+		#size-cells = <1>;
+		#address-cells = <1>;
 
 		/*
 		 * SYSCLK clocks PCIv3 bridge, system controller and the
 		 * logic modules.
 		 */
-		sysclk: apsys@24M {
+		sysclk: clock-controller@4 {
 			compatible = "arm,syscon-icst525-integratorap-sys";
+			reg = <0x04 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x1c>;
 			vco-offset = <0x04>;
@@ -125,8 +129,9 @@
 		};
 
 		/* One-bit control for the PCI bus clock (33 or 25 MHz) */
-		pciclk: pciclk@24M {
+		pciclk: clock-controller@4,8 {
 			compatible = "arm,syscon-icst525-integratorap-pci";
+			reg = <0x04 0x04>;
 			#clock-cells = <0>;
 			lock-offset = <0x1c>;
 			vco-offset = <0x04>;
@@ -238,6 +243,52 @@
 			arm,primecell-periphid = <0x00041050>;
 			clocks = <&xtal24mhz>, <&pclk>;
 			clock-names = "KMIREFCLK", "apb_pclk";
+		};
+	};
+
+	/*
+	 * Logic module bus, we support up to 4 logical modules
+	 * They appear at 0xc0000000, 0xd0000000, 0xe0000000 and 0xf0000000
+	 * and use interrupts 9, 10, 11 and 12 respectively.
+	 */
+	bus@c0000000 {
+		compatible = "arm,integrator-ap-lm";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0xc0000000 0xc0000000 0x40000000>;
+		dma-ranges;
+
+		lm0: bus@c0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xc0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xc0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+		lm1: bus@d0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xd0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xd0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+		lm2: bus@e0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xe0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xe0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+		lm3: bus@f0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xf0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xf0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 		};
 	};
 };

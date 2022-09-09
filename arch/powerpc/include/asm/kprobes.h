@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_POWERPC_KPROBES_H
 #define _ASM_POWERPC_KPROBES_H
 
@@ -6,20 +7,6 @@
 #ifdef __KERNEL__
 /*
  *  Kernel Probes (KProbes)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2002, 2004
  *
@@ -42,7 +29,7 @@
 struct pt_regs;
 struct kprobe;
 
-typedef ppc_opcode_t kprobe_opcode_t;
+typedef u32 kprobe_opcode_t;
 
 extern kprobe_opcode_t optinsn_slot;
 
@@ -56,7 +43,7 @@ extern kprobe_opcode_t optprobe_template_ret[];
 extern kprobe_opcode_t optprobe_template_end[];
 
 /* Fixed instruction size for powerpc */
-#define MAX_INSN_SIZE		1
+#define MAX_INSN_SIZE		2
 #define MAX_OPTIMIZED_LENGTH	sizeof(kprobe_opcode_t)	/* 4 bytes */
 #define MAX_OPTINSN_SIZE	(optprobe_template_end - optprobe_template_entry)
 #define RELATIVEJUMP_SIZE	sizeof(kprobe_opcode_t)	/* 4 bytes */
@@ -64,7 +51,7 @@ extern kprobe_opcode_t optprobe_template_end[];
 #define flush_insn_slot(p)	do { } while (0)
 #define kretprobe_blacklist_size 0
 
-void kretprobe_trampoline(void);
+void __kretprobe_trampoline(void);
 extern void arch_remove_kprobe(struct kprobe *p);
 
 /* Architecture specific copy of original instruction */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Atheros AR71xx PCI host controller driver
  *
@@ -5,10 +6,6 @@
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
  *  Parts of this file are based on Atheros' 2.6.15 BSP
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/resource.h>
@@ -339,8 +336,8 @@ static int ar71xx_pci_probe(struct platform_device *pdev)
 	if (!apc)
 		return -ENOMEM;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_base");
-	apc->cfg_base = devm_ioremap_resource(&pdev->dev, res);
+	apc->cfg_base = devm_platform_ioremap_resource_byname(pdev,
+							      "cfg_base");
 	if (IS_ERR(apc->cfg_base))
 		return PTR_ERR(apc->cfg_base);
 

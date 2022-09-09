@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Diffie-Hellman secret to be used with kpp API along with helper functions
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_DH_
 #define _CRYPTO_DH_
@@ -29,21 +24,17 @@
  *
  * @key:	Private DH key
  * @p:		Diffie-Hellman parameter P
- * @q:		Diffie-Hellman parameter Q
  * @g:		Diffie-Hellman generator G
  * @key_size:	Size of the private DH key
  * @p_size:	Size of DH parameter P
- * @q_size:	Size of DH parameter Q
  * @g_size:	Size of DH generator G
  */
 struct dh {
-	void *key;
-	void *p;
-	void *q;
-	void *g;
+	const void *key;
+	const void *p;
+	const void *g;
 	unsigned int key_size;
 	unsigned int p_size;
-	unsigned int q_size;
 	unsigned int g_size;
 };
 
@@ -87,5 +78,21 @@ int crypto_dh_encode_key(char *buf, unsigned int len, const struct dh *params);
  * Return:	-EINVAL if buffer has insufficient size, 0 on success
  */
 int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params);
+
+/**
+ * __crypto_dh_decode_key() - decode a private key without parameter checks
+ * @buf:	Buffer holding a packet key that should be decoded
+ * @len:	Length of the packet private key buffer
+ * @params:	Buffer allocated by the caller that is filled with the
+ *		unpacked DH private key.
+ *
+ * Internal function providing the same services as the exported
+ * crypto_dh_decode_key(), but without any of those basic parameter
+ * checks conducted by the latter.
+ *
+ * Return:	-EINVAL if buffer has insufficient size, 0 on success
+ */
+int __crypto_dh_decode_key(const char *buf, unsigned int len,
+			   struct dh *params);
 
 #endif

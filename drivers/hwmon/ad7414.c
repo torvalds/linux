@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * An hwmon driver for the Analog Devices AD7414
  *
@@ -12,11 +13,6 @@
  *
  * Based on ad7418.c
  * Copyright 2006 Tower Technologies, Alessandro Zummo <a.zummo at towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -41,7 +37,7 @@ static u8 AD7414_REG_LIMIT[] = { AD7414_REG_T_HIGH, AD7414_REG_T_LOW };
 struct ad7414_data {
 	struct i2c_client	*client;
 	struct mutex		lock;	/* atomic read data updates */
-	char			valid;	/* !=0 if following fields are valid */
+	bool			valid;	/* true if following fields are valid */
 	unsigned long		next_update;	/* In jiffies */
 	s16			temp_input;	/* Register values */
 	s8			temps[ARRAY_SIZE(AD7414_REG_LIMIT)];
@@ -99,7 +95,7 @@ static struct ad7414_data *ad7414_update_device(struct device *dev)
 		}
 
 		data->next_update = jiffies + HZ + HZ / 2;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->lock);
@@ -173,8 +169,7 @@ static struct attribute *ad7414_attrs[] = {
 
 ATTRIBUTE_GROUPS(ad7414);
 
-static int ad7414_probe(struct i2c_client *client,
-			const struct i2c_device_id *dev_id)
+static int ad7414_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ad7414_data *data;
@@ -215,7 +210,7 @@ static const struct i2c_device_id ad7414_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad7414_id);
 
-static const struct of_device_id ad7414_of_match[] = {
+static const struct of_device_id __maybe_unused ad7414_of_match[] = {
 	{ .compatible = "ad,ad7414" },
 	{ },
 };
@@ -226,7 +221,7 @@ static struct i2c_driver ad7414_driver = {
 		.name	= "ad7414",
 		.of_match_table = of_match_ptr(ad7414_of_match),
 	},
-	.probe	= ad7414_probe,
+	.probe_new = ad7414_probe,
 	.id_table = ad7414_id,
 };
 

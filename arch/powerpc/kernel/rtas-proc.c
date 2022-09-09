@@ -24,11 +24,11 @@
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
 #include <linux/rtc.h>
+#include <linux/of.h>
 
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/machdep.h> /* for ppc_md */
 #include <asm/time.h>
@@ -159,12 +159,12 @@ static int poweron_open(struct inode *inode, struct file *file)
 	return single_open(file, ppc_rtas_poweron_show, NULL);
 }
 
-static const struct file_operations ppc_rtas_poweron_operations = {
-	.open		= poweron_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.write		= ppc_rtas_poweron_write,
-	.release	= single_release,
+static const struct proc_ops ppc_rtas_poweron_proc_ops = {
+	.proc_open	= poweron_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= ppc_rtas_poweron_write,
+	.proc_release	= single_release,
 };
 
 static int progress_open(struct inode *inode, struct file *file)
@@ -172,12 +172,12 @@ static int progress_open(struct inode *inode, struct file *file)
 	return single_open(file, ppc_rtas_progress_show, NULL);
 }
 
-static const struct file_operations ppc_rtas_progress_operations = {
-	.open		= progress_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.write		= ppc_rtas_progress_write,
-	.release	= single_release,
+static const struct proc_ops ppc_rtas_progress_proc_ops = {
+	.proc_open	= progress_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= ppc_rtas_progress_write,
+	.proc_release	= single_release,
 };
 
 static int clock_open(struct inode *inode, struct file *file)
@@ -185,12 +185,12 @@ static int clock_open(struct inode *inode, struct file *file)
 	return single_open(file, ppc_rtas_clock_show, NULL);
 }
 
-static const struct file_operations ppc_rtas_clock_operations = {
-	.open		= clock_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.write		= ppc_rtas_clock_write,
-	.release	= single_release,
+static const struct proc_ops ppc_rtas_clock_proc_ops = {
+	.proc_open	= clock_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= ppc_rtas_clock_write,
+	.proc_release	= single_release,
 };
 
 static int tone_freq_open(struct inode *inode, struct file *file)
@@ -198,12 +198,12 @@ static int tone_freq_open(struct inode *inode, struct file *file)
 	return single_open(file, ppc_rtas_tone_freq_show, NULL);
 }
 
-static const struct file_operations ppc_rtas_tone_freq_operations = {
-	.open		= tone_freq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.write		= ppc_rtas_tone_freq_write,
-	.release	= single_release,
+static const struct proc_ops ppc_rtas_tone_freq_proc_ops = {
+	.proc_open	= tone_freq_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= ppc_rtas_tone_freq_write,
+	.proc_release	= single_release,
 };
 
 static int tone_volume_open(struct inode *inode, struct file *file)
@@ -211,12 +211,12 @@ static int tone_volume_open(struct inode *inode, struct file *file)
 	return single_open(file, ppc_rtas_tone_volume_show, NULL);
 }
 
-static const struct file_operations ppc_rtas_tone_volume_operations = {
-	.open		= tone_volume_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.write		= ppc_rtas_tone_volume_write,
-	.release	= single_release,
+static const struct proc_ops ppc_rtas_tone_volume_proc_ops = {
+	.proc_open	= tone_volume_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_write	= ppc_rtas_tone_volume_write,
+	.proc_release	= single_release,
 };
 
 static int ppc_rtas_find_all_sensors(void);
@@ -238,17 +238,17 @@ static int __init proc_rtas_init(void)
 		return -ENODEV;
 
 	proc_create("powerpc/rtas/progress", 0644, NULL,
-		    &ppc_rtas_progress_operations);
+		    &ppc_rtas_progress_proc_ops);
 	proc_create("powerpc/rtas/clock", 0644, NULL,
-		    &ppc_rtas_clock_operations);
+		    &ppc_rtas_clock_proc_ops);
 	proc_create("powerpc/rtas/poweron", 0644, NULL,
-		    &ppc_rtas_poweron_operations);
+		    &ppc_rtas_poweron_proc_ops);
 	proc_create_single("powerpc/rtas/sensors", 0444, NULL,
 			ppc_rtas_sensors_show);
 	proc_create("powerpc/rtas/frequency", 0644, NULL,
-		    &ppc_rtas_tone_freq_operations);
+		    &ppc_rtas_tone_freq_proc_ops);
 	proc_create("powerpc/rtas/volume", 0644, NULL,
-		    &ppc_rtas_tone_volume_operations);
+		    &ppc_rtas_tone_volume_proc_ops);
 	proc_create_single("powerpc/rtas/rmo_buffer", 0400, NULL,
 			ppc_rtas_rmo_buf_show);
 	return 0;
@@ -259,7 +259,6 @@ __initcall(proc_rtas_init);
 static int parse_number(const char __user *p, size_t count, u64 *val)
 {
 	char buf[40];
-	char *end;
 
 	if (count > 39)
 		return -EINVAL;
@@ -269,11 +268,7 @@ static int parse_number(const char __user *p, size_t count, u64 *val)
 
 	buf[count] = 0;
 
-	*val = simple_strtoull(buf, &end, 10);
-	if (*end && *end != '\n')
-		return -EINVAL;
-
-	return 0;
+	return kstrtoull(buf, 10, val);
 }
 
 /* ****************************************************************** */
@@ -755,11 +750,18 @@ static int ppc_rtas_tone_volume_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-#define RMO_READ_BUF_MAX 30
-
-/* RTAS Userspace access */
+/**
+ * ppc_rtas_rmo_buf_show() - Describe RTAS-addressable region for user space.
+ *
+ * Base + size description of a range of RTAS-addressable memory set
+ * aside for user space to use as work area(s) for certain RTAS
+ * functions. User space accesses this region via /dev/mem. Apart from
+ * security policies, the kernel does not arbitrate or serialize
+ * access to this region, and user space must ensure that concurrent
+ * users do not interfere with each other.
+ */
 static int ppc_rtas_rmo_buf_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "%016lx %x\n", rtas_rmo_buf, RTAS_RMOBUF_MAX);
+	seq_printf(m, "%016lx %x\n", rtas_rmo_buf, RTAS_USER_REGION_SIZE);
 	return 0;
 }

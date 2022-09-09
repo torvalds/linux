@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  cx18 buffer queues
  *
@@ -5,16 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #define CX18_DMA_UNMAPPED	((u32) -1)
@@ -24,15 +15,15 @@
 static inline void cx18_buf_sync_for_cpu(struct cx18_stream *s,
 	struct cx18_buffer *buf)
 {
-	pci_dma_sync_single_for_cpu(s->cx->pci_dev, buf->dma_handle,
+	dma_sync_single_for_cpu(&s->cx->pci_dev->dev, buf->dma_handle,
 				s->buf_size, s->dma);
 }
 
 static inline void cx18_buf_sync_for_device(struct cx18_stream *s,
 	struct cx18_buffer *buf)
 {
-	pci_dma_sync_single_for_device(s->cx->pci_dev, buf->dma_handle,
-				s->buf_size, s->dma);
+	dma_sync_single_for_device(&s->cx->pci_dev->dev, buf->dma_handle,
+				   s->buf_size, s->dma);
 }
 
 void _cx18_mdl_sync_for_device(struct cx18_stream *s, struct cx18_mdl *mdl);

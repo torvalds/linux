@@ -10,38 +10,45 @@
   driver uses the parsed DT bus config method until this issue is
   resolved.
 
+  2020-06: g_mbus has been removed in favour of the get_mbus_config pad
+  operation which should be used to avoid parsing the remote endpoint
+  configuration.
+
 - This media driver supports inheriting V4L2 controls to the
   video capture devices, from the subdevices in the capture device's
   pipeline. The controls for each capture device are updated in the
-  link_notify callback when the pipeline is modified. It should be
-  decided whether this feature is useful enough to make it generally
-  available by exporting to v4l2-core.
+  link_notify callback when the pipeline is modified. This feature should be
+  removed, userspace should use the subdev-based userspace API instead.
 
-- After all async subdevices have been bound, v4l2_fwnode_parse_link()
-  is used to form the media links between the devices discovered in
-  the OF graph.
+- Similarly to the legacy control handling, legacy format handling where
+  formats on the video nodes are influenced by the active format of the
+  connected subdev should be removed.
 
-  While this approach allows support for arbitrary OF graphs, there
-  are some assumptions for this to work:
+- i.MX7: all of the above, since it uses the imx media core
 
-  1. If a port owned by a device in the graph has endpoint nodes, the
-     port is treated as a media pad.
+- i.MX7: use Frame Interval Monitor
 
-     This presents problems for devices that don't make this port = pad
-     assumption. Examples are SMIAPP compatible cameras which define only
-     a single output port node, but which define multiple pads owned
-     by multiple subdevices (pixel-array, binner, scaler). Or video
-     decoders (entity function MEDIA_ENT_F_ATV_DECODER), which also define
-     only a single output port node, but define multiple pads for video,
-     VBI, and audio out.
+- imx7-media-csi: Restrict the supported formats list to the SoC version.
 
-     A workaround at present is to set the port reg properties to
-     correspond to the media pad index that the port represents. A
-     possible long-term solution is to implement a subdev API that
-     maps a port id to a media pad index.
+  The imx7 CSI bridge can be configured to sample pixel components from the Rx
+  queue in single (8bpp) or double (16bpp) component modes. Image format
+  variants with different sample sizes (ie YUYV_2X8 vs YUYV_1X16) determine the
+  pixel components sampling size per each clock cycle and their packing mode
+  (see imx7_csi_configure() for details).
 
-  2. Every endpoint of a port owned by a device in the graph is treated
-     as a media link.
+  As the imx7 CSI bridge can be interfaced with different IP blocks depending on
+  the SoC model it is integrated on, the Rx queue sampling size should match
+  the size of the samples transferred by the transmitting IP block.
 
-     Which means a port must not contain mixed-use endpoints, they
-     must all refer to media links between V4L2 subdevices.
+  To avoid mis-configurations of the capture pipeline, the enumeration of the
+  supported formats should be restricted to match the pixel source transmitting
+  mode.
+
+  Example: i.MX8MM SoC integrates the CSI bridge with the Samsung CSIS CSI-2
+  receiver which operates in dual pixel sampling mode. The CSI bridge should
+  only expose the 1X16 formats variant which instructs it to operate in dual
+  pixel sampling mode. When the CSI bridge is instead integrated on an i.MX7,
+  which supports both serial and parallel input, it should expose both variants.
+
+  This currently only applies to YUYV formats, but other formats might need
+  to be handled in the same way.

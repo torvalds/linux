@@ -14,7 +14,7 @@ used by the apr service device.
 		    from DSP.
 		    example "qcom,q6asm-v2.0"
 
-= ASM DAIs (Digial Audio Interface)
+= ASM DAIs (Digital Audio Interface)
 "dais" subnode of the ASM node represents dai specific configuration
 
 - compatible:
@@ -39,9 +39,9 @@ configuration of each dai. Must contain the following properties.
 	Usage: Required for Compress offload dais
 	Value type: <u32>
 	Definition: Specifies the direction of the dai stream
-			0 for both tx and rx
-			1 for only tx (Capture/Encode)
-			2 for only rx (Playback/Decode)
+			Q6ASM_DAI_TX_RX (0) for both tx and rx
+			Q6ASM_DAI_TX (1) for only tx (Capture/Encode)
+			Q6ASM_DAI_RX (2) for only rx (Playback/Decode)
 
 - is-compress-dai:
 	Usage: Required for Compress offload dais
@@ -50,16 +50,20 @@ configuration of each dai. Must contain the following properties.
 
 
 = EXAMPLE
+#include <dt-bindings/sound/qcom,q6asm.h>
 
-q6asm@7 {
+apr-service@7 {
 	compatible = "qcom,q6asm";
 	reg = <APR_SVC_ASM>;
 	q6asmdai: dais {
 		compatible = "qcom,q6asm-dais";
+		#address-cells = <1>;
+		#size-cells = <0>;
 		#sound-dai-cells = <1>;
-		mm@0 {
+
+		dai@0 {
 			reg = <0>;
-			direction = <2>;
+			direction = <Q6ASM_DAI_RX>;
 			is-compress-dai;
 		};
 	};

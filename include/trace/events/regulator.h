@@ -70,6 +70,38 @@ DEFINE_EVENT(regulator_basic, regulator_disable_complete,
 
 );
 
+DEFINE_EVENT(regulator_basic, regulator_bypass_enable,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
+DEFINE_EVENT(regulator_basic, regulator_bypass_enable_complete,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
+DEFINE_EVENT(regulator_basic, regulator_bypass_disable,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
+DEFINE_EVENT(regulator_basic, regulator_bypass_disable_complete,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name)
+
+);
+
 /*
  * Events that take a range of numerical values, mostly for voltages
  * and so on.

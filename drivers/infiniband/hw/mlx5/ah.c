@@ -32,10 +32,28 @@
 
 #include "mlx5_ib.h"
 
-static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
-				  struct mlx5_ib_ah *ah,
-				  struct rdma_ah_attr *ah_attr)
+static __be16 mlx5_ah_get_udp_sport(const struct mlx5_ib_dev *dev,
+				  const struct rdma_ah_attr *ah_attr)
 {
+	enum ib_gid_type gid_type = ah_attr->grh.sgid_attr->gid_type;
+	__be16 sport;
+
+	if ((gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) &&
+	    (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) &&
+	    (ah_attr->grh.flow_label & IB_GRH_FLOWLABEL_MASK))
+		sport = cpu_to_be16(
+			rdma_flow_label_to_udp_sport(ah_attr->grh.flow_label));
+	else
+		sport = mlx5_get_roce_udp_sport_min(dev,
+						    ah_attr->grh.sgid_attr);
+
+	return sport;
+}
+
+static void create_ib_ah(struct mlx5_ib_dev *dev, struct mlx5_ib_ah *ah,
+			 struct rdma_ah_init_attr *init_attr)
+{
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	enum ib_gid_type gid_type;
 
 	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
@@ -52,12 +70,15 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 	ah->av.stat_rate_sl = (rdma_ah_get_static_rate(ah_attr) << 4);
 
 	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
+		if (init_attr->xmit_slave)
+			ah->xmit_port =
+				mlx5_lag_get_slave_port(dev->mdev,
+							init_attr->xmit_slave);
 		gid_type = ah_attr->grh.sgid_attr->gid_type;
 
 		memcpy(ah->av.rmac, ah_attr->roce.dmac,
 		       sizeof(ah_attr->roce.dmac));
-		ah->av.udp_sport =
-			mlx5_get_roce_udp_sport(dev, ah_attr->grh.sgid_attr);
+		ah->av.udp_sport = mlx5_ah_get_udp_sport(dev, ah_attr);
 		ah->av.stat_rate_sl |= (rdma_ah_get_sl(ah_attr) & 0x7) << 1;
 		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
 #define MLX5_ECN_ENABLED BIT(1)
@@ -67,44 +88,40 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 		ah->av.fl_mlid = rdma_ah_get_path_bits(ah_attr) & 0x7f;
 		ah->av.stat_rate_sl |= (rdma_ah_get_sl(ah_attr) & 0xf);
 	}
-
-	return &ah->ibah;
 }
 
-struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				u32 flags, struct ib_udata *udata)
+int mlx5_ib_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		      struct ib_udata *udata)
 
 {
-	struct mlx5_ib_ah *ah;
-	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
+	struct mlx5_ib_ah *ah = to_mah(ibah);
+	struct mlx5_ib_dev *dev = to_mdev(ibah->device);
 	enum rdma_ah_attr_type ah_type = ah_attr->type;
 
 	if ((ah_type == RDMA_AH_ATTR_TYPE_ROCE) &&
 	    !(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (ah_type == RDMA_AH_ATTR_TYPE_ROCE && udata) {
 		int err;
 		struct mlx5_ib_create_ah_resp resp = {};
-		u32 min_resp_len = offsetof(typeof(resp), dmac) +
-				   sizeof(resp.dmac);
+		u32 min_resp_len =
+			offsetofend(struct mlx5_ib_create_ah_resp, dmac);
 
 		if (udata->outlen < min_resp_len)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 
 		resp.response_length = min_resp_len;
 
 		memcpy(resp.dmac, ah_attr->roce.dmac, ETH_ALEN);
 		err = ib_copy_to_udata(udata, &resp, resp.response_length);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 	}
 
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
-
-	return create_ib_ah(dev, ah, ah_attr); /* never fails */
+	create_ib_ah(dev, ah, init_attr);
+	return 0;
 }
 
 int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
@@ -128,11 +145,5 @@ int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	rdma_ah_set_static_rate(ah_attr, ah->av.stat_rate_sl >> 4);
 	rdma_ah_set_sl(ah_attr, ah->av.stat_rate_sl & 0xf);
 
-	return 0;
-}
-
-int mlx5_ib_destroy_ah(struct ib_ah *ah, u32 flags)
-{
-	kfree(to_mah(ah));
 	return 0;
 }

@@ -2,7 +2,7 @@
 /*
  * DFS referral cache routines
  *
- * Copyright (c) 2018 Paulo Alcantara <palcantara@suse.de>
+ * Copyright (c) 2018-2019 Paulo Alcantara <palcantara@suse.de>
  */
 
 #ifndef _CIFS_DFS_CACHE_H
@@ -10,7 +10,10 @@
 
 #include <linux/nls.h>
 #include <linux/list.h>
+#include <linux/uuid.h>
 #include "cifsglob.h"
+
+#define DFS_CACHE_TGT_LIST_INIT(var) { .tl_numtgts = 0, .tl_list = LIST_HEAD_INIT((var).tl_list), }
 
 struct dfs_cache_tgt_list {
 	int tl_numtgts;
@@ -19,34 +22,31 @@ struct dfs_cache_tgt_list {
 
 struct dfs_cache_tgt_iterator {
 	char *it_name;
+	int it_path_consumed;
 	struct list_head it_list;
 };
 
-extern int dfs_cache_init(void);
-extern void dfs_cache_destroy(void);
-extern const struct file_operations dfscache_proc_fops;
+int dfs_cache_init(void);
+void dfs_cache_destroy(void);
+extern const struct proc_ops dfscache_proc_ops;
 
-extern int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
-			  const struct nls_table *nls_codepage, int remap,
-			  const char *path, struct dfs_info3_param *ref,
-			  struct dfs_cache_tgt_list *tgt_list);
-extern int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
-				struct dfs_cache_tgt_list *tgt_list);
-extern int dfs_cache_update_tgthint(const unsigned int xid,
-				    struct cifs_ses *ses,
-				    const struct nls_table *nls_codepage,
-				    int remap, const char *path,
-				    const struct dfs_cache_tgt_iterator *it);
-extern int
-dfs_cache_noreq_update_tgthint(const char *path,
-			       const struct dfs_cache_tgt_iterator *it);
-extern int dfs_cache_get_tgt_referral(const char *path,
-				      const struct dfs_cache_tgt_iterator *it,
-				      struct dfs_info3_param *ref);
-extern int dfs_cache_add_vol(struct smb_vol *vol, const char *fullpath);
-extern int dfs_cache_update_vol(const char *fullpath,
-				struct TCP_Server_Info *server);
-extern void dfs_cache_del_vol(const char *fullpath);
+int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses, const struct nls_table *cp,
+		   int remap, const char *path, struct dfs_info3_param *ref,
+		   struct dfs_cache_tgt_list *tgt_list);
+int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
+			 struct dfs_cache_tgt_list *tgt_list);
+int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
+			     const struct nls_table *cp, int remap, const char *path,
+			     const struct dfs_cache_tgt_iterator *it);
+int dfs_cache_noreq_update_tgthint(const char *path, const struct dfs_cache_tgt_iterator *it);
+int dfs_cache_get_tgt_referral(const char *path, const struct dfs_cache_tgt_iterator *it,
+			       struct dfs_info3_param *ref);
+int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it, char **share,
+			    char **prefix);
+void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id);
+void dfs_cache_add_refsrv_session(const uuid_t *mount_id, struct cifs_ses *ses);
+char *dfs_cache_canonical_path(const char *path, const struct nls_table *cp, int remap);
+int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb);
 
 static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,

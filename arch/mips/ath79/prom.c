@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Atheros AR71XX/AR724X/AR913X specific prom routines
  *
  *  Copyright (C) 2015 Laurent Fasnacht <l@libres.ch>
  *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -34,9 +31,4 @@ void __init prom_init(void)
 		initrd_end = initrd_start + fw_getenvl("initrd_size");
 	}
 #endif
-}
-
-void __init prom_free_prom_memory(void)
-{
-	/* We do not have to prom memory to free */
 }

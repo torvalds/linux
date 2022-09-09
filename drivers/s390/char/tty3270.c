@@ -424,8 +424,10 @@ tty3270_update(struct timer_list *t)
 			 * last output position matches the start address
 			 * of this line.
 			 */
-			if (s->string[1] == sba[0] && s->string[2] == sba[1])
-				str += 3, len -= 3;
+			if (s->string[1] == sba[0] && s->string[2] == sba[1]) {
+				str += 3;
+				len -= 3;
+			}
 			if (raw3270_request_add_data(wrq, str, len) != 0)
 				break;
 			list_del_init(&s->update);
@@ -556,8 +558,9 @@ tty3270_scroll_backward(struct kbd_data *kbd)
  * Pass input line to tty.
  */
 static void
-tty3270_read_tasklet(struct raw3270_request *rrq)
+tty3270_read_tasklet(unsigned long data)
 {
+	struct raw3270_request *rrq = (struct raw3270_request *)data;
 	static char kreset_data = TW_KR;
 	struct tty3270 *tp = container_of(rrq->view, struct tty3270, view);
 	char *input;
@@ -652,8 +655,9 @@ tty3270_issue_read(struct tty3270 *tp, int lock)
  * Hang up the tty
  */
 static void
-tty3270_hangup_tasklet(struct tty3270 *tp)
+tty3270_hangup_tasklet(unsigned long data)
 {
+	struct tty3270 *tp = (struct tty3270 *)data;
 	tty_port_tty_hangup(&tp->port, true);
 	raw3270_put_view(&tp->view);
 }
@@ -752,11 +756,9 @@ tty3270_alloc_view(void)
 
 	tty_port_init(&tp->port);
 	timer_setup(&tp->timer, tty3270_update, 0);
-	tasklet_init(&tp->readlet,
-		     (void (*)(unsigned long)) tty3270_read_tasklet,
+	tasklet_init(&tp->readlet, tty3270_read_tasklet,
 		     (unsigned long) tp->read);
-	tasklet_init(&tp->hanglet,
-		     (void (*)(unsigned long)) tty3270_hangup_tasklet,
+	tasklet_init(&tp->hanglet, tty3270_hangup_tasklet,
 		     (unsigned long) tp);
 	INIT_WORK(&tp->resize_work, tty3270_resize_work);
 
@@ -967,7 +969,6 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tty->driver_data = tp;
 		tty->winsize.ws_row = tp->view.rows - 2;
 		tty->winsize.ws_col = tp->view.cols;
-		tp->port.low_latency = 0;
 		tp->inattr = TF_INPUT;
 		goto port_install;
 	}
@@ -980,7 +981,8 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		return PTR_ERR(tp);
 
 	rc = raw3270_add_view(&tp->view, &tty3270_fn,
-			      tty->index + RAW3270_FIRSTMINOR);
+			      tty->index + RAW3270_FIRSTMINOR,
+			      RAW3270_VIEW_LOCK_BH);
 	if (rc) {
 		tty3270_free_view(tp);
 		return rc;
@@ -995,7 +997,6 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		return rc;
 	}
 
-	tp->port.low_latency = 0;
 	tty->winsize.ws_row = tp->view.rows - 2;
 	tty->winsize.ws_col = tp->view.cols;
 
@@ -1070,7 +1071,7 @@ static void tty3270_cleanup(struct tty_struct *tty)
 /*
  * We always have room.
  */
-static int
+static unsigned int
 tty3270_write_room(struct tty_struct *tty)
 {
 	return INT_MAX;
@@ -1639,7 +1640,7 @@ tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 	int i_msg, i;
 
 	spin_lock_bh(&tp->view.lock);
-	for (i_msg = 0; !tty->stopped && i_msg < count; i_msg++) {
+	for (i_msg = 0; !tty->flow.stopped && i_msg < count; i_msg++) {
 		if (tp->esc_state != 0) {
 			/* Continue escape sequence. */
 			tty3270_escape_sequence(tp, buf[i_msg]);
@@ -1753,22 +1754,6 @@ tty3270_flush_chars(struct tty_struct *tty)
 		tty3270_do_write(tp, tty, tp->char_buf, tp->char_count);
 		tp->char_count = 0;
 	}
-}
-
-/*
- * Returns the number of characters in the output buffer. This is
- * used in tty_wait_until_sent to wait until all characters have
- * appeared on the screen.
- */
-static int
-tty3270_chars_in_buffer(struct tty_struct *tty)
-{
-	return 0;
-}
-
-static void
-tty3270_flush_buffer(struct tty_struct *tty)
-{
 }
 
 /*
@@ -1891,8 +1876,6 @@ static const struct tty_operations tty3270_ops = {
 	.put_char = tty3270_put_char,
 	.flush_chars = tty3270_flush_chars,
 	.write_room = tty3270_write_room,
-	.chars_in_buffer = tty3270_chars_in_buffer,
-	.flush_buffer = tty3270_flush_buffer,
 	.throttle = tty3270_throttle,
 	.unthrottle = tty3270_unthrottle,
 	.hangup = tty3270_hangup,
@@ -1952,7 +1935,7 @@ static int __init tty3270_init(void)
 	tty_set_operations(driver, &tty3270_ops);
 	ret = tty_register_driver(driver);
 	if (ret) {
-		put_tty_driver(driver);
+		tty_driver_kref_put(driver);
 		return ret;
 	}
 	tty3270_driver = driver;
@@ -1969,7 +1952,7 @@ tty3270_exit(void)
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);
-	put_tty_driver(driver);
+	tty_driver_kref_put(driver);
 	tty3270_del_views();
 }
 

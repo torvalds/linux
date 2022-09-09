@@ -3,6 +3,8 @@
 #define __ASM_GENERIC_SHMBUF_H
 
 #include <asm/bitsperlong.h>
+#include <asm/ipcbuf.h>
+#include <asm/posix_types.h>
 
 /*
  * The shmid64_ds structure for x86 architecture.
@@ -13,9 +15,9 @@
  * everyone just ended up making identical copies without specific
  * optimizations, so we may just as well all use the same one.
  *
- * 64 bit architectures typically define a 64 bit __kernel_time_t,
- * so they do not need the first two padding words.
- * On big-endian systems, the padding is in the wrong place.
+ * 64 bit architectures use a 64-bit long time field here, while
+ * 32 bit architectures have a pair of unsigned long values.
+ * On big-endian systems, the lower half is in the wrong place.
  *
  *
  * Pad space is left for:
@@ -24,11 +26,11 @@
 
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */
-	size_t			shm_segsz;	/* size of segment (bytes) */
+	__kernel_size_t		shm_segsz;	/* size of segment (bytes) */
 #if __BITS_PER_LONG == 64
-	__kernel_time_t		shm_atime;	/* last attach time */
-	__kernel_time_t		shm_dtime;	/* last detach time */
-	__kernel_time_t		shm_ctime;	/* last change time */
+	long			shm_atime;	/* last attach time */
+	long			shm_dtime;	/* last detach time */
+	long			shm_ctime;	/* last change time */
 #else
 	unsigned long		shm_atime;	/* last attach time */
 	unsigned long		shm_atime_high;

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2011-2015, 2017, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (c) 2011-2015, 2017, 2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -24,7 +16,9 @@
 #include <linux/thermal.h>
 
 #include "../thermal_core.h"
+#include "../thermal_hwmon.h"
 
+#define QPNP_TM_REG_DIG_MAJOR		0x01
 #define QPNP_TM_REG_TYPE		0x04
 #define QPNP_TM_REG_SUBTYPE		0x05
 #define QPNP_TM_REG_STATUS		0x08
@@ -46,26 +40,30 @@
 
 #define ALARM_CTRL_FORCE_ENABLE		BIT(7)
 
-/*
- * Trip point values based on threshold control
- * 0 = {105 C, 125 C, 145 C}
- * 1 = {110 C, 130 C, 150 C}
- * 2 = {115 C, 135 C, 155 C}
- * 3 = {120 C, 140 C, 160 C}
-*/
-#define TEMP_STAGE_STEP			20000	/* Stage step: 20.000 C */
-#define TEMP_STAGE_HYSTERESIS		2000
+#define THRESH_COUNT			4
+#define STAGE_COUNT			3
 
-#define TEMP_THRESH_MIN			105000	/* Threshold Min: 105 C */
-#define TEMP_THRESH_STEP		5000	/* Threshold step: 5 C */
+/* Over-temperature trip point values in mC */
+static const long temp_map_gen1[THRESH_COUNT][STAGE_COUNT] = {
+	{ 105000, 125000, 145000 },
+	{ 110000, 130000, 150000 },
+	{ 115000, 135000, 155000 },
+	{ 120000, 140000, 160000 },
+};
+
+static const long temp_map_gen2_v1[THRESH_COUNT][STAGE_COUNT] = {
+	{  90000, 110000, 140000 },
+	{  95000, 115000, 145000 },
+	{ 100000, 120000, 150000 },
+	{ 105000, 125000, 155000 },
+};
+
+#define TEMP_THRESH_STEP		5000 /* Threshold step: 5 C */
 
 #define THRESH_MIN			0
 #define THRESH_MAX			3
 
-/* Stage 2 Threshold Min: 125 C */
-#define STAGE2_THRESHOLD_MIN		125000
-/* Stage 2 Threshold Max: 140 C */
-#define STAGE2_THRESHOLD_MAX		140000
+#define TEMP_STAGE_HYSTERESIS		2000
 
 /* Temperature in Milli Celsius reported during stage 0 if no ADC is present */
 #define DEFAULT_TEMP			37000
@@ -85,6 +83,7 @@ struct qpnp_tm_chip {
 	bool				initialized;
 
 	struct iio_channel		*adc;
+	const long			(*temp_map)[THRESH_COUNT][STAGE_COUNT];
 };
 
 /* This array maps from GEN2 alarm state to GEN1 alarm stage */
@@ -106,6 +105,23 @@ static int qpnp_tm_read(struct qpnp_tm_chip *chip, u16 addr, u8 *data)
 static int qpnp_tm_write(struct qpnp_tm_chip *chip, u16 addr, u8 data)
 {
 	return regmap_write(chip->map, chip->base + addr, data);
+}
+
+/**
+ * qpnp_tm_decode_temp() - return temperature in mC corresponding to the
+ *		specified over-temperature stage
+ * @chip:		Pointer to the qpnp_tm chip
+ * @stage:		Over-temperature stage
+ *
+ * Return: temperature in mC
+ */
+static long qpnp_tm_decode_temp(struct qpnp_tm_chip *chip, unsigned int stage)
+{
+	if (!chip->temp_map || chip->thresh >= THRESH_COUNT || stage == 0 ||
+	    stage > STAGE_COUNT)
+		return 0;
+
+	return (*chip->temp_map)[chip->thresh][stage - 1];
 }
 
 /**
@@ -157,14 +173,12 @@ static int qpnp_tm_update_temp_no_adc(struct qpnp_tm_chip *chip)
 
 	if (stage_new > stage_old) {
 		/* increasing stage, use lower bound */
-		chip->temp = (stage_new - 1) * TEMP_STAGE_STEP +
-			     chip->thresh * TEMP_THRESH_STEP +
-			     TEMP_STAGE_HYSTERESIS + TEMP_THRESH_MIN;
+		chip->temp = qpnp_tm_decode_temp(chip, stage_new)
+				+ TEMP_STAGE_HYSTERESIS;
 	} else if (stage_new < stage_old) {
 		/* decreasing stage, use upper bound */
-		chip->temp = stage_new * TEMP_STAGE_STEP +
-			     chip->thresh * TEMP_THRESH_STEP -
-			     TEMP_STAGE_HYSTERESIS + TEMP_THRESH_MIN;
+		chip->temp = qpnp_tm_decode_temp(chip, stage_new + 1)
+				- TEMP_STAGE_HYSTERESIS;
 	}
 
 	chip->stage = stage;
@@ -199,7 +213,7 @@ static int qpnp_tm_get_temp(void *data, int *temp)
 		chip->temp = mili_celsius;
 	}
 
-	*temp = chip->temp < 0 ? 0 : chip->temp;
+	*temp = chip->temp;
 
 	return 0;
 }
@@ -207,26 +221,28 @@ static int qpnp_tm_get_temp(void *data, int *temp)
 static int qpnp_tm_update_critical_trip_temp(struct qpnp_tm_chip *chip,
 					     int temp)
 {
-	u8 reg;
+	long stage2_threshold_min = (*chip->temp_map)[THRESH_MIN][1];
+	long stage2_threshold_max = (*chip->temp_map)[THRESH_MAX][1];
 	bool disable_s2_shutdown = false;
+	u8 reg;
 
 	WARN_ON(!mutex_is_locked(&chip->lock));
 
 	/*
 	 * Default: S2 and S3 shutdown enabled, thresholds at
-	 * 105C/125C/145C, monitoring at 25Hz
+	 * lowest threshold set, monitoring at 25Hz
 	 */
 	reg = SHUTDOWN_CTRL1_RATE_25HZ;
 
 	if (temp == THERMAL_TEMP_INVALID ||
-	    temp < STAGE2_THRESHOLD_MIN) {
+	    temp < stage2_threshold_min) {
 		chip->thresh = THRESH_MIN;
 		goto skip;
 	}
 
-	if (temp <= STAGE2_THRESHOLD_MAX) {
+	if (temp <= stage2_threshold_max) {
 		chip->thresh = THRESH_MAX -
-			((STAGE2_THRESHOLD_MAX - temp) /
+			((stage2_threshold_max - temp) /
 			 TEMP_THRESH_STEP);
 		disable_s2_shutdown = true;
 	} else {
@@ -334,9 +350,7 @@ static int qpnp_tm_init(struct qpnp_tm_chip *chip)
 		? chip->stage : alarm_state_map[chip->stage];
 
 	if (stage)
-		chip->temp = chip->thresh * TEMP_THRESH_STEP +
-			     (stage - 1) * TEMP_STAGE_STEP +
-			     TEMP_THRESH_MIN;
+		chip->temp = qpnp_tm_decode_temp(chip, stage);
 
 	crit_temp = qpnp_tm_get_critical_trip_temp(chip);
 	ret = qpnp_tm_update_critical_trip_temp(chip, crit_temp);
@@ -358,7 +372,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 {
 	struct qpnp_tm_chip *chip;
 	struct device_node *node;
-	u8 type, subtype;
+	u8 type, subtype, dig_major;
 	u32 res;
 	int ret, irq;
 
@@ -408,6 +422,12 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = qpnp_tm_read(chip, QPNP_TM_REG_DIG_MAJOR, &dig_major);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "could not read dig_major\n");
+		return ret;
+	}
+
 	if (type != QPNP_TM_TYPE || (subtype != QPNP_TM_SUBTYPE_GEN1
 				     && subtype != QPNP_TM_SUBTYPE_GEN2)) {
 		dev_err(&pdev->dev, "invalid type 0x%02x or subtype 0x%02x\n",
@@ -416,6 +436,10 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	}
 
 	chip->subtype = subtype;
+	if (subtype == QPNP_TM_SUBTYPE_GEN2 && dig_major >= 1)
+		chip->temp_map = &temp_map_gen2_v1;
+	else
+		chip->temp_map = &temp_map_gen1;
 
 	/*
 	 * Register the sensor before initializing the hardware to be able to
@@ -434,6 +458,10 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "init failed\n");
 		return ret;
 	}
+
+	if (devm_thermal_add_hwmon_sysfs(chip->tz_dev))
+		dev_warn(&pdev->dev,
+			 "Failed to add hwmon sysfs attributes\n");
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, qpnp_tm_isr,
 					IRQF_ONESHOT, node->name, chip);

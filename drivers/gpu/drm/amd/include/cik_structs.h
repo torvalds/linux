@@ -282,8 +282,7 @@ struct cik_sdma_rlc_registers {
 	uint32_t reserved_123;
 	uint32_t reserved_124;
 	uint32_t reserved_125;
-	uint32_t reserved_126;
-	uint32_t reserved_127;
+	/* reserved_126,127: repurposed for driver-internal use */
 	uint32_t sdma_engine_id;
 	uint32_t sdma_queue_id;
 };

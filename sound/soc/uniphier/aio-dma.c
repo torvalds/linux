@@ -93,7 +93,8 @@ static irqreturn_t aiodma_irq(int irq, void *p)
 	return ret;
 }
 
-static int uniphier_aiodma_open(struct snd_pcm_substream *substream)
+static int uniphier_aiodma_open(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -103,28 +104,12 @@ static int uniphier_aiodma_open(struct snd_pcm_substream *substream)
 		SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256);
 }
 
-static int uniphier_aiodma_hw_params(struct snd_pcm_substream *substream,
-				     struct snd_pcm_hw_params *params)
-{
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-	substream->runtime->dma_bytes = params_buffer_bytes(params);
-
-	return 0;
-}
-
-static int uniphier_aiodma_hw_free(struct snd_pcm_substream *substream)
-{
-	snd_pcm_set_runtime_buffer(substream, NULL);
-	substream->runtime->dma_bytes = 0;
-
-	return 0;
-}
-
-static int uniphier_aiodma_prepare(struct snd_pcm_substream *substream)
+static int uniphier_aiodma_prepare(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct uniphier_aio *aio = uniphier_priv(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct uniphier_aio *aio = uniphier_priv(asoc_rtd_to_cpu(rtd, 0));
 	struct uniphier_aio_sub *sub = &aio->sub[substream->stream];
 	int bytes = runtime->period_size *
 		runtime->channels * samples_to_bytes(runtime, 1);
@@ -146,11 +131,12 @@ static int uniphier_aiodma_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int uniphier_aiodma_trigger(struct snd_pcm_substream *substream, int cmd)
+static int uniphier_aiodma_trigger(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct uniphier_aio *aio = uniphier_priv(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct uniphier_aio *aio = uniphier_priv(asoc_rtd_to_cpu(rtd, 0));
 	struct uniphier_aio_sub *sub = &aio->sub[substream->stream];
 	struct device *dev = &aio->chip->pdev->dev;
 	int bytes = runtime->period_size *
@@ -181,11 +167,12 @@ static int uniphier_aiodma_trigger(struct snd_pcm_substream *substream, int cmd)
 }
 
 static snd_pcm_uframes_t uniphier_aiodma_pointer(
+					struct snd_soc_component *component,
 					struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct uniphier_aio *aio = uniphier_priv(rtd->cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct uniphier_aio *aio = uniphier_priv(asoc_rtd_to_cpu(rtd, 0));
 	struct uniphier_aio_sub *sub = &aio->sub[substream->stream];
 	int bytes = runtime->period_size *
 		runtime->channels * samples_to_bytes(runtime, 1);
@@ -204,28 +191,19 @@ static snd_pcm_uframes_t uniphier_aiodma_pointer(
 	return pos;
 }
 
-static int uniphier_aiodma_mmap(struct snd_pcm_substream *substream,
+static int uniphier_aiodma_mmap(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream,
 				struct vm_area_struct *vma)
 {
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	return remap_pfn_range(vma, vma->vm_start,
-			       substream->dma_buffer.addr >> PAGE_SHIFT,
+			       substream->runtime->dma_addr >> PAGE_SHIFT,
 			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-static const struct snd_pcm_ops uniphier_aiodma_ops = {
-	.open      = uniphier_aiodma_open,
-	.ioctl     = snd_pcm_lib_ioctl,
-	.hw_params = uniphier_aiodma_hw_params,
-	.hw_free   = uniphier_aiodma_hw_free,
-	.prepare   = uniphier_aiodma_prepare,
-	.trigger   = uniphier_aiodma_trigger,
-	.pointer   = uniphier_aiodma_pointer,
-	.mmap      = uniphier_aiodma_mmap,
-};
-
-static int uniphier_aiodma_new(struct snd_soc_pcm_runtime *rtd)
+static int uniphier_aiodma_new(struct snd_soc_component *component,
+			       struct snd_soc_pcm_runtime *rtd)
 {
 	struct device *dev = rtd->card->snd_card->dev;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -235,22 +213,21 @@ static int uniphier_aiodma_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	return snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_set_managed_buffer_all(pcm,
 		SNDRV_DMA_TYPE_DEV, dev,
 		uniphier_aiodma_hw.buffer_bytes_max,
 		uniphier_aiodma_hw.buffer_bytes_max);
-}
-
-static void uniphier_aiodma_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
+	return 0;
 }
 
 static const struct snd_soc_component_driver uniphier_soc_platform = {
-	.pcm_new   = uniphier_aiodma_new,
-	.pcm_free  = uniphier_aiodma_free,
-	.ops       = &uniphier_aiodma_ops,
-	.compr_ops = &uniphier_aio_compr_ops,
+	.open		= uniphier_aiodma_open,
+	.prepare	= uniphier_aiodma_prepare,
+	.trigger	= uniphier_aiodma_trigger,
+	.pointer	= uniphier_aiodma_pointer,
+	.mmap		= uniphier_aiodma_mmap,
+	.pcm_construct	= uniphier_aiodma_new,
+	.compress_ops	= &uniphier_aio_compress_ops,
 };
 
 static const struct regmap_config aiodma_regmap_config = {
@@ -275,12 +252,10 @@ int uniphier_aiodma_soc_register_platform(struct platform_device *pdev)
 {
 	struct uniphier_aio_chip *chip = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	void __iomem *preg;
 	int irq, ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	preg = devm_ioremap_resource(dev, res);
+	preg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(preg))
 		return PTR_ERR(preg);
 
@@ -290,10 +265,8 @@ int uniphier_aiodma_soc_register_platform(struct platform_device *pdev)
 		return PTR_ERR(chip->regmap);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Could not get irq.\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(dev, irq, aiodma_irq,
 			       IRQF_SHARED, dev_name(dev), pdev);

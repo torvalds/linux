@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * APM X-Gene SLIMpro MailBox Driver
  *
  * Copyright (c) 2015, Applied Micro Circuits Corporation
  * Author: Feng Kan fkan@apm.com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 #include <linux/acpi.h>
 #include <linux/delay.h>
@@ -64,10 +51,10 @@ struct slimpro_mbox_chan {
 /**
  * X-Gene SlimPRO Mailbox controller data
  *
- * X-Gene SlimPRO Mailbox controller has 8 commnunication channels.
- * Each channel has a separate IRQ number assgined to it.
+ * X-Gene SlimPRO Mailbox controller has 8 communication channels.
+ * Each channel has a separate IRQ number assigned to it.
  *
- * @mb_ctrl:	Representation of the commnunication channel controller
+ * @mb_ctrl:	Representation of the communication channel controller
  * @mc:		Array of SlimPRO mailbox channels of the controller
  * @chans:	Array of mailbox communication channels
  *
@@ -183,7 +170,6 @@ static const struct mbox_chan_ops slimpro_mbox_ops = {
 static int slimpro_mbox_probe(struct platform_device *pdev)
 {
 	struct slimpro_mbox *ctx;
-	struct resource *regs;
 	void __iomem *mb_base;
 	int rc;
 	int i;
@@ -194,8 +180,7 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mb_base = devm_ioremap_resource(&pdev->dev, regs);
+	mb_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mb_base))
 		return PTR_ERR(mb_base);
 

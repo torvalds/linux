@@ -7,9 +7,11 @@
  */
 
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/nhpoly1305.h>
 #include <linux/module.h>
-#include <asm/fpu/api.h>
+#include <linux/sizes.h>
+#include <asm/simd.h>
 
 asmlinkage void nh_avx2(const u32 *key, const u8 *message, size_t message_len,
 			u8 hash[NH_HASH_BYTES]);
@@ -24,11 +26,11 @@ static void _nh_avx2(const u32 *key, const u8 *message, size_t message_len,
 static int nhpoly1305_avx2_update(struct shash_desc *desc,
 				  const u8 *src, unsigned int srclen)
 {
-	if (srclen < 64 || !irq_fpu_usable())
+	if (srclen < 64 || !crypto_simd_usable())
 		return crypto_nhpoly1305_update(desc, src, srclen);
 
 	do {
-		unsigned int n = min_t(unsigned int, srclen, PAGE_SIZE);
+		unsigned int n = min_t(unsigned int, srclen, SZ_4K);
 
 		kernel_fpu_begin();
 		crypto_nhpoly1305_update_helper(desc, src, n, _nh_avx2);

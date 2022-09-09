@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -232,7 +233,7 @@ struct crat_subtype_ccompute {
 #define CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT	(1 << 2)
 #define CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT	(1 << 3)
 #define CRAT_IOLINK_FLAGS_NO_PEER_TO_PEER_DMA	(1 << 4)
-#define CRAT_IOLINK_FLAGS_BI_DIRECTIONAL 	(1 << 31)
+#define CRAT_IOLINK_FLAGS_BI_DIRECTIONAL	(1 << 31)
 #define CRAT_IOLINK_FLAGS_RESERVED_MASK		0x7fffffe0
 
 /*
@@ -274,7 +275,8 @@ struct crat_subtype_iolink {
 	uint32_t	minimum_bandwidth_mbs;
 	uint32_t	maximum_bandwidth_mbs;
 	uint32_t	recommended_transfer_size;
-	uint8_t		reserved2[CRAT_IOLINK_RESERVED_LENGTH];
+	uint8_t		reserved2[CRAT_IOLINK_RESERVED_LENGTH - 1];
+	uint8_t		num_hops_xgmi;
 };
 
 /*

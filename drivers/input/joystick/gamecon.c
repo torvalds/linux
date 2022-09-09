@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NES, SNES, N64, MultiSystem, PSX gamepad driver for Linux
  *
@@ -11,19 +12,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -497,7 +485,7 @@ static void gc_multi_process_packet(struct gc *gc)
 		switch (pad->type) {
 		case GC_MULTI2:
 			input_report_key(dev, BTN_THUMB, s & data[5]);
-			/* fall through */
+			fallthrough;
 
 		case GC_MULTI:
 			input_report_abs(dev, ABS_X,
@@ -650,7 +638,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 
 		input_report_key(dev, BTN_THUMBL, ~data[0] & 0x04);
 		input_report_key(dev, BTN_THUMBR, ~data[0] & 0x02);
-		/* fall through */
+		fallthrough;
 
 	case GC_PSX_NEGCON:
 	case GC_PSX_ANALOG:
@@ -884,7 +872,8 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	case GC_SNES:
 		for (i = 4; i < 8; i++)
 			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
-		/* fall through */
+		fallthrough;
+
 	case GC_NES:
 		for (i = 0; i < 4; i++)
 			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
@@ -892,10 +881,10 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 	case GC_MULTI2:
 		input_set_capability(input_dev, EV_KEY, BTN_THUMB);
-		/* fall through */
+		fallthrough;
+
 	case GC_MULTI:
 		input_set_capability(input_dev, EV_KEY, BTN_TRIGGER);
-		/* fall through */
 		break;
 
 	case GC_PSX:

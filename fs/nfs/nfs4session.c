@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/nfs/nfs4session.c
  *
@@ -55,7 +56,7 @@ static void nfs4_shrink_slot_table(struct nfs4_slot_table  *tbl, u32 newsize)
 
 /**
  * nfs4_slot_tbl_drain_complete - wake waiters when drain is complete
- * @tbl - controlling slot table
+ * @tbl: controlling slot table
  *
  */
 void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl)
@@ -110,6 +111,8 @@ static struct nfs4_slot *nfs4_new_slot(struct nfs4_slot_table  *tbl,
 		slot->table = tbl;
 		slot->slot_nr = slotid;
 		slot->seq_nr = seq_init;
+		slot->seq_nr_highest_sent = seq_init;
+		slot->seq_nr_last_acked = seq_init - 1;
 	}
 	return slot;
 }
@@ -276,7 +279,8 @@ static void nfs4_reset_slot_table(struct nfs4_slot_table *tbl,
 	p = &tbl->slots;
 	while (*p) {
 		(*p)->seq_nr = ivalue;
-		(*p)->interrupted = 0;
+		(*p)->seq_nr_highest_sent = ivalue;
+		(*p)->seq_nr_last_acked = ivalue - 1;
 		p = &(*p)->next;
 	}
 	tbl->highest_used_slotid = NFS4_NO_SLOT;
@@ -507,12 +511,16 @@ void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 		struct nfs4_slot *slot,
 		struct nfs4_sequence_res *res)
 {
+	u32 target_highest_slotid = min(res->sr_target_highest_slotid,
+					NFS4_MAX_SLOTID);
+	u32 highest_slotid = min(res->sr_highest_slotid, NFS4_MAX_SLOTID);
+
 	spin_lock(&tbl->slot_tbl_lock);
-	if (!nfs41_is_outlier_target_slotid(tbl, res->sr_target_highest_slotid))
-		nfs41_set_target_slotid_locked(tbl, res->sr_target_highest_slotid);
+	if (!nfs41_is_outlier_target_slotid(tbl, target_highest_slotid))
+		nfs41_set_target_slotid_locked(tbl, target_highest_slotid);
 	if (tbl->generation == slot->generation)
-		nfs41_set_server_slotid_locked(tbl, res->sr_highest_slotid);
-	nfs41_set_max_slotid_locked(tbl, res->sr_target_highest_slotid);
+		nfs41_set_server_slotid_locked(tbl, highest_slotid);
+	nfs41_set_max_slotid_locked(tbl, target_highest_slotid);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 

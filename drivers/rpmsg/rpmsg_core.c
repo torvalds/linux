@@ -20,6 +20,53 @@
 
 #include "rpmsg_internal.h"
 
+struct class *rpmsg_class;
+EXPORT_SYMBOL(rpmsg_class);
+
+/**
+ * rpmsg_create_channel() - create a new rpmsg channel
+ * using its name and address info.
+ * @rpdev: rpmsg device
+ * @chinfo: channel_info to bind
+ *
+ * Return: a pointer to the new rpmsg device on success, or NULL on error.
+ */
+struct rpmsg_device *rpmsg_create_channel(struct rpmsg_device *rpdev,
+					  struct rpmsg_channel_info *chinfo)
+{
+	if (WARN_ON(!rpdev))
+		return NULL;
+	if (!rpdev->ops || !rpdev->ops->create_channel) {
+		dev_err(&rpdev->dev, "no create_channel ops found\n");
+		return NULL;
+	}
+
+	return rpdev->ops->create_channel(rpdev, chinfo);
+}
+EXPORT_SYMBOL(rpmsg_create_channel);
+
+/**
+ * rpmsg_release_channel() - release a rpmsg channel
+ * using its name and address info.
+ * @rpdev: rpmsg device
+ * @chinfo: channel_info to bind
+ *
+ * Return: 0 on success or an appropriate error value.
+ */
+int rpmsg_release_channel(struct rpmsg_device *rpdev,
+			  struct rpmsg_channel_info *chinfo)
+{
+	if (WARN_ON(!rpdev))
+		return -EINVAL;
+	if (!rpdev->ops || !rpdev->ops->release_channel) {
+		dev_err(&rpdev->dev, "no release_channel ops found\n");
+		return -ENXIO;
+	}
+
+	return rpdev->ops->release_channel(rpdev, chinfo);
+}
+EXPORT_SYMBOL(rpmsg_release_channel);
+
 /**
  * rpmsg_create_ept() - create a new rpmsg_endpoint
  * @rpdev: rpmsg channel device
@@ -46,7 +93,7 @@
  * equals to the src address of their rpmsg channel), the driver's handler
  * is invoked to process it.
  *
- * That said, more complicated drivers might do need to allocate
+ * That said, more complicated drivers might need to allocate
  * additional rpmsg addresses, and bind them to different rx callbacks.
  * To accomplish that, those drivers need to call this function.
  *
@@ -58,7 +105,7 @@
  * dynamically assign them an available rpmsg address (drivers should have
  * a very good reason why not to always use RPMSG_ADDR_ANY here).
  *
- * Returns a pointer to the endpoint on success, or NULL on error.
+ * Return: a pointer to the endpoint on success, or NULL on error.
  */
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_device *rpdev,
 					rpmsg_rx_cb_t cb, void *priv,
@@ -81,7 +128,7 @@ EXPORT_SYMBOL(rpmsg_create_ept);
  */
 void rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
 {
-	if (ept)
+	if (ept && ept->ops)
 		ept->ops->destroy_ept(ept);
 }
 EXPORT_SYMBOL(rpmsg_destroy_ept);
@@ -102,7 +149,7 @@ EXPORT_SYMBOL(rpmsg_destroy_ept);
  *
  * Can only be called from process context (for now).
  *
- * Returns 0 on success and an appropriate error value on failure.
+ * Return: 0 on success and an appropriate error value on failure.
  */
 int rpmsg_send(struct rpmsg_endpoint *ept, void *data, int len)
 {
@@ -131,7 +178,7 @@ EXPORT_SYMBOL(rpmsg_send);
  *
  * Can only be called from process context (for now).
  *
- * Returns 0 on success and an appropriate error value on failure.
+ * Return: 0 on success and an appropriate error value on failure.
  */
 int rpmsg_sendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 {
@@ -162,7 +209,7 @@ EXPORT_SYMBOL(rpmsg_sendto);
  *
  * Can only be called from process context (for now).
  *
- * Returns 0 on success and an appropriate error value on failure.
+ * Return: 0 on success and an appropriate error value on failure.
  */
 int rpmsg_send_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			  void *data, int len)
@@ -177,7 +224,7 @@ int rpmsg_send_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 EXPORT_SYMBOL(rpmsg_send_offchannel);
 
 /**
- * rpmsg_send() - send a message across to the remote processor
+ * rpmsg_trysend() - send a message across to the remote processor
  * @ept: the rpmsg endpoint
  * @data: payload of message
  * @len: length of payload
@@ -191,7 +238,7 @@ EXPORT_SYMBOL(rpmsg_send_offchannel);
  *
  * Can only be called from process context (for now).
  *
- * Returns 0 on success and an appropriate error value on failure.
+ * Return: 0 on success and an appropriate error value on failure.
  */
 int rpmsg_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 {
@@ -205,7 +252,7 @@ int rpmsg_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 EXPORT_SYMBOL(rpmsg_trysend);
 
 /**
- * rpmsg_sendto() - send a message across to the remote processor, specify dst
+ * rpmsg_trysendto() - send a message across to the remote processor, specify dst
  * @ept: the rpmsg endpoint
  * @data: payload of message
  * @len: length of payload
@@ -219,7 +266,7 @@ EXPORT_SYMBOL(rpmsg_trysend);
  *
  * Can only be called from process context (for now).
  *
- * Returns 0 on success and an appropriate error value on failure.
+ * Return: 0 on success and an appropriate error value on failure.
  */
 int rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 {
@@ -238,7 +285,7 @@ EXPORT_SYMBOL(rpmsg_trysendto);
  * @filp:	file for poll_wait()
  * @wait:	poll_table for poll_wait()
  *
- * Returns mask representing the current state of the endpoint's send buffers
+ * Return: mask representing the current state of the endpoint's send buffers
  */
 __poll_t rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
 			poll_table *wait)
@@ -253,7 +300,7 @@ __poll_t rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
 EXPORT_SYMBOL(rpmsg_poll);
 
 /**
- * rpmsg_send_offchannel() - send a message using explicit src/dst addresses
+ * rpmsg_trysend_offchannel() - send a message using explicit src/dst addresses
  * @ept: the rpmsg endpoint
  * @src: source address
  * @dst: destination address
@@ -269,7 +316,7 @@ EXPORT_SYMBOL(rpmsg_poll);
  *
  * Can only be called from process context (for now).
  *
- * Returns 0 on success and an appropriate error value on failure.
+ * Return: 0 on success and an appropriate error value on failure.
  */
 int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			     void *data, int len)
@@ -283,8 +330,29 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 }
 EXPORT_SYMBOL(rpmsg_trysend_offchannel);
 
+/**
+ * rpmsg_get_mtu() - get maximum transmission buffer size for sending message.
+ * @ept: the rpmsg endpoint
+ *
+ * This function returns maximum buffer size available for a single outgoing message.
+ *
+ * Return: the maximum transmission size on success and an appropriate error
+ * value on failure.
+ */
+
+ssize_t rpmsg_get_mtu(struct rpmsg_endpoint *ept)
+{
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->get_mtu)
+		return -ENOTSUPP;
+
+	return ept->ops->get_mtu(ept);
+}
+EXPORT_SYMBOL(rpmsg_get_mtu);
+
 /*
- * match an rpmsg channel with a channel info struct.
+ * match a rpmsg channel with a channel info struct.
  * this is used to make sure we're not creating rpmsg devices for channels
  * that already exist.
  */
@@ -332,7 +400,8 @@ field##_store(struct device *dev, struct device_attribute *attr,	\
 	      const char *buf, size_t sz)				\
 {									\
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);		\
-	char *new, *old;						\
+	const char *old;						\
+	char *new;							\
 									\
 	new = kstrndup(buf, sz, GFP_KERNEL);				\
 	if (!new)							\
@@ -415,8 +484,10 @@ static int rpmsg_dev_match(struct device *dev, struct device_driver *drv)
 
 	if (ids)
 		for (i = 0; ids[i].name[0]; i++)
-			if (rpmsg_id_match(rpdev, &ids[i]))
+			if (rpmsg_id_match(rpdev, &ids[i])) {
+				rpdev->id.driver_data = ids[i].driver_data;
 				return 1;
+			}
 
 	return of_driver_match_device(dev, drv);
 }
@@ -473,34 +544,44 @@ static int rpmsg_dev_probe(struct device *dev)
 	err = rpdrv->probe(rpdev);
 	if (err) {
 		dev_err(dev, "%s: failed: %d\n", __func__, err);
-		if (ept)
-			rpmsg_destroy_ept(ept);
-		goto out;
+		goto destroy_ept;
 	}
 
-	if (ept && rpdev->ops->announce_create)
+	if (ept && rpdev->ops->announce_create) {
 		err = rpdev->ops->announce_create(rpdev);
+		if (err) {
+			dev_err(dev, "failed to announce creation\n");
+			goto remove_rpdev;
+		}
+	}
+
+	return 0;
+
+remove_rpdev:
+	if (rpdrv->remove)
+		rpdrv->remove(rpdev);
+destroy_ept:
+	if (ept)
+		rpmsg_destroy_ept(ept);
 out:
 	return err;
 }
 
-static int rpmsg_dev_remove(struct device *dev)
+static void rpmsg_dev_remove(struct device *dev)
 {
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
-	int err = 0;
 
 	if (rpdev->ops->announce_destroy)
-		err = rpdev->ops->announce_destroy(rpdev);
+		rpdev->ops->announce_destroy(rpdev);
 
-	rpdrv->remove(rpdev);
+	if (rpdrv->remove)
+		rpdrv->remove(rpdev);
 
 	dev_pm_domain_detach(dev, true);
 
 	if (rpdev->ept)
 		rpmsg_destroy_ept(rpdev->ept);
-
-	return err;
 }
 
 static struct bus_type rpmsg_bus = {
@@ -512,23 +593,51 @@ static struct bus_type rpmsg_bus = {
 	.remove		= rpmsg_dev_remove,
 };
 
-int rpmsg_register_device(struct rpmsg_device *rpdev)
+/*
+ * A helper for registering rpmsg device with driver override and name.
+ * Drivers should not be using it, but instead rpmsg_register_device().
+ */
+int rpmsg_register_device_override(struct rpmsg_device *rpdev,
+				   const char *driver_override)
 {
 	struct device *dev = &rpdev->dev;
 	int ret;
 
-	dev_set_name(&rpdev->dev, "%s.%s.%d.%d", dev_name(dev->parent),
+	if (driver_override)
+		strscpy_pad(rpdev->id.name, driver_override, RPMSG_NAME_SIZE);
+
+	dev_set_name(dev, "%s.%s.%d.%d", dev_name(dev->parent),
 		     rpdev->id.name, rpdev->src, rpdev->dst);
 
-	rpdev->dev.bus = &rpmsg_bus;
+	dev->bus = &rpmsg_bus;
 
-	ret = device_register(&rpdev->dev);
+	device_initialize(dev);
+	if (driver_override) {
+		ret = driver_set_override(dev, &rpdev->driver_override,
+					  driver_override,
+					  strlen(driver_override));
+		if (ret) {
+			dev_err(dev, "device_set_override failed: %d\n", ret);
+			put_device(dev);
+			return ret;
+		}
+	}
+
+	ret = device_add(dev);
 	if (ret) {
-		dev_err(dev, "device_register failed: %d\n", ret);
-		put_device(&rpdev->dev);
+		dev_err(dev, "device_add failed: %d\n", ret);
+		kfree(rpdev->driver_override);
+		rpdev->driver_override = NULL;
+		put_device(dev);
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(rpmsg_register_device_override);
+
+int rpmsg_register_device(struct rpmsg_device *rpdev)
+{
+	return rpmsg_register_device_override(rpdev, NULL);
 }
 EXPORT_SYMBOL(rpmsg_register_device);
 
@@ -558,7 +667,7 @@ EXPORT_SYMBOL(rpmsg_unregister_device);
  * @rpdrv: pointer to a struct rpmsg_driver
  * @owner: owning module/driver
  *
- * Returns 0 on success, and an appropriate error value on failure.
+ * Return: 0 on success, and an appropriate error value on failure.
  */
 int __register_rpmsg_driver(struct rpmsg_driver *rpdrv, struct module *owner)
 {
@@ -572,7 +681,7 @@ EXPORT_SYMBOL(__register_rpmsg_driver);
  * unregister_rpmsg_driver() - unregister an rpmsg driver from the rpmsg bus
  * @rpdrv: pointer to a struct rpmsg_driver
  *
- * Returns 0 on success, and an appropriate error value on failure.
+ * Return: 0 on success, and an appropriate error value on failure.
  */
 void unregister_rpmsg_driver(struct rpmsg_driver *rpdrv)
 {
@@ -585,10 +694,17 @@ static int __init rpmsg_init(void)
 {
 	int ret;
 
-	ret = bus_register(&rpmsg_bus);
-	if (ret)
-		pr_err("failed to register rpmsg bus: %d\n", ret);
+	rpmsg_class = class_create(THIS_MODULE, "rpmsg");
+	if (IS_ERR(rpmsg_class)) {
+		pr_err("failed to create rpmsg class\n");
+		return PTR_ERR(rpmsg_class);
+	}
 
+	ret = bus_register(&rpmsg_bus);
+	if (ret) {
+		pr_err("failed to register rpmsg bus: %d\n", ret);
+		class_destroy(rpmsg_class);
+	}
 	return ret;
 }
 postcore_initcall(rpmsg_init);
@@ -596,6 +712,7 @@ postcore_initcall(rpmsg_init);
 static void __exit rpmsg_fini(void)
 {
 	bus_unregister(&rpmsg_bus);
+	class_destroy(rpmsg_class);
 }
 module_exit(rpmsg_fini);
 

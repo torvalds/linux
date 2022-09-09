@@ -26,8 +26,6 @@
 
 #include <subdev/gpio.h>
 
-#include <subdev/gpio.h>
-
 static void
 nv04_bus_intr(struct nvkm_bus *bus)
 {
@@ -70,7 +68,8 @@ nv04_bus = {
 };
 
 int
-nv04_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+nv04_bus_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	     struct nvkm_bus **pbus)
 {
-	return nvkm_bus_new_(&nv04_bus, device, index, pbus);
+	return nvkm_bus_new_(&nv04_bus, device, type, inst, pbus);
 }

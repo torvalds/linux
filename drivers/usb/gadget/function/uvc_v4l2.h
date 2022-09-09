@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	uvc_v4l2.h  --  USB Video Class Gadget driver
  *
@@ -7,7 +7,7 @@
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *		Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+ *		Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 
 #ifndef __UVC_V4L2_H__

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "util/map_symbol.h"
 #include "util/mem-events.h"
 #include "util/symbol.h"
 #include "linux/perf_event.h"
@@ -21,7 +23,7 @@ static int check(union perf_mem_data_src data_src,
 	return 0;
 }
 
-int test__mem(struct test *text __maybe_unused, int subtest __maybe_unused)
+static int test__mem(struct test_suite *text __maybe_unused, int subtest __maybe_unused)
 {
 	int ret = 0;
 	union perf_mem_data_src src;
@@ -54,3 +56,5 @@ int test__mem(struct test *text __maybe_unused, int subtest __maybe_unused)
 
 	return ret;
 }
+
+DEFINE_SUITE("Test data source output", mem);

@@ -7,6 +7,7 @@ config PPC_PS3
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	select HAVE_PCI
+	select IRQ_DOMAIN_NOMAP
 	help
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.  Enabling this
@@ -85,6 +86,15 @@ config PS3_SYS_MANAGER
 	  This support is required for PS3 system control.  In
 	  general, all users will say Y or M.
 
+config PS3_VERBOSE_RESULT
+	bool "PS3 Verbose LV1 hypercall results" if PS3_ADVANCED
+	depends on PPC_PS3
+	help
+	  Enables more verbose log messages for LV1 hypercall results.
+
+	  If in doubt, say N here and reduce the size of the kernel by a
+	  small amount.
+
 config PS3_REPOSITORY_WRITE
 	bool "PS3 Repository write support" if PS3_ADVANCED
 	depends on PPC_PS3
@@ -155,7 +165,7 @@ config PS3_LPM
 
 	  If you intend to use the advanced performance monitoring and
 	  profiling support of the Cell processor with programs like
-	  oprofile and perfmon2, then say Y or M, otherwise say N.
+	  perfmon2, then say Y or M, otherwise say N.
 
 config PS3GELIC_UDBG
 	bool "PS3 udbg output via UDP broadcasts on Ethernet"

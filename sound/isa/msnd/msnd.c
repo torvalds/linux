@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*********************************************************************
  *
  * 2002/06/30 Karsten Wiese:
@@ -18,20 +19,6 @@
  * Turtle Beach MultiSound Sound Card Driver for Linux
  *
  * Copyright (C) 1998 Andrew Veliath
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  ********************************************************************/
 
@@ -438,7 +425,7 @@ static void snd_msnd_capture_reset_queue(struct snd_msnd *chip,
 }
 
 static const struct snd_pcm_hardware snd_msnd_playback = {
-	.info =			SNDRV_PCM_INFO_MMAP |
+	.info =			SNDRV_PCM_INFO_MMAP_IOMEM |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_BATCH,
@@ -457,7 +444,7 @@ static const struct snd_pcm_hardware snd_msnd_playback = {
 };
 
 static const struct snd_pcm_hardware snd_msnd_capture = {
-	.info =			SNDRV_PCM_INFO_MMAP |
+	.info =			SNDRV_PCM_INFO_MMAP_IOMEM |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_BATCH,
@@ -486,6 +473,7 @@ static int snd_msnd_playback_open(struct snd_pcm_substream *substream)
 	snd_msnd_enable_irq(chip);
 
 	runtime->dma_area = (__force void *)chip->mappedbase;
+	runtime->dma_addr = chip->base;
 	runtime->dma_bytes = 0x3000;
 
 	chip->playback_substream = substream;
@@ -575,11 +563,11 @@ snd_msnd_playback_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_msnd_playback_ops = {
 	.open =		snd_msnd_playback_open,
 	.close =	snd_msnd_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_msnd_playback_hw_params,
 	.prepare =	snd_msnd_playback_prepare,
 	.trigger =	snd_msnd_playback_trigger,
 	.pointer =	snd_msnd_playback_pointer,
+	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
 static int snd_msnd_capture_open(struct snd_pcm_substream *substream)
@@ -590,6 +578,7 @@ static int snd_msnd_capture_open(struct snd_pcm_substream *substream)
 	set_bit(F_AUDIO_READ_INUSE, &chip->flags);
 	snd_msnd_enable_irq(chip);
 	runtime->dma_area = (__force void *)chip->mappedbase + 0x3000;
+	runtime->dma_addr = chip->base + 0x3000;
 	runtime->dma_bytes = 0x3000;
 	memset(runtime->dma_area, 0, runtime->dma_bytes);
 	chip->capture_substream = substream;
@@ -672,11 +661,11 @@ static int snd_msnd_capture_hw_params(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_msnd_capture_ops = {
 	.open =		snd_msnd_capture_open,
 	.close =	snd_msnd_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_msnd_capture_hw_params,
 	.prepare =	snd_msnd_capture_prepare,
 	.trigger =	snd_msnd_capture_trigger,
 	.pointer =	snd_msnd_capture_pointer,
+	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
 

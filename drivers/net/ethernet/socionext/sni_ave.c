@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * sni_ave.c - Socionext UniPhier AVE ethernet driver
  * Copyright 2014 Panasonic Corporation
  * Copyright 2015-2017 Socionext Inc.
@@ -424,16 +424,22 @@ static void ave_ethtool_get_wol(struct net_device *ndev,
 		phy_ethtool_get_wol(ndev->phydev, wol);
 }
 
+static int __ave_ethtool_set_wol(struct net_device *ndev,
+				 struct ethtool_wolinfo *wol)
+{
+	if (!ndev->phydev ||
+	    (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE)))
+		return -EOPNOTSUPP;
+
+	return phy_ethtool_set_wol(ndev->phydev, wol);
+}
+
 static int ave_ethtool_set_wol(struct net_device *ndev,
 			       struct ethtool_wolinfo *wol)
 {
 	int ret;
 
-	if (!ndev->phydev ||
-	    (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE)))
-		return -EOPNOTSUPP;
-
-	ret = phy_ethtool_set_wol(ndev->phydev, wol);
+	ret = __ave_ethtool_set_wol(ndev, wol);
 	if (!ret)
 		device_set_wakeup_enable(&ndev->dev, !!wol->wolopts);
 
@@ -1185,7 +1191,7 @@ static int ave_init(struct net_device *ndev)
 	ret = regmap_update_bits(priv->regmap, SG_ETPINMODE,
 				 priv->pinmode_mask, priv->pinmode_val);
 	if (ret)
-		return ret;
+		goto out_reset_assert;
 
 	ave_global_reset(ndev);
 
@@ -1216,7 +1222,7 @@ static int ave_init(struct net_device *ndev)
 
 	/* set wol initial state disabled */
 	wol.wolopts = 0;
-	ave_ethtool_set_wol(ndev, &wol);
+	__ave_ethtool_set_wol(ndev, &wol);
 
 	if (!phy_interface_is_rgmii(phydev))
 		phy_set_max_speed(phydev, SPEED_100);
@@ -1388,7 +1394,7 @@ static int ave_stop(struct net_device *ndev)
 	return 0;
 }
 
-static int ave_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t ave_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct ave_private *priv = netdev_priv(ndev);
 	u32 proc_idx, done_idx, ndesc, cmdsts;
@@ -1537,7 +1543,7 @@ static const struct net_device_ops ave_netdev_ops = {
 	.ndo_open		= ave_open,
 	.ndo_stop		= ave_stop,
 	.ndo_start_xmit		= ave_start_xmit,
-	.ndo_do_ioctl		= ave_ioctl,
+	.ndo_eth_ioctl		= ave_ioctl,
 	.ndo_set_rx_mode	= ave_set_rx_mode,
 	.ndo_get_stats64	= ave_get_stats64,
 	.ndo_set_mac_address	= ave_set_mac_address,
@@ -1553,8 +1559,6 @@ static int ave_probe(struct platform_device *pdev)
 	struct ave_private *priv;
 	struct net_device *ndev;
 	struct device_node *np;
-	struct resource	*res;
-	const void *mac_addr;
 	void __iomem *base;
 	const char *name;
 	int i, irq, ret;
@@ -1566,24 +1570,21 @@ static int ave_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	np = dev->of_node;
-	phy_mode = of_get_phy_mode(np);
-	if (phy_mode < 0) {
+	ret = of_get_phy_mode(np, &phy_mode);
+	if (ret) {
 		dev_err(dev, "phy-mode not found\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "IRQ not found\n");
+	if (irq < 0)
 		return irq;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	ndev = alloc_etherdev(sizeof(struct ave_private));
+	ndev = devm_alloc_etherdev(dev, sizeof(struct ave_private));
 	if (!ndev) {
 		dev_err(dev, "can't allocate ethernet device\n");
 		return -ENOMEM;
@@ -1598,12 +1599,9 @@ static int ave_probe(struct platform_device *pdev)
 
 	ndev->max_mtu = AVE_MAX_ETHFRAME - (ETH_HLEN + ETH_FCS_LEN);
 
-	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
-		ether_addr_copy(ndev->dev_addr, mac_addr);
-
-	/* if the mac address is invalid, use random mac address */
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
+	ret = of_get_ethdev_address(np, ndev);
+	if (ret) {
+		/* if the mac address is invalid, use random mac address */
 		eth_hw_addr_random(ndev);
 		dev_warn(dev, "Using random MAC address: %pM\n",
 			 ndev->dev_addr);
@@ -1630,7 +1628,7 @@ static int ave_probe(struct platform_device *pdev)
 	}
 	ret = dma_set_mask(dev, dma_mask);
 	if (ret)
-		goto out_free_netdev;
+		return ret;
 
 	priv->tx.ndesc = AVE_NR_TXDESC;
 	priv->rx.ndesc = AVE_NR_RXDESC;
@@ -1643,10 +1641,8 @@ static int ave_probe(struct platform_device *pdev)
 		if (!name)
 			break;
 		priv->clk[i] = devm_clk_get(dev, name);
-		if (IS_ERR(priv->clk[i])) {
-			ret = PTR_ERR(priv->clk[i]);
-			goto out_free_netdev;
-		}
+		if (IS_ERR(priv->clk[i]))
+			return PTR_ERR(priv->clk[i]);
 		priv->nclks++;
 	}
 
@@ -1655,10 +1651,8 @@ static int ave_probe(struct platform_device *pdev)
 		if (!name)
 			break;
 		priv->rst[i] = devm_reset_control_get_shared(dev, name);
-		if (IS_ERR(priv->rst[i])) {
-			ret = PTR_ERR(priv->rst[i]);
-			goto out_free_netdev;
-		}
+		if (IS_ERR(priv->rst[i]))
+			return PTR_ERR(priv->rst[i]);
 		priv->nrsts++;
 	}
 
@@ -1666,27 +1660,24 @@ static int ave_probe(struct platform_device *pdev)
 					       "socionext,syscon-phy-mode",
 					       1, 0, &args);
 	if (ret) {
-		netdev_err(ndev, "can't get syscon-phy-mode property\n");
-		goto out_free_netdev;
+		dev_err(dev, "can't get syscon-phy-mode property\n");
+		return ret;
 	}
 	priv->regmap = syscon_node_to_regmap(args.np);
 	of_node_put(args.np);
 	if (IS_ERR(priv->regmap)) {
-		netdev_err(ndev, "can't map syscon-phy-mode\n");
-		ret = PTR_ERR(priv->regmap);
-		goto out_free_netdev;
+		dev_err(dev, "can't map syscon-phy-mode\n");
+		return PTR_ERR(priv->regmap);
 	}
 	ret = priv->data->get_pinmode(priv, phy_mode, args.args[0]);
 	if (ret) {
-		netdev_err(ndev, "invalid phy-mode setting\n");
-		goto out_free_netdev;
+		dev_err(dev, "invalid phy-mode setting\n");
+		return ret;
 	}
 
 	priv->mdio = devm_mdiobus_alloc(dev);
-	if (!priv->mdio) {
-		ret = -ENOMEM;
-		goto out_free_netdev;
-	}
+	if (!priv->mdio)
+		return -ENOMEM;
 	priv->mdio->priv = ndev;
 	priv->mdio->parent = dev;
 	priv->mdio->read = ave_mdiobus_read;
@@ -1698,8 +1689,7 @@ static int ave_probe(struct platform_device *pdev)
 	/* Register as a NAPI supported driver */
 	netif_napi_add(ndev, &priv->napi_rx, ave_napi_poll_rx,
 		       NAPI_POLL_WEIGHT);
-	netif_tx_napi_add(ndev, &priv->napi_tx, ave_napi_poll_tx,
-			  NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(ndev, &priv->napi_tx, ave_napi_poll_tx);
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1723,8 +1713,6 @@ static int ave_probe(struct platform_device *pdev)
 out_del_napi:
 	netif_napi_del(&priv->napi_rx);
 	netif_napi_del(&priv->napi_tx);
-out_free_netdev:
-	free_netdev(ndev);
 
 	return ret;
 }
@@ -1737,7 +1725,6 @@ static int ave_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	netif_napi_del(&priv->napi_rx);
 	netif_napi_del(&priv->napi_tx);
-	free_netdev(ndev);
 
 	return 0;
 }
@@ -1772,7 +1759,7 @@ static int ave_resume(struct device *dev)
 
 	ave_ethtool_get_wol(ndev, &wol);
 	wol.wolopts = priv->wolopts;
-	ave_ethtool_set_wol(ndev, &wol);
+	__ave_ethtool_set_wol(ndev, &wol);
 
 	if (ndev->phydev) {
 		ret = phy_resume(ndev->phydev);
@@ -1808,6 +1795,9 @@ static int ave_pro4_get_pinmode(struct ave_private *priv,
 		break;
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		priv->pinmode_val = 0;
 		break;
 	default:
@@ -1852,6 +1842,9 @@ static int ave_ld20_get_pinmode(struct ave_private *priv,
 		priv->pinmode_val = SG_ETPINMODE_RMII(0);
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		priv->pinmode_val = 0;
 		break;
 	default:
@@ -1874,6 +1867,9 @@ static int ave_pxs3_get_pinmode(struct ave_private *priv,
 		priv->pinmode_val = SG_ETPINMODE_RMII(arg);
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		priv->pinmode_val = 0;
 		break;
 	default:
@@ -1938,6 +1934,17 @@ static const struct ave_soc_data ave_pxs3_data = {
 	.get_pinmode = ave_pxs3_get_pinmode,
 };
 
+static const struct ave_soc_data ave_nx1_data = {
+	.is_desc_64bit = true,
+	.clock_names = {
+		"ether",
+	},
+	.reset_names = {
+		"ether",
+	},
+	.get_pinmode = ave_pxs3_get_pinmode,
+};
+
 static const struct of_device_id of_ave_match[] = {
 	{
 		.compatible = "socionext,uniphier-pro4-ave4",
@@ -1958,6 +1965,10 @@ static const struct of_device_id of_ave_match[] = {
 	{
 		.compatible = "socionext,uniphier-pxs3-ave4",
 		.data = &ave_pxs3_data,
+	},
+	{
+		.compatible = "socionext,uniphier-nx1-ave4",
+		.data = &ave_nx1_data,
 	},
 	{ /* Sentinel */ }
 };

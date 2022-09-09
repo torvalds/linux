@@ -20,15 +20,13 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 	return (REGION_NUMBER(addr) == RGN_HPAGE ||
 		REGION_NUMBER((addr)+(len)-1) == RGN_HPAGE);
 }
+#define is_hugepage_only_range is_hugepage_only_range
 
 #define __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH
-static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
-					 unsigned long addr, pte_t *ptep)
+static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
+					  unsigned long addr, pte_t *ptep)
 {
-}
-
-static inline void arch_clear_hugepage_flags(struct page *page)
-{
+	return *ptep;
 }
 
 #include <asm-generic/hugetlb.h>

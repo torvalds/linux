@@ -124,7 +124,6 @@ static int midi_service_irq(struct echoaudio *chip)
 		return 0;
 
 	/* Get the MIDI data from the comm page */
-	i = 1;
 	received = 0;
 	for (i = 1; i <= count; i++) {
 		/* Get the MIDI byte */
@@ -208,7 +207,7 @@ static void snd_echo_midi_output_write(struct timer_list *t)
 
 	/* No interrupts are involved: we have to check at regular intervals
 	if the card's output buffer has room for new data. */
-	sent = bytes = 0;
+	sent = 0;
 	spin_lock_irqsave(&chip->lock, flags);
 	chip->midi_full = 0;
 	if (!snd_rawmidi_transmit_empty(chip->midi_out)) {
@@ -308,8 +307,8 @@ static int snd_echo_midi_create(struct snd_card *card,
 {
 	int err;
 
-	if ((err = snd_rawmidi_new(card, card->shortname, 0, 1, 1,
-				   &chip->rmidi)) < 0)
+	err = snd_rawmidi_new(card, card->shortname, 0, 1, 1, &chip->rmidi);
+	if (err < 0)
 		return err;
 
 	strcpy(chip->rmidi->name, card->shortname);

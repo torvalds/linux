@@ -1,35 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Authors:
  *	Inki Dae <inki.dae@samsung.com>
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
+#include <linux/component.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
-
-#include <linux/component.h>
-
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
-#include "exynos_drm_fbdev.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_gem.h"
-#include "exynos_drm_plane.h"
-#include "exynos_drm_ipp.h"
-#include "exynos_drm_vidi.h"
+#include "exynos_drm_fbdev.h"
 #include "exynos_drm_g2d.h"
+#include "exynos_drm_gem.h"
+#include "exynos_drm_ipp.h"
+#include "exynos_drm_plane.h"
+#include "exynos_drm_vidi.h"
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -73,68 +75,47 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = NULL;
 }
 
-static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
-	.fault = exynos_drm_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
 static const struct drm_ioctl_desc exynos_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_CREATE, exynos_drm_gem_create_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MAP, exynos_drm_gem_map_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET, exynos_drm_gem_get_ioctl,
 			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION, vidi_connection_ioctl,
 			DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER, exynos_g2d_get_ver_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST, exynos_g2d_set_cmdlist_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_RESOURCES,
 			exynos_drm_ipp_get_res_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_CAPS, exynos_drm_ipp_get_caps_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_LIMITS,
 			exynos_drm_ipp_get_limits_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_COMMIT, exynos_drm_ipp_commit_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
+			DRM_RENDER_ALLOW),
 };
 
-static const struct file_operations exynos_drm_driver_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.mmap		= exynos_drm_gem_mmap,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl = drm_compat_ioctl,
-	.release	= drm_release,
-};
+DEFINE_DRM_GEM_FOPS(exynos_drm_driver_fops);
 
-static struct drm_driver exynos_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
+static const struct drm_driver exynos_drm_driver = {
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,
 	.lastclose		= drm_fb_helper_lastclose,
 	.postclose		= exynos_drm_postclose,
-	.gem_free_object_unlocked = exynos_drm_gem_free_object,
-	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
 	.dumb_create		= exynos_drm_gem_dumb_create,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_import	= exynos_drm_gem_prime_import,
-	.gem_prime_get_sg_table	= exynos_drm_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,
-	.gem_prime_vmap		= exynos_drm_gem_prime_vmap,
-	.gem_prime_vunmap	= exynos_drm_gem_prime_vunmap,
-	.gem_prime_mmap		= exynos_drm_gem_prime_mmap,
+	.gem_prime_mmap		= drm_gem_prime_mmap,
 	.ioctls			= exynos_ioctls,
 	.num_ioctls		= ARRAY_SIZE(exynos_ioctls),
 	.fops			= &exynos_drm_driver_fops,
@@ -196,13 +177,13 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(mixer_driver, CONFIG_DRM_EXYNOS_MIXER),
 		DRM_COMPONENT_DRIVER
 	}, {
-		DRV_PTR(mic_driver, CONFIG_DRM_EXYNOS_MIC),
-		DRM_COMPONENT_DRIVER
-	}, {
 		DRV_PTR(dp_driver, CONFIG_DRM_EXYNOS_DP),
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(dsi_driver, CONFIG_DRM_EXYNOS_DSI),
+		DRM_COMPONENT_DRIVER
+	}, {
+		DRV_PTR(mic_driver, CONFIG_DRM_EXYNOS_MIC),
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(hdmi_driver, CONFIG_DRM_EXYNOS_HDMI),
@@ -231,11 +212,6 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 	}
 };
 
-static int compare_dev(struct device *dev, void *data)
-{
-	return dev == (struct device *)data;
-}
-
 static struct component_match *exynos_drm_match_add(struct device *dev)
 {
 	struct component_match *match = NULL;
@@ -248,15 +224,12 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 		if (!info->driver || !(info->flags & DRM_COMPONENT_DRIVER))
 			continue;
 
-		while ((d = bus_find_device(&platform_bus_type, p,
-					    &info->driver->driver,
-					    (void *)platform_bus_type.match))) {
+		while ((d = platform_find_device_by_driver(p, &info->driver->driver))) {
 			put_device(p);
 
 			if (!(info->flags & DRM_FIMC_DEVICE) ||
 			    exynos_drm_check_fimc_device(d) == 0)
-				component_match_add(dev, &match,
-						    compare_dev, d);
+				component_match_add(dev, &match, component_compare_dev, d);
 			p = d;
 		}
 		put_device(p);
@@ -271,7 +244,7 @@ static int exynos_drm_bind(struct device *dev)
 	struct drm_encoder *encoder;
 	struct drm_device *drm;
 	unsigned int clone_mask;
-	int cnt, ret;
+	int ret;
 
 	drm = drm_dev_alloc(&exynos_drm_driver, dev);
 	if (IS_ERR(drm))
@@ -294,10 +267,9 @@ static int exynos_drm_bind(struct device *dev)
 	exynos_drm_mode_config_init(drm);
 
 	/* setup possible_clones. */
-	cnt = 0;
 	clone_mask = 0;
 	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
-		clone_mask |= (1 << (cnt++));
+		clone_mask |= drm_encoder_mask(encoder);
 
 	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
 		encoder->possible_clones = clone_mask;
@@ -312,16 +284,6 @@ static int exynos_drm_bind(struct device *dev)
 		goto err_unbind_all;
 
 	drm_mode_config_reset(drm);
-
-	/*
-	 * enable drm irq mode.
-	 * - with irq_enabled = true, we can use the vblank feature.
-	 *
-	 * P.S. note that we wouldn't use drm irq handler but
-	 *	just specific driver own one instead because
-	 *	drm framework supports only one irq handler.
-	 */
-	drm->irq_enabled = true;
 
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm);
@@ -418,9 +380,8 @@ static void exynos_drm_unregister_devices(void)
 		if (!info->driver || !(info->flags & DRM_VIRTUAL_DEVICE))
 			continue;
 
-		while ((dev = bus_find_device(&platform_bus_type, NULL,
-					    &info->driver->driver,
-					    (void *)platform_bus_type.match))) {
+		while ((dev = platform_find_device_by_driver(NULL,
+						&info->driver->driver))) {
 			put_device(dev);
 			platform_device_unregister(to_platform_device(dev));
 		}
@@ -487,6 +448,9 @@ fail:
 static int exynos_drm_init(void)
 {
 	int ret;
+
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
 
 	ret = exynos_drm_register_devices();
 	if (ret)

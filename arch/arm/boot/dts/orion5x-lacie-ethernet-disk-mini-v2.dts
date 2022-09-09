@@ -1,10 +1,5 @@
-/*
- * Copyright (C) 2012 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2012 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
 
 /*
  * TODO: add Orion USB device port init when kernel.org support is added.
@@ -25,6 +20,7 @@
 	compatible = "lacie,ethernet-disk-mini-v2", "marvell,orion5x-88f5182", "marvell,orion5x";
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x4000000>; /* 64 MB */
 	};
 

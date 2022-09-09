@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  sdricoh_cs.c - driver for Ricoh Secure Digital Card Readers that can be
  *     found on some Ricoh RL5c476 II cardbus bridge
  *
  *  Copyright (C) 2006 - 2008 Sascha Sommer <saschasommer@freenet.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 /*
@@ -29,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
+#include <linux/iopoll.h>
 #include <linux/scatterlist.h>
 
 #include <pcmcia/cistpl.h>
@@ -36,6 +23,7 @@
 #include <linux/io.h>
 
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
 
 #define DRIVER_NAME "sdricoh_cs"
 
@@ -71,10 +59,8 @@ static unsigned int switchlocked;
 #define STATUS_BUSY              0x40000000
 
 /* timeouts */
-#define INIT_TIMEOUT      100
-#define CMD_TIMEOUT       100000
-#define TRANSFER_TIMEOUT  100000
-#define BUSY_TIMEOUT      32767
+#define SDRICOH_CMD_TIMEOUT_US	1000000
+#define SDRICOH_DATA_TIMEOUT_US	1000000
 
 /* list of supported pcmcia devices */
 static const struct pcmcia_device_id pcmcia_ids[] = {
@@ -138,19 +124,24 @@ static inline unsigned int sdricoh_readb(struct sdricoh_host *host,
 	return value;
 }
 
-static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted,
-				unsigned int timeout){
-	unsigned int loop;
+static bool sdricoh_status_ok(struct sdricoh_host *host, unsigned int status,
+			      unsigned int wanted)
+{
+	sdricoh_writel(host, R2E4_STATUS_RESP, status);
+	return status & wanted;
+}
+
+static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted)
+{
+	int ret;
 	unsigned int status = 0;
 	struct device *dev = host->dev;
-	for (loop = 0; loop < timeout; loop++) {
-		status = sdricoh_readl(host, R21C_STATUS);
-		sdricoh_writel(host, R2E4_STATUS_RESP, status);
-		if (status & wanted)
-			break;
-	}
 
-	if (loop == timeout) {
+	ret = read_poll_timeout(sdricoh_readl, status,
+				sdricoh_status_ok(host, status, wanted),
+				32, SDRICOH_DATA_TIMEOUT_US, false,
+				host, R21C_STATUS);
+	if (ret) {
 		dev_err(dev, "query_status: timeout waiting for %x\n", wanted);
 		return -ETIMEDOUT;
 	}
@@ -164,35 +155,46 @@ static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted,
 
 }
 
-static int sdricoh_mmc_cmd(struct sdricoh_host *host, unsigned char opcode,
-			   unsigned int arg)
+static int sdricoh_mmc_cmd(struct sdricoh_host *host, struct mmc_command *cmd)
 {
-	unsigned int status;
-	int result = 0;
-	unsigned int loop = 0;
+	unsigned int status, timeout_us;
+	int ret;
+	unsigned char opcode = cmd->opcode;
+
 	/* reset status reg? */
 	sdricoh_writel(host, R21C_STATUS, 0x18);
+
+	/* MMC_APP_CMDs need some special handling */
+	if (host->app_cmd) {
+		opcode |= 64;
+		host->app_cmd = 0;
+	} else if (opcode == MMC_APP_CMD)
+		host->app_cmd = 1;
+
 	/* fill parameters */
-	sdricoh_writel(host, R204_CMD_ARG, arg);
+	sdricoh_writel(host, R204_CMD_ARG, cmd->arg);
 	sdricoh_writel(host, R200_CMD, (0x10000 << 8) | opcode);
+
 	/* wait for command completion */
-	if (opcode) {
-		for (loop = 0; loop < CMD_TIMEOUT; loop++) {
-			status = sdricoh_readl(host, R21C_STATUS);
-			sdricoh_writel(host, R2E4_STATUS_RESP, status);
-			if (status  & STATUS_CMD_FINISHED)
-				break;
-		}
-		/* don't check for timeout in the loop it is not always
-		   reset correctly
-		*/
-		if (loop == CMD_TIMEOUT || status & STATUS_CMD_TIMEOUT)
-			result = -ETIMEDOUT;
+	if (!opcode)
+		return 0;
 
-	}
+	timeout_us = cmd->busy_timeout ? cmd->busy_timeout * 1000 :
+		SDRICOH_CMD_TIMEOUT_US;
 
-	return result;
+	ret = read_poll_timeout(sdricoh_readl, status,
+			sdricoh_status_ok(host, status, STATUS_CMD_FINISHED),
+			32, timeout_us, false,
+			host, R21C_STATUS);
 
+	/*
+	 * Don't check for timeout status in the loop, as it's not always reset
+	 * correctly.
+	 */
+	if (ret || status & STATUS_CMD_TIMEOUT)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static int sdricoh_reset(struct sdricoh_host *host)
@@ -221,8 +223,7 @@ static int sdricoh_blockio(struct sdricoh_host *host, int read,
 	u32 data = 0;
 	/* wait until the data is available */
 	if (read) {
-		if (sdricoh_query_status(host, STATUS_READY_TO_READ,
-						TRANSFER_TIMEOUT))
+		if (sdricoh_query_status(host, STATUS_READY_TO_READ))
 			return -ETIMEDOUT;
 		sdricoh_writel(host, R21C_STATUS, 0x18);
 		/* read data */
@@ -238,8 +239,7 @@ static int sdricoh_blockio(struct sdricoh_host *host, int read,
 			}
 		}
 	} else {
-		if (sdricoh_query_status(host, STATUS_READY_TO_WRITE,
-						TRANSFER_TIMEOUT))
+		if (sdricoh_query_status(host, STATUS_READY_TO_WRITE))
 			return -ETIMEDOUT;
 		sdricoh_writel(host, R21C_STATUS, 0x18);
 		/* write data */
@@ -265,20 +265,12 @@ static void sdricoh_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct mmc_command *cmd = mrq->cmd;
 	struct mmc_data *data = cmd->data;
 	struct device *dev = host->dev;
-	unsigned char opcode = cmd->opcode;
 	int i;
 
 	dev_dbg(dev, "=============================\n");
-	dev_dbg(dev, "sdricoh_request opcode=%i\n", opcode);
+	dev_dbg(dev, "sdricoh_request opcode=%i\n", cmd->opcode);
 
 	sdricoh_writel(host, R21C_STATUS, 0x18);
-
-	/* MMC_APP_CMDs need some special handling */
-	if (host->app_cmd) {
-		opcode |= 64;
-		host->app_cmd = 0;
-	} else if (opcode == 55)
-		host->app_cmd = 1;
 
 	/* read/write commands seem to require this */
 	if (data) {
@@ -286,7 +278,7 @@ static void sdricoh_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		sdricoh_writel(host, R208_DATAIO, 0);
 	}
 
-	cmd->error = sdricoh_mmc_cmd(host, opcode, cmd->arg);
+	cmd->error = sdricoh_mmc_cmd(host, cmd);
 
 	/* read response buffer */
 	if (cmd->flags & MMC_RSP_PRESENT) {
@@ -337,8 +329,7 @@ static void sdricoh_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		sdricoh_writel(host, R208_DATAIO, 1);
 
-		if (sdricoh_query_status(host, STATUS_TRANSFER_FINISHED,
-					TRANSFER_TIMEOUT)) {
+		if (sdricoh_query_status(host, STATUS_TRANSFER_FINISHED)) {
 			dev_err(dev, "sdricoh_request: transfer end error\n");
 			cmd->error = -EINVAL;
 		}

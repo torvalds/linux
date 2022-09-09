@@ -290,6 +290,12 @@ struct usba_ep {
 #endif
 };
 
+struct usba_ep_config {
+	u8					nr_banks;
+	unsigned int				can_dma:1;
+	unsigned int				can_isoc:1;
+};
+
 struct usba_request {
 	struct usb_request			req;
 	struct list_head			queue;
@@ -305,6 +311,13 @@ struct usba_request {
 struct usba_udc_errata {
 	void (*toggle_bias)(struct usba_udc *udc, int is_on);
 	void (*pulse_bias)(struct usba_udc *udc);
+};
+
+struct usba_udc_config {
+	const struct usba_udc_errata *errata;
+	const struct usba_ep_config *config;
+	const int num_ep;
+	const bool ep_prealloc;
 };
 
 struct usba_udc {
@@ -324,13 +337,14 @@ struct usba_udc {
 	int irq;
 	struct gpio_desc *vbus_pin;
 	int num_ep;
-	int configured_ep;
 	struct usba_fifo_cfg *fifo_cfg;
 	struct clk *pclk;
 	struct clk *hclk;
 	struct usba_ep *usba_ep;
 	bool bias_pulse_needed;
 	bool clocked;
+	bool suspended;
+	bool ep_prealloc;
 
 	u16 devstatus;
 

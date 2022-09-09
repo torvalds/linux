@@ -81,9 +81,7 @@ struct mmc_queue {
 	int			in_flight[MMC_ISSUE_MAX];
 	unsigned int		cqe_busy;
 #define MMC_CQE_DCMD_BUSY	BIT(0)
-#define MMC_CQE_QUEUE_FULL	BIT(1)
 	bool			busy;
-	bool			use_cqe;
 	bool			recovery_needed;
 	bool			in_recovery;
 	bool			rw_wait;
@@ -96,7 +94,7 @@ struct mmc_queue {
 	struct work_struct	complete_work;
 };
 
-extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *);
+struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card);
 extern void mmc_cleanup_queue(struct mmc_queue *);
 extern void mmc_queue_suspend(struct mmc_queue *);
 extern void mmc_queue_resume(struct mmc_queue *);

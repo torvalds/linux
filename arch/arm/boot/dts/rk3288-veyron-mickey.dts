@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "rk3288-veyron.dtsi"
+#include "rk3288-veyron-broadcom-bluetooth.dtsi"
 
 / {
 	model = "Google Mickey";
@@ -27,6 +28,13 @@
 		regulator-always-on;
 		regulator-boot-on;
 		vin-supply = <&vcc33_sys>;
+	};
+
+	sound {
+		compatible = "rockchip,rockchip-audio-max98090";
+		rockchip,model = "VEYRON-HDMI";
+		rockchip,hdmi-codec = <&hdmi>;
+		rockchip,i2s-controller = <&i2s>;
 	};
 };
 
@@ -75,9 +83,7 @@
 	cooling-maps {
 		/*
 		 * After 1st level, throttle the CPU down to as low as 1.4 GHz
-		 * and don't let the GPU go faster than 400 MHz.  Note that we
-		 * won't throttle the GPU lower than 400 MHz due to CPU
-		 * heat--we'll let the GPU do the rest itself.
+		 * and don't let the GPU go faster than 400 MHz.
 		 */
 		cpu_warm_limit_cpu {
 			trip = <&cpu_alert_warm>;
@@ -85,6 +91,10 @@
 					 <&cpu1 THERMAL_NO_LIMIT 4>,
 					 <&cpu2 THERMAL_NO_LIMIT 4>,
 					 <&cpu3 THERMAL_NO_LIMIT 4>;
+		};
+		cpu_warm_limit_gpu {
+			trip = <&cpu_alert_warm>;
+			cooling-device = <&gpu 1 1>;
 		};
 
 		/*
@@ -125,11 +135,80 @@
 					 <&cpu2 8 THERMAL_NO_LIMIT>,
 					 <&cpu3 8 THERMAL_NO_LIMIT>;
 		};
+
+		/* At very hot, don't let GPU go over 300 MHz */
+		cpu_very_hot_limit_gpu {
+			trip = <&cpu_alert_very_hot>;
+			cooling-device = <&gpu 2 2>;
+		};
 	};
 };
 
-&emmc {
-	/delete-property/mmc-hs200-1_8v;
+&gpu_thermal {
+	/delete-node/ trips;
+	/delete-node/ cooling-maps;
+
+	trips {
+		gpu_alert_warmish: gpu_alert_warmish {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <2000>; /* millicelsius */
+			type = "passive";
+		};
+		gpu_alert_warm: gpu_alert_warm {
+			temperature = <65000>; /* millicelsius */
+			hysteresis = <2000>; /* millicelsius */
+			type = "passive";
+		};
+		gpu_alert_hotter: gpu_alert_hotter {
+			temperature = <84000>; /* millicelsius */
+			hysteresis = <2000>; /* millicelsius */
+			type = "passive";
+		};
+		gpu_alert_very_very_hot: gpu_alert_very_very_hot {
+			temperature = <86000>; /* millicelsius */
+			hysteresis = <2000>; /* millicelsius */
+			type = "passive";
+		};
+		gpu_crit: gpu_crit {
+			temperature = <90000>; /* millicelsius */
+			hysteresis = <2000>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		/* After 1st level throttle the GPU down to as low as 400 MHz */
+		gpu_warmish_limit_gpu {
+			trip = <&gpu_alert_warmish>;
+			cooling-device = <&gpu THERMAL_NO_LIMIT 1>;
+		};
+
+		/*
+		 * Slightly after we throttle the GPU, we'll also make sure that
+		 * the CPU can't go faster than 1.4 GHz.  Note that we won't
+		 * throttle the CPU lower than 1.4 GHz due to GPU heat--we'll
+		 * let the CPU do the rest itself.
+		 */
+		gpu_warm_limit_cpu {
+			trip = <&gpu_alert_warm>;
+			cooling-device = <&cpu0 4 4>,
+					 <&cpu1 4 4>,
+					 <&cpu2 4 4>,
+					 <&cpu3 4 4>;
+		};
+
+		/* When hot, GPU goes down to 300 MHz */
+		gpu_hotter_limit_gpu {
+			trip = <&gpu_alert_hotter>;
+			cooling-device = <&gpu 2 2>;
+		};
+
+		/* When really hot, don't let GPU go _above_ 300 MHz */
+		gpu_very_very_hot_limit_gpu {
+			trip = <&gpu_alert_very_very_hot>;
+			cooling-device = <&gpu 2 THERMAL_NO_LIMIT>;
+		};
+	};
 };
 
 &i2c2 {
@@ -142,8 +221,6 @@
 
 &i2s {
 	status = "okay";
-	clock-names = "i2s_hclk", "i2s_clk", "i2s_clk_out";
-	clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>, <&cru SCLK_I2S0_OUT>;
 };
 
 &rk808 {
@@ -183,20 +260,179 @@
 	};
 };
 
+&gpio0 {
+	gpio-line-names = "PMIC_SLEEP_AP",
+			  "",
+			  "",
+			  "",
+			  "PMIC_INT_L",
+			  "POWER_BUTTON_L",
+			  "",
+			  "",
+
+			  "",
+			  /*
+			   * RECOVERY_SW_L is Chrome OS ABI.  Schematics call
+			   * it REC_MODE_L.
+			   */
+			  "RECOVERY_SW_L",
+			  "OT_RESET",
+			  "",
+			  "",
+			  "AP_WARM_RESET_H",
+			  "",
+			  "I2C0_SDA_PMIC",
+
+			  "I2C0_SCL_PMIC",
+			  "",
+			  "nFALUT";
+};
+
+&gpio2 {
+	gpio-line-names = "CONFIG0",
+			  "CONFIG1",
+			  "CONFIG2",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "CONFIG3",
+
+			  "",
+			  "EMMC_RST_L";
+};
+
+&gpio3 {
+	gpio-line-names = "FLASH0_D0",
+			  "FLASH0_D1",
+			  "FLASH0_D2",
+			  "FLASH0_D3",
+			  "FLASH0_D4",
+			  "FLASH0_D5",
+			  "FLASH0_D6",
+			  "FLASH0_D7",
+
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "FLASH0_CS2/EMMC_CMD",
+			  "",
+			  "FLASH0_DQS/EMMC_CLKO";
+};
+
+&gpio4 {
+	gpio-line-names = "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "UART0_RXD",
+			  "UART0_TXD",
+			  "UART0_CTS_L",
+			  "UART0_RTS_L",
+			  "SDIO0_D0",
+			  "SDIO0_D1",
+			  "SDIO0_D2",
+			  "SDIO0_D3",
+
+			  "SDIO0_CMD",
+			  "SDIO0_CLK",
+			  "BT_DEV_WAKE",
+			  "",
+			  "WIFI_ENABLE_H",
+			  "BT_ENABLE_L",
+			  "WIFI_HOST_WAKE",
+			  "BT_HOST_WAKE";
+};
+
+&gpio7 {
+	gpio-line-names = "",
+			  "PWM_LOG",
+			  "",
+			  "",
+			  "TPM_INT_H",
+			  "SDMMC_DET_L",
+			  /*
+			   * AP_FLASH_WP_L is Chrome OS ABI.  Schematics call
+			   * it FW_WP_AP.
+			   */
+			  "AP_FLASH_WP_L",
+			  "",
+
+			  "CPU_NMI",
+			  "DVSOK",
+			  "HDMI_WAKE",
+			  "POWER_HDMI_ON",
+			  "DVS1",
+			  "",
+			  "",
+			  "DVS2",
+
+			  "HDMI_CEC",
+			  "",
+			  "",
+			  "I2C5_SDA_HDMI",
+			  "I2C5_SCL_HDMI",
+			  "",
+			  "UART2_RXD",
+			  "UART2_TXD";
+};
+
+&gpio8 {
+	gpio-line-names = "RAM_ID0",
+			  "RAM_ID1",
+			  "RAM_ID2",
+			  "RAM_ID3",
+			  "I2C1_SDA_TPM",
+			  "I2C1_SCL_TPM",
+			  "SPI2_CLK",
+			  "SPI2_CS0",
+
+			  "SPI2_RXD",
+			  "SPI2_TXD";
+};
+
 &pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		/* Common for sleep and wake, but no owners */
+		&ddr0_retention
+		&ddrio_pwroff
+		&global_pwroff
+	>;
+
 	hdmi {
 		power_hdmi_on: power-hdmi-on {
-			rockchip,pins = <7 11 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	pmic {
 		dvs_1: dvs-1 {
-			rockchip,pins = <7 12 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <7 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
 		dvs_2: dvs-2 {
-			rockchip,pins = <7 15 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <7 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2010-2011, 2013 Freescale Semiconductor, Inc.
  *
@@ -5,11 +6,6 @@
  *
  * Description:
  * P1023 RDB Board Setup
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -19,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/fsl_devices.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 
@@ -26,7 +23,6 @@
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include "smp.h"

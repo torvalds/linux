@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x02.h"
@@ -283,7 +272,7 @@ static bool mt76x02_dfs_check_hw_pulse(struct mt76x02_dev *dev,
 	if (!pulse->period || !pulse->w1)
 		return false;
 
-	switch (dev->dfs_pd.region) {
+	switch (dev->mt76.region) {
 	case NL80211_DFS_FCC:
 		if (pulse->engine > 3)
 			break;
@@ -318,8 +307,8 @@ static bool mt76x02_dfs_check_hw_pulse(struct mt76x02_dev *dev,
 		       pulse->period <= 100100);
 		break;
 	case NL80211_DFS_JP:
-		if (dev->mt76.chandef.chan->center_freq >= 5250 &&
-		    dev->mt76.chandef.chan->center_freq <= 5350) {
+		if (dev->mphy.chandef.chan->center_freq >= 5250 &&
+		    dev->mphy.chandef.chan->center_freq <= 5350) {
 			/* JPW53 */
 			if (pulse->w1 <= 130)
 				ret = (pulse->period >= 28360 &&
@@ -440,11 +429,11 @@ static int mt76x02_dfs_create_sequence(struct mt76x02_dev *dev,
 {
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 	struct mt76x02_dfs_sw_detector_params *sw_params;
-	u32 width_delta, with_sum, factor, cur_pri;
+	u32 width_delta, with_sum;
 	struct mt76x02_dfs_sequence seq, *seq_p;
 	struct mt76x02_dfs_event_rb *event_rb;
 	struct mt76x02_dfs_event *cur_event;
-	int i, j, end, pri;
+	int i, j, end, pri, factor, cur_pri;
 
 	event_rb = event->engine == 2 ? &dfs_pd->event_rb[1]
 				      : &dfs_pd->event_rb[0];
@@ -457,7 +446,7 @@ static int mt76x02_dfs_create_sequence(struct mt76x02_dev *dev,
 		with_sum = event->width + cur_event->width;
 
 		sw_params = &dfs_pd->sw_dpd_params;
-		switch (dev->dfs_pd.region) {
+		switch (dev->mt76.region) {
 		case NL80211_DFS_FCC:
 		case NL80211_DFS_JP:
 			if (with_sum < 600)
@@ -528,7 +517,7 @@ static u16 mt76x02_dfs_add_event_to_sequence(struct mt76x02_dev *dev,
 	struct mt76x02_dfs_sw_detector_params *sw_params;
 	struct mt76x02_dfs_sequence *seq, *tmp_seq;
 	u16 max_seq_len = 0;
-	u32 factor, pri;
+	int factor, pri;
 
 	sw_params = &dfs_pd->sw_dpd_params;
 	list_for_each_entry_safe(seq, tmp_seq, &dfs_pd->sequences, head) {
@@ -620,14 +609,15 @@ static void mt76x02_dfs_check_event_window(struct mt76x02_dev *dev)
 	}
 }
 
-static void mt76x02_dfs_tasklet(unsigned long arg)
+static void mt76x02_dfs_tasklet(struct tasklet_struct *t)
 {
-	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
-	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = from_tasklet(dfs_pd, t,
+								   dfs_tasklet);
+	struct mt76x02_dev *dev = container_of(dfs_pd, typeof(*dev), dfs_pd);
 	u32 engine_mask;
 	int i;
 
-	if (test_bit(MT76_SCANNING, &dev->mt76.state))
+	if (test_bit(MT76_SCANNING, &dev->mphy.state))
 		goto out;
 
 	if (time_is_before_jiffies(dfs_pd->last_sw_check +
@@ -685,7 +675,7 @@ static void mt76x02_dfs_init_sw_detector(struct mt76x02_dev *dev)
 {
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
-	switch (dev->dfs_pd.region) {
+	switch (dev->mt76.region) {
 	case NL80211_DFS_FCC:
 		dfs_pd->sw_dpd_params.max_pri = MT_DFS_FCC_MAX_PRI;
 		dfs_pd->sw_dpd_params.min_pri = MT_DFS_FCC_MIN_PRI;
@@ -713,7 +703,7 @@ static void mt76x02_dfs_set_bbp_params(struct mt76x02_dev *dev)
 	u8 i, shift;
 	u32 data;
 
-	switch (dev->mt76.chandef.width) {
+	switch (dev->mphy.chandef.width) {
 	case NL80211_CHAN_WIDTH_40:
 		shift = MT_DFS_NUM_ENGINES;
 		break;
@@ -725,7 +715,7 @@ static void mt76x02_dfs_set_bbp_params(struct mt76x02_dev *dev)
 		break;
 	}
 
-	switch (dev->dfs_pd.region) {
+	switch (dev->mt76.region) {
 	case NL80211_DFS_FCC:
 		radar_specs = &fcc_radar_specs[shift];
 		break;
@@ -733,8 +723,8 @@ static void mt76x02_dfs_set_bbp_params(struct mt76x02_dev *dev)
 		radar_specs = &etsi_radar_specs[shift];
 		break;
 	case NL80211_DFS_JP:
-		if (dev->mt76.chandef.chan->center_freq >= 5250 &&
-		    dev->mt76.chandef.chan->center_freq <= 5350)
+		if (dev->mphy.chandef.chan->center_freq >= 5250 &&
+		    dev->mphy.chandef.chan->center_freq <= 5350)
 			radar_specs = &jp_w53_radar_specs[shift];
 		else
 			radar_specs = &jp_w56_radar_specs[shift];
@@ -833,10 +823,7 @@ EXPORT_SYMBOL_GPL(mt76x02_phy_dfs_adjust_agc);
 
 void mt76x02_dfs_init_params(struct mt76x02_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
-
-	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-	    dev->dfs_pd.region != NL80211_DFS_UNSET) {
+	if (mt76_phy_dfs_state(&dev->mphy) > MT_DFS_STATE_DISABLED) {
 		mt76x02_dfs_init_sw_detector(dev);
 		mt76x02_dfs_set_bbp_params(dev);
 		/* enable debug mode */
@@ -869,10 +856,9 @@ void mt76x02_dfs_init_detector(struct mt76x02_dev *dev)
 
 	INIT_LIST_HEAD(&dfs_pd->sequences);
 	INIT_LIST_HEAD(&dfs_pd->seq_pool);
-	dfs_pd->region = NL80211_DFS_UNSET;
+	dev->mt76.region = NL80211_DFS_UNSET;
 	dfs_pd->last_sw_check = jiffies;
-	tasklet_init(&dfs_pd->dfs_tasklet, mt76x02_dfs_tasklet,
-		     (unsigned long)dev);
+	tasklet_setup(&dfs_pd->dfs_tasklet, mt76x02_dfs_tasklet);
 }
 
 static void
@@ -881,12 +867,19 @@ mt76x02_dfs_set_domain(struct mt76x02_dev *dev,
 {
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
-	if (dfs_pd->region != region) {
+	mutex_lock(&dev->mt76.mutex);
+	if (dev->mt76.region != region) {
 		tasklet_disable(&dfs_pd->dfs_tasklet);
-		dfs_pd->region = region;
+
+		dev->ed_monitor = dev->ed_monitor_enabled &&
+				  region == NL80211_DFS_ETSI;
+		mt76x02_edcca_init(dev);
+
+		dev->mt76.region = region;
 		mt76x02_dfs_init_params(dev);
 		tasklet_enable(&dfs_pd->dfs_tasklet);
 	}
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 void mt76x02_regd_notifier(struct wiphy *wiphy,

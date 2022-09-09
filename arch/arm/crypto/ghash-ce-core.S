@@ -1,15 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Accelerated GHASH implementation with NEON/ARMv8 vmull.p8/64 instructions.
  *
  * Copyright (C) 2015 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+
+	.arch		armv8-a
+	.fpu		crypto-neon-fp-armv8
 
 	SHASH		.req	q0
 	T1		.req	q1
@@ -91,7 +91,6 @@
 	T3_H		.req	d17
 
 	.text
-	.fpu		crypto-neon-fp-armv8
 
 	.macro		__pmull_p64, rd, rn, rm, b1, b2, b3, b4
 	vmull.p64	\rd, \rn, \rm

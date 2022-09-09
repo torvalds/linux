@@ -24,17 +24,8 @@
 #ifndef __GMC_V9_0_H__
 #define __GMC_V9_0_H__
 
-	/*
-	 * The latest engine allocation on gfx9 is:
-	 * Engine 2, 3: firmware
-	 * Engine 0, 1, 4~16: amdgpu ring,
-	 *                    subject to change when ring number changes
-	 * Engine 17: Gart flushes
-	 */
-#define GFXHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
-#define MMHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
-
 extern const struct amd_ip_funcs gmc_v9_0_ip_funcs;
 extern const struct amdgpu_ip_block_version gmc_v9_0_ip_block;
 
+void gmc_v9_0_restore_registers(struct amdgpu_device *adev);
 #endif

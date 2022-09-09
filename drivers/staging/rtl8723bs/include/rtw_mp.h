@@ -10,13 +10,12 @@
 #define MAX_MP_XMITBUF_SZ	2048
 #define NR_MP_XMITFRAME		8
 
-struct mp_xmit_frame
-{
+struct mp_xmit_frame {
 	struct list_head	list;
 
 	struct pkt_attrib attrib;
 
-	_pkt *pkt;
+	struct sk_buff *pkt;
 
 	int frame_tag;
 
@@ -25,18 +24,14 @@ struct mp_xmit_frame
 	uint mem[(MAX_MP_XMITBUF_SZ >> 2)];
 };
 
-struct mp_wiparam
-{
+struct mp_wiparam {
 	u32 bcompleted;
 	u32 act_type;
 	u32 io_offset;
 	u32 io_value;
 };
 
-typedef void(*wi_act_func)(void* padapter);
-
-struct mp_tx
-{
+struct mp_tx {
 	u8 stop;
 	u32 count, sended;
 	u8 payload;
@@ -54,15 +49,14 @@ struct mp_tx
 #define MP_MAX_LINES_BYTES	256
 
 typedef void (*MPT_WORK_ITEM_HANDLER)(void *Adapter);
-typedef struct _MPT_CONTEXT
-{
+struct mpt_context {
 	/*  Indicate if we have started Mass Production Test. */
 	bool			bMassProdTest;
 
 	/*  Indicate if the driver is unloading or unloaded. */
 	bool			bMptDrvUnload;
 
-	_timer			MPh2c_timeout_timer;
+	struct timer_list			MPh2c_timeout_timer;
 /*  Event used to sync H2c for BT control */
 
 	bool		MptH2cRspEvent;
@@ -95,7 +89,7 @@ typedef struct _MPT_CONTEXT
 	/*  The RfPath of IO operation is depend of MptActType. */
 	u32 		MptRfPath;
 
-	enum WIRELESS_MODE		MptWirelessModeToSw;	/*  Wireless mode to switch. */
+	enum wireless_mode		MptWirelessModeToSw;	/*  Wireless mode to switch. */
 	u8 	MptChannelToSw;		/*  Channel to switch. */
 	u8 	MptInitGainToSet;	/*  Initial gain to set. */
 	u32 		MptBandWidth;		/*  bandwidth to switch. */
@@ -107,7 +101,7 @@ typedef struct _MPT_CONTEXT
 	/*  For MP Tx Power index */
 	u8 	TxPwrLevel[2];	/*  rf-A, rf-B */
 	u32 		RegTxPwrLimit;
-	/*  Content of RCR Regsiter for Mass Production Test. */
+	/*  Content of RCR Register for Mass Production Test. */
 	u32 		MptRCR;
 	/*  true if we only receive packets with specific pattern. */
 	bool			bMptFilterPattern;
@@ -154,7 +148,7 @@ typedef struct _MPT_CONTEXT
 	u32 		mptOutLen;
     u8          mptOutBuf[100];
 
-}MPT_CONTEXT, *PMPT_CONTEXT;
+};
 /* endif */
 
 /* E-Fuse */
@@ -195,18 +189,11 @@ enum {
 	CTA_TEST,
 	MP_DISABLE_BT_COEXIST,
 	MP_PwrCtlDM,
-#ifdef CONFIG_WOWLAN
-	MP_WOW_ENABLE,
-#endif
-#ifdef CONFIG_AP_WOWLAN
-	MP_AP_WOW_ENABLE,
-#endif
 	MP_NULL,
 	MP_GET_TXPOWER_INX,
 };
 
-struct mp_priv
-{
+struct mp_priv {
 	struct adapter *papdater;
 
 	/* Testing Flag */
@@ -267,26 +254,9 @@ struct mp_priv
 	bool bSetRxBssid;
 	bool bTxBufCkFail;
 
-	MPT_CONTEXT MptCtx;
+	struct mpt_context MptCtx;
 
 	u8 *TXradomBuffer;
-};
-
-typedef struct _IOCMD_STRUCT_ {
-	u8 cmdclass;
-	u16 value;
-	u8 index;
-}IOCMD_STRUCT;
-
-struct rf_reg_param {
-	u32 path;
-	u32 offset;
-	u32 value;
-};
-
-struct bb_reg_param {
-	u32 offset;
-	u32 value;
 };
 
 #define LOWER	true
@@ -295,96 +265,11 @@ struct bb_reg_param {
 /* Hardware Registers */
 #define BB_REG_BASE_ADDR		0x800
 
-/* MP variables */
-enum MP_MODE {
-	MP_OFF,
-	MP_ON,
-	MP_ERR,
-	MP_CONTINUOUS_TX,
-	MP_SINGLE_CARRIER_TX,
-	MP_CARRIER_SUPPRISSION_TX,
-	MP_SINGLE_TONE_TX,
-	MP_PACKET_TX,
-	MP_PACKET_RX
-};
-
 #define MAX_RF_PATH_NUMS	RF_PATH_MAX
 
 extern u8 mpdatarate[NumRates];
 
-/* MP set force data rate base on the definition. */
-enum MPT_RATE_INDEX {
-	/* CCK rate. */
-	MPT_RATE_1M = 0 ,	/* 0 */
-	MPT_RATE_2M,
-	MPT_RATE_55M,
-	MPT_RATE_11M,	/* 3 */
-
-	/* OFDM rate. */
-	MPT_RATE_6M,	/* 4 */
-	MPT_RATE_9M,
-	MPT_RATE_12M,
-	MPT_RATE_18M,
-	MPT_RATE_24M,
-	MPT_RATE_36M,
-	MPT_RATE_48M,
-	MPT_RATE_54M,	/* 11 */
-
-	/* HT rate. */
-	MPT_RATE_MCS0,	/* 12 */
-	MPT_RATE_MCS1,
-	MPT_RATE_MCS2,
-	MPT_RATE_MCS3,
-	MPT_RATE_MCS4,
-	MPT_RATE_MCS5,
-	MPT_RATE_MCS6,
-	MPT_RATE_MCS7,	/* 19 */
-	MPT_RATE_MCS8,
-	MPT_RATE_MCS9,
-	MPT_RATE_MCS10,
-	MPT_RATE_MCS11,
-	MPT_RATE_MCS12,
-	MPT_RATE_MCS13,
-	MPT_RATE_MCS14,
-	MPT_RATE_MCS15,	/* 27 */
-	/* VHT rate. Total: 20*/
-	MPT_RATE_VHT1SS_MCS0 = 100,/*  To reserve MCS16~MCS31, the index starts from #100. */
-	MPT_RATE_VHT1SS_MCS1, /*  #101 */
-	MPT_RATE_VHT1SS_MCS2,
-	MPT_RATE_VHT1SS_MCS3,
-	MPT_RATE_VHT1SS_MCS4,
-	MPT_RATE_VHT1SS_MCS5,
-	MPT_RATE_VHT1SS_MCS6, /*  #106 */
-	MPT_RATE_VHT1SS_MCS7,
-	MPT_RATE_VHT1SS_MCS8,
-	MPT_RATE_VHT1SS_MCS9,
-	MPT_RATE_VHT2SS_MCS0,
-	MPT_RATE_VHT2SS_MCS1, /*  #111 */
-	MPT_RATE_VHT2SS_MCS2,
-	MPT_RATE_VHT2SS_MCS3,
-	MPT_RATE_VHT2SS_MCS4,
-	MPT_RATE_VHT2SS_MCS5,
-	MPT_RATE_VHT2SS_MCS6, /*  #116 */
-	MPT_RATE_VHT2SS_MCS7,
-	MPT_RATE_VHT2SS_MCS8,
-	MPT_RATE_VHT2SS_MCS9,
-	MPT_RATE_LAST
-};
-
 #define MAX_TX_PWR_INDEX_N_MODE 64	/*  0x3F */
-
-enum POWER_MODE {
-	POWER_LOW = 0,
-	POWER_NORMAL
-};
-
-/*  The following enumeration is used to define the value of Reg0xD00[30:28] or JaguarReg0x914[18:16]. */
-enum OFDM_TX_MODE {
-	OFDM_ALL_OFF		= 0,
-	OFDM_ContinuousTx	= 1,
-	OFDM_SingleCarrier	= 2,
-	OFDM_SingleTone		= 4,
-};
 
 #define RX_PKT_BROADCAST	1
 #define RX_PKT_DEST_ADDR	2
@@ -400,19 +285,6 @@ enum OFDM_TX_MODE {
 #define Mac_HT_Fail			0x70000000
 #define Mac_HT_FasleAlarm		0x90000000
 #define Mac_DropPacket			0xA0000000
-
-enum ENCRY_CTRL_STATE {
-	HW_CONTROL,		/* hw encryption& decryption */
-	SW_CONTROL,		/* sw encryption& decryption */
-	HW_ENCRY_SW_DECRY,	/* hw encryption & sw decryption */
-	SW_ENCRY_HW_DECRY	/* sw encryption & hw decryption */
-};
-
-enum MPT_TXPWR_DEF {
-	MPT_CCK,
-	MPT_OFDM, /*  L and HT OFDM */
-	MPT_VHT_OFDM
-};
 
 #define		REG_RF_BB_GAIN_OFFSET	0x7f
 #define		RF_GAIN_OFFSET_MASK	0xfffff
@@ -473,29 +345,28 @@ void Hal_SetBandwidth(struct adapter *padapter);
 
 void Hal_SetTxPower(struct adapter *padapter);
 void Hal_SetCarrierSuppressionTx(struct adapter *padapter, u8 bStart);
-void Hal_SetSingleToneTx (struct adapter *padapter , u8 bStart);
-void Hal_SetSingleCarrierTx (struct adapter *padapter, u8 bStart);
-void Hal_SetContinuousTx (struct adapter *padapter, u8 bStart);
-void Hal_SetBandwidth(struct adapter *padapter);
+void Hal_SetSingleToneTx(struct adapter *padapter, u8 bStart);
+void Hal_SetSingleCarrierTx(struct adapter *padapter, u8 bStart);
+void Hal_SetContinuousTx(struct adapter *padapter, u8 bStart);
 
 void Hal_SetDataRate(struct adapter *padapter);
 void Hal_SetChannel(struct adapter *padapter);
 void Hal_SetAntennaPathPower(struct adapter *padapter);
 s32 Hal_SetThermalMeter(struct adapter *padapter, u8 target_ther);
 s32 Hal_SetPowerTracking(struct adapter *padapter, u8 enable);
-void Hal_GetPowerTracking(struct adapter *padapter, u8 * enable);
+void Hal_GetPowerTracking(struct adapter *padapter, u8 *enable);
 void Hal_GetThermalMeter(struct adapter *padapter, u8 *value);
 void Hal_mpt_SwitchRfSetting(struct adapter *padapter);
-void Hal_MPT_CCKTxPowerAdjust(struct adapter * Adapter, bool bInCH14);
+void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14);
 void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *padapter, bool beven);
-void Hal_SetCCKTxPower(struct adapter *padapter, u8 * TxPower);
-void Hal_SetOFDMTxPower(struct adapter *padapter, u8 * TxPower);
+void Hal_SetCCKTxPower(struct adapter *padapter, u8 *TxPower);
+void Hal_SetOFDMTxPower(struct adapter *padapter, u8 *TxPower);
 void Hal_TriggerRFThermalMeter(struct adapter *padapter);
 u8 Hal_ReadRFThermalMeter(struct adapter *padapter);
 void Hal_SetCCKContinuousTx(struct adapter *padapter, u8 bStart);
 void Hal_SetOFDMContinuousTx(struct adapter *padapter, u8 bStart);
-void Hal_ProSetCrystalCap (struct adapter *padapter , u32 CrystalCapVal);
-void MP_PHY_SetRFPathSwitch(struct adapter *padapter , bool bMain);
+void Hal_ProSetCrystalCap(struct adapter *padapter, u32 CrystalCapVal);
+void MP_PHY_SetRFPathSwitch(struct adapter *padapter, bool bMain);
 u32 mpt_ProQueryCalTxPower(struct adapter *padapter, u8 RfPath);
 void MPT_PwrCtlDM(struct adapter *padapter, u32 bstart);
 u8 MptToMgntRate(u32 MptRateIdx);

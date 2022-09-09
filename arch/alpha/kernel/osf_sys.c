@@ -36,6 +36,7 @@
 #include <linux/types.h>
 #include <linux/ipc.h>
 #include <linux/namei.h>
+#include <linux/mount.h>
 #include <linux/uio.h>
 #include <linux/vfs.h>
 #include <linux/rcupdate.h>
@@ -677,7 +678,7 @@ SYSCALL_DEFINE2(osf_proplist_syscall, enum pl_code, code,
 	default:
 		error = -EOPNOTSUPP;
 		break;
-	};
+	}
 	return error;
 }
 
@@ -834,7 +835,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 			return -EFAULT;
 		state = &current_thread_info()->ieee_state;
 
-		/* Update softare trap enable bits.  */
+		/* Update software trap enable bits.  */
 		*state = (*state & ~IEEE_SW_MASK) | (swcr & IEEE_SW_MASK);
 
 		/* Update the real fpcr.  */
@@ -854,7 +855,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 		state = &current_thread_info()->ieee_state;
 		exc &= IEEE_STATUS_MASK;
 
-		/* Update softare trap enable bits.  */
+		/* Update software trap enable bits.  */
  		swcr = (*state & IEEE_SW_MASK) | exc;
 		*state |= exc;
 
@@ -876,7 +877,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 			if (fex & IEEE_TRAP_ENABLE_DZE) si_code = FPE_FLTDIV;
 			if (fex & IEEE_TRAP_ENABLE_INV) si_code = FPE_FLTINV;
 
-			send_sig_fault(SIGFPE, si_code,
+			send_sig_fault_trapno(SIGFPE, si_code,
 				       (void __user *)NULL,  /* FIXME */
 				       0, current);
  		}
@@ -963,36 +964,12 @@ put_tv32(struct timeval32 __user *o, struct timespec64 *i)
 }
 
 static inline long
-put_tv_to_tv32(struct timeval32 __user *o, struct timeval *i)
+put_tv_to_tv32(struct timeval32 __user *o, struct __kernel_old_timeval *i)
 {
 	return copy_to_user(o, &(struct timeval32){
 				.tv_sec = i->tv_sec,
 				.tv_usec = i->tv_usec},
 			    sizeof(struct timeval32));
-}
-
-static inline long
-get_it32(struct itimerval *o, struct itimerval32 __user *i)
-{
-	struct itimerval32 itv;
-	if (copy_from_user(&itv, i, sizeof(struct itimerval32)))
-		return -EFAULT;
-	o->it_interval.tv_sec = itv.it_interval.tv_sec;
-	o->it_interval.tv_usec = itv.it_interval.tv_usec;
-	o->it_value.tv_sec = itv.it_value.tv_sec;
-	o->it_value.tv_usec = itv.it_value.tv_usec;
-	return 0;
-}
-
-static inline long
-put_it32(struct itimerval32 __user *o, struct itimerval *i)
-{
-	return copy_to_user(o, &(struct itimerval32){
-				.it_interval.tv_sec = o->it_interval.tv_sec,
-				.it_interval.tv_usec = o->it_interval.tv_usec,
-				.it_value.tv_sec = o->it_value.tv_sec,
-				.it_value.tv_usec = o->it_value.tv_usec},
-			    sizeof(struct itimerval32));
 }
 
 static inline void
@@ -1038,47 +1015,6 @@ SYSCALL_DEFINE2(osf_settimeofday, struct timeval32 __user *, tv,
 }
 
 asmlinkage long sys_ni_posix_timers(void);
-
-SYSCALL_DEFINE2(osf_getitimer, int, which, struct itimerval32 __user *, it)
-{
-	struct itimerval kit;
-	int error;
-
-	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
-		return sys_ni_posix_timers();
-
-	error = do_getitimer(which, &kit);
-	if (!error && put_it32(it, &kit))
-		error = -EFAULT;
-
-	return error;
-}
-
-SYSCALL_DEFINE3(osf_setitimer, int, which, struct itimerval32 __user *, in,
-		struct itimerval32 __user *, out)
-{
-	struct itimerval kin, kout;
-	int error;
-
-	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
-		return sys_ni_posix_timers();
-
-	if (in) {
-		if (get_it32(&kin, in))
-			return -EFAULT;
-	} else
-		memset(&kin, 0, sizeof(kin));
-
-	error = do_setitimer(which, &kin, out ? &kout : NULL);
-	if (error || !out)
-		return error;
-
-	if (put_it32(out, &kout))
-		return -EFAULT;
-
-	return 0;
-
-}
 
 SYSCALL_DEFINE2(osf_utimes, const char __user *, filename,
 		struct timeval32 __user *, tvs)
@@ -1253,7 +1189,7 @@ struct timex32 {
 
 SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 {
-        struct timex txc;
+	struct __kernel_timex txc;
 	int ret;
 
 	/* copy relevant bits of struct timex. */
@@ -1270,7 +1206,8 @@ SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 	if (copy_to_user(txc_p, &txc, offsetof(struct timex32, time)) ||
 	    (copy_to_user(&txc_p->tick, &txc.tick, sizeof(struct timex32) - 
 			  offsetof(struct timex32, tick))) ||
-	    (put_tv_to_tv32(&txc_p->time, &txc.time)))
+	    (put_user(txc.time.tv_sec, &txc_p->time.tv_sec)) ||
+	    (put_user(txc.time.tv_usec, &txc_p->time.tv_usec)))
 	  return -EFAULT;
 
 	return ret;

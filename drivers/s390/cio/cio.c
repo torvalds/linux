@@ -536,7 +536,7 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 	struct irb *irb;
 
 	set_cpu_flag(CIF_NOHZ_DELAY);
-	tpi_info = (struct tpi_info *) &get_irq_regs()->int_code;
+	tpi_info = &get_irq_regs()->tpi_info;
 	trace_s390_cio_interrupt(tpi_info);
 	irb = this_cpu_ptr(&cio_irb);
 	sch = (struct subchannel *)(unsigned long) tpi_info->intparm;
@@ -563,16 +563,12 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction io_interrupt = {
-	.name	 = "IO",
-	.handler = do_cio_interrupt,
-};
-
 void __init init_cio_interrupts(void)
 {
 	irq_set_chip_and_handler(IO_INTERRUPT,
 				 &dummy_irq_chip, handle_percpu_irq);
-	setup_irq(IO_INTERRUPT, &io_interrupt);
+	if (request_irq(IO_INTERRUPT, do_cio_interrupt, 0, "I/O", NULL))
+		panic("Failed to register I/O interrupt\n");
 }
 
 #ifdef CONFIG_CCW_CONSOLE

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cell Internal Interrupt Controller
  *
@@ -8,20 +9,6 @@
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * TODO:
  * - Fix various assumptions related to HW CPU numbers vs. linux CPU numbers
  *   vs node numbers in the setup code
@@ -31,15 +18,16 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/export.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/kernel_stat.h>
+#include <linux/pgtable.h>
+#include <linux/of_address.h>
 
 #include <asm/io.h>
-#include <asm/pgtable.h>
-#include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/cell-regs.h>
@@ -119,13 +107,9 @@ static void iic_ioexc_cascade(struct irq_desc *desc)
 			out_be64(&node_iic->iic_is, ack);
 		/* handle them */
 		for (cascade = 63; cascade >= 0; cascade--)
-			if (bits & (0x8000000000000000UL >> cascade)) {
-				unsigned int cirq =
-					irq_linear_revmap(iic_host,
+			if (bits & (0x8000000000000000UL >> cascade))
+				generic_handle_domain_irq(iic_host,
 							  base | cascade);
-				if (cirq)
-					generic_handle_irq(cirq);
-			}
 		/* post-ack level interrupts */
 		ack = bits & ~IIC_ISR_EDGE_MASK;
 		if (ack)

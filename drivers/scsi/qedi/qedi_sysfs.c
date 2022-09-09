@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI Offload Driver
  * Copyright (c) 2016 Cavium Inc.
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #include "qedi.h"
@@ -19,9 +16,9 @@ static inline struct qedi_ctx *qedi_dev_to_hba(struct device *dev)
 	return iscsi_host_priv(shost);
 }
 
-static ssize_t qedi_show_port_state(struct device *dev,
-				    struct device_attribute *attr,
-				    char *buf)
+static ssize_t port_state_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
 {
 	struct qedi_ctx *qedi = qedi_dev_to_hba(dev);
 
@@ -31,8 +28,8 @@ static ssize_t qedi_show_port_state(struct device *dev,
 		return sprintf(buf, "Linkdown\n");
 }
 
-static ssize_t qedi_show_speed(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t speed_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct qedi_ctx *qedi = qedi_dev_to_hba(dev);
 	struct qed_link_output if_link;
@@ -42,11 +39,20 @@ static ssize_t qedi_show_speed(struct device *dev,
 	return sprintf(buf, "%d Gbit\n", if_link.speed / 1000);
 }
 
-static DEVICE_ATTR(port_state, 0444, qedi_show_port_state, NULL);
-static DEVICE_ATTR(speed, 0444, qedi_show_speed, NULL);
+static DEVICE_ATTR_RO(port_state);
+static DEVICE_ATTR_RO(speed);
 
-struct device_attribute *qedi_shost_attrs[] = {
-	&dev_attr_port_state,
-	&dev_attr_speed,
+static struct attribute *qedi_shost_attrs[] = {
+	&dev_attr_port_state.attr,
+	&dev_attr_speed.attr,
+	NULL
+};
+
+static const struct attribute_group qedi_shost_attr_group = {
+	.attrs = qedi_shost_attrs
+};
+
+const struct attribute_group *qedi_shost_groups[] = {
+	&qedi_shost_attr_group,
 	NULL
 };

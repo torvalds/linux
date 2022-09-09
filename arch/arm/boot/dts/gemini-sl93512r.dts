@@ -24,7 +24,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,19200n8 root=/dev/sda1 rw rootwait";
+		bootargs = "console=ttyS0,19200n8 root=/dev/mtdblock3 rw rootfstype=squashfs,jffs2 rootwait";
 		stdout-path = &uart0;
 	};
 
@@ -36,8 +36,8 @@
 			wakeup-source;
 			linux,code = <KEY_WPS_BUTTON>;
 			label = "WPS";
-			/* Conflict with NAND flash */
-			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+			/* Conflicts with TVC and extended flash */
+			gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
 		};
 
 		button-setup {
@@ -87,9 +87,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		/* Check pin collisions */
-		gpio-sck = <&gpio1 28 GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio1 30 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
 		cs-gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 
@@ -143,54 +143,30 @@
 			/* 16MB of flash */
 			reg = <0x30000000 0x01000000>;
 
-			partition@0 {
-				label = "BOOT";
-				reg = <0x00000000 0x00020000>;
-				read-only;
-			};
-			partition@120000 {
-				label = "Kern";
-				reg = <0x00020000 0x00300000>;
-			};
-			partition@320000 {
-				label = "Ramdisk";
-				reg = <0x00320000 0x00600000>;
-			};
-			partition@920000 {
-				label = "Application";
-				reg = <0x00920000 0x00600000>;
-			};
-			partition@f20000 {
-				label = "VCTL";
-				reg = <0x00f20000 0x00020000>;
-				read-only;
-			};
-			partition@f40000 {
-				label = "CurConf";
-				reg = <0x00f40000 0x000a0000>;
-				read-only;
-			};
-			partition@fe0000 {
-				label = "FIS directory";
-				reg = <0x00fe0000 0x00020000>;
-				read-only;
+			partitions {
+				compatible = "redboot-fis";
+				/* Eraseblock at 0xfe0000 */
+				fis-index-block = <0x1fc>;
 			};
 		};
 
 		syscon: syscon@40000000 {
 			pinctrl {
 				/*
-				 * gpio0egrp cover line 16 used by HD LED
-				 * gpio0fgrp cover line 17, 18 used by wireless LED and reset button
-				 * gpio0hgrp cover line 21, 22 used by MDIO for Marvell PHY
-				 * gpio0kgrp cover line 31 used by USB LED
+				 * gpio0agrp cover line 0, used by WPS button
+				 * gpio0fgrp cover line 16 used by HD LED
+				 * gpio0ggrp cover line 17, 18 used by wireless LAN LED and
+				 * reset button OR USB ID select on 17 and USB VBUS select
+				 * on 18. (Confusing.)
+				 * gpio0igrp cover line 21, 22 used by MDIO for Marvell PHY
 				 */
 				gpio0_default_pins: pinctrl-gpio0 {
 					mux {
 						function = "gpio0";
-						groups = "gpio0egrp",
+						groups = "gpio0agrp",
 						"gpio0fgrp",
-						"gpio0hgrp";
+						"gpio0ggrp",
+						"gpio0igrp";
 					};
 				};
 				/*
@@ -280,24 +256,6 @@
 
 		pci@50000000 {
 			status = "okay";
-			interrupt-map-mask = <0xf800 0 0 7>;
-			interrupt-map =
-				<0x4800 0 0 1 &pci_intc 0>, /* Slot 9 */
-				<0x4800 0 0 2 &pci_intc 1>,
-				<0x4800 0 0 3 &pci_intc 2>,
-				<0x4800 0 0 4 &pci_intc 3>,
-				<0x5000 0 0 1 &pci_intc 1>, /* Slot 10 */
-				<0x5000 0 0 2 &pci_intc 2>,
-				<0x5000 0 0 3 &pci_intc 3>,
-				<0x5000 0 0 4 &pci_intc 0>,
-				<0x5800 0 0 1 &pci_intc 2>, /* Slot 11 */
-				<0x5800 0 0 2 &pci_intc 3>,
-				<0x5800 0 0 3 &pci_intc 0>,
-				<0x5800 0 0 4 &pci_intc 1>,
-				<0x6000 0 0 1 &pci_intc 3>, /* Slot 12 */
-				<0x6000 0 0 2 &pci_intc 0>,
-				<0x6000 0 0 3 &pci_intc 1>,
-				<0x6000 0 0 4 &pci_intc 2>;
 		};
 
 		ethernet@60000000 {
@@ -317,11 +275,11 @@
 			};
 		};
 
-		ata@63000000 {
+		ide@63000000 {
 			status = "okay";
 		};
 
-		ata@63400000 {
+		ide@63400000 {
 			status = "okay";
 		};
 

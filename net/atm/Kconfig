@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Asynchronous Transfer Mode (ATM)
 #
 
 config ATM
 	tristate "Asynchronous Transfer Mode (ATM)"
-	---help---
+	help
 	  ATM is a high-speed networking technology for Local Area Networks
 	  and Wide Area Networks.  It uses a fixed packet size and is
 	  connection oriented, allowing for the negotiation of minimum
@@ -15,7 +16,7 @@ config ATM
 	  of your ATM card below.
 
 	  Note that you need a set of user-space programs to actually make use
-	  of ATM.  See the file <file:Documentation/networking/atm.txt> for
+	  of ATM.  See the file <file:Documentation/networking/atm.rst> for
 	  further details.
 
 config ATM_CLIP

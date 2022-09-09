@@ -22,21 +22,26 @@ fi
 # Example enforce param "-m" for dst_mac
 [ -z "$DST_MAC" ] && usage && err 2 "Must specify -m dst_mac"
 [ -z "$COUNT" ]   && COUNT="100000" # Zero means indefinitely
-
-# Base Config
-DELAY="0"        # Zero means max speed
+if [ -n "$DEST_IP" ]; then
+    validate_addr${IP6} $DEST_IP
+    read -r DST_MIN DST_MAX <<< $(parse_addr${IP6} $DEST_IP)
+fi
+if [ -n "$DST_PORT" ]; then
+    read -r UDP_DST_MIN UDP_DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $UDP_DST_MIN $UDP_DST_MAX
+fi
 
 # Flow variation random source port between min and max
-UDP_MIN=9
-UDP_MAX=109
+UDP_SRC_MIN=9
+UDP_SRC_MAX=109
 
 # General cleanup everything since last run
 # (especially important if other threads were configured by other scripts)
-pg_ctrl "reset"
+[ -z "$APPEND" ] && pg_ctrl "reset"
 
 # Add remove all other devices and add_device $DEV to thread 0
 thread=0
-pg_thread $thread "rem_device_all"
+[ -z "$APPEND" ] && pg_thread $thread "rem_device_all"
 pg_thread $thread "add_device" $DEV
 
 # How many packets to send (zero means indefinitely)
@@ -57,18 +62,39 @@ pg_set $DEV "flag NO_TIMESTAMP"
 
 # Destination
 pg_set $DEV "dst_mac $DST_MAC"
-pg_set $DEV "dst$IP6 $DEST_IP"
+pg_set $DEV "dst${IP6}_min $DST_MIN"
+pg_set $DEV "dst${IP6}_max $DST_MAX"
+
+if [ -n "$DST_PORT" ]; then
+    # Single destination port or random port range
+    pg_set $DEV "flag UDPDST_RND"
+    pg_set $DEV "udp_dst_min $UDP_DST_MIN"
+    pg_set $DEV "udp_dst_max $UDP_DST_MAX"
+fi
+
+[ ! -z "$UDP_CSUM" ] && pg_set $dev "flag UDPCSUM"
 
 # Setup random UDP port src range
 pg_set $DEV "flag UDPSRC_RND"
-pg_set $DEV "udp_src_min $UDP_MIN"
-pg_set $DEV "udp_src_max $UDP_MAX"
+pg_set $DEV "udp_src_min $UDP_SRC_MIN"
+pg_set $DEV "udp_src_max $UDP_SRC_MAX"
 
-# start_run
-echo "Running... ctrl^C to stop" >&2
-pg_ctrl "start"
-echo "Done" >&2
+# Run if user hits control-c
+function print_result() {
+    # Print results
+    echo "Result device: $DEV"
+    cat /proc/net/pktgen/$DEV
+}
+# trap keyboard interrupt (Ctrl-C)
+trap true SIGINT
 
-# Print results
-echo "Result device: $DEV"
-cat /proc/net/pktgen/$DEV
+if [ -z "$APPEND" ]; then
+    # start_run
+    echo "Running... ctrl^C to stop" >&2
+    pg_ctrl "start"
+    echo "Done" >&2
+
+    print_result
+else
+    echo "Append mode: config done. Do more or use 'pg_ctrl start' to run"
+fi

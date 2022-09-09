@@ -3,10 +3,6 @@
 
 #include "igc_phy.h"
 
-/* forward declaration */
-static s32 igc_phy_setup_autoneg(struct igc_hw *hw);
-static s32 igc_wait_autoneg(struct igc_hw *hw);
-
 /**
  * igc_check_reset_block - Check if PHY reset is blocked
  * @hw: pointer to the HW structure
@@ -145,32 +141,14 @@ void igc_power_down_phy_copper(struct igc_hw *hw)
  * igc_check_downshift - Checks whether a downshift in speed occurred
  * @hw: pointer to the HW structure
  *
- * Success returns 0, Failure returns 1
- *
  * A downshift is detected by querying the PHY link health.
  */
-s32 igc_check_downshift(struct igc_hw *hw)
+void igc_check_downshift(struct igc_hw *hw)
 {
 	struct igc_phy_info *phy = &hw->phy;
-	u16 phy_data, offset, mask;
-	s32 ret_val;
 
-	switch (phy->type) {
-	case igc_phy_i225:
-	default:
-		/* speed downshift not supported */
-		phy->speed_downgraded = false;
-		ret_val = 0;
-		goto out;
-	}
-
-	ret_val = phy->ops.read_reg(hw, offset, &phy_data);
-
-	if (!ret_val)
-		phy->speed_downgraded = (phy_data & mask) ? true : false;
-
-out:
-	return ret_val;
+	/* speed downshift not supported */
+	phy->speed_downgraded = false;
 }
 
 /**
@@ -185,6 +163,7 @@ out:
 s32 igc_phy_hw_reset(struct igc_hw *hw)
 {
 	struct igc_phy_info *phy = &hw->phy;
+	u32 phpm = 0, timeout = 10000;
 	s32  ret_val;
 	u32 ctrl;
 
@@ -198,6 +177,8 @@ s32 igc_phy_hw_reset(struct igc_hw *hw)
 	if (ret_val)
 		goto out;
 
+	phpm = rd32(IGC_I225_PHPM);
+
 	ctrl = rd32(IGC_CTRL);
 	wr32(IGC_CTRL, ctrl | IGC_CTRL_PHY_RST);
 	wrfl();
@@ -207,105 +188,22 @@ s32 igc_phy_hw_reset(struct igc_hw *hw)
 	wr32(IGC_CTRL, ctrl);
 	wrfl();
 
-	usleep_range(1500, 2000);
+	/* SW should guarantee 100us for the completion of the PHY reset */
+	usleep_range(100, 150);
+	do {
+		phpm = rd32(IGC_I225_PHPM);
+		timeout--;
+		udelay(1);
+	} while (!(phpm & IGC_PHY_RST_COMP) && timeout);
+
+	if (!timeout)
+		hw_dbg("Timeout is expired after a phy reset\n");
+
+	usleep_range(100, 150);
 
 	phy->ops.release(hw);
 
 out:
-	return ret_val;
-}
-
-/**
- * igc_copper_link_autoneg - Setup/Enable autoneg for copper link
- * @hw: pointer to the HW structure
- *
- * Performs initial bounds checking on autoneg advertisement parameter, then
- * configure to advertise the full capability.  Setup the PHY to autoneg
- * and restart the negotiation process between the link partner.  If
- * autoneg_wait_to_complete, then wait for autoneg to complete before exiting.
- */
-static s32 igc_copper_link_autoneg(struct igc_hw *hw)
-{
-	struct igc_phy_info *phy = &hw->phy;
-	u16 phy_ctrl;
-	s32 ret_val;
-
-	/* Perform some bounds checking on the autoneg advertisement
-	 * parameter.
-	 */
-	phy->autoneg_advertised &= phy->autoneg_mask;
-
-	/* If autoneg_advertised is zero, we assume it was not defaulted
-	 * by the calling code so we set to advertise full capability.
-	 */
-	if (phy->autoneg_advertised == 0)
-		phy->autoneg_advertised = phy->autoneg_mask;
-
-	hw_dbg("Reconfiguring auto-neg advertisement params\n");
-	ret_val = igc_phy_setup_autoneg(hw);
-	if (ret_val) {
-		hw_dbg("Error Setting up Auto-Negotiation\n");
-		goto out;
-	}
-	hw_dbg("Restarting Auto-Neg\n");
-
-	/* Restart auto-negotiation by setting the Auto Neg Enable bit and
-	 * the Auto Neg Restart bit in the PHY control register.
-	 */
-	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_ctrl);
-	if (ret_val)
-		goto out;
-
-	phy_ctrl |= (MII_CR_AUTO_NEG_EN | MII_CR_RESTART_AUTO_NEG);
-	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_ctrl);
-	if (ret_val)
-		goto out;
-
-	/* Does the user want to wait for Auto-Neg to complete here, or
-	 * check at a later time (for example, callback routine).
-	 */
-	if (phy->autoneg_wait_to_complete) {
-		ret_val = igc_wait_autoneg(hw);
-		if (ret_val) {
-			hw_dbg("Error while waiting for autoneg to complete\n");
-			goto out;
-		}
-	}
-
-	hw->mac.get_link_status = true;
-
-out:
-	return ret_val;
-}
-
-/**
- * igc_wait_autoneg - Wait for auto-neg completion
- * @hw: pointer to the HW structure
- *
- * Waits for auto-negotiation to complete or for the auto-negotiation time
- * limit to expire, which ever happens first.
- */
-static s32 igc_wait_autoneg(struct igc_hw *hw)
-{
-	u16 i, phy_status;
-	s32 ret_val = 0;
-
-	/* Break after autoneg completes or PHY_AUTO_NEG_LIMIT expires. */
-	for (i = PHY_AUTO_NEG_LIMIT; i > 0; i--) {
-		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
-		if (ret_val)
-			break;
-		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
-		if (ret_val)
-			break;
-		if (phy_status & MII_SR_AUTONEG_COMPLETE)
-			break;
-		msleep(100);
-	}
-
-	/* PHY_AUTO_NEG_TIME expiration doesn't guarantee auto-negotiation
-	 * has completed.
-	 */
 	return ret_val;
 }
 
@@ -341,8 +239,7 @@ static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
 			return ret_val;
 	}
 
-	if ((phy->autoneg_mask & ADVERTISE_2500_FULL) &&
-	    hw->phy.id == I225_I_PHY_ID) {
+	if (phy->autoneg_mask & ADVERTISE_2500_FULL) {
 		/* Read the MULTI GBT AN Control Register - reg 7.32 */
 		ret_val = phy->ops.read_reg(hw, (STANDARD_AN_REG_MASK <<
 					    MMD_DEVADDR_SHIFT) |
@@ -482,14 +379,107 @@ static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
 		ret_val = phy->ops.write_reg(hw, PHY_1000T_CTRL,
 					     mii_1000t_ctrl_reg);
 
-	if ((phy->autoneg_mask & ADVERTISE_2500_FULL) &&
-	    hw->phy.id == I225_I_PHY_ID)
+	if (phy->autoneg_mask & ADVERTISE_2500_FULL)
 		ret_val = phy->ops.write_reg(hw,
 					     (STANDARD_AN_REG_MASK <<
 					     MMD_DEVADDR_SHIFT) |
 					     ANEG_MULTIGBT_AN_CTRL,
 					     aneg_multigbt_an_ctrl);
 
+	return ret_val;
+}
+
+/**
+ * igc_wait_autoneg - Wait for auto-neg completion
+ * @hw: pointer to the HW structure
+ *
+ * Waits for auto-negotiation to complete or for the auto-negotiation time
+ * limit to expire, which ever happens first.
+ */
+static s32 igc_wait_autoneg(struct igc_hw *hw)
+{
+	u16 i, phy_status;
+	s32 ret_val = 0;
+
+	/* Break after autoneg completes or PHY_AUTO_NEG_LIMIT expires. */
+	for (i = PHY_AUTO_NEG_LIMIT; i > 0; i--) {
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
+		if (ret_val)
+			break;
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
+		if (ret_val)
+			break;
+		if (phy_status & MII_SR_AUTONEG_COMPLETE)
+			break;
+		msleep(100);
+	}
+
+	/* PHY_AUTO_NEG_TIME expiration doesn't guarantee auto-negotiation
+	 * has completed.
+	 */
+	return ret_val;
+}
+
+/**
+ * igc_copper_link_autoneg - Setup/Enable autoneg for copper link
+ * @hw: pointer to the HW structure
+ *
+ * Performs initial bounds checking on autoneg advertisement parameter, then
+ * configure to advertise the full capability.  Setup the PHY to autoneg
+ * and restart the negotiation process between the link partner.  If
+ * autoneg_wait_to_complete, then wait for autoneg to complete before exiting.
+ */
+static s32 igc_copper_link_autoneg(struct igc_hw *hw)
+{
+	struct igc_phy_info *phy = &hw->phy;
+	u16 phy_ctrl;
+	s32 ret_val;
+
+	/* Perform some bounds checking on the autoneg advertisement
+	 * parameter.
+	 */
+	phy->autoneg_advertised &= phy->autoneg_mask;
+
+	/* If autoneg_advertised is zero, we assume it was not defaulted
+	 * by the calling code so we set to advertise full capability.
+	 */
+	if (phy->autoneg_advertised == 0)
+		phy->autoneg_advertised = phy->autoneg_mask;
+
+	hw_dbg("Reconfiguring auto-neg advertisement params\n");
+	ret_val = igc_phy_setup_autoneg(hw);
+	if (ret_val) {
+		hw_dbg("Error Setting up Auto-Negotiation\n");
+		goto out;
+	}
+	hw_dbg("Restarting Auto-Neg\n");
+
+	/* Restart auto-negotiation by setting the Auto Neg Enable bit and
+	 * the Auto Neg Restart bit in the PHY control register.
+	 */
+	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_ctrl);
+	if (ret_val)
+		goto out;
+
+	phy_ctrl |= (MII_CR_AUTO_NEG_EN | MII_CR_RESTART_AUTO_NEG);
+	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_ctrl);
+	if (ret_val)
+		goto out;
+
+	/* Does the user want to wait for Auto-Neg to complete here, or
+	 * check at a later time (for example, callback routine).
+	 */
+	if (phy->autoneg_wait_to_complete) {
+		ret_val = igc_wait_autoneg(hw);
+		if (ret_val) {
+			hw_dbg("Error while waiting for autoneg to complete\n");
+			goto out;
+		}
+	}
+
+	hw->mac.get_link_status = true;
+
+out:
 	return ret_val;
 }
 
@@ -581,7 +571,7 @@ static s32 igc_read_phy_reg_mdic(struct igc_hw *hw, u32 offset, u16 *data)
 	 * the lower time out
 	 */
 	for (i = 0; i < IGC_GEN_POLL_TIMEOUT; i++) {
-		usleep_range(500, 1000);
+		udelay(50);
 		mdic = rd32(IGC_MDIC);
 		if (mdic & IGC_MDIC_READY)
 			break;
@@ -638,7 +628,7 @@ static s32 igc_write_phy_reg_mdic(struct igc_hw *hw, u32 offset, u16 data)
 	 * the lower time out
 	 */
 	for (i = 0; i < IGC_GEN_POLL_TIMEOUT; i++) {
-		usleep_range(500, 1000);
+		udelay(50);
 		mdic = rd32(IGC_MDIC);
 		if (mdic & IGC_MDIC_READY)
 			break;
@@ -746,8 +736,6 @@ s32 igc_write_phy_reg_gpy(struct igc_hw *hw, u32 offset, u16 data)
 		if (ret_val)
 			return ret_val;
 		ret_val = igc_write_phy_reg_mdic(hw, offset, data);
-		if (ret_val)
-			return ret_val;
 		hw->phy.ops.release(hw);
 	} else {
 		ret_val = igc_write_xmdio_reg(hw, (u16)offset, dev_addr,
@@ -779,8 +767,6 @@ s32 igc_read_phy_reg_gpy(struct igc_hw *hw, u32 offset, u16 *data)
 		if (ret_val)
 			return ret_val;
 		ret_val = igc_read_phy_reg_mdic(hw, offset, data);
-		if (ret_val)
-			return ret_val;
 		hw->phy.ops.release(hw);
 	} else {
 		ret_val = igc_read_xmdio_reg(hw, (u16)offset, dev_addr,
@@ -788,4 +774,22 @@ s32 igc_read_phy_reg_gpy(struct igc_hw *hw, u32 offset, u16 *data)
 	}
 
 	return ret_val;
+}
+
+/**
+ * igc_read_phy_fw_version - Read gPHY firmware version
+ * @hw: pointer to the HW structure
+ */
+u16 igc_read_phy_fw_version(struct igc_hw *hw)
+{
+	struct igc_phy_info *phy = &hw->phy;
+	u16 gphy_version = 0;
+	u16 ret_val;
+
+	/* NVM image version is reported as firmware version for i225 device */
+	ret_val = phy->ops.read_reg(hw, IGC_GPHY_VERSION, &gphy_version);
+	if (ret_val)
+		hw_dbg("igc_phy: read wrong gphy version\n");
+
+	return gphy_version;
 }

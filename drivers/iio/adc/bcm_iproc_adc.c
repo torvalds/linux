@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
@@ -319,7 +308,7 @@ static int iproc_adc_do_read(struct iio_dev *indio_dev,
 				"IntMask set failed. Read will likely fail.");
 			read_len = -EIO;
 			goto adc_err;
-		};
+		}
 	}
 	regmap_read(adc_priv->regmap, IPROC_INTERRUPT_MASK, &val_check);
 
@@ -551,11 +540,8 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	adc_priv->irqno = platform_get_irq(pdev, 0);
-	if (adc_priv->irqno <= 0) {
-		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		ret = -ENODEV;
-		return ret;
-	}
+	if (adc_priv->irqno <= 0)
+		return -ENODEV;
 
 	ret = regmap_update_bits(adc_priv->regmap, IPROC_REGCTL2,
 				IPROC_ADC_AUXIN_SCAN_ENA, 0);
@@ -587,8 +573,6 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->name = "iproc-static-adc";
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &iproc_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = iproc_adc_iio_channels;
@@ -633,7 +617,7 @@ static struct platform_driver iproc_adc_driver = {
 	.remove	= iproc_adc_remove,
 	.driver	= {
 		.name	= "iproc-static-adc",
-		.of_match_table = of_match_ptr(iproc_adc_of_match),
+		.of_match_table = iproc_adc_of_match,
 	},
 };
 module_platform_driver(iproc_adc_driver);

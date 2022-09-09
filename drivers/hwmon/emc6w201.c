@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * emc6w201.c - Hardware monitoring driver for the SMSC EMC6W201
  * Copyright (C) 2011  Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -58,7 +45,7 @@ enum subfeature { input, min, max };
 struct emc6w201_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
@@ -175,7 +162,7 @@ static struct emc6w201_data *emc6w201_update_device(struct device *dev)
 		}
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
@@ -457,8 +444,7 @@ static int emc6w201_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int emc6w201_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int emc6w201_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct emc6w201_data *data;
@@ -488,7 +474,7 @@ static struct i2c_driver emc6w201_driver = {
 	.driver = {
 		.name	= "emc6w201",
 	},
-	.probe		= emc6w201_probe,
+	.probe_new	= emc6w201_probe,
 	.id_table	= emc6w201_id,
 	.detect		= emc6w201_detect,
 	.address_list	= normal_i2c,

@@ -2,12 +2,17 @@
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * Coypright IBM Corp. 1999, 2000
+ * Copyright IBM Corp. 1999, 2000
  *
  */
 
 #ifndef DASD_FBA_H
 #define DASD_FBA_H
+
+/*
+ * Maximum number of blocks to be chained
+ */
+#define DASD_FBA_MAX_BLOCKS		96
 
 struct DE_fba_data {
 	struct {

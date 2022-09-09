@@ -90,12 +90,8 @@ static int hi65xx_powerkey_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(hi65xx_irq_info); i++) {
 
 		irq = platform_get_irq_byname(pdev, hi65xx_irq_info[i].name);
-		if (irq < 0) {
-			error = irq;
-			dev_err(dev, "couldn't get irq %s: %d\n",
-				hi65xx_irq_info[i].name, error);
-			return error;
-		}
+		if (irq < 0)
+			return irq;
 
 		error = devm_request_any_context_irq(dev, irq,
 						     hi65xx_irq_info[i].handler,

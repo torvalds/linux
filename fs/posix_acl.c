@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2002,2003 by Andreas Gruenbacher <a.gruenbacher@computer.org>
  *
@@ -21,6 +22,8 @@
 #include <linux/xattr.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
+#include <linux/namei.h>
+#include <linux/mnt_idmapping.h>
 
 static struct posix_acl **acl_by_type(struct inode *inode, int type)
 {
@@ -55,7 +58,17 @@ EXPORT_SYMBOL(get_cached_acl);
 
 struct posix_acl *get_cached_acl_rcu(struct inode *inode, int type)
 {
-	return rcu_dereference(*acl_by_type(inode, type));
+	struct posix_acl *acl = rcu_dereference(*acl_by_type(inode, type));
+
+	if (acl == ACL_DONT_CACHE) {
+		struct posix_acl *ret;
+
+		ret = inode->i_op->get_acl(inode, type, LOOKUP_RCU);
+		if (!IS_ERR(ret))
+			acl = ret;
+	}
+
+	return acl;
 }
 EXPORT_SYMBOL(get_cached_acl_rcu);
 
@@ -122,8 +135,7 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 	 * to just call ->get_acl to fetch the ACL ourself.  (This is going to
 	 * be an unlikely race.)
 	 */
-	if (cmpxchg(p, ACL_NOT_CACHED, sentinel) != ACL_NOT_CACHED)
-		/* fall through */ ;
+	cmpxchg(p, ACL_NOT_CACHED, sentinel);
 
 	/*
 	 * Normally, the ACL returned by ->get_acl will be cached.
@@ -137,7 +149,7 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 		set_cached_acl(inode, type, NULL);
 		return NULL;
 	}
-	acl = inode->i_op->get_acl(inode, type);
+	acl = inode->i_op->get_acl(inode, type, false);
 
 	if (IS_ERR(acl)) {
 		/*
@@ -187,7 +199,7 @@ EXPORT_SYMBOL(posix_acl_alloc);
 /*
  * Clone an ACL.
  */
-static struct posix_acl *
+struct posix_acl *
 posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 {
 	struct posix_acl *clone = NULL;
@@ -201,6 +213,7 @@ posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 	}
 	return clone;
 }
+EXPORT_SYMBOL_GPL(posix_acl_clone);
 
 /*
  * Check if an acl is valid. Returns 0 if it is, or -E... otherwise.
@@ -344,33 +357,43 @@ EXPORT_SYMBOL(posix_acl_from_mode);
  * by the acl. Returns -E... otherwise.
  */
 int
-posix_acl_permission(struct inode *inode, const struct posix_acl *acl, int want)
+posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
+		     const struct posix_acl *acl, int want)
 {
 	const struct posix_acl_entry *pa, *pe, *mask_obj;
+	struct user_namespace *fs_userns = i_user_ns(inode);
 	int found = 0;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
 
-	want &= MAY_READ | MAY_WRITE | MAY_EXEC | MAY_NOT_BLOCK;
+	want &= MAY_READ | MAY_WRITE | MAY_EXEC;
 
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
                 switch(pa->e_tag) {
                         case ACL_USER_OBJ:
 				/* (May have been checked already) */
-				if (uid_eq(inode->i_uid, current_fsuid()))
+				vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto check_perm;
                                 break;
                         case ACL_USER:
-				if (uid_eq(pa->e_uid, current_fsuid()))
+				vfsuid = make_vfsuid(mnt_userns, fs_userns,
+						     pa->e_uid);
+				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto mask;
 				break;
                         case ACL_GROUP_OBJ:
-                                if (in_group_p(inode->i_gid)) {
+				vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
                                 }
 				break;
                         case ACL_GROUP:
-				if (in_group_p(pa->e_gid)) {
+				vfsgid = make_vfsgid(mnt_userns, fs_userns,
+						     pa->e_gid);
+				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
@@ -550,8 +573,22 @@ __posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
 }
 EXPORT_SYMBOL(__posix_acl_chmod);
 
+/**
+ * posix_acl_chmod - chmod a posix acl
+ *
+ * @mnt_userns:	user namespace of the mount @inode was found from
+ * @inode:	inode to check permissions on
+ * @mode:	the new mode of @inode
+ *
+ * If the inode has been found through an idmapped mount the user namespace of
+ * the vfsmount must be passed through @mnt_userns. This function will then
+ * take care to map the inode according to @mnt_userns before checking
+ * permissions. On non-idmapped mounts or if permission checking is to be
+ * performed on the raw inode simply passs init_user_ns.
+ */
 int
-posix_acl_chmod(struct inode *inode, umode_t mode)
+ posix_acl_chmod(struct user_namespace *mnt_userns, struct inode *inode,
+		    umode_t mode)
 {
 	struct posix_acl *acl;
 	int ret = 0;
@@ -571,7 +608,7 @@ posix_acl_chmod(struct inode *inode, umode_t mode)
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
 	if (ret)
 		return ret;
-	ret = inode->i_op->set_acl(inode, acl, ACL_TYPE_ACCESS);
+	ret = inode->i_op->set_acl(mnt_userns, inode, acl, ACL_TYPE_ACCESS);
 	posix_acl_release(acl);
 	return ret;
 }
@@ -630,17 +667,28 @@ EXPORT_SYMBOL_GPL(posix_acl_create);
 
 /**
  * posix_acl_update_mode  -  update mode in set_acl
+ * @mnt_userns:	user namespace of the mount @inode was found from
+ * @inode:	target inode
+ * @mode_p:	mode (pointer) for update
+ * @acl:	acl pointer
  *
  * Update the file mode when setting an ACL: compute the new file permission
  * bits based on the ACL.  In addition, if the ACL is equivalent to the new
- * file mode, set *acl to NULL to indicate that no ACL should be set.
+ * file mode, set *@acl to NULL to indicate that no ACL should be set.
  *
- * As with chmod, clear the setgit bit if the caller is not in the owning group
+ * As with chmod, clear the setgid bit if the caller is not in the owning group
  * or capable of CAP_FSETID (see inode_change_ok).
+ *
+ * If the inode has been found through an idmapped mount the user namespace of
+ * the vfsmount must be passed through @mnt_userns. This function will then
+ * take care to map the inode according to @mnt_userns before checking
+ * permissions. On non-idmapped mounts or if permission checking is to be
+ * performed on the raw inode simply passs init_user_ns.
  *
  * Called from set_acl inode operations.
  */
-int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
+int posix_acl_update_mode(struct user_namespace *mnt_userns,
+			  struct inode *inode, umode_t *mode_p,
 			  struct posix_acl **acl)
 {
 	umode_t mode = inode->i_mode;
@@ -651,8 +699,8 @@ int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
 		return error;
 	if (error == 0)
 		*acl = NULL;
-	if (!in_group_p(inode->i_gid) &&
-	    !capable_wrt_inode_uidgid(inode, CAP_FSETID))
+	if (!vfsgid_in_group_p(i_gid_into_vfsgid(mnt_userns, inode)) &&
+	    !capable_wrt_inode_uidgid(mnt_userns, inode, CAP_FSETID))
 		mode &= ~S_ISGID;
 	*mode_p = mode;
 	return 0;
@@ -662,6 +710,107 @@ EXPORT_SYMBOL(posix_acl_update_mode);
 /*
  * Fix up the uids and gids in posix acl extended attributes in place.
  */
+static int posix_acl_fix_xattr_common(void *value, size_t size)
+{
+	struct posix_acl_xattr_header *header = value;
+	int count;
+
+	if (!header)
+		return -EINVAL;
+	if (size < sizeof(struct posix_acl_xattr_header))
+		return -EINVAL;
+	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
+		return -EINVAL;
+
+	count = posix_acl_xattr_count(size);
+	if (count < 0)
+		return -EINVAL;
+	if (count == 0)
+		return -EINVAL;
+
+	return count;
+}
+
+void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
+				     const struct inode *inode,
+				     void *value, size_t size)
+{
+	struct posix_acl_xattr_header *header = value;
+	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
+	struct user_namespace *fs_userns = i_user_ns(inode);
+	int count;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
+	kuid_t uid;
+	kgid_t gid;
+
+	if (no_idmapping(mnt_userns, i_user_ns(inode)))
+		return;
+
+	count = posix_acl_fix_xattr_common(value, size);
+	if (count < 0)
+		return;
+
+	for (end = entry + count; entry != end; entry++) {
+		switch (le16_to_cpu(entry->e_tag)) {
+		case ACL_USER:
+			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsuid = make_vfsuid(mnt_userns, fs_userns, uid);
+			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns,
+						vfsuid_into_kuid(vfsuid)));
+			break;
+		case ACL_GROUP:
+			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsgid = make_vfsgid(mnt_userns, fs_userns, gid);
+			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns,
+						vfsgid_into_kgid(vfsgid)));
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void posix_acl_setxattr_idmapped_mnt(struct user_namespace *mnt_userns,
+				     const struct inode *inode,
+				     void *value, size_t size)
+{
+	struct posix_acl_xattr_header *header = value;
+	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
+	struct user_namespace *fs_userns = i_user_ns(inode);
+	int count;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
+	kuid_t uid;
+	kgid_t gid;
+
+	if (no_idmapping(mnt_userns, i_user_ns(inode)))
+		return;
+
+	count = posix_acl_fix_xattr_common(value, size);
+	if (count < 0)
+		return;
+
+	for (end = entry + count; entry != end; entry++) {
+		switch (le16_to_cpu(entry->e_tag)) {
+		case ACL_USER:
+			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsuid = VFSUIDT_INIT(uid);
+			uid = from_vfsuid(mnt_userns, fs_userns, vfsuid);
+			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns, uid));
+			break;
+		case ACL_GROUP:
+			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsgid = VFSGIDT_INIT(gid);
+			gid = from_vfsgid(mnt_userns, fs_userns, vfsgid);
+			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns, gid));
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static void posix_acl_fix_xattr_userns(
 	struct user_namespace *to, struct user_namespace *from,
 	void *value, size_t size)
@@ -672,17 +821,8 @@ static void posix_acl_fix_xattr_userns(
 	kuid_t uid;
 	kgid_t gid;
 
-	if (!value)
-		return;
-	if (size < sizeof(struct posix_acl_xattr_header))
-		return;
-	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return;
-
-	count = posix_acl_xattr_count(size);
+	count = posix_acl_fix_xattr_common(value, size);
 	if (count < 0)
-		return;
-	if (count == 0)
 		return;
 
 	for (end = entry + count; entry != end; entry++) {
@@ -854,7 +994,8 @@ posix_acl_xattr_get(const struct xattr_handler *handler,
 }
 
 int
-set_posix_acl(struct inode *inode, int type, struct posix_acl *acl)
+set_posix_acl(struct user_namespace *mnt_userns, struct inode *inode,
+	      int type, struct posix_acl *acl)
 {
 	if (!IS_POSIXACL(inode))
 		return -EOPNOTSUPP;
@@ -863,7 +1004,7 @@ set_posix_acl(struct inode *inode, int type, struct posix_acl *acl)
 
 	if (type == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode))
 		return acl ? -EACCES : 0;
-	if (!inode_owner_or_capable(inode))
+	if (!inode_owner_or_capable(mnt_userns, inode))
 		return -EPERM;
 
 	if (acl) {
@@ -871,15 +1012,16 @@ set_posix_acl(struct inode *inode, int type, struct posix_acl *acl)
 		if (ret)
 			return ret;
 	}
-	return inode->i_op->set_acl(inode, acl, type);
+	return inode->i_op->set_acl(mnt_userns, inode, acl, type);
 }
 EXPORT_SYMBOL(set_posix_acl);
 
 static int
 posix_acl_xattr_set(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
-		    const char *name, const void *value,
-		    size_t size, int flags)
+			   struct user_namespace *mnt_userns,
+			   struct dentry *unused, struct inode *inode,
+			   const char *name, const void *value, size_t size,
+			   int flags)
 {
 	struct posix_acl *acl = NULL;
 	int ret;
@@ -889,7 +1031,7 @@ posix_acl_xattr_set(const struct xattr_handler *handler,
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}
-	ret = set_posix_acl(inode, handler->flags, acl);
+	ret = set_posix_acl(mnt_userns, inode, handler->flags, acl);
 	posix_acl_release(acl);
 	return ret;
 }
@@ -918,12 +1060,13 @@ const struct xattr_handler posix_acl_default_xattr_handler = {
 };
 EXPORT_SYMBOL_GPL(posix_acl_default_xattr_handler);
 
-int simple_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int simple_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		   struct posix_acl *acl, int type)
 {
 	int error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(inode,
+		error = posix_acl_update_mode(mnt_userns, inode,
 				&inode->i_mode, &acl);
 		if (error)
 			return error;

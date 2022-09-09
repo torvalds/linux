@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* 
  *    Copyright (C) 2001 Matthew Wilcox <willy at parisc-linux.org>
  *    Copyright (C) 2003 Carlos O'Donell <carlos at parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef _PARISC64_KERNEL_SIGNAL32_H
 #define _PARISC64_KERNEL_SIGNAL32_H
@@ -49,21 +36,12 @@ struct compat_regfile {
         compat_int_t rf_sar;
 };
 
-#define COMPAT_SIGRETURN_TRAMP 4
-#define COMPAT_SIGRESTARTBLOCK_TRAMP 5
-#define COMPAT_TRAMP_SIZE (COMPAT_SIGRETURN_TRAMP + \
-				COMPAT_SIGRESTARTBLOCK_TRAMP)
-
 struct compat_rt_sigframe {
-        /* XXX: Must match trampoline size in arch/parisc/kernel/signal.c
-                Secondary to that it must protect the ERESTART_RESTARTBLOCK
-                trampoline we left on the stack (we were bad and didn't
-                change sp so we could run really fast.) */
-        compat_uint_t tramp[COMPAT_TRAMP_SIZE];
-        compat_siginfo_t info;
-        struct compat_ucontext uc;
-        /* Hidden location of truncated registers, *must* be last. */
-        struct compat_regfile regs;
+	unsigned int tramp[2]; /* holds original return address */
+	compat_siginfo_t info;
+	struct compat_ucontext uc;
+	/* Hidden location of truncated registers, *must* be last. */
+	struct compat_regfile regs;
 };
 
 /*

@@ -99,7 +99,7 @@ the sake of simplicity.
 
       /*
        * Give userspace some time to read the events before we destroy the
-       * device with UI_DEV_DESTOY.
+       * device with UI_DEV_DESTROY.
        */
       sleep(1);
 
@@ -164,7 +164,7 @@ mouse.
 
       /*
        * Give userspace some time to read the events before we destroy the
-       * device with UI_DEV_DESTOY.
+       * device with UI_DEV_DESTROY.
        */
       sleep(1);
 
@@ -179,7 +179,7 @@ uinput old interface
 --------------------
 
 Before uinput version 5, there wasn't a dedicated ioctl to set up a virtual
-device. Programs supportinf older versions of uinput interface need to fill
+device. Programs supporting older versions of uinput interface need to fill
 a uinput_user_dev structure and write it to the uinput file descriptor to
 configure the new uinput device. New code should not use the old interface
 but interact with uinput via ioctl calls, or use libevdev.
@@ -233,7 +233,7 @@ but interact with uinput via ioctl calls, or use libevdev.
 
       /*
        * Give userspace some time to read the events before we destroy the
-       * device with UI_DEV_DESTOY.
+       * device with UI_DEV_DESTROY.
        */
       sleep(1);
 

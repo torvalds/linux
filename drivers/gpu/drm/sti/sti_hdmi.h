@@ -10,8 +10,10 @@
 #include <linux/hdmi.h>
 #include <linux/platform_device.h>
 
-#include <drm/drmP.h>
 #include <media/cec-notifier.h>
+
+#include <drm/drm_modes.h>
+#include <drm/drm_property.h>
 
 #define HDMI_STA           0x0010
 #define HDMI_STA_DLL_LCK   BIT(5)
@@ -29,12 +31,6 @@ struct hdmi_audio_params {
 	unsigned int sample_width;
 	unsigned int sample_rate;
 	struct hdmi_audio_infoframe cea;
-};
-
-static const struct drm_prop_enum_list colorspace_mode_names[] = {
-	{ HDMI_COLORSPACE_RGB, "rgb" },
-	{ HDMI_COLORSPACE_YUV422, "yuv422" },
-	{ HDMI_COLORSPACE_YUV444, "yuv444" },
 };
 
 #define DEFAULT_COLORSPACE_MODE HDMI_COLORSPACE_RGB

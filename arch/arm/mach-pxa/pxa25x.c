@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/pxa25x.c
  *
@@ -6,10 +7,6 @@
  *  Copyright:	MontaVista Software Inc.
  *
  * Code specific to PXA21x/25x/26x variants.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Since this file should be linked before any other machine specific file,
  * the __initcall() here will be executed first.  This serves as default
@@ -29,16 +26,16 @@
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/platform_data/mmp_dma.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "pxa25x.h"
-#include <mach/reset.h>
+#include "reset.h"
 #include "pm.h"
-#include <mach/dma.h>
-#include <mach/smemc.h>
+#include "addr-map.h"
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"
@@ -243,7 +240,7 @@ static int __init pxa25x_init(void)
 
 	if (cpu_is_pxa25x()) {
 
-		reset_status = RCSR;
+		pxa_register_wdt(RCSR);
 
 		pxa25x_init_pm();
 

@@ -28,7 +28,7 @@ sub trace_end
 sub irq::softirq_entry
 {
 	my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
-	    $common_pid, $common_comm,
+	    $common_pid, $common_comm, $common_callchain,
 	    $vec) = @_;
 
 	print_header($event_name, $common_cpu, $common_secs, $common_nsecs,
@@ -43,7 +43,7 @@ sub irq::softirq_entry
 sub kmem::kmalloc
 {
 	my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
-	    $common_pid, $common_comm,
+	    $common_pid, $common_comm, $common_callchain,
 	    $call_site, $ptr, $bytes_req, $bytes_alloc,
 	    $gfp_flags) = @_;
 
@@ -92,7 +92,7 @@ sub print_unhandled
 sub trace_unhandled
 {
     my ($event_name, $context, $common_cpu, $common_secs, $common_nsecs,
-	$common_pid, $common_comm) = @_;
+	$common_pid, $common_comm, $common_callchain) = @_;
 
     $unhandled{$event_name}++;
 }

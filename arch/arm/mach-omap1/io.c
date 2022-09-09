@@ -1,28 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/io.c
  *
  * OMAP1 I/O mapping code
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/omap-dma.h>
 
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <linux/omap-dma.h>
-
+#include "tc.h"
 #include "iomap.h"
 #include "common.h"
-#include "clock.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -129,11 +123,6 @@ void __init omap1_init_early(void)
 	 */
 	omap_writew(0x0, MPU_PUBLIC_TIPB_CNTL);
 	omap_writew(0x0, MPU_PRIVATE_TIPB_CNTL);
-
-	/* Must init clocks early to assure that timer interrupt works
-	 */
-	omap1_clk_init();
-	omap1_mux_init();
 }
 
 void __init omap1_init_late(void)

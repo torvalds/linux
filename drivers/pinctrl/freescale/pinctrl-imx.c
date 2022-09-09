@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -373,7 +374,7 @@ static int imx_pinconf_get(struct pinctrl_dev *pctldev,
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	if (info->flags & IMX_USE_SCU)
-		return imx_pinconf_get_scu(pctldev, pin_id, config);
+		return info->imx_pinconf_get(pctldev, pin_id, config);
 	else
 		return imx_pinconf_get_mmio(pctldev, pin_id, config);
 }
@@ -423,7 +424,7 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	if (info->flags & IMX_USE_SCU)
-		return imx_pinconf_set_scu(pctldev, pin_id,
+		return info->imx_pinconf_set(pctldev, pin_id,
 					   configs, num_configs);
 	else
 		return imx_pinconf_set_mmio(pctldev, pin_id,
@@ -440,7 +441,7 @@ static void imx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	int ret;
 
 	if (info->flags & IMX_USE_SCU) {
-		ret = imx_pinconf_get_scu(pctldev, pin_id, &config);
+		ret = info->imx_pinconf_get(pctldev, pin_id, &config);
 		if (ret) {
 			dev_err(ipctl->dev, "failed to get %s pinconf\n",
 				pin_get_name(pctldev, pin_id));
@@ -449,7 +450,7 @@ static void imx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		}
 	} else {
 		pin_reg = &ipctl->pin_regs[pin_id];
-		if (!pin_reg || pin_reg->conf_reg == -1) {
+		if (pin_reg->conf_reg == -1) {
 			seq_puts(s, "N/A");
 			return;
 		}
@@ -629,7 +630,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	for (i = 0; i < grp->num_pins; i++) {
 		pin = &((struct imx_pin *)(grp->data))[i];
 		if (info->flags & IMX_USE_SCU)
-			imx_pinctrl_parse_pin_scu(ipctl, &grp->pins[i],
+			info->imx_pinctrl_parse_pin(ipctl, &grp->pins[i],
 						  pin, &list);
 		else
 			imx_pinctrl_parse_pin_mmio(ipctl, &grp->pins[i],
@@ -647,7 +648,8 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	struct device_node *child;
 	struct function_desc *func;
 	struct group_desc *grp;
-	u32 i = 0;
+	const char **group_names;
+	u32 i;
 
 	dev_dbg(pctl->dev, "parse function(%d): %pOFn\n", index, np);
 
@@ -659,21 +661,27 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->num_group_names = of_get_child_count(np);
 	if (func->num_group_names == 0) {
-		dev_err(ipctl->dev, "no groups defined in %pOF\n", np);
+		dev_info(ipctl->dev, "no groups defined in %pOF\n", np);
 		return -EINVAL;
 	}
-	func->group_names = devm_kcalloc(ipctl->dev, func->num_group_names,
-					 sizeof(char *), GFP_KERNEL);
-	if (!func->group_names)
+
+	group_names = devm_kcalloc(ipctl->dev, func->num_group_names,
+				   sizeof(char *), GFP_KERNEL);
+	if (!group_names)
 		return -ENOMEM;
+	i = 0;
+	for_each_child_of_node(np, child)
+		group_names[i++] = child->name;
+	func->group_names = group_names;
 
+	i = 0;
 	for_each_child_of_node(np, child) {
-		func->group_names[i] = child->name;
-
 		grp = devm_kzalloc(ipctl->dev, sizeof(struct group_desc),
 				   GFP_KERNEL);
-		if (!grp)
+		if (!grp) {
+			of_node_put(child);
 			return -ENOMEM;
+		}
 
 		mutex_lock(&ipctl->mutex);
 		radix_tree_insert(&pctl->pin_group_tree,
@@ -697,12 +705,17 @@ static bool imx_pinctrl_dt_is_flat_functions(struct device_node *np)
 	struct device_node *pinctrl_np;
 
 	for_each_child_of_node(np, function_np) {
-		if (of_property_read_bool(function_np, "fsl,pins"))
+		if (of_property_read_bool(function_np, "fsl,pins")) {
+			of_node_put(function_np);
 			return true;
+		}
 
 		for_each_child_of_node(function_np, pinctrl_np) {
-			if (of_property_read_bool(pinctrl_np, "fsl,pins"))
+			if (of_property_read_bool(pinctrl_np, "fsl,pins")) {
+				of_node_put(pinctrl_np);
+				of_node_put(function_np);
 				return false;
+			}
 		}
 	}
 
@@ -767,16 +780,6 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 	return 0;
 }
 
-/*
- * imx_free_resources() - free memory used by this driver
- * @info: info driver instance
- */
-static void imx_free_resources(struct imx_pinctrl *ipctl)
-{
-	if (ipctl->pctl)
-		pinctrl_unregister(ipctl->pctl);
-}
-
 int imx_pinctrl_probe(struct platform_device *pdev,
 		      const struct imx_pinctrl_soc_info *info)
 {
@@ -785,7 +788,6 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	struct pinctrl_desc *imx_pinctrl_desc;
 	struct device_node *np;
 	struct imx_pinctrl *ipctl;
-	struct resource *res;
 	struct regmap *gpr;
 	int ret, i;
 
@@ -817,8 +819,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 			ipctl->pin_regs[i].conf_reg = -1;
 		}
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		ipctl->base = devm_ioremap_resource(&pdev->dev, res);
+		ipctl->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(ipctl->base))
 			return PTR_ERR(ipctl->base);
 
@@ -869,21 +870,41 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 					     &ipctl->pctl);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
-		goto free;
+		return ret;
 	}
 
 	ret = imx_pinctrl_probe_dt(pdev, ipctl);
 	if (ret) {
 		dev_err(&pdev->dev, "fail to probe dt properties\n");
-		goto free;
+		return ret;
 	}
 
 	dev_info(&pdev->dev, "initialized IMX pinctrl driver\n");
 
 	return pinctrl_enable(ipctl->pctl);
-
-free:
-	imx_free_resources(ipctl);
-
-	return ret;
 }
+EXPORT_SYMBOL_GPL(imx_pinctrl_probe);
+
+static int __maybe_unused imx_pinctrl_suspend(struct device *dev)
+{
+	struct imx_pinctrl *ipctl = dev_get_drvdata(dev);
+
+	return pinctrl_force_sleep(ipctl->pctl);
+}
+
+static int __maybe_unused imx_pinctrl_resume(struct device *dev)
+{
+	struct imx_pinctrl *ipctl = dev_get_drvdata(dev);
+
+	return pinctrl_force_default(ipctl->pctl);
+}
+
+const struct dev_pm_ops imx_pinctrl_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(imx_pinctrl_suspend,
+					imx_pinctrl_resume)
+};
+EXPORT_SYMBOL_GPL(imx_pinctrl_pm_ops);
+
+MODULE_AUTHOR("Dong Aisheng <aisheng.dong@nxp.com>");
+MODULE_DESCRIPTION("NXP i.MX common pinctrl driver");
+MODULE_LICENSE("GPL v2");

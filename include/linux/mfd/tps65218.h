@@ -1,18 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/mfd/tps65218.h
  *
- * Functions to access TPS65219 power management chip.
+ * Functions to access TPS65218 power management chip.
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef __LINUX_MFD_TPS65218_H
@@ -137,6 +129,10 @@
 #define TPS65218_CONFIG1_PGDLY_MASK	0x18
 #define TPS65218_CONFIG1_STRICT		BIT(2)
 #define TPS65218_CONFIG1_UVLO_MASK	0x3
+#define TPS65218_CONFIG1_UVLO_2750000	0x0
+#define TPS65218_CONFIG1_UVLO_2950000	0x1
+#define TPS65218_CONFIG1_UVLO_3250000	0x2
+#define TPS65218_CONFIG1_UVLO_3350000	0x3
 
 #define TPS65218_CONFIG2_DC12_RST	BIT(7)
 #define TPS65218_CONFIG2_UVLOHYS	BIT(6)
@@ -208,6 +204,7 @@ enum tps65218_regulator_id {
 	/* LDOs */
 	TPS65218_LDO_1,
 	/* LS's */
+	TPS65218_LS_2,
 	TPS65218_LS_3,
 };
 
@@ -218,7 +215,7 @@ enum tps65218_regulator_id {
 /* Number of LDO voltage regulators available */
 #define TPS65218_NUM_LDO		1
 /* Number of total LS current regulators available */
-#define TPS65218_NUM_LS			1
+#define TPS65218_NUM_LS			2
 /* Number of total regulators available */
 #define TPS65218_NUM_REGULATOR		(TPS65218_NUM_DCDC + TPS65218_NUM_LDO \
 					 + TPS65218_NUM_LS)

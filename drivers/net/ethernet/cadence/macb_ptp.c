@@ -1,22 +1,11 @@
-/**
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  * 1588 PTP support for Cadence GEM device.
  *
- * Copyright (C) 2017 Cadence Design Systems - http://www.cadence.com
+ * Copyright (C) 2017 Cadence Design Systems - https://www.cadence.com
  *
  * Authors: Rafal Ozieblo <rafalo@cadence.com>
  *          Bartosz Folta <bfolta@cadence.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -49,7 +38,8 @@ static struct macb_dma_desc_ptp *macb_ptp_desc(struct macb *bp,
 	return NULL;
 }
 
-static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
+static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			    struct ptp_system_timestamp *sts)
 {
 	struct macb *bp = container_of(ptp, struct macb, ptp_clock_info);
 	unsigned long flags;
@@ -57,7 +47,9 @@ static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	u32 secl, sech;
 
 	spin_lock_irqsave(&bp->tsu_clk_lock, flags);
+	ptp_read_system_prets(sts);
 	first = gem_readl(bp, TN);
+	ptp_read_system_postts(sts);
 	secl = gem_readl(bp, TSL);
 	sech = gem_readl(bp, TSH);
 	second = gem_readl(bp, TN);
@@ -67,7 +59,9 @@ static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 		/* if so, use later read & re-read seconds
 		 * (assume all done within 1s)
 		 */
+		ptp_read_system_prets(sts);
 		ts->tv_nsec = gem_readl(bp, TN);
+		ptp_read_system_postts(sts);
 		secl = gem_readl(bp, TSL);
 		sech = gem_readl(bp, TSH);
 	} else {
@@ -115,7 +109,10 @@ static int gem_tsu_incr_set(struct macb *bp, struct tsu_incr *incr_spec)
 	 * to take effect.
 	 */
 	spin_lock_irqsave(&bp->tsu_clk_lock, flags);
-	gem_writel(bp, TISUBN, GEM_BF(SUBNSINCR, incr_spec->sub_ns));
+	/* RegBit[15:0] = Subns[23:8]; RegBit[31:24] = Subns[7:0] */
+	gem_writel(bp, TISUBN, GEM_BF(SUBNSINCRL, incr_spec->sub_ns) |
+		   GEM_BF(SUBNSINCRH, (incr_spec->sub_ns >>
+			  GEM_SUBNSINCRL_SIZE)));
 	gem_writel(bp, TI, GEM_BF(NSINCR, incr_spec->ns));
 	spin_unlock_irqrestore(&bp->tsu_clk_lock, flags);
 
@@ -146,7 +143,7 @@ static int gem_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	 * (temp / USEC_PER_SEC) + 0.5
 	 */
 	adj += (USEC_PER_SEC >> 1);
-	adj >>= GEM_SUBNSINCR_SIZE; /* remove fractions */
+	adj >>= PPM_FRACTION; /* remove fractions */
 	adj = div_u64(adj, USEC_PER_SEC);
 	adj = neg_adj ? (word - adj) : (word + adj);
 
@@ -169,7 +166,7 @@ static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	}
 
 	if (delta > TSU_NSEC_MAX_VAL) {
-		gem_tsu_get_time(&bp->ptp_clock_info, &now);
+		gem_tsu_get_time(&bp->ptp_clock_info, &now, NULL);
 		now = timespec64_add(now, then);
 
 		gem_tsu_set_time(&bp->ptp_clock_info,
@@ -200,7 +197,7 @@ static const struct ptp_clock_info gem_ptp_caps_template = {
 	.pps		= 1,
 	.adjfine	= gem_ptp_adjfine,
 	.adjtime	= gem_ptp_adjtime,
-	.gettime64	= gem_tsu_get_time,
+	.gettimex64	= gem_tsu_get_time,
 	.settime64	= gem_tsu_set_time,
 	.enable		= gem_ptp_enable,
 };
@@ -259,7 +256,7 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	 * The timestamp only contains lower few bits of seconds,
 	 * so add value from 1588 timer
 	 */
-	gem_tsu_get_time(&bp->ptp_clock_info, &tsu);
+	gem_tsu_get_time(&bp->ptp_clock_info, &tsu, NULL);
 
 	/* If the top bit is set in the timestamp,
 	 * but not in 1588 timer, it has rolled over,
@@ -283,6 +280,12 @@ void gem_ptp_rxstamp(struct macb *bp, struct sk_buff *skb,
 
 	if (GEM_BFEXT(DMA_RXVALID, desc->addr)) {
 		desc_ptp = macb_ptp_desc(bp, desc);
+		/* Unlikely but check */
+		if (!desc_ptp) {
+			dev_warn_ratelimited(&bp->pdev->dev,
+					     "Timestamp not supported in BD\n");
+			return;
+		}
 		gem_hw_timestamp(bp, desc_ptp->ts_1, desc_ptp->ts_2, &ts);
 		memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
 		shhwtstamps->hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
@@ -315,8 +318,11 @@ int gem_ptp_txstamp(struct macb_queue *queue, struct sk_buff *skb,
 	if (CIRC_SPACE(head, tail, PTP_TS_BUFFER_SIZE) == 0)
 		return -ENOMEM;
 
-	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 	desc_ptp = macb_ptp_desc(queue->bp, desc);
+	/* Unlikely but check */
+	if (!desc_ptp)
+		return -EINVAL;
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 	tx_timestamp = &queue->tx_timestamps[head];
 	tx_timestamp->skb = skb;
 	/* ensure ts_1/ts_2 is loaded after ctrl (TX_USED check) */
@@ -428,7 +434,7 @@ int gem_get_hwtst(struct net_device *dev, struct ifreq *rq)
 		return 0;
 }
 
-static int gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
+static void gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
 {
 	u32 reg_val;
 
@@ -438,8 +444,6 @@ static int gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
 		macb_writel(bp, NCR, reg_val | MACB_BIT(OSSMODE));
 	else
 		macb_writel(bp, NCR, reg_val & ~MACB_BIT(OSSMODE));
-
-	return 0;
 }
 
 int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -458,18 +462,15 @@ int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd)
 			   sizeof(*tstamp_config)))
 		return -EFAULT;
 
-	/* reserved for future extensions */
-	if (tstamp_config->flags)
-		return -EINVAL;
-
 	switch (tstamp_config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		if (gem_ptp_set_one_step_sync(bp, 1) != 0)
-			return -ERANGE;
-		/* fall through */
+		gem_ptp_set_one_step_sync(bp, 1);
+		tx_bd_control = TSTAMP_ALL_FRAMES;
+		break;
 	case HWTSTAMP_TX_ON:
+		gem_ptp_set_one_step_sync(bp, 0);
 		tx_bd_control = TSTAMP_ALL_FRAMES;
 		break;
 	default:

@@ -178,7 +178,7 @@ struct sge_txq {		/* state for an SGE Tx queue */
 	unsigned int token;	/* WR token */
 	dma_addr_t phys_addr;	/* physical address of the ring */
 	struct sk_buff_head sendq;	/* List of backpressured offload packets */
-	struct tasklet_struct qresume_tsk;	/* restarts the queue */
+	struct work_struct qresume_task;	/* restarts the queue */
 	unsigned int cntxt_id;	/* SGE context id for the Tx q */
 	unsigned long stops;	/* # of times q has been stopped */
 	unsigned long restarts;	/* # of queue restarts */
@@ -313,6 +313,7 @@ void t3_os_link_fault(struct adapter *adapter, int port_id, int state);
 void t3_os_link_fault_handler(struct adapter *adapter, int port_id);
 
 void t3_sge_start(struct adapter *adap);
+void t3_sge_stop_dma(struct adapter *adap);
 void t3_sge_stop(struct adapter *adap);
 void t3_start_sge_timers(struct adapter *adap);
 void t3_stop_sge_timers(struct adapter *adap);

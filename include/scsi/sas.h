@@ -1,26 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * SAS structures and definitions header file
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
- *
  */
 
 #ifndef _SAS_H_
@@ -112,6 +95,8 @@ enum sas_protocol {
 	SAS_PROTOCOL_SSP		= 0x08,
 	SAS_PROTOCOL_ALL		= 0x0E,
 	SAS_PROTOCOL_STP_ALL		= SAS_PROTOCOL_STP|SAS_PROTOCOL_SATA,
+	/* these are internal to libsas */
+	SAS_PROTOCOL_INTERNAL_ABORT	= 0x10,
 };
 
 /* From the spec; local phys only */
@@ -206,6 +191,13 @@ enum sas_gpio_reg_type {
 	SAS_GPIO_REG_RX_GP = 2,
 	SAS_GPIO_REG_TX    = 3,
 	SAS_GPIO_REG_TX_GP = 4,
+};
+
+/* Response frame DATAPRES field */
+enum {
+	SAS_DATAPRES_NO_DATA		= 0,
+	SAS_DATAPRES_RESPONSE_DATA	= 1,
+	SAS_DATAPRES_SENSE_DATA		= 2,
 };
 
 struct  dev_to_host_fis {
@@ -340,8 +332,10 @@ struct ssp_response_iu {
 	__be32 sense_data_len;
 	__be32 response_data_len;
 
-	u8     resp_data[0];
-	u8     sense_data[0];
+	union {
+		DECLARE_FLEX_ARRAY(u8, resp_data);
+		DECLARE_FLEX_ARRAY(u8, sense_data);
+	};
 } __attribute__ ((packed));
 
 struct ssp_command_iu {
@@ -363,7 +357,7 @@ struct ssp_command_iu {
 	u8    add_cdb_len:6;
 
 	u8    cdb[16];
-	u8    add_cdb[0];
+	u8    add_cdb[];
 } __attribute__ ((packed));
 
 struct xfer_rdy_iu {
@@ -477,18 +471,6 @@ struct report_phy_sata_resp {
 	__be32 crc;
 } __attribute__ ((packed));
 
-struct smp_resp {
-	u8    frame_type;
-	u8    function;
-	u8    result;
-	u8    reserved;
-	union {
-		struct report_general_resp  rg;
-		struct discover_resp        disc;
-		struct report_phy_sata_resp rps;
-	};
-} __attribute__ ((packed));
-
 #elif defined(__BIG_ENDIAN_BITFIELD)
 struct sas_identify_frame {
 	/* Byte 0 */
@@ -571,8 +553,10 @@ struct ssp_response_iu {
 	__be32 sense_data_len;
 	__be32 response_data_len;
 
-	u8     resp_data[0];
-	u8     sense_data[0];
+	union {
+		DECLARE_FLEX_ARRAY(u8, resp_data);
+		DECLARE_FLEX_ARRAY(u8, sense_data);
+	};
 } __attribute__ ((packed));
 
 struct ssp_command_iu {
@@ -594,7 +578,7 @@ struct ssp_command_iu {
 	u8    _r_c:2;
 
 	u8    cdb[16];
-	u8    add_cdb[0];
+	u8    add_cdb[];
 } __attribute__ ((packed));
 
 struct xfer_rdy_iu {
@@ -708,20 +692,32 @@ struct report_phy_sata_resp {
 	__be32 crc;
 } __attribute__ ((packed));
 
-struct smp_resp {
+#else
+#error "Bitfield order not defined!"
+#endif
+
+struct smp_rg_resp {
 	u8    frame_type;
 	u8    function;
 	u8    result;
 	u8    reserved;
-	union {
-		struct report_general_resp  rg;
-		struct discover_resp        disc;
-		struct report_phy_sata_resp rps;
-	};
+	struct report_general_resp rg;
 } __attribute__ ((packed));
 
-#else
-#error "Bitfield order not defined!"
-#endif
+struct smp_disc_resp {
+	u8    frame_type;
+	u8    function;
+	u8    result;
+	u8    reserved;
+	struct discover_resp disc;
+} __attribute__ ((packed));
+
+struct smp_rps_resp {
+	u8    frame_type;
+	u8    function;
+	u8    result;
+	u8    reserved;
+	struct report_phy_sata_resp rps;
+} __attribute__ ((packed));
 
 #endif /* _SAS_H_ */

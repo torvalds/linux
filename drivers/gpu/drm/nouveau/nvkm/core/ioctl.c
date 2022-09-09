@@ -24,6 +24,7 @@
 #include <core/ioctl.h>
 #include <core/client.h>
 #include <core/engine.h>
+#include <core/event.h>
 
 #include <nvif/unpack.h>
 #include <nvif/ioctl.h>
@@ -128,7 +129,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 	if (ret == 0) {
 		ret = nvkm_object_init(object);
 		if (ret == 0) {
-			list_add(&object->head, &parent->tree);
+			list_add_tail(&object->head, &parent->tree);
 			if (nvkm_object_insert(object)) {
 				client->data = object;
 				return 0;
@@ -426,8 +427,7 @@ nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 }
 
 int
-nvkm_ioctl(struct nvkm_client *client, bool supervisor,
-	   void *data, u32 size, void **hack)
+nvkm_ioctl(struct nvkm_client *client, void *data, u32 size, void **hack)
 {
 	struct nvkm_object *object = &client->object;
 	union {
@@ -435,7 +435,6 @@ nvkm_ioctl(struct nvkm_client *client, bool supervisor,
 	} *args = data;
 	int ret = -ENOSYS;
 
-	client->super = supervisor;
 	nvif_ioctl(object, "size %d\n", size);
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {

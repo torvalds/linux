@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * phonet.c -- USB CDC Phonet host driver
  *
  * Copyright (C) 2008-2009 Nokia Corporation. All rights reserved.
  *
  * Author: Rémi Denis-Courmont
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/kernel.h>
@@ -49,7 +36,7 @@ struct usbpn_dev {
 
 	spinlock_t		rx_lock;
 	struct sk_buff		*rx_skb;
-	struct urb		*urbs[0];
+	struct urb		*urbs[];
 };
 
 static void tx_complete(struct urb *req);
@@ -110,7 +97,7 @@ static void tx_complete(struct urb *req)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		dev->stats.tx_aborted_errors++;
-		/* fall through */
+		fallthrough;
 	default:
 		dev->stats.tx_errors++;
 		dev_dbg(&dev->dev, "TX error (%d)\n", status);
@@ -266,7 +253,8 @@ static int usbpn_close(struct net_device *dev)
 	return usb_set_interface(pnd->usb, num, !pnd->active_setting);
 }
 
-static int usbpn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int usbpn_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+				void __user *data, int cmd)
 {
 	struct if_phonet_req *req = (struct if_phonet_req *)ifr;
 
@@ -282,13 +270,15 @@ static const struct net_device_ops usbpn_ops = {
 	.ndo_open	= usbpn_open,
 	.ndo_stop	= usbpn_close,
 	.ndo_start_xmit = usbpn_xmit,
-	.ndo_do_ioctl	= usbpn_ioctl,
+	.ndo_siocdevprivate = usbpn_siocdevprivate,
 };
 
 static void usbpn_setup(struct net_device *dev)
 {
+	const u8 addr = PN_MEDIA_USB;
+
 	dev->features		= 0;
-	dev->netdev_ops		= &usbpn_ops,
+	dev->netdev_ops		= &usbpn_ops;
 	dev->header_ops		= &phonet_header_ops;
 	dev->type		= ARPHRD_PHONET;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
@@ -296,8 +286,8 @@ static void usbpn_setup(struct net_device *dev)
 	dev->min_mtu		= PHONET_MIN_MTU;
 	dev->max_mtu		= PHONET_MAX_MTU;
 	dev->hard_header_len	= 1;
-	dev->dev_addr[0]	= PN_MEDIA_USB;
 	dev->addr_len		= 1;
+	dev_addr_set(dev, &addr);
 	dev->tx_queue_len	= 3;
 
 	dev->needs_free_netdev	= true;
@@ -361,8 +351,8 @@ static int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *i
 	else
 		return -EINVAL;
 
-	dev = alloc_netdev(sizeof(*pnd) + sizeof(pnd->urbs[0]) * rxq_size,
-			   ifname, NET_NAME_UNKNOWN, usbpn_setup);
+	dev = alloc_netdev(struct_size(pnd, urbs, rxq_size), ifname,
+			   NET_NAME_UNKNOWN, usbpn_setup);
 	if (!dev)
 		return -ENOMEM;
 
@@ -400,6 +390,8 @@ static int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	err = register_netdev(dev);
 	if (err) {
+		/* Set disconnected flag so that disconnect() returns early. */
+		pnd->disconnected = 1;
 		usb_driver_release_interface(&usbpn_driver, data_intf);
 		goto out;
 	}

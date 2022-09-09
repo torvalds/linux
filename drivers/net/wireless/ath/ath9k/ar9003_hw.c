@@ -1037,7 +1037,7 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	}
 
 	/*
-	 * Configire PCIE after Ini init. SERDES values now come from ini file
+	 * Configure PCIE after Ini init. SERDES values now come from ini file
 	 * This enables PCIe low power mode.
 	 */
 	array = power_off ? &ah->iniPcieSerdes :

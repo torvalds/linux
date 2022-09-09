@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CODA_FS
 	tristate "Coda file system support (advanced network fs)"
 	depends on INET
@@ -14,7 +15,7 @@ config CODA_FS
 	  *client*.  You will need user level code as well, both for the
 	  client and server.  Servers are currently user level, i.e. they need
 	  no kernel support.  Please read
-	  <file:Documentation/filesystems/coda.txt> and check out the Coda
+	  <file:Documentation/filesystems/coda.rst> and check out the Coda
 	  home page <http://www.coda.cs.cmu.edu/>.
 
 	  To compile the coda client support as a module, choose M here: the

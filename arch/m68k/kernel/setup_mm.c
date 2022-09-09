@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/console.h>
-#include <linux/genhd.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -24,6 +23,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
+#include <linux/nvram.h>
 #include <linux/initrd.h>
 
 #include <asm/bootinfo.h>
@@ -37,14 +37,16 @@
 #ifdef CONFIG_AMIGA
 #include <asm/amigahw.h>
 #endif
-#ifdef CONFIG_ATARI
 #include <asm/atarihw.h>
+#ifdef CONFIG_ATARI
 #include <asm/atari_stram.h>
 #endif
 #ifdef CONFIG_SUN3X
 #include <asm/dvma.h>
 #endif
+#include <asm/macintosh.h>
 #include <asm/natfeat.h>
+#include <asm/config.h>
 
 #if !FPSTATESIZE || !NR_IRQS
 #warning No CPU/platform type selected, your kernel will not work!
@@ -80,24 +82,13 @@ static struct m68k_mem_info m68k_ramdisk __initdata;
 
 static char m68k_command_line[CL_SIZE] __initdata;
 
-void (*mach_sched_init) (irq_handler_t handler) __initdata = NULL;
+void (*mach_sched_init) (void) __initdata = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) __initdata = NULL;
 void (*mach_get_model) (char *model);
 void (*mach_get_hardware_list) (struct seq_file *m);
-/* machine dependent timer functions */
-int (*mach_hwclk) (int, struct rtc_time*);
-EXPORT_SYMBOL(mach_hwclk);
-unsigned int (*mach_get_ss)(void);
-int (*mach_get_rtc_pll)(struct rtc_pll_info *);
-int (*mach_set_rtc_pll)(struct rtc_pll_info *);
-EXPORT_SYMBOL(mach_get_ss);
-EXPORT_SYMBOL(mach_get_rtc_pll);
-EXPORT_SYMBOL(mach_set_rtc_pll);
 void (*mach_reset)( void );
 void (*mach_halt)( void );
-void (*mach_power_off)( void );
-long mach_max_dma_address = 0x00ffffff; /* default set to the lower 16MB */
 #ifdef CONFIG_HEARTBEAT
 void (*mach_heartbeat) (int);
 EXPORT_SYMBOL(mach_heartbeat);
@@ -111,28 +102,6 @@ int isa_sex;
 EXPORT_SYMBOL(isa_type);
 EXPORT_SYMBOL(isa_sex);
 #endif
-
-extern int amiga_parse_bootinfo(const struct bi_record *);
-extern int atari_parse_bootinfo(const struct bi_record *);
-extern int mac_parse_bootinfo(const struct bi_record *);
-extern int q40_parse_bootinfo(const struct bi_record *);
-extern int bvme6000_parse_bootinfo(const struct bi_record *);
-extern int mvme16x_parse_bootinfo(const struct bi_record *);
-extern int mvme147_parse_bootinfo(const struct bi_record *);
-extern int hp300_parse_bootinfo(const struct bi_record *);
-extern int apollo_parse_bootinfo(const struct bi_record *);
-
-extern void config_amiga(void);
-extern void config_atari(void);
-extern void config_mac(void);
-extern void config_sun3(void);
-extern void config_apollo(void);
-extern void config_mvme147(void);
-extern void config_mvme16x(void);
-extern void config_bvme6000(void);
-extern void config_hp300(void);
-extern void config_q40(void);
-extern void config_sun3x(void);
 
 #define MASK_256K 0xfffc0000
 
@@ -202,6 +171,8 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 				unknown = hp300_parse_bootinfo(record);
 			else if (MACH_IS_APOLLO)
 				unknown = apollo_parse_bootinfo(record);
+			else if (MACH_IS_VIRT)
+				unknown = virt_parse_bootinfo(record);
 			else
 				unknown = 1;
 		}
@@ -257,10 +228,7 @@ void __init setup_arch(char **cmdline_p)
 		}
 	}
 
-	init_mm.start_code = PAGE_OFFSET;
-	init_mm.end_code = (unsigned long)_etext;
-	init_mm.end_data = (unsigned long)_edata;
-	init_mm.brk = (unsigned long)_end;
+	setup_initial_init_mm((void *)PAGE_OFFSET, _etext, _edata, _end);
 
 #if defined(CONFIG_BOOTPARAM)
 	strncpy(m68k_command_line, CONFIG_BOOTPARAM_STRING, CL_SIZE);
@@ -271,10 +239,6 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(boot_command_line, *cmdline_p, CL_SIZE);
 
 	parse_early_param();
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
 
 	switch (m68k_machtype) {
 #ifdef CONFIG_AMIGA
@@ -340,17 +304,15 @@ void __init setup_arch(char **cmdline_p)
 		config_BSP(NULL, 0);
 		break;
 #endif
+#ifdef CONFIG_VIRT
+	case MACH_VIRT:
+		config_virt();
+		break;
+#endif
 	default:
 		panic("No configuration setup");
 	}
 
-	paging_init();
-
-#ifdef CONFIG_NATFEAT
-	nf_init();
-#endif
-
-#ifndef CONFIG_SUN3
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (m68k_ramdisk.size) {
 		memblock_reserve(m68k_ramdisk.addr, m68k_ramdisk.size);
@@ -358,6 +320,12 @@ void __init setup_arch(char **cmdline_p)
 		initrd_end = initrd_start + m68k_ramdisk.size;
 		pr_info("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
 	}
+#endif
+
+	paging_init();
+
+#ifdef CONFIG_NATFEAT
+	nf_init();
 #endif
 
 #ifdef CONFIG_ATARI
@@ -369,8 +337,6 @@ void __init setup_arch(char **cmdline_p)
 		dvma_init();
 	}
 #endif
-
-#endif /* !CONFIG_SUN3 */
 
 /* set ISA defs early as possible */
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
@@ -547,3 +513,81 @@ static int __init adb_probe_sync_enable (char *str) {
 
 __setup("adb_sync", adb_probe_sync_enable);
 #endif /* CONFIG_ADB */
+
+#if IS_ENABLED(CONFIG_NVRAM)
+#ifdef CONFIG_MAC
+static unsigned char m68k_nvram_read_byte(int addr)
+{
+	if (MACH_IS_MAC)
+		return mac_pram_read_byte(addr);
+	return 0xff;
+}
+
+static void m68k_nvram_write_byte(unsigned char val, int addr)
+{
+	if (MACH_IS_MAC)
+		mac_pram_write_byte(val, addr);
+}
+#endif /* CONFIG_MAC */
+
+#ifdef CONFIG_ATARI
+static ssize_t m68k_nvram_read(char *buf, size_t count, loff_t *ppos)
+{
+	if (MACH_IS_ATARI)
+		return atari_nvram_read(buf, count, ppos);
+	else if (MACH_IS_MAC)
+		return nvram_read_bytes(buf, count, ppos);
+	return -EINVAL;
+}
+
+static ssize_t m68k_nvram_write(char *buf, size_t count, loff_t *ppos)
+{
+	if (MACH_IS_ATARI)
+		return atari_nvram_write(buf, count, ppos);
+	else if (MACH_IS_MAC)
+		return nvram_write_bytes(buf, count, ppos);
+	return -EINVAL;
+}
+
+static long m68k_nvram_set_checksum(void)
+{
+	if (MACH_IS_ATARI)
+		return atari_nvram_set_checksum();
+	return -EINVAL;
+}
+
+static long m68k_nvram_initialize(void)
+{
+	if (MACH_IS_ATARI)
+		return atari_nvram_initialize();
+	return -EINVAL;
+}
+#endif /* CONFIG_ATARI */
+
+static ssize_t m68k_nvram_get_size(void)
+{
+	if (MACH_IS_ATARI)
+		return atari_nvram_get_size();
+	else if (MACH_IS_MAC)
+		return mac_pram_get_size();
+	return -ENODEV;
+}
+
+/* Atari device drivers call .read (to get checksum validation) whereas
+ * Mac and PowerMac device drivers just use .read_byte.
+ */
+const struct nvram_ops arch_nvram_ops = {
+#ifdef CONFIG_MAC
+	.read_byte      = m68k_nvram_read_byte,
+	.write_byte     = m68k_nvram_write_byte,
+#endif
+#ifdef CONFIG_ATARI
+	.read           = m68k_nvram_read,
+	.write          = m68k_nvram_write,
+	.set_checksum   = m68k_nvram_set_checksum,
+	.initialize     = m68k_nvram_initialize,
+#endif
+	.get_size       = m68k_nvram_get_size,
+};
+EXPORT_SYMBOL(arch_nvram_ops);
+#endif /* CONFIG_NVRAM */

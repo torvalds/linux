@@ -173,8 +173,8 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 
 
 /*
- * List of all supported enpoints configiration sets, used to find the
- * best matching endpoint configuration within a devices' USB descriptor.
+ * List of all supported endpoint configuration sets, used to find the
+ * best matching endpoint configuration within a device's USB descriptor.
  * We need at least 3 RX endpoints, and 3 TX endpoints, either
  * INT-in and ISO-out, or ISO-in and ISO-out)
  * with 4 RX endpoints even E-Channel logging is possible

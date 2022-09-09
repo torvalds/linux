@@ -9,13 +9,13 @@ enum dpms {
 	crtDPMS_OFF = 0x3,
 };
 
-#define setDAC(off) {							\
+#define set_DAC(off) {							\
 	poke32(MISC_CTRL,						\
 	       (peek32(MISC_CTRL) & ~MISC_CTRL_DAC_POWER_OFF) | (off)); \
 }
 
 void ddk750_set_dpms(enum dpms state);
-void sm750_set_power_mode(unsigned int powerMode);
+void sm750_set_power_mode(unsigned int mode);
 void sm750_set_current_gate(unsigned int gate);
 
 /*

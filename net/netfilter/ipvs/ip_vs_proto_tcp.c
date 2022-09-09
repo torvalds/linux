@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_proto_tcp.c:	TCP load balancing support for IPVS
  *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Julian Anastasov <ja@ssi.bg>
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Changes:     Hans Schillstrom <hans.schillstrom@ericsson.com>
  *
@@ -28,8 +24,12 @@
 #include <net/ip6_checksum.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <net/ip_vs.h>
+
+static int
+tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp);
 
 static int
 tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
@@ -143,14 +143,14 @@ tcp_partial_csum_update(int af, struct tcphdr *tcph,
 }
 
 
-static int
+INDIRECT_CALLABLE_SCOPE int
 tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
 	struct tcphdr *tcph;
 	unsigned int tcphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -159,14 +159,14 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, tcphoff+sizeof(*tcph)))
+	if (skb_ensure_writable(skb, tcphoff + sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!tcp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
@@ -176,7 +176,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - tcphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -192,7 +192,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		tcp_fast_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = (cp->app && pp->csum_check) ?
+			skb->ip_summed = cp->app ?
 					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -227,8 +227,8 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct tcphdr *tcph;
 	unsigned int tcphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -237,14 +237,14 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, tcphoff+sizeof(*tcph)))
+	if (skb_ensure_writable(skb, tcphoff + sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!tcp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/*
@@ -257,7 +257,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - tcphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -275,7 +275,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		tcp_fast_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = (cp->app && pp->csum_check) ?
+			skb->ip_summed = cp->app ?
 					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -315,7 +315,7 @@ tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 	switch (skb->ip_summed) {
 	case CHECKSUM_NONE:
 		skb->csum = skb_checksum(skb, tcphoff, skb->len - tcphoff, 0);
-		/* fall through */
+		fallthrough;
 	case CHECKSUM_COMPLETE:
 #ifdef CONFIG_IP_VS_IPV6
 		if (af == AF_INET6) {
@@ -539,8 +539,8 @@ set_tcp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	if (new_state != cp->state) {
 		struct ip_vs_dest *dest = cp->dest;
 
-		IP_VS_DBG_BUF(8, "%s %s [%c%c%c%c] %s:%d->"
-			      "%s:%d state: %s->%s conn->refcnt:%d\n",
+		IP_VS_DBG_BUF(8, "%s %s [%c%c%c%c] c:%s:%d v:%s:%d "
+			      "d:%s:%d state: %s->%s conn->refcnt:%d\n",
 			      pd->pp->name,
 			      ((state_off == TCP_DIR_OUTPUT) ?
 			       "output " : "input "),
@@ -548,10 +548,12 @@ set_tcp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 			      th->fin ? 'F' : '.',
 			      th->ack ? 'A' : '.',
 			      th->rst ? 'R' : '.',
-			      IP_VS_DBG_ADDR(cp->daf, &cp->daddr),
-			      ntohs(cp->dport),
 			      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
 			      ntohs(cp->cport),
+			      IP_VS_DBG_ADDR(cp->af, &cp->vaddr),
+			      ntohs(cp->vport),
+			      IP_VS_DBG_ADDR(cp->daf, &cp->daddr),
+			      ntohs(cp->dport),
 			      tcp_state_name(cp->state),
 			      tcp_state_name(new_state),
 			      refcount_read(&cp->refcnt));
@@ -710,7 +712,7 @@ static int __ip_vs_tcp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd
 							sizeof(tcp_timeouts));
 	if (!pd->timeout_table)
 		return -ENOMEM;
-	pd->tcp_state_table =  tcp_states;
+	pd->tcp_state_table = tcp_states;
 	return 0;
 }
 
@@ -736,7 +738,6 @@ struct ip_vs_protocol ip_vs_protocol_tcp = {
 	.conn_out_get =		ip_vs_conn_out_get_proto,
 	.snat_handler =		tcp_snat_handler,
 	.dnat_handler =		tcp_dnat_handler,
-	.csum_check =		tcp_csum_check,
 	.state_name =		tcp_state_name,
 	.state_transition =	tcp_state_transition,
 	.app_conn_bind =	tcp_app_conn_bind,

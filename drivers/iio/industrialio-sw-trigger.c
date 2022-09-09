@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * The Industrial I/O core, software trigger functions
  *
  * Copyright (c) 2015 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -30,7 +27,7 @@ static DEFINE_MUTEX(iio_trigger_types_lock);
 
 static
 struct iio_sw_trigger_type *__iio_find_sw_trigger_type(const char *name,
-						       unsigned len)
+						       unsigned int len)
 {
 	struct iio_sw_trigger_type *t = NULL, *iter;
 

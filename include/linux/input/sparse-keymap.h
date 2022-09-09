@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _SPARSE_KEYMAP_H
 #define _SPARSE_KEYMAP_H
 
 /*
  * Copyright (c) 2009 Dmitry Torokhov
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #define KE_END		0	/* Indicates end of keymap */
@@ -23,6 +20,7 @@
  *	private definitions.
  * @code: Device-specific data identifying the button/switch
  * @keycode: KEY_* code assigned to a key/button
+ * @sw: struct with code/value used by KE_SW and KE_VSW
  * @sw.code: SW_* code assigned to a switch
  * @sw.value: Value that should be sent in an input even when KE_SW
  *	switch is toggled. KE_VSW switches ignore this field and

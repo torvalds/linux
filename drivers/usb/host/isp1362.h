@@ -11,7 +11,7 @@
 
 #define USE_32BIT		0
 
-/* These options are mutually eclusive */
+/* These options are mutually exclusive */
 #define USE_PLATFORM_DELAY	0
 #define USE_NDELAY		0
 
@@ -56,7 +56,7 @@ typedef const unsigned char isp1362_reg_t;
 #define ISP1362_REG_NO(r)		(r)
 
 #define ISP1362_REG(name, addr, width, rw) \
-static isp1362_reg_t ISP1362_REG_##name = addr
+static isp1362_reg_t __maybe_unused ISP1362_REG_##name = addr
 
 #define REG_ACCESS_TEST(r)		do {} while (0)
 #define REG_WIDTH_TEST(r, w)		do {} while (0)
@@ -435,7 +435,6 @@ struct isp1362_hcd {
 
 	struct isp1362_platform_data *board;
 
-	struct dentry		*debug_file;
 	unsigned long		stat1, stat2, stat4, stat8, stat16;
 
 	/* HC registers */
@@ -791,60 +790,6 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 	else									\
 		DBG(0, "%-12s[%02x]:     %04x\n", #r,					\
 			ISP1362_REG_NO(ISP1362_REG_##r), isp1362_read_reg16(d, r));	\
-}
-
-static void __attribute__((__unused__)) isp1362_show_regs(struct isp1362_hcd *isp1362_hcd)
-{
-	isp1362_show_reg(isp1362_hcd, HCREVISION);
-	isp1362_show_reg(isp1362_hcd, HCCONTROL);
-	isp1362_show_reg(isp1362_hcd, HCCMDSTAT);
-	isp1362_show_reg(isp1362_hcd, HCINTSTAT);
-	isp1362_show_reg(isp1362_hcd, HCINTENB);
-	isp1362_show_reg(isp1362_hcd, HCFMINTVL);
-	isp1362_show_reg(isp1362_hcd, HCFMREM);
-	isp1362_show_reg(isp1362_hcd, HCFMNUM);
-	isp1362_show_reg(isp1362_hcd, HCLSTHRESH);
-	isp1362_show_reg(isp1362_hcd, HCRHDESCA);
-	isp1362_show_reg(isp1362_hcd, HCRHDESCB);
-	isp1362_show_reg(isp1362_hcd, HCRHSTATUS);
-	isp1362_show_reg(isp1362_hcd, HCRHPORT1);
-	isp1362_show_reg(isp1362_hcd, HCRHPORT2);
-
-	isp1362_show_reg(isp1362_hcd, HCHWCFG);
-	isp1362_show_reg(isp1362_hcd, HCDMACFG);
-	isp1362_show_reg(isp1362_hcd, HCXFERCTR);
-	isp1362_show_reg(isp1362_hcd, HCuPINT);
-
-	if (in_interrupt())
-		DBG(0, "%-12s[%02x]:     %04x\n", "HCuPINTENB",
-			 ISP1362_REG_NO(ISP1362_REG_HCuPINTENB), isp1362_hcd->irqenb);
-	else
-		isp1362_show_reg(isp1362_hcd, HCuPINTENB);
-	isp1362_show_reg(isp1362_hcd, HCCHIPID);
-	isp1362_show_reg(isp1362_hcd, HCSCRATCH);
-	isp1362_show_reg(isp1362_hcd, HCBUFSTAT);
-	isp1362_show_reg(isp1362_hcd, HCDIRADDR);
-	/* Access would advance fifo
-	 * isp1362_show_reg(isp1362_hcd, HCDIRDATA);
-	 */
-	isp1362_show_reg(isp1362_hcd, HCISTLBUFSZ);
-	isp1362_show_reg(isp1362_hcd, HCISTLRATE);
-	isp1362_show_reg(isp1362_hcd, HCINTLBUFSZ);
-	isp1362_show_reg(isp1362_hcd, HCINTLBLKSZ);
-	isp1362_show_reg(isp1362_hcd, HCINTLDONE);
-	isp1362_show_reg(isp1362_hcd, HCINTLSKIP);
-	isp1362_show_reg(isp1362_hcd, HCINTLLAST);
-	isp1362_show_reg(isp1362_hcd, HCINTLCURR);
-	isp1362_show_reg(isp1362_hcd, HCATLBUFSZ);
-	isp1362_show_reg(isp1362_hcd, HCATLBLKSZ);
-	/* only valid after ATL_DONE interrupt
-	 * isp1362_show_reg(isp1362_hcd, HCATLDONE);
-	 */
-	isp1362_show_reg(isp1362_hcd, HCATLSKIP);
-	isp1362_show_reg(isp1362_hcd, HCATLLAST);
-	isp1362_show_reg(isp1362_hcd, HCATLCURR);
-	isp1362_show_reg(isp1362_hcd, HCATLDTC);
-	isp1362_show_reg(isp1362_hcd, HCATLDTCTO);
 }
 
 static void isp1362_write_diraddr(struct isp1362_hcd *isp1362_hcd, u16 offset, u16 len)

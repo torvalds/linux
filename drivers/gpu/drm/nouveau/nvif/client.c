@@ -32,7 +32,7 @@
 int
 nvif_client_ioctl(struct nvif_client *client, void *data, u32 size)
 {
-	return client->driver->ioctl(client->object.priv, client->super, data, size, NULL);
+	return client->driver->ioctl(client->object.priv, data, size, NULL);
 }
 
 int
@@ -48,9 +48,9 @@ nvif_client_resume(struct nvif_client *client)
 }
 
 void
-nvif_client_fini(struct nvif_client *client)
+nvif_client_dtor(struct nvif_client *client)
 {
-	nvif_object_fini(&client->object);
+	nvif_object_dtor(&client->object);
 	if (client->driver) {
 		if (client->driver->fini)
 			client->driver->fini(client->object.priv);
@@ -59,7 +59,7 @@ nvif_client_fini(struct nvif_client *client)
 }
 
 int
-nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
+nvif_client_ctor(struct nvif_client *parent, const char *name, u64 device,
 		 struct nvif_client *client)
 {
 	struct nvif_client_v0 args = { .device = device };
@@ -70,8 +70,9 @@ nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 	int ret;
 
 	strncpy(args.name, name, sizeof(args.name));
-	ret = nvif_object_init(parent != client ? &parent->object : NULL,
-			       0, NVIF_CLASS_CLIENT, &args, sizeof(args),
+	ret = nvif_object_ctor(parent != client ? &parent->object : NULL,
+			       name ? name : "nvifClient", 0,
+			       NVIF_CLASS_CLIENT, &args, sizeof(args),
 			       &client->object);
 	if (ret)
 		return ret;
@@ -79,7 +80,6 @@ nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 	client->object.client = client;
 	client->object.handle = ~0;
 	client->route = NVIF_IOCTL_V0_ROUTE_NVIF;
-	client->super = true;
 	client->driver = parent->driver;
 
 	if (ret == 0) {
@@ -88,6 +88,6 @@ nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 	}
 
 	if (ret)
-		nvif_client_fini(client);
+		nvif_client_dtor(client);
 	return ret;
 }

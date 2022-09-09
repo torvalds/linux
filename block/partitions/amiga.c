@@ -14,7 +14,6 @@
 #include <linux/affs_hardblocks.h>
 
 #include "check.h"
-#include "amiga.h"
 
 static __inline__ u32
 checksum_block(__be32 *m, int size)
@@ -35,16 +34,14 @@ int amiga_partition(struct parsed_partitions *state)
 	int start_sect, nr_sects, blk, part, res = 0;
 	int blksize = 1;	/* Multiplier for disk block size */
 	int slot = 1;
-	char b[BDEVNAME_SIZE];
 
 	for (blk = 0; ; blk++, put_dev_sector(sect)) {
 		if (blk == RDB_ALLOCATION_LIMIT)
 			goto rdb_done;
 		data = read_part_sector(state, blk, &sect);
 		if (!data) {
-			if (warn_no_part)
-				pr_err("Dev %s: unable to read RDB block %d\n",
-				       bdevname(state->bdev, b), blk);
+			pr_err("Dev %s: unable to read RDB block %d\n",
+			       state->disk->disk_name, blk);
 			res = -1;
 			goto rdb_done;
 		}
@@ -66,7 +63,7 @@ int amiga_partition(struct parsed_partitions *state)
 		}
 
 		pr_err("Dev %s: RDB in block %d has bad checksum\n",
-		       bdevname(state->bdev, b), blk);
+		       state->disk->disk_name, blk);
 	}
 
 	/* blksize is blocks per 512 byte standard block */
@@ -85,9 +82,8 @@ int amiga_partition(struct parsed_partitions *state)
 		blk *= blksize;	/* Read in terms partition table understands */
 		data = read_part_sector(state, blk, &sect);
 		if (!data) {
-			if (warn_no_part)
-				pr_err("Dev %s: unable to read partition block %d\n",
-				       bdevname(state->bdev, b), blk);
+			pr_err("Dev %s: unable to read partition block %d\n",
+			       state->disk->disk_name, blk);
 			res = -1;
 			goto rdb_done;
 		}

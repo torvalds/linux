@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Freescale QUICC Engine HDLC Device Driver
  *
  * Copyright 2016 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
@@ -77,7 +73,7 @@ static struct ucc_tdm_info utdm_primary_info = {
 	},
 };
 
-static struct ucc_tdm_info utdm_info[MAX_HDLC_NUM];
+static struct ucc_tdm_info utdm_info[UCC_MAX_NUM];
 
 static int uhdlc_init(struct ucc_hdlc_private *priv)
 {
@@ -88,8 +84,8 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	int ret, i;
 	void *bd_buffer;
 	dma_addr_t bd_dma_addr;
-	u32 riptr;
-	u32 tiptr;
+	s32 riptr;
+	s32 tiptr;
 	u32 gumr;
 
 	ut_info = priv->ut_info;
@@ -199,7 +195,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	priv->ucc_pram_offset = qe_muram_alloc(sizeof(struct ucc_hdlc_param),
 				ALIGNMENT_OF_UCC_HDLC_PRAM);
 
-	if (IS_ERR_VALUE(priv->ucc_pram_offset)) {
+	if (priv->ucc_pram_offset < 0) {
 		dev_err(priv->dev, "Can not allocate MURAM for hdlc parameter.\n");
 		ret = -ENOMEM;
 		goto free_tx_bd;
@@ -208,14 +204,18 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	priv->rx_skbuff = kcalloc(priv->rx_ring_size,
 				  sizeof(*priv->rx_skbuff),
 				  GFP_KERNEL);
-	if (!priv->rx_skbuff)
+	if (!priv->rx_skbuff) {
+		ret = -ENOMEM;
 		goto free_ucc_pram;
+	}
 
 	priv->tx_skbuff = kcalloc(priv->tx_ring_size,
 				  sizeof(*priv->tx_skbuff),
 				  GFP_KERNEL);
-	if (!priv->tx_skbuff)
+	if (!priv->tx_skbuff) {
+		ret = -ENOMEM;
 		goto free_rx_skbuff;
+	}
 
 	priv->skb_curtx = 0;
 	priv->skb_dirtytx = 0;
@@ -237,17 +237,22 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 
 	/* Alloc riptr, tiptr */
 	riptr = qe_muram_alloc(32, 32);
-	if (IS_ERR_VALUE(riptr)) {
+	if (riptr < 0) {
 		dev_err(priv->dev, "Cannot allocate MURAM mem for Receive internal temp data pointer\n");
 		ret = -ENOMEM;
 		goto free_tx_skbuff;
 	}
 
 	tiptr = qe_muram_alloc(32, 32);
-	if (IS_ERR_VALUE(tiptr)) {
+	if (tiptr < 0) {
 		dev_err(priv->dev, "Cannot allocate MURAM mem for Transmit internal temp data pointer\n");
 		ret = -ENOMEM;
 		goto free_riptr;
+	}
+	if (riptr != (u16)riptr || tiptr != (u16)tiptr) {
+		dev_err(priv->dev, "MURAM allocation out of addressable range\n");
+		ret = -ENOMEM;
+		goto free_tiptr;
 	}
 
 	/* Set RIPTR, TIPTR */
@@ -279,10 +284,9 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	iowrite16be(DEFAULT_HDLC_ADDR, &priv->ucc_pram->haddr4);
 
 	/* Get BD buffer */
-	bd_buffer = dma_zalloc_coherent(priv->dev,
-					(RX_BD_RING_LEN + TX_BD_RING_LEN) *
-					MAX_RX_BUF_LENGTH,
-					&bd_dma_addr, GFP_KERNEL);
+	bd_buffer = dma_alloc_coherent(priv->dev,
+				       (RX_BD_RING_LEN + TX_BD_RING_LEN) * MAX_RX_BUF_LENGTH,
+				       &bd_dma_addr, GFP_KERNEL);
 
 	if (!bd_buffer) {
 		dev_err(priv->dev, "Could not allocate buffer descriptors\n");
@@ -302,9 +306,8 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 		else
 			bd_status = R_E_S | R_I_S | R_W_S;
 
-		iowrite16be(bd_status, &priv->rx_bd_base[i].status);
-		iowrite32be(priv->dma_rx_addr + i * MAX_RX_BUF_LENGTH,
-			    &priv->rx_bd_base[i].buf);
+		priv->rx_bd_base[i].status = cpu_to_be16(bd_status);
+		priv->rx_bd_base[i].buf = cpu_to_be32(priv->dma_rx_addr + i * MAX_RX_BUF_LENGTH);
 	}
 
 	for (i = 0; i < TX_BD_RING_LEN; i++) {
@@ -313,10 +316,10 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 		else
 			bd_status =  T_I_S | T_TC_S | T_W_S;
 
-		iowrite16be(bd_status, &priv->tx_bd_base[i].status);
-		iowrite32be(priv->dma_tx_addr + i * MAX_RX_BUF_LENGTH,
-			    &priv->tx_bd_base[i].buf);
+		priv->tx_bd_base[i].status = cpu_to_be16(bd_status);
+		priv->tx_bd_base[i].buf = cpu_to_be32(priv->dma_tx_addr + i * MAX_RX_BUF_LENGTH);
 	}
+	dma_wmb();
 
 	return 0;
 
@@ -348,10 +351,10 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct ucc_hdlc_private *priv = (struct ucc_hdlc_private *)hdlc->priv;
-	struct qe_bd __iomem *bd;
+	struct qe_bd *bd;
 	u16 bd_status;
 	unsigned long flags;
-	u16 *proto_head;
+	__be16 *proto_head;
 
 	switch (dev->type) {
 	case ARPHRD_RAWHDLC:
@@ -364,14 +367,14 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 
 		skb_push(skb, HDLC_HEAD_LEN);
 
-		proto_head = (u16 *)skb->data;
+		proto_head = (__be16 *)skb->data;
 		*proto_head = htons(DEFAULT_HDLC_HEAD);
 
 		dev->stats.tx_bytes += skb->len;
 		break;
 
 	case ARPHRD_PPP:
-		proto_head = (u16 *)skb->data;
+		proto_head = (__be16 *)skb->data;
 		if (*proto_head != htons(DEFAULT_PPP_HEAD)) {
 			dev->stats.tx_dropped++;
 			dev_kfree_skb(skb);
@@ -394,9 +397,10 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 	netdev_sent_queue(dev, skb->len);
 	spin_lock_irqsave(&priv->lock, flags);
 
+	dma_rmb();
 	/* Start from the next BD that should be filled */
 	bd = priv->curtx_bd;
-	bd_status = ioread16be(&bd->status);
+	bd_status = be16_to_cpu(bd->status);
 	/* Save the skb pointer so we can free it later */
 	priv->tx_skbuff[priv->skb_curtx] = skb;
 
@@ -411,8 +415,8 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 	/* set bd status and length */
 	bd_status = (bd_status & T_W_S) | T_R_S | T_I_S | T_L_S | T_TC_S;
 
-	iowrite16be(skb->len, &bd->length);
-	iowrite16be(bd_status, &bd->status);
+	bd->length = cpu_to_be16(skb->len);
+	bd->status = cpu_to_be16(bd_status);
 
 	/* Move to next BD in the ring */
 	if (!(bd_status & T_W_S))
@@ -454,8 +458,9 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 	u16 bd_status;
 	int tx_restart = 0;
 
+	dma_rmb();
 	bd = priv->dirty_tx;
-	bd_status = ioread16be(&bd->status);
+	bd_status = be16_to_cpu(bd->status);
 
 	/* Normal processing. */
 	while ((bd_status & T_R_S) == 0) {
@@ -483,7 +488,7 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 		memset(priv->tx_buffer +
 		       (be32_to_cpu(bd->buf) - priv->dma_tx_addr),
 		       0, skb->len);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 
 		priv->tx_skbuff[priv->skb_dirtytx] = NULL;
 		priv->skb_dirtytx =
@@ -499,7 +504,7 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 			bd += 1;
 		else
 			bd = priv->tx_bd_base;
-		bd_status = ioread16be(&bd->status);
+		bd_status = be16_to_cpu(bd->status);
 	}
 	priv->dirty_tx = bd;
 
@@ -520,8 +525,9 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 	u16 length, howmany = 0;
 	u8 *bdbuffer;
 
+	dma_rmb();
 	bd = priv->currx_bd;
-	bd_status = ioread16be(&bd->status);
+	bd_status = be16_to_cpu(bd->status);
 
 	/* while there are received buffers and BD is full (~R_E) */
 	while (!((bd_status & (R_E_S)) || (--rx_work_limit < 0))) {
@@ -545,7 +551,7 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 		}
 		bdbuffer = priv->rx_buffer +
 			(priv->currx_bdnum * MAX_RX_BUF_LENGTH);
-		length = ioread16be(&bd->length);
+		length = be16_to_cpu(bd->length);
 
 		switch (dev->type) {
 		case ARPHRD_RAWHDLC:
@@ -589,7 +595,7 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 		netif_receive_skb(skb);
 
 recycle:
-		iowrite16be((bd_status & R_W_S) | R_E_S | R_I_S, &bd->status);
+		bd->status = cpu_to_be16((bd_status & R_W_S) | R_E_S | R_I_S);
 
 		/* update to point at the next bd */
 		if (bd_status & R_W_S) {
@@ -604,8 +610,9 @@ recycle:
 			bd += 1;
 		}
 
-		bd_status = ioread16be(&bd->status);
+		bd_status = be16_to_cpu(bd->status);
 	}
+	dma_rmb();
 
 	priv->currx_bd = bd;
 	return howmany;
@@ -628,8 +635,8 @@ static int ucc_hdlc_poll(struct napi_struct *napi, int budget)
 
 	if (howmany < budget) {
 		napi_complete_done(napi, howmany);
-		qe_setbits32(priv->uccf->p_uccm,
-			     (UCCE_HDLC_RX_EVENTS | UCCE_HDLC_TX_EVENTS) << 16);
+		qe_setbits_be32(priv->uccf->p_uccm,
+				(UCCE_HDLC_RX_EVENTS | UCCE_HDLC_TX_EVENTS) << 16);
 	}
 
 	return howmany;
@@ -640,11 +647,9 @@ static irqreturn_t ucc_hdlc_irq_handler(int irq, void *dev_id)
 	struct ucc_hdlc_private *priv = (struct ucc_hdlc_private *)dev_id;
 	struct net_device *dev = priv->ndev;
 	struct ucc_fast_private *uccf;
-	struct ucc_tdm_info *ut_info;
 	u32 ucce;
 	u32 uccm;
 
-	ut_info = priv->ut_info;
 	uccf = priv->uccf;
 
 	ucce = ioread32be(uccf->p_ucce);
@@ -672,31 +677,28 @@ static irqreturn_t ucc_hdlc_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int uhdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int uhdlc_ioctl(struct net_device *dev, struct if_settings *ifs)
 {
 	const size_t size = sizeof(te1_settings);
 	te1_settings line;
 	struct ucc_hdlc_private *priv = netdev_priv(dev);
 
-	if (cmd != SIOCWANDEV)
-		return hdlc_ioctl(dev, ifr, cmd);
-
-	switch (ifr->ifr_settings.type) {
+	switch (ifs->type) {
 	case IF_GET_IFACE:
-		ifr->ifr_settings.type = IF_IFACE_E1;
-		if (ifr->ifr_settings.size < size) {
-			ifr->ifr_settings.size = size; /* data size wanted */
+		ifs->type = IF_IFACE_E1;
+		if (ifs->size < size) {
+			ifs->size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
 		memset(&line, 0, sizeof(line));
 		line.clock_type = priv->clocking;
 
-		if (copy_to_user(ifr->ifr_settings.ifs_ifsu.sync, &line, size))
+		if (copy_to_user(ifs->ifs_ifsu.sync, &line, size))
 			return -EFAULT;
 		return 0;
 
 	default:
-		return hdlc_ioctl(dev, ifr, cmd);
+		return hdlc_ioctl(dev, ifs);
 	}
 }
 
@@ -722,7 +724,7 @@ static int uhdlc_open(struct net_device *dev)
 
 		/* Enable the TDM port */
 		if (priv->tsa)
-			utdm->si_regs->siglmr1_h |= (0x1 << utdm->tdm_port);
+			qe_setbits_8(&utdm->si_regs->siglmr1_h, 0x1 << utdm->tdm_port);
 
 		priv->hdlc_busy = 1;
 		netif_device_attach(priv->ndev);
@@ -737,8 +739,8 @@ static int uhdlc_open(struct net_device *dev)
 
 static void uhdlc_memclean(struct ucc_hdlc_private *priv)
 {
-	qe_muram_free(priv->ucc_pram->riptr);
-	qe_muram_free(priv->ucc_pram->tiptr);
+	qe_muram_free(ioread16be(&priv->ucc_pram->riptr));
+	qe_muram_free(ioread16be(&priv->ucc_pram->tiptr));
 
 	if (priv->rx_bd_base) {
 		dma_free_coherent(priv->dev,
@@ -813,7 +815,7 @@ static int uhdlc_close(struct net_device *dev)
 		     (u8)QE_CR_PROTOCOL_UNSPECIFIED, 0);
 
 	if (priv->tsa)
-		utdm->si_regs->siglmr1_h &= ~(0x1 << utdm->tdm_port);
+		qe_clrbits_8(&utdm->si_regs->siglmr1_h, 0x1 << utdm->tdm_port);
 
 	ucc_fast_disable(priv->uccf, COMM_DIR_RX | COMM_DIR_TX);
 
@@ -849,7 +851,7 @@ static int ucc_hdlc_attach(struct net_device *dev, unsigned short encoding,
 #ifdef CONFIG_PM
 static void store_clk_config(struct ucc_hdlc_private *priv)
 {
-	struct qe_mux *qe_mux_reg = &qe_immr->qmx;
+	struct qe_mux __iomem *qe_mux_reg = &qe_immr->qmx;
 
 	/* store si clk */
 	priv->cmxsi1cr_h = ioread32be(&qe_mux_reg->cmxsi1cr_h);
@@ -864,7 +866,7 @@ static void store_clk_config(struct ucc_hdlc_private *priv)
 
 static void resume_clk_config(struct ucc_hdlc_private *priv)
 {
-	struct qe_mux *qe_mux_reg = &qe_immr->qmx;
+	struct qe_mux __iomem *qe_mux_reg = &qe_immr->qmx;
 
 	memcpy_toio(qe_mux_reg->cmxucr, priv->cmxucr, 4 * sizeof(u32));
 
@@ -877,7 +879,6 @@ static void resume_clk_config(struct ucc_hdlc_private *priv)
 static int uhdlc_suspend(struct device *dev)
 {
 	struct ucc_hdlc_private *priv = dev_get_drvdata(dev);
-	struct ucc_tdm_info *ut_info;
 	struct ucc_fast __iomem *uf_regs;
 
 	if (!priv)
@@ -889,7 +890,6 @@ static int uhdlc_suspend(struct device *dev)
 	netif_device_detach(priv->ndev);
 	napi_disable(&priv->napi);
 
-	ut_info = priv->ut_info;
 	uf_regs = priv->uf_regs;
 
 	/* backup gumr guemr*/
@@ -922,7 +922,7 @@ static int uhdlc_resume(struct device *dev)
 	struct ucc_fast __iomem *uf_regs;
 	struct ucc_fast_private *uccf;
 	struct ucc_fast_info *uf_info;
-	int ret, i;
+	int i;
 	u32 cecr_subblock;
 	u16 bd_status;
 
@@ -967,16 +967,16 @@ static int uhdlc_resume(struct device *dev)
 
 	/* Write to QE CECR, UCCx channel to Stop Transmission */
 	cecr_subblock = ucc_fast_get_qe_cr_subblock(uf_info->ucc_num);
-	ret = qe_issue_cmd(QE_STOP_TX, cecr_subblock,
-			   (u8)QE_CR_PROTOCOL_UNSPECIFIED, 0);
+	qe_issue_cmd(QE_STOP_TX, cecr_subblock,
+		     (u8)QE_CR_PROTOCOL_UNSPECIFIED, 0);
 
 	/* Set UPSMR normal mode */
 	iowrite32be(0, &uf_regs->upsmr);
 
 	/* init parameter base */
 	cecr_subblock = ucc_fast_get_qe_cr_subblock(uf_info->ucc_num);
-	ret = qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, cecr_subblock,
-			   QE_CR_PROTOCOL_UNSPECIFIED, priv->ucc_pram_offset);
+	qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, cecr_subblock,
+		     QE_CR_PROTOCOL_UNSPECIFIED, priv->ucc_pram_offset);
 
 	priv->ucc_pram = (struct ucc_hdlc_param __iomem *)
 				qe_muram_addr(priv->ucc_pram_offset);
@@ -993,9 +993,8 @@ static int uhdlc_resume(struct device *dev)
 		else
 			bd_status = R_E_S | R_I_S | R_W_S;
 
-		iowrite16be(bd_status, &priv->rx_bd_base[i].status);
-		iowrite32be(priv->dma_rx_addr + i * MAX_RX_BUF_LENGTH,
-			    &priv->rx_bd_base[i].buf);
+		priv->rx_bd_base[i].status = cpu_to_be16(bd_status);
+		priv->rx_bd_base[i].buf = cpu_to_be32(priv->dma_rx_addr + i * MAX_RX_BUF_LENGTH);
 	}
 
 	for (i = 0; i < TX_BD_RING_LEN; i++) {
@@ -1004,10 +1003,10 @@ static int uhdlc_resume(struct device *dev)
 		else
 			bd_status =  T_I_S | T_TC_S | T_W_S;
 
-		iowrite16be(bd_status, &priv->tx_bd_base[i].status);
-		iowrite32be(priv->dma_tx_addr + i * MAX_RX_BUF_LENGTH,
-			    &priv->tx_bd_base[i].buf);
+		priv->tx_bd_base[i].status = cpu_to_be16(bd_status);
+		priv->tx_bd_base[i].buf = cpu_to_be32(priv->dma_tx_addr + i * MAX_RX_BUF_LENGTH);
 	}
+	dma_wmb();
 
 	/* if hdlc is busy enable TX and RX */
 	if (priv->hdlc_busy == 1) {
@@ -1021,7 +1020,7 @@ static int uhdlc_resume(struct device *dev)
 
 		/* Enable the TDM port */
 		if (priv->tsa)
-			utdm->si_regs->siglmr1_h |= (0x1 << utdm->tdm_port);
+			qe_setbits_8(&utdm->si_regs->siglmr1_h, 0x1 << utdm->tdm_port);
 	}
 
 	napi_enable(&priv->napi);
@@ -1044,7 +1043,7 @@ static const struct dev_pm_ops uhdlc_pm_ops = {
 #define HDLC_PM_OPS NULL
 
 #endif
-static void uhdlc_tx_timeout(struct net_device *ndev)
+static void uhdlc_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	netdev_err(ndev, "%s\n", __func__);
 }
@@ -1053,9 +1052,57 @@ static const struct net_device_ops uhdlc_ops = {
 	.ndo_open       = uhdlc_open,
 	.ndo_stop       = uhdlc_close,
 	.ndo_start_xmit = hdlc_start_xmit,
-	.ndo_do_ioctl   = uhdlc_ioctl,
+	.ndo_siocwandev = uhdlc_ioctl,
 	.ndo_tx_timeout	= uhdlc_tx_timeout,
 };
+
+static int hdlc_map_iomem(char *name, int init_flag, void __iomem **ptr)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+	struct resource *res;
+	static int siram_init_flag;
+	int ret = 0;
+
+	np = of_find_compatible_node(NULL, NULL, name);
+	if (!np)
+		return -EINVAL;
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		pr_err("%pOFn: failed to lookup pdev\n", np);
+		of_node_put(np);
+		return -EINVAL;
+	}
+
+	of_node_put(np);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -EINVAL;
+		goto error_put_device;
+	}
+	*ptr = ioremap(res->start, resource_size(res));
+	if (!*ptr) {
+		ret = -ENOMEM;
+		goto error_put_device;
+	}
+
+	/* We've remapped the addresses, and we don't need the device any
+	 * more, so we should release it.
+	 */
+	put_device(&pdev->dev);
+
+	if (init_flag && siram_init_flag == 0) {
+		memset_io(*ptr, 0, resource_size(res));
+		siram_init_flag = 1;
+	}
+	return  0;
+
+error_put_device:
+	put_device(&pdev->dev);
+
+	return ret;
+}
 
 static int ucc_hdlc_probe(struct platform_device *pdev)
 {
@@ -1123,9 +1170,8 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	ut_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
 	uhdlc_priv = kzalloc(sizeof(*uhdlc_priv), GFP_KERNEL);
-	if (!uhdlc_priv) {
+	if (!uhdlc_priv)
 		return -ENOMEM;
-	}
 
 	dev_set_drvdata(&pdev->dev, uhdlc_priv);
 	uhdlc_priv->dev = &pdev->dev;
@@ -1151,6 +1197,15 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 		ret = ucc_of_parse_tdm(np, utdm, ut_info);
 		if (ret)
 			goto free_utdm;
+
+		ret = hdlc_map_iomem("fsl,t1040-qe-si", 0,
+				     (void __iomem **)&utdm->si_regs);
+		if (ret)
+			goto free_utdm;
+		ret = hdlc_map_iomem("fsl,t1040-qe-siram", 1,
+				     (void __iomem **)&utdm->siram);
+		if (ret)
+			goto unmap_si_regs;
 	}
 
 	if (of_property_read_u16(np, "fsl,hmask", &uhdlc_priv->hmask))
@@ -1159,7 +1214,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	ret = uhdlc_init(uhdlc_priv);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to init uhdlc\n");
-		goto free_utdm;
+		goto undo_uhdlc_init;
 	}
 
 	dev = alloc_hdlcdev(uhdlc_priv);
@@ -1176,7 +1231,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	hdlc->attach = ucc_hdlc_attach;
 	hdlc->xmit = ucc_hdlc_tx;
-	netif_napi_add(dev, &uhdlc_priv->napi, ucc_hdlc_poll, 32);
+	netif_napi_add_weight(dev, &uhdlc_priv->napi, ucc_hdlc_poll, 32);
 	if (register_hdlc_device(dev)) {
 		ret = -ENOBUFS;
 		pr_err("ucc_hdlc: unable to register hdlc device\n");
@@ -1188,6 +1243,9 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 free_dev:
 	free_netdev(dev);
 undo_uhdlc_init:
+	iounmap(utdm->siram);
+unmap_si_regs:
+	iounmap(utdm->si_regs);
 free_utdm:
 	if (uhdlc_priv->tsa)
 		kfree(utdm);
@@ -1239,3 +1297,4 @@ static struct platform_driver ucc_hdlc_driver = {
 
 module_platform_driver(ucc_hdlc_driver);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION(DRV_DESC);

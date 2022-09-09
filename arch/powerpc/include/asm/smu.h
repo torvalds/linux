@@ -108,7 +108,7 @@
  /*
   * i2c commands
   *
-  * To issue an i2c command, first is to send a parameter block to the
+  * To issue an i2c command, first is to send a parameter block to
   * the SMU. This is a command of type 0x9a with 9 bytes of header
   * eventually followed by data for a write:
   *
@@ -456,7 +456,7 @@ extern void smu_poll(void);
 /*
  * Init routine, presence check....
  */
-extern int smu_init(void);
+int __init smu_init(void);
 extern int smu_present(void);
 struct platform_device;
 extern struct platform_device *smu_get_ofdev(void);

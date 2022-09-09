@@ -10,11 +10,6 @@
 #define MTCR_DIST	0xC0006420
 #define MFCR_DIST	0xC0006020
 
-void __init init_fpu(void)
-{
-	mtcr("cr<1, 2>", 0);
-}
-
 /*
  * fpu_libc_helper() is to help libc to excute:
  *  - mfcr %a, cr<1, 2>
@@ -124,7 +119,7 @@ void fpu_fpe(struct pt_regs *regs)
 			code = FPE_FLTRES;
 	}
 
-	force_sig_fault(sig, code, (void __user *)regs->pc, current);
+	force_sig_fault(sig, code, (void __user *)regs->pc);
 }
 
 #define FMFVR_FPU_REGS(vrx, vry)	\

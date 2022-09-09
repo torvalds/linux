@@ -1,29 +1,16 @@
-/* ------------------------------------------------------------------------- */
-/* i2c-algo-bit.h i2c driver algorithms for bit-shift adapters               */
-/* ------------------------------------------------------------------------- */
-/*   Copyright (C) 1995-99 Simon G. Vogl
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-    MA 02110-1301 USA.							     */
-/* ------------------------------------------------------------------------- */
-
-/* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
-   Frodo Looijaard <frodol@dds.nl> */
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * i2c-algo-bit.h: i2c driver algorithms for bit-shift adapters
+ *
+ *   Copyright (C) 1995-99 Simon G. Vogl
+ * With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
+ * Frodo Looijaard <frodol@dds.nl>
+ */
 
 #ifndef _LINUX_I2C_ALGO_BIT_H
 #define _LINUX_I2C_ALGO_BIT_H
+
+#include <linux/i2c.h>
 
 /* --- Defines for bit-adapters ---------------------------------------	*/
 /*
@@ -46,6 +33,7 @@ struct i2c_algo_bit_data {
 				   minimum 5 us for standard-mode I2C and SMBus,
 				   maximum 50 us for SMBus */
 	int timeout;		/* in jiffies */
+	bool can_do_atomic;	/* callbacks don't sleep, we can be atomic */
 };
 
 int i2c_bit_add_bus(struct i2c_adapter *);

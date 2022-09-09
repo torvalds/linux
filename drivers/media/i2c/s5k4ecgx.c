@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Samsung S5K4ECGX 1/4" 5Mp CMOS Image Sensor SoC
  * with an Embedded Image Signal Processor.
@@ -7,11 +8,6 @@
  *
  * Based on s5k6aa and noon010pc30 driver
  * Copyright (C) 2011, Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -177,7 +173,7 @@ static const char * const s5k4ecgx_supply_names[] = {
 
 enum s5k4ecgx_gpio_id {
 	STBY,
-	RST,
+	RSET,
 	GPIO_NUM,
 };
 
@@ -263,8 +259,6 @@ static int s5k4ecgx_read(struct i2c_client *client, u32 addr, u16 *val)
 		ret = s5k4ecgx_i2c_write(client, REG_CMDRD_ADDRL, low);
 	if (!ret)
 		ret = s5k4ecgx_i2c_read(client, REG_CMDBUF0_ADDR, val);
-	if (!ret)
-		dev_err(&client->dev, "Failed to execute read command\n");
 
 	return ret;
 }
@@ -482,7 +476,7 @@ static int __s5k4ecgx_power_on(struct s5k4ecgx *priv)
 	if (s5k4ecgx_gpio_set_value(priv, STBY, priv->gpio[STBY].level))
 		usleep_range(30, 50);
 
-	if (s5k4ecgx_gpio_set_value(priv, RST, priv->gpio[RST].level))
+	if (s5k4ecgx_gpio_set_value(priv, RSET, priv->gpio[RSET].level))
 		usleep_range(30, 50);
 
 	return 0;
@@ -490,7 +484,7 @@ static int __s5k4ecgx_power_on(struct s5k4ecgx *priv)
 
 static int __s5k4ecgx_power_off(struct s5k4ecgx *priv)
 {
-	if (s5k4ecgx_gpio_set_value(priv, RST, !priv->gpio[RST].level))
+	if (s5k4ecgx_gpio_set_value(priv, RSET, !priv->gpio[RSET].level))
 		usleep_range(30, 50);
 
 	if (s5k4ecgx_gpio_set_value(priv, STBY, !priv->gpio[STBY].level))
@@ -531,7 +525,7 @@ static int s5k4ecgx_try_frame_size(struct v4l2_mbus_framefmt *mf,
 }
 
 static int s5k4ecgx_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(s5k4ecgx_formats))
@@ -541,15 +535,16 @@ static int s5k4ecgx_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int s5k4ecgx_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
+static int s5k4ecgx_get_fmt(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_state *sd_state,
+			    struct v4l2_subdev_format *fmt)
 {
 	struct s5k4ecgx *priv = to_s5k4ecgx(sd);
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (cfg) {
-			mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		if (sd_state) {
+			mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 			fmt->format = *mf;
 		}
 		return 0;
@@ -581,7 +576,8 @@ static const struct s5k4ecgx_pixfmt *s5k4ecgx_try_fmt(struct v4l2_subdev *sd,
 	return &s5k4ecgx_formats[i];
 }
 
-static int s5k4ecgx_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int s5k4ecgx_set_fmt(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct s5k4ecgx *priv = to_s5k4ecgx(sd);
@@ -596,8 +592,8 @@ static int s5k4ecgx_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_confi
 	fmt->format.field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (cfg) {
-			mf = v4l2_subdev_get_try_format(sd, cfg, 0);
+		if (sd_state) {
+			mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 			*mf = fmt->format;
 		}
 		return 0;
@@ -692,7 +688,9 @@ static int s5k4ecgx_registered(struct v4l2_subdev *sd)
  */
 static int s5k4ecgx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(sd, fh->pad, 0);
+	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(sd,
+								   fh->state,
+								   0);
 
 	mf->width = s5k4ecgx_prev_sizes[0].size.width;
 	mf->height = s5k4ecgx_prev_sizes[0].size.height;
@@ -878,7 +876,7 @@ static int s5k4ecgx_config_gpios(struct s5k4ecgx *priv,
 	int ret;
 
 	priv->gpio[STBY].gpio = -EINVAL;
-	priv->gpio[RST].gpio  = -EINVAL;
+	priv->gpio[RSET].gpio  = -EINVAL;
 
 	ret = s5k4ecgx_config_gpio(gpio->gpio, gpio->level, "S5K4ECGX_STBY");
 
@@ -897,7 +895,7 @@ static int s5k4ecgx_config_gpios(struct s5k4ecgx *priv,
 		s5k4ecgx_free_gpios(priv);
 		return ret;
 	}
-	priv->gpio[RST] = *gpio;
+	priv->gpio[RSET] = *gpio;
 	if (gpio_is_valid(gpio->gpio))
 		gpio_set_value(gpio->gpio, 0);
 

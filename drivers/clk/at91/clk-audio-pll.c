@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2016 Atmel Corporation,
  *		       Songjun Wu <songjun.wu@atmel.com>,
  *                     Nicolas Ferre <nicolas.ferre@atmel.com>
  *  Copyright (C) 2017 Free Electrons,
  *		       Quentin Schulz <quentin.schulz@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * The Sama5d2 SoC has two audio PLLs (PMC and PAD) that shares the same parent
  * (FRAC). FRAC can output between 620 and 700MHz and only multiply the rate of
@@ -32,7 +28,6 @@
  * rate - rate is adjustable.
  *        clk->rate = parent->rate / (qdaudio * div))
  * parent - fixed parent.  No clk_set_parent support
- *
  */
 
 #include <linux/clk.h>
@@ -340,7 +335,12 @@ static long clk_audio_pll_pmc_round_rate(struct clk_hw *hw, unsigned long rate,
 	pr_debug("A PLL/PMC: %s, rate = %lu (parent_rate = %lu)\n", __func__,
 		 rate, *parent_rate);
 
-	for (div = 1; div <= AUDIO_PLL_QDPMC_MAX; div++) {
+	if (!rate)
+		return 0;
+
+	best_parent_rate = clk_round_rate(pclk->clk, 1);
+	div = max(best_parent_rate / rate, 1UL);
+	for (; div <= AUDIO_PLL_QDPMC_MAX; div++) {
 		best_parent_rate = clk_round_rate(pclk->clk, rate * div);
 		tmp_rate = best_parent_rate / div;
 		tmp_diff = abs(rate - tmp_rate);
@@ -350,6 +350,8 @@ static long clk_audio_pll_pmc_round_rate(struct clk_hw *hw, unsigned long rate,
 			best_rate = tmp_rate;
 			best_diff = tmp_diff;
 			tmp_qd = div;
+			if (!best_diff)
+				break;	/* got exact match */
 		}
 	}
 

@@ -1,47 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  acpi_drivers.h  ($Revision: 31 $)
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #ifndef __ACPI_DRIVERS_H__
 #define __ACPI_DRIVERS_H__
 
 #define ACPI_MAX_STRING			80
-
-/*
- * Please update drivers/acpi/debug.c and Documentation/acpi/debug.txt
- * if you add to this list.
- */
-#define ACPI_BUS_COMPONENT		0x00010000
-#define ACPI_AC_COMPONENT		0x00020000
-#define ACPI_BATTERY_COMPONENT		0x00040000
-#define ACPI_BUTTON_COMPONENT		0x00080000
-#define ACPI_SBS_COMPONENT		0x00100000
-#define ACPI_FAN_COMPONENT		0x00200000
-#define ACPI_PCI_COMPONENT		0x00400000
-#define ACPI_POWER_COMPONENT		0x00800000
-#define ACPI_CONTAINER_COMPONENT	0x01000000
-#define ACPI_SYSTEM_COMPONENT		0x02000000
-#define ACPI_THERMAL_COMPONENT		0x04000000
-#define ACPI_MEMORY_DEVICE_COMPONENT	0x08000000
-#define ACPI_VIDEO_COMPONENT		0x10000000
-#define ACPI_PROCESSOR_COMPONENT	0x20000000
 
 /*
  * _HID definitions
@@ -77,14 +45,14 @@
    -------------------------------------------------------------------------- */
 
 
-/* ACPI PCI Interrupt Link (pci_link.c) */
+/* ACPI PCI Interrupt Link */
 
 int acpi_irq_penalty_init(void);
 int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
 			       int *polarity, char **name);
 int acpi_pci_link_free_irq(acpi_handle handle);
 
-/* ACPI PCI Device Binding (pci_bind.c) */
+/* ACPI PCI Device Binding */
 
 struct pci_bus;
 
@@ -106,14 +74,6 @@ void pci_acpi_crs_quirks(void);
 #else
 static inline void pci_acpi_crs_quirks(void) { }
 #endif
-
-/* --------------------------------------------------------------------------
-                                    Processor
-   -------------------------------------------------------------------------- */
-
-#define ACPI_PROCESSOR_LIMIT_NONE	0x00
-#define ACPI_PROCESSOR_LIMIT_INCREMENT	0x01
-#define ACPI_PROCESSOR_LIMIT_DECREMENT	0x02
 
 /*--------------------------------------------------------------------------
                                   Dock Station

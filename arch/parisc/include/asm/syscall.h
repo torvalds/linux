@@ -18,29 +18,22 @@ static inline long syscall_get_nr(struct task_struct *tsk,
 }
 
 static inline void syscall_get_arguments(struct task_struct *tsk,
-					 struct pt_regs *regs, unsigned int i,
-					 unsigned int n, unsigned long *args)
+					 struct pt_regs *regs,
+					 unsigned long *args)
 {
-	BUG_ON(i);
+	args[5] = regs->gr[21];
+	args[4] = regs->gr[22];
+	args[3] = regs->gr[23];
+	args[2] = regs->gr[24];
+	args[1] = regs->gr[25];
+	args[0] = regs->gr[26];
+}
 
-	switch (n) {
-	case 6:
-		args[5] = regs->gr[21];
-	case 5:
-		args[4] = regs->gr[22];
-	case 4:
-		args[3] = regs->gr[23];
-	case 3:
-		args[2] = regs->gr[24];
-	case 2:
-		args[1] = regs->gr[25];
-	case 1:
-		args[0] = regs->gr[26];
-	case 0:
-		break;
-	default:
-		BUG();
-	}
+static inline long syscall_get_error(struct task_struct *task,
+				     struct pt_regs *regs)
+{
+	unsigned long error = regs->gr[28];
+	return IS_ERR_VALUE(error) ? error : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
@@ -62,11 +55,11 @@ static inline void syscall_rollback(struct task_struct *task,
 	/* do nothing */
 }
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
 	int arch = AUDIT_ARCH_PARISC;
 #ifdef CONFIG_64BIT
-	if (!is_compat_task())
+	if (!__is_compat_task(task))
 		arch = AUDIT_ARCH_PARISC64;
 #endif
 	return arch;

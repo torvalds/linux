@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AMD Cryptographic Coprocessor (CCP) crypto API support
  *
  * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __CCP_CRYPTO_H__
@@ -15,7 +12,6 @@
 
 #include <linux/list.h>
 #include <linux/wait.h>
-#include <linux/pci.h>
 #include <linux/ccp.h>
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
@@ -23,20 +19,26 @@
 #include <crypto/aead.h>
 #include <crypto/ctr.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/akcipher.h>
+#include <crypto/skcipher.h>
 #include <crypto/internal/rsa.h>
+
+/* We want the module name in front of our messages */
+#undef pr_fmt
+#define	pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #define	CCP_LOG_LEVEL	KERN_INFO
 
 #define CCP_CRA_PRIORITY	300
 
-struct ccp_crypto_ablkcipher_alg {
+struct ccp_crypto_skcipher_alg {
 	struct list_head entry;
 
 	u32 mode;
 
-	struct crypto_alg alg;
+	struct skcipher_alg alg;
 };
 
 struct ccp_crypto_aead {
@@ -66,12 +68,12 @@ struct ccp_crypto_akcipher_alg {
 	struct akcipher_alg alg;
 };
 
-static inline struct ccp_crypto_ablkcipher_alg *
-	ccp_crypto_ablkcipher_alg(struct crypto_tfm *tfm)
+static inline struct ccp_crypto_skcipher_alg *
+	ccp_crypto_skcipher_alg(struct crypto_skcipher *tfm)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
 
-	return container_of(alg, struct ccp_crypto_ablkcipher_alg, alg);
+	return container_of(alg, struct ccp_crypto_skcipher_alg, alg);
 }
 
 static inline struct ccp_crypto_ahash_alg *
@@ -88,10 +90,7 @@ static inline struct ccp_crypto_ahash_alg *
 /***** AES related defines *****/
 struct ccp_aes_ctx {
 	/* Fallback cipher for XTS with unsupported unit sizes */
-	struct crypto_sync_skcipher *tfm_skcipher;
-
-	/* Cipher used to generate CMAC K1/K2 keys */
-	struct crypto_cipher *tfm_cipher;
+	struct crypto_skcipher *tfm_skcipher;
 
 	enum ccp_engine engine;
 	enum ccp_aes_type type;
@@ -123,6 +122,8 @@ struct ccp_aes_req_ctx {
 	u8 rfc3686_iv[AES_BLOCK_SIZE];
 
 	struct ccp_cmd cmd;
+
+	struct skcipher_request fallback_req;	// keep at the end
 };
 
 struct ccp_aes_cmac_req_ctx {

@@ -119,7 +119,7 @@ static ssize_t cyapa_i2c_read(struct cyapa *cyapa, u8 reg, size_t len,
 /**
  * cyapa_i2c_write - Execute i2c block data write operation
  * @cyapa: Handle to this driver
- * @ret: Offset of the data to written in the register map
+ * @reg: Offset of the data to written in the register map
  * @len: number of bytes to write
  * @values: Data to be written
  *
@@ -526,7 +526,7 @@ static void cyapa_enable_irq_for_cmd(struct cyapa *cyapa)
 {
 	struct input_dev *input = cyapa->input;
 
-	if (!input || !input->users) {
+	if (!input || !input_device_enabled(input)) {
 		/*
 		 * When input is NULL, TP must be in deep sleep mode.
 		 * In this mode, later non-power I2C command will always failed
@@ -546,7 +546,7 @@ static void cyapa_disable_irq_for_cmd(struct cyapa *cyapa)
 {
 	struct input_dev *input = cyapa->input;
 
-	if (!input || !input->users) {
+	if (!input || !input_device_enabled(input)) {
 		if (cyapa->gen >= CYAPA_GEN5)
 			disable_irq(cyapa->client->irq);
 		if (!input || cyapa->operational)
@@ -652,7 +652,7 @@ static int cyapa_reinitialize(struct cyapa *cyapa)
 	}
 
 out:
-	if (!input || !input->users) {
+	if (!input || !input_device_enabled(input)) {
 		/* Reset to power OFF state to save power when no user open. */
 		if (cyapa->operational)
 			cyapa->ops->set_power_mode(cyapa,
@@ -840,10 +840,9 @@ static int cyapa_prepare_wakeup_controls(struct cyapa *cyapa)
 			return error;
 		}
 
-		error = devm_add_action(dev,
+		error = devm_add_action_or_reset(dev,
 				cyapa_remove_power_wakeup_group, cyapa);
 		if (error) {
-			cyapa_remove_power_wakeup_group(cyapa);
 			dev_err(dev, "failed to add power cleanup action: %d\n",
 				error);
 			return error;
@@ -957,9 +956,9 @@ static int cyapa_start_runtime(struct cyapa *cyapa)
 		return error;
 	}
 
-	error = devm_add_action(dev, cyapa_remove_power_runtime_group, cyapa);
+	error = devm_add_action_or_reset(dev, cyapa_remove_power_runtime_group,
+					 cyapa);
 	if (error) {
-		cyapa_remove_power_runtime_group(cyapa);
 		dev_err(dev,
 			"failed to add power runtime cleanup action: %d\n",
 			error);
@@ -1238,13 +1237,6 @@ static const struct attribute_group cyapa_sysfs_group = {
 	.attrs = cyapa_sysfs_entries,
 };
 
-static void cyapa_remove_sysfs_group(void *data)
-{
-	struct cyapa *cyapa = data;
-
-	sysfs_remove_group(&cyapa->client->dev.kobj, &cyapa_sysfs_group);
-}
-
 static void cyapa_disable_regulator(void *data)
 {
 	struct cyapa *cyapa = data;
@@ -1298,9 +1290,8 @@ static int cyapa_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_add_action(dev, cyapa_disable_regulator, cyapa);
+	error = devm_add_action_or_reset(dev, cyapa_disable_regulator, cyapa);
 	if (error) {
-		cyapa_disable_regulator(cyapa);
 		dev_err(dev, "failed to add disable regulator action: %d\n",
 			error);
 		return error;
@@ -1312,16 +1303,9 @@ static int cyapa_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&dev->kobj, &cyapa_sysfs_group);
+	error = devm_device_add_group(dev, &cyapa_sysfs_group);
 	if (error) {
 		dev_err(dev, "failed to create sysfs entries: %d\n", error);
-		return error;
-	}
-
-	error = devm_add_action(dev, cyapa_remove_sysfs_group, cyapa);
-	if (error) {
-		cyapa_remove_sysfs_group(cyapa);
-		dev_err(dev, "failed to add sysfs cleanup action: %d\n", error);
 		return error;
 	}
 

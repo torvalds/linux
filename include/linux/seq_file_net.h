@@ -3,13 +3,15 @@
 #define __SEQ_FILE_NET_H__
 
 #include <linux/seq_file.h>
+#include <net/net_trackers.h>
 
 struct net;
 extern struct net init_net;
 
 struct seq_net_private {
 #ifdef CONFIG_NET_NS
-	struct net *net;
+	struct net	*net;
+	netns_tracker	ns_tracker;
 #endif
 };
 

@@ -14,13 +14,15 @@
  */
 #include <linux/ctype.h>
 #include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/math64.h>
 #include <linux/export.h>
+#include <linux/kstrtox.h>
+#include <linux/math64.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+
 #include "kstrtox.h"
 
+noinline
 const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
 {
 	if (*base == 0) {
@@ -39,20 +41,23 @@ const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
 
 /*
  * Convert non-negative integer string representation in explicitly given radix
- * to an integer.
+ * to an integer. A maximum of max_chars characters will be converted.
+ *
  * Return number of characters consumed maybe or-ed with overflow bit.
  * If overflow occurs, result integer (incorrect) is still returned.
  *
  * Don't you dare use this function.
  */
-unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long *p)
+noinline
+unsigned int _parse_integer_limit(const char *s, unsigned int base, unsigned long long *p,
+				  size_t max_chars)
 {
 	unsigned long long res;
 	unsigned int rv;
 
 	res = 0;
 	rv = 0;
-	while (1) {
+	while (max_chars--) {
 		unsigned int c = *s;
 		unsigned int lc = c | 0x20; /* don't tolower() this line */
 		unsigned int val;
@@ -80,6 +85,12 @@ unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long
 	}
 	*p = res;
 	return rv;
+}
+
+noinline
+unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long *p)
+{
+	return _parse_integer_limit(s, base, p, INT_MAX);
 }
 
 static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
@@ -115,9 +126,9 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
  * @res: Where to write the result of the conversion on success.
  *
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
- * Used as a replacement for the obsolete simple_strtoull. Return code must
- * be checked.
+ * Preferred over simple_strtoull(). Return code must be checked.
  */
+noinline
 int kstrtoull(const char *s, unsigned int base, unsigned long long *res)
 {
 	if (s[0] == '+')
@@ -139,9 +150,9 @@ EXPORT_SYMBOL(kstrtoull);
  * @res: Where to write the result of the conversion on success.
  *
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
- * Used as a replacement for the obsolete simple_strtoull. Return code must
- * be checked.
+ * Preferred over simple_strtoll(). Return code must be checked.
  */
+noinline
 int kstrtoll(const char *s, unsigned int base, long long *res)
 {
 	unsigned long long tmp;
@@ -211,9 +222,9 @@ EXPORT_SYMBOL(_kstrtol);
  * @res: Where to write the result of the conversion on success.
  *
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
- * Used as a replacement for the obsolete simple_strtoull. Return code must
- * be checked.
+ * Preferred over simple_strtoul(). Return code must be checked.
  */
+noinline
 int kstrtouint(const char *s, unsigned int base, unsigned int *res)
 {
 	unsigned long long tmp;
@@ -242,9 +253,9 @@ EXPORT_SYMBOL(kstrtouint);
  * @res: Where to write the result of the conversion on success.
  *
  * Returns 0 on success, -ERANGE on overflow and -EINVAL on parsing error.
- * Used as a replacement for the obsolete simple_strtoull. Return code must
- * be checked.
+ * Preferred over simple_strtol(). Return code must be checked.
  */
+noinline
 int kstrtoint(const char *s, unsigned int base, int *res)
 {
 	long long tmp;
@@ -260,6 +271,7 @@ int kstrtoint(const char *s, unsigned int base, int *res)
 }
 EXPORT_SYMBOL(kstrtoint);
 
+noinline
 int kstrtou16(const char *s, unsigned int base, u16 *res)
 {
 	unsigned long long tmp;
@@ -275,6 +287,7 @@ int kstrtou16(const char *s, unsigned int base, u16 *res)
 }
 EXPORT_SYMBOL(kstrtou16);
 
+noinline
 int kstrtos16(const char *s, unsigned int base, s16 *res)
 {
 	long long tmp;
@@ -290,6 +303,7 @@ int kstrtos16(const char *s, unsigned int base, s16 *res)
 }
 EXPORT_SYMBOL(kstrtos16);
 
+noinline
 int kstrtou8(const char *s, unsigned int base, u8 *res)
 {
 	unsigned long long tmp;
@@ -305,6 +319,7 @@ int kstrtou8(const char *s, unsigned int base, u8 *res)
 }
 EXPORT_SYMBOL(kstrtou8);
 
+noinline
 int kstrtos8(const char *s, unsigned int base, s8 *res)
 {
 	long long tmp;
@@ -325,10 +340,11 @@ EXPORT_SYMBOL(kstrtos8);
  * @s: input string
  * @res: result
  *
- * This routine returns 0 iff the first character is one of 'Yy1Nn0', or
+ * This routine returns 0 iff the first character is one of 'YyTt1NnFf0', or
  * [oO][NnFf] for "on" and "off". Otherwise it will return -EINVAL.  Value
  * pointed to by res is updated upon finding a match.
  */
+noinline
 int kstrtobool(const char *s, bool *res)
 {
 	if (!s)
@@ -337,11 +353,15 @@ int kstrtobool(const char *s, bool *res)
 	switch (s[0]) {
 	case 'y':
 	case 'Y':
+	case 't':
+	case 'T':
 	case '1':
 		*res = true;
 		return 0;
 	case 'n':
 	case 'N':
+	case 'f':
+	case 'F':
 	case '0':
 		*res = false;
 		return 0;
@@ -359,6 +379,7 @@ int kstrtobool(const char *s, bool *res)
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}

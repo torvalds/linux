@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2014 NVIDIA Corporation
  * Copyright © 2015 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/io.h>
@@ -19,30 +11,8 @@
 #include <linux/soc/brcmstb/brcmstb.h>
 #include <linux/sys_soc.h>
 
-#include <soc/brcmstb/common.h>
-
 static u32 family_id;
 static u32 product_id;
-
-static const struct of_device_id brcmstb_machine_match[] = {
-	{ .compatible = "brcm,brcmstb", },
-	{ }
-};
-
-bool soc_is_brcmstb(void)
-{
-	const struct of_device_id *match;
-	struct device_node *root;
-
-	root = of_find_node_by_path("/");
-	if (!root)
-		return false;
-
-	match = of_match_node(brcmstb_machine_match, root);
-	of_node_put(root);
-
-	return match != NULL;
-}
 
 u32 brcmstb_get_family_id(void)
 {

@@ -1,27 +1,6 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2013  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2013  Realtek Corporation.*/
+
 #include "../wifi.h"
 #include <linux/vmalloc.h>
 #include <linux/module.h>
@@ -212,7 +191,7 @@ void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv)
 	u8 bt_exist;
 
 	bt_exist = rtl_get_hwpg_bt_exist(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
 		"%s, bt_exist is %d\n", __func__, bt_exist);
 
 	if (!btcoexist)
@@ -337,7 +316,7 @@ void rtl_btc_btinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 {
 	struct btc_coexist *btcoexist = rtl_btc_coexist(rtlpriv);
-	u8 extid, seq, len;
+	u8 extid, seq;
 	u16 bt_real_fw_ver;
 	u8 bt_fw_ver;
 	u8 *data;
@@ -353,7 +332,6 @@ void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 	if (extid != 1) /* C2H_TRIG_BY_BT_FW = 1 */
 		return;
 
-	len = tmp_buf[1] >> 4;
 	seq = tmp_buf[2] >> 4;
 	data = &tmp_buf[3];
 
@@ -405,8 +383,8 @@ void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 		break;
 	}
 
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "btmpinfo complete req_num=%d\n", seq);
+	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		"btmpinfo complete req_num=%d\n", seq);
 
 	complete(&btcoexist->bt_mp_comp);
 }

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * udlfb.c -- Framebuffer driver for DisplayLink USB controller
  *
  * Copyright (C) 2009 Roberto De Ioris <roberto@unbit.it>
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License v2. See the file COPYING in the main directory of this archive for
- * more details.
  *
  * Layout is based on skeletonfb by James Simmons and Geert Uytterhoeven,
  * usb-skeleton by GregKH.
@@ -67,9 +64,9 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 /* module options */
-static bool console = 1; /* Allow fbcon to open framebuffer */
-static bool fb_defio = 1;  /* Detect mmap writes using page faults */
-static bool shadow = 1; /* Optionally disable shadow framebuffer */
+static bool console = true; /* Allow fbcon to open framebuffer */
+static bool fb_defio = true;  /* Detect mmap writes using page faults */
+static bool shadow = true; /* Optionally disable shadow framebuffer */
 static int pixel_limit; /* Optionally force a pixel resolution limit */
 
 struct dlfb_deferred_free {
@@ -328,6 +325,9 @@ static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long size = vma->vm_end - vma->vm_start;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
+
+	if (info->fbdefio)
+		return fb_deferred_io_mmap(info, vma);
 
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
@@ -594,8 +594,7 @@ static int dlfb_render_hline(struct dlfb_data *dlfb, struct urb **urb_ptr,
 	return 0;
 }
 
-static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y,
-	       int width, int height, char *data)
+static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y, int width, int height)
 {
 	int i, ret;
 	char *cmd;
@@ -607,21 +606,29 @@ static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y,
 
 	start_cycles = get_cycles();
 
+	mutex_lock(&dlfb->render_mutex);
+
 	aligned_x = DL_ALIGN_DOWN(x, sizeof(unsigned long));
 	width = DL_ALIGN_UP(width + (x-aligned_x), sizeof(unsigned long));
 	x = aligned_x;
 
 	if ((width <= 0) ||
 	    (x + width > dlfb->info->var.xres) ||
-	    (y + height > dlfb->info->var.yres))
-		return -EINVAL;
+	    (y + height > dlfb->info->var.yres)) {
+		ret = -EINVAL;
+		goto unlock_ret;
+	}
 
-	if (!atomic_read(&dlfb->usb_active))
-		return 0;
+	if (!atomic_read(&dlfb->usb_active)) {
+		ret = 0;
+		goto unlock_ret;
+	}
 
 	urb = dlfb_get_urb(dlfb);
-	if (!urb)
-		return 0;
+	if (!urb) {
+		ret = 0;
+		goto unlock_ret;
+	}
 	cmd = urb->transfer_buffer;
 
 	for (i = y; i < y + height ; i++) {
@@ -641,7 +648,7 @@ static int dlfb_handle_damage(struct dlfb_data *dlfb, int x, int y,
 			*cmd++ = 0xAF;
 		/* Send partial buffer remaining before exiting */
 		len = cmd - (char *) urb->transfer_buffer;
-		ret = dlfb_submit_urb(dlfb, urb, len);
+		dlfb_submit_urb(dlfb, urb, len);
 		bytes_sent += len;
 	} else
 		dlfb_urb_completion(urb);
@@ -655,7 +662,55 @@ error:
 		    >> 10)), /* Kcycles */
 		   &dlfb->cpu_kcycles_used);
 
-	return 0;
+	ret = 0;
+
+unlock_ret:
+	mutex_unlock(&dlfb->render_mutex);
+	return ret;
+}
+
+static void dlfb_init_damage(struct dlfb_data *dlfb)
+{
+	dlfb->damage_x = INT_MAX;
+	dlfb->damage_x2 = 0;
+	dlfb->damage_y = INT_MAX;
+	dlfb->damage_y2 = 0;
+}
+
+static void dlfb_damage_work(struct work_struct *w)
+{
+	struct dlfb_data *dlfb = container_of(w, struct dlfb_data, damage_work);
+	int x, x2, y, y2;
+
+	spin_lock_irq(&dlfb->damage_lock);
+	x = dlfb->damage_x;
+	x2 = dlfb->damage_x2;
+	y = dlfb->damage_y;
+	y2 = dlfb->damage_y2;
+	dlfb_init_damage(dlfb);
+	spin_unlock_irq(&dlfb->damage_lock);
+
+	if (x < x2 && y < y2)
+		dlfb_handle_damage(dlfb, x, y, x2 - x, y2 - y);
+}
+
+static void dlfb_offload_damage(struct dlfb_data *dlfb, int x, int y, int width, int height)
+{
+	unsigned long flags;
+	int x2 = x + width;
+	int y2 = y + height;
+
+	if (x >= x2 || y >= y2)
+		return;
+
+	spin_lock_irqsave(&dlfb->damage_lock, flags);
+	dlfb->damage_x = min(x, dlfb->damage_x);
+	dlfb->damage_x2 = max(x2, dlfb->damage_x2);
+	dlfb->damage_y = min(y, dlfb->damage_y);
+	dlfb->damage_y2 = max(y2, dlfb->damage_y2);
+	spin_unlock_irqrestore(&dlfb->damage_lock, flags);
+
+	schedule_work(&dlfb->damage_work);
 }
 
 /*
@@ -679,7 +734,7 @@ static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
 				(u32)info->var.yres);
 
 		dlfb_handle_damage(dlfb, 0, start, info->var.xres,
-			lines, info->screen_base);
+			lines);
 	}
 
 	return result;
@@ -694,8 +749,8 @@ static void dlfb_ops_copyarea(struct fb_info *info,
 
 	sys_copyarea(info, area);
 
-	dlfb_handle_damage(dlfb, area->dx, area->dy,
-			area->width, area->height, info->screen_base);
+	dlfb_offload_damage(dlfb, area->dx, area->dy,
+			area->width, area->height);
 }
 
 static void dlfb_ops_imageblit(struct fb_info *info,
@@ -705,8 +760,8 @@ static void dlfb_ops_imageblit(struct fb_info *info,
 
 	sys_imageblit(info, image);
 
-	dlfb_handle_damage(dlfb, image->dx, image->dy,
-			image->width, image->height, info->screen_base);
+	dlfb_offload_damage(dlfb, image->dx, image->dy,
+			image->width, image->height);
 }
 
 static void dlfb_ops_fillrect(struct fb_info *info,
@@ -716,8 +771,8 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 
 	sys_fillrect(info, rect);
 
-	dlfb_handle_damage(dlfb, rect->dx, rect->dy, rect->width,
-			      rect->height, info->screen_base);
+	dlfb_offload_damage(dlfb, rect->dx, rect->dy, rect->width,
+			      rect->height);
 }
 
 /*
@@ -726,11 +781,9 @@ static void dlfb_ops_fillrect(struct fb_info *info,
  *   in fb_defio will cause a deadlock, when it also tries to
  *   grab the same mutex.
  */
-static void dlfb_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void dlfb_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
-	struct page *cur;
-	struct fb_deferred_io *fbdefio = info->fbdefio;
+	struct fb_deferred_io_pageref *pageref;
 	struct dlfb_data *dlfb = info->par;
 	struct urb *urb;
 	char *cmd;
@@ -739,26 +792,27 @@ static void dlfb_dpy_deferred_io(struct fb_info *info,
 	int bytes_identical = 0;
 	int bytes_rendered = 0;
 
+	mutex_lock(&dlfb->render_mutex);
+
 	if (!fb_defio)
-		return;
+		goto unlock_ret;
 
 	if (!atomic_read(&dlfb->usb_active))
-		return;
+		goto unlock_ret;
 
 	start_cycles = get_cycles();
 
 	urb = dlfb_get_urb(dlfb);
 	if (!urb)
-		return;
+		goto unlock_ret;
 
 	cmd = urb->transfer_buffer;
 
 	/* walk the written page list and render each to device */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-
+	list_for_each_entry(pageref, pagereflist, list) {
 		if (dlfb_render_hline(dlfb, &urb, (char *) info->fix.smem_start,
-				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent))
+				      &cmd, pageref->offset, PAGE_SIZE,
+				      &bytes_identical, &bytes_sent))
 			goto error;
 		bytes_rendered += PAGE_SIZE;
 	}
@@ -782,6 +836,8 @@ error:
 	atomic_add(((unsigned int) ((end_cycles - start_cycles)
 		    >> 10)), /* Kcycles */
 		   &dlfb->cpu_kcycles_used);
+unlock_ret:
+	mutex_unlock(&dlfb->render_mutex);
 }
 
 static int dlfb_get_edid(struct dlfb_data *dlfb, char *edid, int len)
@@ -859,8 +915,7 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 		if (area.y > info->var.yres)
 			area.y = info->var.yres;
 
-		dlfb_handle_damage(dlfb, area.x, area.y, area.w, area.h,
-			   info->screen_base);
+		dlfb_handle_damage(dlfb, area.x, area.y, area.w, area.h);
 	}
 
 	return 0;
@@ -925,6 +980,7 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 
 		if (fbdefio) {
 			fbdefio->delay = DL_DEFIO_WRITE_DELAY;
+			fbdefio->sort_pagereflist = true;
 			fbdefio->deferred_io = dlfb_dpy_deferred_io;
 		}
 
@@ -942,6 +998,10 @@ static void dlfb_ops_destroy(struct fb_info *info)
 {
 	struct dlfb_data *dlfb = info->par;
 
+	cancel_work_sync(&dlfb->damage_work);
+
+	mutex_destroy(&dlfb->render_mutex);
+
 	if (info->cmap.len != 0)
 		fb_dealloc_cmap(&info->cmap);
 	if (info->monspecs.modedb)
@@ -958,6 +1018,7 @@ static void dlfb_ops_destroy(struct fb_info *info)
 	}
 	vfree(dlfb->backing_buffer);
 	kfree(dlfb->edid);
+	dlfb_free_urb_list(dlfb);
 	usb_put_dev(dlfb->udev);
 	kfree(dlfb);
 
@@ -978,7 +1039,6 @@ static int dlfb_ops_release(struct fb_info *info, int user)
 		fb_deferred_io_cleanup(info);
 		kfree(info->fbdefio);
 		info->fbdefio = NULL;
-		info->fbops->fb_mmap = dlfb_ops_mmap;
 	}
 
 	dev_dbg(info->dev, "release, user=%d count=%d\n", user, dlfb->fb_count);
@@ -1065,8 +1125,7 @@ static int dlfb_ops_set_par(struct fb_info *info)
 			pix_framebuffer[i] = 0x37e6;
 	}
 
-	dlfb_handle_damage(dlfb, 0, 0, info->var.xres, info->var.yres,
-			   info->screen_base);
+	dlfb_handle_damage(dlfb, 0, 0, info->var.xres, info->var.yres);
 
 	return 0;
 }
@@ -1125,7 +1184,7 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops dlfb_ops = {
+static const struct fb_ops dlfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_read = fb_sys_read,
 	.fb_write = dlfb_ops_write,
@@ -1368,7 +1427,7 @@ static ssize_t metrics_bytes_rendered_show(struct device *fbdev,
 				   struct device_attribute *a, char *buf) {
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dlfb = fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "%u\n",
+	return sysfs_emit(buf, "%u\n",
 			atomic_read(&dlfb->bytes_rendered));
 }
 
@@ -1376,7 +1435,7 @@ static ssize_t metrics_bytes_identical_show(struct device *fbdev,
 				   struct device_attribute *a, char *buf) {
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dlfb = fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "%u\n",
+	return sysfs_emit(buf, "%u\n",
 			atomic_read(&dlfb->bytes_identical));
 }
 
@@ -1384,7 +1443,7 @@ static ssize_t metrics_bytes_sent_show(struct device *fbdev,
 				   struct device_attribute *a, char *buf) {
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dlfb = fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "%u\n",
+	return sysfs_emit(buf, "%u\n",
 			atomic_read(&dlfb->bytes_sent));
 }
 
@@ -1392,7 +1451,7 @@ static ssize_t metrics_cpu_kcycles_used_show(struct device *fbdev,
 				   struct device_attribute *a, char *buf) {
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dlfb = fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "%u\n",
+	return sysfs_emit(buf, "%u\n",
 			atomic_read(&dlfb->cpu_kcycles_used));
 }
 
@@ -1400,7 +1459,7 @@ static ssize_t edid_show(
 			struct file *filp,
 			struct kobject *kobj, struct bin_attribute *a,
 			 char *buf, loff_t off, size_t count) {
-	struct device *fbdev = container_of(kobj, struct device, kobj);
+	struct device *fbdev = kobj_to_dev(kobj);
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dlfb = fb_info->par;
 
@@ -1422,7 +1481,7 @@ static ssize_t edid_store(
 			struct file *filp,
 			struct kobject *kobj, struct bin_attribute *a,
 			char *src, loff_t src_off, size_t src_size) {
-	struct device *fbdev = container_of(kobj, struct device, kobj);
+	struct device *fbdev = kobj_to_dev(kobj);
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dlfb = fb_info->par;
 	int ret;
@@ -1591,8 +1650,9 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	const struct device_attribute *attr;
 	struct dlfb_data *dlfb;
 	struct fb_info *info;
-	int retval = -ENOMEM;
+	int retval;
 	struct usb_device *usbdev = interface_to_usbdev(intf);
+	struct usb_endpoint_descriptor *out;
 
 	/* usb initialization */
 	dlfb = kzalloc(sizeof(*dlfb), GFP_KERNEL);
@@ -1606,6 +1666,12 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	dlfb->udev = usb_get_dev(usbdev);
 	usb_set_intfdata(intf, dlfb);
 
+	retval = usb_find_common_endpoints(intf->cur_altsetting, NULL, &out, NULL, NULL);
+	if (retval) {
+		dev_err(&intf->dev, "Device should have at lease 1 bulk endpoint!\n");
+		goto error;
+	}
+
 	dev_dbg(&intf->dev, "console enable=%d\n", console);
 	dev_dbg(&intf->dev, "fb_defio enable=%d\n", fb_defio);
 	dev_dbg(&intf->dev, "shadow enable=%d\n", shadow);
@@ -1615,6 +1681,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	if (!dlfb_parse_vendor_descriptor(dlfb, intf)) {
 		dev_err(&intf->dev,
 			"firmware not recognized, incompatible device?\n");
+		retval = -ENODEV;
 		goto error;
 	}
 
@@ -1629,7 +1696,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	/* allocates framebuffer driver structure, not framebuffer memory */
 	info = framebuffer_alloc(0, &dlfb->udev->dev);
 	if (!info) {
-		dev_err(&dlfb->udev->dev, "framebuffer_alloc failed\n");
+		retval = -ENOMEM;
 		goto error;
 	}
 
@@ -1638,6 +1705,11 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	info->pseudo_palette = dlfb->pseudo_palette;
 	dlfb->ops = dlfb_ops;
 	info->fbops = &dlfb->ops;
+
+	mutex_init(&dlfb->render_mutex);
+	dlfb_init_damage(dlfb);
+	spin_lock_init(&dlfb->damage_lock);
+	INIT_WORK(&dlfb->damage_work, dlfb_damage_work);
 
 	INIT_LIST_HEAD(&info->modelist);
 

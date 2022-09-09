@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -9,10 +10,6 @@
  * Based on:
  *	PATA driver for AT91SAM9260 Static Memory Controller
  *	PATA driver for Toshiba SCC controller
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
 */
 
 #include <linux/kernel.h>
@@ -216,7 +213,7 @@ static void pata_s3c_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
-	tf->feature = ata_inb(ap->host, ioaddr->error_addr);
+	tf->error = ata_inb(ap->host, ioaddr->error_addr);
 	tf->nsect = ata_inb(ap->host, ioaddr->nsect_addr);
 	tf->lbal = ata_inb(ap->host, ioaddr->lbal_addr);
 	tf->lbam = ata_inb(ap->host, ioaddr->lbam_addr);
@@ -311,8 +308,7 @@ static void pata_s3c_dev_select(struct ata_port *ap, unsigned int device)
 /*
  * pata_s3c_devchk - PATA device presence detection
  */
-static unsigned int pata_s3c_devchk(struct ata_port *ap,
-				unsigned int device)
+static bool pata_s3c_devchk(struct ata_port *ap, unsigned int device)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	u8 nsect, lbal;
@@ -332,9 +328,9 @@ static unsigned int pata_s3c_devchk(struct ata_port *ap,
 	lbal = ata_inb(ap->host, ioaddr->lbal_addr);
 
 	if ((nsect == 0x55) && (lbal == 0xaa))
-		return 1;	/* we found a device */
+		return true;	/* we found a device */
 
-	return 0;		/* nothing found */
+	return false;		/* nothing found */
 }
 
 /*
@@ -609,17 +605,16 @@ static int __exit pata_s3c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int pata_s3c_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ata_host *host = platform_get_drvdata(pdev);
+	struct ata_host *host = dev_get_drvdata(dev);
 
-	return ata_host_suspend(host, PMSG_SUSPEND);
+	ata_host_suspend(host, PMSG_SUSPEND);
+	return 0;
 }
 
 static int pata_s3c_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ata_host *host = platform_get_drvdata(pdev);
-	struct s3c_ide_platdata *pdata = dev_get_platdata(&pdev->dev);
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct s3c_ide_platdata *pdata = dev_get_platdata(dev);
 	struct s3c_ide_info *info = host->private_data;
 
 	pata_s3c_hwinit(info, pdata);

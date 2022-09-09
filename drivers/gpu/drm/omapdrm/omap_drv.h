@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __OMAPDRM_DRV_H__
@@ -22,14 +11,13 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+#include "dss/omapdss.h"
+#include "dss/dss.h"
+
+#include <drm/drm_atomic.h>
 #include <drm/drm_gem.h>
 #include <drm/omap_drm.h>
 
-#include "dss/omapdss.h"
-
-#include "omap_connector.h"
 #include "omap_crtc.h"
 #include "omap_encoder.h"
 #include "omap_fb.h"
@@ -37,9 +25,10 @@
 #include "omap_gem.h"
 #include "omap_irq.h"
 #include "omap_plane.h"
+#include "omap_overlay.h"
 
-#define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
-#define VERB(fmt, ...) if (0) DRM_DEBUG(fmt, ##__VA_ARGS__) /* verbose debug */
+#define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
+#define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt, ##__VA_ARGS__) /* verbose debug */
 
 #define MODULE_NAME     "omapdrm"
 
@@ -50,7 +39,20 @@ struct omap_drm_pipeline {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct omap_dss_device *output;
-	struct omap_dss_device *display;
+	unsigned int alias_id;
+};
+
+/*
+ * Global private object state for tracking resources that are shared across
+ * multiple kms objects (planes/crtcs/etc).
+ */
+#define to_omap_global_state(x) container_of(x, struct omap_global_state, base)
+
+struct omap_global_state {
+	struct drm_private_state base;
+
+	/* global atomic state of assignment between overlays and planes */
+	struct drm_plane *hwoverlay_to_plane[8];
 };
 
 struct omap_drm_private {
@@ -60,7 +62,8 @@ struct omap_drm_private {
 
 	struct dss_device *dss;
 	struct dispc_device *dispc;
-	const struct dispc_ops *dispc_ops;
+
+	bool irq_enabled;
 
 	unsigned int num_pipes;
 	struct omap_drm_pipeline pipes[8];
@@ -68,6 +71,11 @@ struct omap_drm_private {
 
 	unsigned int num_planes;
 	struct drm_plane *planes[8];
+
+	unsigned int num_ovls;
+	struct omap_hw_overlay *overlays[8];
+
+	struct drm_private_obj glob_obj;
 
 	struct drm_fb_helper *fbdev;
 
@@ -95,6 +103,10 @@ struct omap_drm_private {
 };
 
 
-int omap_debugfs_init(struct drm_minor *minor);
+void omap_debugfs_init(struct drm_minor *minor);
+
+struct omap_global_state * __must_check omap_get_global_state(struct drm_atomic_state *s);
+
+struct omap_global_state *omap_get_existing_global_state(struct omap_drm_private *priv);
 
 #endif /* __OMAPDRM_DRV_H__ */

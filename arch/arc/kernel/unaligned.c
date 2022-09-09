@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011-2012 Synopsys (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * vineetg : May 2011
  *  -Adapted (from .26 to .35)
  *  -original contribution by Tim.yao@amlogic.com
- *
  */
 
 #include <linux/types.h>
@@ -241,7 +237,7 @@ int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 	if (state.fault)
 		goto fault;
 
-	/* clear any remanants of delay slot */
+	/* clear any remnants of delay slot */
 	if (delay_mode(regs)) {
 		regs->ret = regs->bta & ~1U;
 		regs->status32 &= ~STATUS_DE_MASK;

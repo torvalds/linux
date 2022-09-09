@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Consumer interface the pin control subsystem
  *
@@ -6,8 +7,6 @@
  * Based on bits of regulator core, gpio core and clk core
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #ifndef __LINUX_PINCTRL_CONSUMER_H
 #define __LINUX_PINCTRL_CONSUMER_H
@@ -25,6 +24,7 @@ struct device;
 #ifdef CONFIG_PINCTRL
 
 /* External interface to pin control */
+extern bool pinctrl_gpio_can_use_line(unsigned gpio);
 extern int pinctrl_gpio_request(unsigned gpio);
 extern void pinctrl_gpio_free(unsigned gpio);
 extern int pinctrl_gpio_direction_input(unsigned gpio);
@@ -40,6 +40,7 @@ extern int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *s);
 
 extern struct pinctrl * __must_check devm_pinctrl_get(struct device *dev);
 extern void devm_pinctrl_put(struct pinctrl *p);
+extern int pinctrl_select_default_state(struct device *dev);
 
 #ifdef CONFIG_PM
 extern int pinctrl_pm_select_default_state(struct device *dev);
@@ -61,6 +62,11 @@ static inline int pinctrl_pm_select_idle_state(struct device *dev)
 #endif
 
 #else /* !CONFIG_PINCTRL */
+
+static inline bool pinctrl_gpio_can_use_line(unsigned gpio)
+{
+	return true;
+}
 
 static inline int pinctrl_gpio_request(unsigned gpio)
 {
@@ -115,6 +121,11 @@ static inline struct pinctrl * __must_check devm_pinctrl_get(struct device *dev)
 
 static inline void devm_pinctrl_put(struct pinctrl *p)
 {
+}
+
+static inline int pinctrl_select_default_state(struct device *dev)
+{
+	return 0;
 }
 
 static inline int pinctrl_pm_select_default_state(struct device *dev)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Common routines for Tundra Semiconductor TSI108 host bridge.
  *
@@ -5,27 +6,15 @@
  * Author: Alex Bounine (alexandreb@tundra.com)
  * Author: Roy Zang (tie-fei.zang@freescale.com)
  * 	   Add pci interrupt router host
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -36,7 +25,6 @@
 #include <asm/tsi108.h>
 #include <asm/tsi108_pci.h>
 #include <asm/tsi108_irq.h>
-#include <asm/prom.h>
 
 #undef DEBUG
 #ifdef DEBUG
@@ -270,7 +258,7 @@ static void tsi108_pci_int_unmask(u_int irq)
 	mb();
 }
 
-static void init_pci_source(void)
+static void __init init_pci_source(void)
 {
 	tsi108_write_reg(TSI108_PCI_OFFSET + TSI108_PCI_IRP_CFG_CTL,
 			0x0000ff00);
@@ -417,7 +405,8 @@ void __init tsi108_pci_int_init(struct device_node *node)
 {
 	DBG("Tsi108_pci_int_init: initializing PCI interrupts\n");
 
-	pci_irq_host = irq_domain_add_legacy_isa(node, &pci_irq_domain_ops, NULL);
+	pci_irq_host = irq_domain_add_legacy(node, NR_IRQS_LEGACY, 0, 0,
+					     &pci_irq_domain_ops, NULL);
 	if (pci_irq_host == NULL) {
 		printk(KERN_ERR "pci_irq_host: failed to allocate irq domain!\n");
 		return;

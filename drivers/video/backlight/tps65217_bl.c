@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tps65217_bl.c
  *
@@ -5,15 +6,6 @@
  *
  * Copyright (C) 2012 Matthias Kaehlcke
  * Author: Matthias Kaehlcke <matthias@kaehlcke.net>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -77,15 +69,7 @@ static int tps65217_bl_update_status(struct backlight_device *bl)
 {
 	struct tps65217_bl *tps65217_bl = bl_get_data(bl);
 	int rc;
-	int brightness = bl->props.brightness;
-
-	if (bl->props.state & BL_CORE_SUSPENDED)
-		brightness = 0;
-
-	if ((bl->props.power != FB_BLANK_UNBLANK) ||
-		(bl->props.fb_blank != FB_BLANK_UNBLANK))
-		/* framebuffer in low power mode or blanking active */
-		brightness = 0;
+	int brightness = backlight_get_brightness(bl);
 
 	if (brightness > 0) {
 		rc = tps65217_reg_write(tps65217_bl->tps,

@@ -97,16 +97,16 @@ struct dcon_platform_data {
 	int (*read_status)(u8 *status);
 };
 
+struct dcon_gpio {
+	const char *name;
+	unsigned long flags;
+};
+
 #include <linux/interrupt.h>
 
 irqreturn_t dcon_interrupt(int irq, void *id);
 
-#ifdef CONFIG_FB_OLPC_DCON_1
 extern struct dcon_platform_data dcon_pdata_xo_1;
-#endif
-
-#ifdef CONFIG_FB_OLPC_DCON_1_5
 extern struct dcon_platform_data dcon_pdata_xo_1_5;
-#endif
 
 #endif

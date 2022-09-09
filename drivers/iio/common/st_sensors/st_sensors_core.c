@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics sensors core library driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -13,35 +12,22 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/mutex.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/regmap.h>
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
 
 #include "st_sensors_core.h"
 
-static inline u32 st_sensors_get_unaligned_le24(const u8 *p)
-{
-	return (s32)((p[0] | p[1] << 8 | p[2] << 16) << 8) >> 8;
-}
-
 int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
 				    u8 reg_addr, u8 mask, u8 data)
 {
-	int err;
-	u8 new_data;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	err = sdata->tf->read_byte(&sdata->tb, sdata->dev, reg_addr, &new_data);
-	if (err < 0)
-		goto st_sensors_write_data_with_mask_error;
-
-	new_data = ((new_data & (~mask)) | ((data << __ffs(mask)) & mask));
-	err = sdata->tf->write_byte(&sdata->tb, sdata->dev, reg_addr, new_data);
-
-st_sensors_write_data_with_mask_error:
-	return err;
+	return regmap_update_bits(sdata->regmap,
+				  reg_addr, mask, data << __ffs(mask));
 }
 
 int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
@@ -49,22 +35,18 @@ int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
 				  unsigned *readval)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	u8 readdata;
 	int err;
 
 	if (!readval)
-		return sdata->tf->write_byte(&sdata->tb, sdata->dev,
-					     (u8)reg, (u8)writeval);
+		return regmap_write(sdata->regmap, reg, writeval);
 
-	err = sdata->tf->read_byte(&sdata->tb, sdata->dev, (u8)reg, &readdata);
+	err = regmap_read(sdata->regmap, reg, readval);
 	if (err < 0)
 		return err;
 
-	*readval = (unsigned)readdata;
-
 	return 0;
 }
-EXPORT_SYMBOL(st_sensors_debugfs_reg_access);
+EXPORT_SYMBOL_NS(st_sensors_debugfs_reg_access, IIO_ST_SENSORS);
 
 static int st_sensors_match_odr(struct st_sensor_settings *sensor_settings,
 			unsigned int odr, struct st_sensor_odr_avl *odr_out)
@@ -89,16 +71,18 @@ st_sensors_match_odr_error:
 
 int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 {
-	int err;
+	int err = 0;
 	struct st_sensor_odr_avl odr_out = {0, 0};
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	if (!sdata->sensor_settings->odr.addr)
-		return 0;
+	mutex_lock(&sdata->odr_lock);
+
+	if (!sdata->sensor_settings->odr.mask)
+		goto unlock_mutex;
 
 	err = st_sensors_match_odr(sdata->sensor_settings, odr, &odr_out);
 	if (err < 0)
-		goto st_sensors_match_odr_error;
+		goto unlock_mutex;
 
 	if ((sdata->sensor_settings->odr.addr ==
 					sdata->sensor_settings->pw.addr) &&
@@ -121,10 +105,12 @@ int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 	if (err >= 0)
 		sdata->odr = odr_out.hz;
 
-st_sensors_match_odr_error:
+unlock_mutex:
+	mutex_unlock(&sdata->odr_lock);
+
 	return err;
 }
-EXPORT_SYMBOL(st_sensors_set_odr);
+EXPORT_SYMBOL_NS(st_sensors_set_odr, IIO_ST_SENSORS);
 
 static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 					unsigned int fs, int *index_fs_avl)
@@ -164,8 +150,7 @@ static int st_sensors_set_fullscale(struct iio_dev *indio_dev, unsigned int fs)
 	if (err < 0)
 		goto st_accel_set_fullscale_error;
 
-	sdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-					&sdata->sensor_settings->fs.fs_avl[i];
+	sdata->current_fullscale = &sdata->sensor_settings->fs.fs_avl[i];
 	return err;
 
 st_accel_set_fullscale_error:
@@ -218,7 +203,7 @@ int st_sensors_set_enable(struct iio_dev *indio_dev, bool enable)
 set_enable_error:
 	return err;
 }
-EXPORT_SYMBOL(st_sensors_set_enable);
+EXPORT_SYMBOL_NS(st_sensors_set_enable, IIO_ST_SENSORS);
 
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 {
@@ -232,19 +217,25 @@ int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 				axis_enable);
 	return err;
 }
-EXPORT_SYMBOL(st_sensors_set_axis_enable);
+EXPORT_SYMBOL_NS(st_sensors_set_axis_enable, IIO_ST_SENSORS);
+
+static void st_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
 
 int st_sensors_power_enable(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
+	struct device *parent = indio_dev->dev.parent;
 	int err;
 
 	/* Regulators not mandatory, but if requested we should enable them. */
-	pdata->vdd = devm_regulator_get(indio_dev->dev.parent, "vdd");
-	if (IS_ERR(pdata->vdd)) {
-		dev_err(&indio_dev->dev, "unable to get Vdd supply\n");
-		return PTR_ERR(pdata->vdd);
-	}
+	pdata->vdd = devm_regulator_get(parent, "vdd");
+	if (IS_ERR(pdata->vdd))
+		return dev_err_probe(&indio_dev->dev, PTR_ERR(pdata->vdd),
+				     "unable to get Vdd supply\n");
+
 	err = regulator_enable(pdata->vdd);
 	if (err != 0) {
 		dev_warn(&indio_dev->dev,
@@ -252,35 +243,25 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 		return err;
 	}
 
-	pdata->vdd_io = devm_regulator_get(indio_dev->dev.parent, "vddio");
-	if (IS_ERR(pdata->vdd_io)) {
-		dev_err(&indio_dev->dev, "unable to get Vdd_IO supply\n");
-		err = PTR_ERR(pdata->vdd_io);
-		goto st_sensors_disable_vdd;
-	}
+	err = devm_add_action_or_reset(parent, st_reg_disable, pdata->vdd);
+	if (err)
+		return err;
+
+	pdata->vdd_io = devm_regulator_get(parent, "vddio");
+	if (IS_ERR(pdata->vdd_io))
+		return dev_err_probe(&indio_dev->dev, PTR_ERR(pdata->vdd_io),
+				     "unable to get Vdd_IO supply\n");
+
 	err = regulator_enable(pdata->vdd_io);
 	if (err != 0) {
 		dev_warn(&indio_dev->dev,
 			 "Failed to enable specified Vdd_IO supply\n");
-		goto st_sensors_disable_vdd;
+		return err;
 	}
 
-	return 0;
-
-st_sensors_disable_vdd:
-	regulator_disable(pdata->vdd);
-	return err;
+	return devm_add_action_or_reset(parent, st_reg_disable, pdata->vdd_io);
 }
-EXPORT_SYMBOL(st_sensors_power_enable);
-
-void st_sensors_power_disable(struct iio_dev *indio_dev)
-{
-	struct st_sensor_data *pdata = iio_priv(indio_dev);
-
-	regulator_disable(pdata->vdd);
-	regulator_disable(pdata->vdd_io);
-}
-EXPORT_SYMBOL(st_sensors_power_disable);
+EXPORT_SYMBOL_NS(st_sensors_power_enable, IIO_ST_SENSORS);
 
 static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)
@@ -292,8 +273,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	    !sdata->sensor_settings->drdy_irq.int2.addr) {
 		if (pdata->drdy_int_pin)
 			dev_info(&indio_dev->dev,
-				 "DRDY on pin INT%d specified, but sensor "
-				 "does not support interrupts\n",
+				 "DRDY on pin INT%d specified, but sensor does not support interrupts\n",
 				 pdata->drdy_int_pin);
 		return 0;
 	}
@@ -332,63 +312,51 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
+static struct st_sensors_platform_data *st_sensors_dev_probe(struct device *dev,
 		struct st_sensors_platform_data *defdata)
 {
 	struct st_sensors_platform_data *pdata;
-	struct device_node *np = dev->of_node;
 	u32 val;
 
-	if (!np)
+	if (!dev_fwnode(dev))
 		return NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!of_property_read_u32(np, "st,drdy-int-pin", &val) && (val <= 2))
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+	if (!device_property_read_u32(dev, "st,drdy-int-pin", &val) && (val <= 2))
 		pdata->drdy_int_pin = (u8) val;
 	else
 		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 0;
 
-	pdata->open_drain = of_property_read_bool(np, "drive-open-drain");
+	pdata->open_drain = device_property_read_bool(dev, "drive-open-drain");
 
 	return pdata;
 }
 
 /**
- * st_sensors_of_name_probe() - device tree probe for ST sensor name
+ * st_sensors_dev_name_probe() - device probe for ST sensor name
  * @dev: driver model representation of the device.
- * @match: the OF match table for the device, containing compatible strings
- *	but also a .data field with the corresponding internal kernel name
- *	used by this sensor.
  * @name: device name buffer reference.
  * @len: device name buffer length.
  *
- * In effect this function matches a compatible string to an internal kernel
+ * In effect this function matches an ID to an internal kernel
  * name for a certain sensor device, so that the rest of the autodetection can
  * rely on that name from this point on. I2C/SPI devices will be renamed
  * to match the internal kernel convention.
  */
-void st_sensors_of_name_probe(struct device *dev,
-			      const struct of_device_id *match,
-			      char *name, int len)
+void st_sensors_dev_name_probe(struct device *dev, char *name, int len)
 {
-	const struct of_device_id *of_id;
+	const void *match;
 
-	of_id = of_match_device(match, dev);
-	if (!of_id || !of_id->data)
+	match = device_get_match_data(dev);
+	if (!match)
 		return;
 
-	/* The name from the OF match takes precedence if present */
-	strlcpy(name, of_id->data, len);
+	/* The name from the match takes precedence if present */
+	strlcpy(name, match, len);
 }
-EXPORT_SYMBOL(st_sensors_of_name_probe);
-#else
-static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
-		struct st_sensors_platform_data *defdata)
-{
-	return NULL;
-}
-#endif
+EXPORT_SYMBOL_NS(st_sensors_dev_name_probe, IIO_ST_SENSORS);
 
 int st_sensors_init_sensor(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)
@@ -397,8 +365,12 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	struct st_sensors_platform_data *of_pdata;
 	int err = 0;
 
+	mutex_init(&sdata->odr_lock);
+
 	/* If OF/DT pdata exists, it will take precedence of anything else */
-	of_pdata = st_sensors_of_probe(indio_dev->dev.parent, pdata);
+	of_pdata = st_sensors_dev_probe(indio_dev->dev.parent, pdata);
+	if (IS_ERR(of_pdata))
+		return PTR_ERR(of_pdata);
 	if (of_pdata)
 		pdata = of_pdata;
 
@@ -471,7 +443,7 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 
 	return err;
 }
-EXPORT_SYMBOL(st_sensors_init_sensor);
+EXPORT_SYMBOL_NS(st_sensors_init_sensor, IIO_ST_SENSORS);
 
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 {
@@ -520,7 +492,7 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 st_accel_set_dataready_irq_error:
 	return err;
 }
-EXPORT_SYMBOL(st_sensors_set_dataready_irq);
+EXPORT_SYMBOL_NS(st_sensors_set_dataready_irq, IIO_ST_SENSORS);
 
 int st_sensors_set_fullscale_by_gain(struct iio_dev *indio_dev, int scale)
 {
@@ -543,10 +515,10 @@ int st_sensors_set_fullscale_by_gain(struct iio_dev *indio_dev, int scale)
 st_sensors_match_scale_error:
 	return err;
 }
-EXPORT_SYMBOL(st_sensors_set_fullscale_by_gain);
+EXPORT_SYMBOL_NS(st_sensors_set_fullscale_by_gain, IIO_ST_SENSORS);
 
 static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
-				struct iio_chan_spec const *ch, int *data)
+				     struct iio_chan_spec const *ch, int *data)
 {
 	int err;
 	u8 *outdata;
@@ -555,13 +527,12 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 
 	byte_for_channel = DIV_ROUND_UP(ch->scan_type.realbits +
 					ch->scan_type.shift, 8);
-	outdata = kmalloc(byte_for_channel, GFP_KERNEL);
+	outdata = kmalloc(byte_for_channel, GFP_DMA | GFP_KERNEL);
 	if (!outdata)
 		return -ENOMEM;
 
-	err = sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
-				ch->address, byte_for_channel,
-				outdata, sdata->multiread_bit);
+	err = regmap_bulk_read(sdata->regmap, ch->address,
+			       outdata, byte_for_channel);
 	if (err < 0)
 		goto st_sensors_free_memory;
 
@@ -570,7 +541,7 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 	else if (byte_for_channel == 2)
 		*data = (s16)get_unaligned_le16(outdata);
 	else if (byte_for_channel == 3)
-		*data = (s32)st_sensors_get_unaligned_le24(outdata);
+		*data = (s32)sign_extend32(get_unaligned_le24(outdata), 23);
 
 st_sensors_free_memory:
 	kfree(outdata);
@@ -584,94 +555,82 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 	int err;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
-		err = -EBUSY;
+	err = iio_device_claim_direct_mode(indio_dev);
+	if (err)
+		return err;
+
+	mutex_lock(&sdata->odr_lock);
+
+	err = st_sensors_set_enable(indio_dev, true);
+	if (err < 0)
 		goto out;
-	} else {
-		err = st_sensors_set_enable(indio_dev, true);
-		if (err < 0)
-			goto out;
 
-		msleep((sdata->sensor_settings->bootime * 1000) / sdata->odr);
-		err = st_sensors_read_axis_data(indio_dev, ch, val);
-		if (err < 0)
-			goto out;
+	msleep((sdata->sensor_settings->bootime * 1000) / sdata->odr);
+	err = st_sensors_read_axis_data(indio_dev, ch, val);
+	if (err < 0)
+		goto out;
 
-		*val = *val >> ch->scan_type.shift;
+	*val = *val >> ch->scan_type.shift;
 
-		err = st_sensors_set_enable(indio_dev, false);
-	}
+	err = st_sensors_set_enable(indio_dev, false);
+
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&sdata->odr_lock);
+	iio_device_release_direct_mode(indio_dev);
 
 	return err;
 }
-EXPORT_SYMBOL(st_sensors_read_info_raw);
+EXPORT_SYMBOL_NS(st_sensors_read_info_raw, IIO_ST_SENSORS);
 
-static int st_sensors_init_interface_mode(struct iio_dev *indio_dev,
-			const struct st_sensor_settings *sensor_settings)
+/*
+ * st_sensors_get_settings_index() - get index of the sensor settings for a
+ *				     specific device from list of settings
+ * @name: device name buffer reference.
+ * @list: sensor settings list.
+ * @list_length: length of sensor settings list.
+ *
+ * Return: non negative number on success (valid index),
+ *	   negative error code otherwise.
+ */
+int st_sensors_get_settings_index(const char *name,
+				  const struct st_sensor_settings *list,
+				  const int list_length)
 {
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	struct device_node *np = sdata->dev->of_node;
-	struct st_sensors_platform_data *pdata;
+	int i, n;
 
-	pdata = (struct st_sensors_platform_data *)sdata->dev->platform_data;
-	if (((np && of_property_read_bool(np, "spi-3wire")) ||
-	     (pdata && pdata->spi_3wire)) && sensor_settings->sim.addr) {
-		int err;
-
-		err = sdata->tf->write_byte(&sdata->tb, sdata->dev,
-					    sensor_settings->sim.addr,
-					    sensor_settings->sim.value);
-		if (err < 0) {
-			dev_err(&indio_dev->dev,
-				"failed to init interface mode\n");
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-int st_sensors_check_device_support(struct iio_dev *indio_dev,
-			int num_sensors_list,
-			const struct st_sensor_settings *sensor_settings)
-{
-	int i, n, err = 0;
-	u8 wai;
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-
-	for (i = 0; i < num_sensors_list; i++) {
+	for (i = 0; i < list_length; i++) {
 		for (n = 0; n < ST_SENSORS_MAX_4WAI; n++) {
-			if (strcmp(indio_dev->name,
-				sensor_settings[i].sensors_supported[n]) == 0) {
-				break;
-			}
+			if (strcmp(name, list[i].sensors_supported[n]) == 0)
+				return i;
 		}
-		if (n < ST_SENSORS_MAX_4WAI)
-			break;
-	}
-	if (i == num_sensors_list) {
-		dev_err(&indio_dev->dev, "device name %s not recognized.\n",
-							indio_dev->name);
-		return -ENODEV;
 	}
 
-	err = st_sensors_init_interface_mode(indio_dev, &sensor_settings[i]);
-	if (err < 0)
-		return err;
+	return -ENODEV;
+}
+EXPORT_SYMBOL_NS(st_sensors_get_settings_index, IIO_ST_SENSORS);
 
-	if (sensor_settings[i].wai_addr) {
-		err = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-					   sensor_settings[i].wai_addr, &wai);
+/*
+ * st_sensors_verify_id() - verify sensor ID (WhoAmI) is matching with the
+ *			    expected value
+ * @indio_dev: IIO device reference.
+ *
+ * Return: 0 on success (valid sensor ID), else a negative error code.
+ */
+int st_sensors_verify_id(struct iio_dev *indio_dev)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	int wai, err;
+
+	if (sdata->sensor_settings->wai_addr) {
+		err = regmap_read(sdata->regmap,
+				  sdata->sensor_settings->wai_addr, &wai);
 		if (err < 0) {
 			dev_err(&indio_dev->dev,
 				"failed to read Who-Am-I register.\n");
 			return err;
 		}
 
-		if (sensor_settings[i].wai != wai) {
+		if (sdata->sensor_settings->wai != wai) {
 			dev_err(&indio_dev->dev,
 				"%s: WhoAmI mismatch (0x%x).\n",
 				indio_dev->name, wai);
@@ -679,21 +638,17 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 		}
 	}
 
-	sdata->sensor_settings =
-			(struct st_sensor_settings *)&sensor_settings[i];
-
-	return i;
+	return 0;
 }
-EXPORT_SYMBOL(st_sensors_check_device_support);
+EXPORT_SYMBOL_NS(st_sensors_verify_id, IIO_ST_SENSORS);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int i, len = 0;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	for (i = 0; i < ST_SENSORS_ODR_LIST_MAX; i++) {
 		if (sdata->sensor_settings->odr.odr_avl[i].hz == 0)
 			break;
@@ -701,21 +656,19 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ",
 				sdata->sensor_settings->odr.odr_avl[i].hz);
 	}
-	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';
 
 	return len;
 }
-EXPORT_SYMBOL(st_sensors_sysfs_sampling_frequency_avail);
+EXPORT_SYMBOL_NS(st_sensors_sysfs_sampling_frequency_avail, IIO_ST_SENSORS);
 
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int i, len = 0, q, r;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
 		if (sdata->sensor_settings->fs.fs_avl[i].num == 0)
 			break;
@@ -725,12 +678,11 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ", q, r);
 	}
-	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';
 
 	return len;
 }
-EXPORT_SYMBOL(st_sensors_sysfs_scale_avail);
+EXPORT_SYMBOL_NS(st_sensors_sysfs_scale_avail, IIO_ST_SENSORS);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics ST-sensors core");

@@ -192,17 +192,6 @@
 		&gpio3 19 GPIO_ACTIVE_HIGH
 	>;
 
-	spidev0: spi@0 {
-		compatible = "spidev";
-		reg = <0>;
-		spi-max-frequency = <54000000>;
-	};
-
-	spidev1: spi@1 {
-		compatible = "spidev";
-		reg = <1>;
-		spi-max-frequency = <54000000>;
-	};
 };
 
 &esdhc1 {
@@ -252,7 +241,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	rtc1: ds1339@68 {
+	rtc1: rtc@68 {
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 		pinctrl-names = "default";
@@ -542,7 +531,6 @@
 &pwm2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
-	#pwm-cells = <3>;
 };
 
 &sdma {

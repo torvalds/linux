@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DTS file for SPEAr1340 Evaluation Baord
  *
  * Copyright 2012 Viresh Kumar <vireshk@kernel.org>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
@@ -174,7 +168,7 @@
 
 		smi: flash@ea000000 {
 			status = "okay";
-			clock-rate=<50000000>;
+			clock-rate = <50000000>;
 
 			flash@e6000000 {
 				#address-cells = <1>;
@@ -445,7 +439,7 @@
 				cs-gpios = <&gpiopinctrl 80 0>, <&gpiopinctrl 24 0>,
 					   <&gpiopinctrl 85 0>;
 
-				m25p80@0 {
+				flash@0 {
 					compatible = "m25p80";
 					reg = <0>;
 					spi-max-frequency = <12000000>;
@@ -494,22 +488,6 @@
 						ts,fraction-z = <7>;
 						ts,i-drive = <1>;
 					};
-				};
-
-				spidev@2 {
-					compatible = "spidev";
-					reg = <2>;
-					spi-max-frequency = <25000000>;
-					spi-cpha;
-					pl022,hierarchy = <0>;
-					pl022,interface = <0>;
-					pl022,slave-tx-disable;
-					pl022,com-mode = <0x2>;
-					pl022,rx-level-trig = <0>;
-					pl022,tx-level-trig = <0>;
-					pl022,ctrl-len = <0x11>;
-					pl022,wait-state = <0>;
-					pl022,duplex = <0>;
 				};
 			};
 

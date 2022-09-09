@@ -1,0 +1,235 @@
+What:           /sys/class/habanalabs/hl<n>/armcp_kernel_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Version of the Linux kernel running on the device's CPU.
+                Will be DEPRECATED in Linux kernel version 5.10, and be
+                replaced with cpucp_kernel_ver
+
+What:           /sys/class/habanalabs/hl<n>/armcp_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Version of the application running on the device's CPU
+                Will be DEPRECATED in Linux kernel version 5.10, and be
+                replaced with cpucp_ver
+
+What:           /sys/class/habanalabs/hl<n>/clk_max_freq_mhz
+Date:           Jun 2019
+KernelVersion:  not yet upstreamed
+Contact:        ogabbay@kernel.org
+Description:    Allows the user to set the maximum clock frequency, in MHz.
+                The device clock might be set to lower value than the maximum.
+                The user should read the clk_cur_freq_mhz to see the actual
+                frequency value of the device clock. This property is valid
+                only for the Gaudi ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/clk_cur_freq_mhz
+Date:           Jun 2019
+KernelVersion:  not yet upstreamed
+Contact:        ogabbay@kernel.org
+Description:    Displays the current frequency, in MHz, of the device clock.
+                This property is valid only for the Gaudi ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/cpld_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Version of the Device's CPLD F/W
+
+What:           /sys/class/habanalabs/hl<n>/cpucp_kernel_ver
+Date:           Oct 2020
+KernelVersion:  5.10
+Contact:        ogabbay@kernel.org
+Description:    Version of the Linux kernel running on the device's CPU
+
+What:           /sys/class/habanalabs/hl<n>/cpucp_ver
+Date:           Oct 2020
+KernelVersion:  5.10
+Contact:        ogabbay@kernel.org
+Description:    Version of the application running on the device's CPU
+
+What:           /sys/class/habanalabs/hl<n>/device_type
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays the code name of the device according to its type.
+                The supported values are: "GOYA"
+
+What:           /sys/class/habanalabs/hl<n>/eeprom
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    A binary file attribute that contains the contents of the
+                on-board EEPROM
+
+What:           /sys/class/habanalabs/hl<n>/fuse_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays the device's version from the eFuse
+
+What:           /sys/class/habanalabs/hl<n>/fw_os_ver
+Date:           Dec 2021
+KernelVersion:  5.18
+Contact:        ogabbay@kernel.org
+Description:    Version of the firmware OS running on the device's CPU
+
+What:           /sys/class/habanalabs/hl<n>/hard_reset
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Interface to trigger a hard-reset operation for the device.
+                Hard-reset will reset ALL internal components of the device
+                except for the PCI interface and the internal PLLs
+
+What:           /sys/class/habanalabs/hl<n>/hard_reset_cnt
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays how many times the device have undergone a hard-reset
+                operation since the driver was loaded
+
+What:           /sys/class/habanalabs/hl<n>/high_pll
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Allows the user to set the maximum clock frequency for MME, TPC
+                and IC when the power management profile is set to "automatic".
+                This property is valid only for the Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/ic_clk
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Allows the user to set the maximum clock frequency, in Hz, of
+                the Interconnect fabric. Writes to this parameter affect the
+                device only when the power management profile is set to "manual"
+                mode. The device IC clock might be set to lower value than the
+                maximum. The user should read the ic_clk_curr to see the actual
+                frequency value of the IC. This property is valid only for the
+                Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/ic_clk_curr
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays the current clock frequency, in Hz, of the Interconnect
+                fabric. This property is valid only for the Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/infineon_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Version of the Device's power supply F/W code. Relevant only to GOYA and GAUDI
+
+What:           /sys/class/habanalabs/hl<n>/max_power
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Allows the user to set the maximum power consumption of the
+                device in milliwatts.
+
+What:           /sys/class/habanalabs/hl<n>/mme_clk
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Allows the user to set the maximum clock frequency, in Hz, of
+                the MME compute engine. Writes to this parameter affect the
+                device only when the power management profile is set to "manual"
+                mode. The device MME clock might be set to lower value than the
+                maximum. The user should read the mme_clk_curr to see the actual
+                frequency value of the MME. This property is valid only for the
+                Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/mme_clk_curr
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays the current clock frequency, in Hz, of the MME compute
+                engine. This property is valid only for the Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/pci_addr
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays the PCI address of the device. This is needed so the
+                user would be able to open a device based on its PCI address
+
+What:           /sys/class/habanalabs/hl<n>/pm_mng_profile
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Power management profile. Values are "auto", "manual". In "auto"
+                mode, the driver will set the maximum clock frequency to a high
+                value when a user-space process opens the device's file (unless
+                it was already opened by another process). The driver will set
+                the max clock frequency to a low value when there are no user
+                processes that are opened on the device's file. In "manual"
+                mode, the user sets the maximum clock frequency by writing to
+                ic_clk, mme_clk and tpc_clk. This property is valid only for
+                the Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/preboot_btl_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Version of the device's preboot F/W code
+
+What:           /sys/class/habanalabs/hl<n>/soft_reset
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Interface to trigger a soft-reset operation for the device.
+                Soft-reset will reset only the compute and DMA engines of the
+                device
+
+What:           /sys/class/habanalabs/hl<n>/soft_reset_cnt
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays how many times the device have undergone a soft-reset
+                operation since the driver was loaded
+
+What:           /sys/class/habanalabs/hl<n>/status
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Status of the card: "Operational", "Malfunction", "In reset".
+
+What:           /sys/class/habanalabs/hl<n>/thermal_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Version of the Device's thermal daemon
+
+What:           /sys/class/habanalabs/hl<n>/tpc_clk
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Allows the user to set the maximum clock frequency, in Hz, of
+                the TPC compute engines. Writes to this parameter affect the
+                device only when the power management profile is set to "manual"
+                mode. The device TPC clock might be set to lower value than the
+                maximum. The user should read the tpc_clk_curr to see the actual
+                frequency value of the TPC. This property is valid only for
+                Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/tpc_clk_curr
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Displays the current clock frequency, in Hz, of the TPC compute
+                engines. This property is valid only for the Goya ASIC family
+
+What:           /sys/class/habanalabs/hl<n>/uboot_ver
+Date:           Jan 2019
+KernelVersion:  5.1
+Contact:        ogabbay@kernel.org
+Description:    Version of the u-boot running on the device's CPU
+
+What:           /sys/class/habanalabs/hl<n>/vrm_ver
+Date:           Jan 2022
+KernelVersion:  not yet upstreamed
+Contact:        ogabbay@kernel.org
+Description:    Version of the Device's Voltage Regulator Monitor F/W code. N/A to GOYA and GAUDI

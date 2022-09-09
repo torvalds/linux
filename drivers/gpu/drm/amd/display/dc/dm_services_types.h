@@ -29,7 +29,7 @@
 #include "os_types.h"
 #include "dc_types.h"
 
-struct pp_smu_funcs_rv;
+struct pp_smu_funcs;
 
 struct dm_pp_clock_range {
 	int min_khz;
@@ -82,9 +82,17 @@ enum dm_pp_clock_type {
 #define DC_DECODE_PP_CLOCK_TYPE(clk_type) \
 	(clk_type) == DM_PP_CLOCK_TYPE_DISPLAY_CLK ? "Display" : \
 	(clk_type) == DM_PP_CLOCK_TYPE_ENGINE_CLK ? "Engine" : \
-	(clk_type) == DM_PP_CLOCK_TYPE_MEMORY_CLK ? "Memory" : "Invalid"
+	(clk_type) == DM_PP_CLOCK_TYPE_MEMORY_CLK ? "Memory" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DCFCLK ? "DCF" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DCEFCLK ? "DCEF" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_SOCCLK ? "SoC" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_PIXELCLK ? "Pixel" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DISPLAYPHYCLK ? "Display PHY" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DPPCLK ? "DPP" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_FCLK ? "F" : \
+	"Invalid"
 
-#define DM_PP_MAX_CLOCK_LEVELS 8
+#define DM_PP_MAX_CLOCK_LEVELS 16
 
 struct dm_pp_clock_levels {
 	uint32_t num_levels;
@@ -212,6 +220,7 @@ struct dm_bl_data_point {
 };
 
 /* Total size of the structure should not exceed 256 bytes */
+#define BL_DATA_POINTS 99
 struct dm_acpi_atif_backlight_caps {
 	uint16_t size; /* Bytes 0-1 (2 bytes) */
 	uint16_t flags; /* Byted 2-3 (2 bytes) */
@@ -221,7 +230,7 @@ struct dm_acpi_atif_backlight_caps {
 	uint8_t  min_input_signal; /* Byte 7 */
 	uint8_t  max_input_signal; /* Byte 8 */
 	uint8_t  num_data_points; /* Byte 9 */
-	struct dm_bl_data_point data_points[99]; /* Bytes 10-207 (198 bytes)*/
+	struct dm_bl_data_point data_points[BL_DATA_POINTS]; /* Bytes 10-207 (198 bytes)*/
 };
 
 enum dm_acpi_display_type {

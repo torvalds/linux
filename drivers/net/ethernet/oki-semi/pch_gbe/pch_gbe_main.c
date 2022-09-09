@@ -1,33 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1999 - 2010 Intel Corporation.
  * Copyright (C) 2010 - 2012 LAPIS SEMICONDUCTOR CO., LTD.
  *
  * This code was derived from the Intel e1000e Linux driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "pch_gbe.h"
 #include "pch_gbe_phy.h"
+
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
+#include <linux/ptp_pch.h>
 #include <linux/gpio.h>
 
-#define DRV_VERSION     "1.01"
-const char pch_driver_version[] = DRV_VERSION;
-
-#define PCI_DEVICE_ID_INTEL_IOH1_GBE	0x8802		/* Pci device ID */
 #define PCH_GBE_MAR_ENTRIES		16
 #define PCH_GBE_SHORT_PKT		64
 #define DSC_INIT16			0xC000
@@ -37,15 +27,11 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCH_GBE_PCI_BAR			1
 #define PCH_GBE_RESERVE_MEMORY		0x200000	/* 2MB */
 
-/* Macros for ML7223 */
-#define PCI_VENDOR_ID_ROHM			0x10db
-#define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
+#define PCI_DEVICE_ID_INTEL_IOH1_GBE		0x8802
 
-/* Macros for ML7831 */
+#define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
 #define PCI_DEVICE_ID_ROHM_ML7831_GBE		0x8802
 
-#define PCH_GBE_TX_WEIGHT         64
-#define PCH_GBE_RX_WEIGHT         64
 #define PCH_GBE_RX_BUFFER_WRITE   16
 
 /* Initialize the wake-on-LAN settings */
@@ -110,8 +96,6 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
 
-#define MINNOW_PHY_RESET_GPIO		13
-
 static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg);
 static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
@@ -121,7 +105,7 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 {
 	u8 *data = skb->data;
 	unsigned int offset;
-	u16 *hi, *id;
+	u16 hi, id;
 	u32 lo;
 
 	if (ptp_classify_raw(skb) == PTP_CLASS_NONE)
@@ -132,14 +116,11 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 	if (skb->len < offset + OFF_PTP_SEQUENCE_ID + sizeof(seqid))
 		return 0;
 
-	hi = (u16 *)(data + offset + OFF_PTP_SOURCE_UUID);
-	id = (u16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
+	hi = get_unaligned_be16(data + offset + OFF_PTP_SOURCE_UUID + 0);
+	lo = get_unaligned_be32(data + offset + OFF_PTP_SOURCE_UUID + 2);
+	id = get_unaligned_be16(data + offset + OFF_PTP_SEQUENCE_ID);
 
-	memcpy(&lo, &hi[1], sizeof(lo));
-
-	return (uid_hi == *hi &&
-		uid_lo == lo &&
-		seqid  == *id);
+	return (uid_hi == hi && uid_lo == lo && seqid == id);
 }
 
 static void
@@ -149,7 +130,6 @@ pch_rx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
 	struct pci_dev *pdev;
 	u64 ns;
 	u32 hi, lo, val;
-	u16 uid, seq;
 
 	if (!adapter->hwts_rx_en)
 		return;
@@ -165,10 +145,7 @@ pch_rx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
 	lo = pch_src_uuid_lo_read(pdev);
 	hi = pch_src_uuid_hi_read(pdev);
 
-	uid = hi & 0xffff;
-	seq = (hi >> 16) & 0xffff;
-
-	if (!pch_ptp_match(skb, htons(uid), htonl(lo), htons(seq)))
+	if (!pch_ptp_match(skb, hi, lo, hi >> 16))
 		goto out;
 
 	ns = pch_rx_snap_read(pdev);
@@ -230,9 +207,6 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
-
-	if (cfg.flags) /* reserved for future extensions */
-		return -EINVAL;
 
 	/* Get ieee1588's dev information */
 	pdev = adapter->ptp_pdev;
@@ -309,17 +283,14 @@ static s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_wait_clr_bit - Wait to clear a bit
  * @reg:	Pointer of register
- * @busy:	Busy bit
+ * @bit:	Busy bit
  */
-static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
+static void pch_gbe_wait_clr_bit(void __iomem *reg, u32 bit)
 {
 	u32 tmp;
 
 	/* wait busy */
-	tmp = 1000;
-	while ((ioread32(reg) & bit) && --tmp)
-		cpu_relax();
-	if (!tmp)
+	if (readx_poll_timeout_atomic(ioread32, reg, tmp, !(tmp & bit), 0, 10))
 		pr_err("Error: busy bit is not cleared\n");
 }
 
@@ -503,18 +474,13 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 			u16 data)
 {
 	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-	u32 data_out = 0;
-	unsigned int i;
 	unsigned long flags;
+	u32 data_out;
 
 	spin_lock_irqsave(&hw->miim_lock, flags);
 
-	for (i = 100; i; --i) {
-		if ((ioread32(&hw->reg->MIIM) & PCH_GBE_MIIM_OPER_READY))
-			break;
-		udelay(20);
-	}
-	if (i == 0) {
+	if (readx_poll_timeout_atomic(ioread32, &hw->reg->MIIM, data_out,
+				      data_out & PCH_GBE_MIIM_OPER_READY, 20, 2000)) {
 		netdev_err(adapter->netdev, "pch-gbe.miim won't go Ready\n");
 		spin_unlock_irqrestore(&hw->miim_lock, flags);
 		return 0;	/* No way to indicate timeout error */
@@ -522,12 +488,8 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 	iowrite32(((reg << PCH_GBE_MIIM_REG_ADDR_SHIFT) |
 		  (addr << PCH_GBE_MIIM_PHY_ADDR_SHIFT) |
 		  dir | data), &hw->reg->MIIM);
-	for (i = 0; i < 100; i++) {
-		udelay(20);
-		data_out = ioread32(&hw->reg->MIIM);
-		if ((data_out & PCH_GBE_MIIM_OPER_READY))
-			break;
-	}
+	readx_poll_timeout_atomic(ioread32, &hw->reg->MIIM, data_out,
+				  data_out & PCH_GBE_MIIM_OPER_READY, 20, 2000);
 	spin_unlock_irqrestore(&hw->miim_lock, flags);
 
 	netdev_dbg(adapter->netdev, "PHY %s: reg=%d, data=0x%04X\n",
@@ -1048,7 +1010,7 @@ static void pch_gbe_set_mode(struct pch_gbe_adapter *adapter, u16 speed,
 
 /**
  * pch_gbe_watchdog - Watchdog process
- * @data:  Board private structure
+ * @t:  timer list containing a Board private structure
  */
 static void pch_gbe_watchdog(struct timer_list *t)
 {
@@ -1064,13 +1026,7 @@ static void pch_gbe_watchdog(struct timer_list *t)
 		struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 		netdev->tx_queue_len = adapter->tx_queue_len;
 		/* mii library handles link maintenance tasks */
-		if (mii_ethtool_gset(&adapter->mii, &cmd)) {
-			netdev_err(netdev, "ethtool get setting Error\n");
-			mod_timer(&adapter->watchdog_timer,
-				  round_jiffies(jiffies +
-						PCH_GBE_WATCHDOG_PERIOD));
-			return;
-		}
+		mii_ethtool_gset(&adapter->mii, &cmd);
 		hw->mac.link_speed = ethtool_cmd_speed(&cmd);
 		hw->mac.link_duplex = cmd.duplex;
 		/* Set the RGMII control. */
@@ -1440,8 +1396,8 @@ pch_gbe_alloc_rx_buffers_pool(struct pch_gbe_adapter *adapter,
 
 	size = rx_ring->count * bufsz + PCH_GBE_RESERVE_MEMORY;
 	rx_ring->rx_buff_pool =
-		dma_zalloc_coherent(&pdev->dev, size,
-				    &rx_ring->rx_buff_pool_logic, GFP_KERNEL);
+		dma_alloc_coherent(&pdev->dev, size,
+				   &rx_ring->rx_buff_pool_logic, GFP_KERNEL);
 	if (!rx_ring->rx_buff_pool)
 		return -ENOMEM;
 
@@ -1511,7 +1467,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		   tx_desc->gbec_status, tx_desc->dma_status);
 
 	unused = PCH_GBE_DESC_UNUSED(tx_ring);
-	thresh = tx_ring->count - PCH_GBE_TX_WEIGHT;
+	thresh = tx_ring->count - NAPI_POLL_WEIGHT;
 	if ((tx_desc->gbec_status == DSC_INIT16) && (unused < thresh))
 	{  /* current marked clean, tx queue filling up, do extra clean */
 		int j, k;
@@ -1524,13 +1480,13 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 
 		/* current marked clean, scan for more that need cleaning. */
 		k = i;
-		for (j = 0; j < PCH_GBE_TX_WEIGHT; j++)
+		for (j = 0; j < NAPI_POLL_WEIGHT; j++)
 		{
 			tx_desc = PCH_GBE_TX_DESC(*tx_ring, k);
 			if (tx_desc->gbec_status != DSC_INIT16) break; /*found*/
 			if (++k >= tx_ring->count) k = 0;  /*increment, wrap*/
 		}
-		if (j < PCH_GBE_TX_WEIGHT) {
+		if (j < NAPI_POLL_WEIGHT) {
 			netdev_dbg(adapter->netdev,
 				   "clean_tx: unused=%d loops=%d found tx_desc[%x,%x:%x].gbec_status=%04x\n",
 				   unused, j, i, k, tx_ring->next_to_use,
@@ -1589,7 +1545,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
 
 		/* weight of a sort for tx, to avoid endless transmit cleanup */
-		if (cleaned_count++ == PCH_GBE_TX_WEIGHT) {
+		if (cleaned_count++ == NAPI_POLL_WEIGHT) {
 			cleaned = false;
 			break;
 		}
@@ -1755,8 +1711,8 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 
 	tx_ring->size = tx_ring->count * (int)sizeof(struct pch_gbe_tx_desc);
 
-	tx_ring->desc = dma_zalloc_coherent(&pdev->dev, tx_ring->size,
-					    &tx_ring->dma, GFP_KERNEL);
+	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc) {
 		vfree(tx_ring->buffer_info);
 		return -ENOMEM;
@@ -1798,8 +1754,8 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 		return -ENOMEM;
 
 	rx_ring->size = rx_ring->count * (int)sizeof(struct pch_gbe_rx_desc);
-	rx_ring->desc =	dma_zalloc_coherent(&pdev->dev, rx_ring->size,
-					    &rx_ring->dma, GFP_KERNEL);
+	rx_ring->desc =	dma_alloc_coherent(&pdev->dev, rx_ring->size,
+						  &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->desc) {
 		vfree(rx_ring->buffer_info);
 		return -ENOMEM;
@@ -1830,7 +1786,8 @@ void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
 	pch_gbe_clean_tx_ring(adapter, tx_ring);
 	vfree(tx_ring->buffer_info);
 	tx_ring->buffer_info = NULL;
-	pci_free_consistent(pdev, tx_ring->size, tx_ring->desc, tx_ring->dma);
+	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
+			  tx_ring->dma);
 	tx_ring->desc = NULL;
 }
 
@@ -1847,7 +1804,8 @@ void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
 	pch_gbe_clean_rx_ring(adapter, rx_ring);
 	vfree(rx_ring->buffer_info);
 	rx_ring->buffer_info = NULL;
-	pci_free_consistent(pdev, rx_ring->size, rx_ring->desc, rx_ring->dma);
+	dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
+			  rx_ring->dma);
 	rx_ring->desc = NULL;
 }
 
@@ -1968,8 +1926,8 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	pch_gbe_clean_tx_ring(adapter, adapter->tx_ring);
 	pch_gbe_clean_rx_ring(adapter, adapter->rx_ring);
 
-	pci_free_consistent(adapter->pdev, rx_ring->rx_buff_pool_size,
-			    rx_ring->rx_buff_pool, rx_ring->rx_buff_pool_logic);
+	dma_free_coherent(&adapter->pdev->dev, rx_ring->rx_buff_pool_size,
+			  rx_ring->rx_buff_pool, rx_ring->rx_buff_pool_logic);
 	rx_ring->rx_buff_pool_logic = 0;
 	rx_ring->rx_buff_pool_size = 0;
 	rx_ring->rx_buff_pool = NULL;
@@ -2078,7 +2036,7 @@ static int pch_gbe_stop(struct net_device *netdev)
  *	- NETDEV_TX_OK:   Normal end
  *	- NETDEV_TX_BUSY: Error end
  */
-static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
@@ -2174,7 +2132,7 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 	if (!is_valid_ether_addr(skaddr->sa_data)) {
 		ret_val = -EADDRNOTAVAIL;
 	} else {
-		memcpy(netdev->dev_addr, skaddr->sa_data, netdev->addr_len);
+		eth_hw_addr_set(netdev, skaddr->sa_data);
 		memcpy(adapter->hw.mac.addr, skaddr->sa_data, netdev->addr_len);
 		pch_gbe_mac_mar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 		ret_val = 0;
@@ -2284,8 +2242,9 @@ static int pch_gbe_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 /**
  * pch_gbe_tx_timeout - Respond to a Tx Hang
  * @netdev:   Network interface device structure
+ * @txqueue: index of hanging queue
  */
-static void pch_gbe_tx_timeout(struct net_device *netdev)
+static void pch_gbe_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 
@@ -2363,7 +2322,7 @@ static const struct net_device_ops pch_gbe_netdev_ops = {
 	.ndo_tx_timeout = pch_gbe_tx_timeout,
 	.ndo_change_mtu = pch_gbe_change_mtu,
 	.ndo_set_features = pch_gbe_set_features,
-	.ndo_do_ioctl = pch_gbe_ioctl,
+	.ndo_eth_ioctl = pch_gbe_ioctl,
 	.ndo_set_rx_mode = pch_gbe_set_multi,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = pch_gbe_netpoll,
@@ -2425,7 +2384,6 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 wufc = adapter->wake_up_evt;
-	int retval = 0;
 
 	netif_device_detach(netdev);
 	if (netif_running(netdev))
@@ -2445,7 +2403,7 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 		pch_gbe_mac_set_wol_event(hw, wufc);
 		pci_disable_device(pdev);
 	}
-	return retval;
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -2516,17 +2474,11 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
-		|| pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
-			ret = pci_set_consistent_dma_mask(pdev,
-							  DMA_BIT_MASK(32));
-			if (ret) {
-				dev_err(&pdev->dev, "ERR: No usable DMA "
-					"configuration, aborting\n");
-				return ret;
-			}
+			dev_err(&pdev->dev, "ERR: No usable DMA configuration, aborting\n");
+			return ret;
 		}
 	}
 
@@ -2549,9 +2501,13 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
 	adapter->hw.reg = pcim_iomap_table(pdev)[PCH_GBE_PCI_BAR];
+
 	adapter->pdata = (struct pch_gbe_privdata *)pci_id->driver_data;
-	if (adapter->pdata && adapter->pdata->platform_init)
-		adapter->pdata->platform_init(pdev);
+	if (adapter->pdata && adapter->pdata->platform_init) {
+		ret = adapter->pdata->platform_init(pdev);
+		if (ret)
+			goto err_free_netdev;
+	}
 
 	adapter->ptp_pdev =
 		pci_get_domain_bus_and_slot(pci_domain_nr(adapter->pdev->bus),
@@ -2561,7 +2517,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
 	netif_napi_add(netdev, &adapter->napi,
-		       pch_gbe_napi_poll, PCH_GBE_RX_WEIGHT);
+		       pch_gbe_napi_poll, NAPI_POLL_WEIGHT);
 	netdev->hw_features = NETIF_F_RXCSUM |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features = netdev->hw_features;
@@ -2594,7 +2550,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		goto err_free_adapter;
 	}
 
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
+	eth_hw_addr_set(netdev, adapter->hw.mac.addr);
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		/*
 		 * If the MAC is invalid (or just missing), display a warning
@@ -2641,26 +2597,45 @@ err_free_netdev:
 	return ret;
 }
 
+static void pch_gbe_gpio_remove_table(void *table)
+{
+	gpiod_remove_lookup_table(table);
+}
+
+static int pch_gbe_gpio_add_table(struct device *dev, void *table)
+{
+	gpiod_add_lookup_table(table);
+	return devm_add_action_or_reset(dev, pch_gbe_gpio_remove_table, table);
+}
+
+static struct gpiod_lookup_table pch_gbe_minnow_gpio_table = {
+	.dev_id		= "0000:02:00.1",
+	.table		= {
+		GPIO_LOOKUP("sch_gpio.33158", 13, NULL, GPIO_ACTIVE_LOW),
+		{}
+	},
+};
+
 /* The AR803X PHY on the MinnowBoard requires a physical pin to be toggled to
  * ensure it is awake for probe and init. Request the line and reset the PHY.
  */
 static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
 {
-	unsigned long flags = GPIOF_DIR_OUT | GPIOF_INIT_HIGH | GPIOF_EXPORT;
-	unsigned gpio = MINNOW_PHY_RESET_GPIO;
+	struct gpio_desc *gpiod;
 	int ret;
 
-	ret = devm_gpio_request_one(&pdev->dev, gpio, flags,
-				    "minnow_phy_reset");
-	if (ret) {
-		dev_err(&pdev->dev,
-			"ERR: Can't request PHY reset GPIO line '%d'\n", gpio);
+	ret = pch_gbe_gpio_add_table(&pdev->dev, &pch_gbe_minnow_gpio_table);
+	if (ret)
 		return ret;
-	}
 
-	gpio_set_value(gpio, 0);
+	gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpiod),
+				     "Can't request PHY reset GPIO line\n");
+
+	gpiod_set_value(gpiod, 1);
 	usleep_range(1250, 1500);
-	gpio_set_value(gpio, 1);
+	gpiod_set_value(gpiod, 0);
 	usleep_range(1250, 1500);
 
 	return ret;
@@ -2739,7 +2714,6 @@ module_pci_driver(pch_gbe_driver);
 MODULE_DESCRIPTION("EG20T PCH Gigabit ethernet Driver");
 MODULE_AUTHOR("LAPIS SEMICONDUCTOR, <tshimizu818@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, pch_gbe_pcidev_id);
 
 /* pch_gbe_main.c */

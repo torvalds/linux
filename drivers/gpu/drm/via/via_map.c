@@ -21,8 +21,13 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <drm/drmP.h>
+
+#include <linux/pci.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_vblank.h>
 #include <drm/via_drm.h>
+
 #include "via_drv.h"
 
 static int via_do_init_map(struct drm_device *dev, drm_via_init_t *init)
@@ -93,6 +98,7 @@ int via_map_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 int via_driver_load(struct drm_device *dev, unsigned long chipset)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	drm_via_private_t *dev_priv;
 	int ret = 0;
 
@@ -105,7 +111,7 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->chipset = chipset;
 
-	pci_set_master(dev->pdev);
+	pci_set_master(pdev);
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret) {

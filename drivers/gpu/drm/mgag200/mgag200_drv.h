@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2010 Matt Turner.
- * Copyright 2012 Red Hat 
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
+ * Copyright 2012 Red Hat
  *
  * Authors: Matthew Garrett
  * 	    Matt Turner
@@ -13,20 +10,16 @@
 #ifndef __MGAG200_DRV_H__
 #define __MGAG200_DRV_H__
 
+#include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
+
 #include <video/vga.h>
 
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_memory.h>
-#include <drm/ttm/ttm_module.h>
-
 #include <drm/drm_gem.h>
-
-#include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
+#include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "mgag200_reg.h"
 
@@ -40,15 +33,31 @@
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	0
 
-#define MGAG200FB_CONN_LIMIT 1
-
 #define RREG8(reg) ioread8(((void __iomem *)mdev->rmmio) + (reg))
 #define WREG8(reg, v) iowrite8(v, ((void __iomem *)mdev->rmmio) + (reg))
 #define RREG32(reg) ioread32(((void __iomem *)mdev->rmmio) + (reg))
 #define WREG32(reg, v) iowrite32(v, ((void __iomem *)mdev->rmmio) + (reg))
 
+#define MGA_BIOS_OFFSET		0x7ffc
+
 #define ATTR_INDEX 0x1fc0
 #define ATTR_DATA 0x1fc1
+
+#define WREG_MISC(v)						\
+	WREG8(MGA_MISC_OUT, v)
+
+#define RREG_MISC(v)						\
+	((v) = RREG8(MGA_MISC_IN))
+
+#define WREG_MISC_MASKED(v, mask)				\
+	do {							\
+		u8 misc_;					\
+		u8 mask_ = (mask);				\
+		RREG_MISC(misc_);				\
+		misc_ &= ~mask_;				\
+		misc_ |= ((v) & mask_);				\
+		WREG_MISC(misc_);				\
+	} while (0)
 
 #define WREG_ATTR(reg, v)					\
 	do {							\
@@ -57,10 +66,22 @@
 		WREG8(ATTR_DATA, v);				\
 	} while (0)						\
 
+#define RREG_SEQ(reg, v)					\
+	do {							\
+		WREG8(MGAREG_SEQ_INDEX, reg);			\
+		v = RREG8(MGAREG_SEQ_DATA);			\
+	} while (0)						\
+
 #define WREG_SEQ(reg, v)					\
 	do {							\
 		WREG8(MGAREG_SEQ_INDEX, reg);			\
 		WREG8(MGAREG_SEQ_DATA, v);			\
+	} while (0)						\
+
+#define RREG_CRT(reg, v)					\
+	do {							\
+		WREG8(MGAREG_CRTC_INDEX, reg);			\
+		v = RREG8(MGAREG_CRTC_DATA);			\
 	} while (0)						\
 
 #define WREG_CRT(reg, v)					\
@@ -69,6 +90,11 @@
 		WREG8(MGAREG_CRTC_DATA, v);			\
 	} while (0)						\
 
+#define RREG_ECRT(reg, v)					\
+	do {							\
+		WREG8(MGAREG_CRTCEXT_INDEX, reg);		\
+		v = RREG8(MGAREG_CRTCEXT_DATA);			\
+	} while (0)						\
 
 #define WREG_ECRT(reg, v)					\
 	do {							\
@@ -100,45 +126,47 @@
 #define MGAG200_MAX_FB_HEIGHT 4096
 #define MGAG200_MAX_FB_WIDTH 4096
 
-#define MATROX_DPMS_CLEARED (-1)
+struct mga_device;
+struct mgag200_pll;
 
-#define to_mga_crtc(x) container_of(x, struct mga_crtc, base)
-#define to_mga_encoder(x) container_of(x, struct mga_encoder, base)
-#define to_mga_connector(x) container_of(x, struct mga_connector, base)
-#define to_mga_framebuffer(x) container_of(x, struct mga_framebuffer, base)
-
-struct mga_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
+/*
+ * Stores parameters for programming the PLLs
+ *
+ * Fref: reference frequency (A: 25.175 Mhz, B: 28.361, C: XX Mhz)
+ * Fo: output frequency
+ * Fvco = Fref * (N / M)
+ * Fo = Fvco / P
+ *
+ * S = [0..3]
+ */
+struct mgag200_pll_values {
+	unsigned int m;
+	unsigned int n;
+	unsigned int p;
+	unsigned int s;
 };
 
-struct mga_fbdev {
-	struct drm_fb_helper helper;
-	struct mga_framebuffer mfb;
-	void *sysram;
-	int size;
-	struct ttm_bo_kmap_obj mapping;
-	int x1, y1, x2, y2; /* dirty rect */
-	spinlock_t dirty_lock;
+struct mgag200_pll_funcs {
+	int (*compute)(struct mgag200_pll *pll, long clock, struct mgag200_pll_values *pllc);
+	void (*update)(struct mgag200_pll *pll, const struct mgag200_pll_values *pllc);
 };
 
-struct mga_crtc {
-	struct drm_crtc base;
-	u8 lut_r[256], lut_g[256], lut_b[256];
-	int last_dpms;
-	bool enabled;
+struct mgag200_pll {
+	struct mga_device *mdev;
+
+	const struct mgag200_pll_funcs *funcs;
 };
 
-struct mga_mode_info {
-	bool mode_config_initialized;
-	struct mga_crtc *crtc;
+struct mgag200_crtc_state {
+	struct drm_crtc_state base;
+
+	struct mgag200_pll_values pixpllc;
 };
 
-struct mga_encoder {
-	struct drm_encoder base;
-	int last_dpms;
-};
-
+static inline struct mgag200_crtc_state *to_mgag200_crtc_state(struct drm_crtc_state *base)
+{
+	return container_of(base, struct mgag200_crtc_state, base);
+}
 
 struct mga_i2c_chan {
 	struct i2c_adapter adapter;
@@ -147,34 +175,9 @@ struct mga_i2c_chan {
 	int data, clock;
 };
 
-struct mga_connector {
-	struct drm_connector base;
-	struct mga_i2c_chan *i2c;
-};
-
-struct mga_cursor {
-	/*
-	   We have to have 2 buffers for the cursor to avoid occasional
-	   corruption while switching cursor icons.
-	   If either of these is NULL, then don't do hardware cursors, and
-	   fall back to software.
-	*/
-	struct mgag200_bo *pixels_1;
-	struct mgag200_bo *pixels_2;
-	u64 pixels_1_gpu_addr, pixels_2_gpu_addr;
-	/* The currently displayed icon, this points to one of pixels_1, or pixels_2 */
-	struct mgag200_bo *pixels_current;
-	/* The previously displayed icon */
-	struct mgag200_bo *pixels_prev;
-};
-
-struct mga_mc {
-	resource_size_t			vram_size;
-	resource_size_t			vram_base;
-	resource_size_t			vram_window;
-};
-
 enum mga_type {
+	G200_PCI,
+	G200_AGP,
 	G200_SE_A,
 	G200_SE_B,
 	G200_WB,
@@ -187,120 +190,132 @@ enum mga_type {
 
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
 
-struct mga_device {
-	struct drm_device		*dev;
-	unsigned long			flags;
+struct mgag200_device_info {
+	u16 max_hdisplay;
+	u16 max_vdisplay;
 
-	resource_size_t			rmmio_base;
-	resource_size_t			rmmio_size;
-	void __iomem			*rmmio;
+	/*
+	 * Maximum memory bandwidth (MiB/sec). Setting this to zero disables
+	 * the rsp test during mode validation.
+	 */
+	unsigned long max_mem_bandwidth;
 
-	struct mga_mc			mc;
-	struct mga_mode_info		mode_info;
-
-	struct mga_fbdev *mfbdev;
-	struct mga_cursor cursor;
-
-	bool				suspended;
-	int				num_crtc;
-	enum mga_type			type;
-	int				has_sdram;
-	struct drm_display_mode		mode;
-
-	int bpp_shifts[4];
-
-	int fb_mtrr;
+	/* HW has external source (e.g., BMC) to synchronize with */
+	bool has_vidrst:1;
 
 	struct {
-		struct ttm_bo_device bdev;
-	} ttm;
+		unsigned data_bit:3;
+		unsigned clock_bit:3;
+	} i2c;
+
+	/*
+	 * HW does not handle 'startadd' register correctly. Always set
+	 * it's value to 0.
+	 */
+	bool bug_no_startadd:1;
+};
+
+#define MGAG200_DEVICE_INFO_INIT(_max_hdisplay, _max_vdisplay, _max_mem_bandwidth, \
+				 _has_vidrst, _i2c_data_bit, _i2c_clock_bit, \
+				 _bug_no_startadd) \
+	{ \
+		.max_hdisplay = (_max_hdisplay), \
+		.max_vdisplay = (_max_vdisplay), \
+		.max_mem_bandwidth = (_max_mem_bandwidth), \
+		.has_vidrst = (_has_vidrst), \
+		.i2c = { \
+			.data_bit = (_i2c_data_bit), \
+			.clock_bit = (_i2c_clock_bit), \
+		}, \
+		.bug_no_startadd = (_bug_no_startadd), \
+	}
+
+struct mga_device {
+	struct drm_device base;
+
+	const struct mgag200_device_info *info;
+
+	struct resource			*rmmio_res;
+	void __iomem			*rmmio;
+	struct mutex			rmmio_lock; /* Protects access to rmmio */
+
+	struct resource			*vram_res;
+	void __iomem			*vram;
+	resource_size_t			vram_available;
+
+	enum mga_type			type;
+
+	struct mgag200_pll pixpll;
+	struct mga_i2c_chan i2c;
+	struct drm_connector connector;
+	struct drm_simple_display_pipe display_pipe;
+};
+
+static inline struct mga_device *to_mga_device(struct drm_device *dev)
+{
+	return container_of(dev, struct mga_device, base);
+}
+
+struct mgag200_g200_device {
+	struct mga_device base;
+
+	/* PLL constants */
+	long ref_clk;
+	long pclk_min;
+	long pclk_max;
+};
+
+static inline struct mgag200_g200_device *to_mgag200_g200_device(struct drm_device *dev)
+{
+	return container_of(to_mga_device(dev), struct mgag200_g200_device, base);
+}
+
+struct mgag200_g200se_device {
+	struct mga_device base;
 
 	/* SE model number stored in reg 0x1e24 */
 	u32 unique_rev_id;
 };
 
-
-struct mgag200_bo {
-	struct ttm_buffer_object bo;
-	struct ttm_placement placement;
-	struct ttm_bo_kmap_obj kmap;
-	struct drm_gem_object gem;
-	struct ttm_place placements[3];
-	int pin_count;
-};
-#define gem_to_mga_bo(gobj) container_of((gobj), struct mgag200_bo, gem)
-
-static inline struct mgag200_bo *
-mgag200_bo(struct ttm_buffer_object *bo)
+static inline struct mgag200_g200se_device *to_mgag200_g200se_device(struct drm_device *dev)
 {
-	return container_of(bo, struct mgag200_bo, bo);
+	return container_of(to_mga_device(dev), struct mgag200_g200se_device, base);
 }
+
+				/* mgag200_drv.c */
+int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2);
+resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size);
+resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
+int mgag200_device_preinit(struct mga_device *mdev);
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type,
+			const struct mgag200_device_info *info);
+
+				/* mgag200_<device type>.c */
+struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+					      enum mga_type type);
+struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type);
+struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type);
+struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type);
+struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type);
+struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						 enum mga_type type);
+struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type);
+struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						 enum mga_type type);
 
 				/* mgag200_mode.c */
-int mgag200_modeset_init(struct mga_device *mdev);
-void mgag200_modeset_fini(struct mga_device *mdev);
+resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
+int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_fb_available);
 
-				/* mgag200_fb.c */
-int mgag200_fbdev_init(struct mga_device *mdev);
-void mgag200_fbdev_fini(struct mga_device *mdev);
-
-				/* mgag200_main.c */
-int mgag200_framebuffer_init(struct drm_device *dev,
-			     struct mga_framebuffer *mfb,
-			     const struct drm_mode_fb_cmd2 *mode_cmd,
-			     struct drm_gem_object *obj);
-
-
-int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
-void mgag200_driver_unload(struct drm_device *dev);
-int mgag200_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
-		       struct drm_gem_object **obj);
-int mgag200_dumb_create(struct drm_file *file,
-			struct drm_device *dev,
-			struct drm_mode_create_dumb *args);
-void mgag200_gem_free_object(struct drm_gem_object *obj);
-int
-mgag200_dumb_mmap_offset(struct drm_file *file,
-			 struct drm_device *dev,
-			 uint32_t handle,
-			 uint64_t *offset);
 				/* mgag200_i2c.c */
-struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
-void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
+int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c);
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-void mgag200_ttm_placement(struct mgag200_bo *bo, int domain);
-
-static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, NULL);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p\n", bo);
-		return ret;
-	}
-	return 0;
-}
-
-static inline void mgag200_bo_unreserve(struct mgag200_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
-}
-
-int mgag200_bo_create(struct drm_device *dev, int size, int align,
-		      uint32_t flags, struct mgag200_bo **pastbo);
-int mgag200_mm_init(struct mga_device *mdev);
-void mgag200_mm_fini(struct mga_device *mdev);
-int mgag200_mmap(struct file *filp, struct vm_area_struct *vma);
-int mgag200_bo_pin(struct mgag200_bo *bo, u32 pl_flag, u64 *gpu_addr);
-int mgag200_bo_unpin(struct mgag200_bo *bo);
-int mgag200_bo_push_sysram(struct mgag200_bo *bo);
-			   /* mgag200_cursor.c */
-int mga_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
-						uint32_t handle, uint32_t width, uint32_t height);
-int mga_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
+				/* mgag200_pll.c */
+int mgag200_pixpll_init(struct mgag200_pll *pixpll, struct mga_device *mdev);
 
 #endif				/* __MGAG200_DRV_H__ */

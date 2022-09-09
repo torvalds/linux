@@ -63,12 +63,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led-0 {
 			label = "bananapro:blue:usr";
 			gpios = <&pio 6 2 GPIO_ACTIVE_HIGH>;
 		};
 
-		green {
+		led-1 {
 			label = "bananapro:green:usr";
 			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 		};
@@ -109,14 +109,10 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_rgmii_pins>;
-	phy = <&phy1>;
-	phy-mode = "rgmii";
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-id";
 	phy-supply = <&reg_gmac_3v3>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &i2c0 {
@@ -141,6 +137,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
+};
+
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mmc0 {

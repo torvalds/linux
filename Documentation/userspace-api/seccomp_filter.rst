@@ -123,9 +123,9 @@ In precedence order, they are:
 	to userland as the errno without executing the system call.
 
 ``SECCOMP_RET_USER_NOTIF``:
-    Results in a ``struct seccomp_notif`` message sent on the userspace
-    notification fd, if it is attached, or ``-ENOSYS`` if it is not. See below
-    on discussion of how to handle user notifications.
+	Results in a ``struct seccomp_notif`` message sent on the userspace
+	notification fd, if it is attached, or ``-ENOSYS`` if it is not. See
+	below on discussion of how to handle user notifications.
 
 ``SECCOMP_RET_TRACE``:
 	When returned, this value will cause the kernel to attempt to
@@ -133,7 +133,7 @@ In precedence order, they are:
 	call.  If there is no tracer present, ``-ENOSYS`` is returned to
 	userland and the system call is not executed.
 
-	A tracer will be notified if it requests ``PTRACE_O_TRACESECCOM``P
+	A tracer will be notified if it requests ``PTRACE_O_TRACESECCOMP``
 	using ``ptrace(PTRACE_SETOPTIONS)``.  The tracer will be notified
 	of a ``PTRACE_EVENT_SECCOMP`` and the ``SECCOMP_RET_DATA`` portion of
 	the BPF program return value will be available to the tracer
@@ -250,14 +250,36 @@ Users can read via ``ioctl(SECCOMP_IOCTL_NOTIF_RECV)``  (or ``poll()``) on a
 seccomp notification fd to receive a ``struct seccomp_notif``, which contains
 five members: the input length of the structure, a unique-per-filter ``id``,
 the ``pid`` of the task which triggered this request (which may be 0 if the
-task is in a pid ns not visible from the listener's pid namespace), a ``flags``
-member which for now only has ``SECCOMP_NOTIF_FLAG_SIGNALED``, representing
-whether or not the notification is a result of a non-fatal signal, and the
-``data`` passed to seccomp. Userspace can then make a decision based on this
-information about what to do, and ``ioctl(SECCOMP_IOCTL_NOTIF_SEND)`` a
-response, indicating what should be returned to userspace. The ``id`` member of
-``struct seccomp_notif_resp`` should be the same ``id`` as in ``struct
-seccomp_notif``.
+task is in a pid ns not visible from the listener's pid namespace). The
+notification also contains the ``data`` passed to seccomp, and a filters flag.
+The structure should be zeroed out prior to calling the ioctl.
+
+Userspace can then make a decision based on this information about what to do,
+and ``ioctl(SECCOMP_IOCTL_NOTIF_SEND)`` a response, indicating what should be
+returned to userspace. The ``id`` member of ``struct seccomp_notif_resp`` should
+be the same ``id`` as in ``struct seccomp_notif``.
+
+Userspace can also add file descriptors to the notifying process via
+``ioctl(SECCOMP_IOCTL_NOTIF_ADDFD)``. The ``id`` member of
+``struct seccomp_notif_addfd`` should be the same ``id`` as in
+``struct seccomp_notif``. The ``newfd_flags`` flag may be used to set flags
+like O_CLOEXEC on the file descriptor in the notifying process. If the supervisor
+wants to inject the file descriptor with a specific number, the
+``SECCOMP_ADDFD_FLAG_SETFD`` flag can be used, and set the ``newfd`` member to
+the specific number to use. If that file descriptor is already open in the
+notifying process it will be replaced. The supervisor can also add an FD, and
+respond atomically by using the ``SECCOMP_ADDFD_FLAG_SEND`` flag and the return
+value will be the injected file descriptor number.
+
+The notifying process can be preempted, resulting in the notification being
+aborted. This can be problematic when trying to take actions on behalf of the
+notifying process that are long-running and typically retryable (mounting a
+filesytem). Alternatively, at filter installation time, the
+``SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV`` flag can be set. This flag makes it
+such that when a user notification is received by the supervisor, the notifying
+process will ignore non-fatal signals until the response is sent. Signals that
+are sent prior to the notification being received by userspace are handled
+normally.
 
 It is worth noting that ``struct seccomp_data`` contains the values of register
 arguments to the syscall, but does not contain pointers to memory. The task's

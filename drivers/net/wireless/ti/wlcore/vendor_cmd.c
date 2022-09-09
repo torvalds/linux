@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of wlcore
  *
  * Copyright (C) 2014 Texas Instruments. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/pm_runtime.h>
@@ -41,8 +38,8 @@ wlcore_vendor_cmd_smart_config_start(struct wiphy *wiphy,
 	if (!data)
 		return -EINVAL;
 
-	ret = nla_parse(tb, MAX_WLCORE_VENDOR_ATTR, data, data_len,
-			wlcore_vendor_attr_policy, NULL);
+	ret = nla_parse_deprecated(tb, MAX_WLCORE_VENDOR_ATTR, data, data_len,
+				   wlcore_vendor_attr_policy, NULL);
 	if (ret)
 		return ret;
 
@@ -56,11 +53,9 @@ wlcore_vendor_cmd_smart_config_start(struct wiphy *wiphy,
 		goto out;
 	}
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = wlcore_smart_config_start(wl,
 			nla_get_u32(tb[WLCORE_VENDOR_ATTR_GROUP_ID]));
@@ -91,11 +86,9 @@ wlcore_vendor_cmd_smart_config_stop(struct wiphy *wiphy,
 		goto out;
 	}
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = wlcore_smart_config_stop(wl);
 
@@ -122,8 +115,8 @@ wlcore_vendor_cmd_smart_config_set_group_key(struct wiphy *wiphy,
 	if (!data)
 		return -EINVAL;
 
-	ret = nla_parse(tb, MAX_WLCORE_VENDOR_ATTR, data, data_len,
-			wlcore_vendor_attr_policy, NULL);
+	ret = nla_parse_deprecated(tb, MAX_WLCORE_VENDOR_ATTR, data, data_len,
+				   wlcore_vendor_attr_policy, NULL);
 	if (ret)
 		return ret;
 
@@ -138,11 +131,9 @@ wlcore_vendor_cmd_smart_config_set_group_key(struct wiphy *wiphy,
 		goto out;
 	}
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = wlcore_smart_config_set_group_key(wl,
 			nla_get_u32(tb[WLCORE_VENDOR_ATTR_GROUP_ID]),
@@ -166,6 +157,7 @@ static const struct wiphy_vendor_command wlcore_vendor_commands[] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlcore_vendor_cmd_smart_config_start,
+		.policy = wlcore_vendor_attr_policy,
 	},
 	{
 		.info = {
@@ -175,6 +167,7 @@ static const struct wiphy_vendor_command wlcore_vendor_commands[] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlcore_vendor_cmd_smart_config_stop,
+		.policy = wlcore_vendor_attr_policy,
 	},
 	{
 		.info = {
@@ -184,6 +177,7 @@ static const struct wiphy_vendor_command wlcore_vendor_commands[] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlcore_vendor_cmd_smart_config_set_group_key,
+		.policy = wlcore_vendor_attr_policy,
 	},
 };
 

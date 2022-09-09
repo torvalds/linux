@@ -21,7 +21,6 @@
 #define cpu_has_4kex			1
 #define cpu_has_3k_cache		0
 #define cpu_has_4k_cache		1
-#define cpu_has_tx39_cache		0
 #define cpu_has_fpu			0
 #define cpu_has_32fpr			0
 #define cpu_has_counter			1
@@ -39,7 +38,6 @@
 #define cpu_has_guestctl2		0
 #define cpu_has_guestid			0
 #define cpu_has_drg			0
-#define cpu_has_bp_ghist		0
 #define cpu_has_mips16			0
 #define cpu_has_mips16e2		0
 #define cpu_has_mdmx			0

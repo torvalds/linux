@@ -1,20 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
  * This file contains AppArmor task related definitions and mediation
  *
  * Copyright 2017 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_TASK_H
 #define __AA_TASK_H
 
-#define task_ctx(X) ((X)->security)
+static inline struct aa_task_ctx *task_ctx(struct task_struct *task)
+{
+	return task->security + apparmor_blob_sizes.lbs_task;
+}
 
 /*
  * struct aa_task_ctx - information for current task label change
@@ -37,17 +36,6 @@ int aa_restore_previous_label(u64 cookie);
 struct aa_label *aa_get_task_label(struct task_struct *task);
 
 /**
- * aa_alloc_task_ctx - allocate a new task_ctx
- * @flags: gfp flags for allocation
- *
- * Returns: allocated buffer or NULL on failure
- */
-static inline struct aa_task_ctx *aa_alloc_task_ctx(gfp_t flags)
-{
-	return kzalloc(sizeof(struct aa_task_ctx), flags);
-}
-
-/**
  * aa_free_task_ctx - free a task_ctx
  * @ctx: task_ctx to free (MAYBE NULL)
  */
@@ -57,8 +45,6 @@ static inline void aa_free_task_ctx(struct aa_task_ctx *ctx)
 		aa_put_label(ctx->nnp);
 		aa_put_label(ctx->previous);
 		aa_put_label(ctx->onexec);
-
-		kzfree(ctx);
 	}
 }
 
@@ -90,5 +76,23 @@ static inline void aa_clear_task_ctx_trans(struct aa_task_ctx *ctx)
 	ctx->onexec = NULL;
 	ctx->token = 0;
 }
+
+#define AA_PTRACE_TRACE		MAY_WRITE
+#define AA_PTRACE_READ		MAY_READ
+#define AA_MAY_BE_TRACED	AA_MAY_APPEND
+#define AA_MAY_BE_READ		AA_MAY_CREATE
+#define PTRACE_PERM_SHIFT	2
+
+#define AA_PTRACE_PERM_MASK (AA_PTRACE_READ | AA_PTRACE_TRACE | \
+			     AA_MAY_BE_READ | AA_MAY_BE_TRACED)
+#define AA_SIGNAL_PERM_MASK (MAY_READ | MAY_WRITE)
+
+#define AA_SFS_SIG_MASK "hup int quit ill trap abrt bus fpe kill usr1 " \
+	"segv usr2 pipe alrm term stkflt chld cont stop stp ttin ttou urg " \
+	"xcpu xfsz vtalrm prof winch io pwr sys emt lost"
+
+int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
+		  u32 request);
+
 
 #endif /* __AA_TASK_H */

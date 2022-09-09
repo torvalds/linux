@@ -137,7 +137,7 @@ static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 				val;
 		case NN_LM_MOD_DEC:
 			lm_dec = true;
-			/* fall through */
+			fallthrough;
 		case NN_LM_MOD_INC:
 			if (val) {
 				pr_err("LM offset in inc/dev mode\n");
@@ -196,7 +196,7 @@ int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
 	}
 
 	reg->dst_lmextn = swreg_lmextn(dst);
-	reg->src_lmextn = swreg_lmextn(lreg) | swreg_lmextn(rreg);
+	reg->src_lmextn = swreg_lmextn(lreg) || swreg_lmextn(rreg);
 
 	return 0;
 }
@@ -277,7 +277,7 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 	}
 
 	reg->dst_lmextn = swreg_lmextn(dst);
-	reg->src_lmextn = swreg_lmextn(lreg) | swreg_lmextn(rreg);
+	reg->src_lmextn = swreg_lmextn(lreg) || swreg_lmextn(rreg);
 
 	return 0;
 }

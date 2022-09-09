@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CW1200
 	tristate "CW1200 WLAN support"
 	depends on MAC80211 && CFG80211

@@ -165,7 +165,7 @@ static int fm2fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
                            u_int transp, struct fb_info *info);
 static int fm2fb_blank(int blank, struct fb_info *info);
 
-static struct fb_ops fm2fb_ops = {
+static const struct fb_ops fm2fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= fm2fb_setcolreg,
 	.fb_blank	= fm2fb_blank,
@@ -293,7 +293,7 @@ static int fm2fb_probe(struct zorro_dev *z, const struct zorro_device_id *id)
 	return 0;
 }
 
-int __init fm2fb_setup(char *options)
+static int __init fm2fb_setup(char *options)
 {
 	char *this_opt;
 
@@ -309,7 +309,7 @@ int __init fm2fb_setup(char *options)
 	return 0;
 }
 
-int __init fm2fb_init(void)
+static int __init fm2fb_init(void)
 {
 	char *option = NULL;
 

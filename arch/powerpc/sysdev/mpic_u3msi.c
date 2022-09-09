@@ -1,18 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2006, Segher Boessenkool, IBM Corporation.
  * Copyright 2006-2007, Michael Ellerman, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2 of the
- * License.
- *
  */
 
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/msi.h>
 #include <asm/mpic.h>
-#include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
 #include <asm/msi_bitmap.h>
@@ -83,7 +78,7 @@ static u64 find_u4_magic_addr(struct pci_dev *pdev, unsigned int hwirq)
 
 	/* U4 PCIe MSIs need to write to the special register in
 	 * the bridge that generates interrupts. There should be
-	 * theorically a register at 0xf8005000 where you just write
+	 * theoretically a register at 0xf8005000 where you just write
 	 * the MSI number and that triggers the right interrupt, but
 	 * unfortunately, this is busted in HW, the bridge endian swaps
 	 * the value and hits the wrong nibble in the register.
@@ -109,17 +104,12 @@ static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 	struct msi_desc *entry;
 	irq_hw_number_t hwirq;
 
-	for_each_pci_msi_entry(entry, pdev) {
-		if (!entry->irq)
-			continue;
-
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {
 		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
 		irq_dispose_mapping(entry->irq);
 		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap, hwirq, 1);
 	}
-
-	return;
 }
 
 static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
@@ -141,7 +131,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		return -ENXIO;
 	}
 
-	for_each_pci_msi_entry(entry, pdev) {
+	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_NOTASSOCIATED) {
 		hwirq = msi_bitmap_alloc_hwirqs(&msi_mpic->msi_bitmap, 1);
 		if (hwirq < 0) {
 			pr_debug("u3msi: failed allocating hwirq\n");
@@ -179,7 +169,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	return 0;
 }
 
-int mpic_u3msi_init(struct mpic *mpic)
+int __init mpic_u3msi_init(struct mpic *mpic)
 {
 	int rc;
 	struct pci_controller *phb;

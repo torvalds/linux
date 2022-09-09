@@ -39,12 +39,11 @@ enum adv748x_page {
 	ADV748X_PAGE_MAX,
 
 	/* Fake pages for register sequences */
-	ADV748X_PAGE_WAIT,		/* Wait x msec */
 	ADV748X_PAGE_EOR,		/* End Mark */
 };
 
-/**
- * enum adv748x_ports - Device tree port number definitions
+/*
+ * Device tree port number definitions
  *
  * The ADV748X ports define the mapping between subdevices
  * and the device tree specification
@@ -79,17 +78,24 @@ struct adv748x_csi2 {
 	struct v4l2_mbus_framefmt format;
 	unsigned int page;
 	unsigned int port;
+	unsigned int num_lanes;
+	unsigned int active_lanes;
 
 	struct media_pad pads[ADV748X_CSI2_NR_PADS];
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_subdev *src;
 	struct v4l2_subdev sd;
 };
 
 #define notifier_to_csi2(n) container_of(n, struct adv748x_csi2, notifier)
 #define adv748x_sd_to_csi2(sd) container_of(sd, struct adv748x_csi2, sd)
+
 #define is_tx_enabled(_tx) ((_tx)->state->endpoints[(_tx)->port] != NULL)
 #define is_txa(_tx) ((_tx) == &(_tx)->state->txa)
+#define is_txb(_tx) ((_tx) == &(_tx)->state->txb)
+#define is_tx(_tx) (is_txa(_tx) || is_txb(_tx))
+
 #define is_afe_enabled(_state)					\
 	((_state)->endpoints[ADV748X_PORT_AIN0] != NULL ||	\
 	 (_state)->endpoints[ADV748X_PORT_AIN1] != NULL ||	\
@@ -115,6 +121,8 @@ struct adv748x_hdmi {
 
 	struct v4l2_dv_timings timings;
 	struct v4l2_fract aspect_ratio;
+
+	struct adv748x_csi2 *tx;
 
 	struct {
 		u8 edid[512];
@@ -146,6 +154,8 @@ struct adv748x_afe {
 	struct v4l2_subdev sd;
 	struct v4l2_mbus_framefmt format;
 
+	struct adv748x_csi2 *tx;
+
 	bool streaming;
 	v4l2_std_id curr_norm;
 	unsigned int input;
@@ -163,9 +173,9 @@ struct adv748x_afe {
  *
  * @endpoints:		parsed device node endpoints for each port
  *
- * @i2c_addresses	I2C Page addresses
- * @i2c_clients		I2C clients for the page accesses
- * @regmap		regmap configuration pages.
+ * @i2c_addresses:	I2C Page addresses
+ * @i2c_clients:	I2C clients for the page accesses
+ * @regmap:		regmap configuration pages.
  *
  * @hdmi:		state of HDMI receiver context
  * @afe:		state of AFE receiver context
@@ -201,6 +211,11 @@ struct adv748x_state {
 #define ADV748X_IO_PD			0x00	/* power down controls */
 #define ADV748X_IO_PD_RX_EN		BIT(6)
 
+#define ADV748X_IO_REG_01		0x01	/* pwrdn{2}b, prog_xtal_freq */
+#define ADV748X_IO_REG_01_PWRDN_MASK	(BIT(7) | BIT(6))
+#define ADV748X_IO_REG_01_PWRDN2B	BIT(7)	/* CEC Wakeup Support */
+#define ADV748X_IO_REG_01_PWRDNB	BIT(6)	/* CEC Wakeup Support */
+
 #define ADV748X_IO_REG_04		0x04
 #define ADV748X_IO_REG_04_FORCE_FR	BIT(0)	/* Force CP free-run */
 
@@ -214,11 +229,23 @@ struct adv748x_state {
 #define ADV748X_IO_10_CSI4_EN		BIT(7)
 #define ADV748X_IO_10_CSI1_EN		BIT(6)
 #define ADV748X_IO_10_PIX_OUT_EN	BIT(5)
+#define ADV748X_IO_10_CSI4_IN_SEL_AFE	BIT(3)
 
 #define ADV748X_IO_CHIP_REV_ID_1	0xdf
 #define ADV748X_IO_CHIP_REV_ID_2	0xe0
 
+#define ADV748X_IO_REG_F2		0xf2
+#define ADV748X_IO_REG_F2_READ_AUTO_INC	BIT(0)
+
+/* For PAGE slave address offsets */
 #define ADV748X_IO_SLAVE_ADDR_BASE	0xf2
+
+/*
+ * The ADV748x_Recommended_Settings_PrA_2014-08-20.pdf details both 0x80 and
+ * 0xff as examples for performing a software reset.
+ */
+#define ADV748X_IO_REG_FF		0xff
+#define ADV748X_IO_REG_FF_MAIN_RESET	0xff
 
 /* HDMI RX Map */
 #define ADV748X_HDMI_LW1		0x07	/* line width_1 */
@@ -368,10 +395,10 @@ int adv748x_write_block(struct adv748x_state *state, int client_page,
 
 #define io_read(s, r) adv748x_read(s, ADV748X_PAGE_IO, r)
 #define io_write(s, r, v) adv748x_write(s, ADV748X_PAGE_IO, r, v)
-#define io_clrset(s, r, m, v) io_write(s, r, (io_read(s, r) & ~m) | v)
+#define io_clrset(s, r, m, v) io_write(s, r, (io_read(s, r) & ~(m)) | (v))
 
 #define hdmi_read(s, r) adv748x_read(s, ADV748X_PAGE_HDMI, r)
-#define hdmi_read16(s, r, m) (((hdmi_read(s, r) << 8) | hdmi_read(s, r+1)) & m)
+#define hdmi_read16(s, r, m) (((hdmi_read(s, r) << 8) | hdmi_read(s, (r)+1)) & (m))
 #define hdmi_write(s, r, v) adv748x_write(s, ADV748X_PAGE_HDMI, r, v)
 
 #define repeater_read(s, r) adv748x_read(s, ADV748X_PAGE_REPEATER, r)
@@ -379,18 +406,18 @@ int adv748x_write_block(struct adv748x_state *state, int client_page,
 
 #define sdp_read(s, r) adv748x_read(s, ADV748X_PAGE_SDP, r)
 #define sdp_write(s, r, v) adv748x_write(s, ADV748X_PAGE_SDP, r, v)
-#define sdp_clrset(s, r, m, v) sdp_write(s, r, (sdp_read(s, r) & ~m) | v)
+#define sdp_clrset(s, r, m, v) sdp_write(s, r, (sdp_read(s, r) & ~(m)) | (v))
 
 #define cp_read(s, r) adv748x_read(s, ADV748X_PAGE_CP, r)
 #define cp_write(s, r, v) adv748x_write(s, ADV748X_PAGE_CP, r, v)
-#define cp_clrset(s, r, m, v) cp_write(s, r, (cp_read(s, r) & ~m) | v)
+#define cp_clrset(s, r, m, v) cp_write(s, r, (cp_read(s, r) & ~(m)) | (v))
 
 #define tx_read(t, r) adv748x_read(t->state, t->page, r)
 #define tx_write(t, r, v) adv748x_write(t->state, t->page, r, v)
 
 static inline struct v4l2_subdev *adv748x_get_remote_sd(struct media_pad *pad)
 {
-	pad = media_entity_remote_pad(pad);
+	pad = media_pad_remote_pad_first(pad);
 	if (!pad)
 		return NULL;
 
@@ -408,9 +435,11 @@ int adv748x_tx_power(struct adv748x_csi2 *tx, bool on);
 
 int adv748x_afe_init(struct adv748x_afe *afe);
 void adv748x_afe_cleanup(struct adv748x_afe *afe);
+int adv748x_afe_s_input(struct adv748x_afe *afe, unsigned int input);
 
 int adv748x_csi2_init(struct adv748x_state *state, struct adv748x_csi2 *tx);
 void adv748x_csi2_cleanup(struct adv748x_csi2 *tx);
+int adv748x_csi2_set_virtual_channel(struct adv748x_csi2 *tx, unsigned int vc);
 int adv748x_csi2_set_pixelrate(struct v4l2_subdev *sd, s64 rate);
 
 int adv748x_hdmi_init(struct adv748x_hdmi *hdmi);

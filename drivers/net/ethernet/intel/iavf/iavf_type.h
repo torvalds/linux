@@ -7,7 +7,7 @@
 #include "iavf_status.h"
 #include "iavf_osdep.h"
 #include "iavf_register.h"
-#include "i40e_adminq.h"
+#include "iavf_adminq.h"
 #include "iavf_devids.h"
 
 #define IAVF_RXQ_CTX_DBUFF_SHIFT 7
@@ -21,7 +21,7 @@
 
 /* forward declaration */
 struct iavf_hw;
-typedef void (*I40E_ADMINQ_CALLBACK)(struct iavf_hw *, struct i40e_aq_desc *);
+typedef void (*IAVF_ADMINQ_CALLBACK)(struct iavf_hw *, struct iavf_aq_desc *);
 
 /* Data type manipulation macros. */
 
@@ -190,14 +190,6 @@ struct iavf_hw {
 	/* debug mask */
 	u32 debug_mask;
 	char err_str[16];
-};
-
-struct iavf_driver_version {
-	u8 major_version;
-	u8 minor_version;
-	u8 build_version;
-	u8 subbuild_version;
-	u8 driver_string[32];
 };
 
 /* RX Descriptors */
@@ -378,7 +370,6 @@ enum iavf_rx_l2_ptype {
 };
 
 struct iavf_rx_ptype_decoded {
-	u32 ptype:8;
 	u32 known:1;
 	u32 outer_ip:1;
 	u32 outer_ip_ver:1;

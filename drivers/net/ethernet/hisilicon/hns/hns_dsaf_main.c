@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/acpi.h>
@@ -28,7 +24,7 @@
 #include "hns_dsaf_rcb.h"
 #include "hns_dsaf_misc.h"
 
-const static char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
+static const char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
 	[DSAF_MODE_DISABLE_2PORT_64VM] = "2port-64vf",
 	[DSAF_MODE_DISABLE_6PORT_0VM] = "6port-16rss",
 	[DSAF_MODE_DISABLE_6PORT_16VM] = "6port-16vf",
@@ -211,7 +207,7 @@ static int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_sbm_link_sram_init_en - config dsaf_sbm_init_en
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_sbm_link_sram_init_en(struct dsaf_device *dsaf_dev)
 {
@@ -220,8 +216,8 @@ static void hns_dsaf_sbm_link_sram_init_en(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_reg_cnt_clr_ce - config hns_dsaf_reg_cnt_clr_ce
- * @dsaf_id: dsa fabric id
- * @hns_dsaf_reg_cnt_clr_ce: config value
+ * @dsaf_dev: dsa fabric id
+ * @reg_cnt_clr_ce: config value
  */
 static void
 hns_dsaf_reg_cnt_clr_ce(struct dsaf_device *dsaf_dev, u32 reg_cnt_clr_ce)
@@ -231,9 +227,9 @@ hns_dsaf_reg_cnt_clr_ce(struct dsaf_device *dsaf_dev, u32 reg_cnt_clr_ce)
 }
 
 /**
- * hns_ppe_qid_cfg - config ppe qid
- * @dsaf_id: dsa fabric id
- * @pppe_qid_cfg: value array
+ * hns_dsaf_ppe_qid_cfg - config ppe qid
+ * @dsaf_dev: dsa fabric id
+ * @qid_cfg: value array
  */
 static void
 hns_dsaf_ppe_qid_cfg(struct dsaf_device *dsaf_dev, u32 qid_cfg)
@@ -289,8 +285,8 @@ static void hns_dsaf_inner_qid_cfg(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_sw_port_type_cfg - cfg sw type
- * @dsaf_id: dsa fabric id
- * @psw_port_type: array
+ * @dsaf_dev: dsa fabric id
+ * @port_type: array
  */
 static void hns_dsaf_sw_port_type_cfg(struct dsaf_device *dsaf_dev,
 				      enum dsaf_sw_port_type port_type)
@@ -307,8 +303,8 @@ static void hns_dsaf_sw_port_type_cfg(struct dsaf_device *dsaf_dev,
 
 /**
  * hns_dsaf_stp_port_type_cfg - cfg stp type
- * @dsaf_id: dsa fabric id
- * @pstp_port_type: array
+ * @dsaf_dev: dsa fabric id
+ * @port_type: array
  */
 static void hns_dsaf_stp_port_type_cfg(struct dsaf_device *dsaf_dev,
 				       enum dsaf_stp_port_type port_type)
@@ -327,7 +323,7 @@ static void hns_dsaf_stp_port_type_cfg(struct dsaf_device *dsaf_dev,
 	(AE_IS_VER1((dev)->dsaf_ver) ? DSAF_SBM_NUM : DSAFV2_SBM_NUM)
 /**
  * hns_dsaf_sbm_cfg - config sbm
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_sbm_cfg(struct dsaf_device *dsaf_dev)
 {
@@ -346,7 +342,7 @@ static void hns_dsaf_sbm_cfg(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_sbm_cfg_mib_en - config sbm
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static int hns_dsaf_sbm_cfg_mib_en(struct dsaf_device *dsaf_dev)
 {
@@ -391,7 +387,7 @@ static int hns_dsaf_sbm_cfg_mib_en(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_sbm_bp_wl_cfg - config sbm
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_sbm_bp_wl_cfg(struct dsaf_device *dsaf_dev)
 {
@@ -560,7 +556,7 @@ static void hns_dsafv2_sbm_bp_wl_cfg(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_voq_bp_all_thrd_cfg -  voq
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_voq_bp_all_thrd_cfg(struct dsaf_device *dsaf_dev)
 {
@@ -603,7 +599,7 @@ static void hns_dsaf_tbl_tcam_match_cfg(
 
 /**
  * hns_dsaf_tbl_tcam_data_cfg - tbl
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  * @ptbl_tcam_data: addr
  */
 static void hns_dsaf_tbl_tcam_data_cfg(
@@ -617,9 +613,9 @@ static void hns_dsaf_tbl_tcam_data_cfg(
 }
 
 /**
- * dsaf_tbl_tcam_mcast_cfg - tbl
- * @dsaf_id: dsa fabric id
- * @ptbl_tcam_mcast: addr
+ * hns_dsaf_tbl_tcam_mcast_cfg - tbl
+ * @dsaf_dev: dsa fabric id
+ * @mcast: addr
  */
 static void hns_dsaf_tbl_tcam_mcast_cfg(
 	struct dsaf_device *dsaf_dev,
@@ -652,8 +648,8 @@ static void hns_dsaf_tbl_tcam_mcast_cfg(
 
 /**
  * hns_dsaf_tbl_tcam_ucast_cfg - tbl
- * @dsaf_id: dsa fabric id
- * @ptbl_tcam_ucast: addr
+ * @dsaf_dev: dsa fabric id
+ * @tbl_tcam_ucast: addr
  */
 static void hns_dsaf_tbl_tcam_ucast_cfg(
 	struct dsaf_device *dsaf_dev,
@@ -678,8 +674,8 @@ static void hns_dsaf_tbl_tcam_ucast_cfg(
 
 /**
  * hns_dsaf_tbl_line_cfg - tbl
- * @dsaf_id: dsa fabric id
- * @ptbl_lin: addr
+ * @dsaf_dev: dsa fabric id
+ * @tbl_lin: addr
  */
 static void hns_dsaf_tbl_line_cfg(struct dsaf_device *dsaf_dev,
 				  struct dsaf_tbl_line_cfg *tbl_lin)
@@ -699,7 +695,7 @@ static void hns_dsaf_tbl_line_cfg(struct dsaf_device *dsaf_dev,
 
 /**
  * hns_dsaf_tbl_tcam_mcast_pul - tbl
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_tcam_mcast_pul(struct dsaf_device *dsaf_dev)
 {
@@ -714,7 +710,7 @@ static void hns_dsaf_tbl_tcam_mcast_pul(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_tbl_line_pul - tbl
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_line_pul(struct dsaf_device *dsaf_dev)
 {
@@ -729,7 +725,7 @@ static void hns_dsaf_tbl_line_pul(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_tbl_tcam_data_mcast_pul - tbl
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_tcam_data_mcast_pul(
 	struct dsaf_device *dsaf_dev)
@@ -747,7 +743,7 @@ static void hns_dsaf_tbl_tcam_data_mcast_pul(
 
 /**
  * hns_dsaf_tbl_tcam_data_ucast_pul - tbl
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_tcam_data_ucast_pul(
 	struct dsaf_device *dsaf_dev)
@@ -772,8 +768,7 @@ void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 
 /**
  * hns_dsaf_tbl_stat_en - tbl
- * @dsaf_id: dsa fabric id
- * @ptbl_stat_en: addr
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_stat_en(struct dsaf_device *dsaf_dev)
 {
@@ -789,7 +784,7 @@ static void hns_dsaf_tbl_stat_en(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_rocee_bp_en - rocee back press enable
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_rocee_bp_en(struct dsaf_device *dsaf_dev)
 {
@@ -856,9 +851,9 @@ static void hns_dsaf_int_tbl_src_clr(struct dsaf_device *dsaf_dev,
 
 /**
  * hns_dsaf_single_line_tbl_cfg - INT
- * @dsaf_id: dsa fabric id
- * @address:
- * @ptbl_line:
+ * @dsaf_dev: dsa fabric id
+ * @address: the address
+ * @ptbl_line: the line
  */
 static void hns_dsaf_single_line_tbl_cfg(
 	struct dsaf_device *dsaf_dev,
@@ -880,9 +875,10 @@ static void hns_dsaf_single_line_tbl_cfg(
 
 /**
  * hns_dsaf_tcam_uc_cfg - INT
- * @dsaf_id: dsa fabric id
- * @address,
- * @ptbl_tcam_data,
+ * @dsaf_dev: dsa fabric id
+ * @address: the address
+ * @ptbl_tcam_data: the data
+ * @ptbl_tcam_ucast: unicast
  */
 static void hns_dsaf_tcam_uc_cfg(
 	struct dsaf_device *dsaf_dev, u32 address,
@@ -908,7 +904,8 @@ static void hns_dsaf_tcam_uc_cfg(
  * @dsaf_dev: dsa fabric device struct pointer
  * @address: tcam index
  * @ptbl_tcam_data: tcam data struct pointer
- * @ptbl_tcam_mcast: tcam mask struct pointer, it must be null for HNSv1
+ * @ptbl_tcam_mask: tcam mask struct pointer, it must be null for HNSv1
+ * @ptbl_tcam_mcast: tcam data struct pointer
  */
 static void hns_dsaf_tcam_mc_cfg(
 	struct dsaf_device *dsaf_dev, u32 address,
@@ -937,8 +934,10 @@ static void hns_dsaf_tcam_mc_cfg(
 /**
  * hns_dsaf_tcam_uc_cfg_vague - INT
  * @dsaf_dev: dsa fabric device struct pointer
- * @address,
- * @ptbl_tcam_data,
+ * @address: the address
+ * @tcam_data: the data
+ * @tcam_mask: the mask
+ * @tcam_uc: the unicast data
  */
 static void hns_dsaf_tcam_uc_cfg_vague(struct dsaf_device *dsaf_dev,
 				       u32 address,
@@ -964,10 +963,10 @@ static void hns_dsaf_tcam_uc_cfg_vague(struct dsaf_device *dsaf_dev,
 /**
  * hns_dsaf_tcam_mc_cfg_vague - INT
  * @dsaf_dev: dsa fabric device struct pointer
- * @address,
- * @ptbl_tcam_data,
- * @ptbl_tcam_mask
- * @ptbl_tcam_mcast
+ * @address: the address
+ * @tcam_data: the data
+ * @tcam_mask: the mask
+ * @tcam_mc: the multicast data
  */
 static void hns_dsaf_tcam_mc_cfg_vague(struct dsaf_device *dsaf_dev,
 				       u32 address,
@@ -992,8 +991,8 @@ static void hns_dsaf_tcam_mc_cfg_vague(struct dsaf_device *dsaf_dev,
 
 /**
  * hns_dsaf_tcam_mc_invld - INT
- * @dsaf_id: dsa fabric id
- * @address
+ * @dsaf_dev: dsa fabric id
+ * @address: the address
  */
 static void hns_dsaf_tcam_mc_invld(struct dsaf_device *dsaf_dev, u32 address)
 {
@@ -1028,10 +1027,10 @@ hns_dsaf_tcam_addr_get(struct dsaf_drv_tbl_tcam_key *mac_key, u8 *addr)
 
 /**
  * hns_dsaf_tcam_uc_get - INT
- * @dsaf_id: dsa fabric id
- * @address
- * @ptbl_tcam_data
- * @ptbl_tcam_ucast
+ * @dsaf_dev: dsa fabric id
+ * @address: the address
+ * @ptbl_tcam_data: the data
+ * @ptbl_tcam_ucast: unicast
  */
 static void hns_dsaf_tcam_uc_get(
 	struct dsaf_device *dsaf_dev, u32 address,
@@ -1081,10 +1080,10 @@ static void hns_dsaf_tcam_uc_get(
 
 /**
  * hns_dsaf_tcam_mc_get - INT
- * @dsaf_id: dsa fabric id
- * @address
- * @ptbl_tcam_data
- * @ptbl_tcam_ucast
+ * @dsaf_dev: dsa fabric id
+ * @address: the address
+ * @ptbl_tcam_data: the data
+ * @ptbl_tcam_mcast: tcam multicast data
  */
 static void hns_dsaf_tcam_mc_get(
 	struct dsaf_device *dsaf_dev, u32 address,
@@ -1131,7 +1130,7 @@ static void hns_dsaf_tcam_mc_get(
 
 /**
  * hns_dsaf_tbl_line_init - INT
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_line_init(struct dsaf_device *dsaf_dev)
 {
@@ -1145,7 +1144,7 @@ static void hns_dsaf_tbl_line_init(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_tbl_tcam_init - INT
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_tcam_init(struct dsaf_device *dsaf_dev)
 {
@@ -1160,7 +1159,9 @@ static void hns_dsaf_tbl_tcam_init(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_pfc_en_cfg - dsaf pfc pause cfg
- * @mac_cb: mac contrl block
+ * @dsaf_dev: dsa fabric id
+ * @mac_id: mac contrl block
+ * @tc_en: traffic class
  */
 static void hns_dsaf_pfc_en_cfg(struct dsaf_device *dsaf_dev,
 				int mac_id, int tc_en)
@@ -1212,9 +1213,8 @@ void hns_dsaf_get_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
 }
 
 /**
- * hns_dsaf_tbl_tcam_init - INT
- * @dsaf_id: dsa fabric id
- * @dsaf_mode
+ * hns_dsaf_comm_init - INT
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_comm_init(struct dsaf_device *dsaf_dev)
 {
@@ -1267,7 +1267,7 @@ static void hns_dsaf_comm_init(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_inode_init - INT
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_inode_init(struct dsaf_device *dsaf_dev)
 {
@@ -1319,7 +1319,7 @@ static void hns_dsaf_inode_init(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_sbm_init - INT
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static int hns_dsaf_sbm_init(struct dsaf_device *dsaf_dev)
 {
@@ -1373,7 +1373,7 @@ static int hns_dsaf_sbm_init(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_tbl_init - INT
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_tbl_init(struct dsaf_device *dsaf_dev)
 {
@@ -1385,7 +1385,7 @@ static void hns_dsaf_tbl_init(struct dsaf_device *dsaf_dev)
 
 /**
  * hns_dsaf_voq_init - INT
- * @dsaf_id: dsa fabric id
+ * @dsaf_dev: dsa fabric id
  */
 static void hns_dsaf_voq_init(struct dsaf_device *dsaf_dev)
 {
@@ -1439,7 +1439,7 @@ static void hns_dsaf_remove_hw(struct dsaf_device *dsaf_dev)
 /**
  * hns_dsaf_init - init dsa fabric
  * @dsaf_dev: dsa fabric device struct pointer
- * retuen 0 - success , negative --fail
+ * return 0 - success , negative --fail
  */
 static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 {
@@ -1602,8 +1602,6 @@ static void hns_dsaf_set_mac_key(
 		       DSAF_TBL_TCAM_KEY_VLAN_S, vlan_id);
 	dsaf_set_field(mac_key->low.bits.port_vlan, DSAF_TBL_TCAM_KEY_PORT_M,
 		       DSAF_TBL_TCAM_KEY_PORT_S, port);
-
-	mac_key->low.bits.port_vlan = le16_to_cpu(mac_key->low.bits.port_vlan);
 }
 
 /**
@@ -1615,7 +1613,7 @@ int hns_dsaf_set_mac_uc_entry(
 	struct dsaf_device *dsaf_dev,
 	struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_tbl_tcam_ucast_cfg mac_data;
 	struct dsaf_drv_priv *priv =
@@ -1663,8 +1661,8 @@ int hns_dsaf_set_mac_uc_entry(
 	/* default config dvc to 0 */
 	mac_data.tbl_ucast_dvc = 0;
 	mac_data.tbl_ucast_out_port = mac_entry->port_num;
-	tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
-	tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
+	tcam_data.tbl_tcam_data_high = mac_key.high.val;
+	tcam_data.tbl_tcam_data_low = mac_key.low.val;
 
 	hns_dsaf_tcam_uc_cfg(dsaf_dev, entry_index, &tcam_data, &mac_data);
 
@@ -1681,7 +1679,7 @@ int hns_dsaf_rm_mac_addr(
 	struct dsaf_device *dsaf_dev,
 	struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_tbl_tcam_ucast_cfg mac_data;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 
@@ -1730,7 +1728,7 @@ static void hns_dsaf_setup_mc_mask(struct dsaf_device *dsaf_dev,
 				   u8 port_num, u8 *mask, u8 *addr)
 {
 	if (MAC_IS_BROADCAST(addr))
-		memset(mask, 0xff, ETH_ALEN);
+		eth_broadcast_addr(mask);
 	else
 		memcpy(mask, dsaf_dev->mac_cb[port_num]->mc_mask, ETH_ALEN);
 }
@@ -1753,7 +1751,7 @@ static void hns_dsaf_mc_mask_bit_clear(char *dst, const char *src)
 int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_drv_tbl_tcam_key mask_key;
 	struct dsaf_tbl_tcam_data *pmask_key = NULL;
@@ -1785,9 +1783,6 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 				     0x0,
 				     0xff,
 				     mc_mask);
-
-		mask_key.high.val = le32_to_cpu(mask_key.high.val);
-		mask_key.low.val = le32_to_cpu(mask_key.low.val);
 
 		pmask_key = (struct dsaf_tbl_tcam_data *)(&mask_key);
 	}
@@ -1840,8 +1835,8 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 		dsaf_dev->ae_dev.name, mac_key.high.val,
 		mac_key.low.val, entry_index);
 
-	tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
-	tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
+	tcam_data.tbl_tcam_data_high = mac_key.high.val;
+	tcam_data.tbl_tcam_data_low = mac_key.low.val;
 
 	/* config mc entry with mask */
 	hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index, &tcam_data,
@@ -1866,7 +1861,7 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,
 			   u8 in_port_num, u8 *addr)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_drv_priv *priv =
 	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
@@ -1915,7 +1910,7 @@ int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,
 int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry)
 {
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
@@ -1955,9 +1950,6 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 
 		/* config key mask */
 		hns_dsaf_set_mac_key(dsaf_dev, &mask_key, 0x00, 0xff, mc_mask);
-
-		mask_key.high.val = le32_to_cpu(mask_key.high.val);
-		mask_key.low.val = le32_to_cpu(mask_key.low.val);
 
 		pmask_key = (struct dsaf_tbl_tcam_data *)(&mask_key);
 	}
@@ -2012,8 +2004,8 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 		soft_mac_entry += entry_index;
 		soft_mac_entry->index = DSAF_INVALID_ENTRY_IDX;
 	} else { /* not zero, just del port, update */
-		tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
-		tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
+		tcam_data.tbl_tcam_data_high = mac_key.high.val;
+		tcam_data.tbl_tcam_data_low = mac_key.low.val;
 
 		hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index,
 				     &tcam_data,
@@ -2111,7 +2103,7 @@ static struct dsaf_device *hns_dsaf_alloc_dev(struct device *dev,
 
 /**
  * hns_dsaf_free_dev - free dev mem
- * @dev: struct device pointer
+ * @dsaf_dev: struct device pointer
  */
 static void hns_dsaf_free_dev(struct dsaf_device *dsaf_dev)
 {
@@ -2119,10 +2111,10 @@ static void hns_dsaf_free_dev(struct dsaf_device *dsaf_dev)
 }
 
 /**
- * dsaf_pfc_unit_cnt - set pfc unit count
- * @dsaf_id: dsa fabric id
- * @pport_rate:  value array
- * @pdsaf_pfc_unit_cnt:  value array
+ * hns_dsaf_pfc_unit_cnt - set pfc unit count
+ * @dsaf_dev: dsa fabric id
+ * @mac_id: id in use
+ * @rate:  value array
  */
 static void hns_dsaf_pfc_unit_cnt(struct dsaf_device *dsaf_dev, int  mac_id,
 				  enum dsaf_port_rate_mode rate)
@@ -2150,9 +2142,10 @@ static void hns_dsaf_pfc_unit_cnt(struct dsaf_device *dsaf_dev, int  mac_id,
 }
 
 /**
- * dsaf_port_work_rate_cfg - fifo
- * @dsaf_id: dsa fabric id
- * @xge_ge_work_mode
+ * hns_dsaf_port_work_rate_cfg - fifo
+ * @dsaf_dev: dsa fabric id
+ * @mac_id: mac contrl block
+ * @rate_mode: value array
  */
 static void
 hns_dsaf_port_work_rate_cfg(struct dsaf_device *dsaf_dev, int mac_id,
@@ -2265,12 +2258,13 @@ void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 node_num)
 
 /**
  *hns_dsaf_get_regs - dump dsaf regs
- *@dsaf_dev: dsaf device
+ *@ddev: dsaf device
+ *@port: port
  *@data:data for value of regs
  */
 void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 {
-	u32 i = 0;
+	u32 i;
 	u32 j;
 	u32 *p = data;
 	u32 reg_tmp;
@@ -2702,6 +2696,7 @@ void hns_dsaf_get_stats(struct dsaf_device *ddev, u64 *data, int port)
 
 /**
  *hns_dsaf_get_sset_count - get dsaf string set count
+ *@dsaf_dev: dsaf device
  *@stringset: type of values in data
  *return dsaf string name count
  */
@@ -2723,6 +2718,7 @@ int hns_dsaf_get_sset_count(struct dsaf_device *dsaf_dev, int stringset)
  *@stringset:srting set index
  *@data:strings name value
  *@port:port index
+ *@dsaf_dev: dsaf device
  */
 void hns_dsaf_get_strings(int stringset, u8 *data, int port,
 			  struct dsaf_device *dsaf_dev)
@@ -2742,12 +2738,23 @@ void hns_dsaf_get_strings(int stringset, u8 *data, int port,
 }
 
 /**
- *hns_dsaf_get_sset_count - get dsaf regs count
+ *hns_dsaf_get_regs_count - get dsaf regs count
  *return dsaf regs count
  */
 int hns_dsaf_get_regs_count(void)
 {
 	return DSAF_DUMP_REGS_NUM;
+}
+
+static int hns_dsaf_get_port_id(u8 port)
+{
+	if (port < DSAF_SERVICE_NW_NUM)
+		return port;
+
+	if (port >= DSAF_BASE_INNER_PORT_NUM)
+		return port - DSAF_BASE_INNER_PORT_NUM + DSAF_SERVICE_NW_NUM;
+
+	return -EINVAL;
 }
 
 static void set_promisc_tcam_enable(struct dsaf_device *dsaf_dev, u32 port)
@@ -2761,12 +2768,12 @@ static void set_promisc_tcam_enable(struct dsaf_device *dsaf_dev, u32 port)
 	struct dsaf_drv_mac_single_dest_entry mask_entry;
 	struct dsaf_drv_tbl_tcam_key temp_key, mask_key;
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry;
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	struct hns_mac_cb *mac_cb;
 	u8 addr[ETH_ALEN] = {0};
 	u8 port_num;
-	u16 mskid;
+	int mskid;
 
 	/* promisc use vague table match with vlanid = 0 & macaddr = 0 */
 	hns_dsaf_set_mac_key(dsaf_dev, &mac_key, 0x00, port, addr);
@@ -2815,23 +2822,33 @@ static void set_promisc_tcam_enable(struct dsaf_device *dsaf_dev, u32 port)
 	memset(&temp_key, 0x0, sizeof(temp_key));
 	mask_entry.addr[0] = 0x01;
 	hns_dsaf_set_mac_key(dsaf_dev, &mask_key, mask_entry.in_vlan_id,
-			     port, mask_entry.addr);
+			     0xf, mask_entry.addr);
 	tbl_tcam_mcast.tbl_mcast_item_vld = 1;
 	tbl_tcam_mcast.tbl_mcast_old_en = 0;
 
-	if (port < DSAF_SERVICE_NW_NUM) {
-		mskid = port;
-	} else if (port >= DSAF_BASE_INNER_PORT_NUM) {
-		mskid = port - DSAF_BASE_INNER_PORT_NUM + DSAF_SERVICE_NW_NUM;
-	} else {
+	/* set MAC port to handle multicast */
+	mskid = hns_dsaf_get_port_id(port);
+	if (mskid == -EINVAL) {
 		dev_err(dsaf_dev->dev, "%s,pnum(%d)error,key(%#x:%#x)\n",
 			dsaf_dev->ae_dev.name, port,
 			mask_key.high.val, mask_key.low.val);
 		return;
 	}
-
 	dsaf_set_bit(tbl_tcam_mcast.tbl_mcast_port_msk[mskid / 32],
 		     mskid % 32, 1);
+
+	/* set pool bit map to handle multicast */
+	mskid = hns_dsaf_get_port_id(port_num);
+	if (mskid == -EINVAL) {
+		dev_err(dsaf_dev->dev,
+			"%s, pool bit map pnum(%d)error,key(%#x:%#x)\n",
+			dsaf_dev->ae_dev.name, port_num,
+			mask_key.high.val, mask_key.low.val);
+		return;
+	}
+	dsaf_set_bit(tbl_tcam_mcast.tbl_mcast_port_msk[mskid / 32],
+		     mskid % 32, 1);
+
 	memcpy(&temp_key, &mask_key, sizeof(mask_key));
 	hns_dsaf_tcam_mc_cfg_vague(dsaf_dev, entry_index, &tbl_tcam_data_mc,
 				   (struct dsaf_tbl_tcam_data *)(&mask_key),
@@ -2853,7 +2870,7 @@ static void set_promisc_tcam_disable(struct dsaf_device *dsaf_dev, u32 port)
 	struct dsaf_tbl_tcam_data tbl_tcam_data_uc = {0, 0};
 	struct dsaf_tbl_tcam_data tbl_tcam_mask = {0, 0};
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry;
-	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
+	u16 entry_index;
 	struct dsaf_drv_tbl_tcam_key mac_key;
 	u8 addr[ETH_ALEN] = {0};
 
@@ -2932,9 +2949,9 @@ int hns_dsaf_wait_pkt_clean(struct dsaf_device *dsaf_dev, int port)
 }
 
 /**
- * dsaf_probe - probo dsaf dev
+ * hns_dsaf_probe - probo dsaf dev
  * @pdev: dasf platform device
- * retuen 0 - success , negative --fail
+ * return 0 - success , negative --fail
  */
 static int hns_dsaf_probe(struct platform_device *pdev)
 {
@@ -2987,7 +3004,7 @@ free_dev:
 }
 
 /**
- * dsaf_remove - remove dsaf dev
+ * hns_dsaf_remove - remove dsaf dev
  * @pdev: dasf platform device
  */
 static int hns_dsaf_remove(struct platform_device *pdev)
@@ -3029,8 +3046,8 @@ module_platform_driver(g_dsaf_driver);
 /**
  * hns_dsaf_roce_reset - reset dsaf and roce
  * @dsaf_fwnode: Pointer to framework node for the dasf
- * @enable: false - request reset , true - drop reset
- * retuen 0 - success , negative -fail
+ * @dereset: false - request reset , true - drop reset
+ * return 0 - success , negative -fail
  */
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
 {
@@ -3040,7 +3057,7 @@ int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
 	u32 sl;
 	u32 credit;
 	int i;
-	const u32 port_map[DSAF_ROCE_CREDIT_CHN][DSAF_ROCE_CHAN_MODE_NUM] = {
+	static const u32 port_map[DSAF_ROCE_CREDIT_CHN][DSAF_ROCE_CHAN_MODE_NUM] = {
 		{DSAF_ROCE_PORT_0, DSAF_ROCE_PORT_0, DSAF_ROCE_PORT_0},
 		{DSAF_ROCE_PORT_1, DSAF_ROCE_PORT_0, DSAF_ROCE_PORT_0},
 		{DSAF_ROCE_PORT_2, DSAF_ROCE_PORT_1, DSAF_ROCE_PORT_0},
@@ -3050,7 +3067,7 @@ int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
 		{DSAF_ROCE_PORT_5, DSAF_ROCE_PORT_3, DSAF_ROCE_PORT_1},
 		{DSAF_ROCE_PORT_5, DSAF_ROCE_PORT_3, DSAF_ROCE_PORT_1},
 	};
-	const u32 sl_map[DSAF_ROCE_CREDIT_CHN][DSAF_ROCE_CHAN_MODE_NUM] = {
+	static const u32 sl_map[DSAF_ROCE_CREDIT_CHN][DSAF_ROCE_CHAN_MODE_NUM] = {
 		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_0, DSAF_ROCE_SL_0},
 		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_1, DSAF_ROCE_SL_1},
 		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_0, DSAF_ROCE_SL_2},
@@ -3081,6 +3098,7 @@ int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
 	dsaf_dev = dev_get_drvdata(&pdev->dev);
 	if (!dsaf_dev) {
 		dev_err(&pdev->dev, "dsaf_dev is NULL\n");
+		put_device(&pdev->dev);
 		return -ENODEV;
 	}
 
@@ -3088,6 +3106,7 @@ int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver)) {
 		dev_err(dsaf_dev->dev, "%s v1 chip doesn't support RoCE!\n",
 			dsaf_dev->ae_dev.name);
+		put_device(&pdev->dev);
 		return -ENODEV;
 	}
 
@@ -3126,6 +3145,9 @@ int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
 		dsaf_set_bit(credit, DSAF_SBM_ROCEE_CFG_CRD_EN_B, 1);
 		dsaf_write_dev(dsaf_dev, DSAF_SBM_ROCEE_CFG_REG_REG, credit);
 	}
+
+	put_device(&pdev->dev);
+
 	return 0;
 }
 EXPORT_SYMBOL(hns_dsaf_roce_reset);

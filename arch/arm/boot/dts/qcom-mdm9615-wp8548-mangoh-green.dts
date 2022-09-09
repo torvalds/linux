@@ -103,7 +103,7 @@
 
 &gsbi3_spi {
 	spi@0 {
-		compatible = "swir,mangoh-iotport-spi", "spidev";
+		compatible = "swir,mangoh-iotport-spi";
 		spi-max-frequency = <24000000>;
 		reg = <0>;
 	};
@@ -143,7 +143,7 @@
 				compatible = "smsc,usb3503a";
 				reg = <0x8>;
 				connect-gpios = <&gpioext2 1 GPIO_ACTIVE_HIGH>;
-				intn-gpios = <&gpioext2 0 GPIO_ACTIVE_LOW>;
+				intn-gpios = <&gpioext2 0 GPIO_ACTIVE_HIGH>;
 				initial-mode = <1>;
 			};
 		};

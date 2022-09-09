@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/qcom,bam-dmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm BAM Data Multiplexer
+
+maintainers:
+  - Stephan Gerhold <stephan@gerhold.net>
+
+description: |
+  The BAM Data Multiplexer provides access to the network data channels
+  of modems integrated into many older Qualcomm SoCs, e.g. Qualcomm MSM8916
+  or MSM8974. It is built using a simple protocol layer on top of a DMA engine
+  (Qualcomm BAM DMA) and bidirectional interrupts to coordinate power control.
+
+  Note that this schema does not directly describe a hardware block but rather
+  a firmware convention that combines several other hardware blocks (such as the
+  DMA engine). As such it is specific to a firmware version, not a particular
+  SoC or hardware version.
+
+properties:
+  compatible:
+    const: qcom,bam-dmux
+
+  interrupts:
+    description:
+      Interrupts used by the modem to signal the AP.
+      Both interrupts must be declared as IRQ_TYPE_EDGE_BOTH.
+    items:
+      - description: Power control
+      - description: Power control acknowledgment
+
+  interrupt-names:
+    items:
+      - const: pc
+      - const: pc-ack
+
+  qcom,smem-states:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: State bits used by the AP to signal the modem.
+    items:
+      - description: Power control
+      - description: Power control acknowledgment
+
+  qcom,smem-state-names:
+    description: Names for the state bits used by the AP to signal the modem.
+    items:
+      - const: pc
+      - const: pc-ack
+
+  dmas:
+    items:
+      - description: TX DMA channel phandle
+      - description: RX DMA channel phandle
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+required:
+  - compatible
+  - interrupts
+  - interrupt-names
+  - qcom,smem-states
+  - qcom,smem-state-names
+  - dmas
+  - dma-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    mpss: remoteproc {
+        bam-dmux {
+            compatible = "qcom,bam-dmux";
+
+            interrupt-parent = <&modem_smsm>;
+            interrupts = <1 IRQ_TYPE_EDGE_BOTH>, <11 IRQ_TYPE_EDGE_BOTH>;
+            interrupt-names = "pc", "pc-ack";
+
+            qcom,smem-states = <&apps_smsm 1>, <&apps_smsm 11>;
+            qcom,smem-state-names = "pc", "pc-ack";
+
+            dmas = <&bam_dmux_dma 4>, <&bam_dmux_dma 5>;
+            dma-names = "tx", "rx";
+        };
+    };

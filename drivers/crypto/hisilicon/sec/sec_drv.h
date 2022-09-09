@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2016-2017 Hisilicon Limited. */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2016-2017 HiSilicon Limited. */
 
 #ifndef _SEC_DRV_H_
 #define _SEC_DRV_H_
@@ -347,7 +347,7 @@ struct sec_queue {
 	DECLARE_BITMAP(unprocessed, SEC_QUEUE_LEN);
 	DECLARE_KFIFO_PTR(softqueue, typeof(struct sec_request_el *));
 	bool havesoftqueue;
-	struct mutex queuelock;
+	spinlock_t queuelock;
 	void *shadow[SEC_QUEUE_LEN];
 };
 

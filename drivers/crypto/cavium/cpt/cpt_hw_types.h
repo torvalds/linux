@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #ifndef __CPT_HW_TYPES_H
@@ -268,7 +265,7 @@ union cptx_pf_exe_bist_status {
  *	big-endian format in memory.
  *  iqb_ldwb:1 [7:7](R/W) Instruction load don't write back.
  *	0 = The hardware issues NCB transient load (LDT) towards the cache,
- *	which if the line hits and is is dirty will cause the line to be
+ *	which if the line hits and it is dirty will cause the line to be
  *	written back before being replaced.
  *	1 = The hardware issues NCB LDWB read-and-invalidate command towards
  *	the cache when fetching the last word of instructions; as a result the

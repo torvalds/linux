@@ -25,7 +25,7 @@
 	};
 
 	panel {
-		compatible = "auo,g101evn010", "simple-panel";
+		compatible = "auo,g101evn010";
 		power-supply = <&ldo4_ext>;
 		backlight = <&lcd_backlight>;
 
@@ -110,7 +110,7 @@
 };
 
 &gpio5 {
-	emmc-usd-mux {
+	emmc-usd-mux-hog {
 		gpio-hog;
 		gpios = <1 GPIO_ACTIVE_LOW>;
 		output-high;
@@ -168,6 +168,7 @@
 };
 
 &pwm5 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm5>;
 	status = "okay";

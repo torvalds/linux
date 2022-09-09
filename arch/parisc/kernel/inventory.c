@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * inventory.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Copyright (c) 1999 The Puffin Group (David Kennedy and Alex deVries)
  * Copyright (c) 2001 Matthew Wilcox for Hewlett-Packard
@@ -23,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/mmzone.h>
@@ -31,6 +28,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/parisc-device.h>
+#include <asm/tlbflush.h>
 
 /*
 ** Debug options
@@ -38,12 +36,12 @@
 */
 #undef DEBUG_PAT
 
-int pdc_type __read_mostly = PDC_TYPE_ILLEGAL;
+int pdc_type __ro_after_init = PDC_TYPE_ILLEGAL;
 
 /* cell number and location (PAT firmware only) */
-unsigned long parisc_cell_num __read_mostly;
-unsigned long parisc_cell_loc __read_mostly;
-unsigned long parisc_pat_pdc_cap __read_mostly;
+unsigned long parisc_cell_num __ro_after_init;
+unsigned long parisc_cell_loc __ro_after_init;
+unsigned long parisc_pat_pdc_cap __ro_after_init;
 
 
 void __init setup_pdc(void)
@@ -638,4 +636,39 @@ void __init do_device_inventory(void)
 	}
 	printk(KERN_INFO "Found devices:\n");
 	print_parisc_devices();
+
+#if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
+	pa_serialize_tlb_flushes = machine_has_merced_bus();
+	if (pa_serialize_tlb_flushes)
+		pr_info("Merced bus found: Enable PxTLB serialization.\n");
+#endif
+
+#if defined(CONFIG_FW_CFG_SYSFS)
+	if (running_on_qemu) {
+		struct resource res[3] = {0,};
+		unsigned int base;
+
+		base = ((unsigned long long) PAGE0->pad0[2] << 32)
+			| PAGE0->pad0[3]; /* SeaBIOS stored it here */
+
+		res[0].name = "fw_cfg";
+		res[0].start = base;
+		res[0].end = base + 8 - 1;
+		res[0].flags = IORESOURCE_MEM;
+
+		res[1].name = "ctrl";
+		res[1].start = 0;
+		res[1].flags = IORESOURCE_REG;
+
+		res[2].name = "data";
+		res[2].start = 4;
+		res[2].flags = IORESOURCE_REG;
+
+		if (base) {
+			pr_info("Found qemu fw_cfg interface at %#08x\n", base);
+			platform_device_register_simple("fw_cfg",
+				PLATFORM_DEVID_NONE, res, 3);
+		}
+	}
+#endif
 }

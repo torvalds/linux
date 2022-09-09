@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * s390 TRNG device driver
  *
@@ -6,11 +7,6 @@
 
  * Copyright IBM Corp. 2017
  * Author(s): Harald Freudenberger <freude@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
  */
 
 #define KMSG_COMPONENT "trng"
@@ -112,24 +108,15 @@ static ssize_t trng_counter_show(struct device *dev,
 {
 	u64 dev_counter = atomic64_read(&trng_dev_counter);
 	u64 hwrng_counter = atomic64_read(&trng_hwrng_counter);
-#if IS_ENABLED(CONFIG_ARCH_RANDOM)
 	u64 arch_counter = atomic64_read(&s390_arch_random_counter);
 
-	return snprintf(buf, PAGE_SIZE,
+	return sysfs_emit(buf,
 			"trng:  %llu\n"
 			"hwrng: %llu\n"
 			"arch:  %llu\n"
 			"total: %llu\n",
 			dev_counter, hwrng_counter, arch_counter,
 			dev_counter + hwrng_counter + arch_counter);
-#else
-	return snprintf(buf, PAGE_SIZE,
-			"trng:  %llu\n"
-			"hwrng: %llu\n"
-			"total: %llu\n",
-			dev_counter, hwrng_counter,
-			dev_counter + hwrng_counter);
-#endif
 }
 static DEVICE_ATTR(byte_counter, 0444, trng_counter_show, NULL);
 
@@ -196,14 +183,15 @@ static int trng_hwrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 
 /*
  * hwrng register struct
- * The trng is suppost to have 100% entropy, and thus
- * we register with a very high quality value.
+ * The trng is supposed to have 100% entropy, and thus we register with a very
+ * high quality value. If we ever have a better driver in the future, we should
+ * change this value again when we merge this driver.
  */
 static struct hwrng trng_hwrng_dev = {
 	.name		= "s390-trng",
 	.data_read	= trng_hwrng_data_read,
 	.read		= trng_hwrng_read,
-	.quality	= 999,
+	.quality	= 1024,
 };
 
 
@@ -264,5 +252,5 @@ static void __exit trng_exit(void)
 	trng_debug_exit();
 }
 
-module_cpu_feature_match(MSA, trng_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, trng_init);
 module_exit(trng_exit);

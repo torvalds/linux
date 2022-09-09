@@ -27,7 +27,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/genhd.h>
 #include <linux/blkdev.h>
 
 #include "blocklayout.h"
@@ -79,7 +78,7 @@ bl_resolve_deviceid(struct nfs_server *server, struct pnfs_block_volume *b,
 		goto out_free_data;
 
 	bl_msg = msg->data;
-	bl_msg->type = BL_DEVICE_MOUNT,
+	bl_msg->type = BL_DEVICE_MOUNT;
 	bl_msg->totallen = b->simple.len;
 	nfs4_encode_simple(msg->data + sizeof(*bl_msg), b);
 

@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2020-2022 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -59,7 +57,6 @@ static ssize_t ieee80211_if_write(
 		return -EFAULT;
 	buf[count] = '\0';
 
-	ret = -ENODEV;
 	rtnl_lock();
 	ret = (*write)(sdata, buf, count);
 	rtnl_unlock();
@@ -80,8 +77,6 @@ static ssize_t ieee80211_if_fmt_##name(					\
 		IEEE80211_IF_FMT(name, field, "%#x\n")
 #define IEEE80211_IF_FMT_LHEX(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%#lx\n")
-#define IEEE80211_IF_FMT_SIZE(name, field)				\
-		IEEE80211_IF_FMT(name, field, "%zd\n")
 
 #define IEEE80211_IF_FMT_HEXARRAY(name, field)				\
 static ssize_t ieee80211_if_fmt_##name(					\
@@ -213,8 +208,8 @@ IEEE80211_IF_FILE_R(rc_rateidx_vht_mcs_mask_5ghz);
 IEEE80211_IF_FILE(flags, flags, HEX);
 IEEE80211_IF_FILE(state, state, LHEX);
 IEEE80211_IF_FILE(txpower, vif.bss_conf.txpower, DEC);
-IEEE80211_IF_FILE(ap_power_level, ap_power_level, DEC);
-IEEE80211_IF_FILE(user_power_level, user_power_level, DEC);
+IEEE80211_IF_FILE(ap_power_level, deflink.ap_power_level, DEC);
+IEEE80211_IF_FILE(user_power_level, deflink.user_power_level, DEC);
 
 static ssize_t
 ieee80211_if_fmt_hw_queues(const struct ieee80211_sub_if_data *sdata,
@@ -237,8 +232,8 @@ ieee80211_if_fmt_hw_queues(const struct ieee80211_sub_if_data *sdata,
 IEEE80211_IF_FILE_R(hw_queues);
 
 /* STA attributes */
-IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
-IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
+IEEE80211_IF_FILE(bssid, deflink.u.mgd.bssid, MAC);
+IEEE80211_IF_FILE(aid, vif.cfg.aid, DEC);
 IEEE80211_IF_FILE(beacon_timeout, u.mgd.beacon_timeout, JIFFIES_TO_MS);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
@@ -257,15 +252,11 @@ static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 	     smps_mode == IEEE80211_SMPS_AUTOMATIC))
 		return -EINVAL;
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-	    sdata->vif.type != NL80211_IFTYPE_AP)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
 	sdata_lock(sdata);
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		err = __ieee80211_request_smps_mgd(sdata, smps_mode);
-	else
-		err = __ieee80211_request_smps_ap(sdata, smps_mode);
+	err = __ieee80211_request_smps_mgd(sdata, &sdata->deflink, smps_mode);
 	sdata_unlock(sdata);
 
 	return err;
@@ -283,12 +274,8 @@ static ssize_t ieee80211_if_fmt_smps(const struct ieee80211_sub_if_data *sdata,
 {
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		return snprintf(buf, buflen, "request: %s\nused: %s\n",
-				smps_modes[sdata->u.mgd.req_smps],
-				smps_modes[sdata->smps_mode]);
-	if (sdata->vif.type == NL80211_IFTYPE_AP)
-		return snprintf(buf, buflen, "request: %s\nused: %s\n",
-				smps_modes[sdata->u.ap.req_smps],
-				smps_modes[sdata->smps_mode]);
+				smps_modes[sdata->deflink.u.mgd.req_smps],
+				smps_modes[sdata->deflink.smps_mode]);
 	return -EINVAL;
 }
 
@@ -350,7 +337,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 			dev_kfree_skb(skb);
 			return -ENOTCONN;
 		}
-		memcpy(hdr->addr1, sdata->u.mgd.associated->bssid, ETH_ALEN);
+		memcpy(hdr->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr->addr3, addr, ETH_ALEN);
 		sdata_unlock(sdata);
@@ -379,7 +366,7 @@ IEEE80211_IF_FILE_W(tkip_mic_test);
 static ssize_t ieee80211_if_parse_beacon_loss(
 	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
 {
-	if (!ieee80211_sdata_running(sdata) || !sdata->vif.bss_conf.assoc)
+	if (!ieee80211_sdata_running(sdata) || !sdata->vif.cfg.assoc)
 		return -ENOTCONN;
 
 	ieee80211_beacon_loss(&sdata->vif);
@@ -490,8 +477,13 @@ static ssize_t ieee80211_if_fmt_aqm(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct txq_info *txqi = to_txq_info(sdata->vif.txq);
+	struct txq_info *txqi;
 	int len;
+
+	if (!sdata->vif.txq)
+		return 0;
+
+	txqi = to_txq_info(sdata->vif.txq);
 
 	spin_lock_bh(&local->fq.lock);
 	rcu_read_lock();
@@ -579,9 +571,6 @@ static ssize_t ieee80211_if_parse_tsf(
 IEEE80211_IF_FILE_RW(tsf);
 
 
-/* WDS attributes */
-IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
-
 #ifdef CONFIG_MAC80211_MESH
 IEEE80211_IF_FILE(estab_plinks, u.mesh.estab_plinks, ATOMIC);
 
@@ -643,11 +632,14 @@ IEEE80211_IF_FILE(dot11MeshAwakeWindowDuration,
 		  u.mesh.mshcfg.dot11MeshAwakeWindowDuration, DEC);
 IEEE80211_IF_FILE(dot11MeshConnectedToMeshGate,
 		  u.mesh.mshcfg.dot11MeshConnectedToMeshGate, DEC);
+IEEE80211_IF_FILE(dot11MeshNolearn, u.mesh.mshcfg.dot11MeshNolearn, DEC);
+IEEE80211_IF_FILE(dot11MeshConnectedToAuthServer,
+		  u.mesh.mshcfg.dot11MeshConnectedToAuthServer, DEC);
 #endif
 
 #define DEBUGFS_ADD_MODE(name, mode) \
 	debugfs_create_file(#name, mode, sdata->vif.debugfs_dir, \
-			    sdata, &name##_ops);
+			    sdata, &name##_ops)
 
 #define DEBUGFS_ADD(name) DEBUGFS_ADD_MODE(name, 0400)
 
@@ -661,7 +653,9 @@ static void add_common_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(rc_rateidx_vht_mcs_mask_5ghz);
 	DEBUGFS_ADD(hw_queues);
 
-	if (sdata->local->ops->wake_tx_queue)
+	if (sdata->local->ops->wake_tx_queue &&
+	    sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_NAN)
 		DEBUGFS_ADD(aqm);
 }
 
@@ -701,11 +695,6 @@ static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD_MODE(tsf, 0600);
 }
 
-static void add_wds_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_ADD(peer);
-}
-
 #ifdef CONFIG_MAC80211_MESH
 
 static void add_mesh_files(struct ieee80211_sub_if_data *sdata)
@@ -719,7 +708,7 @@ static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 	struct dentry *dir = debugfs_create_dir("mesh_stats",
 						sdata->vif.debugfs_dir);
 #define MESHSTATS_ADD(name)\
-	debugfs_create_file(#name, 0400, dir, sdata, &name##_ops);
+	debugfs_create_file(#name, 0400, dir, sdata, &name##_ops)
 
 	MESHSTATS_ADD(fwded_mcast);
 	MESHSTATS_ADD(fwded_unicast);
@@ -736,7 +725,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 						sdata->vif.debugfs_dir);
 
 #define MESHPARAMS_ADD(name) \
-	debugfs_create_file(#name, 0600, dir, sdata, &name##_ops);
+	debugfs_create_file(#name, 0600, dir, sdata, &name##_ops)
 
 	MESHPARAMS_ADD(dot11MeshMaxRetries);
 	MESHPARAMS_ADD(dot11MeshRetryTimeout);
@@ -765,6 +754,8 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(power_mode);
 	MESHPARAMS_ADD(dot11MeshAwakeWindowDuration);
 	MESHPARAMS_ADD(dot11MeshConnectedToMeshGate);
+	MESHPARAMS_ADD(dot11MeshNolearn);
+	MESHPARAMS_ADD(dot11MeshConnectedToAuthServer);
 #undef MESHPARAMS_ADD
 }
 #endif
@@ -803,9 +794,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	case NL80211_IFTYPE_AP_VLAN:
 		add_vlan_files(sdata);
 		break;
-	case NL80211_IFTYPE_WDS:
-		add_wds_files(sdata);
-		break;
 	default:
 		break;
 	}
@@ -818,9 +806,8 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 	sprintf(buf, "netdev:%s", sdata->name);
 	sdata->vif.debugfs_dir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
-	if (sdata->vif.debugfs_dir)
-		sdata->debugfs.subdir_stations = debugfs_create_dir("stations",
-			sdata->vif.debugfs_dir);
+	sdata->debugfs.subdir_stations = debugfs_create_dir("stations",
+							sdata->vif.debugfs_dir);
 	add_files(sdata);
 }
 
@@ -841,12 +828,9 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 
 	dir = sdata->vif.debugfs_dir;
 
-	if (!dir)
+	if (IS_ERR_OR_NULL(dir))
 		return;
 
 	sprintf(buf, "netdev:%s", sdata->name);
-	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
-		sdata_err(sdata,
-			  "debugfs: failed to rename debugfs dir to %s\n",
-			  buf);
+	debugfs_rename(dir->d_parent, dir, dir->d_parent, buf);
 }

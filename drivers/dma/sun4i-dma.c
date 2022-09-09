@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Emilio López
  * Emilio López <emilio@elopez.com.ar>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
@@ -126,6 +123,15 @@
 	 SUN4I_DDMA_PARA_DST_WAIT_CYCLES(2) |				\
 	 SUN4I_DDMA_PARA_SRC_WAIT_CYCLES(2))
 
+/*
+ * Normal DMA supports individual transfers (segments) up to 128k.
+ * Dedicated DMA supports transfers up to 16M. We can only report
+ * one size limit, so we have to use the smaller value.
+ */
+#define SUN4I_NDMA_MAX_SEG_SIZE		SZ_128K
+#define SUN4I_DDMA_MAX_SEG_SIZE		SZ_16M
+#define SUN4I_DMA_MAX_SEG_SIZE		SUN4I_NDMA_MAX_SEG_SIZE
+
 struct sun4i_dma_pchan {
 	/* Register base of channel */
 	void __iomem			*base;
@@ -159,7 +165,8 @@ struct sun4i_dma_contract {
 	struct virt_dma_desc		vd;
 	struct list_head		demands;
 	struct list_head		completed_demands;
-	int				is_cyclic;
+	bool				is_cyclic : 1;
+	bool				use_half_int : 1;
 };
 
 struct sun4i_dma_dev {
@@ -311,7 +318,7 @@ static void set_pchan_interrupt(struct sun4i_dma_dev *priv,
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-/**
+/*
  * Execute pending operations on a vchan
  *
  * When given a vchan, this function will try to acquire a suitable
@@ -376,7 +383,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 	if (promise) {
 		vchan->contract = contract;
 		vchan->pchan = pchan;
-		set_pchan_interrupt(priv, pchan, contract->is_cyclic, 1);
+		set_pchan_interrupt(priv, pchan, contract->use_half_int, 1);
 		configure_pchan(pchan, promise);
 	}
 
@@ -423,7 +430,7 @@ static int sanitize_config(struct dma_slave_config *sconfig,
 	return 0;
 }
 
-/**
+/*
  * Generate a promise, to be used in a normal DMA contract.
  *
  * A NDMA promise contains all the information required to program the
@@ -490,7 +497,7 @@ fail:
 	return NULL;
 }
 
-/**
+/*
  * Generate a promise, to be used in a dedicated DMA contract.
  *
  * A DDMA promise contains all the information required to program the
@@ -547,7 +554,7 @@ fail:
 	return NULL;
 }
 
-/**
+/*
  * Generate a contract
  *
  * Contracts function as DMA descriptors. As our hardware does not support
@@ -569,7 +576,7 @@ static struct sun4i_dma_contract *generate_dma_contract(void)
 	return contract;
 }
 
-/**
+/*
  * Get next promise on a cyclic transfer
  *
  * Cyclic contracts contain a series of promises which are executed on a
@@ -593,7 +600,7 @@ get_next_cyclic_promise(struct sun4i_dma_contract *contract)
 	return promise;
 }
 
-/**
+/*
  * Free a contract and all its associated promises
  */
 static void sun4i_dma_free_contract(struct virt_dma_desc *vd)
@@ -673,21 +680,10 @@ sun4i_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf, size_t len,
 	dma_addr_t src, dest;
 	u32 endpoints;
 	int nr_periods, offset, plength, i;
+	u8 ram_type, io_mode, linear_mode;
 
 	if (!is_slave_direction(dir)) {
 		dev_err(chan2dev(chan), "Invalid DMA direction\n");
-		return NULL;
-	}
-
-	if (vchan->is_dedicated) {
-		/*
-		 * As we are using this just for audio data, we need to use
-		 * normal DMA. There is nothing stopping us from supporting
-		 * dedicated DMA here as well, so if a client comes up and
-		 * requires it, it will be simple to implement it.
-		 */
-		dev_err(chan2dev(chan),
-			"Cyclic transfers are only supported on Normal DMA\n");
 		return NULL;
 	}
 
@@ -697,19 +693,30 @@ sun4i_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf, size_t len,
 
 	contract->is_cyclic = 1;
 
-	/* Figure out the endpoints and the address we need */
+	if (vchan->is_dedicated) {
+		io_mode = SUN4I_DDMA_ADDR_MODE_IO;
+		linear_mode = SUN4I_DDMA_ADDR_MODE_LINEAR;
+		ram_type = SUN4I_DDMA_DRQ_TYPE_SDRAM;
+	} else {
+		io_mode = SUN4I_NDMA_ADDR_MODE_IO;
+		linear_mode = SUN4I_NDMA_ADDR_MODE_LINEAR;
+		ram_type = SUN4I_NDMA_DRQ_TYPE_SDRAM;
+	}
+
 	if (dir == DMA_MEM_TO_DEV) {
 		src = buf;
 		dest = sconfig->dst_addr;
-		endpoints = SUN4I_DMA_CFG_SRC_DRQ_TYPE(SUN4I_NDMA_DRQ_TYPE_SDRAM) |
-			    SUN4I_DMA_CFG_DST_DRQ_TYPE(vchan->endpoint) |
-			    SUN4I_DMA_CFG_DST_ADDR_MODE(SUN4I_NDMA_ADDR_MODE_IO);
+		endpoints = SUN4I_DMA_CFG_DST_DRQ_TYPE(vchan->endpoint) |
+			    SUN4I_DMA_CFG_DST_ADDR_MODE(io_mode) |
+			    SUN4I_DMA_CFG_SRC_DRQ_TYPE(ram_type) |
+			    SUN4I_DMA_CFG_SRC_ADDR_MODE(linear_mode);
 	} else {
 		src = sconfig->src_addr;
 		dest = buf;
-		endpoints = SUN4I_DMA_CFG_SRC_DRQ_TYPE(vchan->endpoint) |
-			    SUN4I_DMA_CFG_SRC_ADDR_MODE(SUN4I_NDMA_ADDR_MODE_IO) |
-			    SUN4I_DMA_CFG_DST_DRQ_TYPE(SUN4I_NDMA_DRQ_TYPE_SDRAM);
+		endpoints = SUN4I_DMA_CFG_DST_DRQ_TYPE(ram_type) |
+			    SUN4I_DMA_CFG_DST_ADDR_MODE(linear_mode) |
+			    SUN4I_DMA_CFG_SRC_DRQ_TYPE(vchan->endpoint) |
+			    SUN4I_DMA_CFG_SRC_ADDR_MODE(io_mode);
 	}
 
 	/*
@@ -739,20 +746,34 @@ sun4i_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf, size_t len,
 	 *
 	 * Which requires half the engine programming for the same
 	 * functionality.
+	 *
+	 * This only works if two periods fit in a single promise. That will
+	 * always be the case for dedicated DMA, where the hardware has a much
+	 * larger maximum transfer size than advertised to clients.
 	 */
-	nr_periods = DIV_ROUND_UP(len / period_len, 2);
+	if (vchan->is_dedicated || period_len <= SUN4I_NDMA_MAX_SEG_SIZE / 2) {
+		period_len *= 2;
+		contract->use_half_int = 1;
+	}
+
+	nr_periods = DIV_ROUND_UP(len, period_len);
 	for (i = 0; i < nr_periods; i++) {
 		/* Calculate the offset in the buffer and the length needed */
-		offset = i * period_len * 2;
-		plength = min((len - offset), (period_len * 2));
+		offset = i * period_len;
+		plength = min((len - offset), period_len);
 		if (dir == DMA_MEM_TO_DEV)
 			src = buf + offset;
 		else
 			dest = buf + offset;
 
 		/* Make the promise */
-		promise = generate_ndma_promise(chan, src, dest,
-						plength, sconfig, dir);
+		if (vchan->is_dedicated)
+			promise = generate_ddma_promise(chan, src, dest,
+							plength, sconfig);
+		else
+			promise = generate_ndma_promise(chan, src, dest,
+							plength, sconfig, dir);
+
 		if (!promise) {
 			/* TODO: should we free everything? */
 			return NULL;
@@ -889,11 +910,12 @@ static int sun4i_dma_terminate_all(struct dma_chan *chan)
 	}
 
 	spin_lock_irqsave(&vchan->vc.lock, flags);
-	vchan_dma_desc_free_list(&vchan->vc, &head);
 	/* Clear these so the vchan is usable again */
 	vchan->processing = NULL;
 	vchan->pchan = NULL;
 	spin_unlock_irqrestore(&vchan->vc.lock, flags);
+
+	vchan_dma_desc_free_list(&vchan->vc, &head);
 
 	return 0;
 }
@@ -1040,9 +1062,8 @@ handle_pending:
 			 * Move the promise into the completed list now that
 			 * we're done with it
 			 */
-			list_del(&vchan->processing->list);
-			list_add_tail(&vchan->processing->list,
-				      &contract->completed_demands);
+			list_move_tail(&vchan->processing->list,
+				       &contract->completed_demands);
 
 			/*
 			 * Cyclic DMA transfers are special:
@@ -1136,10 +1157,8 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	priv->irq = platform_get_irq(pdev, 0);
-	if (priv->irq < 0) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+	if (priv->irq < 0)
 		return priv->irq;
-	}
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -1149,6 +1168,8 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 	spin_lock_init(&priv->lock);
+
+	dma_set_max_seg_size(&pdev->dev, SUN4I_DMA_MAX_SEG_SIZE);
 
 	dma_cap_zero(priv->slave.cap_mask);
 	dma_cap_set(DMA_PRIVATE, priv->slave.cap_mask);

@@ -1,49 +1,5 @@
-/*
-  This file is provided under a dual BSD/GPLv2 license.  When using or
-  redistributing this file, you may do so under either license.
-
-  GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  Contact Information:
-  qat-linux@intel.com
-
-  BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
-      the documentation and/or other materials provided with the
-      distribution.
-    * Neither the name of Intel Corporation nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+// SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+/* Copyright(c) 2014 - 2020 Intel Corporation */
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "adf_accel_devices.h"
@@ -52,6 +8,7 @@
 #include "adf_transport_access_macros.h"
 #include "adf_cfg.h"
 #include "adf_cfg_strings.h"
+#include "adf_gen2_hw_data.h"
 #include "qat_crypto.h"
 #include "icp_qat_fw.h"
 
@@ -149,6 +106,30 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 }
 
 /**
+ * qat_crypto_vf_dev_config()
+ *     create dev config required to create crypto inst.
+ *
+ * @accel_dev: Pointer to acceleration device.
+ *
+ * Function creates device configuration required to create
+ * asym, sym or, crypto instances
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int qat_crypto_vf_dev_config(struct adf_accel_dev *accel_dev)
+{
+	u16 ring_to_svc_map = GET_HW_DATA(accel_dev)->ring_to_svc_map;
+
+	if (ring_to_svc_map != ADF_GEN2_DEFAULT_RING_TO_SRV_MAP) {
+		dev_err(&GET_DEV(accel_dev),
+			"Unsupported ring/service mapping present on PF");
+		return -EFAULT;
+	}
+
+	return qat_crypto_dev_config(accel_dev);
+}
+
+/**
  * qat_crypto_dev_config() - create dev config required to create crypto inst.
  *
  * @accel_dev: Pointer to acceleration device.
@@ -159,166 +140,220 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
  */
 int qat_crypto_dev_config(struct adf_accel_dev *accel_dev)
 {
-	int cpus = num_online_cpus();
-	int banks = GET_MAX_BANKS(accel_dev);
-	int instances = min(cpus, banks);
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
-	int i;
+	int banks = GET_MAX_BANKS(accel_dev);
+	int cpus = num_online_cpus();
 	unsigned long val;
+	int instances;
+	int ret;
+	int i;
 
-	if (adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC))
+	if (adf_hw_dev_has_crypto(accel_dev))
+		instances = min(cpus, banks);
+	else
+		instances = 0;
+
+	ret = adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC);
+	if (ret)
 		goto err;
-	if (adf_cfg_section_add(accel_dev, "Accelerator0"))
+
+	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
+	if (ret)
 		goto err;
+
 	for (i = 0; i < instances; i++) {
 		val = i;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_BANK_NUM, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_BANK_NUM, i);
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
+			goto err;
+
+		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_BANK_NUM, i);
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_ETRMGR_CORE_AFFINITY,
 			 i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_SIZE, i);
 		val = 128;
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		val = 512;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_SIZE, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		val = 0;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		val = 2;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_TX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		val = 8;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		val = 10;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_RX, i);
-		if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 
 		val = ADF_COALESCING_DEF_TIME;
 		snprintf(key, sizeof(key), ADF_ETRMGR_COALESCE_TIMER_FORMAT, i);
-		if (adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
-						key, (void *)&val, ADF_DEC))
+		ret = adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
+						  key, &val, ADF_DEC);
+		if (ret)
 			goto err;
 	}
 
 	val = i;
-	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-					ADF_NUM_CY, (void *)&val, ADF_DEC))
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
+					  &val, ADF_DEC);
+	if (ret)
 		goto err;
 
 	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 	return 0;
 err:
 	dev_err(&GET_DEV(accel_dev), "Failed to start QAT accel dev\n");
-	return -EINVAL;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(qat_crypto_dev_config);
 
 static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 {
-	int i;
-	unsigned long bank;
 	unsigned long num_inst, num_msg_sym, num_msg_asym;
-	int msg_size;
-	struct qat_crypto_instance *inst;
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	char val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
+	unsigned long sym_bank, asym_bank;
+	struct qat_crypto_instance *inst;
+	int msg_size;
+	int ret;
+	int i;
 
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
-	strlcpy(key, ADF_NUM_CY, sizeof(key));
-	if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
-		return -EFAULT;
+	ret = adf_cfg_get_param_value(accel_dev, SEC, ADF_NUM_CY, val);
+	if (ret)
+		return ret;
 
-	if (kstrtoul(val, 0, &num_inst))
-		return -EFAULT;
+	ret = kstrtoul(val, 0, &num_inst);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < num_inst; i++) {
 		inst = kzalloc_node(sizeof(*inst), GFP_KERNEL,
 				    dev_to_node(&GET_DEV(accel_dev)));
-		if (!inst)
+		if (!inst) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		list_add_tail(&inst->list, &accel_dev->crypto_list);
 		inst->id = i;
 		atomic_set(&inst->refctr, 0);
 		inst->accel_dev = accel_dev;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_BANK_NUM, i);
-		if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
+
+		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_BANK_NUM, i);
+		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
+		if (ret)
 			goto err;
 
-		if (kstrtoul(val, 10, &bank))
+		ret = kstrtoul(val, 10, &sym_bank);
+		if (ret)
 			goto err;
+
+		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_BANK_NUM, i);
+		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
+		if (ret)
+			goto err;
+
+		ret = kstrtoul(val, 10, &asym_bank);
+		if (ret)
+			goto err;
+
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_SIZE, i);
-		if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
+		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
+		if (ret)
 			goto err;
 
-		if (kstrtoul(val, 10, &num_msg_sym))
+		ret = kstrtoul(val, 10, &num_msg_sym);
+		if (ret)
 			goto err;
 
 		num_msg_sym = num_msg_sym >> 1;
 
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_SIZE, i);
-		if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
+		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
+		if (ret)
 			goto err;
 
-		if (kstrtoul(val, 10, &num_msg_asym))
+		ret = kstrtoul(val, 10, &num_msg_asym);
+		if (ret)
 			goto err;
 		num_msg_asym = num_msg_asym >> 1;
 
 		msg_size = ICP_QAT_FW_REQ_DEFAULT_SZ;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_TX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_sym,
-				    msg_size, key, NULL, 0, &inst->sym_tx))
+		ret = adf_create_ring(accel_dev, SEC, sym_bank, num_msg_sym,
+				      msg_size, key, NULL, 0, &inst->sym_tx);
+		if (ret)
 			goto err;
 
 		msg_size = msg_size >> 1;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
-				    msg_size, key, NULL, 0, &inst->pke_tx))
+		ret = adf_create_ring(accel_dev, SEC, asym_bank, num_msg_asym,
+				      msg_size, key, NULL, 0, &inst->pke_tx);
+		if (ret)
 			goto err;
 
 		msg_size = ICP_QAT_FW_RESP_DEFAULT_SZ;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_RX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_sym,
-				    msg_size, key, qat_alg_callback, 0,
-				    &inst->sym_rx))
+		ret = adf_create_ring(accel_dev, SEC, sym_bank, num_msg_sym,
+				      msg_size, key, qat_alg_callback, 0,
+				      &inst->sym_rx);
+		if (ret)
 			goto err;
 
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
-				    msg_size, key, qat_alg_asym_callback, 0,
-				    &inst->pke_rx))
+		ret = adf_create_ring(accel_dev, SEC, asym_bank, num_msg_asym,
+				      msg_size, key, qat_alg_asym_callback, 0,
+				      &inst->pke_rx);
+		if (ret)
 			goto err;
+
+		INIT_LIST_HEAD(&inst->backlog.list);
+		spin_lock_init(&inst->backlog.lock);
 	}
 	return 0;
 err:
 	qat_crypto_free_instances(accel_dev);
-	return -ENOMEM;
+	return ret;
 }
 
 static int qat_crypto_init(struct adf_accel_dev *accel_dev)

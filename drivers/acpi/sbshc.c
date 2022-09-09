@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SMBus driver for ACPI Embedded Controller (v0.1)
  *
  * Copyright (c) 2007 Alexey Starikovskiy
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2.
  */
+
+#define pr_fmt(fmt) "ACPI: " fmt
 
 #include <linux/acpi.h>
 #include <linux/wait.h>
@@ -15,8 +14,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include "sbshc.h"
-
-#define PREFIX "ACPI: "
 
 #define ACPI_SMB_HC_CLASS	"smbus_host_ctl"
 #define ACPI_SMB_HC_DEVICE_NAME	"ACPI SMBus HC"
@@ -112,7 +109,7 @@ static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
 	u8 temp, sz = 0;
 
 	if (!hc) {
-		printk(KERN_ERR PREFIX "host controller is not configured\n");
+		pr_err("host controller is not configured\n");
 		return ret;
 	}
 
@@ -179,7 +176,7 @@ int acpi_smbus_write(struct acpi_smb_hc *hc, u8 protocol, u8 address,
 EXPORT_SYMBOL_GPL(acpi_smbus_write);
 
 int acpi_smbus_register_callback(struct acpi_smb_hc *hc,
-			         smbus_alarm_callback callback, void *context)
+				 smbus_alarm_callback callback, void *context)
 {
 	mutex_lock(&hc->lock);
 	hc->callback = callback;
@@ -234,7 +231,6 @@ static int smbus_alarm(void *context)
 		case ACPI_SBS_BATTERY:
 			acpi_os_execute(OSL_NOTIFY_HANDLER,
 					acpi_smbus_callback, hc);
-		default:;
 	}
 	mutex_unlock(&hc->lock);
 	return 0;
@@ -257,7 +253,7 @@ static int acpi_smbus_hc_add(struct acpi_device *device)
 
 	status = acpi_evaluate_integer(device->handle, "_EC", NULL, &val);
 	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX "error obtaining _EC.\n");
+		pr_err("error obtaining _EC.\n");
 		return -EIO;
 	}
 

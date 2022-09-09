@@ -27,29 +27,32 @@
 #include <linux/hashtable.h>
 
 struct dma_fence;
-struct reservation_object;
+struct dma_resv;
 struct amdgpu_device;
 struct amdgpu_ring;
+
+enum amdgpu_sync_mode {
+	AMDGPU_SYNC_ALWAYS,
+	AMDGPU_SYNC_NE_OWNER,
+	AMDGPU_SYNC_EQ_OWNER,
+	AMDGPU_SYNC_EXPLICIT
+};
 
 /*
  * Container for fences used to sync command submissions.
  */
 struct amdgpu_sync {
 	DECLARE_HASHTABLE(fences, 4);
-	struct dma_fence	*last_vm_update;
 };
 
 void amdgpu_sync_create(struct amdgpu_sync *sync);
-int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-		      struct dma_fence *f, bool explicit);
-int amdgpu_sync_resv(struct amdgpu_device *adev,
-		     struct amdgpu_sync *sync,
-		     struct reservation_object *resv,
-		     void *owner,
-		     bool explicit_sync);
+int amdgpu_sync_fence(struct amdgpu_sync *sync, struct dma_fence *f);
+int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+		     struct dma_resv *resv, enum amdgpu_sync_mode mode,
+		     void *owner);
 struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 				     struct amdgpu_ring *ring);
-struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync, bool *explicit);
+struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
 int amdgpu_sync_clone(struct amdgpu_sync *source, struct amdgpu_sync *clone);
 int amdgpu_sync_wait(struct amdgpu_sync *sync, bool intr);
 void amdgpu_sync_free(struct amdgpu_sync *sync);

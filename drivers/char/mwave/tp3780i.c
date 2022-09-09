@@ -177,14 +177,10 @@ int tp3780I_InitializeBoardData(THINKPAD_BD_DATA * pBDData)
 	return retval;
 }
 
-int tp3780I_Cleanup(THINKPAD_BD_DATA * pBDData)
+void tp3780I_Cleanup(THINKPAD_BD_DATA *pBDData)
 {
-	int retval = 0;
-
 	PRINTK_2(TRACE_TP3780I,
 		"tp3780i::tp3780I_Cleanup entry and exit pBDData %p\n", pBDData);
-
-	return retval;
 }
 
 int tp3780I_CalcResources(THINKPAD_BD_DATA * pBDData)
@@ -474,8 +470,6 @@ int tp3780I_StartDSP(THINKPAD_BD_DATA * pBDData)
 
 int tp3780I_QueryAbilities(THINKPAD_BD_DATA * pBDData, MW_ABILITIES * pAbilities)
 {
-	int retval = 0;
-
 	PRINTK_2(TRACE_TP3780I,
 		"tp3780i::tp3780I_QueryAbilities entry pBDData %p\n", pBDData);
 
@@ -506,7 +500,7 @@ int tp3780I_QueryAbilities(THINKPAD_BD_DATA * pBDData, MW_ABILITIES * pAbilities
 	PRINTK_1(TRACE_TP3780I,
 		"tp3780i::tp3780I_QueryAbilities exit retval=SUCCESSFUL\n");
 
-	return retval;
+	return 0;
 }
 
 int tp3780I_ReadWriteDspDStore(THINKPAD_BD_DATA * pBDData, unsigned int uOpcode,

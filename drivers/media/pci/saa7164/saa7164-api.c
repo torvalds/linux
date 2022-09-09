@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include <linux/wait.h>
@@ -749,7 +739,7 @@ int saa7164_api_initialize_dif(struct saa7164_port *port)
 	if (port->type == SAA7164_MPEG_ENCODER) {
 		/* Pick any analog standard to init the diff.
 		 * we'll come back during encoder_init'
-		 * and set the correct standard if requried.
+		 * and set the correct standard if required.
 		 */
 		std = V4L2_STD_NTSC;
 	} else
@@ -811,7 +801,7 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 	if (buflen < 128)
 		return -ENOMEM;
 
-	/* Assumption: Hauppauge eeprom is at 0xa0 on on bus 0 */
+	/* Assumption: Hauppauge eeprom is at 0xa0 on bus 0 */
 	/* TODO: Pull the details from the boards struct */
 	return saa7164_api_i2c_read(&dev->i2c_bus[0], 0xa0 >> 1, sizeof(reg),
 		&reg[0], 128, buf);
@@ -1067,8 +1057,6 @@ static int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 			dprintk(DBGLVL_API, "  numformats   = 0x%x\n",
 				vcoutputtermhdr->numformats);
 
-			t = (struct tmComResDescrHeader *)
-				((struct tmComResDMATermDescrHeader *)(buf + idx));
 			next_offset = idx + (vcoutputtermhdr->len);
 			for (i = 0; i < vcoutputtermhdr->numformats; i++) {
 				t = (struct tmComResDescrHeader *)

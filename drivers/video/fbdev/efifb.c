@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/screen_info.h>
+#include <linux/pm_runtime.h>
 #include <video/vga.h>
 #include <asm/efi.h>
 #include <drm/drm_utils.h> /* For drm_get_panel_orientation_quirk */
@@ -45,6 +46,8 @@ struct bmp_dib_header {
 static bool use_bgrt = true;
 static bool request_mem_succeeded = false;
 static u64 mem_flags = EFI_MEMORY_WC | EFI_MEMORY_UC;
+
+static struct pci_dev *efifb_pci_dev;	/* dev with BAR covering the efifb */
 
 static struct fb_var_screeninfo efifb_defined = {
 	.activate		= FB_ACTIVATE_NOW,
@@ -122,28 +125,13 @@ static void efifb_copy_bmp(u8 *src, u32 *dst, int width, struct screen_info *si)
  */
 static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
 {
-	static const int default_resolutions[][2] = {
-		{  800,  600 },
-		{ 1024,  768 },
-		{ 1280, 1024 },
-	};
-	u32 i, right_margin;
+	/*
+	 * All x86 firmwares horizontally center the image (the yoffset
+	 * calculations differ between boards, but xoffset is predictable).
+	 */
+	u32 expected_xoffset = (si->lfb_width - bmp_width) / 2;
 
-	for (i = 0; i < ARRAY_SIZE(default_resolutions); i++) {
-		if (default_resolutions[i][0] == si->lfb_width &&
-		    default_resolutions[i][1] == si->lfb_height)
-			break;
-	}
-	/* If not a default resolution used for textmode, this should be fine */
-	if (i >= ARRAY_SIZE(default_resolutions))
-		return true;
-
-	/* If the right margin is 5 times smaller then the left one, reject */
-	right_margin = si->lfb_width - (bgrt_tab.image_offset_x + bmp_width);
-	if (right_margin < (bgrt_tab.image_offset_x / 5))
-		return false;
-
-	return true;
+	return bgrt_tab.image_offset_x == expected_xoffset;
 }
 #else
 static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
@@ -154,7 +142,7 @@ static bool efifb_bgrt_sanity_check(struct screen_info *si, u32 bmp_width)
 
 static void efifb_show_boot_graphics(struct fb_info *info)
 {
-	u32 bmp_width, bmp_height, bmp_pitch, screen_pitch, dst_x, y, src_y;
+	u32 bmp_width, bmp_height, bmp_pitch, dst_x, y, src_y;
 	struct screen_info *si = &screen_info;
 	struct bmp_file_header *file_header;
 	struct bmp_dib_header *dib_header;
@@ -166,6 +154,11 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 
 	if (!bgrt_tab.image_address) {
 		pr_info("efifb: No BGRT, not showing boot graphics\n");
+		return;
+	}
+
+	if (bgrt_tab.status & 0x06) {
+		pr_info("efifb: BGRT rotation bits set, not showing boot graphics\n");
 		return;
 	}
 
@@ -203,7 +196,6 @@ static void efifb_show_boot_graphics(struct fb_info *info)
 	bmp_width = dib_header->width;
 	bmp_height = abs(dib_header->height);
 	bmp_pitch = round_up(3 * bmp_width, 4);
-	screen_pitch = si->lfb_linelength;
 
 	if ((file_header->bitmap_offset + bmp_pitch * bmp_height) >
 				bgrt_image_size)
@@ -251,21 +243,31 @@ error:
 static inline void efifb_show_boot_graphics(struct fb_info *info) {}
 #endif
 
+/*
+ * fb_ops.fb_destroy is called by the last put_fb_info() call at the end
+ * of unregister_framebuffer() or fb_release(). Do any cleanup here.
+ */
 static void efifb_destroy(struct fb_info *info)
 {
+	if (efifb_pci_dev)
+		pm_runtime_put(&efifb_pci_dev->dev);
+
 	if (info->screen_base) {
 		if (mem_flags & (EFI_MEMORY_UC | EFI_MEMORY_WC))
 			iounmap(info->screen_base);
 		else
 			memunmap(info->screen_base);
 	}
+
 	if (request_mem_succeeded)
 		release_mem_region(info->apertures->ranges[0].base,
 				   info->apertures->ranges[0].size);
 	fb_dealloc_cmap(&info->cmap);
+
+	framebuffer_release(info);
 }
 
-static struct fb_ops efifb_ops = {
+static const struct fb_ops efifb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_destroy	= efifb_destroy,
 	.fb_setcolreg	= efifb_setcolreg,
@@ -343,7 +345,6 @@ ATTRIBUTE_GROUPS(efifb);
 
 static bool pci_dev_disabled;	/* FB base matches BAR of a disabled device */
 
-static struct pci_dev *efifb_pci_dev;	/* dev with BAR covering the efifb */
 static struct resource *bar_resource;
 static u64 bar_offset;
 
@@ -448,7 +449,6 @@ static int efifb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (!info) {
-		pr_err("efifb: cannot allocate framebuffer\n");
 		err = -ENOMEM;
 		goto err_release_mem;
 	}
@@ -464,7 +464,8 @@ static int efifb_probe(struct platform_device *dev)
 	info->apertures->ranges[0].base = efifb_fix.smem_start;
 	info->apertures->ranges[0].size = size_remap;
 
-	if (!efi_mem_desc_lookup(efifb_fix.smem_start, &md)) {
+	if (efi_enabled(EFI_MEMMAP) &&
+	    !efi_mem_desc_lookup(efifb_fix.smem_start, &md)) {
 		if ((efifb_fix.smem_start + efifb_fix.smem_len) >
 		    (md.phys_addr + (md.num_pages << EFI_PAGE_SHIFT))) {
 			pr_err("efifb: video memory @ 0x%lx spans multiple EFI memory regions\n",
@@ -476,8 +477,12 @@ static int efifb_probe(struct platform_device *dev)
 		 * If the UEFI memory map covers the efifb region, we may only
 		 * remap it using the attributes the memory map prescribes.
 		 */
-		mem_flags |= EFI_MEMORY_WT | EFI_MEMORY_WB;
-		mem_flags &= md.attribute;
+		md.attribute &= EFI_MEMORY_UC | EFI_MEMORY_WC |
+				EFI_MEMORY_WT | EFI_MEMORY_WB;
+		if (md.attribute) {
+			mem_flags |= EFI_MEMORY_WT | EFI_MEMORY_WB;
+			mem_flags &= md.attribute;
+		}
 	}
 	if (mem_flags & EFI_MEMORY_WC)
 		info->screen_base = ioremap_wc(efifb_fix.smem_start,
@@ -575,15 +580,22 @@ static int efifb_probe(struct platform_device *dev)
 		pr_err("efifb: cannot allocate colormap\n");
 		goto err_groups;
 	}
+
+	if (efifb_pci_dev)
+		WARN_ON(pm_runtime_get_sync(&efifb_pci_dev->dev) < 0);
+
 	err = register_framebuffer(info);
 	if (err < 0) {
 		pr_err("efifb: cannot register framebuffer\n");
-		goto err_fb_dealoc;
+		goto err_put_rpm_ref;
 	}
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	return 0;
 
-err_fb_dealoc:
+err_put_rpm_ref:
+	if (efifb_pci_dev)
+		pm_runtime_put(&efifb_pci_dev->dev);
+
 	fb_dealloc_cmap(&info->cmap);
 err_groups:
 	sysfs_remove_groups(&dev->dev.kobj, efifb_groups);
@@ -604,9 +616,9 @@ static int efifb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 
+	/* efifb_destroy takes care of info cleanup */
 	unregister_framebuffer(info);
 	sysfs_remove_groups(&pdev->dev.kobj, efifb_groups);
-	framebuffer_release(info);
 
 	return 0;
 }
@@ -659,7 +671,7 @@ static void efifb_fixup_resources(struct pci_dev *dev)
 	if (!base)
 		return;
 
-	for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		struct resource *res = &dev->resource[i];
 
 		if (!(res->flags & IORESOURCE_MEM))

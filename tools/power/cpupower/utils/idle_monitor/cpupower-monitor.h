@@ -1,8 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
- *
- *  Licensed under the terms of the GNU GPL License version 2.
- *
  */
 
 #ifndef __CPUIDLE_INFO_HW__
@@ -27,7 +25,7 @@
 #endif
 #define CSTATE_DESC_LEN 60
 
-int cpu_count;
+extern int cpu_count;
 
 /* Hard to define the right names ...: */
 enum power_range_e {
@@ -62,7 +60,10 @@ struct cpuidle_monitor {
 	struct cpuidle_monitor* (*do_register) (void);
 	void (*unregister)(void);
 	unsigned int overflow_s;
-	int needs_root;
+	struct {
+		unsigned int needs_root:1;
+		unsigned int per_cpu_schedule:1;
+	} flags;
 };
 
 extern long long timespec_diff_us(struct timespec start, struct timespec end);

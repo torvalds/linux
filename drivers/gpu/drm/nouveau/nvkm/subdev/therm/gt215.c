@@ -36,7 +36,7 @@ gt215_therm_fan_sense(struct nvkm_therm *therm)
 	return -ENODEV;
 }
 
-void
+static void
 gt215_therm_init(struct nvkm_therm *therm)
 {
 	struct nvkm_device *device = therm->subdev.device;
@@ -68,8 +68,8 @@ gt215_therm = {
 };
 
 int
-gt215_therm_new(struct nvkm_device *device, int index,
-	       struct nvkm_therm **ptherm)
+gt215_therm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		struct nvkm_therm **ptherm)
 {
-	return nvkm_therm_new_(&gt215_therm, device, index, ptherm);
+	return nvkm_therm_new_(&gt215_therm, device, type, inst, ptherm);
 }

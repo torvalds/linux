@@ -2,14 +2,13 @@
 
 #include "vmcs12.h"
 
-#define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
 #define VMCS12_OFFSET(x) offsetof(struct vmcs12, x)
 #define FIELD(number, name)	[ROL16(number, 6)] = VMCS12_OFFSET(name)
 #define FIELD64(number, name)						\
 	FIELD(number, name),						\
 	[ROL16(number##_HIGH, 6)] = VMCS12_OFFSET(name) + sizeof(u32)
 
-const unsigned short vmcs_field_to_offset_table[] = {
+const unsigned short vmcs12_field_offsets[] = {
 	FIELD(VIRTUAL_PROCESSOR_ID, virtual_processor_id),
 	FIELD(POSTED_INTR_NV, posted_intr_nv),
 	FIELD(GUEST_ES_SELECTOR, guest_es_selector),
@@ -37,6 +36,7 @@ const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(VM_ENTRY_MSR_LOAD_ADDR, vm_entry_msr_load_addr),
 	FIELD64(PML_ADDRESS, pml_address),
 	FIELD64(TSC_OFFSET, tsc_offset),
+	FIELD64(TSC_MULTIPLIER, tsc_multiplier),
 	FIELD64(VIRTUAL_APIC_PAGE_ADDR, virtual_apic_page_addr),
 	FIELD64(APIC_ACCESS_ADDR, apic_access_addr),
 	FIELD64(POSTED_INTR_DESC_ADDR, posted_intr_desc_addr),
@@ -50,6 +50,7 @@ const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(VMREAD_BITMAP, vmread_bitmap),
 	FIELD64(VMWRITE_BITMAP, vmwrite_bitmap),
 	FIELD64(XSS_EXIT_BITMAP, xss_exit_bitmap),
+	FIELD64(ENCLS_EXITING_BITMAP, encls_exiting_bitmap),
 	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
 	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
 	FIELD64(GUEST_IA32_DEBUGCTL, guest_ia32_debugctl),
@@ -115,10 +116,6 @@ const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD(CR4_GUEST_HOST_MASK, cr4_guest_host_mask),
 	FIELD(CR0_READ_SHADOW, cr0_read_shadow),
 	FIELD(CR4_READ_SHADOW, cr4_read_shadow),
-	FIELD(CR3_TARGET_VALUE0, cr3_target_value0),
-	FIELD(CR3_TARGET_VALUE1, cr3_target_value1),
-	FIELD(CR3_TARGET_VALUE2, cr3_target_value2),
-	FIELD(CR3_TARGET_VALUE3, cr3_target_value3),
 	FIELD(EXIT_QUALIFICATION, exit_qualification),
 	FIELD(GUEST_LINEAR_ADDRESS, guest_linear_address),
 	FIELD(GUEST_CR0, guest_cr0),
@@ -154,4 +151,4 @@ const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD(HOST_RSP, host_rsp),
 	FIELD(HOST_RIP, host_rip),
 };
-const unsigned int nr_vmcs12_fields = ARRAY_SIZE(vmcs_field_to_offset_table);
+const unsigned int nr_vmcs12_fields = ARRAY_SIZE(vmcs12_field_offsets);

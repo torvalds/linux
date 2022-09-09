@@ -77,7 +77,7 @@ save_registers:
 	pushfl
 	popl saved_context_eflags
 
-	ret
+	RET
 
 restore_registers:
 	movl saved_context_ebp, %ebp
@@ -88,9 +88,9 @@ restore_registers:
 	pushl saved_context_eflags
 	popfl
 
-	ret
+	RET
 
-ENTRY(do_olpc_suspend_lowlevel)
+SYM_CODE_START(do_olpc_suspend_lowlevel)
 	call	save_processor_state
 	call	save_registers
 
@@ -109,7 +109,8 @@ ret_point:
 
 	call	restore_registers
 	call	restore_processor_state
-	ret
+	RET
+SYM_CODE_END(do_olpc_suspend_lowlevel)
 
 .data
 saved_gdt:             .long   0,0

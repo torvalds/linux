@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-h2.c
  *
@@ -13,12 +14,9 @@
  *
  * H2 specific changes and cleanup
  * Copyright (C) 2004 Nokia Corporation by Imre Deak <imre.deak@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -30,24 +28,25 @@
 #include <linux/mfd/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
+#include <linux/omap-dma.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/keypad-omap.h>
 #include <linux/leds.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <linux/omap-dma.h>
-#include <mach/tc.h>
-#include <linux/platform_data/keypad-omap.h>
+#include "tc.h"
+#include "mux.h"
 #include "flash.h"
-
-#include <mach/hardware.h>
-#include <mach/usb.h>
-
+#include "hardware.h"
+#include "usb.h"
 #include "common.h"
 #include "board-h2.h"
+
+/* The first 16 SoC GPIO lines are on this GPIO chip */
+#define OMAP_GPIO_LABEL			"gpio-0-15"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300
@@ -319,7 +318,7 @@ static int tps_setup(struct i2c_client *client, void *context)
 {
 	if (!IS_BUILTIN(CONFIG_TPS65010))
 		return -ENOSYS;
-	
+
 	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V |
 				TPS_LDO1_ENABLE | TPS_VLDO1_3_0V);
 
@@ -337,7 +336,19 @@ static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 		I2C_BOARD_INFO("tps65010", 0x48),
 		.platform_data	= &tps_board,
 	}, {
-		I2C_BOARD_INFO("isp1301_omap", 0x2d),
+		.type = "isp1301_omap",
+		.addr = 0x2d,
+		.dev_name = "isp1301",
+	},
+};
+
+static struct gpiod_lookup_table isp1301_gpiod_table = {
+	.dev_id = "isp1301",
+	.table = {
+		/* Active low since the irq triggers on falling edge */
+		GPIO_LOOKUP(OMAP_GPIO_LABEL, 2,
+			    NULL, GPIO_ACTIVE_LOW),
+		{ },
 	},
 };
 
@@ -381,6 +392,8 @@ static void __init h2_init(void)
 	BUG_ON(gpio_request(H2_NAND_RB_GPIO_PIN, "NAND ready") < 0);
 	gpio_direction_input(H2_NAND_RB_GPIO_PIN);
 
+	gpiod_add_lookup_table(&isp1301_gpiod_table);
+
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
 
@@ -409,8 +422,10 @@ static void __init h2_init(void)
 	h2_smc91x_resources[1].end = gpio_to_irq(0);
 	platform_add_devices(h2_devices, ARRAY_SIZE(h2_devices));
 	omap_serial_init();
+
+	/* ISP1301 IRQ wired at M14 */
+	omap_cfg_reg(M14_1510_GPIO2);
 	h2_i2c_board_info[0].irq = gpio_to_irq(58);
-	h2_i2c_board_info[1].irq = gpio_to_irq(2);
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
 	omap1_usb_init(&h2_usb_config);

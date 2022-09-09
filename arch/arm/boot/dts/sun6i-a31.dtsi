@@ -46,6 +46,7 @@
 #include <dt-bindings/thermal/thermal.h>
 
 #include <dt-bindings/clock/sun6i-a31-ccu.h>
+#include <dt-bindings/clock/sun6i-rtc.h>
 #include <dt-bindings/reset/sun6i-a31-ccu.h>
 
 / {
@@ -105,13 +106,12 @@
 			reg = <0>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 
@@ -121,13 +121,12 @@
 			reg = <1>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 
@@ -137,13 +136,12 @@
 			reg = <2>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 
@@ -153,19 +151,18 @@
 			reg = <3>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000	1200000
-				864000	1200000
-				720000	1100000
-				480000	1000000
-				>;
+				<1008000 1200000>,
+				<864000 1200000>,
+				<720000 1100000>,
+				<480000 1000000>;
 			#cooling-cells = <2>;
 		};
 	};
 
 	thermal-zones {
-		cpu_thermal {
+		cpu-thermal {
 			/* milliseconds */
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
@@ -216,13 +213,16 @@
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
+			clock-accuracy = <50000>;
+			clock-output-names = "osc24M";
 		};
 
 		osc32k: clk-32k {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32768>;
-			clock-output-names = "osc32k";
+			clock-accuracy = <50000>;
+			clock-output-names = "ext_osc32k";
 		};
 
 		/*
@@ -282,15 +282,21 @@
 			compatible = "allwinner,sun6i-a31-tcon";
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&ccu RST_AHB1_LCD0>;
-			reset-names = "lcd";
+			dmas = <&dma 11>;
+			resets = <&ccu RST_AHB1_LCD0>,
+				 <&ccu RST_AHB1_LVDS>;
+			reset-names = "lcd",
+				      "lvds";
 			clocks = <&ccu CLK_AHB1_LCD0>,
 				 <&ccu CLK_LCD0_CH0>,
-				 <&ccu CLK_LCD0_CH1>;
+				 <&ccu CLK_LCD0_CH1>,
+				 <&ccu 15>;
 			clock-names = "ahb",
 				      "tcon-ch0",
-				      "tcon-ch1";
+				      "tcon-ch1",
+				      "lvds-alt";
 			clock-output-names = "tcon0-pixel-clock";
+			#clock-cells = <0>;
 
 			ports {
 				#address-cells = <1>;
@@ -330,15 +336,20 @@
 			compatible = "allwinner,sun6i-a31-tcon";
 			reg = <0x01c0d000 0x1000>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&ccu RST_AHB1_LCD1>;
-			reset-names = "lcd";
+			dmas = <&dma 12>;
+			resets = <&ccu RST_AHB1_LCD1>,
+				 <&ccu RST_AHB1_LVDS>;
+			reset-names = "lcd", "lvds";
 			clocks = <&ccu CLK_AHB1_LCD1>,
 				 <&ccu CLK_LCD1_CH0>,
-				 <&ccu CLK_LCD1_CH1>;
+				 <&ccu CLK_LCD1_CH1>,
+				 <&ccu 15>;
 			clock-names = "ahb",
 				      "tcon-ch0",
-				      "tcon-ch1";
+				      "tcon-ch1",
+				      "lvds-alt";
 			clock-output-names = "tcon1-pixel-clock";
+			#clock-cells = <0>;
 
 			ports {
 				#address-cells = <1>;
@@ -464,7 +475,6 @@
 				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "ddc", "pll-0", "pll-1";
 			resets = <&ccu RST_AHB1_HDMI>;
-			reset-names = "ahb";
 			dma-names = "ddc-tx", "ddc-rx", "audio-tx";
 			dmas = <&dma 13>, <&dma 13>, <&dma 14>;
 			status = "disabled";
@@ -490,8 +500,6 @@
 				};
 
 				hdmi_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 				};
 			};
@@ -507,6 +515,7 @@
 			phys = <&usbphy 0>;
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
@@ -590,7 +599,7 @@
 		ccu: clock@1c20000 {
 			compatible = "allwinner,sun6i-a31-ccu";
 			reg = <0x01c20000 0x400>;
-			clocks = <&osc24M>, <&osc32k>;
+			clocks = <&osc24M>, <&rtc CLK_OSC32K>;
 			clock-names = "hosc", "losc";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -599,11 +608,13 @@
 		pio: pinctrl@1c20800 {
 			compatible = "allwinner,sun6i-a31-pinctrl";
 			reg = <0x01c20800 0x400>;
+			interrupt-parent = <&r_intc>;
 			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_APB1_PIO>, <&osc24M>, <&osc32k>;
+			clocks = <&ccu CLK_APB1_PIO>, <&osc24M>,
+				 <&rtc CLK_OSC32K>;
 			clock-names = "apb", "hosc", "losc";
 			gpio-controller;
 			interrupt-controller;
@@ -736,13 +747,16 @@
 				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&osc24M>;
 		};
 
 		wdt1: watchdog@1c20ca0 {
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x01c20ca0 0x20>;
+			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&osc24M>;
 		};
 
 		spdif: spdif@1c21000 {
@@ -787,6 +801,7 @@
 		lradc: lradc@1c22800 {
 			compatible = "allwinner,sun4i-a10-lradc-keys";
 			reg = <0x01c22800 0x100>;
+			interrupt-parent = <&r_intc>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
@@ -939,8 +954,12 @@
 			snps,fixed-burst;
 			snps,force_sf_dma_mode;
 			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
+
+			mdio: mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		crypto: crypto-engine@1c15000 {
@@ -989,6 +1008,8 @@
 			dma-names = "rx", "tx";
 			resets = <&ccu RST_AHB1_SPI0>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi1: spi@1c69000 {
@@ -1001,6 +1022,8 @@
 			dma-names = "rx", "tx";
 			resets = <&ccu RST_AHB1_SPI1>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi2: spi@1c6a000 {
@@ -1013,6 +1036,8 @@
 			dma-names = "rx", "tx";
 			resets = <&ccu RST_AHB1_SPI2>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi3: spi@1c6b000 {
@@ -1025,10 +1050,12 @@
 			dma-names = "rx", "tx";
 			resets = <&ccu RST_AHB1_SPI3>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		gic: interrupt-controller@1c81000 {
-			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
+			compatible = "arm,gic-400";
 			reg = <0x01c81000 0x1000>,
 			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
@@ -1112,9 +1139,6 @@
 				      "ram";
 			resets = <&ccu RST_AHB1_BE1>;
 
-			assigned-clocks = <&ccu CLK_BE1>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1157,9 +1181,6 @@
 			clock-names = "ahb", "mod",
 				      "ram";
 			resets = <&ccu RST_AHB1_DRC1>;
-
-			assigned-clocks = <&ccu CLK_IEP_DRC1>;
-			assigned-clock-rates = <300000000>;
 
 			ports {
 				#address-cells = <1>;
@@ -1204,9 +1225,6 @@
 				      "ram";
 			resets = <&ccu RST_AHB1_BE0>;
 
-			assigned-clocks = <&ccu CLK_BE0>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1228,12 +1246,9 @@
 				};
 
 				be0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					be0_out_drc0: endpoint@0 {
-						reg = <0>;
+					be0_out_drc0: endpoint {
 						remote-endpoint = <&drc0_in_be0>;
 					};
 				};
@@ -1250,20 +1265,14 @@
 				      "ram";
 			resets = <&ccu RST_AHB1_DRC0>;
 
-			assigned-clocks = <&ccu CLK_IEP_DRC0>;
-			assigned-clock-rates = <300000000>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				drc0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					drc0_in_be0: endpoint@0 {
-						reg = <0>;
+					drc0_in_be0: endpoint {
 						remote-endpoint = <&be0_out_drc0>;
 					};
 				};
@@ -1287,16 +1296,20 @@
 		};
 
 		rtc: rtc@1f00000 {
+			#clock-cells = <1>;
 			compatible = "allwinner,sun6i-a31-rtc";
 			reg = <0x01f00000 0x54>;
+			interrupt-parent = <&r_intc>;
 			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&osc32k>;
+			clock-output-names = "osc32k";
 		};
 
-		nmi_intc: interrupt-controller@1f00c00 {
+		r_intc: interrupt-controller@1f00c00 {
 			compatible = "allwinner,sun6i-a31-r-intc";
 			interrupt-controller;
-			#interrupt-cells = <2>;
+			#interrupt-cells = <3>;
 			reg = <0x01f00c00 0x400>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
@@ -1308,7 +1321,7 @@
 			ar100: ar100_clk {
 				compatible = "allwinner,sun6i-a31-ar100-clk";
 				#clock-cells = <0>;
-				clocks = <&osc32k>, <&osc24M>,
+				clocks = <&rtc CLK_OSC32K>, <&osc24M>,
 					 <&ccu CLK_PLL_PERIPH>,
 					 <&ccu CLK_PLL_PERIPH>;
 				clock-output-names = "ar100";
@@ -1343,7 +1356,7 @@
 			ir_clk: ir_clk {
 				#clock-cells = <0>;
 				compatible = "allwinner,sun4i-a10-mod0-clk";
-				clocks = <&osc32k>, <&osc24M>;
+				clocks = <&rtc CLK_OSC32K>, <&osc24M>;
 				clock-output-names = "ir";
 			};
 
@@ -1359,7 +1372,7 @@
 		};
 
 		ir: ir@1f02000 {
-			compatible = "allwinner,sun5i-a13-ir";
+			compatible = "allwinner,sun6i-a31-ir";
 			clocks = <&apb0_gates 1>, <&ir_clk>;
 			clock-names = "apb", "ir";
 			resets = <&apb0_rst 1>;
@@ -1371,15 +1384,14 @@
 		r_pio: pinctrl@1f02c00 {
 			compatible = "allwinner,sun6i-a31-r-pinctrl";
 			reg = <0x01f02c00 0x400>;
+			interrupt-parent = <&r_intc>;
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&apb0_gates 0>, <&osc24M>, <&osc32k>;
+			clocks = <&apb0_gates 0>, <&osc24M>, <&rtc CLK_OSC32K>;
 			clock-names = "apb", "hosc", "losc";
-			resets = <&apb0_rst 0>;
 			gpio-controller;
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			#size-cells = <0>;
 			#gpio-cells = <3>;
 
 			s_ir_rx_pin: s-ir-rx-pin {

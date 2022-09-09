@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SPCA501 chip based cameras initialization data
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -498,7 +488,7 @@ static const __u16 spca501_init_data[][3] = {
 
 /* Data for video camera init before capture.
  * Capture and decoding by Colin Peart.
- * This is is for the 3com HomeConnect Lite which is spca501a based.
+ * This is for the 3com HomeConnect Lite which is spca501a based.
  */
 static const __u16 spca501_3com_open_data[][3] = {
 	/* bmRequest,value,index */
@@ -574,7 +564,7 @@ static const __u16 spca501_3com_open_data[][3] = {
 	{0x0, 0x0001, 0x0010},	/* TG Start Clock */
 
 /*	{0x2, 0x006a, 0x0001},	 * C/S Enable ISOSYNCH Packet Engine */
-	{0x2, 0x0068, 0x0001},	/* C/S Diable ISOSYNCH Packet Engine */
+	{0x2, 0x0068, 0x0001},	/* C/S Disable ISOSYNCH Packet Engine */
 	{0x2, 0x0000, 0x0005},
 	{0x2, 0x0043, 0x0000},	/* C/S Set Timing Mode, Disable TG soft reset */
 	{0x2, 0x0043, 0x0000},	/* C/S Set Timing Mode, Disable TG soft reset */

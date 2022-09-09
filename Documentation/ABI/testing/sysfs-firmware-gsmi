@@ -20,7 +20,7 @@ Description:
 
 			This directory has the same layout (and
 			underlying implementation as /sys/firmware/efi/vars.
-			See Documentation/ABI/*/sysfs-firmware-efi-vars
+			See `Documentation/ABI/*/sysfs-firmware-efi-vars`
 			for more information on how to interact with
 			this structure.
 

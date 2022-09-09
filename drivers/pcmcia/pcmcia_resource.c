@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCMCIA 16-bit resource management functions
  *
@@ -7,11 +8,6 @@
  *
  * Copyright (C) 1999	     David A. Hinds
  * Copyright (C) 2004-2010   Dominik Brodowski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -148,7 +144,7 @@ static int alloc_io_space(struct pcmcia_socket *s, struct resource *res,
 }
 
 
-/**
+/*
  * pcmcia_access_config() - read or write card configuration registers
  *
  * pcmcia_access_config() reads and writes configuration registers in
@@ -188,7 +184,7 @@ static int pcmcia_access_config(struct pcmcia_device *p_dev,
 }
 
 
-/**
+/*
  * pcmcia_read_config_byte() - read a byte from a card configuration register
  *
  * pcmcia_read_config_byte() reads a byte from a configuration register in
@@ -201,7 +197,7 @@ int pcmcia_read_config_byte(struct pcmcia_device *p_dev, off_t where, u8 *val)
 EXPORT_SYMBOL(pcmcia_read_config_byte);
 
 
-/**
+/*
  * pcmcia_write_config_byte() - write a byte to a card configuration register
  *
  * pcmcia_write_config_byte() writes a byte to a configuration register in
@@ -394,10 +390,9 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
  * "stale", we don't bother checking the port ranges against the
  * current socket values.
  */
-static int pcmcia_release_io(struct pcmcia_device *p_dev)
+static void pcmcia_release_io(struct pcmcia_device *p_dev)
 {
 	struct pcmcia_socket *s = p_dev->socket;
-	int ret = -EINVAL;
 	config_t *c;
 
 	mutex_lock(&s->ops_mutex);
@@ -416,8 +411,6 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev)
 
 out:
 	mutex_unlock(&s->ops_mutex);
-
-	return ret;
 } /* pcmcia_release_io */
 
 
@@ -724,7 +717,8 @@ static irqreturn_t test_action(int cpl, void *dev_id)
 
 /**
  * pcmcia_setup_isa_irq() - determine whether an ISA IRQ can be used
- * @p_dev - the associated PCMCIA device
+ * @p_dev: the associated PCMCIA device
+ * @type:  IRQ type (flags)
  *
  * locking note: must be called with ops_mutex locked.
  */
@@ -789,7 +783,7 @@ void pcmcia_cleanup_irq(struct pcmcia_socket *s)
 
 /**
  * pcmcia_setup_irq() - determine IRQ to be used for device
- * @p_dev - the associated PCMCIA device
+ * @p_dev: the associated PCMCIA device
  *
  * locking note: must be called with ops_mutex locked.
  */

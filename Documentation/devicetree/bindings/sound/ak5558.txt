@@ -4,12 +4,14 @@ This device supports I2C mode only.
 
 Required properties:
 
-- compatible : "asahi-kasei,ak5558"
+- compatible : "asahi-kasei,ak5558" or "asahi-kasei,ak5552".
 - reg : The I2C address of the device.
 
 Optional properties:
 
 - reset-gpios: A GPIO specifier for the power down & reset pin.
+- AVDD-supply: Analog power supply
+- DVDD-supply: Digital power supply
 
 Example:
 

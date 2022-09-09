@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control. SMU based sensors
  *
  * (c) Copyright 2005 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  */
 
 #include <linux/types.h>
@@ -15,7 +14,8 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/completion.h>
-#include <asm/prom.h>
+#include <linux/of.h>
+
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -422,8 +422,7 @@ static int __init smu_sensors_init(void)
 		return -ENODEV;
 
 	/* Look for sensors subdir */
-	for (sensors = NULL;
-	     (sensors = of_get_next_child(smu, sensors)) != NULL;)
+	for_each_child_of_node(smu, sensors)
 		if (of_node_name_eq(sensors, "sensors"))
 			break;
 

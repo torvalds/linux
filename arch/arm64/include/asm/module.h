@@ -1,24 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_MODULE_H
 #define __ASM_MODULE_H
 
 #include <asm-generic/module.h>
-
-#define MODULE_ARCH_VERMAGIC	"aarch64"
 
 #ifdef CONFIG_ARM64_MODULE_PLTS
 struct mod_plt_sec {
@@ -32,7 +19,7 @@ struct mod_arch_specific {
 	struct mod_plt_sec	init;
 
 	/* for CONFIG_DYNAMIC_FTRACE */
-	struct plt_entry 	*ftrace_trampoline;
+	struct plt_entry	*ftrace_trampolines;
 };
 #endif
 
@@ -72,5 +59,10 @@ static inline bool is_forbidden_offset_for_adrp(void *place)
 
 struct plt_entry get_plt_entry(u64 dst, void *pc);
 bool plt_entries_equal(const struct plt_entry *a, const struct plt_entry *b);
+
+static inline bool plt_entry_is_initialized(const struct plt_entry *e)
+{
+	return e->adrp || e->add || e->br;
+}
 
 #endif /* __ASM_MODULE_H */

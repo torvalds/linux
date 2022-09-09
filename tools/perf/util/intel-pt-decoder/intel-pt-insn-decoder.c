@@ -1,29 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pt_insn_decoder.c: Intel Processor Trace support
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
+#include <linux/kernel.h>
 #include <stdio.h>
 #include <string.h>
 #include <endian.h>
 #include <byteswap.h>
+#include "../../../arch/x86/include/asm/insn.h"
+
+#include "../../../arch/x86/lib/inat.c"
+#include "../../../arch/x86/lib/insn.c"
 
 #include "event.h"
-
-#include "insn.h"
-
-#include "inat.c"
-#include "insn.c"
 
 #include "intel-pt-insn-decoder.h"
 #include "dump-insn.h"
@@ -41,6 +32,7 @@ static void intel_pt_insn_decoder(struct insn *insn,
 	int ext;
 
 	intel_pt_insn->rel = 0;
+	intel_pt_insn->emulated_ptwrite = false;
 
 	if (insn_is_avx(insn)) {
 		intel_pt_insn->op = INTEL_PT_OP_OTHER;
@@ -52,6 +44,17 @@ static void intel_pt_insn_decoder(struct insn *insn,
 	switch (insn->opcode.bytes[0]) {
 	case 0xf:
 		switch (insn->opcode.bytes[1]) {
+		case 0x01:
+			switch (insn->modrm.bytes[0]) {
+			case 0xc2: /* vmlaunch */
+			case 0xc3: /* vmresume */
+				op = INTEL_PT_OP_VMENTRY;
+				branch = INTEL_PT_BR_INDIRECT;
+				break;
+			default:
+				break;
+			}
+			break;
 		case 0x05: /* syscall */
 		case 0x34: /* sysenter */
 			op = INTEL_PT_OP_SYSCALL;
@@ -141,7 +144,7 @@ static void intel_pt_insn_decoder(struct insn *insn,
 
 	if (branch == INTEL_PT_BR_CONDITIONAL ||
 	    branch == INTEL_PT_BR_UNCONDITIONAL) {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 		switch (insn->immediate.nbytes) {
 		case 1:
 			intel_pt_insn->rel = insn->immediate.value;
@@ -167,11 +170,13 @@ int intel_pt_get_insn(const unsigned char *buf, size_t len, int x86_64,
 		      struct intel_pt_insn *intel_pt_insn)
 {
 	struct insn insn;
+	int ret;
 
-	insn_init(&insn, buf, len, x86_64);
-	insn_get_length(&insn);
-	if (!insn_complete(&insn) || insn.length > len)
+	ret = insn_decode(&insn, buf, len,
+			  x86_64 ? INSN_MODE_64 : INSN_MODE_32);
+	if (ret < 0 || insn.length > len)
 		return -1;
+
 	intel_pt_insn_decoder(&insn, intel_pt_insn);
 	if (insn.length < INTEL_PT_INSN_BUF_SZ)
 		memcpy(intel_pt_insn->buf, buf, insn.length);
@@ -192,12 +197,13 @@ const char *dump_insn(struct perf_insn *x, uint64_t ip __maybe_unused,
 		      u8 *inbuf, int inlen, int *lenp)
 {
 	struct insn insn;
-	int n, i;
+	int n, i, ret;
 	int left;
 
-	insn_init(&insn, inbuf, inlen, x->is64bit);
-	insn_get_length(&insn);
-	if (!insn_complete(&insn) || insn.length > inlen)
+	ret = insn_decode(&insn, inbuf, inlen,
+			  x->is64bit ? INSN_MODE_64 : INSN_MODE_32);
+
+	if (ret < 0 || insn.length > inlen)
 		return "<bad>";
 	if (lenp)
 		*lenp = insn.length;
@@ -222,6 +228,7 @@ const char *branch_name[] = {
 	[INTEL_PT_OP_INT]	= "Int",
 	[INTEL_PT_OP_SYSCALL]	= "Syscall",
 	[INTEL_PT_OP_SYSRET]	= "Sysret",
+	[INTEL_PT_OP_VMENTRY]	= "VMentry",
 };
 
 const char *intel_pt_insn_name(enum intel_pt_insn_op op)
@@ -276,6 +283,9 @@ int intel_pt_insn_type(enum intel_pt_insn_op op)
 	case INTEL_PT_OP_SYSRET:
 		return PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN |
 		       PERF_IP_FLAG_SYSCALLRET;
+	case INTEL_PT_OP_VMENTRY:
+		return PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL |
+		       PERF_IP_FLAG_VMENTRY;
 	default:
 		return 0;
 	}

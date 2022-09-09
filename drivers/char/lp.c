@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic parallel printer driver
  *
@@ -545,7 +546,7 @@ static int lp_open(struct inode *inode, struct file *file)
 	}
 	/* Determine if the peripheral supports ECP mode */
 	lp_claim_parport_or_block(&lp_table[minor]);
-	if ( (lp_table[minor].dev->port->modes & PARPORT_MODE_ECP) &&
+	if ((lp_table[minor].dev->port->modes & PARPORT_MODE_ECP) &&
 	     !parport_negotiate(lp_table[minor].dev->port,
 				 IEEE1284_MODE_ECP)) {
 		printk(KERN_INFO "lp%d: ECP mode\n", minor);
@@ -589,7 +590,7 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 		return -ENODEV;
 	if ((LP_F(minor) & LP_EXIST) == 0)
 		return -ENODEV;
-	switch ( cmd ) {
+	switch (cmd) {
 		case LPTIME:
 			if (arg > UINT_MAX / HZ)
 				return -EINVAL;
@@ -621,7 +622,6 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 			break;
 		case LPSETIRQ:
 			return -EINVAL;
-			break;
 		case LPGETIRQ:
 			if (copy_to_user(argp, &LP_IRQ(minor),
 					sizeof(int)))
@@ -712,6 +712,10 @@ static int lp_set_timeout64(unsigned int minor, void __user *arg)
 	if (copy_from_user(karg, arg, sizeof(karg)))
 		return -EFAULT;
 
+	/* sparc64 suseconds_t is 32-bit only */
+	if (IS_ENABLED(CONFIG_SPARC64) && !in_compat_syscall())
+		karg[1] >>= 32;
+
 	return lp_set_timeout(minor, karg[0], karg[1]);
 }
 
@@ -729,7 +733,7 @@ static long lp_ioctl(struct file *file, unsigned int cmd,
 			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		/* fallthrough for 64-bit */
+		fallthrough;	/* for 64-bit */
 	case LPSETTIMEOUT_NEW:
 		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;
@@ -757,7 +761,7 @@ static long lp_compat_ioctl(struct file *file, unsigned int cmd,
 			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		/* fallthrough for x32 mode */
+		fallthrough;	/* for x32 mode */
 	case LPSETTIMEOUT_NEW:
 		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;
@@ -848,8 +852,10 @@ static void lp_console_write(struct console *co, const char *s,
 			count--;
 			do {
 				written = parport_write(port, crlf, i);
-				if (written > 0)
-					i -= written, crlf += written;
+				if (written > 0) {
+					i -= written;
+					crlf += written;
+				}
 			} while (i > 0 && (CONSOLE_LP_STRICT || written > 0));
 		}
 	} while (count > 0 && (CONSOLE_LP_STRICT || written > 0));
@@ -1013,7 +1019,7 @@ static struct parport_driver lp_driver = {
 
 static int __init lp_init(void)
 {
-	int i, err = 0;
+	int i, err;
 
 	if (parport_nr[0] == LP_PARPORT_OFF)
 		return 0;

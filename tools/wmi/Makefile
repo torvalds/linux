@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 PREFIX ?= /usr
 SBINDIR ?= sbin
 INSTALL ?= install

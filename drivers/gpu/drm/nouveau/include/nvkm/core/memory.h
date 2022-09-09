@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_MEMORY_H__
 #define __NVKM_MEMORY_H__
 #include <core/os.h>
@@ -82,6 +82,22 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 	u64 __a = (a), __d = (d);                                              \
 	nvkm_wo32((o), __a + 0, lower_32_bits(__d));                           \
 	nvkm_wo32((o), __a + 4, upper_32_bits(__d));                           \
+} while(0)
+
+#define nvkm_robj(o,a,p,s) do {                                                \
+	u32 _addr = (a), _size = (s) >> 2, *_data = (void *)(p);               \
+	while (_size--) {                                                      \
+		*(_data++) = nvkm_ro32((o), _addr);                            \
+		_addr += 4;                                                    \
+	}                                                                      \
+} while(0)
+
+#define nvkm_wobj(o,a,p,s) do {                                                \
+	u32 _addr = (a), _size = (s) >> 2, *_data = (void *)(p);               \
+	while (_size--) {                                                      \
+		nvkm_wo32((o), _addr, *(_data++));                             \
+		_addr += 4;                                                    \
+	}                                                                      \
 } while(0)
 
 #define nvkm_fill(t,s,o,a,d,c) do {                                            \

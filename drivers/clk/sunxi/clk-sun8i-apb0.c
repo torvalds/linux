@@ -1,21 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Chen-Yu Tsai
  * Author: Chen-Yu Tsai <wens@csie.org>
  *
  * Allwinner A23 APB0 clock driver
  *
- * License Terms: GNU General Public License v2
- *
  * Based on clk-sun6i-apb0.c
  * Allwinner A31 APB0 clock driver
  *
  * Copyright (C) 2014 Free Electrons
  * Author: Boris BREZILLON <boris.brezillon@free-electrons.com>
- *
  */
 
 #include <linux/clk-provider.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -88,12 +87,10 @@ CLK_OF_DECLARE_DRIVER(sun8i_a23_apb0, "allwinner,sun8i-a23-apb0-clk",
 static int sun8i_a23_apb0_clk_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *r;
 	void __iomem *reg;
 	struct clk *clk;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(&pdev->dev, r);
+	reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 

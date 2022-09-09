@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MELFAS MIP4 Touchscreen
  *
  * Copyright (C) 2016 MELFAS Inc.
  *
  * Author : Sangwon Jee <jeesw@melfas.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/acpi.h>
@@ -400,7 +391,7 @@ static void mip4_clear_input(struct mip4_ts *ts)
 	/* Screen */
 	for (i = 0; i < MIP4_MAX_FINGERS; i++) {
 		input_mt_slot(ts->input, i);
-		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, 0);
+		input_mt_report_slot_inactive(ts->input);
 	}
 
 	/* Keys */
@@ -474,13 +465,13 @@ static void mip4_report_keys(struct mip4_ts *ts, u8 *packet)
 static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 {
 	int id;
-	bool hover;
-	bool palm;
+	bool __always_unused hover;
+	bool __always_unused palm;
 	bool state;
 	u16 x, y;
-	u8 pressure_stage = 0;
+	u8 __always_unused pressure_stage = 0;
 	u8 pressure;
-	u8 size;
+	u8 __always_unused size;
 	u8 touch_major;
 	u8 touch_minor;
 
@@ -543,7 +534,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 	} else {
 		/* Release event */
 		input_mt_slot(ts->input, id);
-		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, 0);
+		input_mt_report_slot_inactive(ts->input);
 	}
 
 	input_mt_sync_frame(ts->input);
@@ -1265,7 +1256,7 @@ static int mip4_execute_fw_update(struct mip4_ts *ts, const struct firmware *fw)
 	if (error)
 		return error;
 
-	if (ts->input->users) {
+	if (input_device_enabled(ts->input)) {
 		disable_irq(ts->client->irq);
 	} else {
 		error = mip4_power_on(ts);
@@ -1285,7 +1276,7 @@ static int mip4_execute_fw_update(struct mip4_ts *ts, const struct firmware *fw)
 			"Failed to flash firmware: %d\n", error);
 
 	/* Enable IRQ */
-	if (ts->input->users)
+	if (input_device_enabled(ts->input))
 		enable_irq(ts->client->irq);
 	else
 		mip4_power_off(ts);
@@ -1511,15 +1502,14 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, mip4_interrupt,
-					  IRQF_ONESHOT, MIP4_DEVICE_NAME, ts);
+					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  MIP4_DEVICE_NAME, ts);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to request interrupt %d: %d\n",
 			client->irq, error);
 		return error;
 	}
-
-	disable_irq(client->irq);
 
 	error = input_register_device(input);
 	if (error) {
@@ -1548,7 +1538,7 @@ static int __maybe_unused mip4_suspend(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		ts->wake_irq_enabled = enable_irq_wake(client->irq) == 0;
-	else if (input->users)
+	else if (input_device_enabled(input))
 		mip4_disable(ts);
 
 	mutex_unlock(&input->mutex);
@@ -1566,7 +1556,7 @@ static int __maybe_unused mip4_resume(struct device *dev)
 
 	if (ts->wake_irq_enabled)
 		disable_irq_wake(client->irq);
-	else if (input->users)
+	else if (input_device_enabled(input))
 		mip4_enable(ts);
 
 	mutex_unlock(&input->mutex);

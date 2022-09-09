@@ -1,33 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef _UVERBS_NAMED_IOCTL_
@@ -47,7 +20,7 @@
 
 /* These are static so they do not need to be qualified */
 #define UVERBS_METHOD_ATTRS(method_id) _method_attrs_##method_id
-#define UVERBS_OBJECT_METHODS(object_id) _object_methods_##object_id
+#define UVERBS_OBJECT_METHODS(object_id) _UVERBS_NAME(_object_methods_##object_id, __LINE__)
 
 #define DECLARE_UVERBS_NAMED_METHOD(_method_id, ...)                           \
 	static const struct uverbs_attr_def *const UVERBS_METHOD_ATTRS(        \
@@ -76,7 +49,7 @@
 #define DECLARE_UVERBS_NAMED_OBJECT(_object_id, _type_attrs, ...)              \
 	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \
 		_object_id)[] = { __VA_ARGS__ };                               \
-	const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {           \
+	static const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {    \
 		.id = _object_id,                                              \
 		.type_attrs = &_type_attrs,                                    \
 		.num_methods = ARRAY_SIZE(UVERBS_OBJECT_METHODS(_object_id)),  \
@@ -88,10 +61,10 @@
  * identify all uapi methods with a (object,method) tuple. However, they have
  * no type pointer.
  */
-#define DECLARE_UVERBS_GLOBAL_METHODS(_object_id, ...)	\
+#define DECLARE_UVERBS_GLOBAL_METHODS(_object_id, ...)                         \
 	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \
 		_object_id)[] = { __VA_ARGS__ };                               \
-	const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {           \
+	static const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {    \
 		.id = _object_id,                                              \
 		.num_methods = ARRAY_SIZE(UVERBS_OBJECT_METHODS(_object_id)),  \
 		.methods = &UVERBS_OBJECT_METHODS(_object_id)                  \

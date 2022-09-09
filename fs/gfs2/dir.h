@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __DIR_DOT_H__
@@ -35,8 +32,7 @@ extern int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
 			const struct gfs2_inode *ip, struct gfs2_diradd *da);
 static inline void gfs2_dir_no_add(struct gfs2_diradd *da)
 {
-	if (da->bh)
-		brelse(da->bh);
+	brelse(da->bh);
 	da->bh = NULL;
 }
 extern int gfs2_dir_del(struct gfs2_inode *dip, const struct dentry *dentry);

@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * powr1220.c - Driver for the Lattice POWR1220 programmable power supply
  * and monitor. Users can read all ADC inputs along with their labels
  * using the sysfs nodes.
  *
- * Copyright (c) 2014 Echo360 http://www.echo360.com
+ * Copyright (c) 2014 Echo360 https://www.echo360.com
  * Scott Kanowitz <skanowitz@echo360.com> <scott.kanowitz@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -30,6 +21,8 @@
 
 #define ADC_STEP_MV			2
 #define ADC_MAX_LOW_MEASUREMENT_MV	2000
+
+enum powr1xxx_chips { powr1014, powr1220 };
 
 enum powr1220_regs {
 	VMON_STATUS0,
@@ -83,6 +76,7 @@ enum powr1220_adc_values {
 struct powr1220_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
+	u8 max_channels;
 	bool adc_valid[MAX_POWR1220_ADC_VALUES];
 	 /* the next value is in jiffies */
 	unsigned long adc_last_updated[MAX_POWR1220_ADC_VALUES];
@@ -120,7 +114,7 @@ static int powr1220_read_adc(struct device *dev, int ch_num)
 	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->adc_last_updated[ch_num] + HZ) ||
-			!data->adc_valid[ch_num]) {
+	    !data->adc_valid[ch_num]) {
 		/*
 		 * figure out if we need to use the attenuator for
 		 * high inputs or inputs that we don't yet have a measurement
@@ -128,12 +122,12 @@ static int powr1220_read_adc(struct device *dev, int ch_num)
 		 * max reading.
 		 */
 		if (data->adc_maxes[ch_num] > ADC_MAX_LOW_MEASUREMENT_MV ||
-				data->adc_maxes[ch_num] == 0)
+		    data->adc_maxes[ch_num] == 0)
 			adc_range = 1 << 4;
 
 		/* set the attenuator and mux */
 		result = i2c_smbus_write_byte_data(data->client, ADC_MUX,
-				adc_range | ch_num);
+						   adc_range | ch_num);
 		if (result)
 			goto exit;
 
@@ -176,178 +170,118 @@ exit:
 	return result;
 }
 
-/* Shows the voltage associated with the specified ADC channel */
-static ssize_t powr1220_show_voltage(struct device *dev,
-	struct device_attribute *dev_attr, char *buf)
+static umode_t
+powr1220_is_visible(const void *data, enum hwmon_sensor_types type, u32
+		    attr, int channel)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(dev_attr);
-	int adc_val = powr1220_read_adc(dev, attr->index);
+	struct powr1220_data *chip_data = (struct powr1220_data *)data;
 
-	if (adc_val < 0)
-		return adc_val;
+	if (channel >= chip_data->max_channels)
+		return 0;
 
-	return sprintf(buf, "%d\n", adc_val);
+	switch (type) {
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_input:
+		case hwmon_in_highest:
+		case hwmon_in_label:
+			return 0444;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
-/* Shows the maximum setting associated with the specified ADC channel */
-static ssize_t powr1220_show_max(struct device *dev,
-	struct device_attribute *dev_attr, char *buf)
+static int
+powr1220_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+		     int channel, const char **str)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(dev_attr);
+	switch (type) {
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_label:
+			*str = input_names[channel];
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int
+powr1220_read(struct device *dev, enum hwmon_sensor_types type, u32
+	      attr, int channel, long *val)
+{
 	struct powr1220_data *data = dev_get_drvdata(dev);
+	int ret;
 
-	return sprintf(buf, "%d\n", data->adc_maxes[attr->index]);
+	switch (type) {
+	case hwmon_in:
+		switch (attr) {
+		case hwmon_in_input:
+			ret = powr1220_read_adc(dev, channel);
+			if (ret < 0)
+				return ret;
+			*val = ret;
+			break;
+		case hwmon_in_highest:
+			*val = data->adc_maxes[channel];
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
 }
 
-/* Shows the label associated with the specified ADC channel */
-static ssize_t powr1220_show_label(struct device *dev,
-	struct device_attribute *dev_attr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(dev_attr);
-
-	return sprintf(buf, "%s\n", input_names[attr->index]);
+	return 0;
 }
 
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON1);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON2);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON3);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON4);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON5);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON6);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON7);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON8);
-static SENSOR_DEVICE_ATTR(in8_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON9);
-static SENSOR_DEVICE_ATTR(in9_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON10);
-static SENSOR_DEVICE_ATTR(in10_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON11);
-static SENSOR_DEVICE_ATTR(in11_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON12);
-static SENSOR_DEVICE_ATTR(in12_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VCCA);
-static SENSOR_DEVICE_ATTR(in13_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VCCINP);
-
-static SENSOR_DEVICE_ATTR(in0_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON1);
-static SENSOR_DEVICE_ATTR(in1_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON2);
-static SENSOR_DEVICE_ATTR(in2_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON3);
-static SENSOR_DEVICE_ATTR(in3_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON4);
-static SENSOR_DEVICE_ATTR(in4_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON5);
-static SENSOR_DEVICE_ATTR(in5_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON6);
-static SENSOR_DEVICE_ATTR(in6_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON7);
-static SENSOR_DEVICE_ATTR(in7_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON8);
-static SENSOR_DEVICE_ATTR(in8_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON9);
-static SENSOR_DEVICE_ATTR(in9_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON10);
-static SENSOR_DEVICE_ATTR(in10_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON11);
-static SENSOR_DEVICE_ATTR(in11_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON12);
-static SENSOR_DEVICE_ATTR(in12_highest, S_IRUGO, powr1220_show_max, NULL,
-	VCCA);
-static SENSOR_DEVICE_ATTR(in13_highest, S_IRUGO, powr1220_show_max, NULL,
-	VCCINP);
-
-static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON1);
-static SENSOR_DEVICE_ATTR(in1_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON2);
-static SENSOR_DEVICE_ATTR(in2_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON3);
-static SENSOR_DEVICE_ATTR(in3_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON4);
-static SENSOR_DEVICE_ATTR(in4_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON5);
-static SENSOR_DEVICE_ATTR(in5_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON6);
-static SENSOR_DEVICE_ATTR(in6_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON7);
-static SENSOR_DEVICE_ATTR(in7_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON8);
-static SENSOR_DEVICE_ATTR(in8_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON9);
-static SENSOR_DEVICE_ATTR(in9_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON10);
-static SENSOR_DEVICE_ATTR(in10_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON11);
-static SENSOR_DEVICE_ATTR(in11_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON12);
-static SENSOR_DEVICE_ATTR(in12_label, S_IRUGO, powr1220_show_label, NULL,
-	VCCA);
-static SENSOR_DEVICE_ATTR(in13_label, S_IRUGO, powr1220_show_label, NULL,
-	VCCINP);
-
-static struct attribute *powr1220_attrs[] = {
-	&sensor_dev_attr_in0_input.dev_attr.attr,
-	&sensor_dev_attr_in1_input.dev_attr.attr,
-	&sensor_dev_attr_in2_input.dev_attr.attr,
-	&sensor_dev_attr_in3_input.dev_attr.attr,
-	&sensor_dev_attr_in4_input.dev_attr.attr,
-	&sensor_dev_attr_in5_input.dev_attr.attr,
-	&sensor_dev_attr_in6_input.dev_attr.attr,
-	&sensor_dev_attr_in7_input.dev_attr.attr,
-	&sensor_dev_attr_in8_input.dev_attr.attr,
-	&sensor_dev_attr_in9_input.dev_attr.attr,
-	&sensor_dev_attr_in10_input.dev_attr.attr,
-	&sensor_dev_attr_in11_input.dev_attr.attr,
-	&sensor_dev_attr_in12_input.dev_attr.attr,
-	&sensor_dev_attr_in13_input.dev_attr.attr,
-
-	&sensor_dev_attr_in0_highest.dev_attr.attr,
-	&sensor_dev_attr_in1_highest.dev_attr.attr,
-	&sensor_dev_attr_in2_highest.dev_attr.attr,
-	&sensor_dev_attr_in3_highest.dev_attr.attr,
-	&sensor_dev_attr_in4_highest.dev_attr.attr,
-	&sensor_dev_attr_in5_highest.dev_attr.attr,
-	&sensor_dev_attr_in6_highest.dev_attr.attr,
-	&sensor_dev_attr_in7_highest.dev_attr.attr,
-	&sensor_dev_attr_in8_highest.dev_attr.attr,
-	&sensor_dev_attr_in9_highest.dev_attr.attr,
-	&sensor_dev_attr_in10_highest.dev_attr.attr,
-	&sensor_dev_attr_in11_highest.dev_attr.attr,
-	&sensor_dev_attr_in12_highest.dev_attr.attr,
-	&sensor_dev_attr_in13_highest.dev_attr.attr,
-
-	&sensor_dev_attr_in0_label.dev_attr.attr,
-	&sensor_dev_attr_in1_label.dev_attr.attr,
-	&sensor_dev_attr_in2_label.dev_attr.attr,
-	&sensor_dev_attr_in3_label.dev_attr.attr,
-	&sensor_dev_attr_in4_label.dev_attr.attr,
-	&sensor_dev_attr_in5_label.dev_attr.attr,
-	&sensor_dev_attr_in6_label.dev_attr.attr,
-	&sensor_dev_attr_in7_label.dev_attr.attr,
-	&sensor_dev_attr_in8_label.dev_attr.attr,
-	&sensor_dev_attr_in9_label.dev_attr.attr,
-	&sensor_dev_attr_in10_label.dev_attr.attr,
-	&sensor_dev_attr_in11_label.dev_attr.attr,
-	&sensor_dev_attr_in12_label.dev_attr.attr,
-	&sensor_dev_attr_in13_label.dev_attr.attr,
+static const struct hwmon_channel_info *powr1220_info[] = {
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_HIGHEST | HWMON_I_LABEL),
 
 	NULL
 };
 
-ATTRIBUTE_GROUPS(powr1220);
+static const struct hwmon_ops powr1220_hwmon_ops = {
+	.read = powr1220_read,
+	.read_string = powr1220_read_string,
+	.is_visible = powr1220_is_visible,
+};
 
-static int powr1220_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static const struct hwmon_chip_info powr1220_chip_info = {
+	.ops = &powr1220_hwmon_ops,
+	.info = powr1220_info,
+};
+
+static const struct i2c_device_id powr1220_ids[];
+
+static int powr1220_probe(struct i2c_client *client)
 {
 	struct powr1220_data *data;
 	struct device *hwmon_dev;
@@ -359,17 +293,30 @@ static int powr1220_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
+	switch (i2c_match_id(powr1220_ids, client)->driver_data) {
+	case powr1014:
+		data->max_channels = 10;
+		break;
+	default:
+		data->max_channels = 12;
+		break;
+	}
+
 	mutex_init(&data->update_lock);
 	data->client = client;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(&client->dev,
-			client->name, data, powr1220_groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(&client->dev,
+							 client->name,
+							 data,
+							 &powr1220_chip_info,
+							 NULL);
 
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct i2c_device_id powr1220_ids[] = {
-	{ "powr1220", 0, },
+	{ "powr1014", powr1014, },
+	{ "powr1220", powr1220, },
 	{ }
 };
 
@@ -380,7 +327,7 @@ static struct i2c_driver powr1220_driver = {
 	.driver = {
 		.name	= "powr1220",
 	},
-	.probe		= powr1220_probe,
+	.probe_new	= powr1220_probe,
 	.id_table	= powr1220_ids,
 };
 

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -43,7 +32,6 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_WDS:
 		conf.sync = TSF_SYNC_AP_NONE;
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -82,6 +70,8 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct ieee80211_bss_conf *bss_conf,
 			  u32 changed)
 {
+	struct ieee80211_vif *vif = container_of(bss_conf, struct ieee80211_vif,
+						 bss_conf);
 	struct rt2x00lib_erp erp;
 
 	memset(&erp, 0, sizeof(erp));
@@ -99,7 +89,7 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	erp.beacon_int = bss_conf->beacon_int;
 
 	/* Update the AID, this is needed for dynamic PS support */
-	rt2x00dev->aid = bss_conf->assoc ? bss_conf->aid : 0;
+	rt2x00dev->aid = vif->cfg.assoc ? vif->cfg.aid : 0;
 	rt2x00dev->last_beacon = bss_conf->sync_tsf;
 
 	/* Update global beacon interval time, this is needed for PS support */

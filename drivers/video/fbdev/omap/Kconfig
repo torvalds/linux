@@ -1,12 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FB_OMAP
 	tristate "OMAP frame buffer support"
 	depends on FB
-	depends on ARCH_OMAP1
+	depends on ARCH_OMAP1 || (ARM && COMPILE_TEST)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
-          Frame buffer driver for OMAP based boards.
+	  Frame buffer driver for OMAP based boards.
 
 config FB_OMAP_LCDC_EXTERNAL
 	bool "External LCD controller support"
@@ -41,7 +42,7 @@ config FB_OMAP_LCD_MIPID
 
 config FB_OMAP_LCD_H3
 	bool "TPS65010 LCD controller on OMAP-H3"
-	depends on MACH_OMAP_H3
+	depends on MACH_OMAP_H3 || COMPILE_TEST
 	depends on TPS65010=y
 	default y
 	help
@@ -49,13 +50,11 @@ config FB_OMAP_LCD_H3
 	  H3 board.
 
 config FB_OMAP_DMA_TUNE
-        bool "Set DMA SDRAM access priority high"
-        depends on FB_OMAP
-        help
-          On systems in which video memory is in system memory
-          (SDRAM) this will speed up graphics DMA operations.
-          If you have such a system and want to use rotation
-          answer yes. Answer no if you have a dedicated video
-          memory, or don't use any of the accelerated features.
-
-
+	bool "Set DMA SDRAM access priority high"
+	depends on FB_OMAP
+	help
+	  On systems in which video memory is in system memory
+	  (SDRAM) this will speed up graphics DMA operations.
+	  If you have such a system and want to use rotation
+	  answer yes. Answer no if you have a dedicated video
+	  memory, or don't use any of the accelerated features.

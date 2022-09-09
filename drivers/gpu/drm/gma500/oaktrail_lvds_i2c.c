@@ -23,17 +23,16 @@
  *
  */
 
+#include <linux/delay.h>
+#include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/types.h>
-#include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/delay.h>
 
-#include <drm/drmP.h>
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 
@@ -66,13 +65,13 @@
 
 static int get_clock(void *data)
 {
-	struct psb_intel_i2c_chan *chan = data;
-	u32 val, tmp;
+	struct gma_i2c_chan *chan = data;
+	u32 val;
 
 	val = LPC_READ_REG(chan, RGIO);
 	val |= GPIO_CLOCK;
 	LPC_WRITE_REG(chan, RGIO, val);
-	tmp = LPC_READ_REG(chan, RGLVL);
+	LPC_READ_REG(chan, RGLVL);
 	val = (LPC_READ_REG(chan, RGLVL) & GPIO_CLOCK) ? 1 : 0;
 
 	return val;
@@ -80,13 +79,13 @@ static int get_clock(void *data)
 
 static int get_data(void *data)
 {
-	struct psb_intel_i2c_chan *chan = data;
-	u32 val, tmp;
+	struct gma_i2c_chan *chan = data;
+	u32 val;
 
 	val = LPC_READ_REG(chan, RGIO);
 	val |= GPIO_DATA;
 	LPC_WRITE_REG(chan, RGIO, val);
-	tmp = LPC_READ_REG(chan, RGLVL);
+	LPC_READ_REG(chan, RGLVL);
 	val = (LPC_READ_REG(chan, RGLVL) & GPIO_DATA) ? 1 : 0;
 
 	return val;
@@ -94,7 +93,7 @@ static int get_data(void *data)
 
 static void set_clock(void *data, int state_high)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	u32 val;
 
 	if (state_high) {
@@ -113,7 +112,7 @@ static void set_clock(void *data, int state_high)
 
 static void set_data(void *data, int state_high)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	u32 val;
 
 	if (state_high) {
@@ -130,23 +129,22 @@ static void set_data(void *data, int state_high)
 	}
 }
 
-void oaktrail_lvds_i2c_init(struct drm_encoder *encoder)
+struct gma_i2c_chan *oaktrail_lvds_i2c_init(struct drm_device *dev)
 {
-	struct drm_device *dev = encoder->dev;
-	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_i2c_chan *chan;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gma_i2c_chan *chan;
+	int ret;
 
-	chan = kzalloc(sizeof(struct psb_intel_i2c_chan), GFP_KERNEL);
+	chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
 	if (!chan)
-		return;
+		return ERR_PTR(-ENOMEM);
 
 	chan->drm_dev = dev;
 	chan->reg = dev_priv->lpc_gpio_base;
-	strncpy(chan->adapter.name, "gma500 LPC",  I2C_NAME_SIZE - 1);
-	chan->adapter.owner = THIS_MODULE;
-	chan->adapter.algo_data = &chan->algo;
-	chan->adapter.dev.parent = &dev->pdev->dev;
+	strncpy(chan->base.name, "gma500 LPC",  I2C_NAME_SIZE - 1);
+	chan->base.owner = THIS_MODULE;
+	chan->base.algo_data = &chan->algo;
+	chan->base.dev.parent = dev->dev;
 	chan->algo.setsda = set_data;
 	chan->algo.setscl = set_clock;
 	chan->algo.getsda = get_data;
@@ -155,16 +153,17 @@ void oaktrail_lvds_i2c_init(struct drm_encoder *encoder)
 	chan->algo.timeout = usecs_to_jiffies(2200);
 	chan->algo.data = chan;
 
-	i2c_set_adapdata(&chan->adapter, chan);
+	i2c_set_adapdata(&chan->base, chan);
 
 	set_data(chan, 1);
 	set_clock(chan, 1);
 	udelay(50);
 
-	if (i2c_bit_add_bus(&chan->adapter)) {
+	ret = i2c_bit_add_bus(&chan->base);
+	if (ret < 0) {
 		kfree(chan);
-		return;
+		return ERR_PTR(ret);
 	}
 
-	gma_encoder->ddc_bus = chan;
+	return chan;
 }

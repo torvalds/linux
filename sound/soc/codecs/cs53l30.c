@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cs53l30.c  --  CS53l30 ALSA Soc Audio driver
  *
@@ -5,11 +6,6 @@
  *
  * Authors: Paul Handrigan <Paul.Handrigan@cirrus.com>,
  *          Tim Howe <Tim.Howe@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
@@ -24,6 +20,7 @@
 #include <sound/tlv.h>
 
 #include "cs53l30.h"
+#include "cirrus_legacy.h"
 
 #define CS53L30_NUM_SUPPLIES 2
 static const char *const cs53l30_supply_names[CS53L30_NUM_SUPPLIES] = {
@@ -351,22 +348,22 @@ static const struct snd_kcontrol_new cs53l30_snd_controls[] = {
 	SOC_ENUM("ADC2 NG Delay", adc2_ng_delay_enum),
 
 	SOC_SINGLE_SX_TLV("ADC1A PGA Volume",
-		    CS53L30_ADC1A_AFE_CTL, 0, 0x34, 0x18, pga_tlv),
+		    CS53L30_ADC1A_AFE_CTL, 0, 0x34, 0x24, pga_tlv),
 	SOC_SINGLE_SX_TLV("ADC1B PGA Volume",
-		    CS53L30_ADC1B_AFE_CTL, 0, 0x34, 0x18, pga_tlv),
+		    CS53L30_ADC1B_AFE_CTL, 0, 0x34, 0x24, pga_tlv),
 	SOC_SINGLE_SX_TLV("ADC2A PGA Volume",
-		    CS53L30_ADC2A_AFE_CTL, 0, 0x34, 0x18, pga_tlv),
+		    CS53L30_ADC2A_AFE_CTL, 0, 0x34, 0x24, pga_tlv),
 	SOC_SINGLE_SX_TLV("ADC2B PGA Volume",
-		    CS53L30_ADC2B_AFE_CTL, 0, 0x34, 0x18, pga_tlv),
+		    CS53L30_ADC2B_AFE_CTL, 0, 0x34, 0x24, pga_tlv),
 
 	SOC_SINGLE_SX_TLV("ADC1A Digital Volume",
-		    CS53L30_ADC1A_DIG_VOL, 0, 0xA0, 0x0C, dig_tlv),
+		    CS53L30_ADC1A_DIG_VOL, 0, 0xA0, 0x6C, dig_tlv),
 	SOC_SINGLE_SX_TLV("ADC1B Digital Volume",
-		    CS53L30_ADC1B_DIG_VOL, 0, 0xA0, 0x0C, dig_tlv),
+		    CS53L30_ADC1B_DIG_VOL, 0, 0xA0, 0x6C, dig_tlv),
 	SOC_SINGLE_SX_TLV("ADC2A Digital Volume",
-		    CS53L30_ADC2A_DIG_VOL, 0, 0xA0, 0x0C, dig_tlv),
+		    CS53L30_ADC2A_DIG_VOL, 0, 0xA0, 0x6C, dig_tlv),
 	SOC_SINGLE_SX_TLV("ADC2B Digital Volume",
-		    CS53L30_ADC2B_DIG_VOL, 0, 0xA0, 0x0C, dig_tlv),
+		    CS53L30_ADC2B_DIG_VOL, 0, 0xA0, 0x6C, dig_tlv),
 };
 
 static const struct snd_soc_dapm_widget cs53l30_dapm_widgets[] = {
@@ -873,7 +870,7 @@ static struct snd_soc_dai_driver cs53l30_dai = {
 		.formats = CS53L30_FORMATS,
 	},
 	.ops = &cs53l30_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int cs53l30_component_probe(struct snd_soc_component *component)
@@ -902,7 +899,6 @@ static const struct snd_soc_component_driver cs53l30_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(cs53l30_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs53l30_regmap = {
@@ -916,17 +912,18 @@ static struct regmap_config cs53l30_regmap = {
 	.writeable_reg = cs53l30_writeable_register,
 	.readable_reg = cs53l30_readable_register,
 	.cache_type = REGCACHE_RBTREE,
+
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
-static int cs53l30_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cs53l30_i2c_probe(struct i2c_client *client)
 {
 	const struct device_node *np = client->dev.of_node;
 	struct device *dev = &client->dev;
 	struct cs53l30_private *cs53l30;
-	unsigned int devid = 0;
 	unsigned int reg;
-	int ret = 0, i;
+	int ret = 0, i, devid;
 	u8 val;
 
 	cs53l30 = devm_kzalloc(dev, sizeof(*cs53l30), GFP_KERNEL);
@@ -955,7 +952,7 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 						      GPIOD_OUT_LOW);
 	if (IS_ERR(cs53l30->reset_gpio)) {
 		ret = PTR_ERR(cs53l30->reset_gpio);
-		goto error;
+		goto error_supplies;
 	}
 
 	gpiod_set_value_cansleep(cs53l30->reset_gpio, 1);
@@ -972,14 +969,12 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 	}
 
 	/* Initialize codec */
-	ret = regmap_read(cs53l30->regmap, CS53L30_DEVID_AB, &reg);
-	devid = reg << 12;
-
-	ret = regmap_read(cs53l30->regmap, CS53L30_DEVID_CD, &reg);
-	devid |= reg << 4;
-
-	ret = regmap_read(cs53l30->regmap, CS53L30_DEVID_E, &reg);
-	devid |= (reg & 0xF0) >> 4;
+	devid = cirrus_read_device_id(cs53l30->regmap, CS53L30_DEVID_AB);
+	if (devid < 0) {
+		ret = devid;
+		dev_err(dev, "Failed to read device ID: %d\n", ret);
+		goto error;
+	}
 
 	if (devid != CS53L30_DEVID) {
 		ret = -ENODEV;
@@ -1041,6 +1036,8 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 	return 0;
 
 error:
+	gpiod_set_value_cansleep(cs53l30->reset_gpio, 0);
+error_supplies:
 	regulator_bulk_disable(ARRAY_SIZE(cs53l30->supplies),
 			       cs53l30->supplies);
 	return ret;
@@ -1126,7 +1123,7 @@ static struct i2c_driver cs53l30_i2c_driver = {
 		.pm = &cs53l30_runtime_pm,
 	},
 	.id_table = cs53l30_id,
-	.probe = cs53l30_i2c_probe,
+	.probe_new = cs53l30_i2c_probe,
 	.remove = cs53l30_i2c_remove,
 };
 

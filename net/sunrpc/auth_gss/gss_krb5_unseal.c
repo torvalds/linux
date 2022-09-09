@@ -124,7 +124,7 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 
 	/* it got through unscathed.  Make sure the context is unexpired */
 
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 
 	if (now > ctx->endtime)
 		return GSS_S_CONTEXT_EXPIRED;
@@ -149,7 +149,7 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 	char cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
 	struct xdr_netobj cksumobj = {.len = sizeof(cksumdata),
 				      .data = cksumdata};
-	s32 now;
+	time64_t now;
 	u8 *ptr = read_token->data;
 	u8 *cksumkey;
 	u8 flags;
@@ -194,7 +194,7 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 		return GSS_S_BAD_SIG;
 
 	/* it got through unscathed.  Make sure the context is unexpired */
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 	if (now > ctx->endtime)
 		return GSS_S_CONTEXT_EXPIRED;
 
@@ -218,7 +218,6 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
-	case ENCTYPE_ARCFOUR_HMAC:
 		return gss_verify_mic_v1(ctx, message_buffer, read_token);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:

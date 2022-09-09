@@ -36,20 +36,32 @@
 
 		hps_temp0 {
 			label = "BTN_0";			/* TEMP_OS */
-			gpios = <&portc 18 GPIO_ACTIVE_LOW>;	/* HPS_GPIO60 */
+			gpios = <&portc 18 GPIO_ACTIVE_LOW>;	/* HPS_GPI5 */
 			linux,code = <BTN_0>;
 		};
 
 		hps_hkey0 {
-			label = "BTN_1";			/* DIS_PWR */
-			gpios = <&portc 19 GPIO_ACTIVE_LOW>;	/* HPS_GPIO61 */
+			label = "GP_SWITCH";			/* GP_SWITCH */
+			gpios = <&portc 19 GPIO_ACTIVE_LOW>;	/* HPS_GPI6 */
 			linux,code = <BTN_1>;
 		};
 
 		hps_hkey1 {
-			label = "hps_hkey1";			/* POWER_DOWN */
-			gpios = <&portc 20 GPIO_ACTIVE_LOW>;	/* HPS_GPIO62 */
+			label = "RESET_SWITCH";			/* RESET_SWITCH */
+			gpios = <&portc 20 GPIO_ACTIVE_LOW>;	/* HPS_GPI7 */
+			linux,code = <BTN_2>;
+		};
+
+		hps_hkey2 {
+			label = "POWER_DOWN";			/* POWER_DOWN */
+			gpios = <&portc 4 GPIO_ACTIVE_LOW>;	/* HPS_GPIO62 */
 			linux,code = <KEY_POWER>;
+		};
+
+		hps_hkey3 {
+			label = "SENSE";			/* SENSE */
+			gpios = <&porta 9 GPIO_ACTIVE_LOW>;	/* HPS_GPIO9 */
+			linux,code = <BTN_3>;
 		};
 	};
 
@@ -84,10 +96,14 @@
 			rxd1-skew-ps = <0>;
 			rxd2-skew-ps = <0>;
 			rxd3-skew-ps = <0>;
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
 			txen-skew-ps = <0>;
-			txc-skew-ps = <2600>;
+			txc-skew-ps = <1860>;
 			rxdv-skew-ps = <0>;
-			rxc-skew-ps = <2000>;
+			rxc-skew-ps = <1860>;
 		};
 	};
 };
@@ -205,10 +221,10 @@
 &qspi {
 	status = "okay";
 
-	n25q128@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q128";
+		compatible = "micron,n25q128", "jedec,spi-nor";
 		reg = <0>;		/* chip select */
 		spi-max-frequency = <100000000>;
 		m25p,fast-read;
@@ -222,10 +238,10 @@
 		cdns,tslch-ns = <4>;
 	};
 
-	n25q00@1 {
+	flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q00";
+		compatible = "micron,mt25qu02g", "jedec,spi-nor";
 		reg = <1>;		/* chip select */
 		spi-max-frequency = <100000000>;
 		m25p,fast-read;

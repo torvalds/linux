@@ -45,6 +45,7 @@ gk208_fifo_pbdma = {
 
 static const struct gk104_fifo_func
 gk208_fifo = {
+	.intr.fault = gf100_fifo_intr_fault,
 	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
@@ -56,7 +57,8 @@ gk208_fifo = {
 };
 
 int
-gk208_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+gk208_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk208_fifo, device, index, 1024, pfifo);
+	return gk104_fifo_new_(&gk208_fifo, device, type, inst, 1024, pfifo);
 }

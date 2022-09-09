@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -39,10 +40,11 @@
 
 #include "c_can.h"
 
-#define DCAN_RAM_INIT_BIT		(1 << 3)
+#define DCAN_RAM_INIT_BIT BIT(3)
+
 static DEFINE_SPINLOCK(raminit_lock);
-/*
- * 16-bit c_can registers can be arranged differently in the memory
+
+/* 16-bit c_can registers can be arranged differently in the memory
  * architecture of different implementations. For example: 16-bit
  * registers can be aligned to a 16-bit boundary or 32-bit boundary etc.
  * Handle the same by providing a common read/write interface.
@@ -54,7 +56,7 @@ static u16 c_can_plat_read_reg_aligned_to_16bit(const struct c_can_priv *priv,
 }
 
 static void c_can_plat_write_reg_aligned_to_16bit(const struct c_can_priv *priv,
-						enum reg index, u16 val)
+						  enum reg index, u16 val)
 {
 	writew(val, priv->base + priv->regs[index]);
 }
@@ -66,7 +68,7 @@ static u16 c_can_plat_read_reg_aligned_to_32bit(const struct c_can_priv *priv,
 }
 
 static void c_can_plat_write_reg_aligned_to_32bit(const struct c_can_priv *priv,
-						enum reg index, u16 val)
+						  enum reg index, u16 val)
 {
 	writew(val, priv->base + 2 * priv->regs[index]);
 }
@@ -144,13 +146,13 @@ static u32 c_can_plat_read_reg32(const struct c_can_priv *priv, enum reg index)
 	u32 val;
 
 	val = priv->read_reg(priv, index);
-	val |= ((u32) priv->read_reg(priv, index + 1)) << 16;
+	val |= ((u32)priv->read_reg(priv, index + 1)) << 16;
 
 	return val;
 }
 
-static void c_can_plat_write_reg32(const struct c_can_priv *priv, enum reg index,
-		u32 val)
+static void c_can_plat_write_reg32(const struct c_can_priv *priv,
+				   enum reg index, u32 val)
 {
 	priv->write_reg(priv, index + 1, val >> 16);
 	priv->write_reg(priv, index, val);
@@ -161,8 +163,8 @@ static u32 d_can_plat_read_reg32(const struct c_can_priv *priv, enum reg index)
 	return readl(priv->base + priv->regs[index]);
 }
 
-static void d_can_plat_write_reg32(const struct c_can_priv *priv, enum reg index,
-		u32 val)
+static void d_can_plat_write_reg32(const struct c_can_priv *priv,
+				   enum reg index, u32 val)
 {
 	writel(val, priv->base + priv->regs[index]);
 }
@@ -191,10 +193,12 @@ static void c_can_hw_raminit(const struct c_can_priv *priv, bool enable)
 
 static const struct c_can_driver_data c_can_drvdata = {
 	.id = BOSCH_C_CAN,
+	.msg_obj_num = 32,
 };
 
 static const struct c_can_driver_data d_can_drvdata = {
 	.id = BOSCH_D_CAN,
+	.msg_obj_num = 32,
 };
 
 static const struct raminit_bits dra7_raminit_bits[] = {
@@ -204,6 +208,7 @@ static const struct raminit_bits dra7_raminit_bits[] = {
 
 static const struct c_can_driver_data dra7_dcan_drvdata = {
 	.id = BOSCH_D_CAN,
+	.msg_obj_num = 64,
 	.raminit_num = ARRAY_SIZE(dra7_raminit_bits),
 	.raminit_bits = dra7_raminit_bits,
 	.raminit_pulse = true,
@@ -216,6 +221,7 @@ static const struct raminit_bits am3352_raminit_bits[] = {
 
 static const struct c_can_driver_data am3352_dcan_drvdata = {
 	.id = BOSCH_D_CAN,
+	.msg_obj_num = 64,
 	.raminit_num = ARRAY_SIZE(am3352_raminit_bits),
 	.raminit_bits = am3352_raminit_bits,
 };
@@ -292,7 +298,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	}
 
 	/* allocate the c_can device */
-	dev = alloc_c_can_dev();
+	dev = alloc_c_can_dev(drvdata->msg_obj_num);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto exit;
@@ -379,12 +385,12 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	priv->base = addr;
 	priv->device = &pdev->dev;
 	priv->can.clock.freq = clk_get_rate(clk);
-	priv->priv = clk;
 	priv->type = drvdata->id;
 
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
+	pm_runtime_enable(priv->device);
 	ret = register_c_can_dev(dev);
 	if (ret) {
 		dev_err(&pdev->dev, "registering %s failed (err=%d)\n",
@@ -397,6 +403,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	return 0;
 
 exit_free_device:
+	pm_runtime_disable(priv->device);
 	free_c_can_dev(dev);
 exit:
 	dev_err(&pdev->dev, "probe failed\n");
@@ -407,9 +414,10 @@ exit:
 static int c_can_plat_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
+	struct c_can_priv *priv = netdev_priv(dev);
 
 	unregister_c_can_dev(dev);
-
+	pm_runtime_disable(priv->device);
 	free_c_can_dev(dev);
 
 	return 0;

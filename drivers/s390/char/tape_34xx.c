@@ -354,10 +354,10 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	if ((
 		sense[0] == SENSE_DATA_CHECK      ||
 		sense[0] == SENSE_EQUIPMENT_CHECK ||
-		sense[0] == SENSE_EQUIPMENT_CHECK + SENSE_DEFERRED_UNIT_CHECK
+		sense[0] == (SENSE_EQUIPMENT_CHECK | SENSE_DEFERRED_UNIT_CHECK)
 	) && (
 		sense[1] == SENSE_DRIVE_ONLINE ||
-		sense[1] == SENSE_BEGINNING_OF_TAPE + SENSE_WRITE_MODE
+		sense[1] == (SENSE_BEGINNING_OF_TAPE | SENSE_WRITE_MODE)
 	)) {
 		switch (request->op) {
 		/*
@@ -548,7 +548,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x2e:
 		/*
 		 * Not capable. This indicates either that the drive fails
-		 * reading the format id mark or that that format specified
+		 * reading the format id mark or that format specified
 		 * is not supported by the drive.
 		 */
 		dev_warn (&device->cdev->dev, "The tape unit cannot process "
@@ -1191,7 +1191,6 @@ static struct ccw_driver tape_34xx_driver = {
 	.remove = tape_generic_remove,
 	.set_online = tape_34xx_online,
 	.set_offline = tape_generic_offline,
-	.freeze = tape_generic_pm_suspend,
 	.int_class = IRQIO_TAP,
 };
 

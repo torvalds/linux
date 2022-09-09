@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sama5d36ek.dts - Device Tree file for SAMA5D36-EK board
  *
  *  Copyright (C) 2013 Atmel,
  *                2013 Josh Wu <josh.wu@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "sama5d36.dtsi"

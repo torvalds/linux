@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8804-spi.c  --  WM8804 S/PDIF transceiver driver - SPI
  *
  * Copyright 2015 Cirrus Logic Inc
  *
  * Author: Charles Keepax <ckeepax@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -27,10 +24,9 @@ static int wm8804_spi_probe(struct spi_device *spi)
 	return wm8804_probe(&spi->dev, regmap);
 }
 
-static int wm8804_spi_remove(struct spi_device *spi)
+static void wm8804_spi_remove(struct spi_device *spi)
 {
 	wm8804_remove(&spi->dev);
-	return 0;
 }
 
 static const struct of_device_id wm8804_of_match[] = {

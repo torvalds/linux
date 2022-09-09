@@ -581,16 +581,8 @@ enum msm8998_functions {
 	msm_mux_tgu_ch1,
 	msm_mux_tsense_pwm1,
 	msm_mux_tsense_pwm2,
-	msm_mux_tsif1_clk,
-	msm_mux_tsif1_data,
-	msm_mux_tsif1_en,
-	msm_mux_tsif1_error,
-	msm_mux_tsif1_sync,
-	msm_mux_tsif2_clk,
-	msm_mux_tsif2_data,
-	msm_mux_tsif2_en,
-	msm_mux_tsif2_error,
-	msm_mux_tsif2_sync,
+	msm_mux_tsif0,
+	msm_mux_tsif1,
 	msm_mux_uim1_clk,
 	msm_mux_uim1_data,
 	msm_mux_uim1_present,
@@ -691,9 +683,6 @@ static const char * const atest_usb13_groups[] = {
 };
 static const char * const bimc_dte1_groups[] = {
 	"gpio8", "gpio10",
-};
-static const char * const tsif1_sync_groups[] = {
-	"gpio9",
 };
 static const char * const wlan1_adc0_groups[] = {
 	"gpio9",
@@ -861,9 +850,6 @@ static const char * const lpass_slimbus_groups[] = {
 	"gpio39", "gpio70", "gpio71", "gpio72",
 };
 static const char * const sd_write_groups[] = {
-	"gpio40",
-};
-static const char * const tsif1_error_groups[] = {
 	"gpio40",
 };
 static const char * const blsp_spi6_groups[] = {
@@ -1048,11 +1034,8 @@ static const char * const blsp_uim2_b_groups[] = {
 static const char * const blsp_i2c5_groups[] = {
 	"gpio87", "gpio88",
 };
-static const char * const tsif1_clk_groups[] = {
-	"gpio89",
-};
-static const char * const tsif1_en_groups[] = {
-	"gpio90",
+static const char * const tsif0_groups[] = {
+	"gpio9", "gpio40", "gpio89", "gpio90", "gpio91",
 };
 static const char * const mdp_vsync0_groups[] = {
 	"gpio90",
@@ -1075,17 +1058,14 @@ static const char * const tgu_ch0_groups[] = {
 static const char * const qdss_cti1_b_groups[] = {
 	"gpio90", "gpio91",
 };
-static const char * const tsif1_data_groups[] = {
-	"gpio91",
-};
 static const char * const sdc4_cmd_groups[] = {
 	"gpio91",
 };
 static const char * const tgu_ch1_groups[] = {
 	"gpio91",
 };
-static const char * const tsif2_error_groups[] = {
-	"gpio92",
+static const char * const tsif1_groups[] = {
+	"gpio92", "gpio93", "gpio94", "gpio95", "gpio96",
 };
 static const char * const sdc43_groups[] = {
 	"gpio92",
@@ -1093,14 +1073,8 @@ static const char * const sdc43_groups[] = {
 static const char * const vfr_1_groups[] = {
 	"gpio92",
 };
-static const char * const tsif2_clk_groups[] = {
-	"gpio93",
-};
 static const char * const sdc4_clk_groups[] = {
 	"gpio93",
-};
-static const char * const tsif2_en_groups[] = {
-	"gpio94",
 };
 static const char * const sdc42_groups[] = {
 	"gpio94",
@@ -1108,14 +1082,8 @@ static const char * const sdc42_groups[] = {
 static const char * const sd_card_groups[] = {
 	"gpio95",
 };
-static const char * const tsif2_data_groups[] = {
-	"gpio95",
-};
 static const char * const sdc41_groups[] = {
 	"gpio95",
-};
-static const char * const tsif2_sync_groups[] = {
-	"gpio96",
 };
 static const char * const sdc40_groups[] = {
 	"gpio96",
@@ -1355,16 +1323,8 @@ static const struct msm_function msm8998_functions[] = {
 	FUNCTION(tgu_ch1),
 	FUNCTION(tsense_pwm1),
 	FUNCTION(tsense_pwm2),
-	FUNCTION(tsif1_clk),
-	FUNCTION(tsif1_data),
-	FUNCTION(tsif1_en),
-	FUNCTION(tsif1_error),
-	FUNCTION(tsif1_sync),
-	FUNCTION(tsif2_clk),
-	FUNCTION(tsif2_data),
-	FUNCTION(tsif2_en),
-	FUNCTION(tsif2_error),
-	FUNCTION(tsif2_sync),
+	FUNCTION(tsif0),
+	FUNCTION(tsif1),
 	FUNCTION(uim1_clk),
 	FUNCTION(uim1_data),
 	FUNCTION(uim1_present),
@@ -1396,7 +1356,7 @@ static const struct msm_pingroup msm8998_groups[] = {
 	PINGROUP(6, WEST, blsp_spi8, blsp_uart8_a, blsp_i2c8, _, _, _, _, _, _),
 	PINGROUP(7, WEST, blsp_spi8, blsp_uart8_a, blsp_i2c8, ddr_bist, _, atest_tsens2, atest_usb1, _, _),
 	PINGROUP(8, EAST, blsp_spi4, blsp_uart1_b, blsp_uim1_b, _, ddr_bist, _, wlan1_adc1, atest_usb13, bimc_dte1),
-	PINGROUP(9, EAST, blsp_spi4, blsp_uart1_b, blsp_uim1_b, tsif1_sync, ddr_bist, _, wlan1_adc0, atest_usb12, bimc_dte0),
+	PINGROUP(9, EAST, blsp_spi4, blsp_uart1_b, blsp_uim1_b, tsif0, ddr_bist, _, wlan1_adc0, atest_usb12, bimc_dte0),
 	PINGROUP(10, EAST, mdp_vsync_a, blsp_spi4, blsp_uart1_b, blsp_i2c4, ddr_bist, atest_gpsadc1, wlan2_adc1, atest_usb11, bimc_dte1),
 	PINGROUP(11, EAST, mdp_vsync_a, edp_lcd, blsp_spi4, blsp_uart1_b, blsp_i2c4, dbg_out, atest_gpsadc0, wlan2_adc0, atest_usb10),
 	PINGROUP(12, EAST, mdp_vsync, m_voc, _, _, _, _, _, _, _),
@@ -1427,7 +1387,7 @@ static const struct msm_pingroup msm8998_groups[] = {
 	PINGROUP(37, NORTH, agera_pll, _, _, _, _, _, _, _, _),
 	PINGROUP(38, WEST, usb_phy, _, _, _, _, _, _, _, _),
 	PINGROUP(39, WEST, lpass_slimbus, _, _, _, _, _, _, _, _),
-	PINGROUP(40, EAST, sd_write, tsif1_error, _, _, _, _, _, _, _),
+	PINGROUP(40, EAST, sd_write, tsif0, _, _, _, _, _, _, _),
 	PINGROUP(41, EAST, blsp_spi6, blsp_uart3_b, blsp_uim3_b, _, qdss, _, _, _, _),
 	PINGROUP(42, EAST, blsp_spi6, blsp_uart3_b, blsp_uim3_b, _, qdss, _, _, _, _),
 	PINGROUP(43, EAST, blsp_spi6, blsp_uart3_b, blsp_i2c6, _, qdss, _, _, _, _),
@@ -1476,14 +1436,14 @@ static const struct msm_pingroup msm8998_groups[] = {
 	PINGROUP(86, EAST, blsp_spi5, blsp_uart2_b, blsp_uim2_b, _, _, _, _, _, _),
 	PINGROUP(87, EAST, blsp_spi5, blsp_uart2_b, blsp_i2c5, _, _, _, _, _, _),
 	PINGROUP(88, EAST, blsp_spi5, blsp_uart2_b, blsp_i2c5, _, _, _, _, _, _),
-	PINGROUP(89, EAST, tsif1_clk, phase_flag, _, _, _, _, _, _, _),
-	PINGROUP(90, EAST, tsif1_en, mdp_vsync0, mdp_vsync1, mdp_vsync2, mdp_vsync3, blsp1_spi, tgu_ch0, qdss_cti1_b, _),
-	PINGROUP(91, EAST, tsif1_data, sdc4_cmd, tgu_ch1, phase_flag, qdss_cti1_b, _, _, _, _),
-	PINGROUP(92, EAST, tsif2_error, sdc43, vfr_1, phase_flag, _, _, _, _, _),
-	PINGROUP(93, EAST, tsif2_clk, sdc4_clk, _, qdss, _, _, _, _, _),
-	PINGROUP(94, EAST, tsif2_en, sdc42, _, _, _, _, _, _, _),
-	PINGROUP(95, EAST, tsif2_data, sdc41, _, _, _, _, _, _, _),
-	PINGROUP(96, EAST, tsif2_sync, sdc40, phase_flag, _, _, _, _, _, _),
+	PINGROUP(89, EAST, tsif0, phase_flag, _, _, _, _, _, _, _),
+	PINGROUP(90, EAST, tsif0, mdp_vsync0, mdp_vsync1, mdp_vsync2, mdp_vsync3, blsp1_spi, tgu_ch0, qdss_cti1_b, _),
+	PINGROUP(91, EAST, tsif0, sdc4_cmd, tgu_ch1, phase_flag, qdss_cti1_b, _, _, _, _),
+	PINGROUP(92, EAST, tsif1, sdc43, vfr_1, phase_flag, _, _, _, _, _),
+	PINGROUP(93, EAST, tsif1, sdc4_clk, _, qdss, _, _, _, _, _),
+	PINGROUP(94, EAST, tsif1, sdc42, _, _, _, _, _, _, _),
+	PINGROUP(95, EAST, tsif1, sdc41, _, _, _, _, _, _, _),
+	PINGROUP(96, EAST, tsif1, sdc40, phase_flag, _, _, _, _, _, _),
 	PINGROUP(97, WEST, _, mdp_vsync_b, ldo_en, _, _, _, _, _, _),
 	PINGROUP(98, WEST, _, mdp_vsync_b, ldo_update, _, _, _, _, _, _),
 	PINGROUP(99, WEST, _, _, _, _, _, _, _, _, _),

@@ -10,6 +10,8 @@
 #define PENDING_SIG	0xFFFFFFFFFFFFFFFFUL
 #define PRIO 4001
 
+typedef void (*sereq_completion_t)(void *req, int err);
+
 /**
  * struct gphdr - General purpose Header
  * @param0: first parameter.
@@ -147,6 +149,7 @@ struct auth_keys {
 
 union fc_ctx_flags {
 	__be64 f;
+	u64 fu;
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
 		u64 cipher_type	: 4;
@@ -203,12 +206,58 @@ struct nitrox_crypto_ctx {
 		struct flexi_crypto_context *fctx;
 	} u;
 	struct crypto_ctx_hdr *chdr;
+	sereq_completion_t callback;
 };
 
 struct nitrox_kcrypt_request {
 	struct se_crypto_request creq;
 	u8 *src;
 	u8 *dst;
+	u8 *iv_out;
+};
+
+/**
+ * struct nitrox_aead_rctx - AEAD request context
+ * @nkreq: Base request context
+ * @cryptlen: Encryption/Decryption data length
+ * @assoclen: AAD length
+ * @srclen: Input buffer length
+ * @dstlen: Output buffer length
+ * @iv: IV data
+ * @ivsize: IV data length
+ * @flags: AEAD req flags
+ * @ctx_handle: Device context handle
+ * @src: Source sglist
+ * @dst: Destination sglist
+ * @ctrl_arg: Identifies the request type (ENCRYPT/DECRYPT)
+ */
+struct nitrox_aead_rctx {
+	struct nitrox_kcrypt_request nkreq;
+	unsigned int cryptlen;
+	unsigned int assoclen;
+	unsigned int srclen;
+	unsigned int dstlen;
+	u8 *iv;
+	int ivsize;
+	u32 flags;
+	u64 ctx_handle;
+	struct scatterlist *src;
+	struct scatterlist *dst;
+	u8 ctrl_arg;
+};
+
+/**
+ * struct nitrox_rfc4106_rctx - rfc4106 cipher request context
+ * @base: AEAD request context
+ * @src: Source sglist
+ * @dst: Destination sglist
+ * @assoc: AAD
+ */
+struct nitrox_rfc4106_rctx {
+	struct nitrox_aead_rctx base;
+	struct scatterlist src[3];
+	struct scatterlist dst[3];
+	u8 assoc[20];
 };
 
 /**
@@ -232,6 +281,7 @@ struct nitrox_kcrypt_request {
  *   - packet payload bytes
  */
 union pkt_instr_hdr {
+	__be64 bev;
 	u64 value;
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
@@ -276,6 +326,7 @@ union pkt_instr_hdr {
  * @ctxp: Context pointer. CTXP<63,2:0> must be zero in all cases.
  */
 union pkt_hdr {
+	__be64 bev[2];
 	u64 value[2];
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
@@ -322,6 +373,7 @@ union pkt_hdr {
  *        sglist components at [RPTR] on the remote host.
  */
 union slc_store_info {
+	__be64 bev[2];
 	u64 value[2];
 	struct {
 #if defined(__BIG_ENDIAN_BITFIELD)
@@ -356,9 +408,39 @@ struct nps_pkt_instr {
 };
 
 /**
+ * struct aqmq_command_s - The 32 byte command for AE processing.
+ * @opcode: Request opcode
+ * @param1: Request control parameter 1
+ * @param2: Request control parameter 2
+ * @dlen: Input length
+ * @dptr: Input pointer points to buffer in remote host
+ * @rptr: Result pointer points to buffer in remote host
+ * @grp: AQM Group (0..7)
+ * @cptr: Context pointer
+ */
+struct aqmq_command_s {
+	__be16 opcode;
+	__be16 param1;
+	__be16 param2;
+	__be16 dlen;
+	__be64 dptr;
+	__be64 rptr;
+	union {
+		__be64 word3;
+#if defined(__BIG_ENDIAN_BITFIELD)
+		u64 grp : 3;
+		u64 cptr : 61;
+#else
+		u64 cptr : 61;
+		u64 grp : 3;
+#endif
+	};
+};
+
+/**
  * struct ctx_hdr - Book keeping data about the crypto context
  * @pool: Pool used to allocate crypto context
- * @dma: Base DMA address of the cypto context
+ * @dma: Base DMA address of the crypto context
  * @ctx_dma: Actual usable crypto context for NITROX
  */
 struct ctx_hdr {
@@ -512,7 +594,7 @@ static inline struct scatterlist *create_multi_sg(struct scatterlist *to_sg,
 	struct scatterlist *sg = to_sg;
 	unsigned int sglen;
 
-	for (; buflen; buflen -= sglen) {
+	for (; buflen && from_sg; buflen -= sglen) {
 		sglen = from_sg->length;
 		if (sglen > buflen)
 			sglen = buflen;

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Bindings for GPIO bitbanged I2C
 
 maintainers:
-  - Wolfram Sang <wolfram@the-dreams.de>
+  - Wolfram Sang <wsa@kernel.org>
 
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#
@@ -39,11 +39,9 @@ properties:
 
   i2c-gpio,delay-us:
     description: delay between GPIO operations (may depend on each platform)
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   i2c-gpio,timeout-ms:
     description: timeout to get data
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   # Deprecated properties, do not use in new device tree sources:
   gpios:
@@ -52,15 +50,15 @@ properties:
     description: sda and scl gpio, alternative for {sda,scl}-gpios
 
   i2c-gpio,sda-open-drain:
-    # Generate a warning if present
-    not: true
+    type: boolean
+    deprecated: true
     description: this means that something outside of our control has put
       the GPIO line used for SDA into open drain mode, and that something is
       not the GPIO chip. It is essentially an inconsistency flag.
 
   i2c-gpio,scl-open-drain:
-    # Generate a warning if present
-    not: true
+    type: boolean
+    deprecated: true
     description: this means that something outside of our control has put the
       GPIO line used for SCL into open drain mode, and that something is not
       the GPIO chip. It is essentially an inconsistency flag.
@@ -69,5 +67,7 @@ required:
   - compatible
   - sda-gpios
   - scl-gpios
+
+unevaluatedProperties: false
 
 ...

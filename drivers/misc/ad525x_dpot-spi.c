@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Analog Devices digital potentiometers (SPI bus)
  *
  * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/spi/spi.h>
@@ -91,9 +90,9 @@ static int ad_dpot_spi_probe(struct spi_device *spi)
 			     spi_get_device_id(spi)->name);
 }
 
-static int ad_dpot_spi_remove(struct spi_device *spi)
+static void ad_dpot_spi_remove(struct spi_device *spi)
 {
-	return ad_dpot_remove(&spi->dev);
+	ad_dpot_remove(&spi->dev);
 }
 
 static const struct spi_device_id ad_dpot_spi_id[] = {

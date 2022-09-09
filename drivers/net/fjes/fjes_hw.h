@@ -1,22 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  FUJITSU Extended Socket Network Device driver
  *  Copyright (c) 2015 FUJITSU LIMITED
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  */
 
 #ifndef FJES_HW_H_
@@ -345,7 +330,7 @@ int fjes_hw_register_buff_addr(struct fjes_hw *, int,
 int fjes_hw_unregister_buff_addr(struct fjes_hw *, int);
 void fjes_hw_init_command_registers(struct fjes_hw *,
 				    struct fjes_device_command_param *);
-void fjes_hw_setup_epbuf(struct epbuf_handler *, u8 *, u32);
+void fjes_hw_setup_epbuf(struct epbuf_handler *, const u8 *, u32);
 int fjes_hw_raise_interrupt(struct fjes_hw *, int, enum REG_ICTL_MASK);
 void fjes_hw_set_irqmask(struct fjes_hw *, enum REG_ICTL_MASK, bool);
 u32 fjes_hw_capture_interrupt_status(struct fjes_hw *);

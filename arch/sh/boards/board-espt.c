@@ -13,7 +13,7 @@
 #include <linux/sh_eth.h>
 #include <linux/sh_intc.h>
 #include <asm/machvec.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 /* NOR Flash */
 static struct mtd_partition espt_nor_flash_partitions[] = {

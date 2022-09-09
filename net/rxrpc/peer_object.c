@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* RxRPC remote transport endpoint record management
  *
  * Copyright (C) 2007, 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -125,7 +121,7 @@ static struct rxrpc_peer *__rxrpc_lookup_peer_rcu(
 
 	hash_for_each_possible_rcu(rxnet->peer_hash, peer, hash_link, hash_key) {
 		if (rxrpc_peer_cmp_key(peer, local, srx, hash_key) == 0 &&
-		    atomic_read(&peer->usage) > 0)
+		    refcount_read(&peer->ref) > 0)
 			return peer;
 	}
 
@@ -144,7 +140,7 @@ struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *local,
 	peer = __rxrpc_lookup_peer_rcu(local, srx, hash_key);
 	if (peer) {
 		_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
-		_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
+		_leave(" = %p {u=%d}", peer, refcount_read(&peer->ref));
 	}
 	return peer;
 }
@@ -213,14 +209,15 @@ static void rxrpc_assess_MTU_size(struct rxrpc_sock *rx,
  */
 struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 {
+	const void *here = __builtin_return_address(0);
 	struct rxrpc_peer *peer;
 
 	_enter("");
 
 	peer = kzalloc(sizeof(struct rxrpc_peer), gfp);
 	if (peer) {
-		atomic_set(&peer->usage, 1);
-		peer->local = local;
+		refcount_set(&peer->ref, 1);
+		peer->local = rxrpc_get_local(local);
 		INIT_HLIST_HEAD(&peer->error_targets);
 		peer->service_conns = RB_ROOT;
 		seqlock_init(&peer->service_conn_lock);
@@ -228,12 +225,15 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 		spin_lock_init(&peer->rtt_input_lock);
 		peer->debug_id = atomic_inc_return(&rxrpc_debug_id);
 
+		rxrpc_peer_init_rtt(peer);
+
 		if (RXRPC_TX_SMSS > 2190)
 			peer->cong_cwnd = 2;
 		else if (RXRPC_TX_SMSS > 1095)
 			peer->cong_cwnd = 3;
 		else
 			peer->cong_cwnd = 4;
+		trace_rxrpc_peer(peer->debug_id, rxrpc_peer_new, 1, here);
 	}
 
 	_leave(" = %p", peer);
@@ -299,6 +299,12 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_sock *rx,
 	return peer;
 }
 
+static void rxrpc_free_peer(struct rxrpc_peer *peer)
+{
+	rxrpc_put_local(peer->local);
+	kfree_rcu(peer, rcu);
+}
+
 /*
  * Set up a new incoming peer.  There shouldn't be any other matching peers
  * since we've already done a search in the list from the non-reentrant context
@@ -311,7 +317,6 @@ void rxrpc_new_incoming_peer(struct rxrpc_sock *rx, struct rxrpc_local *local,
 	unsigned long hash_key;
 
 	hash_key = rxrpc_peer_hash_key(local, &peer->srx);
-	peer->local = local;
 	rxrpc_init_peer(rx, peer, hash_key);
 
 	spin_lock(&rxnet->peer_hash_lock);
@@ -366,14 +371,14 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
 		spin_unlock_bh(&rxnet->peer_hash_lock);
 
 		if (peer)
-			kfree(candidate);
+			rxrpc_free_peer(candidate);
 		else
 			peer = candidate;
 	}
 
 	_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
 
-	_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
+	_leave(" = %p {u=%d}", peer, refcount_read(&peer->ref));
 	return peer;
 }
 
@@ -383,10 +388,10 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
 struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer)
 {
 	const void *here = __builtin_return_address(0);
-	int n;
+	int r;
 
-	n = atomic_inc_return(&peer->usage);
-	trace_rxrpc_peer(peer, rxrpc_peer_got, n, here);
+	__refcount_inc(&peer->ref, &r);
+	trace_rxrpc_peer(peer->debug_id, rxrpc_peer_got, r + 1, here);
 	return peer;
 }
 
@@ -396,11 +401,11 @@ struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer)
 struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
 {
 	const void *here = __builtin_return_address(0);
+	int r;
 
 	if (peer) {
-		int n = atomic_fetch_add_unless(&peer->usage, 1, 0);
-		if (n > 0)
-			trace_rxrpc_peer(peer, rxrpc_peer_got, n + 1, here);
+		if (__refcount_inc_not_zero(&peer->ref, &r))
+			trace_rxrpc_peer(peer->debug_id, rxrpc_peer_got, r + 1, here);
 		else
 			peer = NULL;
 	}
@@ -421,7 +426,7 @@ static void __rxrpc_put_peer(struct rxrpc_peer *peer)
 	list_del_init(&peer->keepalive_link);
 	spin_unlock_bh(&rxnet->peer_hash_lock);
 
-	kfree_rcu(peer, rcu);
+	rxrpc_free_peer(peer);
 }
 
 /*
@@ -430,13 +435,36 @@ static void __rxrpc_put_peer(struct rxrpc_peer *peer)
 void rxrpc_put_peer(struct rxrpc_peer *peer)
 {
 	const void *here = __builtin_return_address(0);
-	int n;
+	unsigned int debug_id;
+	bool dead;
+	int r;
 
 	if (peer) {
-		n = atomic_dec_return(&peer->usage);
-		trace_rxrpc_peer(peer, rxrpc_peer_put, n, here);
-		if (n == 0)
+		debug_id = peer->debug_id;
+		dead = __refcount_dec_and_test(&peer->ref, &r);
+		trace_rxrpc_peer(debug_id, rxrpc_peer_put, r - 1, here);
+		if (dead)
 			__rxrpc_put_peer(peer);
+	}
+}
+
+/*
+ * Drop a ref on a peer record where the caller already holds the
+ * peer_hash_lock.
+ */
+void rxrpc_put_peer_locked(struct rxrpc_peer *peer)
+{
+	const void *here = __builtin_return_address(0);
+	unsigned int debug_id = peer->debug_id;
+	bool dead;
+	int r;
+
+	dead = __refcount_dec_and_test(&peer->ref, &r);
+	trace_rxrpc_peer(debug_id, rxrpc_peer_put, r - 1, here);
+	if (dead) {
+		hash_del_rcu(&peer->hash_link);
+		list_del_init(&peer->keepalive_link);
+		rxrpc_free_peer(peer);
 	}
 }
 
@@ -455,7 +483,7 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)
 		hlist_for_each_entry(peer, &rxnet->peer_hash[i], hash_link) {
 			pr_err("Leaked peer %u {%u} %pISp\n",
 			       peer->debug_id,
-			       atomic_read(&peer->usage),
+			       refcount_read(&peer->ref),
 			       &peer->srx.transport);
 		}
 	}
@@ -477,14 +505,24 @@ void rxrpc_kernel_get_peer(struct socket *sock, struct rxrpc_call *call,
 EXPORT_SYMBOL(rxrpc_kernel_get_peer);
 
 /**
- * rxrpc_kernel_get_rtt - Get a call's peer RTT
+ * rxrpc_kernel_get_srtt - Get a call's peer smoothed RTT
  * @sock: The socket on which the call is in progress.
  * @call: The call to query
+ * @_srtt: Where to store the SRTT value.
  *
- * Get the call's peer RTT.
+ * Get the call's peer smoothed RTT in uS.
  */
-u64 rxrpc_kernel_get_rtt(struct socket *sock, struct rxrpc_call *call)
+bool rxrpc_kernel_get_srtt(struct socket *sock, struct rxrpc_call *call,
+			   u32 *_srtt)
 {
-	return call->peer->rtt;
+	struct rxrpc_peer *peer = call->peer;
+
+	if (peer->rtt_count == 0) {
+		*_srtt = 1000000; /* 1S */
+		return false;
+	}
+
+	*_srtt = call->peer->srtt_us >> 3;
+	return true;
 }
-EXPORT_SYMBOL(rxrpc_kernel_get_rtt);
+EXPORT_SYMBOL(rxrpc_kernel_get_srtt);

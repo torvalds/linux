@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PCCARD (PCMCIA/CardBus) bus subsystem configuration
 #
@@ -5,7 +6,7 @@
 menuconfig PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
 	depends on !UML
-	---help---
+	help
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
 	  modems or hard drives often used with laptops computers.  There are
@@ -21,7 +22,7 @@ config PCMCIA
 	tristate "16-bit PCMCIA support"
 	select CRC32
 	default y
-	---help---
+	help
 	   This option enables support for 16-bit PCMCIA cards. Most older
 	   PC-cards are such 16-bit PCMCIA cards, so unless you know you're
 	   only using 32-bit CardBus cards, say Y or M here.
@@ -53,7 +54,7 @@ config CARDBUS
 	bool "32-bit CardBus support"
 	depends on PCI
 	default y
-	---help---
+	help
 	  CardBus is a bus mastering architecture for PC-cards, which allows
 	  for 32 bit PC-cards (the original PCMCIA standard specifies only
 	  a 16 bit wide bus). Many newer PC-cards are actually CardBus cards.
@@ -74,7 +75,7 @@ config YENTA
 	depends on PCI
 	select CARDBUS if !EXPERT
 	select PCCARD_NONSTATIC if PCMCIA != n
-	---help---
+	help
 	  This option enables support for CardBus host bridges.  Virtually
 	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
 	  the hardware inside your computer that PCMCIA cards are plugged
@@ -150,7 +151,7 @@ config TCIC
 
 config PCMCIA_ALCHEMY_DEVBOARD
 	tristate "Alchemy Db/Pb1xxx PCMCIA socket services"
-	depends on MIPS_ALCHEMY && PCMCIA
+	depends on MIPS_DB1XXX && PCMCIA
 	help
 	  Enable this driver of you want PCMCIA support on your Alchemy
 	  Db1000, Db/Pb1100, Db/Pb1500, Db/Pb1550, Db/Pb1200, DB1300
@@ -208,8 +209,8 @@ config PCMCIA_PXA2XX
 	tristate "PXA2xx support"
 	depends on ARM && ARCH_PXA && PCMCIA
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
-		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
-		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2 \
+		    || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
+		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES \
 		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
 		    || MACH_COLIBRI320 || MACH_H4700)
 	select PCMCIA_SOC_COMMON
@@ -243,13 +244,10 @@ config PCMCIA_VRC4171
 	tristate "NEC VRC4171 Card Controllers support"
 	depends on CPU_VR41XX && ISA && PCMCIA
 
-config PCMCIA_VRC4173
-	tristate "NEC VRC4173 CARDU support"
-	depends on CPU_VR41XX && PCI && PCMCIA
-
 config OMAP_CF
 	tristate "OMAP CompactFlash Controller"
-	depends on PCMCIA && ARCH_OMAP16XX
+	depends on PCMCIA
+	depends on ARCH_OMAP16XX || (ARM && COMPILE_TEST)
 	help
 	  Say Y here to support the CompactFlash controller on OMAP.
 	  Note that this doesn't support "True IDE" mode.
@@ -257,6 +255,7 @@ config OMAP_CF
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
 	depends on PCI
+	depends on OF
 	depends on PCMCIA && ARCH_AT91
 	help
 	  Say Y here to support the CompactFlash controller on AT91 chips.

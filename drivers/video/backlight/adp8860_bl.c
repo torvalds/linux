@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Backlight driver for Analog Devices ADP8860 Backlight Devices
  *
  * Copyright 2009-2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -362,15 +361,7 @@ static int adp8860_bl_set(struct backlight_device *bl, int brightness)
 
 static int adp8860_bl_update_status(struct backlight_device *bl)
 {
-	int brightness = bl->props.brightness;
-
-	if (bl->props.power != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	return adp8860_bl_set(bl, brightness);
+	return adp8860_bl_set(bl, backlight_get_brightness(bl));
 }
 
 static int adp8860_bl_get_brightness(struct backlight_device *bl)
@@ -690,7 +681,7 @@ static int adp8860_probe(struct i2c_client *client,
 	switch (ADP8860_MANID(reg_val)) {
 	case ADP8863_MANUFID:
 		data->gdwn_dis = !!pdata->gdwn_dis;
-		/* fall through */
+		fallthrough;
 	case ADP8860_MANUFID:
 		data->en_ambl_sens = !!pdata->en_ambl_sens;
 		break;

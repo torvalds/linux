@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * vsyscall_emu_64.S: Vsyscall emulation page
  *
  * Copyright (c) 2011 Andy Lutomirski
- *
- * Subject to the GNU General Public License, version 2
  */
 
 #include <linux/linkage.h>
@@ -21,16 +20,19 @@ __vsyscall_page:
 	mov $__NR_gettimeofday, %rax
 	syscall
 	ret
+	int3
 
 	.balign 1024, 0xcc
 	mov $__NR_time, %rax
 	syscall
 	ret
+	int3
 
 	.balign 1024, 0xcc
 	mov $__NR_getcpu, %rax
 	syscall
 	ret
+	int3
 
 	.balign 4096, 0xcc
 

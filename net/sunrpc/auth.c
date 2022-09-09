@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/net/sunrpc/auth.c
  *
@@ -17,9 +18,7 @@
 #include <linux/sunrpc/gss_api.h>
 #include <linux/spinlock.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define RPCDBG_FACILITY	RPCDBG_AUTH
-#endif
+#include <trace/events/sunrpc.h>
 
 #define RPC_CREDCACHE_DEFAULT_HASHBITS	(4)
 struct rpc_cred_cache {
@@ -41,6 +40,9 @@ static unsigned long number_cred_unused;
 
 static struct cred machine_cred = {
 	.usage = ATOMIC_INIT(1),
+#ifdef CONFIG_DEBUG_CREDENTIALS
+	.magic = CRED_MAGIC,
+#endif
 };
 
 /*
@@ -79,7 +81,7 @@ static int param_get_hashtbl_sz(char *buffer, const struct kernel_param *kp)
 	unsigned int nbits;
 
 	nbits = *(unsigned int *)kp->arg;
-	return sprintf(buffer, "%u", 1U << nbits);
+	return sprintf(buffer, "%u\n", 1U << nbits);
 }
 
 #define param_check_hashtbl_sz(name, p) __param_check(name, p, unsigned int);
@@ -218,57 +220,6 @@ rpcauth_get_gssinfo(rpc_authflavor_t pseudoflavor, struct rpcsec_gss_info *info)
 	return result;
 }
 EXPORT_SYMBOL_GPL(rpcauth_get_gssinfo);
-
-/**
- * rpcauth_list_flavors - discover registered flavors and pseudoflavors
- * @array: array to fill in
- * @size: size of "array"
- *
- * Returns the number of array items filled in, or a negative errno.
- *
- * The returned array is not sorted by any policy.  Callers should not
- * rely on the order of the items in the returned array.
- */
-int
-rpcauth_list_flavors(rpc_authflavor_t *array, int size)
-{
-	const struct rpc_authops *ops;
-	rpc_authflavor_t flavor, pseudos[4];
-	int i, len, result = 0;
-
-	rcu_read_lock();
-	for (flavor = 0; flavor < RPC_AUTH_MAXFLAVOR; flavor++) {
-		ops = rcu_dereference(auth_flavors[flavor]);
-		if (result >= size) {
-			result = -ENOMEM;
-			break;
-		}
-
-		if (ops == NULL)
-			continue;
-		if (ops->list_pseudoflavors == NULL) {
-			array[result++] = ops->au_flavor;
-			continue;
-		}
-		len = ops->list_pseudoflavors(pseudos, ARRAY_SIZE(pseudos));
-		if (len < 0) {
-			result = len;
-			break;
-		}
-		for (i = 0; i < len; i++) {
-			if (result >= size) {
-				result = -ENOMEM;
-				break;
-			}
-			array[result++] = pseudos[i];
-		}
-	}
-	rcu_read_unlock();
-
-	dprintk("RPC:       %s returns %d\n", __func__, result);
-	return result;
-}
-EXPORT_SYMBOL_GPL(rpcauth_list_flavors);
 
 struct rpc_auth *
 rpcauth_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
@@ -494,7 +445,7 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 		 * Enforce a 60 second garbage collection moratorium
 		 * Note that the cred_unused list must be time-ordered.
 		 */
-		if (!time_in_range(cred->cr_expire, expired, jiffies))
+		if (time_in_range(cred->cr_expire, expired, jiffies))
 			continue;
 		if (!rpcauth_unhash_cred(cred))
 			continue;
@@ -633,9 +584,6 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	struct rpc_cred *ret;
 	const struct cred *cred = current_cred();
 
-	dprintk("RPC:       looking up %s cred\n",
-		auth->au_ops->au_name);
-
 	memset(&acred, 0, sizeof(acred));
 	acred.cred = cred;
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
@@ -667,8 +615,8 @@ rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 	};
 	struct rpc_cred *ret;
 
-	dprintk("RPC: %5u looking up %s cred\n",
-		task->tk_pid, task->tk_client->cl_auth->au_ops->au_name);
+	if (RPC_IS_ASYNC(task))
+		lookupflags |= RPCAUTH_LOOKUP_ASYNC;
 	ret = auth->au_ops->lookup_cred(auth, &acred, lookupflags);
 	put_cred(acred.cred);
 	return ret;
@@ -685,8 +633,8 @@ rpcauth_bind_machine_cred(struct rpc_task *task, int lookupflags)
 
 	if (!acred.principal)
 		return NULL;
-	dprintk("RPC: %5u looking up %s machine cred\n",
-		task->tk_pid, task->tk_client->cl_auth->au_ops->au_name);
+	if (RPC_IS_ASYNC(task))
+		lookupflags |= RPCAUTH_LOOKUP_ASYNC;
 	return auth->au_ops->lookup_cred(auth, &acred, lookupflags);
 }
 
@@ -695,8 +643,6 @@ rpcauth_bind_new_cred(struct rpc_task *task, int lookupflags)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
 
-	dprintk("RPC: %5u looking up %s cred\n",
-		task->tk_pid, auth->au_ops->au_name);
 	return rpcauth_lookupcred(auth, lookupflags);
 }
 
@@ -712,7 +658,7 @@ rpcauth_bindcred(struct rpc_task *task, const struct cred *cred, int flags)
 	};
 
 	if (flags & RPC_TASK_ASYNC)
-		lookupflags |= RPCAUTH_LOOKUP_NEW;
+		lookupflags |= RPCAUTH_LOOKUP_NEW | RPCAUTH_LOOKUP_ASYNC;
 	if (task->tk_op_cred)
 		/* Task must use exactly this rpc_cred */
 		new = get_rpccred(task->tk_op_cred);
@@ -724,7 +670,7 @@ rpcauth_bindcred(struct rpc_task *task, const struct cred *cred, int flags)
 	/* If machine cred couldn't be bound, try a root cred */
 	if (new)
 		;
-	else if (cred == &machine_cred || (flags & RPC_TASK_ROOTCREDS))
+	else if (cred == &machine_cred)
 		new = rpcauth_bind_root_cred(task, lookupflags);
 	else if (flags & RPC_TASK_NULLCREDS)
 		new = authnull_ops.lookup_cred(NULL, NULL, 0);
@@ -768,75 +714,102 @@ destroy:
 }
 EXPORT_SYMBOL_GPL(put_rpccred);
 
-__be32 *
-rpcauth_marshcred(struct rpc_task *task, __be32 *p)
+/**
+ * rpcauth_marshcred - Append RPC credential to end of @xdr
+ * @task: controlling RPC task
+ * @xdr: xdr_stream containing initial portion of RPC Call header
+ *
+ * On success, an appropriate verifier is added to @xdr, @xdr is
+ * updated to point past the verifier, and zero is returned.
+ * Otherwise, @xdr is in an undefined state and a negative errno
+ * is returned.
+ */
+int rpcauth_marshcred(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
+	const struct rpc_credops *ops = task->tk_rqstp->rq_cred->cr_ops;
 
-	dprintk("RPC: %5u marshaling %s cred %p\n",
-		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
-
-	return cred->cr_ops->crmarshal(task, p);
+	return ops->crmarshal(task, xdr);
 }
 
-__be32 *
-rpcauth_checkverf(struct rpc_task *task, __be32 *p)
+/**
+ * rpcauth_wrap_req_encode - XDR encode the RPC procedure
+ * @task: controlling RPC task
+ * @xdr: stream where on-the-wire bytes are to be marshalled
+ *
+ * On success, @xdr contains the encoded and wrapped message.
+ * Otherwise, @xdr is in an undefined state.
+ */
+int rpcauth_wrap_req_encode(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
+	kxdreproc_t encode = task->tk_msg.rpc_proc->p_encode;
 
-	dprintk("RPC: %5u validating %s cred %p\n",
-		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
-
-	return cred->cr_ops->crvalidate(task, p);
-}
-
-static void rpcauth_wrap_req_encode(kxdreproc_t encode, struct rpc_rqst *rqstp,
-				   __be32 *data, void *obj)
-{
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &rqstp->rq_snd_buf, data);
-	encode(rqstp, &xdr, obj);
-}
-
-int
-rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp,
-		__be32 *data, void *obj)
-{
-	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
-
-	dprintk("RPC: %5u using %s cred %p to wrap rpc data\n",
-			task->tk_pid, cred->cr_ops->cr_name, cred);
-	if (cred->cr_ops->crwrap_req)
-		return cred->cr_ops->crwrap_req(task, encode, rqstp, data, obj);
-	/* By default, we encode the arguments normally. */
-	rpcauth_wrap_req_encode(encode, rqstp, data, obj);
+	encode(task->tk_rqstp, xdr, task->tk_msg.rpc_argp);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rpcauth_wrap_req_encode);
 
-static int
-rpcauth_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
-			  __be32 *data, void *obj)
+/**
+ * rpcauth_wrap_req - XDR encode and wrap the RPC procedure
+ * @task: controlling RPC task
+ * @xdr: stream where on-the-wire bytes are to be marshalled
+ *
+ * On success, @xdr contains the encoded and wrapped message,
+ * and zero is returned. Otherwise, @xdr is in an undefined
+ * state and a negative errno is returned.
+ */
+int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct xdr_stream xdr;
+	const struct rpc_credops *ops = task->tk_rqstp->rq_cred->cr_ops;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, data);
-	return decode(rqstp, &xdr, obj);
+	return ops->crwrap_req(task, xdr);
 }
 
+/**
+ * rpcauth_checkverf - Validate verifier in RPC Reply header
+ * @task: controlling RPC task
+ * @xdr: xdr_stream containing RPC Reply header
+ *
+ * On success, @xdr is updated to point past the verifier and
+ * zero is returned. Otherwise, @xdr is in an undefined state
+ * and a negative errno is returned.
+ */
 int
-rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp,
-		__be32 *data, void *obj)
+rpcauth_checkverf(struct rpc_task *task, struct xdr_stream *xdr)
 {
-	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
+	const struct rpc_credops *ops = task->tk_rqstp->rq_cred->cr_ops;
 
-	dprintk("RPC: %5u using %s cred %p to unwrap rpc data\n",
-			task->tk_pid, cred->cr_ops->cr_name, cred);
-	if (cred->cr_ops->crunwrap_resp)
-		return cred->cr_ops->crunwrap_resp(task, decode, rqstp,
-						   data, obj);
-	/* By default, we decode the arguments normally. */
-	return rpcauth_unwrap_req_decode(decode, rqstp, data, obj);
+	return ops->crvalidate(task, xdr);
+}
+
+/**
+ * rpcauth_unwrap_resp_decode - Invoke XDR decode function
+ * @task: controlling RPC task
+ * @xdr: stream where the Reply message resides
+ *
+ * Returns zero on success; otherwise a negative errno is returned.
+ */
+int
+rpcauth_unwrap_resp_decode(struct rpc_task *task, struct xdr_stream *xdr)
+{
+	kxdrdproc_t decode = task->tk_msg.rpc_proc->p_decode;
+
+	return decode(task->tk_rqstp, xdr, task->tk_msg.rpc_resp);
+}
+EXPORT_SYMBOL_GPL(rpcauth_unwrap_resp_decode);
+
+/**
+ * rpcauth_unwrap_resp - Invoke unwrap and decode function for the cred
+ * @task: controlling RPC task
+ * @xdr: stream where the Reply message resides
+ *
+ * Returns zero on success; otherwise a negative errno is returned.
+ */
+int
+rpcauth_unwrap_resp(struct rpc_task *task, struct xdr_stream *xdr)
+{
+	const struct rpc_credops *ops = task->tk_rqstp->rq_cred->cr_ops;
+
+	return ops->crunwrap_resp(task, xdr);
 }
 
 bool
@@ -862,8 +835,6 @@ rpcauth_refreshcred(struct rpc_task *task)
 			goto out;
 		cred = task->tk_rqstp->rq_cred;
 	}
-	dprintk("RPC: %5u refreshing %s cred %p\n",
-		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
 
 	err = cred->cr_ops->crrefresh(task);
 out:
@@ -877,8 +848,6 @@ rpcauth_invalcred(struct rpc_task *task)
 {
 	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 
-	dprintk("RPC: %5u invalidating %s cred %p\n",
-		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
 	if (cred)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 }
@@ -905,7 +874,7 @@ int __init rpcauth_init_module(void)
 	err = rpc_init_authunix();
 	if (err < 0)
 		goto out1;
-	err = register_shrinker(&rpc_cred_shrinker);
+	err = register_shrinker(&rpc_cred_shrinker, "sunrpc_cred");
 	if (err < 0)
 		goto out2;
 	return 0;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/subdev/i2c/base.o
 nvkm-y += nvkm/subdev/i2c/nv04.o
 nvkm-y += nvkm/subdev/i2c/nv4e.o
@@ -6,6 +7,7 @@ nvkm-y += nvkm/subdev/i2c/g94.o
 nvkm-y += nvkm/subdev/i2c/gf117.o
 nvkm-y += nvkm/subdev/i2c/gf119.o
 nvkm-y += nvkm/subdev/i2c/gk104.o
+nvkm-y += nvkm/subdev/i2c/gk110.o
 nvkm-y += nvkm/subdev/i2c/gm200.o
 
 nvkm-y += nvkm/subdev/i2c/pad.o

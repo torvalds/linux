@@ -1,11 +1,11 @@
-/**
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
  * Copyright (C) ST-Ericsson SA 2010
  * Author: Shujuan Chen <shujuan.chen@stericsson.com> for ST-Ericsson.
  * Author: Jonas Linde <jonas.linde@stericsson.com> for ST-Ericsson.
  * Author: Joakim Bech <joakim.xx.bech@stericsson.com> for ST-Ericsson.
  * Author: Berne Hebark <berne.herbark@stericsson.com> for ST-Ericsson.
  * Author: Niklas Hernaeus <niklas.hernaeus@stericsson.com> for ST-Ericsson.
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #ifndef _CRYP_IRQ_H_
@@ -19,7 +19,7 @@ enum cryp_irq_src_id {
 	CRYP_IRQ_SRC_ALL = 0x3
 };
 
-/**
+/*
  * M0 Funtions
  */
 void cryp_enable_irq_src(struct cryp_device_data *device_data, u32 irq_src);

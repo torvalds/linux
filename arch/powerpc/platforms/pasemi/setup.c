@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2007 PA Semi, Inc
  *
@@ -7,19 +8,6 @@
  * Maintained by: Olof Johansson <olof@lixom.net>
  *
  * Based on arch/powerpc/platforms/maple/setup.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/errno.h>
@@ -30,8 +18,8 @@
 #include <linux/pci.h>
 #include <linux/of_platform.h>
 #include <linux/gfp.h>
+#include <linux/irqdomain.h>
 
-#include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/i8259.h>
@@ -156,12 +144,6 @@ static void __init pas_setup_arch(void)
 	/* Setup SMP callback */
 	smp_ops = &pas_smp_ops;
 #endif
-	/* Lookup PCI hosts */
-	pas_pci_init();
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
 
 	/* Remap SDC register for doing reset */
 	/* XXXOJN This should maybe come out of the device tree */
@@ -230,7 +212,7 @@ static void sb600_8259_cascade(struct irq_desc *desc)
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static void nemo_init_IRQ(struct mpic *mpic)
+static void __init nemo_init_IRQ(struct mpic *mpic)
 {
 	struct device_node *np;
 	int gpio_virq;
@@ -411,55 +393,6 @@ out:
 	return !!(srr1 & 0x2);
 }
 
-#ifdef CONFIG_PCMCIA
-static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
-			 void *data)
-{
-	struct device *dev = data;
-	struct device *parent;
-	struct pcmcia_device *pdev = to_pcmcia_dev(dev);
-
-	/* We are only intereted in device addition */
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return 0;
-
-	parent = pdev->socket->dev.parent;
-
-	/* We know electra_cf devices will always have of_node set, since
-	 * electra_cf is an of_platform driver.
-	 */
-	if (!parent->of_node)
-		return 0;
-
-	if (!of_device_is_compatible(parent->of_node, "electra-cf"))
-		return 0;
-
-	/* We use the direct ops for localbus */
-	dev->dma_ops = &dma_nommu_ops;
-
-	return 0;
-}
-
-static struct notifier_block pcmcia_notifier = {
-	.notifier_call = pcmcia_notify,
-};
-
-static inline void pasemi_pcmcia_init(void)
-{
-	extern struct bus_type pcmcia_bus_type;
-
-	bus_register_notifier(&pcmcia_bus_type, &pcmcia_notifier);
-}
-
-#else
-
-static inline void pasemi_pcmcia_init(void)
-{
-}
-
-#endif
-
-
 static const struct of_device_id pasemi_bus_ids[] = {
 	/* Unfortunately needed for legacy firmwares */
 	{ .type = "localbus", },
@@ -472,8 +405,6 @@ static const struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	pasemi_pcmcia_init();
-
 	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
 
@@ -513,6 +444,7 @@ define_machine(pasemi) {
 	.name			= "PA Semi PWRficient",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
+	.discover_phbs		= pas_pci_init,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * nf_nat_snmp_basic.c
  *
@@ -24,17 +25,6 @@
  * McLean & Jochen Friedrich, stripped down for use in the kernel.
  *
  * Copyright (c) 2000 RP Internet (www.rpi.net.au).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: James Morris <jmorris@intercode.com.au>
  *
@@ -105,6 +95,8 @@ static void fast_csum(struct snmp_ctx *ctx, unsigned char offset)
 int snmp_version(void *context, size_t hdrlen, unsigned char tag,
 		 const void *data, size_t datalen)
 {
+	if (datalen != 1)
+		return -EINVAL;
 	if (*(unsigned char *)data > 1)
 		return -ENOTSUPP;
 	return 1;
@@ -114,8 +106,11 @@ int snmp_helper(void *context, size_t hdrlen, unsigned char tag,
 		const void *data, size_t datalen)
 {
 	struct snmp_ctx *ctx = (struct snmp_ctx *)context;
-	__be32 *pdata = (__be32 *)data;
+	__be32 *pdata;
 
+	if (datalen != 4)
+		return -EINVAL;
+	pdata = (__be32 *)data;
 	if (*pdata == ctx->from) {
 		pr_debug("%s: %pI4 to %pI4\n", __func__,
 			 (void *)&ctx->from, (void *)&ctx->to);
@@ -191,7 +186,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 		return NF_DROP;
 	}
 
-	if (!skb_make_writable(skb, skb->len)) {
+	if (skb_ensure_writable(skb, skb->len)) {
 		nf_ct_helper_log(skb, ct, "cannot mangle packet");
 		return NF_DROP;
 	}

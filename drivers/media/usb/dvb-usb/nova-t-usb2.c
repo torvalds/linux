@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB framework compliant Linux driver for the Hauppauge WinTV-NOVA-T usb2
  * DVB-T receiver.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dibusb.h"
 
@@ -133,7 +130,7 @@ ret:
 
 static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 {
-	int i;
+	int i, ret;
 	u8 b;
 
 	mac[0] = 0x00;
@@ -142,7 +139,9 @@ static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 
 	/* this is a complete guess, but works for my box */
 	for (i = 136; i < 139; i++) {
-		dibusb_read_eeprom_byte(d,i, &b);
+		ret = dibusb_read_eeprom_byte(d, i, &b);
+		if (ret)
+			return ret;
 
 		mac[5 - (i - 136)] = b;
 	}
@@ -161,11 +160,17 @@ static int nova_t_probe(struct usb_interface *intf,
 }
 
 /* do not change the order of the ID table */
-static struct usb_device_id nova_t_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_HAUPPAUGE,     USB_PID_WINTV_NOVA_T_USB2_COLD) },
-/* 01 */	{ USB_DEVICE(USB_VID_HAUPPAUGE,     USB_PID_WINTV_NOVA_T_USB2_WARM) },
-			{ }		/* Terminating entry */
+enum {
+	HAUPPAUGE_WINTV_NOVA_T_USB2_COLD,
+	HAUPPAUGE_WINTV_NOVA_T_USB2_WARM,
 };
+
+static struct usb_device_id nova_t_table[] = {
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_NOVA_T_USB2_COLD),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_NOVA_T_USB2_WARM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, nova_t_table);
 
 static struct dvb_usb_device_properties nova_t_properties = {
@@ -222,8 +227,8 @@ static struct dvb_usb_device_properties nova_t_properties = {
 	.num_device_descs = 1,
 	.devices = {
 		{   "Hauppauge WinTV-NOVA-T usb2",
-			{ &nova_t_table[0], NULL },
-			{ &nova_t_table[1], NULL },
+			{ &nova_t_table[HAUPPAUGE_WINTV_NOVA_T_USB2_COLD], NULL },
+			{ &nova_t_table[HAUPPAUGE_WINTV_NOVA_T_USB2_WARM], NULL },
 		},
 		{ NULL },
 	}

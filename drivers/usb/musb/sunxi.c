@@ -407,7 +407,7 @@ static u32 sunxi_musb_busctl_offset(u8 epnum, u16 offset)
 	return SUNXI_MUSB_TXFUNCADDR + offset;
 }
 
-static u8 sunxi_musb_readb(const void __iomem *addr, unsigned offset)
+static u8 sunxi_musb_readb(void __iomem *addr, u32 offset)
 {
 	struct sunxi_glue *glue;
 
@@ -440,6 +440,10 @@ static u8 sunxi_musb_readb(const void __iomem *addr, unsigned offset)
 				return 0xde;
 
 			return readb(addr + SUNXI_MUSB_CONFIGDATA);
+		case MUSB_ULPI_BUSCONTROL:
+			dev_warn(sunxi_musb->controller->parent,
+				"sunxi-musb does not have ULPI bus control register\n");
+			return 0;
 		/* Offset for these is fixed by sunxi_musb_busctl_offset() */
 		case SUNXI_MUSB_TXFUNCADDR:
 		case SUNXI_MUSB_TXHUBADDR:
@@ -494,6 +498,10 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 			return writeb(data, addr + SUNXI_MUSB_TXFIFOSZ);
 		case MUSB_RXFIFOSZ:
 			return writeb(data, addr + SUNXI_MUSB_RXFIFOSZ);
+		case MUSB_ULPI_BUSCONTROL:
+			dev_warn(sunxi_musb->controller->parent,
+				"sunxi-musb does not have ULPI bus control register\n");
+			return;
 		/* Offset for these is fixed by sunxi_musb_busctl_offset() */
 		case SUNXI_MUSB_TXFUNCADDR:
 		case SUNXI_MUSB_TXHUBADDR:
@@ -520,7 +528,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 		(int)(addr - sunxi_musb->mregs));
 }
 
-static u16 sunxi_musb_readw(const void __iomem *addr, unsigned offset)
+static u16 sunxi_musb_readw(void __iomem *addr, u32 offset)
 {
 	if (addr == sunxi_musb->mregs) {
 		/* generic control or fifo control reg access */
@@ -781,6 +789,8 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	pinfo.name	 = "musb-hdrc";
 	pinfo.id	= PLATFORM_DEVID_AUTO;
 	pinfo.parent	= &pdev->dev;
+	pinfo.fwnode	= of_fwnode_handle(pdev->dev.of_node);
+	pinfo.of_node_reused = true;
 	pinfo.res	= pdev->resource;
 	pinfo.num_res	= pdev->num_resources;
 	pinfo.data	= &pdata;

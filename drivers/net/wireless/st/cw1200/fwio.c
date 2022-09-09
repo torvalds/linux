@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Firmware I/O code for mac80211 ST-Ericsson CW1200 drivers
  *
@@ -8,10 +9,6 @@
  * ST-Ericsson UMAC CW1200 driver which is
  * Copyright (c) 2010, ST-Ericsson
  * Author: Ajitpal Singh <ajitpal.singh@stericsson.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/vmalloc.h>
@@ -323,12 +320,12 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 		goto out;
 	}
 
-	priv->hw_type = cw1200_get_hw_type(val32, &major_revision);
-	if (priv->hw_type < 0) {
+	ret = cw1200_get_hw_type(val32, &major_revision);
+	if (ret < 0) {
 		pr_err("Can't deduce hardware type.\n");
-		ret = -ENOTSUPP;
 		goto out;
 	}
+	priv->hw_type = ret;
 
 	/* Set DPLL Reg value, and read back to confirm writes work */
 	ret = cw1200_reg_write_32(priv, ST90TDS_TSET_GEN_R_W_REG_ID,
@@ -465,8 +462,8 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 
 	if (!(val32 & ST90TDS_CONFIG_ACCESS_MODE_BIT)) {
 		pr_err("Device is already in QUEUE mode!\n");
-			ret = -EINVAL;
-			goto out;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	switch (priv->hw_type)  {

@@ -487,6 +487,12 @@
 #define ERROR_QID_M    0x1ffffU
 #define ERROR_QID_G(x) (((x) >> ERROR_QID_S) & ERROR_QID_M)
 
+#define SGE_INT_CAUSE5_A        0x110c
+
+#define ERR_T_RXCRC_S    31
+#define ERR_T_RXCRC_V(x) ((x) << ERR_T_RXCRC_S)
+#define ERR_T_RXCRC_F    ERR_T_RXCRC_V(1U)
+
 #define HP_INT_THRESH_S    28
 #define HP_INT_THRESH_M    0xfU
 #define HP_INT_THRESH_V(x) ((x) << HP_INT_THRESH_S)
@@ -557,6 +563,12 @@
 #define AIVEC_V(x) ((x) << AIVEC_S)
 
 #define PCIE_PF_CLI_A	0x44
+
+#define PCIE_PF_EXPROM_OFST_A 0x4c
+#define OFFSET_S    10
+#define OFFSET_M    0x3fffU
+#define OFFSET_G(x) (((x) >> OFFSET_S) & OFFSET_M)
+
 #define PCIE_INT_CAUSE_A	0x3004
 
 #define UNXSPLCPLERR_S    29
@@ -871,6 +883,12 @@
 #define TDUE_S    16
 #define TDUE_V(x) ((x) << TDUE_S)
 #define TDUE_F    TDUE_V(1U)
+
+/* SPARE2 register contains 32-bit value at offset 0x6 in Serial INIT
+ * Configuration flashed on EEPROM. This value corresponds to 32-bit
+ * Serial Configuration Version information.
+ */
+#define PCIE_STATIC_SPARE2_A	0x5bfc
 
 /* registers for module MC */
 #define MC_INT_CAUSE_A		0x7518
@@ -1333,6 +1351,10 @@
 #define TP_DBG_LA_CONFIG_A	0x7ed4
 #define TP_OUT_CONFIG_A		0x7d04
 #define TP_GLOBAL_CONFIG_A	0x7d08
+
+#define ACTIVEFILTERCOUNTS_S    22
+#define ACTIVEFILTERCOUNTS_V(x) ((x) << ACTIVEFILTERCOUNTS_S)
+#define ACTIVEFILTERCOUNTS_F    ACTIVEFILTERCOUNTS_V(1U)
 
 #define TP_CMM_TCB_BASE_A 0x7d10
 #define TP_CMM_MM_BASE_A 0x7d14
@@ -1895,6 +1917,9 @@
 #define MAC_PORT_EPIO_OP_A 0x8d0
 
 #define MAC_PORT_CFG2_A 0x818
+
+#define MAC_PORT_PTP_SUM_LO_A 0x990
+#define MAC_PORT_PTP_SUM_HI_A 0x994
 
 #define MPS_CMN_CTL_A	0x9000
 
@@ -2998,6 +3023,14 @@
 #define REV_V(x) ((x) << REV_S)
 #define REV_G(x) (((x) >> REV_S) & REV_M)
 
+#define HASHTBLMEMCRCERR_S    27
+#define HASHTBLMEMCRCERR_V(x) ((x) << HASHTBLMEMCRCERR_S)
+#define HASHTBLMEMCRCERR_F    HASHTBLMEMCRCERR_V(1U)
+
+#define CMDTIDERR_S    22
+#define CMDTIDERR_V(x) ((x) << CMDTIDERR_S)
+#define CMDTIDERR_F    CMDTIDERR_V(1U)
+
 #define T6_UNKNOWNCMD_S    3
 #define T6_UNKNOWNCMD_V(x) ((x) << T6_UNKNOWNCMD_S)
 #define T6_UNKNOWNCMD_F    T6_UNKNOWNCMD_V(1U)
@@ -3024,6 +3057,10 @@
 #define HASHTIDSIZE_S    16
 #define HASHTIDSIZE_M    0x3fU
 #define HASHTIDSIZE_G(x) (((x) >> HASHTIDSIZE_S) & HASHTIDSIZE_M)
+
+#define HASHTBLSIZE_S    3
+#define HASHTBLSIZE_M    0x1ffffU
+#define HASHTBLSIZE_G(x) (((x) >> HASHTBLSIZE_S) & HASHTBLSIZE_M)
 
 #define LE_DB_HASH_TID_BASE_A 0x19c30
 #define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30

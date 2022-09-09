@@ -533,9 +533,10 @@ static void he_init_tx_lbfp(struct he_dev *he_dev)
 
 static int he_init_tpdrq(struct he_dev *he_dev)
 {
-	he_dev->tpdrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						 CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq),
-						 &he_dev->tpdrq_phys, GFP_KERNEL);
+	he_dev->tpdrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+						CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq),
+						&he_dev->tpdrq_phys,
+						GFP_KERNEL);
 	if (he_dev->tpdrq_base == NULL) {
 		hprintk("failed to alloc tpdrq\n");
 		return -ENOMEM;
@@ -717,7 +718,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 			instead of '/ 512', use '>> 9' to prevent a call
 			to divdu3 on x86 platforms
 		*/
-		rate_cps = (unsigned long long) (1 << exp) * (man + 512) >> 9;
+		rate_cps = (unsigned long long) (1UL << exp) * (man + 512) >> 9;
 
 		if (rate_cps < 10)
 			rate_cps = 10;	/* 2.2.1 minimum payload rate is 10 cps */
@@ -779,14 +780,11 @@ static int he_init_group(struct he_dev *he_dev, int group)
 		  G0_RBPS_BS + (group * 32));
 
 	/* bitmap table */
-	he_dev->rbpl_table = kmalloc_array(BITS_TO_LONGS(RBPL_TABLE_SIZE),
-					   sizeof(*he_dev->rbpl_table),
-					   GFP_KERNEL);
+	he_dev->rbpl_table = bitmap_zalloc(RBPL_TABLE_SIZE, GFP_KERNEL);
 	if (!he_dev->rbpl_table) {
 		hprintk("unable to allocate rbpl bitmap table\n");
 		return -ENOMEM;
 	}
-	bitmap_zero(he_dev->rbpl_table, RBPL_TABLE_SIZE);
 
 	/* rbpl_virt 64-bit pointers */
 	he_dev->rbpl_virt = kmalloc_array(RBPL_TABLE_SIZE,
@@ -805,9 +803,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 		goto out_free_rbpl_virt;
 	}
 
-	he_dev->rbpl_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_RBPL_SIZE * sizeof(struct he_rbp),
-						&he_dev->rbpl_phys, GFP_KERNEL);
+	he_dev->rbpl_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_RBPL_SIZE * sizeof(struct he_rbp),
+					       &he_dev->rbpl_phys, GFP_KERNEL);
 	if (he_dev->rbpl_base == NULL) {
 		hprintk("failed to alloc rbpl_base\n");
 		goto out_destroy_rbpl_pool;
@@ -844,9 +842,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 
 	/* rx buffer ready queue */
 
-	he_dev->rbrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
-						&he_dev->rbrq_phys, GFP_KERNEL);
+	he_dev->rbrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
+					       &he_dev->rbrq_phys, GFP_KERNEL);
 	if (he_dev->rbrq_base == NULL) {
 		hprintk("failed to allocate rbrq\n");
 		goto out_free_rbpl;
@@ -868,9 +866,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 
 	/* tx buffer ready queue */
 
-	he_dev->tbrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
-						&he_dev->tbrq_phys, GFP_KERNEL);
+	he_dev->tbrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
+					       &he_dev->tbrq_phys, GFP_KERNEL);
 	if (he_dev->tbrq_base == NULL) {
 		hprintk("failed to allocate tbrq\n");
 		goto out_free_rbpq_base;
@@ -901,7 +899,7 @@ out_destroy_rbpl_pool:
 out_free_rbpl_virt:
 	kfree(he_dev->rbpl_virt);
 out_free_rbpl_table:
-	kfree(he_dev->rbpl_table);
+	bitmap_free(he_dev->rbpl_table);
 
 	return -ENOMEM;
 }
@@ -913,11 +911,9 @@ static int he_init_irq(struct he_dev *he_dev)
 	/* 2.9.3.5  tail offset for each interrupt queue is located after the
 		    end of the interrupt queue */
 
-	he_dev->irq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-					       (CONFIG_IRQ_SIZE + 1)
-					       * sizeof(struct he_irq),
-					       &he_dev->irq_phys,
-					       GFP_KERNEL);
+	he_dev->irq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					      (CONFIG_IRQ_SIZE + 1) * sizeof(struct he_irq),
+					      &he_dev->irq_phys, GFP_KERNEL);
 	if (he_dev->irq_base == NULL) {
 		hprintk("failed to allocate irq\n");
 		return -ENOMEM;
@@ -1464,9 +1460,9 @@ static int he_start(struct atm_dev *dev)
 
 	/* host status page */
 
-	he_dev->hsp = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-					  sizeof(struct he_hsp),
-					  &he_dev->hsp_phys, GFP_KERNEL);
+	he_dev->hsp = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					 sizeof(struct he_hsp),
+					 &he_dev->hsp_phys, GFP_KERNEL);
 	if (he_dev->hsp == NULL) {
 		hprintk("failed to allocate host status page\n");
 		return -ENOMEM;
@@ -1579,7 +1575,7 @@ he_stop(struct he_dev *he_dev)
 	}
 
 	kfree(he_dev->rbpl_virt);
-	kfree(he_dev->rbpl_table);
+	bitmap_free(he_dev->rbpl_table);
 	dma_pool_destroy(he_dev->rbpl_pool);
 
 	if (he_dev->rbrq_base)
@@ -1691,7 +1687,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 
 		if (RBRQ_HBUF_ERR(he_dev->rbrq_head)) {
 			hprintk("HBUF_ERR!  (cid 0x%x)\n", cid);
-				atomic_inc(&vcc->stats->rx_drop);
+			atomic_inc(&vcc->stats->rx_drop);
 			goto return_host_buffers;
 		}
 
@@ -1945,14 +1941,14 @@ he_tasklet(unsigned long data)
 		switch (type) {
 			case ITYPE_RBRQ_THRESH:
 				HPRINTK("rbrq%d threshold\n", group);
-				/* fall through */
+				fallthrough;
 			case ITYPE_RBRQ_TIMER:
 				if (he_service_rbrq(he_dev, group))
 					he_service_rbpl(he_dev, group);
 				break;
 			case ITYPE_TBRQ_THRESH:
 				HPRINTK("tbrq%d threshold\n", group);
-				/* fall through */
+				fallthrough;
 			case ITYPE_TPD_COMPLETE:
 				he_service_tbrq(he_dev, group);
 				break;
@@ -2581,10 +2577,9 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			slot = 0;
 		}
 
-		tpd->iovec[slot].addr = dma_map_single(&he_dev->pci_dev->dev,
-			(void *) page_address(frag->page) + frag->page_offset,
-				frag->size, DMA_TO_DEVICE);
-		tpd->iovec[slot].len = frag->size;
+		tpd->iovec[slot].addr = skb_frag_dma_map(&he_dev->pci_dev->dev,
+				frag, 0, skb_frag_size(frag), DMA_TO_DEVICE);
+		tpd->iovec[slot].len = skb_frag_size(frag);
 		++slot;
 
 	}

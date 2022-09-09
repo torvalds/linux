@@ -1,22 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Maxim Integrated MAX5481-MAX5484 digital potentiometer driver
  * Copyright 2016 Rockwell Collins
  *
  * Datasheet:
- * http://datasheets.maximintegrated.com/en/ds/MAX5481-MAX5484.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the gnu general public license version 2 as
- * published by the free software foundation.
- *
+ * https://datasheets.maximintegrated.com/en/ds/MAX5481-MAX5484.pdf
  */
 
-#include <linux/acpi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 
 /* write wiper reg */
@@ -49,7 +44,7 @@ static const struct max5481_cfg max5481_cfg[] = {
 struct max5481_data {
 	struct spi_device *spi;
 	const struct max5481_cfg *cfg;
-	u8 msg[3] ____cacheline_aligned;
+	u8 msg[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define MAX5481_CHANNEL {					\
@@ -121,7 +116,6 @@ static const struct iio_info max5481_info = {
 	.write_raw = max5481_write_raw,
 };
 
-#if defined(CONFIG_OF)
 static const struct of_device_id max5481_match[] = {
 	{ .compatible = "maxim,max5481", .data = &max5481_cfg[max5481] },
 	{ .compatible = "maxim,max5482", .data = &max5481_cfg[max5482] },
@@ -130,7 +124,11 @@ static const struct of_device_id max5481_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max5481_match);
-#endif
+
+static void max5481_wiper_save(void *data)
+{
+	max5481_write_cmd(data, MAX5481_COPY_AB_TO_NV, 0);
+}
 
 static int max5481_probe(struct spi_device *spi)
 {
@@ -143,17 +141,15 @@ static int max5481_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	dev_set_drvdata(&spi->dev, indio_dev);
 	data = iio_priv(indio_dev);
 
 	data->spi = spi;
 
-	data->cfg = of_device_get_match_data(&spi->dev);
+	data->cfg = device_get_match_data(&spi->dev);
 	if (!data->cfg)
 		data->cfg = &max5481_cfg[id->driver_data];
 
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* variant specific configuration */
@@ -166,18 +162,11 @@ static int max5481_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	return iio_device_register(indio_dev);
-}
+	ret = devm_add_action(&spi->dev, max5481_wiper_save, data);
+	if (ret < 0)
+		return ret;
 
-static int max5481_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(&spi->dev);
-	struct max5481_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	/* save wiper reg to NV reg */
-	return max5481_write_cmd(data, MAX5481_COPY_AB_TO_NV, 0);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id max5481_id_table[] = {
@@ -189,25 +178,12 @@ static const struct spi_device_id max5481_id_table[] = {
 };
 MODULE_DEVICE_TABLE(spi, max5481_id_table);
 
-#if defined(CONFIG_ACPI)
-static const struct acpi_device_id max5481_acpi_match[] = {
-	{ "max5481", max5481 },
-	{ "max5482", max5482 },
-	{ "max5483", max5483 },
-	{ "max5484", max5484 },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, max5481_acpi_match);
-#endif
-
 static struct spi_driver max5481_driver = {
 	.driver = {
 		.name  = "max5481",
-		.of_match_table = of_match_ptr(max5481_match),
-		.acpi_match_table = ACPI_PTR(max5481_acpi_match),
+		.of_match_table = max5481_match,
 	},
 	.probe = max5481_probe,
-	.remove = max5481_remove,
 	.id_table = max5481_id_table,
 };
 

@@ -20,8 +20,11 @@
 #define GPI1_LDO_ON		(3 << 0)
 #define GPI1_LDO_OFF		(4 << 0)
 
-#define AXP288_ADC_TS_PIN_GPADC	0xf2
-#define AXP288_ADC_TS_PIN_ON	0xf3
+#define AXP288_ADC_TS_CURRENT_ON_OFF_MASK		GENMASK(1, 0)
+#define AXP288_ADC_TS_CURRENT_OFF			(0 << 0)
+#define AXP288_ADC_TS_CURRENT_ON_WHEN_CHARGING		(1 << 0)
+#define AXP288_ADC_TS_CURRENT_ON_ONDEMAND		(2 << 0)
+#define AXP288_ADC_TS_CURRENT_ON			(3 << 0)
 
 static struct pmic_table power_table[] = {
 	{
@@ -175,14 +178,16 @@ static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
 {
 	int data, ret;
 
-	/* GPIO1 LDO regulator needs special handling */
-	if (reg == XPOWER_GPI1_CTRL)
-		return regmap_update_bits(regmap, reg, GPI1_LDO_MASK,
-					  on ? GPI1_LDO_ON : GPI1_LDO_OFF);
-
 	ret = iosf_mbi_block_punit_i2c_access();
 	if (ret)
 		return ret;
+
+	/* GPIO1 LDO regulator needs special handling */
+	if (reg == XPOWER_GPI1_CTRL) {
+		ret = regmap_update_bits(regmap, reg, GPI1_LDO_MASK,
+					 on ? GPI1_LDO_ON : GPI1_LDO_OFF);
+		goto out;
+	}
 
 	if (regmap_read(regmap, reg, &data)) {
 		ret = -EIO;
@@ -212,34 +217,114 @@ out:
  */
 static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 {
+	int ret, adc_ts_pin_ctrl;
 	u8 buf[2];
-	int ret;
 
-	ret = regmap_write(regmap, AXP288_ADC_TS_PIN_CTRL,
-			   AXP288_ADC_TS_PIN_GPADC);
+	/*
+	 * The current-source used for the battery temp-sensor (TS) is shared
+	 * with the GPADC. For proper fuel-gauge and charger operation the TS
+	 * current-source needs to be permanently on. But to read the GPADC we
+	 * need to temporary switch the TS current-source to ondemand, so that
+	 * the GPADC can use it, otherwise we will always read an all 0 value.
+	 *
+	 * Note that the switching from on to on-ondemand is not necessary
+	 * when the TS current-source is off (this happens on devices which
+	 * do not use the TS-pin).
+	 */
+	ret = regmap_read(regmap, AXP288_ADC_TS_PIN_CTRL, &adc_ts_pin_ctrl);
 	if (ret)
 		return ret;
 
-	/* After switching to the GPADC pin give things some time to settle */
-	usleep_range(6000, 10000);
+	if (adc_ts_pin_ctrl & AXP288_ADC_TS_CURRENT_ON_OFF_MASK) {
+		/*
+		 * AXP288_ADC_TS_PIN_CTRL reads are cached by the regmap, so
+		 * this does to a single I2C-transfer, and thus there is no
+		 * need to explicitly call iosf_mbi_block_punit_i2c_access().
+		 */
+		ret = regmap_update_bits(regmap, AXP288_ADC_TS_PIN_CTRL,
+					 AXP288_ADC_TS_CURRENT_ON_OFF_MASK,
+					 AXP288_ADC_TS_CURRENT_ON_ONDEMAND);
+		if (ret)
+			return ret;
+
+		/* Wait a bit after switching the current-source */
+		usleep_range(6000, 10000);
+	}
+
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret)
+		return ret;
 
 	ret = regmap_bulk_read(regmap, AXP288_GP_ADC_H, buf, 2);
 	if (ret == 0)
 		ret = (buf[0] << 4) + ((buf[1] >> 4) & 0x0f);
 
-	regmap_write(regmap, AXP288_ADC_TS_PIN_CTRL, AXP288_ADC_TS_PIN_ON);
+	if (adc_ts_pin_ctrl & AXP288_ADC_TS_CURRENT_ON_OFF_MASK) {
+		regmap_update_bits(regmap, AXP288_ADC_TS_PIN_CTRL,
+				   AXP288_ADC_TS_CURRENT_ON_OFF_MASK,
+				   AXP288_ADC_TS_CURRENT_ON);
+	}
+
+	iosf_mbi_unblock_punit_i2c_access();
 
 	return ret;
 }
 
-static struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
+static int intel_xpower_exec_mipi_pmic_seq_element(struct regmap *regmap,
+						   u16 i2c_address, u32 reg_address,
+						   u32 value, u32 mask)
+{
+	int ret;
+
+	if (i2c_address != 0x34) {
+		pr_err("%s: Unexpected i2c-addr: 0x%02x (reg-addr 0x%x value 0x%x mask 0x%x)\n",
+		       __func__, i2c_address, reg_address, value, mask);
+		return -ENXIO;
+	}
+
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(regmap, reg_address, mask, value);
+
+	iosf_mbi_unblock_punit_i2c_access();
+
+	return ret;
+}
+
+static int intel_xpower_lpat_raw_to_temp(struct acpi_lpat_conversion_table *lpat_table,
+					 int raw)
+{
+	struct acpi_lpat first = lpat_table->lpat[0];
+	struct acpi_lpat last = lpat_table->lpat[lpat_table->lpat_count - 1];
+
+	/*
+	 * Some LPAT tables in the ACPI Device for the AXP288 PMIC for some
+	 * reason only describe a small temperature range, e.g. 27° - 37°
+	 * Celcius. Resulting in errors when the tablet is idle in a cool room.
+	 *
+	 * To avoid these errors clamp the raw value to be inside the LPAT.
+	 */
+	if (first.raw < last.raw)
+		raw = clamp(raw, first.raw, last.raw);
+	else
+		raw = clamp(raw, last.raw, first.raw);
+
+	return acpi_lpat_raw_to_temp(lpat_table, raw);
+}
+
+static const struct intel_pmic_opregion_data intel_xpower_pmic_opregion_data = {
 	.get_power = intel_xpower_pmic_get_power,
 	.update_power = intel_xpower_pmic_update_power,
 	.get_raw_temp = intel_xpower_pmic_get_raw_temp,
+	.exec_mipi_pmic_seq_element = intel_xpower_exec_mipi_pmic_seq_element,
+	.lpat_raw_to_temp = intel_xpower_lpat_raw_to_temp,
 	.power_table = power_table,
 	.power_table_count = ARRAY_SIZE(power_table),
 	.thermal_table = thermal_table,
 	.thermal_table_count = ARRAY_SIZE(thermal_table),
+	.pmic_i2c_address = 0x34,
 };
 
 static acpi_status intel_xpower_pmic_gpio_handler(u32 function,

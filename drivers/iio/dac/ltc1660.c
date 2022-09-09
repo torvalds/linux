@@ -137,20 +137,21 @@ static const struct iio_info ltc1660_info = {
 	.write_raw = &ltc1660_write_raw,
 };
 
-static int __maybe_unused ltc1660_suspend(struct device *dev)
+static int ltc1660_suspend(struct device *dev)
 {
 	struct ltc1660_priv *priv = iio_priv(spi_get_drvdata(
 						to_spi_device(dev)));
 	return regmap_write(priv->regmap, LTC1660_REG_SLEEP, 0x00);
 }
 
-static int __maybe_unused ltc1660_resume(struct device *dev)
+static int ltc1660_resume(struct device *dev)
 {
 	struct ltc1660_priv *priv = iio_priv(spi_get_drvdata(
 						to_spi_device(dev)));
 	return regmap_write(priv->regmap, LTC1660_REG_WAKE, 0x00);
 }
-static SIMPLE_DEV_PM_OPS(ltc1660_pm_ops, ltc1660_suspend, ltc1660_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ltc1660_pm_ops, ltc1660_suspend,
+				ltc1660_resume);
 
 static int ltc1660_probe(struct spi_device *spi)
 {
@@ -172,10 +173,9 @@ static int ltc1660_probe(struct spi_device *spi)
 	}
 
 	priv->vref_reg = devm_regulator_get(&spi->dev, "vref");
-	if (IS_ERR(priv->vref_reg)) {
-		dev_err(&spi->dev, "vref regulator not specified\n");
-		return PTR_ERR(priv->vref_reg);
-	}
+	if (IS_ERR(priv->vref_reg))
+		return dev_err_probe(&spi->dev, PTR_ERR(priv->vref_reg),
+				     "vref regulator not specified\n");
 
 	ret = regulator_enable(priv->vref_reg);
 	if (ret) {
@@ -186,7 +186,6 @@ static int ltc1660_probe(struct spi_device *spi)
 
 	priv->spi = spi;
 	spi_set_drvdata(spi, indio_dev);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ltc1660_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ltc1660_channels[id->driver_data];
@@ -208,15 +207,13 @@ error_disable_reg:
 	return ret;
 }
 
-static int ltc1660_remove(struct spi_device *spi)
+static void ltc1660_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ltc1660_priv *priv = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	regulator_disable(priv->vref_reg);
-
-	return 0;
 }
 
 static const struct of_device_id ltc1660_dt_ids[] = {
@@ -237,7 +234,7 @@ static struct spi_driver ltc1660_driver = {
 	.driver = {
 		.name = "ltc1660",
 		.of_match_table = ltc1660_dt_ids,
-		.pm = &ltc1660_pm_ops,
+		.pm = pm_sleep_ptr(&ltc1660_pm_ops),
 	},
 	.probe	= ltc1660_probe,
 	.remove = ltc1660_remove,

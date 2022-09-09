@@ -21,8 +21,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 
 #include "phy-generic.h"
@@ -204,8 +203,7 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
-int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
-		struct usb_phy_generic_platform_data *pdata)
+int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 {
 	enum usb_phy_type type = USB_PHY_TYPE_USB2;
 	int err = 0;
@@ -221,28 +219,15 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 
 		needs_vcc = of_property_read_bool(node, "vcc-supply");
 		needs_clk = of_property_read_bool(node, "clocks");
-		nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
-							   GPIOD_ASIS);
-		err = PTR_ERR_OR_ZERO(nop->gpiod_reset);
-		if (!err) {
-			nop->gpiod_vbus = devm_gpiod_get_optional(dev,
-							 "vbus-detect",
-							 GPIOD_ASIS);
-			err = PTR_ERR_OR_ZERO(nop->gpiod_vbus);
-		}
-	} else if (pdata) {
-		type = pdata->type;
-		clk_rate = pdata->clk_rate;
-		needs_vcc = pdata->needs_vcc;
-		if (gpio_is_valid(pdata->gpio_reset)) {
-			err = devm_gpio_request_one(dev, pdata->gpio_reset,
-						    GPIOF_ACTIVE_LOW,
-						    dev_name(dev));
-			if (!err)
-				nop->gpiod_reset =
-					gpio_to_desc(pdata->gpio_reset);
-		}
-		nop->gpiod_vbus = pdata->gpiod_vbus;
+	}
+	nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
+						   GPIOD_ASIS);
+	err = PTR_ERR_OR_ZERO(nop->gpiod_reset);
+	if (!err) {
+		nop->gpiod_vbus = devm_gpiod_get_optional(dev,
+						 "vbus-detect",
+						 GPIOD_ASIS);
+		err = PTR_ERR_OR_ZERO(nop->gpiod_vbus);
 	}
 
 	if (err == -EPROBE_DEFER)
@@ -283,6 +268,13 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 			return -EPROBE_DEFER;
 	}
 
+	nop->vbus_draw = devm_regulator_get_exclusive(dev, "vbus");
+	if (PTR_ERR(nop->vbus_draw) == -ENODEV)
+		nop->vbus_draw = NULL;
+	if (IS_ERR(nop->vbus_draw))
+		return dev_err_probe(dev, PTR_ERR(nop->vbus_draw),
+				     "could not get vbus regulator\n");
+
 	nop->dev		= dev;
 	nop->phy.dev		= nop->dev;
 	nop->phy.label		= "nop-xceiv";
@@ -308,7 +300,7 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	if (!nop)
 		return -ENOMEM;
 
-	err = usb_phy_gen_create_phy(dev, nop, dev_get_platdata(&pdev->dev));
+	err = usb_phy_gen_create_phy(dev, nop);
 	if (err)
 		return err;
 	if (nop->gpiod_vbus) {

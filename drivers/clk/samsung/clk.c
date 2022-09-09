@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Copyright (c) 2013 Linaro Ltd.
  * Author: Thomas Abraham <thomas.ab@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This file includes utility functions to register clocks to common
  * clock framework for Samsung platforms.
@@ -15,6 +12,7 @@
 #include <linux/clkdev.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/syscore_ops.h>
 
@@ -62,8 +60,7 @@ struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
 	struct samsung_clk_provider *ctx;
 	int i;
 
-	ctx = kzalloc(sizeof(struct samsung_clk_provider) +
-		      sizeof(*ctx->clk_data.hws) * nr_clks, GFP_KERNEL);
+	ctx = kzalloc(struct_size(ctx, clk_data.hws, nr_clks), GFP_KERNEL);
 	if (!ctx)
 		panic("could not allocate clock provider context.\n");
 
@@ -271,20 +268,6 @@ void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 	samsung_clk_register_fixed_rate(ctx, fixed_rate_clk, nr_fixed_rate_clk);
 }
 
-/* utility function to get the rate of a specified clock */
-unsigned long _get_rate(const char *clk_name)
-{
-	struct clk *clk;
-
-	clk = __clk_lookup(clk_name);
-	if (!clk) {
-		pr_err("%s: could not find clock %s\n", __func__, clk_name);
-		return 0;
-	}
-
-	return clk_get_rate(clk);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int samsung_clk_suspend(void)
 {
@@ -359,10 +342,6 @@ struct samsung_clk_provider * __init samsung_cmu_register_one(
 	}
 
 	ctx = samsung_clk_init(np, reg_base, cmu->nr_clk_ids);
-	if (!ctx) {
-		panic("%s: unable to allocate ctx\n", __func__);
-		return ctx;
-	}
 
 	if (cmu->pll_clks)
 		samsung_clk_register_pll(ctx, cmu->pll_clks, cmu->nr_pll_clks,
@@ -385,6 +364,8 @@ struct samsung_clk_provider * __init samsung_cmu_register_one(
 		samsung_clk_extended_sleep_init(reg_base,
 			cmu->clk_regs, cmu->nr_clk_regs,
 			cmu->suspend_regs, cmu->nr_suspend_regs);
+	if (cmu->cpu_clks)
+		samsung_clk_register_cpu(ctx, cmu->cpu_clks, cmu->nr_cpu_clks);
 
 	samsung_clk_of_add_provider(np, ctx);
 

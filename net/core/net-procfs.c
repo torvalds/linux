@@ -4,14 +4,13 @@
 #include <linux/seq_file.h>
 #include <net/wext.h>
 
+#include "dev.h"
+
 #define BUCKET_SPACE (32 - NETDEV_HASHBITS - 1)
 
 #define get_bucket(x) ((x) >> BUCKET_SPACE)
 #define get_offset(x) ((x) & ((1 << BUCKET_SPACE) - 1))
 #define set_bucket_offset(b, o) ((b) << BUCKET_SPACE | (o))
-
-extern struct list_head ptype_all __read_mostly;
-extern struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 
 static inline struct net_device *dev_from_same_bucket(struct seq_file *seq, loff_t *pos)
 {
@@ -20,8 +19,8 @@ static inline struct net_device *dev_from_same_bucket(struct seq_file *seq, loff
 	struct hlist_head *h;
 	unsigned int count = 0, offset = get_offset(*pos);
 
-	h = &net->dev_name_head[get_bucket(*pos)];
-	hlist_for_each_entry_rcu(dev, h, name_hlist) {
+	h = &net->dev_index_head[get_bucket(*pos)];
+	hlist_for_each_entry_rcu(dev, h, index_hlist) {
 		if (++count == offset)
 			return dev;
 	}
@@ -116,6 +115,12 @@ static int dev_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static u32 softnet_backlog_len(struct softnet_data *sd)
+{
+	return skb_queue_len_lockless(&sd->input_pkt_queue) +
+	       skb_queue_len_lockless(&sd->process_queue);
+}
+
 static struct softnet_data *softnet_get_online(loff_t *pos)
 {
 	struct softnet_data *sd = NULL;
@@ -159,12 +164,17 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 	rcu_read_unlock();
 #endif
 
+	/* the index is the CPU id owing this sd. Since offline CPUs are not
+	 * displayed, it would be othrwise not trivial for the user-space
+	 * mapping the data a specific CPU
+	 */
 	seq_printf(seq,
-		   "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
+		   "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
 		   sd->processed, sd->dropped, sd->time_squeeze, 0,
 		   0, 0, 0, 0, /* was fastroute */
 		   0,	/* was cpu_collision */
-		   sd->received_rps, flow_limit_count);
+		   sd->received_rps, flow_limit_count,
+		   softnet_backlog_len(sd), (int)seq->index);
 	return 0;
 }
 
@@ -182,11 +192,22 @@ static const struct seq_operations softnet_seq_ops = {
 	.show  = softnet_seq_show,
 };
 
-static void *ptype_get_idx(loff_t pos)
+static void *ptype_get_idx(struct seq_file *seq, loff_t pos)
 {
+	struct list_head *ptype_list = NULL;
 	struct packet_type *pt = NULL;
+	struct net_device *dev;
 	loff_t i = 0;
 	int t;
+
+	for_each_netdev_rcu(seq_file_net(seq), dev) {
+		ptype_list = &dev->ptype_all;
+		list_for_each_entry_rcu(pt, ptype_list, list) {
+			if (i == pos)
+				return pt;
+			++i;
+		}
+	}
 
 	list_for_each_entry_rcu(pt, &ptype_all, list) {
 		if (i == pos)
@@ -208,22 +229,40 @@ static void *ptype_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
 	rcu_read_lock();
-	return *pos ? ptype_get_idx(*pos - 1) : SEQ_START_TOKEN;
+	return *pos ? ptype_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
 
 static void *ptype_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
+	struct net_device *dev;
 	struct packet_type *pt;
 	struct list_head *nxt;
 	int hash;
 
 	++*pos;
 	if (v == SEQ_START_TOKEN)
-		return ptype_get_idx(0);
+		return ptype_get_idx(seq, 0);
 
 	pt = v;
 	nxt = pt->list.next;
+	if (pt->dev) {
+		if (nxt != &pt->dev->ptype_all)
+			goto found;
+
+		dev = pt->dev;
+		for_each_netdev_continue_rcu(seq_file_net(seq), dev) {
+			if (!list_empty(&dev->ptype_all)) {
+				nxt = dev->ptype_all.next;
+				goto found;
+			}
+		}
+
+		nxt = ptype_all.next;
+		goto ptype_all;
+	}
+
 	if (pt->type == htons(ETH_P_ALL)) {
+ptype_all:
 		if (nxt != &ptype_all)
 			goto found;
 		hash = 0;
@@ -252,13 +291,14 @@ static int ptype_seq_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "Type Device      Function\n");
-	else if (pt->dev == NULL || dev_net(pt->dev) == seq_file_net(seq)) {
+	else if ((!pt->af_packet_net || net_eq(pt->af_packet_net, seq_file_net(seq))) &&
+		 (!pt->dev || net_eq(dev_net(pt->dev), seq_file_net(seq)))) {
 		if (pt->type == htons(ETH_P_ALL))
 			seq_puts(seq, "ALL ");
 		else
 			seq_printf(seq, "%04x", ntohs(pt->type));
 
-		seq_printf(seq, " %-8s %pf\n",
+		seq_printf(seq, " %-8s %ps\n",
 			   pt->dev ? pt->dev->name : "", pt->func);
 	}
 

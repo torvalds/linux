@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+
 .. The Linux Kernel documentation master file, created by
    sphinx-quickstart on Fri Feb 12 13:51:46 2016.
    You can adapt this file completely to your liking, but it should at least
@@ -34,6 +37,18 @@ trying to get it to work optimally on a given system.
    :maxdepth: 2
 
    admin-guide/index
+   kbuild/index
+
+Firmware-related documentation
+------------------------------
+The following holds information on the kernel's expectations regarding the
+platform firmwares.
+
+.. toctree::
+   :maxdepth: 2
+
+   firmware-guide/index
+   devicetree/index
 
 Application-developer documentation
 -----------------------------------
@@ -65,6 +80,9 @@ merged much easier.
    kernel-hacking/index
    trace/index
    maintainer/index
+   fault-injection/index
+   livepatch/index
+
 
 Kernel API documentation
 ------------------------
@@ -80,38 +98,76 @@ needed).
 
    driver-api/index
    core-api/index
-   media/index
+   locking/index
+   accounting/index
+   block/index
+   cdrom/index
+   cpu-freq/index
+   fb/index
+   fpga/index
+   hid/index
+   i2c/index
+   iio/index
+   isdn/index
+   infiniband/index
+   leds/index
+   netlabel/index
    networking/index
+   pcmcia/index
+   power/index
+   target/index
+   timers/index
+   spi/index
+   w1/index
+   watchdog/index
+   virt/index
    input/index
+   hwmon/index
    gpu/index
    security/index
    sound/index
    crypto/index
    filesystems/index
-   vm/index
+   mm/index
    bpf/index
+   usb/index
+   PCI/index
+   scsi/index
+   misc-devices/index
+   scheduler/index
+   mhi/index
+   peci/index
+
+Architecture-agnostic documentation
+-----------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   asm-annotations
 
 Architecture-specific documentation
 -----------------------------------
 
-These books provide programming details about architecture-specific
-implementation.
+.. toctree::
+   :maxdepth: 2
+
+   arch
+
+
+Other documentation
+-------------------
+
+There are several unsorted documents that don't seem to fit on other parts
+of the documentation body, or may require some adjustments and/or conversion
+to ReStructured Text format, or are simply too old.
 
 .. toctree::
    :maxdepth: 2
 
-   sh/index
+   tools/index
+   staging/index
 
-Filesystem Documentation
-------------------------
-
-The documentation in this section are provided by specific filesystem
-subprojects.
-
-.. toctree::
-   :maxdepth: 2
-
-   filesystems/ext4/index
 
 Translations
 ------------

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <stddef.h>
@@ -18,6 +18,7 @@
 struct xterm_chan {
 	int pid;
 	int helper_pid;
+	int chan_fd;
 	char *title;
 	int device;
 	int raw;
@@ -33,6 +34,7 @@ static void *xterm_init(char *str, int device, const struct chan_opts *opts)
 		return NULL;
 	*data = ((struct xterm_chan) { .pid 		= -1,
 				       .helper_pid 	= -1,
+				       .chan_fd		= -1,
 				       .device 		= device,
 				       .title 		= opts->xterm_title,
 				       .raw  		= opts->raw } );
@@ -40,7 +42,7 @@ static void *xterm_init(char *str, int device, const struct chan_opts *opts)
 }
 
 /* Only changed by xterm_setup, which is a setup */
-static char *terminal_emulator = "xterm";
+static char *terminal_emulator = CONFIG_XTERM_CHAN_DEFAULT_EMULATOR;
 static char *title_switch = "-T";
 static char *exec_switch = "-e";
 
@@ -77,8 +79,9 @@ __uml_setup("xterm=", xterm_setup,
 "    respectively.  The title switch must have the form '<switch> title',\n"
 "    not '<switch>=title'.  Similarly, the exec switch must have the form\n"
 "    '<switch> command arg1 arg2 ...'.\n"
-"    The default values are 'xterm=xterm,-T,-e'.  Values for gnome-terminal\n"
-"    are 'xterm=gnome-terminal,-t,-x'.\n\n"
+"    The default values are 'xterm=" CONFIG_XTERM_CHAN_DEFAULT_EMULATOR
+     ",-T,-e'.\n"
+"    Values for gnome-terminal are 'xterm=gnome-terminal,-t,-x'.\n\n"
 );
 
 static int xterm_open(int input, int output, int primary, void *d,
@@ -149,6 +152,7 @@ static int xterm_open(int input, int output, int primary, void *d,
 		goto out_kill;
 	}
 
+	data->chan_fd = fd;
 	new = xterm_fd(fd, &data->helper_pid);
 	if (new < 0) {
 		err = new;
@@ -206,6 +210,8 @@ static void xterm_close(int fd, void *d)
 		os_kill_process(data->helper_pid, 0);
 	data->helper_pid = -1;
 
+	if (data->chan_fd != -1)
+		os_close_file(data->chan_fd);
 	os_close_file(fd);
 }
 

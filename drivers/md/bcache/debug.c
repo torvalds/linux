@@ -25,8 +25,8 @@ struct dentry *bcache_debug;
 	for (i = (start);						\
 	     (void *) i < (void *) (start) + (KEY_SIZE(&b->key) << 9) &&\
 	     i->seq == (start)->seq;					\
-	     i = (void *) i + set_blocks(i, block_bytes(b->c)) *	\
-		 block_bytes(b->c))
+	     i = (void *) i + set_blocks(i, block_bytes(b->c->cache)) *	\
+		 block_bytes(b->c->cache))
 
 void bch_btree_verify(struct btree *b)
 {
@@ -50,7 +50,7 @@ void bch_btree_verify(struct btree *b)
 	v->keys.ops = b->keys.ops;
 
 	bio = bch_bbio_alloc(b->c);
-	bio_set_dev(bio, PTR_CACHE(b->c, &b->key, 0)->bdev);
+	bio_set_dev(bio, b->c->cache->bdev);
 	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
 	bio->bi_iter.bi_size	= KEY_SIZE(&v->key) << 9;
 	bio->bi_opf		= REQ_OP_READ | REQ_META;
@@ -82,14 +82,14 @@ void bch_btree_verify(struct btree *b)
 
 		for_each_written_bset(b, ondisk, i) {
 			unsigned int block = ((void *) i - (void *) ondisk) /
-				block_bytes(b->c);
+				block_bytes(b->c->cache);
 
 			pr_err("*** on disk block %u:\n", block);
 			bch_dump_bset(&b->keys, i, block);
 		}
 
 		pr_err("*** block %zu not written\n",
-		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
+		       ((void *) i - (void *) ondisk) / block_bytes(b->c->cache));
 
 		for (j = 0; j < inmemory->keys; j++)
 			if (inmemory->d[j] != sorted->d[j])
@@ -107,15 +107,16 @@ void bch_btree_verify(struct btree *b)
 
 void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 {
+	unsigned int nr_segs = bio_segments(bio);
 	struct bio *check;
 	struct bio_vec bv, cbv;
 	struct bvec_iter iter, citer = { 0 };
 
-	check = bio_kmalloc(GFP_NOIO, bio_segments(bio));
+	check = bio_kmalloc(nr_segs, GFP_NOIO);
 	if (!check)
 		return;
-	check->bi_disk = bio->bi_disk;
-	check->bi_opf = REQ_OP_READ;
+	bio_init(check, bio->bi_bdev, check->bi_inline_vecs, nr_segs,
+		 REQ_OP_READ);
 	check->bi_iter.bi_sector = bio->bi_iter.bi_sector;
 	check->bi_iter.bi_size = bio->bi_iter.bi_size;
 
@@ -127,27 +128,27 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 
 	citer.bi_size = UINT_MAX;
 	bio_for_each_segment(bv, bio, iter) {
-		void *p1 = kmap_atomic(bv.bv_page);
+		void *p1 = bvec_kmap_local(&bv);
 		void *p2;
 
 		cbv = bio_iter_iovec(check, citer);
-		p2 = page_address(cbv.bv_page);
+		p2 = bvec_kmap_local(&cbv);
 
-		cache_set_err_on(memcmp(p1 + bv.bv_offset,
-					p2 + bv.bv_offset,
-					bv.bv_len),
+		cache_set_err_on(memcmp(p1, p2, bv.bv_len),
 				 dc->disk.c,
-				 "verify failed at dev %s sector %llu",
-				 dc->backing_dev_name,
+				 "verify failed at dev %pg sector %llu",
+				 dc->bdev,
 				 (uint64_t) bio->bi_iter.bi_sector);
 
-		kunmap_atomic(p1);
+		kunmap_local(p2);
+		kunmap_local(p1);
 		bio_advance_iter(check, &citer, bv.bv_len);
 	}
 
 	bio_free_pages(check);
 out_put:
-	bio_put(check);
+	bio_uninit(check);
+	kfree(check);
 }
 
 #endif
@@ -178,10 +179,9 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 	while (size) {
 		struct keybuf_key *w;
 		unsigned int bytes = min(i->bytes, size);
-		int err = copy_to_user(buf, i->buf, bytes);
 
-		if (err)
-			return err;
+		if (copy_to_user(buf, i->buf, bytes))
+			return -EFAULT;
 
 		ret	 += bytes;
 		buf	 += bytes;
@@ -239,7 +239,7 @@ void bch_debug_init_cache_set(struct cache_set *c)
 	if (!IS_ERR_OR_NULL(bcache_debug)) {
 		char name[50];
 
-		snprintf(name, 50, "bcache-%pU", c->sb.set_uuid);
+		snprintf(name, 50, "bcache-%pU", c->set_uuid);
 		c->debug = debugfs_create_file(name, 0400, bcache_debug, c,
 					       &cache_set_debug_ops);
 	}

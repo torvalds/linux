@@ -30,6 +30,7 @@ static inline struct bnx2i_hba *bnx2i_dev_to_hba(struct device *dev)
 /**
  * bnx2i_show_sq_info - return(s currently configured send queue (SQ) size
  * @dev:	device pointer
+ * @attr:	device attribute (unused)
  * @buf:	buffer to return current SQ size parameter
  *
  * Returns current SQ size parameter, this paramater determines the number
@@ -47,6 +48,7 @@ static ssize_t bnx2i_show_sq_info(struct device *dev,
 /**
  * bnx2i_set_sq_info - update send queue (SQ) size parameter
  * @dev:	device pointer
+ * @attr:	device attribute (unused)
  * @buf:	buffer to return current SQ size parameter
  * @count:	parameter buffer size
  *
@@ -87,6 +89,7 @@ skip_config:
 /**
  * bnx2i_show_ccell_info - returns command cell (HQ) size
  * @dev:	device pointer
+ * @attr:	device attribute (unused)
  * @buf:	buffer to return current SQ size parameter
  *
  * returns per-connection TCP history queue size parameter
@@ -101,8 +104,9 @@ static ssize_t bnx2i_show_ccell_info(struct device *dev,
 
 
 /**
- * bnx2i_get_link_state - set command cell (HQ) size
+ * bnx2i_set_ccell_info - set command cell (HQ) size
  * @dev:	device pointer
+ * @attr:	device attribute (unused)
  * @buf:	buffer to return current SQ size parameter
  * @count:	parameter buffer size
  *
@@ -138,8 +142,17 @@ static DEVICE_ATTR(sq_size, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(num_ccell, S_IRUGO | S_IWUSR,
 		   bnx2i_show_ccell_info, bnx2i_set_ccell_info);
 
-struct device_attribute *bnx2i_dev_attributes[] = {
-	&dev_attr_sq_size,
-	&dev_attr_num_ccell,
+static struct attribute *bnx2i_dev_attributes[] = {
+	&dev_attr_sq_size.attr,
+	&dev_attr_num_ccell.attr,
+	NULL
+};
+
+static const struct attribute_group bnx2i_dev_attr_group = {
+	.attrs = bnx2i_dev_attributes
+};
+
+const struct attribute_group *bnx2i_dev_groups[] = {
+	&bnx2i_dev_attr_group,
 	NULL
 };

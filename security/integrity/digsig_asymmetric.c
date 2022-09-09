@@ -1,16 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Intel Corporation
  *
  * Author:
  * Dmitry Kasatkin <dmitry.kasatkin@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
- *
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/err.h>
 #include <linux/ratelimit.h>
@@ -39,7 +33,7 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 		key_ref_t kref;
 
 		kref = keyring_search(make_key_ref(key, 1),
-				     &key_type_asymmetric, name);
+				      &key_type_asymmetric, name, true);
 		if (!IS_ERR(kref)) {
 			pr_err("Key '%s' is in ima_blacklist_keyring\n", name);
 			return ERR_PTR(-EKEYREJECTED);
@@ -51,7 +45,7 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 		key_ref_t kref;
 
 		kref = keyring_search(make_key_ref(keyring, 1),
-				      &key_type_asymmetric, name);
+				      &key_type_asymmetric, name, true);
 		if (IS_ERR(kref))
 			key = ERR_CAST(kref);
 		else
@@ -61,8 +55,14 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 	}
 
 	if (IS_ERR(key)) {
-		pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
-				   name, PTR_ERR(key));
+		if (keyring)
+			pr_err_ratelimited("Request for unknown key '%s' in '%s' keyring. err %ld\n",
+					   name, keyring->description,
+					   PTR_ERR(key));
+		else
+			pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
+					   name, PTR_ERR(key));
+
 		switch (PTR_ERR(key)) {
 			/* Hide some search errors */
 		case -EACCES:
@@ -84,8 +84,9 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 {
 	struct public_key_signature pks;
 	struct signature_v2_hdr *hdr = (struct signature_v2_hdr *)sig;
+	const struct public_key *pk;
 	struct key *key;
-	int ret = -ENOMEM;
+	int ret;
 
 	if (siglen <= sizeof(*hdr))
 		return -EBADMSG;
@@ -104,14 +105,29 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 
 	memset(&pks, 0, sizeof(pks));
 
-	pks.pkey_algo = "rsa";
 	pks.hash_algo = hash_algo_name[hdr->hash_algo];
-	pks.encoding = "pkcs1";
+
+	pk = asymmetric_key_public_key(key);
+	pks.pkey_algo = pk->pkey_algo;
+	if (!strcmp(pk->pkey_algo, "rsa")) {
+		pks.encoding = "pkcs1";
+	} else if (!strncmp(pk->pkey_algo, "ecdsa-", 6)) {
+		/* edcsa-nist-p192 etc. */
+		pks.encoding = "x962";
+	} else if (!strcmp(pk->pkey_algo, "ecrdsa") ||
+		   !strcmp(pk->pkey_algo, "sm2")) {
+		pks.encoding = "raw";
+	} else {
+		ret = -ENOPKG;
+		goto out;
+	}
+
 	pks.digest = (u8 *)data;
 	pks.digest_size = datalen;
 	pks.s = hdr->sig;
 	pks.s_size = siglen;
 	ret = verify_signature(key, &pks);
+out:
 	key_put(key);
 	pr_debug("%s() = %d\n", __func__, ret);
 	return ret;

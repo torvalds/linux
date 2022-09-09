@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This file is part of the Linux kernel, and is made available under
- * the terms of the GNU General Public License version 2.
  *
  * Misc librarized functions for cmdline poking.
  */
@@ -59,7 +58,7 @@ __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
 			state = st_wordcmp;
 			opptr = option;
 			wstart = pos;
-			/* fall through */
+			fallthrough;
 
 		case st_wordcmp:
 			if (!*opptr) {
@@ -90,7 +89,7 @@ __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
 				break;
 			}
 			state = st_wordskip;
-			/* fall through */
+			fallthrough;
 
 		case st_wordskip:
 			if (!c)
@@ -152,7 +151,7 @@ __cmdline_find_option(const char *cmdline, int max_cmdline_size,
 
 			state = st_wordcmp;
 			opptr = option;
-			/* fall through */
+			fallthrough;
 
 		case st_wordcmp:
 			if ((c == '=') && !*opptr) {
@@ -173,7 +172,7 @@ __cmdline_find_option(const char *cmdline, int max_cmdline_size,
 				break;
 			}
 			state = st_wordskip;
-			/* fall through */
+			fallthrough;
 
 		case st_wordskip:
 			if (myisspace(c))

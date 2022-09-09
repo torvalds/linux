@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     card-azt2320.c - driver for Aztech Systems AZT2320 based soundcards.
     Copyright (C) 1999-2000 by Massimo Piccioni <dafastidio@libero.it>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 /*
@@ -47,11 +35,6 @@
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("Aztech Systems AZT2320");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Aztech Systems,PRO16V},"
-		"{Aztech Systems,AZT2320},"
-		"{Aztech Systems,AZT3300},"
-		"{Aztech Systems,AZT2320},"
-		"{Aztech Systems,AZT3000}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -165,9 +148,11 @@ static int snd_card_azt2320_enable_wss(unsigned long port)
 {
 	int error;
 
-	if ((error = snd_card_azt2320_command(port, 0x09)))
+	error = snd_card_azt2320_command(port, 0x09);
+	if (error)
 		return error;
-	if ((error = snd_card_azt2320_command(port, 0x00)))
+	error = snd_card_azt2320_command(port, 0x00);
+	if (error)
 		return error;
 
 	mdelay(5);
@@ -184,31 +169,27 @@ static int snd_card_azt2320_probe(int dev,
 	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
 
-	error = snd_card_new(&pcard->card->dev,
-			     index[dev], id[dev], THIS_MODULE,
-			     sizeof(struct snd_card_azt2320), &card);
+	error = snd_devm_card_new(&pcard->card->dev,
+				  index[dev], id[dev], THIS_MODULE,
+				  sizeof(struct snd_card_azt2320), &card);
 	if (error < 0)
 		return error;
 	acard = card->private_data;
 
-	if ((error = snd_card_azt2320_pnp(dev, acard, pcard, pid))) {
-		snd_card_free(card);
+	error = snd_card_azt2320_pnp(dev, acard, pcard, pid);
+	if (error)
 		return error;
-	}
 
-	if ((error = snd_card_azt2320_enable_wss(port[dev]))) {
-		snd_card_free(card);
+	error = snd_card_azt2320_enable_wss(port[dev]);
+	if (error)
 		return error;
-	}
 
 	error = snd_wss_create(card, wss_port[dev], -1,
 			       irq[dev],
 			       dma1[dev], dma2[dev],
 			       WSS_HW_DETECT, 0, &chip);
-	if (error < 0) {
-		snd_card_free(card);
+	if (error < 0)
 		return error;
-	}
 
 	strcpy(card->driver, "AZT2320");
 	strcpy(card->shortname, "Aztech AZT2320");
@@ -216,20 +197,14 @@ static int snd_card_azt2320_probe(int dev,
 		card->shortname, chip->port, irq[dev], dma1[dev], dma2[dev]);
 
 	error = snd_wss_pcm(chip, 0);
-	if (error < 0) {
-		snd_card_free(card);
+	if (error < 0)
 		return error;
-	}
 	error = snd_wss_mixer(chip);
-	if (error < 0) {
-		snd_card_free(card);
+	if (error < 0)
 		return error;
-	}
 	error = snd_wss_timer(chip, 0);
-	if (error < 0) {
-		snd_card_free(card);
+	if (error < 0)
 		return error;
-	}
 
 	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_AZT2320,
@@ -245,21 +220,18 @@ static int snd_card_azt2320_probe(int dev,
 			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
-			if ((error = snd_opl3_timer_new(opl3, 1, 2)) < 0) {
-				snd_card_free(card);
+			error = snd_opl3_timer_new(opl3, 1, 2);
+			if (error < 0)
 				return error;
-			}
-			if ((error = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-				snd_card_free(card);
+			error = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (error < 0)
 				return error;
-			}
 		}
 	}
 
-	if ((error = snd_card_register(card)) < 0) {
-		snd_card_free(card);
+	error = snd_card_register(card);
+	if (error < 0)
 		return error;
-	}
 	pnp_set_card_drvdata(pcard, card);
 	return 0;
 }
@@ -283,12 +255,6 @@ static int snd_azt2320_pnp_detect(struct pnp_card_link *card,
 		return 0;
 	}
         return -ENODEV;
-}
-
-static void snd_azt2320_pnp_remove(struct pnp_card_link *pcard)
-{
-	snd_card_free(pnp_get_card_drvdata(pcard));
-	pnp_set_card_drvdata(pcard, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -320,7 +286,6 @@ static struct pnp_card_driver azt2320_pnpc_driver = {
 	.name           = "azt2320",
 	.id_table       = snd_azt2320_pnpids,
 	.probe          = snd_azt2320_pnp_detect,
-	.remove         = snd_azt2320_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_azt2320_pnp_suspend,
 	.resume		= snd_azt2320_pnp_resume,

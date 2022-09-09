@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* pcr.c: Generic sparc64 performance counter infrastructure.
  *
  * Copyright (C) 2009 David S. Miller (davem@davemloft.net)
@@ -358,7 +359,7 @@ int __init pcr_arch_init(void)
 		 * counter overflow interrupt so we can't make use of
 		 * their hardware currently.
 		 */
-		/* fallthrough */
+		fallthrough;
 	default:
 		err = -ENODEV;
 		goto out_unregister;

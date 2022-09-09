@@ -73,6 +73,10 @@ struct drm_etnaviv_timespec {
 #define ETNAVIV_PARAM_GPU_INSTRUCTION_COUNT         0x18
 #define ETNAVIV_PARAM_GPU_NUM_CONSTANTS             0x19
 #define ETNAVIV_PARAM_GPU_NUM_VARYINGS              0x1a
+#define ETNAVIV_PARAM_SOFTPIN_START_ADDR            0x1b
+#define ETNAVIV_PARAM_GPU_PRODUCT_ID                0x1c
+#define ETNAVIV_PARAM_GPU_CUSTOMER_ID               0x1d
+#define ETNAVIV_PARAM_GPU_ECO_ID                    0x1e
 
 #define ETNA_MAX_PIPES 4
 
@@ -148,6 +152,11 @@ struct drm_etnaviv_gem_submit_reloc {
  * then patching the cmdstream for this entry is skipped.  This can
  * avoid kernel needing to map/access the cmdstream bo in the common
  * case.
+ * If the submit is a softpin submit (ETNA_SUBMIT_SOFTPIN) the 'presumed'
+ * field is interpreted as the fixed location to map the bo into the gpu
+ * virtual address space. If the kernel is unable to map the buffer at
+ * this location the submit will fail. This means userspace is responsible
+ * for the whole gpu virtual address management.
  */
 #define ETNA_SUBMIT_BO_READ             0x0001
 #define ETNA_SUBMIT_BO_WRITE            0x0002
@@ -177,9 +186,11 @@ struct drm_etnaviv_gem_submit_pmr {
 #define ETNA_SUBMIT_NO_IMPLICIT         0x0001
 #define ETNA_SUBMIT_FENCE_FD_IN         0x0002
 #define ETNA_SUBMIT_FENCE_FD_OUT        0x0004
+#define ETNA_SUBMIT_SOFTPIN             0x0008
 #define ETNA_SUBMIT_FLAGS		(ETNA_SUBMIT_NO_IMPLICIT | \
 					 ETNA_SUBMIT_FENCE_FD_IN | \
-					 ETNA_SUBMIT_FENCE_FD_OUT)
+					 ETNA_SUBMIT_FENCE_FD_OUT| \
+					 ETNA_SUBMIT_SOFTPIN)
 #define ETNA_PIPE_3D      0x00
 #define ETNA_PIPE_2D      0x01
 #define ETNA_PIPE_VG      0x02

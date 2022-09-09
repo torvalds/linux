@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * alc5632.c  --  ALC5632 ALSA SoC Audio Codec
 *
@@ -9,10 +10,6 @@
 *           Marc Dietrich <marvin24@gmx.de>
 *
 * Based on alc5623.c by Arnaud Patard
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
 */
 
 #include <linux/module.h>
@@ -697,7 +694,7 @@ static int alc5632_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 				0);
 
 	/* pll is not used in slave mode */
-	reg = snd_soc_component_read32(component, ALC5632_DAI_CONTROL);
+	reg = snd_soc_component_read(component, ALC5632_DAI_CONTROL);
 	if (reg & ALC5632_DAI_SDP_SLAVE_MODE)
 		return 0;
 
@@ -818,12 +815,12 @@ static int alc5632_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	u16 iface = 0;
 
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	/* set audio interface clocking */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		iface = ALC5632_DAI_SDP_MASTER_MODE;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		iface = ALC5632_DAI_SDP_SLAVE_MODE;
 		break;
 	default:
@@ -874,7 +871,7 @@ static int alc5632_pcm_hw_params(struct snd_pcm_substream *substream,
 	int coeff, rate;
 	u16 iface;
 
-	iface = snd_soc_component_read32(component, ALC5632_DAI_CONTROL);
+	iface = snd_soc_component_read(component, ALC5632_DAI_CONTROL);
 	iface &= ~ALC5632_DAI_I2S_DL_MASK;
 
 	/* bit size */
@@ -905,12 +902,12 @@ static int alc5632_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int alc5632_mute(struct snd_soc_dai *dai, int mute)
+static int alc5632_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u16 hp_mute = ALC5632_MISC_HP_DEPOP_MUTE_L
 						|ALC5632_MISC_HP_DEPOP_MUTE_R;
-	u16 mute_reg = snd_soc_component_read32(component, ALC5632_MISC_CTRL) & ~hp_mute;
+	u16 mute_reg = snd_soc_component_read(component, ALC5632_MISC_CTRL) & ~hp_mute;
 
 	if (mute)
 		mute_reg |= hp_mute;
@@ -1008,10 +1005,11 @@ static int alc5632_set_bias_level(struct snd_soc_component *component,
 
 static const struct snd_soc_dai_ops alc5632_dai_ops = {
 		.hw_params = alc5632_pcm_hw_params,
-		.digital_mute = alc5632_mute,
+		.mute_stream = alc5632_mute,
 		.set_fmt = alc5632_set_dai_fmt,
 		.set_sysclk = alc5632_set_dai_sysclk,
 		.set_pll = alc5632_set_dai_pll,
+		.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver alc5632_dai = {
@@ -1034,7 +1032,7 @@ static struct snd_soc_dai_driver alc5632_dai = {
 		.formats = ALC5632_FORMATS,},
 
 	.ops = &alc5632_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 #ifdef CONFIG_PM
@@ -1080,7 +1078,6 @@ static const struct snd_soc_component_driver soc_component_device_alc5632 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config alc5632_regmap = {
@@ -1094,18 +1091,24 @@ static const struct regmap_config alc5632_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static const struct i2c_device_id alc5632_i2c_table[] = {
+	{"alc5632", 0x5c},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, alc5632_i2c_table);
+
 /*
  * alc5632 2 wire address is determined by A1 pin
  * state during powerup.
  *    low  = 0x1a
  *    high = 0x1b
  */
-static int alc5632_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int alc5632_i2c_probe(struct i2c_client *client)
 {
 	struct alc5632_priv *alc5632;
 	int ret, ret1, ret2;
 	unsigned int vid1, vid2;
+	const struct i2c_device_id *id;
 
 	alc5632 = devm_kzalloc(&client->dev,
 			 sizeof(struct alc5632_priv), GFP_KERNEL);
@@ -1130,6 +1133,8 @@ static int alc5632_i2c_probe(struct i2c_client *client,
 	}
 
 	vid2 >>= 8;
+
+	id = i2c_match_id(alc5632_i2c_table, client);
 
 	if ((vid1 != 0x10EC) || (vid2 != id->driver_data)) {
 		dev_err(&client->dev,
@@ -1163,17 +1168,13 @@ static int alc5632_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static const struct i2c_device_id alc5632_i2c_table[] = {
-	{"alc5632", 0x5c},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, alc5632_i2c_table);
-
+#ifdef CONFIG_OF
 static const struct of_device_id alc5632_of_match[] = {
 	{ .compatible = "realtek,alc5632", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, alc5632_of_match);
+#endif
 
 /* i2c codec control layer */
 static struct i2c_driver alc5632_i2c_driver = {
@@ -1181,7 +1182,7 @@ static struct i2c_driver alc5632_i2c_driver = {
 		.name = "alc5632",
 		.of_match_table = of_match_ptr(alc5632_of_match),
 	},
-	.probe = alc5632_i2c_probe,
+	.probe_new = alc5632_i2c_probe,
 	.id_table = alc5632_i2c_table,
 };
 

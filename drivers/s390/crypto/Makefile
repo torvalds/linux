@@ -8,6 +8,7 @@ obj-$(subst m,y,$(CONFIG_ZCRYPT)) += ap.o
 # zcrypt_api.o and zcrypt_msgtype*.o depend on ap.o
 zcrypt-objs := zcrypt_api.o zcrypt_card.o zcrypt_queue.o
 zcrypt-objs += zcrypt_msgtype6.o zcrypt_msgtype50.o
+zcrypt-objs += zcrypt_ccamisc.o zcrypt_ep11misc.o
 obj-$(CONFIG_ZCRYPT) += zcrypt.o
 # adapter drivers depend on ap.o and zcrypt.o
 obj-$(CONFIG_ZCRYPT) += zcrypt_cex2c.o zcrypt_cex2a.o zcrypt_cex4.o

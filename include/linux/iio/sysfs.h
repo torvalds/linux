@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* The industrial I/O core
  *
  *Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * General attributes
  */
@@ -12,6 +9,7 @@
 #ifndef _INDUSTRIAL_IO_SYSFS_H_
 #define _INDUSTRIAL_IO_SYSFS_H_
 
+struct iio_buffer;
 struct iio_chan_spec;
 
 /**
@@ -20,12 +18,14 @@ struct iio_chan_spec;
  * @address:	associated register address
  * @l:		list head for maintaining list of dynamically created attrs
  * @c:		specification for the underlying channel
+ * @buffer:	the IIO buffer to which this attribute belongs to (if any)
  */
 struct iio_dev_attr {
 	struct device_attribute dev_attr;
 	u64 address;
 	struct list_head l;
 	struct iio_chan_spec const *c;
+	struct iio_buffer *buffer;
 };
 
 #define to_iio_dev_attr(_dev_attr)				\

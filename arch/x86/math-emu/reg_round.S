@@ -109,7 +109,7 @@ FPU_denormal:
 .globl fpu_Arith_exit
 
 /* Entry point when called from C */
-ENTRY(FPU_round)
+SYM_FUNC_START(FPU_round)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%esi
@@ -437,7 +437,7 @@ fpu_Arith_exit:
 	popl	%edi
 	popl	%esi
 	leave
-	ret
+	RET
 
 
 /*
@@ -575,7 +575,7 @@ Normalise_result:
 #ifdef PECULIAR_486
 	/*
 	 * This implements a special feature of 80486 behaviour.
-	 * Underflow will be signalled even if the number is
+	 * Underflow will be signaled even if the number is
 	 * not a denormal after rounding.
 	 * This difference occurs only for masked underflow, and not
 	 * in the unmasked case.
@@ -708,4 +708,4 @@ L_exception_exit:
 	jmp	fpu_reg_round_special_exit
 #endif /* PARANOID */ 
 
-ENDPROC(FPU_round)
+SYM_FUNC_END(FPU_round)

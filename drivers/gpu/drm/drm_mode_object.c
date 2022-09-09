@@ -21,9 +21,14 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
-#include <drm/drm_mode_object.h>
+#include <linux/uaccess.h>
+
 #include <drm/drm_atomic.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_mode_object.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 
@@ -37,8 +42,10 @@ int __drm_mode_object_add(struct drm_device *dev, struct drm_mode_object *obj,
 {
 	int ret;
 
+	WARN_ON(!dev->driver->load && dev->registered && !obj_free_cb);
+
 	mutex_lock(&dev->mode_config.idr_mutex);
-	ret = idr_alloc(&dev->mode_config.crtc_idr, register_obj ? obj : NULL,
+	ret = idr_alloc(&dev->mode_config.object_idr, register_obj ? obj : NULL,
 			1, 0, GFP_KERNEL);
 	if (ret >= 0) {
 		/*
@@ -79,12 +86,12 @@ void drm_mode_object_register(struct drm_device *dev,
 			      struct drm_mode_object *obj)
 {
 	mutex_lock(&dev->mode_config.idr_mutex);
-	idr_replace(&dev->mode_config.crtc_idr, obj, obj->id);
+	idr_replace(&dev->mode_config.object_idr, obj, obj->id);
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
 /**
- * drm_mode_object_unregister - free a modeset identifer
+ * drm_mode_object_unregister - free a modeset identifier
  * @dev: DRM device
  * @object: object to free
  *
@@ -97,16 +104,18 @@ void drm_mode_object_register(struct drm_device *dev,
 void drm_mode_object_unregister(struct drm_device *dev,
 				struct drm_mode_object *object)
 {
+	WARN_ON(!dev->driver->load && dev->registered && !object->free_cb);
+
 	mutex_lock(&dev->mode_config.idr_mutex);
 	if (object->id) {
-		idr_remove(&dev->mode_config.crtc_idr, object->id);
+		idr_remove(&dev->mode_config.object_idr, object->id);
 		object->id = 0;
 	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
 /**
- * drm_lease_required - check types which must be leased to be used
+ * drm_mode_object_lease_required - check types which must be leased to be used
  * @type: type of object
  *
  * Returns whether the provided type of drm_mode_object must
@@ -131,7 +140,7 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 	struct drm_mode_object *obj = NULL;
 
 	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
+	obj = idr_find(&dev->mode_config.object_idr, id);
 	if (obj && type != DRM_MODE_OBJECT_ANY && obj->type != type)
 		obj = NULL;
 	if (obj && obj->id != id)
@@ -215,12 +224,26 @@ EXPORT_SYMBOL(drm_mode_object_get);
  * This attaches the given property to the modeset object with the given initial
  * value. Currently this function cannot fail since the properties are stored in
  * a statically sized array.
+ *
+ * Note that all properties must be attached before the object itself is
+ * registered and accessible from userspace.
  */
 void drm_object_attach_property(struct drm_mode_object *obj,
 				struct drm_property *property,
 				uint64_t init_val)
 {
 	int count = obj->properties->count;
+	struct drm_device *dev = property->dev;
+
+
+	if (obj->type == DRM_MODE_OBJECT_CONNECTOR) {
+		struct drm_connector *connector = obj_to_connector(obj);
+
+		WARN_ON(!dev->driver->load &&
+			connector->registration_state == DRM_CONNECTOR_REGISTERED);
+	} else {
+		WARN_ON(!dev->driver->load && dev->registered);
+	}
 
 	if (count == DRM_OBJECT_MAX_PROPERTY) {
 		WARN(1, "Failed to attach object property (type: 0x%x). Please "
@@ -274,11 +297,26 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 }
 EXPORT_SYMBOL(drm_object_property_set_value);
 
+static int __drm_object_property_get_prop_value(struct drm_mode_object *obj,
+						struct drm_property *property,
+						uint64_t *val)
+{
+	int i;
+
+	for (i = 0; i < obj->properties->count; i++) {
+		if (obj->properties->properties[i] == property) {
+			*val = obj->properties->values[i];
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int __drm_object_property_get_value(struct drm_mode_object *obj,
 					   struct drm_property *property,
 					   uint64_t *val)
 {
-	int i;
 
 	/* read-only properties bypass atomic mechanism and still store
 	 * their value in obj->properties->values[].. mostly to avoid
@@ -288,15 +326,7 @@ static int __drm_object_property_get_value(struct drm_mode_object *obj,
 			!(property->flags & DRM_MODE_PROP_IMMUTABLE))
 		return drm_atomic_get_property(obj, property, val);
 
-	for (i = 0; i < obj->properties->count; i++) {
-		if (obj->properties->properties[i] == property) {
-			*val = obj->properties->values[i];
-			return 0;
-		}
-
-	}
-
-	return -EINVAL;
+	return __drm_object_property_get_prop_value(obj, property, val);
 }
 
 /**
@@ -324,6 +354,32 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 	return __drm_object_property_get_value(obj, property, val);
 }
 EXPORT_SYMBOL(drm_object_property_get_value);
+
+/**
+ * drm_object_property_get_default_value - retrieve the default value of a
+ * property when in atomic mode.
+ * @obj: drm mode object to get property value from
+ * @property: property to retrieve
+ * @val: storage for the property value
+ *
+ * This function retrieves the default state of the given property as passed in
+ * to drm_object_attach_property
+ *
+ * Only atomic drivers should call this function directly, as for non-atomic
+ * drivers it will return the current value.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_object_property_get_default_value(struct drm_mode_object *obj,
+					  struct drm_property *property,
+					  uint64_t *val)
+{
+	WARN_ON(!drm_drv_uses_atomic_modeset(property->dev));
+
+	return __drm_object_property_get_prop_value(obj, property, val);
+}
+EXPORT_SYMBOL(drm_object_property_get_default_value);
 
 /* helper for getconnector and getproperties ioctls */
 int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
@@ -379,12 +435,13 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_mode_obj_get_properties *arg = data;
 	struct drm_mode_object *obj;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
 
-	drm_modeset_lock_all(dev);
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
 	obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!obj) {
@@ -404,7 +461,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 out_unref:
 	drm_mode_object_put(obj);
 out:
-	drm_modeset_unlock_all(dev);
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 	return ret;
 }
 
@@ -426,12 +483,13 @@ static int set_property_legacy(struct drm_mode_object *obj,
 {
 	struct drm_device *dev = prop->dev;
 	struct drm_mode_object *ref;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = -EINVAL;
 
 	if (!drm_property_change_valid_get(prop, prop_value, &ref))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 	switch (obj->type) {
 	case DRM_MODE_OBJECT_CONNECTOR:
 		ret = drm_connector_set_obj_prop(obj, prop, prop_value);
@@ -445,12 +503,13 @@ static int set_property_legacy(struct drm_mode_object *obj,
 		break;
 	}
 	drm_property_change_valid_put(prop, ref);
-	drm_modeset_unlock_all(dev);
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 
 	return ret;
 }
 
 static int set_property_atomic(struct drm_mode_object *obj,
+			       struct drm_file *file_priv,
 			       struct drm_property *prop,
 			       uint64_t prop_value)
 {
@@ -459,12 +518,13 @@ static int set_property_atomic(struct drm_mode_object *obj,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, 0);
-
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
 		return -ENOMEM;
+
+	drm_modeset_acquire_init(&ctx, 0);
 	state->acquire_ctx = &ctx;
+
 retry:
 	if (prop == state->dev->mode_config.dpms_property) {
 		if (obj->type != DRM_MODE_OBJECT_CONNECTOR) {
@@ -476,7 +536,7 @@ retry:
 						       obj_to_connector(obj),
 						       prop_value);
 	} else {
-		ret = drm_atomic_set_property(state, obj, prop, prop_value);
+		ret = drm_atomic_set_property(state, file_priv, obj, prop, prop_value);
 		if (ret)
 			goto out;
 		ret = drm_atomic_commit(state);
@@ -519,7 +579,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		goto out_unref;
 
 	if (drm_drv_uses_atomic_modeset(property->dev))
-		ret = set_property_atomic(arg_obj, property, arg->value);
+		ret = set_property_atomic(arg_obj, file_priv, property, arg->value);
 	else
 		ret = set_property_legacy(arg_obj, property, arg->value);
 

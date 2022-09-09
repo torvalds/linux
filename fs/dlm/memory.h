@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
 **  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -22,6 +20,12 @@ struct dlm_lkb *dlm_allocate_lkb(struct dlm_ls *ls);
 void dlm_free_lkb(struct dlm_lkb *l);
 char *dlm_allocate_lvb(struct dlm_ls *ls);
 void dlm_free_lvb(char *l);
+struct dlm_mhandle *dlm_allocate_mhandle(void);
+void dlm_free_mhandle(struct dlm_mhandle *mhandle);
+struct writequeue_entry *dlm_allocate_writequeue(void);
+void dlm_free_writequeue(struct writequeue_entry *writequeue);
+struct dlm_msg *dlm_allocate_msg(gfp_t allocation);
+void dlm_free_msg(struct dlm_msg *msg);
 
 #endif		/* __MEMORY_DOT_H__ */
 

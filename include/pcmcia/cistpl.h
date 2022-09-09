@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * cistpl.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -164,7 +161,7 @@ typedef struct cistpl_funcid_t {
 
 typedef struct cistpl_funce_t {
     u_char	type;
-    u_char	data[0];
+    u_char	data[];
 } cistpl_funce_t;
 
 /*======================================================================
@@ -258,7 +255,7 @@ typedef struct cistpl_data_serv_t {
     u_char	escape;
     u_char	encrypt;
     u_char	misc_features;
-    u_char	ccitt_code[0];
+    u_char	ccitt_code[];
 } cistpl_data_serv_t;
 
 typedef struct cistpl_fax_serv_t {
@@ -268,7 +265,7 @@ typedef struct cistpl_fax_serv_t {
     u_char	encrypt;
     u_char	features_0;
     u_char	features_1;
-    u_char	ccitt_code[0];
+    u_char	ccitt_code[];
 } cistpl_fax_serv_t;
 
 typedef struct cistpl_voice_serv_t {

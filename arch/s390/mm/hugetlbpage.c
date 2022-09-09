@@ -2,15 +2,19 @@
 /*
  *  IBM System z Huge TLB Page Support for Kernel.
  *
- *    Copyright IBM Corp. 2007,2016
+ *    Copyright IBM Corp. 2007,2020
  *    Author(s): Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
 #define KMSG_COMPONENT "hugetlb"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <asm/pgalloc.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
+#include <linux/mman.h>
+#include <linux/sched/mm.h>
+#include <linux/security.h>
 
 /*
  * If the bit selected by single-bit bitmask "a" is set within "x", move
@@ -69,8 +73,8 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 
 static inline pte_t __rste_to_pte(unsigned long rste)
 {
+	unsigned long pteval;
 	int present;
-	pte_t pte;
 
 	if ((rste & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
 		present = pud_present(__pud(rste));
@@ -98,29 +102,21 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 	 *	    u unused, l large
 	 */
 	if (present) {
-		pte_val(pte) = rste & _SEGMENT_ENTRY_ORIGIN_LARGE;
-		pte_val(pte) |= _PAGE_LARGE | _PAGE_PRESENT;
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_READ,
-					     _PAGE_READ);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_WRITE,
-					     _PAGE_WRITE);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_INVALID,
-					     _PAGE_INVALID);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_PROTECT,
-					     _PAGE_PROTECT);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_DIRTY,
-					     _PAGE_DIRTY);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_YOUNG,
-					     _PAGE_YOUNG);
+		pteval = rste & _SEGMENT_ENTRY_ORIGIN_LARGE;
+		pteval |= _PAGE_LARGE | _PAGE_PRESENT;
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_READ, _PAGE_READ);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_WRITE, _PAGE_WRITE);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_INVALID, _PAGE_INVALID);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_PROTECT, _PAGE_PROTECT);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_DIRTY, _PAGE_DIRTY);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_YOUNG, _PAGE_YOUNG);
 #ifdef CONFIG_MEM_SOFT_DIRTY
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY,
-					     _PAGE_DIRTY);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY, _PAGE_SOFT_DIRTY);
 #endif
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_NOEXEC,
-					     _PAGE_NOEXEC);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_NOEXEC, _PAGE_NOEXEC);
 	} else
-		pte_val(pte) = _PAGE_INVALID;
-	return pte;
+		pteval = _PAGE_INVALID;
+	return __pte(pteval);
 }
 
 static void clear_huge_pte_skeys(struct mm_struct *mm, unsigned long rste)
@@ -156,12 +152,15 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		rste &= ~_SEGMENT_ENTRY_NOEXEC;
 
 	/* Set correct table type for 2G hugepages */
-	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
-		rste |= _REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE;
-	else
+	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3) {
+		if (likely(pte_present(pte)))
+			rste |= _REGION3_ENTRY_LARGE;
+		rste |= _REGION_ENTRY_TYPE_R3;
+	} else if (likely(pte_present(pte)))
 		rste |= _SEGMENT_ENTRY_LARGE;
+
 	clear_huge_pte_skeys(mm, rste);
-	pte_val(*ptep) = rste;
+	set_pte(ptep, __pte(rste));
 }
 
 pte_t huge_ptep_get(pte_t *ptep)
@@ -183,7 +182,7 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 	return pte;
 }
 
-pte_t *huge_pte_alloc(struct mm_struct *mm,
+pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgdp;
@@ -248,22 +247,100 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
 	return pud_page(*pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
 }
 
-static __init int setup_hugepagesz(char *opt)
+bool __init arch_hugetlb_valid_size(unsigned long size)
 {
-	unsigned long size;
-	char *string = opt;
-
-	size = memparse(opt, &opt);
-	if (MACHINE_HAS_EDAT1 && size == PMD_SIZE) {
-		hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
-	} else if (MACHINE_HAS_EDAT2 && size == PUD_SIZE) {
-		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
-	} else {
-		hugetlb_bad_size();
-		pr_err("hugepagesz= specifies an unsupported page size %s\n",
-			string);
-		return 0;
-	}
-	return 1;
+	if (MACHINE_HAS_EDAT1 && size == PMD_SIZE)
+		return true;
+	else if (MACHINE_HAS_EDAT2 && size == PUD_SIZE)
+		return true;
+	else
+		return false;
 }
-__setup("hugepagesz=", setup_hugepagesz);
+
+static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
+		unsigned long addr, unsigned long len,
+		unsigned long pgoff, unsigned long flags)
+{
+	struct hstate *h = hstate_file(file);
+	struct vm_unmapped_area_info info;
+
+	info.flags = 0;
+	info.length = len;
+	info.low_limit = current->mm->mmap_base;
+	info.high_limit = TASK_SIZE;
+	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+	info.align_offset = 0;
+	return vm_unmapped_area(&info);
+}
+
+static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
+		unsigned long addr0, unsigned long len,
+		unsigned long pgoff, unsigned long flags)
+{
+	struct hstate *h = hstate_file(file);
+	struct vm_unmapped_area_info info;
+	unsigned long addr;
+
+	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+	info.length = len;
+	info.low_limit = max(PAGE_SIZE, mmap_min_addr);
+	info.high_limit = current->mm->mmap_base;
+	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+	info.align_offset = 0;
+	addr = vm_unmapped_area(&info);
+
+	/*
+	 * A failed mmap() very likely causes application failure,
+	 * so fall back to the bottom-up function here. This scenario
+	 * can happen with large stack limits and large mmap()
+	 * allocations.
+	 */
+	if (addr & ~PAGE_MASK) {
+		VM_BUG_ON(addr != -ENOMEM);
+		info.flags = 0;
+		info.low_limit = TASK_UNMAPPED_BASE;
+		info.high_limit = TASK_SIZE;
+		addr = vm_unmapped_area(&info);
+	}
+
+	return addr;
+}
+
+unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	struct hstate *h = hstate_file(file);
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+
+	if (len & ~huge_page_mask(h))
+		return -EINVAL;
+	if (len > TASK_SIZE - mmap_min_addr)
+		return -ENOMEM;
+
+	if (flags & MAP_FIXED) {
+		if (prepare_hugepage_range(file, addr, len))
+			return -EINVAL;
+		goto check_asce_limit;
+	}
+
+	if (addr) {
+		addr = ALIGN(addr, huge_page_size(h));
+		vma = find_vma(mm, addr);
+		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
+		    (!vma || addr + len <= vm_start_gap(vma)))
+			goto check_asce_limit;
+	}
+
+	if (mm->get_unmapped_area == arch_get_unmapped_area)
+		addr = hugetlb_get_unmapped_area_bottomup(file, addr, len,
+				pgoff, flags);
+	else
+		addr = hugetlb_get_unmapped_area_topdown(file, addr, len,
+				pgoff, flags);
+	if (offset_in_page(addr))
+		return addr;
+
+check_asce_limit:
+	return check_asce_limit(mm, addr, len);
+}

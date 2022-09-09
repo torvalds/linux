@@ -9,6 +9,7 @@ Required properties:
 			"atmel,at91sam9260-smc", "syscon"
 			"atmel,sama5d3-smc", "syscon"
 			"atmel,sama5d2-smc", "syscon"
+			"microchip,sam9x60-smc", "syscon"
 - reg:			Contains offset/length value of the SMC memory
 			region.
 

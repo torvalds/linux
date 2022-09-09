@@ -22,85 +22,128 @@
 #include "head.h"
 #include "core.h"
 
-static void
+#include <nvif/push507c.h>
+
+#include <nvhw/class/cl827d.h>
+
+static int
 head827d_curs_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x0880 + head->base.index * 0x400, 1);
-		evo_data(push, 0x05000000);
-		evo_mthd(push, 0x089c + head->base.index * 0x400, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NV827D, HEAD_SET_CONTROL_CURSOR, ENABLE, DISABLE) |
+		  NVDEF(NV827D, HEAD_SET_CONTROL_CURSOR, FORMAT, A8R8G8B8) |
+		  NVDEF(NV827D, HEAD_SET_CONTROL_CURSOR, SIZE, W64_H64));
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTEXT_DMA_CURSOR(i), 0x00000000);
+	return 0;
 }
 
-static void
+static int
 head827d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 5))) {
-		evo_mthd(push, 0x0880 + head->base.index * 0x400, 2);
-		evo_data(push, 0x80000000 | asyh->curs.layout << 26 |
-					    asyh->curs.format << 24);
-		evo_data(push, asyh->curs.offset >> 8);
-		evo_mthd(push, 0x089c + head->base.index * 0x400, 1);
-		evo_data(push, asyh->curs.handle);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NV827D, HEAD_SET_CONTROL_CURSOR, ENABLE, ENABLE) |
+		  NVVAL(NV827D, HEAD_SET_CONTROL_CURSOR, FORMAT, asyh->curs.format) |
+		  NVVAL(NV827D, HEAD_SET_CONTROL_CURSOR, SIZE, asyh->curs.layout) |
+		  NVVAL(NV827D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_X, 0) |
+		  NVVAL(NV827D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_Y, 0) |
+		  NVDEF(NV827D, HEAD_SET_CONTROL_CURSOR, COMPOSITION, ALPHA_BLEND) |
+		  NVDEF(NV827D, HEAD_SET_CONTROL_CURSOR, SUB_OWNER, NONE),
+
+				HEAD_SET_OFFSET_CURSOR(i), asyh->curs.offset >> 8);
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTEXT_DMA_CURSOR(i), asyh->curs.handle);
+	return 0;
 }
 
-static void
+static int
 head827d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 9))) {
-		evo_mthd(push, 0x0860 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->core.offset >> 8);
-		evo_mthd(push, 0x0868 + head->base.index * 0x400, 4);
-		evo_data(push, asyh->core.h << 16 | asyh->core.w);
-		evo_data(push, asyh->core.layout << 20 |
-			       (asyh->core.pitch >> 8) << 8 |
-			       asyh->core.blocks << 8 |
-			       asyh->core.blockh);
-		evo_data(push, asyh->core.format << 8);
-		evo_data(push, asyh->core.handle);
-		evo_mthd(push, 0x08c0 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->core.y << 16 | asyh->core.x);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 9)))
+		return ret;
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_OFFSET(i, 0),
+		  NVVAL(NV827D, HEAD_SET_OFFSET, ORIGIN, asyh->core.offset >> 8));
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_SIZE(i),
+		  NVVAL(NV827D, HEAD_SET_SIZE, WIDTH, asyh->core.w) |
+		  NVVAL(NV827D, HEAD_SET_SIZE, HEIGHT, asyh->core.h),
+
+				HEAD_SET_STORAGE(i),
+		  NVVAL(NV827D, HEAD_SET_STORAGE, BLOCK_HEIGHT, asyh->core.blockh) |
+		  NVVAL(NV827D, HEAD_SET_STORAGE, PITCH, asyh->core.pitch >> 8) |
+		  NVVAL(NV827D, HEAD_SET_STORAGE, PITCH, asyh->core.blocks) |
+		  NVVAL(NV827D, HEAD_SET_STORAGE, MEMORY_LAYOUT, asyh->core.layout),
+
+				HEAD_SET_PARAMS(i),
+		  NVVAL(NV827D, HEAD_SET_PARAMS, FORMAT, asyh->core.format) |
+		  NVDEF(NV827D, HEAD_SET_PARAMS, SUPER_SAMPLE, X1_AA) |
+		  NVDEF(NV827D, HEAD_SET_PARAMS, GAMMA, LINEAR),
+
+				HEAD_SET_CONTEXT_DMAS_ISO(i, 0),
+		  NVVAL(NV827D, HEAD_SET_CONTEXT_DMAS_ISO, HANDLE, asyh->core.handle));
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_VIEWPORT_POINT_IN(i, 0),
+		  NVVAL(NV827D, HEAD_SET_VIEWPORT_POINT_IN, X, asyh->core.x) |
+		  NVVAL(NV827D, HEAD_SET_VIEWPORT_POINT_IN, Y, asyh->core.y));
+	return 0;
 }
 
-static void
+static int
 head827d_olut_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_BASE_LUT_LO(i),
+		  NVDEF(NV827D, HEAD_SET_BASE_LUT_LO, ENABLE, DISABLE));
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTEXT_DMA_LUT(i), 0x00000000);
+	return 0;
 }
 
-static void
+static int
 head827d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 5))) {
-		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-		evo_data(push, 0x80000000 | asyh->olut.mode << 30);
-		evo_data(push, asyh->olut.offset >> 8);
-		evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
-		evo_data(push, asyh->olut.handle);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_BASE_LUT_LO(i),
+		  NVDEF(NV827D, HEAD_SET_BASE_LUT_LO, ENABLE, ENABLE) |
+		  NVVAL(NV827D, HEAD_SET_BASE_LUT_LO, MODE, asyh->olut.mode) |
+		  NVVAL(NV827D, HEAD_SET_BASE_LUT_LO, ORIGIN, 0),
+
+				HEAD_SET_BASE_LUT_HI(i),
+		  NVVAL(NV827D, HEAD_SET_BASE_LUT_HI, ORIGIN, asyh->olut.offset >> 8));
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTEXT_DMA_LUT(i), asyh->olut.handle);
+	return 0;
 }
 
 const struct nv50_head_func
@@ -108,6 +151,7 @@ head827d = {
 	.view = head507d_view,
 	.mode = head507d_mode,
 	.olut = head507d_olut,
+	.olut_size = 256,
 	.olut_set = head827d_olut_set,
 	.olut_clr = head827d_olut_clr,
 	.core_calc = head507d_core_calc,

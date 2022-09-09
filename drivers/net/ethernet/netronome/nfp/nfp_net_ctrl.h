@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
-/*
- * nfp_net_ctrl.h
+/* nfp_net_ctrl.h
  * Netronome network device driver: Control BAR layout
  * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
  *          Jason McMullan <jason.mcmullan@netronome.com>
@@ -15,41 +14,45 @@
 
 #include <linux/types.h>
 
-/**
- * Configuration BAR size.
+/* Configuration BAR size.
  *
  * The configuration BAR is 8K in size, but due to
  * THB-350, 32k needs to be reserved.
  */
 #define NFP_NET_CFG_BAR_SZ		(32 * 1024)
 
-/**
- * Offset in Freelist buffer where packet starts on RX
- */
+/* Offset in Freelist buffer where packet starts on RX */
 #define NFP_NET_RX_OFFSET		32
 
-/**
- * LSO parameters
+/* LSO parameters
  * %NFP_NET_LSO_MAX_HDR_SZ:	Maximum header size supported for LSO frames
  * %NFP_NET_LSO_MAX_SEGS:	Maximum number of segments LSO frame can produce
  */
 #define NFP_NET_LSO_MAX_HDR_SZ		255
 #define NFP_NET_LSO_MAX_SEGS		64
 
-/**
- * Prepend field types
- */
+/* working with metadata vlan api (NFD version >= 2.0) */
+#define NFP_NET_META_VLAN_STRIP			BIT(31)
+#define NFP_NET_META_VLAN_TPID_MASK		GENMASK(19, 16)
+#define NFP_NET_META_VLAN_TCI_MASK		GENMASK(15, 0)
+
+/* Prepend field types */
 #define NFP_NET_META_FIELD_SIZE		4
 #define NFP_NET_META_HASH		1 /* next field carries hash type */
 #define NFP_NET_META_MARK		2
+#define NFP_NET_META_VLAN		4 /* ctag or stag type */
 #define NFP_NET_META_PORTID		5
 #define NFP_NET_META_CSUM		6 /* checksum complete type */
+#define NFP_NET_META_CONN_HANDLE	7
+#define NFP_NET_META_RESYNC_INFO	8 /* RX resync info request */
 
 #define NFP_META_PORT_ID_CTRL		~0U
 
-/**
- * Hash type pre-pended when a RSS hash was computed
- */
+/* Prepend field sizes */
+#define NFP_NET_META_VLAN_SIZE			4
+#define NFP_NET_META_PORTID_SIZE		4
+#define NFP_NET_META_CONN_HANDLE_SIZE		8
+/* Hash type pre-pended when a RSS hash was computed */
 #define NFP_NET_RSS_NONE		0
 #define NFP_NET_RSS_IPV4		1
 #define NFP_NET_RSS_IPV6		2
@@ -61,16 +64,14 @@
 #define NFP_NET_RSS_IPV6_UDP		8
 #define NFP_NET_RSS_IPV6_EX_UDP		9
 
-/**
- * Ring counts
+/* Ring counts
  * %NFP_NET_TXR_MAX:	     Maximum number of TX rings
  * %NFP_NET_RXR_MAX:	     Maximum number of RX rings
  */
 #define NFP_NET_TXR_MAX			64
 #define NFP_NET_RXR_MAX			64
 
-/**
- * Read/Write config words (0x0000 - 0x002c)
+/* Read/Write config words (0x0000 - 0x002c)
  * %NFP_NET_CFG_CTRL:	     Global control
  * %NFP_NET_CFG_UPDATE:      Indicate which fields are updated
  * %NFP_NET_CFG_TXRS_ENABLE: Bitmask of enabled TX rings
@@ -98,14 +99,15 @@
 #define   NFP_NET_CFG_CTRL_LSO		  (0x1 << 10) /* LSO/TSO (version 1) */
 #define   NFP_NET_CFG_CTRL_CTAG_FILTER	  (0x1 << 11) /* VLAN CTAG filtering */
 #define   NFP_NET_CFG_CTRL_CMSG_DATA	  (0x1 << 12) /* RX cmsgs on data Qs */
+#define   NFP_NET_CFG_CTRL_RXQINQ	  (0x1 << 13) /* Enable S-tag strip */
+#define   NFP_NET_CFG_CTRL_RXVLAN_V2	  (0x1 << 15) /* Enable C-tag strip */
 #define   NFP_NET_CFG_CTRL_RINGCFG	  (0x1 << 16) /* Ring runtime changes */
 #define   NFP_NET_CFG_CTRL_RSS		  (0x1 << 17) /* RSS (version 1) */
 #define   NFP_NET_CFG_CTRL_IRQMOD	  (0x1 << 18) /* Interrupt moderation */
-#define   NFP_NET_CFG_CTRL_RINGPRIO	  (0x1 << 19) /* Ring priorities */
 #define   NFP_NET_CFG_CTRL_MSIXAUTO	  (0x1 << 20) /* MSI-X auto-masking */
 #define   NFP_NET_CFG_CTRL_TXRWB	  (0x1 << 21) /* Write-back of TX ring*/
-#define   NFP_NET_CFG_CTRL_L2SWITCH	  (0x1 << 22) /* L2 Switch */
-#define   NFP_NET_CFG_CTRL_L2SWITCH_LOCAL (0x1 << 23) /* Switch to local */
+#define   NFP_NET_CFG_CTRL_VEPA		  (0x1 << 22) /* Enable VEPA mode */
+#define   NFP_NET_CFG_CTRL_TXVLAN_V2	  (0x1 << 23) /* Enable VLAN C-tag insert*/
 #define   NFP_NET_CFG_CTRL_VXLAN	  (0x1 << 24) /* VXLAN tunnel support */
 #define   NFP_NET_CFG_CTRL_NVGRE	  (0x1 << 25) /* NVGRE tunnel support */
 #define   NFP_NET_CFG_CTRL_BPF		  (0x1 << 27) /* BPF offload capable */
@@ -122,6 +124,10 @@
 					 NFP_NET_CFG_CTRL_CSUM_COMPLETE)
 #define NFP_NET_CFG_CTRL_CHAIN_META	(NFP_NET_CFG_CTRL_RSS2 | \
 					 NFP_NET_CFG_CTRL_CSUM_COMPLETE)
+#define NFP_NET_CFG_CTRL_RXVLAN_ANY	(NFP_NET_CFG_CTRL_RXVLAN | \
+					 NFP_NET_CFG_CTRL_RXVLAN_V2)
+#define NFP_NET_CFG_CTRL_TXVLAN_ANY	(NFP_NET_CFG_CTRL_TXVLAN | \
+					 NFP_NET_CFG_CTRL_TXVLAN_V2)
 
 #define NFP_NET_CFG_UPDATE		0x0004
 #define   NFP_NET_CFG_UPDATE_GEN	  (0x1 <<  0) /* General update */
@@ -130,7 +136,6 @@
 #define   NFP_NET_CFG_UPDATE_TXRPRIO	  (0x1 <<  3) /* TX Ring prio change */
 #define   NFP_NET_CFG_UPDATE_RXRPRIO	  (0x1 <<  4) /* RX Ring prio change */
 #define   NFP_NET_CFG_UPDATE_MSIX	  (0x1 <<  5) /* MSI-X change */
-#define   NFP_NET_CFG_UPDATE_L2SWITCH	  (0x1 <<  6) /* Switch changes */
 #define   NFP_NET_CFG_UPDATE_RESET	  (0x1 <<  7) /* Update due to FLR */
 #define   NFP_NET_CFG_UPDATE_IRQMOD	  (0x1 <<  8) /* IRQ mod change */
 #define   NFP_NET_CFG_UPDATE_VXLAN	  (0x1 <<  9) /* VXLAN port change */
@@ -138,6 +143,7 @@
 #define   NFP_NET_CFG_UPDATE_MACADDR	  (0x1 << 11) /* MAC address change */
 #define   NFP_NET_CFG_UPDATE_MBOX	  (0x1 << 12) /* Mailbox update */
 #define   NFP_NET_CFG_UPDATE_VF		  (0x1 << 13) /* VF settings change */
+#define   NFP_NET_CFG_UPDATE_CRYPTO	  (0x1 << 14) /* Crypto on/off */
 #define   NFP_NET_CFG_UPDATE_ERR	  (0x1 << 31) /* A error occurred */
 #define NFP_NET_CFG_TXRS_ENABLE		0x0008
 #define NFP_NET_CFG_RXRS_ENABLE		0x0010
@@ -147,8 +153,7 @@
 #define NFP_NET_CFG_LSC			0x0020
 #define NFP_NET_CFG_MACADDR		0x0024
 
-/**
- * Read-only words (0x0030 - 0x0050):
+/* Read-only words (0x0030 - 0x0050):
  * %NFP_NET_CFG_VERSION:     Firmware version number
  * %NFP_NET_CFG_STS:	     Status
  * %NFP_NET_CFG_CAP:	     Capabilities (same bits as %NFP_NET_CFG_CTRL)
@@ -162,7 +167,10 @@
  * - define more STS bits
  */
 #define NFP_NET_CFG_VERSION		0x0030
-#define   NFP_NET_CFG_VERSION_RESERVED_MASK	(0xff << 24)
+#define   NFP_NET_CFG_VERSION_RESERVED_MASK	(0xfe << 24)
+#define   NFP_NET_CFG_VERSION_DP_NFD3		0
+#define   NFP_NET_CFG_VERSION_DP_NFDK		1
+#define   NFP_NET_CFG_VERSION_DP_MASK		1
 #define   NFP_NET_CFG_VERSION_CLASS_MASK  (0xff << 16)
 #define   NFP_NET_CFG_VERSION_CLASS(x)	  (((x) & 0xff) << 16)
 #define   NFP_NET_CFG_VERSION_CLASS_GENERIC	0
@@ -193,36 +201,31 @@
 #define NFP_NET_CFG_START_TXQ		0x0048
 #define NFP_NET_CFG_START_RXQ		0x004c
 
-/**
- * Prepend configuration
+/* Prepend configuration
  */
 #define NFP_NET_CFG_RX_OFFSET		0x0050
 #define NFP_NET_CFG_RX_OFFSET_DYNAMIC		0	/* Prepend mode */
 
-/**
- * RSS capabilities
+/* RSS capabilities
  * %NFP_NET_CFG_RSS_CAP_HFUNC:	supported hash functions (same bits as
  *				%NFP_NET_CFG_RSS_HFUNC)
  */
 #define NFP_NET_CFG_RSS_CAP		0x0054
 #define   NFP_NET_CFG_RSS_CAP_HFUNC	  0xff000000
 
-/**
- * TLV area start
+/* TLV area start
  * %NFP_NET_CFG_TLV_BASE:	start anchor of the TLV area
  */
 #define NFP_NET_CFG_TLV_BASE		0x0058
 
-/**
- * VXLAN/UDP encap configuration
+/* VXLAN/UDP encap configuration
  * %NFP_NET_CFG_VXLAN_PORT:	Base address of table of tunnels' UDP dst ports
  * %NFP_NET_CFG_VXLAN_SZ:	Size of the UDP port table in bytes
  */
 #define NFP_NET_CFG_VXLAN_PORT		0x0060
 #define NFP_NET_CFG_VXLAN_SZ		  0x0008
 
-/**
- * BPF section
+/* BPF section
  * %NFP_NET_CFG_BPF_ABI:	BPF ABI version
  * %NFP_NET_CFG_BPF_CAP:	BPF capabilities
  * %NFP_NET_CFG_BPF_MAX_LEN:	Maximum size of JITed BPF code in bytes
@@ -247,14 +250,12 @@
 #define   NFP_NET_CFG_BPF_CFG_MASK	7ULL
 #define   NFP_NET_CFG_BPF_ADDR_MASK	(~NFP_NET_CFG_BPF_CFG_MASK)
 
-/**
- * 40B reserved for future use (0x0098 - 0x00c0)
+/* 40B reserved for future use (0x0098 - 0x00c0)
  */
 #define NFP_NET_CFG_RESERVED		0x0098
 #define NFP_NET_CFG_RESERVED_SZ		0x0028
 
-/**
- * RSS configuration (0x0100 - 0x01ac):
+/* RSS configuration (0x0100 - 0x01ac):
  * Used only when NFP_NET_CFG_CTRL_RSS is enabled
  * %NFP_NET_CFG_RSS_CFG:     RSS configuration word
  * %NFP_NET_CFG_RSS_KEY:     RSS "secret" key
@@ -281,8 +282,7 @@
 					 NFP_NET_CFG_RSS_KEY_SZ)
 #define NFP_NET_CFG_RSS_ITBL_SZ		0x80
 
-/**
- * TX ring configuration (0x200 - 0x800)
+/* TX ring configuration (0x200 - 0x800)
  * %NFP_NET_CFG_TXR_BASE:    Base offset for TX ring configuration
  * %NFP_NET_CFG_TXR_ADDR:    Per TX ring DMA address (8B entries)
  * %NFP_NET_CFG_TXR_WB_ADDR: Per TX ring write back DMA address (8B entries)
@@ -301,8 +301,7 @@
 #define NFP_NET_CFG_TXR_IRQ_MOD(_x)	(NFP_NET_CFG_TXR_BASE + 0x500 + \
 					 ((_x) * 0x4))
 
-/**
- * RX ring configuration (0x0800 - 0x0c00)
+/* RX ring configuration (0x0800 - 0x0c00)
  * %NFP_NET_CFG_RXR_BASE:    Base offset for RX ring configuration
  * %NFP_NET_CFG_RXR_ADDR:    Per RX ring DMA address (8B entries)
  * %NFP_NET_CFG_RXR_SZ:      Per RX ring ring size (1B entries)
@@ -318,8 +317,7 @@
 #define NFP_NET_CFG_RXR_IRQ_MOD(_x)	(NFP_NET_CFG_RXR_BASE + 0x300 + \
 					 ((_x) * 0x4))
 
-/**
- * Interrupt Control/Cause registers (0x0c00 - 0x0d00)
+/* Interrupt Control/Cause registers (0x0c00 - 0x0d00)
  * These registers are only used when MSI-X auto-masking is not
  * enabled (%NFP_NET_CFG_CTRL_MSIXAUTO not set).  The array is index
  * by MSI-X entry and are 1B in size.  If an entry is zero, the
@@ -334,8 +332,7 @@
 #define   NFP_NET_CFG_ICR_RXTX		0x1
 #define   NFP_NET_CFG_ICR_LSC		0x2
 
-/**
- * General device stats (0x0d00 - 0x0d90)
+/* General device stats (0x0d00 - 0x0d90)
  * all counters are 64bit.
  */
 #define NFP_NET_CFG_STATS_BASE		0x0d00
@@ -368,8 +365,7 @@
 #define NFP_NET_CFG_STATS_APP3_FRAMES	(NFP_NET_CFG_STATS_BASE + 0xc0)
 #define NFP_NET_CFG_STATS_APP3_BYTES	(NFP_NET_CFG_STATS_BASE + 0xc8)
 
-/**
- * Per ring stats (0x1000 - 0x1800)
+/* Per ring stats (0x1000 - 0x1800)
  * options, 64bit per entry
  * %NFP_NET_CFG_TXR_STATS:   TX ring statistics (Packet and Byte count)
  * %NFP_NET_CFG_RXR_STATS:   RX ring statistics (Packet and Byte count)
@@ -381,8 +377,7 @@
 #define NFP_NET_CFG_RXR_STATS(_x)	(NFP_NET_CFG_RXR_STATS_BASE + \
 					 ((_x) * 0x10))
 
-/**
- * General use mailbox area (0x1800 - 0x19ff)
+/* General use mailbox area (0x1800 - 0x19ff)
  * 4B used for update command and 4B return code
  * followed by a max of 504B of variable length value
  */
@@ -392,15 +387,14 @@
 #define NFP_NET_CFG_MBOX_SIMPLE_CMD	0x0
 #define NFP_NET_CFG_MBOX_SIMPLE_RET	0x4
 #define NFP_NET_CFG_MBOX_SIMPLE_VAL	0x8
-#define NFP_NET_CFG_MBOX_SIMPLE_LEN	0x12
 
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD 1
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
 
 #define NFP_NET_CFG_MBOX_CMD_PCI_DSCP_PRIOMAP_SET	5
+#define NFP_NET_CFG_MBOX_CMD_TLV_CMSG			6
 
-/**
- * VLAN filtering using general use mailbox
+/* VLAN filtering using general use mailbox
  * %NFP_NET_CFG_VLAN_FILTER:		Base address of VLAN filter mailbox
  * %NFP_NET_CFG_VLAN_FILTER_VID:	VLAN ID to filter
  * %NFP_NET_CFG_VLAN_FILTER_PROTO:	VLAN proto to filter
@@ -411,8 +405,7 @@
 #define  NFP_NET_CFG_VLAN_FILTER_PROTO	 (NFP_NET_CFG_VLAN_FILTER + 2)
 #define NFP_NET_CFG_VLAN_FILTER_SZ	 0x0004
 
-/**
- * TLV capabilities
+/* TLV capabilities
  * %NFP_NET_CFG_TLV_TYPE:	Offset of type within the TLV
  * %NFP_NET_CFG_TLV_TYPE_REQUIRED: Driver must be able to parse the TLV
  * %NFP_NET_CFG_TLV_LENGTH:	Offset of length within the TLV
@@ -438,8 +431,7 @@
 #define NFP_NET_CFG_TLV_HEADER_TYPE	0x7fff0000
 #define NFP_NET_CFG_TLV_HEADER_LENGTH	0x0000ffff
 
-/**
- * Capability TLV types
+/* Capability TLV types
  *
  * %NFP_NET_CFG_TLV_TYPE_UNKNOWN:
  * Special TLV type to catch bugs, should never be encountered.  Drivers should
@@ -470,6 +462,32 @@
  * %NFP_NET_CFG_TLV_TYPE_REPR_CAP:
  * Single word, equivalent of %NFP_NET_CFG_CAP for representors, features which
  * can be used on representors.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES:
+ * Variable, bitmap of control message types supported by the mailbox handler.
+ * Bit 0 corresponds to message type 0, bit 1 to 1, etc.  Control messages are
+ * encapsulated into simple TLVs, with an end TLV and written to the Mailbox.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS:
+ * 8 words, bitmaps of supported and enabled crypto operations.
+ * First 16B (4 words) contains a bitmap of supported crypto operations,
+ * and next 16B contain the enabled operations.
+ * This capability is made obsolete by ones with better sync methods.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_VNIC_STATS:
+ * Variable, per-vNIC statistics, data should be 8B aligned (FW should insert
+ * zero-length RESERVED TLV to pad).
+ * TLV data has two sections.  First is an array of statistics' IDs (2B each).
+ * Second 8B statistics themselves.  Statistics are 8B aligned, meaning there
+ * may be a padding between sections.
+ * Number of statistics can be determined as floor(tlv.length / (2 + 8)).
+ * This TLV overwrites %NFP_NET_CFG_STATS_* values (statistics in this TLV
+ * duplicate the old ones, so driver should be careful not to unnecessarily
+ * render both).
+ *
+ * %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS_RX_SCAN:
+ * Same as %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS, but crypto TLS does stream scan
+ * RX sync, rather than kernel-assisted sync.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
@@ -479,29 +497,38 @@
 #define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL0	5
 #define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL1	6
 #define NFP_NET_CFG_TLV_TYPE_REPR_CAP		7
+#define NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES	10
+#define NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS		11 /* see crypto/fw.h */
+#define NFP_NET_CFG_TLV_TYPE_VNIC_STATS		12
+#define NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS_RX_SCAN	13
 
 struct device;
 
-/**
- * struct nfp_net_tlv_caps - parsed control BAR TLV capabilities
+/* struct nfp_net_tlv_caps - parsed control BAR TLV capabilities
  * @me_freq_mhz:	ME clock_freq (MHz)
  * @mbox_off:		vNIC mailbox area offset
  * @mbox_len:		vNIC mailbox area length
  * @repr_cap:		capabilities for representors
+ * @mbox_cmsg_types:	cmsgs which can be passed through the mailbox
+ * @crypto_ops:		supported crypto operations
+ * @crypto_enable_off:	offset of crypto ops enable region
+ * @vnic_stats_off:	offset of vNIC stats area
+ * @vnic_stats_cnt:	number of vNIC stats
+ * @tls_resync_ss:	TLS resync will be performed via stream scan
  */
 struct nfp_net_tlv_caps {
 	u32 me_freq_mhz;
 	unsigned int mbox_off;
 	unsigned int mbox_len;
 	u32 repr_cap;
+	u32 mbox_cmsg_types;
+	u32 crypto_ops;
+	unsigned int crypto_enable_off;
+	unsigned int vnic_stats_off;
+	unsigned int vnic_stats_cnt;
+	unsigned int tls_resync_ss:1;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			   struct nfp_net_tlv_caps *caps);
-
-static inline bool nfp_net_has_mbox(struct nfp_net_tlv_caps *caps)
-{
-	return caps->mbox_len >= NFP_NET_CFG_MBOX_SIMPLE_LEN;
-}
-
 #endif /* _NFP_NET_CTRL_H_ */

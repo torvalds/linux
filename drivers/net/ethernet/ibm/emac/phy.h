@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/ibm/emac/phy.h
  *
@@ -12,11 +13,6 @@
  * February 2003
  *
  * Minor additions by Eugene Surovegin <ebs@ebshome.net>, 2004
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * This file basically duplicates sungem_phy.{c,h} with different PHYs
  * supported. I'm looking into merging that in a single mii layer more

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015, Marvell International Ltd.
  *
- * This software file (the "File") is distributed by Marvell International
- * Ltd. under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available on the worldwide web at
- * http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
- */
-
-/* Inspired (hugely) by HCI LDISC implementation in Bluetooth.
+ * Inspired (hugely) by HCI LDISC implementation in Bluetooth.
  *
  *  Copyright (C) 2000-2001  Qualcomm Incorporated
  *  Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
@@ -229,12 +217,78 @@ static void nci_uart_tty_wakeup(struct tty_struct *tty)
 	nci_uart_tx_wakeup(nu);
 }
 
+/* -- Default recv_buf handler --
+ *
+ * This handler supposes that NCI frames are sent over UART link without any
+ * framing. It reads NCI header, retrieve the packet size and once all packet
+ * bytes are received it passes it to nci_uart driver for processing.
+ */
+static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
+				     int count)
+{
+	int chunk_len;
+
+	if (!nu->ndev) {
+		nfc_err(nu->tty->dev,
+			"receive data from tty but no NCI dev is attached yet, drop buffer\n");
+		return 0;
+	}
+
+	/* Decode all incoming data in packets
+	 * and enqueue then for processing.
+	 */
+	while (count > 0) {
+		/* If this is the first data of a packet, allocate a buffer */
+		if (!nu->rx_skb) {
+			nu->rx_packet_len = -1;
+			nu->rx_skb = nci_skb_alloc(nu->ndev,
+						   NCI_MAX_PACKET_SIZE,
+						   GFP_ATOMIC);
+			if (!nu->rx_skb)
+				return -ENOMEM;
+		}
+
+		/* Eat byte after byte till full packet header is received */
+		if (nu->rx_skb->len < NCI_CTRL_HDR_SIZE) {
+			skb_put_u8(nu->rx_skb, *data++);
+			--count;
+			continue;
+		}
+
+		/* Header was received but packet len was not read */
+		if (nu->rx_packet_len < 0)
+			nu->rx_packet_len = NCI_CTRL_HDR_SIZE +
+				nci_plen(nu->rx_skb->data);
+
+		/* Compute how many bytes are missing and how many bytes can
+		 * be consumed.
+		 */
+		chunk_len = nu->rx_packet_len - nu->rx_skb->len;
+		if (count < chunk_len)
+			chunk_len = count;
+		skb_put_data(nu->rx_skb, data, chunk_len);
+		data += chunk_len;
+		count -= chunk_len;
+
+		/* Check if packet is fully received */
+		if (nu->rx_packet_len == nu->rx_skb->len) {
+			/* Pass RX packet to driver */
+			if (nu->ops.recv(nu, nu->rx_skb) != 0)
+				nfc_err(nu->tty->dev, "corrupted RX packet\n");
+			/* Next packet will be a new one */
+			nu->rx_skb = NULL;
+		}
+	}
+
+	return 0;
+}
+
 /* nci_uart_tty_receive()
  *
  *     Called by tty low level driver when receive data is
  *     available.
  *
- * Arguments:  tty          pointer to tty isntance data
+ * Arguments:  tty          pointer to tty instance data
  *             data         pointer to received data
  *             flags        pointer to flags for data
  *             count        count of received data in bytes
@@ -242,7 +296,7 @@ static void nci_uart_tty_wakeup(struct tty_struct *tty)
  * Return Value:    None
  */
 static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
-				 char *flags, int count)
+				 const char *flags, int count)
 {
 	struct nci_uart *nu = (void *)tty->disc_data;
 
@@ -250,7 +304,7 @@ static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 		return;
 
 	spin_lock(&nu->rx_lock);
-	nu->ops.recv_buf(nu, (void *)data, flags, count);
+	nci_uart_default_recv_buf(nu, data, count);
 	spin_unlock(&nu->rx_lock);
 
 	tty_unthrottle(tty);
@@ -263,14 +317,13 @@ static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
  * Arguments:
  *
  *    tty        pointer to tty instance data
- *    file       pointer to open file object for device
  *    cmd        IOCTL command code
  *    arg        argument for IOCTL call (cmd dependent)
  *
  * Return Value:    Command dependent
  */
-static int nci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
-			      unsigned int cmd, unsigned long arg)
+static int nci_uart_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			      unsigned long arg)
 {
 	struct nci_uart *nu = (void *)tty->disc_data;
 	int err = 0;
@@ -283,7 +336,7 @@ static int nci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 			return -EBUSY;
 		break;
 	default:
-		err = n_tty_ioctl_helper(tty, file, cmd, arg);
+		err = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 	}
 
@@ -292,7 +345,8 @@ static int nci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 
 /* We don't provide read/write/poll interface for user space. */
 static ssize_t nci_uart_tty_read(struct tty_struct *tty, struct file *file,
-				 unsigned char __user *buf, size_t nr)
+				 unsigned char *buf, size_t nr,
+				 void **cookie, unsigned long offset)
 {
 	return 0;
 }
@@ -320,78 +374,6 @@ static int nci_uart_send(struct nci_uart *nu, struct sk_buff *skb)
 	return 0;
 }
 
-/* -- Default recv_buf handler --
- *
- * This handler supposes that NCI frames are sent over UART link without any
- * framing. It reads NCI header, retrieve the packet size and once all packet
- * bytes are received it passes it to nci_uart driver for processing.
- */
-static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
-				     char *flags, int count)
-{
-	int chunk_len;
-
-	if (!nu->ndev) {
-		nfc_err(nu->tty->dev,
-			"receive data from tty but no NCI dev is attached yet, drop buffer\n");
-		return 0;
-	}
-
-	/* Decode all incoming data in packets
-	 * and enqueue then for processing.
-	 */
-	while (count > 0) {
-		/* If this is the first data of a packet, allocate a buffer */
-		if (!nu->rx_skb) {
-			nu->rx_packet_len = -1;
-			nu->rx_skb = nci_skb_alloc(nu->ndev,
-						   NCI_MAX_PACKET_SIZE,
-						   GFP_KERNEL);
-			if (!nu->rx_skb)
-				return -ENOMEM;
-		}
-
-		/* Eat byte after byte till full packet header is received */
-		if (nu->rx_skb->len < NCI_CTRL_HDR_SIZE) {
-			skb_put_u8(nu->rx_skb, *data++);
-			--count;
-			continue;
-		}
-
-		/* Header was received but packet len was not read */
-		if (nu->rx_packet_len < 0)
-			nu->rx_packet_len = NCI_CTRL_HDR_SIZE +
-				nci_plen(nu->rx_skb->data);
-
-		/* Compute how many bytes are missing and how many bytes can
-		 * be consumed.
-		 */
-		chunk_len = nu->rx_packet_len - nu->rx_skb->len;
-		if (count < chunk_len)
-			chunk_len = count;
-		skb_put_data(nu->rx_skb, data, chunk_len);
-		data += chunk_len;
-		count -= chunk_len;
-
-		/* Chcek if packet is fully received */
-		if (nu->rx_packet_len == nu->rx_skb->len) {
-			/* Pass RX packet to driver */
-			if (nu->ops.recv(nu, nu->rx_skb) != 0)
-				nfc_err(nu->tty->dev, "corrupted RX packet\n");
-			/* Next packet will be a new one */
-			nu->rx_skb = NULL;
-		}
-	}
-
-	return 0;
-}
-
-/* -- Default recv handler -- */
-static int nci_uart_default_recv(struct nci_uart *nu, struct sk_buff *skb)
-{
-	return nci_recv_frame(nu->ndev, skb);
-}
-
 int nci_uart_register(struct nci_uart *nu)
 {
 	if (!nu || !nu->ops.open ||
@@ -400,12 +382,6 @@ int nci_uart_register(struct nci_uart *nu)
 
 	/* Set the send callback */
 	nu->ops.send = nci_uart_send;
-
-	/* Install default handlers if not overridden */
-	if (!nu->ops.recv_buf)
-		nu->ops.recv_buf = nci_uart_default_recv_buf;
-	if (!nu->ops.recv)
-		nu->ops.recv = nci_uart_default_recv;
 
 	/* Add this driver in the driver list */
 	if (nci_uart_drivers[nu->driver]) {
@@ -452,8 +428,8 @@ void nci_uart_set_config(struct nci_uart *nu, int baudrate, int flow_ctrl)
 EXPORT_SYMBOL_GPL(nci_uart_set_config);
 
 static struct tty_ldisc_ops nci_uart_ldisc = {
-	.magic		= TTY_LDISC_MAGIC,
 	.owner		= THIS_MODULE,
+	.num		= N_NCI,
 	.name		= "n_nci",
 	.open		= nci_uart_tty_open,
 	.close		= nci_uart_tty_close,
@@ -468,13 +444,12 @@ static struct tty_ldisc_ops nci_uart_ldisc = {
 
 static int __init nci_uart_init(void)
 {
-	memset(nci_uart_drivers, 0, sizeof(nci_uart_drivers));
-	return tty_register_ldisc(N_NCI, &nci_uart_ldisc);
+	return tty_register_ldisc(&nci_uart_ldisc);
 }
 
 static void __exit nci_uart_exit(void)
 {
-	tty_unregister_ldisc(N_NCI);
+	tty_unregister_ldisc(&nci_uart_ldisc);
 }
 
 module_init(nci_uart_init);

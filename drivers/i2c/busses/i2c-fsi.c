@@ -98,7 +98,7 @@
 #define I2C_STAT_DAT_REQ	BIT(25)
 #define I2C_STAT_CMD_COMP	BIT(24)
 #define I2C_STAT_STOP_ERR	BIT(23)
-#define I2C_STAT_MAX_PORT	GENMASK(19, 16)
+#define I2C_STAT_MAX_PORT	GENMASK(22, 16)
 #define I2C_STAT_ANY_INT	BIT(15)
 #define I2C_STAT_SCL_IN		BIT(11)
 #define I2C_STAT_SDA_IN		BIT(10)
@@ -658,13 +658,29 @@ static const struct i2c_algorithm fsi_i2c_algorithm = {
 	.functionality = fsi_i2c_functionality,
 };
 
+static struct device_node *fsi_i2c_find_port_of_node(struct device_node *fsi,
+						     int port)
+{
+	struct device_node *np;
+	u32 port_no;
+	int rc;
+
+	for_each_child_of_node(fsi, np) {
+		rc = of_property_read_u32(np, "reg", &port_no);
+		if (!rc && port_no == port)
+			return np;
+	}
+
+	return NULL;
+}
+
 static int fsi_i2c_probe(struct device *dev)
 {
 	struct fsi_i2c_master *i2c;
 	struct fsi_i2c_port *port;
 	struct device_node *np;
+	u32 port_no, ports, stat;
 	int rc;
-	u32 port_no;
 
 	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -678,15 +694,23 @@ static int fsi_i2c_probe(struct device *dev)
 	if (rc)
 		return rc;
 
-	/* Add adapter for each i2c port of the master. */
-	for_each_available_child_of_node(dev->of_node, np) {
-		rc = of_property_read_u32(np, "reg", &port_no);
-		if (rc || port_no > USHRT_MAX)
+	rc = fsi_i2c_read_reg(i2c->fsi, I2C_FSI_STAT, &stat);
+	if (rc)
+		return rc;
+
+	ports = FIELD_GET(I2C_STAT_MAX_PORT, stat) + 1;
+	dev_dbg(dev, "I2C master has %d ports\n", ports);
+
+	for (port_no = 0; port_no < ports; port_no++) {
+		np = fsi_i2c_find_port_of_node(dev->of_node, port_no);
+		if (!of_device_is_available(np))
 			continue;
 
 		port = kzalloc(sizeof(*port), GFP_KERNEL);
-		if (!port)
+		if (!port) {
+			of_node_put(np);
 			break;
+		}
 
 		port->master = i2c;
 		port->port = port_no;
