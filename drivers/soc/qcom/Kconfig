@@ -359,6 +359,15 @@ config QCOM_STATS
 	  various SoC level low power modes statistics and export to debugfs
 	  interface.
 
+config MINIDUMP_ALL_TASK_INFO
+	bool "Minidump All task info"
+	depends on QCOM_MINIDUMP
+	help
+	  Minidump runqueue dump only collect running task
+	  info by default, this enables all task info
+	  collection during panic. This can provide more
+	  debug info.
+
 config QCOM_LOGBUF_VENDOR_HOOKS
 	tristate "QTI Logbuf Vendor Hooks Support"
 	depends on ARCH_QCOM && ANDROID_VENDOR_HOOKS
