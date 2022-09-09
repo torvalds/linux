@@ -3430,6 +3430,7 @@ static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
 				unsigned long arg)
 {
 	struct hisi_qp *qp = q->priv;
+	struct hisi_qp_info qp_info;
 	struct hisi_qp_ctx qp_ctx;
 
 	if (cmd == UACCE_CMD_QM_SET_QP_CTX) {
@@ -3446,11 +3447,25 @@ static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
 		if (copy_to_user((void __user *)arg, &qp_ctx,
 				 sizeof(struct hisi_qp_ctx)))
 			return -EFAULT;
-	} else {
-		return -EINVAL;
+
+		return 0;
+	} else if (cmd == UACCE_CMD_QM_SET_QP_INFO) {
+		if (copy_from_user(&qp_info, (void __user *)arg,
+				   sizeof(struct hisi_qp_info)))
+			return -EFAULT;
+
+		qp_info.sqe_size = qp->qm->sqe_size;
+		qp_info.sq_depth = qp->sq_depth;
+		qp_info.cq_depth = qp->cq_depth;
+
+		if (copy_to_user((void __user *)arg, &qp_info,
+				  sizeof(struct hisi_qp_info)))
+			return -EFAULT;
+
+		return 0;
 	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static const struct uacce_ops uacce_qm_ops = {
