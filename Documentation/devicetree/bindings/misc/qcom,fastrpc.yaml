@@ -70,6 +70,10 @@ patternProperties:
       reg:
         maxItems: 1
 
+      iommus:
+        minItems: 1
+        maxItems: 2
+
       qcom,nsessions:
         $ref: /schemas/types.yaml#/definitions/uint32
         default: 1
