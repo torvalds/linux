@@ -15,8 +15,8 @@ perf*.1
 perf*.xml
 perf*.html
 common-cmds.h
-perf.data
-perf.data.old
+perf*.data
+perf*.data.old
 output.svg
 perf-archive
 perf-iostat
