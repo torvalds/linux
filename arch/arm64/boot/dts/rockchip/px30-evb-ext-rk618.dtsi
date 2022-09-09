@@ -7,6 +7,7 @@
 #include <dt-bindings/clock/rk618-cru.h>
 #include <dt-bindings/display/media-bus-format.h>
 #include "px30-evb-ddr3-v10.dtsi"
+#include "px30-android.dtsi"
 
 &dsi {
 	status = "okay";

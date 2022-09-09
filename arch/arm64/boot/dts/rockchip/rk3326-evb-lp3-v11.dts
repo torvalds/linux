@@ -4,7 +4,10 @@
  */
 
 /dts-v1/;
+#include "rk3326.dtsi"
+#include "px30-android.dtsi"
 #include "rk3326-evb-lp3-v10.dtsi"
+#include "rk3326-863-cif-sensor.dtsi"
 
 / {
 	model = "Rockchip rk3326 evb board";

@@ -5,6 +5,8 @@
  */
 
 /dts-v1/;
+#include "px30.dtsi"
+#include "px30-android.dtsi"
 #include "px30-evb-ddr3-v10.dtsi"
 
 / {
