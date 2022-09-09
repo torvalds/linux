@@ -217,10 +217,10 @@ drop_packet:
 	dev_kfree_skb_any(pkt);
 }
 
-int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
+netdev_tx_t rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 {
 	if (pkt)
 		_rtw_xmit_entry(pkt, pnetdev);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
