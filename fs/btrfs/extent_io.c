@@ -753,8 +753,7 @@ static void wait_on_state(struct extent_io_tree *tree,
  * The range [start, end] is inclusive.
  * The tree lock is taken by this function
  */
-static void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-			    u32 bits)
+void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits)
 {
 	struct extent_state *state;
 	struct rb_node *node;

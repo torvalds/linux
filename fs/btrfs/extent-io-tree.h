@@ -253,6 +253,7 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
+void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits);
 
 /* This should be reworked in the future and put elsewhere. */
 void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
