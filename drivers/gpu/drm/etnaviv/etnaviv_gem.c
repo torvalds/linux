@@ -130,7 +130,7 @@ static int etnaviv_gem_mmap_obj(struct etnaviv_gem_object *etnaviv_obj,
 {
 	pgprot_t vm_page_prot;
 
-	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_flags |= VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 
 	vm_page_prot = vm_get_page_prot(vma->vm_flags);
 
@@ -165,7 +165,8 @@ static vm_fault_t etnaviv_gem_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
-	struct page **pages, *page;
+	struct page **pages;
+	unsigned long pfn;
 	pgoff_t pgoff;
 	int err;
 
@@ -189,12 +190,12 @@ static vm_fault_t etnaviv_gem_fault(struct vm_fault *vmf)
 	/* We don't use vmf->pgoff since that has the fake offset: */
 	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
-	page = pages[pgoff];
+	pfn = page_to_pfn(pages[pgoff]);
 
 	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
-	     page_to_pfn(page), page_to_pfn(page) << PAGE_SHIFT);
+	     pfn, pfn << PAGE_SHIFT);
 
-	return vmf_insert_page(vma, vmf->address, page);
+	return vmf_insert_pfn(vma, vmf->address, pfn);
 }
 
 int etnaviv_gem_mmap_offset(struct drm_gem_object *obj, u64 *offset)
