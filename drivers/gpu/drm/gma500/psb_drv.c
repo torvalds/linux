@@ -430,12 +430,6 @@ static inline void get_brightness(struct backlight_device *bd)
 #endif
 }
 
-static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
-			       unsigned long arg)
-{
-	return drm_ioctl(filp, cmd, arg);
-}
-
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct drm_psb_private *dev_priv;
@@ -497,7 +491,7 @@ static const struct file_operations psb_gem_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.release = drm_release,
-	.unlocked_ioctl = psb_unlocked_ioctl,
+	.unlocked_ioctl = drm_ioctl,
 	.compat_ioctl = drm_compat_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
