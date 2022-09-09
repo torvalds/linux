@@ -8,11 +8,43 @@
 #include "r8a779g0.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
 
 / {
 	model = "Renesas White Hawk CPU board";
 	compatible = "renesas,white-hawk-cpu", "renesas,r8a779g0";
+
+	keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&keys_pins>;
+		pinctrl-names = "default";
+
+		key-1 {
+			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW47";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+
+		key-2 {
+			gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW48";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+
+		key-3 {
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW49";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+	};
 
 	leds {
 		compatible = "gpio-leds";
@@ -95,6 +127,11 @@
 	i2c0_pins: i2c0 {
 		groups = "i2c0";
 		function = "i2c0";
+	};
+
+	keys_pins: keys {
+		pins = "GP_5_0", "GP_5_1", "GP_5_2";
+		bias-pull-up;
 	};
 
 	scif_clk_pins: scif_clk {
