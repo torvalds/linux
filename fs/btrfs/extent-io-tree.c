@@ -1170,11 +1170,10 @@ out:
 }
 
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, struct extent_state **cached_state, gfp_t mask,
-		   struct extent_changeset *changeset)
+		   u32 bits, struct extent_state **cached_state, gfp_t mask)
 {
 	return __set_extent_bit(tree, start, end, bits, NULL, cached_state,
-				changeset, mask);
+				NULL, mask);
 }
 
 /*
