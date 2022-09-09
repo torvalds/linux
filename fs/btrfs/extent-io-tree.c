@@ -340,40 +340,31 @@ static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
 static void merge_state(struct extent_io_tree *tree, struct extent_state *state)
 {
 	struct extent_state *other;
-	struct rb_node *other_node;
 
 	if (state->state & (EXTENT_LOCKED | EXTENT_BOUNDARY))
 		return;
 
-	other_node = rb_prev(&state->rb_node);
-	if (other_node) {
-		other = rb_entry(other_node, struct extent_state, rb_node);
-		if (other->end == state->start - 1 &&
-		    other->state == state->state) {
-			if (tree->private_data &&
-			    is_data_inode(tree->private_data))
-				btrfs_merge_delalloc_extent(tree->private_data,
-							    state, other);
-			state->start = other->start;
-			rb_erase(&other->rb_node, &tree->state);
-			RB_CLEAR_NODE(&other->rb_node);
-			free_extent_state(other);
-		}
+	other = prev_state(state);
+	if (other && other->end == state->start - 1 &&
+	    other->state == state->state) {
+		if (tree->private_data && is_data_inode(tree->private_data))
+			btrfs_merge_delalloc_extent(tree->private_data,
+						    state, other);
+		state->start = other->start;
+		rb_erase(&other->rb_node, &tree->state);
+		RB_CLEAR_NODE(&other->rb_node);
+		free_extent_state(other);
 	}
-	other_node = rb_next(&state->rb_node);
-	if (other_node) {
-		other = rb_entry(other_node, struct extent_state, rb_node);
-		if (other->start == state->end + 1 &&
-		    other->state == state->state) {
-			if (tree->private_data &&
-			    is_data_inode(tree->private_data))
-				btrfs_merge_delalloc_extent(tree->private_data,
-							    state, other);
-			state->end = other->end;
-			rb_erase(&other->rb_node, &tree->state);
-			RB_CLEAR_NODE(&other->rb_node);
-			free_extent_state(other);
-		}
+	other = next_state(state);
+	if (other && other->start == state->end + 1 &&
+	    other->state == state->state) {
+		if (tree->private_data && is_data_inode(tree->private_data))
+			btrfs_merge_delalloc_extent(tree->private_data, state,
+						    other);
+		state->end = other->end;
+		rb_erase(&other->rb_node, &tree->state);
+		RB_CLEAR_NODE(&other->rb_node);
+		free_extent_state(other);
 	}
 }
 
