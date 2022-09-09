@@ -483,38 +483,6 @@ void drm_plane_unregister_all(struct drm_device *dev)
 }
 
 /**
- * drm_plane_init - Initialize a legacy plane
- * @dev: DRM device
- * @plane: plane object to init
- * @possible_crtcs: bitmask of possible CRTCs
- * @funcs: callbacks for the new plane
- * @formats: array of supported formats (DRM_FORMAT\_\*)
- * @format_count: number of elements in @formats
- * @is_primary: plane type (primary vs overlay)
- *
- * Legacy API to initialize a DRM plane.
- *
- * New drivers should call drm_universal_plane_init() instead.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   uint32_t possible_crtcs,
-		   const struct drm_plane_funcs *funcs,
-		   const uint32_t *formats, unsigned int format_count,
-		   bool is_primary)
-{
-	enum drm_plane_type type;
-
-	type = is_primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
-	return drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
-					formats, format_count,
-					NULL, type, NULL);
-}
-EXPORT_SYMBOL(drm_plane_init);
-
-/**
  * drm_plane_cleanup - Clean up the core plane usage
  * @plane: plane to cleanup
  *

@@ -100,8 +100,7 @@ EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
  * This is the minimal list of formats that seem to be safe for modeset use
  * with all current DRM drivers.  Most hardware can actually support more
  * formats than this and drivers may specify a more accurate list when
- * creating the primary plane.  However drivers that still call
- * drm_plane_init() will use this minimal format list as the default.
+ * creating the primary plane.
  */
 static const uint32_t safe_modeset_formats[] = {
 	DRM_FORMAT_XRGB8888,

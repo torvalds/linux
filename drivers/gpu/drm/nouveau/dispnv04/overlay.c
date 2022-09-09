@@ -296,9 +296,10 @@ nv10_overlay_init(struct drm_device *device)
 		break;
 	}
 
-	ret = drm_plane_init(device, &plane->base, 3 /* both crtc's */,
-			     &nv10_plane_funcs,
-			     formats, num_formats, false);
+	ret = drm_universal_plane_init(device, &plane->base, 3 /* both crtc's */,
+				       &nv10_plane_funcs,
+				       formats, num_formats, NULL,
+				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (ret)
 		goto err;
 
@@ -475,9 +476,9 @@ nv04_overlay_init(struct drm_device *device)
 	if (!plane)
 		return;
 
-	ret = drm_plane_init(device, &plane->base, 1 /* single crtc */,
-			     &nv04_plane_funcs,
-			     formats, 2, false);
+	ret = drm_universal_plane_init(device, &plane->base, 1 /* single crtc */,
+				       &nv04_plane_funcs, formats, 2, NULL,
+				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (ret)
 		goto err;
 
