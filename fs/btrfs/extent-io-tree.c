@@ -221,15 +221,15 @@ static inline struct extent_state *next_state(struct extent_state *state)
  * If no such entry exists, return pointer to entry that ends before @offset
  * and fill parameters @node_ret and @parent_ret, ie. does not return NULL.
  */
-static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree,
-						     u64 offset,
-						     struct rb_node ***node_ret,
-						     struct rb_node **parent_ret)
+static inline struct extent_state *tree_search_for_insert(struct extent_io_tree *tree,
+							  u64 offset,
+							  struct rb_node ***node_ret,
+							  struct rb_node **parent_ret)
 {
 	struct rb_root *root = &tree->state;
 	struct rb_node **node = &root->rb_node;
 	struct rb_node *prev = NULL;
-	struct extent_state *entry;
+	struct extent_state *entry = NULL;
 
 	while (*node) {
 		prev = *node;
@@ -240,7 +240,7 @@ static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree
 		else if (offset > entry->end)
 			node = &(*node)->rb_right;
 		else
-			return *node;
+			return entry;
 	}
 
 	if (node_ret)
@@ -249,12 +249,10 @@ static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree
 		*parent_ret = prev;
 
 	/* Search neighbors until we find the first one past the end */
-	while (prev && offset > entry->end) {
-		prev = rb_next(prev);
-		entry = rb_entry(prev, struct extent_state, rb_node);
-	}
+	while (entry && offset > entry->end)
+		entry = next_state(entry);
 
-	return prev;
+	return entry;
 }
 
 /*
@@ -318,9 +316,7 @@ static inline struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
  */
 static inline struct extent_state *tree_search(struct extent_io_tree *tree, u64 offset)
 {
-	struct rb_node *node = tree_search_for_insert(tree, offset, NULL, NULL);
-
-	return (node) ? rb_entry(node, struct extent_state, rb_node) : NULL;
+	return tree_search_for_insert(tree, offset, NULL, NULL);
 }
 
 static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
@@ -970,7 +966,6 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
-	struct rb_node *node;
 	struct rb_node **p;
 	struct rb_node *parent;
 	int err = 0;
@@ -1000,17 +995,15 @@ again:
 	if (cached_state && *cached_state) {
 		state = *cached_state;
 		if (state->start <= start && state->end > start &&
-		    extent_state_in_tree(state)) {
-			node = &state->rb_node;
+		    extent_state_in_tree(state))
 			goto hit_next;
-		}
 	}
 	/*
 	 * This search will find all the extents that end after our range
 	 * starts.
 	 */
-	node = tree_search_for_insert(tree, start, &p, &parent);
-	if (!node) {
+	state = tree_search_for_insert(tree, start, &p, &parent);
+	if (!state) {
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
 		prealloc->start = start;
@@ -1020,7 +1013,6 @@ again:
 		prealloc = NULL;
 		goto out;
 	}
-	state = rb_entry(node, struct extent_state, rb_node);
 hit_next:
 	last_start = state->start;
 	last_end = state->end;
@@ -1205,7 +1197,6 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
-	struct rb_node *node;
 	struct rb_node **p;
 	struct rb_node *parent;
 	int err = 0;
@@ -1235,18 +1226,16 @@ again:
 	if (cached_state && *cached_state) {
 		state = *cached_state;
 		if (state->start <= start && state->end > start &&
-		    extent_state_in_tree(state)) {
-			node = &state->rb_node;
+		    extent_state_in_tree(state))
 			goto hit_next;
-		}
 	}
 
 	/*
 	 * This search will find all the extents that end after our range
 	 * starts.
 	 */
-	node = tree_search_for_insert(tree, start, &p, &parent);
-	if (!node) {
+	state = tree_search_for_insert(tree, start, &p, &parent);
+	if (!state) {
 		prealloc = alloc_extent_state_atomic(prealloc);
 		if (!prealloc) {
 			err = -ENOMEM;
@@ -1259,7 +1248,6 @@ again:
 		prealloc = NULL;
 		goto out;
 	}
-	state = rb_entry(node, struct extent_state, rb_node);
 hit_next:
 	last_start = state->start;
 	last_end = state->end;
