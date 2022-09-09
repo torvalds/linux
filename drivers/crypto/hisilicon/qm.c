@@ -126,7 +126,6 @@
 #define QM_DFX_CNT_CLR_CE		0x100118
 
 #define QM_ABNORMAL_INT_SOURCE		0x100000
-#define QM_ABNORMAL_INT_SOURCE_CLR	GENMASK(14, 0)
 #define QM_ABNORMAL_INT_MASK		0x100004
 #define QM_ABNORMAL_INT_MASK_VALUE	0x7fff
 #define QM_ABNORMAL_INT_STATUS		0x100008
@@ -144,8 +143,10 @@
 #define QM_RAS_NFE_ENABLE		0x1000f4
 #define QM_RAS_CE_THRESHOLD		0x1000f8
 #define QM_RAS_CE_TIMES_PER_IRQ		1
-#define QM_RAS_MSI_INT_SEL		0x1040f4
 #define QM_OOO_SHUTDOWN_SEL		0x1040f8
+#define QM_ECC_MBIT			BIT(2)
+#define QM_DB_TIMEOUT			BIT(10)
+#define QM_OF_FIFO_OF			BIT(11)
 
 #define QM_RESET_WAIT_TIMEOUT		400
 #define QM_PEH_VENDOR_ID		0x1000d8
@@ -454,7 +455,7 @@ struct hisi_qm_hw_ops {
 		      u8 cmd, u16 index, u8 priority);
 	u32 (*get_irq_num)(struct hisi_qm *qm);
 	int (*debug_init)(struct hisi_qm *qm);
-	void (*hw_error_init)(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe);
+	void (*hw_error_init)(struct hisi_qm *qm);
 	void (*hw_error_uninit)(struct hisi_qm *qm);
 	enum acc_err_result (*hw_error_handle)(struct hisi_qm *qm);
 	int (*set_msi)(struct hisi_qm *qm, bool set);
@@ -651,22 +652,17 @@ static u32 qm_get_dev_err_status(struct hisi_qm *qm)
 }
 
 /* Check if the error causes the master ooo block */
-static int qm_check_dev_error(struct hisi_qm *qm)
+static bool qm_check_dev_error(struct hisi_qm *qm)
 {
 	u32 val, dev_val;
 
 	if (qm->fun_type == QM_HW_VF)
-		return 0;
+		return false;
 
-	val = qm_get_hw_error_status(qm);
-	dev_val = qm_get_dev_err_status(qm);
+	val = qm_get_hw_error_status(qm) & qm->err_info.qm_shutdown_mask;
+	dev_val = qm_get_dev_err_status(qm) & qm->err_info.dev_shutdown_mask;
 
-	if (qm->ver < QM_HW_V3)
-		return (val & QM_ECC_MBIT) ||
-		       (dev_val & qm->err_info.ecc_2bits_mask);
-
-	return (val & readl(qm->io_base + QM_OOO_SHUTDOWN_SEL)) ||
-	       (dev_val & (~qm->err_info.dev_ce_mask));
+	return val || dev_val;
 }
 
 static int qm_wait_reset_finish(struct hisi_qm *qm)
@@ -2346,58 +2342,65 @@ static void qm_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
 	file->debug = &qm->debug;
 }
 
-static void qm_hw_error_init_v1(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_init_v1(struct hisi_qm *qm)
 {
 	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
-static void qm_hw_error_cfg(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_cfg(struct hisi_qm *qm)
 {
-	qm->error_mask = ce | nfe | fe;
+	struct hisi_qm_err_info *err_info = &qm->err_info;
+
+	qm->error_mask = err_info->nfe | err_info->ce | err_info->fe;
 	/* clear QM hw residual error source */
-	writel(QM_ABNORMAL_INT_SOURCE_CLR,
-	       qm->io_base + QM_ABNORMAL_INT_SOURCE);
+	writel(qm->error_mask, qm->io_base + QM_ABNORMAL_INT_SOURCE);
 
 	/* configure error type */
-	writel(ce, qm->io_base + QM_RAS_CE_ENABLE);
+	writel(err_info->ce, qm->io_base + QM_RAS_CE_ENABLE);
 	writel(QM_RAS_CE_TIMES_PER_IRQ, qm->io_base + QM_RAS_CE_THRESHOLD);
-	writel(nfe, qm->io_base + QM_RAS_NFE_ENABLE);
-	writel(fe, qm->io_base + QM_RAS_FE_ENABLE);
+	writel(err_info->nfe, qm->io_base + QM_RAS_NFE_ENABLE);
+	writel(err_info->fe, qm->io_base + QM_RAS_FE_ENABLE);
 }
 
-static void qm_hw_error_init_v2(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_init_v2(struct hisi_qm *qm)
 {
-	u32 irq_enable = ce | nfe | fe;
-	u32 irq_unmask = ~irq_enable;
+	u32 irq_unmask;
 
-	qm_hw_error_cfg(qm, ce, nfe, fe);
+	qm_hw_error_cfg(qm);
 
+	irq_unmask = ~qm->error_mask;
 	irq_unmask &= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
 	writel(irq_unmask, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
 static void qm_hw_error_uninit_v2(struct hisi_qm *qm)
 {
-	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
+	u32 irq_mask = qm->error_mask;
+
+	irq_mask |= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
+	writel(irq_mask, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
-static void qm_hw_error_init_v3(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_init_v3(struct hisi_qm *qm)
 {
-	u32 irq_enable = ce | nfe | fe;
-	u32 irq_unmask = ~irq_enable;
+	u32 irq_unmask;
 
-	qm_hw_error_cfg(qm, ce, nfe, fe);
+	qm_hw_error_cfg(qm);
 
 	/* enable close master ooo when hardware error happened */
-	writel(nfe & (~QM_DB_RANDOM_INVALID), qm->io_base + QM_OOO_SHUTDOWN_SEL);
+	writel(qm->err_info.qm_shutdown_mask, qm->io_base + QM_OOO_SHUTDOWN_SEL);
 
+	irq_unmask = ~qm->error_mask;
 	irq_unmask &= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
 	writel(irq_unmask, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
 static void qm_hw_error_uninit_v3(struct hisi_qm *qm)
 {
-	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
+	u32 irq_mask = qm->error_mask;
+
+	irq_mask |= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
+	writel(irq_mask, qm->io_base + QM_ABNORMAL_INT_MASK);
 
 	/* disable close master ooo when hardware error happened */
 	writel(0x0, qm->io_base + QM_OOO_SHUTDOWN_SEL);
@@ -2442,7 +2445,7 @@ static void qm_log_hw_error(struct hisi_qm *qm, u32 error_status)
 
 static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 {
-	u32 error_status, tmp, val;
+	u32 error_status, tmp;
 
 	/* read err sts */
 	tmp = readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
@@ -2453,17 +2456,11 @@ static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 			qm->err_status.is_qm_ecc_mbit = true;
 
 		qm_log_hw_error(qm, error_status);
-		val = error_status | QM_DB_RANDOM_INVALID | QM_BASE_CE;
-		/* ce error does not need to be reset */
-		if (val == (QM_DB_RANDOM_INVALID | QM_BASE_CE)) {
-			writel(error_status, qm->io_base +
-			       QM_ABNORMAL_INT_SOURCE);
-			writel(qm->err_info.nfe,
-			       qm->io_base + QM_RAS_NFE_ENABLE);
-			return ACC_ERR_RECOVERED;
-		}
+		if (error_status & qm->err_info.qm_reset_mask)
+			return ACC_ERR_NEED_RESET;
 
-		return ACC_ERR_NEED_RESET;
+		writel(error_status, qm->io_base + QM_ABNORMAL_INT_SOURCE);
+		writel(qm->err_info.nfe, qm->io_base + QM_RAS_NFE_ENABLE);
 	}
 
 	return ACC_ERR_RECOVERED;
@@ -4202,14 +4199,12 @@ DEFINE_DEBUGFS_ATTRIBUTE(qm_atomic64_ops, qm_debugfs_atomic64_get,
 
 static void qm_hw_error_init(struct hisi_qm *qm)
 {
-	struct hisi_qm_err_info *err_info = &qm->err_info;
-
 	if (!qm->ops->hw_error_init) {
 		dev_err(&qm->pdev->dev, "QM doesn't support hw error handling!\n");
 		return;
 	}
 
-	qm->ops->hw_error_init(qm, err_info->ce, err_info->nfe, err_info->fe);
+	qm->ops->hw_error_init(qm);
 }
 
 static void qm_hw_error_uninit(struct hisi_qm *qm)
@@ -4963,17 +4958,11 @@ static enum acc_err_result qm_dev_err_handle(struct hisi_qm *qm)
 		if (qm->err_ini->log_dev_hw_err)
 			qm->err_ini->log_dev_hw_err(qm, err_sts);
 
-		/* ce error does not need to be reset */
-		if ((err_sts | qm->err_info.dev_ce_mask) ==
-		     qm->err_info.dev_ce_mask) {
-			if (qm->err_ini->clear_dev_hw_err_status)
-				qm->err_ini->clear_dev_hw_err_status(qm,
-								err_sts);
+		if (err_sts & qm->err_info.dev_reset_mask)
+			return ACC_ERR_NEED_RESET;
 
-			return ACC_ERR_RECOVERED;
-		}
-
-		return ACC_ERR_NEED_RESET;
+		if (qm->err_ini->clear_dev_hw_err_status)
+			qm->err_ini->clear_dev_hw_err_status(qm, err_sts);
 	}
 
 	return ACC_ERR_RECOVERED;

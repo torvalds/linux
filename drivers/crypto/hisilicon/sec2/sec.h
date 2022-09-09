@@ -192,6 +192,17 @@ struct sec_dev {
 	bool iommu_used;
 };
 
+enum sec_cap_type {
+	SEC_QM_NFE_MASK_CAP = 0x0,
+	SEC_QM_RESET_MASK_CAP,
+	SEC_QM_OOO_SHUTDOWN_MASK_CAP,
+	SEC_QM_CE_MASK_CAP,
+	SEC_NFE_MASK_CAP,
+	SEC_RESET_MASK_CAP,
+	SEC_OOO_SHUTDOWN_MASK_CAP,
+	SEC_CE_MASK_CAP,
+};
+
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
 struct hisi_qp **sec_create_qps(void);
 int sec_register_to_crypto(struct hisi_qm *qm);
