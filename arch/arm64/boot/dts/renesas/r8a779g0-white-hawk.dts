@@ -8,6 +8,7 @@
 /dts-v1/;
 #include "r8a779g0-white-hawk-cpu.dtsi"
 #include "r8a779g0-white-hawk-csi-dsi.dtsi"
+#include "r8a779g0-white-hawk-ethernet.dtsi"
 
 / {
 	model = "Renesas White Hawk CPU and Breakout boards based on r8a779g0";
