@@ -99,23 +99,17 @@ static struct pci_dev *pci_upstream_ptm(struct pci_dev *dev)
 	return NULL;
 }
 
+/*
+ * Find the PTM Capability (if present) and extract the information we need
+ * to use it.
+ */
 void pci_ptm_init(struct pci_dev *dev)
 {
 	u16 ptm;
-	u32 cap, ctrl;
-	u8 local_clock;
+	u32 cap;
 	struct pci_dev *ups;
 
 	if (!pci_is_pcie(dev))
-		return;
-
-	/*
-	 * Enable PTM only on interior devices (root ports, switch ports,
-	 * etc.) on the assumption that it causes no link traffic until an
-	 * endpoint enables it.
-	 */
-	if ((pci_pcie_type(dev) == PCI_EXP_TYPE_ENDPOINT ||
-	     pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END))
 		return;
 
 	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
@@ -126,76 +120,76 @@ void pci_ptm_init(struct pci_dev *dev)
 	pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_PTM, sizeof(u16));
 
 	pci_read_config_dword(dev, ptm + PCI_PTM_CAP, &cap);
-	local_clock = (cap & PCI_PTM_GRANULARITY_MASK) >> 8;
+	dev->ptm_granularity = (cap & PCI_PTM_GRANULARITY_MASK) >> 8;
 
 	/*
-	 * There's no point in enabling PTM unless it's enabled in the
-	 * upstream device or this device can be a PTM Root itself.  Per
-	 * the spec recommendation (PCIe r3.1, sec 7.32.3), select the
-	 * furthest upstream Time Source as the PTM Root.
+	 * Per the spec recommendation (PCIe r6.0, sec 7.9.15.3), select the
+	 * furthest upstream Time Source as the PTM Root.  For Endpoints,
+	 * "the Effective Granularity is the maximum Local Clock Granularity
+	 * reported by the PTM Root and all intervening PTM Time Sources."
 	 */
 	ups = pci_upstream_ptm(dev);
-	if (ups && ups->ptm_enabled) {
-		ctrl = PCI_PTM_CTRL_ENABLE;
+	if (ups) {
 		if (ups->ptm_granularity == 0)
 			dev->ptm_granularity = 0;
-		else if (ups->ptm_granularity > local_clock)
+		else if (ups->ptm_granularity > dev->ptm_granularity)
 			dev->ptm_granularity = ups->ptm_granularity;
-	} else {
-		if (cap & PCI_PTM_CAP_ROOT) {
-			ctrl = PCI_PTM_CTRL_ENABLE | PCI_PTM_CTRL_ROOT;
-			dev->ptm_root = 1;
-			dev->ptm_granularity = local_clock;
-		} else
-			return;
+	} else if (cap & PCI_PTM_CAP_ROOT) {
+		dev->ptm_root = 1;
+	} else if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END) {
+
+		/*
+		 * Per sec 7.9.15.3, this should be the Local Clock
+		 * Granularity of the associated Time Source.  But it
+		 * doesn't say how to find that Time Source.
+		 */
+		dev->ptm_granularity = 0;
 	}
 
-	ctrl |= dev->ptm_granularity << 8;
-	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
-	dev->ptm_enabled = 1;
-
-	pci_ptm_info(dev);
+	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
+	    pci_pcie_type(dev) == PCI_EXP_TYPE_UPSTREAM)
+		pci_enable_ptm(dev, NULL);
 }
 
+/**
+ * pci_enable_ptm() - Enable Precision Time Measurement
+ * @dev: PCI device
+ * @granularity: pointer to return granularity
+ *
+ * Enable Precision Time Measurement for @dev.  If successful and
+ * @granularity is non-NULL, return the Effective Granularity.
+ *
+ * Return: zero if successful, or -EINVAL if @dev lacks a PTM Capability or
+ * is not a PTM Root and lacks an upstream path of PTM-enabled devices.
+ */
 int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 {
-	u16 ptm;
-	u32 cap, ctrl;
+	u16 ptm = dev->ptm_cap;
 	struct pci_dev *ups;
+	u32 ctrl;
 
-	if (!pci_is_pcie(dev))
-		return -EINVAL;
-
-	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
 	if (!ptm)
 		return -EINVAL;
 
-	dev->ptm_cap = ptm;
-	pci_read_config_dword(dev, ptm + PCI_PTM_CAP, &cap);
-	if (!(cap & PCI_PTM_CAP_REQ))
-		return -EINVAL;
-
 	/*
-	 * For a PCIe Endpoint, PTM is only useful if the endpoint can
-	 * issue PTM requests to upstream devices that have PTM enabled.
-	 *
-	 * For Root Complex Integrated Endpoints, there is no upstream
-	 * device, so there must be some implementation-specific way to
-	 * associate the endpoint with a time source.
+	 * A device uses local PTM Messages to request time information
+	 * from a PTM Root that's farther upstream.  Every device along the
+	 * path must support PTM and have it enabled so it can handle the
+	 * messages.  Therefore, if this device is not a PTM Root, the
+	 * upstream link partner must have PTM enabled before we can enable
+	 * PTM.
 	 */
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ENDPOINT) {
+	if (!dev->ptm_root) {
 		ups = pci_upstream_ptm(dev);
 		if (!ups || !ups->ptm_enabled)
 			return -EINVAL;
-
-		dev->ptm_granularity = ups->ptm_granularity;
-	} else if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END) {
-		dev->ptm_granularity = 0;
-	} else
-		return -EINVAL;
+	}
 
 	ctrl = PCI_PTM_CTRL_ENABLE;
 	ctrl |= dev->ptm_granularity << 8;
+	if (dev->ptm_root)
+		ctrl |= PCI_PTM_CTRL_ROOT;
+
 	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
 	dev->ptm_enabled = 1;
 
