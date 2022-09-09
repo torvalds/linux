@@ -42,7 +42,6 @@ struct btrfs_delayed_ref_root;
 struct btrfs_space_info;
 struct btrfs_block_group;
 extern struct kmem_cache *btrfs_trans_handle_cachep;
-extern struct kmem_cache *btrfs_bit_radix_cachep;
 extern struct kmem_cache *btrfs_path_cachep;
 extern struct kmem_cache *btrfs_free_space_cachep;
 extern struct kmem_cache *btrfs_free_space_bitmap_cachep;
