@@ -351,8 +351,13 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 {
 	int ret;
 	u8 conv_req = 0, buf[7];
+	u8 sdam_index = prop->sdam_index;
 
-	ret = adc5_read(adc, prop->sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
+	/* Reserve channel 0 of first SDAM for immediate conversions */
+	if (prop->adc_tm)
+		sdam_index = 0;
+
+	ret = adc5_read(adc, sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
@@ -383,12 +388,12 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 
 	reinit_completion(&adc->complete);
 
-	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_SID, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
 	conv_req = ADC5_GEN3_CONV_REQ_REQ;
-	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_CONV_REQ, &conv_req, 1);
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_CONV_REQ, &conv_req, 1);
 
 	return ret;
 }
