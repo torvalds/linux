@@ -216,22 +216,15 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 			drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 	encoder->possible_crtcs = 2;
 
-	/* output port is port1*/
-
-#ifdef CONFIG_STARFIVE_DSI
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,&tmp_panel, &bridge);
 	if (ret){
-		printk("==no panel, %d\n",ret);
+		printk("no panel, %d\n",ret);
 		//dev_err_probe(dev, ret, "endpoint returns %d\n", ret);
 		goto err;
 	}
 	if (tmp_panel)
 		dev_err(dev, "found panel on endpoint\n");
-#else
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1, NULL, &bridge);
-		if (ret)
-			goto err;
-#endif
+
 #if KERNEL_VERSION(5, 7, 0) <= LINUX_VERSION_CODE
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 #else

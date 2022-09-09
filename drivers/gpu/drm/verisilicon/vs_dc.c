@@ -806,8 +806,9 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	display.enable = true;
 
 	if (crtc_state->encoder_type == DRM_MODE_ENCODER_DSI){
-		clk_set_rate(dc->dc8200_pix0, 20144263);//round up, 20144262+1
-		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0 );//child,parent
+		clk_set_rate(dc->dc8200_pix0, mode->clock*1000);
+		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0);
+		udelay(1000);
 		dc_hw_set_out(&dc->hw, OUT_DPI, display.id);
 	}else{
 		clk_set_parent(dc->dc8200_clk_pix1, dc->hdmitx0_pixelclk);

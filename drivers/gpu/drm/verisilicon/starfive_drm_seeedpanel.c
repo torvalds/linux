@@ -219,16 +219,29 @@ static struct seeed_panel_dev *panel_to_seeed(struct drm_panel *panel)
 }
 
 static const struct drm_display_mode seeed_panel_modes[] = {
+#ifdef PLL_1228M
 	{
-		.clock = 20144262 / 1000,
+		.clock = 27306666 / 1000,
 		.hdisplay = 800,
-		.hsync_start = 800 + 10,
-		.hsync_end = 800 + 10 + 5,
-		.htotal = 800 + 10 + 5 + 5,
+		.hsync_start = 800 + 93,
+		.hsync_end = 800 + 93 + 5,
+		.htotal = 800 + 93 + 5 + 5,
 		.vdisplay = 480,
-		.vsync_start = 480 + 4,
-		.vsync_end = 480 + 4 + 5,
-		.vtotal = 480 + 4 + 5 + 5,
+		.vsync_start = 480 + 14,
+		.vsync_end = 480 + 14 + 5,
+		.vtotal = 480 + 14 + 5 + 5,
+	},
+#endif
+	{// pll 1188M
+		.clock = 29700000 / 1000,
+		.hdisplay = 800,
+		.hsync_start = 800 + 90,
+		.hsync_end = 800 + 90 + 5,
+		.htotal = 800 + 90 + 5 + 5,
+		.vdisplay = 480,
+		.vsync_start = 480 + 60,
+		.vsync_end = 480 + 60 + 5,
+		.vtotal = 480 + 60 + 5 + 5,
 	},
 };
 
