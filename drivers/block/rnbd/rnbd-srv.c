@@ -544,34 +544,25 @@ rnbd_srv_get_or_create_srv_dev(struct rnbd_dev *rnbd_dev,
 static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
 					struct rnbd_srv_sess_dev *sess_dev)
 {
-	struct rnbd_dev *rnbd_dev = sess_dev->rnbd_dev;
+	struct block_device *bdev = sess_dev->rnbd_dev->bdev;
 
 	rsp->hdr.type = cpu_to_le16(RNBD_MSG_OPEN_RSP);
-	rsp->device_id =
-		cpu_to_le32(sess_dev->device_id);
-	rsp->nsectors =
-		cpu_to_le64(get_capacity(rnbd_dev->bdev->bd_disk));
-	rsp->logical_block_size	=
-		cpu_to_le16(bdev_logical_block_size(rnbd_dev->bdev));
-	rsp->physical_block_size =
-		cpu_to_le16(bdev_physical_block_size(rnbd_dev->bdev));
-	rsp->max_segments =
-		cpu_to_le16(rnbd_dev_get_max_segs(rnbd_dev));
+	rsp->device_id = cpu_to_le32(sess_dev->device_id);
+	rsp->nsectors = cpu_to_le64(bdev_nr_sectors(bdev));
+	rsp->logical_block_size	= cpu_to_le16(bdev_logical_block_size(bdev));
+	rsp->physical_block_size = cpu_to_le16(bdev_physical_block_size(bdev));
+	rsp->max_segments = cpu_to_le16(bdev_max_segments(bdev));
 	rsp->max_hw_sectors =
-		cpu_to_le32(rnbd_dev_get_max_hw_sects(rnbd_dev));
+		cpu_to_le32(queue_max_hw_sectors(bdev_get_queue(bdev)));
 	rsp->max_write_same_sectors = 0;
-	rsp->max_discard_sectors =
-		cpu_to_le32(rnbd_dev_get_max_discard_sects(rnbd_dev));
-	rsp->discard_granularity =
-		cpu_to_le32(rnbd_dev_get_discard_granularity(rnbd_dev));
-	rsp->discard_alignment =
-		cpu_to_le32(rnbd_dev_get_discard_alignment(rnbd_dev));
-	rsp->secure_discard =
-		cpu_to_le16(rnbd_dev_get_secure_discard(rnbd_dev));
+	rsp->max_discard_sectors = cpu_to_le32(bdev_max_discard_sectors(bdev));
+	rsp->discard_granularity = cpu_to_le32(bdev_discard_granularity(bdev));
+	rsp->discard_alignment = cpu_to_le32(bdev_discard_alignment(bdev));
+	rsp->secure_discard = cpu_to_le16(bdev_max_secure_erase_sectors(bdev));
 	rsp->cache_policy = 0;
-	if (bdev_write_cache(rnbd_dev->bdev))
+	if (bdev_write_cache(bdev))
 		rsp->cache_policy |= RNBD_WRITEBACK;
-	if (bdev_fua(rnbd_dev->bdev))
+	if (bdev_fua(bdev))
 		rsp->cache_policy |= RNBD_FUA;
 }
 
