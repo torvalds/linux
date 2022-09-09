@@ -134,6 +134,8 @@ struct uvc_device {
 	bool func_connected;
 	wait_queue_head_t func_connected_queue;
 
+	struct uvcg_streaming_header *header;
+
 	/* Descriptors */
 	struct {
 		const struct uvc_descriptor_header * const *fs_control;
