@@ -49,10 +49,9 @@ $defs:
     properties:
       reg:
         minimum: 0
-        maximum: 14
         description:
-          The ID number of the drive port SATA can potentially use a port
-          multiplier making it possible to connect up to 15 disks to a single
-          SATA port.
+          The ID number of the SATA port. Aside with being directly used,
+          each port can have a Port Multiplier attached thus allowing to
+          access more than one drive by means of a single SATA port.
 
 ...
