@@ -12,14 +12,14 @@
 static void __pci_disable_ptm(struct pci_dev *dev)
 {
 	u16 ptm = dev->ptm_cap;
-	u16 ctrl;
+	u32 ctrl;
 
 	if (!ptm)
 		return;
 
-	pci_read_config_word(dev, ptm + PCI_PTM_CTRL, &ctrl);
+	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, &ctrl);
 	ctrl &= ~(PCI_PTM_CTRL_ENABLE | PCI_PTM_CTRL_ROOT);
-	pci_write_config_word(dev, ptm + PCI_PTM_CTRL, ctrl);
+	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
 }
 
 /**
@@ -41,7 +41,7 @@ void pci_save_ptm_state(struct pci_dev *dev)
 {
 	u16 ptm = dev->ptm_cap;
 	struct pci_cap_saved_state *save_state;
-	u16 *cap;
+	u32 *cap;
 
 	if (!ptm)
 		return;
@@ -50,15 +50,15 @@ void pci_save_ptm_state(struct pci_dev *dev)
 	if (!save_state)
 		return;
 
-	cap = (u16 *)&save_state->cap.data[0];
-	pci_read_config_word(dev, ptm + PCI_PTM_CTRL, cap);
+	cap = (u32 *)&save_state->cap.data[0];
+	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, cap);
 }
 
 void pci_restore_ptm_state(struct pci_dev *dev)
 {
 	u16 ptm = dev->ptm_cap;
 	struct pci_cap_saved_state *save_state;
-	u16 *cap;
+	u32 *cap;
 
 	if (!ptm)
 		return;
@@ -67,8 +67,8 @@ void pci_restore_ptm_state(struct pci_dev *dev)
 	if (!save_state)
 		return;
 
-	cap = (u16 *)&save_state->cap.data[0];
-	pci_write_config_word(dev, ptm + PCI_PTM_CTRL, *cap);
+	cap = (u32 *)&save_state->cap.data[0];
+	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, *cap);
 }
 
 /*
@@ -112,7 +112,7 @@ void pci_ptm_init(struct pci_dev *dev)
 		return;
 
 	dev->ptm_cap = ptm;
-	pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_PTM, sizeof(u16));
+	pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_PTM, sizeof(u32));
 
 	pci_read_config_dword(dev, ptm + PCI_PTM_CAP, &cap);
 	dev->ptm_granularity = (cap & PCI_PTM_GRANULARITY_MASK) >> 8;
@@ -170,7 +170,10 @@ static int __pci_enable_ptm(struct pci_dev *dev)
 			return -EINVAL;
 	}
 
-	ctrl = PCI_PTM_CTRL_ENABLE;
+	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, &ctrl);
+
+	ctrl |= PCI_PTM_CTRL_ENABLE;
+	ctrl &= ~PCI_PTM_GRANULARITY_MASK;
 	ctrl |= dev->ptm_granularity << 8;
 	if (dev->ptm_root)
 		ctrl |= PCI_PTM_CTRL_ROOT;
