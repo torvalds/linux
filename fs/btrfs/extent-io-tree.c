@@ -229,11 +229,11 @@ static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree
 	struct rb_root *root = &tree->state;
 	struct rb_node **node = &root->rb_node;
 	struct rb_node *prev = NULL;
-	struct tree_entry *entry;
+	struct extent_state *entry;
 
 	while (*node) {
 		prev = *node;
-		entry = rb_entry(prev, struct tree_entry, rb_node);
+		entry = rb_entry(prev, struct extent_state, rb_node);
 
 		if (offset < entry->start)
 			node = &(*node)->rb_left;
@@ -251,7 +251,7 @@ static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree
 	/* Search neighbors until we find the first one past the end */
 	while (prev && offset > entry->end) {
 		prev = rb_next(prev);
-		entry = rb_entry(prev, struct tree_entry, rb_node);
+		entry = rb_entry(prev, struct extent_state, rb_node);
 	}
 
 	return prev;
@@ -278,14 +278,14 @@ static inline struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
 	struct rb_node **node = &root->rb_node;
 	struct rb_node *prev = NULL;
 	struct rb_node *orig_prev = NULL;
-	struct tree_entry *entry;
+	struct extent_state *entry;
 
 	ASSERT(prev_ret);
 	ASSERT(next_ret);
 
 	while (*node) {
 		prev = *node;
-		entry = rb_entry(prev, struct tree_entry, rb_node);
+		entry = rb_entry(prev, struct extent_state, rb_node);
 
 		if (offset < entry->start)
 			node = &(*node)->rb_left;
@@ -298,15 +298,15 @@ static inline struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
 	orig_prev = prev;
 	while (prev && offset > entry->end) {
 		prev = rb_next(prev);
-		entry = rb_entry(prev, struct tree_entry, rb_node);
+		entry = rb_entry(prev, struct extent_state, rb_node);
 	}
 	*next_ret = prev;
 	prev = orig_prev;
 
-	entry = rb_entry(prev, struct tree_entry, rb_node);
+	entry = rb_entry(prev, struct extent_state, rb_node);
 	while (prev && offset < entry->start) {
 		prev = rb_prev(prev);
-		entry = rb_entry(prev, struct tree_entry, rb_node);
+		entry = rb_entry(prev, struct extent_state, rb_node);
 	}
 	*prev_ret = prev;
 
@@ -417,10 +417,10 @@ static int insert_state(struct extent_io_tree *tree,
 
 	node = &tree->state.rb_node;
 	while (*node) {
-		struct tree_entry *entry;
+		struct extent_state *entry;
 
 		parent = *node;
-		entry = rb_entry(parent, struct tree_entry, rb_node);
+		entry = rb_entry(parent, struct extent_state, rb_node);
 
 		if (end < entry->start) {
 			node = &(*node)->rb_left;
@@ -486,10 +486,10 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	parent = &orig->rb_node;
 	node = &parent;
 	while (*node) {
-		struct tree_entry *entry;
+		struct extent_state *entry;
 
 		parent = *node;
-		entry = rb_entry(parent, struct tree_entry, rb_node);
+		entry = rb_entry(parent, struct extent_state, rb_node);
 
 		if (prealloc->end < entry->start) {
 			node = &(*node)->rb_left;
