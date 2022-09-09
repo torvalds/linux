@@ -10,6 +10,7 @@
 #include "btrfs_inode.h"
 #include "delayed-ref.h"
 #include "ctree.h"
+#include "misc.h"
 
 enum btrfs_trans_state {
 	TRANS_STATE_RUNNING,
@@ -98,14 +99,15 @@ struct btrfs_transaction {
 	struct list_head releasing_ebs;
 };
 
-#define __TRANS_FREEZABLE	(1U << 0)
-
-#define __TRANS_START		(1U << 9)
-#define __TRANS_ATTACH		(1U << 10)
-#define __TRANS_JOIN		(1U << 11)
-#define __TRANS_JOIN_NOLOCK	(1U << 12)
-#define __TRANS_DUMMY		(1U << 13)
-#define __TRANS_JOIN_NOSTART	(1U << 14)
+enum {
+	ENUM_BIT(__TRANS_FREEZABLE),
+	ENUM_BIT(__TRANS_START),
+	ENUM_BIT(__TRANS_ATTACH),
+	ENUM_BIT(__TRANS_JOIN),
+	ENUM_BIT(__TRANS_JOIN_NOLOCK),
+	ENUM_BIT(__TRANS_DUMMY),
+	ENUM_BIT(__TRANS_JOIN_NOSTART),
+};
 
 #define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
 #define TRANS_ATTACH		(__TRANS_ATTACH)
