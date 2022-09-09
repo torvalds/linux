@@ -316,9 +316,11 @@ static inline struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
 /*
  * Inexact rb-tree search, return the next entry if @offset is not found
  */
-static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offset)
+static inline struct extent_state *tree_search(struct extent_io_tree *tree, u64 offset)
 {
-	return tree_search_for_insert(tree, offset, NULL, NULL);
+	struct rb_node *node = tree_search_for_insert(tree, offset, NULL, NULL);
+
+	return (node) ? rb_entry(node, struct extent_state, rb_node) : NULL;
 }
 
 static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
@@ -573,7 +575,6 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct extent_state *cached;
 	struct extent_state *prealloc = NULL;
-	struct rb_node *node;
 	u64 last_end;
 	int err;
 	int clear = 0;
@@ -622,10 +623,9 @@ again:
 	}
 
 	/* This search will find the extents that end after our range starts. */
-	node = tree_search(tree, start);
-	if (!node)
+	state = tree_search(tree, start);
+	if (!state)
 		goto out;
-	state = rb_entry(node, struct extent_state, rb_node);
 hit_next:
 	if (state->start > end)
 		goto out;
@@ -736,7 +736,6 @@ static void wait_on_state(struct extent_io_tree *tree,
 void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits)
 {
 	struct extent_state *state;
-	struct rb_node *node;
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
 
@@ -747,11 +746,10 @@ again:
 		 * This search will find all the extents that end after our
 		 * range starts.
 		 */
-		node = tree_search(tree, start);
-		if (!node)
-			break;
-		state = rb_entry(node, struct extent_state, rb_node);
+		state = tree_search(tree, start);
 process_node:
+		if (!state)
+			break;
 		if (state->start > end)
 			goto out;
 
@@ -803,25 +801,18 @@ static void cache_state(struct extent_state *state,
 static struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
 							u64 start, u32 bits)
 {
-	struct rb_node *node;
 	struct extent_state *state;
 
 	/*
 	 * This search will find all the extents that end after our range
 	 * starts.
 	 */
-	node = tree_search(tree, start);
-	if (!node)
-		goto out;
-	state = rb_entry(node, struct extent_state, rb_node);
-
+	state = tree_search(tree, start);
 	while (state) {
 		if (state->end >= start && (state->state & bits))
 			return state;
-
 		state = next_state(state);
 	}
-out:
 	return NULL;
 }
 
@@ -917,7 +908,6 @@ bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state)
 {
-	struct rb_node *node;
 	struct extent_state *state;
 	u64 cur_start = *start;
 	bool found = false;
@@ -929,13 +919,12 @@ bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 	 * This search will find all the extents that end after our range
 	 * starts.
 	 */
-	node = tree_search(tree, cur_start);
-	if (!node) {
+	state = tree_search(tree, cur_start);
+	if (!state) {
 		*end = (u64)-1;
 		goto out;
 	}
 
-	state = rb_entry(node, struct extent_state, rb_node);
 	while (state) {
 		if (found && (state->start != cur_start ||
 			      (state->state & EXTENT_BOUNDARY))) {
@@ -1531,7 +1520,6 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end, u64 max_bytes,
 		     u32 bits, int contig)
 {
-	struct rb_node *node;
 	struct extent_state *state;
 	u64 cur_start = *start;
 	u64 total_bytes = 0;
@@ -1550,11 +1538,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 	 * This search will find all the extents that end after our range
 	 * starts.
 	 */
-	node = tree_search(tree, cur_start);
-	if (!node)
-		goto out;
-
-	state = rb_entry(node, struct extent_state, rb_node);
+	state = tree_search(tree, cur_start);
 	while (state) {
 		if (state->start > search_end)
 			break;
@@ -1589,19 +1573,14 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   u32 bits, int filled, struct extent_state *cached)
 {
 	struct extent_state *state = NULL;
-	struct rb_node *node;
 	int bitset = 0;
 
 	spin_lock(&tree->lock);
 	if (cached && extent_state_in_tree(cached) && cached->start <= start &&
 	    cached->end > start)
-		node = &cached->rb_node;
+		state = cached;
 	else
-		node = tree_search(tree, start);
-	if (!node)
-		goto out;
-
-	state = rb_entry(node, struct extent_state, rb_node);
+		state = tree_search(tree, start);
 	while (state && start <= end) {
 		if (filled && state->start > start) {
 			bitset = 0;
@@ -1632,7 +1611,6 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	/* We ran out of states and were still inside of our range. */
 	if (filled && !state)
 		bitset = 0;
-out:
 	spin_unlock(&tree->lock);
 	return bitset;
 }
