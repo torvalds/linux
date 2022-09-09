@@ -1679,7 +1679,6 @@ static void sec_aead_callback(struct sec_ctx *c, struct sec_req *req, int err)
 					  aead_req->out_mac,
 					  authsize, a_req->cryptlen +
 					  a_req->assoclen);
-
 		if (unlikely(sz != authsize)) {
 			dev_err(c->dev, "copy out mac err!\n");
 			err = -EINVAL;
@@ -1965,7 +1964,6 @@ static int sec_aead_sha512_ctx_init(struct crypto_aead *tfm)
 {
 	return sec_aead_ctx_init(tfm, "sha512");
 }
-
 
 static int sec_skcipher_cryptlen_ckeck(struct sec_ctx *ctx,
 	struct sec_req *sreq)
