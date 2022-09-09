@@ -3240,7 +3240,7 @@ static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 	if (ops && ops->attach_properties)
 		return ops->attach_properties(&hdmi->connector,
 					      color, hdmi->version,
-					      hdmi->plat_data->phy_data);
+					      hdmi->plat_data->phy_data, 0);
 }
 
 static void dw_hdmi_destroy_properties(struct dw_hdmi *hdmi)

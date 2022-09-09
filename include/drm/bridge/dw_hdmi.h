@@ -78,6 +78,8 @@ struct platform_device;
  * +----------------------+----------------------------------+------------------------------+
  */
 
+#define SUPPORT_HDMI_ALLM	BIT(1)
+
 enum {
 	DW_HDMI_RES_8,
 	DW_HDMI_RES_10,
@@ -135,6 +137,7 @@ struct dw_hdmi_link_config {
 	int frl_lanes;
 	int rate_per_lane;
 	int hcactive;
+	u8 add_func;
 	u8 pps_payload[128];
 };
 
@@ -165,7 +168,7 @@ struct dw_hdmi_qp_phy_ops {
 struct dw_hdmi_property_ops {
 	void (*attach_properties)(struct drm_connector *connector,
 				  unsigned int color, int version,
-				  void *data);
+				  void *data, bool allm_en);
 	void (*destroy_properties)(struct drm_connector *connector,
 				   void *data);
 	int (*set_property)(struct drm_connector *connector,
@@ -296,6 +299,7 @@ void dw_hdmi_set_output_type(struct dw_hdmi *hdmi, u64 val);
 bool dw_hdmi_get_output_whether_hdmi(struct dw_hdmi *hdmi);
 int dw_hdmi_get_output_type_cap(struct dw_hdmi *hdmi);
 void dw_hdmi_set_cec_adap(struct dw_hdmi *hdmi, struct cec_adapter *adap);
+void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi_qp, bool enable);
 
 void dw_hdmi_qp_unbind(struct dw_hdmi_qp *hdmi);
 struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,

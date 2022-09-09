@@ -252,6 +252,7 @@ struct dw_hdmi_qp {
 	bool dclk_en;
 	bool frl_switch;
 	bool cec_enable;
+	bool allm_enable;
 
 	struct mutex mutex;		/* for state below and previous_mode */
 	struct drm_connector *curr_conn;/* current connector (only valid when !disabled) */
@@ -1299,6 +1300,12 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	hdmi_modb(hdmi, PKTSCHED_AVI_TX_EN, PKTSCHED_AVI_TX_EN, PKTSCHED_PKT_EN);
 }
 
+#define VSI_PKT_TYPE		0x81
+#define VSI_PKT_VERSION		1
+#define HDMI_FORUM_OUI		0xc45dd8
+#define ALLM_MODE		BIT(1)
+#define HDMI_FORUM_LEN		9
+
 static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi_qp *hdmi,
 						  const struct drm_connector *connector,
 						  const struct drm_display_mode *mode)
@@ -1308,24 +1315,47 @@ static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi_qp *hdmi,
 	u32 val;
 	ssize_t err;
 	int i, reg;
+	struct dw_hdmi_link_config *link_cfg = NULL;
+	void *data = hdmi->plat_data->phy_data;
+
+	if (hdmi->plat_data->get_link_cfg)
+		link_cfg = hdmi->plat_data->get_link_cfg(data);
 
 	hdmi_modb(hdmi, 0, PKTSCHED_VSI_TX_EN, PKTSCHED_PKT_EN);
-	err = drm_hdmi_vendor_infoframe_from_display_mode(&frame, connector,
-							  mode);
-	if (err < 0)
-		/*
-		 * Going into that statement does not means vendor infoframe
-		 * fails. It just informed us that vendor infoframe is not
-		 * needed for the selected mode. Only 4k or stereoscopic 3D
-		 * mode requires vendor infoframe. So just simply return.
-		 */
-		return;
+	for (i = 0; i <= 7; i++)
+		hdmi_writel(hdmi, 0, PKT_VSI_CONTENTS0 + i * 4);
 
-	err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
-	if (err < 0) {
-		dev_err(hdmi->dev, "Failed to pack vendor infoframe: %zd\n",
-			err);
-		return;
+	if (hdmi->allm_enable && (link_cfg->add_func & SUPPORT_HDMI_ALLM)) {
+		buffer[0] = VSI_PKT_TYPE;
+		buffer[1] = VSI_PKT_VERSION;
+		buffer[2] = 5;
+		buffer[4] = HDMI_FORUM_OUI & 0xff;
+		buffer[5] = (HDMI_FORUM_OUI >> 8) & 0xff;
+		buffer[6] = (HDMI_FORUM_OUI >> 16) & 0xff;
+		buffer[7] = VSI_PKT_VERSION;
+		buffer[8] = ALLM_MODE;
+
+		hdmi_infoframe_set_checksum(buffer, HDMI_FORUM_LEN);
+
+		err = 9;
+	} else {
+		err = drm_hdmi_vendor_infoframe_from_display_mode(&frame, connector,
+								  mode);
+		if (err < 0)
+			/*
+			 * Going into that statement does not means vendor infoframe
+			 * fails. It just informed us that vendor infoframe is not
+			 * needed for the selected mode. Only 4k or stereoscopic 3D
+			 * mode requires vendor infoframe. So just simply return.
+			 */
+			return;
+
+		err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
+		if (err < 0) {
+			dev_err(hdmi->dev, "Failed to pack vendor infoframe: %zd\n",
+				err);
+			return;
+		}
 	}
 
 	/* vsi header */
@@ -2044,6 +2074,37 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi, bool enable)
+{
+	struct dw_hdmi_link_config *link_cfg = NULL;
+	void *data;
+
+	if (!hdmi || !hdmi->curr_conn)
+		return;
+
+	data = hdmi->plat_data->phy_data;
+
+	if (hdmi->plat_data->get_link_cfg)
+		link_cfg = hdmi->plat_data->get_link_cfg(data);
+
+	if (!link_cfg)
+		return;
+
+	if (enable == hdmi->allm_enable)
+		return;
+
+	hdmi->allm_enable = enable;
+
+	if (enable && !(link_cfg->add_func & SUPPORT_HDMI_ALLM)) {
+		hdmi->allm_enable = false;
+		dev_err(hdmi->dev, "sink don't support allm, allm won't be enabled\n");
+		return;
+	}
+
+	hdmi_config_vendor_specific_infoframe(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_allm_enable);
+
 static int
 dw_hdmi_atomic_connector_set_property(struct drm_connector *connector,
 				      struct drm_connector_state *state,
@@ -2088,6 +2149,7 @@ dw_hdmi_connector_set_property(struct drm_connector *connector,
 
 static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
 {
+	u32 val;
 	u64 color = MEDIA_BUS_FMT_YUV8_1X24;
 	const struct dw_hdmi_property_ops *ops =
 				hdmi->plat_data->property_ops;
@@ -2095,14 +2157,21 @@ static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
 	enum drm_connector_status connect_status =
 		hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
 
-	if (hdmi->plat_data->get_grf_color_fmt &&
-	    (connect_status == connector_status_connected) &&
-	    hdmi->initialized)
-		color = hdmi->plat_data->get_grf_color_fmt(data);
+	if ((connect_status == connector_status_connected) &&
+	    hdmi->initialized) {
+		if (hdmi->plat_data->get_grf_color_fmt)
+			color = hdmi->plat_data->get_grf_color_fmt(data);
+
+		val = (hdmi_readl(hdmi, PKT_VSI_CONTENTS1) >> 8) & 0xffffff;
+		if (val == HDMI_FORUM_OUI)
+			hdmi->allm_enable = true;
+		else
+			hdmi->allm_enable = false;
+	}
 
 	if (ops && ops->attach_properties)
 		return ops->attach_properties(&hdmi->connector, color, 0,
-					      hdmi->plat_data->phy_data);
+					      hdmi->plat_data->phy_data, hdmi->allm_enable);
 }
 
 static void dw_hdmi_destroy_properties(struct dw_hdmi_qp *hdmi)
@@ -2188,6 +2257,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
+		hdmi->curr_conn = connector;
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
 				hdmi->plat_data->get_enc_in_encoding(data);
@@ -2805,7 +2875,7 @@ static int dw_hdmi_status_show(struct seq_file *s, void *v)
 		seq_printf(s, "TMDS Mode Pixel Clk: %luHz\t\tTMDS Clk: %uHz\n",
 			   hdmi->hdmi_data.video_mode.mpixelclock, val);
 	}
-
+	seq_printf(s, "ALLM: %d\n", hdmi->allm_enable);
 	seq_puts(s, "Color Format: ");
 	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format))
 		seq_puts(s, "RGB");

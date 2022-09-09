@@ -620,7 +620,7 @@ void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
 
 static
 void parse_edid_forum_vsdb(struct rockchip_drm_dsc_cap *dsc_cap,
-			   u8 *max_frl_rate_per_lane, u8 *max_lanes,
+			   u8 *max_frl_rate_per_lane, u8 *max_lanes, u8 *add_func,
 			   const u8 *hf_vsdb)
 {
 	u8 max_frl_rate;
@@ -634,6 +634,8 @@ void parse_edid_forum_vsdb(struct rockchip_drm_dsc_cap *dsc_cap,
 	max_frl_rate = (hf_vsdb[7] & EDID_MAX_FRL_RATE_MASK) >> 4;
 	get_max_frl_rate(max_frl_rate, max_lanes,
 			 max_frl_rate_per_lane);
+
+	*add_func = hf_vsdb[8];
 
 	if (cea_db_payload_len(hf_vsdb) < 13)
 		return;
@@ -844,13 +846,13 @@ void parse_next_hdr_block(struct next_hdr_sink_data *sink_data,
 }
 
 int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
-			       u8 *max_frl_rate_per_lane, u8 *max_lanes,
+			       u8 *max_frl_rate_per_lane, u8 *max_lanes, u8 *add_func,
 			       const struct edid *edid)
 {
 	const u8 *edid_ext;
 	int i, start, end;
 
-	if (!dsc_cap || !max_frl_rate_per_lane || !max_lanes || !edid)
+	if (!dsc_cap || !max_frl_rate_per_lane || !max_lanes || !edid || !add_func)
 		return -EINVAL;
 
 	edid_ext = find_cea_extension(edid);
@@ -865,7 +867,7 @@ int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 
 		if (cea_db_is_hdmi_forum_vsdb(db))
 			parse_edid_forum_vsdb(dsc_cap, max_frl_rate_per_lane,
-					      max_lanes, db);
+					      max_lanes, add_func, db);
 	}
 
 	return 0;
