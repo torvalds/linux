@@ -6,7 +6,8 @@ include ../../../../../tools/scripts/utilities.mak
 
 SUBDIRS = \
 	asm_pure_loop \
-	memcpy_thread
+	memcpy_thread \
+	thread_loop
 
 all: $(SUBDIRS)
 $(SUBDIRS):
