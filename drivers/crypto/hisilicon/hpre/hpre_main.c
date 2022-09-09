@@ -77,8 +77,6 @@
 #define HPRE_QM_AXI_CFG_MASK		GENMASK(15, 0)
 #define HPRE_QM_VFG_AX_MASK		GENMASK(7, 0)
 #define HPRE_BD_USR_MASK		GENMASK(1, 0)
-#define HPRE_CLUSTER_CORE_MASK_V2	GENMASK(3, 0)
-#define HPRE_CLUSTER_CORE_MASK_V3	GENMASK(7, 0)
 #define HPRE_PREFETCH_CFG		0x301130
 #define HPRE_SVA_PREFTCH_DFX		0x30115C
 #define HPRE_PREFETCH_ENABLE		(~(BIT(0) | BIT(30)))
@@ -154,6 +152,23 @@ enum hpre_cap_type {
 	HPRE_RESET_MASK_CAP,
 	HPRE_OOO_SHUTDOWN_MASK_CAP,
 	HPRE_CE_MASK_CAP,
+	HPRE_CLUSTER_NUM_CAP,
+	HPRE_CORE_TYPE_NUM_CAP,
+	HPRE_CORE_NUM_CAP,
+	HPRE_CLUSTER_CORE_NUM_CAP,
+	HPRE_CORE_ENABLE_BITMAP_CAP,
+	HPRE_DRV_ALG_BITMAP_CAP,
+	HPRE_DEV_ALG_BITMAP_CAP,
+	HPRE_CORE1_ALG_BITMAP_CAP,
+	HPRE_CORE2_ALG_BITMAP_CAP,
+	HPRE_CORE3_ALG_BITMAP_CAP,
+	HPRE_CORE4_ALG_BITMAP_CAP,
+	HPRE_CORE5_ALG_BITMAP_CAP,
+	HPRE_CORE6_ALG_BITMAP_CAP,
+	HPRE_CORE7_ALG_BITMAP_CAP,
+	HPRE_CORE8_ALG_BITMAP_CAP,
+	HPRE_CORE9_ALG_BITMAP_CAP,
+	HPRE_CORE10_ALG_BITMAP_CAP
 };
 
 static const struct hisi_qm_cap_info hpre_basic_info[] = {
@@ -165,6 +180,23 @@ static const struct hisi_qm_cap_info hpre_basic_info[] = {
 	{HPRE_RESET_MASK_CAP, 0x3134, 0, GENMASK(31, 0), 0x0, 0x3FFFFE, 0xBFFFFE},
 	{HPRE_OOO_SHUTDOWN_MASK_CAP, 0x3134, 0, GENMASK(31, 0), 0x0, 0x22, 0xBFFFFE},
 	{HPRE_CE_MASK_CAP, 0x3138, 0, GENMASK(31, 0), 0x0, 0x1, 0x1},
+	{HPRE_CLUSTER_NUM_CAP, 0x313c, 20, GENMASK(3, 0), 0x0,  0x4, 0x1},
+	{HPRE_CORE_TYPE_NUM_CAP, 0x313c, 16, GENMASK(3, 0), 0x0, 0x2, 0x2},
+	{HPRE_CORE_NUM_CAP, 0x313c, 8, GENMASK(7, 0), 0x0, 0x8, 0xA},
+	{HPRE_CLUSTER_CORE_NUM_CAP, 0x313c, 0, GENMASK(7, 0), 0x0, 0x2, 0xA},
+	{HPRE_CORE_ENABLE_BITMAP_CAP, 0x3140, 0, GENMASK(31, 0), 0x0, 0xF, 0x3FF},
+	{HPRE_DRV_ALG_BITMAP_CAP, 0x3144, 0, GENMASK(31, 0), 0x0, 0x03, 0x27},
+	{HPRE_DEV_ALG_BITMAP_CAP, 0x3148, 0, GENMASK(31, 0), 0x0, 0x03, 0x7F},
+	{HPRE_CORE1_ALG_BITMAP_CAP, 0x314c, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE2_ALG_BITMAP_CAP, 0x3150, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE3_ALG_BITMAP_CAP, 0x3154, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE4_ALG_BITMAP_CAP, 0x3158, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE5_ALG_BITMAP_CAP, 0x315c, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE6_ALG_BITMAP_CAP, 0x3160, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE7_ALG_BITMAP_CAP, 0x3164, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE8_ALG_BITMAP_CAP, 0x3168, 0, GENMASK(31, 0), 0x0, 0x7F, 0x7F},
+	{HPRE_CORE9_ALG_BITMAP_CAP, 0x316c, 0, GENMASK(31, 0), 0x0, 0x10, 0x10},
+	{HPRE_CORE10_ALG_BITMAP_CAP, 0x3170, 0, GENMASK(31, 0), 0x0, 0x10, 0x10}
 };
 
 static const struct hpre_hw_error hpre_hw_errors[] = {
@@ -282,6 +314,17 @@ static struct dfx_diff_registers hpre_diff_regs[] = {
 	},
 };
 
+bool hpre_check_alg_support(struct hisi_qm *qm, u32 alg)
+{
+	u32 cap_val;
+
+	cap_val = hisi_qm_get_hw_info(qm, hpre_basic_info, HPRE_DRV_ALG_BITMAP_CAP, qm->cap_ver);
+	if (alg & cap_val)
+		return true;
+
+	return false;
+}
+
 static int hpre_diff_regs_show(struct seq_file *s, void *unused)
 {
 	struct hisi_qm *qm = s->private;
@@ -350,14 +393,12 @@ MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63), 0(default)");
 
 static inline int hpre_cluster_num(struct hisi_qm *qm)
 {
-	return (qm->ver >= QM_HW_V3) ? HPRE_CLUSTERS_NUM_V3 :
-		HPRE_CLUSTERS_NUM_V2;
+	return hisi_qm_get_hw_info(qm, hpre_basic_info, HPRE_CLUSTER_NUM_CAP, qm->cap_ver);
 }
 
 static inline int hpre_cluster_core_mask(struct hisi_qm *qm)
 {
-	return (qm->ver >= QM_HW_V3) ?
-		HPRE_CLUSTER_CORE_MASK_V3 : HPRE_CLUSTER_CORE_MASK_V2;
+	return hisi_qm_get_hw_info(qm, hpre_basic_info, HPRE_CORE_ENABLE_BITMAP_CAP, qm->cap_ver);
 }
 
 struct hisi_qp *hpre_create_qp(u8 type)

@@ -51,6 +51,12 @@ struct hpre_ctx;
 #define HPRE_ECC_HW256_KSZ_B	32
 #define HPRE_ECC_HW384_KSZ_B	48
 
+/* capability register mask */
+#define HPRE_DRV_RSA_MASK_CAP          BIT(0)
+#define HPRE_DRV_DH_MASK_CAP           BIT(1)
+#define HPRE_DRV_ECDH_MASK_CAP         BIT(2)
+#define HPRE_DRV_X25519_MASK_CAP       BIT(5)
+
 typedef void (*hpre_cb)(struct hpre_ctx *ctx, void *sqe);
 
 struct hpre_rsa_ctx {
@@ -2070,22 +2076,75 @@ static struct kpp_alg curve25519_alg = {
 	},
 };
 
-
-static int hpre_register_ecdh(void)
+static int hpre_register_rsa(struct hisi_qm *qm)
 {
 	int ret;
 
-	ret = crypto_register_kpp(&ecdh_nist_p192);
+	if (!hpre_check_alg_support(qm, HPRE_DRV_RSA_MASK_CAP))
+		return 0;
+
+	rsa.base.cra_flags = 0;
+	ret = crypto_register_akcipher(&rsa);
 	if (ret)
+		dev_err(&qm->pdev->dev, "failed to register rsa (%d)!\n", ret);
+
+	return ret;
+}
+
+static void hpre_unregister_rsa(struct hisi_qm *qm)
+{
+	if (!hpre_check_alg_support(qm, HPRE_DRV_RSA_MASK_CAP))
+		return;
+
+	crypto_unregister_akcipher(&rsa);
+}
+
+static int hpre_register_dh(struct hisi_qm *qm)
+{
+	int ret;
+
+	if (!hpre_check_alg_support(qm, HPRE_DRV_DH_MASK_CAP))
+		return 0;
+
+	ret = crypto_register_kpp(&dh);
+	if (ret)
+		dev_err(&qm->pdev->dev, "failed to register dh (%d)!\n", ret);
+
+	return ret;
+}
+
+static void hpre_unregister_dh(struct hisi_qm *qm)
+{
+	if (!hpre_check_alg_support(qm, HPRE_DRV_DH_MASK_CAP))
+		return;
+
+	crypto_unregister_kpp(&dh);
+}
+
+static int hpre_register_ecdh(struct hisi_qm *qm)
+{
+	int ret;
+
+	if (!hpre_check_alg_support(qm, HPRE_DRV_ECDH_MASK_CAP))
+		return 0;
+
+	ret = crypto_register_kpp(&ecdh_nist_p192);
+	if (ret) {
+		dev_err(&qm->pdev->dev, "failed to register ecdh_nist_p192 (%d)!\n", ret);
 		return ret;
+	}
 
 	ret = crypto_register_kpp(&ecdh_nist_p256);
-	if (ret)
+	if (ret) {
+		dev_err(&qm->pdev->dev, "failed to register ecdh_nist_p256 (%d)!\n", ret);
 		goto unregister_ecdh_p192;
+	}
 
 	ret = crypto_register_kpp(&ecdh_nist_p384);
-	if (ret)
+	if (ret) {
+		dev_err(&qm->pdev->dev, "failed to register ecdh_nist_p384 (%d)!\n", ret);
 		goto unregister_ecdh_p256;
+	}
 
 	return 0;
 
@@ -2096,52 +2155,73 @@ unregister_ecdh_p192:
 	return ret;
 }
 
-static void hpre_unregister_ecdh(void)
+static void hpre_unregister_ecdh(struct hisi_qm *qm)
 {
+	if (!hpre_check_alg_support(qm, HPRE_DRV_ECDH_MASK_CAP))
+		return;
+
 	crypto_unregister_kpp(&ecdh_nist_p384);
 	crypto_unregister_kpp(&ecdh_nist_p256);
 	crypto_unregister_kpp(&ecdh_nist_p192);
+}
+
+static int hpre_register_x25519(struct hisi_qm *qm)
+{
+	int ret;
+
+	if (!hpre_check_alg_support(qm, HPRE_DRV_X25519_MASK_CAP))
+		return 0;
+
+	ret = crypto_register_kpp(&curve25519_alg);
+	if (ret)
+		dev_err(&qm->pdev->dev, "failed to register x25519 (%d)!\n", ret);
+
+	return ret;
+}
+
+static void hpre_unregister_x25519(struct hisi_qm *qm)
+{
+	if (!hpre_check_alg_support(qm, HPRE_DRV_X25519_MASK_CAP))
+		return;
+
+	crypto_unregister_kpp(&curve25519_alg);
 }
 
 int hpre_algs_register(struct hisi_qm *qm)
 {
 	int ret;
 
-	rsa.base.cra_flags = 0;
-	ret = crypto_register_akcipher(&rsa);
+	ret = hpre_register_rsa(qm);
 	if (ret)
 		return ret;
 
-	ret = crypto_register_kpp(&dh);
+	ret = hpre_register_dh(qm);
 	if (ret)
 		goto unreg_rsa;
 
-	if (qm->ver >= QM_HW_V3) {
-		ret = hpre_register_ecdh();
-		if (ret)
-			goto unreg_dh;
-		ret = crypto_register_kpp(&curve25519_alg);
-		if (ret)
-			goto unreg_ecdh;
-	}
-	return 0;
+	ret = hpre_register_ecdh(qm);
+	if (ret)
+		goto unreg_dh;
+
+	ret = hpre_register_x25519(qm);
+	if (ret)
+		goto unreg_ecdh;
+
+	return ret;
 
 unreg_ecdh:
-	hpre_unregister_ecdh();
+	hpre_unregister_ecdh(qm);
 unreg_dh:
-	crypto_unregister_kpp(&dh);
+	hpre_unregister_dh(qm);
 unreg_rsa:
-	crypto_unregister_akcipher(&rsa);
+	hpre_unregister_rsa(qm);
 	return ret;
 }
 
 void hpre_algs_unregister(struct hisi_qm *qm)
 {
-	if (qm->ver >= QM_HW_V3) {
-		crypto_unregister_kpp(&curve25519_alg);
-		hpre_unregister_ecdh();
-	}
-
-	crypto_unregister_kpp(&dh);
-	crypto_unregister_akcipher(&rsa);
+	hpre_unregister_x25519(qm);
+	hpre_unregister_ecdh(qm);
+	hpre_unregister_dh(qm);
+	hpre_unregister_rsa(qm);
 }
