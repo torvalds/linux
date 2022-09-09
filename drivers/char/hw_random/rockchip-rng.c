@@ -192,10 +192,12 @@ static int rk_crypto_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait
 
 	rk_rng_writel(rk_rng, reg_ctrl, CRYPTO_V1_CTRL);
 
-	ret = readl_poll_timeout(rk_rng->mem + CRYPTO_V1_CTRL, reg_ctrl,
-				 !(reg_ctrl & CRYPTO_V1_RNG_START),
-				 ROCKCHIP_POLL_PERIOD_US,
-				 ROCKCHIP_POLL_TIMEOUT_US);
+	ret = read_poll_timeout(rk_rng_readl, reg_ctrl,
+				!(reg_ctrl & CRYPTO_V1_RNG_START),
+				ROCKCHIP_POLL_PERIOD_US,
+				ROCKCHIP_POLL_TIMEOUT_US, false,
+				rk_rng, CRYPTO_V1_CTRL);
+
 	if (ret < 0)
 		goto out;
 
@@ -228,10 +230,11 @@ static int rk_crypto_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait
 	rk_rng_writel(rk_rng, HIWORD_UPDATE(reg_ctrl, 0xffff, 0),
 		      CRYPTO_V2_RNG_CTL);
 
-	ret = readl_poll_timeout(rk_rng->mem + CRYPTO_V2_RNG_CTL, reg_ctrl,
-				 !(reg_ctrl & CRYPTO_V2_RNG_START),
-				 ROCKCHIP_POLL_PERIOD_US,
-				 ROCKCHIP_POLL_TIMEOUT_US);
+	ret = read_poll_timeout(rk_rng_readl, reg_ctrl,
+				!(reg_ctrl & CRYPTO_V2_RNG_START),
+				ROCKCHIP_POLL_PERIOD_US,
+				ROCKCHIP_POLL_TIMEOUT_US, false,
+				rk_rng, CRYPTO_V2_RNG_CTL);
 	if (ret < 0)
 		goto out;
 
@@ -281,10 +284,11 @@ static int rk_trng_v1_init(struct hwrng *rng)
 		udelay(10);
 
 		/* wait for GENERATING and RESEEDING flag to clear */
-		readl_poll_timeout(rk_rng->mem + TRNG_V1_STAT, reg_ctrl,
-				   (reg_ctrl & mask) == TRNG_V1_STAT_SEEDED,
-				   ROCKCHIP_POLL_PERIOD_US,
-				   ROCKCHIP_POLL_TIMEOUT_US);
+		read_poll_timeout(rk_rng_readl, reg_ctrl,
+				  (reg_ctrl & mask) == TRNG_V1_STAT_SEEDED,
+				  ROCKCHIP_POLL_PERIOD_US,
+				  ROCKCHIP_POLL_TIMEOUT_US, false,
+				  rk_rng, TRNG_V1_STAT);
 	}
 
 	/* clear ISTAT flag because trng may auto reseeding when power on */
@@ -324,10 +328,11 @@ static int rk_trng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	reg_ctrl = rk_rng_readl(rk_rng, TRNG_V1_ISTAT);
 	if (!(reg_ctrl & TRNG_V1_ISTAT_RAND_RDY)) {
 		/* wait RAND_RDY triggered */
-		ret = readl_poll_timeout(rk_rng->mem + TRNG_V1_ISTAT, reg_ctrl,
-					 (reg_ctrl & TRNG_V1_ISTAT_RAND_RDY),
-					 ROCKCHIP_POLL_PERIOD_US,
-					 ROCKCHIP_POLL_TIMEOUT_US);
+		ret = read_poll_timeout(rk_rng_readl, reg_ctrl,
+					(reg_ctrl & TRNG_V1_ISTAT_RAND_RDY),
+					ROCKCHIP_POLL_PERIOD_US,
+					ROCKCHIP_POLL_TIMEOUT_US, false,
+					rk_rng, TRNG_V1_ISTAT);
 		if (ret < 0)
 			goto out;
 	}
