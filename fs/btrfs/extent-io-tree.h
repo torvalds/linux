@@ -253,4 +253,9 @@ int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 struct extent_state *alloc_extent_state_atomic(struct extent_state *prealloc);
 struct extent_state *alloc_extent_state(gfp_t mask);
 
+static inline bool extent_state_in_tree(const struct extent_state *state)
+{
+	return !RB_EMPTY_NODE(&state->rb_node);
+}
+
 #endif /* BTRFS_EXTENT_IO_TREE_H */
