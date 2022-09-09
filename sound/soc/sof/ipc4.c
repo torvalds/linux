@@ -589,6 +589,9 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 	case SOF_IPC4_NOTIFY_RESOURCE_EVENT:
 		data_size = sizeof(struct sof_ipc4_notify_resource_data);
 		break;
+	case SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS:
+		sof_ipc4_mtrace_update_pos(sdev, SOF_IPC4_LOG_CORE_GET(ipc4_msg->primary));
+		break;
 	default:
 		dev_dbg(sdev->dev, "Unhandled DSP message: %#x|%#x\n",
 			ipc4_msg->primary, ipc4_msg->extension);
@@ -662,4 +665,5 @@ const struct sof_ipc_ops ipc4_ops = {
 	.fw_loader = &ipc4_loader_ops,
 	.tplg = &ipc4_tplg_ops,
 	.pcm = &ipc4_pcm_ops,
+	.fw_tracing = &ipc4_mtrace_ops,
 };
