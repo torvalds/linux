@@ -537,6 +537,10 @@ bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes)
 	return true;
 }
 
+/*
+ * Pack runs in MFT record.
+ * If failed record is not changed.
+ */
 int mi_pack_runs(struct mft_inode *mi, struct ATTRIB *attr,
 		 struct runs_tree *run, CLST len)
 {

@@ -557,7 +557,7 @@ static int ni_repack(struct ntfs_inode *ni)
 		}
 
 		if (!mi_p) {
-			/* Do not try if not enogh free space. */
+			/* Do not try if not enough free space. */
 			if (le32_to_cpu(mi->mrec->used) + 8 >= rs)
 				continue;
 

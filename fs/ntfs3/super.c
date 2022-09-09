@@ -21,6 +21,30 @@
  * https://docs.microsoft.com/en-us/windows/wsl/file-permissions
  * It stores uid/gid/mode/dev in xattr
  *
+ * ntfs allows up to 2^64 clusters per volume.
+ * It means you should use 64 bits lcn to operate with ntfs.
+ * Implementation of ntfs.sys uses only 32 bits lcn.
+ * Default ntfs3 uses 32 bits lcn too.
+ * ntfs3 built with CONFIG_NTFS3_64BIT_CLUSTER (ntfs3_64) uses 64 bits per lcn.
+ *
+ *
+ *     ntfs limits, cluster size is 4K (2^12)
+ * -----------------------------------------------------------------------------
+ * | Volume size   | Clusters | ntfs.sys | ntfs3  | ntfs3_64 | mkntfs | chkdsk |
+ * -----------------------------------------------------------------------------
+ * | < 16T, 2^44   |  < 2^32  |  yes     |  yes   |   yes    |  yes   |  yes   |
+ * | > 16T, 2^44   |  > 2^32  |  no      |  no    |   yes    |  yes   |  yes   |
+ * ----------------------------------------------------------|------------------
+ *
+ * To mount large volumes as ntfs one should use large cluster size (up to 2M)
+ * The maximum volume size in this case is 2^32 * 2^21 = 2^53 = 8P
+ *
+ *     ntfs limits, cluster size is 2M (2^31)
+ * -----------------------------------------------------------------------------
+ * | < 8P, 2^54    |  < 2^32  |  yes     |  yes   |   yes    |  yes   |  yes   |
+ * | > 8P, 2^54    |  > 2^32  |  no      |  no    |   yes    |  yes   |  yes   |
+ * ----------------------------------------------------------|------------------
+ *
  */
 
 #include <linux/blkdev.h>
