@@ -5,7 +5,7 @@
 #define ATTR __attribute__((noinline))
 #include "test_jhash.h"
 
-SEC("scale90_noinline32")
+SEC("tc")
 int balancer_ingress(struct __sk_buff *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
