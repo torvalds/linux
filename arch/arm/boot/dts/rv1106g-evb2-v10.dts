@@ -14,7 +14,7 @@
 	compatible = "rockchip,rv1106g-evb2-v10", "rockchip,rv1106";
 
 	chosen {
-		bootargs = "loglevel=0 console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip rk_dma_heap_cma=24M mtdparts=sfc_nor:64K(env),256K@64K(idblock),256K(uboot),64K(vnvm),8M(boot),3M(userdata)";
+		bootargs = "loglevel=0 console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip";
 	};
 
 	vcc_1v8: vcc-1v8 {
@@ -54,7 +54,7 @@
 
 			csi_dphy_input0: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&sc3336_out>;
+				remote-endpoint = <&sc3338_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -83,22 +83,23 @@
 };
 
 &i2c4 {
-	sc3336: sc3336@30 {
-		compatible = "smartsens,sc3336";
+	rockchip,amp-shared;
+
+	sc3338: sc3338@30 {
+		compatible = "smartsens,sc3338";
 		status = "okay";
 		reg = <0x30>;
 		clocks = <&cru MCLK_REF_MIPI0>;
 		clock-names = "xvclk";
-		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipi_refclk_out0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "CMK-OT2119-PC1";
+		rockchip,camera-module-name = "FKO1";
 		rockchip,camera-module-lens-name = "30IRC-F16";
 		port {
-			sc3336_out: endpoint {
+			sc3338_out: endpoint {
 				remote-endpoint = <&csi_dphy_input0>;
 				data-lanes = <1 2>;
 			};
@@ -137,13 +138,8 @@
 	};
 };
 
-&memory {
-	reg = <0x00000000 0x08000000>;
-};
-
-&meta {
-	/* reserved meta partition 384KB */
-	reg = <0x01e00000 (384 * 0x400)>;
+&mailbox {
+	status = "okay";
 };
 
 &rkcif {
@@ -152,6 +148,7 @@
 
 &rkcif_mipi_lvds {
 	status = "okay";
+	memory-region-thunderboot = <&rkisp_thunderboot>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&mipi_pins>;
@@ -188,9 +185,25 @@
 	};
 };
 
+&thunder_boot_service {
+	status = "okay";
+};
+
 &rkisp_thunderboot {
-	/* 9M for NV12 (w*h*1.5*2) w and h 16 align, 2304/1296 */
-	reg = <0x01e60000 (9 * 0x00100000)>;
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+	 * e.g. 2304x1296: 0xf30000
+	 */
+	reg = <0x00860000 0xf30000>;
+};
+
+&ramdisk_r {
+	reg = <0x1790000 (10 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x2190000 (5 * 0x00100000)>;
 };
 
 &pwm10 {
