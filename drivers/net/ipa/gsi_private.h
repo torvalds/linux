@@ -17,20 +17,6 @@ struct gsi_channel;
 #define GSI_RING_ELEMENT_SIZE	16	/* bytes; must be a power of 2 */
 
 /**
- * list_last_entry_or_null - get the last element from a list
- * @ptr:	the list head to take the element from.
- * @type:	the type of the struct this is embedded in.
- * @member:	the name of the list_head within the struct.
- *
- * Note that if the list is empty, it returns NULL.
- */
-#define list_last_entry_or_null(ptr, type, member) ({ \
-	struct list_head *head__ = (ptr); \
-	struct list_head *pos__ = READ_ONCE(head__->prev); \
-	pos__ != head__ ? list_entry(pos__, type, member) : NULL; \
-})
-
-/**
  * gsi_trans_move_complete() - Mark a GSI transaction completed
  * @trans:	Transaction to commit
  */
@@ -107,6 +93,14 @@ void gsi_channel_trans_exit(struct gsi_channel *channel);
  * transactions (TREs, really) are available for it to process.
  */
 void gsi_channel_doorbell(struct gsi_channel *channel);
+
+/* gsi_channel_update() - Update knowledge of channel hardware state
+ * @channel:	Channel to be updated
+ *
+ * Consult hardware, move any newly completed transactions to a
+ * channel's completed list.
+ */
+void gsi_channel_update(struct gsi_channel *channel);
 
 /**
  * gsi_ring_virt() - Return virtual address for a ring entry

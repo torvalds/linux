@@ -239,80 +239,46 @@ struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	u16 trans_id = trans_info->completed_id;
-	struct gsi_trans *trans;
 
-	trans = list_first_entry_or_null(&trans_info->complete,
-					 struct gsi_trans, links);
-
-	if (!trans) {
-		WARN_ON(trans_id != trans_info->pending_id);
-		return NULL;
+	if (trans_id == trans_info->pending_id) {
+		gsi_channel_update(channel);
+		if (trans_id == trans_info->pending_id)
+			return NULL;
 	}
 
-	if (!WARN_ON(trans_id == trans_info->pending_id)) {
-		trans_id %= channel->tre_count;
-		WARN_ON(trans != &trans_info->trans[trans_id]);
-	}
-
-	return trans;
+	return &trans_info->trans[trans_id %= channel->tre_count];
 }
 
-/* Move a transaction from the allocated list to the committed list */
+/* Move a transaction from allocated to committed state */
 static void gsi_trans_move_committed(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
-	spin_lock_bh(&trans_info->spinlock);
-
-	list_move_tail(&trans->links, &trans_info->committed);
-
-	spin_unlock_bh(&trans_info->spinlock);
-
 	/* This allocated transaction is now committed */
 	trans_info->allocated_id++;
 }
 
-/* Move transactions from the committed list to the pending list */
+/* Move committed transactions to pending state */
 static void gsi_trans_move_pending(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	u16 trans_index = trans - &trans_info->trans[0];
-	struct list_head list;
 	u16 delta;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	/* Move this transaction and all predecessors to the pending list */
-	list_cut_position(&list, &trans_info->committed, &trans->links);
-	list_splice_tail(&list, &trans_info->pending);
-
-	spin_unlock_bh(&trans_info->spinlock);
 
 	/* These committed transactions are now pending */
 	delta = trans_index - trans_info->committed_id + 1;
 	trans_info->committed_id += delta % channel->tre_count;
 }
 
-/* Move a transaction and all of its predecessors from the pending list
- * to the completed list.
- */
+/* Move pending transactions to completed state */
 void gsi_trans_move_complete(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	u16 trans_index = trans - trans_info->trans;
-	struct list_head list;
 	u16 delta;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	/* Move this transaction and all predecessors to completed list */
-	list_cut_position(&list, &trans_info->pending, &trans->links);
-	list_splice_tail(&list, &trans_info->complete);
-
-	spin_unlock_bh(&trans_info->spinlock);
 
 	/* These pending transactions are now completed */
 	delta = trans_index - trans_info->pending_id + 1;
@@ -320,17 +286,11 @@ void gsi_trans_move_complete(struct gsi_trans *trans)
 	trans_info->pending_id += delta;
 }
 
-/* Move a transaction from the completed list to the polled list */
+/* Move a transaction from completed to polled state */
 void gsi_trans_move_polled(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	list_move_tail(&trans->links, &trans_info->polled);
-
-	spin_unlock_bh(&trans_info->spinlock);
 
 	/* This completed transaction is now polled */
 	trans_info->completed_id++;
@@ -406,14 +366,8 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	trans->direction = direction;
 	refcount_set(&trans->refcount, 1);
 
-	/* This free transaction will now be allocated */
+	/* This free transaction is now allocated */
 	trans_info->free_id++;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	list_add_tail(&trans->links, &trans_info->alloc);
-
-	spin_unlock_bh(&trans_info->spinlock);
 
 	return trans;
 }
@@ -421,31 +375,15 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 /* Free a previously-allocated transaction */
 void gsi_trans_free(struct gsi_trans *trans)
 {
-	refcount_t *refcount = &trans->refcount;
 	struct gsi_trans_info *trans_info;
-	bool last;
 
-	/* We must hold the lock to release the last reference */
-	if (refcount_dec_not_one(refcount))
-		return;
-
-	trans_info = &trans->gsi->channel[trans->channel_id].trans_info;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	/* Reference might have been added before we got the lock */
-	last = refcount_dec_and_test(refcount);
-	if (last)
-		list_del(&trans->links);
-
-	spin_unlock_bh(&trans_info->spinlock);
-
-	if (!last)
+	if (!refcount_dec_and_test(&trans->refcount))
 		return;
 
 	/* Unused transactions are allocated but never committed, pending,
 	 * completed, or polled.
 	 */
+	trans_info = &trans->gsi->channel[trans->channel_id].trans_info;
 	if (!trans->used_count) {
 		trans_info->allocated_id++;
 		trans_info->committed_id++;
@@ -705,47 +643,27 @@ void gsi_trans_complete(struct gsi_trans *trans)
 void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-	struct gsi_trans *trans;
-	struct gsi_trans *first;
-	struct gsi_trans *last;
-	bool cancelled;
+	u16 trans_id = trans_info->pending_id;
 
 	/* channel->gsi->mutex is held by caller */
-	spin_lock_bh(&trans_info->spinlock);
 
-	cancelled = !list_empty(&trans_info->pending);
-	list_for_each_entry(trans, &trans_info->pending, links)
+	/* If there are no pending transactions, we're done */
+	if (trans_id == trans_info->committed_id)
+		return;
+
+	/* Mark all pending transactions cancelled */
+	do {
+		struct gsi_trans *trans;
+
+		trans = &trans_info->trans[trans_id % channel->tre_count];
 		trans->cancelled = true;
-
-	list_splice_tail_init(&trans_info->pending, &trans_info->complete);
-
-	first = list_first_entry_or_null(&trans_info->complete,
-					 struct gsi_trans, links);
-	last = list_last_entry_or_null(&trans_info->complete,
-				       struct gsi_trans, links);
-
-	spin_unlock_bh(&trans_info->spinlock);
+	} while (++trans_id != trans_info->committed_id);
 
 	/* All pending transactions are now completed */
-	WARN_ON(cancelled != (trans_info->pending_id !=
-				trans_info->committed_id));
-
 	trans_info->pending_id = trans_info->committed_id;
 
 	/* Schedule NAPI polling to complete the cancelled transactions */
-	if (cancelled) {
-		u16 trans_id;
-
-		napi_schedule(&channel->napi);
-
-		trans_id = trans_info->completed_id;
-		trans = &trans_info->trans[trans_id % channel->tre_count];
-		WARN_ON(trans != first);
-
-		trans_id = trans_info->pending_id - 1;
-		trans = &trans_info->trans[trans_id % channel->tre_count];
-		WARN_ON(trans != last);
-	}
+	napi_schedule(&channel->napi);
 }
 
 /* Issue a command to read a single byte from a channel */
@@ -846,12 +764,6 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	if (ret)
 		goto err_map_free;
 
-	spin_lock_init(&trans_info->spinlock);
-	INIT_LIST_HEAD(&trans_info->alloc);
-	INIT_LIST_HEAD(&trans_info->committed);
-	INIT_LIST_HEAD(&trans_info->pending);
-	INIT_LIST_HEAD(&trans_info->complete);
-	INIT_LIST_HEAD(&trans_info->polled);
 
 	return 0;
 
