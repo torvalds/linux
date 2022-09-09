@@ -2084,7 +2084,8 @@ static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struc
 		memcpy(pdata + sizeof(dst_mac_addr), src_mac_addr, sizeof(src_mac_addr));
 
 		/* Use the real net device to transmit the packet */
-		return _rtw_xmit_entry(skb, padapter->pnetdev);
+		_rtw_xmit_entry(skb, padapter->pnetdev);
+		return NETDEV_TX_OK;
 
 	} else if ((frame_control & (IEEE80211_FCTL_FTYPE|IEEE80211_FCTL_STYPE)) ==
 		   (IEEE80211_FTYPE_MGMT|IEEE80211_STYPE_ACTION)) {
