@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __MINIDUMP_H
@@ -46,7 +47,6 @@ extern bool msm_minidump_enabled(void);
 extern struct md_region *md_get_region(char *name);
 extern void dump_stack_minidump(u64 sp);
 extern int msm_minidump_get_available_region(void);
-extern void md_dump_process(void);
 #else
 static inline int msm_minidump_add_region(const struct md_region *entry)
 {
@@ -61,6 +61,11 @@ static inline bool msm_minidump_enabled(void) { return false; }
 static inline struct md_region *md_get_region(char *name) { return NULL; }
 static inline void dump_stack_minidump(u64 sp) {}
 static inline void add_trace_event(char *buf, size_t size) {}
+#endif
+
+#if IS_ENABLED(CONFIG_QCOM_MINIDUMP_PANIC_DUMP)
+extern void md_dump_process(void);
+#else
 static inline void md_dump_process(void) {}
 #endif
 
