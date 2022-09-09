@@ -599,24 +599,31 @@ static struct sbq_wait_state *sbq_wake_ptr(struct sbitmap_queue *sbq)
 	return NULL;
 }
 
-static bool __sbq_wake_up(struct sbitmap_queue *sbq)
+static bool __sbq_wake_up(struct sbitmap_queue *sbq, int *nr)
 {
 	struct sbq_wait_state *ws;
 	unsigned int wake_batch;
-	int wait_cnt;
+	int wait_cnt, cur, sub;
 	bool ret;
+
+	if (*nr <= 0)
+		return false;
 
 	ws = sbq_wake_ptr(sbq);
 	if (!ws)
 		return false;
 
-	wait_cnt = atomic_dec_return(&ws->wait_cnt);
-	/*
-	 * For concurrent callers of this, callers should call this function
-	 * again to wakeup a new batch on a different 'ws'.
-	 */
-	if (wait_cnt < 0)
-		return true;
+	cur = atomic_read(&ws->wait_cnt);
+	do {
+		/*
+		 * For concurrent callers of this, callers should call this
+		 * function again to wakeup a new batch on a different 'ws'.
+		 */
+		if (cur == 0)
+			return true;
+		sub = min(*nr, cur);
+		wait_cnt = cur - sub;
+	} while (!atomic_try_cmpxchg(&ws->wait_cnt, &cur, wait_cnt));
 
 	/*
 	 * If we decremented queue without waiters, retry to avoid lost
@@ -624,6 +631,8 @@ static bool __sbq_wake_up(struct sbitmap_queue *sbq)
 	 */
 	if (wait_cnt > 0)
 		return !waitqueue_active(&ws->wait);
+
+	*nr -= sub;
 
 	/*
 	 * When wait_cnt == 0, we have to be particularly careful as we are
@@ -660,12 +669,12 @@ static bool __sbq_wake_up(struct sbitmap_queue *sbq)
 	sbq_index_atomic_inc(&sbq->wake_index);
 	atomic_set(&ws->wait_cnt, wake_batch);
 
-	return ret;
+	return ret || *nr;
 }
 
-void sbitmap_queue_wake_up(struct sbitmap_queue *sbq)
+void sbitmap_queue_wake_up(struct sbitmap_queue *sbq, int nr)
 {
-	while (__sbq_wake_up(sbq))
+	while (__sbq_wake_up(sbq, &nr))
 		;
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_wake_up);
@@ -705,7 +714,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		atomic_long_andnot(mask, (atomic_long_t *) addr);
 
 	smp_mb__after_atomic();
-	sbitmap_queue_wake_up(sbq);
+	sbitmap_queue_wake_up(sbq, nr_tags);
 	sbitmap_update_cpu_hint(&sbq->sb, raw_smp_processor_id(),
 					tags[nr_tags - 1] - offset);
 }
@@ -733,7 +742,7 @@ void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
 	 * waiter. See the comment on waitqueue_active().
 	 */
 	smp_mb__after_atomic();
-	sbitmap_queue_wake_up(sbq);
+	sbitmap_queue_wake_up(sbq, 1);
 	sbitmap_update_cpu_hint(&sbq->sb, cpu, nr);
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_clear);
