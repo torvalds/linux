@@ -487,7 +487,7 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct page *locked_page,
 				  u32 clear_bits, unsigned long page_ops)
 {
-	clear_extent_bit(&inode->io_tree, start, end, clear_bits, 1, 0, NULL);
+	clear_extent_bit(&inode->io_tree, start, end, clear_bits, 0, NULL);
 
 	__process_pages_contig(inode->vfs_inode.i_mapping, locked_page,
 			       start, end, page_ops, NULL);
@@ -3399,7 +3399,7 @@ static int try_release_extent_state(struct extent_io_tree *tree,
 		 */
 		ret = __clear_extent_bit(tree, start, end,
 			 ~(EXTENT_LOCKED | EXTENT_NODATASUM | EXTENT_DELALLOC_NEW),
-			 0, 0, NULL, mask, NULL);
+			 0, NULL, mask, NULL);
 
 		/* if clear_extent_bit failed for enomem reasons,
 		 * we can't allow the release to continue.

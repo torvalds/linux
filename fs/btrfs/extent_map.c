@@ -382,7 +382,7 @@ static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
 
 		__clear_extent_bit(&device->alloc_state, stripe->physical,
 				   stripe->physical + stripe_size - 1, bits,
-				   0, 0, NULL, GFP_NOWAIT, NULL);
+				   0, NULL, GFP_NOWAIT, NULL);
 	}
 }
 

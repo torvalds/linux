@@ -558,7 +558,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
  * This takes the tree lock, and returns 0 on success and < 0 on error.
  */
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       u32 bits, int wake, int delete,
+		       u32 bits, int delete,
 		       struct extent_state **cached_state,
 		       gfp_t mask, struct extent_changeset *changeset)
 {
@@ -568,6 +568,7 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	u64 last_end;
 	int err;
 	int clear = 0;
+	int wake = (bits & EXTENT_LOCKED) ? 1 : 0;
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
 	trace_btrfs_clear_extent_bit(tree, start, end - start + 1, bits);
@@ -1617,7 +1618,7 @@ int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	 */
 	ASSERT(!(bits & EXTENT_LOCKED));
 
-	return __clear_extent_bit(tree, start, end, bits, 0, 0, NULL, GFP_NOFS,
+	return __clear_extent_bit(tree, start, end, bits, 0, NULL, GFP_NOFS,
 				  changeset);
 }
 
@@ -1631,7 +1632,7 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 	if (err == -EEXIST) {
 		if (failed_start > start)
 			clear_extent_bit(tree, start, failed_start - 1,
-					 EXTENT_LOCKED, 1, 0, NULL);
+					 EXTENT_LOCKED, 0, NULL);
 		return 0;
 	}
 	return 1;

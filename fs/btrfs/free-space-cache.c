@@ -1163,7 +1163,7 @@ update_cache_item(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0) {
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, inode->i_size - 1,
-				 EXTENT_DELALLOC, 0, 0, NULL);
+				 EXTENT_DELALLOC, 0, NULL);
 		goto fail;
 	}
 	leaf = path->nodes[0];
@@ -1176,7 +1176,7 @@ update_cache_item(struct btrfs_trans_handle *trans,
 		    found_key.offset != offset) {
 			clear_extent_bit(&BTRFS_I(inode)->io_tree, 0,
 					 inode->i_size - 1, EXTENT_DELALLOC, 0,
-					 0, NULL);
+					 NULL);
 			btrfs_release_path(path);
 			goto fail;
 		}
@@ -1272,7 +1272,7 @@ static int flush_dirty_cache(struct inode *inode)
 	ret = btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	if (ret)
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, inode->i_size - 1,
-				 EXTENT_DELALLOC, 0, 0, NULL);
+				 EXTENT_DELALLOC, 0, NULL);
 
 	return ret;
 }
