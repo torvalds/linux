@@ -15,6 +15,14 @@
 	model = "Renesas White Hawk CPU board";
 	compatible = "renesas,white-hawk-cpu", "renesas,r8a779g0";
 
+	aliases {
+		serial0 = &hscif0;
+	};
+
+	chosen {
+		stdout-path = "serial0:921600n8";
+	};
+
 	keys {
 		compatible = "gpio-keys";
 
