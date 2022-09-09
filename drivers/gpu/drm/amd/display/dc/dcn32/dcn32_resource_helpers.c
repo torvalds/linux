@@ -28,6 +28,11 @@
 #include "dcn20/dcn20_resource.h"
 #include "dml/dcn32/display_mode_vba_util_32.h"
 
+static bool is_dual_plane(enum surface_pixel_format format)
+{
+	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
+}
+
 /**
  * ********************************************************************************************
  * dcn32_helper_calculate_num_ways_for_subvp: Calculate number of ways needed for SubVP
@@ -239,22 +244,17 @@ bool dcn32_mpo_in_use(struct dc_state *context)
  * If there is a plane that's driven by more than 1 pipe (i.e. pipe split), then the
  * number of DET for that given plane will be split among the pipes driving that plane.
  *
- * The pipe split prediction (is_pipe_split_expected) has to work 100% of the time in
- * order for this function to work properly.
  *
  * High level algorithm:
  * 1. Split total DET among number of streams
  * 2. For each stream, split DET among the planes
- * 3. For each plane, check if pipe split is expected. If yes, split the DET for that plane
- *    among the number of splits we expect (i.e. 2 [2:1] or 4 [4:1])
- *    - NOTE: Make sure not to double count the pipe splits (i.e. the pipes could
- *            already be split in the context).
+ * 3. For each plane, check if there is a pipe split. If yes, split the DET allocation
+ *    among those pipes.
  * 4. Assign the DET override to the DML pipes.
  *
  * @param [in]: dc: Current DC state
  * @param [in]: context: New DC state to be programmed
  * @param [in]: pipes: Array of DML pipes
- * @param [in]: is_pipe_split_expected: Array indicating pipe split prediction for each pipe
  *
  * @return: void
  *
@@ -262,16 +262,13 @@ bool dcn32_mpo_in_use(struct dc_state *context)
  */
 void dcn32_determine_det_override(struct dc *dc,
 		struct dc_state *context,
-		display_e2e_pipe_params_st *pipes,
-		uint8_t *is_pipe_split_expected)
+		display_e2e_pipe_params_st *pipes)
 {
-	uint32_t i, j;
+	uint32_t i, j, k;
 	uint8_t pipe_plane_count, stream_segments, plane_segments, pipe_segments[MAX_PIPES] = {0};
 	uint8_t pipe_counted[MAX_PIPES] = {0};
 	uint8_t pipe_cnt = 0;
 	struct dc_plane_state *current_plane = NULL;
-	struct pipe_ctx *next_odm_pipe = NULL;
-	struct pipe_ctx *bottom_pipe = NULL;
 	uint8_t stream_count = 0;
 
 	for (i = 0; i < context->stream_count; i++) {
@@ -301,32 +298,21 @@ void dcn32_determine_det_override(struct dc *dc,
 					pipe_plane_count++;
 					pipe_counted[j] = 1;
 					current_plane = context->res_ctx.pipe_ctx[j].plane_state;
-					if (is_pipe_split_expected[j] != 0) {
-						pipe_plane_count += is_pipe_split_expected[j];
-
-						next_odm_pipe = context->res_ctx.pipe_ctx[j].next_odm_pipe;
-						bottom_pipe = context->res_ctx.pipe_ctx[j].bottom_pipe;
-
-						/* If pipe already happens to be split in context, mark as already
-						 * counted so we don't double count the pipe split.
-						 */
-						while (next_odm_pipe) {
-							if (next_odm_pipe->plane_state == current_plane) {
-								pipe_counted[next_odm_pipe->pipe_idx] = 1;
-								pipe_segments[next_odm_pipe->pipe_idx] = plane_segments / pipe_plane_count;
-							}
-							next_odm_pipe = next_odm_pipe->next_odm_pipe;
-						}
-
-						while (bottom_pipe) {
-							if (bottom_pipe->plane_state == current_plane) {
-								pipe_counted[bottom_pipe->pipe_idx] = 1;
-								pipe_segments[bottom_pipe->pipe_idx] = plane_segments / pipe_plane_count;
-							}
-							bottom_pipe = bottom_pipe->bottom_pipe;
+					for (k = 0; k < dc->res_pool->pipe_count; k++) {
+						if (k != j && context->res_ctx.pipe_ctx[k].stream == context->streams[i] &&
+								context->res_ctx.pipe_ctx[k].plane_state == current_plane) {
+							pipe_plane_count++;
+							pipe_counted[k] = 1;
 						}
 					}
+
 					pipe_segments[j] = plane_segments / pipe_plane_count;
+					for (k = 0; k < dc->res_pool->pipe_count; k++) {
+						if (k != j && context->res_ctx.pipe_ctx[k].stream == context->streams[i] &&
+								context->res_ctx.pipe_ctx[k].plane_state == current_plane) {
+							pipe_segments[k] = plane_segments / pipe_plane_count;
+						}
+					}
 				}
 			}
 		}
@@ -341,4 +327,39 @@ void dcn32_determine_det_override(struct dc *dc,
 		for (i = 0; i < dc->res_pool->pipe_count; i++)
 			pipes[i].pipe.src.det_size_override = 4 * DCN3_2_DET_SEG_SIZE; //DCN3_2_DEFAULT_DET_SIZE
 	}
+}
+
+void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
+	display_e2e_pipe_params_st *pipes)
+{
+	int i, pipe_cnt;
+	struct resource_context *res_ctx = &context->res_ctx;
+	struct pipe_ctx *pipe;
+
+	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
+
+		if (!res_ctx->pipe_ctx[i].stream)
+			continue;
+
+		pipe = &res_ctx->pipe_ctx[i];
+		pipe_cnt++;
+	}
+
+	/* For DET allocation, we don't want to use DML policy (not optimal for utilizing all
+	 * the DET available for each pipe). Use the DET override input to maintain our driver
+	 * policy.
+	 */
+	if (pipe_cnt == 1) {
+		pipes[0].pipe.src.det_size_override = DCN3_2_MAX_DET_SIZE;
+		if (pipe->plane_state && !dc->debug.disable_z9_mpc && pipe->plane_state->tiling_info.gfx9.swizzle != DC_SW_LINEAR) {
+			if (!is_dual_plane(pipe->plane_state->format)) {
+				pipes[0].pipe.src.det_size_override = DCN3_2_DEFAULT_DET_SIZE;
+				pipes[0].pipe.src.unbounded_req_mode = true;
+				if (pipe->plane_state->src_rect.width >= 5120 &&
+					pipe->plane_state->src_rect.height >= 2880)
+					pipes[0].pipe.src.det_size_override = 320; // 5K or higher
+			}
+		}
+	} else
+		dcn32_determine_det_override(dc, context, pipes);
 }
