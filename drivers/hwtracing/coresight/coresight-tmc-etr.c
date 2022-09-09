@@ -938,7 +938,7 @@ static void tmc_free_etr_buf(struct etr_buf *etr_buf)
  * Returns: The size of the linear data available @pos, with *bufpp
  * updated to point to the buffer.
  */
-static ssize_t tmc_etr_buf_get_data(struct etr_buf *etr_buf,
+ssize_t tmc_etr_buf_get_data(struct etr_buf *etr_buf,
 				    u64 offset, size_t len, char **bufpp)
 {
 	/* Adjust the length to limit this transaction to end of buffer */
@@ -1235,8 +1235,10 @@ out:
 	if (free_buf)
 		tmc_etr_free_sysfs_buf(free_buf);
 
-	if (!ret)
+	if (!ret) {
+		tmc_etr_byte_cntr_start(drvdata->byte_cntr);
 		dev_dbg(&csdev->dev, "TMC-ETR enabled\n");
+	}
 
 	return ret;
 }
@@ -1706,6 +1708,7 @@ static int tmc_disable_etr_sink(struct coresight_device *csdev)
 	drvdata->perf_buf = NULL;
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+	tmc_etr_byte_cntr_stop(drvdata->byte_cntr);
 
 	dev_dbg(&csdev->dev, "TMC-ETR disabled\n");
 	return 0;
@@ -1744,6 +1747,11 @@ int tmc_read_prepare_etr(struct tmc_drvdata *drvdata)
 	 * If drvdata::sysfs_data is NULL the trace data has been read already.
 	 */
 	if (!drvdata->sysfs_buf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (drvdata->byte_cntr && drvdata->byte_cntr->enable) {
 		ret = -EINVAL;
 		goto out;
 	}
