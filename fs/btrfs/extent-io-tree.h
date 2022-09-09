@@ -35,10 +35,18 @@ struct io_failure_record;
  * delalloc bytes decremented, in an atomic way to prevent races with stat(2).
  */
 #define EXTENT_ADD_INODE_BYTES  (1U << 15)
+
+/*
+ * Set during truncate when we're clearing an entire range and we just want the
+ * extent states to go away.
+ */
+#define EXTENT_CLEAR_ALL_BITS	(1U << 16)
+
 #define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \
 				 EXTENT_CLEAR_DATA_RESV)
 #define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING | \
-				 EXTENT_ADD_INODE_BYTES)
+				 EXTENT_ADD_INODE_BYTES | \
+				 EXTENT_CLEAR_ALL_BITS)
 
 /*
  * Redefined bits above which are used only in the device allocation tree,
@@ -114,35 +122,35 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       u32 bits, int delete, struct extent_state **cached,
-		       gfp_t mask, struct extent_changeset *changeset);
+		       u32 bits, struct extent_state **cached, gfp_t mask,
+		       struct extent_changeset *changeset);
 
 static inline int clear_extent_bit(struct extent_io_tree *tree, u64 start,
-				   u64 end, u32 bits, int delete,
+				   u64 end, u32 bits,
 				   struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, bits, delete, cached,
+	return __clear_extent_bit(tree, start, end, bits, cached,
 				  GFP_NOFS, NULL);
 }
 
 static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 				struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, 0, cached,
+	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached,
 				  GFP_NOFS, NULL);
 }
 
 static inline int unlock_extent_atomic(struct extent_io_tree *tree, u64 start,
 				       u64 end, struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, 0, cached,
+	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached,
 				  GFP_ATOMIC, NULL);
 }
 
 static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
 				    u64 end, u32 bits)
 {
-	return clear_extent_bit(tree, start, end, bits, 0, NULL);
+	return clear_extent_bit(tree, start, end, bits, NULL);
 }
 
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -165,7 +173,7 @@ static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
 static inline int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
 		u64 end, struct extent_state **cached_state)
 {
-	return __clear_extent_bit(tree, start, end, EXTENT_UPTODATE, 0,
+	return __clear_extent_bit(tree, start, end, EXTENT_UPTODATE,
 				  cached_state, GFP_NOFS, NULL);
 }
 
@@ -180,7 +188,7 @@ static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
 {
 	return clear_extent_bit(tree, start, end,
 				EXTENT_DIRTY | EXTENT_DELALLOC |
-				EXTENT_DO_ACCOUNTING, 0, cached);
+				EXTENT_DO_ACCOUNTING, cached);
 }
 
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
