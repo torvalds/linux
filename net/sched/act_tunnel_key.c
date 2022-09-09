@@ -20,7 +20,6 @@
 #include <linux/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_tunnel_key.h>
 
-static unsigned int tunnel_key_net_id;
 static struct tc_action_ops act_tunnel_key_ops;
 
 static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
@@ -358,7 +357,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			   struct tcf_proto *tp, u32 act_flags,
 			   struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
+	struct tc_action_net *tn = net_generic(net, act_tunnel_key_ops.net_id);
 	bool bind = act_flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_TUNNEL_KEY_MAX + 1];
 	struct tcf_tunnel_key_params *params_new;
@@ -770,23 +769,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tunnel_key_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tunnel_key_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static void tcf_tunnel_encap_put_tunnel(void *priv)
 {
 	struct ip_tunnel_info *tunnel = priv;
@@ -850,28 +832,26 @@ static struct tc_action_ops act_tunnel_key_ops = {
 	.dump		=	tunnel_key_dump,
 	.init		=	tunnel_key_init,
 	.cleanup	=	tunnel_key_release,
-	.walk		=	tunnel_key_walker,
-	.lookup		=	tunnel_key_search,
 	.offload_act_setup =	tcf_tunnel_key_offload_act_setup,
 	.size		=	sizeof(struct tcf_tunnel_key),
 };
 
 static __net_init int tunnel_key_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
+	struct tc_action_net *tn = net_generic(net, act_tunnel_key_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_tunnel_key_ops);
 }
 
 static void __net_exit tunnel_key_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, tunnel_key_net_id);
+	tc_action_net_exit(net_list, act_tunnel_key_ops.net_id);
 }
 
 static struct pernet_operations tunnel_key_net_ops = {
 	.init = tunnel_key_init_net,
 	.exit_batch = tunnel_key_exit_net,
-	.id   = &tunnel_key_net_id,
+	.id   = &act_tunnel_key_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

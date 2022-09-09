@@ -15,7 +15,6 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mpls.h>
 
-static unsigned int mpls_net_id;
 static struct tc_action_ops act_mpls_ops;
 
 #define ACT_MPLS_TTL_DEFAULT	255
@@ -155,7 +154,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, mpls_net_id);
+	struct tc_action_net *tn = net_generic(net, act_mpls_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_MPLS_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -367,23 +366,6 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int tcf_mpls_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, mpls_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_mpls_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, mpls_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static int tcf_mpls_offload_act_setup(struct tc_action *act, void *entry_data,
 				      u32 *index_inc, bool bind,
 				      struct netlink_ext_ack *extack)
@@ -451,28 +433,26 @@ static struct tc_action_ops act_mpls_ops = {
 	.dump		=	tcf_mpls_dump,
 	.init		=	tcf_mpls_init,
 	.cleanup	=	tcf_mpls_cleanup,
-	.walk		=	tcf_mpls_walker,
-	.lookup		=	tcf_mpls_search,
 	.offload_act_setup =	tcf_mpls_offload_act_setup,
 	.size		=	sizeof(struct tcf_mpls),
 };
 
 static __net_init int mpls_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, mpls_net_id);
+	struct tc_action_net *tn = net_generic(net, act_mpls_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_mpls_ops);
 }
 
 static void __net_exit mpls_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, mpls_net_id);
+	tc_action_net_exit(net_list, act_mpls_ops.net_id);
 }
 
 static struct pernet_operations mpls_net_ops = {
 	.init = mpls_init_net,
 	.exit_batch = mpls_exit_net,
-	.id   = &mpls_net_id,
+	.id   = &act_mpls_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 
