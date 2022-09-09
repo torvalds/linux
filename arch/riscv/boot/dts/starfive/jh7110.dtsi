@@ -842,7 +842,7 @@
 
 		/* unremovable emmc as mmcblk0 */
 		sdio0: sdio0@16010000 {
-			compatible = "starfive,jh7110-sdio", "snps,dw-mshc";
+			compatible = "starfive,jh7110-sdio";
 			reg = <0x0 0x16010000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_SDIO0_CLK_AHB>,
 				 <&clkgen JH7110_SDIO0_CLK_SDCARD>;
@@ -853,11 +853,12 @@
 			fifo-depth = <32>;
 			fifo-watermark-aligned;
 			data-addr = <0>;
+			starfive,sys-syscon = <&sys_syscon 0x14 0x1a 0x7c000000>;
 			status = "disabled";
 		};
 
 		sdio1: sdio1@16020000 {
-			compatible = "starfive,jh7110-sdio", "snps,dw-mshc";
+			compatible = "starfive,jh7110-sdio";
 			reg = <0x0 0x16020000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_SDIO1_CLK_AHB>,
 				 <&clkgen JH7110_SDIO1_CLK_SDCARD>;

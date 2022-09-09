@@ -20852,3 +20852,7 @@ M:	Jianlong Huang <jianlong.huang@starfivetech.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/starfive,jh7110-pinctrl.yaml
 
+STARFIVE JH7110 SDIO
+M:	William Qiu <william.qiu@starfivetech.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/mmc/starfive,jh7110-sdio.yaml
