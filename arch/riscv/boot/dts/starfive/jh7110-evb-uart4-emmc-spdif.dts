@@ -27,13 +27,12 @@
 };
 
 &sdio0 {
-	clock-frequency = <102400000>;
 	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
