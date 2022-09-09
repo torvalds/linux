@@ -245,6 +245,10 @@ define_db845c(
     ],
 )
 
+load(":consolidate.bzl", "define_consolidate")
+
+define_consolidate()
+
 # TODO(b/258259749): Convert rockpi4 to mixed build
 kernel_build(
     name = "rockpi4",
