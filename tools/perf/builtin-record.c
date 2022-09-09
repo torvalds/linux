@@ -1888,6 +1888,10 @@ static void record__read_lost_samples(struct record *rec)
 	struct perf_record_lost_samples *lost;
 	struct evsel *evsel;
 
+	/* there was an error during record__open */
+	if (session->evlist == NULL)
+		return;
+
 	lost = zalloc(PERF_SAMPLE_MAX_SIZE);
 	if (lost == NULL) {
 		pr_debug("Memory allocation failed\n");
@@ -1899,6 +1903,8 @@ static void record__read_lost_samples(struct record *rec)
 	evlist__for_each_entry(session->evlist, evsel) {
 		struct xyarray *xy = evsel->core.sample_id;
 
+		if (xy == NULL || evsel->core.fd == NULL)
+			continue;
 		if (xyarray__max_x(evsel->core.fd) != xyarray__max_x(xy) ||
 		    xyarray__max_y(evsel->core.fd) != xyarray__max_y(xy)) {
 			pr_debug("Unmatched FD vs. sample ID: skip reading LOST count\n");
