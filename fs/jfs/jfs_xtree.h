@@ -96,12 +96,8 @@ extern int xtInsert(tid_t tid, struct inode *ip,
 extern int xtExtend(tid_t tid, struct inode *ip, s64 xoff, int xlen,
 		    int flag);
 extern int xtUpdate(tid_t tid, struct inode *ip, struct xad *nxad);
-extern int xtDelete(tid_t tid, struct inode *ip, s64 xoff, int xlen,
-		    int flag);
 extern s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int type);
 extern s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size);
-extern int xtRelocate(tid_t tid, struct inode *ip,
-		      xad_t * oxad, s64 nxaddr, int xtype);
 extern int xtAppend(tid_t tid,
 		    struct inode *ip, int xflag, s64 xoff, int maxblocks,
 		    int *xlenp, s64 * xaddrp, int flag);
