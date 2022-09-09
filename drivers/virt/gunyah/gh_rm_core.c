@@ -602,6 +602,12 @@ static int gh_rm_send_request(u32 message_id,
 	void *send_buff;
 	int i, ret;
 
+	/* Drivers need probe defer
+	 * when do RM call before RM driver initialized
+	 */
+	if (gh_rm_msgq_desc == NULL)
+		return -EPROBE_DEFER;
+
 	num_fragments = (req_buff_size + GH_RM_MAX_MSG_SIZE_BYTES - 1) /
 			GH_RM_MAX_MSG_SIZE_BYTES;
 
