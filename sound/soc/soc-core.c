@@ -487,6 +487,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	rtd->card	= card;
 	rtd->dai_link	= dai_link;
 	rtd->num	= card->num_rtd++;
+	rtd->pmdown_time = pmdown_time;			/* default power off timeout */
 
 	/* see for_each_card_rtds */
 	list_add_tail(&rtd->list, &card->rtd_list);
@@ -1246,9 +1247,6 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_component *component;
 	int ret, num, i;
-
-	/* set default power off timeout */
-	rtd->pmdown_time = pmdown_time;
 
 	/* do machine specific initialization */
 	ret = snd_soc_link_init(rtd);
