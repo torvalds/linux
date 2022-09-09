@@ -1201,28 +1201,6 @@ err_out:
 }
 
 #ifndef MODULE
-static void rockchip_pd_keepon_do_release(struct generic_pm_domain *genpd,
-					  struct rockchip_pm_domain *pd)
-{
-	struct pm_domain_data *pm_data;
-	int enable_count;
-
-	pd->genpd.flags &= (~GENPD_FLAG_ALWAYS_ON);
-	list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
-		if (!atomic_read(&pm_data->dev->power.usage_count)) {
-			enable_count = 0;
-			if (!pm_runtime_enabled(pm_data->dev)) {
-				pm_runtime_enable(pm_data->dev);
-				enable_count = 1;
-			}
-			pm_runtime_get_sync(pm_data->dev);
-			pm_runtime_put_sync(pm_data->dev);
-			if (enable_count)
-				pm_runtime_disable(pm_data->dev);
-		}
-	}
-}
-
 static int __init rockchip_pd_keepon_release(void)
 {
 	struct generic_pm_domain *genpd;
@@ -1238,8 +1216,10 @@ static int __init rockchip_pd_keepon_release(void)
 			pd = to_rockchip_pd(genpd);
 			if (pd->info->always_on)
 				continue;
-			if (pd->info->keepon_startup)
-				rockchip_pd_keepon_do_release(genpd, pd);
+			if (!pd->info->keepon_startup)
+				continue;
+			genpd->flags &= (~GENPD_FLAG_ALWAYS_ON);
+			queue_work(pm_wq, &genpd->power_off_work);
 		}
 	}
 	return 0;
