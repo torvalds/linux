@@ -69,7 +69,6 @@ struct extent_io_tree {
 	struct rb_root state;
 	struct btrfs_fs_info *fs_info;
 	void *private_data;
-	u64 dirty_bytes;
 
 	/* Who owns this io tree, should be one of IO_TREE_* */
 	u8 owner;

@@ -98,7 +98,6 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 {
 	tree->fs_info = fs_info;
 	tree->state = RB_ROOT;
-	tree->dirty_bytes = 0;
 	spin_lock_init(&tree->lock);
 	tree->private_data = private_data;
 	tree->owner = owner;
@@ -378,10 +377,6 @@ static void set_state_bits(struct extent_io_tree *tree,
 	if (tree->private_data && is_data_inode(tree->private_data))
 		btrfs_set_delalloc_extent(tree->private_data, state, bits);
 
-	if ((bits_to_set & EXTENT_DIRTY) && !(state->state & EXTENT_DIRTY)) {
-		u64 range = state->end - state->start + 1;
-		tree->dirty_bytes += range;
-	}
 	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
 	BUG_ON(ret < 0);
 	state->state |= bits_to_set;
@@ -514,12 +509,6 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	struct extent_state *next;
 	u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
 	int ret;
-
-	if ((bits_to_clear & EXTENT_DIRTY) && (state->state & EXTENT_DIRTY)) {
-		u64 range = state->end - state->start + 1;
-		WARN_ON(range > tree->dirty_bytes);
-		tree->dirty_bytes -= range;
-	}
 
 	if (tree->private_data && is_data_inode(tree->private_data))
 		btrfs_clear_delalloc_extent(tree->private_data, state, bits);
@@ -1515,10 +1504,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		return 0;
 
 	spin_lock(&tree->lock);
-	if (cur_start == 0 && bits == EXTENT_DIRTY) {
-		total_bytes = tree->dirty_bytes;
-		goto out;
-	}
+
 	/*
 	 * This search will find all the extents that end after our range
 	 * starts.
@@ -1544,7 +1530,6 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		}
 		state = next_state(state);
 	}
-out:
 	spin_unlock(&tree->lock);
 	return total_bytes;
 }
