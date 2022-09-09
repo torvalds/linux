@@ -36,8 +36,7 @@ select:
     - compatible
 
 allOf:
-  - $ref: "sata-common.yaml#"
-
+  - $ref: "ahci-common.yaml#"
 
 properties:
   compatible:
@@ -69,46 +68,15 @@ properties:
     maxItems: 1
 
   clocks:
-    description:
-      Clock IDs array as required by the controller.
     minItems: 1
     maxItems: 3
 
   clock-names:
-    description:
-      Names of clocks corresponding to IDs in the clock property.
     minItems: 1
     maxItems: 3
 
   interrupts:
     maxItems: 1
-
-  ahci-supply:
-    description:
-      regulator for AHCI controller
-
-  phy-supply:
-    description:
-      regulator for PHY power
-
-  phys:
-    description:
-      List of all PHYs on this controller
-    maxItems: 1
-
-  phy-names:
-    description:
-      Name specifier for the PHYs
-    maxItems: 1
-
-  ports-implemented:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
-    description: |
-      Mask that indicates which ports that the HBA supports
-      are available for software to use. Useful if PORTS_IMPL
-      is not programmed by the BIOS, which is true with
-      some embedded SoCs.
-    maximum: 0x1f
 
   power-domains:
     maxItems: 1
@@ -116,42 +84,20 @@ properties:
   resets:
     maxItems: 1
 
-  target-supply:
-    description:
-      regulator for SATA target power
+patternProperties:
+  "^sata-port@[0-9a-f]+$":
+    $ref: /schemas/ata/ahci-common.yaml#/$defs/ahci-port
+
+    anyOf:
+      - required: [ phys ]
+      - required: [ target-supply ]
+
+    unevaluatedProperties: false
 
 required:
   - compatible
   - reg
   - interrupts
-
-patternProperties:
-  "^sata-port@[0-9a-f]+$":
-    type: object
-    additionalProperties: false
-    description:
-      Subnode with configuration of the Ports.
-
-    properties:
-      reg:
-        maxItems: 1
-
-      phys:
-        maxItems: 1
-
-      phy-names:
-        maxItems: 1
-
-      target-supply:
-        description:
-          regulator for SATA target power
-
-    required:
-      - reg
-
-    anyOf:
-      - required: [ phys ]
-      - required: [ target-supply ]
 
 unevaluatedProperties: false
 
