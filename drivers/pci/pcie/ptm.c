@@ -9,68 +9,6 @@
 #include <linux/pci.h>
 #include "../pci.h"
 
-static void __pci_disable_ptm(struct pci_dev *dev)
-{
-	u16 ptm = dev->ptm_cap;
-	u32 ctrl;
-
-	if (!ptm)
-		return;
-
-	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, &ctrl);
-	ctrl &= ~(PCI_PTM_CTRL_ENABLE | PCI_PTM_CTRL_ROOT);
-	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
-}
-
-/**
- * pci_disable_ptm() - Disable Precision Time Measurement
- * @dev: PCI device
- *
- * Disable Precision Time Measurement for @dev.
- */
-void pci_disable_ptm(struct pci_dev *dev)
-{
-	if (dev->ptm_enabled) {
-		__pci_disable_ptm(dev);
-		dev->ptm_enabled = 0;
-	}
-}
-EXPORT_SYMBOL(pci_disable_ptm);
-
-void pci_save_ptm_state(struct pci_dev *dev)
-{
-	u16 ptm = dev->ptm_cap;
-	struct pci_cap_saved_state *save_state;
-	u32 *cap;
-
-	if (!ptm)
-		return;
-
-	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_PTM);
-	if (!save_state)
-		return;
-
-	cap = (u32 *)&save_state->cap.data[0];
-	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, cap);
-}
-
-void pci_restore_ptm_state(struct pci_dev *dev)
-{
-	u16 ptm = dev->ptm_cap;
-	struct pci_cap_saved_state *save_state;
-	u32 *cap;
-
-	if (!ptm)
-		return;
-
-	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_PTM);
-	if (!save_state)
-		return;
-
-	cap = (u32 *)&save_state->cap.data[0];
-	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, *cap);
-}
-
 /*
  * If the next upstream device supports PTM, return it; otherwise return
  * NULL.  PTM Messages are local, so both link partners must support it.
@@ -144,6 +82,40 @@ void pci_ptm_init(struct pci_dev *dev)
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
 	    pci_pcie_type(dev) == PCI_EXP_TYPE_UPSTREAM)
 		pci_enable_ptm(dev, NULL);
+}
+
+void pci_save_ptm_state(struct pci_dev *dev)
+{
+	u16 ptm = dev->ptm_cap;
+	struct pci_cap_saved_state *save_state;
+	u32 *cap;
+
+	if (!ptm)
+		return;
+
+	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_PTM);
+	if (!save_state)
+		return;
+
+	cap = (u32 *)&save_state->cap.data[0];
+	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, cap);
+}
+
+void pci_restore_ptm_state(struct pci_dev *dev)
+{
+	u16 ptm = dev->ptm_cap;
+	struct pci_cap_saved_state *save_state;
+	u32 *cap;
+
+	if (!ptm)
+		return;
+
+	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_PTM);
+	if (!save_state)
+		return;
+
+	cap = (u32 *)&save_state->cap.data[0];
+	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, *cap);
 }
 
 /* Enable PTM in the Control register if possible */
@@ -225,6 +197,34 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 	return 0;
 }
 EXPORT_SYMBOL(pci_enable_ptm);
+
+static void __pci_disable_ptm(struct pci_dev *dev)
+{
+	u16 ptm = dev->ptm_cap;
+	u32 ctrl;
+
+	if (!ptm)
+		return;
+
+	pci_read_config_dword(dev, ptm + PCI_PTM_CTRL, &ctrl);
+	ctrl &= ~(PCI_PTM_CTRL_ENABLE | PCI_PTM_CTRL_ROOT);
+	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
+}
+
+/**
+ * pci_disable_ptm() - Disable Precision Time Measurement
+ * @dev: PCI device
+ *
+ * Disable Precision Time Measurement for @dev.
+ */
+void pci_disable_ptm(struct pci_dev *dev)
+{
+	if (dev->ptm_enabled) {
+		__pci_disable_ptm(dev);
+		dev->ptm_enabled = 0;
+	}
+}
+EXPORT_SYMBOL(pci_disable_ptm);
 
 /*
  * Disable PTM, but preserve dev->ptm_enabled so we silently re-enable it on
