@@ -2008,55 +2008,53 @@ static struct kpp_alg dh = {
 	},
 };
 
-static struct kpp_alg ecdh_nist_p192 = {
-	.set_secret = hpre_ecdh_set_secret,
-	.generate_public_key = hpre_ecdh_compute_value,
-	.compute_shared_secret = hpre_ecdh_compute_value,
-	.max_size = hpre_ecdh_max_size,
-	.init = hpre_ecdh_nist_p192_init_tfm,
-	.exit = hpre_ecdh_exit_tfm,
-	.reqsize = sizeof(struct hpre_asym_request) + HPRE_ALIGN_SZ,
-	.base = {
-		.cra_ctxsize = sizeof(struct hpre_ctx),
-		.cra_priority = HPRE_CRYPTO_ALG_PRI,
-		.cra_name = "ecdh-nist-p192",
-		.cra_driver_name = "hpre-ecdh-nist-p192",
-		.cra_module = THIS_MODULE,
-	},
-};
-
-static struct kpp_alg ecdh_nist_p256 = {
-	.set_secret = hpre_ecdh_set_secret,
-	.generate_public_key = hpre_ecdh_compute_value,
-	.compute_shared_secret = hpre_ecdh_compute_value,
-	.max_size = hpre_ecdh_max_size,
-	.init = hpre_ecdh_nist_p256_init_tfm,
-	.exit = hpre_ecdh_exit_tfm,
-	.reqsize = sizeof(struct hpre_asym_request) + HPRE_ALIGN_SZ,
-	.base = {
-		.cra_ctxsize = sizeof(struct hpre_ctx),
-		.cra_priority = HPRE_CRYPTO_ALG_PRI,
-		.cra_name = "ecdh-nist-p256",
-		.cra_driver_name = "hpre-ecdh-nist-p256",
-		.cra_module = THIS_MODULE,
-	},
-};
-
-static struct kpp_alg ecdh_nist_p384 = {
-	.set_secret = hpre_ecdh_set_secret,
-	.generate_public_key = hpre_ecdh_compute_value,
-	.compute_shared_secret = hpre_ecdh_compute_value,
-	.max_size = hpre_ecdh_max_size,
-	.init = hpre_ecdh_nist_p384_init_tfm,
-	.exit = hpre_ecdh_exit_tfm,
-	.reqsize = sizeof(struct hpre_asym_request) + HPRE_ALIGN_SZ,
-	.base = {
-		.cra_ctxsize = sizeof(struct hpre_ctx),
-		.cra_priority = HPRE_CRYPTO_ALG_PRI,
-		.cra_name = "ecdh-nist-p384",
-		.cra_driver_name = "hpre-ecdh-nist-p384",
-		.cra_module = THIS_MODULE,
-	},
+static struct kpp_alg ecdh_curves[] = {
+	{
+		.set_secret = hpre_ecdh_set_secret,
+		.generate_public_key = hpre_ecdh_compute_value,
+		.compute_shared_secret = hpre_ecdh_compute_value,
+		.max_size = hpre_ecdh_max_size,
+		.init = hpre_ecdh_nist_p192_init_tfm,
+		.exit = hpre_ecdh_exit_tfm,
+		.reqsize = sizeof(struct hpre_asym_request) + HPRE_ALIGN_SZ,
+		.base = {
+			.cra_ctxsize = sizeof(struct hpre_ctx),
+			.cra_priority = HPRE_CRYPTO_ALG_PRI,
+			.cra_name = "ecdh-nist-p192",
+			.cra_driver_name = "hpre-ecdh-nist-p192",
+			.cra_module = THIS_MODULE,
+		},
+	}, {
+		.set_secret = hpre_ecdh_set_secret,
+		.generate_public_key = hpre_ecdh_compute_value,
+		.compute_shared_secret = hpre_ecdh_compute_value,
+		.max_size = hpre_ecdh_max_size,
+		.init = hpre_ecdh_nist_p256_init_tfm,
+		.exit = hpre_ecdh_exit_tfm,
+		.reqsize = sizeof(struct hpre_asym_request) + HPRE_ALIGN_SZ,
+		.base = {
+			.cra_ctxsize = sizeof(struct hpre_ctx),
+			.cra_priority = HPRE_CRYPTO_ALG_PRI,
+			.cra_name = "ecdh-nist-p256",
+			.cra_driver_name = "hpre-ecdh-nist-p256",
+			.cra_module = THIS_MODULE,
+		},
+	}, {
+		.set_secret = hpre_ecdh_set_secret,
+		.generate_public_key = hpre_ecdh_compute_value,
+		.compute_shared_secret = hpre_ecdh_compute_value,
+		.max_size = hpre_ecdh_max_size,
+		.init = hpre_ecdh_nist_p384_init_tfm,
+		.exit = hpre_ecdh_exit_tfm,
+		.reqsize = sizeof(struct hpre_asym_request) + HPRE_ALIGN_SZ,
+		.base = {
+			.cra_ctxsize = sizeof(struct hpre_ctx),
+			.cra_priority = HPRE_CRYPTO_ALG_PRI,
+			.cra_name = "ecdh-nist-p384",
+			.cra_driver_name = "hpre-ecdh-nist-p384",
+			.cra_module = THIS_MODULE,
+		},
+	}
 };
 
 static struct kpp_alg curve25519_alg = {
@@ -2123,46 +2121,38 @@ static void hpre_unregister_dh(struct hisi_qm *qm)
 
 static int hpre_register_ecdh(struct hisi_qm *qm)
 {
-	int ret;
+	int ret, i;
 
 	if (!hpre_check_alg_support(qm, HPRE_DRV_ECDH_MASK_CAP))
 		return 0;
 
-	ret = crypto_register_kpp(&ecdh_nist_p192);
-	if (ret) {
-		dev_err(&qm->pdev->dev, "failed to register ecdh_nist_p192 (%d)!\n", ret);
-		return ret;
-	}
-
-	ret = crypto_register_kpp(&ecdh_nist_p256);
-	if (ret) {
-		dev_err(&qm->pdev->dev, "failed to register ecdh_nist_p256 (%d)!\n", ret);
-		goto unregister_ecdh_p192;
-	}
-
-	ret = crypto_register_kpp(&ecdh_nist_p384);
-	if (ret) {
-		dev_err(&qm->pdev->dev, "failed to register ecdh_nist_p384 (%d)!\n", ret);
-		goto unregister_ecdh_p256;
+	for (i = 0; i < ARRAY_SIZE(ecdh_curves); i++) {
+		ret = crypto_register_kpp(&ecdh_curves[i]);
+		if (ret) {
+			dev_err(&qm->pdev->dev, "failed to register %s (%d)!\n",
+				ecdh_curves[i].base.cra_name, ret);
+			goto unreg_kpp;
+		}
 	}
 
 	return 0;
 
-unregister_ecdh_p256:
-	crypto_unregister_kpp(&ecdh_nist_p256);
-unregister_ecdh_p192:
-	crypto_unregister_kpp(&ecdh_nist_p192);
+unreg_kpp:
+	for (--i; i >= 0; --i)
+		crypto_unregister_kpp(&ecdh_curves[i]);
+
 	return ret;
 }
 
 static void hpre_unregister_ecdh(struct hisi_qm *qm)
 {
+	int i;
+
 	if (!hpre_check_alg_support(qm, HPRE_DRV_ECDH_MASK_CAP))
 		return;
 
-	crypto_unregister_kpp(&ecdh_nist_p384);
-	crypto_unregister_kpp(&ecdh_nist_p256);
-	crypto_unregister_kpp(&ecdh_nist_p192);
+	for (i = ARRAY_SIZE(ecdh_curves) - 1; i >= 0; --i)
+		crypto_unregister_kpp(&ecdh_curves[i]);
 }
 
 static int hpre_register_x25519(struct hisi_qm *qm)
