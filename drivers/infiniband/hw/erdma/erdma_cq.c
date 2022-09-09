@@ -4,9 +4,6 @@
 /*          Kai Shen <kaishen@linux.alibaba.com> */
 /* Copyright (c) 2020-2022, Alibaba Group. */
 
-#include <rdma/ib_verbs.h>
-
-#include "erdma_hw.h"
 #include "erdma_verbs.h"
 
 static void *get_next_valid_cqe(struct erdma_cq *cq)

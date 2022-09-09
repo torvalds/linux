@@ -7,15 +7,7 @@
 #ifndef __ERDMA_VERBS_H__
 #define __ERDMA_VERBS_H__
 
-#include <linux/errno.h>
-
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_user_verbs.h>
-#include <rdma/iw_cm.h>
-
 #include "erdma.h"
-#include "erdma_cm.h"
-#include "erdma_hw.h"
 
 /* RDMA Capability. */
 #define ERDMA_MAX_PD (128 * 1024)

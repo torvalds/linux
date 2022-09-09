@@ -6,15 +6,6 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
-#include <linux/pci.h>
-#include <linux/scatterlist.h>
-#include <linux/types.h>
-
-#include <rdma/ib_user_verbs.h>
-#include <rdma/ib_verbs.h>
-
-#include "erdma.h"
 #include "erdma_cm.h"
 #include "erdma_verbs.h"
 

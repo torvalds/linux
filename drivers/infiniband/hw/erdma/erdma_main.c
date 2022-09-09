@@ -4,21 +4,12 @@
 /*          Kai Shen <kaishen@linux.alibaba.com> */
 /* Copyright (c) 2020-2022, Alibaba Group. */
 
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
 #include <linux/module.h>
-#include <linux/netdevice.h>
-#include <linux/pci.h>
 #include <net/addrconf.h>
 #include <rdma/erdma-abi.h>
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_user_verbs.h>
 
 #include "erdma.h"
 #include "erdma_cm.h"
-#include "erdma_hw.h"
 #include "erdma_verbs.h"
 
 MODULE_AUTHOR("Cheng Xu <chengyou@linux.alibaba.com>");

@@ -9,6 +9,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
+#include <linux/pci.h>
 #include <linux/xarray.h>
 #include <rdma/ib_verbs.h>
 

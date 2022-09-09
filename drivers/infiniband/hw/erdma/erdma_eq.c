@@ -4,12 +4,6 @@
 /*          Kai Shen <kaishen@linux.alibaba.com> */
 /* Copyright (c) 2020-2022, Alibaba Group. */
 
-#include <linux/errno.h>
-#include <linux/pci.h>
-#include <linux/types.h>
-
-#include "erdma.h"
-#include "erdma_hw.h"
 #include "erdma_verbs.h"
 
 #define MAX_POLL_CHUNK_SIZE 16

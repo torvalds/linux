@@ -9,21 +9,14 @@
 
 /* Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved. */
 
-#include <linux/errno.h>
-#include <linux/pci.h>
-#include <linux/types.h>
-#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <net/addrconf.h>
 #include <rdma/erdma-abi.h>
 #include <rdma/ib_umem.h>
-#include <rdma/ib_user_verbs.h>
-#include <rdma/ib_verbs.h>
 #include <rdma/uverbs_ioctl.h>
 
 #include "erdma.h"
 #include "erdma_cm.h"
-#include "erdma_hw.h"
 #include "erdma_verbs.h"
 
 static int create_qp_cmd(struct erdma_dev *dev, struct erdma_qp *qp)

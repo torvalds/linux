@@ -4,13 +4,7 @@
 /*          Kai Shen <kaishen@linux.alibaba.com> */
 /* Copyright (c) 2020-2022, Alibaba Group. */
 
-#include <linux/kernel.h>
-#include <linux/pci.h>
-#include <linux/types.h>
-
 #include "erdma.h"
-#include "erdma_hw.h"
-#include "erdma_verbs.h"
 
 static void arm_cmdq_cq(struct erdma_cmdq *cmdq)
 {
