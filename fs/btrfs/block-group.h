@@ -100,6 +100,12 @@ struct btrfs_block_group {
 	u64 global_root_id;
 
 	/*
+	 * The last committed used bytes of this block group, if the above @used
+	 * is still the same as @commit_used, we don't need to update block
+	 * group item of this block group.
+	 */
+	u64 commit_used;
+	/*
 	 * If the free space extent count exceeds this number, convert the block
 	 * group to bitmaps.
 	 */
