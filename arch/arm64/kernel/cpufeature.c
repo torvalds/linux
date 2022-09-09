@@ -1401,17 +1401,40 @@ feature_matches(u64 reg, const struct arm64_cpu_capabilities *entry)
 	return val >= entry->min_field_value;
 }
 
+static u64
+read_scoped_sysreg(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	WARN_ON(scope == SCOPE_LOCAL_CPU && preemptible());
+	if (scope == SCOPE_SYSTEM)
+		return read_sanitised_ftr_reg(entry->sys_reg);
+	else
+		return __read_sysreg_by_encoding(entry->sys_reg);
+}
+
+static bool
+has_user_cpuid_feature(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	int mask;
+	struct arm64_ftr_reg *regp;
+	u64 val = read_scoped_sysreg(entry, scope);
+
+	regp = get_arm64_ftr_reg(entry->sys_reg);
+	if (!regp)
+		return false;
+
+	mask = cpuid_feature_extract_unsigned_field_width(regp->user_mask,
+							  entry->field_pos,
+							  entry->field_width);
+	if (!mask)
+		return false;
+
+	return feature_matches(val, entry);
+}
+
 static bool
 has_cpuid_feature(const struct arm64_cpu_capabilities *entry, int scope)
 {
-	u64 val;
-
-	WARN_ON(scope == SCOPE_LOCAL_CPU && preemptible());
-	if (scope == SCOPE_SYSTEM)
-		val = read_sanitised_ftr_reg(entry->sys_reg);
-	else
-		val = __read_sysreg_by_encoding(entry->sys_reg);
-
+	u64 val = read_scoped_sysreg(entry, scope);
 	return feature_matches(val, entry);
 }
 
@@ -2624,7 +2647,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 };
 
 #define HWCAP_CPUID_MATCH(reg, field, width, s, min_value)			\
-		.matches = has_cpuid_feature,					\
+		.matches = has_user_cpuid_feature,					\
 		.sys_reg = reg,							\
 		.field_pos = field,						\
 		.field_width = width,						\
