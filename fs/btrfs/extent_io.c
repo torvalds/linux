@@ -326,7 +326,6 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 	if (!state)
 		return state;
 	state->state = 0;
-	state->failrec = NULL;
 	RB_CLEAR_NODE(&state->rb_node);
 	btrfs_leak_debug_add(&leak_lock, &state->leak_list, &states);
 	refcount_set(&state->refs, 1);
@@ -2159,64 +2158,29 @@ out:
 	return total_bytes;
 }
 
-/*
- * set the private field for a given byte offset in the tree.  If there isn't
- * an extent_state there already, this does nothing.
- */
-static int set_state_failrec(struct extent_io_tree *tree, u64 start,
-			     struct io_failure_record *failrec)
+static int insert_failrec(struct btrfs_inode *inode,
+			  struct io_failure_record *failrec)
 {
-	struct rb_node *node;
-	struct extent_state *state;
-	int ret = 0;
+	struct rb_node *exist;
 
-	spin_lock(&tree->lock);
-	/*
-	 * this search will find all the extents that end after
-	 * our range starts.
-	 */
-	node = tree_search(tree, start);
-	if (!node) {
-		ret = -ENOENT;
-		goto out;
-	}
-	state = rb_entry(node, struct extent_state, rb_node);
-	if (state->start != start) {
-		ret = -ENOENT;
-		goto out;
-	}
-	state->failrec = failrec;
-out:
-	spin_unlock(&tree->lock);
-	return ret;
+	spin_lock(&inode->io_failure_lock);
+	exist = rb_simple_insert(&inode->io_failure_tree, failrec->bytenr,
+				 &failrec->rb_node);
+	spin_unlock(&inode->io_failure_lock);
+
+	return (exist == NULL) ? 0 : -EEXIST;
 }
 
-static struct io_failure_record *get_state_failrec(struct extent_io_tree *tree,
-						   u64 start)
+static struct io_failure_record *get_failrec(struct btrfs_inode *inode, u64 start)
 {
 	struct rb_node *node;
-	struct extent_state *state;
-	struct io_failure_record *failrec;
+	struct io_failure_record *failrec = ERR_PTR(-ENOENT);
 
-	spin_lock(&tree->lock);
-	/*
-	 * this search will find all the extents that end after
-	 * our range starts.
-	 */
-	node = tree_search(tree, start);
-	if (!node) {
-		failrec = ERR_PTR(-ENOENT);
-		goto out;
-	}
-	state = rb_entry(node, struct extent_state, rb_node);
-	if (state->start != start) {
-		failrec = ERR_PTR(-ENOENT);
-		goto out;
-	}
-
-	failrec = state->failrec;
-out:
-	spin_unlock(&tree->lock);
+	spin_lock(&inode->io_failure_lock);
+	node = rb_simple_search(&inode->io_failure_tree, start);
+	if (node)
+		failrec = rb_entry(node, struct io_failure_record, rb_node);
+	spin_unlock(&inode->io_failure_lock);
 	return failrec;
 }
 
@@ -2276,28 +2240,20 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	return bitset;
 }
 
-static int free_io_failure(struct extent_io_tree *failure_tree,
-			   struct extent_io_tree *io_tree,
+static int free_io_failure(struct btrfs_inode *inode,
 			   struct io_failure_record *rec)
 {
 	int ret;
-	int err = 0;
 
-	set_state_failrec(failure_tree, rec->start, NULL);
-	ret = clear_extent_bits(failure_tree, rec->start,
-				rec->start + rec->len - 1,
-				EXTENT_LOCKED | EXTENT_DIRTY);
-	if (ret)
-		err = ret;
+	spin_lock(&inode->io_failure_lock);
+	rb_erase(&rec->rb_node, &inode->io_failure_tree);
+	spin_unlock(&inode->io_failure_lock);
 
-	ret = clear_extent_bits(io_tree, rec->start,
-				rec->start + rec->len - 1,
+	ret = clear_extent_bits(&inode->io_tree, rec->bytenr,
+				rec->bytenr + rec->len - 1,
 				EXTENT_DAMAGED);
-	if (ret && !err)
-		err = ret;
-
 	kfree(rec);
-	return err;
+	return ret;
 }
 
 /*
@@ -2436,22 +2392,13 @@ int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 			   struct page *page, unsigned int pg_offset)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_io_tree *failure_tree = &inode->io_failure_tree;
 	struct extent_io_tree *io_tree = &inode->io_tree;
 	u64 ino = btrfs_ino(inode);
-	u64 private;
 	struct io_failure_record *failrec;
 	struct extent_state *state;
 	int mirror;
-	int ret;
 
-	private = 0;
-	ret = count_range_bits(failure_tree, &private, (u64)-1, 1,
-			       EXTENT_DIRTY, 0);
-	if (!ret)
-		return 0;
-
-	failrec = get_state_failrec(failure_tree, start);
+	failrec = get_failrec(inode, start);
 	if (IS_ERR(failrec))
 		return 0;
 
@@ -2462,12 +2409,12 @@ int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 
 	spin_lock(&io_tree->lock);
 	state = find_first_extent_bit_state(io_tree,
-					    failrec->start,
+					    failrec->bytenr,
 					    EXTENT_LOCKED);
 	spin_unlock(&io_tree->lock);
 
-	if (!state || state->start > failrec->start ||
-	    state->end < failrec->start + failrec->len - 1)
+	if (!state || state->start > failrec->bytenr ||
+	    state->end < failrec->bytenr + failrec->len - 1)
 		goto out;
 
 	mirror = failrec->this_mirror;
@@ -2478,7 +2425,7 @@ int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 	} while (mirror != failrec->failed_mirror);
 
 out:
-	free_io_failure(failure_tree, io_tree, failrec);
+	free_io_failure(inode, failrec);
 	return 0;
 }
 
@@ -2490,30 +2437,26 @@ out:
  */
 void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end)
 {
-	struct extent_io_tree *failure_tree = &inode->io_failure_tree;
 	struct io_failure_record *failrec;
-	struct extent_state *state, *next;
+	struct rb_node *node, *next;
 
-	if (RB_EMPTY_ROOT(&failure_tree->state))
+	if (RB_EMPTY_ROOT(&inode->io_failure_tree))
 		return;
 
-	spin_lock(&failure_tree->lock);
-	state = find_first_extent_bit_state(failure_tree, start, EXTENT_DIRTY);
-	while (state) {
-		if (state->start > end)
+	spin_lock(&inode->io_failure_lock);
+	node = rb_simple_search_first(&inode->io_failure_tree, start);
+	while (node) {
+		failrec = rb_entry(node, struct io_failure_record, rb_node);
+		if (failrec->bytenr > end)
 			break;
 
-		ASSERT(state->end <= end);
-
-		next = next_state(state);
-
-		failrec = state->failrec;
-		free_extent_state(state);
+		next = rb_next(node);
+		rb_erase(&failrec->rb_node, &inode->io_failure_tree);
 		kfree(failrec);
 
-		state = next;
+		node = next;
 	}
-	spin_unlock(&failure_tree->lock);
+	spin_unlock(&inode->io_failure_lock);
 }
 
 static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode,
@@ -2523,16 +2466,15 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u64 start = bbio->file_offset + bio_offset;
 	struct io_failure_record *failrec;
-	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	const u32 sectorsize = fs_info->sectorsize;
 	int ret;
 
-	failrec = get_state_failrec(failure_tree, start);
+	failrec = get_failrec(BTRFS_I(inode), start);
 	if (!IS_ERR(failrec)) {
 		btrfs_debug(fs_info,
 	"Get IO Failure Record: (found) logical=%llu, start=%llu, len=%llu",
-			failrec->logical, failrec->start, failrec->len);
+			failrec->logical, failrec->bytenr, failrec->len);
 		/*
 		 * when data can be on disk more than twice, add to failrec here
 		 * (e.g. with a list for failed_mirror) to make
@@ -2547,7 +2489,8 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	if (!failrec)
 		return ERR_PTR(-ENOMEM);
 
-	failrec->start = start;
+	RB_CLEAR_NODE(&failrec->rb_node);
+	failrec->bytenr = start;
 	failrec->len = sectorsize;
 	failrec->failed_mirror = bbio->mirror_num;
 	failrec->this_mirror = bbio->mirror_num;
@@ -2572,15 +2515,15 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	}
 
 	/* Set the bits in the private failure tree */
-	ret = set_extent_bits(failure_tree, start, start + sectorsize - 1,
-			      EXTENT_LOCKED | EXTENT_DIRTY);
-	if (ret >= 0) {
-		ret = set_state_failrec(failure_tree, start, failrec);
-		/* Set the bits in the inode's tree */
-		ret = set_extent_bits(tree, start, start + sectorsize - 1,
-				      EXTENT_DAMAGED);
-	} else if (ret < 0) {
+	ret = insert_failrec(BTRFS_I(inode), failrec);
+	if (ret) {
 		kfree(failrec);
+		return ERR_PTR(ret);
+	}
+	ret = set_extent_bits(tree, start, start + sectorsize - 1,
+			      EXTENT_DAMAGED);
+	if (ret) {
+		free_io_failure(BTRFS_I(inode), failrec);
 		return ERR_PTR(ret);
 	}
 
@@ -2594,8 +2537,6 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 	u64 start = failed_bbio->file_offset + bio_offset;
 	struct io_failure_record *failrec;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
-	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct bio *failed_bio = &failed_bbio->bio;
 	const int icsum = bio_offset >> fs_info->sectorsize_bits;
 	struct bio *repair_bio;
@@ -2624,7 +2565,7 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 		btrfs_debug(fs_info,
 			"failed to repair num_copies %d this_mirror %d failed_mirror %d",
 			failrec->num_copies, failrec->this_mirror, failrec->failed_mirror);
-		free_io_failure(failure_tree, tree, failrec);
+		free_io_failure(BTRFS_I(inode), failrec);
 		return -EIO;
 	}
 

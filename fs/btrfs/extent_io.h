@@ -254,8 +254,12 @@ int btrfs_repair_eb_io_failure(const struct extent_buffer *eb, int mirror_num);
  * bio end_io callback is called to indicate things have failed.
  */
 struct io_failure_record {
+	/* Use rb_simple_node for search/insert */
+	struct {
+		struct rb_node rb_node;
+		u64 bytenr;
+	};
 	struct page *page;
-	u64 start;
 	u64 len;
 	u64 logical;
 	int this_mirror;

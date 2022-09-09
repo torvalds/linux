@@ -56,7 +56,6 @@ enum {
 	IO_TREE_FS_EXCLUDED_EXTENTS,
 	IO_TREE_BTREE_INODE_IO,
 	IO_TREE_INODE_IO,
-	IO_TREE_INODE_IO_FAILURE,
 	IO_TREE_RELOC_BLOCKS,
 	IO_TREE_TRANS_DIRTY_PAGES,
 	IO_TREE_ROOT_DIRTY_LOG_PAGES,
@@ -88,8 +87,6 @@ struct extent_state {
 	wait_queue_head_t wq;
 	refcount_t refs;
 	u32 state;
-
-	struct io_failure_record *failrec;
 
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
