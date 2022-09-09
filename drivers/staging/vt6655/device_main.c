@@ -586,13 +586,12 @@ static void device_free_rings(struct vnt_private *priv)
 			  priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
 			  priv->aRD0Ring, priv->pool_dma);
 
-	if (priv->tx0_bufs)
-		dma_free_coherent(&priv->pcid->dev,
-				  priv->opts.tx_descs[0] * PKT_BUF_SZ +
-				  priv->opts.tx_descs[1] * PKT_BUF_SZ +
-				  CB_BEACON_BUF_SIZE +
-				  CB_MAX_BUF_SIZE,
-				  priv->tx0_bufs, priv->tx_bufs_dma0);
+	dma_free_coherent(&priv->pcid->dev,
+			  priv->opts.tx_descs[0] * PKT_BUF_SZ +
+			  priv->opts.tx_descs[1] * PKT_BUF_SZ +
+			  CB_BEACON_BUF_SIZE +
+			  CB_MAX_BUF_SIZE,
+			  priv->tx0_bufs, priv->tx_bufs_dma0);
 }
 
 static int device_init_rd0_ring(struct vnt_private *priv)
