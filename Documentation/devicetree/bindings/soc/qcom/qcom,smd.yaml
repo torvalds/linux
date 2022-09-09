@@ -20,7 +20,7 @@ properties:
     const: qcom,smd
 
 patternProperties:
-  "^.*-edge|rpm$":
+  "^smd-edge|rpm$":
     $ref: /schemas/remoteproc/qcom,smd-edge.yaml#
     description:
       Each subnode of the SMD node represents a remote subsystem or a remote
