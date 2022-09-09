@@ -774,6 +774,12 @@ static int pci_pm_suspend(struct device *dev)
 
 	pci_dev->skip_bus_pm = false;
 
+	/*
+	 * Disabling PTM allows some systems, e.g., Intel mobile chips
+	 * since Coffee Lake, to enter a lower-power PM state.
+	 */
+	pci_suspend_ptm(pci_dev);
+
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_SUSPEND);
 
@@ -986,6 +992,8 @@ static int pci_pm_resume(struct device *dev)
 	 */
 	if (pci_dev->state_saved)
 		pci_restore_standard_config(pci_dev);
+
+	pci_resume_ptm(pci_dev);
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume(dev);
@@ -1274,6 +1282,8 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	pci_power_t prev = pci_dev->current_state;
 	int error;
 
+	pci_suspend_ptm(pci_dev);
+
 	/*
 	 * If pci_dev->driver is not set (unbound), we leave the device in D0,
 	 * but it may go to D3cold when the bridge above it runtime suspends.
@@ -1335,6 +1345,7 @@ static int pci_pm_runtime_resume(struct device *dev)
 	 * D3cold when the bridge above it runtime suspended.
 	 */
 	pci_pm_default_resume_early(pci_dev);
+	pci_resume_ptm(pci_dev);
 
 	if (!pci_dev->driver)
 		return 0;
