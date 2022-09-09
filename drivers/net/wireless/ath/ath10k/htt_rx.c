@@ -2496,7 +2496,7 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 
 	/* I have not yet seen any case where num_mpdu_ranges > 1.
 	 * qcacld does not seem handle that case either, so we introduce the
-	 * same limitiation here as well.
+	 * same limitation here as well.
 	 */
 	if (num_mpdu_ranges > 1)
 		ath10k_warn(ar,

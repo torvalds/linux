@@ -81,7 +81,7 @@ struct ath10k_pci_pipe {
 	/* Handle of underlying Copy Engine */
 	struct ath10k_ce_pipe *ce_hdl;
 
-	/* Our pipe number; facilitiates use of pipe_info ptrs. */
+	/* Our pipe number; facilitates use of pipe_info ptrs. */
 	u8 pipe_num;
 
 	/* Convenience back pointer to hif_ce_state. */

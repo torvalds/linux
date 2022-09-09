@@ -1813,7 +1813,7 @@ struct wmi_tlv_pdev_get_temp_cmd {
 
 struct wmi_tlv_pdev_temperature_event {
 	__le32 tlv_hdr;
-	/* temperature value in Celcius degree */
+	/* temperature value in Celsius degree */
 	__le32 temperature;
 	__le32 pdev_id;
 } __packed;
@@ -2548,7 +2548,7 @@ struct nlo_channel_prediction_cfg {
 
 	/* Preconfigured stationary threshold.
 	 * Lesser value means more conservative. Bigger value means more aggressive.
-	 * Maximum is 100 and mininum is 0.
+	 * Maximum is 100 and minimum is 0.
 	 */
 	__le32 stationary_threshold;
 

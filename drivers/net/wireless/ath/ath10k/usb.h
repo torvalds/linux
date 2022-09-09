@@ -26,7 +26,7 @@
 #define ATH10K_USB_EP_ADDR_APP_DATA_MP_OUT      0x03
 #define ATH10K_USB_EP_ADDR_APP_DATA_HP_OUT      0x04
 
-/* diagnostic command defnitions */
+/* diagnostic command definitions */
 #define ATH10K_USB_CONTROL_REQ_SEND_BMI_CMD        1
 #define ATH10K_USB_CONTROL_REQ_RECV_BMI_RESP       2
 #define ATH10K_USB_CONTROL_REQ_DIAG_CMD            3
