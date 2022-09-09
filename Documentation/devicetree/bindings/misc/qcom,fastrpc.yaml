@@ -27,6 +27,11 @@ properties:
       - sdsp
       - cdsp
 
+  memory-region:
+    maxItems: 1
+    description:
+      Phandle to a node describing memory to be used for remote heap CMA.
+
   qcom,glink-channels:
     description:
       A list of channels tied to this function, used for matching
