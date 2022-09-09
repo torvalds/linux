@@ -3,43 +3,48 @@
 #ifndef BTRFS_EXTENT_IO_TREE_H
 #define BTRFS_EXTENT_IO_TREE_H
 
+#include "misc.h"
+
 struct extent_changeset;
 struct io_failure_record;
 
 /* Bits for the extent state */
-#define EXTENT_DIRTY		(1U << 0)
-#define EXTENT_UPTODATE		(1U << 1)
-#define EXTENT_LOCKED		(1U << 2)
-#define EXTENT_NEW		(1U << 3)
-#define EXTENT_DELALLOC		(1U << 4)
-#define EXTENT_DEFRAG		(1U << 5)
-#define EXTENT_BOUNDARY		(1U << 6)
-#define EXTENT_NODATASUM	(1U << 7)
-#define EXTENT_CLEAR_META_RESV	(1U << 8)
-#define EXTENT_NEED_WAIT	(1U << 9)
-#define EXTENT_NORESERVE	(1U << 11)
-#define EXTENT_QGROUP_RESERVED	(1U << 12)
-#define EXTENT_CLEAR_DATA_RESV	(1U << 13)
-/*
- * Must be cleared only during ordered extent completion or on error paths if we
- * did not manage to submit bios and create the ordered extents for the range.
- * Should not be cleared during page release and page invalidation (if there is
- * an ordered extent in flight), that is left for the ordered extent completion.
- */
-#define EXTENT_DELALLOC_NEW	(1U << 14)
-/*
- * When an ordered extent successfully completes for a region marked as a new
- * delalloc range, use this flag when clearing a new delalloc range to indicate
- * that the VFS' inode number of bytes should be incremented and the inode's new
- * delalloc bytes decremented, in an atomic way to prevent races with stat(2).
- */
-#define EXTENT_ADD_INODE_BYTES  (1U << 15)
-
-/*
- * Set during truncate when we're clearing an entire range and we just want the
- * extent states to go away.
- */
-#define EXTENT_CLEAR_ALL_BITS	(1U << 16)
+enum {
+	ENUM_BIT(EXTENT_DIRTY),
+	ENUM_BIT(EXTENT_UPTODATE),
+	ENUM_BIT(EXTENT_LOCKED),
+	ENUM_BIT(EXTENT_NEW),
+	ENUM_BIT(EXTENT_DELALLOC),
+	ENUM_BIT(EXTENT_DEFRAG),
+	ENUM_BIT(EXTENT_BOUNDARY),
+	ENUM_BIT(EXTENT_NODATASUM),
+	ENUM_BIT(EXTENT_CLEAR_META_RESV),
+	ENUM_BIT(EXTENT_NEED_WAIT),
+	ENUM_BIT(EXTENT_NORESERVE),
+	ENUM_BIT(EXTENT_QGROUP_RESERVED),
+	ENUM_BIT(EXTENT_CLEAR_DATA_RESV),
+	/*
+	 * Must be cleared only during ordered extent completion or on error
+	 * paths if we did not manage to submit bios and create the ordered
+	 * extents for the range.  Should not be cleared during page release
+	 * and page invalidation (if there is an ordered extent in flight),
+	 * that is left for the ordered extent completion.
+	 */
+	ENUM_BIT(EXTENT_DELALLOC_NEW),
+	/*
+	 * When an ordered extent successfully completes for a region marked as
+	 * a new delalloc range, use this flag when clearing a new delalloc
+	 * range to indicate that the VFS' inode number of bytes should be
+	 * incremented and the inode's new delalloc bytes decremented, in an
+	 * atomic way to prevent races with stat(2).
+	 */
+	ENUM_BIT(EXTENT_ADD_INODE_BYTES),
+	/*
+	 * Set during truncate when we're clearing an entire range and we just
+	 * want the extent states to go away.
+	 */
+	ENUM_BIT(EXTENT_CLEAR_ALL_BITS),
+};
 
 #define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \
 				 EXTENT_CLEAR_DATA_RESV)
