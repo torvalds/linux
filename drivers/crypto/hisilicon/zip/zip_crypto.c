@@ -599,12 +599,13 @@ static void hisi_zip_ctx_exit(struct hisi_zip_ctx *hisi_zip_ctx)
 
 static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 {
+	u16 q_depth = ctx->qp_ctx[0].qp->sq_depth;
 	struct hisi_zip_req_q *req_q;
 	int i, ret;
 
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++) {
 		req_q = &ctx->qp_ctx[i].req_q;
-		req_q->size = QM_Q_DEPTH;
+		req_q->size = q_depth;
 
 		req_q->req_bitmap = bitmap_zalloc(req_q->size, GFP_KERNEL);
 		if (!req_q->req_bitmap) {
@@ -650,6 +651,7 @@ static void hisi_zip_release_req_q(struct hisi_zip_ctx *ctx)
 
 static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 {
+	u16 q_depth = ctx->qp_ctx[0].qp->sq_depth;
 	struct hisi_zip_qp_ctx *tmp;
 	struct device *dev;
 	int i;
@@ -657,7 +659,7 @@ static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++) {
 		tmp = &ctx->qp_ctx[i];
 		dev = &tmp->qp->qm->pdev->dev;
-		tmp->sgl_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH << 1,
+		tmp->sgl_pool = hisi_acc_create_sgl_pool(dev, q_depth << 1,
 							 sgl_sge_nr);
 		if (IS_ERR(tmp->sgl_pool)) {
 			if (i == 1)

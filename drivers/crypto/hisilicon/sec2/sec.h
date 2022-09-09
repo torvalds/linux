@@ -17,6 +17,7 @@ struct sec_alg_res {
 	dma_addr_t a_ivin_dma;
 	u8 *out_mac;
 	dma_addr_t out_mac_dma;
+	u16 depth;
 };
 
 /* Cipher request of SEC private */
@@ -115,9 +116,9 @@ struct sec_cipher_ctx {
 /* SEC queue context which defines queue's relatives */
 struct sec_qp_ctx {
 	struct hisi_qp *qp;
-	struct sec_req *req_list[QM_Q_DEPTH];
+	struct sec_req **req_list;
 	struct idr req_idr;
-	struct sec_alg_res res[QM_Q_DEPTH];
+	struct sec_alg_res *res;
 	struct sec_ctx *ctx;
 	spinlock_t req_lock;
 	struct list_head backlog;

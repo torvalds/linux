@@ -59,14 +59,14 @@
 #define SEC_ICV_MASK		0x000E
 #define SEC_SQE_LEN_RATE_MASK	0x3
 
-#define SEC_TOTAL_IV_SZ		(SEC_IV_SIZE * QM_Q_DEPTH)
+#define SEC_TOTAL_IV_SZ(depth)	(SEC_IV_SIZE * (depth))
 #define SEC_SGL_SGE_NR		128
 #define SEC_CIPHER_AUTH		0xfe
 #define SEC_AUTH_CIPHER		0x1
 #define SEC_MAX_MAC_LEN		64
 #define SEC_MAX_AAD_LEN		65535
 #define SEC_MAX_CCM_AAD_LEN	65279
-#define SEC_TOTAL_MAC_SZ	(SEC_MAX_MAC_LEN * QM_Q_DEPTH)
+#define SEC_TOTAL_MAC_SZ(depth) (SEC_MAX_MAC_LEN * (depth))
 
 #define SEC_PBUF_SZ			512
 #define SEC_PBUF_IV_OFFSET		SEC_PBUF_SZ
@@ -74,11 +74,11 @@
 #define SEC_PBUF_PKG		(SEC_PBUF_SZ + SEC_IV_SIZE +	\
 			SEC_MAX_MAC_LEN * 2)
 #define SEC_PBUF_NUM		(PAGE_SIZE / SEC_PBUF_PKG)
-#define SEC_PBUF_PAGE_NUM	(QM_Q_DEPTH / SEC_PBUF_NUM)
-#define SEC_PBUF_LEFT_SZ	(SEC_PBUF_PKG * (QM_Q_DEPTH -	\
-			SEC_PBUF_PAGE_NUM * SEC_PBUF_NUM))
-#define SEC_TOTAL_PBUF_SZ	(PAGE_SIZE * SEC_PBUF_PAGE_NUM +	\
-			SEC_PBUF_LEFT_SZ)
+#define SEC_PBUF_PAGE_NUM(depth)	((depth) / SEC_PBUF_NUM)
+#define SEC_PBUF_LEFT_SZ(depth)		(SEC_PBUF_PKG * ((depth) -	\
+				SEC_PBUF_PAGE_NUM(depth) * SEC_PBUF_NUM))
+#define SEC_TOTAL_PBUF_SZ(depth)	(PAGE_SIZE * SEC_PBUF_PAGE_NUM(depth) +	\
+				SEC_PBUF_LEFT_SZ(depth))
 
 #define SEC_SQE_LEN_RATE	4
 #define SEC_SQE_CFLAG		2
@@ -128,9 +128,7 @@ static int sec_alloc_req_id(struct sec_req *req, struct sec_qp_ctx *qp_ctx)
 	int req_id;
 
 	spin_lock_bh(&qp_ctx->req_lock);
-
-	req_id = idr_alloc_cyclic(&qp_ctx->req_idr, NULL,
-				  0, QM_Q_DEPTH, GFP_ATOMIC);
+	req_id = idr_alloc_cyclic(&qp_ctx->req_idr, NULL, 0, qp_ctx->qp->sq_depth, GFP_ATOMIC);
 	spin_unlock_bh(&qp_ctx->req_lock);
 	if (unlikely(req_id < 0)) {
 		dev_err(req->ctx->dev, "alloc req id fail!\n");
@@ -148,7 +146,7 @@ static void sec_free_req_id(struct sec_req *req)
 	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
 	int req_id = req->req_id;
 
-	if (unlikely(req_id < 0 || req_id >= QM_Q_DEPTH)) {
+	if (unlikely(req_id < 0 || req_id >= qp_ctx->qp->sq_depth)) {
 		dev_err(req->ctx->dev, "free request id invalid!\n");
 		return;
 	}
@@ -300,14 +298,15 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 /* Get DMA memory resources */
 static int sec_alloc_civ_resource(struct device *dev, struct sec_alg_res *res)
 {
+	u16 q_depth = res->depth;
 	int i;
 
-	res->c_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ,
+	res->c_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ(q_depth),
 					 &res->c_ivin_dma, GFP_KERNEL);
 	if (!res->c_ivin)
 		return -ENOMEM;
 
-	for (i = 1; i < QM_Q_DEPTH; i++) {
+	for (i = 1; i < q_depth; i++) {
 		res[i].c_ivin_dma = res->c_ivin_dma + i * SEC_IV_SIZE;
 		res[i].c_ivin = res->c_ivin + i * SEC_IV_SIZE;
 	}
@@ -318,20 +317,21 @@ static int sec_alloc_civ_resource(struct device *dev, struct sec_alg_res *res)
 static void sec_free_civ_resource(struct device *dev, struct sec_alg_res *res)
 {
 	if (res->c_ivin)
-		dma_free_coherent(dev, SEC_TOTAL_IV_SZ,
+		dma_free_coherent(dev, SEC_TOTAL_IV_SZ(res->depth),
 				  res->c_ivin, res->c_ivin_dma);
 }
 
 static int sec_alloc_aiv_resource(struct device *dev, struct sec_alg_res *res)
 {
+	u16 q_depth = res->depth;
 	int i;
 
-	res->a_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ,
+	res->a_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ(q_depth),
 					 &res->a_ivin_dma, GFP_KERNEL);
 	if (!res->a_ivin)
 		return -ENOMEM;
 
-	for (i = 1; i < QM_Q_DEPTH; i++) {
+	for (i = 1; i < q_depth; i++) {
 		res[i].a_ivin_dma = res->a_ivin_dma + i * SEC_IV_SIZE;
 		res[i].a_ivin = res->a_ivin + i * SEC_IV_SIZE;
 	}
@@ -342,20 +342,21 @@ static int sec_alloc_aiv_resource(struct device *dev, struct sec_alg_res *res)
 static void sec_free_aiv_resource(struct device *dev, struct sec_alg_res *res)
 {
 	if (res->a_ivin)
-		dma_free_coherent(dev, SEC_TOTAL_IV_SZ,
+		dma_free_coherent(dev, SEC_TOTAL_IV_SZ(res->depth),
 				  res->a_ivin, res->a_ivin_dma);
 }
 
 static int sec_alloc_mac_resource(struct device *dev, struct sec_alg_res *res)
 {
+	u16 q_depth = res->depth;
 	int i;
 
-	res->out_mac = dma_alloc_coherent(dev, SEC_TOTAL_MAC_SZ << 1,
+	res->out_mac = dma_alloc_coherent(dev, SEC_TOTAL_MAC_SZ(q_depth) << 1,
 					  &res->out_mac_dma, GFP_KERNEL);
 	if (!res->out_mac)
 		return -ENOMEM;
 
-	for (i = 1; i < QM_Q_DEPTH; i++) {
+	for (i = 1; i < q_depth; i++) {
 		res[i].out_mac_dma = res->out_mac_dma +
 				     i * (SEC_MAX_MAC_LEN << 1);
 		res[i].out_mac = res->out_mac + i * (SEC_MAX_MAC_LEN << 1);
@@ -367,14 +368,14 @@ static int sec_alloc_mac_resource(struct device *dev, struct sec_alg_res *res)
 static void sec_free_mac_resource(struct device *dev, struct sec_alg_res *res)
 {
 	if (res->out_mac)
-		dma_free_coherent(dev, SEC_TOTAL_MAC_SZ << 1,
+		dma_free_coherent(dev, SEC_TOTAL_MAC_SZ(res->depth) << 1,
 				  res->out_mac, res->out_mac_dma);
 }
 
 static void sec_free_pbuf_resource(struct device *dev, struct sec_alg_res *res)
 {
 	if (res->pbuf)
-		dma_free_coherent(dev, SEC_TOTAL_PBUF_SZ,
+		dma_free_coherent(dev, SEC_TOTAL_PBUF_SZ(res->depth),
 				  res->pbuf, res->pbuf_dma);
 }
 
@@ -384,10 +385,12 @@ static void sec_free_pbuf_resource(struct device *dev, struct sec_alg_res *res)
  */
 static int sec_alloc_pbuf_resource(struct device *dev, struct sec_alg_res *res)
 {
+	u16 q_depth = res->depth;
+	int size = SEC_PBUF_PAGE_NUM(q_depth);
 	int pbuf_page_offset;
 	int i, j, k;
 
-	res->pbuf = dma_alloc_coherent(dev, SEC_TOTAL_PBUF_SZ,
+	res->pbuf = dma_alloc_coherent(dev, SEC_TOTAL_PBUF_SZ(q_depth),
 				&res->pbuf_dma, GFP_KERNEL);
 	if (!res->pbuf)
 		return -ENOMEM;
@@ -400,11 +403,11 @@ static int sec_alloc_pbuf_resource(struct device *dev, struct sec_alg_res *res)
 	 * So we need SEC_PBUF_PAGE_NUM numbers of PAGE
 	 * for the SEC_TOTAL_PBUF_SZ
 	 */
-	for (i = 0; i <= SEC_PBUF_PAGE_NUM; i++) {
+	for (i = 0; i <= size; i++) {
 		pbuf_page_offset = PAGE_SIZE * i;
 		for (j = 0; j < SEC_PBUF_NUM; j++) {
 			k = i * SEC_PBUF_NUM + j;
-			if (k == QM_Q_DEPTH)
+			if (k == q_depth)
 				break;
 			res[k].pbuf = res->pbuf +
 				j * SEC_PBUF_PKG + pbuf_page_offset;
@@ -470,13 +473,68 @@ static void sec_alg_resource_free(struct sec_ctx *ctx,
 		sec_free_mac_resource(dev, qp_ctx->res);
 }
 
+static int sec_alloc_qp_ctx_resource(struct hisi_qm *qm, struct sec_ctx *ctx,
+				     struct sec_qp_ctx *qp_ctx)
+{
+	u16 q_depth = qp_ctx->qp->sq_depth;
+	struct device *dev = ctx->dev;
+	int ret = -ENOMEM;
+
+	qp_ctx->req_list = kcalloc(q_depth, sizeof(struct sec_req *), GFP_KERNEL);
+	if (!qp_ctx->req_list)
+		return ret;
+
+	qp_ctx->res = kcalloc(q_depth, sizeof(struct sec_alg_res), GFP_KERNEL);
+	if (!qp_ctx->res)
+		goto err_free_req_list;
+	qp_ctx->res->depth = q_depth;
+
+	qp_ctx->c_in_pool = hisi_acc_create_sgl_pool(dev, q_depth, SEC_SGL_SGE_NR);
+	if (IS_ERR(qp_ctx->c_in_pool)) {
+		dev_err(dev, "fail to create sgl pool for input!\n");
+		goto err_free_res;
+	}
+
+	qp_ctx->c_out_pool = hisi_acc_create_sgl_pool(dev, q_depth, SEC_SGL_SGE_NR);
+	if (IS_ERR(qp_ctx->c_out_pool)) {
+		dev_err(dev, "fail to create sgl pool for output!\n");
+		goto err_free_c_in_pool;
+	}
+
+	ret = sec_alg_resource_alloc(ctx, qp_ctx);
+	if (ret)
+		goto err_free_c_out_pool;
+
+	return 0;
+
+err_free_c_out_pool:
+	hisi_acc_free_sgl_pool(dev, qp_ctx->c_out_pool);
+err_free_c_in_pool:
+	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
+err_free_res:
+	kfree(qp_ctx->res);
+err_free_req_list:
+	kfree(qp_ctx->req_list);
+	return ret;
+}
+
+static void sec_free_qp_ctx_resource(struct sec_ctx *ctx, struct sec_qp_ctx *qp_ctx)
+{
+	struct device *dev = ctx->dev;
+
+	sec_alg_resource_free(ctx, qp_ctx);
+	hisi_acc_free_sgl_pool(dev, qp_ctx->c_out_pool);
+	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
+	kfree(qp_ctx->res);
+	kfree(qp_ctx->req_list);
+}
+
 static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 			     int qp_ctx_id, int alg_type)
 {
-	struct device *dev = ctx->dev;
 	struct sec_qp_ctx *qp_ctx;
 	struct hisi_qp *qp;
-	int ret = -ENOMEM;
+	int ret;
 
 	qp_ctx = &ctx->qp_ctx[qp_ctx_id];
 	qp = ctx->qps[qp_ctx_id];
@@ -491,36 +549,18 @@ static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 	idr_init(&qp_ctx->req_idr);
 	INIT_LIST_HEAD(&qp_ctx->backlog);
 
-	qp_ctx->c_in_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH,
-						     SEC_SGL_SGE_NR);
-	if (IS_ERR(qp_ctx->c_in_pool)) {
-		dev_err(dev, "fail to create sgl pool for input!\n");
-		goto err_destroy_idr;
-	}
-
-	qp_ctx->c_out_pool = hisi_acc_create_sgl_pool(dev, QM_Q_DEPTH,
-						      SEC_SGL_SGE_NR);
-	if (IS_ERR(qp_ctx->c_out_pool)) {
-		dev_err(dev, "fail to create sgl pool for output!\n");
-		goto err_free_c_in_pool;
-	}
-
-	ret = sec_alg_resource_alloc(ctx, qp_ctx);
+	ret = sec_alloc_qp_ctx_resource(qm, ctx, qp_ctx);
 	if (ret)
-		goto err_free_c_out_pool;
+		goto err_destroy_idr;
 
 	ret = hisi_qm_start_qp(qp, 0);
 	if (ret < 0)
-		goto err_queue_free;
+		goto err_resource_free;
 
 	return 0;
 
-err_queue_free:
-	sec_alg_resource_free(ctx, qp_ctx);
-err_free_c_out_pool:
-	hisi_acc_free_sgl_pool(dev, qp_ctx->c_out_pool);
-err_free_c_in_pool:
-	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
+err_resource_free:
+	sec_free_qp_ctx_resource(ctx, qp_ctx);
 err_destroy_idr:
 	idr_destroy(&qp_ctx->req_idr);
 	return ret;
@@ -529,14 +569,8 @@ err_destroy_idr:
 static void sec_release_qp_ctx(struct sec_ctx *ctx,
 			       struct sec_qp_ctx *qp_ctx)
 {
-	struct device *dev = ctx->dev;
-
 	hisi_qm_stop_qp(qp_ctx->qp);
-	sec_alg_resource_free(ctx, qp_ctx);
-
-	hisi_acc_free_sgl_pool(dev, qp_ctx->c_out_pool);
-	hisi_acc_free_sgl_pool(dev, qp_ctx->c_in_pool);
-
+	sec_free_qp_ctx_resource(ctx, qp_ctx);
 	idr_destroy(&qp_ctx->req_idr);
 }
 
@@ -559,7 +593,7 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 	ctx->pbuf_supported = ctx->sec->iommu_used;
 
 	/* Half of queue depth is taken as fake requests limit in the queue. */
-	ctx->fake_req_limit = QM_Q_DEPTH >> 1;
+	ctx->fake_req_limit = ctx->qps[0]->sq_depth >> 1;
 	ctx->qp_ctx = kcalloc(sec->ctx_q_num, sizeof(struct sec_qp_ctx),
 			      GFP_KERNEL);
 	if (!ctx->qp_ctx) {
