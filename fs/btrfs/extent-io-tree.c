@@ -5,6 +5,7 @@
 #include "ctree.h"
 #include "extent-io-tree.h"
 #include "btrfs_inode.h"
+#include "misc.h"
 
 static struct kmem_cache *extent_state_cache;
 
@@ -509,6 +510,123 @@ struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	return next;
 }
 
+/*
+ * Find the first range that has @bits not set. This range could start before
+ * @start.
+ *
+ * @tree:      the tree to search
+ * @start:     offset at/after which the found extent should start
+ * @start_ret: records the beginning of the range
+ * @end_ret:   records the end of the range (inclusive)
+ * @bits:      the set of bits which must be unset
+ *
+ * Since unallocated range is also considered one which doesn't have the bits
+ * set it's possible that @end_ret contains -1, this happens in case the range
+ * spans (last_range_end, end of device]. In this case it's up to the caller to
+ * trim @end_ret to the appropriate size.
+ */
+void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
+				 u64 *start_ret, u64 *end_ret, u32 bits)
+{
+	struct extent_state *state;
+	struct rb_node *node, *prev = NULL, *next;
+
+	spin_lock(&tree->lock);
+
+	/* Find first extent with bits cleared */
+	while (1) {
+		node = tree_search_prev_next(tree, start, &prev, &next);
+		if (!node && !next && !prev) {
+			/*
+			 * Tree is completely empty, send full range and let
+			 * caller deal with it
+			 */
+			*start_ret = 0;
+			*end_ret = -1;
+			goto out;
+		} else if (!node && !next) {
+			/*
+			 * We are past the last allocated chunk, set start at
+			 * the end of the last extent.
+			 */
+			state = rb_entry(prev, struct extent_state, rb_node);
+			*start_ret = state->end + 1;
+			*end_ret = -1;
+			goto out;
+		} else if (!node) {
+			node = next;
+		}
+		/*
+		 * At this point 'node' either contains 'start' or start is
+		 * before 'node'
+		 */
+		state = rb_entry(node, struct extent_state, rb_node);
+
+		if (in_range(start, state->start, state->end - state->start + 1)) {
+			if (state->state & bits) {
+				/*
+				 * |--range with bits sets--|
+				 *    |
+				 *    start
+				 */
+				start = state->end + 1;
+			} else {
+				/*
+				 * 'start' falls within a range that doesn't
+				 * have the bits set, so take its start as the
+				 * beginning of the desired range
+				 *
+				 * |--range with bits cleared----|
+				 *      |
+				 *      start
+				 */
+				*start_ret = state->start;
+				break;
+			}
+		} else {
+			/*
+			 * |---prev range---|---hole/unset---|---node range---|
+			 *                          |
+			 *                        start
+			 *
+			 *                        or
+			 *
+			 * |---hole/unset--||--first node--|
+			 * 0   |
+			 *    start
+			 */
+			if (prev) {
+				state = rb_entry(prev, struct extent_state,
+						 rb_node);
+				*start_ret = state->end + 1;
+			} else {
+				*start_ret = 0;
+			}
+			break;
+		}
+	}
+
+	/*
+	 * Find the longest stretch from start until an entry which has the
+	 * bits set
+	 */
+	while (1) {
+		state = rb_entry(node, struct extent_state, rb_node);
+		if (state->end >= start && !(state->state & bits)) {
+			*end_ret = state->end;
+		} else {
+			*end_ret = state->start - 1;
+			break;
+		}
+
+		node = rb_next(node);
+		if (!node)
+			break;
+	}
+out:
+	spin_unlock(&tree->lock);
+}
+
 /* Wrappers around set/clear extent bit */
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			   u32 bits, struct extent_changeset *changeset)
@@ -552,6 +670,30 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 		return 0;
 	}
 	return 1;
+}
+
+/*
+ * Either insert or lock state struct between start and end use mask to tell
+ * us if waiting is desired.
+ */
+int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+		     struct extent_state **cached_state)
+{
+	int err;
+	u64 failed_start;
+
+	while (1) {
+		err = set_extent_bit(tree, start, end, EXTENT_LOCKED,
+				     EXTENT_LOCKED, &failed_start,
+				     cached_state, GFP_NOFS, NULL);
+		if (err == -EEXIST) {
+			wait_extent_bit(tree, failed_start, end, EXTENT_LOCKED);
+			start = failed_start;
+		} else
+			break;
+		WARN_ON(start > end);
+	}
+	return err;
 }
 
 void __cold extent_state_free_cachep(void)
