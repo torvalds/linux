@@ -17,16 +17,4 @@ struct rnbd_dev {
 	fmode_t			blk_open_flags;
 };
 
-/**
- * rnbd_dev_open() - Open a device
- * @path:	path to open
- * @flags:	open flags
- */
-struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags);
-
-/**
- * rnbd_dev_close() - Close a device
- */
-void rnbd_dev_close(struct rnbd_dev *dev);
-
 #endif /* RNBD_SRV_DEV_H */

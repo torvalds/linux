@@ -220,7 +220,9 @@ void rnbd_destroy_sess_dev(struct rnbd_srv_sess_dev *sess_dev, bool keep_id)
 	rnbd_put_sess_dev(sess_dev);
 	wait_for_completion(&dc); /* wait for inflights to drop to zero */
 
-	rnbd_dev_close(sess_dev->rnbd_dev);
+	blkdev_put(sess_dev->rnbd_dev->bdev,
+		   sess_dev->rnbd_dev->blk_open_flags);
+	kfree(sess_dev->rnbd_dev);
 	mutex_lock(&sess_dev->dev->lock);
 	list_del(&sess_dev->dev_list);
 	if (sess_dev->open_flags & FMODE_WRITE)
@@ -721,11 +723,19 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 		goto reject;
 	}
 
-	rnbd_dev = rnbd_dev_open(full_path, open_flags);
-	if (IS_ERR(rnbd_dev)) {
-		pr_err("Opening device '%s' on session %s failed, failed to open the block device, err: %ld\n",
-		       full_path, srv_sess->sessname, PTR_ERR(rnbd_dev));
-		ret = PTR_ERR(rnbd_dev);
+	rnbd_dev = kzalloc(sizeof(*rnbd_dev), GFP_KERNEL);
+	if (!rnbd_dev) {
+		ret = -ENOMEM;
+		goto free_path;
+	}
+
+	rnbd_dev->blk_open_flags = open_flags;
+	rnbd_dev->bdev = blkdev_get_by_path(full_path, open_flags, THIS_MODULE);
+	if (IS_ERR(rnbd_dev->bdev)) {
+		ret = PTR_ERR(rnbd_dev->bdev);
+		pr_err("Opening device '%s' on session %s failed, failed to open the block device, err: %d\n",
+		       full_path, srv_sess->sessname, ret);
+		kfree(rnbd_dev);
 		goto free_path;
 	}
 
@@ -797,7 +807,8 @@ srv_dev_put:
 	}
 	rnbd_put_srv_dev(srv_dev);
 rnbd_dev_close:
-	rnbd_dev_close(rnbd_dev);
+	blkdev_put(rnbd_dev->bdev, rnbd_dev->blk_open_flags);
+	kfree(rnbd_dev);
 free_path:
 	kfree(full_path);
 reject:

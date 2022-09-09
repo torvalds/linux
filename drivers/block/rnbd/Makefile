@@ -10,7 +10,6 @@ CFLAGS_rnbd-srv-trace.o = -I$(src)
 
 rnbd-server-y := rnbd-common.o \
 		  rnbd-srv.o \
-		  rnbd-srv-dev.o \
 		  rnbd-srv-sysfs.o \
 		  rnbd-srv-trace.o
 
