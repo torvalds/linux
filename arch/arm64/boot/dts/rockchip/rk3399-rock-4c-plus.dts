@@ -23,15 +23,6 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		clocks = <&rk809 1>;
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h>;
-		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
-	};
-
 	clkin_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
@@ -61,6 +52,15 @@
 		};
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk809 1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+	};
+
 	vcc_3v3: vcc-3v3-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3";
@@ -71,13 +71,14 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc3v3_phy1: vcc3v3-phy1-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_sys";
+		regulator-name = "vcc3v3_phy1";
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3>;
 	};
 
 	vcc5v0_host1: vcc5v0-host-regulator {
@@ -92,6 +93,15 @@
 		vin-supply = <&vcc5v0_host0_s0>;
 	};
 
+	vcc5v0_sys: vcc5v0-sys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	vcc5v0_typec: vcc5v0-typec-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -102,16 +112,6 @@
 		regulator-always-on;
 		regulator-boot-on;
 		vin-supply = <&vcc5v0_sys>;
-	};
-
-	vcc3v3_phy1: vcc3v3-phy1-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_phy1";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_3v3>;
 	};
 
 	vdd_log: vdd-log-regulator {
@@ -447,8 +447,8 @@
 };
 
 &io_domains {
-	bt656-supply = <&vcc_3v0_s0>;
 	audio-supply = <&vcc_1v8_s0>;
+	bt656-supply = <&vcc_3v0_s0>;
 	gpio1830-supply = <&vcc_3v0_s0>;
 	sdmmc-supply = <&vcc_sdio_s0>;
 	status = "okay";
