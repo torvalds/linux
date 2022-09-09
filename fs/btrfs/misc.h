@@ -10,6 +10,14 @@
 
 #define in_range(b, first, len) ((b) >= (first) && (b) < (first) + (len))
 
+/*
+ * Enumerate bits using enum autoincrement. Define the @name as the n-th bit.
+ */
+#define ENUM_BIT(name)                                  \
+	__ ## name ## _BIT,                             \
+	name = (1U << __ ## name ## _BIT),              \
+	__ ## name ## _SEQ = __ ## name ## _BIT
+
 static inline void cond_wake_up(struct wait_queue_head *wq)
 {
 	/*
