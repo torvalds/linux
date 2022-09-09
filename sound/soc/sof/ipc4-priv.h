@@ -15,6 +15,7 @@
 
 /* The DSP window indices are fixed */
 #define SOF_IPC4_OUTBOX_WINDOW_IDX	1
+#define SOF_IPC4_DEBUG_WINDOW_IDX	2
 
 /**
  * struct sof_ipc4_fw_data - IPC4-specific data
