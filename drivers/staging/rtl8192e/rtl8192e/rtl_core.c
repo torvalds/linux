@@ -133,7 +133,7 @@ void rtl92e_writew(struct net_device *dev, int x, u16 y)
  ****************************************************************************/
 bool rtl92e_set_rf_state(struct net_device *dev,
 			 enum rt_rf_power_state state_to_set,
-			 RT_RF_CHANGE_SOURCE ChangeSource)
+			 RT_RF_CHANGE_SOURCE change_source)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -170,9 +170,9 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	switch (state_to_set) {
 	case eRfOn:
-		priv->rtllib->RfOffReason &= (~ChangeSource);
+		priv->rtllib->RfOffReason &= (~change_source);
 
-		if ((ChangeSource == RF_CHANGE_BY_HW) && priv->bHwRadioOff)
+		if ((change_source == RF_CHANGE_BY_HW) && priv->bHwRadioOff)
 			priv->bHwRadioOff = false;
 
 		if (!priv->rtllib->RfOffReason) {
@@ -180,7 +180,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			bActionAllowed = true;
 
 			if (rtState == eRfOff &&
-			    ChangeSource >= RF_CHANGE_BY_HW)
+			    change_source >= RF_CHANGE_BY_HW)
 				bConnectBySSID = true;
 		}
 		break;
@@ -190,7 +190,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		if ((priv->rtllib->iw_mode == IW_MODE_INFRA) ||
 		    (priv->rtllib->iw_mode == IW_MODE_ADHOC)) {
 			if ((priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) ||
-			    (ChangeSource > RF_CHANGE_BY_IPS)) {
+			    (change_source > RF_CHANGE_BY_IPS)) {
 				if (ieee->state == RTLLIB_LINKED)
 					priv->blinked_ingpio = true;
 				else
@@ -199,14 +199,14 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 						      WLAN_REASON_DISASSOC_STA_HAS_LEFT);
 			}
 		}
-		if ((ChangeSource == RF_CHANGE_BY_HW) && !priv->bHwRadioOff)
+		if ((change_source == RF_CHANGE_BY_HW) && !priv->bHwRadioOff)
 			priv->bHwRadioOff = true;
-		priv->rtllib->RfOffReason |= ChangeSource;
+		priv->rtllib->RfOffReason |= change_source;
 		bActionAllowed = true;
 		break;
 
 	case eRfSleep:
-		priv->rtllib->RfOffReason |= ChangeSource;
+		priv->rtllib->RfOffReason |= change_source;
 		bActionAllowed = true;
 		break;
 
