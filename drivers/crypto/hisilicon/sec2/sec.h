@@ -201,10 +201,28 @@ enum sec_cap_type {
 	SEC_RESET_MASK_CAP,
 	SEC_OOO_SHUTDOWN_MASK_CAP,
 	SEC_CE_MASK_CAP,
+	SEC_CLUSTER_NUM_CAP,
+	SEC_CORE_TYPE_NUM_CAP,
+	SEC_CORE_NUM_CAP,
+	SEC_CORES_PER_CLUSTER_NUM_CAP,
+	SEC_CORE_ENABLE_BITMAP,
+	SEC_DRV_ALG_BITMAP_LOW,
+	SEC_DRV_ALG_BITMAP_HIGH,
+	SEC_DEV_ALG_BITMAP_LOW,
+	SEC_DEV_ALG_BITMAP_HIGH,
+	SEC_CORE1_ALG_BITMAP_LOW,
+	SEC_CORE1_ALG_BITMAP_HIGH,
+	SEC_CORE2_ALG_BITMAP_LOW,
+	SEC_CORE2_ALG_BITMAP_HIGH,
+	SEC_CORE3_ALG_BITMAP_LOW,
+	SEC_CORE3_ALG_BITMAP_HIGH,
+	SEC_CORE4_ALG_BITMAP_LOW,
+	SEC_CORE4_ALG_BITMAP_HIGH,
 };
 
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
 struct hisi_qp **sec_create_qps(void);
 int sec_register_to_crypto(struct hisi_qm *qm);
 void sec_unregister_from_crypto(struct hisi_qm *qm);
+u64 sec_get_alg_bitmap(struct hisi_qm *qm, u32 high, u32 low);
 #endif

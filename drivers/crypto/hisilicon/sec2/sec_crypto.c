@@ -104,6 +104,16 @@
 #define IV_CTR_INIT		0x1
 #define IV_BYTE_OFFSET		0x8
 
+struct sec_skcipher {
+	u64 alg_msk;
+	struct skcipher_alg alg;
+};
+
+struct sec_aead {
+	u64 alg_msk;
+	struct aead_alg alg;
+};
+
 /* Get an en/de-cipher queue cyclically to balance load over queues of TFM */
 static inline int sec_alloc_queue_id(struct sec_ctx *ctx, struct sec_req *req)
 {
@@ -2158,67 +2168,80 @@ static int sec_skcipher_decrypt(struct skcipher_request *sk_req)
 	.min_keysize = sec_min_key_size,\
 	.max_keysize = sec_max_key_size,\
 	.ivsize = iv_size,\
-},
+}
 
 #define SEC_SKCIPHER_ALG(name, key_func, min_key_size, \
 	max_key_size, blk_size, iv_size) \
 	SEC_SKCIPHER_GEN_ALG(name, key_func, min_key_size, max_key_size, \
 	sec_skcipher_ctx_init, sec_skcipher_ctx_exit, blk_size, iv_size)
 
-static struct skcipher_alg sec_skciphers[] = {
-	SEC_SKCIPHER_ALG("ecb(aes)", sec_setkey_aes_ecb,
-			 AES_MIN_KEY_SIZE, AES_MAX_KEY_SIZE,
-			 AES_BLOCK_SIZE, 0)
-
-	SEC_SKCIPHER_ALG("cbc(aes)", sec_setkey_aes_cbc,
-			 AES_MIN_KEY_SIZE, AES_MAX_KEY_SIZE,
-			 AES_BLOCK_SIZE, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("xts(aes)", sec_setkey_aes_xts,
-			 SEC_XTS_MIN_KEY_SIZE, SEC_XTS_MAX_KEY_SIZE,
-			 AES_BLOCK_SIZE, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("ecb(des3_ede)", sec_setkey_3des_ecb,
-			 SEC_DES3_3KEY_SIZE, SEC_DES3_3KEY_SIZE,
-			 DES3_EDE_BLOCK_SIZE, 0)
-
-	SEC_SKCIPHER_ALG("cbc(des3_ede)", sec_setkey_3des_cbc,
-			 SEC_DES3_3KEY_SIZE, SEC_DES3_3KEY_SIZE,
-			 DES3_EDE_BLOCK_SIZE, DES3_EDE_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("xts(sm4)", sec_setkey_sm4_xts,
-			 SEC_XTS_MIN_KEY_SIZE, SEC_XTS_MIN_KEY_SIZE,
-			 AES_BLOCK_SIZE, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("cbc(sm4)", sec_setkey_sm4_cbc,
-			 AES_MIN_KEY_SIZE, AES_MIN_KEY_SIZE,
-			 AES_BLOCK_SIZE, AES_BLOCK_SIZE)
-};
-
-static struct skcipher_alg sec_skciphers_v3[] = {
-	SEC_SKCIPHER_ALG("ofb(aes)", sec_setkey_aes_ofb,
-			 AES_MIN_KEY_SIZE, AES_MAX_KEY_SIZE,
-			 SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("cfb(aes)", sec_setkey_aes_cfb,
-			 AES_MIN_KEY_SIZE, AES_MAX_KEY_SIZE,
-			 SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("ctr(aes)", sec_setkey_aes_ctr,
-			 AES_MIN_KEY_SIZE, AES_MAX_KEY_SIZE,
-			 SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("ofb(sm4)", sec_setkey_sm4_ofb,
-			 AES_MIN_KEY_SIZE, AES_MIN_KEY_SIZE,
-			 SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("cfb(sm4)", sec_setkey_sm4_cfb,
-			 AES_MIN_KEY_SIZE, AES_MIN_KEY_SIZE,
-			 SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE)
-
-	SEC_SKCIPHER_ALG("ctr(sm4)", sec_setkey_sm4_ctr,
-			 AES_MIN_KEY_SIZE, AES_MIN_KEY_SIZE,
-			 SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE)
+static struct sec_skcipher sec_skciphers[] = {
+	{
+		.alg_msk = BIT(0),
+		.alg = SEC_SKCIPHER_ALG("ecb(aes)", sec_setkey_aes_ecb, AES_MIN_KEY_SIZE,
+					AES_MAX_KEY_SIZE, AES_BLOCK_SIZE, 0),
+	},
+	{
+		.alg_msk = BIT(1),
+		.alg = SEC_SKCIPHER_ALG("cbc(aes)", sec_setkey_aes_cbc, AES_MIN_KEY_SIZE,
+					AES_MAX_KEY_SIZE, AES_BLOCK_SIZE, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(2),
+		.alg = SEC_SKCIPHER_ALG("ctr(aes)", sec_setkey_aes_ctr,	AES_MIN_KEY_SIZE,
+					AES_MAX_KEY_SIZE, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(3),
+		.alg = SEC_SKCIPHER_ALG("xts(aes)", sec_setkey_aes_xts,	SEC_XTS_MIN_KEY_SIZE,
+					SEC_XTS_MAX_KEY_SIZE, AES_BLOCK_SIZE, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(4),
+		.alg = SEC_SKCIPHER_ALG("ofb(aes)", sec_setkey_aes_ofb,	AES_MIN_KEY_SIZE,
+					AES_MAX_KEY_SIZE, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(5),
+		.alg = SEC_SKCIPHER_ALG("cfb(aes)", sec_setkey_aes_cfb,	AES_MIN_KEY_SIZE,
+					AES_MAX_KEY_SIZE, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(12),
+		.alg = SEC_SKCIPHER_ALG("cbc(sm4)", sec_setkey_sm4_cbc,	AES_MIN_KEY_SIZE,
+					AES_MIN_KEY_SIZE, AES_BLOCK_SIZE, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(13),
+		.alg = SEC_SKCIPHER_ALG("ctr(sm4)", sec_setkey_sm4_ctr, AES_MIN_KEY_SIZE,
+					AES_MIN_KEY_SIZE, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(14),
+		.alg = SEC_SKCIPHER_ALG("xts(sm4)", sec_setkey_sm4_xts,	SEC_XTS_MIN_KEY_SIZE,
+					SEC_XTS_MIN_KEY_SIZE, AES_BLOCK_SIZE, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(15),
+		.alg = SEC_SKCIPHER_ALG("ofb(sm4)", sec_setkey_sm4_ofb,	AES_MIN_KEY_SIZE,
+					AES_MIN_KEY_SIZE, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(16),
+		.alg = SEC_SKCIPHER_ALG("cfb(sm4)", sec_setkey_sm4_cfb,	AES_MIN_KEY_SIZE,
+					AES_MIN_KEY_SIZE, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(23),
+		.alg = SEC_SKCIPHER_ALG("ecb(des3_ede)", sec_setkey_3des_ecb, SEC_DES3_3KEY_SIZE,
+					SEC_DES3_3KEY_SIZE, DES3_EDE_BLOCK_SIZE, 0),
+	},
+	{
+		.alg_msk = BIT(24),
+		.alg = SEC_SKCIPHER_ALG("cbc(des3_ede)", sec_setkey_3des_cbc, SEC_DES3_3KEY_SIZE,
+					SEC_DES3_3KEY_SIZE, DES3_EDE_BLOCK_SIZE,
+					DES3_EDE_BLOCK_SIZE),
+	},
 };
 
 static int aead_iv_demension_check(struct aead_request *aead_req)
@@ -2412,90 +2435,135 @@ static int sec_aead_decrypt(struct aead_request *a_req)
 	.maxauthsize = max_authsize,\
 }
 
-static struct aead_alg sec_aeads[] = {
-	SEC_AEAD_ALG("authenc(hmac(sha1),cbc(aes))",
-		     sec_setkey_aes_cbc_sha1, sec_aead_sha1_ctx_init,
-		     sec_aead_ctx_exit, AES_BLOCK_SIZE,
-		     AES_BLOCK_SIZE, SHA1_DIGEST_SIZE),
-
-	SEC_AEAD_ALG("authenc(hmac(sha256),cbc(aes))",
-		     sec_setkey_aes_cbc_sha256, sec_aead_sha256_ctx_init,
-		     sec_aead_ctx_exit, AES_BLOCK_SIZE,
-		     AES_BLOCK_SIZE, SHA256_DIGEST_SIZE),
-
-	SEC_AEAD_ALG("authenc(hmac(sha512),cbc(aes))",
-		     sec_setkey_aes_cbc_sha512, sec_aead_sha512_ctx_init,
-		     sec_aead_ctx_exit, AES_BLOCK_SIZE,
-		     AES_BLOCK_SIZE, SHA512_DIGEST_SIZE),
-
-	SEC_AEAD_ALG("ccm(aes)", sec_setkey_aes_ccm, sec_aead_xcm_ctx_init,
-		     sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ,
-		     AES_BLOCK_SIZE, AES_BLOCK_SIZE),
-
-	SEC_AEAD_ALG("gcm(aes)", sec_setkey_aes_gcm, sec_aead_xcm_ctx_init,
-		     sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ,
-		     SEC_AIV_SIZE, AES_BLOCK_SIZE)
+static struct sec_aead sec_aeads[] = {
+	{
+		.alg_msk = BIT(6),
+		.alg = SEC_AEAD_ALG("ccm(aes)", sec_setkey_aes_ccm, sec_aead_xcm_ctx_init,
+				    sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE,
+				    AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(7),
+		.alg = SEC_AEAD_ALG("gcm(aes)", sec_setkey_aes_gcm, sec_aead_xcm_ctx_init,
+				    sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ, SEC_AIV_SIZE,
+				    AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(17),
+		.alg = SEC_AEAD_ALG("ccm(sm4)", sec_setkey_sm4_ccm, sec_aead_xcm_ctx_init,
+				    sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ, AES_BLOCK_SIZE,
+				    AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(18),
+		.alg = SEC_AEAD_ALG("gcm(sm4)", sec_setkey_sm4_gcm, sec_aead_xcm_ctx_init,
+				    sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ, SEC_AIV_SIZE,
+				    AES_BLOCK_SIZE),
+	},
+	{
+		.alg_msk = BIT(43),
+		.alg = SEC_AEAD_ALG("authenc(hmac(sha1),cbc(aes))", sec_setkey_aes_cbc_sha1,
+				    sec_aead_sha1_ctx_init, sec_aead_ctx_exit, AES_BLOCK_SIZE,
+				    AES_BLOCK_SIZE, SHA1_DIGEST_SIZE),
+	},
+	{
+		.alg_msk = BIT(44),
+		.alg = SEC_AEAD_ALG("authenc(hmac(sha256),cbc(aes))", sec_setkey_aes_cbc_sha256,
+				    sec_aead_sha256_ctx_init, sec_aead_ctx_exit, AES_BLOCK_SIZE,
+				    AES_BLOCK_SIZE, SHA256_DIGEST_SIZE),
+	},
+	{
+		.alg_msk = BIT(45),
+		.alg = SEC_AEAD_ALG("authenc(hmac(sha512),cbc(aes))", sec_setkey_aes_cbc_sha512,
+				    sec_aead_sha512_ctx_init, sec_aead_ctx_exit, AES_BLOCK_SIZE,
+				    AES_BLOCK_SIZE, SHA512_DIGEST_SIZE),
+	},
 };
 
-static struct aead_alg sec_aeads_v3[] = {
-	SEC_AEAD_ALG("ccm(sm4)", sec_setkey_sm4_ccm, sec_aead_xcm_ctx_init,
-		     sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ,
-		     AES_BLOCK_SIZE, AES_BLOCK_SIZE),
+static void sec_unregister_skcipher(u64 alg_mask, int end)
+{
+	int i;
 
-	SEC_AEAD_ALG("gcm(sm4)", sec_setkey_sm4_gcm, sec_aead_xcm_ctx_init,
-		     sec_aead_xcm_ctx_exit, SEC_MIN_BLOCK_SZ,
-		     SEC_AIV_SIZE, AES_BLOCK_SIZE)
-};
+	for (i = 0; i < end; i++)
+		if (sec_skciphers[i].alg_msk & alg_mask)
+			crypto_unregister_skcipher(&sec_skciphers[i].alg);
+}
+
+static int sec_register_skcipher(u64 alg_mask)
+{
+	int i, ret, count;
+
+	count = ARRAY_SIZE(sec_skciphers);
+
+	for (i = 0; i < count; i++) {
+		if (!(sec_skciphers[i].alg_msk & alg_mask))
+			continue;
+
+		ret = crypto_register_skcipher(&sec_skciphers[i].alg);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	sec_unregister_skcipher(alg_mask, i);
+
+	return ret;
+}
+
+static void sec_unregister_aead(u64 alg_mask, int end)
+{
+	int i;
+
+	for (i = 0; i < end; i++)
+		if (sec_aeads[i].alg_msk & alg_mask)
+			crypto_unregister_aead(&sec_aeads[i].alg);
+}
+
+static int sec_register_aead(u64 alg_mask)
+{
+	int i, ret, count;
+
+	count = ARRAY_SIZE(sec_aeads);
+
+	for (i = 0; i < count; i++) {
+		if (!(sec_aeads[i].alg_msk & alg_mask))
+			continue;
+
+		ret = crypto_register_aead(&sec_aeads[i].alg);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	sec_unregister_aead(alg_mask, i);
+
+	return ret;
+}
 
 int sec_register_to_crypto(struct hisi_qm *qm)
 {
+	u64 alg_mask = sec_get_alg_bitmap(qm, SEC_DRV_ALG_BITMAP_HIGH, SEC_DRV_ALG_BITMAP_LOW);
 	int ret;
 
-	/* To avoid repeat register */
-	ret = crypto_register_skciphers(sec_skciphers,
-					ARRAY_SIZE(sec_skciphers));
+	ret = sec_register_skcipher(alg_mask);
 	if (ret)
 		return ret;
 
-	if (qm->ver > QM_HW_V2) {
-		ret = crypto_register_skciphers(sec_skciphers_v3,
-						ARRAY_SIZE(sec_skciphers_v3));
-		if (ret)
-			goto reg_skcipher_fail;
-	}
-
-	ret = crypto_register_aeads(sec_aeads, ARRAY_SIZE(sec_aeads));
+	ret = sec_register_aead(alg_mask);
 	if (ret)
-		goto reg_aead_fail;
-	if (qm->ver > QM_HW_V2) {
-		ret = crypto_register_aeads(sec_aeads_v3, ARRAY_SIZE(sec_aeads_v3));
-		if (ret)
-			goto reg_aead_v3_fail;
-	}
-	return ret;
+		sec_unregister_skcipher(alg_mask, ARRAY_SIZE(sec_skciphers));
 
-reg_aead_v3_fail:
-	crypto_unregister_aeads(sec_aeads, ARRAY_SIZE(sec_aeads));
-reg_aead_fail:
-	if (qm->ver > QM_HW_V2)
-		crypto_unregister_skciphers(sec_skciphers_v3,
-					    ARRAY_SIZE(sec_skciphers_v3));
-reg_skcipher_fail:
-	crypto_unregister_skciphers(sec_skciphers,
-				    ARRAY_SIZE(sec_skciphers));
 	return ret;
 }
 
 void sec_unregister_from_crypto(struct hisi_qm *qm)
 {
-	if (qm->ver > QM_HW_V2)
-		crypto_unregister_aeads(sec_aeads_v3,
-					ARRAY_SIZE(sec_aeads_v3));
-	crypto_unregister_aeads(sec_aeads, ARRAY_SIZE(sec_aeads));
+	u64 alg_mask = sec_get_alg_bitmap(qm, SEC_DRV_ALG_BITMAP_HIGH, SEC_DRV_ALG_BITMAP_LOW);
 
-	if (qm->ver > QM_HW_V2)
-		crypto_unregister_skciphers(sec_skciphers_v3,
-					    ARRAY_SIZE(sec_skciphers_v3));
-	crypto_unregister_skciphers(sec_skciphers,
-				    ARRAY_SIZE(sec_skciphers));
+	sec_unregister_aead(alg_mask, ARRAY_SIZE(sec_aeads));
+	sec_unregister_skcipher(alg_mask, ARRAY_SIZE(sec_skciphers));
 }
