@@ -138,7 +138,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 	bool action_allowed = false;
-	bool			bConnectBySSID = false;
+	bool connect_by_ssid = false;
 	enum rt_rf_power_state rtState;
 	u16			RFWaitCounter = 0;
 	unsigned long flag;
@@ -181,7 +181,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 			if (rtState == eRfOff &&
 			    change_source >= RF_CHANGE_BY_HW)
-				bConnectBySSID = true;
+				connect_by_ssid = true;
 		}
 		break;
 
@@ -217,7 +217,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	if (action_allowed) {
 		rtl92e_set_rf_power_state(dev, state_to_set);
 		if (state_to_set == eRfOn) {
-			if (bConnectBySSID && priv->blinked_ingpio) {
+			if (connect_by_ssid && priv->blinked_ingpio) {
 				schedule_delayed_work(
 					 &ieee->associate_procedure_wq, 0);
 				priv->blinked_ingpio = false;
