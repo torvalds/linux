@@ -43,3 +43,8 @@
 &scif_clk {
 	clock-frequency = <24000000>;
 };
+
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
