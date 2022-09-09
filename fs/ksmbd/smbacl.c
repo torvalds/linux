@@ -275,7 +275,8 @@ static int sid_to_id(struct user_namespace *user_ns,
 		uid_t id;
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
-		uid = mapped_kuid_user(user_ns, &init_user_ns, KUIDT_INIT(id));
+		uid = KUIDT_INIT(id);
+		uid = from_vfsuid(user_ns, &init_user_ns, VFSUIDT_INIT(uid));
 		if (uid_valid(uid)) {
 			fattr->cf_uid = uid;
 			rc = 0;
@@ -285,7 +286,8 @@ static int sid_to_id(struct user_namespace *user_ns,
 		gid_t id;
 
 		id = le32_to_cpu(psid->sub_auth[psid->num_subauth - 1]);
-		gid = mapped_kgid_user(user_ns, &init_user_ns, KGIDT_INIT(id));
+		gid = KGIDT_INIT(id);
+		gid = from_vfsgid(user_ns, &init_user_ns, VFSGIDT_INIT(gid));
 		if (gid_valid(gid)) {
 			fattr->cf_gid = gid;
 			rc = 0;
