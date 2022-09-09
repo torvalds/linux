@@ -2394,9 +2394,10 @@ int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_io_tree *io_tree = &inode->io_tree;
 	u64 ino = btrfs_ino(inode);
+	u64 locked_start, locked_end;
 	struct io_failure_record *failrec;
-	struct extent_state *state;
 	int mirror;
+	int ret;
 
 	failrec = get_failrec(inode, start);
 	if (IS_ERR(failrec))
@@ -2407,14 +2408,10 @@ int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 	if (sb_rdonly(fs_info->sb))
 		goto out;
 
-	spin_lock(&io_tree->lock);
-	state = find_first_extent_bit_state(io_tree,
-					    failrec->bytenr,
-					    EXTENT_LOCKED);
-	spin_unlock(&io_tree->lock);
-
-	if (!state || state->start > failrec->bytenr ||
-	    state->end < failrec->bytenr + failrec->len - 1)
+	ret = find_first_extent_bit(io_tree, failrec->bytenr, &locked_start,
+				    &locked_end, EXTENT_LOCKED, NULL);
+	if (ret || locked_start > failrec->bytenr ||
+	    locked_end < failrec->bytenr + failrec->len - 1)
 		goto out;
 
 	mirror = failrec->this_mirror;
