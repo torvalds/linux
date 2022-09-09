@@ -836,6 +836,27 @@ static int apparmor_task_kill(struct task_struct *target, struct kernel_siginfo 
 	return error;
 }
 
+static int apparmor_userns_create(const struct cred *cred)
+{
+	struct aa_label *label;
+	struct aa_profile *profile;
+	int error = 0;
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_TASK, AA_CLASS_NS,
+			  OP_USERNS_CREATE);
+
+	ad.subj_cred = current_cred();
+
+	label = begin_current_label_crit_section();
+	if (!unconfined(label)) {
+		error = fn_for_each(label, profile,
+				    aa_profile_ns_perm(profile, &ad,
+						       AA_USERNS_CREATE));
+	}
+	end_current_label_crit_section(label);
+
+	return error;
+}
+
 /**
  * apparmor_sk_alloc_security - allocate and attach the sk_security field
  */
@@ -1313,6 +1334,7 @@ static struct security_hook_list apparmor_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(task_getsecid_obj, apparmor_task_getsecid_obj),
 	LSM_HOOK_INIT(task_setrlimit, apparmor_task_setrlimit),
 	LSM_HOOK_INIT(task_kill, apparmor_task_kill),
+	LSM_HOOK_INIT(userns_create, apparmor_userns_create),
 
 #ifdef CONFIG_AUDIT
 	LSM_HOOK_INIT(audit_rule_init, aa_audit_rule_init),
@@ -1784,6 +1806,7 @@ static int apparmor_dointvec(struct ctl_table *table, int write,
 }
 
 static struct ctl_table apparmor_sysctl_table[] = {
+#ifdef CONFIG_USER_NS
 	{
 		.procname       = "unprivileged_userns_apparmor_policy",
 		.data           = &unprivileged_userns_apparmor_policy,
@@ -1791,6 +1814,7 @@ static struct ctl_table apparmor_sysctl_table[] = {
 		.mode           = 0600,
 		.proc_handler   = apparmor_dointvec,
 	},
+#endif /* CONFIG_USER_NS */
 	{
 		.procname       = "apparmor_display_secid_mode",
 		.data           = &apparmor_display_secid_mode,
@@ -1805,7 +1829,6 @@ static struct ctl_table apparmor_sysctl_table[] = {
 		.mode           = 0600,
 		.proc_handler   = apparmor_dointvec,
 	},
-
 	{ }
 };
 

@@ -33,6 +33,7 @@
 #define AA_CLASS_IO_URING	18
 #define AA_CLASS_MODULE		19
 #define AA_CLASS_DISPLAY_LSM	20
+#define AA_CLASS_NS		21
 
 #define AA_CLASS_X		31
 #define AA_CLASS_DBUS		32
