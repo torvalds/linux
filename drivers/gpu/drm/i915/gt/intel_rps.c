@@ -1085,15 +1085,25 @@ static u32 intel_rps_read_state_cap(struct intel_rps *rps)
 		return intel_uncore_read(uncore, GEN6_RP_STATE_CAP);
 }
 
-/**
- * gen6_rps_get_freq_caps - Get freq caps exposed by HW
- * @rps: the intel_rps structure
- * @caps: returned freq caps
- *
- * Returned "caps" frequencies should be converted to MHz using
- * intel_gpu_freq()
- */
-void gen6_rps_get_freq_caps(struct intel_rps *rps, struct intel_rps_freq_caps *caps)
+static void
+mtl_get_freq_caps(struct intel_rps *rps, struct intel_rps_freq_caps *caps)
+{
+	struct intel_uncore *uncore = rps_to_uncore(rps);
+	u32 rp_state_cap = rps_to_gt(rps)->type == GT_MEDIA ?
+				intel_uncore_read(uncore, MTL_MEDIAP_STATE_CAP) :
+				intel_uncore_read(uncore, MTL_RP_STATE_CAP);
+	u32 rpe = rps_to_gt(rps)->type == GT_MEDIA ?
+			intel_uncore_read(uncore, MTL_MPE_FREQUENCY) :
+			intel_uncore_read(uncore, MTL_GT_RPE_FREQUENCY);
+
+	/* MTL values are in units of 16.67 MHz */
+	caps->rp0_freq = REG_FIELD_GET(MTL_RP0_CAP_MASK, rp_state_cap);
+	caps->min_freq = REG_FIELD_GET(MTL_RPN_CAP_MASK, rp_state_cap);
+	caps->rp1_freq = REG_FIELD_GET(MTL_RPE_MASK, rpe);
+}
+
+static void
+__gen6_rps_get_freq_caps(struct intel_rps *rps, struct intel_rps_freq_caps *caps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	u32 rp_state_cap;
@@ -1126,6 +1136,24 @@ void gen6_rps_get_freq_caps(struct intel_rps *rps, struct intel_rps_freq_caps *c
 		caps->rp1_freq *= GEN9_FREQ_SCALER;
 		caps->min_freq *= GEN9_FREQ_SCALER;
 	}
+}
+
+/**
+ * gen6_rps_get_freq_caps - Get freq caps exposed by HW
+ * @rps: the intel_rps structure
+ * @caps: returned freq caps
+ *
+ * Returned "caps" frequencies should be converted to MHz using
+ * intel_gpu_freq()
+ */
+void gen6_rps_get_freq_caps(struct intel_rps *rps, struct intel_rps_freq_caps *caps)
+{
+	struct drm_i915_private *i915 = rps_to_i915(rps);
+
+	if (IS_METEORLAKE(i915))
+		return mtl_get_freq_caps(rps, caps);
+	else
+		return __gen6_rps_get_freq_caps(rps, caps);
 }
 
 static void gen6_rps_init(struct intel_rps *rps)
