@@ -655,6 +655,36 @@ static bool rps_eval(void *data)
 
 DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(rps_boost);
 
+static int perf_limit_reasons_get(void *data, u64 *val)
+{
+	struct intel_gt *gt = data;
+	intel_wakeref_t wakeref;
+
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		*val = intel_uncore_read(gt->uncore, GT0_PERF_LIMIT_REASONS);
+
+	return 0;
+}
+
+static int perf_limit_reasons_clear(void *data, u64 val)
+{
+	struct intel_gt *gt = data;
+	intel_wakeref_t wakeref;
+
+	/*
+	 * Clear the upper 16 "log" bits, the lower 16 "status" bits are
+	 * read-only. The upper 16 "log" bits are identical to the lower 16
+	 * "status" bits except that the "log" bits remain set until cleared.
+	 */
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		intel_uncore_rmw(gt->uncore, GT0_PERF_LIMIT_REASONS,
+				 GT0_PERF_LIMIT_REASONS_LOG_MASK, 0);
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(perf_limit_reasons_fops, perf_limit_reasons_get,
+			perf_limit_reasons_clear, "%llu\n");
+
 void intel_gt_pm_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
@@ -664,6 +694,7 @@ void intel_gt_pm_debugfs_register(struct intel_gt *gt, struct dentry *root)
 		{ "forcewake_user", &forcewake_user_fops, NULL},
 		{ "llc", &llc_fops, llc_eval },
 		{ "rps_boost", &rps_boost_fops, rps_eval },
+		{ "perf_limit_reasons", &perf_limit_reasons_fops, NULL },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);
