@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/memory-controllers/synopsys,ddrc-ecc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys IntelliDDR Multi Protocol memory controller
+title: Synopsys DesignWare Universal Multi-Protocol Memory Controller
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -12,21 +12,22 @@ maintainers:
   - Michal Simek <michal.simek@xilinx.com>
 
 description: |
-  The ZynqMP DDR ECC controller has an optional ECC support in 64-bit and
-  32-bit bus width configurations.
+  Synopsys DesignWare Enhanced uMCTL2 DDR Memory Controller is capable of
+  working with the memory devices supporting up to (LP)DDR4 protocol. It can
+  be equipped with SEC/DEC ECC feature if DRAM data bus width is either
+  16-bits or 32-bits or 64-bits wide.
 
-  The Zynq DDR ECC controller has an optional ECC support in half-bus width
-  (16-bit) configuration.
-
-  These both ECC controllers correct single bit ECC errors and detect double bit
-  ECC errors.
+  For instance the ZynqMP DDR controller is based on the DW uMCTL2 v2.40a
+  controller. It has an optional SEC/DEC ECC support in 64- and 32-bits
+  bus width configurations.
 
 properties:
   compatible:
-    enum:
-      - snps,ddrc-3.80a
-      - xlnx,zynq-ddrc-a05
-      - xlnx,zynqmp-ddrc-2.40a
+    oneOf:
+      - description: Synopsys DW uMCTL2 DDR controller v3.80a
+        const: snps,ddrc-3.80a
+      - description: Xilinx ZynqMP DDR controller v2.40a
+        const: xlnx,zynqmp-ddrc-2.40a
 
   interrupts:
     maxItems: 1
@@ -37,40 +38,16 @@ properties:
 required:
   - compatible
   - reg
-
-allOf:
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - snps,ddrc-3.80a
-              - xlnx,zynqmp-ddrc-2.40a
-    then:
-      required:
-        - interrupts
-    else:
-      properties:
-        interrupts: false
+  - interrupts
 
 additionalProperties: false
 
 examples:
   - |
-    memory-controller@f8006000 {
-        compatible = "xlnx,zynq-ddrc-a05";
-        reg = <0xf8006000 0x1000>;
+    memory-controller@fd070000 {
+      compatible = "xlnx,zynqmp-ddrc-2.40a";
+      reg = <0xfd070000 0x30000>;
+      interrupt-parent = <&gic>;
+      interrupts = <0 112 4>;
     };
-
-  - |
-    axi {
-        #address-cells = <2>;
-        #size-cells = <2>;
-
-        memory-controller@fd070000 {
-            compatible = "xlnx,zynqmp-ddrc-2.40a";
-            reg = <0x0 0xfd070000 0x0 0x30000>;
-            interrupt-parent = <&gic>;
-            interrupts = <0 112 4>;
-        };
-    };
+...
