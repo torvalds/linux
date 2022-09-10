@@ -112,8 +112,9 @@ patternProperties:
         description: Qualcomm DSP audio ports
 
       routing:
-        # TODO: Waiting for Documentation/devicetree/bindings/sound/qcom,q6adm.txt
         type: object
+        $ref: /schemas/sound/qcom,q6adm-routing.yaml#
+        unevaluatedProperties: false
         description: Qualcomm DSP LPASS audio routing
 
       qcom,protection-domain:
