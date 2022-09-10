@@ -315,6 +315,10 @@ Enum	3:0	DebugVer
 EndEnum
 EndSysreg
 
+Sysreg	ID_AA64DFR1_EL1	3	0	0	5	1
+Res0	63:0
+EndSysreg
+
 Sysreg	ID_AA64ISAR0_EL1	3	0	0	6	0
 Enum	63:60	RNDR
 	0b0000	NI
