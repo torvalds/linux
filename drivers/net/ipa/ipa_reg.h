@@ -585,6 +585,7 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 #define IPA_REG_ENDP_INIT_SEQ_N_OFFSET(txep) \
 					(0x0000083c + 0x0070 * (txep))
 #define SEQ_TYPE_FMASK				GENMASK(7, 0)
+/* The next field must be zero for IPA v4.5+ */
 #define SEQ_REP_TYPE_FMASK			GENMASK(15, 8)
 
 /**

@@ -182,6 +182,15 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 		return true;	/* Nothing more to check for RX */
 	}
 
+	/* Starting with IPA v4.5 sequencer replication is obsolete */
+	if (ipa->version >= IPA_VERSION_4_5) {
+		if (data->endpoint.config.tx.seq_rep_type) {
+			dev_err(dev, "no-zero seq_rep_type TX endpoint %u\n",
+				data->endpoint_id);
+			return false;
+		}
+	}
+
 	if (data->endpoint.config.status_enable) {
 		other_name = data->endpoint.config.tx.status_endpoint;
 		if (other_name >= count) {
@@ -995,9 +1004,10 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	/* Low-order byte configures primary packet processing */
 	val |= u32_encode_bits(endpoint->config.tx.seq_type, SEQ_TYPE_FMASK);
 
-	/* Second byte configures replicated packet processing */
-	val |= u32_encode_bits(endpoint->config.tx.seq_rep_type,
-			       SEQ_REP_TYPE_FMASK);
+	/* Second byte (if supported) configures replicated packet processing */
+	if (endpoint->ipa->version < IPA_VERSION_4_5)
+		val |= u32_encode_bits(endpoint->config.tx.seq_rep_type,
+				       SEQ_REP_TYPE_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
