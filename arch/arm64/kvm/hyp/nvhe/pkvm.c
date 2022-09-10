@@ -86,32 +86,32 @@ static void pvm_init_traps_aa64dfr0(struct kvm_vcpu *vcpu)
 	u64 cptr_set = 0;
 
 	/* Trap/constrain PMU */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_PMUVER), feature_ids)) {
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_PMUVer), feature_ids)) {
 		mdcr_set |= MDCR_EL2_TPM | MDCR_EL2_TPMCR;
 		mdcr_clear |= MDCR_EL2_HPME | MDCR_EL2_MTPME |
 			      MDCR_EL2_HPMN_MASK;
 	}
 
 	/* Trap Debug */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DEBUGVER), feature_ids))
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DebugVer), feature_ids))
 		mdcr_set |= MDCR_EL2_TDRA | MDCR_EL2_TDA | MDCR_EL2_TDE;
 
 	/* Trap OS Double Lock */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DOUBLELOCK), feature_ids))
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DoubleLock), feature_ids))
 		mdcr_set |= MDCR_EL2_TDOSA;
 
 	/* Trap SPE */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_PMSVER), feature_ids)) {
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_PMSVer), feature_ids)) {
 		mdcr_set |= MDCR_EL2_TPMS;
 		mdcr_clear |= MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT;
 	}
 
 	/* Trap Trace Filter */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_TRACE_FILT), feature_ids))
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_TraceFilt), feature_ids))
 		mdcr_set |= MDCR_EL2_TTRF;
 
 	/* Trap Trace */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_TRACEVER), feature_ids))
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_TraceVer), feature_ids))
 		cptr_set |= CPTR_EL2_TTA;
 
 	vcpu->arch.mdcr_el2 |= mdcr_set;

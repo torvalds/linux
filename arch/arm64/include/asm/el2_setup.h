@@ -40,7 +40,7 @@
 
 .macro __init_el2_debug
 	mrs	x1, id_aa64dfr0_el1
-	sbfx	x0, x1, #ID_AA64DFR0_PMUVER_SHIFT, #4
+	sbfx	x0, x1, #ID_AA64DFR0_PMUVer_SHIFT, #4
 	cmp	x0, #1
 	b.lt	.Lskip_pmu_\@			// Skip if no PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
@@ -49,7 +49,7 @@
 	csel	x2, xzr, x0, lt			// all PMU counters from EL1
 
 	/* Statistical profiling */
-	ubfx	x0, x1, #ID_AA64DFR0_PMSVER_SHIFT, #4
+	ubfx	x0, x1, #ID_AA64DFR0_PMSVer_SHIFT, #4
 	cbz	x0, .Lskip_spe_\@		// Skip if SPE not present
 
 	mrs_s	x0, SYS_PMBIDR_EL1              // If SPE available at EL2,
@@ -65,7 +65,7 @@
 
 .Lskip_spe_\@:
 	/* Trace buffer */
-	ubfx	x0, x1, #ID_AA64DFR0_TRBE_SHIFT, #4
+	ubfx	x0, x1, #ID_AA64DFR0_TraceBuffer_SHIFT, #4
 	cbz	x0, .Lskip_trace_\@		// Skip if TraceBuffer is not present
 
 	mrs_s	x0, SYS_TRBIDR_EL1
@@ -137,7 +137,7 @@
 
 	mov	x0, xzr
 	mrs	x1, id_aa64dfr0_el1
-	ubfx	x1, x1, #ID_AA64DFR0_PMSVER_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64DFR0_PMSVer_SHIFT, #4
 	cmp	x1, #3
 	b.lt	.Lset_debug_fgt_\@
 	/* Disable PMSNEVFR_EL1 read and write traps */
