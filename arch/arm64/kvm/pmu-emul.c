@@ -33,12 +33,12 @@ static u32 kvm_pmu_event_mask(struct kvm *kvm)
 	pmuver = kvm->arch.arm_pmu->pmuver;
 
 	switch (pmuver) {
-	case ID_AA64DFR0_EL1_PMUVer_8_0:
+	case ID_AA64DFR0_EL1_PMUVer_IMP:
 		return GENMASK(9, 0);
-	case ID_AA64DFR0_EL1_PMUVer_8_1:
-	case ID_AA64DFR0_EL1_PMUVer_8_4:
-	case ID_AA64DFR0_EL1_PMUVer_8_5:
-	case ID_AA64DFR0_EL1_PMUVer_8_7:
+	case ID_AA64DFR0_EL1_PMUVer_V3P1:
+	case ID_AA64DFR0_EL1_PMUVer_V3P4:
+	case ID_AA64DFR0_EL1_PMUVer_V3P5:
+	case ID_AA64DFR0_EL1_PMUVer_V3P7:
 		return GENMASK(15, 0);
 	default:		/* Shouldn't be here, just for sanity */
 		WARN_ONCE(1, "Unknown PMU version %d\n", pmuver);
@@ -856,7 +856,7 @@ u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 		 * Don't advertise STALL_SLOT, as PMMIR_EL0 is handled
 		 * as RAZ
 		 */
-		if (vcpu->kvm->arch.arm_pmu->pmuver >= ID_AA64DFR0_EL1_PMUVer_8_4)
+		if (vcpu->kvm->arch.arm_pmu->pmuver >= ID_AA64DFR0_EL1_PMUVer_V3P4)
 			val &= ~BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT - 32);
 		base = 32;
 	}
