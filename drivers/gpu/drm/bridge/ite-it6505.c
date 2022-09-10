@@ -563,7 +563,7 @@ static void it6505_debug_print(struct it6505 *it6505, unsigned int reg,
 	struct device *dev = &it6505->client->dev;
 	int val;
 
-	if (likely(!(__drm_debug & DRM_UT_DRIVER)))
+	if (!drm_debug_enabled(DRM_UT_DRIVER))
 		return;
 
 	val = it6505_read(it6505, reg);
