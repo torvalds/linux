@@ -73,6 +73,23 @@ static int ptp_set_thresh(struct otx2_ptp *ptp, u64 thresh)
 	return otx2_sync_mbox_msg(&ptp->nic->mbox);
 }
 
+static int ptp_extts_on(struct otx2_ptp *ptp, int on)
+{
+	struct ptp_req *req;
+
+	if (!ptp->nic)
+		return -ENODEV;
+
+	req = otx2_mbox_alloc_msg_ptp_op(&ptp->nic->mbox);
+	if (!req)
+		return -ENOMEM;
+
+	req->op = PTP_OP_EXTTS_ON;
+	req->extts_on = on;
+
+	return otx2_sync_mbox_msg(&ptp->nic->mbox);
+}
+
 static u64 ptp_cc_read(const struct cyclecounter *cc)
 {
 	struct otx2_ptp *ptp = container_of(cc, struct otx2_ptp, cycle_counter);
@@ -189,8 +206,6 @@ static void otx2_ptp_extts_check(struct work_struct *work)
 		event.index = 0;
 		event.timestamp = timecounter_cyc2time(&ptp->time_counter, tstmp);
 		ptp_clock_event(ptp->ptp_clock, &event);
-		ptp->last_extts = tstmp;
-
 		new_thresh = tstmp % 500000000;
 		if (ptp->thresh != new_thresh) {
 			mutex_lock(&ptp->nic->mbox.lock);
@@ -198,6 +213,7 @@ static void otx2_ptp_extts_check(struct work_struct *work)
 			mutex_unlock(&ptp->nic->mbox.lock);
 			ptp->thresh = new_thresh;
 		}
+		ptp->last_extts = tstmp;
 	}
 	schedule_delayed_work(&ptp->extts_work, msecs_to_jiffies(200));
 }
@@ -235,10 +251,13 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 				   rq->extts.index);
 		if (pin < 0)
 			return -EBUSY;
-		if (on)
+		if (on) {
+			ptp_extts_on(ptp, on);
 			schedule_delayed_work(&ptp->extts_work, msecs_to_jiffies(200));
-		else
+		} else {
+			ptp_extts_on(ptp, on);
 			cancel_delayed_work_sync(&ptp->extts_work);
+		}
 		return 0;
 	default:
 		break;
