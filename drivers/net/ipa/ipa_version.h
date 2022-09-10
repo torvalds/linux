@@ -19,10 +19,10 @@
  * @IPA_VERSION_4_7:	IPA version 4.7/GSI version 2.7
  * @IPA_VERSION_4_9:	IPA version 4.9/GSI version 2.9
  * @IPA_VERSION_4_11:	IPA version 4.11/GSI version 2.11 (2.1.1)
+ * @IPA_VERSION_COUNT:	Number of defined IPA versions
  *
  * Defines the version of IPA (and GSI) hardware present on the platform.
- * Please update ipa_version_valid() and ipa_version_string() whenever a
- * new version is added.
+ * Please update ipa_version_string() whenever a new version is added.
  */
 enum ipa_version {
 	IPA_VERSION_3_0,
@@ -36,7 +36,23 @@ enum ipa_version {
 	IPA_VERSION_4_7,
 	IPA_VERSION_4_9,
 	IPA_VERSION_4_11,
+	IPA_VERSION_COUNT,			/* Last; not a version */
 };
+
+static inline bool ipa_version_supported(enum ipa_version version)
+{
+	switch (version) {
+	case IPA_VERSION_3_1:
+	case IPA_VERSION_3_5_1:
+	case IPA_VERSION_4_2:
+	case IPA_VERSION_4_5:
+	case IPA_VERSION_4_9:
+	case IPA_VERSION_4_11:
+		return true;
+	default:
+		return false;
+	}
+}
 
 /* Execution environment IDs */
 enum gsi_ee_id {
