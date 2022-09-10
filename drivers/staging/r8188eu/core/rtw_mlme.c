@@ -264,8 +264,6 @@ int rtw_init_mlme_priv(struct adapter *padapter)/* struct	mlme_priv *pmlmepriv) 
 
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 
-	rtw_clear_scan_deny(padapter);
-
 	rtw_init_mlme_timer(padapter);
 
 exit:
@@ -928,7 +926,6 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 		rtw_led_control(padapter, LED_CTL_NO_LINK);
-		rtw_clear_scan_deny(padapter);
 	}
 	p2p_ps_wk_cmd(padapter, P2P_PS_DISABLE, 1);
 
