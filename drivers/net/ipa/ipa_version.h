@@ -38,4 +38,12 @@ enum ipa_version {
 	IPA_VERSION_4_11,
 };
 
+/* Execution environment IDs */
+enum gsi_ee_id {
+	GSI_EE_AP		= 0x0,
+	GSI_EE_MODEM		= 0x1,
+	GSI_EE_UC		= 0x2,
+	GSI_EE_TZ		= 0x3,
+};
+
 #endif /* _IPA_VERSION_H_ */
