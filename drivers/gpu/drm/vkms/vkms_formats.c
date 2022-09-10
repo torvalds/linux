@@ -1,26 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include <drm/drm_rect.h>
+#include <linux/kernel.h>
 #include <linux/minmax.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_fixed.h>
 
 #include "vkms_formats.h"
-
-/* The following macros help doing fixed point arithmetic. */
-/*
- * With Fixed-Point scale 15 we have 17 and 15 bits of integer and fractional
- * parts respectively.
- *  | 0000 0000 0000 0000 0.000 0000 0000 0000 |
- * 31                                          0
- */
-#define SHIFT 15
-
-#define INT_TO_FIXED(a) ((a) << SHIFT)
-#define FIXED_MUL(a, b) ((s32)(((s64)(a) * (b)) >> SHIFT))
-#define FIXED_DIV(a, b) ((s32)(((s64)(a) << SHIFT) / (b)))
-/* This macro converts a fixed point number to int, and round half up it */
-#define FIXED_TO_INT_ROUND(a) (((a) + (1 << (SHIFT - 1))) >> SHIFT)
-#define INT_TO_FIXED_DIV(a, b) (FIXED_DIV(INT_TO_FIXED(a), INT_TO_FIXED(b)))
-#define INT_TO_FIXED_DIV(a, b) (FIXED_DIV(INT_TO_FIXED(a), INT_TO_FIXED(b)))
 
 static size_t pixel_offset(const struct vkms_frame_info *frame_info, int x, int y)
 {
@@ -137,19 +122,19 @@ static void RGB565_to_argb_u16(struct line_buffer *stage_buffer,
 	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
 			       stage_buffer->n_pixels);
 
-	s32 fp_rb_ratio = INT_TO_FIXED_DIV(65535, 31);
-	s32 fp_g_ratio = INT_TO_FIXED_DIV(65535, 63);
+	s64 fp_rb_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(31));
+	s64 fp_g_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(63));
 
 	for (size_t x = 0; x < x_limit; x++, src_pixels++) {
 		u16 rgb_565 = le16_to_cpu(*src_pixels);
-		s32 fp_r = INT_TO_FIXED((rgb_565 >> 11) & 0x1f);
-		s32 fp_g = INT_TO_FIXED((rgb_565 >> 5) & 0x3f);
-		s32 fp_b = INT_TO_FIXED(rgb_565 & 0x1f);
+		s64 fp_r = drm_int2fixp((rgb_565 >> 11) & 0x1f);
+		s64 fp_g = drm_int2fixp((rgb_565 >> 5) & 0x3f);
+		s64 fp_b = drm_int2fixp(rgb_565 & 0x1f);
 
 		out_pixels[x].a = (u16)0xffff;
-		out_pixels[x].r = FIXED_TO_INT_ROUND(FIXED_MUL(fp_r, fp_rb_ratio));
-		out_pixels[x].g = FIXED_TO_INT_ROUND(FIXED_MUL(fp_g, fp_g_ratio));
-		out_pixels[x].b = FIXED_TO_INT_ROUND(FIXED_MUL(fp_b, fp_rb_ratio));
+		out_pixels[x].r = drm_fixp2int(drm_fixp_mul(fp_r, fp_rb_ratio));
+		out_pixels[x].g = drm_fixp2int(drm_fixp_mul(fp_g, fp_g_ratio));
+		out_pixels[x].b = drm_fixp2int(drm_fixp_mul(fp_b, fp_rb_ratio));
 	}
 }
 
@@ -248,17 +233,17 @@ static void argb_u16_to_RGB565(struct vkms_frame_info *frame_info,
 	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
 			    src_buffer->n_pixels);
 
-	s32 fp_rb_ratio = INT_TO_FIXED_DIV(65535, 31);
-	s32 fp_g_ratio = INT_TO_FIXED_DIV(65535, 63);
+	s64 fp_rb_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(31));
+	s64 fp_g_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(63));
 
 	for (size_t x = 0; x < x_limit; x++, dst_pixels++) {
-		s32 fp_r = INT_TO_FIXED(in_pixels[x].r);
-		s32 fp_g = INT_TO_FIXED(in_pixels[x].g);
-		s32 fp_b = INT_TO_FIXED(in_pixels[x].b);
+		s64 fp_r = drm_int2fixp(in_pixels[x].r);
+		s64 fp_g = drm_int2fixp(in_pixels[x].g);
+		s64 fp_b = drm_int2fixp(in_pixels[x].b);
 
-		u16 r = FIXED_TO_INT_ROUND(FIXED_DIV(fp_r, fp_rb_ratio));
-		u16 g = FIXED_TO_INT_ROUND(FIXED_DIV(fp_g, fp_g_ratio));
-		u16 b = FIXED_TO_INT_ROUND(FIXED_DIV(fp_b, fp_rb_ratio));
+		u16 r = drm_fixp2int(drm_fixp_div(fp_r, fp_rb_ratio));
+		u16 g = drm_fixp2int(drm_fixp_div(fp_g, fp_g_ratio));
+		u16 b = drm_fixp2int(drm_fixp_div(fp_b, fp_rb_ratio));
 
 		*dst_pixels = cpu_to_le16(r << 11 | g << 5 | b);
 	}
