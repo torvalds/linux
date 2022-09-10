@@ -254,7 +254,7 @@ static inline u32 proc_cntxt_base_addr_encoded(enum ipa_version version,
 /* The next register is not present for IPA v4.5+ */
 #define IPA_REG_COUNTER_CFG_OFFSET			0x000001f0
 /* The next field is not present for IPA v3.5+ */
-#define EOT_COAL_GRANULARITY			GENMASK(3, 0)
+#define EOT_COAL_GRANULARITY_FMASK		GENMASK(3, 0)
 #define AGGR_GRANULARITY_FMASK			GENMASK(8, 4)
 
 /* The next register is present for IPA v3.5+ */
@@ -470,7 +470,7 @@ static inline u32 ipa_metadata_offset_encoded(enum ipa_version version,
 /* The next field is not present for IPA v4.5+ */
 #define HDR_FTCH_DISABLE_FMASK			GENMASK(30, 30)
 /* The next field is present for IPA v4.9+ */
-#define DRBIP_ACL_ENABLE			GENMASK(30, 30)
+#define DRBIP_ACL_ENABLE_FMASK			GENMASK(30, 30)
 
 /** enum ipa_mode - ENDP_INIT_MODE register MODE field value */
 enum ipa_mode {
