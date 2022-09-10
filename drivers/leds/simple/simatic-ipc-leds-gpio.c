@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/x86/simatic-ipc-base.h>
 
-struct gpiod_lookup_table *simatic_ipc_led_gpio_table;
+static struct gpiod_lookup_table *simatic_ipc_led_gpio_table;
 
 static struct gpiod_lookup_table simatic_ipc_led_gpio_table_127e = {
 	.dev_id = "leds-gpio",
