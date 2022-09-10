@@ -190,7 +190,6 @@
 #define SYS_MVFR1_EL1			sys_reg(3, 0, 0, 3, 1)
 #define SYS_MVFR2_EL1			sys_reg(3, 0, 0, 3, 2)
 
-#define SYS_ID_AA64DFR0_EL1		sys_reg(3, 0, 0, 5, 0)
 #define SYS_ID_AA64DFR1_EL1		sys_reg(3, 0, 0, 5, 1)
 
 #define SYS_ID_AA64AFR0_EL1		sys_reg(3, 0, 0, 5, 4)
@@ -697,29 +696,6 @@
 #else
 #define ID_AA64MMFR0_EL1_PARANGE_MAX	ID_AA64MMFR0_EL1_PARANGE_48
 #endif
-
-/* id_aa64dfr0 */
-#define ID_AA64DFR0_EL1_MTPMU_SHIFT		48
-#define ID_AA64DFR0_EL1_TraceBuffer_SHIFT	44
-#define ID_AA64DFR0_EL1_TraceFilt_SHIFT		40
-#define ID_AA64DFR0_EL1_DoubleLock_SHIFT	36
-#define ID_AA64DFR0_EL1_PMSVer_SHIFT		32
-#define ID_AA64DFR0_EL1_CTX_CMPs_SHIFT		28
-#define ID_AA64DFR0_EL1_WRPs_SHIFT		20
-#define ID_AA64DFR0_EL1_BRPs_SHIFT		12
-#define ID_AA64DFR0_EL1_PMUVer_SHIFT		8
-#define ID_AA64DFR0_EL1_TraceVer_SHIFT		4
-#define ID_AA64DFR0_EL1_DebugVer_SHIFT		0
-
-#define ID_AA64DFR0_EL1_PMUVer_IMP		0x1
-#define ID_AA64DFR0_EL1_PMUVer_V3P1		0x4
-#define ID_AA64DFR0_EL1_PMUVer_V3P4		0x5
-#define ID_AA64DFR0_EL1_PMUVer_V3P5		0x6
-#define ID_AA64DFR0_EL1_PMUVer_V3P7		0x7
-#define ID_AA64DFR0_EL1_PMUVer_IMP_DEF		0xf
-
-#define ID_AA64DFR0_EL1_PMSVer_IMP		0x1
-#define ID_AA64DFR0_EL1_PMSVer_V1P1		0x2
 
 #define ID_DFR0_PERFMON_SHIFT		24
 
