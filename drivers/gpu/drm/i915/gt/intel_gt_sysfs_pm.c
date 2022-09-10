@@ -510,7 +510,7 @@ struct intel_gt_bool_throttle_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
 			char *buf);
-	i915_reg_t reg32;
+	i915_reg_t (*reg32)(struct intel_gt *gt);
 	u32 mask;
 };
 
@@ -521,7 +521,7 @@ static ssize_t throttle_reason_bool_show(struct device *dev,
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(dev, attr->attr.name);
 	struct intel_gt_bool_throttle_attr *t_attr =
 				(struct intel_gt_bool_throttle_attr *) attr;
-	bool val = rps_read_mask_mmio(&gt->rps, t_attr->reg32, t_attr->mask);
+	bool val = rps_read_mask_mmio(&gt->rps, t_attr->reg32(gt), t_attr->mask);
 
 	return sysfs_emit(buff, "%u\n", val);
 }
@@ -530,7 +530,7 @@ static ssize_t throttle_reason_bool_show(struct device *dev,
 struct intel_gt_bool_throttle_attr attr_##sysfs_func__ = { \
 	.attr = { .name = __stringify(sysfs_func__), .mode = 0444 }, \
 	.show = throttle_reason_bool_show, \
-	.reg32 = GT0_PERF_LIMIT_REASONS, \
+	.reg32 = intel_gt_perf_limit_reasons_reg, \
 	.mask = mask__, \
 }
 

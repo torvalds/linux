@@ -661,7 +661,7 @@ static int perf_limit_reasons_get(void *data, u64 *val)
 	intel_wakeref_t wakeref;
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		*val = intel_uncore_read(gt->uncore, GT0_PERF_LIMIT_REASONS);
+		*val = intel_uncore_read(gt->uncore, intel_gt_perf_limit_reasons_reg(gt));
 
 	return 0;
 }
@@ -677,7 +677,7 @@ static int perf_limit_reasons_clear(void *data, u64 val)
 	 * "status" bits except that the "log" bits remain set until cleared.
 	 */
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		intel_uncore_rmw(gt->uncore, GT0_PERF_LIMIT_REASONS,
+		intel_uncore_rmw(gt->uncore, intel_gt_perf_limit_reasons_reg(gt),
 				 GT0_PERF_LIMIT_REASONS_LOG_MASK, 0);
 
 	return 0;
