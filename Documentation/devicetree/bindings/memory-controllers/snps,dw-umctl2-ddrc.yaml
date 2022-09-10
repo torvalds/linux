@@ -47,10 +47,13 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
     memory-controller@fd070000 {
       compatible = "xlnx,zynqmp-ddrc-2.40a";
       reg = <0xfd070000 0x30000>;
+
       interrupt-parent = <&gic>;
-      interrupts = <0 112 4>;
+      interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
     };
 ...
