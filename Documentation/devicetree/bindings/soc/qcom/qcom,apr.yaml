@@ -103,8 +103,12 @@ patternProperties:
         unevaluatedProperties: false
 
       dais:
-        # TODO: Waiting for Documentation/devicetree/bindings/sound/qcom,q6asm.txt
         type: object
+        oneOf:
+          - $ref: /schemas/sound/qcom,q6apm-dai.yaml#
+          - $ref: /schemas/sound/qcom,q6dsp-lpass-ports.yaml#
+          - $ref: /schemas/sound/qcom,q6asm-dais.yaml#
+        unevaluatedProperties: false
         description: Qualcomm DSP audio ports
 
       routing:
