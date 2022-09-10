@@ -5524,7 +5524,8 @@ bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 		~*peer_adev->dev->dma_mask : ~((1ULL << 32) - 1);
 	resource_size_t aper_limit =
 		adev->gmc.aper_base + adev->gmc.aper_size - 1;
-	bool p2p_access = !(pci_p2pdma_distance_many(adev->pdev,
+	bool p2p_access = !adev->gmc.xgmi.connected_to_cpu &&
+			  !(pci_p2pdma_distance_many(adev->pdev,
 					&peer_adev->dev, 1, true) < 0);
 
 	return pcie_p2p && p2p_access && (adev->gmc.visible_vram_size &&

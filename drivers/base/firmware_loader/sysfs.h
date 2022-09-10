@@ -106,11 +106,16 @@ extern struct device_attribute dev_attr_cancel;
 extern struct device_attribute dev_attr_remaining_size;
 
 int fw_upload_start(struct fw_sysfs *fw_sysfs);
+void fw_upload_free(struct fw_sysfs *fw_sysfs);
 umode_t fw_upload_is_visible(struct kobject *kobj, struct attribute *attr, int n);
 #else
 static inline int fw_upload_start(struct fw_sysfs *fw_sysfs)
 {
 	return 0;
+}
+
+static inline void fw_upload_free(struct fw_sysfs *fw_sysfs)
+{
 }
 #endif
 

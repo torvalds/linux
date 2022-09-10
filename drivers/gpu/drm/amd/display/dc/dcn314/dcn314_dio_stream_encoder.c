@@ -317,6 +317,7 @@ static void enc314_stream_encoder_dp_unblank(
 	/* switch DP encoder to CRTC data, but reset it the fifo first. It may happen
 	 * that it overflows during mode transition, and sometimes doesn't recover.
 	 */
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 1);
 	udelay(10);
 
