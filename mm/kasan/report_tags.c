@@ -37,7 +37,7 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 	bool is_free;
 	bool alloc_found = false, free_found = false;
 
-	if (!info->cache || !info->object) {
+	if ((!info->cache || !info->object) && !info->bug_type) {
 		info->bug_type = get_common_bug_type(info);
 		return;
 	}

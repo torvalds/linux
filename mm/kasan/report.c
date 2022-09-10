@@ -175,17 +175,14 @@ static void end_report(unsigned long *flags, void *addr)
 
 static void print_error_description(struct kasan_report_info *info)
 {
-	if (info->type == KASAN_REPORT_INVALID_FREE) {
-		pr_err("BUG: KASAN: invalid-free in %pS\n", (void *)info->ip);
-		return;
-	}
-
-	if (info->type == KASAN_REPORT_DOUBLE_FREE) {
-		pr_err("BUG: KASAN: double-free in %pS\n", (void *)info->ip);
-		return;
-	}
-
 	pr_err("BUG: KASAN: %s in %pS\n", info->bug_type, (void *)info->ip);
+
+	if (info->type != KASAN_REPORT_ACCESS) {
+		pr_err("Free of addr %px by task %s/%d\n",
+			info->access_addr, current->comm, task_pid_nr(current));
+		return;
+	}
+
 	if (info->access_size)
 		pr_err("%s of size %zu at addr %px by task %s/%d\n",
 			info->is_write ? "Write" : "Read", info->access_size,
@@ -419,6 +416,18 @@ static void complete_report_info(struct kasan_report_info *info)
 		info->object = nearest_obj(info->cache, slab, addr);
 	} else
 		info->cache = info->object = NULL;
+
+	switch (info->type) {
+	case KASAN_REPORT_INVALID_FREE:
+		info->bug_type = "invalid-free";
+		break;
+	case KASAN_REPORT_DOUBLE_FREE:
+		info->bug_type = "double-free";
+		break;
+	default:
+		/* bug_type filled in by kasan_complete_mode_report_info. */
+		break;
+	}
 
 	/* Fill in mode-specific report info fields. */
 	kasan_complete_mode_report_info(info);

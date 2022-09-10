@@ -132,7 +132,8 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 	struct kasan_alloc_meta *alloc_meta;
 	struct kasan_free_meta *free_meta;
 
-	info->bug_type = get_bug_type(info);
+	if (!info->bug_type)
+		info->bug_type = get_bug_type(info);
 
 	if (!info->cache || !info->object)
 		return;
