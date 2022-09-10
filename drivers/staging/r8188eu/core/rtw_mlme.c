@@ -904,8 +904,6 @@ void rtw_indicate_connect(struct adapter *padapter)
 	}
 
 	pmlmepriv->to_roaming = 0;
-
-	rtw_set_scan_deny(padapter, 3000);
 }
 
 /*
