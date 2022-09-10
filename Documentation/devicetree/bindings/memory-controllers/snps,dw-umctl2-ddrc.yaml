@@ -33,10 +33,54 @@ properties:
         const: xlnx,zynqmp-ddrc-2.40a
 
   interrupts:
-    maxItems: 1
+    description:
+      DW uMCTL2 DDRC IP-core provides individual IRQ signal for each event":"
+      ECC Corrected Error, ECC Uncorrected Error, ECC Address Protection,
+      Scrubber-Done signal, DFI Parity/CRC Error. Some platforms may have the
+      signals merged before they reach the IRQ controller or have some of them
+      absent in case if the corresponding feature is unavailable/disabled.
+    minItems: 1
+    maxItems: 5
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 5
+    oneOf:
+      - description: Common ECC CE/UE/Scrubber/DFI Errors IRQ
+        items:
+          - const: ecc
+      - description: Individual ECC CE/UE/Scrubber/DFI Errors IRQs
+        items:
+          enum: [ ecc_ce, ecc_ue, ecc_ap, ecc_sbr, dfi_e ]
 
   reg:
     maxItems: 1
+
+  clocks:
+    description:
+      A standard set of the clock sources contains CSRs bus clock, AXI-ports
+      reference clock, DDRC core clock, Scrubber standalone clock
+      (synchronous to the DDRC clock).
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      enum: [ pclk, aclk, core, sbr ]
+
+  resets:
+    description:
+      Each clock domain can have separate reset signal.
+    minItems: 1
+    maxItems: 4
+
+  reset-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      enum: [ prst, arst, core, sbr ]
 
 required:
   - compatible
@@ -55,5 +99,20 @@ examples:
 
       interrupt-parent = <&gic>;
       interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "ecc";
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    memory-controller@3d400000 {
+      compatible = "snps,dw-umctl2-ddrc";
+      reg = <0x3d400000 0x400000>;
+
+      interrupts = <147 IRQ_TYPE_LEVEL_HIGH>, <148 IRQ_TYPE_LEVEL_HIGH>,
+                   <149 IRQ_TYPE_LEVEL_HIGH>, <150 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "ecc_ce", "ecc_ue", "ecc_sbr", "dfi_e";
+
+      clocks = <&pclk>, <&aclk>, <&core_clk>, <&sbr_clk>;
+      clock-names = "pclk", "aclk", "core", "sbr";
     };
 ...
