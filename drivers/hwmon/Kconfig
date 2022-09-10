@@ -1067,6 +1067,18 @@ config SENSORS_MAX31730
 	  This driver can also be built as a module. If so, the module
 	  will be called max31730.
 
+config SENSORS_MAX31760
+	tristate "MAX31760 fan speed controller"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Support for the Analog Devices MAX31760 Precision Fan-Speed
+	  Controller. MAX31760 integrates temperature sensing along with
+	  precision PWM fan control.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31760.
+
 config SENSORS_MAX6620
 	tristate "Maxim MAX6620 fan controller"
 	depends on I2C
