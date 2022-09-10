@@ -3753,7 +3753,7 @@ static void update_cpu_capacity_helper(int cpu)
 	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
 
 	if (old != rq->cpu_capacity_orig)
-		trace_update_cpu_capacity(cpu, 0, 0);
+		trace_update_cpu_capacity(cpu, fmax_capacity, rq->cpu_capacity_orig);
 }
 
 /*
