@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/memory-controllers/synopsys,ddrc-ecc.yaml#
+$id: http://devicetree.org/schemas/memory-controllers/snps,dw-umctl2-ddrc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Synopsys DesignWare Universal Multi-Protocol Memory Controller
@@ -24,8 +24,11 @@ description: |
 properties:
   compatible:
     oneOf:
-      - description: Synopsys DW uMCTL2 DDR controller v3.80a
+      - deprecated: true
+        description: Synopsys DW uMCTL2 DDR controller v3.80a
         const: snps,ddrc-3.80a
+      - description: Synopsys DW uMCTL2 DDR controller
+        const: snps,dw-umctl2-ddrc
       - description: Xilinx ZynqMP DDR controller v2.40a
         const: xlnx,zynqmp-ddrc-2.40a
 
