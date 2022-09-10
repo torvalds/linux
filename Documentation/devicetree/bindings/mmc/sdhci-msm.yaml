@@ -97,6 +97,10 @@ properties:
     description:
       Should specify pin control groups used for this controller.
 
+  pinctrl-1:
+    description:
+      Should specify sleep pin control groups used for this controller.
+
   resets:
     maxItems: 1
 
