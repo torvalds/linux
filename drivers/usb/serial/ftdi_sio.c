@@ -61,7 +61,6 @@ enum ftdi_chip_type {
 
 struct ftdi_private {
 	enum ftdi_chip_type chip_type;
-				/* type of device, either SIO or FT8U232AM */
 	int baud_base;		/* baud base clock for divisor setting */
 	int custom_divisor;	/* custom_divisor kludge, this is for
 				   baud_base (different from what goes to the
@@ -1318,7 +1317,7 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 	if (!baud)
 		baud = 9600;
 	switch (priv->chip_type) {
-	case SIO: /* SIO chip */
+	case SIO:
 		switch (baud) {
 		case 300: div_value = ftdi_sio_b300; break;
 		case 600: div_value = ftdi_sio_b600; break;
@@ -1338,7 +1337,7 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			div_okay = 0;
 		}
 		break;
-	case FT8U232AM: /* 8U232AM chip */
+	case FT8U232AM:
 		if (baud <= 3000000) {
 			div_value = ftdi_232am_baud_to_divisor(baud);
 		} else {
@@ -1348,10 +1347,10 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			div_okay = 0;
 		}
 		break;
-	case FT232BM: /* FT232BM chip */
-	case FT2232C: /* FT2232C chip */
-	case FT232RL: /* FT232RL chip */
-	case FTX:     /* FT-X series */
+	case FT232BM:
+	case FT2232C:
+	case FT232RL:
+	case FTX:
 		if (baud <= 3000000) {
 			u16 product_id = le16_to_cpu(
 				port->serial->dev->descriptor.idProduct);
@@ -1371,9 +1370,9 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			baud = 9600;
 		}
 		break;
-	case FT2232H: /* FT2232H chip */
-	case FT4232H: /* FT4232H chip */
-	case FT232H:  /* FT232H chip */
+	case FT2232H:
+	case FT4232H:
+	case FT232H:
 		if ((baud <= 12000000) && (baud >= 1200)) {
 			div_value = ftdi_2232h_baud_to_divisor(baud);
 		} else if (baud < 1200) {
@@ -1385,7 +1384,7 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			baud = 9600;
 		}
 		break;
-	} /* priv->chip_type */
+	}
 
 	if (div_okay) {
 		dev_dbg(dev, "%s - Baud rate set to %d (divisor 0x%lX) on chip %s\n",
