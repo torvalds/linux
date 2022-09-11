@@ -7038,6 +7038,12 @@ lpfc_cgn_params_val(struct lpfc_hba *phba, struct lpfc_cgn_param *p_cfg_param)
 	spin_unlock_irq(&phba->hbalock);
 }
 
+static const char * const lpfc_cmf_mode_to_str[] = {
+	"OFF",
+	"MANAGED",
+	"MONITOR",
+};
+
 /**
  * lpfc_cgn_params_parse - Process a FW cong parm change event
  * @phba: pointer to lpfc hba data structure.
@@ -7057,6 +7063,7 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 {
 	struct lpfc_cgn_info *cp;
 	uint32_t crc, oldmode;
+	char acr_string[4] = {0};
 
 	/* Make sure the FW has encoded the correct magic number to
 	 * validate the congestion parameter in FW memory.
@@ -7133,9 +7140,6 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 					lpfc_issue_els_edc(phba->pport, 0);
 				break;
 			case LPFC_CFG_MONITOR:
-				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
-						"4661 Switch from MANAGED to "
-						"`MONITOR mode\n");
 				phba->cmf_max_bytes_per_interval =
 					phba->cmf_link_byte_count;
 
@@ -7154,13 +7158,25 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 					lpfc_issue_els_edc(phba->pport, 0);
 				break;
 			case LPFC_CFG_MANAGED:
-				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
-						"4662 Switch from MONITOR to "
-						"MANAGED mode\n");
 				lpfc_cmf_signal_init(phba);
 				break;
 			}
 			break;
+		}
+		if (oldmode != LPFC_CFG_OFF ||
+		    oldmode != phba->cgn_p.cgn_param_mode) {
+			if (phba->cgn_p.cgn_param_mode == LPFC_CFG_MANAGED)
+				scnprintf(acr_string, sizeof(acr_string), "%u",
+					  phba->cgn_p.cgn_param_level0);
+			else
+				scnprintf(acr_string, sizeof(acr_string), "NA");
+
+			dev_info(&phba->pcidev->dev, "%d: "
+				 "4663 CMF: Mode %s acr %s\n",
+				 phba->brd_no,
+				 lpfc_cmf_mode_to_str
+				 [phba->cgn_p.cgn_param_mode],
+				 acr_string);
 		}
 	} else {
 		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
