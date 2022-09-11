@@ -553,8 +553,6 @@ void vt6655_mac_set_short_retry_limit(struct vnt_private *priv, unsigned char re
 
 void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
 
-void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode);
-
 void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf);
 void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf);
 

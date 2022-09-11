@@ -13,7 +13,7 @@
  *      vt6655_mac_is_reg_bits_off - Test if All test Bits Off
  *      vt6655_mac_set_short_retry_limit - Set 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
- *      MACvSetLoopbackMode - Set MAC Loopback Mode
+ *      vt6655_mac_set_loopback_mode - Set MAC Loopback Mode
  *      MACvSaveContext - Save Context of MAC Registers
  *      MACvRestoreContext - Restore Context of MAC Registers
  *      MACbSoftwareReset - Software Reset MAC
@@ -152,21 +152,20 @@ void MACvSetLongRetryLimit(struct vnt_private *priv,
  * Parameters:
  *  In:
  *      io_base        - Base Address for MAC
- *      byLoopbackMode  - Loopback Mode
+ *      loopback_mode  - Loopback Mode
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode)
+static void vt6655_mac_set_loopback_mode(struct vnt_private *priv, u8 loopback_mode)
 {
 	void __iomem *io_base = priv->port_offset;
 
-	byLoopbackMode <<= 6;
+	loopback_mode <<= 6;
 	/* set TCR */
-	iowrite8((ioread8(io_base + MAC_REG_TEST) & 0x3f) | byLoopbackMode,
-		 io_base + MAC_REG_TEST);
+	iowrite8((ioread8(io_base + MAC_REG_TEST) & 0x3f) | loopback_mode, io_base + MAC_REG_TEST);
 }
 
 /*
@@ -476,13 +475,13 @@ bool MACbShutdown(struct vnt_private *priv)
 	void __iomem *io_base = priv->port_offset;
 	/* disable MAC IMR */
 	iowrite32(0, io_base + MAC_REG_IMR);
-	MACvSetLoopbackMode(priv, MAC_LB_INTERNAL);
+	vt6655_mac_set_loopback_mode(priv, MAC_LB_INTERNAL);
 	/* stop the adapter */
 	if (!MACbSafeStop(priv)) {
-		MACvSetLoopbackMode(priv, MAC_LB_NONE);
+		vt6655_mac_set_loopback_mode(priv, MAC_LB_NONE);
 		return false;
 	}
-	MACvSetLoopbackMode(priv, MAC_LB_NONE);
+	vt6655_mac_set_loopback_mode(priv, MAC_LB_NONE);
 	return true;
 }
 
