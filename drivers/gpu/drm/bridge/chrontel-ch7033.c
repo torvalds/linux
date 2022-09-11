@@ -68,6 +68,7 @@ enum {
 	BYTE_SWAP_GBR	= 3,
 	BYTE_SWAP_BRG	= 4,
 	BYTE_SWAP_BGR	= 5,
+	BYTE_SWAP_MAX	= 6,
 };
 
 /* Page 0, Register 0x19 */
@@ -355,6 +356,8 @@ static void ch7033_bridge_mode_set(struct drm_bridge *bridge,
 	int hsynclen = mode->hsync_end - mode->hsync_start;
 	int vbporch = mode->vsync_start - mode->vdisplay;
 	int vsynclen = mode->vsync_end - mode->vsync_start;
+	u8 byte_swap;
+	int ret;
 
 	/*
 	 * Page 4
@@ -398,8 +401,16 @@ static void ch7033_bridge_mode_set(struct drm_bridge *bridge,
 	regmap_write(priv->regmap, 0x15, vbporch);
 	regmap_write(priv->regmap, 0x16, vsynclen);
 
-	/* Input color swap. */
-	regmap_update_bits(priv->regmap, 0x18, SWAP, BYTE_SWAP_BGR);
+	/* Input color swap. Byte order is optional and will default to
+	 * BYTE_SWAP_BGR to preserve backwards compatibility with existing
+	 * driver.
+	 */
+	ret = of_property_read_u8(priv->bridge.of_node, "chrontel,byteswap",
+				  &byte_swap);
+	if (!ret && byte_swap < BYTE_SWAP_MAX)
+		regmap_update_bits(priv->regmap, 0x18, SWAP, byte_swap);
+	else
+		regmap_update_bits(priv->regmap, 0x18, SWAP, BYTE_SWAP_BGR);
 
 	/* Input clock and sync polarity. */
 	regmap_update_bits(priv->regmap, 0x19, 0x1, mode->clock >> 16);

@@ -69,6 +69,8 @@ bool drm_dp_128b132b_link_training_failed(const u8 link_status[DP_LINK_STATUS_SI
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
 
+const char *drm_dp_phy_name(enum drm_dp_phy dp_phy);
+
 /**
  * struct drm_dp_vsc_sdp - drm DP VSC SDP
  *

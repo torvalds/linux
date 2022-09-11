@@ -171,8 +171,6 @@ struct vc4_vec {
 
 	struct clk *clock;
 
-	const struct vc4_vec_tv_mode *tv_mode;
-
 	struct debugfs_regset32 regset;
 };
 
@@ -194,7 +192,9 @@ enum vc4_vec_tv_mode_id {
 
 struct vc4_vec_tv_mode {
 	const struct drm_display_mode *mode;
-	void (*mode_set)(struct vc4_vec *vec);
+	u32 config0;
+	u32 config1;
+	u32 custom_freq;
 };
 
 static const struct debugfs_reg32 vec_regs[] = {
@@ -224,95 +224,41 @@ static const struct debugfs_reg32 vec_regs[] = {
 	VC4_REG32(VEC_DAC_MISC),
 };
 
-static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN);
-	VEC_WRITE(VEC_CONFIG1, VEC_CONFIG1_C_CVBS_CVBS);
-
-	drm_dev_exit(idx);
-}
-
-static void vc4_vec_ntsc_j_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD);
-	VEC_WRITE(VEC_CONFIG1, VEC_CONFIG1_C_CVBS_CVBS);
-
-	drm_dev_exit(idx);
-}
-
 static const struct drm_display_mode ntsc_mode = {
 	DRM_MODE("720x480", DRM_MODE_TYPE_DRIVER, 13500,
 		 720, 720 + 14, 720 + 14 + 64, 720 + 14 + 64 + 60, 0,
-		 480, 480 + 3, 480 + 3 + 3, 480 + 3 + 3 + 16, 0,
+		 480, 480 + 7, 480 + 7 + 6, 525, 0,
 		 DRM_MODE_FLAG_INTERLACE)
 };
-
-static void vc4_vec_pal_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_PAL_BDGHI_STD);
-	VEC_WRITE(VEC_CONFIG1, VEC_CONFIG1_C_CVBS_CVBS);
-
-	drm_dev_exit(idx);
-}
-
-static void vc4_vec_pal_m_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_PAL_BDGHI_STD);
-	VEC_WRITE(VEC_CONFIG1,
-		  VEC_CONFIG1_C_CVBS_CVBS | VEC_CONFIG1_CUSTOM_FREQ);
-	VEC_WRITE(VEC_FREQ3_2, 0x223b);
-	VEC_WRITE(VEC_FREQ1_0, 0x61d1);
-
-	drm_dev_exit(idx);
-}
 
 static const struct drm_display_mode pal_mode = {
 	DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER, 13500,
 		 720, 720 + 20, 720 + 20 + 64, 720 + 20 + 64 + 60, 0,
-		 576, 576 + 2, 576 + 2 + 3, 576 + 2 + 3 + 20, 0,
+		 576, 576 + 4, 576 + 4 + 6, 625, 0,
 		 DRM_MODE_FLAG_INTERLACE)
 };
 
 static const struct vc4_vec_tv_mode vc4_vec_tv_modes[] = {
 	[VC4_VEC_TV_MODE_NTSC] = {
 		.mode = &ntsc_mode,
-		.mode_set = vc4_vec_ntsc_mode_set,
+		.config0 = VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
 	},
 	[VC4_VEC_TV_MODE_NTSC_J] = {
 		.mode = &ntsc_mode,
-		.mode_set = vc4_vec_ntsc_j_mode_set,
+		.config0 = VEC_CONFIG0_NTSC_STD,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
 	},
 	[VC4_VEC_TV_MODE_PAL] = {
 		.mode = &pal_mode,
-		.mode_set = vc4_vec_pal_mode_set,
+		.config0 = VEC_CONFIG0_PAL_BDGHI_STD,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
 	},
 	[VC4_VEC_TV_MODE_PAL_M] = {
 		.mode = &pal_mode,
-		.mode_set = vc4_vec_pal_m_mode_set,
+		.config0 = VEC_CONFIG0_PAL_BDGHI_STD,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS | VEC_CONFIG1_CUSTOM_FREQ,
+		.custom_freq = 0x223b61d1,
 	},
 };
 
@@ -368,14 +314,14 @@ static int vc4_vec_connector_init(struct drm_device *dev, struct vc4_vec *vec)
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_mode_property,
 				   VC4_VEC_TV_MODE_NTSC);
-	vec->tv_mode = &vc4_vec_tv_modes[VC4_VEC_TV_MODE_NTSC];
 
 	drm_connector_attach_encoder(connector, &vec->encoder.base);
 
 	return 0;
 }
 
-static void vc4_vec_encoder_disable(struct drm_encoder *encoder)
+static void vc4_vec_encoder_disable(struct drm_encoder *encoder,
+				    struct drm_atomic_state *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
@@ -406,10 +352,16 @@ err_dev_exit:
 	drm_dev_exit(idx);
 }
 
-static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
+static void vc4_vec_encoder_enable(struct drm_encoder *encoder,
+				   struct drm_atomic_state *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
+	struct drm_connector *connector = &vec->connector;
+	struct drm_connector_state *conn_state =
+		drm_atomic_get_new_connector_state(state, connector);
+	const struct vc4_vec_tv_mode *tv_mode =
+		&vc4_vec_tv_modes[conn_state->tv.mode];
 	int idx, ret;
 
 	if (!drm_dev_enter(drm, &idx))
@@ -468,7 +420,15 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
 	/* Mask all interrupts. */
 	VEC_WRITE(VEC_MASK0, 0);
 
-	vec->tv_mode->mode_set(vec);
+	VEC_WRITE(VEC_CONFIG0, tv_mode->config0);
+	VEC_WRITE(VEC_CONFIG1, tv_mode->config1);
+
+	if (tv_mode->custom_freq) {
+		VEC_WRITE(VEC_FREQ3_2,
+			  (tv_mode->custom_freq >> 16) & 0xffff);
+		VEC_WRITE(VEC_FREQ1_0,
+			  tv_mode->custom_freq & 0xffff);
+	}
 
 	VEC_WRITE(VEC_DAC_MISC,
 		  VEC_DAC_MISC_VID_ACT | VEC_DAC_MISC_DAC_RST_N);
@@ -481,23 +441,6 @@ err_put_runtime_pm:
 	pm_runtime_put(&vec->pdev->dev);
 err_dev_exit:
 	drm_dev_exit(idx);
-}
-
-
-static bool vc4_vec_encoder_mode_fixup(struct drm_encoder *encoder,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
-static void vc4_vec_encoder_atomic_mode_set(struct drm_encoder *encoder,
-					struct drm_crtc_state *crtc_state,
-					struct drm_connector_state *conn_state)
-{
-	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
-
-	vec->tv_mode = &vc4_vec_tv_modes[conn_state->tv.mode];
 }
 
 static int vc4_vec_encoder_atomic_check(struct drm_encoder *encoder,
@@ -516,11 +459,9 @@ static int vc4_vec_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
-	.disable = vc4_vec_encoder_disable,
-	.enable = vc4_vec_encoder_enable,
-	.mode_fixup = vc4_vec_encoder_mode_fixup,
 	.atomic_check = vc4_vec_encoder_atomic_check,
-	.atomic_mode_set = vc4_vec_encoder_atomic_mode_set,
+	.atomic_disable = vc4_vec_encoder_disable,
+	.atomic_enable = vc4_vec_encoder_enable,
 };
 
 static int vc4_vec_late_register(struct drm_encoder *encoder)

@@ -71,10 +71,10 @@ void vc4_hvs_dump_state(struct vc4_hvs *hvs)
 	struct drm_printer p = drm_info_printer(&hvs->pdev->dev);
 	int idx, i;
 
-	drm_print_regset32(&p, &hvs->regset);
-
 	if (!drm_dev_enter(drm, &idx))
 		return;
+
+	drm_print_regset32(&p, &hvs->regset);
 
 	DRM_INFO("HVS ctx:\n");
 	for (i = 0; i < 64; i += 4) {

@@ -64,7 +64,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 	struct tve200_drm_dev_private *priv = dev->dev_private;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
-	int ret = 0;
+	int ret;
 
 	drm_mode_config_init(dev);
 	mode_config = &dev->mode_config;
@@ -92,6 +92,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 		 * method to get the connector out of the bridge.
 		 */
 		dev_err(dev->dev, "the bridge is not a panel\n");
+		ret = -EINVAL;
 		goto out_bridge;
 	}
 

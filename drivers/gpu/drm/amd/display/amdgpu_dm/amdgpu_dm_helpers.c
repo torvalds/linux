@@ -27,6 +27,7 @@
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>
@@ -153,41 +154,28 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 	return result;
 }
 
-static void get_payload_table(
-		struct amdgpu_dm_connector *aconnector,
-		struct dp_mst_stream_allocation_table *proposed_table)
+static void
+fill_dc_mst_payload_table_from_drm(struct drm_dp_mst_topology_state *mst_state,
+				   struct amdgpu_dm_connector *aconnector,
+				   struct dc_dp_mst_stream_allocation_table *table)
 {
-	int i;
-	struct drm_dp_mst_topology_mgr *mst_mgr =
-			&aconnector->mst_port->mst_mgr;
+	struct dc_dp_mst_stream_allocation_table new_table = { 0 };
+	struct dc_dp_mst_stream_allocation *sa;
+	struct drm_dp_mst_atomic_payload *payload;
 
-	mutex_lock(&mst_mgr->payload_lock);
+	/* Fill payload info*/
+	list_for_each_entry(payload, &mst_state->payloads, next) {
+		if (payload->delete)
+			continue;
 
-	proposed_table->stream_count = 0;
-
-	/* number of active streams */
-	for (i = 0; i < mst_mgr->max_payloads; i++) {
-		if (mst_mgr->payloads[i].num_slots == 0)
-			break; /* end of vcp_id table */
-
-		ASSERT(mst_mgr->payloads[i].payload_state !=
-				DP_PAYLOAD_DELETE_LOCAL);
-
-		if (mst_mgr->payloads[i].payload_state == DP_PAYLOAD_LOCAL ||
-			mst_mgr->payloads[i].payload_state ==
-					DP_PAYLOAD_REMOTE) {
-
-			struct dp_mst_stream_allocation *sa =
-					&proposed_table->stream_allocations[
-						proposed_table->stream_count];
-
-			sa->slot_count = mst_mgr->payloads[i].num_slots;
-			sa->vcp_id = mst_mgr->proposed_vcpis[i]->vcpi;
-			proposed_table->stream_count++;
-		}
+		sa = &new_table.stream_allocations[new_table.stream_count];
+		sa->slot_count = payload->time_slots;
+		sa->vcp_id = payload->vcpi;
+		new_table.stream_count++;
 	}
 
-	mutex_unlock(&mst_mgr->payload_lock);
+	/* Overwrite the old table */
+	*table = new_table;
 }
 
 void dm_helpers_dp_update_branch_info(
@@ -201,15 +189,13 @@ void dm_helpers_dp_update_branch_info(
 bool dm_helpers_dp_mst_write_payload_allocation_table(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream,
-		struct dp_mst_stream_allocation_table *proposed_table,
+		struct dc_dp_mst_stream_allocation_table *proposed_table,
 		bool enable)
 {
 	struct amdgpu_dm_connector *aconnector;
-	struct dm_connector_state *dm_conn_state;
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_mst_atomic_payload *payload;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
-	struct drm_dp_mst_port *mst_port;
-	bool ret;
-	u8 link_coding_cap = DP_8b_10b_ENCODING;
 
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 	/* Accessing the connector state is required for vcpi_slots allocation
@@ -220,40 +206,21 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	if (!aconnector || !aconnector->mst_port)
 		return false;
 
-	dm_conn_state = to_dm_connector_state(aconnector->base.state);
-
 	mst_mgr = &aconnector->mst_port->mst_mgr;
-
-	if (!mst_mgr->mst_state)
-		return false;
-
-	mst_port = aconnector->port;
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	link_coding_cap = dc_link_dp_mst_decide_link_encoding_format(aconnector->dc_link);
-#endif
-
-	if (enable) {
-
-		ret = drm_dp_mst_allocate_vcpi(mst_mgr, mst_port,
-					       dm_conn_state->pbn,
-					       dm_conn_state->vcpi_slots);
-		if (!ret)
-			return false;
-
-	} else {
-		drm_dp_mst_reset_vcpi_slots(mst_mgr, mst_port);
-	}
+	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
 
 	/* It's OK for this to fail */
-	drm_dp_update_payload_part1(mst_mgr, (link_coding_cap == DP_CAP_ANSI_128B132B) ? 0:1);
+	payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->port);
+	if (enable)
+		drm_dp_add_payload_part1(mst_mgr, mst_state, payload);
+	else
+		drm_dp_remove_payload(mst_mgr, mst_state, payload);
 
 	/* mst_mgr->->payloads are VC payload notify MST branch using DPCD or
 	 * AUX message. The sequence is slot 1-63 allocated sequence for each
 	 * stream. AMD ASIC stream slot allocation should follow the same
 	 * sequence. copy DRM MST allocation to dc */
-
-	get_payload_table(aconnector, proposed_table);
+	fill_dc_mst_payload_table_from_drm(mst_state, aconnector, proposed_table);
 
 	return true;
 }
@@ -310,8 +277,9 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 		bool enable)
 {
 	struct amdgpu_dm_connector *aconnector;
+	struct drm_dp_mst_topology_state *mst_state;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
-	struct drm_dp_mst_port *mst_port;
+	struct drm_dp_mst_atomic_payload *payload;
 	enum mst_progress_status set_flag = MST_ALLOCATE_NEW_PAYLOAD;
 	enum mst_progress_status clr_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
 
@@ -320,19 +288,16 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	if (!aconnector || !aconnector->mst_port)
 		return false;
 
-	mst_port = aconnector->port;
-
 	mst_mgr = &aconnector->mst_port->mst_mgr;
+	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
 
-	if (!mst_mgr->mst_state)
-		return false;
-
+	payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->port);
 	if (!enable) {
 		set_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
 		clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
 	}
 
-	if (drm_dp_update_payload_part2(mst_mgr)) {
+	if (enable && drm_dp_add_payload_part2(mst_mgr, mst_state->base.state, payload)) {
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			set_flag, false);
 	} else {
@@ -341,9 +306,6 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			clr_flag, false);
 	}
-
-	if (!enable)
-		drm_dp_mst_deallocate_vcpi(mst_mgr, mst_port);
 
 	return true;
 }
