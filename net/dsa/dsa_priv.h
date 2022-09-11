@@ -88,6 +88,7 @@ struct dsa_notifier_lag_info {
 	const struct dsa_port *dp;
 	struct dsa_lag lag;
 	struct netdev_lag_upper_info *info;
+	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_VLAN_* */

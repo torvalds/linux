@@ -635,6 +635,7 @@ int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag_dev,
 	struct dsa_notifier_lag_info info = {
 		.dp = dp,
 		.info = uinfo,
+		.extack = extack,
 	};
 	struct net_device *bridge_dev;
 	int err;

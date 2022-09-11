@@ -861,11 +861,12 @@ static void felix_bridge_leave(struct dsa_switch *ds, int port,
 
 static int felix_lag_join(struct dsa_switch *ds, int port,
 			  struct dsa_lag lag,
-			  struct netdev_lag_upper_info *info)
+			  struct netdev_lag_upper_info *info,
+			  struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
 
-	return ocelot_port_lag_join(ocelot, port, lag.dev, info);
+	return ocelot_port_lag_join(ocelot, port, lag.dev, info, extack);
 }
 
 static int felix_lag_leave(struct dsa_switch *ds, int port,

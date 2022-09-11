@@ -2132,10 +2132,14 @@ static void ocelot_migrate_lag_fdbs(struct ocelot *ocelot,
 
 int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 			 struct net_device *bond,
-			 struct netdev_lag_upper_info *info)
+			 struct netdev_lag_upper_info *info,
+			 struct netlink_ext_ack *extack)
 {
-	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH)
+	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can only offload LAG using hash TX type");
 		return -EOPNOTSUPP;
+	}
 
 	mutex_lock(&ocelot->fwd_domain_lock);
 
