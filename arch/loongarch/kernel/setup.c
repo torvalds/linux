@@ -247,7 +247,7 @@ static void __init arch_mem_init(char **cmdline_p)
 	sparse_init();
 	memblock_set_bottom_up(true);
 
-	plat_swiotlb_setup();
+	swiotlb_init(true, SWIOTLB_VERBOSE);
 
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
