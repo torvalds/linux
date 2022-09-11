@@ -350,7 +350,7 @@ static struct damos *damon_lru_sort_new_cold_scheme(unsigned int cold_thres)
 
 static int damon_lru_sort_apply_parameters(void)
 {
-	struct damos *scheme, *next_scheme;
+	struct damos *scheme;
 	struct damon_addr_range addr_range;
 	unsigned int hot_thres, cold_thres;
 	int err = 0;
@@ -360,17 +360,15 @@ static int damon_lru_sort_apply_parameters(void)
 	if (err)
 		return err;
 
-	/* free previously set schemes */
-	damon_for_each_scheme_safe(scheme, next_scheme, ctx)
-		damon_destroy_scheme(scheme);
-
 	/* aggr_interval / sample_interval is the maximum nr_accesses */
 	hot_thres = aggr_interval / sample_interval * hot_thres_access_freq /
 		1000;
 	scheme = damon_lru_sort_new_hot_scheme(hot_thres);
 	if (!scheme)
 		return -ENOMEM;
-	damon_add_scheme(ctx, scheme);
+	err = damon_set_schemes(ctx, &scheme, 1);
+	if (err)
+		return err;
 
 	cold_thres = cold_min_age / aggr_interval;
 	scheme = damon_lru_sort_new_cold_scheme(cold_thres);
