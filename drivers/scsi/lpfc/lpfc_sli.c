@@ -6830,8 +6830,13 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		bf_set(lpfc_mbx_set_feature_mi, &mbox->u.mqe.un.set_feature,
 		       phba->sli4_hba.pc_sli4_params.mi_ver);
 		break;
+	case LPFC_SET_LD_SIGNAL:
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_LD_SIGNAL;
+		mbox->u.mqe.un.set_feature.param_len = 16;
+		bf_set(lpfc_mbx_set_feature_lds_qry,
+		       &mbox->u.mqe.un.set_feature, LPFC_QUERY_LDS_OP);
+		break;
 	case LPFC_SET_ENABLE_CMF:
-		bf_set(lpfc_mbx_set_feature_dd, &mbox->u.mqe.un.set_feature, 1);
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_ENABLE_CMF;
 		mbox->u.mqe.un.set_feature.param_len = 4;
 		bf_set(lpfc_mbx_set_feature_cmf,
@@ -7824,6 +7829,62 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	}
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return 1;
+}
+
+static void
+lpfc_mbx_cmpl_read_lds_params(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	union lpfc_sli4_cfg_shdr *shdr;
+	u32 shdr_status, shdr_add_status;
+
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&pmb->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || pmb->u.mb.mbxStatus) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LDS_EVENT | LOG_MBOX,
+				"4622 SET_FEATURE (x%x) mbox failed, "
+				"status x%x add_status x%x, mbx status x%x\n",
+				LPFC_SET_LD_SIGNAL, shdr_status,
+				shdr_add_status, pmb->u.mb.mbxStatus);
+		phba->degrade_activate_threshold = 0;
+		phba->degrade_deactivate_threshold = 0;
+		phba->fec_degrade_interval = 0;
+		goto out;
+	}
+
+	phba->degrade_activate_threshold = pmb->u.mqe.un.set_feature.word7;
+	phba->degrade_deactivate_threshold = pmb->u.mqe.un.set_feature.word8;
+	phba->fec_degrade_interval = pmb->u.mqe.un.set_feature.word10;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_LDS_EVENT,
+			"4624 Success: da x%x dd x%x interval x%x\n",
+			phba->degrade_activate_threshold,
+			phba->degrade_deactivate_threshold,
+			phba->fec_degrade_interval);
+out:
+	mempool_free(pmb, phba->mbox_mem_pool);
+}
+
+int
+lpfc_read_lds_params(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	int rc;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+
+	lpfc_set_features(phba, mboxq, LPFC_SET_LD_SIGNAL);
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_lds_params;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return -EIO;
+	}
+	return 0;
 }
 
 static void
