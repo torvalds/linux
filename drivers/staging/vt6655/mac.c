@@ -293,23 +293,20 @@ bool MACbSoftwareReset(struct vnt_private *priv)
  * Return Value: true if success; otherwise false
  *
  */
-bool MACbSafeSoftwareReset(struct vnt_private *priv)
+static void vt6655_mac_save_soft_reset(struct vnt_private *priv)
 {
-	unsigned char abyTmpRegData[MAC_MAX_CONTEXT_SIZE_PAGE0 + MAC_MAX_CONTEXT_SIZE_PAGE1];
-	bool bRetVal;
+	u8 tmp_reg_data[MAC_MAX_CONTEXT_SIZE_PAGE0 + MAC_MAX_CONTEXT_SIZE_PAGE1];
 
 	/* PATCH....
 	 * save some important register's value, then do
 	 * reset, then restore register's value
 	 */
 	/* save MAC context */
-	vt6655_mac_save_context(priv, abyTmpRegData);
+	vt6655_mac_save_context(priv, tmp_reg_data);
 	/* do reset */
-	bRetVal = MACbSoftwareReset(priv);
+	MACbSoftwareReset(priv);
 	/* restore MAC context, except CR0 */
-	vt6655_mac_restore_context(priv, abyTmpRegData);
-
-	return bRetVal;
+	vt6655_mac_restore_context(priv, tmp_reg_data);
 }
 
 /*
@@ -443,12 +440,12 @@ bool MACbSafeStop(struct vnt_private *priv)
 
 	if (!MACbSafeRxOff(priv)) {
 		pr_debug(" MACbSafeRxOff == false)\n");
-		MACbSafeSoftwareReset(priv);
+		vt6655_mac_save_soft_reset(priv);
 		return false;
 	}
 	if (!MACbSafeTxOff(priv)) {
 		pr_debug(" MACbSafeTxOff == false)\n");
-		MACbSafeSoftwareReset(priv);
+		vt6655_mac_save_soft_reset(priv);
 		return false;
 	}
 
