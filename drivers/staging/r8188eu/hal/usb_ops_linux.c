@@ -5,7 +5,6 @@
 #include "../include/drv_types.h"
 #include "../include/osdep_intf.h"
 #include "../include/usb_ops.h"
-#include "../include/recv_osdep.h"
 #include "../include/rtl8188e_hal.h"
 
 static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)

@@ -9,7 +9,6 @@
 #include "../include/wifi.h"
 #include "../include/rtw_mlme_ext.h"
 #include "../include/wlan_bssdef.h"
-#include "../include/recv_osdep.h"
 #include "../include/rtl8188e_xmit.h"
 #include "../include/rtl8188e_dm.h"
 

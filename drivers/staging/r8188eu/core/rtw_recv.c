@@ -6,7 +6,6 @@
 #include <linux/ieee80211.h>
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
-#include "../include/recv_osdep.h"
 #include "../include/usb_ops.h"
 #include "../include/wifi.h"
 #include "../include/rtl8188e_recv.h"
