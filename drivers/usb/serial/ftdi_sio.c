@@ -2820,27 +2820,13 @@ static int ftdi_get_modem_status(struct usb_serial_port *port,
 	if (!buf)
 		return -ENOMEM;
 	/*
-	 * The 8U232AM returns a two byte value (the SIO a 1 byte value) in
-	 * the same format as the data returned from the in point.
+	 * The device returns a two byte value (the SIO a 1 byte value) in the
+	 * same format as the data returned from the IN endpoint.
 	 */
-	switch (priv->chip_type) {
-	case SIO:
+	if (priv->chip_type == SIO)
 		len = 1;
-		break;
-	case FT232A:
-	case FT232B:
-	case FT2232C:
-	case FT232R:
-	case FT2232H:
-	case FT4232H:
-	case FT232H:
-	case FTX:
+	else
 		len = 2;
-		break;
-	default:
-		ret = -EFAULT;
-		goto out;
-	}
 
 	ret = usb_control_msg(port->serial->dev,
 			usb_rcvctrlpipe(port->serial->dev, 0),
