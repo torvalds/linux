@@ -3870,9 +3870,15 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 	}
 }
 
-static bool ieee80211_twt_req_supported(const struct link_sta_info *link_sta,
+static bool ieee80211_twt_req_supported(struct ieee80211_sub_if_data *sdata,
+					struct ieee80211_supported_band *sband,
+					const struct link_sta_info *link_sta,
 					const struct ieee802_11_elems *elems)
 {
+	const struct ieee80211_sta_he_cap *own_he_cap =
+		ieee80211_get_he_iftype_cap(sband,
+					    ieee80211_vif_type_p2p(&sdata->vif));
+
 	if (elems->ext_capab_len < 10)
 		return false;
 
@@ -3880,14 +3886,19 @@ static bool ieee80211_twt_req_supported(const struct link_sta_info *link_sta,
 		return false;
 
 	return link_sta->pub->he_cap.he_cap_elem.mac_cap_info[0] &
-		IEEE80211_HE_MAC_CAP0_TWT_RES;
+		IEEE80211_HE_MAC_CAP0_TWT_RES &&
+		own_he_cap &&
+		(own_he_cap->he_cap_elem.mac_cap_info[0] &
+			IEEE80211_HE_MAC_CAP0_TWT_REQ);
 }
 
-static int ieee80211_recalc_twt_req(struct ieee80211_link_data *link,
+static int ieee80211_recalc_twt_req(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_supported_band *sband,
+				    struct ieee80211_link_data *link,
 				    struct link_sta_info *link_sta,
 				    struct ieee802_11_elems *elems)
 {
-	bool twt = ieee80211_twt_req_supported(link_sta, elems);
+	bool twt = ieee80211_twt_req_supported(sdata, sband, link_sta, elems);
 
 	if (link->conf->twt_requester != twt) {
 		link->conf->twt_requester = twt;
@@ -4129,7 +4140,8 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		else
 			bss_conf->twt_protected = false;
 
-		*changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
+		*changed |= ieee80211_recalc_twt_req(sdata, sband, link,
+						     link_sta, elems);
 
 		if (elems->eht_operation && elems->eht_cap &&
 		    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT)) {
@@ -5472,6 +5484,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	struct ieee802_11_elems *elems;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 	struct link_sta_info *link_sta;
 	struct sta_info *sta;
@@ -5734,7 +5747,12 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		goto free;
 	}
 
-	changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
+	if (WARN_ON(!link->conf->chandef.chan))
+		goto free;
+
+	sband = local->hw.wiphy->bands[link->conf->chandef.chan->band];
+
+	changed |= ieee80211_recalc_twt_req(sdata, sband, link, link_sta, elems);
 
 	if (ieee80211_config_bw(link, elems->ht_cap_elem,
 				elems->vht_cap_elem, elems->ht_operation,
