@@ -18,7 +18,7 @@
  *      vt6655_mac_restore_context - Restore Context of MAC Registers
  *      MACbSoftwareReset - Software Reset MAC
  *      vt6655_mac_safe_rx_off - Turn Off MAC Rx
- *      MACbSafeTxOff - Turn Off MAC Tx
+ *      vt6655_mac_safe_tx_off - Turn Off MAC Tx
  *      MACbSafeStop - Stop MAC function
  *      MACbShutdown - Shut down MAC
  *      MACvInitialize - Initialize MAC
@@ -376,7 +376,7 @@ static bool vt6655_mac_safe_rx_off(struct vnt_private *priv)
  * Return Value: true if success; otherwise false
  *
  */
-bool MACbSafeTxOff(struct vnt_private *priv)
+static bool vt6655_mac_safe_tx_off(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->port_offset;
 	unsigned short ww;
@@ -443,8 +443,8 @@ bool MACbSafeStop(struct vnt_private *priv)
 		vt6655_mac_save_soft_reset(priv);
 		return false;
 	}
-	if (!MACbSafeTxOff(priv)) {
-		pr_debug(" MACbSafeTxOff == false)\n");
+	if (!vt6655_mac_safe_tx_off(priv)) {
+		pr_debug(" vt6655_mac_safe_tx_off == false)\n");
 		vt6655_mac_save_soft_reset(priv);
 		return false;
 	}
