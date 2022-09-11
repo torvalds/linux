@@ -1382,7 +1382,7 @@ static u32 ocelot_get_bond_mask(struct ocelot *ocelot, struct net_device *bond)
 /* The logical port number of a LAG is equal to the lowest numbered physical
  * port ID present in that LAG. It may change if that port ever leaves the LAG.
  */
-static int ocelot_bond_get_id(struct ocelot *ocelot, struct net_device *bond)
+int ocelot_bond_get_id(struct ocelot *ocelot, struct net_device *bond)
 {
 	int bond_mask = ocelot_get_bond_mask(ocelot, bond);
 
@@ -1391,6 +1391,7 @@ static int ocelot_bond_get_id(struct ocelot *ocelot, struct net_device *bond)
 
 	return __ffs(bond_mask);
 }
+EXPORT_SYMBOL_GPL(ocelot_bond_get_id);
 
 /* Returns the mask of user ports assigned to this DSA tag_8021q CPU port.
  * Note that when CPU ports are in a LAG, the user ports are assigned to the
