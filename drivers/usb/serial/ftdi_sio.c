@@ -1725,46 +1725,31 @@ static DEVICE_ATTR_WO(event_char);
 static int create_sysfs_attrs(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	int retval = 0;
+	enum ftdi_chip_type type = priv->chip_type;
+	int ret = 0;
 
-	/* XXX I've no idea if the original SIO supports the event_char
-	 * sysfs parameter, so I'm playing it safe.  */
-	if (priv->chip_type != SIO) {
-		dev_dbg(&port->dev, "sysfs attributes for %s\n", ftdi_chip_name[priv->chip_type]);
-		retval = device_create_file(&port->dev, &dev_attr_event_char);
-		if ((!retval) &&
-		    (priv->chip_type == FT232B ||
-		     priv->chip_type == FT2232C ||
-		     priv->chip_type == FT232R ||
-		     priv->chip_type == FT2232H ||
-		     priv->chip_type == FT4232H ||
-		     priv->chip_type == FT232H ||
-		     priv->chip_type == FTX)) {
-			retval = device_create_file(&port->dev,
-						    &dev_attr_latency_timer);
-		}
+	if (type != SIO) {
+		ret = device_create_file(&port->dev, &dev_attr_event_char);
+		if (ret)
+			return ret;
 	}
-	return retval;
+
+	if (type != SIO && type != FT232A)
+		ret = device_create_file(&port->dev, &dev_attr_latency_timer);
+
+	return ret;
 }
 
 static void remove_sysfs_attrs(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	enum ftdi_chip_type type = priv->chip_type;
 
-	/* XXX see create_sysfs_attrs */
-	if (priv->chip_type != SIO) {
+	if (type != SIO)
 		device_remove_file(&port->dev, &dev_attr_event_char);
-		if (priv->chip_type == FT232B ||
-		    priv->chip_type == FT2232C ||
-		    priv->chip_type == FT232R ||
-		    priv->chip_type == FT2232H ||
-		    priv->chip_type == FT4232H ||
-		    priv->chip_type == FT232H ||
-		    priv->chip_type == FTX) {
-			device_remove_file(&port->dev, &dev_attr_latency_timer);
-		}
-	}
 
+	if (type != SIO && type != FT232A)
+		device_remove_file(&port->dev, &dev_attr_latency_timer);
 }
 
 #ifdef CONFIG_GPIOLIB
