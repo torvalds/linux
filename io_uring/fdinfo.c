@@ -62,10 +62,9 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	unsigned int cq_shift = 0;
 	unsigned int sq_entries, cq_entries;
 	bool has_lock;
-	bool is_cqe32 = (ctx->flags & IORING_SETUP_CQE32);
 	unsigned int i;
 
-	if (is_cqe32)
+	if (ctx->flags & IORING_SETUP_CQE32)
 		cq_shift = 1;
 
 	/*
@@ -102,16 +101,13 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 		unsigned int entry = i + cq_head;
 		struct io_uring_cqe *cqe = &r->cqes[(entry & cq_mask) << cq_shift];
 
-		if (!is_cqe32) {
-			seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x\n",
+		seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x",
 			   entry & cq_mask, cqe->user_data, cqe->res,
 			   cqe->flags);
-		} else {
-			seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x, "
-				"extra1:%llu, extra2:%llu\n",
-				entry & cq_mask, cqe->user_data, cqe->res,
-				cqe->flags, cqe->big_cqe[0], cqe->big_cqe[1]);
-		}
+		if (cq_shift)
+			seq_printf(m, ", extra1:%llu, extra2:%llu\n",
+					cqe->big_cqe[0], cqe->big_cqe[1]);
+		seq_printf(m, "\n");
 	}
 
 	/*
