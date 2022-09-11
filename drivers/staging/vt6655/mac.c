@@ -14,7 +14,7 @@
  *      vt6655_mac_set_short_retry_limit - Set 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
  *      vt6655_mac_set_loopback_mode - Set MAC Loopback Mode
- *      MACvSaveContext - Save Context of MAC Registers
+ *      vt6655_mac_save_context - Save Context of MAC Registers
  *      MACvRestoreContext - Restore Context of MAC Registers
  *      MACbSoftwareReset - Software Reset MAC
  *      MACbSafeRxOff - Turn Off MAC Rx
@@ -181,7 +181,7 @@ static void vt6655_mac_set_loopback_mode(struct vnt_private *priv, u8 loopback_m
  * Return Value: none
  *
  */
-void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf)
+static void vt6655_mac_save_context(struct vnt_private *priv, u8 *cxt_buf)
 {
 	void __iomem *io_base = priv->port_offset;
 
@@ -303,7 +303,7 @@ bool MACbSafeSoftwareReset(struct vnt_private *priv)
 	 * reset, then restore register's value
 	 */
 	/* save MAC context */
-	MACvSaveContext(priv, abyTmpRegData);
+	vt6655_mac_save_context(priv, abyTmpRegData);
 	/* do reset */
 	bRetVal = MACbSoftwareReset(priv);
 	/* restore MAC context, except CR0 */
