@@ -49,13 +49,13 @@
 
 enum ftdi_chip_type {
 	SIO,
-	FT8U232AM,
-	FT232BM,
+	FT232A,
+	FT232B,
 	FT2232C,
-	FT232RL,
+	FT232R,
+	FT232H,
 	FT2232H,
 	FT4232H,
-	FT232H,
 	FTX,
 };
 
@@ -1071,15 +1071,15 @@ static const struct usb_device_id id_table_combined[] = {
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static const char *ftdi_chip_name[] = {
-	[SIO] = "SIO",	/* the serial part of FT8U100AX */
-	[FT8U232AM] = "FT8U232AM",
-	[FT232BM] = "FT232BM",
-	[FT2232C] = "FT2232C",
-	[FT232RL] = "FT232RL",
-	[FT2232H] = "FT2232H",
-	[FT4232H] = "FT4232H",
-	[FT232H]  = "FT232H",
-	[FTX]     = "FT-X"
+	[SIO]		= "SIO",	/* the serial part of FT8U100AX */
+	[FT232A]	= "FT232A",
+	[FT232B]	= "FT232B",
+	[FT2232C]	= "FT2232C",
+	[FT232R]	= "FT232R",
+	[FT232H]	= "FT232H",
+	[FT2232H]	= "FT2232H",
+	[FT4232H]	= "FT4232H",
+	[FTX]		= "FT-X",
 };
 
 
@@ -1337,7 +1337,7 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			div_okay = 0;
 		}
 		break;
-	case FT8U232AM:
+	case FT232A:
 		if (baud <= 3000000) {
 			div_value = ftdi_232am_baud_to_divisor(baud);
 		} else {
@@ -1347,9 +1347,9 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			div_okay = 0;
 		}
 		break;
-	case FT232BM:
+	case FT232B:
 	case FT2232C:
-	case FT232RL:
+	case FT232R:
 	case FTX:
 		if (baud <= 3000000) {
 			u16 product_id = le16_to_cpu(
@@ -1431,7 +1431,7 @@ static int write_latency_timer(struct usb_serial_port *port)
 	int rv;
 	int l = priv->latency;
 
-	if (priv->chip_type == SIO || priv->chip_type == FT8U232AM)
+	if (priv->chip_type == SIO || priv->chip_type == FT232A)
 		return -EINVAL;
 
 	if (priv->flags & ASYNC_LOW_LATENCY)
@@ -1472,7 +1472,7 @@ static int read_latency_timer(struct usb_serial_port *port)
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int rv;
 
-	if (priv->chip_type == SIO || priv->chip_type == FT8U232AM)
+	if (priv->chip_type == SIO || priv->chip_type == FT232A)
 		return -EINVAL;
 
 	rv = _read_latency_timer(port);
@@ -1603,7 +1603,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		priv->baud_base = 12000000 / 16;
 	} else if (version < 0x400) {
 		/* Assume it's an FT8U232AM (or FT8U245AM) */
-		priv->chip_type = FT8U232AM;
+		priv->chip_type = FT232A;
 		/*
 		 * It might be a BM type because of the iSerialNumber bug.
 		 * If iSerialNumber==0 and the latency timer is readable,
@@ -1614,14 +1614,14 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 			dev_dbg(&port->dev,
 				"%s: has latency timer so not an AM type\n",
 				__func__);
-			priv->chip_type = FT232BM;
+			priv->chip_type = FT232B;
 		}
 	} else if (version < 0x600) {
 		/* Assume it's an FT232BM (or FT245BM) */
-		priv->chip_type = FT232BM;
+		priv->chip_type = FT232B;
 	} else if (version < 0x900) {
 		/* Assume it's an FT232RL */
-		priv->chip_type = FT232RL;
+		priv->chip_type = FT232R;
 	} else if (version < 0x1000) {
 		/* Assume it's an FT232H */
 		priv->chip_type = FT232H;
@@ -1751,9 +1751,9 @@ static int create_sysfs_attrs(struct usb_serial_port *port)
 		dev_dbg(&port->dev, "sysfs attributes for %s\n", ftdi_chip_name[priv->chip_type]);
 		retval = device_create_file(&port->dev, &dev_attr_event_char);
 		if ((!retval) &&
-		    (priv->chip_type == FT232BM ||
+		    (priv->chip_type == FT232B ||
 		     priv->chip_type == FT2232C ||
-		     priv->chip_type == FT232RL ||
+		     priv->chip_type == FT232R ||
 		     priv->chip_type == FT2232H ||
 		     priv->chip_type == FT4232H ||
 		     priv->chip_type == FT232H ||
@@ -1772,9 +1772,9 @@ static void remove_sysfs_attrs(struct usb_serial_port *port)
 	/* XXX see create_sysfs_attrs */
 	if (priv->chip_type != SIO) {
 		device_remove_file(&port->dev, &dev_attr_event_char);
-		if (priv->chip_type == FT232BM ||
+		if (priv->chip_type == FT232B ||
 		    priv->chip_type == FT2232C ||
-		    priv->chip_type == FT232RL ||
+		    priv->chip_type == FT232R ||
 		    priv->chip_type == FT2232H ||
 		    priv->chip_type == FT4232H ||
 		    priv->chip_type == FT232H ||
@@ -2152,7 +2152,7 @@ static int ftdi_gpio_init(struct usb_serial_port *port)
 	case FT232H:
 		result = ftdi_gpio_init_ft232h(port);
 		break;
-	case FT232RL:
+	case FT232R:
 		result = ftdi_gpio_init_ft232r(port);
 		break;
 	case FTX:
@@ -2837,10 +2837,10 @@ static int ftdi_get_modem_status(struct usb_serial_port *port,
 	case SIO:
 		len = 1;
 		break;
-	case FT8U232AM:
-	case FT232BM:
+	case FT232A:
+	case FT232B:
 	case FT2232C:
-	case FT232RL:
+	case FT232R:
 	case FT2232H:
 	case FT4232H:
 	case FT232H:
