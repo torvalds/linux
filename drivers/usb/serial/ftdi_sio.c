@@ -47,6 +47,17 @@
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Bill Ryder <bryder@sgi.com>, Kuba Ober <kuba@mareimbrium.org>, Andreas Mohr, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB FTDI Serial Converters Driver"
 
+enum ftdi_chip_type {
+	SIO,
+	FT8U232AM,
+	FT232BM,
+	FT2232C,
+	FT232RL,
+	FT2232H,
+	FT4232H,
+	FT232H,
+	FTX,
+};
 
 struct ftdi_private {
 	enum ftdi_chip_type chip_type;

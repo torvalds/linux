@@ -153,18 +153,6 @@
  * not supported by the FT8U232AM).
  */
 
-enum ftdi_chip_type {
-	SIO = 1,
-	FT8U232AM = 2,
-	FT232BM = 3,
-	FT2232C = 4,
-	FT232RL = 5,
-	FT2232H = 6,
-	FT4232H = 7,
-	FT232H  = 8,
-	FTX     = 9,
-};
-
 enum ftdi_sio_baudrate {
 	ftdi_sio_b300 = 0,
 	ftdi_sio_b600 = 1,
