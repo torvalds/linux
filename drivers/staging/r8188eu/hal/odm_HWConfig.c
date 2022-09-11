@@ -3,7 +3,7 @@
 
 #include "../include/drv_types.h"
 
-static u8 odm_QueryRxPwrPercentage(s8 AntPower)
+static u8 odm_query_rxpwrpercentage(s8 AntPower)
 {
 	if ((AntPower <= -100) || (AntPower >= 20))
 		return	0;
@@ -117,7 +117,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			break;
 		}
 		rx_pwr_all += 6;
-		PWDB_ALL = odm_QueryRxPwrPercentage(rx_pwr_all);
+		PWDB_ALL = odm_query_rxpwrpercentage(rx_pwr_all);
 		if (!cck_highpwr) {
 			if (PWDB_ALL >= 80)
 				PWDB_ALL = ((PWDB_ALL - 80) << 1) + ((PWDB_ALL - 80) >> 1) + 80;
@@ -162,7 +162,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			pPhyInfo->RxPwr[i] = rx_pwr[i];
 
 			/* Translate DBM to percentage. */
-			RSSI = odm_QueryRxPwrPercentage(rx_pwr[i]);
+			RSSI = odm_query_rxpwrpercentage(rx_pwr[i]);
 			total_rssi += RSSI;
 
 			pPhyInfo->RxMIMOSignalStrength[i] = (u8)RSSI;
@@ -173,7 +173,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		/*  (2)PWDB, Average PWDB calculated by hardware (for rate adaptive) */
 		rx_pwr_all = (((pPhyStaRpt->cck_sig_qual_ofdm_pwdb_all) >> 1) & 0x7f) - 110;
 
-		PWDB_ALL = odm_QueryRxPwrPercentage(rx_pwr_all);
+		PWDB_ALL = odm_query_rxpwrpercentage(rx_pwr_all);
 
 		pPhyInfo->RxPWDBAll = PWDB_ALL;
 		pPhyInfo->RxPower = rx_pwr_all;
