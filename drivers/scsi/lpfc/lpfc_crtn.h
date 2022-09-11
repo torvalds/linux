@@ -462,6 +462,7 @@ extern const struct attribute_group *lpfc_hba_groups[];
 extern const struct attribute_group *lpfc_vport_groups[];
 extern struct scsi_host_template lpfc_template;
 extern struct scsi_host_template lpfc_template_nvme;
+extern struct scsi_host_template lpfc_vport_template;
 extern struct fc_function_template lpfc_transport_functions;
 extern struct fc_function_template lpfc_vport_transport_functions;
 
