@@ -1353,8 +1353,13 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 				   FCH_EVT_LINKUP, 0);
 
 	spin_lock_irq(shost->host_lock);
-	vport->fc_flag &= ~(FC_PT2PT | FC_PT2PT_PLOGI | FC_ABORT_DISCOVERY |
-			    FC_RSCN_MODE | FC_NLP_MORE | FC_RSCN_DISCOVERY);
+	if (phba->defer_flogi_acc_flag)
+		vport->fc_flag &= ~(FC_ABORT_DISCOVERY | FC_RSCN_MODE |
+				    FC_NLP_MORE | FC_RSCN_DISCOVERY);
+	else
+		vport->fc_flag &= ~(FC_PT2PT | FC_PT2PT_PLOGI |
+				    FC_ABORT_DISCOVERY | FC_RSCN_MODE |
+				    FC_NLP_MORE | FC_RSCN_DISCOVERY);
 	vport->fc_flag |= FC_NDISC_ACTIVE;
 	vport->fc_ns_retry = 0;
 	spin_unlock_irq(shost->host_lock);
