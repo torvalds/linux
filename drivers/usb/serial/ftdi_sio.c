@@ -72,8 +72,7 @@ struct ftdi_private {
 	unsigned long last_dtr_rts;	/* saved modem control outputs */
 	char prev_status;        /* Used for TIOCMIWAIT */
 	char transmit_empty;	/* If transmitter is empty or not */
-	u16 interface;		/* FT2232C, FT2232H or FT4232H port interface
-				   (0 for FT232/245) */
+	u16 channel;		/* channel index, or 0 for legacy types */
 
 	speed_t force_baud;	/* if non-zero, force the baud rate to
 				   this value */
@@ -1271,7 +1270,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 			       usb_sndctrlpipe(port->serial->dev, 0),
 			       FTDI_SIO_SET_MODEM_CTRL_REQUEST,
 			       FTDI_SIO_SET_MODEM_CTRL_REQUEST_TYPE,
-			       value, priv->interface,
+			       value, priv->channel,
 			       NULL, 0, WDR_TIMEOUT);
 	if (rv < 0) {
 		dev_dbg(dev, "%s Error from MODEM_CTRL urb: DTR %s, RTS %s\n",
@@ -1412,7 +1411,7 @@ static int change_speed(struct tty_struct *tty, struct usb_serial_port *port)
 			priv->chip_type == FTX) {
 		/* Probably the BM type needs the MSB of the encoded fractional
 		 * divider also moved like for the chips above. Any infos? */
-		index = (u16)((index << 8) | priv->interface);
+		index = (u16)((index << 8) | priv->channel);
 	}
 
 	rv = usb_control_msg(port->serial->dev,
@@ -1443,7 +1442,7 @@ static int write_latency_timer(struct usb_serial_port *port)
 			     usb_sndctrlpipe(udev, 0),
 			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
 			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
-			     l, priv->interface,
+			     l, priv->channel,
 			     NULL, 0, WDR_TIMEOUT);
 	if (rv < 0)
 		dev_err(&port->dev, "Unable to write latency timer: %i\n", rv);
@@ -1459,7 +1458,7 @@ static int _read_latency_timer(struct usb_serial_port *port)
 
 	rv = usb_control_msg_recv(udev, 0, FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
 				  FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE, 0,
-				  priv->interface, &buf, 1, WDR_TIMEOUT,
+				  priv->channel, &buf, 1, WDR_TIMEOUT,
 				  GFP_KERNEL);
 	if (rv == 0)
 		rv = buf;
@@ -1580,15 +1579,14 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		} else
 			priv->chip_type = FT2232C;
 
-		/* Determine interface code. */
 		if (ifnum == 0)
-			priv->interface = INTERFACE_A;
+			priv->channel = CHANNEL_A;
 		else if (ifnum == 1)
-			priv->interface = INTERFACE_B;
+			priv->channel = CHANNEL_B;
 		else if (ifnum == 2)
-			priv->interface = INTERFACE_C;
+			priv->channel = CHANNEL_C;
 		else if (ifnum == 3)
-			priv->interface = INTERFACE_D;
+			priv->channel = CHANNEL_D;
 
 		/* BM-type devices have a bug where bcdDevice gets set
 		 * to 0x200 when iSerialNumber is 0.  */
@@ -1729,7 +1727,7 @@ static ssize_t event_char_store(struct device *dev,
 			     usb_sndctrlpipe(udev, 0),
 			     FTDI_SIO_SET_EVENT_CHAR_REQUEST,
 			     FTDI_SIO_SET_EVENT_CHAR_REQUEST_TYPE,
-			     v, priv->interface,
+			     v, priv->channel,
 			     NULL, 0, WDR_TIMEOUT);
 	if (rv < 0) {
 		dev_dbg(&port->dev, "Unable to write event character: %i\n", rv);
@@ -1803,7 +1801,7 @@ static int ftdi_set_bitmode(struct usb_serial_port *port, u8 mode)
 				 usb_sndctrlpipe(serial->dev, 0),
 				 FTDI_SIO_SET_BITMODE_REQUEST,
 				 FTDI_SIO_SET_BITMODE_REQUEST_TYPE, val,
-				 priv->interface, NULL, 0, WDR_TIMEOUT);
+				 priv->channel, NULL, 0, WDR_TIMEOUT);
 	if (result < 0) {
 		dev_err(&serial->interface->dev,
 			"bitmode request failed for value 0x%04x: %d\n",
@@ -1867,7 +1865,7 @@ static int ftdi_read_cbus_pins(struct usb_serial_port *port)
 	result = usb_control_msg_recv(serial->dev, 0,
 				      FTDI_SIO_READ_PINS_REQUEST,
 				      FTDI_SIO_READ_PINS_REQUEST_TYPE, 0,
-				      priv->interface, &buf, 1, WDR_TIMEOUT,
+				      priv->channel, &buf, 1, WDR_TIMEOUT,
 				      GFP_KERNEL);
 	if (result == 0)
 		result = buf;
@@ -2403,7 +2401,7 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			FTDI_SIO_RESET_REQUEST, FTDI_SIO_RESET_REQUEST_TYPE,
 			FTDI_SIO_RESET_SIO,
-			priv->interface, NULL, 0, WDR_TIMEOUT);
+			priv->channel, NULL, 0, WDR_TIMEOUT);
 
 	/* Termios defaults are set by usb_serial_init. We don't change
 	   port->tty->termios - this would lose speed settings, etc.
@@ -2426,7 +2424,7 @@ static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
 			    usb_sndctrlpipe(port->serial->dev, 0),
 			    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
 			    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-			    0, priv->interface, NULL, 0,
+			    0, priv->channel, NULL, 0,
 			    WDR_TIMEOUT) < 0) {
 			dev_err(&port->dev, "error from flowcontrol urb\n");
 		}
@@ -2619,7 +2617,7 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 			usb_sndctrlpipe(port->serial->dev, 0),
 			FTDI_SIO_SET_DATA_REQUEST,
 			FTDI_SIO_SET_DATA_REQUEST_TYPE,
-			value , priv->interface,
+			value, priv->channel,
 			NULL, 0, WDR_TIMEOUT) < 0) {
 		dev_err(&port->dev, "%s FAILED to enable/disable break state (state was %d)\n",
 			__func__, break_state);
@@ -2755,7 +2753,7 @@ no_skip:
 	if (usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			    FTDI_SIO_SET_DATA_REQUEST,
 			    FTDI_SIO_SET_DATA_REQUEST_TYPE,
-			    value , priv->interface,
+			    value, priv->channel,
 			    NULL, 0, WDR_SHORT_TIMEOUT) < 0) {
 		dev_err(ddev, "%s FAILED to set databits/stopbits/parity\n",
 			__func__);
@@ -2768,7 +2766,7 @@ no_data_parity_stop_changes:
 		if (usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
 				    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-				    0, priv->interface,
+				    0, priv->channel,
 				    NULL, 0, WDR_TIMEOUT) < 0) {
 			dev_err(ddev, "%s error from disable flowcontrol urb\n",
 				__func__);
@@ -2802,7 +2800,7 @@ no_c_cflag_changes:
 		index = FTDI_SIO_DISABLE_FLOW_CTRL;
 	}
 
-	index |= priv->interface;
+	index |= priv->channel;
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			FTDI_SIO_SET_FLOW_CTRL_REQUEST,
@@ -2856,7 +2854,7 @@ static int ftdi_get_modem_status(struct usb_serial_port *port,
 			usb_rcvctrlpipe(port->serial->dev, 0),
 			FTDI_SIO_GET_MODEM_STATUS_REQUEST,
 			FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
-			0, priv->interface,
+			0, priv->channel,
 			buf, len, WDR_TIMEOUT);
 
 	/* NOTE: We allow short responses and handle that below. */

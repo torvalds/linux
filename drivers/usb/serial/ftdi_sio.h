@@ -40,11 +40,11 @@
 #define FTDI_SIO_READ_PINS		0x0c /* Read immediate value of pins */
 #define FTDI_SIO_READ_EEPROM		0x90 /* Read EEPROM */
 
-/* Interface indices for FT2232, FT2232H and FT4232H devices */
-#define INTERFACE_A		1
-#define INTERFACE_B		2
-#define INTERFACE_C		3
-#define INTERFACE_D		4
+/* Channel indices for FT2232, FT2232H and FT4232H devices */
+#define CHANNEL_A		1
+#define CHANNEL_B		2
+#define CHANNEL_C		3
+#define CHANNEL_D		4
 
 
 /*
