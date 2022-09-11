@@ -300,8 +300,7 @@ static void serial_omap_stop_tx(struct uart_port *port)
 			serial_out(up, UART_OMAP_SCR, up->scr);
 			res = (port->rs485.flags & SER_RS485_RTS_AFTER_SEND) ?
 				1 : 0;
-			if (up->rts_gpiod &&
-			    gpiod_get_value(up->rts_gpiod) != res) {
+			if (gpiod_get_value(up->rts_gpiod) != res) {
 				if (port->rs485.delay_rts_after_send > 0)
 					mdelay(
 					port->rs485.delay_rts_after_send);
@@ -397,7 +396,7 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 		/* if rts not already enabled */
 		res = (port->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
-		if (up->rts_gpiod && gpiod_get_value(up->rts_gpiod) != res) {
+		if (gpiod_get_value(up->rts_gpiod) != res) {
 			gpiod_set_value(up->rts_gpiod, res);
 			if (port->rs485.delay_rts_before_send > 0)
 				mdelay(port->rs485.delay_rts_before_send);
@@ -1336,13 +1335,11 @@ serial_omap_config_rs485(struct uart_port *port, struct ktermios *termios,
 	up->ier = 0;
 	serial_out(up, UART_IER, 0);
 
-	if (up->rts_gpiod) {
-		/* enable / disable rts */
-		val = (rs485->flags & SER_RS485_ENABLED) ?
-			SER_RS485_RTS_AFTER_SEND : SER_RS485_RTS_ON_SEND;
-		val = (rs485->flags & val) ? 1 : 0;
-		gpiod_set_value(up->rts_gpiod, val);
-	}
+	/* enable / disable rts */
+	val = (rs485->flags & SER_RS485_ENABLED) ?
+	      SER_RS485_RTS_AFTER_SEND : SER_RS485_RTS_ON_SEND;
+	val = (rs485->flags & val) ? 1 : 0;
+	gpiod_set_value(up->rts_gpiod, val);
 
 	/* Enable interrupts */
 	up->ier = mode;
@@ -1547,11 +1544,13 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 		ret = PTR_ERR(up->rts_gpiod);
 	        if (ret == -EPROBE_DEFER)
 			return ret;
-		/*
-		 * FIXME: the code historically ignored any other error than
-		 * -EPROBE_DEFER and just went on without GPIO.
-		 */
+
 		up->rts_gpiod = NULL;
+		up->port.rs485_supported = (const struct serial_rs485) { };
+		if (rs485conf->flags & SER_RS485_ENABLED) {
+			dev_err(dev, "disabling RS-485 (rts-gpio missing in device tree)\n");
+			memset(rs485conf, 0, sizeof(*rs485conf));
+		}
 	} else {
 		gpiod_set_consumer_name(up->rts_gpiod, "omap-serial");
 	}
