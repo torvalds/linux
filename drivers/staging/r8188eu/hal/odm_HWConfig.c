@@ -15,7 +15,7 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 
 static s32 odm_signal_scale_mapping(struct odm_dm_struct *dm_odm, s32 currsig)
 {
-	s32 retsig = 0;
+	s32 retsig;
 
 	if (currsig >= 51 && currsig <= 100)
 		retsig = 100;
