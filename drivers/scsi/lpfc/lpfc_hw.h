@@ -1442,30 +1442,56 @@ struct lpfc_vmid_gallapp_ident_list {
 
 /* Definitions for HBA / Port attribute entries */
 
-/* Attribute Entry */
-struct lpfc_fdmi_attr_entry {
-	union {
-		uint32_t AttrInt;
-		uint8_t  AttrTypes[32];
-		uint8_t  AttrString[256];
-		struct lpfc_name AttrWWN;
-	} un;
+/* Attribute Entry Structures */
+
+struct lpfc_fdmi_attr_u32 {
+	__be16 type;
+	__be16 len;
+	__be32 value_u32;
 };
 
-struct lpfc_fdmi_attr_def { /* Defined in TLV format */
-	/* Structure is in Big Endian format */
-	uint32_t AttrType:16;
-	uint32_t AttrLen:16;
-	/* Marks start of Value (ATTRIBUTE_ENTRY) */
-	struct lpfc_fdmi_attr_entry AttrValue;
-} __packed;
+struct lpfc_fdmi_attr_wwn {
+	__be16 type;
+	__be16 len;
+
+	/* Keep as u8[8] instead of __be64 to avoid accidental zero padding
+	 * by compiler
+	 */
+	u8 name[8];
+};
+
+struct lpfc_fdmi_attr_fullwwn {
+	__be16 type;
+	__be16 len;
+
+	/* Keep as u8[8] instead of __be64 to avoid accidental zero padding
+	 * by compiler
+	 */
+	u8 nname[8];
+	u8 pname[8];
+};
+
+struct lpfc_fdmi_attr_fc4types {
+	__be16 type;
+	__be16 len;
+	u8 value_types[32];
+};
+
+struct lpfc_fdmi_attr_string {
+	__be16 type;
+	__be16 len;
+	char value_string[256];
+};
+
+/* Maximum FDMI attribute length is Type+Len (4 bytes) + 256 byte string */
+#define FDMI_MAX_ATTRLEN	sizeof(struct lpfc_fdmi_attr_string)
 
 /*
  * HBA Attribute Block
  */
 struct lpfc_fdmi_attr_block {
 	uint32_t EntryCnt;		/* Number of HBA attribute entries */
-	struct lpfc_fdmi_attr_entry Entry;	/* Variable-length array */
+	/* Variable Length Attribute Entry TLV's follow */
 };
 
 /*
