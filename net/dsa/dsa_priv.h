@@ -185,6 +185,11 @@ static inline int dsa_tag_protocol_overhead(const struct dsa_device_ops *ops)
 /* master.c */
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp);
 void dsa_master_teardown(struct net_device *dev);
+int dsa_master_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
+			 struct netdev_lag_upper_info *uinfo,
+			 struct netlink_ext_ack *extack);
+void dsa_master_lag_teardown(struct net_device *lag_dev,
+			     struct dsa_port *cpu_dp);
 
 static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 						       int device, int port)

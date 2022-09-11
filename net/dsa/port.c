@@ -1393,6 +1393,7 @@ static int dsa_port_assign_master(struct dsa_port *dp,
 		return err;
 
 	dp->cpu_dp = master->dsa_ptr;
+	dp->cpu_port_in_lag = netif_is_lag_master(master);
 
 	return 0;
 }

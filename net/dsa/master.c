@@ -428,3 +428,52 @@ void dsa_master_teardown(struct net_device *dev)
 	 */
 	wmb();
 }
+
+int dsa_master_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
+			 struct netdev_lag_upper_info *uinfo,
+			 struct netlink_ext_ack *extack)
+{
+	bool master_setup = false;
+	int err;
+
+	if (!netdev_uses_dsa(lag_dev)) {
+		err = dsa_master_setup(lag_dev, cpu_dp);
+		if (err)
+			return err;
+
+		master_setup = true;
+	}
+
+	err = dsa_port_lag_join(cpu_dp, lag_dev, uinfo, extack);
+	if (err) {
+		if (extack && !extack->_msg)
+			NL_SET_ERR_MSG_MOD(extack,
+					   "CPU port failed to join LAG");
+		goto out_master_teardown;
+	}
+
+	return 0;
+
+out_master_teardown:
+	if (master_setup)
+		dsa_master_teardown(lag_dev);
+	return err;
+}
+
+/* Tear down a master if there isn't any other user port on it,
+ * optionally also destroying LAG information.
+ */
+void dsa_master_lag_teardown(struct net_device *lag_dev,
+			     struct dsa_port *cpu_dp)
+{
+	struct net_device *upper;
+	struct list_head *iter;
+
+	dsa_port_lag_leave(cpu_dp, lag_dev);
+
+	netdev_for_each_upper_dev_rcu(lag_dev, upper, iter)
+		if (dsa_slave_dev_check(upper))
+			return;
+
+	dsa_master_teardown(lag_dev);
+}
