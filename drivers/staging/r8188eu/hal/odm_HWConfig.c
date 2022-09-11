@@ -13,28 +13,28 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 		return 100 + AntPower;
 }
 
-static s32 odm_signal_scale_mapping(struct odm_dm_struct *dm_odm, s32 CurrSig)
+static s32 odm_signal_scale_mapping(struct odm_dm_struct *dm_odm, s32 currsig)
 {
-	s32 RetSig = 0;
+	s32 retsig = 0;
 
-	if (CurrSig >= 51 && CurrSig <= 100)
-		RetSig = 100;
-	else if (CurrSig >= 41 && CurrSig <= 50)
-		RetSig = 80 + ((CurrSig - 40) * 2);
-	else if (CurrSig >= 31 && CurrSig <= 40)
-		RetSig = 66 + (CurrSig - 30);
-	else if (CurrSig >= 21 && CurrSig <= 30)
-		RetSig = 54 + (CurrSig - 20);
-	else if (CurrSig >= 10 && CurrSig <= 20)
-		RetSig = 42 + (((CurrSig - 10) * 2) / 3);
-	else if (CurrSig >= 5 && CurrSig <= 9)
-		RetSig = 22 + (((CurrSig - 5) * 3) / 2);
-	else if (CurrSig >= 1 && CurrSig <= 4)
-		RetSig = 6 + (((CurrSig - 1) * 3) / 2);
+	if (currsig >= 51 && currsig <= 100)
+		retsig = 100;
+	else if (currsig >= 41 && currsig <= 50)
+		retsig = 80 + ((currsig - 40) * 2);
+	else if (currsig >= 31 && currsig <= 40)
+		retsig = 66 + (currsig - 30);
+	else if (currsig >= 21 && currsig <= 30)
+		retsig = 54 + (currsig - 20);
+	else if (currsig >= 10 && currsig <= 20)
+		retsig = 42 + (((currsig - 10) * 2) / 3);
+	else if (currsig >= 5 && currsig <= 9)
+		retsig = 22 + (((currsig - 5) * 3) / 2);
+	else if (currsig >= 1 && currsig <= 4)
+		retsig = 6 + (((currsig - 1) * 3) / 2);
 	else
-		RetSig = CurrSig;
+		retsig = currsig;
 
-	return RetSig;
+	return retsig;
 }
 
 static u8 odm_evm_db_to_percentage(s8 value)
