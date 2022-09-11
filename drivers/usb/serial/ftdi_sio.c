@@ -1551,13 +1551,15 @@ static int ftdi_determine_type(struct usb_serial_port *port)
 	version = le16_to_cpu(udev->descriptor.bcdDevice);
 	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 
-	priv->baud_base = 48000000 / 2;
-	priv->channel = 0;
+	/* Assume Hi-Speed type */
+	priv->baud_base = 120000000 / 2;
+	priv->channel = CHANNEL_A + ifnum;
 
 	switch (version) {
 	case 0x200:
 		priv->chip_type = FT232A;
-
+		priv->baud_base = 48000000 / 2;
+		priv->channel = 0;
 		/*
 		 * FT232B devices have a bug where bcdDevice gets set to 0x200
 		 * when iSerialNumber is 0. Assume it is an FT232B in case the
@@ -1570,37 +1572,36 @@ static int ftdi_determine_type(struct usb_serial_port *port)
 		break;
 	case 0x400:
 		priv->chip_type = FT232B;
+		priv->baud_base = 48000000 / 2;
+		priv->channel = 0;
 		break;
 	case 0x500:
 		priv->chip_type = FT2232C;
-		priv->channel = CHANNEL_A + ifnum;
+		priv->baud_base = 48000000 / 2;
 		break;
 	case 0x600:
 		priv->chip_type = FT232R;
+		priv->baud_base = 48000000 / 2;
+		priv->channel = 0;
 		break;
 	case 0x700:
 		priv->chip_type = FT2232H;
-		priv->channel = CHANNEL_A + ifnum;
-		priv->baud_base = 120000000 / 2;
 		break;
 	case 0x800:
 		priv->chip_type = FT4232H;
-		priv->channel = CHANNEL_A + ifnum;
-		priv->baud_base = 120000000 / 2;
 		break;
 	case 0x900:
 		priv->chip_type = FT232H;
-		priv->channel = CHANNEL_A + ifnum;
-		priv->baud_base = 120000000 / 2;
 		break;
 	case 0x1000:
 		priv->chip_type = FTX;
-		priv->channel = CHANNEL_A + ifnum;
+		priv->baud_base = 48000000 / 2;
 		break;
 	default:
 		if (version < 0x200) {
 			priv->chip_type = SIO;
 			priv->baud_base = 12000000 / 16;
+			priv->channel = 0;
 		} else {
 			dev_err(&port->dev, "unknown device type: 0x%02x\n", version);
 			return -ENODEV;
