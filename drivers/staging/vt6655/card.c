@@ -458,7 +458,7 @@ void CARDvSafeResetRx(struct vnt_private *priv)
 	iowrite32(RX_PERPKT, priv->port_offset + MAC_REG_RXDMACTL0);
 	iowrite32(RX_PERPKT, priv->port_offset + MAC_REG_RXDMACTL1);
 	/* set MAC RD pointer */
-	MACvSetCurrRx0DescAddr(priv, priv->rd0_pool_dma);
+	vt6655_mac_set_curr_rx_0_desc_addr(priv, priv->rd0_pool_dma);
 
 	MACvSetCurrRx1DescAddr(priv, priv->rd1_pool_dma);
 }
