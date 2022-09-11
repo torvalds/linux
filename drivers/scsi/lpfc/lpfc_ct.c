@@ -3524,9 +3524,9 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	      int cmdcode, uint32_t new_mask)
 {
 	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_dmabuf *mp, *bmp;
+	struct lpfc_dmabuf *rq, *rsp;
 	struct lpfc_sli_ct_request *CtReq;
-	struct ulp_bde64 *bpl;
+	struct ulp_bde64_le *bde;
 	uint32_t bit_pos;
 	uint32_t size;
 	uint32_t rsp_size;
@@ -3546,25 +3546,25 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* fill in BDEs for command */
 	/* Allocate buffer for command payload */
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp)
+	rq = kmalloc(sizeof(*rq), GFP_KERNEL);
+	if (!rq)
 		goto fdmi_cmd_exit;
 
-	mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys));
-	if (!mp->virt)
-		goto fdmi_cmd_free_mp;
+	rq->virt = lpfc_mbuf_alloc(phba, 0, &rq->phys);
+	if (!rq->virt)
+		goto fdmi_cmd_free_rq;
 
 	/* Allocate buffer for Buffer ptr list */
-	bmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!bmp)
-		goto fdmi_cmd_free_mpvirt;
+	rsp = kmalloc(sizeof(*rsp), GFP_KERNEL);
+	if (!rsp)
+		goto fdmi_cmd_free_rqvirt;
 
-	bmp->virt = lpfc_mbuf_alloc(phba, 0, &(bmp->phys));
-	if (!bmp->virt)
-		goto fdmi_cmd_free_bmp;
+	rsp->virt = lpfc_mbuf_alloc(phba, 0, &rsp->phys);
+	if (!rsp->virt)
+		goto fdmi_cmd_free_rsp;
 
-	INIT_LIST_HEAD(&mp->list);
-	INIT_LIST_HEAD(&bmp->list);
+	INIT_LIST_HEAD(&rq->list);
+	INIT_LIST_HEAD(&rsp->list);
 
 	/* FDMI request */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
@@ -3572,7 +3572,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 cmdcode, new_mask, vport->fdmi_port_mask,
 			 vport->fc_flag, vport->port_state);
 
-	CtReq = (struct lpfc_sli_ct_request *)mp->virt;
+	CtReq = (struct lpfc_sli_ct_request *)rq->virt;
 
 	/* First populate the CT_IU preamble */
 	memset(CtReq, 0, sizeof(struct lpfc_sli_ct_request));
@@ -3730,31 +3730,32 @@ port_out:
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_DISCOVERY,
 				 "0298 FDMI cmdcode x%x not supported\n",
 				 cmdcode);
-		goto fdmi_cmd_free_bmpvirt;
+		goto fdmi_cmd_free_rspvirt;
 	}
 	CtReq->CommandResponse.bits.Size = cpu_to_be16(rsp_size);
 
-	bpl = (struct ulp_bde64 *)bmp->virt;
-	bpl->addrHigh = le32_to_cpu(putPaddrHigh(mp->phys));
-	bpl->addrLow = le32_to_cpu(putPaddrLow(mp->phys));
-	bpl->tus.f.bdeFlags = 0;
-	bpl->tus.f.bdeSize = size;
+	bde = (struct ulp_bde64_le *)rsp->virt;
+	bde->addr_high = cpu_to_le32(putPaddrHigh(rq->phys));
+	bde->addr_low = cpu_to_le32(putPaddrLow(rq->phys));
+	bde->type_size = cpu_to_le32(ULP_BDE64_TYPE_BDE_64 <<
+				     ULP_BDE64_TYPE_SHIFT);
+	bde->type_size |= cpu_to_le32(size);
 
 	/*
 	 * The lpfc_ct_cmd/lpfc_get_req shall increment ndlp reference count
 	 * to hold ndlp reference for the corresponding callback function.
 	 */
-	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, 0))
+	if (!lpfc_ct_cmd(vport, rq, rsp, ndlp, cmpl, rsp_size, 0))
 		return 0;
 
-fdmi_cmd_free_bmpvirt:
-	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-fdmi_cmd_free_bmp:
-	kfree(bmp);
-fdmi_cmd_free_mpvirt:
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-fdmi_cmd_free_mp:
-	kfree(mp);
+fdmi_cmd_free_rspvirt:
+	lpfc_mbuf_free(phba, rsp->virt, rsp->phys);
+fdmi_cmd_free_rsp:
+	kfree(rsp);
+fdmi_cmd_free_rqvirt:
+	lpfc_mbuf_free(phba, rq->virt, rq->phys);
+fdmi_cmd_free_rq:
+	kfree(rq);
 fdmi_cmd_exit:
 	/* Issue FDMI request failed */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
