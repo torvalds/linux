@@ -718,6 +718,11 @@ static inline bool dsa_port_offloads_lag(struct dsa_port *dp,
 	return dsa_port_lag_dev_get(dp) == lag->dev;
 }
 
+static inline struct net_device *dsa_port_to_master(const struct dsa_port *dp)
+{
+	return dp->cpu_dp->master;
+}
+
 static inline
 struct net_device *dsa_port_to_bridge_port(const struct dsa_port *dp)
 {

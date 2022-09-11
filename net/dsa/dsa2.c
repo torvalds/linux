@@ -1263,11 +1263,11 @@ int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 	 * attempts to change the tagging protocol. If we ever lift the IFF_UP
 	 * restriction, there needs to be another mutex which serializes this.
 	 */
-	list_for_each_entry(dp, &dst->ports, list) {
-		if (dsa_port_is_cpu(dp) && (dp->master->flags & IFF_UP))
+	dsa_tree_for_each_user_port(dp, dst) {
+		if (dsa_port_to_master(dp)->flags & IFF_UP)
 			goto out_unlock;
 
-		if (dsa_port_is_user(dp) && (dp->slave->flags & IFF_UP))
+		if (dp->slave->flags & IFF_UP)
 			goto out_unlock;
 	}
 
@@ -1797,7 +1797,7 @@ void dsa_switch_shutdown(struct dsa_switch *ds)
 	rtnl_lock();
 
 	dsa_switch_for_each_user_port(dp, ds) {
-		master = dp->cpu_dp->master;
+		master = dsa_port_to_master(dp);
 		slave_dev = dp->slave;
 
 		netdev_upper_dev_unlink(master, slave_dev);
