@@ -23,6 +23,7 @@ int test_insert_entry = -EAFNOSUPPORT;
 int test_succ_lookup = -ENOENT;
 u32 test_delta_timeout = 0;
 u32 test_status = 0;
+u32 test_insert_lookup_mark = 0;
 __be32 saddr = 0;
 __be16 sport = 0;
 __be32 daddr = 0;
@@ -144,6 +145,7 @@ nf_ct_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
 
 		bpf_ct_set_timeout(ct, 10000);
 		bpf_ct_set_status(ct, IPS_CONFIRMED);
+		ct->mark = 77;
 
 		ct_ins = bpf_ct_insert_entry(ct);
 		if (ct_ins) {
@@ -157,6 +159,7 @@ nf_ct_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
 				test_delta_timeout = ct_lk->timeout - bpf_jiffies64();
 				test_delta_timeout /= CONFIG_HZ;
 				test_status = IPS_SEEN_REPLY;
+				test_insert_lookup_mark = ct_lk->mark;
 				bpf_ct_change_status(ct_lk, IPS_SEEN_REPLY);
 				bpf_ct_release(ct_lk);
 				test_succ_lookup = 0;
@@ -175,8 +178,10 @@ nf_ct_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
 		       sizeof(opts_def));
 	if (ct) {
 		test_exist_lookup = 0;
-		if (ct->mark == 42)
-			test_exist_lookup_mark = 43;
+		if (ct->mark == 42) {
+			ct->mark++;
+			test_exist_lookup_mark = ct->mark;
+		}
 		bpf_ct_release(ct);
 	} else {
 		test_exist_lookup = opts_def.error;
