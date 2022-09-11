@@ -56,6 +56,13 @@ enum ftdi_chip_type {
 	FT232H,
 	FT2232H,
 	FT4232H,
+	FT4232HA,
+	FT232HP,
+	FT233HP,
+	FT2232HP,
+	FT2233HP,
+	FT4232HP,
+	FT4233HP,
 	FTX,
 };
 
@@ -189,6 +196,13 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_4232H_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_232H_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_FTX_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_FT2233HP_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_FT4233HP_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_FT2232HP_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_FT4232HP_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_FT233HP_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_FT232HP_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_FT4232HA_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MICRO_CHAMELEON_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_RELAIS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_OPENDCC_PID) },
@@ -1078,6 +1092,13 @@ static const char *ftdi_chip_name[] = {
 	[FT232H]	= "FT232H",
 	[FT2232H]	= "FT2232H",
 	[FT4232H]	= "FT4232H",
+	[FT4232HA]	= "FT4232HA",
+	[FT232HP]	= "FT232HP",
+	[FT233HP]	= "FT233HP",
+	[FT2232HP]	= "FT2232HP",
+	[FT2233HP]	= "FT2233HP",
+	[FT4232HP]	= "FT4232HP",
+	[FT4233HP]	= "FT4233HP",
 	[FTX]		= "FT-X",
 };
 
@@ -1594,6 +1615,27 @@ static int ftdi_determine_type(struct usb_serial_port *port)
 	case 0x1000:
 		priv->chip_type = FTX;
 		priv->baud_base = 48000000 / 2;
+		break;
+	case 0x2800:
+		priv->chip_type = FT2233HP;
+		break;
+	case 0x2900:
+		priv->chip_type = FT4233HP;
+		break;
+	case 0x3000:
+		priv->chip_type = FT2232HP;
+		break;
+	case 0x3100:
+		priv->chip_type = FT4232HP;
+		break;
+	case 0x3200:
+		priv->chip_type = FT233HP;
+		break;
+	case 0x3300:
+		priv->chip_type = FT232HP;
+		break;
+	case 0x3600:
+		priv->chip_type = FT4232HA;
 		break;
 	default:
 		if (version < 0x200) {
