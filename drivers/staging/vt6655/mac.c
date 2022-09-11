@@ -595,8 +595,7 @@ void vt6655_mac_set_curr_rx_1_desc_addr(struct vnt_private *priv, u32 curr_desc_
  * Return Value: none
  *
  */
-void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
-			      u32 curr_desc_addr)
+static void vt6655_mac_set_curr_tx_0_desc_addr_ex(struct vnt_private *priv, u32 curr_desc_addr)
 {
 	void __iomem *io_base = priv->port_offset;
 	unsigned short ww;
@@ -658,7 +657,7 @@ void vt6655_mac_set_curr_tx_desc_addr(int tx_type, struct vnt_private *priv, u32
 	if (tx_type == TYPE_AC0DMA)
 		MACvSetCurrAC0DescAddrEx(priv, curr_desc_addr);
 	else if (tx_type == TYPE_TXDMA0)
-		MACvSetCurrTx0DescAddrEx(priv, curr_desc_addr);
+		vt6655_mac_set_curr_tx_0_desc_addr_ex(priv, curr_desc_addr);
 }
 
 /*
