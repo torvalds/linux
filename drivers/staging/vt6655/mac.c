@@ -653,12 +653,11 @@ void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_AC0DMACTL);
 }
 
-void MACvSetCurrTXDescAddr(int iTxType, struct vnt_private *priv,
-			   u32 curr_desc_addr)
+void vt6655_mac_set_curr_tx_desc_addr(int tx_type, struct vnt_private *priv, u32 curr_desc_addr)
 {
-	if (iTxType == TYPE_AC0DMA)
+	if (tx_type == TYPE_AC0DMA)
 		MACvSetCurrAC0DescAddrEx(priv, curr_desc_addr);
-	else if (iTxType == TYPE_TXDMA0)
+	else if (tx_type == TYPE_TXDMA0)
 		MACvSetCurrTx0DescAddrEx(priv, curr_desc_addr);
 }
 
