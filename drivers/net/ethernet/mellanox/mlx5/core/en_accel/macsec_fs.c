@@ -518,9 +518,9 @@ macsec_fs_tx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 	struct mlx5_pkt_reformat_params reformat_params = {};
 	struct mlx5e_macsec_tx *tx_fs = macsec_fs->tx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
+	union mlx5e_macsec_rule *macsec_rule = NULL;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_macsec_tables *tx_tables;
-	union mlx5e_macsec_rule *macsec_rule;
 	struct mlx5e_macsec_tx_rule *tx_rule;
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
@@ -1112,10 +1112,10 @@ macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 	u8 action[MLX5_UN_SZ_BYTES(set_add_copy_action_in_auto)] = {};
 	struct mlx5e_macsec_rx *rx_fs = macsec_fs->rx_fs;
 	struct net_device *netdev = macsec_fs->netdev;
+	union mlx5e_macsec_rule *macsec_rule = NULL;
 	struct mlx5_modify_hdr *modify_hdr = NULL;
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_macsec_tables *rx_tables;
-	union mlx5e_macsec_rule *macsec_rule;
 	struct mlx5e_macsec_rx_rule *rx_rule;
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5e_flow_table *ft_crypto;
