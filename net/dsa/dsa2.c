@@ -1326,6 +1326,12 @@ void dsa_tree_master_admin_state_change(struct dsa_switch_tree *dst,
 	struct dsa_port *cpu_dp = master->dsa_ptr;
 	bool notify = false;
 
+	/* Don't keep track of admin state on LAG DSA masters,
+	 * but rather just of physical DSA masters
+	 */
+	if (netif_is_lag_master(master))
+		return;
+
 	if ((dsa_port_master_is_operational(cpu_dp)) !=
 	    (up && cpu_dp->master_oper_up))
 		notify = true;
@@ -1342,6 +1348,12 @@ void dsa_tree_master_oper_state_change(struct dsa_switch_tree *dst,
 {
 	struct dsa_port *cpu_dp = master->dsa_ptr;
 	bool notify = false;
+
+	/* Don't keep track of oper state on LAG DSA masters,
+	 * but rather just of physical DSA masters
+	 */
+	if (netif_is_lag_master(master))
+		return;
 
 	if ((dsa_port_master_is_operational(cpu_dp)) !=
 	    (cpu_dp->master_admin_up && up))
