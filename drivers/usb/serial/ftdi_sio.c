@@ -1369,9 +1369,7 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 			baud = 9600;
 		}
 		break;
-	case FT2232H:
-	case FT4232H:
-	case FT232H:
+	default:
 		if ((baud <= 12000000) && (baud >= 1200)) {
 			div_value = ftdi_2232h_baud_to_divisor(baud);
 		} else if (baud < 1200) {
