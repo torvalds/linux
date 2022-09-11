@@ -617,7 +617,7 @@ void netdev_br_init(struct net_device *netdev)
 	rcu_read_unlock();
 }
 
-int _netdev_open(struct net_device *pnetdev)
+static int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
