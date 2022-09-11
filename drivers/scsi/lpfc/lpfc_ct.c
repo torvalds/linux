@@ -3533,7 +3533,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t mask;
 	struct lpfc_fdmi_reg_hba *rh;
 	struct lpfc_fdmi_port_entry *pe;
-	struct lpfc_fdmi_reg_portattr *pab = NULL;
+	struct lpfc_fdmi_reg_portattr *pab = NULL, *base = NULL;
 	struct lpfc_fdmi_attr_block *ab = NULL;
 	int  (*func)(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad);
 	void (*cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
@@ -3566,6 +3566,10 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	INIT_LIST_HEAD(&rq->list);
 	INIT_LIST_HEAD(&rsp->list);
 
+	/* mbuf buffers are 1K in length - aka LPFC_BPL_SIZE */
+	memset(rq->virt, 0, LPFC_BPL_SIZE);
+	rsp_size = LPFC_BPL_SIZE;
+
 	/* FDMI request */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0218 FDMI Request x%x mask x%x Data: x%x x%x x%x\n",
@@ -3575,7 +3579,6 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	CtReq = (struct lpfc_sli_ct_request *)rq->virt;
 
 	/* First populate the CT_IU preamble */
-	memset(CtReq, 0, sizeof(struct lpfc_sli_ct_request));
 	CtReq->RevisionId.bits.Revision = SLI_CT_REVISION;
 	CtReq->RevisionId.bits.InId = 0;
 
@@ -3583,17 +3586,18 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	CtReq->FsSubType = SLI_CT_FDMI_Subtypes;
 
 	CtReq->CommandResponse.bits.CmdRsp = cpu_to_be16(cmdcode);
-	rsp_size = LPFC_BPL_SIZE;
+
 	size = 0;
 
 	/* Next fill in the specific FDMI cmd information */
 	switch (cmdcode) {
 	case SLI_MGMT_RHAT:
 	case SLI_MGMT_RHBA:
-		rh = (struct lpfc_fdmi_reg_hba *)&CtReq->un.PortID;
+		rh = (struct lpfc_fdmi_reg_hba *)&CtReq->un;
 		/* HBA Identifier */
 		memcpy(&rh->hi.PortName, &phba->pport->fc_sparam.portName,
 		       sizeof(struct lpfc_name));
+		size += sizeof(struct lpfc_fdmi_hba_ident);
 
 		if (cmdcode == SLI_MGMT_RHBA) {
 			/* Registered Port List */
@@ -3602,16 +3606,13 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			memcpy(&rh->rpl.pe.PortName,
 			       &phba->pport->fc_sparam.portName,
 			       sizeof(struct lpfc_name));
-
-			/* point to the HBA attribute block */
-			size = 2 * sizeof(struct lpfc_name) +
-				FOURBYTES;
-		} else {
-			size = sizeof(struct lpfc_name);
+			size += sizeof(struct lpfc_fdmi_reg_port_list);
 		}
+
 		ab = (struct lpfc_fdmi_attr_block *)((uint8_t *)rh + size);
 		ab->EntryCnt = 0;
-		size += FOURBYTES;
+		size += FOURBYTES;	/* add length of EntryCnt field */
+
 		bit_pos = 0;
 		if (new_mask)
 			mask = new_mask;
@@ -3626,6 +3627,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 					     (struct lpfc_fdmi_attr_def *)
 					     ((uint8_t *)rh + size));
 				ab->EntryCnt++;
+				/* check if another attribute fits */
 				if ((size + 256) >
 				    (LPFC_BPL_SIZE - LPFC_CT_PREAMBLE))
 					goto hba_out;
@@ -3636,7 +3638,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 hba_out:
 		ab->EntryCnt = cpu_to_be32(ab->EntryCnt);
 		/* Total size */
-		size = GID_REQUEST_SZ - 4 + size;
+		size += GID_REQUEST_SZ - 4;
 		break;
 
 	case SLI_MGMT_RPRT:
@@ -3647,22 +3649,29 @@ hba_out:
 		}
 		fallthrough;
 	case SLI_MGMT_RPA:
-		pab = (struct lpfc_fdmi_reg_portattr *)&CtReq->un.PortID;
+		/* Store base ptr right after preamble */
+		base = (struct lpfc_fdmi_reg_portattr *)&CtReq->un;
+
 		if (cmdcode == SLI_MGMT_RPRT) {
-			rh = (struct lpfc_fdmi_reg_hba *)pab;
+			rh = (struct lpfc_fdmi_reg_hba *)base;
 			/* HBA Identifier */
 			memcpy(&rh->hi.PortName,
 			       &phba->pport->fc_sparam.portName,
 			       sizeof(struct lpfc_name));
 			pab = (struct lpfc_fdmi_reg_portattr *)
-				((uint8_t *)pab +  sizeof(struct lpfc_name));
+				((uint8_t *)base + sizeof(struct lpfc_name));
+			size += sizeof(struct lpfc_name);
+		} else {
+			pab = base;
 		}
 
 		memcpy((uint8_t *)&pab->PortName,
 		       (uint8_t *)&vport->fc_sparam.portName,
 		       sizeof(struct lpfc_name));
-		size += sizeof(struct lpfc_name) + FOURBYTES;
 		pab->ab.EntryCnt = 0;
+		/* add length of name and EntryCnt field */
+		size += sizeof(struct lpfc_name) + FOURBYTES;
+
 		bit_pos = 0;
 		if (new_mask)
 			mask = new_mask;
@@ -3675,8 +3684,9 @@ hba_out:
 				func = lpfc_fdmi_port_action[bit_pos];
 				size += func(vport,
 					     (struct lpfc_fdmi_attr_def *)
-					     ((uint8_t *)pab + size));
+					     ((uint8_t *)base + size));
 				pab->ab.EntryCnt++;
+				/* check if another attribute fits */
 				if ((size + 256) >
 				    (LPFC_BPL_SIZE - LPFC_CT_PREAMBLE))
 					goto port_out;
@@ -3686,10 +3696,7 @@ hba_out:
 		}
 port_out:
 		pab->ab.EntryCnt = cpu_to_be32(pab->ab.EntryCnt);
-		/* Total size */
-		if (cmdcode == SLI_MGMT_RPRT)
-			size += sizeof(struct lpfc_name);
-		size = GID_REQUEST_SZ - 4 + size;
+		size += GID_REQUEST_SZ - 4;
 		break;
 
 	case SLI_MGMT_GHAT:
@@ -3698,7 +3705,7 @@ port_out:
 		fallthrough;
 	case SLI_MGMT_DHBA:
 	case SLI_MGMT_DHAT:
-		pe = (struct lpfc_fdmi_port_entry *)&CtReq->un.PortID;
+		pe = (struct lpfc_fdmi_port_entry *)&CtReq->un;
 		memcpy((uint8_t *)&pe->PortName,
 		       (uint8_t *)&vport->fc_sparam.portName,
 		       sizeof(struct lpfc_name));
@@ -3717,7 +3724,7 @@ port_out:
 		}
 		fallthrough;
 	case SLI_MGMT_DPA:
-		pe = (struct lpfc_fdmi_port_entry *)&CtReq->un.PortID;
+		pe = (struct lpfc_fdmi_port_entry *)&CtReq->un;
 		memcpy((uint8_t *)&pe->PortName,
 		       (uint8_t *)&vport->fc_sparam.portName,
 		       sizeof(struct lpfc_name));
