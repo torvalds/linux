@@ -3,14 +3,14 @@
 
 #include "../include/drv_types.h"
 
-static u8 odm_query_rxpwrpercentage(s8 AntPower)
+static u8 odm_query_rxpwrpercentage(s8 antpower)
 {
-	if ((AntPower <= -100) || (AntPower >= 20))
+	if ((antpower <= -100) || (antpower >= 20))
 		return	0;
-	else if (AntPower >= 0)
+	else if (antpower >= 0)
 		return	100;
 	else
-		return 100 + AntPower;
+		return 100 + antpower;
 }
 
 static s32 odm_signal_scale_mapping(struct odm_dm_struct *dm_odm, s32 currsig)
