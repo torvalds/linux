@@ -226,6 +226,9 @@ static int dsa_master_ethtool_setup(struct net_device *dev)
 	struct dsa_switch *ds = cpu_dp->ds;
 	struct ethtool_ops *ops;
 
+	if (netif_is_lag_master(dev))
+		return 0;
+
 	ops = devm_kzalloc(ds->dev, sizeof(*ops), GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
@@ -250,6 +253,9 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 
+	if (netif_is_lag_master(dev))
+		return;
+
 	dev->ethtool_ops = cpu_dp->orig_ethtool_ops;
 	cpu_dp->orig_ethtool_ops = NULL;
 }
@@ -257,6 +263,9 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 static void dsa_netdev_ops_set(struct net_device *dev,
 			       const struct dsa_netdevice_ops *ops)
 {
+	if (netif_is_lag_master(dev))
+		return;
+
 	dev->dsa_ptr->netdev_ops = ops;
 }
 
