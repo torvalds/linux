@@ -82,6 +82,9 @@ properties:
       where the "sleep" configuration may describe the state
       the pins should be in during system suspend.
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg
