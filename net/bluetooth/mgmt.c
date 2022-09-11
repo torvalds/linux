@@ -1111,7 +1111,7 @@ static void mesh_send_done(struct work_struct *work)
 
 static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 {
-	if (hci_dev_test_and_set_flag(hdev, HCI_MGMT))
+	if (hci_dev_test_flag(hdev, HCI_MGMT))
 		return;
 
 	BT_INFO("MGMT ver %d.%d", MGMT_VERSION, MGMT_REVISION);
@@ -1127,6 +1127,8 @@ static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 	 * it
 	 */
 	hci_dev_clear_flag(hdev, HCI_BONDABLE);
+
+	hci_dev_set_flag(hdev, HCI_MGMT);
 }
 
 static int read_controller_info(struct sock *sk, struct hci_dev *hdev,
