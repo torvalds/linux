@@ -2200,10 +2200,6 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 	if (!elsiocb)
 		return 1;
 
-	spin_lock_irq(&ndlp->lock);
-	ndlp->nlp_flag &= ~NLP_FCP_PRLI_RJT;
-	spin_unlock_irq(&ndlp->lock);
-
 	pcmd = (uint8_t *)elsiocb->cmd_dmabuf->virt;
 
 	/* For PLOGI request, remainder of payload is service parameters */
@@ -4676,47 +4672,52 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		}
 		switch (stat.un.b.lsRjtRsnCode) {
 		case LSRJT_UNABLE_TPC:
-			/* The driver has a VALID PLOGI but the rport has
-			 * rejected the PRLI - can't do it now.  Delay
-			 * for 1 second and try again.
-			 *
-			 * However, if explanation is REQ_UNSUPPORTED there's
-			 * no point to retry PRLI.
+			/* Special case for PRLI LS_RJTs. Recall that lpfc
+			 * uses a single routine to issue both PRLI FC4 types.
+			 * If the PRLI is rejected because that FC4 type
+			 * isn't really supported, don't retry and cause
+			 * multiple transport registrations.  Otherwise, parse
+			 * the reason code/reason code explanation and take the
+			 * appropriate action.
 			 */
-			if ((cmd == ELS_CMD_PRLI || cmd == ELS_CMD_NVMEPRLI) &&
-			    stat.un.b.lsRjtRsnCodeExp !=
-			    LSEXP_REQ_UNSUPPORTED) {
-				delay = 1000;
-				maxretry = lpfc_max_els_tries + 1;
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_DISCOVERY | LOG_ELS | LOG_NODE,
+					 "0153 ELS cmd x%x LS_RJT by x%x. "
+					 "RsnCode x%x RsnCodeExp x%x\n",
+					 cmd, did, stat.un.b.lsRjtRsnCode,
+					 stat.un.b.lsRjtRsnCodeExp);
+
+			switch (stat.un.b.lsRjtRsnCodeExp) {
+			case LSEXP_CANT_GIVE_DATA:
+			case LSEXP_CMD_IN_PROGRESS:
+				if (cmd == ELS_CMD_PLOGI) {
+					delay = 1000;
+					maxretry = 48;
+				}
 				retry = 1;
+				break;
+			case LSEXP_REQ_UNSUPPORTED:
+			case LSEXP_NO_RSRC_ASSIGN:
+				/* These explanation codes get no retry. */
+				if (cmd == ELS_CMD_PRLI ||
+				    cmd == ELS_CMD_NVMEPRLI)
+					break;
+				fallthrough;
+			default:
+				/* Limit the delay and retry action to a limited
+				 * cmd set.  There are other ELS commands where
+				 * a retry is not expected.
+				 */
+				if (cmd == ELS_CMD_PLOGI ||
+				    cmd == ELS_CMD_PRLI ||
+				    cmd == ELS_CMD_NVMEPRLI) {
+					delay = 1000;
+					maxretry = lpfc_max_els_tries + 1;
+					retry = 1;
+				}
 				break;
 			}
 
-			/* Legacy bug fix code for targets with PLOGI delays. */
-			if (stat.un.b.lsRjtRsnCodeExp ==
-			    LSEXP_CMD_IN_PROGRESS) {
-				if (cmd == ELS_CMD_PLOGI) {
-					delay = 1000;
-					maxretry = 48;
-				}
-				retry = 1;
-				break;
-			}
-			if (stat.un.b.lsRjtRsnCodeExp ==
-			    LSEXP_CANT_GIVE_DATA) {
-				if (cmd == ELS_CMD_PLOGI) {
-					delay = 1000;
-					maxretry = 48;
-				}
-				retry = 1;
-				break;
-			}
-			if (cmd == ELS_CMD_PLOGI) {
-				delay = 1000;
-				maxretry = lpfc_max_els_tries + 1;
-				retry = 1;
-				break;
-			}
 			if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 			  (cmd == ELS_CMD_FDISC) &&
 			  (stat.un.b.lsRjtRsnCodeExp == LSEXP_OUT_OF_RESOURCE)){
@@ -4797,13 +4798,8 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 */
 			if (stat.un.b.lsRjtRsnCodeExp ==
 			    LSEXP_REQ_UNSUPPORTED) {
-				if (cmd == ELS_CMD_PRLI) {
-					spin_lock_irq(&ndlp->lock);
-					ndlp->nlp_flag |= NLP_FCP_PRLI_RJT;
-					spin_unlock_irq(&ndlp->lock);
-					retry = 0;
+				if (cmd == ELS_CMD_PRLI)
 					goto out_retry;
-				}
 			}
 			break;
 		}

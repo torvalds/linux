@@ -703,6 +703,7 @@ struct ls_rjt {	/* Structure is in Big Endian format */
 #define LSEXP_OUT_OF_RESOURCE   0x29
 #define LSEXP_CANT_GIVE_DATA    0x2A
 #define LSEXP_REQ_UNSUPPORTED   0x2C
+#define LSEXP_NO_RSRC_ASSIGN    0x52
 			uint8_t vendorUnique;	/* FC Word 0, bit  0: 7 */
 		} b;
 	} un;
