@@ -219,7 +219,7 @@ INDIRECT_CALLABLE_SCOPE struct sk_buff *ipv6_gro_receive(struct list_head *head,
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*iph);
-	iph = skb_gro_header_slow(skb, hlen, off);
+	iph = skb_gro_header(skb, hlen, off);
 	if (unlikely(!iph))
 		goto out;
 
