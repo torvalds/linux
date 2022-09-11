@@ -866,7 +866,6 @@ int saa7134_ts_stop(struct saa7134_dev *dev);
 /* saa7134-vbi.c                                               */
 
 extern const struct vb2_ops saa7134_vbi_qops;
-extern struct video_device saa7134_vbi_template;
 
 int saa7134_vbi_init1(struct saa7134_dev *dev);
 int saa7134_vbi_fini(struct saa7134_dev *dev);
@@ -896,9 +895,6 @@ void saa7134_enable_i2s(struct saa7134_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* saa7134-oss.c                                               */
-
-extern const struct file_operations saa7134_dsp_fops;
-extern const struct file_operations saa7134_mixer_fops;
 
 int saa7134_oss_init1(struct saa7134_dev *dev);
 int saa7134_oss_fini(struct saa7134_dev *dev);
