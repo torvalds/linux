@@ -460,7 +460,7 @@ void CARDvSafeResetRx(struct vnt_private *priv)
 	/* set MAC RD pointer */
 	vt6655_mac_set_curr_rx_0_desc_addr(priv, priv->rd0_pool_dma);
 
-	MACvSetCurrRx1DescAddr(priv, priv->rd1_pool_dma);
+	vt6655_mac_set_curr_rx_1_desc_addr(priv, priv->rd1_pool_dma);
 }
 
 /*
