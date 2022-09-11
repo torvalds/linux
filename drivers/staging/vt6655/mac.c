@@ -19,7 +19,7 @@
  *      MACbSoftwareReset - Software Reset MAC
  *      vt6655_mac_safe_rx_off - Turn Off MAC Rx
  *      vt6655_mac_safe_tx_off - Turn Off MAC Tx
- *      MACbSafeStop - Stop MAC function
+ *      vt6655_mac_safe_stop - Stop MAC function
  *      MACbShutdown - Shut down MAC
  *      MACvInitialize - Initialize MAC
  *      MACvSetCurrRxDescAddr - Set Rx Descriptors Address
@@ -432,7 +432,7 @@ static bool vt6655_mac_safe_tx_off(struct vnt_private *priv)
  * Return Value: true if success; otherwise false
  *
  */
-bool MACbSafeStop(struct vnt_private *priv)
+static bool vt6655_mac_safe_stop(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->port_offset;
 
@@ -474,7 +474,7 @@ bool MACbShutdown(struct vnt_private *priv)
 	iowrite32(0, io_base + MAC_REG_IMR);
 	vt6655_mac_set_loopback_mode(priv, MAC_LB_INTERNAL);
 	/* stop the adapter */
-	if (!MACbSafeStop(priv)) {
+	if (!vt6655_mac_safe_stop(priv)) {
 		vt6655_mac_set_loopback_mode(priv, MAC_LB_NONE);
 		return false;
 	}
