@@ -16,7 +16,7 @@
 
 #include "../display/drm_dp_mst_topology_internal.h"
 
-static void igt_dp_mst_calc_pbn_mode(struct kunit *test)
+static void drm_test_dp_mst_calc_pbn_mode(struct kunit *test)
 {
 	int pbn, i;
 	const struct {
@@ -177,7 +177,7 @@ out:
 	return result;
 }
 
-static void igt_dp_mst_sideband_msg_req_decode(struct kunit *test)
+static void drm_test_dp_mst_sideband_msg_req_decode(struct kunit *test)
 {
 	struct drm_dp_sideband_msg_req_body in = { 0 };
 	u8 data[] = { 0xff, 0x0, 0xdd };
@@ -271,8 +271,8 @@ static void igt_dp_mst_sideband_msg_req_decode(struct kunit *test)
 }
 
 static struct kunit_case drm_dp_mst_helper_tests[] = {
-	KUNIT_CASE(igt_dp_mst_calc_pbn_mode),
-	KUNIT_CASE(igt_dp_mst_sideband_msg_req_decode),
+	KUNIT_CASE(drm_test_dp_mst_calc_pbn_mode),
+	KUNIT_CASE(drm_test_dp_mst_sideband_msg_req_decode),
 	{ }
 };
 

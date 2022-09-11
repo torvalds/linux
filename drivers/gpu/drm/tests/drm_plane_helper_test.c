@@ -73,7 +73,7 @@ static bool check_crtc_eq(struct drm_plane_state *plane_state,
 	return true;
 }
 
-static void igt_check_plane_state(struct kunit *test)
+static void drm_test_check_plane_state(struct kunit *test)
 {
 	int ret;
 
@@ -223,7 +223,7 @@ static void igt_check_plane_state(struct kunit *test)
 }
 
 static struct kunit_case drm_plane_helper_test[] = {
-	KUNIT_CASE(igt_check_plane_state),
+	KUNIT_CASE(drm_test_check_plane_state),
 	{}
 };
 

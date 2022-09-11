@@ -116,7 +116,7 @@ static void check_damage_clip(struct kunit *test, struct drm_rect *r,
 			   r->x1, r->y1, r->x2, r->y2, x1, y1, x2, y2);
 }
 
-static void igt_damage_iter_no_damage(struct kunit *test)
+static void drm_test_damage_iter_no_damage(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -134,7 +134,7 @@ static void igt_damage_iter_no_damage(struct kunit *test)
 	check_damage_clip(test, &clip, 0, 0, 2048, 2048);
 }
 
-static void igt_damage_iter_no_damage_fractional_src(struct kunit *test)
+static void drm_test_damage_iter_no_damage_fractional_src(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -155,7 +155,7 @@ static void igt_damage_iter_no_damage_fractional_src(struct kunit *test)
 	check_damage_clip(test, &clip, 3, 3, 1028, 772);
 }
 
-static void igt_damage_iter_no_damage_src_moved(struct kunit *test)
+static void drm_test_damage_iter_no_damage_src_moved(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -174,7 +174,7 @@ static void igt_damage_iter_no_damage_src_moved(struct kunit *test)
 	check_damage_clip(test, &clip, 10, 10, 1034, 778);
 }
 
-static void igt_damage_iter_no_damage_fractional_src_moved(struct kunit *test)
+static void drm_test_damage_iter_no_damage_fractional_src_moved(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -194,7 +194,7 @@ static void igt_damage_iter_no_damage_fractional_src_moved(struct kunit *test)
 	check_damage_clip(test, &clip, 4, 4, 1029, 773);
 }
 
-static void igt_damage_iter_no_damage_not_visible(struct kunit *test)
+static void drm_test_damage_iter_no_damage_not_visible(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -212,7 +212,7 @@ static void igt_damage_iter_no_damage_not_visible(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
 }
 
-static void igt_damage_iter_no_damage_no_crtc(struct kunit *test)
+static void drm_test_damage_iter_no_damage_no_crtc(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -230,7 +230,7 @@ static void igt_damage_iter_no_damage_no_crtc(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
 }
 
-static void igt_damage_iter_no_damage_no_fb(struct kunit *test)
+static void drm_test_damage_iter_no_damage_no_fb(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -248,7 +248,7 @@ static void igt_damage_iter_no_damage_no_fb(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
 }
 
-static void igt_damage_iter_simple_damage(struct kunit *test)
+static void drm_test_damage_iter_simple_damage(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -271,7 +271,7 @@ static void igt_damage_iter_simple_damage(struct kunit *test)
 	check_damage_clip(test, &clip, 0, 0, 1024, 768);
 }
 
-static void igt_damage_iter_single_damage(struct kunit *test)
+static void drm_test_damage_iter_single_damage(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -293,7 +293,7 @@ static void igt_damage_iter_single_damage(struct kunit *test)
 	check_damage_clip(test, &clip, 256, 192, 768, 576);
 }
 
-static void igt_damage_iter_single_damage_intersect_src(struct kunit *test)
+static void drm_test_damage_iter_single_damage_intersect_src(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -316,7 +316,7 @@ static void igt_damage_iter_single_damage_intersect_src(struct kunit *test)
 	check_damage_clip(test, &clip, 256, 192, 1024, 768);
 }
 
-static void igt_damage_iter_single_damage_outside_src(struct kunit *test)
+static void drm_test_damage_iter_single_damage_outside_src(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -338,7 +338,7 @@ static void igt_damage_iter_single_damage_outside_src(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
 }
 
-static void igt_damage_iter_single_damage_fractional_src(struct kunit *test)
+static void drm_test_damage_iter_single_damage_fractional_src(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -363,7 +363,7 @@ static void igt_damage_iter_single_damage_fractional_src(struct kunit *test)
 	check_damage_clip(test, &clip, 10, 10, 256, 330);
 }
 
-static void igt_damage_iter_single_damage_intersect_fractional_src(struct kunit *test)
+static void drm_test_damage_iter_single_damage_intersect_fractional_src(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -390,7 +390,7 @@ static void igt_damage_iter_single_damage_intersect_fractional_src(struct kunit 
 	check_damage_clip(test, &clip, 10, 4, 1029, 330);
 }
 
-static void igt_damage_iter_single_damage_outside_fractional_src(struct kunit *test)
+static void drm_test_damage_iter_single_damage_outside_fractional_src(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -415,7 +415,7 @@ static void igt_damage_iter_single_damage_outside_fractional_src(struct kunit *t
 	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
 }
 
-static void igt_damage_iter_single_damage_src_moved(struct kunit *test)
+static void drm_test_damage_iter_single_damage_src_moved(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -440,7 +440,7 @@ static void igt_damage_iter_single_damage_src_moved(struct kunit *test)
 	check_damage_clip(test, &clip, 10, 10, 1034, 778);
 }
 
-static void igt_damage_iter_single_damage_fractional_src_moved(struct kunit *test)
+static void drm_test_damage_iter_single_damage_fractional_src_moved(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -467,7 +467,7 @@ static void igt_damage_iter_single_damage_fractional_src_moved(struct kunit *tes
 	check_damage_clip(test, &clip, 4, 4, 1029, 773);
 }
 
-static void igt_damage_iter_damage(struct kunit *test)
+static void drm_test_damage_iter_damage(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -495,7 +495,7 @@ static void igt_damage_iter_damage(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test, num_hits, 2, "Should return damage when set.");
 }
 
-static void igt_damage_iter_damage_one_intersect(struct kunit *test)
+static void drm_test_damage_iter_damage_one_intersect(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -525,7 +525,7 @@ static void igt_damage_iter_damage_one_intersect(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test, num_hits, 2, "Should return damage when set.");
 }
 
-static void igt_damage_iter_damage_one_outside(struct kunit *test)
+static void drm_test_damage_iter_damage_one_outside(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -549,7 +549,7 @@ static void igt_damage_iter_damage_one_outside(struct kunit *test)
 	check_damage_clip(test, &clip, 240, 200, 280, 250);
 }
 
-static void igt_damage_iter_damage_src_moved(struct kunit *test)
+static void drm_test_damage_iter_damage_src_moved(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -576,7 +576,7 @@ static void igt_damage_iter_damage_src_moved(struct kunit *test)
 	check_damage_clip(test, &clip, 3, 3, 1028, 772);
 }
 
-static void igt_damage_iter_damage_not_visible(struct kunit *test)
+static void drm_test_damage_iter_damage_not_visible(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -604,27 +604,27 @@ static void igt_damage_iter_damage_not_visible(struct kunit *test)
 }
 
 static struct kunit_case drm_damage_helper_tests[] = {
-	KUNIT_CASE(igt_damage_iter_no_damage),
-	KUNIT_CASE(igt_damage_iter_no_damage_fractional_src),
-	KUNIT_CASE(igt_damage_iter_no_damage_src_moved),
-	KUNIT_CASE(igt_damage_iter_no_damage_fractional_src_moved),
-	KUNIT_CASE(igt_damage_iter_no_damage_not_visible),
-	KUNIT_CASE(igt_damage_iter_no_damage_no_crtc),
-	KUNIT_CASE(igt_damage_iter_no_damage_no_fb),
-	KUNIT_CASE(igt_damage_iter_simple_damage),
-	KUNIT_CASE(igt_damage_iter_single_damage),
-	KUNIT_CASE(igt_damage_iter_single_damage_intersect_src),
-	KUNIT_CASE(igt_damage_iter_single_damage_outside_src),
-	KUNIT_CASE(igt_damage_iter_single_damage_fractional_src),
-	KUNIT_CASE(igt_damage_iter_single_damage_intersect_fractional_src),
-	KUNIT_CASE(igt_damage_iter_single_damage_outside_fractional_src),
-	KUNIT_CASE(igt_damage_iter_single_damage_src_moved),
-	KUNIT_CASE(igt_damage_iter_single_damage_fractional_src_moved),
-	KUNIT_CASE(igt_damage_iter_damage),
-	KUNIT_CASE(igt_damage_iter_damage_one_intersect),
-	KUNIT_CASE(igt_damage_iter_damage_one_outside),
-	KUNIT_CASE(igt_damage_iter_damage_src_moved),
-	KUNIT_CASE(igt_damage_iter_damage_not_visible),
+	KUNIT_CASE(drm_test_damage_iter_no_damage),
+	KUNIT_CASE(drm_test_damage_iter_no_damage_fractional_src),
+	KUNIT_CASE(drm_test_damage_iter_no_damage_src_moved),
+	KUNIT_CASE(drm_test_damage_iter_no_damage_fractional_src_moved),
+	KUNIT_CASE(drm_test_damage_iter_no_damage_not_visible),
+	KUNIT_CASE(drm_test_damage_iter_no_damage_no_crtc),
+	KUNIT_CASE(drm_test_damage_iter_no_damage_no_fb),
+	KUNIT_CASE(drm_test_damage_iter_simple_damage),
+	KUNIT_CASE(drm_test_damage_iter_single_damage),
+	KUNIT_CASE(drm_test_damage_iter_single_damage_intersect_src),
+	KUNIT_CASE(drm_test_damage_iter_single_damage_outside_src),
+	KUNIT_CASE(drm_test_damage_iter_single_damage_fractional_src),
+	KUNIT_CASE(drm_test_damage_iter_single_damage_intersect_fractional_src),
+	KUNIT_CASE(drm_test_damage_iter_single_damage_outside_fractional_src),
+	KUNIT_CASE(drm_test_damage_iter_single_damage_src_moved),
+	KUNIT_CASE(drm_test_damage_iter_single_damage_fractional_src_moved),
+	KUNIT_CASE(drm_test_damage_iter_damage),
+	KUNIT_CASE(drm_test_damage_iter_damage_one_intersect),
+	KUNIT_CASE(drm_test_damage_iter_damage_one_outside),
+	KUNIT_CASE(drm_test_damage_iter_damage_src_moved),
+	KUNIT_CASE(drm_test_damage_iter_damage_not_visible),
 	{ }
 };
 
