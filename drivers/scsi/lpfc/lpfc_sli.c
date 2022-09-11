@@ -2856,6 +2856,7 @@ void
 lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
+	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost;
 	uint16_t rpi, vpi;
@@ -2868,6 +2869,12 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (!(phba->pport->load_flag & FC_UNLOADING) &&
 	    pmb->u.mb.mbxCommand == MBX_REG_LOGIN64 &&
 	    !pmb->u.mb.mbxStatus) {
+		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+		if (mp) {
+			pmb->ctx_buf = NULL;
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
 		rpi = pmb->u.mb.un.varWords[0];
 		vpi = pmb->u.mb.un.varRegLogin.vpi;
 		if (phba->sli_rev == LPFC_SLI_REV4)
