@@ -244,13 +244,11 @@ void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 			return;
 
 		cancel_delayed_work(&pLed->blink_work);
-		if (pLed->bLedNoLinkBlinkInProgress)
-			pLed->bLedNoLinkBlinkInProgress = false;
 
-		if (pLed->bLedBlinkInProgress)
-			pLed->bLedBlinkInProgress = false;
-
+		pLed->bLedNoLinkBlinkInProgress = false;
+		pLed->bLedBlinkInProgress = false;
 		pLed->bLedLinkBlinkInProgress = true;
+
 		pLed->CurrLedState = LED_BLINK_NORMAL;
 		if (pLed->bLedOn)
 			pLed->BlinkingLedState = RTW_LED_OFF;
