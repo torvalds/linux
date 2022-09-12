@@ -247,7 +247,7 @@ unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
 	struct net_device *dev = offload->dev;
 	struct net_device_stats *stats = &dev->stats;
 	struct sk_buff *skb;
-	u8 len;
+	unsigned int len;
 	int err;
 
 	skb = __can_get_echo_skb(dev, idx, &len, frame_len_ptr);
