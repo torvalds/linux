@@ -30,6 +30,16 @@ properties:
           - const: amarula,vyasa-rk3288
           - const: rockchip,rk3288
 
+      - description: Anbernic RG353P
+        items:
+          - const: anbernic,rg353p
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG503
+        items:
+          - const: anbernic,rg503
+          - const: rockchip,rk3566
+
       - description: Asus Tinker board
         items:
           - const: asus,rk3288-tinker
@@ -470,6 +480,11 @@ properties:
           - const: netxeon,r89
           - const: rockchip,rk3288
 
+      - description: OPEN AI LAB EAIDK-610
+        items:
+          - const: openailab,eaidk-610
+          - const: rockchip,rk3399
+
       - description: Orange Pi RK3399 board
         items:
           - const: rockchip,rk3399-orangepi
@@ -493,6 +508,11 @@ properties:
               - pine64,pinenote-v1.2
           - const: pine64,pinenote
           - const: rockchip,rk3566
+
+      - description: Pine64 PinePhonePro
+        items:
+          - const: pine64,pinephone-pro
+          - const: rockchip,rk3399
 
       - description: Pine64 Rock64
         items:
@@ -535,6 +555,11 @@ properties:
               - radxa,rockpi4b-plus
               - radxa,rockpi4c
           - const: radxa,rockpi4
+          - const: rockchip,rk3399
+
+      - description: Radxa ROCK 4C+
+        items:
+          - const: radxa,rock-4c-plus
           - const: rockchip,rk3399
 
       - description: Radxa ROCK Pi E
