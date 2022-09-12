@@ -924,8 +924,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
-	connector->interlace_allowed = false;
-	connector->doublescan_allowed = false;
 
 	lvds_encoder->reg = lvds_reg;
 

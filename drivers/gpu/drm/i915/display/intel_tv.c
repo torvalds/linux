@@ -2013,8 +2013,6 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
 
 	drm_connector_helper_add(connector, &intel_tv_connector_helper_funcs);
-	connector->interlace_allowed = false;
-	connector->doublescan_allowed = false;
 
 	intel_tv_add_properties(connector);
 }

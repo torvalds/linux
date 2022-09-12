@@ -1050,11 +1050,8 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	else
 		crt->base.pipe_mask = ~0;
 
-	if (DISPLAY_VER(dev_priv) == 2)
-		connector->interlace_allowed = 0;
-	else
-		connector->interlace_allowed = 1;
-	connector->doublescan_allowed = 0;
+	if (DISPLAY_VER(dev_priv) != 2)
+		connector->interlace_allowed = true;
 
 	crt->adpa_reg = adpa_reg;
 

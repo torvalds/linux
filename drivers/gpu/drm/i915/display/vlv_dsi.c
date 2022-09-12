@@ -1971,8 +1971,6 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	drm_connector_helper_add(connector, &intel_dsi_connector_helper_funcs);
 
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB; /*XXX*/
-	connector->interlace_allowed = false;
-	connector->doublescan_allowed = false;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
