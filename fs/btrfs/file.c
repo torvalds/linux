@@ -1480,7 +1480,7 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
  * NOTE: Callers need to call btrfs_check_nocow_unlock() if we return > 0.
  */
 int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
-			   size_t *write_bytes)
+			   size_t *write_bytes, bool nowait)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_root *root = inode->root;
@@ -1499,16 +1499,21 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 			   fs_info->sectorsize) - 1;
 	num_bytes = lockend - lockstart + 1;
 
-	btrfs_lock_and_flush_ordered_range(inode, lockstart, lockend, NULL);
-	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
-			NULL, NULL, NULL, false, false);
-	if (ret <= 0) {
-		ret = 0;
-		btrfs_drew_write_unlock(&root->snapshot_lock);
+	if (nowait) {
+		if (!btrfs_try_lock_ordered_range(inode, lockstart, lockend)) {
+			btrfs_drew_write_unlock(&root->snapshot_lock);
+			return -EAGAIN;
+		}
 	} else {
+		btrfs_lock_and_flush_ordered_range(inode, lockstart, lockend, NULL);
+	}
+	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
+			NULL, NULL, NULL, nowait, false);
+	if (ret <= 0)
+		btrfs_drew_write_unlock(&root->snapshot_lock);
+	else
 		*write_bytes = min_t(size_t, *write_bytes ,
 				     num_bytes - pos + lockstart);
-	}
 	unlock_extent(&inode->io_tree, lockstart, lockend, NULL);
 
 	return ret;
@@ -1665,16 +1670,22 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 						  &data_reserved, pos,
 						  write_bytes, false);
 		if (ret < 0) {
+			int can_nocow;
+
 			/*
 			 * If we don't have to COW at the offset, reserve
 			 * metadata only. write_bytes may get smaller than
 			 * requested here.
 			 */
-			if (btrfs_check_nocow_lock(BTRFS_I(inode), pos,
-						   &write_bytes) > 0)
-				only_release_metadata = true;
-			else
+			can_nocow = btrfs_check_nocow_lock(BTRFS_I(inode), pos,
+							   &write_bytes, false);
+			if (can_nocow < 0)
+				ret = can_nocow;
+			if (can_nocow > 0)
+				ret = 0;
+			if (ret)
 				break;
+			only_release_metadata = true;
 		}
 
 		num_pages = DIV_ROUND_UP(write_bytes + offset, PAGE_SIZE);

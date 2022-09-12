@@ -4887,7 +4887,7 @@ int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
 	ret = btrfs_check_data_free_space(inode, &data_reserved, block_start,
 					  blocksize, false);
 	if (ret < 0) {
-		if (btrfs_check_nocow_lock(inode, block_start, &write_bytes) > 0) {
+		if (btrfs_check_nocow_lock(inode, block_start, &write_bytes, false) > 0) {
 			/* For nocow case, no need to reserve data space */
 			only_release_metadata = true;
 		} else {
