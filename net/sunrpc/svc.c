@@ -1434,8 +1434,7 @@ svc_process(struct svc_rqst *rqstp)
 {
 	struct kvec		*argv = &rqstp->rq_arg.head[0];
 	struct kvec		*resv = &rqstp->rq_res.head[0];
-	struct svc_serv		*serv = rqstp->rq_server;
-	u32			dir;
+	__be32			dir;
 
 #if IS_ENABLED(CONFIG_FAIL_SUNRPC)
 	if (!fail_sunrpc.ignore_server_disconnect &&
@@ -1450,7 +1449,7 @@ svc_process(struct svc_rqst *rqstp)
 	rqstp->rq_next_page = &rqstp->rq_respages[1];
 	resv->iov_base = page_address(rqstp->rq_respages[0]);
 	resv->iov_len = 0;
-	rqstp->rq_res.pages = rqstp->rq_respages + 1;
+	rqstp->rq_res.pages = rqstp->rq_next_page;
 	rqstp->rq_res.len = 0;
 	rqstp->rq_res.page_base = 0;
 	rqstp->rq_res.page_len = 0;
@@ -1458,18 +1457,17 @@ svc_process(struct svc_rqst *rqstp)
 	rqstp->rq_res.tail[0].iov_base = NULL;
 	rqstp->rq_res.tail[0].iov_len = 0;
 
-	dir  = svc_getnl(argv);
-	if (dir != 0) {
-		/* direction != CALL */
-		svc_printk(rqstp, "bad direction %d, dropping request\n", dir);
-		serv->sv_stats->rpcbadfmt++;
+	dir = svc_getu32(argv);
+	if (dir != rpc_call)
+		goto out_baddir;
+	if (!svc_process_common(rqstp, argv, resv))
 		goto out_drop;
-	}
+	return svc_send(rqstp);
 
-	/* Returns 1 for send, 0 for drop */
-	if (likely(svc_process_common(rqstp, argv, resv)))
-		return svc_send(rqstp);
-
+out_baddir:
+	svc_printk(rqstp, "bad direction 0x%08x, dropping request\n",
+		   be32_to_cpu(dir));
+	rqstp->rq_server->sv_stats->rpcbadfmt++;
 out_drop:
 	svc_drop(rqstp);
 	return 0;
