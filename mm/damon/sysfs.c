@@ -2465,8 +2465,7 @@ static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
 	struct damon_ctx *ctx;
 	int err;
 
-	if (kdamond->damon_ctx &&
-			damon_sysfs_ctx_running(kdamond->damon_ctx))
+	if (damon_sysfs_kdamond_running(kdamond))
 		return -EBUSY;
 	if (damon_sysfs_cmd_request.kdamond == kdamond)
 		return -EBUSY;
