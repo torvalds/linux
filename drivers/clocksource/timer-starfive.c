@@ -399,7 +399,6 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 
 		rst = of_reset_control_get(np, name);
 		if (!IS_ERR(rst)) {
-			clkevt->rst = rst;
 			reset_control_assert(rst);
 			reset_control_deassert(rst);
 		}
@@ -433,9 +432,9 @@ init_err:
 register_err:
 	free_irq(clkevt->irq, &clkevt->evt);
 irq_err:
-	if (!clkevt->rst) {
-		reset_control_assert(clkevt->rst);
-		reset_control_put(clkevt->rst);
+	if (!rst) {
+		reset_control_assert(rst);
+		reset_control_put(rst);
 	}
 	if (!clkevt->clk) {
 		clk_disable_unprepare(clkevt->clk);
