@@ -3,6 +3,105 @@
 #include <linux/device.h>
 #include <linux/regmap.h>
 
+/* BMP380 specific registers */
+#define BMP380_REG_CMD			0x7E
+#define BMP380_REG_CONFIG		0x1F
+#define BMP380_REG_ODR			0x1D
+#define BMP380_REG_OSR			0x1C
+#define BMP380_REG_POWER_CONTROL	0x1B
+#define BMP380_REG_IF_CONFIG		0x1A
+#define BMP380_REG_INT_CONTROL		0x19
+#define BMP380_REG_INT_STATUS		0x11
+#define BMP380_REG_EVENT		0x10
+#define BMP380_REG_STATUS		0x03
+#define BMP380_REG_ERROR		0x02
+#define BMP380_REG_ID			0x00
+
+#define BMP380_REG_FIFO_CONFIG_1	0x18
+#define BMP380_REG_FIFO_CONFIG_2	0x17
+#define BMP380_REG_FIFO_WATERMARK_MSB	0x16
+#define BMP380_REG_FIFO_WATERMARK_LSB	0x15
+#define BMP380_REG_FIFO_DATA		0x14
+#define BMP380_REG_FIFO_LENGTH_MSB	0x13
+#define BMP380_REG_FIFO_LENGTH_LSB	0x12
+
+#define BMP380_REG_SENSOR_TIME_MSB	0x0E
+#define BMP380_REG_SENSOR_TIME_LSB	0x0D
+#define BMP380_REG_SENSOR_TIME_XLSB	0x0C
+
+#define BMP380_REG_TEMP_MSB		0x09
+#define BMP380_REG_TEMP_LSB		0x08
+#define BMP380_REG_TEMP_XLSB		0x07
+
+#define BMP380_REG_PRESS_MSB		0x06
+#define BMP380_REG_PRESS_LSB		0x05
+#define BMP380_REG_PRESS_XLSB		0x04
+
+#define BMP380_REG_CALIB_TEMP_START	0x31
+#define BMP380_CALIB_REG_COUNT		21
+
+#define BMP380_FILTER_MASK		GENMASK(3, 1)
+#define BMP380_FILTER_OFF		0
+#define BMP380_FILTER_1X		1
+#define BMP380_FILTER_3X		2
+#define BMP380_FILTER_7X		3
+#define BMP380_FILTER_15X		4
+#define BMP380_FILTER_31X		5
+#define BMP380_FILTER_63X		6
+#define BMP380_FILTER_127X		7
+
+#define BMP380_OSRS_TEMP_MASK		GENMASK(5, 3)
+#define BMP380_OSRS_PRESS_MASK		GENMASK(2, 0)
+
+#define BMP380_ODRS_MASK		GENMASK(4, 0)
+#define BMP380_ODRS_200HZ		0x00
+#define BMP380_ODRS_100HZ		0x01
+#define BMP380_ODRS_50HZ		0x02
+#define BMP380_ODRS_25HZ		0x03
+#define BMP380_ODRS_12_5HZ		0x04
+#define BMP380_ODRS_6_25HZ		0x05
+#define BMP380_ODRS_3_1HZ		0x06
+#define BMP380_ODRS_1_5HZ		0x07
+#define BMP380_ODRS_0_78HZ		0x08
+#define BMP380_ODRS_0_39HZ		0x09
+#define BMP380_ODRS_0_2HZ		0x0A
+#define BMP380_ODRS_0_1HZ		0x0B
+#define BMP380_ODRS_0_05HZ		0x0C
+#define BMP380_ODRS_0_02HZ		0x0D
+#define BMP380_ODRS_0_01HZ		0x0E
+#define BMP380_ODRS_0_006HZ		0x0F
+#define BMP380_ODRS_0_003HZ		0x10
+#define BMP380_ODRS_0_0015HZ		0x11
+
+#define BMP380_CTRL_SENSORS_MASK	GENMASK(1, 0)
+#define BMP380_CTRL_SENSORS_PRESS_EN	BIT(0)
+#define BMP380_CTRL_SENSORS_TEMP_EN	BIT(1)
+#define BMP380_MODE_MASK		GENMASK(5, 4)
+#define BMP380_MODE_SLEEP		0
+#define BMP380_MODE_FORCED		1
+#define BMP380_MODE_NORMAL		3
+
+#define BMP380_MIN_TEMP			-4000
+#define BMP380_MAX_TEMP			8500
+#define BMP380_MIN_PRES			3000000
+#define BMP380_MAX_PRES			12500000
+
+#define BMP380_CMD_NOOP			0x00
+#define BMP380_CMD_EXTMODE_EN_MID	0x34
+#define BMP380_CMD_FIFO_FLUSH		0xB0
+#define BMP380_CMD_SOFT_RESET		0xB6
+
+#define BMP380_STATUS_CMD_RDY_MASK	BIT(4)
+#define BMP380_STATUS_DRDY_PRESS_MASK	BIT(5)
+#define BMP380_STATUS_DRDY_TEMP_MASK	BIT(6)
+
+#define BMP380_ERR_FATAL_MASK		BIT(0)
+#define BMP380_ERR_CMD_MASK		BIT(1)
+#define BMP380_ERR_CONF_MASK		BIT(2)
+
+#define BMP380_TEMP_SKIPPED		0x800000
+#define BMP380_PRESS_SKIPPED		0x800000
+
 /* BMP280 specific registers */
 #define BMP280_REG_HUMIDITY_LSB		0xFE
 #define BMP280_REG_HUMIDITY_MSB		0xFD
@@ -99,6 +198,7 @@
 #define BMP280_REG_RESET		0xE0
 #define BMP280_REG_ID			0xD0
 
+#define BMP380_CHIP_ID			0x50
 #define BMP180_CHIP_ID			0x55
 #define BMP280_CHIP_ID			0x58
 #define BME280_CHIP_ID			0x60
@@ -112,6 +212,7 @@
 /* Regmap configurations */
 extern const struct regmap_config bmp180_regmap_config;
 extern const struct regmap_config bmp280_regmap_config;
+extern const struct regmap_config bmp380_regmap_config;
 
 /* Probe called from different transports */
 int bmp280_common_probe(struct device *dev,
