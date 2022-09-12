@@ -708,8 +708,6 @@ struct hsw_wrpll_rnp {
 
 static unsigned hsw_wrpll_get_budget_for_freq(int clock)
 {
-	unsigned budget;
-
 	switch (clock) {
 	case 25175000:
 	case 25200000:
@@ -742,21 +740,18 @@ static unsigned hsw_wrpll_get_budget_for_freq(int clock)
 	case 222750000:
 	case 296703000:
 	case 297000000:
-		budget = 0;
-		break;
+		return 0;
 	case 233500000:
 	case 245250000:
 	case 247750000:
 	case 253250000:
 	case 298000000:
-		budget = 1500;
-		break;
+		return 1500;
 	case 169128000:
 	case 169500000:
 	case 179500000:
 	case 202000000:
-		budget = 2000;
-		break;
+		return 2000;
 	case 256250000:
 	case 262500000:
 	case 270000000:
@@ -766,18 +761,13 @@ static unsigned hsw_wrpll_get_budget_for_freq(int clock)
 	case 281250000:
 	case 286000000:
 	case 291750000:
-		budget = 4000;
-		break;
+		return 4000;
 	case 267250000:
 	case 268500000:
-		budget = 5000;
-		break;
+		return 5000;
 	default:
-		budget = 1000;
-		break;
+		return 1000;
 	}
-
-	return budget;
 }
 
 static void hsw_wrpll_update_rnp(u64 freq2k, unsigned int budget,
