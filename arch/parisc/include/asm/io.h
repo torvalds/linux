@@ -227,6 +227,7 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
  * value for either 32 or 64 bit mode */
 #define F_EXTEND(x) ((unsigned long)((x) | (0xffffffff00000000ULL)))
 
+#ifdef CONFIG_64BIT
 #define ioread64 ioread64
 #define ioread64be ioread64be
 #define iowrite64 iowrite64
@@ -235,6 +236,7 @@ extern u64 ioread64(const void __iomem *addr);
 extern u64 ioread64be(const void __iomem *addr);
 extern void iowrite64(u64 val, void __iomem *addr);
 extern void iowrite64be(u64 val, void __iomem *addr);
+#endif
 
 #include <asm-generic/iomap.h>
 /*
