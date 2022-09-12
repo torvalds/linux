@@ -1,13 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  Copyright 2016-2021 Broadcom Inc. All rights reserved.
- *
+ *  Copyright 2016-2022 Broadcom Inc. All rights reserved.
  */
 #ifndef MPI30_INIT_H
 #define MPI30_INIT_H     1
 struct mpi3_scsi_io_cdb_eedp32 {
 	u8                 cdb[20];
-	__be32          primary_reference_tag;
+	__be32             primary_reference_tag;
 	__le16             primary_application_tag;
 	__le16             primary_application_tag_mask;
 	__le32             transfer_length;
