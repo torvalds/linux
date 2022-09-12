@@ -1014,6 +1014,27 @@ next:
 	return hash;
 }
 
+static u64 *get_callstack(struct perf_sample *sample, int max_stack)
+{
+	u64 *callstack;
+	u64 i;
+	int c;
+
+	callstack = calloc(max_stack, sizeof(*callstack));
+	if (callstack == NULL)
+		return NULL;
+
+	for (i = 0, c = 0; i < sample->callchain->nr && c < max_stack; i++) {
+		u64 ip = sample->callchain->ips[i];
+
+		if (ip >= PERF_CONTEXT_MAX)
+			continue;
+
+		callstack[c++] = ip;
+	}
+	return callstack;
+}
+
 static int report_lock_contention_begin_event(struct evsel *evsel,
 					      struct perf_sample *sample)
 {
@@ -1040,6 +1061,12 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		ls = lock_stat_findnew(key, caller, flags);
 		if (!ls)
 			return -ENOMEM;
+
+		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
+			ls->callstack = get_callstack(sample, CONTENTION_STACK_DEPTH);
+			if (ls->callstack == NULL)
+				return -ENOMEM;
+		}
 	}
 
 	ts = thread_stat_findnew(sample->tid);
@@ -1443,7 +1470,7 @@ static void sort_contention_result(void)
 	sort_result();
 }
 
-static void print_contention_result(void)
+static void print_contention_result(struct lock_contention *con)
 {
 	struct lock_stat *st;
 	struct lock_key *key;
@@ -1482,6 +1509,22 @@ static void print_contention_result(void)
 		}
 
 		pr_info("  %10s   %s\n", get_type_str(st), st->name);
+		if (verbose) {
+			struct map *kmap;
+			struct symbol *sym;
+			char buf[128];
+			u64 ip;
+
+			for (int i = 0; i < CONTENTION_STACK_DEPTH; i++) {
+				if (!st->callstack || !st->callstack[i])
+					break;
+
+				ip = st->callstack[i];
+				sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
+				get_symbol_name_offset(kmap, sym, ip, buf, sizeof(buf));
+				pr_info("\t\t\t%#lx  %s\n", (unsigned long)ip, buf);
+			}
+		}
 	}
 
 	print_bad_events(bad, total);
@@ -1597,6 +1640,8 @@ static int __cmd_contention(int argc, const char **argv)
 		return PTR_ERR(session);
 	}
 
+	con.machine = &session->machines.host;
+
 	/* for lock function check */
 	symbol_conf.sort_by_name = true;
 	symbol__init(&session->header.env);
@@ -1614,8 +1659,6 @@ static int __cmd_contention(int argc, const char **argv)
 		signal(SIGINT, sighandler);
 		signal(SIGCHLD, sighandler);
 		signal(SIGTERM, sighandler);
-
-		con.machine = &session->machines.host;
 
 		con.evlist = evlist__new();
 		if (con.evlist == NULL) {
@@ -1688,7 +1731,7 @@ static int __cmd_contention(int argc, const char **argv)
 	setup_pager();
 
 	sort_contention_result();
-	print_contention_result();
+	print_contention_result(&con);
 
 out_delete:
 	evlist__delete(con.evlist);

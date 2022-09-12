@@ -8,6 +8,7 @@
 #include "util/thread_map.h"
 #include "util/lock-contention.h"
 #include <linux/zalloc.h>
+#include <linux/string.h>
 #include <bpf/bpf.h>
 
 #include "bpf_skel/lock_contention.skel.h"
@@ -169,6 +170,14 @@ int lock_contention_read(struct lock_contention *con)
 		} else if (asprintf(&st->name, "%#lx", (unsigned long)st->addr) < 0) {
 			free(st);
 			return -1;
+		}
+
+		if (verbose) {
+			st->callstack = memdup(stack_trace, sizeof(stack_trace));
+			if (st->callstack == NULL) {
+				free(st);
+				return -1;
+			}
 		}
 
 		hlist_add_head(&st->hash_entry, con->result);
