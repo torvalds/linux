@@ -30,6 +30,9 @@ void can_free_echo_skb(struct net_device *dev, unsigned int idx,
 struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf);
 struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 				struct canfd_frame **cfd);
+struct sk_buff *alloc_canxl_skb(struct net_device *dev,
+				struct canxl_frame **cxl,
+				unsigned int data_len);
 struct sk_buff *alloc_can_err_skb(struct net_device *dev,
 				  struct can_frame **cf);
 bool can_dropped_invalid_skb(struct net_device *dev, struct sk_buff *skb);
@@ -114,10 +117,28 @@ static inline bool can_is_canfd_skb(const struct sk_buff *skb)
 	return (skb->len == CANFD_MTU && cfd->len <= CANFD_MAX_DLEN);
 }
 
-/* get length element value from can[fd]_frame structure */
+static inline bool can_is_canxl_skb(const struct sk_buff *skb)
+{
+	const struct canxl_frame *cxl = (struct canxl_frame *)skb->data;
+
+	if (skb->len < CANXL_HDR_SIZE + CANXL_MIN_DLEN || skb->len > CANXL_MTU)
+		return false;
+
+	/* this also checks valid CAN XL data length boundaries */
+	if (skb->len != CANXL_HDR_SIZE + cxl->len)
+		return false;
+
+	return cxl->flags & CANXL_XLF;
+}
+
+/* get length element value from can[|fd|xl]_frame structure */
 static inline unsigned int can_skb_get_len_val(struct sk_buff *skb)
 {
+	const struct canxl_frame *cxl = (struct canxl_frame *)skb->data;
 	const struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
+
+	if (can_is_canxl_skb(skb))
+		return cxl->len;
 
 	return cfd->len;
 }
