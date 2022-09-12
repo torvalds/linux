@@ -3520,6 +3520,9 @@ static int rtw89_pci_lv1rst_stop_dma(struct rtw89_dev *rtwdev)
 	u32 val, dma_rst = 0;
 	int ret;
 
+	if (rtwdev->chip->chip_id == RTL8852C)
+		return 0;
+
 	rtw89_pci_ctrl_dma_all_pcie(rtwdev, MAC_AX_FUNC_DIS);
 	ret = rtw89_pci_poll_io_idle(rtwdev);
 	if (ret) {
@@ -3574,6 +3577,9 @@ static int rtw89_pci_rst_bdram(struct rtw89_dev *rtwdev)
 static int rtw89_pci_lv1rst_start_dma(struct rtw89_dev *rtwdev)
 {
 	u32 ret;
+
+	if (rtwdev->chip->chip_id == RTL8852C)
+		return 0;
 
 	rtw89_pci_ctrl_hci_dma_en(rtwdev, MAC_AX_FUNC_DIS);
 	rtw89_pci_ctrl_hci_dma_en(rtwdev, MAC_AX_FUNC_EN);
