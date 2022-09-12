@@ -53,7 +53,6 @@ static const struct icl_procmon {
 static const struct icl_procmon *
 icl_get_procmon_ref_values(struct drm_i915_private *dev_priv, enum phy phy)
 {
-	const struct icl_procmon *procmon;
 	u32 val;
 
 	val = intel_de_read(dev_priv, ICL_PORT_COMP_DW3(phy));
@@ -62,23 +61,16 @@ icl_get_procmon_ref_values(struct drm_i915_private *dev_priv, enum phy phy)
 		MISSING_CASE(val);
 		fallthrough;
 	case VOLTAGE_INFO_0_85V | PROCESS_INFO_DOT_0:
-		procmon = &icl_procmon_values[PROCMON_0_85V_DOT_0];
-		break;
+		return &icl_procmon_values[PROCMON_0_85V_DOT_0];
 	case VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_0:
-		procmon = &icl_procmon_values[PROCMON_0_95V_DOT_0];
-		break;
+		return &icl_procmon_values[PROCMON_0_95V_DOT_0];
 	case VOLTAGE_INFO_0_95V | PROCESS_INFO_DOT_1:
-		procmon = &icl_procmon_values[PROCMON_0_95V_DOT_1];
-		break;
+		return &icl_procmon_values[PROCMON_0_95V_DOT_1];
 	case VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_0:
-		procmon = &icl_procmon_values[PROCMON_1_05V_DOT_0];
-		break;
+		return &icl_procmon_values[PROCMON_1_05V_DOT_0];
 	case VOLTAGE_INFO_1_05V | PROCESS_INFO_DOT_1:
-		procmon = &icl_procmon_values[PROCMON_1_05V_DOT_1];
-		break;
+		return &icl_procmon_values[PROCMON_1_05V_DOT_1];
 	}
-
-	return procmon;
 }
 
 static void icl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
