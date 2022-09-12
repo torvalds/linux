@@ -899,6 +899,23 @@ bool is_lock_function(struct machine *machine, u64 addr)
 	return false;
 }
 
+static int get_symbol_name_offset(struct map *map, struct symbol *sym, u64 ip,
+				  char *buf, int size)
+{
+	u64 offset;
+
+	if (map == NULL || sym == NULL) {
+		buf[0] = '\0';
+		return 0;
+	}
+
+	offset = map->map_ip(map, ip) - sym->start;
+
+	if (offset)
+		return scnprintf(buf, size, "%s+%#lx", sym->name, offset);
+	else
+		return strlcpy(buf, sym->name, size);
+}
 static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sample,
 				  char *buf, int size)
 {
@@ -941,15 +958,8 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 
 		sym = node->ms.sym;
 		if (sym && !is_lock_function(machine, node->ip)) {
-			struct map *map = node->ms.map;
-			u64 offset;
-
-			offset = map->map_ip(map, node->ip) - sym->start;
-
-			if (offset)
-				scnprintf(buf, size, "%s+%#lx", sym->name, offset);
-			else
-				strlcpy(buf, sym->name, size);
+			get_symbol_name_offset(node->ms.map, sym, node->ip,
+					       buf, size);
 			return 0;
 		}
 
