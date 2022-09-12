@@ -4068,8 +4068,8 @@ static void _update_wl_info(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
-		    "[BTC], cnt_connect = %d, link_mode = %d\n",
-		    cnt_connect, wl_rinfo->link_mode);
+		    "[BTC], cnt_connect = %d, connecting = %d, link_mode = %d\n",
+		    cnt_connect, cnt_connecting, wl_rinfo->link_mode);
 
 	_fw_set_drv_info(rtwdev, CXDRVINFO_ROLE);
 }
