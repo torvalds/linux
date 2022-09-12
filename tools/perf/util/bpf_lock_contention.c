@@ -93,6 +93,8 @@ int lock_contention_prepare(struct lock_contention *con)
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 	}
 
+	skel->bss->stack_skip = con->stack_skip;
+
 	lock_contention_bpf__attach(skel);
 	return 0;
 }
@@ -127,7 +129,7 @@ int lock_contention_read(struct lock_contention *con)
 	while (!bpf_map_get_next_key(fd, &prev_key, &key)) {
 		struct map *kmap;
 		struct symbol *sym;
-		int idx;
+		int idx = 0;
 
 		bpf_map_lookup_elem(fd, &key, &data);
 		st = zalloc(sizeof(*st));
@@ -146,8 +148,7 @@ int lock_contention_read(struct lock_contention *con)
 
 		bpf_map_lookup_elem(stack, &key, stack_trace);
 
-		/* skip BPF + lock internal functions */
-		idx = con->stack_skip;
+		/* skip lock internal functions */
 		while (is_lock_function(machine, stack_trace[idx]) &&
 		       idx < con->max_stack - 1)
 			idx++;
