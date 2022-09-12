@@ -9,9 +9,15 @@
  * Driver for Bosch Sensortec BMP180 and BMP280 digital pressure sensor.
  *
  * Datasheet:
- * https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BMP180-DS000-121.pdf
- * https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BMP280-DS001-12.pdf
- * https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BME280_DS001-11.pdf
+ * https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
+ * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
+ * https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+ *
+ * Notice:
+ * The link to the bmp180 datasheet points to an outdated version missing these changes:
+ * - Changed document referral from ANP015 to BST-MPS-AN004-00 on page 26
+ * - Updated equation for B3 param on section 3.5 to ((((long)AC1 * 4 + X3) << oss) + 2) / 4
+ * - Updated RoHS directive to 2011/65/EU effective 8 June 2011 on page 26
  */
 
 #define pr_fmt(fmt) "bmp280: " fmt
