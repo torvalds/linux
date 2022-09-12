@@ -20,13 +20,12 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_plane.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "mxsfb_drv.h"
@@ -353,7 +352,7 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct drm_bridge_state *bridge_state = NULL;
 	struct drm_device *drm = mxsfb->drm;
 	u32 bus_format = 0;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 
 	pm_runtime_get_sync(drm->dev);
 	mxsfb_enable_axi_clk(mxsfb);
@@ -389,10 +388,10 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	mxsfb_crtc_mode_set_nofb(mxsfb, bridge_state, bus_format);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
-	paddr = drm_fb_cma_get_gem_addr(new_pstate->fb, new_pstate, 0);
-	if (paddr) {
-		writel(paddr, mxsfb->base + mxsfb->devdata->cur_buf);
-		writel(paddr, mxsfb->base + mxsfb->devdata->next_buf);
+	dma_addr = drm_fb_dma_get_gem_addr(new_pstate->fb, new_pstate, 0);
+	if (dma_addr) {
+		writel(dma_addr, mxsfb->base + mxsfb->devdata->cur_buf);
+		writel(dma_addr, mxsfb->base + mxsfb->devdata->next_buf);
 	}
 
 	mxsfb_enable_controller(mxsfb);
@@ -531,8 +530,8 @@ static int mxsfb_plane_atomic_check(struct drm_plane *plane,
 						   &mxsfb->crtc);
 
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
 						   false, true);
 }
 
@@ -542,11 +541,11 @@ static void mxsfb_plane_primary_atomic_update(struct drm_plane *plane,
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
 	struct drm_plane_state *new_pstate = drm_atomic_get_new_plane_state(state,
 									    plane);
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 
-	paddr = drm_fb_cma_get_gem_addr(new_pstate->fb, new_pstate, 0);
-	if (paddr)
-		writel(paddr, mxsfb->base + mxsfb->devdata->next_buf);
+	dma_addr = drm_fb_dma_get_gem_addr(new_pstate->fb, new_pstate, 0);
+	if (dma_addr)
+		writel(dma_addr, mxsfb->base + mxsfb->devdata->next_buf);
 }
 
 static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
@@ -557,11 +556,11 @@ static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
 	struct drm_plane_state *new_pstate = drm_atomic_get_new_plane_state(state,
 									    plane);
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	u32 ctrl;
 
-	paddr = drm_fb_cma_get_gem_addr(new_pstate->fb, new_pstate, 0);
-	if (!paddr) {
+	dma_addr = drm_fb_dma_get_gem_addr(new_pstate->fb, new_pstate, 0);
+	if (!dma_addr) {
 		writel(0, mxsfb->base + LCDC_AS_CTRL);
 		return;
 	}
@@ -572,16 +571,16 @@ static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
 	 * is understood, live with the 16 initial invalid pixels on the first
 	 * line and start 64 bytes within the framebuffer.
 	 */
-	paddr += 64;
+	dma_addr += 64;
 
-	writel(paddr, mxsfb->base + LCDC_AS_NEXT_BUF);
+	writel(dma_addr, mxsfb->base + LCDC_AS_NEXT_BUF);
 
 	/*
 	 * If the plane was previously disabled, write LCDC_AS_BUF as well to
 	 * provide the first buffer.
 	 */
 	if (!old_pstate->fb)
-		writel(paddr, mxsfb->base + LCDC_AS_BUF);
+		writel(dma_addr, mxsfb->base + LCDC_AS_BUF);
 
 	ctrl = AS_CTRL_AS_ENABLE | AS_CTRL_ALPHA(255);
 

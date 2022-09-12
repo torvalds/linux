@@ -36,7 +36,7 @@
  * @res: Refcounted pointer to a struct vmw_resource.
  * @hash: Hash entry for the manager hash table.
  * @head: List head used either by the staging list or the manager list
- * of commited resources.
+ * of committed resources.
  * @state: Staging state of this resource entry.
  * @man: Pointer to a resource manager for this entry.
  */
@@ -51,9 +51,9 @@ struct vmw_cmdbuf_res {
 /**
  * struct vmw_cmdbuf_res_manager - Command buffer resource manager.
  *
- * @resources: Hash table containing staged and commited command buffer
+ * @resources: Hash table containing staged and committed command buffer
  * resources
- * @list: List of commited command buffer resources.
+ * @list: List of committed command buffer resources.
  * @dev_priv: Pointer to a device private structure.
  *
  * @resources and @list are protected by the cmdbuf mutex for now.
@@ -118,7 +118,7 @@ static void vmw_cmdbuf_res_free(struct vmw_cmdbuf_res_manager *man,
  * This function commits a list of command buffer resource
  * additions or removals.
  * It is typically called when the execbuf ioctl call triggering these
- * actions has commited the fifo contents to the device.
+ * actions has committed the fifo contents to the device.
  */
 void vmw_cmdbuf_res_commit(struct list_head *list)
 {

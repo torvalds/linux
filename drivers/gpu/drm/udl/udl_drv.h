@@ -34,14 +34,14 @@ struct udl_device;
 struct urb_node {
 	struct list_head entry;
 	struct udl_device *dev;
-	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
 
 struct urb_list {
 	struct list_head list;
+	struct list_head in_flight;
 	spinlock_t lock;
-	struct semaphore limit_sem;
+	wait_queue_head_t sleep;
 	int available;
 	int count;
 	size_t size;
@@ -75,9 +75,17 @@ static inline struct usb_device *udl_to_usb_device(struct udl_device *udl)
 int udl_modeset_init(struct drm_device *dev);
 struct drm_connector *udl_connector_init(struct drm_device *dev);
 
-struct urb *udl_get_urb(struct drm_device *dev);
+struct urb *udl_get_urb_timeout(struct drm_device *dev, long timeout);
+
+#define GET_URB_TIMEOUT	HZ
+static inline struct urb *udl_get_urb(struct drm_device *dev)
+{
+	return udl_get_urb_timeout(dev, GET_URB_TIMEOUT);
+}
 
 int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len);
+int udl_sync_pending_urbs(struct drm_device *dev);
+void udl_kill_pending_urbs(struct drm_device *dev);
 void udl_urb_completion(struct urb *urb);
 
 int udl_init(struct udl_device *udl);

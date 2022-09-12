@@ -145,13 +145,36 @@ static int drm_plane_helper_check_update(struct drm_plane *plane,
 	return 0;
 }
 
-static int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
-				     struct drm_framebuffer *fb,
-				     int crtc_x, int crtc_y,
-				     unsigned int crtc_w, unsigned int crtc_h,
-				     uint32_t src_x, uint32_t src_y,
-				     uint32_t src_w, uint32_t src_h,
-				     struct drm_modeset_acquire_ctx *ctx)
+/**
+ * drm_plane_helper_update_primary - Helper for updating primary planes
+ * @plane: plane to update
+ * @crtc: the plane's new CRTC
+ * @fb: the plane's new framebuffer
+ * @crtc_x: x coordinate within CRTC
+ * @crtc_y: y coordinate within CRTC
+ * @crtc_w: width coordinate within CRTC
+ * @crtc_h: height coordinate within CRTC
+ * @src_x: x coordinate within source
+ * @src_y: y coordinate within source
+ * @src_w: width coordinate within source
+ * @src_h: height coordinate within source
+ * @ctx: modeset locking context
+ *
+ * This helper validates the given parameters and updates the primary plane.
+ *
+ * This function is only useful for non-atomic modesetting. Don't use
+ * it in new drivers.
+ *
+ * Returns:
+ * Zero on success, or an errno code otherwise.
+ */
+int drm_plane_helper_update_primary(struct drm_plane *plane, struct drm_crtc *crtc,
+				    struct drm_framebuffer *fb,
+				    int crtc_x, int crtc_y,
+				    unsigned int crtc_w, unsigned int crtc_h,
+				    uint32_t src_x, uint32_t src_y,
+				    uint32_t src_w, uint32_t src_h,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_mode_set set = {
 		.crtc = crtc,
@@ -179,8 +202,8 @@ static int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *c
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    &src, &dest,
 					    DRM_MODE_ROTATE_0,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_NO_SCALING,
+					    DRM_PLANE_NO_SCALING,
 					    false, false, &visible);
 	if (ret)
 		return ret;
@@ -218,31 +241,40 @@ static int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *c
 	kfree(connector_list);
 	return ret;
 }
+EXPORT_SYMBOL(drm_plane_helper_update_primary);
 
-static int drm_primary_helper_disable(struct drm_plane *plane,
-				      struct drm_modeset_acquire_ctx *ctx)
+/**
+ * drm_plane_helper_disable_primary - Helper for disabling primary planes
+ * @plane: plane to disable
+ * @ctx: modeset locking context
+ *
+ * This helper returns an error when trying to disable the primary
+ * plane.
+ *
+ * This function is only useful for non-atomic modesetting. Don't use
+ * it in new drivers.
+ *
+ * Returns:
+ * An errno code.
+ */
+int drm_plane_helper_disable_primary(struct drm_plane *plane,
+				     struct drm_modeset_acquire_ctx *ctx)
 {
 	return -EINVAL;
 }
+EXPORT_SYMBOL(drm_plane_helper_disable_primary);
 
 /**
- * drm_primary_helper_destroy() - Helper for primary plane destruction
+ * drm_plane_helper_destroy() - Helper for primary plane destruction
  * @plane: plane to destroy
  *
  * Provides a default plane destroy handler for primary planes.  This handler
  * is called during CRTC destruction.  We disable the primary plane, remove
  * it from the DRM plane list, and deallocate the plane structure.
  */
-void drm_primary_helper_destroy(struct drm_plane *plane)
+void drm_plane_helper_destroy(struct drm_plane *plane)
 {
 	drm_plane_cleanup(plane);
 	kfree(plane);
 }
-EXPORT_SYMBOL(drm_primary_helper_destroy);
-
-const struct drm_plane_funcs drm_primary_helper_funcs = {
-	.update_plane = drm_primary_helper_update,
-	.disable_plane = drm_primary_helper_disable,
-	.destroy = drm_primary_helper_destroy,
-};
-EXPORT_SYMBOL(drm_primary_helper_funcs);
+EXPORT_SYMBOL(drm_plane_helper_destroy);

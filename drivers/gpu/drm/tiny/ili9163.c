@@ -11,7 +11,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
 
@@ -110,12 +110,12 @@ static const struct drm_display_mode yx240qv29_mode = {
 	DRM_SIMPLE_MODE(128, 160, 28, 35),
 };
 
-DEFINE_DRM_GEM_CMA_FOPS(ili9163_fops);
+DEFINE_DRM_GEM_DMA_FOPS(ili9163_fops);
 
 static struct drm_driver ili9163_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &ili9163_fops,
-	DRM_GEM_CMA_DRIVER_OPS_VMAP,
+	DRM_GEM_DMA_DRIVER_OPS_VMAP,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "ili9163",
 	.desc			= "Ilitek ILI9163",

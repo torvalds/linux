@@ -3,7 +3,7 @@ config DRM_SUN4I
 	tristate "DRM Support for Allwinner A10 Display Engine"
 	depends on DRM && COMMON_CLK
 	depends on ARCH_SUNXI || COMPILE_TEST
-	select DRM_GEM_CMA_HELPER
+	select DRM_GEM_DMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select REGMAP_MMIO
@@ -16,23 +16,25 @@ config DRM_SUN4I
 if DRM_SUN4I
 
 config DRM_SUN4I_HDMI
-	tristate "Allwinner A10 HDMI Controller Support"
+	tristate "Allwinner A10/A10s/A20/A31 HDMI Controller Support"
+	depends on ARM || COMPILE_TEST
 	default DRM_SUN4I
 	help
-	  Choose this option if you have an Allwinner SoC with an HDMI
-	  controller.
+	  Choose this option if you have an Allwinner A10/A10s/A20/A31
+	  SoC with an HDMI controller.
 
 config DRM_SUN4I_HDMI_CEC
-	bool "Allwinner A10 HDMI CEC Support"
+	bool "Allwinner A10/A10s/A20/A31 HDMI CEC Support"
 	depends on DRM_SUN4I_HDMI
 	select CEC_CORE
 	select CEC_PIN
 	help
-	  Choose this option if you have an Allwinner SoC with an HDMI
-	  controller and want to use CEC.
+	  Choose this option if you have an Allwinner A10/A10s/A20/A31
+	  SoC with an HDMI controller and want to use CEC.
 
 config DRM_SUN4I_BACKEND
 	tristate "Support for Allwinner A10 Display Engine Backend"
+	depends on ARM || COMPILE_TEST
 	default DRM_SUN4I
 	help
 	  Choose this option if you have an Allwinner SoC with the
@@ -41,8 +43,8 @@ config DRM_SUN4I_BACKEND
 	  selected the module will be called sun4i-backend.
 
 config DRM_SUN6I_DSI
-	tristate "Allwinner A31 MIPI-DSI Controller Support"
-	default MACH_SUN8I
+	tristate "Allwinner A31/A64 MIPI-DSI Controller Support"
+	default DRM_SUN4I
 	select CRC_CCITT
 	select DRM_MIPI_DSI
 	select RESET_CONTROLLER
@@ -55,15 +57,17 @@ config DRM_SUN6I_DSI
 config DRM_SUN8I_DW_HDMI
 	tristate "Support for Allwinner version of DesignWare HDMI"
 	depends on DRM_SUN4I
+	default DRM_SUN4I
 	select DRM_DW_HDMI
 	help
 	  Choose this option if you have an Allwinner SoC with the
-	  DesignWare HDMI controller with custom HDMI PHY. If M is
+	  DesignWare HDMI controller. SoCs that support HDMI and
+	  have a Display Engine 2.0 contain this controller. If M is
 	  selected the module will be called sun8i_dw_hdmi.
 
 config DRM_SUN8I_MIXER
 	tristate "Support for Allwinner Display Engine 2.0 Mixer"
-	default MACH_SUN8I
+	default DRM_SUN4I
 	help
 	  Choose this option if you have an Allwinner SoC with the
 	  Allwinner Display Engine 2.0, which has a mixer to do some
@@ -75,6 +79,6 @@ config DRM_SUN8I_TCON_TOP
 	default DRM_SUN4I if DRM_SUN8I_MIXER!=n
 	help
 	  TCON TOP is responsible for configuring display pipeline for
-	  HTMI, TVE and LCD.
+	  HDMI, TVE and LCD.
 
 endif

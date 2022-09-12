@@ -488,7 +488,7 @@ remove_panel:
 	return ret;
 }
 
-static int s6e63j0x03_remove(struct mipi_dsi_device *dsi)
+static void s6e63j0x03_remove(struct mipi_dsi_device *dsi)
 {
 	struct s6e63j0x03 *ctx = mipi_dsi_get_drvdata(dsi);
 
@@ -496,8 +496,6 @@ static int s6e63j0x03_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&ctx->panel);
 
 	backlight_device_unregister(ctx->bl_dev);
-
-	return 0;
 }
 
 static const struct of_device_id s6e63j0x03_of_match[] = {

@@ -313,7 +313,7 @@ v3d_lookup_bos(struct drm_device *dev,
 	}
 
 	job->bo = kvmalloc_array(job->bo_count,
-				 sizeof(struct drm_gem_cma_object *),
+				 sizeof(struct drm_gem_dma_object *),
 				 GFP_KERNEL | __GFP_ZERO);
 	if (!job->bo) {
 		DRM_DEBUG("Failed to allocate validated BO pointers\n");
@@ -1092,7 +1092,7 @@ v3d_gem_init(struct drm_device *dev)
 	if (!v3d->pt) {
 		drm_mm_takedown(&v3d->mm);
 		dev_err(v3d->drm.dev,
-			"Failed to allocate page tables. Please ensure you have CMA enabled.\n");
+			"Failed to allocate page tables. Please ensure you have DMA enabled.\n");
 		return -ENOMEM;
 	}
 

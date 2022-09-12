@@ -7,6 +7,7 @@
  * - FB1 is display 1 with unique memory area
  * - both display use 32 bit colors
  */
+#include <linux/aperture.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
@@ -613,6 +614,10 @@ static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	struct device *device = &dev->dev;
 	struct fb_info *info;
 	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(dev, "carminefb");
+	if (ret)
+		return ret;
 
 	ret = pci_enable_device(dev);
 	if (ret)

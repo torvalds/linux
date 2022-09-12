@@ -5,9 +5,9 @@
  *
  */
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "komeda_framebuffer.h"
@@ -137,7 +137,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 		}
 
 		min_size = komeda_fb_get_pixel_addr(kfb, 0, fb->height, i)
-			 - to_drm_gem_cma_obj(obj)->paddr;
+			 - to_drm_gem_dma_obj(obj)->dma_addr;
 		if (obj->size < min_size) {
 			DRM_DEBUG_KMS("The fb->obj[%d] size: 0x%zx lower than the minimum requirement: 0x%llx.\n",
 				      i, obj->size, min_size);
@@ -239,7 +239,7 @@ dma_addr_t
 komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 {
 	struct drm_framebuffer *fb = &kfb->base;
-	const struct drm_gem_cma_object *obj;
+	const struct drm_gem_dma_object *obj;
 	u32 offset, plane_x, plane_y, block_w, block_sz;
 
 	if (plane >= fb->format->num_planes) {
@@ -247,7 +247,7 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 		return -EINVAL;
 	}
 
-	obj = drm_fb_cma_get_gem_obj(fb, plane);
+	obj = drm_fb_dma_get_gem_obj(fb, plane);
 
 	offset = fb->offsets[plane];
 	if (!fb->modifier) {
@@ -260,7 +260,7 @@ komeda_fb_get_pixel_addr(struct komeda_fb *kfb, int x, int y, int plane)
 			+ plane_y * fb->pitches[plane];
 	}
 
-	return obj->paddr + offset;
+	return obj->dma_addr + offset;
 }
 
 /* if the fb can be supported by a specific layer */

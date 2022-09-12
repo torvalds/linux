@@ -305,7 +305,7 @@ static int sharp_nt_panel_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int sharp_nt_panel_remove(struct mipi_dsi_device *dsi)
+static void sharp_nt_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct sharp_nt_panel *sharp_nt = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -319,8 +319,6 @@ static int sharp_nt_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
 
 	sharp_nt_panel_del(sharp_nt);
-
-	return 0;
 }
 
 static void sharp_nt_panel_shutdown(struct mipi_dsi_device *dsi)

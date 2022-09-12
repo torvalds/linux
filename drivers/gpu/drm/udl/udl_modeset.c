@@ -397,6 +397,8 @@ udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct urb *urb;
 	char *buf;
 
+	udl_kill_pending_urbs(dev);
+
 	urb = udl_get_urb(dev);
 	if (!urb)
 		return;
@@ -408,6 +410,8 @@ udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
 	buf = udl_dummy_render(buf);
 
 	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
+
+	udl_sync_pending_urbs(dev);
 }
 
 static void

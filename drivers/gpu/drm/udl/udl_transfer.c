@@ -220,7 +220,8 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
 
-	BUG_ON(!(log_bpp == 1 || log_bpp == 2));
+	if (WARN_ON(!(log_bpp == 1 || log_bpp == 2)))
+		return -EINVAL;
 
 	line_start = (u8 *) (front + byte_offset);
 	next_pixel = line_start;
