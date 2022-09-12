@@ -169,6 +169,23 @@ static int rtw89_pci_rxbd_info_update(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static void rtw89_pci_ctrl_txdma_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_reg_def *dma_stop1 = &info->dma_stop1;
+	const struct rtw89_reg_def *dma_stop2 = &info->dma_stop2;
+
+	if (enable) {
+		rtw89_write32_clr(rtwdev, dma_stop1->addr, dma_stop1->mask);
+		if (dma_stop2->addr)
+			rtw89_write32_clr(rtwdev, dma_stop2->addr, dma_stop2->mask);
+	} else {
+		rtw89_write32_set(rtwdev, dma_stop1->addr, dma_stop1->mask);
+		if (dma_stop2->addr)
+			rtw89_write32_set(rtwdev, dma_stop2->addr, dma_stop2->mask);
+	}
+}
+
 static bool
 rtw89_skb_put_rx_data(struct rtw89_dev *rtwdev, bool fs, bool ls,
 		      struct sk_buff *new,
@@ -2443,7 +2460,7 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 	rtw89_pci_set_dbg(rtwdev);
 	rtw89_pci_set_keep_reg(rtwdev);
 
-	rtw89_write32_set(rtwdev, info->dma_stop1_reg, B_AX_STOP_WPDMA);
+	rtw89_write32_set(rtwdev, info->dma_stop1.addr, B_AX_STOP_WPDMA);
 
 	/* stop DMA activities */
 	rtw89_pci_ctrl_dma_all(rtwdev, false);
@@ -2466,10 +2483,9 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
-	/* enable FW CMD queue to download firmware */
-	rtw89_write32_set(rtwdev, info->dma_stop1_reg, B_AX_TX_STOP1_ALL);
-	rtw89_write32_clr(rtwdev, info->dma_stop1_reg, B_AX_STOP_CH12);
-	rtw89_write32_set(rtwdev, info->dma_stop2_reg, B_AX_TX_STOP2_ALL);
+	/* disable all channels except to FW CMD channel to download firmware */
+	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, false);
+	rtw89_write32_clr(rtwdev, info->dma_stop1.addr, B_AX_STOP_CH12);
 
 	/* start DMA activities */
 	rtw89_pci_ctrl_dma_all(rtwdev, true);
@@ -2582,11 +2598,10 @@ static int rtw89_pci_ops_mac_post_init(struct rtw89_dev *rtwdev)
 	}
 
 	/* enable DMA for all queues */
-	rtw89_write32_clr(rtwdev, info->dma_stop1_reg, B_AX_TX_STOP1_ALL);
-	rtw89_write32_clr(rtwdev, info->dma_stop2_reg, B_AX_TX_STOP2_ALL);
+	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, true);
 
 	/* Release PCI IO */
-	rtw89_write32_clr(rtwdev, info->dma_stop1_reg,
+	rtw89_write32_clr(rtwdev, info->dma_stop1.addr,
 			  B_AX_STOP_WPDMA | B_AX_STOP_PCIEIO);
 
 	return 0;

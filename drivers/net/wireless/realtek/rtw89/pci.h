@@ -410,6 +410,16 @@
 #define B_AX_STOP_RPQ			BIT(1)
 #define B_AX_STOP_RXQ			BIT(0)
 #define B_AX_TX_STOP1_ALL		GENMASK(18, 8)
+#define B_AX_TX_STOP1_MASK		(B_AX_STOP_ACH0 | B_AX_STOP_ACH1 | \
+					 B_AX_STOP_ACH2 | B_AX_STOP_ACH3 | \
+					 B_AX_STOP_ACH4 | B_AX_STOP_ACH5 | \
+					 B_AX_STOP_ACH6 | B_AX_STOP_ACH7 | \
+					 B_AX_STOP_CH8 | B_AX_STOP_CH9 | \
+					 B_AX_STOP_CH12)
+#define B_AX_TX_STOP1_MASK_V1		(B_AX_STOP_ACH0 | B_AX_STOP_ACH1 | \
+					 B_AX_STOP_ACH2 | B_AX_STOP_ACH3 | \
+					 B_AX_STOP_CH8 | B_AX_STOP_CH9 | \
+					 B_AX_STOP_CH12)
 
 #define R_AX_PCIE_DMA_STOP2	0x1310
 #define B_AX_STOP_CH11			BIT(1)
@@ -742,8 +752,8 @@ struct rtw89_pci_info {
 	u32 max_tag_num_mask;
 	u32 rxbd_rwptr_clr_reg;
 	u32 txbd_rwptr_clr2_reg;
-	u32 dma_stop1_reg;
-	u32 dma_stop2_reg;
+	struct rtw89_reg_def dma_stop1;
+	struct rtw89_reg_def dma_stop2;
 	u32 dma_busy1_reg;
 	u32 dma_busy2_reg;
 	u32 dma_busy3_reg;
