@@ -79,26 +79,26 @@ ap_h1_spi: &spi14 {
 };
 
 &tlmm {
-	ap_ec_int_l: ap-ec-int-l {
+	ap_ec_int_l: ap-ec-int-l-pins {
 		pins = "gpio18";
 		function = "gpio";
 		input-enable;
 		bias-pull-up;
 	};
 
-	h1_ap_int_odl: h1-ap-int-odl {
+	h1_ap_int_odl: h1-ap-int-odl-pins {
 		pins = "gpio104";
 		function = "gpio";
 		input-enable;
 		bias-pull-up;
 	};
 
-	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high {
+	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high-pins {
 		pins = "gpio43";
 		output-high;
 	};
 
-	qup_spi14_cs_gpio_init_high: qup-spi14-cs-gpio-init-high {
+	qup_spi14_cs_gpio_init_high: qup-spi14-cs-gpio-init-high-pins {
 		pins = "gpio59";
 		output-high;
 	};

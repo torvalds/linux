@@ -595,7 +595,7 @@ mos_bt_uart: &uart7 {
 };
 
 &tlmm {
-	mos_bt_en: mos-bt-en {
+	mos_bt_en: mos-bt-en-pins {
 		pins = "gpio85";
 		function = "gpio";
 		drive-strength = <2>;
@@ -603,7 +603,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_cts: qup-uart7-sleep-cts {
+	qup_uart7_sleep_cts: qup-uart7-sleep-cts-pins {
 		pins = "gpio28";
 		function = "gpio";
 		/*
@@ -617,7 +617,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_rts: qup-uart7-sleep-rts {
+	qup_uart7_sleep_rts: qup-uart7-sleep-rts-pins {
 		pins = "gpio29";
 		function = "gpio";
 		/*
@@ -630,7 +630,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_rx: qup-uart7-sleep-rx {
+	qup_uart7_sleep_rx: qup-uart7-sleep-rx-pins {
 		pins = "gpio31";
 		function = "gpio";
 		/*
@@ -642,7 +642,7 @@ mos_bt_uart: &uart7 {
 	};
 
 	/* For mos_bt_uart */
-	qup_uart7_sleep_tx: qup-uart7-sleep-tx {
+	qup_uart7_sleep_tx: qup-uart7-sleep-tx-pins {
 		pins = "gpio30";
 		function = "gpio";
 		/*
@@ -652,13 +652,13 @@ mos_bt_uart: &uart7 {
 		bias-pull-up;
 	};
 
-	ts_int_conn: ts-int-conn {
+	ts_int_conn: ts-int-conn-pins {
 		pins = "gpio55";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	ts_rst_conn: ts-rst-conn {
+	ts_rst_conn: ts-rst-conn-pins {
 		pins = "gpio54";
 		function = "gpio";
 		drive-strength = <2>;

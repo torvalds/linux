@@ -753,18 +753,18 @@
 		drive-strength = <2>;
 	};
 
-	bt_en: bt-en {
+	bt_en: bt-en-pins {
 		pins = "gpio85";
 		function = "gpio";
 		output-low;
 		bias-disable;
 	};
 
-	nvme_pwren: nvme-pwren {
+	nvme_pwren: nvme-pwren-pins {
 		function = "gpio";
 	};
 
-	pcie1_reset_n: pcie1-reset-n {
+	pcie1_reset_n: pcie1-reset-n-pins {
 		pins = "gpio2";
 		function = "gpio";
 
@@ -773,7 +773,7 @@
 		bias-disable;
 	};
 
-	pcie1_wake_n: pcie1-wake-n {
+	pcie1_wake_n: pcie1-wake-n-pins {
 		pins = "gpio3";
 		function = "gpio";
 
@@ -781,7 +781,7 @@
 		bias-pull-up;
 	};
 
-	qup_uart7_sleep_cts: qup-uart7-sleep-cts {
+	qup_uart7_sleep_cts: qup-uart7-sleep-cts-pins {
 		pins = "gpio28";
 		function = "gpio";
 		/*
@@ -794,7 +794,7 @@
 		bias-bus-hold;
 	};
 
-	qup_uart7_sleep_rts: qup-uart7-sleep-rts {
+	qup_uart7_sleep_rts: qup-uart7-sleep-rts-pins {
 		pins = "gpio29";
 		function = "gpio";
 		/*
@@ -806,7 +806,7 @@
 		bias-pull-down;
 	};
 
-	qup_uart7_sleep_tx: qup-uart7-sleep-tx {
+	qup_uart7_sleep_tx: qup-uart7-sleep-tx-pins {
 		pins = "gpio30";
 		function = "gpio";
 		/*
@@ -816,7 +816,7 @@
 		bias-pull-up;
 	};
 
-	qup_uart7_sleep_rx: qup-uart7-sleep-rx {
+	qup_uart7_sleep_rx: qup-uart7-sleep-rx-pins {
 		pins = "gpio31";
 		function = "gpio";
 		/*
@@ -827,13 +827,13 @@
 		bias-pull-up;
 	};
 
-	sd_cd: sd-cd {
+	sd_cd: sd-cd-pins {
 		pins = "gpio91";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	sw_ctrl: sw-ctrl {
+	sw_ctrl: sw-ctrl-pins {
 		pins = "gpio86";
 		function = "gpio";
 		bias-pull-down;
