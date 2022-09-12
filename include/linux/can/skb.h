@@ -97,10 +97,20 @@ static inline struct sk_buff *can_create_echo_skb(struct sk_buff *skb)
 	return nskb;
 }
 
+static inline bool can_is_can_skb(const struct sk_buff *skb)
+{
+	struct can_frame *cf = (struct can_frame *)skb->data;
+
+	/* the CAN specific type of skb is identified by its data length */
+	return (skb->len == CAN_MTU && cf->len <= CAN_MAX_DLEN);
+}
+
 static inline bool can_is_canfd_skb(const struct sk_buff *skb)
 {
+	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
+
 	/* the CAN specific type of skb is identified by its data length */
-	return skb->len == CANFD_MTU;
+	return (skb->len == CANFD_MTU && cfd->len <= CANFD_MAX_DLEN);
 }
 
 #endif /* !_CAN_SKB_H */

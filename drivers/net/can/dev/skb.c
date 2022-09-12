@@ -299,18 +299,20 @@ static bool can_skb_headroom_valid(struct net_device *dev, struct sk_buff *skb)
 /* Drop a given socketbuffer if it does not contain a valid CAN frame. */
 bool can_dropped_invalid_skb(struct net_device *dev, struct sk_buff *skb)
 {
-	const struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 	struct can_priv *priv = netdev_priv(dev);
 
-	if (skb->protocol == htons(ETH_P_CAN)) {
-		if (unlikely(skb->len != CAN_MTU ||
-			     cfd->len > CAN_MAX_DLEN))
+	switch (ntohs(skb->protocol)) {
+	case ETH_P_CAN:
+		if (!can_is_can_skb(skb))
 			goto inval_skb;
-	} else if (skb->protocol == htons(ETH_P_CANFD)) {
-		if (unlikely(skb->len != CANFD_MTU ||
-			     cfd->len > CANFD_MAX_DLEN))
+		break;
+
+	case ETH_P_CANFD:
+		if (!can_is_canfd_skb(skb))
 			goto inval_skb;
-	} else {
+		break;
+
+	default:
 		goto inval_skb;
 	}
 
