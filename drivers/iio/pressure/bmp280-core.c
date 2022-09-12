@@ -38,6 +38,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/random.h>
 
+#include <asm/unaligned.h>
+
 #include "bmp280.h"
 
 /*
@@ -112,6 +114,21 @@ struct bmp280_data {
 	 * calculation.
 	 */
 	s32 t_fine;
+
+	/*
+	 * DMA (thus cache coherency maintenance) may require the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	union {
+		/* Sensor data buffer */
+		u8 buf[3];
+		/* Calibration data buffers */
+		__le16 bmp280_cal_buf[BMP280_CONTIGUOUS_CALIB_REGS / 2];
+		__be16 bmp180_cal_buf[BMP180_REG_CALIB_COUNT / 2];
+		/* Miscellaneous, endianess-aware data buffers */
+		__le16 le16;
+		__be16 be16;
+	} __aligned(IIO_DMA_MINALIGN);
 };
 
 struct bmp280_chip_info {
@@ -166,13 +183,12 @@ static const struct iio_chan_spec bmp280_channels[] = {
 static int bmp280_read_calib(struct bmp280_data *data)
 {
 	struct bmp280_calib *calib = &data->calib.bmp280;
-	__le16 c_buf[BMP280_CONTIGUOUS_CALIB_REGS / 2];
 	int ret;
 
 
 	/* Read temperature and pressure calibration values. */
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_TEMP_START,
-			       c_buf, sizeof(c_buf));
+			       data->bmp280_cal_buf, sizeof(data->bmp280_cal_buf));
 	if (ret < 0) {
 		dev_err(data->dev,
 			"failed to read temperature and pressure calibration parameters\n");
@@ -180,23 +196,23 @@ static int bmp280_read_calib(struct bmp280_data *data)
 	}
 
 	/* Toss the temperature and pressure calibration data into the entropy pool */
-	add_device_randomness(c_buf, sizeof(c_buf));
+	add_device_randomness(data->bmp280_cal_buf, sizeof(data->bmp280_cal_buf));
 
 	/* Parse temperature calibration values. */
-	calib->T1 = le16_to_cpu(c_buf[T1]);
-	calib->T2 = le16_to_cpu(c_buf[T2]);
-	calib->T3 = le16_to_cpu(c_buf[T3]);
+	calib->T1 = le16_to_cpu(data->bmp280_cal_buf[T1]);
+	calib->T2 = le16_to_cpu(data->bmp280_cal_buf[T2]);
+	calib->T3 = le16_to_cpu(data->bmp280_cal_buf[T3]);
 
 	/* Parse pressure calibration values. */
-	calib->P1 = le16_to_cpu(c_buf[P1]);
-	calib->P2 = le16_to_cpu(c_buf[P2]);
-	calib->P3 = le16_to_cpu(c_buf[P3]);
-	calib->P4 = le16_to_cpu(c_buf[P4]);
-	calib->P5 = le16_to_cpu(c_buf[P5]);
-	calib->P6 = le16_to_cpu(c_buf[P6]);
-	calib->P7 = le16_to_cpu(c_buf[P7]);
-	calib->P8 = le16_to_cpu(c_buf[P8]);
-	calib->P9 = le16_to_cpu(c_buf[P9]);
+	calib->P1 = le16_to_cpu(data->bmp280_cal_buf[P1]);
+	calib->P2 = le16_to_cpu(data->bmp280_cal_buf[P2]);
+	calib->P3 = le16_to_cpu(data->bmp280_cal_buf[P3]);
+	calib->P4 = le16_to_cpu(data->bmp280_cal_buf[P4]);
+	calib->P5 = le16_to_cpu(data->bmp280_cal_buf[P5]);
+	calib->P6 = le16_to_cpu(data->bmp280_cal_buf[P6]);
+	calib->P7 = le16_to_cpu(data->bmp280_cal_buf[P7]);
+	calib->P8 = le16_to_cpu(data->bmp280_cal_buf[P8]);
+	calib->P9 = le16_to_cpu(data->bmp280_cal_buf[P9]);
 
 	return 0;
 }
@@ -206,8 +222,6 @@ static int bme280_read_calib(struct bmp280_data *data)
 	struct bmp280_calib *calib = &data->calib.bmp280;
 	struct device *dev = data->dev;
 	unsigned int tmp;
-	__le16 l16;
-	__be16 b16;
 	int ret;
 
 	/* Load shared calibration params with bmp280 first */
@@ -232,12 +246,13 @@ static int bme280_read_calib(struct bmp280_data *data)
 	}
 	calib->H1 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H2, &l16, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H2,
+			       &data->le16, sizeof(data->le16));
 	if (ret < 0) {
 		dev_err(dev, "failed to read H2 comp value\n");
 		return ret;
 	}
-	calib->H2 = sign_extend32(le16_to_cpu(l16), 15);
+	calib->H2 = sign_extend32(le16_to_cpu(data->le16), 15);
 
 	ret = regmap_read(data->regmap, BMP280_REG_COMP_H3, &tmp);
 	if (ret < 0) {
@@ -246,20 +261,22 @@ static int bme280_read_calib(struct bmp280_data *data)
 	}
 	calib->H3 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H4, &b16, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H4,
+			       &data->be16, sizeof(data->be16));
 	if (ret < 0) {
 		dev_err(dev, "failed to read H4 comp value\n");
 		return ret;
 	}
-	calib->H4 = sign_extend32(((be16_to_cpu(b16) >> 4) & 0xff0) |
-				  (be16_to_cpu(b16) & 0xf), 11);
+	calib->H4 = sign_extend32(((be16_to_cpu(data->be16) >> 4) & 0xff0) |
+				  (be16_to_cpu(data->be16) & 0xf), 11);
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H5, &l16, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H5,
+			       &data->le16, sizeof(data->le16));
 	if (ret < 0) {
 		dev_err(dev, "failed to read H5 comp value\n");
 		return ret;
 	}
-	calib->H5 = sign_extend32(FIELD_GET(BMP280_COMP_H5_MASK, le16_to_cpu(l16)), 11);
+	calib->H5 = sign_extend32(FIELD_GET(BMP280_COMP_H5_MASK, le16_to_cpu(data->le16)), 11);
 
 	ret = regmap_read(data->regmap, BMP280_REG_COMP_H6, &tmp);
 	if (ret < 0) {
@@ -354,16 +371,16 @@ static int bmp280_read_temp(struct bmp280_data *data,
 			    int *val)
 {
 	s32 adc_temp, comp_temp;
-	__be32 tmp = 0;
 	int ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB, &tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB,
+			       data->buf, sizeof(data->buf));
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read temperature\n");
 		return ret;
 	}
 
-	adc_temp = FIELD_GET(BMP280_MEAS_TRIM_MASK, be32_to_cpu(tmp));
+	adc_temp = FIELD_GET(BMP280_MEAS_TRIM_MASK, get_unaligned_be24(data->buf));
 	if (adc_temp == BMP280_TEMP_SKIPPED) {
 		/* reading was skipped */
 		dev_err(data->dev, "reading temperature skipped\n");
@@ -387,7 +404,6 @@ static int bmp280_read_press(struct bmp280_data *data,
 			     int *val, int *val2)
 {
 	u32 comp_press;
-	__be32 tmp = 0;
 	s32 adc_press;
 	int ret;
 
@@ -396,13 +412,14 @@ static int bmp280_read_press(struct bmp280_data *data,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_PRESS_MSB, &tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_PRESS_MSB,
+			       data->buf, sizeof(data->buf));
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read pressure\n");
 		return ret;
 	}
 
-	adc_press = FIELD_GET(BMP280_MEAS_TRIM_MASK, be32_to_cpu(tmp));
+	adc_press = FIELD_GET(BMP280_MEAS_TRIM_MASK, get_unaligned_be24(data->buf));
 	if (adc_press == BMP280_PRESS_SKIPPED) {
 		/* reading was skipped */
 		dev_err(data->dev, "reading pressure skipped\n");
@@ -420,7 +437,6 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 {
 	u32 comp_humidity;
 	s32 adc_humidity;
-	__be16 tmp;
 	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
@@ -428,13 +444,14 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_HUMIDITY_MSB, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_HUMIDITY_MSB,
+			       &data->be16, sizeof(data->be16));
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read humidity\n");
 		return ret;
 	}
 
-	adc_humidity = be16_to_cpu(tmp);
+	adc_humidity = be16_to_cpu(data->be16);
 	if (adc_humidity == BMP280_HUMIDITY_SKIPPED) {
 		/* reading was skipped */
 		dev_err(data->dev, "reading humidity skipped\n");
@@ -775,7 +792,6 @@ static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 
 static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 {
-	__be16 tmp;
 	int ret;
 
 	ret = bmp180_measure(data,
@@ -784,11 +800,12 @@ static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB,
+			       &data->be16, sizeof(data->be16));
 	if (ret)
 		return ret;
 
-	*val = be16_to_cpu(tmp);
+	*val = be16_to_cpu(data->be16);
 
 	return 0;
 }
@@ -796,36 +813,36 @@ static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 static int bmp180_read_calib(struct bmp280_data *data)
 {
 	struct bmp180_calib *calib = &data->calib.bmp180;
-	__be16 buf[BMP180_REG_CALIB_COUNT / 2];
 	int ret;
 	int i;
 
-	ret = regmap_bulk_read(data->regmap, BMP180_REG_CALIB_START, buf,
-			       sizeof(buf));
+	ret = regmap_bulk_read(data->regmap, BMP180_REG_CALIB_START,
+			       data->bmp180_cal_buf, sizeof(data->bmp180_cal_buf));
 
 	if (ret < 0)
 		return ret;
 
 	/* None of the words has the value 0 or 0xFFFF */
-	for (i = 0; i < ARRAY_SIZE(buf); i++) {
-		if (buf[i] == cpu_to_be16(0) || buf[i] == cpu_to_be16(0xffff))
+	for (i = 0; i < ARRAY_SIZE(data->bmp180_cal_buf); i++) {
+		if (data->bmp180_cal_buf[i] == cpu_to_be16(0) ||
+		    data->bmp180_cal_buf[i] == cpu_to_be16(0xffff))
 			return -EIO;
 	}
 
 	/* Toss the calibration data into the entropy pool */
-	add_device_randomness(buf, sizeof(buf));
+	add_device_randomness(data->bmp180_cal_buf, sizeof(data->bmp180_cal_buf));
 
-	calib->AC1 = be16_to_cpu(buf[AC1]);
-	calib->AC2 = be16_to_cpu(buf[AC2]);
-	calib->AC3 = be16_to_cpu(buf[AC3]);
-	calib->AC4 = be16_to_cpu(buf[AC4]);
-	calib->AC5 = be16_to_cpu(buf[AC5]);
-	calib->AC6 = be16_to_cpu(buf[AC6]);
-	calib->B1 = be16_to_cpu(buf[B1]);
-	calib->B2 = be16_to_cpu(buf[B2]);
-	calib->MB = be16_to_cpu(buf[MB]);
-	calib->MC = be16_to_cpu(buf[MC]);
-	calib->MD = be16_to_cpu(buf[MD]);
+	calib->AC1 = be16_to_cpu(data->bmp180_cal_buf[AC1]);
+	calib->AC2 = be16_to_cpu(data->bmp180_cal_buf[AC2]);
+	calib->AC3 = be16_to_cpu(data->bmp180_cal_buf[AC3]);
+	calib->AC4 = be16_to_cpu(data->bmp180_cal_buf[AC4]);
+	calib->AC5 = be16_to_cpu(data->bmp180_cal_buf[AC5]);
+	calib->AC6 = be16_to_cpu(data->bmp180_cal_buf[AC6]);
+	calib->B1 = be16_to_cpu(data->bmp180_cal_buf[B1]);
+	calib->B2 = be16_to_cpu(data->bmp180_cal_buf[B2]);
+	calib->MB = be16_to_cpu(data->bmp180_cal_buf[MB]);
+	calib->MC = be16_to_cpu(data->bmp180_cal_buf[MC]);
+	calib->MD = be16_to_cpu(data->bmp180_cal_buf[MD]);
 
 	return 0;
 }
@@ -874,7 +891,6 @@ static int bmp180_read_temp(struct bmp280_data *data, int *val)
 static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
 {
 	u8 oss = data->oversampling_press;
-	__be32 tmp = 0;
 	int ret;
 
 	ret = bmp180_measure(data,
@@ -884,11 +900,12 @@ static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB, &tmp, 3);
+	ret = regmap_bulk_read(data->regmap, BMP180_REG_OUT_MSB,
+			       data->buf, sizeof(data->buf));
 	if (ret)
 		return ret;
 
-	*val = (be32_to_cpu(tmp) >> 8) >> (8 - oss);
+	*val = get_unaligned_be24(data->buf) >> (8 - oss);
 
 	return 0;
 }

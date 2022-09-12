@@ -13,8 +13,8 @@
 #define BMP280_REG_PRESS_LSB		0xF8
 #define BMP280_REG_PRESS_MSB		0xF7
 
-/* Helper mask to truncate excess 12 bits on pressure and temp readings */
-#define BMP280_MEAS_TRIM_MASK		GENMASK(31, 12)
+/* Helper mask to truncate excess 4 bits on pressure and temp readings */
+#define BMP280_MEAS_TRIM_MASK		GENMASK(24, 4)
 
 #define BMP280_REG_CONFIG		0xF5
 #define BMP280_REG_CTRL_MEAS		0xF4
