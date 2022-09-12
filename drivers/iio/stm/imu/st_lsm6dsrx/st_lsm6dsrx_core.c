@@ -625,6 +625,10 @@ static int st_lsm6dsrx_set_odr(struct st_lsm6dsrx_sensor *sensor, int req_odr,
 	case ST_LSM6DSRX_ID_MLC_5:
 	case ST_LSM6DSRX_ID_MLC_6:
 	case ST_LSM6DSRX_ID_MLC_7:
+	case ST_LSM6DSRX_ID_STEP_COUNTER:
+	case ST_LSM6DSRX_ID_STEP_DETECTOR:
+	case ST_LSM6DSRX_ID_SIGN_MOTION:
+	case ST_LSM6DSRX_ID_TILT:
 	case ST_LSM6DSRX_ID_TAP:
 	case ST_LSM6DSRX_ID_DTAP:
 	case ST_LSM6DSRX_ID_WK:
@@ -1782,6 +1786,15 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
 	if (err < 0)
 		return err;
 
+	/* allocate step counter before buffer setup because use FIFO */
+	err = st_lsm6dsrx_probe_embfunc(hw);
+	if (err < 0)
+		return err;
+
+	err = st_lsm6dsrx_probe_event(hw);
+	if (err < 0)
+		return err;
+
 	if (hw->irq > 0) {
 		err = st_lsm6dsrx_buffers_setup(hw);
 		if (err < 0)
@@ -1808,10 +1821,6 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
 		if (err)
 			return err;
 	}
-
-	err = st_lsm6dsrx_probe_event(hw);
-	if (err < 0)
-		return err;
 
 #if defined(CONFIG_PM) && defined(CONFIG_IIO_ST_LSM6DSRX_MAY_WAKEUP)
 	err = device_init_wakeup(dev, 1);

@@ -975,27 +975,36 @@ int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw)
 {
 	struct st_lsm6dsrx_sensor *sensor;
 	struct iio_dev *iio_dev;
-	irqreturn_t (*pthread[ST_LSM6DSRX_ID_MAX - ST_LSM6DSRX_ID_TRIGGER])(int irq, void *p) = {
+	irqreturn_t (*pthread[ST_LSM6DSRX_ID_MAX - ST_LSM6DSRX_ID_WK])(int irq, void *p) = {
 		[0] = st_lsm6dsrx_wk_handler_thread,
 		[1] = st_lsm6dsrx_6D_handler_thread,
 		/* add here all other trigger handler funcions */
 	};
 	int i, err;
 
-	for (i = ST_LSM6DSRX_ID_EVENT; i < ST_LSM6DSRX_ID_MAX; i++) {
-		hw->iio_devs[i] = st_lsm6dsrx_alloc_event_iiodev(hw, i);
-		if (!hw->iio_devs[i])
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsrx_event_sensor_list);
+	     i++) {
+		enum st_lsm6dsrx_sensor_id id =
+				       st_lsm6dsrx_event_sensor_list[i];
+
+		hw->iio_devs[id] = st_lsm6dsrx_alloc_event_iiodev(hw,
+								  id);
+		if (!hw->iio_devs[id])
 			return -ENOMEM;
 	}
 
 	/* configure trigger sensors */
-	for (i = ST_LSM6DSRX_ID_TRIGGER; i < ST_LSM6DSRX_ID_MAX; i++) {
-		iio_dev = hw->iio_devs[i];
+	for (i = 0;
+	     i < ARRAY_SIZE(st_lsm6dsrx_event_trigger_sensor_list);
+	     i++) {
+		enum st_lsm6dsrx_sensor_id id =
+			       st_lsm6dsrx_event_trigger_sensor_list[i];
+		iio_dev = hw->iio_devs[id];
 		sensor = iio_priv(iio_dev);
 
 		err = devm_iio_triggered_buffer_setup(hw->dev, iio_dev,
 				NULL,
-				pthread[i - ST_LSM6DSRX_ID_TRIGGER],
+				pthread[i - ST_LSM6DSRX_ID_WK],
 				&st_lsm6dsrx_buffer_ops);
 		if (err < 0)
 			return err;
@@ -1023,20 +1032,6 @@ int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw)
 		}
 
 		iio_dev->trig = iio_trigger_get(sensor->trig);
-	}
-
-	for (i = ST_LSM6DSRX_ID_EVENT; i < ST_LSM6DSRX_ID_MAX; i++) {
-		if (!hw->iio_devs[i])
-			continue;
-
-		err = devm_iio_device_register(hw->dev,
-					       hw->iio_devs[i]);
-		if (err) {
-			dev_err(hw->dev,
-				"failed to register iio device.\n");
-
-			return err;
-		}
 	}
 
 	return st_lsm6dsrx_config_default_events(hw);

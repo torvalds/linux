@@ -36,6 +36,7 @@ enum {
 	ST_LSM6DSRX_TS_TAG = 0x04,
 	ST_LSM6DSRX_EXT0_TAG = 0x0f,
 	ST_LSM6DSRX_EXT1_TAG = 0x10,
+	ST_LSM6DSRX_STEPC_TAG = 0x12,
 };
 
 /* Default timeout before to re-enable gyro */
@@ -116,11 +117,15 @@ int st_lsm6dsrx_update_watermark(struct st_lsm6dsrx_sensor *sensor,
 	int i, err;
 	int data = 0;
 
-	for (i = ST_LSM6DSRX_ID_GYRO; i <= ST_LSM6DSRX_ID_EXT1; i++) {
-		if (!hw->iio_devs[i])
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsrx_buffered_sensor_list);
+	     i++) {
+		enum st_lsm6dsrx_sensor_id id =
+				    st_lsm6dsrx_buffered_sensor_list[i];
+
+		if (!hw->iio_devs[id])
 			continue;
 
-		cur_sensor = iio_priv(hw->iio_devs[i]);
+		cur_sensor = iio_priv(hw->iio_devs[id]);
 
 		if (!(hw->enable_mask & BIT_ULL(cur_sensor->id)))
 			continue;
@@ -134,8 +139,8 @@ int st_lsm6dsrx_update_watermark(struct st_lsm6dsrx_sensor *sensor,
 	fifo_watermark = max_t(u16, fifo_watermark, 2);
 
 	mutex_lock(&hw->page_lock);
-	err = regmap_read(hw->regmap, ST_LSM6DSRX_REG_FIFO_CTRL1_ADDR + 1,
-			  &data);
+	err = regmap_read(hw->regmap,
+			  ST_LSM6DSRX_REG_FIFO_CTRL1_ADDR + 1, &data);
 	if (err < 0)
 		goto out;
 
@@ -174,6 +179,9 @@ iio_dev *st_lsm6dsrx_get_iiodev_from_tag(struct st_lsm6dsrx_hw *hw, u8 tag)
 		break;
 	case ST_LSM6DSRX_EXT1_TAG:
 		iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_EXT1];
+		break;
+	case ST_LSM6DSRX_STEPC_TAG:
+		iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_STEP_COUNTER];
 		break;
 	default:
 		iio_dev = NULL;
@@ -256,6 +264,14 @@ static int st_lsm6dsrx_read_fifo(struct st_lsm6dsrx_hw *hw)
 					continue;
 				}
 
+				/*
+				 * hw ts in not queued in FIFO if only step
+				 * counter enabled
+				 */
+				if (sensor->id == ST_LSM6DSRX_ID_STEP_COUNTER) {
+					val = get_unaligned_le32(ptr + 2);
+					hw->tsample = val * hw->ts_delta_ns;
+				}
 				memcpy(iio_buf, ptr, ST_LSM6DSRX_SAMPLE_SIZE);
 
 				hw->tsample = min_t(s64,
@@ -408,13 +424,22 @@ static int st_lsm6dsrx_update_fifo(struct iio_dev *iio_dev, bool enable)
 		if (err < 0)
 			goto out;
 	} else {
-		err = st_lsm6dsrx_sensor_set_enable(sensor, enable);
-		if (err < 0)
-			goto out;
+		if (sensor->id == ST_LSM6DSRX_ID_STEP_COUNTER) {
+			err = st_lsm6dsrx_step_counter_set_enable(sensor,
+								  enable);
+			if (err < 0)
+				goto out;
+		} else {
+			err = st_lsm6dsrx_sensor_set_enable(sensor,
+							    enable);
+			if (err < 0)
+				goto out;
 
-		err = st_lsm6dsrx_set_sensor_batching_odr(sensor, enable);
-		if (err < 0)
-			goto out;
+			err = st_lsm6dsrx_set_sensor_batching_odr(sensor,
+								  enable);
+			if (err < 0)
+				goto out;
+		}
 	}
 
 	/*
@@ -486,7 +511,10 @@ static irqreturn_t st_lsm6dsrx_handler_thread(int irq, void *private)
 	clear_bit(ST_LSM6DSRX_HW_FLUSH, &hw->state);
 	mutex_unlock(&hw->fifo_lock);
 
-	return st_lsm6dsrx_event_handler(hw);
+	st_lsm6dsrx_event_handler(hw);
+	st_lsm6dsrx_embfunc_handler_thread(hw);
+
+	return IRQ_HANDLED;
 }
 
 static int st_lsm6dsrx_fifo_preenable(struct iio_dev *iio_dev)
@@ -560,17 +588,20 @@ int st_lsm6dsrx_buffers_setup(struct st_lsm6dsrx_hw *hw)
 		return err;
 	}
 
-	for (i = ST_LSM6DSRX_ID_GYRO; i <= ST_LSM6DSRX_ID_EXT1; i++) {
-		if (!hw->iio_devs[i])
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsrx_buffered_sensor_list);
+	     i++) {
+		enum st_lsm6dsrx_sensor_id id = st_lsm6dsrx_buffered_sensor_list[i];
+
+		if (!hw->iio_devs[id])
 			continue;
 
 		buffer = devm_iio_kfifo_allocate(hw->dev);
 		if (!buffer)
 			return -ENOMEM;
 
-		iio_device_attach_buffer(hw->iio_devs[i], buffer);
-		hw->iio_devs[i]->modes |= INDIO_BUFFER_SOFTWARE;
-		hw->iio_devs[i]->setup_ops = &st_lsm6dsrx_fifo_ops;
+		iio_device_attach_buffer(hw->iio_devs[id], buffer);
+		hw->iio_devs[id]->modes |= INDIO_BUFFER_SOFTWARE;
+		hw->iio_devs[id]->setup_ops = &st_lsm6dsrx_fifo_ops;
 	}
 
 	return regmap_update_bits(hw->regmap,

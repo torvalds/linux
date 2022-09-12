@@ -117,6 +117,11 @@
 #define ST_LSM6DSRX_REG_OUTY_L_G_ADDR		0x24
 #define ST_LSM6DSRX_REG_OUTZ_L_G_ADDR		0x26
 
+#define ST_LSM6DSRX_REG_EMB_FUNC_STATUS_MAINPAGE_ADDR	0x35
+#define ST_LSM6DSRX_IS_STEP_DET_MASK		BIT(3)
+#define ST_LSM6DSRX_IS_TILT_MASK		BIT(4)
+#define ST_LSM6DSRX_IS_SIGMOT_MASK		BIT(5)
+
 #define ST_LSM6DSRX_FSM_STATUS_A_MAINPAGE	0x36
 #define ST_LSM6DSRX_FSM_STATUS_B_MAINPAGE	0x37
 #define ST_LSM6DSRX_MLC_STATUS_MAINPAGE		0x38
@@ -204,20 +209,41 @@
 #define ST_LSM6DSRX_FSM_EN_MASK			BIT(0)
 #define ST_LSM6DSRX_MLC_EN_MASK			BIT(4)
 
+#define ST_LSM6DSRX_REG_EMB_FUNC_INT1_ADDR	0x0a
+#define ST_LSM6DSRX_INT_STEP_DETECTOR_MASK	BIT(3)
+#define ST_LSM6DSRX_INT_TILT_MASK		BIT(4)
+#define ST_LSM6DSRX_INT_SIG_MOT_MASK		BIT(5)
+
 #define ST_LSM6DSRX_FSM_INT1_A_ADDR		0x0b
+
 #define ST_LSM6DSRX_FSM_INT1_B_ADDR		0x0c
 #define ST_LSM6DSRX_MLC_INT1_ADDR		0x0d
-
+#define ST_LSM6DSRX_REG_EMB_FUNC_INT2_ADDR	0x0e
 #define ST_LSM6DSRX_FSM_INT2_A_ADDR		0x0f
 #define ST_LSM6DSRX_FSM_INT2_B_ADDR		0x10
 #define ST_LSM6DSRX_MLC_INT2_ADDR		0x11
 
 #define ST_LSM6DSRX_REG_MLC_STATUS_ADDR		0x15
 
+#define ST_LSM6DSRX_REG_PAGE_RW_ADDR		0x17
+#define ST_LSM6DSRX_EMB_FUNC_LIR_MASK		BIT(7)
+
+#define ST_LSM6DSRX_REG_EMB_FUNC_FIFO_CFG_ADDR	0x44
+#define ST_LSM6DSRX_PEDO_FIFO_EN_MASK		BIT(6)
+
 #define ST_LSM6DSRX_FSM_ENABLE_A_ADDR		0x46
 #define ST_LSM6DSRX_FSM_ENABLE_B_ADDR		0x47
 
 #define ST_LSM6DSRX_FSM_OUTS1_ADDR		0x4c
+
+#define ST_LSM6DSRX_REG_STEP_COUNTER_L_ADDR	0x62
+
+#define ST_LSM6DSRX_REG_EMB_FUNC_SRC_ADDR	0x64
+#define ST_LSM6DSRX_STEPCOUNTER_BIT_SET_MASK	BIT(2)
+#define ST_LSM6DSRX_STEP_OVERFLOW_MASK		BIT(3)
+#define ST_LSM6DSRX_STEP_COUNT_DELTA_IA_MASK	BIT(4)
+#define ST_LSM6DSRX_STEP_DETECTED_MASK		BIT(5)
+#define ST_LSM6DSRX_PEDO_RST_STEP_MASK		BIT(7)
 
 #define ST_LSM6DSRX_REG_MLC0_SRC_ADDR		0x70
 
@@ -468,16 +494,31 @@ enum st_lsm6dsrx_sensor_id {
 	ST_LSM6DSRX_ID_FSM_13,
 	ST_LSM6DSRX_ID_FSM_14,
 	ST_LSM6DSRX_ID_FSM_15,
-	ST_LSM6DSRX_ID_EVENT,
-	ST_LSM6DSRX_ID_TAP = ST_LSM6DSRX_ID_EVENT,
+	ST_LSM6DSRX_ID_STEP_COUNTER,
+	ST_LSM6DSRX_ID_STEP_DETECTOR,
+	ST_LSM6DSRX_ID_SIGN_MOTION,
+	ST_LSM6DSRX_ID_TILT,
+	ST_LSM6DSRX_ID_TAP,
 	ST_LSM6DSRX_ID_DTAP,
 	ST_LSM6DSRX_ID_FF,
 	ST_LSM6DSRX_ID_SLPCHG,
-	ST_LSM6DSRX_ID_TRIGGER,
-	ST_LSM6DSRX_ID_WK = ST_LSM6DSRX_ID_TRIGGER,
+	ST_LSM6DSRX_ID_WK,
 	ST_LSM6DSRX_ID_6D,
 	ST_LSM6DSRX_ID_MAX,
 };
+
+/**
+ * The FIFO only sensor list used by buffer
+ */
+static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_buffered_sensor_list[] = {
+	[0] = ST_LSM6DSRX_ID_GYRO,
+	[1] = ST_LSM6DSRX_ID_ACC,
+	[2] = ST_LSM6DSRX_ID_TEMP,
+	[3] = ST_LSM6DSRX_ID_EXT0,
+	[4] = ST_LSM6DSRX_ID_EXT1,
+	[5] = ST_LSM6DSRX_ID_STEP_COUNTER,
+};
+
 
 /**
  * The mlc only sensor list used by mlc loader
@@ -513,6 +554,36 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 	 [13] = ST_LSM6DSRX_ID_FSM_13,
 	 [14] = ST_LSM6DSRX_ID_FSM_14,
 	 [15] = ST_LSM6DSRX_ID_FSM_15,
+};
+
+/**
+ * The low power embedded function only sensor list
+ */
+static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_embfunc_sensor_list[] = {
+	 [0] = ST_LSM6DSRX_ID_STEP_COUNTER,
+	 [1] = ST_LSM6DSRX_ID_STEP_DETECTOR,
+	 [2] = ST_LSM6DSRX_ID_SIGN_MOTION,
+	 [3] = ST_LSM6DSRX_ID_TILT,
+};
+
+/**
+ * The low power event only sensor list
+ */
+static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_event_sensor_list[] = {
+	 [0] = ST_LSM6DSRX_ID_TAP,
+	 [1] = ST_LSM6DSRX_ID_DTAP,
+	 [2] = ST_LSM6DSRX_ID_FF,
+	 [3] = ST_LSM6DSRX_ID_SLPCHG,
+	 [4] = ST_LSM6DSRX_ID_WK,
+	 [5] = ST_LSM6DSRX_ID_6D,
+};
+
+/**
+ * The low power event triggered only sensor list
+ */
+static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_event_trigger_sensor_list[] = {
+	 [0] = ST_LSM6DSRX_ID_WK,
+	 [1] = ST_LSM6DSRX_ID_6D,
 };
 
 #define ST_LSM6DSRX_ID_ALL_FSM_MLC (BIT_ULL(ST_LSM6DSRX_ID_MLC_0)  | \
@@ -919,4 +990,8 @@ int st_lsm6dsrx_mlc_init_preload(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_event_handler(struct st_lsm6dsrx_hw *hw);
 
+int st_lsm6dsrx_probe_embfunc(struct st_lsm6dsrx_hw *hw);
+int st_lsm6dsrx_embfunc_handler_thread(struct st_lsm6dsrx_hw *hw);
+int st_lsm6dsrx_step_counter_set_enable(struct st_lsm6dsrx_sensor *sensor,
+					bool enable);
 #endif /* ST_LSM6DSRX_H */
