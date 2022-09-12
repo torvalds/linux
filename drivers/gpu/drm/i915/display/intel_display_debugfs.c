@@ -983,58 +983,6 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int i915_ipc_status_show(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = m->private;
-
-	seq_printf(m, "Isochronous Priority Control: %s\n",
-		   str_yes_no(skl_watermark_ipc_enabled(dev_priv)));
-	return 0;
-}
-
-static int i915_ipc_status_open(struct inode *inode, struct file *file)
-{
-	struct drm_i915_private *dev_priv = inode->i_private;
-
-	if (!HAS_IPC(dev_priv))
-		return -ENODEV;
-
-	return single_open(file, i915_ipc_status_show, dev_priv);
-}
-
-static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
-				     size_t len, loff_t *offp)
-{
-	struct seq_file *m = file->private_data;
-	struct drm_i915_private *dev_priv = m->private;
-	intel_wakeref_t wakeref;
-	bool enable;
-	int ret;
-
-	ret = kstrtobool_from_user(ubuf, len, &enable);
-	if (ret < 0)
-		return ret;
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		if (!skl_watermark_ipc_enabled(dev_priv) && enable)
-			drm_info(&dev_priv->drm,
-				 "Enabling IPC: WM will be proper only after next commit\n");
-		dev_priv->ipc_enabled = enable;
-		skl_watermark_ipc_update(dev_priv);
-	}
-
-	return len;
-}
-
-static const struct file_operations i915_ipc_status_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_ipc_status_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = i915_ipc_status_write
-};
-
 static int i915_ddb_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -1911,7 +1859,6 @@ static const struct {
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
 	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops},
 	{"i915_hpd_short_storm_ctl", &i915_hpd_short_storm_ctl_fops},
-	{"i915_ipc_status", &i915_ipc_status_fops},
 	{"i915_drrs_ctl", &i915_drrs_ctl_fops},
 	{"i915_edp_psr_debug", &i915_edp_psr_debug_fops},
 };
@@ -1935,6 +1882,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 
 	intel_dmc_debugfs_register(i915);
 	intel_fbc_debugfs_register(i915);
+	skl_watermark_ipc_debugfs_register(i915);
 }
 
 static int i915_panel_show(struct seq_file *m, void *data)

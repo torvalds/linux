@@ -3471,3 +3471,64 @@ void intel_mbus_dbox_update(struct intel_atomic_state *state)
 		intel_de_write(i915, PIPE_MBUS_DBOX_CTL(crtc->pipe), val);
 	}
 }
+
+static int skl_watermark_ipc_status_show(struct seq_file *m, void *data)
+{
+	struct drm_i915_private *i915 = m->private;
+
+	seq_printf(m, "Isochronous Priority Control: %s\n",
+		   str_yes_no(skl_watermark_ipc_enabled(i915)));
+	return 0;
+}
+
+static int skl_watermark_ipc_status_open(struct inode *inode, struct file *file)
+{
+	struct drm_i915_private *i915 = inode->i_private;
+
+	if (!HAS_IPC(i915))
+		return -ENODEV;
+
+	return single_open(file, skl_watermark_ipc_status_show, i915);
+}
+
+static ssize_t skl_watermark_ipc_status_write(struct file *file,
+					      const char __user *ubuf,
+					      size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_i915_private *i915 = m->private;
+	intel_wakeref_t wakeref;
+	bool enable;
+	int ret;
+
+	ret = kstrtobool_from_user(ubuf, len, &enable);
+	if (ret < 0)
+		return ret;
+
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
+		if (!skl_watermark_ipc_enabled(i915) && enable)
+			drm_info(&i915->drm,
+				 "Enabling IPC: WM will be proper only after next commit\n");
+		i915->ipc_enabled = enable;
+		skl_watermark_ipc_update(i915);
+	}
+
+	return len;
+}
+
+static const struct file_operations skl_watermark_ipc_status_fops = {
+	.owner = THIS_MODULE,
+	.open = skl_watermark_ipc_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = skl_watermark_ipc_status_write
+};
+
+void skl_watermark_ipc_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_ipc_status", 0644, minor->debugfs_root, i915,
+			    &skl_watermark_ipc_status_fops);
+}
