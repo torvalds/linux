@@ -585,7 +585,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	} else {
 		intel_encoder->pipe_mask = ~0;
 	}
-	intel_encoder->cloneable = 1 << INTEL_OUTPUT_ANALOG;
+	intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG);
 	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 	/*
 	 * BSpec is unclear about HDMI+HDMI cloning on g4x, but it seems
@@ -593,7 +593,7 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	 * only one port anyway, nothing is lost by allowing it.
 	 */
 	if (IS_G4X(dev_priv))
-		intel_encoder->cloneable |= 1 << INTEL_OUTPUT_HDMI;
+		intel_encoder->cloneable |= BIT(INTEL_OUTPUT_HDMI);
 
 	dig_port->hdmi.hdmi_reg = hdmi_reg;
 	dig_port->dp.output_reg = INVALID_MMIO_REG;

@@ -4572,8 +4572,8 @@ static bool encoders_cloneable(const struct intel_encoder *a,
 			       const struct intel_encoder *b)
 {
 	/* masks could be asymmetric, so check both ways */
-	return a == b || (a->cloneable & (1 << b->type) &&
-			  b->cloneable & (1 << a->type));
+	return a == b || (a->cloneable & BIT(b->type) &&
+			  b->cloneable & BIT(a->type));
 }
 
 static bool check_single_encoder_cloning(struct intel_atomic_state *state,

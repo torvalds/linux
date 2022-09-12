@@ -2040,15 +2040,16 @@ static inline bool
 intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
 		    enum intel_output_type type)
 {
-	return crtc_state->output_types & (1 << type);
+	return crtc_state->output_types & BIT(type);
 }
+
 static inline bool
 intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 {
 	return crtc_state->output_types &
-		((1 << INTEL_OUTPUT_DP) |
-		 (1 << INTEL_OUTPUT_DP_MST) |
-		 (1 << INTEL_OUTPUT_EDP));
+		(BIT(INTEL_OUTPUT_DP) |
+		 BIT(INTEL_OUTPUT_DP_MST) |
+		 BIT(INTEL_OUTPUT_EDP));
 }
 
 static inline bool

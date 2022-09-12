@@ -491,8 +491,8 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		intel_encoder->pipe_mask = ~0;
 
 		if (dvo->type != INTEL_DVO_CHIP_LVDS)
-			intel_encoder->cloneable = (1 << INTEL_OUTPUT_ANALOG) |
-				(1 << INTEL_OUTPUT_DVO);
+			intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
+				BIT(INTEL_OUTPUT_DVO);
 
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:
