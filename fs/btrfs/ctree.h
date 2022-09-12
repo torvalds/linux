@@ -443,6 +443,8 @@ struct btrfs_path {
 	 * header (ie. sizeof(struct btrfs_item) is not included).
 	 */
 	unsigned int search_for_extension:1;
+	/* Stop search if any locks need to be taken (for read) */
+	unsigned int nowait:1;
 };
 
 struct btrfs_dev_replace {
