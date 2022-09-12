@@ -3122,7 +3122,7 @@ void intel_wm_state_verify(struct intel_crtc *crtc,
 
 bool skl_watermark_ipc_enabled(struct drm_i915_private *i915)
 {
-	return i915->ipc_enabled;
+	return i915->display.wm.ipc_enabled;
 }
 
 void skl_watermark_ipc_update(struct drm_i915_private *i915)
@@ -3162,7 +3162,7 @@ void skl_watermark_ipc_init(struct drm_i915_private *i915)
 	if (!HAS_IPC(i915))
 		return;
 
-	i915->ipc_enabled = skl_watermark_ipc_can_enable(i915);
+	i915->display.wm.ipc_enabled = skl_watermark_ipc_can_enable(i915);
 
 	skl_watermark_ipc_update(i915);
 }
@@ -3506,7 +3506,7 @@ static ssize_t skl_watermark_ipc_status_write(struct file *file,
 		if (!skl_watermark_ipc_enabled(i915) && enable)
 			drm_info(&i915->drm,
 				 "Enabling IPC: WM will be proper only after next commit\n");
-		i915->ipc_enabled = enable;
+		i915->display.wm.ipc_enabled = enable;
 		skl_watermark_ipc_update(i915);
 	}
 

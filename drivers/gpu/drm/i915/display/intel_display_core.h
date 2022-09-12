@@ -239,6 +239,8 @@ struct intel_wm {
 	 * crtc_state->wm.need_postvbl_update.
 	 */
 	struct mutex wm_mutex;
+
+	bool ipc_enabled;
 };
 
 struct intel_display {
