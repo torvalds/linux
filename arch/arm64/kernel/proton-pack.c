@@ -586,7 +586,7 @@ void __init spectre_v4_patch_fw_mitigation_enable(struct alt_instr *alt,
 	if (spectre_v4_mitigations_off())
 		return;
 
-	if (cpus_have_final_cap(ARM64_SSBS))
+	if (cpus_have_cap(ARM64_SSBS))
 		return;
 
 	if (spectre_v4_mitigations_dynamic())
