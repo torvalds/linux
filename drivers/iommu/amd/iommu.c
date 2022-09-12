@@ -66,10 +66,6 @@ LIST_HEAD(ioapic_map);
 LIST_HEAD(hpet_map);
 LIST_HEAD(acpihid_map);
 
-/*
- * Domain for untranslated devices - only allocated
- * if iommu=pt passed on kernel cmd line.
- */
 const struct iommu_ops amd_iommu_ops;
 
 static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
