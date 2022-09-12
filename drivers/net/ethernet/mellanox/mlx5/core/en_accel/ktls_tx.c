@@ -127,7 +127,6 @@ struct mlx5e_async_ctx {
 	struct mlx5_async_work context;
 	struct mlx5_async_ctx async_ctx;
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
-	struct completion complete;
 	int err;
 	union {
 		u32 out_create[MLX5_ST_SZ_DW(create_tis_out)];
@@ -148,7 +147,6 @@ static struct mlx5e_async_ctx *mlx5e_bulk_async_init(struct mlx5_core_dev *mdev,
 		struct mlx5e_async_ctx *async = &bulk_async[i];
 
 		mlx5_cmd_init_async_ctx(mdev, &async->async_ctx);
-		init_completion(&async->complete);
 	}
 
 	return bulk_async;
@@ -175,12 +173,10 @@ static void create_tis_callback(int status, struct mlx5_async_work *context)
 	if (status) {
 		async->err = status;
 		priv_tx->create_err = 1;
-		goto out;
+		return;
 	}
 
 	priv_tx->tisn = MLX5_GET(create_tis_out, async->out_create, tisn);
-out:
-	complete(&async->complete);
 }
 
 static void destroy_tis_callback(int status, struct mlx5_async_work *context)
@@ -189,7 +185,6 @@ static void destroy_tis_callback(int status, struct mlx5_async_work *context)
 		container_of(context, struct mlx5e_async_ctx, context);
 	struct mlx5e_ktls_offload_context_tx *priv_tx = async->priv_tx;
 
-	complete(&async->complete);
 	kfree(priv_tx);
 }
 
@@ -231,7 +226,6 @@ static void mlx5e_tls_priv_tx_cleanup(struct mlx5e_ktls_offload_context_tx *priv
 				      struct mlx5e_async_ctx *async)
 {
 	if (priv_tx->create_err) {
-		complete(&async->complete);
 		kfree(priv_tx);
 		return;
 	}
@@ -259,11 +253,6 @@ static void mlx5e_tls_priv_tx_list_cleanup(struct mlx5_core_dev *mdev,
 		i++;
 	}
 
-	for (i = 0; i < size; i++) {
-		struct mlx5e_async_ctx *async = &bulk_async[i];
-
-		wait_for_completion(&async->complete);
-	}
 	mlx5e_bulk_async_cleanup(bulk_async, size);
 }
 
@@ -310,7 +299,6 @@ static void create_work(struct work_struct *work)
 	for (j = 0; j < i; j++) {
 		struct mlx5e_async_ctx *async = &bulk_async[j];
 
-		wait_for_completion(&async->complete);
 		if (!err && async->err)
 			err = async->err;
 	}
