@@ -133,30 +133,11 @@ DEFINE_STATIC_KEY_FALSE(arm64_mismatched_32bit_el0);
  */
 static cpumask_var_t cpu_32bit_el0_mask __cpumask_var_read_mostly;
 
-/*
- * Flag to indicate if we have computed the system wide
- * capabilities based on the boot time active CPUs. This
- * will be used to determine if a new booting CPU should
- * go through the verification process to make sure that it
- * supports the system capabilities, without using a hotplug
- * notifier. This is also used to decide if we could use
- * the fast path for checking constant CPU caps.
- */
-DEFINE_STATIC_KEY_FALSE(arm64_const_caps_ready);
-EXPORT_SYMBOL(arm64_const_caps_ready);
-static inline void finalize_system_capabilities(void)
-{
-	static_branch_enable(&arm64_const_caps_ready);
-}
-
 void dump_cpu_features(void)
 {
 	/* file-wide pr_fmt adds "CPU features: " prefix */
 	pr_emerg("0x%*pb\n", ARM64_NCAPS, &cpu_hwcaps);
 }
-
-DEFINE_STATIC_KEY_ARRAY_FALSE(cpu_hwcap_keys, ARM64_NCAPS);
-EXPORT_SYMBOL(cpu_hwcap_keys);
 
 #define __ARM64_FTR_BITS(SIGNED, VISIBLE, STRICT, TYPE, SHIFT, WIDTH, SAFE_VAL) \
 	{						\
@@ -2944,9 +2925,6 @@ static void __init enable_cpu_capabilities(u16 scope_mask)
 		if (!cpus_have_cap(num))
 			continue;
 
-		/* Ensure cpus_have_const_cap(num) works */
-		static_branch_enable(&cpu_hwcap_keys[num]);
-
 		if (boot_scope && caps->cpu_enable)
 			/*
 			 * Capabilities with SCOPE_BOOT_CPU scope are finalised
@@ -3267,9 +3245,6 @@ void __init setup_cpu_features(void)
 	sve_setup();
 	sme_setup();
 	minsigstksz_setup();
-
-	/* Advertise that we have computed the system capabilities */
-	finalize_system_capabilities();
 
 	/*
 	 * Check for sane CTR_EL0.CWG value.

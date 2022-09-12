@@ -213,4 +213,45 @@ alternative_endif
 #define ALTERNATIVE(oldinstr, newinstr, ...)   \
 	_ALTERNATIVE_CFG(oldinstr, newinstr, __VA_ARGS__, 1)
 
+#ifndef __ASSEMBLY__
+
+#include <linux/bug.h>
+#include <linux/types.h>
+
+static __always_inline bool
+alternative_has_feature_likely(unsigned long feature)
+{
+	BUILD_BUG_ON(feature >= ARM64_NCAPS);
+
+	asm_volatile_goto(
+	ALTERNATIVE("b	%l[l_no]", "nop", %[feature])
+	:
+	: [feature] "i" (feature)
+	:
+	: l_no);
+
+	return true;
+l_no:
+	return false;
+}
+
+static __always_inline bool
+alternative_has_feature_unlikely(unsigned long feature)
+{
+	BUILD_BUG_ON(feature >= ARM64_NCAPS);
+
+	asm_volatile_goto(
+	ALTERNATIVE("nop", "b	%l[l_yes]", %[feature])
+	:
+	: [feature] "i" (feature)
+	:
+	: l_yes);
+
+	return false;
+l_yes:
+	return true;
+}
+
+#endif /* __ASSEMBLY__ */
+
 #endif /* __ASM_ALTERNATIVE_MACROS_H */
