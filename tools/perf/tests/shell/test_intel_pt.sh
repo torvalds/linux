@@ -72,11 +72,11 @@ count_result()
 		return
 	fi
 	err_cnt=$((err_cnt + 1))
+	ret=0
 }
 
-test_system_wide_side_band
-
-count_result $?
+ret=0
+test_system_wide_side_band || ret=$? ; count_result $ret
 
 cleanup
 
