@@ -61,7 +61,6 @@ examples:
                 };
                 ethernet-port@3 {
                     reg = <3>;
-                    label = "cpu";
                     ethernet = <&fec1>;
                     phy-mode = "rgmii-id";
 
