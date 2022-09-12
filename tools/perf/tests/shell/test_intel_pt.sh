@@ -37,12 +37,19 @@ trap trap_cleanup EXIT TERM INT
 
 can_cpu_wide()
 {
-	perf record -o "${tmpfile}" -B -N --no-bpf-event -e dummy:u -C "$1" true >/dev/null 2>&1 || return 2
+	echo "Checking for CPU-wide recording on CPU $1"
+	if ! perf record -o "${tmpfile}" -B -N --no-bpf-event -e dummy:u -C "$1" true >/dev/null 2>&1 ; then
+		echo "No so skipping"
+		return 2
+	fi
+	echo OK
 	return 0
 }
 
 test_system_wide_side_band()
 {
+	echo "--- Test system-wide sideband ---"
+
 	# Need CPU 0 and CPU 1
 	can_cpu_wide 0 || return $?
 	can_cpu_wide 1 || return $?
@@ -54,6 +61,7 @@ test_system_wide_side_band()
 	mmap_cnt=$(perf script -i "${perfdatafile}" --no-itrace --show-mmap-events -C 1 2>/dev/null | grep -c MMAP)
 
 	if [ "${mmap_cnt}" -gt 0 ] ; then
+		echo OK
 		return 0
 	fi
 
@@ -79,6 +87,8 @@ ret=0
 test_system_wide_side_band || ret=$? ; count_result $ret
 
 cleanup
+
+echo "--- Done ---"
 
 if [ ${err_cnt} -gt 0 ] ; then
 	exit 1
