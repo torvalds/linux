@@ -4042,10 +4042,8 @@ retry_init:
 		goto out_failed;
 	}
 
-	if (!is_resume) {
-		mrioc->device_refresh_on = 1;
-		mpi3mr_add_event_wait_for_device_refresh(mrioc);
-	}
+	mrioc->device_refresh_on = 1;
+	mpi3mr_add_event_wait_for_device_refresh(mrioc);
 
 	ioc_info(mrioc, "sending port enable\n");
 	retval = mpi3mr_issue_port_enable(mrioc, 1);
@@ -4912,7 +4910,7 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 		    mrioc->name, reset_reason);
 		goto out;
 	}
-	ssleep(10);
+	ssleep(MPI3MR_RESET_TOPOLOGY_SETTLE_TIME);
 
 out:
 	if (!retval) {

@@ -132,6 +132,8 @@ extern atomic64_t event_counter;
 
 #define MPI3MR_DEFAULT_CFG_PAGE_SZ		1024 /* in bytes */
 
+#define MPI3MR_RESET_TOPOLOGY_SETTLE_TIME	10
+
 #define MPI3MR_SCMD_TIMEOUT    (60 * HZ)
 #define MPI3MR_EH_SCMD_TIMEOUT (60 * HZ)
 

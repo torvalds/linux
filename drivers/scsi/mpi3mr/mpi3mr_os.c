@@ -5228,13 +5228,17 @@ mpi3mr_resume(struct device *dev)
 	}
 
 	mrioc->stop_drv_processing = 0;
+	mpi3mr_invalidate_devhandles(mrioc);
+	mpi3mr_free_enclosure_list(mrioc);
 	mpi3mr_memset_buffers(mrioc);
 	r = mpi3mr_reinit_ioc(mrioc, 1);
 	if (r) {
 		ioc_err(mrioc, "resuming controller failed[%d]\n", r);
 		return r;
 	}
+	ssleep(MPI3MR_RESET_TOPOLOGY_SETTLE_TIME);
 	scsi_unblock_requests(shost);
+	mrioc->device_refresh_on = 0;
 	mpi3mr_start_watchdog(mrioc);
 
 	return 0;
