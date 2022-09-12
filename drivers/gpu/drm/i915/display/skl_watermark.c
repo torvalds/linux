@@ -3127,19 +3127,11 @@ bool skl_watermark_ipc_enabled(struct drm_i915_private *i915)
 
 void skl_watermark_ipc_update(struct drm_i915_private *i915)
 {
-	u32 val;
-
 	if (!HAS_IPC(i915))
 		return;
 
-	val = intel_uncore_read(&i915->uncore, DISP_ARB_CTL2);
-
-	if (skl_watermark_ipc_enabled(i915))
-		val |= DISP_IPC_ENABLE;
-	else
-		val &= ~DISP_IPC_ENABLE;
-
-	intel_uncore_write(&i915->uncore, DISP_ARB_CTL2, val);
+	intel_uncore_rmw(&i915->uncore, DISP_ARB_CTL2, DISP_IPC_ENABLE,
+			 skl_watermark_ipc_enabled(i915) ? DISP_IPC_ENABLE : 0);
 }
 
 static bool skl_watermark_ipc_can_enable(struct drm_i915_private *i915)
