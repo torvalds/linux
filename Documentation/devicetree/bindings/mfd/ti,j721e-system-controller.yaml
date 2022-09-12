@@ -54,6 +54,12 @@ patternProperties:
     description:
       Clock provider for TI EHRPWM nodes.
 
+  "phy@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/phy/ti,phy-gmii-sel.yaml#
+    description:
+      The phy node corresponding to the ethernet MAC.
+
 required:
   - compatible
   - reg
