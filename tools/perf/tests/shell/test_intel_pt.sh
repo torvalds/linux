@@ -64,14 +64,14 @@ test_system_wide_side_band()
 count_result()
 {
 	if [ $1 -eq 2 ] ; then
-		skip_cnt=`expr ${skip_cnt} \+ 1`
+		skip_cnt=$((skip_cnt + 1))
 		return
 	fi
 	if [ $1 -eq 0 ] ; then
-		ok_cnt=`expr ${ok_cnt} \+ 1`
+		ok_cnt=$((ok_cnt + 1))
 		return
 	fi
-	err_cnt=`expr ${err_cnt} \+ 1`
+	err_cnt=$((err_cnt + 1))
 }
 
 test_system_wide_side_band
