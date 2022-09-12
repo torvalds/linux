@@ -133,8 +133,9 @@ static void clean_dcache_range_nopatch(u64 start, u64 end)
 	} while (cur += d_size, cur < end);
 }
 
-static void __nocfi __apply_alternatives(struct alt_region *region, bool is_module,
-				 unsigned long *feature_mask)
+static void __nocfi __apply_alternatives(const struct alt_region *region,
+					 bool is_module,
+					 unsigned long *feature_mask)
 {
 	struct alt_instr *alt;
 	__le32 *origptr, *updptr;
@@ -190,17 +191,17 @@ static void __nocfi __apply_alternatives(struct alt_region *region, bool is_modu
 	}
 }
 
+static const struct alt_region kernel_alternatives = {
+	.begin	= (struct alt_instr *)__alt_instructions,
+	.end	= (struct alt_instr *)__alt_instructions_end,
+};
+
 /*
  * We might be patching the stop_machine state machine, so implement a
  * really simple polling protocol here.
  */
 static int __apply_alternatives_multi_stop(void *unused)
 {
-	struct alt_region region = {
-		.begin	= (struct alt_instr *)__alt_instructions,
-		.end	= (struct alt_instr *)__alt_instructions_end,
-	};
-
 	/* We always have a CPU 0 at this point (__init) */
 	if (smp_processor_id()) {
 		while (!all_alternatives_applied)
@@ -213,7 +214,8 @@ static int __apply_alternatives_multi_stop(void *unused)
 				  ARM64_NPATCHABLE);
 
 		BUG_ON(all_alternatives_applied);
-		__apply_alternatives(&region, false, remaining_capabilities);
+		__apply_alternatives(&kernel_alternatives, false,
+				     remaining_capabilities);
 		/* Barriers provided by the cache flushing */
 		all_alternatives_applied = 1;
 	}
@@ -236,17 +238,13 @@ void __init apply_alternatives_all(void)
  */
 void __init apply_boot_alternatives(void)
 {
-	struct alt_region region = {
-		.begin	= (struct alt_instr *)__alt_instructions,
-		.end	= (struct alt_instr *)__alt_instructions_end,
-	};
-
 	/* If called on non-boot cpu things could go wrong */
 	WARN_ON(smp_processor_id() != 0);
 
 	pr_info("applying boot alternatives\n");
 
-	__apply_alternatives(&region, false, &boot_capabilities[0]);
+	__apply_alternatives(&kernel_alternatives, false,
+			     &boot_capabilities[0]);
 }
 
 #ifdef CONFIG_MODULES
