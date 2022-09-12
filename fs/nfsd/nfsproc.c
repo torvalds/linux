@@ -575,15 +575,7 @@ static void nfsd_init_dirlist_pages(struct svc_rqst *rqstp,
 	buf->pages = rqstp->rq_next_page;
 	rqstp->rq_next_page++;
 
-	/* This is xdr_init_encode(), but it assumes that
-	 * the head kvec has already been consumed. */
-	xdr_set_scratch_buffer(xdr, NULL, 0);
-	xdr->buf = buf;
-	xdr->page_ptr = buf->pages;
-	xdr->iov = NULL;
-	xdr->p = page_address(*buf->pages);
-	xdr->end = (void *)xdr->p + min_t(u32, buf->buflen, PAGE_SIZE);
-	xdr->rqst = NULL;
+	xdr_init_encode_pages(xdr, buf, buf->pages,  NULL);
 }
 
 /*
