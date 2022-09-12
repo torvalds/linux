@@ -33,10 +33,10 @@ properties:
 
   clocks:
     items:
-      - description: timer0 clock
-      - description: timer1 clock
-      - description: timer2 clock
-      - description: timer3 clock
+      - description: timer channel 0 clock
+      - description: timer channel 1 clock
+      - description: timer channel 2 clock
+      - description: timer channel 3 clock
       - description: APB clock
 
   clock-names:
@@ -47,6 +47,22 @@ properties:
       - const: timer3
       - const: apb_clk
 
+  resets:
+    items:
+      - description: timer channel 0 reset
+      - description: timer channel 1 reset
+      - description: timer channel 2 reset
+      - description: timer channel 3 reset
+      - description: APB reset
+
+  reset-names:
+    items:
+      - const: timer0
+      - const: timer1
+      - const: timer2
+      - const: timer3
+      - const: apb_rst
+
 required:
   - compatible
   - reg
@@ -54,12 +70,15 @@ required:
   - interrupt-names
   - clocks
   - clock-names
+  - resets
+  - reset-names
 
 additionalProperties: false
 
 examples:
   - |
     #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
+    #include <dt-bindings/reset/starfive-jh7110.h>
 
     timer0: timer@15200000 {
             compatible = "starfive,jh7110-timers";
@@ -73,5 +92,12 @@ examples:
                      <&clkgen JH7110_TIMER_CLK_APB>;
             clock-names = "timer0", "timer1",
                           "timer2", "timer3", "apb_clk";
+            resets = <&rstgen RSTN_U0_TIMER_TIMER0>,
+                     <&rstgen RSTN_U0_TIMER_TIMER1>,
+                     <&rstgen RSTN_U0_TIMER_TIMER2>,
+                     <&rstgen RSTN_U0_TIMER_TIMER3>,
+                     <&rstgen RSTN_U0_TIMER_APB>;
+            reset-names = "timer0", "timer1",
+                          "timer2", "timer3", "apb_rst";
     };
 
