@@ -627,15 +627,11 @@ static irqreturn_t mpi3mr_isr_primary(int irq, void *privdata)
 static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 {
 	struct mpi3mr_intr_info *intr_info = privdata;
-	struct mpi3mr_ioc *mrioc;
-	u16 midx;
 	int ret;
 
 	if (!intr_info)
 		return IRQ_NONE;
 
-	mrioc = intr_info->mrioc;
-	midx = intr_info->msix_index;
 	/* Call primary ISR routine */
 	ret = mpi3mr_isr_primary(irq, privdata);
 
@@ -650,7 +646,7 @@ static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 	    !atomic_read(&intr_info->op_reply_q->pend_ios))
 		return ret;
 
-	disable_irq_nosync(pci_irq_vector(mrioc->pdev, midx));
+	disable_irq_nosync(intr_info->os_irq);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -696,7 +692,7 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 	    (num_op_reply < mrioc->max_host_ios));
 
 	intr_info->op_reply_q->enable_irq_poll = false;
-	enable_irq(pci_irq_vector(mrioc->pdev, midx));
+	enable_irq(intr_info->os_irq);
 
 	return IRQ_HANDLED;
 }
@@ -738,6 +734,7 @@ static inline int mpi3mr_request_irq(struct mpi3mr_ioc *mrioc, u16 index)
 		return retval;
 	}
 
+	intr_info->os_irq = pci_irq_vector(pdev, index);
 	return retval;
 }
 
