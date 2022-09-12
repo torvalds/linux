@@ -209,6 +209,7 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 	struct amba_device *pcdev = to_amba_device(dev);
 	struct amba_driver *pcdrv = to_amba_driver(drv);
 
+	mutex_lock(&pcdev->periphid_lock);
 	if (!pcdev->periphid) {
 		int ret = amba_read_periphid(pcdev);
 
@@ -218,11 +219,14 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 		 * permanent failure in reading pid and cid, simply map it to
 		 * -EPROBE_DEFER.
 		 */
-		if (ret)
+		if (ret) {
+			mutex_unlock(&pcdev->periphid_lock);
 			return -EPROBE_DEFER;
+		}
 		dev_set_uevent_suppress(dev, false);
 		kobject_uevent(&dev->kobj, KOBJ_ADD);
 	}
+	mutex_unlock(&pcdev->periphid_lock);
 
 	/* When driver_override is set, only bind to the matching driver */
 	if (pcdev->driver_override)
@@ -532,6 +536,7 @@ static void amba_device_release(struct device *dev)
 
 	if (d->res.parent)
 		release_resource(&d->res);
+	mutex_destroy(&d->periphid_lock);
 	kfree(d);
 }
 
@@ -584,6 +589,7 @@ static void amba_device_initialize(struct amba_device *dev, const char *name)
 	dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 	dev->dev.dma_parms = &dev->dma_parms;
 	dev->res.name = dev_name(&dev->dev);
+	mutex_init(&dev->periphid_lock);
 }
 
 /**

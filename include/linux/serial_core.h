@@ -141,6 +141,14 @@ struct gpio_desc;
  *	Locking: none.
  *	Interrupts: caller dependent.
  *
+ * @start_rx: ``void ()(struct uart_port *port)``
+ *
+ *	Start receiving characters.
+ *
+ *	Locking: @port->lock taken.
+ *	Interrupts: locally disabled.
+ *	This call must not sleep
+ *
  * @stop_rx: ``void ()(struct uart_port *port)``
  *
  *	Stop receiving characters; the @port is in the process of being closed.

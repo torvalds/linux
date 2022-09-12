@@ -167,8 +167,8 @@ static inline u64 *io_get_tag_slot(struct io_rsrc_data *data, unsigned int idx)
 	return &data->tags[table_idx][off];
 }
 
-int io_rsrc_update(struct io_kiocb *req, unsigned int issue_flags);
-int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_files_update(struct io_kiocb *req, unsigned int issue_flags);
+int io_files_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages);
 

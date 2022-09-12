@@ -42,10 +42,24 @@ static int p2sb_get_devfn(unsigned int *devfn)
 	return 0;
 }
 
+/* Copy resource from the first BAR of the device in question */
 static int p2sb_read_bar0(struct pci_dev *pdev, struct resource *mem)
 {
-	/* Copy resource from the first BAR of the device in question */
-	*mem = pdev->resource[0];
+	struct resource *bar0 = &pdev->resource[0];
+
+	/* Make sure we have no dangling pointers in the output */
+	memset(mem, 0, sizeof(*mem));
+
+	/*
+	 * We copy only selected fields from the original resource.
+	 * Because a PCI device will be removed soon, we may not use
+	 * any allocated data, hence we may not copy any pointers.
+	 */
+	mem->start = bar0->start;
+	mem->end = bar0->end;
+	mem->flags = bar0->flags;
+	mem->desc = bar0->desc;
+
 	return 0;
 }
 

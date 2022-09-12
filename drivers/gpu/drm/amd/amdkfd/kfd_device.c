@@ -382,12 +382,8 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 				f2g = &gfx_v10_3_kfd2kgd;
 			break;
 		case IP_VERSION(10, 3, 6):
-			gfx_target_version = 100306;
-			if (!vf)
-				f2g = &gfx_v10_3_kfd2kgd;
-			break;
 		case IP_VERSION(10, 3, 7):
-			gfx_target_version = 100307;
+			gfx_target_version = 100306;
 			if (!vf)
 				f2g = &gfx_v10_3_kfd2kgd;
 			break;
