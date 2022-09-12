@@ -263,3 +263,11 @@ void apply_alternatives_module(void *start, size_t length)
 	__apply_alternatives(&region, true, &all_capabilities[0]);
 }
 #endif
+
+noinstr void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
+			       __le32 *updptr, int nr_inst)
+{
+	for (int i = 0; i < nr_inst; i++)
+		updptr[i] = cpu_to_le32(aarch64_insn_gen_nop());
+}
+EXPORT_SYMBOL(alt_cb_patch_nops);

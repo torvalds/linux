@@ -224,7 +224,7 @@ alternative_has_feature_likely(unsigned long feature)
 	BUILD_BUG_ON(feature >= ARM64_NCAPS);
 
 	asm_volatile_goto(
-	ALTERNATIVE("b	%l[l_no]", "nop", %[feature])
+	ALTERNATIVE_CB("b	%l[l_no]", %[feature], alt_cb_patch_nops)
 	:
 	: [feature] "i" (feature)
 	:
