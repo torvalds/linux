@@ -22,6 +22,8 @@
 
 #define pr_fmt(fmt) "bmp280: " fmt
 
+#include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -248,7 +250,7 @@ static int bmp280_read_calib(struct bmp280_data *data,
 		dev_err(dev, "failed to read H5 comp value\n");
 		return ret;
 	}
-	calib->H5 = sign_extend32(((le16_to_cpu(l16) >> 4) & 0xfff), 11);
+	calib->H5 = sign_extend32(FIELD_GET(BMP280_COMP_H5_MASK, le16_to_cpu(l16)), 11);
 
 	ret = regmap_read(data->regmap, BMP280_REG_COMP_H6, &tmp);
 	if (ret < 0) {
@@ -352,7 +354,7 @@ static int bmp280_read_temp(struct bmp280_data *data,
 		return ret;
 	}
 
-	adc_temp = be32_to_cpu(tmp) >> 12;
+	adc_temp = FIELD_GET(BMP280_MEAS_TRIM_MASK, be32_to_cpu(tmp));
 	if (adc_temp == BMP280_TEMP_SKIPPED) {
 		/* reading was skipped */
 		dev_err(data->dev, "reading temperature skipped\n");
@@ -391,7 +393,7 @@ static int bmp280_read_press(struct bmp280_data *data,
 		return ret;
 	}
 
-	adc_press = be32_to_cpu(tmp) >> 12;
+	adc_press = FIELD_GET(BMP280_MEAS_TRIM_MASK, be32_to_cpu(tmp));
 	if (adc_press == BMP280_PRESS_SKIPPED) {
 		/* reading was skipped */
 		dev_err(data->dev, "reading pressure skipped\n");
@@ -617,8 +619,8 @@ static const struct iio_info bmp280_info = {
 
 static int bmp280_chip_config(struct bmp280_data *data)
 {
-	u8 osrs = BMP280_OSRS_TEMP_X(data->oversampling_temp + 1) |
-		  BMP280_OSRS_PRESS_X(data->oversampling_press + 1);
+	u8 osrs = FIELD_PREP(BMP280_OSRS_TEMP_MASK, data->oversampling_temp + 1) |
+		  FIELD_PREP(BMP280_OSRS_PRESS_MASK, data->oversampling_press + 1);
 	int ret;
 
 	ret = regmap_write_bits(data->regmap, BMP280_REG_CTRL_MEAS,
@@ -660,7 +662,7 @@ static const struct bmp280_chip_info bmp280_chip_info = {
 
 static int bme280_chip_config(struct bmp280_data *data)
 {
-	u8 osrs = BMP280_OSRS_HUMIDITIY_X(data->oversampling_humid + 1);
+	u8 osrs = FIELD_PREP(BMP280_OSRS_HUMIDITY_MASK, data->oversampling_humid + 1);
 	int ret;
 
 	/*
@@ -717,7 +719,7 @@ static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 		if (!ret)
 			dev_err(data->dev, "timeout waiting for completion\n");
 	} else {
-		if (ctrl_meas == BMP180_MEAS_TEMP)
+		if (FIELD_GET(BMP180_MEAS_CTRL_MASK, ctrl_meas) == BMP180_MEAS_TEMP)
 			delay_us = 4500;
 		else
 			delay_us =
@@ -742,7 +744,9 @@ static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 	__be16 tmp;
 	int ret;
 
-	ret = bmp180_measure(data, BMP180_MEAS_TEMP);
+	ret = bmp180_measure(data,
+			     FIELD_PREP(BMP180_MEAS_CTRL_MASK, BMP180_MEAS_TEMP) |
+			     BMP180_MEAS_SCO);
 	if (ret)
 		return ret;
 
@@ -839,7 +843,10 @@ static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
 	__be32 tmp = 0;
 	int ret;
 
-	ret = bmp180_measure(data, BMP180_MEAS_PRESS_X(oss));
+	ret = bmp180_measure(data,
+			     FIELD_PREP(BMP180_MEAS_CTRL_MASK, BMP180_MEAS_PRESS) |
+			     FIELD_PREP(BMP180_OSRS_PRESS_MASK, oss) |
+			     BMP180_MEAS_SCO);
 	if (ret)
 		return ret;
 
