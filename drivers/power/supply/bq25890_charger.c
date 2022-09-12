@@ -622,7 +622,7 @@ static int bq25890_power_supply_set_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
-		lval = bq25890_find_idx(val->intval, F_IINLIM);
+		lval = bq25890_find_idx(val->intval, TBL_IINLIM);
 		return bq25890_field_write(bq, F_IINLIM, lval);
 	default:
 		return -EINVAL;
