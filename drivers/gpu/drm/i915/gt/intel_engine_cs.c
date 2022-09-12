@@ -764,6 +764,10 @@ static void engine_mask_apply_copy_fuses(struct intel_gt *gt)
 	unsigned long meml3_mask;
 	unsigned long quad;
 
+	if (!(GRAPHICS_VER_FULL(i915) >= IP_VER(12, 60) &&
+	      GRAPHICS_VER_FULL(i915) < IP_VER(12, 70)))
+		return;
+
 	meml3_mask = intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3);
 	meml3_mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK, meml3_mask);
 
