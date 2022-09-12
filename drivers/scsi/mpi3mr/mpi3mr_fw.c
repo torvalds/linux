@@ -537,6 +537,7 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 		if ((le16_to_cpu(reply_desc->reply_flags) &
 		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
 			break;
+#ifndef CONFIG_PREEMPT_RT
 		/*
 		 * Exit completion loop to avoid CPU lockup
 		 * Ensure remaining completion happens from threaded ISR.
@@ -545,7 +546,7 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 			op_reply_q->enable_irq_poll = true;
 			break;
 		}
-
+#endif
 	} while (1);
 
 	writel(reply_ci,
@@ -613,6 +614,8 @@ static irqreturn_t mpi3mr_isr_primary(int irq, void *privdata)
 	else
 		return IRQ_NONE;
 }
+
+#ifndef CONFIG_PREEMPT_RT
 
 static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 {
@@ -691,6 +694,8 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 	return IRQ_HANDLED;
 }
 
+#endif
+
 /**
  * mpi3mr_request_irq - Request IRQ and register ISR
  * @mrioc: Adapter instance reference
@@ -713,8 +718,13 @@ static inline int mpi3mr_request_irq(struct mpi3mr_ioc *mrioc, u16 index)
 	snprintf(intr_info->name, MPI3MR_NAME_LENGTH, "%s%d-msix%d",
 	    mrioc->driver_name, mrioc->id, index);
 
+#ifndef CONFIG_PREEMPT_RT
 	retval = request_threaded_irq(pci_irq_vector(pdev, index), mpi3mr_isr,
 	    mpi3mr_isr_poll, IRQF_SHARED, intr_info->name, intr_info);
+#else
+	retval = request_threaded_irq(pci_irq_vector(pdev, index), mpi3mr_isr_primary,
+	    NULL, IRQF_SHARED, intr_info->name, intr_info);
+#endif
 	if (retval) {
 		ioc_err(mrioc, "%s: Unable to allocate interrupt %d!\n",
 		    intr_info->name, pci_irq_vector(pdev, index));
@@ -2179,9 +2189,13 @@ int mpi3mr_op_request_post(struct mpi3mr_ioc *mrioc,
 		pi = 0;
 	op_req_q->pi = pi;
 
+#ifndef CONFIG_PREEMPT_RT
 	if (atomic_inc_return(&mrioc->op_reply_qinfo[reply_qidx].pend_ios)
 	    > MPI3MR_IRQ_POLL_TRIGGER_IOCOUNT)
 		mrioc->op_reply_qinfo[reply_qidx].enable_irq_poll = true;
+#else
+	atomic_inc_return(&mrioc->op_reply_qinfo[reply_qidx].pend_ios);
+#endif
 
 	writel(op_req_q->pi,
 	    &mrioc->sysif_regs->oper_queue_indexes[reply_qidx].producer_index);
