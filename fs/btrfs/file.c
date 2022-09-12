@@ -1439,7 +1439,7 @@ static noinline int
 lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 				size_t num_pages, loff_t pos,
 				size_t write_bytes,
-				u64 *lockstart, u64 *lockend,
+				u64 *lockstart, u64 *lockend, bool nowait,
 				struct extent_state **cached_state)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -1454,7 +1454,20 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 	if (start_pos < inode->vfs_inode.i_size) {
 		struct btrfs_ordered_extent *ordered;
 
-		lock_extent(&inode->io_tree, start_pos, last_pos, cached_state);
+		if (nowait) {
+			if (!try_lock_extent(&inode->io_tree, start_pos, last_pos)) {
+				for (i = 0; i < num_pages; i++) {
+					unlock_page(pages[i]);
+					put_page(pages[i]);
+					pages[i] = NULL;
+				}
+
+				return -EAGAIN;
+			}
+		} else {
+			lock_extent(&inode->io_tree, start_pos, last_pos, cached_state);
+		}
+
 		ordered = btrfs_lookup_ordered_range(inode, start_pos,
 						     last_pos - start_pos + 1);
 		if (ordered &&
@@ -1752,7 +1765,7 @@ again:
 		extents_locked = lock_and_cleanup_extent_if_need(
 				BTRFS_I(inode), pages,
 				num_pages, pos, write_bytes, &lockstart,
-				&lockend, &cached_state);
+				&lockend, false, &cached_state);
 		if (extents_locked < 0) {
 			if (extents_locked == -EAGAIN)
 				goto again;
