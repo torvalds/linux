@@ -3894,8 +3894,7 @@ retry_init:
 	if (!mrioc->throttle_groups && mrioc->num_io_throttle_group) {
 		dprint_init(mrioc, "allocating memory for throttle groups\n");
 		sz = sizeof(struct mpi3mr_throttle_group_info);
-		mrioc->throttle_groups = (struct mpi3mr_throttle_group_info *)
-		    kcalloc(mrioc->num_io_throttle_group, sz, GFP_KERNEL);
+		mrioc->throttle_groups = kcalloc(mrioc->num_io_throttle_group, sz, GFP_KERNEL);
 		if (!mrioc->throttle_groups)
 			goto out_failed_noretry;
 	}
