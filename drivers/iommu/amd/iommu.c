@@ -2004,11 +2004,11 @@ static void protection_domain_free(struct protection_domain *domain)
 	if (!domain)
 		return;
 
-	if (domain->id)
-		domain_id_free(domain->id);
-
 	if (domain->iop.pgtbl_cfg.tlb)
 		free_io_pgtable_ops(&domain->iop.iop.ops);
+
+	if (domain->id)
+		domain_id_free(domain->id);
 
 	kfree(domain);
 }
