@@ -14,6 +14,21 @@ err_cnt=0
 tmpfile=`mktemp`
 perfdatafile=`mktemp`
 
+cleanup()
+{
+	trap - EXIT TERM INT
+	rm -f ${tmpfile}
+	rm -f ${perfdatafile}
+}
+
+trap_cleanup()
+{
+	cleanup
+	exit 1
+}
+
+trap trap_cleanup EXIT TERM INT
+
 can_cpu_wide()
 {
 	perf record -o ${tmpfile} -B -N --no-bpf-event -e dummy:u -C $1 true 2>&1 >/dev/null || return 2
@@ -57,8 +72,7 @@ test_system_wide_side_band
 
 count_result $?
 
-rm -f ${tmpfile}
-rm -f ${perfdatafile}
+cleanup
 
 if [ ${err_cnt} -gt 0 ] ; then
 	exit 1
