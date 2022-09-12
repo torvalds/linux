@@ -23,6 +23,7 @@
 #include <linux/error-injection.h>
 #include <linux/bpf_lsm.h>
 #include <linux/btf_ids.h>
+#include <linux/poison.h>
 
 #include "disasm.h"
 
@@ -5782,13 +5783,22 @@ found:
 		if (meta->func_id == BPF_FUNC_kptr_xchg) {
 			if (map_kptr_match_type(env, meta->kptr_off_desc, reg, regno))
 				return -EACCES;
-		} else if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, reg->off,
-						 btf_vmlinux, *arg_btf_id,
-						 strict_type_match)) {
-			verbose(env, "R%d is of type %s but %s is expected\n",
-				regno, kernel_type_name(reg->btf, reg->btf_id),
-				kernel_type_name(btf_vmlinux, *arg_btf_id));
-			return -EACCES;
+		} else {
+			if (arg_btf_id == BPF_PTR_POISON) {
+				verbose(env, "verifier internal error:");
+				verbose(env, "R%d has non-overwritten BPF_PTR_POISON type\n",
+					regno);
+				return -EACCES;
+			}
+
+			if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, reg->off,
+						  btf_vmlinux, *arg_btf_id,
+						  strict_type_match)) {
+				verbose(env, "R%d is of type %s but %s is expected\n",
+					regno, kernel_type_name(reg->btf, reg->btf_id),
+					kernel_type_name(btf_vmlinux, *arg_btf_id));
+				return -EACCES;
+			}
 		}
 	}
 
@@ -7457,6 +7467,12 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 			ret_btf = meta.kptr_off_desc->kptr.btf;
 			ret_btf_id = meta.kptr_off_desc->kptr.btf_id;
 		} else {
+			if (fn->ret_btf_id == BPF_PTR_POISON) {
+				verbose(env, "verifier internal error:");
+				verbose(env, "func %s has non-overwritten BPF_PTR_POISON return type\n",
+					func_id_name(func_id));
+				return -EINVAL;
+			}
 			ret_btf = btf_vmlinux;
 			ret_btf_id = *fn->ret_btf_id;
 		}
