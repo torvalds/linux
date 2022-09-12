@@ -78,9 +78,9 @@ struct intel_lvds_encoder {
 	struct intel_connector *attached_connector;
 };
 
-static struct intel_lvds_encoder *to_lvds_encoder(struct drm_encoder *encoder)
+static struct intel_lvds_encoder *to_lvds_encoder(struct intel_encoder *encoder)
 {
-	return container_of(encoder, struct intel_lvds_encoder, base.base);
+	return container_of(encoder, struct intel_lvds_encoder, base);
 }
 
 bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
@@ -103,7 +103,7 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 				    enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
@@ -123,7 +123,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 				  struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	u32 tmp, flags = 0;
 
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_LVDS);
@@ -229,7 +229,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 				  const struct intel_crtc_state *pipe_config,
 				  const struct drm_connector_state *conn_state)
 {
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -312,7 +312,7 @@ static void intel_enable_lvds(struct intel_atomic_state *state,
 			      const struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	intel_de_write(dev_priv, lvds_encoder->reg,
@@ -334,7 +334,7 @@ static void intel_disable_lvds(struct intel_atomic_state *state,
 			       const struct intel_crtc_state *old_crtc_state,
 			       const struct drm_connector_state *old_conn_state)
 {
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	intel_de_write(dev_priv, PP_CONTROL(0),
@@ -413,7 +413,7 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder =
-		to_lvds_encoder(&intel_encoder->base);
+		to_lvds_encoder(intel_encoder);
 	struct intel_connector *intel_connector =
 		lvds_encoder->attached_connector;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -775,7 +775,7 @@ bool intel_is_dual_link_lvds(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder = intel_get_lvds_encoder(dev_priv);
 
-	return encoder && to_lvds_encoder(&encoder->base)->is_dual_link;
+	return encoder && to_lvds_encoder(encoder)->is_dual_link;
 }
 
 static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
