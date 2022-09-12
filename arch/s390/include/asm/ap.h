@@ -86,6 +86,34 @@ static inline bool ap_instructions_available(void)
 	return reg1 != 0;
 }
 
+/* TAPQ register GR2 response struct */
+struct ap_tapq_gr2 {
+	union {
+		unsigned long value;
+		struct {
+			unsigned int fac    : 32; /* facility bits */
+			unsigned int apinfo : 32; /* ap type, ... */
+		};
+		struct {
+			unsigned int s	   :  1; /* APSC */
+			unsigned int m	   :  1; /* AP4KM */
+			unsigned int c	   :  1; /* AP4KC */
+			unsigned int mode  :  3;
+			unsigned int n	   :  1; /* APXA */
+			unsigned int	   :  1;
+			unsigned int class :  8;
+			unsigned int bs	   :  2; /* SE bind/assoc */
+			unsigned int	   : 14;
+			unsigned int at	   :  8; /* ap type */
+			unsigned int nd	   :  8; /* nr of domains */
+			unsigned int	   :  4;
+			unsigned int ml	   :  4; /* apxl ml */
+			unsigned int	   :  4;
+			unsigned int qd	   :  4; /* queue depth */
+		};
+	};
+};
+
 /**
  * ap_tapq(): Test adjunct processor queue.
  * @qid: The AP queue number
@@ -93,7 +121,7 @@ static inline bool ap_instructions_available(void)
  *
  * Returns AP queue status structure.
  */
-static inline struct ap_queue_status ap_tapq(ap_qid_t qid, unsigned long *info)
+static inline struct ap_queue_status ap_tapq(ap_qid_t qid, struct ap_tapq_gr2 *info)
 {
 	union ap_queue_status_reg reg1;
 	unsigned long reg2;
@@ -108,7 +136,7 @@ static inline struct ap_queue_status ap_tapq(ap_qid_t qid, unsigned long *info)
 		: [qid] "d" (qid)
 		: "cc", "0", "1", "2");
 	if (info)
-		*info = reg2;
+		info->value = reg2;
 	return reg1.status;
 }
 
@@ -116,13 +144,12 @@ static inline struct ap_queue_status ap_tapq(ap_qid_t qid, unsigned long *info)
  * ap_test_queue(): Test adjunct processor queue.
  * @qid: The AP queue number
  * @tbit: Test facilities bit
- * @info: Pointer to queue descriptor
+ * @info: Ptr to tapq gr2 struct
  *
  * Returns AP queue status structure.
  */
-static inline struct ap_queue_status ap_test_queue(ap_qid_t qid,
-						   int tbit,
-						   unsigned long *info)
+static inline struct ap_queue_status ap_test_queue(ap_qid_t qid, int tbit,
+						   struct ap_tapq_gr2 *info)
 {
 	if (tbit)
 		qid |= 1UL << 23; /* set T bit*/

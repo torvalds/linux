@@ -343,18 +343,7 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 			  int *q_depth, int *q_ml, bool *q_decfg, bool *q_cstop)
 {
 	struct ap_queue_status status;
-	union {
-		unsigned long value;
-		struct {
-			unsigned int fac   : 32; /* facility bits */
-			unsigned int at	   :  8; /* ap type */
-			unsigned int _res1 :  8;
-			unsigned int _res2 :  4;
-			unsigned int ml	   :  4; /* apxl ml */
-			unsigned int _res3 :  4;
-			unsigned int qd	   :  4; /* queue depth */
-		} tapq_gr2;
-	} tapq_info;
+	struct ap_tapq_gr2 tapq_info;
 
 	tapq_info.value = 0;
 
@@ -364,7 +353,7 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 		return false;
 
 	/* call TAPQ on this APQN */
-	status = ap_test_queue(qid, ap_apft_available(), &tapq_info.value);
+	status = ap_test_queue(qid, ap_apft_available(), &tapq_info);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
@@ -378,10 +367,10 @@ static bool ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 		 */
 		if (WARN_ON_ONCE(!tapq_info.value))
 			return false;
-		*q_type = tapq_info.tapq_gr2.at;
-		*q_fac = tapq_info.tapq_gr2.fac;
-		*q_depth = tapq_info.tapq_gr2.qd;
-		*q_ml = tapq_info.tapq_gr2.ml;
+		*q_type = tapq_info.at;
+		*q_fac = tapq_info.fac;
+		*q_depth = tapq_info.qd;
+		*q_ml = tapq_info.ml;
 		*q_decfg = status.response_code == AP_RESPONSE_DECONFIGURED;
 		*q_cstop = status.response_code == AP_RESPONSE_CHECKSTOPPED;
 		switch (*q_type) {

@@ -2115,8 +2115,8 @@ static void vfio_ap_filter_apid_by_qtype(unsigned long *apm, unsigned long *aqm)
 {
 	bool apid_cleared;
 	struct ap_queue_status status;
-	unsigned long apid, apqi, info;
-	int qtype, qtype_mask = 0xff000000;
+	unsigned long apid, apqi;
+	struct ap_tapq_gr2 info;
 
 	for_each_set_bit_inv(apid, apm, AP_DEVICES) {
 		apid_cleared = false;
@@ -2133,15 +2133,13 @@ static void vfio_ap_filter_apid_by_qtype(unsigned long *apm, unsigned long *aqm)
 			case AP_RESPONSE_DECONFIGURED:
 			case AP_RESPONSE_CHECKSTOPPED:
 			case AP_RESPONSE_BUSY:
-				qtype = info & qtype_mask;
-
 				/*
 				 * The vfio_ap device driver only
 				 * supports CEX4 and newer adapters, so
 				 * remove the APID if the adapter is
 				 * older than a CEX4.
 				 */
-				if (qtype < AP_DEVICE_TYPE_CEX4) {
+				if (info.at < AP_DEVICE_TYPE_CEX4) {
 					clear_bit_inv(apid, apm);
 					apid_cleared = true;
 				}
