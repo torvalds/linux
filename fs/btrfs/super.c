@@ -2014,14 +2014,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	if (ret)
 		goto restore;
 
-	/* V1 cache is not supported for subpage mount. */
-	if (fs_info->sectorsize < PAGE_SIZE && btrfs_test_opt(fs_info, SPACE_CACHE)) {
-		btrfs_warn(fs_info,
-	"v1 space cache is not supported for page size %lu with sectorsize %u",
-			   PAGE_SIZE, fs_info->sectorsize);
-		ret = -EINVAL;
+	ret = btrfs_check_features(fs_info, sb);
+	if (ret < 0)
 		goto restore;
-	}
+
 	btrfs_remount_begin(fs_info, old_opts, *flags);
 	btrfs_resize_thread_pool(fs_info,
 		fs_info->thread_pool_size, old_thread_pool_size);
@@ -2114,15 +2110,6 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (BTRFS_FS_ERROR(fs_info)) {
 			btrfs_err(fs_info,
 				"Remounting read-write after error is not allowed");
-			ret = -EINVAL;
-			goto restore;
-		}
-		if (btrfs_super_compat_ro_flags(fs_info->super_copy) &
-		    ~BTRFS_FEATURE_COMPAT_RO_SUPP) {
-			btrfs_err(fs_info,
-		"can not remount read-write due to unsupported optional flags 0x%llx",
-				btrfs_super_compat_ro_flags(fs_info->super_copy) &
-				~BTRFS_FEATURE_COMPAT_RO_SUPP);
 			ret = -EINVAL;
 			goto restore;
 		}
