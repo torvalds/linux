@@ -160,8 +160,8 @@
   cond_synchronize_rcu_expedited
   config_ep_by_speed
   configfs_register_group
-  configfs_unregister_group
   configfs_register_subsystem
+  configfs_unregister_group
   configfs_unregister_subsystem
   config_group_init
   config_group_init_type_name
@@ -290,6 +290,7 @@
   device_link_add
   device_match_fwnode
   device_match_name
+  device_match_of_node
   device_property_present
   device_property_read_string
   device_property_read_u16_array
@@ -1381,8 +1382,8 @@
   __rcu_read_unlock
   rcu_read_unlock_trace_special
   rcu_tasks_trace_qs_blkd
-  rcu_trc_cmpxchg_need_qs
   rcutorture_get_gp_data
+  rcu_trc_cmpxchg_need_qs
   rcu_unexpedite_gp
   rcuwait_wake_up
   rdev_get_drvdata
