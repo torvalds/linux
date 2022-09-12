@@ -814,6 +814,19 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
 
+static void intel_lvds_add_properties(struct drm_connector *connector)
+{
+	u32 allowed_scalers;
+
+	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) |
+		BIT(DRM_MODE_SCALE_FULLSCREEN) |
+		BIT(DRM_MODE_SCALE_CENTER);
+
+	drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
+
+	connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+}
+
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev_priv: i915 device
@@ -833,7 +846,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	i915_reg_t lvds_reg;
 	u32 lvds;
 	u8 pin;
-	u32 allowed_scalers;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
@@ -925,12 +937,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	lvds_encoder->reg = lvds_reg;
 
-	/* create the scaling mode property */
-	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT);
-	allowed_scalers |= BIT(DRM_MODE_SCALE_FULLSCREEN);
-	allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
-	drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
-	connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+	intel_lvds_add_properties(connector);
 
 	intel_lvds_pps_get_hw_state(dev_priv, &lvds_encoder->init_pps);
 	lvds_encoder->init_lvds_val = lvds;
