@@ -1062,6 +1062,31 @@ void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
 	}
 }
 
+/*
+ * Lock the passed range and ensure all pending ordered extents in it are run
+ * to completion in nowait mode.
+ *
+ * Return true if btrfs_lock_ordered_range does not return any extents,
+ * otherwise false.
+ */
+bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end)
+{
+	struct btrfs_ordered_extent *ordered;
+
+	if (!try_lock_extent(&inode->io_tree, start, end))
+		return false;
+
+	ordered = btrfs_lookup_ordered_range(inode, start, end - start + 1);
+	if (!ordered)
+		return true;
+
+	btrfs_put_ordered_extent(ordered);
+	unlock_extent(&inode->io_tree, start, end, NULL);
+
+	return false;
+}
+
+
 static int clone_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pos,
 				u64 len)
 {
