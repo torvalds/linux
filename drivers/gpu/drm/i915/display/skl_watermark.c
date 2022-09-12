@@ -3485,9 +3485,6 @@ static int skl_watermark_ipc_status_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
 
-	if (!HAS_IPC(i915))
-		return -ENODEV;
-
 	return single_open(file, skl_watermark_ipc_status_show, i915);
 }
 
@@ -3528,6 +3525,9 @@ static const struct file_operations skl_watermark_ipc_status_fops = {
 void skl_watermark_ipc_debugfs_register(struct drm_i915_private *i915)
 {
 	struct drm_minor *minor = i915->drm.primary;
+
+	if (!HAS_IPC(i915))
+		return;
 
 	debugfs_create_file("i915_ipc_status", 0644, minor->debugfs_root, i915,
 			    &skl_watermark_ipc_status_fops);
