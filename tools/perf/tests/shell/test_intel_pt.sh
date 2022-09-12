@@ -11,14 +11,20 @@ skip_cnt=0
 ok_cnt=0
 err_cnt=0
 
-tmpfile=`mktemp`
-perfdatafile=`mktemp`
+temp_dir=$(mktemp -d /tmp/perf-test-intel-pt-sh.XXXXXXXXXX)
+
+tmpfile="${temp_dir}/tmp-perf.data"
+perfdatafile="${temp_dir}/test-perf.data"
 
 cleanup()
 {
 	trap - EXIT TERM INT
-	rm -f ${tmpfile}
-	rm -f ${perfdatafile}
+	sane=$(echo "${temp_dir}" | cut -b 1-26)
+	if [ "${sane}" = "/tmp/perf-test-intel-pt-sh" ] ; then
+		echo "--- Cleaning up ---"
+		rm -f "${temp_dir}/"*
+		rmdir "${temp_dir}"
+	fi
 }
 
 trap_cleanup()
