@@ -1339,26 +1339,54 @@ static int prepare_uptodate_page(struct inode *inode,
 	return 0;
 }
 
+static unsigned int get_prepare_fgp_flags(bool nowait)
+{
+	unsigned int fgp_flags = FGP_LOCK | FGP_ACCESSED | FGP_CREAT;
+
+	if (nowait)
+		fgp_flags |= FGP_NOWAIT;
+
+	return fgp_flags;
+}
+
+static gfp_t get_prepare_gfp_flags(struct inode *inode, bool nowait)
+{
+	gfp_t gfp;
+
+	gfp = btrfs_alloc_write_mask(inode->i_mapping);
+	if (nowait) {
+		gfp &= ~__GFP_DIRECT_RECLAIM;
+		gfp |= GFP_NOWAIT;
+	}
+
+	return gfp;
+}
+
 /*
  * this just gets pages into the page cache and locks them down.
  */
 static noinline int prepare_pages(struct inode *inode, struct page **pages,
 				  size_t num_pages, loff_t pos,
-				  size_t write_bytes, bool force_uptodate)
+				  size_t write_bytes, bool force_uptodate,
+				  bool nowait)
 {
 	int i;
 	unsigned long index = pos >> PAGE_SHIFT;
-	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
+	gfp_t mask = get_prepare_gfp_flags(inode, nowait);
+	unsigned int fgp_flags = get_prepare_fgp_flags(nowait);
 	int err = 0;
 	int faili;
 
 	for (i = 0; i < num_pages; i++) {
 again:
-		pages[i] = find_or_create_page(inode->i_mapping, index + i,
-					       mask | __GFP_WRITE);
+		pages[i] = pagecache_get_page(inode->i_mapping, index + i,
+					      fgp_flags, mask | __GFP_WRITE);
 		if (!pages[i]) {
 			faili = i - 1;
-			err = -ENOMEM;
+			if (nowait)
+				err = -EAGAIN;
+			else
+				err = -ENOMEM;
 			goto fail;
 		}
 
@@ -1376,7 +1404,7 @@ again:
 						    pos + write_bytes, false);
 		if (err) {
 			put_page(pages[i]);
-			if (err == -EAGAIN) {
+			if (!nowait && err == -EAGAIN) {
 				err = 0;
 				goto again;
 			}
@@ -1714,8 +1742,7 @@ again:
 		 * contents of pages from loop to loop
 		 */
 		ret = prepare_pages(inode, pages, num_pages,
-				    pos, write_bytes,
-				    force_page_uptodate);
+				    pos, write_bytes, force_page_uptodate, false);
 		if (ret) {
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
 						       reserve_bytes);
