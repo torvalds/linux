@@ -1653,6 +1653,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 	loff_t old_isize = i_size_read(inode);
 	unsigned int ilock_flags = 0;
 	const bool nowait = (iocb->ki_flags & IOCB_NOWAIT);
+	unsigned int bdp_flags = (nowait ? BDP_ASYNC : 0);
 
 	if (nowait)
 		ilock_flags |= BTRFS_ILOCK_TRY;
@@ -1755,6 +1756,10 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 
 		release_bytes = reserve_bytes;
 again:
+		ret = balance_dirty_pages_ratelimited_flags(inode->i_mapping, bdp_flags);
+		if (ret)
+			break;
+
 		/*
 		 * This is going to setup the pages array with the number of
 		 * pages we want, so we don't really need to worry about the
@@ -1857,8 +1862,6 @@ again:
 		btrfs_drop_pages(fs_info, pages, num_pages, pos, copied);
 
 		cond_resched();
-
-		balance_dirty_pages_ratelimited(inode->i_mapping);
 
 		pos += copied;
 		num_written += copied;
