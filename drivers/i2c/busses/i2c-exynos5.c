@@ -270,7 +270,7 @@ static void exynos5_i2c_clr_pend_irq(struct exynos5_i2c *i2c)
  * exynos5_i2c_set_timing: updates the registers with appropriate
  * timing values calculated
  *
- * Timing values for operation are calculated against either 100kHz
+ * Timing values for operation are calculated against 100kHz, 400kHz
  * or 1MHz controller operating frequency.
  *
  * Returns 0 on success, -EINVAL if the cycle length cannot
@@ -333,6 +333,23 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 	 *
 	 * Constraints: 4 <= temp, 0 <= CLK_DIV < 256, 2 <= clk_cycle <= 510
 	 *
+	 * To split SCL clock into low, high periods appropriately, one
+	 * proportion factor for each I2C mode is used, which is calculated
+	 * using this formula.
+	 * ```
+	 * ((t_low_min + (scl_clock - t_low_min - t_high_min) / 2) / scl_clock)
+	 * ```
+	 * where:
+	 * t_low_min is the minimal value of low period of the SCL clock in us;
+	 * t_high_min is the minimal value of high period of the SCL clock in us;
+	 * scl_clock is converted from SCL clock frequency into us.
+	 *
+	 * Below are the proportion factors for these I2C modes:
+	 *                t_low_min, t_high_min, scl_clock, proportion
+	 * Standard Mode:     4.7us,      4.0us,      10us,      0.535
+	 * Fast Mode:         1.3us,      0.6us,     2.5us,       0.64
+	 * Fast-Plus Mode:    0.5us,     0.26us,       1us,       0.62
+	 *
 	 */
 	t_ftl_cycle = (readl(i2c->regs + HSI2C_CONF) >> 16) & 0x7;
 	temp = clkin / op_clk - 8 - t_ftl_cycle;
@@ -346,8 +363,19 @@ static int exynos5_i2c_set_timing(struct exynos5_i2c *i2c, bool hs_timings)
 		return -EINVAL;
 	}
 
-	t_scl_l = clk_cycle / 2;
-	t_scl_h = clk_cycle / 2;
+	/*
+	 * Scale clk_cycle to get t_scl_l using the proption factors for individual I2C modes.
+	 */
+	if (op_clk <= I2C_MAX_STANDARD_MODE_FREQ)
+		t_scl_l = clk_cycle * 535 / 1000;
+	else if (op_clk <= I2C_MAX_FAST_MODE_FREQ)
+		t_scl_l = clk_cycle * 64 / 100;
+	else
+		t_scl_l = clk_cycle * 62 / 100;
+
+	if (t_scl_l > 0xFF)
+		t_scl_l = 0xFF;
+	t_scl_h = clk_cycle - t_scl_l;
 	t_start_su = t_scl_l;
 	t_start_hd = t_scl_l;
 	t_stop_su = t_scl_l;
