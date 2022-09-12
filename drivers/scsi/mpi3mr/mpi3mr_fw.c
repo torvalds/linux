@@ -2502,8 +2502,9 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	mrioc->diagsave_timeout = 0;
 
 	switch (fault) {
+	case MPI3_SYSIF_FAULT_CODE_COMPLETE_RESET_NEEDED:
 	case MPI3_SYSIF_FAULT_CODE_POWER_CYCLE_REQUIRED:
-		ioc_info(mrioc,
+		ioc_warn(mrioc,
 		    "controller requires system power cycle, marking controller as unrecoverable\n");
 		mrioc->unrecoverable = 1;
 		goto schedule_work;
