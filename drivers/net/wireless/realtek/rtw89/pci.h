@@ -564,11 +564,6 @@ enum rtw89_pcie_phy {
 	PCIE_PHY_GEN1_UNDEFINE = 0x7F,
 };
 
-enum mac_ax_func_sw {
-	MAC_AX_FUNC_DIS,
-	MAC_AX_FUNC_EN,
-};
-
 enum rtw89_pcie_l0sdly {
 	PCIE_L0SDLY_1US = 0,
 	PCIE_L0SDLY_2US = 1,

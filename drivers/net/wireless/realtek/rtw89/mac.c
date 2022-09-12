@@ -3161,14 +3161,6 @@ dle:
 	return ret;
 }
 
-static void rtw89_mac_hci_func_en(struct rtw89_dev *rtwdev)
-{
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-
-	rtw89_write32_set(rtwdev, chip->hci_func_en_addr,
-			  B_AX_HCI_TXDMA_EN | B_AX_HCI_RXDMA_EN);
-}
-
 int rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	rtw89_write8_set(rtwdev, R_AX_SYS_FUNC_EN,
@@ -3205,7 +3197,7 @@ int rtw89_mac_partial_init(struct rtw89_dev *rtwdev)
 			return ret;
 	}
 
-	rtw89_mac_hci_func_en(rtwdev);
+	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
 
 	ret = rtw89_mac_dmac_pre_init(rtwdev);
 	if (ret)

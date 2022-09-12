@@ -6,6 +6,7 @@
 #define __RTW89_MAC_H__
 
 #include "core.h"
+#include "reg.h"
 
 #define MAC_MEM_DUMP_PAGE_SIZE 0x40000
 #define ADDR_CAM_ENT_SIZE  0x40
@@ -910,6 +911,45 @@ static inline int rtw89_mac_txpwr_write32_mask(struct rtw89_dev *rtwdev,
 
 	rtw89_write32_mask(rtwdev, cr, mask, val);
 	return 0;
+}
+
+static inline void rtw89_mac_ctrl_hci_dma_tx(struct rtw89_dev *rtwdev,
+					     bool enable)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (enable)
+		rtw89_write32_set(rtwdev, chip->hci_func_en_addr,
+				  B_AX_HCI_TXDMA_EN);
+	else
+		rtw89_write32_clr(rtwdev, chip->hci_func_en_addr,
+				  B_AX_HCI_TXDMA_EN);
+}
+
+static inline void rtw89_mac_ctrl_hci_dma_rx(struct rtw89_dev *rtwdev,
+					     bool enable)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (enable)
+		rtw89_write32_set(rtwdev, chip->hci_func_en_addr,
+				  B_AX_HCI_RXDMA_EN);
+	else
+		rtw89_write32_clr(rtwdev, chip->hci_func_en_addr,
+				  B_AX_HCI_RXDMA_EN);
+}
+
+static inline void rtw89_mac_ctrl_hci_dma_trx(struct rtw89_dev *rtwdev,
+					      bool enable)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (enable)
+		rtw89_write32_set(rtwdev, chip->hci_func_en_addr,
+				  B_AX_HCI_TXDMA_EN | B_AX_HCI_RXDMA_EN);
+	else
+		rtw89_write32_clr(rtwdev, chip->hci_func_en_addr,
+				  B_AX_HCI_TXDMA_EN | B_AX_HCI_RXDMA_EN);
 }
 
 int rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
