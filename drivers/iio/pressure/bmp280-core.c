@@ -134,8 +134,7 @@ struct bmp280_chip_info {
  * These enums are used for indexing into the array of compensation
  * parameters for BMP280.
  */
-enum { T1, T2, T3 };
-enum { P1, P2, P3, P4, P5, P6, P7, P8, P9 };
+enum { T1, T2, T3, P1, P2, P3, P4, P5, P6, P7, P8, P9 };
 
 static const struct iio_chan_spec bmp280_channels[] = {
 	{
@@ -159,8 +158,7 @@ static int bmp280_read_calib(struct bmp280_data *data,
 			     struct bmp280_calib *calib,
 			     unsigned int chip)
 {
-	__le16 p_buf[BMP280_COMP_PRESS_REG_COUNT / 2];
-	__le16 t_buf[BMP280_COMP_TEMP_REG_COUNT / 2];
+	__le16 c_buf[BMP280_CONTIGUOUS_CALIB_REGS / 2];
 	struct device *dev = data->dev;
 	unsigned int tmp;
 	__le16 l16;
@@ -168,43 +166,33 @@ static int bmp280_read_calib(struct bmp280_data *data,
 	int ret;
 
 
-	/* Read temperature calibration values. */
+	/* Read temperature and pressure calibration values. */
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_TEMP_START,
-			       t_buf, BMP280_COMP_TEMP_REG_COUNT);
+			       c_buf, sizeof(c_buf));
 	if (ret < 0) {
 		dev_err(data->dev,
-			"failed to read temperature calibration parameters\n");
+			"failed to read temperature and pressure calibration parameters\n");
 		return ret;
 	}
 
-	/* Toss the temperature calibration data into the entropy pool */
-	add_device_randomness(t_buf, sizeof(t_buf));
+	/* Toss the temperature and pressure calibration data into the entropy pool */
+	add_device_randomness(c_buf, sizeof(c_buf));
 
-	calib->T1 = le16_to_cpu(t_buf[T1]);
-	calib->T2 = le16_to_cpu(t_buf[T2]);
-	calib->T3 = le16_to_cpu(t_buf[T3]);
+	/* Parse temperature calibration values. */
+	calib->T1 = le16_to_cpu(c_buf[T1]);
+	calib->T2 = le16_to_cpu(c_buf[T2]);
+	calib->T3 = le16_to_cpu(c_buf[T3]);
 
-	/* Read pressure calibration values. */
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_PRESS_START,
-			       p_buf, BMP280_COMP_PRESS_REG_COUNT);
-	if (ret < 0) {
-		dev_err(data->dev,
-			"failed to read pressure calibration parameters\n");
-		return ret;
-	}
-
-	/* Toss the pressure calibration data into the entropy pool */
-	add_device_randomness(p_buf, sizeof(p_buf));
-
-	calib->P1 = le16_to_cpu(p_buf[P1]);
-	calib->P2 = le16_to_cpu(p_buf[P2]);
-	calib->P3 = le16_to_cpu(p_buf[P3]);
-	calib->P4 = le16_to_cpu(p_buf[P4]);
-	calib->P5 = le16_to_cpu(p_buf[P5]);
-	calib->P6 = le16_to_cpu(p_buf[P6]);
-	calib->P7 = le16_to_cpu(p_buf[P7]);
-	calib->P8 = le16_to_cpu(p_buf[P8]);
-	calib->P9 = le16_to_cpu(p_buf[P9]);
+	/* Parse pressure calibration values. */
+	calib->P1 = le16_to_cpu(c_buf[P1]);
+	calib->P2 = le16_to_cpu(c_buf[P2]);
+	calib->P3 = le16_to_cpu(c_buf[P3]);
+	calib->P4 = le16_to_cpu(c_buf[P4]);
+	calib->P5 = le16_to_cpu(c_buf[P5]);
+	calib->P6 = le16_to_cpu(c_buf[P6]);
+	calib->P7 = le16_to_cpu(c_buf[P7]);
+	calib->P8 = le16_to_cpu(c_buf[P8]);
+	calib->P9 = le16_to_cpu(c_buf[P9]);
 
 	/*
 	 * Read humidity calibration values.
