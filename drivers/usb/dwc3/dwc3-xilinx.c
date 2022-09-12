@@ -322,7 +322,7 @@ static int dwc3_xlnx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused dwc3_xlnx_suspend_common(struct device *dev)
+static int __maybe_unused dwc3_xlnx_runtime_suspend(struct device *dev)
 {
 	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
 
@@ -331,7 +331,7 @@ static int __maybe_unused dwc3_xlnx_suspend_common(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused dwc3_xlnx_resume_common(struct device *dev)
+static int __maybe_unused dwc3_xlnx_runtime_resume(struct device *dev)
 {
 	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
 
@@ -346,8 +346,33 @@ static int __maybe_unused dwc3_xlnx_runtime_idle(struct device *dev)
 	return 0;
 }
 
-static UNIVERSAL_DEV_PM_OPS(dwc3_xlnx_dev_pm_ops, dwc3_xlnx_suspend_common,
-			    dwc3_xlnx_resume_common, dwc3_xlnx_runtime_idle);
+static int __maybe_unused dwc3_xlnx_suspend(struct device *dev)
+{
+	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
+
+	/* Disable the clocks */
+	clk_bulk_disable(priv_data->num_clocks, priv_data->clks);
+
+	return 0;
+}
+
+static int __maybe_unused dwc3_xlnx_resume(struct device *dev)
+{
+	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_bulk_enable(priv_data->num_clocks, priv_data->clks);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static const struct dev_pm_ops dwc3_xlnx_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_xlnx_suspend, dwc3_xlnx_resume)
+	SET_RUNTIME_PM_OPS(dwc3_xlnx_runtime_suspend,
+			   dwc3_xlnx_runtime_resume, dwc3_xlnx_runtime_idle)
+};
 
 static struct platform_driver dwc3_xlnx_driver = {
 	.probe		= dwc3_xlnx_probe,
