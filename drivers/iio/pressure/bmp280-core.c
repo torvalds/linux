@@ -157,13 +157,14 @@ static int bmp280_read_calib(struct bmp280_data *data,
 			     struct bmp280_calib *calib,
 			     unsigned int chip)
 {
-	int ret;
+	__le16 p_buf[BMP280_COMP_PRESS_REG_COUNT / 2];
+	__le16 t_buf[BMP280_COMP_TEMP_REG_COUNT / 2];
+	struct device *dev = data->dev;
 	unsigned int tmp;
 	__le16 l16;
 	__be16 b16;
-	struct device *dev = data->dev;
-	__le16 t_buf[BMP280_COMP_TEMP_REG_COUNT / 2];
-	__le16 p_buf[BMP280_COMP_PRESS_REG_COUNT / 2];
+	int ret;
+
 
 	/* Read temperature calibration values. */
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_TEMP_START,
@@ -267,8 +268,8 @@ static int bmp280_read_calib(struct bmp280_data *data,
 static u32 bmp280_compensate_humidity(struct bmp280_data *data,
 				      s32 adc_humidity)
 {
-	s32 var;
 	struct bmp280_calib *calib = &data->calib.bmp280;
+	s32 var;
 
 	var = ((s32)data->t_fine) - (s32)76800;
 	var = ((((adc_humidity << 14) - (calib->H4 << 20) - (calib->H5 * var))
@@ -292,8 +293,8 @@ static u32 bmp280_compensate_humidity(struct bmp280_data *data,
 static s32 bmp280_compensate_temp(struct bmp280_data *data,
 				  s32 adc_temp)
 {
-	s32 var1, var2;
 	struct bmp280_calib *calib = &data->calib.bmp280;
+	s32 var1, var2;
 
 	var1 = (((adc_temp >> 3) - ((s32)calib->T1 << 1)) *
 		((s32)calib->T2)) >> 11;
@@ -315,8 +316,8 @@ static s32 bmp280_compensate_temp(struct bmp280_data *data,
 static u32 bmp280_compensate_press(struct bmp280_data *data,
 				   s32 adc_press)
 {
-	s64 var1, var2, p;
 	struct bmp280_calib *calib = &data->calib.bmp280;
+	s64 var1, var2, p;
 
 	var1 = ((s64)data->t_fine) - 128000;
 	var2 = var1 * var1 * (s64)calib->P6;
@@ -341,9 +342,9 @@ static u32 bmp280_compensate_press(struct bmp280_data *data,
 static int bmp280_read_temp(struct bmp280_data *data,
 			    int *val)
 {
-	int ret;
-	__be32 tmp = 0;
 	s32 adc_temp, comp_temp;
+	__be32 tmp = 0;
+	int ret;
 
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB, &tmp, 3);
 	if (ret < 0) {
@@ -374,10 +375,10 @@ static int bmp280_read_temp(struct bmp280_data *data,
 static int bmp280_read_press(struct bmp280_data *data,
 			     int *val, int *val2)
 {
-	int ret;
+	u32 comp_press;
 	__be32 tmp = 0;
 	s32 adc_press;
-	u32 comp_press;
+	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
 	ret = bmp280_read_temp(data, NULL);
@@ -406,10 +407,10 @@ static int bmp280_read_press(struct bmp280_data *data,
 
 static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 {
+	u32 comp_humidity;
+	s32 adc_humidity;
 	__be16 tmp;
 	int ret;
-	s32 adc_humidity;
-	u32 comp_humidity;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
 	ret = bmp280_read_temp(data, NULL);
@@ -439,8 +440,8 @@ static int bmp280_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long mask)
 {
-	int ret;
 	struct bmp280_data *data = iio_priv(indio_dev);
+	int ret;
 
 	pm_runtime_get_sync(data->dev);
 	mutex_lock(&data->lock);
@@ -496,9 +497,9 @@ static int bmp280_read_raw(struct iio_dev *indio_dev,
 static int bmp280_write_oversampling_ratio_humid(struct bmp280_data *data,
 					       int val)
 {
-	int i;
 	const int *avail = data->chip_info->oversampling_humid_avail;
 	const int n = data->chip_info->num_oversampling_humid_avail;
+	int i;
 
 	for (i = 0; i < n; i++) {
 		if (avail[i] == val) {
@@ -513,9 +514,9 @@ static int bmp280_write_oversampling_ratio_humid(struct bmp280_data *data,
 static int bmp280_write_oversampling_ratio_temp(struct bmp280_data *data,
 					       int val)
 {
-	int i;
 	const int *avail = data->chip_info->oversampling_temp_avail;
 	const int n = data->chip_info->num_oversampling_temp_avail;
+	int i;
 
 	for (i = 0; i < n; i++) {
 		if (avail[i] == val) {
@@ -530,9 +531,9 @@ static int bmp280_write_oversampling_ratio_temp(struct bmp280_data *data,
 static int bmp280_write_oversampling_ratio_press(struct bmp280_data *data,
 					       int val)
 {
-	int i;
 	const int *avail = data->chip_info->oversampling_press_avail;
 	const int n = data->chip_info->num_oversampling_press_avail;
+	int i;
 
 	for (i = 0; i < n; i++) {
 		if (avail[i] == val) {
@@ -548,8 +549,8 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long mask)
 {
-	int ret = 0;
 	struct bmp280_data *data = iio_priv(indio_dev);
+	int ret = 0;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
@@ -616,9 +617,9 @@ static const struct iio_info bmp280_info = {
 
 static int bmp280_chip_config(struct bmp280_data *data)
 {
-	int ret;
 	u8 osrs = BMP280_OSRS_TEMP_X(data->oversampling_temp + 1) |
 		  BMP280_OSRS_PRESS_X(data->oversampling_press + 1);
+	int ret;
 
 	ret = regmap_write_bits(data->regmap, BMP280_REG_CTRL_MEAS,
 				 BMP280_OSRS_TEMP_MASK |
@@ -659,8 +660,8 @@ static const struct bmp280_chip_info bmp280_chip_info = {
 
 static int bme280_chip_config(struct bmp280_data *data)
 {
-	int ret;
 	u8 osrs = BMP280_OSRS_HUMIDITIY_X(data->oversampling_humid + 1);
+	int ret;
 
 	/*
 	 * Oversampling of humidity must be set before oversampling of
@@ -693,10 +694,10 @@ static const struct bmp280_chip_info bme280_chip_info = {
 
 static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
 {
-	int ret;
 	const int conversion_time_max[] = { 4500, 7500, 13500, 25500 };
 	unsigned int delay_us;
 	unsigned int ctrl;
+	int ret;
 
 	if (data->use_eoc)
 		reinit_completion(&data->done);
@@ -757,9 +758,9 @@ static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 static int bmp180_read_calib(struct bmp280_data *data,
 			     struct bmp180_calib *calib)
 {
+	__be16 buf[BMP180_REG_CALIB_COUNT / 2];
 	int ret;
 	int i;
-	__be16 buf[BMP180_REG_CALIB_COUNT / 2];
 
 	ret = regmap_bulk_read(data->regmap, BMP180_REG_CALIB_START, buf,
 			       sizeof(buf));
@@ -799,8 +800,8 @@ static int bmp180_read_calib(struct bmp280_data *data,
  */
 static s32 bmp180_compensate_temp(struct bmp280_data *data, s32 adc_temp)
 {
-	s32 x1, x2;
 	struct bmp180_calib *calib = &data->calib.bmp180;
+	s32 x1, x2;
 
 	x1 = ((adc_temp - calib->AC6) * calib->AC5) >> 15;
 	x2 = (calib->MC << 11) / (x1 + calib->MD);
@@ -811,8 +812,8 @@ static s32 bmp180_compensate_temp(struct bmp280_data *data, s32 adc_temp)
 
 static int bmp180_read_temp(struct bmp280_data *data, int *val)
 {
-	int ret;
 	s32 adc_temp, comp_temp;
+	int ret;
 
 	ret = bmp180_read_adc_temp(data, &adc_temp);
 	if (ret)
@@ -834,9 +835,9 @@ static int bmp180_read_temp(struct bmp280_data *data, int *val)
 
 static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
 {
-	int ret;
-	__be32 tmp = 0;
 	u8 oss = data->oversampling_press;
+	__be32 tmp = 0;
+	int ret;
 
 	ret = bmp180_measure(data, BMP180_MEAS_PRESS_X(oss));
 	if (ret)
@@ -858,11 +859,11 @@ static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
  */
 static u32 bmp180_compensate_press(struct bmp280_data *data, s32 adc_press)
 {
+	struct bmp180_calib *calib = &data->calib.bmp180;
+	s32 oss = data->oversampling_press;
 	s32 x1, x2, x3, p;
 	s32 b3, b6;
 	u32 b4, b7;
-	s32 oss = data->oversampling_press;
-	struct bmp180_calib *calib = &data->calib.bmp180;
 
 	b6 = data->t_fine - 4000;
 	x1 = (calib->B2 * (b6 * b6 >> 12)) >> 11;
@@ -889,9 +890,9 @@ static u32 bmp180_compensate_press(struct bmp280_data *data, s32 adc_press)
 static int bmp180_read_press(struct bmp280_data *data,
 			     int *val, int *val2)
 {
-	int ret;
-	s32 adc_press;
 	u32 comp_press;
+	s32 adc_press;
+	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
 	ret = bmp180_read_temp(data, NULL);
@@ -996,11 +997,11 @@ int bmp280_common_probe(struct device *dev,
 			const char *name,
 			int irq)
 {
-	int ret;
 	struct iio_dev *indio_dev;
 	struct bmp280_data *data;
-	unsigned int chip_id;
 	struct gpio_desc *gpiod;
+	unsigned int chip_id;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
