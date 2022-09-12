@@ -435,25 +435,16 @@ static struct inode *ntfs_alloc_inode(struct super_block *sb)
 		return NULL;
 
 	memset(ni, 0, offsetof(struct ntfs_inode, vfs_inode));
-
 	mutex_init(&ni->ni_lock);
-
 	return &ni->vfs_inode;
 }
 
-static void ntfs_i_callback(struct rcu_head *head)
+static void ntfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ntfs_inode *ni = ntfs_i(inode);
 
 	mutex_destroy(&ni->ni_lock);
-
 	kmem_cache_free(ntfs_inode_cachep, ni);
-}
-
-static void ntfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, ntfs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -621,7 +612,7 @@ static int ntfs_sync_fs(struct super_block *sb, int wait)
 
 static const struct super_operations ntfs_sops = {
 	.alloc_inode = ntfs_alloc_inode,
-	.destroy_inode = ntfs_destroy_inode,
+	.free_inode = ntfs_free_inode,
 	.evict_inode = ntfs_evict_inode,
 	.put_super = ntfs_put_super,
 	.statfs = ntfs_statfs,
@@ -1517,11 +1508,8 @@ out1:
 
 static void __exit exit_ntfs_fs(void)
 {
-	if (ntfs_inode_cachep) {
-		rcu_barrier();
-		kmem_cache_destroy(ntfs_inode_cachep);
-	}
-
+	rcu_barrier();
+	kmem_cache_destroy(ntfs_inode_cachep);
 	unregister_filesystem(&ntfs_fs_type);
 	ntfs3_exit_bitmap();
 }
