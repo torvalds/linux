@@ -50,6 +50,7 @@ static int dp_aux_link_power_up(struct drm_dp_aux *aux,
 {
 	u8 value;
 	ssize_t len;
+	int i;
 
 	if (link->revision < 0x11)
 		return 0;
@@ -61,11 +62,13 @@ static int dp_aux_link_power_up(struct drm_dp_aux *aux,
 	value &= ~DP_SET_POWER_MASK;
 	value |= DP_SET_POWER_D0;
 
-	len = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
-	if (len < 0)
-		return len;
-
-	usleep_range(1000, 2000);
+	/* retry for 1ms to give the sink time to wake up */
+	for (i = 0; i < 3; i++) {
+		len = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
+		usleep_range(1000, 2000);
+		if (len == 1)
+			break;
+	}
 
 	return 0;
 }
