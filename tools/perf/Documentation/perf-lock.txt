@@ -148,6 +148,12 @@ CONTENTION OPTIONS
 --map-nr-entries::
 	Maximum number of BPF map entries (default: 10240).
 
+--max-stack::
+	Maximum stack depth when collecting lock contention (default: 8).
+
+--stack-skip
+	Number of stack depth to skip when finding a lock caller (default: 3).
+
 
 SEE ALSO
 --------

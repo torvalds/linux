@@ -56,6 +56,8 @@ static bool combine_locks;
 static bool show_thread_stats;
 static bool use_bpf;
 static unsigned long bpf_map_entries = 10240;
+static int max_stack_depth = CONTENTION_STACK_DEPTH;
+static int stack_skip = CONTENTION_STACK_SKIP;
 
 static enum {
 	LOCK_AGGR_ADDR,
@@ -936,7 +938,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 
 	/* use caller function name from the callchain */
 	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
-					NULL, NULL, CONTENTION_STACK_DEPTH);
+					NULL, NULL, max_stack_depth);
 	if (ret != 0) {
 		thread__put(thread);
 		return -1;
@@ -953,7 +955,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 			break;
 
 		/* skip first few entries - for lock functions */
-		if (++skip <= CONTENTION_STACK_SKIP)
+		if (++skip <= stack_skip)
 			goto next;
 
 		sym = node->ms.sym;
@@ -984,7 +986,7 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 
 	/* use caller function name from the callchain */
 	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
-					NULL, NULL, CONTENTION_STACK_DEPTH);
+					NULL, NULL, max_stack_depth);
 	thread__put(thread);
 
 	if (ret != 0)
@@ -1000,7 +1002,7 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 			break;
 
 		/* skip first few entries - for lock functions */
-		if (++skip <= CONTENTION_STACK_SKIP)
+		if (++skip <= stack_skip)
 			goto next;
 
 		if (node->ms.sym && is_lock_function(machine, node->ip))
@@ -1063,7 +1065,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 			return -ENOMEM;
 
 		if (aggr_mode == LOCK_AGGR_CALLER && verbose) {
-			ls->callstack = get_callstack(sample, CONTENTION_STACK_DEPTH);
+			ls->callstack = get_callstack(sample, max_stack_depth);
 			if (ls->callstack == NULL)
 				return -ENOMEM;
 		}
@@ -1515,7 +1517,7 @@ static void print_contention_result(struct lock_contention *con)
 			char buf[128];
 			u64 ip;
 
-			for (int i = 0; i < CONTENTION_STACK_DEPTH; i++) {
+			for (int i = 0; i < max_stack_depth; i++) {
 				if (!st->callstack || !st->callstack[i])
 					break;
 
@@ -1632,6 +1634,8 @@ static int __cmd_contention(int argc, const char **argv)
 		.target = &target,
 		.result = &lockhash_table[0],
 		.map_nr_entries = bpf_map_entries,
+		.max_stack = max_stack_depth,
+		.stack_skip = stack_skip,
 	};
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
@@ -1895,6 +1899,12 @@ int cmd_lock(int argc, const char **argv)
 		   "Trace on existing thread id (exclusive to --pid)"),
 	OPT_CALLBACK(0, "map-nr-entries", &bpf_map_entries, "num",
 		     "Max number of BPF map entries", parse_map_entry),
+	OPT_INTEGER(0, "max-stack", &max_stack_depth,
+		    "Set the maximum stack depth when collecting lock contention, "
+		    "Default: " __stringify(CONTENTION_STACK_DEPTH)),
+	OPT_INTEGER(0, "stack-skip", &stack_skip,
+		    "Set the number of stack depth to skip when finding a lock caller, "
+		    "Default: " __stringify(CONTENTION_STACK_SKIP)),
 	OPT_PARENT(lock_options)
 	};
 

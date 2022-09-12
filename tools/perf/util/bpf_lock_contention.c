@@ -41,6 +41,7 @@ int lock_contention_prepare(struct lock_contention *con)
 		return -1;
 	}
 
+	bpf_map__set_value_size(skel->maps.stacks, con->max_stack * sizeof(u64));
 	bpf_map__set_max_entries(skel->maps.stacks, con->map_nr_entries);
 	bpf_map__set_max_entries(skel->maps.lock_stat, con->map_nr_entries);
 
@@ -115,7 +116,7 @@ int lock_contention_read(struct lock_contention *con)
 	struct lock_contention_data data;
 	struct lock_stat *st;
 	struct machine *machine = con->machine;
-	u64 stack_trace[CONTENTION_STACK_DEPTH];
+	u64 stack_trace[con->max_stack];
 
 	fd = bpf_map__fd(skel->maps.lock_stat);
 	stack = bpf_map__fd(skel->maps.stacks);
@@ -146,9 +147,9 @@ int lock_contention_read(struct lock_contention *con)
 		bpf_map_lookup_elem(stack, &key, stack_trace);
 
 		/* skip BPF + lock internal functions */
-		idx = CONTENTION_STACK_SKIP;
+		idx = con->stack_skip;
 		while (is_lock_function(machine, stack_trace[idx]) &&
-		       idx < CONTENTION_STACK_DEPTH - 1)
+		       idx < con->max_stack - 1)
 			idx++;
 
 		st->addr = stack_trace[idx];
