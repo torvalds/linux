@@ -510,8 +510,8 @@
 				local-mac-address = [00 00 00 00 00 00];
 			};
 
-			port@6 {
-				reg = <6>;
+			port@5 {
+				reg = <5>;
 				label = "cpu";
 				ethernet = <&fec>;
 				phy-mode = "rgmii-id";
