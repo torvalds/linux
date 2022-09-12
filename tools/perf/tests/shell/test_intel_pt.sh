@@ -37,7 +37,7 @@ trap trap_cleanup EXIT TERM INT
 
 can_cpu_wide()
 {
-	perf record -o ${tmpfile} -B -N --no-bpf-event -e dummy:u -C $1 true >/dev/null 2>&1 || return 2
+	perf record -o "${tmpfile}" -B -N --no-bpf-event -e dummy:u -C "$1" true >/dev/null 2>&1 || return 2
 	return 0
 }
 
@@ -48,12 +48,12 @@ test_system_wide_side_band()
 	can_cpu_wide 1 || return $?
 
 	# Record on CPU 0 a task running on CPU 1
-	perf record -B -N --no-bpf-event -o ${perfdatafile} -e intel_pt//u -C 0 -- taskset --cpu-list 1 uname
+	perf record -B -N --no-bpf-event -o "${perfdatafile}" -e intel_pt//u -C 0 -- taskset --cpu-list 1 uname
 
 	# Should get MMAP events from CPU 1 because they can be needed to decode
-	mmap_cnt=$(perf script -i ${perfdatafile} --no-itrace --show-mmap-events -C 1 2>/dev/null | grep -c MMAP)
+	mmap_cnt=$(perf script -i "${perfdatafile}" --no-itrace --show-mmap-events -C 1 2>/dev/null | grep -c MMAP)
 
-	if [ ${mmap_cnt} -gt 0 ] ; then
+	if [ "${mmap_cnt}" -gt 0 ] ; then
 		return 0
 	fi
 
@@ -63,11 +63,11 @@ test_system_wide_side_band()
 
 count_result()
 {
-	if [ $1 -eq 2 ] ; then
+	if [ "$1" -eq 2 ] ; then
 		skip_cnt=$((skip_cnt + 1))
 		return
 	fi
-	if [ $1 -eq 0 ] ; then
+	if [ "$1" -eq 0 ] ; then
 		ok_cnt=$((ok_cnt + 1))
 		return
 	fi
