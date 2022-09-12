@@ -2434,10 +2434,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	record__uniquify_name(rec);
 
+	/* Debug message used by test scripts */
+	pr_debug3("perf record opening and mmapping events\n");
 	if (record__open(rec) != 0) {
 		err = -1;
 		goto out_free_threads;
 	}
+	/* Debug message used by test scripts */
+	pr_debug3("perf record done opening and mmapping events\n");
 	session->header.env.comp_mmap_len = session->evlist->core.mmap_len;
 
 	if (rec->opts.kcore) {
@@ -2579,6 +2583,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	err = event_enable_timer__start(rec->evlist->eet);
 	if (err)
 		goto out_child;
+
+	/* Debug message used by test scripts */
+	pr_debug3("perf record has started\n");
+	fflush(stderr);
 
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
