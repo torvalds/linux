@@ -1134,7 +1134,8 @@ static const struct nla_policy seg6_local_policy[SEG6_LOCAL_MAX + 1] = {
 	[SEG6_LOCAL_COUNTERS]	= { .type = NLA_NESTED },
 };
 
-static int parse_nla_srh(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_srh(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			 struct netlink_ext_ack *extack)
 {
 	struct ipv6_sr_hdr *srh;
 	int len;
@@ -1191,7 +1192,8 @@ static void destroy_attr_srh(struct seg6_local_lwt *slwt)
 	kfree(slwt->srh);
 }
 
-static int parse_nla_table(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_table(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			   struct netlink_ext_ack *extack)
 {
 	slwt->table = nla_get_u32(attrs[SEG6_LOCAL_TABLE]);
 
@@ -1225,7 +1227,8 @@ seg6_end_dt_info *seg6_possible_end_dt_info(struct seg6_local_lwt *slwt)
 }
 
 static int parse_nla_vrftable(struct nlattr **attrs,
-			      struct seg6_local_lwt *slwt)
+			      struct seg6_local_lwt *slwt,
+			      struct netlink_ext_ack *extack)
 {
 	struct seg6_end_dt_info *info = seg6_possible_end_dt_info(slwt);
 
@@ -1261,7 +1264,8 @@ static int cmp_nla_vrftable(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 	return 0;
 }
 
-static int parse_nla_nh4(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_nh4(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			 struct netlink_ext_ack *extack)
 {
 	memcpy(&slwt->nh4, nla_data(attrs[SEG6_LOCAL_NH4]),
 	       sizeof(struct in_addr));
@@ -1287,7 +1291,8 @@ static int cmp_nla_nh4(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 	return memcmp(&a->nh4, &b->nh4, sizeof(struct in_addr));
 }
 
-static int parse_nla_nh6(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_nh6(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			 struct netlink_ext_ack *extack)
 {
 	memcpy(&slwt->nh6, nla_data(attrs[SEG6_LOCAL_NH6]),
 	       sizeof(struct in6_addr));
@@ -1313,7 +1318,8 @@ static int cmp_nla_nh6(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 	return memcmp(&a->nh6, &b->nh6, sizeof(struct in6_addr));
 }
 
-static int parse_nla_iif(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_iif(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			 struct netlink_ext_ack *extack)
 {
 	slwt->iif = nla_get_u32(attrs[SEG6_LOCAL_IIF]);
 
@@ -1336,7 +1342,8 @@ static int cmp_nla_iif(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 	return 0;
 }
 
-static int parse_nla_oif(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_oif(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			 struct netlink_ext_ack *extack)
 {
 	slwt->oif = nla_get_u32(attrs[SEG6_LOCAL_OIF]);
 
@@ -1366,7 +1373,8 @@ static const struct nla_policy bpf_prog_policy[SEG6_LOCAL_BPF_PROG_MAX + 1] = {
 				       .len = MAX_PROG_NAME },
 };
 
-static int parse_nla_bpf(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_bpf(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			 struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[SEG6_LOCAL_BPF_PROG_MAX + 1];
 	struct bpf_prog *p;
@@ -1444,7 +1452,8 @@ nla_policy seg6_local_counters_policy[SEG6_LOCAL_CNT_MAX + 1] = {
 };
 
 static int parse_nla_counters(struct nlattr **attrs,
-			      struct seg6_local_lwt *slwt)
+			      struct seg6_local_lwt *slwt,
+			      struct netlink_ext_ack *extack)
 {
 	struct pcpu_seg6_local_counters __percpu *pcounters;
 	struct nlattr *tb[SEG6_LOCAL_CNT_MAX + 1];
@@ -1543,7 +1552,8 @@ static void destroy_attr_counters(struct seg6_local_lwt *slwt)
 }
 
 struct seg6_action_param {
-	int (*parse)(struct nlattr **attrs, struct seg6_local_lwt *slwt);
+	int (*parse)(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+		     struct netlink_ext_ack *extack);
 	int (*put)(struct sk_buff *skb, struct seg6_local_lwt *slwt);
 	int (*cmp)(struct seg6_local_lwt *a, struct seg6_local_lwt *b);
 
@@ -1636,7 +1646,8 @@ static void destroy_attrs(struct seg6_local_lwt *slwt)
 }
 
 static int parse_nla_optional_attrs(struct nlattr **attrs,
-				    struct seg6_local_lwt *slwt)
+				    struct seg6_local_lwt *slwt,
+				    struct netlink_ext_ack *extack)
 {
 	struct seg6_action_desc *desc = slwt->desc;
 	unsigned long parsed_optattrs = 0;
@@ -1652,7 +1663,7 @@ static int parse_nla_optional_attrs(struct nlattr **attrs,
 		 */
 		param = &seg6_action_params[i];
 
-		err = param->parse(attrs, slwt);
+		err = param->parse(attrs, slwt, extack);
 		if (err < 0)
 			goto parse_optattrs_err;
 
@@ -1705,7 +1716,8 @@ static void seg6_local_lwtunnel_destroy_state(struct seg6_local_lwt *slwt)
 	ops->destroy_state(slwt);
 }
 
-static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt,
+			    struct netlink_ext_ack *extack)
 {
 	struct seg6_action_param *param;
 	struct seg6_action_desc *desc;
@@ -1749,14 +1761,14 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 
 			param = &seg6_action_params[i];
 
-			err = param->parse(attrs, slwt);
+			err = param->parse(attrs, slwt, extack);
 			if (err < 0)
 				goto parse_attrs_err;
 		}
 	}
 
 	/* parse the optional attributes, if any */
-	err = parse_nla_optional_attrs(attrs, slwt);
+	err = parse_nla_optional_attrs(attrs, slwt, extack);
 	if (err < 0)
 		goto parse_attrs_err;
 
@@ -1800,7 +1812,7 @@ static int seg6_local_build_state(struct net *net, struct nlattr *nla,
 	slwt = seg6_local_lwtunnel(newts);
 	slwt->action = nla_get_u32(tb[SEG6_LOCAL_ACTION]);
 
-	err = parse_nla_action(tb, slwt);
+	err = parse_nla_action(tb, slwt, extack);
 	if (err < 0)
 		goto out_free;
 
