@@ -207,6 +207,34 @@
 				      "dout_clkcmu_peric1_ip";
 		};
 
+		cmu_fsys1: clock-controller@17040000 {
+			compatible = "samsung,exynosautov9-cmu-fsys1";
+			reg = <0x17040000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_FSYS1_BUS>,
+				 <&cmu_top GOUT_CLKCMU_FSYS1_MMC_CARD>,
+				 <&cmu_top DOUT_CLKCMU_FSYS1_USBDRD>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_fsys1_bus",
+				      "gout_clkcmu_fsys1_mmc_card",
+				      "dout_clkcmu_fsys1_usbdrd";
+		};
+
+		cmu_fsys0: clock-controller@17700000 {
+			compatible = "samsung,exynosautov9-cmu-fsys0";
+			reg = <0x17700000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_FSYS0_BUS>,
+				 <&cmu_top DOUT_CLKCMU_FSYS0_PCIE>;
+			clock-names = "oscclk",
+				      "dout_clkcmu_fsys0_bus",
+				      "dout_clkcmu_fsys0_pcie";
+		};
+
 		cmu_fsys2: clock-controller@17c00000 {
 			compatible = "samsung,exynosautov9-cmu-fsys2";
 			reg = <0x17c00000 0x8000>;
