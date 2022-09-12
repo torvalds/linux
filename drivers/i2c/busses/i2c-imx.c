@@ -1496,7 +1496,7 @@ static int i2c_imx_remove(struct platform_device *pdev)
 	if (i2c_imx->dma)
 		i2c_imx_dma_free(i2c_imx);
 
-	if (ret == 0) {
+	if (ret >= 0) {
 		/* setup chip registers to defaults */
 		imx_i2c_write_reg(0, i2c_imx, IMX_I2C_IADR);
 		imx_i2c_write_reg(0, i2c_imx, IMX_I2C_IFDR);
