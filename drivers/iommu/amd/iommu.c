@@ -2027,8 +2027,10 @@ static int protection_domain_init_v1(struct protection_domain *domain, int mode)
 
 	if (mode != PAGE_MODE_NONE) {
 		pt_root = (void *)get_zeroed_page(GFP_KERNEL);
-		if (!pt_root)
+		if (!pt_root) {
+			domain_id_free(domain->id);
 			return -ENOMEM;
+		}
 	}
 
 	amd_iommu_domain_set_pgtable(domain, pt_root, mode);
@@ -2092,8 +2094,10 @@ static struct protection_domain *protection_domain_alloc(unsigned int type)
 		goto out_err;
 
 	pgtbl_ops = alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl_cfg, domain);
-	if (!pgtbl_ops)
+	if (!pgtbl_ops) {
+		domain_id_free(domain->id);
 		goto out_err;
+	}
 
 	return domain;
 out_err:
