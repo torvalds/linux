@@ -1065,6 +1065,7 @@ static const struct svc_procedure nfs4_callback_procedures1[] = {
 		.pc_func = nfs4_callback_compound,
 		.pc_encode = nfs4_encode_void,
 		.pc_argsize = 256,
+		.pc_argzero = 256,
 		.pc_ressize = 256,
 		.pc_xdrressize = NFS4_CALLBACK_BUFSIZE,
 		.pc_name = "COMPOUND",
