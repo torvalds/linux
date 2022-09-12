@@ -247,6 +247,7 @@ enum Opt {
 	Opt_force,
 	Opt_sparse,
 	Opt_nohidden,
+	Opt_hide_dot_files,
 	Opt_showmeta,
 	Opt_acl,
 	Opt_iocharset,
@@ -266,6 +267,7 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("force",		Opt_force),
 	fsparam_flag_no("sparse",		Opt_sparse),
 	fsparam_flag_no("hidden",		Opt_nohidden),
+	fsparam_flag_no("hidedotfiles",		Opt_hide_dot_files),
 	fsparam_flag_no("acl",			Opt_acl),
 	fsparam_flag_no("showmeta",		Opt_showmeta),
 	fsparam_flag_no("prealloc",		Opt_prealloc),
@@ -353,6 +355,9 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_nohidden:
 		opts->nohidden = result.negated ? 1 : 0;
+		break;
+	case Opt_hide_dot_files:
+		opts->hide_dot_files = result.negated ? 1 : 0;
 		break;
 	case Opt_acl:
 		if (!result.negated)

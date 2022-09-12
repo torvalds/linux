@@ -97,6 +97,7 @@ struct ntfs_mount_options {
 	unsigned sparse : 1; /* Create sparse files. */
 	unsigned showmeta : 1; /* Show meta files. */
 	unsigned nohidden : 1; /* Do not show hidden files. */
+	unsigned hide_dot_files : 1; /* Set hidden flag on dot files. */
 	unsigned force : 1; /* RW mount dirty volume. */
 	unsigned noacsrules : 1; /* Exclude acs rules. */
 	unsigned prealloc : 1; /* Preallocate space when file is growing. */
