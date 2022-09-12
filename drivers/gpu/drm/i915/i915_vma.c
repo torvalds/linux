@@ -109,7 +109,7 @@ static void __i915_vma_retire(struct i915_active *ref)
 static struct i915_vma *
 vma_create(struct drm_i915_gem_object *obj,
 	   struct i915_address_space *vm,
-	   const struct i915_ggtt_view *view)
+	   const struct i915_gtt_view *view)
 {
 	struct i915_vma *pos = ERR_PTR(-E2BIG);
 	struct i915_vma *vma;
@@ -141,9 +141,9 @@ vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->obj_link);
 	RB_CLEAR_NODE(&vma->obj_node);
 
-	if (view && view->type != I915_GGTT_VIEW_NORMAL) {
-		vma->ggtt_view = *view;
-		if (view->type == I915_GGTT_VIEW_PARTIAL) {
+	if (view && view->type != I915_GTT_VIEW_NORMAL) {
+		vma->gtt_view = *view;
+		if (view->type == I915_GTT_VIEW_PARTIAL) {
 			GEM_BUG_ON(range_overflows_t(u64,
 						     view->partial.offset,
 						     view->partial.size,
@@ -151,10 +151,10 @@ vma_create(struct drm_i915_gem_object *obj,
 			vma->size = view->partial.size;
 			vma->size <<= PAGE_SHIFT;
 			GEM_BUG_ON(vma->size > obj->base.size);
-		} else if (view->type == I915_GGTT_VIEW_ROTATED) {
+		} else if (view->type == I915_GTT_VIEW_ROTATED) {
 			vma->size = intel_rotation_info_size(&view->rotated);
 			vma->size <<= PAGE_SHIFT;
-		} else if (view->type == I915_GGTT_VIEW_REMAPPED) {
+		} else if (view->type == I915_GTT_VIEW_REMAPPED) {
 			vma->size = intel_remapped_info_size(&view->remapped);
 			vma->size <<= PAGE_SHIFT;
 		}
@@ -248,7 +248,7 @@ err_vma:
 static struct i915_vma *
 i915_vma_lookup(struct drm_i915_gem_object *obj,
 	   struct i915_address_space *vm,
-	   const struct i915_ggtt_view *view)
+	   const struct i915_gtt_view *view)
 {
 	struct rb_node *rb;
 
@@ -286,7 +286,7 @@ i915_vma_lookup(struct drm_i915_gem_object *obj,
 struct i915_vma *
 i915_vma_instance(struct drm_i915_gem_object *obj,
 		  struct i915_address_space *vm,
-		  const struct i915_ggtt_view *view)
+		  const struct i915_gtt_view *view)
 {
 	struct i915_vma *vma;
 
@@ -1203,7 +1203,7 @@ err_st_alloc:
 }
 
 static noinline struct sg_table *
-intel_partial_pages(const struct i915_ggtt_view *view,
+intel_partial_pages(const struct i915_gtt_view *view,
 		    struct drm_i915_gem_object *obj)
 {
 	struct sg_table *st;
@@ -1247,33 +1247,33 @@ __i915_vma_get_pages(struct i915_vma *vma)
 	 */
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(vma->obj));
 
-	switch (vma->ggtt_view.type) {
+	switch (vma->gtt_view.type) {
 	default:
-		GEM_BUG_ON(vma->ggtt_view.type);
+		GEM_BUG_ON(vma->gtt_view.type);
 		fallthrough;
-	case I915_GGTT_VIEW_NORMAL:
+	case I915_GTT_VIEW_NORMAL:
 		pages = vma->obj->mm.pages;
 		break;
 
-	case I915_GGTT_VIEW_ROTATED:
+	case I915_GTT_VIEW_ROTATED:
 		pages =
-			intel_rotate_pages(&vma->ggtt_view.rotated, vma->obj);
+			intel_rotate_pages(&vma->gtt_view.rotated, vma->obj);
 		break;
 
-	case I915_GGTT_VIEW_REMAPPED:
+	case I915_GTT_VIEW_REMAPPED:
 		pages =
-			intel_remap_pages(&vma->ggtt_view.remapped, vma->obj);
+			intel_remap_pages(&vma->gtt_view.remapped, vma->obj);
 		break;
 
-	case I915_GGTT_VIEW_PARTIAL:
-		pages = intel_partial_pages(&vma->ggtt_view, vma->obj);
+	case I915_GTT_VIEW_PARTIAL:
+		pages = intel_partial_pages(&vma->gtt_view, vma->obj);
 		break;
 	}
 
 	if (IS_ERR(pages)) {
 		drm_err(&vma->vm->i915->drm,
 			"Failed to get pages for VMA view type %u (%ld)!\n",
-			vma->ggtt_view.type, PTR_ERR(pages));
+			vma->gtt_view.type, PTR_ERR(pages));
 		return PTR_ERR(pages);
 	}
 
@@ -1806,7 +1806,7 @@ void i915_vma_revoke_mmap(struct i915_vma *vma)
 	GEM_BUG_ON(!vma->obj->userfault_count);
 
 	node = &vma->mmo->vma_node;
-	vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
+	vma_offset = vma->gtt_view.partial.offset << PAGE_SHIFT;
 	unmap_mapping_range(vma->vm->i915->drm.anon_inode->i_mapping,
 			    drm_vma_node_offset_addr(node) + vma_offset,
 			    vma->size,
@@ -1882,12 +1882,13 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 		enum dma_resv_usage usage;
 		int idx;
 
-		obj->read_domains = 0;
 		if (flags & EXEC_OBJECT_WRITE) {
 			usage = DMA_RESV_USAGE_WRITE;
 			obj->write_domain = I915_GEM_DOMAIN_RENDER;
+			obj->read_domains = 0;
 		} else {
 			usage = DMA_RESV_USAGE_READ;
+			obj->write_domain = 0;
 		}
 
 		dma_fence_array_for_each(curr, idx, fence)

@@ -188,47 +188,47 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 			   stringify_page_sizes(vma->resource->page_sizes_gtt,
 						NULL, 0));
 		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
-			switch (vma->ggtt_view.type) {
-			case I915_GGTT_VIEW_NORMAL:
+			switch (vma->gtt_view.type) {
+			case I915_GTT_VIEW_NORMAL:
 				seq_puts(m, ", normal");
 				break;
 
-			case I915_GGTT_VIEW_PARTIAL:
+			case I915_GTT_VIEW_PARTIAL:
 				seq_printf(m, ", partial [%08llx+%x]",
-					   vma->ggtt_view.partial.offset << PAGE_SHIFT,
-					   vma->ggtt_view.partial.size << PAGE_SHIFT);
+					   vma->gtt_view.partial.offset << PAGE_SHIFT,
+					   vma->gtt_view.partial.size << PAGE_SHIFT);
 				break;
 
-			case I915_GGTT_VIEW_ROTATED:
+			case I915_GTT_VIEW_ROTATED:
 				seq_printf(m, ", rotated [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
-					   vma->ggtt_view.rotated.plane[0].width,
-					   vma->ggtt_view.rotated.plane[0].height,
-					   vma->ggtt_view.rotated.plane[0].src_stride,
-					   vma->ggtt_view.rotated.plane[0].dst_stride,
-					   vma->ggtt_view.rotated.plane[0].offset,
-					   vma->ggtt_view.rotated.plane[1].width,
-					   vma->ggtt_view.rotated.plane[1].height,
-					   vma->ggtt_view.rotated.plane[1].src_stride,
-					   vma->ggtt_view.rotated.plane[1].dst_stride,
-					   vma->ggtt_view.rotated.plane[1].offset);
+					   vma->gtt_view.rotated.plane[0].width,
+					   vma->gtt_view.rotated.plane[0].height,
+					   vma->gtt_view.rotated.plane[0].src_stride,
+					   vma->gtt_view.rotated.plane[0].dst_stride,
+					   vma->gtt_view.rotated.plane[0].offset,
+					   vma->gtt_view.rotated.plane[1].width,
+					   vma->gtt_view.rotated.plane[1].height,
+					   vma->gtt_view.rotated.plane[1].src_stride,
+					   vma->gtt_view.rotated.plane[1].dst_stride,
+					   vma->gtt_view.rotated.plane[1].offset);
 				break;
 
-			case I915_GGTT_VIEW_REMAPPED:
+			case I915_GTT_VIEW_REMAPPED:
 				seq_printf(m, ", remapped [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
-					   vma->ggtt_view.remapped.plane[0].width,
-					   vma->ggtt_view.remapped.plane[0].height,
-					   vma->ggtt_view.remapped.plane[0].src_stride,
-					   vma->ggtt_view.remapped.plane[0].dst_stride,
-					   vma->ggtt_view.remapped.plane[0].offset,
-					   vma->ggtt_view.remapped.plane[1].width,
-					   vma->ggtt_view.remapped.plane[1].height,
-					   vma->ggtt_view.remapped.plane[1].src_stride,
-					   vma->ggtt_view.remapped.plane[1].dst_stride,
-					   vma->ggtt_view.remapped.plane[1].offset);
+					   vma->gtt_view.remapped.plane[0].width,
+					   vma->gtt_view.remapped.plane[0].height,
+					   vma->gtt_view.remapped.plane[0].src_stride,
+					   vma->gtt_view.remapped.plane[0].dst_stride,
+					   vma->gtt_view.remapped.plane[0].offset,
+					   vma->gtt_view.remapped.plane[1].width,
+					   vma->gtt_view.remapped.plane[1].height,
+					   vma->gtt_view.remapped.plane[1].src_stride,
+					   vma->gtt_view.remapped.plane[1].dst_stride,
+					   vma->gtt_view.remapped.plane[1].offset);
 				break;
 
 			default:
-				MISSING_CASE(vma->ggtt_view.type);
+				MISSING_CASE(vma->gtt_view.type);
 				break;
 			}
 		}

@@ -2389,7 +2389,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     FF_DOP_CLOCK_GATE_DISABLE);
 	}
 
-	if (HAS_PERCTX_PREEMPT_CTRL(i915)) {
+	if (IS_GRAPHICS_VER(i915, 9, 12)) {
 		/* FtrPerCtxtPreemptionGranularityControl:skl,bxt,kbl,cfl,cnl,icl,tgl */
 		wa_masked_en(wal,
 			     GEN7_FF_SLICE_CS_CHICKEN1,
@@ -2685,8 +2685,6 @@ add_render_compute_tuning_settings(struct drm_i915_private *i915,
 	if (IS_DG2(i915)) {
 		wa_write_or(wal, XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS);
 		wa_write_clr_set(wal, RT_CTRL, STACKID_CTRL, STACKID_CTRL_512);
-		wa_write_clr_set(wal, DRAW_WATERMARK, VERT_WM_VAL,
-				 REG_FIELD_PREP(VERT_WM_VAL, 0x3FF));
 
 		/*
 		 * This is also listed as Wa_22012654132 for certain DG2
@@ -2702,6 +2700,15 @@ add_render_compute_tuning_settings(struct drm_i915_private *i915,
 		       0 /* write-only, so skip validation */,
 		       true);
 	}
+
+	/*
+	 * This tuning setting proves beneficial only on ATS-M designs; the
+	 * default "age based" setting is optimal on regular DG2 and other
+	 * platforms.
+	 */
+	if (INTEL_INFO(i915)->tuning_thread_rr_after_dep)
+		wa_masked_field_set(wal, GEN9_ROW_CHICKEN4, THREAD_EX_ARB_MODE,
+				    THREAD_EX_ARB_MODE_RR_AFTER_DEP);
 }
 
 /*

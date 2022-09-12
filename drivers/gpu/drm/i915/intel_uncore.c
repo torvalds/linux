@@ -112,8 +112,11 @@ fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 	 * trying to reset here does exist at this point (engines could be fused
 	 * off in ICL+), so no waiting for acks
 	 */
-	/* WaRsClearFWBitsAtReset:bdw,skl */
-	fw_clear(d, 0xffff);
+	/* WaRsClearFWBitsAtReset */
+	if (GRAPHICS_VER(d->uncore->i915) >= 12)
+		fw_clear(d, 0xefff);
+	else
+		fw_clear(d, 0xffff);
 }
 
 static inline void
@@ -2232,14 +2235,15 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
 	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
 	 * the register BAR remains the same size for all the earlier
 	 * generations up to Ironlake.
-	 * For dgfx chips register range is expanded to 4MB.
+	 * For dgfx chips register range is expanded to 4MB, and this larger
+	 * range is also used for integrated gpus beginning with Meteor Lake.
 	 */
-	if (GRAPHICS_VER(i915) < 5)
-		mmio_size = 512 * 1024;
-	else if (IS_DGFX(i915))
+	if (IS_DGFX(i915) || GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
 		mmio_size = 4 * 1024 * 1024;
-	else
+	else if (GRAPHICS_VER(i915) >= 5)
 		mmio_size = 2 * 1024 * 1024;
+	else
+		mmio_size = 512 * 1024;
 
 	uncore->regs = ioremap(phys_addr, mmio_size);
 	if (uncore->regs == NULL) {

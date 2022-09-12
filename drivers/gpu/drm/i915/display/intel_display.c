@@ -670,7 +670,7 @@ bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 
 	return DISPLAY_VER(dev_priv) < 4 ||
 		(plane->fbc &&
-		 plane_state->view.gtt.type == I915_GGTT_VIEW_NORMAL);
+		 plane_state->view.gtt.type == I915_GTT_VIEW_NORMAL);
 }
 
 /*

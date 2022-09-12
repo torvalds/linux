@@ -54,6 +54,9 @@ static int intel_guc_scrub_ctbs(void *arg)
 	struct intel_engine_cs *engine;
 	struct intel_context *ce;
 
+	if (!intel_has_gpu_reset(gt))
+		return 0;
+
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	engine = intel_selftest_find_any_engine(gt);
 
