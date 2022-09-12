@@ -5206,6 +5206,35 @@ intel_edp_add_properties(struct intel_dp *intel_dp)
 						       fixed_mode->vdisplay);
 }
 
+static void intel_edp_backlight_setup(struct intel_dp *intel_dp,
+				      struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	enum pipe pipe = INVALID_PIPE;
+
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		/*
+		 * Figure out the current pipe for the initial backlight setup.
+		 * If the current pipe isn't valid, try the PPS pipe, and if that
+		 * fails just assume pipe A.
+		 */
+		pipe = vlv_active_pipe(intel_dp);
+
+		if (pipe != PIPE_A && pipe != PIPE_B)
+			pipe = intel_dp->pps.pps_pipe;
+
+		if (pipe != PIPE_A && pipe != PIPE_B)
+			pipe = PIPE_A;
+
+		drm_dbg_kms(&i915->drm,
+			    "[CONNECTOR:%d:%s] using pipe %c for initial backlight setup\n",
+			    connector->base.base.id, connector->base.name,
+			    pipe_name(pipe));
+	}
+
+	intel_backlight_setup(connector, pipe);
+}
+
 static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector)
 {
@@ -5215,7 +5244,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_display_mode *fixed_mode;
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	bool has_dpcd;
-	enum pipe pipe = INVALID_PIPE;
 	struct edid *edid;
 
 	if (!intel_dp_is_edp(intel_dp))
@@ -5290,28 +5318,9 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		/*
-		 * Figure out the current pipe for the initial backlight setup.
-		 * If the current pipe isn't valid, try the PPS pipe, and if that
-		 * fails just assume pipe A.
-		 */
-		pipe = vlv_active_pipe(intel_dp);
-
-		if (pipe != PIPE_A && pipe != PIPE_B)
-			pipe = intel_dp->pps.pps_pipe;
-
-		if (pipe != PIPE_A && pipe != PIPE_B)
-			pipe = PIPE_A;
-
-		drm_dbg_kms(&dev_priv->drm,
-			    "using pipe %c for initial backlight setup\n",
-			    pipe_name(pipe));
-	}
-
 	intel_panel_init(intel_connector);
 
-	intel_backlight_setup(intel_connector, pipe);
+	intel_edp_backlight_setup(intel_dp, intel_connector);
 
 	intel_edp_add_properties(intel_dp);
 
