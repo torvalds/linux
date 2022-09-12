@@ -123,8 +123,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_can>;
 		regulator-name = "can2_stby";
-		gpio = <&gpio3 19 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
