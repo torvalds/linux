@@ -511,7 +511,8 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio, u8 *dst
 }
 
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
-			     struct list_head *list, int search_commit)
+			     struct list_head *list, int search_commit,
+			     bool nowait)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key key;
@@ -533,6 +534,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	if (!path)
 		return -ENOMEM;
 
+	path->nowait = nowait;
 	if (search_commit) {
 		path->skip_locking = 1;
 		path->reada = READA_FORWARD;

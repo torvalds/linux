@@ -3229,7 +3229,7 @@ static int scrub_raid56_data_stripe_for_parity(struct scrub_ctx *sctx,
 
 		ret = btrfs_lookup_csums_range(csum_root, extent_start,
 					       extent_start + extent_size - 1,
-					       &sctx->csum_list, 1);
+					       &sctx->csum_list, 1, false);
 		if (ret) {
 			scrub_parity_mark_sectors_error(sparity, extent_start,
 							extent_size);
@@ -3455,7 +3455,7 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 		if (extent_flags & BTRFS_EXTENT_FLAG_DATA) {
 			ret = btrfs_lookup_csums_range(csum_root, cur_logical,
 					cur_logical + scrub_len - 1,
-					&sctx->csum_list, 1);
+					&sctx->csum_list, 1, false);
 			if (ret)
 				break;
 		}

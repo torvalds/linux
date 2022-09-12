@@ -2220,6 +2220,12 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	}
 
 	if (!mutex_trylock(&head->mutex)) {
+		if (path->nowait) {
+			spin_unlock(&delayed_refs->lock);
+			btrfs_put_transaction(cur_trans);
+			return -EAGAIN;
+		}
+
 		refcount_inc(&head->refs);
 		spin_unlock(&delayed_refs->lock);
 

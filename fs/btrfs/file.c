@@ -1501,7 +1501,7 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 
 	btrfs_lock_and_flush_ordered_range(inode, lockstart, lockend, NULL);
 	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
-			NULL, NULL, NULL, false);
+			NULL, NULL, NULL, false, false);
 	if (ret <= 0) {
 		ret = 0;
 		btrfs_drew_write_unlock(&root->snapshot_lock);

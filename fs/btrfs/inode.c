@@ -1666,7 +1666,7 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 }
 
 static noinline int csum_exist_in_range(struct btrfs_fs_info *fs_info,
-					u64 bytenr, u64 num_bytes)
+					u64 bytenr, u64 num_bytes, bool nowait)
 {
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, bytenr);
 	struct btrfs_ordered_sum *sums;
@@ -1674,7 +1674,8 @@ static noinline int csum_exist_in_range(struct btrfs_fs_info *fs_info,
 	LIST_HEAD(list);
 
 	ret = btrfs_lookup_csums_range(csum_root, bytenr,
-				       bytenr + num_bytes - 1, &list, 0);
+				       bytenr + num_bytes - 1, &list, 0,
+				       nowait);
 	if (ret == 0 && list_empty(&list))
 		return 0;
 
@@ -1800,6 +1801,7 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	u8 extent_type;
 	int can_nocow = 0;
 	int ret = 0;
+	bool nowait = path->nowait;
 
 	fi = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_file_extent_item);
 	extent_type = btrfs_file_extent_type(leaf, fi);
@@ -1876,7 +1878,8 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	 * Force COW if csums exist in the range. This ensures that csums for a
 	 * given extent are either valid or do not exist.
 	 */
-	ret = csum_exist_in_range(root->fs_info, args->disk_bytenr, args->num_bytes);
+	ret = csum_exist_in_range(root->fs_info, args->disk_bytenr, args->num_bytes,
+				  nowait);
 	WARN_ON_ONCE(ret > 0 && is_freespace_inode);
 	if (ret != 0)
 		goto out;
@@ -7167,7 +7170,7 @@ static bool btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
  */
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
-			      u64 *ram_bytes, bool strict)
+			      u64 *ram_bytes, bool nowait, bool strict)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct can_nocow_file_extent_args nocow_args = { 0 };
@@ -7183,6 +7186,7 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+	path->nowait = nowait;
 
 	ret = btrfs_lookup_file_extent(NULL, root, path,
 			btrfs_ino(BTRFS_I(inode)), offset, 0);
@@ -7452,7 +7456,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		block_start = em->block_start + (start - em->start);
 
 		if (can_nocow_extent(inode, start, &len, &orig_start,
-				     &orig_block_len, &ram_bytes, false) == 1) {
+				     &orig_block_len, &ram_bytes, false, false) == 1) {
 			bg = btrfs_inc_nocow_writers(fs_info, block_start);
 			if (bg)
 				can_nocow = true;
@@ -11135,7 +11139,7 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 		free_extent_map(em);
 		em = NULL;
 
-		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL, true);
+		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL, false, true);
 		if (ret < 0) {
 			goto out;
 		} else if (ret) {
