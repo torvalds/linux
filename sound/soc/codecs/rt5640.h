@@ -1984,6 +1984,20 @@
 #define RT5640_M_MONO_ADC_R_SFT			12
 #define RT5640_MCLK_DET				(0x1 << 11)
 
+/* General Control 1 (0xfb) */
+#define RT5640_IRQ_JD2_MASK			(0x1 << 12)
+#define RT5640_IRQ_JD2_SFT			12
+#define RT5640_IRQ_JD2_BP			(0x0 << 12)
+#define RT5640_IRQ_JD2_NOR			(0x1 << 12)
+#define RT5640_JD2_P_MASK			(0x1 << 10)
+#define RT5640_JD2_P_SFT			10
+#define RT5640_JD2_P_NOR			(0x0 << 10)
+#define RT5640_JD2_P_INV			(0x1 << 10)
+#define RT5640_JD2_MASK				(0x1 << 8)
+#define RT5640_JD2_SFT				8
+#define RT5640_JD2_DIS				(0x0 << 8)
+#define RT5640_JD2_EN				(0x1 << 8)
+
 /* Codec Private Register definition */
 
 /* MIC Over current threshold scale factor (0x15) */
