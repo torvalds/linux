@@ -4779,7 +4779,7 @@ static u16 skl_linetime_wm(const struct intel_crtc_state *crtc_state)
 
 	/* Display WA #1135: BXT:ALL GLK:ALL */
 	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
-	    dev_priv->ipc_enabled)
+	    skl_watermark_ipc_enabled(dev_priv))
 		linetime_wm /= 2;
 
 	return min(linetime_wm, 0x1ff);
@@ -8782,7 +8782,7 @@ int intel_modeset_init(struct drm_i915_private *i915)
 	intel_hpd_init(i915);
 	intel_hpd_poll_disable(i915);
 
-	intel_init_ipc(i915);
+	skl_watermark_ipc_init(i915);
 
 	return 0;
 }
@@ -8913,7 +8913,7 @@ void intel_display_resume(struct drm_device *dev)
 	if (!ret)
 		ret = __intel_display_resume(i915, state, &ctx);
 
-	intel_enable_ipc(i915);
+	skl_watermark_ipc_update(i915);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 

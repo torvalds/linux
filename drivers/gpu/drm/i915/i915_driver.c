@@ -1713,7 +1713,7 @@ static int intel_runtime_resume(struct device *kdev)
 		intel_hpd_poll_disable(dev_priv);
 	}
 
-	intel_enable_ipc(dev_priv);
+	skl_watermark_ipc_update(dev_priv);
 
 	enable_rpm_wakeref_asserts(rpm);
 

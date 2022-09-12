@@ -988,7 +988,7 @@ static int i915_ipc_status_show(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = m->private;
 
 	seq_printf(m, "Isochronous Priority Control: %s\n",
-			str_yes_no(dev_priv->ipc_enabled));
+		   str_yes_no(skl_watermark_ipc_enabled(dev_priv)));
 	return 0;
 }
 
@@ -1016,11 +1016,11 @@ static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
 		return ret;
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		if (!dev_priv->ipc_enabled && enable)
+		if (!skl_watermark_ipc_enabled(dev_priv) && enable)
 			drm_info(&dev_priv->drm,
 				 "Enabling IPC: WM will be proper only after next commit\n");
 		dev_priv->ipc_enabled = enable;
-		intel_enable_ipc(dev_priv);
+		skl_watermark_ipc_update(dev_priv);
 	}
 
 	return len;

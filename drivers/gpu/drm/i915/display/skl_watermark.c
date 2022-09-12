@@ -1843,10 +1843,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	 * WaIncreaseLatencyIPCEnabled: kbl,cfl
 	 * Display WA #1141: kbl,cfl
 	 */
-	if ((IS_KABYLAKE(i915) ||
-	     IS_COFFEELAKE(i915) ||
-	     IS_COMETLAKE(i915)) &&
-	    i915->ipc_enabled)
+	if ((IS_KABYLAKE(i915) || IS_COFFEELAKE(i915) || IS_COMETLAKE(i915)) &&
+	    skl_watermark_ipc_enabled(i915))
 		latency += 4;
 
 	if (skl_needs_memory_bw_wa(i915) && wp->x_tiled)
@@ -2014,7 +2012,7 @@ static void skl_compute_transition_wm(struct drm_i915_private *i915,
 	u16 wm0_blocks, trans_offset, blocks;
 
 	/* Transition WM don't make any sense if ipc is disabled */
-	if (!i915->ipc_enabled)
+	if (!skl_watermark_ipc_enabled(i915))
 		return;
 
 	/*
@@ -3122,7 +3120,12 @@ void intel_wm_state_verify(struct intel_crtc *crtc,
 	kfree(hw);
 }
 
-void intel_enable_ipc(struct drm_i915_private *i915)
+bool skl_watermark_ipc_enabled(struct drm_i915_private *i915)
+{
+	return i915->ipc_enabled;
+}
+
+void skl_watermark_ipc_update(struct drm_i915_private *i915)
 {
 	u32 val;
 
@@ -3131,7 +3134,7 @@ void intel_enable_ipc(struct drm_i915_private *i915)
 
 	val = intel_uncore_read(&i915->uncore, DISP_ARB_CTL2);
 
-	if (i915->ipc_enabled)
+	if (skl_watermark_ipc_enabled(i915))
 		val |= DISP_IPC_ENABLE;
 	else
 		val &= ~DISP_IPC_ENABLE;
@@ -3139,7 +3142,7 @@ void intel_enable_ipc(struct drm_i915_private *i915)
 	intel_uncore_write(&i915->uncore, DISP_ARB_CTL2, val);
 }
 
-static bool intel_can_enable_ipc(struct drm_i915_private *i915)
+static bool skl_watermark_ipc_can_enable(struct drm_i915_private *i915)
 {
 	/* Display WA #0477 WaDisableIPC: skl */
 	if (IS_SKYLAKE(i915))
@@ -3154,14 +3157,14 @@ static bool intel_can_enable_ipc(struct drm_i915_private *i915)
 	return true;
 }
 
-void intel_init_ipc(struct drm_i915_private *i915)
+void skl_watermark_ipc_init(struct drm_i915_private *i915)
 {
 	if (!HAS_IPC(i915))
 		return;
 
-	i915->ipc_enabled = intel_can_enable_ipc(i915);
+	i915->ipc_enabled = skl_watermark_ipc_can_enable(i915);
 
-	intel_enable_ipc(i915);
+	skl_watermark_ipc_update(i915);
 }
 
 static void
