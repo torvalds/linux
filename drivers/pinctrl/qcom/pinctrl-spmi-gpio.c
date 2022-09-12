@@ -101,6 +101,9 @@
 #define PMIC_GPIO_OUT_BUF_OPEN_DRAIN_NMOS	1
 #define PMIC_GPIO_OUT_BUF_OPEN_DRAIN_PMOS	2
 
+#define PMIC_GPIO_OUT_STRENGTH_LOW		1
+#define PMIC_GPIO_OUT_STRENGTH_HIGH		3
+
 /* PMIC_GPIO_REG_EN_CTL */
 #define PMIC_GPIO_REG_MASTER_EN_SHIFT		7
 
@@ -439,7 +442,17 @@ static int pmic_gpio_config_get(struct pinctrl_dev *pctldev,
 		arg = pad->pullup;
 		break;
 	case PMIC_GPIO_CONF_STRENGTH:
-		arg = pad->strength;
+		switch (pad->strength) {
+		case PMIC_GPIO_OUT_STRENGTH_HIGH:
+			arg = PMIC_GPIO_STRENGTH_HIGH;
+			break;
+		case PMIC_GPIO_OUT_STRENGTH_LOW:
+			arg = PMIC_GPIO_STRENGTH_LOW;
+			break;
+		default:
+			arg = pad->strength;
+			break;
+		}
 		break;
 	case PMIC_GPIO_CONF_ATEST:
 		arg = pad->atest;
@@ -526,7 +539,17 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PMIC_GPIO_CONF_STRENGTH:
 			if (arg > PMIC_GPIO_STRENGTH_LOW)
 				return -EINVAL;
-			pad->strength = arg;
+			switch (arg) {
+			case PMIC_GPIO_STRENGTH_HIGH:
+				pad->strength = PMIC_GPIO_OUT_STRENGTH_HIGH;
+				break;
+			case PMIC_GPIO_STRENGTH_LOW:
+				pad->strength = PMIC_GPIO_OUT_STRENGTH_LOW;
+				break;
+			default:
+				pad->strength = arg;
+				break;
+			}
 			break;
 		case PMIC_GPIO_CONF_ATEST:
 			if (!pad->lv_mv_type || arg > 4)
