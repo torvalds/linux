@@ -1,3 +1,4 @@
 build.config.msm.pineapple
 build.config.msm.kalama
-build.config.msm.pineapple.tuivm
+build.config.msm.pineapple.vm
+build.config.msm.kalama.vm
