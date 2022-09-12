@@ -2164,6 +2164,7 @@ int btrfs_search_old_slot(struct btrfs_root *root, const struct btrfs_key *key,
 
 	lowest_level = p->lowest_level;
 	WARN_ON(p->nodes[0] != NULL);
+	ASSERT(!p->nowait);
 
 	if (p->search_commit_root) {
 		BUG_ON(time_seq);
@@ -4465,6 +4466,7 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 	int ret = 1;
 	int keep_locks = path->keep_locks;
 
+	ASSERT(!path->nowait);
 	path->keep_locks = 1;
 again:
 	cur = btrfs_read_lock_root_node(root);
@@ -4644,6 +4646,8 @@ int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 	u32 nritems;
 	int ret;
 	int i;
+
+	ASSERT(!path->nowait);
 
 	nritems = btrfs_header_nritems(path->nodes[0]);
 	if (nritems == 0)
