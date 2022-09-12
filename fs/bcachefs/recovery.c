@@ -222,7 +222,6 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		struct journal_keys new_keys = {
 			.nr			= keys->nr,
 			.size			= max_t(size_t, keys->size, 8) * 2,
-			.journal_seq_base	= keys->journal_seq_base,
 		};
 
 		new_keys.d = kvmalloc(sizeof(new_keys.d[0]) * new_keys.size, GFP_KERNEL);
@@ -493,9 +492,6 @@ static int journal_keys_sort(struct bch_fs *c)
 		if (!i || i->ignore)
 			continue;
 
-		if (!keys->journal_seq_base)
-			keys->journal_seq_base = le64_to_cpu(i->j.seq);
-
 		for_each_jset_key(k, _n, entry, &i->j)
 			nr_keys++;
 	}
@@ -515,15 +511,12 @@ static int journal_keys_sort(struct bch_fs *c)
 		if (!i || i->ignore)
 			continue;
 
-		BUG_ON(le64_to_cpu(i->j.seq) - keys->journal_seq_base > U32_MAX);
-
 		for_each_jset_key(k, _n, entry, &i->j)
 			keys->d[keys->nr++] = (struct journal_key) {
 				.btree_id	= entry->btree_id,
 				.level		= entry->level,
 				.k		= k,
-				.journal_seq	= le64_to_cpu(i->j.seq) -
-					keys->journal_seq_base,
+				.journal_seq	= le64_to_cpu(i->j.seq),
 				.journal_offset	= k->_data - i->j._data,
 			};
 	}
@@ -617,15 +610,12 @@ static int bch2_journal_replay(struct bch_fs *c)
 	     sizeof(keys_sorted[0]),
 	     journal_sort_seq_cmp, NULL);
 
-	if (keys->nr)
-		replay_now_at(j, keys->journal_seq_base);
-
 	for (i = 0; i < keys->nr; i++) {
 		k = keys_sorted[i];
 
 		cond_resched();
 
-		replay_now_at(j, keys->journal_seq_base + k->journal_seq);
+		replay_now_at(j, k->journal_seq);
 
 		ret = bch2_trans_do(c, NULL, NULL,
 				    BTREE_INSERT_LAZY_RW|
