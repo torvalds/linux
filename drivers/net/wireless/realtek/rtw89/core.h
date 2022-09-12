@@ -2069,7 +2069,9 @@ struct rtw89_ra_info {
 	u8 ra_csi_rate_en:1;
 	u8 fixed_csi_rate_en:1;
 	u8 cr_tbl_sel:1;
-	u8 rsvd2:5;
+	u8 fix_giltf_en:1;
+	u8 fix_giltf:3;
+	u8 rsvd2:1;
 	u8 csi_mcs_ss_idx;
 	u8 csi_mode:2;
 	u8 csi_gi_ltf:3;

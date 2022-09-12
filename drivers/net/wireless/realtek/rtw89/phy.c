@@ -193,6 +193,40 @@ static const u64
 rtw89_ra_mask_he_rates[4] = {RA_MASK_HE_1SS_RATES, RA_MASK_HE_2SS_RATES,
 			     RA_MASK_HE_3SS_RATES, RA_MASK_HE_4SS_RATES};
 
+static void rtw89_phy_ra_gi_ltf(struct rtw89_dev *rtwdev,
+				struct rtw89_sta *rtwsta,
+				bool *fix_giltf_en, u8 *fix_giltf)
+{
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	struct cfg80211_bitrate_mask *mask = &rtwsta->mask;
+	u8 band = chan->band_type;
+	enum nl80211_band nl_band = rtw89_hw_to_nl80211_band(band);
+	u8 he_gi = mask->control[nl_band].he_gi;
+	u8 he_ltf = mask->control[nl_band].he_ltf;
+
+	if (!rtwsta->use_cfg_mask)
+		return;
+
+	if (he_ltf == 2 && he_gi == 2) {
+		*fix_giltf = RTW89_GILTF_LGI_4XHE32;
+	} else if (he_ltf == 2 && he_gi == 0) {
+		*fix_giltf = RTW89_GILTF_SGI_4XHE08;
+	} else if (he_ltf == 1 && he_gi == 1) {
+		*fix_giltf = RTW89_GILTF_2XHE16;
+	} else if (he_ltf == 1 && he_gi == 0) {
+		*fix_giltf = RTW89_GILTF_2XHE08;
+	} else if (he_ltf == 0 && he_gi == 1) {
+		*fix_giltf = RTW89_GILTF_1XHE16;
+	} else if (he_ltf == 0 && he_gi == 0) {
+		*fix_giltf = RTW89_GILTF_1XHE08;
+	} else {
+		*fix_giltf_en = false;
+		return;
+	}
+
+	*fix_giltf_en = true;
+}
+
 static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 				    struct ieee80211_sta *sta, bool csi)
 {
@@ -210,8 +244,10 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	u8 bw_mode = 0;
 	u8 stbc_en = 0;
 	u8 ldpc_en = 0;
+	u8 fix_giltf = 0;
 	u8 i;
 	bool sgi = false;
+	bool fix_giltf_en = false;
 
 	memset(ra, 0, sizeof(*ra));
 	/* Set the ra mask from sta's capability */
@@ -226,6 +262,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 		if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[1] &
 		    IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD)
 			ldpc_en = 1;
+		rtw89_phy_ra_gi_ltf(rtwdev, rtwsta, &fix_giltf_en, &fix_giltf);
 	} else if (sta->deflink.vht_cap.vht_supported) {
 		u16 mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.rx_mcs_map);
 
@@ -335,6 +372,8 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->ss_num = min(sta->deflink.rx_nss, rtwdev->hal.tx_nss) - 1;
 	ra->en_sgi = sgi;
 	ra->ra_mask = ra_mask;
+	ra->fix_giltf_en = fix_giltf_en;
+	ra->fix_giltf = fix_giltf;
 
 	if (!csi)
 		return;

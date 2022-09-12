@@ -361,6 +361,16 @@ static inline void RTW89_SET_FWCMD_RA_CR_TBL_SEL(void *cmd, u32 val)
 	le32p_replace_bits((__le32 *)(cmd) + 0x03, val, BIT(10));
 }
 
+static inline void RTW89_SET_FWCMD_RA_FIX_GILTF_EN(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 0x03, val, BIT(11));
+}
+
+static inline void RTW89_SET_FWCMD_RA_FIX_GILTF(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 0x03, val, GENMASK(14, 12));
+}
+
 static inline void RTW89_SET_FWCMD_RA_FIXED_CSI_MCS_SS_IDX(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)(cmd) + 0x03, val, GENMASK(23, 16));
