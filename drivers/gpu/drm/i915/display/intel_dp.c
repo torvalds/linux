@@ -5183,16 +5183,8 @@ intel_edp_add_properties(struct intel_dp *intel_dp)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_preferred_fixed_mode(connector);
-	u32 allowed_scalers;
 
-	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) |
-		BIT(DRM_MODE_SCALE_FULLSCREEN);
-	if (!HAS_GMCH(i915))
-		allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
-
-	drm_connector_attach_scaling_mode_property(&connector->base, allowed_scalers);
-
-	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+	intel_attach_scaling_mode_property(&connector->base);
 
 	if (!fixed_mode)
 		return;

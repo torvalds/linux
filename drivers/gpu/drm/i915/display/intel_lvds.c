@@ -816,15 +816,7 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 
 static void intel_lvds_add_properties(struct drm_connector *connector)
 {
-	u32 allowed_scalers;
-
-	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) |
-		BIT(DRM_MODE_SCALE_FULLSCREEN) |
-		BIT(DRM_MODE_SCALE_CENTER);
-
-	drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
-
-	connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+	intel_attach_scaling_mode_property(connector);
 }
 
 /**
