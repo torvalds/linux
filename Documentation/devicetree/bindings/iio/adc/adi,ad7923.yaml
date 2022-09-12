@@ -36,6 +36,10 @@ properties:
     description: |
       The regulator supply for ADC reference voltage.
 
+  adi,range-double:
+    description: Sets the analog input range from 0 to 2xVREF.
+    type: boolean
+
   '#address-cells':
     const: 1
 
