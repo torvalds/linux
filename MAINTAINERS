@@ -5373,8 +5373,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 F:	drivers/cpuidle/cpuidle-big_little.c
 
 CPUIDLE DRIVER - ARM EXYNOS
-M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+R:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 M:	Kukjin Kim <kgene@kernel.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org
@@ -12409,7 +12409,6 @@ F:	drivers/power/supply/max77976_charger.c
 
 MAXIM MUIC CHARGER DRIVERS FOR EXYNOS BASED BOARDS
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
-M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 B:	mailto:linux-samsung-soc@vger.kernel.org
@@ -12421,7 +12420,6 @@ F:	drivers/power/supply/max77693_charger.c
 MAXIM PMIC AND MUIC DRIVERS FOR EXYNOS BASED BOARDS
 M:	Chanwoo Choi <cw00.choi@samsung.com>
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
-M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 B:	mailto:linux-samsung-soc@vger.kernel.org
@@ -16537,14 +16535,6 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/usb/pwc/*
 F:	include/trace/events/pwc.h
 
-PWM FAN DRIVER
-M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-L:	linux-hwmon@vger.kernel.org
-S:	Supported
-F:	Documentation/devicetree/bindings/hwmon/pwm-fan.txt
-F:	Documentation/hwmon/pwm-fan.rst
-F:	drivers/hwmon/pwm-fan.c
-
 PWM IR Transmitter
 M:	Sean Young <sean@mess.org>
 L:	linux-media@vger.kernel.org
@@ -17961,7 +17951,6 @@ F:	drivers/platform/x86/samsung-laptop.c
 
 SAMSUNG MULTIFUNCTION PMIC DEVICE DRIVERS
 M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
-M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	linux-kernel@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org
 S:	Supported
