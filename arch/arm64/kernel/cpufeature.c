@@ -108,8 +108,7 @@ DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 EXPORT_SYMBOL(cpu_hwcaps);
 static struct arm64_cpu_capabilities const __ro_after_init *cpu_hwcaps_ptrs[ARM64_NCAPS];
 
-/* Need also bit for ARM64_CB_PATCH */
-DECLARE_BITMAP(boot_capabilities, ARM64_NPATCHABLE);
+DECLARE_BITMAP(boot_capabilities, ARM64_NCAPS);
 
 bool arm64_use_ng_mappings = false;
 EXPORT_SYMBOL(arm64_use_ng_mappings);
@@ -1392,6 +1391,12 @@ u64 __read_sysreg_by_encoding(u32 sys_id)
 #include <linux/irqchip/arm-gic-v3.h>
 
 static bool
+has_always(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	return true;
+}
+
+static bool
 feature_matches(u64 reg, const struct arm64_cpu_capabilities *entry)
 {
 	int val = cpuid_feature_extract_field_width(reg, entry->field_pos,
@@ -2087,6 +2092,16 @@ cpucap_panic_on_conflict(const struct arm64_cpu_capabilities *cap)
 }
 
 static const struct arm64_cpu_capabilities arm64_features[] = {
+	{
+		.capability = ARM64_ALWAYS_BOOT,
+		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
+		.matches = has_always,
+	},
+	{
+		.capability = ARM64_ALWAYS_SYSTEM,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_always,
+	},
 	{
 		.desc = "GIC system register CPU interface",
 		.capability = ARM64_HAS_SYSREG_GIC_CPUIF,

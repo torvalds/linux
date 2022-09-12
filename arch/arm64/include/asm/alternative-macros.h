@@ -2,10 +2,16 @@
 #ifndef __ASM_ALTERNATIVE_MACROS_H
 #define __ASM_ALTERNATIVE_MACROS_H
 
+#include <linux/const.h>
+
 #include <asm/cpucaps.h>
 #include <asm/insn-def.h>
 
-#define ARM64_CB_PATCH ARM64_NCAPS
+#define ARM64_CB_BIT	(UL(1) << 15)
+
+#if ARM64_NCAPS >= ARM64_CB_BIT
+#error "cpucaps have overflown ARM64_CB_BIT"
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -73,8 +79,8 @@
 #define _ALTERNATIVE_CFG(oldinstr, newinstr, feature, cfg, ...)	\
 	__ALTERNATIVE_CFG(oldinstr, newinstr, feature, IS_ENABLED(cfg))
 
-#define ALTERNATIVE_CB(oldinstr, cb) \
-	__ALTERNATIVE_CFG_CB(oldinstr, ARM64_CB_PATCH, 1, cb)
+#define ALTERNATIVE_CB(oldinstr, feature, cb) \
+	__ALTERNATIVE_CFG_CB(oldinstr, ARM64_CB_BIT | (feature), 1, cb)
 #else
 
 #include <asm/assembler.h>
@@ -82,7 +88,7 @@
 .macro altinstruction_entry orig_offset alt_offset feature orig_len alt_len
 	.word \orig_offset - .
 	.word \alt_offset - .
-	.hword \feature
+	.hword (\feature)
 	.byte \orig_len
 	.byte \alt_len
 .endm
@@ -141,10 +147,10 @@
 661:
 .endm
 
-.macro alternative_cb cb
+.macro alternative_cb cap, cb
 	.set .Lasm_alt_mode, 0
 	.pushsection .altinstructions, "a"
-	altinstruction_entry 661f, \cb, ARM64_CB_PATCH, 662f-661f, 0
+	altinstruction_entry 661f, \cb, ARM64_CB_BIT | \cap, 662f-661f, 0
 	.popsection
 661:
 .endm

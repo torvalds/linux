@@ -2,6 +2,8 @@
 #
 # Internal CPU capabilities constants, keep this list sorted
 
+ALWAYS_BOOT
+ALWAYS_SYSTEM
 BTI
 # Unreliable: use system_supports_32bit_el0() instead.
 HAS_32BIT_EL0_DO_NOT_USE

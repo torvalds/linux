@@ -21,6 +21,9 @@
 #define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
 #define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
 
+#define ALT_CAP(a)		((a)->cpufeature & ~ARM64_CB_BIT)
+#define ALT_HAS_CB(a)		((a)->cpufeature & ARM64_CB_BIT)
+
 /* Volatile, as we may be patching the guts of READ_ONCE() */
 static volatile int all_alternatives_applied;
 
@@ -143,16 +146,15 @@ static void __nocfi __apply_alternatives(const struct alt_region *region,
 
 	for (alt = region->begin; alt < region->end; alt++) {
 		int nr_inst;
+		int cap = ALT_CAP(alt);
 
-		if (!test_bit(alt->cpufeature, feature_mask))
+		if (!test_bit(cap, feature_mask))
 			continue;
 
-		/* Use ARM64_CB_PATCH as an unconditional patch */
-		if (alt->cpufeature < ARM64_CB_PATCH &&
-		    !cpus_have_cap(alt->cpufeature))
+		if (!cpus_have_cap(cap))
 			continue;
 
-		if (alt->cpufeature == ARM64_CB_PATCH)
+		if (ALT_HAS_CB(alt))
 			BUG_ON(alt->alt_len != 0);
 		else
 			BUG_ON(alt->alt_len != alt->orig_len);
@@ -161,10 +163,10 @@ static void __nocfi __apply_alternatives(const struct alt_region *region,
 		updptr = is_module ? origptr : lm_alias(origptr);
 		nr_inst = alt->orig_len / AARCH64_INSN_SIZE;
 
-		if (alt->cpufeature < ARM64_CB_PATCH)
-			alt_cb = patch_alternative;
-		else
+		if (ALT_HAS_CB(alt))
 			alt_cb  = ALT_REPL_PTR(alt);
+		else
+			alt_cb = patch_alternative;
 
 		alt_cb(alt, origptr, updptr, nr_inst);
 
@@ -208,10 +210,10 @@ static int __apply_alternatives_multi_stop(void *unused)
 			cpu_relax();
 		isb();
 	} else {
-		DECLARE_BITMAP(remaining_capabilities, ARM64_NPATCHABLE);
+		DECLARE_BITMAP(remaining_capabilities, ARM64_NCAPS);
 
 		bitmap_complement(remaining_capabilities, boot_capabilities,
-				  ARM64_NPATCHABLE);
+				  ARM64_NCAPS);
 
 		BUG_ON(all_alternatives_applied);
 		__apply_alternatives(&kernel_alternatives, false,
@@ -254,9 +256,9 @@ void apply_alternatives_module(void *start, size_t length)
 		.begin	= start,
 		.end	= start + length,
 	};
-	DECLARE_BITMAP(all_capabilities, ARM64_NPATCHABLE);
+	DECLARE_BITMAP(all_capabilities, ARM64_NCAPS);
 
-	bitmap_fill(all_capabilities, ARM64_NPATCHABLE);
+	bitmap_fill(all_capabilities, ARM64_NCAPS);
 
 	__apply_alternatives(&region, true, &all_capabilities[0]);
 }
