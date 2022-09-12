@@ -3129,6 +3129,8 @@
 #define mmGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32_BASE_IDX                                          0
 #define mmGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32                                                   0x15cc
 #define mmGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32_BASE_IDX                                          0
+#define mmGCVM_DEBUG                                                                                   0x15cd
+#define mmGCVM_DEBUG_BASE_IDX                                                                          0
 #define mmGCVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32                                             0x15ce
 #define mmGCVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32_BASE_IDX                                    0
 #define mmGCVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_HI32                                             0x15cf
@@ -3151,6 +3153,8 @@
 #define mmGCVM_L2_BANK_SELECT_RESERVED_CID2_BASE_IDX                                                   0
 #define mmGCVM_L2_CACHE_PARITY_CNTL                                                                    0x15d8
 #define mmGCVM_L2_CACHE_PARITY_CNTL_BASE_IDX                                                           0
+#define mmGCVM_L2_IH_LOG_CNTL                                                                          0x15d9
+#define mmGCVM_L2_IH_LOG_CNTL_BASE_IDX                                                                 0
 #define mmGCVM_L2_CNTL5                                                                                0x15dc
 #define mmGCVM_L2_CNTL5_BASE_IDX                                                                       0
 #define mmGCVM_L2_GCR_CNTL                                                                             0x15dd
@@ -9796,6 +9800,10 @@
 
 // addressBlock: gc_pwrdec
 // base address: 0x3c000
+#define mmCGTS_TCC_DISABLE                                                                             0x5006
+#define mmCGTS_TCC_DISABLE_BASE_IDX                                                                    1
+#define mmCGTS_USER_TCC_DISABLE                                                                        0x5007
+#define mmCGTS_USER_TCC_DISABLE_BASE_IDX                                                               1
 #define mmSQ_ALU_CLK_CTRL                                                                              0x508e
 #define mmSQ_ALU_CLK_CTRL_BASE_IDX                                                                     1
 #define mmSQ_TEX_CLK_CTRL                                                                              0x508f

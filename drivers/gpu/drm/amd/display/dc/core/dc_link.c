@@ -1311,6 +1311,14 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 				sink->edid_caps.audio_modes[i].sample_rate,
 				sink->edid_caps.audio_modes[i].sample_size);
 		}
+
+		if (link->connector_signal == SIGNAL_TYPE_EDP) {
+			// Init dc_panel_config
+			dm_helpers_init_panel_settings(dc_ctx, &link->panel_config);
+			// Override dc_panel_config if system has specific settings
+			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);
+		}
+
 	} else {
 		/* From Connected-to-Disconnected. */
 		link->type = dc_connection_none;
@@ -2069,11 +2077,7 @@ static enum dc_status enable_link_edp(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx)
 {
-	enum dc_status status;
-
-	status = enable_link_dp(state, pipe_ctx);
-
-	return status;
+	return enable_link_dp(state, pipe_ctx);
 }
 
 static enum dc_status enable_link_dp_mst(
@@ -4295,18 +4299,6 @@ void core_link_enable_stream(
 		if (pipe_ctx->stream->dpms_off)
 			return;
 
-		/* Have to setup DSC before DIG FE and BE are connected (which happens before the
-		 * link training). This is to make sure the bandwidth sent to DIG BE won't be
-		 * bigger than what the link and/or DIG BE can handle. VBID[6]/CompressedStream_flag
-		 * will be automatically set at a later time when the video is enabled
-		 * (DP_VID_STREAM_EN = 1).
-		 */
-		if (pipe_ctx->stream->timing.flags.DSC) {
-			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
-					dc_is_virtual_signal(pipe_ctx->stream->signal))
-				dp_set_dsc_enable(pipe_ctx, true);
-		}
-
 		status = enable_link(state, pipe_ctx);
 
 		if (status != DC_OK) {
@@ -4736,7 +4728,7 @@ bool dc_link_should_enable_fec(const struct dc_link *link)
 	else if (link->connector_signal == SIGNAL_TYPE_EDP
 			&& (link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.
 			 dsc_support.DSC_SUPPORT == false
-				|| link->dc->debug.disable_dsc_edp
+				|| link->panel_config.dsc.disable_dsc_edp
 				|| !link->dc->caps.edp_dsc_support))
 		force_disable = true;
 

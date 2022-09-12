@@ -5793,8 +5793,10 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 		/* Enpoint decompression with DP-to-DP peer device */
 		if ((endpoint_dsc & DP_DSC_DECOMPRESSION_IS_SUPPORTED) &&
 		    (endpoint_fec & DP_FEC_CAPABLE) &&
-		    (upstream_dsc & 0x2) /* DSC passthrough */)
+		    (upstream_dsc & DP_DSC_PASSTHROUGH_IS_SUPPORTED)) {
+			port->passthrough_aux = &immediate_upstream_port->aux;
 			return &port->aux;
+		}
 
 		/* Virtual DPCD decompression with DP-to-DP peer device */
 		return &immediate_upstream_port->aux;

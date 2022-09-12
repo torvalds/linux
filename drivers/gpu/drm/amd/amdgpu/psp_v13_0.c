@@ -44,6 +44,7 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_0_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_0_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_7_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_7_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_10_sos.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
@@ -109,6 +110,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 		break;
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
+	case IP_VERSION(13, 0, 10):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;

@@ -323,10 +323,12 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	struct dmub_cmd_fw_assisted_mclk_switch_config *config_data = &cmd.fw_assisted_mclk_switch.config_data;
 	int i = 0;
 	int ramp_up_num_steps = 1; // TODO: Ramp is currently disabled. Reenable it.
-	uint8_t visual_confirm_enabled = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS;
+	uint8_t visual_confirm_enabled;
 
 	if (dc == NULL)
 		return false;
+
+	visual_confirm_enabled = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS;
 
 	// Format command.
 	cmd.fw_assisted_mclk_switch.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
@@ -384,6 +386,37 @@ void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
 		memcpy(&dmub->feature_caps,
 		       &cmd.query_feature_caps.query_feature_caps_data,
 		       sizeof(struct dmub_feature_caps));
+	}
+}
+
+void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	union dmub_rb_cmd cmd = { 0 };
+	enum dmub_status status;
+	unsigned int panel_inst = 0;
+
+	dc_get_edp_link_panel_inst(dc, pipe_ctx->stream->link, &panel_inst);
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	// Prepare fw command
+	cmd.visual_confirm_color.header.type = DMUB_CMD__GET_VISUAL_CONFIRM_COLOR;
+	cmd.visual_confirm_color.header.sub_type = 0;
+	cmd.visual_confirm_color.header.ret_status = 1;
+	cmd.visual_confirm_color.header.payload_bytes = sizeof(struct dmub_cmd_visual_confirm_color_data);
+	cmd.visual_confirm_color.visual_confirm_color_data.visual_confirm_color.panel_inst = panel_inst;
+
+	// Send command to fw
+	status = dmub_srv_cmd_with_reply_data(dc->ctx->dmub_srv->dmub, &cmd);
+
+	ASSERT(status == DMUB_STATUS_OK);
+
+	// If command was processed, copy feature caps to dmub srv
+	if (status == DMUB_STATUS_OK &&
+		cmd.visual_confirm_color.header.ret_status == 0) {
+		memcpy(&dc->ctx->dmub_srv->dmub->visual_confirm_color,
+			&cmd.visual_confirm_color.visual_confirm_color_data,
+			sizeof(struct dmub_visual_confirm_color));
 	}
 }
 
@@ -601,7 +634,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			&cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[cmd_pipe_index];
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
 	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
-	uint32_t out_num, out_den;
+	uint32_t out_num_stream, out_den_stream, out_num_plane, out_den_plane, out_num, out_den;
 
 	pipe_data->mode = SUBVP;
 	pipe_data->pipe_config.subvp_data.pix_clk_100hz = subvp_pipe->stream->timing.pix_clk_100hz;
@@ -618,11 +651,16 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	/* Calculate the scaling factor from the src and dst height.
 	 * e.g. If 3840x2160 being downscaled to 1920x1080, the scaling factor is 1/2.
 	 * Reduce the fraction 1080/2160 = 1/2 for the "scaling factor"
+	 *
+	 * Make sure to combine stream and plane scaling together.
 	 */
-	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height, &out_num, &out_den);
-	// TODO: Uncomment below lines once DMCUB include headers are promoted
-	//pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
-	//pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
+	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height,
+			&out_num_stream, &out_den_stream);
+	reduce_fraction(subvp_pipe->plane_state->src_rect.height, subvp_pipe->plane_state->dst_rect.height,
+			&out_num_plane, &out_den_plane);
+	reduce_fraction(out_num_stream * out_num_plane, out_den_stream * out_den_plane, &out_num, &out_den);
+	pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
+	pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
 
 	// Prefetch lines is equal to VACTIVE + BP + VSYNC
 	pipe_data->pipe_config.subvp_data.prefetch_lines =

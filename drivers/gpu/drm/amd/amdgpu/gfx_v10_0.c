@@ -4274,35 +4274,45 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 
 		}
 
-		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS];
-		info->ucode_id = AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS;
-		info->fw = adev->gfx.rlc_fw;
-		adev->firmware.fw_size +=
-			ALIGN(adev->gfx.rlc.global_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		if (adev->gfx.rlc.global_tap_delays_ucode_size_bytes) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS];
+			info->ucode_id = AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS;
+			info->fw = adev->gfx.rlc_fw;
+			adev->firmware.fw_size +=
+				ALIGN(adev->gfx.rlc.global_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		}
 
-		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE0_TAP_DELAYS];
-		info->ucode_id = AMDGPU_UCODE_ID_SE0_TAP_DELAYS;
-		info->fw = adev->gfx.rlc_fw;
-		adev->firmware.fw_size +=
-			ALIGN(adev->gfx.rlc.se0_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		if (adev->gfx.rlc.se0_tap_delays_ucode_size_bytes) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE0_TAP_DELAYS];
+			info->ucode_id = AMDGPU_UCODE_ID_SE0_TAP_DELAYS;
+			info->fw = adev->gfx.rlc_fw;
+			adev->firmware.fw_size +=
+				ALIGN(adev->gfx.rlc.se0_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		}
 
-		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE1_TAP_DELAYS];
-		info->ucode_id = AMDGPU_UCODE_ID_SE1_TAP_DELAYS;
-		info->fw = adev->gfx.rlc_fw;
-		adev->firmware.fw_size +=
-			ALIGN(adev->gfx.rlc.se1_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		if (adev->gfx.rlc.se1_tap_delays_ucode_size_bytes) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE1_TAP_DELAYS];
+			info->ucode_id = AMDGPU_UCODE_ID_SE1_TAP_DELAYS;
+			info->fw = adev->gfx.rlc_fw;
+			adev->firmware.fw_size +=
+				ALIGN(adev->gfx.rlc.se1_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		}
 
-		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE2_TAP_DELAYS];
-		info->ucode_id = AMDGPU_UCODE_ID_SE2_TAP_DELAYS;
-		info->fw = adev->gfx.rlc_fw;
-		adev->firmware.fw_size +=
-			ALIGN(adev->gfx.rlc.se2_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		if (adev->gfx.rlc.se2_tap_delays_ucode_size_bytes) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE2_TAP_DELAYS];
+			info->ucode_id = AMDGPU_UCODE_ID_SE2_TAP_DELAYS;
+			info->fw = adev->gfx.rlc_fw;
+			adev->firmware.fw_size +=
+				ALIGN(adev->gfx.rlc.se2_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		}
 
-		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE3_TAP_DELAYS];
-		info->ucode_id = AMDGPU_UCODE_ID_SE3_TAP_DELAYS;
-		info->fw = adev->gfx.rlc_fw;
-		adev->firmware.fw_size +=
-			ALIGN(adev->gfx.rlc.se3_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		if (adev->gfx.rlc.se3_tap_delays_ucode_size_bytes) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SE3_TAP_DELAYS];
+			info->ucode_id = AMDGPU_UCODE_ID_SE3_TAP_DELAYS;
+			info->fw = adev->gfx.rlc_fw;
+			adev->firmware.fw_size +=
+				ALIGN(adev->gfx.rlc.se3_tap_delays_ucode_size_bytes, PAGE_SIZE);
+		}
 
 		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_CP_MEC1];
 		info->ucode_id = AMDGPU_UCODE_ID_CP_MEC1;
@@ -5971,6 +5981,9 @@ static int gfx_v10_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(GC, 0, mmCP_ME_CNTL, tmp);
 	}
 
+	if (adev->job_hang && !enable)
+		return 0;
+
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (RREG32_SOC15(GC, 0, mmCP_STAT) == 0)
 			break;
@@ -7569,8 +7582,10 @@ static int gfx_v10_0_kiq_disable_kgq(struct amdgpu_device *adev)
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.gfx_ring[i],
 					   PREEMPT_QUEUES, 0, 0);
-
-	return amdgpu_ring_test_helper(kiq_ring);
+	if (!adev->job_hang)
+		return amdgpu_ring_test_helper(kiq_ring);
+	else
+		return 0;
 }
 #endif
 

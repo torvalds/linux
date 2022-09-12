@@ -84,4 +84,7 @@ void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx);
 
+void dcn32_update_phy_state(struct dc_state *state, struct pipe_ctx *pipe_ctx,
+		enum phy_state target_state);
+
 #endif /* __DC_HWSS_DCN32_H__ */

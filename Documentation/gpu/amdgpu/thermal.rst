@@ -72,7 +72,8 @@ card's RLC (RunList Controller) firmware powers off the gfx engine
 dynamically when there is no workload on gfx or compute pipes. GFXOFF is on by
 default on supported GPUs.
 
-Userspace can interact with GFXOFF through a debugfs interface:
+Userspace can interact with GFXOFF through a debugfs interface (all values in
+`uint32_t`, unless otherwise noted):
 
 ``amdgpu_gfxoff``
 -----------------
@@ -104,3 +105,18 @@ Read it to check current GFXOFF's status of a GPU::
 If GFXOFF is enabled, the value will be transitioning around [0, 3], always
 getting into 0 when possible. When it's disabled, it's always at 2. Returns
 ``-EINVAL`` if it's not supported.
+
+``amdgpu_gfxoff_count``
+-----------------------
+
+Read it to get the total GFXOFF entry count at the time of query since system
+power-up. The value is an `uint64_t` type, however, due to firmware limitations,
+it can currently overflow as an `uint32_t`. *Only supported in vangogh*
+
+``amdgpu_gfxoff_residency``
+---------------------------
+
+Write 1 to amdgpu_gfxoff_residency to start logging, and 0 to stop. Read it to
+get average GFXOFF residency % multiplied by 100 during the last logging
+interval. E.g. a value of 7854 means 78.54% of the time in the last logging
+interval the GPU was in GFXOFF mode. *Only supported in vangogh*

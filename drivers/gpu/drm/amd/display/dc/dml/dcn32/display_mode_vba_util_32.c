@@ -1193,6 +1193,7 @@ void dml32_CalculateODMMode(
 		double DISPCLKDPPCLKDSCCLKDownSpreading,
 		double DISPCLKRampingMargin,
 		double DISPCLKDPPCLKVCOSpeed,
+		unsigned int NumberOfDSCSlices,
 
 		/* Output */
 		bool *TotalAvailablePipesSupport,
@@ -1228,7 +1229,8 @@ void dml32_CalculateODMMode(
 
 	if (!(Output == dm_hdmi || Output == dm_dp || Output == dm_edp) && (ODMUse == dm_odm_combine_policy_4to1 ||
 			((SurfaceRequiredDISPCLKWithODMCombineTwoToOne > StateDispclk ||
-					(DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit)))))) {
+					(DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit))
+					|| NumberOfDSCSlices > 8)))) {
 		if (TotalNumberOfActiveDPP + 4 <= MaxNumDPP) {
 			*ODMMode = dm_odm_combine_mode_4to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineFourToOne;
@@ -1239,7 +1241,8 @@ void dml32_CalculateODMMode(
 	} else if (Output != dm_hdmi && (ODMUse == dm_odm_combine_policy_2to1 ||
 			(((SurfaceRequiredDISPCLKWithoutODMCombine > StateDispclk &&
 					SurfaceRequiredDISPCLKWithODMCombineTwoToOne <= StateDispclk) ||
-					(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit)))))) {
+					(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit))
+					|| (NumberOfDSCSlices <= 8 && NumberOfDSCSlices > 4))))) {
 		if (TotalNumberOfActiveDPP + 2 <= MaxNumDPP) {
 			*ODMMode = dm_odm_combine_mode_2to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineTwoToOne;
@@ -4277,7 +4280,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 	double ActiveClockChangeLatencyHidingY;
 	double ActiveClockChangeLatencyHidingC;
 	double ActiveClockChangeLatencyHiding;
-    double EffectiveDETBufferSizeY;
+	double EffectiveDETBufferSizeY;
 	double     ActiveFCLKChangeLatencyMargin[DC__NUM_DPP__MAX];
 	double     USRRetrainingLatencyMargin[DC__NUM_DPP__MAX];
 	double TotalPixelBW = 0.0;

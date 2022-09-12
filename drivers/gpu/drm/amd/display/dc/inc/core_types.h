@@ -399,6 +399,10 @@ struct pipe_ctx {
 	struct dc_stream_state *stream;
 
 	struct plane_resource plane_res;
+
+	/**
+	 * @stream_res: Reference to DCN resource components such OPP and DSC.
+	 */
 	struct stream_resource stream_res;
 	struct link_resource link_res;
 

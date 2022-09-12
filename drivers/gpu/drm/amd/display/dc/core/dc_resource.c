@@ -1904,9 +1904,6 @@ bool dc_is_stream_unchanged(
 	if (memcmp(&old_stream->audio_info, &stream->audio_info, sizeof(stream->audio_info)) != 0)
 		return false;
 
-	if (old_stream->odm_2to1_policy_applied != stream->odm_2to1_policy_applied)
-		return false;
-
 	return true;
 }
 

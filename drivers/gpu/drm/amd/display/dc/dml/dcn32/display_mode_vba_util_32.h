@@ -226,6 +226,7 @@ void dml32_CalculateODMMode(
 		double DISPCLKDPPCLKDSCCLKDownSpreading,
 		double DISPCLKRampingMargin,
 		double DISPCLKDPPCLKVCOSpeed,
+		unsigned int NumberOfDSCSlices,
 
 		/* Output */
 		bool *TotalAvailablePipesSupport,

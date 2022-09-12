@@ -560,6 +560,7 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 	bool valid_assignment_found = false;
 	unsigned int free_pipes = dcn32_get_num_free_pipes(dc, context);
 	bool current_assignment_freesync = false;
+	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -573,8 +574,15 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
 				pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
 				/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
+		/* SubVP pipe candidate requirements:
+		 * - Refresh rate < 120hz
+		 * - Not able to switch in vactive naturally (switching in active means the
+		 *   DET provides enough buffer to hide the P-State switch latency -- trying
+		 *   to combine this with SubVP can cause issues with the scheduling).
+		 */
 		if (pipe->plane_state && !pipe->top_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120) {
+				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 &&
+				vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {
 			while (pipe) {
 				num_pipes++;
 				pipe = pipe->bottom_pipe;
@@ -998,8 +1006,10 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 
 	*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 	/* This may adjust vlevel and maxMpcComb */
-	if (*vlevel < context->bw_ctx.dml.soc.num_states)
+	if (*vlevel < context->bw_ctx.dml.soc.num_states) {
 		*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+		vba->VoltageLevel = *vlevel;
+	}
 
 	/* Conditions for setting up phantom pipes for SubVP:
 	 * 1. Not force disable SubVP
@@ -1014,6 +1024,15 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	    dc->debug.force_subvp_mclk_switch)) {
 
 		dcn32_merge_pipes_for_subvp(dc, context);
+		// to re-initialize viewport after the pipe merge
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (!pipe_ctx->plane_state || !pipe_ctx->stream)
+				continue;
+
+			resource_build_scaling_params(pipe_ctx);
+		}
 
 		while (!found_supported_config && dcn32_enough_pipes_for_subvp(dc, context) &&
 			dcn32_assign_subvp_pipe(dc, context, &dc_pipe_idx)) {
@@ -1082,11 +1101,19 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			dc->res_pool->funcs->remove_phantom_pipes(dc, context);
 			vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] = dm_dram_clock_change_unsupported;
 			*pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, false);
+
+			*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
+			/* This may adjust vlevel and maxMpcComb */
+			if (*vlevel < context->bw_ctx.dml.soc.num_states) {
+				*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+				vba->VoltageLevel = *vlevel;
+			}
 		} else {
 			// only call dcn20_validate_apply_pipe_split_flags if we found a supported config
 			memset(split, 0, MAX_PIPES * sizeof(int));
 			memset(merge, 0, MAX_PIPES * sizeof(bool));
 			*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+			vba->VoltageLevel = *vlevel;
 
 			// Most populate phantom DLG params before programming hardware / timing for phantom pipe
 			DC_FP_START();
@@ -1416,6 +1443,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 			memset(split, 0, sizeof(split));
 			memset(merge, 0, sizeof(merge));
 			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
+			// dcn20_validate_apply_pipe_split_flags can modify voltage level outside of DML
+			vba->VoltageLevel = vlevel;
 		}
 	}
 
@@ -1776,7 +1805,11 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.fclk_pstate_change_ns = get_fclk_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	/* On DCN32/321, PMFW will set PSTATE_CHANGE_TYPE = 1 (FCLK) for UCLK dummy p-state.
+	 * In this case we must program FCLK WM Set C to use the UCLK dummy p-state WM
+	 * value.
+	 */
+	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.fclk_pstate_change_ns = get_wm_dram_clock_change(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.usr_retraining_ns = get_usr_retraining_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 
 	if ((!pstate_en) && (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].valid)) {
@@ -2136,13 +2169,16 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 
 			if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
 				if (bb_info.dram_clock_change_latency_100ns > 0)
-					dcn3_2_soc.dram_clock_change_latency_us = bb_info.dram_clock_change_latency_100ns * 10;
+					dcn3_2_soc.dram_clock_change_latency_us =
+						bb_info.dram_clock_change_latency_100ns * 10;
 
-			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
-				dcn3_2_soc.sr_enter_plus_exit_time_us = bb_info.dram_sr_enter_exit_latency_100ns * 10;
+				if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+					dcn3_2_soc.sr_enter_plus_exit_time_us =
+						bb_info.dram_sr_enter_exit_latency_100ns * 10;
 
-			if (bb_info.dram_sr_exit_latency_100ns > 0)
-				dcn3_2_soc.sr_exit_time_us = bb_info.dram_sr_exit_latency_100ns * 10;
+				if (bb_info.dram_sr_exit_latency_100ns > 0)
+					dcn3_2_soc.sr_exit_time_us =
+						bb_info.dram_sr_exit_latency_100ns * 10;
 			}
 		}
 
