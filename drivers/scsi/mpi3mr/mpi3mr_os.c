@@ -1335,6 +1335,25 @@ out:
 }
 
 /**
+ * mpi3mr_free_enclosure_list - release enclosures
+ * @mrioc: Adapter instance reference
+ *
+ * Free memory allocated during encloure add.
+ *
+ * Return nothing.
+ */
+void mpi3mr_free_enclosure_list(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3mr_enclosure_node *enclosure_dev, *enclosure_dev_next;
+
+	list_for_each_entry_safe(enclosure_dev,
+	    enclosure_dev_next, &mrioc->enclosure_list, list) {
+		list_del(&enclosure_dev->list);
+		kfree(enclosure_dev);
+	}
+}
+
+/**
  * mpi3mr_enclosure_find_by_handle - enclosure search by handle
  * @mrioc: Adapter instance reference
  * @handle: Firmware device handle of the enclosure

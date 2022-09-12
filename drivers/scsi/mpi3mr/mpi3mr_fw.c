@@ -4250,6 +4250,8 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 	u16 i;
 	struct mpi3mr_intr_info *intr_info;
 
+	mpi3mr_free_enclosure_list(mrioc);
+
 	if (mrioc->sense_buf_pool) {
 		if (mrioc->sense_buf)
 			dma_pool_free(mrioc->sense_buf_pool, mrioc->sense_buf,
@@ -4897,6 +4899,8 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	mpi3mr_flush_host_io(mrioc);
 	mpi3mr_cleanup_fwevt_list(mrioc);
 	mpi3mr_invalidate_devhandles(mrioc);
+	mpi3mr_free_enclosure_list(mrioc);
+
 	if (mrioc->prepare_for_reset) {
 		mrioc->prepare_for_reset = 0;
 		mrioc->prepare_for_reset_timeout_counter = 0;
