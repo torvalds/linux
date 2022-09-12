@@ -1663,7 +1663,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 		extent_changeset_release(data_reserved);
 		ret = btrfs_check_data_free_space(BTRFS_I(inode),
 						  &data_reserved, pos,
-						  write_bytes);
+						  write_bytes, false);
 		if (ret < 0) {
 			/*
 			 * If we don't have to COW at the offset, reserve

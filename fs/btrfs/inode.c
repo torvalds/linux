@@ -4885,7 +4885,7 @@ int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
 	block_end = block_start + blocksize - 1;
 
 	ret = btrfs_check_data_free_space(inode, &data_reserved, block_start,
-					  blocksize);
+					  blocksize, false);
 	if (ret < 0) {
 		if (btrfs_check_nocow_lock(inode, block_start, &write_bytes) > 0) {
 			/* For nocow case, no need to reserve data space */
@@ -7641,7 +7641,7 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	if (write && !(flags & IOMAP_NOWAIT)) {
 		ret = btrfs_check_data_free_space(BTRFS_I(inode),
 						  &dio_data->data_reserved,
-						  start, data_alloc_len);
+						  start, data_alloc_len, false);
 		if (!ret)
 			dio_data->data_space_reserved = true;
 		else if (ret && !(BTRFS_I(inode)->flags &
