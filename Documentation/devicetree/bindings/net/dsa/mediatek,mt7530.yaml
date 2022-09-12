@@ -163,9 +163,7 @@ patternProperties:
         allOf:
           - $ref: dsa-port.yaml#
           - if:
-              properties:
-                label:
-                  const: cpu
+              required: [ ethernet ]
             then:
               required:
                 - phy-mode
@@ -187,9 +185,7 @@ $defs:
         patternProperties:
           "^(ethernet-)?port@[0-9]+$":
             if:
-              properties:
-                label:
-                  const: cpu
+              required: [ ethernet ]
             then:
               if:
                 properties:
@@ -215,9 +211,7 @@ $defs:
         patternProperties:
           "^(ethernet-)?port@[0-9]+$":
             if:
-              properties:
-                label:
-                  const: cpu
+              required: [ ethernet ]
             then:
               if:
                 properties:
