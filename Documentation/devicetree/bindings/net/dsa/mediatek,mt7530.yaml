@@ -165,9 +165,6 @@ patternProperties:
           - if:
               required: [ ethernet ]
             then:
-              required:
-                - phy-mode
-
               properties:
                 reg:
                   enum:
