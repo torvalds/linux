@@ -1554,8 +1554,12 @@ out:
 EXPORT_SYMBOL_GPL(bc_svc_process);
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
-/*
- * Return (transport-specific) limit on the rpc payload.
+/**
+ * svc_max_payload - Return transport-specific limit on the RPC payload
+ * @rqstp: RPC transaction context
+ *
+ * Returns the maximum number of payload bytes the current transport
+ * allows.
  */
 u32 svc_max_payload(const struct svc_rqst *rqstp)
 {
