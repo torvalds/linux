@@ -4213,6 +4213,9 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta);
+void rtw89_core_set_tid_config(struct rtw89_dev *rtwdev,
+			       struct ieee80211_sta *sta,
+			       struct cfg80211_tid_config *tid_config);
 int rtw89_core_init(struct rtw89_dev *rtwdev);
 void rtw89_core_deinit(struct rtw89_dev *rtwdev);
 int rtw89_core_register(struct rtw89_dev *rtwdev);
