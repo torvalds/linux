@@ -118,6 +118,7 @@ extern atomic64_t event_counter;
 /* command/controller interaction timeout definitions in seconds */
 #define MPI3MR_INTADMCMD_TIMEOUT		60
 #define MPI3MR_PORTENABLE_TIMEOUT		300
+#define MPI3MR_PORTENABLE_POLL_INTERVAL		5
 #define MPI3MR_ABORTTM_TIMEOUT			60
 #define MPI3MR_RESETTM_TIMEOUT			60
 #define MPI3MR_RESET_HOST_IOWAIT_TIMEOUT	5
@@ -1389,4 +1390,6 @@ void mpi3mr_print_device_event_notice(struct mpi3mr_ioc *mrioc,
 void mpi3mr_refresh_sas_ports(struct mpi3mr_ioc *mrioc);
 void mpi3mr_refresh_expanders(struct mpi3mr_ioc *mrioc);
 void mpi3mr_add_event_wait_for_device_refresh(struct mpi3mr_ioc *mrioc);
+void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc);
+void mpi3mr_flush_cmds_for_unrecovered_controller(struct mpi3mr_ioc *mrioc);
 #endif /*MPI3MR_H_INCLUDED*/

@@ -583,6 +583,39 @@ void mpi3mr_flush_host_io(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_flush_cmds_for_unrecovered_controller - Flush all pending cmds
+ * @mrioc: Adapter instance reference
+ *
+ * This function waits for currently running IO poll threads to
+ * exit and then flushes all host I/Os and any internal pending
+ * cmds. This is executed after controller is marked as
+ * unrecoverable.
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_flush_cmds_for_unrecovered_controller(struct mpi3mr_ioc *mrioc)
+{
+	struct Scsi_Host *shost = mrioc->shost;
+	int i;
+
+	if (!mrioc->unrecoverable)
+		return;
+
+	if (mrioc->op_reply_qinfo) {
+		for (i = 0; i < mrioc->num_queues; i++) {
+			while (atomic_read(&mrioc->op_reply_qinfo[i].in_use))
+				udelay(500);
+			atomic_set(&mrioc->op_reply_qinfo[i].pend_ios, 0);
+		}
+	}
+	mrioc->flush_io_count = 0;
+	blk_mq_tagset_busy_iter(&shost->tag_set,
+	    mpi3mr_flush_scmd, (void *)mrioc);
+	mpi3mr_flush_delayed_cmd_lists(mrioc);
+	mpi3mr_flush_drv_cmds(mrioc);
+}
+
+/**
  * mpi3mr_alloc_tgtdev - target device allocator
  *
  * Allocate target device instance and initialize the reference
@@ -1814,6 +1847,13 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 
 	if (mrioc->stop_drv_processing)
 		goto out;
+
+	if (mrioc->unrecoverable) {
+		dprint_event_bh(mrioc,
+		    "ignoring event(0x%02x) in bottom half handler due to unrecoverable controller\n",
+		    fwevt->event_id);
+		goto out;
+	}
 
 	if (!fwevt->process_evt)
 		goto evt_ack;
@@ -5023,6 +5063,11 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 	mrioc = shost_priv(shost);
 	while (mrioc->reset_in_progress || mrioc->is_driver_loading)
 		ssleep(1);
+
+	if (!pci_device_is_present(mrioc->pdev)) {
+		mrioc->unrecoverable = 1;
+		mpi3mr_flush_cmds_for_unrecovered_controller(mrioc);
+	}
 
 	mpi3mr_bsg_exit(mrioc);
 	mrioc->stop_drv_processing = 1;

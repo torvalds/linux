@@ -431,6 +431,9 @@ static int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 		return 0;
 
 	do {
+		if (mrioc->unrecoverable)
+			break;
+
 		mrioc->admin_req_ci = le16_to_cpu(reply_desc->request_queue_ci);
 		mpi3mr_process_admin_reply_desc(mrioc, reply_desc, &reply_dma);
 		if (reply_dma)
@@ -516,6 +519,9 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 	}
 
 	do {
+		if (mrioc->unrecoverable)
+			break;
+
 		req_q_idx = le16_to_cpu(reply_desc->request_queue_id) - 1;
 		op_req_q = &mrioc->req_qinfo[req_q_idx];
 
@@ -577,7 +583,8 @@ int mpi3mr_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 
 	mrioc = (struct mpi3mr_ioc *)shost->hostdata;
 
-	if ((mrioc->reset_in_progress || mrioc->prepare_for_reset))
+	if ((mrioc->reset_in_progress || mrioc->prepare_for_reset ||
+	    mrioc->unrecoverable))
 		return 0;
 
 	num_entries = mpi3mr_process_op_reply_q(mrioc,
@@ -673,7 +680,7 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 
 	/* Poll for pending IOs completions */
 	do {
-		if (!mrioc->intr_enabled)
+		if (!mrioc->intr_enabled || mrioc->unrecoverable)
 			break;
 
 		if (!midx)
@@ -1220,6 +1227,14 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			msleep(100);
 		} while (--timeout);
 
+		if (!pci_device_is_present(mrioc->pdev)) {
+			mrioc->unrecoverable = 1;
+			ioc_err(mrioc,
+			    "controller is not present while waiting to reset\n");
+			retval = -1;
+			goto out_device_not_present;
+		}
+
 		ioc_state = mpi3mr_get_iocstate(mrioc);
 		ioc_info(mrioc,
 		    "controller is in %s state after waiting to reset\n",
@@ -1277,6 +1292,13 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			    mpi3mr_iocstate_name(ioc_state));
 			return 0;
 		}
+		if (!pci_device_is_present(mrioc->pdev)) {
+			mrioc->unrecoverable = 1;
+			ioc_err(mrioc,
+			    "controller is not present at the bringup\n");
+			retval = -1;
+			goto out_device_not_present;
+		}
 		msleep(100);
 	} while (--timeout);
 
@@ -1285,6 +1307,7 @@ out_failed:
 	ioc_err(mrioc,
 	    "failed to bring to ready state,  current state: %s\n",
 	    mpi3mr_iocstate_name(ioc_state));
+out_device_not_present:
 	return retval;
 }
 
@@ -2223,6 +2246,17 @@ void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code)
 {
 	u32 ioc_status, host_diagnostic, timeout;
 
+	if (mrioc->unrecoverable) {
+		ioc_err(mrioc, "controller is unrecoverable\n");
+		return;
+	}
+
+	if (!pci_device_is_present(mrioc->pdev)) {
+		mrioc->unrecoverable = 1;
+		ioc_err(mrioc, "controller is not present\n");
+		return;
+	}
+
 	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 	if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) ||
 	    (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT)) {
@@ -2414,8 +2448,20 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	u32 fault, host_diagnostic, ioc_status;
 	u32 reset_reason = MPI3MR_RESET_FROM_FAULT_WATCH;
 
-	if (mrioc->reset_in_progress || mrioc->unrecoverable)
+	if (mrioc->reset_in_progress)
 		return;
+
+	if (!mrioc->unrecoverable && !pci_device_is_present(mrioc->pdev)) {
+		ioc_err(mrioc, "watchdog could not detect the controller\n");
+		mrioc->unrecoverable = 1;
+	}
+
+	if (mrioc->unrecoverable) {
+		ioc_err(mrioc,
+		    "flush pending commands for unrecoverable controller\n");
+		mpi3mr_flush_cmds_for_unrecovered_controller(mrioc);
+		return;
+	}
 
 	if (mrioc->ts_update_counter++ >= MPI3MR_TSUPDATE_INTERVAL) {
 		mrioc->ts_update_counter = 0;
@@ -2460,7 +2506,7 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 		ioc_info(mrioc,
 		    "controller requires system power cycle, marking controller as unrecoverable\n");
 		mrioc->unrecoverable = 1;
-		return;
+		goto schedule_work;
 	case MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS:
 		return;
 	case MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET:
@@ -3396,10 +3442,13 @@ out_failed:
 static void mpi3mr_port_enable_complete(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_drv_cmd *drv_cmd)
 {
-	drv_cmd->state = MPI3MR_CMD_NOTUSED;
 	drv_cmd->callback = NULL;
-	mrioc->scan_failed = drv_cmd->ioc_status;
 	mrioc->scan_started = 0;
+	if (drv_cmd->state & MPI3MR_CMD_RESET)
+		mrioc->scan_failed = MPI3_IOCSTATUS_INTERNAL_ERROR;
+	else
+		mrioc->scan_failed = drv_cmd->ioc_status;
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
 }
 
 /**
@@ -3897,8 +3946,12 @@ int mpi3mr_reinit_ioc(struct mpi3mr_ioc *mrioc, u8 is_resume)
 	int retval = 0;
 	u8 retry = 0;
 	struct mpi3_ioc_facts_data facts_data;
+	u32 pe_timeout, ioc_status;
 
 retry_init:
+	pe_timeout =
+	    (MPI3MR_PORTENABLE_TIMEOUT / MPI3MR_PORTENABLE_POLL_INTERVAL);
+
 	dprint_reset(mrioc, "bringing up the controller to ready state\n");
 	retval = mpi3mr_bring_ioc_ready(mrioc);
 	if (retval) {
@@ -3994,11 +4047,46 @@ retry_init:
 	}
 
 	ioc_info(mrioc, "sending port enable\n");
-	retval = mpi3mr_issue_port_enable(mrioc, 0);
+	retval = mpi3mr_issue_port_enable(mrioc, 1);
 	if (retval) {
 		ioc_err(mrioc, "failed to issue port enable\n");
 		goto out_failed;
 	}
+	do {
+		ssleep(MPI3MR_PORTENABLE_POLL_INTERVAL);
+		if (mrioc->init_cmds.state == MPI3MR_CMD_NOTUSED)
+			break;
+		if (!pci_device_is_present(mrioc->pdev))
+			mrioc->unrecoverable = 1;
+		if (mrioc->unrecoverable) {
+			retval = -1;
+			goto out_failed_noretry;
+		}
+		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
+		if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) ||
+		    (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT)) {
+			mpi3mr_print_fault_info(mrioc);
+			mrioc->init_cmds.is_waiting = 0;
+			mrioc->init_cmds.callback = NULL;
+			mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+			goto out_failed;
+		}
+	} while (--pe_timeout);
+
+	if (!pe_timeout) {
+		ioc_err(mrioc, "port enable timed out\n");
+		mpi3mr_check_rh_fault_ioc(mrioc,
+		    MPI3MR_RESET_FROM_PE_TIMEOUT);
+		mrioc->init_cmds.is_waiting = 0;
+		mrioc->init_cmds.callback = NULL;
+		mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+		goto out_failed;
+	} else if (mrioc->scan_failed) {
+		ioc_err(mrioc,
+		    "port enable failed with status=0x%04x\n",
+		    mrioc->scan_failed);
+	} else
+		ioc_info(mrioc, "port enable completed successfully\n");
 
 	ioc_info(mrioc, "controller %s completed successfully\n",
 	    (is_resume)?"resume":"re-initialization");
@@ -4417,7 +4505,7 @@ static inline void mpi3mr_drv_cmd_comp_reset(struct mpi3mr_ioc *mrioc,
  *
  * Return: Nothing.
  */
-static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
+void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 {
 	struct mpi3mr_drv_cmd *cmdptr;
 	u8 i;
@@ -4850,6 +4938,7 @@ out:
 		mrioc->unrecoverable = 1;
 		mrioc->reset_in_progress = 0;
 		retval = -1;
+		mpi3mr_flush_cmds_for_unrecovered_controller(mrioc);
 	}
 	mrioc->prev_reset_result = retval;
 	mutex_unlock(&mrioc->reset_mutex);
