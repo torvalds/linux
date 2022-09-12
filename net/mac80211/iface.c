@@ -243,7 +243,7 @@ static int ieee80211_can_powered_addr_change(struct ieee80211_sub_if_data *sdata
 		 */
 		break;
 	default:
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
 	}
 
 unlock:
