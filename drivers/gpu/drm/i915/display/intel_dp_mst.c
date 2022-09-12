@@ -793,7 +793,35 @@ static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 	return false;
 }
 
-static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, const char *pathprop)
+static int intel_dp_mst_add_properties(struct intel_dp *intel_dp,
+				       struct drm_connector *connector,
+				       const char *pathprop)
+{
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+
+	drm_object_attach_property(&connector->base,
+				   i915->drm.mode_config.path_property, 0);
+	drm_object_attach_property(&connector->base,
+				   i915->drm.mode_config.tile_property, 0);
+
+	intel_attach_force_audio_property(connector);
+	intel_attach_broadcast_rgb_property(connector);
+
+	/*
+	 * Reuse the prop from the SST connector because we're
+	 * not allowed to create new props after device registration.
+	 */
+	connector->max_bpc_property =
+		intel_dp->attached_connector->base.max_bpc_property;
+	if (connector->max_bpc_property)
+		drm_connector_attach_max_bpc_property(connector, 6, 12);
+
+	return drm_connector_set_path_property(connector, pathprop);
+}
+
+static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
+							struct drm_dp_mst_port *port,
+							const char *pathprop)
 {
 	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -833,28 +861,14 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 			goto err;
 	}
 
-	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
-	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
-
-	ret = drm_connector_set_path_property(connector, pathprop);
+	ret = intel_dp_mst_add_properties(intel_dp, connector, pathprop);
 	if (ret)
 		goto err;
-
-	intel_attach_force_audio_property(connector);
-	intel_attach_broadcast_rgb_property(connector);
 
 	ret = intel_dp_hdcp_init(dig_port, intel_connector);
 	if (ret)
 		drm_dbg_kms(&dev_priv->drm, "[%s:%d] HDCP MST init failed, skipping.\n",
 			    connector->name, connector->base.id);
-	/*
-	 * Reuse the prop from the SST connector because we're
-	 * not allowed to create new props after device registration.
-	 */
-	connector->max_bpc_property =
-		intel_dp->attached_connector->base.max_bpc_property;
-	if (connector->max_bpc_property)
-		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
 	return connector;
 
