@@ -38,6 +38,7 @@
 static void __iomem *ccache_base;
 static int g_irq[SIFIVE_CCACHE_MAX_ECCINTR];
 static struct riscv_cacheinfo_ops ccache_cache_ops;
+static int level;
 
 enum {
 	DIR_CORR = 0,
@@ -144,7 +145,7 @@ static const struct attribute_group *ccache_get_priv_group(struct cacheinfo
 							   *this_leaf)
 {
 	/* We want to use private group for composable cache only */
-	if (this_leaf->level == 2)
+	if (this_leaf->level == level)
 		return &priv_attr_group;
 	else
 		return NULL;
@@ -214,6 +215,9 @@ static int __init sifive_ccache_init(void)
 	ccache_base = ioremap(res.start, resource_size(&res));
 	if (!ccache_base)
 		return -ENOMEM;
+
+	if (of_property_read_u32(np, "cache-level", &level))
+		return -ENOENT;
 
 	intr_num = of_property_count_u32_elems(np, "interrupts");
 	if (!intr_num) {
