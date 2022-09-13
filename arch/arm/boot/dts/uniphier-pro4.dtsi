@@ -376,7 +376,7 @@
 				compatible = "socionext,uniphier-pro4-pinctrl";
 			};
 
-			usb-phy {
+			usb-controller {
 				compatible = "socionext,uniphier-pro4-usb2-phy";
 				#address-cells = <1>;
 				#size-cells = <0>;
