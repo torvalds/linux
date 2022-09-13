@@ -840,16 +840,16 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev->parent);
 	struct platform_device *sdev = to_platform_device(dev);
-	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct l2cache_pmu *l2cache_pmu = data;
 	struct cluster_pmu *cluster;
-	unsigned long fw_cluster_id;
+	u64 fw_cluster_id;
 	int err;
 	int irq;
 
-	if (!adev || kstrtoul(adev->pnp.unique_id, 10, &fw_cluster_id) < 0) {
+	err = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &fw_cluster_id);
+	if (err) {
 		dev_err(&pdev->dev, "unable to read ACPI uid\n");
-		return -ENODEV;
+		return err;
 	}
 
 	cluster = devm_kzalloc(&pdev->dev, sizeof(*cluster), GFP_KERNEL);
@@ -879,7 +879,7 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 	}
 
 	dev_info(&pdev->dev,
-		"Registered L2 cache PMU cluster %ld\n", fw_cluster_id);
+		 "Registered L2 cache PMU cluster %lld\n", fw_cluster_id);
 
 	spin_lock_init(&cluster->pmu_lock);
 
