@@ -564,7 +564,7 @@
 				#reset-cells = <1>;
 			};
 
-			pvtctl: pvtctl {
+			pvtctl: thermal-sensor {
 				compatible = "socionext,uniphier-pxs2-thermal";
 				interrupts = <0 3 4>;
 				#thermal-sensor-cells = <0>;
