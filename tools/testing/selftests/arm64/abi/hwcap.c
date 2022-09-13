@@ -45,6 +45,66 @@ static void sve_sigill(void)
 	asm volatile(".inst 0x04bf5000" : : : "x0");
 }
 
+static void sve2_sigill(void)
+{
+	/* SQABS Z0.b, P0/M, Z0.B */
+	asm volatile(".inst 0x4408A000" : : : "z0");
+}
+
+static void sveaes_sigill(void)
+{
+	/* AESD z0.b, z0.b, z0.b */
+	asm volatile(".inst 0x4522e400" : : : "z0");
+}
+
+static void svepmull_sigill(void)
+{
+	/* PMULLB Z0.Q, Z0.D, Z0.D */
+	asm volatile(".inst 0x45006800" : : : "z0");
+}
+
+static void svebitperm_sigill(void)
+{
+	/* BDEP Z0.B, Z0.B, Z0.B */
+	asm volatile(".inst 0x4500b400" : : : "z0");
+}
+
+static void svesha3_sigill(void)
+{
+	/* EOR3 Z0.D, Z0.D, Z0.D, Z0.D */
+	asm volatile(".inst 0x4203800" : : : "z0");
+}
+
+static void svesm4_sigill(void)
+{
+	/* SM4E Z0.S, Z0.S, Z0.S */
+	asm volatile(".inst 0x4523e000" : : : "z0");
+}
+
+static void svei8mm_sigill(void)
+{
+	/* USDOT Z0.S, Z0.B, Z0.B[0] */
+	asm volatile(".inst 0x44a01800" : : : "z0");
+}
+
+static void svef32mm_sigill(void)
+{
+	/* FMMLA Z0.S, Z0.S, Z0.S */
+	asm volatile(".inst 0x64a0e400" : : : "z0");
+}
+
+static void svef64mm_sigill(void)
+{
+	/* FMMLA Z0.D, Z0.D, Z0.D */
+	asm volatile(".inst 0x64e0e400" : : : "z0");
+}
+
+static void svebf16_sigill(void)
+{
+	/* BFCVT Z0.H, P0/M, Z0.S */
+	asm volatile(".inst 0x658aa000" : : : "z0");
+}
+
 static const struct hwcap_data {
 	const char *name;
 	unsigned long at_hwcap;
@@ -68,6 +128,82 @@ static const struct hwcap_data {
 		.cpuinfo = "sve",
 		.sigill_fn = sve_sigill,
 		.sigill_reliable = true,
+	},
+	{
+		.name = "SVE 2",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVE2,
+		.cpuinfo = "sve2",
+		.sigill_fn = sve2_sigill,
+	},
+	{
+		.name = "SVE AES",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVEAES,
+		.cpuinfo = "sveaes",
+		.sigill_fn = sveaes_sigill,
+	},
+	{
+		.name = "SVE2 PMULL",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVEPMULL,
+		.cpuinfo = "svepmull",
+		.sigill_fn = svepmull_sigill,
+	},
+	{
+		.name = "SVE2 BITPERM",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVEBITPERM,
+		.cpuinfo = "svebitperm",
+		.sigill_fn = svebitperm_sigill,
+	},
+	{
+		.name = "SVE2 SHA3",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVESHA3,
+		.cpuinfo = "svesha3",
+		.sigill_fn = svesha3_sigill,
+	},
+	{
+		.name = "SVE2 SM4",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVESM4,
+		.cpuinfo = "svesm4",
+		.sigill_fn = svesm4_sigill,
+	},
+	{
+		.name = "SVE2 I8MM",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVEI8MM,
+		.cpuinfo = "svei8mm",
+		.sigill_fn = svei8mm_sigill,
+	},
+	{
+		.name = "SVE2 F32MM",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVEF32MM,
+		.cpuinfo = "svef32mm",
+		.sigill_fn = svef32mm_sigill,
+	},
+	{
+		.name = "SVE2 F64MM",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVEF64MM,
+		.cpuinfo = "svef64mm",
+		.sigill_fn = svef64mm_sigill,
+	},
+	{
+		.name = "SVE2 BF16",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVEBF16,
+		.cpuinfo = "svebf16",
+		.sigill_fn = svebf16_sigill,
+	},
+	{
+		.name = "SVE2 EBF16",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVE_EBF16,
+		.cpuinfo = "sveebf16",
 	},
 };
 
