@@ -2852,16 +2852,6 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	}
 }
 
-void dc_reset_state(struct dc *dc, struct dc_state *context)
-{
-	dc_resource_state_destruct(context);
-
-	/* clear the structure, but don't reset the reference count */
-	memset(context, 0, offsetof(struct dc_state, refcount));
-
-	init_state(dc, context);
-}
-
 static bool update_planes_and_stream_state(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
