@@ -31,6 +31,7 @@
 
 #define ACP_DSP_INTR_EN_MASK			0x00000001
 #define ACP3X_SRAM_PTE_OFFSET			0x02050000
+#define ACP6X_SRAM_PTE_OFFSET			0x03800000
 #define PAGE_SIZE_4K_ENABLE			0x2
 #define ACP_PAGE_SIZE				0x1000
 #define ACP_DMA_CH_RUN				0x02
@@ -54,6 +55,7 @@
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
 #define HOST_BRIDGE_CZN				0x1630
+#define HOST_BRIDGE_RMB				0x14B5
 #define ACP_SHA_STAT				0x8000
 #define ACP_PSP_TIMEOUT_COUNTER			5
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
@@ -150,6 +152,7 @@ struct sof_amd_acp_desc {
 	u32 i2s_pin_config_offset;
 	u32 hw_semaphore_offset;
 	u32 acp_clkmux_sel;
+	u32 fusion_dsp_offset;
 };
 
 /* Common device data struct for ACP devices */
@@ -223,6 +226,8 @@ extern struct snd_sof_dsp_ops sof_acp_common_ops;
 
 extern struct snd_sof_dsp_ops sof_renoir_ops;
 int sof_renoir_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_rembrandt_ops;
+int sof_rembrandt_ops_init(struct snd_sof_dev *sdev);
 
 int acp_dai_probe(struct snd_soc_dai *dai);
 struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev);
