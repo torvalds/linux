@@ -18,22 +18,11 @@ static int bootrom_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int bootrom_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bootrom_show, NULL);
-}
-
-static const struct file_operations bootrom_file_ops = {
-	.open		= bootrom_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(bootrom);
 
 static int __init bootrom_setup(void)
 {
-	debugfs_create_file("bootrom", 0444, NULL, NULL, &bootrom_file_ops);
+	debugfs_create_file("bootrom", 0444, NULL, NULL, &bootrom_fops);
 	return 0;
 }
 
