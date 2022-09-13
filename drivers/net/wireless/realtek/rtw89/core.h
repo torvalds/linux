@@ -2654,6 +2654,7 @@ struct rtw89_chip_info {
 	u8 btcx_desired;
 	u8 scbd;
 	u8 mailbox;
+	u16 btc_fwinfo_buf;
 
 	u8 fcxbtcrpt_ver;
 	u8 fcxtdma_ver;

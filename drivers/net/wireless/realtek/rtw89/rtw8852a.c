@@ -2190,6 +2190,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.btcx_desired		= 0x5,
 	.scbd			= 0x1,
 	.mailbox		= 0x1,
+	.btc_fwinfo_buf		= 1024,
 
 	.fcxbtcrpt_ver		= 1,
 	.fcxtdma_ver		= 1,
