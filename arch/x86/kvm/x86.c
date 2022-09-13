@@ -7154,16 +7154,6 @@ gpa_t kvm_mmu_gva_to_gpa_read(struct kvm_vcpu *vcpu, gva_t gva,
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_gva_to_gpa_read);
 
- gpa_t kvm_mmu_gva_to_gpa_fetch(struct kvm_vcpu *vcpu, gva_t gva,
-				struct x86_exception *exception)
-{
-	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
-
-	u64 access = (static_call(kvm_x86_get_cpl)(vcpu) == 3) ? PFERR_USER_MASK : 0;
-	access |= PFERR_FETCH_MASK;
-	return mmu->gva_to_gpa(vcpu, mmu, gva, access, exception);
-}
-
 gpa_t kvm_mmu_gva_to_gpa_write(struct kvm_vcpu *vcpu, gva_t gva,
 			       struct x86_exception *exception)
 {
