@@ -518,7 +518,7 @@
 			dr_mode = "host";
 		};
 
-		usb-glue@65b00000 {
+		usb-controller@65b00000 {
 			compatible = "socionext,uniphier-pro4-dwc3-glue",
 				     "simple-mfd";
 			#address-cells = <1>;
@@ -571,7 +571,7 @@
 			dr_mode = "host";
 		};
 
-		usb-glue@65d00000 {
+		usb-controller@65d00000 {
 			compatible = "socionext,uniphier-pro4-dwc3-glue",
 				     "simple-mfd";
 			#address-cells = <1>;
