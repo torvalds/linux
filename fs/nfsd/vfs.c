@@ -845,10 +845,14 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		  struct splice_desc *sd)
 {
 	struct svc_rqst *rqstp = sd->u.data;
+	struct page *page = buf->page;	// may be a compound one
+	unsigned offset = buf->offset;
 
-	svc_rqst_replace_page(rqstp, buf->page);
-	if (rqstp->rq_res.page_len == 0)
-		rqstp->rq_res.page_base = buf->offset;
+	page += offset / PAGE_SIZE;
+	for (int i = sd->len; i > 0; i -= PAGE_SIZE)
+		svc_rqst_replace_page(rqstp, page++);
+	if (rqstp->rq_res.page_len == 0)	// first call
+		rqstp->rq_res.page_base = offset % PAGE_SIZE;
 	rqstp->rq_res.page_len += sd->len;
 	return sd->len;
 }
