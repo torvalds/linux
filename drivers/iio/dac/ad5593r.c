@@ -102,6 +102,10 @@ static const struct ad5592r_rw_ops ad5593r_rw_ops = {
 static int ad5593r_i2c_probe(struct i2c_client *i2c,
 		const struct i2c_device_id *id)
 {
+	if (!i2c_check_functionality(i2c->adapter,
+				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
+
 	return ad5592r_probe(&i2c->dev, id->name, &ad5593r_rw_ops);
 }
 
