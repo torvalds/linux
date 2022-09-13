@@ -196,8 +196,18 @@
 		function = "usb0";
 	};
 
+	pinctrl_usb0_device: usb0-device {
+		groups = "usb0_device";
+		function = "usb0";
+	};
+
 	pinctrl_usb1: usb1 {
 		groups = "usb1";
+		function = "usb1";
+	};
+
+	pinctrl_usb1_device: usb1-device {
+		groups = "usb1_device";
 		function = "usb1";
 	};
 
