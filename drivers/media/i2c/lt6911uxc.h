@@ -65,4 +65,9 @@
 #define AUDIO_SAMPLE_RATAE_H	0xb0aa
 #define AUDIO_SAMPLE_RATAE_L	0xb0ab
 
+#define COLOR_FMT_STATUS	0xb092
+#define STREAM_CTRL		0x811d
+#define STREAM_ENABLE		0xFB
+#define STREAM_DISABLE		0xBB
+
 #endif

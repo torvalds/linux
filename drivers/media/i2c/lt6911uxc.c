@@ -6,6 +6,8 @@
  * V0.0X01.0X00 first version.
  * V0.0X01.0X01 fix if plugin_gpio was not used.
  * V0.0X01.0X02 modify driver init level to late_initcall.
+ * V0.0X01.0X03 add 4K60 dual mipi support
+ *
  */
 
 #include <linux/clk.h>
@@ -34,12 +36,16 @@
 #include <media/v4l2-fwnode.h>
 #include "lt6911uxc.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x2)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x3)
 #define LT6911UXC_NAME			"LT6911UXC"
 
-#define LT6911UXC_LINK_FREQ_HIGH	400000000
-#define LT6911UXC_LINK_FREQ_LOW		200000000
-#define LT6911UXC_PIXEL_RATE		400000000
+#define LT6911UXC_LINK_FREQ_600M	600000000
+#define LT6911UXC_LINK_FREQ_400M	400000000
+#define LT6911UXC_LINK_FREQ_300M	300000000
+#define LT6911UXC_LINK_FREQ_200M	200000000
+#define LT6911UXC_LINK_FREQ_100M	100000000
+#define LT6911UXC_LINK_FREQ_60M		60000000
+#define LT6911UXC_PIXEL_RATE		600000000
 
 #define I2C_MAX_XFER_SIZE		128
 
@@ -54,8 +60,12 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 
 static const s64 link_freq_menu_items[] = {
-	LT6911UXC_LINK_FREQ_HIGH,
-	LT6911UXC_LINK_FREQ_LOW,
+	LT6911UXC_LINK_FREQ_600M,
+	LT6911UXC_LINK_FREQ_400M,
+	LT6911UXC_LINK_FREQ_300M,
+	LT6911UXC_LINK_FREQ_200M,
+	LT6911UXC_LINK_FREQ_100M,
+	LT6911UXC_LINK_FREQ_60M,
 };
 
 struct lt6911uxc {
@@ -78,6 +88,7 @@ struct lt6911uxc {
 	struct v4l2_dv_timings timings;
 	struct v4l2_fwnode_bus_mipi_csi2 bus;
 	struct v4l2_subdev sd;
+	struct rkmodule_multi_dev_info multi_dev_info;
 	const char *len_name;
 	const char *module_facing;
 	const char *module_name;
@@ -100,13 +111,14 @@ struct lt6911uxc_mode {
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
+	u32 mipi_freq_idx;
 };
 
 static const struct v4l2_dv_timings_cap lt6911uxc_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
-	V4L2_INIT_BT_TIMINGS(1, 10000, 1, 10000, 0, 400000000,
+	V4L2_INIT_BT_TIMINGS(1, 10000, 1, 10000, 0, 600000000,
 			V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
 			V4L2_DV_BT_CAP_PROGRESSIVE |
@@ -121,10 +133,21 @@ static const struct lt6911uxc_mode supported_modes[] = {
 		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 4400,
+		.vts_def = 2250,
+		.mipi_freq_idx = 0,
+	}, {
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
 			.denominator = 300000,
 		},
 		.hts_def = 4400,
 		.vts_def = 2250,
+		.mipi_freq_idx = 0,
 	}, {
 		.width = 1920,
 		.height = 1080,
@@ -134,6 +157,7 @@ static const struct lt6911uxc_mode supported_modes[] = {
 		},
 		.hts_def = 2200,
 		.vts_def = 1125,
+		.mipi_freq_idx = 2,
 	}, {
 		.width = 1920,
 		.height = 540,
@@ -141,6 +165,7 @@ static const struct lt6911uxc_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 600000,
 		},
+		.mipi_freq_idx = 3,
 	}, {
 		.width = 1440,
 		.height = 240,
@@ -148,6 +173,7 @@ static const struct lt6911uxc_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 600000,
 		},
+		.mipi_freq_idx = 4,
 	}, {
 		.width = 1440,
 		.height = 288,
@@ -155,6 +181,7 @@ static const struct lt6911uxc_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 500000,
 		},
+		.mipi_freq_idx = 4,
 	}, {
 		.width = 1280,
 		.height = 720,
@@ -164,6 +191,7 @@ static const struct lt6911uxc_mode supported_modes[] = {
 		},
 		.hts_def = 1650,
 		.vts_def = 750,
+		.mipi_freq_idx = 3,
 	}, {
 		.width = 720,
 		.height = 576,
@@ -173,6 +201,7 @@ static const struct lt6911uxc_mode supported_modes[] = {
 		},
 		.hts_def = 864,
 		.vts_def = 625,
+		.mipi_freq_idx = 5,
 	}, {
 		.width = 720,
 		.height = 480,
@@ -182,6 +211,7 @@ static const struct lt6911uxc_mode supported_modes[] = {
 		},
 		.hts_def = 858,
 		.vts_def = 525,
+		.mipi_freq_idx = 5,
 	},
 };
 
@@ -390,6 +420,7 @@ static int lt6911uxc_get_detected_timings(struct v4l2_subdev *sd,
 	u8 value, val_h, val_l;
 	u32 fw_ver, mipi_byte_clk, mipi_bitrate;
 	u8 fw_a, fw_b, fw_c, fw_d, lanes;
+	u8 video_fmt;
 	int ret;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
@@ -421,13 +452,15 @@ static int lt6911uxc_get_detected_timings(struct v4l2_subdev *sd,
 
 	i2c_rd8(sd, MIPI_LANES, &lanes);
 	lt6911uxc->csi_lanes_in_use = lanes;
+	if (lt6911uxc->csi_lanes_in_use == 8)
+		v4l2_info(sd, "get 8 lane in use, set dual mipi mode\n");
 	i2c_wr8(sd, FM1_DET_CLK_SRC_SEL, AD_LMTX_WRITE_CLK);
 	i2c_rd8(sd, FREQ_METER_H, &clk_h);
 	i2c_rd8(sd, FREQ_METER_M, &clk_m);
 	i2c_rd8(sd, FREQ_METER_L, &clk_l);
 	mipi_byte_clk = (((clk_h & 0xf) << 16) | (clk_m << 8) | clk_l);
 	mipi_bitrate = mipi_byte_clk * 8 / 1000;
-	v4l2_info(sd, "MIPI Byte clk: %dKHz, MIPI bitrate: %dMbps, lanes:%d\n",
+	v4l2_info(sd, "MIPI Byte clk: %uKHz, MIPI bitrate: %uMbps, lanes:%d\n",
 			mipi_byte_clk, mipi_bitrate, lanes);
 
 	i2c_rd8(sd, HTOTAL_H, &val_h);
@@ -457,7 +490,15 @@ static int lt6911uxc_get_detected_timings(struct v4l2_subdev *sd,
 	hbp = ((val_h << 8) | val_l) * 2;
 	i2c_rd8(sd, VBP, &value);
 	vbp = value;
+	i2c_rd8(sd, COLOR_FMT_STATUS, &video_fmt);
+	video_fmt = (video_fmt & GENMASK(6, 5)) >> 5;
 	lt6911uxc_i2c_disable(sd);
+
+	if (video_fmt == 0x3) {
+		lt6911uxc->nosignal = true;
+		v4l2_err(sd, "%s ERROR: HDMI input YUV420, don't support YUV420!\n", __func__);
+		return -EINVAL;
+	}
 
 	if (!lt6911uxc_rcv_supported_res(sd, hact, vact)) {
 		lt6911uxc->nosignal = true;
@@ -694,7 +735,6 @@ static int lt6911uxc_s_dv_timings(struct v4l2_subdev *sd,
 	}
 
 	lt6911uxc->timings = *timings;
-
 	enable_stream(sd, false);
 
 	return 0;
@@ -771,7 +811,9 @@ static int lt6911uxc_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	case 4:
 		cfg->flags |= V4L2_MBUS_CSI2_4_LANE;
 		break;
-
+	case 8:
+		cfg->flags |= V4L2_MBUS_CSI2_4_LANE;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -836,11 +878,50 @@ static int lt6911uxc_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int lt6911uxc_get_reso_dist(const struct lt6911uxc_mode *mode,
+		struct v4l2_dv_timings *timings)
+{
+	struct v4l2_bt_timings *bt = &timings->bt;
+	u32 cur_fps, dist_fps;
+
+	cur_fps = fps_calc(bt);
+	dist_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+
+	return abs(mode->width - bt->width) +
+		abs(mode->height - bt->height) + abs(dist_fps - cur_fps);
+}
+
+static const struct lt6911uxc_mode *
+lt6911uxc_find_best_fit(struct lt6911uxc *lt6911uxc)
+{
+	int dist;
+	int cur_best_fit = 0;
+	int cur_best_fit_dist = -1;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		dist = lt6911uxc_get_reso_dist(&supported_modes[i], &lt6911uxc->timings);
+		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+			cur_best_fit_dist = dist;
+			cur_best_fit = i;
+		}
+	}
+	dev_info(&lt6911uxc->i2c_client->dev,
+		"find current mode: support_mode[%d], %dx%d@%dfps\n",
+		cur_best_fit, supported_modes[cur_best_fit].width,
+		supported_modes[cur_best_fit].height,
+		DIV_ROUND_CLOSEST(supported_modes[cur_best_fit].max_fps.denominator,
+		supported_modes[cur_best_fit].max_fps.numerator));
+
+	return &supported_modes[cur_best_fit];
+}
+
 static int lt6911uxc_get_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *format)
 {
 	struct lt6911uxc *lt6911uxc = to_state(sd);
+	const struct lt6911uxc_mode *mode;
 
 	mutex_lock(&lt6911uxc->confctl_mutex);
 	format->format.code = lt6911uxc->mbus_fmt_code;
@@ -850,6 +931,14 @@ static int lt6911uxc_get_fmt(struct v4l2_subdev *sd,
 		lt6911uxc->timings.bt.interlaced ?
 		V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
 	format->format.colorspace = V4L2_COLORSPACE_SRGB;
+
+	mode = lt6911uxc_find_best_fit(lt6911uxc);
+	lt6911uxc->cur_mode = mode;
+	__v4l2_ctrl_s_ctrl_int64(lt6911uxc->pixel_rate,
+				LT6911UXC_PIXEL_RATE);
+	__v4l2_ctrl_s_ctrl(lt6911uxc->link_freq,
+				mode->mipi_freq_idx);
+
 	mutex_unlock(&lt6911uxc->confctl_mutex);
 
 	v4l2_dbg(1, debug, sd, "%s: fmt code:%d, w:%d, h:%d, field mode:%s\n",
@@ -859,40 +948,12 @@ static int lt6911uxc_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int lt6911uxc_get_reso_dist(const struct lt6911uxc_mode *mode,
-		struct v4l2_mbus_framefmt *framefmt)
-{
-	return abs(mode->width - framefmt->width) +
-	       abs(mode->height - framefmt->height);
-}
-
-static const struct lt6911uxc_mode *
-lt6911uxc_find_best_fit(struct v4l2_subdev_format *fmt)
-{
-	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
-	int dist;
-	int cur_best_fit = 0;
-	int cur_best_fit_dist = -1;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
-		dist = lt6911uxc_get_reso_dist(&supported_modes[i], framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
-		}
-	}
-
-	return &supported_modes[cur_best_fit];
-}
-
 static int lt6911uxc_set_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *format)
 {
 	struct lt6911uxc *lt6911uxc = to_state(sd);
 	const struct lt6911uxc_mode *mode;
-	int index;
 
 	/* is overwritten by get_fmt */
 	u32 code = format->format.code;
@@ -915,19 +976,9 @@ static int lt6911uxc_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 
 	lt6911uxc->mbus_fmt_code = format->format.code;
-	mode = lt6911uxc_find_best_fit(format);
+	mode = lt6911uxc_find_best_fit(lt6911uxc);
 	lt6911uxc->cur_mode = mode;
 	enable_stream(sd, false);
-
-	if (((mode->width == 720) && (mode->height == 576)) ||
-	    ((mode->width == 720) && (mode->height == 480)))
-		index = 1;
-	else
-		index = 0;
-
-	__v4l2_ctrl_s_ctrl(lt6911uxc->link_freq, index);
-	v4l2_dbg(1, debug, sd, "%s res wxh:%dx%d, link freq:%llu", __func__,
-			mode->width, mode->height, link_freq_menu_items[index]);
 
 	return 0;
 }
@@ -957,7 +1008,9 @@ static void lt6911uxc_get_module_inf(struct lt6911uxc *lt6911uxc,
 static long lt6911uxc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct lt6911uxc *lt6911uxc = to_state(sd);
+	struct device *dev = &lt6911uxc->i2c_client->dev;
 	long ret = 0;
+	struct rkmodule_capture_info  *capture_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -965,6 +1018,16 @@ static long lt6911uxc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_HDMI_MODE:
 		*(int *)arg = RKMODULE_HDMIIN_MODE;
+		break;
+	case RKMODULE_GET_CAPTURE_MODE:
+		capture_info = (struct rkmodule_capture_info *)arg;
+		if (lt6911uxc->csi_lanes_in_use == 8) {
+			dev_info(dev, "8 lanes in use, set dual mipi mode\n");
+			capture_info->mode = RKMODULE_MULTI_DEV_COMBINE_ONE;
+			capture_info->multi_dev = lt6911uxc->multi_dev_info;
+		} else {
+			capture_info->mode = 0;
+		}
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -982,6 +1045,7 @@ static long lt6911uxc_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	long ret;
 	int *seq;
+	struct rkmodule_capture_info  *capture_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1013,6 +1077,21 @@ static long lt6911uxc_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(seq);
+		break;
+	case RKMODULE_GET_CAPTURE_MODE:
+		capture_info = kzalloc(sizeof(*capture_info), GFP_KERNEL);
+		if (!capture_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = lt6911uxc_ioctl(sd, cmd, capture_info);
+		if (!ret) {
+			ret = copy_to_user(up, capture_info, sizeof(*capture_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(capture_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1093,9 +1172,11 @@ static void lt6911uxc_reset(struct lt6911uxc *lt6911uxc)
 
 static int lt6911uxc_init_v4l2_ctrls(struct lt6911uxc *lt6911uxc)
 {
+	const struct lt6911uxc_mode *mode;
 	struct v4l2_subdev *sd;
 	int ret;
 
+	mode = lt6911uxc->cur_mode;
 	sd = &lt6911uxc->sd;
 	ret = v4l2_ctrl_handler_init(&lt6911uxc->hdl, 5);
 	if (ret)
@@ -1105,8 +1186,9 @@ static int lt6911uxc_init_v4l2_ctrls(struct lt6911uxc *lt6911uxc)
 			V4L2_CID_LINK_FREQ,
 			ARRAY_SIZE(link_freq_menu_items) - 1, 0,
 			link_freq_menu_items);
-	v4l2_ctrl_new_std(&lt6911uxc->hdl, NULL, V4L2_CID_PIXEL_RATE,
-			  0, LT6911UXC_PIXEL_RATE, 1, LT6911UXC_PIXEL_RATE);
+	lt6911uxc->pixel_rate = v4l2_ctrl_new_std(&lt6911uxc->hdl, NULL,
+			V4L2_CID_PIXEL_RATE,
+			0, LT6911UXC_PIXEL_RATE, 1, LT6911UXC_PIXEL_RATE);
 
 	lt6911uxc->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&lt6911uxc->hdl,
 			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
@@ -1124,6 +1206,9 @@ static int lt6911uxc_init_v4l2_ctrls(struct lt6911uxc *lt6911uxc)
 		v4l2_err(sd, "cfg v4l2 ctrls failed! ret:%d\n", ret);
 		return ret;
 	}
+
+	__v4l2_ctrl_s_ctrl(lt6911uxc->link_freq, mode->mipi_freq_idx);
+	__v4l2_ctrl_s_ctrl_int64(lt6911uxc->pixel_rate, LT6911UXC_PIXEL_RATE);
 
 	if (lt6911uxc_update_controls(sd)) {
 		ret = -ENODEV;
@@ -1309,6 +1394,36 @@ static struct attribute *lt6911_attrs[] = {
 };
 ATTRIBUTE_GROUPS(lt6911);
 
+static int lt6911uxc_get_multi_dev_info(struct lt6911uxc *lt6911uxc)
+{
+	struct device *dev = &lt6911uxc->i2c_client->dev;
+	struct device_node *node = dev->of_node;
+	struct device_node *multi_info_np;
+
+	multi_info_np = of_get_child_by_name(node, "multi-dev-info");
+	if (!multi_info_np) {
+		dev_info(dev, "failed to get multi dev info\n");
+		return -EINVAL;
+	}
+
+	of_property_read_u32(multi_info_np, "dev-idx-l",
+			&lt6911uxc->multi_dev_info.dev_idx[0]);
+	of_property_read_u32(multi_info_np, "dev-idx-r",
+			&lt6911uxc->multi_dev_info.dev_idx[1]);
+	of_property_read_u32(multi_info_np, "combine-idx",
+			&lt6911uxc->multi_dev_info.combine_idx[0]);
+	of_property_read_u32(multi_info_np, "pixel-offset",
+			&lt6911uxc->multi_dev_info.pixel_offset);
+	of_property_read_u32(multi_info_np, "dev-num",
+			&lt6911uxc->multi_dev_info.dev_num);
+	dev_info(dev,
+		"multi dev left: mipi%d, multi dev right: mipi%d, combile mipi%d, dev num: %d\n",
+		lt6911uxc->multi_dev_info.dev_idx[0], lt6911uxc->multi_dev_info.dev_idx[1],
+		lt6911uxc->multi_dev_info.combine_idx[0], lt6911uxc->multi_dev_info.dev_num);
+
+	return 0;
+}
+
 static int lt6911uxc_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -1340,6 +1455,10 @@ static int lt6911uxc_probe(struct i2c_client *client,
 		v4l2_err(sd, "lt6911uxc_parse_of failed! err:%d\n", err);
 		return err;
 	}
+
+	err = lt6911uxc_get_multi_dev_info(lt6911uxc);
+	if (err)
+		v4l2_info(sd, "get multi dev info failed, not use dual mipi mode\n");
 
 	err = lt6911uxc_check_chip_id(lt6911uxc);
 	if (err < 0)
@@ -1497,9 +1616,10 @@ static void __exit lt6911uxc_driver_exit(void)
 	i2c_del_driver(&lt6911uxc_driver);
 }
 
-late_initcall(lt6911uxc_driver_init);
+device_initcall_sync(lt6911uxc_driver_init);
 module_exit(lt6911uxc_driver_exit);
 
 MODULE_DESCRIPTION("Lontium LT6911UXC HDMI to MIPI CSI-2 bridge driver");
 MODULE_AUTHOR("Dingxian Wen <shawn.wen@rock-chips.com>");
+MODULE_AUTHOR("Jianwei Fan <jianwei.fan@rock-chips.com>");
 MODULE_LICENSE("GPL v2");
