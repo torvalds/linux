@@ -283,7 +283,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			phylink_set(modes, 2500baseX_Full);
 	}
 
-	if (bus->sfp_quirk)
+	if (bus->sfp_quirk && bus->sfp_quirk->modes)
 		bus->sfp_quirk->modes(id, modes);
 
 	linkmode_or(support, support, modes);

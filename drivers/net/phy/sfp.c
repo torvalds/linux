@@ -321,6 +321,15 @@ static void sfp_fixup_ignore_tx_fault(struct sfp *sfp)
 	sfp->tx_fault_ignore = true;
 }
 
+static void sfp_fixup_halny_gsfp(struct sfp *sfp)
+{
+	/* Ignore the TX_FAULT and LOS signals on this module.
+	 * these are possibly used for other purposes on this
+	 * module, e.g. a serial port.
+	 */
+	sfp->state_hw_mask &= ~(SFP_F_TX_FAULT | SFP_F_LOS);
+}
+
 static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
 				unsigned long *modes)
 {
@@ -353,6 +362,10 @@ static const struct sfp_quirk sfp_quirks[] = {
 		.modes = sfp_quirk_2500basex,
 		.fixup = sfp_fixup_long_startup,
 	}, {
+		.vendor = "HALNy",
+		.part = "HL-GSFP",
+		.fixup = sfp_fixup_halny_gsfp,
+	}, {
 		// Huawei MA5671A can operate at 2500base-X, but report 1.2GBd
 		// NRZ in their EEPROM
 		.vendor = "HUAWEI",
@@ -369,16 +382,18 @@ static const struct sfp_quirk sfp_quirks[] = {
 		.vendor = "UBNT",
 		.part = "UF-INSTANT",
 		.modes = sfp_quirk_ubnt_uf_instant,
-	},
+	}
 };
 
 static size_t sfp_strlen(const char *str, size_t maxlen)
 {
 	size_t size, i;
 
-	/* Trailing characters should be filled with space chars */
+	/* Trailing characters should be filled with space chars, but
+	 * some manufacturers can't read SFF-8472 and use NUL.
+	 */
 	for (i = 0, size = 0; i < maxlen; i++)
-		if (str[i] != ' ')
+		if (str[i] != ' ' && str[i] != '\0')
 			size = i + 1;
 
 	return size;
