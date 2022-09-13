@@ -2229,17 +2229,11 @@ MODULE_DEVICE_TABLE(acpi, mlxbf_i2c_acpi_ids);
 static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
 {
 	const struct acpi_device_id *aid;
-	struct acpi_device *adev;
-	unsigned long bus_id = 0;
-	const char *uid;
+	u64 bus_id;
 	int ret;
 
 	if (acpi_disabled)
 		return -ENOENT;
-
-	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		return -ENXIO;
 
 	aid = acpi_match_device(mlxbf_i2c_acpi_ids, dev);
 	if (!aid)
@@ -2247,17 +2241,15 @@ static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
 
 	priv->chip = (struct mlxbf_i2c_chip_info *)aid->driver_data;
 
-	uid = acpi_device_uid(adev);
-	if (!uid || !(*uid)) {
+	ret = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &bus_id);
+	if (ret) {
 		dev_err(dev, "Cannot retrieve UID\n");
-		return -ENODEV;
+		return ret;
 	}
 
-	ret = kstrtoul(uid, 0, &bus_id);
-	if (!ret)
-		priv->bus = bus_id;
+	priv->bus = bus_id;
 
-	return ret;
+	return 0;
 }
 #else
 static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
