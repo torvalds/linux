@@ -6,7 +6,6 @@
 #include <linux/spinlock.h>
 #include <linux/gpio/driver.h>
 #include <linux/bio.h>
-#include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
