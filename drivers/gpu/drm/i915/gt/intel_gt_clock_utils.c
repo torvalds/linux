@@ -78,44 +78,7 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 	u32 f19_2_mhz = 19200000;
 	u32 f24_mhz = 24000000;
 
-	if (GRAPHICS_VER(uncore->i915) <= 4) {
-		/*
-		 * PRMs say:
-		 *
-		 *     "The value in this register increments once every 16
-		 *      hclks." (through the “Clocking Configuration”
-		 *      (“CLKCFG”) MCHBAR register)
-		 */
-		return RUNTIME_INFO(uncore->i915)->rawclk_freq * 1000 / 16;
-	} else if (GRAPHICS_VER(uncore->i915) <= 8) {
-		/*
-		 * PRMs say:
-		 *
-		 *     "The PCU TSC counts 10ns increments; this timestamp
-		 *      reflects bits 38:3 of the TSC (i.e. 80ns granularity,
-		 *      rolling over every 1.5 hours).
-		 */
-		return f12_5_mhz;
-	} else if (GRAPHICS_VER(uncore->i915) <= 9) {
-		u32 ctc_reg = intel_uncore_read(uncore, CTC_MODE);
-		u32 freq = 0;
-
-		if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
-			freq = read_reference_ts_freq(uncore);
-		} else {
-			freq = IS_GEN9_LP(uncore->i915) ? f19_2_mhz : f24_mhz;
-
-			/*
-			 * Now figure out how the command stream's timestamp
-			 * register increments from this frequency (it might
-			 * increment only every few clock cycle).
-			 */
-			freq >>= 3 - ((ctc_reg & CTC_SHIFT_PARAMETER_MASK) >>
-				      CTC_SHIFT_PARAMETER_SHIFT);
-		}
-
-		return freq;
-	} else if (GRAPHICS_VER(uncore->i915) <= 12) {
+	if (GRAPHICS_VER(uncore->i915) >= 11) {
 		u32 ctc_reg = intel_uncore_read(uncore, CTC_MODE);
 		u32 freq = 0;
 
@@ -145,10 +108,44 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 		}
 
 		return freq;
-	}
+	} else if (GRAPHICS_VER(uncore->i915) >= 9) {
+		u32 ctc_reg = intel_uncore_read(uncore, CTC_MODE);
+		u32 freq = 0;
 
-	MISSING_CASE("Unknown gen, unable to read command streamer timestamp frequency\n");
-	return 0;
+		if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
+			freq = read_reference_ts_freq(uncore);
+		} else {
+			freq = IS_GEN9_LP(uncore->i915) ? f19_2_mhz : f24_mhz;
+
+			/*
+			 * Now figure out how the command stream's timestamp
+			 * register increments from this frequency (it might
+			 * increment only every few clock cycle).
+			 */
+			freq >>= 3 - ((ctc_reg & CTC_SHIFT_PARAMETER_MASK) >>
+				      CTC_SHIFT_PARAMETER_SHIFT);
+		}
+
+		return freq;
+	} else if (GRAPHICS_VER(uncore->i915) >= 5) {
+		/*
+		 * PRMs say:
+		 *
+		 *     "The PCU TSC counts 10ns increments; this timestamp
+		 *      reflects bits 38:3 of the TSC (i.e. 80ns granularity,
+		 *      rolling over every 1.5 hours).
+		 */
+		return f12_5_mhz;
+	} else {
+		/*
+		 * PRMs say:
+		 *
+		 *     "The value in this register increments once every 16
+		 *      hclks." (through the “Clocking Configuration”
+		 *      (“CLKCFG”) MCHBAR register)
+		 */
+		return RUNTIME_INFO(uncore->i915)->rawclk_freq * 1000 / 16;
+	}
 }
 
 void intel_gt_init_clock_frequency(struct intel_gt *gt)
