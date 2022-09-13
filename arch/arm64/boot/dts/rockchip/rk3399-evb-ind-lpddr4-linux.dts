@@ -287,6 +287,11 @@
 	status = "okay";
 };
 
+&route_hdmi {
+	status = "okay";
+	connect = <&vopb_out_hdmi>;
+};
+
 /*
  * if enable dp_sound, should disable spdif_sound and spdif_out
  */
