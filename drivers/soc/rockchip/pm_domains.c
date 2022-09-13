@@ -118,6 +118,35 @@ module_param_named(always_on, pm_domain_always_on, bool, 0644);
 MODULE_PARM_DESC(always_on,
 		 "Always keep pm domains power on except for system suspend.");
 
+#ifdef MODULE
+static bool keepon_startup = true;
+static void rockchip_pd_keepon_do_release(void);
+
+static int pd_param_set_keepon_startup(const char *val,
+				       const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_bool(val, kp);
+	if (ret)
+		return ret;
+
+	if (!keepon_startup)
+		rockchip_pd_keepon_do_release();
+
+	return 0;
+}
+
+static const struct kernel_param_ops pd_keepon_startup_ops = {
+	.set	= pd_param_set_keepon_startup,
+	.get	= param_get_bool,
+};
+
+module_param_cb(keepon_startup, &pd_keepon_startup_ops, &keepon_startup, 0644);
+MODULE_PARM_DESC(keepon_startup,
+		 "Keep pm domains power on during system startup.");
+#endif
+
 static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
 {
 	mutex_lock(&pd->pmu->mutex);
@@ -1054,18 +1083,11 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd->genpd.detach_dev = rockchip_pd_detach_dev;
 	if (pd_info->active_wakeup)
 		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
-	if (pd_info->always_on) {
+	if (pd_info->always_on || pd_info->keepon_startup) {
 		error = rockchip_pd_add_alwasy_on_flag(pd);
 		if (error)
 			goto err_unprepare_clocks;
 	}
-#ifndef MODULE
-	if (pd_info->keepon_startup) {
-		error = rockchip_pd_add_alwasy_on_flag(pd);
-		if (error)
-			goto err_unprepare_clocks;
-	}
-#endif
 	rockchip_pd_qos_init(pd);
 
 	pm_genpd_init(&pd->genpd, NULL, !rockchip_pmu_domain_is_on(pd));
@@ -1200,15 +1222,14 @@ err_out:
 	return error;
 }
 
-#ifndef MODULE
-static int __init rockchip_pd_keepon_release(void)
+static void rockchip_pd_keepon_do_release(void)
 {
 	struct generic_pm_domain *genpd;
 	struct rockchip_pm_domain *pd;
 	int i;
 
 	if (!g_pmu)
-		return 0;
+		return;
 
 	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
 		genpd = g_pmu->genpd_data.domains[i];
@@ -1218,10 +1239,19 @@ static int __init rockchip_pd_keepon_release(void)
 				continue;
 			if (!pd->info->keepon_startup)
 				continue;
+			if (!(genpd->flags & GENPD_FLAG_ALWAYS_ON))
+				continue;
 			genpd->flags &= (~GENPD_FLAG_ALWAYS_ON);
 			queue_work(pm_wq, &genpd->power_off_work);
 		}
 	}
+}
+
+#ifndef MODULE
+static int __init rockchip_pd_keepon_release(void)
+{
+	rockchip_pd_keepon_do_release();
+
 	return 0;
 }
 late_initcall_sync(rockchip_pd_keepon_release);
