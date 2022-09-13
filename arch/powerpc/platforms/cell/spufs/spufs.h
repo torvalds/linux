@@ -333,7 +333,6 @@ void spufs_stop_callback(struct spu *spu, int irq);
 void spufs_mfc_callback(struct spu *spu);
 void spufs_dma_callback(struct spu *spu, int type);
 
-extern struct spu_coredump_calls spufs_coredump_calls;
 struct spufs_coredump_reader {
 	char *name;
 	ssize_t (*dump)(struct spu_context *ctx, struct coredump_params *cprm);
@@ -341,7 +340,6 @@ struct spufs_coredump_reader {
 	size_t size;
 };
 extern const struct spufs_coredump_reader spufs_coredump_read[];
-extern int spufs_coredump_num_notes;
 
 extern int spu_init_csa(struct spu_state *csa);
 extern void spu_fini_csa(struct spu_state *csa);
