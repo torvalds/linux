@@ -418,6 +418,8 @@
 #define NAU8825_POWERUP_HP_DRV_L	(1 << 0)
 
 /* CHARGE_PUMP (0x80) */
+#define NAU8825_ADCOUT_DS_SFT	12
+#define NAU8825_ADCOUT_DS_MASK	(1 << NAU8825_ADCOUT_DS_SFT)
 #define NAU8825_JAMNODCLOW	(1 << 10)
 #define NAU8825_POWER_DOWN_DACR	(1 << 9)
 #define NAU8825_POWER_DOWN_DACL	(1 << 8)
@@ -477,6 +479,7 @@ struct nau8825 {
 	int imp_rms[NAU8825_XTALK_IMM];
 	int xtalk_enable;
 	bool xtalk_baktab_initialized; /* True if initialized. */
+	bool adcout_ds;
 };
 
 int nau8825_enable_jack_detect(struct snd_soc_component *component,

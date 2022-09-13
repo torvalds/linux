@@ -1976,6 +1976,10 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	/* Disable short Frame Sync detection logic */
 	regmap_update_bits(regmap, NAU8825_REG_LEFT_TIME_SLOT,
 		NAU8825_DIS_FS_SHORT_DET, NAU8825_DIS_FS_SHORT_DET);
+	/* ADCDAT IO drive strength control */
+	regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
+			   NAU8825_ADCOUT_DS_MASK,
+			   nau8825->adcout_ds << NAU8825_ADCOUT_DS_SFT);
 }
 
 static const struct regmap_config nau8825_regmap_config = {
@@ -2514,6 +2518,7 @@ static void nau8825_print_device_properties(struct nau8825 *nau8825)
 			nau8825->jack_eject_debounce);
 	dev_dbg(dev, "crosstalk-enable:     %d\n",
 			nau8825->xtalk_enable);
+	dev_dbg(dev, "adcout-drive-strong:  %d\n", nau8825->adcout_ds);
 }
 
 static int nau8825_read_device_properties(struct device *dev,
@@ -2580,6 +2585,7 @@ static int nau8825_read_device_properties(struct device *dev,
 		nau8825->jack_eject_debounce = 0;
 	nau8825->xtalk_enable = device_property_read_bool(dev,
 		"nuvoton,crosstalk-enable");
+	nau8825->adcout_ds = device_property_read_bool(dev, "nuvoton,adcout-drive-strong");
 
 	nau8825->mclk = devm_clk_get(dev, "mclk");
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
