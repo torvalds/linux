@@ -789,6 +789,7 @@ static bool page_referenced_one(struct page *page, struct vm_area_struct *vma,
 		}
 
 		if (pvmw.pte) {
+			trace_android_vh_look_around(&pvmw, page, vma, &referenced);
 			if (ptep_clear_flush_young_notify(vma, address,
 						pvmw.pte)) {
 				/*

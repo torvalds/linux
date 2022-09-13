@@ -1022,12 +1022,16 @@ static enum page_references page_check_references(struct page *page,
 	unsigned long vm_flags;
 	bool should_protect = false;
 	bool trylock_fail = false;
+	int ret = 0;
 
 	trace_android_vh_page_should_be_protected(page, &should_protect);
 	if (unlikely(should_protect))
 		return PAGEREF_ACTIVATE;
 
 	trace_android_vh_page_trylock_set(page);
+	trace_android_vh_check_page_look_around_ref(page, &ret);
+	if (ret)
+		return ret;
 	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
 					  &vm_flags);
 	referenced_page = TestClearPageReferenced(page);
