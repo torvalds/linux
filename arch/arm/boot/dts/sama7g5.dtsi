@@ -866,9 +866,9 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				atmel,fifo-size = <32>;
-				dmas = <&dma0 AT91_XDMAC_DT_PERID(27)>,
-					    <&dma0 AT91_XDMAC_DT_PERID(28)>;
-				dma-names = "rx", "tx";
+				dmas = <&dma0 AT91_XDMAC_DT_PERID(28)>,
+					    <&dma0 AT91_XDMAC_DT_PERID(27)>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 		};
