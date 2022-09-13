@@ -567,23 +567,26 @@ static int htcpld_core_probe(struct platform_device *pdev)
 	htcpld->int_reset_gpio_hi = gpiochip_request_own_desc(&htcpld->chip[2].chip_out,
 							      7, "htcpld-core", GPIO_ACTIVE_HIGH,
 							      GPIOD_OUT_HIGH);
-	if (!htcpld->int_reset_gpio_hi)
+	if (IS_ERR(htcpld->int_reset_gpio_hi)) {
 		/*
 		 * If it failed, that sucks, but we can probably
 		 * continue on without it.
 		 */
+		htcpld->int_reset_gpio_hi = NULL;
 		dev_warn(dev, "Unable to request int_reset_gpio_hi -- interrupts may not work\n");
-
+	}
 
 	htcpld->int_reset_gpio_lo = gpiochip_request_own_desc(&htcpld->chip[2].chip_out,
 							      0, "htcpld-core", GPIO_ACTIVE_HIGH,
 							      GPIOD_OUT_LOW);
-	if (!htcpld->int_reset_gpio_lo)
+	if (IS_ERR(htcpld->int_reset_gpio_lo)) {
 		/*
 		 * If it failed, that sucks, but we can probably
 		 * continue on without it.
 		 */
+		htcpld->int_reset_gpio_lo = NULL;
 		dev_warn(dev, "Unable to request int_reset_gpio_lo -- interrupts may not work\n");
+	}
 
 	dev_info(dev, "Initialized successfully\n");
 	return 0;
