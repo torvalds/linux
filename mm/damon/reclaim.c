@@ -52,44 +52,17 @@ module_param(commit_inputs, bool, 0600);
 static unsigned long min_age __read_mostly = 120000000;
 module_param(min_age, ulong, 0600);
 
-/*
- * Limit of time for trying the reclamation in milliseconds.
- *
- * DAMON_RECLAIM tries to use only up to this time within a time window
- * (quota_reset_interval_ms) for trying reclamation of cold pages.  This can be
- * used for limiting CPU consumption of DAMON_RECLAIM.  If the value is zero,
- * the limit is disabled.
- *
- * 10 ms by default.
- */
-static unsigned long quota_ms __read_mostly = 10;
-module_param(quota_ms, ulong, 0600);
-
-/*
- * Limit of size of memory for the reclamation in bytes.
- *
- * DAMON_RECLAIM charges amount of memory which it tried to reclaim within a
- * time window (quota_reset_interval_ms) and makes no more than this limit is
- * tried.  This can be used for limiting consumption of CPU and IO.  If this
- * value is zero, the limit is disabled.
- *
- * 128 MiB by default.
- */
-static unsigned long quota_sz __read_mostly = 128 * 1024 * 1024;
-module_param(quota_sz, ulong, 0600);
-
-/*
- * The time/size quota charge reset interval in milliseconds.
- *
- * The charge reset interval for the quota of time (quota_ms) and size
- * (quota_sz).  That is, DAMON_RECLAIM does not try reclamation for more than
- * quota_ms milliseconds or quota_sz bytes within quota_reset_interval_ms
- * milliseconds.
- *
- * 1 second by default.
- */
-static unsigned long quota_reset_interval_ms __read_mostly = 1000;
-module_param(quota_reset_interval_ms, ulong, 0600);
+static struct damos_quota damon_reclaim_quota = {
+	/* use up to 10 ms time, reclaim up to 128 MiB per 1 sec by default */
+	.ms = 10,
+	.sz = 128 * 1024 * 1024,
+	.reset_interval = 1000,
+	/* Within the quota, page out older regions first. */
+	.weight_sz = 0,
+	.weight_nr_accesses = 0,
+	.weight_age = 1
+};
+DEFINE_DAMON_MODULES_DAMOS_QUOTAS(damon_reclaim_quota);
 
 struct damos_watermarks damon_reclaim_wmarks = {
 	.metric = DAMOS_WMARK_FREE_MEM_RATE,
@@ -157,26 +130,13 @@ static struct damos *damon_reclaim_new_scheme(void)
 			damon_reclaim_mon_attrs.aggr_interval,
 		.max_age_region = UINT_MAX,
 	};
-	struct damos_quota quota = {
-		/*
-		 * Do not try reclamation for more than quota_ms milliseconds
-		 * or quota_sz bytes within quota_reset_interval_ms.
-		 */
-		.ms = quota_ms,
-		.sz = quota_sz,
-		.reset_interval = quota_reset_interval_ms,
-		/* Within the quota, page out older regions first. */
-		.weight_sz = 0,
-		.weight_nr_accesses = 0,
-		.weight_age = 1
-	};
 
 	return damon_new_scheme(
 			&pattern,
 			/* page out those, as soon as found */
 			DAMOS_PAGEOUT,
 			/* under the quota. */
-			&quota,
+			&damon_reclaim_quota,
 			/* (De)activate this according to the watermarks. */
 			&damon_reclaim_wmarks);
 }
