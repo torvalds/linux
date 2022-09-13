@@ -7,6 +7,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/uniphier-gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -135,10 +136,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 4>,
-			     <1 14 4>,
-			     <1 11 4>,
-			     <1 10 4>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	thermal-zones {
@@ -195,7 +196,7 @@
 			reg = <0x54006000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 39 4>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi0>;
 			clocks = <&peri_clk 11>;
@@ -208,7 +209,7 @@
 			reg = <0x54006100 0x100>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 216 4>;
+			interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1>;
 			clocks = <&peri_clk 12>;
@@ -219,7 +220,7 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006800 0x40>;
-			interrupts = <0 33 4>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart0>;
 			clocks = <&peri_clk 0>;
@@ -230,7 +231,7 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006900 0x40>;
-			interrupts = <0 35 4>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart1>;
 			clocks = <&peri_clk 1>;
@@ -241,7 +242,7 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006a00 0x40>;
-			interrupts = <0 37 4>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart2>;
 			clocks = <&peri_clk 2>;
@@ -252,7 +253,7 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006b00 0x40>;
-			interrupts = <0 177 4>;
+			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart3>;
 			clocks = <&peri_clk 3>;
@@ -284,7 +285,7 @@
 			reg = <0x58780000 0x80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 41 4>;
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c0>;
 			clocks = <&peri_clk 4>;
@@ -298,7 +299,7 @@
 			reg = <0x58781000 0x80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 42 4>;
+			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c1>;
 			clocks = <&peri_clk 5>;
@@ -312,7 +313,7 @@
 			reg = <0x58782000 0x80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 43 4>;
+			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c2>;
 			clocks = <&peri_clk 6>;
@@ -326,7 +327,7 @@
 			reg = <0x58783000 0x80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 44 4>;
+			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c3>;
 			clocks = <&peri_clk 7>;
@@ -340,7 +341,7 @@
 			reg = <0x58786000 0x80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 26 4>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&peri_clk 10>;
 			resets = <&peri_rst 10>;
 			clock-frequency = <400000>;
@@ -396,7 +397,7 @@
 		emmc: mmc@5a000000 {
 			compatible = "socionext,uniphier-sd4hc", "cdns,sd4hc";
 			reg = <0x5a000000 0x400>;
-			interrupts = <0 78 4>;
+			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_emmc>;
 			clocks = <&sys_clk 4>;
@@ -416,7 +417,7 @@
 			compatible = "socionext,uniphier-sd-v3.1.1";
 			status = "disabled";
 			reg = <0x5a400000 0x800>;
-			interrupts = <0 76 4>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default", "uhs";
 			pinctrl-0 = <&pinctrl_sd>;
 			pinctrl-1 = <&pinctrl_sd_uhs>;
@@ -505,7 +506,7 @@
 		xdmac: dma-controller@5fc10000 {
 			compatible = "socionext,uniphier-xdmac";
 			reg = <0x5fc10000 0x5300>;
-			interrupts = <0 188 4>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 			dma-channels = <16>;
 			#dma-cells = <2>;
 		};
@@ -523,7 +524,7 @@
 			      <0x5fe80000 0x80000>;	/* GICR */
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			interrupts = <1 9 4>;
+			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		sysctrl@61840000 {
@@ -547,7 +548,7 @@
 
 			pvtctl: thermal-sensor {
 				compatible = "socionext,uniphier-pxs3-thermal";
-				interrupts = <0 3 4>;
+				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 				#thermal-sensor-cells = <0>;
 				socionext,tmod-calibration = <0x0f22 0x68ee>;
 			};
@@ -557,7 +558,7 @@
 			compatible = "socionext,uniphier-pxs3-ave4";
 			status = "disabled";
 			reg = <0x65000000 0x8500>;
-			interrupts = <0 66 4>;
+			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_ether_rgmii>;
 			clock-names = "ether";
@@ -578,7 +579,7 @@
 			compatible = "socionext,uniphier-pxs3-ave4";
 			status = "disabled";
 			reg = <0x65200000 0x8500>;
-			interrupts = <0 67 4>;
+			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_ether1_rgmii>;
 			clock-names = "ether";
@@ -600,7 +601,7 @@
 			status = "disabled";
 			reg = <0x65a00000 0xcd00>;
 			interrupt-names = "dwc_usb3";
-			interrupts = <0 134 4>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb0>, <&pinctrl_usb2>;
 			clock-names = "ref", "bus_early", "suspend";
@@ -702,7 +703,7 @@
 			status = "disabled";
 			reg = <0x65c00000 0xcd00>;
 			interrupt-names = "dwc_usb3";
-			interrupts = <0 137 4>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb1>, <&pinctrl_usb3>;
 			clock-names = "ref", "bus_early", "suspend";
@@ -812,7 +813,8 @@
 				<0x82000000 0 0x20000000 0x20000000 0 0x0ffe0000>;
 			#interrupt-cells = <1>;
 			interrupt-names = "dma", "msi";
-			interrupts = <0 224 4>, <0 225 4>;
+			interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc 0>,	/* INTA */
 					<0 0 0 2 &pcie_intc 1>,	/* INTB */
@@ -825,7 +827,7 @@
 				interrupt-controller;
 				#interrupt-cells = <1>;
 				interrupt-parent = <&gic>;
-				interrupts = <0 226 4>;
+				interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
@@ -847,7 +849,7 @@
 			reg = <0x68000000 0x20>, <0x68100000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <0 65 4>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;
 			clock-names = "nand", "nand_x", "ecc";
