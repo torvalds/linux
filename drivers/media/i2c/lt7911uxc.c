@@ -10,6 +10,7 @@
  * V0.0X01.0X01 support DPHY 4K60.
  * V0.0X01.0X02 add CPHY support.
  * V0.0X01.0X03 add rk3588 dcphy param.
+ * V0.0X01.0X04 add 5K60 support for CPHY.
  *
  */
 
@@ -37,7 +38,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -48,7 +49,8 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 
 #define LT7911UXC_LINK_FREQ_HIGH	1250000000
 #define LT7911UXC_LINK_FREQ_LOW		400000000
-#define LT7911UXC_PIXEL_RATE		600000000
+#define LT7911UXC_LINK_FREQ_700M	700000000
+#define LT7911UXC_PIXEL_RATE		800000000
 
 #define LT7911UXC_CHIPID	0x0119
 #define CHIPID_REGH		0xe101
@@ -96,6 +98,7 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 static const s64 link_freq_menu_items[] = {
 	LT7911UXC_LINK_FREQ_HIGH,
 	LT7911UXC_LINK_FREQ_LOW,
+	LT7911UXC_LINK_FREQ_700M,
 };
 
 struct lt7911uxc {
@@ -139,7 +142,7 @@ struct lt7911uxc {
 static const struct v4l2_dv_timings_cap lt7911uxc_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	.reserved = { 0 },
-	V4L2_INIT_BT_TIMINGS(1, 10000, 1, 10000, 0, 600000000,
+	V4L2_INIT_BT_TIMINGS(1, 10000, 1, 10000, 0, 800000000,
 			V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
 			V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_INTERLACED |
@@ -224,6 +227,16 @@ static const struct lt7911uxc_mode supported_modes_dphy[] = {
 
 static const struct lt7911uxc_mode supported_modes_cphy[] = {
 	{
+		.width = 5120,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 5500,
+		.vts_def = 2250,
+		.mipi_freq_idx = 2,
+	}, {
 		.width = 3840,
 		.height = 2160,
 		.max_fps = {
