@@ -1303,7 +1303,7 @@ static void apply_symclk_on_tx_off_wa(struct dc_link *link)
 	if (link->phy_state.symclk_ref_cnts.otg > 0) {
 		for (i = 0; i < MAX_PIPES; i++) {
 			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe_ctx->stream->link == link && pipe_ctx->top_pipe == NULL) {
+			if (pipe_ctx->stream && pipe_ctx->stream->link == link && pipe_ctx->top_pipe == NULL) {
 				pipe_ctx->clock_source->funcs->program_pix_clk(
 						pipe_ctx->clock_source,
 						&pipe_ctx->stream_res.pix_clk_params,
