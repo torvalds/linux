@@ -56,7 +56,7 @@
 };
 
 &gpio {
-	xirq1 {
+	xirq1-hog {
 		gpio-hog;
 		gpios = <UNIPHIER_GPIO_IRQ(1) 0>;
 		input;
