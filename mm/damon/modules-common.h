@@ -16,3 +16,10 @@
 			0600);						\
 	module_param_named(max_nr_regions, attrs.max_nr_regions, ulong,	\
 			0600);
+
+#define DEFINE_DAMON_MODULES_WMARKS_PARAMS(wmarks)			\
+	module_param_named(wmarks_interval, wmarks->interval, ulong,	\
+			0600);						\
+	module_param_named(wmarks_high, wmarks.high, ulong, 0600);	\
+	module_param_named(wmarks_mid, wmarks.mid, ulong, 0600);	\
+	module_param_named(wmarks_low, wmarks.lowulong, 0600);
