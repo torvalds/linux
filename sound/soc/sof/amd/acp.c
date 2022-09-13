@@ -42,7 +42,8 @@ static void init_dma_descriptor(struct acp_dev_data *adata)
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int addr;
 
-	addr = desc->sram_pte_offset + offsetof(struct scratch_reg_conf, dma_desc);
+	addr = desc->sram_pte_offset + sdev->debug_box.offset +
+	       offsetof(struct scratch_reg_conf, dma_desc);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_DESC_BASE_ADDR, addr);
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DMA_DESC_MAX_NUM_DSCR, ACP_MAX_DESC_CNT);
@@ -54,8 +55,9 @@ static void configure_dma_descriptor(struct acp_dev_data *adata, unsigned short 
 	struct snd_sof_dev *sdev = adata->dev;
 	unsigned int offset;
 
-	offset = ACP_SCRATCH_REG_0 + offsetof(struct scratch_reg_conf, dma_desc) +
-		 idx * sizeof(struct dma_descriptor);
+	offset = ACP_SCRATCH_REG_0 + sdev->debug_box.offset +
+		offsetof(struct scratch_reg_conf, dma_desc) +
+		idx * sizeof(struct dma_descriptor);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, offset, dscr_info->src_addr);
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, offset + 0x4, dscr_info->dest_addr);
@@ -515,6 +517,15 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 		pci_dev_put(adata->smn_dev);
 		return ret;
 	}
+
+	sdev->dsp_box.offset = 0;
+	sdev->dsp_box.size = BOX_SIZE_512;
+
+	sdev->host_box.offset = sdev->dsp_box.offset + sdev->dsp_box.size;
+	sdev->host_box.size = BOX_SIZE_512;
+
+	sdev->debug_box.offset = sdev->host_box.offset + sdev->host_box.size;
+	sdev->debug_box.size = BOX_SIZE_1024;
 
 	acp_memory_init(sdev);
 

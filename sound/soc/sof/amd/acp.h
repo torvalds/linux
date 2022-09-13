@@ -66,6 +66,9 @@
 #define MBOX_READY_MASK				0x80000000
 #define MBOX_STATUS_MASK			0xFFFF
 
+#define BOX_SIZE_512				0x200
+#define BOX_SIZE_1024				0x400
+
 struct  acp_atu_grp_pte {
 	u32 low;
 	u32 high;
@@ -90,10 +93,6 @@ struct dma_descriptor {
 
 /* Scratch memory structure for communication b/w host and dsp */
 struct  scratch_ipc_conf {
-	/* DSP mailbox */
-	u8 sof_out_box[512];
-	/* Host mailbox */
-	u8 sof_in_box[512];
 	/* Debug memory */
 	u8 sof_debug_box[1024];
 	/* Exception memory*/
