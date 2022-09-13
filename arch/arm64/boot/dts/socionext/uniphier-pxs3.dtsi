@@ -545,7 +545,7 @@
 				compatible = "socionext,uniphier-wdt";
 			};
 
-			pvtctl: pvtctl {
+			pvtctl: thermal-sensor {
 				compatible = "socionext,uniphier-pxs3-thermal";
 				interrupts = <0 3 4>;
 				#thermal-sensor-cells = <0>;
