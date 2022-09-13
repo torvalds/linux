@@ -1155,29 +1155,52 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int set_filter_clk(struct snd_soc_dapm_widget *w,
+
+static int rt5682s_set_pllb_power(struct rt5682s_priv *rt5682s, int on)
+{
+	struct snd_soc_component *component = rt5682s->component;
+
+	if (on) {
+		snd_soc_component_update_bits(component, RT5682S_PWR_ANLG_3,
+			RT5682S_PWR_LDO_PLLB | RT5682S_PWR_BIAS_PLLB | RT5682S_PWR_PLLB,
+			RT5682S_PWR_LDO_PLLB | RT5682S_PWR_BIAS_PLLB | RT5682S_PWR_PLLB);
+		snd_soc_component_update_bits(component, RT5682S_PWR_ANLG_3,
+			RT5682S_RSTB_PLLB, RT5682S_RSTB_PLLB);
+	} else {
+		snd_soc_component_update_bits(component, RT5682S_PWR_ANLG_3,
+			RT5682S_PWR_LDO_PLLB | RT5682S_PWR_BIAS_PLLB |
+			RT5682S_RSTB_PLLB | RT5682S_PWR_PLLB, 0);
+	}
+
+	return 0;
+}
+
+static int set_pllb_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
-	int ref, val, reg, idx;
+	int on = 0;
+
+	if (rt5682s->wclk_enabled)
+		return 0;
+
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		on = 1;
+
+	rt5682s_set_pllb_power(rt5682s, on);
+
+	return 0;
+}
+
+static void rt5682s_set_filter_clk(struct rt5682s_priv *rt5682s, int reg, int ref)
+{
+	struct snd_soc_component *component = rt5682s->component;
+	int idx;
 	static const int div_f[] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48};
 	static const int div_o[] = {1, 2, 4, 6, 8, 12, 16, 24, 32, 48};
 
-	val = snd_soc_component_read(component, RT5682S_GPIO_CTRL_1)
-			& RT5682S_GP4_PIN_MASK;
-
-	if (w->shift == RT5682S_PWR_ADC_S1F_BIT && val == RT5682S_GP4_PIN_ADCDAT2)
-		ref = 256 * rt5682s->lrck[RT5682S_AIF2];
-	else
-		ref = 256 * rt5682s->lrck[RT5682S_AIF1];
-
 	idx = rt5682s_div_sel(rt5682s, ref, div_f, ARRAY_SIZE(div_f));
-
-	if (w->shift == RT5682S_PWR_ADC_S1F_BIT)
-		reg = RT5682S_PLL_TRACK_3;
-	else
-		reg = RT5682S_PLL_TRACK_2;
 
 	snd_soc_component_update_bits(component, reg,
 		RT5682S_FILTER_CLK_DIV_MASK, idx << RT5682S_FILTER_CLK_DIV_SFT);
@@ -1191,6 +1214,29 @@ static int set_filter_clk(struct snd_soc_dapm_widget *w,
 	snd_soc_component_update_bits(component, RT5682S_ADDA_CLK_1,
 		RT5682S_ADC_OSR_MASK | RT5682S_DAC_OSR_MASK,
 		(idx << RT5682S_ADC_OSR_SFT) | (idx << RT5682S_DAC_OSR_SFT));
+}
+
+static int set_filter_clk(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
+	int ref, reg, val;
+
+	val = snd_soc_component_read(component, RT5682S_GPIO_CTRL_1)
+			& RT5682S_GP4_PIN_MASK;
+
+	if (w->shift == RT5682S_PWR_ADC_S1F_BIT && val == RT5682S_GP4_PIN_ADCDAT2)
+		ref = 256 * rt5682s->lrck[RT5682S_AIF2];
+	else
+		ref = 256 * rt5682s->lrck[RT5682S_AIF1];
+
+	if (w->shift == RT5682S_PWR_ADC_S1F_BIT)
+		reg = RT5682S_PLL_TRACK_3;
+	else
+		reg = RT5682S_PLL_TRACK_2;
+
+	rt5682s_set_filter_clk(rt5682s, reg, ref);
 
 	return 0;
 }
@@ -1633,20 +1679,14 @@ static const struct snd_soc_dapm_widget rt5682s_dapm_widgets[] = {
 	/* PLL Powers */
 	SND_SOC_DAPM_SUPPLY_S("PLLA_LDO", 0, RT5682S_PWR_ANLG_3,
 		RT5682S_PWR_LDO_PLLA_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("PLLB_LDO", 0, RT5682S_PWR_ANLG_3,
-		RT5682S_PWR_LDO_PLLB_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("PLLA_BIAS", 0, RT5682S_PWR_ANLG_3,
 		RT5682S_PWR_BIAS_PLLA_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("PLLB_BIAS", 0, RT5682S_PWR_ANLG_3,
-		RT5682S_PWR_BIAS_PLLB_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("PLLA", 0, RT5682S_PWR_ANLG_3,
 		RT5682S_PWR_PLLA_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("PLLB", 0, RT5682S_PWR_ANLG_3,
-		RT5682S_PWR_PLLB_BIT, 0, set_filter_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY_S("PLLA_RST", 1, RT5682S_PWR_ANLG_3,
 		RT5682S_RSTB_PLLA_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("PLLB_RST", 1, RT5682S_PWR_ANLG_3,
-		RT5682S_RSTB_PLLB_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("PLLB", SND_SOC_NOPM, 0, 0,
+		set_pllb_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* ASRC */
 	SND_SOC_DAPM_SUPPLY_S("DAC STO1 ASRC", 1, RT5682S_PLL_TRACK_1,
@@ -1813,9 +1853,6 @@ static const struct snd_soc_dapm_route rt5682s_dapm_routes[] = {
 	{"PLLA", NULL, "PLLA_LDO"},
 	{"PLLA", NULL, "PLLA_BIAS"},
 	{"PLLA", NULL, "PLLA_RST"},
-	{"PLLB", NULL, "PLLB_LDO"},
-	{"PLLB", NULL, "PLLB_BIAS"},
-	{"PLLB", NULL, "PLLB_RST"},
 
 	/*ASRC*/
 	{"ADC Stereo1 Filter", NULL, "ADC STO1 ASRC", is_using_asrc},
@@ -2479,7 +2516,7 @@ static int rt5682s_wclk_prepare(struct clk_hw *hw)
 	struct rt5682s_priv *rt5682s =
 		container_of(hw, struct rt5682s_priv, dai_clks_hw[RT5682S_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682s->component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	int ref, reg;
 
 	if (!rt5682s_clk_check(rt5682s))
 		return -EINVAL;
@@ -2498,17 +2535,15 @@ static int rt5682s_wclk_prepare(struct clk_hw *hw)
 		RT5682S_DIG_GATE_CTRL, RT5682S_DIG_GATE_CTRL);
 	rt5682s_set_i2s(rt5682s, RT5682S_AIF1, 1);
 
+	/* Only need to power on PLLB due to the rate set restriction */
+	reg = RT5682S_PLL_TRACK_2;
+	ref = 256 * rt5682s->lrck[RT5682S_AIF1];
+	rt5682s_set_filter_clk(rt5682s, reg, ref);
+	rt5682s_set_pllb_power(rt5682s, 1);
+
 	rt5682s->wclk_enabled = 1;
 
 	mutex_unlock(&rt5682s->wclk_mutex);
-
-	snd_soc_dapm_mutex_lock(dapm);
-
-	/* Only need to power PLLB due to the rate set restriction */
-	snd_soc_dapm_force_enable_pin_unlocked(dapm, "PLLB");
-	snd_soc_dapm_sync_unlocked(dapm);
-
-	snd_soc_dapm_mutex_unlock(dapm);
 
 	return 0;
 }
@@ -2518,7 +2553,6 @@ static void rt5682s_wclk_unprepare(struct clk_hw *hw)
 	struct rt5682s_priv *rt5682s =
 		container_of(hw, struct rt5682s_priv, dai_clks_hw[RT5682S_DAI_WCLK_IDX]);
 	struct snd_soc_component *component = rt5682s->component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
 	if (!rt5682s_clk_check(rt5682s))
 		return;
@@ -2534,16 +2568,12 @@ static void rt5682s_wclk_unprepare(struct clk_hw *hw)
 	snd_soc_component_update_bits(component, RT5682S_PWR_DIG_1,
 		RT5682S_DIG_GATE_CTRL, 0);
 
+	/* Power down PLLB */
+	rt5682s_set_pllb_power(rt5682s, 0);
+
 	rt5682s->wclk_enabled = 0;
 
 	mutex_unlock(&rt5682s->wclk_mutex);
-
-	snd_soc_dapm_mutex_lock(dapm);
-
-	snd_soc_dapm_disable_pin_unlocked(dapm, "PLLB");
-	snd_soc_dapm_sync_unlocked(dapm);
-
-	snd_soc_dapm_mutex_unlock(dapm);
 }
 
 static unsigned long rt5682s_wclk_recalc_rate(struct clk_hw *hw,
