@@ -26,6 +26,7 @@ properties:
     enum:
       - mediatek,mt2701-disp-mutex
       - mediatek,mt2712-disp-mutex
+      - mediatek,mt6795-disp-mutex
       - mediatek,mt8167-disp-mutex
       - mediatek,mt8173-disp-mutex
       - mediatek,mt8183-disp-mutex
