@@ -108,3 +108,11 @@
 		reg = <0>;
 	};
 };
+
+&ahci0 {
+	status = "okay";
+};
+
+&ahci1 {
+	status = "okay";
+};

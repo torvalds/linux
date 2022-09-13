@@ -411,6 +411,11 @@
 					vbus-supply = <&usb1_vbus>;
 				};
 			};
+
+			sg_clk: clock {
+				compatible = "socionext,uniphier-pro4-sg-clock";
+				#clock-cells = <1>;
+			};
 		};
 
 		soc-glue@5f900000 {
@@ -510,6 +515,98 @@
 			mdio: mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;
+			};
+		};
+
+		ahci0: sata@65600000 {
+			compatible = "socionext,uniphier-pro4-ahci",
+				     "generic-ahci";
+			status = "disabled";
+			reg = <0x65600000 0x10000>;
+			interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_clk 12>, <&sys_clk 28>;
+			resets = <&sys_rst 12>, <&sys_rst 28>, <&ahci0_rst 3>;
+			ports-implemented = <1>;
+			phys = <&ahci0_phy>;
+			assigned-clocks = <&sg_clk 0>;
+			assigned-clock-rates = <25000000>;
+		};
+
+		sata-controller@65700000 {
+			compatible = "socionext,uniphier-pxs2-ahci-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65700000 0x100>;
+
+			ahci0_rst: reset-controller@0 {
+				compatible = "socionext,uniphier-pro4-ahci-reset";
+				reg = <0x0 0x4>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 28>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 28>;
+				#reset-cells = <1>;
+			};
+
+			ahci0_phy: sata-phy@10 {
+				compatible = "socionext,uniphier-pro4-ahci-phy";
+				reg = <0x10 0x40>;
+				clock-names = "link", "gio";
+				clocks = <&sys_clk 28>, <&sys_clk 12>;
+				reset-names = "link", "gio", "phy",
+					      "pm", "tx", "rx";
+				resets = <&sys_rst 28>, <&sys_rst 12>,
+					 <&sys_rst 30>,
+					 <&ahci0_rst 0>, <&ahci0_rst 1>,
+					 <&ahci0_rst 2>;
+				#phy-cells = <0>;
+			};
+		};
+
+		ahci1: sata@65800000 {
+			compatible = "socionext,uniphier-pro4-ahci",
+				     "generic-ahci";
+			status = "disabled";
+			reg = <0x65800000 0x10000>;
+			interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_clk 12>, <&sys_clk 29>;
+			resets = <&sys_rst 12>, <&sys_rst 29>, <&ahci1_rst 3>;
+			ports-implemented = <1>;
+			phys = <&ahci1_phy>;
+			assigned-clocks = <&sg_clk 0>;
+			assigned-clock-rates = <25000000>;
+		};
+
+		sata-controller@65900000 {
+			compatible = "socionext,uniphier-pro4-ahci-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65900000 0x100>;
+
+			ahci1_rst: reset-controller@0 {
+				compatible = "socionext,uniphier-pro4-ahci-reset";
+				reg = <0x0 0x4>;
+				clock-names = "gio", "link";
+				clocks = <&sys_clk 12>, <&sys_clk 29>;
+				reset-names = "gio", "link";
+				resets = <&sys_rst 12>, <&sys_rst 29>;
+				#reset-cells = <1>;
+			};
+
+			ahci1_phy: sata-phy@10 {
+				compatible = "socionext,uniphier-pro4-ahci-phy";
+				reg = <0x10 0x40>;
+				clock-names = "link", "gio";
+				clocks = <&sys_clk 29>, <&sys_clk 12>;
+				reset-names = "link", "gio", "phy",
+					      "pm", "tx", "rx";
+				resets = <&sys_rst 29>, <&sys_rst 12>,
+					 <&sys_rst 30>,
+					 <&ahci1_rst 0>, <&ahci1_rst 1>,
+					 <&ahci1_rst 2>;
+				#phy-cells = <0>;
 			};
 		};
 
