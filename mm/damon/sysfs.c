@@ -2592,19 +2592,16 @@ static ssize_t pid_show(struct kobject *kobj,
 	struct damon_sysfs_kdamond *kdamond = container_of(kobj,
 			struct damon_sysfs_kdamond, kobj);
 	struct damon_ctx *ctx;
-	int pid;
+	int pid = -1;
 
 	if (!mutex_trylock(&damon_sysfs_lock))
 		return -EBUSY;
 	ctx = kdamond->damon_ctx;
-	if (!ctx) {
-		pid = -1;
+	if (!ctx)
 		goto out;
-	}
+
 	mutex_lock(&ctx->kdamond_lock);
-	if (!ctx->kdamond)
-		pid = -1;
-	else
+	if (ctx->kdamond)
 		pid = ctx->kdamond->pid;
 	mutex_unlock(&ctx->kdamond_lock);
 out:
