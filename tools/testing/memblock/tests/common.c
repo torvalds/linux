@@ -9,6 +9,7 @@
 #define INIT_MEMBLOCK_RESERVED_REGIONS		INIT_MEMBLOCK_REGIONS
 #define PREFIXES_MAX				15
 #define DELIM					": "
+#define BASIS					10000
 
 static struct test_memory memory_block;
 static const char __maybe_unused *prefixes[PREFIXES_MAX];
@@ -69,6 +70,36 @@ void setup_memblock(void)
 {
 	reset_memblock_regions();
 	memblock_add((phys_addr_t)memory_block.base, MEM_SIZE);
+	fill_memblock();
+}
+
+/**
+ * setup_numa_memblock:
+ * Set up a memory layout with multiple NUMA nodes in a previously allocated
+ * dummy physical memory.
+ * @node_fracs: an array representing the fraction of MEM_SIZE contained in
+ *              each node in basis point units (one hundredth of 1% or 1/10000).
+ *              For example, if node 0 should contain 1/8 of MEM_SIZE,
+ *              node_fracs[0] = 1250.
+ *
+ * The nids will be set to 0 through NUMA_NODES - 1.
+ */
+void setup_numa_memblock(const unsigned int node_fracs[])
+{
+	phys_addr_t base;
+	int flags;
+
+	reset_memblock_regions();
+	base = (phys_addr_t)memory_block.base;
+	flags = (movable_node_is_enabled()) ? MEMBLOCK_NONE : MEMBLOCK_HOTPLUG;
+
+	for (int i = 0; i < NUMA_NODES; i++) {
+		assert(node_fracs[i] <= BASIS);
+		phys_addr_t size = MEM_SIZE * node_fracs[i] / BASIS;
+
+		memblock_add_node(base, size, i, flags);
+		base += size;
+	}
 	fill_memblock();
 }
 
