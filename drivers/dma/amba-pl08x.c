@@ -3104,21 +3104,21 @@ static struct vendor_data vendor_pl080 = {
 	.max_transfer_size = PL080_CONTROL_TRANSFER_SIZE_MASK,
 };
 #ifdef CONFIG_SOC_STARFIVE_JH7110
-static const struct of_device_id vic7110_dma_ids[] = {
-	{ .compatible = "starfive,pl080", .data = &vendor_pl080},
+static const struct of_device_id jh7110_dma_ids[] = {
+	{ .compatible = "starfive,jh7110-pl080", .data = &vendor_pl080},
 	{},
 };
-MODULE_DEVICE_TABLE(of, vic7110_dma_ids);
+MODULE_DEVICE_TABLE(of, jh7110_dma_ids);
 
-static struct platform_driver vic7110_pl08x_driver = {
+static struct platform_driver jh7110_pl08x_driver = {
 	.probe  = pl08x_probe,
 	.driver = {
 		.name           = DRIVER_NAME,
-		.of_match_table = vic7110_dma_ids,
+		.of_match_table = jh7110_dma_ids,
 	},
 };
 
-module_platform_driver(vic7110_pl08x_driver);
+module_platform_driver(jh7110_pl08x_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Huan Feng <huan.feng@starfivetech.com>");
