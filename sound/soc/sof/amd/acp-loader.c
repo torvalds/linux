@@ -30,9 +30,10 @@
 int acp_dsp_block_read(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
 		       u32 offset, void *dest, size_t size)
 {
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	switch (blk_type) {
 	case SOF_FW_BLK_TYPE_SRAM:
-		offset = offset - ACP_SCRATCH_MEMORY_ADDRESS;
+		offset = offset - desc->sram_pte_offset;
 		memcpy_from_scratch(sdev, offset, dest, size);
 		break;
 	default:
@@ -49,6 +50,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	struct acp_dev_data *adata;
 	void *dest;
 	u32 dma_size, page_count;
@@ -84,7 +86,7 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 		adata->fw_data_bin_size = size + offset;
 		break;
 	case SOF_FW_BLK_TYPE_SRAM:
-		offset = offset - ACP_SCRATCH_MEMORY_ADDRESS;
+		offset = offset - desc->sram_pte_offset;
 		memcpy_to_scratch(sdev, offset, src, size);
 		return 0;
 	default:
@@ -105,13 +107,12 @@ EXPORT_SYMBOL_NS(acp_get_bar_index, SND_SOC_SOF_AMD_COMMON);
 
 static void configure_pte_for_fw_loading(int type, int num_pages, struct acp_dev_data *adata)
 {
-	struct snd_sof_dev *sdev;
+	struct snd_sof_dev *sdev = adata->dev;
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int low, high;
 	dma_addr_t addr;
 	u16 page_idx;
 	u32 offset;
-
-	sdev = adata->dev;
 
 	switch (type) {
 	case FW_BIN:
@@ -129,7 +130,7 @@ static void configure_pte_for_fw_loading(int type, int num_pages, struct acp_dev
 
 	/* Group Enable */
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_BASE_ADDR_GRP_1,
-			  ACP_SRAM_PTE_OFFSET | BIT(31));
+			  desc->sram_pte_offset | BIT(31));
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1,
 			  PAGE_SIZE_4K_ENABLE);
 
