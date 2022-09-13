@@ -439,7 +439,7 @@ static int tas2562_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 					snd_soc_dapm_to_component(w->dapm);
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
-	int ret;
+	int ret = 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -455,7 +455,7 @@ static int tas2562_dac_event(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int tas2562_volume_control_get(struct snd_kcontrol *kcontrol,
