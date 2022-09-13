@@ -316,6 +316,11 @@ static void sfp_fixup_long_startup(struct sfp *sfp)
 	sfp->module_t_start_up = T_START_UP_BAD_GPON;
 }
 
+static void sfp_fixup_ignore_tx_fault(struct sfp *sfp)
+{
+	sfp->tx_fault_ignore = true;
+}
+
 static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
 				unsigned long *modes)
 {
@@ -353,6 +358,7 @@ static const struct sfp_quirk sfp_quirks[] = {
 		.vendor = "HUAWEI",
 		.part = "MA5671A",
 		.modes = sfp_quirk_2500basex,
+		.fixup = sfp_fixup_ignore_tx_fault,
 	}, {
 		// Lantech 8330-262D-E can operate at 2500base-X, but
 		// incorrectly report 2500MBd NRZ in their EEPROM
@@ -2011,11 +2017,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 
 	sfp->module_t_start_up = T_START_UP;
 
-	if (!memcmp(id.base.vendor_name, "HUAWEI          ", 16) &&
-	    !memcmp(id.base.vendor_pn, "MA5671A         ", 16))
-		sfp->tx_fault_ignore = true;
-	else
-		sfp->tx_fault_ignore = false;
+	sfp->tx_fault_ignore = false;
 
 	sfp->quirk = sfp_lookup_quirk(&id);
 	if (sfp->quirk && sfp->quirk->fixup)
