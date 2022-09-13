@@ -167,10 +167,10 @@ static struct pwm_lookup byt_pwm_lookup[] = {
 
 static void byt_pwm_setup(struct lpss_private_data *pdata)
 {
-	struct acpi_device *adev = pdata->adev;
+	u64 uid;
 
 	/* Only call pwm_add_table for the first PWM controller */
-	if (!adev->pnp.unique_id || strcmp(adev->pnp.unique_id, "1"))
+	if (acpi_dev_uid_to_integer(pdata->adev, &uid) || uid != 1)
 		return;
 
 	pwm_add_table(byt_pwm_lookup, ARRAY_SIZE(byt_pwm_lookup));
@@ -180,14 +180,13 @@ static void byt_pwm_setup(struct lpss_private_data *pdata)
 
 static void byt_i2c_setup(struct lpss_private_data *pdata)
 {
-	const char *uid_str = acpi_device_uid(pdata->adev);
 	acpi_handle handle = pdata->adev->handle;
 	unsigned long long shared_host = 0;
 	acpi_status status;
-	long uid = 0;
+	u64 uid;
 
-	/* Expected to always be true, but better safe then sorry */
-	if (uid_str && !kstrtol(uid_str, 10, &uid) && uid) {
+	/* Expected to always be successfull, but better safe then sorry */
+	if (!acpi_dev_uid_to_integer(pdata->adev, &uid) && uid) {
 		/* Detect I2C bus shared with PUNIT and ignore its d3 status */
 		status = acpi_evaluate_integer(handle, "_SEM", NULL, &shared_host);
 		if (ACPI_SUCCESS(status) && shared_host)
@@ -211,10 +210,10 @@ static struct pwm_lookup bsw_pwm_lookup[] = {
 
 static void bsw_pwm_setup(struct lpss_private_data *pdata)
 {
-	struct acpi_device *adev = pdata->adev;
+	u64 uid;
 
 	/* Only call pwm_add_table for the first PWM controller */
-	if (!adev->pnp.unique_id || strcmp(adev->pnp.unique_id, "1"))
+	if (acpi_dev_uid_to_integer(pdata->adev, &uid) || uid != 1)
 		return;
 
 	pwm_add_table(bsw_pwm_lookup, ARRAY_SIZE(bsw_pwm_lookup));
