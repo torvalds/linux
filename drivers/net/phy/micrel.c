@@ -2761,6 +2761,66 @@ static int lan8804_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static irqreturn_t lan8804_handle_interrupt(struct phy_device *phydev)
+{
+	int status;
+
+	status = phy_read(phydev, LAN8814_INTS);
+	if (status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (status > 0)
+		phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
+#define LAN8804_OUTPUT_CONTROL			25
+#define LAN8804_OUTPUT_CONTROL_INTR_BUFFER	BIT(14)
+#define LAN8804_CONTROL				31
+#define LAN8804_CONTROL_INTR_POLARITY		BIT(14)
+
+static int lan8804_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	/* This is an internal PHY of lan966x and is not possible to change the
+	 * polarity on the GIC found in lan966x, therefore change the polarity
+	 * of the interrupt in the PHY from being active low instead of active
+	 * high.
+	 */
+	phy_write(phydev, LAN8804_CONTROL, LAN8804_CONTROL_INTR_POLARITY);
+
+	/* By default interrupt buffer is open-drain in which case the interrupt
+	 * can be active only low. Therefore change the interrupt buffer to be
+	 * push-pull to be able to change interrupt polarity
+	 */
+	phy_write(phydev, LAN8804_OUTPUT_CONTROL,
+		  LAN8804_OUTPUT_CONTROL_INTR_BUFFER);
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = phy_read(phydev, LAN8814_INTS);
+		if (err < 0)
+			return err;
+
+		err = phy_write(phydev, LAN8814_INTC, LAN8814_INT_LINK);
+		if (err)
+			return err;
+	} else {
+		err = phy_write(phydev, LAN8814_INTC, 0);
+		if (err)
+			return err;
+
+		err = phy_read(phydev, LAN8814_INTS);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status, tsu_irq_status;
@@ -3225,6 +3285,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_stats	= kszphy_get_stats,
 	.suspend	= genphy_suspend,
 	.resume		= kszphy_resume,
+	.config_intr	= lan8804_config_intr,
+	.handle_interrupt = lan8804_handle_interrupt,
 }, {
 	.phy_id		= PHY_ID_KSZ9131,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
