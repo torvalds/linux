@@ -60,6 +60,19 @@ enum test_flags {
 } while (0)
 
 /**
+ * ASSERT_LE():
+ * Check the condition
+ * @_expected <= @_seen
+ * If false, print failed test message (if running with --verbose) and then
+ * assert.
+ */
+#define ASSERT_LE(_expected, _seen) do { \
+	if ((_expected) > (_seen)) \
+		test_fail(); \
+	assert((_expected) <= (_seen)); \
+} while (0)
+
+/**
  * ASSERT_MEM_EQ():
  * Check that the first @_size bytes of @_seen are all equal to @_expected.
  * If false, print failed test message (if running with --verbose) and then
@@ -99,6 +112,11 @@ struct region {
 	phys_addr_t base;
 	phys_addr_t size;
 };
+
+static inline phys_addr_t __maybe_unused region_end(struct memblock_region *rgn)
+{
+	return rgn->base + rgn->size;
+}
 
 void reset_memblock_regions(void);
 void reset_memblock_attributes(void);
