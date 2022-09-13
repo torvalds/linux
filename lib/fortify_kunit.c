@@ -17,7 +17,6 @@
 
 #include <kunit/test.h>
 #include <linux/string.h>
-#include <linux/init.h>
 
 static const char array_of_10[] = "this is 10";
 static const char *ptr_of_11 = "this is 11!";
@@ -31,7 +30,7 @@ static void known_sizes_test(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(array_unknown), SIZE_MAX);
 	/* Externally defined and dynamically sized string pointer: */
-	KUNIT_EXPECT_EQ(test, __compiletime_strlen(saved_command_line), SIZE_MAX);
+	KUNIT_EXPECT_EQ(test, __compiletime_strlen(test->name), SIZE_MAX);
 }
 
 /* This is volatile so the optimizer can't perform DCE below. */
