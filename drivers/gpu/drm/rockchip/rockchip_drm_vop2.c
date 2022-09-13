@@ -4344,6 +4344,8 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 	int dst_w = drm_rect_width(dst);
 	int src_w = drm_rect_width(src) >> 16;
 	int left_src_w, left_dst_w, right_dst_w;
+	struct drm_plane_state *pstate = &vpstate->base;
+	struct drm_framebuffer *fb = pstate->fb;
 
 	left_dst_w = min_t(u16, half_hdisplay, dst->x2) - dst->x1;
 	if (left_dst_w < 0)
@@ -4354,6 +4356,17 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 		left_src_w = src_w;
 	else
 		left_src_w = (left_dst_w * hscale) >> 16;
+
+	/*
+	 * Make sure the yrgb/uv mst of right win are byte aligned
+	 * with full pixel.
+	 */
+	if (right_dst_w) {
+		if (fb->format->format == DRM_FORMAT_NV15)
+			left_src_w &= ~0x7;
+		else if (fb->format->format == DRM_FORMAT_NV12)
+			left_src_w &= ~0x1;
+	}
 	left_src->x1 = src->x1;
 	left_src->x2 = src->x1 + (left_src_w << 16);
 	left_dst->x1 = dst->x1;
@@ -4361,6 +4374,9 @@ static void vop2_calc_drm_rect_for_splice(struct vop2_plane_state *vpstate,
 	right_src->x1 = left_src->x2;
 	right_src->x2 = src->x2;
 	right_dst->x1 = dst->x1 + left_dst_w - half_hdisplay;
+	if (right_dst->x1 < 0)
+		right_dst->x1 = 0;
+
 	right_dst->x2 = right_dst->x1 + right_dst_w;
 
 	left_src->y1 = src->y1;
