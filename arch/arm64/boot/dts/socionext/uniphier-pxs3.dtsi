@@ -43,6 +43,7 @@
 			reg = <0 0x000>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
 		};
@@ -53,6 +54,7 @@
 			reg = <0 0x001>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
 		};
@@ -63,6 +65,7 @@
 			reg = <0 0x002>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
 		};
@@ -73,8 +76,13 @@
 			reg = <0 0x003>;
 			clocks = <&sys_clk 33>;
 			enable-method = "psci";
+			next-level-cache = <&l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			#cooling-cells = <2>;
+		};
+
+		l2: l2-cache {
+			compatible = "cache";
 		};
 	};
 
