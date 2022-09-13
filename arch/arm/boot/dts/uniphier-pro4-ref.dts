@@ -39,11 +39,11 @@
 };
 
 &ethsc {
-	interrupts = <2 8>;
+	interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &serialsc {
-	interrupts = <2 8>;
+	interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &serial0 {
