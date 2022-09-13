@@ -530,7 +530,7 @@
 				compatible = "socionext,uniphier-ld11-pinctrl";
 			};
 
-			usb-phy {
+			usb-controller {
 				compatible = "socionext,uniphier-ld11-usb2-phy";
 				#address-cells = <1>;
 				#size-cells = <0>;
