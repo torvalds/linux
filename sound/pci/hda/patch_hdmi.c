@@ -53,7 +53,7 @@ MODULE_PARM_DESC(enable_all_pins, "Forcibly enable all pins");
 
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
-	int assigned;
+	bool assigned;		/* the stream has been assigned */
 	unsigned int channels_min;
 	unsigned int channels_max;
 	u32 rates;
@@ -1193,7 +1193,7 @@ static int hdmi_pcm_open_no_pin(struct hda_pcm_stream *hinfo,
 		return err;
 
 	per_cvt = get_cvt(spec, cvt_idx);
-	per_cvt->assigned = 1;
+	per_cvt->assigned = true;
 	hinfo->nid = per_cvt->cvt_nid;
 
 	pin_cvt_fixup(codec, NULL, per_cvt->cvt_nid);
@@ -1262,7 +1262,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 
 	per_cvt = get_cvt(spec, cvt_idx);
 	/* Claim converter */
-	per_cvt->assigned = 1;
+	per_cvt->assigned = true;
 
 	set_bit(pcm_idx, &spec->pcm_in_use);
 	per_pin = get_pin(spec, pin_idx);
@@ -1296,7 +1296,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 		snd_hdmi_eld_update_pcm_info(&eld->info, hinfo);
 		if (hinfo->channels_min > hinfo->channels_max ||
 		    !hinfo->rates || !hinfo->formats) {
-			per_cvt->assigned = 0;
+			per_cvt->assigned = false;
 			hinfo->nid = 0;
 			snd_hda_spdif_ctls_unassign(codec, pcm_idx);
 			err = -ENODEV;
@@ -1755,7 +1755,7 @@ static void silent_stream_enable(struct hda_codec *codec,
 	}
 
 	per_cvt = get_cvt(spec, cvt_idx);
-	per_cvt->assigned = 1;
+	per_cvt->assigned = true;
 	per_pin->cvt_nid = per_cvt->cvt_nid;
 	per_pin->silent_stream = true;
 
@@ -1815,7 +1815,7 @@ static void silent_stream_disable(struct hda_codec *codec,
 	cvt_idx = cvt_nid_to_cvt_index(codec, per_pin->cvt_nid);
 	if (cvt_idx >= 0 && cvt_idx < spec->num_cvts) {
 		per_cvt = get_cvt(spec, cvt_idx);
-		per_cvt->assigned = 0;
+		per_cvt->assigned = false;
 	}
 
 	if (spec->silent_stream_type == SILENT_STREAM_I915) {
@@ -2211,7 +2211,7 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 			goto unlock;
 		}
 		per_cvt = get_cvt(spec, cvt_idx);
-		per_cvt->assigned = 0;
+		per_cvt->assigned = false;
 		hinfo->nid = 0;
 
 		azx_stream(get_azx_dev(substream))->stripe = 0;
