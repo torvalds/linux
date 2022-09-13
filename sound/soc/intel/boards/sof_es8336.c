@@ -760,6 +760,9 @@ static int sof_es8336_remove(struct platform_device *pdev)
 
 static const struct platform_device_id board_ids[] = {
 	{
+		.name = "sof-essx8336", /* default quirk == 0 */
+	},
+	{
 		.name = "adl_es83x6_c1_h02",
 		.driver_data = (kernel_ulong_t)(SOF_ES8336_SSP_CODEC(1) |
 					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
@@ -786,5 +789,4 @@ module_platform_driver(sof_es8336_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) SOF + ES8336 Machine driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:sof-essx8336");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

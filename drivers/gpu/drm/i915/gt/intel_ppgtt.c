@@ -206,8 +206,12 @@ void ppgtt_bind_vma(struct i915_address_space *vm,
 void ppgtt_unbind_vma(struct i915_address_space *vm,
 		      struct i915_vma_resource *vma_res)
 {
-	if (vma_res->allocated)
-		vm->clear_range(vm, vma_res->start, vma_res->vma_size);
+	if (!vma_res->allocated)
+		return;
+
+	vm->clear_range(vm, vma_res->start, vma_res->vma_size);
+	if (vma_res->tlb)
+		vma_invalidate_tlb(vm, vma_res->tlb);
 }
 
 static unsigned long pd_count(u64 size, int shift)

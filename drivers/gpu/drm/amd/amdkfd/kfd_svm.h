@@ -46,7 +46,6 @@ struct svm_range_bo {
 	spinlock_t			list_lock;
 	struct amdgpu_amdkfd_fence	*eviction_fence;
 	struct work_struct		eviction_work;
-	struct svm_range_list		*svms;
 	uint32_t			evicting;
 	struct work_struct		release_work;
 };
