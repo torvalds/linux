@@ -63,7 +63,6 @@ struct safexcel_cipher_ctx {
 	u32 hash_alg;
 	u32 state_sz;
 
-	struct crypto_cipher *hkaes;
 	struct crypto_aead *fback;
 };
 
@@ -2607,15 +2606,8 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	ctx->key_len = len;
 
 	/* Compute hash key by encrypting zeroes with cipher key */
-	crypto_cipher_clear_flags(ctx->hkaes, CRYPTO_TFM_REQ_MASK);
-	crypto_cipher_set_flags(ctx->hkaes, crypto_aead_get_flags(ctfm) &
-				CRYPTO_TFM_REQ_MASK);
-	ret = crypto_cipher_setkey(ctx->hkaes, key, len);
-	if (ret)
-		return ret;
-
 	memset(hashkey, 0, AES_BLOCK_SIZE);
-	crypto_cipher_encrypt_one(ctx->hkaes, (u8 *)hashkey, (u8 *)hashkey);
+	aes_encrypt(&aes, (u8 *)hashkey, (u8 *)hashkey);
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++) {
@@ -2644,15 +2636,11 @@ static int safexcel_aead_gcm_cra_init(struct crypto_tfm *tfm)
 	ctx->xcm = EIP197_XCM_MODE_GCM;
 	ctx->mode = CONTEXT_CONTROL_CRYPTO_MODE_XCM; /* override default */
 
-	ctx->hkaes = crypto_alloc_cipher("aes", 0, 0);
-	return PTR_ERR_OR_ZERO(ctx->hkaes);
+	return 0;
 }
 
 static void safexcel_aead_gcm_cra_exit(struct crypto_tfm *tfm)
 {
-	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	crypto_free_cipher(ctx->hkaes);
 	safexcel_aead_cra_exit(tfm);
 }
 
