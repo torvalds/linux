@@ -17,11 +17,14 @@
 	module_param_named(max_nr_regions, attrs.max_nr_regions, ulong,	\
 			0600);
 
-#define DEFINE_DAMON_MODULES_DAMOS_QUOTAS(quota)			\
+#define DEFINE_DAMON_MODULES_DAMOS_TIME_QUOTA(quota)			\
 	module_param_named(quota_ms, quota.ms, ulong, 0600);		\
-	module_param_named(quota_sz, quota.sz, ulong, 0600);		\
 	module_param_named(quota_reset_interval_ms,			\
 			quota.reset_interval, ulong, 0600);
+
+#define DEFINE_DAMON_MODULES_DAMOS_QUOTAS(quota)			\
+	DEFINE_DAMON_MODULES_DAMOS_TIME_QUOTA(quota)			\
+	module_param_named(quota_sz, quota.sz, ulong, 0600);
 
 #define DEFINE_DAMON_MODULES_WMARKS_PARAMS(wmarks)			\
 	module_param_named(wmarks_interval, wmarks.interval, ulong,	\
