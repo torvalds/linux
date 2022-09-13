@@ -136,35 +136,9 @@ module_param(monitor_region_end, ulong, 0600);
 static int kdamond_pid __read_mostly = -1;
 module_param(kdamond_pid, int, 0400);
 
-/*
- * Number of memory regions that tried to be reclaimed.
- */
-static unsigned long nr_reclaim_tried_regions __read_mostly;
-module_param(nr_reclaim_tried_regions, ulong, 0400);
-
-/*
- * Total bytes of memory regions that tried to be reclaimed.
- */
-static unsigned long bytes_reclaim_tried_regions __read_mostly;
-module_param(bytes_reclaim_tried_regions, ulong, 0400);
-
-/*
- * Number of memory regions that successfully be reclaimed.
- */
-static unsigned long nr_reclaimed_regions __read_mostly;
-module_param(nr_reclaimed_regions, ulong, 0400);
-
-/*
- * Total bytes of memory regions that successfully be reclaimed.
- */
-static unsigned long bytes_reclaimed_regions __read_mostly;
-module_param(bytes_reclaimed_regions, ulong, 0400);
-
-/*
- * Number of times that the time/space quota limits have exceeded
- */
-static unsigned long nr_quota_exceeds __read_mostly;
-module_param(nr_quota_exceeds, ulong, 0400);
+static struct damos_stat damon_reclaim_stat;
+DEFINE_DAMON_MODULES_DAMOS_STATS_PARAMS(damon_reclaim_stat,
+		reclaim_tried_regions, reclaimed_regions, quota_exceeds);
 
 static struct damon_ctx *ctx;
 static struct damon_target *target;
@@ -318,13 +292,8 @@ static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 	struct damos *s;
 
 	/* update the stats parameter */
-	damon_for_each_scheme(s, c) {
-		nr_reclaim_tried_regions = s->stat.nr_tried;
-		bytes_reclaim_tried_regions = s->stat.sz_tried;
-		nr_reclaimed_regions = s->stat.nr_applied;
-		bytes_reclaimed_regions = s->stat.sz_applied;
-		nr_quota_exceeds = s->stat.qt_exceeds;
-	}
+	damon_for_each_scheme(s, c)
+		damon_reclaim_stat = s->stat;
 
 	return damon_reclaim_handle_commit_inputs();
 }
