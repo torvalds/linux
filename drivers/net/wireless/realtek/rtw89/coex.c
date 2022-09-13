@@ -5963,14 +5963,24 @@ static void _show_dm_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 
 static void _show_error(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
-	struct rtw89_btc_fbtc_cysta *pcysta = NULL;
+	struct rtw89_btc_fbtc_cysta *pcysta;
+	struct rtw89_btc_fbtc_cysta_v1 *pcysta_v1;
+	u32 except_cnt, exception_map;
 
-	pcysta = &pfwinfo->rpt_fbtc_cysta.finfo;
+	if (chip->chip_id == RTL8852A) {
+		pcysta = &pfwinfo->rpt_fbtc_cysta.finfo;
+		except_cnt = le32_to_cpu(pcysta->except_cnt);
+		exception_map = le32_to_cpu(pcysta->exception);
+	} else {
+		pcysta_v1 = &pfwinfo->rpt_fbtc_cysta.finfo_v1;
+		except_cnt = le32_to_cpu(pcysta_v1->except_cnt);
+		exception_map = le32_to_cpu(pcysta_v1->except_map);
+	}
 
-	if (pfwinfo->event[BTF_EVNT_BUF_OVERFLOW] == 0 &&
-	    pcysta->except_cnt == 0 &&
+	if (pfwinfo->event[BTF_EVNT_BUF_OVERFLOW] == 0 && except_cnt == 0 &&
 	    !pfwinfo->len_mismch && !pfwinfo->fver_mismch)
 		return;
 
@@ -5995,10 +6005,10 @@ static void _show_error(struct rtw89_dev *rtwdev, struct seq_file *m)
 	}
 
 	/* cycle statistics exceptions */
-	if (pcysta->exception || pcysta->except_cnt) {
+	if (exception_map || except_cnt) {
 		seq_printf(m,
 			   "exception-type: 0x%x, exception-cnt = %d",
-			   pcysta->exception, pcysta->except_cnt);
+			   exception_map, except_cnt);
 	}
 	seq_puts(m, "\n");
 }
