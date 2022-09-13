@@ -712,7 +712,7 @@
 		};
 
 		sec_dma: sec_dma@16008000 {
-			compatible = "starfive,pl080", "arm,pl080", "arm,primecell";
+			compatible = "starfive,jh7110-pl080", "arm,pl080";
 			reg = <0x0 0x16008000 0x0 0x4000>;
 			reg-names = "sec_dma";
 			interrupts = <29>;

@@ -20856,3 +20856,8 @@ STARFIVE JH7110 SDIO
 M:	William Qiu <william.qiu@starfivetech.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/mmc/starfive,jh7110-sdio.yaml
+
+STARFIVE JH7110 SEC-DMA
+M:	William Qiu <william.qiu@starfivetech.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/dma/starfive-pl080.yaml
