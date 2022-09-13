@@ -156,6 +156,9 @@ struct intel_gt {
 	 */
 	intel_wakeref_t awake;
 
+	/* Manual runtime pm autosuspend delay for user GGTT/lmem mmaps */
+	struct intel_wakeref_auto userfault_wakeref;
+
 	u32 clock_frequency;
 	u32 clock_period_ns;
 
