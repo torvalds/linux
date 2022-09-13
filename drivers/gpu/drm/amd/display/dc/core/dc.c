@@ -1201,7 +1201,7 @@ static void wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
 		int count = 0;
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->plane_state)
+		if (!pipe->plane_state || pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
 			continue;
 
 		/* Timeout 100 ms */
