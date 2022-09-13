@@ -16,6 +16,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/version.h>
 
 #include "st_imu68.h"
 
@@ -141,6 +142,10 @@ static int st_imu68_buffer_postdisable(struct iio_dev *iio_dev)
 
 static const struct iio_buffer_setup_ops st_imu68_buffer_setup_ops = {
 	.preenable = st_imu68_buffer_preenable,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
+	.postenable = iio_triggered_buffer_postenable,
+	.predisable = iio_triggered_buffer_predisable,
+#endif /* LINUX_VERSION_CODE */
 	.postdisable = st_imu68_buffer_postdisable,
 };
 

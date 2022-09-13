@@ -29,3 +29,13 @@ lis3mdl-magn@0 {
 	interrupt-parent = <&gpio0>;
 	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
 };
+
+Example for an i2c device node:
+
+lis3mdl-magn@0x1e {
+        compatible = "st,lis3mdl_magn";
+        reg = <0x1e>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+};
+
