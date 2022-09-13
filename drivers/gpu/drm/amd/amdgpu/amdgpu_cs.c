@@ -933,35 +933,34 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	if (r)
 		goto error_validate;
 
-	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved,
-				     p->bytes_moved_vis);
-
-	amdgpu_job_set_resources(p->job, p->bo_list->gds_obj,
-				 p->bo_list->gws_obj, p->bo_list->oa_obj);
-
-	if (!r && p->uf_entry.tv.bo) {
+	if (p->uf_entry.tv.bo) {
 		struct amdgpu_bo *uf = ttm_to_amdgpu_bo(p->uf_entry.tv.bo);
 
 		r = amdgpu_ttm_alloc_gart(&uf->tbo);
+		if (r)
+			goto error_validate;
+
 		p->job->uf_addr += amdgpu_bo_gpu_offset(uf);
 	}
 
+	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved,
+				     p->bytes_moved_vis);
+	amdgpu_job_set_resources(p->job, p->bo_list->gds_obj,
+				 p->bo_list->gws_obj, p->bo_list->oa_obj);
+	return 0;
+
 error_validate:
-	if (r)
-		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
+	ttm_eu_backoff_reservation(&p->ticket, &p->validated);
 
 out_free_user_pages:
-	if (r) {
-		amdgpu_bo_list_for_each_userptr_entry(e, p->bo_list) {
-			struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
+	amdgpu_bo_list_for_each_userptr_entry(e, p->bo_list) {
+		struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
 
-			if (!e->user_pages)
-				continue;
-			amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
-			kvfree(e->user_pages);
-			e->user_pages = NULL;
-		}
-		mutex_unlock(&p->bo_list->bo_list_mutex);
+		if (!e->user_pages)
+			continue;
+		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+		kvfree(e->user_pages);
+		e->user_pages = NULL;
 	}
 	return r;
 }
