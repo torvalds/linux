@@ -800,6 +800,9 @@ void set_cpu_mask_from_punit_coremask(struct isst_id *id, unsigned long long cor
 {
 	int i, cnt = 0;
 
+	if (id->cpu < 0)
+		return;
+
 	*cpu_cnt = 0;
 
 	for (i = 0; i < 64; ++i) {
@@ -1253,7 +1256,7 @@ static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, vo
 
 display_result:
 	isst_display_result(id, outf, "perf-profile", "set_tdp_level", ret);
-	if (force_online_offline) {
+	if (force_online_offline && id->cpu >= 0) {
 		struct isst_pkg_ctdp_level_info ctdp_level;
 
 		/* Wait for updated base frequencies */
@@ -1547,6 +1550,9 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 {
 	int i;
 
+	if (id->cpu < 0)
+		return;
+
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		if (!is_cpu_in_power_domain(i, id))
 			continue;
@@ -1563,6 +1569,9 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 static void set_scaling_min_to_cpuinfo_min(struct isst_id *id)
 {
 	int i;
+
+	if (id->cpu < 0)
+		return;
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		if (!is_cpu_in_power_domain(i, id))
@@ -1642,6 +1651,9 @@ static int set_pbf_core_power(struct isst_id *id)
 	struct isst_pbf_info pbf_info;
 	struct isst_pkg_ctdp pkg_dev;
 	int ret;
+
+	if (id->cpu < 0)
+		return 0;
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret) {
@@ -1888,7 +1900,7 @@ static void set_fact_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *a
 		struct isst_pkg_ctdp pkg_dev;
 
 		ret = isst_get_ctdp_levels(id, &pkg_dev);
-		if (!ret)
+		if (!ret && id->cpu >= 0)
 			ret = isst_set_trl(id, fact_trl);
 		if (ret && auto_mode)
 			isst_pm_qos_config(id, 0, 0);

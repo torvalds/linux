@@ -287,6 +287,9 @@ int isst_set_trl_from_current_tdp(struct isst_id *id, unsigned long long trl)
 	unsigned long long msr_trl;
 	int ret;
 
+	if (id->cpu < 0)
+		return 0;
+
 	if (trl) {
 		msr_trl = trl;
 	} else {
