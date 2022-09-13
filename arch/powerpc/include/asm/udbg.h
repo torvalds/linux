@@ -42,7 +42,6 @@ extern void __init udbg_init_maple_realmode(void);
 extern void __init udbg_init_pas_realmode(void);
 extern void __init udbg_init_rtas_panel(void);
 extern void __init udbg_init_rtas_console(void);
-extern void __init udbg_init_debug_beat(void);
 extern void __init udbg_init_btext(void);
 extern void __init udbg_init_44x_as1(void);
 extern void __init udbg_init_40x_realmode(void);
