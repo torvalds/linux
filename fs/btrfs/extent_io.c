@@ -1543,8 +1543,8 @@ error:
 /*
  * @opf:	bio REQ_OP_* and REQ_* flags as one value
  * @wbc:	optional writeback control for io accounting
- * @page:	page to add to the bio
  * @disk_bytenr: logical bytenr where the write will be
+ * @page:	page to add to the bio
  * @size:	portion of page that we want to write to
  * @pg_offset:	offset of the new bio or to check whether we are adding
  *              a contiguous page to the previous one
@@ -1559,7 +1559,7 @@ error:
 static int submit_extent_page(blk_opf_t opf,
 			      struct writeback_control *wbc,
 			      struct btrfs_bio_ctrl *bio_ctrl,
-			      struct page *page, u64 disk_bytenr,
+			      u64 disk_bytenr, struct page *page,
 			      size_t size, unsigned long pg_offset,
 			      btrfs_bio_end_io_t end_io_func,
 			      enum btrfs_compression_type compress_type,
@@ -1875,7 +1875,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		}
 
 		ret = submit_extent_page(REQ_OP_READ | read_flags, NULL,
-					 bio_ctrl, page, disk_bytenr, iosize,
+					 bio_ctrl, disk_bytenr, page, iosize,
 					 pg_offset, end_bio_extent_readpage,
 					 this_bio_flag, force_bio_submit);
 		if (ret) {
@@ -2189,8 +2189,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		btrfs_page_clear_dirty(fs_info, page, cur, iosize);
 
 		ret = submit_extent_page(op | write_flags, wbc,
-					 &epd->bio_ctrl, page,
-					 disk_bytenr, iosize,
+					 &epd->bio_ctrl, disk_bytenr,
+					 page, iosize,
 					 cur - page_offset(page),
 					 end_bio_extent_writepage,
 					 0, false);
@@ -2686,7 +2686,7 @@ static int write_one_subpage_eb(struct extent_buffer *eb,
 		clear_page_dirty_for_io(page);
 
 	ret = submit_extent_page(REQ_OP_WRITE | write_flags, wbc,
-			&epd->bio_ctrl, page, eb->start, eb->len,
+			&epd->bio_ctrl, eb->start, page, eb->len,
 			eb->start - page_offset(page),
 			end_bio_subpage_eb_writepage, 0, false);
 	if (ret) {
@@ -2726,7 +2726,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		clear_page_dirty_for_io(p);
 		set_page_writeback(p);
 		ret = submit_extent_page(REQ_OP_WRITE | write_flags, wbc,
-					 &epd->bio_ctrl, p, disk_bytenr,
+					 &epd->bio_ctrl, disk_bytenr, p,
 					 PAGE_SIZE, 0,
 					 end_bio_extent_buffer_writepage,
 					 0, false);
@@ -4982,7 +4982,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 
 	btrfs_subpage_start_reader(fs_info, page, eb->start, eb->len);
 	ret = submit_extent_page(REQ_OP_READ, NULL, &bio_ctrl,
-				 page, eb->start, eb->len,
+				 eb->start, page, eb->len,
 				 eb->start - page_offset(page),
 				 end_bio_extent_readpage, 0, true);
 	if (ret) {
@@ -5087,7 +5087,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 
 			ClearPageError(page);
 			err = submit_extent_page(REQ_OP_READ, NULL,
-					 &bio_ctrl, page, page_offset(page),
+					 &bio_ctrl, page_offset(page), page,
 					 PAGE_SIZE, 0, end_bio_extent_readpage,
 					 0, false);
 			if (err) {
