@@ -1621,8 +1621,11 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 	down_write(&root->kernfs_rwsem);
 
 	kn = kernfs_find_ns(parent, name, ns);
-	if (kn)
+	if (kn) {
+		kernfs_get(kn);
 		__kernfs_remove(kn);
+		kernfs_put(kn);
+	}
 
 	up_write(&root->kernfs_rwsem);
 
