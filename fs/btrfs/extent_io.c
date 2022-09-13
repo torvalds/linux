@@ -1548,11 +1548,13 @@ error:
  * @size:	portion of page that we want to write to
  * @pg_offset:	offset of the new bio or to check whether we are adding
  *              a contiguous page to the previous one
- * @bio_ret:	must be valid pointer, newly allocated bio will be stored there
  * @end_io_func:     end_io callback for new bio
- * @mirror_num:	     desired mirror to read/write
- * @prev_bio_flags:  flags of previous bio to see if we can merge the current one
  * @compress_type:   compress type for current bio
+ *
+ * The will either add the page into the existing @bio_ctrl->bio, or allocate a
+ * new one in @bio_ctrl->bio.
+ * The mirror number for this IO should already be initizlied in
+ * @bio_ctrl->mirror_num.
  */
 static int submit_extent_page(blk_opf_t opf,
 			      struct writeback_control *wbc,
