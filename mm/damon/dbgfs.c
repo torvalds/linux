@@ -55,9 +55,9 @@ static ssize_t dbgfs_attrs_read(struct file *file,
 
 	mutex_lock(&ctx->kdamond_lock);
 	ret = scnprintf(kbuf, ARRAY_SIZE(kbuf), "%lu %lu %lu %lu %lu\n",
-			ctx->sample_interval, ctx->aggr_interval,
-			ctx->ops_update_interval, ctx->min_nr_regions,
-			ctx->max_nr_regions);
+			ctx->attrs.sample_interval, ctx->attrs.aggr_interval,
+			ctx->attrs.ops_update_interval,
+			ctx->attrs.min_nr_regions, ctx->attrs.max_nr_regions);
 	mutex_unlock(&ctx->kdamond_lock);
 
 	return simple_read_from_buffer(buf, count, ppos, kbuf, ret);

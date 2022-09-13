@@ -382,17 +382,17 @@ struct damon_ctx *damon_new_ctx(void)
 	if (!ctx)
 		return NULL;
 
-	ctx->sample_interval = 5 * 1000;
-	ctx->aggr_interval = 100 * 1000;
-	ctx->ops_update_interval = 60 * 1000 * 1000;
+	ctx->attrs.sample_interval = 5 * 1000;
+	ctx->attrs.aggr_interval = 100 * 1000;
+	ctx->attrs.ops_update_interval = 60 * 1000 * 1000;
 
 	ktime_get_coarse_ts64(&ctx->last_aggregation);
 	ctx->last_ops_update = ctx->last_aggregation;
 
 	mutex_init(&ctx->kdamond_lock);
 
-	ctx->min_nr_regions = 10;
-	ctx->max_nr_regions = 1000;
+	ctx->attrs.min_nr_regions = 10;
+	ctx->attrs.max_nr_regions = 1000;
 
 	INIT_LIST_HEAD(&ctx->adaptive_targets);
 	INIT_LIST_HEAD(&ctx->schemes);
@@ -448,11 +448,11 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 	if (min_nr_reg > max_nr_reg)
 		return -EINVAL;
 
-	ctx->sample_interval = sample_int;
-	ctx->aggr_interval = aggr_int;
-	ctx->ops_update_interval = ops_upd_int;
-	ctx->min_nr_regions = min_nr_reg;
-	ctx->max_nr_regions = max_nr_reg;
+	ctx->attrs.sample_interval = sample_int;
+	ctx->attrs.aggr_interval = aggr_int;
+	ctx->attrs.ops_update_interval = ops_upd_int;
+	ctx->attrs.min_nr_regions = min_nr_reg;
+	ctx->attrs.max_nr_regions = max_nr_reg;
 
 	return 0;
 }
@@ -507,8 +507,8 @@ static unsigned long damon_region_sz_limit(struct damon_ctx *ctx)
 			sz += r->ar.end - r->ar.start;
 	}
 
-	if (ctx->min_nr_regions)
-		sz /= ctx->min_nr_regions;
+	if (ctx->attrs.min_nr_regions)
+		sz /= ctx->attrs.min_nr_regions;
 	if (sz < DAMON_MIN_REGION)
 		sz = DAMON_MIN_REGION;
 
@@ -657,7 +657,7 @@ static bool damon_check_reset_time_interval(struct timespec64 *baseline,
 static bool kdamond_aggregate_interval_passed(struct damon_ctx *ctx)
 {
 	return damon_check_reset_time_interval(&ctx->last_aggregation,
-			ctx->aggr_interval);
+			ctx->attrs.aggr_interval);
 }
 
 /*
@@ -1016,12 +1016,12 @@ static void kdamond_split_regions(struct damon_ctx *ctx)
 	damon_for_each_target(t, ctx)
 		nr_regions += damon_nr_regions(t);
 
-	if (nr_regions > ctx->max_nr_regions / 2)
+	if (nr_regions > ctx->attrs.max_nr_regions / 2)
 		return;
 
 	/* Maybe the middle of the region has different access frequency */
 	if (last_nr_regions == nr_regions &&
-			nr_regions < ctx->max_nr_regions / 3)
+			nr_regions < ctx->attrs.max_nr_regions / 3)
 		nr_subregions = 3;
 
 	damon_for_each_target(t, ctx)
@@ -1039,7 +1039,7 @@ static void kdamond_split_regions(struct damon_ctx *ctx)
 static bool kdamond_need_update_operations(struct damon_ctx *ctx)
 {
 	return damon_check_reset_time_interval(&ctx->last_ops_update,
-			ctx->ops_update_interval);
+			ctx->attrs.ops_update_interval);
 }
 
 /*
@@ -1188,7 +1188,7 @@ static int kdamond_fn(void *data)
 			continue;
 		}
 
-		kdamond_usleep(ctx->sample_interval);
+		kdamond_usleep(ctx->attrs.sample_interval);
 
 		if (ctx->ops.check_accesses)
 			max_nr_accesses = ctx->ops.check_accesses(ctx);

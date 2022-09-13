@@ -99,10 +99,10 @@ int damon_hot_score(struct damon_ctx *c, struct damon_region *r,
 	unsigned int age_weight = s->quota.weight_age;
 	int hotness;
 
-	max_nr_accesses = c->aggr_interval / c->sample_interval;
+	max_nr_accesses = c->attrs.aggr_interval / c->attrs.sample_interval;
 	freq_subscore = r->nr_accesses * DAMON_MAX_SUBSCORE / max_nr_accesses;
 
-	age_in_sec = (unsigned long)r->age * c->aggr_interval / 1000000;
+	age_in_sec = (unsigned long)r->age * c->attrs.aggr_interval / 1000000;
 	for (age_in_log = 0; age_in_log < DAMON_MAX_AGE_IN_LOG && age_in_sec;
 			age_in_log++, age_in_sec >>= 1)
 		;
