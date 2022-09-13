@@ -1228,12 +1228,11 @@
 			clocks = <&clkgen JH7110_PDM_CLK_DMIC>,
 				 <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_PDM_CLK_APB>,
-				 <&clkgen JH7110_MCLK_INNER>,
 				 <&clkgen JH7110_MCLK>,
-				 <&clkgen JH7110_MCLK_OUT>;
+				 <&mclk_ext>;
 			clock-names = "pdm_mclk", "clk_apb0",
-				      "pdm_apb", "mclk_inner",
-				      "clk_mclk", "mclk_out";
+				      "pdm_apb", "clk_mclk",
+				      "mclk_ext";
 			resets = <&rstgen RSTN_U0_PDM_4MIC_DMIC>,
 				 <&rstgen RSTN_U0_PDM_4MIC_APB>;
 			reset-names = "pdm_dmic", "pdm_apb";

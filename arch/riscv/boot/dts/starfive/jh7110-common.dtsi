@@ -446,7 +446,7 @@
 
 &pdm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pdm0_pins>;
+	pinctrl-0 = <&pdm0_pins &mclk_ext_pins>;
 	status = "disabled";
 };
 
