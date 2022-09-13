@@ -3984,6 +3984,7 @@ static int tegra_hdmi_init(struct hda_codec *codec)
 
 	generic_hdmi_init_per_pins(codec);
 
+	codec->depop_delay = 10;
 	codec->patch_ops.build_pcms = tegra_hdmi_build_pcms;
 	spec->chmap.ops.chmap_cea_alloc_validate_get_type =
 		nvhdmi_chmap_cea_alloc_validate_get_type;
