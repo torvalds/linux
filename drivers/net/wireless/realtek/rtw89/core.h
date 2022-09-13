@@ -1798,8 +1798,9 @@ struct rtw89_btc_dm {
 	u32 wl_btg_rx: 1;
 	u32 trx_para_level: 8;
 	u32 wl_stb_chg: 1;
+	u32 pta_owner: 1;
 	u32 tdma_instant_excute: 1;
-	u32 rsvd: 2;
+	u32 rsvd: 1;
 
 	u16 slot_dur[CXST_MAX];
 
