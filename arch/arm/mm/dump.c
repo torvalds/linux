@@ -26,7 +26,7 @@ static struct addr_marker address_markers[] = {
 	{ MODULES_VADDR,	"Modules" },
 	{ PAGE_OFFSET,		"Kernel Mapping" },
 	{ 0,			"vmalloc() Area" },
-	{ VMALLOC_END,		"vmalloc() End" },
+	{ FDT_FIXED_BASE,	"FDT Area" },
 	{ FIXADDR_START,	"Fixmap Area" },
 	{ VECTORS_BASE,	"Vectors" },
 	{ VECTORS_BASE + PAGE_SIZE * 2, "Vectors End" },
