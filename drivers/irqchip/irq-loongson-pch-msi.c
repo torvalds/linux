@@ -282,7 +282,7 @@ int __init pch_msi_acpi_init(struct irq_domain *parent,
 	int ret;
 	struct fwnode_handle *domain_handle;
 
-	domain_handle = irq_domain_alloc_fwnode((phys_addr_t *)acpi_pchmsi);
+	domain_handle = irq_domain_alloc_fwnode(&acpi_pchmsi->msg_address);
 	ret = pch_msi_init(acpi_pchmsi->msg_address, acpi_pchmsi->start,
 				acpi_pchmsi->count, parent, domain_handle);
 	if (ret < 0)
