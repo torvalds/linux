@@ -65,30 +65,17 @@ module_param(hot_thres_access_freq, ulong, 0600);
 static unsigned long cold_min_age __read_mostly = 120000000;
 module_param(cold_min_age, ulong, 0600);
 
-/*
- * Limit of time for trying the LRU lists sorting in milliseconds.
- *
- * DAMON_LRU_SORT tries to use only up to this time within a time window
- * (quota_reset_interval_ms) for trying LRU lists sorting.  This can be used
- * for limiting CPU consumption of DAMON_LRU_SORT.  If the value is zero, the
- * limit is disabled.
- *
- * 10 ms by default.
- */
-static unsigned long quota_ms __read_mostly = 10;
-module_param(quota_ms, ulong, 0600);
-
-/*
- * The time quota charge reset interval in milliseconds.
- *
- * The charge reset interval for the quota of time (quota_ms).  That is,
- * DAMON_LRU_SORT does not try LRU-lists sorting for more than quota_ms
- * milliseconds or quota_sz bytes within quota_reset_interval_ms milliseconds.
- *
- * 1 second by default.
- */
-static unsigned long quota_reset_interval_ms __read_mostly = 1000;
-module_param(quota_reset_interval_ms, ulong, 0600);
+static struct damos_quota damon_lru_sort_quota = {
+	/* Use up to 10 ms per 1 sec, by default */
+	.ms = 10,
+	.sz = 0,
+	.reset_interval = 1000,
+	/* Within the quota, mark hotter regions accessed first. */
+	.weight_sz = 0,
+	.weight_nr_accesses = 1,
+	.weight_age = 0,
+};
+DEFINE_DAMON_MODULES_DAMOS_TIME_QUOTA(damon_lru_sort_quota);
 
 struct damos_watermarks damon_lru_sort_wmarks = {
 	.metric = DAMOS_WMARK_FREE_MEM_RATE,
@@ -162,19 +149,10 @@ static struct damos *damon_lru_sort_new_hot_scheme(unsigned int hot_thres)
 		.min_age_region = 0,
 		.max_age_region = UINT_MAX,
 	};
-	struct damos_quota quota = {
-		/*
-		 * Do not try LRU-lists sorting of hot pages for more than half
-		 * of quota_ms milliseconds within quota_reset_interval_ms.
-		 */
-		.ms = quota_ms / 2,
-		.sz = 0,
-		.reset_interval = quota_reset_interval_ms,
-		/* Within the quota, mark hotter regions accessed first. */
-		.weight_sz = 0,
-		.weight_nr_accesses = 1,
-		.weight_age = 0,
-	};
+	struct damos_quota quota = damon_lru_sort_quota;
+
+	/* Use half of total quota for hot pages sorting */
+	quota.ms = quota.ms / 2;
 
 	return damon_new_scheme(
 			&pattern,
@@ -200,20 +178,10 @@ static struct damos *damon_lru_sort_new_cold_scheme(unsigned int cold_thres)
 		.min_age_region = cold_thres,
 		.max_age_region = UINT_MAX,
 	};
-	struct damos_quota quota = {
-		/*
-		 * Do not try LRU-lists sorting of cold pages for more than
-		 * half of quota_ms milliseconds within
-		 * quota_reset_interval_ms.
-		 */
-		.ms = quota_ms / 2,
-		.sz = 0,
-		.reset_interval = quota_reset_interval_ms,
-		/* Within the quota, mark colder regions not accessed first. */
-		.weight_sz = 0,
-		.weight_nr_accesses = 0,
-		.weight_age = 1,
-	};
+	struct damos_quota quota = damon_lru_sort_quota;
+
+	/* Use half of total quota for cold pages sorting */
+	quota.ms = quota.ms / 2;
 
 	return damon_new_scheme(
 			&pattern,
