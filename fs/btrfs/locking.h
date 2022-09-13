@@ -130,4 +130,18 @@ void btrfs_drew_write_unlock(struct btrfs_drew_lock *lock);
 void btrfs_drew_read_lock(struct btrfs_drew_lock *lock);
 void btrfs_drew_read_unlock(struct btrfs_drew_lock *lock);
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb, int level);
+void btrfs_maybe_reset_lockdep_class(struct btrfs_root *root, struct extent_buffer *eb);
+#else
+static inline void btrfs_set_buffer_lockdep_class(u64 objectid,
+					struct extent_buffer *eb, int level)
+{
+}
+static inline void btrfs_maybe_reset_lockdep_class(struct btrfs_root *root,
+						   struct extent_buffer *eb)
+{
+}
+#endif
+
 #endif

@@ -48,7 +48,9 @@ static inline void bpfptr_add(bpfptr_t *bpfptr, size_t val)
 static inline int copy_from_bpfptr_offset(void *dst, bpfptr_t src,
 					  size_t offset, size_t size)
 {
-	return copy_from_sockptr_offset(dst, (sockptr_t) src, offset, size);
+	if (!bpfptr_is_kernel(src))
+		return copy_from_user(dst, src.user + offset, size);
+	return copy_from_kernel_nofault(dst, src.kernel + offset, size);
 }
 
 static inline int copy_from_bpfptr(void *dst, bpfptr_t src, size_t size)
@@ -77,7 +79,9 @@ static inline void *kvmemdup_bpfptr(bpfptr_t src, size_t len)
 
 static inline long strncpy_from_bpfptr(char *dst, bpfptr_t src, size_t count)
 {
-	return strncpy_from_sockptr(dst, (sockptr_t) src, count);
+	if (bpfptr_is_kernel(src))
+		return strncpy_from_kernel_nofault(dst, src.kernel, count);
+	return strncpy_from_user(dst, src.user, count);
 }
 
 #endif /* _LINUX_BPFPTR_H */
