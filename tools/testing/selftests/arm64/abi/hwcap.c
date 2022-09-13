@@ -151,7 +151,7 @@ int main(void)
 		have_cpuinfo = cpuinfo_present(hwcap->cpuinfo);
 
 		if (have_hwcap)
-			ksft_print_msg("%s present", hwcap->name);
+			ksft_print_msg("%s present\n", hwcap->name);
 
 		ksft_test_result(have_hwcap == have_cpuinfo,
 				 "cpuinfo_match_%s\n", hwcap->name);
