@@ -599,6 +599,46 @@
 			};
 		};
 
+		ahci: sata@65600000 {
+			compatible = "socionext,uniphier-pxs2-ahci",
+				     "generic-ahci";
+			status = "disabled";
+			reg = <0x65600000 0x10000>;
+			interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_clk 28>;
+			resets = <&sys_rst 28>, <&ahci_rst 0>;
+			ports-implemented = <1>;
+			phys = <&ahci_phy>;
+		};
+
+		sata-controller@65700000 {
+			compatible = "socionext,uniphier-pxs2-ahci-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65700000 0x100>;
+
+			ahci_rst: reset-controller@0 {
+				compatible = "socionext,uniphier-pxs2-ahci-reset";
+				reg = <0x0 0x4>;
+				clock-names = "link";
+				clocks = <&sys_clk 28>;
+				reset-names = "link";
+				resets = <&sys_rst 28>;
+				#reset-cells = <1>;
+			};
+
+			ahci_phy: sata-phy@10 {
+				compatible = "socionext,uniphier-pxs2-ahci-phy";
+				reg = <0x10 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 28>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 28>, <&sys_rst 30>;
+				#phy-cells = <0>;
+			};
+		};
+
 		usb0: usb@65a00000 {
 			compatible = "socionext,uniphier-dwc3", "snps,dwc3";
 			status = "disabled";
