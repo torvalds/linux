@@ -2847,10 +2847,9 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 				 CSI_DMA_END_INTSTAT(channel->id) |
 				 CSI_LINE_INTSTAT(channel->id)));
 
-	/* enable id0 frame start int for sof(long frame, for hdr) */
-	if (channel->id == RKCIF_STREAM_MIPI_ID0)
-		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
-					CSI_START_INTEN(channel->id));
+	rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
+				CSI_START_INTEN(channel->id));
+
 	if (detect_stream->is_line_wake_up) {
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 					CSI_LINE_INTEN(channel->id));
@@ -9351,9 +9350,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 				 __func__);
 		}
 
-		if (intstat & CSI_FRAME0_START_ID0 || intstat & CSI_FRAME1_START_ID0)
-			rkcif_deal_sof(cif_dev);
-
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 			if (intstat & CSI_LINE_INTSTAT(i)) {
 				stream = &cif_dev->stream[i];
@@ -9367,11 +9363,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 					 "%s: id0 cur line:%d\n", __func__, lastline & 0x3fff);
 			}
 		}
-
-		/* if do not reach frame dma end, return irq */
-		mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev, intstat);
-		if (mipi_id < 0)
-			return;
 
 		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
 			mipi_id = rkcif_csi_g_mipi_id(&cif_dev->v4l2_dev,
@@ -9429,8 +9420,33 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 					detect_stream->fs_cnt_in_single_frame--;
 				}
 			}
+			cif_dev->irq_stats.all_frm_end_cnt++;
 		}
-		cif_dev->irq_stats.all_frm_end_cnt++;
+		for (i = 0; i < RKCIF_MAX_STREAM_MIPI; i++) {
+			if (intstat & CSI_START_INTSTAT(i)) {
+				stream = &cif_dev->stream[i];
+				if (i == 0) {
+					rkcif_deal_sof(cif_dev);
+				} else {
+					spin_lock_irqsave(&stream->fps_lock, flags);
+					stream->readout.fs_timestamp = ktime_get_ns();
+					stream->frame_idx++;
+					spin_unlock_irqrestore(&stream->fps_lock, flags);
+				}
+				stream->is_in_vblank = false;
+			}
+			if (intstat & CSI_LINE_INTSTAT(i)) {
+				stream = &cif_dev->stream[i];
+				if (stream->is_line_inten) {
+					stream->line_int_cnt++;
+					rkcif_line_wake_up(stream, stream->id);
+					rkcif_modify_line_int(stream, false);
+					stream->is_line_inten = false;
+				}
+				v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
+					 "%s: id0 cur line:%d\n", __func__, lastline & 0x3fff);
+			}
+		}
 	} else {
 		u32 lastline, lastpix, ctl;
 		u32 cif_frmst, frmid, int_en;
