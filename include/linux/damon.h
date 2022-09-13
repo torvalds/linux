@@ -540,9 +540,7 @@ unsigned int damon_nr_regions(struct damon_target *t);
 
 struct damon_ctx *damon_new_ctx(void);
 void damon_destroy_ctx(struct damon_ctx *ctx);
-int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
-		unsigned long aggr_int, unsigned long ops_upd_int,
-		unsigned long min_nr_reg, unsigned long max_nr_reg);
+int damon_set_attrs(struct damon_ctx *ctx, struct damon_attrs *attrs);
 int damon_set_schemes(struct damon_ctx *ctx,
 			struct damos **schemes, ssize_t nr_schemes);
 int damon_nr_running_ctxs(void);

@@ -428,32 +428,21 @@ void damon_destroy_ctx(struct damon_ctx *ctx)
 /**
  * damon_set_attrs() - Set attributes for the monitoring.
  * @ctx:		monitoring context
- * @sample_int:		time interval between samplings
- * @aggr_int:		time interval between aggregations
- * @ops_upd_int:	time interval between monitoring operations updates
- * @min_nr_reg:		minimal number of regions
- * @max_nr_reg:		maximum number of regions
+ * @attrs:		monitoring attributes
  *
  * This function should not be called while the kdamond is running.
  * Every time interval is in micro-seconds.
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
-		    unsigned long aggr_int, unsigned long ops_upd_int,
-		    unsigned long min_nr_reg, unsigned long max_nr_reg)
+int damon_set_attrs(struct damon_ctx *ctx, struct damon_attrs *attrs)
 {
-	if (min_nr_reg < 3)
+	if (attrs->min_nr_regions < 3)
 		return -EINVAL;
-	if (min_nr_reg > max_nr_reg)
+	if (attrs->min_nr_regions > attrs->max_nr_regions)
 		return -EINVAL;
 
-	ctx->attrs.sample_interval = sample_int;
-	ctx->attrs.aggr_interval = aggr_int;
-	ctx->attrs.ops_update_interval = ops_upd_int;
-	ctx->attrs.min_nr_regions = min_nr_reg;
-	ctx->attrs.max_nr_regions = max_nr_reg;
-
+	ctx->attrs = *attrs;
 	return 0;
 }
 

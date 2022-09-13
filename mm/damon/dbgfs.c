@@ -67,7 +67,7 @@ static ssize_t dbgfs_attrs_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct damon_ctx *ctx = file->private_data;
-	unsigned long s, a, r, minr, maxr;
+	struct damon_attrs attrs;
 	char *kbuf;
 	ssize_t ret;
 
@@ -76,7 +76,10 @@ static ssize_t dbgfs_attrs_write(struct file *file,
 		return PTR_ERR(kbuf);
 
 	if (sscanf(kbuf, "%lu %lu %lu %lu %lu",
-				&s, &a, &r, &minr, &maxr) != 5) {
+				&attrs.sample_interval, &attrs.aggr_interval,
+				&attrs.ops_update_interval,
+				&attrs.min_nr_regions,
+				&attrs.max_nr_regions) != 5) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -87,7 +90,7 @@ static ssize_t dbgfs_attrs_write(struct file *file,
 		goto unlock_out;
 	}
 
-	ret = damon_set_attrs(ctx, s, a, r, minr, maxr);
+	ret = damon_set_attrs(ctx, &attrs);
 	if (!ret)
 		ret = count;
 unlock_out:

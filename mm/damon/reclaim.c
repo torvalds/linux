@@ -275,12 +275,18 @@ static struct damos *damon_reclaim_new_scheme(void)
 
 static int damon_reclaim_apply_parameters(void)
 {
+	struct damon_attrs attrs = {
+		.sample_interval = sample_interval,
+		.aggr_interval = aggr_interval,
+		.ops_update_interval = 0,
+		.min_nr_regions = min_nr_regions,
+		.max_nr_regions = max_nr_regions,
+	};
 	struct damos *scheme;
 	struct damon_addr_range addr_range;
 	int err = 0;
 
-	err = damon_set_attrs(ctx, sample_interval, aggr_interval, 0,
-			min_nr_regions, max_nr_regions);
+	err = damon_set_attrs(ctx, &attrs);
 	if (err)
 		return err;
 
