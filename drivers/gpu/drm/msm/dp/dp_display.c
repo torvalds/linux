@@ -1528,6 +1528,11 @@ void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor)
 	}
 }
 
+static void of_dp_aux_depopulate_bus_void(void *data)
+{
+	of_dp_aux_depopulate_bus(data);
+}
+
 static int dp_display_get_next_bridge(struct msm_dp *dp)
 {
 	int rc;
@@ -1552,8 +1557,14 @@ static int dp_display_get_next_bridge(struct msm_dp *dp)
 		 * panel driver is probed asynchronously but is the best we
 		 * can do without a bigger driver reorganization.
 		 */
-		rc = devm_of_dp_aux_populate_ep_devices(dp_priv->aux);
+		rc = of_dp_aux_populate_bus(dp_priv->aux, NULL);
 		of_node_put(aux_bus);
+		if (rc)
+			goto error;
+
+		rc = devm_add_action_or_reset(dp->drm_dev->dev,
+						of_dp_aux_depopulate_bus_void,
+						dp_priv->aux);
 		if (rc)
 			goto error;
 	} else if (dp->is_edp) {
