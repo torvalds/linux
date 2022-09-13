@@ -1417,19 +1417,14 @@ static int map_update_elem(union bpf_attr *attr, bpfptr_t uattr)
 	}
 
 	value_size = bpf_map_value_size(map);
-
-	err = -ENOMEM;
-	value = kvmalloc(value_size, GFP_USER | __GFP_NOWARN);
-	if (!value)
+	value = kvmemdup_bpfptr(uvalue, value_size);
+	if (IS_ERR(value)) {
+		err = PTR_ERR(value);
 		goto free_key;
-
-	err = -EFAULT;
-	if (copy_from_bpfptr(value, uvalue, value_size) != 0)
-		goto free_value;
+	}
 
 	err = bpf_map_update_value(map, f, key, value, attr->flags);
 
-free_value:
 	kvfree(value);
 free_key:
 	kvfree(key);
