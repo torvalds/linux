@@ -164,70 +164,138 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 	} else if (version_major == 2) {
 		const struct rlc_firmware_header_v2_0 *rlc_hdr =
 			container_of(hdr, struct rlc_firmware_header_v2_0, header);
+		const struct rlc_firmware_header_v2_1 *rlc_hdr_v2_1 =
+			container_of(rlc_hdr, struct rlc_firmware_header_v2_1, v2_0);
+		const struct rlc_firmware_header_v2_2 *rlc_hdr_v2_2 =
+			container_of(rlc_hdr_v2_1, struct rlc_firmware_header_v2_2, v2_1);
+		const struct rlc_firmware_header_v2_3 *rlc_hdr_v2_3 =
+			container_of(rlc_hdr_v2_2, struct rlc_firmware_header_v2_3, v2_2);
+		const struct rlc_firmware_header_v2_4 *rlc_hdr_v2_4 =
+			container_of(rlc_hdr_v2_3, struct rlc_firmware_header_v2_4, v2_3);
 
-		DRM_DEBUG("ucode_feature_version: %u\n",
-			  le32_to_cpu(rlc_hdr->ucode_feature_version));
-		DRM_DEBUG("jt_offset: %u\n", le32_to_cpu(rlc_hdr->jt_offset));
-		DRM_DEBUG("jt_size: %u\n", le32_to_cpu(rlc_hdr->jt_size));
-		DRM_DEBUG("save_and_restore_offset: %u\n",
-			  le32_to_cpu(rlc_hdr->save_and_restore_offset));
-		DRM_DEBUG("clear_state_descriptor_offset: %u\n",
-			  le32_to_cpu(rlc_hdr->clear_state_descriptor_offset));
-		DRM_DEBUG("avail_scratch_ram_locations: %u\n",
-			  le32_to_cpu(rlc_hdr->avail_scratch_ram_locations));
-		DRM_DEBUG("reg_restore_list_size: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_restore_list_size));
-		DRM_DEBUG("reg_list_format_start: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_format_start));
-		DRM_DEBUG("reg_list_format_separate_start: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_format_separate_start));
-		DRM_DEBUG("starting_offsets_start: %u\n",
-			  le32_to_cpu(rlc_hdr->starting_offsets_start));
-		DRM_DEBUG("reg_list_format_size_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_format_size_bytes));
-		DRM_DEBUG("reg_list_format_array_offset_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_format_array_offset_bytes));
-		DRM_DEBUG("reg_list_size_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_size_bytes));
-		DRM_DEBUG("reg_list_array_offset_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_array_offset_bytes));
-		DRM_DEBUG("reg_list_format_separate_size_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_format_separate_size_bytes));
-		DRM_DEBUG("reg_list_format_separate_array_offset_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_format_separate_array_offset_bytes));
-		DRM_DEBUG("reg_list_separate_size_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_separate_size_bytes));
-		DRM_DEBUG("reg_list_separate_array_offset_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_separate_array_offset_bytes));
-		if (version_minor == 1) {
-			const struct rlc_firmware_header_v2_1 *v2_1 =
-				container_of(rlc_hdr, struct rlc_firmware_header_v2_1, v2_0);
+		switch (version_minor) {
+		case 0:
+			/* rlc_hdr v2_0 */
+			DRM_DEBUG("ucode_feature_version: %u\n",
+				  le32_to_cpu(rlc_hdr->ucode_feature_version));
+			DRM_DEBUG("jt_offset: %u\n", le32_to_cpu(rlc_hdr->jt_offset));
+			DRM_DEBUG("jt_size: %u\n", le32_to_cpu(rlc_hdr->jt_size));
+			DRM_DEBUG("save_and_restore_offset: %u\n",
+				  le32_to_cpu(rlc_hdr->save_and_restore_offset));
+			DRM_DEBUG("clear_state_descriptor_offset: %u\n",
+				  le32_to_cpu(rlc_hdr->clear_state_descriptor_offset));
+			DRM_DEBUG("avail_scratch_ram_locations: %u\n",
+				  le32_to_cpu(rlc_hdr->avail_scratch_ram_locations));
+			DRM_DEBUG("reg_restore_list_size: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_restore_list_size));
+			DRM_DEBUG("reg_list_format_start: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_format_start));
+			DRM_DEBUG("reg_list_format_separate_start: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_format_separate_start));
+			DRM_DEBUG("starting_offsets_start: %u\n",
+				  le32_to_cpu(rlc_hdr->starting_offsets_start));
+			DRM_DEBUG("reg_list_format_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_format_size_bytes));
+			DRM_DEBUG("reg_list_format_array_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_format_array_offset_bytes));
+			DRM_DEBUG("reg_list_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_size_bytes));
+			DRM_DEBUG("reg_list_array_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_array_offset_bytes));
+			DRM_DEBUG("reg_list_format_separate_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_format_separate_size_bytes));
+			DRM_DEBUG("reg_list_format_separate_array_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_format_separate_array_offset_bytes));
+			DRM_DEBUG("reg_list_separate_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_separate_size_bytes));
+			DRM_DEBUG("reg_list_separate_array_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr->reg_list_separate_array_offset_bytes));
+			break;
+		case 1:
+			/* rlc_hdr v2_1 */
 			DRM_DEBUG("reg_list_format_direct_reg_list_length: %u\n",
-				  le32_to_cpu(v2_1->reg_list_format_direct_reg_list_length));
+				  le32_to_cpu(rlc_hdr_v2_1->reg_list_format_direct_reg_list_length));
 			DRM_DEBUG("save_restore_list_cntl_ucode_ver: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_cntl_ucode_ver));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_cntl_ucode_ver));
 			DRM_DEBUG("save_restore_list_cntl_feature_ver: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_cntl_feature_ver));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_cntl_feature_ver));
 			DRM_DEBUG("save_restore_list_cntl_size_bytes %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_cntl_size_bytes));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_cntl_size_bytes));
 			DRM_DEBUG("save_restore_list_cntl_offset_bytes: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_cntl_offset_bytes));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_cntl_offset_bytes));
 			DRM_DEBUG("save_restore_list_gpm_ucode_ver: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_gpm_ucode_ver));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_gpm_ucode_ver));
 			DRM_DEBUG("save_restore_list_gpm_feature_ver: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_gpm_feature_ver));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_gpm_feature_ver));
 			DRM_DEBUG("save_restore_list_gpm_size_bytes %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_gpm_size_bytes));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_gpm_size_bytes));
 			DRM_DEBUG("save_restore_list_gpm_offset_bytes: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_gpm_offset_bytes));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_gpm_offset_bytes));
 			DRM_DEBUG("save_restore_list_srm_ucode_ver: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_srm_ucode_ver));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_srm_ucode_ver));
 			DRM_DEBUG("save_restore_list_srm_feature_ver: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_srm_feature_ver));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_srm_feature_ver));
 			DRM_DEBUG("save_restore_list_srm_size_bytes %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_srm_size_bytes));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_srm_size_bytes));
 			DRM_DEBUG("save_restore_list_srm_offset_bytes: %u\n",
-				  le32_to_cpu(v2_1->save_restore_list_srm_offset_bytes));
+				  le32_to_cpu(rlc_hdr_v2_1->save_restore_list_srm_offset_bytes));
+			break;
+		case 2:
+			/* rlc_hdr v2_2 */
+			DRM_DEBUG("rlc_iram_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_2->rlc_iram_ucode_size_bytes));
+			DRM_DEBUG("rlc_iram_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_2->rlc_iram_ucode_offset_bytes));
+			DRM_DEBUG("rlc_dram_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_2->rlc_dram_ucode_size_bytes));
+			DRM_DEBUG("rlc_dram_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_2->rlc_dram_ucode_offset_bytes));
+			break;
+		case 3:
+			/* rlc_hdr v2_3 */
+			DRM_DEBUG("rlcp_ucode_version: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcp_ucode_version));
+			DRM_DEBUG("rlcp_ucode_feature_version: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcp_ucode_feature_version));
+			DRM_DEBUG("rlcp_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcp_ucode_size_bytes));
+			DRM_DEBUG("rlcp_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcp_ucode_offset_bytes));
+			DRM_DEBUG("rlcv_ucode_version: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcv_ucode_version));
+			DRM_DEBUG("rlcv_ucode_feature_version: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcv_ucode_feature_version));
+			DRM_DEBUG("rlcv_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcv_ucode_size_bytes));
+			DRM_DEBUG("rlcv_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_3->rlcv_ucode_offset_bytes));
+			break;
+		case 4:
+			/* rlc_hdr v2_4 */
+			DRM_DEBUG("global_tap_delays_ucode_size_bytes :%u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->global_tap_delays_ucode_size_bytes));
+			DRM_DEBUG("global_tap_delays_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->global_tap_delays_ucode_offset_bytes));
+			DRM_DEBUG("se0_tap_delays_ucode_size_bytes :%u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se0_tap_delays_ucode_size_bytes));
+			DRM_DEBUG("se0_tap_delays_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se0_tap_delays_ucode_offset_bytes));
+			DRM_DEBUG("se1_tap_delays_ucode_size_bytes :%u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se1_tap_delays_ucode_size_bytes));
+			DRM_DEBUG("se1_tap_delays_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se1_tap_delays_ucode_offset_bytes));
+			DRM_DEBUG("se2_tap_delays_ucode_size_bytes :%u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se2_tap_delays_ucode_size_bytes));
+			DRM_DEBUG("se2_tap_delays_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se2_tap_delays_ucode_offset_bytes));
+			DRM_DEBUG("se3_tap_delays_ucode_size_bytes :%u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se3_tap_delays_ucode_size_bytes));
+			DRM_DEBUG("se3_tap_delays_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_4->se3_tap_delays_ucode_offset_bytes));
+			break;
+		default:
+			DRM_ERROR("Unknown RLC v2 ucode: v2.%u\n", version_minor);
+			break;
 		}
 	} else {
 		DRM_ERROR("Unknown RLC ucode version: %u.%u\n", version_major, version_minor);
