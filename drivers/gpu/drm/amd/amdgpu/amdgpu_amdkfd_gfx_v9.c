@@ -50,12 +50,12 @@ static void kgd_gfx_v9_lock_srbm(struct amdgpu_device *adev, uint32_t mec, uint3
 			uint32_t queue, uint32_t vmid, uint32_t inst)
 {
 	mutex_lock(&adev->srbm_mutex);
-	soc15_grbm_select(adev, mec, pipe, queue, vmid, inst);
+	soc15_grbm_select(adev, mec, pipe, queue, vmid, GET_INST(GC, inst));
 }
 
 static void kgd_gfx_v9_unlock_srbm(struct amdgpu_device *adev, uint32_t inst)
 {
-	soc15_grbm_select(adev, 0, 0, 0, 0, inst);
+	soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, inst));
 	mutex_unlock(&adev->srbm_mutex);
 }
 
@@ -90,8 +90,8 @@ void kgd_gfx_v9_program_sh_mem_settings(struct amdgpu_device *adev, uint32_t vmi
 {
 	kgd_gfx_v9_lock_srbm(adev, 0, 0, 0, vmid, inst);
 
-	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmSH_MEM_CONFIG), sh_mem_config);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmSH_MEM_BASES), sh_mem_bases);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmSH_MEM_CONFIG), sh_mem_config);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmSH_MEM_BASES), sh_mem_bases);
 	/* APE1 no longer exists on GFX9 */
 
 	kgd_gfx_v9_unlock_srbm(adev, inst);
@@ -167,7 +167,7 @@ int kgd_gfx_v9_init_interrupts(struct amdgpu_device *adev, uint32_t pipe_id,
 
 	kgd_gfx_v9_lock_srbm(adev, mec, pipe, 0, 0, inst);
 
-	WREG32_SOC15(GC, inst, mmCPC_INT_CNTL,
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmCPC_INT_CNTL,
 		CP_INT_CNTL_RING0__TIME_STAMP_INT_ENABLE_MASK |
 		CP_INT_CNTL_RING0__OPCODE_ERROR_INT_ENABLE_MASK);
 
@@ -234,17 +234,17 @@ int kgd_gfx_v9_hqd_load(struct amdgpu_device *adev, void *mqd,
 
 	/* HQD registers extend from CP_MQD_BASE_ADDR to CP_HQD_EOP_WPTR_MEM. */
 	mqd_hqd = &m->cp_mqd_base_addr_lo;
-	hqd_base = SOC15_REG_OFFSET(GC, inst, mmCP_MQD_BASE_ADDR);
+	hqd_base = SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_MQD_BASE_ADDR);
 
 	for (reg = hqd_base;
-	     reg <= SOC15_REG_OFFSET(GC, inst, mmCP_HQD_PQ_WPTR_HI); reg++)
+	     reg <= SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_PQ_WPTR_HI); reg++)
 		WREG32_RLC(reg, mqd_hqd[reg - hqd_base]);
 
 
 	/* Activate doorbell logic before triggering WPTR poll. */
 	data = REG_SET_FIELD(m->cp_hqd_pq_doorbell_control,
 			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_PQ_DOORBELL_CONTROL),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_PQ_DOORBELL_CONTROL),
 					data);
 
 	if (wptr) {
@@ -274,25 +274,25 @@ int kgd_gfx_v9_hqd_load(struct amdgpu_device *adev, void *mqd,
 		guessed_wptr += m->cp_hqd_pq_wptr_lo & ~(queue_size - 1);
 		guessed_wptr += (uint64_t)m->cp_hqd_pq_wptr_hi << 32;
 
-		WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_PQ_WPTR_LO),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_PQ_WPTR_LO),
 		       lower_32_bits(guessed_wptr));
-		WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_PQ_WPTR_HI),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_PQ_WPTR_HI),
 		       upper_32_bits(guessed_wptr));
-		WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_PQ_WPTR_POLL_ADDR),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_PQ_WPTR_POLL_ADDR),
 		       lower_32_bits((uintptr_t)wptr));
-		WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_PQ_WPTR_POLL_ADDR_HI),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_PQ_WPTR_POLL_ADDR_HI),
 		       upper_32_bits((uintptr_t)wptr));
-		WREG32_SOC15(GC, 0, mmCP_PQ_WPTR_POLL_CNTL1,
+		WREG32_SOC15(GC, GET_INST(GC, inst), mmCP_PQ_WPTR_POLL_CNTL1,
 		       (uint32_t)kgd_gfx_v9_get_queue_mask(adev, pipe_id, queue_id));
 	}
 
 	/* Start the EOP fetcher */
-	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_EOP_RPTR),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_EOP_RPTR),
 	       REG_SET_FIELD(m->cp_hqd_eop_rptr,
 			     CP_HQD_EOP_RPTR, INIT_FETCHER, 1));
 
 	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_ACTIVE), data);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE), data);
 
 	kgd_gfx_v9_release_queue(adev, inst);
 
@@ -370,8 +370,8 @@ int kgd_gfx_v9_hqd_dump(struct amdgpu_device *adev,
 
 	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
 
-	for (reg = SOC15_REG_OFFSET(GC, inst, mmCP_MQD_BASE_ADDR);
-	     reg <= SOC15_REG_OFFSET(GC, inst, mmCP_HQD_PQ_WPTR_HI); reg++)
+	for (reg = SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_MQD_BASE_ADDR);
+	     reg <= SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_PQ_WPTR_HI); reg++)
 		DUMP_REG(reg);
 
 	kgd_gfx_v9_release_queue(adev, inst);
@@ -491,13 +491,13 @@ bool kgd_gfx_v9_hqd_is_occupied(struct amdgpu_device *adev,
 	uint32_t low, high;
 
 	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
-	act = RREG32_SOC15(GC, inst, mmCP_HQD_ACTIVE);
+	act = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE);
 	if (act) {
 		low = lower_32_bits(queue_address >> 8);
 		high = upper_32_bits(queue_address >> 8);
 
-		if (low == RREG32_SOC15(GC, inst, mmCP_HQD_PQ_BASE) &&
-		   high == RREG32_SOC15(GC, inst, mmCP_HQD_PQ_BASE_HI))
+		if (low == RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE) &&
+		   high == RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE_HI))
 			retval = true;
 	}
 	kgd_gfx_v9_release_queue(adev, inst);
@@ -538,7 +538,7 @@ int kgd_gfx_v9_hqd_destroy(struct amdgpu_device *adev, void *mqd,
 	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
 
 	if (m->cp_hqd_vmid == 0)
-		WREG32_FIELD15_RLC(GC, inst, RLC_CP_SCHEDULERS, scheduler1, 0);
+		WREG32_FIELD15_RLC(GC, GET_INST(GC, inst), RLC_CP_SCHEDULERS, scheduler1, 0);
 
 	switch (reset_type) {
 	case KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN:
@@ -555,11 +555,11 @@ int kgd_gfx_v9_hqd_destroy(struct amdgpu_device *adev, void *mqd,
 		break;
 	}
 
-	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, mmCP_HQD_DEQUEUE_REQUEST), type);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, inst), mmCP_HQD_DEQUEUE_REQUEST), type);
 
 	end_jiffies = (utimeout * HZ / 1000) + jiffies;
 	while (true) {
-		temp = RREG32_SOC15(GC, inst, mmCP_HQD_ACTIVE);
+		temp = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE);
 		if (!(temp & CP_HQD_ACTIVE__ACTIVE_MASK))
 			break;
 		if (time_after(jiffies, end_jiffies)) {
@@ -633,8 +633,8 @@ int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 
-	WREG32_SOC15_RLC_SHADOW(GC, inst, mmGRBM_GFX_INDEX, gfx_index_val);
-	WREG32_SOC15(GC, inst, mmSQ_CMD, sq_cmd);
+	WREG32_SOC15_RLC_SHADOW(GC, GET_INST(GC, inst), mmGRBM_GFX_INDEX, gfx_index_val);
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_CMD, sq_cmd);
 
 	data = REG_SET_FIELD(data, GRBM_GFX_INDEX,
 		INSTANCE_BROADCAST_WRITES, 1);
@@ -643,7 +643,7 @@ int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
 	data = REG_SET_FIELD(data, GRBM_GFX_INDEX,
 		SE_BROADCAST_WRITES, 1);
 
-	WREG32_SOC15_RLC_SHADOW(GC, inst, mmGRBM_GFX_INDEX, data);
+	WREG32_SOC15_RLC_SHADOW(GC, GET_INST(GC, inst), mmGRBM_GFX_INDEX, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
@@ -842,17 +842,17 @@ void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
 	/*
 	 * Program TBA registers
 	 */
-	WREG32_SOC15(GC, inst, mmSQ_SHADER_TBA_LO,
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_LO,
                         lower_32_bits(tba_addr >> 8));
-	WREG32_SOC15(GC, inst, mmSQ_SHADER_TBA_HI,
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_HI,
                         upper_32_bits(tba_addr >> 8));
 
 	/*
 	 * Program TMA registers
 	 */
-	WREG32_SOC15(GC, inst, mmSQ_SHADER_TMA_LO,
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TMA_LO,
 			lower_32_bits(tma_addr >> 8));
-	WREG32_SOC15(GC, inst, mmSQ_SHADER_TMA_HI,
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TMA_HI,
 			upper_32_bits(tma_addr >> 8));
 
 	kgd_gfx_v9_unlock_srbm(adev, inst);

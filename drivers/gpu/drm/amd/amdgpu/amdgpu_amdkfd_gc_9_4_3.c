@@ -223,8 +223,9 @@ static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
 {
 	unsigned long timeout;
 	unsigned int reg;
+	unsigned int phy_inst = GET_INST(GC, xcc_inst);
 	/* Every two XCCs share one AID */
-	unsigned int aid = xcc_inst / 2;
+	unsigned int aid = phy_inst / 2;
 
 	/*
 	 * We have to assume that there is no outstanding mapping.
@@ -261,7 +262,7 @@ static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
 	 * to.
 	 */
 	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_LUT_INDEX),
-		aid * 4 + (xcc_inst % 2) + 1);
+		aid * 4 + (phy_inst % 2) + 1);
 	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT) + vmid,
 		pasid_mapping);
 	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_LUT_INDEX),
