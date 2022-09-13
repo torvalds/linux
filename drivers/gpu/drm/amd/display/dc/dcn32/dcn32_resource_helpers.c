@@ -278,7 +278,7 @@ void dcn32_determine_det_override(struct dc *dc,
 		}
 	}
 
-	if (context->stream_count > 0) {
+	if (stream_count > 0) {
 		stream_segments = 18 / stream_count;
 		for (i = 0; i < context->stream_count; i++) {
 			if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM)
