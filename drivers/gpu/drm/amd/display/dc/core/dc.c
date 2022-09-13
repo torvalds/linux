@@ -4006,7 +4006,7 @@ struct dc_sink *dc_link_add_remote_sink(
 	 * Treat device as no EDID device if EDID
 	 * parsing fails
 	 */
-	if (edid_status != EDID_OK) {
+	if (edid_status != EDID_OK && edid_status != EDID_PARTIAL_VALID) {
 		dc_sink->dc_edid.length = 0;
 		dm_error("Bad EDID, status%d!\n", edid_status);
 	}
