@@ -2775,6 +2775,9 @@ int kvm_sys_reg_set_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 	if (!r)
 		return -ENOENT;
 
+	if (sysreg_user_write_ignore(vcpu, r))
+		return 0;
+
 	if (r->set_user) {
 		ret = (r->set_user)(vcpu, r, val);
 	} else {
