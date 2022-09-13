@@ -1501,6 +1501,7 @@ static bool free_pcp_prepare(struct page *page, unsigned int order)
 	return free_pages_prepare(page, order, true, FPI_NONE);
 }
 
+/* return true if this page has an inappropriate state */
 static bool bulkfree_pcp_prepare(struct page *page)
 {
 	if (debug_pagealloc_enabled_static())
