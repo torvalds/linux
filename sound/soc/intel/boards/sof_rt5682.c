@@ -46,7 +46,6 @@
 	((quirk << SOF_RT5682_NUM_HDMIDEV_SHIFT) & SOF_RT5682_NUM_HDMIDEV_MASK)
 #define SOF_RT1011_SPEAKER_AMP_PRESENT		BIT(13)
 #define SOF_RT1015_SPEAKER_AMP_PRESENT		BIT(14)
-#define SOF_RT1015_SPEAKER_AMP_100FS		BIT(15)
 #define SOF_RT1015P_SPEAKER_AMP_PRESENT		BIT(16)
 #define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(17)
 #define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(18)
@@ -132,7 +131,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 					SOF_RT5682_SSP_CODEC(0) |
 					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT1015_SPEAKER_AMP_PRESENT |
-					SOF_RT1015_SPEAKER_AMP_100FS |
 					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
@@ -740,8 +738,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 
 		links[id].id = id;
 		if (sof_rt5682_quirk & SOF_RT1015_SPEAKER_AMP_PRESENT) {
-			sof_rt1015_dai_link(&links[id], (sof_rt5682_quirk &
-					SOF_RT1015_SPEAKER_AMP_100FS) ? 100 : 64);
+			sof_rt1015_dai_link(&links[id]);
 		} else if (sof_rt5682_quirk & SOF_RT1015P_SPEAKER_AMP_PRESENT) {
 			sof_rt1015p_dai_link(&links[id]);
 		} else if (sof_rt5682_quirk & SOF_RT1019_SPEAKER_AMP_PRESENT) {
@@ -1011,7 +1008,6 @@ static const struct platform_device_id board_ids[] = {
 					SOF_RT5682_SSP_CODEC(0) |
 					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT1015_SPEAKER_AMP_PRESENT |
-					SOF_RT1015_SPEAKER_AMP_100FS |
 					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
