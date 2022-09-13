@@ -696,7 +696,6 @@ drop_ct:
 static int tcf_ct_skb_network_trim(struct sk_buff *skb, int family)
 {
 	unsigned int len;
-	int err;
 
 	switch (family) {
 	case NFPROTO_IPV4:
@@ -710,9 +709,7 @@ static int tcf_ct_skb_network_trim(struct sk_buff *skb, int family)
 		len = skb->len;
 	}
 
-	err = pskb_trim_rcsum(skb, len);
-
-	return err;
+	return pskb_trim_rcsum(skb, len);
 }
 
 static u8 tcf_ct_skb_nf_family(struct sk_buff *skb)
