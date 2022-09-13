@@ -400,6 +400,13 @@ static const unsigned int mt2712_mutex_sof[DDP_MUTEX_SOF_MAX] = {
 	[MUTEX_SOF_DSI3] = MUTEX_SOF_DSI3,
 };
 
+static const unsigned int mt6795_mutex_sof[DDP_MUTEX_SOF_MAX] = {
+	[MUTEX_SOF_SINGLE_MODE] = MUTEX_SOF_SINGLE_MODE,
+	[MUTEX_SOF_DSI0] = MUTEX_SOF_DSI0,
+	[MUTEX_SOF_DSI1] = MUTEX_SOF_DSI1,
+	[MUTEX_SOF_DPI0] = MUTEX_SOF_DPI0,
+};
+
 static const unsigned int mt8167_mutex_sof[DDP_MUTEX_SOF_MAX] = {
 	[MUTEX_SOF_SINGLE_MODE] = MUTEX_SOF_SINGLE_MODE,
 	[MUTEX_SOF_DSI0] = MUTEX_SOF_DSI0,
@@ -450,6 +457,13 @@ static const struct mtk_mutex_data mt2701_mutex_driver_data = {
 static const struct mtk_mutex_data mt2712_mutex_driver_data = {
 	.mutex_mod = mt2712_mutex_mod,
 	.mutex_sof = mt2712_mutex_sof,
+	.mutex_mod_reg = MT2701_MUTEX0_MOD0,
+	.mutex_sof_reg = MT2701_MUTEX0_SOF0,
+};
+
+static const struct mtk_mutex_data mt6795_mutex_driver_data = {
+	.mutex_mod = mt8173_mutex_mod,
+	.mutex_sof = mt6795_mutex_sof,
 	.mutex_mod_reg = MT2701_MUTEX0_MOD0,
 	.mutex_sof_reg = MT2701_MUTEX0_SOF0,
 };
@@ -828,6 +842,8 @@ static const struct of_device_id mutex_driver_dt_match[] = {
 	  .data = &mt2701_mutex_driver_data},
 	{ .compatible = "mediatek,mt2712-disp-mutex",
 	  .data = &mt2712_mutex_driver_data},
+	{ .compatible = "mediatek,mt6795-disp-mutex",
+	  .data = &mt6795_mutex_driver_data},
 	{ .compatible = "mediatek,mt8167-disp-mutex",
 	  .data = &mt8167_mutex_driver_data},
 	{ .compatible = "mediatek,mt8173-disp-mutex",
