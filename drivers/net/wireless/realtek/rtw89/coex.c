@@ -6015,6 +6015,7 @@ static void _show_error(struct rtw89_dev *rtwdev, struct seq_file *m)
 
 static void _show_fbtc_tdma(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
@@ -6027,7 +6028,10 @@ static void _show_fbtc_tdma(struct rtw89_dev *rtwdev, struct seq_file *m)
 	if (!pcinfo->valid)
 		return;
 
-	t = &pfwinfo->rpt_fbtc_tdma.finfo;
+	if (chip->chip_id == RTL8852A)
+		t = &pfwinfo->rpt_fbtc_tdma.finfo;
+	else
+		t = &pfwinfo->rpt_fbtc_tdma.finfo_v1.tdma;
 
 	seq_printf(m,
 		   " %-15s : ", "[tdma_policy]");
