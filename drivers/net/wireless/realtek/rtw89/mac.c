@@ -2487,8 +2487,7 @@ int rtw89_mac_resume_sch_tx_v1(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
 }
 EXPORT_SYMBOL(rtw89_mac_resume_sch_tx_v1);
 
-static u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len,
-				 bool wd)
+u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd)
 {
 	u32 val, reg;
 	int ret;
@@ -2508,9 +2507,8 @@ static u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len,
 	return FIELD_GET(B_AX_WD_BUF_STAT_PKTID_MASK, val);
 }
 
-static int rtw89_mac_set_cpuio(struct rtw89_dev *rtwdev,
-			       struct rtw89_cpuio_ctrl *ctrl_para,
-			       bool wd)
+int rtw89_mac_set_cpuio(struct rtw89_dev *rtwdev,
+			struct rtw89_cpuio_ctrl *ctrl_para, bool wd)
 {
 	u32 val, cmd_type, reg;
 	int ret;
