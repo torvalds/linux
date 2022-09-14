@@ -4708,3 +4708,48 @@ int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 
 	return 0;
 }
+
+static
+void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta)
+{
+	static const enum rtw89_pkt_drop_sel sels[] = {
+		RTW89_PKT_DROP_SEL_MACID_BE_ONCE,
+		RTW89_PKT_DROP_SEL_MACID_BK_ONCE,
+		RTW89_PKT_DROP_SEL_MACID_VI_ONCE,
+		RTW89_PKT_DROP_SEL_MACID_VO_ONCE,
+	};
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_pkt_drop_params params = {0};
+	int i;
+
+	params.mac_band = RTW89_MAC_0;
+	params.macid = rtwsta->mac_id;
+	params.port = rtwvif->port;
+	params.mbssid = 0;
+	params.tf_trs = rtwvif->trigger;
+
+	for (i = 0; i < ARRAY_SIZE(sels); i++) {
+		params.sel = sels[i];
+		rtw89_fw_h2c_pkt_drop(rtwdev, &params);
+	}
+}
+
+static void rtw89_mac_pkt_drop_vif_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_vif *target = data;
+
+	if (rtwvif != target)
+		return;
+
+	rtw89_mac_pkt_drop_sta(rtwdev, rtwsta);
+}
+
+void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+{
+	ieee80211_iterate_stations_atomic(rtwdev->hw,
+					  rtw89_mac_pkt_drop_vif_iter,
+					  rtwvif);
+}

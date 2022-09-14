@@ -13,6 +13,7 @@
 #include "reg.h"
 #include "sar.h"
 #include "ser.h"
+#include "util.h"
 
 static void rtw89_ops_tx(struct ieee80211_hw *hw,
 			 struct ieee80211_tx_control *control,
@@ -610,6 +611,20 @@ static void rtw89_ops_sta_statistics(struct ieee80211_hw *hw,
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 }
 
+static
+void __rtw89_drop_packets(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
+{
+	struct rtw89_vif *rtwvif;
+
+	if (vif) {
+		rtwvif = (struct rtw89_vif *)vif->drv_priv;
+		rtw89_mac_pkt_drop_vif(rtwdev, rtwvif);
+	} else {
+		rtw89_for_each_rtwvif(rtwdev, rtwvif)
+			rtw89_mac_pkt_drop_vif(rtwdev, rtwvif);
+	}
+}
+
 static void rtw89_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    u32 queues, bool drop)
 {
@@ -618,7 +633,12 @@ static void rtw89_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_lps(rtwdev);
 	rtw89_hci_flush_queues(rtwdev, queues, drop);
-	rtw89_mac_flush_txq(rtwdev, queues, drop);
+
+	if (drop && RTW89_CHK_FW_FEATURE(PACKET_DROP, &rtwdev->fw))
+		__rtw89_drop_packets(rtwdev, vif);
+	else
+		rtw89_mac_flush_txq(rtwdev, queues, drop);
+
 	mutex_unlock(&rtwdev->mutex);
 }
 

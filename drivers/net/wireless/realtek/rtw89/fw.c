@@ -225,6 +225,8 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 35, 0, TX_WAKE),
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 36, 0, CRASH_TRIGGER),
+	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 38, 0, PACKET_DROP),
+	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 20, 0, PACKET_DROP),
 	__CFG_FW_FEAT(RTL8852C, le, 0, 27, 33, 0, NO_DEEP_PS),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 34, 0, TX_WAKE),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 36, 0, SCAN_OFFLOAD),
@@ -2724,6 +2726,60 @@ int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev)
 			      H2C_CL_FW_STATUS_TEST,
 			      H2C_FUNC_CPU_EXCEPTION, 0, 0,
 			      H2C_FW_CPU_EXCEPTION_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_kfree_skb_any(skb);
+	return ret;
+}
+
+#define H2C_PKT_DROP_LEN 24
+int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
+			  const struct rtw89_pkt_drop_params *params)
+{
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_PKT_DROP_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev,
+			  "failed to alloc skb for packet drop\n");
+		return -ENOMEM;
+	}
+
+	switch (params->sel) {
+	case RTW89_PKT_DROP_SEL_MACID_BE_ONCE:
+	case RTW89_PKT_DROP_SEL_MACID_BK_ONCE:
+	case RTW89_PKT_DROP_SEL_MACID_VI_ONCE:
+	case RTW89_PKT_DROP_SEL_MACID_VO_ONCE:
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "H2C of pkt drop might not fully support sel: %d yet\n",
+			    params->sel);
+		break;
+	}
+
+	skb_put(skb, H2C_PKT_DROP_LEN);
+	RTW89_SET_FWCMD_PKT_DROP_SEL(skb->data, params->sel);
+	RTW89_SET_FWCMD_PKT_DROP_MACID(skb->data, params->macid);
+	RTW89_SET_FWCMD_PKT_DROP_BAND(skb->data, params->mac_band);
+	RTW89_SET_FWCMD_PKT_DROP_PORT(skb->data, params->port);
+	RTW89_SET_FWCMD_PKT_DROP_MBSSID(skb->data, params->mbssid);
+	RTW89_SET_FWCMD_PKT_DROP_ROLE_A_INFO_TF_TRS(skb->data, params->tf_trs);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_FW_OFLD,
+			      H2C_FUNC_PKT_DROP, 0, 0,
+			      H2C_PKT_DROP_LEN);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

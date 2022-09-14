@@ -1823,6 +1823,36 @@ static inline void RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(void *cmd, u32 val)
 	le32p_replace_bits((__le32 *)cmd, val, GENMASK(31, 0));
 }
 
+static inline void RTW89_SET_FWCMD_PKT_DROP_SEL(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(7, 0));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_MACID(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(15, 8));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_BAND(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(23, 16));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_PORT(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(31, 24));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_MBSSID(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd + 1, val, GENMASK(7, 0));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_ROLE_A_INFO_TF_TRS(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd + 1, val, GENMASK(15, 8));
+}
+
 enum rtw89_btc_btf_h2c_class {
 	BTFC_SET = 0x10,
 	BTFC_GET = 0x11,
@@ -2591,6 +2621,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_FUNC_OFLD_CFG		0x14
 #define H2C_FUNC_ADD_SCANOFLD_CH	0x16
 #define H2C_FUNC_SCANOFLD		0x17
+#define H2C_FUNC_PKT_DROP		0x1b
 
 /* CLASS 10 - Security CAM */
 #define H2C_CL_MAC_SEC_CAM		0xa
@@ -2718,6 +2749,8 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			  bool enable);
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);
+int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
+			  const struct rtw89_pkt_drop_params *params);
 
 static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {
