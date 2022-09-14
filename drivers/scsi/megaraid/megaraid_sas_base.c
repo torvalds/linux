@@ -7226,7 +7226,7 @@ int megasas_alloc_ctrl_dma_buffers(struct megasas_instance *instance)
 
 		if (!fusion->ioc_init_request) {
 			dev_err(&pdev->dev,
-				"Failed to allocate PD list buffer\n");
+				"Failed to allocate ioc init request\n");
 			return -ENOMEM;
 		}
 
