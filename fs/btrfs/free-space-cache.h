@@ -88,6 +88,8 @@ struct btrfs_io_ctl {
 	int bitmaps;
 };
 
+int __init btrfs_free_space_init(void);
+void __cold btrfs_free_space_exit(void);
 struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
 		struct btrfs_path *path);
 int create_free_space_inode(struct btrfs_trans_handle *trans,
