@@ -82,23 +82,47 @@ static void sample_timer(struct timer_list *t)
 	mod_timer(&ctx->rpm_timer, jiffies + HZ);
 }
 
+static int pwm_fan_power_on(struct pwm_fan_ctx *ctx)
+{
+	struct pwm_state *state = &ctx->pwm_state;
+	unsigned long period;
+	int ret;
+
+	period = state->period;
+	state->duty_cycle = DIV_ROUND_UP(ctx->pwm_value * (period - 1), MAX_PWM);
+	state->enabled = true;
+	ret = pwm_apply_state(ctx->pwm, state);
+
+	return ret;
+}
+
+static int pwm_fan_power_off(struct pwm_fan_ctx *ctx)
+{
+	struct pwm_state *state = &ctx->pwm_state;
+
+	state->enabled = false;
+	state->duty_cycle = 0;
+	pwm_apply_state(ctx->pwm, state);
+
+	return 0;
+}
+
 static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 {
-	unsigned long period;
 	int ret = 0;
-	struct pwm_state *state = &ctx->pwm_state;
 
 	mutex_lock(&ctx->lock);
 	if (ctx->pwm_value == pwm)
 		goto exit_set_pwm_err;
 
-	period = state->period;
-	state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
-	state->enabled = pwm ? true : false;
+	if (pwm > 0)
+		ret = pwm_fan_power_on(ctx);
+	else
+		ret = pwm_fan_power_off(ctx);
 
-	ret = pwm_apply_state(ctx->pwm, state);
 	if (!ret)
 		ctx->pwm_value = pwm;
+
 exit_set_pwm_err:
 	mutex_unlock(&ctx->lock);
 	return ret;
