@@ -18,7 +18,7 @@ install_qdisc()
 {
 	local -a args=("$@")
 
-	tc qdisc add dev $swp3 root handle 108: red \
+	tc qdisc add dev $swp3 parent 1: handle 108: red \
 	   limit 1000000 min $BACKLOG max $((BACKLOG + 1)) \
 	   probability 1.0 avpkt 8000 burst 38 "${args[@]}"
 	sleep 1
@@ -26,7 +26,7 @@ install_qdisc()
 
 uninstall_qdisc()
 {
-	tc qdisc del dev $swp3 root
+	tc qdisc del dev $swp3 parent 1:
 }
 
 ecn_test()
