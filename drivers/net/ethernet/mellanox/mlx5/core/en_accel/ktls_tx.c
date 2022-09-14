@@ -126,7 +126,6 @@ mlx5e_get_ktls_tx_priv_ctx(struct tls_context *tls_ctx)
 struct mlx5e_async_ctx {
 	struct mlx5_async_work context;
 	struct mlx5_async_ctx async_ctx;
-	struct work_struct work;
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct completion complete;
 	int err;
