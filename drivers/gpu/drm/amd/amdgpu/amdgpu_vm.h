@@ -111,11 +111,14 @@ struct amdgpu_mem_stats;
 /* Reserve 4MB VRAM for page tables */
 #define AMDGPU_VM_RESERVED_VRAM		(8ULL << 20)
 
-/* max number of VMHUB */
-#define AMDGPU_MAX_VMHUBS			3
-#define AMDGPU_GFXHUB_0				0
-#define AMDGPU_MMHUB_0				1
-#define AMDGPU_MMHUB_1				2
+/*
+ * max number of VMHUB
+ * layout: max 8 GFXHUB + 4 MMHUB0 + 1 MMHUB1
+ */
+#define AMDGPU_MAX_VMHUBS			13
+#define AMDGPU_GFXHUB(x)			(x)
+#define AMDGPU_MMHUB0(x)			(8 + x)
+#define AMDGPU_MMHUB1(x)			(8 + 4 + x)
 
 /* Reserve 2MB at top/bottom of address space for kernel use */
 #define AMDGPU_VA_RESERVED_SIZE			(2ULL << 20)

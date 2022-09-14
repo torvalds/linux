@@ -491,20 +491,20 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 				 * fini/suspend, so the overall state doesn't
 				 * change over the course of suspend/resume.
 				 */
-				if (adev->in_s0ix && (j == AMDGPU_GFXHUB_0))
+				if (adev->in_s0ix && (j == AMDGPU_GFXHUB(0)))
 					continue;
 
-				if (j == AMDGPU_GFXHUB_0)
-					tmp = RREG32_SOC15_IP(GC, reg);
-				else
+				if (j >= AMDGPU_MMHUB0(0))
 					tmp = RREG32_SOC15_IP(MMHUB, reg);
+				else
+					tmp = RREG32_SOC15_IP(GC, reg);
 
 				tmp &= ~bits;
 
-				if (j == AMDGPU_GFXHUB_0)
-					WREG32_SOC15_IP(GC, reg, tmp);
-				else
+				if (j >= AMDGPU_MMHUB0(0))
 					WREG32_SOC15_IP(MMHUB, reg, tmp);
+				else
+					WREG32_SOC15_IP(GC, reg, tmp);
 			}
 		}
 		break;
@@ -519,20 +519,20 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 				 * fini/suspend, so the overall state doesn't
 				 * change over the course of suspend/resume.
 				 */
-				if (adev->in_s0ix && (j == AMDGPU_GFXHUB_0))
+				if (adev->in_s0ix && (j == AMDGPU_GFXHUB(0)))
 					continue;
 
-				if (j == AMDGPU_GFXHUB_0)
-					tmp = RREG32_SOC15_IP(GC, reg);
-				else
+				if (j >= AMDGPU_MMHUB0(0))
 					tmp = RREG32_SOC15_IP(MMHUB, reg);
+				else
+					tmp = RREG32_SOC15_IP(GC, reg);
 
 				tmp |= bits;
 
-				if (j == AMDGPU_GFXHUB_0)
-					WREG32_SOC15_IP(GC, reg, tmp);
-				else
+				if (j >= AMDGPU_MMHUB0(0))
 					WREG32_SOC15_IP(MMHUB, reg, tmp);
+				else
+					WREG32_SOC15_IP(GC, reg, tmp);
 			}
 		}
 		break;
@@ -605,13 +605,13 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 
 	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
 		hub_name = "mmhub0";
-		hub = &adev->vmhub[AMDGPU_MMHUB_0];
+		hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
 	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
 		hub_name = "mmhub1";
-		hub = &adev->vmhub[AMDGPU_MMHUB_1];
+		hub = &adev->vmhub[AMDGPU_MMHUB1(0)];
 	} else {
 		hub_name = "gfxhub0";
-		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+		hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 	}
 
 	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
@@ -636,7 +636,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	 * be updated to avoid reading an incorrect value due to
 	 * the new fast GRBM interface.
 	 */
-	if ((entry->vmid_src == AMDGPU_GFXHUB_0) &&
+	if ((entry->vmid_src == AMDGPU_GFXHUB(0)) &&
 	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 4, 2)))
 		RREG32(hub->vm_l2_pro_fault_status);
 
@@ -649,7 +649,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	dev_err(adev->dev,
 		"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 		status);
-	if (hub == &adev->vmhub[AMDGPU_GFXHUB_0]) {
+	if (hub == &adev->vmhub[AMDGPU_GFXHUB(0)]) {
 		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
 			cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" :
 			gfxhub_client_ids[cid],
@@ -759,8 +759,8 @@ static bool gmc_v9_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 	    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
 		return false;
 
-	return ((vmhub == AMDGPU_MMHUB_0 ||
-		 vmhub == AMDGPU_MMHUB_1) &&
+	return ((vmhub == AMDGPU_MMHUB0(0) ||
+		 vmhub == AMDGPU_MMHUB1(0)) &&
 		(!amdgpu_sriov_vf(adev)) &&
 		(!(!(adev->apu_flags & AMD_APU_IS_RAVEN2) &&
 		   (adev->apu_flags & AMD_APU_IS_PICASSO))));
@@ -849,11 +849,10 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	if (use_semaphore) {
 		for (j = 0; j < adev->usec_timeout; j++) {
 			/* a read return value of 1 means semaphore acquire */
-			if (vmhub == AMDGPU_GFXHUB_0)
-				tmp = RREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_sem + hub->eng_distance * eng);
-			else
+			if (vmhub >= AMDGPU_MMHUB0(0))
 				tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_sem + hub->eng_distance * eng);
-
+			else
+				tmp = RREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_sem + hub->eng_distance * eng);
 			if (tmp & 0x1)
 				break;
 			udelay(1);
@@ -864,27 +863,26 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	}
 
 	do {
-		if (vmhub == AMDGPU_GFXHUB_0)
-			WREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
-		else
+		if (vmhub >= AMDGPU_MMHUB0(0))
 			WREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
+		else
+			WREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
 
 		/*
 		 * Issue a dummy read to wait for the ACK register to
 		 * be cleared to avoid a false ACK due to the new fast
 		 * GRBM interface.
 		 */
-		if ((vmhub == AMDGPU_GFXHUB_0) &&
+		if ((vmhub == AMDGPU_GFXHUB(0)) &&
 		    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 4, 2)))
 			RREG32_NO_KIQ(hub->vm_inv_eng0_req +
 				      hub->eng_distance * eng);
 
 		for (j = 0; j < adev->usec_timeout; j++) {
-			if (vmhub == AMDGPU_GFXHUB_0)
-				tmp = RREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_ack + hub->eng_distance * eng);
-			else
+			if (vmhub >= AMDGPU_MMHUB0(0))
 				tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_ack + hub->eng_distance * eng);
-
+			else
+				tmp = RREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_ack + hub->eng_distance * eng);
 			if (tmp & (1 << vmid))
 				break;
 			udelay(1);
@@ -900,10 +898,10 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		 * add semaphore release after invalidation,
 		 * write with 0 means semaphore release
 		 */
-		if (vmhub == AMDGPU_GFXHUB_0)
-			WREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_sem + hub->eng_distance * eng, 0);
+		if (vmhub >= AMDGPU_MMHUB0(0))
+			WREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
 		else
-			WREG32_SOC15_IP_NO_KIQ(MMHUB, hub->vm_inv_eng0_sem + hub->eng_distance * eng, 0);
+			WREG32_SOC15_IP_NO_KIQ(GC, hub->vm_inv_eng0_req + hub->eng_distance * eng, inv_req);
 	}
 
 	spin_unlock(&adev->gmc.invalidate_lock);
@@ -994,7 +992,7 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 							i, flush_type);
 			} else {
 				gmc_v9_0_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB_0, flush_type);
+						AMDGPU_GFXHUB(0), flush_type);
 			}
 			break;
 		}
@@ -1060,10 +1058,10 @@ static void gmc_v9_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 	uint32_t reg;
 
 	/* Do nothing because there's no lut register for mmhub1. */
-	if (ring->vm_hub == AMDGPU_MMHUB_1)
+	if (ring->vm_hub == AMDGPU_MMHUB1(0))
 		return;
 
-	if (ring->vm_hub == AMDGPU_GFXHUB_0)
+	if (ring->vm_hub == AMDGPU_GFXHUB(0))
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
 	else
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid;
@@ -1947,7 +1945,7 @@ static int gmc_v9_0_hw_init(void *handle)
 		adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	}
 	for (i = 0; i < adev->num_vmhubs; ++i) {
-		if (adev->in_s0ix && (i == AMDGPU_GFXHUB_0))
+		if (adev->in_s0ix && (i == AMDGPU_GFXHUB(0)))
 			continue;
 		gmc_v9_0_flush_gpu_tlb(adev, 0, i, 0);
 	}

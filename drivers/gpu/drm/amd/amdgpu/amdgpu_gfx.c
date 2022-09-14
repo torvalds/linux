@@ -315,7 +315,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	ring->use_doorbell = true;
 	ring->doorbell_index = adev->doorbell_index.kiq;
 	ring->xcc_id = xcc_id;
-	ring->vm_hub = AMDGPU_GFXHUB_0;
+	ring->vm_hub = AMDGPU_GFXHUB(0);
 	if (xcc_id >= 1)
 		ring->doorbell_index = adev->doorbell_index.xcc1_kiq_start +
 					xcc_id - 1;

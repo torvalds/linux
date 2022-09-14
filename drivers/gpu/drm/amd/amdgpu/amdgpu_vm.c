@@ -2374,12 +2374,12 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	case AMDGPU_VM_OP_RESERVE_VMID:
 		/* We only have requirement to reserve vmid from gfxhub */
 		r = amdgpu_vmid_alloc_reserved(adev, &fpriv->vm,
-					       AMDGPU_GFXHUB_0);
+					       AMDGPU_GFXHUB(0));
 		if (r)
 			return r;
 		break;
 	case AMDGPU_VM_OP_UNRESERVE_VMID:
-		amdgpu_vmid_free_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB_0);
+		amdgpu_vmid_free_reserved(adev, &fpriv->vm, AMDGPU_GFXHUB(0));
 		break;
 	default:
 		return -EINVAL;

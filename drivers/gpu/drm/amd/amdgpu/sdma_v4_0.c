@@ -1825,12 +1825,12 @@ static int sdma_v4_0_sw_init(void *handle)
 
 		/*
 		 * On Arcturus, SDMA instance 5~7 has a different vmhub
-		 * type(AMDGPU_MMHUB_1).
+		 * type(AMDGPU_MMHUB1).
 		 */
 		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
-			ring->vm_hub = AMDGPU_MMHUB_1;
+			ring->vm_hub = AMDGPU_MMHUB1(0);
 		else
-			ring->vm_hub = AMDGPU_MMHUB_0;
+			ring->vm_hub = AMDGPU_MMHUB0(0);
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->sdma.trap_irq,
@@ -1851,9 +1851,9 @@ static int sdma_v4_0_sw_init(void *handle)
 			ring->doorbell_index += 0x400;
 
 			if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
-				ring->vm_hub = AMDGPU_MMHUB_1;
+				ring->vm_hub = AMDGPU_MMHUB1(0);
 			else
-				ring->vm_hub = AMDGPU_MMHUB_0;
+				ring->vm_hub = AMDGPU_MMHUB0(0);
 
 			sprintf(ring->name, "page%d", i);
 			r = amdgpu_ring_init(adev, ring, 1024,

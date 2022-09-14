@@ -1935,7 +1935,7 @@ static bool gfx_v9_4_2_query_uctl2_poison_status(struct amdgpu_device *adev)
 	u32 status = 0;
 	struct amdgpu_vmhub *hub;
 
-	hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 	status = RREG32(hub->vm_l2_pro_fault_status);
 	/* reset page fault status */
 	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);

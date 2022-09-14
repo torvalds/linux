@@ -2005,7 +2005,7 @@ static int gfx_v9_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	ring->doorbell_index = (adev->doorbell_index.mec_ring0 + ring_id) << 1;
 	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr
 				+ (ring_id * GFX9_MEC_HPD_SIZE);
-	ring->vm_hub = AMDGPU_GFXHUB_0;
+	ring->vm_hub = AMDGPU_GFXHUB(0);
 	sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 
 	irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
@@ -2105,7 +2105,7 @@ static int gfx_v9_0_sw_init(void *handle)
 
 		/* disable scheduler on the real ring */
 		ring->no_scheduler = true;
-		ring->vm_hub = AMDGPU_GFXHUB_0;
+		ring->vm_hub = AMDGPU_GFXHUB(0);
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 				     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP,
 				     AMDGPU_RING_PRIO_DEFAULT, NULL);
@@ -2123,7 +2123,7 @@ static int gfx_v9_0_sw_init(void *handle)
 			ring->doorbell_index = adev->doorbell_index.gfx_ring0 << 1;
 			ring->is_sw_ring = true;
 			hw_prio = amdgpu_sw_ring_priority(i);
-			ring->vm_hub = AMDGPU_GFXHUB_0;
+			ring->vm_hub = AMDGPU_GFXHUB(0);
 			r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 					     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP, hw_prio,
 					     NULL);
@@ -2393,7 +2393,7 @@ static void gfx_v9_0_constants_init(struct amdgpu_device *adev)
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < adev->vm_manager.id_mgr[AMDGPU_GFXHUB_0].num_ids; i++) {
+	for (i = 0; i < adev->vm_manager.id_mgr[AMDGPU_GFXHUB(0)].num_ids; i++) {
 		soc15_grbm_select(adev, 0, 0, 0, i, 0);
 		/* CP and shaders */
 		if (i == 0) {

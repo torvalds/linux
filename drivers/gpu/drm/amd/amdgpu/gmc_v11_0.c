@@ -64,7 +64,7 @@ gmc_v11_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		/* MM HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, false);
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB0(0), false);
 		/* GFX HUB */
 		/* This works because this interrupt is only
 		 * enabled at init/resume and disabled in
@@ -72,11 +72,11 @@ gmc_v11_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		 * change over the course of suspend/resume.
 		 */
 		if (!adev->in_s0ix)
-			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, false);
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB(0), false);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* MM HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, true);
+		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB0(0), true);
 		/* GFX HUB */
 		/* This works because this interrupt is only
 		 * enabled at init/resume and disabled in
@@ -84,7 +84,7 @@ gmc_v11_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		 * change over the course of suspend/resume.
 		 */
 		if (!adev->in_s0ix)
-			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, true);
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB(0), true);
 		break;
 	default:
 		break;
@@ -110,7 +110,7 @@ static int gmc_v11_0_process_interrupt(struct amdgpu_device *adev,
 		 * be updated to avoid reading an incorrect value due to
 		 * the new fast GRBM interface.
 		 */
-		if (entry->vmid_src == AMDGPU_GFXHUB_0)
+		if (entry->vmid_src == AMDGPU_GFXHUB(0))
 			RREG32(hub->vm_l2_pro_fault_status);
 
 		status = RREG32(hub->vm_l2_pro_fault_status);
@@ -170,7 +170,7 @@ static void gmc_v11_0_set_irq_funcs(struct amdgpu_device *adev)
 static bool gmc_v11_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 				       uint32_t vmhub)
 {
-	return ((vmhub == AMDGPU_MMHUB_0) &&
+	return ((vmhub == AMDGPU_MMHUB0(0)) &&
 		(!amdgpu_sriov_vf(adev)));
 }
 
@@ -202,7 +202,7 @@ static void gmc_v11_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	unsigned int i;
 	unsigned char hub_ip = 0;
 
-	hub_ip = (vmhub == AMDGPU_GFXHUB_0) ?
+	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ?
 		   GC_HWIP : MMHUB_HWIP;
 
 	spin_lock(&adev->gmc.invalidate_lock);
@@ -251,7 +251,7 @@ static void gmc_v11_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 			      hub->eng_distance * eng, 0, hub_ip);
 
 	/* Issue additional private vm invalidation to MMHUB */
-	if ((vmhub != AMDGPU_GFXHUB_0) &&
+	if ((vmhub != AMDGPU_GFXHUB(0)) &&
 	    (hub->vm_l2_bank_select_reserved_cid2) &&
 		!amdgpu_sriov_vf(adev)) {
 		inv_req = RREG32_NO_KIQ(hub->vm_l2_bank_select_reserved_cid2);
@@ -284,7 +284,7 @@ static void gmc_v11_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t vmhub, uint32_t flush_type)
 {
-	if ((vmhub == AMDGPU_GFXHUB_0) && !adev->gfx.is_poweron)
+	if ((vmhub == AMDGPU_GFXHUB(0)) && !adev->gfx.is_poweron)
 		return;
 
 	/* flush hdp cache */
@@ -369,7 +369,7 @@ static int gmc_v11_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 							i, flush_type);
 			} else {
 				gmc_v11_0_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB_0, flush_type);
+						AMDGPU_GFXHUB(0), flush_type);
 			}
 		}
 	}
@@ -435,7 +435,7 @@ static void gmc_v11_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
 	if (ring->is_mes_queue)
 		return;
 
-	if (ring->vm_hub == AMDGPU_GFXHUB_0)
+	if (ring->vm_hub == AMDGPU_GFXHUB(0))
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT) + vmid;
 	else
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT_MM) + vmid;
@@ -886,7 +886,7 @@ static int gmc_v11_0_sw_fini(void *handle)
 static void gmc_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	if (amdgpu_sriov_vf(adev)) {
-		struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB_0];
+		struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
 
 		WREG32(hub->vm_contexts_disable, 0);
 		return;
@@ -921,7 +921,7 @@ static int gmc_v11_0_gart_enable(struct amdgpu_device *adev)
 		false : true;
 
 	adev->mmhub.funcs->set_fault_enable_default(adev, value);
-	gmc_v11_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB_0, 0);
+	gmc_v11_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB0(0), 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),

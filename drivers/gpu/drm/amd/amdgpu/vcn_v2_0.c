@@ -129,7 +129,7 @@ static int vcn_v2_0_sw_init(void *handle)
 
 	ring->use_doorbell = true;
 	ring->doorbell_index = adev->doorbell_index.vcn.vcn_ring0_1 << 1;
-	ring->vm_hub = AMDGPU_MMHUB_0;
+	ring->vm_hub = AMDGPU_MMHUB0(0);
 
 	sprintf(ring->name, "vcn_dec");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst->irq, 0,
@@ -160,7 +160,7 @@ static int vcn_v2_0_sw_init(void *handle)
 
 		ring = &adev->vcn.inst->ring_enc[i];
 		ring->use_doorbell = true;
-		ring->vm_hub = AMDGPU_MMHUB_0;
+		ring->vm_hub = AMDGPU_MMHUB0(0);
 		if (!amdgpu_sriov_vf(adev))
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + i;
 		else
