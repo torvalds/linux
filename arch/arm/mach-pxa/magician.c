@@ -994,7 +994,7 @@ static struct pxa2xx_spi_controller magician_spi_info = {
 };
 
 static struct gpiod_lookup_table magician_spi_gpio_table = {
-	.dev_id = "pxa2xx-spi.2",
+	.dev_id = "spi2",
 	.table = {
 		/* NOTICE must be GPIO, incompatibility with hw PXA SPI framing */
 		GPIO_LOOKUP_IDX("gpio-pxa", GPIO14_MAGICIAN_TSC2046_CS, "cs", 0, GPIO_ACTIVE_LOW),

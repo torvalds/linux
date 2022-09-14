@@ -691,52 +691,35 @@ noinline void bpf_kfunc_call_test_mem_len_fail2(u64 *mem, int len)
 {
 }
 
+noinline void bpf_kfunc_call_test_ref(struct prog_test_ref_kfunc *p)
+{
+}
+
 __diag_pop();
 
 ALLOW_ERROR_INJECTION(bpf_modify_return_test, ERRNO);
 
-BTF_SET_START(test_sk_check_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test1)
-BTF_ID(func, bpf_kfunc_call_test2)
-BTF_ID(func, bpf_kfunc_call_test3)
-BTF_ID(func, bpf_kfunc_call_test_acquire)
-BTF_ID(func, bpf_kfunc_call_memb_acquire)
-BTF_ID(func, bpf_kfunc_call_test_release)
-BTF_ID(func, bpf_kfunc_call_memb_release)
-BTF_ID(func, bpf_kfunc_call_memb1_release)
-BTF_ID(func, bpf_kfunc_call_test_kptr_get)
-BTF_ID(func, bpf_kfunc_call_test_pass_ctx)
-BTF_ID(func, bpf_kfunc_call_test_pass1)
-BTF_ID(func, bpf_kfunc_call_test_pass2)
-BTF_ID(func, bpf_kfunc_call_test_fail1)
-BTF_ID(func, bpf_kfunc_call_test_fail2)
-BTF_ID(func, bpf_kfunc_call_test_fail3)
-BTF_ID(func, bpf_kfunc_call_test_mem_len_pass1)
-BTF_ID(func, bpf_kfunc_call_test_mem_len_fail1)
-BTF_ID(func, bpf_kfunc_call_test_mem_len_fail2)
-BTF_SET_END(test_sk_check_kfunc_ids)
-
-BTF_SET_START(test_sk_acquire_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test_acquire)
-BTF_ID(func, bpf_kfunc_call_memb_acquire)
-BTF_ID(func, bpf_kfunc_call_test_kptr_get)
-BTF_SET_END(test_sk_acquire_kfunc_ids)
-
-BTF_SET_START(test_sk_release_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test_release)
-BTF_ID(func, bpf_kfunc_call_memb_release)
-BTF_ID(func, bpf_kfunc_call_memb1_release)
-BTF_SET_END(test_sk_release_kfunc_ids)
-
-BTF_SET_START(test_sk_ret_null_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test_acquire)
-BTF_ID(func, bpf_kfunc_call_memb_acquire)
-BTF_ID(func, bpf_kfunc_call_test_kptr_get)
-BTF_SET_END(test_sk_ret_null_kfunc_ids)
-
-BTF_SET_START(test_sk_kptr_acquire_kfunc_ids)
-BTF_ID(func, bpf_kfunc_call_test_kptr_get)
-BTF_SET_END(test_sk_kptr_acquire_kfunc_ids)
+BTF_SET8_START(test_sk_check_kfunc_ids)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test3)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_acquire, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_call_memb_acquire, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_memb_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_memb1_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_kptr_get, KF_ACQUIRE | KF_RET_NULL | KF_KPTR_GET)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass_ctx)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail3)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_pass1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail1)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail2)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS)
+BTF_SET8_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
 			   u32 size, u32 headroom, u32 tailroom)
@@ -954,6 +937,9 @@ static inline bool range_is_zero(void *buf, size_t from, size_t to)
 static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 {
 	struct qdisc_skb_cb *cb = (struct qdisc_skb_cb *)skb->cb;
+
+	if (!skb->len)
+		return -EINVAL;
 
 	if (!__skb)
 		return 0;
@@ -1420,9 +1406,6 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 	void *data;
 	int ret;
 
-	if (prog->type != BPF_PROG_TYPE_FLOW_DISSECTOR)
-		return -EINVAL;
-
 	if (kattr->test.flags || kattr->test.cpu || kattr->test.batch_size)
 		return -EINVAL;
 
@@ -1486,9 +1469,6 @@ int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog, const union bpf_attr *kat
 	struct bpf_sk_lookup *user_ctx;
 	u32 retval, duration;
 	int ret = -EINVAL;
-
-	if (prog->type != BPF_PROG_TYPE_SK_LOOKUP)
-		return -EINVAL;
 
 	if (kattr->test.flags || kattr->test.cpu || kattr->test.batch_size)
 		return -EINVAL;
@@ -1623,12 +1603,8 @@ out:
 }
 
 static const struct btf_kfunc_id_set bpf_prog_test_kfunc_set = {
-	.owner        = THIS_MODULE,
-	.check_set        = &test_sk_check_kfunc_ids,
-	.acquire_set      = &test_sk_acquire_kfunc_ids,
-	.release_set      = &test_sk_release_kfunc_ids,
-	.ret_null_set     = &test_sk_ret_null_kfunc_ids,
-	.kptr_acquire_set = &test_sk_kptr_acquire_kfunc_ids
+	.owner = THIS_MODULE,
+	.set   = &test_sk_check_kfunc_ids,
 };
 
 BTF_ID_LIST(bpf_prog_test_dtor_kfunc_ids)
@@ -1652,6 +1628,7 @@ static int __init bpf_prog_test_run_init(void)
 	int ret;
 
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_prog_test_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_prog_test_kfunc_set);
 	return ret ?: register_btf_id_dtor_kfuncs(bpf_prog_test_dtor_kfunc,
 						  ARRAY_SIZE(bpf_prog_test_dtor_kfunc),
 						  THIS_MODULE);

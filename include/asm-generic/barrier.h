@@ -38,6 +38,10 @@
 #define wmb()	do { kcsan_wmb(); __wmb(); } while (0)
 #endif
 
+#ifdef __dma_mb
+#define dma_mb()	do { kcsan_mb(); __dma_mb(); } while (0)
+#endif
+
 #ifdef __dma_rmb
 #define dma_rmb()	do { kcsan_rmb(); __dma_rmb(); } while (0)
 #endif
@@ -63,6 +67,10 @@
 
 #ifndef wmb
 #define wmb()	mb()
+#endif
+
+#ifndef dma_mb
+#define dma_mb()	mb()
 #endif
 
 #ifndef dma_rmb

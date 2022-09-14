@@ -16,7 +16,7 @@ extern u64 gfs2_log_bmap(struct gfs2_jdesc *jd, unsigned int lbn);
 extern void gfs2_log_write(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 			   struct page *page, unsigned size, unsigned offset,
 			   u64 blkno);
-extern void gfs2_log_submit_bio(struct bio **biop, int opf);
+extern void gfs2_log_submit_bio(struct bio **biop, blk_opf_t opf);
 extern void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
 extern int gfs2_find_jhead(struct gfs2_jdesc *jd,
 			   struct gfs2_log_header_host *head, bool keep_cache);

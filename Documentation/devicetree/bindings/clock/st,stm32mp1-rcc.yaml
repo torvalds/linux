@@ -78,6 +78,7 @@ if:
       contains:
         enum:
           - st,stm32mp1-rcc-secure
+          - st,stm32mp13-rcc
 then:
   properties:
     clocks:

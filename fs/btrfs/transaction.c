@@ -10,6 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/uuid.h>
+#include <linux/timekeeping.h>
 #include "misc.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -23,7 +24,7 @@
 #include "space-info.h"
 #include "zoned.h"
 
-#define BTRFS_ROOT_TRANS_TAG				XA_MARK_0
+#define BTRFS_ROOT_TRANS_TAG 0
 
 /*
  * Transaction states and transitions
@@ -437,15 +438,15 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 		 */
 		smp_wmb();
 
-		spin_lock(&fs_info->fs_roots_lock);
+		spin_lock(&fs_info->fs_roots_radix_lock);
 		if (root->last_trans == trans->transid && !force) {
-			spin_unlock(&fs_info->fs_roots_lock);
+			spin_unlock(&fs_info->fs_roots_radix_lock);
 			return 0;
 		}
-		xa_set_mark(&fs_info->fs_roots,
-			    (unsigned long)root->root_key.objectid,
-			    BTRFS_ROOT_TRANS_TAG);
-		spin_unlock(&fs_info->fs_roots_lock);
+		radix_tree_tag_set(&fs_info->fs_roots_radix,
+				   (unsigned long)root->root_key.objectid,
+				   BTRFS_ROOT_TRANS_TAG);
+		spin_unlock(&fs_info->fs_roots_radix_lock);
 		root->last_trans = trans->transid;
 
 		/* this is pretty tricky.  We don't want to
@@ -487,9 +488,11 @@ void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 	spin_unlock(&cur_trans->dropped_roots_lock);
 
 	/* Make sure we don't try to update the root at commit time */
-	xa_clear_mark(&fs_info->fs_roots,
-		      (unsigned long)root->root_key.objectid,
-		      BTRFS_ROOT_TRANS_TAG);
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	radix_tree_tag_clear(&fs_info->fs_roots_radix,
+			     (unsigned long)root->root_key.objectid,
+			     BTRFS_ROOT_TRANS_TAG);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
 }
 
 int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
@@ -1402,8 +1405,9 @@ void btrfs_add_dead_root(struct btrfs_root *root)
 static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_root *root;
-	unsigned long index;
+	struct btrfs_root *gang[8];
+	int i;
+	int ret;
 
 	/*
 	 * At this point no one can be using this transaction to modify any tree
@@ -1411,46 +1415,57 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 	 */
 	ASSERT(trans->transaction->state == TRANS_STATE_COMMIT_DOING);
 
-	spin_lock(&fs_info->fs_roots_lock);
-	xa_for_each_marked(&fs_info->fs_roots, index, root, BTRFS_ROOT_TRANS_TAG) {
-		int ret;
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	while (1) {
+		ret = radix_tree_gang_lookup_tag(&fs_info->fs_roots_radix,
+						 (void **)gang, 0,
+						 ARRAY_SIZE(gang),
+						 BTRFS_ROOT_TRANS_TAG);
+		if (ret == 0)
+			break;
+		for (i = 0; i < ret; i++) {
+			struct btrfs_root *root = gang[i];
+			int ret2;
 
-		/*
-		 * At this point we can neither have tasks logging inodes
-		 * from a root nor trying to commit a log tree.
-		 */
-		ASSERT(atomic_read(&root->log_writers) == 0);
-		ASSERT(atomic_read(&root->log_commit[0]) == 0);
-		ASSERT(atomic_read(&root->log_commit[1]) == 0);
+			/*
+			 * At this point we can neither have tasks logging inodes
+			 * from a root nor trying to commit a log tree.
+			 */
+			ASSERT(atomic_read(&root->log_writers) == 0);
+			ASSERT(atomic_read(&root->log_commit[0]) == 0);
+			ASSERT(atomic_read(&root->log_commit[1]) == 0);
 
-		xa_clear_mark(&fs_info->fs_roots,
-			      (unsigned long)root->root_key.objectid,
-			      BTRFS_ROOT_TRANS_TAG);
-		spin_unlock(&fs_info->fs_roots_lock);
+			radix_tree_tag_clear(&fs_info->fs_roots_radix,
+					(unsigned long)root->root_key.objectid,
+					BTRFS_ROOT_TRANS_TAG);
+			spin_unlock(&fs_info->fs_roots_radix_lock);
 
-		btrfs_free_log(trans, root);
-		ret = btrfs_update_reloc_root(trans, root);
-		if (ret)
-			return ret;
+			btrfs_free_log(trans, root);
+			ret2 = btrfs_update_reloc_root(trans, root);
+			if (ret2)
+				return ret2;
 
-		/* See comments in should_cow_block() */
-		clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
-		smp_mb__after_atomic();
+			/* see comments in should_cow_block() */
+			clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
+			smp_mb__after_atomic();
 
-		if (root->commit_root != root->node) {
-			list_add_tail(&root->dirty_list,
-				      &trans->transaction->switch_commits);
-			btrfs_set_root_node(&root->root_item, root->node);
+			if (root->commit_root != root->node) {
+				list_add_tail(&root->dirty_list,
+					&trans->transaction->switch_commits);
+				btrfs_set_root_node(&root->root_item,
+						    root->node);
+			}
+
+			ret2 = btrfs_update_root(trans, fs_info->tree_root,
+						&root->root_key,
+						&root->root_item);
+			if (ret2)
+				return ret2;
+			spin_lock(&fs_info->fs_roots_radix_lock);
+			btrfs_qgroup_free_meta_all_pertrans(root);
 		}
-
-		ret = btrfs_update_root(trans, fs_info->tree_root,
-					&root->root_key, &root->root_item);
-		if (ret)
-			return ret;
-		spin_lock(&fs_info->fs_roots_lock);
-		btrfs_qgroup_free_meta_all_pertrans(root);
 	}
-	spin_unlock(&fs_info->fs_roots_lock);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
 	return 0;
 }
 
@@ -1817,8 +1832,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	btrfs_i_size_write(BTRFS_I(parent_inode), parent_inode->i_size +
 					 dentry->d_name.len * 2);
-	parent_inode->i_mtime = parent_inode->i_ctime =
-		current_time(parent_inode);
+	parent_inode->i_mtime = current_time(parent_inode);
+	parent_inode->i_ctime = parent_inode->i_mtime;
 	ret = btrfs_update_inode_fallback(trans, parent_root, BTRFS_I(parent_inode));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
@@ -2084,12 +2099,23 @@ static void add_pending_snapshot(struct btrfs_trans_handle *trans)
 	list_add(&trans->pending_snapshot->list, &cur_trans->pending_snapshots);
 }
 
+static void update_commit_stats(struct btrfs_fs_info *fs_info, ktime_t interval)
+{
+	fs_info->commit_stats.commit_count++;
+	fs_info->commit_stats.last_commit_dur = interval;
+	fs_info->commit_stats.max_commit_dur =
+			max_t(u64, fs_info->commit_stats.max_commit_dur, interval);
+	fs_info->commit_stats.total_commit_dur += interval;
+}
+
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
 	int ret;
+	ktime_t start_time;
+	ktime_t interval;
 
 	ASSERT(refcount_read(&trans->use_count) == 1);
 
@@ -2213,6 +2239,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 			goto cleanup_transaction;
 		}
 	}
+
+	/*
+	 * Get the time spent on the work done by the commit thread and not
+	 * the time spent waiting on a previous commit
+	 */
+	start_time = ktime_get_ns();
 
 	extwriter_counter_dec(cur_trans, trans->type);
 
@@ -2455,12 +2487,16 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	trace_btrfs_transaction_commit(fs_info);
 
+	interval = ktime_get_ns() - start_time;
+
 	btrfs_scrub_continue(fs_info);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+
+	update_commit_stats(fs_info, interval);
 
 	return ret;
 

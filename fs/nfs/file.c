@@ -533,9 +533,7 @@ const struct address_space_operations nfs_file_aops = {
 	.write_end = nfs_write_end,
 	.invalidate_folio = nfs_invalidate_folio,
 	.release_folio = nfs_release_folio,
-#ifdef CONFIG_MIGRATION
-	.migratepage = nfs_migrate_page,
-#endif
+	.migrate_folio = nfs_migrate_folio,
 	.launder_folio = nfs_launder_folio,
 	.is_dirty_writeback = nfs_check_dirty_writeback,
 	.error_remove_page = generic_error_remove_page,
@@ -663,8 +661,6 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 		result = filemap_fdatawait_range(file->f_mapping,
 						 iocb->ki_pos - written,
 						 iocb->ki_pos - 1);
-		if (result < 0)
-			goto out;
 	}
 	result = generic_write_sync(iocb, written);
 	if (result < 0)

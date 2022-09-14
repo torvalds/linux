@@ -179,7 +179,7 @@ static void _fd_chose_dma_mode(char *addr, unsigned long size)
 {
 	if(can_use_virtual_dma == 2) {
 		if((unsigned int) addr >= (unsigned int) high_memory ||
-		   virt_to_bus(addr) >= 0x1000000 ||
+		   virt_to_phys(addr) >= 0x1000000 ||
 		   _CROSS_64KB(addr, size, 0))
 			use_virtual_dma = 1;
 		else
@@ -215,7 +215,7 @@ static int hard_dma_setup(char *addr, unsigned long size, int mode, int io)
 	doing_pdma = 0;
 	clear_dma_ff(FLOPPY_DMA);
 	set_dma_mode(FLOPPY_DMA,mode);
-	set_dma_addr(FLOPPY_DMA,virt_to_bus(addr));
+	set_dma_addr(FLOPPY_DMA,virt_to_phys(addr));
 	set_dma_count(FLOPPY_DMA,size);
 	enable_dma(FLOPPY_DMA);
 	return 0;

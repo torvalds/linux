@@ -275,7 +275,6 @@ static int dlm_scand(void *data)
 				ls->ls_scan_time = jiffies;
 				dlm_scan_rsbs(ls);
 				dlm_scan_timeout(ls);
-				dlm_scan_waiters(ls);
 				dlm_unlock_recovery(ls);
 			} else {
 				ls->ls_scan_time += HZ;
@@ -490,13 +489,28 @@ static int new_lockspace(const char *name, const char *cluster,
 		ls->ls_ops_arg = ops_arg;
 	}
 
-	if (flags & DLM_LSFL_TIMEWARN)
+#ifdef CONFIG_DLM_DEPRECATED_API
+	if (flags & DLM_LSFL_TIMEWARN) {
+		pr_warn_once("===============================================================\n"
+			     "WARNING: the dlm DLM_LSFL_TIMEWARN flag is being deprecated and\n"
+			     "         will be removed in v6.2!\n"
+			     "         Inclusive DLM_LSFL_TIMEWARN define in UAPI header!\n"
+			     "===============================================================\n");
+
 		set_bit(LSFL_TIMEWARN, &ls->ls_flags);
+	}
 
 	/* ls_exflags are forced to match among nodes, and we don't
-	   need to require all nodes to have some flags set */
+	 * need to require all nodes to have some flags set
+	 */
 	ls->ls_exflags = (flags & ~(DLM_LSFL_TIMEWARN | DLM_LSFL_FS |
 				    DLM_LSFL_NEWEXCL));
+#else
+	/* ls_exflags are forced to match among nodes, and we don't
+	 * need to require all nodes to have some flags set
+	 */
+	ls->ls_exflags = (flags & ~(DLM_LSFL_FS | DLM_LSFL_NEWEXCL));
+#endif
 
 	size = READ_ONCE(dlm_config.ci_rsbtbl_size);
 	ls->ls_rsbtbl_size = size;
@@ -527,8 +541,10 @@ static int new_lockspace(const char *name, const char *cluster,
 	mutex_init(&ls->ls_waiters_mutex);
 	INIT_LIST_HEAD(&ls->ls_orphans);
 	mutex_init(&ls->ls_orphans_mutex);
+#ifdef CONFIG_DLM_DEPRECATED_API
 	INIT_LIST_HEAD(&ls->ls_timeout);
 	mutex_init(&ls->ls_timeout_mutex);
+#endif
 
 	INIT_LIST_HEAD(&ls->ls_new_rsb);
 	spin_lock_init(&ls->ls_new_rsb_spin);
@@ -548,8 +564,8 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	init_waitqueue_head(&ls->ls_uevent_wait);
 	ls->ls_uevent_result = 0;
-	init_completion(&ls->ls_members_done);
-	ls->ls_members_result = -1;
+	init_completion(&ls->ls_recovery_done);
+	ls->ls_recovery_result = -1;
 
 	mutex_init(&ls->ls_cb_mutex);
 	INIT_LIST_HEAD(&ls->ls_cb_delay);
@@ -645,8 +661,9 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (error)
 		goto out_recoverd;
 
-	wait_for_completion(&ls->ls_members_done);
-	error = ls->ls_members_result;
+	/* wait until recovery is successful or failed */
+	wait_for_completion(&ls->ls_recovery_done);
+	error = ls->ls_recovery_result;
 	if (error)
 		goto out_members;
 

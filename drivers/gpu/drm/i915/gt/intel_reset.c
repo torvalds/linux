@@ -776,7 +776,7 @@ static void revoke_mmaps(struct intel_gt *gt)
 			continue;
 
 		node = &vma->mmo->vma_node;
-		vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
+		vma_offset = vma->gtt_view.partial.offset << PAGE_SHIFT;
 
 		unmap_mapping_range(gt->i915->drm.anon_inode->i_mapping,
 				    drm_vma_node_offset_addr(node) + vma_offset,
@@ -1281,9 +1281,6 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 	intel_wedge_on_timeout(&w, gt, 5 * HZ) {
 		intel_display_prepare_reset(gt->i915);
 
-		/* Flush everyone using a resource about to be clobbered */
-		synchronize_srcu_expedited(&gt->reset.backoff_srcu);
-
 		intel_gt_reset(gt, engine_mask, reason);
 
 		intel_display_finish_reset(gt->i915);
@@ -1391,6 +1388,9 @@ void intel_gt_handle_error(struct intel_gt *gt,
 					    TASK_UNINTERRUPTIBLE);
 		}
 	}
+
+	/* Flush everyone using a resource about to be clobbered */
+	synchronize_srcu_expedited(&gt->reset.backoff_srcu);
 
 	intel_gt_reset_global(gt, engine_mask, msg);
 

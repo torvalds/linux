@@ -135,7 +135,7 @@ int hl_mmap_mem_buf_put_handle(struct hl_mem_mgr *mmg, u64 handle)
 }
 
 /**
- * @hl_mmap_mem_buf_alloc - allocate a new mappable buffer
+ * hl_mmap_mem_buf_alloc - allocate a new mappable buffer
  *
  * @mmg: parent unifed memory manager
  * @behavior: behavior object describing this buffer polymorphic behavior

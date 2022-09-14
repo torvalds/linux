@@ -9,6 +9,8 @@
 
 #define SDW_SHIM_BASE			0x2C000
 #define SDW_ALH_BASE			0x2C800
+#define SDW_SHIM_BASE_ACE		0x38000
+#define SDW_ALH_BASE_ACE		0x24000
 #define SDW_LINK_BASE			0x30000
 #define SDW_LINK_SIZE			0x10000
 
@@ -119,6 +121,7 @@ struct sdw_intel_ops {
 			     struct sdw_intel_stream_params_data *params_data);
 	int (*free_stream)(struct device *dev,
 			   struct sdw_intel_stream_free_data *free_data);
+	int (*trigger)(struct snd_soc_dai *dai, int cmd, int stream);
 };
 
 /**

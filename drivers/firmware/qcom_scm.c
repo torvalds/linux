@@ -7,6 +7,7 @@
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/dma-mapping.h>
+#include <linux/interconnect.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/qcom_scm.h>
@@ -31,7 +32,12 @@ struct qcom_scm {
 	struct clk *core_clk;
 	struct clk *iface_clk;
 	struct clk *bus_clk;
+	struct icc_path *path;
 	struct reset_controller_dev reset;
+
+	/* control access to the interconnect path */
+	struct mutex scm_bw_lock;
+	int scm_vote_count;
 
 	u64 dload_mode_addr;
 };
@@ -97,6 +103,42 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->core_clk);
 	clk_disable_unprepare(__scm->iface_clk);
 	clk_disable_unprepare(__scm->bus_clk);
+}
+
+static int qcom_scm_bw_enable(void)
+{
+	int ret = 0;
+
+	if (!__scm->path)
+		return 0;
+
+	if (IS_ERR(__scm->path))
+		return -EINVAL;
+
+	mutex_lock(&__scm->scm_bw_lock);
+	if (!__scm->scm_vote_count) {
+		ret = icc_set_bw(__scm->path, 0, UINT_MAX);
+		if (ret < 0) {
+			dev_err(__scm->dev, "failed to set bandwidth request\n");
+			goto err_bw;
+		}
+	}
+	__scm->scm_vote_count++;
+err_bw:
+	mutex_unlock(&__scm->scm_bw_lock);
+
+	return ret;
+}
+
+static void qcom_scm_bw_disable(void)
+{
+	if (IS_ERR_OR_NULL(__scm->path))
+		return;
+
+	mutex_lock(&__scm->scm_bw_lock);
+	if (__scm->scm_vote_count-- == 1)
+		icc_set_bw(__scm->path, 0, 0);
+	mutex_unlock(&__scm->scm_bw_lock);
 }
 
 enum qcom_scm_convention qcom_scm_convention = SMC_CONVENTION_UNKNOWN;
@@ -444,10 +486,15 @@ int qcom_scm_pas_init_image(u32 peripheral, const void *metadata, size_t size,
 	if (ret)
 		goto out;
 
+	ret = qcom_scm_bw_enable();
+	if (ret)
+		return ret;
+
 	desc.args[1] = mdata_phys;
 
 	ret = qcom_scm_call(__scm->dev, &desc, &res);
 
+	qcom_scm_bw_disable();
 	qcom_scm_clk_disable();
 
 out:
@@ -507,7 +554,12 @@ int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr, phys_addr_t size)
 	if (ret)
 		return ret;
 
+	ret = qcom_scm_bw_enable();
+	if (ret)
+		return ret;
+
 	ret = qcom_scm_call(__scm->dev, &desc, &res);
+	qcom_scm_bw_disable();
 	qcom_scm_clk_disable();
 
 	return ret ? : res.result[0];
@@ -537,7 +589,12 @@ int qcom_scm_pas_auth_and_reset(u32 peripheral)
 	if (ret)
 		return ret;
 
+	ret = qcom_scm_bw_enable();
+	if (ret)
+		return ret;
+
 	ret = qcom_scm_call(__scm->dev, &desc, &res);
+	qcom_scm_bw_disable();
 	qcom_scm_clk_disable();
 
 	return ret ? : res.result[0];
@@ -566,8 +623,13 @@ int qcom_scm_pas_shutdown(u32 peripheral)
 	if (ret)
 		return ret;
 
+	ret = qcom_scm_bw_enable();
+	if (ret)
+		return ret;
+
 	ret = qcom_scm_call(__scm->dev, &desc, &res);
 
+	qcom_scm_bw_disable();
 	qcom_scm_clk_disable();
 
 	return ret ? : res.result[0];
@@ -1277,7 +1339,14 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	mutex_init(&scm->scm_bw_lock);
+
 	clks = (unsigned long)of_device_get_match_data(&pdev->dev);
+
+	scm->path = devm_of_icc_get(&pdev->dev, NULL);
+	if (IS_ERR(scm->path))
+		return dev_err_probe(&pdev->dev, PTR_ERR(scm->path),
+				     "failed to acquire interconnect path\n");
 
 	scm->core_clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(scm->core_clk)) {
@@ -1337,7 +1406,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	/*
 	 * If requested enable "download mode", from this point on warmboot
-	 * will cause the the boot stages to enter download mode, unless
+	 * will cause the boot stages to enter download mode, unless
 	 * disabled below by a clean shutdown/reboot.
 	 */
 	if (download_mode)

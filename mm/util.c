@@ -804,10 +804,10 @@ struct address_space *folio_mapping(struct folio *folio)
 		return swap_address_space(folio_swap_entry(folio));
 
 	mapping = folio->mapping;
-	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+	if ((unsigned long)mapping & PAGE_MAPPING_FLAGS)
 		return NULL;
 
-	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
+	return mapping;
 }
 EXPORT_SYMBOL(folio_mapping);
 
@@ -1005,7 +1005,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
  * succeed and -ENOMEM implies there is not.
  *
  * We currently support three overcommit policies, which are set via the
- * vm.overcommit_memory sysctl.  See Documentation/vm/overcommit-accounting.rst
+ * vm.overcommit_memory sysctl.  See Documentation/mm/overcommit-accounting.rst
  *
  * Strict overcommit modes added 2002 Feb 26 by Alan Cox.
  * Additional code 2002 Jul 20 by Robert Love.

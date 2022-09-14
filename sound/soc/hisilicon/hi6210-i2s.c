@@ -227,9 +227,9 @@ static int hi6210_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	 * We don't actually set the hardware until the hw_params
 	 * call, but we need to validate the user input here.
 	 */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BC_FC:
+	case SND_SOC_DAIFMT_BP_FP:
 		break;
 	default:
 		return -EINVAL;
@@ -245,8 +245,8 @@ static int hi6210_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	}
 
 	i2s->format = fmt;
-	i2s->master = (i2s->format & SND_SOC_DAIFMT_MASTER_MASK) ==
-		      SND_SOC_DAIFMT_CBS_CFS;
+	i2s->master = (i2s->format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) ==
+		      SND_SOC_DAIFMT_BP_FP;
 
 	return 0;
 }
@@ -375,21 +375,21 @@ static int hi6210_i2s_hw_params(struct snd_pcm_substream *substream,
 	hi6210_write_reg(i2s, HII2S_MUX_TOP_MODULE_CFG, val);
 
 
-	switch (i2s->format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (i2s->format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BC_FC:
 		i2s->master = false;
 		val = hi6210_read_reg(i2s, HII2S_I2S_CFG);
 		val |= HII2S_I2S_CFG__S2_MST_SLV;
 		hi6210_write_reg(i2s, HII2S_I2S_CFG, val);
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_BP_FP:
 		i2s->master = true;
 		val = hi6210_read_reg(i2s, HII2S_I2S_CFG);
 		val &= ~HII2S_I2S_CFG__S2_MST_SLV;
 		hi6210_write_reg(i2s, HII2S_I2S_CFG, val);
 		break;
 	default:
-		WARN_ONCE(1, "Invalid i2s->fmt MASTER_MASK. This shouldn't happen\n");
+		WARN_ONCE(1, "Invalid i2s->fmt CLOCK_PROVIDER_MASK. This shouldn't happen\n");
 		return -EINVAL;
 	}
 
@@ -539,6 +539,7 @@ static const struct snd_soc_dai_driver hi6210_i2s_dai_init = {
 
 static const struct snd_soc_component_driver hi6210_i2s_i2s_comp = {
 	.name = "hi6210_i2s-i2s",
+	.legacy_dai_naming = 1,
 };
 
 static int hi6210_i2s_probe(struct platform_device *pdev)

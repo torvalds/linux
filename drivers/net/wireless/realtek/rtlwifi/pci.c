@@ -1100,7 +1100,7 @@ static void _rtl_pci_prepare_bcn_tasklet(struct tasklet_struct *t)
 	}
 
 	/*NB: the beacon data buffer must be 32-bit aligned. */
-	pskb = ieee80211_beacon_get(hw, mac->vif);
+	pskb = ieee80211_beacon_get(hw, mac->vif, 0);
 	if (!pskb)
 		return;
 	hdr = rtl_get_hdr(pskb);

@@ -2316,23 +2316,30 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 
 				/*
 				 * For a single LLC per node, allow an
-				 * imbalance up to 25% of the node. This is an
-				 * arbitrary cutoff based on SMT-2 to balance
-				 * between memory bandwidth and avoiding
-				 * premature sharing of HT resources and SMT-4
-				 * or SMT-8 *may* benefit from a different
-				 * cutoff.
+				 * imbalance up to 12.5% of the node. This is
+				 * arbitrary cutoff based two factors -- SMT and
+				 * memory channels. For SMT-2, the intent is to
+				 * avoid premature sharing of HT resources but
+				 * SMT-4 or SMT-8 *may* benefit from a different
+				 * cutoff. For memory channels, this is a very
+				 * rough estimate of how many channels may be
+				 * active and is based on recent CPUs with
+				 * many cores.
 				 *
 				 * For multiple LLCs, allow an imbalance
 				 * until multiple tasks would share an LLC
 				 * on one node while LLCs on another node
-				 * remain idle.
+				 * remain idle. This assumes that there are
+				 * enough logical CPUs per LLC to avoid SMT
+				 * factors and that there is a correlation
+				 * between LLCs and memory channels.
 				 */
 				nr_llcs = sd->span_weight / child->span_weight;
 				if (nr_llcs == 1)
-					imb = sd->span_weight >> 2;
+					imb = sd->span_weight >> 3;
 				else
 					imb = nr_llcs;
+				imb = max(1U, imb);
 				sd->imb_numa_nr = imb;
 
 				/* Set span based on the first NUMA domain. */

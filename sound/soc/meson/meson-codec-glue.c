@@ -13,7 +13,7 @@
 static struct snd_soc_dapm_widget *
 meson_codec_glue_get_input(struct snd_soc_dapm_widget *w)
 {
-	struct snd_soc_dapm_path *p = NULL;
+	struct snd_soc_dapm_path *p;
 	struct snd_soc_dapm_widget *in;
 
 	snd_soc_dapm_widget_for_each_source_path(w, p) {

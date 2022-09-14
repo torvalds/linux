@@ -102,4 +102,12 @@ static inline long strncpy_from_sockptr(char *dst, sockptr_t src, size_t count)
 	return strncpy_from_user(dst, src.user, count);
 }
 
+static inline int check_zeroed_sockptr(sockptr_t src, size_t offset,
+				       size_t size)
+{
+	if (!sockptr_is_kernel(src))
+		return check_zeroed_user(src.user + offset, size);
+	return memchr_inv(src.kernel + offset, 0, size) == NULL;
+}
+
 #endif /* _LINUX_SOCKPTR_H */

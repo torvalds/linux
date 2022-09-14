@@ -25,8 +25,8 @@
 struct rcar_gen4_sysc_area {
 	const char *name;
 	u8 pdr;			/* PDRn */
-	int parent;		/* -1 if none */
-	unsigned int flags;	/* See PD_* */
+	s8 parent;		/* -1 if none */
+	u8 flags;		/* See PD_* */
 };
 
 /*

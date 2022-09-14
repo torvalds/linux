@@ -1066,6 +1066,12 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 	    (pm_suspend_target_state != PM_SUSPEND_TO_IDLE))
 		return false;
 
+	/*
+	 * If ACPI_FADT_LOW_POWER_S0 is not set in the FADT, it is generally
+	 * risky to do any special firmware-related preparations for entering
+	 * S0ix even though the system is suspending to idle, so return false
+	 * in that case.
+	 */
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
 		dev_warn_once(adev->dev,
 			      "Power consumption will be higher as BIOS has not been configured for suspend-to-idle.\n"

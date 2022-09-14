@@ -232,7 +232,7 @@ In the write loop, when the application runs out of free buffers, it
 must wait until an empty buffer can be dequeued and reused.
 
 To enqueue and dequeue a buffer applications use the
-:ref:`VIVIOC_QBUF <VIDIOC_QBUF>` and :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
+:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
 ioctl. The status of a buffer being mapped, enqueued, full or empty can
 be determined at any time using the :ref:`VIDIOC_QUERYBUF` ioctl. Two
 methods exist to suspend execution of the application until one or more

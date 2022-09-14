@@ -5,6 +5,8 @@
 #ifndef _LINUX_IF_RMNET_H_
 #define _LINUX_IF_RMNET_H_
 
+#include <linux/types.h>
+
 struct rmnet_map_header {
 	u8 flags;			/* MAP_CMD_FLAG, MAP_PAD_LEN_MASK */
 	u8 mux_id;

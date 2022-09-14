@@ -93,7 +93,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 {
 	const unsigned long npages = obj->base.size / PAGE_SIZE;
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_ggtt_view view;
+	struct i915_gtt_view view;
 	struct i915_vma *vma;
 	unsigned long page;
 	u32 __iomem *io;
@@ -210,7 +210,7 @@ static int check_partial_mappings(struct drm_i915_gem_object *obj,
 	}
 
 	for_each_prime_number_from(page, 1, npages) {
-		struct i915_ggtt_view view =
+		struct i915_gtt_view view =
 			compute_partial_view(obj, page, MIN_CHUNK_PAGES);
 		u32 __iomem *io;
 		struct page *p;
@@ -1844,5 +1844,5 @@ int i915_gem_mman_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_mmap_gpu),
 	};
 
-	return i915_subtests(tests, i915);
+	return i915_live_subtests(tests, i915);
 }

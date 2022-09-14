@@ -51,11 +51,10 @@ Google Pixel 3 phone for example::
 ``i2c-2`` is an I2C bus whose number is 2, and ``2-0049`` is an I2C device
 on bus 2 address 0x49 bound with a kernel driver.
 
-Terminologies
-=============
+Terminology
+===========
 
-First, let us define a couple of terminologies to avoid confusions in the later
-sections.
+First, let us define some terms to avoid confusion in later sections.
 
 (Physical) I2C Bus Controller
 -----------------------------
@@ -100,9 +99,7 @@ Caveat
 This may be a confusing part for people who only know about the physical I2C
 design of a board. It is actually possible to rename the I2C bus physical number
 to a different number in logical I2C bus level in Device Tree Source (DTS) under
-section ``aliases``. See
-`arch/arm/boot/dts/nuvoton-npcm730-gsj.dts
-<../../arch/arm/boot/dts/nuvoton-npcm730-gsj.dts>`_
+section ``aliases``. See ``arch/arm/boot/dts/nuvoton-npcm730-gsj.dts``
 for an example of DTS file.
 
 Best Practice: **(To kernel software developers)** It is better to keep the I2C
@@ -117,7 +114,7 @@ Walk through Logical I2C Bus
 
 For the following content, we will use a more complex I2C topology as an
 example. Here is a brief graph for the I2C topology. If you do not understand
-this graph at the first glance, do not be afraid to continue reading this doc
+this graph at first glance, do not be afraid to continue reading this doc
 and review it when you finish reading.
 
 ::
@@ -290,8 +287,7 @@ MUX channel 0, and all the way to ``i2c-19`` for the MUX channel 3.
 The kernel software developer is able to pin the fanout MUX channels to a static
 logical I2C bus number in the DTS. This doc will not go through the details on
 how to implement this in DTS, but we can see an example in:
-`arch/arm/boot/dts/aspeed-bmc-facebook-wedge400.dts
-<../../arch/arm/boot/dts/aspeed-bmc-facebook-wedge400.dts>`_
+``arch/arm/boot/dts/aspeed-bmc-facebook-wedge400.dts``
 
 In the above example, there is an 8-channel I2C MUX at address 0x70 on physical
 I2C bus 2. The channel 2 of the MUX is defined as ``imux18`` in DTS,
@@ -383,13 +379,9 @@ Sysfs for the I2C sensor device::
 
 For more info on the Hwmon Sysfs, refer to the doc:
 
-`Naming and data format standards for sysfs files
-<../hwmon/sysfs-interface.rst>`_
+../hwmon/sysfs-interface.rst
 
 Instantiate I2C Devices in I2C Sysfs
 ------------------------------------
 
-Refer to the doc:
-
-`How to instantiate I2C devices, Method 4: Instantiate from user-space
-<instantiating-devices.rst#method-4-instantiate-from-user-space>`_
+Refer to section "Method 4: Instantiate from user-space" of instantiating-devices.rst

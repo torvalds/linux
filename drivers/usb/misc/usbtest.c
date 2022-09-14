@@ -2638,7 +2638,7 @@ usbtest_do_ioctl(struct usb_interface *intf, struct usbtest_param_32 *param)
  * different busses) to use when testing, and allocate one thread per
  * test.  So discovery is simplified, and we have no device naming issues.
  *
- * Don't use these only as stress/load tests.  Use them along with with
+ * Don't use these only as stress/load tests.  Use them along with
  * other USB bus activity:  plugging, unplugging, mousing, mp3 playback,
  * video capture, and so on.  Run different tests at different times, in
  * different sequences.  Nothing here should interact with other devices,

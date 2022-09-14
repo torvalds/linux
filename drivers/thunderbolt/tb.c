@@ -118,6 +118,13 @@ static void tb_switch_discover_tunnels(struct tb_switch *sw,
 		switch (port->config.type) {
 		case TB_TYPE_DP_HDMI_IN:
 			tunnel = tb_tunnel_discover_dp(tb, port, alloc_hopids);
+			/*
+			 * In case of DP tunnel exists, change host router's
+			 * 1st children TMU mode to HiFi for CL0s to work.
+			 */
+			if (tunnel)
+				tb_switch_enable_tmu_1st_child(tb->root_switch,
+						TB_SWITCH_TMU_RATE_HIFI);
 			break;
 
 		case TB_TYPE_PCIE_DOWN:
@@ -215,7 +222,7 @@ static int tb_enable_tmu(struct tb_switch *sw)
 	int ret;
 
 	/* If it is already enabled in correct mode, don't touch it */
-	if (tb_switch_tmu_hifi_is_enabled(sw, sw->tmu.unidirectional_request))
+	if (tb_switch_tmu_is_enabled(sw, sw->tmu.unidirectional_request))
 		return 0;
 
 	ret = tb_switch_tmu_disable(sw);
@@ -575,6 +582,7 @@ static void tb_scan_port(struct tb_port *port)
 	struct tb_cm *tcm = tb_priv(port->sw->tb);
 	struct tb_port *upstream_port;
 	struct tb_switch *sw;
+	int ret;
 
 	if (tb_is_upstream_port(port))
 		return;
@@ -663,11 +671,24 @@ static void tb_scan_port(struct tb_port *port)
 	tb_switch_lane_bonding_enable(sw);
 	/* Set the link configured */
 	tb_switch_configure_link(sw);
-	if (tb_switch_enable_clx(sw, TB_CL0S))
-		tb_sw_warn(sw, "failed to enable CLx on upstream port\n");
+	/*
+	 * CL0s and CL1 are enabled and supported together.
+	 * Silently ignore CLx enabling in case CLx is not supported.
+	 */
+	ret = tb_switch_enable_clx(sw, TB_CL1);
+	if (ret && ret != -EOPNOTSUPP)
+		tb_sw_warn(sw, "failed to enable %s on upstream port\n",
+			   tb_switch_clx_name(TB_CL1));
 
-	tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI,
-				tb_switch_is_clx_enabled(sw));
+	if (tb_switch_is_clx_enabled(sw, TB_CL1))
+		/*
+		 * To support highest CLx state, we set router's TMU to
+		 * Normal-Uni mode.
+		 */
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
+	else
+		/* If CLx disabled, configure router's TMU to HiFi-Bidir mode*/
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to enable TMU\n");
@@ -965,6 +986,12 @@ static void tb_tunnel_dp(struct tb *tb)
 
 	list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	tb_reclaim_usb3_bandwidth(tb, in, out);
+	/*
+	 * In case of DP tunnel exists, change host router's 1st children
+	 * TMU mode to HiFi for CL0s to work.
+	 */
+	tb_switch_enable_tmu_1st_child(tb->root_switch, TB_SWITCH_TMU_RATE_HIFI);
+
 	return;
 
 err_free:
@@ -1407,7 +1434,12 @@ static int tb_start(struct tb *tb)
 		return ret;
 	}
 
-	tb_switch_tmu_configure(tb->root_switch, TB_SWITCH_TMU_RATE_HIFI, false);
+	/*
+	 * To support highest CLx state, we set host router's TMU to
+	 * Normal mode.
+	 */
+	tb_switch_tmu_configure(tb->root_switch, TB_SWITCH_TMU_RATE_NORMAL,
+				false);
 	/* Enable TMU if it is off */
 	tb_switch_tmu_enable(tb->root_switch);
 	/* Full scan to discover devices added before the driver was loaded. */
@@ -1446,19 +1478,31 @@ static int tb_suspend_noirq(struct tb *tb)
 static void tb_restore_children(struct tb_switch *sw)
 {
 	struct tb_port *port;
+	int ret;
 
 	/* No need to restore if the router is already unplugged */
 	if (sw->is_unplugged)
 		return;
 
-	if (tb_switch_enable_clx(sw, TB_CL0S))
-		tb_sw_warn(sw, "failed to re-enable CLx on upstream port\n");
-
 	/*
-	 * tb_switch_tmu_configure() was already called when the switch was
-	 * added before entering system sleep or runtime suspend,
-	 * so no need to call it again before enabling TMU.
+	 * CL0s and CL1 are enabled and supported together.
+	 * Silently ignore CLx re-enabling in case CLx is not supported.
 	 */
+	ret = tb_switch_enable_clx(sw, TB_CL1);
+	if (ret && ret != -EOPNOTSUPP)
+		tb_sw_warn(sw, "failed to re-enable %s on upstream port\n",
+			   tb_switch_clx_name(TB_CL1));
+
+	if (tb_switch_is_clx_enabled(sw, TB_CL1))
+		/*
+		 * To support highest CLx state, we set router's TMU to
+		 * Normal-Uni mode.
+		 */
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
+	else
+		/* If CLx disabled, configure router's TMU to HiFi-Bidir mode*/
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to restore TMU configuration\n");
 

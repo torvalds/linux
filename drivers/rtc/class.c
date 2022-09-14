@@ -36,7 +36,7 @@ static void rtc_device_release(struct device *dev)
 
 	cancel_work_sync(&rtc->irqwork);
 
-	ida_simple_remove(&rtc_ida, rtc->id);
+	ida_free(&rtc_ida, rtc->id);
 	mutex_destroy(&rtc->ops_lock);
 	kfree(rtc);
 }
@@ -262,7 +262,7 @@ static int rtc_device_get_id(struct device *dev)
 	}
 
 	if (id < 0)
-		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
+		id = ida_alloc(&rtc_ida, GFP_KERNEL);
 
 	return id;
 }
@@ -368,7 +368,7 @@ struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 
 	rtc = rtc_allocate_device();
 	if (!rtc) {
-		ida_simple_remove(&rtc_ida, id);
+		ida_free(&rtc_ida, id);
 		return ERR_PTR(-ENOMEM);
 	}
 

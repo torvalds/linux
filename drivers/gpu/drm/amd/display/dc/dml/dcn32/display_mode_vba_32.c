@@ -221,7 +221,6 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		// VBA_DELTA
 		// Calculate DET size, swath height
 		dml32_CalculateSwathAndDETConfiguration(
-				&v->dummy_vars.dml32_CalculateSwathAndDETConfiguration,
 				mode_lib->vba.DETSizeOverride,
 				mode_lib->vba.UsesMALLForPStateChange,
 				mode_lib->vba.ConfigReturnBufferSizeInKByte,
@@ -461,7 +460,6 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 	{
 
 		dml32_CalculateVMRowAndSwath(
-				&v->dummy_vars.dml32_CalculateVMRowAndSwath,
 				mode_lib->vba.NumberOfActiveSurfaces,
 				v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.SurfaceParameters,
 				v->SurfaceSizeInMALL,
@@ -679,9 +677,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				dml_ceil((double) v->WritebackDelay[mode_lib->vba.VoltageLevel][k]
 				/ (mode_lib->vba.HTotal[k] / mode_lib->vba.PixelClock[k]), 1));
 
-	// Clamp to max OTG vstartup register limit
-	if (v->MaxVStartupLines[k] > 1023)
-		v->MaxVStartupLines[k] = 1023;
+		// Clamp to max OTG vstartup register limit
+		if (v->MaxVStartupLines[k] > 1023)
+			v->MaxVStartupLines[k] = 1023;
 
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: k=%d MaxVStartupLines = %d\n", __func__, k, v->MaxVStartupLines[k]);
@@ -757,9 +755,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe.BytePerPixelY = v->BytePerPixelY[k];
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe.BytePerPixelC = v->BytePerPixelC[k];
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe.ProgressiveToInterlaceUnitInOPP = mode_lib->vba.ProgressiveToInterlaceUnitInOPP;
-			v->ErrorResult[k] = dml32_CalculatePrefetchSchedule(
-					&v->dummy_vars.dml32_CalculatePrefetchSchedule,
-					v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.HostVMInefficiencyFactor,
+			v->ErrorResult[k] = dml32_CalculatePrefetchSchedule(v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.HostVMInefficiencyFactor,
 					&v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe, v->DSCDelay[k],
 					mode_lib->vba.DPPCLKDelaySubtotal + mode_lib->vba.DPPCLKDelayCNVCFormater,
 					mode_lib->vba.DPPCLKDelaySCL,
@@ -1167,7 +1163,6 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.mmSOCParameters.SMNLatency = mode_lib->vba.SMNLatency;
 
 		dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
-			&v->dummy_vars.dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport,
 			mode_lib->vba.USRRetrainingRequiredFinal,
 			mode_lib->vba.UsesMALLForPStateChange,
 			mode_lib->vba.PrefetchModePerState[mode_lib->vba.VoltageLevel][mode_lib->vba.maxMpcComb],
@@ -1952,7 +1947,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 
 	dml32_CalculateSwathAndDETConfiguration(
-			&v->dummy_vars.dml32_CalculateSwathAndDETConfiguration,
 			mode_lib->vba.DETSizeOverride,
 			mode_lib->vba.UsesMALLForPStateChange,
 			mode_lib->vba.ConfigReturnBufferSizeInKByte,
@@ -2051,6 +2045,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading,
 						mode_lib->vba.DISPCLKRampingMargin,
 						mode_lib->vba.DISPCLKDPPCLKVCOSpeed,
+						mode_lib->vba.NumberOfDSCSlices[k],
 
 						/* Output */
 						&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalAvailablePipesSupportNoDSC,
@@ -2072,6 +2067,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading,
 						mode_lib->vba.DISPCLKRampingMargin,
 						mode_lib->vba.DISPCLKDPPCLKVCOSpeed,
+						mode_lib->vba.NumberOfDSCSlices[k],
 
 						/* Output */
 						&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.TotalAvailablePipesSupportDSC,
@@ -2549,7 +2545,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			}
 
 			dml32_CalculateSwathAndDETConfiguration(
-					&v->dummy_vars.dml32_CalculateSwathAndDETConfiguration,
 					mode_lib->vba.DETSizeOverride,
 					mode_lib->vba.UsesMALLForPStateChange,
 					mode_lib->vba.ConfigReturnBufferSizeInKByte,
@@ -2749,7 +2744,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 			{
 				dml32_CalculateVMRowAndSwath(
-						&v->dummy_vars.dml32_CalculateVMRowAndSwath,
 						mode_lib->vba.NumberOfActiveSurfaces,
 						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters,
 						mode_lib->vba.SurfaceSizeInMALL,
@@ -3266,7 +3260,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 					mode_lib->vba.NoTimeForPrefetch[i][j][k] =
 						dml32_CalculatePrefetchSchedule(
-							&v->dummy_vars.dml32_CalculatePrefetchSchedule,
 							v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.HostVMInefficiencyFactor,
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.myPipe,
 							mode_lib->vba.DSCDelayPerState[i][k],
@@ -3566,7 +3559,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 			{
 				dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
-						&v->dummy_vars.dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport,
 						mode_lib->vba.USRRetrainingRequiredFinal,
 						mode_lib->vba.UsesMALLForPStateChange,
 						mode_lib->vba.PrefetchModePerState[i][j],
@@ -3625,7 +3617,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						&mode_lib->vba.FCLKChangeSupport[i][j],
 						&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single2[1], // double *MinActiveFCLKChangeLatencySupported
 						&mode_lib->vba.USRRetrainingSupport[i][j],
-						mode_lib->vba.ActiveDRAMClockChangeLatencyMargin);
+						mode_lib->vba.ActiveDRAMClockChangeLatencyMarginPerState[i][j]);
 			}
 		}
 	} // End of Prefetch Check

@@ -369,9 +369,6 @@ static int lps0_device_attach(struct acpi_device *adev,
 	if (lps0_device_handle)
 		return 0;
 
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
-		return 0;
-
 	if (acpi_s2idle_vendor_amd()) {
 		/* AMD0004, AMD0005, AMDI0005:
 		 * - Should use rev_id 0x0
@@ -397,7 +394,9 @@ static int lps0_device_attach(struct acpi_device *adev,
 			lps0_dsm_func_mask = (lps0_dsm_func_mask << 1) | 0x1;
 			acpi_handle_debug(adev->handle, "_DSM UUID %s: Adjusted function mask: 0x%x\n",
 					  ACPI_LPS0_DSM_UUID_AMD, lps0_dsm_func_mask);
-		} else if (lps0_dsm_func_mask_microsoft > 0 && !strcmp(hid, "AMDI0007")) {
+		} else if (lps0_dsm_func_mask_microsoft > 0 &&
+				(!strcmp(hid, "AMDI0007") ||
+				 !strcmp(hid, "AMDI0008"))) {
 			lps0_dsm_func_mask_microsoft = -EINVAL;
 			acpi_handle_debug(adev->handle, "_DSM Using AMD method\n");
 		}
@@ -419,11 +418,15 @@ static int lps0_device_attach(struct acpi_device *adev,
 		lpi_device_get_constraints();
 
 	/*
-	 * Use suspend-to-idle by default if the default suspend mode was not
-	 * set from the command line.
+	 * Use suspend-to-idle by default if ACPI_FADT_LOW_POWER_S0 is set in
+	 * the FADT and the default suspend mode was not set from the command
+	 * line.
 	 */
-	if (mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
+	if ((acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) &&
+	    mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3) {
 		mem_sleep_current = PM_SUSPEND_TO_IDLE;
+		pr_info("Low-power S0 idle used by default for system suspend\n");
+	}
 
 	/*
 	 * Some LPS0 systems, like ASUS Zenbook UX430UNR/i7-8550U, require the

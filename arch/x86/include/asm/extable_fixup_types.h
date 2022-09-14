@@ -64,4 +64,6 @@
 #define	EX_TYPE_UCOPY_LEN4		(EX_TYPE_UCOPY_LEN | EX_DATA_IMM(4))
 #define	EX_TYPE_UCOPY_LEN8		(EX_TYPE_UCOPY_LEN | EX_DATA_IMM(8))
 
+#define EX_TYPE_ZEROPAD			20 /* longword load with zeropad on fault */
+
 #endif

@@ -190,6 +190,15 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	transport_unregister_device(&shost->shost_gendev);
 	device_unregister(&shost->shost_dev);
 	device_del(&shost->shost_gendev);
+
+	/*
+	 * After scsi_remove_host() has returned the scsi LLD module can be
+	 * unloaded and/or the host resources can be released. Hence wait until
+	 * the dependent SCSI targets and devices are gone before returning.
+	 */
+	wait_event(shost->targets_wq, atomic_read(&shost->target_count) == 0);
+
+	scsi_mq_destroy_tags(shost);
 }
 EXPORT_SYMBOL(scsi_remove_host);
 
@@ -235,6 +244,11 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		dma_dev = shost->shost_gendev.parent;
 
 	shost->dma_dev = dma_dev;
+
+	if (dma_dev->dma_mask) {
+		shost->max_sectors = min_t(unsigned int, shost->max_sectors,
+				dma_max_mapping_size(dma_dev) >> SECTOR_SHIFT);
+	}
 
 	error = scsi_mq_setup_tags(shost);
 	if (error)
@@ -295,8 +309,8 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	return error;
 
 	/*
-	 * Any host allocation in this function will be freed in
-	 * scsi_host_dev_release().
+	 * Any resources associated with the SCSI host in this function except
+	 * the tag set will be freed by scsi_host_dev_release().
 	 */
  out_del_dev:
 	device_del(&shost->shost_dev);
@@ -312,6 +326,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	pm_runtime_disable(&shost->shost_gendev);
 	pm_runtime_set_suspended(&shost->shost_gendev);
 	pm_runtime_put_noidle(&shost->shost_gendev);
+	scsi_mq_destroy_tags(shost);
  fail:
 	return error;
 }
@@ -345,12 +360,9 @@ static void scsi_host_dev_release(struct device *dev)
 		kfree(dev_name(&shost->shost_dev));
 	}
 
-	if (shost->tag_set.tags)
-		scsi_mq_destroy_tags(shost);
-
 	kfree(shost->shost_data);
 
-	ida_simple_remove(&host_index_ida, shost->host_no);
+	ida_free(&host_index_ida, shost->host_no);
 
 	if (shost->shost_state != SHOST_CREATED)
 		put_device(parent);
@@ -394,8 +406,9 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	INIT_LIST_HEAD(&shost->starved_list);
 	init_waitqueue_head(&shost->host_wait);
 	mutex_init(&shost->scan_mutex);
+	init_waitqueue_head(&shost->targets_wq);
 
-	index = ida_simple_get(&host_index_ida, 0, 0, GFP_KERNEL);
+	index = ida_alloc(&host_index_ida, GFP_KERNEL);
 	if (index < 0) {
 		kfree(shost);
 		return NULL;
@@ -566,8 +579,7 @@ struct Scsi_Host *scsi_host_get(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_host_get);
 
-static bool scsi_host_check_in_flight(struct request *rq, void *data,
-				      bool reserved)
+static bool scsi_host_check_in_flight(struct request *rq, void *data)
 {
 	int *count = data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
@@ -662,7 +674,7 @@ void scsi_flush_work(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL_GPL(scsi_flush_work);
 
-static bool complete_all_cmds_iter(struct request *rq, void *data, bool rsvd)
+static bool complete_all_cmds_iter(struct request *rq, void *data)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_host_status status = *(enum scsi_host_status *)data;
@@ -693,17 +705,16 @@ void scsi_host_complete_all_commands(struct Scsi_Host *shost,
 EXPORT_SYMBOL_GPL(scsi_host_complete_all_commands);
 
 struct scsi_host_busy_iter_data {
-	bool (*fn)(struct scsi_cmnd *, void *, bool);
+	bool (*fn)(struct scsi_cmnd *, void *);
 	void *priv;
 };
 
-static bool __scsi_host_busy_iter_fn(struct request *req, void *priv,
-				   bool reserved)
+static bool __scsi_host_busy_iter_fn(struct request *req, void *priv)
 {
 	struct scsi_host_busy_iter_data *iter_data = priv;
 	struct scsi_cmnd *sc = blk_mq_rq_to_pdu(req);
 
-	return iter_data->fn(sc, iter_data->priv, reserved);
+	return iter_data->fn(sc, iter_data->priv);
 }
 
 /**
@@ -716,7 +727,7 @@ static bool __scsi_host_busy_iter_fn(struct request *req, void *priv,
  * ithas to be provided by the caller
  **/
 void scsi_host_busy_iter(struct Scsi_Host *shost,
-			 bool (*fn)(struct scsi_cmnd *, void *, bool),
+			 bool (*fn)(struct scsi_cmnd *, void *),
 			 void *priv)
 {
 	struct scsi_host_busy_iter_data iter_data = {

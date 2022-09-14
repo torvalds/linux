@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments' ads124s08 and ads124s06 ADC chip
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 properties:
   compatible:

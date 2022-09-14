@@ -3,9 +3,11 @@
  * Copyright: 2017-2018 Cadence Design Systems, Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -17,6 +19,7 @@
 
 #define REG_WAKEUP_TIME_NS		800
 #define DPHY_PLL_RATE_HZ		108000000
+#define POLL_TIMEOUT_US			1000
 
 /* DPHY registers */
 #define DPHY_PMA_CMN(reg)		(reg)
@@ -45,6 +48,10 @@
 #define DPHY_CMN_OPDIV_FROM_REG		BIT(6)
 #define DPHY_CMN_OPDIV(x)		((x) << 7)
 
+#define DPHY_BAND_CFG			DPHY_PCS(0x0)
+#define DPHY_BAND_CFG_LEFT_BAND		GENMASK(4, 0)
+#define DPHY_BAND_CFG_RIGHT_BAND	GENMASK(9, 5)
+
 #define DPHY_PSM_CFG			DPHY_PCS(0x4)
 #define DPHY_PSM_CFG_FROM_REG		BIT(0)
 #define DPHY_PSM_CLK_DIV(x)		((x) << 1)
@@ -56,6 +63,18 @@
 #define DSI_BLANKING_FRAME_OVERHEAD	6
 #define DSI_NULL_FRAME_OVERHEAD		6
 #define DSI_EOT_PKT_SIZE		4
+
+#define DPHY_TX_J721E_WIZ_PLL_CTRL	0xF04
+#define DPHY_TX_J721E_WIZ_STATUS	0xF08
+#define DPHY_TX_J721E_WIZ_RST_CTRL	0xF0C
+#define DPHY_TX_J721E_WIZ_PSM_FREQ	0xF10
+
+#define DPHY_TX_J721E_WIZ_IPDIV		GENMASK(4, 0)
+#define DPHY_TX_J721E_WIZ_OPDIV		GENMASK(13, 8)
+#define DPHY_TX_J721E_WIZ_FBDIV		GENMASK(25, 16)
+#define DPHY_TX_J721E_WIZ_LANE_RSTB	BIT(31)
+#define DPHY_TX_WIZ_PLL_LOCK		BIT(31)
+#define DPHY_TX_WIZ_O_CMN_READY		BIT(31)
 
 struct cdns_dphy_cfg {
 	u8 pll_ipdiv;
@@ -90,6 +109,12 @@ struct cdns_dphy {
 	struct clk *pll_ref_clk;
 	const struct cdns_dphy_ops *ops;
 	struct phy *phy;
+};
+
+/* Order of bands is important since the index is the band number. */
+static const unsigned int tx_bands[] = {
+	80, 100, 120, 160, 200, 240, 320, 390, 450, 510, 560, 640, 690, 770,
+	870, 950, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500
 };
 
 static int cdns_dsi_get_dphy_pll_cfg(struct cdns_dphy *dphy,
@@ -199,6 +224,46 @@ static void cdns_dphy_ref_set_psm_div(struct cdns_dphy *dphy, u8 div)
 	       dphy->regs + DPHY_PSM_CFG);
 }
 
+static unsigned long cdns_dphy_j721e_get_wakeup_time_ns(struct cdns_dphy *dphy)
+{
+	/* Minimum wakeup time as per MIPI D-PHY spec v1.2 */
+	return 1000000;
+}
+
+static void cdns_dphy_j721e_set_pll_cfg(struct cdns_dphy *dphy,
+					const struct cdns_dphy_cfg *cfg)
+{
+	u32 status;
+
+	/*
+	 * set the PWM and PLL Byteclk divider settings to recommended values
+	 * which is same as that of in ref ops
+	 */
+	writel(DPHY_CMN_PWM_HIGH(6) | DPHY_CMN_PWM_LOW(0x101) |
+	       DPHY_CMN_PWM_DIV(0x8),
+	       dphy->regs + DPHY_CMN_PWM);
+
+	writel((FIELD_PREP(DPHY_TX_J721E_WIZ_IPDIV, cfg->pll_ipdiv) |
+		FIELD_PREP(DPHY_TX_J721E_WIZ_OPDIV, cfg->pll_opdiv) |
+		FIELD_PREP(DPHY_TX_J721E_WIZ_FBDIV, cfg->pll_fbdiv)),
+		dphy->regs + DPHY_TX_J721E_WIZ_PLL_CTRL);
+
+	writel(DPHY_TX_J721E_WIZ_LANE_RSTB,
+	       dphy->regs + DPHY_TX_J721E_WIZ_RST_CTRL);
+
+	readl_poll_timeout(dphy->regs + DPHY_TX_J721E_WIZ_PLL_CTRL, status,
+			   (status & DPHY_TX_WIZ_PLL_LOCK), 0, POLL_TIMEOUT_US);
+
+	readl_poll_timeout(dphy->regs + DPHY_TX_J721E_WIZ_STATUS, status,
+			   (status & DPHY_TX_WIZ_O_CMN_READY), 0,
+			   POLL_TIMEOUT_US);
+}
+
+static void cdns_dphy_j721e_set_psm_div(struct cdns_dphy *dphy, u8 div)
+{
+	writel(div, dphy->regs + DPHY_TX_J721E_WIZ_PSM_FREQ);
+}
+
 /*
  * This is the reference implementation of DPHY hooks. Specific integration of
  * this IP may have to re-implement some of them depending on how they decided
@@ -208,6 +273,12 @@ static const struct cdns_dphy_ops ref_dphy_ops = {
 	.get_wakeup_time_ns = cdns_dphy_ref_get_wakeup_time_ns,
 	.set_pll_cfg = cdns_dphy_ref_set_pll_cfg,
 	.set_psm_div = cdns_dphy_ref_set_psm_div,
+};
+
+static const struct cdns_dphy_ops j721e_dphy_ops = {
+	.get_wakeup_time_ns = cdns_dphy_j721e_get_wakeup_time_ns,
+	.set_pll_cfg = cdns_dphy_j721e_set_pll_cfg,
+	.set_psm_div = cdns_dphy_j721e_set_psm_div,
 };
 
 static int cdns_dphy_config_from_opts(struct phy *phy,
@@ -232,6 +303,24 @@ static int cdns_dphy_config_from_opts(struct phy *phy,
 	return 0;
 }
 
+static int cdns_dphy_tx_get_band_ctrl(unsigned long hs_clk_rate)
+{
+	unsigned int rate;
+	int i;
+
+	rate = hs_clk_rate / 1000000UL;
+
+	if (rate < tx_bands[0])
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < ARRAY_SIZE(tx_bands) - 1; i++) {
+		if (rate >= tx_bands[i] && rate < tx_bands[i + 1])
+			return i;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int cdns_dphy_validate(struct phy *phy, enum phy_mode mode, int submode,
 			      union phy_configure_opts *opts)
 {
@@ -247,7 +336,8 @@ static int cdns_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 {
 	struct cdns_dphy *dphy = phy_get_drvdata(phy);
 	struct cdns_dphy_cfg cfg = { 0 };
-	int ret;
+	int ret, band_ctrl;
+	unsigned int reg;
 
 	ret = cdns_dphy_config_from_opts(phy, &opts->mipi_dphy, &cfg);
 	if (ret)
@@ -275,6 +365,14 @@ static int cdns_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 	 * clk.
 	 */
 	cdns_dphy_set_pll_cfg(dphy, &cfg);
+
+	band_ctrl = cdns_dphy_tx_get_band_ctrl(opts->mipi_dphy.hs_clk_rate);
+	if (band_ctrl < 0)
+		return band_ctrl;
+
+	reg = FIELD_PREP(DPHY_BAND_CFG_LEFT_BAND, band_ctrl) |
+	      FIELD_PREP(DPHY_BAND_CFG_RIGHT_BAND, band_ctrl);
+	writel(reg, dphy->regs + DPHY_BAND_CFG);
 
 	return 0;
 }
@@ -370,6 +468,7 @@ static int cdns_dphy_remove(struct platform_device *pdev)
 
 static const struct of_device_id cdns_dphy_of_match[] = {
 	{ .compatible = "cdns,dphy", .data = &ref_dphy_ops },
+	{ .compatible = "ti,j721e-dphy", .data = &j721e_dphy_ops },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, cdns_dphy_of_match);

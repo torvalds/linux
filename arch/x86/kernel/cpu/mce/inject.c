@@ -33,6 +33,8 @@
 
 #include "internal.h"
 
+static bool hw_injection_possible = true;
+
 /*
  * Collect all the MCi_XXX settings
  */
@@ -339,6 +341,8 @@ static int __set_inj(const char *buf)
 
 	for (i = 0; i < N_INJ_TYPES; i++) {
 		if (!strncmp(flags_options[i], buf, strlen(flags_options[i]))) {
+			if (i > SW_INJ && !hw_injection_possible)
+				continue;
 			inj_type = i;
 			return 0;
 		}
@@ -717,10 +721,53 @@ static void __init debugfs_init(void)
 				    &i_mce, dfs_fls[i].fops);
 }
 
+static void check_hw_inj_possible(void)
+{
+	int cpu;
+	u8 bank;
+
+	/*
+	 * This behavior exists only on SMCA systems though its not directly
+	 * related to SMCA.
+	 */
+	if (!cpu_feature_enabled(X86_FEATURE_SMCA))
+		return;
+
+	cpu = get_cpu();
+
+	for (bank = 0; bank < MAX_NR_BANKS; ++bank) {
+		u64 status = MCI_STATUS_VAL, ipid;
+
+		/* Check whether bank is populated */
+		rdmsrl(MSR_AMD64_SMCA_MCx_IPID(bank), ipid);
+		if (!ipid)
+			continue;
+
+		toggle_hw_mce_inject(cpu, true);
+
+		wrmsrl_safe(mca_msr_reg(bank, MCA_STATUS), status);
+		rdmsrl_safe(mca_msr_reg(bank, MCA_STATUS), &status);
+
+		if (!status) {
+			hw_injection_possible = false;
+			pr_warn("Platform does not allow *hardware* error injection."
+				"Try using APEI EINJ instead.\n");
+		}
+
+		toggle_hw_mce_inject(cpu, false);
+
+		break;
+	}
+
+	put_cpu();
+}
+
 static int __init inject_init(void)
 {
 	if (!alloc_cpumask_var(&mce_inject_cpumask, GFP_KERNEL))
 		return -ENOMEM;
+
+	check_hw_inj_possible();
 
 	debugfs_init();
 

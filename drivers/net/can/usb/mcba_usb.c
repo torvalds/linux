@@ -10,6 +10,7 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/signal.h>
@@ -758,6 +759,10 @@ static const struct net_device_ops mcba_netdev_ops = {
 	.ndo_start_xmit = mcba_usb_start_xmit,
 };
 
+static const struct ethtool_ops mcba_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 /* Microchip CANBUS has hardcoded bittiming values by default.
  * This function sends request via USB to change the speed and align bittiming
  * values for presentation purposes only
@@ -836,6 +841,7 @@ static int mcba_usb_probe(struct usb_interface *intf,
 	priv->can.do_set_bittiming = mcba_net_set_bittiming;
 
 	netdev->netdev_ops = &mcba_netdev_ops;
+	netdev->ethtool_ops = &mcba_ethtool_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support local echo */
 

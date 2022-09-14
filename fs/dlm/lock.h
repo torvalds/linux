@@ -24,9 +24,15 @@ int dlm_put_lkb(struct dlm_lkb *lkb);
 void dlm_scan_rsbs(struct dlm_ls *ls);
 int dlm_lock_recovery_try(struct dlm_ls *ls);
 void dlm_unlock_recovery(struct dlm_ls *ls);
-void dlm_scan_waiters(struct dlm_ls *ls);
+
+#ifdef CONFIG_DLM_DEPRECATED_API
 void dlm_scan_timeout(struct dlm_ls *ls);
 void dlm_adjust_timeouts(struct dlm_ls *ls);
+#else
+static inline void dlm_scan_timeout(struct dlm_ls *ls) { }
+static inline void dlm_adjust_timeouts(struct dlm_ls *ls) { }
+#endif
+
 int dlm_master_lookup(struct dlm_ls *ls, int nodeid, char *name, int len,
 		      unsigned int flags, int *r_nodeid, int *result);
 
@@ -41,15 +47,22 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls);
 int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc);
 int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc);
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua, int mode,
 	uint32_t flags, void *name, unsigned int namelen,
 	unsigned long timeout_cs);
 int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	int mode, uint32_t flags, uint32_t lkid, char *lvb_in,
 	unsigned long timeout_cs);
+#else
+int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua, int mode,
+	uint32_t flags, void *name, unsigned int namelen);
+int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
+	int mode, uint32_t flags, uint32_t lkid, char *lvb_in);
+#endif
 int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	int mode, uint32_t flags, void *name, unsigned int namelen,
-	unsigned long timeout_cs, uint32_t *lkid);
+	uint32_t *lkid);
 int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	uint32_t flags, uint32_t lkid, char *lvb_in);
 int dlm_user_cancel(struct dlm_ls *ls,  struct dlm_user_args *ua_tmp,

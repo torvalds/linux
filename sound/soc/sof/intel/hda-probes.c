@@ -25,9 +25,9 @@ hda_compr_get_stream(struct snd_compr_stream *cstream)
 	return cstream->runtime->private_data;
 }
 
-static int hda_probes_compr_assign(struct sof_client_dev *cdev,
-				   struct snd_compr_stream *cstream,
-				   struct snd_soc_dai *dai, u32 *stream_id)
+static int hda_probes_compr_startup(struct sof_client_dev *cdev,
+				    struct snd_compr_stream *cstream,
+				    struct snd_soc_dai *dai, u32 *stream_id)
 {
 	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
 	struct hdac_ext_stream *hext_stream;
@@ -45,9 +45,9 @@ static int hda_probes_compr_assign(struct sof_client_dev *cdev,
 	return 0;
 }
 
-static int hda_probes_compr_free(struct sof_client_dev *cdev,
-				 struct snd_compr_stream *cstream,
-				 struct snd_soc_dai *dai)
+static int hda_probes_compr_shutdown(struct sof_client_dev *cdev,
+				     struct snd_compr_stream *cstream,
+				     struct snd_soc_dai *dai)
 {
 	struct hdac_ext_stream *hext_stream = hda_compr_get_stream(cstream);
 	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
@@ -127,8 +127,8 @@ static int hda_probes_compr_pointer(struct sof_client_dev *cdev,
 
 /* SOF client implementation */
 static const struct sof_probes_host_ops hda_probes_ops = {
-	.assign = hda_probes_compr_assign,
-	.free = hda_probes_compr_free,
+	.startup = hda_probes_compr_startup,
+	.shutdown = hda_probes_compr_shutdown,
 	.set_params = hda_probes_compr_set_params,
 	.trigger = hda_probes_compr_trigger,
 	.pointer = hda_probes_compr_pointer,

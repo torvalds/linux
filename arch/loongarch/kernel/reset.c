@@ -13,7 +13,6 @@
 #include <linux/console.h>
 
 #include <acpi/reboot.h>
-#include <asm/compiler.h>
 #include <asm/idle.h>
 #include <asm/loongarch.h>
 #include <asm/reboot.h>

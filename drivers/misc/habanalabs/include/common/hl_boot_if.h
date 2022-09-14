@@ -525,6 +525,13 @@ struct lkd_fw_comms_msg {
 		struct {
 			__u8 fw_cfg_skip; /* 1 - skip, 0 - don't skip */
 		};
+		struct {
+			__le64 tpc_binning_conf;
+			__le32 dec_binning_conf;
+			__le32 hbm_binning_conf;
+			__le32 edma_binning_conf;
+			__le32 mme_redundancy_conf; /* use MME_REDUNDANT_COLUMN */
+		};
 	};
 };
 

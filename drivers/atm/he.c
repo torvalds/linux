@@ -780,14 +780,11 @@ static int he_init_group(struct he_dev *he_dev, int group)
 		  G0_RBPS_BS + (group * 32));
 
 	/* bitmap table */
-	he_dev->rbpl_table = kmalloc_array(BITS_TO_LONGS(RBPL_TABLE_SIZE),
-					   sizeof(*he_dev->rbpl_table),
-					   GFP_KERNEL);
+	he_dev->rbpl_table = bitmap_zalloc(RBPL_TABLE_SIZE, GFP_KERNEL);
 	if (!he_dev->rbpl_table) {
 		hprintk("unable to allocate rbpl bitmap table\n");
 		return -ENOMEM;
 	}
-	bitmap_zero(he_dev->rbpl_table, RBPL_TABLE_SIZE);
 
 	/* rbpl_virt 64-bit pointers */
 	he_dev->rbpl_virt = kmalloc_array(RBPL_TABLE_SIZE,
@@ -902,7 +899,7 @@ out_destroy_rbpl_pool:
 out_free_rbpl_virt:
 	kfree(he_dev->rbpl_virt);
 out_free_rbpl_table:
-	kfree(he_dev->rbpl_table);
+	bitmap_free(he_dev->rbpl_table);
 
 	return -ENOMEM;
 }
@@ -1578,7 +1575,7 @@ he_stop(struct he_dev *he_dev)
 	}
 
 	kfree(he_dev->rbpl_virt);
-	kfree(he_dev->rbpl_table);
+	bitmap_free(he_dev->rbpl_table);
 	dma_pool_destroy(he_dev->rbpl_pool);
 
 	if (he_dev->rbrq_base)

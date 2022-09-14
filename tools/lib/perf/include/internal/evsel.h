@@ -30,6 +30,10 @@ struct perf_sample_id {
 	struct perf_cpu		 cpu;
 	pid_t			 tid;
 
+	/* Guest machine pid and VCPU, valid only if machine_pid is non-zero */
+	pid_t			 machine_pid;
+	struct perf_cpu		 vcpu;
+
 	/* Holds total ID period value for PERF_SAMPLE_READ processing. */
 	u64			 period;
 };

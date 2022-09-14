@@ -33,9 +33,9 @@ DAMON 为不同的用户提供了下面这些接口。
   口相同。这将在下一个LTS内核发布后被移除，所以用户应该转移到
   :ref:`sysfs interface <sysfs_interface>`。
 - *内核空间编程接口。*
-  :doc:`这 </vm/damon/api>` 这是为内核空间程序员准备的。使用它，用户可以通过为你编写内
+  :doc:`这 </mm/damon/api>` 这是为内核空间程序员准备的。使用它，用户可以通过为你编写内
   核空间的DAMON应用程序，最灵活有效地利用DAMON的每一个功能。你甚至可以为各种地址空间扩展DAMON。
-  详细情况请参考接口 :doc:`文件 </vm/damon/api>`。
+  详细情况请参考接口 :doc:`文件 </mm/damon/api>`。
 
 sysfs接口
 =========
@@ -148,7 +148,7 @@ contexts/<N>/monitoring_attrs/
 在 ``nr_regions`` 目录下，有两个文件分别用于DAMON监测区域的下限和上限（``min`` 和 ``max`` ），
 这两个文件控制着监测的开销。你可以通过向这些文件的写入和读出来设置和获取这些值。
 
-关于间隔和监测区域范围的更多细节，请参考设计文件 (:doc:`/vm/damon/design`)。
+关于间隔和监测区域范围的更多细节，请参考设计文件 (:doc:`/mm/damon/design`)。
 
 contexts/<N>/targets/
 ---------------------
@@ -210,6 +210,8 @@ schemes/<N>/
  - ``pageout``: 为具有 ``MADV_PAGEOUT`` 的区域调用 ``madvise()`` 。
  - ``hugepage``: 为带有 ``MADV_HUGEPAGE`` 的区域调用 ``madvise()`` 。
  - ``nohugepage``: 为带有 ``MADV_NOHUGEPAGE`` 的区域调用 ``madvise()``。
+ - ``lru_prio``: 在其LRU列表上对区域进行优先排序。
+ - ``lru_deprio``: 对区域的LRU列表进行降低优先处理。
  - ``stat``: 什么都不做，只计算统计数据
 
 schemes/<N>/access_pattern/
@@ -318,7 +320,7 @@ DAMON导出了八个文件, ``attrs``, ``target_ids``, ``init_regions``,
 ----
 
 用户可以通过读取和写入 ``attrs`` 文件获得和设置 ``采样间隔`` 、 ``聚集间隔`` 、 ``更新间隔``
-以及监测目标区域的最小/最大数量。要详细了解监测属性，请参考 `:doc:/vm/damon/design` 。例如，
+以及监测目标区域的最小/最大数量。要详细了解监测属性，请参考 `:doc:/mm/damon/design` 。例如，
 下面的命令将这些值设置为5ms、100ms、1000ms、10和1000，然后再次检查::
 
     # cd <debugfs>/damon

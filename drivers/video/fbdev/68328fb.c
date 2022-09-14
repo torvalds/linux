@@ -84,9 +84,6 @@ static const struct fb_fix_screeninfo mc68x328fb_fix __initconst = {
     /*
      *  Interface used by the world
      */
-int mc68x328fb_init(void);
-int mc68x328fb_setup(char *);
-
 static int mc68x328fb_check_var(struct fb_var_screeninfo *var,
 			 struct fb_info *info);
 static int mc68x328fb_set_par(struct fb_info *info);
@@ -403,7 +400,7 @@ static int mc68x328fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 #endif
 }
 
-int __init mc68x328fb_setup(char *options)
+static int __init mc68x328fb_setup(char *options)
 {
 	if (!options || !*options)
 		return 1;
@@ -414,7 +411,7 @@ int __init mc68x328fb_setup(char *options)
      *  Initialisation
      */
 
-int __init mc68x328fb_init(void)
+static int __init mc68x328fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;

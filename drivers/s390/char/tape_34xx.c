@@ -548,7 +548,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x2e:
 		/*
 		 * Not capable. This indicates either that the drive fails
-		 * reading the format id mark or that that format specified
+		 * reading the format id mark or that format specified
 		 * is not supported by the drive.
 		 */
 		dev_warn (&device->cdev->dev, "The tape unit cannot process "

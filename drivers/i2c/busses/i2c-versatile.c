@@ -79,7 +79,7 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	writel(SCL | SDA, i2c->base + I2C_CONTROLS);
 
 	i2c->adap.owner = THIS_MODULE;
-	strlcpy(i2c->adap.name, "Versatile I2C adapter", sizeof(i2c->adap.name));
+	strscpy(i2c->adap.name, "Versatile I2C adapter", sizeof(i2c->adap.name));
 	i2c->adap.algo_data = &i2c->algo;
 	i2c->adap.dev.parent = &dev->dev;
 	i2c->adap.dev.of_node = dev->dev.of_node;

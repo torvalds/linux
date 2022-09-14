@@ -57,6 +57,7 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_TIMED_OUT		((__force req_flags_t)(1 << 21))
 /* queue has elevator attached */
 #define RQF_ELV			((__force req_flags_t)(1 << 22))
+#define RQF_RESV			((__force req_flags_t)(1 << 23))
 
 /* flags that prevent us from merging requests: */
 #define RQF_NOMERGE_FLAGS \
@@ -79,7 +80,7 @@ struct request {
 	struct blk_mq_ctx *mq_ctx;
 	struct blk_mq_hw_ctx *mq_hctx;
 
-	unsigned int cmd_flags;		/* op and common flags */
+	blk_opf_t cmd_flags;		/* op and common flags */
 	req_flags_t rq_flags;
 
 	int tag;
@@ -197,8 +198,10 @@ struct request {
 	void *end_io_data;
 };
 
-#define req_op(req) \
-	((req)->cmd_flags & REQ_OP_MASK)
+static inline enum req_op req_op(const struct request *req)
+{
+	return req->cmd_flags & REQ_OP_MASK;
+}
 
 static inline bool blk_rq_is_passthrough(struct request *rq)
 {
@@ -519,7 +522,7 @@ struct blk_mq_queue_data {
 	bool last;
 };
 
-typedef bool (busy_tag_iter_fn)(struct request *, void *, bool);
+typedef bool (busy_tag_iter_fn)(struct request *, void *);
 
 /**
  * struct blk_mq_ops - Callback functions that implements block driver
@@ -574,7 +577,7 @@ struct blk_mq_ops {
 	/**
 	 * @timeout: Called on request timeout.
 	 */
-	enum blk_eh_timer_return (*timeout)(struct request *, bool);
+	enum blk_eh_timer_return (*timeout)(struct request *);
 
 	/**
 	 * @poll: Called to poll for completion of a specific tag.
@@ -686,10 +689,12 @@ struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 									\
 	__blk_mq_alloc_disk(set, queuedata, &__key);			\
 })
+struct gendisk *blk_mq_alloc_disk_for_queue(struct request_queue *q,
+		struct lock_class_key *lkclass);
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);
 int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		struct request_queue *q);
-void blk_mq_unregister_dev(struct device *, struct request_queue *);
+void blk_mq_destroy_queue(struct request_queue *);
 
 int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set);
 int blk_mq_alloc_sq_tag_set(struct blk_mq_tag_set *set,
@@ -710,10 +715,10 @@ enum {
 	BLK_MQ_REQ_PM		= (__force blk_mq_req_flags_t)(1 << 2),
 };
 
-struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
+struct request *blk_mq_alloc_request(struct request_queue *q, blk_opf_t opf,
 		blk_mq_req_flags_t flags);
 struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
-		unsigned int op, blk_mq_req_flags_t flags,
+		blk_opf_t opf, blk_mq_req_flags_t flags,
 		unsigned int hctx_idx);
 
 /*
@@ -823,6 +828,11 @@ static inline bool blk_mq_need_time_stamp(struct request *rq)
 	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_ELV));
 }
 
+static inline bool blk_mq_is_reserved_rq(struct request *rq)
+{
+	return rq->rq_flags & RQF_RESV;
+}
+
 /*
  * Batched completions only work when there is no I/O error and no special
  * ->end_io handler.
@@ -847,7 +857,6 @@ void blk_mq_kick_requeue_list(struct request_queue *q);
 void blk_mq_delay_kick_requeue_list(struct request_queue *q, unsigned long msecs);
 void blk_mq_complete_request(struct request *rq);
 bool blk_mq_complete_request_remote(struct request *rq);
-bool blk_mq_queue_stopped(struct request_queue *q);
 void blk_mq_stop_hw_queue(struct blk_mq_hw_ctx *hctx);
 void blk_mq_start_hw_queue(struct blk_mq_hw_ctx *hctx);
 void blk_mq_stop_hw_queues(struct request_queue *q);
@@ -1121,12 +1130,12 @@ void blk_dump_rq_flags(struct request *, char *);
 #ifdef CONFIG_BLK_DEV_ZONED
 static inline unsigned int blk_rq_zone_no(struct request *rq)
 {
-	return blk_queue_zone_no(rq->q, blk_rq_pos(rq));
+	return disk_zone_no(rq->q->disk, blk_rq_pos(rq));
 }
 
 static inline unsigned int blk_rq_zone_is_seq(struct request *rq)
 {
-	return blk_queue_zone_is_seq(rq->q, blk_rq_pos(rq));
+	return disk_zone_is_seq(rq->q->disk, blk_rq_pos(rq));
 }
 
 bool blk_req_needs_zone_write_lock(struct request *rq);
@@ -1148,8 +1157,8 @@ static inline void blk_req_zone_write_unlock(struct request *rq)
 
 static inline bool blk_req_zone_is_write_locked(struct request *rq)
 {
-	return rq->q->seq_zones_wlock &&
-		test_bit(blk_rq_zone_no(rq), rq->q->seq_zones_wlock);
+	return rq->q->disk->seq_zones_wlock &&
+		test_bit(blk_rq_zone_no(rq), rq->q->disk->seq_zones_wlock);
 }
 
 static inline bool blk_req_can_dispatch_to_zone(struct request *rq)

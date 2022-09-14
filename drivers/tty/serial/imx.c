@@ -1907,15 +1907,11 @@ static void imx_uart_poll_put_char(struct uart_port *port, unsigned char c)
 #endif
 
 /* called with port.lock taken and irqs off or from .probe without locking */
-static int imx_uart_rs485_config(struct uart_port *port,
+static int imx_uart_rs485_config(struct uart_port *port, struct ktermios *termios,
 				 struct serial_rs485 *rs485conf)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	u32 ucr2;
-
-	/* RTS is required to control the transmitter */
-	if (!sport->have_rtscts && !sport->have_rtsgpio)
-		rs485conf->flags &= ~SER_RS485_ENABLED;
 
 	if (rs485conf->flags & SER_RS485_ENABLED) {
 		/* Enable receiver if low-active RTS signal is requested */
@@ -2200,6 +2196,14 @@ static enum hrtimer_restart imx_trigger_stop_tx(struct hrtimer *t)
 	return HRTIMER_NORESTART;
 }
 
+static const struct serial_rs485 imx_no_rs485 = {};	/* No RS485 if no RTS */
+static const struct serial_rs485 imx_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND |
+		 SER_RS485_RX_DURING_TX,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,
+};
+
 /* Default RX DMA buffer configuration */
 #define RX_DMA_PERIODS		16
 #define RX_DMA_PERIOD_LEN	(PAGE_SIZE / 4)
@@ -2279,6 +2283,11 @@ static int imx_uart_probe(struct platform_device *pdev)
 	sport->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_IMX_CONSOLE);
 	sport->port.ops = &imx_uart_pops;
 	sport->port.rs485_config = imx_uart_rs485_config;
+	/* RTS is required to control the RS485 transmitter */
+	if (sport->have_rtscts || sport->have_rtsgpio)
+		sport->port.rs485_supported = imx_rs485_supported;
+	else
+		sport->port.rs485_supported = imx_no_rs485;
 	sport->port.flags = UPF_BOOT_AUTOCONF;
 	timer_setup(&sport->timer, imx_uart_timeout, 0);
 
@@ -2338,7 +2347,7 @@ static int imx_uart_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"low-active RTS not possible when receiver is off, enabling receiver\n");
 
-	imx_uart_rs485_config(&sport->port, &sport->port.rs485);
+	uart_rs485_config(&sport->port);
 
 	/* Disable interrupts before requesting them */
 	ucr1 = imx_uart_readl(sport, UCR1);

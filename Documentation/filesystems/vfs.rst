@@ -737,12 +737,8 @@ cache in your filesystem.  The following members are defined:
 		bool (*release_folio)(struct folio *, gfp_t);
 		void (*free_folio)(struct folio *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
-		/* isolate a page for migration */
-		bool (*isolate_page) (struct page *, isolate_mode_t);
-		/* migrate the contents of a page to the specified target */
-		int (*migratepage) (struct page *, struct page *);
-		/* put migration-failed page back to right list */
-		void (*putback_page) (struct page *);
+		int (*migrate_folio)(struct mapping *, struct folio *dst,
+				struct folio *src, enum migrate_mode);
 		int (*launder_folio) (struct folio *);
 
 		bool (*is_partially_uptodate) (struct folio *, size_t from,
@@ -774,13 +770,38 @@ cache in your filesystem.  The following members are defined:
 	See the file "Locking" for more details.
 
 ``read_folio``
-	called by the VM to read a folio from backing store.  The folio
-	will be locked when read_folio is called, and should be unlocked
-	and marked uptodate once the read completes.  If ->read_folio
-	discovers that it cannot perform the I/O at this time, it can
-        unlock the folio and return AOP_TRUNCATED_PAGE.  In this case,
-	the folio will be looked up again, relocked and if that all succeeds,
-	->read_folio will be called again.
+	Called by the page cache to read a folio from the backing store.
+	The 'file' argument supplies authentication information to network
+	filesystems, and is generally not used by block based filesystems.
+	It may be NULL if the caller does not have an open file (eg if
+	the kernel is performing a read for itself rather than on behalf
+	of a userspace process with an open file).
+
+	If the mapping does not support large folios, the folio will
+	contain a single page.	The folio will be locked when read_folio
+	is called.  If the read completes successfully, the folio should
+	be marked uptodate.  The filesystem should unlock the folio
+	once the read has completed, whether it was successful or not.
+	The filesystem does not need to modify the refcount on the folio;
+	the page cache holds a reference count and that will not be
+	released until the folio is unlocked.
+
+	Filesystems may implement ->read_folio() synchronously.
+	In normal operation, folios are read through the ->readahead()
+	method.  Only if this fails, or if the caller needs to wait for
+	the read to complete will the page cache call ->read_folio().
+	Filesystems should not attempt to perform their own readahead
+	in the ->read_folio() operation.
+
+	If the filesystem cannot perform the read at this time, it can
+	unlock the folio, do whatever action it needs to ensure that the
+	read will succeed in the future and return AOP_TRUNCATED_PAGE.
+	In this case, the caller should look up the folio, lock it,
+	and call ->read_folio again.
+
+	Callers may invoke the ->read_folio() method directly, but using
+	read_mapping_folio() will take care of locking, waiting for the
+	read to complete and handle cases such as AOP_TRUNCATED_PAGE.
 
 ``writepages``
 	called by the VM to write out pages associated with the
@@ -905,20 +926,12 @@ cache in your filesystem.  The following members are defined:
 	data directly between the storage and the application's address
 	space.
 
-``isolate_page``
-	Called by the VM when isolating a movable non-lru page.  If page
-	is successfully isolated, VM marks the page as PG_isolated via
-	__SetPageIsolated.
-
-``migrate_page``
+``migrate_folio``
 	This is used to compact the physical memory usage.  If the VM
-	wants to relocate a page (maybe off a memory card that is
-	signalling imminent failure) it will pass a new page and an old
-	page to this function.  migrate_page should transfer any private
-	data across and update any references that it has to the page.
-
-``putback_page``
-	Called by the VM when isolated page's migration fails.
+	wants to relocate a folio (maybe from a memory device that is
+	signalling imminent failure) it will pass a new folio and an old
+	folio to this function.  migrate_folio should transfer any private
+	data across and update any references that it has to the folio.
 
 ``launder_folio``
 	Called before freeing a folio - it writes back the dirty folio.

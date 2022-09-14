@@ -8,6 +8,8 @@ menu "RCU Subsystem"
 config TREE_RCU
 	bool
 	default y if SMP
+	# Dynticks-idle tracking
+	select CONTEXT_TRACKING_IDLE
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or
@@ -261,6 +263,35 @@ config RCU_NOCB_CPU
 
 	  Say Y here if you need reduced OS jitter, despite added overhead.
 	  Say N here if you are unsure.
+
+config RCU_NOCB_CPU_DEFAULT_ALL
+	bool "Offload RCU callback processing from all CPUs by default"
+	depends on RCU_NOCB_CPU
+	default n
+	help
+	  Use this option to offload callback processing from all CPUs
+	  by default, in the absence of the rcu_nocbs or nohz_full boot
+	  parameter. This also avoids the need to use any boot parameters
+	  to achieve the effect of offloading all CPUs on boot.
+
+	  Say Y here if you want offload all CPUs by default on boot.
+	  Say N here if you are unsure.
+
+config RCU_NOCB_CPU_CB_BOOST
+	bool "Offload RCU callback from real-time kthread"
+	depends on RCU_NOCB_CPU && RCU_BOOST
+	default y if PREEMPT_RT
+	help
+	  Use this option to invoke offloaded callbacks as SCHED_FIFO
+	  to avoid starvation by heavy SCHED_OTHER background load.
+	  Of course, running as SCHED_FIFO during callback floods will
+	  cause the rcuo[ps] kthreads to monopolize the CPU for hundreds
+	  of milliseconds or more.  Therefore, when enabling this option,
+	  it is your responsibility to ensure that latency-sensitive
+	  tasks either run with higher priority or run on some other CPU.
+
+	  Say Y here if you want to set RT priority for offloading kthreads.
+	  Say N here if you are building a !PREEMPT_RT kernel and are unsure.
 
 config TASKS_TRACE_RCU_READ_MB
 	bool "Tasks Trace RCU readers use memory barriers in user and idle"

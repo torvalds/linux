@@ -349,8 +349,8 @@ error:
 
 static int
 mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
-		      struct sk_buff *skb, struct mt76_wcid *wcid,
-		      struct ieee80211_sta *sta)
+		      enum mt76_txq_id qid, struct sk_buff *skb,
+		      struct mt76_wcid *wcid, struct ieee80211_sta *sta)
 {
 	struct ieee80211_tx_status status = {
 		.sta = sta,
@@ -406,7 +406,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 
 	dma_sync_single_for_cpu(dev->dma_dev, t->dma_addr, dev->drv->txwi_size,
 				DMA_TO_DEVICE);
-	ret = dev->drv->tx_prepare_skb(dev, txwi, q->qid, wcid, sta, &tx_info);
+	ret = dev->drv->tx_prepare_skb(dev, txwi, qid, wcid, sta, &tx_info);
 	dma_sync_single_for_device(dev->dma_dev, t->dma_addr, dev->drv->txwi_size,
 				   DMA_TO_DEVICE);
 	if (ret < 0)
@@ -791,10 +791,15 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 	mt76_worker_disable(&dev->tx_worker);
 	netif_napi_del(&dev->tx_napi);
 
-	for (i = 0; i < ARRAY_SIZE(dev->phy.q_tx); i++) {
-		mt76_dma_tx_cleanup(dev, dev->phy.q_tx[i], true);
-		if (dev->phy2)
-			mt76_dma_tx_cleanup(dev, dev->phy2->q_tx[i], true);
+	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
+		struct mt76_phy *phy = dev->phys[i];
+		int j;
+
+		if (!phy)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(phy->q_tx); j++)
+			mt76_dma_tx_cleanup(dev, phy->q_tx[j], true);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_mcu); i++)

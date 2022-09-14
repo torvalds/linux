@@ -28,11 +28,6 @@ enum wb_state {
 	WB_start_all,		/* nr_pages == 0 (all) work pending */
 };
 
-enum wb_congested_state {
-	WB_async_congested,	/* The async (write) queue is getting full */
-	WB_sync_congested,	/* The sync queue is getting full */
-};
-
 enum wb_stat_item {
 	WB_RECLAIMABLE,
 	WB_WRITEBACK,
@@ -121,8 +116,6 @@ struct bdi_writeback {
 
 	atomic_t writeback_inodes;	/* number of inodes under writeback */
 	struct percpu_counter stat[NR_WB_STAT_ITEMS];
-
-	unsigned long congested;	/* WB_[a]sync_congested flags */
 
 	unsigned long bw_time_stamp;	/* last time write bw is updated */
 	unsigned long dirtied_stamp;

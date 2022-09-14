@@ -65,32 +65,6 @@ get_efivarfs_secureboot_mode()
 	return 0;
 }
 
-get_efi_var_secureboot_mode()
-{
-	local efi_vars
-	local secure_boot_file
-	local setup_mode_file
-	local secureboot_mode
-	local setup_mode
-
-	if [ ! -d "$efi_vars" ]; then
-		log_skip "efi_vars is not enabled\n"
-	fi
-	secure_boot_file=$(find "$efi_vars" -name SecureBoot-* 2>/dev/null)
-	setup_mode_file=$(find "$efi_vars" -name SetupMode-* 2>/dev/null)
-	if [ -f "$secure_boot_file/data" ] && \
-	   [ -f "$setup_mode_file/data" ]; then
-		secureboot_mode=`od -An -t u1 "$secure_boot_file/data"`
-		setup_mode=`od -An -t u1 "$setup_mode_file/data"`
-
-		if [ $secureboot_mode -eq 1 ] && [ $setup_mode -eq 0 ]; then
-			log_info "secure boot mode enabled (CONFIG_EFI_VARS)"
-			return 1;
-		fi
-	fi
-	return 0;
-}
-
 # On powerpc platform, check device-tree property
 # /proc/device-tree/ibm,secureboot/os-secureboot-enforcing
 # to detect secureboot state.
@@ -113,9 +87,8 @@ get_arch()
 }
 
 # Check efivar SecureBoot-$(the UUID) and SetupMode-$(the UUID).
-# The secure boot mode can be accessed either as the last integer
-# of "od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-*" or from
-# "od -An -t u1 /sys/firmware/efi/vars/SecureBoot-*/data".  The efi
+# The secure boot mode can be accessed as the last integer of
+# "od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-*".  The efi
 # SetupMode can be similarly accessed.
 # Return 1 for SecureBoot mode enabled and SetupMode mode disabled.
 get_secureboot_mode()
@@ -129,11 +102,6 @@ get_secureboot_mode()
 	else
 		get_efivarfs_secureboot_mode
 		secureboot_mode=$?
-		# fallback to using the efi_var files
-		if [ $secureboot_mode -eq 0 ]; then
-			get_efi_var_secureboot_mode
-			secureboot_mode=$?
-		fi
 	fi
 
 	if [ $secureboot_mode -eq 0 ]; then

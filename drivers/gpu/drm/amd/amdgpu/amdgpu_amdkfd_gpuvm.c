@@ -40,10 +40,10 @@
 #define AMDGPU_USERPTR_RESTORE_DELAY_MS 1
 
 /*
- * Align VRAM allocations to 2MB to avoid fragmentation caused by 4K allocations in the tail 2MB
+ * Align VRAM availability to 2MB to avoid fragmentation caused by 4K allocations in the tail 2MB
  * BO chunk
  */
-#define VRAM_ALLOCATION_ALIGN (1 << 21)
+#define VRAM_AVAILABLITY_ALIGN (1 << 21)
 
 /* Impose limit on how much memory KFD can use */
 static struct {
@@ -129,7 +129,7 @@ void amdgpu_amdkfd_reserve_system_mem(uint64_t size)
  *
  * Return: returns -ENOMEM in case of error, ZERO otherwise
  */
-static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
+int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 alloc_flag)
 {
 	uint64_t reserved_for_pt =
@@ -149,7 +149,7 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		 * to avoid fragmentation caused by 4K allocations in the tail
 		 * 2M BO chunk.
 		 */
-		vram_needed = ALIGN(size, VRAM_ALLOCATION_ALIGN);
+		vram_needed = size;
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
 		system_mem_needed = size;
 	} else if (!(alloc_flag &
@@ -169,7 +169,7 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	     kfd_mem_limit.max_system_mem_limit && !no_system_mem_limit) ||
 	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
 	     kfd_mem_limit.max_ttm_mem_limit) ||
-	    (adev->kfd.vram_used + vram_needed >
+	    (adev && adev->kfd.vram_used + vram_needed >
 	     adev->gmc.real_vram_size -
 	     atomic64_read(&adev->vram_pin_size) -
 	     reserved_for_pt)) {
@@ -180,7 +180,12 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	/* Update memory accounting by decreasing available system
 	 * memory, TTM memory and GPU memory as computed above
 	 */
-	adev->kfd.vram_used += vram_needed;
+	WARN_ONCE(vram_needed && !adev,
+		  "adev reference can't be null when vram is used");
+	if (adev) {
+		adev->kfd.vram_used += vram_needed;
+		adev->kfd.vram_used_aligned += ALIGN(vram_needed, VRAM_AVAILABLITY_ALIGN);
+	}
 	kfd_mem_limit.system_mem_used += system_mem_needed;
 	kfd_mem_limit.ttm_mem_used += ttm_mem_needed;
 
@@ -189,7 +194,7 @@ release:
 	return ret;
 }
 
-static void unreserve_mem_limit(struct amdgpu_device *adev,
+void amdgpu_amdkfd_unreserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 alloc_flag)
 {
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
@@ -198,7 +203,12 @@ static void unreserve_mem_limit(struct amdgpu_device *adev,
 		kfd_mem_limit.system_mem_used -= size;
 		kfd_mem_limit.ttm_mem_used -= size;
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
-		adev->kfd.vram_used -= ALIGN(size, VRAM_ALLOCATION_ALIGN);
+		WARN_ONCE(!adev,
+			  "adev reference can't be null when alloc mem flags vram is set");
+		if (adev) {
+			adev->kfd.vram_used -= size;
+			adev->kfd.vram_used_aligned -= ALIGN(size, VRAM_AVAILABLITY_ALIGN);
+		}
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
 		kfd_mem_limit.system_mem_used -= size;
 	} else if (!(alloc_flag &
@@ -207,8 +217,7 @@ static void unreserve_mem_limit(struct amdgpu_device *adev,
 		pr_err("%s: Invalid BO type %#x\n", __func__, alloc_flag);
 		goto release;
 	}
-
-	WARN_ONCE(adev->kfd.vram_used < 0,
+	WARN_ONCE(adev && adev->kfd.vram_used < 0,
 		  "KFD VRAM memory accounting unbalanced");
 	WARN_ONCE(kfd_mem_limit.ttm_mem_used < 0,
 		  "KFD TTM memory accounting unbalanced");
@@ -225,7 +234,7 @@ void amdgpu_amdkfd_release_notify(struct amdgpu_bo *bo)
 	u32 alloc_flags = bo->kfd_bo->alloc_flags;
 	u64 size = amdgpu_bo_size(bo);
 
-	unreserve_mem_limit(adev, size, alloc_flags);
+	amdgpu_amdkfd_unreserve_mem_limit(adev, size, alloc_flags);
 
 	kfree(bo->kfd_bo);
 }
@@ -773,7 +782,6 @@ kfd_mem_attach_dmabuf(struct amdgpu_device *adev, struct kgd_mem *mem,
 
 	*bo = gem_to_amdgpu_bo(gobj);
 	(*bo)->flags |= AMDGPU_GEM_CREATE_PREEMPTIBLE;
-	(*bo)->parent = amdgpu_bo_ref(mem->bo);
 
 	return 0;
 }
@@ -1604,15 +1612,14 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev)
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
 	size_t available;
-
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
 	available = adev->gmc.real_vram_size
-		- adev->kfd.vram_used
+		- adev->kfd.vram_used_aligned
 		- atomic64_read(&adev->vram_pin_size)
 		- reserved_for_pt;
 	spin_unlock(&kfd_mem_limit.mem_limit_lock);
 
-	return ALIGN_DOWN(available, VRAM_ALLOCATION_ALIGN);
+	return ALIGN_DOWN(available, VRAM_AVAILABLITY_ALIGN);
 }
 
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
@@ -1721,7 +1728,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, user_addr);
 
 	if (user_addr) {
-		pr_debug("creating userptr BO for user_addr = %llu\n", user_addr);
+		pr_debug("creating userptr BO for user_addr = %llx\n", user_addr);
 		ret = init_user_pages(*mem, user_addr, criu_resume);
 		if (ret)
 			goto allocate_init_user_pages_failed;
@@ -1749,7 +1756,7 @@ err_node_allow:
 	/* Don't unreserve system mem limit twice */
 	goto err_reserve_limit;
 err_bo_create:
-	unreserve_mem_limit(adev, size, flags);
+	amdgpu_amdkfd_unreserve_mem_limit(adev, size, flags);
 err_reserve_limit:
 	mutex_destroy(&(*mem)->lock);
 	if (gobj)
@@ -1770,6 +1777,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 {
 	struct amdkfd_process_info *process_info = mem->process_info;
 	unsigned long bo_size = mem->bo->tbo.base.size;
+	bool use_release_notifier = (mem->bo->kfd_bo == mem);
 	struct kfd_mem_attachment *entry, *tmp;
 	struct bo_vm_reservation_context ctx;
 	struct ttm_validate_buffer *bo_list_entry;
@@ -1860,6 +1868,13 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	 * this needs to be the last call here.
 	 */
 	drm_gem_object_put(&mem->bo->tbo.base);
+
+	/*
+	 * For kgd_mem allocated in amdgpu_amdkfd_gpuvm_import_dmabuf(),
+	 * explicitly free it here.
+	 */
+	if (!use_release_notifier)
+		kfree(mem);
 
 	return ret;
 }
@@ -2883,3 +2898,22 @@ bool amdgpu_amdkfd_bo_mapped_to_dev(struct amdgpu_device *adev, struct kgd_mem *
 	}
 	return false;
 }
+
+#if defined(CONFIG_DEBUG_FS)
+
+int kfd_debugfs_kfd_mem_limits(struct seq_file *m, void *data)
+{
+
+	spin_lock(&kfd_mem_limit.mem_limit_lock);
+	seq_printf(m, "System mem used %lldM out of %lluM\n",
+		  (kfd_mem_limit.system_mem_used >> 20),
+		  (kfd_mem_limit.max_system_mem_limit >> 20));
+	seq_printf(m, "TTM mem used %lldM out of %lluM\n",
+		  (kfd_mem_limit.ttm_mem_used >> 20),
+		  (kfd_mem_limit.max_ttm_mem_limit >> 20));
+	spin_unlock(&kfd_mem_limit.mem_limit_lock);
+
+	return 0;
+}
+
+#endif

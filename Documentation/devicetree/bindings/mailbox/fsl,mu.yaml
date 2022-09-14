@@ -72,14 +72,16 @@ properties:
       type      : Channel type
       channel   : Channel number
 
-      This MU support 4 type of unidirectional channels, each type
-      has 4 channels. A total of 16 channels. Following types are
+      This MU support 5 type of unidirectional channels, each type
+      has 4 channels except RST channel which only has 1 channel.
+      A total of 17 channels.  Following types are
       supported:
       0 - TX channel with 32bit transmit register and IRQ transmit
           acknowledgment support.
       1 - RX channel with 32bit receive register and IRQ support
       2 - TX doorbell channel. Without own register and no ACK support.
       3 - RX doorbell channel.
+      4 - RST channel
     const: 2
 
   clocks:

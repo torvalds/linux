@@ -25,7 +25,8 @@ struct perf_test_vcpu_args {
 	uint64_t pages;
 
 	/* Only used by the host userspace part of the vCPU thread */
-	int vcpu_id;
+	struct kvm_vcpu *vcpu;
+	int vcpu_idx;
 };
 
 struct perf_test_args {
@@ -44,7 +45,7 @@ struct perf_test_args {
 
 extern struct perf_test_args perf_test_args;
 
-struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
+struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 				   uint64_t vcpu_memory_bytes, int slots,
 				   enum vm_mem_backing_src_type backing_src,
 				   bool partition_vcpu_memory_access);
@@ -57,6 +58,6 @@ void perf_test_join_vcpu_threads(int vcpus);
 void perf_test_guest_code(uint32_t vcpu_id);
 
 uint64_t perf_test_nested_pages(int nr_vcpus);
-void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus);
+void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vcpus[]);
 
 #endif /* SELFTEST_KVM_PERF_TEST_UTIL_H */

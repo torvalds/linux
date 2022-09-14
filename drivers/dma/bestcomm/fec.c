@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Bestcomm FEC tasks driver
- *
  *
  * Copyright (C) 2006-2007 Sylvain Munaut <tnt@246tNt.com>
  * Copyright (C) 2003-2004 MontaVista, Software, Inc.
  *                         ( by Dale Farnsworth <dfarnsworth@mvista.com> )
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -267,4 +263,3 @@ EXPORT_SYMBOL_GPL(bcom_fec_tx_release);
 MODULE_DESCRIPTION("BestComm FEC tasks driver");
 MODULE_AUTHOR("Dale Farnsworth <dfarnsworth@mvista.com>");
 MODULE_LICENSE("GPL v2");
-

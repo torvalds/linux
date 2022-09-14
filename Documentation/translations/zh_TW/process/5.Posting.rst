@@ -22,8 +22,7 @@
 內核開發社區已經發展出一套用於發布補丁的約定和過程；遵循這些約定和過程將使
 參與其中的每個人的生活更加輕鬆。本文檔試圖描述這些約定的部分細節；更多信息
 也可在以下文檔中找到
-:ref:`Documentation/translations/zh_TW/process/submitting-patches.rst <tw_submittingpatches>`，
-:ref:`Documentation/translations/zh_TW/process/submitting-drivers.rst <tw_submittingdrivers>`
+:ref:`Documentation/translations/zh_TW/process/submitting-patches.rst <tw_submittingpatches>`
 和 :ref:`Documentation/translations/zh_TW/process/submit-checklist.rst <tw_submitchecklist>`。
 
 何時郵寄

@@ -557,21 +557,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	 */
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_l3c%u",
 			      l3c_pmu->sccl_id, l3c_pmu->ccl_id);
-	l3c_pmu->pmu = (struct pmu) {
-		.name		= name,
-		.module		= THIS_MODULE,
-		.task_ctx_nr	= perf_invalid_context,
-		.event_init	= hisi_uncore_pmu_event_init,
-		.pmu_enable	= hisi_uncore_pmu_enable,
-		.pmu_disable	= hisi_uncore_pmu_disable,
-		.add		= hisi_uncore_pmu_add,
-		.del		= hisi_uncore_pmu_del,
-		.start		= hisi_uncore_pmu_start,
-		.stop		= hisi_uncore_pmu_stop,
-		.read		= hisi_uncore_pmu_read,
-		.attr_groups	= l3c_pmu->pmu_events.attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
-	};
+	hisi_pmu_init(&l3c_pmu->pmu, name, l3c_pmu->pmu_events.attr_groups, THIS_MODULE);
 
 	ret = perf_pmu_register(&l3c_pmu->pmu, name, -1);
 	if (ret) {

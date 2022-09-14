@@ -254,7 +254,8 @@ static void ef100_make_tso_desc(struct efx_nic *efx,
 
 static void ef100_tx_make_descriptors(struct efx_tx_queue *tx_queue,
 				      const struct sk_buff *skb,
-				      unsigned int segment_count)
+				      unsigned int segment_count,
+				      struct efx_rep *efv)
 {
 	unsigned int old_write_count = tx_queue->write_count;
 	unsigned int new_write_count = old_write_count;
@@ -271,6 +272,20 @@ static void ef100_tx_make_descriptors(struct efx_tx_queue *tx_queue,
 		next_desc_type = ESE_GZ_TX_DESC_TYPE_TSO;
 	else
 		next_desc_type = ESE_GZ_TX_DESC_TYPE_SEND;
+
+	if (unlikely(efv)) {
+		/* Create TX override descriptor */
+		write_ptr = new_write_count & tx_queue->ptr_mask;
+		txd = ef100_tx_desc(tx_queue, write_ptr);
+		++new_write_count;
+
+		tx_queue->packet_write_count = new_write_count;
+		EFX_POPULATE_OWORD_3(*txd,
+				     ESF_GZ_TX_DESC_TYPE, ESE_GZ_TX_DESC_TYPE_PREFIX,
+				     ESF_GZ_TX_PREFIX_EGRESS_MPORT, efv->mport,
+				     ESF_GZ_TX_PREFIX_EGRESS_MPORT_EN, 1);
+		nr_descs--;
+	}
 
 	/* if it's a raw write (such as XDP) then always SEND single frames */
 	if (!skb)
@@ -306,6 +321,9 @@ static void ef100_tx_make_descriptors(struct efx_tx_queue *tx_queue,
 		/* if it's a raw write (such as XDP) then always SEND */
 		next_desc_type = skb ? ESE_GZ_TX_DESC_TYPE_SEG :
 				       ESE_GZ_TX_DESC_TYPE_SEND;
+		/* mark as an EFV buffer if applicable */
+		if (unlikely(efv))
+			buffer->flags |= EFX_TX_BUF_EFV;
 
 	} while (new_write_count != tx_queue->insert_count);
 
@@ -324,7 +342,7 @@ static void ef100_tx_make_descriptors(struct efx_tx_queue *tx_queue,
 
 void ef100_tx_write(struct efx_tx_queue *tx_queue)
 {
-	ef100_tx_make_descriptors(tx_queue, NULL, 0);
+	ef100_tx_make_descriptors(tx_queue, NULL, 0, NULL);
 	ef100_tx_push_buffers(tx_queue);
 }
 
@@ -351,6 +369,12 @@ void ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event)
  */
 int ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
+	return __ef100_enqueue_skb(tx_queue, skb, NULL);
+}
+
+int __ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			struct efx_rep *efv)
+{
 	unsigned int old_insert_count = tx_queue->insert_count;
 	struct efx_nic *efx = tx_queue->efx;
 	bool xmit_more = netdev_xmit_more();
@@ -376,15 +400,63 @@ int ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 			return 0;
 	}
 
+	if (unlikely(efv)) {
+		struct efx_tx_buffer *buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
+
+		/* Drop representor packets if the queue is stopped.
+		 * We currently don't assert backoff to representors so this is
+		 * to make sure representor traffic can't starve the main
+		 * net device.
+		 * And, of course, if there are no TX descriptors left.
+		 */
+		if (netif_tx_queue_stopped(tx_queue->core_txq) ||
+		    unlikely(efx_tx_buffer_in_use(buffer))) {
+			atomic64_inc(&efv->stats.tx_errors);
+			rc = -ENOSPC;
+			goto err;
+		}
+
+		/* Also drop representor traffic if it could cause us to
+		 * stop the queue. If we assert backoff and we haven't
+		 * received traffic on the main net device recently then the
+		 * TX watchdog can go off erroneously.
+		 */
+		fill_level = efx_channel_tx_old_fill_level(tx_queue->channel);
+		fill_level += efx_tx_max_skb_descs(efx);
+		if (fill_level > efx->txq_stop_thresh) {
+			struct efx_tx_queue *txq2;
+
+			/* Refresh cached fill level and re-check */
+			efx_for_each_channel_tx_queue(txq2, tx_queue->channel)
+				txq2->old_read_count = READ_ONCE(txq2->read_count);
+
+			fill_level = efx_channel_tx_old_fill_level(tx_queue->channel);
+			fill_level += efx_tx_max_skb_descs(efx);
+			if (fill_level > efx->txq_stop_thresh) {
+				atomic64_inc(&efv->stats.tx_errors);
+				rc = -ENOSPC;
+				goto err;
+			}
+		}
+
+		buffer->flags = EFX_TX_BUF_OPTION | EFX_TX_BUF_EFV;
+		tx_queue->insert_count++;
+	}
+
 	/* Map for DMA and create descriptors */
 	rc = efx_tx_map_data(tx_queue, skb, segments);
 	if (rc)
 		goto err;
-	ef100_tx_make_descriptors(tx_queue, skb, segments);
+	ef100_tx_make_descriptors(tx_queue, skb, segments, efv);
 
 	fill_level = efx_channel_tx_old_fill_level(tx_queue->channel);
 	if (fill_level > efx->txq_stop_thresh) {
 		struct efx_tx_queue *txq2;
+
+		/* Because of checks above, representor traffic should
+		 * not be able to stop the queue.
+		 */
+		WARN_ON(efv);
 
 		netif_tx_stop_queue(tx_queue->core_txq);
 		/* Re-read after a memory barrier in case we've raced with
@@ -404,8 +476,12 @@ int ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	/* If xmit_more then we don't need to push the doorbell, unless there
 	 * are 256 descriptors already queued in which case we have to push to
 	 * ensure we never push more than 256 at once.
+	 *
+	 * Always push for representor traffic, and don't account it to parent
+	 * PF netdevice's BQL.
 	 */
-	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb->len, xmit_more) ||
+	if (unlikely(efv) ||
+	    __netdev_tx_sent_queue(tx_queue->core_txq, skb->len, xmit_more) ||
 	    tx_queue->write_count - tx_queue->notify_count > 255)
 		ef100_tx_push_buffers(tx_queue);
 

@@ -86,36 +86,36 @@ static const unsigned long ata_eh_reset_timeouts[] = {
 	ULONG_MAX, /* > 1 min has elapsed, give up */
 };
 
-static const unsigned long ata_eh_identify_timeouts[] = {
+static const unsigned int ata_eh_identify_timeouts[] = {
 	 5000,	/* covers > 99% of successes and not too boring on failures */
 	10000,  /* combined time till here is enough even for media access */
 	30000,	/* for true idiots */
-	ULONG_MAX,
+	UINT_MAX,
 };
 
-static const unsigned long ata_eh_revalidate_timeouts[] = {
+static const unsigned int ata_eh_revalidate_timeouts[] = {
 	15000,	/* Some drives are slow to read log pages when waking-up */
 	15000,  /* combined time till here is enough even for media access */
-	ULONG_MAX,
+	UINT_MAX,
 };
 
-static const unsigned long ata_eh_flush_timeouts[] = {
+static const unsigned int ata_eh_flush_timeouts[] = {
 	15000,	/* be generous with flush */
 	15000,  /* ditto */
 	30000,	/* and even more generous */
-	ULONG_MAX,
+	UINT_MAX,
 };
 
-static const unsigned long ata_eh_other_timeouts[] = {
+static const unsigned int ata_eh_other_timeouts[] = {
 	 5000,	/* same rationale as identify timeout */
 	10000,	/* ditto */
 	/* but no merciful 30sec for other commands, it just isn't worth it */
-	ULONG_MAX,
+	UINT_MAX,
 };
 
 struct ata_eh_cmd_timeout_ent {
 	const u8		*commands;
-	const unsigned long	*timeouts;
+	const unsigned int	*timeouts;
 };
 
 /* The following table determines timeouts to use for EH internal
@@ -326,7 +326,7 @@ static int ata_lookup_timeout_table(u8 cmd)
  *	RETURNS:
  *	Determined timeout.
  */
-unsigned long ata_internal_cmd_timeout(struct ata_device *dev, u8 cmd)
+unsigned int ata_internal_cmd_timeout(struct ata_device *dev, u8 cmd)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 	int ent = ata_lookup_timeout_table(cmd);
@@ -361,7 +361,7 @@ void ata_internal_cmd_timed_out(struct ata_device *dev, u8 cmd)
 		return;
 
 	idx = ehc->cmd_timeout_idx[dev->devno][ent];
-	if (ata_eh_cmd_timeout_table[ent].timeouts[idx + 1] != ULONG_MAX)
+	if (ata_eh_cmd_timeout_table[ent].timeouts[idx + 1] != UINT_MAX)
 		ehc->cmd_timeout_idx[dev->devno][ent]++;
 }
 
@@ -802,11 +802,11 @@ void ata_port_wait_eh(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ata_port_wait_eh);
 
-static int ata_eh_nr_in_flight(struct ata_port *ap)
+static unsigned int ata_eh_nr_in_flight(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	unsigned int tag;
-	int nr = 0;
+	unsigned int nr = 0;
 
 	/* count only non-internal commands */
 	ata_qc_for_each(ap, qc, tag) {
@@ -821,7 +821,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
 {
 	struct ata_port *ap = from_timer(ap, t, fastdrain_timer);
 	unsigned long flags;
-	int cnt;
+	unsigned int cnt;
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -870,7 +870,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
  */
 static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 {
-	int cnt;
+	unsigned int cnt;
 
 	/* already scheduled? */
 	if (ap->pflags & ATA_PFLAG_EH_PENDING)
@@ -2122,6 +2122,7 @@ const char *ata_get_cmd_name(u8 command)
 		{ ATA_CMD_WRITE_QUEUED_FUA_EXT, "WRITE DMA QUEUED FUA EXT" },
 		{ ATA_CMD_FPDMA_READ,		"READ FPDMA QUEUED" },
 		{ ATA_CMD_FPDMA_WRITE,		"WRITE FPDMA QUEUED" },
+		{ ATA_CMD_NCQ_NON_DATA,		"NCQ NON-DATA" },
 		{ ATA_CMD_FPDMA_SEND,		"SEND FPDMA QUEUED" },
 		{ ATA_CMD_FPDMA_RECV,		"RECEIVE FPDMA QUEUED" },
 		{ ATA_CMD_PIO_READ,		"READ SECTOR(S)" },

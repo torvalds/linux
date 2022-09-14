@@ -48,7 +48,7 @@ properties:
       "^led@[01]$":
         type: object
         description: Hellcreek leds
-        $ref: ../../leds/common.yaml#
+        $ref: /schemas/leds/common.yaml#
 
         properties:
           reg:

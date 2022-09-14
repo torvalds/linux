@@ -23,17 +23,20 @@ glb_err=0
 cleanup_files()
 {
 	rm -f ${perfdata}
+	rm -f ${perfdata}.old
 	exit $glb_err
 }
 
 trap cleanup_files exit term int
 
 arm_spe_report() {
-	if [ $2 != 0 ]; then
+	if [ $2 = 0 ]; then
+		echo "$1: PASS"
+	elif [ $2 = 2 ]; then
+		echo "$1: SKIPPED"
+	else
 		echo "$1: FAIL"
 		glb_err=$2
-	else
-		echo "$1: PASS"
 	fi
 }
 
@@ -85,5 +88,26 @@ arm_spe_snapshot_test() {
 	arm_spe_report "SPE snapshot testing" $err
 }
 
+arm_spe_system_wide_test() {
+	echo "Recording trace with system-wide mode $perfdata"
+
+	perf record -o - -e dummy -a -B true > /dev/null 2>&1
+	if [ $? != 0 ]; then
+		arm_spe_report "SPE system-wide testing" 2
+		return
+	fi
+
+	perf record -o ${perfdata} -e arm_spe// -a --no-bpf-event \
+		-- dd if=/dev/zero of=/dev/null count=100000 > /dev/null 2>&1
+
+	perf_script_samples dd &&
+	perf_report_samples dd
+
+	err=$?
+	arm_spe_report "SPE system-wide testing" $err
+}
+
 arm_spe_snapshot_test
+arm_spe_system_wide_test
+
 exit $glb_err

@@ -189,7 +189,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 		ctrl->dwMaxVideoFrameSize =
 			frame->dwMaxVideoFrameBufferSize;
 
-	/* The "TOSHIBA Web Camera - 5M" Chicony device (04f2:b50b) seems to
+	/*
+	 * The "TOSHIBA Web Camera - 5M" Chicony device (04f2:b50b) seems to
 	 * compute the bandwidth on 16 bits and erroneously sign-extend it to
 	 * 32 bits, resulting in a huge bandwidth value. Detect and fix that
 	 * condition by setting the 16 MSBs to 0 when they're all equal to 1.
@@ -207,7 +208,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 			 ? ctrl->dwFrameInterval
 			 : frame->dwFrameInterval[0];
 
-		/* Compute a bandwidth estimation by multiplying the frame
+		/*
+		 * Compute a bandwidth estimation by multiplying the frame
 		 * size by the number of video frames per second, divide the
 		 * result by the number of USB frames (or micro-frames for
 		 * high-speed devices) per second and add the UVC header size
@@ -220,7 +222,8 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 			bandwidth /= 8;
 		bandwidth += 12;
 
-		/* The bandwidth estimate is too low for many cameras. Don't use
+		/*
+		 * The bandwidth estimate is too low for many cameras. Don't use
 		 * maximum packet sizes lower than 1024 bytes to try and work
 		 * around the problem. According to measurements done on two
 		 * different camera models, the value is high enough to get most
@@ -267,7 +270,8 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		size, uvc_timeout_param);
 
 	if ((query == UVC_GET_MIN || query == UVC_GET_MAX) && ret == 2) {
-		/* Some cameras, mostly based on Bison Electronics chipsets,
+		/*
+		 * Some cameras, mostly based on Bison Electronics chipsets,
 		 * answer a GET_MIN or GET_MAX request with the wCompQuality
 		 * field only.
 		 */
@@ -279,7 +283,8 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		ret = 0;
 		goto out;
 	} else if (query == UVC_GET_DEF && probe == 1 && ret != size) {
-		/* Many cameras don't support the GET_DEF request on their
+		/*
+		 * Many cameras don't support the GET_DEF request on their
 		 * video probe control. Warn once and return, the caller will
 		 * fall back to GET_CUR.
 		 */
@@ -322,7 +327,8 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		ctrl->bMaxVersion = 0;
 	}
 
-	/* Some broken devices return null or wrong dwMaxVideoFrameSize and
+	/*
+	 * Some broken devices return null or wrong dwMaxVideoFrameSize and
 	 * dwMaxPayloadTransferSize fields. Try to get the value from the
 	 * format and frame descriptors.
 	 */
@@ -386,7 +392,8 @@ int uvc_probe_video(struct uvc_streaming *stream,
 	unsigned int i;
 	int ret;
 
-	/* Perform probing. The device should adjust the requested values
+	/*
+	 * Perform probing. The device should adjust the requested values
 	 * according to its capabilities. However, some devices, namely the
 	 * first generation UVC Logitech webcams, don't implement the Video
 	 * Probe control properly, and just return the needed bandwidth. For
@@ -493,7 +500,8 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	if (len < header_size)
 		return;
 
-	/* Extract the timestamps:
+	/*
+	 * Extract the timestamps:
 	 *
 	 * - store the frame PTS in the buffer structure
 	 * - if the SCR field is present, retrieve the host SOF counter and
@@ -506,7 +514,8 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	if (!has_scr)
 		return;
 
-	/* To limit the amount of data, drop SCRs with an SOF identical to the
+	/*
+	 * To limit the amount of data, drop SCRs with an SOF identical to the
 	 * previous one.
 	 */
 	dev_sof = get_unaligned_le16(&data[header_size - 2]);
@@ -518,7 +527,8 @@ uvc_video_clock_decode(struct uvc_streaming *stream, struct uvc_buffer *buf,
 	host_sof = usb_get_current_frame_number(stream->dev->udev);
 	time = uvc_video_get_time();
 
-	/* The UVC specification allows device implementations that can't obtain
+	/*
+	 * The UVC specification allows device implementations that can't obtain
 	 * the USB frame number to keep their own frame counters as long as they
 	 * match the size and frequency of the frame number associated with USB
 	 * SOF tokens. The SOF values sent by such devices differ from the USB
@@ -756,7 +766,8 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 	y1 = NSEC_PER_SEC;
 	y2 = (u32)ktime_to_ns(ktime_sub(last->host_time, first->host_time)) + y1;
 
-	/* Interpolated and host SOF timestamps can wrap around at slightly
+	/*
+	 * Interpolated and host SOF timestamps can wrap around at slightly
 	 * different times. Handle this by adding or removing 2048 to or from
 	 * the computed SOF value to keep it close to the SOF samples mean
 	 * value.
@@ -854,7 +865,8 @@ static void uvc_video_stats_decode(struct uvc_streaming *stream,
 		stream->stats.frame.pts = pts;
 	}
 
-	/* Do all frames have a PTS in their first non-empty packet, or before
+	/*
+	 * Do all frames have a PTS in their first non-empty packet, or before
 	 * their first empty packet ?
 	 */
 	if (stream->stats.frame.size == 0) {
@@ -945,7 +957,8 @@ size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,
 	unsigned int duration;
 	size_t count = 0;
 
-	/* Compute the SCR.SOF frequency estimate. At the nominal 1kHz SOF
+	/*
+	 * Compute the SCR.SOF frequency estimate. At the nominal 1kHz SOF
 	 * frequency this will not overflow before more than 1h.
 	 */
 	duration = ktime_ms_delta(stream->stats.stream.stop_ts,
@@ -997,7 +1010,8 @@ static void uvc_video_stats_stop(struct uvc_streaming *stream)
  * Video codecs
  */
 
-/* Video payload decoding is handled by uvc_video_decode_start(),
+/*
+ * Video payload decoding is handled by uvc_video_decode_start(),
  * uvc_video_decode_data() and uvc_video_decode_end().
  *
  * uvc_video_decode_start is called with URB data at the start of a bulk or
@@ -1037,7 +1051,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 {
 	u8 fid;
 
-	/* Sanity checks:
+	/*
+	 * Sanity checks:
 	 * - packet must be at least 2 bytes long
 	 * - bHeaderLength value must be at least 2 bytes (see above)
 	 * - bHeaderLength value can't be larger than the packet size.
@@ -1049,7 +1064,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 
 	fid = data[1] & UVC_STREAM_FID;
 
-	/* Increase the sequence number regardless of any buffer states, so
+	/*
+	 * Increase the sequence number regardless of any buffer states, so
 	 * that discontinuous sequence numbers always indicate lost frames.
 	 */
 	if (stream->last_fid != fid) {
@@ -1061,7 +1077,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	uvc_video_clock_decode(stream, buf, data, len);
 	uvc_video_stats_decode(stream, data, len);
 
-	/* Store the payload FID bit and return immediately when the buffer is
+	/*
+	 * Store the payload FID bit and return immediately when the buffer is
 	 * NULL.
 	 */
 	if (buf == NULL) {
@@ -1076,7 +1093,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 		buf->error = 1;
 	}
 
-	/* Synchronize to the input stream by waiting for the FID bit to be
+	/*
+	 * Synchronize to the input stream by waiting for the FID bit to be
 	 * toggled when the the buffer state is not UVC_BUF_STATE_ACTIVE.
 	 * stream->last_fid is initialized to -1, so the first isochronous
 	 * frame will always be in sync.
@@ -1102,7 +1120,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 		buf->state = UVC_BUF_STATE_ACTIVE;
 	}
 
-	/* Mark the buffer as done if we're at the beginning of a new frame.
+	/*
+	 * Mark the buffer as done if we're at the beginning of a new frame.
 	 * End of frame detection is better implemented by checking the EOF
 	 * bit (FID bit toggling is delayed by one frame compared to the EOF
 	 * bit), but some devices don't set the bit at end of frame (and the
@@ -1226,7 +1245,8 @@ static void uvc_video_decode_end(struct uvc_streaming *stream,
 	}
 }
 
-/* Video payload encoding is handled by uvc_video_encode_header() and
+/*
+ * Video payload encoding is handled by uvc_video_encode_header() and
  * uvc_video_encode_data(). Only bulk transfers are currently supported.
  *
  * uvc_video_encode_header is called at the start of a payload. It adds header
@@ -1450,7 +1470,8 @@ static void uvc_video_decode_bulk(struct uvc_urb *uvc_urb,
 	len = urb->actual_length;
 	stream->bulk.payload_size += len;
 
-	/* If the URB is the first of its payload, decode and save the
+	/*
+	 * If the URB is the first of its payload, decode and save the
 	 * header.
 	 */
 	if (stream->bulk.header_size == 0 && !stream->bulk.skip_payload) {
@@ -1474,7 +1495,8 @@ static void uvc_video_decode_bulk(struct uvc_urb *uvc_urb,
 		}
 	}
 
-	/* The buffer queue might have been cancelled while a bulk transfer
+	/*
+	 * The buffer queue might have been cancelled while a bulk transfer
 	 * was in progress, so we can reach here with buf equal to NULL. Make
 	 * sure buf is never dereferenced if NULL.
 	 */
@@ -1483,7 +1505,8 @@ static void uvc_video_decode_bulk(struct uvc_urb *uvc_urb,
 	if (!stream->bulk.skip_payload && buf != NULL)
 		uvc_video_decode_data(uvc_urb, buf, mem, len);
 
-	/* Detect the payload end by a URB smaller than the maximum size (or
+	/*
+	 * Detect the payload end by a URB smaller than the maximum size (or
 	 * a payload size equal to the maximum) and process the header again.
 	 */
 	if (urb->actual_length < urb->transfer_buffer_length ||
@@ -1686,7 +1709,8 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 	if (stream->urb_size)
 		return stream->urb_size / psize;
 
-	/* Compute the number of packets. Bulk endpoints might transfer UVC
+	/*
+	 * Compute the number of packets. Bulk endpoints might transfer UVC
 	 * payloads across multiple URBs.
 	 */
 	npackets = DIV_ROUND_UP(size, psize);
@@ -1975,7 +1999,8 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 		}
 	}
 
-	/* The Logitech C920 temporarily forgets that it should not be adjusting
+	/*
+	 * The Logitech C920 temporarily forgets that it should not be adjusting
 	 * Exposure Absolute during init so restore controls to stored values.
 	 */
 	if (stream->dev->quirks & UVC_QUIRK_RESTORE_CTRLS_ON_INIT)
@@ -2018,7 +2043,8 @@ int uvc_video_resume(struct uvc_streaming *stream, int reset)
 {
 	int ret;
 
-	/* If the bus has been reset on resume, set the alternate setting to 0.
+	/*
+	 * If the bus has been reset on resume, set the alternate setting to 0.
 	 * This should be the default value, but some devices crash or otherwise
 	 * misbehave if they don't receive a SET_INTERFACE request before any
 	 * other video control request.
@@ -2071,14 +2097,16 @@ int uvc_video_init(struct uvc_streaming *stream)
 
 	atomic_set(&stream->active, 0);
 
-	/* Alternate setting 0 should be the default, yet the XBox Live Vision
+	/*
+	 * Alternate setting 0 should be the default, yet the XBox Live Vision
 	 * Cam (and possibly other devices) crash or otherwise misbehave if
 	 * they don't receive a SET_INTERFACE request before any other video
 	 * control request.
 	 */
 	usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 
-	/* Set the streaming probe control with default streaming parameters
+	/*
+	 * Set the streaming probe control with default streaming parameters
 	 * retrieved from the device. Webcams that don't support GET_DEF
 	 * requests on the probe control will just keep their current streaming
 	 * parameters.
@@ -2086,7 +2114,8 @@ int uvc_video_init(struct uvc_streaming *stream)
 	if (uvc_get_video_ctrl(stream, probe, 1, UVC_GET_DEF) == 0)
 		uvc_set_video_ctrl(stream, probe, 1);
 
-	/* Initialize the streaming parameters with the probe control current
+	/*
+	 * Initialize the streaming parameters with the probe control current
 	 * value. This makes sure SET_CUR requests on the streaming commit
 	 * control will always use values retrieved from a successful GET_CUR
 	 * request on the probe control, as required by the UVC specification.
@@ -2095,7 +2124,8 @@ int uvc_video_init(struct uvc_streaming *stream)
 	if (ret < 0)
 		return ret;
 
-	/* Check if the default format descriptor exists. Use the first
+	/*
+	 * Check if the default format descriptor exists. Use the first
 	 * available format otherwise.
 	 */
 	for (i = stream->nformats; i > 0; --i) {
@@ -2110,7 +2140,8 @@ int uvc_video_init(struct uvc_streaming *stream)
 		return -EINVAL;
 	}
 
-	/* Zero bFrameIndex might be correct. Stream-based formats (including
+	/*
+	 * Zero bFrameIndex might be correct. Stream-based formats (including
 	 * MPEG-2 TS and DV) do not support frames but have a dummy frame
 	 * descriptor with bFrameIndex set to zero. If the default frame
 	 * descriptor is not found, use the first available frame.
@@ -2187,7 +2218,8 @@ void uvc_video_stop_streaming(struct uvc_streaming *stream)
 	if (stream->intf->num_altsetting > 1) {
 		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 	} else {
-		/* UVC doesn't specify how to inform a bulk-based device
+		/*
+		 * UVC doesn't specify how to inform a bulk-based device
 		 * when the video stream is stopped. Windows sends a
 		 * CLEAR_FEATURE(HALT) request to the video streaming
 		 * bulk endpoint, mimic the same behaviour.

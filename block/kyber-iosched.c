@@ -195,9 +195,9 @@ struct kyber_hctx_data {
 static int kyber_domain_wake(wait_queue_entry_t *wait, unsigned mode, int flags,
 			     void *key);
 
-static unsigned int kyber_sched_domain(unsigned int op)
+static unsigned int kyber_sched_domain(blk_opf_t opf)
 {
-	switch (op & REQ_OP_MASK) {
+	switch (opf & REQ_OP_MASK) {
 	case REQ_OP_READ:
 		return KYBER_READ;
 	case REQ_OP_WRITE:
@@ -553,13 +553,13 @@ static void rq_clear_domain_token(struct kyber_queue_data *kqd,
 	}
 }
 
-static void kyber_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
+static void kyber_limit_depth(blk_opf_t opf, struct blk_mq_alloc_data *data)
 {
 	/*
 	 * We use the scheduler tags as per-hardware queue queueing tokens.
 	 * Async requests can be limited at this stage.
 	 */
-	if (!op_is_sync(op)) {
+	if (!op_is_sync(opf)) {
 		struct kyber_queue_data *kqd = data->q->elevator->elevator_data;
 
 		data->shallow_depth = kqd->async_depth;

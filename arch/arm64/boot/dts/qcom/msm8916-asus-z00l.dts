@@ -28,14 +28,14 @@
 
 		label = "GPIO Buttons";
 
-		volume-up {
+		button-volume-up {
 			label = "Volume Up";
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <15>;
 		};
 
-		volume-down {
+		button-volume-down {
 			label = "Volume Down";
 			gpios = <&msmgpio 117 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;

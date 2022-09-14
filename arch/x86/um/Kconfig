@@ -32,12 +32,12 @@ config 3_LEVEL_PGTABLES
 	bool "Three-level pagetables" if !64BIT
 	default 64BIT
 	help
-	Three-level pagetables will let UML have more than 4G of physical
-	memory.  All the memory that can't be mapped directly will be treated
-	as high memory.
+	  Three-level pagetables will let UML have more than 4G of physical
+	  memory.  All the memory that can't be mapped directly will be treated
+	  as high memory.
 
-	However, this it experimental on 32-bit architectures, so if unsure say
-	N (on x86-64 it's automatically enabled, instead, as it's safe there).
+	  However, this it experimental on 32-bit architectures, so if unsure say
+	  N (on x86-64 it's automatically enabled, instead, as it's safe there).
 
 config ARCH_HAS_SC_SIGNALS
 	def_bool !64BIT

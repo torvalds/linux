@@ -203,7 +203,7 @@ this documentation.
    The :c:func:`validate` method should mask the supplied supported mask,
    and ``state->advertising`` with the supported ethtool link modes.
    These are the new ethtool link modes, so bitmask operations must be
-   used. For an example, see drivers/net/ethernet/marvell/mvneta.c.
+   used. For an example, see ``drivers/net/ethernet/marvell/mvneta.c``.
 
    The :c:func:`mac_link_state` method is used to read the link state
    from the MAC, and report back the settings that the MAC is currently
@@ -224,7 +224,7 @@ this documentation.
    function should modify the state and only take the link down when
    absolutely necessary to change the MAC configuration.  An example
    of how to do this can be found in :c:func:`mvneta_mac_config` in
-   drivers/net/ethernet/marvell/mvneta.c.
+   ``drivers/net/ethernet/marvell/mvneta.c``.
 
    For further information on these methods, please see the inline
    documentation in :c:type:`struct phylink_mac_ops <phylink_mac_ops>`.
@@ -281,4 +281,4 @@ as necessary.
 
 For information describing the SFP cage in DT, please see the binding
 documentation in the kernel source tree
-``Documentation/devicetree/bindings/net/sff,sfp.txt``
+``Documentation/devicetree/bindings/net/sff,sfp.yaml``.

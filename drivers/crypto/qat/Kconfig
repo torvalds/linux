@@ -17,7 +17,7 @@ config CRYPTO_DEV_QAT
 
 config CRYPTO_DEV_QAT_DH895xCC
 	tristate "Support for Intel(R) DH895xCC"
-	depends on X86 && PCI
+	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
 	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Technology
@@ -28,7 +28,7 @@ config CRYPTO_DEV_QAT_DH895xCC
 
 config CRYPTO_DEV_QAT_C3XXX
 	tristate "Support for Intel(R) C3XXX"
-	depends on X86 && PCI
+	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
 	  Support for Intel(R) C3xxx with Intel(R) QuickAssist Technology
@@ -39,7 +39,7 @@ config CRYPTO_DEV_QAT_C3XXX
 
 config CRYPTO_DEV_QAT_C62X
 	tristate "Support for Intel(R) C62X"
-	depends on X86 && PCI
+	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
 	  Support for Intel(R) C62x with Intel(R) QuickAssist Technology
@@ -50,7 +50,7 @@ config CRYPTO_DEV_QAT_C62X
 
 config CRYPTO_DEV_QAT_4XXX
 	tristate "Support for Intel(R) QAT_4XXX"
-	depends on X86 && PCI
+	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select CRYPTO_DEV_QAT
 	help
 	  Support for Intel(R) QuickAssist Technology QAT_4xxx
@@ -61,7 +61,7 @@ config CRYPTO_DEV_QAT_4XXX
 
 config CRYPTO_DEV_QAT_DH895xCCVF
 	tristate "Support for Intel(R) DH895xCC Virtual Function"
-	depends on X86 && PCI
+	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select PCI_IOV
 	select CRYPTO_DEV_QAT
 
@@ -74,7 +74,7 @@ config CRYPTO_DEV_QAT_DH895xCCVF
 
 config CRYPTO_DEV_QAT_C3XXXVF
 	tristate "Support for Intel(R) C3XXX Virtual Function"
-	depends on X86 && PCI
+	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help
@@ -86,7 +86,7 @@ config CRYPTO_DEV_QAT_C3XXXVF
 
 config CRYPTO_DEV_QAT_C62XVF
 	tristate "Support for Intel(R) C62X Virtual Function"
-	depends on X86 && PCI
+	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
 	select PCI_IOV
 	select CRYPTO_DEV_QAT
 	help

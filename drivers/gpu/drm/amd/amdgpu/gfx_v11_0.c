@@ -53,9 +53,12 @@
 #define GFX11_MEC_HPD_SIZE	2048
 
 #define RLCG_UCODE_LOADING_START_ADDRESS	0x00002000L
+#define RLC_PG_DELAY_3_DEFAULT_GC_11_0_1	0x1388
 
 #define regCGTT_WD_CLK_CTRL		0x5086
 #define regCGTT_WD_CLK_CTRL_BASE_IDX	1
+#define regRLC_RLCS_BOOTLOAD_STATUS_gc_11_0_1	0x4e7e
+#define regRLC_RLCS_BOOTLOAD_STATUS_gc_11_0_1_BASE_IDX	1
 
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_me.bin");
@@ -70,21 +73,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_2_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_rlc.bin");
-
-static const struct soc15_reg_golden golden_settings_gc_11_0[] =
-{
-	/* Pending on emulation bring up */
-};
-
-static const struct soc15_reg_golden golden_settings_gc_11_0_0[] =
-{
-	/* Pending on emulation bring up */
-};
-
-static const struct soc15_reg_golden golden_settings_gc_rlc_spm_11_0[] =
-{
-	/* Pending on emulation bring up */
-};
+MODULE_FIRMWARE("amdgpu/gc_11_0_3_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_3_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_3_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_3_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
 {
@@ -128,6 +120,8 @@ static void gfx_v11_0_ring_invalidate_tlbs(struct amdgpu_ring *ring,
 					   bool all_hub, uint8_t dst_sel);
 static void gfx_v11_0_set_safe_mode(struct amdgpu_device *adev);
 static void gfx_v11_0_unset_safe_mode(struct amdgpu_device *adev);
+static void gfx_v11_0_update_perf_clk(struct amdgpu_device *adev,
+				      bool enable);
 
 static void gfx11_kiq_set_resources(struct amdgpu_ring *kiq_ring, uint64_t queue_mask)
 {
@@ -264,34 +258,10 @@ static void gfx_v11_0_set_kiq_pm4_funcs(struct amdgpu_device *adev)
 	adev->gfx.kiq.pmf = &gfx_v11_0_kiq_pm4_funcs;
 }
 
-static void gfx_v11_0_init_spm_golden_registers(struct amdgpu_device *adev)
-{
-	switch (adev->ip_versions[GC_HWIP][0]) {
-	case IP_VERSION(11, 0, 0):
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_rlc_spm_11_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_rlc_spm_11_0));
-		break;
-	default:
-		break;
-	}
-}
-
 static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[GC_HWIP][0]) {
-	case IP_VERSION(11, 0, 0):
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_11_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_11_0));
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_11_0_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_0));
-		break;
 	case IP_VERSION(11, 0, 1):
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_11_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_11_0));
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_11_0_1,
 						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_1));
@@ -299,7 +269,6 @@ static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-	gfx_v11_0_init_spm_golden_registers(adev);
 }
 
 static void gfx_v11_0_write_data_to_reg(struct amdgpu_ring *ring, int eng_sel,
@@ -1135,7 +1104,7 @@ static const struct amdgpu_gfx_funcs gfx_v11_0_gfx_funcs = {
 	.read_wave_sgprs = &gfx_v11_0_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v11_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v11_0_select_me_pipe_q,
-	.init_spm_golden = &gfx_v11_0_init_spm_golden_registers,
+	.update_perfmon_mgcg = &gfx_v11_0_update_perf_clk,
 };
 
 static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
@@ -1145,6 +1114,7 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 3):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -1580,6 +1550,7 @@ static int gfx_v11_0_sw_init(void *handle)
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 3):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
@@ -2754,6 +2725,21 @@ static void gfx_v11_0_config_gfx_rs64(struct amdgpu_device *adev)
 					mec_hdr->ucode_start_addr_hi >> 2);
 	}
 	soc21_grbm_select(adev, 0, 0, 0, 0);
+
+	/* reset mec pipe */
+	tmp = RREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE0_RESET, 1);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE1_RESET, 1);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE2_RESET, 1);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE3_RESET, 1);
+	WREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL, tmp);
+
+	/* clear mec pipe reset */
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE0_RESET, 0);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE1_RESET, 0);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE2_RESET, 0);
+	tmp = REG_SET_FIELD(tmp, CP_MEC_RS64_CNTL, MEC_PIPE3_RESET, 0);
+	WREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL, tmp);
 }
 
 static int gfx_v11_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
@@ -2765,7 +2751,13 @@ static int gfx_v11_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		cp_status = RREG32_SOC15(GC, 0, regCP_STAT);
-		bootload_status = RREG32_SOC15(GC, 0, regRLC_RLCS_BOOTLOAD_STATUS);
+
+		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 1))
+			bootload_status = RREG32_SOC15(GC, 0,
+					regRLC_RLCS_BOOTLOAD_STATUS_gc_11_0_1);
+		else
+			bootload_status = RREG32_SOC15(GC, 0, regRLC_RLCS_BOOTLOAD_STATUS);
+
 		if ((cp_status == 0) &&
 		    (REG_GET_FIELD(bootload_status,
 			RLC_RLCS_BOOTLOAD_STATUS, BOOTLOAD_COMPLETE) == 1)) {
@@ -5173,9 +5165,12 @@ static void gfx_v11_0_update_coarse_grain_clock_gating(struct amdgpu_device *ade
 		data = REG_SET_FIELD(data, SDMA0_RLC_CGCG_CTRL, CGCG_INT_ENABLE, 1);
 		WREG32_SOC15(GC, 0, regSDMA0_RLC_CGCG_CTRL, data);
 
-		data = RREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL);
-		data = REG_SET_FIELD(data, SDMA1_RLC_CGCG_CTRL, CGCG_INT_ENABLE, 1);
-		WREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL, data);
+		/* Some ASICs only have one SDMA instance, not need to configure SDMA1 */
+		if (adev->sdma.num_instances > 1) {
+			data = RREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL);
+			data = REG_SET_FIELD(data, SDMA1_RLC_CGCG_CTRL, CGCG_INT_ENABLE, 1);
+			WREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL, data);
+		}
 	} else {
 		/* Program RLC_CGCG_CGLS_CTRL */
 		def = data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL);
@@ -5204,9 +5199,12 @@ static void gfx_v11_0_update_coarse_grain_clock_gating(struct amdgpu_device *ade
 		data &= ~SDMA0_RLC_CGCG_CTRL__CGCG_INT_ENABLE_MASK;
 		WREG32_SOC15(GC, 0, regSDMA0_RLC_CGCG_CTRL, data);
 
-		data = RREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL);
-		data &= ~SDMA1_RLC_CGCG_CTRL__CGCG_INT_ENABLE_MASK;
-		WREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL, data);
+		/* Some ASICs only have one SDMA instance, not need to configure SDMA1 */
+		if (adev->sdma.num_instances > 1) {
+			data = RREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL);
+			data &= ~SDMA1_RLC_CGCG_CTRL__CGCG_INT_ENABLE_MASK;
+			WREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL, data);
+		}
 	}
 }
 
@@ -5271,6 +5269,38 @@ static const struct amdgpu_rlc_funcs gfx_v11_0_rlc_funcs = {
 	.update_spm_vmid = gfx_v11_0_update_spm_vmid,
 };
 
+static void gfx_v11_cntl_power_gating(struct amdgpu_device *adev, bool enable)
+{
+	u32 data = RREG32_SOC15(GC, 0, regRLC_PG_CNTL);
+
+	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG))
+		data |= RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
+	else
+		data &= ~RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
+
+	WREG32_SOC15(GC, 0, regRLC_PG_CNTL, data);
+
+	// Program RLC_PG_DELAY3 for CGPG hysteresis
+	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)) {
+		switch (adev->ip_versions[GC_HWIP][0]) {
+		case IP_VERSION(11, 0, 1):
+			WREG32_SOC15(GC, 0, regRLC_PG_DELAY_3, RLC_PG_DELAY_3_DEFAULT_GC_11_0_1);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void gfx_v11_cntl_pg(struct amdgpu_device *adev, bool enable)
+{
+	amdgpu_gfx_rlc_enter_safe_mode(adev);
+
+	gfx_v11_cntl_power_gating(adev, enable);
+
+	amdgpu_gfx_rlc_exit_safe_mode(adev);
+}
+
 static int gfx_v11_0_set_powergating_state(void *handle,
 					   enum amd_powergating_state state)
 {
@@ -5283,6 +5313,10 @@ static int gfx_v11_0_set_powergating_state(void *handle,
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 2):
+		amdgpu_gfx_off_ctrl(adev, enable);
+		break;
+	case IP_VERSION(11, 0, 1):
+		gfx_v11_cntl_pg(adev, enable);
 		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
 	default:
@@ -5302,6 +5336,7 @@ static int gfx_v11_0_set_clockgating_state(void *handle,
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):
 	        gfx_v11_0_update_gfx_clock_gating(adev,
 	                        state ==  AMD_CG_STATE_GATE);

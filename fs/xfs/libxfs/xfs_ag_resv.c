@@ -322,7 +322,7 @@ out:
 	 * address.
 	 */
 	if (has_resv) {
-		error2 = xfs_alloc_pagf_init(mp, tp, pag->pag_agno, 0);
+		error2 = xfs_alloc_read_agf(pag, tp, 0, NULL);
 		if (error2)
 			return error2;
 

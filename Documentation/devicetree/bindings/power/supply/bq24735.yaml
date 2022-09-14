@@ -2,8 +2,8 @@
 # Copyright (C) 2021 Sebastian Reichel
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/power/supply/bq24735.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/power/supply/bq24735.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Binding for TI BQ24735 Li-Ion Battery Charger
 

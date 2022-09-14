@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/pci-doe.h>
 #include <cxlpci.h>
 #include <cxlmem.h>
 #include <cxl.h>
@@ -225,7 +226,6 @@ static int dvsec_range_allowed(struct device *dev, void *arg)
 {
 	struct range *dev_range = arg;
 	struct cxl_decoder *cxld;
-	struct range root_range;
 
 	if (!is_root_decoder(dev))
 		return 0;
@@ -237,12 +237,7 @@ static int dvsec_range_allowed(struct device *dev, void *arg)
 	if (!(cxld->flags & CXL_DECODER_F_RAM))
 		return 0;
 
-	root_range = (struct range) {
-		.start = cxld->platform_res.start,
-		.end = cxld->platform_res.end,
-	};
-
-	return range_contains(&root_range, dev_range);
+	return range_contains(&cxld->hpa_range, dev_range);
 }
 
 static void disable_hdm(void *_cxlhdm)
@@ -458,3 +453,175 @@ hdm_init:
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_hdm_decode_init, CXL);
+
+#define CXL_DOE_TABLE_ACCESS_REQ_CODE		0x000000ff
+#define   CXL_DOE_TABLE_ACCESS_REQ_CODE_READ	0
+#define CXL_DOE_TABLE_ACCESS_TABLE_TYPE		0x0000ff00
+#define   CXL_DOE_TABLE_ACCESS_TABLE_TYPE_CDATA	0
+#define CXL_DOE_TABLE_ACCESS_ENTRY_HANDLE	0xffff0000
+#define CXL_DOE_TABLE_ACCESS_LAST_ENTRY		0xffff
+#define CXL_DOE_PROTOCOL_TABLE_ACCESS 2
+
+static struct pci_doe_mb *find_cdat_doe(struct device *uport)
+{
+	struct cxl_memdev *cxlmd;
+	struct cxl_dev_state *cxlds;
+	unsigned long index;
+	void *entry;
+
+	cxlmd = to_cxl_memdev(uport);
+	cxlds = cxlmd->cxlds;
+
+	xa_for_each(&cxlds->doe_mbs, index, entry) {
+		struct pci_doe_mb *cur = entry;
+
+		if (pci_doe_supports_prot(cur, PCI_DVSEC_VENDOR_ID_CXL,
+					  CXL_DOE_PROTOCOL_TABLE_ACCESS))
+			return cur;
+	}
+
+	return NULL;
+}
+
+#define CDAT_DOE_REQ(entry_handle)					\
+	(FIELD_PREP(CXL_DOE_TABLE_ACCESS_REQ_CODE,			\
+		    CXL_DOE_TABLE_ACCESS_REQ_CODE_READ) |		\
+	 FIELD_PREP(CXL_DOE_TABLE_ACCESS_TABLE_TYPE,			\
+		    CXL_DOE_TABLE_ACCESS_TABLE_TYPE_CDATA) |		\
+	 FIELD_PREP(CXL_DOE_TABLE_ACCESS_ENTRY_HANDLE, (entry_handle)))
+
+static void cxl_doe_task_complete(struct pci_doe_task *task)
+{
+	complete(task->private);
+}
+
+struct cdat_doe_task {
+	u32 request_pl;
+	u32 response_pl[32];
+	struct completion c;
+	struct pci_doe_task task;
+};
+
+#define DECLARE_CDAT_DOE_TASK(req, cdt)                       \
+struct cdat_doe_task cdt = {                                  \
+	.c = COMPLETION_INITIALIZER_ONSTACK(cdt.c),           \
+	.request_pl = req,				      \
+	.task = {                                             \
+		.prot.vid = PCI_DVSEC_VENDOR_ID_CXL,        \
+		.prot.type = CXL_DOE_PROTOCOL_TABLE_ACCESS, \
+		.request_pl = &cdt.request_pl,                \
+		.request_pl_sz = sizeof(cdt.request_pl),      \
+		.response_pl = cdt.response_pl,               \
+		.response_pl_sz = sizeof(cdt.response_pl),    \
+		.complete = cxl_doe_task_complete,            \
+		.private = &cdt.c,                            \
+	}                                                     \
+}
+
+static int cxl_cdat_get_length(struct device *dev,
+			       struct pci_doe_mb *cdat_doe,
+			       size_t *length)
+{
+	DECLARE_CDAT_DOE_TASK(CDAT_DOE_REQ(0), t);
+	int rc;
+
+	rc = pci_doe_submit_task(cdat_doe, &t.task);
+	if (rc < 0) {
+		dev_err(dev, "DOE submit failed: %d", rc);
+		return rc;
+	}
+	wait_for_completion(&t.c);
+	if (t.task.rv < sizeof(u32))
+		return -EIO;
+
+	*length = t.response_pl[1];
+	dev_dbg(dev, "CDAT length %zu\n", *length);
+
+	return 0;
+}
+
+static int cxl_cdat_read_table(struct device *dev,
+			       struct pci_doe_mb *cdat_doe,
+			       struct cxl_cdat *cdat)
+{
+	size_t length = cdat->length;
+	u32 *data = cdat->table;
+	int entry_handle = 0;
+
+	do {
+		DECLARE_CDAT_DOE_TASK(CDAT_DOE_REQ(entry_handle), t);
+		size_t entry_dw;
+		u32 *entry;
+		int rc;
+
+		rc = pci_doe_submit_task(cdat_doe, &t.task);
+		if (rc < 0) {
+			dev_err(dev, "DOE submit failed: %d", rc);
+			return rc;
+		}
+		wait_for_completion(&t.c);
+		/* 1 DW header + 1 DW data min */
+		if (t.task.rv < (2 * sizeof(u32)))
+			return -EIO;
+
+		/* Get the CXL table access header entry handle */
+		entry_handle = FIELD_GET(CXL_DOE_TABLE_ACCESS_ENTRY_HANDLE,
+					 t.response_pl[0]);
+		entry = t.response_pl + 1;
+		entry_dw = t.task.rv / sizeof(u32);
+		/* Skip Header */
+		entry_dw -= 1;
+		entry_dw = min(length / sizeof(u32), entry_dw);
+		/* Prevent length < 1 DW from causing a buffer overflow */
+		if (entry_dw) {
+			memcpy(data, entry, entry_dw * sizeof(u32));
+			length -= entry_dw * sizeof(u32);
+			data += entry_dw;
+		}
+	} while (entry_handle != CXL_DOE_TABLE_ACCESS_LAST_ENTRY);
+
+	return 0;
+}
+
+/**
+ * read_cdat_data - Read the CDAT data on this port
+ * @port: Port to read data from
+ *
+ * This call will sleep waiting for responses from the DOE mailbox.
+ */
+void read_cdat_data(struct cxl_port *port)
+{
+	struct pci_doe_mb *cdat_doe;
+	struct device *dev = &port->dev;
+	struct device *uport = port->uport;
+	size_t cdat_length;
+	int rc;
+
+	cdat_doe = find_cdat_doe(uport);
+	if (!cdat_doe) {
+		dev_dbg(dev, "No CDAT mailbox\n");
+		return;
+	}
+
+	port->cdat_available = true;
+
+	if (cxl_cdat_get_length(dev, cdat_doe, &cdat_length)) {
+		dev_dbg(dev, "No CDAT length\n");
+		return;
+	}
+
+	port->cdat.table = devm_kzalloc(dev, cdat_length, GFP_KERNEL);
+	if (!port->cdat.table)
+		return;
+
+	port->cdat.length = cdat_length;
+	rc = cxl_cdat_read_table(dev, cdat_doe, &port->cdat);
+	if (rc) {
+		/* Don't leave table data allocated on error */
+		devm_kfree(dev, port->cdat.table);
+		port->cdat.table = NULL;
+		port->cdat.length = 0;
+		dev_err(dev, "CDAT data read error\n");
+	}
+}
+EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);

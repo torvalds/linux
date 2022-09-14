@@ -1233,7 +1233,8 @@ static int mes_v10_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_mes_self_test(adev);
+	if (!amdgpu_in_reset(adev))
+		amdgpu_mes_self_test(adev);
 
 	return 0;
 }

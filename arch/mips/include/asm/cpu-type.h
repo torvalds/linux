@@ -105,17 +105,6 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_R3081E:
 #endif
 
-#ifdef CONFIG_SYS_HAS_CPU_VR41XX
-	case CPU_VR41XX:
-	case CPU_VR4111:
-	case CPU_VR4121:
-	case CPU_VR4122:
-	case CPU_VR4131:
-	case CPU_VR4133:
-	case CPU_VR4181:
-	case CPU_VR4181A:
-#endif
-
 #ifdef CONFIG_SYS_HAS_CPU_R4300
 	case CPU_R4300:
 	case CPU_R4310:

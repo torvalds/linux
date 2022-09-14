@@ -11,6 +11,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
+#include <linux/ima.h>
 #include <linux/init_ohci1394_dma.h>
 #include <linux/initrd.h>
 #include <linux/iscsi_ibft.h>
@@ -23,6 +24,7 @@
 #include <linux/usb/xhci-dbgp.h>
 #include <linux/static_call.h>
 #include <linux/swiotlb.h>
+#include <linux/random.h>
 
 #include <uapi/linux/mount.h>
 
@@ -138,6 +140,11 @@ EXPORT_SYMBOL(boot_cpu_data);
 __visible unsigned long mmu_cr4_features __ro_after_init;
 #else
 __visible unsigned long mmu_cr4_features __ro_after_init = X86_CR4_PAE;
+#endif
+
+#ifdef CONFIG_IMA
+static phys_addr_t ima_kexec_buffer_phys;
+static size_t ima_kexec_buffer_size;
 #endif
 
 /* Boot loader ID and version as integers, for the benefit of proc_dointvec */
@@ -330,6 +337,60 @@ static void __init reserve_initrd(void)
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
 
+static void __init add_early_ima_buffer(u64 phys_addr)
+{
+#ifdef CONFIG_IMA
+	struct ima_setup_data *data;
+
+	data = early_memremap(phys_addr + sizeof(struct setup_data), sizeof(*data));
+	if (!data) {
+		pr_warn("setup: failed to memremap ima_setup_data entry\n");
+		return;
+	}
+
+	if (data->size) {
+		memblock_reserve(data->addr, data->size);
+		ima_kexec_buffer_phys = data->addr;
+		ima_kexec_buffer_size = data->size;
+	}
+
+	early_memunmap(data, sizeof(*data));
+#else
+	pr_warn("Passed IMA kexec data, but CONFIG_IMA not set. Ignoring.\n");
+#endif
+}
+
+#if defined(CONFIG_HAVE_IMA_KEXEC) && !defined(CONFIG_OF_FLATTREE)
+int __init ima_free_kexec_buffer(void)
+{
+	int rc;
+
+	if (!ima_kexec_buffer_size)
+		return -ENOENT;
+
+	rc = memblock_phys_free(ima_kexec_buffer_phys,
+				ima_kexec_buffer_size);
+	if (rc)
+		return rc;
+
+	ima_kexec_buffer_phys = 0;
+	ima_kexec_buffer_size = 0;
+
+	return 0;
+}
+
+int __init ima_get_kexec_buffer(void **addr, size_t *size)
+{
+	if (!ima_kexec_buffer_size)
+		return -ENOENT;
+
+	*addr = __va(ima_kexec_buffer_phys);
+	*size = ima_kexec_buffer_size;
+
+	return 0;
+}
+#endif
+
 static void __init parse_setup_data(void)
 {
 	struct setup_data *data;
@@ -354,6 +415,18 @@ static void __init parse_setup_data(void)
 			break;
 		case SETUP_EFI:
 			parse_efi_setup(pa_data, data_len);
+			break;
+		case SETUP_IMA:
+			add_early_ima_buffer(pa_data);
+			break;
+		case SETUP_RNG_SEED:
+			data = early_memremap(pa_data, data_len);
+			add_bootloader_randomness(data->data, data->len);
+			/* Zero seed for forward secrecy. */
+			memzero_explicit(data->data, data->len);
+			/* Zero length in case we find ourselves back here by accident. */
+			memzero_explicit(&data->len, sizeof(data->len));
+			early_memunmap(data, data_len);
 			break;
 		default:
 			break;

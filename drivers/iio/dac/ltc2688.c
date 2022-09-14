@@ -91,10 +91,10 @@ struct ltc2688_state {
 	struct mutex lock;
 	int vref;
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	u8 tx_data[6] ____cacheline_aligned;
+	u8 tx_data[6] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_data[3];
 };
 

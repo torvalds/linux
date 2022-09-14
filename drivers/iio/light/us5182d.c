@@ -907,16 +907,21 @@ out_err:
 static int us5182d_remove(struct i2c_client *client)
 {
 	struct us5182d_data *data = iio_priv(i2c_get_clientdata(client));
+	int ret;
 
 	iio_device_unregister(i2c_get_clientdata(client));
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+	ret = us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+	if (ret)
+		dev_warn(&client->dev, "Failed to shut down (%pe)\n",
+			 ERR_PTR(ret));
+
+	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM)
 static int us5182d_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -939,11 +944,10 @@ static int us5182d_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops us5182d_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(us5182d_suspend, us5182d_resume)
-	SET_RUNTIME_PM_OPS(us5182d_suspend, us5182d_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(us5182d_suspend, us5182d_resume)
+	RUNTIME_PM_OPS(us5182d_suspend, us5182d_resume, NULL)
 };
 
 static const struct acpi_device_id us5182d_acpi_match[] = {
@@ -969,7 +973,7 @@ MODULE_DEVICE_TABLE(of, us5182d_of_match);
 static struct i2c_driver us5182d_driver = {
 	.driver = {
 		.name = US5182D_DRV_NAME,
-		.pm = &us5182d_pm_ops,
+		.pm = pm_ptr(&us5182d_pm_ops),
 		.of_match_table = us5182d_of_match,
 		.acpi_match_table = ACPI_PTR(us5182d_acpi_match),
 	},

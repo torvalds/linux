@@ -344,6 +344,7 @@ static int dsa_switch_do_lag_fdb_add(struct dsa_switch *ds, struct dsa_lag *lag,
 
 	ether_addr_copy(a->addr, addr);
 	a->vid = vid;
+	a->db = db;
 	refcount_set(&a->refcount, 1);
 	list_add_tail(&a->list, &lag->fdbs);
 

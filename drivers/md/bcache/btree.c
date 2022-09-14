@@ -812,7 +812,7 @@ int bch_btree_cache_alloc(struct cache_set *c)
 	c->shrink.seeks = 4;
 	c->shrink.batch = c->btree_pages * 2;
 
-	if (register_shrinker(&c->shrink))
+	if (register_shrinker(&c->shrink, "md-bcache:%pU", c->set_uuid))
 		pr_warn("bcache: %s: could not register shrinker\n",
 				__func__);
 

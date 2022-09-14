@@ -69,22 +69,24 @@ class SystemValues(aslib.SystemValues):
 	bootloader = 'grub'
 	blexec = []
 	def __init__(self):
-		self.hostname = platform.node()
+		self.kernel, self.hostname = 'unknown', platform.node()
 		self.testtime = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 		if os.path.exists('/proc/version'):
 			fp = open('/proc/version', 'r')
-			val = fp.read().strip()
+			self.kernel = self.kernelVersion(fp.read().strip())
 			fp.close()
-			self.kernel = self.kernelVersion(val)
-		else:
-			self.kernel = 'unknown'
 		self.testdir = datetime.now().strftime('boot-%y%m%d-%H%M%S')
 	def kernelVersion(self, msg):
-		return msg.split()[2]
+		m = re.match('^[Ll]inux *[Vv]ersion *(?P<v>\S*) .*', msg)
+		if m:
+			return m.group('v')
+		return 'unknown'
 	def checkFtraceKernelVersion(self):
-		val = tuple(map(int, self.kernel.split('-')[0].split('.')))
-		if val >= (4, 10, 0):
-			return True
+		m = re.match('^(?P<x>[0-9]*)\.(?P<y>[0-9]*)\.(?P<z>[0-9]*).*', self.kernel)
+		if m:
+			val = tuple(map(int, m.groups()))
+			if val >= (4, 10, 0):
+				return True
 		return False
 	def kernelParams(self):
 		cmdline = 'initcall_debug log_buf_len=32M'

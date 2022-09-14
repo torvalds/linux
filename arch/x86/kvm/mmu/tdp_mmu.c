@@ -425,7 +425,7 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 
 	tdp_mmu_unlink_sp(kvm, sp, shared);
 
-	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
+	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
 		tdp_ptep_t sptep = pt + i;
 		gfn_t gfn = base_gfn + i * KVM_PAGES_PER_HPAGE(level);
 		u64 old_spte;
@@ -633,7 +633,6 @@ static inline int tdp_mmu_set_spte_atomic(struct kvm *kvm,
 					  u64 new_spte)
 {
 	u64 *sptep = rcu_dereference(iter->sptep);
-	u64 old_spte;
 
 	/*
 	 * The caller is responsible for ensuring the old SPTE is not a REMOVED
@@ -649,17 +648,8 @@ static inline int tdp_mmu_set_spte_atomic(struct kvm *kvm,
 	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
 	 * does not hold the mmu_lock.
 	 */
-	old_spte = cmpxchg64(sptep, iter->old_spte, new_spte);
-	if (old_spte != iter->old_spte) {
-		/*
-		 * The page table entry was modified by a different logical
-		 * CPU. Refresh iter->old_spte with the current value so the
-		 * caller operates on fresh data, e.g. if it retries
-		 * tdp_mmu_set_spte_atomic().
-		 */
-		iter->old_spte = old_spte;
+	if (!try_cmpxchg64(sptep, &iter->old_spte, new_spte))
 		return -EBUSY;
-	}
 
 	__handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
 			      new_spte, iter->level, true);
@@ -934,9 +924,6 @@ bool kvm_tdp_mmu_zap_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 }
 
 /*
- * Zap leafs SPTEs for the range of gfns, [start, end). Returns true if SPTEs
- * have been cleared and a TLB flush is needed before releasing the MMU lock.
- *
  * If can_yield is true, will release the MMU lock and reschedule if the
  * scheduler needs the CPU or there is contention on the MMU lock. If this
  * function cannot yield, it will not release the MMU lock or reschedule and
@@ -979,10 +966,9 @@ static bool tdp_mmu_zap_leafs(struct kvm *kvm, struct kvm_mmu_page *root,
 }
 
 /*
- * Tears down the mappings for the range of gfns, [start, end), and frees the
- * non-root pages mapping GFNs strictly within that range. Returns true if
- * SPTEs have been cleared and a TLB flush is needed before releasing the
- * MMU lock.
+ * Zap leaf SPTEs for the range of gfns, [start, end), for all roots. Returns
+ * true if a TLB flush is needed before releasing the MMU lock, i.e. if one or
+ * more SPTEs were zapped since the MMU lock was last acquired.
  */
 bool kvm_tdp_mmu_zap_leafs(struct kvm *kvm, int as_id, gfn_t start, gfn_t end,
 			   bool can_yield, bool flush)
@@ -1487,8 +1473,8 @@ static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
 	 * No need for atomics when writing to sp->spt since the page table has
 	 * not been linked in yet and thus is not reachable from any other CPU.
 	 */
-	for (i = 0; i < PT64_ENT_PER_PAGE; i++)
-		sp->spt[i] = make_huge_page_split_spte(huge_spte, level, i);
+	for (i = 0; i < SPTE_ENT_PER_PAGE; i++)
+		sp->spt[i] = make_huge_page_split_spte(kvm, huge_spte, sp->role, i);
 
 	/*
 	 * Replace the huge spte with a pointer to the populated lower level
@@ -1507,7 +1493,7 @@ static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
 	 * are overwriting from the page stats. But we have to manually update
 	 * the page stats with the new present child pages.
 	 */
-	kvm_update_page_stats(kvm, level - 1, PT64_ENT_PER_PAGE);
+	kvm_update_page_stats(kvm, level - 1, SPTE_ENT_PER_PAGE);
 
 out:
 	trace_kvm_mmu_split_huge_page(iter->gfn, huge_spte, level, ret);
@@ -1731,10 +1717,6 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 		clear_dirty_pt_masked(kvm, root, gfn, mask, wrprot);
 }
 
-/*
- * Clear leaf entries which could be replaced by large mappings, for
- * GFNs within the slot.
- */
 static void zap_collapsible_spte_range(struct kvm *kvm,
 				       struct kvm_mmu_page *root,
 				       const struct kvm_memory_slot *slot)
@@ -1743,61 +1725,52 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 	gfn_t end = start + slot->npages;
 	struct tdp_iter iter;
 	int max_mapping_level;
-	kvm_pfn_t pfn;
 
 	rcu_read_lock();
 
-	tdp_root_for_each_pte(iter, root, start, end) {
+	for_each_tdp_pte_min_level(iter, root, PG_LEVEL_2M, start, end) {
+retry:
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, true))
 			continue;
 
-		if (!is_shadow_present_pte(iter.old_spte) ||
-		    !is_last_spte(iter.old_spte, iter.level))
+		if (iter.level > KVM_MAX_HUGEPAGE_LEVEL ||
+		    !is_shadow_present_pte(iter.old_spte))
 			continue;
 
 		/*
-		 * This is a leaf SPTE. Check if the PFN it maps can
-		 * be mapped at a higher level.
+		 * Don't zap leaf SPTEs, if a leaf SPTE could be replaced with
+		 * a large page size, then its parent would have been zapped
+		 * instead of stepping down.
 		 */
-		pfn = spte_to_pfn(iter.old_spte);
+		if (is_last_spte(iter.old_spte, iter.level))
+			continue;
 
-		if (kvm_is_reserved_pfn(pfn))
+		/*
+		 * If iter.gfn resides outside of the slot, i.e. the page for
+		 * the current level overlaps but is not contained by the slot,
+		 * then the SPTE can't be made huge.  More importantly, trying
+		 * to query that info from slot->arch.lpage_info will cause an
+		 * out-of-bounds access.
+		 */
+		if (iter.gfn < start || iter.gfn >= end)
 			continue;
 
 		max_mapping_level = kvm_mmu_max_mapping_level(kvm, slot,
-				iter.gfn, pfn, PG_LEVEL_NUM);
-
-		WARN_ON(max_mapping_level < iter.level);
-
-		/*
-		 * If this page is already mapped at the highest
-		 * viable level, there's nothing more to do.
-		 */
-		if (max_mapping_level == iter.level)
+							      iter.gfn, PG_LEVEL_NUM);
+		if (max_mapping_level < iter.level)
 			continue;
 
-		/*
-		 * The page can be remapped at a higher level, so step
-		 * up to zap the parent SPTE.
-		 */
-		while (max_mapping_level > iter.level)
-			tdp_iter_step_up(&iter);
-
 		/* Note, a successful atomic zap also does a remote TLB flush. */
-		tdp_mmu_zap_spte_atomic(kvm, &iter);
-
-		/*
-		 * If the atomic zap fails, the iter will recurse back into
-		 * the same subtree to retry.
-		 */
+		if (tdp_mmu_zap_spte_atomic(kvm, &iter))
+			goto retry;
 	}
 
 	rcu_read_unlock();
 }
 
 /*
- * Clear non-leaf entries (and free associated page tables) which could
- * be replaced by large mappings, for GFNs within the slot.
+ * Zap non-leaf SPTEs (and free their associated page tables) which could
+ * be replaced by huge pages, for GFNs within the slot.
  */
 void kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
 				       const struct kvm_memory_slot *slot)

@@ -1716,15 +1716,13 @@ void dcn20_program_front_end_for_ctx(
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	/* Carry over GSL groups in case the context is changing. */
-       for (i = 0; i < dc->res_pool->pipe_count; i++) {
-               struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-               struct pipe_ctx *old_pipe_ctx =
-                       &dc->current_state->res_ctx.pipe_ctx[i];
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
-               if (pipe_ctx->stream == old_pipe_ctx->stream)
-                       pipe_ctx->stream_res.gsl_group =
-                               old_pipe_ctx->stream_res.gsl_group;
-       }
+		if (pipe_ctx->stream == old_pipe_ctx->stream)
+			pipe_ctx->stream_res.gsl_group = old_pipe_ctx->stream_res.gsl_group;
+	}
 
 	if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2363,9 +2361,12 @@ static void dcn20_reset_back_end_for_pipe(
 		 * screen only, the dpms_off would be true but
 		 * VBIOS lit up eDP, so check link status too.
 		 */
-		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			core_link_disable_stream(pipe_ctx);
-		else if (pipe_ctx->stream_res.audio)
+		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active) {
+			if (dc->hwss.update_phy_state)
+				dc->hwss.update_phy_state(dc->current_state, pipe_ctx, TX_OFF_SYMCLK_OFF);
+			else
+				core_link_disable_stream(pipe_ctx);
+		} else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
 		/* free acquired resources */
@@ -2464,9 +2465,13 @@ void dcn20_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx,
 		get_mpctree_visual_confirm_color(pipe_ctx, color);
 	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SWIZZLE)
 		get_surface_tile_visual_confirm_color(pipe_ctx, color);
+	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP)
+		get_subvp_visual_confirm_color(dc, pipe_ctx, color);
 
-	if (mpc->funcs->set_bg_color)
+	if (mpc->funcs->set_bg_color) {
+		memcpy(&pipe_ctx->plane_state->visual_confirm_color, color, sizeof(struct tg_color));
 		mpc->funcs->set_bg_color(mpc, color, mpcc_id);
+	}
 }
 
 void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)

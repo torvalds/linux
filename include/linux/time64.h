@@ -20,6 +20,9 @@ struct itimerspec64 {
 	struct timespec64 it_value;
 };
 
+/* Parameters used to convert the timespec values: */
+#define PSEC_PER_NSEC			1000L
+
 /* Located here for timespec[64]_valid_strict */
 #define TIME64_MAX			((s64)~((u64)1 << 63))
 #define TIME64_MIN			(-TIME64_MAX - 1)
@@ -142,7 +145,7 @@ static inline s64 timespec64_to_ns(const struct timespec64 *ts)
  *
  * Returns the timespec64 representation of the nsec parameter.
  */
-extern struct timespec64 ns_to_timespec64(const s64 nsec);
+extern struct timespec64 ns_to_timespec64(s64 nsec);
 
 /**
  * timespec64_add_ns - Adds nanoseconds to a timespec64

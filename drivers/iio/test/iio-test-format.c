@@ -265,3 +265,7 @@ static struct kunit_suite iio_format_test_suite = {
 	.test_cases = iio_format_test_cases,
 };
 kunit_test_suite(iio_format_test_suite);
+
+MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
+MODULE_DESCRIPTION("Test IIO formatting functions");
+MODULE_LICENSE("GPL v2");

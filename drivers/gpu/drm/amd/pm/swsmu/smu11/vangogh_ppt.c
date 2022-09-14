@@ -138,6 +138,9 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(SetSlowPPTLimit,                    PPSMC_MSG_SetSlowPPTLimit,						0),
 	MSG_MAP(GetFastPPTLimit,                    PPSMC_MSG_GetFastPPTLimit,						0),
 	MSG_MAP(GetSlowPPTLimit,                    PPSMC_MSG_GetSlowPPTLimit,						0),
+	MSG_MAP(GetGfxOffStatus,		    PPSMC_MSG_GetGfxOffStatus,						0),
+	MSG_MAP(GetGfxOffEntryCount,		    PPSMC_MSG_GetGfxOffEntryCount,					0),
+	MSG_MAP(LogGfxOffResidency,		    PPSMC_MSG_LogGfxOffResidency,					0),
 };
 
 static struct cmn2asic_mapping vangogh_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -2200,6 +2203,76 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 	return ret;
 }
 
+/**
+ * vangogh_set_gfxoff_residency
+ *
+ * @smu: amdgpu_device pointer
+ * @start: start/stop residency log
+ *
+ * This function will be used to log gfxoff residency
+ *
+ *
+ * Returns standard response codes.
+ */
+static u32 vangogh_set_gfxoff_residency(struct smu_context *smu, bool start)
+{
+	int ret = 0;
+	u32 residency;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		return 0;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_LogGfxOffResidency,
+					      start, &residency);
+
+	if (!start)
+		adev->gfx.gfx_off_residency = residency;
+
+	return ret;
+}
+
+/**
+ * vangogh_get_gfxoff_residency
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * This function will be used to get gfxoff residency.
+ *
+ * Returns standard response codes.
+ */
+static u32 vangogh_get_gfxoff_residency(struct smu_context *smu, uint32_t *residency)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	*residency = adev->gfx.gfx_off_residency;
+
+	return 0;
+}
+
+/**
+ * vangogh_get_gfxoff_entrycount - get gfxoff entry count
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * This function will be used to get gfxoff entry count
+ *
+ * Returns standard response codes.
+ */
+static u32 vangogh_get_gfxoff_entrycount(struct smu_context *smu, uint64_t *entrycount)
+{
+	int ret = 0, value = 0;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		return 0;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetGfxOffEntryCount, &value);
+	*entrycount = value + adev->gfx.gfx_off_entrycount;
+
+	return ret;
+}
+
 static const struct pptable_funcs vangogh_ppt_funcs = {
 
 	.check_fw_status = smu_v11_0_check_fw_status,
@@ -2237,6 +2310,9 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.mode2_reset = vangogh_mode2_reset,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.get_gfx_off_status = vangogh_get_gfxoff_status,
+	.get_gfx_off_entrycount = vangogh_get_gfxoff_entrycount,
+	.get_gfx_off_residency = vangogh_get_gfxoff_residency,
+	.set_gfx_off_residency = vangogh_set_gfxoff_residency,
 	.get_ppt_limit = vangogh_get_ppt_limit,
 	.get_power_limit = vangogh_get_power_limit,
 	.set_power_limit = vangogh_set_power_limit,

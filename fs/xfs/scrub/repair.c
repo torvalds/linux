@@ -199,7 +199,7 @@ xrep_calc_ag_resblks(
 		icount = pag->pagi_count;
 	} else {
 		/* Try to get the actual counters from disk. */
-		error = xfs_ialloc_read_agi(mp, NULL, sm->sm_agno, &bp);
+		error = xfs_ialloc_read_agi(pag, NULL, &bp);
 		if (!error) {
 			icount = pag->pagi_count;
 			xfs_buf_relse(bp);
@@ -207,9 +207,9 @@ xrep_calc_ag_resblks(
 	}
 
 	/* Now grab the block counters from the AGF. */
-	error = xfs_alloc_read_agf(mp, NULL, sm->sm_agno, 0, &bp);
+	error = xfs_alloc_read_agf(pag, NULL, 0, &bp);
 	if (error) {
-		aglen = xfs_ag_block_count(mp, sm->sm_agno);
+		aglen = pag->block_count;
 		freelen = aglen;
 		usedlen = aglen;
 	} else {
@@ -220,25 +220,22 @@ xrep_calc_ag_resblks(
 		usedlen = aglen - freelen;
 		xfs_buf_relse(bp);
 	}
-	xfs_perag_put(pag);
 
 	/* If the icount is impossible, make some worst-case assumptions. */
 	if (icount == NULLAGINO ||
-	    !xfs_verify_agino(mp, sm->sm_agno, icount)) {
-		xfs_agino_t	first, last;
-
-		xfs_agino_range(mp, sm->sm_agno, &first, &last);
-		icount = last - first + 1;
+	    !xfs_verify_agino(pag, icount)) {
+		icount = pag->agino_max - pag->agino_min + 1;
 	}
 
 	/* If the block counts are impossible, make worst-case assumptions. */
 	if (aglen == NULLAGBLOCK ||
-	    aglen != xfs_ag_block_count(mp, sm->sm_agno) ||
+	    aglen != pag->block_count ||
 	    freelen >= aglen) {
-		aglen = xfs_ag_block_count(mp, sm->sm_agno);
+		aglen = pag->block_count;
 		freelen = aglen;
 		usedlen = aglen;
 	}
+	xfs_perag_put(pag);
 
 	trace_xrep_calc_ag_resblks(mp, sm->sm_agno, icount, aglen,
 			freelen, usedlen);
@@ -300,13 +297,13 @@ xrep_alloc_ag_block(
 	switch (resv) {
 	case XFS_AG_RESV_AGFL:
 	case XFS_AG_RESV_RMAPBT:
-		error = xfs_alloc_get_freelist(sc->tp, sc->sa.agf_bp, &bno, 1);
+		error = xfs_alloc_get_freelist(sc->sa.pag, sc->tp,
+				sc->sa.agf_bp, &bno, 1);
 		if (error)
 			return error;
 		if (bno == NULLAGBLOCK)
 			return -ENOSPC;
-		xfs_extent_busy_reuse(sc->mp, sc->sa.pag, bno,
-				1, false);
+		xfs_extent_busy_reuse(sc->mp, sc->sa.pag, bno, 1, false);
 		*fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno, bno);
 		if (resv == XFS_AG_RESV_RMAPBT)
 			xfs_ag_resv_rmapbt_alloc(sc->mp, sc->sa.pag->pag_agno);
@@ -457,16 +454,19 @@ xrep_invalidate_blocks(
 	 * assume it's owned by someone else.
 	 */
 	for_each_xbitmap_block(fsbno, bmr, n, bitmap) {
+		int		error;
+
 		/* Skip AG headers and post-EOFS blocks */
 		if (!xfs_verify_fsbno(sc->mp, fsbno))
 			continue;
-		bp = xfs_buf_incore(sc->mp->m_ddev_targp,
+		error = xfs_buf_incore(sc->mp->m_ddev_targp,
 				XFS_FSB_TO_DADDR(sc->mp, fsbno),
-				XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK);
-		if (bp) {
-			xfs_trans_bjoin(sc->tp, bp);
-			xfs_trans_binval(sc->tp, bp);
-		}
+				XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK, &bp);
+		if (error)
+			continue;
+
+		xfs_trans_bjoin(sc->tp, bp);
+		xfs_trans_binval(sc->tp, bp);
 	}
 
 	return 0;
@@ -516,8 +516,8 @@ xrep_put_freelist(
 		return error;
 
 	/* Put the block on the AGFL. */
-	error = xfs_alloc_put_freelist(sc->tp, sc->sa.agf_bp, sc->sa.agfl_bp,
-			agbno, 0);
+	error = xfs_alloc_put_freelist(sc->sa.pag, sc->tp, sc->sa.agf_bp,
+			sc->sa.agfl_bp, agbno, 0);
 	if (error)
 		return error;
 	xfs_extent_busy_insert(sc->tp, sc->sa.pag, agbno, 1,
@@ -536,13 +536,12 @@ xrep_reap_block(
 {
 	struct xfs_btree_cur		*cur;
 	struct xfs_buf			*agf_bp = NULL;
-	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 	bool				has_other_rmap;
 	int				error;
 
-	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
+	ASSERT(XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.pag->pag_agno);
 
 	/*
 	 * If we are repairing per-inode metadata, we need to read in the AGF
@@ -550,7 +549,7 @@ xrep_reap_block(
 	 * the AGF buffer that the setup functions already grabbed.
 	 */
 	if (sc->ip) {
-		error = xfs_alloc_read_agf(sc->mp, sc->tp, agno, 0, &agf_bp);
+		error = xfs_alloc_read_agf(sc->sa.pag, sc->tp, 0, &agf_bp);
 		if (error)
 			return error;
 	} else {

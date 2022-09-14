@@ -271,11 +271,18 @@ error:
 static int wilc_send_connect_wid(struct wilc_vif *vif)
 {
 	int result = 0;
-	struct wid wid_list[4];
+	struct wid wid_list[5];
 	u32 wid_cnt = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	struct wilc_conn_info *conn_attr = &hif_drv->conn_info;
 	struct wilc_join_bss_param *bss_param = conn_attr->param;
+
+
+        wid_list[wid_cnt].id = WID_SET_MFP;
+        wid_list[wid_cnt].type = WID_CHAR;
+        wid_list[wid_cnt].size = sizeof(char);
+        wid_list[wid_cnt].val = (s8 *)&conn_attr->mfp_type;
+        wid_cnt++;
 
 	wid_list[wid_cnt].id = WID_INFO_ELEMENT_ASSOCIATE;
 	wid_list[wid_cnt].type = WID_BIN_DATA;
@@ -306,7 +313,10 @@ static int wilc_send_connect_wid(struct wilc_vif *vif)
 		netdev_err(vif->ndev, "failed to send config packet\n");
 		goto error;
 	} else {
-		hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
+                if (conn_attr->auth_type == WILC_FW_AUTH_SAE)
+                        hif_drv->hif_state = HOST_IF_EXTERNAL_AUTH;
+                else
+                        hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
 	}
 
 	return 0;
@@ -625,7 +635,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	conn_info->req_ies_len = 0;
 }
 
-static inline void host_int_handle_disconnect(struct wilc_vif *vif)
+void wilc_handle_disconnect(struct wilc_vif *vif)
 {
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -637,8 +647,6 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 	if (hif_drv->conn_info.conn_result)
 		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 					       0, hif_drv->conn_info.arg);
-	else
-		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
 
 	eth_zero_addr(hif_drv->assoc_bssid);
 
@@ -665,11 +673,16 @@ static void handle_rcvd_gnrl_async_info(struct work_struct *work)
 		goto free_msg;
 	}
 
-	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
+
+        if (hif_drv->hif_state == HOST_IF_EXTERNAL_AUTH) {
+                cfg80211_external_auth_request(vif->ndev, &vif->auth,
+					       GFP_KERNEL);
+                hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
+        } else if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
 		host_int_parse_assoc_resp_info(vif, mac_info->status);
 	} else if (mac_info->status == WILC_MAC_STATUS_DISCONNECTED) {
 		if (hif_drv->hif_state == HOST_IF_CONNECTED) {
-			host_int_handle_disconnect(vif);
+			wilc_handle_disconnect(vif);
 		} else if (hif_drv->usr_scan_req.scan_result) {
 			del_timer(&hif_drv->scan_timer);
 			handle_scan_done(vif, SCAN_EVENT_ABORTED);
@@ -710,7 +723,8 @@ int wilc_disconnect(struct wilc_vif *vif)
 	}
 
 	if (conn_info->conn_result) {
-		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
+		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
+		    hif_drv->hif_state == HOST_IF_EXTERNAL_AUTH)
 			del_timer(&hif_drv->connect_timer);
 
 		conn_info->conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, 0,
@@ -800,15 +814,15 @@ static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
 	put_unaligned_le16(params->aid, cur_byte);
 	cur_byte += 2;
 
-	*cur_byte++ = params->supported_rates_len;
-	if (params->supported_rates_len > 0)
-		memcpy(cur_byte, params->supported_rates,
-		       params->supported_rates_len);
-	cur_byte += params->supported_rates_len;
+	*cur_byte++ = params->link_sta_params.supported_rates_len;
+	if (params->link_sta_params.supported_rates_len > 0)
+		memcpy(cur_byte, params->link_sta_params.supported_rates,
+		       params->link_sta_params.supported_rates_len);
+	cur_byte += params->link_sta_params.supported_rates_len;
 
-	if (params->ht_capa) {
+	if (params->link_sta_params.ht_capa) {
 		*cur_byte++ = true;
-		memcpy(cur_byte, params->ht_capa,
+		memcpy(cur_byte, params->link_sta_params.ht_capa,
 		       sizeof(struct ieee80211_ht_cap));
 	} else {
 		*cur_byte++ = false;
@@ -986,6 +1000,31 @@ void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled)
 		pr_err("Failed to send wowlan trigger config packet\n");
 }
 
+int wilc_set_external_auth_param(struct wilc_vif *vif,
+				 struct cfg80211_external_auth_params *auth)
+{
+	int ret;
+	struct wid wid;
+	struct wilc_external_auth_param *param;
+
+	wid.id = WID_EXTERNAL_AUTH_PARAM;
+	wid.type = WID_BIN_DATA;
+	wid.size = sizeof(*param);
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (!param)
+		return -EINVAL;
+
+	wid.val = (u8 *)param;
+	param->action = auth->action;
+	ether_addr_copy(param->bssid, auth->bssid);
+	memcpy(param->ssid, auth->ssid.ssid, auth->ssid.ssid_len);
+	param->ssid_len = auth->ssid.ssid_len;
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+
+	kfree(param);
+	return ret;
+}
+
 static void handle_scan_timer(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -1036,108 +1075,6 @@ static void timer_connect_cb(struct timer_list *t)
 	result = wilc_enqueue_work(msg);
 	if (result)
 		kfree(msg);
-}
-
-int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
-{
-	struct wid wid;
-	int result;
-
-	wid.id = WID_REMOVE_WEP_KEY;
-	wid.type = WID_STR;
-	wid.size = sizeof(char);
-	wid.val = &index;
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
-	if (result)
-		netdev_err(vif->ndev,
-			   "Failed to send remove wep key config packet\n");
-	return result;
-}
-
-int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index)
-{
-	struct wid wid;
-	int result;
-
-	wid.id = WID_KEY_ID;
-	wid.type = WID_CHAR;
-	wid.size = sizeof(char);
-	wid.val = &index;
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
-	if (result)
-		netdev_err(vif->ndev,
-			   "Failed to send wep default key config packet\n");
-
-	return result;
-}
-
-int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
-			     u8 index)
-{
-	struct wid wid;
-	int result;
-	struct wilc_wep_key *wep_key;
-
-	wid.id = WID_ADD_WEP_KEY;
-	wid.type = WID_STR;
-	wid.size = sizeof(*wep_key) + len;
-	wep_key = kzalloc(wid.size, GFP_KERNEL);
-	if (!wep_key)
-		return -ENOMEM;
-
-	wid.val = (u8 *)wep_key;
-
-	wep_key->index = index;
-	wep_key->key_len = len;
-	memcpy(wep_key->key, key, len);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
-	if (result)
-		netdev_err(vif->ndev,
-			   "Failed to add wep key config packet\n");
-
-	kfree(wep_key);
-	return result;
-}
-
-int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
-			    u8 index, u8 mode, enum authtype auth_type)
-{
-	struct wid wid_list[3];
-	int result;
-	struct wilc_wep_key *wep_key;
-
-	wid_list[0].id = WID_11I_MODE;
-	wid_list[0].type = WID_CHAR;
-	wid_list[0].size = sizeof(char);
-	wid_list[0].val = &mode;
-
-	wid_list[1].id = WID_AUTH_TYPE;
-	wid_list[1].type = WID_CHAR;
-	wid_list[1].size = sizeof(char);
-	wid_list[1].val = (s8 *)&auth_type;
-
-	wid_list[2].id = WID_WEP_KEY_VALUE;
-	wid_list[2].type = WID_STR;
-	wid_list[2].size = sizeof(*wep_key) + len;
-	wep_key = kzalloc(wid_list[2].size, GFP_KERNEL);
-	if (!wep_key)
-		return -ENOMEM;
-
-	wid_list[2].val = (u8 *)wep_key;
-
-	wep_key->index = index;
-	wep_key->key_len = len;
-	memcpy(wep_key->key, key, len);
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
-				      ARRAY_SIZE(wid_list));
-	if (result)
-		netdev_err(vif->ndev,
-			   "Failed to add wep ap key config packet\n");
-
-	kfree(wep_key);
-	return result;
 }
 
 int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
@@ -1207,6 +1144,36 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 		kfree(key_buf);
 	}
+
+	return result;
+}
+
+int wilc_add_igtk(struct wilc_vif *vif, const u8 *igtk, u8 igtk_key_len,
+		  const u8 *pn, u8 pn_len, const u8 *mac_addr, u8 mode, u8 index)
+{
+	int result = 0;
+	u8 t_key_len = igtk_key_len;
+	struct wid wid;
+	struct wilc_wpa_igtk *key_buf;
+
+	key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+	if (!key_buf)
+		return -ENOMEM;
+
+	key_buf->index = index;
+
+	memcpy(&key_buf->pn[0], pn, pn_len);
+	key_buf->pn_len = pn_len;
+
+	memcpy(&key_buf->key[0], igtk, igtk_key_len);
+	key_buf->key_len = t_key_len;
+
+	wid.id = WID_ADD_IGTK;
+	wid.type = WID_STR;
+	wid.size = sizeof(*key_buf) + t_key_len;
+	wid.val = (s8 *)key_buf;
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+	kfree(key_buf);
 
 	return result;
 }
@@ -1749,6 +1716,10 @@ void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 		reg_frame.reg_id = WILC_FW_PROBE_REQ_IDX;
 		break;
 
+        case IEEE80211_STYPE_AUTH:
+                reg_frame.reg_id = WILC_FW_AUTH_REQ_IDX;
+                break;
+
 	default:
 		break;
 	}
@@ -1826,7 +1797,8 @@ int wilc_add_station(struct wilc_vif *vif, const u8 *mac,
 
 	wid.id = WID_ADD_STA;
 	wid.type = WID_BIN;
-	wid.size = WILC_ADD_STA_LENGTH + params->supported_rates_len;
+	wid.size = WILC_ADD_STA_LENGTH +
+		   params->link_sta_params.supported_rates_len;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
 		return -ENOMEM;
@@ -1911,7 +1883,8 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 
 	wid.id = WID_EDIT_STA;
 	wid.type = WID_BIN;
-	wid.size = WILC_ADD_STA_LENGTH + params->supported_rates_len;
+	wid.size = WILC_ADD_STA_LENGTH +
+		   params->link_sta_params.supported_rates_len;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
 		return -ENOMEM;
@@ -1995,4 +1968,21 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
 	wid.size = sizeof(char);
 
 	return wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1);
+}
+
+int wilc_set_default_mgmt_key_index(struct wilc_vif *vif, u8 index)
+{
+        struct wid wid;
+        int result;
+
+        wid.id = WID_DEFAULT_MGMT_KEY_ID;
+        wid.type = WID_CHAR;
+        wid.size = sizeof(char);
+        wid.val = &index;
+        result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+        if (result)
+                netdev_err(vif->ndev,
+                           "Failed to send default mgmt key index\n");
+
+        return result;
 }

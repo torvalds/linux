@@ -65,10 +65,11 @@ properties:
       - ti,am4376-pruss0 # for AM437x SoC family and PRUSS unit 0
       - ti,am4376-pruss1 # for AM437x SoC family and PRUSS unit 1
       - ti,am5728-pruss  # for AM57xx SoC family
-      - ti,k2g-pruss     # for 66AK2G SoC family
+      - ti,am625-pruss   # for K3 AM62x SoC family
+      - ti,am642-icssg   # for K3 AM64x SoC family
       - ti,am654-icssg   # for K3 AM65x SoC family
       - ti,j721e-icssg   # for K3 J721E SoC family
-      - ti,am642-icssg   # for K3 AM64x SoC family
+      - ti,k2g-pruss     # for 66AK2G SoC family
 
   reg:
     maxItems: 1

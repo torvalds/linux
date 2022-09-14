@@ -47,11 +47,11 @@ typedef enum {
 } ipvl_hdr_type;
 
 struct ipvl_pcpu_stats {
-	u64			rx_pkts;
-	u64			rx_bytes;
-	u64			rx_mcast;
-	u64			tx_pkts;
-	u64			tx_bytes;
+	u64_stats_t		rx_pkts;
+	u64_stats_t		rx_bytes;
+	u64_stats_t		rx_mcast;
+	u64_stats_t		tx_pkts;
+	u64_stats_t		tx_bytes;
 	struct u64_stats_sync	syncp;
 	u32			rx_errs;
 	u32			tx_drps;

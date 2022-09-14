@@ -92,6 +92,21 @@ config NVME_TCP
 
 	  If unsure, say N.
 
+config NVME_AUTH
+	bool "NVM Express over Fabrics In-Band Authentication"
+	depends on NVME_CORE
+	select NVME_COMMON
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_DH
+	select CRYPTO_DH_RFC7919_GROUPS
+	help
+	  This provides support for NVMe over Fabrics In-Band Authentication.
+
+	  If unsure, say N.
+
 config NVME_APPLE
 	tristate "Apple ANS2 NVM Express host driver"
 	depends on OF && BLOCK

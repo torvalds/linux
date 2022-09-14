@@ -324,14 +324,14 @@ void bsg_remove_queue(struct request_queue *q)
 			container_of(q->tag_set, struct bsg_set, tag_set);
 
 		bsg_unregister_queue(bset->bd);
-		blk_cleanup_queue(q);
+		blk_mq_destroy_queue(q);
 		blk_mq_free_tag_set(&bset->tag_set);
 		kfree(bset);
 	}
 }
 EXPORT_SYMBOL_GPL(bsg_remove_queue);
 
-static enum blk_eh_timer_return bsg_timeout(struct request *rq, bool reserved)
+static enum blk_eh_timer_return bsg_timeout(struct request *rq)
 {
 	struct bsg_set *bset =
 		container_of(rq->q->tag_set, struct bsg_set, tag_set);
@@ -399,7 +399,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 
 	return q;
 out_cleanup_queue:
-	blk_cleanup_queue(q);
+	blk_mq_destroy_queue(q);
 out_queue:
 	blk_mq_free_tag_set(set);
 out_tag_set:

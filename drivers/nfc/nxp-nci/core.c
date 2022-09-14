@@ -27,6 +27,9 @@
 			       NFC_PROTO_ISO14443_B_MASK | \
 			       NFC_PROTO_NFC_DEP_MASK)
 
+#define NXP_NCI_RF_PLL_UNLOCKED_NTF nci_opcode_pack(NCI_GID_RF_MGMT, 0x21)
+#define NXP_NCI_RF_TXLDO_ERROR_NTF nci_opcode_pack(NCI_GID_RF_MGMT, 0x23)
+
 static int nxp_nci_open(struct nci_dev *ndev)
 {
 	struct nxp_nci_info *info = nci_get_drvdata(ndev);
@@ -83,11 +86,42 @@ static int nxp_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	return r;
 }
 
+static int nxp_nci_rf_pll_unlocked_ntf(struct nci_dev *ndev,
+				       struct sk_buff *skb)
+{
+	nfc_err(&ndev->nfc_dev->dev,
+		"PLL didn't lock. Missing or unstable clock?\n");
+
+	return 0;
+}
+
+static int nxp_nci_rf_txldo_error_ntf(struct nci_dev *ndev,
+				      struct sk_buff *skb)
+{
+	nfc_err(&ndev->nfc_dev->dev,
+		"RF transmitter couldn't start. Bad power and/or configuration?\n");
+
+	return 0;
+}
+
+static const struct nci_driver_ops nxp_nci_core_ops[] = {
+	{
+		.opcode = NXP_NCI_RF_PLL_UNLOCKED_NTF,
+		.ntf = nxp_nci_rf_pll_unlocked_ntf,
+	},
+	{
+		.opcode = NXP_NCI_RF_TXLDO_ERROR_NTF,
+		.ntf = nxp_nci_rf_txldo_error_ntf,
+	},
+};
+
 static const struct nci_ops nxp_nci_ops = {
 	.open = nxp_nci_open,
 	.close = nxp_nci_close,
 	.send = nxp_nci_send,
 	.fw_download = nxp_nci_fw_download,
+	.core_ops = nxp_nci_core_ops,
+	.n_core_ops = ARRAY_SIZE(nxp_nci_core_ops),
 };
 
 int nxp_nci_probe(void *phy_id, struct device *pdev,

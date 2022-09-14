@@ -1988,8 +1988,6 @@ static int blkfront_probe(struct xenbus_device *dev,
 	info->vdevice = vdevice;
 	info->connected = BLKIF_STATE_DISCONNECTED;
 
-	info->feature_persistent = feature_persistent;
-
 	/* Front end dir is a number, which is used as the id. */
 	info->handle = simple_strtoul(strrchr(dev->nodename, '/')+1, NULL, 0);
 	dev_set_drvdata(&dev->dev, info);
@@ -2283,7 +2281,7 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 	if (xenbus_read_unsigned(info->xbdev->otherend, "feature-discard", 0))
 		blkfront_setup_discard(info);
 
-	if (info->feature_persistent)
+	if (feature_persistent)
 		info->feature_persistent =
 			!!xenbus_read_unsigned(info->xbdev->otherend,
 					       "feature-persistent", 0);
@@ -2397,7 +2395,7 @@ static void blkfront_connect(struct blkfront_info *info)
 
 	err = device_add_disk(&info->xbdev->dev, info->gd, NULL);
 	if (err) {
-		blk_cleanup_disk(info->gd);
+		put_disk(info->gd);
 		blk_mq_free_tag_set(&info->tag_set);
 		info->rq = NULL;
 		goto fail;
@@ -2482,7 +2480,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	blkif_free(info, 0);
 	if (info->gd) {
 		xlbd_release_minors(info->gd->first_minor, info->gd->minors);
-		blk_cleanup_disk(info->gd);
+		put_disk(info->gd);
 		blk_mq_free_tag_set(&info->tag_set);
 	}
 

@@ -23,6 +23,7 @@
 
 #include "amdgpu_reset.h"
 #include "aldebaran.h"
+#include "sienna_cichlid.h"
 
 int amdgpu_reset_add_handler(struct amdgpu_reset_control *reset_ctl,
 			     struct amdgpu_reset_handler *handler)
@@ -36,9 +37,14 @@ int amdgpu_reset_init(struct amdgpu_device *adev)
 {
 	int ret = 0;
 
+	adev->amdgpu_reset_level_mask = 0x1;
+
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 2):
 		ret = aldebaran_reset_init(adev);
+		break;
+	case IP_VERSION(11, 0, 7):
+		ret = sienna_cichlid_reset_init(adev);
 		break;
 	default:
 		break;
@@ -55,6 +61,9 @@ int amdgpu_reset_fini(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 2):
 		ret = aldebaran_reset_fini(adev);
 		break;
+	case IP_VERSION(11, 0, 7):
+		ret = sienna_cichlid_reset_fini(adev);
+		break;
 	default:
 		break;
 	}
@@ -66,6 +75,12 @@ int amdgpu_reset_prepare_hwcontext(struct amdgpu_device *adev,
 				   struct amdgpu_reset_context *reset_context)
 {
 	struct amdgpu_reset_handler *reset_handler = NULL;
+
+	if (!(adev->amdgpu_reset_level_mask & AMDGPU_RESET_LEVEL_MODE2))
+		return -ENOSYS;
+
+	if (test_bit(AMDGPU_SKIP_MODE2_RESET, &reset_context->flags))
+		return -ENOSYS;
 
 	if (adev->reset_cntl && adev->reset_cntl->get_reset_handler)
 		reset_handler = adev->reset_cntl->get_reset_handler(
@@ -82,6 +97,12 @@ int amdgpu_reset_perform_reset(struct amdgpu_device *adev,
 {
 	int ret;
 	struct amdgpu_reset_handler *reset_handler = NULL;
+
+	if (!(adev->amdgpu_reset_level_mask & AMDGPU_RESET_LEVEL_MODE2))
+		return -ENOSYS;
+
+	if (test_bit(AMDGPU_SKIP_MODE2_RESET, &reset_context->flags))
+		return -ENOSYS;
 
 	if (adev->reset_cntl)
 		reset_handler = adev->reset_cntl->get_reset_handler(

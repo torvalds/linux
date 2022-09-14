@@ -157,7 +157,7 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out:
 	return err;
 }

@@ -162,7 +162,7 @@ do {									\
 	"2:							\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li.w	%0, %3					\n"	\
-	"	or	%1, $r0, $r0				\n"	\
+	"	move	%1, $zero				\n"	\
 	"	b	2b					\n"	\
 	"	.previous					\n"	\
 	"	.section __ex_table,\"a\"			\n"	\
@@ -229,13 +229,13 @@ extern unsigned long __copy_user(void *to, const void *from, __kernel_size_t n);
 static inline unsigned long __must_check
 raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	return __copy_user(to, from, n);
+	return __copy_user(to, (__force const void *)from, n);
 }
 
 static inline unsigned long __must_check
 raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	return __copy_user(to, from, n);
+	return __copy_user((__force void *)to, from, n);
 }
 
 #define INLINE_COPY_FROM_USER

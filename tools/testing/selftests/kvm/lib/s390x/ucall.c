@@ -22,7 +22,7 @@ void ucall(uint64_t cmd, int nargs, ...)
 	va_list va;
 	int i;
 
-	nargs = nargs <= UCALL_MAX_ARGS ? nargs : UCALL_MAX_ARGS;
+	nargs = min(nargs, UCALL_MAX_ARGS);
 
 	va_start(va, nargs);
 	for (i = 0; i < nargs; ++i)
@@ -33,9 +33,9 @@ void ucall(uint64_t cmd, int nargs, ...)
 	asm volatile ("diag 0,%0,0x501" : : "a"(&uc) : "memory");
 }
 
-uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
+uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc)
 {
-	struct kvm_run *run = vcpu_state(vm, vcpu_id);
+	struct kvm_run *run = vcpu->run;
 	struct ucall ucall = {};
 
 	if (uc)
@@ -47,10 +47,10 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 	    (run->s390_sieic.ipb >> 16) == 0x501) {
 		int reg = run->s390_sieic.ipa & 0xf;
 
-		memcpy(&ucall, addr_gva2hva(vm, run->s.regs.gprs[reg]),
+		memcpy(&ucall, addr_gva2hva(vcpu->vm, run->s.regs.gprs[reg]),
 		       sizeof(ucall));
 
-		vcpu_run_complete_io(vm, vcpu_id);
+		vcpu_run_complete_io(vcpu);
 		if (uc)
 			memcpy(uc, &ucall, sizeof(ucall));
 	}

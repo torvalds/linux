@@ -14,6 +14,7 @@
 #include "lmac_common.h"
 #include "rvu_reg.h"
 #include "rvu_trace.h"
+#include "rvu_npc_hash.h"
 
 struct cgx_evq_entry {
 	struct list_head evq_node;
@@ -474,6 +475,11 @@ void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc)
 	if (!is_cgx_config_permitted(rvu, pcifunc))
 		return;
 
+	if (rvu_npc_exact_has_match_table(rvu)) {
+		rvu_npc_exact_reset(rvu, pcifunc);
+		return;
+	}
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgx_dev = cgx_get_pdata(cgx_id);
 	lmac_count = cgx_get_lmac_cnt(cgx_dev);
@@ -584,6 +590,9 @@ int rvu_mbox_handler_cgx_mac_addr_set(struct rvu *rvu,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_set(rvu, req, rsp);
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
 	cgx_lmac_addr_set(cgx_id, lmac_id, req->mac_addr);
@@ -601,6 +610,9 @@ int rvu_mbox_handler_cgx_mac_addr_add(struct rvu *rvu,
 
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
+
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_add(rvu, req, rsp);
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	rc = cgx_lmac_addr_add(cgx_id, lmac_id, req->mac_addr);
@@ -622,6 +634,9 @@ int rvu_mbox_handler_cgx_mac_addr_del(struct rvu *rvu,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_del(rvu, req, rsp);
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	return cgx_lmac_addr_del(cgx_id, lmac_id, req->index);
 }
@@ -640,6 +655,11 @@ int rvu_mbox_handler_cgx_mac_max_entries_get(struct rvu *rvu,
 	 */
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc)) {
 		rsp->max_dmac_filters = 0;
+		return 0;
+	}
+
+	if (rvu_npc_exact_has_match_table(rvu)) {
+		rsp->max_dmac_filters = rvu_npc_exact_get_max_entries(rvu);
 		return 0;
 	}
 
@@ -680,6 +700,10 @@ int rvu_mbox_handler_cgx_promisc_enable(struct rvu *rvu, struct msg_req *req,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
+	/* Disable drop on non hit rule */
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_promisc_enable(rvu, req->hdr.pcifunc);
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
 	cgx_lmac_promisc_config(cgx_id, lmac_id, true);
@@ -694,6 +718,10 @@ int rvu_mbox_handler_cgx_promisc_disable(struct rvu *rvu, struct msg_req *req,
 
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
+
+	/* Disable drop on non hit rule */
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_promisc_disable(rvu, req->hdr.pcifunc);
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
@@ -831,6 +859,22 @@ u32 rvu_cgx_get_fifolen(struct rvu *rvu)
 	fifo_len = mac_ops ? mac_ops->fifo_len : 0;
 
 	return fifo_len;
+}
+
+u32 rvu_cgx_get_lmac_fifolen(struct rvu *rvu, int cgx, int lmac)
+{
+	struct mac_ops *mac_ops;
+	void *cgxd;
+
+	cgxd = rvu_cgx_pdata(cgx, rvu);
+	if (!cgxd)
+		return 0;
+
+	mac_ops = get_mac_ops(cgxd);
+	if (!mac_ops->lmac_fifo_len)
+		return 0;
+
+	return mac_ops->lmac_fifo_len(cgxd, lmac);
 }
 
 static int rvu_cgx_config_intlbk(struct rvu *rvu, u16 pcifunc, bool en)
@@ -1059,7 +1103,7 @@ int rvu_mbox_handler_cgx_get_aux_link_info(struct rvu *rvu, struct msg_req *req,
 	u8 cgx_id, lmac_id;
 
 	if (!rvu->fwdata)
-		return -ENXIO;
+		return LMAC_AF_ERR_FIRMWARE_DATA_NOT_MAPPED;
 
 	if (!is_pf_cgxmapped(rvu, pf))
 		return -EPERM;
@@ -1088,7 +1132,7 @@ int rvu_mbox_handler_cgx_set_link_mode(struct rvu *rvu,
 	return 0;
 }
 
-int rvu_mbox_handler_cgx_mac_addr_reset(struct rvu *rvu, struct msg_req *req,
+int rvu_mbox_handler_cgx_mac_addr_reset(struct rvu *rvu, struct cgx_mac_addr_reset_req *req,
 					struct msg_rsp *rsp)
 {
 	int pf = rvu_get_pf(req->hdr.pcifunc);
@@ -1098,18 +1142,25 @@ int rvu_mbox_handler_cgx_mac_addr_reset(struct rvu *rvu, struct msg_req *req,
 		return LMAC_AF_ERR_PERM_DENIED;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_reset(rvu, req, rsp);
+
 	return cgx_lmac_addr_reset(cgx_id, lmac_id);
 }
 
 int rvu_mbox_handler_cgx_mac_addr_update(struct rvu *rvu,
 					 struct cgx_mac_addr_update_req *req,
-					 struct msg_rsp *rsp)
+					 struct cgx_mac_addr_update_rsp *rsp)
 {
 	int pf = rvu_get_pf(req->hdr.pcifunc);
 	u8 cgx_id, lmac_id;
 
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return LMAC_AF_ERR_PERM_DENIED;
+
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_update(rvu, req, rsp);
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	return cgx_lmac_addr_update(cgx_id, lmac_id, req->mac_addr, req->index);

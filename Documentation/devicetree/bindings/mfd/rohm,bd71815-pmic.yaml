@@ -74,7 +74,7 @@ properties:
   rohm,enable-hidden-gpo:
     description: |
       The BD71815 has undocumented GPO at pin E5. Pin is marked as GND at the
-      data-sheet as it's location in the middle of GND pins makes it hard to
+      data-sheet as its location in the middle of GND pins makes it hard to
       use on PCB. If your board has managed to use this pin you can enable the
       second GPO by defining this property. Dont enable this if you are unsure
       about how the E5 pin is connected on your board.

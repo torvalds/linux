@@ -193,7 +193,7 @@ struct posix_acl_state {
 int parse_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
 		   int acl_len, struct smb_fattr *fattr);
 int build_sec_desc(struct user_namespace *user_ns, struct smb_ntsd *pntsd,
-		   struct smb_ntsd *ppntsd, int addition_info,
+		   struct smb_ntsd *ppntsd, int ppntsd_size, int addition_info,
 		   __u32 *secdesclen, struct smb_fattr *fattr);
 int init_acl_state(struct posix_acl_state *state, int cnt);
 void free_acl_state(struct posix_acl_state *state);

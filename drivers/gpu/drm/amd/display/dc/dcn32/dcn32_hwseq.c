@@ -250,6 +250,7 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 	uint32_t total_lines = 0;
 	uint32_t lines_per_way = 0;
 	uint32_t num_ways = 0;
+	uint32_t prev_addr_low = 0;
 
 	for (i = 0; i < ctx->stream_count; i++) {
 		stream = ctx->streams[i];
@@ -267,10 +268,20 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 			plane = ctx->stream_status[i].plane_states[j];
 
 			// Calculate total surface size
-			surface_size = plane->plane_size.surface_pitch *
+			if (prev_addr_low != plane->address.grph.addr.u.low_part) {
+				/* if plane address are different from prev FB, then userspace allocated separate FBs*/
+				surface_size += plane->plane_size.surface_pitch *
 					plane->plane_size.surface_size.height *
 					(plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
 
+				prev_addr_low = plane->address.grph.addr.u.low_part;
+			} else {
+				/* We have the same fb for all the planes.
+				 * Xorg always creates one giant fb that holds all surfaces,
+				 * so allocating it once is sufficient.
+				 * */
+				continue;
+			}
 			// Convert surface size + starting address to number of cache lines required
 			// (alignment accounted for)
 			cache_lines_used += dcn32_cache_lines_for_surface(dc, surface_size,
@@ -284,24 +295,38 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 		}
 
 		// Include cursor size for CAB allocation
-		if (stream->cursor_position.enable && plane->address.grph.cursor_cache_addr.quad_part) {
-			cursor_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size;
-			switch (stream->cursor_attributes.color_format) {
-			case CURSOR_MODE_MONO:
-				cursor_size /= 2;
-				break;
-			case CURSOR_MODE_COLOR_1BIT_AND:
-			case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
-			case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
-				cursor_size *= 4;
-				break;
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[j];
+			struct hubp *hubp = pipe->plane_res.hubp;
 
-			case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
-			case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
-				cursor_size *= 8;
-				break;
-			}
-			cache_lines_used += dcn32_cache_lines_for_surface(dc, surface_size,
+			if (pipe->stream && pipe->plane_state && hubp)
+				/* Find the cursor plane and use the exact size instead of
+				 * using the max for calculation
+				 */
+				if (hubp->curs_attr.width > 0) {
+					cursor_size = hubp->curs_attr.width * hubp->curs_attr.height;
+					break;
+				}
+		}
+
+		switch (stream->cursor_attributes.color_format) {
+		case CURSOR_MODE_MONO:
+			cursor_size /= 2;
+			break;
+		case CURSOR_MODE_COLOR_1BIT_AND:
+		case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+		case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+			cursor_size *= 4;
+			break;
+
+		case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+		case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+			cursor_size *= 8;
+			break;
+		}
+
+		if (stream->cursor_position.enable && plane->address.grph.cursor_cache_addr.quad_part) {
+			cache_lines_used += dcn32_cache_lines_for_surface(dc, cursor_size,
 					plane->address.grph.cursor_cache_addr.quad_part);
 		}
 	}
@@ -314,13 +339,36 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 	if (cache_lines_used % lines_per_way > 0)
 		num_ways++;
 
+	for (i = 0; i < ctx->stream_count; i++) {
+		stream = ctx->streams[i];
+		for (j = 0; j < ctx->stream_status[i].plane_count; j++) {
+			plane = ctx->stream_status[i].plane_states[j];
+
+			if (stream->cursor_position.enable && plane &&
+				!plane->address.grph.cursor_cache_addr.quad_part &&
+				cursor_size > 16384) {
+				/* Cursor caching is not supported since it won't be on the same line.
+				 * So we need an extra line to accommodate it. With large cursors and a single 4k monitor
+				 * this case triggers corruption. If we're at the edge, then dont trigger display refresh
+				 * from MALL. We only need to cache cursor if its greater that 64x64 at 4 bpp.
+				 */
+				num_ways++;
+				/* We only expect one cursor plane */
+				break;
+			}
+		}
+	}
+
 	return num_ways;
 }
 
 bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
 	union dmub_rb_cmd cmd;
-	uint8_t ways;
+	uint8_t ways, i;
+	int j;
+	bool stereo_in_use = false;
+	struct dc_plane_state *plane = NULL;
 
 	if (!dc->ctx->dmub_srv)
 		return false;
@@ -349,7 +397,23 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			 * and configure HUBP's to fetch from MALL
 			 */
 			ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
-			if (ways <= dc->caps.cache_num_ways) {
+
+			/* MALL not supported with Stereo3D. If any plane is using stereo,
+			 * don't try to enter MALL.
+			 */
+			for (i = 0; i < dc->current_state->stream_count; i++) {
+				for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
+					plane = dc->current_state->stream_status[i].plane_states[j];
+
+					if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO) {
+						stereo_in_use = true;
+						break;
+					}
+				}
+				if (stereo_in_use)
+					break;
+			}
+			if (ways <= dc->caps.cache_num_ways && !stereo_in_use) {
 				memset(&cmd, 0, sizeof(cmd));
 				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
 				cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
@@ -611,9 +675,9 @@ bool dcn32_set_output_transfer_func(struct dc *dc,
 					stream->out_transfer_func,
 					&mpc->blender_params, false))
 				params = &mpc->blender_params;
-		 /* there are no ROM LUTs in OUTGAM */
-		if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
-			BREAK_TO_DEBUGGER();
+			/* there are no ROM LUTs in OUTGAM */
+			if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
+				BREAK_TO_DEBUGGER();
 		}
 	}
 
@@ -683,9 +747,11 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 			if (pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 					hubp->funcs->hubp_update_mall_sel(hubp, 1, false);
 			} else {
+				// MALL not supported with Stereo3D
 				hubp->funcs->hubp_update_mall_sel(hubp,
 					num_ways <= dc->caps.cache_num_ways &&
-					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED ? 2 : 0,
+					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED &&
+					pipe->plane_state->address.type !=  PLN_ADDR_TYPE_GRPH_STEREO ? 2 : 0,
 							cache_cursor);
 			}
 		}
@@ -909,10 +975,10 @@ void dcn32_init_hw(struct dc *dc)
 		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
 
 	// Get DMCUB capabilities
-    if (dc->ctx->dmub_srv) {
-	dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv->dmub);
-	dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
-    }
+	if (dc->ctx->dmub_srv) {
+		dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv->dmub);
+		dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
+	}
 }
 
 static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
@@ -1185,4 +1251,31 @@ bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
 		dc->debug.enable_dp_dig_pixel_rate_div_policy)
 		return true;
 	return false;
+}
+
+void dcn32_update_phy_state(struct dc_state *state, struct pipe_ctx *pipe_ctx,
+		enum phy_state target_state)
+{
+	enum phy_state current_state = pipe_ctx->stream->link->phy_state;
+
+	if (target_state == TX_OFF_SYMCLK_OFF) {
+		core_link_disable_stream(pipe_ctx);
+		pipe_ctx->stream->link->phy_state = TX_OFF_SYMCLK_OFF;
+	} else if (target_state == TX_ON_SYMCLK_ON) {
+		core_link_enable_stream(state, pipe_ctx);
+		pipe_ctx->stream->link->phy_state = TX_ON_SYMCLK_ON;
+	} else if (target_state == TX_OFF_SYMCLK_ON) {
+		if (current_state == TX_ON_SYMCLK_ON) {
+			core_link_disable_stream(pipe_ctx);
+			pipe_ctx->stream->link->phy_state = TX_OFF_SYMCLK_OFF;
+		}
+
+		pipe_ctx->clock_source->funcs->program_pix_clk(
+			pipe_ctx->clock_source,
+			&pipe_ctx->stream_res.pix_clk_params,
+			dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+			&pipe_ctx->pll_settings);
+		pipe_ctx->stream->link->phy_state = TX_OFF_SYMCLK_ON;
+	} else
+		BREAK_TO_DEBUGGER();
 }

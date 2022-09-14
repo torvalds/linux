@@ -274,6 +274,9 @@ extern int amdgpu_vcnfw_log;
 #define AMDGPU_RESET_VCE			(1 << 13)
 #define AMDGPU_RESET_VCE1			(1 << 14)
 
+#define AMDGPU_RESET_LEVEL_SOFT_RECOVERY (1 << 0)
+#define AMDGPU_RESET_LEVEL_MODE2 (1 << 1)
+
 /* max cursor sizes (in pixels) */
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
@@ -317,7 +320,7 @@ enum amdgpu_kiq_irq {
 	AMDGPU_CP_KIQ_IRQ_DRIVER0 = 0,
 	AMDGPU_CP_KIQ_IRQ_LAST
 };
-
+#define SRIOV_USEC_TIMEOUT  1200000 /* wait 12 * 100ms for SRIOV */
 #define MAX_KIQ_REG_WAIT       5000 /* in usecs, 5ms */
 #define MAX_KIQ_REG_BAILOUT_INTERVAL   5 /* in msecs, 5ms */
 #define MAX_KIQ_REG_TRY 1000
@@ -1020,7 +1023,7 @@ struct amdgpu_device {
 	bool                            psp_sysfs_en;
 
 	/* Chip product information */
-	char				product_number[16];
+	char				product_number[20];
 	char				product_name[AMDGPU_PRODUCT_NAME_LEN];
 	char				serial[20];
 
@@ -1060,6 +1063,9 @@ struct amdgpu_device {
 	uint32_t                        scpm_status;
 
 	struct work_struct		reset_work;
+
+	uint32_t						amdgpu_reset_level_mask;
+	bool                            job_hang;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)

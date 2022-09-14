@@ -168,14 +168,15 @@ in questa ricerca:
 
 	.../scripts/get_maintainer.pl
 
-Se questo script viene eseguito con l'opzione "-f" ritornerà il
-manutentore(i) attuale per un dato file o cartella.  Se viene passata una
-patch sulla linea di comando, lo script elencherà i manutentori che
-dovrebbero riceverne una copia.  Ci sono svariate opzioni che regolano
-quanto a fondo get_maintainer.pl debba cercare i manutentori;
-siate quindi prudenti nell'utilizzare le opzioni più aggressive poiché
-potreste finire per includere sviluppatori che non hanno un vero interesse
-per il codice che state modificando.
+Se questo script viene eseguito con l'opzione "-f" ritornerà il manutentore(i)
+attuale per un dato file o cartella. Se viene passata una patch sulla linea di
+comando, lo script elencherà i manutentori che dovrebbero riceverne una copia.
+Questo è la maniera raccomandata (non quella con "-f") per ottenere la lista di
+persone da aggiungere a Cc per le vostre patch. Ci sono svariate opzioni che
+regolano quanto a fondo get_maintainer.pl debba cercare i manutentori; siate
+quindi prudenti nell'utilizzare le opzioni più aggressive poiché potreste finire
+per includere sviluppatori che non hanno un vero interesse per il codice che
+state modificando.
 
 Se tutto ciò dovesse fallire, parlare con Andrew Morton potrebbe essere
 un modo efficace per capire chi è il manutentore di un dato pezzo di codice.

@@ -390,14 +390,6 @@ static int acp_hw_init(void *handle)
 		i2s_pdata[2].i2s_reg_comp1 = ACP_BT_COMP1_REG_OFFSET;
 		i2s_pdata[2].i2s_reg_comp2 = ACP_BT_COMP2_REG_OFFSET;
 
-		i2s_pdata[3].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
-		switch (adev->asic_type) {
-		case CHIP_STONEY:
-			i2s_pdata[3].quirks |= DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
-			break;
-		default:
-			break;
-		}
 		adev->acp.acp_res[0].name = "acp2x_dma";
 		adev->acp.acp_res[0].flags = IORESOURCE_MEM;
 		adev->acp.acp_res[0].start = acp_base;

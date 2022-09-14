@@ -12,6 +12,12 @@
  * See the GNU General Public License for more details.
  */
 
+#include <linux/types.h>
+#include <net/llc_s_ac.h>
+#include <net/llc_s_ev.h>
+
+struct llc_sap_state_trans;
+
 #define LLC_NR_SAP_STATES	2       /* size of state table */
 
 /* structures and types */

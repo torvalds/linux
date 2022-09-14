@@ -7,10 +7,9 @@ This list is the Linux Device List, the official registry of allocated
 device numbers and ``/dev`` directory nodes for the Linux operating
 system.
 
-The LaTeX version of this document is no longer maintained, nor is
-the document that used to reside at lanana.org.  This version in the
-mainline Linux kernel is the master document.  Updates shall be sent
-as patches to the kernel maintainers (see the
+The version of this document at lanana.org is no longer maintained.  This
+version in the mainline Linux kernel is the master document.  Updates
+shall be sent as patches to the kernel maintainers (see the
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` document).
 Specifically explore the sections titled "CHAR and MISC DRIVERS", and
 "BLOCK LAYER" in the MAINTAINERS file to find the right maintainers

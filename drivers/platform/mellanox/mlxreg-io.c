@@ -31,6 +31,7 @@
  * @group: sysfs attribute group;
  * @groups: list of sysfs attribute group for hwmon registration;
  * @regsize: size of a register value;
+ * @io_lock: user access locking;
  */
 struct mlxreg_io_priv_data {
 	struct platform_device *pdev;
@@ -41,6 +42,7 @@ struct mlxreg_io_priv_data {
 	struct attribute_group group;
 	const struct attribute_group *groups[2];
 	int regsize;
+	struct mutex io_lock; /* Protects user access. */
 };
 
 static int
@@ -116,14 +118,19 @@ mlxreg_io_attr_show(struct device *dev, struct device_attribute *attr,
 	u32 regval = 0;
 	int ret;
 
+	mutex_lock(&priv->io_lock);
+
 	ret = mlxreg_io_get_reg(priv->pdata->regmap, data, 0, true,
 				priv->regsize, &regval);
 	if (ret)
 		goto access_error;
 
+	mutex_unlock(&priv->io_lock);
+
 	return sprintf(buf, "%u\n", regval);
 
 access_error:
+	mutex_unlock(&priv->io_lock);
 	return ret;
 }
 
@@ -145,6 +152,8 @@ mlxreg_io_attr_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
+	mutex_lock(&priv->io_lock);
+
 	ret = mlxreg_io_get_reg(priv->pdata->regmap, data, input_val, false,
 				priv->regsize, &regval);
 	if (ret)
@@ -154,9 +163,12 @@ mlxreg_io_attr_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		goto access_error;
 
+	mutex_unlock(&priv->io_lock);
+
 	return len;
 
 access_error:
+	mutex_unlock(&priv->io_lock);
 	dev_err(&priv->pdev->dev, "Bus access error\n");
 	return ret;
 }
@@ -246,7 +258,17 @@ static int mlxreg_io_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->hwmon);
 	}
 
+	mutex_init(&priv->io_lock);
 	dev_set_drvdata(&pdev->dev, priv);
+
+	return 0;
+}
+
+static int mlxreg_io_remove(struct platform_device *pdev)
+{
+	struct mlxreg_io_priv_data *priv = dev_get_drvdata(&pdev->dev);
+
+	mutex_destroy(&priv->io_lock);
 
 	return 0;
 }
@@ -256,6 +278,7 @@ static struct platform_driver mlxreg_io_driver = {
 	    .name = "mlxreg-io",
 	},
 	.probe = mlxreg_io_probe,
+	.remove = mlxreg_io_remove,
 };
 
 module_platform_driver(mlxreg_io_driver);

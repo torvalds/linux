@@ -250,7 +250,7 @@ static bool upper_device_filter(struct ib_device *ib_dev, u32 port,
 
 /**
  * is_upper_ndev_bond_master_filter - Check if a given netdevice
- * is bond master device of netdevice of the the RDMA device of port.
+ * is bond master device of netdevice of the RDMA device of port.
  * @ib_dev:		IB device to check
  * @port:		Port to consider for adding default GID
  * @rdma_ndev:		Pointer to rdma netdevice

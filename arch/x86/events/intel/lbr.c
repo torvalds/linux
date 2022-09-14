@@ -278,9 +278,9 @@ enum {
 };
 
 /*
- * For formats with LBR_TSX flags (e.g. LBR_FORMAT_EIP_FLAGS2), bits 61:62 in
- * MSR_LAST_BRANCH_FROM_x are the TSX flags when TSX is supported, but when
- * TSX is not supported they have no consistent behavior:
+ * For format LBR_FORMAT_EIP_FLAGS2, bits 61:62 in MSR_LAST_BRANCH_FROM_x
+ * are the TSX flags when TSX is supported, but when TSX is not supported
+ * they have no consistent behavior:
  *
  *   - For wrmsr(), bits 61:62 are considered part of the sign extension.
  *   - For HW updates (branch captures) bits 61:62 are always OFF and are not
@@ -288,7 +288,7 @@ enum {
  *
  * Therefore, if:
  *
- *   1) LBR has TSX format
+ *   1) LBR format LBR_FORMAT_EIP_FLAGS2
  *   2) CPU has no TSX support enabled
  *
  * ... then any value passed to wrmsr() must be sign extended to 63 bits and any
@@ -300,7 +300,7 @@ static inline bool lbr_from_signext_quirk_needed(void)
 	bool tsx_support = boot_cpu_has(X86_FEATURE_HLE) ||
 			   boot_cpu_has(X86_FEATURE_RTM);
 
-	return !tsx_support && x86_pmu.lbr_has_tsx;
+	return !tsx_support;
 }
 
 static DEFINE_STATIC_KEY_FALSE(lbr_from_quirk_key);
@@ -1609,9 +1609,6 @@ void intel_pmu_lbr_init_hsw(void)
 	x86_pmu.lbr_sel_map  = hsw_lbr_sel_map;
 
 	x86_get_pmu(smp_processor_id())->task_ctx_cache = create_lbr_kmem_cache(size, 0);
-
-	if (lbr_from_signext_quirk_needed())
-		static_branch_enable(&lbr_from_quirk_key);
 }
 
 /* skylake */
@@ -1702,7 +1699,11 @@ void intel_pmu_lbr_init(void)
 	switch (x86_pmu.intel_cap.lbr_format) {
 	case LBR_FORMAT_EIP_FLAGS2:
 		x86_pmu.lbr_has_tsx = 1;
-		fallthrough;
+		x86_pmu.lbr_from_flags = 1;
+		if (lbr_from_signext_quirk_needed())
+			static_branch_enable(&lbr_from_quirk_key);
+		break;
+
 	case LBR_FORMAT_EIP_FLAGS:
 		x86_pmu.lbr_from_flags = 1;
 		break;

@@ -9,8 +9,8 @@ described here. It's recommended to follow these conventions whenever a
 new function or type is added to keep libbpf API clean and consistent.
 
 All types and functions provided by libbpf API should have one of the
-following prefixes: ``bpf_``, ``btf_``, ``libbpf_``, ``xsk_``,
-``btf_dump_``, ``ring_buffer_``, ``perf_buffer_``.
+following prefixes: ``bpf_``, ``btf_``, ``libbpf_``, ``btf_dump_``,
+``ring_buffer_``, ``perf_buffer_``.
 
 System call wrappers
 --------------------
@@ -58,15 +58,6 @@ Auxiliary functions
 Auxiliary functions and types that don't fit well in any of categories
 described above should have ``libbpf_`` prefix, e.g.
 ``libbpf_get_error`` or ``libbpf_prog_type_by_name``.
-
-AF_XDP functions
--------------------
-
-AF_XDP functions should have an ``xsk_`` prefix, e.g.
-``xsk_umem__get_data`` or ``xsk_umem__create``. The interface consists
-of both low-level ring access functions and high-level configuration
-functions. These can be mixed and matched. Note that these functions
-are not reentrant for performance reasons.
 
 ABI
 ---

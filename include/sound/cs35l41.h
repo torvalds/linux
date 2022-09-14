@@ -665,6 +665,10 @@
 #define CS35L41_BST_EN_DEFAULT		0x2
 #define CS35L41_AMP_EN_SHIFT		0
 #define CS35L41_AMP_EN_MASK		1
+#define CS35L41_VMON_EN_MASK		0x1000
+#define CS35L41_VMON_EN_SHIFT		12
+#define CS35L41_IMON_EN_MASK		0x2000
+#define CS35L41_IMON_EN_SHIFT		13
 
 #define CS35L41_PDN_DONE_MASK		0x00800000
 #define CS35L41_PDN_DONE_SHIFT		23
@@ -881,6 +885,9 @@ void cs35l41_configure_cs_dsp(struct device *dev, struct regmap *reg, struct cs_
 int cs35l41_set_cspl_mbox_cmd(struct device *dev, struct regmap *regmap,
 			      enum cs35l41_cspl_mbox_cmd cmd);
 int cs35l41_write_fs_errata(struct device *dev, struct regmap *regmap);
+int cs35l41_enter_hibernate(struct device *dev, struct regmap *regmap,
+			    enum cs35l41_boost_type b_type);
+int cs35l41_exit_hibernate(struct device *dev, struct regmap *regmap);
 int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 		       struct cs35l41_hw_cfg *hw_cfg);
 bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type);

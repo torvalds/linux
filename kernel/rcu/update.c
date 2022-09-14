@@ -85,7 +85,7 @@ module_param(rcu_normal_after_boot, int, 0444);
  * and while lockdep is disabled.
  *
  * Note that if the CPU is in the idle loop from an RCU point of view (ie:
- * that we are in the section between rcu_idle_enter() and rcu_idle_exit())
+ * that we are in the section between ct_idle_enter() and ct_idle_exit())
  * then rcu_read_lock_held() sets ``*ret`` to false even if the CPU did an
  * rcu_read_lock().  The reason for this is that RCU ignores CPUs that are
  * in such a section, considering these as in extended quiescent state,
@@ -515,6 +515,19 @@ module_param(rcu_exp_cpu_stall_timeout, int, 0644);
 int rcu_cpu_stall_suppress_at_boot __read_mostly; // !0 = suppress boot stalls.
 EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress_at_boot);
 module_param(rcu_cpu_stall_suppress_at_boot, int, 0444);
+
+/**
+ * get_completed_synchronize_rcu - Return a pre-completed polled state cookie
+ *
+ * Returns a value that will always be treated by functions like
+ * poll_state_synchronize_rcu() as a cookie whose grace period has already
+ * completed.
+ */
+unsigned long get_completed_synchronize_rcu(void)
+{
+	return RCU_GET_STATE_COMPLETED;
+}
+EXPORT_SYMBOL_GPL(get_completed_synchronize_rcu);
 
 #ifdef CONFIG_PROVE_RCU
 

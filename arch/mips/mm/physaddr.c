@@ -5,6 +5,7 @@
 #include <linux/mmdebug.h>
 #include <linux/mm.h>
 
+#include <asm/addrspace.h>
 #include <asm/sections.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -12,15 +13,6 @@
 
 static inline bool __debug_virt_addr_valid(unsigned long x)
 {
-	/* high_memory does not get immediately defined, and there
-	 * are early callers of __pa() against PAGE_OFFSET
-	 */
-	if (!high_memory && x >= PAGE_OFFSET)
-		return true;
-
-	if (high_memory && x >= PAGE_OFFSET && x < (unsigned long)high_memory)
-		return true;
-
 	/*
 	 * MAX_DMA_ADDRESS is a virtual address that may not correspond to an
 	 * actual physical address. Enough code relies on
@@ -30,7 +22,9 @@ static inline bool __debug_virt_addr_valid(unsigned long x)
 	if (x == MAX_DMA_ADDRESS)
 		return true;
 
-	return false;
+	return x >= PAGE_OFFSET && (KSEGX(x) < KSEG2 ||
+	       IS_ENABLED(CONFIG_EVA) ||
+	       !IS_ENABLED(CONFIG_HIGHMEM));
 }
 
 phys_addr_t __virt_to_phys(volatile const void *x)

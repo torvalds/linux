@@ -334,10 +334,9 @@ static int acpi_scan_device_check(struct acpi_device *adev)
 	return error;
 }
 
-static int acpi_scan_bus_check(struct acpi_device *adev)
+static int acpi_scan_bus_check(struct acpi_device *adev, void *not_used)
 {
 	struct acpi_scan_handler *handler = adev->handler;
-	struct acpi_device *child;
 	int error;
 
 	acpi_bus_get_status(adev);
@@ -353,19 +352,14 @@ static int acpi_scan_bus_check(struct acpi_device *adev)
 		dev_warn(&adev->dev, "Namespace scan failure\n");
 		return error;
 	}
-	list_for_each_entry(child, &adev->children, node) {
-		error = acpi_scan_bus_check(child);
-		if (error)
-			return error;
-	}
-	return 0;
+	return acpi_dev_for_each_child(adev, acpi_scan_bus_check, NULL);
 }
 
 static int acpi_generic_hotplug_event(struct acpi_device *adev, u32 type)
 {
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		return acpi_scan_bus_check(adev);
+		return acpi_scan_bus_check(adev, NULL);
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		return acpi_scan_device_check(adev);
 	case ACPI_NOTIFY_EJECT_REQUEST:
@@ -471,8 +465,6 @@ static void acpi_device_del(struct acpi_device *device)
 	struct acpi_device_bus_id *acpi_device_bus_id;
 
 	mutex_lock(&acpi_device_lock);
-	if (device->parent)
-		list_del(&device->node);
 
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
 		if (!strcmp(acpi_device_bus_id->bus_id,
@@ -488,6 +480,7 @@ static void acpi_device_del(struct acpi_device *device)
 		}
 
 	list_del(&device->wakeup_list);
+
 	mutex_unlock(&acpi_device_lock);
 
 	acpi_power_add_remove_device(device, false);
@@ -680,8 +673,6 @@ static int __acpi_device_add(struct acpi_device *device,
 	 * -------
 	 * Link this device to its parent and siblings.
 	 */
-	INIT_LIST_HEAD(&device->children);
-	INIT_LIST_HEAD(&device->node);
 	INIT_LIST_HEAD(&device->wakeup_list);
 	INIT_LIST_HEAD(&device->physical_node_list);
 	INIT_LIST_HEAD(&device->del_list);
@@ -721,9 +712,6 @@ static int __acpi_device_add(struct acpi_device *device,
 		list_add_tail(&acpi_device_bus_id->node, &acpi_bus_id_list);
 	}
 
-	if (device->parent)
-		list_add_tail(&device->node, &device->parent->children);
-
 	if (device->wakeup.flags.valid)
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
 
@@ -751,9 +739,6 @@ static int __acpi_device_add(struct acpi_device *device,
 
 err:
 	mutex_lock(&acpi_device_lock);
-
-	if (device->parent)
-		list_del(&device->node);
 
 	list_del(&device->wakeup_list);
 
@@ -1737,6 +1722,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 		{"INT3515", },
 		/* Non-conforming _HID for Cirrus Logic already released */
 		{"CLSA0100", },
+		{"CLSA0101", },
 	/*
 	 * Some ACPI devs contain SerialBus resources even though they are not
 	 * attached to a serial bus at all.
@@ -2187,9 +2173,8 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 	return ret;
 }
 
-static void acpi_bus_attach(struct acpi_device *device, bool first_pass)
+static int acpi_bus_attach(struct acpi_device *device, void *first_pass)
 {
-	struct acpi_device *child;
 	bool skip = !first_pass && device->flags.visited;
 	acpi_handle ejd;
 	int ret;
@@ -2206,7 +2191,7 @@ static void acpi_bus_attach(struct acpi_device *device, bool first_pass)
 		device->flags.initialized = false;
 		acpi_device_clear_enumerated(device);
 		device->flags.power_manageable = 0;
-		return;
+		return 0;
 	}
 	if (device->handler)
 		goto ok;
@@ -2224,7 +2209,7 @@ static void acpi_bus_attach(struct acpi_device *device, bool first_pass)
 
 	ret = acpi_scan_attach_handler(device);
 	if (ret < 0)
-		return;
+		return 0;
 
 	device->flags.match_driver = true;
 	if (ret > 0 && !device->flags.enumeration_by_parent) {
@@ -2234,19 +2219,20 @@ static void acpi_bus_attach(struct acpi_device *device, bool first_pass)
 
 	ret = device_attach(&device->dev);
 	if (ret < 0)
-		return;
+		return 0;
 
 	if (device->pnp.type.platform_id || device->flags.enumeration_by_parent)
 		acpi_default_enumeration(device);
 	else
 		acpi_device_set_enumerated(device);
 
- ok:
-	list_for_each_entry(child, &device->children, node)
-		acpi_bus_attach(child, first_pass);
+ok:
+	acpi_dev_for_each_child(device, acpi_bus_attach, first_pass);
 
 	if (!skip && device->handler && device->handler->hotplug.notify_online)
 		device->handler->hotplug.notify_online(device);
+
+	return 0;
 }
 
 static int acpi_dev_get_first_consumer_dev_cb(struct acpi_dep_data *dep, void *data)
@@ -2274,7 +2260,7 @@ static void acpi_scan_clear_dep_fn(struct work_struct *work)
 	cdw = container_of(work, struct acpi_scan_clear_dep_work, work);
 
 	acpi_scan_lock_acquire();
-	acpi_bus_attach(cdw->adev, true);
+	acpi_bus_attach(cdw->adev, (void *)true);
 	acpi_scan_lock_release();
 
 	acpi_dev_put(cdw->adev);
@@ -2432,7 +2418,7 @@ int acpi_bus_scan(acpi_handle handle)
 	if (!device)
 		return -ENODEV;
 
-	acpi_bus_attach(device, true);
+	acpi_bus_attach(device, (void *)true);
 
 	if (!acpi_bus_scan_second_pass)
 		return 0;
@@ -2446,25 +2432,17 @@ int acpi_bus_scan(acpi_handle handle)
 				    acpi_bus_check_add_2, NULL, NULL,
 				    (void **)&device);
 
-	acpi_bus_attach(device, false);
+	acpi_bus_attach(device, NULL);
 
 	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_scan);
 
-/**
- * acpi_bus_trim - Detach scan handlers and drivers from ACPI device objects.
- * @adev: Root of the ACPI namespace scope to walk.
- *
- * Must be called under acpi_scan_lock.
- */
-void acpi_bus_trim(struct acpi_device *adev)
+static int acpi_bus_trim_one(struct acpi_device *adev, void *not_used)
 {
 	struct acpi_scan_handler *handler = adev->handler;
-	struct acpi_device *child;
 
-	list_for_each_entry_reverse(child, &adev->children, node)
-		acpi_bus_trim(child);
+	acpi_dev_for_each_child_reverse(adev, acpi_bus_trim_one, NULL);
 
 	adev->flags.match_driver = false;
 	if (handler) {
@@ -2482,6 +2460,19 @@ void acpi_bus_trim(struct acpi_device *adev)
 	acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
 	adev->flags.initialized = false;
 	acpi_device_clear_enumerated(adev);
+
+	return 0;
+}
+
+/**
+ * acpi_bus_trim - Detach scan handlers and drivers from ACPI device objects.
+ * @adev: Root of the ACPI namespace scope to walk.
+ *
+ * Must be called under acpi_scan_lock.
+ */
+void acpi_bus_trim(struct acpi_device *adev)
+{
+	acpi_bus_trim_one(adev, NULL);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 

@@ -339,7 +339,7 @@ int nfp_compile_flow_metadata(struct nfp_app *app, u32 cookie,
 		goto err_free_ctx_entry;
 	}
 
-	/* Do net allocate a mask-id for pre_tun_rules. These flows are used to
+	/* Do not allocate a mask-id for pre_tun_rules. These flows are used to
 	 * configure the pre_tun table and are never actually send to the
 	 * firmware as an add-flow message. This causes the mask-id allocation
 	 * on the firmware to get out of sync if allocated here.

@@ -179,7 +179,9 @@ static int dw_mci_hi3798cv200_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->drive_clk);
 	clk_disable_unprepare(priv->sample_clk);
 
-	return dw_mci_pltfm_remove(pdev);
+	dw_mci_pltfm_remove(pdev);
+
+	return 0;
 }
 
 static const struct of_device_id dw_mci_hi3798cv200_match[] = {

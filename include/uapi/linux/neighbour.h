@@ -154,6 +154,7 @@ enum {
 	NDTPA_QUEUE_LENBYTES,		/* u32 */
 	NDTPA_MCAST_REPROBES,		/* u32 */
 	NDTPA_PAD,
+	NDTPA_INTERVAL_PROBE_TIME_MS,	/* u64, msecs */
 	__NDTPA_MAX
 };
 #define NDTPA_MAX (__NDTPA_MAX - 1)

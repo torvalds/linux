@@ -301,37 +301,22 @@ static bool tb_acpi_bus_match(struct device *dev)
 	return tb_is_switch(dev) || tb_is_usb4_port_device(dev);
 }
 
-static struct acpi_device *tb_acpi_find_port(struct acpi_device *adev,
-					     const struct tb_port *port)
-{
-	struct acpi_device *port_adev;
-
-	if (!adev)
-		return NULL;
-
-	/*
-	 * Device routers exists under the downstream facing USB4 port
-	 * of the parent router. Their _ADR is always 0.
-	 */
-	list_for_each_entry(port_adev, &adev->children, node) {
-		if (acpi_device_adr(port_adev) == port->port)
-			return port_adev;
-	}
-
-	return NULL;
-}
-
 static struct acpi_device *tb_acpi_switch_find_companion(struct tb_switch *sw)
 {
 	struct acpi_device *adev = NULL;
 	struct tb_switch *parent_sw;
 
+	/*
+	 * Device routers exists under the downstream facing USB4 port
+	 * of the parent router. Their _ADR is always 0.
+	 */
 	parent_sw = tb_switch_parent(sw);
 	if (parent_sw) {
 		struct tb_port *port = tb_port_at(tb_route(sw), parent_sw);
 		struct acpi_device *port_adev;
 
-		port_adev = tb_acpi_find_port(ACPI_COMPANION(&parent_sw->dev), port);
+		port_adev = acpi_find_child_by_adr(ACPI_COMPANION(&parent_sw->dev),
+						   port->port);
 		if (port_adev)
 			adev = acpi_find_child_device(port_adev, 0, false);
 	} else {
@@ -364,8 +349,8 @@ static struct acpi_device *tb_acpi_find_companion(struct device *dev)
 	if (tb_is_switch(dev))
 		return tb_acpi_switch_find_companion(tb_to_switch(dev));
 	else if (tb_is_usb4_port_device(dev))
-		return tb_acpi_find_port(ACPI_COMPANION(dev->parent),
-					 tb_to_usb4_port_device(dev)->port);
+		return acpi_find_child_by_adr(ACPI_COMPANION(dev->parent),
+					      tb_to_usb4_port_device(dev)->port->port);
 	return NULL;
 }
 

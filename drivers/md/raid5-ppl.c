@@ -679,7 +679,7 @@ void ppl_quiesce(struct r5conf *conf, int quiesce)
 	}
 }
 
-int ppl_handle_flush_request(struct r5l_log *log, struct bio *bio)
+int ppl_handle_flush_request(struct bio *bio)
 {
 	if (bio->bi_iter.bi_size == 0) {
 		bio_endio(bio);
@@ -897,7 +897,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 				 __func__, indent, "", rdev->bdev,
 				 (unsigned long long)sector);
 			if (!sync_page_io(rdev, sector, block_size, page2,
-					REQ_OP_READ, 0, false)) {
+					REQ_OP_READ, false)) {
 				md_error(mddev, rdev);
 				pr_debug("%s:%*s read failed!\n", __func__,
 					 indent, "");
@@ -919,7 +919,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 				 (unsigned long long)(ppl_sector + i));
 			if (!sync_page_io(log->rdev,
 					ppl_sector - log->rdev->data_offset + i,
-					block_size, page2, REQ_OP_READ, 0,
+					block_size, page2, REQ_OP_READ,
 					false)) {
 				pr_debug("%s:%*s read failed!\n", __func__,
 					 indent, "");
@@ -946,7 +946,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 			 (unsigned long long)parity_sector,
 			 parity_rdev->bdev);
 		if (!sync_page_io(parity_rdev, parity_sector, block_size,
-				page1, REQ_OP_WRITE, 0, false)) {
+				  page1, REQ_OP_WRITE, false)) {
 			pr_debug("%s:%*s parity write error!\n", __func__,
 				 indent, "");
 			md_error(mddev, parity_rdev);
@@ -998,7 +998,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 			int s = pp_size > PAGE_SIZE ? PAGE_SIZE : pp_size;
 
 			if (!sync_page_io(rdev, sector - rdev->data_offset,
-					s, page, REQ_OP_READ, 0, false)) {
+					s, page, REQ_OP_READ, false)) {
 				md_error(mddev, rdev);
 				ret = -EIO;
 				goto out;
@@ -1062,7 +1062,7 @@ static int ppl_write_empty_header(struct ppl_log *log)
 
 	if (!sync_page_io(rdev, rdev->ppl.sector - rdev->data_offset,
 			  PPL_HEADER_SIZE, page, REQ_OP_WRITE | REQ_SYNC |
-			  REQ_FUA, 0, false)) {
+			  REQ_FUA, false)) {
 		md_error(rdev->mddev, rdev);
 		ret = -EIO;
 	}
@@ -1100,7 +1100,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 		if (!sync_page_io(rdev,
 				  rdev->ppl.sector - rdev->data_offset +
 				  pplhdr_offset, PAGE_SIZE, page, REQ_OP_READ,
-				  0, false)) {
+				  false)) {
 			md_error(mddev, rdev);
 			ret = -EIO;
 			/* if not able to read - don't recover any PPL */

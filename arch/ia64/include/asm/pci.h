@@ -63,10 +63,4 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 	return (pci_domain_nr(bus) != 0);
 }
 
-#define HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ
-static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
-{
-	return channel ? isa_irq_to_vector(15) : isa_irq_to_vector(14);
-}
-
 #endif /* _ASM_IA64_PCI_H */

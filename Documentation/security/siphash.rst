@@ -85,7 +85,7 @@ Often times the XuY functions will not be large enough, and instead you'll
 want to pass a pre-filled struct to siphash. When doing this, it's important
 to always ensure the struct has no padding holes. The easiest way to do this
 is to simply arrange the members of the struct in descending order of size,
-and to use offsetendof() instead of sizeof() for getting the size. For
+and to use offsetofend() instead of sizeof() for getting the size. For
 performance reasons, if possible, it's probably a good thing to align the
 struct to the right boundary. Here's an example::
 

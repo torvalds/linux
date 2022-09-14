@@ -587,7 +587,8 @@ bool btrfs_finish_block_group_to_copy(struct btrfs_device *srcdev,
 	ASSERT(!IS_ERR(em));
 	map = em->map_lookup;
 
-	num_extents = cur_extent = 0;
+	num_extents = 0;
+	cur_extent = 0;
 	for (i = 0; i < map->num_stripes; i++) {
 		/* We have more device extent to copy */
 		if (srcdev != map->stripes[i].dev)

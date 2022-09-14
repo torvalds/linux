@@ -758,7 +758,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00queue_free_skb(intf->beacon);
 
-	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
+	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif, 0);
 	if (!intf->beacon->skb)
 		return -ENOMEM;
 

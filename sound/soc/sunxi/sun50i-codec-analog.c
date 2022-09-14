@@ -117,6 +117,7 @@
 #define SUN50I_ADDA_HS_MBIAS_CTRL_MMICBIASEN	7
 
 #define SUN50I_ADDA_JACK_MIC_CTRL	0x1d
+#define SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN	6
 #define SUN50I_ADDA_JACK_MIC_CTRL_HMICBIASEN	5
 
 /* mixer controls */
@@ -507,6 +508,7 @@ static int sun50i_codec_analog_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
 	void __iomem *base;
+	bool enable;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
@@ -519,6 +521,12 @@ static int sun50i_codec_analog_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to create regmap\n");
 		return PTR_ERR(regmap);
 	}
+
+	enable = device_property_read_bool(&pdev->dev,
+					   "allwinner,internal-bias-resistor");
+	regmap_update_bits(regmap, SUN50I_ADDA_JACK_MIC_CTRL,
+			   BIT(SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN),
+			   enable << SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN);
 
 	return devm_snd_soc_register_component(&pdev->dev,
 					       &sun50i_codec_analog_cmpnt_drv,

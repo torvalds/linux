@@ -77,7 +77,7 @@ irqreturn_t vas_fault_thread_fn(int irq, void *data)
 	/*
 	 * VAS can interrupt with multiple page faults. So process all
 	 * valid CRBs within fault FIFO until reaches invalid CRB.
-	 * We use CCW[0] and pswid to validate validate CRBs:
+	 * We use CCW[0] and pswid to validate CRBs:
 	 *
 	 * CCW[0]	Reserved bit. When NX pastes CRB, CCW[0]=0
 	 *		OS sets this bit to 1 after reading CRB.

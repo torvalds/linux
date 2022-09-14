@@ -306,6 +306,16 @@ config USB_EHCI_MV
 	  Dova, Armada 370 and Armada XP. See "Support for Marvell EBU
 	  on-chip EHCI USB controller" for those.
 
+config USB_OCTEON_HCD
+	tristate "Cavium Networks Octeon USB support"
+	depends on CAVIUM_OCTEON_SOC && USB
+	help
+	  This driver supports USB host controller on some Cavium
+	  Networks' products in the Octeon family.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called octeon-hcd.
+
 config USB_CNS3XXX_EHCI
 	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"
 	depends on ARCH_CNS3XXX || COMPILE_TEST

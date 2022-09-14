@@ -11,6 +11,8 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
+#include <asm/prom.h>
+
 static __initdata struct {
 	const char *compatible;
 	char *plat_name;

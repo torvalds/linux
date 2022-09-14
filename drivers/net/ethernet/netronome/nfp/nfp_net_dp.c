@@ -440,3 +440,27 @@ bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb)
 
 	return ret;
 }
+
+bool nfp_net_vlan_strip(struct sk_buff *skb, const struct nfp_net_rx_desc *rxd,
+			const struct nfp_meta_parsed *meta)
+{
+	u16 tpid = 0, tci = 0;
+
+	if (rxd->rxd.flags & PCIE_DESC_RX_VLAN) {
+		tpid = ETH_P_8021Q;
+		tci = le16_to_cpu(rxd->rxd.vlan);
+	} else if (meta->vlan.stripped) {
+		if (meta->vlan.tpid == NFP_NET_VLAN_CTAG)
+			tpid = ETH_P_8021Q;
+		else if (meta->vlan.tpid == NFP_NET_VLAN_STAG)
+			tpid = ETH_P_8021AD;
+		else
+			return false;
+
+		tci = meta->vlan.tci;
+	}
+	if (tpid)
+		__vlan_hwaccel_put_tag(skb, htons(tpid), tci);
+
+	return true;
+}

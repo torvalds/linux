@@ -30,6 +30,8 @@ struct btrfs_qgroup;
 struct extent_io_tree;
 struct prelim_ref;
 struct btrfs_space_info;
+struct btrfs_raid_bio;
+struct raid56_bio_trace_info;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -594,6 +596,70 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_put,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_range,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_first_range,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_for_logging,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_lookup_first,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_split,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_dec_test_pending,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
+);
+
+DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_mark_finished,
+
+	     TP_PROTO(const struct btrfs_inode *inode,
+		      const struct btrfs_ordered_extent *ordered),
+
+	     TP_ARGS(inode, ordered)
 );
 
 DECLARE_EVENT_CLASS(btrfs__writepage,
@@ -2256,6 +2322,98 @@ DEFINE_EVENT(btrfs__space_info_update, update_bytes_pinned,
 		 const struct btrfs_space_info *sinfo, u64 old, s64 diff),
 
 	TP_ARGS(fs_info, sinfo, old, diff)
+);
+
+DECLARE_EVENT_CLASS(btrfs_raid56_bio,
+
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	full_stripe	)
+		__field(	u64,	physical	)
+		__field(	u64,	devid		)
+		__field(	u32,	offset		)
+		__field(	u32,	len		)
+		__field(	u8,	opf		)
+		__field(	u8,	total_stripes	)
+		__field(	u8,	real_stripes	)
+		__field(	u8,	nr_data		)
+		__field(	u8,	stripe_nr	)
+	),
+
+	TP_fast_assign_btrfs(rbio->bioc->fs_info,
+		__entry->full_stripe	= rbio->bioc->raid_map[0];
+		__entry->physical	= bio->bi_iter.bi_sector << SECTOR_SHIFT;
+		__entry->len		= bio->bi_iter.bi_size;
+		__entry->opf		= bio_op(bio);
+		__entry->devid		= trace_info->devid;
+		__entry->offset		= trace_info->offset;
+		__entry->stripe_nr	= trace_info->stripe_nr;
+		__entry->total_stripes	= rbio->bioc->num_stripes;
+		__entry->real_stripes	= rbio->real_stripes;
+		__entry->nr_data	= rbio->nr_data;
+	),
+	/*
+	 * For type output, we need to output things like "DATA1"
+	 * (the first data stripe), "DATA2" (the second data stripe),
+	 * "PQ1" (P stripe),"PQ2" (Q stripe), "REPLACE0" (replace target device).
+	 */
+	TP_printk_btrfs(
+"full_stripe=%llu devid=%lld type=%s%d offset=%d opf=0x%x physical=%llu len=%u",
+		__entry->full_stripe, __entry->devid,
+		(__entry->stripe_nr < __entry->nr_data) ? "DATA" :
+			((__entry->stripe_nr < __entry->real_stripes) ? "PQ" :
+			 "REPLACE"),
+		(__entry->stripe_nr < __entry->nr_data) ?
+			(__entry->stripe_nr + 1) :
+			((__entry->stripe_nr < __entry->real_stripes) ?
+			 (__entry->stripe_nr - __entry->nr_data + 1) : 0),
+		__entry->offset, __entry->opf, __entry->physical, __entry->len)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_read_partial,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_write_stripe,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_write_stripe,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_read,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
+);
+
+DEFINE_EVENT(btrfs_raid56_bio, raid56_scrub_read_recover,
+	TP_PROTO(const struct btrfs_raid_bio *rbio,
+		 const struct bio *bio,
+		 const struct raid56_bio_trace_info *trace_info),
+
+	TP_ARGS(rbio, bio, trace_info)
 );
 
 #endif /* _TRACE_BTRFS_H */

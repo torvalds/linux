@@ -274,16 +274,4 @@
 	nor	\dst, \src, zero
 .endm
 
-.macro bgt r0 r1 label
-	blt	\r1, \r0, \label
-.endm
-
-.macro bltz r0 label
-	blt	\r0, zero, \label
-.endm
-
-.macro bgez r0 label
-	bge	\r0, zero, \label
-.endm
-
 #endif /* _ASM_ASMMACRO_H */

@@ -1654,7 +1654,8 @@ static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
  * IEEE80211 stack callback functions.
  */
 static int rt2400pci_conf_tx(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif, u16 queue,
+			     struct ieee80211_vif *vif,
+			     unsigned int link_id, u16 queue,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -1667,7 +1668,7 @@ static int rt2400pci_conf_tx(struct ieee80211_hw *hw,
 	if (queue != 0)
 		return -EINVAL;
 
-	if (rt2x00mac_conf_tx(hw, vif, queue, params))
+	if (rt2x00mac_conf_tx(hw, vif, link_id, queue, params))
 		return -EINVAL;
 
 	/*

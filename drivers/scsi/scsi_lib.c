@@ -75,13 +75,6 @@ int scsi_init_sense_cache(struct Scsi_Host *shost)
 	return ret;
 }
 
-/*
- * When to reinvoke queueing after a resource shortage. It's 3 msecs to
- * not change behaviour from the previous unplug mechanism, experimentation
- * may prove this needs changing.
- */
-#define SCSI_QUEUE_DELAY	3
-
 static void
 scsi_set_blocked(struct scsi_cmnd *cmd, int reason)
 {
@@ -163,7 +156,7 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
 	 * Requeue this command.  It will go before all other commands
 	 * that are already in the queue. Schedule requeue work under
 	 * lock such that the kblockd_schedule_work() call happens
-	 * before blk_cleanup_queue() finishes.
+	 * before blk_mq_destroy_queue() finishes.
 	 */
 	cmd->result = 0;
 
@@ -209,8 +202,8 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
 		 unsigned char *sense, struct scsi_sense_hdr *sshdr,
-		 int timeout, int retries, u64 flags, req_flags_t rq_flags,
-		 int *resid)
+		 int timeout, int retries, blk_opf_t flags,
+		 req_flags_t rq_flags, int *resid)
 {
 	struct request *req;
 	struct scsi_cmnd *scmd;
@@ -424,9 +417,9 @@ static void scsi_starved_list_run(struct Scsi_Host *shost)
 		 * it and the queue.  Mitigate by taking a reference to the
 		 * queue and never touching the sdev again after we drop the
 		 * host lock.  Note: if __scsi_remove_device() invokes
-		 * blk_cleanup_queue() before the queue is run from this
+		 * blk_mq_destroy_queue() before the queue is run from this
 		 * function then blk_run_queue() will return immediately since
-		 * blk_cleanup_queue() marks the queue with QUEUE_FLAG_DYING.
+		 * blk_mq_destroy_queue() marks the queue with QUEUE_FLAG_DYING.
 		 */
 		slq = sdev->request_queue;
 		if (!blk_get_queue(slq))
@@ -633,7 +626,7 @@ static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
  */
 static unsigned int scsi_rq_err_bytes(const struct request *rq)
 {
-	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
+	blk_opf_t ff = rq->cmd_flags & REQ_FAILFAST_MASK;
 	unsigned int bytes = 0;
 	struct bio *bio;
 
@@ -1125,12 +1118,12 @@ static void scsi_initialize_rq(struct request *rq)
 	cmd->retries = 0;
 }
 
-struct request *scsi_alloc_request(struct request_queue *q,
-		unsigned int op, blk_mq_req_flags_t flags)
+struct request *scsi_alloc_request(struct request_queue *q, blk_opf_t opf,
+				   blk_mq_req_flags_t flags)
 {
 	struct request *rq;
 
-	rq = blk_mq_alloc_request(q, op, flags);
+	rq = blk_mq_alloc_request(q, opf, flags);
 	if (!IS_ERR(rq))
 		scsi_initialize_rq(rq);
 	return rq;
@@ -1648,6 +1641,13 @@ static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 	sbitmap_put(&sdev->budget_map, budget_token);
 }
 
+/*
+ * When to reinvoke queueing after a resource shortage. It's 3 msecs to
+ * not change behaviour from the previous unplug mechanism, experimentation
+ * may prove this needs changing.
+ */
+#define SCSI_QUEUE_DELAY 3
+
 static int scsi_mq_get_budget(struct request_queue *q)
 {
 	struct scsi_device *sdev = q->queuedata;
@@ -1790,14 +1790,6 @@ out_put_budget:
 	return ret;
 }
 
-static enum blk_eh_timer_return scsi_timeout(struct request *req,
-		bool reserved)
-{
-	if (reserved)
-		return BLK_EH_RESET_TIMER;
-	return scsi_times_out(req);
-}
-
 static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 				unsigned int hctx_idx, unsigned int numa_node)
 {
@@ -1884,10 +1876,6 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 		blk_queue_max_integrity_segments(q, shost->sg_prot_tablesize);
 	}
 
-	if (dev->dma_mask) {
-		shost->max_sectors = min_t(unsigned int, shost->max_sectors,
-				dma_max_mapping_size(dev) >> SECTOR_SHIFT);
-	}
 	blk_queue_max_hw_sectors(q, shost->max_sectors);
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	dma_set_seg_boundary(dev, shost->dma_boundary);

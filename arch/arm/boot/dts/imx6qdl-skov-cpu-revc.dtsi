@@ -15,13 +15,13 @@
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 		interrupts-extended = <&gpio3 19 IRQ_TYPE_LEVEL_LOW>;
-		vcc-supply  = <&reg_3v3>;
+		vcc-supply = <&reg_3v3>;
 		pendown-gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = /bits/ 16 <850>;
 		ti,y-plate-ohms = /bits/ 16 <295>;
 		ti,pressure-min = /bits/ 16 <2>;
 		ti,pressure-max = /bits/ 16 <1500>;
-		ti,vref-mv	= /bits/ 16 <3300>;
+		ti,vref-mv = /bits/ 16 <3300>;
 		ti,settle-delay-usec = /bits/ 16 <15>;
 		ti,vref-delay-usecs = /bits/ 16 <0>;
 		ti,penirq-recheck-delay-usecs = /bits/ 16 <100>;

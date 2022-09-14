@@ -53,10 +53,10 @@
 #define CAST_REC_REGS_SEL		CAST_STATUS4
 #define CAST_LUMTH			CAST_STATUS5
 #define CAST_CHRTH			CAST_STATUS6
-#define CAST_NOMFRSIZE_LO		CAST_STATUS7
-#define CAST_NOMFRSIZE_HI		CAST_STATUS8
-#define CAST_OFBSIZE_LO			CAST_STATUS9
-#define CAST_OFBSIZE_HI			CAST_STATUS10
+#define CAST_NOMFRSIZE_LO		CAST_STATUS16
+#define CAST_NOMFRSIZE_HI		CAST_STATUS17
+#define CAST_OFBSIZE_LO			CAST_STATUS18
+#define CAST_OFBSIZE_HI			CAST_STATUS19
 
 #define MXC_MAX_SLOTS	1 /* TODO use all 4 slots*/
 /* JPEG-Decoder Wrapper Slot Registers 0..3 */
@@ -119,12 +119,14 @@ int mxc_jpeg_enable(void __iomem *reg);
 void wait_frmdone(struct device *dev, void __iomem *reg);
 void mxc_jpeg_enc_mode_conf(struct device *dev, void __iomem *reg);
 void mxc_jpeg_enc_mode_go(struct device *dev, void __iomem *reg);
+void mxc_jpeg_enc_set_quality(struct device *dev, void __iomem *reg, u8 quality);
 void mxc_jpeg_dec_mode_go(struct device *dev, void __iomem *reg);
 int mxc_jpeg_get_slot(void __iomem *reg);
 u32 mxc_jpeg_get_offset(void __iomem *reg, int slot);
 void mxc_jpeg_enable_slot(void __iomem *reg, int slot);
 void mxc_jpeg_set_l_endian(void __iomem *reg, int le);
 void mxc_jpeg_enable_irq(void __iomem *reg, int slot);
+void mxc_jpeg_disable_irq(void __iomem *reg, int slot);
 int mxc_jpeg_set_input(void __iomem *reg, u32 in_buf, u32 bufsize);
 int mxc_jpeg_set_output(void __iomem *reg, u16 out_pitch, u32 out_buf,
 			u16 w, u16 h);

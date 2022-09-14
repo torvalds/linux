@@ -2243,7 +2243,7 @@ static struct rtable *vxlan_get_route(struct vxlan_dev *vxlan, struct net_device
 				      struct vxlan_sock *sock4,
 				      struct sk_buff *skb, int oif, u8 tos,
 				      __be32 daddr, __be32 *saddr, __be16 dport, __be16 sport,
-				      struct dst_cache *dst_cache,
+				      __u8 flow_flags, struct dst_cache *dst_cache,
 				      const struct ip_tunnel_info *info)
 {
 	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
@@ -2270,6 +2270,7 @@ static struct rtable *vxlan_get_route(struct vxlan_dev *vxlan, struct net_device
 	fl4.saddr = *saddr;
 	fl4.fl4_dport = dport;
 	fl4.fl4_sport = sport;
+	fl4.flowi4_flags = flow_flags;
 
 	rt = ip_route_output_key(vxlan->net, &fl4);
 	if (!IS_ERR(rt)) {
@@ -2320,7 +2321,7 @@ static struct dst_entry *vxlan6_get_route(struct vxlan_dev *vxlan,
 	fl6.flowi6_oif = oif;
 	fl6.daddr = *daddr;
 	fl6.saddr = *saddr;
-	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tos), label);
+	fl6.flowlabel = ip6_make_flowinfo(tos, label);
 	fl6.flowi6_mark = skb->mark;
 	fl6.flowi6_proto = IPPROTO_UDP;
 	fl6.fl6_dport = dport;
@@ -2385,15 +2386,15 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 		vxlan_snoop(dev, &loopback, eth_hdr(skb)->h_source, 0, vni);
 
 	u64_stats_update_begin(&tx_stats->syncp);
-	tx_stats->tx_packets++;
-	tx_stats->tx_bytes += len;
+	u64_stats_inc(&tx_stats->tx_packets);
+	u64_stats_add(&tx_stats->tx_bytes, len);
 	u64_stats_update_end(&tx_stats->syncp);
 	vxlan_vnifilter_count(src_vxlan, vni, NULL, VXLAN_VNI_STATS_TX, len);
 
 	if (__netif_rx(skb) == NET_RX_SUCCESS) {
 		u64_stats_update_begin(&rx_stats->syncp);
-		rx_stats->rx_packets++;
-		rx_stats->rx_bytes += len;
+		u64_stats_inc(&rx_stats->rx_packets);
+		u64_stats_add(&rx_stats->rx_bytes, len);
 		u64_stats_update_end(&rx_stats->syncp);
 		vxlan_vnifilter_count(dst_vxlan, vni, NULL, VXLAN_VNI_STATS_RX,
 				      len);
@@ -2459,7 +2460,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	unsigned int pkt_len = skb->len;
 	__be16 src_port = 0, dst_port;
 	struct dst_entry *ndst = NULL;
-	__u8 tos, ttl;
+	__u8 tos, ttl, flow_flags = 0;
 	int ifindex;
 	int err;
 	u32 flags = vxlan->cfg.flags;
@@ -2525,6 +2526,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 		dst = &remote_ip;
 		dst_port = info->key.tp_dst ? : vxlan->cfg.dst_port;
+		flow_flags = info->key.flow_flags;
 		vni = tunnel_id_to_key32(info->key.tun_id);
 		ifindex = 0;
 		dst_cache = &info->dst_cache;
@@ -2555,7 +2557,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		rt = vxlan_get_route(vxlan, dev, sock4, skb, ifindex, tos,
 				     dst->sin.sin_addr.s_addr,
 				     &local_ip.sin.sin_addr.s_addr,
-				     dst_port, src_port,
+				     dst_port, src_port, flow_flags,
 				     dst_cache, info);
 		if (IS_ERR(rt)) {
 			err = PTR_ERR(rt);
@@ -3061,7 +3063,8 @@ static int vxlan_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 		rt = vxlan_get_route(vxlan, dev, sock4, skb, 0, info->key.tos,
 				     info->key.u.ipv4.dst,
 				     &info->key.u.ipv4.src, dport, sport,
-				     &info->dst_cache, info);
+				     info->key.flow_flags, &info->dst_cache,
+				     info);
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
 		ip_rt_put(rt);

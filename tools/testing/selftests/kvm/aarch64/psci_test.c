@@ -17,9 +17,6 @@
 #include "processor.h"
 #include "test_util.h"
 
-#define VCPU_ID_SOURCE 0
-#define VCPU_ID_TARGET 1
-
 #define CPU_ON_ENTRY_ADDR 0xfeedf00dul
 #define CPU_ON_CONTEXT_ID 0xdeadc0deul
 
@@ -64,49 +61,48 @@ static uint64_t psci_features(uint32_t func_id)
 	return res.a0;
 }
 
-static void vcpu_power_off(struct kvm_vm *vm, uint32_t vcpuid)
+static void vcpu_power_off(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mp_state mp_state = {
 		.mp_state = KVM_MP_STATE_STOPPED,
 	};
 
-	vcpu_set_mp_state(vm, vcpuid, &mp_state);
+	vcpu_mp_state_set(vcpu, &mp_state);
 }
 
-static struct kvm_vm *setup_vm(void *guest_code)
+static struct kvm_vm *setup_vm(void *guest_code, struct kvm_vcpu **source,
+			       struct kvm_vcpu **target)
 {
 	struct kvm_vcpu_init init;
 	struct kvm_vm *vm;
 
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
-	kvm_vm_elf_load(vm, program_invocation_name);
+	vm = vm_create(2);
 	ucall_init(vm, NULL);
 
 	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init);
 	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
 
-	aarch64_vcpu_add_default(vm, VCPU_ID_SOURCE, &init, guest_code);
-	aarch64_vcpu_add_default(vm, VCPU_ID_TARGET, &init, guest_code);
+	*source = aarch64_vcpu_add(vm, 0, &init, guest_code);
+	*target = aarch64_vcpu_add(vm, 1, &init, guest_code);
 
 	return vm;
 }
 
-static void enter_guest(struct kvm_vm *vm, uint32_t vcpuid)
+static void enter_guest(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
-	vcpu_run(vm, vcpuid);
-	if (get_ucall(vm, vcpuid, &uc) == UCALL_ABORT)
-		TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0], __FILE__,
-			  uc.args[1]);
+	vcpu_run(vcpu);
+	if (get_ucall(vcpu, &uc) == UCALL_ABORT)
+		REPORT_GUEST_ASSERT(uc);
 }
 
-static void assert_vcpu_reset(struct kvm_vm *vm, uint32_t vcpuid)
+static void assert_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	uint64_t obs_pc, obs_x0;
 
-	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), &obs_pc);
-	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.regs[0]), &obs_x0);
+	vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pc), &obs_pc);
+	vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.regs[0]), &obs_x0);
 
 	TEST_ASSERT(obs_pc == CPU_ON_ENTRY_ADDR,
 		    "unexpected target cpu pc: %lx (expected: %lx)",
@@ -134,35 +130,27 @@ static void guest_test_cpu_on(uint64_t target_cpu)
 
 static void host_test_cpu_on(void)
 {
+	struct kvm_vcpu *source, *target;
 	uint64_t target_mpidr;
 	struct kvm_vm *vm;
 	struct ucall uc;
 
-	vm = setup_vm(guest_test_cpu_on);
+	vm = setup_vm(guest_test_cpu_on, &source, &target);
 
 	/*
 	 * make sure the target is already off when executing the test.
 	 */
-	vcpu_power_off(vm, VCPU_ID_TARGET);
+	vcpu_power_off(target);
 
-	get_reg(vm, VCPU_ID_TARGET, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &target_mpidr);
-	vcpu_args_set(vm, VCPU_ID_SOURCE, 1, target_mpidr & MPIDR_HWID_BITMASK);
-	enter_guest(vm, VCPU_ID_SOURCE);
+	vcpu_get_reg(target, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &target_mpidr);
+	vcpu_args_set(source, 1, target_mpidr & MPIDR_HWID_BITMASK);
+	enter_guest(source);
 
-	if (get_ucall(vm, VCPU_ID_SOURCE, &uc) != UCALL_DONE)
+	if (get_ucall(source, &uc) != UCALL_DONE)
 		TEST_FAIL("Unhandled ucall: %lu", uc.cmd);
 
-	assert_vcpu_reset(vm, VCPU_ID_TARGET);
+	assert_vcpu_reset(target);
 	kvm_vm_free(vm);
-}
-
-static void enable_system_suspend(struct kvm_vm *vm)
-{
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_ARM_SYSTEM_SUSPEND,
-	};
-
-	vm_enable_cap(vm, &cap);
 }
 
 static void guest_test_system_suspend(void)
@@ -179,16 +167,17 @@ static void guest_test_system_suspend(void)
 
 static void host_test_system_suspend(void)
 {
+	struct kvm_vcpu *source, *target;
 	struct kvm_run *run;
 	struct kvm_vm *vm;
 
-	vm = setup_vm(guest_test_system_suspend);
-	enable_system_suspend(vm);
+	vm = setup_vm(guest_test_system_suspend, &source, &target);
+	vm_enable_cap(vm, KVM_CAP_ARM_SYSTEM_SUSPEND, 0);
 
-	vcpu_power_off(vm, VCPU_ID_TARGET);
-	run = vcpu_state(vm, VCPU_ID_SOURCE);
+	vcpu_power_off(target);
+	run = source->run;
 
-	enter_guest(vm, VCPU_ID_SOURCE);
+	enter_guest(source);
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_SYSTEM_EVENT,
 		    "Unhandled exit reason: %u (%s)",
@@ -202,10 +191,7 @@ static void host_test_system_suspend(void)
 
 int main(void)
 {
-	if (!kvm_check_cap(KVM_CAP_ARM_SYSTEM_SUSPEND)) {
-		print_skip("KVM_CAP_ARM_SYSTEM_SUSPEND not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_SYSTEM_SUSPEND));
 
 	host_test_cpu_on();
 	host_test_system_suspend();

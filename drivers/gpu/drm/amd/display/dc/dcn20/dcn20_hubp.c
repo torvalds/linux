@@ -463,9 +463,6 @@ void hubp2_program_pixel_format(
 				SURFACE_PIXEL_FORMAT, 10);
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
-		REG_UPDATE(DCSURF_SURFACE_CONFIG,
-				SURFACE_PIXEL_FORMAT, 22);
-		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616: /*we use crossbar already*/
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 26); /* ARGB16161616_UNORM */
@@ -990,13 +987,10 @@ void hubp2_cursor_set_position(
 			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
 		}
 	} else if (param->rotation == ROTATION_ANGLE_180) {
-		src_x_offset = pos->x - param->viewport.x;
-		src_y_offset = pos->y - param->viewport.y;
-	}
+		if (!param->mirror)
+			src_x_offset = pos->x - param->viewport.x;
 
-	if (param->mirror) {
-		x_hotspot = param->viewport.width - x_hotspot;
-		src_x_offset = param->viewport.x + param->viewport.width - src_x_offset;
+		src_y_offset = pos->y - param->viewport.y;
 	}
 
 	dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;

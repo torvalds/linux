@@ -7,11 +7,6 @@
 #include "ipq8074.dtsi"
 
 / {
-	#address-cells = <0x2>;
-	#size-cells = <0x2>;
-
-	interrupt-parent = <&intc>;
-
 	aliases {
 		serial0 = &blsp1_uart5;
 	};

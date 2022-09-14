@@ -28,7 +28,6 @@
 #include <linux/sysfs.h>
 
 #include "hmm/hmm.h"
-#include "hmm/hmm_pool.h"
 #include "hmm/hmm_bo.h"
 
 #include "atomisp_internal.h"
@@ -37,11 +36,8 @@
 #include "mmu/sh_mmu_mrfld.h"
 
 struct hmm_bo_device bo_device;
-struct hmm_pool	dynamic_pool;
-struct hmm_pool	reserved_pool;
 static ia_css_ptr dummy_ptr = mmgr_EXCEPTION;
 static bool hmm_initialized;
-struct _hmm_mem_stat hmm_mem_stat;
 
 /*
  * p: private
@@ -113,62 +109,13 @@ static ssize_t free_bo_show(struct device *dev, struct device_attribute *attr,
 	return bo_show(dev, attr, buf, &bo_device.entire_bo_list, false);
 }
 
-static ssize_t reserved_pool_show(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
-{
-	ssize_t ret = 0;
-
-	struct hmm_reserved_pool_info *pinfo = reserved_pool.pool_info;
-	unsigned long flags;
-
-	if (!pinfo || !pinfo->initialized)
-		return 0;
-
-	spin_lock_irqsave(&pinfo->list_lock, flags);
-	ret = scnprintf(buf, PAGE_SIZE, "%d out of %d pages available\n",
-			pinfo->index, pinfo->pgnr);
-	spin_unlock_irqrestore(&pinfo->list_lock, flags);
-
-	if (ret > 0)
-		ret++; /* Add trailing zero, not included by scnprintf */
-
-	return ret;
-};
-
-static ssize_t dynamic_pool_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	ssize_t ret = 0;
-
-	struct hmm_dynamic_pool_info *pinfo = dynamic_pool.pool_info;
-	unsigned long flags;
-
-	if (!pinfo || !pinfo->initialized)
-		return 0;
-
-	spin_lock_irqsave(&pinfo->list_lock, flags);
-	ret = scnprintf(buf, PAGE_SIZE, "%d (max %d) pages available\n",
-			pinfo->pgnr, pinfo->pool_size);
-	spin_unlock_irqrestore(&pinfo->list_lock, flags);
-
-	if (ret > 0)
-		ret++; /* Add trailing zero, not included by scnprintf */
-
-	return ret;
-};
 
 static DEVICE_ATTR_RO(active_bo);
 static DEVICE_ATTR_RO(free_bo);
-static DEVICE_ATTR_RO(reserved_pool);
-static DEVICE_ATTR_RO(dynamic_pool);
 
 static struct attribute *sysfs_attrs_ctrl[] = {
 	&dev_attr_active_bo.attr,
 	&dev_attr_free_bo.attr,
-	&dev_attr_reserved_pool.attr,
-	&dev_attr_dynamic_pool.attr,
 	NULL
 };
 
@@ -194,7 +141,7 @@ int hmm_init(void)
 	 * at the beginning, to avoid hmm_alloc return 0 in the
 	 * further allocation.
 	 */
-	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, NULL, 0);
+	dummy_ptr = hmm_alloc(1);
 
 	if (!ret) {
 		ret = sysfs_create_group(&atomisp_dev->kobj,
@@ -221,16 +168,11 @@ void hmm_cleanup(void)
 	hmm_initialized = false;
 }
 
-ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
-		     int from_highmem, const void __user *userptr,
-		     const uint16_t attrs)
+static ia_css_ptr __hmm_alloc(size_t bytes, enum hmm_bo_type type, const void __user *userptr)
 {
 	unsigned int pgnr;
 	struct hmm_buffer_object *bo;
-	bool cached = attrs & ATOMISP_MAP_FLAG_CACHED;
 	int ret;
-
-	WARN_ON(attrs & ATOMISP_MAP_FLAG_CONTIGUOUS);
 
 	/*
 	 * Check if we are initialized. In the ideal world we wouldn't need
@@ -250,7 +192,7 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	}
 
 	/* Allocate pages for memory */
-	ret = hmm_bo_alloc_pages(bo, type, from_highmem, userptr, cached);
+	ret = hmm_bo_alloc_pages(bo, type, userptr);
 	if (ret) {
 		dev_err(atomisp_dev, "hmm_bo_alloc_pages failed.\n");
 		goto alloc_page_err;
@@ -263,14 +205,9 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 		goto bind_err;
 	}
 
-	hmm_mem_stat.tol_cnt += pgnr;
-
-	if (attrs & ATOMISP_MAP_FLAG_CLEARED)
-		hmm_set(bo->start, 0, bytes);
-
 	dev_dbg(atomisp_dev,
-		"%s: pages: 0x%08x (%zu bytes), type: %d from highmem %d, user ptr %p, cached %d\n",
-		__func__, bo->start, bytes, type, from_highmem, userptr, cached);
+		"%s: pages: 0x%08x (%zu bytes), type: %d, user ptr %p\n",
+		__func__, bo->start, bytes, type, userptr);
 
 	return bo->start;
 
@@ -280,6 +217,16 @@ alloc_page_err:
 	hmm_bo_unref(bo);
 create_bo_err:
 	return 0;
+}
+
+ia_css_ptr hmm_alloc(size_t bytes)
+{
+	return __hmm_alloc(bytes, HMM_BO_PRIVATE, NULL);
+}
+
+ia_css_ptr hmm_create_from_userdata(size_t bytes, const void __user *userptr)
+{
+	return __hmm_alloc(bytes, HMM_BO_USER, userptr);
 }
 
 void hmm_free(ia_css_ptr virt)
@@ -299,8 +246,6 @@ void hmm_free(ia_css_ptr virt)
 			(unsigned int)virt);
 		return;
 	}
-
-	hmm_mem_stat.tol_cnt -= bo->pgnr;
 
 	hmm_bo_unbind(bo);
 	hmm_bo_free_pages(bo);
@@ -350,7 +295,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data,
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		src = (char *)kmap(bo->page_obj[idx].page) + offset;
+		src = (char *)kmap_local_page(bo->pages[idx]) + offset;
 
 		if ((bytes + offset) >= PAGE_SIZE) {
 			len = PAGE_SIZE - offset;
@@ -369,7 +314,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data,
 
 		clflush_cache_range(src, len);
 
-		kunmap(bo->page_obj[idx].page);
+		kunmap_local(src);
 	}
 
 	return 0;
@@ -482,10 +427,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		if (in_atomic())
-			des = (char *)kmap_atomic(bo->page_obj[idx].page);
-		else
-			des = (char *)kmap(bo->page_obj[idx].page);
+		des = (char *)kmap_local_page(bo->pages[idx]);
 
 		if (!des) {
 			dev_err(atomisp_dev,
@@ -512,14 +454,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 
 		clflush_cache_range(des, len);
 
-		if (in_atomic())
-			/*
-			 * Note: kunmap_atomic requires return addr from
-			 * kmap_atomic, not the page. See linux/highmem.h
-			 */
-			kunmap_atomic(des - offset);
-		else
-			kunmap(bo->page_obj[idx].page);
+		kunmap_local(des);
 	}
 
 	return 0;
@@ -563,7 +498,7 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		des = (char *)kmap(bo->page_obj[idx].page) + offset;
+		des = (char *)kmap_local_page(bo->pages[idx]) + offset;
 
 		if ((bytes + offset) >= PAGE_SIZE) {
 			len = PAGE_SIZE - offset;
@@ -579,7 +514,7 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 
 		clflush_cache_range(des, len);
 
-		kunmap(bo->page_obj[idx].page);
+		kunmap_local(des);
 	}
 
 	return 0;
@@ -602,7 +537,7 @@ phys_addr_t hmm_virt_to_phys(ia_css_ptr virt)
 	idx = (virt - bo->start) >> PAGE_SHIFT;
 	offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-	return page_to_phys(bo->page_obj[idx].page) + offset;
+	return page_to_phys(bo->pages[idx]) + offset;
 }
 
 int hmm_mmap(struct vm_area_struct *vma, ia_css_ptr virt)
@@ -670,97 +605,4 @@ void hmm_vunmap(ia_css_ptr virt)
 	}
 
 	hmm_bo_vunmap(bo);
-}
-
-int hmm_pool_register(unsigned int pool_size, enum hmm_pool_type pool_type)
-{
-#if 0	// Just use the "normal" pool
-	switch (pool_type) {
-	case HMM_POOL_TYPE_RESERVED:
-		reserved_pool.pops = &reserved_pops;
-		return reserved_pool.pops->pool_init(&reserved_pool.pool_info,
-						     pool_size);
-	case HMM_POOL_TYPE_DYNAMIC:
-		dynamic_pool.pops = &dynamic_pops;
-		return dynamic_pool.pops->pool_init(&dynamic_pool.pool_info,
-						    pool_size);
-	default:
-		dev_err(atomisp_dev, "invalid pool type.\n");
-		return -EINVAL;
-	}
-#else
-	return 0;
-#endif
-}
-
-void hmm_pool_unregister(enum hmm_pool_type pool_type)
-{
-#if 0	// Just use the "normal" pool
-	switch (pool_type) {
-	case HMM_POOL_TYPE_RESERVED:
-		if (reserved_pool.pops && reserved_pool.pops->pool_exit)
-			reserved_pool.pops->pool_exit(&reserved_pool.pool_info);
-		break;
-	case HMM_POOL_TYPE_DYNAMIC:
-		if (dynamic_pool.pops && dynamic_pool.pops->pool_exit)
-			dynamic_pool.pops->pool_exit(&dynamic_pool.pool_info);
-		break;
-	default:
-		dev_err(atomisp_dev, "invalid pool type.\n");
-		break;
-	}
-#endif
-
-	return;
-}
-
-void *hmm_isp_vaddr_to_host_vaddr(ia_css_ptr ptr, bool cached)
-{
-	return hmm_vmap(ptr, cached);
-	/* vmunmap will be done in hmm_bo_release() */
-}
-
-ia_css_ptr hmm_host_vaddr_to_hrt_vaddr(const void *ptr)
-{
-	struct hmm_buffer_object *bo;
-
-	bo = hmm_bo_device_search_vmap_start(&bo_device, ptr);
-	if (bo)
-		return bo->start;
-
-	dev_err(atomisp_dev,
-		"can not find buffer object whose kernel virtual address is %p\n",
-		ptr);
-	return 0;
-}
-
-void hmm_show_mem_stat(const char *func, const int line)
-{
-	pr_info("tol_cnt=%d usr_size=%d res_size=%d res_cnt=%d sys_size=%d  dyc_thr=%d dyc_size=%d.\n",
-		hmm_mem_stat.tol_cnt,
-		hmm_mem_stat.usr_size, hmm_mem_stat.res_size,
-		hmm_mem_stat.res_cnt, hmm_mem_stat.sys_size,
-		hmm_mem_stat.dyc_thr, hmm_mem_stat.dyc_size);
-}
-
-void hmm_init_mem_stat(int res_pgnr, int dyc_en, int dyc_pgnr)
-{
-	hmm_mem_stat.res_size = res_pgnr;
-	/* If reserved mem pool is not enabled, set its "mem stat" values as -1. */
-	if (hmm_mem_stat.res_size == 0) {
-		hmm_mem_stat.res_size = -1;
-		hmm_mem_stat.res_cnt = -1;
-	}
-
-	/* If dynamic memory pool is not enabled, set its "mem stat" values as -1. */
-	if (!dyc_en) {
-		hmm_mem_stat.dyc_size = -1;
-		hmm_mem_stat.dyc_thr = -1;
-	} else {
-		hmm_mem_stat.dyc_size = 0;
-		hmm_mem_stat.dyc_thr = dyc_pgnr;
-	}
-	hmm_mem_stat.usr_size = 0;
-	hmm_mem_stat.sys_size = 0;
-	hmm_mem_stat.tol_cnt = 0;
 }

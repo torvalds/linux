@@ -234,6 +234,7 @@ enum usb4_switch_op {
 
 /* Router TMU configuration */
 #define TMU_RTR_CS_0				0x00
+#define TMU_RTR_CS_0_FREQ_WIND_MASK		GENMASK(26, 16)
 #define TMU_RTR_CS_0_TD				BIT(27)
 #define TMU_RTR_CS_0_UCAP			BIT(30)
 #define TMU_RTR_CS_1				0x01
@@ -244,6 +245,11 @@ enum usb4_switch_op {
 #define TMU_RTR_CS_3_LOCAL_TIME_NS_MASK		GENMASK(15, 0)
 #define TMU_RTR_CS_3_TS_PACKET_INTERVAL_MASK	GENMASK(31, 16)
 #define TMU_RTR_CS_3_TS_PACKET_INTERVAL_SHIFT	16
+#define TMU_RTR_CS_15				0xf
+#define TMU_RTR_CS_15_FREQ_AVG_MASK		GENMASK(5, 0)
+#define TMU_RTR_CS_15_DELAY_AVG_MASK		GENMASK(11, 6)
+#define TMU_RTR_CS_15_OFFSET_AVG_MASK		GENMASK(17, 12)
+#define TMU_RTR_CS_15_ERROR_AVG_MASK		GENMASK(23, 18)
 #define TMU_RTR_CS_22				0x16
 #define TMU_RTR_CS_24				0x18
 #define TMU_RTR_CS_25				0x19

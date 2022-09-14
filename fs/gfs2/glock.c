@@ -405,10 +405,13 @@ static void do_error(struct gfs2_glock *gl, const int ret)
 /**
  * demote_incompat_holders - demote incompatible demoteable holders
  * @gl: the glock we want to promote
- * @new_gh: the new holder to be promoted
+ * @current_gh: the newly promoted holder
+ *
+ * We're passing the newly promoted holder in @current_gh, but actually, any of
+ * the strong holders would do.
  */
 static void demote_incompat_holders(struct gfs2_glock *gl,
-				    struct gfs2_holder *new_gh)
+				    struct gfs2_holder *current_gh)
 {
 	struct gfs2_holder *gh, *tmp;
 
@@ -424,8 +427,10 @@ static void demote_incompat_holders(struct gfs2_glock *gl,
 		 */
 		if (!test_bit(HIF_HOLDER, &gh->gh_iflags))
 			return;
+		if (gh == current_gh)
+			continue;
 		if (test_bit(HIF_MAY_DEMOTE, &gh->gh_iflags) &&
-		    !may_grant(gl, new_gh, gh)) {
+		    !may_grant(gl, current_gh, gh)) {
 			/*
 			 * We should not recurse into do_promote because
 			 * __gfs2_glock_dq only calls handle_callback,
@@ -478,8 +483,7 @@ find_first_strong_holder(struct gfs2_glock *gl)
  * gfs2_instantiate - Call the glops instantiate function
  * @gh: The glock holder
  *
- * Returns: 0 if instantiate was successful, 2 if type specific operation is
- * underway, or error.
+ * Returns: 0 if instantiate was successful, or error.
  */
 int gfs2_instantiate(struct gfs2_holder *gh)
 {
@@ -489,7 +493,7 @@ int gfs2_instantiate(struct gfs2_holder *gh)
 
 again:
 	if (!test_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags))
-		return 0;
+		goto done;
 
 	/*
 	 * Since we unlock the lockref lock, we set a flag to indicate
@@ -508,78 +512,55 @@ again:
 		goto again;
 	}
 
-	ret = glops->go_instantiate(gh);
+	ret = glops->go_instantiate(gl);
 	if (!ret)
 		clear_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
 	clear_and_wake_up_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);
-	return ret;
+	if (ret)
+		return ret;
+
+done:
+	if (glops->go_held)
+		return glops->go_held(gh);
+	return 0;
 }
 
 /**
  * do_promote - promote as many requests as possible on the current queue
  * @gl: The glock
  * 
- * Returns: 1 if there is a blocked holder at the head of the list, or 2
- *          if a type specific operation is underway.
+ * Returns: 1 if there is a blocked holder at the head of the list
  */
 
 static int do_promote(struct gfs2_glock *gl)
-__releases(&gl->gl_lockref.lock)
-__acquires(&gl->gl_lockref.lock)
 {
-	struct gfs2_holder *gh, *tmp, *first_gh;
+	struct gfs2_holder *gh, *current_gh;
 	bool incompat_holders_demoted = false;
-	bool lock_released;
-	int ret;
 
-restart:
-	first_gh = find_first_strong_holder(gl);
-	list_for_each_entry_safe(gh, tmp, &gl->gl_holders, gh_list) {
-		lock_released = false;
+	current_gh = find_first_strong_holder(gl);
+	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			continue;
-		if (!may_grant(gl, first_gh, gh)) {
+		if (!may_grant(gl, current_gh, gh)) {
 			/*
-			 * If we get here, it means we may not grant this holder for
-			 * some reason. If this holder is the head of the list, it
-			 * means we have a blocked holder at the head, so return 1.
+			 * If we get here, it means we may not grant this
+			 * holder for some reason. If this holder is at the
+			 * head of the list, it means we have a blocked holder
+			 * at the head, so return 1.
 			 */
 			if (list_is_first(&gh->gh_list, &gl->gl_holders))
 				return 1;
 			do_error(gl, 0);
 			break;
 		}
-		if (!incompat_holders_demoted) {
-			demote_incompat_holders(gl, first_gh);
-			incompat_holders_demoted = true;
-			first_gh = gh;
-		}
-		if (test_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags) &&
-		    !(gh->gh_flags & GL_SKIP) && gl->gl_ops->go_instantiate) {
-			lock_released = true;
-			spin_unlock(&gl->gl_lockref.lock);
-			ret = gfs2_instantiate(gh);
-			spin_lock(&gl->gl_lockref.lock);
-			if (ret) {
-				if (ret == 1)
-					return 2;
-				gh->gh_error = ret;
-				list_del_init(&gh->gh_list);
-				trace_gfs2_glock_queue(gh, 0);
-				gfs2_holder_wake(gh);
-				goto restart;
-			}
-		}
 		set_bit(HIF_HOLDER, &gh->gh_iflags);
 		trace_gfs2_promote(gh);
 		gfs2_holder_wake(gh);
-		/*
-		 * If we released the gl_lockref.lock the holders list may have
-		 * changed. For that reason, we start again at the start of
-		 * the holders queue.
-		 */
-		if (lock_released)
-			goto restart;
+		if (!incompat_holders_demoted) {
+			current_gh = gh;
+			demote_incompat_holders(gl, current_gh);
+			incompat_holders_demoted = true;
+		}
 	}
 	return 0;
 }
@@ -657,7 +638,6 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh;
 	unsigned state = ret & LM_OUT_ST_MASK;
-	int rv;
 
 	spin_lock(&gl->gl_lockref.lock);
 	trace_gfs2_glock_state_change(gl, state);
@@ -715,6 +695,8 @@ retry:
 		gfs2_demote_wake(gl);
 	if (state != LM_ST_UNLOCKED) {
 		if (glops->go_xmote_bh) {
+			int rv;
+
 			spin_unlock(&gl->gl_lockref.lock);
 			rv = glops->go_xmote_bh(gl);
 			spin_lock(&gl->gl_lockref.lock);
@@ -723,13 +705,10 @@ retry:
 				goto out;
 			}
 		}
-		rv = do_promote(gl);
-		if (rv == 2)
-			goto out_locked;
+		do_promote(gl);
 	}
 out:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-out_locked:
 	spin_unlock(&gl->gl_lockref.lock);
 }
 
@@ -886,7 +865,6 @@ __releases(&gl->gl_lockref.lock)
 __acquires(&gl->gl_lockref.lock)
 {
 	struct gfs2_holder *gh = NULL;
-	int ret;
 
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
 		return;
@@ -905,18 +883,14 @@ __acquires(&gl->gl_lockref.lock)
 	} else {
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
 			gfs2_demote_wake(gl);
-		ret = do_promote(gl);
-		if (ret == 0)
+		if (do_promote(gl) == 0)
 			goto out_unlock;
-		if (ret == 2)
-			goto out;
 		gh = find_first_waiter(gl);
 		gl->gl_target = gh->gh_state;
 		if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
 			do_error(gl, 0); /* Fail queued try locks */
 	}
 	do_xmote(gl, gh, gl->gl_target);
-out:
 	return;
 
 out_sched:
@@ -1314,6 +1288,25 @@ static void gfs2_glock_update_hold_time(struct gfs2_glock *gl,
 }
 
 /**
+ * gfs2_glock_holder_ready - holder is ready and its error code can be collected
+ * @gh: the glock holder
+ *
+ * Called when a glock holder no longer needs to be waited for because it is
+ * now either held (HIF_HOLDER set; gh_error == 0), or acquiring the lock has
+ * failed (gh_error != 0).
+ */
+
+int gfs2_glock_holder_ready(struct gfs2_holder *gh)
+{
+	if (gh->gh_error || (gh->gh_flags & GL_SKIP))
+		return gh->gh_error;
+	gh->gh_error = gfs2_instantiate(gh);
+	if (gh->gh_error)
+		gfs2_glock_dq(gh);
+	return gh->gh_error;
+}
+
+/**
  * gfs2_glock_wait - wait on a glock acquisition
  * @gh: the glock holder
  *
@@ -1327,7 +1320,7 @@ int gfs2_glock_wait(struct gfs2_holder *gh)
 	might_sleep();
 	wait_on_bit(&gh->gh_iflags, HIF_WAIT, TASK_UNINTERRUPTIBLE);
 	gfs2_glock_update_hold_time(gh->gh_gl, start_time);
-	return gh->gh_error;
+	return gfs2_glock_holder_ready(gh);
 }
 
 static int glocks_pending(unsigned int num_gh, struct gfs2_holder *ghs)
@@ -1355,7 +1348,6 @@ int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs)
 	struct gfs2_sbd *sdp = ghs[0].gh_gl->gl_name.ln_sbd;
 	int i, ret = 0, timeout = 0;
 	unsigned long start_time = jiffies;
-	bool keep_waiting;
 
 	might_sleep();
 	/*
@@ -1365,53 +1357,33 @@ int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs)
 	for (i = 0; i < num_gh; i++)
 		timeout += ghs[i].gh_gl->gl_hold_time << 1;
 
-wait_for_dlm:
 	if (!wait_event_timeout(sdp->sd_async_glock_wait,
-				!glocks_pending(num_gh, ghs), timeout))
+				!glocks_pending(num_gh, ghs), timeout)) {
 		ret = -ESTALE; /* request timed out. */
-
-	/*
-	 * If dlm granted all our requests, we need to adjust the glock
-	 * minimum hold time values according to how long we waited.
-	 *
-	 * If our request timed out, we need to repeatedly release any held
-	 * glocks we acquired thus far to allow dlm to acquire the remaining
-	 * glocks without deadlocking.  We cannot currently cancel outstanding
-	 * glock acquisitions.
-	 *
-	 * The HIF_WAIT bit tells us which requests still need a response from
-	 * dlm.
-	 *
-	 * If dlm sent us any errors, we return the first error we find.
-	 */
-	keep_waiting = false;
-	for (i = 0; i < num_gh; i++) {
-		/* Skip holders we have already dequeued below. */
-		if (!gfs2_holder_queued(&ghs[i]))
-			continue;
-		/* Skip holders with a pending DLM response. */
-		if (test_bit(HIF_WAIT, &ghs[i].gh_iflags)) {
-			keep_waiting = true;
-			continue;
-		}
-
-		if (test_bit(HIF_HOLDER, &ghs[i].gh_iflags)) {
-			if (ret == -ESTALE)
-				gfs2_glock_dq(&ghs[i]);
-			else
-				gfs2_glock_update_hold_time(ghs[i].gh_gl,
-							    start_time);
-		}
-		if (!ret)
-			ret = ghs[i].gh_error;
+		goto out;
 	}
 
-	if (keep_waiting)
-		goto wait_for_dlm;
+	for (i = 0; i < num_gh; i++) {
+		struct gfs2_holder *gh = &ghs[i];
+		int ret2;
 
-	/*
-	 * At this point, we've either acquired all locks or released them all.
-	 */
+		if (test_bit(HIF_HOLDER, &gh->gh_iflags)) {
+			gfs2_glock_update_hold_time(gh->gh_gl,
+						    start_time);
+		}
+		ret2 = gfs2_glock_holder_ready(gh);
+		if (!ret)
+			ret = ret2;
+	}
+
+out:
+	if (ret) {
+		for (i = 0; i < num_gh; i++) {
+			struct gfs2_holder *gh = &ghs[i];
+
+			gfs2_glock_dq(gh);
+		}
+	}
 	return ret;
 }
 
@@ -1490,10 +1462,10 @@ __acquires(&gl->gl_lockref.lock)
 
 	if (gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)) {
 		if (test_bit(GLF_LOCK, &gl->gl_flags)) {
-			struct gfs2_holder *first_gh;
+			struct gfs2_holder *current_gh;
 
-			first_gh = find_first_strong_holder(gl);
-			try_futile = !may_grant(gl, first_gh, gh);
+			current_gh = find_first_strong_holder(gl);
+			try_futile = !may_grant(gl, current_gh, gh);
 		}
 		if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags))
 			goto fail;
@@ -1779,7 +1751,7 @@ static int glock_compare(const void *arg_a, const void *arg_b)
 }
 
 /**
- * nq_m_sync - synchonously acquire more than one glock in deadlock free order
+ * nq_m_sync - synchronously acquire more than one glock in deadlock free order
  * @num_gh: the number of structures
  * @ghs: an array of struct gfs2_holder structures
  * @p: placeholder for the holder structure to pass back
@@ -1800,8 +1772,6 @@ static int nq_m_sync(unsigned int num_gh, struct gfs2_holder *ghs,
 	sort(p, num_gh, sizeof(struct gfs2_holder *), glock_compare, NULL);
 
 	for (x = 0; x < num_gh; x++) {
-		p[x]->gh_flags &= ~(LM_FLAG_TRY | GL_ASYNC);
-
 		error = gfs2_glock_nq(p[x]);
 		if (error) {
 			while (x--)
@@ -1818,7 +1788,6 @@ static int nq_m_sync(unsigned int num_gh, struct gfs2_holder *ghs,
  * @num_gh: the number of structures
  * @ghs: an array of struct gfs2_holder structures
  *
- *
  * Returns: 0 on success (all glocks acquired),
  *          errno on failure (no glocks acquired)
  */
@@ -1833,7 +1802,6 @@ int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs)
 	case 0:
 		return 0;
 	case 1:
-		ghs->gh_flags &= ~(LM_FLAG_TRY | GL_ASYNC);
 		return gfs2_glock_nq(ghs);
 	default:
 		if (num_gh <= 4)
@@ -2245,20 +2213,6 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 	glock_hash_walk(dump_glock_func, sdp);
 }
 
-void gfs2_glock_finish_truncate(struct gfs2_inode *ip)
-{
-	struct gfs2_glock *gl = ip->i_gl;
-	int ret;
-
-	ret = gfs2_truncatei_resume(ip);
-	gfs2_glock_assert_withdraw(gl, ret == 0);
-
-	spin_lock(&gl->gl_lockref.lock);
-	clear_bit(GLF_LOCK, &gl->gl_flags);
-	run_queue(gl, 1);
-	spin_unlock(&gl->gl_lockref.lock);
-}
-
 static const char *state2str(unsigned state)
 {
 	switch(state) {
@@ -2533,7 +2487,7 @@ int __init gfs2_glock_init(void)
 		return -ENOMEM;
 	}
 
-	ret = register_shrinker(&glock_shrinker);
+	ret = register_shrinker(&glock_shrinker, "gfs2-glock");
 	if (ret) {
 		destroy_workqueue(gfs2_delete_workqueue);
 		destroy_workqueue(glock_workqueue);

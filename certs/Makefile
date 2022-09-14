@@ -4,24 +4,22 @@
 #
 
 obj-$(CONFIG_SYSTEM_TRUSTED_KEYRING) += system_keyring.o system_certificates.o
-obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist.o
+obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist.o blacklist_hashes.o
 obj-$(CONFIG_SYSTEM_REVOCATION_LIST) += revocation_certificates.o
-ifneq ($(CONFIG_SYSTEM_BLACKLIST_HASH_LIST),)
 
 $(obj)/blacklist_hashes.o: $(obj)/blacklist_hash_list
 CFLAGS_blacklist_hashes.o := -I $(obj)
 
 quiet_cmd_check_and_copy_blacklist_hash_list = GEN     $@
       cmd_check_and_copy_blacklist_hash_list = \
-	$(AWK) -f $(srctree)/scripts/check-blacklist-hashes.awk $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST) >&2; \
-	cat $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST) > $@
+	$(if $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST), \
+	$(AWK) -f $(srctree)/$(src)/check-blacklist-hashes.awk $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST) >&2; \
+	{ cat $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST); echo $(comma) NULL; } > $@, \
+	echo NULL > $@)
 
 $(obj)/blacklist_hash_list: $(CONFIG_SYSTEM_BLACKLIST_HASH_LIST) FORCE
 	$(call if_changed,check_and_copy_blacklist_hash_list)
-obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_hashes.o
-else
-obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist_nohashes.o
-endif
+
 targets += blacklist_hash_list
 
 quiet_cmd_extract_certs  = CERT    $@

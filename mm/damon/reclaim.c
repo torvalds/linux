@@ -353,7 +353,6 @@ static int damon_reclaim_turn(bool on)
 	return 0;
 }
 
-#define ENABLE_CHECK_INTERVAL_MS	1000
 static struct delayed_work damon_reclaim_timer;
 static void damon_reclaim_timer_fn(struct work_struct *work)
 {
@@ -367,16 +366,12 @@ static void damon_reclaim_timer_fn(struct work_struct *work)
 		else
 			enabled = last_enabled;
 	}
-
-	if (enabled)
-		schedule_delayed_work(&damon_reclaim_timer,
-			msecs_to_jiffies(ENABLE_CHECK_INTERVAL_MS));
 }
 static DECLARE_DELAYED_WORK(damon_reclaim_timer, damon_reclaim_timer_fn);
 
 static bool damon_reclaim_initialized;
 
-static int enabled_store(const char *val,
+static int damon_reclaim_enabled_store(const char *val,
 		const struct kernel_param *kp)
 {
 	int rc = param_set_bool(val, kp);
@@ -388,14 +383,12 @@ static int enabled_store(const char *val,
 	if (!damon_reclaim_initialized)
 		return rc;
 
-	if (enabled)
-		schedule_delayed_work(&damon_reclaim_timer, 0);
-
+	schedule_delayed_work(&damon_reclaim_timer, 0);
 	return 0;
 }
 
 static const struct kernel_param_ops enabled_param_ops = {
-	.set = enabled_store,
+	.set = damon_reclaim_enabled_store,
 	.get = param_get_bool,
 };
 
@@ -403,10 +396,21 @@ module_param_cb(enabled, &enabled_param_ops, &enabled, 0600);
 MODULE_PARM_DESC(enabled,
 	"Enable or disable DAMON_RECLAIM (default: disabled)");
 
+static int damon_reclaim_handle_commit_inputs(void)
+{
+	int err;
+
+	if (!commit_inputs)
+		return 0;
+
+	err = damon_reclaim_apply_parameters();
+	commit_inputs = false;
+	return err;
+}
+
 static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 {
 	struct damos *s;
-	int err = 0;
 
 	/* update the stats parameter */
 	damon_for_each_scheme(s, c) {
@@ -417,22 +421,12 @@ static int damon_reclaim_after_aggregation(struct damon_ctx *c)
 		nr_quota_exceeds = s->stat.qt_exceeds;
 	}
 
-	if (commit_inputs) {
-		err = damon_reclaim_apply_parameters();
-		commit_inputs = false;
-	}
-	return err;
+	return damon_reclaim_handle_commit_inputs();
 }
 
 static int damon_reclaim_after_wmarks_check(struct damon_ctx *c)
 {
-	int err = 0;
-
-	if (commit_inputs) {
-		err = damon_reclaim_apply_parameters();
-		commit_inputs = false;
-	}
-	return err;
+	return damon_reclaim_handle_commit_inputs();
 }
 
 static int __init damon_reclaim_init(void)
@@ -441,8 +435,10 @@ static int __init damon_reclaim_init(void)
 	if (!ctx)
 		return -ENOMEM;
 
-	if (damon_select_ops(ctx, DAMON_OPS_PADDR))
+	if (damon_select_ops(ctx, DAMON_OPS_PADDR)) {
+		damon_destroy_ctx(ctx);
 		return -EINVAL;
+	}
 
 	ctx->callback.after_wmarks_check = damon_reclaim_after_wmarks_check;
 	ctx->callback.after_aggregation = damon_reclaim_after_aggregation;

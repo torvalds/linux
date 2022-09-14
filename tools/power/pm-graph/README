@@ -6,7 +6,7 @@
    |_|                    |___/          |_|
 
    pm-graph: suspend/resume/boot timing analysis tools
-    Version: 5.8
+    Version: 5.9
      Author: Todd Brandt <todd.e.brandt@intel.com>
   Home Page: https://01.org/pm-graph
 
@@ -97,8 +97,8 @@
         (kernel/pre-3.15/enable_trace_events_suspend_resume.patch)
         (kernel/pre-3.15/enable_trace_events_device_pm_callback.patch)
 
-	If you're using a kernel older than 3.15.0, the following
-        additional kernel parameters are required:
+	If you're using bootgraph, or sleepgraph with a kernel older than 3.15.0,
+		the following additional kernel parameters are required:
         (e.g. in file /etc/default/grub)
         GRUB_CMDLINE_LINUX_DEFAULT="... initcall_debug log_buf_len=32M ..."
 

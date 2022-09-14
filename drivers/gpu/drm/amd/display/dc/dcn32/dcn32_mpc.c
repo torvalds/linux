@@ -300,24 +300,24 @@ static enum dc_lut_mode mpc32_get_shaper_current(struct mpc *mpc, uint32_t mpcc_
 	uint32_t state_mode;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
-	REG_GET(MPCC_MCM_SHAPER_CONTROL[mpcc_id],
-			MPCC_MCM_SHAPER_MODE_CURRENT, &state_mode);
+	REG_GET(MPCC_MCM_SHAPER_CONTROL[mpcc_id], MPCC_MCM_SHAPER_MODE_CURRENT, &state_mode);
 
-		switch (state_mode) {
-		case 0:
-			mode = LUT_BYPASS;
-			break;
-		case 1:
-			mode = LUT_RAM_A;
-			break;
-		case 2:
-			mode = LUT_RAM_B;
-			break;
-		default:
-			mode = LUT_BYPASS;
-			break;
-		}
-		return mode;
+	switch (state_mode) {
+	case 0:
+		mode = LUT_BYPASS;
+		break;
+	case 1:
+		mode = LUT_RAM_A;
+		break;
+	case 2:
+		mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
 

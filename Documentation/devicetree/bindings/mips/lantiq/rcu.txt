@@ -2,7 +2,7 @@ Lantiq XWAY SoC RCU binding
 ===========================
 
 This binding describes the RCU (reset controller unit) multifunction device,
-where each sub-device has it's own set of registers.
+where each sub-device has its own set of registers.
 
 The RCU register range is used for multiple purposes. Mostly one device
 uses one or multiple register exclusively, but for some registers some

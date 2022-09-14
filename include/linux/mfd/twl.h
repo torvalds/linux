@@ -594,8 +594,6 @@ struct twl4030_gpio_platform_data {
 
 	int		(*setup)(struct device *dev,
 				unsigned gpio, unsigned ngpio);
-	int		(*teardown)(struct device *dev,
-				unsigned gpio, unsigned ngpio);
 };
 
 struct twl4030_madc_platform_data {
@@ -692,61 +690,6 @@ struct twl4030_audio_data {
 	int audpwron_gpio;	/* audio power-on gpio */
 	int naudint_irq;	/* audio interrupt */
 	unsigned int irq_base;
-};
-
-struct twl4030_platform_data {
-	struct twl4030_clock_init_data		*clock;
-	struct twl4030_bci_platform_data	*bci;
-	struct twl4030_gpio_platform_data	*gpio;
-	struct twl4030_madc_platform_data	*madc;
-	struct twl4030_keypad_data		*keypad;
-	struct twl4030_usb_data			*usb;
-	struct twl4030_power_data		*power;
-	struct twl4030_audio_data		*audio;
-
-	/* Common LDO regulators for TWL4030/TWL6030 */
-	struct regulator_init_data		*vdac;
-	struct regulator_init_data		*vaux1;
-	struct regulator_init_data		*vaux2;
-	struct regulator_init_data		*vaux3;
-	struct regulator_init_data		*vdd1;
-	struct regulator_init_data		*vdd2;
-	struct regulator_init_data		*vdd3;
-	/* TWL4030 LDO regulators */
-	struct regulator_init_data		*vpll1;
-	struct regulator_init_data		*vpll2;
-	struct regulator_init_data		*vmmc1;
-	struct regulator_init_data		*vmmc2;
-	struct regulator_init_data		*vsim;
-	struct regulator_init_data		*vaux4;
-	struct regulator_init_data		*vio;
-	struct regulator_init_data		*vintana1;
-	struct regulator_init_data		*vintana2;
-	struct regulator_init_data		*vintdig;
-	/* TWL6030 LDO regulators */
-	struct regulator_init_data              *vmmc;
-	struct regulator_init_data              *vpp;
-	struct regulator_init_data              *vusim;
-	struct regulator_init_data              *vana;
-	struct regulator_init_data              *vcxio;
-	struct regulator_init_data              *vusb;
-	struct regulator_init_data		*clk32kg;
-	struct regulator_init_data              *v1v8;
-	struct regulator_init_data              *v2v1;
-	/* TWL6032 LDO regulators */
-	struct regulator_init_data		*ldo1;
-	struct regulator_init_data		*ldo2;
-	struct regulator_init_data		*ldo3;
-	struct regulator_init_data		*ldo4;
-	struct regulator_init_data		*ldo5;
-	struct regulator_init_data		*ldo6;
-	struct regulator_init_data		*ldo7;
-	struct regulator_init_data		*ldoln;
-	struct regulator_init_data		*ldousb;
-	/* TWL6032 DCDC regulators */
-	struct regulator_init_data		*smps3;
-	struct regulator_init_data		*smps4;
-	struct regulator_init_data		*vio6025;
 };
 
 struct twl_regulator_driver_data {

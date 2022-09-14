@@ -55,7 +55,7 @@ int change_skew_test(int ppm)
 }
 
 
-int main(int argv, char **argc)
+int main(int argc, char **argv)
 {
 	struct timex tx;
 	int i, ret;

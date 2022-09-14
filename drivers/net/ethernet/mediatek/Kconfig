@@ -17,6 +17,8 @@ config NET_MEDIATEK_SOC
 	select PINCTRL
 	select PHYLINK
 	select DIMLIB
+	select PAGE_POOL
+	select PAGE_POOL_STATS
 	help
 	  This driver supports the gigabit ethernet MACs in the
 	  MediaTek SoC family.

@@ -37,7 +37,6 @@
 #include "atomisp_file.h"
 #include "atomisp_ioctl.h"
 #include "atomisp_internal.h"
-#include "atomisp_acc.h"
 #include "atomisp-regs.h"
 #include "atomisp_dfs_tables.h"
 #include "atomisp_drvfs.h"
@@ -58,23 +57,6 @@
 static uint skip_fwload;
 module_param(skip_fwload, uint, 0644);
 MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
-
-/* set reserved memory pool size in page */
-static unsigned int repool_pgnr = 32768;
-module_param(repool_pgnr, uint, 0644);
-MODULE_PARM_DESC(repool_pgnr,
-		 "Set the reserved memory pool size in page (default:32768)");
-
-/* set dynamic memory pool size in page */
-unsigned int dypool_pgnr = UINT_MAX;
-module_param(dypool_pgnr, uint, 0644);
-MODULE_PARM_DESC(dypool_pgnr,
-		 "Set the dynamic memory pool size in page (default: unlimited)");
-
-bool dypool_enable = true;
-module_param(dypool_enable, bool, 0644);
-MODULE_PARM_DESC(dypool_enable,
-		 "dynamic memory pool enable/disable (default:enabled)");
 
 /* memory optimization: deferred firmware loading */
 bool defer_fw_load;
@@ -1770,13 +1752,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
-	hmm_init_mem_stat(repool_pgnr, dypool_enable, dypool_pgnr);
-	err = hmm_pool_register(repool_pgnr, HMM_POOL_TYPE_RESERVED);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to register reserved memory pool.\n");
-		goto hmm_pool_fail;
-	}
-
 	/* Init ISP memory management */
 	hmm_init();
 
@@ -1813,12 +1788,9 @@ css_init_fail:
 	devm_free_irq(&pdev->dev, pdev->irq, isp);
 request_irq_fail:
 	hmm_cleanup();
-	hmm_pool_unregister(HMM_POOL_TYPE_RESERVED);
-hmm_pool_fail:
 	pm_runtime_get_noresume(&pdev->dev);
 	destroy_workqueue(isp->wdt_work_queue);
 wdt_work_queue_fail:
-	atomisp_acc_cleanup(isp);
 	atomisp_unregister_entities(isp);
 register_entities_fail:
 	atomisp_uninitialize_modules(isp);
@@ -1869,8 +1841,6 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 
 	atomisp_drvfs_exit();
 
-	atomisp_acc_cleanup(isp);
-
 	ia_css_unload_firmware();
 	hmm_cleanup();
 
@@ -1885,8 +1855,6 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 	atomisp_file_input_cleanup(isp);
 
 	release_firmware(isp->firmware);
-
-	hmm_pool_unregister(HMM_POOL_TYPE_RESERVED);
 }
 
 static const struct pci_device_id atomisp_pci_tbl[] = {

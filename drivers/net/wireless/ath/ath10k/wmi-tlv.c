@@ -205,7 +205,7 @@ static int ath10k_wmi_tlv_event_bcn_tx_status(struct ath10k *ar,
 	}
 
 	arvif = ath10k_get_arvif(ar, vdev_id);
-	if (arvif && arvif->is_up && arvif->vif->csa_active)
+	if (arvif && arvif->is_up && arvif->vif->bss_conf.csa_active)
 		ieee80211_queue_work(ar->hw, &arvif->ap_csa_work);
 
 	kfree(tb);

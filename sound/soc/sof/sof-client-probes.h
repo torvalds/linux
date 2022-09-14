@@ -14,10 +14,10 @@ struct snd_soc_dai;
  * DSP and host, like HDA.
  */
 struct sof_probes_host_ops {
-	int (*assign)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
-		      struct snd_soc_dai *dai, u32 *stream_id);
-	int (*free)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
-		    struct snd_soc_dai *dai);
+	int (*startup)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
+		       struct snd_soc_dai *dai, u32 *stream_id);
+	int (*shutdown)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
+			struct snd_soc_dai *dai);
 	int (*set_params)(struct sof_client_dev *cdev, struct snd_compr_stream *cstream,
 			  struct snd_compr_params *params,
 			  struct snd_soc_dai *dai);

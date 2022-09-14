@@ -1861,6 +1861,7 @@ static void rtw8852c_rfk_track(struct rtw89_dev *rtwdev)
 {
 	rtw8852c_dpk_track(rtwdev);
 	rtw8852c_lck_track(rtwdev);
+	rtw8852c_rx_dck_track(rtwdev);
 }
 
 static u32 rtw8852c_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,

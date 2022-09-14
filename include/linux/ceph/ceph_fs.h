@@ -433,9 +433,9 @@ union ceph_mds_request_args {
 		__le32 stripe_unit;          /* layout for newly created file */
 		__le32 stripe_count;         /* ... */
 		__le32 object_size;
-		__le32 file_replication;
-               __le32 mask;                 /* CEPH_CAP_* */
-               __le32 old_size;
+		__le32 pool;
+		__le32 mask;                 /* CEPH_CAP_* */
+		__le64 old_size;
 	} __attribute__ ((packed)) open;
 	struct {
 		__le32 flags;
@@ -768,7 +768,7 @@ struct ceph_mds_caps {
 	__le32 xattr_len;
 	__le64 xattr_version;
 
-	/* filelock */
+	/* a union of non-export and export bodies. */
 	__le64 size, max_size, truncate_size;
 	__le32 truncate_seq;
 	struct ceph_timespec mtime, atime, ctime;

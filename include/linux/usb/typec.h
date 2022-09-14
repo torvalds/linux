@@ -22,6 +22,8 @@ struct typec_altmode_ops;
 struct fwnode_handle;
 struct device;
 
+struct usb_power_delivery;
+
 enum typec_port_type {
 	TYPEC_PORT_SRC,
 	TYPEC_PORT_SNK,
@@ -51,6 +53,16 @@ enum typec_role {
 	TYPEC_SINK,
 	TYPEC_SOURCE,
 };
+
+static inline int is_sink(enum typec_role role)
+{
+	return role == TYPEC_SINK;
+}
+
+static inline int is_source(enum typec_role role)
+{
+	return role == TYPEC_SOURCE;
+}
 
 enum typec_pwr_opmode {
 	TYPEC_PWR_MODE_USB,
@@ -213,6 +225,8 @@ struct typec_partner_desc {
  * @pr_set: Set Power Role
  * @vconn_set: Source VCONN
  * @port_type_set: Set port type
+ * @pd_get: Get available USB Power Delivery Capabilities.
+ * @pd_set: Set USB Power Delivery Capabilities.
  */
 struct typec_operations {
 	int (*try_role)(struct typec_port *port, int role);
@@ -221,6 +235,8 @@ struct typec_operations {
 	int (*vconn_set)(struct typec_port *port, enum typec_role role);
 	int (*port_type_set)(struct typec_port *port,
 			     enum typec_port_type type);
+	struct usb_power_delivery **(*pd_get)(struct typec_port *port);
+	int (*pd_set)(struct typec_port *port, struct usb_power_delivery *pd);
 };
 
 enum usb_pd_svdm_ver {
@@ -240,6 +256,7 @@ enum usb_pd_svdm_ver {
  * @accessory: Supported Accessory Modes
  * @fwnode: Optional fwnode of the port
  * @driver_data: Private pointer for driver specific info
+ * @pd: Optional USB Power Delivery Support
  * @ops: Port operations vector
  *
  * Static capabilities of a single USB Type-C port.
@@ -256,6 +273,8 @@ struct typec_capability {
 
 	struct fwnode_handle	*fwnode;
 	void			*driver_data;
+
+	struct usb_power_delivery *pd;
 
 	const struct typec_operations	*ops;
 };
@@ -307,5 +326,9 @@ int typec_find_port_data_role(const char *name);
 void typec_partner_set_svdm_version(struct typec_partner *partner,
 				    enum usb_pd_svdm_ver svdm_version);
 int typec_get_negotiated_svdm_version(struct typec_port *port);
+
+int typec_port_set_usb_power_delivery(struct typec_port *port, struct usb_power_delivery *pd);
+int typec_partner_set_usb_power_delivery(struct typec_partner *partner,
+					 struct usb_power_delivery *pd);
 
 #endif /* __LINUX_USB_TYPEC_H */

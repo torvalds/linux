@@ -2540,27 +2540,16 @@ static int amifb_blank(int blank, struct fb_info *info)
 static int amifb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
-	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->yoffset < 0 ||
-			var->yoffset >= info->var.yres_virtual || var->xoffset)
-				return -EINVAL;
-	} else {
+	if (!(var->vmode & FB_VMODE_YWRAP)) {
 		/*
 		 * TODO: There will be problems when xpan!=1, so some columns
 		 * on the right side will never be seen
 		 */
 		if (var->xoffset + info->var.xres >
-		    upx(16 << maxfmode, info->var.xres_virtual) ||
-		    var->yoffset + info->var.yres > info->var.yres_virtual)
+		    upx(16 << maxfmode, info->var.xres_virtual))
 			return -EINVAL;
 	}
 	ami_pan_var(var, info);
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
-	if (var->vmode & FB_VMODE_YWRAP)
-		info->var.vmode |= FB_VMODE_YWRAP;
-	else
-		info->var.vmode &= ~FB_VMODE_YWRAP;
 	return 0;
 }
 

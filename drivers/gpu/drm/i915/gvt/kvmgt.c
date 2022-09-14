@@ -231,57 +231,38 @@ static void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
 static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long size)
 {
-	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
-	int total_pages;
-	int npage;
-	int ret;
-
-	total_pages = roundup(size, PAGE_SIZE) / PAGE_SIZE;
-
-	for (npage = 0; npage < total_pages; npage++) {
-		unsigned long cur_gfn = gfn + npage;
-
-		ret = vfio_unpin_pages(&vgpu->vfio_device, &cur_gfn, 1);
-		drm_WARN_ON(&i915->drm, ret != 1);
-	}
+	vfio_unpin_pages(&vgpu->vfio_device, gfn << PAGE_SHIFT,
+			 DIV_ROUND_UP(size, PAGE_SIZE));
 }
 
 /* Pin a normal or compound guest page for dma. */
 static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long size, struct page **page)
 {
-	unsigned long base_pfn = 0;
-	int total_pages;
+	int total_pages = DIV_ROUND_UP(size, PAGE_SIZE);
+	struct page *base_page = NULL;
 	int npage;
 	int ret;
 
-	total_pages = roundup(size, PAGE_SIZE) / PAGE_SIZE;
 	/*
 	 * We pin the pages one-by-one to avoid allocating a big arrary
 	 * on stack to hold pfns.
 	 */
 	for (npage = 0; npage < total_pages; npage++) {
-		unsigned long cur_gfn = gfn + npage;
-		unsigned long pfn;
+		dma_addr_t cur_iova = (gfn + npage) << PAGE_SHIFT;
+		struct page *cur_page;
 
-		ret = vfio_pin_pages(&vgpu->vfio_device, &cur_gfn, 1,
-				     IOMMU_READ | IOMMU_WRITE, &pfn);
+		ret = vfio_pin_pages(&vgpu->vfio_device, cur_iova, 1,
+				     IOMMU_READ | IOMMU_WRITE, &cur_page);
 		if (ret != 1) {
-			gvt_vgpu_err("vfio_pin_pages failed for gfn 0x%lx, ret %d\n",
-				     cur_gfn, ret);
-			goto err;
-		}
-
-		if (!pfn_valid(pfn)) {
-			gvt_vgpu_err("pfn 0x%lx is not mem backed\n", pfn);
-			npage++;
-			ret = -EFAULT;
+			gvt_vgpu_err("vfio_pin_pages failed for iova %pad, ret %d\n",
+				     &cur_iova, ret);
 			goto err;
 		}
 
 		if (npage == 0)
-			base_pfn = pfn;
-		else if (base_pfn + npage != pfn) {
+			base_page = cur_page;
+		else if (base_page + npage != cur_page) {
 			gvt_vgpu_err("The pages are not continuous\n");
 			ret = -EINVAL;
 			npage++;
@@ -289,7 +270,7 @@ static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		}
 	}
 
-	*page = pfn_to_page(base_pfn);
+	*page = base_page;
 	return 0;
 err:
 	gvt_unpin_guest_page(vgpu, gfn, npage * PAGE_SIZE);
@@ -729,34 +710,25 @@ int intel_gvt_set_edid(struct intel_vgpu *vgpu, int port_num)
 	return ret;
 }
 
-static int intel_vgpu_iommu_notifier(struct notifier_block *nb,
-				     unsigned long action, void *data)
+static void intel_vgpu_dma_unmap(struct vfio_device *vfio_dev, u64 iova,
+				 u64 length)
 {
-	struct intel_vgpu *vgpu =
-		container_of(nb, struct intel_vgpu, iommu_notifier);
+	struct intel_vgpu *vgpu = vfio_dev_to_vgpu(vfio_dev);
+	struct gvt_dma *entry;
+	u64 iov_pfn = iova >> PAGE_SHIFT;
+	u64 end_iov_pfn = iov_pfn + length / PAGE_SIZE;
 
-	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP) {
-		struct vfio_iommu_type1_dma_unmap *unmap = data;
-		struct gvt_dma *entry;
-		unsigned long iov_pfn, end_iov_pfn;
+	mutex_lock(&vgpu->cache_lock);
+	for (; iov_pfn < end_iov_pfn; iov_pfn++) {
+		entry = __gvt_cache_find_gfn(vgpu, iov_pfn);
+		if (!entry)
+			continue;
 
-		iov_pfn = unmap->iova >> PAGE_SHIFT;
-		end_iov_pfn = iov_pfn + unmap->size / PAGE_SIZE;
-
-		mutex_lock(&vgpu->cache_lock);
-		for (; iov_pfn < end_iov_pfn; iov_pfn++) {
-			entry = __gvt_cache_find_gfn(vgpu, iov_pfn);
-			if (!entry)
-				continue;
-
-			gvt_dma_unmap_page(vgpu, entry->gfn, entry->dma_addr,
-					   entry->size);
-			__gvt_cache_remove_entry(vgpu, entry);
-		}
-		mutex_unlock(&vgpu->cache_lock);
+		gvt_dma_unmap_page(vgpu, entry->gfn, entry->dma_addr,
+				   entry->size);
+		__gvt_cache_remove_entry(vgpu, entry);
 	}
-
-	return NOTIFY_OK;
+	mutex_unlock(&vgpu->cache_lock);
 }
 
 static bool __kvmgt_vgpu_exist(struct intel_vgpu *vgpu)
@@ -783,36 +755,20 @@ out:
 static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 {
 	struct intel_vgpu *vgpu = vfio_dev_to_vgpu(vfio_dev);
-	unsigned long events;
-	int ret;
 
-	vgpu->iommu_notifier.notifier_call = intel_vgpu_iommu_notifier;
-
-	events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
-	ret = vfio_register_notifier(vfio_dev, VFIO_IOMMU_NOTIFY, &events,
-				     &vgpu->iommu_notifier);
-	if (ret != 0) {
-		gvt_vgpu_err("vfio_register_notifier for iommu failed: %d\n",
-			ret);
-		goto out;
-	}
-
-	ret = -EEXIST;
 	if (vgpu->attached)
-		goto undo_iommu;
+		return -EEXIST;
 
-	ret = -ESRCH;
 	if (!vgpu->vfio_device.kvm ||
 	    vgpu->vfio_device.kvm->mm != current->mm) {
 		gvt_vgpu_err("KVM is required to use Intel vGPU\n");
-		goto undo_iommu;
+		return -ESRCH;
 	}
 
 	kvm_get_kvm(vgpu->vfio_device.kvm);
 
-	ret = -EEXIST;
 	if (__kvmgt_vgpu_exist(vgpu))
-		goto undo_iommu;
+		return -EEXIST;
 
 	vgpu->attached = true;
 
@@ -831,12 +787,6 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 
 	atomic_set(&vgpu->released, 0);
 	return 0;
-
-undo_iommu:
-	vfio_unregister_notifier(vfio_dev, VFIO_IOMMU_NOTIFY,
-				 &vgpu->iommu_notifier);
-out:
-	return ret;
 }
 
 static void intel_vgpu_release_msi_eventfd_ctx(struct intel_vgpu *vgpu)
@@ -853,8 +803,6 @@ static void intel_vgpu_release_msi_eventfd_ctx(struct intel_vgpu *vgpu)
 static void intel_vgpu_close_device(struct vfio_device *vfio_dev)
 {
 	struct intel_vgpu *vgpu = vfio_dev_to_vgpu(vfio_dev);
-	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
-	int ret;
 
 	if (!vgpu->attached)
 		return;
@@ -863,11 +811,6 @@ static void intel_vgpu_close_device(struct vfio_device *vfio_dev)
 		return;
 
 	intel_gvt_release_vgpu(vgpu);
-
-	ret = vfio_unregister_notifier(&vgpu->vfio_device, VFIO_IOMMU_NOTIFY,
-				       &vgpu->iommu_notifier);
-	drm_WARN(&i915->drm, ret,
-		 "vfio_unregister_notifier for iommu failed: %d\n", ret);
 
 	debugfs_remove(debugfs_lookup(KVMGT_DEBUGFS_FILENAME, vgpu->debugfs));
 
@@ -1610,6 +1553,7 @@ static const struct vfio_device_ops intel_vgpu_dev_ops = {
 	.write		= intel_vgpu_write,
 	.mmap		= intel_vgpu_mmap,
 	.ioctl		= intel_vgpu_ioctl,
+	.dma_unmap	= intel_vgpu_dma_unmap,
 };
 
 static int intel_vgpu_probe(struct mdev_device *mdev)

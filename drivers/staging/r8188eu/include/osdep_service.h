@@ -5,7 +5,6 @@
 #define __OSDEP_SERVICE_H_
 
 #include <linux/sched/signal.h>
-#include "basic_types.h"
 
 #define _FAIL		0
 #define _SUCCESS	1
@@ -76,8 +75,6 @@ void *rtw_malloc2d(int h, int w, int size);
 		INIT_LIST_HEAD(&((q)->queue));			\
 		spin_lock_init(&((q)->lock));			\
 	} while (0)
-
-void rtw_usleep_os(int us);
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 {

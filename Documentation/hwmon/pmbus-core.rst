@@ -121,6 +121,15 @@ Specifically, it provides the following information.
   non-standard PMBus commands to standard commands, or to augment standard
   command return values with device specific information.
 
+PEC Support
+===========
+
+Many PMBus devices support SMBus PEC (Packet Error Checking). If supported
+by both the I2C adapter and by the PMBus chip, it is by default enabled.
+If PEC is supported, the PMBus core driver adds an attribute named 'pec' to
+the I2C device. This attribute can be used to control PEC support in the
+communication with the PMBus chip.
+
 API functions
 =============
 

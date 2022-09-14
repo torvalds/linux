@@ -320,7 +320,7 @@ static void set_video_latency(
 		value);
 }
 
-/* set audio latency in in ms/2+1 */
+/* set audio latency in ms/2+1 */
 static void set_audio_latency(
 	struct audio *audio,
 	int latency_in_ms)

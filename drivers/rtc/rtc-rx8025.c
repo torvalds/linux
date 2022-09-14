@@ -55,6 +55,8 @@
 #define RX8025_BIT_CTRL2_XST	BIT(5)
 #define RX8025_BIT_CTRL2_VDET	BIT(6)
 
+#define RX8035_BIT_HOUR_1224	BIT(7)
+
 /* Clock precision adjustment */
 #define RX8025_ADJ_RESOLUTION	3050 /* in ppb */
 #define RX8025_ADJ_DATA_MAX	62
@@ -78,6 +80,7 @@ struct rx8025_data {
 	struct rtc_device *rtc;
 	enum rx_model model;
 	u8 ctrl1;
+	int is_24;
 };
 
 static s32 rx8025_read_reg(const struct i2c_client *client, u8 number)
@@ -226,7 +229,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 
 	dt->tm_sec = bcd2bin(date[RX8025_REG_SEC] & 0x7f);
 	dt->tm_min = bcd2bin(date[RX8025_REG_MIN] & 0x7f);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		dt->tm_hour = bcd2bin(date[RX8025_REG_HOUR] & 0x3f);
 	else
 		dt->tm_hour = bcd2bin(date[RX8025_REG_HOUR] & 0x1f) % 12
@@ -254,7 +257,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	 */
 	date[RX8025_REG_SEC] = bin2bcd(dt->tm_sec);
 	date[RX8025_REG_MIN] = bin2bcd(dt->tm_min);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		date[RX8025_REG_HOUR] = bin2bcd(dt->tm_hour);
 	else
 		date[RX8025_REG_HOUR] = (dt->tm_hour >= 12 ? 0x20 : 0)
@@ -279,6 +282,7 @@ static int rx8025_init_client(struct i2c_client *client)
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
 	u8 ctrl[2], ctrl2;
 	int need_clear = 0;
+	int hour_reg;
 	int err;
 
 	err = rx8025_read_regs(client, RX8025_REG_CTRL1, 2, ctrl);
@@ -302,6 +306,16 @@ static int rx8025_init_client(struct i2c_client *client)
 			   RX8025_BIT_CTRL2_DAFG);
 
 		err = rx8025_write_reg(client, RX8025_REG_CTRL2, ctrl2);
+	}
+
+	if (rx8025->model == model_rx_8035) {
+		/* In RX-8035, 12/24 flag is in the hour register */
+		hour_reg = rx8025_read_reg(client, RX8025_REG_HOUR);
+		if (hour_reg < 0)
+			return hour_reg;
+		rx8025->is_24 = (hour_reg & RX8035_BIT_HOUR_1224);
+	} else {
+		rx8025->is_24 = (ctrl[1] & RX8025_BIT_CTRL1_1224);
 	}
 out:
 	return err;
@@ -329,7 +343,7 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	/* Hardware alarms precision is 1 minute! */
 	t->time.tm_sec = 0;
 	t->time.tm_min = bcd2bin(ald[0] & 0x7f);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		t->time.tm_hour = bcd2bin(ald[1] & 0x3f);
 	else
 		t->time.tm_hour = bcd2bin(ald[1] & 0x1f) % 12
@@ -350,7 +364,7 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	int err;
 
 	ald[0] = bin2bcd(t->time.tm_min);
-	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
+	if (rx8025->is_24)
 		ald[1] = bin2bcd(t->time.tm_hour);
 	else
 		ald[1] = (t->time.tm_hour >= 12 ? 0x20 : 0)

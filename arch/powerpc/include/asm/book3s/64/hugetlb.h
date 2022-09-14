@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_HUGETLB_H
 #define _ASM_POWERPC_BOOK3S_64_HUGETLB_H
+
+#include <asm/firmware.h>
+
 /*
  * For radix we want generic code to handle hugetlb. But then if we want
  * both hash and radix to be enabled together we need to workaround the

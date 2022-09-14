@@ -128,7 +128,7 @@ TODOList:
 * security/index
 * sound/index
 * crypto/index
-* vm/index
+* mm/index
 * bpf/index
 * usb/index
 * PCI/index

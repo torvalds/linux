@@ -24,6 +24,12 @@ static int brcmf_of_get_country_codes(struct device *dev,
 
 	count = of_property_count_strings(np, "brcm,ccode-map");
 	if (count < 0) {
+		/* If no explicit country code map is specified, check whether
+		 * the trivial map should be used.
+		 */
+		settings->trivial_ccode_map =
+			of_property_read_bool(np, "brcm,ccode-map-trivial");
+
 		/* The property is optional, so return success if it doesn't
 		 * exist. Otherwise propagate the error code.
 		 */
@@ -72,7 +78,6 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 	/* Set board-type to the first string of the machine compatible prop */
 	root = of_find_node_by_path("/");
 	if (root) {
-		int i;
 		char *board_type;
 		const char *tmp;
 
@@ -84,10 +89,7 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 			of_node_put(root);
 			return;
 		}
-		for (i = 0; i < board_type[i]; i++) {
-			if (board_type[i] == '/')
-				board_type[i] = '-';
-		}
+		strreplace(board_type, '/', '-');
 		settings->board_type = board_type;
 
 		of_node_put(root);

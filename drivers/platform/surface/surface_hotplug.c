@@ -10,7 +10,7 @@
  * Event signaling is handled via ACPI, which will generate the appropriate
  * device-check notifications to be picked up by the PCIe hot-plug driver.
  *
- * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/acpi.h>

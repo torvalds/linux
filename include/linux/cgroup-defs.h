@@ -89,19 +89,32 @@ enum {
 	CGRP_ROOT_NS_DELEGATE	= (1 << 3),
 
 	/*
+	 * Reduce latencies on dynamic cgroup modifications such as task
+	 * migrations and controller on/offs by disabling percpu operation on
+	 * cgroup_threadgroup_rwsem. This makes hot path operations such as
+	 * forks and exits into the slow path and more expensive.
+	 *
+	 * The static usage pattern of creating a cgroup, enabling controllers,
+	 * and then seeding it with CLONE_INTO_CGROUP doesn't require write
+	 * locking cgroup_threadgroup_rwsem and thus doesn't benefit from
+	 * favordynmod.
+	 */
+	CGRP_ROOT_FAVOR_DYNMODS = (1 << 4),
+
+	/*
 	 * Enable cpuset controller in v1 cgroup to use v2 behavior.
 	 */
-	CGRP_ROOT_CPUSET_V2_MODE = (1 << 4),
+	CGRP_ROOT_CPUSET_V2_MODE = (1 << 16),
 
 	/*
 	 * Enable legacy local memory.events.
 	 */
-	CGRP_ROOT_MEMORY_LOCAL_EVENTS = (1 << 5),
+	CGRP_ROOT_MEMORY_LOCAL_EVENTS = (1 << 17),
 
 	/*
 	 * Enable recursive subtree protection
 	 */
-	CGRP_ROOT_MEMORY_RECURSIVE_PROT = (1 << 6),
+	CGRP_ROOT_MEMORY_RECURSIVE_PROT = (1 << 18),
 };
 
 /* cftype->flags */
@@ -264,7 +277,8 @@ struct css_set {
 	 * List of csets participating in the on-going migration either as
 	 * source or destination.  Protected by cgroup_mutex.
 	 */
-	struct list_head mg_preload_node;
+	struct list_head mg_src_preload_node;
+	struct list_head mg_dst_preload_node;
 	struct list_head mg_node;
 
 	/*
@@ -287,6 +301,10 @@ struct css_set {
 
 struct cgroup_base_stat {
 	struct task_cputime cputime;
+
+#ifdef CONFIG_SCHED_CORE
+	u64 forceidle_sum;
+#endif
 };
 
 /*
@@ -475,7 +493,7 @@ struct cgroup {
 	struct work_struct release_agent_work;
 
 	/* used to track pressure stalls */
-	struct psi_group psi;
+	struct psi_group *psi;
 
 	/* used to store eBPF programs */
 	struct cgroup_bpf bpf;

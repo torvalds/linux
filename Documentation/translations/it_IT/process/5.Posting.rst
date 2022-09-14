@@ -16,9 +16,8 @@ e di procedure per la pubblicazione delle patch; seguirle renderà la vita
 più facile a tutti quanti.  Questo documento cercherà di coprire questi
 argomenti con un ragionevole livello di dettaglio; più informazioni possono
 essere trovare nella cartella 'Documentation', nei file
-:ref:`translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`,
-:ref:`translations/it_IT/process/submitting-drivers.rst <it_submittingdrivers>`, e
-:ref:`translations/it_IT/process/submit-checklist.rst <it_submitchecklist>`.
+:ref:`translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`
+e :ref:`translations/it_IT/process/submit-checklist.rst <it_submitchecklist>`.
 
 
 Quando pubblicarle
@@ -214,13 +213,28 @@ irrilevanti (quelli generati dal processo di generazione, per esempio, o i file
 di backup del vostro editor).  Il file "dontdiff" nella cartella Documentation
 potrà esservi d'aiuto su questo punto; passatelo a diff con l'opzione "-X".
 
-Le etichette sopra menzionante sono usate per descrivere come i vari
-sviluppatori sono stati associati allo sviluppo di una patch.  Sono descritte
-in dettaglio nel documento :ref:`translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`;
-quello che segue è un breve riassunto.  Ognuna di queste righe ha il seguente
-formato:
+Le etichette sopracitate danno un'idea di come una patch prende vita e sono
+descritte nel dettaglio nel documento
+:ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`.
+Qui di seguito un breve riassunto.
 
-::
+Un'etichetta ci può dire quale commit ha introdotto il problema che viene corretto nella patch::
+
+       Fixes: 1f2e3d4c5b6a ("The first line of the commit specified by the first 12 characters of its SHA-1 ID")
+
+Un'altra etichetta viene usata per fornire collegamenti a pagine web contenenti
+maggiori informazioni, per esempio un rapporto circa il baco risolto dalla
+patch, oppure un documento con le specifiche implementate dalla patch::
+
+       Link: https://example.com/somewhere.html  optional-other-stuff
+
+Alcuni manutentori aggiungono quest'etichetta alla patch per fare riferimento
+alla più recente discussione pubblica. A volte questo è fatto automaticamente da
+alcuni strumenti come b4 or un *hook* git come quello descritto qui
+'Documentation/translations/it_IT/maintainer/configure-git.rst'
+
+Un terzo tipo di etichetta viene usato per indicare chi ha contribuito allo
+sviluppo della patch. Tutte queste etichette seguono il formato::
 
 	tag: Full Name <email address>  optional-other-stuff
 

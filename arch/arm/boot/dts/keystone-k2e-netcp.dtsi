@@ -12,9 +12,9 @@ qmss: qmss@2a40000 {
 	#size-cells = <1>;
 	clocks = <&chipclk13>;
 	ranges;
-	queue-range	= <0 0x2000>;
-	linkram0	= <0x100000 0x4000>;
-	linkram1	= <0 0x10000>;
+	queue-range = <0 0x2000>;
+	linkram0 = <0x100000 0x4000>;
+	linkram1 = <0 0x10000>;
 
 	qmgrs {
 		#address-cells = <1>;
@@ -176,40 +176,40 @@ netcp: netcp@24000000 {
 			interfaces {
 				gbe0: interface-0 {
 					slave-port = <0>;
-					link-interface	= <1>;
-					phy-handle	= <&ethphy0>;
+					link-interface = <1>;
+					phy-handle = <&ethphy0>;
 				};
 				gbe1: interface-1 {
 					slave-port = <1>;
-					link-interface	= <1>;
-					phy-handle	= <&ethphy1>;
+					link-interface = <1>;
+					phy-handle = <&ethphy1>;
 				};
 			};
 
 			secondary-slave-ports {
 				port-2 {
 					slave-port = <2>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-3 {
 					slave-port = <3>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-4 {
 					slave-port = <4>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-5 {
 					slave-port = <5>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-6 {
 					slave-port = <6>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 				port-7 {
 					slave-port = <7>;
-					link-interface	= <2>;
+					link-interface = <2>;
 				};
 			};
 		};

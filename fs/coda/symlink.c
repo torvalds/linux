@@ -22,25 +22,24 @@
 
 static int coda_symlink_filler(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
 	struct inode *inode = folio->mapping->host;
 	int error;
 	struct coda_inode_info *cii;
 	unsigned int len = PAGE_SIZE;
-	char *p = page_address(page);
+	char *p = folio_address(folio);
 
 	cii = ITOC(inode);
 
 	error = venus_readlink(inode->i_sb, &cii->c_fid, p, &len);
 	if (error)
 		goto fail;
-	SetPageUptodate(page);
-	unlock_page(page);
+	folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return 0;
 
 fail:
-	SetPageError(page);
-	unlock_page(page);
+	folio_set_error(folio);
+	folio_unlock(folio);
 	return error;
 }
 

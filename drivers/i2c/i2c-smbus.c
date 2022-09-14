@@ -391,7 +391,7 @@ void i2c_register_spd(struct i2c_adapter *adap)
 		unsigned short addr_list[2];
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, name, I2C_NAME_SIZE);
+		strscpy(info.type, name, I2C_NAME_SIZE);
 		addr_list[0] = 0x50 + n;
 		addr_list[1] = I2C_CLIENT_END;
 

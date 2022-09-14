@@ -197,6 +197,12 @@ int snd_soc_card_late_probe(struct snd_soc_card *card)
 	return 0;
 }
 
+void snd_soc_card_fixup_controls(struct snd_soc_card *card)
+{
+	if (card->fixup_controls)
+		card->fixup_controls(card);
+}
+
 int snd_soc_card_remove(struct snd_soc_card *card)
 {
 	int ret = 0;

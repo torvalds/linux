@@ -31,26 +31,24 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		prog {
+		button-prog {
 			label = "PB_PROG";
 			gpios = <&pioE 27 GPIO_ACTIVE_LOW>;
 			linux,code = <0x102>;
 			wakeup-source;
 		};
 
-		reset {
+		button-reset {
 			label = "PB_RST";
 			gpios = <&pioE 29 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;
 			wakeup-source;
 		};
 
-		user {
+		button-user {
 			label = "PB_USER";
 			gpios = <&pioE 31 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x101>;

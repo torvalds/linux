@@ -638,14 +638,17 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 
 /**
  * dc_stream_get_crc() - Get CRC values for the given stream.
- * @dc: DC object
+ *
+ * @dc: DC object.
  * @stream: The DC stream state of the stream to get CRCs from.
- * @r_cr: CRC value for the first of the 3 channels stored here.
- * @g_y:  CRC value for the second of the 3 channels stored here.
- * @b_cb: CRC value for the third of the 3 channels stored here.
+ * @r_cr: CRC value for the red component.
+ * @g_y:  CRC value for the green component.
+ * @b_cb: CRC value for the blue component.
  *
  * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
- * Return false if stream is not found, or if CRCs are not enabled.
+ *
+ * Return:
+ * false if stream is not found, or if CRCs are not enabled.
  */
 bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
@@ -1074,8 +1077,15 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 		struct dc_stream_state *old_stream =
 				dc->current_state->res_ctx.pipe_ctx[i].stream;
 		bool should_disable = true;
-		bool pipe_split_change =
-			context->res_ctx.pipe_ctx[i].top_pipe != dc->current_state->res_ctx.pipe_ctx[i].top_pipe;
+		bool pipe_split_change = false;
+
+		if ((context->res_ctx.pipe_ctx[i].top_pipe) &&
+			(dc->current_state->res_ctx.pipe_ctx[i].top_pipe))
+			pipe_split_change = context->res_ctx.pipe_ctx[i].top_pipe->pipe_idx !=
+				dc->current_state->res_ctx.pipe_ctx[i].top_pipe->pipe_idx;
+		else
+			pipe_split_change = context->res_ctx.pipe_ctx[i].top_pipe !=
+				dc->current_state->res_ctx.pipe_ctx[i].top_pipe;
 
 		for (j = 0; j < context->stream_count; j++) {
 			if (old_stream == context->streams[j]) {
@@ -1087,7 +1097,8 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 				dc->current_state->stream_count != context->stream_count)
 			should_disable = true;
 
-		if (old_stream && !dc->current_state->res_ctx.pipe_ctx[i].top_pipe) {
+		if (old_stream && !dc->current_state->res_ctx.pipe_ctx[i].top_pipe &&
+				!dc->current_state->res_ctx.pipe_ctx[i].prev_odm_pipe) {
 			struct pipe_ctx *old_pipe, *new_pipe;
 
 			old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
@@ -1170,7 +1181,11 @@ static void disable_vbios_mode_if_required(
 						pipe->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 					if (pix_clk_100hz != requested_pix_clk_100hz) {
-						core_link_disable_stream(pipe);
+						if (dc->hwss.update_phy_state)
+							dc->hwss.update_phy_state(dc->current_state,
+									pipe, TX_OFF_SYMCLK_OFF);
+						else
+							core_link_disable_stream(pipe);
 						pipe->stream->dpms_off = false;
 					}
 				}
@@ -3053,7 +3068,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->dpms_off) {
 				if (*stream_update->dpms_off) {
-					core_link_disable_stream(pipe_ctx);
+					if (dc->hwss.update_phy_state)
+						dc->hwss.update_phy_state(dc->current_state,
+								pipe_ctx, TX_OFF_SYMCLK_ON);
+					else
+						core_link_disable_stream(pipe_ctx);
 					/* for dpms, keep acquired resources*/
 					if (pipe_ctx->stream_res.audio && !dc->debug.az_endpoint_mute_only)
 						pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
@@ -3064,7 +3083,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					if (get_seamless_boot_stream_count(context) == 0)
 						dc->hwss.prepare_bandwidth(dc, dc->current_state);
 
-					core_link_enable_stream(dc->current_state, pipe_ctx);
+					if (dc->hwss.update_phy_state)
+						dc->hwss.update_phy_state(dc->current_state,
+								pipe_ctx, TX_ON_SYMCLK_ON);
+					else
+						core_link_enable_stream(dc->current_state, pipe_ctx);
 				}
 			}
 
@@ -3091,11 +3114,9 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_state *stream)
 {
-	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
-		return true;
-
-	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_1 &&
-	    dc->debug.enable_sw_cntl_psr)
+	if ((stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1
+			|| stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
+			&& stream->ctx->dce_version >= DCN_VERSION_3_1)
 		return true;
 
 	return false;
@@ -3229,7 +3250,7 @@ static void commit_planes_for_stream(struct dc *dc,
 				odm_pipe->ttu_regs.min_ttu_vblank = MAX_TTU;
 	}
 
-	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed) {
+	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program &&
 			top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
 			if (should_use_dmub_lock(stream->link)) {
@@ -3247,7 +3268,6 @@ static void commit_planes_for_stream(struct dc *dc,
 				top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable(
 						top_pipe_to_program->stream_res.tg);
 		}
-	}
 
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 		if (dc->hwss.subvp_pipe_control_lock)
@@ -3312,10 +3332,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (dc->hwss.program_front_end_for_ctx)
 			dc->hwss.program_front_end_for_ctx(dc, context);
 
-		if (update_type != UPDATE_TYPE_FAST)
-			if (dc->hwss.commit_subvp_config)
-				dc->hwss.commit_subvp_config(dc, context);
-
 		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 			dc->hwss.interdependent_update_lock(dc, context, false);
 		} else {
@@ -3323,16 +3339,15 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 		dc->hwss.post_unlock_program_front_end(dc, context);
 
+		if (update_type != UPDATE_TYPE_FAST)
+			if (dc->hwss.commit_subvp_config)
+				dc->hwss.commit_subvp_config(dc, context);
+
 		/* Since phantom pipe programming is moved to post_unlock_program_front_end,
 		 * move the SubVP lock to after the phantom pipes have been setup
 		 */
-		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
-		} else {
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
-		}
+		if (dc->hwss.subvp_pipe_control_lock)
+			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
 		return;
 	}
 
@@ -3456,17 +3471,13 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	}
 
-	if (update_type != UPDATE_TYPE_FAST)
-		if (dc->hwss.commit_subvp_config)
-			dc->hwss.commit_subvp_config(dc, context);
-
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 		dc->hwss.interdependent_update_lock(dc, context, false);
 	} else {
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 	}
 
-	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed) {
+	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
 			top_pipe_to_program->stream_res.tg->funcs->wait_for_state(
 				top_pipe_to_program->stream_res.tg,
@@ -3493,21 +3504,23 @@ static void commit_planes_for_stream(struct dc *dc,
 				top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_disable(
 					top_pipe_to_program->stream_res.tg);
 		}
-	}
 
-	if (update_type != UPDATE_TYPE_FAST) {
+	if (update_type != UPDATE_TYPE_FAST)
 		dc->hwss.post_unlock_program_front_end(dc, context);
 
-		/* Since phantom pipe programming is moved to post_unlock_program_front_end,
-		 * move the SubVP lock to after the phantom pipes have been setup
-		 */
-		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
-		} else {
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
-		}
+	if (update_type != UPDATE_TYPE_FAST)
+		if (dc->hwss.commit_subvp_config)
+			dc->hwss.commit_subvp_config(dc, context);
+
+	/* Since phantom pipe programming is moved to post_unlock_program_front_end,
+	 * move the SubVP lock to after the phantom pipes have been setup
+	 */
+	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
+		if (dc->hwss.subvp_pipe_control_lock)
+			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+	} else {
+		if (dc->hwss.subvp_pipe_control_lock)
+			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
 	}
 
 	// Fire manual trigger only when bottom plane is flipped
@@ -3539,8 +3552,10 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	if (!transition_context)
 		return false;
 
-	tmp_policy = dc->debug.pipe_split_policy;
-	dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
+	if (!dc->config.is_vmin_only_asic) {
+		tmp_policy = dc->debug.pipe_split_policy;
+		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
+	}
 
 	dc_resource_state_copy_construct(transition_base_context, transition_context);
 
@@ -3566,7 +3581,8 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	dc_release_state(transition_context);
 
 	//restore previous pipe split policy
-	dc->debug.pipe_split_policy = tmp_policy;
+	if (!dc->config.is_vmin_only_asic)
+		dc->debug.pipe_split_policy = tmp_policy;
 
 	if (ret != DC_OK) {
 		//this should never happen
@@ -4271,8 +4287,8 @@ void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc)
 /*
  *****************************************************************************
  * Function: dc_is_dmub_outbox_supported -
- * 
- * @brief 
+ *
+ * @brief
  *      Checks whether DMUB FW supports outbox notifications, if supported
  *		DM should register outbox interrupt prior to actually enabling interrupts
  *		via dc_enable_dmub_outbox
@@ -4292,7 +4308,7 @@ bool dc_is_dmub_outbox_supported(struct dc *dc)
 	    !dc->debug.dpia_debug.bits.disable_dpia)
 		return true;
 
-	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_2 &&
+	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_1 &&
 	    !dc->debug.dpia_debug.bits.disable_dpia)
 		return true;
 
@@ -4340,6 +4356,7 @@ void dc_enable_dmub_outbox(struct dc *dc)
 	struct dc_context *dc_ctx = dc->ctx;
 
 	dmub_enable_outbox_notification(dc_ctx->dmub_srv);
+	DC_LOG_DC("%s: dmub outbox notifications enabled\n", __func__);
 }
 
 /**

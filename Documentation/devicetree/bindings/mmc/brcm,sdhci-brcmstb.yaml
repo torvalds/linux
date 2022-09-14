@@ -10,9 +10,6 @@ maintainers:
   - Al Cooper <alcooperx@gmail.com>
   - Florian Fainelli <f.fainelli@gmail.com>
 
-allOf:
-  - $ref: mmc-controller.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -42,23 +39,46 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
-    description:
-      handle to core clock for the sdhci controller.
+    minItems: 1
+    items:
+      - description: handle to core clock for the sdhci controller
+      - description: handle to improved 150Mhz clock for sdhci controller (Optional clock)
 
   clock-names:
+    minItems: 1
     items:
       - const: sw_sdio
+      - const: sdio_freq # Optional clock
+
+  clock-frequency:
+    description:
+      Maximum operating frequency of sdio_freq sdhci controller clock
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 100000000
+    maximum: 150000000
 
   sdhci,auto-cmd12:
     type: boolean
     description: Specifies that controller should use auto CMD12
+
+allOf:
+  - $ref: mmc-controller.yaml#
+  - if:
+      properties:
+        clock-names:
+          contains:
+            const: sdio_freq
+
+    then:
+      required:
+        - clock-frequency
 
 required:
   - compatible
   - reg
   - interrupts
   - clocks
+  - clock-names
 
 unevaluatedProperties: false
 

@@ -247,7 +247,7 @@ struct i915_gem_mm {
 	 * List of objects which are pending destruction.
 	 */
 	struct llist_head free_list;
-	struct delayed_work free_work;
+	struct work_struct free_work;
 	/**
 	 * Count of objects pending destructions. Used to skip needlessly
 	 * waiting on an RCU barrier if no objects are waiting to be freed.
@@ -1352,9 +1352,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_GUC_DEPRIVILEGE(dev_priv) \
 	(INTEL_INFO(dev_priv)->has_guc_deprivilege)
 
-#define HAS_PERCTX_PREEMPT_CTRL(i915) \
-	((GRAPHICS_VER(i915) >= 9) &&  GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))
-
 #define HAS_D12_PLANE_MINIMIZATION(dev_priv) (IS_ROCKETLAKE(dev_priv) || \
 					      IS_ALDERLAKE_S(dev_priv))
 
@@ -1378,7 +1375,7 @@ static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 	 * armed the work again.
 	 */
 	while (atomic_read(&i915->mm.free_count)) {
-		flush_delayed_work(&i915->mm.free_work);
+		flush_work(&i915->mm.free_work);
 		flush_delayed_work(&i915->bdev.wq);
 		rcu_barrier();
 	}
@@ -1409,12 +1406,12 @@ static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
 struct i915_vma * __must_check
 i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
 			    struct i915_gem_ww_ctx *ww,
-			    const struct i915_ggtt_view *view,
+			    const struct i915_gtt_view *view,
 			    u64 size, u64 alignment, u64 flags);
 
 struct i915_vma * __must_check
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
-			 const struct i915_ggtt_view *view,
+			 const struct i915_gtt_view *view,
 			 u64 size, u64 alignment, u64 flags);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj,

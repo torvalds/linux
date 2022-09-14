@@ -18,7 +18,7 @@
 /**
  *	selinux_audit_rule_init - alloc/init an selinux audit rule structure.
  *	@field: the field this rule refers to
- *	@op: the operater the rule uses
+ *	@op: the operator the rule uses
  *	@rulestr: the text "target" of the rule
  *	@rule: pointer to the new rule structure returned via this
  *

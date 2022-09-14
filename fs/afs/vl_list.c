@@ -17,7 +17,7 @@ struct afs_vlserver *afs_alloc_vlserver(const char *name, size_t name_len,
 	vlserver = kzalloc(struct_size(vlserver, name, name_len + 1),
 			   GFP_KERNEL);
 	if (vlserver) {
-		atomic_set(&vlserver->usage, 1);
+		refcount_set(&vlserver->ref, 1);
 		rwlock_init(&vlserver->lock);
 		init_waitqueue_head(&vlserver->probe_wq);
 		spin_lock_init(&vlserver->probe_lock);
@@ -39,13 +39,9 @@ static void afs_vlserver_rcu(struct rcu_head *rcu)
 
 void afs_put_vlserver(struct afs_net *net, struct afs_vlserver *vlserver)
 {
-	if (vlserver) {
-		unsigned int u = atomic_dec_return(&vlserver->usage);
-		//_debug("VL PUT %p{%u}", vlserver, u);
-
-		if (u == 0)
-			call_rcu(&vlserver->rcu, afs_vlserver_rcu);
-	}
+	if (vlserver &&
+	    refcount_dec_and_test(&vlserver->ref))
+		call_rcu(&vlserver->rcu, afs_vlserver_rcu);
 }
 
 struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int nr_servers)
@@ -54,7 +50,7 @@ struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int nr_servers)
 
 	vllist = kzalloc(struct_size(vllist, servers, nr_servers), GFP_KERNEL);
 	if (vllist) {
-		atomic_set(&vllist->usage, 1);
+		refcount_set(&vllist->ref, 1);
 		rwlock_init(&vllist->lock);
 	}
 
@@ -64,10 +60,7 @@ struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int nr_servers)
 void afs_put_vlserverlist(struct afs_net *net, struct afs_vlserver_list *vllist)
 {
 	if (vllist) {
-		unsigned int u = atomic_dec_return(&vllist->usage);
-
-		//_debug("VLLS PUT %p{%u}", vllist, u);
-		if (u == 0) {
+		if (refcount_dec_and_test(&vllist->ref)) {
 			int i;
 
 			for (i = 0; i < vllist->nr_servers; i++) {

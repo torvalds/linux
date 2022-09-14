@@ -319,7 +319,7 @@ static const struct platform_device_id mt6380_platform_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, mt6380_platform_ids);
 
-static const struct of_device_id mt6380_of_match[] = {
+static const struct of_device_id  __maybe_unused mt6380_of_match[] = {
 	{ .compatible = "mediatek,mt6380-regulator", },
 	{ /* sentinel */ },
 };

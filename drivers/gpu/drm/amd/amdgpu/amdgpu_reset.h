@@ -30,6 +30,7 @@ enum AMDGPU_RESET_FLAGS {
 
 	AMDGPU_NEED_FULL_RESET = 0,
 	AMDGPU_SKIP_HW_RESET = 1,
+	AMDGPU_SKIP_MODE2_RESET = 2,
 };
 
 struct amdgpu_reset_context {
@@ -37,6 +38,7 @@ struct amdgpu_reset_context {
 	struct amdgpu_device *reset_req_dev;
 	struct amdgpu_job *job;
 	struct amdgpu_hive_info *hive;
+	struct list_head *reset_device_list;
 	unsigned long flags;
 };
 

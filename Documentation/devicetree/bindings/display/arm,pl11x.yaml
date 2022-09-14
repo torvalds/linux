@@ -159,25 +159,12 @@ examples:
     };
 
     panel {
-        compatible = "arm,rtsm-display", "panel-dpi";
-        power-supply = <&vcc_supply>;
+        compatible = "arm,rtsm-display";
 
         port {
             clcd_panel: endpoint {
                 remote-endpoint = <&clcd_pads>;
             };
-        };
-
-        panel-timing {
-            clock-frequency = <25175000>;
-            hactive = <640>;
-            hback-porch = <40>;
-            hfront-porch = <24>;
-            hsync-len = <96>;
-            vactive = <480>;
-            vback-porch = <32>;
-            vfront-porch = <11>;
-            vsync-len = <2>;
         };
     };
 ...

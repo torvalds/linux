@@ -1026,12 +1026,38 @@ out:
 
 }
 
+/**
+ * bond_choose_primary_or_current - select the primary or high priority slave
+ * @bond: our bonding struct
+ *
+ * - Check if there is a primary link. If the primary link was set and is up,
+ *   go on and do link reselection.
+ *
+ * - If primary link is not set or down, find the highest priority link.
+ *   If the highest priority link is not current slave, set it as primary
+ *   link and do link reselection.
+ */
 static struct slave *bond_choose_primary_or_current(struct bonding *bond)
 {
 	struct slave *prim = rtnl_dereference(bond->primary_slave);
 	struct slave *curr = rtnl_dereference(bond->curr_active_slave);
+	struct slave *slave, *hprio = NULL;
+	struct list_head *iter;
 
 	if (!prim || prim->link != BOND_LINK_UP) {
+		bond_for_each_slave(bond, slave, iter) {
+			if (slave->link == BOND_LINK_UP) {
+				hprio = hprio ?: slave;
+				if (slave->prio > hprio->prio)
+					hprio = slave;
+			}
+		}
+
+		if (hprio && hprio != curr) {
+			prim = hprio;
+			goto link_reselect;
+		}
+
 		if (!curr || curr->link != BOND_LINK_UP)
 			return NULL;
 		return curr;
@@ -1042,6 +1068,7 @@ static struct slave *bond_choose_primary_or_current(struct bonding *bond)
 		return prim;
 	}
 
+link_reselect:
 	if (!curr || curr->link != BOND_LINK_UP)
 		return prim;
 
@@ -1974,6 +2001,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++)
 		new_slave->target_last_arp_rx[i] = new_slave->last_rx;
 
+	new_slave->last_tx = new_slave->last_rx;
+
 	if (bond->params.miimon && !bond->params.use_carrier) {
 		link_reporting = bond_check_dev_link(bond, slave_dev, 1);
 
@@ -2857,8 +2886,11 @@ static void bond_arp_send(struct slave *slave, int arp_op, __be32 dest_ip,
 		return;
 	}
 
-	if (bond_handle_vlan(slave, tags, skb))
+	if (bond_handle_vlan(slave, tags, skb)) {
+		slave_update_last_tx(slave);
 		arp_xmit(skb);
+	}
+
 	return;
 }
 
@@ -3047,8 +3079,7 @@ static int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
 			    curr_active_slave->last_link_up))
 		bond_validate_arp(bond, slave, tip, sip);
 	else if (curr_arp_slave && (arp->ar_op == htons(ARPOP_REPLY)) &&
-		 bond_time_in_interval(bond,
-				       dev_trans_start(curr_arp_slave->dev), 1))
+		 bond_time_in_interval(bond, slave_last_tx(curr_arp_slave), 1))
 		bond_validate_arp(bond, slave, sip, tip);
 
 out_unlock:
@@ -3076,8 +3107,10 @@ static void bond_ns_send(struct slave *slave, const struct in6_addr *daddr,
 	}
 
 	addrconf_addr_solict_mult(daddr, &mcaddr);
-	if (bond_handle_vlan(slave, tags, skb))
+	if (bond_handle_vlan(slave, tags, skb)) {
+		slave_update_last_tx(slave);
 		ndisc_send_skb(skb, &mcaddr, saddr);
+	}
 }
 
 static void bond_ns_send_all(struct bonding *bond, struct slave *slave)
@@ -3219,8 +3252,7 @@ static int bond_na_rcv(const struct sk_buff *skb, struct bonding *bond,
 			    curr_active_slave->last_link_up))
 		bond_validate_ns(bond, slave, saddr, daddr);
 	else if (curr_arp_slave &&
-		 bond_time_in_interval(bond,
-				       dev_trans_start(curr_arp_slave->dev), 1))
+		 bond_time_in_interval(bond, slave_last_tx(curr_arp_slave), 1))
 		bond_validate_ns(bond, slave, saddr, daddr);
 
 out:
@@ -3308,12 +3340,12 @@ static void bond_loadbalance_arp_mon(struct bonding *bond)
 	 *       so it can wait
 	 */
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		unsigned long trans_start = dev_trans_start(slave->dev);
+		unsigned long last_tx = slave_last_tx(slave);
 
 		bond_propose_link_state(slave, BOND_LINK_NOCHANGE);
 
 		if (slave->link != BOND_LINK_UP) {
-			if (bond_time_in_interval(bond, trans_start, 1) &&
+			if (bond_time_in_interval(bond, last_tx, 1) &&
 			    bond_time_in_interval(bond, slave->last_rx, 1)) {
 
 				bond_propose_link_state(slave, BOND_LINK_UP);
@@ -3338,7 +3370,7 @@ static void bond_loadbalance_arp_mon(struct bonding *bond)
 			 * when the source ip is 0, so don't take the link down
 			 * if we don't know our ip yet
 			 */
-			if (!bond_time_in_interval(bond, trans_start, bond->params.missed_max) ||
+			if (!bond_time_in_interval(bond, last_tx, bond->params.missed_max) ||
 			    !bond_time_in_interval(bond, slave->last_rx, bond->params.missed_max)) {
 
 				bond_propose_link_state(slave, BOND_LINK_DOWN);
@@ -3404,7 +3436,7 @@ re_arm:
  */
 static int bond_ab_arp_inspect(struct bonding *bond)
 {
-	unsigned long trans_start, last_rx;
+	unsigned long last_tx, last_rx;
 	struct list_head *iter;
 	struct slave *slave;
 	int commit = 0;
@@ -3455,9 +3487,9 @@ static int bond_ab_arp_inspect(struct bonding *bond)
 		 * - (more than missed_max*delta since receive AND
 		 *    the bond has an IP address)
 		 */
-		trans_start = dev_trans_start(slave->dev);
+		last_tx = slave_last_tx(slave);
 		if (bond_is_active_slave(slave) &&
-		    (!bond_time_in_interval(bond, trans_start, bond->params.missed_max) ||
+		    (!bond_time_in_interval(bond, last_tx, bond->params.missed_max) ||
 		     !bond_time_in_interval(bond, last_rx, bond->params.missed_max))) {
 			bond_propose_link_state(slave, BOND_LINK_DOWN);
 			commit++;
@@ -3474,8 +3506,8 @@ static int bond_ab_arp_inspect(struct bonding *bond)
  */
 static void bond_ab_arp_commit(struct bonding *bond)
 {
-	unsigned long trans_start;
 	struct list_head *iter;
+	unsigned long last_tx;
 	struct slave *slave;
 
 	bond_for_each_slave(bond, slave, iter) {
@@ -3484,10 +3516,10 @@ static void bond_ab_arp_commit(struct bonding *bond)
 			continue;
 
 		case BOND_LINK_UP:
-			trans_start = dev_trans_start(slave->dev);
+			last_tx = slave_last_tx(slave);
 			if (rtnl_dereference(bond->curr_active_slave) != slave ||
 			    (!rtnl_dereference(bond->curr_active_slave) &&
-			     bond_time_in_interval(bond, trans_start, 1))) {
+			     bond_time_in_interval(bond, last_tx, 1))) {
 				struct slave *current_arp_slave;
 
 				current_arp_slave = rtnl_dereference(bond->current_arp_slave);
@@ -5306,8 +5338,14 @@ static struct net_device *bond_sk_get_lower_dev(struct net_device *dev,
 static netdev_tx_t bond_tls_device_xmit(struct bonding *bond, struct sk_buff *skb,
 					struct net_device *dev)
 {
-	if (likely(bond_get_slave_by_dev(bond, tls_get_ctx(skb->sk)->netdev)))
-		return bond_dev_queue_xmit(bond, skb, tls_get_ctx(skb->sk)->netdev);
+	struct net_device *tls_netdev = rcu_dereference(tls_get_ctx(skb->sk)->netdev);
+
+	/* tls_netdev might become NULL, even if tls_is_sk_tx_device_offloaded
+	 * was true, if tls_device_down is running in parallel, but it's OK,
+	 * because bond_get_slave_by_dev has a NULL check.
+	 */
+	if (likely(bond_get_slave_by_dev(bond, tls_netdev)))
+		return bond_dev_queue_xmit(bond, skb, tls_netdev);
 	return bond_tx_drop(dev, skb);
 }
 #endif
@@ -6220,45 +6258,33 @@ int bond_create(struct net *net, const char *name)
 {
 	struct net_device *bond_dev;
 	struct bonding *bond;
-	struct alb_bond_info *bond_info;
-	int res;
+	int res = -ENOMEM;
 
 	rtnl_lock();
 
 	bond_dev = alloc_netdev_mq(sizeof(struct bonding),
 				   name ? name : "bond%d", NET_NAME_UNKNOWN,
 				   bond_setup, tx_queues);
-	if (!bond_dev) {
-		pr_err("%s: eek! can't alloc netdev!\n", name);
-		rtnl_unlock();
-		return -ENOMEM;
-	}
+	if (!bond_dev)
+		goto out;
 
-	/*
-	 * Initialize rx_hashtbl_used_head to RLB_NULL_INDEX.
-	 * It is set to 0 by default which is wrong.
-	 */
 	bond = netdev_priv(bond_dev);
-	bond_info = &(BOND_ALB_INFO(bond));
-	bond_info->rx_hashtbl_used_head = RLB_NULL_INDEX;
-
 	dev_net_set(bond_dev, net);
 	bond_dev->rtnl_link_ops = &bond_link_ops;
 
 	res = register_netdevice(bond_dev);
 	if (res < 0) {
 		free_netdev(bond_dev);
-		rtnl_unlock();
-
-		return res;
+		goto out;
 	}
 
 	netif_carrier_off(bond_dev);
 
 	bond_work_init_all(bond);
 
+out:
 	rtnl_unlock();
-	return 0;
+	return res;
 }
 
 static int __net_init bond_net_init(struct net *net)

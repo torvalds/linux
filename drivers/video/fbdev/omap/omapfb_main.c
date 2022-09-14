@@ -668,7 +668,7 @@ static int omapfb_set_par(struct fb_info *fbi)
 	return r;
 }
 
-int omapfb_update_window_async(struct fb_info *fbi,
+static int omapfb_update_window_async(struct fb_info *fbi,
 				struct omapfb_update_window *win,
 				void (*callback)(void *),
 				void *callback_data)
@@ -714,7 +714,6 @@ int omapfb_update_window_async(struct fb_info *fbi,
 
 	return fbdev->ctrl->update_window(fbi, win, callback, callback_data);
 }
-EXPORT_SYMBOL(omapfb_update_window_async);
 
 static int omapfb_update_win(struct fb_info *fbi,
 				struct omapfb_update_window *win)

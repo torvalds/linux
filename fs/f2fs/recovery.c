@@ -255,18 +255,18 @@ static int recover_quota_data(struct inode *inode, struct page *page)
 
 	memset(&attr, 0, sizeof(attr));
 
-	attr.ia_uid = make_kuid(inode->i_sb->s_user_ns, i_uid);
-	attr.ia_gid = make_kgid(inode->i_sb->s_user_ns, i_gid);
+	attr.ia_vfsuid = VFSUIDT_INIT(make_kuid(inode->i_sb->s_user_ns, i_uid));
+	attr.ia_vfsgid = VFSGIDT_INIT(make_kgid(inode->i_sb->s_user_ns, i_gid));
 
-	if (!uid_eq(attr.ia_uid, inode->i_uid))
+	if (!vfsuid_eq(attr.ia_vfsuid, i_uid_into_vfsuid(&init_user_ns, inode)))
 		attr.ia_valid |= ATTR_UID;
-	if (!gid_eq(attr.ia_gid, inode->i_gid))
+	if (!vfsgid_eq(attr.ia_vfsgid, i_gid_into_vfsgid(&init_user_ns, inode)))
 		attr.ia_valid |= ATTR_GID;
 
 	if (!attr.ia_valid)
 		return 0;
 
-	err = dquot_transfer(inode, &attr);
+	err = dquot_transfer(&init_user_ns, inode, &attr);
 	if (err)
 		set_sbi_flag(F2FS_I_SB(inode), SBI_QUOTA_NEED_REPAIR);
 	return err;

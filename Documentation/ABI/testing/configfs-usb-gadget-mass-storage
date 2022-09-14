@@ -19,7 +19,7 @@ KernelVersion:	3.13
 Description:
 		The attributes:
 
-		===========	==============================================
+		============	==============================================
 		file		The path to the backing file for the LUN.
 				Required if LUN is not marked as removable.
 		ro		Flag specifying access to the LUN shall be
@@ -32,4 +32,10 @@ Description:
 				being a CD-ROM.
 		nofua		Flag specifying that FUA flag
 				in SCSI WRITE(10,12)
-		===========	==============================================
+		forced_eject	This write-only file is useful only when
+				the function is active. It causes the backing
+				file to be forcibly detached from the LUN,
+				regardless of whether the host has allowed it.
+				Any non-zero number of bytes written will
+				result in ejection.
+		============	==============================================

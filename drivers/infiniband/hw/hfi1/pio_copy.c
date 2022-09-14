@@ -172,7 +172,7 @@ static inline void jcopy(u8 *dest, const u8 *src, u32 n)
 }
 
 /*
- * Read nbytes from "from" and and place them in the low bytes
+ * Read nbytes from "from" and place them in the low bytes
  * of pbuf->carry.  Other bytes are left as-is.  Any previous
  * value in pbuf->carry is lost.
  *

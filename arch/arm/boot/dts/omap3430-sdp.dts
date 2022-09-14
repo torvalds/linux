@@ -53,7 +53,7 @@
 
 	nor@0,0 {
 		compatible = "cfi-flash";
-		linux,mtd-name= "intel,pf48f6000m0y1be";
+		linux,mtd-name = "intel,pf48f6000m0y1be";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0 0 0x08000000>;
@@ -105,7 +105,7 @@
 		interrupt-parent = <&gpmc>;
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>;	/* termcount */
-		linux,mtd-name= "micron,mt29f1g08abb";
+		linux,mtd-name = "micron,mt29f1g08abb";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ti,nand-ecc-opt = "sw";
@@ -148,7 +148,7 @@
 	};
 
 	onenand@2,0 {
-		linux,mtd-name= "samsung,kfm2g16q2m-deb8";
+		linux,mtd-name = "samsung,kfm2g16q2m-deb8";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "ti,omap2-onenand";

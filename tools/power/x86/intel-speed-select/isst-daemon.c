@@ -41,7 +41,7 @@ void process_level_change(int cpu)
 	time_t tm;
 	int ret;
 
-	if (pkg_id >= MAX_PACKAGE_COUNT || die_id > MAX_DIE_PER_PACKAGE) {
+	if (pkg_id >= MAX_PACKAGE_COUNT || die_id >= MAX_DIE_PER_PACKAGE) {
 		debug_printf("Invalid package/die info for cpu:%d\n", cpu);
 		return;
 	}

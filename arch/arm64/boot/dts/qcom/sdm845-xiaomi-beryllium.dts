@@ -45,7 +45,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&vol_up_pin_a>;
 
-		vol-up {
+		key-vol-up {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
@@ -306,7 +306,7 @@
 };
 
 &pm8998_gpio {
-	vol_up_pin_a: vol-up-active {
+	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
 		function = "normal";
 		input-enable;
@@ -339,7 +339,7 @@
 /* QUAT I2S Uses 1 I2S SD Line for audio on TAS2559/60 amplifiers */
 &q6afedai {
 	qi2s@22 {
-		reg = <22>;
+		reg = <QUATERNARY_MI2S_RX>;
 		qcom,sd-lines = <0>;
 	};
 };
@@ -419,7 +419,7 @@
 		};
 
 		codec {
-			sound-dai =  <&wcd9340 0>;
+			sound-dai = <&wcd9340 0>;
 		};
 	};
 

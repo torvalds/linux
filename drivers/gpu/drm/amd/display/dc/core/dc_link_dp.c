@@ -3743,7 +3743,7 @@ static bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 
 	unsigned int policy = 0;
 
-	policy = link->ctx->dc->debug.force_dsc_edp_policy;
+	policy = link->panel_config.dsc.force_dsc_edp_policy;
 	if (max_link_rate == LINK_RATE_UNKNOWN)
 		max_link_rate = link->verified_link_cap.link_rate;
 	/*
@@ -3909,7 +3909,7 @@ bool decide_link_settings(struct dc_stream_state *stream,
 		if (stream->timing.flags.DSC) {
 			enum dc_link_rate max_link_rate = LINK_RATE_UNKNOWN;
 
-			if (link->ctx->dc->debug.force_dsc_edp_policy) {
+			if (link->panel_config.dsc.force_dsc_edp_policy) {
 				/* calculate link max link rate cap*/
 				struct dc_link_settings tmp_link_setting;
 				struct dc_crtc_timing tmp_timing = stream->timing;
@@ -4519,7 +4519,11 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
 				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			core_link_disable_stream(pipe_ctx);
+			if (link->dc->hwss.update_phy_state)
+				link->dc->hwss.update_phy_state(link->dc->current_state,
+						pipe_ctx, TX_OFF_SYMCLK_OFF);
+			else
+				core_link_disable_stream(pipe_ctx);
 		}
 	}
 
@@ -4527,7 +4531,11 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
 				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			core_link_enable_stream(link->dc->current_state, pipe_ctx);
+			if (link->dc->hwss.update_phy_state)
+				link->dc->hwss.update_phy_state(link->dc->current_state,
+						pipe_ctx, TX_ON_SYMCLK_ON);
+			else
+				core_link_enable_stream(link->dc->current_state, pipe_ctx);
 		}
 	}
 }
@@ -5024,6 +5032,10 @@ static void determine_lttpr_mode(struct dc_link *link)
 	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
 	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
 
+	if (link->ctx->dc->debug.lttpr_mode_override != 0) {
+		link->lttpr_mode = link->ctx->dc->debug.lttpr_mode_override;
+		return;
+	}
 
 	if ((link->dc->config.allow_lttpr_non_transparent_mode.bits.DP2_0 &&
 			link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED)) {
@@ -5267,6 +5279,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	union dp_downstream_port_present ds_port = { 0 };
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	uint32_t read_dpcd_retry_cnt = 3;
+	uint32_t aux_channel_retry_cnt = 0;
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 	const uint32_t post_oui_delay = 30; // 30ms
@@ -5294,20 +5307,42 @@ static bool retrieve_link_cap(struct dc_link *link)
 		status = wa_try_to_wake_dprx(link, timeout_ms);
 	}
 
+	while (status != DC_OK && aux_channel_retry_cnt < 10) {
+		status = core_link_read_dpcd(link, DP_SET_POWER,
+				&dpcd_power_state, sizeof(dpcd_power_state));
+
+		/* Delay 1 ms if AUX CH is in power down state. Based on spec
+		 * section 2.3.1.2, if AUX CH may be powered down due to
+		 * write to DPCD 600h = 2. Sink AUX CH is monitoring differential
+		 * signal and may need up to 1 ms before being able to reply.
+		 */
+		if (status != DC_OK || dpcd_power_state == DP_SET_POWER_D3) {
+			udelay(1000);
+			aux_channel_retry_cnt++;
+		}
+	}
+
+	/* If aux channel is not active, return false and trigger another detect*/
+	if (status != DC_OK) {
+		dpcd_power_state = DP_SET_POWER_D0;
+		status = core_link_write_dpcd(
+				link,
+				DP_SET_POWER,
+				&dpcd_power_state,
+				sizeof(dpcd_power_state));
+
+		dpcd_power_state = DP_SET_POWER_D3;
+		status = core_link_write_dpcd(
+				link,
+				DP_SET_POWER,
+				&dpcd_power_state,
+				sizeof(dpcd_power_state));
+		return false;
+	}
+
 	is_lttpr_present = dp_retrieve_lttpr_cap(link);
 	/* Read DP tunneling information. */
 	status = dpcd_get_tunneling_device_data(link);
-
-	status = core_link_read_dpcd(link, DP_SET_POWER,
-			&dpcd_power_state, sizeof(dpcd_power_state));
-
-	/* Delay 1 ms if AUX CH is in power down state. Based on spec
-	 * section 2.3.1.2, if AUX CH may be powered down due to
-	 * write to DPCD 600h = 2. Sink AUX CH is monitoring differential
-	 * signal and may need up to 1 ms before being able to reply.
-	 */
-	if (status != DC_OK || dpcd_power_state == DP_SET_POWER_D3)
-		udelay(1000);
 
 	dpcd_set_source_specific_data(link);
 	/* Sink may need to configure internals based on vendor, so allow some

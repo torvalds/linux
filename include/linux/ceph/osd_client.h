@@ -507,9 +507,8 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 extern void ceph_osdc_get_request(struct ceph_osd_request *req);
 extern void ceph_osdc_put_request(struct ceph_osd_request *req);
 
-extern int ceph_osdc_start_request(struct ceph_osd_client *osdc,
-				   struct ceph_osd_request *req,
-				   bool nofail);
+void ceph_osdc_start_request(struct ceph_osd_client *osdc,
+			     struct ceph_osd_request *req);
 extern void ceph_osdc_cancel_request(struct ceph_osd_request *req);
 extern int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 				  struct ceph_osd_request *req);

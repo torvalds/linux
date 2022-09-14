@@ -610,6 +610,9 @@ static int felix_change_tag_protocol(struct dsa_switch *ds,
 
 	old_proto_ops = felix->tag_proto_ops;
 
+	if (proto_ops == old_proto_ops)
+		return 0;
+
 	err = proto_ops->setup(ds);
 	if (err)
 		goto setup_failed;
@@ -1553,8 +1556,17 @@ static void felix_txtstamp(struct dsa_switch *ds, int port,
 static int felix_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct felix *felix = ocelot_to_felix(ocelot);
 
 	ocelot_port_set_maxlen(ocelot, port, new_mtu);
+
+	mutex_lock(&ocelot->tas_lock);
+
+	if (ocelot_port->taprio && felix->info->tas_guard_bands_update)
+		felix->info->tas_guard_bands_update(ocelot, port);
+
+	mutex_unlock(&ocelot->tas_lock);
 
 	return 0;
 }

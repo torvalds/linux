@@ -518,18 +518,41 @@ static u64 mmhub_v3_0_1_get_mc_fb_offset(struct amdgpu_device *adev)
 static void mmhub_v3_0_1_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 							  bool enable)
 {
-	//TODO
+	uint32_t def, data;
+
+	def = data = RREG32_SOC15(MMHUB, 0, regMM_ATC_L2_MISC_CG);
+
+	if (enable)
+		data |= MM_ATC_L2_MISC_CG__ENABLE_MASK;
+	else
+		data &= ~MM_ATC_L2_MISC_CG__ENABLE_MASK;
+
+	if (def != data)
+		WREG32_SOC15(MMHUB, 0, regMM_ATC_L2_MISC_CG, data);
 }
 
 static void mmhub_v3_0_1_update_medium_grain_light_sleep(struct amdgpu_device *adev,
 							 bool enable)
 {
-	//TODO
+	uint32_t def, data;
+
+	def = data = RREG32_SOC15(MMHUB, 0, regMM_ATC_L2_MISC_CG);
+
+	if (enable)
+		data |= MM_ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK;
+	else
+		data &= ~MM_ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK;
+
+	if (def != data)
+		WREG32_SOC15(MMHUB, 0, regMM_ATC_L2_MISC_CG, data);
 }
 
 static int mmhub_v3_0_1_set_clockgating(struct amdgpu_device *adev,
 					enum amd_clockgating_state state)
 {
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	mmhub_v3_0_1_update_medium_grain_clock_gating(adev,
 			state == AMD_CG_STATE_GATE);
 	mmhub_v3_0_1_update_medium_grain_light_sleep(adev,
@@ -539,7 +562,20 @@ static int mmhub_v3_0_1_set_clockgating(struct amdgpu_device *adev,
 
 static void mmhub_v3_0_1_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
-	//TODO
+	int data;
+
+	if (amdgpu_sriov_vf(adev))
+		*flags = 0;
+
+	data = RREG32_SOC15(MMHUB, 0, regMM_ATC_L2_MISC_CG);
+
+	/* AMD_CG_SUPPORT_MC_MGCG */
+	if (data & MM_ATC_L2_MISC_CG__ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_MC_MGCG;
+
+	/* AMD_CG_SUPPORT_MC_LS */
+	if (data & MM_ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_MC_LS;
 }
 
 const struct amdgpu_mmhub_funcs mmhub_v3_0_1_funcs = {

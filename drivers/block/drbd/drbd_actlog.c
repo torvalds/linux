@@ -124,12 +124,13 @@ void wait_until_done_or_force_detached(struct drbd_device *device, struct drbd_b
 
 static int _drbd_md_sync_page_io(struct drbd_device *device,
 				 struct drbd_backing_dev *bdev,
-				 sector_t sector, int op)
+				 sector_t sector, enum req_op op)
 {
 	struct bio *bio;
 	/* we do all our meta data IO in aligned 4k blocks. */
 	const int size = 4096;
-	int err, op_flags = 0;
+	int err;
+	blk_opf_t op_flags = 0;
 
 	device->md_io.done = 0;
 	device->md_io.error = -ENODEV;
@@ -174,7 +175,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 }
 
 int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bdev,
-			 sector_t sector, int op)
+			 sector_t sector, enum req_op op)
 {
 	int err;
 	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
@@ -385,7 +386,7 @@ static int __al_write_transaction(struct drbd_device *device, struct al_transact
 		write_al_updates = rcu_dereference(device->ldev->disk_conf)->al_updates;
 		rcu_read_unlock();
 		if (write_al_updates) {
-			if (drbd_md_sync_page_io(device, device->ldev, sector, WRITE)) {
+			if (drbd_md_sync_page_io(device, device->ldev, sector, REQ_OP_WRITE)) {
 				err = -EIO;
 				drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
 			} else {

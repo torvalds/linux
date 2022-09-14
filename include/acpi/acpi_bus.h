@@ -344,8 +344,9 @@ struct acpi_device_physical_node {
 
 struct acpi_device_properties {
 	const guid_t *guid;
-	const union acpi_object *properties;
+	union acpi_object *properties;
 	struct list_head list;
+	void **bufs;
 };
 
 /* ACPI Device Specific Data (_DSD) */
@@ -365,8 +366,6 @@ struct acpi_device {
 	acpi_handle handle;		/* no handle for fixed hardware */
 	struct fwnode_handle fwnode;
 	struct acpi_device *parent;
-	struct list_head children;
-	struct list_head node;
 	struct list_head wakeup_list;
 	struct list_head del_list;
 	struct acpi_device_status status;
@@ -379,7 +378,6 @@ struct acpi_device {
 	struct acpi_device_data data;
 	struct acpi_scan_handler *handler;
 	struct acpi_hotplug_context *hp;
-	struct acpi_driver *driver;
 	const struct acpi_gpio_mapping *driver_gpios;
 	void *driver_data;
 	struct device dev;
@@ -483,6 +481,9 @@ extern struct bus_type acpi_bus_type;
 int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data);
 int acpi_dev_for_each_child(struct acpi_device *adev,
 			    int (*fn)(struct acpi_device *, void *), void *data);
+int acpi_dev_for_each_child_reverse(struct acpi_device *adev,
+				    int (*fn)(struct acpi_device *, void *),
+				    void *data);
 
 /*
  * Events
@@ -521,6 +522,7 @@ const char *acpi_power_state_string(int state);
 int acpi_device_set_power(struct acpi_device *device, int state);
 int acpi_bus_init_power(struct acpi_device *device);
 int acpi_device_fix_up_power(struct acpi_device *device);
+void acpi_device_fix_up_power_extended(struct acpi_device *adev);
 int acpi_bus_update_power(acpi_handle handle, int *state_p);
 int acpi_device_update_power(struct acpi_device *device, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
@@ -622,6 +624,8 @@ static inline int acpi_dma_configure(struct device *dev,
 }
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 					   u64 address, bool check_children);
+struct acpi_device *acpi_find_child_by_adr(struct acpi_device *adev,
+					   acpi_bus_address adr);
 int acpi_is_root_bridge(acpi_handle);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 

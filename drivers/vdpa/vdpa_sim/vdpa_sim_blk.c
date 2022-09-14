@@ -25,31 +25,49 @@
 #define DRV_LICENSE  "GPL v2"
 
 #define VDPASIM_BLK_FEATURES	(VDPASIM_FEATURES | \
+				 (1ULL << VIRTIO_BLK_F_FLUSH)    | \
 				 (1ULL << VIRTIO_BLK_F_SIZE_MAX) | \
 				 (1ULL << VIRTIO_BLK_F_SEG_MAX)  | \
 				 (1ULL << VIRTIO_BLK_F_BLK_SIZE) | \
 				 (1ULL << VIRTIO_BLK_F_TOPOLOGY) | \
-				 (1ULL << VIRTIO_BLK_F_MQ))
+				 (1ULL << VIRTIO_BLK_F_MQ)       | \
+				 (1ULL << VIRTIO_BLK_F_DISCARD)  | \
+				 (1ULL << VIRTIO_BLK_F_WRITE_ZEROES))
 
 #define VDPASIM_BLK_CAPACITY	0x40000
 #define VDPASIM_BLK_SIZE_MAX	0x1000
 #define VDPASIM_BLK_SEG_MAX	32
+#define VDPASIM_BLK_DWZ_MAX_SECTORS UINT_MAX
+
+/* 1 virtqueue, 1 address space, 1 virtqueue group */
 #define VDPASIM_BLK_VQ_NUM	1
+#define VDPASIM_BLK_AS_NUM	1
+#define VDPASIM_BLK_GROUP_NUM	1
 
 static char vdpasim_blk_id[VIRTIO_BLK_ID_BYTES] = "vdpa_blk_sim";
 
-static bool vdpasim_blk_check_range(u64 start_sector, size_t range_size)
+static bool vdpasim_blk_check_range(struct vdpasim *vdpasim, u64 start_sector,
+				    u64 num_sectors, u64 max_sectors)
 {
-	u64 range_sectors = range_size >> SECTOR_SHIFT;
+	if (start_sector > VDPASIM_BLK_CAPACITY) {
+		dev_dbg(&vdpasim->vdpa.dev,
+			"starting sector exceeds the capacity - start: 0x%llx capacity: 0x%x\n",
+			start_sector, VDPASIM_BLK_CAPACITY);
+	}
 
-	if (range_size > VDPASIM_BLK_SIZE_MAX * VDPASIM_BLK_SEG_MAX)
+	if (num_sectors > max_sectors) {
+		dev_dbg(&vdpasim->vdpa.dev,
+			"number of sectors exceeds the max allowed in a request - num: 0x%llx max: 0x%llx\n",
+			num_sectors, max_sectors);
 		return false;
+	}
 
-	if (start_sector > VDPASIM_BLK_CAPACITY)
+	if (num_sectors > VDPASIM_BLK_CAPACITY - start_sector) {
+		dev_dbg(&vdpasim->vdpa.dev,
+			"request exceeds the capacity - start: 0x%llx num: 0x%llx capacity: 0x%x\n",
+			start_sector, num_sectors, VDPASIM_BLK_CAPACITY);
 		return false;
-
-	if (range_sectors > VDPASIM_BLK_CAPACITY - start_sector)
-		return false;
+	}
 
 	return true;
 }
@@ -63,6 +81,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 {
 	size_t pushed = 0, to_pull, to_push;
 	struct virtio_blk_outhdr hdr;
+	bool handled = false;
 	ssize_t bytes;
 	loff_t offset;
 	u64 sector;
@@ -76,14 +95,14 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		return false;
 
 	if (vq->out_iov.used < 1 || vq->in_iov.used < 1) {
-		dev_err(&vdpasim->vdpa.dev, "missing headers - out_iov: %u in_iov %u\n",
+		dev_dbg(&vdpasim->vdpa.dev, "missing headers - out_iov: %u in_iov %u\n",
 			vq->out_iov.used, vq->in_iov.used);
-		return false;
+		goto err;
 	}
 
 	if (vq->in_iov.iov[vq->in_iov.used - 1].iov_len < 1) {
-		dev_err(&vdpasim->vdpa.dev, "request in header too short\n");
-		return false;
+		dev_dbg(&vdpasim->vdpa.dev, "request in header too short\n");
+		goto err;
 	}
 
 	/* The last byte is the status and we checked if the last iov has
@@ -96,8 +115,8 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 	bytes = vringh_iov_pull_iotlb(&vq->vring, &vq->out_iov, &hdr,
 				      sizeof(hdr));
 	if (bytes != sizeof(hdr)) {
-		dev_err(&vdpasim->vdpa.dev, "request out header too short\n");
-		return false;
+		dev_dbg(&vdpasim->vdpa.dev, "request out header too short\n");
+		goto err;
 	}
 
 	to_pull -= bytes;
@@ -107,12 +126,20 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 	offset = sector << SECTOR_SHIFT;
 	status = VIRTIO_BLK_S_OK;
 
+	if (type != VIRTIO_BLK_T_IN && type != VIRTIO_BLK_T_OUT &&
+	    sector != 0) {
+		dev_dbg(&vdpasim->vdpa.dev,
+			"sector must be 0 for %u request - sector: 0x%llx\n",
+			type, sector);
+		status = VIRTIO_BLK_S_IOERR;
+		goto err_status;
+	}
+
 	switch (type) {
 	case VIRTIO_BLK_T_IN:
-		if (!vdpasim_blk_check_range(sector, to_push)) {
-			dev_err(&vdpasim->vdpa.dev,
-				"reading over the capacity - offset: 0x%llx len: 0x%zx\n",
-				offset, to_push);
+		if (!vdpasim_blk_check_range(vdpasim, sector,
+					     to_push >> SECTOR_SHIFT,
+					     VDPASIM_BLK_SIZE_MAX * VDPASIM_BLK_SEG_MAX)) {
 			status = VIRTIO_BLK_S_IOERR;
 			break;
 		}
@@ -121,7 +148,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 					      vdpasim->buffer + offset,
 					      to_push);
 		if (bytes < 0) {
-			dev_err(&vdpasim->vdpa.dev,
+			dev_dbg(&vdpasim->vdpa.dev,
 				"vringh_iov_push_iotlb() error: %zd offset: 0x%llx len: 0x%zx\n",
 				bytes, offset, to_push);
 			status = VIRTIO_BLK_S_IOERR;
@@ -132,10 +159,9 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		break;
 
 	case VIRTIO_BLK_T_OUT:
-		if (!vdpasim_blk_check_range(sector, to_pull)) {
-			dev_err(&vdpasim->vdpa.dev,
-				"writing over the capacity - offset: 0x%llx len: 0x%zx\n",
-				offset, to_pull);
+		if (!vdpasim_blk_check_range(vdpasim, sector,
+					     to_pull >> SECTOR_SHIFT,
+					     VDPASIM_BLK_SIZE_MAX * VDPASIM_BLK_SEG_MAX)) {
 			status = VIRTIO_BLK_S_IOERR;
 			break;
 		}
@@ -144,7 +170,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 					      vdpasim->buffer + offset,
 					      to_pull);
 		if (bytes < 0) {
-			dev_err(&vdpasim->vdpa.dev,
+			dev_dbg(&vdpasim->vdpa.dev,
 				"vringh_iov_pull_iotlb() error: %zd offset: 0x%llx len: 0x%zx\n",
 				bytes, offset, to_pull);
 			status = VIRTIO_BLK_S_IOERR;
@@ -157,7 +183,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 					      vdpasim_blk_id,
 					      VIRTIO_BLK_ID_BYTES);
 		if (bytes < 0) {
-			dev_err(&vdpasim->vdpa.dev,
+			dev_dbg(&vdpasim->vdpa.dev,
 				"vringh_iov_push_iotlb() error: %zd\n", bytes);
 			status = VIRTIO_BLK_S_IOERR;
 			break;
@@ -166,13 +192,76 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		pushed += bytes;
 		break;
 
+	case VIRTIO_BLK_T_FLUSH:
+		/* nothing to do */
+		break;
+
+	case VIRTIO_BLK_T_DISCARD:
+	case VIRTIO_BLK_T_WRITE_ZEROES: {
+		struct virtio_blk_discard_write_zeroes range;
+		u32 num_sectors, flags;
+
+		if (to_pull != sizeof(range)) {
+			dev_dbg(&vdpasim->vdpa.dev,
+				"discard/write_zeroes header len: 0x%zx [expected: 0x%zx]\n",
+				to_pull, sizeof(range));
+			status = VIRTIO_BLK_S_IOERR;
+			break;
+		}
+
+		bytes = vringh_iov_pull_iotlb(&vq->vring, &vq->out_iov, &range,
+					      to_pull);
+		if (bytes < 0) {
+			dev_dbg(&vdpasim->vdpa.dev,
+				"vringh_iov_pull_iotlb() error: %zd offset: 0x%llx len: 0x%zx\n",
+				bytes, offset, to_pull);
+			status = VIRTIO_BLK_S_IOERR;
+			break;
+		}
+
+		sector = le64_to_cpu(range.sector);
+		offset = sector << SECTOR_SHIFT;
+		num_sectors = le32_to_cpu(range.num_sectors);
+		flags = le32_to_cpu(range.flags);
+
+		if (type == VIRTIO_BLK_T_DISCARD && flags != 0) {
+			dev_dbg(&vdpasim->vdpa.dev,
+				"discard unexpected flags set - flags: 0x%x\n",
+				flags);
+			status = VIRTIO_BLK_S_UNSUPP;
+			break;
+		}
+
+		if (type == VIRTIO_BLK_T_WRITE_ZEROES &&
+		    flags & ~VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP) {
+			dev_dbg(&vdpasim->vdpa.dev,
+				"write_zeroes unexpected flags set - flags: 0x%x\n",
+				flags);
+			status = VIRTIO_BLK_S_UNSUPP;
+			break;
+		}
+
+		if (!vdpasim_blk_check_range(vdpasim, sector, num_sectors,
+					     VDPASIM_BLK_DWZ_MAX_SECTORS)) {
+			status = VIRTIO_BLK_S_IOERR;
+			break;
+		}
+
+		if (type == VIRTIO_BLK_T_WRITE_ZEROES) {
+			memset(vdpasim->buffer + offset, 0,
+			       num_sectors << SECTOR_SHIFT);
+		}
+
+		break;
+	}
 	default:
-		dev_warn(&vdpasim->vdpa.dev,
-			 "Unsupported request type %d\n", type);
+		dev_dbg(&vdpasim->vdpa.dev,
+			"Unsupported request type %d\n", type);
 		status = VIRTIO_BLK_S_IOERR;
 		break;
 	}
 
+err_status:
 	/* If some operations fail, we need to skip the remaining bytes
 	 * to put the status in the last byte
 	 */
@@ -182,21 +271,25 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 	/* Last byte is the status */
 	bytes = vringh_iov_push_iotlb(&vq->vring, &vq->in_iov, &status, 1);
 	if (bytes != 1)
-		return false;
+		goto err;
 
 	pushed += bytes;
 
 	/* Make sure data is wrote before advancing index */
 	smp_wmb();
 
+	handled = true;
+
+err:
 	vringh_complete_iotlb(&vq->vring, vq->head, pushed);
 
-	return true;
+	return handled;
 }
 
 static void vdpasim_blk_work(struct work_struct *work)
 {
 	struct vdpasim *vdpasim = container_of(work, struct vdpasim, work);
+	bool reschedule = false;
 	int i;
 
 	spin_lock(&vdpasim->lock);
@@ -204,8 +297,12 @@ static void vdpasim_blk_work(struct work_struct *work)
 	if (!(vdpasim->status & VIRTIO_CONFIG_S_DRIVER_OK))
 		goto out;
 
+	if (!vdpasim->running)
+		goto out;
+
 	for (i = 0; i < VDPASIM_BLK_VQ_NUM; i++) {
 		struct vdpasim_virtqueue *vq = &vdpasim->vqs[i];
+		int reqs = 0;
 
 		if (!vq->ready)
 			continue;
@@ -218,10 +315,18 @@ static void vdpasim_blk_work(struct work_struct *work)
 			if (vringh_need_notify_iotlb(&vq->vring) > 0)
 				vringh_notify(&vq->vring);
 			local_bh_enable();
+
+			if (++reqs > 4) {
+				reschedule = true;
+				break;
+			}
 		}
 	}
 out:
 	spin_unlock(&vdpasim->lock);
+
+	if (reschedule)
+		schedule_work(&vdpasim->work);
 }
 
 static void vdpasim_blk_get_config(struct vdpasim *vdpasim, void *config)
@@ -237,6 +342,17 @@ static void vdpasim_blk_get_config(struct vdpasim *vdpasim, void *config)
 	blk_config->min_io_size = cpu_to_vdpasim16(vdpasim, 1);
 	blk_config->opt_io_size = cpu_to_vdpasim32(vdpasim, 1);
 	blk_config->blk_size = cpu_to_vdpasim32(vdpasim, SECTOR_SIZE);
+	/* VIRTIO_BLK_F_DISCARD */
+	blk_config->discard_sector_alignment =
+		cpu_to_vdpasim32(vdpasim, SECTOR_SIZE);
+	blk_config->max_discard_sectors =
+		cpu_to_vdpasim32(vdpasim, VDPASIM_BLK_DWZ_MAX_SECTORS);
+	blk_config->max_discard_seg = cpu_to_vdpasim32(vdpasim, 1);
+	/* VIRTIO_BLK_F_WRITE_ZEROES */
+	blk_config->max_write_zeroes_sectors =
+		cpu_to_vdpasim32(vdpasim, VDPASIM_BLK_DWZ_MAX_SECTORS);
+	blk_config->max_write_zeroes_seg = cpu_to_vdpasim32(vdpasim, 1);
+
 }
 
 static void vdpasim_blk_mgmtdev_release(struct device *dev)
@@ -260,6 +376,8 @@ static int vdpasim_blk_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	dev_attr.id = VIRTIO_ID_BLOCK;
 	dev_attr.supported_features = VDPASIM_BLK_FEATURES;
 	dev_attr.nvqs = VDPASIM_BLK_VQ_NUM;
+	dev_attr.ngroups = VDPASIM_BLK_GROUP_NUM;
+	dev_attr.nas = VDPASIM_BLK_AS_NUM;
 	dev_attr.config_size = sizeof(struct virtio_blk_config);
 	dev_attr.get_config = vdpasim_blk_get_config;
 	dev_attr.work_fn = vdpasim_blk_work;

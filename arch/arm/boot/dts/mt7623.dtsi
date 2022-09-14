@@ -241,7 +241,7 @@
 	};
 
 	pericfg: syscon@10003000 {
-		compatible =  "mediatek,mt7623-pericfg",
+		compatible = "mediatek,mt7623-pericfg",
 			      "mediatek,mt2701-pericfg",
 			      "syscon";
 		reg = <0 0x10003000 0 0x1000>;
@@ -628,9 +628,9 @@
 		afe: audio-controller {
 			compatible = "mediatek,mt7623-audio",
 				     "mediatek,mt2701-audio";
-			interrupts =  <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>,
+			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>,
 				      <GIC_SPI 132 IRQ_TYPE_LEVEL_LOW>;
-			interrupt-names	= "afe", "asys";
+			interrupt-names = "afe", "asys";
 			power-domains = <&scpsys MT2701_POWER_DOMAIN_IFR_MSC>;
 
 			clocks = <&infracfg CLK_INFRA_AUDIO>,

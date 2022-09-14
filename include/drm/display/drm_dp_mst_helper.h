@@ -72,6 +72,8 @@ struct drm_dp_mst_branch;
  * @next: link to next port on this branch device
  * @aux: i2c aux transport to talk to device connected to this port, protected
  * by &drm_dp_mst_topology_mgr.base.lock.
+ * @passthrough_aux: parent aux to which DSC pass-through requests should be
+ * sent, only set if DSC pass-through is possible.
  * @parent: branch device parent of this port
  * @vcpi: Virtual Channel Payload info for this port.
  * @connector: DRM connector this port is connected to. Protected by
@@ -126,6 +128,7 @@ struct drm_dp_mst_port {
 	 */
 	struct drm_dp_mst_branch *mstb;
 	struct drm_dp_aux aux; /* i2c bus for this port? */
+	struct drm_dp_aux *passthrough_aux;
 	struct drm_dp_mst_branch *parent;
 
 	struct drm_connector *connector;
