@@ -58,8 +58,8 @@ static const char * const pstore_type_names[] = {
 	"powerpc-common",
 	"pmsg",
 	"powerpc-opal",
-#ifdef CONFIG_PSTORE_MCU_LOG
-	"mcu-log",
+#ifdef CONFIG_PSTORE_BOOT_LOG
+	"boot-log",
 #endif
 };
 

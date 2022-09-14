@@ -264,10 +264,10 @@ config PSTORE_BLK_FTRACE_SIZE
 	  NOTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.
 
-config PSTORE_MCU_LOG
-	bool "Print mcu log by linux"
+config PSTORE_BOOT_LOG
+	bool "Print boot log by linux"
 	depends on PSTORE
 	help
-	  When your soc has several mcu, you can get their log by cat command
+	  Collect log from loader,uboot,ATF and so on, you can get their log by cat command
 	  through linux shell
 	  If unsure, say N.
