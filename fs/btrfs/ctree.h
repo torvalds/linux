@@ -528,8 +528,6 @@ struct btrfs_discard_ctl {
 	atomic64_t discard_bytes_saved;
 };
 
-void btrfs_init_async_reclaim_work(struct btrfs_fs_info *fs_info);
-
 /* fs_info */
 struct reloc_control;
 struct btrfs_device;
