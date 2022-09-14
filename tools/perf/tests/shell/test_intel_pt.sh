@@ -4,10 +4,11 @@
 
 set -e
 
-tenths=date\ +%s%1N
-
 # Skip if no Intel PT
 perf list | grep -q 'intel_pt//' || exit 2
+
+shelldir=$(dirname "$0")
+. "${shelldir}"/lib/waiting.sh
 
 skip_cnt=0
 ok_cnt=0
@@ -110,67 +111,6 @@ can_kernel()
 {
 	perf record -o "${tmpfile}" -B -N --no-bpf-event -e dummy:k true >/dev/null 2>&1 || return 2
 	return 0
-}
-
-wait_for_threads()
-{
-	start_time=$($tenths)
-	while [ -e "/proc/$1/task" ] ; do
-		th_cnt=$(find "/proc/$1/task" -mindepth 1 -maxdepth 1 -printf x | wc -c)
-		if [ "${th_cnt}" -ge "$2" ] ; then
-			return 0
-		fi
-		# Wait at most 5 seconds
-		if [ $(($($tenths) - start_time)) -ge 50 ] ; then
-			echo "PID $1 does not have $2 threads"
-			return 1
-		fi
-	done
-	return 1
-}
-
-wait_for_perf_to_start()
-{
-	echo "Waiting for \"perf record has started\" message"
-	start_time=$($tenths)
-	while [ -e "/proc/$1" ] ; do
-		if grep -q "perf record has started" "${errfile}" ; then
-			echo OK
-			break
-		fi
-		# Wait at most 5 seconds
-		if [ $(($($tenths) - start_time)) -ge 50 ] ; then
-			echo "perf recording did not start"
-			return 1
-		fi
-	done
-	return 0
-}
-
-wait_for_process_to_exit()
-{
-	start_time=$($tenths)
-	while [ -e "/proc/$1" ] ; do
-		# Wait at most 5 seconds
-		if [ $(($($tenths) - start_time)) -ge 50 ] ; then
-			echo "PID $1 did not exit as expected"
-			return 1
-		fi
-	done
-	return 0
-}
-
-is_running()
-{
-	start_time=$($tenths)
-	while [ -e "/proc/$1" ] ; do
-		# Check for at least 0.3s
-		if [ $(($($tenths) - start_time)) -gt 3 ] ; then
-			return 0
-		fi
-	done
-	echo "PID $1 exited prematurely"
-	return 1
 }
 
 test_per_thread()
@@ -298,7 +238,7 @@ test_per_thread()
 	perf record -B -N --no-bpf-event -o "${perfdatafile}" -e intel_pt//u"${k}" -vvv --per-thread -p "${w1},${w2}" 2>"${errfile}" >"${outfile}" &
 	ppid=$!
 	echo "perf PID is $ppid"
-	wait_for_perf_to_start ${ppid} || return 1
+	wait_for_perf_to_start ${ppid} "${errfile}" || return 1
 
 	kill ${w1}
 	wait_for_process_to_exit ${w1} || return 1
