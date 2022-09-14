@@ -8,6 +8,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-event.h>
+#include <linux/rkcif-config.h>
 
 #define CSI2_ERR_FSFE_MASK	(0xff << 8)
 #define CSI2_ERR_COUNT_ALL_MASK	(0xff)
@@ -42,6 +43,7 @@
 #define CSIHOST_MAX_ERRINT_COUNT	10
 
 #define DEVICE_NAME "rockchip-mipi-csi2"
+#define DEVICE_NAME_HW "rockchip-mipi-csi2-hw"
 
 /* CSI Host Registers Define */
 #define CSIHOST_N_LANES		0x04
@@ -76,6 +78,8 @@
 #define SW_DATATYPE_LS(x)	((x) << 20)
 #define SW_DATATYPE_LE(x)	((x) << 26)
 
+#define RK_MAX_CSI_HW		(6)
+
 /*
  * add new chip id in tail in time order
  * by increasing to distinguish csi2 host version
@@ -88,6 +92,7 @@ enum rkcsi2_chip_id {
 	CHIP_RV1126_CSI2,
 	CHIP_RK3568_CSI2,
 	CHIP_RK3588_CSI2,
+	CHIP_RV1106_CSI2,
 	CHIP_RK3562_CSI2,
 };
 
@@ -117,6 +122,11 @@ enum host_type_t {
 struct csi2_match_data {
 	int chip_id;
 	int num_pads;
+	int num_hw;
+};
+
+struct csi2_hw_match_data {
+	int chip_id;
 };
 
 struct csi2_sensor_info {
@@ -155,10 +165,29 @@ struct csi2_dev {
 	int			num_sensors;
 	atomic_t		frm_sync_seq;
 	struct csi2_err_stats	err_list[RK_CSI2_ERR_MAX];
+	struct csi2_hw		*csi2_hw[RK_MAX_CSI_HW];
 	int			irq1;
 	int			irq2;
 	int			dsi_input_en;
-	u32			csi_idx;
+	struct rkcif_csi_info	csi_info;
+	const char		*dev_name;
+};
+
+struct csi2_hw {
+	struct device		*dev;
+	struct clk_bulk_data	*clks_bulk;
+	int			clks_num;
+	struct reset_control	*rsts_bulk;
+	struct csi2_dev		*csi2;
+	const struct csi2_hw_match_data	*match_data;
+
+	void __iomem		*base;
+
+	/* lock to protect all members below */
+	struct mutex lock;
+
+	int			irq1;
+	int			irq2;
 	const char		*dev_name;
 };
 
@@ -166,7 +195,9 @@ u32 rkcif_csi2_get_sof(struct csi2_dev *csi2_dev);
 void rkcif_csi2_set_sof(struct csi2_dev *csi2_dev, u32 seq);
 void rkcif_csi2_event_inc_sof(struct csi2_dev *csi2_dev);
 int rkcif_csi2_plat_drv_init(void);
-void __exit rkcif_csi2_plat_drv_exit(void);
+void rkcif_csi2_plat_drv_exit(void);
+int rkcif_csi2_hw_plat_drv_init(void);
+void rkcif_csi2_hw_plat_drv_exit(void);
 int rkcif_csi2_register_notifier(struct notifier_block *nb);
 int rkcif_csi2_unregister_notifier(struct notifier_block *nb);
 void rkcif_csi2_event_reset_pipe(struct csi2_dev *csi2_dev, int reset_src);

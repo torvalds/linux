@@ -1506,6 +1506,7 @@ int rk_cif_plat_drv_init(void)
 	ret = platform_driver_register(&rkcif_hw_plat_drv);
 	if (ret)
 		return ret;
+	rkcif_csi2_hw_plat_drv_init();
 	return rkcif_csi2_plat_drv_init();
 }
 
@@ -1513,6 +1514,7 @@ static void __exit rk_cif_plat_drv_exit(void)
 {
 	platform_driver_unregister(&rkcif_hw_plat_drv);
 	rkcif_csi2_plat_drv_exit();
+	rkcif_csi2_hw_plat_drv_exit();
 }
 
 #if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)

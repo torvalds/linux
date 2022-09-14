@@ -280,10 +280,12 @@ struct csi_channel_info {
 	unsigned int width;
 	unsigned int height;
 	unsigned int virtual_width;
+	unsigned int left_virtual_width;
 	unsigned int crop_st_x;
 	unsigned int crop_st_y;
 	unsigned int dsi_input;
 	struct rkmodule_lvds_cfg lvds_cfg;
+	struct rkmodule_capture_info capture_info;
 };
 
 struct rkcif_vdev_node {

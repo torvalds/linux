@@ -67,6 +67,8 @@
  *7. add keepint time to csi2 err for resetting
  *8. mipi supports pdaf/embedded data
  *9. mipi supports interlaced capture
+ *v0.2.0
+ *1. vicap support combine multi mipi dev to one dev, this function is mainly used for rk3588
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION
