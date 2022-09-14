@@ -2177,8 +2177,7 @@ static int flexcan_probe(struct platform_device *pdev)
 
 	err = flexcan_setup_stop_mode(pdev);
 	if (err < 0) {
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "setup stop mode failed\n");
+		dev_err_probe(&pdev->dev, err, "setup stop mode failed\n");
 		goto failed_setup_stop_mode;
 	}
 
