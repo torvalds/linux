@@ -931,14 +931,13 @@ static int mlx5e_macsec_add_secy(struct macsec_context *ctx)
 		goto out;
 	}
 
-	macsec_device->dev_addr = kzalloc(dev->addr_len, GFP_KERNEL);
+	macsec_device->dev_addr = kmemdup(dev->dev_addr, dev->addr_len, GFP_KERNEL);
 	if (!macsec_device->dev_addr) {
 		kfree(macsec_device);
 		err = -ENOMEM;
 		goto out;
 	}
 
-	memcpy(macsec_device->dev_addr, dev->dev_addr, dev->addr_len);
 	macsec_device->netdev = dev;
 
 	INIT_LIST_HEAD_RCU(&macsec_device->macsec_rx_sc_list_head);
