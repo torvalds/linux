@@ -539,7 +539,7 @@ static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 				       const struct __fw_backtrace_entry *ent)
 {
 	struct __fw_backtrace_info *ptr = (struct __fw_backtrace_info *)buf;
-	u32 fwbt_addr = ent->wcpu_addr - RTW89_WCPU_BASE_ADDR;
+	u32 fwbt_addr = ent->wcpu_addr & RTW89_WCPU_BASE_MASK;
 	u32 fwbt_size = ent->size;
 	u32 fwbt_key = ent->key;
 	u32 i;
