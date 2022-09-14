@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
+#include <linux/property.h>
 
 /*
  * Coordinate calculation:
@@ -474,33 +475,6 @@ unlock:
 static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops,
 			 auo_pixcir_suspend, auo_pixcir_resume);
 
-#ifdef CONFIG_OF
-static int auo_pixcir_parse_dt(struct device *dev, struct auo_pixcir_ts *ts)
-{
-	struct device_node *np = dev->of_node;
-
-	if (!np)
-		return -ENOENT;
-
-	if (of_property_read_u32(np, "x-size", &ts->x_max)) {
-		dev_err(dev, "failed to get x-size property\n");
-		return -EINVAL;
-	}
-
-	if (of_property_read_u32(np, "y-size", &ts->y_max)) {
-		dev_err(dev, "failed to get y-size property\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-#else
-static int auo_pixcir_parse_dt(struct device *dev, struct auo_pixcir_ts *ts)
-{
-	return -EINVAL;
-}
-#endif
-
 static void auo_pixcir_reset(void *data)
 {
 	struct auo_pixcir_ts *ts = data;
@@ -535,9 +509,15 @@ static int auo_pixcir_probe(struct i2c_client *client,
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
 
-	error = auo_pixcir_parse_dt(&client->dev, ts);
-	if (error)
-		return error;
+	if (device_property_read_u32(&client->dev, "x-size", &ts->x_max)) {
+		dev_err(&client->dev, "failed to get x-size property\n");
+		return -EINVAL;
+	}
+
+	if (device_property_read_u32(&client->dev, "y-size", &ts->y_max)) {
+		dev_err(&client->dev, "failed to get y-size property\n");
+		return -EINVAL;
+	}
 
 	input_dev->name = "AUO-Pixcir touchscreen";
 	input_dev->phys = ts->phys;
