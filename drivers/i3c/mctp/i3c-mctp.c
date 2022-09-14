@@ -155,6 +155,7 @@ static struct i3c_mctp_packet *i3c_mctp_read_packet(struct i3c_device *i3c)
 		i3c_mctp_packet_free(rx_packet);
 		return ERR_PTR(ret);
 	}
+	rx_packet->size = xfers.len;
 
 	return rx_packet;
 }
@@ -235,9 +236,15 @@ static ssize_t i3c_mctp_read(struct file *file, char __user *buf, size_t count, 
 	struct i3c_mctp_client *client = priv->default_client;
 	struct i3c_mctp_packet *rx_packet;
 
+	if (count > sizeof(rx_packet->data))
+		count = sizeof(rx_packet->data);
+
 	rx_packet = ptr_ring_consume(&client->rx_queue);
 	if (!rx_packet)
 		return -EAGAIN;
+
+	if (count > rx_packet->size)
+		count = rx_packet->size;
 
 	if (copy_to_user(buf, &rx_packet->data, count))
 		return -EFAULT;
