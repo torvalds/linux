@@ -310,7 +310,7 @@ bool efi_load_option_unpack(efi_load_option_unpacked_t *dest,
  *
  * Detect this case and extract OptionalData.
  */
-void efi_apply_loadoptions_quirk(const void **load_options, int *load_options_size)
+void efi_apply_loadoptions_quirk(const void **load_options, u32 *load_options_size)
 {
 	const efi_load_option_t *load_option = *load_options;
 	efi_load_option_unpacked_t load_option_unpacked;
@@ -341,21 +341,22 @@ void efi_apply_loadoptions_quirk(const void **load_options, int *load_options_si
  */
 char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 {
-	const u16 *s2;
-	unsigned long cmdline_addr = 0;
-	int options_chars = efi_table_attr(image, load_options_size);
-	const u16 *options = efi_table_attr(image, load_options);
+	const efi_char16_t *options = efi_table_attr(image, load_options);
+	u32 options_size = efi_table_attr(image, load_options_size);
 	int options_bytes = 0, safe_options_bytes = 0;  /* UTF-8 bytes */
+	unsigned long cmdline_addr = 0;
+	const efi_char16_t *s2;
 	bool in_quote = false;
 	efi_status_t status;
+	u32 options_chars;
 
-	efi_apply_loadoptions_quirk((const void **)&options, &options_chars);
-	options_chars /= sizeof(*options);
+	efi_apply_loadoptions_quirk((const void **)&options, &options_size);
+	options_chars = options_size / sizeof(efi_char16_t);
 
 	if (options) {
 		s2 = options;
 		while (options_bytes < COMMAND_LINE_SIZE && options_chars--) {
-			u16 c = *s2++;
+			efi_char16_t c = *s2++;
 
 			if (c < 0x80) {
 				if (c == L'\0' || c == L'\n')

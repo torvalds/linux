@@ -861,7 +861,7 @@ typedef struct {
 	u16 file_path_list_length;
 	const efi_char16_t *description;
 	const efi_device_path_protocol_t *file_path_list;
-	size_t optional_data_size;
+	u32 optional_data_size;
 	const void *optional_data;
 } efi_load_option_unpacked_t;
 
@@ -906,7 +906,7 @@ __printf(1, 2) int efi_printk(char const *fmt, ...);
 
 void efi_free(unsigned long size, unsigned long addr);
 
-void efi_apply_loadoptions_quirk(const void **load_options, int *load_options_size);
+void efi_apply_loadoptions_quirk(const void **load_options, u32 *load_options_size);
 
 char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len);
 
