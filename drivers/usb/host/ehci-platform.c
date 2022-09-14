@@ -276,6 +276,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 	struct ehci_platform_priv *priv;
 	struct ehci_hcd *ehci;
 	int err, irq, clk = 0;
+	struct device *companion_dev;
+	struct device_link *link;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -414,6 +416,21 @@ static int ehci_platform_probe(struct platform_device *dev)
 	if (of_usb_get_phy_mode(dev->dev.of_node) == USBPHY_INTERFACE_MODE_HSIC)
 		ehci_usic_init(hcd);
 
+	if (of_device_is_compatible(dev->dev.of_node,
+				    "rockchip,rk3588-ehci")) {
+		companion_dev = usb_of_get_companion_dev(hcd->self.controller);
+		if (companion_dev) {
+			link = device_link_add(companion_dev, hcd->self.controller,
+					       DL_FLAG_STATELESS);
+			if (!link) {
+				dev_err(&dev->dev, "Unable to link %s\n",
+					dev_name(companion_dev));
+				err = -EINVAL;
+				goto err_power;
+			}
+		}
+	}
+
 	device_wakeup_enable(hcd->self.controller);
 	device_enable_async_suspend(hcd->self.controller);
 	platform_set_drvdata(dev, hcd);
@@ -447,10 +464,18 @@ static int ehci_platform_remove(struct platform_device *dev)
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ehci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
+	struct device *companion_dev;
 	int clk;
 
 	if (priv->quirk_poll)
 		quirk_poll_end(priv);
+
+	if (of_device_is_compatible(dev->dev.of_node,
+				    "rockchip,rk3588-ehci")) {
+		companion_dev = usb_of_get_companion_dev(hcd->self.controller);
+		if (companion_dev)
+			device_link_remove(companion_dev, hcd->self.controller);
+	}
 
 	usb_remove_hcd(hcd);
 
@@ -510,7 +535,7 @@ static int __maybe_unused ehci_platform_resume(struct device *dev)
 	}
 
 	companion_dev = usb_of_get_companion_dev(hcd->self.controller);
-	if (companion_dev) {
+	if (companion_dev && !device_is_dependent(hcd->self.controller, companion_dev)) {
 		device_pm_wait_for_dev(hcd->self.controller, companion_dev);
 		put_device(companion_dev);
 	}
