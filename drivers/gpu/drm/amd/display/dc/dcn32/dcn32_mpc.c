@@ -726,7 +726,7 @@ static bool mpc32_program_shaper(
 	else
 		next_mode = LUT_RAM_A;
 
-	mpc32_configure_shaper_lut(mpc, next_mode == LUT_RAM_A ? true:false, mpcc_id);
+	mpc32_configure_shaper_lut(mpc, next_mode == LUT_RAM_A, mpcc_id);
 
 	if (next_mode == LUT_RAM_A)
 		mpc32_program_shaper_luta_settings(mpc, params, mpcc_id);
