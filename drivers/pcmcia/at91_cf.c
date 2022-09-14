@@ -46,7 +46,7 @@ struct at91_cf_data {
 #define AT91_IDE_SWAP_A0_A2	0x02
 };
 
-struct regmap *mc;
+static struct regmap *mc;
 
 /*--------------------------------------------------------------------------*/
 
