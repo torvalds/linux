@@ -16,6 +16,18 @@
 #define BTRFS_MAX_LEVEL 8
 
 /*
+ * We can actually store much bigger names, but lets not confuse the rest of
+ * linux.
+ */
+#define BTRFS_NAME_LEN 255
+
+/*
+ * Theoretical limit is larger, but we keep this down to a sane value. That
+ * should limit greatly the possibility of collisions on inode ref items.
+ */
+#define BTRFS_LINK_MAX 65535U
+
+/*
  * This header contains the structure definitions and constants used
  * by file system objects that can be retrieved using
  * the BTRFS_IOC_SEARCH_TREE ioctl.  That means basically anything that
