@@ -45,7 +45,7 @@ struct system_heap_buffer {
 	int vmap_cnt;
 	void *vaddr;
 	struct deferred_freelist_item deferred_free;
-
+	struct dmabuf_page_pool **pools;
 	bool uncached;
 };
 
@@ -457,7 +457,7 @@ static void system_heap_buf_free(struct deferred_freelist_item *item,
 				if (compound_order(page) == orders[j])
 					break;
 			}
-			dmabuf_page_pool_free(pools[j], page);
+			dmabuf_page_pool_free(buffer->pools[j], page);
 		}
 	}
 	sg_free_table(table);
@@ -488,15 +488,13 @@ static const struct dma_buf_ops system_heap_buf_ops = {
 };
 
 static struct page *system_heap_alloc_largest_available(struct dma_heap *heap,
+							struct dmabuf_page_pool **pool,
 							unsigned long size,
 							unsigned int max_order)
 {
 	struct page *page;
 	int i;
-	const char *name = dma_heap_get_name(heap);
-	struct dmabuf_page_pool **pool;
 
-	pool = strstr(name, "dma32") ? dma32_pools : pools;
 	for (i = 0; i < NUM_ORDERS; i++) {
 		if (size <  (PAGE_SIZE << orders[i]))
 			continue;
@@ -542,6 +540,7 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 	buffer->heap = heap;
 	buffer->len = len;
 	buffer->uncached = uncached;
+	buffer->pools = strstr(dma_heap_get_name(heap), "dma32") ? dma32_pools : pools;
 
 	INIT_LIST_HEAD(&pages);
 	for (i = 0; i < 8; i++)
@@ -555,7 +554,9 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 		if (fatal_signal_pending(current))
 			goto free_buffer;
 
-		page = system_heap_alloc_largest_available(heap, size_remaining, max_order);
+		page = system_heap_alloc_largest_available(heap, buffer->pools,
+							   size_remaining,
+							   max_order);
 		if (!page)
 			goto free_buffer;
 
@@ -658,11 +659,8 @@ static long system_get_pool_size(struct dma_heap *heap)
 	int i;
 	long num_pages = 0;
 	struct dmabuf_page_pool **pool;
-	const char *name = dma_heap_get_name(heap);
 
-	pool = pools;
-	if (!strcmp(name, "system-dma32") || !strcmp(name, "system-uncached-dma32"))
-		pool = dma32_pools;
+	pool = strstr(dma_heap_get_name(heap), "dma32") ? dma32_pools : pools;
 	for (i = 0; i < NUM_ORDERS; i++, pool++) {
 		num_pages += ((*pool)->count[POOL_LOWPAGE] +
 			      (*pool)->count[POOL_HIGHPAGE]) << (*pool)->order;
