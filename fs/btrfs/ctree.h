@@ -535,31 +535,6 @@ struct btrfs_fs_devices;
 struct btrfs_balance_control;
 struct btrfs_delayed_root;
 
-/*
- * Block group or device which contains an active swapfile. Used for preventing
- * unsafe operations while a swapfile is active.
- *
- * These are sorted on (ptr, inode) (note that a block group or device can
- * contain more than one swapfile). We compare the pointer values because we
- * don't actually care what the object is, we just need a quick check whether
- * the object exists in the rbtree.
- */
-struct btrfs_swapfile_pin {
-	struct rb_node node;
-	void *ptr;
-	struct inode *inode;
-	/*
-	 * If true, ptr points to a struct btrfs_block_group. Otherwise, ptr
-	 * points to a struct btrfs_device.
-	 */
-	bool is_block_group;
-	/*
-	 * Only used when 'is_block_group' is true and it is the number of
-	 * extents used by a swapfile for this block group ('ptr' field).
-	 */
-	int bg_extent_count;
-};
-
 enum {
 	BTRFS_FS_CLOSING_START,
 	BTRFS_FS_CLOSING_DONE,
