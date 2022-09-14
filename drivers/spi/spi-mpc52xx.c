@@ -15,6 +15,7 @@
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/io.h>
 #include <linux/of_gpio.h>
@@ -438,7 +439,7 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	ms->irq1 = irq_of_parse_and_map(op->dev.of_node, 1);
 	ms->state = mpc52xx_spi_fsmstate_idle;
 	ms->ipb_freq = mpc5xxx_get_bus_frequency(&op->dev);
-	ms->gpio_cs_count = of_gpio_count(op->dev.of_node);
+	ms->gpio_cs_count = gpiod_count(&op->dev, NULL);
 	if (ms->gpio_cs_count > 0) {
 		master->num_chipselect = ms->gpio_cs_count;
 		ms->gpio_cs = kmalloc_array(ms->gpio_cs_count,
