@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff9f0000 console=ttyFIQ0 driver_async_probe=dwmmc_rockchip,rk_gmac-dwmac,rockchip-drm drm_kms_helper.fbdev_emulation=0";
+	};
+
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <0>;
+		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0m0_xfer>;
+		status = "okay";
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x00800000>;
+			linux,cma-default;
+		};
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
+		drm_cubic_lut: drm-cubic-lut@00000000 {
+			compatible = "rockchip,drm-cubic-lut";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
+		ramoops: ramoops@110000 {
+			compatible = "ramoops";
+			/* 0x110000 to 0x1f0000 is for ramoops */
+			reg = <0x0 0x110000 0x0 0xe0000>;
+			boot-log-size = <0x8000>;	/* do not change */
+			boot-log-count = <0x1>;		/* do not change */
+			console-size = <0x80000>;
+			pmsg-size = <0x30000>;
+			ftrace-size = <0x00000>;
+			record-size = <0x14000>;
+		};
+	};
+};
+
+&display_subsystem {
+	memory-region = <&drm_logo>, <&drm_cubic_lut>;
+	memory-region-names = "drm-logo", "drm-cubic-lut";
+	/* devfreq = <&dmc>; */
+
+	route {
+		route_hdmi: route-hdmi {
+			status = "okay";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp0_out_hdmi>;
+		};
+		route_tve: route-tve {
+			status = "okay";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp1_out_tve>;
+		};
+	};
+};
+
+&rng {
+	status = "okay";
+};
+
+&vop {
+	support-multi-area;
+};

@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3528.dtsi"
+#include "rk3528-evb.dtsi"
+
+/ {
+	model = "Rockchip RK3528 EVB3 LP4X V10 Board";
+	compatible = "rockchip,rk3528-evb3-lp4x-v10", "rockchip,rk3528";
+
+	vcc5v0_sys_s0: vcc5v0-sys-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys_s0";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc_1v8_s0: vcc-1v8-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8_s0";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc5v0_sys_s0>;
+	};
+
+	vcc_3v3_s0: vcc-3v3-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc5v0_sys_s0>;
+	};
+
+	vdd_0v9_s0: vdd-0v9-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_0v9_s0";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc5v0_sys_s0>;
+	};
+
+	wireless_bluetooth: wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart2m0_rtsn>;
+		pinctrl-1 = <&uart2m0_gpios>;
+		BT,reset_gpio    = <&gpio3 RK_PC2 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6275p";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable &wifi_host_wake_irq &clkm0_32k_out>;
+		WIFI,reset_gpio = <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&pcie2x1 {
+	reset-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_perst>;
+	rockchip,skip-scan-in-resume;
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m0_xfer &uart2m0_ctsn>;
+};
+
+&usbdrd_dwc3 {
+	phys = <&u2phy_otg>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
+};
+
+&pinctrl {
+	wireless-wlan {
+		wifi_perst: wifi-perst {
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		wifi_enable: wifi-enable {
+			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart2m0_gpios: uart2m0-gpios {
+			rockchip,pins = <3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&acodec {
+	pa-ctl-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};

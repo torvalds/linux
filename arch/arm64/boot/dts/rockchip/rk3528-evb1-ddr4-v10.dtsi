@@ -1,0 +1,125 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3528.dtsi"
+#include "rk3528-evb.dtsi"
+
+/ {
+	model = "Rockchip RK3528 EVB1 DDR4 V10 Board";
+	compatible = "rockchip,rk3528-evb1-ddr4-v10", "rockchip,rk3528";
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h &clkm1_32k_out>;
+		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;
+	};
+
+	wireless_bluetooth: wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		//wifi-bt-power-toggle;
+		uart_rts_gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart2m1_rtsn>;
+		pinctrl-1 = <&uart2m1_gpios>;
+		BT,reset_gpio    = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6275s";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_host_wake_irq>;
+		WIFI,host_wake_irq = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+};
+
+&gmac1 {
+	/* Use rgmii-rxid mode to disable rx delay inside Soc */
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio4 RK_PC2 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	tx_delay = <0x30>;
+	/* rx_delay = <0x3f>; */
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_miim
+		     &rgmii_tx_bus2
+		     &rgmii_rx_bus2
+		     &rgmii_rgmii_clk
+		     &rgmii_rgmii_bus>;
+
+	phy-handle = <&rgmii_phy>;
+	status = "okay";
+};
+
+&mdio1 {
+	rgmii_phy: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+	};
+};
+
+&sdio0 {
+	max-frequency = <200000000>;
+	no-sd;
+	no-mmc;
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m1_xfer &uart2m1_ctsn>;
+};
+
+&pinctrl {
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		wifi_32k: wifi-32k {
+			rockchip,pins = <1 RK_PC3 1 &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart2m1_gpios: uart2m1-gpios {
+			rockchip,pins = <1 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
