@@ -49,6 +49,11 @@ struct btrfs_ordered_sum;
 struct btrfs_ref;
 struct btrfs_bio;
 struct btrfs_ioctl_encoded_io_args;
+struct btrfs_device;
+struct btrfs_fs_devices;
+struct btrfs_balance_control;
+struct btrfs_delayed_root;
+struct reloc_control;
 
 #define BTRFS_MAGIC 0x4D5F53665248425FULL /* ascii _BHRfS_M, no null */
 
@@ -527,13 +532,6 @@ struct btrfs_discard_ctl {
 	u64 discard_bitmap_bytes;
 	atomic64_t discard_bytes_saved;
 };
-
-/* fs_info */
-struct reloc_control;
-struct btrfs_device;
-struct btrfs_fs_devices;
-struct btrfs_balance_control;
-struct btrfs_delayed_root;
 
 enum {
 	BTRFS_FS_CLOSING_START,
