@@ -960,6 +960,15 @@ config PLAYSTATION_FF
 	  Say Y here if you would like to enable force feedback support for
 	  PlayStation game controllers.
 
+config HID_PXRC
+       tristate "PhoenixRC HID Flight Controller"
+       depends on HID
+       help
+       Support for PhoenixRC HID Flight Controller, a 8-axis flight controller.
+
+       To compile this driver as a module, choose M here: the
+       module will be called hid-pxrc.
+
 config HID_RAZER
 	tristate "Razer non-fully HID-compliant devices"
 	depends on HID
