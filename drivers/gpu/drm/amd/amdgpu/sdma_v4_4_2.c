@@ -94,7 +94,8 @@ static int sdma_v4_4_2_irq_id_to_seq(unsigned client_id)
 	}
 }
 
-static void sdma_v4_4_2_init_golden_registers(struct amdgpu_device *adev)
+static void sdma_v4_4_2_inst_init_golden_registers(struct amdgpu_device *adev,
+						   uint32_t inst_mask)
 {
 	u32 val;
 	int i;
@@ -418,13 +419,14 @@ static void sdma_v4_4_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 
  *
  * Stop the gfx async dma ring buffers.
  */
-static void sdma_v4_4_2_gfx_stop(struct amdgpu_device *adev)
+static void sdma_v4_4_2_inst_gfx_stop(struct amdgpu_device *adev,
+				      uint32_t inst_mask)
 {
 	struct amdgpu_ring *sdma[AMDGPU_MAX_SDMA_INSTANCES];
 	u32 rb_cntl, ib_cntl;
 	int i, unset = 0;
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for_each_inst(i, inst_mask) {
 		sdma[i] = &adev->sdma.instance[i].ring;
 
 		if ((adev->mman.buffer_funcs_ring == sdma[i]) && unset != 1) {
@@ -448,7 +450,8 @@ static void sdma_v4_4_2_gfx_stop(struct amdgpu_device *adev)
  *
  * Stop the compute async dma queues.
  */
-static void sdma_v4_4_2_rlc_stop(struct amdgpu_device *adev)
+static void sdma_v4_4_2_inst_rlc_stop(struct amdgpu_device *adev,
+				      uint32_t inst_mask)
 {
 	/* XXX todo */
 }
@@ -460,14 +463,15 @@ static void sdma_v4_4_2_rlc_stop(struct amdgpu_device *adev)
  *
  * Stop the page async dma ring buffers.
  */
-static void sdma_v4_4_2_page_stop(struct amdgpu_device *adev)
+static void sdma_v4_4_2_inst_page_stop(struct amdgpu_device *adev,
+				       uint32_t inst_mask)
 {
 	struct amdgpu_ring *sdma[AMDGPU_MAX_SDMA_INSTANCES];
 	u32 rb_cntl, ib_cntl;
 	int i;
 	bool unset = false;
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for_each_inst(i, inst_mask) {
 		sdma[i] = &adev->sdma.instance[i].page;
 
 		if ((adev->mman.buffer_funcs_ring == sdma[i]) &&
@@ -495,7 +499,8 @@ static void sdma_v4_4_2_page_stop(struct amdgpu_device *adev)
  *
  * Halt or unhalt the async dma engines context switch.
  */
-static void sdma_v4_4_2_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
+static void sdma_v4_4_2_inst_ctx_switch_enable(struct amdgpu_device *adev,
+					       bool enable, uint32_t inst_mask)
 {
 	u32 f32_cntl, phase_quantum = 0;
 	int i;
@@ -524,7 +529,7 @@ static void sdma_v4_4_2_ctx_switch_enable(struct amdgpu_device *adev, bool enabl
 			unit  << SDMA_PHASE0_QUANTUM__UNIT__SHIFT;
 	}
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for_each_inst(i, inst_mask) {
 		f32_cntl = RREG32_SDMA(i, regSDMA_CNTL);
 		f32_cntl = REG_SET_FIELD(f32_cntl, SDMA_CNTL,
 				AUTO_CTXSW_ENABLE, enable ? 1 : 0);
@@ -538,7 +543,6 @@ static void sdma_v4_4_2_ctx_switch_enable(struct amdgpu_device *adev, bool enabl
 		/* Extend page fault timeout to avoid interrupt storm */
 		WREG32_SDMA(i, regSDMA_UTCL1_TIMEOUT, 0x00800080);
 	}
-
 }
 
 /**
@@ -546,22 +550,24 @@ static void sdma_v4_4_2_ctx_switch_enable(struct amdgpu_device *adev, bool enabl
  *
  * @adev: amdgpu_device pointer
  * @enable: enable/disable the DMA MEs.
+ * @inst_mask: mask of dma engine instances to be enabled
  *
  * Halt or unhalt the async dma engines.
  */
-static void sdma_v4_4_2_enable(struct amdgpu_device *adev, bool enable)
+static void sdma_v4_4_2_inst_enable(struct amdgpu_device *adev, bool enable,
+				    uint32_t inst_mask)
 {
 	u32 f32_cntl;
 	int i;
 
 	if (!enable) {
-		sdma_v4_4_2_gfx_stop(adev);
-		sdma_v4_4_2_rlc_stop(adev);
+		sdma_v4_4_2_inst_gfx_stop(adev, inst_mask);
+		sdma_v4_4_2_inst_rlc_stop(adev, inst_mask);
 		if (adev->sdma.has_page_queue)
-			sdma_v4_4_2_page_stop(adev);
+			sdma_v4_4_2_inst_page_stop(adev, inst_mask);
 	}
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for_each_inst(i, inst_mask) {
 		f32_cntl = RREG32_SDMA(i, regSDMA_F32_CNTL);
 		f32_cntl = REG_SET_FIELD(f32_cntl, SDMA_F32_CNTL, HALT, enable ? 0 : 1);
 		WREG32_SDMA(i, regSDMA_F32_CNTL, f32_cntl);
@@ -780,7 +786,8 @@ static void sdma_v4_4_2_init_pg(struct amdgpu_device *adev)
  * Set up the compute DMA queues and enable them.
  * Returns 0 for success, error for failure.
  */
-static int sdma_v4_4_2_rlc_resume(struct amdgpu_device *adev)
+static int sdma_v4_4_2_inst_rlc_resume(struct amdgpu_device *adev,
+				       uint32_t inst_mask)
 {
 	sdma_v4_4_2_init_pg(adev);
 
@@ -795,7 +802,8 @@ static int sdma_v4_4_2_rlc_resume(struct amdgpu_device *adev)
  * Loads the sDMA0/1 ucode.
  * Returns 0 for success, -EINVAL if the ucode is not available.
  */
-static int sdma_v4_4_2_load_microcode(struct amdgpu_device *adev)
+static int sdma_v4_4_2_inst_load_microcode(struct amdgpu_device *adev,
+					   uint32_t inst_mask)
 {
 	const struct sdma_firmware_header_v1_0 *hdr;
 	const __le32 *fw_data;
@@ -803,9 +811,9 @@ static int sdma_v4_4_2_load_microcode(struct amdgpu_device *adev)
 	int i, j;
 
 	/* halt the MEs */
-	sdma_v4_4_2_enable(adev, false);
+	sdma_v4_4_2_inst_enable(adev, false, inst_mask);
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for_each_inst(i, inst_mask) {
 		if (!adev->sdma.instance[i].fw)
 			return -EINVAL;
 
@@ -831,38 +839,41 @@ static int sdma_v4_4_2_load_microcode(struct amdgpu_device *adev)
 }
 
 /**
- * sdma_v4_4_2_start - setup and start the async dma engines
+ * sdma_v4_4_2_inst_start - setup and start the async dma engines
  *
  * @adev: amdgpu_device pointer
  *
  * Set up the DMA engines and enable them.
  * Returns 0 for success, error for failure.
  */
-static int sdma_v4_4_2_start(struct amdgpu_device *adev)
+static int sdma_v4_4_2_inst_start(struct amdgpu_device *adev,
+				  uint32_t inst_mask)
 {
 	struct amdgpu_ring *ring;
+	uint32_t tmp_mask;
 	int i, r = 0;
 
 	if (amdgpu_sriov_vf(adev)) {
-		sdma_v4_4_2_ctx_switch_enable(adev, false);
-		sdma_v4_4_2_enable(adev, false);
+		sdma_v4_4_2_inst_ctx_switch_enable(adev, false, inst_mask);
+		sdma_v4_4_2_inst_enable(adev, false, inst_mask);
 	} else {
 		/* bypass sdma microcode loading on Gopher */
 		if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP &&
-		    !(adev->pdev->device == 0x49) && !(adev->pdev->device == 0x50)) {
-			r = sdma_v4_4_2_load_microcode(adev);
+		    adev->sdma.instance[0].fw) {
+			r = sdma_v4_4_2_inst_load_microcode(adev, inst_mask);
 			if (r)
 				return r;
 		}
 
 		/* unhalt the MEs */
-		sdma_v4_4_2_enable(adev, true);
+		sdma_v4_4_2_inst_enable(adev, true, inst_mask);
 		/* enable sdma ring preemption */
-		sdma_v4_4_2_ctx_switch_enable(adev, true);
+		sdma_v4_4_2_inst_ctx_switch_enable(adev, true, inst_mask);
 	}
 
 	/* start the gfx rings and rlc compute queues */
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	tmp_mask = inst_mask;
+	for_each_inst(i, tmp_mask) {
 		uint32_t temp;
 
 		WREG32_SDMA(i, regSDMA_SEM_WAIT_FAIL_TIMER_CNTL, 0);
@@ -889,15 +900,16 @@ static int sdma_v4_4_2_start(struct amdgpu_device *adev)
 	}
 
 	if (amdgpu_sriov_vf(adev)) {
-		sdma_v4_4_2_ctx_switch_enable(adev, true);
-		sdma_v4_4_2_enable(adev, true);
+		sdma_v4_4_2_inst_ctx_switch_enable(adev, true, inst_mask);
+		sdma_v4_4_2_inst_enable(adev, true, inst_mask);
 	} else {
-		r = sdma_v4_4_2_rlc_resume(adev);
+		r = sdma_v4_4_2_inst_rlc_resume(adev, inst_mask);
 		if (r)
 			return r;
 	}
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	tmp_mask = inst_mask;
+	for_each_inst(i, tmp_mask) {
 		ring = &adev->sdma.instance[i].ring;
 
 		r = amdgpu_ring_test_helper(ring);
@@ -1383,14 +1395,17 @@ static int sdma_v4_4_2_hw_init(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	uint32_t inst_mask;
 
+	/* TODO: Check if this is needed */
 	if (adev->flags & AMD_IS_APU)
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, false);
 
+	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
 	if (!amdgpu_sriov_vf(adev))
-		sdma_v4_4_2_init_golden_registers(adev);
+		sdma_v4_4_2_inst_init_golden_registers(adev, inst_mask);
 
-	r = sdma_v4_4_2_start(adev);
+	r = sdma_v4_4_2_inst_start(adev, inst_mask);
 
 	return r;
 }
@@ -1398,21 +1413,26 @@ static int sdma_v4_4_2_hw_init(void *handle)
 static int sdma_v4_4_2_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	uint32_t inst_mask;
 	int i;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
 			       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
 	}
 
-	sdma_v4_4_2_ctx_switch_enable(adev, false);
-	sdma_v4_4_2_enable(adev, false);
+	sdma_v4_4_2_inst_ctx_switch_enable(adev, false, inst_mask);
+	sdma_v4_4_2_inst_enable(adev, false, inst_mask);
 
 	return 0;
 }
+
+static int sdma_v4_4_2_set_clockgating_state(void *handle,
+					     enum amd_clockgating_state state);
 
 static int sdma_v4_4_2_suspend(void *handle)
 {
@@ -1650,15 +1670,39 @@ static int sdma_v4_4_2_process_srbm_write_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void sdma_v4_4_2_update_medium_grain_clock_gating(
-		struct amdgpu_device *adev,
-		bool enable)
+static void sdma_v4_4_2_inst_update_medium_grain_light_sleep(
+	struct amdgpu_device *adev, bool enable, uint32_t inst_mask)
+{
+	uint32_t data, def;
+	int i;
+
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
+		for_each_inst(i, inst_mask) {
+			/* 1-not override: enable sdma mem light sleep */
+			def = data = RREG32_SDMA(i, regSDMA_POWER_CNTL);
+			data |= SDMA_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
+			if (def != data)
+				WREG32_SDMA(i, regSDMA_POWER_CNTL, data);
+		}
+	} else {
+		for_each_inst(i, inst_mask) {
+			/* 0-override:disable sdma mem light sleep */
+			def = data = RREG32_SDMA(i, regSDMA_POWER_CNTL);
+			data &= ~SDMA_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
+			if (def != data)
+				WREG32_SDMA(i, regSDMA_POWER_CNTL, data);
+		}
+	}
+}
+
+static void sdma_v4_4_2_inst_update_medium_grain_clock_gating(
+	struct amdgpu_device *adev, bool enable, uint32_t inst_mask)
 {
 	uint32_t data, def;
 	int i;
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
+		for_each_inst(i, inst_mask) {
 			def = data = RREG32_SDMA(i, regSDMA_CLK_CTRL);
 			data &= ~(SDMA_CLK_CTRL__SOFT_OVERRIDE7_MASK |
 				  SDMA_CLK_CTRL__SOFT_OVERRIDE6_MASK |
@@ -1672,7 +1716,7 @@ static void sdma_v4_4_2_update_medium_grain_clock_gating(
 				WREG32_SDMA(i, regSDMA_CLK_CTRL, data);
 		}
 	} else {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
+		for_each_inst(i, inst_mask) {
 			def = data = RREG32_SDMA(i, regSDMA_CLK_CTRL);
 			data |= (SDMA_CLK_CTRL__SOFT_OVERRIDE7_MASK |
 				 SDMA_CLK_CTRL__SOFT_OVERRIDE6_MASK |
@@ -1688,45 +1732,21 @@ static void sdma_v4_4_2_update_medium_grain_clock_gating(
 	}
 }
 
-
-static void sdma_v4_4_2_update_medium_grain_light_sleep(
-		struct amdgpu_device *adev,
-		bool enable)
-{
-	uint32_t data, def;
-	int i;
-
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-			/* 1-not override: enable sdma mem light sleep */
-			def = data = RREG32_SDMA(0, regSDMA_POWER_CNTL);
-			data |= SDMA_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
-			if (def != data)
-				WREG32_SDMA(0, regSDMA_POWER_CNTL, data);
-		}
-	} else {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-		/* 0-override:disable sdma mem light sleep */
-			def = data = RREG32_SDMA(0, regSDMA_POWER_CNTL);
-			data &= ~SDMA_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
-			if (def != data)
-				WREG32_SDMA(0, regSDMA_POWER_CNTL, data);
-		}
-	}
-}
-
 static int sdma_v4_4_2_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	uint32_t inst_mask;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	sdma_v4_4_2_update_medium_grain_clock_gating(adev,
-			state == AMD_CG_STATE_GATE);
-	sdma_v4_4_2_update_medium_grain_light_sleep(adev,
-			state == AMD_CG_STATE_GATE);
+	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
+
+	sdma_v4_4_2_inst_update_medium_grain_clock_gating(
+		adev, state == AMD_CG_STATE_GATE, inst_mask);
+	sdma_v4_4_2_inst_update_medium_grain_light_sleep(
+		adev, state == AMD_CG_STATE_GATE, inst_mask);
 	return 0;
 }
 
