@@ -2523,6 +2523,16 @@ BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_left,
 BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_right,
 			 struct btrfs_dev_replace_item, cursor_right, 64);
 
+/* btrfs_verity_descriptor_item */
+BTRFS_SETGET_FUNCS(verity_descriptor_encryption, struct btrfs_verity_descriptor_item,
+		   encryption, 8);
+BTRFS_SETGET_FUNCS(verity_descriptor_size, struct btrfs_verity_descriptor_item,
+		   size, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_verity_descriptor_encryption,
+			 struct btrfs_verity_descriptor_item, encryption, 8);
+BTRFS_SETGET_STACK_FUNCS(stack_verity_descriptor_size,
+			 struct btrfs_verity_descriptor_item, size, 64);
+
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
 	((type *)(BTRFS_LEAF_DATA_OFFSET + \
@@ -3719,15 +3729,6 @@ static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
 extern const struct fsverity_operations btrfs_verityops;
 int btrfs_drop_verity_items(struct btrfs_inode *inode);
 int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size);
-
-BTRFS_SETGET_FUNCS(verity_descriptor_encryption, struct btrfs_verity_descriptor_item,
-		   encryption, 8);
-BTRFS_SETGET_FUNCS(verity_descriptor_size, struct btrfs_verity_descriptor_item,
-		   size, 64);
-BTRFS_SETGET_STACK_FUNCS(stack_verity_descriptor_encryption,
-			 struct btrfs_verity_descriptor_item, encryption, 8);
-BTRFS_SETGET_STACK_FUNCS(stack_verity_descriptor_size,
-			 struct btrfs_verity_descriptor_item, size, 64);
 
 #else
 
