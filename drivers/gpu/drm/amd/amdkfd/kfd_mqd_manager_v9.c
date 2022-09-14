@@ -83,7 +83,7 @@ static void set_priority(struct v9_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 		struct queue_properties *q)
 {
 	int retval;
@@ -105,11 +105,11 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 	 * pass a special bo flag AMDGPU_GEM_CREATE_CP_MQD_GFX9 to instruct
 	 * amdgpu memory functions to do so.
 	 */
-	if (kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
+	if (node->kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
 		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 		if (!mqd_mem_obj)
 			return NULL;
-		retval = amdgpu_amdkfd_alloc_gtt_mem(kfd->adev,
+		retval = amdgpu_amdkfd_alloc_gtt_mem(node->adev,
 			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
 				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
 			&(mqd_mem_obj->gtt_mem),
@@ -121,7 +121,7 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 			return NULL;
 		}
 	} else {
-		retval = kfd_gtt_sa_allocate(kfd, sizeof(struct v9_mqd),
+		retval = kfd_gtt_sa_allocate(node, sizeof(struct v9_mqd),
 				&mqd_mem_obj);
 		if (retval)
 			return NULL;
@@ -136,7 +136,6 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 {
 	uint64_t addr;
 	struct v9_mqd *m;
-	struct amdgpu_device *adev = (struct amdgpu_device *)mm->dev->adev;
 
 	m = (struct v9_mqd *) mqd_mem_obj->cpu_ptr;
 	addr = mqd_mem_obj->gpu_addr;
@@ -169,7 +168,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;
-		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+		if (KFD_GC_VERSION(mm->dev) == IP_VERSION(9, 4, 3)) {
 			/* On GC 9.4.3, DW 41 is re-purposed as
 			 * compute_tg_chunk_size.
 			 * TODO: review this setting when active CUs in the
@@ -179,7 +178,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 		}
 	} else {
 		/* PM4 queue */
-		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+		if (KFD_GC_VERSION(mm->dev) == IP_VERSION(9, 4, 3)) {
 			m->compute_static_thread_mgmt_se6 = 0;
 			/* TODO: program pm4_target_xcc */
 		}
@@ -190,7 +189,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 			(1 << COMPUTE_PGM_RSRC2__TRAP_PRESENT__SHIFT);
 	}
 
-	if (mm->dev->cwsr_enabled && q->ctx_save_restore_area_address) {
+	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address) {
 		m->cp_hqd_persistent_state |=
 			(1 << CP_HQD_PERSISTENT_STATE__QSWITCH_MODE__SHIFT);
 		m->cp_hqd_ctx_save_base_addr_lo =
@@ -225,7 +224,6 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q,
 			struct mqd_update_info *minfo)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)mm->dev->adev;
 	struct v9_mqd *m;
 
 	m = get_mqd(mqd);
@@ -275,13 +273,13 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT |
 				1 << CP_HQD_PQ_CONTROL__QUEUE_FULL_EN__SHIFT |
 				1 << CP_HQD_PQ_CONTROL__WPP_CLAMP_EN__SHIFT;
-		if (adev->ip_versions[GC_HWIP][0] != IP_VERSION(9, 4, 3))
+		if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3))
 			m->cp_hqd_pq_control |=
-				 CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
+				CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
 		m->cp_hqd_pq_doorbell_control |= 1 <<
 			CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_BIF_DROP__SHIFT;
 	}
-	if (mm->dev->cwsr_enabled && q->ctx_save_restore_area_address)
+	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address)
 		m->cp_hqd_ctx_save_control = 0;
 
 	update_cu_mask(mm, mqd, minfo);
@@ -487,7 +485,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 #endif
 
 struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
-		struct kfd_dev *dev)
+		struct kfd_node *dev)
 {
 	struct mqd_manager *mqd;
 

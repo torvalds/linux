@@ -90,7 +90,7 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 #define KFD_SQ_INT_DATA__ERR_TYPE_MASK 0xF00000
 #define KFD_SQ_INT_DATA__ERR_TYPE__SHIFT 20
 
-static void event_interrupt_poison_consumption_v9(struct kfd_dev *dev,
+static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 				uint16_t pasid, uint16_t client_id)
 {
 	int old_poison, ret = -EINVAL;
@@ -160,7 +160,7 @@ static bool context_id_expected(struct kfd_dev *dev)
 	}
 }
 
-static bool event_interrupt_isr_v9(struct kfd_dev *dev,
+static bool event_interrupt_isr_v9(struct kfd_node *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
 					bool *patched_flag)
@@ -206,7 +206,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 
 		*patched_flag = true;
 		memcpy(patched_ihre, ih_ring_entry,
-				dev->device_info.ih_ring_entry_size);
+				dev->kfd->device_info.ih_ring_entry_size);
 
 		pasid = dev->dqm->vmid_pasid[vmid];
 
@@ -235,7 +235,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 		uint32_t context_id =
 			SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
 
-		if (context_id == 0 && context_id_expected(dev))
+		if (context_id == 0 && context_id_expected(dev->kfd))
 			return false;
 	}
 
@@ -253,7 +253,7 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 		!amdgpu_no_queue_eviction_on_vm_fault);
 }
 
-static void event_interrupt_wq_v9(struct kfd_dev *dev,
+static void event_interrupt_wq_v9(struct kfd_node *dev,
 					const uint32_t *ih_ring_entry)
 {
 	uint16_t source_id, client_id, pasid, vmid;

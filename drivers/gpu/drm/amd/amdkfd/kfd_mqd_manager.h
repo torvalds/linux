@@ -68,7 +68,7 @@
  */
 extern int pipe_priority_map[];
 struct mqd_manager {
-	struct kfd_mem_obj*	(*allocate_mqd)(struct kfd_dev *kfd,
+	struct kfd_mem_obj*	(*allocate_mqd)(struct kfd_node *kfd,
 		struct queue_properties *q);
 
 	void	(*init_mqd)(struct mqd_manager *mm, void **mqd,
@@ -121,14 +121,14 @@ struct mqd_manager {
 	uint32_t (*read_doorbell_id)(void *mqd);
 
 	struct mutex	mqd_mutex;
-	struct kfd_dev	*dev;
+	struct kfd_node	*dev;
 	uint32_t mqd_size;
 };
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev,
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev,
 				struct queue_properties *q);
 
-struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
 					struct queue_properties *q);
 void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 				struct kfd_mem_obj *mqd_mem_obj);

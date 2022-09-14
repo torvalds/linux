@@ -77,7 +77,7 @@ static int pm_runlist_vi(struct packet_manager *pm, uint32_t *buffer,
 {
 	struct pm4_mes_runlist *packet;
 	int concurrent_proc_cnt = 0;
-	struct kfd_dev *kfd = pm->dqm->dev;
+	struct kfd_node *kfd = pm->dqm->dev;
 
 	if (WARN_ON(!ib))
 		return -EFAULT;

@@ -74,7 +74,7 @@ static void set_priority(struct cik_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_node *kfd,
 					struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
@@ -390,7 +390,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
-		struct kfd_dev *dev)
+		struct kfd_node *dev)
 {
 	struct mqd_manager *mqd;
 
@@ -470,7 +470,7 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 }
 
 struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
-			struct kfd_dev *dev)
+			struct kfd_node *dev)
 {
 	struct mqd_manager *mqd;
 

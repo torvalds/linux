@@ -35,6 +35,7 @@
 #include "amdgpu_dma_buf.h"
 #include <uapi/linux/kfd_ioctl.h>
 #include "amdgpu_xgmi.h"
+#include "kfd_priv.h"
 #include "kfd_smi_events.h"
 #include <drm/ttm/ttm_tt.h>
 

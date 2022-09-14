@@ -1266,7 +1266,7 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 			return -EINVAL;
 		}
 
-		kfd_smi_event_unmap_from_gpu(pdd->dev, p->lead_thread->pid,
+		kfd_smi_event_unmap_from_gpu(pdd->dev->kfd, p->lead_thread->pid,
 					     start, last, trigger);
 
 		r = svm_range_unmap_from_gpu(pdd->dev->adev,
@@ -3083,7 +3083,7 @@ int svm_range_list_init(struct kfd_process *p)
 	spin_lock_init(&svms->deferred_list_lock);
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (KFD_IS_SVM_API_SUPPORTED(p->pdds[i]->dev))
+		if (KFD_IS_SVM_API_SUPPORTED(p->pdds[i]->dev->kfd))
 			bitmap_set(svms->bitmap_supported, i, 1);
 
 	return 0;

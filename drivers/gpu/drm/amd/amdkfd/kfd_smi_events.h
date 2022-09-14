@@ -24,11 +24,11 @@
 #ifndef KFD_SMI_EVENTS_H_INCLUDED
 #define KFD_SMI_EVENTS_H_INCLUDED
 
-int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd);
-void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid);
-void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
+int kfd_smi_event_open(struct kfd_node *dev, uint32_t *fd);
+void kfd_smi_event_update_vmfault(struct kfd_node *dev, uint16_t pasid);
+void kfd_smi_event_update_thermal_throttling(struct kfd_node *dev,
 					     uint64_t throttle_bitmask);
-void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset);
+void kfd_smi_event_update_gpu_reset(struct kfd_node *dev, bool post_reset);
 void kfd_smi_event_page_fault_start(struct kfd_dev *dev, pid_t pid,
 				    unsigned long address, bool write_fault,
 				    ktime_t ts);

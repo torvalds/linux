@@ -1405,7 +1405,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 	return i;
 }
 
-int kfd_get_gpu_cache_info(struct kfd_dev *kdev, struct kfd_gpu_cache_info **pcache_info)
+int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pcache_info)
 {
 	int num_of_cache_types = 0;
 
@@ -1524,7 +1524,7 @@ int kfd_get_gpu_cache_info(struct kfd_dev *kdev, struct kfd_gpu_cache_info **pca
 		case IP_VERSION(11, 0, 3):
 		case IP_VERSION(11, 0, 4):
 			num_of_cache_types =
-				kfd_fill_gpu_cache_info_from_gfx_config(kdev, *pcache_info);
+				kfd_fill_gpu_cache_info_from_gfx_config(kdev->kfd, *pcache_info);
 			break;
 		default:
 			*pcache_info = dummy_cache_info;
@@ -1858,7 +1858,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 }
 
 static int kfd_fill_gpu_memory_affinity(int *avail_size,
-		struct kfd_dev *kdev, uint8_t type, uint64_t size,
+		struct kfd_node *kdev, uint8_t type, uint64_t size,
 		struct crat_subtype_memory *sub_type_hdr,
 		uint32_t proximity_domain,
 		const struct kfd_local_mem_info *local_mem_info)
@@ -1887,7 +1887,7 @@ static int kfd_fill_gpu_memory_affinity(int *avail_size,
 }
 
 #ifdef CONFIG_ACPI_NUMA
-static void kfd_find_numa_node_in_srat(struct kfd_dev *kdev)
+static void kfd_find_numa_node_in_srat(struct kfd_node *kdev)
 {
 	struct acpi_table_header *table_header = NULL;
 	struct acpi_subtable_header *sub_header = NULL;
@@ -1982,7 +1982,7 @@ static void kfd_find_numa_node_in_srat(struct kfd_dev *kdev)
  *	Return 0 if successful else return -ve value
  */
 static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
-			struct kfd_dev *kdev,
+			struct kfd_node *kdev,
 			struct crat_subtype_iolink *sub_type_hdr,
 			uint32_t proximity_domain)
 {
@@ -2044,8 +2044,8 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 }
 
 static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
-			struct kfd_dev *kdev,
-			struct kfd_dev *peer_kdev,
+			struct kfd_node *kdev,
+			struct kfd_node *peer_kdev,
 			struct crat_subtype_iolink *sub_type_hdr,
 			uint32_t proximity_domain_from,
 			uint32_t proximity_domain_to)
@@ -2081,7 +2081,7 @@ static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
  *		[OUT] actual size of data filled in crat_image
  */
 static int kfd_create_vcrat_image_gpu(void *pcrat_image,
-				      size_t *size, struct kfd_dev *kdev,
+				      size_t *size, struct kfd_node *kdev,
 				      uint32_t proximity_domain)
 {
 	struct crat_header *crat_table = (struct crat_header *)pcrat_image;
@@ -2153,7 +2153,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	/* Check if this node supports IOMMU. During parsing this flag will
 	 * translate to HSA_CAP_ATS_PRESENT
 	 */
-	if (!kfd_iommu_check_device(kdev))
+	if (!kfd_iommu_check_device(kdev->kfd))
 		cu->hsa_capability |= CRAT_CU_FLAGS_IOMMU_PRESENT;
 
 	crat_table->length += sub_type_hdr->length;
@@ -2164,7 +2164,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * report the total FB size (public+private) as a single
 	 * private heap.
 	 */
-	local_mem_info = kdev->local_mem_info;
+	local_mem_info = kdev->kfd->local_mem_info;
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 
@@ -2216,12 +2216,12 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * (from other GPU to this GPU) will be added
 	 * in kfd_parse_subtype_iolink.
 	 */
-	if (kdev->hive_id) {
+	if (kdev->kfd->hive_id) {
 		for (nid = 0; nid < proximity_domain; ++nid) {
 			peer_dev = kfd_topology_device_by_proximity_domain_no_lock(nid);
 			if (!peer_dev->gpu)
 				continue;
-			if (peer_dev->gpu->hive_id != kdev->hive_id)
+			if (peer_dev->gpu->kfd->hive_id != kdev->kfd->hive_id)
 				continue;
 			sub_type_hdr = (typeof(sub_type_hdr))(
 				(char *)sub_type_hdr +
@@ -2255,12 +2255,12 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
  *		(COMPUTE_UNIT_CPU | COMPUTE_UNIT_GPU) - Create VCRAT for APU
  *			-- this option is not currently implemented.
  *			The assumption is that all AMD APUs will have CRAT
- *	@kdev: Valid kfd_device required if flags contain COMPUTE_UNIT_GPU
+ *	@kdev: Valid kfd_node required if flags contain COMPUTE_UNIT_GPU
  *
  *	Return 0 if successful else return -ve value
  */
 int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
-				  int flags, struct kfd_dev *kdev,
+				  int flags, struct kfd_node *kdev,
 				  uint32_t proximity_domain)
 {
 	void *pcrat_image = NULL;

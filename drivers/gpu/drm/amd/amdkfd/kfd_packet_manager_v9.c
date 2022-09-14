@@ -119,7 +119,7 @@ static int pm_runlist_v9(struct packet_manager *pm, uint32_t *buffer,
 	struct pm4_mes_runlist *packet;
 
 	int concurrent_proc_cnt = 0;
-	struct kfd_dev *kfd = pm->dqm->dev;
+	struct kfd_node *kfd = pm->dqm->dev;
 
 	/* Determine the number of processes to map together to HW:
 	 * it can not exceed the number of VMIDs available to the
@@ -220,7 +220,8 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
 		use_static = false; /* no static queues under SDMA */
-		if (q->properties.sdma_engine_id < 2 && !pm_use_ext_eng(q->device))
+		if (q->properties.sdma_engine_id < 2 &&
+		    !pm_use_ext_eng(q->device->kfd))
 			packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
 				engine_sel__mes_map_queues__sdma0_vi;
 		else {
@@ -263,7 +264,8 @@ static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	packet->header.u32All = pm_build_pm4_header(IT_UNMAP_QUEUES,
 					sizeof(struct pm4_mes_unmap_queues));
 
-	packet->bitfields2.extended_engine_sel = pm_use_ext_eng(pm->dqm->dev) ?
+	packet->bitfields2.extended_engine_sel =
+				pm_use_ext_eng(pm->dqm->dev->kfd) ?
 		extended_engine_sel__mes_unmap_queues__sdma0_to_7_sel :
 		extended_engine_sel__mes_unmap_queues__legacy_engine_sel;
 

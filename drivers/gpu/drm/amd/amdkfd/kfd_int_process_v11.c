@@ -187,7 +187,7 @@ static void print_sq_intr_info_error(uint32_t context_id0, uint32_t context_id1)
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID1, WGP_ID));
 }
 
-static void event_interrupt_poison_consumption_v11(struct kfd_dev *dev,
+static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 				uint16_t pasid, uint16_t source_id)
 {
 	int ret = -EINVAL;
@@ -225,7 +225,7 @@ static void event_interrupt_poison_consumption_v11(struct kfd_dev *dev,
 		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
 }
 
-static bool event_interrupt_isr_v11(struct kfd_dev *dev,
+static bool event_interrupt_isr_v11(struct kfd_node *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
 					bool *patched_flag)
@@ -274,7 +274,7 @@ static bool event_interrupt_isr_v11(struct kfd_dev *dev,
 		  !amdgpu_no_queue_eviction_on_vm_fault);
 }
 
-static void event_interrupt_wq_v11(struct kfd_dev *dev,
+static void event_interrupt_wq_v11(struct kfd_node *dev,
 					const uint32_t *ih_ring_entry)
 {
 	uint16_t source_id, client_id, ring_id, pasid, vmid;

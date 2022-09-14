@@ -348,7 +348,7 @@ static int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 
 int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset)
 {
-	struct kfd_dev *kfd;
+	struct kfd_node *kfd;
 	struct kfd_process_device *pdd;
 	void *mem, *kern_addr;
 	uint64_t size;
@@ -1125,7 +1125,7 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 }
 
 #ifdef KFD_SUPPORT_IOMMU_V2
-void kfd_signal_iommu_event(struct kfd_dev *dev, u32 pasid,
+void kfd_signal_iommu_event(struct kfd_node *dev, u32 pasid,
 		unsigned long address, bool is_write_requested,
 		bool is_execute_requested)
 {
@@ -1221,8 +1221,8 @@ void kfd_signal_hw_exception_event(u32 pasid)
 	kfd_unref_process(p);
 }
 
-void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
-				struct kfd_vm_fault_info *info)
+void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
+			       struct kfd_vm_fault_info *info)
 {
 	struct kfd_event *ev;
 	uint32_t id;
@@ -1269,7 +1269,7 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 	kfd_unref_process(p);
 }
 
-void kfd_signal_reset_event(struct kfd_dev *dev)
+void kfd_signal_reset_event(struct kfd_node *dev)
 {
 	struct kfd_hsa_hw_exception_data hw_exception_data;
 	struct kfd_hsa_memory_exception_data memory_exception_data;
@@ -1325,7 +1325,7 @@ void kfd_signal_reset_event(struct kfd_dev *dev)
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 }
 
-void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid)
+void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 {
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 	struct kfd_hsa_memory_exception_data memory_exception_data;

@@ -293,7 +293,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 					void *data)
 {
 	struct kfd_ioctl_create_queue_args *args = data;
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 	int err = 0;
 	unsigned int queue_id;
 	struct kfd_process_device *pdd;
@@ -328,7 +328,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	}
 
 	if (!pdd->doorbell_index &&
-	    kfd_alloc_process_doorbells(dev, &pdd->doorbell_index) < 0) {
+	    kfd_alloc_process_doorbells(dev->kfd, &pdd->doorbell_index) < 0) {
 		err = -ENOMEM;
 		goto err_alloc_doorbells;
 	}
@@ -336,7 +336,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	/* Starting with GFX11, wptr BOs must be mapped to GART for MES to determine work
 	 * on unmapped queues for usermode queue oversubscription (no aggregated doorbell)
 	 */
-	if (dev->shared_resources.enable_mes &&
+	if (dev->kfd->shared_resources.enable_mes &&
 			((dev->adev->mes.sched_version & AMDGPU_MES_API_VERSION_MASK)
 			>> AMDGPU_MES_API_VERSION_SHIFT) >= 2) {
 		struct amdgpu_bo_va_mapping *wptr_mapping;
@@ -887,7 +887,7 @@ static int kfd_ioctl_set_scratch_backing_va(struct file *filep,
 {
 	struct kfd_ioctl_set_scratch_backing_va_args *args = data;
 	struct kfd_process_device *pdd;
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 	long err;
 
 	mutex_lock(&p->mutex);
@@ -1006,18 +1006,18 @@ err_drm_file:
 	return ret;
 }
 
-bool kfd_dev_is_large_bar(struct kfd_dev *dev)
+bool kfd_dev_is_large_bar(struct kfd_node *dev)
 {
 	if (debug_largebar) {
 		pr_debug("Simulate large-bar allocation on non large-bar machine\n");
 		return true;
 	}
 
-	if (dev->use_iommu_v2)
+	if (dev->kfd->use_iommu_v2)
 		return false;
 
-	if (dev->local_mem_info.local_mem_size_private == 0 &&
-			dev->local_mem_info.local_mem_size_public > 0)
+	if (dev->kfd->local_mem_info.local_mem_size_private == 0 &&
+	    dev->kfd->local_mem_info.local_mem_size_public > 0)
 		return true;
 	return false;
 }
@@ -1041,7 +1041,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	struct kfd_ioctl_alloc_memory_of_gpu_args *args = data;
 	struct kfd_process_device *pdd;
 	void *mem;
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 	int idr_handle;
 	long err;
 	uint64_t offset = args->mmap_offset;
@@ -1105,7 +1105,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	}
 
 	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL) {
-		if (args->size != kfd_doorbell_process_slice(dev)) {
+		if (args->size != kfd_doorbell_process_slice(dev->kfd)) {
 			err = -EINVAL;
 			goto err_unlock;
 		}
@@ -1231,7 +1231,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 	struct kfd_ioctl_map_memory_to_gpu_args *args = data;
 	struct kfd_process_device *pdd, *peer_pdd;
 	void *mem;
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 	long err = 0;
 	int i;
 	uint32_t *devices_arr = NULL;
@@ -1405,7 +1405,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 		args->n_success = i+1;
 	}
 
-	flush_tlb = kfd_flush_tlb_after_unmap(pdd->dev);
+	flush_tlb = kfd_flush_tlb_after_unmap(pdd->dev->kfd);
 	if (flush_tlb) {
 		err = amdgpu_amdkfd_gpuvm_sync_memory(pdd->dev->adev,
 				(struct kgd_mem *) mem, true);
@@ -1445,7 +1445,7 @@ static int kfd_ioctl_alloc_queue_gws(struct file *filep,
 	int retval;
 	struct kfd_ioctl_alloc_queue_gws_args *args = data;
 	struct queue *q;
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 
 	mutex_lock(&p->mutex);
 	q = pqm_get_user_queue(&p->pqm, args->queue_id);
@@ -1482,7 +1482,7 @@ static int kfd_ioctl_get_dmabuf_info(struct file *filep,
 		struct kfd_process *p, void *data)
 {
 	struct kfd_ioctl_get_dmabuf_info_args *args = data;
-	struct kfd_dev *dev = NULL;
+	struct kfd_node *dev = NULL;
 	struct amdgpu_device *dmabuf_adev;
 	void *metadata_buffer = NULL;
 	uint32_t flags;
@@ -1596,7 +1596,7 @@ static int kfd_ioctl_export_dmabuf(struct file *filep,
 	struct kfd_ioctl_export_dmabuf_args *args = data;
 	struct kfd_process_device *pdd;
 	struct dma_buf *dmabuf;
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 	void *mem;
 	int ret = 0;
 
@@ -2178,7 +2178,7 @@ static int criu_restore_devices(struct kfd_process *p,
 	}
 
 	for (i = 0; i < args->num_devices; i++) {
-		struct kfd_dev *dev;
+		struct kfd_node *dev;
 		struct kfd_process_device *pdd;
 		struct file *drm_file;
 
@@ -2240,7 +2240,7 @@ static int criu_restore_devices(struct kfd_process *p,
 		}
 
 		if (!pdd->doorbell_index &&
-		    kfd_alloc_process_doorbells(pdd->dev, &pdd->doorbell_index) < 0) {
+		    kfd_alloc_process_doorbells(pdd->dev->kfd, &pdd->doorbell_index) < 0) {
 			ret = -ENOMEM;
 			goto exit;
 		}
@@ -2268,7 +2268,8 @@ static int criu_restore_memory_of_gpu(struct kfd_process_device *pdd,
 	u64 offset;
 
 	if (bo_bucket->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL) {
-		if (bo_bucket->size != kfd_doorbell_process_slice(pdd->dev))
+		if (bo_bucket->size !=
+				kfd_doorbell_process_slice(pdd->dev->kfd))
 			return -EINVAL;
 
 		offset = kfd_get_process_doorbells(pdd);
@@ -2350,7 +2351,7 @@ static int criu_restore_bo(struct kfd_process *p,
 
 	/* now map these BOs to GPU/s */
 	for (j = 0; j < p->n_pdds; j++) {
-		struct kfd_dev *peer;
+		struct kfd_node *peer;
 		struct kfd_process_device *peer_pdd;
 
 		if (!bo_priv->mapped_gpuids[j])
@@ -2947,7 +2948,7 @@ err_i1:
 	return retcode;
 }
 
-static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
+static int kfd_mmio_mmap(struct kfd_node *dev, struct kfd_process *process,
 		      struct vm_area_struct *vma)
 {
 	phys_addr_t address;
@@ -2981,7 +2982,7 @@ static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
 static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct kfd_process *process;
-	struct kfd_dev *dev = NULL;
+	struct kfd_node *dev = NULL;
 	unsigned long mmap_offset;
 	unsigned int gpu_id;
 

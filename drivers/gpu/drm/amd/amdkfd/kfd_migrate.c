@@ -423,7 +423,7 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	kfd_smi_event_migration_start(adev->kfd.dev, p->lead_thread->pid,
 				      start >> PAGE_SHIFT, end >> PAGE_SHIFT,
-				      0, adev->kfd.dev->id, prange->prefetch_loc,
+				      0, adev->kfd.dev->node->id, prange->prefetch_loc,
 				      prange->preferred_loc, trigger);
 
 	r = migrate_vma_setup(&migrate);
@@ -456,7 +456,7 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	kfd_smi_event_migration_end(adev->kfd.dev, p->lead_thread->pid,
 				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
-				    0, adev->kfd.dev->id, trigger);
+				    0, adev->kfd.dev->node->id, trigger);
 
 	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
 	svm_range_free_dma_mappings(prange);
@@ -701,7 +701,7 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	kfd_smi_event_migration_start(adev->kfd.dev, p->lead_thread->pid,
 				      start >> PAGE_SHIFT, end >> PAGE_SHIFT,
-				      adev->kfd.dev->id, 0, prange->prefetch_loc,
+				      adev->kfd.dev->node->id, 0, prange->prefetch_loc,
 				      prange->preferred_loc, trigger);
 
 	r = migrate_vma_setup(&migrate);
@@ -737,7 +737,7 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 
 	kfd_smi_event_migration_end(adev->kfd.dev, p->lead_thread->pid,
 				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
-				    adev->kfd.dev->id, 0, trigger);
+				    adev->kfd.dev->node->id, 0, trigger);
 
 	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
 

@@ -207,7 +207,7 @@ struct device_queue_manager_asic_ops {
 				struct queue *q,
 				struct qcm_process_device *qpd);
 	struct mqd_manager *	(*mqd_manager_init)(enum KFD_MQD_TYPE type,
-				 struct kfd_dev *dev);
+				 struct kfd_node *dev);
 };
 
 /**
@@ -228,7 +228,7 @@ struct device_queue_manager {
 
 	struct mqd_manager	*mqd_mgrs[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packet_mgr;
-	struct kfd_dev		*dev;
+	struct kfd_node		*dev;
 	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;
 	unsigned int		saved_flags;

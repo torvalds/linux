@@ -74,7 +74,7 @@ static void set_priority(struct v10_compute_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_node *kfd,
 		struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
@@ -122,7 +122,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;
 	}
 
-	if (mm->dev->cwsr_enabled) {
+	if (mm->dev->kfd->cwsr_enabled) {
 		m->cp_hqd_persistent_state |=
 			(1 << CP_HQD_PERSISTENT_STATE__QSWITCH_MODE__SHIFT);
 		m->cp_hqd_ctx_save_base_addr_lo =
@@ -210,7 +210,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 		m->cp_hqd_pq_doorbell_control |=
 			1 << CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_BIF_DROP__SHIFT;
 	}
-	if (mm->dev->cwsr_enabled)
+	if (mm->dev->kfd->cwsr_enabled)
 		m->cp_hqd_ctx_save_control = 0;
 
 	update_cu_mask(mm, mqd, minfo);
@@ -405,7 +405,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 #endif
 
 struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
-		struct kfd_dev *dev)
+		struct kfd_node *dev)
 {
 	struct mqd_manager *mqd;
 
