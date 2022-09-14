@@ -3436,6 +3436,13 @@ int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 	return 0;
 }
 
+static u8 *btrfs_csum_ptr(const struct btrfs_fs_info *fs_info, u8 *csums, u64 offset)
+{
+	u64 offset_in_sectors = offset >> fs_info->sectorsize_bits;
+
+	return csums + offset_in_sectors * fs_info->csum_size;
+}
+
 /*
  * check_data_csum - verify checksum of one sector of uncompressed data
  * @inode:	inode

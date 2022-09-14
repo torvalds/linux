@@ -2797,14 +2797,6 @@ int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
 				     enum btrfs_inline_ref_type is_data);
 u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset);
 
-static inline u8 *btrfs_csum_ptr(const struct btrfs_fs_info *fs_info, u8 *csums,
-				 u64 offset)
-{
-	u64 offset_in_sectors = offset >> fs_info->sectorsize_bits;
-
-	return csums + offset_in_sectors * fs_info->csum_size;
-}
-
 /*
  * Take the number of bytes to be checksummed and figure out how many leaves
  * it would require to store the csums for that many bytes.
