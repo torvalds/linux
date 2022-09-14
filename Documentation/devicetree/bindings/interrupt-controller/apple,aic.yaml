@@ -96,7 +96,7 @@ properties:
               Documentation/devicetree/bindings/arm/cpus.yaml).
 
         required:
-          - fiq-index
+          - apple,fiq-index
           - cpus
 
 required:

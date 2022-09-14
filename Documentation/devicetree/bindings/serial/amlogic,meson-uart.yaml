@@ -8,7 +8,7 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: Amlogic Meson SoC UART Serial Interface
 
 maintainers:
-  - Neil Armstrong <narmstrong@baylibre.com>
+  - Neil Armstrong <neil.armstrong@linaro.org>
 
 description: |
   The Amlogic Meson SoC UART Serial Interface is present on a large range
