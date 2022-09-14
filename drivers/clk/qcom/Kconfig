@@ -545,10 +545,10 @@ config QCS_Q6SSTOP_404
 	  controller to reset the Q6SSTOP subsystem.
 
 config SDM_GCC_845
-	tristate "SDM845 Global Clock Controller"
+	tristate "SDM845/SDM670 Global Clock Controller"
 	select QCOM_GDSC
 	help
-	  Support for the global clock controller on SDM845 devices.
+	  Support for the global clock controller on SDM845 and SDM670 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2C, USB, UFS, SDDC, PCIe, etc.
 
