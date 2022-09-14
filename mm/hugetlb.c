@@ -33,6 +33,7 @@
 #include <linux/migrate.h>
 #include <linux/nospec.h>
 #include <linux/delayacct.h>
+#include <linux/memory.h>
 
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -4000,6 +4001,23 @@ static void hugetlb_register_node(struct node *node)
 	}
 }
 
+static int __meminit hugetlb_memory_callback(struct notifier_block *self,
+					     unsigned long action, void *arg)
+{
+	struct memory_notify *mnb = arg;
+	int nid = mnb->status_change_nid;
+
+	if (nid == NUMA_NO_NODE)
+		return NOTIFY_DONE;
+
+	if (action == MEM_GOING_ONLINE)
+		hugetlb_register_node(node_devices[nid]);
+	else if (action == MEM_CANCEL_ONLINE || action == MEM_OFFLINE)
+		hugetlb_unregister_node(node_devices[nid]);
+
+	return NOTIFY_OK;
+}
+
 /*
  * hugetlb init time:  register hstate attributes for all registered node
  * devices of nodes that have memory.  All on-line nodes should have
@@ -4009,18 +4027,11 @@ static void __init hugetlb_register_all_nodes(void)
 {
 	int nid;
 
-	for_each_node_state(nid, N_MEMORY) {
-		struct node *node = node_devices[nid];
-		if (node->dev.id == nid)
-			hugetlb_register_node(node);
-	}
-
-	/*
-	 * Let the node device driver know we're here so it can
-	 * [un]register hstate attributes on node hotplug.
-	 */
-	register_hugetlbfs_with_node(hugetlb_register_node,
-				     hugetlb_unregister_node);
+	get_online_mems();
+	hotplug_memory_notifier(hugetlb_memory_callback, 0);
+	for_each_node_state(nid, N_MEMORY)
+		hugetlb_register_node(node_devices[nid]);
+	put_online_mems();
 }
 #else	/* !CONFIG_NUMA */
 
