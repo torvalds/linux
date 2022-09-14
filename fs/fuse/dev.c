@@ -2267,8 +2267,7 @@ static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
 				 * Check against file->f_op because CUSE
 				 * uses the same ioctl handler.
 				 */
-				if (old->f_op == file->f_op &&
-				    old->f_cred->user_ns == file->f_cred->user_ns)
+				if (old->f_op == file->f_op)
 					fud = fuse_get_dev(old);
 
 				if (fud) {
