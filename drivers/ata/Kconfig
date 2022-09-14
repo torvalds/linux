@@ -1102,7 +1102,7 @@ config PATA_PCMCIA
 	  If unsure, say N.
 
 config PATA_PLATFORM
-	tristate "Generic platform device PATA support" if EXPERT || HAVE_PATA_PLATFORM
+	tristate "Generic platform device PATA support" if HAVE_PATA_PLATFORM
 	help
 	  This option enables support for generic directly connected ATA
 	  devices commonly found on embedded systems.
