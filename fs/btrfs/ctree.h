@@ -497,13 +497,6 @@ struct btrfs_free_cluster {
 	struct list_head block_group_list;
 };
 
-enum btrfs_caching_type {
-	BTRFS_CACHE_NO,
-	BTRFS_CACHE_STARTED,
-	BTRFS_CACHE_FINISHED,
-	BTRFS_CACHE_ERROR,
-};
-
 /*
  * Tree to record all locked full stripes of a RAID5/6 block group
  */

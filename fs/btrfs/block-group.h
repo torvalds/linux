@@ -57,6 +57,13 @@ enum btrfs_block_group_flags {
 	BLOCK_GROUP_FLAG_ZONED_DATA_RELOC,
 };
 
+enum btrfs_caching_type {
+	BTRFS_CACHE_NO,
+	BTRFS_CACHE_STARTED,
+	BTRFS_CACHE_FINISHED,
+	BTRFS_CACHE_ERROR,
+};
+
 struct btrfs_caching_control {
 	struct list_head list;
 	struct mutex mutex;
