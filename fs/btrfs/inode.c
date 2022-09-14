@@ -5707,6 +5707,11 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 	BTRFS_I(inode)->location.offset = 0;
 	BTRFS_I(inode)->root = btrfs_grab_root(args->root);
 	BUG_ON(args->root && !BTRFS_I(inode)->root);
+
+	if (args->root && args->root == args->root->fs_info->tree_root &&
+	    args->ino != BTRFS_BTREE_INODE_OBJECTID)
+		set_bit(BTRFS_INODE_FREE_SPACE_INODE,
+			&BTRFS_I(inode)->runtime_flags);
 	return 0;
 }
 
