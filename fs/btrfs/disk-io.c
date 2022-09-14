@@ -266,7 +266,6 @@ int btrfs_read_extent_buffer(struct extent_buffer *eb,
 			     struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	struct extent_io_tree *io_tree;
 	int failed = 0;
 	int ret;
 	int num_copies = 0;
@@ -275,21 +274,11 @@ int btrfs_read_extent_buffer(struct extent_buffer *eb,
 
 	ASSERT(check);
 
-	io_tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	while (1) {
 		clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
-		ret = read_extent_buffer_pages(eb, WAIT_COMPLETE, mirror_num);
-		if (!ret) {
-			if (verify_parent_transid(io_tree, eb, check->transid, 0))
-				ret = -EIO;
-			else if (btrfs_verify_level_key(eb, check->level,
-						check->has_first_key ?
-						&check->first_key : NULL,
-						check->transid))
-				ret = -EUCLEAN;
-			else
-				break;
-		}
+		ret = read_extent_buffer_pages(eb, WAIT_COMPLETE, mirror_num, check);
+		if (!ret)
+			break;
 
 		num_copies = btrfs_num_copies(fs_info,
 					      eb->start, eb->len);
@@ -465,7 +454,8 @@ static int check_tree_block_fsid(struct extent_buffer *eb)
 }
 
 /* Do basic extent buffer checks at read time */
-static int validate_extent_buffer(struct extent_buffer *eb)
+static int validate_extent_buffer(struct extent_buffer *eb,
+				  struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	u64 found_start;
@@ -474,6 +464,8 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 	u8 result[BTRFS_CSUM_SIZE];
 	const u8 *header_csum;
 	int ret = 0;
+
+	ASSERT(check);
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
@@ -513,6 +505,45 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 		goto out;
 	}
 
+	if (found_level != check->level) {
+		ret = -EIO;
+		goto out;
+	}
+	if (unlikely(check->transid &&
+		     btrfs_header_generation(eb) != check->transid)) {
+		btrfs_err_rl(eb->fs_info,
+"parent transid verify failed on logical %llu mirror %u wanted %llu found %llu",
+				eb->start, eb->read_mirror, check->transid,
+				btrfs_header_generation(eb));
+		ret = -EIO;
+		goto out;
+	}
+	if (check->has_first_key) {
+		struct btrfs_key *expect_key = &check->first_key;
+		struct btrfs_key found_key;
+
+		if (found_level)
+			btrfs_node_key_to_cpu(eb, &found_key, 0);
+		else
+			btrfs_item_key_to_cpu(eb, &found_key, 0);
+		if (unlikely(btrfs_comp_cpu_keys(expect_key, &found_key))) {
+			btrfs_err(fs_info,
+"tree first key mismatch detected, bytenr=%llu parent_transid=%llu key expected=(%llu,%u,%llu) has=(%llu,%u,%llu)",
+				  eb->start, check->transid,
+				  expect_key->objectid,
+				  expect_key->type, expect_key->offset,
+				  found_key.objectid, found_key.type,
+				  found_key.offset);
+			ret = -EUCLEAN;
+			goto out;
+		}
+	}
+	if (check->owner_root) {
+		ret = btrfs_check_eb_owner(eb, check->owner_root);
+		if (ret < 0)
+			goto out;
+	}
+
 	/*
 	 * If this is a leaf block and it is corrupt, set the corrupt bit so
 	 * that we don't try and read the other copies of this block, just
@@ -537,12 +568,14 @@ out:
 }
 
 static int validate_subpage_buffer(struct page *page, u64 start, u64 end,
-				   int mirror)
+				   int mirror, struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
 	struct extent_buffer *eb;
 	bool reads_done;
 	int ret = 0;
+
+	ASSERT(check);
 
 	/*
 	 * We don't allow bio merge for subpage metadata read, so we should
@@ -567,7 +600,7 @@ static int validate_subpage_buffer(struct page *page, u64 start, u64 end,
 		ret = -EIO;
 		goto err;
 	}
-	ret = validate_extent_buffer(eb);
+	ret = validate_extent_buffer(eb, check);
 	if (ret < 0)
 		goto err;
 
@@ -597,7 +630,8 @@ int btrfs_validate_metadata_buffer(struct btrfs_bio *bbio,
 	ASSERT(page->private);
 
 	if (btrfs_sb(page->mapping->host->i_sb)->nodesize < PAGE_SIZE)
-		return validate_subpage_buffer(page, start, end, mirror);
+		return validate_subpage_buffer(page, start, end, mirror,
+					       &bbio->parent_check);
 
 	eb = (struct extent_buffer *)page->private;
 
@@ -616,7 +650,7 @@ int btrfs_validate_metadata_buffer(struct btrfs_bio *bbio,
 		ret = -EIO;
 		goto err;
 	}
-	ret = validate_extent_buffer(eb);
+	ret = validate_extent_buffer(eb, &bbio->parent_check);
 err:
 	if (ret) {
 		/*
@@ -774,6 +808,7 @@ void btrfs_submit_metadata_bio(struct btrfs_inode *inode, struct bio *bio, int m
 	blk_status_t ret;
 
 	bio->bi_opf |= REQ_META;
+	bbio->is_metadata = 1;
 
 	if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
 		btrfs_submit_bio(fs_info, bio, mirror_num);

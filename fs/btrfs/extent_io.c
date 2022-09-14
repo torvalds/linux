@@ -4934,7 +4934,8 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
 }
 
 static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
-				      int mirror_num)
+				      int mirror_num,
+				      struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct extent_io_tree *io_tree;
@@ -4947,6 +4948,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 
 	ASSERT(!test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags));
 	ASSERT(PagePrivate(page));
+	ASSERT(check);
 	io_tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 
 	if (wait == WAIT_NONE) {
@@ -4990,6 +4992,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 		 */
 		atomic_dec(&eb->io_pages);
 	}
+	memcpy(&btrfs_bio(bio_ctrl.bio)->parent_check, check, sizeof(*check));
 	submit_one_bio(&bio_ctrl);
 	if (ret || wait != WAIT_COMPLETE) {
 		free_extent_state(cached_state);
@@ -5003,7 +5006,8 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	return ret;
 }
 
-int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
+int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
+			     struct btrfs_tree_parent_check *check)
 {
 	int i;
 	struct page *page;
@@ -5029,7 +5033,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 		return -EIO;
 
 	if (eb->fs_info->nodesize < PAGE_SIZE)
-		return read_extent_buffer_subpage(eb, wait, mirror_num);
+		return read_extent_buffer_subpage(eb, wait, mirror_num, check);
 
 	num_pages = num_extent_pages(eb);
 	for (i = 0; i < num_pages; i++) {
@@ -5106,6 +5110,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 		}
 	}
 
+	memcpy(&btrfs_bio(bio_ctrl.bio)->parent_check, check, sizeof(*check));
 	submit_one_bio(&bio_ctrl);
 
 	if (ret || wait != WAIT_COMPLETE)
@@ -5841,6 +5846,11 @@ int try_release_extent_buffer(struct page *page)
 void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 owner_root, u64 gen, int level)
 {
+	struct btrfs_tree_parent_check check = {
+		.has_first_key = 0,
+		.level = level,
+		.transid = gen
+	};
 	struct extent_buffer *eb;
 	int ret;
 
@@ -5853,7 +5863,7 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 		return;
 	}
 
-	ret = read_extent_buffer_pages(eb, WAIT_NONE, 0);
+	ret = read_extent_buffer_pages(eb, WAIT_NONE, 0, &check);
 	if (ret < 0)
 		free_extent_buffer_stale(eb);
 	else

@@ -66,6 +66,7 @@ struct btrfs_inode;
 struct btrfs_fs_info;
 struct io_failure_record;
 struct extent_io_tree;
+struct btrfs_tree_parent_check;
 
 int __init extent_buffer_init_cachep(void);
 void __cold extent_buffer_free_cachep(void);
@@ -170,8 +171,8 @@ void free_extent_buffer_stale(struct extent_buffer *eb);
 #define WAIT_NONE	0
 #define WAIT_COMPLETE	1
 #define WAIT_PAGE_LOCK	2
-int read_extent_buffer_pages(struct extent_buffer *eb, int wait,
-			     int mirror_num);
+int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
+			     struct btrfs_tree_parent_check *parent_check);
 void wait_on_extent_buffer_writeback(struct extent_buffer *eb);
 void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 owner_root, u64 gen, int level);

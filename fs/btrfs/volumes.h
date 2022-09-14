@@ -11,6 +11,7 @@
 #include <linux/btrfs.h>
 #include "async-thread.h"
 #include "messages.h"
+#include "disk-io.h"
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
@@ -397,7 +398,15 @@ typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
  * Mostly for btrfs specific features like csum and mirror_num.
  */
 struct btrfs_bio {
-	unsigned int mirror_num;
+	unsigned int mirror_num:7;
+
+	/*
+	 * Extra indicator for metadata bios.
+	 * For some btrfs bios they use pages without a mapping, thus
+	 * we can not rely on page->mapping->host to determine if
+	 * it's a metadata bio.
+	 */
+	unsigned int is_metadata:1;
 	struct bvec_iter iter;
 
 	/* for direct I/O */
@@ -405,8 +414,16 @@ struct btrfs_bio {
 
 	/* @device is for stripe IO submission. */
 	struct btrfs_device *device;
-	u8 *csum;
-	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
+	union {
+		/* For data checksum verification. */
+		struct {
+			u8 *csum;
+			u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
+		};
+
+		/* For metadata parentness verification. */
+		struct btrfs_tree_parent_check parent_check;
+	};
 
 	/* End I/O information supplied to btrfs_bio_alloc */
 	btrfs_bio_end_io_t end_io;
@@ -443,6 +460,8 @@ static inline void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 
 static inline void btrfs_bio_free_csum(struct btrfs_bio *bbio)
 {
+	if (bbio->is_metadata)
+		return;
 	if (bbio->csum != bbio->csum_inline) {
 		kfree(bbio->csum);
 		bbio->csum = NULL;
