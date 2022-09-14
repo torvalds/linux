@@ -86,27 +86,28 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
+	struct apparmor_audit_data *ad = aad(sa);
 
-	if (aad(sa)->mnt.type) {
+	if (ad->mnt.type) {
 		audit_log_format(ab, " fstype=");
-		audit_log_untrustedstring(ab, aad(sa)->mnt.type);
+		audit_log_untrustedstring(ab, ad->mnt.type);
 	}
-	if (aad(sa)->mnt.src_name) {
+	if (ad->mnt.src_name) {
 		audit_log_format(ab, " srcname=");
-		audit_log_untrustedstring(ab, aad(sa)->mnt.src_name);
+		audit_log_untrustedstring(ab, ad->mnt.src_name);
 	}
-	if (aad(sa)->mnt.trans) {
+	if (ad->mnt.trans) {
 		audit_log_format(ab, " trans=");
-		audit_log_untrustedstring(ab, aad(sa)->mnt.trans);
+		audit_log_untrustedstring(ab, ad->mnt.trans);
 	}
-	if (aad(sa)->mnt.flags) {
+	if (ad->mnt.flags) {
 		audit_log_format(ab, " flags=\"");
-		audit_mnt_flags(ab, aad(sa)->mnt.flags);
+		audit_mnt_flags(ab, ad->mnt.flags);
 		audit_log_format(ab, "\"");
 	}
-	if (aad(sa)->mnt.data) {
+	if (ad->mnt.data) {
 		audit_log_format(ab, " options=");
-		audit_log_untrustedstring(ab, aad(sa)->mnt.data);
+		audit_log_untrustedstring(ab, ad->mnt.data);
 	}
 }
 
@@ -134,7 +135,7 @@ static int audit_mount(struct aa_profile *profile, const char *op,
 		       struct aa_perms *perms, const char *info, int error)
 {
 	int audit_type = AUDIT_APPARMOR_AUTO;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_MOUNT, op);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_MOUNT, op);
 
 	if (likely(!error)) {
 		u32 mask = perms->audit;
@@ -165,17 +166,17 @@ static int audit_mount(struct aa_profile *profile, const char *op,
 			return error;
 	}
 
-	aad(&sa)->name = name;
-	aad(&sa)->mnt.src_name = src_name;
-	aad(&sa)->mnt.type = type;
-	aad(&sa)->mnt.trans = trans;
-	aad(&sa)->mnt.flags = flags;
+	ad.name = name;
+	ad.mnt.src_name = src_name;
+	ad.mnt.type = type;
+	ad.mnt.trans = trans;
+	ad.mnt.flags = flags;
 	if (data && (perms->audit & AA_AUDIT_DATA))
-		aad(&sa)->mnt.data = data;
-	aad(&sa)->info = info;
-	aad(&sa)->error = error;
+		ad.mnt.data = data;
+	ad.info = info;
+	ad.error = error;
 
-	return aa_audit(audit_type, profile, &sa, audit_cb);
+	return aa_audit(audit_type, profile, &ad, audit_cb);
 }
 
 /**

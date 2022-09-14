@@ -30,12 +30,13 @@ struct aa_sfs_entry aa_sfs_entry_rlimit[] = {
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
+	struct apparmor_audit_data *ad = aad(sa);
 
 	audit_log_format(ab, " rlimit=%s value=%lu",
-			 rlim_names[aad(sa)->rlim.rlim], aad(sa)->rlim.max);
-	if (aad(sa)->peer) {
+			 rlim_names[ad->rlim.rlim], ad->rlim.max);
+	if (ad->peer) {
 		audit_log_format(ab, " peer=");
-		aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
+		aa_label_xaudit(ab, labels_ns(ad->label), ad->peer,
 				FLAGS_NONE, GFP_ATOMIC);
 	}
 }
@@ -49,22 +50,22 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @info: info being auditing
  * @error: error value
  *
- * Returns: 0 or sa->error else other error code on failure
+ * Returns: 0 or ad->error else other error code on failure
  */
 static int audit_resource(struct aa_profile *profile, unsigned int resource,
 			  unsigned long value, struct aa_label *peer,
 			  const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_RLIMITS,
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_RLIMITS,
 			  OP_SETRLIMIT);
 
-	aad(&sa)->rlim.rlim = resource;
-	aad(&sa)->rlim.max = value;
-	aad(&sa)->peer = peer;
-	aad(&sa)->info = info;
-	aad(&sa)->error = error;
+	ad.rlim.rlim = resource;
+	ad.rlim.max = value;
+	ad.peer = peer;
+	ad.info = info;
+	ad.error = error;
 
-	return aa_audit(AUDIT_APPARMOR_AUTO, profile, &sa, audit_cb);
+	return aa_audit(AUDIT_APPARMOR_AUTO, profile, &ad, audit_cb);
 }
 
 /**

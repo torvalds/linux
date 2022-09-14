@@ -723,10 +723,11 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
+	struct apparmor_audit_data *ad = aad(sa);
 
-	if (aad(sa)->iface.ns) {
+	if (ad->iface.ns) {
 		audit_log_format(ab, " ns=");
-		audit_log_untrustedstring(ab, aad(sa)->iface.ns);
+		audit_log_untrustedstring(ab, ad->iface.ns);
 	}
 }
 
@@ -745,15 +746,15 @@ static int audit_policy(struct aa_label *label, const char *op,
 			const char *ns_name, const char *name,
 			const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, op);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, op);
 
-	aad(&sa)->iface.ns = ns_name;
-	aad(&sa)->name = name;
-	aad(&sa)->info = info;
-	aad(&sa)->error = error;
-	aad(&sa)->label = label;
+	ad.iface.ns = ns_name;
+	ad.name = name;
+	ad.info = info;
+	ad.error = error;
+	ad.label = label;
 
-	aa_audit_msg(AUDIT_APPARMOR_STATUS, &sa, audit_cb);
+	aa_audit_msg(AUDIT_APPARMOR_STATUS, &ad, audit_cb);
 
 	return error;
 }

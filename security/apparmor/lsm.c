@@ -662,7 +662,7 @@ static int apparmor_setprocattr(const char *name, void *value,
 	char *command, *largs = NULL, *args = value;
 	size_t arg_size;
 	int error;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE,
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE,
 			  OP_SETPROCATTR);
 
 	if (size == 0)
@@ -722,11 +722,11 @@ out:
 	return error;
 
 fail:
-	aad(&sa)->label = begin_current_label_crit_section();
-	aad(&sa)->info = name;
-	aad(&sa)->error = error = -EINVAL;
-	aa_audit_msg(AUDIT_APPARMOR_DENIED, &sa, NULL);
-	end_current_label_crit_section(aad(&sa)->label);
+	ad.label = begin_current_label_crit_section();
+	ad.info = name;
+	ad.error = error = -EINVAL;
+	aa_audit_msg(AUDIT_APPARMOR_DENIED, &ad, NULL);
+	end_current_label_crit_section(ad.label);
 	goto out;
 }
 

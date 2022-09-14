@@ -212,8 +212,8 @@ void aa_profile_match_label(struct aa_profile *profile,
 			    int type, u32 request, struct aa_perms *perms);
 int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
 			  u32 request, int type, u32 *deny,
-			  struct common_audit_data *sa);
+			  struct apparmor_audit_data *ad);
 int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
-		   u32 request, struct common_audit_data *sa,
+		   u32 request, struct apparmor_audit_data *ad,
 		   void (*cb)(struct audit_buffer *, void *));
 #endif /* __AA_PERM_H */
