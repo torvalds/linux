@@ -29,10 +29,13 @@ struct pwm_fan_tach {
 };
 
 struct pwm_fan_ctx {
+	struct device *dev;
+
 	struct mutex lock;
 	struct pwm_device *pwm;
 	struct pwm_state pwm_state;
 	struct regulator *reg_en;
+	bool enabled;
 
 	int tach_count;
 	struct pwm_fan_tach *tachs;
@@ -85,13 +88,19 @@ static void sample_timer(struct timer_list *t)
 static int pwm_fan_power_on(struct pwm_fan_ctx *ctx)
 {
 	struct pwm_state *state = &ctx->pwm_state;
-	unsigned long period;
 	int ret;
 
-	period = state->period;
-	state->duty_cycle = DIV_ROUND_UP(ctx->pwm_value * (period - 1), MAX_PWM);
+	if (ctx->enabled)
+		return 0;
+
 	state->enabled = true;
 	ret = pwm_apply_state(ctx->pwm, state);
+	if (ret) {
+		dev_err(ctx->dev, "failed to enable PWM\n");
+		return ret;
+	}
+
+	ctx->enabled = true;
 
 	return ret;
 }
@@ -99,27 +108,42 @@ static int pwm_fan_power_on(struct pwm_fan_ctx *ctx)
 static int pwm_fan_power_off(struct pwm_fan_ctx *ctx)
 {
 	struct pwm_state *state = &ctx->pwm_state;
+	int ret;
+
+	if (!ctx->enabled)
+		return 0;
 
 	state->enabled = false;
 	state->duty_cycle = 0;
-	pwm_apply_state(ctx->pwm, state);
+	ret = pwm_apply_state(ctx->pwm, state);
+	if (ret) {
+		dev_err(ctx->dev, "failed to disable PWM\n");
+		return ret;
+	}
+
+	ctx->enabled = false;
 
 	return 0;
 }
 
 static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 {
+	struct pwm_state *state = &ctx->pwm_state;
+	unsigned long period;
 	int ret = 0;
 
 	mutex_lock(&ctx->lock);
-	if (ctx->pwm_value == pwm)
-		goto exit_set_pwm_err;
 
-	if (pwm > 0)
+	if (pwm > 0) {
+		period = state->period;
+		state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
+		ret = pwm_apply_state(ctx->pwm, state);
+		if (ret)
+			goto exit_set_pwm_err;
 		ret = pwm_fan_power_on(ctx);
-	else
+	} else {
 		ret = pwm_fan_power_off(ctx);
-
+	}
 	if (!ret)
 		ctx->pwm_value = pwm;
 
@@ -326,6 +350,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	mutex_init(&ctx->lock);
 
+	ctx->dev = &pdev->dev;
 	ctx->pwm = devm_pwm_get(dev, NULL);
 	if (IS_ERR(ctx->pwm))
 		return dev_err_probe(dev, PTR_ERR(ctx->pwm), "Could not get PWM\n");
