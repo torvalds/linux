@@ -129,6 +129,17 @@ static inline u32 max_ordered_sum_bytes(struct btrfs_fs_info *fs_info,
 	return ncsums * fs_info->sectorsize;
 }
 
+/*
+ * Calculate the total size needed to allocate for an ordered sum structure
+ * spanning @bytes in the file.
+ */
+static int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info, unsigned long bytes)
+{
+	int num_sectors = (int)DIV_ROUND_UP(bytes, fs_info->sectorsize);
+
+	return sizeof(struct btrfs_ordered_sum) + num_sectors * fs_info->csum_size;
+}
+
 int btrfs_insert_hole_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     u64 objectid, u64 pos, u64 num_bytes)

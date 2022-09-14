@@ -160,18 +160,6 @@ struct btrfs_ordered_extent {
 	struct block_device *bdev;
 };
 
-/*
- * calculates the total size you need to allocate for an ordered sum
- * structure spanning 'bytes' in the file
- */
-static inline int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info,
-					 unsigned long bytes)
-{
-	int num_sectors = (int)DIV_ROUND_UP(bytes, fs_info->sectorsize);
-
-	return sizeof(struct btrfs_ordered_sum) + num_sectors * fs_info->csum_size;
-}
-
 static inline void
 btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
 {
