@@ -883,9 +883,9 @@
 			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
 			      <0x40 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 118 0x4>, /* controller interrupt */
-				     <0 117 0x4>; /* PME interrupt */
-			interrupt-names = "intr", "pme";
+			interrupts = <0 117 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 118 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
@@ -909,9 +909,9 @@
 			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
 			      <0x48 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 128 0x4>,
-				     <0 127 0x4>;
-			interrupt-names = "intr", "pme";
+			interrupts = <0 127 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 128 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
@@ -935,9 +935,9 @@
 			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
 			      <0x50 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 162 0x4>,
-				     <0 161 0x4>;
-			interrupt-names = "intr", "pme";
+			interrupts = <0 161 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 162 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
