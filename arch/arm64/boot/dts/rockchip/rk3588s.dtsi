@@ -1908,11 +1908,12 @@
 	};
 
 	usb_host0_ehci: usb@fc800000 {
-		compatible = "generic-ehci";
+		compatible = "rockchip,rk3588-ehci", "generic-ehci";
 		reg = <0x0 0xfc800000 0x0 0x40000>;
 		interrupts = <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST0>, <&cru HCLK_HOST_ARB0>, <&u2phy2>;
 		clock-names = "usbhost", "arbiter", "utmi";
+		companion = <&usb_host0_ohci>;
 		phys = <&u2phy2_host>;
 		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
@@ -1932,11 +1933,12 @@
 	};
 
 	usb_host1_ehci: usb@fc880000 {
-		compatible = "generic-ehci";
+		compatible = "rockchip,rk3588-ehci", "generic-ehci";
 		reg = <0x0 0xfc880000 0x0 0x40000>;
 		interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST1>, <&cru HCLK_HOST_ARB1>, <&u2phy3>;
 		clock-names = "usbhost", "arbiter", "utmi";
+		companion = <&usb_host1_ohci>;
 		phys = <&u2phy3_host>;
 		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
