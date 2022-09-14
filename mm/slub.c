@@ -4926,6 +4926,8 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, unsigned long caller)
 	/* Honor the call site pointer we received. */
 	trace_kmalloc(caller, ret, s, size, s->size, gfpflags);
 
+	ret = kasan_kmalloc(s, ret, size, gfpflags);
+
 	return ret;
 }
 EXPORT_SYMBOL(__kmalloc_track_caller);
@@ -4956,6 +4958,8 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 
 	/* Honor the call site pointer we received. */
 	trace_kmalloc_node(caller, ret, s, size, s->size, gfpflags, node);
+
+	ret = kasan_kmalloc(s, ret, size, gfpflags);
 
 	return ret;
 }
