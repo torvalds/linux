@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "core_types.h"
 
 #include "ObjectID.h"
 #include "atomfirmware.h"
@@ -1374,7 +1375,7 @@ static enum bp_result bios_parser_get_lttpr_interop(
 	default:
 		break;
 	}
-
+	DC_LOG_BIOS("DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE: %d tbl_revision.major = %d tbl_revision.minor = %d\n", *dce_caps, tbl_revision.major, tbl_revision.minor);
 	return result;
 }
 
@@ -1390,6 +1391,7 @@ static enum bp_result bios_parser_get_lttpr_caps(
 	if (!DATA_TABLES(dce_info))
 		return BP_RESULT_UNSUPPORTED;
 
+	*dce_caps  = 0;
 	header = GET_IMAGE(struct atom_common_table_header,
 						DATA_TABLES(dce_info));
 	get_atom_data_table_revision(header, &tbl_revision);
@@ -1423,7 +1425,11 @@ static enum bp_result bios_parser_get_lttpr_caps(
 	default:
 		break;
 	}
-
+	DC_LOG_BIOS("DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE: %d tbl_revision.major = %d tbl_revision.minor = %d\n", *dce_caps, tbl_revision.major, tbl_revision.minor);
+	if (dcb->ctx->dc->config.force_bios_enable_lttpr && *dce_caps == 0) {
+		*dce_caps = 1;
+		DC_LOG_BIOS("DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE: forced enabled");
+	}
 	return result;
 }
 
@@ -2994,13 +3000,22 @@ static enum bp_result construct_integrated_info(
 						info->ext_disp_conn_info.path[i].ext_encoder_obj_id.id,
 						info->ext_disp_conn_info.path[i].caps
 						);
+			if (info->ext_disp_conn_info.path[i].caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN)
+				DC_LOG_BIOS("BIOS EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN on path %d\n", i);
+			else if (bp->base.ctx->dc->config.force_bios_fixed_vs) {
+				info->ext_disp_conn_info.path[i].caps |= EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN;
+				DC_LOG_BIOS("driver forced EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN on path %d\n", i);
+			}
 		}
-
 		// Log the Checksum and Voltage Swing
 		DC_LOG_BIOS("Integrated info table CHECKSUM: %d\n"
 					"Integrated info table FIX_DP_VOLTAGE_SWING: %d\n",
 					info->ext_disp_conn_info.checksum,
 					info->ext_disp_conn_info.fixdpvoltageswing);
+		if (bp->base.ctx->dc->config.force_bios_fixed_vs && info->ext_disp_conn_info.fixdpvoltageswing == 0) {
+			info->ext_disp_conn_info.fixdpvoltageswing = bp->base.ctx->dc->config.force_bios_fixed_vs & 0xF;
+			DC_LOG_BIOS("driver forced fixdpvoltageswing = %d\n", info->ext_disp_conn_info.fixdpvoltageswing);
+		}
 	}
 	/* Sort voltage table from low to high*/
 	for (i = 1; i < NUMBER_OF_DISP_CLK_VOLTAGE; ++i) {
