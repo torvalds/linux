@@ -35,6 +35,7 @@ struct pwm_fan_ctx {
 	struct pwm_device *pwm;
 	struct pwm_state pwm_state;
 	struct regulator *reg_en;
+	bool regulator_enabled;
 	bool enabled;
 
 	int tach_count;
@@ -83,6 +84,25 @@ static void sample_timer(struct timer_list *t)
 	}
 
 	mod_timer(&ctx->rpm_timer, jiffies + HZ);
+}
+
+static int pwm_fan_switch_power(struct pwm_fan_ctx *ctx, bool on)
+{
+	int ret = 0;
+
+	if (!ctx->reg_en)
+		return ret;
+
+	if (!ctx->regulator_enabled && on) {
+		ret = regulator_enable(ctx->reg_en);
+		if (ret == 0)
+			ctx->regulator_enabled = true;
+	} else if (ctx->regulator_enabled && !on) {
+		ret = regulator_disable(ctx->reg_en);
+		if (ret == 0)
+			ctx->regulator_enabled = false;
+	}
+	return ret;
 }
 
 static int pwm_fan_power_on(struct pwm_fan_ctx *ctx)
@@ -320,7 +340,7 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
 
 static void pwm_fan_regulator_disable(void *data)
 {
-	regulator_disable(data);
+	pwm_fan_switch_power(data, false);
 }
 
 static void pwm_fan_pwm_disable(void *__ctx)
@@ -364,13 +384,13 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 		ctx->reg_en = NULL;
 	} else {
-		ret = regulator_enable(ctx->reg_en);
+		ret = pwm_fan_switch_power(ctx, true);
 		if (ret) {
 			dev_err(dev, "Failed to enable fan supply: %d\n", ret);
 			return ret;
 		}
 		ret = devm_add_action_or_reset(dev, pwm_fan_regulator_disable,
-					       ctx->reg_en);
+					       ctx);
 		if (ret)
 			return ret;
 	}
@@ -516,12 +536,10 @@ static int pwm_fan_disable(struct device *dev)
 			return ret;
 	}
 
-	if (ctx->reg_en) {
-		ret = regulator_disable(ctx->reg_en);
-		if (ret) {
-			dev_err(dev, "Failed to disable fan supply: %d\n", ret);
-			return ret;
-		}
+	ret = pwm_fan_switch_power(ctx, false);
+	if (ret) {
+		dev_err(dev, "Failed to disable fan supply: %d\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -543,12 +561,10 @@ static int pwm_fan_resume(struct device *dev)
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
 	int ret;
 
-	if (ctx->reg_en) {
-		ret = regulator_enable(ctx->reg_en);
-		if (ret) {
-			dev_err(dev, "Failed to enable fan supply: %d\n", ret);
-			return ret;
-		}
+	ret = pwm_fan_switch_power(ctx, true);
+	if (ret) {
+		dev_err(dev, "Failed to enable fan supply: %d\n", ret);
+		return ret;
 	}
 
 	if (ctx->pwm_value == 0)
