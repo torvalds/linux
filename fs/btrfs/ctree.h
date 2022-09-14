@@ -444,8 +444,7 @@ struct btrfs_path {
 	 */
 	unsigned int search_for_extension:1;
 };
-#define BTRFS_MAX_EXTENT_ITEM_SIZE(r) ((BTRFS_LEAF_DATA_SIZE(r->fs_info) >> 4) - \
-					sizeof(struct btrfs_item))
+
 struct btrfs_dev_replace {
 	u64 replace_state;	/* see #define above */
 	time64_t time_started;	/* seconds since 1-Jan-1970 */
@@ -1089,6 +1088,68 @@ static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
+
+/*
+ * Take the number of bytes to be checksummed and figure out how many leaves
+ * it would require to store the csums for that many bytes.
+ */
+static inline u64 btrfs_csum_bytes_to_leaves(
+			const struct btrfs_fs_info *fs_info, u64 csum_bytes)
+{
+	const u64 num_csums = csum_bytes >> fs_info->sectorsize_bits;
+
+	return DIV_ROUND_UP_ULL(num_csums, fs_info->csums_per_leaf);
+}
+
+/*
+ * Use this if we would be adding new items, as we could split nodes as we cow
+ * down the tree.
+ */
+static inline u64 btrfs_calc_insert_metadata_size(struct btrfs_fs_info *fs_info,
+						  unsigned num_items)
+{
+	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
+}
+
+/*
+ * Doing a truncate or a modification won't result in new nodes or leaves, just
+ * what we need for COW.
+ */
+static inline u64 btrfs_calc_metadata_size(struct btrfs_fs_info *fs_info,
+						 unsigned num_items)
+{
+	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
+}
+
+#define BTRFS_MAX_EXTENT_ITEM_SIZE(r) ((BTRFS_LEAF_DATA_SIZE(r->fs_info) >> 4) - \
+					sizeof(struct btrfs_item))
+
+static inline bool btrfs_is_zoned(const struct btrfs_fs_info *fs_info)
+{
+	return fs_info->zone_size > 0;
+}
+
+/*
+ * Count how many fs_info->max_extent_size cover the @size
+ */
+static inline u32 count_max_extents(struct btrfs_fs_info *fs_info, u64 size)
+{
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+	if (!fs_info)
+		return div_u64(size + BTRFS_MAX_EXTENT_SIZE - 1, BTRFS_MAX_EXTENT_SIZE);
+#endif
+
+	return div_u64(size + fs_info->max_extent_size - 1, fs_info->max_extent_size);
+}
+
+bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
+			enum btrfs_exclusive_operation type);
+bool btrfs_exclop_start_try_lock(struct btrfs_fs_info *fs_info,
+				 enum btrfs_exclusive_operation type);
+void btrfs_exclop_start_unlock(struct btrfs_fs_info *fs_info);
+void btrfs_exclop_finish(struct btrfs_fs_info *fs_info);
+void btrfs_exclop_balance(struct btrfs_fs_info *fs_info,
+			  enum btrfs_exclusive_operation op);
 
 /*
  * The state of btrfs root
@@ -2797,37 +2858,6 @@ int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
 				     enum btrfs_inline_ref_type is_data);
 u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset);
 
-/*
- * Take the number of bytes to be checksummed and figure out how many leaves
- * it would require to store the csums for that many bytes.
- */
-static inline u64 btrfs_csum_bytes_to_leaves(
-			const struct btrfs_fs_info *fs_info, u64 csum_bytes)
-{
-	const u64 num_csums = csum_bytes >> fs_info->sectorsize_bits;
-
-	return DIV_ROUND_UP_ULL(num_csums, fs_info->csums_per_leaf);
-}
-
-/*
- * Use this if we would be adding new items, as we could split nodes as we cow
- * down the tree.
- */
-static inline u64 btrfs_calc_insert_metadata_size(struct btrfs_fs_info *fs_info,
-						  unsigned num_items)
-{
-	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
-}
-
-/*
- * Doing a truncate or a modification won't result in new nodes or leaves, just
- * what we need for COW.
- */
-static inline u64 btrfs_calc_metadata_size(struct btrfs_fs_info *fs_info,
-						 unsigned num_items)
-{
-	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
-}
 
 int btrfs_add_excluded_extent(struct btrfs_fs_info *fs_info,
 			      u64 start, u64 num_bytes);
@@ -3462,15 +3492,6 @@ void btrfs_get_block_group_info(struct list_head *groups_list,
 				struct btrfs_ioctl_space_info *space);
 void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 			       struct btrfs_ioctl_balance_args *bargs);
-bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
-			enum btrfs_exclusive_operation type);
-bool btrfs_exclop_start_try_lock(struct btrfs_fs_info *fs_info,
-				 enum btrfs_exclusive_operation type);
-void btrfs_exclop_start_unlock(struct btrfs_fs_info *fs_info);
-void btrfs_exclop_finish(struct btrfs_fs_info *fs_info);
-void btrfs_exclop_balance(struct btrfs_fs_info *fs_info,
-			  enum btrfs_exclusive_operation op);
-
 
 /* file.c */
 int __init btrfs_auto_defrag_init(void);
@@ -4079,24 +4100,6 @@ static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 #endif
-
-static inline bool btrfs_is_zoned(const struct btrfs_fs_info *fs_info)
-{
-	return fs_info->zone_size > 0;
-}
-
-/*
- * Count how many fs_info->max_extent_size cover the @size
- */
-static inline u32 count_max_extents(struct btrfs_fs_info *fs_info, u64 size)
-{
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (!fs_info)
-		return div_u64(size + BTRFS_MAX_EXTENT_SIZE - 1, BTRFS_MAX_EXTENT_SIZE);
-#endif
-
-	return div_u64(size + fs_info->max_extent_size - 1, fs_info->max_extent_size);
-}
 
 static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)
 {
