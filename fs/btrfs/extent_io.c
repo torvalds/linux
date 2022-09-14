@@ -3921,8 +3921,8 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		goto out;
 	}
 
-	lockstart = round_down(start, btrfs_inode_sectorsize(inode));
-	lockend = round_up(start + len, btrfs_inode_sectorsize(inode));
+	lockstart = round_down(start, root->fs_info->sectorsize);
+	lockend = round_up(start + len, root->fs_info->sectorsize);
 	prev_extent_end = lockstart;
 
 	lock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
