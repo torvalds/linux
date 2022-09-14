@@ -76,7 +76,7 @@ static void dccg314_get_pixel_rate_div(
 	case 3:
 		REG_GET_2(OTG_PIXEL_RATE_DIV,
 			OTG3_PIXEL_RATE_DIVK1, &val_k1,
-			OTG3_PIXEL_RATE_DIVK2, &val_k1);
+			OTG3_PIXEL_RATE_DIVK2, &val_k2);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
