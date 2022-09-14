@@ -9,7 +9,9 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
-#define RKCIF_API_VERSION		KERNEL_VERSION(0, 1, 0xa)
+#define RKCIF_MAX_CSI_NUM		4
+
+#define RKCIF_API_VERSION		KERNEL_VERSION(0, 2, 0)
 
 #define V4L2_EVENT_RESET_DEV		0X1001
 
@@ -32,7 +34,7 @@
 	_IOW('V', BASE_VIDIOC_PRIVATE + 6, int)
 
 #define RKCIF_CMD_SET_CSI_IDX \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 7, unsigned int)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 7, struct rkcif_csi_info)
 
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
@@ -69,6 +71,12 @@ struct bayer_blc {
 struct rkcif_fps {
 	int ch_num;
 	int fps;
+};
+
+struct rkcif_csi_info {
+	int csi_num;
+	int csi_idx[RKCIF_MAX_CSI_NUM];
+	int dphy_vendor[RKCIF_MAX_CSI_NUM];
 };
 
 #endif
