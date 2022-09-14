@@ -121,29 +121,43 @@ static inline int verify_sec_ctx_len(struct nlattr **attrs, struct netlink_ext_a
 }
 
 static inline int verify_replay(struct xfrm_usersa_info *p,
-				struct nlattr **attrs)
+				struct nlattr **attrs,
+				struct netlink_ext_ack *extack)
 {
 	struct nlattr *rt = attrs[XFRMA_REPLAY_ESN_VAL];
 	struct xfrm_replay_state_esn *rs;
 
-	if (!rt)
-		return (p->flags & XFRM_STATE_ESN) ? -EINVAL : 0;
+	if (!rt) {
+		if (p->flags & XFRM_STATE_ESN) {
+			NL_SET_ERR_MSG(extack, "Missing required attribute for ESN");
+			return -EINVAL;
+		}
+		return 0;
+	}
 
 	rs = nla_data(rt);
 
-	if (rs->bmp_len > XFRMA_REPLAY_ESN_MAX / sizeof(rs->bmp[0]) / 8)
+	if (rs->bmp_len > XFRMA_REPLAY_ESN_MAX / sizeof(rs->bmp[0]) / 8) {
+		NL_SET_ERR_MSG(extack, "ESN bitmap length must be <= 128");
 		return -EINVAL;
+	}
 
 	if (nla_len(rt) < (int)xfrm_replay_state_esn_len(rs) &&
-	    nla_len(rt) != sizeof(*rs))
+	    nla_len(rt) != sizeof(*rs)) {
+		NL_SET_ERR_MSG(extack, "ESN attribute is too short to fit the full bitmap length");
 		return -EINVAL;
+	}
 
 	/* As only ESP and AH support ESN feature. */
-	if ((p->id.proto != IPPROTO_ESP) && (p->id.proto != IPPROTO_AH))
+	if ((p->id.proto != IPPROTO_ESP) && (p->id.proto != IPPROTO_AH)) {
+		NL_SET_ERR_MSG(extack, "ESN only supported for ESP and AH");
 		return -EINVAL;
+	}
 
-	if (p->replay_window != 0)
+	if (p->replay_window != 0) {
+		NL_SET_ERR_MSG(extack, "ESN not compatible with legacy replay_window");
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -311,7 +325,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		goto out;
 	if ((err = verify_sec_ctx_len(attrs, extack)))
 		goto out;
-	if ((err = verify_replay(p, attrs)))
+	if ((err = verify_replay(p, attrs, extack)))
 		goto out;
 
 	err = -EINVAL;
