@@ -468,12 +468,55 @@ check_failed:
 	return -EINVAL;
 }
 
+static int nfp_ct_check_vlan_merge(struct flow_action_entry *a_in,
+				   struct flow_rule *rule)
+{
+	struct flow_match_vlan match;
+
+	if (unlikely(flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)))
+		return -EOPNOTSUPP;
+
+	/* post_ct does not match VLAN KEY, can be merged. */
+	if (likely(!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)))
+		return 0;
+
+	switch (a_in->id) {
+	/* pre_ct has pop vlan, post_ct cannot match VLAN KEY, cannot be merged. */
+	case FLOW_ACTION_VLAN_POP:
+		return -EOPNOTSUPP;
+
+	case FLOW_ACTION_VLAN_PUSH:
+	case FLOW_ACTION_VLAN_MANGLE:
+		flow_rule_match_vlan(rule, &match);
+		/* different vlan id, cannot be merged. */
+		if ((match.key->vlan_id & match.mask->vlan_id) ^
+		    (a_in->vlan.vid & match.mask->vlan_id))
+			return -EOPNOTSUPP;
+
+		/* different tpid, cannot be merged. */
+		if ((match.key->vlan_tpid & match.mask->vlan_tpid) ^
+		    (a_in->vlan.proto & match.mask->vlan_tpid))
+			return -EOPNOTSUPP;
+
+		/* different priority, cannot be merged. */
+		if ((match.key->vlan_priority & match.mask->vlan_priority) ^
+		    (a_in->vlan.prio & match.mask->vlan_priority))
+			return -EOPNOTSUPP;
+
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int nfp_ct_merge_act_check(struct nfp_fl_ct_flow_entry *pre_ct_entry,
 				  struct nfp_fl_ct_flow_entry *post_ct_entry,
 				  struct nfp_fl_ct_flow_entry *nft_entry)
 {
 	struct flow_action_entry *act;
-	int i;
+	int i, err;
 
 	/* Check for pre_ct->action conflicts */
 	flow_action_for_each(i, act, &pre_ct_entry->rule->action) {
@@ -481,6 +524,10 @@ static int nfp_ct_merge_act_check(struct nfp_fl_ct_flow_entry *pre_ct_entry,
 		case FLOW_ACTION_VLAN_PUSH:
 		case FLOW_ACTION_VLAN_POP:
 		case FLOW_ACTION_VLAN_MANGLE:
+			err = nfp_ct_check_vlan_merge(act, post_ct_entry->rule);
+			if (err)
+				return err;
+			break;
 		case FLOW_ACTION_MPLS_PUSH:
 		case FLOW_ACTION_MPLS_POP:
 		case FLOW_ACTION_MPLS_MANGLE:
