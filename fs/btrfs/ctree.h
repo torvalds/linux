@@ -63,15 +63,6 @@ struct reloc_control;
 
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
-/*
- * Deltas are an effective way to populate global statistics.  Give macro names
- * to make it clear what we're doing.  An example is discard_extents in
- * btrfs_free_space_ctl.
- */
-#define BTRFS_STAT_NR_ENTRIES	2
-#define BTRFS_STAT_CURR		0
-#define BTRFS_STAT_PREV		1
-
 static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 {
 	BUG_ON(num_stripes == 0);
