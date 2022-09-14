@@ -821,10 +821,15 @@ struct extent_buffer *btrfs_get_old_root(struct btrfs_root *root, u64 time_seq)
 
 	tm = tree_mod_log_search(fs_info, logical, time_seq);
 	if (old_root && tm && tm->op != BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING) {
+		struct btrfs_tree_parent_check check = { 0 };
+
 		btrfs_tree_read_unlock(eb_root);
 		free_extent_buffer(eb_root);
-		old = read_tree_block(fs_info, logical, root->root_key.objectid,
-				      0, level, NULL);
+
+		check.level = level;
+		check.owner_root = root->root_key.objectid;
+
+		old = read_tree_block(fs_info, logical, &check);
 		if (WARN_ON(IS_ERR(old) || !extent_buffer_uptodate(old))) {
 			if (!IS_ERR(old))
 				free_extent_buffer(old);

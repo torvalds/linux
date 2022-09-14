@@ -5261,8 +5261,8 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 parent;
+	struct btrfs_tree_parent_check check = { 0 };
 	struct btrfs_key key;
-	struct btrfs_key first_key;
 	struct btrfs_ref ref = { 0 };
 	struct extent_buffer *next;
 	int level = wc->level;
@@ -5284,7 +5284,12 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	}
 
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
-	btrfs_node_key_to_cpu(path->nodes[level], &first_key,
+
+	check.level = level - 1;
+	check.transid = generation;
+	check.owner_root = root->root_key.objectid;
+	check.has_first_key = true;
+	btrfs_node_key_to_cpu(path->nodes[level], &check.first_key,
 			      path->slots[level]);
 
 	next = find_extent_buffer(fs_info, bytenr);
@@ -5346,8 +5351,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	if (!next) {
 		if (reada && level == 1)
 			reada_walk_down(trans, root, wc, path);
-		next = read_tree_block(fs_info, bytenr, root->root_key.objectid,
-				       generation, level - 1, &first_key);
+		next = read_tree_block(fs_info, bytenr, &check);
 		if (IS_ERR(next)) {
 			return PTR_ERR(next);
 		} else if (!extent_buffer_uptodate(next)) {

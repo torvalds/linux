@@ -386,14 +386,16 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 	if (!follow)
 		return;
 	for (i = 0; i < nr; i++) {
-		struct btrfs_key first_key;
+		struct btrfs_tree_parent_check check = {
+			.level = level - 1,
+			.transid = btrfs_node_ptr_generation(c, i),
+			.owner_root = btrfs_header_owner(c),
+			.has_first_key = true
+		};
 		struct extent_buffer *next;
 
-		btrfs_node_key_to_cpu(c, &first_key, i);
-		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i),
-				       btrfs_header_owner(c),
-				       btrfs_node_ptr_generation(c, i),
-				       level - 1, &first_key);
+		btrfs_node_key_to_cpu(c, &check.first_key, i);
+		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i), &check);
 		if (IS_ERR(next))
 			continue;
 		if (!extent_buffer_uptodate(next)) {

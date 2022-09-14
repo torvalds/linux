@@ -2339,7 +2339,13 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 	}
 
 	if (!extent_buffer_uptodate(root_eb)) {
-		ret = btrfs_read_extent_buffer(root_eb, root_gen, root_level, NULL);
+		struct btrfs_tree_parent_check check = {
+			.has_first_key = false,
+			.transid = root_gen,
+			.level = root_level
+		};
+
+		ret = btrfs_read_extent_buffer(root_eb, &check);
 		if (ret)
 			goto out;
 	}
@@ -4303,6 +4309,7 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 					 struct extent_buffer *subvol_eb)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_tree_parent_check check = { 0 };
 	struct btrfs_qgroup_swapped_blocks *blocks = &root->swapped_blocks;
 	struct btrfs_qgroup_swapped_block *block;
 	struct extent_buffer *reloc_eb = NULL;
@@ -4351,10 +4358,13 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 	blocks->swapped = swapped;
 	spin_unlock(&blocks->lock);
 
+	check.level = block->level;
+	check.transid = block->reloc_generation;
+	check.has_first_key = true;
+	memcpy(&check.first_key, &block->first_key, sizeof(check.first_key));
+
 	/* Read out reloc subtree root */
-	reloc_eb = read_tree_block(fs_info, block->reloc_bytenr, 0,
-				   block->reloc_generation, block->level,
-				   &block->first_key);
+	reloc_eb = read_tree_block(fs_info, block->reloc_bytenr, &check);
 	if (IS_ERR(reloc_eb)) {
 		ret = PTR_ERR(reloc_eb);
 		reloc_eb = NULL;

@@ -341,7 +341,12 @@ static int process_one_buffer(struct btrfs_root *log,
 	 * pin down any logged extents, so we have to read the block.
 	 */
 	if (btrfs_fs_incompat(fs_info, MIXED_GROUPS)) {
-		ret = btrfs_read_extent_buffer(eb, gen, level, NULL);
+		struct btrfs_tree_parent_check check = {
+			.level = level,
+			.transid = gen
+		};
+
+		ret = btrfs_read_extent_buffer(eb, &check);
 		if (ret)
 			return ret;
 	}
@@ -2411,13 +2416,17 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			     struct walk_control *wc, u64 gen, int level)
 {
 	int nritems;
+	struct btrfs_tree_parent_check check = {
+		.transid = gen,
+		.level = level
+	};
 	struct btrfs_path *path;
 	struct btrfs_root *root = wc->replay_dest;
 	struct btrfs_key key;
 	int i;
 	int ret;
 
-	ret = btrfs_read_extent_buffer(eb, gen, level, NULL);
+	ret = btrfs_read_extent_buffer(eb, &check);
 	if (ret)
 		return ret;
 
@@ -2597,7 +2606,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	while (*level > 0) {
-		struct btrfs_key first_key;
+		struct btrfs_tree_parent_check check = { 0 };
 
 		cur = path->nodes[*level];
 
@@ -2609,7 +2618,10 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 		bytenr = btrfs_node_blockptr(cur, path->slots[*level]);
 		ptr_gen = btrfs_node_ptr_generation(cur, path->slots[*level]);
-		btrfs_node_key_to_cpu(cur, &first_key, path->slots[*level]);
+		check.transid = ptr_gen;
+		check.level = *level - 1;
+		check.has_first_key = true;
+		btrfs_node_key_to_cpu(cur, &check.first_key, path->slots[*level]);
 		blocksize = fs_info->nodesize;
 
 		next = btrfs_find_create_tree_block(fs_info, bytenr,
@@ -2628,8 +2640,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 			path->slots[*level]++;
 			if (wc->free) {
-				ret = btrfs_read_extent_buffer(next, ptr_gen,
-							*level - 1, &first_key);
+				ret = btrfs_read_extent_buffer(next, &check);
 				if (ret) {
 					free_extent_buffer(next);
 					return ret;
@@ -2657,7 +2668,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 			free_extent_buffer(next);
 			continue;
 		}
-		ret = btrfs_read_extent_buffer(next, ptr_gen, *level - 1, &first_key);
+		ret = btrfs_read_extent_buffer(next, &check);
 		if (ret) {
 			free_extent_buffer(next);
 			return ret;

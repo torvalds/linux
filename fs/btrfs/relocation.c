@@ -2610,10 +2610,14 @@ static int tree_block_processed(u64 bytenr, struct reloc_control *rc)
 static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 			      struct tree_block *block)
 {
+	struct btrfs_tree_parent_check check = {
+		.level = block->level,
+		.owner_root = block->owner,
+		.transid = block->key.offset
+	};
 	struct extent_buffer *eb;
 
-	eb = read_tree_block(fs_info, block->bytenr, block->owner,
-			     block->key.offset, block->level, NULL);
+	eb = read_tree_block(fs_info, block->bytenr, &check);
 	if (IS_ERR(eb))
 		return PTR_ERR(eb);
 	if (!extent_buffer_uptodate(eb)) {
@@ -3426,9 +3430,10 @@ int add_data_references(struct reloc_control *rc,
 
 	ULIST_ITER_INIT(&leaf_uiter);
 	while ((ref_node = ulist_next(ctx.refs, &leaf_uiter))) {
+		struct btrfs_tree_parent_check check = { 0 };
 		struct extent_buffer *eb;
 
-		eb = read_tree_block(ctx.fs_info, ref_node->val, 0, 0, 0, NULL);
+		eb = read_tree_block(ctx.fs_info, ref_node->val, &check);
 		if (IS_ERR(eb)) {
 			ret = PTR_ERR(eb);
 			break;

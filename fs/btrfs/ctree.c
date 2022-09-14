@@ -857,19 +857,22 @@ struct extent_buffer *btrfs_read_node_slot(struct extent_buffer *parent,
 					   int slot)
 {
 	int level = btrfs_header_level(parent);
+	struct btrfs_tree_parent_check check = { 0 };
 	struct extent_buffer *eb;
-	struct btrfs_key first_key;
 
 	if (slot < 0 || slot >= btrfs_header_nritems(parent))
 		return ERR_PTR(-ENOENT);
 
 	BUG_ON(level == 0);
 
-	btrfs_node_key_to_cpu(parent, &first_key, slot);
+	check.level = level - 1;
+	check.transid = btrfs_node_ptr_generation(parent, slot);
+	check.owner_root = btrfs_header_owner(parent);
+	check.has_first_key = true;
+	btrfs_node_key_to_cpu(parent, &check.first_key, slot);
+
 	eb = read_tree_block(parent->fs_info, btrfs_node_blockptr(parent, slot),
-			     btrfs_header_owner(parent),
-			     btrfs_node_ptr_generation(parent, slot),
-			     level - 1, &first_key);
+			     &check);
 	if (IS_ERR(eb))
 		return eb;
 	if (!extent_buffer_uptodate(eb)) {
@@ -1428,10 +1431,10 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 		      const struct btrfs_key *key)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_tree_parent_check check = { 0 };
 	u64 blocknr;
 	u64 gen;
 	struct extent_buffer *tmp;
-	struct btrfs_key first_key;
 	int ret;
 	int parent_level;
 	bool unlock_up;
@@ -1440,7 +1443,11 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	blocknr = btrfs_node_blockptr(*eb_ret, slot);
 	gen = btrfs_node_ptr_generation(*eb_ret, slot);
 	parent_level = btrfs_header_level(*eb_ret);
-	btrfs_node_key_to_cpu(*eb_ret, &first_key, slot);
+	btrfs_node_key_to_cpu(*eb_ret, &check.first_key, slot);
+	check.has_first_key = true;
+	check.level = parent_level - 1;
+	check.transid = gen;
+	check.owner_root = root->root_key.objectid;
 
 	/*
 	 * If we need to read an extent buffer from disk and we are holding locks
@@ -1462,7 +1469,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			 * parents (shared tree blocks).
 			 */
 			if (btrfs_verify_level_key(tmp,
-					parent_level - 1, &first_key, gen)) {
+					parent_level - 1, &check.first_key, gen)) {
 				free_extent_buffer(tmp);
 				return -EUCLEAN;
 			}
@@ -1479,7 +1486,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			btrfs_unlock_up_safe(p, level + 1);
 
 		/* now we're allowed to do a blocking uptodate check */
-		ret = btrfs_read_extent_buffer(tmp, gen, parent_level - 1, &first_key);
+		ret = btrfs_read_extent_buffer(tmp, &check);
 		if (ret) {
 			free_extent_buffer(tmp);
 			btrfs_release_path(p);
@@ -1509,8 +1516,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	if (p->reada != READA_NONE)
 		reada_for_search(fs_info, p, level, slot, key->objectid);
 
-	tmp = read_tree_block(fs_info, blocknr, root->root_key.objectid,
-			      gen, parent_level - 1, &first_key);
+	tmp = read_tree_block(fs_info, blocknr, &check);
 	if (IS_ERR(tmp)) {
 		btrfs_release_path(p);
 		return PTR_ERR(tmp);

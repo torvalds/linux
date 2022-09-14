@@ -840,6 +840,8 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
 	struct rb_node *node;
 
 	while ((node = rb_first_cached(&tree->root))) {
+		struct btrfs_tree_parent_check check = { 0 };
+
 		ref = rb_entry(node, struct prelim_ref, rbnode);
 		rb_erase_cached(node, &tree->root);
 
@@ -847,8 +849,10 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
 		BUG_ON(ref->key_for_search.type);
 		BUG_ON(!ref->wanted_disk_byte);
 
-		eb = read_tree_block(fs_info, ref->wanted_disk_byte,
-				     ref->root_id, 0, ref->level - 1, NULL);
+		check.level = ref->level - 1;
+		check.owner_root = ref->root_id;
+
+		eb = read_tree_block(fs_info, ref->wanted_disk_byte, &check);
 		if (IS_ERR(eb)) {
 			free_pref(ref);
 			return PTR_ERR(eb);
@@ -1591,10 +1595,13 @@ again:
 		if (ref->count && ref->parent) {
 			if (!ctx->ignore_extent_item_pos && !ref->inode_list &&
 			    ref->level == 0) {
+				struct btrfs_tree_parent_check check = { 0 };
 				struct extent_buffer *eb;
 
-				eb = read_tree_block(ctx->fs_info, ref->parent, 0,
-						     0, ref->level, NULL);
+				check.level = ref->level;
+
+				eb = read_tree_block(ctx->fs_info, ref->parent,
+						     &check);
 				if (IS_ERR(eb)) {
 					ret = PTR_ERR(eb);
 					goto out;

@@ -259,13 +259,11 @@ int btrfs_verify_level_key(struct extent_buffer *eb, int level,
  * helper to read a given tree block, doing retries as required when
  * the checksums don't match and we have alternate mirrors to try.
  *
- * @parent_transid:	expected transid, skip check if 0
- * @level:		expected level, mandatory check
- * @first_key:		expected key of first slot, skip check if NULL
+ * @check:		expected tree parentness check, see the comments of the
+ *			structure for details.
  */
 int btrfs_read_extent_buffer(struct extent_buffer *eb,
-			     u64 parent_transid, int level,
-			     struct btrfs_key *first_key)
+			     struct btrfs_tree_parent_check *check)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct extent_io_tree *io_tree;
@@ -275,16 +273,19 @@ int btrfs_read_extent_buffer(struct extent_buffer *eb,
 	int mirror_num = 0;
 	int failed_mirror = 0;
 
+	ASSERT(check);
+
 	io_tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	while (1) {
 		clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 		ret = read_extent_buffer_pages(eb, WAIT_COMPLETE, mirror_num);
 		if (!ret) {
-			if (verify_parent_transid(io_tree, eb,
-						   parent_transid, 0))
+			if (verify_parent_transid(io_tree, eb, check->transid, 0))
 				ret = -EIO;
-			else if (btrfs_verify_level_key(eb, level,
-						first_key, parent_transid))
+			else if (btrfs_verify_level_key(eb, check->level,
+						check->has_first_key ?
+						&check->first_key : NULL,
+						check->transid))
 				ret = -EUCLEAN;
 			else
 				break;
@@ -936,28 +937,28 @@ struct extent_buffer *btrfs_find_create_tree_block(
  * Read tree block at logical address @bytenr and do variant basic but critical
  * verification.
  *
- * @owner_root:		the objectid of the root owner for this block.
- * @parent_transid:	expected transid of this tree block, skip check if 0
- * @level:		expected level, mandatory check
- * @first_key:		expected key in slot 0, skip check if NULL
+ * @check:		expected tree parentness check, see comments of the
+ *			structure for details.
  */
 struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
-				      u64 owner_root, u64 parent_transid,
-				      int level, struct btrfs_key *first_key)
+				      struct btrfs_tree_parent_check *check)
 {
 	struct extent_buffer *buf = NULL;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(fs_info, bytenr, owner_root, level);
+	ASSERT(check);
+
+	buf = btrfs_find_create_tree_block(fs_info, bytenr, check->owner_root,
+					   check->level);
 	if (IS_ERR(buf))
 		return buf;
 
-	ret = btrfs_read_extent_buffer(buf, parent_transid, level, first_key);
+	ret = btrfs_read_extent_buffer(buf, check);
 	if (ret) {
 		free_extent_buffer_stale(buf);
 		return ERR_PTR(ret);
 	}
-	if (btrfs_check_eb_owner(buf, owner_root)) {
+	if (btrfs_check_eb_owner(buf, check->owner_root)) {
 		free_extent_buffer_stale(buf);
 		return ERR_PTR(-EUCLEAN);
 	}
@@ -1373,6 +1374,7 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 					      struct btrfs_key *key)
 {
 	struct btrfs_root *root;
+	struct btrfs_tree_parent_check check = { 0 };
 	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	u64 generation;
 	int ret;
@@ -1392,9 +1394,11 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 
 	generation = btrfs_root_generation(&root->root_item);
 	level = btrfs_root_level(&root->root_item);
-	root->node = read_tree_block(fs_info,
-				     btrfs_root_bytenr(&root->root_item),
-				     key->objectid, generation, level, NULL);
+	check.level = level;
+	check.transid = generation;
+	check.owner_root = key->objectid;
+	root->node = read_tree_block(fs_info, btrfs_root_bytenr(&root->root_item),
+				     &check);
 	if (IS_ERR(root->node)) {
 		ret = PTR_ERR(root->node);
 		root->node = NULL;
@@ -2367,6 +2371,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 			    struct btrfs_fs_devices *fs_devices)
 {
 	int ret;
+	struct btrfs_tree_parent_check check = { 0 };
 	struct btrfs_root *log_tree_root;
 	struct btrfs_super_block *disk_super = fs_info->super_copy;
 	u64 bytenr = btrfs_super_log_root(disk_super);
@@ -2382,10 +2387,10 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	if (!log_tree_root)
 		return -ENOMEM;
 
-	log_tree_root->node = read_tree_block(fs_info, bytenr,
-					      BTRFS_TREE_LOG_OBJECTID,
-					      fs_info->generation + 1, level,
-					      NULL);
+	check.level = level;
+	check.transid = fs_info->generation + 1;
+	check.owner_root = BTRFS_TREE_LOG_OBJECTID;
+	log_tree_root->node = read_tree_block(fs_info, bytenr, &check);
 	if (IS_ERR(log_tree_root->node)) {
 		btrfs_warn(fs_info, "failed to read log tree");
 		ret = PTR_ERR(log_tree_root->node);
@@ -2863,10 +2868,14 @@ out:
 
 static int load_super_root(struct btrfs_root *root, u64 bytenr, u64 gen, int level)
 {
+	struct btrfs_tree_parent_check check = {
+		.level = level,
+		.transid = gen,
+		.owner_root = root->root_key.objectid
+	};
 	int ret = 0;
 
-	root->node = read_tree_block(root->fs_info, bytenr,
-				     root->root_key.objectid, gen, level, NULL);
+	root->node = read_tree_block(root->fs_info, bytenr, &check);
 	if (IS_ERR(root->node)) {
 		ret = PTR_ERR(root->node);
 		root->node = NULL;
