@@ -368,6 +368,6 @@ int rtw_ack_tx_wait(struct xmit_priv *pxmitpriv, u32 timeout_ms);
 void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status);
 
 void rtw_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe);
-int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev);
+netdev_tx_t rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev);
 
 #endif	/* _RTL871X_XMIT_H_ */
