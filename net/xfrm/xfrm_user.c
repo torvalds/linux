@@ -741,7 +741,7 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 	/* sysctl_xfrm_aevent_etime is in 100ms units */
 	x->replay_maxage = (net->xfrm.sysctl_aevent_etime*HZ)/XFRM_AE_ETH_M;
 
-	if ((err = xfrm_init_replay(x)))
+	if ((err = xfrm_init_replay(x, extack)))
 		goto error;
 
 	/* override default values from above */
