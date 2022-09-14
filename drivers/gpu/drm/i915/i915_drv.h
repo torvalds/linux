@@ -51,7 +51,6 @@
 #include "display/intel_opregion.h"
 
 #include "gem/i915_gem_context_types.h"
-#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_shrinker.h"
 #include "gem/i915_gem_stolen.h"
 
@@ -1506,18 +1505,6 @@ static inline struct intel_device_info *
 mkwrite_device_info(struct drm_i915_private *dev_priv)
 {
 	return (struct intel_device_info *)INTEL_INFO(dev_priv);
-}
-
-static inline enum i915_map_type
-i915_coherent_map_type(struct drm_i915_private *i915,
-		       struct drm_i915_gem_object *obj, bool always_coherent)
-{
-	if (i915_gem_object_is_lmem(obj))
-		return I915_MAP_WC;
-	if (HAS_LLC(i915) || always_coherent)
-		return I915_MAP_WB;
-	else
-		return I915_MAP_WC;
 }
 
 #endif

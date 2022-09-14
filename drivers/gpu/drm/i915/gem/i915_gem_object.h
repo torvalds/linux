@@ -482,6 +482,10 @@ void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 void *__must_check i915_gem_object_pin_map_unlocked(struct drm_i915_gem_object *obj,
 						    enum i915_map_type type);
 
+enum i915_map_type i915_coherent_map_type(struct drm_i915_private *i915,
+					  struct drm_i915_gem_object *obj,
+					  bool always_coherent);
+
 void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
 				 unsigned long offset,
 				 unsigned long size);
