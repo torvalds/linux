@@ -3574,7 +3574,7 @@ static const struct qcom_cc_desc gcc_sdm845_desc = {
 };
 
 static const struct of_device_id gcc_sdm845_match_table[] = {
-	{ .compatible = "qcom,gcc-sdm845" },
+	{ .compatible = "qcom,gcc-sdm845", .data = &gcc_sdm845_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, gcc_sdm845_match_table);
@@ -3600,6 +3600,7 @@ static const struct clk_rcg_dfs_data gcc_dfs_clocks[] = {
 
 static int gcc_sdm845_probe(struct platform_device *pdev)
 {
+	const struct qcom_cc_desc *gcc_desc;
 	struct regmap *regmap;
 	int ret;
 
@@ -3616,7 +3617,8 @@ static int gcc_sdm845_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return qcom_cc_really_probe(pdev, &gcc_sdm845_desc, regmap);
+	gcc_desc = of_device_get_match_data(&pdev->dev);
+	return qcom_cc_really_probe(pdev, gcc_desc, regmap);
 }
 
 static struct platform_driver gcc_sdm845_driver = {
