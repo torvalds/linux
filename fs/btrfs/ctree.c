@@ -18,6 +18,8 @@
 #include "tree-mod-log.h"
 #include "tree-checker.h"
 
+static struct kmem_cache *btrfs_path_cachep;
+
 static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, int level);
 static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -4932,4 +4934,19 @@ int btrfs_previous_extent_item(struct btrfs_root *root,
 			break;
 	}
 	return 1;
+}
+
+int __init btrfs_ctree_init(void)
+{
+	btrfs_path_cachep = kmem_cache_create("btrfs_path",
+			sizeof(struct btrfs_path), 0,
+			SLAB_MEM_SPREAD, NULL);
+	if (!btrfs_path_cachep)
+		return -ENOMEM;
+	return 0;
+}
+
+void __cold btrfs_ctree_exit(void)
+{
+	kmem_cache_destroy(btrfs_path_cachep);
 }
