@@ -58,6 +58,7 @@
 							 RKMODULE_CAMERA_BT656_CHANNEL_3)
 
 #define DPHY_MAX_LANE					4
+#define RKMODULE_MULTI_DEV_NUM				4
 
 #define RKMODULE_GET_MODULE_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rkmodule_inf)
@@ -175,6 +176,12 @@
 
 #define RKMODULE_SET_GROUP_ID       \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 38, __u32)
+
+#define RKMODULE_GET_CAPTURE_MODE  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 39, struct rkmodule_capture_info)
+
+#define RKMODULE_SET_CAPTURE_MODE  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 40, struct rkmodule_capture_info)
 
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
@@ -764,6 +771,41 @@ struct rkmodule_sensor_fmt {
 
 struct rkmodule_sensor_infos {
 	struct rkmodule_sensor_fmt sensor_fmt[RKMODULE_MAX_SENSOR_NUM];
+};
+
+enum rkmodule_capture_mode {
+	RKMODULE_CAPTURE_MODE_NONE = 0,
+	RKMODULE_MULTI_DEV_COMBINE_ONE,
+	RKMODULE_ONE_CH_TO_MULTI_ISP,
+	RKMODULE_MULTI_CH_TO_MULTI_ISP,
+	RKMODULE_MULTI_CH_COMBINE_SQUARE,
+};
+
+struct rkmodule_multi_dev_info {
+	__u32 dev_idx[RKMODULE_MULTI_DEV_NUM];
+	__u32 combine_idx[RKMODULE_MULTI_DEV_NUM];
+	__u32 pixel_offset;
+	__u32 dev_num;
+	__u32 reserved[8];
+};
+
+struct rkmodule_one_to_multi_info {
+	__u32 isp_num;
+	__u32 frame_pattern[RKMODULE_MULTI_DEV_NUM];
+};
+
+struct rkmodule_multi_combine_info {
+	__u32 combine_num;
+	__u32 combine_index[RKMODULE_MULTI_DEV_NUM];
+};
+
+struct rkmodule_capture_info {
+	__u32 mode;
+	union {
+		struct rkmodule_multi_dev_info multi_dev;
+		struct rkmodule_one_to_multi_info one_to_multi;
+		struct rkmodule_multi_combine_info multi_combine_info;
+	};
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
