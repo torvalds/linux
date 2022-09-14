@@ -916,27 +916,6 @@ config CRYPTO_BLAKE2B
 
 	  See https://blake2.net for further information.
 
- config CRYPTO_BLAKE2S
-	tristate "BLAKE2s"
-        select CRYPTO_LIB_BLAKE2S_GENERIC
-        select CRYPTO_HASH
-        help
-	  BLAKE2s cryptographic hash function (RFC 7693)
-
-	  BLAKE2s is optimized for 8 to 32-bit platforms and can produce
-	  digests of any size between 1 and 32 bytes. The keyed hash is
-	  also implemented.
-
-	  This module provides the following algorithms:
-          - blake2s-128
-          - blake2s-160
-          - blake2s-224
-          - blake2s-256
-
-	  Used by Wireguard.
-
-          See https://blake2.net for further information.
-
 config CRYPTO_CMAC
 	tristate "CMAC (Cipher-based MAC)"
 	select CRYPTO_HASH
