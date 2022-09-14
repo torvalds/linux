@@ -366,7 +366,7 @@ out:
 
 static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 			   struct xfrm_algo_desc *(*get_byname)(const char *, int),
-			   struct nlattr *rta)
+			   struct nlattr *rta, struct netlink_ext_ack *extack)
 {
 	struct xfrm_algo *p, *ualg;
 	struct xfrm_algo_desc *algo;
@@ -377,8 +377,10 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	ualg = nla_data(rta);
 
 	algo = get_byname(ualg->alg_name, 1);
-	if (!algo)
+	if (!algo) {
+		NL_SET_ERR_MSG(extack, "Requested COMP algorithm not found");
 		return -ENOSYS;
+	}
 	*props = algo->desc.sadb_alg_id;
 
 	p = kmemdup(ualg, xfrm_alg_len(ualg), GFP_KERNEL);
@@ -390,7 +392,8 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	return 0;
 }
 
-static int attach_crypt(struct xfrm_state *x, struct nlattr *rta)
+static int attach_crypt(struct xfrm_state *x, struct nlattr *rta,
+			struct netlink_ext_ack *extack)
 {
 	struct xfrm_algo *p, *ualg;
 	struct xfrm_algo_desc *algo;
@@ -401,8 +404,10 @@ static int attach_crypt(struct xfrm_state *x, struct nlattr *rta)
 	ualg = nla_data(rta);
 
 	algo = xfrm_ealg_get_byname(ualg->alg_name, 1);
-	if (!algo)
+	if (!algo) {
+		NL_SET_ERR_MSG(extack, "Requested CRYPT algorithm not found");
 		return -ENOSYS;
+	}
 	x->props.ealgo = algo->desc.sadb_alg_id;
 
 	p = kmemdup(ualg, xfrm_alg_len(ualg), GFP_KERNEL);
@@ -416,7 +421,7 @@ static int attach_crypt(struct xfrm_state *x, struct nlattr *rta)
 }
 
 static int attach_auth(struct xfrm_algo_auth **algpp, u8 *props,
-		       struct nlattr *rta)
+		       struct nlattr *rta, struct netlink_ext_ack *extack)
 {
 	struct xfrm_algo *ualg;
 	struct xfrm_algo_auth *p;
@@ -428,8 +433,10 @@ static int attach_auth(struct xfrm_algo_auth **algpp, u8 *props,
 	ualg = nla_data(rta);
 
 	algo = xfrm_aalg_get_byname(ualg->alg_name, 1);
-	if (!algo)
+	if (!algo) {
+		NL_SET_ERR_MSG(extack, "Requested AUTH algorithm not found");
 		return -ENOSYS;
+	}
 	*props = algo->desc.sadb_alg_id;
 
 	p = kmalloc(sizeof(*p) + (ualg->alg_key_len + 7) / 8, GFP_KERNEL);
@@ -446,7 +453,7 @@ static int attach_auth(struct xfrm_algo_auth **algpp, u8 *props,
 }
 
 static int attach_auth_trunc(struct xfrm_algo_auth **algpp, u8 *props,
-			     struct nlattr *rta)
+			     struct nlattr *rta, struct netlink_ext_ack *extack)
 {
 	struct xfrm_algo_auth *p, *ualg;
 	struct xfrm_algo_desc *algo;
@@ -457,10 +464,14 @@ static int attach_auth_trunc(struct xfrm_algo_auth **algpp, u8 *props,
 	ualg = nla_data(rta);
 
 	algo = xfrm_aalg_get_byname(ualg->alg_name, 1);
-	if (!algo)
+	if (!algo) {
+		NL_SET_ERR_MSG(extack, "Requested AUTH_TRUNC algorithm not found");
 		return -ENOSYS;
-	if (ualg->alg_trunc_len > algo->uinfo.auth.icv_fullbits)
+	}
+	if (ualg->alg_trunc_len > algo->uinfo.auth.icv_fullbits) {
+		NL_SET_ERR_MSG(extack, "Invalid length requested for truncated ICV");
 		return -EINVAL;
+	}
 	*props = algo->desc.sadb_alg_id;
 
 	p = kmemdup(ualg, xfrm_alg_auth_len(ualg), GFP_KERNEL);
@@ -475,7 +486,8 @@ static int attach_auth_trunc(struct xfrm_algo_auth **algpp, u8 *props,
 	return 0;
 }
 
-static int attach_aead(struct xfrm_state *x, struct nlattr *rta)
+static int attach_aead(struct xfrm_state *x, struct nlattr *rta,
+		       struct netlink_ext_ack *extack)
 {
 	struct xfrm_algo_aead *p, *ualg;
 	struct xfrm_algo_desc *algo;
@@ -486,8 +498,10 @@ static int attach_aead(struct xfrm_state *x, struct nlattr *rta)
 	ualg = nla_data(rta);
 
 	algo = xfrm_aead_get_byname(ualg->alg_name, ualg->alg_icv_len, 1);
-	if (!algo)
+	if (!algo) {
+		NL_SET_ERR_MSG(extack, "Requested AEAD algorithm not found");
 		return -ENOSYS;
+	}
 	x->props.ealgo = algo->desc.sadb_alg_id;
 
 	p = kmemdup(ualg, aead_len(ualg), GFP_KERNEL);
@@ -680,21 +694,21 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 	if (attrs[XFRMA_SA_EXTRA_FLAGS])
 		x->props.extra_flags = nla_get_u32(attrs[XFRMA_SA_EXTRA_FLAGS]);
 
-	if ((err = attach_aead(x, attrs[XFRMA_ALG_AEAD])))
+	if ((err = attach_aead(x, attrs[XFRMA_ALG_AEAD], extack)))
 		goto error;
 	if ((err = attach_auth_trunc(&x->aalg, &x->props.aalgo,
-				     attrs[XFRMA_ALG_AUTH_TRUNC])))
+				     attrs[XFRMA_ALG_AUTH_TRUNC], extack)))
 		goto error;
 	if (!x->props.aalgo) {
 		if ((err = attach_auth(&x->aalg, &x->props.aalgo,
-				       attrs[XFRMA_ALG_AUTH])))
+				       attrs[XFRMA_ALG_AUTH], extack)))
 			goto error;
 	}
-	if ((err = attach_crypt(x, attrs[XFRMA_ALG_CRYPT])))
+	if ((err = attach_crypt(x, attrs[XFRMA_ALG_CRYPT], extack)))
 		goto error;
 	if ((err = attach_one_algo(&x->calg, &x->props.calgo,
 				   xfrm_calg_get_byname,
-				   attrs[XFRMA_ALG_COMP])))
+				   attrs[XFRMA_ALG_COMP], extack)))
 		goto error;
 
 	if (attrs[XFRMA_TFCPAD])
