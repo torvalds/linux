@@ -191,8 +191,6 @@ static int emc2305_set_cur_state(struct thermal_cooling_device *cdev, unsigned l
 	state = max_t(unsigned long, state, data->cdev_data[cdev_idx].last_hwmon_state);
 
 	val = EMC2305_PWM_STATE2DUTY(state, data->max_state, EMC2305_FAN_MAX);
-	if (val > EMC2305_FAN_MAX)
-		return -EINVAL;
 
 	data->cdev_data[cdev_idx].cur_state = state;
 	if (data->pwm_separate) {
