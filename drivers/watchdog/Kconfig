@@ -1089,6 +1089,17 @@ config EBC_C384_WDT
 	  WinSystems EBC-C384 motherboard. The timeout may be configured via
 	  the timeout module parameter.
 
+config EXAR_WDT
+	tristate "Exar Watchdog Timer"
+	depends on X86
+	select WATCHDOG_CORE
+	help
+	  Enables watchdog timer support for the watchdog timer present
+	  in some Exar/MaxLinear UART chips like the XR28V38x.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exar_wdt.
+
 config F71808E_WDT
 	tristate "Fintek F718xx, F818xx Super I/O Watchdog"
 	depends on X86
