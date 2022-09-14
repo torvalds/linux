@@ -4170,7 +4170,7 @@ device_create_groups_vargs(struct class *class, struct device *parent,
 	struct device *dev = NULL;
 	int retval = -ENODEV;
 
-	if (class == NULL || IS_ERR(class))
+	if (IS_ERR_OR_NULL(class))
 		goto error;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
