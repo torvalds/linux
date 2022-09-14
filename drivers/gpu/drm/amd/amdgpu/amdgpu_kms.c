@@ -247,6 +247,14 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->gfx.rlc_srls_fw_version;
 		fw_info->feature = adev->gfx.rlc_srls_feature_version;
 		break;
+	case AMDGPU_INFO_FW_GFX_RLCP:
+		fw_info->ver = adev->gfx.rlcp_ucode_version;
+		fw_info->feature = adev->gfx.rlcp_ucode_feature_version;
+		break;
+	case AMDGPU_INFO_FW_GFX_RLCV:
+		fw_info->ver = adev->gfx.rlcv_ucode_version;
+		fw_info->feature = adev->gfx.rlcv_ucode_feature_version;
+		break;
 	case AMDGPU_INFO_FW_GFX_MEC:
 		if (query_fw->index == 0) {
 			fw_info->ver = adev->gfx.mec_fw_version;
@@ -1467,6 +1475,22 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 	seq_printf(m, "RLC SRLS feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLCP */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLCP;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLCP feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLCV */
+        query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLCV;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLCV feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
 
 	/* MEC */
