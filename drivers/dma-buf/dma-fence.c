@@ -508,6 +508,8 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 
 	__dma_fence_might_wait();
 
+	dma_fence_enable_sw_signaling(fence);
+
 	trace_dma_fence_wait_start(fence);
 	if (fence->ops->wait)
 		ret = fence->ops->wait(fence, intr, timeout);
@@ -770,9 +772,6 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 		ret = -ERESTARTSYS;
 		goto out;
 	}
-
-	if (!__dma_fence_enable_signaling(fence))
-		goto out;
 
 	if (!timeout) {
 		ret = 0;
