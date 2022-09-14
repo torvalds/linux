@@ -10,6 +10,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mfd/syscon.h>
@@ -45,6 +46,11 @@
 #define PARF_ATU_BASE_ADDR			0x634
 #define PARF_ATU_BASE_ADDR_HI			0x638
 #define PARF_SRIS_MODE				0x644
+#define PARF_DEBUG_CNT_PM_LINKST_IN_L2		0xc04
+#define PARF_DEBUG_CNT_PM_LINKST_IN_L1		0xc0c
+#define PARF_DEBUG_CNT_PM_LINKST_IN_L0S		0xc10
+#define PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L1	0xc84
+#define PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L2	0xc88
 #define PARF_DEVICE_TYPE			0x1000
 #define PARF_BDF_TO_SID_CFG			0x2c00
 
@@ -135,12 +141,14 @@ enum qcom_pcie_ep_link_status {
  * @pci: Designware PCIe controller struct
  * @parf: Qualcomm PCIe specific PARF register base
  * @elbi: Designware PCIe specific ELBI register base
+ * @mmio: MMIO register base
  * @perst_map: PERST regmap
  * @mmio_res: MMIO region resource
  * @core_reset: PCIe Endpoint core reset
  * @reset: PERST# GPIO
  * @wake: WAKE# GPIO
  * @phy: PHY controller block
+ * @debugfs: PCIe Endpoint Debugfs directory
  * @clks: PCIe clocks
  * @num_clks: PCIe clocks count
  * @perst_en: Flag for PERST enable
@@ -154,6 +162,7 @@ struct qcom_pcie_ep {
 
 	void __iomem *parf;
 	void __iomem *elbi;
+	void __iomem *mmio;
 	struct regmap *perst_map;
 	struct resource *mmio_res;
 
@@ -161,6 +170,7 @@ struct qcom_pcie_ep {
 	struct gpio_desc *reset;
 	struct gpio_desc *wake;
 	struct phy *phy;
+	struct dentry *debugfs;
 
 	struct clk_bulk_data *clks;
 	int num_clks;
@@ -446,6 +456,9 @@ static int qcom_pcie_ep_get_io_resources(struct platform_device *pdev,
 
 	pcie_ep->mmio_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 							 "mmio");
+	pcie_ep->mmio = devm_pci_remap_cfg_resource(dev, pcie_ep->mmio_res);
+	if (IS_ERR(pcie_ep->mmio))
+		return PTR_ERR(pcie_ep->mmio);
 
 	syscon = of_parse_phandle(dev->of_node, "qcom,perst-regs", 0);
 	if (!syscon) {
@@ -627,6 +640,37 @@ static int qcom_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 	}
 }
 
+static int qcom_pcie_ep_link_transition_count(struct seq_file *s, void *data)
+{
+	struct qcom_pcie_ep *pcie_ep = (struct qcom_pcie_ep *)
+				     dev_get_drvdata(s->private);
+
+	seq_printf(s, "L0s transition count: %u\n",
+		   readl_relaxed(pcie_ep->mmio + PARF_DEBUG_CNT_PM_LINKST_IN_L0S));
+
+	seq_printf(s, "L1 transition count: %u\n",
+		   readl_relaxed(pcie_ep->mmio + PARF_DEBUG_CNT_PM_LINKST_IN_L1));
+
+	seq_printf(s, "L1.1 transition count: %u\n",
+		   readl_relaxed(pcie_ep->mmio + PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L1));
+
+	seq_printf(s, "L1.2 transition count: %u\n",
+		   readl_relaxed(pcie_ep->mmio + PARF_DEBUG_CNT_AUX_CLK_IN_L1SUB_L2));
+
+	seq_printf(s, "L2 transition count: %u\n",
+		   readl_relaxed(pcie_ep->mmio + PARF_DEBUG_CNT_PM_LINKST_IN_L2));
+
+	return 0;
+}
+
+static void qcom_pcie_ep_init_debugfs(struct qcom_pcie_ep *pcie_ep)
+{
+	struct dw_pcie *pci = &pcie_ep->pci;
+
+	debugfs_create_devm_seqfile(pci->dev, "link_transition_count", pcie_ep->debugfs,
+				    qcom_pcie_ep_link_transition_count);
+}
+
 static const struct pci_epc_features qcom_pcie_epc_features = {
 	.linkup_notifier = true,
 	.core_init_notifier = true,
@@ -659,6 +703,7 @@ static int qcom_pcie_ep_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct qcom_pcie_ep *pcie_ep;
+	char *name;
 	int ret;
 
 	pcie_ep = devm_kzalloc(dev, sizeof(*pcie_ep), GFP_KERNEL);
@@ -690,7 +735,20 @@ static int qcom_pcie_ep_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_disable_resources;
 
+	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
+	if (!name) {
+		ret = -ENOMEM;
+		goto err_disable_irqs;
+	}
+
+	pcie_ep->debugfs = debugfs_create_dir(name, NULL);
+	qcom_pcie_ep_init_debugfs(pcie_ep);
+
 	return 0;
+
+err_disable_irqs:
+	disable_irq(pcie_ep->global_irq);
+	disable_irq(pcie_ep->perst_irq);
 
 err_disable_resources:
 	qcom_pcie_disable_resources(pcie_ep);
@@ -704,6 +762,8 @@ static int qcom_pcie_ep_remove(struct platform_device *pdev)
 
 	disable_irq(pcie_ep->global_irq);
 	disable_irq(pcie_ep->perst_irq);
+
+	debugfs_remove_recursive(pcie_ep->debugfs);
 
 	if (pcie_ep->link_status == QCOM_PCIE_EP_LINK_DISABLED)
 		return 0;
