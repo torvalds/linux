@@ -774,6 +774,16 @@ static int sdw_program_device_num(struct sdw_bus *bus)
 				found = true;
 
 				/*
+				 * To prevent skipping state-machine stages don't
+				 * program a device until we've seen it UNATTACH.
+				 * Must return here because no other device on #0
+				 * can be detected until this one has been
+				 * assigned a device ID.
+				 */
+				if (slave->status != SDW_SLAVE_UNATTACHED)
+					return 0;
+
+				/*
 				 * Assign a new dev_num to this Slave and
 				 * not mark it present. It will be marked
 				 * present after it reports ATTACHED on new
