@@ -14,6 +14,7 @@
 #include "qgroup.h"
 #include "locking.h"
 #include "inode-item.h"
+#include "space-info.h"
 
 #define BTRFS_DELAYED_WRITEBACK		512
 #define BTRFS_DELAYED_BACKGROUND	128

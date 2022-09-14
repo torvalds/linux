@@ -27,6 +27,7 @@
 #include "subpage.h"
 #include "zoned.h"
 #include "inode-item.h"
+#include "space-info.h"
 
 /*
  * Relocation overview

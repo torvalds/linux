@@ -5,6 +5,65 @@
 
 #include "volumes.h"
 
+/*
+ * Different levels for to flush space when doing space reservations.
+ *
+ * The higher the level, the more methods we try to reclaim space.
+ */
+enum btrfs_reserve_flush_enum {
+	/* If we are in the transaction, we can't flush anything.*/
+	BTRFS_RESERVE_NO_FLUSH,
+
+	/*
+	 * Flush space by:
+	 * - Running delayed inode items
+	 * - Allocating a new chunk
+	 */
+	BTRFS_RESERVE_FLUSH_LIMIT,
+
+	/*
+	 * Flush space by:
+	 * - Running delayed inode items
+	 * - Running delayed refs
+	 * - Running delalloc and waiting for ordered extents
+	 * - Allocating a new chunk
+	 */
+	BTRFS_RESERVE_FLUSH_EVICT,
+
+	/*
+	 * Flush space by above mentioned methods and by:
+	 * - Running delayed iputs
+	 * - Committing transaction
+	 *
+	 * Can be interrupted by a fatal signal.
+	 */
+	BTRFS_RESERVE_FLUSH_DATA,
+	BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE,
+	BTRFS_RESERVE_FLUSH_ALL,
+
+	/*
+	 * Pretty much the same as FLUSH_ALL, but can also steal space from
+	 * global rsv.
+	 *
+	 * Can be interrupted by a fatal signal.
+	 */
+	BTRFS_RESERVE_FLUSH_ALL_STEAL,
+};
+
+enum btrfs_flush_state {
+	FLUSH_DELAYED_ITEMS_NR	= 1,
+	FLUSH_DELAYED_ITEMS	= 2,
+	FLUSH_DELAYED_REFS_NR	= 3,
+	FLUSH_DELAYED_REFS	= 4,
+	FLUSH_DELALLOC		= 5,
+	FLUSH_DELALLOC_WAIT	= 6,
+	FLUSH_DELALLOC_FULL	= 7,
+	ALLOC_CHUNK		= 8,
+	ALLOC_CHUNK_FORCE	= 9,
+	RUN_DELAYED_IPUTS	= 10,
+	COMMIT_TRANS		= 11,
+};
+
 struct btrfs_space_info {
 	spinlock_t lock;
 
