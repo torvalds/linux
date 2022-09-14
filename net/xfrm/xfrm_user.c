@@ -652,7 +652,8 @@ static void xfrm_smark_init(struct nlattr **attrs, struct xfrm_mark *m)
 static struct xfrm_state *xfrm_state_construct(struct net *net,
 					       struct xfrm_usersa_info *p,
 					       struct nlattr **attrs,
-					       int *errp)
+					       int *errp,
+					       struct netlink_ext_ack *extack)
 {
 	struct xfrm_state *x = xfrm_state_alloc(net);
 	int err = -ENOMEM;
@@ -735,7 +736,8 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 	/* configure the hardware if offload is requested */
 	if (attrs[XFRMA_OFFLOAD_DEV]) {
 		err = xfrm_dev_state_add(net, x,
-					 nla_data(attrs[XFRMA_OFFLOAD_DEV]));
+					 nla_data(attrs[XFRMA_OFFLOAD_DEV]),
+					 extack);
 		if (err)
 			goto error;
 	}
@@ -763,7 +765,7 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		return err;
 
-	x = xfrm_state_construct(net, p, attrs, &err);
+	x = xfrm_state_construct(net, p, attrs, &err, extack);
 	if (!x)
 		return err;
 

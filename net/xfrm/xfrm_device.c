@@ -207,7 +207,8 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 EXPORT_SYMBOL_GPL(validate_xmit_xfrm);
 
 int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
-		       struct xfrm_user_offload *xuo)
+		       struct xfrm_user_offload *xuo,
+		       struct netlink_ext_ack *extack)
 {
 	int err;
 	struct dst_entry *dst;
@@ -216,15 +217,21 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 	xfrm_address_t *saddr;
 	xfrm_address_t *daddr;
 
-	if (!x->type_offload)
+	if (!x->type_offload) {
+		NL_SET_ERR_MSG(extack, "Type doesn't support offload");
 		return -EINVAL;
+	}
 
 	/* We don't yet support UDP encapsulation and TFC padding. */
-	if (x->encap || x->tfcpad)
+	if (x->encap || x->tfcpad) {
+		NL_SET_ERR_MSG(extack, "Encapsulation and TFC padding can't be offloaded");
 		return -EINVAL;
+	}
 
-	if (xuo->flags & ~(XFRM_OFFLOAD_IPV6 | XFRM_OFFLOAD_INBOUND))
+	if (xuo->flags & ~(XFRM_OFFLOAD_IPV6 | XFRM_OFFLOAD_INBOUND)) {
+		NL_SET_ERR_MSG(extack, "Unrecognized flags in offload request");
 		return -EINVAL;
+	}
 
 	dev = dev_get_by_index(net, xuo->ifindex);
 	if (!dev) {
@@ -256,6 +263,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 
 	if (x->props.flags & XFRM_STATE_ESN &&
 	    !dev->xfrmdev_ops->xdo_dev_state_advance_esn) {
+		NL_SET_ERR_MSG(extack, "Device doesn't support offload with ESN");
 		xso->dev = NULL;
 		dev_put(dev);
 		return -EINVAL;
@@ -277,8 +285,10 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		xso->real_dev = NULL;
 		netdev_put(dev, &xso->dev_tracker);
 
-		if (err != -EOPNOTSUPP)
+		if (err != -EOPNOTSUPP) {
+			NL_SET_ERR_MSG(extack, "Device failed to offload this state");
 			return err;
+		}
 	}
 
 	return 0;
