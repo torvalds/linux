@@ -40,6 +40,7 @@ properties:
   resets:
     items:
       - description: phandle to the clk reset
+      - description: phandle to the pbus reset
       - description: phandle to the c0 reset
       - description: phandle to the c1 reset
       - description: phandle to the c2 reset
@@ -47,6 +48,7 @@ properties:
   reset-names:
     items:
       - const: clk
+      - const: pbus
       - const: c0
       - const: c1
       - const: c2
@@ -86,10 +88,11 @@ examples:
         clock-names = "core", "iface";
 
         resets = <&gcc ADM0_RESET>,
+                  <&gcc ADM0_PBUS_RESET>,
                   <&gcc ADM0_C0_RESET>,
                   <&gcc ADM0_C1_RESET>,
                   <&gcc ADM0_C2_RESET>;
-        reset-names = "clk", "c0", "c1", "c2";
+        reset-names = "clk", "pbus", "c0", "c1", "c2";
         qcom,ee = <0>;
     };
 
