@@ -24,6 +24,8 @@
 #include "space-info.h"
 #include "zoned.h"
 
+static struct kmem_cache *btrfs_trans_handle_cachep;
+
 #define BTRFS_ROOT_TRANS_TAG 0
 
 /*
@@ -2599,4 +2601,19 @@ void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
 	if (prev)
 		btrfs_warn(fs_info,
 			"unknown pending changes left 0x%lx, ignoring", prev);
+}
+
+int __init btrfs_transaction_init(void)
+{
+	btrfs_trans_handle_cachep = kmem_cache_create("btrfs_trans_handle",
+			sizeof(struct btrfs_trans_handle), 0,
+			SLAB_TEMPORARY | SLAB_MEM_SPREAD, NULL);
+	if (!btrfs_trans_handle_cachep)
+		return -ENOMEM;
+	return 0;
+}
+
+void __cold btrfs_transaction_exit(void)
+{
+	kmem_cache_destroy(btrfs_trans_handle_cachep);
 }

@@ -2739,9 +2739,13 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_compress;
 
-	err = extent_state_init_cachep();
+	err = btrfs_transaction_init();
 	if (err)
 		goto free_cachep;
+
+	err = extent_state_init_cachep();
+	if (err)
+		goto free_transaction;
 
 	err = extent_buffer_init_cachep();
 	if (err)
@@ -2811,6 +2815,8 @@ free_eb_cachep:
 	extent_buffer_free_cachep();
 free_extent_cachep:
 	extent_state_free_cachep();
+free_transaction:
+	btrfs_transaction_exit();
 free_cachep:
 	btrfs_destroy_cachep();
 free_compress:
@@ -2822,6 +2828,7 @@ free_compress:
 
 static void __exit exit_btrfs_fs(void)
 {
+	btrfs_transaction_exit();
 	btrfs_destroy_cachep();
 	btrfs_delayed_ref_exit();
 	btrfs_auto_defrag_exit();
