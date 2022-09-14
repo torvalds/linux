@@ -1386,23 +1386,6 @@ static int aspeed_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	((I3C_PID_PART_ID(x) & PID_PART_ID_AST1030_A0) ==                      \
 	 PID_PART_ID_AST1030_A0)
 
-static int aspeed_i3c_master_extend_ibi_payload(struct i3c_master_controller *m,
-						struct i3c_dev_desc *i3cdev)
-{
-	u64 pid;
-	int ret = 0;
-
-	pid = i3cdev->info.pid;
-	if (IS_MANUF_ID_ASPEED(pid) &&
-	    (IS_PART_ID_AST2600_SERIES(pid) || IS_PART_ID_AST1030_A0(pid))) {
-		ret = i3c_master_setmrl_locked(
-			m, &i3cdev->info, CONFIG_AST2600_I3C_MRL,
-			CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD);
-	}
-
-	return ret;
-}
-
 static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
@@ -2044,8 +2027,6 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	/* Dat will be synchronized before sending the CCC */
 	ret = i3c_master_enec_locked(m, dev->info.dyn_addr,
 				     I3C_CCC_EVENT_SIR);
-
-	aspeed_i3c_master_extend_ibi_payload(m, dev);
 
 	if (ret) {
 		spin_lock_irqsave(&master->ibi.lock, flags);
