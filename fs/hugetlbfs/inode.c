@@ -434,6 +434,7 @@ static void hugetlb_unmap_file_folio(struct hstate *h,
 					struct folio *folio, pgoff_t index)
 {
 	struct rb_root_cached *root = &mapping->i_mmap;
+	struct hugetlb_vma_lock *vma_lock;
 	struct page *page = &folio->page;
 	struct vm_area_struct *vma;
 	unsigned long v_start;
@@ -444,7 +445,8 @@ static void hugetlb_unmap_file_folio(struct hstate *h,
 	end = (index + 1) * pages_per_huge_page(h);
 
 	i_mmap_lock_write(mapping);
-
+retry:
+	vma_lock = NULL;
 	vma_interval_tree_foreach(vma, root, start, end - 1) {
 		v_start = vma_offset_start(vma, start);
 		v_end = vma_offset_end(vma, end);
@@ -452,11 +454,63 @@ static void hugetlb_unmap_file_folio(struct hstate *h,
 		if (!hugetlb_vma_maps_page(vma, vma->vm_start + v_start, page))
 			continue;
 
+		if (!hugetlb_vma_trylock_write(vma)) {
+			vma_lock = vma->vm_private_data;
+			/*
+			 * If we can not get vma lock, we need to drop
+			 * immap_sema and take locks in order.  First,
+			 * take a ref on the vma_lock structure so that
+			 * we can be guaranteed it will not go away when
+			 * dropping immap_sema.
+			 */
+			kref_get(&vma_lock->refs);
+			break;
+		}
+
 		unmap_hugepage_range(vma, vma->vm_start + v_start, v_end,
 				NULL, ZAP_FLAG_DROP_MARKER);
+		hugetlb_vma_unlock_write(vma);
 	}
 
 	i_mmap_unlock_write(mapping);
+
+	if (vma_lock) {
+		/*
+		 * Wait on vma_lock.  We know it is still valid as we have
+		 * a reference.  We must 'open code' vma locking as we do
+		 * not know if vma_lock is still attached to vma.
+		 */
+		down_write(&vma_lock->rw_sema);
+		i_mmap_lock_write(mapping);
+
+		vma = vma_lock->vma;
+		if (!vma) {
+			/*
+			 * If lock is no longer attached to vma, then just
+			 * unlock, drop our reference and retry looking for
+			 * other vmas.
+			 */
+			up_write(&vma_lock->rw_sema);
+			kref_put(&vma_lock->refs, hugetlb_vma_lock_release);
+			goto retry;
+		}
+
+		/*
+		 * vma_lock is still attached to vma.  Check to see if vma
+		 * still maps page and if so, unmap.
+		 */
+		v_start = vma_offset_start(vma, start);
+		v_end = vma_offset_end(vma, end);
+		if (hugetlb_vma_maps_page(vma, vma->vm_start + v_start, page))
+			unmap_hugepage_range(vma, vma->vm_start + v_start,
+						v_end, NULL,
+						ZAP_FLAG_DROP_MARKER);
+
+		kref_put(&vma_lock->refs, hugetlb_vma_lock_release);
+		hugetlb_vma_unlock_write(vma);
+
+		goto retry;
+	}
 }
 
 static void
@@ -474,11 +528,21 @@ hugetlb_vmdelete_list(struct rb_root_cached *root, pgoff_t start, pgoff_t end,
 		unsigned long v_start;
 		unsigned long v_end;
 
+		if (!hugetlb_vma_trylock_write(vma))
+			continue;
+
 		v_start = vma_offset_start(vma, start);
 		v_end = vma_offset_end(vma, end);
 
 		unmap_hugepage_range(vma, vma->vm_start + v_start, v_end,
 				     NULL, zap_flags);
+
+		/*
+		 * Note that vma lock only exists for shared/non-private
+		 * vmas.  Therefore, lock is not held when calling
+		 * unmap_hugepage_range for private vmas.
+		 */
+		hugetlb_vma_unlock_write(vma);
 	}
 }
 
