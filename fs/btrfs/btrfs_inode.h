@@ -268,13 +268,6 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
 	return (unsigned long)h;
 }
 
-static inline void btrfs_insert_inode_hash(struct inode *inode)
-{
-	unsigned long h = btrfs_inode_hash(inode->i_ino, BTRFS_I(inode)->root);
-
-	__insert_inode_hash(inode, h);
-}
-
 #if BITS_PER_LONG == 32
 
 /*

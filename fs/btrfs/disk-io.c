@@ -2218,6 +2218,8 @@ static void btrfs_init_balance(struct btrfs_fs_info *fs_info)
 static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 {
 	struct inode *inode = fs_info->btree_inode;
+	unsigned long hash = btrfs_inode_hash(BTRFS_BTREE_INODE_OBJECTID,
+					      fs_info->tree_root);
 
 	inode->i_ino = BTRFS_BTREE_INODE_OBJECTID;
 	set_nlink(inode, 1);
@@ -2239,7 +2241,7 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 	BTRFS_I(inode)->location.type = 0;
 	BTRFS_I(inode)->location.offset = 0;
 	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);
-	btrfs_insert_inode_hash(inode);
+	__insert_inode_hash(inode, hash);
 }
 
 static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
