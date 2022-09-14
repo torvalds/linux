@@ -1662,30 +1662,6 @@ do {									\
 	clear_bit(BTRFS_PENDING_##opt, &(info)->pending_changes)
 
 /*
- * Helpers for setting pending mount option changes.
- *
- * Expects corresponding macros
- * BTRFS_PENDING_SET_ and CLEAR_ + short mount option name
- */
-#define btrfs_set_pending_and_info(info, opt, fmt, args...)            \
-do {                                                                   \
-       if (!btrfs_raw_test_opt((info)->mount_opt, opt)) {              \
-               btrfs_info((info), fmt, ##args);                        \
-               btrfs_set_pending((info), SET_##opt);                   \
-               btrfs_clear_pending((info), CLEAR_##opt);               \
-       }                                                               \
-} while(0)
-
-#define btrfs_clear_pending_and_info(info, opt, fmt, args...)          \
-do {                                                                   \
-       if (btrfs_raw_test_opt((info)->mount_opt, opt)) {               \
-               btrfs_info((info), fmt, ##args);                        \
-               btrfs_set_pending((info), CLEAR_##opt);                 \
-               btrfs_clear_pending((info), SET_##opt);                 \
-       }                                                               \
-} while(0)
-
-/*
  * Inode flags
  */
 #define BTRFS_INODE_NODATASUM		(1U << 0)
