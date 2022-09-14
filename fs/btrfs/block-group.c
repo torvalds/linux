@@ -18,6 +18,18 @@
 #include "raid56.h"
 #include "zoned.h"
 
+#ifdef CONFIG_BTRFS_DEBUG
+int btrfs_should_fragment_free_space(struct btrfs_block_group *block_group)
+{
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
+
+	return (btrfs_test_opt(fs_info, FRAGMENT_METADATA) &&
+		block_group->flags & BTRFS_BLOCK_GROUP_METADATA) ||
+	       (btrfs_test_opt(fs_info, FRAGMENT_DATA) &&
+		block_group->flags &  BTRFS_BLOCK_GROUP_DATA);
+}
+#endif
+
 /*
  * Return target flags in extended format or 0 if restripe for this chunk_type
  * is not in progress
