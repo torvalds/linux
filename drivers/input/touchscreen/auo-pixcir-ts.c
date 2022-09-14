@@ -10,6 +10,7 @@
  * Copyright (c) 2008 QUALCOMM USA, INC.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -19,9 +20,8 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 
 /*
  * Coordinate calculation:
@@ -112,8 +112,8 @@
 struct auo_pixcir_ts {
 	struct i2c_client	*client;
 	struct input_dev	*input;
-	int			gpio_int;
-	int			gpio_rst;
+	struct gpio_desc	*gpio_int;
+	struct gpio_desc	*gpio_rst;
 	char			phys[32];
 
 	unsigned int		x_max;
@@ -193,7 +193,7 @@ static irqreturn_t auo_pixcir_interrupt(int irq, void *dev_id)
 
 		/* check for up event in touch touch_ind_mode */
 		if (ts->touch_ind_mode) {
-			if (gpio_get_value(ts->gpio_int) == 0) {
+			if (gpiod_get_value_cansleep(ts->gpio_int) == 0) {
 				input_mt_sync(ts->input);
 				input_report_key(ts->input, BTN_TOUCH, 0);
 				input_sync(ts->input);
@@ -482,18 +482,6 @@ static int auo_pixcir_parse_dt(struct device *dev, struct auo_pixcir_ts *ts)
 	if (!np)
 		return -ENOENT;
 
-	ts->gpio_int = of_get_gpio(np, 0);
-	if (!gpio_is_valid(ts->gpio_int)) {
-		dev_err(dev, "failed to get interrupt gpio\n");
-		return -EINVAL;
-	}
-
-	ts->gpio_rst = of_get_gpio(np, 1);
-	if (!gpio_is_valid(ts->gpio_rst)) {
-		dev_err(dev, "failed to get reset gpio\n");
-		return -EINVAL;
-	}
-
 	if (of_property_read_u32(np, "x-size", &ts->x_max)) {
 		dev_err(dev, "failed to get x-size property\n");
 		return -EINVAL;
@@ -517,7 +505,7 @@ static void auo_pixcir_reset(void *data)
 {
 	struct auo_pixcir_ts *ts = data;
 
-	gpio_set_value(ts->gpio_rst, 0);
+	gpiod_set_value_cansleep(ts->gpio_rst, 1);
 }
 
 static int auo_pixcir_probe(struct i2c_client *client,
@@ -578,22 +566,27 @@ static int auo_pixcir_probe(struct i2c_client *client,
 
 	input_set_drvdata(ts->input, ts);
 
-	error = devm_gpio_request_one(&client->dev, ts->gpio_int,
-				      GPIOF_DIR_IN, "auo_pixcir_ts_int");
+	ts->gpio_int = devm_gpiod_get_index(&client->dev, NULL, 0, GPIOD_IN);
+	error = PTR_ERR_OR_ZERO(ts->gpio_int);
 	if (error) {
-		dev_err(&client->dev, "request of gpio %d failed, %d\n",
-			ts->gpio_int, error);
+		dev_err(&client->dev,
+			"request of int gpio failed: %d\n", error);
 		return error;
 	}
 
-	error = devm_gpio_request_one(&client->dev, ts->gpio_rst,
-				      GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
-				      "auo_pixcir_ts_rst");
+	gpiod_set_consumer_name(ts->gpio_int, "auo_pixcir_ts_int");
+
+	/* Take the chip out of reset */
+	ts->gpio_rst = devm_gpiod_get_index(&client->dev, NULL, 1,
+					    GPIOD_OUT_LOW);
+	error = PTR_ERR_OR_ZERO(ts->gpio_rst);
 	if (error) {
-		dev_err(&client->dev, "request of gpio %d failed, %d\n",
-			ts->gpio_rst, error);
+		dev_err(&client->dev,
+			"request of reset gpio failed: %d\n", error);
 		return error;
 	}
+
+	gpiod_set_consumer_name(ts->gpio_rst, "auo_pixcir_ts_rst");
 
 	error = devm_add_action_or_reset(&client->dev, auo_pixcir_reset, ts);
 	if (error) {
