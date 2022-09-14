@@ -258,7 +258,7 @@ static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
 static struct file_region *
 get_file_region_entry_from_cache(struct resv_map *resv, long from, long to)
 {
-	struct file_region *nrg = NULL;
+	struct file_region *nrg;
 
 	VM_BUG_ON(resv->region_cache_count <= 0);
 
@@ -340,7 +340,7 @@ static bool has_same_uncharge_info(struct file_region *rg,
 
 static void coalesce_file_region(struct resv_map *resv, struct file_region *rg)
 {
-	struct file_region *nrg = NULL, *prg = NULL;
+	struct file_region *nrg, *prg;
 
 	prg = list_prev_entry(rg, link);
 	if (&prg->link != &resv->regions && prg->to == rg->from &&
