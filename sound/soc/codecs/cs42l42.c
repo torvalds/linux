@@ -2262,11 +2262,9 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 					   NULL, cs42l42_irq_thread,
 					   IRQF_ONESHOT | IRQF_TRIGGER_LOW,
 					   "cs42l42", cs42l42);
-		if (ret == -EPROBE_DEFER) {
-			goto err_disable_noirq;
-		} else if (ret != 0) {
-			dev_err(&i2c_client->dev,
-				"Failed to request IRQ: %d\n", ret);
+		if (ret) {
+			dev_err_probe(&i2c_client->dev, ret,
+				      "Failed to request IRQ\n");
 			goto err_disable_noirq;
 		}
 	}
