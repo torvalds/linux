@@ -152,14 +152,12 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 	unsigned long period;
 	int ret = 0;
 
-	mutex_lock(&ctx->lock);
-
 	if (pwm > 0) {
 		period = state->period;
 		state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
 		ret = pwm_apply_state(ctx->pwm, state);
 		if (ret)
-			goto exit_set_pwm_err;
+			return ret;
 		ret = pwm_fan_power_on(ctx);
 	} else {
 		ret = pwm_fan_power_off(ctx);
@@ -167,8 +165,17 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 	if (!ret)
 		ctx->pwm_value = pwm;
 
-exit_set_pwm_err:
+	return ret;
+}
+
+static int set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
+{
+	int ret;
+
+	mutex_lock(&ctx->lock);
+	ret = __set_pwm(ctx, pwm);
 	mutex_unlock(&ctx->lock);
+
 	return ret;
 }
 
@@ -192,7 +199,7 @@ static int pwm_fan_write(struct device *dev, enum hwmon_sensor_types type,
 	if (val < 0 || val > MAX_PWM)
 		return -EINVAL;
 
-	ret = __set_pwm(ctx, val);
+	ret = set_pwm(ctx, val);
 	if (ret)
 		return ret;
 
@@ -280,7 +287,7 @@ pwm_fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 	if (state == ctx->pwm_fan_state)
 		return 0;
 
-	ret = __set_pwm(ctx, ctx->pwm_fan_cooling_levels[state]);
+	ret = set_pwm(ctx, ctx->pwm_fan_cooling_levels[state]);
 	if (ret) {
 		dev_err(&cdev->device, "Cannot set pwm!\n");
 		return ret;
@@ -398,7 +405,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	pwm_init_state(ctx->pwm, &ctx->pwm_state);
 
 	/*
-	 * __set_pwm assumes that MAX_PWM * (period - 1) fits into an unsigned
+	 * set_pwm assumes that MAX_PWM * (period - 1) fits into an unsigned
 	 * long. Check this here to prevent the fan running at a too low
 	 * frequency.
 	 */
@@ -408,7 +415,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	}
 
 	/* Set duty cycle to maximum allowed and enable PWM output */
-	ret = __set_pwm(ctx, MAX_PWM);
+	ret = set_pwm(ctx, MAX_PWM);
 	if (ret) {
 		dev_err(dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
