@@ -38,15 +38,15 @@ static u64 gfxhub_v1_2_get_mc_fb_offset(struct amdgpu_device *adev)
 	return (u64)RREG32_SOC15(GC, GET_INST(GC, 0), regMC_VM_FB_OFFSET) << 24;
 }
 
-static void gfxhub_v1_2_setup_vm_pt_regs(struct amdgpu_device *adev,
-					 uint32_t vmid,
-					 uint64_t page_table_base)
+static void gfxhub_v1_2_xcc_setup_vm_pt_regs(struct amdgpu_device *adev,
+					     uint32_t vmid,
+					     uint64_t page_table_base,
+					     uint32_t xcc_mask)
 {
 	struct amdgpu_vmhub *hub;
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(i)];
 		WREG32_SOC15_OFFSET(GC, GET_INST(GC, i),
 				    regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
@@ -57,27 +57,36 @@ static void gfxhub_v1_2_setup_vm_pt_regs(struct amdgpu_device *adev,
 				    regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
 				    hub->ctx_addr_distance * vmid,
 				    upper_32_bits(page_table_base));
-
 	}
 }
 
-static void gfxhub_v1_2_init_gart_aperture_regs(struct amdgpu_device *adev)
+static void gfxhub_v1_2_setup_vm_pt_regs(struct amdgpu_device *adev,
+					 uint32_t vmid,
+					 uint64_t page_table_base)
+{
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	gfxhub_v1_2_xcc_setup_vm_pt_regs(adev, vmid, page_table_base, xcc_mask);
+}
+
+static void gfxhub_v1_2_xcc_init_gart_aperture_regs(struct amdgpu_device *adev,
+						    uint32_t xcc_mask)
 {
 	uint64_t pt_base;
-	int i, num_xcc;
+	int i;
 
 	if (adev->gmc.pdb0_bo)
 		pt_base = amdgpu_gmc_pd_addr(adev->gmc.pdb0_bo);
 	else
 		pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
 
-	gfxhub_v1_2_setup_vm_pt_regs(adev, 0, pt_base);
+	gfxhub_v1_2_xcc_setup_vm_pt_regs(adev, 0, pt_base, xcc_mask);
 
 	/* If use GART for FB translation, vmid0 page table covers both
 	 * vram and system memory (gart)
 	 */
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		if (adev->gmc.pdb0_bo) {
 			WREG32_SOC15(GC, GET_INST(GC, i),
 				     regVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
@@ -110,14 +119,15 @@ static void gfxhub_v1_2_init_gart_aperture_regs(struct amdgpu_device *adev)
 	}
 }
 
-static void gfxhub_v1_2_init_system_aperture_regs(struct amdgpu_device *adev)
+static void
+gfxhub_v1_2_xcc_init_system_aperture_regs(struct amdgpu_device *adev,
+					  uint32_t xcc_mask)
 {
 	uint64_t value;
 	uint32_t tmp;
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		/* Program the AGP BAR */
 		WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_AGP_BASE, 0);
 		WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
@@ -178,13 +188,13 @@ static void gfxhub_v1_2_init_system_aperture_regs(struct amdgpu_device *adev)
 	}
 }
 
-static void gfxhub_v1_2_init_tlb_regs(struct amdgpu_device *adev)
+static void gfxhub_v1_2_xcc_init_tlb_regs(struct amdgpu_device *adev,
+					  uint32_t xcc_mask)
 {
 	uint32_t tmp;
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		/* Setup TLB control */
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i), regMC_VM_MX_L1_TLB_CNTL);
 
@@ -204,13 +214,13 @@ static void gfxhub_v1_2_init_tlb_regs(struct amdgpu_device *adev)
 	}
 }
 
-static void gfxhub_v1_2_init_cache_regs(struct amdgpu_device *adev)
+static void gfxhub_v1_2_xcc_init_cache_regs(struct amdgpu_device *adev,
+					    uint32_t xcc_mask)
 {
 	uint32_t tmp;
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		/* Setup L2 cache */
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i), regVM_L2_CNTL);
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 1);
@@ -252,13 +262,13 @@ static void gfxhub_v1_2_init_cache_regs(struct amdgpu_device *adev)
 	}
 }
 
-static void gfxhub_v1_2_enable_system_domain(struct amdgpu_device *adev)
+static void gfxhub_v1_2_xcc_enable_system_domain(struct amdgpu_device *adev,
+						 uint32_t xcc_mask)
 {
 	uint32_t tmp;
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i), regVM_CONTEXT0_CNTL);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, PAGE_TABLE_DEPTH,
@@ -271,12 +281,13 @@ static void gfxhub_v1_2_enable_system_domain(struct amdgpu_device *adev)
 	}
 }
 
-static void gfxhub_v1_2_disable_identity_aperture(struct amdgpu_device *adev)
+static void
+gfxhub_v1_2_xcc_disable_identity_aperture(struct amdgpu_device *adev,
+					  uint32_t xcc_mask)
 {
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		WREG32_SOC15(GC, GET_INST(GC, i),
 			     regVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32,
 			     0XFFFFFFFF);
@@ -298,12 +309,13 @@ static void gfxhub_v1_2_disable_identity_aperture(struct amdgpu_device *adev)
 	}
 }
 
-static void gfxhub_v1_2_setup_vmid_config(struct amdgpu_device *adev)
+static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
+					      uint32_t xcc_mask)
 {
 	struct amdgpu_vmhub *hub;
 	unsigned num_level, block_size;
 	uint32_t tmp;
-	int i, j, num_xcc;
+	int i, j;
 
 	num_level = adev->vm_manager.num_level;
 	block_size = adev->vm_manager.block_size;
@@ -312,8 +324,7 @@ static void gfxhub_v1_2_setup_vmid_config(struct amdgpu_device *adev)
 	else
 		block_size -= 9;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (j = 0; j < num_xcc; j++) {
+	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
 		for (i = 0; i <= 14; i++) {
 			tmp = RREG32_SOC15_OFFSET(GC, GET_INST(GC, j), regVM_CONTEXT1_CNTL, i);
@@ -368,13 +379,13 @@ static void gfxhub_v1_2_setup_vmid_config(struct amdgpu_device *adev)
 	}
 }
 
-static void gfxhub_v1_2_program_invalidation(struct amdgpu_device *adev)
+static void gfxhub_v1_2_xcc_program_invalidation(struct amdgpu_device *adev,
+						 uint32_t xcc_mask)
 {
 	struct amdgpu_vmhub *hub;
-	unsigned i, j, num_xcc;
+	unsigned int i, j;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (j = 0; j < num_xcc; j++) {
+	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
 
 		for (i = 0 ; i < 18; ++i) {
@@ -386,18 +397,21 @@ static void gfxhub_v1_2_program_invalidation(struct amdgpu_device *adev)
 	}
 }
 
-static int gfxhub_v1_2_gart_enable(struct amdgpu_device *adev)
+static int gfxhub_v1_2_xcc_gart_enable(struct amdgpu_device *adev,
+				       uint32_t xcc_mask)
 {
-	int i, num_xcc;
+	uint32_t tmp_mask;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
-		if (amdgpu_sriov_vf(adev)) {
-		/*
-		 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are
-		 * VF copy registers so vbios post doesn't program them, for
-		 * SRIOV driver need to program them
-		 */
+	tmp_mask = xcc_mask;
+	/*
+	 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, because they are
+	 * VF copy registers so vbios post doesn't program them, for
+	 * SRIOV driver need to program them
+	 */
+	if (amdgpu_sriov_vf(adev)) {
+		for_each_inst(i, tmp_mask) {
+			i = ffs(tmp_mask) - 1;
 			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_BASE,
 				     adev->gmc.vram_start >> 24);
 			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_TOP,
@@ -406,29 +420,37 @@ static int gfxhub_v1_2_gart_enable(struct amdgpu_device *adev)
 	}
 
 	/* GART Enable. */
-	gfxhub_v1_2_init_gart_aperture_regs(adev);
-	gfxhub_v1_2_init_system_aperture_regs(adev);
-	gfxhub_v1_2_init_tlb_regs(adev);
+	gfxhub_v1_2_xcc_init_gart_aperture_regs(adev, xcc_mask);
+	gfxhub_v1_2_xcc_init_system_aperture_regs(adev, xcc_mask);
+	gfxhub_v1_2_xcc_init_tlb_regs(adev, xcc_mask);
 	if (!amdgpu_sriov_vf(adev))
-		gfxhub_v1_2_init_cache_regs(adev);
+		gfxhub_v1_2_xcc_init_cache_regs(adev, xcc_mask);
 
-	gfxhub_v1_2_enable_system_domain(adev);
+	gfxhub_v1_2_xcc_enable_system_domain(adev, xcc_mask);
 	if (!amdgpu_sriov_vf(adev))
-		gfxhub_v1_2_disable_identity_aperture(adev);
-	gfxhub_v1_2_setup_vmid_config(adev);
-	gfxhub_v1_2_program_invalidation(adev);
+		gfxhub_v1_2_xcc_disable_identity_aperture(adev, xcc_mask);
+	gfxhub_v1_2_xcc_setup_vmid_config(adev, xcc_mask);
+	gfxhub_v1_2_xcc_program_invalidation(adev, xcc_mask);
 
 	return 0;
 }
 
-static void gfxhub_v1_2_gart_disable(struct amdgpu_device *adev)
+static int gfxhub_v1_2_gart_enable(struct amdgpu_device *adev)
+{
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	return gfxhub_v1_2_xcc_gart_enable(adev, xcc_mask);
+}
+
+static void gfxhub_v1_2_xcc_gart_disable(struct amdgpu_device *adev,
+					 uint32_t xcc_mask)
 {
 	struct amdgpu_vmhub *hub;
 	u32 tmp;
-	u32 i, j, num_xcc;
+	u32 i, j;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (j = 0; j < num_xcc; j++) {
+	for_each_inst(j, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(j)];
 		/* Disable all tables */
 		for (i = 0; i < 16; i++)
@@ -452,20 +474,22 @@ static void gfxhub_v1_2_gart_disable(struct amdgpu_device *adev)
 	}
 }
 
-/**
- * gfxhub_v1_2_set_fault_enable_default - update GART/VM fault handling
- *
- * @adev: amdgpu_device pointer
- * @value: true redirects VM faults to the default page
- */
-static void gfxhub_v1_2_set_fault_enable_default(struct amdgpu_device *adev,
-						 bool value)
+static void gfxhub_v1_2_gart_disable(struct amdgpu_device *adev)
+{
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	gfxhub_v1_2_xcc_gart_disable(adev, xcc_mask);
+}
+
+static void gfxhub_v1_2_xcc_set_fault_enable_default(struct amdgpu_device *adev,
+						     bool value,
+						     uint32_t xcc_mask)
 {
 	u32 tmp;
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i), regVM_L2_PROTECTION_FAULT_CNTL);
 		tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
@@ -501,13 +525,27 @@ static void gfxhub_v1_2_set_fault_enable_default(struct amdgpu_device *adev,
 	}
 }
 
-static void gfxhub_v1_2_init(struct amdgpu_device *adev)
+/**
+ * gfxhub_v1_2_set_fault_enable_default - update GART/VM fault handling
+ *
+ * @adev: amdgpu_device pointer
+ * @value: true redirects VM faults to the default page
+ */
+static void gfxhub_v1_2_set_fault_enable_default(struct amdgpu_device *adev,
+						 bool value)
+{
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	gfxhub_v1_2_xcc_set_fault_enable_default(adev, value, xcc_mask);
+}
+
+static void gfxhub_v1_2_xcc_init(struct amdgpu_device *adev, uint32_t xcc_mask)
 {
 	struct amdgpu_vmhub *hub;
-	int i, num_xcc;
+	int i;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
+	for_each_inst(i, xcc_mask) {
 		hub = &adev->vmhub[AMDGPU_GFXHUB(i)];
 
 		hub->ctx0_ptb_addr_lo32 =
@@ -541,6 +579,14 @@ static void gfxhub_v1_2_init(struct amdgpu_device *adev)
 				regVM_INVALIDATE_ENG1_ADDR_RANGE_LO32 -
 				regVM_INVALIDATE_ENG0_ADDR_RANGE_LO32;
 	}
+}
+
+static void gfxhub_v1_2_init(struct amdgpu_device *adev)
+{
+	uint32_t xcc_mask;
+
+	xcc_mask = GENMASK(NUM_XCC(adev->gfx.xcc_mask) - 1, 0);
+	gfxhub_v1_2_xcc_init(adev, xcc_mask);
 }
 
 static int gfxhub_v1_2_get_xgmi_info(struct amdgpu_device *adev)

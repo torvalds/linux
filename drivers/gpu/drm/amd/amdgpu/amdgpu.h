@@ -1263,6 +1263,10 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 
 #define amdgpu_inc_vram_lost(adev) atomic_inc(&((adev)->vram_lost_counter));
 
+#define for_each_inst(i, inst_mask)                                            \
+	for (i = ffs(inst_mask) - 1; inst_mask;                                \
+	     inst_mask &= ~(1U << i), i = ffs(inst_mask) - 1)
+
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 
 /* Common functions */
