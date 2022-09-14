@@ -1140,10 +1140,13 @@ static u32 ftdi_232bm_baud_to_divisor(int baud);
 static u32 ftdi_2232h_baud_base_to_divisor(int baud, int base);
 static u32 ftdi_2232h_baud_to_divisor(int baud);
 
+static const struct attribute_group *ftdi_groups[];
+
 static struct usb_serial_driver ftdi_sio_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"ftdi_sio",
+		.dev_groups =	ftdi_groups,
 	},
 	.description =		"FTDI USB Serial Device",
 	.id_table =		id_table_combined,
@@ -1760,35 +1763,42 @@ static ssize_t event_char_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(event_char);
 
-static int create_sysfs_attrs(struct usb_serial_port *port)
+static struct attribute *ftdi_attrs[] = {
+	&dev_attr_event_char.attr,
+	&dev_attr_latency_timer.attr,
+	NULL
+};
+
+static umode_t ftdi_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
 {
+	struct device *dev = kobj_to_dev(kobj);
+	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	enum ftdi_chip_type type = priv->chip_type;
-	int ret = 0;
+	umode_t mode = attr->mode;
 
 	if (type != SIO) {
-		ret = device_create_file(&port->dev, &dev_attr_event_char);
-		if (ret)
-			return ret;
+		if (attr == &dev_attr_event_char.attr)
+			return mode;
 	}
 
-	if (type != SIO && type != FT232A)
-		ret = device_create_file(&port->dev, &dev_attr_latency_timer);
+	if (type != SIO && type != FT232A) {
+		if (attr == &dev_attr_latency_timer.attr)
+			return mode;
+	}
 
-	return ret;
+	return 0;
 }
 
-static void remove_sysfs_attrs(struct usb_serial_port *port)
-{
-	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	enum ftdi_chip_type type = priv->chip_type;
+static const struct attribute_group ftdi_group = {
+	.attrs		= ftdi_attrs,
+	.is_visible	= ftdi_is_visible,
+};
 
-	if (type != SIO)
-		device_remove_file(&port->dev, &dev_attr_event_char);
-
-	if (type != SIO && type != FT232A)
-		device_remove_file(&port->dev, &dev_attr_latency_timer);
-}
+static const struct attribute_group *ftdi_groups[] = {
+	&ftdi_group,
+	NULL
+};
 
 #ifdef CONFIG_GPIOLIB
 
@@ -2270,7 +2280,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	if (read_latency_timer(port) < 0)
 		priv->latency = 16;
 	write_latency_timer(port);
-	create_sysfs_attrs(port);
 
 	result = ftdi_gpio_init(port);
 	if (result < 0) {
@@ -2400,8 +2409,6 @@ static void ftdi_sio_port_remove(struct usb_serial_port *port)
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
 	ftdi_gpio_remove(port);
-
-	remove_sysfs_attrs(port);
 
 	kfree(priv);
 }
