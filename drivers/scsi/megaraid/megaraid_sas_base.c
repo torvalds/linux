@@ -8924,7 +8924,7 @@ megasas_aen_polling(struct work_struct *work)
 			sdev1 = scsi_device_lookup(instance->host,
 						   MEGASAS_MAX_PD_CHANNELS +
 						   (ld_target_id / MEGASAS_MAX_DEV_PER_CHANNEL),
-						   (ld_target_id - MEGASAS_MAX_DEV_PER_CHANNEL),
+						   (ld_target_id % MEGASAS_MAX_DEV_PER_CHANNEL),
 						   0);
 			if (sdev1)
 				megasas_remove_scsi_device(sdev1);
