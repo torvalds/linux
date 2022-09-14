@@ -49,6 +49,7 @@
 #include "dcn20/dcn20_optc.h"
 #include "dmub_subvp_state.h"
 #include "dce/dmub_hw_lock_mgr.h"
+#include "dcn32_resource.h"
 #include "dc_link_dp.h"
 #include "dmub/inc/dmub_subvp_state.h"
 
@@ -198,42 +199,6 @@ static bool dcn32_check_no_memory_request_for_cab(struct dc *dc)
 	return false;
 }
 
-/* This function takes in the start address and surface size to be cached in CAB
- * and calculates the total number of cache lines required to store the surface.
- * The number of cache lines used for each surface is calculated independently of
- * one another. For example, if there is a primary surface(1), meta surface(2), and
- * cursor(3), this function should be called 3 times to calculate the number of cache
- * lines used for each of those surfaces.
- */
-static uint32_t dcn32_cache_lines_for_surface(struct dc *dc, uint32_t surface_size, uint64_t start_address)
-{
-	uint32_t lines_used = 1;
-	uint32_t num_cached_bytes = 0;
-	uint32_t remaining_size = 0;
-	uint32_t cache_line_size = dc->caps.cache_line_size;
-	uint32_t remainder = 0;
-
-	/* 1. Calculate surface size minus the number of bytes stored
-	 * in the first cache line (all bytes in first cache line might
-	 * not be fully used).
-	 */
-	div_u64_rem(start_address, cache_line_size, &remainder);
-	num_cached_bytes = cache_line_size - remainder;
-	remaining_size = surface_size - num_cached_bytes;
-
-	/* 2. Calculate number of cache lines that will be fully used with
-	 * the remaining number of bytes to be stored.
-	 */
-	lines_used += (remaining_size / cache_line_size);
-
-	/* 3. Check if we need an extra line due to the remaining size not being
-	 * a multiple of CACHE_LINE_SIZE.
-	 */
-	if (remaining_size % cache_line_size > 0)
-		lines_used++;
-
-	return lines_used;
-}
 
 /* This function loops through every surface that needs to be cached in CAB for SS,
  * and calculates the total number of ways required to store all surfaces (primary,
@@ -241,96 +206,116 @@ static uint32_t dcn32_cache_lines_for_surface(struct dc *dc, uint32_t surface_si
  */
 static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *ctx)
 {
-	uint8_t i, j;
+	uint8_t i;
+	int j;
 	struct dc_stream_state *stream = NULL;
 	struct dc_plane_state *plane = NULL;
-	uint32_t surface_size = 0;
 	uint32_t cursor_size = 0;
-	uint32_t cache_lines_used = 0;
 	uint32_t total_lines = 0;
 	uint32_t lines_per_way = 0;
-	uint32_t num_ways = 0;
-	uint32_t prev_addr_low = 0;
+	uint8_t num_ways = 0;
+	uint8_t bytes_per_pixel = 0;
+	uint8_t cursor_bpp = 0;
+	uint16_t mblk_width = 0;
+	uint16_t mblk_height = 0;
+	uint16_t mall_alloc_width_blk_aligned = 0;
+	uint16_t mall_alloc_height_blk_aligned = 0;
+	uint16_t num_mblks = 0;
+	uint32_t bytes_in_mall = 0;
+	uint32_t cache_lines_used = 0;
+	uint32_t cache_lines_per_plane = 0;
 
-	for (i = 0; i < ctx->stream_count; i++) {
-		stream = ctx->streams[i];
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		// Don't include PSR surface in the total surface size for CAB allocation
-		if (stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
+		if (!pipe->stream || !pipe->plane_state ||
+				pipe->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED ||
+				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
 			continue;
 
-		if (ctx->stream_status[i].plane_count == 0)
-			continue;
+		bytes_per_pixel = pipe->plane_state->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4;
+		mblk_width = DCN3_2_MBLK_WIDTH;
+		mblk_height = bytes_per_pixel == 4 ? DCN3_2_MBLK_HEIGHT_4BPE : DCN3_2_MBLK_HEIGHT_8BPE;
 
-		// For each stream, loop through each plane to calculate the number of cache
-		// lines required to store the surface in CAB
-		for (j = 0; j < ctx->stream_status[i].plane_count; j++) {
-			plane = ctx->stream_status[i].plane_states[j];
+		/* full_vp_width_blk_aligned = FLOOR(vp_x_start + full_vp_width + blk_width - 1, blk_width) -
+		 * FLOOR(vp_x_start, blk_width)
+		 *
+		 * mall_alloc_width_blk_aligned_l/c = full_vp_width_blk_aligned_l/c
+		 */
+		mall_alloc_width_blk_aligned = ((pipe->plane_res.scl_data.viewport.x +
+				pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) +
+						(pipe->plane_res.scl_data.viewport.x / mblk_width * mblk_width);
 
-			// Calculate total surface size
-			if (prev_addr_low != plane->address.grph.addr.u.low_part) {
-				/* if plane address are different from prev FB, then userspace allocated separate FBs*/
-				surface_size += plane->plane_size.surface_pitch *
-					plane->plane_size.surface_size.height *
-					(plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
+		/* full_vp_height_blk_aligned = FLOOR(vp_y_start + full_vp_height + blk_height - 1, blk_height) -
+		 * FLOOR(vp_y_start, blk_height)
+		 *
+		 * mall_alloc_height_blk_aligned_l/c = full_vp_height_blk_aligned_l/c
+		 */
+		mall_alloc_height_blk_aligned = ((pipe->plane_res.scl_data.viewport.y +
+				pipe->plane_res.scl_data.viewport.height + mblk_height - 1) / mblk_height * mblk_height) +
+						(pipe->plane_res.scl_data.viewport.y / mblk_height * mblk_height);
 
-				prev_addr_low = plane->address.grph.addr.u.low_part;
-			} else {
-				/* We have the same fb for all the planes.
-				 * Xorg always creates one giant fb that holds all surfaces,
-				 * so allocating it once is sufficient.
-				 * */
-				continue;
-			}
-			// Convert surface size + starting address to number of cache lines required
-			// (alignment accounted for)
-			cache_lines_used += dcn32_cache_lines_for_surface(dc, surface_size,
-					plane->address.grph.addr.quad_part);
+		num_mblks = ((mall_alloc_width_blk_aligned + mblk_width - 1) / mblk_width) *
+				((mall_alloc_height_blk_aligned + mblk_height - 1) / mblk_height);
 
-			if (plane->address.grph.meta_addr.quad_part) {
-				// Meta surface
-				cache_lines_used += dcn32_cache_lines_for_surface(dc, surface_size,
-						plane->address.grph.meta_addr.quad_part);
-			}
-		}
+		/* For DCC:
+		 * meta_num_mblk = CEILING(full_mblk_width_ub_l*full_mblk_height_ub_l*Bpe/256/mblk_bytes, 1)
+		 */
+		if (pipe->plane_state->dcc.enable)
+			num_mblks += (mall_alloc_width_blk_aligned * mall_alloc_width_blk_aligned * bytes_per_pixel +
+					(256 * DCN3_2_MALL_MBLK_SIZE_BYTES) - 1) / (256 * DCN3_2_MALL_MBLK_SIZE_BYTES);
 
-		// Include cursor size for CAB allocation
-		for (j = 0; j < dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[j];
-			struct hubp *hubp = pipe->plane_res.hubp;
+		bytes_in_mall = num_mblks * DCN3_2_MALL_MBLK_SIZE_BYTES;
 
-			if (pipe->stream && pipe->plane_state && hubp)
-				/* Find the cursor plane and use the exact size instead of
-				 * using the max for calculation
-				 */
-				if (hubp->curs_attr.width > 0) {
-					// Round cursor width to next multiple of 64
-					cursor_size = (((hubp->curs_attr.width + 63) / 64) * 64) * hubp->curs_attr.height;
+		/* (cache lines used is total bytes / cache_line size. Add +2 for worst case alignment
+		 * (MALL is 64-byte aligned)
+		 */
+		cache_lines_per_plane = bytes_in_mall / dc->caps.cache_line_size + 2;
+		cache_lines_used += cache_lines_per_plane;
+	}
+
+	// Include cursor size for CAB allocation
+	for (j = 0; j < dc->res_pool->pipe_count; j++) {
+		struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[j];
+		struct hubp *hubp = pipe->plane_res.hubp;
+
+		if (pipe->stream && pipe->plane_state && hubp)
+			/* Find the cursor plane and use the exact size instead of
+			using the max for calculation */
+
+		if (hubp->curs_attr.width > 0) {
+				// Round cursor width to next multiple of 64
+				cursor_size = (((hubp->curs_attr.width + 63) / 64) * 64) * hubp->curs_attr.height;
+
+				switch (pipe->stream->cursor_attributes.color_format) {
+				case CURSOR_MODE_MONO:
+					cursor_size /= 2;
+					cursor_bpp = 4;
+					break;
+				case CURSOR_MODE_COLOR_1BIT_AND:
+				case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+				case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+					cursor_size *= 4;
+					cursor_bpp = 4;
+					break;
+
+				case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+				case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+					cursor_size *= 8;
+					cursor_bpp = 8;
 					break;
 				}
-		}
 
-		switch (stream->cursor_attributes.color_format) {
-		case CURSOR_MODE_MONO:
-			cursor_size /= 2;
-			break;
-		case CURSOR_MODE_COLOR_1BIT_AND:
-		case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
-		case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
-			cursor_size *= 4;
-			break;
-
-		case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
-		case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
-			cursor_size *= 8;
-			break;
-		}
-
-		if (stream->cursor_position.enable && !dc->debug.alloc_extra_way_for_cursor &&
-				cursor_size > 16384) {
-			cache_lines_used += dcn32_cache_lines_for_surface(dc, cursor_size,
-					plane->address.grph.cursor_cache_addr.quad_part);
-		}
+				if (pipe->stream->cursor_position.enable && !dc->debug.alloc_extra_way_for_cursor &&
+						cursor_size > 16384) {
+					/* cursor_num_mblk = CEILING(num_cursors*cursor_width*cursor_width*cursor_Bpe/mblk_bytes, 1)
+					 */
+					cache_lines_used += (((hubp->curs_attr.width * hubp->curs_attr.height * cursor_bpp +
+										DCN3_2_MALL_MBLK_SIZE_BYTES - 1) / DCN3_2_MALL_MBLK_SIZE_BYTES) *
+										DCN3_2_MALL_MBLK_SIZE_BYTES) / dc->caps.cache_line_size + 2;
+				}
+				break;
+			}
 	}
 
 	// Convert number of cache lines required to number of ways
@@ -360,7 +345,9 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 			}
 		}
 	}
-
+	if (dc->debug.force_mall_ss_num_ways > 0) {
+		num_ways = dc->debug.force_mall_ss_num_ways;
+	}
 	return num_ways;
 }
 
