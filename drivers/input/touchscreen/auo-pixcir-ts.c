@@ -612,7 +612,7 @@ static int auo_pixcir_probe(struct i2c_client *client,
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, auo_pixcir_interrupt,
-					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					  IRQF_ONESHOT,
 					  input_dev->name, ts);
 	if (error) {
 		dev_err(&client->dev, "irq %d requested failed, %d\n",
