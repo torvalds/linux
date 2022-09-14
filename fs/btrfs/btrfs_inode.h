@@ -410,30 +410,4 @@ static inline void btrfs_inode_split_flags(u64 inode_item_flags,
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes
-
-static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
-		u64 logical_start, u8 *csum, u8 *csum_expected, int mirror_num)
-{
-	struct btrfs_root *root = inode->root;
-	const u32 csum_size = root->fs_info->csum_size;
-
-	/* Output minus objectid, which is more meaningful */
-	if (root->root_key.objectid >= BTRFS_LAST_FREE_OBJECTID)
-		btrfs_warn_rl(root->fs_info,
-"csum failed root %lld ino %lld off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			root->root_key.objectid, btrfs_ino(inode),
-			logical_start,
-			CSUM_FMT_VALUE(csum_size, csum),
-			CSUM_FMT_VALUE(csum_size, csum_expected),
-			mirror_num);
-	else
-		btrfs_warn_rl(root->fs_info,
-"csum failed root %llu ino %llu off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			root->root_key.objectid, btrfs_ino(inode),
-			logical_start,
-			CSUM_FMT_VALUE(csum_size, csum),
-			CSUM_FMT_VALUE(csum_size, csum_expected),
-			mirror_num);
-}
-
 #endif

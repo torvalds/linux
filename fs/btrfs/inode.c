@@ -125,6 +125,32 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 				       u64 ram_bytes, int compress_type,
 				       int type);
 
+static void __cold btrfs_print_data_csum_error(struct btrfs_inode *inode,
+		u64 logical_start, u8 *csum, u8 *csum_expected, int mirror_num)
+{
+	struct btrfs_root *root = inode->root;
+	const u32 csum_size = root->fs_info->csum_size;
+
+	/* Output without objectid, which is more meaningful */
+	if (root->root_key.objectid >= BTRFS_LAST_FREE_OBJECTID) {
+		btrfs_warn_rl(root->fs_info,
+"csum failed root %lld ino %lld off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
+			root->root_key.objectid, btrfs_ino(inode),
+			logical_start,
+			CSUM_FMT_VALUE(csum_size, csum),
+			CSUM_FMT_VALUE(csum_size, csum_expected),
+			mirror_num);
+	} else {
+		btrfs_warn_rl(root->fs_info,
+"csum failed root %llu ino %llu off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
+			root->root_key.objectid, btrfs_ino(inode),
+			logical_start,
+			CSUM_FMT_VALUE(csum_size, csum),
+			CSUM_FMT_VALUE(csum_size, csum_expected),
+			mirror_num);
+	}
+}
+
 /*
  * btrfs_inode_lock - lock inode i_rwsem based on arguments passed
  *
