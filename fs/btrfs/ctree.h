@@ -2821,14 +2821,7 @@ int btrfs_get_next_valid_item(struct btrfs_root *root, struct btrfs_key *key,
 		(path)->slots[0]++						\
 	)
 
-static inline int btrfs_next_old_item(struct btrfs_root *root,
-				      struct btrfs_path *p, u64 time_seq)
-{
-	++p->slots[0];
-	if (p->slots[0] >= btrfs_header_nritems(p->nodes[0]))
-		return btrfs_next_old_leaf(root, p, time_seq);
-	return 0;
-}
+int btrfs_next_old_item(struct btrfs_root *root, struct btrfs_path *path, u64 time_seq);
 
 /*
  * Search the tree again to find a leaf with greater keys.

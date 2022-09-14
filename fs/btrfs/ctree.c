@@ -4852,6 +4852,14 @@ done:
 	return ret;
 }
 
+int btrfs_next_old_item(struct btrfs_root *root, struct btrfs_path *path, u64 time_seq)
+{
+	path->slots[0]++;
+	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0]))
+		return btrfs_next_old_leaf(root, path, time_seq);
+	return 0;
+}
+
 /*
  * this uses btrfs_prev_leaf to walk backwards in the tree, and keeps
  * searching until it gets past min_objectid or finds an item of 'type'
