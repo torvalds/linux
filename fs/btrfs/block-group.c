@@ -1926,7 +1926,8 @@ static struct btrfs_block_group *btrfs_create_block_group_cache(
 	btrfs_init_free_space_ctl(cache, cache->free_space_ctl);
 	atomic_set(&cache->frozen, 0);
 	mutex_init(&cache->free_space_lock);
-	btrfs_init_full_stripe_locks_tree(&cache->full_stripe_locks_root);
+	cache->full_stripe_locks_root.root = RB_ROOT;
+	mutex_init(&cache->full_stripe_locks_root.lock);
 
 	return cache;
 }

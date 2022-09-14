@@ -497,14 +497,6 @@ struct btrfs_free_cluster {
 	struct list_head block_group_list;
 };
 
-/*
- * Tree to record all locked full stripes of a RAID5/6 block group
- */
-struct btrfs_full_stripe_locks_tree {
-	struct rb_root root;
-	struct mutex lock;
-};
-
 /* Discard control. */
 /*
  * Async discard uses multiple lists to differentiate the discard filter
@@ -4058,12 +4050,6 @@ int btrfs_scrub_cancel(struct btrfs_fs_info *info);
 int btrfs_scrub_cancel_dev(struct btrfs_device *dev);
 int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 			 struct btrfs_scrub_progress *progress);
-static inline void btrfs_init_full_stripe_locks_tree(
-			struct btrfs_full_stripe_locks_tree *locks_root)
-{
-	locks_root->root = RB_ROOT;
-	mutex_init(&locks_root->lock);
-}
 
 /* dev-replace.c */
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info);
