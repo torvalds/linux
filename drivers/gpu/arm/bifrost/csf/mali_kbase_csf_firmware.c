@@ -589,7 +589,7 @@ static int parse_memory_setup_entry(struct kbase_device *kbdev,
 		protected_mode = true;
 
 	if (protected_mode && kbdev->csf.pma_dev == NULL) {
-		dev_err(kbdev->dev,
+		dev_dbg(kbdev->dev,
 			"Protected memory allocator not found, Firmware protected mode entry will not be supported");
 		return 0;
 	}
