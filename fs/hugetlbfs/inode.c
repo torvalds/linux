@@ -568,26 +568,19 @@ static bool remove_inode_single_folio(struct hstate *h, struct inode *inode,
 
 	folio_lock(folio);
 	/*
-	 * After locking page, make sure mapping is the same.
-	 * We could have raced with page fault populate and
-	 * backout code.
+	 * We must remove the folio from page cache before removing
+	 * the region/ reserve map (hugetlb_unreserve_pages).  In
+	 * rare out of memory conditions, removal of the region/reserve
+	 * map could fail.  Correspondingly, the subpool and global
+	 * reserve usage count can need to be adjusted.
 	 */
-	if (folio_mapping(folio) == mapping) {
-		/*
-		 * We must remove the folio from page cache before removing
-		 * the region/ reserve map (hugetlb_unreserve_pages).  In
-		 * rare out of memory conditions, removal of the region/reserve
-		 * map could fail.  Correspondingly, the subpool and global
-		 * reserve usage count can need to be adjusted.
-		 */
-		VM_BUG_ON(HPageRestoreReserve(&folio->page));
-		hugetlb_delete_from_page_cache(&folio->page);
-		ret = true;
-		if (!truncate_op) {
-			if (unlikely(hugetlb_unreserve_pages(inode, index,
-								index + 1, 1)))
-				hugetlb_fix_reserve_counts(inode);
-		}
+	VM_BUG_ON(HPageRestoreReserve(&folio->page));
+	hugetlb_delete_from_page_cache(&folio->page);
+	ret = true;
+	if (!truncate_op) {
+		if (unlikely(hugetlb_unreserve_pages(inode, index,
+							index + 1, 1)))
+			hugetlb_fix_reserve_counts(inode);
 	}
 
 	folio_unlock(folio);
