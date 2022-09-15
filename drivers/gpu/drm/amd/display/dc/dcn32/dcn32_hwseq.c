@@ -243,7 +243,7 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 		 * mall_alloc_width_blk_aligned_l/c = full_vp_width_blk_aligned_l/c
 		 */
 		mall_alloc_width_blk_aligned = ((pipe->plane_res.scl_data.viewport.x +
-				pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) +
+				pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) -
 						(pipe->plane_res.scl_data.viewport.x / mblk_width * mblk_width);
 
 		/* full_vp_height_blk_aligned = FLOOR(vp_y_start + full_vp_height + blk_height - 1, blk_height) -
@@ -252,7 +252,7 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 		 * mall_alloc_height_blk_aligned_l/c = full_vp_height_blk_aligned_l/c
 		 */
 		mall_alloc_height_blk_aligned = ((pipe->plane_res.scl_data.viewport.y +
-				pipe->plane_res.scl_data.viewport.height + mblk_height - 1) / mblk_height * mblk_height) +
+				pipe->plane_res.scl_data.viewport.height + mblk_height - 1) / mblk_height * mblk_height) -
 						(pipe->plane_res.scl_data.viewport.y / mblk_height * mblk_height);
 
 		num_mblks = ((mall_alloc_width_blk_aligned + mblk_width - 1) / mblk_width) *
