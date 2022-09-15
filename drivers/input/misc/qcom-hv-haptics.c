@@ -702,7 +702,7 @@ static int haptics_read(struct haptics_chip *chip,
 
 	rc = regmap_bulk_read(chip->regmap, addr, val, length);
 	if (rc < 0)
-		dev_err(chip->dev, "read addr %d failed, rc=%d\n", addr, rc);
+		dev_err(chip->dev, "read addr %#x failed, rc=%d\n", addr, rc);
 
 	return rc;
 }
@@ -715,7 +715,7 @@ static int haptics_write(struct haptics_chip *chip,
 
 	rc = regmap_bulk_write(chip->regmap, addr, val, length);
 	if (rc < 0)
-		dev_err(chip->dev, "write addr %d failed, rc=%d\n", addr, rc);
+		dev_err(chip->dev, "write addr %#x failed, rc=%d\n", addr, rc);
 
 	return rc;
 }
@@ -728,7 +728,7 @@ static int haptics_masked_write(struct haptics_chip *chip,
 
 	regmap_update_bits(chip->regmap, addr, mask, val);
 	if (rc < 0)
-		dev_err(chip->dev, "update addr %d failed, rc=%d\n", addr, rc);
+		dev_err(chip->dev, "update addr %#x failed, rc=%d\n", addr, rc);
 
 	return rc;
 }
@@ -1266,6 +1266,31 @@ static int haptics_set_direct_play(struct haptics_chip *chip, u8 amplitude)
 	return rc;
 }
 
+static bool is_boost_vreg_enabled_in_open_loop(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val;
+
+	if (is_haptics_external_powered(chip))
+		return false;
+
+	rc = haptics_read(chip, chip->hbst_addr_base, HAP_BOOST_VREG_EN_REG, &val, 1);
+	if (rc < 0)
+		return false;
+
+	chip->hboost_enabled = (val & VREG_EN_BIT);
+	rc = haptics_read(chip, chip->hbst_addr_base, HAP_BOOST_HW_CTRL_FOLLOW_REG, &val, 1);
+	if (rc < 0)
+		return false;
+
+	if (!(val & FOLLOW_HW_EN_BIT) && chip->hboost_enabled) {
+		dev_dbg(chip->dev, "HBoost is enabled in open loop condition\n");
+		return true;
+	}
+
+	return false;
+}
+
 #define PBS_ARG_REG				0x42
 #define HAP_VREG_ON_VAL				0x1
 #define HAP_VREG_OFF_VAL			0x2
@@ -1284,6 +1309,12 @@ static int haptics_boost_vreg_enable(struct haptics_chip *chip, bool en)
 
 	if (chip->hap_cfg_nvmem == NULL) {
 		dev_dbg(chip->dev, "nvmem device for hap_cfg is not defined\n");
+		return 0;
+	}
+
+	if (is_boost_vreg_enabled_in_open_loop(chip)) {
+		dev_dbg(chip->dev, "Ignore %s hBoost while it's enabled in open-loop mode\n",
+				en ? "enabling" : "disabling");
 		return 0;
 	}
 
@@ -1323,28 +1354,6 @@ static bool is_swr_play_enabled(struct haptics_chip *chip)
 
 	if ((val[1] & HAP_DRV_PATTERN_SRC_STATUS_MASK) == SWR)
 		return true;
-
-	return false;
-}
-
-static bool is_boost_vreg_enabled_in_open_loop(struct haptics_chip *chip)
-{
-	int rc;
-	u8 val;
-
-	if (is_haptics_external_powered(chip))
-		return false;
-
-	rc = haptics_read(chip, chip->hbst_addr_base,
-			HAP_BOOST_HW_CTRL_FOLLOW_REG, &val, 1);
-	if (!rc && !(val & FOLLOW_HW_EN_BIT)) {
-		rc = haptics_read(chip, chip->hbst_addr_base,
-				HAP_BOOST_VREG_EN_REG, &val, 1);
-		if (!rc && (val & VREG_EN_BIT)) {
-			dev_dbg(chip->dev, "HBoost is enabled in open loop condition\n");
-			return true;
-		}
-	}
 
 	return false;
 }
@@ -2372,9 +2381,6 @@ static int haptics_load_periodic_effect(struct haptics_chip *chip,
 	}
 
 	mutex_lock(&chip->play.lock);
-	dev_dbg(chip->dev, "upload effect %d, vmax_mv=%d\n",
-			chip->effects[i].id, play->vmax_mv);
-
 	if (chip->play.in_calibration) {
 		dev_err(chip->dev, "calibration in progress, ignore playing predefined effect\n");
 		rc = -EBUSY;
@@ -2382,6 +2388,7 @@ static int haptics_load_periodic_effect(struct haptics_chip *chip,
 	}
 
 	play->vmax_mv = (magnitude * chip->effects[i].vmax_mv) / 0x7fff;
+	dev_dbg(chip->dev, "upload effect %d, vmax_mv=%d\n", chip->effects[i].id, play->vmax_mv);
 	rc = haptics_load_predefined_effect(chip, &chip->effects[i]);
 	if (rc < 0) {
 		dev_err(chip->dev, "Play predefined effect%d failed, rc=%d\n",
