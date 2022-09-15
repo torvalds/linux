@@ -64,6 +64,20 @@ unsigned long get_state_synchronize_srcu(struct srcu_struct *ssp);
 unsigned long start_poll_synchronize_srcu(struct srcu_struct *ssp);
 bool poll_state_synchronize_srcu(struct srcu_struct *ssp, unsigned long cookie);
 
+#ifdef CONFIG_NEED_SRCU_NMI_SAFE
+int __srcu_read_lock_nmisafe(struct srcu_struct *ssp) __acquires(ssp);
+void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx) __releases(ssp);
+#else
+static inline int __srcu_read_lock_nmisafe(struct srcu_struct *ssp)
+{
+	return __srcu_read_lock(ssp);
+}
+static inline void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx)
+{
+	__srcu_read_unlock(ssp, idx);
+}
+#endif /* CONFIG_NEED_SRCU_NMI_SAFE */
+
 #ifdef CONFIG_SRCU
 void srcu_init(void);
 #else /* #ifdef CONFIG_SRCU */
@@ -166,6 +180,25 @@ static inline int srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp)
 	return retval;
 }
 
+/**
+ * srcu_read_lock_nmisafe - register a new reader for an SRCU-protected structure.
+ * @ssp: srcu_struct in which to register the new reader.
+ *
+ * Enter an SRCU read-side critical section, but in an NMI-safe manner.
+ * See srcu_read_lock() for more information.
+ */
+static inline int srcu_read_lock_nmisafe(struct srcu_struct *ssp) __acquires(ssp)
+{
+	int retval;
+
+	if (IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		retval = __srcu_read_lock_nmisafe(ssp);
+	else
+		retval = __srcu_read_lock(ssp);
+	rcu_lock_acquire(&(ssp)->dep_map);
+	return retval;
+}
+
 /* Used by tracing, cannot be traced and cannot invoke lockdep. */
 static inline notrace int
 srcu_read_lock_notrace(struct srcu_struct *ssp) __acquires(ssp)
@@ -189,6 +222,24 @@ static inline void srcu_read_unlock(struct srcu_struct *ssp, int idx)
 	WARN_ON_ONCE(idx & ~0x1);
 	rcu_lock_release(&(ssp)->dep_map);
 	__srcu_read_unlock(ssp, idx);
+}
+
+/**
+ * srcu_read_unlock_nmisafe - unregister a old reader from an SRCU-protected structure.
+ * @ssp: srcu_struct in which to unregister the old reader.
+ * @idx: return value from corresponding srcu_read_lock().
+ *
+ * Exit an SRCU read-side critical section, but in an NMI-safe manner.
+ */
+static inline void srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx)
+	__releases(ssp)
+{
+	WARN_ON_ONCE(idx & ~0x1);
+	rcu_lock_release(&(ssp)->dep_map);
+	if (IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		__srcu_read_unlock_nmisafe(ssp, idx);
+	else
+		__srcu_read_unlock(ssp, idx);
 }
 
 /* Used by tracing, cannot be traced and cannot call lockdep. */

@@ -72,6 +72,9 @@ config TREE_SRCU
 	help
 	  This option selects the full-fledged version of SRCU.
 
+config NEED_SRCU_NMI_SAFE
+	def_bool HAVE_NMI && !ARCH_HAS_NMI_SAFE_THIS_CPU_OPS && !TINY_SRCU
+
 config TASKS_RCU_GENERIC
 	def_bool TASKS_RCU || TASKS_RUDE_RCU || TASKS_TRACE_RCU
 	select SRCU

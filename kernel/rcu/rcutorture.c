@@ -615,10 +615,14 @@ static struct rcu_torture_ops rcu_busted_ops = {
 DEFINE_STATIC_SRCU(srcu_ctl);
 static struct srcu_struct srcu_ctld;
 static struct srcu_struct *srcu_ctlp = &srcu_ctl;
+static struct rcu_torture_ops srcud_ops;
 
 static int srcu_torture_read_lock(void) __acquires(srcu_ctlp)
 {
-	return srcu_read_lock(srcu_ctlp);
+	if (cur_ops == &srcud_ops)
+		return srcu_read_lock_nmisafe(srcu_ctlp);
+	else
+		return srcu_read_lock(srcu_ctlp);
 }
 
 static void
@@ -642,7 +646,10 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 
 static void srcu_torture_read_unlock(int idx) __releases(srcu_ctlp)
 {
-	srcu_read_unlock(srcu_ctlp, idx);
+	if (cur_ops == &srcud_ops)
+		srcu_read_unlock_nmisafe(srcu_ctlp, idx);
+	else
+		srcu_read_unlock(srcu_ctlp, idx);
 }
 
 static int torture_srcu_read_lock_held(void)
