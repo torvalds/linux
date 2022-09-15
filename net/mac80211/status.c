@@ -729,7 +729,7 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 
 		if (!sdata) {
 			skb->dev = NULL;
-		} else {
+		} else if (!dropped) {
 			unsigned int hdr_size =
 				ieee80211_hdrlen(hdr->frame_control);
 
