@@ -4,12 +4,12 @@
 /* Various instructions on x86 need to be replaced for
  * para-virtualization: those hooks are defined here. */
 
+#include <asm/paravirt_types.h>
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/pgtable_types.h>
 #include <asm/asm.h>
 #include <asm/nospec-branch.h>
-
-#include <asm/paravirt_types.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/bug.h>
