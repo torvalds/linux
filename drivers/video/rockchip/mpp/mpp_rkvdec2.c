@@ -47,6 +47,15 @@ static struct mpp_hw_info rkvdec_rk356x_hw_info = {
 	.link_info = &rkvdec_link_rk356x_hw_info,
 };
 
+static struct mpp_hw_info rkvdec_vdpu382_hw_info = {
+	.reg_num = RKVDEC_REG_NUM,
+	.reg_id = RKVDEC_REG_HW_ID_INDEX,
+	.reg_start = RKVDEC_REG_START_INDEX,
+	.reg_end = RKVDEC_REG_END_INDEX,
+	.reg_en = RKVDEC_REG_START_EN_INDEX,
+	.link_info = &rkvdec_link_vdpu382_hw_info,
+};
+
 /*
  * file handle translate information
  */
@@ -1224,6 +1233,14 @@ static const struct mpp_dev_var rkvdec_rk3568_data = {
 	.dev_ops = &rkvdec_rk3568_dev_ops,
 };
 
+static const struct mpp_dev_var rkvdec_vdpu382_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_vdpu382_hw_info,
+	.trans_info = rkvdec_v2_trans,
+	.hw_ops = &rkvdec_v2_hw_ops,
+	.dev_ops = &rkvdec_v2_dev_ops,
+};
+
 static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-v2",
@@ -1238,6 +1255,12 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 #ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rkv-decoder-v2-ccu",
+	},
+#endif
+#ifdef CONFIG_CPU_RK3528
+	{
+		.compatible = "rockchip,rkv-decoder-rk3528",
+		.data = &rkvdec_vdpu382_data,
 	},
 #endif
 	{},

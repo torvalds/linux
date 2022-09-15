@@ -41,8 +41,6 @@
 #define RKVDEC_LINK_BIT_CFG_DONE	BIT(0)
 
 #define RKVDEC_LINK_DEC_NUM_BASE	0x010
-#define RKVDEC_LINK_BIT_DEC_ERROR	BIT(31)
-#define	RKVDEC_LINK_GET_DEC_NUM(x)	((x) & 0x3fffffff)
 
 #define RKVDEC_LINK_TOTAL_NUM_BASE	0x014
 
@@ -50,6 +48,8 @@
 #define RKVDEC_LINK_BIT_EN		BIT(0)
 
 #define RKVDEC_LINK_NEXT_ADDR_BASE	0x01c
+
+#define RKVDEC_LINK_STA_BASE		0x024
 
 #define RKVDEC_LINK_REG_CYCLE_CNT	179
 
@@ -94,6 +94,12 @@ struct rkvdec_link_part {
 	u32 reg_num;
 };
 
+struct rkvdec_link_status {
+	u32 dec_num_mask;
+	u32 err_flag_base;
+	u32 err_flag_bit;
+};
+
 struct rkvdec_link_info {
 	dma_addr_t iova;
 	/* total register for link table buffer */
@@ -114,6 +120,7 @@ struct rkvdec_link_info {
 	u32 tb_reg_int;
 	u32 tb_reg_cycle;
 	bool hack_setup;
+	struct rkvdec_link_status reg_status;
 };
 
 struct rkvdec_link_dev {
@@ -189,6 +196,7 @@ struct rkvdec2_ccu {
 
 extern struct rkvdec_link_info rkvdec_link_rk356x_hw_info;
 extern struct rkvdec_link_info rkvdec_link_v2_hw_info;
+extern struct rkvdec_link_info rkvdec_link_vdpu382_hw_info;
 
 int rkvdec_link_dump(struct mpp_dev *mpp);
 
