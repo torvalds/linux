@@ -93,4 +93,6 @@ bool arch_is_rethunk(struct symbol *sym);
 
 int arch_rewrite_retpolines(struct objtool_file *file);
 
+bool arch_pc_relative_reloc(struct reloc *reloc);
+
 #endif /* _ARCH_H */
