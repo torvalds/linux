@@ -416,7 +416,7 @@ static __always_inline void guest_context_enter_irqoff(void)
 	 */
 	if (!context_tracking_guest_enter()) {
 		instrumentation_begin();
-		rcu_virt_note_context_switch(smp_processor_id());
+		rcu_virt_note_context_switch();
 		instrumentation_end();
 	}
 }
