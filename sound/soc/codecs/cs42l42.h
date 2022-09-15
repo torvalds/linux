@@ -29,6 +29,7 @@ struct  cs42l42_private {
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
 	struct mutex irq_lock;
+	int irq;
 	int pll_config;
 	u32 sclk;
 	u32 srate;
@@ -46,6 +47,7 @@ struct  cs42l42_private {
 	u8 stream_use;
 	bool hp_adc_up_pending;
 	bool suspended;
+	bool init_done;
 };
 
 #endif /* __CS42L42_H__ */
