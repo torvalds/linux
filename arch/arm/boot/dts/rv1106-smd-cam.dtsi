@@ -132,6 +132,11 @@
 		};
 	};
 
+	gt24c512: gt24c512@50 {
+		compatible = "atmel,24c512";
+		reg = <0x50>;
+	};
+
 	vcsel_rk803: vcsel_rk803@63 {
 		compatible = "rockchip,rk803";
 		status = "okay";
