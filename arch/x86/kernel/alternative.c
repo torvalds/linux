@@ -947,6 +947,12 @@ void __init alternative_instructions(void)
 	 */
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
+	/*
+	 * Now all calls are established. Apply the call thunks if
+	 * required.
+	 */
+	callthunks_patch_builtin_calls();
+
 	apply_ibt_endbr(__ibt_endbr_seal, __ibt_endbr_seal_end);
 
 #ifdef CONFIG_SMP

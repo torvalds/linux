@@ -80,6 +80,18 @@ extern void apply_returns(s32 *start, s32 *end);
 extern void apply_ibt_endbr(s32 *start, s32 *end);
 
 struct module;
+struct paravirt_patch_site;
+
+struct callthunk_sites {
+	s32				*call_start, *call_end;
+	struct paravirt_patch_site	*pv_start, *pv_end;
+};
+
+#ifdef CONFIG_CALL_THUNKS
+extern void callthunks_patch_builtin_calls(void);
+#else
+static __always_inline void callthunks_patch_builtin_calls(void) {}
+#endif
 
 #ifdef CONFIG_SMP
 extern void alternatives_smp_module_add(struct module *mod, char *name,
