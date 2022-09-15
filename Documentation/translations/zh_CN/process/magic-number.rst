@@ -66,7 +66,6 @@ TTY_MAGIC             0x5401           tty_struct               ``include/linux/
 MGSL_MAGIC            0x5401           mgsl_info                ``drivers/char/synclink.c``
 TTY_DRIVER_MAGIC      0x5402           tty_driver               ``include/linux/tty_driver.h``
 MGSLPC_MAGIC          0x5402           mgslpc_info              ``drivers/char/pcmcia/synclink_cs.c``
-RIEBL_MAGIC           0x09051990                                ``drivers/net/atarilance.c``
 NBD_REQUEST_MAGIC     0x12560953       nbd_request              ``include/linux/nbd.h``
 BAYCOM_MAGIC          0x19730510       baycom_state             ``drivers/net/baycom_epp.c``
 SAVEKMSG_MAGIC2       0x4B4D5347       savekmsg                 ``arch/*/amiga/config.c``
