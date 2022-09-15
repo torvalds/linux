@@ -31,6 +31,7 @@ struct  cs42l42_private {
 	struct completion pdn_done;
 	struct snd_soc_jack *jack;
 	struct mutex irq_lock;
+	int devid;
 	int irq;
 	int pll_config;
 	u32 sclk;

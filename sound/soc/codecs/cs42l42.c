@@ -2318,11 +2318,11 @@ int cs42l42_init(struct cs42l42_private *cs42l42)
 		goto err_disable;
 	}
 
-	if (devid != CS42L42_CHIP_ID) {
+	if (devid != cs42l42->devid) {
 		ret = -ENODEV;
 		dev_err(cs42l42->dev,
-			"CS42L42 Device ID (%X). Expected %X\n",
-			devid, CS42L42_CHIP_ID);
+			"CS42L%x Device ID (%X). Expected %X\n",
+			cs42l42->devid & 0xff, devid, cs42l42->devid);
 		goto err_disable;
 	}
 
@@ -2333,7 +2333,8 @@ int cs42l42_init(struct cs42l42_private *cs42l42)
 	}
 
 	dev_info(cs42l42->dev,
-		 "Cirrus Logic CS42L42, Revision: %02X\n", reg & 0xFF);
+		 "Cirrus Logic CS42L%x, Revision: %02X\n",
+		 cs42l42->devid & 0xff, reg & 0xFF);
 
 	/* Power up the codec */
 	regmap_update_bits(cs42l42->regmap, CS42L42_PWR_CTL1,

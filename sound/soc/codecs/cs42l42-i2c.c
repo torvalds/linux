@@ -31,6 +31,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 		return ret;
 	}
 
+	cs42l42->devid = CS42L42_CHIP_ID;
 	cs42l42->dev = dev;
 	cs42l42->regmap = regmap;
 	cs42l42->irq = i2c_client->irq;
