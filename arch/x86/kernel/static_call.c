@@ -34,6 +34,7 @@ static void __ref __static_call_transform(void *insn, enum insn_type type,
 
 	switch (type) {
 	case CALL:
+		func = callthunks_translate_call_dest(func);
 		code = text_gen_insn(CALL_INSN_OPCODE, insn, func);
 		if (func == &__static_call_return0) {
 			emulate = code;

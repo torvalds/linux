@@ -6,6 +6,7 @@
 #include <linux/kallsyms.h>
 #include <linux/memory.h>
 #include <linux/moduleloader.h>
+#include <linux/static_call.h>
 
 #include <asm/alternative.h>
 #include <asm/asm-offsets.h>
@@ -271,8 +272,25 @@ void __init callthunks_patch_builtin_calls(void)
 	pr_info("Setting up call depth tracking\n");
 	mutex_lock(&text_mutex);
 	callthunks_setup(&cs, &builtin_coretext);
+	static_call_force_reinit();
 	thunks_initialized = true;
 	mutex_unlock(&text_mutex);
+}
+
+void *callthunks_translate_call_dest(void *dest)
+{
+	void *target;
+
+	lockdep_assert_held(&text_mutex);
+
+	if (!thunks_initialized || skip_addr(dest))
+		return dest;
+
+	if (!is_coretext(NULL, dest))
+		return dest;
+
+	target = patch_dest(dest, false);
+	return target ? : dest;
 }
 
 #ifdef CONFIG_MODULES
