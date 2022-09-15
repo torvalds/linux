@@ -132,18 +132,19 @@ SECTIONS
 		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
-		ALIGN_ENTRY_TEXT_BEGIN
-		ENTRY_TEXT
-		ALIGN_ENTRY_TEXT_END
 		SOFTIRQENTRY_TEXT
-		STATIC_CALL_TEXT
-		*(.gnu.warning)
-
 #ifdef CONFIG_RETPOLINE
 		__indirect_thunk_start = .;
 		*(.text.__x86.*)
 		__indirect_thunk_end = .;
 #endif
+		STATIC_CALL_TEXT
+
+		ALIGN_ENTRY_TEXT_BEGIN
+		ENTRY_TEXT
+		ALIGN_ENTRY_TEXT_END
+		*(.gnu.warning)
+
 	} :text =0xcccc
 
 	/* End of text section, which should occupy whole number of pages */
