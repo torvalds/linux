@@ -1462,7 +1462,6 @@ int cpucp_memlat_init(struct scmi_device *sdev)
 		ret = configure_cpucp_grp(grp);
 		if (ret < 0) {
 			pr_err("Failed to configure mem group: %d\n", ret);
-			ops = NULL;
 			goto memlat_unlock;
 		}
 
@@ -1474,7 +1473,6 @@ int cpucp_memlat_init(struct scmi_device *sdev)
 			ret = configure_cpucp_mon(&grp->mons[j]);
 			if (ret < 0) {
 				pr_err("failed to configure mon: %d\n", ret);
-				ops = NULL;
 				goto mons_unlock;
 			}
 			start_cpucp_timer = true;
@@ -1489,18 +1487,18 @@ int cpucp_memlat_init(struct scmi_device *sdev)
 	}
 
 	/* Start sampling and voting timer */
-	if (!start_cpucp_timer)
-		goto memlat_unlock;
-
-	ret = ops->start_timer(memlat_data->ph);
-	if (ret < 0)
-		pr_err("Error in starting the mem group timer %d\n", ret);
-
+	if (start_cpucp_timer) {
+		ret = ops->start_timer(memlat_data->ph);
+		if (ret < 0)
+			pr_err("Error in starting the mem group timer %d\n", ret);
+	}
 	goto memlat_unlock;
 
 mons_unlock:
 	mutex_unlock(&grp->mons_lock);
 memlat_unlock:
+	if (ret < 0)
+		memlat_data->memlat_ops = NULL;
 	mutex_unlock(&memlat_lock);
 	return ret;
 }
