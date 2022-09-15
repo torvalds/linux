@@ -212,7 +212,8 @@ int i915_gem_freeze_late(struct drm_i915_private *i915)
 
 void i915_gem_resume(struct drm_i915_private *i915)
 {
-	int ret;
+	struct intel_gt *gt;
+	int ret, i, j;
 
 	GEM_TRACE("%s\n", dev_name(i915->drm.dev));
 
@@ -224,8 +225,25 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	intel_gt_resume(to_gt(i915));
+	for_each_gt(gt, i915, i)
+		if (intel_gt_resume(gt))
+			goto err_wedged;
 
 	ret = lmem_restore(i915, I915_TTM_BACKUP_ALLOW_GPU);
 	GEM_WARN_ON(ret);
+
+	return;
+
+err_wedged:
+	for_each_gt(gt, i915, j) {
+		if (!intel_gt_is_wedged(gt)) {
+			dev_err(i915->drm.dev,
+				"Failed to re-initialize GPU[%u], declaring it wedged!\n",
+				j);
+			intel_gt_set_wedged(gt);
+		}
+
+		if (j == i)
+			break;
+	}
 }
