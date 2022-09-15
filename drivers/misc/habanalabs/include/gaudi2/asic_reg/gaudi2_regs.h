@@ -132,6 +132,7 @@
 #include "dcore0_mme_ctrl_lo_arch_tensor_a_regs.h"
 #include "dcore0_mme_ctrl_lo_arch_tensor_b_regs.h"
 #include "dcore0_mme_ctrl_lo_arch_tensor_cout_regs.h"
+#include "pcie_wrap_special_regs.h"
 
 #include "pdma0_qm_masks.h"
 #include "pdma0_core_masks.h"

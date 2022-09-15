@@ -2559,6 +2559,10 @@ static const u32 gaudi2_pb_pcie[] = {
 	mmPCIE_WRAP_BASE,
 };
 
+static const u32 gaudi2_pb_pcie_unsecured_regs[] = {
+	mmPCIE_WRAP_SPECIAL_GLBL_SPARE_0,
+};
+
 static const u32 gaudi2_pb_thermal_sensor0[] = {
 	mmDCORE0_XFT_BASE,
 	mmDCORE0_TSTDVS_BASE,
@@ -3418,7 +3422,8 @@ static int gaudi2_init_protection_bits(struct hl_device *hdev)
 	rc |= hl_init_pb(hdev, HL_PB_SHARED, HL_PB_NA,
 			HL_PB_SINGLE_INSTANCE, HL_PB_NA,
 			gaudi2_pb_pcie, ARRAY_SIZE(gaudi2_pb_pcie),
-			NULL, HL_PB_NA);
+			gaudi2_pb_pcie_unsecured_regs,
+			ARRAY_SIZE(gaudi2_pb_pcie_unsecured_regs));
 
 	/* Thermal Sensor.
 	 * Skip when security is enabled in F/W, because the blocks are protected by privileged RR.
