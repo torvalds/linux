@@ -1236,6 +1236,27 @@ void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
 	return __text_poke(text_poke_memcpy, addr, opcode, len);
 }
 
+void *text_poke_copy_locked(void *addr, const void *opcode, size_t len,
+			    bool core_ok)
+{
+	unsigned long start = (unsigned long)addr;
+	size_t patched = 0;
+
+	if (WARN_ON_ONCE(!core_ok && core_kernel_text(start)))
+		return NULL;
+
+	while (patched < len) {
+		unsigned long ptr = start + patched;
+		size_t s;
+
+		s = min_t(size_t, PAGE_SIZE * 2 - offset_in_page(ptr), len - patched);
+
+		__text_poke(text_poke_memcpy, (void *)ptr, opcode + patched, s);
+		patched += s;
+	}
+	return addr;
+}
+
 /**
  * text_poke_copy - Copy instructions into (an unused part of) RX memory
  * @addr: address to modify
@@ -1250,22 +1271,8 @@ void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
  */
 void *text_poke_copy(void *addr, const void *opcode, size_t len)
 {
-	unsigned long start = (unsigned long)addr;
-	size_t patched = 0;
-
-	if (WARN_ON_ONCE(core_kernel_text(start)))
-		return NULL;
-
 	mutex_lock(&text_mutex);
-	while (patched < len) {
-		unsigned long ptr = start + patched;
-		size_t s;
-
-		s = min_t(size_t, PAGE_SIZE * 2 - offset_in_page(ptr), len - patched);
-
-		__text_poke(text_poke_memcpy, (void *)ptr, opcode + patched, s);
-		patched += s;
-	}
+	addr = text_poke_copy_locked(addr, opcode, len, false);
 	mutex_unlock(&text_mutex);
 	return addr;
 }
