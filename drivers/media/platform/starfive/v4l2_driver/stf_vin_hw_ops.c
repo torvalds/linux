@@ -259,8 +259,8 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PCLK].clk);
-	clk_set_rate(stfcamss->sys_clk[STFCLK_APB_FUNC].clk, 51200000);
-	clk_set_rate(stfcamss->sys_clk[STFCLK_SYS_CLK].clk, 307200000);
+	clk_set_rate(stfcamss->sys_clk[STFCLK_APB_FUNC].clk, 49500000);
+	clk_set_rate(stfcamss->sys_clk[STFCLK_SYS_CLK].clk, 297000000);
 
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PCLK].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);

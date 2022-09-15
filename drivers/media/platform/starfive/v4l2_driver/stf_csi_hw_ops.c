@@ -75,7 +75,7 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
-	clk_set_rate(stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk, 204800000);
+	clk_set_rate(stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk, 198000000);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
