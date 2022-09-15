@@ -293,6 +293,12 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	return low;
 }
 
+#ifdef CONFIG_FUNCTION_PADDING_BYTES
+#define PADDING_BYTES	CONFIG_FUNCTION_PADDING_BYTES
+#else
+#define PADDING_BYTES	0
+#endif
+
 /*
  * Lookup an address but don't bother to find any names.
  */
@@ -300,13 +306,25 @@ int kallsyms_lookup_size_offset(unsigned long addr, unsigned long *symbolsize,
 				unsigned long *offset)
 {
 	char namebuf[KSYM_NAME_LEN];
+	int ret;
+
+	addr += PADDING_BYTES;
 
 	if (is_ksym_addr(addr)) {
 		get_symbol_pos(addr, symbolsize, offset);
-		return 1;
+		ret = 1;
+		goto found;
 	}
-	return !!module_address_lookup(addr, symbolsize, offset, NULL, NULL, namebuf) ||
-	       !!__bpf_address_lookup(addr, symbolsize, offset, namebuf);
+
+	ret = !!module_address_lookup(addr, symbolsize, offset, NULL, NULL, namebuf);
+	if (!ret) {
+		ret = !!__bpf_address_lookup(addr, symbolsize,
+					     offset, namebuf);
+	}
+found:
+	if (ret && offset)
+		*offset -= PADDING_BYTES;
+	return ret;
 }
 
 static const char *kallsyms_lookup_buildid(unsigned long addr,
@@ -318,6 +336,8 @@ static const char *kallsyms_lookup_buildid(unsigned long addr,
 
 	namebuf[KSYM_NAME_LEN - 1] = 0;
 	namebuf[0] = 0;
+
+	addr += PADDING_BYTES;
 
 	if (is_ksym_addr(addr)) {
 		unsigned long pos;
@@ -348,6 +368,8 @@ static const char *kallsyms_lookup_buildid(unsigned long addr,
 
 found:
 	cleanup_symbol_name(namebuf);
+	if (ret && offset)
+		*offset -= PADDING_BYTES;
 	return ret;
 }
 
@@ -373,6 +395,8 @@ int lookup_symbol_name(unsigned long addr, char *symname)
 
 	symname[0] = '\0';
 	symname[KSYM_NAME_LEN - 1] = '\0';
+
+	addr += PADDING_BYTES;
 
 	if (is_ksym_addr(addr)) {
 		unsigned long pos;
@@ -401,6 +425,8 @@ int lookup_symbol_attrs(unsigned long addr, unsigned long *size,
 	name[0] = '\0';
 	name[KSYM_NAME_LEN - 1] = '\0';
 
+	addr += PADDING_BYTES;
+
 	if (is_ksym_addr(addr)) {
 		unsigned long pos;
 
@@ -417,6 +443,8 @@ int lookup_symbol_attrs(unsigned long addr, unsigned long *size,
 		return res;
 
 found:
+	if (offset)
+		*offset -= PADDING_BYTES;
 	cleanup_symbol_name(name);
 	return 0;
 }
@@ -442,8 +470,15 @@ static int __sprint_symbol(char *buffer, unsigned long address,
 	len = strlen(buffer);
 	offset -= symbol_offset;
 
-	if (add_offset)
-		len += sprintf(buffer + len, "+%#lx/%#lx", offset, size);
+	if (add_offset) {
+		char s = '+';
+
+		if ((long)offset < 0) {
+			s = '-';
+			offset = 0UL - offset;
+		}
+		len += sprintf(buffer + len, "%c%#lx/%#lx", s, offset, size);
+	}
 
 	if (modname) {
 		len += sprintf(buffer + len, " [%s", modname);
