@@ -1915,7 +1915,7 @@ static inline void force_cfg_update(struct rkisp_device *dev)
 	u32 val = CIF_MI_CTRL_INIT_OFFSET_EN | CIF_MI_CTRL_INIT_BASE_EN;
 	bool is_unite = dev->hw_dev->is_unite;
 
-	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
+	if (dev->isp_ver == ISP_V21) {
 		val |= rkisp_read_reg_cache(dev, CIF_MI_CTRL);
 		rkisp_write(dev, CIF_MI_CTRL, val, true);
 	}
