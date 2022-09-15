@@ -64,6 +64,4 @@ enum octeon_dma_bar_type {
 extern enum octeon_dma_bar_type octeon_dma_bar_type;
 
 void octeon_pci_dma_init(void);
-extern char *octeon_swiotlb;
-
 #endif
