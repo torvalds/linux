@@ -15,6 +15,7 @@ struct pcpu_hot {
 	union {
 		struct {
 			struct task_struct	*current_task;
+			int			preempt_count;
 		};
 		u8	pad[64];
 	};
