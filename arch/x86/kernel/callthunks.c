@@ -249,3 +249,22 @@ void __init callthunks_patch_builtin_calls(void)
 	thunks_initialized = true;
 	mutex_unlock(&text_mutex);
 }
+
+#ifdef CONFIG_MODULES
+void noinline callthunks_patch_module_calls(struct callthunk_sites *cs,
+					    struct module *mod)
+{
+	struct core_text ct = {
+		.base = (unsigned long)mod->core_layout.base,
+		.end  = (unsigned long)mod->core_layout.base + mod->core_layout.size,
+		.name = mod->name,
+	};
+
+	if (!thunks_initialized)
+		return;
+
+	mutex_lock(&text_mutex);
+	callthunks_setup(cs, &ct);
+	mutex_unlock(&text_mutex);
+}
+#endif /* CONFIG_MODULES */
