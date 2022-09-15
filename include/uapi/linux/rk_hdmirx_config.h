@@ -44,6 +44,7 @@ enum hdmirx_video_standard {
 	HDMIRX_BT2020_RGB = 6,
 };
 
+/* Private v4l2 ioctl */
 #define RK_HDMIRX_CMD_GET_FPS \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, int)
 
@@ -76,5 +77,9 @@ enum hdmirx_video_standard {
 
 #define RK_HDMIRX_CMD_GET_COLOR_SPACE \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 10, int)
+
+/* Private v4l2 event */
+#define RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST \
+	(V4L2_EVENT_PRIVATE_START + 1)
 
 #endif /* _UAPI_RK_HDMIRX_CONFIG_H */

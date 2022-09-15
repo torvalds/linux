@@ -441,6 +441,8 @@ static int hdmirx_subscribe_event(struct v4l2_fh *fh,
 		break;
 	case V4L2_EVENT_CTRL:
 		return v4l2_ctrl_subscribe_event(fh, sub);
+	case RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
 
 	default:
 		return v4l2_ctrl_subscribe_event(fh, sub);
@@ -2201,6 +2203,11 @@ static int hdmirx_register_stream_vdev(struct hdmirx_stream *stream)
 
 static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 {
+	struct hdmirx_stream *stream = &hdmirx_dev->stream;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
+
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6, HDMIRX_DMA_EN, 0);
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG4,
 			LINE_FLAG_INT_EN |
@@ -2212,6 +2219,7 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 			HDMIRX_AXI_ERROR_INT_EN, 0);
 	hdmirx_reset_dma(hdmirx_dev);
 	hdmirx_dev->get_timing = false;
+	v4l2_event_queue(&stream->vdev, &evt_signal_lost);
 	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_stop)
 		hdmirx_dev->hdcp->hdcp_stop(hdmirx_dev->hdcp);
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
@@ -2665,10 +2673,15 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 	struct rk_hdmirx_dev *hdmirx_dev = container_of(dwork,
 			struct rk_hdmirx_dev, delayed_work_hotplug);
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	struct hdmirx_stream *stream = &hdmirx_dev->stream;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
 	bool plugin;
 
 	mutex_lock(&hdmirx_dev->work_lock);
 	hdmirx_dev->get_timing = false;
+	v4l2_event_queue(&stream->vdev, &evt_signal_lost);
 	plugin = tx_5v_power_present(hdmirx_dev);
 	v4l2_ctrl_s_ctrl(hdmirx_dev->detect_tx_5v_ctrl, plugin);
 	v4l2_dbg(1, debug, v4l2_dev, "%s: plugin:%d\n", __func__, plugin);
