@@ -1,7 +1,20 @@
 # SPDX-License-Identifier: GPL-2.0-only
-if ARCH_FOOTBRIDGE
+menuconfig ARCH_FOOTBRIDGE
+	bool "FootBridge Implementations"
+	depends on ARCH_MULTI_V4 && !(ARCH_MULTI_V4T || ARCH_MULTI_V5)
+	depends on !(ARCH_MOXART || ARCH_GEMINI || ARCH_SA1100)
+	depends on ATAGS
+	depends on CPU_LITTLE_ENDIAN
+	depends on MMU
+	select ARCH_NO_SG_CHAIN
+	select CPU_SA110
+	select FOOTBRIDGE
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for systems based on the DC21285 companion chip
+	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-menu "Footbridge Implementations"
+if ARCH_FOOTBRIDGE
 
 config ARCH_CATS
 	bool "CATS"
@@ -40,8 +53,6 @@ config ARCH_NETWINDER
 	  <http://www.netwinder.org/>
 
 	  Saying N will reduce the size of the Footbridge kernel.
-
-endmenu
 
 # Footbridge support
 config FOOTBRIDGE
