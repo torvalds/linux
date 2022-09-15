@@ -706,6 +706,7 @@ do_transfer()
 		addr_nr_ns1=${addr_nr_ns1:10}
 	fi
 
+	local flags="subflow"
 	if [[ "${addr_nr_ns2}" = "fastclose_"* ]]; then
 		# disconnect
 		extra_args="$extra_args -I ${addr_nr_ns2:10}"
@@ -713,6 +714,9 @@ do_transfer()
 	elif [[ "${addr_nr_ns2}" = "userspace_"* ]]; then
 		userspace_pm=1
 		addr_nr_ns2=${addr_nr_ns2:10}
+	elif [[ "${addr_nr_ns2}" = "fullmesh_"* ]]; then
+		flags="${flags},fullmesh"
+		addr_nr_ns2=${addr_nr_ns2:9}
 	fi
 
 	if [ $userspace_pm -eq 1 ]; then
@@ -830,12 +834,6 @@ do_transfer()
 		elif [ $rm_nr_ns1 -eq 9 ]; then
 			pm_nl_del_endpoint ${listener_ns} 0 ${connect_addr}
 		fi
-	fi
-
-	local flags="subflow"
-	if [[ "${addr_nr_ns2}" = "fullmesh_"* ]]; then
-		flags="${flags},fullmesh"
-		addr_nr_ns2=${addr_nr_ns2:9}
 	fi
 
 	# if newly added endpoints must be deleted, give the background msk
