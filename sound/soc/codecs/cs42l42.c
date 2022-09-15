@@ -2218,7 +2218,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 	cs42l42->regmap = devm_regmap_init_i2c(i2c_client, &cs42l42_regmap);
 	if (IS_ERR(cs42l42->regmap)) {
 		ret = PTR_ERR(cs42l42->regmap);
-		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
+		dev_err(cs42l42->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
 
@@ -2226,11 +2226,11 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 	for (i = 0; i < ARRAY_SIZE(cs42l42->supplies); i++)
 		cs42l42->supplies[i].supply = cs42l42_supply_names[i];
 
-	ret = devm_regulator_bulk_get(&i2c_client->dev,
+	ret = devm_regulator_bulk_get(cs42l42->dev,
 				      ARRAY_SIZE(cs42l42->supplies),
 				      cs42l42->supplies);
 	if (ret != 0) {
-		dev_err(&i2c_client->dev,
+		dev_err(cs42l42->dev,
 			"Failed to request supplies: %d\n", ret);
 		return ret;
 	}
@@ -2238,13 +2238,13 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 	ret = regulator_bulk_enable(ARRAY_SIZE(cs42l42->supplies),
 				    cs42l42->supplies);
 	if (ret != 0) {
-		dev_err(&i2c_client->dev,
+		dev_err(cs42l42->dev,
 			"Failed to enable supplies: %d\n", ret);
 		return ret;
 	}
 
 	/* Reset the Device */
-	cs42l42->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+	cs42l42->reset_gpio = devm_gpiod_get_optional(cs42l42->dev,
 		"reset", GPIOD_OUT_LOW);
 	if (IS_ERR(cs42l42->reset_gpio)) {
 		ret = PTR_ERR(cs42l42->reset_gpio);
@@ -2252,7 +2252,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 	}
 
 	if (cs42l42->reset_gpio) {
-		dev_dbg(&i2c_client->dev, "Found reset GPIO\n");
+		dev_dbg(cs42l42->dev, "Found reset GPIO\n");
 		gpiod_set_value_cansleep(cs42l42->reset_gpio, 1);
 	}
 	usleep_range(CS42L42_BOOT_TIME_US, CS42L42_BOOT_TIME_US * 2);
@@ -2263,9 +2263,11 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 					   NULL, cs42l42_irq_thread,
 					   IRQF_ONESHOT | IRQF_TRIGGER_LOW,
 					   "cs42l42", cs42l42);
-		if (ret) {
-			dev_err_probe(&i2c_client->dev, ret,
-				      "Failed to request IRQ\n");
+		if (ret == -EPROBE_DEFER) {
+			goto err_disable_noirq;
+		} else if (ret != 0) {
+			dev_err_probe(cs42l42->dev, ret,
+				"Failed to request IRQ\n");
 			goto err_disable_noirq;
 		}
 	}
@@ -2274,13 +2276,13 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 	devid = cirrus_read_device_id(cs42l42->regmap, CS42L42_DEVID_AB);
 	if (devid < 0) {
 		ret = devid;
-		dev_err(&i2c_client->dev, "Failed to read device ID: %d\n", ret);
+		dev_err(cs42l42->dev, "Failed to read device ID: %d\n", ret);
 		goto err_disable;
 	}
 
 	if (devid != CS42L42_CHIP_ID) {
 		ret = -ENODEV;
-		dev_err(&i2c_client->dev,
+		dev_err(cs42l42->dev,
 			"CS42L42 Device ID (%X). Expected %X\n",
 			devid, CS42L42_CHIP_ID);
 		goto err_disable;
@@ -2288,11 +2290,11 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 
 	ret = regmap_read(cs42l42->regmap, CS42L42_REVID, &reg);
 	if (ret < 0) {
-		dev_err(&i2c_client->dev, "Get Revision ID failed\n");
+		dev_err(cs42l42->dev, "Get Revision ID failed\n");
 		goto err_shutdown;
 	}
 
-	dev_info(&i2c_client->dev,
+	dev_info(cs42l42->dev,
 		 "Cirrus Logic CS42L42, Revision: %02X\n", reg & 0xFF);
 
 	/* Power up the codec */
@@ -2312,7 +2314,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 			(1 << CS42L42_ADC_PDN_SHIFT) |
 			(0 << CS42L42_PDN_ALL_SHIFT));
 
-	ret = cs42l42_handle_device_data(&i2c_client->dev, cs42l42);
+	ret = cs42l42_handle_device_data(cs42l42->dev, cs42l42);
 	if (ret != 0)
 		goto err_shutdown;
 
@@ -2323,7 +2325,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 	cs42l42_set_interrupt_masks(cs42l42);
 
 	/* Register codec for machine driver */
-	ret = devm_snd_soc_register_component(&i2c_client->dev,
+	ret = devm_snd_soc_register_component(cs42l42->dev,
 			&soc_component_dev_cs42l42, &cs42l42_dai, 1);
 	if (ret < 0)
 		goto err_shutdown;
