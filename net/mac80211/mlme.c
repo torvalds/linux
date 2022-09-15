@@ -2717,18 +2717,10 @@ static u32 ieee80211_link_set_associated(struct ieee80211_link_data *link,
 	}
 
 	if (link->u.mgd.have_beacon) {
-		/*
-		 * If the AP is buggy we may get here with no DTIM period
-		 * known, so assume it's 1 which is the only safe assumption
-		 * in that case, although if the TIM IE is broken powersave
-		 * probably just won't work at all.
-		 */
-		bss_conf->dtim_period = link->u.mgd.dtim_period ?: 1;
 		bss_conf->beacon_rate = bss->beacon_rate;
 		changed |= BSS_CHANGED_BEACON_INFO;
 	} else {
 		bss_conf->beacon_rate = NULL;
-		bss_conf->dtim_period = 0;
 	}
 
 	/* Tell the driver to monitor connection quality (if supported) */
@@ -4934,10 +4926,11 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	}
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
 		struct ieee80211_link_data *link;
 		struct link_sta_info *link_sta;
 
-		if (!assoc_data->link[link_id].bss)
+		if (!cbss)
 			continue;
 
 		link = sdata_dereference(sdata->link[link_id], sdata);
@@ -4957,19 +4950,25 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		if (WARN_ON(!link_sta))
 			goto out_err;
 
-		if (link_id != assoc_data->assoc_link_id) {
-			struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
+		if (!link->u.mgd.have_beacon) {
 			const struct cfg80211_bss_ies *ies;
 
 			rcu_read_lock();
-			ies = rcu_dereference(cbss->ies);
+			ies = rcu_dereference(cbss->beacon_ies);
+			if (ies)
+				link->u.mgd.have_beacon = true;
+			else
+				ies = rcu_dereference(cbss->ies);
 			ieee80211_get_dtim(ies,
 					   &link->conf->sync_dtim_count,
 					   &link->u.mgd.dtim_period);
-			link->conf->dtim_period = link->u.mgd.dtim_period ?: 1;
 			link->conf->beacon_int = cbss->beacon_interval;
 			rcu_read_unlock();
+		}
 
+		link->conf->dtim_period = link->u.mgd.dtim_period ?: 1;
+
+		if (link_id != assoc_data->assoc_link_id) {
 			err = ieee80211_prep_channel(sdata, link, cbss,
 						     &link->u.mgd.conn_flags);
 			if (err) {
