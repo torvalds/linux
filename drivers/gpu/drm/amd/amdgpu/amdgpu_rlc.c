@@ -501,3 +501,38 @@ static void amdgpu_gfx_rlc_init_microcode_v2_4(struct amdgpu_device *adev)
 		}
 	}
 }
+
+int amdgpu_gfx_rlc_init_microcode(struct amdgpu_device *adev,
+				  uint16_t version_major,
+				  uint16_t version_minor)
+{
+	int err;
+
+	if (version_major < 2) {
+		/* only support rlc_hdr v2.x and onwards */
+		dev_err(adev->dev, "unsupported rlc fw hdr\n");
+		return -EINVAL;
+	}
+
+	/* is_rlc_v2_1 is still used in APU code path */
+	if (version_major == 2 && version_minor == 1)
+		adev->gfx.rlc.is_rlc_v2_1 = true;
+
+	if (version_minor >= 0) {
+		err = amdgpu_gfx_rlc_init_microcode_v2_0(adev);
+		if (err) {
+			dev_err(adev->dev, "fail to init rlc v2_0 microcode\n");
+			return err;
+		}
+	}
+	if (version_minor >= 1)
+		amdgpu_gfx_rlc_init_microcode_v2_1(adev);
+	if (version_minor >= 2)
+		amdgpu_gfx_rlc_init_microcode_v2_2(adev);
+	if (version_minor == 3)
+		amdgpu_gfx_rlc_init_microcode_v2_3(adev);
+	if (version_minor == 4)
+		amdgpu_gfx_rlc_init_microcode_v2_4(adev);
+
+	return 0;
+}
