@@ -406,14 +406,14 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 		if (adev->reset_domain->type != XGMI_HIVE) {
 			hive->reset_domain =
 				amdgpu_reset_create_reset_domain(XGMI_HIVE, "amdgpu-reset-hive");
-				if (!hive->reset_domain) {
-					dev_err(adev->dev, "XGMI: failed initializing reset domain for xgmi hive\n");
-					ret = -ENOMEM;
-					kobject_put(&hive->kobj);
-					kfree(hive);
-					hive = NULL;
-					goto pro_end;
-				}
+			if (!hive->reset_domain) {
+				dev_err(adev->dev, "XGMI: failed initializing reset domain for xgmi hive\n");
+				ret = -ENOMEM;
+				kobject_put(&hive->kobj);
+				kfree(hive);
+				hive = NULL;
+				goto pro_end;
+			}
 		} else {
 			amdgpu_reset_get_reset_domain(adev->reset_domain);
 			hive->reset_domain = adev->reset_domain;
