@@ -1662,7 +1662,8 @@ static int intel_runtime_suspend(struct device *kdev)
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
-		intel_gt_runtime_resume(to_gt(dev_priv));
+		for_each_gt(gt, dev_priv, i)
+			intel_gt_runtime_resume(gt);
 
 		enable_rpm_wakeref_asserts(rpm);
 
