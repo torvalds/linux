@@ -1279,7 +1279,7 @@ static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
 	int ret;
 	struct device *dev = rk_pcie->pci->dev;
 
-	rk_pcie->phy = devm_phy_get(dev, "pcie-phy");
+	rk_pcie->phy = devm_phy_optional_get(dev, "pcie-phy");
 	if (IS_ERR(rk_pcie->phy)) {
 		if (PTR_ERR(rk_pcie->phy) != -EPROBE_DEFER)
 			dev_info(dev, "missing phy\n");
