@@ -40,6 +40,7 @@
 extern void _paravirt_nop(void);
 asm (".pushsection .entry.text, \"ax\"\n"
      ".global _paravirt_nop\n"
+     ASM_FUNC_ALIGN
      "_paravirt_nop:\n\t"
      ASM_ENDBR
      ASM_RET
@@ -50,6 +51,7 @@ asm (".pushsection .entry.text, \"ax\"\n"
 /* stub always returning 0. */
 asm (".pushsection .entry.text, \"ax\"\n"
      ".global paravirt_ret0\n"
+     ASM_FUNC_ALIGN
      "paravirt_ret0:\n\t"
      ASM_ENDBR
      "xor %" _ASM_AX ", %" _ASM_AX ";\n\t"

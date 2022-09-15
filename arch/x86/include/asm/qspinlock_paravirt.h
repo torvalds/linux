@@ -40,7 +40,7 @@ __PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath, ".spinlock.text");
 asm    (".pushsection .spinlock.text;"
 	".globl " PV_UNLOCK ";"
 	".type " PV_UNLOCK ", @function;"
-	".align 4,0x90;"
+	ASM_FUNC_ALIGN
 	PV_UNLOCK ": "
 	ASM_ENDBR
 	FRAME_BEGIN
