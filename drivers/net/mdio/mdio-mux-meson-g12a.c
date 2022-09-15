@@ -233,11 +233,9 @@ static int g12a_ephy_glue_clk_register(struct device *dev)
 
 		snprintf(in_name, sizeof(in_name), "clkin%d", i);
 		clk = devm_clk_get(dev, in_name);
-		if (IS_ERR(clk)) {
-			if (PTR_ERR(clk) != -EPROBE_DEFER)
-				dev_err(dev, "Missing clock %s\n", in_name);
-			return PTR_ERR(clk);
-		}
+		if (IS_ERR(clk))
+			return dev_err_probe(dev, PTR_ERR(clk),
+					     "Missing clock %s\n", in_name);
 
 		parent_names[i] = __clk_get_name(clk);
 	}
@@ -317,12 +315,9 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->regs);
 
 	priv->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(priv->pclk)) {
-		ret = PTR_ERR(priv->pclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get peripheral clock\n");
-		return ret;
-	}
+	if (IS_ERR(priv->pclk))
+		return dev_err_probe(dev, PTR_ERR(priv->pclk),
+				     "failed to get peripheral clock\n");
 
 	/* Make sure the device registers are clocked */
 	ret = clk_prepare_enable(priv->pclk);
@@ -339,8 +334,7 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	ret = mdio_mux_init(dev, dev->of_node, g12a_mdio_switch_fn,
 			    &priv->mux_handle, dev, NULL);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "mdio multiplexer init failed: %d", ret);
+		dev_err_probe(dev, ret, "mdio multiplexer init failed\n");
 		goto err;
 	}
 
