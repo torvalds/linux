@@ -864,6 +864,8 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 
 void *get_fdt(unsigned long *fdt_size);
 
+efi_status_t efi_alloc_virtmap(efi_memory_desc_t **virtmap,
+			       unsigned long *desc_size, u32 *desc_ver);
 void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		     unsigned long desc_size, efi_memory_desc_t *runtime_map,
 		     int *count);

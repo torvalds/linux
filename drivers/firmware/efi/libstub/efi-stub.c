@@ -322,6 +322,35 @@ fail:
 }
 
 /*
+ * efi_allocate_virtmap() - create a pool allocation for the virtmap
+ *
+ * Create an allocation that is of sufficient size to hold all the memory
+ * descriptors that will be passed to SetVirtualAddressMap() to inform the
+ * firmware about the virtual mapping that will be used under the OS to call
+ * into the firmware.
+ */
+efi_status_t efi_alloc_virtmap(efi_memory_desc_t **virtmap,
+			       unsigned long *desc_size, u32 *desc_ver)
+{
+	unsigned long size, mmap_key;
+	efi_status_t status;
+
+	/*
+	 * Use the size of the current memory map as an upper bound for the
+	 * size of the buffer we need to pass to SetVirtualAddressMap() to
+	 * cover all EFI_MEMORY_RUNTIME regions.
+	 */
+	size = 0;
+	status = efi_bs_call(get_memory_map, &size, NULL, &mmap_key, desc_size,
+			     desc_ver);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return EFI_LOAD_ERROR;
+
+	return efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+			   (void **)virtmap);
+}
+
+/*
  * efi_get_virtmap() - create a virtual mapping for the EFI memory map
  *
  * This function populates the virt_addr fields of all memory region descriptors
@@ -335,6 +364,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 	u64 efi_virt_base = virtmap_base;
 	efi_memory_desc_t *in, *out = runtime_map;
 	int l;
+
+	*count = 0;
 
 	for (l = 0; l < map_size; l += desc_size) {
 		u64 paddr, size;
