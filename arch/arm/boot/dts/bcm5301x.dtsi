@@ -239,14 +239,26 @@
 
 		pcie0: pcie@12000 {
 			reg = <0x00012000 0x1000>;
+			device_type = "pci";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
 		};
 
 		pcie1: pcie@13000 {
 			reg = <0x00013000 0x1000>;
+			device_type = "pci";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
 		};
 
 		pcie2: pcie@14000 {
 			reg = <0x00014000 0x1000>;
+			device_type = "pci";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
 		};
 
 		usb2: usb2@21000 {

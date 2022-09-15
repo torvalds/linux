@@ -7,7 +7,7 @@
 #include "bcm4906.dtsi"
 
 / {
-	compatible = "netgear,r8000p", "brcm,bcm4906", "brcm,bcm4908";
+	compatible = "netgear,r8000p", "brcm,bcm4906", "brcm,bcm4908", "brcm,bcmbca";
 	model = "Netgear R8000P";
 
 	memory@0 {

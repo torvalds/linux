@@ -7,7 +7,7 @@
 #include "bcm4906.dtsi"
 
 / {
-	compatible = "tplink,archer-c2300-v1", "brcm,bcm4906", "brcm,bcm4908";
+	compatible = "tplink,archer-c2300-v1", "brcm,bcm4906", "brcm,bcm4908", "brcm,bcmbca";
 	model = "TP-Link Archer C2300 V1";
 
 	memory@0 {

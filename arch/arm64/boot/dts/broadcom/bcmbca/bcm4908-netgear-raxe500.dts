@@ -3,7 +3,7 @@
 #include "bcm4908.dtsi"
 
 / {
-	compatible = "netgear,raxe500", "brcm,bcm4908";
+	compatible = "netgear,raxe500", "brcm,bcm4908", "brcm,bcmbca";
 	model = "Netgear RAXE500";
 
 	memory@0 {

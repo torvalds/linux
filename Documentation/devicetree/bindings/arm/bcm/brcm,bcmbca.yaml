@@ -15,6 +15,7 @@ maintainers:
   - William Zhang <william.zhang@broadcom.com>
   - Anand Gore <anand.gore@broadcom.com>
   - Kursad Oney <kursad.oney@broadcom.com>
+  - Rafał Miłecki <rafal@milecki.pl>
 
 properties:
   $nodename:
@@ -26,6 +27,30 @@ properties:
           - enum:
               - brcm,bcm947622
           - const: brcm,bcm47622
+          - const: brcm,bcmbca
+
+      - description: BCM4906 based boards
+        items:
+          - enum:
+              - netgear,r8000p
+              - tplink,archer-c2300-v1
+          - const: brcm,bcm4906
+          - const: brcm,bcm4908
+          - const: brcm,bcmbca
+
+      - description: BCM4908 based boards
+        items:
+          - enum:
+              - asus,gt-ac5300
+              - brcm,bcm94908
+              - netgear,raxe500
+          - const: brcm,bcm4908
+          - const: brcm,bcmbca
+
+      - description: BCM49408 based boards
+        items:
+          - const: brcm,bcm49408
+          - const: brcm,bcm4908
           - const: brcm,bcmbca
 
       - description: BCM4912 based boards

@@ -6,7 +6,7 @@
 #include "bcm4908.dtsi"
 
 / {
-	compatible = "asus,gt-ac5300", "brcm,bcm4908";
+	compatible = "asus,gt-ac5300", "brcm,bcm4908", "brcm,bcmbca";
 	model = "Asus GT-AC5300";
 
 	memory@0 {
