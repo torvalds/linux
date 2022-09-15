@@ -145,6 +145,7 @@ static int mpi3mr_report_manufacture(struct mpi3mr_ioc *mrioc,
 	u16 request_sz = sizeof(struct mpi3_smp_passthrough_request);
 	u16 reply_sz = sizeof(struct mpi3_smp_passthrough_reply);
 	u16 ioc_status;
+	u8 *tmp;
 
 	if (mrioc->reset_in_progress) {
 		ioc_err(mrioc, "%s: host reset in progress!\n", __func__);
@@ -186,41 +187,46 @@ static int mpi3mr_report_manufacture(struct mpi3mr_ioc *mrioc,
 	    "sending report manufacturer SMP request to sas_address(0x%016llx), port(%d)\n",
 	    (unsigned long long)sas_address, port_id);
 
-	if (mpi3mr_post_transport_req(mrioc, &mpi_request, request_sz,
-	    &mpi_reply, reply_sz, MPI3MR_INTADMCMD_TIMEOUT, &ioc_status))
+	rc = mpi3mr_post_transport_req(mrioc, &mpi_request, request_sz,
+				       &mpi_reply, reply_sz,
+				       MPI3MR_INTADMCMD_TIMEOUT, &ioc_status);
+	if (rc)
 		goto out;
 
 	dprint_transport_info(mrioc,
 	    "report manufacturer SMP request completed with ioc_status(0x%04x)\n",
 	    ioc_status);
 
-	if (ioc_status == MPI3_IOCSTATUS_SUCCESS) {
-		u8 *tmp;
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto out;
+	}
 
-		dprint_transport_info(mrioc,
-		    "report manufacturer - reply data transfer size(%d)\n",
-		    le16_to_cpu(mpi_reply.response_data_length));
+	dprint_transport_info(mrioc,
+	    "report manufacturer - reply data transfer size(%d)\n",
+	    le16_to_cpu(mpi_reply.response_data_length));
 
-		if (le16_to_cpu(mpi_reply.response_data_length) !=
-		    sizeof(struct rep_manu_reply))
-			goto out;
+	if (le16_to_cpu(mpi_reply.response_data_length) !=
+	    sizeof(struct rep_manu_reply)) {
+		rc = -EINVAL;
+		goto out;
+	}
 
-		strscpy(edev->vendor_id, manufacture_reply->vendor_id,
-		     SAS_EXPANDER_VENDOR_ID_LEN);
-		strscpy(edev->product_id, manufacture_reply->product_id,
-		     SAS_EXPANDER_PRODUCT_ID_LEN);
-		strscpy(edev->product_rev, manufacture_reply->product_rev,
-		     SAS_EXPANDER_PRODUCT_REV_LEN);
-		edev->level = manufacture_reply->sas_format & 1;
-		if (edev->level) {
-			strscpy(edev->component_vendor_id,
-			    manufacture_reply->component_vendor_id,
-			     SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN);
-			tmp = (u8 *)&manufacture_reply->component_id;
-			edev->component_id = tmp[0] << 8 | tmp[1];
-			edev->component_revision_id =
-			    manufacture_reply->component_revision_id;
-		}
+	strscpy(edev->vendor_id, manufacture_reply->vendor_id,
+	     SAS_EXPANDER_VENDOR_ID_LEN);
+	strscpy(edev->product_id, manufacture_reply->product_id,
+	     SAS_EXPANDER_PRODUCT_ID_LEN);
+	strscpy(edev->product_rev, manufacture_reply->product_rev,
+	     SAS_EXPANDER_PRODUCT_REV_LEN);
+	edev->level = manufacture_reply->sas_format & 1;
+	if (edev->level) {
+		strscpy(edev->component_vendor_id,
+		    manufacture_reply->component_vendor_id,
+		     SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN);
+		tmp = (u8 *)&manufacture_reply->component_id;
+		edev->component_id = tmp[0] << 8 | tmp[1];
+		edev->component_revision_id =
+		    manufacture_reply->component_revision_id;
 	}
 
 out:
