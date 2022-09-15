@@ -468,13 +468,13 @@ bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
 	bool ret;
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 	ret = _intel_set_memory_cxsr(dev_priv, enable);
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		dev_priv->wm.vlv.cxsr = enable;
+		dev_priv->display.wm.vlv.cxsr = enable;
 	else if (IS_G4X(dev_priv))
-		dev_priv->wm.g4x.cxsr = enable;
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+		dev_priv->display.wm.g4x.cxsr = enable;
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 
 	return ret;
 }
@@ -834,7 +834,7 @@ static bool is_enabling(int old, int new, int threshold)
 
 static int intel_wm_num_levels(struct drm_i915_private *dev_priv)
 {
-	return dev_priv->wm.max_level + 1;
+	return dev_priv->display.wm.max_level + 1;
 }
 
 static bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
@@ -1093,11 +1093,11 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 static void g4x_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
 	/* all latencies in usec */
-	dev_priv->wm.pri_latency[G4X_WM_LEVEL_NORMAL] = 5;
-	dev_priv->wm.pri_latency[G4X_WM_LEVEL_SR] = 12;
-	dev_priv->wm.pri_latency[G4X_WM_LEVEL_HPLL] = 35;
+	dev_priv->display.wm.pri_latency[G4X_WM_LEVEL_NORMAL] = 5;
+	dev_priv->display.wm.pri_latency[G4X_WM_LEVEL_SR] = 12;
+	dev_priv->display.wm.pri_latency[G4X_WM_LEVEL_HPLL] = 35;
 
-	dev_priv->wm.max_level = G4X_WM_LEVEL_HPLL;
+	dev_priv->display.wm.max_level = G4X_WM_LEVEL_HPLL;
 }
 
 static int g4x_plane_fifo_size(enum plane_id plane_id, int level)
@@ -1150,7 +1150,7 @@ static u16 g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_display_mode *pipe_mode =
 		&crtc_state->hw.pipe_mode;
-	unsigned int latency = dev_priv->wm.pri_latency[level] * 10;
+	unsigned int latency = dev_priv->display.wm.pri_latency[level] * 10;
 	unsigned int pixel_rate, htotal, cpp, width, wm;
 
 	if (latency == 0)
@@ -1324,7 +1324,7 @@ static bool g4x_raw_crtc_wm_is_valid(const struct intel_crtc_state *crtc_state,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (level > dev_priv->wm.max_level)
+	if (level > dev_priv->display.wm.max_level)
 		return false;
 
 	return g4x_raw_plane_wm_is_valid(crtc_state, PLANE_PRIMARY, level) &&
@@ -1583,7 +1583,7 @@ static void g4x_merge_wm(struct drm_i915_private *dev_priv,
 
 static void g4x_program_watermarks(struct drm_i915_private *dev_priv)
 {
-	struct g4x_wm_values *old_wm = &dev_priv->wm.g4x;
+	struct g4x_wm_values *old_wm = &dev_priv->display.wm.g4x;
 	struct g4x_wm_values new_wm = {};
 
 	g4x_merge_wm(dev_priv, &new_wm);
@@ -1609,10 +1609,10 @@ static void g4x_initial_watermarks(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 	crtc->wm.active.g4x = crtc_state->wm.g4x.intermediate;
 	g4x_program_watermarks(dev_priv);
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 static void g4x_optimize_watermarks(struct intel_atomic_state *state,
@@ -1625,10 +1625,10 @@ static void g4x_optimize_watermarks(struct intel_atomic_state *state,
 	if (!crtc_state->wm.need_postvbl_update)
 		return;
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 	crtc->wm.active.g4x = crtc_state->wm.g4x.optimal;
 	g4x_program_watermarks(dev_priv);
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 /* latency must be in 0.1us units. */
@@ -1650,15 +1650,15 @@ static unsigned int vlv_wm_method2(unsigned int pixel_rate,
 static void vlv_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
 	/* all latencies in usec */
-	dev_priv->wm.pri_latency[VLV_WM_LEVEL_PM2] = 3;
+	dev_priv->display.wm.pri_latency[VLV_WM_LEVEL_PM2] = 3;
 
-	dev_priv->wm.max_level = VLV_WM_LEVEL_PM2;
+	dev_priv->display.wm.max_level = VLV_WM_LEVEL_PM2;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->wm.pri_latency[VLV_WM_LEVEL_PM5] = 12;
-		dev_priv->wm.pri_latency[VLV_WM_LEVEL_DDR_DVFS] = 33;
+		dev_priv->display.wm.pri_latency[VLV_WM_LEVEL_PM5] = 12;
+		dev_priv->display.wm.pri_latency[VLV_WM_LEVEL_DDR_DVFS] = 33;
 
-		dev_priv->wm.max_level = VLV_WM_LEVEL_DDR_DVFS;
+		dev_priv->display.wm.max_level = VLV_WM_LEVEL_DDR_DVFS;
 	}
 }
 
@@ -1672,7 +1672,7 @@ static u16 vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 		&crtc_state->hw.pipe_mode;
 	unsigned int pixel_rate, htotal, cpp, width, wm;
 
-	if (dev_priv->wm.pri_latency[level] == 0)
+	if (dev_priv->display.wm.pri_latency[level] == 0)
 		return USHRT_MAX;
 
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
@@ -1693,7 +1693,7 @@ static u16 vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 		wm = 63;
 	} else {
 		wm = vlv_wm_method2(pixel_rate, htotal, width, cpp,
-				    dev_priv->wm.pri_latency[level] * 10);
+				    dev_priv->display.wm.pri_latency[level] * 10);
 	}
 
 	return min_t(unsigned int, wm, USHRT_MAX);
@@ -2158,7 +2158,7 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 	int num_active_pipes = 0;
 
-	wm->level = dev_priv->wm.max_level;
+	wm->level = dev_priv->display.wm.max_level;
 	wm->cxsr = true;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
@@ -2197,7 +2197,7 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 
 static void vlv_program_watermarks(struct drm_i915_private *dev_priv)
 {
-	struct vlv_wm_values *old_wm = &dev_priv->wm.vlv;
+	struct vlv_wm_values *old_wm = &dev_priv->display.wm.vlv;
 	struct vlv_wm_values new_wm = {};
 
 	vlv_merge_wm(dev_priv, &new_wm);
@@ -2235,10 +2235,10 @@ static void vlv_initial_watermarks(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 	crtc->wm.active.vlv = crtc_state->wm.vlv.intermediate;
 	vlv_program_watermarks(dev_priv);
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 static void vlv_optimize_watermarks(struct intel_atomic_state *state,
@@ -2251,10 +2251,10 @@ static void vlv_optimize_watermarks(struct intel_atomic_state *state,
 	if (!crtc_state->wm.need_postvbl_update)
 		return;
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 	crtc->wm.active.vlv = crtc_state->wm.vlv.optimal;
 	vlv_program_watermarks(dev_priv);
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 static void i965_update_wm(struct drm_i915_private *dev_priv)
@@ -2835,9 +2835,9 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 const struct intel_plane_state *curstate,
 				 struct intel_wm_level *result)
 {
-	u16 pri_latency = dev_priv->wm.pri_latency[level];
-	u16 spr_latency = dev_priv->wm.spr_latency[level];
-	u16 cur_latency = dev_priv->wm.cur_latency[level];
+	u16 pri_latency = dev_priv->display.wm.pri_latency[level];
+	u16 spr_latency = dev_priv->display.wm.spr_latency[level];
+	u16 cur_latency = dev_priv->display.wm.cur_latency[level];
 
 	/* WM1+ latency values stored in 0.5us units */
 	if (level > 0) {
@@ -2861,16 +2861,75 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 	result->enable = true;
 }
 
+static void
+adjust_wm_latency(struct drm_i915_private *i915,
+		  u16 wm[], int max_level, int read_latency)
+{
+	bool wm_lv_0_adjust_needed = i915->dram_info.wm_lv_0_adjust_needed;
+	int i, level;
+
+	/*
+	 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
+	 * need to be disabled. We make sure to sanitize the values out
+	 * of the punit to satisfy this requirement.
+	 */
+	for (level = 1; level <= max_level; level++) {
+		if (wm[level] == 0) {
+			for (i = level + 1; i <= max_level; i++)
+				wm[i] = 0;
+
+			max_level = level - 1;
+			break;
+		}
+	}
+
+	/*
+	 * WaWmMemoryReadLatency
+	 *
+	 * punit doesn't take into account the read latency so we need
+	 * to add proper adjustement to each valid level we retrieve
+	 * from the punit when level 0 response data is 0us.
+	 */
+	if (wm[0] == 0) {
+		for (level = 0; level <= max_level; level++)
+			wm[level] += read_latency;
+	}
+
+	/*
+	 * WA Level-0 adjustment for 16GB DIMMs: SKL+
+	 * If we could not get dimm info enable this WA to prevent from
+	 * any underrun. If not able to get Dimm info assume 16GB dimm
+	 * to avoid any underrun.
+	 */
+	if (wm_lv_0_adjust_needed)
+		wm[0] += 1;
+}
+
 static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 				  u16 wm[])
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
+	int max_level = ilk_wm_max_level(dev_priv);
 
-	if (DISPLAY_VER(dev_priv) >= 9) {
+	if (DISPLAY_VER(dev_priv) >= 14) {
 		u32 val;
-		int ret, i;
-		int level, max_level = ilk_wm_max_level(dev_priv);
+
+		val = intel_uncore_read(uncore, MTL_LATENCY_LP0_LP1);
+		wm[0] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+		wm[1] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
+		val = intel_uncore_read(uncore, MTL_LATENCY_LP2_LP3);
+		wm[2] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+		wm[3] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
+		val = intel_uncore_read(uncore, MTL_LATENCY_LP4_LP5);
+		wm[4] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+		wm[5] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
+
+		adjust_wm_latency(dev_priv, wm, max_level, 6);
+	} else if (DISPLAY_VER(dev_priv) >= 9) {
+		int read_latency = DISPLAY_VER(dev_priv) >= 12 ? 3 : 2;
 		int mult = IS_DG2(dev_priv) ? 2 : 1;
+		u32 val;
+		int ret;
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
@@ -2909,44 +2968,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		wm[7] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
 				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
 
-		/*
-		 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
-		 * need to be disabled. We make sure to sanitize the values out
-		 * of the punit to satisfy this requirement.
-		 */
-		for (level = 1; level <= max_level; level++) {
-			if (wm[level] == 0) {
-				for (i = level + 1; i <= max_level; i++)
-					wm[i] = 0;
-
-				max_level = level - 1;
-
-				break;
-			}
-		}
-
-		/*
-		 * WaWmMemoryReadLatency
-		 *
-		 * punit doesn't take into account the read latency so we need
-		 * to add proper adjustement to each valid level we retrieve
-		 * from the punit when level 0 response data is 0us.
-		 */
-		if (wm[0] == 0) {
-			u8 adjust = DISPLAY_VER(dev_priv) >= 12 ? 3 : 2;
-
-			for (level = 0; level <= max_level; level++)
-				wm[level] += adjust;
-		}
-
-		/*
-		 * WA Level-0 adjustment for 16GB DIMMs: SKL+
-		 * If we could not get dimm info enable this WA to prevent from
-		 * any underrun. If not able to get Dimm info assume 16GB dimm
-		 * to avoid any underrun.
-		 */
-		if (dev_priv->dram_info.wm_lv_0_adjust_needed)
-			wm[0] += 1;
+		adjust_wm_latency(dev_priv, wm, max_level, read_latency);
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		u64 sskpd = intel_uncore_read64(uncore, MCH_SSKPD);
 
@@ -3061,18 +3083,18 @@ static void snb_wm_latency_quirk(struct drm_i915_private *dev_priv)
 	 * The BIOS provided WM memory latency values are often
 	 * inadequate for high resolution displays. Adjust them.
 	 */
-	changed = ilk_increase_wm_latency(dev_priv, dev_priv->wm.pri_latency, 12);
-	changed |= ilk_increase_wm_latency(dev_priv, dev_priv->wm.spr_latency, 12);
-	changed |= ilk_increase_wm_latency(dev_priv, dev_priv->wm.cur_latency, 12);
+	changed = ilk_increase_wm_latency(dev_priv, dev_priv->display.wm.pri_latency, 12);
+	changed |= ilk_increase_wm_latency(dev_priv, dev_priv->display.wm.spr_latency, 12);
+	changed |= ilk_increase_wm_latency(dev_priv, dev_priv->display.wm.cur_latency, 12);
 
 	if (!changed)
 		return;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "WM latency values increased to avoid potential underruns\n");
-	intel_print_wm_latency(dev_priv, "Primary", dev_priv->wm.pri_latency);
-	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
-	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
+	intel_print_wm_latency(dev_priv, "Primary", dev_priv->display.wm.pri_latency);
+	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->display.wm.spr_latency);
+	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->display.wm.cur_latency);
 }
 
 static void snb_wm_lp3_irq_quirk(struct drm_i915_private *dev_priv)
@@ -3088,37 +3110,37 @@ static void snb_wm_lp3_irq_quirk(struct drm_i915_private *dev_priv)
 	 * interrupts only. To play it safe we disable LP3
 	 * watermarks entirely.
 	 */
-	if (dev_priv->wm.pri_latency[3] == 0 &&
-	    dev_priv->wm.spr_latency[3] == 0 &&
-	    dev_priv->wm.cur_latency[3] == 0)
+	if (dev_priv->display.wm.pri_latency[3] == 0 &&
+	    dev_priv->display.wm.spr_latency[3] == 0 &&
+	    dev_priv->display.wm.cur_latency[3] == 0)
 		return;
 
-	dev_priv->wm.pri_latency[3] = 0;
-	dev_priv->wm.spr_latency[3] = 0;
-	dev_priv->wm.cur_latency[3] = 0;
+	dev_priv->display.wm.pri_latency[3] = 0;
+	dev_priv->display.wm.spr_latency[3] = 0;
+	dev_priv->display.wm.cur_latency[3] = 0;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "LP3 watermarks disabled due to potential for lost interrupts\n");
-	intel_print_wm_latency(dev_priv, "Primary", dev_priv->wm.pri_latency);
-	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
-	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
+	intel_print_wm_latency(dev_priv, "Primary", dev_priv->display.wm.pri_latency);
+	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->display.wm.spr_latency);
+	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->display.wm.cur_latency);
 }
 
 static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
-	intel_read_wm_latency(dev_priv, dev_priv->wm.pri_latency);
+	intel_read_wm_latency(dev_priv, dev_priv->display.wm.pri_latency);
 
-	memcpy(dev_priv->wm.spr_latency, dev_priv->wm.pri_latency,
-	       sizeof(dev_priv->wm.pri_latency));
-	memcpy(dev_priv->wm.cur_latency, dev_priv->wm.pri_latency,
-	       sizeof(dev_priv->wm.pri_latency));
+	memcpy(dev_priv->display.wm.spr_latency, dev_priv->display.wm.pri_latency,
+	       sizeof(dev_priv->display.wm.pri_latency));
+	memcpy(dev_priv->display.wm.cur_latency, dev_priv->display.wm.pri_latency,
+	       sizeof(dev_priv->display.wm.pri_latency));
 
-	intel_fixup_spr_wm_latency(dev_priv, dev_priv->wm.spr_latency);
-	intel_fixup_cur_wm_latency(dev_priv, dev_priv->wm.cur_latency);
+	intel_fixup_spr_wm_latency(dev_priv, dev_priv->display.wm.spr_latency);
+	intel_fixup_cur_wm_latency(dev_priv, dev_priv->display.wm.cur_latency);
 
-	intel_print_wm_latency(dev_priv, "Primary", dev_priv->wm.pri_latency);
-	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
-	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
+	intel_print_wm_latency(dev_priv, "Primary", dev_priv->display.wm.pri_latency);
+	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->display.wm.spr_latency);
+	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->display.wm.cur_latency);
 
 	if (DISPLAY_VER(dev_priv) == 6) {
 		snb_wm_latency_quirk(dev_priv);
@@ -3128,8 +3150,8 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 
 static void skl_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
-	intel_read_wm_latency(dev_priv, dev_priv->wm.skl_latency);
-	intel_print_wm_latency(dev_priv, "Gen9 Plane", dev_priv->wm.skl_latency);
+	intel_read_wm_latency(dev_priv, dev_priv->display.wm.skl_latency);
+	intel_print_wm_latency(dev_priv, "Gen9 Plane", dev_priv->display.wm.skl_latency);
 }
 
 static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
@@ -3386,7 +3408,7 @@ static unsigned int ilk_wm_lp_latency(struct drm_i915_private *dev_priv,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		return 2 * level;
 	else
-		return dev_priv->wm.pri_latency[level];
+		return dev_priv->display.wm.pri_latency[level];
 }
 
 static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
@@ -3538,7 +3560,7 @@ static unsigned int ilk_compute_wm_dirty(struct drm_i915_private *dev_priv,
 static bool _ilk_disable_lp_wm(struct drm_i915_private *dev_priv,
 			       unsigned int dirty)
 {
-	struct ilk_wm_values *previous = &dev_priv->wm.hw;
+	struct ilk_wm_values *previous = &dev_priv->display.wm.hw;
 	bool changed = false;
 
 	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] & WM_LP_ENABLE) {
@@ -3572,7 +3594,7 @@ static bool _ilk_disable_lp_wm(struct drm_i915_private *dev_priv,
 static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 				struct ilk_wm_values *results)
 {
-	struct ilk_wm_values *previous = &dev_priv->wm.hw;
+	struct ilk_wm_values *previous = &dev_priv->display.wm.hw;
 	unsigned int dirty;
 	u32 val;
 
@@ -3634,7 +3656,7 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 	if (dirty & WM_DIRTY_LP(3) && previous->wm_lp[2] != results->wm_lp[2])
 		intel_uncore_write(&dev_priv->uncore, WM3_LP_ILK, results->wm_lp[2]);
 
-	dev_priv->wm.hw = *results;
+	dev_priv->display.wm.hw = *results;
 }
 
 bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
@@ -3669,7 +3691,7 @@ static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
 	return DISPLAY_VER(dev_priv) >= 9 && !IS_LP(dev_priv) &&
-		dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status != I915_SAGV_NOT_CONTROLLED;
 }
 
 static u32
@@ -3700,7 +3722,7 @@ intel_sagv_block_time(struct drm_i915_private *dev_priv)
 static void intel_sagv_init(struct drm_i915_private *i915)
 {
 	if (!intel_has_sagv(i915))
-		i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 
 	/*
 	 * Probe to see if we have working SAGV control.
@@ -3709,21 +3731,21 @@ static void intel_sagv_init(struct drm_i915_private *i915)
 	if (DISPLAY_VER(i915) < 11)
 		skl_sagv_disable(i915);
 
-	drm_WARN_ON(&i915->drm, i915->sagv_status == I915_SAGV_UNKNOWN);
+	drm_WARN_ON(&i915->drm, i915->display.sagv.status == I915_SAGV_UNKNOWN);
 
-	i915->sagv_block_time_us = intel_sagv_block_time(i915);
+	i915->display.sagv.block_time_us = intel_sagv_block_time(i915);
 
 	drm_dbg_kms(&i915->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
-		    str_yes_no(intel_has_sagv(i915)), i915->sagv_block_time_us);
+		    str_yes_no(intel_has_sagv(i915)), i915->display.sagv.block_time_us);
 
 	/* avoid overflow when adding with wm0 latency/etc. */
-	if (drm_WARN(&i915->drm, i915->sagv_block_time_us > U16_MAX,
+	if (drm_WARN(&i915->drm, i915->display.sagv.block_time_us > U16_MAX,
 		     "Excessive SAGV block time %u, ignoring\n",
-		     i915->sagv_block_time_us))
-		i915->sagv_block_time_us = 0;
+		     i915->display.sagv.block_time_us))
+		i915->display.sagv.block_time_us = 0;
 
 	if (!intel_has_sagv(i915))
-		i915->sagv_block_time_us = 0;
+		i915->display.sagv.block_time_us = 0;
 }
 
 /*
@@ -3744,7 +3766,7 @@ static void skl_sagv_enable(struct drm_i915_private *dev_priv)
 	if (!intel_has_sagv(dev_priv))
 		return;
 
-	if (dev_priv->sagv_status == I915_SAGV_ENABLED)
+	if (dev_priv->display.sagv.status == I915_SAGV_ENABLED)
 		return;
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling SAGV\n");
@@ -3759,14 +3781,14 @@ static void skl_sagv_enable(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		drm_dbg(&dev_priv->drm, "No SAGV found on system, ignoring\n");
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 		return;
 	} else if (ret < 0) {
 		drm_err(&dev_priv->drm, "Failed to enable SAGV\n");
 		return;
 	}
 
-	dev_priv->sagv_status = I915_SAGV_ENABLED;
+	dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 }
 
 static void skl_sagv_disable(struct drm_i915_private *dev_priv)
@@ -3776,7 +3798,7 @@ static void skl_sagv_disable(struct drm_i915_private *dev_priv)
 	if (!intel_has_sagv(dev_priv))
 		return;
 
-	if (dev_priv->sagv_status == I915_SAGV_DISABLED)
+	if (dev_priv->display.sagv.status == I915_SAGV_DISABLED)
 		return;
 
 	drm_dbg_kms(&dev_priv->drm, "Disabling SAGV\n");
@@ -3791,14 +3813,14 @@ static void skl_sagv_disable(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		drm_dbg(&dev_priv->drm, "No SAGV found on system, ignoring\n");
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 		return;
 	} else if (ret < 0) {
 		drm_err(&dev_priv->drm, "Failed to disable SAGV (%d)\n", ret);
 		return;
 	}
 
-	dev_priv->sagv_status = I915_SAGV_DISABLED;
+	dev_priv->display.sagv.status = I915_SAGV_DISABLED;
 }
 
 static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
@@ -4321,7 +4343,7 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 	drm_WARN_ON(&dev_priv->drm, ret);
 
 	for (level = 0; level <= max_level; level++) {
-		unsigned int latency = dev_priv->wm.skl_latency[level];
+		unsigned int latency = dev_priv->display.wm.skl_latency[level];
 
 		skl_compute_plane_wm(crtc_state, plane, level, latency, &wp, &wm, &wm);
 		if (wm.min_ddb_alloc == U16_MAX)
@@ -4905,7 +4927,7 @@ static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc, u8 active_pipes, bool
 
 	if (IS_DG2(dev_priv))
 		return dg2_compute_dbuf_slices(pipe, active_pipes, join_mbus);
-	else if (IS_ALDERLAKE_P(dev_priv))
+	else if (DISPLAY_VER(dev_priv) >= 13)
 		return adlp_compute_dbuf_slices(pipe, active_pipes, join_mbus);
 	else if (DISPLAY_VER(dev_priv) == 12)
 		return tgl_compute_dbuf_slices(pipe, active_pipes, join_mbus);
@@ -5560,8 +5582,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	result->min_ddb_alloc = max(min_ddb_alloc, blocks) + 1;
 	result->enable = true;
 
-	if (DISPLAY_VER(dev_priv) < 12 && dev_priv->sagv_block_time_us)
-		result->can_sagv = latency >= dev_priv->sagv_block_time_us;
+	if (DISPLAY_VER(dev_priv) < 12 && dev_priv->display.sagv.block_time_us)
+		result->can_sagv = latency >= dev_priv->display.sagv.block_time_us;
 }
 
 static void
@@ -5576,7 +5598,7 @@ skl_compute_wm_levels(const struct intel_crtc_state *crtc_state,
 
 	for (level = 0; level <= max_level; level++) {
 		struct skl_wm_level *result = &levels[level];
-		unsigned int latency = dev_priv->wm.skl_latency[level];
+		unsigned int latency = dev_priv->display.wm.skl_latency[level];
 
 		skl_compute_plane_wm(crtc_state, plane, level, latency,
 				     wm_params, result_prev, result);
@@ -5595,8 +5617,8 @@ static void tgl_compute_sagv_wm(const struct intel_crtc_state *crtc_state,
 	struct skl_wm_level *levels = plane_wm->wm;
 	unsigned int latency = 0;
 
-	if (dev_priv->sagv_block_time_us)
-		latency = dev_priv->sagv_block_time_us + dev_priv->wm.skl_latency[0];
+	if (dev_priv->display.sagv.block_time_us)
+		latency = dev_priv->display.sagv.block_time_us + dev_priv->display.wm.skl_latency[0];
 
 	skl_compute_plane_wm(crtc_state, plane, 0, latency,
 			     wm_params, &levels[0],
@@ -6458,10 +6480,10 @@ static void ilk_initial_watermarks(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 	crtc->wm.active.ilk = crtc_state->wm.ilk.intermediate;
 	ilk_program_watermarks(dev_priv);
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 static void ilk_optimize_watermarks(struct intel_atomic_state *state,
@@ -6474,10 +6496,10 @@ static void ilk_optimize_watermarks(struct intel_atomic_state *state,
 	if (!crtc_state->wm.need_postvbl_update)
 		return;
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 	crtc->wm.active.ilk = crtc_state->wm.ilk.optimal;
 	ilk_program_watermarks(dev_priv);
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 static void skl_wm_level_from_reg_val(u32 val, struct skl_wm_level *level)
@@ -6560,7 +6582,10 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		enum plane_id plane_id;
 		u8 slices;
 
-		skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
+		memset(&crtc_state->wm.skl.optimal, 0,
+		       sizeof(crtc_state->wm.skl.optimal));
+		if (crtc_state->hw.active)
+			skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
 		crtc_state->wm.skl.raw = crtc_state->wm.skl.optimal;
 
 		memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
@@ -6570,6 +6595,9 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 				&crtc_state->wm.skl.plane_ddb[plane_id];
 			struct skl_ddb_entry *ddb_y =
 				&crtc_state->wm.skl.plane_ddb_y[plane_id];
+
+			if (!crtc_state->hw.active)
+				continue;
 
 			skl_ddb_get_hw_plane_state(dev_priv, crtc->pipe,
 						   plane_id, ddb, ddb_y);
@@ -6677,7 +6705,7 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct ilk_wm_values *hw = &dev_priv->wm.hw;
+	struct ilk_wm_values *hw = &dev_priv->display.wm.hw;
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
 	struct intel_pipe_wm *active = &crtc_state->wm.ilk.optimal;
 	enum pipe pipe = crtc->pipe;
@@ -6825,7 +6853,7 @@ static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 
 void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct g4x_wm_values *wm = &dev_priv->wm.g4x;
+	struct g4x_wm_values *wm = &dev_priv->display.wm.g4x;
 	struct intel_crtc *crtc;
 
 	g4x_read_wm_values(dev_priv, wm);
@@ -6919,7 +6947,7 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
@@ -6967,12 +6995,12 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	g4x_program_watermarks(dev_priv);
 
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct vlv_wm_values *wm = &dev_priv->wm.vlv;
+	struct vlv_wm_values *wm = &dev_priv->display.wm.vlv;
 	struct intel_crtc *crtc;
 	u32 val;
 
@@ -7006,7 +7034,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 			drm_dbg_kms(&dev_priv->drm,
 				    "Punit not acking DDR DVFS request, "
 				    "assuming DDR DVFS is disabled\n");
-			dev_priv->wm.max_level = VLV_WM_LEVEL_PM5;
+			dev_priv->display.wm.max_level = VLV_WM_LEVEL_PM5;
 		} else {
 			val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
 			if ((val & FORCE_DDR_HIGH_FREQ) == 0)
@@ -7075,7 +7103,7 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 
-	mutex_lock(&dev_priv->wm.wm_mutex);
+	mutex_lock(&dev_priv->display.wm.wm_mutex);
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_crtc *crtc =
@@ -7116,7 +7144,7 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	vlv_program_watermarks(dev_priv);
 
-	mutex_unlock(&dev_priv->wm.wm_mutex);
+	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
 /*
@@ -7137,7 +7165,7 @@ static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
 
 void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct ilk_wm_values *hw = &dev_priv->wm.hw;
+	struct ilk_wm_values *hw = &dev_priv->display.wm.hw;
 	struct intel_crtc *crtc;
 
 	ilk_init_lp_watermarks(dev_priv);
@@ -8168,18 +8196,18 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 	}
 }
 
-static const struct drm_i915_wm_disp_funcs skl_wm_funcs = {
+static const struct intel_wm_funcs skl_wm_funcs = {
 	.compute_global_watermarks = skl_compute_wm,
 };
 
-static const struct drm_i915_wm_disp_funcs ilk_wm_funcs = {
+static const struct intel_wm_funcs ilk_wm_funcs = {
 	.compute_pipe_wm = ilk_compute_pipe_wm,
 	.compute_intermediate_wm = ilk_compute_intermediate_wm,
 	.initial_watermarks = ilk_initial_watermarks,
 	.optimize_watermarks = ilk_optimize_watermarks,
 };
 
-static const struct drm_i915_wm_disp_funcs vlv_wm_funcs = {
+static const struct intel_wm_funcs vlv_wm_funcs = {
 	.compute_pipe_wm = vlv_compute_pipe_wm,
 	.compute_intermediate_wm = vlv_compute_intermediate_wm,
 	.initial_watermarks = vlv_initial_watermarks,
@@ -8187,30 +8215,30 @@ static const struct drm_i915_wm_disp_funcs vlv_wm_funcs = {
 	.atomic_update_watermarks = vlv_atomic_update_fifo,
 };
 
-static const struct drm_i915_wm_disp_funcs g4x_wm_funcs = {
+static const struct intel_wm_funcs g4x_wm_funcs = {
 	.compute_pipe_wm = g4x_compute_pipe_wm,
 	.compute_intermediate_wm = g4x_compute_intermediate_wm,
 	.initial_watermarks = g4x_initial_watermarks,
 	.optimize_watermarks = g4x_optimize_watermarks,
 };
 
-static const struct drm_i915_wm_disp_funcs pnv_wm_funcs = {
+static const struct intel_wm_funcs pnv_wm_funcs = {
 	.update_wm = pnv_update_wm,
 };
 
-static const struct drm_i915_wm_disp_funcs i965_wm_funcs = {
+static const struct intel_wm_funcs i965_wm_funcs = {
 	.update_wm = i965_update_wm,
 };
 
-static const struct drm_i915_wm_disp_funcs i9xx_wm_funcs = {
+static const struct intel_wm_funcs i9xx_wm_funcs = {
 	.update_wm = i9xx_update_wm,
 };
 
-static const struct drm_i915_wm_disp_funcs i845_wm_funcs = {
+static const struct intel_wm_funcs i845_wm_funcs = {
 	.update_wm = i845_update_wm,
 };
 
-static const struct drm_i915_wm_disp_funcs nop_funcs = {
+static const struct intel_wm_funcs nop_funcs = {
 };
 
 /* Set up chip specific power management-related functions */
@@ -8227,27 +8255,27 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	/* For FIFO watermark updates */
 	if (DISPLAY_VER(dev_priv) >= 9) {
 		skl_setup_wm_latency(dev_priv);
-		dev_priv->wm_disp = &skl_wm_funcs;
+		dev_priv->display.funcs.wm = &skl_wm_funcs;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
 
-		if ((DISPLAY_VER(dev_priv) == 5 && dev_priv->wm.pri_latency[1] &&
-		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
-		    (DISPLAY_VER(dev_priv) != 5 && dev_priv->wm.pri_latency[0] &&
-		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
-			dev_priv->wm_disp = &ilk_wm_funcs;
+		if ((DISPLAY_VER(dev_priv) == 5 && dev_priv->display.wm.pri_latency[1] &&
+		     dev_priv->display.wm.spr_latency[1] && dev_priv->display.wm.cur_latency[1]) ||
+		    (DISPLAY_VER(dev_priv) != 5 && dev_priv->display.wm.pri_latency[0] &&
+		     dev_priv->display.wm.spr_latency[0] && dev_priv->display.wm.cur_latency[0])) {
+			dev_priv->display.funcs.wm = &ilk_wm_funcs;
 		} else {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Failed to read display plane latency. "
 				    "Disable CxSR\n");
-			dev_priv->wm_disp = &nop_funcs;
+			dev_priv->display.funcs.wm = &nop_funcs;
 		}
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_setup_wm_latency(dev_priv);
-		dev_priv->wm_disp = &vlv_wm_funcs;
+		dev_priv->display.funcs.wm = &vlv_wm_funcs;
 	} else if (IS_G4X(dev_priv)) {
 		g4x_setup_wm_latency(dev_priv);
-		dev_priv->wm_disp = &g4x_wm_funcs;
+		dev_priv->display.funcs.wm = &g4x_wm_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
 					    dev_priv->is_ddr3,
@@ -8261,22 +8289,22 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 				 dev_priv->fsb_freq, dev_priv->mem_freq);
 			/* Disable CxSR and never update its watermark again */
 			intel_set_memory_cxsr(dev_priv, false);
-			dev_priv->wm_disp = &nop_funcs;
+			dev_priv->display.funcs.wm = &nop_funcs;
 		} else
-			dev_priv->wm_disp = &pnv_wm_funcs;
+			dev_priv->display.funcs.wm = &pnv_wm_funcs;
 	} else if (DISPLAY_VER(dev_priv) == 4) {
-		dev_priv->wm_disp = &i965_wm_funcs;
+		dev_priv->display.funcs.wm = &i965_wm_funcs;
 	} else if (DISPLAY_VER(dev_priv) == 3) {
-		dev_priv->wm_disp = &i9xx_wm_funcs;
+		dev_priv->display.funcs.wm = &i9xx_wm_funcs;
 	} else if (DISPLAY_VER(dev_priv) == 2) {
 		if (INTEL_NUM_PIPES(dev_priv) == 1)
-			dev_priv->wm_disp = &i845_wm_funcs;
+			dev_priv->display.funcs.wm = &i845_wm_funcs;
 		else
-			dev_priv->wm_disp = &i9xx_wm_funcs;
+			dev_priv->display.funcs.wm = &i9xx_wm_funcs;
 	} else {
 		drm_err(&dev_priv->drm,
 			"unexpected fall-through in %s\n", __func__);
-		dev_priv->wm_disp = &nop_funcs;
+		dev_priv->display.funcs.wm = &nop_funcs;
 	}
 }
 

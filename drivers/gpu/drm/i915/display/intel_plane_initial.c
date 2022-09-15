@@ -311,7 +311,7 @@ void intel_crtc_initial_plane_config(struct intel_crtc *crtc)
 	 * can even allow for smooth boot transitions if the BIOS
 	 * fb is large enough for the active pipe configuration.
 	 */
-	dev_priv->display->get_initial_plane_config(crtc, &plane_config);
+	dev_priv->display.funcs.display->get_initial_plane_config(crtc, &plane_config);
 
 	/*
 	 * If the fb is shared between multiple heads, we'll

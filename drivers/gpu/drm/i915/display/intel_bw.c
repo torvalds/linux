@@ -147,7 +147,32 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	qi->num_points = dram_info->num_qgv_points;
 	qi->num_psf_points = dram_info->num_psf_gv_points;
 
-	if (DISPLAY_VER(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 14) {
+		switch (dram_info->type) {
+		case INTEL_DRAM_DDR4:
+			qi->t_bl = 4;
+			qi->max_numchannels = 2;
+			qi->channel_width = 64;
+			qi->deinterleave = 2;
+			break;
+		case INTEL_DRAM_DDR5:
+			qi->t_bl = 8;
+			qi->max_numchannels = 4;
+			qi->channel_width = 32;
+			qi->deinterleave = 2;
+			break;
+		case INTEL_DRAM_LPDDR4:
+		case INTEL_DRAM_LPDDR5:
+			qi->t_bl = 16;
+			qi->max_numchannels = 8;
+			qi->channel_width = 16;
+			qi->deinterleave = 4;
+			break;
+		default:
+			MISSING_CASE(dram_info->type);
+			return -EINVAL;
+		}
+	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		switch (dram_info->type) {
 		case INTEL_DRAM_DDR4:
 			qi->t_bl = is_y_tile ? 8 : 4;
@@ -181,7 +206,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 			qi->max_numchannels = 1;
 			break;
 		}
-	else if (DISPLAY_VER(dev_priv) == 11) {
+	} else if (DISPLAY_VER(dev_priv) == 11) {
 		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 8;
 		qi->max_numchannels = 1;
 	}
@@ -284,6 +309,13 @@ static const struct intel_sa_info adlp_sa_info = {
 	.derating = 20,
 };
 
+static const struct intel_sa_info mtl_sa_info = {
+	.deburst = 32,
+	.deprogbwlimit = 38, /* GB/s */
+	.displayrtids = 256,
+	.derating = 20,
+};
+
 static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel_sa_info *sa)
 {
 	struct intel_qgv_info qi = {};
@@ -346,9 +378,9 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	 * as it will fail and pointless anyway.
 	 */
 	if (qi.num_points == 1)
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 	else
-		dev_priv->sagv_status = I915_SAGV_ENABLED;
+		dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -404,15 +436,17 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 		int clpchgroup;
 		int j;
 
-		if (i < num_groups - 1)
-			bi_next = &dev_priv->max_bw[i + 1];
-
 		clpchgroup = (sa->deburst * qi.deinterleave / num_channels) << i;
 
-		if (i < num_groups - 1 && clpchgroup < clperchgroup)
-			bi_next->num_planes = (ipqdepth - clpchgroup) / clpchgroup + 1;
-		else
-			bi_next->num_planes = 0;
+		if (i < num_groups - 1) {
+			bi_next = &dev_priv->max_bw[i + 1];
+
+			if (clpchgroup < clperchgroup)
+				bi_next->num_planes = (ipqdepth - clpchgroup) /
+						       clpchgroup + 1;
+			else
+				bi_next->num_planes = 0;
+		}
 
 		bi->num_qgv_points = qi.num_points;
 		bi->num_psf_gv_points = qi.num_psf_points;
@@ -456,9 +490,9 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	 * as it will fail and pointless anyway.
 	 */
 	if (qi.num_points == 1)
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 	else
-		dev_priv->sagv_status = I915_SAGV_ENABLED;
+		dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -485,7 +519,7 @@ static void dg2_get_bw_info(struct drm_i915_private *i915)
 		bi->deratedbw[0] = deratedbw;
 	}
 
-	i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
+	i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 }
 
 static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
@@ -558,7 +592,9 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	if (IS_DG2(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 14)
+		tgl_get_bw_info(dev_priv, &mtl_sa_info);
+	else if (IS_DG2(dev_priv))
 		dg2_get_bw_info(dev_priv);
 	else if (IS_ALDERLAKE_P(dev_priv))
 		tgl_get_bw_info(dev_priv, &adlp_sa_info);

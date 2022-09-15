@@ -142,11 +142,16 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	 * For XE_LPD+, we use guardband and pipeline override
 	 * is deprecated.
 	 */
-	if (DISPLAY_VER(i915) >= 13)
+	if (DISPLAY_VER(i915) >= 13) {
+		/*
+		 * FIXME: Subtract Window2 delay from below value.
+		 *
+		 * Window2 specifies time required to program DSB (Window2) in
+		 * number of scan lines. Assuming 0 for no DSB.
+		 */
 		crtc_state->vrr.guardband =
-			crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay -
-			i915->window2_delay;
-	else
+			crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay;
+	} else {
 		/*
 		 * FIXME: s/4/framestart_delay/ to get consistent
 		 * earliest/latest points for register latching regardless
@@ -159,6 +164,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 		 */
 		crtc_state->vrr.pipeline_full =
 			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay - 4 - 1);
+	}
 
 	crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 }

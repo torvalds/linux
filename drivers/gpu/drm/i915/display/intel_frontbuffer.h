@@ -25,6 +25,7 @@
 #define __INTEL_FRONTBUFFER_H__
 
 #include <linux/atomic.h>
+#include <linux/bits.h>
 #include <linux/kref.h>
 
 #include "gem/i915_gem_object_types.h"
@@ -47,6 +48,23 @@ struct intel_frontbuffer {
 	struct drm_i915_gem_object *obj;
 	struct rcu_head rcu;
 };
+
+/*
+ * Frontbuffer tracking bits. Set in obj->frontbuffer_bits while a gem bo is
+ * considered to be the frontbuffer for the given plane interface-wise. This
+ * doesn't mean that the hw necessarily already scans it out, but that any
+ * rendering (by the cpu or gpu) will land in the frontbuffer eventually.
+ *
+ * We have one bit per pipe and per scanout plane type.
+ */
+#define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
+#define INTEL_FRONTBUFFER(pipe, plane_id) \
+	BIT((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe));
+#define INTEL_FRONTBUFFER_OVERLAY(pipe) \
+	BIT(INTEL_FRONTBUFFER_BITS_PER_PIPE - 1 + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
+#define INTEL_FRONTBUFFER_ALL_MASK(pipe) \
+	GENMASK(INTEL_FRONTBUFFER_BITS_PER_PIPE * ((pipe) + 1) - 1,	\
+		INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
 
 void intel_frontbuffer_flip_prepare(struct drm_i915_private *i915,
 				    unsigned frontbuffer_bits);
