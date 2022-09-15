@@ -524,7 +524,6 @@ STACK_SIZE	= _CTX      + _CTX_SIZE
 ########################################################################
 .text
 SYM_FUNC_START(sha256_transform_rorx)
-.align 32
 	pushq	%rbx
 	pushq	%r12
 	pushq	%r13
