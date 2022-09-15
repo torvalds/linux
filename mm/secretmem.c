@@ -276,7 +276,7 @@ static struct file_system_type secretmem_fs = {
 	.kill_sb	= kill_anon_super,
 };
 
-static int secretmem_init(void)
+static int __init secretmem_init(void)
 {
 	int ret = 0;
 
