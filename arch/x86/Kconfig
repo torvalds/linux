@@ -2446,9 +2446,27 @@ config CC_HAS_SLS
 config CC_HAS_RETURN_THUNK
 	def_bool $(cc-option,-mfunction-return=thunk-extern)
 
+config CC_HAS_ENTRY_PADDING
+	def_bool $(cc-option,-fpatchable-function-entry=16,16)
+
+config FUNCTION_PADDING_CFI
+	int
+	default 59 if FUNCTION_ALIGNMENT_64B
+	default 27 if FUNCTION_ALIGNMENT_32B
+	default 11 if FUNCTION_ALIGNMENT_16B
+	default  3 if FUNCTION_ALIGNMENT_8B
+	default  0
+
+# Basically: FUNCTION_ALIGNMENT - 5*CFI_CLANG
+# except Kconfig can't do arithmetic :/
+config FUNCTION_PADDING_BYTES
+	int
+	default FUNCTION_PADDING_CFI if CFI_CLANG
+	default FUNCTION_ALIGNMENT
+
 config HAVE_CALL_THUNKS
 	def_bool y
-	depends on RETHUNK && OBJTOOL
+	depends on CC_HAS_ENTRY_PADDING && RETHUNK && OBJTOOL
 
 config CALL_THUNKS
 	def_bool n

@@ -984,7 +984,11 @@ int arch_prepare_bpf_dispatcher(void *image, void *buf, s64 *funcs, int num_func
 }
 
 #ifdef CONFIG_X86_64
+#ifdef CONFIG_CALL_THUNKS
+#define BPF_DISPATCHER_ATTRIBUTES __attribute__((patchable_function_entry(5+CONFIG_FUNCTION_PADDING_BYTES,CONFIG_FUNCTION_PADDING_BYTES)))
+#else
 #define BPF_DISPATCHER_ATTRIBUTES __attribute__((patchable_function_entry(5)))
+#endif
 #else
 #define BPF_DISPATCHER_ATTRIBUTES
 #endif

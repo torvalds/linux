@@ -15,8 +15,19 @@
 #define __ALIGN		.balign CONFIG_FUNCTION_ALIGNMENT, 0x90;
 #define __ALIGN_STR	__stringify(__ALIGN)
 
-#define ASM_FUNC_ALIGN		__ALIGN_STR
-#define __FUNC_ALIGN		__ALIGN
+#if defined(CONFIG_CALL_THUNKS) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
+#define FUNCTION_PADDING	.skip CONFIG_FUNCTION_ALIGNMENT, 0x90;
+#else
+#define FUNCTION_PADDING
+#endif
+
+#if (CONFIG_FUNCTION_ALIGNMENT > 8) && !defined(__DISABLE_EXPORTS) && !defined(BULID_VDSO)
+# define __FUNC_ALIGN		__ALIGN; FUNCTION_PADDING
+#else
+# define __FUNC_ALIGN		__ALIGN
+#endif
+
+#define ASM_FUNC_ALIGN		__stringify(__FUNC_ALIGN)
 #define SYM_F_ALIGN		__FUNC_ALIGN
 
 #ifdef __ASSEMBLY__
@@ -45,11 +56,45 @@
 
 #endif /* __ASSEMBLY__ */
 
+/*
+ * Depending on -fpatchable-function-entry=N,N usage (CONFIG_CALL_THUNKS) the
+ * CFI symbol layout changes.
+ *
+ * Without CALL_THUNKS:
+ *
+ * 	.align	FUNCTION_ALIGNMENT
+ * __cfi_##name:
+ * 	.skip	FUNCTION_PADDING, 0x90
+ * 	.byte   0xb8
+ * 	.long	__kcfi_typeid_##name
+ * name:
+ *
+ * With CALL_THUNKS:
+ *
+ * 	.align FUNCTION_ALIGNMENT
+ * __cfi_##name:
+ * 	.byte	0xb8
+ * 	.long	__kcfi_typeid_##name
+ * 	.skip	FUNCTION_PADDING, 0x90
+ * name:
+ *
+ * In both cases the whole thing is FUNCTION_ALIGNMENT aligned and sized.
+ */
+
+#ifdef CONFIG_CALL_THUNKS
+#define CFI_PRE_PADDING
+#define CFI_POST_PADDING	.skip	CONFIG_FUNCTION_PADDING_BYTES, 0x90;
+#else
+#define CFI_PRE_PADDING		.skip	CONFIG_FUNCTION_PADDING_BYTES, 0x90;
+#define CFI_POST_PADDING
+#endif
+
 #define __CFI_TYPE(name)					\
 	SYM_START(__cfi_##name, SYM_L_LOCAL, SYM_A_NONE)	\
-	.fill 11, 1, 0x90 ASM_NL				\
+	CFI_PRE_PADDING						\
 	.byte 0xb8 ASM_NL					\
 	.long __kcfi_typeid_##name ASM_NL			\
+	CFI_POST_PADDING					\
 	SYM_FUNC_END(__cfi_##name)
 
 /* SYM_TYPED_FUNC_START -- use for indirectly called globals, w/ CFI type */
