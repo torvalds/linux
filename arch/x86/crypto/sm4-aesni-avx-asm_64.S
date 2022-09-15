@@ -139,13 +139,11 @@
 
 
 .text
-.align 16
 
 /*
  * void sm4_aesni_avx_crypt4(const u32 *rk, u8 *dst,
  *                           const u8 *src, int nblocks)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx_crypt4)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -249,7 +247,6 @@ SYM_FUNC_START(sm4_aesni_avx_crypt4)
 	RET;
 SYM_FUNC_END(sm4_aesni_avx_crypt4)
 
-.align 8
 SYM_FUNC_START_LOCAL(__sm4_crypt_blk8)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -363,7 +360,6 @@ SYM_FUNC_END(__sm4_crypt_blk8)
  * void sm4_aesni_avx_crypt8(const u32 *rk, u8 *dst,
  *                           const u8 *src, int nblocks)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx_crypt8)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -419,7 +415,6 @@ SYM_FUNC_END(sm4_aesni_avx_crypt8)
  * void sm4_aesni_avx_ctr_enc_blk8(const u32 *rk, u8 *dst,
  *                                 const u8 *src, u8 *iv)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx_ctr_enc_blk8)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -494,7 +489,6 @@ SYM_FUNC_END(sm4_aesni_avx_ctr_enc_blk8)
  * void sm4_aesni_avx_cbc_dec_blk8(const u32 *rk, u8 *dst,
  *                                 const u8 *src, u8 *iv)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx_cbc_dec_blk8)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -544,7 +538,6 @@ SYM_FUNC_END(sm4_aesni_avx_cbc_dec_blk8)
  * void sm4_aesni_avx_cfb_dec_blk8(const u32 *rk, u8 *dst,
  *                                 const u8 *src, u8 *iv)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx_cfb_dec_blk8)
 	/* input:
 	 *	%rdi: round key array, CTX

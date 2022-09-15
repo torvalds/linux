@@ -153,9 +153,6 @@
 	.long 0xdeadbeef, 0xdeadbeef, 0xdeadbeef
 
 .text
-.align 16
-
-.align 8
 SYM_FUNC_START_LOCAL(__sm4_crypt_blk16)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -281,7 +278,6 @@ SYM_FUNC_END(__sm4_crypt_blk16)
  * void sm4_aesni_avx2_ctr_enc_blk16(const u32 *rk, u8 *dst,
  *                                   const u8 *src, u8 *iv)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx2_ctr_enc_blk16)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -394,7 +390,6 @@ SYM_FUNC_END(sm4_aesni_avx2_ctr_enc_blk16)
  * void sm4_aesni_avx2_cbc_dec_blk16(const u32 *rk, u8 *dst,
  *                                   const u8 *src, u8 *iv)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx2_cbc_dec_blk16)
 	/* input:
 	 *	%rdi: round key array, CTX
@@ -448,7 +443,6 @@ SYM_FUNC_END(sm4_aesni_avx2_cbc_dec_blk16)
  * void sm4_aesni_avx2_cfb_dec_blk16(const u32 *rk, u8 *dst,
  *                                   const u8 *src, u8 *iv)
  */
-.align 8
 SYM_FUNC_START(sm4_aesni_avx2_cfb_dec_blk16)
 	/* input:
 	 *	%rdi: round key array, CTX
