@@ -2265,14 +2265,8 @@ static void dw_hdmi_connector_force(struct drm_connector *connector)
 	mutex_unlock(&hdmi->mutex);
 }
 
-static int dw_hdmi_qp_fill_modes(struct drm_connector *connector, u32 max_x,
-								 u32 max_y)
-{
-	return drm_helper_probe_single_connector_modes(connector, 9000, 9000);
-}
-
 static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
-	.fill_modes = dw_hdmi_qp_fill_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = dw_hdmi_connector_detect,
 	.destroy = drm_connector_cleanup,
 	.force = dw_hdmi_connector_force,
