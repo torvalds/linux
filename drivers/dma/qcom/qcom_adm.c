@@ -494,7 +494,7 @@ static int adm_slave_config(struct dma_chan *chan, struct dma_slave_config *cfg)
 
 	spin_lock_irqsave(&achan->vc.lock, flag);
 	memcpy(&achan->slave, cfg, sizeof(struct dma_slave_config));
-	if (cfg->peripheral_size == sizeof(config))
+	if (cfg->peripheral_size == sizeof(*config))
 		achan->crci = config->crci;
 	spin_unlock_irqrestore(&achan->vc.lock, flag);
 
