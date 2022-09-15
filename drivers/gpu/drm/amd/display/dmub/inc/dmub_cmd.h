@@ -760,6 +760,11 @@ enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
 };
 
+enum dmub_cmd_header_sub_type {
+	DMUB_CMD__SUB_TYPE_GENERAL         = 0,
+	DMUB_CMD__SUB_TYPE_CURSOR_POSITION = 1
+};
+
 #pragma pack(push, 1)
 
 /**

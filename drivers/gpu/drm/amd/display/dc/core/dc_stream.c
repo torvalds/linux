@@ -30,6 +30,7 @@
 #include "resource.h"
 #include "ipp.h"
 #include "timing_generator.h"
+#include "dc_dmub_srv.h"
 
 #define DC_LOGGER dc->ctx->logger
 
