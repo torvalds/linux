@@ -1661,11 +1661,15 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 	list_add(&q->taprio_list, &taprio_list);
 	spin_unlock(&taprio_list_lock);
 
-	if (sch->parent != TC_H_ROOT)
+	if (sch->parent != TC_H_ROOT) {
+		NL_SET_ERR_MSG_MOD(extack, "Can only be attached as root qdisc");
 		return -EOPNOTSUPP;
+	}
 
-	if (!netif_is_multiqueue(dev))
+	if (!netif_is_multiqueue(dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Multi-queue device is required");
 		return -EOPNOTSUPP;
+	}
 
 	/* pre-allocate qdisc, attachment can't fail */
 	q->qdiscs = kcalloc(dev->num_tx_queues,
