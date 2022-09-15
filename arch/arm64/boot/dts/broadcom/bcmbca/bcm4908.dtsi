@@ -352,6 +352,61 @@
 				groups = "led_9_grp_a";
 			};
 
+			pins_led_10_a: led_10-a-pins {
+				function = "led_10";
+				groups = "led_10_grp_a";
+			};
+
+			pins_led_11_a: led_11-a-pins {
+				function = "led_11";
+				groups = "led_11_grp_a";
+			};
+
+			pins_led_12_a: led_12-a-pins {
+				function = "led_12";
+				groups = "led_12_grp_a";
+			};
+
+			pins_led_13_a: led_13-a-pins {
+				function = "led_13";
+				groups = "led_13_grp_a";
+			};
+
+			pins_led_14_a: led_14-a-pins {
+				function = "led_14";
+				groups = "led_14_grp_a";
+			};
+
+			pins_led_15_a: led_15-a-pins {
+				function = "led_15";
+				groups = "led_15_grp_a";
+			};
+
+			pins_led_16_a: led_16-a-pins {
+				function = "led_16";
+				groups = "led_16_grp_a";
+			};
+
+			pins_led_17_a: led_17-a-pins {
+				function = "led_17";
+				groups = "led_17_grp_a";
+			};
+
+			pins_led_18_a: led_18-a-pins {
+				function = "led_18";
+				groups = "led_18_grp_a";
+			};
+
+			pins_led_19_a: led_19-a-pins {
+				function = "led_19";
+				groups = "led_19_grp_a";
+			};
+
+			pins_led_20_a: led_20-a-pins {
+				function = "led_20";
+				groups = "led_20_grp_a";
+			};
+
 			pins_led_21_a: led_21-a-pins {
 				function = "led_21";
 				groups = "led_21_grp_a";
@@ -360,6 +415,21 @@
 			pins_led_22_a: led_22-a-pins {
 				function = "led_22";
 				groups = "led_22_grp_a";
+			};
+
+			pins_led_23_a: led_23-a-pins {
+				function = "led_23";
+				groups = "led_23_grp_a";
+			};
+
+			pins_led_24_a: led_24-a-pins {
+				function = "led_24";
+				groups = "led_24_grp_a";
+			};
+
+			pins_led_25_a: led_25-a-pins {
+				function = "led_25";
+				groups = "led_25_grp_a";
 			};
 
 			pins_led_26_a: led_26-a-pins {
@@ -385,6 +455,11 @@
 			pins_led_30_a: led_30-a-pins {
 				function = "led_30";
 				groups = "led_30_grp_a";
+			};
+
+			pins_led_31_a: led_31-a-pins {
+				function = "led_31";
+				groups = "led_31_grp_a";
 			};
 
 			pins_hs_uart: hs_uart-pins {
@@ -440,6 +515,14 @@
 			clocks = <&periph_clk>;
 			clock-names = "refclk";
 			status = "okay";
+		};
+
+		leds: leds@800 {
+			compatible = "brcm,bcm4908-leds", "brcm,bcm63138-leds";
+			reg = <0x800 0xdc>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		nand-controller@1800 {
