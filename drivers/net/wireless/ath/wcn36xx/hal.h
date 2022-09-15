@@ -2677,7 +2677,7 @@ struct ani_global_security_stats {
 	 * management information base (MIB) object is enabled */
 	u32 rx_wep_unencrypted_frm_cnt;
 
-	/* The number of received MSDU packets that that the 802.11 station
+	/* The number of received MSDU packets that the 802.11 station
 	 * discarded because of MIC failures */
 	u32 rx_mic_fail_cnt;
 
