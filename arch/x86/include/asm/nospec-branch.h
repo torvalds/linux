@@ -12,8 +12,83 @@
 #include <asm/msr-index.h>
 #include <asm/unwind_hints.h>
 #include <asm/percpu.h>
+#include <asm/current.h>
 
-#define RETPOLINE_THUNK_SIZE	32
+/*
+ * Call depth tracking for Intel SKL CPUs to address the RSB underflow
+ * issue in software.
+ *
+ * The tracking does not use a counter. It uses uses arithmetic shift
+ * right on call entry and logical shift left on return.
+ *
+ * The depth tracking variable is initialized to 0x8000.... when the call
+ * depth is zero. The arithmetic shift right sign extends the MSB and
+ * saturates after the 12th call. The shift count is 5 for both directions
+ * so the tracking covers 12 nested calls.
+ *
+ *  Call
+ *  0: 0x8000000000000000	0x0000000000000000
+ *  1: 0xfc00000000000000	0xf000000000000000
+ * ...
+ * 11: 0xfffffffffffffff8	0xfffffffffffffc00
+ * 12: 0xffffffffffffffff	0xffffffffffffffe0
+ *
+ * After a return buffer fill the depth is credited 12 calls before the
+ * next stuffing has to take place.
+ *
+ * There is a inaccuracy for situations like this:
+ *
+ *  10 calls
+ *   5 returns
+ *   3 calls
+ *   4 returns
+ *   3 calls
+ *   ....
+ *
+ * The shift count might cause this to be off by one in either direction,
+ * but there is still a cushion vs. the RSB depth. The algorithm does not
+ * claim to be perfect and it can be speculated around by the CPU, but it
+ * is considered that it obfuscates the problem enough to make exploitation
+ * extremly difficult.
+ */
+#define RET_DEPTH_SHIFT			5
+#define RSB_RET_STUFF_LOOPS		16
+#define RET_DEPTH_INIT			0x8000000000000000ULL
+#define RET_DEPTH_INIT_FROM_CALL	0xfc00000000000000ULL
+#define RET_DEPTH_CREDIT		0xffffffffffffffffULL
+
+#if defined(CONFIG_CALL_DEPTH_TRACKING) && !defined(COMPILE_OFFSETS)
+
+#include <asm/asm-offsets.h>
+
+#define CREDIT_CALL_DEPTH					\
+	movq	$-1, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+
+#define ASM_CREDIT_CALL_DEPTH					\
+	movq	$-1, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+
+#define RESET_CALL_DEPTH					\
+	mov	$0x80, %rax;					\
+	shl	$56, %rax;					\
+	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+
+#define RESET_CALL_DEPTH_FROM_CALL				\
+	mov	$0xfc, %rax;					\
+	shl	$56, %rax;					\
+	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+
+#define INCREMENT_CALL_DEPTH					\
+	sarq	$5, %gs:pcpu_hot + X86_call_depth;
+
+#define ASM_INCREMENT_CALL_DEPTH				\
+	sarq	$5, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+
+#else
+#define CREDIT_CALL_DEPTH
+#define RESET_CALL_DEPTH
+#define INCREMENT_CALL_DEPTH
+#define RESET_CALL_DEPTH_FROM_CALL
+#endif
 
 /*
  * Fill the CPU return stack buffer.
@@ -32,6 +107,7 @@
  * from C via asm(".include <asm/nospec-branch.h>") but let's not go there.
  */
 
+#define RETPOLINE_THUNK_SIZE	32
 #define RSB_CLEAR_LOOPS		32	/* To forcibly overwrite all entries */
 
 /*
@@ -60,7 +136,8 @@
 	dec	reg;					\
 	jnz	771b;					\
 	/* barrier for jnz misprediction */		\
-	lfence;
+	lfence;						\
+	ASM_CREDIT_CALL_DEPTH
 #else
 /*
  * i386 doesn't unconditionally have LFENCE, as such it can't
@@ -185,11 +262,32 @@
  * where we have a stack but before any RET instruction.
  */
 .macro UNTRAIN_RET
-#if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_IBPB_ENTRY)
+#if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_IBPB_ENTRY) || \
+	defined(CONFIG_X86_FEATURE_CALL_DEPTH)
 	ANNOTATE_UNRET_END
-	ALTERNATIVE_2 "",						\
-	              CALL_ZEN_UNTRAIN_RET, X86_FEATURE_UNRET,		\
-		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB
+	ALTERNATIVE_3 "",						\
+		      CALL_ZEN_UNTRAIN_RET, X86_FEATURE_UNRET,		\
+		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB,	\
+		      __stringify(RESET_CALL_DEPTH), X86_FEATURE_CALL_DEPTH
+#endif
+.endm
+
+.macro UNTRAIN_RET_FROM_CALL
+#if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_IBPB_ENTRY) || \
+	defined(CONFIG_X86_FEATURE_CALL_DEPTH)
+	ANNOTATE_UNRET_END
+	ALTERNATIVE_3 "",						\
+		      CALL_ZEN_UNTRAIN_RET, X86_FEATURE_UNRET,		\
+		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB,	\
+		      __stringify(RESET_CALL_DEPTH_FROM_CALL), X86_FEATURE_CALL_DEPTH
+#endif
+.endm
+
+
+.macro CALL_DEPTH_ACCOUNT
+#ifdef CONFIG_CALL_DEPTH_TRACKING
+	ALTERNATIVE "",							\
+		    __stringify(ASM_INCREMENT_CALL_DEPTH), X86_FEATURE_CALL_DEPTH
 #endif
 .endm
 
@@ -212,6 +310,17 @@ extern void entry_ibpb(void);
 extern void (*x86_return_thunk)(void);
 #else
 #define x86_return_thunk	(&__x86_return_thunk)
+#endif
+
+#ifdef CONFIG_CALL_DEPTH_TRACKING
+extern void __x86_return_skl(void);
+
+static inline void x86_set_skl_return_thunk(void)
+{
+	x86_return_thunk = &__x86_return_skl;
+}
+#else
+static inline void x86_set_skl_return_thunk(void) {}
 #endif
 
 #ifdef CONFIG_RETPOLINE
