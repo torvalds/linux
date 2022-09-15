@@ -336,6 +336,14 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->psp.cap_fw_version;
 		fw_info->feature = adev->psp.cap_feature_version;
 		break;
+	case AMDGPU_INFO_FW_MES_KIQ:
+		fw_info->ver = adev->mes.ucode_fw_version[0];
+		fw_info->feature = 0;
+		break;
+	case AMDGPU_INFO_FW_MES:
+		fw_info->ver = adev->mes.ucode_fw_version[1];
+		fw_info->feature = 0;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1604,6 +1612,22 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 		seq_printf(m, "CAP feature version: %u, firmware version: 0x%08x\n",
 				fw_info.feature, fw_info.ver);
 	}
+
+	/* MES_KIQ */
+	query_fw.fw_type = AMDGPU_INFO_FW_MES_KIQ;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "MES_KIQ feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* MES */
+	query_fw.fw_type = AMDGPU_INFO_FW_MES;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "MES feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
 
 	seq_printf(m, "VBIOS version: %s\n", ctx->vbios_version);
 
