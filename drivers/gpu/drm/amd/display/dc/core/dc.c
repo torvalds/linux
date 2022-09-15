@@ -2322,9 +2322,13 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	type = get_scaling_info_update_type(u);
 	elevate_update_type(&overall_type, type);
 
-	if (u->flip_addr)
+	if (u->flip_addr) {
 		update_flags->bits.addr_update = 1;
-
+		if (u->flip_addr->address.tmz_surface != u->surface->address.tmz_surface) {
+			update_flags->bits.tmz_changed = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL);
+		}
+	}
 	if (u->in_transfer_func)
 		update_flags->bits.in_transfer_func_change = 1;
 

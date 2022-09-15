@@ -369,7 +369,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	union dmub_rb_cmd cmd;
 	uint8_t ways, i;
 	int j;
-	bool stereo_in_use = false;
+	bool mall_ss_unsupported = false;
 	struct dc_plane_state *plane = NULL;
 
 	if (!dc->ctx->dmub_srv)
@@ -400,22 +400,23 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			 */
 			ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
 
-			/* MALL not supported with Stereo3D. If any plane is using stereo,
-			 * don't try to enter MALL.
+			/* MALL not supported with Stereo3D or TMZ surface. If any plane is using stereo,
+			 * or TMZ surface, don't try to enter MALL.
 			 */
 			for (i = 0; i < dc->current_state->stream_count; i++) {
 				for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
 					plane = dc->current_state->stream_status[i].plane_states[j];
 
-					if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO) {
-						stereo_in_use = true;
+					if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO ||
+							plane->address.tmz_surface) {
+						mall_ss_unsupported = true;
 						break;
 					}
 				}
-				if (stereo_in_use)
+				if (mall_ss_unsupported)
 					break;
 			}
-			if (ways <= dc->caps.cache_num_ways && !stereo_in_use) {
+			if (ways <= dc->caps.cache_num_ways && !mall_ss_unsupported) {
 				memset(&cmd, 0, sizeof(cmd));
 				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
 				cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
@@ -773,7 +774,8 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 				hubp->funcs->hubp_update_mall_sel(hubp,
 					num_ways <= dc->caps.cache_num_ways &&
 					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED &&
-					pipe->plane_state->address.type !=  PLN_ADDR_TYPE_GRPH_STEREO ? 2 : 0,
+					pipe->plane_state->address.type !=  PLN_ADDR_TYPE_GRPH_STEREO &&
+					!pipe->plane_state->address.tmz_surface ? 2 : 0,
 							cache_cursor);
 			}
 		}
