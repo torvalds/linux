@@ -11,7 +11,7 @@
 
 	/* rdi:	arg1 ... normal C conventions. rax is saved/restored. */
 	.macro THUNK name, func
-SYM_FUNC_START_NOALIGN(\name)
+SYM_FUNC_START(\name)
 	pushq %rbp
 	movq %rsp, %rbp
 
@@ -36,7 +36,7 @@ SYM_FUNC_END(\name)
 	EXPORT_SYMBOL(preempt_schedule_thunk)
 	EXPORT_SYMBOL(preempt_schedule_notrace_thunk)
 
-SYM_CODE_START_LOCAL_NOALIGN(__thunk_restore)
+SYM_CODE_START_LOCAL(__thunk_restore)
 	popq %r11
 	popq %r10
 	popq %r9
