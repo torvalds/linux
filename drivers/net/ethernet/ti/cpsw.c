@@ -1319,8 +1319,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			 */
 			ret = of_phy_register_fixed_link(slave_node);
 			if (ret) {
-				if (ret != -EPROBE_DEFER)
-					dev_err(&pdev->dev, "failed to register fixed-link phy: %d\n", ret);
+				dev_err_probe(&pdev->dev, ret, "failed to register fixed-link phy\n");
 				goto err_node_put;
 			}
 			slave_data->phy_node = of_node_get(slave_node);
