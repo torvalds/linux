@@ -30,7 +30,7 @@ struct section {
 	struct hlist_node hash;
 	struct hlist_node name_hash;
 	GElf_Shdr sh;
-	struct rb_root symbol_tree;
+	struct rb_root_cached symbol_tree;
 	struct list_head symbol_list;
 	struct list_head reloc_list;
 	struct section *base, *reloc;
@@ -53,6 +53,7 @@ struct symbol {
 	unsigned char bind, type;
 	unsigned long offset;
 	unsigned int len;
+	unsigned long __subtree_last;
 	struct symbol *pfunc, *cfunc, *alias;
 	u8 uaccess_safe      : 1;
 	u8 static_call_tramp : 1;
