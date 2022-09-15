@@ -1634,6 +1634,7 @@ static void taprio_destroy(struct Qdisc *sch)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
+	struct sched_gate_list *oper, *admin;
 	unsigned int i;
 
 	spin_lock(&taprio_list_lock);
@@ -1657,11 +1658,14 @@ static void taprio_destroy(struct Qdisc *sch)
 
 	netdev_reset_tc(dev);
 
-	if (q->oper_sched)
-		call_rcu(&q->oper_sched->rcu, taprio_free_sched_cb);
+	oper = rtnl_dereference(q->oper_sched);
+	admin = rtnl_dereference(q->admin_sched);
 
-	if (q->admin_sched)
-		call_rcu(&q->admin_sched->rcu, taprio_free_sched_cb);
+	if (oper)
+		call_rcu(&oper->rcu, taprio_free_sched_cb);
+
+	if (admin)
+		call_rcu(&admin->rcu, taprio_free_sched_cb);
 }
 
 static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
