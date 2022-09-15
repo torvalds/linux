@@ -1102,13 +1102,14 @@
 			compatible = "img-gpu";
 			reg = <0x0 0x18000000 0x0 0x100000>,
 				<0x0 0x130C000 0x0 0x10000>;
-			clocks = <&clkgen JH7110_GPU_CLK_APB>,
+			clocks = <&clkgen JH7110_GPU_CORE>, 
+				 <&clkgen JH7110_GPU_CLK_APB>,
 				 <&clkgen JH7110_GPU_RTC_TOGGLE>,
 				 <&clkgen JH7110_GPU_CORE_CLK>,
 				 <&clkgen JH7110_GPU_SYS_CLK>,
 				 <&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>;
-			clock-names = "clk_apb", "clk_rtc", "clk_core",
-					"clk_sys", "clk_axi";
+			clock-names = "clk_bv", "clk_apb", "clk_rtc",
+					"clk_core", "clk_sys", "clk_axi";
 			resets = <&rstgen RSTN_U0_IMG_GPU_APB>,
 				 <&rstgen RSTN_U0_IMG_GPU_DOMA>;
 			reset-names = "rst_apb", "rst_doma";
