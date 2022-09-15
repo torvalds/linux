@@ -38,6 +38,14 @@
 #include "pgtable.h"
 
 /*
+ * Fix alignment at 16 bytes. Following CONFIG_FUNCTION_ALIGNMENT will result
+ * in assembly errors due to trying to move .org backward due to the excessive
+ * alignment.
+ */
+#undef __ALIGN
+#define __ALIGN		.balign	16, 0x90
+
+/*
  * Locally defined symbols should be marked hidden:
  */
 	.hidden _bss
