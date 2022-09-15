@@ -87,7 +87,6 @@ NBD_REQUEST_MAGIC     0x12560953       nbd_request              ``include/linux/
 BAYCOM_MAGIC          0x19730510       baycom_state             ``drivers/net/baycom_epp.c``
 HDLCDRV_MAGIC         0x5ac6e778       hdlcdrv_state            ``include/linux/hdlcdrv.h``
 KV_MAGIC              0x5f4b565f       kernel_vars_s            ``arch/mips/include/asm/sn/klkernvars.h``
-FW_HEADER_MAGIC       0x65726F66       fw_header                ``drivers/atm/fore200e.h``
 LO_MAGIC              0x68797548       nbd_device               ``include/linux/nbd.h``
 NBD_REPLY_MAGIC       0x96744668       nbd_reply                ``include/linux/nbd.h``
 ENI155_MAGIC          0xa54b872d       midway_eprom	        ``drivers/atm/eni.h``
