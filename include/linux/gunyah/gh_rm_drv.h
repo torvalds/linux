@@ -418,6 +418,12 @@ int gh_rm_mem_notify(gh_memparcel_handle_t handle, u8 flags,
 /* API to set time base */
 int gh_rm_vm_set_time_base(gh_vmid_t vmid);
 
+/* API for minidump support */
+int gh_rm_minidump_get_info(void);
+int gh_rm_minidump_register_range(phys_addr_t base_ipa, size_t region_size,
+				  const char *name, size_t name_size);
+int gh_rm_minidump_deregister_slot(uint16_t slot_num);
+
 #else
 /* RM client register notifications APIs */
 static inline int gh_rm_register_notifier(struct notifier_block *nb)
@@ -698,5 +704,24 @@ static inline int gh_rm_vm_set_time_base(gh_vmid_t vmid)
 {
 	return -EINVAL;
 }
+
+/* API for minidump support */
+static inline int gh_rm_minidump_get_info(void)
+{
+	return -EINVAL;
+}
+
+static inline int gh_rm_minidump_register_range(phys_addr_t base_ipa,
+					 size_t region_size, const char *name,
+					 size_t name_size)
+{
+	return -EINVAL;
+}
+
+static inline int gh_rm_minidump_deregister_slot(uint16_t slot_num)
+{
+	return -EINVAL;
+}
+
 #endif
 #endif
