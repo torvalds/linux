@@ -301,6 +301,8 @@
 
 typedef u8 retpoline_thunk_t[RETPOLINE_THUNK_SIZE];
 extern retpoline_thunk_t __x86_indirect_thunk_array[];
+extern retpoline_thunk_t __x86_indirect_call_thunk_array[];
+extern retpoline_thunk_t __x86_indirect_jump_thunk_array[];
 
 extern void __x86_return_thunk(void);
 extern void zen_untrain_ret(void);
@@ -327,6 +329,16 @@ static inline void x86_set_skl_return_thunk(void) {}
 
 #define GEN(reg) \
 	extern retpoline_thunk_t __x86_indirect_thunk_ ## reg;
+#include <asm/GEN-for-each-reg.h>
+#undef GEN
+
+#define GEN(reg)						\
+	extern retpoline_thunk_t __x86_indirect_call_thunk_ ## reg;
+#include <asm/GEN-for-each-reg.h>
+#undef GEN
+
+#define GEN(reg)						\
+	extern retpoline_thunk_t __x86_indirect_jump_thunk_ ## reg;
 #include <asm/GEN-for-each-reg.h>
 #undef GEN
 
