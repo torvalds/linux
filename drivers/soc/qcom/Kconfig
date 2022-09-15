@@ -125,8 +125,14 @@ config QCOM_OCMEM
 	  audio components on some Snapdragon SoCs.
 
 config QCOM_PDR_HELPERS
-	tristate
+	tristate "Qualcomm Technologies, Inc. Protection Domain Restart(PDR) driver"
 	select QCOM_QMI_HELPERS
+	help
+	  Qualcomm Technologies, Inc. SoCs allow for multiple protection domains (PDs)
+	  to run on the same Q6 sub-system. This allows for services
+	  like AVS AUDIO to have their own separate address space and
+	  crash/recover without disrupting the other PDs running on
+	  the same Q6 ADSP.
 
 config QCOM_QMI_HELPERS
 	tristate
@@ -638,6 +644,15 @@ config GH_TLMM_VM_MEM_ACCESS
 	  The drivers provides initial gpio memory access to VM.
 	  Say Y here to compile the driver as a part of kernel or M to compile
 	  as a module.
+
+config QCOM_RAMDUMP
+	tristate "Qualcomm Technologies, Inc. Ramdump driver"
+	default n
+	help
+	  This option enables the QTI ramdump driver. The ramdump driver
+	  provides APIs to collect ramdumps which can be extracted from
+	  userspace. Say 'Y' here to enable this driver. It's safe to say
+	  'N' here if you don't plan on collecting ramdumps.
 
 config QCOM_ICC_BWMON
 	tristate "QCOM Interconnect Bandwidth Monitor driver"
