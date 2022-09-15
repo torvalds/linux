@@ -316,7 +316,7 @@ int x86_call_depth_emit_accounting(u8 **pprog, void *func)
 		return 0;
 
 	/* Is function call target a thunk? */
-	if (is_callthunk(func))
+	if (func && is_callthunk(func))
 		return 0;
 
 	memcpy(*pprog, tmpl, tmpl_size);

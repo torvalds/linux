@@ -343,6 +343,12 @@ static inline void x86_set_skl_return_thunk(void)
 {
 	x86_return_thunk = &__x86_return_skl;
 }
+
+#define CALL_DEPTH_ACCOUNT					\
+	ALTERNATIVE("",						\
+		    __stringify(INCREMENT_CALL_DEPTH),		\
+		    X86_FEATURE_CALL_DEPTH)
+
 #ifdef CONFIG_CALL_THUNKS_DEBUG
 DECLARE_PER_CPU(u64, __x86_call_count);
 DECLARE_PER_CPU(u64, __x86_ret_count);
@@ -351,6 +357,9 @@ DECLARE_PER_CPU(u64, __x86_ctxsw_count);
 #endif
 #else
 static inline void x86_set_skl_return_thunk(void) {}
+
+#define CALL_DEPTH_ACCOUNT ""
+
 #endif
 
 #ifdef CONFIG_RETPOLINE

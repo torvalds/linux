@@ -69,6 +69,10 @@ static const char *ftrace_nop_replace(void)
 
 static const char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
+	/*
+	 * No need to translate into a callthunk. The trampoline does
+	 * the depth accounting itself.
+	 */
 	return text_gen_insn(CALL_INSN_OPCODE, (void *)ip, (void *)addr);
 }
 
@@ -317,7 +321,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	unsigned long size;
 	unsigned long *ptr;
 	void *trampoline;
-	void *ip;
+	void *ip, *dest;
 	/* 48 8b 15 <offset> is movq <offset>(%rip), %rdx */
 	unsigned const char op_ref[] = { 0x48, 0x8b, 0x15 };
 	unsigned const char retq[] = { RET_INSN_OPCODE, INT3_INSN_OPCODE };
@@ -404,10 +408,14 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	/* put in the call to the function */
 	mutex_lock(&text_mutex);
 	call_offset -= start_offset;
+	/*
+	 * No need to translate into a callthunk. The trampoline does
+	 * the depth accounting before the call already.
+	 */
+	dest = ftrace_ops_get_func(ops);
 	memcpy(trampoline + call_offset,
-	       text_gen_insn(CALL_INSN_OPCODE,
-			     trampoline + call_offset,
-			     ftrace_ops_get_func(ops)), CALL_INSN_SIZE);
+	       text_gen_insn(CALL_INSN_OPCODE, trampoline + call_offset, dest),
+	       CALL_INSN_SIZE);
 	mutex_unlock(&text_mutex);
 
 	/* ALLOC_TRAMP flags lets us know we created it */
