@@ -1193,16 +1193,10 @@ static void taprio_offload_config_changed(struct taprio_sched *q)
 {
 	struct sched_gate_list *oper, *admin;
 
-	spin_lock(&q->current_entry_lock);
-
-	oper = rcu_dereference_protected(q->oper_sched,
-					 lockdep_is_held(&q->current_entry_lock));
-	admin = rcu_dereference_protected(q->admin_sched,
-					  lockdep_is_held(&q->current_entry_lock));
+	oper = rtnl_dereference(q->oper_sched);
+	admin = rtnl_dereference(q->admin_sched);
 
 	switch_schedules(q, &admin, &oper);
-
-	spin_unlock(&q->current_entry_lock);
 }
 
 static u32 tc_map_to_queue_mask(struct net_device *dev, u32 tc_mask)
