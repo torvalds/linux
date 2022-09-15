@@ -5597,7 +5597,7 @@ static void gfx_v9_0_ring_emit_patch_cond_exec(struct amdgpu_ring *ring, unsigne
 	BUG_ON(offset > ring->buf_mask);
 	BUG_ON(ring->ring[offset] != 0x55aa55aa);
 
-	cur = (ring->wptr & ring->buf_mask) - 1;
+	cur = (ring->wptr - 1) & ring->buf_mask;
 	if (likely(cur > offset))
 		ring->ring[offset] = cur - offset;
 	else
