@@ -28,7 +28,7 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 	unsigned long nr_pages;
 	int i;
 
-	status = efi_get_memory_map(&map);
+	status = efi_get_memory_map(&map, false);
 	if (status != EFI_SUCCESS)
 		goto fail;
 

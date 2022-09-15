@@ -61,7 +61,7 @@ efi_status_t efi_random_alloc(unsigned long size,
 	efi_status_t status;
 	int map_offset;
 
-	status = efi_get_memory_map(&map);
+	status = efi_get_memory_map(&map, false);
 	if (status != EFI_SUCCESS)
 		return status;
 

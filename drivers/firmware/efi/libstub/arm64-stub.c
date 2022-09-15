@@ -47,7 +47,7 @@ static bool check_image_region(u64 base, u64 size)
 	bool ret = false;
 	int map_offset;
 
-	status = efi_get_memory_map(&map);
+	status = efi_get_memory_map(&map, false);
 	if (status != EFI_SUCCESS)
 		return false;
 
