@@ -2,6 +2,7 @@
 
 #define pr_fmt(fmt) "callthunks: " fmt
 
+#include <linux/debugfs.h>
 #include <linux/kallsyms.h>
 #include <linux/memory.h>
 #include <linux/moduleloader.h>
@@ -34,6 +35,15 @@ static int __init debug_thunks(char *str)
 	return 1;
 }
 __setup("debug-callthunks", debug_thunks);
+
+#ifdef CONFIG_CALL_THUNKS_DEBUG
+DEFINE_PER_CPU(u64, __x86_call_count);
+DEFINE_PER_CPU(u64, __x86_ret_count);
+DEFINE_PER_CPU(u64, __x86_stuffs_count);
+DEFINE_PER_CPU(u64, __x86_ctxsw_count);
+EXPORT_SYMBOL_GPL(__x86_ctxsw_count);
+EXPORT_SYMBOL_GPL(__x86_call_count);
+#endif
 
 extern s32 __call_sites[], __call_sites_end[];
 
@@ -283,3 +293,46 @@ void noinline callthunks_patch_module_calls(struct callthunk_sites *cs,
 	mutex_unlock(&text_mutex);
 }
 #endif /* CONFIG_MODULES */
+
+#if defined(CONFIG_CALL_THUNKS_DEBUG) && defined(CONFIG_DEBUG_FS)
+static int callthunks_debug_show(struct seq_file *m, void *p)
+{
+	unsigned long cpu = (unsigned long)m->private;
+
+	seq_printf(m, "C: %16llu R: %16llu S: %16llu X: %16llu\n,",
+		   per_cpu(__x86_call_count, cpu),
+		   per_cpu(__x86_ret_count, cpu),
+		   per_cpu(__x86_stuffs_count, cpu),
+		   per_cpu(__x86_ctxsw_count, cpu));
+	return 0;
+}
+
+static int callthunks_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, callthunks_debug_show, inode->i_private);
+}
+
+static const struct file_operations dfs_ops = {
+	.open		= callthunks_debug_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init callthunks_debugfs_init(void)
+{
+	struct dentry *dir;
+	unsigned long cpu;
+
+	dir = debugfs_create_dir("callthunks", NULL);
+	for_each_possible_cpu(cpu) {
+		void *arg = (void *)cpu;
+		char name [10];
+
+		sprintf(name, "cpu%lu", cpu);
+		debugfs_create_file(name, 0644, dir, arg, &dfs_ops);
+	}
+	return 0;
+}
+__initcall(callthunks_debugfs_init);
+#endif

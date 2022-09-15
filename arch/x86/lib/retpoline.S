@@ -203,13 +203,18 @@ EXPORT_SYMBOL(__x86_return_thunk)
 	.align 64
 SYM_FUNC_START(__x86_return_skl)
 	ANNOTATE_NOENDBR
-	/* Keep the hotpath in a 16byte I-fetch */
+	/*
+	 * Keep the hotpath in a 16byte I-fetch for the non-debug
+	 * case.
+	 */
+	CALL_THUNKS_DEBUG_INC_RETS
 	shlq	$5, PER_CPU_VAR(pcpu_hot + X86_call_depth)
 	jz	1f
 	ANNOTATE_UNRET_SAFE
 	ret
 	int3
 1:
+	CALL_THUNKS_DEBUG_INC_STUFFS
 	.rept	16
 	ANNOTATE_INTRA_FUNCTION_CALL
 	call	2f

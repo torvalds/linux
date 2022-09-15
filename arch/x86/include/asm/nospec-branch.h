@@ -57,6 +57,22 @@
 #define RET_DEPTH_INIT_FROM_CALL	0xfc00000000000000ULL
 #define RET_DEPTH_CREDIT		0xffffffffffffffffULL
 
+#ifdef CONFIG_CALL_THUNKS_DEBUG
+# define CALL_THUNKS_DEBUG_INC_CALLS				\
+	incq	%gs:__x86_call_count;
+# define CALL_THUNKS_DEBUG_INC_RETS				\
+	incq	%gs:__x86_ret_count;
+# define CALL_THUNKS_DEBUG_INC_STUFFS				\
+	incq	%gs:__x86_stuffs_count;
+# define CALL_THUNKS_DEBUG_INC_CTXSW				\
+	incq	%gs:__x86_ctxsw_count;
+#else
+# define CALL_THUNKS_DEBUG_INC_CALLS
+# define CALL_THUNKS_DEBUG_INC_RETS
+# define CALL_THUNKS_DEBUG_INC_STUFFS
+# define CALL_THUNKS_DEBUG_INC_CTXSW
+#endif
+
 #if defined(CONFIG_CALL_DEPTH_TRACKING) && !defined(COMPILE_OFFSETS)
 
 #include <asm/asm-offsets.h>
@@ -75,18 +91,23 @@
 #define RESET_CALL_DEPTH_FROM_CALL				\
 	mov	$0xfc, %rax;					\
 	shl	$56, %rax;					\
-	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);	\
+	CALL_THUNKS_DEBUG_INC_CALLS
 
 #define INCREMENT_CALL_DEPTH					\
-	sarq	$5, %gs:pcpu_hot + X86_call_depth;
+	sarq	$5, %gs:pcpu_hot + X86_call_depth;		\
+	CALL_THUNKS_DEBUG_INC_CALLS
 
 #define ASM_INCREMENT_CALL_DEPTH				\
-	sarq	$5, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+	sarq	$5, PER_CPU_VAR(pcpu_hot + X86_call_depth);	\
+	CALL_THUNKS_DEBUG_INC_CALLS
 
 #else
 #define CREDIT_CALL_DEPTH
+#define ASM_CREDIT_CALL_DEPTH
 #define RESET_CALL_DEPTH
 #define INCREMENT_CALL_DEPTH
+#define ASM_INCREMENT_CALL_DEPTH
 #define RESET_CALL_DEPTH_FROM_CALL
 #endif
 
@@ -137,7 +158,8 @@
 	jnz	771b;					\
 	/* barrier for jnz misprediction */		\
 	lfence;						\
-	ASM_CREDIT_CALL_DEPTH
+	ASM_CREDIT_CALL_DEPTH				\
+	CALL_THUNKS_DEBUG_INC_CTXSW
 #else
 /*
  * i386 doesn't unconditionally have LFENCE, as such it can't
@@ -321,6 +343,12 @@ static inline void x86_set_skl_return_thunk(void)
 {
 	x86_return_thunk = &__x86_return_skl;
 }
+#ifdef CONFIG_CALL_THUNKS_DEBUG
+DECLARE_PER_CPU(u64, __x86_call_count);
+DECLARE_PER_CPU(u64, __x86_ret_count);
+DECLARE_PER_CPU(u64, __x86_stuffs_count);
+DECLARE_PER_CPU(u64, __x86_ctxsw_count);
+#endif
 #else
 static inline void x86_set_skl_return_thunk(void) {}
 #endif
