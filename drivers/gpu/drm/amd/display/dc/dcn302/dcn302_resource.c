@@ -93,7 +93,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.dwb_fi_phase = -1, // -1 = disable,
 		.dmub_command_table = true,
-		.use_max_lb = true
+		.use_max_lb = true,
+		.exit_idle_opt_for_cursor_updates = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
