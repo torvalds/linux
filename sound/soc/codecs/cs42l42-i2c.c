@@ -25,11 +25,9 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 		return -ENOMEM;
 
 	regmap = devm_regmap_init_i2c(i2c_client, &cs42l42_regmap);
-	if (IS_ERR(regmap)) {
-		ret = PTR_ERR(regmap);
-		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&i2c_client->dev, PTR_ERR(regmap),
+				     "regmap_init() failed\n");
 
 	cs42l42->devid = CS42L42_CHIP_ID;
 	cs42l42->dev = dev;
