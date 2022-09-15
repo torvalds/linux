@@ -2,6 +2,7 @@
 obj-$(CONFIG_QCOM_ADM) += qcom_adm.o
 obj-$(CONFIG_QCOM_BAM_DMA) += bam_dma.o
 obj-$(CONFIG_QCOM_GPI_DMA) += gpi.o
+obj-$(CONFIG_MSM_GPI_DMA) += msm_gpi.o
 obj-$(CONFIG_QCOM_HIDMA_MGMT) += hdma_mgmt.o
 hdma_mgmt-objs	 := hidma_mgmt.o hidma_mgmt_sys.o
 obj-$(CONFIG_QCOM_HIDMA) +=  hdma.o

@@ -31,6 +31,27 @@ config QCOM_GPI_DMA
           can use a standardize interface that is protocol independent to
           transfer data between DDR and peripheral.
 
+config MSM_GPI_DMA
+	tristate "Qualcomm Technologies Inc GPI DMA support"
+	depends on ARCH_QCOM
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the QCOM GPI DMA controller. This controller
+	  provides DMA capabilities for a variety of peripheral buses such
+	  as I2C, UART, and SPI. By using GPI dmaengine driver, bus drivers
+	  can use a standardize interface that is protocol independent to
+	  transfer data between DDR and peripheral.
+
+config MSM_GPI_DMA_DEBUG
+	bool "Qualcomm Technologies Inc GPI debug support"
+	depends on MSM_GPI_DMA
+	help
+	  Enable detailed logging for QCOM GPI driver. Extra logging will be
+	  helpful when debugging critical issues. By using GPI dmaengine driver,
+	  bus drivers can use a standardize interface that is protocol independent
+	  to transfer data between DDR and peripheral.
+
 config QCOM_HIDMA_MGMT
 	tristate "Qualcomm Technologies HIDMA Management support"
 	depends on HAS_IOMEM
