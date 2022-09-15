@@ -293,6 +293,19 @@ void *callthunks_translate_call_dest(void *dest)
 	return target ? : dest;
 }
 
+bool is_callthunk(void *addr)
+{
+	unsigned int tmpl_size = SKL_TMPL_SIZE;
+	void *tmpl = skl_call_thunk_template;
+	unsigned long dest;
+
+	dest = roundup((unsigned long)addr, CONFIG_FUNCTION_ALIGNMENT);
+	if (!thunks_initialized || skip_addr((void *)dest))
+		return false;
+
+	return !bcmp((void *)(dest - tmpl_size), tmpl, tmpl_size);
+}
+
 #ifdef CONFIG_MODULES
 void noinline callthunks_patch_module_calls(struct callthunk_sites *cs,
 					    struct module *mod)

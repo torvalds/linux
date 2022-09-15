@@ -92,6 +92,7 @@ extern void callthunks_patch_builtin_calls(void);
 extern void callthunks_patch_module_calls(struct callthunk_sites *sites,
 					  struct module *mod);
 extern void *callthunks_translate_call_dest(void *dest);
+extern bool is_callthunk(void *addr);
 #else
 static __always_inline void callthunks_patch_builtin_calls(void) {}
 static __always_inline void
@@ -100,6 +101,10 @@ callthunks_patch_module_calls(struct callthunk_sites *sites,
 static __always_inline void *callthunks_translate_call_dest(void *dest)
 {
 	return dest;
+}
+static __always_inline bool is_callthunk(void *addr)
+{
+	return false;
 }
 #endif
 
