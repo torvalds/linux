@@ -707,7 +707,7 @@ int dma_mmap_noncontiguous(struct device *dev, struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(dma_mmap_noncontiguous);
 
-int dma_supported(struct device *dev, u64 mask)
+static int dma_supported(struct device *dev, u64 mask)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
@@ -721,7 +721,6 @@ int dma_supported(struct device *dev, u64 mask)
 		return 1;
 	return ops->dma_supported(dev, mask);
 }
-EXPORT_SYMBOL(dma_supported);
 
 bool dma_pci_p2pdma_supported(struct device *dev)
 {

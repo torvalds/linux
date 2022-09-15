@@ -5267,6 +5267,9 @@ static int decide_stripe_size_regular(struct alloc_chunk_ctl *ctl,
 				       ctl->stripe_size);
 	}
 
+	/* Stripe size should not go beyond 1G. */
+	ctl->stripe_size = min_t(u64, ctl->stripe_size, SZ_1G);
+
 	/* Align to BTRFS_STRIPE_LEN */
 	ctl->stripe_size = round_down(ctl->stripe_size, BTRFS_STRIPE_LEN);
 	ctl->chunk_size = ctl->stripe_size * data_stripes;
