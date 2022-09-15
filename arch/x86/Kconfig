@@ -2446,6 +2446,14 @@ config CC_HAS_SLS
 config CC_HAS_RETURN_THUNK
 	def_bool $(cc-option,-mfunction-return=thunk-extern)
 
+config HAVE_CALL_THUNKS
+	def_bool y
+	depends on RETHUNK && OBJTOOL
+
+config CALL_THUNKS
+	def_bool n
+	select FUNCTION_ALIGNMENT_16B
+
 menuconfig SPECULATION_MITIGATIONS
 	bool "Mitigations for speculative execution vulnerabilities"
 	default y
