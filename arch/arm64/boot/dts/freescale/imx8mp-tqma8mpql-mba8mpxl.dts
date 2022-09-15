@@ -461,7 +461,19 @@
 	status = "okay";
 };
 
+&usb3_1 {
+	fsl,disable-port-power-control;
+	fsl,permanently-attached;
+	dr_mode = "host";
+	status = "okay";
+};
+
 &usb3_phy0 {
+	vbus-supply = <&reg_vcc_5v0>;
+	status = "okay";
+};
+
+&usb3_phy1 {
 	vbus-supply = <&reg_vcc_5v0>;
 	status = "okay";
 };
@@ -483,6 +495,31 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbcon0>;
 		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&usb_dwc3_1 {
+	dr_mode = "host";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbhub>;
+	status = "okay";
+
+	hub_2_0: hub@1 {
+		compatible = "usb451,8142";
+		reg = <1>;
+		peer-hub = <&hub_3_0>;
+		reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&reg_vcc_3v3>;
+	};
+
+	hub_3_0: hub@2 {
+		compatible = "usb451,8140";
+		reg = <2>;
+		peer-hub = <&hub_2_0>;
+		reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&reg_vcc_3v3>;
 	};
 };
 
@@ -718,6 +755,10 @@
 
 	pinctrl_usbcon0: usb0congrp {
 		fsl,pins = <MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10		0x1c0>;
+	};
+
+	pinctrl_usbhub: usbhubgrp {
+		fsl,pins = <MX8MP_IOMUXC_GPIO1_IO11__GPIO1_IO11		0x10>;
 	};
 
 	pinctrl_usdhc2: usdhc2grp {
