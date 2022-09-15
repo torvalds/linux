@@ -98,6 +98,3 @@ NMI_MAGIC             0x48414d4d455201 nmi_s                    ``arch/mips/incl
 請注意，在聲音記憶管理中仍然有一些特殊的爲每個驅動定義的魔術值。查看include/sound/sndmagic.h來獲取他們完整的列表信息。很多OSS聲音驅動擁有自己從音效卡PCI ID構建的魔術值-他們也沒有被列在這裡。
 
 IrDA子系統也使用了大量的自己的魔術值，查看include/net/irda/irda.h來獲取他們完整的信息。
-
-HFS是另外一個比較大的使用魔術值的文件系統-你可以在fs/hfs/hfs.h中找到他們。
-

@@ -111,6 +111,3 @@ Da notare che ci sono anche dei numeri magici specifici per driver nel
 lista completa.  Molti driver audio OSS hanno i loro numeri magici costruiti a
 partire dall'identificativo PCI della scheda audio - nemmeno questi sono
 elencati in questo file.
-
-Il file-system HFS è un altro grande utilizzatore di numeri magici - potete
-trovarli qui ``fs/hfs/hfs.h``.
