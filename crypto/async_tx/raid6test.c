@@ -189,7 +189,7 @@ static int test(int disks, int *tests)
 }
 
 
-static int raid6_test(void)
+static int __init raid6_test(void)
 {
 	int err = 0;
 	int tests = 0;
@@ -236,7 +236,7 @@ static int raid6_test(void)
 	return 0;
 }
 
-static void raid6_test_exit(void)
+static void __exit raid6_test_exit(void)
 {
 }
 
