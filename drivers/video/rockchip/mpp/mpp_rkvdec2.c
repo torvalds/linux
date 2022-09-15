@@ -1263,6 +1263,12 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 		.data = &rkvdec_vdpu382_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RK3562
+	{
+		.compatible = "rockchip,rkv-decoder-rk3562",
+		.data = &rkvdec_vdpu382_data,
+	},
+#endif
 	{},
 };
 
