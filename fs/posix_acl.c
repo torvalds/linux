@@ -1176,7 +1176,7 @@ posix_acl_xattr_set(const struct xattr_handler *handler,
 		 * ACL_{GROUP,USER} have already been mapped according to the
 		 * caller's idmapping. The vfs_set_acl_prepare() helper will
 		 * recover them and take idmapped mounts into account. The
-		 * filesystem will receive the POSIX ACLs in in the correct
+		 * filesystem will receive the POSIX ACLs in the correct
 		 * format ready to be cached or written to the backing store
 		 * taking the filesystem idmapping into account.
 		 */
