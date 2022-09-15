@@ -7,6 +7,7 @@
 #include <linux/moduleloader.h>
 
 #include <asm/alternative.h>
+#include <asm/asm-offsets.h>
 #include <asm/cpu.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
@@ -55,7 +56,21 @@ static const struct core_text builtin_coretext = {
 	.name = "builtin",
 };
 
-static struct thunk_desc callthunk_desc __ro_after_init;
+asm (
+	".pushsection .rodata				\n"
+	".global skl_call_thunk_template		\n"
+	"skl_call_thunk_template:			\n"
+		__stringify(INCREMENT_CALL_DEPTH)"	\n"
+	".global skl_call_thunk_tail			\n"
+	"skl_call_thunk_tail:				\n"
+	".popsection					\n"
+);
+
+extern u8 skl_call_thunk_template[];
+extern u8 skl_call_thunk_tail[];
+
+#define SKL_TMPL_SIZE \
+	((unsigned int)(skl_call_thunk_tail - skl_call_thunk_template))
 
 extern void error_entry(void);
 extern void xen_error_entry(void);
@@ -157,11 +172,11 @@ static const u8 nops[] = {
 
 static __init_or_module void *patch_dest(void *dest, bool direct)
 {
-	unsigned int tsize = callthunk_desc.template_size;
+	unsigned int tsize = SKL_TMPL_SIZE;
 	u8 *pad = dest - tsize;
 
 	/* Already patched? */
-	if (!bcmp(pad, callthunk_desc.template, tsize))
+	if (!bcmp(pad, skl_call_thunk_template, tsize))
 		return pad;
 
 	/* Ensure there are nops */
@@ -171,9 +186,9 @@ static __init_or_module void *patch_dest(void *dest, bool direct)
 	}
 
 	if (direct)
-		memcpy(pad, callthunk_desc.template, tsize);
+		memcpy(pad, skl_call_thunk_template, tsize);
 	else
-		text_poke_copy_locked(pad, callthunk_desc.template, tsize, true);
+		text_poke_copy_locked(pad, skl_call_thunk_template, tsize, true);
 	return pad;
 }
 
