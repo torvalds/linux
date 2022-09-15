@@ -80,275 +80,275 @@
 &gpio {
 	i2c0_pins: i2c0-pins {
 		i2c0-pins-scl {
-			sf,pins = <PAD_GPIO57>;
-			sf,pinmux = <PAD_GPIO57_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_I2C0_IC_CLK_OE>;
-			sf,pin-gpio-din =  <GPI_I2C0_IC_CLK_IN_A>;
+			starfive,pins = <PAD_GPIO57>;
+			starfive,pinmux = <PAD_GPIO57_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_I2C0_IC_CLK_OE>;
+			starfive,pin-gpio-din =  <GPI_I2C0_IC_CLK_IN_A>;
 		};
 
 		i2c0-pins-sda {
-			sf,pins = <PAD_GPIO58>;
-			sf,pinmux = <PAD_GPIO58_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_I2C0_IC_DATA_OE>;
-			sf,pin-gpio-din =  <GPI_I2C0_IC_DATA_IN_A>;
+			starfive,pins = <PAD_GPIO58>;
+			starfive,pinmux = <PAD_GPIO58_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_I2C0_IC_DATA_OE>;
+			starfive,pin-gpio-din =  <GPI_I2C0_IC_DATA_IN_A>;
 		};
 	};
 
 	i2c5_pins: i2c5-pins {
 		i2c5-pins-scl {
-			sf,pins = <PAD_GPIO19>;
-			sf,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_I2C5_IC_CLK_OE>;
-			sf,pin-gpio-din =  <GPI_I2C5_IC_CLK_IN_A>;
+			starfive,pins = <PAD_GPIO19>;
+			starfive,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_I2C5_IC_CLK_OE>;
+			starfive,pin-gpio-din =  <GPI_I2C5_IC_CLK_IN_A>;
 		};
 
 		i2c5-pins-sda {
-			sf,pins = <PAD_GPIO20>;
-			sf,pinmux = <PAD_GPIO20_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_I2C5_IC_DATA_OE>;
-			sf,pin-gpio-din =  <GPI_I2C5_IC_DATA_IN_A>;
+			starfive,pins = <PAD_GPIO20>;
+			starfive,pinmux = <PAD_GPIO20_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_I2C5_IC_DATA_OE>;
+			starfive,pin-gpio-din =  <GPI_I2C5_IC_DATA_IN_A>;
 		};
 	};
 
 	i2c6_pins: i2c6-pins {
 		i2c6-pins-scl {
-			sf,pins = <PAD_GPIO16>;
-			sf,pinmux = <PAD_GPIO16_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_I2C6_IC_CLK_OE>;
-			sf,pin-gpio-din =  <GPI_I2C6_IC_CLK_IN_A>;
+			starfive,pins = <PAD_GPIO16>;
+			starfive,pinmux = <PAD_GPIO16_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_I2C6_IC_CLK_OE>;
+			starfive,pin-gpio-din =  <GPI_I2C6_IC_CLK_IN_A>;
 		};
 
 		i2c6-pins-sda {
-			sf,pins = <PAD_GPIO17>;
-			sf,pinmux = <PAD_GPIO17_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_I2C6_IC_DATA_OE>;
-			sf,pin-gpio-din =  <GPI_I2C6_IC_DATA_IN_A>;
+			starfive,pins = <PAD_GPIO17>;
+			starfive,pinmux = <PAD_GPIO17_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_I2C6_IC_DATA_OE>;
+			starfive,pin-gpio-din =  <GPI_I2C6_IC_DATA_IN_A>;
 		};
 	};
 
 	csi_pins: csi-pins {
 		csi-pins-pwdn {
-			sf,pins = <PAD_GPIO18>;
-			sf,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_HIGH>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO18>;
+			starfive,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_HIGH>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pwmdac0_pins: pwmdac0-pins {
 		pwmdac0-pins-left {
-			sf,pins = <PAD_GPIO33>;
-			sf,pinmux = <PAD_GPIO33_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_PWMDAC0_LEFT_OUTPUT>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO33>;
+			starfive,pinmux = <PAD_GPIO33_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_PWMDAC0_LEFT_OUTPUT>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		pwmdac0-pins-right {
-			sf,pins = <PAD_GPIO34>;
-			sf,pinmux = <PAD_GPIO34_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-			sf,pin-gpio-dout = <GPO_PWMDAC0_RIGHT_OUTPUT>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO34>;
+			starfive,pinmux = <PAD_GPIO34_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			starfive,pin-gpio-dout = <GPO_PWMDAC0_RIGHT_OUTPUT>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pwm_pins: pwm-pins {
 		pwm_ch0-pins {
-			sf,pins = <PAD_GPIO46>;
-			sf,pinmux = <PAD_GPIO46_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_PTC0_PWM_0>;
-			sf,pin-gpio-doen = <OEN_PTC0_PWM_0_OE_N>;
+			starfive,pins = <PAD_GPIO46>;
+			starfive,pinmux = <PAD_GPIO46_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_PTC0_PWM_0>;
+			starfive,pin-gpio-doen = <OEN_PTC0_PWM_0_OE_N>;
 		};
 
 		pwm_ch1-pins {
-			sf,pins = <PAD_GPIO59>;
-			sf,pinmux = <PAD_GPIO59_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_PTC0_PWM_1>;
-			sf,pin-gpio-doen = <OEN_PTC0_PWM_1_OE_N>;
+			starfive,pins = <PAD_GPIO59>;
+			starfive,pinmux = <PAD_GPIO59_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_PTC0_PWM_1>;
+			starfive,pin-gpio-doen = <OEN_PTC0_PWM_1_OE_N>;
 		};
 	};
 
 	ssp0_pins: ssp0-pins {
 		ssp0-pins_tx {
-			sf,pins = <PAD_GPIO52>;
-			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_SPI0_SSPTXD>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO52>;
+			starfive,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_SPI0_SSPTXD>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		ssp0-pins_rx {
-			sf,pins = <PAD_GPIO53>;
-			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
-			sf,pin-gpio-din =  <GPI_SPI0_SSPRXD>;
+			starfive,pins = <PAD_GPIO53>;
+			starfive,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pin-gpio-din =  <GPI_SPI0_SSPRXD>;
 		};
 
 		ssp0-pins_clk {
-			sf,pins = <PAD_GPIO48>;
-			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_SPI0_SSPCLKOUT>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO48>;
+			starfive,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_SPI0_SSPCLKOUT>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		ssp0-pins_cs {
-			sf,pins = <PAD_GPIO49>;
-			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_SPI0_SSPFSSOUT>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO49>;
+			starfive,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_SPI0_SSPFSSOUT>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pcie0_perst_default: pcie0_perst_default {
 		perst-pins {
-			sf,pins = <PAD_GPIO26>;
-			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_HIGH>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO26>;
+			starfive,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_HIGH>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pcie0_perst_active: pcie0_perst_active {
 		perst-pins {
-			sf,pins = <PAD_GPIO26>;
-			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO26>;
+			starfive,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pcie0_wake_default: pcie0_wake_default {
 		wake-pins {
-			sf,pins = <PAD_GPIO32>;
-			sf,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pins = <PAD_GPIO32>;
+			starfive,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
 
 	pcie0_clkreq_default: pcie0_clkreq_default {
 		clkreq-pins {
-			sf,pins = <PAD_GPIO27>;
-			sf,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pins = <PAD_GPIO27>;
+			starfive,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
 
 	pcie0_vbus_default: pcie0_vbus_default {
 		drive-vbus-pin {
-			sf,pins = <PAD_GPIO25>;
-			sf,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_HIGH>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO25>;
+			starfive,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_HIGH>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pcie1_perst_default: pcie1_perst_default {
 		perst-pins {
-			sf,pins = <PAD_GPIO28>;
-			sf,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_HIGH>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO28>;
+			starfive,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_HIGH>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pcie1_perst_active: pcie1_perst_active {
 		perst-pins {
-			sf,pins = <PAD_GPIO28>;
-			sf,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO28>;
+			starfive,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	pcie1_wake_default: pcie1_wake_default {
 		wake-pins {
-			sf,pins = <PAD_GPIO21>;
-			sf,pinmux = <PAD_GPIO21_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pins = <PAD_GPIO21>;
+			starfive,pinmux = <PAD_GPIO21_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
 
 	pcie1_clkreq_default: pcie1_clkreq_default {
 		clkreq-pins {
-			sf,pins = <PAD_GPIO29>;
-			sf,pinmux = <PAD_GPIO29_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pins = <PAD_GPIO29>;
+			starfive,pinmux = <PAD_GPIO29_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
 
 	usb_pins: usb-pins {
 		drive-vbus-pin {
-			sf,pins = <PAD_GPIO25>;
-			sf,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_USB0_DRIVE_VBUS_IO>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO25>;
+			starfive,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_USB0_DRIVE_VBUS_IO>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 
 	i2srx_pins: i2srx-pins {
 		i2srx-pins0 {
-			sf,pins = <PAD_GPIO61>;
-			sf,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
-			sf,pin-gpio-din =  <GPI_I2SRX0_EXT_SDIN0>;
+			starfive,pins = <PAD_GPIO61>;
+			starfive,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pin-gpio-din =  <GPI_I2SRX0_EXT_SDIN0>;
 		};
 	};
 
 	i2s_clk_pins: i2s-clk0 {
 		i2s-clk0_bclk {
-			sf,pins = <PAD_GPIO38>;
-			sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-din = <GPI_I2STX0_BCLK_SLV GPI_I2SRX0_BCLK_SLV>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pins = <PAD_GPIO38>;
+			starfive,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-din = <GPI_I2STX0_BCLK_SLV GPI_I2SRX0_BCLK_SLV>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 
 		i2s-clk0_lrclk {
-			sf,pins = <PAD_GPIO63>;
-			sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-din = <GPI_I2STX0_LRCK_SLV GPI_I2SRX0_LRCK_SLV>;
-			sf,pin-gpio-doen = <OEN_HIGH>;
+			starfive,pins = <PAD_GPIO63>;
+			starfive,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-din = <GPI_I2STX0_LRCK_SLV GPI_I2SRX0_LRCK_SLV>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
 
 	i2stx_pins: i2stx-pins {
 		i2stx-pins0 {
-			sf,pins = <PAD_GPIO44>;
-			sf,pinmux = <PAD_GPIO44_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_I2STX_4CH1_SDO0>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			starfive,pins = <PAD_GPIO44>;
+			starfive,pinmux = <PAD_GPIO44_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_I2STX_4CH1_SDO0>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 };
@@ -714,7 +714,7 @@
 	};
 };
 
-&hdmi_output {
+&rgb_output {
 	status = "okay";
 
 	ports {
@@ -732,7 +732,7 @@
 	};
 };
 
-&encoder {
+&dsi_output {
 	status = "okay";
 
 	ports {
