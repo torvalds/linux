@@ -810,6 +810,7 @@
 			fifo-depth = <32>;
 			fifo-watermark-aligned;
 			data-addr = <0>;
+			starfive,sys-syscon = <&sys_syscon 0x9c 0x1 0x3e>;
 			status = "disabled";
 		};
 

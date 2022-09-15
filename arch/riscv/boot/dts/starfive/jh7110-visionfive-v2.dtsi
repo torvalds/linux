@@ -467,7 +467,7 @@
 				regulator-compatible = "sdio_vdd";
 				regulator-name = "sdio_vdd";
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-max-microvolt = <1800000>;
 			};
 			cpu_vdd: DCDC2 {
 				regulator-boot-on;
@@ -518,13 +518,12 @@
 };
 
 &sdio0 {
-	clock-frequency = <102400000>;
 	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
@@ -533,10 +532,11 @@
 };
 
 &sdio1 {
-	clock-frequency = <102400000>;
-	max-frequency = <200000000>;
+	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <4>;
+	no-sdio;
+	no-mmc;
 	broken-cd;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;

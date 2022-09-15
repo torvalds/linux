@@ -187,10 +187,10 @@ static int dw_mci_starfive_parse_dt(struct dw_mci *host)
 static const struct dw_mci_drv_data starfive_data = {
 	.caps = dw_mci_starfive_caps,
 	.num_caps = ARRAY_SIZE(dw_mci_starfive_caps),
-	.set_ios = dw_mci_starfive_set_ios,
+	//.set_ios = dw_mci_starfive_set_ios,
 	.parse_dt = dw_mci_starfive_parse_dt,
 	.execute_tuning = dw_mci_starfive_execute_tuning,
-	.switch_voltage  = dw_mci_starfive_switch_voltage,
+	//.switch_voltage  = dw_mci_starfive_switch_voltage,
 };
 
 static const struct of_device_id dw_mci_starfive_match[] = {
