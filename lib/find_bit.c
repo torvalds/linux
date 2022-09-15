@@ -160,3 +160,19 @@ unsigned long find_next_clump8(unsigned long *clump, const unsigned long *addr,
 	return offset;
 }
 EXPORT_SYMBOL(find_next_clump8);
+
+#ifdef __BIG_ENDIAN
+
+#ifndef find_first_zero_bit_le
+/*
+ * Find the first cleared bit in an LE memory region.
+ */
+unsigned long _find_first_zero_bit_le(const unsigned long *addr, unsigned long size)
+{
+	return FIND_FIRST_BIT(~addr[idx], swab, size);
+}
+EXPORT_SYMBOL(_find_first_zero_bit_le);
+
+#endif
+
+#endif /* __BIG_ENDIAN */
