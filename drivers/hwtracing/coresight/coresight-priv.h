@@ -189,7 +189,8 @@ struct csr_set_atid_op {
 
 extern void coresight_set_csr_ops(const struct csr_set_atid_op *csr_op);
 extern void coresight_remove_csr_ops(void);
-int of_coresight_get_atid(struct coresight_device *src_dev);
+int of_coresight_get_atid(struct coresight_device *src_dev, u32 *atid, int atid_num);
+int of_coresight_get_atid_number(struct coresight_device *csdev);
 
 /*
  * Macros and inline functions to handle CoreSight UCI data and driver

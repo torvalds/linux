@@ -526,22 +526,42 @@ static struct coresight_device *coresight_get_source(struct list_head *path)
 static int coresight_set_csr_atid(struct list_head *path,
 			struct coresight_device *sink_csdev, bool enable)
 {
-	int atid, ret = 0;
+	int i, num, ret = 0;
 	struct coresight_device *src_csdev;
+	u32 *atid;
 
 	src_csdev = coresight_get_source(path);
-	if (!src_csdev)
+	if (!src_csdev) {
+		ret = -EINVAL;
+		return ret;
+	}
+
+	num = of_coresight_get_atid_number(src_csdev);
+	if (num < 0)
+		return num;
+
+	atid = kcalloc(num, sizeof(*atid), GFP_KERNEL);
+	if (!atid)
+		return -ENOMEM;
+
+	ret = of_coresight_get_atid(src_csdev, atid, num);
+	if (ret < 0) {
+		kfree(atid);
+		return ret;
+	}
+
+	if (csr_set_atid_ops) {
+		for (i = 0; i < num; i++) {
+			ret = csr_set_atid_ops->set_atid(sink_csdev, atid[i], enable);
+			if (ret < 0) {
+				kfree(atid);
+				return ret;
+			}
+		}
+	} else
 		ret = -EINVAL;
 
-	atid = of_coresight_get_atid(src_csdev);
-	if (atid < 0)
-		ret = -EINVAL;
-
-	if (csr_set_atid_ops)
-		ret = csr_set_atid_ops->set_atid(sink_csdev, atid, enable);
-	else
-		ret = -EINVAL;
-
+	kfree(atid);
 	return ret;
 }
 
@@ -1013,6 +1033,7 @@ void coresight_release_path(struct list_head *path)
 	}
 
 	kfree(path);
+	path = NULL;
 }
 
 /* return true if the device is a suitable type for a default sink */
@@ -1265,8 +1286,8 @@ int coresight_enable(struct coresight_device *csdev)
 
 	path = coresight_build_path(csdev, sink);
 	if (IS_ERR(path)) {
-		pr_err("building path(s) failed\n");
 		ret = PTR_ERR(path);
+		pr_err("building path(s) failed %d\n", ret);
 		goto out;
 	}
 
@@ -1305,6 +1326,9 @@ static void __coresight_disable(struct coresight_device *csdev)
 	ret = coresight_validate_source(csdev, __func__);
 	if (ret)
 		return;
+
+	if (csdev->def_sink)
+		csdev->def_sink = NULL;
 
 	if (!csdev->enable || !coresight_disable_source(csdev))
 		return;
@@ -1434,6 +1458,8 @@ static ssize_t sink_name_store(struct device *dev,
 	}
 
 	sink_name = kstrdup(buf, GFP_KERNEL);
+	if (!sink_name)
+		return -ENOMEM;
 	sink_name[size-1] = 0;
 
 	hash = hashlen_hash(hashlen_string(NULL, sink_name));
