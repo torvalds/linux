@@ -3245,8 +3245,10 @@ mpi3mr_transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 	dprint_transport_info(mrioc, "sending SMP request\n");
 
-	if (mpi3mr_post_transport_req(mrioc, &mpi_request, request_sz,
-	    &mpi_reply, reply_sz, MPI3MR_INTADMCMD_TIMEOUT, &ioc_status))
+	rc = mpi3mr_post_transport_req(mrioc, &mpi_request, request_sz,
+				       &mpi_reply, reply_sz,
+				       MPI3MR_INTADMCMD_TIMEOUT, &ioc_status);
+	if (rc)
 		goto unmap_in;
 
 	dprint_transport_info(mrioc,
