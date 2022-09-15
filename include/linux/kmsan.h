@@ -15,8 +15,21 @@
 
 struct page;
 struct kmem_cache;
+struct task_struct;
 
 #ifdef CONFIG_KMSAN
+
+/**
+ * kmsan_task_create() - Initialize KMSAN state for the task.
+ * @task: task to initialize.
+ */
+void kmsan_task_create(struct task_struct *task);
+
+/**
+ * kmsan_task_exit() - Notify KMSAN that a task has exited.
+ * @task: task about to finish.
+ */
+void kmsan_task_exit(struct task_struct *task);
 
 /**
  * kmsan_alloc_page() - Notify KMSAN about an alloc_pages() call.
@@ -138,6 +151,14 @@ void kmsan_ioremap_page_range(unsigned long addr, unsigned long end,
 void kmsan_iounmap_page_range(unsigned long start, unsigned long end);
 
 #else
+
+static inline void kmsan_task_create(struct task_struct *task)
+{
+}
+
+static inline void kmsan_task_exit(struct task_struct *task)
+{
+}
 
 static inline int kmsan_alloc_page(struct page *page, unsigned int order,
 				   gfp_t flags)
