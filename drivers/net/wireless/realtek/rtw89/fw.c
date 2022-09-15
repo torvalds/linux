@@ -271,7 +271,7 @@ void rtw89_early_fw_feature_recognize(struct device *device,
 						device, &buf, sizeof(buf), 0);
 	if (ret) {
 		dev_err(device, "failed to early request firmware: %d\n", ret);
-		goto out;
+		return;
 	}
 
 	ver_code = buf.mfw_hdr.sig != RTW89_MFW_SIG ?
