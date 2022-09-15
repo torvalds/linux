@@ -729,14 +729,15 @@ void load_fixmap_gdt(int cpu)
 EXPORT_SYMBOL_GPL(load_fixmap_gdt);
 
 /**
- * switch_to_new_gdt - Switch form early GDT to the direct one
+ * switch_gdt_and_percpu_base - Switch to direct GDT and runtime per CPU base
  * @cpu:	The CPU number for which this is invoked
  *
- * Invoked during early boot to switch from early GDT and early per CPU
- * (%fs on 32bit, GS_BASE on 64bit) to the direct GDT and the runtime per
- * CPU area.
+ * Invoked during early boot to switch from early GDT and early per CPU to
+ * the direct GDT and the runtime per CPU area. On 32-bit the percpu base
+ * switch is implicit by loading the direct GDT. On 64bit this requires
+ * to update GSBASE.
  */
-void switch_to_new_gdt(int cpu)
+void __init switch_gdt_and_percpu_base(int cpu)
 {
 	load_direct_gdt(cpu);
 
@@ -2262,12 +2263,6 @@ void cpu_init(void)
 	if (IS_ENABLED(CONFIG_X86_64) || cpu_feature_enabled(X86_FEATURE_VME) ||
 	    boot_cpu_has(X86_FEATURE_TSC) || boot_cpu_has(X86_FEATURE_DE))
 		cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
-
-	/*
-	 * Initialize the per-CPU GDT with the boot GDT,
-	 * and set up the GDT descriptor:
-	 */
-	switch_to_new_gdt(cpu);
 
 	if (IS_ENABLED(CONFIG_X86_64)) {
 		loadsegment(fs, 0);

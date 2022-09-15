@@ -211,7 +211,7 @@ void __init setup_per_cpu_areas(void)
 		 * area.  Reload any changed state for the boot CPU.
 		 */
 		if (!cpu)
-			switch_to_new_gdt(cpu);
+			switch_gdt_and_percpu_base(cpu);
 	}
 
 	/* indicate the early static arrays will soon be gone */
