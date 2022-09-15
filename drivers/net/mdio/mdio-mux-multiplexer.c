@@ -72,12 +72,9 @@ static int mdio_mux_multiplexer_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	s->muxc = devm_mux_control_get(dev, NULL);
-	if (IS_ERR(s->muxc)) {
-		ret = PTR_ERR(s->muxc);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to get mux: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(s->muxc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(s->muxc),
+				     "Failed to get mux\n");
 
 	platform_set_drvdata(pdev, s);
 
