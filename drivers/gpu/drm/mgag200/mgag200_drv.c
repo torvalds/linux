@@ -262,7 +262,11 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(dev, 0);
+	/*
+	 * FIXME: A 24-bit color depth does not work with 24 bpp on
+	 * G200ER. Force 32 bpp.
+	 */
+	drm_fbdev_generic_setup(dev, 32);
 
 	return 0;
 }
