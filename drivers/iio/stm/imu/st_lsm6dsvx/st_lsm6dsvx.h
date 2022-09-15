@@ -213,14 +213,34 @@ struct st_lsm6dsvx_ext_dev_info {
 	u8 ext_dev_i2c_addr;
 };
 
+/**
+ * enum st_lsm6dsvx_hw_id - list of HW device id supported by the
+ *                          lsm6dsvx driver
+ */
+enum st_lsm6dsvx_hw_id {
+	ST_LSM6DSVX_ID,
+	ST_LSM6DSVX_MAX_ID,
+};
+
+/**
+ * struct st_lsm6dsvx_settings - ST IMU sensor settings
+ * @hw_id: Hw id supported by the driver configuration.
+ * @name: Device name supported by the driver configuration.
+ * @st_qvar_probe: flag to indicate if QVAR feature is supported.
+ */
+struct st_lsm6dsvx_settings {
+	struct {
+		enum st_lsm6dsvx_hw_id hw_id;
+		const char *name;
+	} id;
+
+	bool st_qvar_probe;
+};
+
 enum st_lsm6dsvx_sensor_id {
 	ST_LSM6DSVX_ID_GYRO,
 	ST_LSM6DSVX_ID_ACC,
-
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
 	ST_LSM6DSVX_ID_QVAR,
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
-
 	ST_LSM6DSVX_ID_EXT0,
 	ST_LSM6DSVX_ID_EXT1,
 	ST_LSM6DSVX_ID_MAX,
@@ -248,6 +268,7 @@ enum {
 
 /**
  * struct st_lsm6dsvx_sensor - ST IMU sensor instance
+ * @name: Sensor name.
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_lsm6dsvx_hw.
  * @ext_dev_info: Sensor hub i2c slave settings.
@@ -267,6 +288,7 @@ enum {
  * @batch_reg: Batching register info (addr + mask).
  */
 struct st_lsm6dsvx_sensor {
+	char name[32];
 	enum st_lsm6dsvx_sensor_id id;
 	struct st_lsm6dsvx_hw *hw;
 
@@ -276,12 +298,12 @@ struct st_lsm6dsvx_sensor {
 	int odr;
 	int uodr;
 
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
+#ifndef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	struct hrtimer hr_timer;
 	struct work_struct iio_work;
 	ktime_t oldktime;
 	s64 timestamp;
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
+#endif /* !CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
 
 	u8 std_samples;
 	u8 std_level;
@@ -321,6 +343,7 @@ struct st_lsm6dsvx_sensor {
  * @vddio_supply: Voltage regulator for VDDIIO.
  * @qvar_workqueue: QVAR workqueue (if enabled in Kconfig).
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
+ * @settings: ST IMU sensor settings.
  */
 struct st_lsm6dsvx_hw {
 	struct device *dev;
@@ -349,12 +372,10 @@ struct st_lsm6dsvx_hw {
 	struct iio_mount_matrix orientation;
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
-
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
 	struct workqueue_struct *qvar_workqueue;
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
-
 	struct iio_dev *iio_devs[ST_LSM6DSVX_ID_MAX];
+
+	const struct st_lsm6dsvx_settings *settings;
 };
 
 extern const struct dev_pm_ops st_lsm6dsvx_pm_ops;
@@ -429,15 +450,10 @@ st_lsm6dsvx_is_fifo_enabled(struct st_lsm6dsvx_hw *hw)
 				| BIT(ST_LSM6DSVX_ID_ACC)
 				| BIT(ST_LSM6DSVX_ID_EXT0)
 				| BIT(ST_LSM6DSVX_ID_EXT1)
-
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
-				| BIT(ST_LSM6DSVX_ID_QVAR)
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
-
-				);
+				| BIT(ST_LSM6DSVX_ID_QVAR));
 }
 
-int st_lsm6dsvx_probe(struct device *dev, int irq,
+int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 		      struct regmap *regmap);
 int st_lsm6dsvx_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
 				 bool enable);
@@ -472,12 +488,10 @@ int st_lsm6dsvx_remove(struct device *dev);
 
 int st_lsm6dsvx_shub_probe(struct st_lsm6dsvx_hw *hw);
 
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
 int st_lsm6dsvx_qvar_probe(struct st_lsm6dsvx_hw *hw);
 int
 st_lsm6dsvx_qvar_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
 				   bool enable);
 int st_lsm6dsvx_qvar_remove(struct device *dev);
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
 
 #endif /* ST_LSM6DSVX_H */

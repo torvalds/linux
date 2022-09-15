@@ -21,6 +21,21 @@
 
 #include "st_lsm6dsvx.h"
 
+/**
+ * List of supported device settings
+ *
+ * The following table list all device supported by st_lsm6dsvx driver.
+ */
+static const struct st_lsm6dsvx_settings st_lsm6dsvx_sensor_settings[] = {
+	{
+		.id = {
+			.hw_id = ST_LSM6DSVX_ID,
+			.name = ST_LSM6DSV16X_DEV_NAME,
+		},
+		.st_qvar_probe = true,
+	},
+};
+
 static const struct st_lsm6dsvx_odr_table_entry
 st_lsm6dsvx_odr_table[] = {
 	[ST_LSM6DSVX_ID_ACC] = {
@@ -195,10 +210,21 @@ static const struct iio_chan_spec st_lsm6dsvx_gyro_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
-static int st_lsm6dsvx_check_whoami(struct st_lsm6dsvx_hw *hw)
+static int st_lsm6dsvx_check_whoami(struct st_lsm6dsvx_hw *hw, int id)
 {
-	int data;
-	int err;
+	int data, err, i;
+
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsvx_sensor_settings); i++) {
+		if (st_lsm6dsvx_sensor_settings[i].id.name &&
+		    st_lsm6dsvx_sensor_settings[i].id.hw_id == id)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(st_lsm6dsvx_sensor_settings)) {
+		dev_err(hw->dev, "unsupported hw id [%02x]\n", id);
+
+		return -ENODEV;
+	}
 
 	err = regmap_read(hw->regmap, ST_LSM6DSVX_REG_WHOAMI_ADDR, &data);
 	if (err < 0) {
@@ -210,6 +236,8 @@ static int st_lsm6dsvx_check_whoami(struct st_lsm6dsvx_hw *hw)
 		dev_err(hw->dev, "unsupported whoami [%02x]\n", data);
 		return -ENODEV;
 	}
+
+	hw->settings = &st_lsm6dsvx_sensor_settings[i];
 
 	return 0;
 }
@@ -348,10 +376,7 @@ static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 	int err;
 
 	switch (id) {
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
 	case ST_LSM6DSVX_ID_QVAR:
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
-
 	case ST_LSM6DSVX_ID_EXT0:
 	case ST_LSM6DSVX_ID_EXT1:
 	case ST_LSM6DSVX_ID_ACC: {
@@ -783,7 +808,8 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 	case ST_LSM6DSVX_ID_ACC:
 		iio_dev->channels = st_lsm6dsvx_acc_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsvx_acc_channels);
-		iio_dev->name = "lsm6dsvx_accel";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_accel", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsvx_acc_info;
 		iio_dev->available_scan_masks = st_lsm6dsvx_available_scan_masks;
 
@@ -797,7 +823,8 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 	case ST_LSM6DSVX_ID_GYRO:
 		iio_dev->channels = st_lsm6dsvx_gyro_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsvx_gyro_channels);
-		iio_dev->name = "lsm6dsvx_gyro";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_gyro", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsvx_gyro_info;
 		iio_dev->available_scan_masks = st_lsm6dsvx_available_scan_masks;
 
@@ -811,6 +838,8 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 	default:
 		return NULL;
 	}
+
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }
@@ -873,7 +902,7 @@ static int st_lsm6dsvx_power_enable(struct st_lsm6dsvx_hw *hw)
 	return 0;
 }
 
-int st_lsm6dsvx_probe(struct device *dev, int irq,
+int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 		      struct regmap *regmap)
 {
 	struct st_lsm6dsvx_hw *hw;
@@ -905,7 +934,7 @@ int st_lsm6dsvx_probe(struct device *dev, int irq,
 	if (err < 0)
 		return err;
 
-	err = st_lsm6dsvx_check_whoami(hw);
+	err = st_lsm6dsvx_check_whoami(hw, hw_id);
 	if (err < 0)
 		return err;
 
@@ -946,11 +975,11 @@ int st_lsm6dsvx_probe(struct device *dev, int irq,
 	if (err < 0)
 		return err;
 
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
-	err = st_lsm6dsvx_qvar_probe(hw);
-	if (err)
-		return err;
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
+	if (hw->settings->st_qvar_probe) {
+		err = st_lsm6dsvx_qvar_probe(hw);
+		if (err)
+			return err;
+	}
 
 	if (hw->irq > 0) {
 		err = st_lsm6dsvx_buffers_setup(hw);
@@ -980,11 +1009,11 @@ EXPORT_SYMBOL(st_lsm6dsvx_probe);
 
 int st_lsm6dsvx_remove(struct device *dev)
 {
+	struct st_lsm6dsvx_hw *hw = dev_get_drvdata(dev);
 	int ret = 0;
 
-#ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR
-	ret = st_lsm6dsvx_qvar_remove(dev);
-#endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR */
+	if (hw->settings->st_qvar_probe)
+		ret = st_lsm6dsvx_qvar_remove(dev);
 
 	return ret;
 }

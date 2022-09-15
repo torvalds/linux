@@ -34,15 +34,9 @@ config IIO_ST_LSM6DSVX_MAY_WAKEUP
 	help
 	  Enable wake-up irq on interrupt line
 
-config IIO_ST_LSM6DSVX_QVAR
-	bool "Enable QVAR"
-	depends on IIO_ST_LSM6DSVX
-	help
-	  Enable support to QVAR sensor
-
 config IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	bool "use FIFO for QVAR"
-	depends on IIO_ST_LSM6DSVX_QVAR
+	depends on IIO_ST_LSM6DSVX
 	help
 	  Enable support to QVAR sensor on internal HW FIFO
 

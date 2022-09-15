@@ -847,18 +847,6 @@ st_lsm6dsvx_shub_alloc_iio_dev(struct st_lsm6dsvx_hw *hw,
 	iio_dev->channels = ext_settings->ext_channels;
 	iio_dev->num_channels = ext_settings->ext_chan_depth;
 
-	switch (iio_dev->channels[0].type) {
-	case IIO_MAGN:
-		iio_dev->name = "lsm6dsvx_magn";
-		break;
-	case IIO_PRESSURE:
-		iio_dev->name = "lsm6dsvx_press";
-		break;
-	default:
-		iio_dev->name = "lsm6dsvx_ext";
-		break;
-	}
-
 	sensor = iio_priv(iio_dev);
 	sensor->id = id;
 	sensor->hw = hw;
@@ -870,6 +858,23 @@ st_lsm6dsvx_shub_alloc_iio_dev(struct st_lsm6dsvx_hw *hw,
 	sensor->ext_dev_info.ext_dev_settings = ext_settings;
 	sensor->decimator = 0;
 	sensor->dec_counter = 0;
+
+	switch (iio_dev->channels[0].type) {
+	case IIO_MAGN:
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_magn", hw->settings->id.name);
+		break;
+	case IIO_PRESSURE:
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_press", hw->settings->id.name);
+		break;
+	default:
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_ext", hw->settings->id.name);
+		break;
+	}
+
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }

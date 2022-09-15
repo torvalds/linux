@@ -22,6 +22,7 @@ static const struct regmap_config st_lsm6dsvx_i2c_regmap_config = {
 static int st_lsm6dsvx_i2c_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
+	int hw_id = id->driver_data;
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_i2c(client, &st_lsm6dsvx_i2c_regmap_config);
@@ -33,7 +34,8 @@ static int st_lsm6dsvx_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsvx_probe(&client->dev, client->irq, regmap);
+	return st_lsm6dsvx_probe(&client->dev, client->irq,
+			       hw_id, regmap);
 }
 
 static int st_lsm6dsvx_i2c_remove(struct i2c_client *client)
@@ -44,13 +46,14 @@ static int st_lsm6dsvx_i2c_remove(struct i2c_client *client)
 static const struct of_device_id st_lsm6dsvx_i2c_of_match[] = {
 	{
 		.compatible = "st," ST_LSM6DSV16X_DEV_NAME,
+		.data = (void *)ST_LSM6DSVX_ID,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsvx_i2c_of_match);
 
 static const struct i2c_device_id st_lsm6dsvx_i2c_id_table[] = {
-	{ ST_LSM6DSV16X_DEV_NAME },
+	{ ST_LSM6DSV16X_DEV_NAME, ST_LSM6DSVX_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_lsm6dsvx_i2c_id_table);

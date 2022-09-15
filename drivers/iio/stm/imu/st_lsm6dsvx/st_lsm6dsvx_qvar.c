@@ -318,9 +318,11 @@ st_lsm6dsvx_alloc_qvar_iiodev(struct st_lsm6dsvx_hw *hw)
 
 	iio_dev->channels = st_lsm6dsvx_qvar_channels;
 	iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsvx_qvar_channels);
-	iio_dev->name = "lsm6dsvx_qvar";
+	scnprintf(sensor->name, sizeof(sensor->name),
+		 "%s_qvar", hw->settings->id.name);
 	iio_dev->info = &st_lsm6dsvx_qvar_info;
 	iio_dev->available_scan_masks = st_lsm6dsvx_qvar_available_scan_masks;
+	iio_dev->name = sensor->name;
 
 	sensor->odr = st_lsm6dsvx_qvar_odr_table.odr_avl[0].hz;
 	sensor->uodr = st_lsm6dsvx_qvar_odr_table.odr_avl[0].uhz;
