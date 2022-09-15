@@ -17,6 +17,7 @@ struct pcpu_hot {
 			struct task_struct	*current_task;
 			int			preempt_count;
 			int			cpu_number;
+			unsigned long		top_of_stack;
 		};
 		u8	pad[64];
 	};
