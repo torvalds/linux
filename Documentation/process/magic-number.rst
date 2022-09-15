@@ -99,8 +99,3 @@ QUEUE_MAGIC_FREE      0xf7e1c9a3       queue_entry              ``drivers/scsi/a
 QUEUE_MAGIC_USED      0xf7e1cc33       queue_entry              ``drivers/scsi/arm/queue.c``
 NMI_MAGIC             0x48414d4d455201 nmi_s                    ``arch/mips/include/asm/sn/nmi.h``
 ===================== ================ ======================== ==========================================
-
-Note that there are also defined special per-driver magic numbers in sound
-memory management. See ``include/sound/sndmagic.h`` for complete list of them. Many
-OSS sound drivers have their magic numbers constructed from the soundcard PCI
-ID - these are not listed here as well.

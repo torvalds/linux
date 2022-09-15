@@ -91,7 +91,4 @@ QUEUE_MAGIC_USED      0xf7e1cc33       queue_entry              ``drivers/scsi/a
 NMI_MAGIC             0x48414d4d455201 nmi_s                    ``arch/mips/include/asm/sn/nmi.h``
 ===================== ================ ======================== ==========================================
 
-
-请注意，在声音记忆管理中仍然有一些特殊的为每个驱动定义的魔术值。查看include/sound/sndmagic.h来获取他们完整的列表信息。很多OSS声音驱动拥有自己从声卡PCI ID构建的魔术值-他们也没有被列在这里。
-
 IrDA子系统也使用了大量的自己的魔术值，查看include/net/irda/irda.h来获取他们完整的信息。
