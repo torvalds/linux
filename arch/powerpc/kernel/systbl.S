@@ -12,7 +12,11 @@
 
 #include <asm/ppc_asm.h>
 
+#ifdef CONFIG_RELOCATABLE
+.section .data.rel.ro,"aw"
+#else
 .section .rodata,"a"
+#endif
 
 #ifdef CONFIG_PPC64
 	.p2align	3
