@@ -944,7 +944,7 @@ inc_counter:
  * See the comments to the function bfq_weights_tree_add() for considerations
  * about overhead.
  */
-void __bfq_weights_tree_remove(struct bfq_queue *bfqq)
+void bfq_weights_tree_remove(struct bfq_queue *bfqq)
 {
 	struct rb_root_cached *root;
 
@@ -962,15 +962,6 @@ void __bfq_weights_tree_remove(struct bfq_queue *bfqq)
 reset_entity_pointer:
 	bfqq->weight_counter = NULL;
 	bfq_put_queue(bfqq);
-}
-
-/*
- * Invoke __bfq_weights_tree_remove on bfqq and decrement the number
- * of active groups for each queue's inactive parent entity.
- */
-void bfq_weights_tree_remove(struct bfq_queue *bfqq)
-{
-	__bfq_weights_tree_remove(bfqq);
 }
 
 /*
