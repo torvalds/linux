@@ -1537,7 +1537,6 @@ static void ata_eh_analyze_serror(struct ata_link *link)
 /**
  *	ata_eh_analyze_tf - analyze taskfile of a failed qc
  *	@qc: qc to analyze
- *	@tf: Taskfile registers to analyze
  *
  *	Analyze taskfile of @qc and further determine cause of
  *	failure.  This function also requests ATAPI sense data if
@@ -1549,9 +1548,9 @@ static void ata_eh_analyze_serror(struct ata_link *link)
  *	RETURNS:
  *	Determined recovery action
  */
-static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
-				      const struct ata_taskfile *tf)
+static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc)
 {
+	const struct ata_taskfile *tf = &qc->result_tf;
 	unsigned int tmp, action = 0;
 	u8 stat = tf->status, err = tf->error;
 
@@ -1953,7 +1952,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		qc->err_mask |= ehc->i.err_mask;
 
 		/* analyze TF */
-		ehc->i.action |= ata_eh_analyze_tf(qc, &qc->result_tf);
+		ehc->i.action |= ata_eh_analyze_tf(qc);
 
 		/* DEV errors are probably spurious in case of ATA_BUS error */
 		if (qc->err_mask & AC_ERR_ATA_BUS)
