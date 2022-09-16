@@ -984,19 +984,6 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 		entity->on_st_or_in_serv = true;
 	}
 
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
-	if (!bfq_entity_to_bfqq(entity)) { /* bfq_group */
-		struct bfq_group *bfqg =
-			container_of(entity, struct bfq_group, entity);
-		struct bfq_data *bfqd = bfqg->bfqd;
-
-		if (!entity->in_groups_with_pending_reqs) {
-			entity->in_groups_with_pending_reqs = true;
-			bfqd->num_groups_with_pending_reqs++;
-		}
-	}
-#endif
-
 	bfq_update_fin_time_enqueue(entity, st, backshifted);
 }
 
@@ -1653,7 +1640,8 @@ void bfq_add_bfqq_in_groups_with_pending_reqs(struct bfq_queue *bfqq)
 	if (!entity->in_groups_with_pending_reqs) {
 		entity->in_groups_with_pending_reqs = true;
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
-		bfqq_group(bfqq)->num_queues_with_pending_reqs++;
+		if (!(bfqq_group(bfqq)->num_queues_with_pending_reqs++))
+			bfqq->bfqd->num_groups_with_pending_reqs++;
 #endif
 	}
 }
@@ -1665,7 +1653,8 @@ void bfq_del_bfqq_in_groups_with_pending_reqs(struct bfq_queue *bfqq)
 	if (entity->in_groups_with_pending_reqs) {
 		entity->in_groups_with_pending_reqs = false;
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
-		bfqq_group(bfqq)->num_queues_with_pending_reqs--;
+		if (!(--bfqq_group(bfqq)->num_queues_with_pending_reqs))
+			bfqq->bfqd->num_groups_with_pending_reqs--;
 #endif
 	}
 }
@@ -1694,6 +1683,10 @@ void bfq_del_bfqq_busy(struct bfq_queue *bfqq, bool expiration)
 
 	if (!bfqq->dispatched) {
 		bfq_del_bfqq_in_groups_with_pending_reqs(bfqq);
+		/*
+		 * Next function is invoked last, because it causes bfqq to be
+		 * freed. DO NOT use bfqq after the next function invocation.
+		 */
 		bfq_weights_tree_remove(bfqd, bfqq);
 	}
 }
