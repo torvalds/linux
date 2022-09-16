@@ -5090,6 +5090,7 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 			(dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == 0)) {
 		ASSERT(0);
 		link->dpcd_caps.lttpr_caps.phy_repeater_cnt = 0x80;
+		DC_LOG_DC("lttpr_caps forced phy_repeater_cnt = %d\n", link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	}
 
 	/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
@@ -5098,6 +5099,7 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 	if (is_lttpr_present)
 		CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
 
+	DC_LOG_DC("is_lttpr_present = %d\n", is_lttpr_present);
 	return is_lttpr_present;
 }
 
@@ -5134,6 +5136,7 @@ void dp_get_lttpr_mode_override(struct dc_link *link, enum lttpr_mode *override)
 	} else if (link->dc->debug.lttpr_mode_override == LTTPR_MODE_NON_LTTPR) {
 		*override = LTTPR_MODE_NON_LTTPR;
 	}
+	DC_LOG_DC("lttpr_mode_override chose LTTPR_MODE = %d\n", (uint8_t)(*override));
 }
 
 enum lttpr_mode dp_decide_8b_10b_lttpr_mode(struct dc_link *link)
@@ -5146,22 +5149,34 @@ enum lttpr_mode dp_decide_8b_10b_lttpr_mode(struct dc_link *link)
 		return LTTPR_MODE_NON_LTTPR;
 
 	if (vbios_lttpr_aware) {
-		if (vbios_lttpr_force_non_transparent)
+		if (vbios_lttpr_force_non_transparent) {
+			DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT due to VBIOS DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
 			return LTTPR_MODE_NON_TRANSPARENT;
-		else
+		} else {
+			DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT by default due to VBIOS not set DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
 			return LTTPR_MODE_TRANSPARENT;
+		}
 	}
 
 	if (link->dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A &&
-			link->dc->caps.extended_aux_timeout_support)
+			link->dc->caps.extended_aux_timeout_support) {
+		DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT by default and dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A set to 1.\n");
 		return LTTPR_MODE_NON_TRANSPARENT;
+	}
 
+	DC_LOG_DC("chose LTTPR_MODE_NON_LTTPR.\n");
 	return LTTPR_MODE_NON_LTTPR;
 }
 
 enum lttpr_mode dp_decide_128b_132b_lttpr_mode(struct dc_link *link)
 {
-	return dp_is_lttpr_present(link) ? LTTPR_MODE_NON_TRANSPARENT : LTTPR_MODE_NON_LTTPR;
+	enum lttpr_mode mode = LTTPR_MODE_NON_LTTPR;
+
+	if (dp_is_lttpr_present(link))
+		mode = LTTPR_MODE_NON_TRANSPARENT;
+
+	DC_LOG_DC("128b_132b chose LTTPR_MODE %d.\n", mode);
+	return mode;
 }
 
 static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
@@ -5179,9 +5194,10 @@ static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
 	cmd.cable_id.data.input.phy_inst = resource_transmitter_to_phy_idx(
 			link->dc, link->link_enc->transmitter);
 	if (dc_dmub_srv_cmd_with_reply_data(link->ctx->dmub_srv, &cmd) &&
-			cmd.cable_id.header.ret_status == 1)
+			cmd.cable_id.header.ret_status == 1) {
 		cable_id->raw = cmd.cable_id.data.output_raw;
-
+		DC_LOG_DC("usbc_cable_id = %d.\n", cable_id->raw);
+	}
 	return cmd.cable_id.header.ret_status == 1;
 }
 
@@ -5228,6 +5244,7 @@ static enum dc_status wa_try_to_wake_dprx(struct dc_link *link, uint64_t timeout
 
 	lttpr_present = dp_is_lttpr_present(link) ||
 			(!vbios_lttpr_interop || !link->dc->caps.extended_aux_timeout_support);
+	DC_LOG_DC("lttpr_present = %d.\n", lttpr_present ? 1 : 0);
 
 	/* Issue an AUX read to test DPRX responsiveness. If LTTPR is supported the first read is expected to
 	 * be to determine LTTPR capabilities. Otherwise trying to read power state should be an innocuous AUX read.
