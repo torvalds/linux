@@ -45,6 +45,7 @@
 #define MCFG_MCR_SELECTOR			_MMIO(0xfd0)
 #define SF_MCR_SELECTOR				_MMIO(0xfd8)
 #define GEN8_MCR_SELECTOR			_MMIO(0xfdc)
+#define GAM_MCR_SELECTOR			_MMIO(0xfe0)
 #define   GEN8_MCR_SLICE(slice)			(((slice) & 3) << 26)
 #define   GEN8_MCR_SLICE_MASK			GEN8_MCR_SLICE(3)
 #define   GEN8_MCR_SUBSLICE(subslice)		(((subslice) & 3) << 24)

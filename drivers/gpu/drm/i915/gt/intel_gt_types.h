@@ -59,6 +59,7 @@ enum intel_steering_type {
 	L3BANK,
 	MSLICE,
 	LNCF,
+	GAM,
 
 	/*
 	 * On some platforms there are multiple types of MCR registers that

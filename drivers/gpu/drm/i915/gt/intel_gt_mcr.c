@@ -40,6 +40,7 @@ static const char * const intel_steering_types[] = {
 	"L3BANK",
 	"MSLICE",
 	"LNCF",
+	"GAM",
 	"INSTANCE 0",
 };
 
@@ -48,11 +49,20 @@ static const struct intel_mmio_range icl_l3bank_steering_table[] = {
 	{},
 };
 
+/*
+ * Although the bspec lists more "MSLICE" ranges than shown here, some of those
+ * are of a "GAM" subclass that has special rules.  Thus we use a separate
+ * GAM table farther down for those.
+ */
 static const struct intel_mmio_range xehpsdv_mslice_steering_table[] = {
-	{ 0x004000, 0x004AFF },
-	{ 0x00C800, 0x00CFFF },
 	{ 0x00DD00, 0x00DDFF },
 	{ 0x00E900, 0x00FFFF }, /* 0xEA00 - OxEFFF is unused */
+	{},
+};
+
+static const struct intel_mmio_range xehpsdv_gam_steering_table[] = {
+	{ 0x004000, 0x004AFF },
+	{ 0x00C800, 0x00CFFF },
 	{},
 };
 
@@ -114,9 +124,15 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 	} else if (IS_DG2(i915)) {
 		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
 		gt->steering_table[LNCF] = dg2_lncf_steering_table;
+		/*
+		 * No need to hook up the GAM table since it has a dedicated
+		 * steering control register on DG2 and can use implicit
+		 * steering.
+		 */
 	} else if (IS_XEHPSDV(i915)) {
 		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
 		gt->steering_table[LNCF] = xehpsdv_lncf_steering_table;
+		gt->steering_table[GAM] = xehpsdv_gam_steering_table;
 	} else if (GRAPHICS_VER(i915) >= 11 &&
 		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 50)) {
 		gt->steering_table[L3BANK] = icl_l3bank_steering_table;
@@ -350,6 +366,10 @@ static void get_nonterminated_steering(struct intel_gt *gt,
 		GEM_WARN_ON(!HAS_MSLICE_STEERING(gt->i915));
 		*group = __ffs(gt->info.mslice_mask) << 1;
 		*instance = 0;	/* unused */
+		break;
+	case GAM:
+		*group = IS_DG2(gt->i915) ? 1 : 0;
+		*instance = 0;
 		break;
 	case INSTANCE0:
 		/*
