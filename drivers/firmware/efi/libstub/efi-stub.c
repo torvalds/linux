@@ -154,8 +154,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	 * information about the running image, such as size and the command
 	 * line.
 	 */
-	status = efi_system_table->boottime->handle_protocol(handle,
-					&loaded_image_proto, (void *)&image);
+	status = efi_bs_call(handle_protocol, handle, &loaded_image_proto,
+			     (void *)&image);
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to get loaded image protocol\n");
 		goto fail;
