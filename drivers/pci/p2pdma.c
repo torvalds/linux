@@ -649,7 +649,7 @@ struct pci_dev *pci_p2pmem_find_many(struct device **clients, int num_clients)
 	if (!closest_pdevs)
 		return NULL;
 
-	while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev))) {
+	for_each_pci_dev(pdev) {
 		if (!pci_has_p2pmem(pdev))
 			continue;
 
