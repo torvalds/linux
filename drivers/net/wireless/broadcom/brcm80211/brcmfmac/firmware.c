@@ -587,22 +587,29 @@ static int brcmf_fw_complete_request(const struct firmware *fw,
 
 static char *brcm_alt_fw_path(const char *path, const char *board_type)
 {
-	char alt_path[BRCMF_FW_NAME_LEN];
-	char suffix[5];
+	char base[BRCMF_FW_NAME_LEN];
+	const char *suffix;
+	char *ret;
 
-	strscpy(alt_path, path, BRCMF_FW_NAME_LEN);
-	/* At least one character + suffix */
-	if (strlen(alt_path) < 5)
+	if (!board_type)
 		return NULL;
 
-	/* strip .txt or .bin at the end */
-	strscpy(suffix, alt_path + strlen(alt_path) - 4, 5);
-	alt_path[strlen(alt_path) - 4] = 0;
-	strlcat(alt_path, ".", BRCMF_FW_NAME_LEN);
-	strlcat(alt_path, board_type, BRCMF_FW_NAME_LEN);
-	strlcat(alt_path, suffix, BRCMF_FW_NAME_LEN);
+	suffix = strrchr(path, '.');
+	if (!suffix || suffix == path)
+		return NULL;
 
-	return kstrdup(alt_path, GFP_KERNEL);
+	/* strip extension at the end */
+	strscpy(base, path, BRCMF_FW_NAME_LEN);
+	base[suffix - path] = 0;
+
+	ret = kasprintf(GFP_KERNEL, "%s.%s%s", base, board_type, suffix);
+	if (!ret)
+		brcmf_err("out of memory allocating firmware path for '%s'\n",
+			  path);
+
+	brcmf_dbg(TRACE, "FW alt path: %s\n", ret);
+
+	return ret;
 }
 
 static int brcmf_fw_request_firmware(const struct firmware **fw,
@@ -612,7 +619,7 @@ static int brcmf_fw_request_firmware(const struct firmware **fw,
 	int ret;
 
 	/* Files can be board-specific, first try a board-specific path */
-	if (cur->type == BRCMF_FW_TYPE_NVRAM && fwctx->req->board_type) {
+	if (fwctx->req->board_type) {
 		char *alt_path;
 
 		alt_path = brcm_alt_fw_path(cur->path, fwctx->req->board_type);
