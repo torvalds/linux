@@ -92,6 +92,7 @@ static int u_boot_env_add_cells(struct u_boot_env *priv, uint8_t *buf,
 			return -ENOMEM;
 		priv->cells[idx].offset = data_offset + value - data;
 		priv->cells[idx].bytes = strlen(value);
+		priv->cells[idx].np = of_get_child_by_name(dev->of_node, priv->cells[idx].name);
 	}
 
 	if (WARN_ON(idx != priv->ncells))
