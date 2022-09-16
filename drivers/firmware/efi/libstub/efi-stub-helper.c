@@ -336,6 +336,7 @@ void efi_apply_loadoptions_quirk(const void **load_options, u32 *load_options_si
 
 enum efistub_event {
 	EFISTUB_EVT_INITRD,
+	EFISTUB_EVT_LOAD_OPTIONS,
 	EFISTUB_EVT_COUNT,
 };
 
@@ -351,6 +352,11 @@ static const struct {
 		9,
 		INITRD_EVENT_TAG_ID,
 		STR_WITH_SIZE("Linux initrd")
+	},
+	[EFISTUB_EVT_LOAD_OPTIONS] = {
+		9,
+		LOAD_OPTIONS_EVENT_TAG_ID,
+		STR_WITH_SIZE("LOADED_IMAGE::LoadOptions")
 	},
 };
 
@@ -422,6 +428,10 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 	bool in_quote = false;
 	efi_status_t status;
 	u32 options_chars;
+
+	if (options_size > 0)
+		efi_measure_tagged_event((unsigned long)options, options_size,
+					 EFISTUB_EVT_LOAD_OPTIONS);
 
 	efi_apply_loadoptions_quirk((const void **)&options, &options_size);
 	options_chars = options_size / sizeof(efi_char16_t);
