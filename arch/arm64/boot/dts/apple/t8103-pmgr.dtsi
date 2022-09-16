@@ -339,7 +339,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = "sio_adma";
-		power-domains = <&ps_sio>, <&ps_pms>;
+		power-domains = <&ps_sio>, <&ps_pms>, <&ps_audio_p>;
 	};
 
 	ps_aes: power-controller@238 {
