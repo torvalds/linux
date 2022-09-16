@@ -600,8 +600,8 @@ static u64 ice_ptp_extend_40b_ts(struct ice_pf *pf, u64 in_tstamp)
 }
 
 /**
- * ice_ptp_tx_tstamp_work - Process Tx timestamps for a port
- * @work: pointer to the kthread_work struct
+ * ice_ptp_tx_tstamp - Process Tx timestamps for a port
+ * @tx: the PTP Tx timestamp tracker
  *
  * Process timestamps captured by the PHY associated with this port. To do
  * this, loop over each index with a waiting skb.
@@ -614,11 +614,11 @@ static u64 ice_ptp_extend_40b_ts(struct ice_pf *pf, u64 in_tstamp)
  * 2) extend the 40b timestamp value to get a 64bit timestamp
  * 3) send that timestamp to the stack
  *
- * After looping, if we still have waiting SKBs, then re-queue the work. This
- * may cause us effectively poll even when not strictly necessary. We do this
- * because it's possible a new timestamp was requested around the same time as
- * the interrupt. In some cases hardware might not interrupt us again when the
- * timestamp is captured.
+ * After looping, if we still have waiting SKBs, return true. This may cause us
+ * effectively poll even when not strictly necessary. We do this because it's
+ * possible a new timestamp was requested around the same time as the interrupt.
+ * In some cases hardware might not interrupt us again when the timestamp is
+ * captured.
  *
  * Note that we only take the tracking lock when clearing the bit and when
  * checking if we need to re-queue this task. The only place where bits can be
@@ -627,27 +627,24 @@ static u64 ice_ptp_extend_40b_ts(struct ice_pf *pf, u64 in_tstamp)
  * thread. If the cleanup thread clears a bit we're processing we catch it
  * when we lock to clear the bit and then grab the SKB pointer. If a Tx thread
  * starts a new timestamp, we might not begin processing it right away but we
- * will notice it at the end when we re-queue the work item. If a Tx thread
- * starts a new timestamp just after this function exits without re-queuing,
+ * will notice it at the end when we re-queue the task. If a Tx thread starts
+ * a new timestamp just after this function exits without re-queuing,
  * the interrupt when the timestamp finishes should trigger. Avoiding holding
  * the lock for the entire function is important in order to ensure that Tx
  * threads do not get blocked while waiting for the lock.
  */
-static void ice_ptp_tx_tstamp_work(struct kthread_work *work)
+static bool ice_ptp_tx_tstamp(struct ice_ptp_tx *tx)
 {
 	struct ice_ptp_port *ptp_port;
-	struct ice_ptp_tx *tx;
+	bool ts_handled = true;
 	struct ice_pf *pf;
-	struct ice_hw *hw;
 	u8 idx;
 
-	tx = container_of(work, struct ice_ptp_tx, work);
 	if (!tx->init)
-		return;
+		return false;
 
 	ptp_port = container_of(tx, struct ice_ptp_port, tx);
 	pf = ptp_port_to_pf(ptp_port);
-	hw = &pf->hw;
 
 	for_each_set_bit(idx, tx->in_use, tx->len) {
 		struct skb_shared_hwtstamps shhwtstamps = {};
@@ -658,7 +655,7 @@ static void ice_ptp_tx_tstamp_work(struct kthread_work *work)
 
 		ice_trace(tx_tstamp_fw_req, tx->tstamps[idx].skb, idx);
 
-		err = ice_read_phy_tstamp(hw, tx->quad, phy_idx,
+		err = ice_read_phy_tstamp(&pf->hw, tx->quad, phy_idx,
 					  &raw_tstamp);
 		if (err)
 			continue;
@@ -702,8 +699,10 @@ static void ice_ptp_tx_tstamp_work(struct kthread_work *work)
 	 */
 	spin_lock(&tx->lock);
 	if (!bitmap_empty(tx->in_use, tx->len))
-		kthread_queue_work(pf->ptp.kworker, &tx->work);
+		ts_handled = false;
 	spin_unlock(&tx->lock);
+
+	return ts_handled;
 }
 
 /**
@@ -728,7 +727,6 @@ ice_ptp_alloc_tx_tracker(struct ice_ptp_tx *tx)
 	}
 
 	spin_lock_init(&tx->lock);
-	kthread_init_work(&tx->work, ice_ptp_tx_tstamp_work);
 
 	tx->init = 1;
 
@@ -774,8 +772,6 @@ static void
 ice_ptp_release_tx_tracker(struct ice_pf *pf, struct ice_ptp_tx *tx)
 {
 	tx->init = 0;
-
-	kthread_cancel_work_sync(&tx->work);
 
 	ice_ptp_flush_tx_tracker(pf, tx);
 
@@ -2405,16 +2401,17 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
 }
 
 /**
- * ice_ptp_process_ts - Spawn kthread work to handle timestamps
+ * ice_ptp_process_ts - Process the PTP Tx timestamps
  * @pf: Board private structure
  *
- * Queue work required to process the PTP Tx timestamps outside of interrupt
- * context.
+ * Returns true if timestamps are processed.
  */
-void ice_ptp_process_ts(struct ice_pf *pf)
+bool ice_ptp_process_ts(struct ice_pf *pf)
 {
 	if (pf->ptp.port.tx.init)
-		kthread_queue_work(pf->ptp.kworker, &pf->ptp.port.tx.work);
+		return ice_ptp_tx_tstamp(&pf->ptp.port.tx);
+
+	return false;
 }
 
 static void ice_ptp_periodic_work(struct kthread_work *work)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2021, Intel Corporation. */
 
+#include <linux/delay.h>
 #include "ice_common.h"
 #include "ice_ptp_hw.h"
 #include "ice_ptp_consts.h"
@@ -2587,6 +2588,89 @@ static int ice_write_phy_reg_e810(struct ice_hw *hw, u32 addr, u32 val)
 }
 
 /**
+ * ice_read_phy_tstamp_ll_e810 - Read a PHY timestamp registers through the FW
+ * @hw: pointer to the HW struct
+ * @idx: the timestamp index to read
+ * @hi: 8 bit timestamp high value
+ * @lo: 32 bit timestamp low value
+ *
+ * Read a 8bit timestamp high value and 32 bit timestamp low value out of the
+ * timestamp block of the external PHY on the E810 device using the low latency
+ * timestamp read.
+ */
+static int
+ice_read_phy_tstamp_ll_e810(struct ice_hw *hw, u8 idx, u8 *hi, u32 *lo)
+{
+	u32 val;
+	u8 i;
+
+	/* Write TS index to read to the PF register so the FW can read it */
+	val = FIELD_PREP(TS_LL_READ_TS_IDX, idx) | TS_LL_READ_TS;
+	wr32(hw, PF_SB_ATQBAL, val);
+
+	/* Read the register repeatedly until the FW provides us the TS */
+	for (i = TS_LL_READ_RETRIES; i > 0; i--) {
+		val = rd32(hw, PF_SB_ATQBAL);
+
+		/* When the bit is cleared, the TS is ready in the register */
+		if (!(FIELD_GET(TS_LL_READ_TS, val))) {
+			/* High 8 bit value of the TS is on the bits 16:23 */
+			*hi = FIELD_GET(TS_LL_READ_TS_HIGH, val);
+
+			/* Read the low 32 bit value and set the TS valid bit */
+			*lo = rd32(hw, PF_SB_ATQBAH) | TS_VALID;
+			return 0;
+		}
+
+		udelay(10);
+	}
+
+	/* FW failed to provide the TS in time */
+	ice_debug(hw, ICE_DBG_PTP, "Failed to read PTP timestamp using low latency read\n");
+	return -EINVAL;
+}
+
+/**
+ * ice_read_phy_tstamp_sbq_e810 - Read a PHY timestamp registers through the sbq
+ * @hw: pointer to the HW struct
+ * @lport: the lport to read from
+ * @idx: the timestamp index to read
+ * @hi: 8 bit timestamp high value
+ * @lo: 32 bit timestamp low value
+ *
+ * Read a 8bit timestamp high value and 32 bit timestamp low value out of the
+ * timestamp block of the external PHY on the E810 device using sideband queue.
+ */
+static int
+ice_read_phy_tstamp_sbq_e810(struct ice_hw *hw, u8 lport, u8 idx, u8 *hi,
+			     u32 *lo)
+{
+	u32 hi_addr = TS_EXT(HIGH_TX_MEMORY_BANK_START, lport, idx);
+	u32 lo_addr = TS_EXT(LOW_TX_MEMORY_BANK_START, lport, idx);
+	u32 lo_val, hi_val;
+	int err;
+
+	err = ice_read_phy_reg_e810(hw, lo_addr, &lo_val);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to read low PTP timestamp register, err %d\n",
+			  err);
+		return err;
+	}
+
+	err = ice_read_phy_reg_e810(hw, hi_addr, &hi_val);
+	if (err) {
+		ice_debug(hw, ICE_DBG_PTP, "Failed to read high PTP timestamp register, err %d\n",
+			  err);
+		return err;
+	}
+
+	*lo = lo_val;
+	*hi = (u8)hi_val;
+
+	return 0;
+}
+
+/**
  * ice_read_phy_tstamp_e810 - Read a PHY timestamp out of the external PHY
  * @hw: pointer to the HW struct
  * @lport: the lport to read from
@@ -2599,25 +2683,17 @@ static int ice_write_phy_reg_e810(struct ice_hw *hw, u32 addr, u32 val)
 static int
 ice_read_phy_tstamp_e810(struct ice_hw *hw, u8 lport, u8 idx, u64 *tstamp)
 {
-	u32 lo_addr, hi_addr, lo, hi;
+	u32 lo = 0;
+	u8 hi = 0;
 	int err;
 
-	lo_addr = TS_EXT(LOW_TX_MEMORY_BANK_START, lport, idx);
-	hi_addr = TS_EXT(HIGH_TX_MEMORY_BANK_START, lport, idx);
+	if (hw->dev_caps.ts_dev_info.ts_ll_read)
+		err = ice_read_phy_tstamp_ll_e810(hw, idx, &hi, &lo);
+	else
+		err = ice_read_phy_tstamp_sbq_e810(hw, lport, idx, &hi, &lo);
 
-	err = ice_read_phy_reg_e810(hw, lo_addr, &lo);
-	if (err) {
-		ice_debug(hw, ICE_DBG_PTP, "Failed to read low PTP timestamp register, err %d\n",
-			  err);
+	if (err)
 		return err;
-	}
-
-	err = ice_read_phy_reg_e810(hw, hi_addr, &hi);
-	if (err) {
-		ice_debug(hw, ICE_DBG_PTP, "Failed to read high PTP timestamp register, err %d\n",
-			  err);
-		return err;
-	}
 
 	/* For E810 devices, the timestamp is reported with the lower 32 bits
 	 * in the low register, and the upper 8 bits in the high register.
