@@ -267,6 +267,10 @@
 #define MSM_PCIE_MAX_PIPE_RESET (1)
 #define MSM_PCIE_MAX_LINKDOWN_RESET (2)
 
+/* QPHY_POWER_DOWN_CONTROL */
+#define MSM_PCIE_PHY_SW_PWRDN		BIT(0)
+#define MSM_PCIE_PHY_REFCLK_DRV_DSBL	BIT(1)
+/* QPHY_START_CONTROL bits */
 #define ICC_AVG_BW (500)
 #define ICC_PEAK_BW (800)
 
@@ -275,6 +279,9 @@
 #define L1SS_TIMEOUT_US (100000)
 
 #define L23_READY_POLL_TIMEOUT (100000)
+
+#define L1SS_POLL_INTERVAL_US (1000)
+#define L1SS_POLL_TIMEOUT_US (200000)
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 #define PCIE_UPPER_ADDR(addr) ((u32)((addr) >> 32))
@@ -1058,6 +1065,7 @@ struct msm_pcie_dev_t {
 	struct clk *ref_clk_src;
 
 	bool cfg_access;
+	bool apss_based_l1ss_sleep;
 	spinlock_t cfg_lock;
 	unsigned long irqsave_flags;
 	struct mutex enumerate_lock;
@@ -4098,6 +4106,49 @@ static int msm_pcie_vreg_init(struct msm_pcie_dev_t *dev)
 	PCIE_DBG(dev, "RC%d: exit\n", dev->rc_idx);
 
 	return rc;
+}
+
+static void msm_pcie_vreg_init_analog_rails(struct msm_pcie_dev_t *dev)
+{
+	int i, rc;
+
+	for (i = 0; i < MSM_PCIE_MAX_VREG; i++) {
+		if (dev->vreg[i].hdl) {
+			/*
+			 * Enable all the voltage regulators except the 3p3 regulator,
+			 * as 3p3 is main power supply for some endpoints like NVMe.
+			 */
+			if (strcmp(dev->vreg[i].name, "vreg-3p3")) {
+				PCIE_DBG(dev, "Vreg %s is being enabled\n",
+					dev->vreg[i].name);
+				rc = regulator_enable(dev->vreg[i].hdl);
+				if (rc) {
+					PCIE_ERR(dev,
+					"PCIe: RC%d can't enable regulator %s: %d\n",
+					dev->rc_idx, dev->vreg[i].name, rc);
+				}
+			}
+		}
+	}
+}
+
+static void msm_pcie_vreg_deinit_analog_rails(struct msm_pcie_dev_t *dev)
+{
+	int i;
+
+	for (i = MSM_PCIE_MAX_VREG - 1; i >= 0; i--) {
+		if (dev->vreg[i].hdl) {
+			/*
+			 * Disable all the voltage regulators except the 3p3 regulator,
+			 * as 3p3 is main power supply for some endpoints like NVMe.
+			 */
+			if (strcmp(dev->vreg[i].name, "vreg-3p3")) {
+				PCIE_DBG(dev, "Vreg %s is being disabled\n",
+					dev->vreg[i].name);
+				regulator_disable(dev->vreg[i].hdl);
+			}
+		}
+	}
 }
 
 static void msm_pcie_vreg_deinit(struct msm_pcie_dev_t *dev)
@@ -7867,6 +7918,8 @@ static void msm_pcie_read_dt(struct msm_pcie_dev_t *pcie_dev, int rc_idx,
 	pcie_dev->l1_1_pcipm_supported = pcie_dev->l1ss_supported;
 	pcie_dev->l1_2_pcipm_supported = pcie_dev->l1ss_supported;
 
+	pcie_dev->apss_based_l1ss_sleep = of_property_read_bool(of_node,
+				"qcom,apss-based-l1ss-sleep");
 	of_property_read_u32(of_node, "qcom,l1-2-th-scale",
 				&pcie_dev->l1_2_th_scale);
 	of_property_read_u32(of_node, "qcom,l1-2-th-value",
@@ -8779,6 +8832,163 @@ out:
 }
 EXPORT_SYMBOL(msm_pcie_set_link_bandwidth);
 
+static int __maybe_unused msm_pcie_pm_suspend_noirq(struct device *dev)
+{
+	u32 val;
+	int ret_l1ss, i, rc;
+	unsigned long irqsave_flags;
+	struct msm_pcie_dev_t *pcie_dev = (struct msm_pcie_dev_t *)
+						dev_get_drvdata(dev);
+
+	PCIE_DBG(pcie_dev, "RC%d: entry\n", pcie_dev->rc_idx);
+
+	mutex_lock(&pcie_dev->recovery_lock);
+	if (pcie_dev->enumerated && pcie_dev->power_on &&
+				pcie_dev->apss_based_l1ss_sleep) {
+
+		ret_l1ss = readl_poll_timeout((pcie_dev->parf
+			+ PCIE20_PARF_PM_STTS), val, (val & BIT(8)), L1SS_POLL_INTERVAL_US,
+			L1SS_POLL_TIMEOUT_US);
+
+		if (!ret_l1ss) {
+			PCIE_DBG(pcie_dev, "RC%d: Link is in L1ss\n",
+				pcie_dev->rc_idx);
+		} else {
+			PCIE_INFO(pcie_dev, "RC%d: Link is not in L1ss\n",
+				pcie_dev->rc_idx);
+
+			mutex_unlock(&pcie_dev->recovery_lock);
+
+			PCIE_DBG(pcie_dev, "RC%d: exit\n", pcie_dev->rc_idx);
+
+			return 0;
+		}
+
+		pcie_dev->power_on = false;
+
+		pcie_dev->user_suspend = true;
+
+		spin_lock_irqsave(&pcie_dev->irq_lock, irqsave_flags);
+		pcie_dev->suspending = true;
+		spin_unlock_irqrestore(&pcie_dev->irq_lock, irqsave_flags);
+
+		spin_lock_irqsave(&pcie_dev->cfg_lock,
+				pcie_dev->irqsave_flags);
+		pcie_dev->cfg_access = false;
+		spin_unlock_irqrestore(&pcie_dev->cfg_lock,
+				pcie_dev->irqsave_flags);
+
+		if (!pcie_dev->lpi_enable)
+			msm_msi_config_access(dev_get_msi_domain(&pcie_dev->dev->dev),
+					false);
+
+		if (pcie_dev->phy_power_down_offset)
+			msm_pcie_write_reg(pcie_dev->phy, pcie_dev->phy_power_down_offset, 0);
+
+		for (i = 0; i < pcie_dev->num_clk; i++)
+			if (pcie_dev->clk[i].hdl)
+				clk_disable_unprepare(pcie_dev->clk[i].hdl);
+
+		rc = msm_pcie_icc_vote(pcie_dev, 0, 0, false);
+		if (rc)
+			goto out;
+
+		msm_pcie_pipe_clk_deinit(pcie_dev);
+
+		msm_pcie_vreg_deinit_analog_rails(pcie_dev);
+
+	}
+
+	mutex_unlock(&pcie_dev->recovery_lock);
+
+	PCIE_DBG(pcie_dev, "RC%d: exit\n", pcie_dev->rc_idx);
+
+	return 0;
+
+out:
+	mutex_unlock(&pcie_dev->recovery_lock);
+
+	return rc;
+}
+
+static int __maybe_unused msm_pcie_pm_resume_noirq(struct device *dev)
+{
+	int i, rc;
+	unsigned long irqsave_flags;
+	struct msm_pcie_dev_t *pcie_dev = (struct msm_pcie_dev_t *)
+						dev_get_drvdata(dev);
+
+	PCIE_DBG(pcie_dev, "RC%d: entry\n", pcie_dev->rc_idx);
+
+	mutex_lock(&pcie_dev->recovery_lock);
+
+	if (pcie_dev->enumerated && !pcie_dev->power_on &&
+				pcie_dev->apss_based_l1ss_sleep) {
+
+		msm_pcie_vreg_init_analog_rails(pcie_dev);
+
+		rc = msm_pcie_icc_vote(pcie_dev, ICC_AVG_BW, ICC_PEAK_BW, false);
+		if (rc)
+			goto out;
+
+		for (i = 0; i < pcie_dev->num_clk; i++) {
+			if (pcie_dev->clk[i].hdl) {
+
+				rc = clk_prepare_enable(pcie_dev->clk[i].hdl);
+
+				if (rc)
+					PCIE_ERR(pcie_dev, "PCIe: RC%d failed to enable clk %s\n",
+						pcie_dev->rc_idx, pcie_dev->clk[i].name);
+				else
+					PCIE_DBG2(pcie_dev, "enable clk %s for RC%d.\n",
+						pcie_dev->clk[i].name, pcie_dev->rc_idx);
+			}
+		}
+
+		PCIE_DBG2(pcie_dev, "PCIe: RC%d: successfully set ICC path vote\n",
+			pcie_dev->rc_idx);
+
+		msm_pcie_pipe_clk_init(pcie_dev);
+
+		if (pcie_dev->phy_power_down_offset)
+			msm_pcie_write_reg(pcie_dev->phy, pcie_dev->phy_power_down_offset,
+				MSM_PCIE_PHY_SW_PWRDN | MSM_PCIE_PHY_REFCLK_DRV_DSBL);
+
+		pcie_dev->power_on = true;
+
+		pcie_dev->user_suspend = false;
+
+		spin_lock_irqsave(&pcie_dev->irq_lock, irqsave_flags);
+		pcie_dev->suspending = false;
+		spin_unlock_irqrestore(&pcie_dev->irq_lock, irqsave_flags);
+
+		spin_lock_irqsave(&pcie_dev->cfg_lock,
+				pcie_dev->irqsave_flags);
+		pcie_dev->cfg_access = true;
+		spin_unlock_irqrestore(&pcie_dev->cfg_lock,
+				pcie_dev->irqsave_flags);
+
+		if (!pcie_dev->lpi_enable)
+			msm_msi_config_access(dev_get_msi_domain(&pcie_dev->dev->dev),
+						true);
+	}
+
+	mutex_unlock(&pcie_dev->recovery_lock);
+
+	PCIE_DBG(pcie_dev, "RC%d: exit\n", pcie_dev->rc_idx);
+
+	return 0;
+
+out:
+	mutex_unlock(&pcie_dev->recovery_lock);
+
+	return rc;
+}
+
+static const struct dev_pm_ops qcom_pcie_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(msm_pcie_pm_suspend_noirq, msm_pcie_pm_resume_noirq)
+};
+
 static int msm_pci_probe(struct pci_dev *pci_dev,
 		  const struct pci_device_id *device_id)
 {
@@ -8831,6 +9041,7 @@ static struct platform_driver msm_pcie_driver = {
 	.remove	= msm_pcie_remove,
 	.driver	= {
 		.name		= "pci-msm",
+		.pm = &qcom_pcie_pm_ops,
 		.of_match_table	= msm_pcie_match,
 	},
 };
