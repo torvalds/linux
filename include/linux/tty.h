@@ -122,8 +122,6 @@ struct tty_operations;
 /**
  * struct tty_struct - state associated with a tty while open
  *
- * @magic: magic value set early in @alloc_tty_struct to %TTY_MAGIC, for
- *	   debugging purposes
  * @kref: reference counting by tty_kref_get() and tty_kref_put(), reaching zero
  *	  frees the structure
  * @dev: class device or %NULL (e.g. ptys, serdev)
@@ -193,7 +191,6 @@ struct tty_operations;
  * &struct tty_port.
  */
 struct tty_struct {
-	int	magic;
 	struct kref kref;
 	struct device *dev;
 	struct tty_driver *driver;
@@ -259,9 +256,6 @@ struct tty_file_private {
 	struct file *file;
 	struct list_head list;
 };
-
-/* tty magic number */
-#define TTY_MAGIC		0x5401
 
 /**
  * DOC: TTY Struct Flags
