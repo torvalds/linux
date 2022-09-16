@@ -334,6 +334,79 @@ void efi_apply_loadoptions_quirk(const void **load_options, u32 *load_options_si
 	*load_options_size = load_option_unpacked.optional_data_size;
 }
 
+enum efistub_event {
+	EFISTUB_EVT_INITRD,
+	EFISTUB_EVT_COUNT,
+};
+
+#define STR_WITH_SIZE(s)	sizeof(s), s
+
+static const struct {
+	u32		pcr_index;
+	u32		event_id;
+	u32		event_data_len;
+	u8		event_data[52];
+} events[] = {
+	[EFISTUB_EVT_INITRD] = {
+		9,
+		INITRD_EVENT_TAG_ID,
+		STR_WITH_SIZE("Linux initrd")
+	},
+};
+
+static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
+					     unsigned long load_size,
+					     enum efistub_event event)
+{
+	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
+	efi_tcg2_protocol_t *tcg2 = NULL;
+	efi_status_t status;
+
+	efi_bs_call(locate_protocol, &tcg2_guid, NULL, (void **)&tcg2);
+	if (tcg2) {
+		struct efi_measured_event {
+			efi_tcg2_event_t	event_data;
+			efi_tcg2_tagged_event_t tagged_event;
+			u8			tagged_event_data[];
+		} *evt;
+		int size = sizeof(*evt) + events[event].event_data_len;
+
+		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+				     (void **)&evt);
+		if (status != EFI_SUCCESS)
+			goto fail;
+
+		evt->event_data = (struct efi_tcg2_event){
+			.event_size			= size,
+			.event_header.header_size	= sizeof(evt->event_data.event_header),
+			.event_header.header_version	= EFI_TCG2_EVENT_HEADER_VERSION,
+			.event_header.pcr_index		= events[event].pcr_index,
+			.event_header.event_type	= EV_EVENT_TAG,
+		};
+
+		evt->tagged_event = (struct efi_tcg2_tagged_event){
+			.tagged_event_id		= events[event].event_id,
+			.tagged_event_data_size		= events[event].event_data_len,
+		};
+
+		memcpy(evt->tagged_event_data, events[event].event_data,
+		       events[event].event_data_len);
+
+		status = efi_call_proto(tcg2, hash_log_extend_event, 0,
+					load_addr, load_size, &evt->event_data);
+		efi_bs_call(free_pool, evt);
+
+		if (status != EFI_SUCCESS)
+			goto fail;
+		return EFI_SUCCESS;
+	}
+
+	return EFI_UNSUPPORTED;
+fail:
+	efi_warn("Failed to measure data for event %d: 0x%lx\n", event, status);
+	return status;
+}
+
 /*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
@@ -607,47 +680,6 @@ efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
 				    &initrd->base, &initrd->size);
 }
 
-static const struct {
-	efi_tcg2_event_t	event_data;
-	efi_tcg2_tagged_event_t tagged_event;
-	u8			tagged_event_data[];
-} initrd_tcg2_event = {
-	{
-		sizeof(initrd_tcg2_event) + sizeof("Linux initrd"),
-		{
-			sizeof(initrd_tcg2_event.event_data.event_header),
-			EFI_TCG2_EVENT_HEADER_VERSION,
-			9,
-			EV_EVENT_TAG,
-		},
-	},
-	{
-		INITRD_EVENT_TAG_ID,
-		sizeof("Linux initrd"),
-	},
-	{ "Linux initrd" },
-};
-
-static void efi_measure_initrd(unsigned long load_addr, unsigned long load_size)
-{
-	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
-	efi_tcg2_protocol_t *tcg2 = NULL;
-	efi_status_t status;
-
-	efi_bs_call(locate_protocol, &tcg2_guid, NULL, (void **)&tcg2);
-	if (tcg2) {
-		status = efi_call_proto(tcg2, hash_log_extend_event,
-					0, load_addr, load_size,
-					&initrd_tcg2_event.event_data);
-		if (status != EFI_SUCCESS)
-			efi_warn("Failed to measure initrd data: 0x%lx\n",
-				 status);
-		else
-			efi_info("Measured initrd data into PCR %d\n",
-				 initrd_tcg2_event.event_data.event_header.pcr_index);
-	}
-}
-
 /**
  * efi_load_initrd() - Load initial RAM disk
  * @image:	EFI loaded image protocol
@@ -671,8 +703,10 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	status = efi_load_initrd_dev_path(&initrd, hard_limit);
 	if (status == EFI_SUCCESS) {
 		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
-		if (initrd.size > 0)
-			efi_measure_initrd(initrd.base, initrd.size);
+		if (initrd.size > 0 &&
+		    efi_measure_tagged_event(initrd.base, initrd.size,
+					     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
+			efi_info("Measured initrd data into PCR 9\n");
 	} else if (status == EFI_NOT_FOUND) {
 		status = efi_load_initrd_cmdline(image, &initrd, soft_limit,
 						 hard_limit);
