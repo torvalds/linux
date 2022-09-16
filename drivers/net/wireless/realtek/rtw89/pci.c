@@ -2513,15 +2513,15 @@ int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev, bool en)
 	if (rtw89_pci_ltr_is_err_reg_val(val))
 		return -EINVAL;
 
-	rtw89_write32_clr(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_HW_EN);
-	rtw89_write32_set(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_EN);
+	rtw89_write32_set(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_HW_EN | B_AX_LTR_EN |
+						   B_AX_LTR_WD_NOEMP_CHK);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_SPACE_IDX_MASK,
 			   PCI_LTR_SPC_500US);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_IDLE_TIMER_IDX_MASK,
-			   PCI_LTR_IDLE_TIMER_800US);
+			   PCI_LTR_IDLE_TIMER_3_2MS);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_1, B_AX_LTR_RX0_TH_MASK, 0x28);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_1, B_AX_LTR_RX1_TH_MASK, 0x28);
-	rtw89_write32(rtwdev, R_AX_LTR_IDLE_LATENCY, 0x88e088e0);
+	rtw89_write32(rtwdev, R_AX_LTR_IDLE_LATENCY, 0x90039003);
 	rtw89_write32(rtwdev, R_AX_LTR_ACTIVE_LATENCY, 0x880b880b);
 
 	return 0;
