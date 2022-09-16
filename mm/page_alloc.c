@@ -7243,6 +7243,17 @@ void __meminit setup_zone_pageset(struct zone *zone)
 }
 
 /*
+ * The zone indicated has a new number of managed_pages; batch sizes and percpu
+ * page high values need to be recalculated.
+ */
+static void zone_pcp_update(struct zone *zone, int cpu_online)
+{
+	mutex_lock(&pcp_batch_high_lock);
+	zone_set_pageset_high_and_batch(zone, cpu_online);
+	mutex_unlock(&pcp_batch_high_lock);
+}
+
+/*
  * Allocate per cpu pagesets and initialize them.
  * Before this call only boot pagesets were available.
  */
@@ -9472,17 +9483,6 @@ void free_contig_range(unsigned long pfn, unsigned long nr_pages)
 	WARN(count != 0, "%lu pages are still in use!\n", count);
 }
 EXPORT_SYMBOL(free_contig_range);
-
-/*
- * The zone indicated has a new number of managed_pages; batch sizes and percpu
- * page high values need to be recalculated.
- */
-void zone_pcp_update(struct zone *zone, int cpu_online)
-{
-	mutex_lock(&pcp_batch_high_lock);
-	zone_set_pageset_high_and_batch(zone, cpu_online);
-	mutex_unlock(&pcp_batch_high_lock);
-}
 
 /*
  * Effectively disable pcplists for the zone by setting the high limit to 0
