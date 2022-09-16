@@ -12981,17 +12981,14 @@ static void hclge_clean_vport_config(struct hnae3_ae_dev *ae_dev, int num_vfs)
 static int hclge_get_dscp_prio(struct hnae3_handle *h, u8 dscp, u8 *tc_mode,
 			       u8 *priority)
 {
-	struct hclge_vport *vport = hclge_get_vport(h);
-	struct hclge_dev *hdev = vport->back;
-
-	if (dscp >= HCLGE_MAX_DSCP)
+	if (dscp >= HNAE3_MAX_DSCP)
 		return -EINVAL;
 
 	if (tc_mode)
-		*tc_mode = vport->nic.kinfo.tc_map_mode;
+		*tc_mode = h->kinfo.tc_map_mode;
 	if (priority)
-		*priority = hdev->tm_info.dscp_prio[dscp] == HCLGE_PRIO_ID_INVALID ? 0 :
-			    hdev->tm_info.dscp_prio[dscp];
+		*priority = h->kinfo.dscp_prio[dscp] == HNAE3_PRIO_ID_INVALID ? 0 :
+			    h->kinfo.dscp_prio[dscp];
 
 	return 0;
 }

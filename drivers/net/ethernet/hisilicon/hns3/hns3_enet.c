@@ -2987,22 +2987,19 @@ static u16 hns3_nic_select_queue(struct net_device *netdev,
 				 struct net_device *sb_dev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	u8 dscp, priority;
-	int ret;
+	u8 dscp;
 
 	if (h->kinfo.tc_map_mode != HNAE3_TC_MAP_MODE_DSCP ||
 	    !h->ae_algo->ops->get_dscp_prio)
 		goto out;
 
 	dscp = hns3_get_skb_dscp(skb);
-	if (unlikely(dscp == HNS3_INVALID_DSCP))
+	if (unlikely(dscp >= HNAE3_MAX_DSCP))
 		goto out;
 
-	ret = h->ae_algo->ops->get_dscp_prio(h, dscp, NULL, &priority);
-	if (ret)
-		goto out;
-
-	skb->priority = priority;
+	skb->priority = h->kinfo.dscp_prio[dscp];
+	if (skb->priority == HNAE3_PRIO_ID_INVALID)
+		skb->priority = 0;
 
 out:
 	return netdev_pick_tx(netdev, skb, sb_dev);

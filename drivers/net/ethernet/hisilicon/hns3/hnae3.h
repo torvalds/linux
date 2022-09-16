@@ -798,6 +798,8 @@ struct hnae3_tc_info {
 	bool mqprio_active;
 };
 
+#define HNAE3_MAX_DSCP			64
+#define HNAE3_PRIO_ID_INVALID		0xff
 struct hnae3_knic_private_info {
 	struct net_device *netdev; /* Set by KNIC client when init instance */
 	u16 rss_size;		   /* Allocated RSS queues */
@@ -809,6 +811,8 @@ struct hnae3_knic_private_info {
 
 	struct hnae3_tc_info tc_info;
 	u8 tc_map_mode;
+	u8 dscp_app_cnt;
+	u8 dscp_prio[HNAE3_MAX_DSCP];
 
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
