@@ -98,6 +98,14 @@ config NVMEM_JZ4780_EFUSE
 	  To compile this driver as a module, choose M here: the module
 	  will be called nvmem_jz4780_efuse.
 
+config NVMEM_LAN9662_OTPC
+	tristate "Microchip LAN9662 OTP controller support"
+	depends on SOC_LAN966 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver enables the OTP controller available on Microchip LAN9662
+	  SoCs. It controls the access to the OTP memory connected to it.
+
 config NVMEM_LAYERSCAPE_SFP
 	tristate "Layerscape SFP (Security Fuse Processor) support"
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
