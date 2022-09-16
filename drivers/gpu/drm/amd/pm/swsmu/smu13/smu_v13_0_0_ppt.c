@@ -441,6 +441,7 @@ static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
 			case 3664:
 			case 3715:
 			case 3795:
+			case 3794:
 				pptable_id = 0;
 				break;
 			case 3683:
