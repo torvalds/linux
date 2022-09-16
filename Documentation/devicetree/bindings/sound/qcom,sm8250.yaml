@@ -21,8 +21,10 @@ properties:
       - qcom,db845c-sndcard
       - qcom,msm8916-qdsp6-sndcard
       - qcom,qrb5165-rb5-sndcard
+      - qcom,sc8280xp-sndcard
       - qcom,sdm845-sndcard
       - qcom,sm8250-sndcard
+      - qcom,sm8450-sndcard
 
   audio-routing:
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
