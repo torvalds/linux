@@ -492,26 +492,26 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		drm_notice(&i915->drm,
 			   "%s, disabling use of stolen memory\n",
 			   "iGVT-g active");
-		return 0;
+		return -ENOSPC;
 	}
 
 	if (i915_vtd_active(i915) && GRAPHICS_VER(i915) < 8) {
 		drm_notice(&i915->drm,
 			   "%s, disabling use of stolen memory\n",
 			   "DMAR active");
-		return 0;
+		return -ENOSPC;
 	}
 
 	if (adjust_stolen(i915, &mem->region))
-		return 0;
+		return -ENOSPC;
 
 	if (request_smem_stolen(i915, &mem->region))
-		return 0;
+		return -ENOSPC;
 
 	i915->dsm = mem->region;
 
 	if (init_reserved_stolen(i915))
-		return 0;
+		return -ENOSPC;
 
 	/* Exclude the reserved region from driver use */
 	mem->region.end = i915->dsm_reserved.start - 1;
@@ -525,7 +525,7 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 		(u64)i915->stolen_usable_size >> 10);
 
 	if (i915->stolen_usable_size == 0)
-		return 0;
+		return -ENOSPC;
 
 	/* Basic memrange allocator for stolen space. */
 	drm_mm_init(&i915->mm.stolen, 0, i915->stolen_usable_size);
@@ -763,11 +763,17 @@ i915_gem_object_create_stolen(struct drm_i915_private *i915,
 
 static int init_stolen_smem(struct intel_memory_region *mem)
 {
+	int err;
+
 	/*
 	 * Initialise stolen early so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.
 	 */
-	return i915_gem_init_stolen(mem);
+	err = i915_gem_init_stolen(mem);
+	if (err)
+		drm_dbg(&mem->i915->drm, "Skip stolen region: failed to setup\n");
+
+	return 0;
 }
 
 static int release_stolen_smem(struct intel_memory_region *mem)
@@ -784,21 +790,25 @@ static const struct intel_memory_region_ops i915_region_stolen_smem_ops = {
 
 static int init_stolen_lmem(struct intel_memory_region *mem)
 {
+	struct drm_i915_private *i915 = mem->i915;
 	int err;
 
 	if (GEM_WARN_ON(resource_size(&mem->region) == 0))
-		return -ENODEV;
+		return 0;
 
 	err = i915_gem_init_stolen(mem);
-	if (err)
-		return err;
-
-	if (mem->io_size && !io_mapping_init_wc(&mem->iomap,
-						mem->io_start,
-						mem->io_size)) {
-		err = -EIO;
-		goto err_cleanup;
+	if (err) {
+		drm_dbg(&mem->i915->drm, "Skip stolen region: failed to setup\n");
+		return 0;
 	}
+
+	if (mem->io_size &&
+	    !io_mapping_init_wc(&mem->iomap, mem->io_start, mem->io_size))
+		goto err_cleanup;
+
+	drm_dbg(&i915->drm, "Stolen Local memory IO start: %pa\n",
+		&mem->io_start);
+	drm_dbg(&i915->drm, "Stolen Local DSM base: %pa\n", &mem->region.start);
 
 	return 0;
 
@@ -869,16 +879,6 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	if (IS_ERR(mem))
 		return mem;
 
-	/*
-	 * TODO: consider creating common helper to just print all the
-	 * interesting stuff from intel_memory_region, which we can use for all
-	 * our probed regions.
-	 */
-
-	drm_dbg(&i915->drm, "Stolen Local memory IO start: %pa\n",
-		&mem->io_start);
-	drm_dbg(&i915->drm, "Stolen Local DSM base: %pa\n", &dsm_base);
-
 	intel_memory_region_set_name(mem, "stolen-local");
 
 	mem->private = true;
@@ -903,6 +903,7 @@ i915_gem_stolen_smem_setup(struct drm_i915_private *i915, u16 type,
 	intel_memory_region_set_name(mem, "stolen-system");
 
 	mem->private = true;
+
 	return mem;
 }
 
