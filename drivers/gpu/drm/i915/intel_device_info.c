@@ -29,6 +29,7 @@
 
 #include "display/intel_cdclk.h"
 #include "display/intel_de.h"
+#include "gt/intel_gt_regs.h"
 #include "intel_device_info.h"
 #include "i915_drv.h"
 #include "i915_utils.h"
@@ -231,7 +232,7 @@ static bool find_devid(u16 id, const u16 *p, unsigned int num)
 	return false;
 }
 
-void intel_device_info_subplatform_init(struct drm_i915_private *i915)
+static void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 {
 	const struct intel_device_info *info = INTEL_INFO(i915);
 	const struct intel_runtime_info *rinfo = RUNTIME_INFO(i915);
@@ -286,6 +287,70 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	GEM_BUG_ON(mask & ~INTEL_SUBPLATFORM_MASK);
 
 	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
+}
+
+static void ip_ver_read(struct drm_i915_private *i915, u32 offset, struct ip_version *ip)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	void __iomem *addr;
+	u32 val;
+	u8 expected_ver = ip->ver;
+	u8 expected_rel = ip->rel;
+
+	addr = pci_iomap_range(pdev, 0, offset, sizeof(u32));
+	if (drm_WARN_ON(&i915->drm, !addr))
+		return;
+
+	val = ioread32(addr);
+	pci_iounmap(pdev, addr);
+
+	ip->ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
+	ip->rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
+	ip->step = REG_FIELD_GET(GMD_ID_STEP, val);
+
+	/* Sanity check against expected versions from device info */
+	if (IP_VER(ip->ver, ip->rel) < IP_VER(expected_ver, expected_rel))
+		drm_dbg(&i915->drm,
+			"Hardware reports GMD IP version %u.%u (REG[0x%x] = 0x%08x) but minimum expected is %u.%u\n",
+			ip->ver, ip->rel, offset, val, expected_ver, expected_rel);
+}
+
+/*
+ * Setup the graphics version for the current device.  This must be done before
+ * any code that performs checks on GRAPHICS_VER or DISPLAY_VER, so this
+ * function should be called very early in the driver initialization sequence.
+ *
+ * Regular MMIO access is not yet setup at the point this function is called so
+ * we peek at the appropriate MMIO offset directly.  The GMD_ID register is
+ * part of an 'always on' power well by design, so we don't need to worry about
+ * forcewake while reading it.
+ */
+static void intel_ipver_early_init(struct drm_i915_private *i915)
+{
+	struct intel_runtime_info *runtime = RUNTIME_INFO(i915);
+
+	if (!HAS_GMD_ID(i915))
+		return;
+
+	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_GRAPHICS),
+		    &runtime->graphics.ip);
+	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_DISPLAY),
+		    &runtime->display.ip);
+	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_MEDIA),
+		    &runtime->media.ip);
+}
+
+/**
+ * intel_device_info_runtime_init_early - initialize early runtime info
+ * @i915: the i915 device
+ *
+ * Determine early intel_device_info fields at runtime. This function needs
+ * to be called before the MMIO has been setup.
+ */
+void intel_device_info_runtime_init_early(struct drm_i915_private *i915)
+{
+	intel_ipver_early_init(i915);
+	intel_device_info_subplatform_init(i915);
 }
 
 /**
