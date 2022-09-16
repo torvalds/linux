@@ -19,6 +19,14 @@ efi_status_t check_platform_features(void)
 {
 	u64 tg;
 
+	/*
+	 * If we have 48 bits of VA space for TTBR0 mappings, we can map the
+	 * UEFI runtime regions 1:1 and so calling SetVirtualAddressMap() is
+	 * unnecessary.
+	 */
+	if (VA_BITS_MIN >= 48)
+		efi_novamap = true;
+
 	/* UEFI mandates support for 4 KB granularity, no need to check */
 	if (IS_ENABLED(CONFIG_ARM64_4K_PAGES))
 		return EFI_SUCCESS;

@@ -218,7 +218,7 @@ efi_status_t efi_parse_options(char const *cmdline)
 			efi_noinitrd = true;
 		} else if (!strcmp(param, "efi") && val) {
 			efi_nochunk = parse_option_str(val, "nochunk");
-			efi_novamap = parse_option_str(val, "novamap");
+			efi_novamap |= parse_option_str(val, "novamap");
 
 			efi_nosoftreserve = IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
 					    parse_option_str(val, "nosoftreserve");
