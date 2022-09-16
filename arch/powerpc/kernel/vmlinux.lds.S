@@ -135,6 +135,10 @@ SECTIONS
 	/* Read-only data */
 	RO_DATA(PAGE_SIZE)
 
+	.branch_lt : AT(ADDR(.branch_lt) - LOAD_OFFSET) {
+		*(.branch_lt)
+	}
+
 #ifdef CONFIG_PPC32
 	.got1 : AT(ADDR(.got1) - LOAD_OFFSET) {
 		*(.got1)
@@ -144,7 +148,25 @@ SECTIONS
 		*(.got2)
 		__got2_end = .;
 	}
+	.got : AT(ADDR(.got) - LOAD_OFFSET) {
+		*(.got)
+		*(.got.plt)
+	}
+	.plt : AT(ADDR(.plt) - LOAD_OFFSET) {
+		/* XXX: is .plt (and .got.plt) required? */
+		*(.plt)
+	}
+
 #else /* CONFIG_PPC32 */
+	.toc1 : AT(ADDR(.toc1) - LOAD_OFFSET) {
+		*(.toc1)
+	}
+
+	.got : AT(ADDR(.got) - LOAD_OFFSET) ALIGN(256) {
+		*(.got)
+		*(.toc)
+	}
+
 	SOFT_MASK_TABLE(8)
 	RESTART_TABLE(8)
 
@@ -333,21 +355,11 @@ SECTIONS
 		*(.data.rel*)
 		*(SDATA_MAIN)
 		*(.sdata2)
-		*(.got.plt) *(.got)
-		*(.plt)
-		*(.branch_lt)
 	}
 #else
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
 		DATA_DATA
 		*(.data.rel*)
-		*(.toc1)
-		*(.branch_lt)
-	}
-
-	.got : AT(ADDR(.got) - LOAD_OFFSET) ALIGN(256) {
-		*(.got)
-		*(.toc)
 	}
 #endif
 
