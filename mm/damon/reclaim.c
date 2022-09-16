@@ -155,9 +155,7 @@ static int damon_reclaim_apply_parameters(void)
 	scheme = damon_reclaim_new_scheme();
 	if (!scheme)
 		return -ENOMEM;
-	err = damon_set_schemes(ctx, &scheme, 1);
-	if (err)
-		return err;
+	damon_set_schemes(ctx, &scheme, 1);
 
 	if (monitor_region_start > monitor_region_end)
 		return -EINVAL;

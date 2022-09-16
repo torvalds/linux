@@ -307,11 +307,9 @@ static ssize_t dbgfs_schemes_write(struct file *file, const char __user *buf,
 		goto unlock_out;
 	}
 
-	ret = damon_set_schemes(ctx, schemes, nr_schemes);
-	if (!ret) {
-		ret = count;
-		nr_schemes = 0;
-	}
+	damon_set_schemes(ctx, schemes, nr_schemes);
+	ret = count;
+	nr_schemes = 0;
 
 unlock_out:
 	mutex_unlock(&ctx->kdamond_lock);
