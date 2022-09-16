@@ -498,8 +498,14 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		dev_priv->drm.driver_features &= ~(DRIVER_MODESET |
 						   DRIVER_ATOMIC);
 		memset(&info->display, 0, sizeof(info->display));
+
+		runtime->cpu_transcoder_mask = 0;
 		memset(runtime->num_sprites, 0, sizeof(runtime->num_sprites));
 		memset(runtime->num_scalers, 0, sizeof(runtime->num_scalers));
+		runtime->fbc_mask = 0;
+		runtime->has_hdcp = false;
+		runtime->has_dmc = false;
+		runtime->has_dsc = false;
 	}
 }
 

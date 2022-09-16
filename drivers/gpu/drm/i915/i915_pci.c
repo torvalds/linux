@@ -38,6 +38,8 @@
 	.__runtime.media.ip.ver = (x), \
 	.__runtime.display.ip.ver = (x)
 
+#define NO_DISPLAY .__runtime.pipe_mask = 0
+
 #define I845_PIPE_OFFSETS \
 	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
@@ -516,9 +518,8 @@ static const struct intel_device_info ivb_m_gt2_info = {
 static const struct intel_device_info ivb_q_info = {
 	GEN7_FEATURES,
 	PLATFORM(INTEL_IVYBRIDGE),
+	NO_DISPLAY,
 	.gt = 2,
-	.__runtime.pipe_mask = 0, /* legal, last one wins */
-	.__runtime.cpu_transcoder_mask = 0,
 	.has_l3_dpf = 1,
 };
 
@@ -1036,7 +1037,7 @@ static const struct intel_device_info xehpsdv_info = {
 	XE_HPM_FEATURES,
 	DGFX_FEATURES,
 	PLATFORM(INTEL_XEHPSDV),
-	.display = { },
+	NO_DISPLAY,
 	.has_64k_pages = 1,
 	.needs_compact_pt = 1,
 	.has_media_ratio_mode = 1,
@@ -1078,7 +1079,7 @@ static const struct intel_device_info dg2_info = {
 
 static const struct intel_device_info ats_m_info = {
 	DG2_FEATURES,
-	.display = { 0 },
+	NO_DISPLAY,
 	.require_force_probe = 1,
 };
 
@@ -1099,7 +1100,7 @@ static const struct intel_device_info pvc_info = {
 	.__runtime.graphics.ip.rel = 60,
 	.__runtime.media.ip.rel = 60,
 	PLATFORM(INTEL_PONTEVECCHIO),
-	.display = { 0 },
+	NO_DISPLAY,
 	.has_flat_ccs = 0,
 	.__runtime.platform_engine_mask =
 		BIT(BCS0) |
