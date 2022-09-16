@@ -2173,6 +2173,25 @@ static int ptcl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	return 0;
 }
 
+static int cmac_dma_init(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u32 reg;
+	int ret;
+
+	if (chip_id != RTL8852A && chip_id != RTL8852B)
+		return 0;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	reg = rtw89_mac_reg_by_idx(R_AX_RXDMA_CTRL_0, mac_idx);
+	rtw89_write8_clr(rtwdev, reg, RX_FULL_MODE);
+
+	return 0;
+}
+
 static int cmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	int ret;
@@ -2245,6 +2264,12 @@ static int cmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	ret = ptcl_init(rtwdev, mac_idx);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]CMAC%d PTCL init %d\n", mac_idx, ret);
+		return ret;
+	}
+
+	ret = cmac_dma_init(rtwdev, mac_idx);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR]CMAC%d DMA init %d\n", mac_idx, ret);
 		return ret;
 	}
 
