@@ -88,10 +88,10 @@ enum {
 };
 
 static const struct pre_pll_config pre_pll_cfg_table[] = {
-	{ 25175000,  25175000, 1,  100, 2, 3, 3, 12, 3, 3, 4, 0, 0},
+	{ 25175000,  25175000, 1,  100, 2, 3, 3, 12, 3, 3, 4, 0, 0xF55555},
 	{ 25200000,  25200000, 1,  100, 2, 3, 3, 12, 3, 3, 4, 0, 0},
 	{ 27000000,  27000000, 1,  90, 3, 2, 2, 10, 3, 3, 4, 0, 0},
-	{ 27027000,  27027000, 1,  90, 3, 2, 2, 10, 3, 3, 4, 0, 0},
+	{ 27027000,  27027000, 1,  90, 3, 2, 2, 10, 3, 3, 4, 0, 0x170A3D},
 	{ 27000000,  33750000, 1,  90, 1, 3, 3, 10, 3, 3, 4, 0, 0},
 	{ 40000000,  40000000, 1,  80, 2, 2, 2, 12, 2, 2, 2, 0, 0},
 	{ 59341000,  59341000, 1,  98, 3, 1, 2,  1, 3, 3, 4, 0, 0xE6AE6B},
@@ -122,6 +122,7 @@ static const struct pre_pll_config pre_pll_cfg_table[] = {
 static const struct post_pll_config post_pll_cfg_table[] = {
 	{25200000,	1, 80, 7, 3, 1},
 	{27000000,	1, 40, 11, 3, 1},
+	{27027000,	1, 40, 11, 3, 1},
 	{33750000,	1, 40, 8, 3, 1},
 	//{33750000,	1, 80, 8, 2},
 	{74250000,	1, 20, 1, 3, 1},
@@ -194,6 +195,10 @@ static void inno_hdmi_config_pll(struct inno_hdmi *hdmi)
 
 static void inno_hdmi_tx_ctrl(struct inno_hdmi *hdmi)
 {
+	if(hdmi->hdmi_data.vic == 18)
+		hdmi->hdmi_data.vic--;
+	if(hdmi->hdmi_data.vic == 3)
+		hdmi->hdmi_data.vic--;
 	hdmi_writeb(hdmi, 0x9f, 0x06);
 	hdmi_writeb(hdmi, 0xa7, hdmi->hdmi_data.vic);
 }
@@ -431,6 +436,34 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 	 return 0;
  }
 
+ static void inno_hdmi_improve_eye_diagram(struct inno_hdmi *hdmi)
+ {
+	 switch (hdmi->hdmi_data.vic) {
+	 case 95:
+	 case 94:
+	 case 93:
+		 hdmi_writeb(hdmi, 0x100, 0x00);
+		 hdmi_writeb(hdmi, 0x1bb, 0x40);
+		 hdmi_writeb(hdmi, 0x1bc, 0x40);
+		 hdmi_writeb(hdmi, 0x1bd, 0x40);
+		 hdmi_writeb(hdmi, 0x1bf, 0x02);
+		 hdmi_writeb(hdmi, 0x1c0, 0x22);
+		 break;
+	 case 16:
+	 case 31:
+		 hdmi_writeb(hdmi, 0x1bf, 0x02);
+		 hdmi_writeb(hdmi, 0x1c0, 0x22);
+		 break;
+	 case 4:
+	 case 3:
+	 case 1:
+		 hdmi_writeb(hdmi, 0x1bf, 0x00);
+		 hdmi_writeb(hdmi, 0x1c0, 0x00);
+		 break;
+
+	 }
+ }
+
 static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 			   struct drm_display_mode *mode)
 {
@@ -450,20 +483,12 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	while (!(hdmi_readb(hdmi, 0x1af) & 0x1))
 	;
 
-	/*turn on LDO*/	
+	/*turn on LDO*/
 	hdmi_writeb(hdmi, 0x1b4, 0x7);
 	/*turn on serializer*/
-	if(hdmi->hdmi_data.vic ==95)
-	{
-		hdmi_writeb(hdmi, 0x100, 0x00);
-		hdmi_writeb(hdmi, 0x1bb, 0x40);
-		hdmi_writeb(hdmi, 0x1bc, 0x40);
-		hdmi_writeb(hdmi, 0x1bd, 0x40);
-		hdmi_writeb(hdmi, 0x1bf, 0x02);
-		hdmi_writeb(hdmi, 0x1c0, 0x22);
-		hdmi_writeb(hdmi, 0x1be, 0x71);
-	}else
-		hdmi_writeb(hdmi, 0x1be, 0x70);
+	hdmi_writeb(hdmi, 0x1be, 0x71);
+	inno_hdmi_improve_eye_diagram(hdmi);
+
 	inno_hdmi_tx_phy_power_down(hdmi);
 
 	inno_hdmi_tx_ctrl(hdmi);
@@ -481,6 +506,7 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 
 	return 0;
 }
+
 
 static void inno_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 				       struct drm_display_mode *mode,
@@ -561,111 +587,10 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static const struct dw_hdmi_mpll_config starfive_mpll_cfg[] = {
-	{
-		25200000, {
-			{ 0x00b3, 0x0000},
-			{ 0x2153, 0x0000},
-			{ 0x40f3, 0x0000}
-		},
-	}, {
-		27000000, {
-			{ 0x00b3, 0x0000},
-			{ 0x2153, 0x0000},
-			{ 0x40f3, 0x0000}
-		},
-	}, {
-		36000000, {
-			{ 0x00b3, 0x0000},
-			{ 0x2153, 0x0000},
-			{ 0x40f3, 0x0000}
-		},
-	}, {
-		40000000, {
-			{ 0x00b3, 0x0000},
-			{ 0x2153, 0x0000},
-			{ 0x40f3, 0x0000}
-		},
-	}, {
-		54000000, {
-			{ 0x0072, 0x0001},
-			{ 0x2142, 0x0001},
-			{ 0x40a2, 0x0001},
-		},
-	}, {
-		65000000, {
-			{ 0x0072, 0x0001},
-			{ 0x2142, 0x0001},
-			{ 0x40a2, 0x0001},
-		},
-	}, {
-		66000000, {
-			{ 0x013e, 0x0003},
-			{ 0x217e, 0x0002},
-			{ 0x4061, 0x0002}
-		},
-	}, {
-		74250000, {
-			{ 0x0072, 0x0001},
-			{ 0x2145, 0x0002},
-			{ 0x4061, 0x0002}
-		},
-	}, {
-		83500000, {
-			{ 0x0072, 0x0001},
-		},
-	}, {
-		108000000, {
-			{ 0x0051, 0x0002},
-			{ 0x2145, 0x0002},
-			{ 0x4061, 0x0002}
-		},
-	}, {
-		106500000, {
-			{ 0x0051, 0x0002},
-			{ 0x2145, 0x0002},
-			{ 0x4061, 0x0002}
-		},
-	}, {
-		146250000, {
-			{ 0x0051, 0x0002},
-			{ 0x2145, 0x0002},
-			{ 0x4061, 0x0002}
-		},
-	}, {
-		148500000, {
-			{ 0x0051, 0x0003},
-			{ 0x214c, 0x0003},
-			{ 0x4064, 0x0003}
-		},
-	}, {
-		~0UL, {
-			{ 0x00a0, 0x000a },
-			{ 0x2001, 0x000f },
-			{ 0x4002, 0x000f },
-		},
-	}
-};
-
 static enum drm_mode_status
 inno_hdmi_connector_mode_valid(struct drm_connector *connector,
 			       struct drm_display_mode *mode)
 {
-#if 0
-	const struct dw_hdmi_mpll_config *mpll_cfg = starfive_mpll_cfg;
-	int pclk = mode->clock * 1000;
-	bool valid = false;
-	int i;
-
-	for (i = 0; mpll_cfg[i].mpixelclock != (~0UL); i++) {
-		if (pclk == mpll_cfg[i].mpixelclock) {
-			valid = true;
-			break;
-		}
-	}
-
-	return (valid) ? MODE_OK : MODE_BAD;
-#endif
 	u32 vic = drm_match_cea_mode(mode);
 
 	if (mode->clock > 297000)
@@ -675,7 +600,6 @@ inno_hdmi_connector_mode_valid(struct drm_connector *connector,
 	else
 		return MODE_BAD;
 
-	//return MODE_OK;
 }
 
 static int
