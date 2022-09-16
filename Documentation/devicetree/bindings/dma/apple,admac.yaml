@@ -49,6 +49,13 @@ properties:
       in an interrupts-extended list the disconnected positions will contain
       an empty phandle reference <0>.
 
+  iommus:
+    minItems: 1
+    maxItems: 2
+
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg
