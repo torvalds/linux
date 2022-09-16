@@ -24,7 +24,6 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				     const struct btrfs_path *path,
 				     struct btrfs_file_extent_item *fi,
-				     const bool new_inline,
 				     struct extent_map *em);
 int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
 					u64 len);

@@ -582,7 +582,7 @@ iterate:
 			goto next;
 
 		/* Now this extent covers @start, convert it to em */
-		btrfs_extent_item_to_extent_map(inode, &path, fi, false, em);
+		btrfs_extent_item_to_extent_map(inode, &path, fi, em);
 		break;
 next:
 		ret = btrfs_next_item(root, &path);
