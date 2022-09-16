@@ -28,6 +28,7 @@ properties:
           - qcom,sc7280-qfprom
           - qcom,sdm630-qfprom
           - qcom,sdm845-qfprom
+          - qcom,sm6115-qfprom
       - const: qcom,qfprom
 
   reg:
