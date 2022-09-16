@@ -836,8 +836,6 @@ int migrate_device_coherent_page(struct page *page);
  */
 struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags);
 
-DECLARE_PER_CPU(struct per_cpu_nodestat, boot_nodestats);
-
 extern bool mirrored_kernelcore;
 
 static inline bool vma_soft_dirty_enabled(struct vm_area_struct *vma)
