@@ -221,6 +221,8 @@ struct rk_hdmirx_dev {
 	bool freq_qos_add;
 	bool get_timing;
 	bool cec_enable;
+	bool hpd_on;
+	bool force_off;
 	u8 hdcp_enable;
 	u32 num_clks;
 	u32 edid_blocks_written;
@@ -975,6 +977,9 @@ static void hdmirx_hpd_ctrl(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 {
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
+	if (hdmirx_dev->force_off && en)
+		return;
+
 	v4l2_dbg(1, debug, v4l2_dev, "%s: %sable, hpd_trigger_level:%d\n",
 			__func__, en ? "en" : "dis",
 			hdmirx_dev->hpd_trigger_level);
@@ -984,6 +989,7 @@ static void hdmirx_hpd_ctrl(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 			     HDCP1_P0_GPIO_IN_SEL | HDCP1_P0_GPIO_IN_SEL << 16);
 		hdmirx_dev->hdcp->hdcp2_connect_ctrl(hdmirx_dev->hdcp, en);
 	}
+	hdmirx_dev->hpd_on = en;
 }
 
 static int hdmirx_write_edid(struct rk_hdmirx_dev *hdmirx_dev,
@@ -3399,14 +3405,54 @@ static ssize_t edid_store(struct device *dev,
 	return count;
 }
 
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	if (!hdmirx_dev)
+		return -EINVAL;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			hdmirx_dev->hpd_on ? "connected" : "disconnected");
+}
+
+static ssize_t status_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	if (!hdmirx_dev)
+		return -EINVAL;
+
+	if (sysfs_streq(buf, "on")) {
+		hdmirx_dev->force_off = false;
+		if (!tx_5v_power_present(hdmirx_dev))
+			return count;
+		hdmirx_hpd_ctrl(hdmirx_dev, true);
+	} else if (sysfs_streq(buf, "off")) {
+		hdmirx_dev->force_off = true;
+		if (!tx_5v_power_present(hdmirx_dev))
+			return count;
+		hdmirx_hpd_ctrl(hdmirx_dev, false);
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static DEVICE_ATTR_RO(audio_rate);
 static DEVICE_ATTR_RO(audio_present);
 static DEVICE_ATTR_RW(edid);
+static DEVICE_ATTR_RW(status);
 
 static struct attribute *hdmirx_attrs[] = {
 	&dev_attr_audio_rate.attr,
 	&dev_attr_audio_present.attr,
 	&dev_attr_edid.attr,
+	&dev_attr_status.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(hdmirx);
@@ -3764,7 +3810,7 @@ static int hdmirx_status_show(struct seq_file *s, void *v)
 	else
 		seq_puts(s, "UNKNOWN\n");
 
-	seq_printf(s, "Mode: %ux%u%s%u (%ux%u)",
+	seq_printf(s, "Timing: %ux%u%s%u (%ux%u)",
 		   bt->width, bt->height, bt->interlaced ? "i" : "p",
 		   fps, htot, vtot);
 
@@ -3772,6 +3818,23 @@ static int hdmirx_status_show(struct seq_file *s, void *v)
 		   bt->hfrontporch, bt->hsync, bt->hbackporch,
 		   bt->vfrontporch, bt->vsync, bt->vbackporch);
 	seq_printf(s, "Pixel Clk: %llu\n", bt->pixelclock);
+	seq_printf(s, "Mode: %s\n", hdmirx_dev->is_dvi_mode ? "DVI" : "HDMI");
+
+	hdmirx_get_color_range(hdmirx_dev);
+	seq_puts(s, "Color Range: ");
+	if (hdmirx_dev->cur_color_range == HDMIRX_DEFAULT_RANGE)
+		seq_puts(s, "DEFAULT\n");
+	else if (hdmirx_dev->cur_color_range == HDMIRX_FULL_RANGE)
+		seq_puts(s, "FULL\n");
+	else
+		seq_puts(s, "LIMITED\n");
+
+	hdmirx_get_color_space(hdmirx_dev);
+	seq_puts(s, "Color Space: ");
+	if (hdmirx_dev->cur_color_space < 8)
+		seq_printf(s, "%s\n", hdmirx_color_space[hdmirx_dev->cur_color_space]);
+	else
+		seq_puts(s, "Unknown\n");
 
 	return 0;
 }
