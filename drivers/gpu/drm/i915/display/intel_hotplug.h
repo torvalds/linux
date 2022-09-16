@@ -28,5 +28,6 @@ enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 				   enum port port);
 bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
+void intel_hpd_debugfs_register(struct drm_i915_private *i915);
 
 #endif /* __INTEL_HOTPLUG_H__ */
