@@ -1241,11 +1241,6 @@ static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
 	return pgdat->node_start_pfn + pgdat->node_spanned_pages;
 }
 
-static inline bool pgdat_is_empty(pg_data_t *pgdat)
-{
-	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
-}
-
 #include <linux/memory_hotplug.h>
 
 void build_all_zonelists(pg_data_t *pgdat);
