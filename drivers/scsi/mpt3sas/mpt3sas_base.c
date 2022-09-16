@@ -7082,16 +7082,16 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 	}
 
 	/* read the first two 16-bits, it gives the total length of the reply */
-	reply[0] = ioc->base_readl(&ioc->chip->Doorbell)
-		& MPI2_DOORBELL_DATA_MASK;
+	reply[0] = le16_to_cpu(ioc->base_readl(&ioc->chip->Doorbell)
+	    & MPI2_DOORBELL_DATA_MASK);
 	writel(0, &ioc->chip->HostInterruptStatus);
 	if ((_base_wait_for_doorbell_int(ioc, 5))) {
 		ioc_err(ioc, "doorbell handshake int failed (line=%d)\n",
 			__LINE__);
 		return -EFAULT;
 	}
-	reply[1] = ioc->base_readl(&ioc->chip->Doorbell)
-		& MPI2_DOORBELL_DATA_MASK;
+	reply[1] = le16_to_cpu(ioc->base_readl(&ioc->chip->Doorbell)
+	    & MPI2_DOORBELL_DATA_MASK);
 	writel(0, &ioc->chip->HostInterruptStatus);
 
 	for (i = 2; i < default_reply->MsgLength * 2; i++)  {
@@ -7103,8 +7103,9 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 		if (i >=  reply_bytes/2) /* overflow case */
 			ioc->base_readl(&ioc->chip->Doorbell);
 		else
-			reply[i] = ioc->base_readl(&ioc->chip->Doorbell)
-				& MPI2_DOORBELL_DATA_MASK;
+			reply[i] = le16_to_cpu(
+			    ioc->base_readl(&ioc->chip->Doorbell)
+			    & MPI2_DOORBELL_DATA_MASK);
 		writel(0, &ioc->chip->HostInterruptStatus);
 	}
 
