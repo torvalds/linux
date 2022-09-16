@@ -7082,10 +7082,15 @@ next:
 
 		copy_size = min_t(u64, PAGE_SIZE,
 				  btrfs_file_extent_ram_bytes(leaf, item));
-		em->start = extent_start;
-		em->len = ALIGN(copy_size, fs_info->sectorsize);
-		em->orig_block_len = em->len;
-		em->orig_start = em->start;
+
+		/*
+		 * btrfs_extent_item_to_extent_map() should have properly
+		 * initialized em members already.
+		 *
+		 * Other members are not utilized for inline extents.
+		 */
+		ASSERT(em->block_start == EXTENT_MAP_INLINE);
+		ASSERT(em->len = fs_info->sectorsize);
 
 		if (!PageUptodate(page)) {
 			if (btrfs_file_extent_compression(leaf, item) !=
