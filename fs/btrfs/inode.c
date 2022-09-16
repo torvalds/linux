@@ -7064,41 +7064,43 @@ next:
 	    extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
 		goto insert;
 	} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
-		unsigned long ptr;
 		char *map;
-		size_t size;
-		size_t extent_offset;
 		size_t copy_size;
 
 		if (!page)
 			goto out;
 
-		size = btrfs_file_extent_ram_bytes(leaf, item);
-		extent_offset = page_offset(page) + pg_offset - extent_start;
-		copy_size = min_t(u64, PAGE_SIZE - pg_offset,
-				  size - extent_offset);
-		em->start = extent_start + extent_offset;
+		/*
+		 * Inline extent can only exist at file offset 0. This is
+		 * ensured by tree-checker and inline extent creation path.
+		 * Thus all members representing file offsets should be zero.
+		 */
+		ASSERT(page_offset(page) == 0);
+		ASSERT(pg_offset == 0);
+		ASSERT(extent_start == 0);
+		ASSERT(em->start == 0);
+
+		copy_size = min_t(u64, PAGE_SIZE,
+				  btrfs_file_extent_ram_bytes(leaf, item));
+		em->start = extent_start;
 		em->len = ALIGN(copy_size, fs_info->sectorsize);
 		em->orig_block_len = em->len;
 		em->orig_start = em->start;
-		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
 
 		if (!PageUptodate(page)) {
 			if (btrfs_file_extent_compression(leaf, item) !=
 			    BTRFS_COMPRESS_NONE) {
-				ret = uncompress_inline(path, page, pg_offset,
-							extent_offset, item);
+				ret = uncompress_inline(path, page, 0, 0, item);
 				if (ret)
 					goto out;
 			} else {
 				map = kmap_local_page(page);
-				read_extent_buffer(leaf, map + pg_offset, ptr,
-						   copy_size);
-				if (pg_offset + copy_size < PAGE_SIZE) {
-					memset(map + pg_offset + copy_size, 0,
-					       PAGE_SIZE - pg_offset -
-					       copy_size);
-				}
+				read_extent_buffer(leaf, map,
+					btrfs_file_extent_inline_start(item),
+					copy_size);
+				if (copy_size < PAGE_SIZE)
+					memset(map + copy_size, 0,
+					       PAGE_SIZE - copy_size);
 				kunmap_local(map);
 			}
 			flush_dcache_page(page);
