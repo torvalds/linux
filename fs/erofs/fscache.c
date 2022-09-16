@@ -194,7 +194,7 @@ static int erofs_fscache_read_folios_async(struct fscache_cookie *cookie,
 
 		atomic_inc(&rreq->nr_outstanding);
 
-		iov_iter_xarray(&iter, READ, &rreq->mapping->i_pages,
+		iov_iter_xarray(&iter, ITER_DEST, &rreq->mapping->i_pages,
 				start + done, subreq->len);
 
 		ret = fscache_read(cres, subreq->start, &iter,
@@ -290,7 +290,7 @@ static int erofs_fscache_data_read(struct address_space *mapping,
 		if (IS_ERR(src))
 			return PTR_ERR(src);
 
-		iov_iter_xarray(&iter, READ, &mapping->i_pages, pos, PAGE_SIZE);
+		iov_iter_xarray(&iter, ITER_DEST, &mapping->i_pages, pos, PAGE_SIZE);
 		if (copy_to_iter(src + offset, size, &iter) != size) {
 			erofs_put_metabuf(&buf);
 			return -EFAULT;
@@ -302,7 +302,7 @@ static int erofs_fscache_data_read(struct address_space *mapping,
 
 	if (!(map.m_flags & EROFS_MAP_MAPPED)) {
 		count = len;
-		iov_iter_xarray(&iter, READ, &mapping->i_pages, pos, count);
+		iov_iter_xarray(&iter, ITER_DEST, &mapping->i_pages, pos, count);
 		iov_iter_zero(count, &iter);
 		return count;
 	}

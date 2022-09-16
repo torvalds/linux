@@ -199,7 +199,7 @@ ssize_t __weak elfcorehdr_read(char *buf, size_t count, u64 *ppos)
 	struct kvec kvec = { .iov_base = buf, .iov_len = count };
 	struct iov_iter iter;
 
-	iov_iter_kvec(&iter, READ, &kvec, 1, count);
+	iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, count);
 
 	return read_from_oldmem(&iter, count, ppos, false);
 }
@@ -212,7 +212,7 @@ ssize_t __weak elfcorehdr_read_notes(char *buf, size_t count, u64 *ppos)
 	struct kvec kvec = { .iov_base = buf, .iov_len = count };
 	struct iov_iter iter;
 
-	iov_iter_kvec(&iter, READ, &kvec, 1, count);
+	iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, count);
 
 	return read_from_oldmem(&iter, count, ppos,
 			cc_platform_has(CC_ATTR_MEM_ENCRYPT));
@@ -437,7 +437,7 @@ static vm_fault_t mmap_vmcore_fault(struct vm_fault *vmf)
 		offset = (loff_t) index << PAGE_SHIFT;
 		kvec.iov_base = page_address(page);
 		kvec.iov_len = PAGE_SIZE;
-		iov_iter_kvec(&iter, READ, &kvec, 1, PAGE_SIZE);
+		iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, PAGE_SIZE);
 
 		rc = __read_vmcore(&iter, &offset);
 		if (rc < 0) {
