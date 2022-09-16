@@ -63,6 +63,11 @@
 #define RK3399_GRF_SOC_CON20		0x6250
 #define RK3399_HDMI_LCDC_SEL		BIT(6)
 
+#define RK3528_VO_GRF_HDMI_MASK		0x60014
+#define RK3528_HDMI_CECIN_MSK		BIT(2)
+#define RK3528_HDMI_SDAIN_MSK		BIT(1)
+#define RK3528_HDMI_SCLIN_MSK		BIT(0)
+
 #define RK3568_GRF_VO_CON1		0x0364
 #define RK3568_HDMI_SDAIN_MSK		BIT(15)
 #define RK3568_HDMI_SCLIN_MSK		BIT(14)
@@ -2984,6 +2989,30 @@ static const struct dw_hdmi_phy_ops rk3328_hdmi_phy_ops = {
 	.setup_hpd	= dw_hdmi_rk3328_setup_hpd,
 };
 
+static enum drm_connector_status
+dw_hdmi_rk3528_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
+{
+	return connector_status_connected;
+}
+
+static void dw_hdmi_rk3528_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u32 val;
+
+	val = HIWORD_UPDATE(RK3528_HDMI_SDAIN_MSK | RK3528_HDMI_SCLIN_MSK | RK3528_HDMI_CECIN_MSK,
+			    RK3528_HDMI_SDAIN_MSK | RK3528_HDMI_SCLIN_MSK | RK3528_HDMI_CECIN_MSK);
+	regmap_write(hdmi->regmap, RK3528_VO_GRF_HDMI_MASK, val);
+}
+
+static const struct dw_hdmi_phy_ops rk3528_hdmi_phy_ops = {
+	.init		= dw_hdmi_rockchip_genphy_init,
+	.disable	= dw_hdmi_rockchip_genphy_disable,
+	.read_hpd	= dw_hdmi_rk3528_read_hpd,
+	.update_hpd	= dw_hdmi_phy_update_hpd,
+	.setup_hpd	= dw_hdmi_rk3528_setup_hpd,
+};
+
 static struct rockchip_hdmi_chip_data rk3328_chip_data = {
 	.lcdsel_grf_reg = -1,
 };
@@ -3032,6 +3061,22 @@ static const struct dw_hdmi_plat_data rk3399_hdmi_drv_data = {
 	.phy_config = rockchip_phy_config,
 	.phy_data = &rk3399_chip_data,
 	.use_drm_infoframe = true,
+	.ycbcr_420_allowed = true,
+};
+
+static struct rockchip_hdmi_chip_data rk3528_chip_data = {
+	.lcdsel_grf_reg = -1,
+};
+
+static const struct dw_hdmi_plat_data rk3528_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
+	.mpll_cfg = rockchip_mpll_cfg,
+	.cur_ctr = rockchip_cur_ctr,
+	.phy_config = rockchip_phy_config,
+	.phy_data = &rk3528_chip_data,
+	.phy_ops = &rk3528_hdmi_phy_ops,
+	.phy_name = "inno_dw_hdmi_phy2",
+	.phy_force_vendor = true,
 	.ycbcr_420_allowed = true,
 };
 
@@ -3091,6 +3136,9 @@ static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
 	},
 	{ .compatible = "rockchip,rk3399-dw-hdmi",
 	  .data = &rk3399_hdmi_drv_data
+	},
+	{ .compatible = "rockchip,rk3528-dw-hdmi",
+	  .data = &rk3528_hdmi_drv_data
 	},
 	{ .compatible = "rockchip,rk3568-dw-hdmi",
 	  .data = &rk3568_hdmi_drv_data
