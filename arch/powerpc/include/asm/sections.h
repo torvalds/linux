@@ -13,6 +13,7 @@ typedef struct func_desc func_desc_t;
 #include <asm-generic/sections.h>
 
 extern char __head_end[];
+extern char __srwx_boundary[];
 
 /* Patch sites */
 extern s32 patch__call_flush_branch_caches1;

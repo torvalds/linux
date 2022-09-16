@@ -214,11 +214,16 @@ SECTIONS
 	}
 #endif
 
+	/*
+	 * Various code relies on __init_begin being at the strict RWX boundary.
+	 */
+	. = ALIGN(STRICT_ALIGN_SIZE);
+	__srwx_boundary = .;
+	__init_begin = .;
+
 /*
  * Init sections discarded at runtime
  */
-	. = ALIGN(STRICT_ALIGN_SIZE);
-	__init_begin = .;
 	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
 		_sinittext = .;
 		INIT_TEXT
