@@ -498,6 +498,7 @@ static const of_find_gpio_quirk of_find_gpio_quirks[] = {
 	of_find_regulator_gpio,
 	of_find_arizona_gpio,
 	of_find_usb_gpio,
+	NULL
 };
 
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
