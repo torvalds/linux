@@ -52,7 +52,7 @@ config NVMEM_IMX_OCOTP_SCU
 	  This is a driver for the SCU On-Chip OTP Controller (OCOTP)
 	  available on i.MX8 SoCs.
 
-config JZ4780_EFUSE
+config NVMEM_JZ4780_EFUSE
 	tristate "JZ4780 EFUSE Memory Support"
 	depends on MACH_INGENIC || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -96,7 +96,7 @@ config NVMEM_MXS_OCOTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-mxs-ocotp.
 
-config MTK_EFUSE
+config NVMEM_MTK_EFUSE
 	tristate "Mediatek SoCs EFUSE support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -107,7 +107,7 @@ config MTK_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called efuse-mtk.
 
-config MICROCHIP_OTPC
+config NVMEM_MICROCHIP_OTPC
 	tristate "Microchip OTPC support"
 	depends on ARCH_AT91 || COMPILE_TEST
 	help
@@ -126,7 +126,7 @@ config NVMEM_NINTENDO_OTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-nintendo-otp.
 
-config QCOM_QFPROM
+config NVMEM_QCOM_QFPROM
 	tristate "QCOM QFPROM Support"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -145,7 +145,7 @@ config NVMEM_SPMI_SDAM
 	  Qualcomm Technologies, Inc. PMICs. It provides the clients
 	  an interface to read/write to the SDAM module's shared memory.
 
-config ROCKCHIP_EFUSE
+config NVMEM_ROCKCHIP_EFUSE
 	tristate "Rockchip eFuse Support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -156,7 +156,7 @@ config ROCKCHIP_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_efuse.
 
-config ROCKCHIP_OTP
+config NVMEM_ROCKCHIP_OTP
 	tristate "Rockchip OTP controller support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -199,7 +199,7 @@ config NVMEM_SUNXI_SID
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_sunxi_sid.
 
-config UNIPHIER_EFUSE
+config NVMEM_UNIPHIER_EFUSE
 	tristate "UniPhier SoCs eFuse support"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -221,7 +221,7 @@ config NVMEM_VF610_OCOTP
 	  This driver can also be build as a module. If so, the module will
 	  be called nvmem-vf610-ocotp.
 
-config MESON_EFUSE
+config NVMEM_MESON_EFUSE
 	tristate "Amlogic Meson GX eFuse Support"
 	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
 	help
@@ -231,7 +231,7 @@ config MESON_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_meson_efuse.
 
-config MESON_MX_EFUSE
+config NVMEM_MESON_MX_EFUSE
 	tristate "Amlogic Meson6/Meson8/Meson8b eFuse Support"
 	depends on ARCH_MESON || COMPILE_TEST
 	help
@@ -251,13 +251,13 @@ config NVMEM_SNVS_LPGPR
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-snvs-lpgpr.
 
-config RAVE_SP_EEPROM
+config NVMEM_RAVE_SP_EEPROM
 	tristate "Rave SP EEPROM Support"
 	depends on RAVE_SP_CORE
 	help
 	  Say y here to enable Rave SP EEPROM support.
 
-config SC27XX_EFUSE
+config NVMEM_SC27XX_EFUSE
 	tristate "Spreadtrum SC27XX eFuse Support"
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -278,7 +278,7 @@ config NVMEM_ZYNQMP
 
 	  If sure, say yes. If unsure, say no.
 
-config SPRD_EFUSE
+config NVMEM_SPRD_EFUSE
 	tristate "Spreadtrum SoC eFuse Support"
 	depends on ARCH_SPRD || COMPILE_TEST
 	depends on HAS_IOMEM
