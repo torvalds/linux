@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/starfive,jh7110-clkgen.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: StarFive JH7110 Clock Generator
+
+maintainers:
+  - Xingyu Wu <xingyu.wu@starfivetech.com>
+
+description: |
+  The JH7110 SoC provides clock generator in various system controller (*crg)
+  hardware modules. The clock generator provides clock to the targeted domain
+  in the SoC. The clock generator node is defined as a child node of its
+  system controller node.
+
+properties:
+  compatible:
+    const: starfive,jh7110-clkgen
+
+  reg:
+    maxItems: 3
+
+  clocks:
+    items:
+      - description: Main clock source
+      - description: external RMII clock for GMAC1
+      - description: external RGMII clock for GMAC1
+      - description: I2S Transmit serial clock
+      - description: I2S Transmit frame sync clock
+      - description: I2S Receive serial clock
+      - description: I2S Receive frame sync clock
+      - description: external TDM clock
+      - description: external Master clock
+      - description: inner JTAG TCK clock
+      - description: BIST clock
+      - description: RTC clock
+      - description: external RMII clock for GMAC0
+      - description: external RGMII clock for GMAC0
+
+  clock-names:
+    items:
+      - const: osc
+      - const: gmac1_rmii_refin
+      - const: gmac1_rgmii_rxin
+      - const: i2stx_bclk_ext
+      - const: i2stx_lrck_ext
+      - const: i2srx_bclk_ext
+      - const: i2srx_lrck_ext
+      - const: tdm_ext
+      - const: clk_mclk_ext
+      - const: jtag_tck_inner
+      - const: clk_bist_apb
+      - const: clk_rtc
+      - const: gmac0_rmii_refin
+      - const: gmac0_rgmii_rxin
+
+  '#clock-cells':
+    const: 1
+    description:
+      See <dt-bindings/clock/starfive-jh7110-clkgen.h> for valid indices.
+
+  starfive,sys-syscon:
+    description:
+      PLL clock configuration registers.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - '#clock-cells'
+  - starfive,sys-syscon
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
+    clkgen: clock-controller {
+        compatible = "starfive,jh7110-clkgen";
+        reg = <0x0 0x13020000 0x0 0x10000>,
+              <0x0 0x10230000 0x0 0x10000>,
+              <0x0 0x17000000 0x0 0x10000>;
+        reg-names = "sys", "stg", "aon";
+        clocks = <&osc>, <&gmac1_rmii_refin>,
+                 <&gmac1_rgmii_rxin>,
+                 <&i2stx_bclk_ext>, <&i2stx_lrck_ext>,
+                 <&i2srx_bclk_ext>, <&i2srx_lrck_ext>,
+                 <&tdm_ext>, <&mclk_ext>,
+                 <&jtag_tck_inner>, <&bist_apb>,
+                 <&clk_rtc>,
+                 <&gmac0_rmii_refin>, <&gmac0_rgmii_rxin>;
+        clock-names = "osc", "gmac1_rmii_refin",
+                      "gmac1_rgmii_rxin",
+                      "i2stx_bclk_ext", "i2stx_lrck_ext",
+                      "i2srx_bclk_ext", "i2srx_lrck_ext",
+                      "tdm_ext", "mclk_ext",
+                      "jtag_tck_inner", "bist_apb",
+                      "clk_rtc",
+                      "gmac0_rmii_refin", "gmac0_rgmii_rxin";
+        #clock-cells = <1>;
+        starfive,sys-syscon = <&sys_syscon 0x18 0x1c
+                  0x20 0x24 0x28 0x2c 0x30 0x34>;
+    };
