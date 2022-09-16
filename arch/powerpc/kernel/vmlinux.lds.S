@@ -32,6 +32,10 @@
 
 #define STRICT_ALIGN_SIZE	(1 << CONFIG_DATA_SHIFT)
 
+#if STRICT_ALIGN_SIZE < PAGE_SIZE
+#error "CONFIG_DATA_SHIFT must be >= PAGE_SHIFT"
+#endif
+
 ENTRY(_stext)
 
 PHDRS {
@@ -215,7 +219,6 @@ SECTIONS
  */
 	. = ALIGN(STRICT_ALIGN_SIZE);
 	__init_begin = .;
-	. = ALIGN(PAGE_SIZE);
 	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
 		_sinittext = .;
 		INIT_TEXT
