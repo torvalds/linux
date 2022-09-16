@@ -4131,23 +4131,24 @@ brcmf_sdio_watchdog(struct timer_list *t)
 	}
 }
 
-static
-int brcmf_sdio_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
+static int brcmf_sdio_get_blob(struct device *dev, const struct firmware **fw,
+			       enum brcmf_blob_type type)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_fw_request *fwreq;
-	struct brcmf_fw_name fwnames[] = {
-		{ ext, fw_name },
-	};
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
-	fwreq = brcmf_fw_alloc_request(bus_if->chip, bus_if->chiprev,
-				       brcmf_sdio_fwnames,
-				       ARRAY_SIZE(brcmf_sdio_fwnames),
-				       fwnames, ARRAY_SIZE(fwnames));
-	if (!fwreq)
-		return -ENOMEM;
+	switch (type) {
+	case BRCMF_BLOB_CLM:
+		*fw = sdiodev->clm_fw;
+		sdiodev->clm_fw = NULL;
+		break;
+	default:
+		return -ENOENT;
+	}
 
-	kfree(fwreq);
+	if (!*fw)
+		return -ENOENT;
+
 	return 0;
 }
 
@@ -4182,13 +4183,14 @@ static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.wowl_config = brcmf_sdio_wowl_config,
 	.get_ramsize = brcmf_sdio_bus_get_ramsize,
 	.get_memdump = brcmf_sdio_bus_get_memdump,
-	.get_fwname = brcmf_sdio_get_fwname,
+	.get_blob = brcmf_sdio_get_blob,
 	.debugfs_create = brcmf_sdio_debugfs_create,
 	.reset = brcmf_sdio_bus_reset
 };
 
 #define BRCMF_SDIO_FW_CODE	0
 #define BRCMF_SDIO_FW_NVRAM	1
+#define BRCMF_SDIO_FW_CLM	2
 
 static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					 struct brcmf_fw_request *fwreq)
@@ -4211,6 +4213,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	code = fwreq->items[BRCMF_SDIO_FW_CODE].binary;
 	nvram = fwreq->items[BRCMF_SDIO_FW_NVRAM].nv_data.data;
 	nvram_len = fwreq->items[BRCMF_SDIO_FW_NVRAM].nv_data.len;
+	sdiod->clm_fw = fwreq->items[BRCMF_SDIO_FW_CLM].binary;
 	kfree(fwreq);
 
 	/* try to download image and nvram to the dongle */
@@ -4409,6 +4412,7 @@ brcmf_sdio_prepare_fw_request(struct brcmf_sdio *bus)
 	struct brcmf_fw_name fwnames[] = {
 		{ ".bin", bus->sdiodev->fw_name },
 		{ ".txt", bus->sdiodev->nvram_name },
+		{ ".clm_blob", bus->sdiodev->clm_name },
 	};
 
 	fwreq = brcmf_fw_alloc_request(bus->ci->chip, bus->ci->chiprev,
@@ -4420,6 +4424,8 @@ brcmf_sdio_prepare_fw_request(struct brcmf_sdio *bus)
 
 	fwreq->items[BRCMF_SDIO_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
 	fwreq->items[BRCMF_SDIO_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
+	fwreq->items[BRCMF_SDIO_FW_CLM].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_SDIO_FW_CLM].flags = BRCMF_FW_REQF_OPTIONAL;
 	fwreq->board_type = bus->sdiodev->settings->board_type;
 
 	return fwreq;
@@ -4576,6 +4582,8 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 		if (bus->sdiodev->settings)
 			brcmf_release_module_param(bus->sdiodev->settings);
 
+		release_firmware(bus->sdiodev->clm_fw);
+		bus->sdiodev->clm_fw = NULL;
 		kfree(bus->rxbuf);
 		kfree(bus->hdrbuf);
 		kfree(bus);

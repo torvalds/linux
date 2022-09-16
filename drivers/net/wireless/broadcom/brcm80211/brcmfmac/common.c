@@ -123,7 +123,6 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 	struct brcmf_bus *bus = drvr->bus_if;
 	struct brcmf_dload_data_le *chunk_buf;
 	const struct firmware *clm = NULL;
-	u8 clm_name[BRCMF_FW_NAME_LEN];
 	u32 chunk_len;
 	u32 datalen;
 	u32 cumulative_len;
@@ -133,15 +132,8 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	memset(clm_name, 0, sizeof(clm_name));
-	err = brcmf_bus_get_fwname(bus, ".clm_blob", clm_name);
-	if (err) {
-		bphy_err(drvr, "get CLM blob file name failed (%d)\n", err);
-		return err;
-	}
-
-	err = firmware_request_nowarn(&clm, clm_name, bus->dev);
-	if (err) {
+	err = brcmf_bus_get_blob(bus, &clm, BRCMF_BLOB_CLM);
+	if (err || !clm) {
 		brcmf_info("no clm_blob available (err=%d), device may have limited channels available\n",
 			   err);
 		return 0;
