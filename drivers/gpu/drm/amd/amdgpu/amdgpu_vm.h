@@ -254,6 +254,9 @@ struct amdgpu_vm {
 	bool			evicting;
 	unsigned int		saved_flags;
 
+	/* Lock to protect vm_bo add/del/move on all lists of vm */
+	spinlock_t		status_lock;
+
 	/* BOs who needs a validation */
 	struct list_head	evicted;
 
@@ -268,7 +271,6 @@ struct amdgpu_vm {
 
 	/* regular invalidated BOs, but not yet updated in the PT */
 	struct list_head	invalidated;
-	spinlock_t		invalidated_lock;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
