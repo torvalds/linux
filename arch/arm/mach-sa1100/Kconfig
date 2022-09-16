@@ -109,7 +109,6 @@ config SA1100_BADGE4
 
 config SA1100_JORNADA720
 	bool "HP Jornada 720"
-	depends on UNUSED_BOARD_FILES
 	# FIXME: select ARM_SA11x0_CPUFREQ
 	select SA1111
 	help
