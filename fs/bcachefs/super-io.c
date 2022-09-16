@@ -1483,7 +1483,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	unsigned nr_devices = 0;
 
 	if (!out->nr_tabstops)
-		printbuf_tabstop_push(out, 32);
+		printbuf_tabstop_push(out, 44);
 
 	mi = bch2_sb_get_members(sb);
 	if (mi) {

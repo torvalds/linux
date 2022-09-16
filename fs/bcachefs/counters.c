@@ -36,7 +36,7 @@ void bch2_sb_counters_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	for (i = 0; i < nr; i++) {
 		if (i < BCH_COUNTER_NR)
-			prt_printf(out, "%s", bch2_counter_names[i]);
+			prt_printf(out, "%s ", bch2_counter_names[i]);
 		else
 			prt_printf(out, "(unknown)");
 
