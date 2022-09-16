@@ -229,6 +229,12 @@ __releases(&EXT4_SB(inode->i_sb)->s_fc_lock)
 	finish_wait(wq, &wait.wq_entry);
 }
 
+static bool ext4_fc_disabled(struct super_block *sb)
+{
+	return (!test_opt2(sb, JOURNAL_FAST_COMMIT) ||
+		(EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY));
+}
+
 /*
  * Inform Ext4's fast about start of an inode update
  *
@@ -240,8 +246,7 @@ void ext4_fc_start_update(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 restart:
@@ -265,8 +270,7 @@ void ext4_fc_stop_update(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 	if (atomic_dec_and_test(&ei->i_fc_updates))
@@ -283,8 +287,7 @@ void ext4_fc_del(struct inode *inode)
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_fc_dentry_update *fc_dentry;
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 restart:
@@ -337,8 +340,7 @@ void ext4_fc_mark_ineligible(struct super_block *sb, int reason, handle_t *handl
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	tid_t tid;
 
-	if (!test_opt2(sb, JOURNAL_FAST_COMMIT) ||
-	    (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(sb))
 		return;
 
 	ext4_set_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
@@ -493,10 +495,8 @@ void __ext4_fc_track_unlink(handle_t *handle,
 void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (sbi->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
@@ -522,10 +522,8 @@ void __ext4_fc_track_link(handle_t *handle,
 void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (sbi->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
@@ -551,10 +549,8 @@ void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
 void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (sbi->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
@@ -576,7 +572,6 @@ static int __track_inode(struct inode *inode, void *arg, bool update)
 
 void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	int ret;
 
 	if (S_ISDIR(inode->i_mode))
@@ -588,8 +583,7 @@ void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
 		return;
 	}
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (sbi->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
@@ -634,15 +628,13 @@ static int __track_range(struct inode *inode, void *arg, bool update)
 void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t start,
 			 ext4_lblk_t end)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct __track_range_args args;
 	int ret;
 
 	if (S_ISDIR(inode->i_mode))
 		return;
 
-	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
-	    (sbi->s_mount_state & EXT4_FC_REPLAY))
+	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
 	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
