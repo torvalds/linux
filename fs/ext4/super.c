@@ -4335,6 +4335,9 @@ static void ext4_set_def_opts(struct super_block *sb,
 	if (!IS_EXT3_SB(sb) && !IS_EXT2_SB(sb) &&
 	    ((def_mount_opts & EXT4_DEFM_NODELALLOC) == 0))
 		set_opt(sb, DELALLOC);
+
+	if (sb->s_blocksize == PAGE_SIZE)
+		set_opt(sb, DIOREAD_NOLOCK);
 }
 
 static int ext4_handle_clustersize(struct super_block *sb)
@@ -5079,9 +5082,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	 * no mount option specified.
 	 */
 	sbi->s_li_wait_mult = EXT4_DEF_LI_WAIT_MULT;
-
-	if (sb->s_blocksize == PAGE_SIZE)
-		set_opt(sb, DIOREAD_NOLOCK);
 
 	if (ext4_inode_info_init(sb, es))
 		goto failed_mount;
