@@ -640,6 +640,16 @@ config SPI_ROCKCHIP
 	  The main usecase of this controller is to use spi flash as boot
 	  device.
 
+config SPI_ROCKCHIP_MISCDEV
+	bool "Rockchip SPI controller misc devices"
+	depends on SPI_ROCKCHIP
+	help
+	  This selects a misc driver for Rockchip SPI controller.
+
+	  If you say yes to this option, It will register rkspi-devN misc device
+	  for each spi controller and support to get the controller register
+	  resource by calling mmap.
+
 config SPI_ROCKCHIP_SFC
 	tristate "Rockchip Serial Flash Controller (SFC)"
 	imply ROCKCHIP_MTD_VENDOR_STORAGE
