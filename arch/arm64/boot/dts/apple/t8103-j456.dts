@@ -21,6 +21,10 @@
 	};
 };
 
+&wifi0 {
+	brcm,board-type = "apple,capri";
+};
+
 &i2c0 {
 	hpm2: usb-pd@3b {
 		compatible = "apple,cd321x";
