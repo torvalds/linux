@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "MHI controllers"
+
+config MHI_QCOM
+	tristate "MHI QCOM"
+	depends on MHI_BUS && MHI_BUS_MISC && QCOM_ESOC_MDM_DRV
+	help
+	  If you say yes to this option, MHI bus support for QCOM modem chipsets
+	  will be enabled. QCOM PCIe based modems uses MHI as the communication
+	  protocol. MHI control driver is the bus master for such modems. As the
+	  bus master driver, it oversees power management operations such as
+	  suspend, resume, powering on and off the device.
+
+endmenu
