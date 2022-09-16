@@ -4320,7 +4320,7 @@ _base_put_smid_scsi_io_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	descriptor.MSIxIndex = _base_set_and_get_msix_index(ioc, smid);
 	descriptor.SMID = cpu_to_le16(smid);
 
-	writel(*request, &ioc->chip->AtomicRequestDescriptorPost);
+	writel(cpu_to_le32(*request), &ioc->chip->AtomicRequestDescriptorPost);
 }
 
 /**
@@ -4342,7 +4342,7 @@ _base_put_smid_fast_path_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	descriptor.MSIxIndex = _base_set_and_get_msix_index(ioc, smid);
 	descriptor.SMID = cpu_to_le16(smid);
 
-	writel(*request, &ioc->chip->AtomicRequestDescriptorPost);
+	writel(cpu_to_le32(*request), &ioc->chip->AtomicRequestDescriptorPost);
 }
 
 /**
@@ -4365,7 +4365,7 @@ _base_put_smid_hi_priority_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	descriptor.MSIxIndex = msix_task;
 	descriptor.SMID = cpu_to_le16(smid);
 
-	writel(*request, &ioc->chip->AtomicRequestDescriptorPost);
+	writel(cpu_to_le32(*request), &ioc->chip->AtomicRequestDescriptorPost);
 }
 
 /**
@@ -4386,7 +4386,7 @@ _base_put_smid_default_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 	descriptor.MSIxIndex = _base_set_and_get_msix_index(ioc, smid);
 	descriptor.SMID = cpu_to_le16(smid);
 
-	writel(*request, &ioc->chip->AtomicRequestDescriptorPost);
+	writel(cpu_to_le32(*request), &ioc->chip->AtomicRequestDescriptorPost);
 }
 
 /**
@@ -7063,7 +7063,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 
 	/* send message 32-bits at a time */
 	for (i = 0, failed = 0; i < request_bytes/4 && !failed; i++) {
-		writel(request[i], &ioc->chip->Doorbell);
+		writel(cpu_to_le32(request[i]), &ioc->chip->Doorbell);
 		if ((_base_wait_for_doorbell_ack(ioc, 5)))
 			failed = 1;
 	}
