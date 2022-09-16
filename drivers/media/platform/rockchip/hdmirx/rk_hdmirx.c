@@ -68,6 +68,10 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define RK_IRQ_HDMIRX_HDMI		210
 #define FILTER_FRAME_CNT		6
 #define CPU_LIMIT_FREQ_KHZ		1200000
+#define WAIT_PHY_REG_TIME		50
+#define WAIT_TIMER_LOCK_TIME		50
+#define WAIT_SIGNAL_LOCK_TIME		600 /* if 5V present: 7ms each time */
+#define WAIT_AVI_PKT_TIME		300
 
 #define is_validfs(x) (x == 32000 || \
 			x == 44100 || \
@@ -1216,13 +1220,13 @@ static int hdmirx_phy_register_read(struct rk_hdmirx_dev *hdmirx_dev,
 	/* config read enable */
 	hdmirx_writel(hdmirx_dev, PHYCREG_CONTROL, PHYCREG_CR_PARA_READ_P);
 
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < WAIT_PHY_REG_TIME; i++) {
 		usleep_range(200, 210);
 		if (hdmirx_dev->cr_read_done)
 			break;
 	}
 
-	if (i == 50) {
+	if (i == WAIT_PHY_REG_TIME) {
 		dev_err(dev, "%s wait cr read done failed!\n", __func__);
 		return -1;
 	}
@@ -1252,13 +1256,13 @@ static int hdmirx_phy_register_write(struct rk_hdmirx_dev *hdmirx_dev,
 	/* config write enable */
 	hdmirx_writel(hdmirx_dev, PHYCREG_CONTROL, PHYCREG_CR_PARA_WRITE_P);
 
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < WAIT_PHY_REG_TIME; i++) {
 		usleep_range(200, 210);
 		if (hdmirx_dev->cr_write_done)
 			break;
 	}
 
-	if (i == 50) {
+	if (i == WAIT_PHY_REG_TIME) {
 		dev_err(dev, "%s wait cr write done failed!\n", __func__);
 		return -1;
 	}
@@ -1346,13 +1350,13 @@ static void hdmirx_controller_init(struct rk_hdmirx_dev *hdmirx_dev)
 			TIMER_BASE_LOCKED_IRQ, TIMER_BASE_LOCKED_IRQ);
 	/* write irefclk freq */
 	hdmirx_writel(hdmirx_dev, GLOBAL_TIMER_REF_BASE, IREF_CLK_FREQ_HZ);
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < WAIT_TIMER_LOCK_TIME; i++) {
 		usleep_range(200, 210);
 		if (hdmirx_dev->timer_base_lock)
 			break;
 	}
 
-	if (i == 50)
+	if (i == WAIT_TIMER_LOCK_TIME)
 		dev_err(dev, "%s wait timer base lock failed!\n", __func__);
 
 	hdmirx_update_bits(hdmirx_dev, CMU_CONFIG0,
@@ -1448,7 +1452,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 	u32 mu_status, scdc_status, dma_st10, cmu_st;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
-	for (i = 0; i < 300; i++) {
+	for (i = 0; i < WAIT_SIGNAL_LOCK_TIME; i++) {
 		mu_status = hdmirx_readl(hdmirx_dev, MAINUNIT_STATUS);
 		scdc_status = hdmirx_readl(hdmirx_dev, SCDC_REGBANK_STATUS3);
 		dma_st10 = hdmirx_readl(hdmirx_dev, DMA_STATUS10);
@@ -1467,7 +1471,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 		hdmirx_tmds_clk_ratio_config(hdmirx_dev);
 	}
 
-	if (i == 300) {
+	if (i == WAIT_SIGNAL_LOCK_TIME) {
 		v4l2_err(v4l2_dev, "%s signal not lock, tmds_clk_ratio:%d\n",
 				__func__, hdmirx_dev->tmds_clk_ratio);
 		v4l2_err(v4l2_dev, "%s mu_st:%#x, scdc_st:%#x, dma_st10:%#x\n",
@@ -1484,7 +1488,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 	hdmirx_update_bits(hdmirx_dev, PKT_2_INT_MASK_N,
 			PKTDEC_AVIIF_RCV_IRQ, PKTDEC_AVIIF_RCV_IRQ);
 
-	for (i = 0; i < 300; i++) {
+	for (i = 0; i < WAIT_AVI_PKT_TIME; i++) {
 		usleep_range(1000, 1100);
 		if (hdmirx_dev->avi_pkt_rcv) {
 			v4l2_dbg(1, debug, v4l2_dev,
@@ -1493,13 +1497,13 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 		}
 	}
 
-	if (i == 300) {
+	if (i == WAIT_AVI_PKT_TIME) {
 		v4l2_err(v4l2_dev, "%s wait avi_pkt_rcv failed!\n", __func__);
 		hdmirx_update_bits(hdmirx_dev, PKT_2_INT_MASK_N,
 				PKTDEC_AVIIF_RCV_IRQ, 0);
 	}
 
-	usleep_range(50*1000, 50*1010);
+	usleep_range(200*1000, 200*1010);
 	hdmirx_format_change(hdmirx_dev);
 
 	return 0;
@@ -1897,7 +1901,7 @@ static void hdmirx_stop_streaming(struct vb2_queue *queue)
 
 	/* wait last irq to return the buffer */
 	ret = wait_event_timeout(stream->wq_stopped, stream->stopping != true,
-			msecs_to_jiffies(500));
+			msecs_to_jiffies(50));
 	if (!ret) {
 		v4l2_err(v4l2_dev, "%s wait last irq timeout, return bufs!\n",
 				__func__);
