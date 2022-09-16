@@ -4887,6 +4887,39 @@ out:
 	return err;
 }
 
+static int ext4_journal_data_mode_check(struct super_block *sb)
+{
+	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
+		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with "
+			    "data=journal disables delayed allocation, "
+			    "dioread_nolock, O_DIRECT and fast_commit support!\n");
+		/* can't mount with both data=journal and dioread_nolock. */
+		clear_opt(sb, DIOREAD_NOLOCK);
+		clear_opt2(sb, JOURNAL_FAST_COMMIT);
+		if (test_opt2(sb, EXPLICIT_DELALLOC)) {
+			ext4_msg(sb, KERN_ERR, "can't mount with "
+				 "both data=journal and delalloc");
+			return -EINVAL;
+		}
+		if (test_opt(sb, DAX_ALWAYS)) {
+			ext4_msg(sb, KERN_ERR, "can't mount with "
+				 "both data=journal and dax");
+			return -EINVAL;
+		}
+		if (ext4_has_feature_encrypt(sb)) {
+			ext4_msg(sb, KERN_WARNING,
+				 "encrypted files will use data=ordered "
+				 "instead of data journaling mode");
+		}
+		if (test_opt(sb, DELALLOC))
+			clear_opt(sb, DELALLOC);
+	} else {
+		sb->s_iflags |= SB_I_CGROUPWB;
+	}
+
+	return 0;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct buffer_head *bh;
@@ -5010,31 +5043,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	if (ext4_encoding_init(sb, es))
 		goto failed_mount;
 
-	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
-		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with data=journal disables delayed allocation, dioread_nolock, O_DIRECT and fast_commit support!\n");
-		/* can't mount with both data=journal and dioread_nolock. */
-		clear_opt(sb, DIOREAD_NOLOCK);
-		clear_opt2(sb, JOURNAL_FAST_COMMIT);
-		if (test_opt2(sb, EXPLICIT_DELALLOC)) {
-			ext4_msg(sb, KERN_ERR, "can't mount with "
-				 "both data=journal and delalloc");
-			goto failed_mount;
-		}
-		if (test_opt(sb, DAX_ALWAYS)) {
-			ext4_msg(sb, KERN_ERR, "can't mount with "
-				 "both data=journal and dax");
-			goto failed_mount;
-		}
-		if (ext4_has_feature_encrypt(sb)) {
-			ext4_msg(sb, KERN_WARNING,
-				 "encrypted files will use data=ordered "
-				 "instead of data journaling mode");
-		}
-		if (test_opt(sb, DELALLOC))
-			clear_opt(sb, DELALLOC);
-	} else {
-		sb->s_iflags |= SB_I_CGROUPWB;
-	}
+	if (ext4_journal_data_mode_check(sb))
+		goto failed_mount;
 
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 		(test_opt(sb, POSIX_ACL) ? SB_POSIXACL : 0);
