@@ -157,6 +157,7 @@ config MMC_SDHCI_OF_ARASAN
 
 config MMC_SDHCI_OF_ASPEED
 	tristate "SDHCI OF support for the ASPEED SDHCI controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
 	depends on MMC_SDHCI_PLTFM
 	depends on OF && OF_ADDRESS
 	select MMC_SDHCI_IO_ACCESSORS
