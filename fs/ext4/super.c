@@ -4337,6 +4337,64 @@ static void ext4_set_def_opts(struct super_block *sb,
 		set_opt(sb, DELALLOC);
 }
 
+static int ext4_handle_clustersize(struct super_block *sb, int blocksize)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_super_block *es = sbi->s_es;
+	int clustersize;
+
+	/* Handle clustersize */
+	clustersize = BLOCK_SIZE << le32_to_cpu(es->s_log_cluster_size);
+	if (ext4_has_feature_bigalloc(sb)) {
+		if (clustersize < blocksize) {
+			ext4_msg(sb, KERN_ERR,
+				 "cluster size (%d) smaller than "
+				 "block size (%d)", clustersize, blocksize);
+			return -EINVAL;
+		}
+		sbi->s_cluster_bits = le32_to_cpu(es->s_log_cluster_size) -
+			le32_to_cpu(es->s_log_block_size);
+		sbi->s_clusters_per_group =
+			le32_to_cpu(es->s_clusters_per_group);
+		if (sbi->s_clusters_per_group > blocksize * 8) {
+			ext4_msg(sb, KERN_ERR,
+				 "#clusters per group too big: %lu",
+				 sbi->s_clusters_per_group);
+			return -EINVAL;
+		}
+		if (sbi->s_blocks_per_group !=
+		    (sbi->s_clusters_per_group * (clustersize / blocksize))) {
+			ext4_msg(sb, KERN_ERR, "blocks per group (%lu) and "
+				 "clusters per group (%lu) inconsistent",
+				 sbi->s_blocks_per_group,
+				 sbi->s_clusters_per_group);
+			return -EINVAL;
+		}
+	} else {
+		if (clustersize != blocksize) {
+			ext4_msg(sb, KERN_ERR,
+				 "fragment/cluster size (%d) != "
+				 "block size (%d)", clustersize, blocksize);
+			return -EINVAL;
+		}
+		if (sbi->s_blocks_per_group > blocksize * 8) {
+			ext4_msg(sb, KERN_ERR,
+				 "#blocks per group too big: %lu",
+				 sbi->s_blocks_per_group);
+			return -EINVAL;
+		}
+		sbi->s_clusters_per_group = sbi->s_blocks_per_group;
+		sbi->s_cluster_bits = 0;
+	}
+	sbi->s_cluster_ratio = clustersize / blocksize;
+
+	/* Do we have standard group size of clustersize * 8 blocks ? */
+	if (sbi->s_blocks_per_group == clustersize << 3)
+		set_opt2(sb, STD_GROUP_SIZE);
+
+	return 0;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct buffer_head *bh, **group_desc;
@@ -4348,7 +4406,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	unsigned long offset = 0;
 	struct inode *root;
 	int ret = -ENOMEM;
-	int blocksize, clustersize;
+	int blocksize;
 	unsigned int db_count;
 	unsigned int i;
 	int needs_recovery, has_huge_files;
@@ -4821,54 +4879,8 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		}
 	}
 
-	/* Handle clustersize */
-	clustersize = BLOCK_SIZE << le32_to_cpu(es->s_log_cluster_size);
-	if (ext4_has_feature_bigalloc(sb)) {
-		if (clustersize < blocksize) {
-			ext4_msg(sb, KERN_ERR,
-				 "cluster size (%d) smaller than "
-				 "block size (%d)", clustersize, blocksize);
-			goto failed_mount;
-		}
-		sbi->s_cluster_bits = le32_to_cpu(es->s_log_cluster_size) -
-			le32_to_cpu(es->s_log_block_size);
-		sbi->s_clusters_per_group =
-			le32_to_cpu(es->s_clusters_per_group);
-		if (sbi->s_clusters_per_group > blocksize * 8) {
-			ext4_msg(sb, KERN_ERR,
-				 "#clusters per group too big: %lu",
-				 sbi->s_clusters_per_group);
-			goto failed_mount;
-		}
-		if (sbi->s_blocks_per_group !=
-		    (sbi->s_clusters_per_group * (clustersize / blocksize))) {
-			ext4_msg(sb, KERN_ERR, "blocks per group (%lu) and "
-				 "clusters per group (%lu) inconsistent",
-				 sbi->s_blocks_per_group,
-				 sbi->s_clusters_per_group);
-			goto failed_mount;
-		}
-	} else {
-		if (clustersize != blocksize) {
-			ext4_msg(sb, KERN_ERR,
-				 "fragment/cluster size (%d) != "
-				 "block size (%d)", clustersize, blocksize);
-			goto failed_mount;
-		}
-		if (sbi->s_blocks_per_group > blocksize * 8) {
-			ext4_msg(sb, KERN_ERR,
-				 "#blocks per group too big: %lu",
-				 sbi->s_blocks_per_group);
-			goto failed_mount;
-		}
-		sbi->s_clusters_per_group = sbi->s_blocks_per_group;
-		sbi->s_cluster_bits = 0;
-	}
-	sbi->s_cluster_ratio = clustersize / blocksize;
-
-	/* Do we have standard group size of clustersize * 8 blocks ? */
-	if (sbi->s_blocks_per_group == clustersize << 3)
-		set_opt2(sb, STD_GROUP_SIZE);
+	if (ext4_handle_clustersize(sb, blocksize))
+		goto failed_mount;
 
 	/*
 	 * Test whether we have more sectors than will fit in sector_t,
