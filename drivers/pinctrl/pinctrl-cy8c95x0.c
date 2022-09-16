@@ -1103,7 +1103,7 @@ static const struct pinctrl_ops cy8c95x0_pinctrl_ops = {
 	.pin_dbg_show = cy8c95x0_pin_dbg_show,
 };
 
-static const char *cy8c95x0_get_functions_name(struct pinctrl_dev *pctldev, unsigned int selector)
+static const char *cy8c95x0_get_function_name(struct pinctrl_dev *pctldev, unsigned int selector)
 {
 	return cy8c95x0_get_fname(selector);
 }
@@ -1113,9 +1113,9 @@ static int cy8c95x0_get_functions_count(struct pinctrl_dev *pctldev)
 	return 2;
 }
 
-static int cy8c95x0_get_groups(struct pinctrl_dev *pctldev, unsigned int selector,
-			       const char * const **groups,
-			       unsigned int * const num_groups)
+static int cy8c95x0_get_function_groups(struct pinctrl_dev *pctldev, unsigned int selector,
+					const char * const **groups,
+					unsigned int * const num_groups)
 {
 	struct cy8c95x0_pinctrl *chip = pinctrl_dev_get_drvdata(pctldev);
 
@@ -1164,8 +1164,8 @@ static int cy8c95x0_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 
 static const struct pinmux_ops cy8c95x0_pmxops = {
 	.get_functions_count = cy8c95x0_get_functions_count,
-	.get_function_name = cy8c95x0_get_functions_name,
-	.get_function_groups = cy8c95x0_get_groups,
+	.get_function_name = cy8c95x0_get_function_name,
+	.get_function_groups = cy8c95x0_get_function_groups,
 	.set_mux = cy8c95x0_set_mux,
 	.strict = true,
 };
