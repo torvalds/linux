@@ -469,6 +469,7 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  *	SPI_TRANS_FAIL_NO_START.
  * @queue_empty: signal green light for opportunistically skipping the queue
  *	for spi_sync transfers.
+ * @must_async: disable all fast paths in the core
  *
  * Each SPI controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -690,6 +691,7 @@ struct spi_controller {
 
 	/* Flag for enabling opportunistic skipping of the queue in spi_sync */
 	bool			queue_empty;
+	bool			must_async;
 };
 
 static inline void *spi_controller_get_devdata(struct spi_controller *ctlr)

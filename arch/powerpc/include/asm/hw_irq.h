@@ -113,7 +113,14 @@ static inline void __hard_RI_enable(void)
 
 static inline notrace unsigned long irq_soft_mask_return(void)
 {
-	return READ_ONCE(local_paca->irq_soft_mask);
+	unsigned long flags;
+
+	asm volatile(
+		"lbz %0,%1(13)"
+		: "=r" (flags)
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)));
+
+	return flags;
 }
 
 /*
@@ -140,24 +147,46 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		WARN_ON(mask && !(mask & IRQS_DISABLED));
 
-	WRITE_ONCE(local_paca->irq_soft_mask, mask);
-	barrier();
+	asm volatile(
+		"stb %0,%1(13)"
+		:
+		: "r" (mask),
+		  "i" (offsetof(struct paca_struct, irq_soft_mask))
+		: "memory");
 }
 
 static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
-	unsigned long flags = irq_soft_mask_return();
+	unsigned long flags;
 
-	irq_soft_mask_set(mask);
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	WARN_ON(mask && !(mask & IRQS_DISABLED));
+#endif
+
+	asm volatile(
+		"lbz %0,%1(13); stb %2,%1(13)"
+		: "=&r" (flags)
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
+		  "r" (mask)
+		: "memory");
 
 	return flags;
 }
 
 static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
 {
-	unsigned long flags = irq_soft_mask_return();
+	unsigned long flags, tmp;
 
-	irq_soft_mask_set(flags | mask);
+	asm volatile(
+		"lbz %0,%2(13); or %1,%0,%3; stb %1,%2(13)"
+		: "=&r" (flags), "=r" (tmp)
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
+		  "r" (mask)
+		: "memory");
+
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	WARN_ON((mask | flags) && !((mask | flags) & IRQS_DISABLED));
+#endif
 
 	return flags;
 }
@@ -282,7 +311,8 @@ static inline bool pmi_irq_pending(void)
 	flags = irq_soft_mask_set_return(IRQS_ALL_DISABLED);		\
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;			\
 	if (!arch_irqs_disabled_flags(flags)) {				\
-		WRITE_ONCE(local_paca->saved_r1, current_stack_pointer);\
+		asm volatile("std%X0 %1,%0" : "=m" (local_paca->saved_r1) \
+					    : "r" (current_stack_pointer)); \
 		trace_hardirqs_off();					\
 	}								\
 } while(0)

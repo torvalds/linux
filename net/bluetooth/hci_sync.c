@@ -3018,12 +3018,6 @@ static const struct hci_init_stage amp_init2[] = {
 /* Read Buffer Size (ACL mtu, max pkt, etc.) */
 static int hci_read_buffer_size_sync(struct hci_dev *hdev)
 {
-	/* Use Read LE Buffer Size V2 if supported */
-	if (hdev->commands[41] & 0x20)
-		return __hci_cmd_sync_status(hdev,
-					     HCI_OP_LE_READ_BUFFER_SIZE_V2,
-					     0, NULL, HCI_CMD_TIMEOUT);
-
 	return __hci_cmd_sync_status(hdev, HCI_OP_READ_BUFFER_SIZE,
 				     0, NULL, HCI_CMD_TIMEOUT);
 }
@@ -3237,6 +3231,12 @@ static const struct hci_init_stage hci_init2[] = {
 /* Read LE Buffer Size */
 static int hci_le_read_buffer_size_sync(struct hci_dev *hdev)
 {
+	/* Use Read LE Buffer Size V2 if supported */
+	if (hdev->commands[41] & 0x20)
+		return __hci_cmd_sync_status(hdev,
+					     HCI_OP_LE_READ_BUFFER_SIZE_V2,
+					     0, NULL, HCI_CMD_TIMEOUT);
+
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_READ_BUFFER_SIZE,
 				     0, NULL, HCI_CMD_TIMEOUT);
 }
@@ -4773,9 +4773,11 @@ int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn, u8 reason)
 		/* Cleanup hci_conn object if it cannot be cancelled as it
 		 * likelly means the controller and host stack are out of sync.
 		 */
-		if (err)
+		if (err) {
+			hci_dev_lock(hdev);
 			hci_conn_failed(conn, err);
-
+			hci_dev_unlock(hdev);
+		}
 		return err;
 	case BT_CONNECT2:
 		return hci_reject_conn_sync(hdev, conn, reason);
@@ -5288,17 +5290,21 @@ int hci_suspend_sync(struct hci_dev *hdev)
 	/* Prevent disconnects from causing scanning to be re-enabled */
 	hci_pause_scan_sync(hdev);
 
-	/* Soft disconnect everything (power off) */
-	err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
-	if (err) {
-		/* Set state to BT_RUNNING so resume doesn't notify */
-		hdev->suspend_state = BT_RUNNING;
-		hci_resume_sync(hdev);
-		return err;
-	}
+	if (hci_conn_count(hdev)) {
+		/* Soft disconnect everything (power off) */
+		err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
+		if (err) {
+			/* Set state to BT_RUNNING so resume doesn't notify */
+			hdev->suspend_state = BT_RUNNING;
+			hci_resume_sync(hdev);
+			return err;
+		}
 
-	/* Update event mask so only the allowed event can wakeup the host */
-	hci_set_event_mask_sync(hdev);
+		/* Update event mask so only the allowed event can wakeup the
+		 * host.
+		 */
+		hci_set_event_mask_sync(hdev);
+	}
 
 	/* Only configure accept list if disconnect succeeded and wake
 	 * isn't being prevented.

@@ -196,6 +196,7 @@ config SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE
 
 config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
 	tristate "SOF enable IPC flood test"
+	depends on SND_SOC_SOF
 	select SND_SOC_SOF_CLIENT
 	help
 	  This option enables a separate client device for IPC flood test
@@ -214,6 +215,7 @@ config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST_NUM
 
 config SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR
 	tristate "SOF enable IPC message injector"
+	depends on SND_SOC_SOF
 	select SND_SOC_SOF_CLIENT
 	help
 	  This option enables the IPC message injector which can be used to send

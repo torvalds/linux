@@ -310,6 +310,11 @@ static void enc32_stream_encoder_dp_unblank(
 	// TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON
 	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
 
+	/* read start level = 0 will bring underflow / overflow and DIG_FIFO_ERROR = 1
+	 * so set it to 1/2 full = 7 before reset as suggested by hardware team.
+	 */
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
+
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
 
 	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 10, 5000);

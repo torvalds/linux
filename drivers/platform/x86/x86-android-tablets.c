@@ -663,9 +663,23 @@ static const struct x86_i2c_client_info chuwi_hi8_i2c_clients[] __initconst = {
 	},
 };
 
+static int __init chuwi_hi8_init(void)
+{
+	/*
+	 * Avoid the acpi_unregister_gsi() call in x86_acpi_irq_helper_get()
+	 * breaking the touchscreen + logging various errors when the Windows
+	 * BIOS is used.
+	 */
+	if (acpi_dev_present("MSSL0001", NULL, 1))
+		return -ENODEV;
+
+	return 0;
+}
+
 static const struct x86_dev_info chuwi_hi8_info __initconst = {
 	.i2c_client_info = chuwi_hi8_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(chuwi_hi8_i2c_clients),
+	.init = chuwi_hi8_init,
 };
 
 #define CZC_EC_EXTRA_PORT	0x68

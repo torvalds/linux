@@ -662,6 +662,8 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 
 	params->mqprio.num_tc       = 1;
 	params->tunneled_offload_en = false;
+	if (rep->vport != MLX5_VPORT_UPLINK)
+		params->vlan_strip_disable = true;
 
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 }
@@ -696,6 +698,13 @@ static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
+	priv->fs = mlx5e_fs_init(priv->profile, mdev,
+				 !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
+	if (!priv->fs) {
+		netdev_err(priv->netdev, "FS allocation failed\n");
+		return -ENOMEM;
+	}
+
 	mlx5e_build_rep_params(netdev);
 	mlx5e_timestamp_init(priv);
 
@@ -708,12 +717,21 @@ static int mlx5e_init_ul_rep(struct mlx5_core_dev *mdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
+	priv->fs = mlx5e_fs_init(priv->profile, mdev,
+				 !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
+	if (!priv->fs) {
+		netdev_err(priv->netdev, "FS allocation failed\n");
+		return -ENOMEM;
+	}
+
 	err = mlx5e_ipsec_init(priv);
 	if (err)
 		mlx5_core_err(mdev, "Uplink rep IPsec initialization failed, %d\n", err);
 
 	mlx5e_vxlan_set_netdev_info(priv);
-	return mlx5e_init_rep(mdev, netdev);
+	mlx5e_build_rep_params(netdev);
+	mlx5e_timestamp_init(priv);
+	return 0;
 }
 
 static void mlx5e_cleanup_rep(struct mlx5e_priv *priv)
@@ -835,13 +853,6 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
-
-	priv->fs = mlx5e_fs_init(priv->profile, mdev,
-				 !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
-	if (!priv->fs) {
-		netdev_err(priv->netdev, "FS allocation failed\n");
-		return -ENOMEM;
-	}
 
 	priv->rx_res = mlx5e_rx_res_alloc();
 	if (!priv->rx_res) {
