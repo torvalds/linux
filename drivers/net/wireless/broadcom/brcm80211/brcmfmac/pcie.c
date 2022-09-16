@@ -2068,8 +2068,44 @@ brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo)
 	fwreq->domain_nr = pci_domain_nr(devinfo->pdev->bus) + 1;
 	fwreq->bus_nr = devinfo->pdev->bus->number;
 
-	brcmf_dbg(PCIE, "Board: %s\n", devinfo->settings->board_type);
-	fwreq->board_types[0] = devinfo->settings->board_type;
+	/* Apple platforms with fancy firmware/NVRAM selection */
+	if (devinfo->settings->board_type &&
+	    devinfo->settings->antenna_sku &&
+	    devinfo->otp.valid) {
+		const struct brcmf_otp_params *otp = &devinfo->otp;
+		struct device *dev = &devinfo->pdev->dev;
+		const char **bt = fwreq->board_types;
+
+		brcmf_dbg(PCIE, "Apple board: %s\n",
+			  devinfo->settings->board_type);
+
+		/* Example: apple,shikoku-RASP-m-6.11-X3 */
+		bt[0] = devm_kasprintf(dev, GFP_KERNEL, "%s-%s-%s-%s-%s",
+				       devinfo->settings->board_type,
+				       otp->module, otp->vendor, otp->version,
+				       devinfo->settings->antenna_sku);
+		bt[1] = devm_kasprintf(dev, GFP_KERNEL, "%s-%s-%s-%s",
+				       devinfo->settings->board_type,
+				       otp->module, otp->vendor, otp->version);
+		bt[2] = devm_kasprintf(dev, GFP_KERNEL, "%s-%s-%s",
+				       devinfo->settings->board_type,
+				       otp->module, otp->vendor);
+		bt[3] = devm_kasprintf(dev, GFP_KERNEL, "%s-%s",
+				       devinfo->settings->board_type,
+				       otp->module);
+		bt[4] = devm_kasprintf(dev, GFP_KERNEL, "%s-%s",
+				       devinfo->settings->board_type,
+				       devinfo->settings->antenna_sku);
+		bt[5] = devinfo->settings->board_type;
+
+		if (!bt[0] || !bt[1] || !bt[2] || !bt[3] || !bt[4]) {
+			kfree(fwreq);
+			return NULL;
+		}
+	} else {
+		brcmf_dbg(PCIE, "Board: %s\n", devinfo->settings->board_type);
+		fwreq->board_types[0] = devinfo->settings->board_type;
+	}
 
 	return fwreq;
 }
