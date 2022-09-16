@@ -809,7 +809,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 		return ERR_PTR(-ENODEV);
 
 	/* Use DSM base address instead for stolen memory */
-	dsm_base = intel_uncore_read64(uncore, GEN12_DSMBASE);
+	dsm_base = intel_uncore_read64(uncore, GEN12_DSMBASE) & GEN12_BDSM_MASK;
 	if (IS_DG1(uncore->i915)) {
 		lmem_size = pci_resource_len(pdev, 2);
 		if (WARN_ON(lmem_size < dsm_base))
