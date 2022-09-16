@@ -1390,7 +1390,6 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 /**
  *	ata_eh_request_sense - perform REQUEST_SENSE_DATA_EXT
  *	@qc: qc to perform REQUEST_SENSE_SENSE_DATA_EXT to
- *	@cmd: scsi command for which the sense code should be set
  *
  *	Perform REQUEST_SENSE_DATA_EXT after the device reported CHECK
  *	SENSE.  This function is an EH helper.
@@ -1398,9 +1397,9 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-static void ata_eh_request_sense(struct ata_queued_cmd *qc,
-				 struct scsi_cmnd *cmd)
+static void ata_eh_request_sense(struct ata_queued_cmd *qc)
 {
+	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_device *dev = qc->dev;
 	struct ata_taskfile tf;
 	unsigned int err_mask;
@@ -1576,7 +1575,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	switch (qc->dev->class) {
 	case ATA_DEV_ZAC:
 		if (stat & ATA_SENSE)
-			ata_eh_request_sense(qc, qc->scsicmd);
+			ata_eh_request_sense(qc);
 		fallthrough;
 	case ATA_DEV_ATA:
 		if (err & ATA_ICRC)
