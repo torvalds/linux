@@ -14,6 +14,7 @@
 #define pr_fmt(fmt)	"dart io-pgtable: " fmt
 
 #include <linux/atomic.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/io-pgtable.h>
 #include <linux/kernel.h>
@@ -39,6 +40,9 @@
 	(sizeof(dart_iopte) << (d)->bits_per_level)
 #define DART_PTES_PER_TABLE(d)					\
 	(DART_GRANULE(d) >> ilog2(sizeof(dart_iopte)))
+
+#define APPLE_DART_PTE_SUBPAGE_START   GENMASK_ULL(63, 52)
+#define APPLE_DART_PTE_SUBPAGE_END     GENMASK_ULL(51, 40)
 
 #define APPLE_DART1_PADDR_MASK	GENMASK_ULL(35, 12)
 
@@ -106,6 +110,10 @@ static int dart_init_pte(struct dart_io_pgtable *data,
 			WARN_ON(ptep[i] & APPLE_DART_PTE_VALID);
 			return -EEXIST;
 		}
+
+	/* subpage protection: always allow access to the entire page */
+	pte |= FIELD_PREP(APPLE_DART_PTE_SUBPAGE_START, 0);
+	pte |= FIELD_PREP(APPLE_DART_PTE_SUBPAGE_END, 0xfff);
 
 	pte |= APPLE_DART1_PTE_PROT_SP_DIS;
 	pte |= APPLE_DART_PTE_VALID;
