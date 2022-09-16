@@ -619,61 +619,6 @@ static inline bool btree_path_advance_to_pos(struct btree_path *path,
 	return true;
 }
 
-/*
- * Verify that iterator for parent node points to child node:
- */
-static void btree_path_verify_new_node(struct btree_trans *trans,
-				       struct btree_path *path, struct btree *b)
-{
-	struct bch_fs *c = trans->c;
-	struct btree_path_level *l;
-	unsigned plevel;
-	bool parent_locked;
-	struct bkey_packed *k;
-
-	if (!IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
-		return;
-
-	if (trans->journal_replay_not_finished)
-		return;
-
-	plevel = b->c.level + 1;
-	if (!btree_path_node(path, plevel))
-		return;
-
-	parent_locked = btree_node_locked(path, plevel);
-
-	if (!bch2_btree_node_relock(trans, path, plevel))
-		return;
-
-	l = &path->l[plevel];
-	k = bch2_btree_node_iter_peek_all(&l->iter, l->b);
-	if (!k ||
-	    bkey_deleted(k) ||
-	    bkey_cmp_left_packed(l->b, k, &b->key.k.p)) {
-		struct printbuf buf1 = PRINTBUF;
-		struct printbuf buf2 = PRINTBUF;
-		struct printbuf buf3 = PRINTBUF;
-		struct printbuf buf4 = PRINTBUF;
-		struct bkey uk = bkey_unpack_key(b, k);
-
-		bch2_dump_btree_node(c, l->b);
-		bch2_bpos_to_text(&buf1, path->pos);
-		bch2_bkey_to_text(&buf2, &uk);
-		bch2_bpos_to_text(&buf3, b->data->min_key);
-		bch2_bpos_to_text(&buf3, b->data->max_key);
-		panic("parent iter doesn't point to new node:\n"
-		      "iter pos %s %s\n"
-		      "iter key %s\n"
-		      "new node %s-%s\n",
-		      bch2_btree_ids[path->btree_id],
-		      buf1.buf, buf2.buf, buf3.buf, buf4.buf);
-	}
-
-	if (!parent_locked)
-		btree_node_unlock(trans, path, plevel);
-}
-
 static inline void __btree_path_level_init(struct btree_path *path,
 					   unsigned level)
 {
@@ -689,13 +634,11 @@ static inline void __btree_path_level_init(struct btree_path *path,
 		bch2_btree_node_iter_peek(&l->iter, l->b);
 }
 
-static inline void btree_path_level_init(struct btree_trans *trans,
-					 struct btree_path *path,
-					 struct btree *b)
+inline void bch2_btree_path_level_init(struct btree_trans *trans,
+				       struct btree_path *path,
+				       struct btree *b)
 {
 	BUG_ON(path->cached);
-
-	btree_path_verify_new_node(trans, path, b);
 
 	EBUG_ON(!btree_path_pos_in_node(path, b));
 	EBUG_ON(b->c.lock.state.seq & 1);
@@ -728,7 +671,7 @@ void bch2_trans_node_add(struct btree_trans *trans, struct btree *b)
 				mark_btree_node_locked(trans, path, b->c.level, (enum six_lock_type) t);
 			}
 
-			btree_path_level_init(trans, path, b);
+			bch2_btree_path_level_init(trans, path, b);
 		}
 }
 
@@ -809,7 +752,7 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 				path->l[i].b = NULL;
 
 			mark_btree_node_locked(trans, path, path->level, lock_type);
-			btree_path_level_init(trans, path, b);
+			bch2_btree_path_level_init(trans, path, b);
 			return 0;
 		}
 
@@ -982,7 +925,7 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 
 	mark_btree_node_locked(trans, path, level, lock_type);
 	path->level = level;
-	btree_path_level_init(trans, path, b);
+	bch2_btree_path_level_init(trans, path, b);
 
 	bch2_btree_path_verify_locks(path);
 err:

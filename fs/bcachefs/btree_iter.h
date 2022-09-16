@@ -179,6 +179,9 @@ inline struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bke
 struct bkey_i *bch2_btree_journal_peek_slot(struct btree_trans *,
 					struct btree_iter *, struct bpos);
 
+inline void bch2_btree_path_level_init(struct btree_trans *,
+				       struct btree_path *, struct btree *);
+
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_trans_verify_paths(struct btree_trans *);
 void bch2_assert_pos_locked(struct btree_trans *, enum btree_id,
