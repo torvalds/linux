@@ -230,6 +230,7 @@ unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
+unsigned int has_turbo;
 unsigned int is_hybrid;
 unsigned int do_irtl_snb;
 unsigned int do_irtl_hsw;
@@ -4080,12 +4081,10 @@ static void remove_underbar(char *s)
 	*to = 0;
 }
 
-static void dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
+static void dump_turbo_ratio_info(unsigned int family, unsigned int model)
 {
-	if (!do_nhm_platform_info)
+	if (!has_turbo)
 		return;
-
-	dump_nhm_platform_info();
 
 	if (has_hsw_turbo_ratio_limit(family, model))
 		dump_hsw_turbo_ratio_limits();
@@ -4108,7 +4107,15 @@ static void dump_cstate_pstate_config_info(unsigned int family, unsigned int mod
 
 	if (has_config_tdp(family, model))
 		dump_config_tdp();
+}
 
+static void dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
+{
+	if (!do_nhm_platform_info)
+		return;
+
+	dump_nhm_platform_info();
+	dump_turbo_ratio_info(family, model);
 	dump_nhm_cst_cfg();
 }
 
@@ -5508,7 +5515,6 @@ void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx;
 	unsigned int fms, family, model, stepping, ecx_flags, edx_flags;
-	unsigned int has_turbo;
 	unsigned long long ucode_patch = 0;
 
 	eax = ebx = ecx = edx = 0;
