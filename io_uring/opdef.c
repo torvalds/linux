@@ -471,7 +471,7 @@ const struct io_op_def io_op_defs[] = {
 		.prep_async		= io_uring_cmd_prep_async,
 	},
 	[IORING_OP_SEND_ZC] = {
-		.name			= "SENDZC_NOTIF",
+		.name			= "SEND_ZC",
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
