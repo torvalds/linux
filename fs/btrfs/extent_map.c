@@ -638,6 +638,13 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 	int ret;
 	struct extent_map *em = *em_in;
 
+	/*
+	 * Tree-checker should have rejected any inline extent with non-zero
+	 * file offset. Here just do a sanity check.
+	 */
+	if (em->block_start == EXTENT_MAP_INLINE)
+		ASSERT(em->start == 0);
+
 	ret = add_extent_mapping(em_tree, em, 0);
 	/* it is possible that someone inserted the extent into the tree
 	 * while we had the lock dropped.  It is also possible that
