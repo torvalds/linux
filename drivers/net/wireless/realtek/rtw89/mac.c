@@ -1936,7 +1936,7 @@ static int nav_ctrl_init(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev, R_AX_WMAC_NAV_CTL, B_AX_WMAC_PLCP_UP_NAV_EN |
 						     B_AX_WMAC_TF_UP_NAV_EN |
 						     B_AX_WMAC_NAV_UPPER_EN);
-	rtw89_write32_mask(rtwdev, R_AX_WMAC_NAV_CTL, B_AX_WMAC_NAV_UPPER_MASK, NAV_12MS);
+	rtw89_write32_mask(rtwdev, R_AX_WMAC_NAV_CTL, B_AX_WMAC_NAV_UPPER_MASK, NAV_25MS);
 
 	return 0;
 }
