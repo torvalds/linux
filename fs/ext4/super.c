@@ -4395,6 +4395,30 @@ static int ext4_handle_clustersize(struct super_block *sb, int blocksize)
 	return 0;
 }
 
+static void ext4_fast_commit_init(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	/* Initialize fast commit stuff */
+	atomic_set(&sbi->s_fc_subtid, 0);
+	INIT_LIST_HEAD(&sbi->s_fc_q[FC_Q_MAIN]);
+	INIT_LIST_HEAD(&sbi->s_fc_q[FC_Q_STAGING]);
+	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_MAIN]);
+	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_STAGING]);
+	sbi->s_fc_bytes = 0;
+	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
+	sbi->s_fc_ineligible_tid = 0;
+	spin_lock_init(&sbi->s_fc_lock);
+	memset(&sbi->s_fc_stats, 0, sizeof(sbi->s_fc_stats));
+	sbi->s_fc_replay_state.fc_regions = NULL;
+	sbi->s_fc_replay_state.fc_regions_size = 0;
+	sbi->s_fc_replay_state.fc_regions_used = 0;
+	sbi->s_fc_replay_state.fc_regions_valid = 0;
+	sbi->s_fc_replay_state.fc_modified_inodes = NULL;
+	sbi->s_fc_replay_state.fc_modified_inodes_size = 0;
+	sbi->s_fc_replay_state.fc_modified_inodes_used = 0;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct buffer_head *bh, **group_desc;
@@ -5033,24 +5057,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
 	mutex_init(&sbi->s_orphan_lock);
 
-	/* Initialize fast commit stuff */
-	atomic_set(&sbi->s_fc_subtid, 0);
-	INIT_LIST_HEAD(&sbi->s_fc_q[FC_Q_MAIN]);
-	INIT_LIST_HEAD(&sbi->s_fc_q[FC_Q_STAGING]);
-	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_MAIN]);
-	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_STAGING]);
-	sbi->s_fc_bytes = 0;
-	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
-	sbi->s_fc_ineligible_tid = 0;
-	spin_lock_init(&sbi->s_fc_lock);
-	memset(&sbi->s_fc_stats, 0, sizeof(sbi->s_fc_stats));
-	sbi->s_fc_replay_state.fc_regions = NULL;
-	sbi->s_fc_replay_state.fc_regions_size = 0;
-	sbi->s_fc_replay_state.fc_regions_used = 0;
-	sbi->s_fc_replay_state.fc_regions_valid = 0;
-	sbi->s_fc_replay_state.fc_modified_inodes = NULL;
-	sbi->s_fc_replay_state.fc_modified_inodes_size = 0;
-	sbi->s_fc_replay_state.fc_modified_inodes_used = 0;
+	ext4_fast_commit_init(sb);
 
 	sb->s_root = NULL;
 
