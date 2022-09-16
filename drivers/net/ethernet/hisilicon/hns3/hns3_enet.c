@@ -5827,6 +5827,57 @@ int hns3_set_channels(struct net_device *netdev,
 	return 0;
 }
 
+void hns3_external_lb_prepare(struct net_device *ndev, bool if_running)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	if (!if_running)
+		return;
+
+	netif_carrier_off(ndev);
+	netif_tx_disable(ndev);
+
+	for (i = 0; i < priv->vector_num; i++)
+		hns3_vector_disable(&priv->tqp_vector[i]);
+
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_disable(h->kinfo.tqp[i]);
+
+	/* delay ring buffer clearing to hns3_reset_notify_uninit_enet
+	 * during reset process, because driver may not be able
+	 * to disable the ring through firmware when downing the netdev.
+	 */
+	if (!hns3_nic_resetting(ndev))
+		hns3_nic_reset_all_ring(priv->ae_handle);
+
+	hns3_reset_tx_queue(priv->ae_handle);
+}
+
+void hns3_external_lb_restore(struct net_device *ndev, bool if_running)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	if (!if_running)
+		return;
+
+	hns3_nic_reset_all_ring(priv->ae_handle);
+
+	for (i = 0; i < priv->vector_num; i++)
+		hns3_vector_enable(&priv->tqp_vector[i]);
+
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_enable(h->kinfo.tqp[i]);
+
+	netif_tx_wake_all_queues(ndev);
+
+	if (h->ae_algo->ops->get_status(h))
+		netif_carrier_on(ndev);
+}
+
 static const struct hns3_hw_error_info hns3_hw_err[] = {
 	{ .type = HNAE3_PPU_POISON_ERROR,
 	  .msg = "PPU poison" },
