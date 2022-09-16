@@ -100,7 +100,6 @@ struct jh7110_sec_dev {
 	unsigned long				in_sg_len;
 	unsigned long				out_sg_len;
 
-
 	struct mutex				doing;
 	struct mutex				pl080_doing;
 	struct mutex				lock; /* protects req / areq */
@@ -148,8 +147,10 @@ struct jh7110_sec_request_ctx {
 	struct scatterlist			*sg;
 	struct scatterlist			*in_sg;
 	struct scatterlist			*out_sg;
+	struct scatterlist			*out_sg_save;
 	struct scatterlist			in_sgl;
 	struct scatterlist			out_sgl;
+	bool					sgs_copied;
 
 	unsigned long				sg_len;
 	unsigned long				in_sg_len;
@@ -167,17 +168,20 @@ struct jh7110_sec_request_ctx {
 	size_t					offset;
 	size_t					data_offset;
 	size_t					authsize;
+	size_t					hw_blocksize;
 	size_t					total_in;
+	size_t					total_in_save;
 	size_t					total_out;
+	size_t					total_out_save;
 	size_t					assoclen;
 	size_t					ctr_over_count;
 
 	u32					msg_end[4];
 	u32					dec_end[4];
 	u32					last_ctr[4];
-	u32					aes_nonce[4];
-	u32					aes_iv[4];
-	u32					aead_tag[4];
+	u32                                     aes_iv[4];
+	u32					tag_out[4];
+	u32					tag_in[4];
 	u8					sha_digest_mid[SHA512_DIGEST_SIZE]__aligned(sizeof(u32));
 	unsigned int				sha_digest_len;
 };
