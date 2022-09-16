@@ -139,7 +139,7 @@ static int u_boot_env_parse(struct u_boot_env *priv)
 		data_offset = offsetof(struct u_boot_env_image_redundant, data);
 		break;
 	}
-	crc32 = le32_to_cpu(*(uint32_t *)(buf + crc32_offset));
+	crc32 = le32_to_cpu(*(__le32 *)(buf + crc32_offset));
 	crc32_data_len = priv->mtd->size - crc32_data_offset;
 	data_len = priv->mtd->size - data_offset;
 
