@@ -1687,7 +1687,7 @@
 		};
 
 		 mipi_dsi: mipi@295d0000 {
-			compatible = "starfive,jh7100-mipi_dsi","cdns,dsi";
+			compatible = "starfive,jh7110-mipi_dsi","cdns,dsi";
 			reg = <0x0 0x295d0000 0x0 0x10000>;
 			interrupts = <98>;
 			reg-names = "dsi";
@@ -1724,7 +1724,7 @@
 		};
 
 		hdmi: hdmi@29590000 {
-			compatible = "starfive,jh7100-hdmi","inno,hdmi";
+			compatible = "starfive,jh7110-hdmi","inno,hdmi";
 			reg = <0x0 0x29590000 0x0 0x4000>;
 			interrupts = <99>;
 			/*interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;*/
