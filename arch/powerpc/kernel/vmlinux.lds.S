@@ -173,8 +173,7 @@ SECTIONS
 	}
 
 	.got : AT(ADDR(.got) - LOAD_OFFSET) ALIGN(256) {
-		*(.got)
-		*(.toc)
+		*(.got .toc)
 	}
 
 	SOFT_MASK_TABLE(8)
