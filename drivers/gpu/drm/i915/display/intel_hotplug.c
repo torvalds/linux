@@ -90,6 +90,9 @@ enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 	return HPD_PORT_A + port - PORT_A;
 }
 
+/* Threshold == 5 for long IRQs, 50 for short */
+#define HPD_STORM_DEFAULT_THRESHOLD	50
+
 #define HPD_STORM_DETECT_PERIOD		1000
 #define HPD_STORM_REENABLE_DELAY	(2 * 60 * 1000)
 #define HPD_RETRY_DELAY			1000
@@ -711,14 +714,23 @@ void intel_hpd_poll_disable(struct drm_i915_private *dev_priv)
 	schedule_work(&dev_priv->display.hotplug.poll_init_work);
 }
 
-void intel_hpd_init_work(struct drm_i915_private *dev_priv)
+void intel_hpd_init_early(struct drm_i915_private *i915)
 {
-	INIT_DELAYED_WORK(&dev_priv->display.hotplug.hotplug_work,
+	INIT_DELAYED_WORK(&i915->display.hotplug.hotplug_work,
 			  i915_hotplug_work_func);
-	INIT_WORK(&dev_priv->display.hotplug.dig_port_work, i915_digport_work_func);
-	INIT_WORK(&dev_priv->display.hotplug.poll_init_work, i915_hpd_poll_init_work);
-	INIT_DELAYED_WORK(&dev_priv->display.hotplug.reenable_work,
+	INIT_WORK(&i915->display.hotplug.dig_port_work, i915_digport_work_func);
+	INIT_WORK(&i915->display.hotplug.poll_init_work, i915_hpd_poll_init_work);
+	INIT_DELAYED_WORK(&i915->display.hotplug.reenable_work,
 			  intel_hpd_irq_storm_reenable_work);
+
+	i915->display.hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
+	/* If we have MST support, we want to avoid doing short HPD IRQ storm
+	 * detection, as short HPD storms will occur as a natural part of
+	 * sideband messaging with MST.
+	 * On older platforms however, IRQ storms can occur with both long and
+	 * short pulses, as seen on some G4x systems.
+	 */
+	i915->display.hotplug.hpd_short_storm_enabled = !HAS_DP_MST(i915);
 }
 
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
