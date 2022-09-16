@@ -4282,6 +4282,61 @@ err_out:
 	return NULL;
 }
 
+static void ext4_set_def_opts(struct super_block *sb,
+			      struct ext4_super_block *es)
+{
+	unsigned long def_mount_opts;
+
+	/* Set defaults before we parse the mount options */
+	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
+	set_opt(sb, INIT_INODE_TABLE);
+	if (def_mount_opts & EXT4_DEFM_DEBUG)
+		set_opt(sb, DEBUG);
+	if (def_mount_opts & EXT4_DEFM_BSDGROUPS)
+		set_opt(sb, GRPID);
+	if (def_mount_opts & EXT4_DEFM_UID16)
+		set_opt(sb, NO_UID32);
+	/* xattr user namespace & acls are now defaulted on */
+	set_opt(sb, XATTR_USER);
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
+	set_opt(sb, POSIX_ACL);
+#endif
+	if (ext4_has_feature_fast_commit(sb))
+		set_opt2(sb, JOURNAL_FAST_COMMIT);
+	/* don't forget to enable journal_csum when metadata_csum is enabled. */
+	if (ext4_has_metadata_csum(sb))
+		set_opt(sb, JOURNAL_CHECKSUM);
+
+	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
+		set_opt(sb, JOURNAL_DATA);
+	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_ORDERED)
+		set_opt(sb, ORDERED_DATA);
+	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_WBACK)
+		set_opt(sb, WRITEBACK_DATA);
+
+	if (le16_to_cpu(es->s_errors) == EXT4_ERRORS_PANIC)
+		set_opt(sb, ERRORS_PANIC);
+	else if (le16_to_cpu(es->s_errors) == EXT4_ERRORS_CONTINUE)
+		set_opt(sb, ERRORS_CONT);
+	else
+		set_opt(sb, ERRORS_RO);
+	/* block_validity enabled by default; disable with noblock_validity */
+	set_opt(sb, BLOCK_VALIDITY);
+	if (def_mount_opts & EXT4_DEFM_DISCARD)
+		set_opt(sb, DISCARD);
+
+	if ((def_mount_opts & EXT4_DEFM_NOBARRIER) == 0)
+		set_opt(sb, BARRIER);
+
+	/*
+	 * enable delayed allocation by default
+	 * Use -o nodelalloc to turn it off
+	 */
+	if (!IS_EXT3_SB(sb) && !IS_EXT2_SB(sb) &&
+	    ((def_mount_opts & EXT4_DEFM_NODELALLOC) == 0))
+		set_opt(sb, DELALLOC);
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct buffer_head *bh, **group_desc;
@@ -4291,7 +4346,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	ext4_fsblk_t block;
 	ext4_fsblk_t logical_sb_block;
 	unsigned long offset = 0;
-	unsigned long def_mount_opts;
 	struct inode *root;
 	int ret = -ENOMEM;
 	int blocksize, clustersize;
@@ -4391,60 +4445,13 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		sbi->s_csum_seed = ext4_chksum(sbi, ~0, es->s_uuid,
 					       sizeof(es->s_uuid));
 
-	/* Set defaults before we parse the mount options */
-	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
-	set_opt(sb, INIT_INODE_TABLE);
-	if (def_mount_opts & EXT4_DEFM_DEBUG)
-		set_opt(sb, DEBUG);
-	if (def_mount_opts & EXT4_DEFM_BSDGROUPS)
-		set_opt(sb, GRPID);
-	if (def_mount_opts & EXT4_DEFM_UID16)
-		set_opt(sb, NO_UID32);
-	/* xattr user namespace & acls are now defaulted on */
-	set_opt(sb, XATTR_USER);
-#ifdef CONFIG_EXT4_FS_POSIX_ACL
-	set_opt(sb, POSIX_ACL);
-#endif
-	if (ext4_has_feature_fast_commit(sb))
-		set_opt2(sb, JOURNAL_FAST_COMMIT);
-	/* don't forget to enable journal_csum when metadata_csum is enabled. */
-	if (ext4_has_metadata_csum(sb))
-		set_opt(sb, JOURNAL_CHECKSUM);
-
-	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
-		set_opt(sb, JOURNAL_DATA);
-	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_ORDERED)
-		set_opt(sb, ORDERED_DATA);
-	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_WBACK)
-		set_opt(sb, WRITEBACK_DATA);
-
-	if (le16_to_cpu(sbi->s_es->s_errors) == EXT4_ERRORS_PANIC)
-		set_opt(sb, ERRORS_PANIC);
-	else if (le16_to_cpu(sbi->s_es->s_errors) == EXT4_ERRORS_CONTINUE)
-		set_opt(sb, ERRORS_CONT);
-	else
-		set_opt(sb, ERRORS_RO);
-	/* block_validity enabled by default; disable with noblock_validity */
-	set_opt(sb, BLOCK_VALIDITY);
-	if (def_mount_opts & EXT4_DEFM_DISCARD)
-		set_opt(sb, DISCARD);
+	ext4_set_def_opts(sb, es);
 
 	sbi->s_resuid = make_kuid(&init_user_ns, le16_to_cpu(es->s_def_resuid));
 	sbi->s_resgid = make_kgid(&init_user_ns, le16_to_cpu(es->s_def_resgid));
 	sbi->s_commit_interval = JBD2_DEFAULT_MAX_COMMIT_AGE * HZ;
 	sbi->s_min_batch_time = EXT4_DEF_MIN_BATCH_TIME;
 	sbi->s_max_batch_time = EXT4_DEF_MAX_BATCH_TIME;
-
-	if ((def_mount_opts & EXT4_DEFM_NOBARRIER) == 0)
-		set_opt(sb, BARRIER);
-
-	/*
-	 * enable delayed allocation by default
-	 * Use -o nodelalloc to turn it off
-	 */
-	if (!IS_EXT3_SB(sb) && !IS_EXT2_SB(sb) &&
-	    ((def_mount_opts & EXT4_DEFM_NODELALLOC) == 0))
-		set_opt(sb, DELALLOC);
 
 	/*
 	 * set default s_li_wait_mult for lazyinit, for the case there is
