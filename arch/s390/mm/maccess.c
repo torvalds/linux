@@ -18,6 +18,7 @@
 #include <asm/io.h>
 #include <asm/abs_lowcore.h>
 #include <asm/stacktrace.h>
+#include <asm/maccess.h>
 
 unsigned long __bootdata_preserved(__memcpy_real_area);
 static __ro_after_init pte_t *memcpy_real_ptep;
