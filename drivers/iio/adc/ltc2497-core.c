@@ -95,7 +95,7 @@ static int ltc2497core_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		*val = ret / 1000;
-		*val2 = 17;
+		*val2 = ddata->chip_info->resolution + 1;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
 
