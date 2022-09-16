@@ -4920,15 +4920,123 @@ static int ext4_journal_data_mode_check(struct super_block *sb)
 	return 0;
 }
 
+static int ext4_load_super(struct super_block *sb, ext4_fsblk_t *lsb,
+			   int silent)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_super_block *es;
+	ext4_fsblk_t logical_sb_block;
+	unsigned long offset = 0;
+	struct buffer_head *bh;
+	int ret = -EINVAL;
+	int blocksize;
+
+	blocksize = sb_min_blocksize(sb, EXT4_MIN_BLOCK_SIZE);
+	if (!blocksize) {
+		ext4_msg(sb, KERN_ERR, "unable to set blocksize");
+		return -EINVAL;
+	}
+
+	/*
+	 * The ext4 superblock will not be buffer aligned for other than 1kB
+	 * block sizes.  We need to calculate the offset from buffer start.
+	 */
+	if (blocksize != EXT4_MIN_BLOCK_SIZE) {
+		logical_sb_block = sbi->s_sb_block * EXT4_MIN_BLOCK_SIZE;
+		offset = do_div(logical_sb_block, blocksize);
+	} else {
+		logical_sb_block = sbi->s_sb_block;
+	}
+
+	bh = ext4_sb_bread_unmovable(sb, logical_sb_block);
+	if (IS_ERR(bh)) {
+		ext4_msg(sb, KERN_ERR, "unable to read superblock");
+		return PTR_ERR(bh);
+	}
+	/*
+	 * Note: s_es must be initialized as soon as possible because
+	 *       some ext4 macro-instructions depend on its value
+	 */
+	es = (struct ext4_super_block *) (bh->b_data + offset);
+	sbi->s_es = es;
+	sb->s_magic = le16_to_cpu(es->s_magic);
+	if (sb->s_magic != EXT4_SUPER_MAGIC) {
+		if (!silent)
+			ext4_msg(sb, KERN_ERR, "VFS: Can't find ext4 filesystem");
+		goto out;
+	}
+
+	if (le32_to_cpu(es->s_log_block_size) >
+	    (EXT4_MAX_BLOCK_LOG_SIZE - EXT4_MIN_BLOCK_LOG_SIZE)) {
+		ext4_msg(sb, KERN_ERR,
+			 "Invalid log block size: %u",
+			 le32_to_cpu(es->s_log_block_size));
+		goto out;
+	}
+	if (le32_to_cpu(es->s_log_cluster_size) >
+	    (EXT4_MAX_CLUSTER_LOG_SIZE - EXT4_MIN_BLOCK_LOG_SIZE)) {
+		ext4_msg(sb, KERN_ERR,
+			 "Invalid log cluster size: %u",
+			 le32_to_cpu(es->s_log_cluster_size));
+		goto out;
+	}
+
+	blocksize = EXT4_MIN_BLOCK_SIZE << le32_to_cpu(es->s_log_block_size);
+
+	/*
+	 * If the default block size is not the same as the real block size,
+	 * we need to reload it.
+	 */
+	if (sb->s_blocksize == blocksize) {
+		*lsb = logical_sb_block;
+		sbi->s_sbh = bh;
+		return 0;
+	}
+
+	/*
+	 * bh must be released before kill_bdev(), otherwise
+	 * it won't be freed and its page also. kill_bdev()
+	 * is called by sb_set_blocksize().
+	 */
+	brelse(bh);
+	/* Validate the filesystem blocksize */
+	if (!sb_set_blocksize(sb, blocksize)) {
+		ext4_msg(sb, KERN_ERR, "bad block size %d",
+				blocksize);
+		bh = NULL;
+		goto out;
+	}
+
+	logical_sb_block = sbi->s_sb_block * EXT4_MIN_BLOCK_SIZE;
+	offset = do_div(logical_sb_block, blocksize);
+	bh = ext4_sb_bread_unmovable(sb, logical_sb_block);
+	if (IS_ERR(bh)) {
+		ext4_msg(sb, KERN_ERR, "Can't read superblock on 2nd try");
+		ret = PTR_ERR(bh);
+		bh = NULL;
+		goto out;
+	}
+	es = (struct ext4_super_block *)(bh->b_data + offset);
+	sbi->s_es = es;
+	if (es->s_magic != cpu_to_le16(EXT4_SUPER_MAGIC)) {
+		ext4_msg(sb, KERN_ERR, "Magic mismatch, very weird!");
+		goto out;
+	}
+	*lsb = logical_sb_block;
+	sbi->s_sbh = bh;
+	return 0;
+out:
+	brelse(bh);
+	return ret;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
-	struct buffer_head *bh;
 	struct ext4_super_block *es = NULL;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct flex_groups **flex_groups;
 	ext4_fsblk_t block;
 	ext4_fsblk_t logical_sb_block;
-	unsigned long offset = 0;
 	struct inode *root;
 	int ret = -ENOMEM;
 	int blocksize;
@@ -4949,42 +5057,12 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	/* -EINVAL is default */
 	ret = -EINVAL;
-	blocksize = sb_min_blocksize(sb, EXT4_MIN_BLOCK_SIZE);
-	if (!blocksize) {
-		ext4_msg(sb, KERN_ERR, "unable to set blocksize");
+	err = ext4_load_super(sb, &logical_sb_block, silent);
+	if (err)
 		goto out_fail;
-	}
 
-	/*
-	 * The ext4 superblock will not be buffer aligned for other than 1kB
-	 * block sizes.  We need to calculate the offset from buffer start.
-	 */
-	if (blocksize != EXT4_MIN_BLOCK_SIZE) {
-		logical_sb_block = sbi->s_sb_block * EXT4_MIN_BLOCK_SIZE;
-		offset = do_div(logical_sb_block, blocksize);
-	} else {
-		logical_sb_block = sbi->s_sb_block;
-	}
-
-	bh = ext4_sb_bread_unmovable(sb, logical_sb_block);
-	if (IS_ERR(bh)) {
-		ext4_msg(sb, KERN_ERR, "unable to read superblock");
-		ret = PTR_ERR(bh);
-		goto out_fail;
-	}
-	/*
-	 * Note: s_es must be initialized as soon as possible because
-	 *       some ext4 macro-instructions depend on its value
-	 */
-	es = (struct ext4_super_block *) (bh->b_data + offset);
-	sbi->s_es = es;
-	sb->s_magic = le16_to_cpu(es->s_magic);
-	if (sb->s_magic != EXT4_SUPER_MAGIC) {
-		if (!silent)
-			ext4_msg(sb, KERN_ERR, "VFS: Can't find ext4 filesystem");
-		goto failed_mount;
-	}
-
+	es = sbi->s_es;
+	blocksize = sb->s_blocksize;
 	sbi->s_kbytes_written = le64_to_cpu(es->s_kbytes_written);
 
 	err = ext4_init_metadata_csum(sb, es);
@@ -5004,23 +5082,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	 * no mount option specified.
 	 */
 	sbi->s_li_wait_mult = EXT4_DEF_LI_WAIT_MULT;
-
-	if (le32_to_cpu(es->s_log_block_size) >
-	    (EXT4_MAX_BLOCK_LOG_SIZE - EXT4_MIN_BLOCK_LOG_SIZE)) {
-		ext4_msg(sb, KERN_ERR,
-			 "Invalid log block size: %u",
-			 le32_to_cpu(es->s_log_block_size));
-		goto failed_mount;
-	}
-	if (le32_to_cpu(es->s_log_cluster_size) >
-	    (EXT4_MAX_CLUSTER_LOG_SIZE - EXT4_MIN_BLOCK_LOG_SIZE)) {
-		ext4_msg(sb, KERN_ERR,
-			 "Invalid log cluster size: %u",
-			 le32_to_cpu(es->s_log_cluster_size));
-		goto failed_mount;
-	}
-
-	blocksize = EXT4_MIN_BLOCK_SIZE << le32_to_cpu(es->s_log_block_size);
 
 	if (blocksize == PAGE_SIZE)
 		set_opt(sb, DIOREAD_NOLOCK);
@@ -5088,40 +5149,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		goto failed_mount;
 	}
 
-	if (sb->s_blocksize != blocksize) {
-		/*
-		 * bh must be released before kill_bdev(), otherwise
-		 * it won't be freed and its page also. kill_bdev()
-		 * is called by sb_set_blocksize().
-		 */
-		brelse(bh);
-		/* Validate the filesystem blocksize */
-		if (!sb_set_blocksize(sb, blocksize)) {
-			ext4_msg(sb, KERN_ERR, "bad block size %d",
-					blocksize);
-			bh = NULL;
-			goto failed_mount;
-		}
-
-		logical_sb_block = sbi->s_sb_block * EXT4_MIN_BLOCK_SIZE;
-		offset = do_div(logical_sb_block, blocksize);
-		bh = ext4_sb_bread_unmovable(sb, logical_sb_block);
-		if (IS_ERR(bh)) {
-			ext4_msg(sb, KERN_ERR,
-			       "Can't read superblock on 2nd try");
-			ret = PTR_ERR(bh);
-			bh = NULL;
-			goto failed_mount;
-		}
-		es = (struct ext4_super_block *)(bh->b_data + offset);
-		sbi->s_es = es;
-		if (es->s_magic != cpu_to_le16(EXT4_SUPER_MAGIC)) {
-			ext4_msg(sb, KERN_ERR,
-			       "Magic mismatch, very weird!");
-			goto failed_mount;
-		}
-	}
-
 	has_huge_files = ext4_has_feature_huge_file(sb);
 	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits,
 						      has_huge_files);
@@ -5158,7 +5185,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	sbi->s_itb_per_group = sbi->s_inodes_per_group /
 					sbi->s_inodes_per_block;
 	sbi->s_desc_per_block = blocksize / EXT4_DESC_SIZE(sb);
-	sbi->s_sbh = bh;
 	sbi->s_mount_state = le16_to_cpu(es->s_state) & ~EXT4_FC_REPLAY;
 	sbi->s_addr_per_block_bits = ilog2(EXT4_ADDR_PER_BLOCK(sb));
 	sbi->s_desc_per_block_bits = ilog2(EXT4_DESC_PER_BLOCK(sb));
@@ -5595,7 +5621,7 @@ failed_mount:
 #endif
 	fscrypt_free_dummy_policy(&sbi->s_dummy_enc_policy);
 	/* ext4_blkdev_remove() calls kill_bdev(), release bh before it. */
-	brelse(bh);
+	brelse(sbi->s_sbh);
 	ext4_blkdev_remove(sbi);
 out_fail:
 	sb->s_fs_info = NULL;
