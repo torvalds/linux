@@ -1085,5 +1085,55 @@
         "teardown": [
             "$TC actions flush action ife"
         ]
+    },
+    {
+        "id": "a972",
+        "name": "Delete ife encode action with valid index",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ],
+	    "$TC actions add action ife encode allow mark pass index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action ife index 20",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action ife index 20",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0[xX]ED3E.*allow mark.*index 20",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "1272",
+        "name": "Delete ife encode action with invalid index",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action ife encode allow mark pass index 20"
+        ],
+        "cmdUnderTest": "$TC actions del action ife index 10",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action ife index 20",
+        "matchPattern": "action order [0-9]*: ife encode action pass.*type 0[xX]ED3E.*allow mark.*index 20",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
     }
 ]
