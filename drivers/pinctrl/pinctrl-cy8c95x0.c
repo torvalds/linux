@@ -1152,8 +1152,13 @@ static int cy8c95x0_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 			    unsigned int group)
 {
 	struct cy8c95x0_pinctrl *chip = pinctrl_dev_get_drvdata(pctldev);
+	int ret;
 
-	return cy8c95x0_pinmux_cfg(chip, selector, group);
+	mutex_lock(&chip->i2c_lock);
+	ret = cy8c95x0_pinmux_cfg(chip, selector, group);
+	mutex_unlock(&chip->i2c_lock);
+
+	return ret;
 }
 
 static const struct pinmux_ops cy8c95x0_pmxops = {
