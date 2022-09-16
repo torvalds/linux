@@ -4720,9 +4720,89 @@ static int ext4_geometry_check(struct super_block *sb,
 	return 0;
 }
 
+static void ext4_group_desc_free(struct ext4_sb_info *sbi)
+{
+	struct buffer_head **group_desc;
+	int i;
+
+	rcu_read_lock();
+	group_desc = rcu_dereference(sbi->s_group_desc);
+	for (i = 0; i < sbi->s_gdb_count; i++)
+		brelse(group_desc[i]);
+	kvfree(group_desc);
+	rcu_read_unlock();
+}
+
+static int ext4_group_desc_init(struct super_block *sb,
+				struct ext4_super_block *es,
+				ext4_fsblk_t logical_sb_block,
+				ext4_group_t *first_not_zeroed)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	unsigned int db_count;
+	ext4_fsblk_t block;
+	int ret;
+	int i;
+
+	db_count = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) /
+		   EXT4_DESC_PER_BLOCK(sb);
+	if (ext4_has_feature_meta_bg(sb)) {
+		if (le32_to_cpu(es->s_first_meta_bg) > db_count) {
+			ext4_msg(sb, KERN_WARNING,
+				 "first meta block group too large: %u "
+				 "(group descriptor block count %u)",
+				 le32_to_cpu(es->s_first_meta_bg), db_count);
+			return -EINVAL;
+		}
+	}
+	rcu_assign_pointer(sbi->s_group_desc,
+			   kvmalloc_array(db_count,
+					  sizeof(struct buffer_head *),
+					  GFP_KERNEL));
+	if (sbi->s_group_desc == NULL) {
+		ext4_msg(sb, KERN_ERR, "not enough memory");
+		return -ENOMEM;
+	}
+
+	bgl_lock_init(sbi->s_blockgroup_lock);
+
+	/* Pre-read the descriptors into the buffer cache */
+	for (i = 0; i < db_count; i++) {
+		block = descriptor_loc(sb, logical_sb_block, i);
+		ext4_sb_breadahead_unmovable(sb, block);
+	}
+
+	for (i = 0; i < db_count; i++) {
+		struct buffer_head *bh;
+
+		block = descriptor_loc(sb, logical_sb_block, i);
+		bh = ext4_sb_bread_unmovable(sb, block);
+		if (IS_ERR(bh)) {
+			ext4_msg(sb, KERN_ERR,
+			       "can't read group descriptor %d", i);
+			sbi->s_gdb_count = i;
+			ret = PTR_ERR(bh);
+			goto out;
+		}
+		rcu_read_lock();
+		rcu_dereference(sbi->s_group_desc)[i] = bh;
+		rcu_read_unlock();
+	}
+	sbi->s_gdb_count = db_count;
+	if (!ext4_check_descriptors(sb, logical_sb_block, first_not_zeroed)) {
+		ext4_msg(sb, KERN_ERR, "group descriptors corrupted!");
+		ret = -EFSCORRUPTED;
+		goto out;
+	}
+	return 0;
+out:
+	ext4_group_desc_free(sbi);
+	return ret;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
-	struct buffer_head *bh, **group_desc;
+	struct buffer_head *bh;
 	struct ext4_super_block *es = NULL;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct flex_groups **flex_groups;
@@ -4732,7 +4812,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	struct inode *root;
 	int ret = -ENOMEM;
 	int blocksize;
-	unsigned int db_count;
 	unsigned int i;
 	int needs_recovery, has_huge_files;
 	int err = 0;
@@ -5026,57 +5105,9 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	if (ext4_geometry_check(sb, es))
 		goto failed_mount;
 
-	db_count = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) /
-		   EXT4_DESC_PER_BLOCK(sb);
-	if (ext4_has_feature_meta_bg(sb)) {
-		if (le32_to_cpu(es->s_first_meta_bg) > db_count) {
-			ext4_msg(sb, KERN_WARNING,
-				 "first meta block group too large: %u "
-				 "(group descriptor block count %u)",
-				 le32_to_cpu(es->s_first_meta_bg), db_count);
-			goto failed_mount;
-		}
-	}
-	rcu_assign_pointer(sbi->s_group_desc,
-			   kvmalloc_array(db_count,
-					  sizeof(struct buffer_head *),
-					  GFP_KERNEL));
-	if (sbi->s_group_desc == NULL) {
-		ext4_msg(sb, KERN_ERR, "not enough memory");
-		ret = -ENOMEM;
+	err = ext4_group_desc_init(sb, es, logical_sb_block, &first_not_zeroed);
+	if (err)
 		goto failed_mount;
-	}
-
-	bgl_lock_init(sbi->s_blockgroup_lock);
-
-	/* Pre-read the descriptors into the buffer cache */
-	for (i = 0; i < db_count; i++) {
-		block = descriptor_loc(sb, logical_sb_block, i);
-		ext4_sb_breadahead_unmovable(sb, block);
-	}
-
-	for (i = 0; i < db_count; i++) {
-		struct buffer_head *bh;
-
-		block = descriptor_loc(sb, logical_sb_block, i);
-		bh = ext4_sb_bread_unmovable(sb, block);
-		if (IS_ERR(bh)) {
-			ext4_msg(sb, KERN_ERR,
-			       "can't read group descriptor %d", i);
-			db_count = i;
-			ret = PTR_ERR(bh);
-			goto failed_mount2;
-		}
-		rcu_read_lock();
-		rcu_dereference(sbi->s_group_desc)[i] = bh;
-		rcu_read_unlock();
-	}
-	sbi->s_gdb_count = db_count;
-	if (!ext4_check_descriptors(sb, logical_sb_block, &first_not_zeroed)) {
-		ext4_msg(sb, KERN_ERR, "group descriptors corrupted!");
-		ret = -EFSCORRUPTED;
-		goto failed_mount2;
-	}
 
 	timer_setup(&sbi->s_err_report, print_daily_error_info, 0);
 	spin_lock_init(&sbi->s_error_lock);
@@ -5520,13 +5551,7 @@ failed_mount3:
 	flush_work(&sbi->s_error_work);
 	del_timer_sync(&sbi->s_err_report);
 	ext4_stop_mmpd(sbi);
-failed_mount2:
-	rcu_read_lock();
-	group_desc = rcu_dereference(sbi->s_group_desc);
-	for (i = 0; i < db_count; i++)
-		brelse(group_desc[i]);
-	kvfree(group_desc);
-	rcu_read_unlock();
+	ext4_group_desc_free(sbi);
 failed_mount:
 	if (sbi->s_chksum_driver)
 		crypto_free_shash(sbi->s_chksum_driver);
