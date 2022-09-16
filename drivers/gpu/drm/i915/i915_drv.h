@@ -397,8 +397,6 @@ struct drm_i915_private {
 	 */
 	u8 snps_phy_failed_calibration;
 
-	bool ipc_enabled;
-
 	struct i915_pmu pmu;
 
 	struct i915_drm_clients clients;
