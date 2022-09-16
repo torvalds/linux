@@ -573,7 +573,8 @@ static int cy8c95x0_gpio_direction_input(struct gpio_chip *gc, unsigned int off)
 		ret = regmap_write_bits(chip->regmap, CY8C95X0_DRV_HIZ, bit, bit);
 		if (ret)
 			goto out;
-		clear_bit(off, chip->push_pull);
+
+		__clear_bit(off, chip->push_pull);
 	}
 
 out:
@@ -775,27 +776,27 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_PULL_UP:
-		clear_bit(off, chip->push_pull);
+		__clear_bit(off, chip->push_pull);
 		reg = CY8C95X0_DRV_PU;
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		clear_bit(off, chip->push_pull);
+		__clear_bit(off, chip->push_pull);
 		reg = CY8C95X0_DRV_PD;
 		break;
 	case PIN_CONFIG_BIAS_DISABLE:
-		clear_bit(off, chip->push_pull);
+		__clear_bit(off, chip->push_pull);
 		reg = CY8C95X0_DRV_HIZ;
 		break;
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		clear_bit(off, chip->push_pull);
+		__clear_bit(off, chip->push_pull);
 		reg = CY8C95X0_DRV_ODL;
 		break;
 	case PIN_CONFIG_DRIVE_OPEN_SOURCE:
-		clear_bit(off, chip->push_pull);
+		__clear_bit(off, chip->push_pull);
 		reg = CY8C95X0_DRV_ODH;
 		break;
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		set_bit(off, chip->push_pull);
+		__set_bit(off, chip->push_pull);
 		reg = CY8C95X0_DRV_PP_FAST;
 		break;
 	case PIN_CONFIG_MODE_PWM:
