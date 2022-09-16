@@ -628,8 +628,9 @@ config LOONGSON_PCH_MSI
 
 config LOONGSON_PCH_LPC
 	bool "Loongson PCH LPC Controller"
+	depends on LOONGARCH
 	depends on MACH_LOONGSON64
-	default (MACH_LOONGSON64 && LOONGARCH)
+	default MACH_LOONGSON64
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Support for the Loongson PCH LPC Controller.
