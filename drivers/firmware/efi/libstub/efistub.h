@@ -844,11 +844,8 @@ typedef efi_status_t (*efi_exit_boot_map_processing)(
 efi_status_t efi_exit_boot_services(void *handle, void *priv,
 				    efi_exit_boot_map_processing priv_func);
 
-efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
-					    unsigned long *new_fdt_addr,
-					    char *cmdline_ptr,
-					    unsigned long fdt_addr,
-					    unsigned long fdt_size);
+efi_status_t efi_boot_kernel(void *handle, efi_loaded_image_t *image,
+			     unsigned long kernel_addr, char *cmdline_ptr);
 
 void *get_fdt(unsigned long *fdt_size);
 

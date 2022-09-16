@@ -219,17 +219,18 @@ static efi_status_t exit_boot_func(struct efi_boot_memmap *map, void *priv)
  * exit_boot_services() call, so the exiting of boot services is very tightly
  * tied to the creation of the FDT with the final memory map in it.
  */
-
+static
 efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
+					    efi_loaded_image_t *image,
 					    unsigned long *new_fdt_addr,
-					    char *cmdline_ptr,
-					    unsigned long fdt_addr,
-					    unsigned long fdt_size)
+					    char *cmdline_ptr)
 {
 	unsigned long desc_size;
 	u32 desc_ver;
 	efi_status_t status;
 	struct exit_boot_struct priv;
+	unsigned long fdt_addr = 0;
+	unsigned long fdt_size = 0;
 
 	if (!efi_novamap) {
 		status = efi_alloc_virtmap(&priv.runtime_map, &desc_size,
@@ -239,6 +240,36 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 			return status;
 		}
 	}
+
+	/*
+	 * Unauthenticated device tree data is a security hazard, so ignore
+	 * 'dtb=' unless UEFI Secure Boot is disabled.  We assume that secure
+	 * boot is enabled if we can't determine its state.
+	 */
+	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
+	    efi_get_secureboot() != efi_secureboot_mode_disabled) {
+		if (strstr(cmdline_ptr, "dtb="))
+			efi_err("Ignoring DTB from command line.\n");
+	} else {
+		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
+
+		if (status != EFI_SUCCESS && status != EFI_NOT_READY) {
+			efi_err("Failed to load device tree!\n");
+			goto fail;
+		}
+	}
+
+	if (fdt_addr) {
+		efi_info("Using DTB from command line\n");
+	} else {
+		/* Look for a device tree configuration table entry. */
+		fdt_addr = (uintptr_t)get_fdt(&fdt_size);
+		if (fdt_addr)
+			efi_info("Using DTB from configuration table\n");
+	}
+
+	if (!fdt_addr)
+		efi_info("Generating empty DTB\n");
 
 	efi_info("Exiting boot services...\n");
 
@@ -303,9 +334,31 @@ fail_free_new_fdt:
 	efi_free(MAX_FDT_SIZE, *new_fdt_addr);
 
 fail:
+	efi_free(fdt_size, fdt_addr);
+
 	efi_bs_call(free_pool, priv.runtime_map);
 
 	return EFI_LOAD_ERROR;
+}
+
+efi_status_t efi_boot_kernel(void *handle, efi_loaded_image_t *image,
+			     unsigned long kernel_addr, char *cmdline_ptr)
+{
+	unsigned long fdt_addr;
+	efi_status_t status;
+
+	status = allocate_new_fdt_and_exit_boot(handle, image, &fdt_addr,
+						cmdline_ptr);
+	if (status != EFI_SUCCESS) {
+		efi_err("Failed to update FDT and exit boot services\n");
+		return status;
+	}
+
+	if (IS_ENABLED(CONFIG_ARM))
+		efi_handle_post_ebs_state();
+
+	efi_enter_kernel(kernel_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
+	/* not reached */
 }
 
 void *get_fdt(unsigned long *fdt_size)
