@@ -8,3 +8,5 @@ dtb-$(CONFIG_ARCH_APPLE) += t6000-j314s.dtb
 dtb-$(CONFIG_ARCH_APPLE) += t6001-j314c.dtb
 dtb-$(CONFIG_ARCH_APPLE) += t6000-j316s.dtb
 dtb-$(CONFIG_ARCH_APPLE) += t6001-j316c.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6001-j375c.dtb
+dtb-$(CONFIG_ARCH_APPLE) += t6002-j375d.dtb
