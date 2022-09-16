@@ -158,7 +158,7 @@ static int validate_cpu_freq_invariance_counters(int cpu)
 	}
 
 	/* Convert maximum frequency from KHz to Hz and validate */
-	max_freq_hz = cpufreq_get_hw_max_freq(cpu) * 1000;
+	max_freq_hz = cpufreq_get_hw_max_freq(cpu) * 1000ULL;
 	if (unlikely(!max_freq_hz)) {
 		pr_debug("CPU%d: invalid maximum frequency.\n", cpu);
 		return -EINVAL;
