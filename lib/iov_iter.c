@@ -1549,8 +1549,12 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
 	__wsum sum, next;
 
 	if (unlikely(iov_iter_is_discard(i))) {
-		WARN_ON(1);	/* for now */
-		return 0;
+		// can't use csum_memcpy() for that one - data is not copied
+		csstate->csum = csum_block_add(csstate->csum,
+					       csum_partial(addr, bytes, 0),
+					       csstate->off);
+		csstate->off += bytes;
+		return bytes;
 	}
 
 	sum = csum_shift(csstate->csum, csstate->off);
