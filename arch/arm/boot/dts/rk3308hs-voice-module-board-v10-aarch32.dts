@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-voice-module-board-v11-aarch32.dts"
+
+/ {
+	model = "Rockchip RK3308HS Voice Module Board V10 (AArch32)";
+	compatible = "rockchip,rk3308hs-voice-module-board-v10-aarch32", "rockchip,rk3308";
+
+	/delete-node/ vdd-1v0;
+
+	vdd_0v9: vdd-0v9 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_0v9";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+	};
+};
+
+&vcc_ddr {
+	regulator-min-microvolt = <1350000>;
+	regulator-max-microvolt = <1350000>;
+};
+
+&vdd_log {
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+};
