@@ -126,14 +126,6 @@ SECTIONS
 		*(.sfpr);
 		MEM_KEEP(init.text)
 		MEM_KEEP(exit.text)
-
-#ifdef CONFIG_PPC32
-		*(.got1)
-		__got2_start = .;
-		*(.got2)
-		__got2_end = .;
-#endif /* CONFIG_PPC32 */
-
 	} :text
 
 	. = ALIGN(PAGE_SIZE);
@@ -143,7 +135,16 @@ SECTIONS
 	/* Read-only data */
 	RO_DATA(PAGE_SIZE)
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC32
+	.got1 : AT(ADDR(.got1) - LOAD_OFFSET) {
+		*(.got1)
+	}
+	.got2 : AT(ADDR(.got2) - LOAD_OFFSET) {
+		__got2_start = .;
+		*(.got2)
+		__got2_end = .;
+	}
+#else /* CONFIG_PPC32 */
 	SOFT_MASK_TABLE(8)
 	RESTART_TABLE(8)
 
@@ -194,7 +195,7 @@ SECTIONS
 		*(__rfi_flush_fixup)
 		__stop___rfi_flush_fixup = .;
 	}
-#endif /* CONFIG_PPC64 */
+#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
 	. = ALIGN(8);
