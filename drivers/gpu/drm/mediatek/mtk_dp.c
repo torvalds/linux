@@ -1933,39 +1933,41 @@ static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
 	bool enabled = mtk_dp->enabled;
 	u8 sink_count = 0;
 
-	if (mtk_dp->train_info.cable_plugged_in) {
-		if (!enabled) {
-			/* power on aux */
-			mtk_dp_update_bits(mtk_dp, MTK_DP_TOP_PWR_STATE,
-					   DP_PWR_STATE_BANDGAP_TPLL_LANE,
-					   DP_PWR_STATE_MASK);
+	if (!mtk_dp->train_info.cable_plugged_in)
+		return ret;
 
-			/* power on panel */
-			drm_dp_dpcd_writeb(&mtk_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
-			usleep_range(2000, 5000);
-		}
-		/*
-		 * Some dongles still source HPD when they do not connect to any
-		 * sink device. To avoid this, we need to read the sink count
-		 * to make sure we do connect to sink devices. After this detect
-		 * function, we just need to check the HPD connection to check
-		 * whether we connect to a sink device.
-		 */
-		drm_dp_dpcd_readb(&mtk_dp->aux, DP_SINK_COUNT, &sink_count);
-		if (DP_GET_SINK_COUNT(sink_count))
-			ret = connector_status_connected;
+	if (!enabled) {
+		/* power on aux */
+		mtk_dp_update_bits(mtk_dp, MTK_DP_TOP_PWR_STATE,
+				   DP_PWR_STATE_BANDGAP_TPLL_LANE,
+				   DP_PWR_STATE_MASK);
 
-		if (!enabled) {
-			/* power off panel */
-			drm_dp_dpcd_writeb(&mtk_dp->aux, DP_SET_POWER, DP_SET_POWER_D3);
-			usleep_range(2000, 3000);
-
-			/* power off aux */
-			mtk_dp_update_bits(mtk_dp, MTK_DP_TOP_PWR_STATE,
-					   DP_PWR_STATE_BANDGAP_TPLL,
-					   DP_PWR_STATE_MASK);
-		}
+		/* power on panel */
+		drm_dp_dpcd_writeb(&mtk_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
+		usleep_range(2000, 5000);
 	}
+	/*
+	 * Some dongles still source HPD when they do not connect to any
+	 * sink device. To avoid this, we need to read the sink count
+	 * to make sure we do connect to sink devices. After this detect
+	 * function, we just need to check the HPD connection to check
+	 * whether we connect to a sink device.
+	 */
+	drm_dp_dpcd_readb(&mtk_dp->aux, DP_SINK_COUNT, &sink_count);
+	if (DP_GET_SINK_COUNT(sink_count))
+		ret = connector_status_connected;
+
+	if (!enabled) {
+		/* power off panel */
+		drm_dp_dpcd_writeb(&mtk_dp->aux, DP_SET_POWER, DP_SET_POWER_D3);
+		usleep_range(2000, 3000);
+
+		/* power off aux */
+		mtk_dp_update_bits(mtk_dp, MTK_DP_TOP_PWR_STATE,
+				   DP_PWR_STATE_BANDGAP_TPLL,
+				   DP_PWR_STATE_MASK);
+	}
+
 	return ret;
 }
 
