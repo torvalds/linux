@@ -541,7 +541,7 @@ void hash__mark_rodata_ro(void)
 	unsigned long start, end, pp;
 
 	start = (unsigned long)_stext;
-	end = (unsigned long)__init_begin;
+	end = (unsigned long)__end_rodata;
 
 	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL_ROX), HPTE_USE_KERNEL_KEY);
 

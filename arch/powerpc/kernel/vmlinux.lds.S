@@ -219,6 +219,7 @@ SECTIONS
 	 */
 	. = ALIGN(STRICT_ALIGN_SIZE);
 	__srwx_boundary = .;
+	__end_rodata = .;
 	__init_begin = .;
 
 /*

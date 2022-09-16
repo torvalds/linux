@@ -228,7 +228,7 @@ void radix__mark_rodata_ro(void)
 	unsigned long start, end;
 
 	start = (unsigned long)_stext;
-	end = (unsigned long)__init_begin;
+	end = (unsigned long)__end_rodata;
 
 	radix__change_memory_range(start, end, _PAGE_WRITE);
 }
