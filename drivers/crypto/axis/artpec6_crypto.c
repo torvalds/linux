@@ -1712,7 +1712,7 @@ static int artpec6_crypto_prepare_crypto(struct skcipher_request *areq)
 		cipher_len = regk_crypto_key_256;
 		break;
 	default:
-		pr_err("%s: Invalid key length %d!\n",
+		pr_err("%s: Invalid key length %zu!\n",
 			MODULE_NAME, ctx->key_length);
 		return -EINVAL;
 	}
