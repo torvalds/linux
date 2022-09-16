@@ -4584,6 +4584,82 @@ static int ext4_init_metadata_csum(struct super_block *sb, struct ext4_super_blo
 	return 0;
 }
 
+static int ext4_check_feature_compatibility(struct super_block *sb,
+					    struct ext4_super_block *es,
+					    int silent)
+{
+	if (le32_to_cpu(es->s_rev_level) == EXT4_GOOD_OLD_REV &&
+	    (ext4_has_compat_features(sb) ||
+	     ext4_has_ro_compat_features(sb) ||
+	     ext4_has_incompat_features(sb)))
+		ext4_msg(sb, KERN_WARNING,
+		       "feature flags set on rev 0 fs, "
+		       "running e2fsck is recommended");
+
+	if (es->s_creator_os == cpu_to_le32(EXT4_OS_HURD)) {
+		set_opt2(sb, HURD_COMPAT);
+		if (ext4_has_feature_64bit(sb)) {
+			ext4_msg(sb, KERN_ERR,
+				 "The Hurd can't support 64-bit file systems");
+			return -EINVAL;
+		}
+
+		/*
+		 * ea_inode feature uses l_i_version field which is not
+		 * available in HURD_COMPAT mode.
+		 */
+		if (ext4_has_feature_ea_inode(sb)) {
+			ext4_msg(sb, KERN_ERR,
+				 "ea_inode feature is not supported for Hurd");
+			return -EINVAL;
+		}
+	}
+
+	if (IS_EXT2_SB(sb)) {
+		if (ext2_feature_set_ok(sb))
+			ext4_msg(sb, KERN_INFO, "mounting ext2 file system "
+				 "using the ext4 subsystem");
+		else {
+			/*
+			 * If we're probing be silent, if this looks like
+			 * it's actually an ext[34] filesystem.
+			 */
+			if (silent && ext4_feature_set_ok(sb, sb_rdonly(sb)))
+				return -EINVAL;
+			ext4_msg(sb, KERN_ERR, "couldn't mount as ext2 due "
+				 "to feature incompatibilities");
+			return -EINVAL;
+		}
+	}
+
+	if (IS_EXT3_SB(sb)) {
+		if (ext3_feature_set_ok(sb))
+			ext4_msg(sb, KERN_INFO, "mounting ext3 file system "
+				 "using the ext4 subsystem");
+		else {
+			/*
+			 * If we're probing be silent, if this looks like
+			 * it's actually an ext4 filesystem.
+			 */
+			if (silent && ext4_feature_set_ok(sb, sb_rdonly(sb)))
+				return -EINVAL;
+			ext4_msg(sb, KERN_ERR, "couldn't mount as ext3 due "
+				 "to feature incompatibilities");
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Check feature flags regardless of the revision level, since we
+	 * previously didn't change the revision level when setting the flags,
+	 * so there is a chance incompat flags are set on a rev 0 filesystem.
+	 */
+	if (!ext4_feature_set_ok(sb, (sb_rdonly(sb))))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 {
 	struct buffer_head *bh, **group_desc;
@@ -4741,73 +4817,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	/* i_version is always enabled now */
 	sb->s_flags |= SB_I_VERSION;
 
-	if (le32_to_cpu(es->s_rev_level) == EXT4_GOOD_OLD_REV &&
-	    (ext4_has_compat_features(sb) ||
-	     ext4_has_ro_compat_features(sb) ||
-	     ext4_has_incompat_features(sb)))
-		ext4_msg(sb, KERN_WARNING,
-		       "feature flags set on rev 0 fs, "
-		       "running e2fsck is recommended");
-
-	if (es->s_creator_os == cpu_to_le32(EXT4_OS_HURD)) {
-		set_opt2(sb, HURD_COMPAT);
-		if (ext4_has_feature_64bit(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "The Hurd can't support 64-bit file systems");
-			goto failed_mount;
-		}
-
-		/*
-		 * ea_inode feature uses l_i_version field which is not
-		 * available in HURD_COMPAT mode.
-		 */
-		if (ext4_has_feature_ea_inode(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "ea_inode feature is not supported for Hurd");
-			goto failed_mount;
-		}
-	}
-
-	if (IS_EXT2_SB(sb)) {
-		if (ext2_feature_set_ok(sb))
-			ext4_msg(sb, KERN_INFO, "mounting ext2 file system "
-				 "using the ext4 subsystem");
-		else {
-			/*
-			 * If we're probing be silent, if this looks like
-			 * it's actually an ext[34] filesystem.
-			 */
-			if (silent && ext4_feature_set_ok(sb, sb_rdonly(sb)))
-				goto failed_mount;
-			ext4_msg(sb, KERN_ERR, "couldn't mount as ext2 due "
-				 "to feature incompatibilities");
-			goto failed_mount;
-		}
-	}
-
-	if (IS_EXT3_SB(sb)) {
-		if (ext3_feature_set_ok(sb))
-			ext4_msg(sb, KERN_INFO, "mounting ext3 file system "
-				 "using the ext4 subsystem");
-		else {
-			/*
-			 * If we're probing be silent, if this looks like
-			 * it's actually an ext4 filesystem.
-			 */
-			if (silent && ext4_feature_set_ok(sb, sb_rdonly(sb)))
-				goto failed_mount;
-			ext4_msg(sb, KERN_ERR, "couldn't mount as ext3 due "
-				 "to feature incompatibilities");
-			goto failed_mount;
-		}
-	}
-
-	/*
-	 * Check feature flags regardless of the revision level, since we
-	 * previously didn't change the revision level when setting the flags,
-	 * so there is a chance incompat flags are set on a rev 0 filesystem.
-	 */
-	if (!ext4_feature_set_ok(sb, (sb_rdonly(sb))))
+	if (ext4_check_feature_compatibility(sb, es, silent))
 		goto failed_mount;
 
 	if (le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) > (blocksize / 4)) {
