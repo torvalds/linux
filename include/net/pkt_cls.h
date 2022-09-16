@@ -81,6 +81,19 @@ int tcf_classify(struct sk_buff *skb,
 		 const struct tcf_proto *tp, struct tcf_result *res,
 		 bool compat_mode);
 
+static inline bool tc_cls_stats_dump(struct tcf_proto *tp,
+				     struct tcf_walker *arg,
+				     void *filter)
+{
+	if (arg->count >= arg->skip && arg->fn(tp, filter, arg) < 0) {
+		arg->stop = 1;
+		return false;
+	}
+
+	arg->count++;
+	return true;
+}
+
 #else
 static inline bool tcf_block_shared(struct tcf_block *block)
 {
