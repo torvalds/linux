@@ -135,6 +135,16 @@ SECTIONS
 	/* Read-only data */
 	RO_DATA(PAGE_SIZE)
 
+#ifdef CONFIG_PPC32
+	.sdata2 : AT(ADDR(.sdata2) - LOAD_OFFSET) {
+		*(.sdata2)
+	}
+#endif
+
+	.data.rel.ro : AT(ADDR(.data.rel.ro) - LOAD_OFFSET) {
+		*(.data.rel.ro*)
+	}
+
 	.branch_lt : AT(ADDR(.branch_lt) - LOAD_OFFSET) {
 		*(.branch_lt)
 	}
@@ -349,19 +359,13 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	_sdata = .;
 
+	.data : AT(ADDR(.data) - LOAD_OFFSET) {
+		DATA_DATA
+		*(.data.rel*)
 #ifdef CONFIG_PPC32
-	.data : AT(ADDR(.data) - LOAD_OFFSET) {
-		DATA_DATA
-		*(.data.rel*)
 		*(SDATA_MAIN)
-		*(.sdata2)
-	}
-#else
-	.data : AT(ADDR(.data) - LOAD_OFFSET) {
-		DATA_DATA
-		*(.data.rel*)
-	}
 #endif
+	}
 
 	/* The initial task and kernel stack */
 	INIT_TASK_DATA_SECTION(THREAD_ALIGN)
