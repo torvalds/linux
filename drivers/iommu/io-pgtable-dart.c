@@ -45,11 +45,18 @@
 #define APPLE_DART_PTE_SUBPAGE_END     GENMASK_ULL(51, 40)
 
 #define APPLE_DART1_PADDR_MASK	GENMASK_ULL(35, 12)
+#define APPLE_DART2_PADDR_MASK	GENMASK_ULL(37, 10)
+#define APPLE_DART2_PADDR_SHIFT	(4)
 
 /* Apple DART1 protection bits */
 #define APPLE_DART1_PTE_PROT_NO_READ	BIT(8)
 #define APPLE_DART1_PTE_PROT_NO_WRITE	BIT(7)
 #define APPLE_DART1_PTE_PROT_SP_DIS	BIT(1)
+
+/* Apple DART2 protection bits */
+#define APPLE_DART2_PTE_PROT_NO_READ	BIT(3)
+#define APPLE_DART2_PTE_PROT_NO_WRITE	BIT(2)
+#define APPLE_DART2_PTE_PROT_NO_CACHE	BIT(1)
 
 /* marks PTE as valid */
 #define APPLE_DART_PTE_VALID		BIT(0)
@@ -72,13 +79,31 @@ typedef u64 dart_iopte;
 static dart_iopte paddr_to_iopte(phys_addr_t paddr,
 				     struct dart_io_pgtable *data)
 {
-	return paddr & APPLE_DART1_PADDR_MASK;
+	dart_iopte pte;
+
+	if (data->iop.fmt == APPLE_DART)
+		return paddr & APPLE_DART1_PADDR_MASK;
+
+	/* format is APPLE_DART2 */
+	pte = paddr >> APPLE_DART2_PADDR_SHIFT;
+	pte &= APPLE_DART2_PADDR_MASK;
+
+	return pte;
 }
 
 static phys_addr_t iopte_to_paddr(dart_iopte pte,
 				  struct dart_io_pgtable *data)
 {
-	return pte & APPLE_DART1_PADDR_MASK;
+	u64 paddr;
+
+	if (data->iop.fmt == APPLE_DART)
+		return pte & APPLE_DART1_PADDR_MASK;
+
+	/* format is APPLE_DART2 */
+	paddr = pte & APPLE_DART2_PADDR_MASK;
+	paddr <<= APPLE_DART2_PADDR_SHIFT;
+
+	return paddr;
 }
 
 static void *__dart_alloc_pages(size_t size, gfp_t gfp,
@@ -190,10 +215,20 @@ static dart_iopte dart_prot_to_pte(struct dart_io_pgtable *data,
 {
 	dart_iopte pte = 0;
 
-	if (!(prot & IOMMU_WRITE))
-		pte |= APPLE_DART1_PTE_PROT_NO_WRITE;
-	if (!(prot & IOMMU_READ))
-		pte |= APPLE_DART1_PTE_PROT_NO_READ;
+	if (data->iop.fmt == APPLE_DART) {
+		if (!(prot & IOMMU_WRITE))
+			pte |= APPLE_DART1_PTE_PROT_NO_WRITE;
+		if (!(prot & IOMMU_READ))
+			pte |= APPLE_DART1_PTE_PROT_NO_READ;
+	}
+	if (data->iop.fmt == APPLE_DART2) {
+		if (!(prot & IOMMU_WRITE))
+			pte |= APPLE_DART2_PTE_PROT_NO_WRITE;
+		if (!(prot & IOMMU_READ))
+			pte |= APPLE_DART2_PTE_PROT_NO_READ;
+		if (!(prot & IOMMU_CACHE))
+			pte |= APPLE_DART2_PTE_PROT_NO_CACHE;
+	}
 
 	return pte;
 }
@@ -368,7 +403,7 @@ apple_dart_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 	if (!cfg->coherent_walk)
 		return NULL;
 
-	if (cfg->oas > DART1_MAX_ADDR_BITS)
+	if (cfg->oas != 36 && cfg->oas != 42)
 		return NULL;
 
 	if (cfg->ias > cfg->oas)
