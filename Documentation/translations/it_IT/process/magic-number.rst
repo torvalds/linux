@@ -77,7 +77,6 @@ Nome magico           Numero           Struttura                File
 PG_MAGIC              'P'              pg_{read,write}_hdr      ``include/linux/pg.h``
 CMAGIC                0x0111           user                     ``include/linux/a.out.h``
 MKISS_DRIVER_MAGIC    0x04bf           mkiss_channel            ``drivers/net/mkiss.h``
-HDLC_MAGIC            0x239e           n_hdlc                   ``drivers/char/n_hdlc.c``
 APM_BIOS_MAGIC        0x4101           apm_user                 ``arch/x86/kernel/apm_32.c``
 DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_novram.c``
 DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_novram.c``
