@@ -21,6 +21,8 @@
 #define BRCMF_FW_NVRAM_DEVPATH_LEN		19	/* devpath0=pcie/1/4/ */
 #define BRCMF_FW_NVRAM_PCIEDEV_LEN		10	/* pcie/1/4/ + \0 */
 #define BRCMF_FW_DEFAULT_BOARDREV		"boardrev=0xff"
+#define BRCMF_FW_MACADDR_FMT			"macaddr=%pM"
+#define BRCMF_FW_MACADDR_LEN			(7 + ETH_ALEN * 3)
 
 enum nvram_parser_state {
 	IDLE,
@@ -44,6 +46,7 @@ enum nvram_parser_state {
  * @multi_dev_v1: detect pcie multi device v1 (compressed).
  * @multi_dev_v2: detect pcie multi device v2.
  * @boardrev_found: nvram contains boardrev information.
+ * @strip_mac: strip the MAC address.
  */
 struct nvram_parser {
 	enum nvram_parser_state state;
@@ -57,6 +60,7 @@ struct nvram_parser {
 	bool multi_dev_v1;
 	bool multi_dev_v2;
 	bool boardrev_found;
+	bool strip_mac;
 };
 
 /*
@@ -121,6 +125,10 @@ static enum nvram_parser_state brcmf_nvram_handle_key(struct nvram_parser *nvp)
 			nvp->multi_dev_v2 = true;
 		if (strncmp(&nvp->data[nvp->entry], "boardrev", 8) == 0)
 			nvp->boardrev_found = true;
+		/* strip macaddr if platform MAC overrides */
+		if (nvp->strip_mac &&
+		    strncmp(&nvp->data[nvp->entry], "macaddr", 7) == 0)
+			st = COMMENT;
 	} else if (!is_nvram_char(c) || c == ' ') {
 		brcmf_dbg(INFO, "warning: ln=%d:col=%d: '=' expected, skip invalid key entry\n",
 			  nvp->line, nvp->column);
@@ -209,6 +217,7 @@ static int brcmf_init_nvram_parser(struct nvram_parser *nvp,
 		size = data_len;
 	/* Add space for properties we may add */
 	size += strlen(BRCMF_FW_DEFAULT_BOARDREV) + 1;
+	size += BRCMF_FW_MACADDR_LEN + 1;
 	/* Alloc for extra 0 byte + roundup by 4 + length field */
 	size += 1 + 3 + sizeof(u32);
 	nvp->nvram = kzalloc(size, GFP_KERNEL);
@@ -368,21 +377,36 @@ static void brcmf_fw_add_defaults(struct nvram_parser *nvp)
 	nvp->nvram_len++;
 }
 
+static void brcmf_fw_add_macaddr(struct nvram_parser *nvp, u8 *mac)
+{
+	int len;
+
+	len = scnprintf(&nvp->nvram[nvp->nvram_len], BRCMF_FW_MACADDR_LEN + 1,
+			BRCMF_FW_MACADDR_FMT, mac);
+	WARN_ON(len != BRCMF_FW_MACADDR_LEN);
+	nvp->nvram_len += len + 1;
+}
+
 /* brcmf_nvram_strip :Takes a buffer of "<var>=<value>\n" lines read from a fil
  * and ending in a NUL. Removes carriage returns, empty lines, comment lines,
  * and converts newlines to NULs. Shortens buffer as needed and pads with NULs.
  * End of buffer is completed with token identifying length of buffer.
  */
 static void *brcmf_fw_nvram_strip(const u8 *data, size_t data_len,
-				  u32 *new_length, u16 domain_nr, u16 bus_nr)
+				  u32 *new_length, u16 domain_nr, u16 bus_nr,
+				  struct device *dev)
 {
 	struct nvram_parser nvp;
 	u32 pad;
 	u32 token;
 	__le32 token_le;
+	u8 mac[ETH_ALEN];
 
 	if (brcmf_init_nvram_parser(&nvp, data, data_len) < 0)
 		return NULL;
+
+	if (eth_platform_get_mac_address(dev, mac) == 0)
+		nvp.strip_mac = true;
 
 	while (nvp.pos < data_len) {
 		nvp.state = nv_parser_states[nvp.state](&nvp);
@@ -403,6 +427,9 @@ static void *brcmf_fw_nvram_strip(const u8 *data, size_t data_len,
 	}
 
 	brcmf_fw_add_defaults(&nvp);
+
+	if (nvp.strip_mac)
+		brcmf_fw_add_macaddr(&nvp, mac);
 
 	pad = nvp.nvram_len;
 	*new_length = roundup(nvp.nvram_len + 1, 4);
@@ -538,7 +565,8 @@ static int brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 	if (data)
 		nvram = brcmf_fw_nvram_strip(data, data_len, &nvram_length,
 					     fwctx->req->domain_nr,
-					     fwctx->req->bus_nr);
+					     fwctx->req->bus_nr,
+					     fwctx->dev);
 
 	if (free_bcm47xx_nvram)
 		bcm47xx_nvram_release_contents(data);
