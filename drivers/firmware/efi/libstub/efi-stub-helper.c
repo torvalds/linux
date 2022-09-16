@@ -550,20 +550,16 @@ static const struct {
  * * %EFI_SUCCESS if the initrd was loaded successfully, in which
  *   case @load_addr and @load_size are assigned accordingly
  * * %EFI_NOT_FOUND if no LoadFile2 protocol exists on the initrd device path
- * * %EFI_INVALID_PARAMETER if load_addr == NULL or load_size == NULL
  * * %EFI_OUT_OF_RESOURCES if memory allocation failed
  * * %EFI_LOAD_ERROR in all other cases
  */
 static
-efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
-				      unsigned long *load_size,
+efi_status_t efi_load_initrd_dev_path(struct linux_efi_initrd *initrd,
 				      unsigned long max)
 {
 	efi_guid_t lf2_proto_guid = EFI_LOAD_FILE2_PROTOCOL_GUID;
 	efi_device_path_protocol_t *dp;
 	efi_load_file2_protocol_t *lf2;
-	unsigned long initrd_addr;
-	unsigned long initrd_size;
 	efi_handle_t handle;
 	efi_status_t status;
 
@@ -577,42 +573,37 @@ efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size, NULL);
+	initrd->size = 0;
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd->size, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return EFI_LOAD_ERROR;
 
-	status = efi_allocate_pages(initrd_size, &initrd_addr, max);
+	status = efi_allocate_pages(initrd->size, &initrd->base, max);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size,
-				(void *)initrd_addr);
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd->size,
+				(void *)initrd->base);
 	if (status != EFI_SUCCESS) {
-		efi_free(initrd_size, initrd_addr);
+		efi_free(initrd->size, initrd->base);
 		return EFI_LOAD_ERROR;
 	}
-
-	*load_addr = initrd_addr;
-	*load_size = initrd_size;
 	return EFI_SUCCESS;
 }
 
 static
 efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
-				     unsigned long *load_addr,
-				     unsigned long *load_size,
+				     struct linux_efi_initrd *initrd,
 				     unsigned long soft_limit,
 				     unsigned long hard_limit)
 {
 	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER) ||
-	    (IS_ENABLED(CONFIG_X86) && (!efi_is_native() || image == NULL))) {
-		*load_addr = *load_size = 0;
-		return EFI_SUCCESS;
-	}
+	    (IS_ENABLED(CONFIG_X86) && (!efi_is_native() || image == NULL)))
+		return EFI_UNSUPPORTED;
 
 	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
 				    soft_limit, hard_limit,
-				    load_addr, load_size);
+				    &initrd->base, &initrd->size);
 }
 
 static const struct {
@@ -659,42 +650,60 @@ static void efi_measure_initrd(unsigned long load_addr, unsigned long load_size)
 /**
  * efi_load_initrd() - Load initial RAM disk
  * @image:	EFI loaded image protocol
- * @load_addr:	pointer to loaded initrd
- * @load_size:	size of loaded initrd
  * @soft_limit:	preferred address for loading the initrd
  * @hard_limit:	upper limit address for loading the initrd
  *
  * Return:	status code
  */
 efi_status_t efi_load_initrd(efi_loaded_image_t *image,
-			     unsigned long *load_addr,
-			     unsigned long *load_size,
 			     unsigned long soft_limit,
-			     unsigned long hard_limit)
+			     unsigned long hard_limit,
+			     const struct linux_efi_initrd **out)
 {
-	efi_status_t status;
+	efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
+	efi_status_t status = EFI_SUCCESS;
+	struct linux_efi_initrd initrd, *tbl;
 
-	if (efi_noinitrd) {
-		*load_addr = *load_size = 0;
-		status = EFI_SUCCESS;
-	} else {
-		status = efi_load_initrd_dev_path(load_addr, load_size, hard_limit);
-		if (status == EFI_SUCCESS) {
-			efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
-			if (*load_size > 0)
-				efi_measure_initrd(*load_addr, *load_size);
-		} else if (status == EFI_NOT_FOUND) {
-			status = efi_load_initrd_cmdline(image, load_addr, load_size,
-							 soft_limit, hard_limit);
-			if (status == EFI_SUCCESS && *load_size > 0)
-				efi_info("Loaded initrd from command line option\n");
-		}
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to load initrd: 0x%lx\n", status);
-			*load_addr = *load_size = 0;
-		}
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD) || efi_noinitrd)
+		return EFI_SUCCESS;
+
+	status = efi_load_initrd_dev_path(&initrd, hard_limit);
+	if (status == EFI_SUCCESS) {
+		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
+		if (initrd.size > 0)
+			efi_measure_initrd(initrd.base, initrd.size);
+	} else if (status == EFI_NOT_FOUND) {
+		status = efi_load_initrd_cmdline(image, &initrd, soft_limit,
+						 hard_limit);
+		/* command line loader disabled or no initrd= passed? */
+		if (status == EFI_UNSUPPORTED || status == EFI_NOT_READY)
+			return EFI_SUCCESS;
+		if (status == EFI_SUCCESS)
+			efi_info("Loaded initrd from command line option\n");
 	}
+	if (status != EFI_SUCCESS)
+		goto failed;
 
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(initrd),
+			     (void **)&tbl);
+	if (status != EFI_SUCCESS)
+		goto free_initrd;
+
+	*tbl = initrd;
+	status = efi_bs_call(install_configuration_table, &tbl_guid, tbl);
+	if (status != EFI_SUCCESS)
+		goto free_tbl;
+
+	if (out)
+		*out = tbl;
+	return EFI_SUCCESS;
+
+free_tbl:
+	efi_bs_call(free_pool, tbl);
+free_initrd:
+	efi_free(initrd.size, initrd.base);
+failed:
+	efi_err("Failed to load initrd: 0x%lx\n", status);
 	return status;
 }
 

@@ -132,8 +132,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	unsigned long image_addr;
 	unsigned long image_size = 0;
 	/* addr/point and size pairs for memory management*/
-	unsigned long initrd_addr = 0;
-	unsigned long initrd_size = 0;
 	unsigned long fdt_addr = 0;  /* Original DTB */
 	unsigned long fdt_size = 0;
 	char *cmdline_ptr = NULL;
@@ -231,7 +229,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	} else {
 		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
 
-		if (status != EFI_SUCCESS) {
+		if (status != EFI_SUCCESS && status != EFI_NOT_READY) {
 			efi_err("Failed to load device tree!\n");
 			goto fail_free_image;
 		}
@@ -249,8 +247,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (!fdt_addr)
 		efi_info("Generating empty DTB\n");
 
-	efi_load_initrd(image, &initrd_addr, &initrd_size, ULONG_MAX,
-			efi_get_max_initrd_addr(image_addr));
+	efi_load_initrd(image, ULONG_MAX, efi_get_max_initrd_addr(image_addr),
+			NULL);
 
 	efi_random_get_seed();
 
@@ -292,11 +290,10 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 	install_memreserve_table();
 
-	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr,
-						initrd_addr, initrd_size,
-						cmdline_ptr, fdt_addr, fdt_size);
+	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr, cmdline_ptr,
+						fdt_addr, fdt_size);
 	if (status != EFI_SUCCESS)
-		goto fail_free_initrd;
+		goto fail_free_fdt;
 
 	if (IS_ENABLED(CONFIG_ARM))
 		efi_handle_post_ebs_state();
@@ -304,10 +301,9 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	efi_enter_kernel(image_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
 	/* not reached */
 
-fail_free_initrd:
+fail_free_fdt:
 	efi_err("Failed to update FDT and exit boot services\n");
 
-	efi_free(initrd_size, initrd_addr);
 	efi_free(fdt_size, fdt_addr);
 
 fail_free_image:

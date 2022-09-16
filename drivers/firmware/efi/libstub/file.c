@@ -238,6 +238,9 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 
 	if (volume)
 		volume->close(volume);
+
+	if (*load_size == 0)
+		return EFI_NOT_READY;
 	return EFI_SUCCESS;
 
 err_close_file:

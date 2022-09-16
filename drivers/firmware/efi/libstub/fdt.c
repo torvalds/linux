@@ -28,8 +28,7 @@ static void fdt_update_cell_size(void *fdt)
 }
 
 static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
-			       void *fdt, int new_fdt_size, char *cmdline_ptr,
-			       u64 initrd_addr, u64 initrd_size)
+			       void *fdt, int new_fdt_size, char *cmdline_ptr)
 {
 	int node, num_rsv;
 	int status;
@@ -89,21 +88,6 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 	if (cmdline_ptr != NULL && strlen(cmdline_ptr) > 0) {
 		status = fdt_setprop(fdt, node, "bootargs", cmdline_ptr,
 				     strlen(cmdline_ptr) + 1);
-		if (status)
-			goto fdt_set_fail;
-	}
-
-	/* Set initrd address/end in device tree, if present */
-	if (initrd_size != 0) {
-		u64 initrd_image_end;
-		u64 initrd_image_start = cpu_to_fdt64(initrd_addr);
-
-		status = fdt_setprop_var(fdt, node, "linux,initrd-start", initrd_image_start);
-		if (status)
-			goto fdt_set_fail;
-
-		initrd_image_end = cpu_to_fdt64(initrd_addr + initrd_size);
-		status = fdt_setprop_var(fdt, node, "linux,initrd-end", initrd_image_end);
 		if (status)
 			goto fdt_set_fail;
 	}
@@ -226,22 +210,18 @@ static efi_status_t exit_boot_func(struct efi_boot_memmap *map, void *priv)
 #endif
 
 /*
- * Allocate memory for a new FDT, then add EFI, commandline, and
- * initrd related fields to the FDT.  This routine increases the
- * FDT allocation size until the allocated memory is large
- * enough.  EFI allocations are in EFI_PAGE_SIZE granules,
- * which are fixed at 4K bytes, so in most cases the first
- * allocation should succeed.
- * EFI boot services are exited at the end of this function.
- * There must be no allocations between the get_memory_map()
- * call and the exit_boot_services() call, so the exiting of
- * boot services is very tightly tied to the creation of the FDT
- * with the final memory map in it.
+ * Allocate memory for a new FDT, then add EFI and commandline related fields
+ * to the FDT.  This routine increases the FDT allocation size until the
+ * allocated memory is large enough.  EFI allocations are in EFI_PAGE_SIZE
+ * granules, which are fixed at 4K bytes, so in most cases the first allocation
+ * should succeed.  EFI boot services are exited at the end of this function.
+ * There must be no allocations between the get_memory_map() call and the
+ * exit_boot_services() call, so the exiting of boot services is very tightly
+ * tied to the creation of the FDT with the final memory map in it.
  */
 
 efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 					    unsigned long *new_fdt_addr,
-					    u64 initrd_addr, u64 initrd_size,
 					    char *cmdline_ptr,
 					    unsigned long fdt_addr,
 					    unsigned long fdt_size)
@@ -269,8 +249,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	}
 
 	status = update_fdt((void *)fdt_addr, fdt_size,
-			    (void *)*new_fdt_addr, MAX_FDT_SIZE, cmdline_ptr,
-			    initrd_addr, initrd_size);
+			    (void *)*new_fdt_addr, MAX_FDT_SIZE, cmdline_ptr);
 
 	if (status != EFI_SUCCESS) {
 		efi_err("Unable to construct new device tree.\n");

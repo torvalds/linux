@@ -1330,6 +1330,11 @@ struct linux_efi_coco_secret_area {
 	u64	size;
 };
 
+struct linux_efi_initrd {
+	unsigned long	base;
+	unsigned long	size;
+};
+
 /* Header of a populated EFI secret area */
 #define EFI_SECRET_TABLE_HEADER_GUID	EFI_GUID(0x1e74f542, 0x71dd, 0x4d66,  0x96, 0x3e, 0xef, 0x42, 0x87, 0xff, 0x17, 0x3b)
 
