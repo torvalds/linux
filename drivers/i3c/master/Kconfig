@@ -43,3 +43,17 @@ config MIPI_I3C_HCI
 
 	  This driver can also be built as a module.  If so, the module will be
 	  called mipi-i3c-hci.
+
+
+config I3C_MASTER_MSM_GENI
+	tristate "Qualcomm Technologies Inc.'s GENI based I3C controller"
+	depends on ARCH_QCOM
+	depends on I3C
+	depends on QCOM_GENI_SE
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in I3C interface on the Qualcomm Technologies Inc SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i3c-master-msm-geni.
+
