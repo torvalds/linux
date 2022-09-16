@@ -344,6 +344,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->mes.ucode_fw_version[1];
 		fw_info->feature = 0;
 		break;
+	case AMDGPU_INFO_FW_IMU:
+		fw_info->ver = adev->gfx.imu_fw_version;
+		fw_info->feature = 0;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1519,6 +1523,15 @@ static int amdgpu_debugfs_firmware_info_show(struct seq_file *m, void *unused)
 		seq_printf(m, "MEC2 feature version: %u, firmware version: 0x%08x\n",
 			   fw_info.feature, fw_info.ver);
 	}
+
+	/* IMU */
+	query_fw.fw_type = AMDGPU_INFO_FW_IMU;
+	query_fw.index = 0;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "IMU feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
 
 	/* PSP SOS */
 	query_fw.fw_type = AMDGPU_INFO_FW_SOS;
