@@ -6,6 +6,7 @@
 
 struct ltc2497_chip_info {
 	u32 resolution;
+	const char *name;
 };
 
 struct ltc2497core_driverdata {

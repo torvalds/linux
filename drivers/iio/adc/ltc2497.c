@@ -140,9 +140,11 @@ static int ltc2497_remove(struct i2c_client *client)
 static const struct ltc2497_chip_info ltc2497_info[] = {
 	[TYPE_LTC2497] = {
 		.resolution = 16,
+		.name = NULL,
 	},
 	[TYPE_LTC2499] = {
 		.resolution = 24,
+		.name = "ltc2499",
 	},
 };
 

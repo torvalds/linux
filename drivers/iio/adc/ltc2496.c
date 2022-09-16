@@ -89,6 +89,7 @@ static void ltc2496_remove(struct spi_device *spi)
 
 static const struct ltc2497_chip_info ltc2496_info = {
 	.resolution = 16,
+	.name = NULL,
 };
 
 static const struct of_device_id ltc2496_of_match[] = {
