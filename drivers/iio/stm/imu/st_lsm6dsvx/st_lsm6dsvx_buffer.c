@@ -515,6 +515,9 @@ static irqreturn_t st_lsm6dsvx_handler_thread(int irq, void *private)
 {
 	struct st_lsm6dsvx_hw *hw = (struct st_lsm6dsvx_hw *)private;
 
+	if (st_lsm6dsvx_run_mlc_task(hw))
+		st_lsm6dsvx_mlc_check_status(hw);
+
 	mutex_lock(&hw->fifo_lock);
 	st_lsm6dsvx_read_fifo(hw);
 	clear_bit(ST_LSM6DSVX_HW_FLUSH, &hw->state);

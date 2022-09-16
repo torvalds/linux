@@ -40,4 +40,12 @@ config IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	help
 	  Enable support to QVAR sensor on internal HW FIFO
 
+config IIO_ST_LSM6DSVX_MLC_PRELOAD
+	bool "Preload some examples on MLC/FSM core"
+	depends on IIO_ST_LSM6DSVX
+	help
+	  Select yes if you want to preload some examples on machine learning core
+	  and finite state machine.
 
+	  The examples code is a motion intensity recognition and is hardcoded in the
+	  driver in the mlcdata structure.

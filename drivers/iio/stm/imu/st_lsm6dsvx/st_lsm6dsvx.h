@@ -86,6 +86,9 @@
 
 #define ST_LSM6DSVX_REG_OUT_QVAR_ADDR		0x3a
 
+#define ST_LSM6DSVX_REG_FSM_STATUS_MAINPAGE_ADDR	0x4a
+#define ST_LSM6DSVX_REG_MLC_STATUS_MAINPAGE_ADDR	0x4b
+
 #define ST_LSM6DSVX_REG_INTERNAL_FREQ_FINE	0x4f
 
 #define ST_LSM6DSVX_REG_FUNCTIONS_ENABLE_ADDR	0x50
@@ -97,6 +100,43 @@
 #define ST_LSM6DSVX_REG_TIMESTAMP2_ADDR		0x42
 
 #define ST_LSM6DSVX_REG_FIFO_DATA_OUT_TAG_ADDR	0x78
+
+/* embedded function registers */
+#define ST_LSM6DSVX_REG_PAGE_SEL_ADDR		0x02
+
+#define ST_LSM6DSVX_REG_EMB_FUNC_EN_A_ADDR	0x04
+#define ST_LSM6DSVX_REG_EMB_FUNC_EN_B_ADDR	0x05
+#define ST_LSM6DSVX_MLC_EN_MASK			BIT(4)
+#define ST_LSM6DSVX_FSM_EN_MASK			BIT(0)
+
+#define ST_LSM6DSVX_REG_PAGE_ADDRESS_ADDR	0x08
+#define ST_LSM6DSVX_REG_PAGE_VALUE_ADDR		0x09
+
+#define ST_LSM6DSVX_REG_FSM_INT1_ADDR		0x0b
+#define ST_LSM6DSVX_REG_MLC_INT1_ADDR		0x0d
+#define ST_LSM6DSVX_REG_FSM_INT2_ADDR		0x0f
+#define ST_LSM6DSVX_REG_MLC_INT2_ADDR		0x11
+
+#define ST_LSM6DSVX_REG_FSM_STATUS_ADDR		0x13
+#define ST_LSM6DSVX_REG_MLC_STATUS_ADDR		0x15
+
+#define ST_LSM6DSVX_REG_PAGE_RW_ADDR		0x17
+
+#define ST_LSM6DSVX_REG_FSM_ENABLE_ADDR		0x46
+
+#define ST_LSM6DSVX_REG_FSM_OUTS1_ADDR		0x4c
+
+#define ST_LSM6DSVX_REG_FSM_ODR_ADDR		0x5f
+#define ST_LSM6DSVX_FSM_ODR_MASK		GENMASK(5, 3)
+
+#define ST_LSM6DSVX_REG_MLC_ODR_ADDR		0x60
+#define ST_LSM6DSVX_MLC_ODR_MASK		GENMASK(6, 4)
+
+#define ST_LSM6DSVX_REG_EMB_FUNC_INIT_B_ADDR	0x67
+#define ST_LSM6DSVX_MLC_INIT_MASK		BIT(4)
+#define ST_LSM6DSVX_FSM_INIT_MASK		BIT(0)
+
+#define ST_LSM6DSVX_REG_MLC1_SRC_ADDR		0x70
 
 /* SHUB */
 #define ST_LSM6DSVX_REG_SENSOR_HUB_1_ADDR	0x02
@@ -222,11 +262,43 @@ enum st_lsm6dsvx_hw_id {
 	ST_LSM6DSVX_MAX_ID,
 };
 
+enum st_lsm6dsvx_fsm_mlc_enable_id {
+	ST_LSM6DSVX_MLC_FSM_DISABLED = 0,
+	ST_LSM6DSVX_MLC_ENABLED = BIT(0),
+	ST_LSM6DSVX_FSM_ENABLED = BIT(1),
+};
+
+/**
+ * struct mlc_config_t - MLC/FSM configuration report struct
+ * @mlc_int_addr: interrupt register address.
+ * @mlc_int_mask: interrupt register mask.
+ * @fsm_int_addr: interrupt register address.
+ * @fsm_int_mask: interrupt register mask.
+ * @mlc_configured: number of mlc configured.
+ * @fsm_configured: number of fsm configured.
+ * @bin_len: fw binary size.
+ * @requested_odr: Min ODR requested to works properly.
+ * @status: MLC / FSM enabled status.
+ */
+struct st_lsm6dsvx_mlc_config_t {
+	uint8_t mlc_int_addr;
+	uint8_t mlc_int_mask;
+	uint8_t fsm_int_addr;
+	uint8_t fsm_int_mask;
+	uint8_t mlc_configured;
+	uint8_t fsm_configured;
+	uint16_t bin_len;
+	uint16_t requested_odr;
+	enum st_lsm6dsvx_fsm_mlc_enable_id status;
+};
+
 /**
  * struct st_lsm6dsvx_settings - ST IMU sensor settings
  * @hw_id: Hw id supported by the driver configuration.
  * @name: Device name supported by the driver configuration.
  * @st_qvar_probe: flag to indicate if QVAR feature is supported.
+ * @st_mlc_probe: MLC probe flag, indicate if MLC feature is supported.
+ * @st_fsm_probe: FSM probe flag, indicate if FSM feature is supported.
  */
 struct st_lsm6dsvx_settings {
 	struct {
@@ -235,6 +307,8 @@ struct st_lsm6dsvx_settings {
 	} id;
 
 	bool st_qvar_probe;
+	bool st_mlc_probe;
+	bool st_fsm_probe;
 };
 
 enum st_lsm6dsvx_sensor_id {
@@ -243,6 +317,19 @@ enum st_lsm6dsvx_sensor_id {
 	ST_LSM6DSVX_ID_QVAR,
 	ST_LSM6DSVX_ID_EXT0,
 	ST_LSM6DSVX_ID_EXT1,
+	ST_LSM6DSVX_ID_MLC,
+	ST_LSM6DSVX_ID_MLC_0,
+	ST_LSM6DSVX_ID_MLC_1,
+	ST_LSM6DSVX_ID_MLC_2,
+	ST_LSM6DSVX_ID_MLC_3,
+	ST_LSM6DSVX_ID_FSM_0,
+	ST_LSM6DSVX_ID_FSM_1,
+	ST_LSM6DSVX_ID_FSM_2,
+	ST_LSM6DSVX_ID_FSM_3,
+	ST_LSM6DSVX_ID_FSM_4,
+	ST_LSM6DSVX_ID_FSM_5,
+	ST_LSM6DSVX_ID_FSM_6,
+	ST_LSM6DSVX_ID_FSM_7,
 	ST_LSM6DSVX_ID_MAX,
 };
 
@@ -252,6 +339,44 @@ st_lsm6dsvx_main_sensor_list[] = {
 	[1] = ST_LSM6DSVX_ID_ACC,
 };
 
+/**
+ * The mlc only sensor list used by mlc loader
+ */
+static const enum st_lsm6dsvx_sensor_id
+st_lsm6dsvx_mlc_sensor_list[] = {
+	 [0] = ST_LSM6DSVX_ID_MLC_0,
+	 [1] = ST_LSM6DSVX_ID_MLC_1,
+	 [2] = ST_LSM6DSVX_ID_MLC_2,
+	 [3] = ST_LSM6DSVX_ID_MLC_3,
+};
+
+/**
+ * The fsm only sensor list used by mlc loader
+ */
+static const enum st_lsm6dsvx_sensor_id
+st_lsm6dsvx_fsm_sensor_list[] = {
+	 [0] = ST_LSM6DSVX_ID_FSM_0,
+	 [1] = ST_LSM6DSVX_ID_FSM_1,
+	 [2] = ST_LSM6DSVX_ID_FSM_2,
+	 [3] = ST_LSM6DSVX_ID_FSM_3,
+	 [4] = ST_LSM6DSVX_ID_FSM_4,
+	 [5] = ST_LSM6DSVX_ID_FSM_5,
+	 [6] = ST_LSM6DSVX_ID_FSM_6,
+	 [7] = ST_LSM6DSVX_ID_FSM_7,
+};
+
+#define ST_LSM6DSVX_ID_ALL_FSM_MLC (BIT(ST_LSM6DSVX_ID_MLC_0)  | \
+				    BIT(ST_LSM6DSVX_ID_MLC_1)  | \
+				    BIT(ST_LSM6DSVX_ID_MLC_2)  | \
+				    BIT(ST_LSM6DSVX_ID_MLC_3)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_0)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_1)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_2)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_3)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_4)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_5)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_6)  | \
+				    BIT(ST_LSM6DSVX_ID_FSM_7))
 enum st_lsm6dsvx_fifo_mode {
 	ST_LSM6DSVX_FIFO_BYPASS = 0x0,
 	ST_LSM6DSVX_FIFO_CONT = 0x6,
@@ -262,9 +387,10 @@ enum {
 	ST_LSM6DSVX_HW_OPERATIONAL,
 };
 
-/* sensor devices that can wakeup the target */
+/* sensor devices that can wake-up the target */
 #define  ST_LSM6DSVX_WAKE_UP_SENSORS (BIT(ST_LSM6DSVX_ID_GYRO) | \
-				      BIT(ST_LSM6DSVX_ID_ACC))
+				      BIT(ST_LSM6DSVX_ID_ACC)  | \
+				      ST_LSM6DSVX_ID_ALL_FSM_MLC)
 
 /**
  * struct st_lsm6dsvx_sensor - ST IMU sensor instance
@@ -272,9 +398,9 @@ enum {
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_lsm6dsvx_hw.
  * @ext_dev_info: Sensor hub i2c slave settings.
- * @gain: Configured sensor sensitivity.
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
+ * @gain: Configured sensor sensitivity.
  * @hr_timer: hr timer for qvar.
  * @iio_work: iio work for qvar.
  * @oldktime: hr timeout for qvar.
@@ -286,6 +412,9 @@ enum {
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
  * @batch_reg: Batching register info (addr + mask).
+ * @status_reg: MLC/FSM IIO event sensor status register.
+ * @outreg_addr: MLC/FSM IIO event sensor output register.
+ * @status: MLC/FSM enabled IIO event sensor status.
  */
 struct st_lsm6dsvx_sensor {
 	char name[32];
@@ -294,32 +423,45 @@ struct st_lsm6dsvx_sensor {
 
 	struct st_lsm6dsvx_ext_dev_info ext_dev_info;
 
-	u32 gain;
 	int odr;
 	int uodr;
 
+	union {
+		struct {
+			/* data sensors */
+			u32 gain;
+
 #ifndef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
-	struct hrtimer hr_timer;
-	struct work_struct iio_work;
-	ktime_t oldktime;
-	s64 timestamp;
+			struct hrtimer hr_timer;
+			struct work_struct iio_work;
+			ktime_t oldktime;
+			s64 timestamp;
 #endif /* !CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
 
-	u8 std_samples;
-	u8 std_level;
+			u8 std_samples;
+			u8 std_level;
 
-	u8 decimator;
-	u8 dec_counter;
+			u8 decimator;
+			u8 dec_counter;
 
-	u16 max_watermark;
-	u16 watermark;
+			u16 max_watermark;
+			u16 watermark;
 
-	struct st_lsm6dsvx_reg batch_reg;
+			struct st_lsm6dsvx_reg batch_reg;
+		};
+
+		struct {
+			/* mlc or fsm sensor */
+			uint8_t status_reg;
+			uint8_t outreg_addr;
+			enum st_lsm6dsvx_fsm_mlc_enable_id status;
+		};
+	};
 };
 
 /**
  * struct st_lsm6dsvx_hw - ST IMU MEMS hw instance
- * @dev: Pointer to instance of struct device (I2C / SPI / I3C).
+ * @dev: Pointer to instance of device struct (I2C / SPI / I3C).
  * @irq: Device interrupt line (I2C / SPI / I3C).
  * @regmap: regmap structure pointer.
  * @lock: Mutex to protect read and write operations.
@@ -328,6 +470,7 @@ struct st_lsm6dsvx_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
+ * @int_pin: selected interrupt pin from configuration.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
  * @ts_offset: Hw timestamp offset.
  * @ts_delta_ns: Calibrated delta timestamp.
@@ -341,6 +484,8 @@ struct st_lsm6dsvx_sensor {
  * @orientation: Sensor orientation matrix.
  * @vdd_supply: Voltage regulator for VDD.
  * @vddio_supply: Voltage regulator for VDDIIO.
+ * @mlc_config: MLC/FSM data register structure.
+ * @preload_mlc: MLC/FSM preload flag.
  * @qvar_workqueue: QVAR workqueue (if enabled in Kconfig).
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: ST IMU sensor settings.
@@ -356,6 +501,7 @@ struct st_lsm6dsvx_hw {
 	enum st_lsm6dsvx_fifo_mode fifo_mode;
 	unsigned long state;
 	u32 enable_mask;
+	u8 int_pin;
 
 	u8 ext_data_len;
 
@@ -372,6 +518,8 @@ struct st_lsm6dsvx_hw {
 	struct iio_mount_matrix orientation;
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
+	struct st_lsm6dsvx_mlc_config_t *mlc_config;
+	bool preload_mlc;
 	struct workqueue_struct *qvar_workqueue;
 	struct iio_dev *iio_devs[ST_LSM6DSVX_ID_MAX];
 
@@ -443,6 +591,11 @@ static inline int st_lsm6dsvx_set_page_access(struct st_lsm6dsvx_hw *hw,
 				  ST_LSM6DSVX_SHIFT_VAL(data, mask));
 }
 
+static inline bool st_lsm6dsvx_run_mlc_task(struct st_lsm6dsvx_hw *hw)
+{
+	return hw->settings->st_mlc_probe || hw->settings->st_fsm_probe;
+}
+
 static inline bool
 st_lsm6dsvx_is_fifo_enabled(struct st_lsm6dsvx_hw *hw)
 {
@@ -493,5 +646,10 @@ int
 st_lsm6dsvx_qvar_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
 				   bool enable);
 int st_lsm6dsvx_qvar_remove(struct device *dev);
+
+int st_lsm6dsvx_mlc_probe(struct st_lsm6dsvx_hw *hw);
+int st_lsm6dsvx_mlc_remove(struct device *dev);
+int st_lsm6dsvx_mlc_check_status(struct st_lsm6dsvx_hw *hw);
+int st_lsm6dsvx_mlc_init_preload(struct st_lsm6dsvx_hw *hw);
 
 #endif /* ST_LSM6DSVX_H */

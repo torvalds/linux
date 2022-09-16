@@ -33,6 +33,8 @@ static const struct st_lsm6dsvx_settings st_lsm6dsvx_sensor_settings[] = {
 			.name = ST_LSM6DSV16X_DEV_NAME,
 		},
 		.st_qvar_probe = true,
+		.st_mlc_probe = true,
+		.st_fsm_probe = true,
 	},
 };
 
@@ -379,6 +381,18 @@ static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 	case ST_LSM6DSVX_ID_QVAR:
 	case ST_LSM6DSVX_ID_EXT0:
 	case ST_LSM6DSVX_ID_EXT1:
+	case ST_LSM6DSVX_ID_FSM_0:
+	case ST_LSM6DSVX_ID_FSM_1:
+	case ST_LSM6DSVX_ID_FSM_2:
+	case ST_LSM6DSVX_ID_FSM_3:
+	case ST_LSM6DSVX_ID_FSM_4:
+	case ST_LSM6DSVX_ID_FSM_5:
+	case ST_LSM6DSVX_ID_FSM_6:
+	case ST_LSM6DSVX_ID_FSM_7:
+	case ST_LSM6DSVX_ID_MLC_0:
+	case ST_LSM6DSVX_ID_MLC_1:
+	case ST_LSM6DSVX_ID_MLC_2:
+	case ST_LSM6DSVX_ID_MLC_3:
 	case ST_LSM6DSVX_ID_ACC: {
 		int odr;
 		int i;
@@ -689,7 +703,7 @@ static int st_lsm6dsvx_of_get_pin(struct st_lsm6dsvx_hw *hw, int *pin)
 static int st_lsm6dsvx_get_int_reg(struct st_lsm6dsvx_hw *hw,
 				   u8 *drdy_reg, u8 *ef_irq_reg)
 {
-	int err = 0, int_pin;
+	int int_pin;
 
 	if (st_lsm6dsvx_of_get_pin(hw, &int_pin) < 0) {
 		struct st_sensors_platform_data *pdata;
@@ -708,11 +722,13 @@ static int st_lsm6dsvx_get_int_reg(struct st_lsm6dsvx_hw *hw,
 		break;
 	default:
 		dev_err(hw->dev, "unsupported interrupt pin\n");
-		err = -EINVAL;
-		break;
+
+		return -EINVAL;
 	}
 
-	return err;
+	hw->int_pin = int_pin;
+
+	return 0;
 }
 
 static int st_lsm6dsvx_reset_device(struct st_lsm6dsvx_hw *hw)
@@ -840,6 +856,7 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 	}
 
 	iio_dev->name = sensor->name;
+	st_lsm6dsvx_set_full_scale(sensor, sensor->gain);
 
 	return iio_dev;
 }
@@ -987,11 +1004,23 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
+	if (st_lsm6dsvx_run_mlc_task(hw)) {
+		err = st_lsm6dsvx_mlc_probe(hw);
+		if (err < 0)
+			return err;
+	}
+
 	for (i = 0; i < ST_LSM6DSVX_ID_MAX; i++) {
 		if (!hw->iio_devs[i])
 			continue;
 
 		err = devm_iio_device_register(hw->dev, hw->iio_devs[i]);
+		if (err)
+			return err;
+	}
+
+	if (st_lsm6dsvx_run_mlc_task(hw)) {
+		err = st_lsm6dsvx_mlc_init_preload(hw);
 		if (err)
 			return err;
 	}
