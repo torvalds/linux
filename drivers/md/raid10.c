@@ -990,17 +990,17 @@ static bool wait_barrier(struct r10conf *conf, bool nowait)
 
 	spin_lock_irq(&conf->resync_lock);
 	if (conf->barrier) {
-		conf->nr_waiting++;
 		/* Return false when nowait flag is set */
 		if (nowait) {
 			ret = false;
 		} else {
+			conf->nr_waiting++;
 			raid10_log(conf->mddev, "wait barrier");
 			wait_event_lock_irq(conf->wait_barrier,
 					    stop_waiting_barrier(conf),
 					    conf->resync_lock);
+			conf->nr_waiting--;
 		}
-		conf->nr_waiting--;
 		if (!conf->nr_waiting)
 			wake_up(&conf->wait_barrier);
 	}
