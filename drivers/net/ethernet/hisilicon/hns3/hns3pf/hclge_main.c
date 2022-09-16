@@ -6628,9 +6628,6 @@ static void hclge_clear_fd_rules_in_list(struct hclge_dev *hdev,
 	struct hlist_node *node;
 	u16 location;
 
-	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
-		return;
-
 	spin_lock_bh(&hdev->fd_rule_lock);
 
 	for_each_set_bit(location, hdev->fd_bmap,
@@ -6655,6 +6652,9 @@ static void hclge_clear_fd_rules_in_list(struct hclge_dev *hdev,
 
 static void hclge_del_all_fd_entries(struct hclge_dev *hdev)
 {
+	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
+		return;
+
 	hclge_clear_fd_rules_in_list(hdev, true);
 	hclge_fd_disable_user_def(hdev);
 }
@@ -7488,6 +7488,9 @@ out:
 
 static void hclge_sync_fd_table(struct hclge_dev *hdev)
 {
+	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
+		return;
+
 	if (test_and_clear_bit(HCLGE_STATE_FD_CLEAR_ALL, &hdev->state)) {
 		bool clear_list = hdev->fd_active_type == HCLGE_FD_ARFS_ACTIVE;
 
