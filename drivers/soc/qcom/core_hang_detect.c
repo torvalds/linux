@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2016, 2018, 2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -254,9 +255,10 @@ static int msm_hang_detect_probe(struct platform_device *pdev)
 	struct device_node *cpu_node;
 	struct device_node *node = pdev->dev.of_node;
 	struct hang_detect *hang_det = NULL;
-	int cpu, ret, cpu_count = 0, num_regs = 0;
+	int cpu, ret, cpu_count = 0, num_regs = 0, cluster_cpu_count = 0;
 	const char *name;
 	u32 *treg, *creg;
+	u32 fw_cluster_id;
 
 	if (!pdev->dev.of_node || !enable)
 		return -ENODEV;
@@ -318,6 +320,27 @@ static int msm_hang_detect_probe(struct platform_device *pdev)
 		kfree(treg);
 		kfree(creg);
 		return -EINVAL;
+	}
+
+	ret = of_property_read_u32(node, "cluster-id", &fw_cluster_id);
+	if (ret) {
+		pr_err("%s: Missing cluster-id.\n", __func__);
+	} else {
+
+		for_each_possible_cpu(cpu) {
+			if (topology_physical_package_id(cpu)
+					== fw_cluster_id) {
+				cluster_cpu_count++;
+				break;
+			}
+		}
+
+		if (cluster_cpu_count == 0) {
+			pr_err("%s: Unable to find any CPU for cluster:%d\n",
+					__func__, fw_cluster_id);
+			return -EINVAL;
+		}
+
 	}
 
 	for_each_possible_cpu(cpu) {
