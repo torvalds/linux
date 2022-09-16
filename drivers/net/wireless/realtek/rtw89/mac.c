@@ -3107,6 +3107,8 @@ static int rtw89_mac_enable_cpu(struct rtw89_dev *rtwdev, u8 boot_reason,
 
 	rtw89_write32(rtwdev, R_AX_HALT_H2C_CTRL, 0);
 	rtw89_write32(rtwdev, R_AX_HALT_C2H_CTRL, 0);
+	rtw89_write32(rtwdev, R_AX_HALT_H2C, 0);
+	rtw89_write32(rtwdev, R_AX_HALT_C2H, 0);
 
 	rtw89_write32_set(rtwdev, R_AX_SYS_CLK_CTRL, B_AX_CPU_CLK_EN);
 
