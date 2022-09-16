@@ -76,6 +76,10 @@
 	};
 };
 
+&nco_clkref {
+	clock-frequency = <1068000000>;
+};
+
 /* PCIe devices */
 &port00 {
 	/* WLAN */
