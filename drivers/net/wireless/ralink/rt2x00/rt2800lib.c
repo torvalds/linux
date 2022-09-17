@@ -8428,6 +8428,53 @@ static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 	rt2800_led_open_drain_enable(rt2x00dev);
 }
 
+static void rt2800_rf_self_txdc_cal(struct rt2x00_dev *rt2x00dev)
+{
+	u8 rfb5r1_org, rfb7r1_org, rfvalue;
+	u32 mac0518, mac051c, mac0528, mac052c;
+	u8 i;
+
+	mac0518 = rt2800_register_read(rt2x00dev, RF_CONTROL0);
+	mac051c = rt2800_register_read(rt2x00dev, RF_BYPASS0);
+	mac0528 = rt2800_register_read(rt2x00dev, RF_CONTROL2);
+	mac052c = rt2800_register_read(rt2x00dev, RF_BYPASS2);
+
+	rt2800_register_write(rt2x00dev, RF_BYPASS0, 0x0);
+	rt2800_register_write(rt2x00dev, RF_BYPASS2, 0x0);
+
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, 0xC);
+	rt2800_register_write(rt2x00dev, RF_BYPASS0, 0x3306);
+	rt2800_register_write(rt2x00dev, RF_CONTROL2, 0x3330);
+	rt2800_register_write(rt2x00dev, RF_BYPASS2, 0xfffff);
+	rfb5r1_org = rt2800_rfcsr_read_bank(rt2x00dev, 5, 1);
+	rfb7r1_org = rt2800_rfcsr_read_bank(rt2x00dev, 7, 1);
+
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 1, 0x4);
+	for (i = 0; i < 100; ++i) {
+		usleep_range(50, 100);
+		rfvalue = rt2800_rfcsr_read_bank(rt2x00dev, 5, 1);
+		if ((rfvalue & 0x04) != 0x4)
+			break;
+	}
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 1, rfb5r1_org);
+
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 1, 0x4);
+	for (i = 0; i < 100; ++i) {
+		usleep_range(50, 100);
+		rfvalue = rt2800_rfcsr_read_bank(rt2x00dev, 7, 1);
+		if ((rfvalue & 0x04) != 0x4)
+			break;
+	}
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 1, rfb7r1_org);
+
+	rt2800_register_write(rt2x00dev, RF_BYPASS0, 0x0);
+	rt2800_register_write(rt2x00dev, RF_BYPASS2, 0x0);
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, mac0518);
+	rt2800_register_write(rt2x00dev, RF_BYPASS0, mac051c);
+	rt2800_register_write(rt2x00dev, RF_CONTROL2, mac0528);
+	rt2800_register_write(rt2x00dev, RF_BYPASS2, mac052c);
+}
+
 static void rt2800_bbp_core_soft_reset(struct rt2x00_dev *rt2x00dev,
 				       bool set_bw, bool is_ht40)
 {
@@ -9035,6 +9082,7 @@ static void rt2800_init_rfcsr_6352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write_dccal(rt2x00dev, 5, 0x00);
 	rt2800_rfcsr_write_dccal(rt2x00dev, 17, 0x7C);
 
+	rt2800_rf_self_txdc_cal(rt2x00dev);
 	rt2800_bw_filter_calibration(rt2x00dev, true);
 	rt2800_bw_filter_calibration(rt2x00dev, false);
 }
