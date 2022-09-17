@@ -363,8 +363,7 @@ static void am65_cpsw_init_host_port_emac(struct am65_cpsw_common *common);
 static void am65_cpsw_init_port_switch_ale(struct am65_cpsw_port *port);
 static void am65_cpsw_init_port_emac_ale(struct am65_cpsw_port *port);
 
-static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common,
-				      netdev_features_t features)
+static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common)
 {
 	struct am65_cpsw_host *host_p = am65_common_get_host(common);
 	int port_idx, i, ret;
@@ -577,7 +576,7 @@ static int am65_cpsw_nuss_ndo_slave_open(struct net_device *ndev)
 	for (i = 0; i < common->tx_ch_num; i++)
 		netdev_tx_reset_queue(netdev_get_tx_queue(ndev, i));
 
-	ret = am65_cpsw_nuss_common_open(common, ndev->features);
+	ret = am65_cpsw_nuss_common_open(common);
 	if (ret)
 		return ret;
 
