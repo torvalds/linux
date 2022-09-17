@@ -709,17 +709,14 @@ cdns_xfer_msg(struct sdw_bus *bus, struct sdw_msg *msg)
 		ret = _cdns_xfer_msg(cdns, msg, cmd, i * CDNS_MCP_CMD_LEN,
 				     CDNS_MCP_CMD_LEN, false);
 		if (ret != SDW_CMD_OK)
-			goto exit;
+			return ret;
 	}
 
 	if (!(msg->len % CDNS_MCP_CMD_LEN))
-		goto exit;
+		return SDW_CMD_OK;
 
-	ret = _cdns_xfer_msg(cdns, msg, cmd, i * CDNS_MCP_CMD_LEN,
-			     msg->len % CDNS_MCP_CMD_LEN, false);
-
-exit:
-	return ret;
+	return _cdns_xfer_msg(cdns, msg, cmd, i * CDNS_MCP_CMD_LEN,
+			      msg->len % CDNS_MCP_CMD_LEN, false);
 }
 EXPORT_SYMBOL(cdns_xfer_msg);
 
