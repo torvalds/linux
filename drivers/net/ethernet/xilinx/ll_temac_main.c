@@ -430,7 +430,8 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 				    (ndev->dev_addr[2] << 16) |
 				    (ndev->dev_addr[3] << 24));
 	/* There are reserved bits in EUAW1
-	 * so don't affect them Set MAC bits [47:32] in EUAW1 */
+	 * so don't affect them Set MAC bits [47:32] in EUAW1
+	 */
 	temac_indirect_out32_locked(lp, XTE_UAW1_OFFSET,
 				    (ndev->dev_addr[4] & 0x000000ff) |
 				    (ndev->dev_addr[5] << 8));
@@ -691,7 +692,8 @@ static void temac_device_reset(struct net_device *ndev)
 	spin_unlock_irqrestore(lp->indirect_lock, flags);
 
 	/* Sync default options with HW
-	 * but leave receiver and transmitter disabled.  */
+	 * but leave receiver and transmitter disabled.
+	 */
 	temac_setoptions(ndev,
 			 lp->options & ~(XTE_OPTION_TXEN | XTE_OPTION_RXEN));
 
