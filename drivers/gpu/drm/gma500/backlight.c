@@ -83,7 +83,7 @@ int gma_backlight_init(struct drm_device *dev)
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	props.brightness = dev_priv->backlight_level;
 	props.max_brightness = PSB_MAX_BRIGHTNESS;
-	props.type = BACKLIGHT_PLATFORM;
+	props.type = BACKLIGHT_RAW;
 
 	dev_priv->backlight_device =
 		backlight_device_register(dev_priv->ops->backlight_name,
