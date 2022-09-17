@@ -709,6 +709,7 @@ static void idxd_groups_clear_state(struct idxd_device *idxd)
 			group->tc_a = -1;
 			group->tc_b = -1;
 		}
+		group->desc_progress_limit = 0;
 	}
 }
 
@@ -765,10 +766,10 @@ static void idxd_group_config_write(struct idxd_group *group)
 
 	/* setup GRPFLAGS */
 	grpcfg_offset = GRPFLGCFG_OFFSET(idxd, group->id);
-	iowrite32(group->grpcfg.flags.bits, idxd->reg_base + grpcfg_offset);
-	dev_dbg(dev, "GRPFLAGS flags[%d: %#x]: %#x\n",
+	iowrite64(group->grpcfg.flags.bits, idxd->reg_base + grpcfg_offset);
+	dev_dbg(dev, "GRPFLAGS flags[%d: %#x]: %#llx\n",
 		group->id, grpcfg_offset,
-		ioread32(idxd->reg_base + grpcfg_offset));
+		ioread64(idxd->reg_base + grpcfg_offset));
 }
 
 static int idxd_groups_config_write(struct idxd_device *idxd)
@@ -929,6 +930,8 @@ static void idxd_group_flags_setup(struct idxd_device *idxd)
 			group->grpcfg.flags.rdbufs_allowed = group->rdbufs_allowed;
 		else
 			group->grpcfg.flags.rdbufs_allowed = idxd->max_rdbufs;
+
+		group->grpcfg.flags.desc_progress_limit = group->desc_progress_limit;
 	}
 }
 
@@ -1111,8 +1114,8 @@ static void idxd_group_load_config(struct idxd_group *group)
 	}
 
 	grpcfg_offset = GRPFLGCFG_OFFSET(idxd, group->id);
-	group->grpcfg.flags.bits = ioread32(idxd->reg_base + grpcfg_offset);
-	dev_dbg(dev, "GRPFLAGS flags[%d: %#x]: %#x\n",
+	group->grpcfg.flags.bits = ioread64(idxd->reg_base + grpcfg_offset);
+	dev_dbg(dev, "GRPFLAGS flags[%d: %#x]: %#llx\n",
 		group->id, grpcfg_offset, group->grpcfg.flags.bits);
 }
 

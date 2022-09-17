@@ -443,6 +443,37 @@ static struct device_attribute dev_attr_group_traffic_class_b =
 		__ATTR(traffic_class_b, 0644, group_traffic_class_b_show,
 		       group_traffic_class_b_store);
 
+static ssize_t group_desc_progress_limit_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%d\n", group->desc_progress_limit);
+}
+
+static ssize_t group_desc_progress_limit_store(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t count)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+	int val, rc;
+
+	rc = kstrtoint(buf, 10, &val);
+	if (rc < 0)
+		return -EINVAL;
+
+	if (val & ~GENMASK(1, 0))
+		return -EINVAL;
+
+	group->desc_progress_limit = val;
+	return count;
+}
+
+static struct device_attribute dev_attr_group_desc_progress_limit =
+		__ATTR(desc_progress_limit, 0644, group_desc_progress_limit_show,
+		       group_desc_progress_limit_store);
+
 static struct attribute *idxd_group_attributes[] = {
 	&dev_attr_group_work_queues.attr,
 	&dev_attr_group_engines.attr,
@@ -454,11 +485,33 @@ static struct attribute *idxd_group_attributes[] = {
 	&dev_attr_group_read_buffers_reserved.attr,
 	&dev_attr_group_traffic_class_a.attr,
 	&dev_attr_group_traffic_class_b.attr,
+	&dev_attr_group_desc_progress_limit.attr,
 	NULL,
 };
 
+static bool idxd_group_attr_progress_limit_invisible(struct attribute *attr,
+						     struct idxd_device *idxd)
+{
+	return attr == &dev_attr_group_desc_progress_limit.attr &&
+	       !idxd->hw.group_cap.progress_limit;
+}
+
+static umode_t idxd_group_attr_visible(struct kobject *kobj,
+				       struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct idxd_group *group = confdev_to_group(dev);
+	struct idxd_device *idxd = group->idxd;
+
+	if (idxd_group_attr_progress_limit_invisible(attr, idxd))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group idxd_group_attribute_group = {
 	.attrs = idxd_group_attributes,
+	.is_visible = idxd_group_attr_visible,
 };
 
 static const struct attribute_group *idxd_group_attribute_groups[] = {
