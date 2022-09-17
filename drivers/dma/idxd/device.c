@@ -391,6 +391,8 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	memset(wq->name, 0, WQ_NAME_SIZE);
 	wq->max_xfer_bytes = WQ_DEFAULT_MAX_XFER;
 	wq->max_batch_size = WQ_DEFAULT_MAX_BATCH;
+	if (wq->opcap_bmap)
+		bitmap_copy(wq->opcap_bmap, idxd->opcap_bmap, IDXD_MAX_OPCAP_BITS);
 }
 
 static void idxd_wq_device_reset_cleanup(struct idxd_wq *wq)
@@ -809,7 +811,7 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
 	u32 wq_offset;
-	int i;
+	int i, n;
 
 	if (!wq->group)
 		return 0;
@@ -866,6 +868,17 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	/* bytes 12-15 */
 	wq->wqcfg->max_xfer_shift = ilog2(wq->max_xfer_bytes);
 	wq->wqcfg->max_batch_shift = ilog2(wq->max_batch_size);
+
+	/* bytes 32-63 */
+	if (idxd->hw.wq_cap.op_config && wq->opcap_bmap) {
+		memset(wq->wqcfg->op_config, 0, IDXD_MAX_OPCAP_BITS / 8);
+		for_each_set_bit(n, wq->opcap_bmap, IDXD_MAX_OPCAP_BITS) {
+			int pos = n % BITS_PER_LONG_LONG;
+			int idx = n / BITS_PER_LONG_LONG;
+
+			wq->wqcfg->op_config[idx] |= BIT(pos);
+		}
+	}
 
 	dev_dbg(dev, "WQ %d CFGs\n", wq->id);
 	for (i = 0; i < WQCFG_STRIDES(idxd); i++) {

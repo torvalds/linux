@@ -54,7 +54,8 @@ union wq_cap_reg {
 		u64 priority:1;
 		u64 occupancy:1;
 		u64 occupancy_int:1;
-		u64 rsvd3:10;
+		u64 op_config:1;
+		u64 rsvd3:9;
 	};
 	u64 bits;
 } __packed;
@@ -350,8 +351,11 @@ union wqcfg {
 
 		/* bytes 28-31 */
 		u32 rsvd8;
+
+		/* bytes 32-63 */
+		u64 op_config[4];
 	};
-	u32 bits[8];
+	u32 bits[16];
 } __packed;
 
 #define WQCFG_PASID_IDX                2

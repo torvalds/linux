@@ -191,6 +191,16 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 			rc = -ENOMEM;
 			goto err;
 		}
+
+		if (idxd->hw.wq_cap.op_config) {
+			wq->opcap_bmap = bitmap_zalloc(IDXD_MAX_OPCAP_BITS, GFP_KERNEL);
+			if (!wq->opcap_bmap) {
+				put_device(conf_dev);
+				rc = -ENOMEM;
+				goto err;
+			}
+			bitmap_copy(wq->opcap_bmap, idxd->opcap_bmap, IDXD_MAX_OPCAP_BITS);
+		}
 		idxd->wqs[i] = wq;
 	}
 

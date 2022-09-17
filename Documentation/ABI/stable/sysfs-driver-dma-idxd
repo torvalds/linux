@@ -227,6 +227,17 @@ Contact:	dmaengine@vger.kernel.org
 Description:	Indicate the number of retires for an enqcmds submission on a sharedwq.
 		A max value to set attribute is capped at 64.
 
+What:		/sys/bus/dsa/devices/wq<m>.<n>/op_config
+Date:		Sept 14, 2022
+KernelVersion:	6.0.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Shows the operation capability bits displayed in bitmap format
+		presented by %*pb printk() output format specifier.
+		The attribute can be configured when the WQ is disabled in
+		order to configure the WQ to accept specific bits that
+		correlates to the operations allowed. It's visible only
+		on platforms that support the capability.
+
 What:           /sys/bus/dsa/devices/engine<m>.<n>/group_id
 Date:           Oct 25, 2019
 KernelVersion:  5.6.0
