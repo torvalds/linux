@@ -32,9 +32,6 @@ extern long kvm_flush_link_stack;
 extern char __start_interrupts[];
 extern char __end_interrupts[];
 
-extern char __prom_init_toc_start[];
-extern char __prom_init_toc_end[];
-
 #ifdef CONFIG_PPC_POWERNV
 extern char start_real_trampolines[];
 extern char end_real_trampolines[];
