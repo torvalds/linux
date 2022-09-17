@@ -169,8 +169,7 @@ static void psb_driver_unload(struct drm_device *dev)
 
 	/* TODO: Kill vblank etc here */
 
-	if (dev_priv->backlight_device)
-		gma_backlight_exit(dev);
+	gma_backlight_exit(dev);
 	psb_modeset_cleanup(dev);
 
 	gma_irq_uninstall(dev);
@@ -413,16 +412,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 out_err:
 	psb_driver_unload(dev);
 	return ret;
-}
-
-static inline void get_brightness(struct backlight_device *bd)
-{
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	if (bd) {
-		bd->props.brightness = bd->ops->get_brightness(bd);
-		backlight_update_status(bd);
-	}
-#endif
 }
 
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
