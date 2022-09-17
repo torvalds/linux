@@ -211,8 +211,13 @@ static int ocelot_reset(struct ocelot *ocelot)
 	int err;
 	u32 val;
 
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_INIT], 1);
+	if (err)
+		return err;
+
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
 
 	/* MEM_INIT is a self-clearing bit. Wait for it to be cleared (should be
 	 * 100us) before enabling the switch core.
@@ -222,10 +227,11 @@ static int ocelot_reset(struct ocelot *ocelot)
 	if (err)
 		return err;
 
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
-	regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
+	err = regmap_field_write(ocelot->regfields[SYS_RESET_CFG_MEM_ENA], 1);
+	if (err)
+		return err;
 
-	return 0;
+	return regmap_field_write(ocelot->regfields[SYS_RESET_CFG_CORE_ENA], 1);
 }
 
 /* Watermark encode
