@@ -529,66 +529,66 @@ static struct temac_option {
 	{
 		.opt = XTE_OPTION_JUMBO,
 		.reg = XTE_RXC1_OFFSET,
-		.m_or =XTE_RXC1_RXJMBO_MASK,
+		.m_or = XTE_RXC1_RXJMBO_MASK,
 	},
 	/* Turn on VLAN packet support for both Rx and Tx */
 	{
 		.opt = XTE_OPTION_VLAN,
 		.reg = XTE_TXC_OFFSET,
-		.m_or =XTE_TXC_TXVLAN_MASK,
+		.m_or = XTE_TXC_TXVLAN_MASK,
 	},
 	{
 		.opt = XTE_OPTION_VLAN,
 		.reg = XTE_RXC1_OFFSET,
-		.m_or =XTE_RXC1_RXVLAN_MASK,
+		.m_or = XTE_RXC1_RXVLAN_MASK,
 	},
 	/* Turn on FCS stripping on receive packets */
 	{
 		.opt = XTE_OPTION_FCS_STRIP,
 		.reg = XTE_RXC1_OFFSET,
-		.m_or =XTE_RXC1_RXFCS_MASK,
+		.m_or = XTE_RXC1_RXFCS_MASK,
 	},
 	/* Turn on FCS insertion on transmit packets */
 	{
 		.opt = XTE_OPTION_FCS_INSERT,
 		.reg = XTE_TXC_OFFSET,
-		.m_or =XTE_TXC_TXFCS_MASK,
+		.m_or = XTE_TXC_TXFCS_MASK,
 	},
 	/* Turn on length/type field checking on receive packets */
 	{
 		.opt = XTE_OPTION_LENTYPE_ERR,
 		.reg = XTE_RXC1_OFFSET,
-		.m_or =XTE_RXC1_RXLT_MASK,
+		.m_or = XTE_RXC1_RXLT_MASK,
 	},
 	/* Turn on flow control */
 	{
 		.opt = XTE_OPTION_FLOW_CONTROL,
 		.reg = XTE_FCC_OFFSET,
-		.m_or =XTE_FCC_RXFLO_MASK,
+		.m_or = XTE_FCC_RXFLO_MASK,
 	},
 	/* Turn on flow control */
 	{
 		.opt = XTE_OPTION_FLOW_CONTROL,
 		.reg = XTE_FCC_OFFSET,
-		.m_or =XTE_FCC_TXFLO_MASK,
+		.m_or = XTE_FCC_TXFLO_MASK,
 	},
 	/* Turn on promiscuous frame filtering (all frames are received ) */
 	{
 		.opt = XTE_OPTION_PROMISC,
 		.reg = XTE_AFM_OFFSET,
-		.m_or =XTE_AFM_EPPRM_MASK,
+		.m_or = XTE_AFM_EPPRM_MASK,
 	},
 	/* Enable transmitter if not already enabled */
 	{
 		.opt = XTE_OPTION_TXEN,
 		.reg = XTE_TXC_OFFSET,
-		.m_or =XTE_TXC_TXEN_MASK,
+		.m_or = XTE_TXC_TXEN_MASK,
 	},
 	/* Enable receiver? */
 	{
 		.opt = XTE_OPTION_RXEN,
 		.reg = XTE_RXC1_OFFSET,
-		.m_or =XTE_RXC1_RXEN_MASK,
+		.m_or = XTE_RXC1_RXEN_MASK,
 	},
 	{}
 };
