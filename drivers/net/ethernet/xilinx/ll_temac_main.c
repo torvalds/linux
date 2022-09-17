@@ -117,8 +117,8 @@ int temac_indirect_busywait(struct temac_local *lp)
 	spin_until_cond(hard_acs_rdy_or_timeout(lp, timeout));
 	if (WARN_ON(!hard_acs_rdy(lp)))
 		return -ETIMEDOUT;
-	else
-		return 0;
+
+	return 0;
 }
 
 /*
@@ -307,11 +307,9 @@ static void temac_dma_bd_release(struct net_device *ndev)
 	for (i = 0; i < lp->rx_bd_num; i++) {
 		if (!lp->rx_skb[i])
 			break;
-		else {
-			dma_unmap_single(ndev->dev.parent, lp->rx_bd_v[i].phys,
-					 XTE_MAX_JUMBO_FRAME_SIZE, DMA_FROM_DEVICE);
-			dev_kfree_skb(lp->rx_skb[i]);
-		}
+		dma_unmap_single(ndev->dev.parent, lp->rx_bd_v[i].phys,
+				 XTE_MAX_JUMBO_FRAME_SIZE, DMA_FROM_DEVICE);
+		dev_kfree_skb(lp->rx_skb[i]);
 	}
 	if (lp->rx_bd_v)
 		dma_free_coherent(ndev->dev.parent,
