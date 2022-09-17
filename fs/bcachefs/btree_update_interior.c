@@ -1003,11 +1003,9 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	if (update_level < BTREE_MAX_DEPTH)
 		nr_nodes[1] += 1;
 
-	if (!bch2_btree_path_upgrade(trans, path, U8_MAX)) {
-		trace_and_count(c, trans_restart_iter_upgrade, trans, _RET_IP_, path);
-		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
+	ret = bch2_btree_path_upgrade(trans, path, U8_MAX);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	if (flags & BTREE_INSERT_GC_LOCK_HELD)
 		lockdep_assert_held(&c->gc_lock);
@@ -2035,9 +2033,9 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 	struct closure cl;
 	int ret = 0;
 
-	if (!btree_node_intent_locked(path, b->c.level) &&
-	    !bch2_btree_path_upgrade(trans, path, b->c.level + 1))
-		return btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
+	ret = bch2_btree_path_upgrade(trans, path, b->c.level + 1);
+	if (ret)
+		return ret;
 
 	closure_init_stack(&cl);
 

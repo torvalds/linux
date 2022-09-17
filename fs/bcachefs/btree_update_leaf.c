@@ -806,7 +806,7 @@ static inline bool have_conflicting_read_lock(struct btree_trans *trans, struct 
 		//	break;
 
 		if (btree_node_read_locked(path, path->level) &&
-		    !bch2_btree_path_upgrade(trans, path, path->level + 1))
+		    !bch2_btree_path_upgrade_noupgrade_sibs(trans, path, path->level + 1))
 			return true;
 	}
 
@@ -1131,11 +1131,9 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	trans_for_each_update(trans, i) {
 		BUG_ON(!i->path->should_be_locked);
 
-		if (unlikely(!bch2_btree_path_upgrade(trans, i->path, i->level + 1))) {
-			trace_and_count(c, trans_restart_upgrade, trans, _RET_IP_, i->path);
-			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
+		ret = bch2_btree_path_upgrade(trans, i->path, i->level + 1);
+		if (unlikely(ret))
 			goto out;
-		}
 
 		BUG_ON(!btree_node_intent_locked(i->path, i->level));
 
