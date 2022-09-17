@@ -48,7 +48,6 @@
 
 &display_subsystem {
 	status = "disabled";
-	ports = <&vopb_out>, <&vopl_out>;
 	logo-memory-region = <&drm_logo>;
 
 	route {

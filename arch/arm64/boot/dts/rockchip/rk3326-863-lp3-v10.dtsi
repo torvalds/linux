@@ -245,10 +245,6 @@
 	status = "okay";
 };
 
-&dsi_in_vopl {
-	status = "disabled";
-};
-
 &route_dsi {
 	connect = <&vopb_out_dsi>;
 	status = "okay";
@@ -797,14 +793,6 @@
 };
 
 &vopb_mmu {
-	status = "okay";
-};
-
-&vopl {
-	status = "okay";
-};
-
-&vopl_mmu {
 	status = "okay";
 };
 

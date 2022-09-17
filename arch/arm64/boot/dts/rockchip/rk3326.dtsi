@@ -10,6 +10,10 @@
 	assigned-clock-rates = <1040000000>;
 };
 
+&display_subsystem {
+	ports = <&vopb_out>;
+};
+
 &gpu_opp_table {
 	opp-520000000 {
 		opp-hz = /bits/ 64 <520000000>;
@@ -76,3 +80,9 @@
 		};
 	};
 };
+
+/delete-node/ &dsi_in_vopl;
+/delete-node/ &lvds_vopl_in;
+/delete-node/ &rgb_in_vopl;
+/delete-node/ &vopl;
+/delete-node/ &vopl_mmu;
