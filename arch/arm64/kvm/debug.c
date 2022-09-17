@@ -32,6 +32,10 @@ static DEFINE_PER_CPU(u64, mdcr_el2);
  *
  * Guest access to MDSCR_EL1 is trapped by the hypervisor and handled
  * after we have restored the preserved value to the main context.
+ *
+ * When single-step is enabled by userspace, we tweak PSTATE.SS on every
+ * guest entry. Preserve PSTATE.SS so we can restore the original value
+ * for the vcpu after the single-step is disabled.
  */
 static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 {
@@ -41,6 +45,9 @@ static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 
 	trace_kvm_arm_set_dreg32("Saved MDSCR_EL1",
 				vcpu->arch.guest_debug_preserved.mdscr_el1);
+
+	vcpu->arch.guest_debug_preserved.pstate_ss =
+					(*vcpu_cpsr(vcpu) & DBG_SPSR_SS);
 }
 
 static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
@@ -51,6 +58,11 @@ static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
 
 	trace_kvm_arm_set_dreg32("Restored MDSCR_EL1",
 				vcpu_read_sys_reg(vcpu, MDSCR_EL1));
+
+	if (vcpu->arch.guest_debug_preserved.pstate_ss)
+		*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
+	else
+		*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
 }
 
 /**

@@ -393,6 +393,7 @@ struct kvm_vcpu_arch {
 	 */
 	struct {
 		u32	mdscr_el1;
+		bool	pstate_ss;
 	} guest_debug_preserved;
 
 	/* vcpu power state */
