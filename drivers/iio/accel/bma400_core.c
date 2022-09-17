@@ -1184,7 +1184,8 @@ static int bma400_activity_event_en(struct bma400_data *data,
 				    enum iio_event_direction dir,
 				    int state)
 {
-	int ret, reg, msk, value, field_value;
+	int ret, reg, msk, value;
+	int field_value = 0;
 
 	switch (dir) {
 	case IIO_EV_DIR_RISING:
