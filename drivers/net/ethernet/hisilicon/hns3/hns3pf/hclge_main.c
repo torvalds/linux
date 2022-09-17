@@ -13107,7 +13107,7 @@ static struct hnae3_ae_algo ae_algo = {
 	.pdev_id_table = ae_algo_pci_tbl,
 };
 
-static int hclge_init(void)
+static int __init hclge_init(void)
 {
 	pr_info("%s is initializing\n", HCLGE_NAME);
 
@@ -13122,7 +13122,7 @@ static int hclge_init(void)
 	return 0;
 }
 
-static void hclge_exit(void)
+static void __exit hclge_exit(void)
 {
 	hnae3_unregister_ae_algo_prepare(&ae_algo);
 	hnae3_unregister_ae_algo(&ae_algo);
