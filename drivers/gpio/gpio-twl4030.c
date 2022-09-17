@@ -465,8 +465,6 @@ static int gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 				REG_GPIO_DEBEN1, 3);
 }
 
-static int gpio_twl4030_remove(struct platform_device *pdev);
-
 static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev,
 				struct twl4030_gpio_platform_data *pdata)
 {
@@ -492,6 +490,18 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev,
 			     &omap_twl_info->pulldowns);
 
 	return omap_twl_info;
+}
+
+/* Cannot use as gpio_twl4030_probe() calls us */
+static int gpio_twl4030_remove(struct platform_device *pdev)
+{
+	struct gpio_twl4030_priv *priv = platform_get_drvdata(pdev);
+
+	gpiochip_remove(&priv->gpio_chip);
+
+	/* REVISIT no support yet for deregistering all the IRQs */
+	WARN_ON(!is_module());
+	return 0;
 }
 
 static int gpio_twl4030_probe(struct platform_device *pdev)
@@ -588,18 +598,6 @@ no_irqs:
 
 out:
 	return ret;
-}
-
-/* Cannot use as gpio_twl4030_probe() calls us */
-static int gpio_twl4030_remove(struct platform_device *pdev)
-{
-	struct gpio_twl4030_priv *priv = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&priv->gpio_chip);
-
-	/* REVISIT no support yet for deregistering all the IRQs */
-	WARN_ON(!is_module());
-	return 0;
 }
 
 static const struct of_device_id twl_gpio_match[] = {
