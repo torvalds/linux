@@ -8607,6 +8607,65 @@ static void rt2800_r_calibration(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, MAC_PWR_PIN_CFG);
 }
 
+static void rt2800_rxdcoc_calibration(struct rt2x00_dev *rt2x00dev)
+{
+	u8 bbpreg = 0;
+	u32 macvalue = 0;
+	u8 saverfb0r2, saverfb5r4, saverfb7r4, rfvalue;
+	int i;
+
+	saverfb0r2 = rt2800_rfcsr_read_bank(rt2x00dev, 0, 2);
+	rfvalue = saverfb0r2;
+	rfvalue |= 0x03;
+	rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, rfvalue);
+
+	rt2800_bbp_write(rt2x00dev, 158, 141);
+	bbpreg = rt2800_bbp_read(rt2x00dev, 159);
+	bbpreg |= 0x10;
+	rt2800_bbp_write(rt2x00dev, 159, bbpreg);
+
+	macvalue = rt2800_register_read(rt2x00dev, MAC_SYS_CTRL);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x8);
+
+	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev, MAC_STATUS_CFG_BBP_RF_BUSY_TX)))
+		rt2x00_warn(rt2x00dev, "RF TX busy in RX RXDCOC calibration\n");
+
+	saverfb5r4 = rt2800_rfcsr_read_bank(rt2x00dev, 5, 4);
+	saverfb7r4 = rt2800_rfcsr_read_bank(rt2x00dev, 7, 4);
+	saverfb5r4 = saverfb5r4 & (~0x40);
+	saverfb7r4 = saverfb7r4 & (~0x40);
+	rt2800_rfcsr_write_dccal(rt2x00dev, 4, 0x64);
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 4, saverfb5r4);
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 4, saverfb7r4);
+
+	rt2800_bbp_write(rt2x00dev, 158, 141);
+	bbpreg = rt2800_bbp_read(rt2x00dev, 159);
+	bbpreg = bbpreg & (~0x40);
+	rt2800_bbp_write(rt2x00dev, 159, bbpreg);
+	bbpreg |= 0x48;
+	rt2800_bbp_write(rt2x00dev, 159, bbpreg);
+
+	for (i = 0; i < 10000; i++) {
+		bbpreg = rt2800_bbp_read(rt2x00dev, 159);
+		if ((bbpreg & 0x40) == 0)
+			break;
+		usleep_range(50, 100);
+	}
+
+	bbpreg = rt2800_bbp_read(rt2x00dev, 159);
+	bbpreg = bbpreg & (~0x40);
+	rt2800_bbp_write(rt2x00dev, 159, bbpreg);
+
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, macvalue);
+
+	rt2800_bbp_write(rt2x00dev, 158, 141);
+	bbpreg = rt2800_bbp_read(rt2x00dev, 159);
+	bbpreg &= (~0x10);
+	rt2800_bbp_write(rt2x00dev, 159, bbpreg);
+
+	rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, saverfb0r2);
+}
+
 static void rt2800_bbp_core_soft_reset(struct rt2x00_dev *rt2x00dev,
 				       bool set_bw, bool is_ht40)
 {
@@ -9216,6 +9275,7 @@ static void rt2800_init_rfcsr_6352(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_r_calibration(rt2x00dev);
 	rt2800_rf_self_txdc_cal(rt2x00dev);
+	rt2800_rxdcoc_calibration(rt2x00dev);
 	rt2800_bw_filter_calibration(rt2x00dev, true);
 	rt2800_bw_filter_calibration(rt2x00dev, false);
 }
