@@ -156,6 +156,7 @@ write_attribute(trigger_gc);
 write_attribute(trigger_discards);
 write_attribute(trigger_invalidates);
 write_attribute(prune_cache);
+write_attribute(btree_wakeup);
 rw_attribute(btree_gc_periodic);
 rw_attribute(gc_gens_pos);
 
@@ -363,6 +364,21 @@ static void bch2_gc_gens_pos_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_printf(out, "\n");
 }
 
+static void bch2_btree_wakeup_all(struct bch_fs *c)
+{
+	struct btree_trans *trans;
+
+	mutex_lock(&c->btree_trans_lock);
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		struct btree_bkey_cached_common *b = READ_ONCE(trans->locking);
+
+		if (b)
+			six_lock_wakeup_all(&b->lock);
+
+	}
+	mutex_unlock(&c->btree_trans_lock);
+}
+
 SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
@@ -482,6 +498,9 @@ STORE(bch2_fs)
 		sc.nr_to_scan = strtoul_or_return(buf);
 		c->btree_cache.shrink.scan_objects(&c->btree_cache.shrink, &sc);
 	}
+
+	if (attr == &sysfs_btree_wakeup)
+		bch2_btree_wakeup_all(c);
 
 	if (attr == &sysfs_trigger_gc) {
 		/*
@@ -614,6 +633,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_discards,
 	&sysfs_trigger_invalidates,
 	&sysfs_prune_cache,
+	&sysfs_btree_wakeup,
 
 	&sysfs_gc_gens_pos,
 
