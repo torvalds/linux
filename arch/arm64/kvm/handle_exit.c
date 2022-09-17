@@ -152,8 +152,14 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 	run->debug.arch.hsr_high = upper_32_bits(esr);
 	run->flags = KVM_DEBUG_ARCH_HSR_HIGH_VALID;
 
-	if (ESR_ELx_EC(esr) == ESR_ELx_EC_WATCHPT_LOW)
+	switch (ESR_ELx_EC(esr)) {
+	case ESR_ELx_EC_WATCHPT_LOW:
 		run->debug.arch.far = vcpu->arch.fault.far_el2;
+		break;
+	case ESR_ELx_EC_SOFTSTP_LOW:
+		vcpu_clear_flag(vcpu, DBG_SS_ACTIVE_PENDING);
+		break;
+	}
 
 	return 0;
 }
