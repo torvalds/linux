@@ -313,10 +313,7 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 	tc_cleanup_offload_action(&cls_mall.rule->action);
 	kfree(cls_mall.rule);
 
-	if (err)
-		return err;
-
-	return 0;
+	return err;
 }
 
 static void mall_stats_hw_filter(struct tcf_proto *tp,
