@@ -149,8 +149,6 @@ static int _rtl92e_wx_force_reset(struct net_device *dev,
 
 	mutex_lock(&priv->wx_mutex);
 
-	RT_TRACE(COMP_DBG, "%s(): force reset ! extra is %d\n",
-		 __func__, *extra);
 	priv->force_reset = *extra;
 	mutex_unlock(&priv->wx_mutex);
 	return 0;
@@ -167,8 +165,6 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 
 	mutex_lock(&priv->wx_mutex);
 
-	RT_TRACE(COMP_POWER, "%s(): %s\n", __func__, (*extra == 6) ?
-		 "DC power" : "AC power");
 	if (*extra || priv->force_lps) {
 		priv->ps_force = false;
 		pPSC->bLeisurePs = true;
@@ -427,9 +423,6 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 					mutex_unlock(&priv->wx_mutex);
 					return -1;
 				}
-				RT_TRACE(COMP_PS,
-					 "=========>%s(): rtl92e_ips_leave\n",
-					 __func__);
 				mutex_lock(&priv->rtllib->ips_mutex);
 				rtl92e_ips_leave(dev);
 				mutex_unlock(&priv->rtllib->ips_mutex);
@@ -681,7 +674,6 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 	mutex_unlock(&priv->rtllib->ips_mutex);
 	mutex_lock(&priv->wx_mutex);
 
-	RT_TRACE(COMP_SEC, "Setting SW wep key");
 	ret = rtllib_wx_set_encode(priv->rtllib, info, wrqu, key);
 	mutex_unlock(&priv->wx_mutex);
 

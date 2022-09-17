@@ -115,10 +115,6 @@ bool rtl92e_config_rf(struct net_device *dev)
 						(enum rf90_radio_path)eRFPath,
 						RegOffSetToBeCheck,
 						bMask12Bits);
-			RT_TRACE(COMP_RF,
-				 "RF %d %d register final value: %x\n",
-				 eRFPath, RegOffSetToBeCheck,
-				 RF3_Final_Value);
 			RetryTimes--;
 		}
 
@@ -142,8 +138,6 @@ bool rtl92e_config_rf(struct net_device *dev)
 			goto fail;
 		}
 	}
-
-	RT_TRACE(COMP_PHY, "PHY Initialization Success\n");
 	return true;
 
 fail:

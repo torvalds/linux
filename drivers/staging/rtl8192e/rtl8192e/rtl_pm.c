@@ -86,7 +86,6 @@ int rtl92e_resume(struct device *dev_d)
 		rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_INIT);
 
 out:
-	RT_TRACE(COMP_POWER, "<================r8192E resume call.\n");
 	return 0;
 }
 

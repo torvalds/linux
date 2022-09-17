@@ -46,10 +46,6 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 		ieee->hwsec_active = 0;
 		SECR_value &= ~SCR_RxDecEnable;
 	}
-
-	RT_TRACE(COMP_SEC, "%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n",
-		 __func__, ieee->hwsec_active, ieee->pairwise_key_type,
-		 SECR_value);
 	rtl92e_writeb(dev, SECR, SECR_value);
 }
 
@@ -59,10 +55,6 @@ void rtl92e_set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
-
-	RT_TRACE(COMP_DBG,
-		 "===========>%s():EntryNo is %d,KeyIndex is %d,KeyType is %d,is_mesh is %d\n",
-		 __func__, EntryNo, KeyIndex, KeyType, is_mesh);
 
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		return;
@@ -107,10 +99,6 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 		return;
 	}
 
-	RT_TRACE(COMP_SEC,
-		 "====>to %s, dev:%p, EntryNo:%d, KeyIndex:%d,KeyType:%d, MacAddr %pM\n",
-		 __func__, dev, EntryNo, KeyIndex, KeyType, MacAddr);
-
 	if (DefaultKey)
 		usConfig |= BIT15 | (KeyType<<2);
 	else
@@ -144,7 +132,6 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 			}
 		}
 	}
-	RT_TRACE(COMP_SEC, "=========>after set key, usconfig:%x\n", usConfig);
 }
 
 void rtl92e_cam_restore(struct net_device *dev)
@@ -162,9 +149,6 @@ void rtl92e_cam_restore(struct net_device *dev)
 	static u8	CAM_CONST_BROAD[] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 	};
-
-	RT_TRACE(COMP_SEC, "%s:\n", __func__);
-
 
 	if ((priv->rtllib->pairwise_key_type == KEY_TYPE_WEP40) ||
 	    (priv->rtllib->pairwise_key_type == KEY_TYPE_WEP104)) {
