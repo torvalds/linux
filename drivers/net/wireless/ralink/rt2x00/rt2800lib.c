@@ -8666,6 +8666,380 @@ static void rt2800_rxdcoc_calibration(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, saverfb0r2);
 }
 
+static u32 rt2800_do_sqrt_accumulation(u32 si)
+{
+	u32 root, root_pre, bit;
+	char i;
+
+	bit = 1 << 15;
+	root = 0;
+	for (i = 15; i >= 0; i = i - 1) {
+		root_pre = root + bit;
+		if ((root_pre * root_pre) <= si)
+			root = root_pre;
+		bit = bit >> 1;
+	}
+
+	return root;
+}
+
+static void rt2800_rxiq_calibration(struct rt2x00_dev *rt2x00dev)
+{
+	u8 rfb0r1, rfb0r2, rfb0r42;
+	u8 rfb4r0, rfb4r19;
+	u8 rfb5r3, rfb5r4, rfb5r17, rfb5r18, rfb5r19, rfb5r20;
+	u8 rfb6r0, rfb6r19;
+	u8 rfb7r3, rfb7r4, rfb7r17, rfb7r18, rfb7r19, rfb7r20;
+
+	u8 bbp1, bbp4;
+	u8 bbpr241, bbpr242;
+	u32 i;
+	u8 ch_idx;
+	u8 bbpval;
+	u8 rfval, vga_idx = 0;
+	int mi = 0, mq = 0, si = 0, sq = 0, riq = 0;
+	int sigma_i, sigma_q, r_iq, g_rx;
+	int g_imb;
+	int ph_rx;
+	u32 savemacsysctrl = 0;
+	u32 orig_RF_CONTROL0 = 0;
+	u32 orig_RF_BYPASS0 = 0;
+	u32 orig_RF_CONTROL1 = 0;
+	u32 orig_RF_BYPASS1 = 0;
+	u32 orig_RF_CONTROL3 = 0;
+	u32 orig_RF_BYPASS3 = 0;
+	u32 bbpval1 = 0;
+	static const u8 rf_vga_table[] = {0x20, 0x21, 0x22, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f};
+
+	savemacsysctrl = rt2800_register_read(rt2x00dev, MAC_SYS_CTRL);
+	orig_RF_CONTROL0 = rt2800_register_read(rt2x00dev, RF_CONTROL0);
+	orig_RF_BYPASS0 = rt2800_register_read(rt2x00dev, RF_BYPASS0);
+	orig_RF_CONTROL1 = rt2800_register_read(rt2x00dev, RF_CONTROL1);
+	orig_RF_BYPASS1 = rt2800_register_read(rt2x00dev, RF_BYPASS1);
+	orig_RF_CONTROL3 = rt2800_register_read(rt2x00dev, RF_CONTROL3);
+	orig_RF_BYPASS3 = rt2800_register_read(rt2x00dev, RF_BYPASS3);
+
+	bbp1 = rt2800_bbp_read(rt2x00dev, 1);
+	bbp4 = rt2800_bbp_read(rt2x00dev, 4);
+
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x0);
+
+	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev, MAC_STATUS_CFG_BBP_RF_BUSY)))
+		rt2x00_warn(rt2x00dev, "Timeout waiting for MAC status in RXIQ calibration\n");
+
+	bbpval = bbp4 & (~0x18);
+	bbpval = bbp4 | 0x00;
+	rt2800_bbp_write(rt2x00dev, 4, bbpval);
+
+	bbpval = rt2800_bbp_read(rt2x00dev, 21);
+	bbpval = bbpval | 1;
+	rt2800_bbp_write(rt2x00dev, 21, bbpval);
+	bbpval = bbpval & 0xfe;
+	rt2800_bbp_write(rt2x00dev, 21, bbpval);
+
+	rt2800_register_write(rt2x00dev, RF_CONTROL1, 0x00000202);
+	rt2800_register_write(rt2x00dev, RF_BYPASS1, 0x00000303);
+	if (test_bit(CAPABILITY_EXTERNAL_PA_TX0, &rt2x00dev->cap_flags))
+		rt2800_register_write(rt2x00dev, RF_CONTROL3, 0x0101);
+	else
+		rt2800_register_write(rt2x00dev, RF_CONTROL3, 0x0000);
+
+	rt2800_register_write(rt2x00dev, RF_BYPASS3, 0xf1f1);
+
+	rfb0r1 = rt2800_rfcsr_read_bank(rt2x00dev, 0, 1);
+	rfb0r2 = rt2800_rfcsr_read_bank(rt2x00dev, 0, 2);
+	rfb0r42 = rt2800_rfcsr_read_bank(rt2x00dev, 0, 42);
+	rfb4r0 = rt2800_rfcsr_read_bank(rt2x00dev, 4, 0);
+	rfb4r19 = rt2800_rfcsr_read_bank(rt2x00dev, 4, 19);
+	rfb5r3 = rt2800_rfcsr_read_bank(rt2x00dev, 5, 3);
+	rfb5r4 = rt2800_rfcsr_read_bank(rt2x00dev, 5, 4);
+	rfb5r17 = rt2800_rfcsr_read_bank(rt2x00dev, 5, 17);
+	rfb5r18 = rt2800_rfcsr_read_bank(rt2x00dev, 5, 18);
+	rfb5r19 = rt2800_rfcsr_read_bank(rt2x00dev, 5, 19);
+	rfb5r20 = rt2800_rfcsr_read_bank(rt2x00dev, 5, 20);
+
+	rfb6r0 = rt2800_rfcsr_read_bank(rt2x00dev, 6, 0);
+	rfb6r19 = rt2800_rfcsr_read_bank(rt2x00dev, 6, 19);
+	rfb7r3 = rt2800_rfcsr_read_bank(rt2x00dev, 7, 3);
+	rfb7r4 = rt2800_rfcsr_read_bank(rt2x00dev, 7, 4);
+	rfb7r17 = rt2800_rfcsr_read_bank(rt2x00dev, 7, 17);
+	rfb7r18 = rt2800_rfcsr_read_bank(rt2x00dev, 7, 18);
+	rfb7r19 = rt2800_rfcsr_read_bank(rt2x00dev, 7, 19);
+	rfb7r20 = rt2800_rfcsr_read_bank(rt2x00dev, 7, 20);
+
+	rt2800_rfcsr_write_chanreg(rt2x00dev, 0, 0x87);
+	rt2800_rfcsr_write_chanreg(rt2x00dev, 19, 0x27);
+	rt2800_rfcsr_write_dccal(rt2x00dev, 3, 0x38);
+	rt2800_rfcsr_write_dccal(rt2x00dev, 4, 0x38);
+	rt2800_rfcsr_write_dccal(rt2x00dev, 17, 0x80);
+	rt2800_rfcsr_write_dccal(rt2x00dev, 18, 0xC1);
+	rt2800_rfcsr_write_dccal(rt2x00dev, 19, 0x60);
+	rt2800_rfcsr_write_dccal(rt2x00dev, 20, 0x00);
+
+	rt2800_bbp_write(rt2x00dev, 23, 0x0);
+	rt2800_bbp_write(rt2x00dev, 24, 0x0);
+
+	rt2800_bbp_dcoc_write(rt2x00dev, 5, 0x0);
+
+	bbpr241 = rt2800_bbp_read(rt2x00dev, 241);
+	bbpr242 = rt2800_bbp_read(rt2x00dev, 242);
+
+	rt2800_bbp_write(rt2x00dev, 241, 0x10);
+	rt2800_bbp_write(rt2x00dev, 242, 0x84);
+	rt2800_bbp_write(rt2x00dev, 244, 0x31);
+
+	bbpval = rt2800_bbp_dcoc_read(rt2x00dev, 3);
+	bbpval = bbpval & (~0x7);
+	rt2800_bbp_dcoc_write(rt2x00dev, 3, bbpval);
+
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, 0x00000004);
+	udelay(1);
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, 0x00000006);
+	usleep_range(1, 200);
+	rt2800_register_write(rt2x00dev, RF_BYPASS0, 0x00003376);
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, 0x00001006);
+	udelay(1);
+	if (test_bit(CAPABILITY_EXTERNAL_PA_TX0, &rt2x00dev->cap_flags)) {
+		rt2800_bbp_write(rt2x00dev, 23, 0x06);
+		rt2800_bbp_write(rt2x00dev, 24, 0x06);
+	} else {
+		rt2800_bbp_write(rt2x00dev, 23, 0x02);
+		rt2800_bbp_write(rt2x00dev, 24, 0x02);
+	}
+
+	for (ch_idx = 0; ch_idx < 2; ch_idx = ch_idx + 1) {
+		if (ch_idx == 0) {
+			rfval = rfb0r1 & (~0x3);
+			rfval = rfb0r1 | 0x1;
+			rt2800_rfcsr_write_bank(rt2x00dev, 0, 1, rfval);
+			rfval = rfb0r2 & (~0x33);
+			rfval = rfb0r2 | 0x11;
+			rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, rfval);
+			rfval = rfb0r42 & (~0x50);
+			rfval = rfb0r42 | 0x10;
+			rt2800_rfcsr_write_bank(rt2x00dev, 0, 42, rfval);
+
+			rt2800_register_write(rt2x00dev, RF_CONTROL0, 0x00001006);
+			udelay(1);
+
+			bbpval = bbp1 & (~0x18);
+			bbpval = bbpval | 0x00;
+			rt2800_bbp_write(rt2x00dev, 1, bbpval);
+
+			rt2800_bbp_dcoc_write(rt2x00dev, 1, 0x00);
+		} else {
+			rfval = rfb0r1 & (~0x3);
+			rfval = rfb0r1 | 0x2;
+			rt2800_rfcsr_write_bank(rt2x00dev, 0, 1, rfval);
+			rfval = rfb0r2 & (~0x33);
+			rfval = rfb0r2 | 0x22;
+			rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, rfval);
+			rfval = rfb0r42 & (~0x50);
+			rfval = rfb0r42 | 0x40;
+			rt2800_rfcsr_write_bank(rt2x00dev, 0, 42, rfval);
+
+			rt2800_register_write(rt2x00dev, RF_CONTROL0, 0x00002006);
+			udelay(1);
+
+			bbpval = bbp1 & (~0x18);
+			bbpval = bbpval | 0x08;
+			rt2800_bbp_write(rt2x00dev, 1, bbpval);
+
+			rt2800_bbp_dcoc_write(rt2x00dev, 1, 0x01);
+		}
+		usleep_range(500, 1500);
+
+		vga_idx = 0;
+		while (vga_idx < 11) {
+			rt2800_rfcsr_write_dccal(rt2x00dev, 3, rf_vga_table[vga_idx]);
+			rt2800_rfcsr_write_dccal(rt2x00dev, 4, rf_vga_table[vga_idx]);
+
+			rt2800_bbp_dcoc_write(rt2x00dev, 0, 0x93);
+
+			for (i = 0; i < 10000; i++) {
+				bbpval = rt2800_bbp_read(rt2x00dev, 159);
+				if ((bbpval & 0xff) == 0x93)
+					usleep_range(50, 100);
+				else
+					break;
+				}
+
+			if ((bbpval & 0xff) == 0x93) {
+				rt2x00_warn(rt2x00dev, "Fatal Error: Calibration doesn't finish");
+				goto restore_value;
+			}
+			for (i = 0; i < 5; i++) {
+				u32 bbptemp = 0;
+				u8 value = 0;
+				int result = 0;
+
+				rt2800_bbp_write(rt2x00dev, 158, 0x1e);
+				rt2800_bbp_write(rt2x00dev, 159, i);
+				rt2800_bbp_write(rt2x00dev, 158, 0x22);
+				value = rt2800_bbp_read(rt2x00dev, 159);
+				bbptemp = bbptemp + (value << 24);
+				rt2800_bbp_write(rt2x00dev, 158, 0x21);
+				value = rt2800_bbp_read(rt2x00dev, 159);
+				bbptemp = bbptemp + (value << 16);
+				rt2800_bbp_write(rt2x00dev, 158, 0x20);
+				value = rt2800_bbp_read(rt2x00dev, 159);
+				bbptemp = bbptemp + (value << 8);
+				rt2800_bbp_write(rt2x00dev, 158, 0x1f);
+				value = rt2800_bbp_read(rt2x00dev, 159);
+				bbptemp = bbptemp + value;
+
+				if (i < 2 && (bbptemp & 0x800000))
+					result = (bbptemp & 0xffffff) - 0x1000000;
+				else if (i == 4)
+					result = bbptemp;
+				else
+					result = bbptemp;
+
+				if (i == 0)
+					mi = result / 4096;
+				else if (i == 1)
+					mq = result / 4096;
+				else if (i == 2)
+					si = bbptemp / 4096;
+				else if (i == 3)
+					sq = bbptemp / 4096;
+				else
+					riq = result / 4096;
+			}
+
+			bbpval1 = si - mi * mi;
+			rt2x00_dbg(rt2x00dev,
+				   "RXIQ si=%d, sq=%d, riq=%d, bbpval %d, vga_idx %d",
+				   si, sq, riq, bbpval1, vga_idx);
+
+			if (bbpval1 >= (100 * 100))
+				break;
+
+			if (bbpval1 <= 100)
+				vga_idx = vga_idx + 9;
+			else if (bbpval1 <= 158)
+				vga_idx = vga_idx + 8;
+			else if (bbpval1 <= 251)
+				vga_idx = vga_idx + 7;
+			else if (bbpval1 <= 398)
+				vga_idx = vga_idx + 6;
+			else if (bbpval1 <= 630)
+				vga_idx = vga_idx + 5;
+			else if (bbpval1 <= 1000)
+				vga_idx = vga_idx + 4;
+			else if (bbpval1 <= 1584)
+				vga_idx = vga_idx + 3;
+			else if (bbpval1 <= 2511)
+				vga_idx = vga_idx + 2;
+			else
+				vga_idx = vga_idx + 1;
+		}
+
+		sigma_i = rt2800_do_sqrt_accumulation(100 * (si - mi * mi));
+		sigma_q = rt2800_do_sqrt_accumulation(100 * (sq - mq * mq));
+		r_iq = 10 * (riq - (mi * mq));
+
+		rt2x00_dbg(rt2x00dev, "Sigma_i=%d, Sigma_q=%d, R_iq=%d", sigma_i, sigma_q, r_iq);
+
+		if (sigma_i <= 1400 && sigma_i >= 1000 &&
+		    (sigma_i - sigma_q) <= 112 &&
+		    (sigma_i - sigma_q) >= -112 &&
+		    mi <= 32 && mi >= -32 &&
+		    mq <= 32 && mq >= -32) {
+			r_iq = 10 * (riq - (mi * mq));
+			rt2x00_dbg(rt2x00dev, "RXIQ Sigma_i=%d, Sigma_q=%d, R_iq=%d\n",
+				   sigma_i, sigma_q, r_iq);
+
+			g_rx = (1000 * sigma_q) / sigma_i;
+			g_imb = ((-2) * 128 * (1000 - g_rx)) / (1000 + g_rx);
+			ph_rx = (r_iq * 2292) / (sigma_i * sigma_q);
+
+			if (ph_rx > 20 || ph_rx < -20) {
+				ph_rx = 0;
+				rt2x00_warn(rt2x00dev, "RXIQ calibration FAIL");
+			}
+
+			if (g_imb > 12 || g_imb < -12) {
+				g_imb = 0;
+				rt2x00_warn(rt2x00dev, "RXIQ calibration FAIL");
+			}
+		} else {
+			g_imb = 0;
+			ph_rx = 0;
+			rt2x00_dbg(rt2x00dev, "RXIQ Sigma_i=%d, Sigma_q=%d, R_iq=%d\n",
+				   sigma_i, sigma_q, r_iq);
+			rt2x00_warn(rt2x00dev, "RXIQ calibration FAIL");
+		}
+
+		if (ch_idx == 0) {
+			rt2800_bbp_write(rt2x00dev, 158, 0x37);
+			rt2800_bbp_write(rt2x00dev, 159, g_imb & 0x3f);
+			rt2800_bbp_write(rt2x00dev, 158, 0x35);
+			rt2800_bbp_write(rt2x00dev, 159, ph_rx & 0x3f);
+		} else {
+			rt2800_bbp_write(rt2x00dev, 158, 0x55);
+			rt2800_bbp_write(rt2x00dev, 159, g_imb & 0x3f);
+			rt2800_bbp_write(rt2x00dev, 158, 0x53);
+			rt2800_bbp_write(rt2x00dev, 159, ph_rx & 0x3f);
+		}
+	}
+
+restore_value:
+	rt2800_bbp_write(rt2x00dev, 158, 0x3);
+	bbpval = rt2800_bbp_read(rt2x00dev, 159);
+	rt2800_bbp_write(rt2x00dev, 159, (bbpval | 0x07));
+
+	rt2800_bbp_write(rt2x00dev, 158, 0x00);
+	rt2800_bbp_write(rt2x00dev, 159, 0x00);
+	rt2800_bbp_write(rt2x00dev, 1, bbp1);
+	rt2800_bbp_write(rt2x00dev, 4, bbp4);
+	rt2800_bbp_write(rt2x00dev, 241, bbpr241);
+	rt2800_bbp_write(rt2x00dev, 242, bbpr242);
+
+	rt2800_bbp_write(rt2x00dev, 244, 0x00);
+	bbpval = rt2800_bbp_read(rt2x00dev, 21);
+	bbpval |= 0x1;
+	rt2800_bbp_write(rt2x00dev, 21, bbpval);
+	usleep_range(10, 200);
+	bbpval &= 0xfe;
+	rt2800_bbp_write(rt2x00dev, 21, bbpval);
+
+	rt2800_rfcsr_write_bank(rt2x00dev, 0, 1, rfb0r1);
+	rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, rfb0r2);
+	rt2800_rfcsr_write_bank(rt2x00dev, 0, 42, rfb0r42);
+
+	rt2800_rfcsr_write_bank(rt2x00dev, 4, 0, rfb4r0);
+	rt2800_rfcsr_write_bank(rt2x00dev, 4, 19, rfb4r19);
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 3, rfb5r3);
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 4, rfb5r4);
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 17, rfb5r17);
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 18, rfb5r18);
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 19, rfb5r19);
+	rt2800_rfcsr_write_bank(rt2x00dev, 5, 20, rfb5r20);
+
+	rt2800_rfcsr_write_bank(rt2x00dev, 6, 0, rfb6r0);
+	rt2800_rfcsr_write_bank(rt2x00dev, 6, 19, rfb6r19);
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 3, rfb7r3);
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 4, rfb7r4);
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 17, rfb7r17);
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 18, rfb7r18);
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 19, rfb7r19);
+	rt2800_rfcsr_write_bank(rt2x00dev, 7, 20, rfb7r20);
+
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, 0x00000006);
+	udelay(1);
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, 0x00000004);
+	udelay(1);
+	rt2800_register_write(rt2x00dev, RF_CONTROL0, orig_RF_CONTROL0);
+	udelay(1);
+	rt2800_register_write(rt2x00dev, RF_BYPASS0, orig_RF_BYPASS0);
+	rt2800_register_write(rt2x00dev, RF_CONTROL1, orig_RF_CONTROL1);
+	rt2800_register_write(rt2x00dev, RF_BYPASS1, orig_RF_BYPASS1);
+	rt2800_register_write(rt2x00dev, RF_CONTROL3, orig_RF_CONTROL3);
+	rt2800_register_write(rt2x00dev, RF_BYPASS3, orig_RF_BYPASS3);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, savemacsysctrl);
+}
+
 static void rt2800_bbp_core_soft_reset(struct rt2x00_dev *rt2x00dev,
 				       bool set_bw, bool is_ht40)
 {
@@ -9278,6 +9652,7 @@ static void rt2800_init_rfcsr_6352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rxdcoc_calibration(rt2x00dev);
 	rt2800_bw_filter_calibration(rt2x00dev, true);
 	rt2800_bw_filter_calibration(rt2x00dev, false);
+	rt2800_rxiq_calibration(rt2x00dev);
 }
 
 static void rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
