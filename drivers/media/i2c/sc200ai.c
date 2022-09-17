@@ -450,8 +450,12 @@ static const struct regval sc200ai_hdr_10_1920x1080_regs[] = {
 	{0x36e9, 0x80},
 	{0x36f9, 0x80},
 	{0x301f, 0x02},
+	//HTS=1100*2=2200
+	{0x320c, 0x04},
+	{0x320d, 0x4c},
+	//VTS =2252
 	{0x320e, 0x08},
-	{0x320f, 0xca},
+	{0x320f, 0xcc},
 	{0x3220, 0x53},
 	{0x3243, 0x01},
 	{0x3248, 0x02},
@@ -476,9 +480,11 @@ static const struct regval sc200ai_hdr_10_1920x1080_regs[] = {
 	{0x331f, 0x61},
 	{0x3320, 0x07},
 	{0x3333, 0x10},
+	{0x3347, 0x77},
 	{0x334c, 0x08},
 	{0x3356, 0x09},
 	{0x3364, 0x17},
+	{0x336c, 0xcc},
 	{0x3390, 0x08},
 	{0x3391, 0x18},
 	{0x3392, 0x38},
@@ -536,7 +542,7 @@ static const struct regval sc200ai_hdr_10_1920x1080_regs[] = {
 	{0x3e16, 0x00},
 	{0x3e17, 0x80},
 	{0x3e23, 0x00},
-	{0x3e24, 0x40},
+	{0x3e24, 0x88},
 	{0x3f09, 0x48},
 	{0x4816, 0xb1},
 	{0x4819, 0x09},
@@ -637,7 +643,7 @@ static const struct sc200ai_mode supported_modes[] = {
 		},
 		.exp_def = 0x0080,
 		.hts_def = 0x44C * 2,
-		.vts_def = 0x08CA,
+		.vts_def = 0x08CC,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.reg_list = sc200ai_hdr_10_1920x1080_regs,
 		.hdr_mode = HDR_X2,
@@ -955,7 +961,6 @@ static int sc200ai_set_hdrae(struct sc200ai *sc200ai,
 				 SC200AI_REG_SEXPOSURE_L,
 				 SC200AI_REG_VALUE_08BIT,
 				 SC200AI_FETCH_EXP_L(s_exp_time));
-
 
 	ret |= sc200ai_set_gain_reg(sc200ai, l_a_gain, SC200AI_LGAIN);
 	ret |= sc200ai_set_gain_reg(sc200ai, s_a_gain, SC200AI_SGAIN);
