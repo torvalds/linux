@@ -90,6 +90,8 @@ struct opcap {
 	u64 bits[4];
 };
 
+#define IDXD_MAX_OPCAP_BITS		256U
+
 #define IDXD_OPCAP_OFFSET		0x40
 
 #define IDXD_TABLE_OFFSET		0x60
