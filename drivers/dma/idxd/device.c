@@ -384,10 +384,10 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	wq->type = IDXD_WQT_NONE;
 	wq->threshold = 0;
 	wq->priority = 0;
-	wq->ats_dis = 0;
 	wq->enqcmds_retries = IDXD_ENQCMDS_RETRIES;
 	clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	clear_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags);
+	clear_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
 	memset(wq->name, 0, WQ_NAME_SIZE);
 	wq->max_xfer_bytes = WQ_DEFAULT_MAX_XFER;
 	wq->max_batch_size = WQ_DEFAULT_MAX_BATCH;
@@ -861,7 +861,7 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 		wq->wqcfg->bof = 1;
 
 	if (idxd->hw.wq_cap.wq_ats_support)
-		wq->wqcfg->wq_ats_disable = wq->ats_dis;
+		wq->wqcfg->wq_ats_disable = test_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
 
 	/* bytes 12-15 */
 	wq->wqcfg->max_xfer_shift = ilog2(wq->max_xfer_bytes);

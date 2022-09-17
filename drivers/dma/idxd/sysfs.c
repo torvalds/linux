@@ -973,7 +973,7 @@ static ssize_t wq_ats_disable_show(struct device *dev, struct device_attribute *
 {
 	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sysfs_emit(buf, "%u\n", wq->ats_dis);
+	return sysfs_emit(buf, "%u\n", test_bit(WQ_FLAG_ATS_DISABLE, &wq->flags));
 }
 
 static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute *attr,
@@ -994,7 +994,10 @@ static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute 
 	if (rc < 0)
 		return rc;
 
-	wq->ats_dis = ats_dis;
+	if (ats_dis)
+		set_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
+	else
+		clear_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
 
 	return count;
 }
