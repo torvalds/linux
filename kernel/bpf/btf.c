@@ -4854,7 +4854,6 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 	u32 hdr_len, hdr_copy, btf_data_size;
 	const struct btf_header *hdr;
 	struct btf *btf;
-	int err;
 
 	btf = env->btf;
 	btf_data_size = btf->data_size;
@@ -4911,11 +4910,7 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 		return -EINVAL;
 	}
 
-	err = btf_check_sec_info(env, btf_data_size);
-	if (err)
-		return err;
-
-	return 0;
+	return btf_check_sec_info(env, btf_data_size);
 }
 
 static int btf_check_type_tags(struct btf_verifier_env *env,
