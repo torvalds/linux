@@ -2143,6 +2143,48 @@ void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp,
 }
 EXPORT_SYMBOL_GPL(rt2800_config_erp);
 
+static int rt2800_wait_bbp_rf_ready(struct rt2x00_dev *rt2x00dev,
+				    const struct rt2x00_field32 mask)
+{
+	unsigned int i;
+	u32 reg;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		reg = rt2800_register_read(rt2x00dev, MAC_STATUS_CFG);
+		if (!rt2x00_get_field32(reg, mask))
+			return 0;
+
+		udelay(REGISTER_BUSY_DELAY);
+	}
+
+	rt2x00_err(rt2x00dev, "BBP/RF register access failed, aborting\n");
+	return -EACCES;
+}
+
+static int rt2800_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u8 value;
+
+	/*
+	 * BBP was enabled after firmware was loaded,
+	 * but we need to reactivate it now.
+	 */
+	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
+	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
+	msleep(1);
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		value = rt2800_bbp_read(rt2x00dev, 0);
+		if ((value != 0xff) && (value != 0x00))
+			return 0;
+		udelay(REGISTER_BUSY_DELAY);
+	}
+
+	rt2x00_err(rt2x00dev, "BBP register access failed, aborting\n");
+	return -EACCES;
+}
+
 static void rt2800_config_3572bt_ant(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -3799,10 +3841,9 @@ static void rt2800_config_alc(struct rt2x00_dev *rt2x00dev,
 			      struct ieee80211_channel *chan,
 			      int power_level) {
 	u16 eeprom, target_power, max_power;
-	u32 mac_sys_ctrl, mac_status;
+	u32 mac_sys_ctrl;
 	u32 reg;
 	u8 bbp;
-	int i;
 
 	/* hardware unit is 0.5dBm, limited to 23.5dBm */
 	power_level *= 2;
@@ -3838,16 +3879,8 @@ static void rt2800_config_alc(struct rt2x00_dev *rt2x00dev,
 	/* Disable Tx/Rx */
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0);
 	/* Check MAC Tx/Rx idle */
-	for (i = 0; i < 10000; i++) {
-		mac_status = rt2800_register_read(rt2x00dev, MAC_STATUS_CFG);
-		if (mac_status & 0x3)
-			usleep_range(50, 200);
-		else
-			break;
-	}
-
-	if (i == 10000)
-		rt2x00_warn(rt2x00dev, "Wait MAC Status to MAX !!!\n");
+	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev, MAC_STATUS_CFG_BBP_RF_BUSY)))
+		rt2x00_warn(rt2x00dev, "RF busy while configuring ALC\n");
 
 	if (chan->center_freq > 2457) {
 		bbp = rt2800_bbp_read(rt2x00dev, 30);
@@ -6249,46 +6282,6 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
-static int rt2800_wait_bbp_rf_ready(struct rt2x00_dev *rt2x00dev)
-{
-	unsigned int i;
-	u32 reg;
-
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		reg = rt2800_register_read(rt2x00dev, MAC_STATUS_CFG);
-		if (!rt2x00_get_field32(reg, MAC_STATUS_CFG_BBP_RF_BUSY))
-			return 0;
-
-		udelay(REGISTER_BUSY_DELAY);
-	}
-
-	rt2x00_err(rt2x00dev, "BBP/RF register access failed, aborting\n");
-	return -EACCES;
-}
-
-static int rt2800_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
-{
-	unsigned int i;
-	u8 value;
-
-	/*
-	 * BBP was enabled after firmware was loaded,
-	 * but we need to reactivate it now.
-	 */
-	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
-	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
-	msleep(1);
-
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		value = rt2800_bbp_read(rt2x00dev, 0);
-		if ((value != 0xff) && (value != 0x00))
-			return 0;
-		udelay(REGISTER_BUSY_DELAY);
-	}
-
-	rt2x00_err(rt2x00dev, "BBP register access failed, aborting\n");
-	return -EACCES;
-}
 
 static void rt2800_bbp4_mac_if_ctrl(struct rt2x00_dev *rt2x00dev)
 {
@@ -9110,7 +9103,7 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Wait BBP/RF to wake up.
 	 */
-	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev)))
+	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev, MAC_STATUS_CFG_BBP_RF_BUSY)))
 		return -EIO;
 
 	/*
