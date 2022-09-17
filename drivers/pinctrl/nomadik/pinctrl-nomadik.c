@@ -244,7 +244,6 @@ enum nmk_gpio_slpm {
 
 struct nmk_gpio_chip {
 	struct gpio_chip chip;
-	struct irq_chip irqchip;
 	void __iomem *addr;
 	struct clk *clk;
 	unsigned int bank;
@@ -675,10 +674,9 @@ static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 	__nmk_gpio_irq_modify(nmk_chip, offset, WAKE, on);
 }
 
-static int nmk_gpio_irq_maskunmask(struct irq_data *d, bool enable)
+static void nmk_gpio_irq_maskunmask(struct nmk_gpio_chip *nmk_chip,
+				    struct irq_data *d, bool enable)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
 	clk_enable(nmk_chip->clk);
@@ -693,18 +691,24 @@ static int nmk_gpio_irq_maskunmask(struct irq_data *d, bool enable)
 	spin_unlock(&nmk_chip->lock);
 	spin_unlock_irqrestore(&nmk_gpio_slpm_lock, flags);
 	clk_disable(nmk_chip->clk);
-
-	return 0;
 }
 
 static void nmk_gpio_irq_mask(struct irq_data *d)
 {
-	nmk_gpio_irq_maskunmask(d, false);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
+
+	nmk_gpio_irq_maskunmask(nmk_chip, d, false);
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
 }
 
 static void nmk_gpio_irq_unmask(struct irq_data *d)
 {
-	nmk_gpio_irq_maskunmask(d, true);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
+
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
+	nmk_gpio_irq_maskunmask(nmk_chip, d, true);
 }
 
 static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
@@ -1072,13 +1076,34 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	return nmk_chip;
 }
 
+static void nmk_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
+
+	seq_printf(p, "nmk%u-%u-%u", nmk_chip->bank,
+		   gc->base, gc->base + gc->ngpio - 1);
+}
+
+static const struct irq_chip nmk_irq_chip = {
+	.irq_ack = nmk_gpio_irq_ack,
+	.irq_mask = nmk_gpio_irq_mask,
+	.irq_unmask = nmk_gpio_irq_unmask,
+	.irq_set_type = nmk_gpio_irq_set_type,
+	.irq_set_wake = nmk_gpio_irq_set_wake,
+	.irq_startup = nmk_gpio_irq_startup,
+	.irq_shutdown = nmk_gpio_irq_shutdown,
+	.irq_print_chip = nmk_gpio_irq_print_chip,
+	.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 static int nmk_gpio_probe(struct platform_device *dev)
 {
 	struct device_node *np = dev->dev.of_node;
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
 	struct gpio_irq_chip *girq;
-	struct irq_chip *irqchip;
 	bool supports_sleepmode;
 	int irq;
 	int ret;
@@ -1119,22 +1144,8 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	chip->can_sleep = false;
 	chip->owner = THIS_MODULE;
 
-	irqchip = &nmk_chip->irqchip;
-	irqchip->irq_ack = nmk_gpio_irq_ack;
-	irqchip->irq_mask = nmk_gpio_irq_mask;
-	irqchip->irq_unmask = nmk_gpio_irq_unmask;
-	irqchip->irq_set_type = nmk_gpio_irq_set_type;
-	irqchip->irq_set_wake = nmk_gpio_irq_set_wake;
-	irqchip->irq_startup = nmk_gpio_irq_startup;
-	irqchip->irq_shutdown = nmk_gpio_irq_shutdown;
-	irqchip->flags = IRQCHIP_MASK_ON_SUSPEND;
-	irqchip->name = kasprintf(GFP_KERNEL, "nmk%u-%u-%u",
-				  dev->id,
-				  chip->base,
-				  chip->base + chip->ngpio - 1);
-
 	girq = &chip->irq;
-	girq->chip = irqchip;
+	gpio_irq_chip_set_chip(girq, &nmk_irq_chip);
 	girq->parent_handler = nmk_gpio_irq_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(&dev->dev, 1,
