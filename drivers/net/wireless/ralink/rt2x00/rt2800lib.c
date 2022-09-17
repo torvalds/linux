@@ -3855,6 +3855,14 @@ static void rt2800_config_channel_rf7620(struct rt2x00_dev *rt2x00dev,
 		rfcsr |= tx_agc_fc;
 		rt2800_rfcsr_write_bank(rt2x00dev, 7, 59, rfcsr);
 	}
+
+	if (conf_is_ht40(conf)) {
+		rt2800_bbp_glrt_write(rt2x00dev, 141, 0x10);
+		rt2800_bbp_glrt_write(rt2x00dev, 157, 0x2f);
+	} else {
+		rt2800_bbp_glrt_write(rt2x00dev, 141, 0x1a);
+		rt2800_bbp_glrt_write(rt2x00dev, 157, 0x40);
+	}
 }
 
 static void rt2800_config_alc(struct rt2x00_dev *rt2x00dev,
