@@ -1622,7 +1622,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			port = buf2[0] & SDW_SCP_INTSTAT2_PORT4_10;
 			for_each_set_bit(bit, &port, 8) {
 				/* scp2 ports start from 4 */
-				port_num = bit + 3;
+				port_num = bit + 4;
 				sdw_handle_port_interrupt(slave,
 						port_num,
 						&port_status[port_num]);
@@ -1634,7 +1634,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			port = buf2[1] & SDW_SCP_INTSTAT3_PORT11_14;
 			for_each_set_bit(bit, &port, 8) {
 				/* scp3 ports start from 11 */
-				port_num = bit + 10;
+				port_num = bit + 11;
 				sdw_handle_port_interrupt(slave,
 						port_num,
 						&port_status[port_num]);
