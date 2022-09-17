@@ -4368,6 +4368,43 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_iq_calibrate(rt2x00dev, rf->channel);
 	}
 
+	if (rt2x00_rt(rt2x00dev, RT6352)) {
+		if (test_bit(CAPABILITY_EXTERNAL_PA_TX0,
+			     &rt2x00dev->cap_flags)) {
+			reg = rt2800_register_read(rt2x00dev, RF_CONTROL3);
+			reg |= 0x00000101;
+			rt2800_register_write(rt2x00dev, RF_CONTROL3, reg);
+
+			reg = rt2800_register_read(rt2x00dev, RF_BYPASS3);
+			reg |= 0x00000101;
+			rt2800_register_write(rt2x00dev, RF_BYPASS3, reg);
+
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 43, 0x73);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 44, 0x73);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 45, 0x73);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 46, 0x27);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 47, 0xC8);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 48, 0xA4);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 49, 0x05);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 54, 0x27);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 55, 0xC8);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 56, 0xA4);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 57, 0x05);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 58, 0x27);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 59, 0xC8);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 60, 0xA4);
+			rt2800_rfcsr_write_chanreg(rt2x00dev, 61, 0x05);
+			rt2800_rfcsr_write_dccal(rt2x00dev, 05, 0x00);
+
+			rt2800_register_write(rt2x00dev, TX0_RF_GAIN_CORRECT,
+					      0x36303636);
+			rt2800_register_write(rt2x00dev, TX0_RF_GAIN_ATTEN,
+					      0x6C6C6B6C);
+			rt2800_register_write(rt2x00dev, TX1_RF_GAIN_ATTEN,
+					      0x6C6C6B6C);
+		}
+	}
+
 	bbp = rt2800_bbp_read(rt2x00dev, 4);
 	rt2x00_set_field8(&bbp, BBP4_BANDWIDTH, 2 * conf_is_ht40(conf));
 	rt2800_bbp_write(rt2x00dev, 4, bbp);
@@ -9566,7 +9603,8 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	eeprom = rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1);
 
-	if (rt2x00_rt(rt2x00dev, RT3352)) {
+	if (rt2x00_rt(rt2x00dev, RT3352) ||
+	    rt2x00_rt(rt2x00dev, RT6352)) {
 		if (rt2x00_get_field16(eeprom,
 		    EEPROM_NIC_CONF1_EXTERNAL_TX0_PA_3352))
 		    __set_bit(CAPABILITY_EXTERNAL_PA_TX0,
@@ -9575,6 +9613,18 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		    EEPROM_NIC_CONF1_EXTERNAL_TX1_PA_3352))
 		    __set_bit(CAPABILITY_EXTERNAL_PA_TX1,
 			      &rt2x00dev->cap_flags);
+	}
+
+	eeprom = rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF2);
+
+	if (rt2x00_rt(rt2x00dev, RT6352) && eeprom != 0 && eeprom != 0xffff) {
+		if (!rt2x00_get_field16(eeprom,
+					EEPROM_NIC_CONF2_EXTERNAL_PA)) {
+			__clear_bit(CAPABILITY_EXTERNAL_PA_TX0,
+				    &rt2x00dev->cap_flags);
+			__clear_bit(CAPABILITY_EXTERNAL_PA_TX1,
+				    &rt2x00dev->cap_flags);
+		}
 	}
 
 	return 0;
