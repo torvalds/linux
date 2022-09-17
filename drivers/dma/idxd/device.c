@@ -710,6 +710,7 @@ static void idxd_groups_clear_state(struct idxd_device *idxd)
 			group->tc_b = -1;
 		}
 		group->desc_progress_limit = 0;
+		group->batch_progress_limit = 0;
 	}
 }
 
@@ -932,6 +933,7 @@ static void idxd_group_flags_setup(struct idxd_device *idxd)
 			group->grpcfg.flags.rdbufs_allowed = idxd->max_rdbufs;
 
 		group->grpcfg.flags.desc_progress_limit = group->desc_progress_limit;
+		group->grpcfg.flags.batch_progress_limit = group->batch_progress_limit;
 	}
 }
 

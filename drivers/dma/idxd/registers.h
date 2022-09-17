@@ -298,7 +298,9 @@ union group_flags {
 		u64 rdbufs_allowed:8;
 		u64 rsvd3:4;
 		u64 desc_progress_limit:2;
-		u64 rsvd4:30;
+		u64 rsvd4:2;
+		u64 batch_progress_limit:2;
+		u64 rsvd5:26;
 	};
 	u64 bits;
 } __packed;
