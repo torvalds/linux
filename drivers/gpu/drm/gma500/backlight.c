@@ -7,6 +7,8 @@
  * Authors: Eric Knopp
  */
 
+#include <acpi/video.h>
+
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_drv.h"
@@ -79,6 +81,12 @@ int gma_backlight_init(struct drm_device *dev)
 	ret = dev_priv->ops->backlight_init(dev);
 	if (ret)
 		return ret;
+
+	if (!acpi_video_backlight_use_native()) {
+		drm_info(dev, "Skipping %s backlight registration\n",
+			 dev_priv->ops->backlight_name);
+		return 0;
+	}
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	props.brightness = dev_priv->backlight_level;
