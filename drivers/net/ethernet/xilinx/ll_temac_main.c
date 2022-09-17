@@ -261,7 +261,7 @@ static void temac_dma_dcr_out(struct temac_local *lp, int reg, u32 value)
  * I/O  functions
  */
 static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
-				struct device_node *np)
+			   struct device_node *np)
 {
 	unsigned int dcrs;
 
@@ -286,7 +286,7 @@ static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
  * such as with MicroBlaze and x86
  */
 static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
-				struct device_node *np)
+			   struct device_node *np)
 {
 	return -1;
 }
@@ -309,7 +309,7 @@ static void temac_dma_bd_release(struct net_device *ndev)
 			break;
 		else {
 			dma_unmap_single(ndev->dev.parent, lp->rx_bd_v[i].phys,
-					XTE_MAX_JUMBO_FRAME_SIZE, DMA_FROM_DEVICE);
+					 XTE_MAX_JUMBO_FRAME_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb(lp->rx_skb[i]);
 		}
 	}
@@ -682,7 +682,6 @@ static void temac_device_reset(struct net_device *ndev)
 	if (temac_dma_bd_init(ndev)) {
 		dev_err(&ndev->dev,
 			"%s descriptor allocation failed\n", __func__);
-
 	}
 
 	spin_lock_irqsave(lp->indirect_lock, flags);

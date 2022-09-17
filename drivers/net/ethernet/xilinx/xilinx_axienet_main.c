@@ -597,7 +597,7 @@ static int axienet_device_reset(struct net_device *ndev)
 	lp->options &= (~XAE_OPTION_JUMBO);
 
 	if ((ndev->mtu > XAE_MTU) &&
-		(ndev->mtu <= XAE_JUMBO_MTU)) {
+	    (ndev->mtu <= XAE_JUMBO_MTU)) {
 		lp->max_frm_size = ndev->mtu + VLAN_ETH_HLEN +
 					XAE_TRL_SIZE;
 
