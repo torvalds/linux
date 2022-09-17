@@ -534,11 +534,11 @@ static int av1dec_set_l2_cache(struct av1dec_dev *dec, struct av1dec_task *task)
 		writel_relaxed(AV1_L2_CACHE_SHAPER_EN,
 			       dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_SHAPER_CTRL);
 
-		/* TODO: set exception list */
-
-		/* multi id enable bit */
-		writel_relaxed(0x00000001, dec->reg_base[AV1DEC_CLASS_CACHE] +
-			       AV1_L2_CACHE_RD_ONLY_CONFIG);
+		/* not enable cache en when multi tiles */
+		if (!(regs[10] & BIT(1)))
+			/* cache all en */
+			writel_relaxed(0x00000001, dec->reg_base[AV1DEC_CLASS_CACHE] +
+				AV1_L2_CACHE_RD_ONLY_CONFIG);
 		/* reorder_e and cache_e */
 		writel_relaxed(0x00000081, dec->reg_base[AV1DEC_CLASS_CACHE] +
 			       AV1_L2_CACHE_RD_ONLY_CTRL);
