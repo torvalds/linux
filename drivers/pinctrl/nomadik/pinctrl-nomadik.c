@@ -608,8 +608,8 @@ static int __maybe_unused nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, 
 
 static void nmk_gpio_irq_ack(struct irq_data *d)
 {
-	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
-	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 
 	clk_enable(nmk_chip->clk);
 	writel(BIT(d->hwirq), nmk_chip->addr + NMK_GPIO_IC);
@@ -677,12 +677,9 @@ static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 
 static int nmk_gpio_irq_maskunmask(struct irq_data *d, bool enable)
 {
-	struct nmk_gpio_chip *nmk_chip;
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 	unsigned long flags;
-
-	nmk_chip = irq_data_get_irq_chip_data(d);
-	if (!nmk_chip)
-		return -EINVAL;
 
 	clk_enable(nmk_chip->clk);
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
@@ -712,12 +709,9 @@ static void nmk_gpio_irq_unmask(struct irq_data *d)
 
 static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	struct nmk_gpio_chip *nmk_chip;
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 	unsigned long flags;
-
-	nmk_chip = irq_data_get_irq_chip_data(d);
-	if (!nmk_chip)
-		return -EINVAL;
 
 	clk_enable(nmk_chip->clk);
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
@@ -740,14 +734,12 @@ static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 	bool enabled = !irqd_irq_disabled(d);
 	bool wake = irqd_is_wakeup_set(d);
-	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
 
-	nmk_chip = irq_data_get_irq_chip_data(d);
-	if (!nmk_chip)
-		return -EINVAL;
 	if (type & IRQ_TYPE_LEVEL_HIGH)
 		return -EINVAL;
 	if (type & IRQ_TYPE_LEVEL_LOW)
@@ -784,7 +776,8 @@ static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 static unsigned int nmk_gpio_irq_startup(struct irq_data *d)
 {
-	struct nmk_gpio_chip *nmk_chip = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 
 	clk_enable(nmk_chip->clk);
 	nmk_gpio_irq_unmask(d);
@@ -793,7 +786,8 @@ static unsigned int nmk_gpio_irq_startup(struct irq_data *d)
 
 static void nmk_gpio_irq_shutdown(struct irq_data *d)
 {
-	struct nmk_gpio_chip *nmk_chip = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 
 	nmk_gpio_irq_mask(d);
 	clk_disable(nmk_chip->clk);
