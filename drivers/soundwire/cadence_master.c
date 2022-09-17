@@ -569,7 +569,7 @@ _cdns_xfer_msg(struct sdw_cdns *cdns, struct sdw_msg *msg, int cmd,
 	}
 
 	base = CDNS_MCP_CMD_BASE;
-	addr = msg->addr;
+	addr = msg->addr + offset;
 
 	for (i = 0; i < count; i++) {
 		data = FIELD_PREP(CDNS_MCP_CMD_DEV_ADDR, msg->dev_num);
