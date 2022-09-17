@@ -723,9 +723,15 @@ static void temac_adjust_link(struct net_device *ndev)
 		mii_speed &= ~XTE_EMCFG_LINKSPD_MASK;
 
 		switch (phy->speed) {
-		case SPEED_1000: mii_speed |= XTE_EMCFG_LINKSPD_1000; break;
-		case SPEED_100: mii_speed |= XTE_EMCFG_LINKSPD_100; break;
-		case SPEED_10: mii_speed |= XTE_EMCFG_LINKSPD_10; break;
+		case SPEED_1000:
+			mii_speed |= XTE_EMCFG_LINKSPD_1000;
+			break;
+		case SPEED_100:
+			mii_speed |= XTE_EMCFG_LINKSPD_100;
+			break;
+		case SPEED_10:
+			mii_speed |= XTE_EMCFG_LINKSPD_10;
+			break;
 		}
 
 		/* Write new speed setting out to TEMAC */
