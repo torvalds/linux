@@ -52,7 +52,7 @@ static int gma_backlight_get_brightness(struct backlight_device *bd)
 static int gma_backlight_update_status(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
-	int level = bd->props.brightness;
+	int level = backlight_get_brightness(bd);
 
 	/* Percentage 1-100% being valid */
 	if (level < 1)
