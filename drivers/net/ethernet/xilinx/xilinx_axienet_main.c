@@ -645,7 +645,7 @@ static int axienet_device_reset(struct net_device *ndev)
  * @nr_bds:	Max number of descriptors to clean up
  * @force:	Whether to clean descriptors even if not complete
  * @sizep:	Pointer to a u32 filled with the total sum of all bytes
- * 		in all cleaned-up descriptors. Ignored if NULL.
+ *		in all cleaned-up descriptors. Ignored if NULL.
  * @budget:	NAPI budget (use 0 when not called from NAPI poll)
  *
  * Would either be called after a successful transmit operation, or after
@@ -1375,7 +1375,7 @@ static int axienet_ethtools_get_regs_len(struct net_device *ndev)
 static void axienet_ethtools_get_regs(struct net_device *ndev,
 				      struct ethtool_regs *regs, void *ret)
 {
-	u32 *data = (u32 *) ret;
+	u32 *data = (u32 *)ret;
 	size_t len = sizeof(u32) * AXIENET_REGS_N;
 	struct axienet_local *lp = netdev_priv(ndev);
 
