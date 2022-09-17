@@ -127,6 +127,13 @@ properties:
           - const: atmel,sama5d3
           - const: atmel,sama5
 
+      - description: Microchip SAMA5D3 Ethernet Development System Board
+        items:
+          - const: microchip,sama5d3-eds
+          - const: atmel,sama5d36
+          - const: atmel,sama5d3
+          - const: atmel,sama5
+
       - description: CalAmp LMU5000 board
         items:
           - const: calamp,lmu5000

@@ -258,8 +258,9 @@
 	status = "okay";
 
 	uart1: serial@200 {
-		compatible = "microchip,sam9x60-usart", "atmel,at91sam9260-usart";
+		compatible = "microchip,sam9x60-dbgu", "microchip,sam9x60-usart", "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
 		reg = <0x200 0x200>;
+		atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 		interrupts = <14 IRQ_TYPE_LEVEL_HIGH 7>;
 		dmas = <&dma0
 			(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |

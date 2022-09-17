@@ -97,6 +97,10 @@
 	};
 };
 
+&aes {
+	status = "disabled"; /* Reserved by secure OS */
+};
+
 &flx3 {
 	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
 	status = "okay";
