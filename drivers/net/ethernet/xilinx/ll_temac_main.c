@@ -642,7 +642,7 @@ static void temac_device_reset(struct net_device *ndev)
 		udelay(1);
 		if (--timeout == 0) {
 			dev_err(&ndev->dev,
-				"temac_device_reset RX reset timeout!!\n");
+				"%s RX reset timeout!!\n", __func__);
 			break;
 		}
 	}
@@ -654,7 +654,7 @@ static void temac_device_reset(struct net_device *ndev)
 		udelay(1);
 		if (--timeout == 0) {
 			dev_err(&ndev->dev,
-				"temac_device_reset TX reset timeout!!\n");
+				"%s TX reset timeout!!\n", __func__);
 			break;
 		}
 	}
@@ -673,7 +673,7 @@ static void temac_device_reset(struct net_device *ndev)
 		udelay(1);
 		if (--timeout == 0) {
 			dev_err(&ndev->dev,
-				"temac_device_reset DMA reset timeout!!\n");
+				"%s DMA reset timeout!!\n", __func__);
 			break;
 		}
 	}
@@ -681,7 +681,8 @@ static void temac_device_reset(struct net_device *ndev)
 
 	if (temac_dma_bd_init(ndev)) {
 		dev_err(&ndev->dev,
-				"temac_device_reset descriptor allocation failed\n");
+			"%s descriptor allocation failed\n", __func__);
+
 	}
 
 	spin_lock_irqsave(lp->indirect_lock, flags);
