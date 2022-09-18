@@ -558,6 +558,8 @@ xfs_vn_getattr(
 	struct inode		*inode = d_inode(path->dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
+	vfsuid_t		vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsgid_t		vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
 
 	trace_xfs_getattr(ip);
 
@@ -568,8 +570,8 @@ xfs_vn_getattr(
 	stat->dev = inode->i_sb->s_dev;
 	stat->mode = inode->i_mode;
 	stat->nlink = inode->i_nlink;
-	stat->uid = i_uid_into_mnt(mnt_userns, inode);
-	stat->gid = i_gid_into_mnt(mnt_userns, inode);
+	stat->uid = vfsuid_into_kuid(vfsuid);
+	stat->gid = vfsgid_into_kgid(vfsgid);
 	stat->ino = ip->i_ino;
 	stat->atime = inode->i_atime;
 	stat->mtime = inode->i_mtime;

@@ -835,9 +835,8 @@ xfs_init_new_inode(
 	 * ID or one of the supplementary group IDs, the S_ISGID bit is cleared
 	 * (and only if the irix_sgid_inherit compatibility variable is set).
 	 */
-	if (irix_sgid_inherit &&
-	    (inode->i_mode & S_ISGID) &&
-	    !in_group_p(i_gid_into_mnt(mnt_userns, inode)))
+	if (irix_sgid_inherit && (inode->i_mode & S_ISGID) &&
+	    !vfsgid_in_group_p(i_gid_into_vfsgid(mnt_userns, inode)))
 		inode->i_mode &= ~S_ISGID;
 
 	ip->i_disk_size = 0;
