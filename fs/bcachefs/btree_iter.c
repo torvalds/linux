@@ -2606,7 +2606,10 @@ static void __bch2_trans_iter_init(struct btree_trans *trans,
 				   unsigned depth,
 				   unsigned flags)
 {
-	EBUG_ON(trans->restarted);
+	if (trans->restarted)
+		panic("bch2_trans_iter_init(): in transaction restart, %s by %pS\n",
+		      bch2_err_str(trans->restarted),
+		      (void *) trans->last_restarted_ip);
 
 	if (flags & BTREE_ITER_ALL_LEVELS)
 		flags |= BTREE_ITER_ALL_SNAPSHOTS|__BTREE_ITER_ALL_SNAPSHOTS;
