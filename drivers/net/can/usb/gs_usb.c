@@ -64,6 +64,8 @@ enum gs_usb_breq {
 	GS_USB_BREQ_SET_USER_ID,
 	GS_USB_BREQ_DATA_BITTIMING,
 	GS_USB_BREQ_BT_CONST_EXT,
+	GS_USB_BREQ_SET_TERMINATION,
+	GS_USB_BREQ_GET_TERMINATION,
 };
 
 enum gs_can_mode {
@@ -86,6 +88,14 @@ enum gs_can_identify_mode {
 	GS_CAN_IDENTIFY_OFF = 0,
 	GS_CAN_IDENTIFY_ON
 };
+
+enum gs_can_termination_state {
+	GS_CAN_TERMINATION_STATE_OFF = 0,
+	GS_CAN_TERMINATION_STATE_ON
+};
+
+#define GS_USB_TERMINATION_DISABLED CAN_TERMINATION_DISABLED
+#define GS_USB_TERMINATION_ENABLED 120
 
 /* data types passed between host and device */
 
@@ -123,6 +133,7 @@ struct gs_device_config {
 #define GS_CAN_MODE_FD BIT(8)
 /* GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9) */
 /* GS_CAN_FEATURE_BT_CONST_EXT BIT(10) */
+/* GS_CAN_FEATURE_TERMINATION BIT(11) */
 
 struct gs_device_mode {
 	__le32 mode;
@@ -147,6 +158,10 @@ struct gs_identify_mode {
 	__le32 mode;
 } __packed;
 
+struct gs_device_termination_state {
+	__le32 state;
+} __packed;
+
 #define GS_CAN_FEATURE_LISTEN_ONLY BIT(0)
 #define GS_CAN_FEATURE_LOOP_BACK BIT(1)
 #define GS_CAN_FEATURE_TRIPLE_SAMPLE BIT(2)
@@ -158,7 +173,8 @@ struct gs_identify_mode {
 #define GS_CAN_FEATURE_FD BIT(8)
 #define GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9)
 #define GS_CAN_FEATURE_BT_CONST_EXT BIT(10)
-#define GS_CAN_FEATURE_MASK GENMASK(10, 0)
+#define GS_CAN_FEATURE_TERMINATION BIT(11)
+#define GS_CAN_FEATURE_MASK GENMASK(11, 0)
 
 /* internal quirks - keep in GS_CAN_FEATURE space for now */
 
@@ -1080,6 +1096,52 @@ static const struct ethtool_ops gs_usb_ethtool_ops = {
 	.get_ts_info = gs_usb_get_ts_info,
 };
 
+static int gs_usb_get_termination(struct net_device *netdev, u16 *term)
+{
+	struct gs_can *dev = netdev_priv(netdev);
+	struct gs_device_termination_state term_state;
+	int rc;
+
+	rc = usb_control_msg_recv(interface_to_usbdev(dev->iface), 0,
+				  GS_USB_BREQ_GET_TERMINATION,
+				  USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+				  dev->channel, 0,
+				  &term_state, sizeof(term_state), 1000,
+				  GFP_KERNEL);
+	if (rc)
+		return rc;
+
+	if (term_state.state == cpu_to_le32(GS_CAN_TERMINATION_STATE_ON))
+		*term = GS_USB_TERMINATION_ENABLED;
+	else
+		*term = GS_USB_TERMINATION_DISABLED;
+
+	return 0;
+}
+
+static int gs_usb_set_termination(struct net_device *netdev, u16 term)
+{
+	struct gs_can *dev = netdev_priv(netdev);
+	struct gs_device_termination_state term_state;
+
+	if (term == GS_USB_TERMINATION_ENABLED)
+		term_state.state = cpu_to_le32(GS_CAN_TERMINATION_STATE_ON);
+	else
+		term_state.state = cpu_to_le32(GS_CAN_TERMINATION_STATE_OFF);
+
+	return usb_control_msg_send(interface_to_usbdev(dev->iface), 0,
+				    GS_USB_BREQ_SET_TERMINATION,
+				    USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+				    dev->channel, 0,
+				    &term_state, sizeof(term_state), 1000,
+				    GFP_KERNEL);
+}
+
+static const u16 gs_usb_termination_const[] = {
+	GS_USB_TERMINATION_DISABLED,
+	GS_USB_TERMINATION_ENABLED
+};
+
 static struct gs_can *gs_make_candev(unsigned int channel,
 				     struct usb_interface *intf,
 				     struct gs_device_config *dconf)
@@ -1172,6 +1234,21 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 		 */
 		dev->can.data_bittiming_const = &dev->bt_const;
 		dev->can.do_set_data_bittiming = gs_usb_set_data_bittiming;
+	}
+
+	if (feature & GS_CAN_FEATURE_TERMINATION) {
+		rc = gs_usb_get_termination(netdev, &dev->can.termination);
+		if (rc) {
+			dev->feature &= ~GS_CAN_FEATURE_TERMINATION;
+
+			dev_info(&intf->dev,
+				 "Disabling termination support for channel %d (%pe)\n",
+				 channel, ERR_PTR(rc));
+		} else {
+			dev->can.termination_const = gs_usb_termination_const;
+			dev->can.termination_const_cnt = ARRAY_SIZE(gs_usb_termination_const);
+			dev->can.do_set_termination = gs_usb_set_termination;
+		}
 	}
 
 	/* The CANtact Pro from LinkLayer Labs is based on the
