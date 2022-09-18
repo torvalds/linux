@@ -40,6 +40,9 @@ static __always_inline void __update_lru_size(struct lruvec *lruvec,
 {
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 
+	lockdep_assert_held(&lruvec->lru_lock);
+	WARN_ON_ONCE(nr_pages != (int)nr_pages);
+
 	__mod_lruvec_state(lruvec, NR_LRU_BASE + lru, nr_pages);
 	__mod_zone_page_state(&pgdat->node_zones[zid],
 				NR_ZONE_LRU_BASE + lru, nr_pages);
@@ -101,10 +104,176 @@ static __always_inline enum lru_list folio_lru_list(struct folio *folio)
 	return lru;
 }
 
+#ifdef CONFIG_LRU_GEN
+
+static inline bool lru_gen_enabled(void)
+{
+	return true;
+}
+
+static inline bool lru_gen_in_fault(void)
+{
+	return current->in_lru_fault;
+}
+
+static inline int lru_gen_from_seq(unsigned long seq)
+{
+	return seq % MAX_NR_GENS;
+}
+
+static inline int folio_lru_gen(struct folio *folio)
+{
+	unsigned long flags = READ_ONCE(folio->flags);
+
+	return ((flags & LRU_GEN_MASK) >> LRU_GEN_PGOFF) - 1;
+}
+
+static inline bool lru_gen_is_active(struct lruvec *lruvec, int gen)
+{
+	unsigned long max_seq = lruvec->lrugen.max_seq;
+
+	VM_WARN_ON_ONCE(gen >= MAX_NR_GENS);
+
+	/* see the comment on MIN_NR_GENS */
+	return gen == lru_gen_from_seq(max_seq) || gen == lru_gen_from_seq(max_seq - 1);
+}
+
+static inline void lru_gen_update_size(struct lruvec *lruvec, struct folio *folio,
+				       int old_gen, int new_gen)
+{
+	int type = folio_is_file_lru(folio);
+	int zone = folio_zonenum(folio);
+	int delta = folio_nr_pages(folio);
+	enum lru_list lru = type * LRU_INACTIVE_FILE;
+	struct lru_gen_struct *lrugen = &lruvec->lrugen;
+
+	VM_WARN_ON_ONCE(old_gen != -1 && old_gen >= MAX_NR_GENS);
+	VM_WARN_ON_ONCE(new_gen != -1 && new_gen >= MAX_NR_GENS);
+	VM_WARN_ON_ONCE(old_gen == -1 && new_gen == -1);
+
+	if (old_gen >= 0)
+		WRITE_ONCE(lrugen->nr_pages[old_gen][type][zone],
+			   lrugen->nr_pages[old_gen][type][zone] - delta);
+	if (new_gen >= 0)
+		WRITE_ONCE(lrugen->nr_pages[new_gen][type][zone],
+			   lrugen->nr_pages[new_gen][type][zone] + delta);
+
+	/* addition */
+	if (old_gen < 0) {
+		if (lru_gen_is_active(lruvec, new_gen))
+			lru += LRU_ACTIVE;
+		__update_lru_size(lruvec, lru, zone, delta);
+		return;
+	}
+
+	/* deletion */
+	if (new_gen < 0) {
+		if (lru_gen_is_active(lruvec, old_gen))
+			lru += LRU_ACTIVE;
+		__update_lru_size(lruvec, lru, zone, -delta);
+		return;
+	}
+}
+
+static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio, bool reclaiming)
+{
+	unsigned long seq;
+	unsigned long flags;
+	int gen = folio_lru_gen(folio);
+	int type = folio_is_file_lru(folio);
+	int zone = folio_zonenum(folio);
+	struct lru_gen_struct *lrugen = &lruvec->lrugen;
+
+	VM_WARN_ON_ONCE_FOLIO(gen != -1, folio);
+
+	if (folio_test_unevictable(folio))
+		return false;
+	/*
+	 * There are three common cases for this page:
+	 * 1. If it's hot, e.g., freshly faulted in or previously hot and
+	 *    migrated, add it to the youngest generation.
+	 * 2. If it's cold but can't be evicted immediately, i.e., an anon page
+	 *    not in swapcache or a dirty page pending writeback, add it to the
+	 *    second oldest generation.
+	 * 3. Everything else (clean, cold) is added to the oldest generation.
+	 */
+	if (folio_test_active(folio))
+		seq = lrugen->max_seq;
+	else if ((type == LRU_GEN_ANON && !folio_test_swapcache(folio)) ||
+		 (folio_test_reclaim(folio) &&
+		  (folio_test_dirty(folio) || folio_test_writeback(folio))))
+		seq = lrugen->min_seq[type] + 1;
+	else
+		seq = lrugen->min_seq[type];
+
+	gen = lru_gen_from_seq(seq);
+	flags = (gen + 1UL) << LRU_GEN_PGOFF;
+	/* see the comment on MIN_NR_GENS about PG_active */
+	set_mask_bits(&folio->flags, LRU_GEN_MASK | BIT(PG_active), flags);
+
+	lru_gen_update_size(lruvec, folio, -1, gen);
+	/* for folio_rotate_reclaimable() */
+	if (reclaiming)
+		list_add_tail(&folio->lru, &lrugen->lists[gen][type][zone]);
+	else
+		list_add(&folio->lru, &lrugen->lists[gen][type][zone]);
+
+	return true;
+}
+
+static inline bool lru_gen_del_folio(struct lruvec *lruvec, struct folio *folio, bool reclaiming)
+{
+	unsigned long flags;
+	int gen = folio_lru_gen(folio);
+
+	if (gen < 0)
+		return false;
+
+	VM_WARN_ON_ONCE_FOLIO(folio_test_active(folio), folio);
+	VM_WARN_ON_ONCE_FOLIO(folio_test_unevictable(folio), folio);
+
+	/* for folio_migrate_flags() */
+	flags = !reclaiming && lru_gen_is_active(lruvec, gen) ? BIT(PG_active) : 0;
+	flags = set_mask_bits(&folio->flags, LRU_GEN_MASK, flags);
+	gen = ((flags & LRU_GEN_MASK) >> LRU_GEN_PGOFF) - 1;
+
+	lru_gen_update_size(lruvec, folio, gen, -1);
+	list_del(&folio->lru);
+
+	return true;
+}
+
+#else /* !CONFIG_LRU_GEN */
+
+static inline bool lru_gen_enabled(void)
+{
+	return false;
+}
+
+static inline bool lru_gen_in_fault(void)
+{
+	return false;
+}
+
+static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio, bool reclaiming)
+{
+	return false;
+}
+
+static inline bool lru_gen_del_folio(struct lruvec *lruvec, struct folio *folio, bool reclaiming)
+{
+	return false;
+}
+
+#endif /* CONFIG_LRU_GEN */
+
 static __always_inline
 void lruvec_add_folio(struct lruvec *lruvec, struct folio *folio)
 {
 	enum lru_list lru = folio_lru_list(folio);
+
+	if (lru_gen_add_folio(lruvec, folio, false))
+		return;
 
 	update_lru_size(lruvec, lru, folio_zonenum(folio),
 			folio_nr_pages(folio));
@@ -123,6 +292,9 @@ void lruvec_add_folio_tail(struct lruvec *lruvec, struct folio *folio)
 {
 	enum lru_list lru = folio_lru_list(folio);
 
+	if (lru_gen_add_folio(lruvec, folio, true))
+		return;
+
 	update_lru_size(lruvec, lru, folio_zonenum(folio),
 			folio_nr_pages(folio));
 	/* This is not expected to be used on LRU_UNEVICTABLE */
@@ -139,6 +311,9 @@ static __always_inline
 void lruvec_del_folio(struct lruvec *lruvec, struct folio *folio)
 {
 	enum lru_list lru = folio_lru_list(folio);
+
+	if (lru_gen_del_folio(lruvec, folio, false))
+		return;
 
 	if (lru != LRU_UNEVICTABLE)
 		list_del(&folio->lru);

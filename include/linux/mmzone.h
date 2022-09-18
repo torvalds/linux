@@ -317,6 +317,102 @@ enum lruvec_flags {
 					 */
 };
 
+#endif /* !__GENERATING_BOUNDS_H */
+
+/*
+ * Evictable pages are divided into multiple generations. The youngest and the
+ * oldest generation numbers, max_seq and min_seq, are monotonically increasing.
+ * They form a sliding window of a variable size [MIN_NR_GENS, MAX_NR_GENS]. An
+ * offset within MAX_NR_GENS, i.e., gen, indexes the LRU list of the
+ * corresponding generation. The gen counter in folio->flags stores gen+1 while
+ * a page is on one of lrugen->lists[]. Otherwise it stores 0.
+ *
+ * A page is added to the youngest generation on faulting. The aging needs to
+ * check the accessed bit at least twice before handing this page over to the
+ * eviction. The first check takes care of the accessed bit set on the initial
+ * fault; the second check makes sure this page hasn't been used since then.
+ * This process, AKA second chance, requires a minimum of two generations,
+ * hence MIN_NR_GENS. And to maintain ABI compatibility with the active/inactive
+ * LRU, e.g., /proc/vmstat, these two generations are considered active; the
+ * rest of generations, if they exist, are considered inactive. See
+ * lru_gen_is_active().
+ *
+ * PG_active is always cleared while a page is on one of lrugen->lists[] so that
+ * the aging needs not to worry about it. And it's set again when a page
+ * considered active is isolated for non-reclaiming purposes, e.g., migration.
+ * See lru_gen_add_folio() and lru_gen_del_folio().
+ *
+ * MAX_NR_GENS is set to 4 so that the multi-gen LRU can support twice the
+ * number of categories of the active/inactive LRU when keeping track of
+ * accesses through page tables. This requires order_base_2(MAX_NR_GENS+1) bits
+ * in folio->flags.
+ */
+#define MIN_NR_GENS		2U
+#define MAX_NR_GENS		4U
+
+#ifndef __GENERATING_BOUNDS_H
+
+struct lruvec;
+
+#define LRU_GEN_MASK		((BIT(LRU_GEN_WIDTH) - 1) << LRU_GEN_PGOFF)
+#define LRU_REFS_MASK		((BIT(LRU_REFS_WIDTH) - 1) << LRU_REFS_PGOFF)
+
+#ifdef CONFIG_LRU_GEN
+
+enum {
+	LRU_GEN_ANON,
+	LRU_GEN_FILE,
+};
+
+/*
+ * The youngest generation number is stored in max_seq for both anon and file
+ * types as they are aged on an equal footing. The oldest generation numbers are
+ * stored in min_seq[] separately for anon and file types as clean file pages
+ * can be evicted regardless of swap constraints.
+ *
+ * Normally anon and file min_seq are in sync. But if swapping is constrained,
+ * e.g., out of swap space, file min_seq is allowed to advance and leave anon
+ * min_seq behind.
+ *
+ * The number of pages in each generation is eventually consistent and therefore
+ * can be transiently negative.
+ */
+struct lru_gen_struct {
+	/* the aging increments the youngest generation number */
+	unsigned long max_seq;
+	/* the eviction increments the oldest generation numbers */
+	unsigned long min_seq[ANON_AND_FILE];
+	/* the multi-gen LRU lists, lazily sorted on eviction */
+	struct list_head lists[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
+	/* the multi-gen LRU sizes, eventually consistent */
+	long nr_pages[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
+};
+
+void lru_gen_init_lruvec(struct lruvec *lruvec);
+
+#ifdef CONFIG_MEMCG
+void lru_gen_init_memcg(struct mem_cgroup *memcg);
+void lru_gen_exit_memcg(struct mem_cgroup *memcg);
+#endif
+
+#else /* !CONFIG_LRU_GEN */
+
+static inline void lru_gen_init_lruvec(struct lruvec *lruvec)
+{
+}
+
+#ifdef CONFIG_MEMCG
+static inline void lru_gen_init_memcg(struct mem_cgroup *memcg)
+{
+}
+
+static inline void lru_gen_exit_memcg(struct mem_cgroup *memcg)
+{
+}
+#endif
+
+#endif /* CONFIG_LRU_GEN */
+
 struct lruvec {
 	struct list_head		lists[NR_LRU_LISTS];
 	/* per lruvec lru_lock for memcg */
@@ -334,6 +430,10 @@ struct lruvec {
 	unsigned long			refaults[ANON_AND_FILE];
 	/* Various lruvec state flags (enum lruvec_flags) */
 	unsigned long			flags;
+#ifdef CONFIG_LRU_GEN
+	/* evictable pages divided into generations */
+	struct lru_gen_struct		lrugen;
+#endif
 #ifdef CONFIG_MEMCG
 	struct pglist_data *pgdat;
 #endif
@@ -749,6 +849,8 @@ static inline bool zone_is_empty(struct zone *zone)
 #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
 #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
 #define KASAN_TAG_PGOFF		(LAST_CPUPID_PGOFF - KASAN_TAG_WIDTH)
+#define LRU_GEN_PGOFF		(KASAN_TAG_PGOFF - LRU_GEN_WIDTH)
+#define LRU_REFS_PGOFF		(LRU_GEN_PGOFF - LRU_REFS_WIDTH)
 
 /*
  * Define the bit shifts to access each section.  For non-existent

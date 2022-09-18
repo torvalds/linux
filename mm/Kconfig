@@ -1118,6 +1118,14 @@ config PTE_MARKER_UFFD_WP
 	  purposes.  It is required to enable userfaultfd write protection on
 	  file-backed memory types like shmem and hugetlbfs.
 
+config LRU_GEN
+	bool "Multi-Gen LRU"
+	depends on MMU
+	# make sure folio->flags has enough spare bits
+	depends on 64BIT || !SPARSEMEM || SPARSEMEM_VMEMMAP
+	help
+	  A high performance LRU implementation to overcommit memory.
+
 source "mm/damon/Kconfig"
 
 endmenu

@@ -484,6 +484,11 @@ void folio_add_lru(struct folio *folio)
 			folio_test_unevictable(folio), folio);
 	VM_BUG_ON_FOLIO(folio_test_lru(folio), folio);
 
+	/* see the comment in lru_gen_add_folio() */
+	if (lru_gen_enabled() && !folio_test_unevictable(folio) &&
+	    lru_gen_in_fault() && !(current->flags & PF_MEMALLOC))
+		folio_set_active(folio);
+
 	folio_get(folio);
 	local_lock(&cpu_fbatches.lock);
 	fbatch = this_cpu_ptr(&cpu_fbatches.lru_add);
@@ -575,7 +580,7 @@ static void lru_deactivate_file_fn(struct lruvec *lruvec, struct folio *folio)
 
 static void lru_deactivate_fn(struct lruvec *lruvec, struct folio *folio)
 {
-	if (folio_test_active(folio) && !folio_test_unevictable(folio)) {
+	if (!folio_test_unevictable(folio) && (folio_test_active(folio) || lru_gen_enabled())) {
 		long nr_pages = folio_nr_pages(folio);
 
 		lruvec_del_folio(lruvec, folio);
@@ -688,8 +693,8 @@ void deactivate_page(struct page *page)
 {
 	struct folio *folio = page_folio(page);
 
-	if (folio_test_lru(folio) && folio_test_active(folio) &&
-	    !folio_test_unevictable(folio)) {
+	if (folio_test_lru(folio) && !folio_test_unevictable(folio) &&
+	    (folio_test_active(folio) || lru_gen_enabled())) {
 		struct folio_batch *fbatch;
 
 		folio_get(folio);
