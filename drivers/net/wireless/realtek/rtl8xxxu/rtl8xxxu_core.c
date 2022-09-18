@@ -4320,7 +4320,7 @@ static void rtl8xxxu_sw_scan_complete(struct ieee80211_hw *hw,
 }
 
 void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
-			       u32 ramask, u8 rateid, int sgi)
+			       u32 ramask, u8 rateid, int sgi, int txbw_40mhz)
 {
 	struct h2c_cmd h2c;
 
@@ -4340,10 +4340,15 @@ void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
 }
 
 void rtl8xxxu_gen2_update_rate_mask(struct rtl8xxxu_priv *priv,
-				    u32 ramask, u8 rateid, int sgi)
+				    u32 ramask, u8 rateid, int sgi, int txbw_40mhz)
 {
 	struct h2c_cmd h2c;
-	u8 bw = RTL8XXXU_CHANNEL_WIDTH_20;
+	u8 bw;
+
+	if (txbw_40mhz)
+		bw = RTL8XXXU_CHANNEL_WIDTH_40;
+	else
+		bw = RTL8XXXU_CHANNEL_WIDTH_20;
 
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
 
@@ -4621,7 +4626,11 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 						RATE_INFO_FLAGS_SHORT_GI;
 				}
 
-				rarpt->txrate.bw |= RATE_INFO_BW_20;
+				if (rtl8xxxu_ht40_2g &&
+				    (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+					rarpt->txrate.bw = RATE_INFO_BW_40;
+				else
+					rarpt->txrate.bw = RATE_INFO_BW_20;
 			}
 			bit_rate = cfg80211_calculate_bitrate(&rarpt->txrate);
 			rarpt->bit_rate = bit_rate;
@@ -4630,7 +4639,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			priv->vif = vif;
 			priv->rssi_level = RTL8XXXU_RATR_STA_INIT;
 
-			priv->fops->update_rate_mask(priv, ramask, 0, sgi);
+			priv->fops->update_rate_mask(priv, ramask, 0, sgi, rarpt->txrate.bw == RATE_INFO_BW_40);
 
 			rtl8xxxu_write8(priv, REG_BCN_MAX_ERR, 0xff);
 
@@ -6344,7 +6353,7 @@ static void rtl8xxxu_refresh_rate_mask(struct rtl8xxxu_priv *priv,
 		}
 
 		priv->rssi_level = rssi_level;
-		priv->fops->update_rate_mask(priv, rate_bitmap, ratr_idx, sgi);
+		priv->fops->update_rate_mask(priv, rate_bitmap, ratr_idx, sgi, txbw_40mhz);
 	}
 }
 
