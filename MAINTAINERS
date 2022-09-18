@@ -312,6 +312,13 @@ L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/counter/104-quad-8.c
 
+ACCES IDIO-16 GPIO LIBRARY
+M:	William Breathitt Gray <william.gray@linaro.org>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+F:	drivers/gpio/gpio-idio-16.c
+F:	drivers/gpio/gpio-idio-16.h
+
 ACCES PCI-IDIO-16 GPIO DRIVER
 M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org

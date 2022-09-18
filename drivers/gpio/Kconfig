@@ -109,6 +109,15 @@ config GPIO_REGMAP
 config GPIO_MAX730X
 	tristate
 
+config GPIO_IDIO_16
+	tristate
+	help
+	  Enables support for the idio-16 library functions. The idio-16 library
+	  provides functions to facilitate communication with devices within the
+	  ACCES IDIO-16 family such as the 104-IDIO-16 and the PCI-IDIO-16.
+
+	  If built as a module its name will be gpio-idio-16.
+
 menu "Memory mapped GPIO drivers"
 	depends on HAS_IOMEM
 
