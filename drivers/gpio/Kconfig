@@ -1563,6 +1563,7 @@ config GPIO_PCH
 config GPIO_PCI_IDIO_16
 	tristate "ACCES PCI-IDIO-16 GPIO support"
 	select GPIOLIB_IRQCHIP
+	select GPIO_IDIO_16
 	help
 	  Enables GPIO support for the ACCES PCI-IDIO-16. An interrupt is
 	  generated when any of the inputs change state (low to high or high to
