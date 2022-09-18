@@ -731,7 +731,7 @@ static int ec_stripe_bkey_insert(struct btree_trans *trans,
 				continue;
 			}
 
-			ret = -ENOSPC;
+			ret = -BCH_ERR_ENOSPC_stripe_create;
 			break;
 		}
 
@@ -1388,7 +1388,7 @@ static int __bch2_ec_stripe_head_reuse(struct bch_fs *c,
 	idx = get_existing_stripe(c, h);
 	if (idx < 0) {
 		bch_err(c, "failed to find an existing stripe");
-		return -ENOSPC;
+		return -BCH_ERR_ENOSPC_stripe_reuse;
 	}
 
 	h->s->have_existing_stripe = true;

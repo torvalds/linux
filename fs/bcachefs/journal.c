@@ -808,14 +808,16 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (new_fs) {
 			bu[nr_got] = bch2_bucket_alloc_new_fs(ca);
 			if (bu[nr_got] < 0) {
-				ret = -ENOSPC;
+				ret = -BCH_ERR_ENOSPC_bucket_alloc;
 				break;
 			}
 		} else {
 			ob[nr_got] = bch2_bucket_alloc(c, ca, RESERVE_none,
 					       false, cl);
 			if (IS_ERR(ob[nr_got])) {
-				ret = cl ? -EAGAIN : -ENOSPC;
+				ret = cl
+					? -EAGAIN
+					: -BCH_ERR_ENOSPC_bucket_alloc;
 				break;
 			}
 
@@ -942,10 +944,11 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 		 * reservation to ensure we'll actually be able to allocate:
 		 */
 
-		if (bch2_disk_reservation_get(c, &disk_res,
-					      bucket_to_sector(ca, nr - ja->nr), 1, 0)) {
+		ret = bch2_disk_reservation_get(c, &disk_res,
+						bucket_to_sector(ca, nr - ja->nr), 1, 0);
+		if (ret) {
 			mutex_unlock(&c->sb_lock);
-			return -ENOSPC;
+			return ret;
 		}
 
 		ret = __bch2_set_nr_journal_buckets(ca, nr, false, &cl);

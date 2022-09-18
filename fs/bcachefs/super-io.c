@@ -132,7 +132,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		if (new_bytes > max_bytes) {
 			pr_err("%pg: superblock too big: want %zu but have %llu",
 			       sb->bdev, new_bytes, max_bytes);
-			return -ENOSPC;
+			return -BCH_ERR_ENOSPC_sb;
 		}
 	}
 

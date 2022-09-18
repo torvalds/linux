@@ -207,7 +207,7 @@ bch2_hash_hole(struct btree_trans *trans,
 			return 0;
 	bch2_trans_iter_exit(trans, iter);
 
-	return ret ?: -ENOSPC;
+	return ret ?: -BCH_ERR_ENOSPC_str_hash_create;
 }
 
 static __always_inline
@@ -277,7 +277,7 @@ int bch2_hash_set_snapshot(struct btree_trans *trans,
 	}
 
 	if (!ret)
-		ret = -ENOSPC;
+		ret = -BCH_ERR_ENOSPC_str_hash_create;
 out:
 	bch2_trans_iter_exit(trans, &slot);
 	bch2_trans_iter_exit(trans, &iter);

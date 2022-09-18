@@ -1246,7 +1246,9 @@ err:
 
 	if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty) ||
 	    bch2_err_matches(ret, BCH_ERR_freelist_empty))
-		return cl ? -EAGAIN : -ENOSPC;
+		return cl
+			? -EAGAIN
+			: -BCH_ERR_ENOSPC_bucket_alloc;
 
 	if (bch2_err_matches(ret, BCH_ERR_insufficient_devices))
 		return -EROFS;

@@ -517,7 +517,7 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 			goto err;
 
 		if (!k.k || !k.k->p.offset) {
-			ret = -ENOSPC;
+			ret = -BCH_ERR_ENOSPC_snapshot_create;
 			goto err;
 		}
 
@@ -1031,7 +1031,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 	}
 
 	if (!ret)
-		ret = -ENOSPC;
+		ret = -BCH_ERR_ENOSPC_subvolume_create;
 	goto err;
 found_slot:
 	snapshot_subvols[0] = dst_iter.pos.offset;

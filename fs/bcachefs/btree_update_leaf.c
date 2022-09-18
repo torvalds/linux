@@ -1037,9 +1037,11 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	}
 
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted);
-	BUG_ON(ret == -ENOSPC &&
-	       !(trans->flags & BTREE_INSERT_NOWAIT) &&
-	       (trans->flags & BTREE_INSERT_NOFAIL));
+
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOSPC) &&
+				!(trans->flags & BTREE_INSERT_NOWAIT) &&
+				(trans->flags & BTREE_INSERT_NOFAIL), c,
+		"%s: incorrectly got %s\n", __func__, bch2_err_str(ret));
 
 	return ret;
 }

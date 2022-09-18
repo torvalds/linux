@@ -2,7 +2,21 @@
 #ifndef _BCACHEFS_ERRCODE_H
 #define _BCACHEFS_ERRCODE_H
 
-#define BCH_ERRCODES()							\
+#define BCH_ERRCODES()								\
+	x(ENOSPC,			ENOSPC_disk_reservation)		\
+	x(ENOSPC,			ENOSPC_bucket_alloc)			\
+	x(ENOSPC,			ENOSPC_disk_label_add)			\
+	x(ENOSPC,			ENOSPC_stripe_create)			\
+	x(ENOSPC,			ENOSPC_stripe_reuse)			\
+	x(ENOSPC,			ENOSPC_inode_create)			\
+	x(ENOSPC,			ENOSPC_str_hash_create)			\
+	x(ENOSPC,			ENOSPC_snapshot_create)			\
+	x(ENOSPC,			ENOSPC_subvolume_create)		\
+	x(ENOSPC,			ENOSPC_sb)				\
+	x(ENOSPC,			ENOSPC_sb_journal)			\
+	x(ENOSPC,			ENOSPC_sb_quota)			\
+	x(ENOSPC,			ENOSPC_sb_replicas)			\
+	x(ENOSPC,			ENOSPC_sb_members)			\
 	x(0,				open_buckets_empty)			\
 	x(0,				freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\

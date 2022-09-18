@@ -665,7 +665,7 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 		sb_quota = bch2_sb_resize_quota(&c->disk_sb,
 					sizeof(*sb_quota) / sizeof(u64));
 		if (!sb_quota)
-			return -ENOSPC;
+			return -BCH_ERR_ENOSPC_sb_quota;
 	}
 
 	if (info->i_fieldmask & QC_SPC_TIMER)

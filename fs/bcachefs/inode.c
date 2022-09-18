@@ -552,7 +552,7 @@ again:
 		goto found_slot;
 
 	if (!ret && start == min)
-		ret = -ENOSPC;
+		ret = -BCH_ERR_ENOSPC_inode_create;
 
 	if (ret) {
 		bch2_trans_iter_exit(trans, iter);

@@ -1991,7 +1991,7 @@ recalculate:
 		ret = 0;
 	} else {
 		atomic64_set(&c->sectors_available, sectors_available);
-		ret = -ENOSPC;
+		ret = -BCH_ERR_ENOSPC_disk_reservation;
 	}
 
 	mutex_unlock(&c->sectors_available_lock);

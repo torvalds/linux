@@ -3031,7 +3031,7 @@ bkey_err:
 	bch2_trans_unlock(&trans); /* lock ordering, before taking pagecache locks: */
 	mark_pagecache_reserved(inode, start_sector, iter.pos.offset);
 
-	if (ret == -ENOSPC && (mode & FALLOC_FL_ZERO_RANGE)) {
+	if (bch2_err_matches(ret, ENOSPC) && (mode & FALLOC_FL_ZERO_RANGE)) {
 		struct quota_res quota_res = { 0 };
 		s64 i_sectors_delta = 0;
 
@@ -3082,7 +3082,7 @@ static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 	 * so that the VFS cache i_size is consistent with the btree i_size:
 	 */
 	if (ret &&
-	    !(ret == -ENOSPC && (mode & FALLOC_FL_ZERO_RANGE)))
+	    !(bch2_err_matches(ret, ENOSPC) && (mode & FALLOC_FL_ZERO_RANGE)))
 		return ret;
 
 	if (mode & FALLOC_FL_KEEP_SIZE && end > inode->v.i_size)

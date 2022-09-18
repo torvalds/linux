@@ -276,7 +276,7 @@ static int __bch2_disk_group_add(struct bch_sb_handle *sb, unsigned parent,
 
 		groups = bch2_sb_resize_disk_groups(sb, u64s);
 		if (!groups)
-			return -ENOSPC;
+			return -BCH_ERR_ENOSPC_disk_label_add;
 
 		nr_groups = disk_groups_nr(groups);
 	}

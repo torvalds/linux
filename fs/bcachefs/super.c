@@ -1584,7 +1584,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 				le32_to_cpu(mi->field.u64s) +
 				sizeof(dev_mi) / sizeof(u64))) {
 		bch_err(c, "device add error: new device superblock too small");
-		ret = -ENOSPC;
+		ret = -BCH_ERR_ENOSPC_sb_members;
 		goto err_unlock;
 	}
 
@@ -1597,7 +1597,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 			goto have_slot;
 no_slot:
 	bch_err(c, "device add error: already have maximum number of devices");
-	ret = -ENOSPC;
+	ret = -BCH_ERR_ENOSPC_sb_members;
 	goto err_unlock;
 
 have_slot:
@@ -1608,7 +1608,7 @@ have_slot:
 	mi = bch2_sb_resize_members(&c->disk_sb, u64s);
 	if (!mi) {
 		bch_err(c, "device add error: no room in superblock for member info");
-		ret = -ENOSPC;
+		ret = -BCH_ERR_ENOSPC_sb_members;
 		goto err_unlock;
 	}
 

@@ -197,7 +197,7 @@ int bch2_journal_buckets_to_sb(struct bch_fs *c, struct bch_dev *ca)
 	j = bch2_sb_resize_journal_v2(&ca->disk_sb,
 				 (sizeof(*j) + sizeof(j->d[0]) * nr) / sizeof(u64));
 	if (!j)
-		return -ENOSPC;
+		return -BCH_ERR_ENOSPC_sb_journal;
 
 	bch2_sb_field_delete(&ca->disk_sb, BCH_SB_FIELD_journal);
 
