@@ -139,7 +139,6 @@ static void gp_aux_bus_remove(struct pci_dev *pdev)
 	auxiliary_device_delete(&aux_bus->aux_device_wrapper[1]->aux_dev);
 	auxiliary_device_uninit(&aux_bus->aux_device_wrapper[1]->aux_dev);
 	kfree(aux_bus);
-	pci_disable_device(pdev);
 }
 
 static const struct pci_device_id pci1xxxx_tbl[] = {
