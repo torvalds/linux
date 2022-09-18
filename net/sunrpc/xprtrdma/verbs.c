@@ -791,13 +791,9 @@ void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt)
 	/* If there is no underlying connection, it's no use
 	 * to wake the refresh worker.
 	 */
-	if (ep->re_connect_status == 1) {
-		/* The work is scheduled on a WQ_MEM_RECLAIM
-		 * workqueue in order to prevent MR allocation
-		 * from recursing into NFS during direct reclaim.
-		 */
-		queue_work(xprtiod_workqueue, &buf->rb_refresh_worker);
-	}
+	if (ep->re_connect_status != 1)
+		return;
+	queue_work(system_highpri_wq, &buf->rb_refresh_worker);
 }
 
 /**
