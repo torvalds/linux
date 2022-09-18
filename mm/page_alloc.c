@@ -3810,7 +3810,8 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
 }
 
 /*
- * Allocate a page from the given zone. Use pcplists for order-0 allocations.
+ * Allocate a page from the given zone.
+ * Use pcplists for THP or "cheap" high-order allocations.
  */
 
 /*
