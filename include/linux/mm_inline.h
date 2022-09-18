@@ -106,10 +106,21 @@ static __always_inline enum lru_list folio_lru_list(struct folio *folio)
 
 #ifdef CONFIG_LRU_GEN
 
+#ifdef CONFIG_LRU_GEN_ENABLED
 static inline bool lru_gen_enabled(void)
 {
-	return true;
+	DECLARE_STATIC_KEY_TRUE(lru_gen_caps[NR_LRU_GEN_CAPS]);
+
+	return static_branch_likely(&lru_gen_caps[LRU_GEN_CORE]);
 }
+#else
+static inline bool lru_gen_enabled(void)
+{
+	DECLARE_STATIC_KEY_FALSE(lru_gen_caps[NR_LRU_GEN_CAPS]);
+
+	return static_branch_unlikely(&lru_gen_caps[LRU_GEN_CORE]);
+}
+#endif
 
 static inline bool lru_gen_in_fault(void)
 {
@@ -222,7 +233,7 @@ static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio,
 
 	VM_WARN_ON_ONCE_FOLIO(gen != -1, folio);
 
-	if (folio_test_unevictable(folio))
+	if (folio_test_unevictable(folio) || !lrugen->enabled)
 		return false;
 	/*
 	 * There are three common cases for this page:

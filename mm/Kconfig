@@ -1127,6 +1127,12 @@ config LRU_GEN
 	help
 	  A high performance LRU implementation to overcommit memory.
 
+config LRU_GEN_ENABLED
+	bool "Enable by default"
+	depends on LRU_GEN
+	help
+	  This option enables the multi-gen LRU by default.
+
 config LRU_GEN_STATS
 	bool "Full stats for debugging"
 	depends on LRU_GEN
