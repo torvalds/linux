@@ -2958,18 +2958,37 @@ struct undefined_opcode_info {
 };
 
 /**
+ * struct page_fault_info - info about page fault
+ * @pgf_info: page fault information.
+ * @user_mappings: buffer containing user mappings.
+ * @num_of_user_mappings: number of user mappings.
+ */
+struct page_fault_info {
+	struct hl_page_fault_info	pgf;
+	struct hl_user_mapping		*user_mappings;
+	u64				num_of_user_mappings;
+};
+
+/**
  * struct hl_error_info - holds information collected during an error.
  * @cs_timeout: CS timeout error information.
  * @razwi: razwi information.
  * @razwi_info_recorded: if set writing to razwi information is enabled.
- *                otherwise - disabled, so the first (root cause) razwi will not be overwritten.
+ *                       otherwise - disabled, so the first (root cause) razwi will not be
+ *                       overwritten.
  * @undef_opcode: undefined opcode information
+ * @pgf_info: page fault information.
+ * @pgf_info_recorded: if set writing to page fault information is enabled.
+ *                     otherwise - disabled, so the first (root cause) page fault will not be
+ *                     overwritten.
  */
 struct hl_error_info {
 	struct cs_timeout_info		cs_timeout;
 	struct hl_info_razwi_event	razwi;
 	atomic_t			razwi_info_recorded;
 	struct undefined_opcode_info	undef_opcode;
+	struct page_fault_info		pgf_info;
+	atomic_t			pgf_info_recorded;
 };
 
 /**
@@ -3781,6 +3800,7 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 __printf(2, 3) void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...);
 void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
 			u8 flags);
+void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu);
 
 #ifdef CONFIG_DEBUG_FS
 

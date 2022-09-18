@@ -778,6 +778,9 @@ enum hl_server_type {
  * HL_INFO_UNREGISTER_EVENTFD - Unregister eventfd
  * HL_INFO_GET_EVENTS         - Retrieve the last occurred events
  * HL_INFO_UNDEFINED_OPCODE_EVENT - Retrieve last undefined opcode error information.
+ * HL_INFO_ENGINE_STATUS - Retrieve the status of all the h/w engines in the asic.
+ * HL_INFO_PAGE_FAULT_EVENT - Retrieve parameters of captured page fault.
+ * HL_INFO_USER_MAPPINGS - Retrieve user mappings, captured after page fault event.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -809,6 +812,8 @@ enum hl_server_type {
 #define HL_INFO_GET_EVENTS			30
 #define HL_INFO_UNDEFINED_OPCODE_EVENT		31
 #define HL_INFO_ENGINE_STATUS			32
+#define HL_INFO_PAGE_FAULT_EVENT		33
+#define HL_INFO_USER_MAPPINGS			34
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -1187,6 +1192,29 @@ struct hl_info_sec_attest {
 	__u8 pad0[2];
 };
 
+/**
+ * struct hl_page_fault_info - page fault information.
+ * @timestamp: timestamp of page fault.
+ * @addr: address which accessing it caused page fault.
+ * @engine_id: engine id which caused the page fault, supported only in gaudi3.
+ */
+struct hl_page_fault_info {
+	__s64 timestamp;
+	__u64 addr;
+	__u16 engine_id;
+	__u8 pad[6];
+};
+
+/**
+ * struct hl_user_mapping - user mapping information.
+ * @dev_va: device virtual address.
+ * @size: virtual address mapping size.
+ */
+struct hl_user_mapping {
+	__u64 dev_va;
+	__u64 size;
+};
+
 enum gaudi_dcores {
 	HL_GAUDI_WS_DCORE,
 	HL_GAUDI_WN_DCORE,
@@ -1213,6 +1241,8 @@ enum gaudi_dcores {
  *                           needed, hence updating this variable so user will know the exact amount
  *                           of bytes copied by the kernel to the buffer.
  * @sec_attest_nonce: Nonce number used for attestation report.
+ * @array_size: Number of array members copied to user buffer.
+ *              Relevant for HL_INFO_USER_MAPPINGS info ioctl.
  * @pad: Padding to 64 bit.
  */
 struct hl_info_args {
@@ -1228,6 +1258,7 @@ struct hl_info_args {
 		__u32 eventfd;
 		__u32 user_buffer_actual_size;
 		__u32 sec_attest_nonce;
+		__u32 array_size;
 	};
 
 	__u32 pad;

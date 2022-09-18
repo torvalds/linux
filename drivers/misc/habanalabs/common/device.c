@@ -12,6 +12,7 @@
 
 #include <linux/pci.h>
 #include <linux/hwmon.h>
+#include <linux/vmalloc.h>
 
 #include <trace/events/habanalabs.h>
 
@@ -2199,6 +2200,8 @@ void hl_device_fini(struct hl_device *hdev)
 
 	hl_mmu_fini(hdev);
 
+	vfree(hdev->captured_err_info.pgf_info.user_mappings);
+
 	hl_eq_fini(hdev, &hdev->event_queue);
 
 	kfree(hdev->shadow_cs_queue);
@@ -2274,4 +2277,59 @@ void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_
 	memcpy(&hdev->captured_err_info.razwi.engine_id[0], &engine_id[0],
 			num_of_engines * sizeof(u16));
 	hdev->captured_err_info.razwi.flags = flags;
+}
+static void hl_capture_user_mappings(struct hl_device *hdev)
+{
+	struct page_fault_info *pgf_info = &hdev->captured_err_info.pgf_info;
+	struct hl_vm_hash_node *hnode;
+	struct hl_userptr *userptr;
+	struct hl_ctx *ctx;
+	u32 map_idx = 0;
+	int i;
+
+	ctx = hl_get_compute_ctx(hdev);
+	if (!ctx) {
+		dev_err(hdev->dev, "Can't get user context for user mappings\n");
+		return;
+	}
+
+	mutex_lock(&ctx->mem_hash_lock);
+	hash_for_each(ctx->mem_hash, i, hnode, node)
+	pgf_info->num_of_user_mappings++;
+
+	if (!pgf_info->num_of_user_mappings)
+		goto finish;
+
+	/* In case we already allocated in previous session, need to release it before
+	 * allocating new buffer.
+	 */
+	vfree(pgf_info->user_mappings);
+	pgf_info->user_mappings =
+			vmalloc(pgf_info->num_of_user_mappings * sizeof(struct hl_user_mapping));
+	if (!pgf_info->user_mappings) {
+		pgf_info->num_of_user_mappings = 0;
+		goto finish;
+	}
+
+	hash_for_each(ctx->mem_hash, i, hnode, node) {
+		userptr = hnode->ptr;
+		pgf_info->user_mappings[map_idx].dev_va = hnode->vaddr;
+		pgf_info->user_mappings[map_idx].size = userptr->size;
+		map_idx++;
+	}
+finish:
+	mutex_unlock(&ctx->mem_hash_lock);
+	hl_ctx_put(ctx);
+}
+
+void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu)
+{
+	/* Capture only the first page fault */
+	if (atomic_cmpxchg(&hdev->captured_err_info.pgf_info_recorded, 0, 1))
+		return;
+
+	hdev->captured_err_info.pgf_info.pgf.timestamp = ktime_to_ns(ktime_get());
+	hdev->captured_err_info.pgf_info.pgf.addr = addr;
+	hdev->captured_err_info.pgf_info.pgf.engine_id = eng_id;
+	hl_capture_user_mappings(hdev);
 }

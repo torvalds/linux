@@ -778,6 +778,42 @@ static int engine_status_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	return rc;
 }
 
+static int page_fault_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_page_fault_info *info = &hdev->captured_err_info.pgf_info.pgf;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	return copy_to_user(out, info, min_t(size_t, max_size, sizeof(struct hl_page_fault_info)))
+				? -EFAULT : 0;
+}
+
+static int user_mappings_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	u32 user_buf_size = args->return_size;
+	struct hl_device *hdev = hpriv->hdev;
+	struct page_fault_info *pgf_info;
+	u64 actual_size;
+
+	pgf_info = &hdev->captured_err_info.pgf_info;
+	args->array_size = pgf_info->num_of_user_mappings;
+
+	if (!out)
+		return -EINVAL;
+
+	actual_size = pgf_info->num_of_user_mappings * sizeof(struct hl_user_mapping);
+	if (user_buf_size < actual_size)
+		return -ENOMEM;
+
+	return copy_to_user(out, pgf_info->user_mappings, min_t(size_t, user_buf_size, actual_size))
+				? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -836,6 +872,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_GET_EVENTS:
 		return events_info(hpriv, args);
+
+	case HL_INFO_PAGE_FAULT_EVENT:
+		return page_fault_info(hpriv, args);
+
+	case HL_INFO_USER_MAPPINGS:
+		return user_mappings_info(hpriv, args);
 
 	default:
 		break;

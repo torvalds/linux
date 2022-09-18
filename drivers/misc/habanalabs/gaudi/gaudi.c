@@ -6755,6 +6755,8 @@ static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr
 		*addr |= RREG32(mmMMU_UP_PAGE_ERROR_CAPTURE_VA);
 
 		dev_err_ratelimited(hdev->dev, "MMU page fault on va 0x%llx\n", *addr);
+		hl_capture_page_fault(hdev, *addr, 0, true);
+
 		WREG32(mmMMU_UP_PAGE_ERROR_CAPTURE, 0);
 	}
 
