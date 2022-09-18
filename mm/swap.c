@@ -428,6 +428,40 @@ static void __lru_cache_activate_folio(struct folio *folio)
 	local_unlock(&cpu_fbatches.lock);
 }
 
+#ifdef CONFIG_LRU_GEN
+static void folio_inc_refs(struct folio *folio)
+{
+	unsigned long new_flags, old_flags = READ_ONCE(folio->flags);
+
+	if (folio_test_unevictable(folio))
+		return;
+
+	if (!folio_test_referenced(folio)) {
+		folio_set_referenced(folio);
+		return;
+	}
+
+	if (!folio_test_workingset(folio)) {
+		folio_set_workingset(folio);
+		return;
+	}
+
+	/* see the comment on MAX_NR_TIERS */
+	do {
+		new_flags = old_flags & LRU_REFS_MASK;
+		if (new_flags == LRU_REFS_MASK)
+			break;
+
+		new_flags += BIT(LRU_REFS_PGOFF);
+		new_flags |= old_flags & ~LRU_REFS_MASK;
+	} while (!try_cmpxchg(&folio->flags, &old_flags, new_flags));
+}
+#else
+static void folio_inc_refs(struct folio *folio)
+{
+}
+#endif /* CONFIG_LRU_GEN */
+
 /*
  * Mark a page as having seen activity.
  *
@@ -440,6 +474,11 @@ static void __lru_cache_activate_folio(struct folio *folio)
  */
 void folio_mark_accessed(struct folio *folio)
 {
+	if (lru_gen_enabled()) {
+		folio_inc_refs(folio);
+		return;
+	}
+
 	if (!folio_test_referenced(folio)) {
 		folio_set_referenced(folio);
 	} else if (folio_test_unevictable(folio)) {
