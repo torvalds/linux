@@ -1100,8 +1100,8 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 
 	if (rc) {
 		dev_err(&intf->dev,
-			"Couldn't get bit timing const for channel (err=%d)\n",
-			rc);
+			"Couldn't get bit timing const for channel %d (%pe)\n",
+			channel, ERR_PTR(rc));
 		return ERR_PTR(rc);
 	}
 
@@ -1215,9 +1215,9 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 					  1000, GFP_KERNEL);
 		if (rc) {
 			dev_err(&intf->dev,
-				"Couldn't get extended bit timing const for channel (err=%d)\n",
-				rc);
-			return ERR_PTR(rc);
+				"Couldn't get extended bit timing const for channel %d (%pe)\n",
+				channel, ERR_PTR(rc));
+			goto out_free_candev;
 		}
 
 		strcpy(dev->data_bt_const.name, KBUILD_MODNAME);
@@ -1237,12 +1237,17 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 
 	rc = register_candev(dev->netdev);
 	if (rc) {
-		free_candev(dev->netdev);
-		dev_err(&intf->dev, "Couldn't register candev (err=%d)\n", rc);
-		return ERR_PTR(rc);
+		dev_err(&intf->dev,
+			"Couldn't register candev for channel %d (%pe)\n",
+			channel, ERR_PTR(rc));
+		goto out_free_candev;
 	}
 
 	return dev;
+
+ out_free_candev:
+	free_candev(dev->netdev);
+	return ERR_PTR(rc);
 }
 
 static void gs_destroy_candev(struct gs_can *dev)
