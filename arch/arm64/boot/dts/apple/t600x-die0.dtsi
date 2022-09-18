@@ -181,6 +181,7 @@
 				      <0>;
 		iommus = <&dart_sio_0 2>, <&dart_sio_1 2>;
 		power-domains = <&ps_sio_adma>;
+		resets = <&ps_audio_p>;
 	};
 
 	mca: mca@39b600000 {

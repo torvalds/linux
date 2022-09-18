@@ -249,6 +249,7 @@
 			#dma-cells = <1>;
 			iommus = <&dart_sio 2>;
 			power-domains = <&ps_sio_adma>;
+			resets = <&ps_audio_p>;
 		};
 
 		mca: i2s@238400000 {
