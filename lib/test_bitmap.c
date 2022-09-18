@@ -16,6 +16,8 @@
 
 #include "../tools/testing/selftests/kselftest_module.h"
 
+#define EXP1_IN_BITS	(sizeof(exp1) * 8)
+
 KSTM_MODULE_GLOBALS();
 
 static char pbl_buffer[PAGE_SIZE] __initdata;
@@ -217,6 +219,47 @@ static void __init test_zero_clear(void)
 	/* Zeroing entire area */
 	bitmap_zero(bmap, 1024);
 	expect_eq_pbl("", bmap, 1024);
+}
+
+static void __init test_find_nth_bit(void)
+{
+	unsigned long b, bit, cnt = 0;
+	DECLARE_BITMAP(bmap, 64 * 3);
+
+	bitmap_zero(bmap, 64 * 3);
+	__set_bit(10, bmap);
+	__set_bit(20, bmap);
+	__set_bit(30, bmap);
+	__set_bit(40, bmap);
+	__set_bit(50, bmap);
+	__set_bit(60, bmap);
+	__set_bit(80, bmap);
+	__set_bit(123, bmap);
+
+	expect_eq_uint(10,  find_nth_bit(bmap, 64 * 3, 0));
+	expect_eq_uint(20,  find_nth_bit(bmap, 64 * 3, 1));
+	expect_eq_uint(30,  find_nth_bit(bmap, 64 * 3, 2));
+	expect_eq_uint(40,  find_nth_bit(bmap, 64 * 3, 3));
+	expect_eq_uint(50,  find_nth_bit(bmap, 64 * 3, 4));
+	expect_eq_uint(60,  find_nth_bit(bmap, 64 * 3, 5));
+	expect_eq_uint(80,  find_nth_bit(bmap, 64 * 3, 6));
+	expect_eq_uint(123, find_nth_bit(bmap, 64 * 3, 7));
+	expect_eq_uint(64 * 3, find_nth_bit(bmap, 64 * 3, 8));
+
+	expect_eq_uint(10,  find_nth_bit(bmap, 64 * 3 - 1, 0));
+	expect_eq_uint(20,  find_nth_bit(bmap, 64 * 3 - 1, 1));
+	expect_eq_uint(30,  find_nth_bit(bmap, 64 * 3 - 1, 2));
+	expect_eq_uint(40,  find_nth_bit(bmap, 64 * 3 - 1, 3));
+	expect_eq_uint(50,  find_nth_bit(bmap, 64 * 3 - 1, 4));
+	expect_eq_uint(60,  find_nth_bit(bmap, 64 * 3 - 1, 5));
+	expect_eq_uint(80,  find_nth_bit(bmap, 64 * 3 - 1, 6));
+	expect_eq_uint(123, find_nth_bit(bmap, 64 * 3 - 1, 7));
+	expect_eq_uint(64 * 3 - 1, find_nth_bit(bmap, 64 * 3 - 1, 8));
+
+	for_each_set_bit(bit, exp1, EXP1_IN_BITS) {
+		b = find_nth_bit(exp1, EXP1_IN_BITS, cnt++);
+		expect_eq_uint(b, bit);
+	}
 }
 
 static void __init test_fill_set(void)
@@ -556,8 +599,6 @@ static void __init test_bitmap_parse(void)
 					i, test.in, time);
 	}
 }
-
-#define EXP1_IN_BITS	(sizeof(exp1) * 8)
 
 static void __init test_bitmap_arr32(void)
 {
@@ -952,6 +993,8 @@ static void __init selftest(void)
 	test_bitmap_cut();
 	test_bitmap_print_buf();
 	test_bitmap_const_eval();
+
+	test_find_nth_bit();
 }
 
 KSTM_MODULE_LOADERS(test_bitmap);
