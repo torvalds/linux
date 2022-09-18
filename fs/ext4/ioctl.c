@@ -1063,9 +1063,6 @@ static int ext4_ioctl_checkpoint(struct file *filp, unsigned long arg)
 	if (!EXT4_SB(sb)->s_journal)
 		return -ENODEV;
 
-	if (flags & ~EXT4_IOC_CHECKPOINT_FLAG_VALID)
-		return -EINVAL;
-
 	if ((flags & JBD2_JOURNAL_FLUSH_DISCARD) &&
 	    !bdev_max_discard_sectors(EXT4_SB(sb)->s_journal->j_dev))
 		return -EOPNOTSUPP;
