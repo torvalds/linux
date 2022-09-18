@@ -366,7 +366,7 @@ static void folio_activate_drain(int cpu)
 		folio_batch_move_lru(fbatch, folio_activate_fn);
 }
 
-static void folio_activate(struct folio *folio)
+void folio_activate(struct folio *folio)
 {
 	if (folio_test_lru(folio) && !folio_test_active(folio) &&
 	    !folio_test_unevictable(folio)) {
@@ -385,7 +385,7 @@ static inline void folio_activate_drain(int cpu)
 {
 }
 
-static void folio_activate(struct folio *folio)
+void folio_activate(struct folio *folio)
 {
 	struct lruvec *lruvec;
 

@@ -1490,6 +1490,11 @@ static inline unsigned long folio_pfn(struct folio *folio)
 	return page_to_pfn(&folio->page);
 }
 
+static inline struct folio *pfn_folio(unsigned long pfn)
+{
+	return page_folio(pfn_to_page(pfn));
+}
+
 static inline atomic_t *folio_pincount_ptr(struct folio *folio)
 {
 	return &folio_page(folio, 1)->compound_pincount;
