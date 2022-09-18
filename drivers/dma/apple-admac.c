@@ -12,8 +12,9 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
-#include <linux/interrupt.h>
+#include <linux/reset.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 
 #include "dmaengine.h"
 
@@ -95,6 +96,7 @@ struct admac_data {
 	struct dma_device dma;
 	struct device *dev;
 	__iomem void *base;
+	struct reset_control *rstc;
 
 	int irq;
 	int irq_index;
@@ -732,6 +734,10 @@ static int admac_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(ad->base),
 				     "unable to obtain MMIO resource\n");
 
+	ad->rstc = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
+	if (IS_ERR(ad->rstc))
+		return PTR_ERR(ad->rstc);
+
 	dma = &ad->dma;
 
 	dma_cap_set(DMA_PRIVATE, dma->cap_mask);
@@ -770,10 +776,17 @@ static int admac_probe(struct platform_device *pdev)
 		tasklet_setup(&adchan->tasklet, admac_chan_tasklet);
 	}
 
-	err = request_irq(irq, admac_interrupt, 0, dev_name(&pdev->dev), ad);
+	err = reset_control_reset(ad->rstc);
 	if (err)
 		return dev_err_probe(&pdev->dev, err,
-				     "unable to register interrupt\n");
+				     "unable to trigger reset\n");
+
+	err = request_irq(irq, admac_interrupt, 0, dev_name(&pdev->dev), ad);
+	if (err) {
+		dev_err_probe(&pdev->dev, err,
+				"unable to register interrupt\n");
+		goto free_reset;
+	}
 
 	err = dma_async_device_register(&ad->dma);
 	if (err) {
@@ -792,6 +805,8 @@ static int admac_probe(struct platform_device *pdev)
 
 free_irq:
 	free_irq(ad->irq, ad);
+free_reset:
+	reset_control_rearm(ad->rstc);
 	return err;
 }
 
@@ -802,6 +817,7 @@ static int admac_remove(struct platform_device *pdev)
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&ad->dma);
 	free_irq(ad->irq, ad);
+	reset_control_rearm(ad->rstc);
 
 	return 0;
 }
