@@ -455,51 +455,67 @@ long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	long ret;
 
 	switch (cmd) {
 	case FS_IOC_GETFLAGS:
-		return bch2_ioc_getflags(inode, (int __user *) arg);
+		ret = bch2_ioc_getflags(inode, (int __user *) arg);
+		break;
 
 	case FS_IOC_SETFLAGS:
-		return bch2_ioc_setflags(c, file, inode, (int __user *) arg);
+		ret = bch2_ioc_setflags(c, file, inode, (int __user *) arg);
+		break;
 
 	case FS_IOC_FSGETXATTR:
-		return bch2_ioc_fsgetxattr(inode, (void __user *) arg);
+		ret = bch2_ioc_fsgetxattr(inode, (void __user *) arg);
+		break;
+
 	case FS_IOC_FSSETXATTR:
-		return bch2_ioc_fssetxattr(c, file, inode,
-					   (void __user *) arg);
+		ret = bch2_ioc_fssetxattr(c, file, inode,
+					  (void __user *) arg);
+		break;
 
 	case BCHFS_IOC_REINHERIT_ATTRS:
-		return bch2_ioc_reinherit_attrs(c, file, inode,
-						(void __user *) arg);
+		ret = bch2_ioc_reinherit_attrs(c, file, inode,
+					       (void __user *) arg);
+		break;
 
 	case FS_IOC_GETVERSION:
-		return -ENOTTY;
+		ret = -ENOTTY;
+		break;
+
 	case FS_IOC_SETVERSION:
-		return -ENOTTY;
+		ret = -ENOTTY;
+		break;
 
 	case FS_IOC_GOINGDOWN:
-		return bch2_ioc_goingdown(c, (u32 __user *) arg);
+		ret = bch2_ioc_goingdown(c, (u32 __user *) arg);
+		break;
 
 	case BCH_IOCTL_SUBVOLUME_CREATE: {
 		struct bch_ioctl_subvolume i;
 
-		if (copy_from_user(&i, (void __user *) arg, sizeof(i)))
-			return -EFAULT;
-		return bch2_ioctl_subvolume_create(c, file, i);
+		ret = copy_from_user(&i, (void __user *) arg, sizeof(i))
+			? -EFAULT
+			: bch2_ioctl_subvolume_create(c, file, i);
+		break;
 	}
 
 	case BCH_IOCTL_SUBVOLUME_DESTROY: {
 		struct bch_ioctl_subvolume i;
 
-		if (copy_from_user(&i, (void __user *) arg, sizeof(i)))
-			return -EFAULT;
-		return bch2_ioctl_subvolume_destroy(c, file, i);
+		ret = copy_from_user(&i, (void __user *) arg, sizeof(i))
+			? -EFAULT
+			: bch2_ioctl_subvolume_destroy(c, file, i);
+		break;
 	}
 
 	default:
-		return bch2_fs_ioctl(c, cmd, (void __user *) arg);
+		ret = bch2_fs_ioctl(c, cmd, (void __user *) arg);
+		break;
 	}
+
+	return bch2_err_class(ret);
 }
 
 #ifdef CONFIG_COMPAT

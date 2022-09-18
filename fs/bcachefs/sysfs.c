@@ -40,14 +40,14 @@
 #include "util.h"
 
 #define SYSFS_OPS(type)							\
-const struct sysfs_ops type ## _sysfs_ops = {					\
+const struct sysfs_ops type ## _sysfs_ops = {				\
 	.show	= type ## _show,					\
 	.store	= type ## _store					\
 }
 
 #define SHOW(fn)							\
 static ssize_t fn ## _to_text(struct printbuf *,			\
-			      struct kobject *, struct attribute *);\
+			      struct kobject *, struct attribute *);	\
 									\
 static ssize_t fn ## _show(struct kobject *kobj, struct attribute *attr,\
 			   char *buf)					\
@@ -66,15 +66,24 @@ static ssize_t fn ## _show(struct kobject *kobj, struct attribute *attr,\
 		memcpy(buf, out.buf, ret);				\
 	}								\
 	printbuf_exit(&out);						\
-	return ret;							\
+	return bch2_err_class(ret);					\
 }									\
 									\
 static ssize_t fn ## _to_text(struct printbuf *out, struct kobject *kobj,\
 			      struct attribute *attr)
 
 #define STORE(fn)							\
+static ssize_t fn ## _store_inner(struct kobject *, struct attribute *,\
+			    const char *, size_t);			\
+									\
 static ssize_t fn ## _store(struct kobject *kobj, struct attribute *attr,\
 			    const char *buf, size_t size)		\
+{									\
+	return bch2_err_class(fn##_store_inner(kobj, attr, buf, size));	\
+}									\
+									\
+static ssize_t fn ## _store_inner(struct kobject *kobj, struct attribute *attr,\
+				  const char *buf, size_t size)
 
 #define __sysfs_attribute(_name, _mode)					\
 	static struct attribute sysfs_##_name =				\

@@ -419,7 +419,7 @@ static int bch2_mknod(struct mnt_idmap *idmap,
 			      (subvol_inum) { 0 }, 0);
 
 	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+		return bch2_err_class(PTR_ERR(inode));
 
 	d_instantiate(dentry, &inode->v);
 	return 0;
@@ -529,7 +529,7 @@ static int bch2_symlink(struct mnt_idmap *idmap,
 	inode = __bch2_create(idmap, dir, dentry, S_IFLNK|S_IRWXUGO, 0,
 			      (subvol_inum) { 0 }, BCH_CREATE_TMPFILE);
 	if (unlikely(IS_ERR(inode)))
-		return PTR_ERR(inode);
+		return bch2_err_class(PTR_ERR(inode));
 
 	inode_lock(&inode->v);
 	ret = page_symlink(&inode->v, symname, strlen(symname) + 1);
@@ -769,7 +769,7 @@ err_trans:
 err:
 	mutex_unlock(&inode->ei_update_lock);
 
-	return ret;
+	return bch2_err_class(ret);
 }
 
 static int bch2_getattr(struct mnt_idmap *idmap,
@@ -839,7 +839,7 @@ static int bch2_tmpfile(struct mnt_idmap *idmap,
 			      (subvol_inum) { 0 }, BCH_CREATE_TMPFILE);
 
 	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+		return bch2_err_class(PTR_ERR(inode));
 
 	d_mark_tmpfile(file, &inode->v);
 	d_instantiate(file->f_path.dentry, &inode->v);
@@ -1454,7 +1454,7 @@ static int bch2_vfs_write_inode(struct inode *vinode,
 			       ATTR_ATIME|ATTR_MTIME|ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
 
-	return ret;
+	return bch2_err_class(ret);
 }
 
 static void bch2_evict_inode(struct inode *vinode)
@@ -1558,6 +1558,7 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int bch2_sync_fs(struct super_block *sb, int wait)
 {
 	struct bch_fs *c = sb->s_fs_info;
+	int ret;
 
 	if (c->opts.journal_flush_disabled)
 		return 0;
@@ -1567,7 +1568,8 @@ static int bch2_sync_fs(struct super_block *sb, int wait)
 		return 0;
 	}
 
-	return bch2_journal_flush(&c->journal);
+	ret = bch2_journal_flush(&c->journal);
+	return bch2_err_class(ret);
 }
 
 static struct bch_fs *bch2_path_to_fs(const char *path)
@@ -1623,7 +1625,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 
 	ret = bch2_parse_mount_opts(c, &opts, data);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (opts.read_only != c->opts.read_only) {
 		down_write(&c->state_lock);
@@ -1637,7 +1639,8 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 			if (ret) {
 				bch_err(c, "error going rw: %i", ret);
 				up_write(&c->state_lock);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto err;
 			}
 
 			sb->s_flags &= ~SB_RDONLY;
@@ -1650,8 +1653,8 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 
 	if (opts.errors >= 0)
 		c->opts.errors = opts.errors;
-
-	return ret;
+err:
+	return bch2_err_class(ret);
 }
 
 static int bch2_show_devname(struct seq_file *seq, struct dentry *root)

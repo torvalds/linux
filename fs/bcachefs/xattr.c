@@ -350,17 +350,19 @@ err:
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = bch2_xattr_list_bcachefs(c, &inode->ei_inode, &buf, false);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = bch2_xattr_list_bcachefs(c, &inode->ei_inode, &buf, true);
 	if (ret)
-		return ret;
+		goto out;
 
 	return buf.used;
+out:
+	return bch2_err_class(ret);
 }
 
 static int bch2_xattr_get_handler(const struct xattr_handler *handler,
@@ -369,8 +371,10 @@ static int bch2_xattr_get_handler(const struct xattr_handler *handler,
 {
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	int ret;
 
-	return bch2_xattr_get(c, inode, name, buffer, size, handler->flags);
+	ret = bch2_xattr_get(c, inode, name, buffer, size, handler->flags);
+	return bch2_err_class(ret);
 }
 
 static int bch2_xattr_set_handler(const struct xattr_handler *handler,
@@ -382,11 +386,13 @@ static int bch2_xattr_set_handler(const struct xattr_handler *handler,
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
+	int ret;
 
-	return bch2_trans_do(c, NULL, NULL, 0,
+	ret = bch2_trans_do(c, NULL, NULL, 0,
 			bch2_xattr_set(&trans, inode_inum(inode), &hash,
 				       name, value, size,
 				       handler->flags, flags));
+	return bch2_err_class(ret);
 }
 
 static const struct xattr_handler bch_xattr_user_handler = {

@@ -15,7 +15,7 @@ static const char * const bch2_errcode_strs[] = {
 #define BCH_ERR_0	0
 
 static unsigned bch2_errcode_parents[] = {
-#define x(class, err) [BCH_ERR_##err - BCH_ERR_START] = BCH_ERR_##class,
+#define x(class, err) [BCH_ERR_##err - BCH_ERR_START] = class,
 	BCH_ERRCODES()
 #undef x
 };
@@ -48,4 +48,15 @@ bool __bch2_err_matches(int err, int class)
 		err = bch2_errcode_parents[err - BCH_ERR_START];
 
 	return err == class;
+}
+
+int __bch2_err_class(int err)
+{
+	err = -err;
+	BUG_ON((unsigned) err >= BCH_ERR_MAX);
+
+	while (err >= BCH_ERR_START && bch2_errcode_parents[err - BCH_ERR_START])
+		err = bch2_errcode_parents[err - BCH_ERR_START];
+
+	return -err;
 }
