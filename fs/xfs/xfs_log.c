@@ -226,12 +226,12 @@ xlog_ticket_reservation(
 	if (head == &log->l_write_head) {
 		ASSERT(tic->t_flags & XLOG_TIC_PERM_RESERV);
 		return tic->t_unit_res;
-	} else {
-		if (tic->t_flags & XLOG_TIC_PERM_RESERV)
-			return tic->t_unit_res * tic->t_cnt;
-		else
-			return tic->t_unit_res;
 	}
+
+	if (tic->t_flags & XLOG_TIC_PERM_RESERV)
+		return tic->t_unit_res * tic->t_cnt;
+
+	return tic->t_unit_res;
 }
 
 STATIC bool
