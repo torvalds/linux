@@ -38,7 +38,7 @@ static int gp_aux_bus_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	if (retval)
 		return retval;
 
-	aux_bus = kzalloc(sizeof(*aux_bus), GFP_KERNEL);
+	aux_bus = devm_kzalloc(&pdev->dev, sizeof(*aux_bus), GFP_KERNEL);
 	if (!aux_bus)
 		return -ENOMEM;
 
@@ -138,7 +138,6 @@ static void gp_aux_bus_remove(struct pci_dev *pdev)
 	auxiliary_device_uninit(&aux_bus->aux_device_wrapper[0]->aux_dev);
 	auxiliary_device_delete(&aux_bus->aux_device_wrapper[1]->aux_dev);
 	auxiliary_device_uninit(&aux_bus->aux_device_wrapper[1]->aux_dev);
-	kfree(aux_bus);
 }
 
 static const struct pci_device_id pci1xxxx_tbl[] = {
