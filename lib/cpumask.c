@@ -128,23 +128,21 @@ unsigned int cpumask_local_spread(unsigned int i, int node)
 	i %= num_online_cpus();
 
 	if (node == NUMA_NO_NODE) {
-		for_each_cpu(cpu, cpu_online_mask)
-			if (i-- == 0)
-				return cpu;
+		cpu = cpumask_nth(i, cpu_online_mask);
+		if (cpu < nr_cpu_ids)
+			return cpu;
 	} else {
 		/* NUMA first. */
-		for_each_cpu_and(cpu, cpumask_of_node(node), cpu_online_mask)
-			if (i-- == 0)
-				return cpu;
+		cpu = cpumask_nth_and(i, cpu_online_mask, cpumask_of_node(node));
+		if (cpu < nr_cpu_ids)
+			return cpu;
 
-		for_each_cpu(cpu, cpu_online_mask) {
-			/* Skip NUMA nodes, done above. */
-			if (cpumask_test_cpu(cpu, cpumask_of_node(node)))
-				continue;
+		i -= cpumask_weight_and(cpu_online_mask, cpumask_of_node(node));
 
-			if (i-- == 0)
-				return cpu;
-		}
+		/* Skip NUMA nodes, done above. */
+		cpu = cpumask_nth_andnot(i, cpu_online_mask, cpumask_of_node(node));
+		if (cpu < nr_cpu_ids)
+			return cpu;
 	}
 	BUG();
 }

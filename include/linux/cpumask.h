@@ -337,6 +337,50 @@ unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 	return i;
 }
 
+/**
+ * cpumask_nth - get the first cpu in a cpumask
+ * @srcp: the cpumask pointer
+ * @cpu: the N'th cpu to find, starting from 0
+ *
+ * Returns >= nr_cpu_ids if such cpu doesn't exist.
+ */
+static inline unsigned int cpumask_nth(unsigned int cpu, const struct cpumask *srcp)
+{
+	return find_nth_bit(cpumask_bits(srcp), nr_cpumask_bits, cpumask_check(cpu));
+}
+
+/**
+ * cpumask_nth_and - get the first cpu in 2 cpumasks
+ * @srcp1: the cpumask pointer
+ * @srcp2: the cpumask pointer
+ * @cpu: the N'th cpu to find, starting from 0
+ *
+ * Returns >= nr_cpu_ids if such cpu doesn't exist.
+ */
+static inline
+unsigned int cpumask_nth_and(unsigned int cpu, const struct cpumask *srcp1,
+							const struct cpumask *srcp2)
+{
+	return find_nth_and_bit(cpumask_bits(srcp1), cpumask_bits(srcp2),
+				nr_cpumask_bits, cpumask_check(cpu));
+}
+
+/**
+ * cpumask_nth_andnot - get the first cpu set in 1st cpumask, and clear in 2nd.
+ * @srcp1: the cpumask pointer
+ * @srcp2: the cpumask pointer
+ * @cpu: the N'th cpu to find, starting from 0
+ *
+ * Returns >= nr_cpu_ids if such cpu doesn't exist.
+ */
+static inline
+unsigned int cpumask_nth_andnot(unsigned int cpu, const struct cpumask *srcp1,
+							const struct cpumask *srcp2)
+{
+	return find_nth_andnot_bit(cpumask_bits(srcp1), cpumask_bits(srcp2),
+				nr_cpumask_bits, cpumask_check(cpu));
+}
+
 #define CPU_BITS_NONE						\
 {								\
 	[0 ... BITS_TO_LONGS(NR_CPUS)-1] = 0UL			\
