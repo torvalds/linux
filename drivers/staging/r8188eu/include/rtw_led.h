@@ -21,8 +21,6 @@ enum LED_CTL_MODE {
 };
 
 enum LED_STATE_871x {
-	LED_UNKNOWN = 0,
-	RTW_LED_ON = 1,
 	RTW_LED_OFF = 2,
 	LED_BLINK_NORMAL = 3,
 	LED_BLINK_SLOWLY = 4,
@@ -43,8 +41,6 @@ struct led_priv {
 	bool bRegUseLed;
 
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */
-	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
-				   * either RTW_LED_ON or RTW_LED_OFF are. */
 
 	bool bLedOn; /*  true if LED is ON, false if LED is OFF. */
 
