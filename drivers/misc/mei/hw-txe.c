@@ -176,7 +176,7 @@ static bool mei_txe_aliveness_set(struct mei_device *dev, u32 req)
  * @dev: the device structure
  *
  * Extract HICR_HOST_ALIVENESS_RESP_ACK bit from
- * from HICR_HOST_ALIVENESS_REQ register value
+ * HICR_HOST_ALIVENESS_REQ register value
  *
  * Return: SICR_HOST_ALIVENESS_REQ_REQUESTED bit value
  */
