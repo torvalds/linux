@@ -914,7 +914,7 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 		 (s_RGA3_WR_CTRL_SW_WR_FORMAT(wr_interleaved)));
 	reg =
 		((reg & (~m_RGA3_WR_CTRL_SW_WR_FBCE_SPARSE_EN)) |
-		 (s_RGA3_WR_CTRL_SW_WR_FBCE_SPARSE_EN(0)));
+		 (s_RGA3_WR_CTRL_SW_WR_FBCE_SPARSE_EN(1)));
 
 	reg =
 		((reg & (~m_RGA3_WR_CTRL_SW_OUTSTANDING_MAX)) |
