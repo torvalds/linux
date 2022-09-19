@@ -100,8 +100,7 @@ struct ftdi_private {
 #endif
 };
 
-/* struct ftdi_sio_quirk is used by devices requiring special attention. */
-struct ftdi_sio_quirk {
+struct ftdi_quirk {
 	int (*probe)(struct usb_serial *);
 	/* Special settings for probed ports. */
 	void (*port_probe)(struct ftdi_private *);
@@ -114,27 +113,27 @@ static int   ftdi_8u2232c_probe(struct usb_serial *serial);
 static void  ftdi_USB_UIRT_setup(struct ftdi_private *priv);
 static void  ftdi_HE_TIRA1_setup(struct ftdi_private *priv);
 
-static const struct ftdi_sio_quirk ftdi_jtag_quirk = {
+static const struct ftdi_quirk ftdi_jtag_quirk = {
 	.probe	= ftdi_jtag_probe,
 };
 
-static const struct ftdi_sio_quirk ftdi_NDI_device_quirk = {
+static const struct ftdi_quirk ftdi_NDI_device_quirk = {
 	.probe	= ftdi_NDI_device_setup,
 };
 
-static const struct ftdi_sio_quirk ftdi_USB_UIRT_quirk = {
+static const struct ftdi_quirk ftdi_USB_UIRT_quirk = {
 	.port_probe = ftdi_USB_UIRT_setup,
 };
 
-static const struct ftdi_sio_quirk ftdi_HE_TIRA1_quirk = {
+static const struct ftdi_quirk ftdi_HE_TIRA1_quirk = {
 	.port_probe = ftdi_HE_TIRA1_setup,
 };
 
-static const struct ftdi_sio_quirk ftdi_stmclite_quirk = {
+static const struct ftdi_quirk ftdi_stmclite_quirk = {
 	.probe	= ftdi_stmclite_probe,
 };
 
-static const struct ftdi_sio_quirk ftdi_8u2232c_quirk = {
+static const struct ftdi_quirk ftdi_8u2232c_quirk = {
 	.probe	= ftdi_8u2232c_probe,
 };
 
@@ -2170,12 +2169,9 @@ static void ftdi_gpio_remove(struct usb_serial_port *port) { }
  * ***************************************************************************
  */
 
-/* Probe function to check for special devices */
-static int ftdi_sio_probe(struct usb_serial *serial,
-					const struct usb_device_id *id)
+static int ftdi_probe(struct usb_serial *serial, const struct usb_device_id *id)
 {
-	const struct ftdi_sio_quirk *quirk =
-				(struct ftdi_sio_quirk *)id->driver_info;
+	const struct ftdi_quirk *quirk = (struct ftdi_quirk *)id->driver_info;
 
 	if (quirk && quirk->probe) {
 		int ret = quirk->probe(serial);
@@ -2188,10 +2184,10 @@ static int ftdi_sio_probe(struct usb_serial *serial,
 	return 0;
 }
 
-static int ftdi_sio_port_probe(struct usb_serial_port *port)
+static int ftdi_port_probe(struct usb_serial_port *port)
 {
+	const struct ftdi_quirk *quirk = usb_get_serial_data(port->serial);
 	struct ftdi_private *priv;
-	const struct ftdi_sio_quirk *quirk = usb_get_serial_data(port->serial);
 	int result;
 
 	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
@@ -2337,7 +2333,7 @@ static int ftdi_stmclite_probe(struct usb_serial *serial)
 	return 0;
 }
 
-static void ftdi_sio_port_remove(struct usb_serial_port *port)
+static void ftdi_port_remove(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
@@ -2865,7 +2861,7 @@ static int ftdi_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
-static struct usb_serial_driver ftdi_sio_device = {
+static struct usb_serial_driver ftdi_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"ftdi_sio",
@@ -2876,9 +2872,9 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.num_ports =		1,
 	.bulk_in_size =		512,
 	.bulk_out_size =	256,
-	.probe =		ftdi_sio_probe,
-	.port_probe =		ftdi_sio_port_probe,
-	.port_remove =		ftdi_sio_port_remove,
+	.probe =		ftdi_probe,
+	.port_probe =		ftdi_port_probe,
+	.port_remove =		ftdi_port_remove,
 	.open =			ftdi_open,
 	.dtr_rts =		ftdi_dtr_rts,
 	.throttle =		usb_serial_generic_throttle,
@@ -2898,7 +2894,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
-	&ftdi_sio_device, NULL
+	&ftdi_device, NULL
 };
 module_usb_serial_driver(serial_drivers, id_table_combined);
 
