@@ -8,6 +8,16 @@
 #include "jh7110-visionfive-v2.dts"
 #include "codecs/sf_wm8960.dtsi"
 
+&i2c0 {
+	wm8960: codec@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+
+		wlf,shared-lrclk;
+	};
+};
+
 &i2srx_3ch {
 	status = "okay";
 };

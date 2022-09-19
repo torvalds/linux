@@ -382,21 +382,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
 	status = "okay";
-
-	ac108_a: ac108@3b {
-		compatible = "x-power,ac108_0";
-		reg = <0x3b>;
-		#sound-dai-cells = <0>;
-		data-protocol = <0>;
-	};
-
-	wm8960: codec@1a {
-		compatible = "wlf,wm8960";
-		reg = <0x1a>;
-		#sound-dai-cells = <0>;
-
-		wlf,shared-lrclk;
-	};
 };
 
 &i2c2 {
