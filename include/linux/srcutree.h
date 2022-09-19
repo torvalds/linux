@@ -25,6 +25,7 @@ struct srcu_data {
 	/* Read-side state. */
 	atomic_long_t srcu_lock_count[2];	/* Locks per CPU. */
 	atomic_long_t srcu_unlock_count[2];	/* Unlocks per CPU. */
+	int srcu_nmi_safety;			/* NMI-safe srcu_struct structure? */
 
 	/* Update-side state. */
 	spinlock_t __private lock ____cacheline_internodealigned_in_smp;
@@ -41,6 +42,10 @@ struct srcu_data {
 	int cpu;
 	struct srcu_struct *ssp;
 };
+
+#define SRCU_NMI_UNKNOWN	0x0
+#define SRCU_NMI_NMI_UNSAFE	0x1
+#define SRCU_NMI_NMI_SAFE	0x2
 
 /*
  * Node in SRCU combining tree, similar in function to rcu_data.
