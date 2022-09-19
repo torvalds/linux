@@ -1391,6 +1391,38 @@ static int intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
 	return 0;
 }
 
+static int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
+{
+	struct device *dev = sdw->cdns.dev;
+	struct sdw_cdns *cdns = &sdw->cdns;
+	bool wake_enable = false;
+	int ret;
+
+	if (clock_stop) {
+		ret = sdw_cdns_clock_stop(cdns, true);
+		if (ret < 0)
+			dev_err(dev, "%s: cannot stop clock: %d\n", __func__, ret);
+		else
+			wake_enable = true;
+	}
+
+	ret = sdw_cdns_enable_interrupt(cdns, false);
+	if (ret < 0) {
+		dev_err(dev, "%s: cannot disable interrupts: %d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = intel_link_power_down(sdw);
+	if (ret) {
+		dev_err(dev, "%s: Link power down failed: %d\n", __func__, ret);
+		return ret;
+	}
+
+	intel_shim_wake(sdw, wake_enable);
+
+	return 0;
+}
+
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
@@ -1790,19 +1822,11 @@ static int __maybe_unused intel_suspend(struct device *dev)
 		return 0;
 	}
 
-	ret = sdw_cdns_enable_interrupt(cdns, false);
+	ret = intel_stop_bus(sdw, false);
 	if (ret < 0) {
-		dev_err(dev, "cannot disable interrupts on suspend\n");
+		dev_err(dev, "%s: cannot stop bus: %d\n", __func__, ret);
 		return ret;
 	}
-
-	ret = intel_link_power_down(sdw);
-	if (ret) {
-		dev_err(dev, "Link power down failed: %d\n", ret);
-		return ret;
-	}
-
-	intel_shim_wake(sdw, false);
 
 	return 0;
 }
@@ -1824,44 +1848,19 @@ static int __maybe_unused intel_suspend_runtime(struct device *dev)
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
 
 	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_TEARDOWN) {
-
-		ret = sdw_cdns_enable_interrupt(cdns, false);
+		ret = intel_stop_bus(sdw, false);
 		if (ret < 0) {
-			dev_err(dev, "cannot disable interrupts on suspend\n");
+			dev_err(dev, "%s: cannot stop bus during teardown: %d\n",
+				__func__, ret);
 			return ret;
 		}
-
-		ret = intel_link_power_down(sdw);
-		if (ret) {
-			dev_err(dev, "Link power down failed: %d\n", ret);
-			return ret;
-		}
-
-		intel_shim_wake(sdw, false);
-
-	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET ||
-		   !clock_stop_quirks) {
-		bool wake_enable = true;
-
-		ret = sdw_cdns_clock_stop(cdns, true);
+	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET || !clock_stop_quirks) {
+		ret = intel_stop_bus(sdw, true);
 		if (ret < 0) {
-			dev_err(dev, "cannot enable clock stop on suspend\n");
-			wake_enable = false;
-		}
-
-		ret = sdw_cdns_enable_interrupt(cdns, false);
-		if (ret < 0) {
-			dev_err(dev, "cannot disable interrupts on suspend\n");
+			dev_err(dev, "%s: cannot stop bus during clock_stop: %d\n",
+				__func__, ret);
 			return ret;
 		}
-
-		ret = intel_link_power_down(sdw);
-		if (ret) {
-			dev_err(dev, "Link power down failed: %d\n", ret);
-			return ret;
-		}
-
-		intel_shim_wake(sdw, wake_enable);
 	} else {
 		dev_err(dev, "%s clock_stop_quirks %x unsupported\n",
 			__func__, clock_stop_quirks);
