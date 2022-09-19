@@ -106,8 +106,8 @@ endif
 obj-$(CONFIG_PPC_BOOK3S_32)	+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
 obj-$(CONFIG_TAU)		+= tau_6xx.o
 obj-$(CONFIG_HIBERNATION)	+= swsusp.o suspend.o
-ifdef CONFIG_FSL_BOOKE
-obj-$(CONFIG_HIBERNATION)	+= swsusp_booke.o
+ifdef CONFIG_PPC_85xx
+obj-$(CONFIG_HIBERNATION)	+= swsusp_85xx.o
 else
 obj-$(CONFIG_HIBERNATION)	+= swsusp_$(BITS).o
 endif
@@ -122,7 +122,7 @@ extra-$(CONFIG_PPC64)		:= head_64.o
 extra-$(CONFIG_PPC_BOOK3S_32)	:= head_book3s_32.o
 extra-$(CONFIG_40x)		:= head_40x.o
 extra-$(CONFIG_44x)		:= head_44x.o
-extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
+extra-$(CONFIG_PPC_85xx)	:= head_85xx.o
 extra-$(CONFIG_PPC_8xx)		:= head_8xx.o
 extra-y				+= vmlinux.lds
 

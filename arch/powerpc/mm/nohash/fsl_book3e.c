@@ -59,7 +59,7 @@ static struct {
 	phys_addr_t phys;
 } tlbcam_addrs[NUM_TLBCAMS];
 
-#ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_PPC_85xx
 /*
  * Return PA for this VA if it is mapped by a CAM, or 0
  */

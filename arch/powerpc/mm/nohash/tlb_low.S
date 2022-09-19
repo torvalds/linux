@@ -221,7 +221,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	blr
 #endif /* CONFIG_PPC_47x */
 
-#elif defined(CONFIG_FSL_BOOKE)
+#elif defined(CONFIG_PPC_85xx)
 /*
  * FSL BookE implementations.
  *
