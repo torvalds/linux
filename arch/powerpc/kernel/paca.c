@@ -186,7 +186,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 #ifdef CONFIG_PPC_PSERIES
 	new_paca->lppaca_ptr = NULL;
 #endif
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	new_paca->kernel_pgd = swapper_pg_dir;
 #endif
 	new_paca->lock_token = 0x8000;
@@ -203,7 +203,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	new_paca->slb_shadow_ptr = NULL;
 #endif
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	/* For now -- if we have threads this will be adjusted later */
 	new_paca->tcd_ptr = &new_paca->tcd;
 #endif
@@ -215,7 +215,7 @@ void setup_paca(struct paca_struct *new_paca)
 	/* Setup r13 */
 	local_paca = new_paca;
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	/* On Book3E, initialize the TLB miss exception frames */
 	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
 #else

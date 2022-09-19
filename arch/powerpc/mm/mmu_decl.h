@@ -38,7 +38,7 @@ static inline void _tlbil_pid(unsigned int pid)
 #else /* CONFIG_40x || CONFIG_PPC_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 extern void _tlbil_pid_noind(unsigned int pid);
 #else
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
@@ -55,7 +55,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory");
 	trace_tlbie(0, 0, address, pid, 0, 0, 0);
 }
-#elif defined(CONFIG_PPC_BOOK3E)
+#elif defined(CONFIG_PPC_BOOK3E_64)
 extern void _tlbil_va(unsigned long address, unsigned int pid,
 		      unsigned int tsize, unsigned int ind);
 #else
@@ -67,7 +67,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 }
 #endif /* CONFIG_PPC_8xx */
 
-#if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_PPC_47x)
+#if defined(CONFIG_PPC_BOOK3E_64) || defined(CONFIG_PPC_47x)
 extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
 			   unsigned int tsize, unsigned int ind);
 #else

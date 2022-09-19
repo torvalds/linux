@@ -281,7 +281,7 @@ static inline bool nmi_disables_ftrace(struct pt_regs *regs)
 		if (TRAP(regs) == INTERRUPT_PERFMON)
 		       return false;
 	}
-	if (IS_ENABLED(CONFIG_PPC_BOOK3E)) {
+	if (IS_ENABLED(CONFIG_PPC_BOOK3E_64)) {
 		if (TRAP(regs) == INTERRUPT_PERFMON)
 			return false;
 	}

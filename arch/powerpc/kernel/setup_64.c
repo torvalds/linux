@@ -86,7 +86,7 @@ struct ppc64_caches ppc64_caches = {
 };
 EXPORT_SYMBOL_GPL(ppc64_caches);
 
-#if defined(CONFIG_PPC_BOOK3E) && defined(CONFIG_SMP)
+#if defined(CONFIG_PPC_BOOK3E_64) && defined(CONFIG_SMP)
 void __init setup_tlb_core_data(void)
 {
 	int cpu;
@@ -673,7 +673,7 @@ void __init initialize_cache_info(void)
  */
 __init u64 ppc64_bolted_size(void)
 {
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	/* Freescale BookE bolts the entire linear mapping */
 	/* XXX: BookE ppc64_rma_limit setup seems to disagree? */
 	if (early_mmu_has_feature(MMU_FTR_TYPE_FSL_E))
@@ -723,7 +723,7 @@ void __init irqstack_early_init(void)
 	}
 }
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 void __init exc_lvl_early_init(void)
 {
 	unsigned int i;
@@ -825,7 +825,7 @@ void __init setup_per_cpu_areas(void)
 	/*
 	 * BookE and BookS radix are historical values and should be revisited.
 	 */
-	if (IS_ENABLED(CONFIG_PPC_BOOK3E)) {
+	if (IS_ENABLED(CONFIG_PPC_BOOK3E_64)) {
 		atom_size = SZ_1M;
 	} else if (radix_enabled()) {
 		atom_size = PAGE_SIZE;

@@ -709,7 +709,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
  * kernel is built for.
  */
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 #define FIXUP_ENDIAN
 #else
 /*
@@ -749,7 +749,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 	.long 0x2402004c; /* hrfid				*/ \
 191:
 
-#endif /* !CONFIG_PPC_BOOK3E */
+#endif /* !CONFIG_PPC_BOOK3E_64 */
 
 #endif /*  __ASSEMBLY__ */
 

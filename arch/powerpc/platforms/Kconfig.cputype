@@ -257,10 +257,6 @@ config PPC_BOOK3S
 	def_bool y
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64
 
-config PPC_BOOK3E
-	def_bool y
-	depends on PPC_BOOK3E_64
-
 config E500
 	select FSL_EMB_PERFMON
 	select PPC_FSL_BOOK3E
@@ -316,7 +312,7 @@ config 4xx
 
 config BOOKE
 	bool
-	depends on E500 || 44x || PPC_BOOK3E
+	depends on E500 || 44x || PPC_BOOK3E_64
 	default y
 
 config BOOKE_OR_40x
@@ -480,7 +476,7 @@ config PPC_MMU_NOHASH
 
 config PPC_BOOK3E_MMU
 	def_bool y
-	depends on PPC_85xx || PPC_BOOK3E
+	depends on PPC_85xx || PPC_BOOK3E_64
 
 config PPC_HAVE_PMU_SUPPORT
 	bool
@@ -503,7 +499,7 @@ config FORCE_SMP
 	select SMP
 
 config SMP
-	depends on PPC_BOOK3S || PPC_BOOK3E || PPC_85xx || PPC_47x
+	depends on PPC_BOOK3S || PPC_BOOK3E_64 || PPC_85xx || PPC_47x
 	select GENERIC_IRQ_MIGRATION
 	bool "Symmetric multi-processing support" if !FORCE_SMP
 	help

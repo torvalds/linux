@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig FSL_SOC_BOOKE
 	bool "Freescale Book-E Machine Type"
-	depends on PPC_85xx || PPC_BOOK3E
+	depends on PPC_85xx || PPC_BOOK3E_64
 	select FSL_SOC
 	select PPC_UDBG_16550
 	select MPIC

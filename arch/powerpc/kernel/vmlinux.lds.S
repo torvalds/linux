@@ -71,7 +71,7 @@ SECTIONS
 	.head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {
 #ifdef CONFIG_PPC64
 		KEEP(*(.head.text.first_256B));
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 #else
 		KEEP(*(.head.text.real_vectors));
 		*(.head.text.real_trampolines);
