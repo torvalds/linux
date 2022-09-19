@@ -161,7 +161,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	mutex_lock(&hdev->fpriv_list_lock);
 
 	if (!hl_device_operational(hdev, &status)) {
-		dev_err_ratelimited(hdev->dev,
+		dev_dbg_ratelimited(hdev->dev,
 			"Can't open %s because it is %s\n",
 			dev_name(hdev->dev), hdev->status[status]);
 
@@ -271,7 +271,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	mutex_lock(&hdev->fpriv_ctrl_list_lock);
 
 	if (!hl_device_operational(hdev, NULL)) {
-		dev_err_ratelimited(hdev->dev_ctrl,
+		dev_dbg_ratelimited(hdev->dev_ctrl,
 			"Can't open %s because it is disabled or in reset\n",
 			dev_name(hdev->dev_ctrl));
 		rc = -EPERM;
