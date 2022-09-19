@@ -1191,16 +1191,6 @@
 				clock-names = "pipe0";
 				clock-output-names = "usb0_phy_pipe_clk_src";
 			};
-
-			usb_0_dpphy: dp-phy@88ed200 {
-				reg = <0 0x088ed200 0 0x200>,
-				      <0 0x088ed400 0 0x200>,
-				      <0 0x088eda00 0 0x200>,
-				      <0 0x088ea600 0 0x200>,
-				      <0 0x088ea800 0 0x200>;
-				#clock-cells = <1>;
-				#phy-cells = <0>;
-			};
 		};
 
 		usb_1_hsphy: phy@8902000 {
@@ -1252,16 +1242,6 @@
 				clocks = <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "usb1_phy_pipe_clk_src";
-			};
-
-			usb_1_dpphy: dp-phy@8904200 {
-				reg = <0 0x08904200 0 0x200>,
-				      <0 0x08904400 0 0x200>,
-				      <0 0x08904a00 0 0x200>,
-				      <0 0x08904600 0 0x200>,
-				      <0 0x08904800 0 0x200>;
-				#clock-cells = <1>;
-				#phy-cells = <0>;
 			};
 		};
 
