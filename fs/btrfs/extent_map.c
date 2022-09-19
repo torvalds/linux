@@ -141,8 +141,7 @@ static int tree_insert(struct rb_root_cached *root, struct extent_map *em)
  * it can't be found, try to find some neighboring extents
  */
 static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
-				     struct rb_node **prev_ret,
-				     struct rb_node **next_ret)
+				     struct rb_node **prev_or_next_ret)
 {
 	struct rb_node *n = root->rb_node;
 	struct rb_node *prev = NULL;
@@ -150,8 +149,7 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 	struct extent_map *entry;
 	struct extent_map *prev_entry = NULL;
 
-	ASSERT(prev_ret);
-	ASSERT(next_ret);
+	ASSERT(prev_or_next_ret);
 
 	while (n) {
 		entry = rb_entry(n, struct extent_map, rb_node);
@@ -171,15 +169,23 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 		prev = rb_next(prev);
 		prev_entry = rb_entry(prev, struct extent_map, rb_node);
 	}
-	*prev_ret = prev;
-	prev = orig_prev;
 
+	/*
+	 * Previous extent map found, return as in this case the caller does not
+	 * care about the next one.
+	 */
+	if (prev) {
+		*prev_or_next_ret = prev;
+		return NULL;
+	}
+
+	prev = orig_prev;
 	prev_entry = rb_entry(prev, struct extent_map, rb_node);
 	while (prev && offset < prev_entry->start) {
 		prev = rb_prev(prev);
 		prev_entry = rb_entry(prev, struct extent_map, rb_node);
 	}
-	*next_ret = prev;
+	*prev_or_next_ret = prev;
 
 	return NULL;
 }
@@ -425,16 +431,13 @@ __lookup_extent_mapping(struct extent_map_tree *tree,
 {
 	struct extent_map *em;
 	struct rb_node *rb_node;
-	struct rb_node *prev = NULL;
-	struct rb_node *next = NULL;
+	struct rb_node *prev_or_next = NULL;
 	u64 end = range_end(start, len);
 
-	rb_node = __tree_search(&tree->map.rb_root, start, &prev, &next);
+	rb_node = __tree_search(&tree->map.rb_root, start, &prev_or_next);
 	if (!rb_node) {
-		if (prev)
-			rb_node = prev;
-		else if (next)
-			rb_node = next;
+		if (prev_or_next)
+			rb_node = prev_or_next;
 		else
 			return NULL;
 	}
