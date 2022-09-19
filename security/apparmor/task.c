@@ -217,7 +217,7 @@ static void audit_ptrace_cb(struct audit_buffer *ab, void *va)
 		}
 	}
 	audit_log_format(ab, " peer=");
-	aa_label_xaudit(ab, labels_ns(ad->label), ad->peer,
+	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
 			FLAGS_NONE, GFP_ATOMIC);
 }
 
@@ -263,7 +263,7 @@ static int profile_tracer_perm(struct aa_profile *tracer,
 	if (&tracer->label == tracee)
 		return 0;
 
-	ad->label = &tracer->label;
+	ad->subj_label = &tracer->label;
 	ad->peer = tracee;
 	ad->request = 0;
 	ad->error = aa_capable(&tracer->label, CAP_SYS_PTRACE,

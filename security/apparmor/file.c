@@ -67,7 +67,7 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 
 	if (ad->peer) {
 		audit_log_format(ab, " target=");
-		aa_label_xaudit(ab, labels_ns(ad->label), ad->peer,
+		aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
 				FLAG_VIEW_SUBNS, GFP_KERNEL);
 	} else if (ad->fs.target) {
 		audit_log_format(ab, " target=");

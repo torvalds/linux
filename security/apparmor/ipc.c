@@ -71,7 +71,7 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 		audit_log_format(ab, " signal=rtmin+%d",
 				 ad->signal - SIGRT_BASE);
 	audit_log_format(ab, " peer=");
-	aa_label_xaudit(ab, labels_ns(ad->label), ad->peer,
+	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
 			FLAGS_NONE, GFP_ATOMIC);
 }
 

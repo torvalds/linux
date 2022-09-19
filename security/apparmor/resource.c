@@ -36,7 +36,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 			 rlim_names[ad->rlim.rlim], ad->rlim.max);
 	if (ad->peer) {
 		audit_log_format(ab, " peer=");
-		aa_label_xaudit(ab, labels_ns(ad->label), ad->peer,
+		aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
 				FLAGS_NONE, GFP_ATOMIC);
 	}
 }

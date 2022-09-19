@@ -722,11 +722,11 @@ out:
 	return error;
 
 fail:
-	ad.label = begin_current_label_crit_section();
+	ad.subj_label = begin_current_label_crit_section();
 	ad.info = name;
 	ad.error = error = -EINVAL;
 	aa_audit_msg(AUDIT_APPARMOR_DENIED, &ad, NULL);
-	end_current_label_crit_section(ad.label);
+	end_current_label_crit_section(ad.subj_label);
 	goto out;
 }
 

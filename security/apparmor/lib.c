@@ -297,7 +297,7 @@ static void aa_audit_perms_cb(struct audit_buffer *ab, void *va)
 				   PERMS_NAMES_MASK);
 	}
 	audit_log_format(ab, " peer=");
-	aa_label_xaudit(ab, labels_ns(ad->label), ad->peer,
+	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
 				      FLAGS_NONE, GFP_ATOMIC);
 }
 
@@ -357,7 +357,6 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
 						    typeof(*rules), list);
 	struct aa_perms perms;
 
-	ad->label = &profile->label;
 	ad->peer = &target->label;
 	ad->request = request;
 
@@ -419,7 +418,7 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 	}
 
 	if (ad) {
-		ad->label = &profile->label;
+		ad->subj_label = &profile->label;
 		ad->request = request;
 		ad->denied = denied;
 		ad->error = error;
