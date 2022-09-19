@@ -879,3 +879,44 @@ next:
 	free_extent_map(split);
 	free_extent_map(split2);
 }
+
+/*
+ * Replace a range in the inode's extent map tree with a new extent map.
+ *
+ * @inode:      The target inode.
+ * @new_em:     The new extent map to add to the inode's extent map tree.
+ * @modified:   Indicate if the new extent map should be added to the list of
+ *              modified extents (for fast fsync tracking).
+ *
+ * Drops all the extent maps in the inode's extent map tree that intersect the
+ * range of the new extent map and adds the new extent map to the tree.
+ * The caller should have locked an appropriate file range in the inode's io
+ * tree before calling this function.
+ */
+int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
+				   struct extent_map *new_em,
+				   bool modified)
+{
+	const u64 end = new_em->start + new_em->len - 1;
+	struct extent_map_tree *tree = &inode->extent_tree;
+	int ret;
+
+	ASSERT(!extent_map_in_tree(new_em));
+
+	/*
+	 * The caller has locked an appropriate file range in the inode's io
+	 * tree, but getting -EEXIST when adding the new extent map can still
+	 * happen in case there are extents that partially cover the range, and
+	 * this is due to two tasks operating on different parts of the extent.
+	 * See commit 18e83ac75bfe67 ("Btrfs: fix unexpected EEXIST from
+	 * btrfs_get_extent") for an example and details.
+	 */
+	do {
+		btrfs_drop_extent_map_range(inode, new_em->start, end, false);
+		write_lock(&tree->lock);
+		ret = add_extent_mapping(tree, new_em, modified);
+		write_unlock(&tree->lock);
+	} while (ret == -EEXIST);
+
+	return ret;
+}

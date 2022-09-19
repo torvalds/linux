@@ -109,5 +109,8 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 void btrfs_drop_extent_map_range(struct btrfs_inode *inode,
 				 u64 start, u64 end,
 				 bool skip_pinned);
+int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
+				   struct extent_map *new_em,
+				   bool modified);
 
 #endif

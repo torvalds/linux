@@ -2890,7 +2890,6 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 static noinline_for_stack int setup_relocation_extent_mapping(struct inode *inode,
 				u64 start, u64 end, u64 block_start)
 {
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_map *em;
 	int ret = 0;
 
@@ -2905,17 +2904,10 @@ static noinline_for_stack int setup_relocation_extent_mapping(struct inode *inod
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
 	lock_extent(&BTRFS_I(inode)->io_tree, start, end, NULL);
-	while (1) {
-		write_lock(&em_tree->lock);
-		ret = add_extent_mapping(em_tree, em, 0);
-		write_unlock(&em_tree->lock);
-		if (ret != -EEXIST) {
-			free_extent_map(em);
-			break;
-		}
-		btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
-	}
+	ret = btrfs_replace_extent_map_range(BTRFS_I(inode), em, false);
 	unlock_extent(&BTRFS_I(inode)->io_tree, start, end, NULL);
+	free_extent_map(em);
+
 	return ret;
 }
 
