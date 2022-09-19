@@ -984,9 +984,10 @@ static int _gaudi_init_tpc_mem(struct hl_device *hdev,
 	init_tpc_mem_pkt->ctl = cpu_to_le32(ctl);
 
 	init_tpc_mem_pkt->src_addr = cpu_to_le64(tpc_kernel_src_addr);
-	dst_addr = (prop->sram_user_base_address &
-			GAUDI_PKT_LIN_DMA_DST_ADDR_MASK) >>
-			GAUDI_PKT_LIN_DMA_DST_ADDR_SHIFT;
+
+	/* TPC_CMD is configured with I$ prefetch enabled, so address should be aligned to 8KB */
+	dst_addr = FIELD_PREP(GAUDI_PKT_LIN_DMA_DST_ADDR_MASK,
+				round_up(prop->sram_user_base_address, SZ_8K));
 	init_tpc_mem_pkt->dst_addr |= cpu_to_le64(dst_addr);
 
 	job = hl_cs_allocate_job(hdev, QUEUE_TYPE_EXT, true);
