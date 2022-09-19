@@ -210,9 +210,14 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	bc->bus_power_dev = genpd_dev_pm_attach_by_name(dev, "bus");
-	if (IS_ERR(bc->bus_power_dev))
-		return dev_err_probe(dev, PTR_ERR(bc->bus_power_dev),
-				     "failed to attach power domain \"bus\"\n");
+	if (IS_ERR(bc->bus_power_dev)) {
+		if (PTR_ERR(bc->bus_power_dev) == -ENODEV)
+			return dev_err_probe(dev, -EPROBE_DEFER,
+					     "failed to attach power domain \"bus\"\n");
+		else
+			return dev_err_probe(dev, PTR_ERR(bc->bus_power_dev),
+					     "failed to attach power domain \"bus\"\n");
+	}
 
 	for (i = 0; i < bc_data->num_domains; i++) {
 		const struct imx8m_blk_ctrl_domain_data *data = &bc_data->domains[i];
