@@ -121,6 +121,7 @@ allOf:
               - qcom,sc8180x-qmp-ufs-phy
               - qcom,sc8280xp-qmp-ufs-phy
               - qcom,sdm845-qmp-ufs-phy
+              - qcom,sm6115-qmp-ufs-phy
               - qcom,sm6350-qmp-ufs-phy
               - qcom,sm8150-qmp-ufs-phy
               - qcom,sm8250-qmp-ufs-phy
@@ -180,7 +181,6 @@ allOf:
           contains:
             enum:
               - qcom,sc8180x-qmp-ufs-phy
-              - qcom,sm6115-qmp-ufs-phy
     then:
       patternProperties:
         "^phy@[0-9a-f]+$":
@@ -198,6 +198,7 @@ allOf:
           contains:
             enum:
               - qcom,msm8996-qmp-ufs-phy
+              - qcom,sm6115-qmp-ufs-phy
     then:
       patternProperties:
         "^phy@[0-9a-f]+$":
