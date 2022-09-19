@@ -289,10 +289,8 @@ unsigned int __pure cpumask_next_wrap(int n, const struct cpumask *mask, int sta
  *
  * After the loop, cpu is >= nr_cpu_ids.
  */
-#define for_each_cpu_wrap(cpu, mask, start)					\
-	for ((cpu) = cpumask_next_wrap((start)-1, (mask), (start), false);	\
-	     (cpu) < nr_cpumask_bits;						\
-	     (cpu) = cpumask_next_wrap((cpu), (mask), (start), true))
+#define for_each_cpu_wrap(cpu, mask, start)				\
+	for_each_set_bit_wrap(cpu, cpumask_bits(mask), nr_cpumask_bits, start)
 
 /**
  * for_each_cpu_and - iterate over every cpu in both masks

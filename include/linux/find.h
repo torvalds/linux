@@ -336,6 +336,32 @@ unsigned long find_next_bit_wrap(const unsigned long *addr,
 	return bit < offset ? bit : size;
 }
 
+/*
+ * Helper for for_each_set_bit_wrap(). Make sure you're doing right thing
+ * before using it alone.
+ */
+static inline
+unsigned long __for_each_wrap(const unsigned long *bitmap, unsigned long size,
+				 unsigned long start, unsigned long n)
+{
+	unsigned long bit;
+
+	/* If not wrapped around */
+	if (n > start) {
+		/* and have a bit, just return it. */
+		bit = find_next_bit(bitmap, size, n);
+		if (bit < size)
+			return bit;
+
+		/* Otherwise, wrap around and ... */
+		n = 0;
+	}
+
+	/* Search the other part. */
+	bit = find_next_bit(bitmap, start, n);
+	return bit < start ? bit : size;
+}
+
 /**
  * find_next_clump8 - find next 8-bit clump with set bits in a memory region
  * @clump: location to store copy of found clump
@@ -513,6 +539,19 @@ unsigned long find_next_bit_le(const void *addr, unsigned
 	     (b) < (size);					\
 	     (b) = find_next_zero_bit((addr), (size), (e) + 1),	\
 	     (e) = find_next_bit((addr), (size), (b) + 1))
+
+/**
+ * for_each_set_bit_wrap - iterate over all set bits starting from @start, and
+ * wrapping around the end of bitmap.
+ * @bit: offset for current iteration
+ * @addr: bitmap address to base the search on
+ * @size: bitmap size in number of bits
+ * @start: Starting bit for bitmap traversing, wrapping around the bitmap end
+ */
+#define for_each_set_bit_wrap(bit, addr, size, start) \
+	for ((bit) = find_next_bit_wrap((addr), (size), (start));		\
+	     (bit) < (size);							\
+	     (bit) = __for_each_wrap((addr), (size), (start), (bit) + 1))
 
 /**
  * for_each_set_clump8 - iterate over bitmap for each 8-bit clump with set bits
