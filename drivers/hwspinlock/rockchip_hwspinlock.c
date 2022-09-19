@@ -5,13 +5,10 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/hwspinlock.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 
 #include "hwspinlock_internal.h"
 
@@ -59,19 +56,15 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct rockchip_hwspinlock *hwspin;
 	struct hwspinlock *hwlock;
-	struct resource *res;
-	int idx, ret;
+	int idx;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
-
-	hwspin = devm_kzalloc(&pdev->dev, sizeof(*hwspin) +
-			      sizeof(*hwlock) * HWSPINLOCK_NUMBER, GFP_KERNEL);
+	hwspin = devm_kzalloc(&pdev->dev,
+			      struct_size(hwspin, bank.lock, HWSPINLOCK_NUMBER),
+			      GFP_KERNEL);
 	if (!hwspin)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hwspin->io_base = devm_ioremap_resource(&pdev->dev, res);
+	hwspin->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hwspin->io_base))
 		return PTR_ERR(hwspin->io_base);
 
@@ -82,39 +75,9 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hwspin);
 
-	pm_runtime_enable(&pdev->dev);
-
-	ret = hwspin_lock_register(&hwspin->bank, &pdev->dev,
-				   &rockchip_hwspinlock_ops, 0,
-				   HWSPINLOCK_NUMBER);
-	if (ret)
-		goto reg_fail;
-
-	return 0;
-
-reg_fail:
-	pm_runtime_disable(&pdev->dev);
-	iounmap(hwspin->io_base);
-
-	return ret;
-}
-
-static int rockchip_hwspinlock_remove(struct platform_device *pdev)
-{
-	struct rockchip_hwspinlock *hwspin = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = hwspin_lock_unregister(&hwspin->bank);
-	if (ret) {
-		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
-		return ret;
-	}
-
-	pm_runtime_disable(&pdev->dev);
-
-	iounmap(hwspin->io_base);
-
-	return 0;
+	return devm_hwspin_lock_register(&pdev->dev, &hwspin->bank,
+					 &rockchip_hwspinlock_ops, 0,
+					 HWSPINLOCK_NUMBER);
 }
 
 static const struct of_device_id rockchip_hwpinlock_ids[] = {
@@ -125,7 +88,6 @@ MODULE_DEVICE_TABLE(of, rockchip_hwpinlock_ids);
 
 static struct platform_driver rockchip_hwspinlock_driver = {
 	.probe = rockchip_hwspinlock_probe,
-	.remove = rockchip_hwspinlock_remove,
 	.driver = {
 		.name = "rockchip_hwspinlock",
 		.of_match_table = of_match_ptr(rockchip_hwpinlock_ids),
