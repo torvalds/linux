@@ -14,8 +14,10 @@
 #include "cpu_specs_8xx.h"
 #endif
 
-#ifdef CONFIG_E500
-#include "cpu_specs_e500.h"
+#ifdef CONFIG_PPC_E500MC
+#include "cpu_specs_e500mc.h"
+#elif defined(CONFIG_PPC_85xx)
+#include "cpu_specs_85xx.h"
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_32
