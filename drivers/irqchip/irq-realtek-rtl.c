@@ -171,8 +171,7 @@ static int __init realtek_rtl_of_init(struct device_node *node, struct device_no
 	/* Disable all cascaded interrupts */
 	writel(0, REG(RTL_ICTL_GIMR));
 
-	domain = irq_domain_add_simple(node, 32, 0,
-				       &irq_domain_ops, NULL);
+	domain = irq_domain_add_linear(node, 32, &irq_domain_ops, NULL);
 
 	ret = map_interrupts(node, domain);
 	if (ret) {
