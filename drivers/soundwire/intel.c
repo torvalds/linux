@@ -311,14 +311,12 @@ static void intel_shim_master_ip_to_glue(struct sdw_intel *sdw)
 	/* at this point Integration Glue has full control of the I/Os */
 }
 
-static int intel_shim_init(struct sdw_intel *sdw)
+/* this needs to be called with shim_lock */
+static void intel_shim_init(struct sdw_intel *sdw)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
-	int ret = 0;
 	u16 ioctl = 0, act = 0;
-
-	mutex_lock(sdw->link_res->shim_lock);
 
 	/* Initialize Shim */
 	ioctl |= SDW_SHIM_IOCTL_BKE;
@@ -344,10 +342,6 @@ static int intel_shim_init(struct sdw_intel *sdw)
 	act |= SDW_SHIM_CTMCTL_DODS;
 	intel_writew(shim, SDW_SHIM_CTMCTL(link_id), act);
 	usleep_range(10, 15);
-
-	mutex_unlock(sdw->link_res->shim_lock);
-
-	return ret;
 }
 
 static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
@@ -449,6 +443,9 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	*shim_mask |= BIT(link_id);
 
 	sdw->cdns.link_up = true;
+
+	intel_shim_init(sdw);
+
 out:
 	mutex_unlock(sdw->link_res->shim_lock);
 
@@ -1274,16 +1271,6 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.post_bank_switch = intel_post_bank_switch,
 };
 
-static int intel_init(struct sdw_intel *sdw)
-{
-	/* Initialize shim and controller */
-	intel_link_power_up(sdw);
-
-	intel_shim_init(sdw);
-
-	return 0;
-}
-
 /*
  * probe and init (aux_dev_id argument is required by function prototype but not used)
  */
@@ -1384,7 +1371,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	}
 
 	/* Initialize shim, controller */
-	ret = intel_init(sdw);
+	ret = intel_link_power_up(sdw);
 	if (ret)
 		goto err_init;
 
@@ -1773,7 +1760,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 			pm_runtime_idle(dev);
 	}
 
-	ret = intel_init(sdw);
+	ret = intel_link_power_up(sdw);
 	if (ret) {
 		dev_err(dev, "%s failed: %d\n", __func__, ret);
 		return ret;
@@ -1862,7 +1849,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
 
 	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_TEARDOWN) {
-		ret = intel_init(sdw);
+		ret = intel_link_power_up(sdw);
 		if (ret) {
 			dev_err(dev, "%s failed: %d\n", __func__, ret);
 			return ret;
@@ -1910,7 +1897,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 						  true, INTEL_MASTER_RESET_ITERATIONS);
 
 	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET) {
-		ret = intel_init(sdw);
+		ret = intel_link_power_up(sdw);
 		if (ret) {
 			dev_err(dev, "%s failed: %d\n", __func__, ret);
 			return ret;
@@ -1991,7 +1978,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 		if (!clock_stop0)
 			dev_err(dev, "%s invalid configuration, clock was not stopped", __func__);
 
-		ret = intel_init(sdw);
+		ret = intel_link_power_up(sdw);
 		if (ret) {
 			dev_err(dev, "%s failed: %d\n", __func__, ret);
 			return ret;
