@@ -1807,10 +1807,6 @@ static const struct of_device_id nmk_pinctrl_match[] = {
 		.compatible = "stericsson,db8500-pinctrl",
 		.data = (void *)PINCTRL_NMK_DB8500,
 	},
-	{
-		.compatible = "stericsson,db8540-pinctrl",
-		.data = (void *)PINCTRL_NMK_DB8540,
-	},
 	{},
 };
 
@@ -1861,8 +1857,6 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 		nmk_pinctrl_stn8815_init(&npct->soc);
 	if (version == PINCTRL_NMK_DB8500)
 		nmk_pinctrl_db8500_init(&npct->soc);
-	if (version == PINCTRL_NMK_DB8540)
-		nmk_pinctrl_db8540_init(&npct->soc);
 
 	/*
 	 * Since we depend on the GPIO chips to provide clock and register base

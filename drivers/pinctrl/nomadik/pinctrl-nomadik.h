@@ -5,7 +5,6 @@
 /* Package definitions */
 #define PINCTRL_NMK_STN8815	0
 #define PINCTRL_NMK_DB8500	1
-#define PINCTRL_NMK_DB8540	2
 
 /* Alternate functions: function C is set in hw by setting both A and B */
 #define NMK_GPIO_ALT_GPIO	0
@@ -168,19 +167,6 @@ void nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc);
 
 static inline void
 nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc)
-{
-}
-
-#endif
-
-#ifdef CONFIG_PINCTRL_DB8540
-
-void nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc);
-
-#else
-
-static inline void
-nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc)
 {
 }
 
