@@ -181,16 +181,14 @@ static int tps65219_set_bypass(struct regulator_dev *dev, bool enable)
 {
 	struct tps65219 *tps = rdev_get_drvdata(dev);
 	unsigned int rid = rdev_get_id(dev);
-	int ret = 0;
 
-	if (dev->desc->ops->enable) {
+	if (dev->desc->ops->is_enabled(dev)) {
 		dev_err(tps->dev,
 			"%s LDO%d enabled, must be shut down to set bypass ",
 			__func__, rid);
 		return -EBUSY;
 	}
-	ret =  regulator_set_bypass_regmap(dev, enable);
-	return ret;
+	return regulator_set_bypass_regmap(dev, enable);
 }
 
 /* Operations permitted on BUCK1/2/3 */
