@@ -912,7 +912,7 @@ get_phys_addr:
  * Global functions
  */
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 #ifndef CONFIG_PPC_E500MC
 /* Adjust or setup IVORs for e500v1/v2 */
 _GLOBAL(__setup_e500_ivors)
@@ -955,7 +955,7 @@ _GLOBAL(__setup_ehv_ivors)
 	sync
 	blr
 #endif /* CONFIG_PPC_E500MC */
-#endif /* CONFIG_E500 */
+#endif /* CONFIG_PPC_E500 */
 
 #ifdef CONFIG_SPE
 /*

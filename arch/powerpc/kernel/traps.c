@@ -600,7 +600,7 @@ static inline int check_io_access(struct pt_regs *regs)
 
 #define inst_length(reason)	(((reason) & REASON_PREFIXED) ? 8 : 4)
 
-#if defined(CONFIG_E500)
+#if defined(CONFIG_PPC_E500)
 int machine_check_e500mc(struct pt_regs *regs)
 {
 	unsigned long mcsr = mfspr(SPRN_MCSR);

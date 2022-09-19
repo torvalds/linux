@@ -103,7 +103,7 @@ END_BTB_FLUSH_SECTION
 .endm
 
 .macro prepare_transfer_to_handler
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 	andi.	r12,r9,MSR_PR
 	bne	777f
 	bl	prepare_transfer_to_handler

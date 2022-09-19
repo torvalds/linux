@@ -49,7 +49,7 @@
  */
 	.align	12
 
-#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
+#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_E500)
 	.globl	prepare_transfer_to_handler
 prepare_transfer_to_handler:
 	/* if from kernel, check interrupted DOZE/NAP mode */
@@ -71,7 +71,7 @@ prepare_transfer_to_handler:
 	lwz	r2, GPR2(r11)
 	b	fast_exception_return
 _ASM_NOKPROBE_SYMBOL(prepare_transfer_to_handler)
-#endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_E500 */
+#endif /* CONFIG_PPC_BOOK3S_32 || CONFIG_PPC_E500 */
 
 #if defined(CONFIG_PPC_KUEP) && defined(CONFIG_PPC_BOOK3S_32)
 	.globl	__kuep_lock
