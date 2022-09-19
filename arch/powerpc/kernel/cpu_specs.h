@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifdef CONFIG_40x
+#include "cpu_specs_40x.h"
+#endif
+
+#ifdef CONFIG_PPC_47x
+#include "cpu_specs_47x.h"
+#elif defined(CONFIG_44x)
+#include "cpu_specs_44x.h"
+#endif
+
+#ifdef CONFIG_PPC_8xx
+#include "cpu_specs_8xx.h"
+#endif
+
+#ifdef CONFIG_E500
+#include "cpu_specs_e500.h"
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_32
+#include "cpu_specs_book3s_32.h"
+#endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+#include "cpu_specs_book3s_64.h"
+#endif
