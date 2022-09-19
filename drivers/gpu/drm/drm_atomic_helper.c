@@ -786,7 +786,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
 
 /**
- * drm_atomic_helper_check_wb_connector_state() - Check writeback encoder state
+ * drm_atomic_helper_check_wb_encoder_state() - Check writeback encoder state
  * @encoder: encoder state to check
  * @conn_state: connector state to check
  *
