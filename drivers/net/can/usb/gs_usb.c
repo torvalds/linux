@@ -286,6 +286,7 @@ struct gs_can {
 	/* time counter for hardware timestamps */
 	struct cyclecounter cc;
 	struct timecounter tc;
+	spinlock_t tc_lock; /* spinlock to guard access tc->cycle_last */
 	struct delayed_work timestamp;
 
 	u32 feature;
@@ -401,14 +402,18 @@ static inline int gs_usb_get_timestamp(const struct gs_can *dev,
 	return 0;
 }
 
-static u64 gs_usb_timestamp_read(const struct cyclecounter *cc)
+static u64 gs_usb_timestamp_read(const struct cyclecounter *cc) __must_hold(&dev->tc_lock)
 {
-	const struct gs_can *dev;
+	struct gs_can *dev = container_of(cc, struct gs_can, cc);
 	u32 timestamp = 0;
 	int err;
 
-	dev = container_of(cc, struct gs_can, cc);
+	lockdep_assert_held(&dev->tc_lock);
+
+	/* drop lock for synchronous USB transfer */
+	spin_unlock_bh(&dev->tc_lock);
 	err = gs_usb_get_timestamp(dev, &timestamp);
+	spin_lock_bh(&dev->tc_lock);
 	if (err)
 		netdev_err(dev->netdev,
 			   "Error %d while reading timestamp. HW timestamps may be inaccurate.",
@@ -423,19 +428,24 @@ static void gs_usb_timestamp_work(struct work_struct *work)
 	struct gs_can *dev;
 
 	dev = container_of(delayed_work, struct gs_can, timestamp);
+	spin_lock_bh(&dev->tc_lock);
 	timecounter_read(&dev->tc);
+	spin_unlock_bh(&dev->tc_lock);
 
 	schedule_delayed_work(&dev->timestamp,
 			      GS_USB_TIMESTAMP_WORK_DELAY_SEC * HZ);
 }
 
-static void gs_usb_skb_set_timestamp(const struct gs_can *dev,
+static void gs_usb_skb_set_timestamp(struct gs_can *dev,
 				     struct sk_buff *skb, u32 timestamp)
 {
 	struct skb_shared_hwtstamps *hwtstamps = skb_hwtstamps(skb);
 	u64 ns;
 
+	spin_lock_bh(&dev->tc_lock);
 	ns = timecounter_cyc2time(&dev->tc, timestamp);
+	spin_unlock_bh(&dev->tc_lock);
+
 	hwtstamps->hwtstamp = ns_to_ktime(ns);
 }
 
@@ -448,7 +458,10 @@ static void gs_usb_timestamp_init(struct gs_can *dev)
 	cc->shift = 32 - bits_per(NSEC_PER_SEC / GS_USB_TIMESTAMP_TIMER_HZ);
 	cc->mult = clocksource_hz2mult(GS_USB_TIMESTAMP_TIMER_HZ, cc->shift);
 
+	spin_lock_init(&dev->tc_lock);
+	spin_lock_bh(&dev->tc_lock);
 	timecounter_init(&dev->tc, &dev->cc, ktime_get_real_ns());
+	spin_unlock_bh(&dev->tc_lock);
 
 	INIT_DELAYED_WORK(&dev->timestamp, gs_usb_timestamp_work);
 	schedule_delayed_work(&dev->timestamp,
@@ -485,7 +498,7 @@ static void gs_update_state(struct gs_can *dev, struct can_frame *cf)
 	}
 }
 
-static void gs_usb_set_timestamp(const struct gs_can *dev, struct sk_buff *skb,
+static void gs_usb_set_timestamp(struct gs_can *dev, struct sk_buff *skb,
 				 const struct gs_host_frame *hf)
 {
 	u32 timestamp;
