@@ -753,6 +753,18 @@ static int check_nhlt_ssp_mask(struct snd_sof_dev *sdev)
 	return ssp_mask;
 }
 
+static int check_nhlt_ssp_mclk_mask(struct snd_sof_dev *sdev, int ssp_num)
+{
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
+	struct nhlt_acpi_table *nhlt;
+
+	nhlt = hdev->nhlt;
+	if (!nhlt)
+		return 0;
+
+	return intel_nhlt_ssp_mclk_mask(nhlt, ssp_num);
+}
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA) || IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
@@ -1533,6 +1545,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		    mach->mach_params.i2s_link_mask) {
 			const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
 			int ssp_num;
+			int mclk_mask;
 
 			if (hweight_long(mach->mach_params.i2s_link_mask) > 1 &&
 			    !(mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_MSB))
@@ -1557,6 +1570,21 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 
 			sof_pdata->tplg_filename = tplg_filename;
 			add_extension = true;
+
+			mclk_mask = check_nhlt_ssp_mclk_mask(sdev, ssp_num);
+
+			if (mclk_mask < 0) {
+				dev_err(sdev->dev, "Invalid MCLK configuration\n");
+				return NULL;
+			}
+
+			dev_dbg(sdev->dev, "MCLK mask %#x found in NHLT\n", mclk_mask);
+
+			if (mclk_mask) {
+				dev_info(sdev->dev, "Overriding topology with MCLK mask %#x from NHLT\n", mclk_mask);
+				sdev->mclk_id_override = true;
+				sdev->mclk_id_quirk = (mclk_mask & BIT(0)) ? 0 : 1;
+			}
 		}
 
 		if (tplg_fixup && add_extension) {
