@@ -112,10 +112,10 @@ void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start)
 EXPORT_SYMBOL_GPL(snd_hdac_stream_start);
 
 /**
- * snd_hdac_stream_clear - stop a stream DMA
+ * snd_hdac_stream_clear - helper to clear stream registers and stop DMA transfers
  * @azx_dev: HD-audio core stream to stop
  */
-void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
+static void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
 {
 	snd_hdac_stream_updateb(azx_dev, SD_CTL,
 				SD_CTL_DMA_START | SD_INT_MASK, 0);
@@ -124,7 +124,6 @@ void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
 		snd_hdac_stream_updateb(azx_dev, SD_CTL_3B, SD_CTL_STRIPE_MASK, 0);
 	azx_dev->running = false;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_stream_clear);
 
 /**
  * snd_hdac_stream_stop - stop a stream
