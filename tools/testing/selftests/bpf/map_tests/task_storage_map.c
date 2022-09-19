@@ -77,8 +77,11 @@ void test_task_storage_map_stress_lookup(void)
 	CHECK(err, "open_and_load", "error %d\n", err);
 
 	/* Only for a fully preemptible kernel */
-	if (!skel->kconfig->CONFIG_PREEMPT)
+	if (!skel->kconfig->CONFIG_PREEMPT) {
+		printf("%s SKIP (no CONFIG_PREEMPT)\n", __func__);
+		skips++;
 		return;
+	}
 
 	/* Save the old affinity setting */
 	sched_getaffinity(getpid(), sizeof(old), &old);
@@ -119,4 +122,5 @@ out:
 	read_bpf_task_storage_busy__destroy(skel);
 	/* Restore affinity setting */
 	sched_setaffinity(getpid(), sizeof(old), &old);
+	printf("%s:PASS\n", __func__);
 }

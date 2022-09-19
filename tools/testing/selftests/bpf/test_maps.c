@@ -30,7 +30,7 @@
 #define ENOTSUPP 524
 #endif
 
-static int skips;
+int skips;
 
 static struct bpf_map_create_opts map_opts = { .sz = sizeof(map_opts) };
 
