@@ -55,9 +55,7 @@ struct extent_map *alloc_extent_map(void)
 	if (!em)
 		return NULL;
 	RB_CLEAR_NODE(&em->rb_node);
-	em->flags = 0;
 	em->compress_type = BTRFS_COMPRESS_NONE;
-	em->generation = 0;
 	refcount_set(&em->refs, 1);
 	INIT_LIST_HEAD(&em->list);
 	return em;
