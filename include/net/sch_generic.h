@@ -326,11 +326,6 @@ struct tcf_result {
 		};
 		const struct tcf_proto *goto_tp;
 
-		/* used in the skb_tc_reinsert function */
-		struct {
-			bool		ingress;
-			struct gnet_stats_queue *qstats;
-		};
 	};
 };
 
