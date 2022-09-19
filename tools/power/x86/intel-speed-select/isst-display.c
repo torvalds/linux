@@ -166,29 +166,27 @@ static void format_and_print(FILE *outf, int level, char *header, char *value)
 	last_level = level;
 }
 
-static int print_package_info(int cpu, FILE *outf)
+static int print_package_info(struct isst_id *id, FILE *outf)
 {
 	char header[256];
 
 	if (out_format_is_json()) {
 		snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
-			 get_physical_package_id(cpu), get_physical_die_id(cpu),
-			 cpu);
+			 id->pkg, id->die, id->cpu);
 		format_and_print(outf, 1, header, NULL);
 		return 1;
 	}
-	snprintf(header, sizeof(header), "package-%d",
-		 get_physical_package_id(cpu));
+	snprintf(header, sizeof(header), "package-%d", id->pkg);
 	format_and_print(outf, 1, header, NULL);
-	snprintf(header, sizeof(header), "die-%d", get_physical_die_id(cpu));
+	snprintf(header, sizeof(header), "die-%d", id->die);
 	format_and_print(outf, 2, header, NULL);
-	snprintf(header, sizeof(header), "cpu-%d", cpu);
+	snprintf(header, sizeof(header), "cpu-%d", id->cpu);
 	format_and_print(outf, 3, header, NULL);
 
 	return 3;
 }
 
-static void _isst_pbf_display_information(int cpu, FILE *outf, int level,
+static void _isst_pbf_display_information(struct isst_id *id, FILE *outf, int level,
 					  struct isst_pbf_info *pbf_info,
 					  int disp_level)
 {
@@ -231,7 +229,7 @@ static void _isst_pbf_display_information(int cpu, FILE *outf, int level,
 	format_and_print(outf, disp_level + 1, header, value);
 }
 
-static void _isst_fact_display_information(int cpu, FILE *outf, int level,
+static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int level,
 					   int fact_bucket, int fact_avx,
 					   struct isst_fact_info *fact_info,
 					   int base_level)
@@ -319,7 +317,7 @@ static void _isst_fact_display_information(int cpu, FILE *outf, int level,
 	format_and_print(outf, base_level + 2, header, value);
 }
 
-void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
+void isst_ctdp_display_core_info(struct isst_id *id, FILE *outf, char *prefix,
 				 unsigned int val, char *str0, char *str1)
 {
 	char header[256];
@@ -328,17 +326,14 @@ void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
 
 	if (out_format_is_json()) {
 		snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
-			 get_physical_package_id(cpu), get_physical_die_id(cpu),
-			 cpu);
+			 id->pkg, id->die, id->cpu);
 		format_and_print(outf, level++, header, NULL);
 	} else {
-		snprintf(header, sizeof(header), "package-%d",
-			 get_physical_package_id(cpu));
+		snprintf(header, sizeof(header), "package-%d", id->pkg);
 		format_and_print(outf, level++, header, NULL);
-		snprintf(header, sizeof(header), "die-%d",
-			 get_physical_die_id(cpu));
+		snprintf(header, sizeof(header), "die-%d", id->die);
 		format_and_print(outf, level++, header, NULL);
-		snprintf(header, sizeof(header), "cpu-%d", cpu);
+		snprintf(header, sizeof(header), "cpu-%d", id->cpu);
 		format_and_print(outf, level++, header, NULL);
 	}
 
@@ -353,7 +348,7 @@ void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
 	format_and_print(outf, 1, NULL, NULL);
 }
 
-void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
+void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level,
 				   struct isst_pkg_ctdp *pkg_dev)
 {
 	char header[256];
@@ -362,7 +357,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 	int i;
 
 	if (pkg_dev->processed)
-		level = print_package_info(cpu, outf);
+		level = print_package_info(id, outf);
 
 	for (i = 0; i <= pkg_dev->levels; ++i) {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
@@ -377,8 +372,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		format_and_print(outf, level + 1, header, NULL);
 
 		snprintf(header, sizeof(header), "cpu-count");
-		j = get_cpu_count(get_physical_die_id(cpu),
-				  get_physical_die_id(cpu));
+		j = get_cpu_count(id);
 		snprintf(value, sizeof(value), "%d", j);
 		format_and_print(outf, level + 2, header, value);
 
@@ -485,7 +479,7 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 
 		if (is_clx_n_platform()) {
 			if (ctdp_level->pbf_support)
-				_isst_pbf_display_information(cpu, outf,
+				_isst_pbf_display_information(id, outf,
 							      tdp_level,
 							  &ctdp_level->pbf_info,
 							      level + 2);
@@ -557,11 +551,11 @@ void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
 		}
 
 		if (ctdp_level->pbf_support)
-			_isst_pbf_display_information(cpu, outf, i,
+			_isst_pbf_display_information(id, outf, i,
 						      &ctdp_level->pbf_info,
 						      level + 2);
 		if (ctdp_level->fact_support)
-			_isst_fact_display_information(cpu, outf, i, 0xff, 0xff,
+			_isst_fact_display_information(id, outf, i, 0xff, 0xff,
 						       &ctdp_level->fact_info,
 						       level + 2);
 	}
@@ -583,36 +577,36 @@ void isst_ctdp_display_information_end(FILE *outf)
 	start = 0;
 }
 
-void isst_pbf_display_information(int cpu, FILE *outf, int level,
+void isst_pbf_display_information(struct isst_id *id, FILE *outf, int level,
 				  struct isst_pbf_info *pbf_info)
 {
 	int _level;
 
-	_level = print_package_info(cpu, outf);
-	_isst_pbf_display_information(cpu, outf, level, pbf_info, _level + 1);
+	_level = print_package_info(id, outf);
+	_isst_pbf_display_information(id, outf, level, pbf_info, _level + 1);
 	format_and_print(outf, 1, NULL, NULL);
 }
 
-void isst_fact_display_information(int cpu, FILE *outf, int level,
+void isst_fact_display_information(struct isst_id *id, FILE *outf, int level,
 				   int fact_bucket, int fact_avx,
 				   struct isst_fact_info *fact_info)
 {
 	int _level;
 
-	_level = print_package_info(cpu, outf);
-	_isst_fact_display_information(cpu, outf, level, fact_bucket, fact_avx,
+	_level = print_package_info(id, outf);
+	_isst_fact_display_information(id, outf, level, fact_bucket, fact_avx,
 				       fact_info, _level + 1);
 	format_and_print(outf, 1, NULL, NULL);
 }
 
-void isst_clos_display_information(int cpu, FILE *outf, int clos,
+void isst_clos_display_information(struct isst_id *id, FILE *outf, int clos,
 				   struct isst_clos_config *clos_config)
 {
 	char header[256];
 	char value[256];
 	int level;
 
-	level = print_package_info(cpu, outf);
+	level = print_package_info(id, outf);
 
 	snprintf(header, sizeof(header), "core-power");
 	format_and_print(outf, level + 1, header, NULL);
@@ -647,7 +641,7 @@ void isst_clos_display_information(int cpu, FILE *outf, int clos,
 	format_and_print(outf, level, NULL, NULL);
 }
 
-void isst_clos_display_clos_information(int cpu, FILE *outf,
+void isst_clos_display_clos_information(struct isst_id *id, FILE *outf,
 					int clos_enable, int type,
 					int state, int cap)
 {
@@ -655,7 +649,7 @@ void isst_clos_display_clos_information(int cpu, FILE *outf,
 	char value[256];
 	int level;
 
-	level = print_package_info(cpu, outf);
+	level = print_package_info(id, outf);
 
 	snprintf(header, sizeof(header), "core-power");
 	format_and_print(outf, level + 1, header, NULL);
@@ -691,13 +685,13 @@ void isst_clos_display_clos_information(int cpu, FILE *outf,
 	format_and_print(outf, level, NULL, NULL);
 }
 
-void isst_clos_display_assoc_information(int cpu, FILE *outf, int clos)
+void isst_clos_display_assoc_information(struct isst_id *id, FILE *outf, int clos)
 {
 	char header[256];
 	char value[256];
 	int level;
 
-	level = print_package_info(cpu, outf);
+	level = print_package_info(id, outf);
 
 	snprintf(header, sizeof(header), "get-assoc");
 	format_and_print(outf, level + 1, header, NULL);
@@ -709,15 +703,15 @@ void isst_clos_display_assoc_information(int cpu, FILE *outf, int clos)
 	format_and_print(outf, level, NULL, NULL);
 }
 
-void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
+void isst_display_result(struct isst_id *id, FILE *outf, char *feature, char *cmd,
 			 int result)
 {
 	char header[256];
 	char value[256];
 	int level = 3;
 
-	if (cpu >= 0)
-		level = print_package_info(cpu, outf);
+	if (id->cpu >= 0)
+		level = print_package_info(id, outf);
 
 	snprintf(header, sizeof(header), "%s", feature);
 	format_and_print(outf, level + 1, header, NULL);
@@ -772,13 +766,13 @@ void isst_display_error_info_message(int error, char *msg, int arg_valid, int ar
 		format_and_print(outf, 0, NULL, NULL);
 }
 
-void isst_trl_display_information(int cpu, FILE *outf, unsigned long long trl)
+void isst_trl_display_information(struct isst_id *id, FILE *outf, unsigned long long trl)
 {
 	char header[256];
 	char value[256];
 	int level;
 
-	level = print_package_info(cpu, outf);
+	level = print_package_info(id, outf);
 
 	snprintf(header, sizeof(header), "get-trl");
 	format_and_print(outf, level + 1, header, NULL);
