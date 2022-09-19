@@ -24,6 +24,12 @@
 #include "soc15.h"
 
 #include "soc15_common.h"
+#include "amdgpu_xcp.h"
+
+#define XCP_INST_MASK(num_inst, xcp_id)                                        \
+	(num_inst ? GENMASK(num_inst - 1, 0) << (xcp_id * num_inst) : 0)
+
+#define AMDGPU_XCP_OPS_KFD	(1 << 0)
 
 void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 {
@@ -118,4 +124,230 @@ u64 aqua_vanjaram_encode_ext_smn_addressing(int ext_id)
 	ext_offset = ((u64)(ext_id & 0x3) << 32) | (1ULL << 34);
 
 	return ext_offset;
+}
+
+static int aqua_vanjaram_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	enum amdgpu_gfx_partition mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+	struct amdgpu_device *adev = xcp_mgr->adev;
+
+	if (adev->nbio.funcs->get_compute_partition_mode)
+		mode = adev->nbio.funcs->get_compute_partition_mode(adev);
+
+	return mode;
+}
+
+int __aqua_vanjaram_get_xcc_per_xcp(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
+{
+	int num_xcc, num_xcc_per_xcp = 0;
+
+	num_xcc = NUM_XCC(xcp_mgr->adev->gfx.xcc_mask);
+
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc;
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc / 2;
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc / 3;
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc / 4;
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		num_xcc_per_xcp = 1;
+		break;
+	}
+
+	return num_xcc_per_xcp;
+}
+
+int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
+				    enum AMDGPU_XCP_IP_BLOCK ip_id,
+				    struct amdgpu_xcp_ip *ip)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int num_xcc_xcp, num_sdma_xcp, num_vcn_xcp;
+	int num_sdma, num_vcn;
+
+	num_sdma = adev->sdma.num_instances;
+	num_vcn = adev->vcn.num_vcn_inst;
+
+	switch (xcp_mgr->mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		num_sdma_xcp = num_sdma;
+		num_vcn_xcp = num_vcn;
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		num_sdma_xcp = num_sdma / 2;
+		num_vcn_xcp = num_vcn / 2;
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		num_sdma_xcp = num_sdma / 3;
+		num_vcn_xcp = num_vcn / 3;
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_sdma_xcp = num_sdma / 4;
+		num_vcn_xcp = num_vcn / 4;
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		num_sdma_xcp = 2;
+		num_vcn_xcp = num_vcn ? 1 : 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	num_xcc_xcp = adev->gfx.num_xcc_per_xcp;
+
+	switch (ip_id) {
+	case AMDGPU_XCP_GFXHUB:
+		ip->inst_mask = XCP_INST_MASK(num_xcc_xcp, xcp_id);
+		/* TODO : Assign IP funcs */
+		break;
+	case AMDGPU_XCP_GFX:
+		ip->inst_mask = XCP_INST_MASK(num_xcc_xcp, xcp_id);
+		/* TODO : Assign IP funcs */
+		break;
+	case AMDGPU_XCP_SDMA:
+		ip->inst_mask = XCP_INST_MASK(num_sdma_xcp, xcp_id);
+		/* TODO : Assign IP funcs */
+		break;
+	case AMDGPU_XCP_VCN:
+		ip->inst_mask = XCP_INST_MASK(num_vcn_xcp, xcp_id);
+		/* TODO : Assign IP funcs */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ip->ip_id = ip_id;
+
+	return 0;
+}
+
+static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
+					  enum amdgpu_gfx_partition mode)
+{
+	int num_xcc, num_xccs_per_xcp;
+
+	num_xcc = NUM_XCC(xcp_mgr->adev->gfx.xcc_mask);
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		return num_xcc > 0;
+	case AMDGPU_DPX_PARTITION_MODE:
+		return (num_xcc % 4) == 0;
+	case AMDGPU_TPX_PARTITION_MODE:
+		return (num_xcc % 3) == 0;
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_xccs_per_xcp = num_xcc / 4;
+		return (num_xccs_per_xcp >= 2);
+	case AMDGPU_CPX_PARTITION_MODE:
+		return (num_xcc > 1);
+	default:
+		return false;
+	}
+
+	return false;
+}
+
+static int __aqua_vanjaram_pre_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
+{
+	/* TODO:
+	 * Stop user queues and threads, and make sure GPU is empty of work.
+	 */
+
+	if (flags & AMDGPU_XCP_OPS_KFD)
+		amdgpu_amdkfd_device_fini_sw(xcp_mgr->adev);
+
+	return 0;
+}
+
+static int __aqua_vanjaram_post_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
+{
+	int ret = 0;
+
+	if (flags & AMDGPU_XCP_OPS_KFD) {
+		amdgpu_amdkfd_device_probe(xcp_mgr->adev);
+		amdgpu_amdkfd_device_init(xcp_mgr->adev);
+		/* If KFD init failed, return failure */
+		if (!xcp_mgr->adev->kfd.init_complete)
+			ret = -EIO;
+	}
+
+	return ret;
+}
+
+static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
+					       int mode, int *num_xcps)
+{
+	int num_xcc_per_xcp, num_xcc, ret;
+	struct amdgpu_device *adev;
+	u32 flags = 0;
+
+	adev = xcp_mgr->adev;
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+
+	if (!__aqua_vanjaram_is_valid_mode(xcp_mgr, mode))
+		return -EINVAL;
+
+	if (adev->kfd.init_complete)
+		flags |= AMDGPU_XCP_OPS_KFD;
+
+	if (flags & AMDGPU_XCP_OPS_KFD) {
+		ret = amdgpu_amdkfd_check_and_lock_kfd(adev);
+		if (ret)
+			goto out;
+	}
+
+	ret = __aqua_vanjaram_pre_partition_switch(xcp_mgr, flags);
+	if (ret)
+		goto unlock;
+
+	num_xcc_per_xcp = __aqua_vanjaram_get_xcc_per_xcp(xcp_mgr, mode);
+	if (adev->gfx.funcs->switch_gfx_partition_mode)
+		adev->gfx.funcs->switch_gfx_partition_mode(xcp_mgr->adev,
+						       num_xcc_per_xcp);
+
+	if (adev->nbio.funcs->set_compute_partition_mode)
+		adev->nbio.funcs->set_compute_partition_mode(adev, mode);
+
+	ret = __aqua_vanjaram_post_partition_switch(xcp_mgr, flags);
+unlock:
+	if (flags & AMDGPU_XCP_OPS_KFD)
+		amdgpu_amdkfd_unlock_kfd(adev);
+out:
+	return ret;
+}
+
+int aqua_vanjaram_get_xcp_ip_details(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
+				     enum AMDGPU_XCP_IP_BLOCK ip_id,
+				     struct amdgpu_xcp_ip *ip)
+{
+	if (!ip)
+		return -EINVAL;
+
+	return __aqua_vanjaram_get_xcp_ip_info(xcp_mgr, xcp_id, ip_id, ip);
+}
+
+struct amdgpu_xcp_mgr_funcs aqua_vanjaram_xcp_funcs = {
+	.switch_partition_mode = &aqua_vanjaram_switch_partition_mode,
+	.query_partition_mode = &aqua_vanjaram_query_partition_mode,
+	.get_ip_details = &aqua_vanjaram_get_xcp_ip_details
+};
+
+static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
+{
+	int ret;
+
+	ret = amdgpu_xcp_mgr_init(adev, AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE, 1,
+				  &aqua_vanjaram_xcp_funcs);
+	if (ret)
+		return ret;
+
+	/* TODO: Default memory node affinity init */
+
+	return ret;
 }
