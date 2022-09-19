@@ -297,7 +297,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 	}
 
 	if (!sta->sta.deflink.ht_cap.ht_supported &&
-	    sta->sdata->vif.bss_conf.chandef.chan->band != NL80211_BAND_6GHZ) {
+	    !sta->sta.deflink.he_cap.has_he) {
 		ht_dbg(sta->sdata,
 		       "STA %pM erroneously requests BA session on tid %d w/o HT\n",
 		       sta->sta.addr, tid);
