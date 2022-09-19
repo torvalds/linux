@@ -6791,6 +6791,13 @@ static void hci_le_cis_estabilished_evt(struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
+	if (conn->type != ISO_LINK) {
+		bt_dev_err(hdev,
+			   "Invalid connection link type handle 0x%4.4x",
+			   handle);
+		goto unlock;
+	}
+
 	if (conn->role == HCI_ROLE_SLAVE) {
 		__le32 interval;
 
@@ -6910,6 +6917,13 @@ static void hci_le_create_big_complete_evt(struct hci_dev *hdev, void *data,
 	conn = hci_conn_hash_lookup_big(hdev, ev->handle);
 	if (!conn)
 		goto unlock;
+
+	if (conn->type != ISO_LINK) {
+		bt_dev_err(hdev,
+			   "Invalid connection link type handle 0x%2.2x",
+			   ev->handle);
+		goto unlock;
+	}
 
 	if (ev->num_bis)
 		conn->handle = __le16_to_cpu(ev->bis_handle[0]);
