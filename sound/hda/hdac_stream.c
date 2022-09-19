@@ -366,6 +366,21 @@ struct hdac_stream *snd_hdac_stream_assign(struct hdac_bus *bus,
 EXPORT_SYMBOL_GPL(snd_hdac_stream_assign);
 
 /**
+ * snd_hdac_stream_release_locked - release the assigned stream
+ * @azx_dev: HD-audio core stream to release
+ *
+ * Release the stream that has been assigned by snd_hdac_stream_assign().
+ * The bus->reg_lock needs to be taken at a higher level
+ */
+void snd_hdac_stream_release_locked(struct hdac_stream *azx_dev)
+{
+	azx_dev->opened = 0;
+	azx_dev->running = 0;
+	azx_dev->substream = NULL;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_release_locked);
+
+/**
  * snd_hdac_stream_release - release the assigned stream
  * @azx_dev: HD-audio core stream to release
  *
@@ -376,9 +391,7 @@ void snd_hdac_stream_release(struct hdac_stream *azx_dev)
 	struct hdac_bus *bus = azx_dev->bus;
 
 	spin_lock_irq(&bus->reg_lock);
-	azx_dev->opened = 0;
-	azx_dev->running = 0;
-	azx_dev->substream = NULL;
+	snd_hdac_stream_release_locked(azx_dev);
 	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_release);

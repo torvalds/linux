@@ -384,8 +384,8 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type)
 		spin_lock_irq(&bus->reg_lock);
 		if (hext_stream->decoupled && !hext_stream->link_locked)
 			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
+		snd_hdac_stream_release_locked(&hext_stream->hstream);
 		spin_unlock_irq(&bus->reg_lock);
-		snd_hdac_stream_release(&hext_stream->hstream);
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_LINK:

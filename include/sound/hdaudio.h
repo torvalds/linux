@@ -551,6 +551,7 @@ void snd_hdac_stream_init(struct hdac_bus *bus, struct hdac_stream *azx_dev,
 			  int idx, int direction, int tag);
 struct hdac_stream *snd_hdac_stream_assign(struct hdac_bus *bus,
 					   struct snd_pcm_substream *substream);
+void snd_hdac_stream_release_locked(struct hdac_stream *azx_dev);
 void snd_hdac_stream_release(struct hdac_stream *azx_dev);
 struct hdac_stream *snd_hdac_get_stream(struct hdac_bus *bus,
 					int dir, int stream_tag);
