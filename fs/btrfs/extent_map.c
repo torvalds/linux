@@ -702,11 +702,11 @@ static void drop_all_extent_maps_fast(struct extent_map_tree *tree)
 void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 				 bool skip_pinned)
 {
-	struct extent_map *split = NULL;
-	struct extent_map *split2 = NULL;
+	struct extent_map *split;
+	struct extent_map *split2;
+	struct extent_map *em;
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	u64 len = end - start + 1;
-	bool testend = true;
 
 	WARN_ON(end < start);
 	if (end == (u64)-1) {
@@ -715,57 +715,73 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			return;
 		}
 		len = (u64)-1;
-		testend = false;
+	} else {
+		/* Make end offset exclusive for use in the loop below. */
+		end++;
 	}
-	while (1) {
-		struct extent_map *em;
-		u64 em_end;
+
+	/*
+	 * It's ok if we fail to allocate the extent maps, see the comment near
+	 * the bottom of the loop below. We only need two spare extent maps in
+	 * the worst case, where the first extent map that intersects our range
+	 * starts before the range and the last extent map that intersects our
+	 * range ends after our range (and they might be the same extent map),
+	 * because we need to split those two extent maps at the boundaries.
+	 */
+	split = alloc_extent_map();
+	split2 = alloc_extent_map();
+
+	write_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, start, len);
+
+	while (em) {
+		/* extent_map_end() returns exclusive value (last byte + 1). */
+		const u64 em_end = extent_map_end(em);
+		struct extent_map *next_em = NULL;
 		u64 gen;
 		unsigned long flags;
-		bool ends_after_range = false;
-		bool no_splits = false;
 		bool modified;
 		bool compressed;
 
-		if (!split)
-			split = alloc_extent_map();
-		if (!split2)
-			split2 = alloc_extent_map();
-		if (!split || !split2)
-			no_splits = true;
-
-		write_lock(&em_tree->lock);
-		em = lookup_extent_mapping(em_tree, start, len);
-		if (!em) {
-			write_unlock(&em_tree->lock);
-			break;
-		}
-		em_end = extent_map_end(em);
-		if (testend && em_end > start + len)
-			ends_after_range = true;
-		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
-			if (ends_after_range) {
-				free_extent_map(em);
-				write_unlock(&em_tree->lock);
-				break;
+		if (em_end < end) {
+			next_em = next_extent_map(em);
+			if (next_em) {
+				if (next_em->start < end)
+					refcount_inc(&next_em->refs);
+				else
+					next_em = NULL;
 			}
-			start = em_end;
-			if (testend)
-				len = start + len - em_end;
-			free_extent_map(em);
-			write_unlock(&em_tree->lock);
-			continue;
 		}
-		flags = em->flags;
-		gen = em->generation;
-		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
+
+		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
+			start = em_end;
+			if (end != (u64)-1)
+				len = start + len - em_end;
+			goto next;
+		}
+
 		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		clear_bit(EXTENT_FLAG_LOGGING, &flags);
 		modified = !list_empty(&em->list);
-		if (no_splits)
-			goto next;
+
+		/*
+		 * The extent map does not cross our target range, so no need to
+		 * split it, we can remove it directly.
+		 */
+		if (em->start >= start && em_end <= end)
+			goto remove_em;
+
+		flags = em->flags;
+		gen = em->generation;
+		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 
 		if (em->start < start) {
+			if (!split) {
+				split = split2;
+				split2 = NULL;
+				if (!split)
+					goto remove_em;
+			}
 			split->start = em->start;
 			split->len = start - em->start;
 
@@ -796,7 +812,13 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			split = split2;
 			split2 = NULL;
 		}
-		if (ends_after_range) {
+		if (em_end > end) {
+			if (!split) {
+				split = split2;
+				split2 = NULL;
+				if (!split)
+					goto remove_em;
+			}
 			split->start = start + len;
 			split->len = em_end - (start + len);
 			split->block_start = em->block_start;
@@ -842,7 +864,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			free_extent_map(split);
 			split = NULL;
 		}
-next:
+remove_em:
 		if (extent_map_in_tree(em)) {
 			/*
 			 * If the extent map is still in the tree it means that
@@ -864,19 +886,26 @@ next:
 			 * full fsync, otherwise a fast fsync will miss this
 			 * extent if it's new and needs to be logged.
 			 */
-			if ((em->start < start || ends_after_range) && modified) {
-				ASSERT(no_splits);
+			if ((em->start < start || em_end > end) && modified) {
+				ASSERT(!split);
 				btrfs_set_inode_full_sync(inode);
 			}
 			remove_extent_mapping(em_tree, em);
 		}
-		write_unlock(&em_tree->lock);
 
-		/* Once for us. */
+		/*
+		 * Once for the tree reference (we replaced or removed the
+		 * extent map from the tree).
+		 */
 		free_extent_map(em);
-		/* And once for the tree. */
+next:
+		/* Once for us (for our lookup reference). */
 		free_extent_map(em);
+
+		em = next_em;
 	}
+
+	write_unlock(&em_tree->lock);
 
 	free_extent_map(split);
 	free_extent_map(split2);
