@@ -39,7 +39,6 @@
 		regulator-max-microvolt = <12000000>;
 		gpio = <&gpio TEGRA234_MAIN_GPIO(A, 1) GPIO_ACTIVE_LOW>;
 		regulator-boot-on;
-		enable-active-low;
 	};
 
 	bus@0 {
