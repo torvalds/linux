@@ -41,10 +41,10 @@
 		k_i = <0>;
 
 		trips {
-			trip-point-0 {
+			trip-point@0 {
 				temperature = <55000>;
 			};
-			trip-point-1 {
+			trip-point@1 {
 				temperature = <90000>;
 			};
 		};
