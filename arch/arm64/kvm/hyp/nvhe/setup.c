@@ -18,6 +18,7 @@
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
 #include <nvhe/pkvm.h>
+#include <nvhe/serial.h>
 #include <nvhe/trap_handler.h>
 
 unsigned long hyp_nr_cpus;
