@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2020, Linaro Limited
+// Copyright (c) 2022, Linaro Limited
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -13,10 +13,9 @@
 #include "qdsp6/q6afe.h"
 #include "common.h"
 
-#define DRIVER_NAME		"sm8250"
-#define MI2S_BCLK_RATE		1536000
+#define DRIVER_NAME		"sc8280xp"
 
-struct sm8250_snd_data {
+struct sc8280xp_snd_data {
 	bool stream_prepared[AFE_PORT_MAX];
 	struct snd_soc_card *card;
 	struct sdw_stream_runtime *sruntime[AFE_PORT_MAX];
@@ -24,75 +23,65 @@ struct sm8250_snd_data {
 	bool jack_setup;
 };
 
-static int sm8250_snd_init(struct snd_soc_pcm_runtime *rtd)
+static int sc8280xp_snd_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct sm8250_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
+	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
 
 	return qcom_snd_wcd_jack_setup(rtd, &data->jack, &data->jack_setup);
 }
 
-static int sm8250_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+static int sc8280xp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				     struct snd_pcm_hw_params *params)
 {
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_interval *rate = hw_param_interval(params,
 					SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
 					SNDRV_PCM_HW_PARAM_CHANNELS);
 
 	rate->min = rate->max = 48000;
-	channels->min = channels->max = 2;
-
-	return 0;
-}
-
-static int sm8250_snd_startup(struct snd_pcm_substream *substream)
-{
-	unsigned int fmt = SND_SOC_DAIFMT_BP_FP;
-	unsigned int codec_dai_fmt = SND_SOC_DAIFMT_BC_FC;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-
+	channels->min = 2;
+	channels->max = 2;
 	switch (cpu_dai->id) {
-	case TERTIARY_MI2S_RX:
-		codec_dai_fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_I2S;
-		snd_soc_dai_set_sysclk(cpu_dai,
-			Q6AFE_LPASS_CLK_ID_TER_MI2S_IBIT,
-			MI2S_BCLK_RATE, SNDRV_PCM_STREAM_PLAYBACK);
-		snd_soc_dai_set_fmt(cpu_dai, fmt);
-		snd_soc_dai_set_fmt(codec_dai, codec_dai_fmt);
+	case TX_CODEC_DMA_TX_0:
+	case TX_CODEC_DMA_TX_1:
+	case TX_CODEC_DMA_TX_2:
+	case TX_CODEC_DMA_TX_3:
+		channels->min = 1;
 		break;
 	default:
 		break;
 	}
+
+
 	return 0;
 }
 
-static int sm8250_snd_hw_params(struct snd_pcm_substream *substream,
+static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	struct sm8250_snd_data *pdata = snd_soc_card_get_drvdata(rtd->card);
+	struct sc8280xp_snd_data *pdata = snd_soc_card_get_drvdata(rtd->card);
 
 	return qcom_snd_sdw_hw_params(substream, params, &pdata->sruntime[cpu_dai->id]);
 }
 
-static int sm8250_snd_prepare(struct snd_pcm_substream *substream)
+static int sc8280xp_snd_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	struct sm8250_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
+	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
 	struct sdw_stream_runtime *sruntime = data->sruntime[cpu_dai->id];
 
 	return qcom_snd_sdw_prepare(substream, sruntime,
 				    &data->stream_prepared[cpu_dai->id]);
 }
 
-static int sm8250_snd_hw_free(struct snd_pcm_substream *substream)
+static int sc8280xp_snd_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sm8250_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
+	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct sdw_stream_runtime *sruntime = data->sruntime[cpu_dai->id];
 
@@ -100,38 +89,36 @@ static int sm8250_snd_hw_free(struct snd_pcm_substream *substream)
 				    &data->stream_prepared[cpu_dai->id]);
 }
 
-static const struct snd_soc_ops sm8250_be_ops = {
-	.startup = sm8250_snd_startup,
-	.hw_params = sm8250_snd_hw_params,
-	.hw_free = sm8250_snd_hw_free,
-	.prepare = sm8250_snd_prepare,
+static const struct snd_soc_ops sc8280xp_be_ops = {
+	.hw_params = sc8280xp_snd_hw_params,
+	.hw_free = sc8280xp_snd_hw_free,
+	.prepare = sc8280xp_snd_prepare,
 };
 
-static void sm8250_add_be_ops(struct snd_soc_card *card)
+static void sc8280xp_add_be_ops(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *link;
 	int i;
 
 	for_each_card_prelinks(card, i, link) {
 		if (link->no_pcm == 1) {
-			link->init = sm8250_snd_init;
-			link->be_hw_params_fixup = sm8250_be_hw_params_fixup;
-			link->ops = &sm8250_be_ops;
+			link->init = sc8280xp_snd_init;
+			link->be_hw_params_fixup = sc8280xp_be_hw_params_fixup;
+			link->ops = &sc8280xp_be_ops;
 		}
 	}
 }
 
-static int sm8250_platform_probe(struct platform_device *pdev)
+static int sc8280xp_platform_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
-	struct sm8250_snd_data *data;
+	struct sc8280xp_snd_data *data;
 	struct device *dev = &pdev->dev;
 	int ret;
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
-
 	card->owner = THIS_MODULE;
 	/* Allocate the private data */
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -146,26 +133,25 @@ static int sm8250_platform_probe(struct platform_device *pdev)
 		return ret;
 
 	card->driver_name = DRIVER_NAME;
-	sm8250_add_be_ops(card);
+	sc8280xp_add_be_ops(card);
 	return devm_snd_soc_register_card(dev, card);
 }
 
-static const struct of_device_id snd_sm8250_dt_match[] = {
-	{.compatible = "qcom,sm8250-sndcard"},
-	{.compatible = "qcom,qrb5165-rb5-sndcard"},
+static const struct of_device_id snd_sc8280xp_dt_match[] = {
+	{.compatible = "qcom,sc8280xp-sndcard",},
 	{}
 };
 
-MODULE_DEVICE_TABLE(of, snd_sm8250_dt_match);
+MODULE_DEVICE_TABLE(of, snd_sc8280xp_dt_match);
 
-static struct platform_driver snd_sm8250_driver = {
-	.probe  = sm8250_platform_probe,
+static struct platform_driver snd_sc8280xp_driver = {
+	.probe  = sc8280xp_platform_probe,
 	.driver = {
-		.name = "snd-sm8250",
-		.of_match_table = snd_sm8250_dt_match,
+		.name = "snd-sc8280xp",
+		.of_match_table = snd_sc8280xp_dt_match,
 	},
 };
-module_platform_driver(snd_sm8250_driver);
+module_platform_driver(snd_sc8280xp_driver);
 MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@linaro.org");
-MODULE_DESCRIPTION("SM8250 ASoC Machine Driver");
+MODULE_DESCRIPTION("SC8280XP ASoC Machine Driver");
 MODULE_LICENSE("GPL v2");
