@@ -151,7 +151,7 @@ static inline void ti_abb_clear_txdone(const struct ti_abb *abb)
 };
 
 /**
- * ti_abb_wait_tranx() - waits for ABB tranxdone event
+ * ti_abb_wait_txdone() - waits for ABB tranxdone event
  * @dev:	device
  * @abb:	pointer to the abb instance
  *
