@@ -523,17 +523,17 @@
 };
 
 &remoteproc_adsp {
-	firmware-name = "qcom/adsp.mbn";
+	firmware-name = "qcom/sm8350/Sony/nagara/adsp.mbn";
 	status = "okay";
 };
 
 &remoteproc_cdsp {
-	firmware-name = "qcom/cdsp.mbn";
+	firmware-name = "qcom/sm8350/Sony/nagara/cdsp.mbn";
 	status = "okay";
 };
 
 &remoteproc_slpi {
-	firmware-name = "qcom/slpi.mbn";
+	firmware-name = "qcom/sm8350/Sony/nagara/slpi.mbn";
 	status = "okay";
 };
 
