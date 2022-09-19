@@ -490,6 +490,7 @@
   driver_find_device
   driver_register
   driver_unregister
+  driver_set_override
   dump_stack
   __dynamic_dev_dbg
   __dynamic_pr_debug
