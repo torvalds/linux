@@ -174,9 +174,8 @@ static inline unsigned int cpumask_last(const struct cpumask *srcp)
 static inline
 unsigned int cpumask_next(int n, const struct cpumask *srcp)
 {
-	/* -1 is a legal arg here. */
-	if (n != -1)
-		cpumask_check(n);
+	/* n is a prior cpu */
+	cpumask_check(n + 1);
 	return find_next_bit(cpumask_bits(srcp), nr_cpumask_bits, n + 1);
 }
 
@@ -189,9 +188,8 @@ unsigned int cpumask_next(int n, const struct cpumask *srcp)
  */
 static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
 {
-	/* -1 is a legal arg here. */
-	if (n != -1)
-		cpumask_check(n);
+	/* n is a prior cpu */
+	cpumask_check(n + 1);
 	return find_next_zero_bit(cpumask_bits(srcp), nr_cpumask_bits, n+1);
 }
 
@@ -231,9 +229,8 @@ static inline
 unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
 		     const struct cpumask *src2p)
 {
-	/* -1 is a legal arg here. */
-	if (n != -1)
-		cpumask_check(n);
+	/* n is a prior cpu */
+	cpumask_check(n + 1);
 	return find_next_and_bit(cpumask_bits(src1p), cpumask_bits(src2p),
 		nr_cpumask_bits, n + 1);
 }
@@ -263,8 +260,8 @@ static inline
 unsigned int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap)
 {
 	cpumask_check(start);
-	if (n != -1)
-		cpumask_check(n);
+	/* n is a prior cpu */
+	cpumask_check(n + 1);
 
 	/*
 	 * Return the first available CPU when wrapping, or when starting before cpu0,
