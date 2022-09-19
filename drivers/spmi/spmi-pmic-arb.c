@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/bitmap.h>
 #include <linux/debugfs.h>
@@ -1707,6 +1708,11 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	 * which does not result in a devm_request_mem_region() call.
 	 */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
+	if (!res) {
+		err = -EINVAL;
+		goto err_put_ctrl;
+	}
+
 	core = devm_ioremap(&ctrl->dev, res->start, resource_size(res));
 	if (IS_ERR(core)) {
 		err = PTR_ERR(core);
@@ -1744,6 +1750,11 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "obsrvr");
+		if (!res) {
+			err = -EINVAL;
+			goto err_put_ctrl;
+		}
+
 		pmic_arb->rd_base = devm_ioremap(&ctrl->dev, res->start,
 						 resource_size(res));
 		if (IS_ERR(pmic_arb->rd_base)) {
@@ -1753,6 +1764,11 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "chnls");
+		if (!res) {
+			err = -EINVAL;
+			goto err_put_ctrl;
+		}
+
 		pmic_arb->wr_base = devm_ioremap(&ctrl->dev, res->start,
 						 resource_size(res));
 		if (IS_ERR(pmic_arb->wr_base)) {
@@ -1822,6 +1838,11 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		 pmic_arb->ver_ops->ver_str, hw_ver);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "intr");
+	if (!res) {
+		err = -EINVAL;
+		goto err_put_ctrl;
+	}
+
 	pmic_arb->intr = devm_ioremap_resource(&ctrl->dev, res);
 	if (IS_ERR(pmic_arb->intr)) {
 		err = PTR_ERR(pmic_arb->intr);
@@ -1829,6 +1850,11 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cnfg");
+	if (!res) {
+		err = -EINVAL;
+		goto err_put_ctrl;
+	}
+
 	pmic_arb->cnfg = devm_ioremap_resource(&ctrl->dev, res);
 	if (IS_ERR(pmic_arb->cnfg)) {
 		err = PTR_ERR(pmic_arb->cnfg);
