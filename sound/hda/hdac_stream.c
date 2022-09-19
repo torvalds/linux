@@ -13,6 +13,39 @@
 #include <sound/hda_register.h>
 #include "trace.h"
 
+/*
+ * the hdac_stream library is intended to be used with the following
+ * transitions. The states are not formally defined in the code but loosely
+ * inspired by boolean variables. Note that the 'prepared' field is not used
+ * in this library but by the callers during the hw_params/prepare transitions
+ *
+ *			   |
+ *	stream_init()	   |
+ *			   v
+ *			+--+-------+
+ *			|  unused  |
+ *			+--+----+--+
+ *			   |    ^
+ *	stream_assign()	   | 	|    stream_release()
+ *			   v	|
+ *			+--+----+--+
+ *			|  opened  |
+ *			+--+----+--+
+ *			   |    ^
+ *	stream_reset()	   |    |
+ *	stream_setup()	   |	|    stream_cleanup()
+ *			   v	|
+ *			+--+----+--+
+ *			| prepared |
+ *			+--+----+--+
+ *			   |    ^
+ *	stream_start()	   | 	|    stream_stop()
+ *			   v	|
+ *			+--+----+--+
+ *			|  running |
+ *			+----------+
+ */
+
 /**
  * snd_hdac_get_stream_stripe_ctl - get stripe control value
  * @bus: HD-audio core bus
