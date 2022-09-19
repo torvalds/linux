@@ -382,7 +382,8 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type)
 
 	case HDAC_EXT_STREAM_TYPE_HOST:
 		spin_lock_irq(&bus->reg_lock);
-		if (hext_stream->decoupled && !hext_stream->link_locked)
+		/* couple link only if not in use */
+		if (!hext_stream->link_locked)
 			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
 		snd_hdac_stream_release_locked(&hext_stream->hstream);
 		spin_unlock_irq(&bus->reg_lock);
@@ -390,7 +391,8 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type)
 
 	case HDAC_EXT_STREAM_TYPE_LINK:
 		spin_lock_irq(&bus->reg_lock);
-		if (hext_stream->decoupled && !hext_stream->hstream.opened)
+		/* couple host only if not in use */
+		if (!hext_stream->hstream.opened)
 			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, false);
 		hext_stream->link_locked = 0;
 		hext_stream->link_substream = NULL;
