@@ -1254,7 +1254,6 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	}
 
 	alloc_hint = get_extent_allocation_hint(inode, start, num_bytes);
-	btrfs_drop_extent_map_range(inode, start, start + num_bytes - 1, false);
 
 	/*
 	 * Relocation relies on the relocated extents to have exactly the same
