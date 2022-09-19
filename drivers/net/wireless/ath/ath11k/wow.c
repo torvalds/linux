@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -66,6 +67,13 @@ int ath11k_wow_wakeup(struct ath11k_base *ab)
 {
 	struct ath11k *ar = ath11k_ab_to_ar(ab, 0);
 	int ret;
+
+	/* In the case of WCN6750, WoW wakeup is done
+	 * by sending SMP2P power save exit message
+	 * to the target processor.
+	 */
+	if (ab->hw_params.smp2p_wow_exit)
+		return 0;
 
 	reinit_completion(&ab->wow.wakeup_completed);
 

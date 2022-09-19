@@ -777,3 +777,37 @@ int ath11k_pcic_register_pci_ops(struct ath11k_base *ab,
 	return 0;
 }
 EXPORT_SYMBOL(ath11k_pcic_register_pci_ops);
+
+void ath11k_pci_enable_ce_irqs_except_wake_irq(struct ath11k_base *ab)
+{
+	int i;
+
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR ||
+		    i == ATH11K_PCI_CE_WAKE_IRQ)
+			continue;
+		ath11k_pcic_ce_irq_enable(ab, i);
+	}
+}
+EXPORT_SYMBOL(ath11k_pci_enable_ce_irqs_except_wake_irq);
+
+void ath11k_pci_disable_ce_irqs_except_wake_irq(struct ath11k_base *ab)
+{
+	int i;
+	int irq_idx;
+	struct ath11k_ce_pipe *ce_pipe;
+
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
+		ce_pipe = &ab->ce.ce_pipe[i];
+		irq_idx = ATH11K_PCI_IRQ_CE0_OFFSET + i;
+
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR ||
+		    i == ATH11K_PCI_CE_WAKE_IRQ)
+			continue;
+
+		disable_irq_nosync(ab->irq_num[irq_idx]);
+		synchronize_irq(ab->irq_num[irq_idx]);
+		tasklet_kill(&ce_pipe->intr_tq);
+	}
+}
+EXPORT_SYMBOL(ath11k_pci_disable_ce_irqs_except_wake_irq);

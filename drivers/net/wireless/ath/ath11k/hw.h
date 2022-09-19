@@ -217,6 +217,7 @@ struct ath11k_hw_params {
 
 	bool tcl_ring_retry;
 	u32 tx_ring_size;
+	bool smp2p_wow_exit;
 };
 
 struct ath11k_hw_ops {

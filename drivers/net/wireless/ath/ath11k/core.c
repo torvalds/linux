@@ -113,6 +113,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 
 		.tcl_ring_retry = true,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+		.smp2p_wow_exit = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -191,6 +192,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 
 		.tcl_ring_retry = true,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+		.smp2p_wow_exit = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -271,6 +273,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 
 		.tcl_ring_retry = true,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+		.smp2p_wow_exit = false,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -348,6 +351,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 
 		.tcl_ring_retry = true,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+		.smp2p_wow_exit = false,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -428,6 +432,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 
 		.tcl_ring_retry = true,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+		.smp2p_wow_exit = false,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -507,6 +512,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 
 		.tcl_ring_retry = true,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+		.smp2p_wow_exit = false,
 	},
 	{
 		.name = "wcn6750 hw1.0",
@@ -583,6 +589,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 
 		.tcl_ring_retry = false,
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE_WCN6750,
+		.smp2p_wow_exit = true,
 	},
 };
 
