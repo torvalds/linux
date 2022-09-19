@@ -391,7 +391,7 @@ static void intel_shim_master_ip_to_glue(struct sdw_intel *sdw)
 	/* at this point Integration Glue has full control of the I/Os */
 }
 
-static int intel_shim_init(struct sdw_intel *sdw, bool clock_stop)
+static int intel_shim_init(struct sdw_intel *sdw)
 {
 	void __iomem *shim = sdw->link_res->shim;
 	unsigned int link_id = sdw->instance;
@@ -1277,14 +1277,10 @@ static struct sdw_master_ops sdw_intel_ops = {
 
 static int intel_init(struct sdw_intel *sdw)
 {
-	bool clock_stop;
-
 	/* Initialize shim and controller */
 	intel_link_power_up(sdw);
 
-	clock_stop = sdw_cdns_is_clock_stop(&sdw->cdns);
-
-	intel_shim_init(sdw, clock_stop);
+	intel_shim_init(sdw);
 
 	return 0;
 }
