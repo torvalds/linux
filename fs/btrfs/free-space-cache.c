@@ -349,7 +349,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 	truncate_pagecache(vfs_inode, 0);
 
 	lock_extent(&inode->io_tree, 0, (u64)-1, &cached_state);
-	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
+	btrfs_drop_extent_map_range(inode, 0, (u64)-1, false);
 
 	/*
 	 * We skip the throttling logic for free space cache inodes, so we don't

@@ -7,6 +7,7 @@
 #include "volumes.h"
 #include "extent_map.h"
 #include "compression.h"
+#include "btrfs_inode.h"
 
 
 static struct kmem_cache *extent_map_cache;
@@ -657,4 +658,195 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 
 	ASSERT(ret == 0 || ret == -EEXIST);
 	return ret;
+}
+
+/*
+ * Drop all extent maps in a given range.
+ *
+ * @inode:       The target inode.
+ * @start:       Start offset of the range.
+ * @end:         End offset of the range (inclusive value).
+ * @skip_pinned: Indicate if pinned extent maps should be ignored or not.
+ *
+ * This drops all the extent maps that intersect the given range [@start, @end].
+ * Extent maps that partially overlap the range and extend behind or beyond it,
+ * are split.
+ * The caller should have locked an appropriate file range in the inode's io
+ * tree before calling this function.
+ */
+void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
+				 bool skip_pinned)
+{
+	struct extent_map *split = NULL;
+	struct extent_map *split2 = NULL;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
+	u64 len = end - start + 1;
+	bool testend = true;
+
+	WARN_ON(end < start);
+	if (end == (u64)-1) {
+		len = (u64)-1;
+		testend = false;
+	}
+	while (1) {
+		struct extent_map *em;
+		u64 gen;
+		unsigned long flags;
+		bool ends_after_range = false;
+		bool no_splits = false;
+		bool modified;
+		bool compressed;
+
+		if (!split)
+			split = alloc_extent_map();
+		if (!split2)
+			split2 = alloc_extent_map();
+		if (!split || !split2)
+			no_splits = true;
+
+		write_lock(&em_tree->lock);
+		em = lookup_extent_mapping(em_tree, start, len);
+		if (!em) {
+			write_unlock(&em_tree->lock);
+			break;
+		}
+		if (testend && em->start + em->len > start + len)
+			ends_after_range = true;
+		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
+			if (ends_after_range) {
+				free_extent_map(em);
+				write_unlock(&em_tree->lock);
+				break;
+			}
+			start = em->start + em->len;
+			if (testend)
+				len = start + len - (em->start + em->len);
+			free_extent_map(em);
+			write_unlock(&em_tree->lock);
+			continue;
+		}
+		flags = em->flags;
+		gen = em->generation;
+		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
+		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+		clear_bit(EXTENT_FLAG_LOGGING, &flags);
+		modified = !list_empty(&em->list);
+		if (no_splits)
+			goto next;
+
+		if (em->start < start) {
+			split->start = em->start;
+			split->len = start - em->start;
+
+			if (em->block_start < EXTENT_MAP_LAST_BYTE) {
+				split->orig_start = em->orig_start;
+				split->block_start = em->block_start;
+
+				if (compressed)
+					split->block_len = em->block_len;
+				else
+					split->block_len = split->len;
+				split->orig_block_len = max(split->block_len,
+						em->orig_block_len);
+				split->ram_bytes = em->ram_bytes;
+			} else {
+				split->orig_start = split->start;
+				split->block_len = 0;
+				split->block_start = em->block_start;
+				split->orig_block_len = 0;
+				split->ram_bytes = split->len;
+			}
+
+			split->generation = gen;
+			split->flags = flags;
+			split->compress_type = em->compress_type;
+			replace_extent_mapping(em_tree, em, split, modified);
+			free_extent_map(split);
+			split = split2;
+			split2 = NULL;
+		}
+		if (ends_after_range) {
+			split->start = start + len;
+			split->len = em->start + em->len - (start + len);
+			split->block_start = em->block_start;
+			split->flags = flags;
+			split->compress_type = em->compress_type;
+			split->generation = gen;
+
+			if (em->block_start < EXTENT_MAP_LAST_BYTE) {
+				split->orig_block_len = max(em->block_len,
+						    em->orig_block_len);
+
+				split->ram_bytes = em->ram_bytes;
+				if (compressed) {
+					split->block_len = em->block_len;
+					split->orig_start = em->orig_start;
+				} else {
+					const u64 diff = start + len - em->start;
+
+					split->block_len = split->len;
+					split->block_start += diff;
+					split->orig_start = em->orig_start;
+				}
+			} else {
+				split->ram_bytes = split->len;
+				split->orig_start = split->start;
+				split->block_len = 0;
+				split->orig_block_len = 0;
+			}
+
+			if (extent_map_in_tree(em)) {
+				replace_extent_mapping(em_tree, em, split,
+						       modified);
+			} else {
+				int ret;
+
+				ret = add_extent_mapping(em_tree, split,
+							 modified);
+				/* Logic error, shouldn't happen. */
+				ASSERT(ret == 0);
+				if (WARN_ON(ret != 0) && modified)
+					btrfs_set_inode_full_sync(inode);
+			}
+			free_extent_map(split);
+			split = NULL;
+		}
+next:
+		if (extent_map_in_tree(em)) {
+			/*
+			 * If the extent map is still in the tree it means that
+			 * either of the following is true:
+			 *
+			 * 1) It fits entirely in our range (doesn't end beyond
+			 *    it or starts before it);
+			 *
+			 * 2) It starts before our range and/or ends after our
+			 *    range, and we were not able to allocate the extent
+			 *    maps for split operations, @split and @split2.
+			 *
+			 * If we are at case 2) then we just remove the entire
+			 * extent map - this is fine since if anyone needs it to
+			 * access the subranges outside our range, will just
+			 * load it again from the subvolume tree's file extent
+			 * item. However if the extent map was in the list of
+			 * modified extents, then we must mark the inode for a
+			 * full fsync, otherwise a fast fsync will miss this
+			 * extent if it's new and needs to be logged.
+			 */
+			if ((em->start < start || ends_after_range) && modified) {
+				ASSERT(no_splits);
+				btrfs_set_inode_full_sync(inode);
+			}
+			remove_extent_mapping(em_tree, em);
+		}
+		write_unlock(&em_tree->lock);
+
+		/* Once for us. */
+		free_extent_map(em);
+		/* And once for the tree. */
+		free_extent_map(em);
+	}
+
+	free_extent_map(split);
+	free_extent_map(split2);
 }

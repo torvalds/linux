@@ -1024,7 +1024,7 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 				       1 << BTRFS_ORDERED_COMPRESSED,
 				       async_extent->compress_type);
 	if (ret) {
-		btrfs_drop_extent_cache(inode, start, end, 0);
+		btrfs_drop_extent_map_range(inode, start, end, false);
 		goto out_free_reserve;
 	}
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
@@ -1254,7 +1254,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	}
 
 	alloc_hint = get_extent_allocation_hint(inode, start, num_bytes);
-	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
+	btrfs_drop_extent_map_range(inode, start, start + num_bytes - 1, false);
 
 	/*
 	 * Relocation relies on the relocated extents to have exactly the same
@@ -1319,8 +1319,9 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 			 * skip current ordered extent.
 			 */
 			if (ret)
-				btrfs_drop_extent_cache(inode, start,
-						start + ram_size - 1, 0);
+				btrfs_drop_extent_map_range(inode, start,
+							    start + ram_size - 1,
+							    false);
 		}
 
 		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
@@ -1360,7 +1361,7 @@ out:
 	return ret;
 
 out_drop_extent_cache:
-	btrfs_drop_extent_cache(inode, start, start + ram_size - 1, 0);
+	btrfs_drop_extent_map_range(inode, start, start + ram_size - 1, false);
 out_reserve:
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 1);
@@ -2102,8 +2103,8 @@ out_check:
 					1 << BTRFS_ORDERED_PREALLOC,
 					BTRFS_COMPRESS_NONE);
 			if (ret) {
-				btrfs_drop_extent_cache(inode, cur_offset,
-							nocow_end, 0);
+				btrfs_drop_extent_map_range(inode, cur_offset,
+							    nocow_end, false);
 				goto error;
 			}
 		} else {
@@ -3361,8 +3362,8 @@ out:
 			unwritten_start += logical_len;
 		clear_extent_uptodate(io_tree, unwritten_start, end, NULL);
 
-		/* Drop the cache for the part of the extent we didn't write. */
-		btrfs_drop_extent_cache(inode, unwritten_start, end, 0);
+		/* Drop extent maps for the part of the extent we didn't write. */
+		btrfs_drop_extent_map_range(inode, unwritten_start, end, false);
 
 		/*
 		 * If the ordered extent had an IOERR or something else went
@@ -5098,8 +5099,9 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 			if (err)
 				break;
 
-			btrfs_drop_extent_cache(inode, cur_offset,
-						cur_offset + hole_size - 1, 0);
+			btrfs_drop_extent_map_range(inode, cur_offset,
+						    cur_offset + hole_size - 1,
+						    false);
 			hole_em = alloc_extent_map();
 			if (!hole_em) {
 				btrfs_set_inode_full_sync(inode);
@@ -5122,9 +5124,9 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 				write_unlock(&em_tree->lock);
 				if (err != -EEXIST)
 					break;
-				btrfs_drop_extent_cache(inode, cur_offset,
-							cur_offset +
-							hole_size - 1, 0);
+				btrfs_drop_extent_map_range(inode, cur_offset,
+						    cur_offset + hole_size - 1,
+						    false);
 			}
 			free_extent_map(hole_em);
 		} else {
@@ -7099,7 +7101,8 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 	if (ret) {
 		if (em) {
 			free_extent_map(em);
-			btrfs_drop_extent_cache(inode, start, start + len - 1, 0);
+			btrfs_drop_extent_map_range(inode, start,
+						    start + len - 1, false);
 		}
 		em = ERR_PTR(ret);
 	}
@@ -7398,8 +7401,8 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 	}
 
 	do {
-		btrfs_drop_extent_cache(inode, em->start,
-					em->start + em->len - 1, 0);
+		btrfs_drop_extent_map_range(inode, em->start,
+					    em->start + em->len - 1, false);
 		write_lock(&em_tree->lock);
 		ret = add_extent_mapping(em_tree, em, 1);
 		write_unlock(&em_tree->lock);
@@ -8657,9 +8660,9 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 		 * size is not block aligned since we will be keeping the last
 		 * block of the extent just the way it is.
 		 */
-		btrfs_drop_extent_cache(BTRFS_I(inode),
-					ALIGN(new_size, fs_info->sectorsize),
-					(u64)-1, 0);
+		btrfs_drop_extent_map_range(BTRFS_I(inode),
+					    ALIGN(new_size, fs_info->sectorsize),
+					    (u64)-1, false);
 
 		ret = btrfs_truncate_inode_items(trans, root, &control);
 
@@ -8832,7 +8835,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 void btrfs_test_destroy_inode(struct inode *inode)
 {
-	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
+	btrfs_drop_extent_map_range(BTRFS_I(inode), 0, (u64)-1, false);
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 #endif
@@ -8894,7 +8897,7 @@ void btrfs_destroy_inode(struct inode *vfs_inode)
 	}
 	btrfs_qgroup_check_reserved_leak(inode);
 	inode_tree_del(inode);
-	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
+	btrfs_drop_extent_map_range(inode, 0, (u64)-1, false);
 	btrfs_inode_clear_file_extent_range(inode, 0, (u64)-1);
 	btrfs_put_root(inode->root);
 }
@@ -9963,8 +9966,8 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 			break;
 		}
 
-		btrfs_drop_extent_cache(BTRFS_I(inode), cur_offset,
-					cur_offset + ins.offset -1, 0);
+		btrfs_drop_extent_map_range(BTRFS_I(inode), cur_offset,
+					    cur_offset + ins.offset - 1, false);
 
 		em = alloc_extent_map();
 		if (!em) {
@@ -9988,9 +9991,9 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 			write_unlock(&em_tree->lock);
 			if (ret != -EEXIST)
 				break;
-			btrfs_drop_extent_cache(BTRFS_I(inode), cur_offset,
-						cur_offset + ins.offset - 1,
-						0);
+			btrfs_drop_extent_map_range(BTRFS_I(inode), cur_offset,
+						    cur_offset + ins.offset - 1,
+						    false);
 		}
 		free_extent_map(em);
 next:
@@ -10818,7 +10821,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 				       (1 << BTRFS_ORDERED_COMPRESSED),
 				       compression);
 	if (ret) {
-		btrfs_drop_extent_cache(inode, start, end, 0);
+		btrfs_drop_extent_map_range(inode, start, end, false);
 		goto out_free_reserved;
 	}
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
