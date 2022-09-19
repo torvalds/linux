@@ -144,7 +144,6 @@ static struct scsi_host_template ahci_platform_sht = {
 
 static int st_ahci_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct st_ahci_drv_data *drv_data;
 	struct ahci_host_priv *hpriv;
 	int err;
