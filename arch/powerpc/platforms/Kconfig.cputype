@@ -314,7 +314,7 @@ config 4xx
 
 config BOOKE
 	bool
-	depends on PPC_E500 || 44x || PPC_BOOK3E_64
+	depends on PPC_E500 || 44x
 	default y
 
 config BOOKE_OR_40x
