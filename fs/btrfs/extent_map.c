@@ -74,7 +74,6 @@ void free_extent_map(struct extent_map *em)
 {
 	if (!em)
 		return;
-	WARN_ON(refcount_read(&em->refs) == 0);
 	if (refcount_dec_and_test(&em->refs)) {
 		WARN_ON(extent_map_in_tree(em));
 		WARN_ON(!list_empty(&em->list));
