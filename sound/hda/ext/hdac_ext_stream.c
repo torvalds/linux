@@ -26,9 +26,9 @@
  * initialize the stream, if ppcap is enabled then init those and then
  * invoke hdac stream initialization routine
  */
-void snd_hdac_ext_stream_init(struct hdac_bus *bus,
-			      struct hdac_ext_stream *hext_stream,
-			      int idx, int direction, int tag)
+static void snd_hdac_ext_stream_init(struct hdac_bus *bus,
+				     struct hdac_ext_stream *hext_stream,
+				     int idx, int direction, int tag)
 {
 	if (bus->ppcap) {
 		hext_stream->pphc_addr = bus->ppcap + AZX_PPHC_BASE +
@@ -56,7 +56,6 @@ void snd_hdac_ext_stream_init(struct hdac_bus *bus,
 	hext_stream->decoupled = false;
 	snd_hdac_stream_init(bus, &hext_stream->hstream, idx, direction, tag);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_init);
 
 /**
  * snd_hdac_ext_stream_init_all - create and initialize the stream objects
