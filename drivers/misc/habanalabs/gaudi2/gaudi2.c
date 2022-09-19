@@ -9592,7 +9592,7 @@ static u32 gaudi2_get_queue_id_for_cq(struct hl_device *hdev, u32 cq_idx)
 
 static u32 gaudi2_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id, u32 size, bool eb)
 {
-	struct hl_cb *cb = (struct hl_cb *) data;
+	struct hl_cb *cb = data;
 	struct packet_msg_short *pkt;
 	u32 value, ctl, pkt_size = sizeof(*pkt);
 
@@ -9685,7 +9685,7 @@ static u32 gaudi2_add_fence_pkt(struct packet_fence *pkt)
 
 static u32 gaudi2_gen_wait_cb(struct hl_device *hdev, struct hl_gen_wait_properties *prop)
 {
-	struct hl_cb *cb = (struct hl_cb *) prop->data;
+	struct hl_cb *cb = prop->data;
 	void *buf = (void *) (uintptr_t) (cb->kernel_address);
 
 	u64 monitor_base, fence_addr = 0;
@@ -9737,7 +9737,7 @@ static u32 gaudi2_gen_wait_cb(struct hl_device *hdev, struct hl_gen_wait_propert
 
 static void gaudi2_reset_sob(struct hl_device *hdev, void *data)
 {
-	struct hl_hw_sob *hw_sob = (struct hl_hw_sob *) data;
+	struct hl_hw_sob *hw_sob = data;
 
 	dev_dbg(hdev->dev, "reset SOB, q_idx: %d, sob_id: %d\n", hw_sob->q_idx, hw_sob->sob_id);
 
