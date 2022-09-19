@@ -267,19 +267,15 @@ hdac_ext_link_stream_assign(struct hdac_bus *bus,
 		if (hstream->direction != substream->stream)
 			continue;
 
-		/* check if decoupled stream and not in use is available */
-		if (hext_stream->decoupled && !hext_stream->link_locked) {
+		/* check if link stream is available */
+		if (!hext_stream->link_locked) {
 			res = hext_stream;
 			break;
 		}
 
-		if (!hext_stream->link_locked) {
-			snd_hdac_ext_stream_decouple_locked(bus, hext_stream, true);
-			res = hext_stream;
-			break;
-		}
 	}
 	if (res) {
+		snd_hdac_ext_stream_decouple_locked(bus, res, true);
 		res->link_locked = 1;
 		res->link_substream = substream;
 	}
@@ -308,13 +304,12 @@ hdac_ext_host_stream_assign(struct hdac_bus *bus,
 			continue;
 
 		if (!hstream->opened) {
-			if (!hext_stream->decoupled)
-				snd_hdac_ext_stream_decouple_locked(bus, hext_stream, true);
 			res = hext_stream;
 			break;
 		}
 	}
 	if (res) {
+		snd_hdac_ext_stream_decouple_locked(bus, res, true);
 		res->hstream.opened = 1;
 		res->hstream.running = 0;
 		res->hstream.substream = substream;
