@@ -54,6 +54,8 @@ description: |
         sdm845
         sdx55
         sdx65
+        sm4250
+        sm6115
         sm6125
         sm6350
         sm7225
@@ -706,6 +708,11 @@ properties:
               - xiaomi,beryllium-ebbg
               - xiaomi,polaris
           - const: qcom,sdm845
+
+      - items:
+          - enum:
+              - oneplus,billie2
+          - const: qcom,sm4250
 
       - items:
           - enum:
