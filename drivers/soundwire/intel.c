@@ -1171,10 +1171,19 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 
 static int intel_register_dai(struct sdw_intel *sdw)
 {
+	struct sdw_cdns_stream_config config;
 	struct sdw_cdns *cdns = &sdw->cdns;
 	struct sdw_cdns_streams *stream;
 	struct snd_soc_dai_driver *dais;
 	int num_dai, ret, off = 0;
+
+	/* Read the PDI config and initialize cadence PDI */
+	intel_pdi_init(sdw, &config);
+	ret = sdw_cdns_pdi_init(cdns, config);
+	if (ret)
+		return ret;
+
+	intel_pdi_ch_update(sdw);
 
 	/* DAIs are created based on total number of PDIs supported */
 	num_dai = cdns->pcm.num_pdi;
@@ -1347,7 +1356,6 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 
 int intel_link_startup(struct auxiliary_device *auxdev)
 {
-	struct sdw_cdns_stream_config config;
 	struct device *dev = &auxdev->dev;
 	struct sdw_cdns *cdns = auxiliary_get_drvdata(auxdev);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
@@ -1384,14 +1392,6 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	ret = intel_init(sdw);
 	if (ret)
 		goto err_init;
-
-	/* Read the PDI config and initialize cadence PDI */
-	intel_pdi_init(sdw, &config);
-	ret = sdw_cdns_pdi_init(cdns, config);
-	if (ret)
-		goto err_init;
-
-	intel_pdi_ch_update(sdw);
 
 	/* Register DAIs */
 	ret = intel_register_dai(sdw);
