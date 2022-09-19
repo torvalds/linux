@@ -466,10 +466,6 @@ config PPC_MMU_NOHASH
 	def_bool y
 	depends on !PPC_BOOK3S
 
-config PPC_BOOK3E_MMU
-	def_bool y
-	depends on PPC_85xx || PPC_BOOK3E_64
-
 config PPC_HAVE_PMU_SUPPORT
 	bool
 

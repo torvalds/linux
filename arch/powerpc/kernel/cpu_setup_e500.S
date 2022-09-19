@@ -12,7 +12,7 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
-#include <asm/nohash/mmu-book3e.h>
+#include <asm/nohash/mmu-e500.h>
 #include <asm/asm-offsets.h>
 #include <asm/mpc85xx.h>
 
