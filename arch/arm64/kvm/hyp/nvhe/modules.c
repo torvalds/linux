@@ -6,8 +6,10 @@
 #include <asm/kvm_pkvm_module.h>
 
 #include <nvhe/modules.h>
+#include <nvhe/mm.h>
 
 const struct pkvm_module_ops module_ops = {
+	.create_private_mapping = __pkvm_create_private_mapping,
 };
 
 int __pkvm_init_module(void *module_init)

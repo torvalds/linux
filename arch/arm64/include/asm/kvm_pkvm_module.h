@@ -3,9 +3,13 @@
 #ifndef __ARM64_KVM_PKVM_MODULE_H__
 #define __ARM64_KVM_PKVM_MODULE_H__
 
+#include <asm/kvm_pgtable.h>
 #include <linux/export.h>
 
 struct pkvm_module_ops {
+	int (*create_private_mapping)(phys_addr_t phys, size_t size,
+				      enum kvm_pgtable_prot prot,
+				      unsigned long *haddr);
 };
 
 struct pkvm_module_section {
