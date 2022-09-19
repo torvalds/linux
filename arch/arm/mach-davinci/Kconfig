@@ -18,8 +18,6 @@ comment "DaVinci Core Type"
 
 config ARCH_DAVINCI_DA830
 	bool "DA830/OMAP-L137/AM17x based system"
-	depends on AUTO_ZRELADDR && ARM_PATCH_PHYS_VIRT
-	depends on ATAGS
 	select ARCH_DAVINCI_DA8XX
 	# needed on silicon revs 1.0, 1.1:
 	select CPU_DCACHE_WRITETHROUGH if !CPU_DCACHE_DISABLE
@@ -27,24 +25,10 @@ config ARCH_DAVINCI_DA830
 
 config ARCH_DAVINCI_DA850
 	bool "DA850/OMAP-L138/AM18x based system"
-	depends on AUTO_ZRELADDR && ARM_PATCH_PHYS_VIRT
-	depends on ATAGS
-	select ARCH_DAVINCI_DA8XX
 	select DAVINCI_CP_INTC
 
 config ARCH_DAVINCI_DA8XX
 	bool
-
-comment "DaVinci Board Type"
-
-config MACH_DA8XX_DT
-	bool "Support DA8XX platforms using device tree"
-	default y
-	depends on ARCH_DAVINCI_DA850
-	select PINCTRL
-	help
-	  Say y here to include support for TI DaVinci DA850 based using
-	  Flattened Device Tree. More information at Documentation/devicetree
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"

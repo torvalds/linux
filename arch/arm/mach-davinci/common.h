@@ -17,8 +17,8 @@
 
 #include <asm/irq.h>
 
-#define DAVINCI_INTC_START		NR_IRQS
-#define DAVINCI_INTC_IRQ(_irqnum)	(DAVINCI_INTC_START + (_irqnum))
+#define DAVINCI_INTC_START             NR_IRQS
+#define DAVINCI_INTC_IRQ(_irqnum)      (DAVINCI_INTC_START + (_irqnum))
 
 struct davinci_gpio_controller;
 
@@ -45,9 +45,6 @@ struct davinci_soc_info {
 	unsigned			gpio_num;
 	unsigned			gpio_irq;
 	unsigned			gpio_unbanked;
-	struct davinci_gpio_controller	*gpio_ctlrs;
-	int				gpio_ctlrs_num;
-	struct emac_platform_data	*emac_pdata;
 	dma_addr_t			sram_dma;
 	unsigned			sram_len;
 };
