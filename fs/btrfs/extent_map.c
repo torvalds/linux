@@ -150,6 +150,9 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 	struct extent_map *entry;
 	struct extent_map *prev_entry = NULL;
 
+	ASSERT(prev_ret);
+	ASSERT(next_ret);
+
 	while (n) {
 		entry = rb_entry(n, struct extent_map, rb_node);
 		prev = n;
@@ -163,24 +166,21 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 			return n;
 	}
 
-	if (prev_ret) {
-		orig_prev = prev;
-		while (prev && offset >= extent_map_end(prev_entry)) {
-			prev = rb_next(prev);
-			prev_entry = rb_entry(prev, struct extent_map, rb_node);
-		}
-		*prev_ret = prev;
-		prev = orig_prev;
-	}
-
-	if (next_ret) {
+	orig_prev = prev;
+	while (prev && offset >= extent_map_end(prev_entry)) {
+		prev = rb_next(prev);
 		prev_entry = rb_entry(prev, struct extent_map, rb_node);
-		while (prev && offset < prev_entry->start) {
-			prev = rb_prev(prev);
-			prev_entry = rb_entry(prev, struct extent_map, rb_node);
-		}
-		*next_ret = prev;
 	}
+	*prev_ret = prev;
+	prev = orig_prev;
+
+	prev_entry = rb_entry(prev, struct extent_map, rb_node);
+	while (prev && offset < prev_entry->start) {
+		prev = rb_prev(prev);
+		prev_entry = rb_entry(prev, struct extent_map, rb_node);
+	}
+	*next_ret = prev;
+
 	return NULL;
 }
 
