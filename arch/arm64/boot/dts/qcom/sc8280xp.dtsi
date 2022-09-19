@@ -1184,7 +1184,7 @@
 				      <0 0x088ec400 0 0x1f0>,
 				      <0 0x088eba00 0 0x100>,
 				      <0 0x088ebc00 0 0x3ec>,
-				      <0 0x088ec700 0 0x64>;
+				      <0 0x088ec200 0 0x18>;
 				#phy-cells = <0>;
 				#clock-cells = <0>;
 				clocks = <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
