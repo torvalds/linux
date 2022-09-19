@@ -1071,31 +1071,44 @@ struct hl_info_cs_timeout_event {
 	__u64 seq;
 };
 
-#define HL_RAZWI_PAGE_FAULT 0
-#define HL_RAZWI_MMU_ACCESS_ERROR 1
+#define HL_RAZWI_NA_ENG_ID U16_MAX
+#define HL_RAZWI_MAX_NUM_OF_ENGINES_PER_RTR 128
+#define HL_RAZWI_READ		BIT(0)
+#define HL_RAZWI_WRITE		BIT(1)
+#define HL_RAZWI_LBW		BIT(2)
+#define HL_RAZWI_HBW		BIT(3)
+#define HL_RAZWI_RR		BIT(4)
+#define HL_RAZWI_ADDR_DEC	BIT(5)
 
 /**
  * struct hl_info_razwi_event - razwi information.
  * @timestamp: timestamp of razwi.
  * @addr: address which accessing it caused razwi.
- * @engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does not
- *               have engine id it will be set to U16_MAX.
- * @engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
- *               engines which one them caused the razwi. In that case, it will contain the
- *               second possible engine id, otherwise it will be set to U16_MAX.
- * @no_engine_id: if razwi initiator does not have engine id, this field will be set to 1,
- *                otherwise 0.
- * @error_type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
- * @pad: padding to 64 bit.
+ * @engine_id: engine id of the razwi initiator, if it was initiated by engine that does not
+ *             have engine id it will be set to HL_RAZWI_NA_ENG_ID. If there are several possible
+ *             engines which caused the razwi, it will hold all of them.
+ * @num_of_possible_engines: contains number of possible engine ids. In some asics, razwi indication
+ *                           might be common for several engines and there is no way to get the
+ *                           exact engine. In this way, engine_id array will be filled with all
+ *                           possible engines caused this razwi. Also, there might be possibility
+ *                           in gaudi, where we don't indication on specific engine, in that case
+ *                           the value of this parameter will be zero.
+ * @flags: bitmask for additional data: HL_RAZWI_READ - razwi caused by read operation
+ *                                      HL_RAZWI_WRITE - razwi caused by write operation
+ *                                      HL_RAZWI_LBW - razwi caused by lbw fabric transaction
+ *                                      HL_RAZWI_HBW - razwi caused by hbw fabric transaction
+ *                                      HL_RAZWI_RR - razwi caused by range register
+ *                                      HL_RAZWI_ADDR_DEC - razwi caused by address decode error
+ *         Note: this data is not supported by all asics, in that case the relevant bits will not
+ *               be set.
  */
 struct hl_info_razwi_event {
 	__s64 timestamp;
 	__u64 addr;
-	__u16 engine_id_1;
-	__u16 engine_id_2;
-	__u8 no_engine_id;
-	__u8 error_type;
-	__u8 pad[2];
+	__u16 engine_id[HL_RAZWI_MAX_NUM_OF_ENGINES_PER_RTR];
+	__u16 num_of_possible_engines;
+	__u8 flags;
+	__u8 pad[5];
 };
 
 #define MAX_QMAN_STREAMS_INFO		4

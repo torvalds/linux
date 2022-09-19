@@ -2925,30 +2925,6 @@ struct cs_timeout_info {
 	u64		seq;
 };
 
-/**
- * struct razwi_info - info about last razwi error occurred.
- * @timestamp: razwi timestamp.
- * @write_enable: if set writing to razwi parameters in the structure is enabled.
- *                otherwise - disabled, so the first (root cause) razwi will not be overwritten.
- * @addr: address that caused razwi.
- * @engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does
- *               not have engine id it will be set to U16_MAX.
- * @engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
- *               engines which one them caused the razwi. In that case, it will contain the
- *               second possible engine id, otherwise it will be set to U16_MAX.
- * @non_engine_initiator: in case the initiator of the razwi does not have engine id.
- * @type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
- */
-struct razwi_info {
-	ktime_t		timestamp;
-	atomic_t	write_enable;
-	u64		addr;
-	u16		engine_id_1;
-	u16		engine_id_2;
-	u8		non_engine_initiator;
-	u8		type;
-};
-
 #define MAX_QMAN_STREAMS_INFO		4
 #define OPCODE_INFO_MAX_ADDR_SIZE	8
 /**
@@ -2985,11 +2961,14 @@ struct undefined_opcode_info {
  * struct hl_error_info - holds information collected during an error.
  * @cs_timeout: CS timeout error information.
  * @razwi: razwi information.
+ * @razwi_info_recorded: if set writing to razwi information is enabled.
+ *                otherwise - disabled, so the first (root cause) razwi will not be overwritten.
  * @undef_opcode: undefined opcode information
  */
 struct hl_error_info {
 	struct cs_timeout_info		cs_timeout;
-	struct razwi_info		razwi;
+	struct hl_info_razwi_event	razwi;
+	atomic_t			razwi_info_recorded;
 	struct undefined_opcode_info	undef_opcode;
 };
 
@@ -3800,6 +3779,8 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 		      struct hl_mmap_mem_buf_behavior *behavior, gfp_t gfp,
 		      void *args);
 __printf(2, 3) void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...);
+void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
+			u8 flags);
 
 #ifdef CONFIG_DEBUG_FS
 

@@ -603,20 +603,14 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	u32 max_size = args->return_size;
-	struct hl_info_razwi_event info = {0};
+	struct hl_info_razwi_event *info = &hdev->captured_err_info.razwi;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->captured_err_info.razwi.timestamp);
-	info.addr = hdev->captured_err_info.razwi.addr;
-	info.engine_id_1 = hdev->captured_err_info.razwi.engine_id_1;
-	info.engine_id_2 = hdev->captured_err_info.razwi.engine_id_2;
-	info.no_engine_id = hdev->captured_err_info.razwi.non_engine_initiator;
-	info.error_type = hdev->captured_err_info.razwi.type;
-
-	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+	return copy_to_user(out, info, min_t(size_t, max_size, sizeof(struct hl_info_razwi_event)))
+				? -EFAULT : 0;
 }
 
 static int undefined_opcode_info(struct hl_fpriv *hpriv, struct hl_info_args *args)

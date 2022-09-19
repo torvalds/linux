@@ -2253,3 +2253,25 @@ inline void hl_wreg(struct hl_device *hdev, u32 reg, u32 val)
 {
 	writel(val, hdev->rmmio + reg);
 }
+
+void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
+			u8 flags)
+{
+	if (num_of_engines > HL_RAZWI_MAX_NUM_OF_ENGINES_PER_RTR) {
+		dev_err(hdev->dev,
+				"Number of possible razwi initiators (%u) exceeded limit (%u)\n",
+				num_of_engines, HL_RAZWI_MAX_NUM_OF_ENGINES_PER_RTR);
+		return;
+	}
+
+	/* In case it's the first razwi since the device was opened, capture its parameters */
+	if (atomic_cmpxchg(&hdev->captured_err_info.razwi_info_recorded, 0, 1))
+		return;
+
+	hdev->captured_err_info.razwi.timestamp = ktime_to_ns(ktime_get());
+	hdev->captured_err_info.razwi.addr = addr;
+	hdev->captured_err_info.razwi.num_of_possible_engines = num_of_engines;
+	memcpy(&hdev->captured_err_info.razwi.engine_id[0], &engine_id[0],
+			num_of_engines * sizeof(u16));
+	hdev->captured_err_info.razwi.flags = flags;
+}

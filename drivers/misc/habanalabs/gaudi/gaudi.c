@@ -6505,8 +6505,8 @@ event_not_supported:
 }
 
 static const char *gaudi_get_razwi_initiator_dma_name(struct hl_device *hdev, u32 x_y,
-							bool is_write, s32 *engine_id_1,
-							s32 *engine_id_2)
+							bool is_write, u16 *engine_id_1,
+							u16 *engine_id_2)
 {
 	u32 dma_id[2], dma_offset, err_cause[2], mask, i;
 
@@ -6603,7 +6603,7 @@ unknown_initiator:
 }
 
 static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev, bool is_write,
-							u32 *engine_id_1, u32 *engine_id_2)
+							u16 *engine_id_1, u16 *engine_id_2)
 {
 	u32 val, x_y, axi_id;
 
@@ -6719,8 +6719,8 @@ static const char *gaudi_get_razwi_initiator_name(struct hl_device *hdev, bool i
 	return "unknown initiator";
 }
 
-static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u32 *engine_id_1,
-						u32 *engine_id_2)
+static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u16 *engine_id_1,
+						u16 *engine_id_2, bool *is_read, bool *is_write)
 {
 
 	if (RREG32(mmMMU_UP_RAZWI_WRITE_VLD)) {
@@ -6728,6 +6728,7 @@ static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u32 *engine_i
 			"RAZWI event caused by illegal write of %s\n",
 			gaudi_get_razwi_initiator_name(hdev, true, engine_id_1, engine_id_2));
 		WREG32(mmMMU_UP_RAZWI_WRITE_VLD, 0);
+		*is_write = true;
 	}
 
 	if (RREG32(mmMMU_UP_RAZWI_READ_VLD)) {
@@ -6735,10 +6736,11 @@ static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u32 *engine_i
 			"RAZWI event caused by illegal read of %s\n",
 			gaudi_get_razwi_initiator_name(hdev, false, engine_id_1, engine_id_2));
 		WREG32(mmMMU_UP_RAZWI_READ_VLD, 0);
+		*is_read = true;
 	}
 }
 
-static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr, u8 *type)
+static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 val;
@@ -6753,8 +6755,6 @@ static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr
 		*addr |= RREG32(mmMMU_UP_PAGE_ERROR_CAPTURE_VA);
 
 		dev_err_ratelimited(hdev->dev, "MMU page fault on va 0x%llx\n", *addr);
-		*type = HL_RAZWI_PAGE_FAULT;
-
 		WREG32(mmMMU_UP_PAGE_ERROR_CAPTURE, 0);
 	}
 
@@ -6765,7 +6765,6 @@ static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr
 		*addr |= RREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE_VA);
 
 		dev_err_ratelimited(hdev->dev, "MMU access error on va 0x%llx\n", *addr);
-		*type = HL_RAZWI_MMU_ACCESS_ERROR;
 
 		WREG32(mmMMU_UP_ACCESS_ERROR_CAPTURE, 0);
 	}
@@ -7302,46 +7301,41 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 					bool razwi)
 {
-	u32 engine_id_1, engine_id_2;
+	bool is_read = false, is_write = false;
+	u16 engine_id[2], num_of_razwi_eng = 0;
 	char desc[64] = "";
 	u64 razwi_addr = 0;
-	u8 razwi_type;
-	int rc;
+	u8 razwi_flags = 0;
 
 	/*
 	 * Init engine id by default as not valid and only if razwi initiated from engine with
 	 * engine id it will get valid value.
-	 * Init razwi type to default, will be changed only if razwi caused by page fault of
-	 * MMU access error
 	 */
-	engine_id_1 = U16_MAX;
-	engine_id_2 = U16_MAX;
-	razwi_type = U8_MAX;
+	engine_id[0] = HL_RAZWI_NA_ENG_ID;
+	engine_id[1] = HL_RAZWI_NA_ENG_ID;
 
 	gaudi_get_event_desc(event_type, desc, sizeof(desc));
 	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
 
 	if (razwi) {
-		gaudi_print_and_get_razwi_info(hdev, &engine_id_1, &engine_id_2);
-		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, &razwi_type);
+		gaudi_print_and_get_razwi_info(hdev, &engine_id[0], &engine_id[1], &is_read,
+						&is_write);
+		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr);
 
-		/* In case it's the first razwi, save its parameters*/
-		rc = atomic_cmpxchg(&hdev->captured_err_info.razwi.write_enable, 1, 0);
-		if (rc) {
-			hdev->captured_err_info.razwi.timestamp = ktime_get();
-			hdev->captured_err_info.razwi.addr = razwi_addr;
-			hdev->captured_err_info.razwi.engine_id_1 = engine_id_1;
-			hdev->captured_err_info.razwi.engine_id_2 = engine_id_2;
-			/*
-			 * If first engine id holds non valid value the razwi initiator
-			 * does not have engine id
-			 */
-			hdev->captured_err_info.razwi.non_engine_initiator =
-									(engine_id_1 == U16_MAX);
-			hdev->captured_err_info.razwi.type = razwi_type;
+		if (is_read)
+			razwi_flags |= HL_RAZWI_READ;
+		if (is_write)
+			razwi_flags |= HL_RAZWI_WRITE;
 
+		if (engine_id[0] != HL_RAZWI_NA_ENG_ID) {
+			if (engine_id[1] != HL_RAZWI_NA_ENG_ID)
+				num_of_razwi_eng = 2;
+			else
+				num_of_razwi_eng = 1;
 		}
+
+		hl_capture_razwi(hdev, razwi_addr, engine_id, num_of_razwi_eng, razwi_flags);
 	}
 }
 
