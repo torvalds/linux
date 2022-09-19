@@ -296,8 +296,10 @@ static void init_elf(const char *path)
 /* Print the prologue of the output ASM file. */
 static void emit_prologue(void)
 {
-	printf(".data\n"
-	       ".pushsection " HYP_RELOC_SECTION ", \"a\"\n");
+	printf("#include <linux/linkage.h>\n"
+	       ".data\n"
+	       ".pushsection " HYP_RELOC_SECTION ", \"a\"\n"
+	       "SYM_ENTRY(__hyprel_start, SYM_L_GLOBAL, SYM_A_NONE)\n");
 }
 
 /* Print ASM statements needed as a prologue to a processed hyp section. */
@@ -347,7 +349,8 @@ static void emit_rela_abs64(Elf64_Rela *rela, const char *sh_orig_name)
 /* Print the epilogue of the output ASM file. */
 static void emit_epilogue(void)
 {
-	printf(".popsection\n");
+	printf("SYM_ENTRY(__hyprel_end, SYM_L_GLOBAL, SYM_A_NONE)\n"
+	       ".popsection\n");
 }
 
 /*
