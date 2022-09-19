@@ -583,9 +583,7 @@ int setxattr_copy(const char __user *name, struct xattr_ctx *ctx)
 static void setxattr_convert(struct user_namespace *mnt_userns,
 			     struct dentry *d, struct xattr_ctx *ctx)
 {
-	if (ctx->size &&
-		((strcmp(ctx->kname->name, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
-		(strcmp(ctx->kname->name, XATTR_NAME_POSIX_ACL_DEFAULT) == 0)))
+	if (ctx->size && is_posix_acl_xattr(ctx->kname->name))
 		posix_acl_fix_xattr_from_user(ctx->kvalue, ctx->size);
 }
 
@@ -701,8 +699,7 @@ do_getxattr(struct user_namespace *mnt_userns, struct dentry *d,
 
 	error = vfs_getxattr(mnt_userns, d, kname, ctx->kvalue, ctx->size);
 	if (error > 0) {
-		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
-		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
+		if (is_posix_acl_xattr(kname))
 			posix_acl_fix_xattr_to_user(ctx->kvalue, error);
 		if (ctx->size && copy_to_user(ctx->value, ctx->kvalue, error))
 			error = -EFAULT;
