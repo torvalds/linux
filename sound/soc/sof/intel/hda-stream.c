@@ -93,9 +93,6 @@ static int hda_setup_bdle(struct snd_sof_dev *sdev,
 		bdl++;
 		hstream->frags++;
 		offset += chunk;
-
-		dev_vdbg(sdev->dev, "bdl, frags:%d, chunk size:0x%x;\n",
-			 hstream->frags, chunk);
 	}
 
 	*bdlp = bdl;
