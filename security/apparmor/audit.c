@@ -113,8 +113,8 @@ static void audit_pre(struct audit_buffer *ab, void *va)
 			audit_log_format(ab, " error=%d", ad->error);
 	}
 
-	if (ad->label) {
-		struct aa_label *label = ad->label;
+	if (ad->subj_label) {
+		struct aa_label *label = ad->subj_label;
 
 		if (label_isprofile(label)) {
 			struct aa_profile *profile = labels_profile(label);
@@ -187,7 +187,7 @@ int aa_audit(int type, struct aa_profile *profile,
 	if (KILL_MODE(profile) && type == AUDIT_APPARMOR_DENIED)
 		type = AUDIT_APPARMOR_KILL;
 
-	ad->label = &profile->label;
+	ad->subj_label = &profile->label;
 
 	aa_audit_msg(type, ad, cb);
 

@@ -733,7 +733,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 
 /**
  * audit_policy - Do auditing of policy changes
- * @label: label to check if it can manage policy
+ * @subj_label: label to check if it can manage policy
  * @op: policy operation being performed
  * @ns_name: name of namespace being manipulated
  * @name: name of profile being manipulated (NOT NULL)
@@ -742,7 +742,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  *
  * Returns: the error to be returned after audit is done
  */
-static int audit_policy(struct aa_label *label, const char *op,
+static int audit_policy(struct aa_label *subj_label, const char *op,
 			const char *ns_name, const char *name,
 			const char *info, int error)
 {
@@ -752,7 +752,7 @@ static int audit_policy(struct aa_label *label, const char *op,
 	ad.name = name;
 	ad.info = info;
 	ad.error = error;
-	ad.label = label;
+	ad.subj_label = subj_label;
 
 	aa_audit_msg(AUDIT_APPARMOR_STATUS, &ad, audit_cb);
 
