@@ -1891,12 +1891,9 @@ static int tc358743_probe_of(struct tc358743_state *state)
 	int ret;
 
 	refclk = devm_clk_get(dev, "refclk");
-	if (IS_ERR(refclk)) {
-		if (PTR_ERR(refclk) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get refclk: %ld\n",
-				PTR_ERR(refclk));
-		return PTR_ERR(refclk);
-	}
+	if (IS_ERR(refclk))
+		return dev_err_probe(dev, PTR_ERR(refclk),
+				     "failed to get refclk\n");
 
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
