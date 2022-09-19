@@ -17,6 +17,11 @@ Optional properties:
 - pulses-per-revolution : define the tachometer pulses per fan revolution as
 			  an integer (default is 2 interrupts per revolution).
 			  The value must be greater than zero.
+- rockchip,temp-trips	: The property is an array of 2-tuples items, and
+			  each item consists of temperature in millicelsius and
+			  pwm cooling state. This depends on CONFIG_ROCKCHIP_SYSTEM_MONITOR.
+			  If add the property the fan cooling state will be changed
+			  by system monitor. Otherwise, use the default thermal governor.
 
 Example:
 	fan0: pwm-fan {

@@ -19,8 +19,14 @@
 #include <linux/sysfs.h>
 #include <linux/thermal.h>
 #include <linux/timer.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 
 #define MAX_PWM 255
+
+struct thermal_trips {
+	int temp;
+	int state;
+};
 
 struct pwm_fan_ctx {
 	struct mutex lock;
@@ -39,6 +45,9 @@ struct pwm_fan_ctx {
 	unsigned int pwm_fan_max_state;
 	unsigned int *pwm_fan_cooling_levels;
 	struct thermal_cooling_device *cdev;
+	struct notifier_block thermal_nb;
+	struct thermal_trips *thermal_trips;
+	bool thermal_notifier_is_ok;
 };
 
 /* This handler assumes self resetting edge triggered interrupt. */
@@ -278,6 +287,94 @@ static void pwm_fan_pwm_disable(void *__ctx)
 	del_timer_sync(&ctx->rpm_timer);
 }
 
+static int pwm_fan_get_thermal_trips(struct device *dev, char *porp_name,
+				     struct thermal_trips **trips)
+{
+	struct device_node *np = dev->of_node;
+	struct thermal_trips *thermal_trips;
+	const struct property *prop;
+	int count, i;
+
+	prop = of_find_property(np, porp_name, NULL);
+	if (!prop)
+		return -EINVAL;
+	if (!prop->value)
+		return -ENODATA;
+	count = of_property_count_u32_elems(np, porp_name);
+	if (count < 0)
+		return -EINVAL;
+	if (count % 2)
+		return -EINVAL;
+	thermal_trips = devm_kzalloc(dev,
+				     sizeof(*thermal_trips) * (count / 2 + 1),
+				     GFP_KERNEL);
+	if (!thermal_trips)
+		return -ENOMEM;
+
+	for (i = 0; i < count / 2; i++) {
+		of_property_read_u32_index(np, porp_name, 2 * i,
+					   &thermal_trips[i].temp);
+		of_property_read_u32_index(np, porp_name, 2 * i + 1,
+					   &thermal_trips[i].state);
+	}
+	thermal_trips[i].temp = 0;
+	thermal_trips[i].state = INT_MAX;
+
+	*trips = thermal_trips;
+
+	return 0;
+}
+
+static int pwm_fan_temp_to_state(struct pwm_fan_ctx *ctx, int temp)
+{
+	struct thermal_trips *trips = ctx->thermal_trips;
+	int i, state = 0;
+
+	for (i = 0; trips[i].state != INT_MAX; i++) {
+		if (temp >= trips[i].temp)
+			state = trips[i].state;
+	}
+
+	return state;
+}
+
+static int pwm_fan_thermal_notifier_call(struct notifier_block *nb,
+					 unsigned long event, void *data)
+{
+	struct pwm_fan_ctx *ctx = container_of(nb, struct pwm_fan_ctx, thermal_nb);
+	struct system_monitor_event_data *event_data = data;
+	int state, ret;
+
+	if (event != SYSTEM_MONITOR_CHANGE_TEMP)
+		return NOTIFY_OK;
+
+	state = pwm_fan_temp_to_state(ctx, event_data->temp);
+	if (state > ctx->pwm_fan_max_state)
+		return NOTIFY_BAD;
+	if (state == ctx->pwm_fan_state)
+		return NOTIFY_OK;
+
+	ret = __set_pwm(ctx, ctx->pwm_fan_cooling_levels[state]);
+	if (ret)
+		return NOTIFY_BAD;
+
+	ctx->pwm_fan_state = state;
+
+	return NOTIFY_OK;
+}
+
+static int pwm_fan_register_thermal_notifier(struct device *dev,
+					     struct pwm_fan_ctx *ctx)
+{
+	if (pwm_fan_get_thermal_trips(dev, "rockchip,temp-trips",
+				      &ctx->thermal_trips))
+		return -EINVAL;
+
+	ctx->thermal_nb.notifier_call = pwm_fan_thermal_notifier_call;
+
+	return rockchip_system_monitor_register_notifier(&ctx->thermal_nb);
+}
+
 static int pwm_fan_probe(struct platform_device *pdev)
 {
 	struct thermal_cooling_device *cdev;
@@ -379,6 +476,15 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		return ret;
 
 	ctx->pwm_fan_state = ctx->pwm_fan_max_state;
+	if (IS_REACHABLE(CONFIG_ROCKCHIP_SYSTEM_MONITOR) &&
+	    of_find_property(dev->of_node, "rockchip,temp-trips", NULL)) {
+		ret = pwm_fan_register_thermal_notifier(dev, ctx);
+		if (ret)
+			dev_err(dev, "Failed to register thermal notifier: %d\n", ret);
+		else
+			ctx->thermal_notifier_is_ok = true;
+		return 0;
+	}
 	if (IS_ENABLED(CONFIG_THERMAL)) {
 		cdev = devm_thermal_of_cooling_device_register(dev,
 			dev->of_node, "pwm-fan", ctx, &pwm_fan_cooling_ops);
@@ -404,7 +510,7 @@ static int pwm_fan_disable(struct device *dev)
 
 	pwm_get_args(ctx->pwm, &args);
 
-	if (ctx->pwm_value) {
+	if (ctx->pwm_value || ctx->thermal_notifier_is_ok) {
 		ret = pwm_config(ctx->pwm, 0, args.period);
 		if (ret < 0)
 			return ret;
@@ -449,7 +555,7 @@ static int pwm_fan_resume(struct device *dev)
 		}
 	}
 
-	if (ctx->pwm_value == 0)
+	if (ctx->pwm_value == 0 && !ctx->thermal_notifier_is_ok)
 		return 0;
 
 	pwm_get_args(ctx->pwm, &pargs);
