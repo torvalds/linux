@@ -344,6 +344,17 @@ static void intel_shim_init(struct sdw_intel *sdw)
 	usleep_range(10, 15);
 }
 
+static int intel_shim_check_wake(struct sdw_intel *sdw)
+{
+	void __iomem *shim;
+	u16 wake_sts;
+
+	shim = sdw->link_res->shim;
+	wake_sts = intel_readw(shim, SDW_SHIM_WAKESTS);
+
+	return wake_sts & BIT(sdw->instance);
+}
+
 static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
 {
 	void __iomem *shim = sdw->link_res->shim;
@@ -1491,8 +1502,6 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
 	struct device *dev = &auxdev->dev;
 	struct sdw_intel *sdw;
 	struct sdw_bus *bus;
-	void __iomem *shim;
-	u16 wake_sts;
 
 	sdw = auxiliary_get_drvdata(auxdev);
 	bus = &sdw->cdns.bus;
@@ -1503,10 +1512,7 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
 		return 0;
 	}
 
-	shim = sdw->link_res->shim;
-	wake_sts = intel_readw(shim, SDW_SHIM_WAKESTS);
-
-	if (!(wake_sts & BIT(sdw->instance)))
+	if (!intel_shim_check_wake(sdw))
 		return 0;
 
 	/* disable WAKEEN interrupt ASAP to prevent interrupt flood */
