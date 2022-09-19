@@ -1203,8 +1203,8 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	if (ret)
 		return ret;
 
-	return snd_soc_register_component(cdns->dev, &dai_component,
-					  dais, num_dai);
+	return devm_snd_soc_register_component(cdns->dev, &dai_component,
+					       dais, num_dai);
 }
 
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
@@ -1489,7 +1489,6 @@ err_init:
 
 static void intel_link_remove(struct auxiliary_device *auxdev)
 {
-	struct device *dev = &auxdev->dev;
 	struct sdw_cdns *cdns = auxiliary_get_drvdata(auxdev);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_bus *bus = &cdns->bus;
@@ -1502,7 +1501,6 @@ static void intel_link_remove(struct auxiliary_device *auxdev)
 	if (!bus->prop.hw_disabled) {
 		intel_debugfs_exit(sdw);
 		sdw_cdns_enable_interrupt(cdns, false);
-		snd_soc_unregister_component(dev);
 	}
 	sdw_bus_master_delete(bus);
 }
