@@ -1110,6 +1110,9 @@ static int btree_path_traverse_one(struct btree_trans *trans,
 
 	path->level = btree_path_up_until_good_node(trans, path, 0);
 
+	EBUG_ON(btree_path_node(path, path->level) &&
+		!btree_node_locked(path, path->level));
+
 	/*
 	 * Note: path->nodes[path->level] may be temporarily NULL here - that
 	 * would indicate to other code that we got to the end of the btree,
