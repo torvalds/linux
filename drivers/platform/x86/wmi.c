@@ -95,9 +95,6 @@ module_param(debug_dump_wdg, bool, 0444);
 MODULE_PARM_DESC(debug_dump_wdg,
 		 "Dump available WMI interfaces [0/1]");
 
-static int acpi_wmi_remove(struct platform_device *device);
-static int acpi_wmi_probe(struct platform_device *device);
-
 static const struct acpi_device_id wmi_device_ids[] = {
 	{"PNP0C14", 0},
 	{"pnp0c14", 0},
@@ -109,15 +106,6 @@ MODULE_DEVICE_TABLE(acpi, wmi_device_ids);
 static const char * const allow_duplicates[] = {
 	"05901221-D566-11D1-B2F0-00A0C9062910",	/* wmi-bmof */
 	NULL
-};
-
-static struct platform_driver acpi_wmi_driver = {
-	.driver = {
-		.name = "acpi-wmi",
-		.acpi_match_table = wmi_device_ids,
-	},
-	.probe = acpi_wmi_probe,
-	.remove = acpi_wmi_remove,
 };
 
 /*
@@ -1479,6 +1467,15 @@ void wmi_driver_unregister(struct wmi_driver *driver)
 	driver_unregister(&driver->driver);
 }
 EXPORT_SYMBOL(wmi_driver_unregister);
+
+static struct platform_driver acpi_wmi_driver = {
+	.driver = {
+		.name = "acpi-wmi",
+		.acpi_match_table = wmi_device_ids,
+	},
+	.probe = acpi_wmi_probe,
+	.remove = acpi_wmi_remove,
+};
 
 static int __init acpi_wmi_init(void)
 {
