@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
 #include "jh7110.dtsi"
 #include "codecs/sf_pwmdac.dtsi"
@@ -74,6 +75,18 @@
 				0x0 0xf3000000 0x0 0x00001000>;
 		};
 
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-ack {
+			gpios = <&gpioa 3 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_HEARTBEAT;
+			linux,default-trigger = "heartbeat";
+			label = "ack";
+		};
 	};
 };
 
