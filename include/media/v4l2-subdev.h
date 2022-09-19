@@ -176,7 +176,10 @@ struct v4l2_subdev_io_pin_config {
  * @s_register: callback for VIDIOC_DBG_S_REGISTER() ioctl handler code.
  *
  * @s_power: puts subdevice in power saving mode (on == 0) or normal operation
- *	mode (on == 1).
+ *	mode (on == 1). DEPRECATED. See
+ *	Documentation/driver-api/media/camera-sensor.rst . pre_streamon and
+ *	post_streamoff callbacks can be used for e.g. setting the bus to LP-11
+ *	mode before s_stream is called.
  *
  * @interrupt_service_routine: Called by the bridge chip's interrupt service
  *	handler, when an interrupt status has be raised due to this subdev,
