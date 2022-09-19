@@ -273,10 +273,8 @@ static irqreturn_t mlxbf2_gpio_irq_handler(int irq, void *ptr)
 	pending = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_CAUSE_EVTEN0);
 	writel(pending, gs->gpio_io + YU_GPIO_CAUSE_OR_CLRCAUSE);
 
-	for_each_set_bit(level, &pending, gc->ngpio) {
-		int gpio_irq = irq_find_mapping(gc->irq.domain, level);
-		generic_handle_irq(gpio_irq);
-	}
+	for_each_set_bit(level, &pending, gc->ngpio)
+		generic_handle_domain_irq_safe(gc->irq.domain, level);
 
 	return IRQ_RETVAL(pending);
 }
