@@ -1522,7 +1522,7 @@
 				bias-disable;
 			};
 
-			wcd_intr_default: wcd-intr-default{
+			wcd_intr_default: wcd-intr-default {
 				pins = "gpio54";
 				function = "gpio";
 				drive-strength = <2>;

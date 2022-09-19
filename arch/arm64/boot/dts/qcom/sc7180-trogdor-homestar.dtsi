@@ -189,7 +189,7 @@ ap_ts_pen_1v8: &i2c4 {
 	};
 };
 
-&sec_mi2s_active{
+&sec_mi2s_active {
 	pinmux {
 		pins = "gpio49", "gpio50", "gpio51", "gpio52";
 		function = "mi2s_1";

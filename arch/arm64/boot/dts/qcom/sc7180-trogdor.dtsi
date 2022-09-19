@@ -1238,7 +1238,7 @@ ap_spi_fp: &spi10 {
 	};
 
 	ap_suspend_l_neuter: ap-suspend-l-neuter {
-		pinmux  {
+		pinmux {
 			pins = "gpio27";
 			function = "gpio";
 		};
@@ -1383,7 +1383,7 @@ ap_spi_fp: &spi10 {
 	};
 
 	pen_rst_odl: pen-rst-odl {
-		pinmux  {
+		pinmux {
 			pins = "gpio18";
 			function = "gpio";
 		};
@@ -1507,7 +1507,7 @@ ap_spi_fp: &spi10 {
 	};
 
 	ts_int_l: ts-int-l {
-		pinmux  {
+		pinmux {
 			pins = "gpio9";
 			function = "gpio";
 		};
@@ -1519,7 +1519,7 @@ ap_spi_fp: &spi10 {
 	};
 
 	ts_reset_l: ts-reset-l {
-		pinmux  {
+		pinmux {
 			pins = "gpio8";
 			function = "gpio";
 		};

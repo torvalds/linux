@@ -1076,7 +1076,7 @@
 	status = "okay";
 };
 
-&wcd9340{
+&wcd9340 {
 	pinctrl-0 = <&wcd_intr_default>;
 	pinctrl-names = "default";
 	clock-names = "extclk";
@@ -1089,7 +1089,7 @@
 	vdd-io-supply = <&vreg_s4a_1p8>;
 
 	swm: swm@c85 {
-		left_spkr: wsa8810-left{
+		left_spkr: wsa8810-left {
 			compatible = "sdw10217201000";
 			reg = <0 1>;
 			powerdown-gpios = <&wcdgpio 1 GPIO_ACTIVE_HIGH>;
@@ -1098,7 +1098,7 @@
 			#sound-dai-cells = <0>;
 		};
 
-		right_spkr: wsa8810-right{
+		right_spkr: wsa8810-right {
 			compatible = "sdw10217201000";
 			powerdown-gpios = <&wcdgpio 1 GPIO_ACTIVE_HIGH>;
 			reg = <0 2>;
@@ -1129,7 +1129,7 @@
 	};
 };
 
-&qup_uart3_default{
+&qup_uart3_default {
 	pinmux {
 		pins = "gpio41", "gpio42", "gpio43", "gpio44";
 		function = "qup3";

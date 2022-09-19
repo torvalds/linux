@@ -181,7 +181,7 @@ ap_ts_pen_1v8: &i2c4 {
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
 &en_pp3300_dx_edp {
-	pinmux  {
+	pinmux {
 		pins = "gpio67";
 	};
 

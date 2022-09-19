@@ -1903,7 +1903,7 @@
 
 			cpu = <&CPU4>;
 
-			port{
+			port {
 				etm4_out: endpoint {
 					remote-endpoint = <&apss_funnel_in4>;
 				};
@@ -1920,7 +1920,7 @@
 
 			cpu = <&CPU5>;
 
-			port{
+			port {
 				etm5_out: endpoint {
 					remote-endpoint = <&apss_funnel_in5>;
 				};
@@ -1937,7 +1937,7 @@
 
 			cpu = <&CPU6>;
 
-			port{
+			port {
 				etm6_out: endpoint {
 					remote-endpoint = <&apss_funnel_in6>;
 				};
@@ -1954,7 +1954,7 @@
 
 			cpu = <&CPU7>;
 
-			port{
+			port {
 				etm7_out: endpoint {
 					remote-endpoint = <&apss_funnel_in7>;
 				};
