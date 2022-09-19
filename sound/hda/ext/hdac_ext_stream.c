@@ -87,11 +87,11 @@ int snd_hdac_ext_stream_init_all(struct hdac_bus *bus, int start_idx,
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_init_all);
 
 /**
- * snd_hdac_stream_free_all - free hdac extended stream objects
+ * snd_hdac_ext_stream_free_all - free hdac extended stream objects
  *
  * @bus: HD-audio core bus
  */
-void snd_hdac_stream_free_all(struct hdac_bus *bus)
+void snd_hdac_ext_stream_free_all(struct hdac_bus *bus)
 {
 	struct hdac_stream *s, *_s;
 	struct hdac_ext_stream *hext_stream;
@@ -103,7 +103,7 @@ void snd_hdac_stream_free_all(struct hdac_bus *bus)
 		kfree(hext_stream);
 	}
 }
-EXPORT_SYMBOL_GPL(snd_hdac_stream_free_all);
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_free_all);
 
 void snd_hdac_ext_stream_decouple_locked(struct hdac_bus *bus,
 					 struct hdac_ext_stream *hext_stream,

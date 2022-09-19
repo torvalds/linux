@@ -466,7 +466,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 err_acquire_irq:
 	snd_hdac_bus_free_stream_pages(bus);
-	snd_hdac_stream_free_all(bus);
+	snd_hdac_ext_stream_free_all(bus);
 err_init_streams:
 	iounmap(adev->dsp_ba);
 err_remap_bar4:
@@ -502,7 +502,7 @@ static void avs_pci_remove(struct pci_dev *pci)
 		snd_hda_codec_unregister(hdac_to_hda_codec(hdev));
 
 	snd_hdac_bus_free_stream_pages(bus);
-	snd_hdac_stream_free_all(bus);
+	snd_hdac_ext_stream_free_all(bus);
 	/* reverse ml_capabilities */
 	snd_hdac_link_free_all(bus);
 	snd_hdac_ext_bus_exit(bus);
