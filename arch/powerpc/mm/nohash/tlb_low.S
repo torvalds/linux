@@ -364,7 +364,7 @@ _GLOBAL(_tlbivax_bcast)
 #error Unsupported processor type !
 #endif
 
-#if defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_E500)
 /*
  * extern void loadcam_entry(unsigned int index)
  *

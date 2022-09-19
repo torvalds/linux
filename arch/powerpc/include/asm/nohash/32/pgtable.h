@@ -131,7 +131,7 @@ void unmap_kernel_page(unsigned long va);
 #elif defined(CONFIG_44x)
 #include <asm/nohash/32/pte-44x.h>
 #elif defined(CONFIG_PPC_85xx) && defined(CONFIG_PTE_64BIT)
-#include <asm/nohash/pte-book3e.h>
+#include <asm/nohash/pte-e500.h>
 #elif defined(CONFIG_PPC_85xx)
 #include <asm/nohash/32/pte-85xx.h>
 #elif defined(CONFIG_PPC_8xx)

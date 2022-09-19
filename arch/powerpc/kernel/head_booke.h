@@ -34,7 +34,7 @@
  */
 #define THREAD_NORMSAVE(offset)	(THREAD_NORMSAVES + (offset * 4))
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 #define BOOKE_CLEAR_BTB(reg)									\
 START_BTB_FLUSH_SECTION								\
 	BTB_FLUSH(reg)									\

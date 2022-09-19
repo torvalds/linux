@@ -623,7 +623,7 @@ static int __init hugetlbpage_init(void)
 		if (pdshift > shift) {
 			if (!IS_ENABLED(CONFIG_PPC_8xx))
 				pgtable_cache_add(pdshift - shift);
-		} else if (IS_ENABLED(CONFIG_PPC_FSL_BOOK3E) ||
+		} else if (IS_ENABLED(CONFIG_PPC_E500) ||
 			   IS_ENABLED(CONFIG_PPC_8xx)) {
 			pgtable_cache_add(PTE_T_ORDER);
 		}

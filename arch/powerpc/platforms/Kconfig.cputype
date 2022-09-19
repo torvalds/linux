@@ -107,7 +107,6 @@ config PPC_BOOK3S_64
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
-	select PPC_FSL_BOOK3E
 	select PPC_E500
 	select PPC_E500MC
 	select PPC_FPU # Make it a choice ?
@@ -259,8 +258,11 @@ config PPC_BOOK3S
 
 config PPC_E500
 	select FSL_EMB_PERFMON
-	select PPC_FSL_BOOK3E
 	bool
+	select ARCH_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
+	select PPC_SMP_MUXED_IPI
+	select PPC_DOORBELL
+	select PPC_KUEP
 
 config PPC_E500MC
 	bool "e500mc Support"
@@ -319,16 +321,6 @@ config BOOKE_OR_40x
 	bool
 	depends on BOOKE || 40x
 	default y
-
-# this is for common code between PPC32 & PPC64 FSL BOOKE
-config PPC_FSL_BOOK3E
-	bool
-	select ARCH_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
-	imply FSL_EMB_PERFMON
-	select PPC_SMP_MUXED_IPI
-	select PPC_DOORBELL
-	select PPC_KUEP
-	default y if PPC_85xx
 
 config PTE_64BIT
 	bool

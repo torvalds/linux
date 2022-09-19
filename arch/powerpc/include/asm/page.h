@@ -31,7 +31,7 @@ extern unsigned int hpage_shift;
 #define HPAGE_SHIFT hpage_shift
 #elif defined(CONFIG_PPC_8xx)
 #define HPAGE_SHIFT		19	/* 512k pages */
-#elif defined(CONFIG_PPC_FSL_BOOK3E)
+#elif defined(CONFIG_PPC_E500)
 #define HPAGE_SHIFT		22	/* 4M pages */
 #endif
 #define HPAGE_SIZE		((1UL) << HPAGE_SHIFT)

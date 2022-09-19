@@ -290,7 +290,7 @@ config PPC_LONG_DOUBLE_128
 config PPC_BARRIER_NOSPEC
 	bool
 	default y
-	depends on PPC_BOOK3S_64 || PPC_FSL_BOOK3E
+	depends on PPC_BOOK3S_64 || PPC_E500
 
 config EARLY_PRINTK
 	bool

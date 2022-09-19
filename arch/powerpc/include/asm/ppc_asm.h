@@ -342,7 +342,7 @@ n:
 #endif
 
 /* various errata or part fixups */
-#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_E500)
 #define MFTB(dest)			\
 90:	mfspr dest, SPRN_TBRL;		\
 BEGIN_FTR_SECTION_NESTED(96);		\
@@ -768,7 +768,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 	stringify_in_c(.llong (_target);)	\
 	stringify_in_c(.previous)
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 #define BTB_FLUSH(reg)			\
 	lis reg,BUCSR_INIT@h;		\
 	ori reg,reg,BUCSR_INIT@l;	\
@@ -776,6 +776,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 	isync;
 #else
 #define BTB_FLUSH(reg)
-#endif /* CONFIG_PPC_FSL_BOOK3E */
+#endif /* CONFIG_PPC_E500 */
 
 #endif /* _ASM_POWERPC_PPC_ASM_H */

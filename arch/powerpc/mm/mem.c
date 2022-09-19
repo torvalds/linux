@@ -308,7 +308,7 @@ void __init mem_init(void)
 	}
 #endif /* CONFIG_HIGHMEM */
 
-#if defined(CONFIG_PPC_FSL_BOOK3E) && !defined(CONFIG_SMP)
+#if defined(CONFIG_PPC_E500) && !defined(CONFIG_SMP)
 	/*
 	 * If smp is enabled, next_tlbcam_idx is initialized in the cpu up
 	 * functions.... do it here for the non-smp case.

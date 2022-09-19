@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_PTE_BOOK3E_H
-#define _ASM_POWERPC_NOHASH_PTE_BOOK3E_H
+#ifndef _ASM_POWERPC_NOHASH_PTE_E500_H
+#define _ASM_POWERPC_NOHASH_PTE_E500_H
 #ifdef __KERNEL__
 
 /* PTE bit definitions for processors compliant to the Book3E
@@ -126,4 +126,4 @@ static inline pte_t pte_mkexec(pte_t pte)
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_NOHASH_PTE_BOOK3E_H */
+#endif /*  _ASM_POWERPC_NOHASH_PTE_E500_H */

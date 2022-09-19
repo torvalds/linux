@@ -266,7 +266,7 @@ static inline int pud_huge(pud_t pud)
  * We use it to ensure coherency between the i-cache and d-cache
  * for the page which has just been mapped in.
  */
-#if defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_HUGETLB_PAGE)
+#if defined(CONFIG_PPC_E500) && defined(CONFIG_HUGETLB_PAGE)
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep);
 #else
 static inline

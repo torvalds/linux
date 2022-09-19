@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_HUGETLB_BOOK3E_H
-#define _ASM_POWERPC_NOHASH_HUGETLB_BOOK3E_H
+#ifndef _ASM_POWERPC_NOHASH_HUGETLB_E500_H
+#define _ASM_POWERPC_NOHASH_HUGETLB_E500_H
 
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
@@ -30,7 +30,7 @@ void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 
 static inline void hugepd_populate(hugepd_t *hpdp, pte_t *new, unsigned int pshift)
 {
-	/* We use the old format for PPC_FSL_BOOK3E */
+	/* We use the old format for PPC_E500 */
 	*hpdp = __hugepd(((unsigned long)new & ~PD_HUGE) | pshift);
 }
 
@@ -42,4 +42,4 @@ static inline int check_and_get_huge_psize(int shift)
 	return shift_to_mmu_psize(shift);
 }
 
-#endif /* _ASM_POWERPC_NOHASH_HUGETLB_BOOK3E_H */
+#endif /* _ASM_POWERPC_NOHASH_HUGETLB_E500_H */

@@ -59,7 +59,7 @@
 #endif
 #endif
 
-#if defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_E500)
 #include "../mm/mmu_decl.h"
 #endif
 
@@ -651,7 +651,7 @@ int main(void)
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
 #endif
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
 	OFFSET(TLBCAM_MAS0, tlbcam, MAS0);
 	OFFSET(TLBCAM_MAS1, tlbcam, MAS1);
