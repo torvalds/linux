@@ -458,31 +458,25 @@ unsigned long find_next_bit_le(const void *addr, unsigned
 #endif
 
 #define for_each_set_bit(bit, addr, size) \
-	for ((bit) = find_next_bit((addr), (size), 0);		\
-	     (bit) < (size);					\
-	     (bit) = find_next_bit((addr), (size), (bit) + 1))
+	for ((bit) = 0; (bit) = find_next_bit((addr), (size), (bit)), (bit) < (size); (bit)++)
 
 #define for_each_and_bit(bit, addr1, addr2, size) \
-	for ((bit) = find_next_and_bit((addr1), (addr2), (size), 0);		\
-	     (bit) < (size);							\
-	     (bit) = find_next_and_bit((addr1), (addr2), (size), (bit) + 1))
+	for ((bit) = 0;									\
+	     (bit) = find_next_and_bit((addr1), (addr2), (size), (bit)), (bit) < (size);\
+	     (bit)++)
 
 /* same as for_each_set_bit() but use bit as value to start with */
 #define for_each_set_bit_from(bit, addr, size) \
-	for ((bit) = find_next_bit((addr), (size), (bit));	\
-	     (bit) < (size);					\
-	     (bit) = find_next_bit((addr), (size), (bit) + 1))
+	for (; (bit) = find_next_bit((addr), (size), (bit)), (bit) < (size); (bit)++)
 
 #define for_each_clear_bit(bit, addr, size) \
-	for ((bit) = find_next_zero_bit((addr), (size), 0);	\
-	     (bit) < (size);					\
-	     (bit) = find_next_zero_bit((addr), (size), (bit) + 1))
+	for ((bit) = 0;									\
+	     (bit) = find_next_zero_bit((addr), (size), (bit)), (bit) < (size);		\
+	     (bit)++)
 
 /* same as for_each_clear_bit() but use bit as value to start with */
 #define for_each_clear_bit_from(bit, addr, size) \
-	for ((bit) = find_next_zero_bit((addr), (size), (bit));	\
-	     (bit) < (size);					\
-	     (bit) = find_next_zero_bit((addr), (size), (bit) + 1))
+	for (; (bit) = find_next_zero_bit((addr), (size), (bit)), (bit) < (size); (bit)++)
 
 /**
  * for_each_set_bitrange - iterate over all set bit ranges [b; e)
@@ -492,11 +486,11 @@ unsigned long find_next_bit_le(const void *addr, unsigned
  * @size: bitmap size in number of bits
  */
 #define for_each_set_bitrange(b, e, addr, size)			\
-	for ((b) = find_next_bit((addr), (size), 0),		\
-	     (e) = find_next_zero_bit((addr), (size), (b) + 1);	\
+	for ((b) = 0;						\
+	     (b) = find_next_bit((addr), (size), b),		\
+	     (e) = find_next_zero_bit((addr), (size), (b) + 1),	\
 	     (b) < (size);					\
-	     (b) = find_next_bit((addr), (size), (e) + 1),	\
-	     (e) = find_next_zero_bit((addr), (size), (b) + 1))
+	     (b) = (e) + 1)
 
 /**
  * for_each_set_bitrange_from - iterate over all set bit ranges [b; e)
@@ -506,11 +500,11 @@ unsigned long find_next_bit_le(const void *addr, unsigned
  * @size: bitmap size in number of bits
  */
 #define for_each_set_bitrange_from(b, e, addr, size)		\
-	for ((b) = find_next_bit((addr), (size), (b)),		\
-	     (e) = find_next_zero_bit((addr), (size), (b) + 1);	\
+	for (;							\
+	     (b) = find_next_bit((addr), (size), (b)),		\
+	     (e) = find_next_zero_bit((addr), (size), (b) + 1),	\
 	     (b) < (size);					\
-	     (b) = find_next_bit((addr), (size), (e) + 1),	\
-	     (e) = find_next_zero_bit((addr), (size), (b) + 1))
+	     (b) = (e) + 1)
 
 /**
  * for_each_clear_bitrange - iterate over all unset bit ranges [b; e)
@@ -520,11 +514,11 @@ unsigned long find_next_bit_le(const void *addr, unsigned
  * @size: bitmap size in number of bits
  */
 #define for_each_clear_bitrange(b, e, addr, size)		\
-	for ((b) = find_next_zero_bit((addr), (size), 0),	\
-	     (e) = find_next_bit((addr), (size), (b) + 1);	\
+	for ((b) = 0;						\
+	     (b) = find_next_zero_bit((addr), (size), (b)),	\
+	     (e) = find_next_bit((addr), (size), (b) + 1),	\
 	     (b) < (size);					\
-	     (b) = find_next_zero_bit((addr), (size), (e) + 1),	\
-	     (e) = find_next_bit((addr), (size), (b) + 1))
+	     (b) = (e) + 1)
 
 /**
  * for_each_clear_bitrange_from - iterate over all unset bit ranges [b; e)
@@ -534,11 +528,11 @@ unsigned long find_next_bit_le(const void *addr, unsigned
  * @size: bitmap size in number of bits
  */
 #define for_each_clear_bitrange_from(b, e, addr, size)		\
-	for ((b) = find_next_zero_bit((addr), (size), (b)),	\
-	     (e) = find_next_bit((addr), (size), (b) + 1);	\
+	for (;							\
+	     (b) = find_next_zero_bit((addr), (size), (b)),	\
+	     (e) = find_next_bit((addr), (size), (b) + 1),	\
 	     (b) < (size);					\
-	     (b) = find_next_zero_bit((addr), (size), (e) + 1),	\
-	     (e) = find_next_bit((addr), (size), (b) + 1))
+	     (b) = (e) + 1)
 
 /**
  * for_each_set_bit_wrap - iterate over all set bits starting from @start, and
