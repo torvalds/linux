@@ -8,6 +8,7 @@
 #include <linux/firmware.h>
 #include <sound/sof/ext_manifest4.h>
 #include <sound/sof/ipc4/header.h>
+#include <trace/events/sof.h>
 #include "ipc4-priv.h"
 #include "sof-audio.h"
 #include "sof-priv.h"
@@ -194,13 +195,13 @@ static int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 				 fw_ver->build);
 			break;
 		case SOF_IPC4_FW_CFG_DL_MAILBOX_BYTES:
-			dev_vdbg(sdev->dev, "DL mailbox size: %u\n", *tuple->value);
+			trace_sof_ipc4_fw_config(sdev, "DL mailbox size", *tuple->value);
 			break;
 		case SOF_IPC4_FW_CFG_UL_MAILBOX_BYTES:
-			dev_vdbg(sdev->dev, "UL mailbox size: %u\n", *tuple->value);
+			trace_sof_ipc4_fw_config(sdev, "UL mailbox size", *tuple->value);
 			break;
 		case SOF_IPC4_FW_CFG_TRACE_LOG_BYTES:
-			dev_vdbg(sdev->dev, "Trace log size: %u\n", *tuple->value);
+			trace_sof_ipc4_fw_config(sdev, "Trace log size", *tuple->value);
 			ipc4_data->mtrace_log_bytes = *tuple->value;
 			break;
 		default:
