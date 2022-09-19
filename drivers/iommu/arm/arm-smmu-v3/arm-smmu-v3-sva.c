@@ -150,7 +150,7 @@ static struct arm_smmu_ctx_desc *arm_smmu_alloc_shared_cd(struct mm_struct *mm)
 	}
 
 	reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
-	par = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_PARANGE_SHIFT);
+	par = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_EL1_PARANGE_SHIFT);
 	tcr |= FIELD_PREP(CTXDESC_CD_0_TCR_IPS, par);
 
 	cd->ttbr = virt_to_phys(mm->pgd);
@@ -425,13 +425,13 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 	 * addresses larger than what we support.
 	 */
 	reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
-	fld = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_PARANGE_SHIFT);
+	fld = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_EL1_PARANGE_SHIFT);
 	oas = id_aa64mmfr0_parange_to_phys_shift(fld);
 	if (smmu->oas < oas)
 		return false;
 
 	/* We can support bigger ASIDs than the CPU, but not smaller */
-	fld = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_ASID_SHIFT);
+	fld = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_EL1_ASIDBITS_SHIFT);
 	asid_bits = fld ? 16 : 8;
 	if (smmu->asid_bits < asid_bits)
 		return false;

@@ -434,8 +434,8 @@ SYM_FUNC_START(__cpu_setup)
 	 * (ID_AA64PFR1_EL1[11:8] > 1).
 	 */
 	mrs	x10, ID_AA64PFR1_EL1
-	ubfx	x10, x10, #ID_AA64PFR1_MTE_SHIFT, #4
-	cmp	x10, #ID_AA64PFR1_MTE
+	ubfx	x10, x10, #ID_AA64PFR1_EL1_MTE_SHIFT, #4
+	cmp	x10, #ID_AA64PFR1_EL1_MTE_MTE2
 	b.lt	1f
 
 	/* Normal Tagged memory type at the corresponding MAIR index */

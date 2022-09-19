@@ -43,17 +43,17 @@ static u32 get_cpu_asid_bits(void)
 {
 	u32 asid;
 	int fld = cpuid_feature_extract_unsigned_field(read_cpuid(ID_AA64MMFR0_EL1),
-						ID_AA64MMFR0_ASID_SHIFT);
+						ID_AA64MMFR0_EL1_ASIDBITS_SHIFT);
 
 	switch (fld) {
 	default:
 		pr_warn("CPU%d: Unknown ASID size (%d); assuming 8-bit\n",
 					smp_processor_id(),  fld);
 		fallthrough;
-	case ID_AA64MMFR0_ASID_8:
+	case ID_AA64MMFR0_EL1_ASIDBITS_8:
 		asid = 8;
 		break;
-	case ID_AA64MMFR0_ASID_16:
+	case ID_AA64MMFR0_EL1_ASIDBITS_16:
 		asid = 16;
 	}
 

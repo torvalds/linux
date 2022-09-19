@@ -553,7 +553,7 @@ cpuid_feature_cap_perfmon_field(u64 features, int field, u64 cap)
 	u64 mask = GENMASK_ULL(field + 3, field);
 
 	/* Treat IMPLEMENTATION DEFINED functionality as unimplemented */
-	if (val == ID_AA64DFR0_PMUVER_IMP_DEF)
+	if (val == ID_AA64DFR0_EL1_PMUVer_IMP_DEF)
 		val = 0;
 
 	if (val > cap) {
@@ -597,43 +597,43 @@ static inline s64 arm64_ftr_value(const struct arm64_ftr_bits *ftrp, u64 val)
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
 {
-	return cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_BIGENDEL_SHIFT) == 0x1 ||
-		cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_BIGENDEL0_SHIFT) == 0x1;
+	return cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_BIGEND_SHIFT) == 0x1 ||
+		cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_BIGENDEL0_SHIFT) == 0x1;
 }
 
 static inline bool id_aa64pfr0_32bit_el1(u64 pfr0)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_EL1_SHIFT);
 
-	return val == ID_AA64PFR0_ELx_32BIT_64BIT;
+	return val == ID_AA64PFR0_EL1_ELx_32BIT_64BIT;
 }
 
 static inline bool id_aa64pfr0_32bit_el0(u64 pfr0)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL0_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_EL0_SHIFT);
 
-	return val == ID_AA64PFR0_ELx_32BIT_64BIT;
+	return val == ID_AA64PFR0_EL1_ELx_32BIT_64BIT;
 }
 
 static inline bool id_aa64pfr0_sve(u64 pfr0)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_SVE_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_SVE_SHIFT);
 
 	return val > 0;
 }
 
 static inline bool id_aa64pfr1_sme(u64 pfr1)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_SME_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_EL1_SME_SHIFT);
 
 	return val > 0;
 }
 
 static inline bool id_aa64pfr1_mte(u64 pfr1)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_MTE_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_EL1_MTE_SHIFT);
 
-	return val >= ID_AA64PFR1_MTE;
+	return val >= ID_AA64PFR1_EL1_MTE_MTE2;
 }
 
 void __init setup_cpu_features(void);
@@ -659,7 +659,7 @@ static inline bool supports_csv2p3(int scope)
 		pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
 
 	csv2_val = cpuid_feature_extract_unsigned_field(pfr0,
-							ID_AA64PFR0_CSV2_SHIFT);
+							ID_AA64PFR0_EL1_CSV2_SHIFT);
 	return csv2_val == 3;
 }
 
@@ -694,10 +694,10 @@ static inline bool system_supports_4kb_granule(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_TGRAN4_SHIFT);
+						ID_AA64MMFR0_EL1_TGRAN4_SHIFT);
 
-	return (val >= ID_AA64MMFR0_TGRAN4_SUPPORTED_MIN) &&
-	       (val <= ID_AA64MMFR0_TGRAN4_SUPPORTED_MAX);
+	return (val >= ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MIN) &&
+	       (val <= ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MAX);
 }
 
 static inline bool system_supports_64kb_granule(void)
@@ -707,10 +707,10 @@ static inline bool system_supports_64kb_granule(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_TGRAN64_SHIFT);
+						ID_AA64MMFR0_EL1_TGRAN64_SHIFT);
 
-	return (val >= ID_AA64MMFR0_TGRAN64_SUPPORTED_MIN) &&
-	       (val <= ID_AA64MMFR0_TGRAN64_SUPPORTED_MAX);
+	return (val >= ID_AA64MMFR0_EL1_TGRAN64_SUPPORTED_MIN) &&
+	       (val <= ID_AA64MMFR0_EL1_TGRAN64_SUPPORTED_MAX);
 }
 
 static inline bool system_supports_16kb_granule(void)
@@ -720,10 +720,10 @@ static inline bool system_supports_16kb_granule(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_TGRAN16_SHIFT);
+						ID_AA64MMFR0_EL1_TGRAN16_SHIFT);
 
-	return (val >= ID_AA64MMFR0_TGRAN16_SUPPORTED_MIN) &&
-	       (val <= ID_AA64MMFR0_TGRAN16_SUPPORTED_MAX);
+	return (val >= ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MIN) &&
+	       (val <= ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MAX);
 }
 
 static inline bool system_supports_mixed_endian_el0(void)
@@ -738,7 +738,7 @@ static inline bool system_supports_mixed_endian(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_BIGENDEL_SHIFT);
+						ID_AA64MMFR0_EL1_BIGEND_SHIFT);
 
 	return val == 0x1;
 }
@@ -840,13 +840,13 @@ extern int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
 static inline u32 id_aa64mmfr0_parange_to_phys_shift(int parange)
 {
 	switch (parange) {
-	case ID_AA64MMFR0_PARANGE_32: return 32;
-	case ID_AA64MMFR0_PARANGE_36: return 36;
-	case ID_AA64MMFR0_PARANGE_40: return 40;
-	case ID_AA64MMFR0_PARANGE_42: return 42;
-	case ID_AA64MMFR0_PARANGE_44: return 44;
-	case ID_AA64MMFR0_PARANGE_48: return 48;
-	case ID_AA64MMFR0_PARANGE_52: return 52;
+	case ID_AA64MMFR0_EL1_PARANGE_32: return 32;
+	case ID_AA64MMFR0_EL1_PARANGE_36: return 36;
+	case ID_AA64MMFR0_EL1_PARANGE_40: return 40;
+	case ID_AA64MMFR0_EL1_PARANGE_42: return 42;
+	case ID_AA64MMFR0_EL1_PARANGE_44: return 44;
+	case ID_AA64MMFR0_EL1_PARANGE_48: return 48;
+	case ID_AA64MMFR0_EL1_PARANGE_52: return 52;
 	/*
 	 * A future PE could use a value unknown to the kernel.
 	 * However, by the "D10.1.4 Principles of the ID scheme
@@ -868,14 +868,14 @@ static inline bool cpu_has_hw_af(void)
 
 	mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
 	return cpuid_feature_extract_unsigned_field(mmfr1,
-						ID_AA64MMFR1_HADBS_SHIFT);
+						ID_AA64MMFR1_EL1_HAFDBS_SHIFT);
 }
 
 static inline bool cpu_has_pan(void)
 {
 	u64 mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
 	return cpuid_feature_extract_unsigned_field(mmfr1,
-						    ID_AA64MMFR1_PAN_SHIFT);
+						    ID_AA64MMFR1_EL1_PAN_SHIFT);
 }
 
 #ifdef CONFIG_ARM64_AMU_EXTN
@@ -896,8 +896,8 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 	int vmid_bits;
 
 	vmid_bits = cpuid_feature_extract_unsigned_field(mmfr1,
-						ID_AA64MMFR1_VMIDBITS_SHIFT);
-	if (vmid_bits == ID_AA64MMFR1_VMIDBITS_16)
+						ID_AA64MMFR1_EL1_VMIDBits_SHIFT);
+	if (vmid_bits == ID_AA64MMFR1_EL1_VMIDBits_16)
 		return 16;
 
 	/*
