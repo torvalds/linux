@@ -1393,6 +1393,15 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 
 	intel_pdi_ch_update(sdw);
 
+	/* Register DAIs */
+	ret = intel_register_dai(sdw);
+	if (ret) {
+		dev_err(dev, "DAI registration failed: %d\n", ret);
+		goto err_init;
+	}
+
+	intel_debugfs_init(sdw);
+
 	ret = sdw_cdns_enable_interrupt(cdns, true);
 	if (ret < 0) {
 		dev_err(dev, "cannot enable interrupts\n");
@@ -1427,15 +1436,6 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	}
 	sdw_cdns_check_self_clearing_bits(cdns, __func__,
 					  true, INTEL_MASTER_RESET_ITERATIONS);
-
-	/* Register DAIs */
-	ret = intel_register_dai(sdw);
-	if (ret) {
-		dev_err(dev, "DAI registration failed: %d\n", ret);
-		goto err_interrupt;
-	}
-
-	intel_debugfs_init(sdw);
 
 	/* Enable runtime PM */
 	if (!(link_flags & SDW_INTEL_MASTER_DISABLE_PM_RUNTIME)) {
