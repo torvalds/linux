@@ -9,6 +9,7 @@
 //
 
 #include <linux/bitfield.h>
+#include <trace/events/sof.h>
 #include "sof-audio.h"
 #include "sof-of-dev.h"
 #include "ops.h"
@@ -35,6 +36,8 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 
 	if (!swidget->private)
 		return 0;
+
+	trace_sof_widget_free(swidget);
 
 	/* only free when use_count is 0 */
 	if (--swidget->use_count)
@@ -85,6 +88,8 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	/* skip if there is no private data */
 	if (!swidget->private)
 		return 0;
+
+	trace_sof_widget_setup(swidget);
 
 	/* widget already set up */
 	if (++swidget->use_count > 1)
