@@ -35,6 +35,8 @@
 #include <linux/acpi.h>
 #include <linux/io.h>
 
+#define DRIVER_NAME "pc87360"
+
 static u8 devid;
 static struct platform_device *pdev;
 static unsigned short extra_isa[3];
@@ -228,10 +230,9 @@ static struct pc87360_data *pc87360_update_device(struct device *dev);
 /*
  * Driver data
  */
-
 static struct platform_driver pc87360_driver = {
 	.driver = {
-		.name	= "pc87360",
+		.name	= DRIVER_NAME,
 	},
 	.probe		= pc87360_probe,
 	.remove		= pc87360_remove,
@@ -1239,7 +1240,7 @@ static int pc87360_probe(struct platform_device *pdev)
 		data->address[i] = extra_isa[i];
 		if (data->address[i]
 		 && !devm_request_region(dev, extra_isa[i], PC87360_EXTENT,
-					 pc87360_driver.driver.name)) {
+					 DRIVER_NAME)) {
 			dev_err(dev,
 				"Region 0x%x-0x%x already in use!\n",
 				extra_isa[i], extra_isa[i]+PC87360_EXTENT-1);
@@ -1781,6 +1782,7 @@ static void __exit pc87360_exit(void)
 MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("PC8736x hardware monitor");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);
 
 module_init(pc87360_init);
 module_exit(pc87360_exit);
