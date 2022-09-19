@@ -390,6 +390,11 @@ unsigned long find_next_bit_le(const void *addr, unsigned
 	     (bit) < (size);					\
 	     (bit) = find_next_bit((addr), (size), (bit) + 1))
 
+#define for_each_and_bit(bit, addr1, addr2, size) \
+	for ((bit) = find_next_and_bit((addr1), (addr2), (size), 0);		\
+	     (bit) < (size);							\
+	     (bit) = find_next_and_bit((addr1), (addr2), (size), (bit) + 1))
+
 /* same as for_each_set_bit() but use bit as value to start with */
 #define for_each_set_bit_from(bit, addr, size) \
 	for ((bit) = find_next_bit((addr), (size), (bit));	\

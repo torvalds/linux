@@ -246,9 +246,7 @@ unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
  * After the loop, cpu is >= nr_cpu_ids.
  */
 #define for_each_cpu(cpu, mask)				\
-	for ((cpu) = -1;				\
-		(cpu) = cpumask_next((cpu), (mask)),	\
-		(cpu) < nr_cpu_ids;)
+	for_each_set_bit(cpu, cpumask_bits(mask), nr_cpumask_bits)
 
 /**
  * for_each_cpu_not - iterate over every cpu in a complemented mask
@@ -258,9 +256,7 @@ unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
  * After the loop, cpu is >= nr_cpu_ids.
  */
 #define for_each_cpu_not(cpu, mask)				\
-	for ((cpu) = -1;					\
-		(cpu) = cpumask_next_zero((cpu), (mask)),	\
-		(cpu) < nr_cpu_ids;)
+	for_each_clear_bit(cpu, cpumask_bits(mask), nr_cpumask_bits)
 
 #if NR_CPUS == 1
 static inline
@@ -313,9 +309,7 @@ unsigned int __pure cpumask_next_wrap(int n, const struct cpumask *mask, int sta
  * After the loop, cpu is >= nr_cpu_ids.
  */
 #define for_each_cpu_and(cpu, mask1, mask2)				\
-	for ((cpu) = -1;						\
-		(cpu) = cpumask_next_and((cpu), (mask1), (mask2)),	\
-		(cpu) < nr_cpu_ids;)
+	for_each_and_bit(cpu, cpumask_bits(mask1), cpumask_bits(mask2), nr_cpumask_bits)
 
 /**
  * cpumask_any_but - return a "random" in a cpumask, but not this one.
