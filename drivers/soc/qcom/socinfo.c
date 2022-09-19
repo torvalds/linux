@@ -281,10 +281,17 @@ struct socinfo {
 } *socinfo;
 
 #define PART_NAME_MAX		32
+struct gpu_info {
+	__le32 gpu_chip_id;
+	__le32 vulkan_id;
+	char part_name[PART_NAME_MAX];
+};
+
 struct socinfo_partinfo {
 	__le32 part_type;
-	char part_name[PART_NAME_MAX];
-	__le32 part_name_len;
+	union {
+		struct gpu_info gpu_info;
+	};
 };
 struct socinfo_partinfo partinfo[SOCINFO_PART_MAX_PARTTYPE];
 
@@ -306,6 +313,8 @@ struct socinfo_params {
 	u32 num_defective_parts;
 	u32 ndefective_parts_array_offset;
 	u32 nmodem_supported;
+	u32 gpu_chip_id;
+	u32 gpu_vulkan_id;
 };
 
 struct smem_image_version {
@@ -1563,21 +1572,57 @@ int socinfo_get_pcode(void)
 }
 EXPORT_SYMBOL(socinfo_get_pcode);
 
-char *socinfo_get_partinfo_details(unsigned int part_id)
+char *socinfo_get_partinfo_part_name(unsigned int part_id)
 {
 	if (socinfo_format < SOCINFO_VERSION(0, 16) || part_id >= SOCINFO_PART_MAX_PARTTYPE)
 		return NULL;
 
-	return partinfo[part_id].part_name;
+	switch (part_id) {
+	case SOCINFO_PART_GPU:
+		return partinfo[part_id].gpu_info.part_name;
+	default:
+		break;
+	}
+
+	return NULL;
 }
-EXPORT_SYMBOL(socinfo_get_partinfo_details);
+EXPORT_SYMBOL(socinfo_get_partinfo_part_name);
+
+uint32_t socinfo_get_partinfo_chip_id(unsigned int part_id)
+{
+	uint32_t chip_id;
+
+	if (socinfo_format < SOCINFO_VERSION(0, 16) || part_id >= SOCINFO_PART_MAX_PARTTYPE)
+		return 0;
+
+	switch (part_id) {
+	case SOCINFO_PART_GPU:
+		chip_id = partinfo[part_id].gpu_info.gpu_chip_id;
+		break;
+	default:
+		chip_id = 0;
+		break;
+	}
+
+	return chip_id;
+}
+EXPORT_SYMBOL(socinfo_get_partinfo_chip_id);
+
+uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id)
+{
+	if (socinfo_format < SOCINFO_VERSION(0, 16) || part_id != SOCINFO_PART_GPU)
+		return  0;
+
+	return partinfo[part_id].gpu_info.vulkan_id;
+}
+EXPORT_SYMBOL(socinfo_get_partinfo_vulkan_id);
 
 void socinfo_enumerate_partinfo_details(void)
 {
 	unsigned int partinfo_array_offset;
 	unsigned int nnum_partname_mapping;
 	void *ptr = socinfo;
-	int i, part_type, part_name_len;
+	int i, part_type;
 
 	if (socinfo_format < SOCINFO_VERSION(0, 16))
 		return;
@@ -1598,14 +1643,15 @@ void socinfo_enumerate_partinfo_details(void)
 
 		partinfo[part_type].part_type = part_type;
 		ptr += sizeof(u32);
-		strscpy(partinfo[part_type].part_name, ptr, PART_NAME_MAX);
-		part_name_len = strlen(partinfo[part_type].part_name);
-		ptr += PART_NAME_MAX;
-		if (part_name_len != get_unaligned_le32(ptr))
-			pr_warn("socinfo: part info string length mismatch\n");
 
-		partinfo[part_type].part_name_len = part_name_len;
+		partinfo[part_type].gpu_info.gpu_chip_id = get_unaligned_le32(ptr);
 		ptr += sizeof(u32);
+
+		partinfo[part_type].gpu_info.vulkan_id = get_unaligned_le32(ptr);
+		ptr += sizeof(u32);
+
+		strscpy(partinfo[part_type].gpu_info.part_name, ptr, PART_NAME_MAX);
+		ptr += PART_NAME_MAX;
 	}
 }
 
@@ -1749,6 +1795,16 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 16):
+		qcom_socinfo->info.gpu_chip_id =
+			__le32_to_cpu(socinfo_get_partinfo_chip_id(SOCINFO_PART_GPU));
+		debugfs_create_u32("gpu_chip_id", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.gpu_chip_id);
+		qcom_socinfo->info.gpu_vulkan_id =
+			__le32_to_cpu(socinfo_get_partinfo_vulkan_id(SOCINFO_PART_GPU));
+		debugfs_create_u32("gpu_vulkan_id", 0444, qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.gpu_vulkan_id);
+		fallthrough;
 	case SOCINFO_VERSION(0, 15):
 		qcom_socinfo->info.nmodem_supported = __le32_to_cpu(info->nmodem_supported);
 
