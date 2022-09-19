@@ -2308,8 +2308,7 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 		return -EFAULT;
 	}
 
-	userptr->pages = kvmalloc_array(npages, sizeof(*userptr->pages),
-					GFP_KERNEL);
+	userptr->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!userptr->pages)
 		return -ENOMEM;
 

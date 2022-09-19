@@ -2571,7 +2571,7 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data, struct multi_cs_com
 	ktime_t max_ktime, first_cs_time;
 	enum hl_cs_wait_status status;
 
-	memset(fence_ptr, 0, arr_len * sizeof(*fence_ptr));
+	memset(fence_ptr, 0, arr_len * sizeof(struct hl_fence *));
 
 	/* get all fences under the same lock */
 	rc = hl_ctx_get_fences(mcs_data->ctx, seq_arr, fence_ptr, arr_len);
@@ -2873,7 +2873,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	/* allocate array for the fences */
-	fence_arr = kmalloc_array(seq_arr_len, sizeof(*fence_arr), GFP_KERNEL);
+	fence_arr = kmalloc_array(seq_arr_len, sizeof(struct hl_fence *), GFP_KERNEL);
 	if (!fence_arr) {
 		rc = -ENOMEM;
 		goto free_seq_arr;

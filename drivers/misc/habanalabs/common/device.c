@@ -719,7 +719,7 @@ static int device_early_init(struct hl_device *hdev)
 
 	if (hdev->asic_prop.completion_queues_count) {
 		hdev->cq_wq = kcalloc(hdev->asic_prop.completion_queues_count,
-				sizeof(*hdev->cq_wq),
+				sizeof(struct workqueue_struct *),
 				GFP_KERNEL);
 		if (!hdev->cq_wq) {
 			rc = -ENOMEM;
@@ -1863,7 +1863,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	}
 
 	hdev->shadow_cs_queue = kcalloc(hdev->asic_prop.max_pending_cs,
-					sizeof(*hdev->shadow_cs_queue), GFP_KERNEL);
+					sizeof(struct hl_cs *), GFP_KERNEL);
 	if (!hdev->shadow_cs_queue) {
 		rc = -ENOMEM;
 		goto cq_fini;
