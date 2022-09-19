@@ -1261,7 +1261,7 @@ static int intel_prop_read(struct sdw_bus *bus)
 }
 
 static struct sdw_master_ops sdw_intel_ops = {
-	.read_prop = sdw_master_read_prop,
+	.read_prop = intel_prop_read,
 	.override_adr = sdw_dmi_override_adr,
 	.xfer_msg = cdns_xfer_msg,
 	.xfer_msg_defer = cdns_xfer_msg_defer,
@@ -1304,8 +1304,7 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 
 	sdw_cdns_probe(cdns);
 
-	/* Set property read ops */
-	sdw_intel_ops.read_prop = intel_prop_read;
+	/* Set ops */
 	bus->ops = &sdw_intel_ops;
 
 	/* set driver data, accessed by snd_soc_dai_get_drvdata() */
