@@ -8,6 +8,7 @@
 #define _MHI_INT_H
 
 #include "../common.h"
+#include "misc.h"
 
 extern struct bus_type mhi_bus_type;
 
