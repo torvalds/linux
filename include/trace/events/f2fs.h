@@ -1586,9 +1586,10 @@ TRACE_EVENT_CONDITION(f2fs_lookup_extent_tree_end,
 TRACE_EVENT(f2fs_update_extent_tree_range,
 
 	TP_PROTO(struct inode *inode, unsigned int pgofs, block_t blkaddr,
-						unsigned int len),
+						unsigned int len,
+						unsigned int c_len),
 
-	TP_ARGS(inode, pgofs, blkaddr, len),
+	TP_ARGS(inode, pgofs, blkaddr, len, c_len),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -1596,6 +1597,7 @@ TRACE_EVENT(f2fs_update_extent_tree_range,
 		__field(unsigned int, pgofs)
 		__field(u32, blk)
 		__field(unsigned int, len)
+		__field(unsigned int, c_len)
 	),
 
 	TP_fast_assign(
@@ -1604,14 +1606,17 @@ TRACE_EVENT(f2fs_update_extent_tree_range,
 		__entry->pgofs = pgofs;
 		__entry->blk = blkaddr;
 		__entry->len = len;
+		__entry->c_len = c_len;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, pgofs = %u, "
-					"blkaddr = %u, len = %u",
+					"blkaddr = %u, len = %u, "
+					"c_len = %u",
 		show_dev_ino(__entry),
 		__entry->pgofs,
 		__entry->blk,
-		__entry->len)
+		__entry->len,
+		__entry->c_len)
 );
 
 TRACE_EVENT(f2fs_shrink_extent_tree,
