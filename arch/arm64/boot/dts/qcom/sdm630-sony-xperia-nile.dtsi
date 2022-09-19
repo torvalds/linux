@@ -155,7 +155,7 @@
 };
 
 &adsp_pil {
-	firmware-name = "adsp.mdt";
+	firmware-name = "qcom/sdm630/Sony/nile/adsp.mdt";
 };
 
 &blsp_i2c1 {
