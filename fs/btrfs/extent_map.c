@@ -690,6 +690,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 	}
 	while (1) {
 		struct extent_map *em;
+		u64 em_end;
 		u64 gen;
 		unsigned long flags;
 		bool ends_after_range = false;
@@ -710,7 +711,8 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			write_unlock(&em_tree->lock);
 			break;
 		}
-		if (testend && em->start + em->len > start + len)
+		em_end = extent_map_end(em);
+		if (testend && em_end > start + len)
 			ends_after_range = true;
 		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
 			if (ends_after_range) {
@@ -718,9 +720,9 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 				write_unlock(&em_tree->lock);
 				break;
 			}
-			start = em->start + em->len;
+			start = em_end;
 			if (testend)
-				len = start + len - (em->start + em->len);
+				len = start + len - em_end;
 			free_extent_map(em);
 			write_unlock(&em_tree->lock);
 			continue;
@@ -767,7 +769,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 		}
 		if (ends_after_range) {
 			split->start = start + len;
-			split->len = em->start + em->len - (start + len);
+			split->len = em_end - (start + len);
 			split->block_start = em->block_start;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
