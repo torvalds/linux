@@ -661,6 +661,29 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 }
 
 /*
+ * Drop all extent maps from a tree in the fastest possible way, rescheduling
+ * if needed. This avoids searching the tree, from the root down to the first
+ * extent map, before each deletion.
+ */
+static void drop_all_extent_maps_fast(struct extent_map_tree *tree)
+{
+	write_lock(&tree->lock);
+	while (!RB_EMPTY_ROOT(&tree->map.rb_root)) {
+		struct extent_map *em;
+		struct rb_node *node;
+
+		node = rb_first_cached(&tree->map);
+		em = rb_entry(node, struct extent_map, rb_node);
+		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
+		remove_extent_mapping(tree, em);
+		free_extent_map(em);
+		cond_resched_rwlock_write(&tree->lock);
+	}
+	write_unlock(&tree->lock);
+}
+
+/*
  * Drop all extent maps in a given range.
  *
  * @inode:       The target inode.
@@ -685,6 +708,10 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 
 	WARN_ON(end < start);
 	if (end == (u64)-1) {
+		if (start == 0 && !skip_pinned) {
+			drop_all_extent_maps_fast(em_tree);
+			return;
+		}
 		len = (u64)-1;
 		testend = false;
 	}
