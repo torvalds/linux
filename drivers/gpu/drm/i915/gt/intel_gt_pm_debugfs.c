@@ -682,6 +682,14 @@ static int perf_limit_reasons_clear(void *data, u64 val)
 
 	return 0;
 }
+
+static bool perf_limit_reasons_eval(void *data)
+{
+	struct intel_gt *gt = data;
+
+	return i915_mmio_reg_valid(intel_gt_perf_limit_reasons_reg(gt));
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(perf_limit_reasons_fops, perf_limit_reasons_get,
 			perf_limit_reasons_clear, "%llu\n");
 
@@ -694,7 +702,7 @@ void intel_gt_pm_debugfs_register(struct intel_gt *gt, struct dentry *root)
 		{ "forcewake_user", &forcewake_user_fops, NULL},
 		{ "llc", &llc_fops, llc_eval },
 		{ "rps_boost", &rps_boost_fops, rps_eval },
-		{ "perf_limit_reasons", &perf_limit_reasons_fops, NULL },
+		{ "perf_limit_reasons", &perf_limit_reasons_fops, perf_limit_reasons_eval },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);
