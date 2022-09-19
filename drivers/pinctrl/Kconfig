@@ -292,7 +292,7 @@ config PINCTRL_MCP23S08
 	  corresponding interrupt-controller.
 
 config PINCTRL_MICROCHIP_SGPIO
-	bool "Pinctrl driver for Microsemi/Microchip Serial GPIO"
+	tristate "Pinctrl driver for Microsemi/Microchip Serial GPIO"
 	depends on OF
 	depends on HAS_IOMEM
 	select GPIOLIB
@@ -309,6 +309,9 @@ config PINCTRL_MICROCHIP_SGPIO
 	  device. The primary purpose of the SIO controller is to
 	  connect control signals from SFP modules and to act as an
 	  LED controller.
+
+	  If compiled as a module, the module name will be
+	  pinctrl-microchip-sgpio.
 
 config PINCTRL_OCELOT
 	tristate "Pinctrl driver for the Microsemi Ocelot and Jaguar2 SoCs"
