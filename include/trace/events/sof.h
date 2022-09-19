@@ -98,6 +98,23 @@ TRACE_EVENT(sof_stream_position_ipc_rx,
 	TP_printk("device_name=%s", __get_str(device_name))
 );
 
+TRACE_EVENT(sof_ipc4_fw_config,
+	TP_PROTO(struct snd_sof_dev *sdev, char *key, u32 value),
+	TP_ARGS(sdev, key, value),
+	TP_STRUCT__entry(
+		__string(device_name, dev_name(sdev->dev))
+		__string(key, key)
+		__field(u32, value)
+	),
+	TP_fast_assign(
+		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(key, key);
+		__entry->value = value;
+	),
+	TP_printk("device_name=%s key=%s value=%d",
+		  __get_str(device_name), __get_str(key), __entry->value)
+);
+
 #endif /* _TRACE_SOF_H */
 
 /* This part must be outside protection */
