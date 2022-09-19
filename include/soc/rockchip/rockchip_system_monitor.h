@@ -6,9 +6,21 @@
 #ifndef __SOC_ROCKCHIP_SYSTEM_MONITOR_H
 #define __SOC_ROCKCHIP_SYSTEM_MONITOR_H
 
+#include <linux/pm_opp.h>
+#include <linux/pm_qos.h>
+#include <linux/regulator/consumer.h>
+
 enum monitor_dev_type {
 	MONITOR_TPYE_CPU = 0,	/* CPU */
 	MONITOR_TPYE_DEV,	/* GPU, NPU, DMC, and so on */
+};
+
+enum system_monitor_event_type {
+	SYSTEM_MONITOR_CHANGE_TEMP = 0,
+};
+
+struct system_monitor_event_data {
+	int temp;
 };
 
 struct volt_adjust_table {
@@ -148,6 +160,8 @@ int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 int rockchip_monitor_suspend_low_temp_adjust(int cpu);
+int rockchip_system_monitor_register_notifier(struct notifier_block *nb);
+void rockchip_system_monitor_unregister_notifier(struct notifier_block *nb);
 #else
 static inline struct monitor_dev_info *
 rockchip_system_monitor_register(struct device *dev,
@@ -208,6 +222,16 @@ static inline int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 	return 0;
 };
 
+static inline int
+rockchip_system_monitor_register_notifier(struct notifier_block *nb)
+{
+	return 0;
+};
+
+static inline void
+rockchip_system_monitor_unregister_notifier(struct notifier_block *nb)
+{
+};
 #endif /* CONFIG_ROCKCHIP_SYSTEM_MONITOR */
 
 #endif
