@@ -869,6 +869,18 @@ static int update_state(struct drm_device *drm_dev,
 	return ret;
 }
 
+static void rockchip_drm_copy_mode_from_mode_set(struct drm_display_mode *mode,
+						 struct rockchip_drm_mode_set *set)
+{
+	mode->clock = set->clock;
+	mode->hdisplay = set->hdisplay;
+	mode->vdisplay = set->vdisplay;
+	mode->crtc_hsync_end = set->crtc_hsync_end;
+	mode->crtc_vsync_end = set->crtc_vsync_end;
+	mode->flags = set->flags & DRM_MODE_FLAG_ALL;
+	mode->picture_aspect_ratio = set->picture_aspect_ratio;
+}
+
 void rockchip_drm_show_logo(struct drm_device *drm_dev)
 {
 	struct drm_atomic_state *state, *old_state;
@@ -942,11 +954,22 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 
 		if (!find_used_crtc) {
 			struct drm_crtc *crtc = unset->crtc;
+			struct drm_crtc_state *crtc_state;
 			int pipe = drm_crtc_index(crtc);
 			struct rockchip_drm_private *priv =
 							drm_dev->dev_private;
 
+			/*
+			 * The display timing information of mode_set is parsed from dts, which
+			 * written in uboot. If the mode_set is added into mode_unset_list, it
+			 * should be converted to crtc_state->adjusted_mode, in order to check
+			 * splice_mode flag in loader_protect().
+			 */
 			if (unset->hdisplay && unset->vdisplay) {
+				crtc_state = drm_atomic_get_crtc_state(state, crtc);
+				if (crtc_state)
+					rockchip_drm_copy_mode_from_mode_set(&crtc_state->adjusted_mode,
+									     unset);
 				if (priv->crtc_funcs[pipe] &&
 				    priv->crtc_funcs[pipe]->loader_protect)
 					priv->crtc_funcs[pipe]->loader_protect(crtc, true);
