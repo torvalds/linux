@@ -3143,7 +3143,7 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
-	if (allow_active && link->type == dc_connection_none) {
+	if ((allow_active != NULL) && (*allow_active == true) && (link->type == dc_connection_none)) {
 		// Don't enter PSR if panel is not connected
 		return false;
 	}
