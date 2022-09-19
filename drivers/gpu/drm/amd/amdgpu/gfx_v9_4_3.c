@@ -1600,7 +1600,7 @@ static int gfx_v9_4_3_kiq_init_register(struct amdgpu_ring *ring, int xcc_id)
 	int j;
 
 	/* disable wptr polling */
-	WREG32_FIELD15_PREREG(GC, xcc_id, CP_PQ_WPTR_POLL_CNTL, EN, 0);
+	WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id), CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
 	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_EOP_BASE_ADDR,
 	       mqd->cp_hqd_eop_base_addr_lo);
@@ -1693,7 +1693,7 @@ static int gfx_v9_4_3_kiq_init_register(struct amdgpu_ring *ring, int xcc_id)
 	       mqd->cp_hqd_active);
 
 	if (ring->use_doorbell)
-		WREG32_FIELD15_PREREG(GC, xcc_id, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
+		WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id), CP_PQ_STATUS, DOORBELL_ENABLE, 1);
 
 	return 0;
 }
