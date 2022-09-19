@@ -1775,19 +1775,18 @@ static umode_t ftdi_is_visible(struct kobject *kobj, struct attribute *attr, int
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	enum ftdi_chip_type type = priv->chip_type;
-	umode_t mode = attr->mode;
 
-	if (type != SIO) {
-		if (attr == &dev_attr_event_char.attr)
-			return mode;
+	if (attr == &dev_attr_event_char.attr) {
+		if (type == SIO)
+			return 0;
 	}
 
-	if (type != SIO && type != FT232A) {
-		if (attr == &dev_attr_latency_timer.attr)
-			return mode;
+	if (attr == &dev_attr_latency_timer.attr) {
+		if (type == SIO || type == FT232A)
+			return 0;
 	}
 
-	return 0;
+	return attr->mode;
 }
 
 static const struct attribute_group ftdi_group = {
