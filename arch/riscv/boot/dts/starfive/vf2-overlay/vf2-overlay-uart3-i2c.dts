@@ -11,39 +11,39 @@
 		__overlay__ {
 			dt_uart3_pins: dt-uart3-pins {
 				uart3-pins-tx {
-					sf,pins = <PAD_GPIO60>;
-					sf,pinmux = <PAD_GPIO60_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_DS(3))>;
-					sf,pin-gpio-dout = <GPO_UART3_SOUT>;
-					sf,pin-gpio-doen = <OEN_LOW>;
+					starfive,pins = <PAD_GPIO60>;
+					starfive,pinmux = <PAD_GPIO60_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_DS(3))>;
+					starfive,pin-gpio-dout = <GPO_UART3_SOUT>;
+					starfive,pin-gpio-doen = <OEN_LOW>;
 				};
 
 				uart3-pins-rx {
-					sf,pins = <PAD_GPIO63>;
-					sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_PU(1))>;
-					sf,pin-gpio-doen = <OEN_HIGH>;
-					sf,pin-gpio-din =  <GPI_UART3_SIN>;
+					starfive,pins = <PAD_GPIO63>;
+					starfive,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_PU(1))>;
+					starfive,pin-gpio-doen = <OEN_HIGH>;
+					starfive,pin-gpio-din =  <GPI_UART3_SIN>;
 				};
 			};
 
 			dt_i2c1_pins: dt-i2c1-pins {
 				i2c1-pins-scl {
-					sf,pins = <PAD_GPIO42>;
-					sf,pinmux = <PAD_GPIO42_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_LOW>;
-					sf,pin-gpio-doen = <OEN_I2C1_IC_CLK_OE>;
-					sf,pin-gpio-din =  <GPI_I2C1_IC_CLK_IN_A>;
+					starfive,pins = <PAD_GPIO42>;
+					starfive,pinmux = <PAD_GPIO42_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_LOW>;
+					starfive,pin-gpio-doen = <OEN_I2C1_IC_CLK_OE>;
+					starfive,pin-gpio-din =  <GPI_I2C1_IC_CLK_IN_A>;
 				};
 
 				i2c1-pins-sda {
-					sf,pins = <PAD_GPIO43>;
-					sf,pinmux = <PAD_GPIO43_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_LOW>;
-					sf,pin-gpio-doen = <OEN_I2C1_IC_DATA_OE>;
-					sf,pin-gpio-din =  <GPI_I2C1_IC_DATA_IN_A>;
+					starfive,pins = <PAD_GPIO43>;
+					starfive,pinmux = <PAD_GPIO43_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_LOW>;
+					starfive,pin-gpio-doen = <OEN_I2C1_IC_DATA_OE>;
+					starfive,pin-gpio-din =  <GPI_I2C1_IC_DATA_IN_A>;
 				};
 			};
 		};
