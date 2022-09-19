@@ -1883,8 +1883,8 @@ static netdev_tx_t otx2_xmit(struct sk_buff *skb, struct net_device *netdev)
 static u16 otx2_select_queue(struct net_device *netdev, struct sk_buff *skb,
 			     struct net_device *sb_dev)
 {
-	struct otx2_nic *pf = netdev_priv(netdev);
 #ifdef CONFIG_DCB
+	struct otx2_nic *pf = netdev_priv(netdev);
 	u8 vlan_prio;
 #endif
 
