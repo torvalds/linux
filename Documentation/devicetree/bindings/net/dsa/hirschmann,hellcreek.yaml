@@ -91,7 +91,6 @@ examples:
 
                 port@0 {
                     reg = <0>;
-                    label = "cpu";
                     ethernet = <&gmac0>;
                     phy-mode = "mii";
 

@@ -163,13 +163,8 @@ patternProperties:
         allOf:
           - $ref: dsa-port.yaml#
           - if:
-              properties:
-                label:
-                  const: cpu
+              required: [ ethernet ]
             then:
-              required:
-                - phy-mode
-
               properties:
                 reg:
                   enum:
@@ -187,9 +182,7 @@ $defs:
         patternProperties:
           "^(ethernet-)?port@[0-9]+$":
             if:
-              properties:
-                label:
-                  const: cpu
+              required: [ ethernet ]
             then:
               if:
                 properties:
@@ -215,9 +208,7 @@ $defs:
         patternProperties:
           "^(ethernet-)?port@[0-9]+$":
             if:
-              properties:
-                label:
-                  const: cpu
+              required: [ ethernet ]
             then:
               if:
                 properties:
@@ -334,7 +325,6 @@ examples:
 
                 port@6 {
                     reg = <6>;
-                    label = "cpu";
                     ethernet = <&gmac0>;
                     phy-mode = "rgmii";
 
@@ -398,7 +388,6 @@ examples:
 
                 port@6 {
                     reg = <6>;
-                    label = "cpu";
                     ethernet = <&gmac0>;
                     phy-mode = "trgmii";
 
@@ -463,7 +452,6 @@ examples:
 
                 port@6 {
                     reg = <6>;
-                    label = "cpu";
                     ethernet = <&gmac0>;
                     phy-mode = "2500base-x";
 
@@ -530,7 +518,6 @@ examples:
 
                 port@6 {
                     reg = <6>;
-                    label = "cpu";
                     ethernet = <&gmac0>;
                     phy-mode = "trgmii";
 
@@ -619,7 +606,6 @@ examples:
 
                     port@6 {
                         reg = <6>;
-                        label = "cpu";
                         ethernet = <&gmac0>;
                         phy-mode = "trgmii";
 
@@ -708,7 +694,6 @@ examples:
 
                     port@6 {
                         reg = <6>;
-                        label = "cpu";
                         ethernet = <&gmac0>;
                         phy-mode = "trgmii";
 
@@ -796,7 +781,6 @@ examples:
 
                     port@6 {
                         reg = <6>;
-                        label = "cpu";
                         ethernet = <&gmac0>;
                         phy-mode = "trgmii";
 
