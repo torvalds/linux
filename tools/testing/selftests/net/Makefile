@@ -37,6 +37,7 @@ TEST_PROGS += srv6_end_dt4_l3vpn_test.sh
 TEST_PROGS += srv6_end_dt6_l3vpn_test.sh
 TEST_PROGS += srv6_hencap_red_l3vpn_test.sh
 TEST_PROGS += srv6_hl2encap_red_l2vpn_test.sh
+TEST_PROGS += srv6_end_next_csid_l3vpn_test.sh
 TEST_PROGS += vrf_strict_mode_test.sh
 TEST_PROGS += arp_ndisc_evict_nocarrier.sh
 TEST_PROGS += ndisc_unsolicited_na_test.sh
