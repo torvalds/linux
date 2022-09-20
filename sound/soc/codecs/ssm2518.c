@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <linux/platform_data/ssm2518.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -736,7 +735,6 @@ static const struct regmap_config ssm2518_regmap_config = {
 
 static int ssm2518_i2c_probe(struct i2c_client *i2c)
 {
-	struct ssm2518_platform_data *pdata = i2c->dev.platform_data;
 	struct ssm2518 *ssm2518;
 	int ret;
 
@@ -744,9 +742,7 @@ static int ssm2518_i2c_probe(struct i2c_client *i2c)
 	if (ssm2518 == NULL)
 		return -ENOMEM;
 
-	if (pdata) {
-		ssm2518->enable_gpio = pdata->enable_gpio;
-	} else if (i2c->dev.of_node) {
+	if (i2c->dev.of_node) {
 		ssm2518->enable_gpio = of_get_gpio(i2c->dev.of_node, 0);
 		if (ssm2518->enable_gpio < 0 && ssm2518->enable_gpio != -ENOENT)
 			return ssm2518->enable_gpio;
