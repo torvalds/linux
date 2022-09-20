@@ -290,6 +290,24 @@ struct dasd_pprc_data_sc4 {
 	struct dasd_pprc_dev_info dev_info[5];
 } __packed;
 
+#define DASD_BUS_ID_SIZE 20
+#define DASD_CP_ENTRIES 5
+
+struct dasd_copy_entry {
+	char busid[DASD_BUS_ID_SIZE];
+	struct dasd_device *device;
+	bool primary;
+	bool configured;
+};
+
+struct dasd_copy_relation {
+	struct dasd_copy_entry entry[DASD_CP_ENTRIES];
+	struct dasd_copy_entry *active;
+};
+
+int dasd_devmap_set_device_copy_relation(struct ccw_device *,
+					 bool pprc_enabled);
+
 /*
  * the struct dasd_discipline is
  * sth like a table of virtual functions, if you think of dasd_eckd
@@ -419,6 +437,7 @@ struct dasd_discipline {
 					   struct dasd_ccw_req *, struct irb *);
 	int (*ese_read)(struct dasd_ccw_req *, struct irb *);
 	int (*pprc_status)(struct dasd_device *, struct	dasd_pprc_data_sc4 *);
+	bool (*pprc_enabled)(struct dasd_device *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -615,6 +634,7 @@ struct dasd_device {
 	struct dasd_profile profile;
 	struct dasd_format_entry format_entry;
 	struct kset *paths_info;
+	struct dasd_copy_relation *copy;
 };
 
 struct dasd_block {

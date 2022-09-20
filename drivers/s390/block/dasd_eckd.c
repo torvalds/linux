@@ -2012,10 +2012,27 @@ static void dasd_eckd_kick_validate_server(struct dasd_device *device)
 		dasd_put_device(device);
 }
 
+/*
+ * return if the device is the copy relation primary if a copy relation is active
+ */
+static int dasd_device_is_primary(struct dasd_device *device)
+{
+	if (!device->copy)
+		return 1;
+
+	if (device->copy->active->device == device)
+		return 1;
+
+	return 0;
+}
+
 static int dasd_eckd_alloc_block(struct dasd_device *device)
 {
 	struct dasd_block *block;
 	struct dasd_uid temp_uid;
+
+	if (!dasd_device_is_primary(device))
+		return 0;
 
 	dasd_eckd_get_uid(device, &temp_uid);
 	if (temp_uid.type == UA_BASE_DEVICE) {
@@ -2029,6 +2046,13 @@ static int dasd_eckd_alloc_block(struct dasd_device *device)
 		block->base = device;
 	}
 	return 0;
+}
+
+static bool dasd_eckd_pprc_enabled(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+
+	return private->rdc_data.facilities.PPRC_enabled;
 }
 
 /*
@@ -2096,6 +2120,24 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 			device->default_expires = value;
 	}
 
+	/* Read Device Characteristics */
+	rc = dasd_generic_read_dev_chars(device, DASD_ECKD_MAGIC,
+					 &private->rdc_data, 64);
+	if (rc) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
+				"Read device characteristic failed, rc=%d", rc);
+		goto out_err1;
+	}
+
+	/* setup PPRC for device from devmap */
+	rc = dasd_devmap_set_device_copy_relation(device->cdev,
+						  dasd_eckd_pprc_enabled(device));
+	if (rc) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
+				"copy relation setup failed, rc=%d", rc);
+		goto out_err1;
+	}
+
 	/* check if block device is needed and allocate in case */
 	rc = dasd_eckd_alloc_block(device);
 	if (rc)
@@ -2124,15 +2166,6 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 
 	/* Read Extent Pool Information */
 	dasd_eckd_read_ext_pool_info(device);
-
-	/* Read Device Characteristics */
-	rc = dasd_generic_read_dev_chars(device, DASD_ECKD_MAGIC,
-					 &private->rdc_data, 64);
-	if (rc) {
-		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
-				"Read device characteristic failed, rc=%d", rc);
-		goto out_err3;
-	}
 
 	if ((device->features & DASD_FEATURE_USERAW) &&
 	    !(private->rdc_data.facilities.RT_in_LR)) {
@@ -6771,6 +6804,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.ese_format = dasd_eckd_ese_format,
 	.ese_read = dasd_eckd_ese_read,
 	.pprc_status = dasd_eckd_query_pprc_status,
+	.pprc_enabled = dasd_eckd_pprc_enabled,
 };
 
 static int __init

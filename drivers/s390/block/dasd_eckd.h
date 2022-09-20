@@ -267,7 +267,7 @@ struct dasd_eckd_characteristics {
 		unsigned char reserved3:8;
 		unsigned char defect_wr:1;
 		unsigned char XRC_supported:1;
-		unsigned char reserved4:1;
+		unsigned char PPRC_enabled:1;
 		unsigned char striping:1;
 		unsigned char reserved5:4;
 		unsigned char cfw:1;
