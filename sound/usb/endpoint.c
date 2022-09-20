@@ -40,6 +40,7 @@ struct snd_usb_clock_ref {
 	unsigned char clock;
 	atomic_t locked;
 	int rate;
+	bool need_setup;
 	struct list_head list;
 };
 
@@ -758,7 +759,8 @@ bool snd_usb_endpoint_compatible(struct snd_usb_audio *chip,
  * The endpoint needs to be closed via snd_usb_endpoint_close() later.
  *
  * Note that this function doesn't configure the endpoint.  The substream
- * needs to set it up later via snd_usb_endpoint_configure().
+ * needs to set it up later via snd_usb_endpoint_set_params() and
+ * snd_usb_endpoint_prepare().
  */
 struct snd_usb_endpoint *
 snd_usb_endpoint_open(struct snd_usb_audio *chip,
@@ -1289,15 +1291,39 @@ out_of_memory:
 	return -ENOMEM;
 }
 
+/* update the rate of the referred clock; return the actual rate */
+static int update_clock_ref_rate(struct snd_usb_audio *chip,
+				 struct snd_usb_endpoint *ep)
+{
+	struct snd_usb_clock_ref *clock = ep->clock_ref;
+	int rate = ep->cur_rate;
+
+	if (!clock || clock->rate == rate)
+		return rate;
+	if (clock->rate) {
+		if (atomic_read(&clock->locked))
+			return clock->rate;
+		if (clock->rate != rate) {
+			usb_audio_err(chip, "Mismatched sample rate %d vs %d for EP 0x%x\n",
+				      clock->rate, rate, ep->ep_num);
+			return clock->rate;
+		}
+	}
+	clock->rate = rate;
+	clock->need_setup = true;
+	return rate;
+}
+
 /*
  * snd_usb_endpoint_set_params: configure an snd_usb_endpoint
  *
+ * It's called either from hw_params callback.
  * Determine the number of URBs to be used on this endpoint.
  * An endpoint must be configured before it can be started.
  * An endpoint that is already running can not be reconfigured.
  */
-static int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
-				       struct snd_usb_endpoint *ep)
+int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
+				struct snd_usb_endpoint *ep)
 {
 	const struct audioformat *fmt = ep->cur_audiofmt;
 	int err;
@@ -1349,49 +1375,46 @@ static int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
 	ep->maxframesize = ep->maxpacksize / ep->cur_frame_bytes;
 	ep->curframesize = ep->curpacksize / ep->cur_frame_bytes;
 
-	return 0;
+	return update_clock_ref_rate(chip, ep);
 }
 
 static int init_sample_rate(struct snd_usb_audio *chip,
 			    struct snd_usb_endpoint *ep)
 {
 	struct snd_usb_clock_ref *clock = ep->clock_ref;
-	int err;
+	int rate, err;
 
-	if (clock) {
-		if (atomic_read(&clock->locked))
-			return 0;
-		if (clock->rate == ep->cur_rate)
-			return 0;
-		if (clock->rate && clock->rate != ep->cur_rate) {
-			usb_audio_dbg(chip, "Mismatched sample rate %d vs %d for EP 0x%x\n",
-				      clock->rate, ep->cur_rate, ep->ep_num);
-			return -EINVAL;
-		}
+	rate = update_clock_ref_rate(chip, ep);
+	if (rate < 0)
+		return rate;
+	if (clock && !clock->need_setup)
+		return 0;
+
+	err = snd_usb_init_sample_rate(chip, ep->cur_audiofmt, rate);
+	if (err < 0) {
+		if (clock)
+			clock->rate = 0; /* reset rate */
+		return err;
 	}
 
-	err = snd_usb_init_sample_rate(chip, ep->cur_audiofmt, ep->cur_rate);
-	if (err < 0)
-		return err;
-
 	if (clock)
-		clock->rate = ep->cur_rate;
+		clock->need_setup = false;
 	return 0;
 }
 
 /*
- * snd_usb_endpoint_configure: Configure the endpoint
+ * snd_usb_endpoint_prepare: Prepare the endpoint
  *
  * This function sets up the EP to be fully usable state.
- * It's called either from hw_params or prepare callback.
+ * It's called either from prepare callback.
  * The function checks need_setup flag, and performs nothing unless needed,
  * so it's safe to call this multiple times.
  *
  * This returns zero if unchanged, 1 if the configuration has changed,
  * or a negative error code.
  */
-int snd_usb_endpoint_configure(struct snd_usb_audio *chip,
-			       struct snd_usb_endpoint *ep)
+int snd_usb_endpoint_prepare(struct snd_usb_audio *chip,
+			     struct snd_usb_endpoint *ep)
 {
 	bool iface_first;
 	int err = 0;
@@ -1412,9 +1435,6 @@ int snd_usb_endpoint_configure(struct snd_usb_audio *chip,
 			if (err < 0)
 				goto unlock;
 		}
-		err = snd_usb_endpoint_set_params(chip, ep);
-		if (err < 0)
-			goto unlock;
 		goto done;
 	}
 
@@ -1439,10 +1459,6 @@ int snd_usb_endpoint_configure(struct snd_usb_audio *chip,
 		goto unlock;
 
 	err = init_sample_rate(chip, ep);
-	if (err < 0)
-		goto unlock;
-
-	err = snd_usb_endpoint_set_params(chip, ep);
 	if (err < 0)
 		goto unlock;
 
