@@ -13,6 +13,39 @@
 #include <sound/hda_register.h>
 #include "trace.h"
 
+/*
+ * the hdac_stream library is intended to be used with the following
+ * transitions. The states are not formally defined in the code but loosely
+ * inspired by boolean variables. Note that the 'prepared' field is not used
+ * in this library but by the callers during the hw_params/prepare transitions
+ *
+ *			   |
+ *	stream_init()	   |
+ *			   v
+ *			+--+-------+
+ *			|  unused  |
+ *			+--+----+--+
+ *			   |    ^
+ *	stream_assign()	   | 	|    stream_release()
+ *			   v	|
+ *			+--+----+--+
+ *			|  opened  |
+ *			+--+----+--+
+ *			   |    ^
+ *	stream_reset()	   |    |
+ *	stream_setup()	   |	|    stream_cleanup()
+ *			   v	|
+ *			+--+----+--+
+ *			| prepared |
+ *			+--+----+--+
+ *			   |    ^
+ *	stream_start()	   | 	|    stream_stop()
+ *			   v	|
+ *			+--+----+--+
+ *			|  running |
+ *			+----------+
+ */
+
 /**
  * snd_hdac_get_stream_stripe_ctl - get stripe control value
  * @bus: HD-audio core bus
@@ -112,10 +145,10 @@ void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start)
 EXPORT_SYMBOL_GPL(snd_hdac_stream_start);
 
 /**
- * snd_hdac_stream_clear - stop a stream DMA
+ * snd_hdac_stream_clear - helper to clear stream registers and stop DMA transfers
  * @azx_dev: HD-audio core stream to stop
  */
-void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
+static void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
 {
 	snd_hdac_stream_updateb(azx_dev, SD_CTL,
 				SD_CTL_DMA_START | SD_INT_MASK, 0);
@@ -124,7 +157,6 @@ void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
 		snd_hdac_stream_updateb(azx_dev, SD_CTL_3B, SD_CTL_STRIPE_MASK, 0);
 	azx_dev->running = false;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_stream_clear);
 
 /**
  * snd_hdac_stream_stop - stop a stream
@@ -143,16 +175,27 @@ void snd_hdac_stream_stop(struct hdac_stream *azx_dev)
 EXPORT_SYMBOL_GPL(snd_hdac_stream_stop);
 
 /**
+ * snd_hdac_stop_streams - stop all streams
+ * @bus: HD-audio core bus
+ */
+void snd_hdac_stop_streams(struct hdac_bus *bus)
+{
+	struct hdac_stream *stream;
+
+	list_for_each_entry(stream, &bus->stream_list, list)
+		snd_hdac_stream_stop(stream);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stop_streams);
+
+/**
  * snd_hdac_stop_streams_and_chip - stop all streams and chip if running
  * @bus: HD-audio core bus
  */
 void snd_hdac_stop_streams_and_chip(struct hdac_bus *bus)
 {
-	struct hdac_stream *stream;
 
 	if (bus->chip_init) {
-		list_for_each_entry(stream, &bus->stream_list, list)
-			snd_hdac_stream_stop(stream);
+		snd_hdac_stop_streams(bus);
 		snd_hdac_bus_stop_chip(bus);
 	}
 }
@@ -323,6 +366,21 @@ struct hdac_stream *snd_hdac_stream_assign(struct hdac_bus *bus,
 EXPORT_SYMBOL_GPL(snd_hdac_stream_assign);
 
 /**
+ * snd_hdac_stream_release_locked - release the assigned stream
+ * @azx_dev: HD-audio core stream to release
+ *
+ * Release the stream that has been assigned by snd_hdac_stream_assign().
+ * The bus->reg_lock needs to be taken at a higher level
+ */
+void snd_hdac_stream_release_locked(struct hdac_stream *azx_dev)
+{
+	azx_dev->opened = 0;
+	azx_dev->running = 0;
+	azx_dev->substream = NULL;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_stream_release_locked);
+
+/**
  * snd_hdac_stream_release - release the assigned stream
  * @azx_dev: HD-audio core stream to release
  *
@@ -333,9 +391,7 @@ void snd_hdac_stream_release(struct hdac_stream *azx_dev)
 	struct hdac_bus *bus = azx_dev->bus;
 
 	spin_lock_irq(&bus->reg_lock);
-	azx_dev->opened = 0;
-	azx_dev->running = 0;
-	azx_dev->substream = NULL;
+	snd_hdac_stream_release_locked(azx_dev);
 	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_release);
