@@ -1829,7 +1829,7 @@ nvme_fc_exit_request(struct blk_mq_tag_set *set, struct request *rq,
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 
-	return __nvme_fc_exit_request(set->driver_data, op);
+	return __nvme_fc_exit_request(to_fc_ctrl(set->driver_data), op);
 }
 
 static int
@@ -2135,7 +2135,7 @@ static int
 nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
 		unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct nvme_fc_ctrl *ctrl = set->driver_data;
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(set->driver_data);
 	struct nvme_fcp_op_w_sgl *op = blk_mq_rq_to_pdu(rq);
 	int queue_idx = (set == &ctrl->tag_set) ? hctx_idx + 1 : 0;
 	struct nvme_fc_queue *queue = &ctrl->queues[queue_idx];
@@ -2206,36 +2206,28 @@ nvme_fc_term_aen_ops(struct nvme_fc_ctrl *ctrl)
 	}
 }
 
-static inline void
-__nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, struct nvme_fc_ctrl *ctrl,
-		unsigned int qidx)
+static inline int
+__nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, void *data, unsigned int qidx)
 {
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(data);
 	struct nvme_fc_queue *queue = &ctrl->queues[qidx];
 
 	hctx->driver_data = queue;
 	queue->hctx = hctx;
+	return 0;
 }
 
 static int
-nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
-		unsigned int hctx_idx)
+nvme_fc_init_hctx(struct blk_mq_hw_ctx *hctx, void *data, unsigned int hctx_idx)
 {
-	struct nvme_fc_ctrl *ctrl = data;
-
-	__nvme_fc_init_hctx(hctx, ctrl, hctx_idx + 1);
-
-	return 0;
+	return __nvme_fc_init_hctx(hctx, data, hctx_idx + 1);
 }
 
 static int
 nvme_fc_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 		unsigned int hctx_idx)
 {
-	struct nvme_fc_ctrl *ctrl = data;
-
-	__nvme_fc_init_hctx(hctx, ctrl, hctx_idx);
-
-	return 0;
+	return __nvme_fc_init_hctx(hctx, data, hctx_idx);
 }
 
 static void
@@ -2862,7 +2854,7 @@ nvme_fc_complete_rq(struct request *rq)
 
 static void nvme_fc_map_queues(struct blk_mq_tag_set *set)
 {
-	struct nvme_fc_ctrl *ctrl = set->driver_data;
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(set->driver_data);
 	int i;
 
 	for (i = 0; i < set->nr_maps; i++) {
@@ -2923,7 +2915,7 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 	ctrl->tag_set.cmd_size =
 		struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
 			    ctrl->lport->ops->fcprqst_priv_sz);
-	ctrl->tag_set.driver_data = ctrl;
+	ctrl->tag_set.driver_data = &ctrl->ctrl;
 	ctrl->tag_set.nr_hw_queues = ctrl->ctrl.queue_count - 1;
 	ctrl->tag_set.timeout = NVME_IO_TIMEOUT;
 
@@ -3546,7 +3538,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->admin_tag_set.cmd_size =
 		struct_size((struct nvme_fcp_op_w_sgl *)NULL, priv,
 			    ctrl->lport->ops->fcprqst_priv_sz);
-	ctrl->admin_tag_set.driver_data = ctrl;
+	ctrl->admin_tag_set.driver_data = &ctrl->ctrl;
 	ctrl->admin_tag_set.nr_hw_queues = 1;
 	ctrl->admin_tag_set.timeout = NVME_ADMIN_TIMEOUT;
 	ctrl->admin_tag_set.flags = BLK_MQ_F_NO_SCHED;
