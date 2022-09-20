@@ -1629,6 +1629,14 @@ struct rtw89_btc_fbtc_steps {
 	struct rtw89_btc_fbtc_step step[FCXMAX_STEP];
 } __packed;
 
+struct rtw89_btc_fbtc_steps_v1 {
+	u8 fver;
+	u8 en;
+	__le16 rsvd;
+	__le32 cnt;
+	struct rtw89_btc_fbtc_step step[FCXMAX_STEP];
+} __packed;
+
 struct rtw89_btc_fbtc_cysta { /* statistics for cycles */
 	u8 fver; /* chip_info::fcxcysta_ver */
 	u8 rsvd;
@@ -1903,7 +1911,10 @@ struct rtw89_btc_rpt_fbtc_cysta {
 
 struct rtw89_btc_rpt_fbtc_step {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_steps finfo; /* info from fw */
+	union {
+		struct rtw89_btc_fbtc_steps finfo; /* info from fw */
+		struct rtw89_btc_fbtc_steps_v1 finfo_v1; /* info from fw */
+	};
 };
 
 struct rtw89_btc_rpt_fbtc_nullsta {

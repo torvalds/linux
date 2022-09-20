@@ -997,9 +997,17 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		break;
 	case BTC_RPT_TYPE_STEP:
 		pcinfo = &pfwinfo->rpt_fbtc_step.cinfo;
-		pfinfo = &pfwinfo->rpt_fbtc_step.finfo;
-		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_step.finfo.step[0]) *
-				  trace_step + 8;
+		if (chip->chip_id == RTL8852A) {
+			pfinfo = &pfwinfo->rpt_fbtc_step.finfo;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_step.finfo.step[0]) *
+					  trace_step +
+					  offsetof(struct rtw89_btc_fbtc_steps, step);
+		} else {
+			pfinfo = &pfwinfo->rpt_fbtc_step.finfo_v1;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_step.finfo_v1.step[0]) *
+					  trace_step +
+					  offsetof(struct rtw89_btc_fbtc_steps_v1, step);
+		}
 		pcinfo->req_fver = chip->fcxstep_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
