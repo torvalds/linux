@@ -9,6 +9,7 @@
 #include <linux/bpf_verifier.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/filter.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/btf_ids.h>
