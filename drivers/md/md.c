@@ -7464,6 +7464,40 @@ static inline bool md_ioctl_valid(unsigned int cmd)
 	}
 }
 
+static int __md_set_array_info(struct mddev *mddev, void __user *argp)
+{
+	mdu_array_info_t info;
+	int err;
+
+	if (!argp)
+		memset(&info, 0, sizeof(info));
+	else if (copy_from_user(&info, argp, sizeof(info)))
+		return -EFAULT;
+
+	if (mddev->pers) {
+		err = update_array_info(mddev, &info);
+		if (err)
+			pr_warn("md: couldn't update array info. %d\n", err);
+		return err;
+	}
+
+	if (!list_empty(&mddev->disks)) {
+		pr_warn("md: array %s already has disks!\n", mdname(mddev));
+		return -EBUSY;
+	}
+
+	if (mddev->raid_disks) {
+		pr_warn("md: array %s already initialised!\n", mdname(mddev));
+		return -EBUSY;
+	}
+
+	err = md_set_array_info(mddev, &info);
+	if (err)
+		pr_warn("md: couldn't set array info. %d\n", err);
+
+	return err;
+}
+
 static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
@@ -7569,36 +7603,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 
 	if (cmd == SET_ARRAY_INFO) {
-		mdu_array_info_t info;
-		if (!arg)
-			memset(&info, 0, sizeof(info));
-		else if (copy_from_user(&info, argp, sizeof(info))) {
-			err = -EFAULT;
-			goto unlock;
-		}
-		if (mddev->pers) {
-			err = update_array_info(mddev, &info);
-			if (err) {
-				pr_warn("md: couldn't update array info. %d\n", err);
-				goto unlock;
-			}
-			goto unlock;
-		}
-		if (!list_empty(&mddev->disks)) {
-			pr_warn("md: array %s already has disks!\n", mdname(mddev));
-			err = -EBUSY;
-			goto unlock;
-		}
-		if (mddev->raid_disks) {
-			pr_warn("md: array %s already initialised!\n", mdname(mddev));
-			err = -EBUSY;
-			goto unlock;
-		}
-		err = md_set_array_info(mddev, &info);
-		if (err) {
-			pr_warn("md: couldn't set array info. %d\n", err);
-			goto unlock;
-		}
+		err = __md_set_array_info(mddev, argp);
 		goto unlock;
 	}
 
