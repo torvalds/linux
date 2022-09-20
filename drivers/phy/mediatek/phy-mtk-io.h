@@ -8,6 +8,7 @@
 #ifndef __PHY_MTK_H__
 #define __PHY_MTK_H__
 
+#include <linux/bitfield.h>
 #include <linux/io.h>
 
 static inline void mtk_phy_clear_bits(void __iomem *reg, u32 bits)
@@ -33,6 +34,12 @@ static inline void mtk_phy_update_bits(void __iomem *reg, u32 mask, u32 val)
 	tmp &= ~mask;
 	tmp |= val & mask;
 	writel(tmp, reg);
+}
+
+/* field @mask should be constant and continuous */
+static inline void mtk_phy_update_field(void __iomem *reg, u32 mask, u32 val)
+{
+	mtk_phy_update_bits(reg, mask, FIELD_PREP(mask, val));
 }
 
 #endif
