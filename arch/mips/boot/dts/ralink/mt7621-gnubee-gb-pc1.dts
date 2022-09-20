@@ -53,7 +53,7 @@
 	};
 };
 
-&sdhci {
+&mmc {
 	status = "okay";
 };
 
