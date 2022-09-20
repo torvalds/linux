@@ -103,6 +103,10 @@ enum nfp_nfp_layer_name {
 	_FLOW_PAY_LAYERS_MAX
 };
 
+/* NFP flow entry flags. */
+#define NFP_FL_ACTION_DO_NAT		BIT(0)
+#define NFP_FL_ACTION_DO_MANGLE		BIT(1)
+
 /**
  * struct nfp_fl_ct_flow_entry - Flow entry containing conntrack flow information
  * @cookie:	Flow cookie, same as original TC flow, used as key
@@ -115,6 +119,7 @@ enum nfp_nfp_layer_name {
  * @rule:	Reference to the original TC flow rule
  * @stats:	Used to cache stats for updating
  * @tun_offset: Used to indicate tunnel action offset in action list
+ * @flags:	Used to indicate flow flag like NAT which used by merge.
  */
 struct nfp_fl_ct_flow_entry {
 	unsigned long cookie;
@@ -127,6 +132,7 @@ struct nfp_fl_ct_flow_entry {
 	struct flow_rule *rule;
 	struct flow_stats stats;
 	u8 tun_offset;		// Set to NFP_FL_CT_NO_TUN if no tun
+	u8 flags;
 };
 
 /**
