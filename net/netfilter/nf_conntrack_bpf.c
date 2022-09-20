@@ -9,6 +9,7 @@
 #include <linux/bpf_verifier.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/filter.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/btf_ids.h>
@@ -502,7 +503,7 @@ int register_nf_conntrack_bpf(void)
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &nf_conntrack_kfunc_set);
 	if (!ret) {
 		mutex_lock(&nf_conn_btf_access_lock);
-		nfct_bsa = _nf_conntrack_btf_struct_access;
+		nfct_btf_struct_access = _nf_conntrack_btf_struct_access;
 		mutex_unlock(&nf_conn_btf_access_lock);
 	}
 
@@ -512,6 +513,6 @@ int register_nf_conntrack_bpf(void)
 void cleanup_nf_conntrack_bpf(void)
 {
 	mutex_lock(&nf_conn_btf_access_lock);
-	nfct_bsa = NULL;
+	nfct_btf_struct_access = NULL;
 	mutex_unlock(&nf_conn_btf_access_lock);
 }

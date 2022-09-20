@@ -8608,11 +8608,11 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 DEFINE_MUTEX(nf_conn_btf_access_lock);
 EXPORT_SYMBOL_GPL(nf_conn_btf_access_lock);
 
-int (*nfct_bsa)(struct bpf_verifier_log *log, const struct btf *btf,
-		const struct btf_type *t, int off, int size,
-		enum bpf_access_type atype, u32 *next_btf_id,
-		enum bpf_type_flag *flag);
-EXPORT_SYMBOL_GPL(nfct_bsa);
+int (*nfct_btf_struct_access)(struct bpf_verifier_log *log, const struct btf *btf,
+			      const struct btf_type *t, int off, int size,
+			      enum bpf_access_type atype, u32 *next_btf_id,
+			      enum bpf_type_flag *flag);
+EXPORT_SYMBOL_GPL(nfct_btf_struct_access);
 
 static int tc_cls_act_btf_struct_access(struct bpf_verifier_log *log,
 					const struct btf *btf,
@@ -8628,8 +8628,8 @@ static int tc_cls_act_btf_struct_access(struct bpf_verifier_log *log,
 					 flag);
 
 	mutex_lock(&nf_conn_btf_access_lock);
-	if (nfct_bsa)
-		ret = nfct_bsa(log, btf, t, off, size, atype, next_btf_id, flag);
+	if (nfct_btf_struct_access)
+		ret = nfct_btf_struct_access(log, btf, t, off, size, atype, next_btf_id, flag);
 	mutex_unlock(&nf_conn_btf_access_lock);
 
 	return ret;
@@ -8708,8 +8708,8 @@ static int xdp_btf_struct_access(struct bpf_verifier_log *log,
 					 flag);
 
 	mutex_lock(&nf_conn_btf_access_lock);
-	if (nfct_bsa)
-		ret = nfct_bsa(log, btf, t, off, size, atype, next_btf_id, flag);
+	if (nfct_btf_struct_access)
+		ret = nfct_btf_struct_access(log, btf, t, off, size, atype, next_btf_id, flag);
 	mutex_unlock(&nf_conn_btf_access_lock);
 
 	return ret;
