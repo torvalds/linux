@@ -331,7 +331,7 @@ static int sof_ipc4_widget_setup_msg(struct snd_sof_widget *swidget, struct sof_
 	msg->extension = SOF_IPC4_MOD_EXT_PPL_ID(swidget->pipeline_id);
 	msg->extension |= SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
 
-	type = fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP ? 1 : 0;
+	type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
 	msg->extension |= SOF_IPC4_MOD_EXT_DOMAIN(type);
 
 	return 0;
