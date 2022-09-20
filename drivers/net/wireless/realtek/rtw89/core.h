@@ -2356,6 +2356,7 @@ struct rtw89_chip_ops {
 	void (*btc_update_bt_cnt)(struct rtw89_dev *rtwdev);
 	void (*btc_wl_s1_standby)(struct rtw89_dev *rtwdev, bool state);
 	void (*btc_set_policy)(struct rtw89_dev *rtwdev, u16 policy_type);
+	void (*btc_set_wl_rx_gain)(struct rtw89_dev *rtwdev, u32 level);
 };
 
 enum rtw89_dma_ch {

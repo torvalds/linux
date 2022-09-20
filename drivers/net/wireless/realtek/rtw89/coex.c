@@ -1735,6 +1735,7 @@ static void _set_wl_tx_power(struct rtw89_dev *rtwdev, u32 level)
 
 static void _set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 
@@ -1747,6 +1748,8 @@ static void _set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): level = %d\n",
 		    __func__, level);
+
+	chip->ops->btc_set_wl_rx_gain(rtwdev, level);
 }
 
 static void _set_bt_tx_power(struct rtw89_dev *rtwdev, u8 level)

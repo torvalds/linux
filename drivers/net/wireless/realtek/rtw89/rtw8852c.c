@@ -2854,6 +2854,59 @@ void rtw8852c_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
 	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
 }
 
+static void rtw8852c_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
+{
+	/* level=0 Default:    TIA 1/0= (LNA2,TIAN6) = (7,1)/(5,1) = 21dB/12dB
+	 * level=1 Fix LNA2=5: TIA 1/0= (LNA2,TIAN6) = (5,0)/(5,1) = 18dB/12dB
+	 * To improve BT ACI in co-rx
+	 */
+
+	switch (level) {
+	case 0: /* default */
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x1000);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x0);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x1);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x17);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x2);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x3);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x17);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
+		break;
+	case 1: /* Fix LNA2=5  */
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x1000);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x0);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x1);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x5);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x2);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x3);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x5);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
+		break;
+	}
+}
+
+static void rtw8852c_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
+{
+	switch (level) {
+	case 0: /* original */
+		rtw8852c_bb_ctrl_btc_preagc(rtwdev, false);
+		rtw8852c_set_wl_lna2(rtwdev, 0);
+		break;
+	case 1: /* for FDD free-run */
+		rtw8852c_bb_ctrl_btc_preagc(rtwdev, true);
+		rtw8852c_set_wl_lna2(rtwdev, 0);
+		break;
+	case 2: /* for BTG Co-Rx*/
+		rtw8852c_bb_ctrl_btc_preagc(rtwdev, false);
+		rtw8852c_set_wl_lna2(rtwdev, 1);
+		break;
+	}
+}
+
 static void rtw8852c_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
 					 struct rtw89_rx_phy_ppdu *phy_ppdu,
 					 struct ieee80211_rx_status *status)
@@ -2974,6 +3027,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.btc_bt_aci_imp		= rtw8852c_btc_bt_aci_imp,
 	.btc_update_bt_cnt	= rtw8852c_btc_update_bt_cnt,
 	.btc_wl_s1_standby	= rtw8852c_btc_wl_s1_standby,
+	.btc_set_wl_rx_gain	= rtw8852c_btc_set_wl_rx_gain,
 	.btc_set_policy		= rtw89_btc_set_policy_v1,
 };
 
