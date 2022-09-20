@@ -268,7 +268,7 @@ struct mtk_ppe {
 	int version;
 	char dirname[5];
 
-	struct mtk_foe_entry *foe_table;
+	void *foe_table;
 	dma_addr_t foe_phys;
 
 	u16 foe_check_time[MTK_PPE_ENTRIES];

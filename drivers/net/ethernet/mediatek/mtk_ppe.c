@@ -410,9 +410,10 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 
 	hlist_del_init(&entry->list);
 	if (entry->hash != 0xffff) {
-		ppe->foe_table[entry->hash].ib1 &= ~MTK_FOE_IB1_STATE;
-		ppe->foe_table[entry->hash].ib1 |= FIELD_PREP(MTK_FOE_IB1_STATE,
-							      MTK_FOE_STATE_UNBIND);
+		struct mtk_foe_entry *hwe = mtk_foe_get_entry(ppe, entry->hash);
+
+		hwe->ib1 &= ~MTK_FOE_IB1_STATE;
+		hwe->ib1 |= FIELD_PREP(MTK_FOE_IB1_STATE, MTK_FOE_STATE_UNBIND);
 		dma_wmb();
 	}
 	entry->hash = 0xffff;
@@ -451,7 +452,7 @@ mtk_flow_entry_update_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 		int cur_idle;
 		u32 ib1;
 
-		hwe = &ppe->foe_table[cur->hash];
+		hwe = mtk_foe_get_entry(ppe, cur->hash);
 		ib1 = READ_ONCE(hwe->ib1);
 
 		if (FIELD_GET(MTK_FOE_IB1_STATE, ib1) != MTK_FOE_STATE_BIND) {
@@ -473,8 +474,8 @@ mtk_flow_entry_update_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 static void
 mtk_flow_entry_update(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 {
+	struct mtk_foe_entry foe = {};
 	struct mtk_foe_entry *hwe;
-	struct mtk_foe_entry foe;
 
 	spin_lock_bh(&ppe_lock);
 
@@ -486,8 +487,8 @@ mtk_flow_entry_update(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 	if (entry->hash == 0xffff)
 		goto out;
 
-	hwe = &ppe->foe_table[entry->hash];
-	memcpy(&foe, hwe, sizeof(foe));
+	hwe = mtk_foe_get_entry(ppe, entry->hash);
+	memcpy(&foe, hwe, ppe->eth->soc->foe_entry_size);
 	if (!mtk_flow_entry_match(entry, &foe)) {
 		entry->hash = 0xffff;
 		goto out;
@@ -511,8 +512,8 @@ __mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
 	entry->ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP;
 	entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_TIMESTAMP, timestamp);
 
-	hwe = &ppe->foe_table[hash];
-	memcpy(&hwe->data, &entry->data, sizeof(hwe->data));
+	hwe = mtk_foe_get_entry(ppe, hash);
+	memcpy(&hwe->data, &entry->data, ppe->eth->soc->foe_entry_size);
 	wmb();
 	hwe->ib1 = entry->ib1;
 
@@ -561,7 +562,7 @@ mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 {
 	const struct mtk_soc_data *soc = ppe->eth->soc;
 	struct mtk_flow_entry *flow_info;
-	struct mtk_foe_entry foe, *hwe;
+	struct mtk_foe_entry foe = {}, *hwe;
 	struct mtk_foe_mac_info *l2;
 	u32 ib1_mask = MTK_FOE_IB1_PACKET_TYPE | MTK_FOE_IB1_UDP;
 	int type;
@@ -578,8 +579,8 @@ mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 		       &ppe->foe_flow[hash / soc->hash_offset]);
 	hlist_add_head(&flow_info->l2_data.list, &entry->l2_flows);
 
-	hwe = &ppe->foe_table[hash];
-	memcpy(&foe, hwe, sizeof(foe));
+	hwe = mtk_foe_get_entry(ppe, hash);
+	memcpy(&foe, hwe, soc->foe_entry_size);
 	foe.ib1 &= ib1_mask;
 	foe.ib1 |= entry->data.ib1 & ~ib1_mask;
 
@@ -601,7 +602,7 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 {
 	const struct mtk_soc_data *soc = ppe->eth->soc;
 	struct hlist_head *head = &ppe->foe_flow[hash / soc->hash_offset];
-	struct mtk_foe_entry *hwe = &ppe->foe_table[hash];
+	struct mtk_foe_entry *hwe = mtk_foe_get_entry(ppe, hash);
 	struct mtk_flow_entry *entry;
 	struct mtk_foe_bridge key = {};
 	struct hlist_node *n;
@@ -686,9 +687,9 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
 {
 	const struct mtk_soc_data *soc = eth->soc;
 	struct device *dev = eth->dev;
-	struct mtk_foe_entry *foe;
 	struct mtk_ppe *ppe;
 	u32 foe_flow_size;
+	void *foe;
 
 	ppe = devm_kzalloc(dev, sizeof(*ppe), GFP_KERNEL);
 	if (!ppe)
@@ -704,7 +705,8 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
 	ppe->dev = dev;
 	ppe->version = version;
 
-	foe = dmam_alloc_coherent(ppe->dev, MTK_PPE_ENTRIES * sizeof(*foe),
+	foe = dmam_alloc_coherent(ppe->dev,
+				  MTK_PPE_ENTRIES * soc->foe_entry_size,
 				  &ppe->foe_phys, GFP_KERNEL);
 	if (!foe)
 		return NULL;
@@ -727,15 +729,21 @@ static void mtk_ppe_init_foe_table(struct mtk_ppe *ppe)
 	static const u8 skip[] = { 12, 25, 38, 51, 76, 89, 102 };
 	int i, k;
 
-	memset(ppe->foe_table, 0, MTK_PPE_ENTRIES * sizeof(*ppe->foe_table));
+	memset(ppe->foe_table, 0,
+	       MTK_PPE_ENTRIES * ppe->eth->soc->foe_entry_size);
 
 	if (!IS_ENABLED(CONFIG_SOC_MT7621))
 		return;
 
 	/* skip all entries that cross the 1024 byte boundary */
-	for (i = 0; i < MTK_PPE_ENTRIES; i += 128)
-		for (k = 0; k < ARRAY_SIZE(skip); k++)
-			ppe->foe_table[i + skip[k]].ib1 |= MTK_FOE_IB1_STATIC;
+	for (i = 0; i < MTK_PPE_ENTRIES; i += 128) {
+		for (k = 0; k < ARRAY_SIZE(skip); k++) {
+			struct mtk_foe_entry *hwe;
+
+			hwe = mtk_foe_get_entry(ppe, i + skip[k]);
+			hwe->ib1 |= MTK_FOE_IB1_STATIC;
+		}
+	}
 }
 
 void mtk_ppe_start(struct mtk_ppe *ppe)
@@ -822,9 +830,12 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
 	if (!ppe)
 		return 0;
 
-	for (i = 0; i < MTK_PPE_ENTRIES; i++)
-		ppe->foe_table[i].ib1 = FIELD_PREP(MTK_FOE_IB1_STATE,
-						   MTK_FOE_STATE_INVALID);
+	for (i = 0; i < MTK_PPE_ENTRIES; i++) {
+		struct mtk_foe_entry *hwe = mtk_foe_get_entry(ppe, i);
+
+		hwe->ib1 = FIELD_PREP(MTK_FOE_IB1_STATE,
+				      MTK_FOE_STATE_INVALID);
+	}
 
 	mtk_ppe_cache_enable(ppe, false);
 
