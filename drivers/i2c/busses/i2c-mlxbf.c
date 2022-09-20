@@ -6,6 +6,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -63,13 +64,14 @@
  */
 #define MLXBF_I2C_TYU_PLL_OUT_FREQ  (400 * 1000 * 1000)
 /* Reference clock for Bluefield - 156 MHz. */
-#define MLXBF_I2C_PLL_IN_FREQ       (156 * 1000 * 1000)
+#define MLXBF_I2C_PLL_IN_FREQ       156250000ULL
 
 /* Constant used to determine the PLL frequency. */
-#define MLNXBF_I2C_COREPLL_CONST    16384
+#define MLNXBF_I2C_COREPLL_CONST    16384ULL
+
+#define MLXBF_I2C_FREQUENCY_1GHZ  1000000000ULL
 
 /* PLL registers. */
-#define MLXBF_I2C_CORE_PLL_REG0         0x0
 #define MLXBF_I2C_CORE_PLL_REG1         0x4
 #define MLXBF_I2C_CORE_PLL_REG2         0x8
 
@@ -181,22 +183,15 @@
 #define MLXBF_I2C_COREPLL_FREQ          MLXBF_I2C_TYU_PLL_OUT_FREQ
 
 /* Core PLL TYU configuration. */
-#define MLXBF_I2C_COREPLL_CORE_F_TYU_MASK   GENMASK(12, 0)
-#define MLXBF_I2C_COREPLL_CORE_OD_TYU_MASK  GENMASK(3, 0)
-#define MLXBF_I2C_COREPLL_CORE_R_TYU_MASK   GENMASK(5, 0)
-
-#define MLXBF_I2C_COREPLL_CORE_F_TYU_SHIFT  3
-#define MLXBF_I2C_COREPLL_CORE_OD_TYU_SHIFT 16
-#define MLXBF_I2C_COREPLL_CORE_R_TYU_SHIFT  20
+#define MLXBF_I2C_COREPLL_CORE_F_TYU_MASK   GENMASK(15, 3)
+#define MLXBF_I2C_COREPLL_CORE_OD_TYU_MASK  GENMASK(19, 16)
+#define MLXBF_I2C_COREPLL_CORE_R_TYU_MASK   GENMASK(25, 20)
 
 /* Core PLL YU configuration. */
 #define MLXBF_I2C_COREPLL_CORE_F_YU_MASK    GENMASK(25, 0)
 #define MLXBF_I2C_COREPLL_CORE_OD_YU_MASK   GENMASK(3, 0)
-#define MLXBF_I2C_COREPLL_CORE_R_YU_MASK    GENMASK(5, 0)
+#define MLXBF_I2C_COREPLL_CORE_R_YU_MASK    GENMASK(31, 26)
 
-#define MLXBF_I2C_COREPLL_CORE_F_YU_SHIFT   0
-#define MLXBF_I2C_COREPLL_CORE_OD_YU_SHIFT  1
-#define MLXBF_I2C_COREPLL_CORE_R_YU_SHIFT   26
 
 /* Core PLL frequency. */
 static u64 mlxbf_i2c_corepll_frequency;
@@ -478,8 +473,6 @@ static struct mutex mlxbf_i2c_bus_lock;
 
 #define MLXBF_I2C_MASK_8    GENMASK(7, 0)
 #define MLXBF_I2C_MASK_16   GENMASK(15, 0)
-
-#define MLXBF_I2C_FREQUENCY_1GHZ  1000000000
 
 /*
  * Function to poll a set of bits at a specific address; it checks whether
@@ -1410,24 +1403,19 @@ static int mlxbf_i2c_init_master(struct platform_device *pdev,
 	return 0;
 }
 
-static u64 mlxbf_calculate_freq_from_tyu(struct mlxbf_i2c_resource *corepll_res)
+static u64 mlxbf_i2c_calculate_freq_from_tyu(struct mlxbf_i2c_resource *corepll_res)
 {
-	u64 core_frequency, pad_frequency;
+	u64 core_frequency;
 	u8 core_od, core_r;
 	u32 corepll_val;
 	u16 core_f;
 
-	pad_frequency = MLXBF_I2C_PLL_IN_FREQ;
-
 	corepll_val = readl(corepll_res->io + MLXBF_I2C_CORE_PLL_REG1);
 
 	/* Get Core PLL configuration bits. */
-	core_f = rol32(corepll_val, MLXBF_I2C_COREPLL_CORE_F_TYU_SHIFT) &
-			MLXBF_I2C_COREPLL_CORE_F_TYU_MASK;
-	core_od = rol32(corepll_val, MLXBF_I2C_COREPLL_CORE_OD_TYU_SHIFT) &
-			MLXBF_I2C_COREPLL_CORE_OD_TYU_MASK;
-	core_r = rol32(corepll_val, MLXBF_I2C_COREPLL_CORE_R_TYU_SHIFT) &
-			MLXBF_I2C_COREPLL_CORE_R_TYU_MASK;
+	core_f = FIELD_GET(MLXBF_I2C_COREPLL_CORE_F_TYU_MASK, corepll_val);
+	core_od = FIELD_GET(MLXBF_I2C_COREPLL_CORE_OD_TYU_MASK, corepll_val);
+	core_r = FIELD_GET(MLXBF_I2C_COREPLL_CORE_R_TYU_MASK, corepll_val);
 
 	/*
 	 * Compute PLL output frequency as follow:
@@ -1439,31 +1427,26 @@ static u64 mlxbf_calculate_freq_from_tyu(struct mlxbf_i2c_resource *corepll_res)
 	 * Where PLL_OUT_FREQ and PLL_IN_FREQ refer to CoreFrequency
 	 * and PadFrequency, respectively.
 	 */
-	core_frequency = pad_frequency * (++core_f);
+	core_frequency = MLXBF_I2C_PLL_IN_FREQ * (++core_f);
 	core_frequency /= (++core_r) * (++core_od);
 
 	return core_frequency;
 }
 
-static u64 mlxbf_calculate_freq_from_yu(struct mlxbf_i2c_resource *corepll_res)
+static u64 mlxbf_i2c_calculate_freq_from_yu(struct mlxbf_i2c_resource *corepll_res)
 {
 	u32 corepll_reg1_val, corepll_reg2_val;
-	u64 corepll_frequency, pad_frequency;
+	u64 corepll_frequency;
 	u8 core_od, core_r;
 	u32 core_f;
-
-	pad_frequency = MLXBF_I2C_PLL_IN_FREQ;
 
 	corepll_reg1_val = readl(corepll_res->io + MLXBF_I2C_CORE_PLL_REG1);
 	corepll_reg2_val = readl(corepll_res->io + MLXBF_I2C_CORE_PLL_REG2);
 
 	/* Get Core PLL configuration bits */
-	core_f = rol32(corepll_reg1_val, MLXBF_I2C_COREPLL_CORE_F_YU_SHIFT) &
-			MLXBF_I2C_COREPLL_CORE_F_YU_MASK;
-	core_r = rol32(corepll_reg1_val, MLXBF_I2C_COREPLL_CORE_R_YU_SHIFT) &
-			MLXBF_I2C_COREPLL_CORE_R_YU_MASK;
-	core_od = rol32(corepll_reg2_val,  MLXBF_I2C_COREPLL_CORE_OD_YU_SHIFT) &
-			MLXBF_I2C_COREPLL_CORE_OD_YU_MASK;
+	core_f = FIELD_GET(MLXBF_I2C_COREPLL_CORE_F_YU_MASK, corepll_reg1_val);
+	core_r = FIELD_GET(MLXBF_I2C_COREPLL_CORE_R_YU_MASK, corepll_reg1_val);
+	core_od = FIELD_GET(MLXBF_I2C_COREPLL_CORE_OD_YU_MASK, corepll_reg2_val);
 
 	/*
 	 * Compute PLL output frequency as follow:
@@ -1475,7 +1458,7 @@ static u64 mlxbf_calculate_freq_from_yu(struct mlxbf_i2c_resource *corepll_res)
 	 * Where PLL_OUT_FREQ and PLL_IN_FREQ refer to CoreFrequency
 	 * and PadFrequency, respectively.
 	 */
-	corepll_frequency = (pad_frequency * core_f) / MLNXBF_I2C_COREPLL_CONST;
+	corepll_frequency = (MLXBF_I2C_PLL_IN_FREQ * core_f) / MLNXBF_I2C_COREPLL_CONST;
 	corepll_frequency /= (++core_r) * (++core_od);
 
 	return corepll_frequency;
@@ -2183,14 +2166,14 @@ static struct mlxbf_i2c_chip_info mlxbf_i2c_chip[] = {
 			[1] = &mlxbf_i2c_corepll_res[MLXBF_I2C_CHIP_TYPE_1],
 			[2] = &mlxbf_i2c_gpio_res[MLXBF_I2C_CHIP_TYPE_1]
 		},
-		.calculate_freq = mlxbf_calculate_freq_from_tyu
+		.calculate_freq = mlxbf_i2c_calculate_freq_from_tyu
 	},
 	[MLXBF_I2C_CHIP_TYPE_2] = {
 		.type = MLXBF_I2C_CHIP_TYPE_2,
 		.shared_res = {
 			[0] = &mlxbf_i2c_corepll_res[MLXBF_I2C_CHIP_TYPE_2]
 		},
-		.calculate_freq = mlxbf_calculate_freq_from_yu
+		.calculate_freq = mlxbf_i2c_calculate_freq_from_yu
 	}
 };
 
