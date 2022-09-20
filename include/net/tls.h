@@ -51,6 +51,16 @@
 
 struct tls_rec;
 
+struct tls_cipher_size_desc {
+	unsigned int iv;
+	unsigned int key;
+	unsigned int salt;
+	unsigned int tag;
+	unsigned int rec_seq;
+};
+
+extern const struct tls_cipher_size_desc tls_cipher_size_desc[];
+
 /* Maximum data size carried in a TLS record */
 #define TLS_MAX_PAYLOAD_SIZE		((size_t)1 << 14)
 
