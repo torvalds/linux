@@ -601,7 +601,6 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 
 	ret = -ENOMEM;
 
-	ctrl->ctrl.sqsize = opts->queue_size - 1;
 	ctrl->ctrl.kato = opts->kato;
 	ctrl->port = nvme_loop_find_port(&ctrl->ctrl);
 
@@ -621,6 +620,7 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 			opts->queue_size, ctrl->ctrl.maxcmd);
 		opts->queue_size = ctrl->ctrl.maxcmd;
 	}
+	ctrl->ctrl.sqsize = opts->queue_size - 1;
 
 	if (opts->nr_io_queues) {
 		ret = nvme_loop_create_io_queues(ctrl);
