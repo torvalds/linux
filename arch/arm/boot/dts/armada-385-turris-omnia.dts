@@ -105,6 +105,33 @@
 		 */
 		status = "disabled";
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SPDIF";
+		simple-audio-card,format = "i2s";
+
+		simple-audio-card,cpu {
+			sound-dai = <&audio_controller 1>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+	};
+};
+
+&audio_controller {
+	/* Pin header U16, GPIO51 in SPDIFO mode */
+	pinctrl-0 = <&spdif_pins>;
+	pinctrl-names = "default";
+	spdif-mode;
+	status = "okay";
 };
 
 &bm {
