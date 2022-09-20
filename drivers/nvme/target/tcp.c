@@ -961,6 +961,13 @@ static int nvmet_tcp_done_recv_pdu(struct nvmet_tcp_queue *queue)
 		return nvmet_tcp_handle_icreq(queue);
 	}
 
+	if (unlikely(hdr->type == nvme_tcp_icreq)) {
+		pr_err("queue %d: received icreq pdu in state %d\n",
+			queue->idx, queue->state);
+		nvmet_tcp_fatal_error(queue);
+		return -EPROTO;
+	}
+
 	if (hdr->type == nvme_tcp_h2c_data) {
 		ret = nvmet_tcp_handle_h2c_data_pdu(queue);
 		if (unlikely(ret))
