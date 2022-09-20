@@ -11,6 +11,11 @@
 struct mtk_wed_hw;
 struct mtk_wdma_desc;
 
+enum mtk_wed_bus_tye {
+	MTK_WED_BUS_PCIE,
+	MTK_WED_BUS_AXI,
+};
+
 struct mtk_wed_ring {
 	struct mtk_wdma_desc *desc;
 	dma_addr_t desc_phys;
@@ -43,7 +48,11 @@ struct mtk_wed_device {
 
 	/* filled by driver: */
 	struct {
-		struct pci_dev *pci_dev;
+		union {
+			struct platform_device *platform_dev;
+			struct pci_dev *pci_dev;
+		};
+		enum mtk_wed_bus_tye bus_type;
 
 		u32 wpdma_phys;
 		u32 wpdma_int;
