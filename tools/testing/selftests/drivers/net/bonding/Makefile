@@ -2,5 +2,6 @@
 # Makefile for net selftests
 
 TEST_PROGS := bond-break-lacpdu-tx.sh
+TEST_PROGS += bond-lladdr-target.sh
 
 include ../../../lib.mk
