@@ -31,8 +31,7 @@ fi
 if selinuxenabled; then
     echo "SELinux is already enabled"
     echo "This prevents safely relabeling all files."
-    echo "Boot with selinux=0 on the kernel command-line or"
-    echo "SELINUX=disabled in /etc/selinux/config."
+    echo "Boot with selinux=0 on the kernel command-line."
     exit 1
 fi
 
