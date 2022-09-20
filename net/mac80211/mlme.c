@@ -4946,9 +4946,11 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 		if (sdata->vif.valid_links)
 			link_info(link,
-				  "local address %pM, AP link address %pM\n",
+				  "local address %pM, AP link address %pM%s\n",
 				  link->conf->addr,
-				  assoc_data->link[link_id].bss->bssid);
+				  assoc_data->link[link_id].bss->bssid,
+				  link_id == assoc_data->assoc_link_id ?
+					" (assoc)" : "");
 
 		link_sta = rcu_dereference_protected(sta->link[link_id],
 						     lockdep_is_held(&local->sta_mtx));
