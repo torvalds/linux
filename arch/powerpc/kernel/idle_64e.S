@@ -75,7 +75,7 @@ _GLOBAL(\name)
 
 .macro BOOK3E_IDLE_LOOP
 1:
-	PPC_WAIT(0)
+	PPC_WAIT_v203
 	b	1b
 .endm
 
