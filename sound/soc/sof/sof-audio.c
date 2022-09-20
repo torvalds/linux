@@ -271,14 +271,16 @@ sof_unprepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widg
 	struct snd_sof_widget *swidget = widget->dobj.private;
 	struct snd_soc_dapm_path *p;
 
-	if (!widget_ops[widget->id].ipc_unprepare || !swidget->prepared)
-		goto sink_unprepare;
+	/* return if the widget is in use or if it is already unprepared */
+	if (!swidget->prepared || swidget->use_count > 1)
+		return;
 
-	/* unprepare the source widget */
-	widget_ops[widget->id].ipc_unprepare(swidget);
+	if (widget_ops[widget->id].ipc_unprepare)
+		/* unprepare the source widget */
+		widget_ops[widget->id].ipc_unprepare(swidget);
+
 	swidget->prepared = false;
 
-sink_unprepare:
 	/* unprepare all widgets in the sink paths */
 	snd_soc_dapm_widget_for_each_sink_path(widget, p) {
 		if (!p->walking && p->sink->dobj.private) {
