@@ -497,6 +497,9 @@ struct drm_i915_private {
 
 	struct kobject *sysfs_gt;
 
+	/* Quick lookup of media GT (current platforms only have one) */
+	struct intel_gt *media_gt;
+
 	struct {
 		struct i915_gem_contexts {
 			spinlock_t lock; /* locks list */
@@ -1060,6 +1063,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_REGION(i915, i) (RUNTIME_INFO(i915)->memory_regions & (i))
 #define HAS_LMEM(i915) HAS_REGION(i915, REGION_LMEM)
+
+#define HAS_EXTRA_GT_LIST(dev_priv)   (INTEL_INFO(dev_priv)->extra_gt_list)
 
 /*
  * Platform has the dedicated compression control state for each lmem surfaces

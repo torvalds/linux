@@ -842,7 +842,6 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 
 	INIT_LIST_HEAD(&ggtt->fence_list);
 	INIT_LIST_HEAD(&ggtt->userfault_list);
-	intel_wakeref_auto_init(&ggtt->userfault_wakeref, uncore->rpm);
 
 	detect_bit_6_swizzle(ggtt);
 

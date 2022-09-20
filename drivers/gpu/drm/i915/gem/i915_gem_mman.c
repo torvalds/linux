@@ -413,7 +413,7 @@ retry:
 	vma->mmo = mmo;
 
 	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
-		intel_wakeref_auto(&to_gt(i915)->ggtt->userfault_wakeref,
+		intel_wakeref_auto(&to_gt(i915)->userfault_wakeref,
 				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 
 	if (write) {
@@ -550,6 +550,20 @@ out:
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
+void i915_gem_object_runtime_pm_release_mmap_offset(struct drm_i915_gem_object *obj)
+{
+	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	struct ttm_device *bdev = bo->bdev;
+
+	drm_vma_node_unmap(&bo->base.vma_node, bdev->dev_mapping);
+
+	if (obj->userfault_count) {
+		/* rpm wakeref provide exclusive access */
+		list_del(&obj->userfault_link);
+		obj->userfault_count = 0;
+	}
+}
+
 void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 {
 	struct i915_mmap_offset *mmo, *mn;
@@ -573,6 +587,13 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 		spin_lock(&obj->mmo.lock);
 	}
 	spin_unlock(&obj->mmo.lock);
+
+	if (obj->userfault_count) {
+		mutex_lock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
+		list_del(&obj->userfault_link);
+		mutex_unlock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
+		obj->userfault_count = 0;
+	}
 }
 
 static struct i915_mmap_offset *

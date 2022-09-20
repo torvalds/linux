@@ -245,9 +245,9 @@ static int guc_enable_communication(struct intel_guc *guc)
 	intel_guc_enable_interrupts(guc);
 
 	/* check for CT messages received before we enabled interrupts */
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	intel_guc_ct_event_handler(&guc->ct);
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 
 	drm_dbg(&i915->drm, "GuC communication enabled\n");
 

@@ -509,9 +509,18 @@ static int i915_ttm_shrink(struct drm_i915_gem_object *obj, unsigned int flags)
 static void i915_ttm_delete_mem_notify(struct ttm_buffer_object *bo)
 {
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+	intel_wakeref_t wakeref = 0;
 
 	if (likely(obj)) {
+		/* ttm_bo_release() already has dma_resv_lock */
+		if (i915_ttm_cpu_maps_iomem(bo->resource))
+			wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
+
 		__i915_gem_object_pages_fini(obj);
+
+		if (wakeref)
+			intel_runtime_pm_put(&to_i915(obj->base.dev)->runtime_pm, wakeref);
+
 		i915_ttm_free_cached_io_rsgt(obj);
 	}
 }
@@ -981,6 +990,7 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	struct ttm_buffer_object *bo = area->vm_private_data;
 	struct drm_device *dev = bo->base.dev;
 	struct drm_i915_gem_object *obj;
+	intel_wakeref_t wakeref = 0;
 	vm_fault_t ret;
 	int idx;
 
@@ -1001,6 +1011,9 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 		dma_resv_unlock(bo->base.resv);
 		return VM_FAULT_SIGBUS;
 	}
+
+	if (i915_ttm_cpu_maps_iomem(bo->resource))
+		wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
 
 	if (!i915_ttm_resource_mappable(bo->resource)) {
 		int err = -ENODEV;
@@ -1023,7 +1036,8 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 		if (err) {
 			drm_dbg(dev, "Unable to make resource CPU accessible\n");
 			dma_resv_unlock(bo->base.resv);
-			return VM_FAULT_SIGBUS;
+			ret = VM_FAULT_SIGBUS;
+			goto out_rpm;
 		}
 	}
 
@@ -1034,12 +1048,30 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
 	}
+
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
+		goto out_rpm;
+
+	/* ttm_bo_vm_reserve() already has dma_resv_lock */
+	if (ret == VM_FAULT_NOPAGE && wakeref && !obj->userfault_count) {
+		obj->userfault_count = 1;
+		mutex_lock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
+		list_add(&obj->userfault_link, &to_gt(to_i915(obj->base.dev))->lmem_userfault_list);
+		mutex_unlock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
+	}
+
+	if (wakeref & CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
+		intel_wakeref_auto(&to_gt(to_i915(obj->base.dev))->userfault_wakeref,
+				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 
 	i915_ttm_adjust_lru(obj);
 
 	dma_resv_unlock(bo->base.resv);
+
+out_rpm:
+	if (wakeref)
+		intel_runtime_pm_put(&to_i915(obj->base.dev)->runtime_pm, wakeref);
+
 	return ret;
 }
 

@@ -1438,7 +1438,12 @@ void intel_guc_busyness_park(struct intel_gt *gt)
 	if (!guc_submission_initialized(guc))
 		return;
 
-	cancel_delayed_work(&guc->timestamp.work);
+	/*
+	 * There is a race with suspend flow where the worker runs after suspend
+	 * and causes an unclaimed register access warning. Cancel the worker
+	 * synchronously here.
+	 */
+	cancel_delayed_work_sync(&guc->timestamp.work);
 
 	/*
 	 * Before parking, we should sample engine busyness stats if we need to.
@@ -1532,8 +1537,8 @@ void intel_guc_submission_reset_prepare(struct intel_guc *guc)
 	__reset_guc_busyness_stats(guc);
 
 	/* Flush IRQ handler */
-	spin_lock_irq(&guc_to_gt(guc)->irq_lock);
-	spin_unlock_irq(&guc_to_gt(guc)->irq_lock);
+	spin_lock_irq(guc_to_gt(guc)->irq_lock);
+	spin_unlock_irq(guc_to_gt(guc)->irq_lock);
 
 	guc_flush_submissions(guc);
 	guc_flush_destroyed_contexts(guc);

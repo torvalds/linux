@@ -430,48 +430,29 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 	reserved_base = stolen_top;
 	reserved_size = 0;
 
-	switch (GRAPHICS_VER(i915)) {
-	case 2:
-	case 3:
-		break;
-	case 4:
-		if (!IS_G4X(i915))
-			break;
-		fallthrough;
-	case 5:
-		g4x_get_stolen_reserved(i915, uncore,
+	if (GRAPHICS_VER(i915) >= 11) {
+		icl_get_stolen_reserved(i915, uncore,
 					&reserved_base, &reserved_size);
-		break;
-	case 6:
-		gen6_get_stolen_reserved(i915, uncore,
-					 &reserved_base, &reserved_size);
-		break;
-	case 7:
-		if (IS_VALLEYVIEW(i915))
-			vlv_get_stolen_reserved(i915, uncore,
-						&reserved_base, &reserved_size);
-		else
-			gen7_get_stolen_reserved(i915, uncore,
-						 &reserved_base, &reserved_size);
-		break;
-	case 8:
-	case 9:
+	} else if (GRAPHICS_VER(i915) >= 8) {
 		if (IS_LP(i915))
 			chv_get_stolen_reserved(i915, uncore,
 						&reserved_base, &reserved_size);
 		else
 			bdw_get_stolen_reserved(i915, uncore,
 						&reserved_base, &reserved_size);
-		break;
-	default:
-		MISSING_CASE(GRAPHICS_VER(i915));
-		fallthrough;
-	case 11:
-	case 12:
-		icl_get_stolen_reserved(i915, uncore,
-					&reserved_base,
-					&reserved_size);
-		break;
+	} else if (GRAPHICS_VER(i915) >= 7) {
+		if (IS_VALLEYVIEW(i915))
+			vlv_get_stolen_reserved(i915, uncore,
+						&reserved_base, &reserved_size);
+		else
+			gen7_get_stolen_reserved(i915, uncore,
+						 &reserved_base, &reserved_size);
+	} else if (GRAPHICS_VER(i915) >= 6) {
+		gen6_get_stolen_reserved(i915, uncore,
+					 &reserved_base, &reserved_size);
+	} else if (GRAPHICS_VER(i915) >= 5 || IS_G4X(i915)) {
+		g4x_get_stolen_reserved(i915, uncore,
+					&reserved_base, &reserved_size);
 	}
 
 	/*
