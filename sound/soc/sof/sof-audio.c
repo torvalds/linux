@@ -271,8 +271,8 @@ sof_unprepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widg
 	struct snd_sof_widget *swidget = widget->dobj.private;
 	struct snd_soc_dapm_path *p;
 
-	/* it is already unprepared */
-	if (!swidget->prepared)
+	/* return if the widget is in use or if it is already unprepared */
+	if (!swidget->prepared || swidget->use_count > 1)
 		return;
 
 	if (widget_ops[widget->id].ipc_unprepare)
