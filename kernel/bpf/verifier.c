@@ -782,8 +782,8 @@ static bool is_dynptr_reg_valid_uninit(struct bpf_verifier_env *env, struct bpf_
 	return true;
 }
 
-static bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
-				     enum bpf_arg_type arg_type)
+static bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env,
+				     struct bpf_reg_state *reg)
 {
 	struct bpf_func_state *state = func(env, reg);
 	int spi = get_spi(reg->off);
@@ -799,11 +799,24 @@ static bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env, struct bpf_re
 			return false;
 	}
 
+	return true;
+}
+
+static bool is_dynptr_type_expected(struct bpf_verifier_env *env,
+				    struct bpf_reg_state *reg,
+				    enum bpf_arg_type arg_type)
+{
+	struct bpf_func_state *state = func(env, reg);
+	enum bpf_dynptr_type dynptr_type;
+	int spi = get_spi(reg->off);
+
 	/* ARG_PTR_TO_DYNPTR takes any type of dynptr */
 	if (arg_type == ARG_PTR_TO_DYNPTR)
 		return true;
 
-	return state->stack[spi].spilled_ptr.dynptr.type == arg_to_dynptr_type(arg_type);
+	dynptr_type = arg_to_dynptr_type(arg_type);
+
+	return state->stack[spi].spilled_ptr.dynptr.type == dynptr_type;
 }
 
 /* The reg state of a pointer or a bounded scalar was saved when
@@ -6095,21 +6108,27 @@ skip_type_check:
 			}
 
 			meta->uninit_dynptr_regno = regno;
-		} else if (!is_dynptr_reg_valid_init(env, reg, arg_type)) {
+		} else if (!is_dynptr_reg_valid_init(env, reg)) {
+			verbose(env,
+				"Expected an initialized dynptr as arg #%d\n",
+				arg + 1);
+			return -EINVAL;
+		} else if (!is_dynptr_type_expected(env, reg, arg_type)) {
 			const char *err_extra = "";
 
 			switch (arg_type & DYNPTR_TYPE_FLAG_MASK) {
 			case DYNPTR_TYPE_LOCAL:
-				err_extra = "local ";
+				err_extra = "local";
 				break;
 			case DYNPTR_TYPE_RINGBUF:
-				err_extra = "ringbuf ";
+				err_extra = "ringbuf";
 				break;
 			default:
+				err_extra = "<unknown>";
 				break;
 			}
-
-			verbose(env, "Expected an initialized %sdynptr as arg #%d\n",
+			verbose(env,
+				"Expected a dynptr of type %s as arg #%d\n",
 				err_extra, arg + 1);
 			return -EINVAL;
 		}
