@@ -937,6 +937,7 @@ void dasd_add_link_to_gendisk(struct gendisk *gdp, struct dasd_device *device)
 	gdp->private_data = devmap;
 	spin_unlock(&dasd_devmap_lock);
 }
+EXPORT_SYMBOL(dasd_add_link_to_gendisk);
 
 struct dasd_device *dasd_device_from_gendisk(struct gendisk *gdp)
 {

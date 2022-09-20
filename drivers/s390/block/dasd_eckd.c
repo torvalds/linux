@@ -6119,6 +6119,99 @@ static int dasd_hosts_print(struct dasd_device *device, struct seq_file *m)
 	return 0;
 }
 
+static struct dasd_device
+*copy_relation_find_device(struct dasd_copy_relation *copy,
+			   char *busid)
+{
+	int i;
+
+	for (i = 0; i < DASD_CP_ENTRIES; i++) {
+		if (copy->entry[i].configured &&
+		    strncmp(copy->entry[i].busid, busid, DASD_BUS_ID_SIZE) == 0)
+			return copy->entry[i].device;
+	}
+	return NULL;
+}
+
+/*
+ * set the new active/primary device
+ */
+static void copy_pair_set_active(struct dasd_copy_relation *copy, char *new_busid,
+				 char *old_busid)
+{
+	int i;
+
+	for (i = 0; i < DASD_CP_ENTRIES; i++) {
+		if (copy->entry[i].configured &&
+		    strncmp(copy->entry[i].busid, new_busid,
+			    DASD_BUS_ID_SIZE) == 0) {
+			copy->active = &copy->entry[i];
+			copy->entry[i].primary = true;
+		} else if (copy->entry[i].configured &&
+			   strncmp(copy->entry[i].busid, old_busid,
+				   DASD_BUS_ID_SIZE) == 0) {
+			copy->entry[i].primary = false;
+		}
+	}
+}
+
+/*
+ * The function will swap the role of a given copy pair.
+ * During the swap operation the relation of the blockdevice is disconnected
+ * from the old primary and connected to the new.
+ *
+ * IO is paused on the block queue before swap and may be resumed afterwards.
+ */
+static int dasd_eckd_copy_pair_swap(struct dasd_device *device, char *prim_busid,
+				    char *sec_busid)
+{
+	struct dasd_device *primary, *secondary;
+	struct dasd_copy_relation *copy;
+	struct dasd_block *block;
+	struct gendisk *gdp;
+
+	copy = device->copy;
+	if (!copy)
+		return DASD_COPYPAIRSWAP_INVALID;
+	primary = copy->active->device;
+	if (!primary)
+		return DASD_COPYPAIRSWAP_INVALID;
+	/* double check if swap has correct primary */
+	if (strncmp(dev_name(&primary->cdev->dev), prim_busid, DASD_BUS_ID_SIZE) != 0)
+		return DASD_COPYPAIRSWAP_PRIMARY;
+
+	secondary = copy_relation_find_device(copy, sec_busid);
+	if (!secondary)
+		return DASD_COPYPAIRSWAP_SECONDARY;
+
+	/*
+	 * usually the device should be quiesced for swap
+	 * for paranoia stop device and requeue requests again
+	 */
+	dasd_device_set_stop_bits(primary, DASD_STOPPED_PPRC);
+	dasd_device_set_stop_bits(secondary, DASD_STOPPED_PPRC);
+	dasd_generic_requeue_all_requests(primary);
+
+	/* swap DASD internal device <> block assignment */
+	block = primary->block;
+	primary->block = NULL;
+	secondary->block = block;
+	block->base = secondary;
+	/* set new primary device in COPY relation */
+	copy_pair_set_active(copy, sec_busid, prim_busid);
+
+	/* swap blocklayer device link */
+	gdp = block->gdp;
+	dasd_add_link_to_gendisk(gdp, secondary);
+
+	/* re-enable device */
+	dasd_device_remove_stop_bits(primary, DASD_STOPPED_PPRC);
+	dasd_device_remove_stop_bits(secondary, DASD_STOPPED_PPRC);
+	dasd_schedule_device_bh(secondary);
+
+	return DASD_COPYPAIRSWAP_SUCCESS;
+}
+
 /*
  * Perform Subsystem Function - Peer-to-Peer Remote Copy Extended Query
  */
@@ -6805,6 +6898,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.ese_read = dasd_eckd_ese_read,
 	.pprc_status = dasd_eckd_query_pprc_status,
 	.pprc_enabled = dasd_eckd_pprc_enabled,
+	.copy_pair_swap = dasd_eckd_copy_pair_swap,
 };
 
 static int __init

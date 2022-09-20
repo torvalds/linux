@@ -3927,7 +3927,7 @@ EXPORT_SYMBOL_GPL(dasd_generic_space_avail);
 /*
  * clear active requests and requeue them to block layer if possible
  */
-static int dasd_generic_requeue_all_requests(struct dasd_device *device)
+int dasd_generic_requeue_all_requests(struct dasd_device *device)
 {
 	struct list_head requeue_queue;
 	struct dasd_ccw_req *cqr, *n;
@@ -4001,6 +4001,7 @@ static int dasd_generic_requeue_all_requests(struct dasd_device *device)
 	dasd_schedule_device_bh(device);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(dasd_generic_requeue_all_requests);
 
 static void do_requeue_requests(struct work_struct *work)
 {
