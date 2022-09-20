@@ -2234,6 +2234,40 @@ out:
 }
 static DEVICE_ATTR(copy_role, 0444, dasd_copy_role_show, NULL);
 
+static ssize_t dasd_device_ping(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	size_t rc;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	/*
+	 * do not try during offline processing
+	 * early check only
+	 * the sleep_on function itself checks for offline
+	 * processing again
+	 */
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		rc = -EBUSY;
+		goto out;
+	}
+	if (!device->discipline || !device->discipline->device_ping) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+	rc = device->discipline->device_ping(device);
+	if (!rc)
+		rc = count;
+out:
+	dasd_put_device(device);
+	return rc;
+}
+static DEVICE_ATTR(ping, 0200, NULL, dasd_device_ping);
+
 #define DASD_DEFINE_ATTR(_name, _func)					\
 static ssize_t dasd_##_name##_show(struct device *dev,			\
 				   struct device_attribute *attr,	\
@@ -2292,6 +2326,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_fc_security.attr,
 	&dev_attr_copy_pair.attr,
 	&dev_attr_copy_role.attr,
+	&dev_attr_ping.attr,
 	NULL,
 };
 

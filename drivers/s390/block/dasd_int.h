@@ -439,6 +439,7 @@ struct dasd_discipline {
 	int (*pprc_status)(struct dasd_device *, struct	dasd_pprc_data_sc4 *);
 	bool (*pprc_enabled)(struct dasd_device *);
 	int (*copy_pair_swap)(struct dasd_device *, char *, char *);
+	int (*device_ping)(struct dasd_device *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;

@@ -6278,6 +6278,49 @@ static int dasd_eckd_query_pprc_status(struct dasd_device *device,
 }
 
 /*
+ * ECKD NOP - no operation
+ */
+static int dasd_eckd_nop(struct dasd_device *device)
+{
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	int rc;
+
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1, 1, device, NULL);
+	if (IS_ERR(cqr)) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate NOP request");
+		return PTR_ERR(cqr);
+	}
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->block = NULL;
+	cqr->retries = 1;
+	cqr->expires = 10 * HZ;
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_NOP;
+	ccw->flags |= CCW_FLAG_SLI;
+
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+
+	rc = dasd_sleep_on_interruptible(cqr);
+	if (rc != 0) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
+				"NOP failed with rc=%d\n", rc);
+		rc = -EOPNOTSUPP;
+	}
+	dasd_sfree_request(cqr, cqr->memdev);
+	return rc;
+}
+
+static int dasd_eckd_device_ping(struct dasd_device *device)
+{
+	return dasd_eckd_nop(device);
+}
+
+/*
  * Perform Subsystem Function - CUIR response
  */
 static int
@@ -6899,6 +6942,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.pprc_status = dasd_eckd_query_pprc_status,
 	.pprc_enabled = dasd_eckd_pprc_enabled,
 	.copy_pair_swap = dasd_eckd_copy_pair_swap,
+	.device_ping = dasd_eckd_device_ping,
 };
 
 static int __init

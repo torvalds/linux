@@ -13,6 +13,7 @@
 /*****************************************************************************
  * SECTION: CCW Definitions
  ****************************************************************************/
+#define DASD_ECKD_CCW_NOP		 0x03
 #define DASD_ECKD_CCW_WRITE		 0x05
 #define DASD_ECKD_CCW_READ		 0x06
 #define DASD_ECKD_CCW_WRITE_HOME_ADDRESS 0x09
