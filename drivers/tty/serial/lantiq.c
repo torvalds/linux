@@ -139,6 +139,13 @@ lqasc_stop_tx(struct uart_port *port)
 	return;
 }
 
+static bool lqasc_tx_ready(struct uart_port *port)
+{
+	u32 fstat = __raw_readl(port->membase + LTQ_ASC_FSTAT);
+
+	return (fstat & ASCFSTAT_TXFREEMASK) >> ASCFSTAT_TXFREEOFF;
+}
+
 static void
 lqasc_start_tx(struct uart_port *port)
 {
@@ -228,8 +235,7 @@ lqasc_tx_chars(struct uart_port *port)
 		return;
 	}
 
-	while (((__raw_readl(port->membase + LTQ_ASC_FSTAT) &
-		ASCFSTAT_TXFREEMASK) >> ASCFSTAT_TXFREEOFF) != 0) {
+	while (lqasc_tx_ready(port)) {
 		if (port->x_char) {
 			writeb(port->x_char, port->membase + LTQ_ASC_TBUF);
 			port->icount.tx++;
