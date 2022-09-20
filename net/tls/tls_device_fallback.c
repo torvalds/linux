@@ -64,6 +64,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 
 	switch (prot->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
+	case TLS_CIPHER_AES_GCM_256:
 		break;
 	default:
 		return -EINVAL;
@@ -341,6 +342,9 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 	case TLS_CIPHER_AES_GCM_128:
 		salt = tls_ctx->crypto_send.aes_gcm_128.salt;
 		break;
+	case TLS_CIPHER_AES_GCM_256:
+		salt = tls_ctx->crypto_send.aes_gcm_256.salt;
+		break;
 	default:
 		return NULL;
 	}
@@ -483,6 +487,9 @@ int tls_sw_fallback_init(struct sock *sk,
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
 		key = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->key;
+		break;
+	case TLS_CIPHER_AES_GCM_256:
+		key = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->key;
 		break;
 	default:
 		return -EINVAL;

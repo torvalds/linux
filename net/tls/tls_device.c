@@ -914,6 +914,7 @@ tls_device_reencrypt(struct sock *sk, struct tls_context *tls_ctx)
 
 	switch (tls_ctx->crypto_recv.info.cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
+	case TLS_CIPHER_AES_GCM_256:
 		break;
 	default:
 		return -EINVAL;
@@ -1110,6 +1111,11 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		iv = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->iv;
 		rec_seq =
 		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
+		break;
+	case TLS_CIPHER_AES_GCM_256:
+		iv = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->iv;
+		rec_seq =
+		 ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->rec_seq;
 		break;
 	default:
 		rc = -EINVAL;
