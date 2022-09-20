@@ -1086,14 +1086,11 @@ static void __ata_port_freeze(struct ata_port *ap)
  */
 int ata_port_freeze(struct ata_port *ap)
 {
-	int nr_aborted;
-
 	WARN_ON(!ap->ops->error_handler);
 
 	__ata_port_freeze(ap);
-	nr_aborted = ata_port_abort(ap);
 
-	return nr_aborted;
+	return ata_port_abort(ap);
 }
 EXPORT_SYMBOL_GPL(ata_port_freeze);
 
