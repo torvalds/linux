@@ -1374,7 +1374,6 @@ struct qmp_phy_cfg {
  * @pipe_clk: pipe clock
  * @index: lane index
  * @qmp: QMP phy to which this lane belongs
- * @mode: current PHY mode
  */
 struct qmp_phy {
 	struct phy *phy;
@@ -1389,7 +1388,6 @@ struct qmp_phy {
 	struct clk *pipe_clk;
 	unsigned int index;
 	struct qcom_qmp *qmp;
-	enum phy_mode mode;
 };
 
 /**
