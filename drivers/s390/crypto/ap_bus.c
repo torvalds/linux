@@ -1557,6 +1557,31 @@ static ssize_t bindings_show(struct bus_type *bus, char *buf)
 
 static BUS_ATTR_RO(bindings);
 
+static ssize_t features_show(struct bus_type *bus, char *buf)
+{
+	int n = 0;
+
+	if (!ap_qci_info)	/* QCI not supported */
+		return sysfs_emit(buf, "-\n");
+
+	if (ap_qci_info->apsc)
+		n += sysfs_emit_at(buf, n, "APSC ");
+	if (ap_qci_info->apxa)
+		n += sysfs_emit_at(buf, n, "APXA ");
+	if (ap_qci_info->qact)
+		n += sysfs_emit_at(buf, n, "QACT ");
+	if (ap_qci_info->rc8a)
+		n += sysfs_emit_at(buf, n, "RC8A ");
+	if (ap_qci_info->apsb)
+		n += sysfs_emit_at(buf, n, "APSB ");
+
+	sysfs_emit_at(buf, n == 0 ? 0 : n - 1, "\n");
+
+	return n;
+}
+
+static BUS_ATTR_RO(features);
+
 static struct attribute *ap_bus_attrs[] = {
 	&bus_attr_ap_domain.attr,
 	&bus_attr_ap_control_domain_mask.attr,
@@ -1572,6 +1597,7 @@ static struct attribute *ap_bus_attrs[] = {
 	&bus_attr_aqmask.attr,
 	&bus_attr_scans.attr,
 	&bus_attr_bindings.attr,
+	&bus_attr_features.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(ap_bus);
