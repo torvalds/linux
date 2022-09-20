@@ -66,8 +66,14 @@
  * Perform Subsystem Function / Sub-Orders
  */
 #define PSF_SUBORDER_QHA		 0x1C /* Query Host Access */
+#define PSF_SUBORDER_PPRCEQ		 0x50 /* PPRC Extended Query */
 #define PSF_SUBORDER_VSQ		 0x52 /* Volume Storage Query */
 #define PSF_SUBORDER_LCQ		 0x53 /* Logical Configuration Query */
+
+/*
+ * PPRC Extended Query Scopes
+ */
+#define PPRCEQ_SCOPE_4			 0x04 /* Scope 4 for PPRC Extended Query */
 
 /*
  * CUIR response condition codes
