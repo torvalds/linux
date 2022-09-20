@@ -72,3 +72,4 @@ cgroup_hierarchical_stats                # JIT does not support calling kernel f
 htab_update                              # failed to attach: ERROR: strerror_r(-524)=22                                (trampoline)
 tracing_struct                           # failed to auto-attach: -524                                                 (trampoline)
 user_ringbuf                             # failed to find kernel BTF type ID of '__s390x_sys_prctl': -3                (?)
+lookup_key                               # JIT does not support calling kernel function                                (kfunc)
