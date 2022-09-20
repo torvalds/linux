@@ -633,7 +633,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 		return 0;
 
 	if (!power_on && soc_is_px30s()) {
-		if (genpd->name && !strcmp(genpd->name, "pd_gpu"))
+		if (genpd->name && !strcmp(genpd->name, "gpu"))
 			return 0;
 	}
 
