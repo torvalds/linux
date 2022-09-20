@@ -1153,6 +1153,78 @@ mtk_foe_get_entry(struct mtk_ppe *ppe, u16 hash)
 	return ppe->foe_table + hash * soc->foe_entry_size;
 }
 
+static inline u32 mtk_get_ib1_ts_mask(struct mtk_eth *eth)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return MTK_FOE_IB1_BIND_TIMESTAMP_V2;
+
+	return MTK_FOE_IB1_BIND_TIMESTAMP;
+}
+
+static inline u32 mtk_get_ib1_ppoe_mask(struct mtk_eth *eth)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return MTK_FOE_IB1_BIND_PPPOE_V2;
+
+	return MTK_FOE_IB1_BIND_PPPOE;
+}
+
+static inline u32 mtk_get_ib1_vlan_tag_mask(struct mtk_eth *eth)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return MTK_FOE_IB1_BIND_VLAN_TAG_V2;
+
+	return MTK_FOE_IB1_BIND_VLAN_TAG;
+}
+
+static inline u32 mtk_get_ib1_vlan_layer_mask(struct mtk_eth *eth)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return MTK_FOE_IB1_BIND_VLAN_LAYER_V2;
+
+	return MTK_FOE_IB1_BIND_VLAN_LAYER;
+}
+
+static inline u32 mtk_prep_ib1_vlan_layer(struct mtk_eth *eth, u32 val)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return FIELD_PREP(MTK_FOE_IB1_BIND_VLAN_LAYER_V2, val);
+
+	return FIELD_PREP(MTK_FOE_IB1_BIND_VLAN_LAYER, val);
+}
+
+static inline u32 mtk_get_ib1_vlan_layer(struct mtk_eth *eth, u32 val)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return FIELD_GET(MTK_FOE_IB1_BIND_VLAN_LAYER_V2, val);
+
+	return FIELD_GET(MTK_FOE_IB1_BIND_VLAN_LAYER, val);
+}
+
+static inline u32 mtk_get_ib1_pkt_type_mask(struct mtk_eth *eth)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return MTK_FOE_IB1_PACKET_TYPE_V2;
+
+	return MTK_FOE_IB1_PACKET_TYPE;
+}
+
+static inline u32 mtk_get_ib1_pkt_type(struct mtk_eth *eth, u32 val)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return FIELD_GET(MTK_FOE_IB1_PACKET_TYPE_V2, val);
+
+	return FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, val);
+}
+
+static inline u32 mtk_get_ib2_multicast_mask(struct mtk_eth *eth)
+{
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		return MTK_FOE_IB2_MULTICAST_V2;
+
+	return MTK_FOE_IB2_MULTICAST;
+}
+
 /* read the hardware status register */
 void mtk_stats_update_mac(struct mtk_mac *mac);
 

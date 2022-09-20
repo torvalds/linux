@@ -56,7 +56,7 @@ static u32 ppe_clear(struct mtk_ppe *ppe, u32 reg, u32 val)
 
 static u32 mtk_eth_timestamp(struct mtk_eth *eth)
 {
-	return mtk_r32(eth, 0x0010) & MTK_FOE_IB1_BIND_TIMESTAMP;
+	return mtk_r32(eth, 0x0010) & mtk_get_ib1_ts_mask(eth);
 }
 
 static int mtk_ppe_wait_busy(struct mtk_ppe *ppe)
@@ -93,7 +93,7 @@ static u32 mtk_ppe_hash_entry(struct mtk_eth *eth, struct mtk_foe_entry *e)
 	u32 hv1, hv2, hv3;
 	u32 hash;
 
-	switch (FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, e->ib1)) {
+	switch (mtk_get_ib1_pkt_type(eth, e->ib1)) {
 		case MTK_PPE_PKT_TYPE_IPV4_ROUTE:
 		case MTK_PPE_PKT_TYPE_IPV4_HNAPT:
 			hv1 = e->ipv4.orig.ports;
@@ -129,9 +129,9 @@ static u32 mtk_ppe_hash_entry(struct mtk_eth *eth, struct mtk_foe_entry *e)
 }
 
 static inline struct mtk_foe_mac_info *
-mtk_foe_entry_l2(struct mtk_foe_entry *entry)
+mtk_foe_entry_l2(struct mtk_eth *eth, struct mtk_foe_entry *entry)
 {
-	int type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
+	int type = mtk_get_ib1_pkt_type(eth, entry->ib1);
 
 	if (type == MTK_PPE_PKT_TYPE_BRIDGE)
 		return &entry->bridge.l2;
@@ -143,9 +143,9 @@ mtk_foe_entry_l2(struct mtk_foe_entry *entry)
 }
 
 static inline u32 *
-mtk_foe_entry_ib2(struct mtk_foe_entry *entry)
+mtk_foe_entry_ib2(struct mtk_eth *eth, struct mtk_foe_entry *entry)
 {
-	int type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
+	int type = mtk_get_ib1_pkt_type(eth, entry->ib1);
 
 	if (type == MTK_PPE_PKT_TYPE_BRIDGE)
 		return &entry->bridge.ib2;
@@ -156,27 +156,38 @@ mtk_foe_entry_ib2(struct mtk_foe_entry *entry)
 	return &entry->ipv4.ib2;
 }
 
-int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
-			  u8 pse_port, u8 *src_mac, u8 *dest_mac)
+int mtk_foe_entry_prepare(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			  int type, int l4proto, u8 pse_port, u8 *src_mac,
+			  u8 *dest_mac)
 {
 	struct mtk_foe_mac_info *l2;
 	u32 ports_pad, val;
 
 	memset(entry, 0, sizeof(*entry));
 
-	val = FIELD_PREP(MTK_FOE_IB1_STATE, MTK_FOE_STATE_BIND) |
-	      FIELD_PREP(MTK_FOE_IB1_PACKET_TYPE, type) |
-	      FIELD_PREP(MTK_FOE_IB1_UDP, l4proto == IPPROTO_UDP) |
-	      MTK_FOE_IB1_BIND_TTL |
-	      MTK_FOE_IB1_BIND_CACHE;
-	entry->ib1 = val;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		val = FIELD_PREP(MTK_FOE_IB1_STATE, MTK_FOE_STATE_BIND) |
+		      FIELD_PREP(MTK_FOE_IB1_PACKET_TYPE_V2, type) |
+		      FIELD_PREP(MTK_FOE_IB1_UDP, l4proto == IPPROTO_UDP) |
+		      MTK_FOE_IB1_BIND_CACHE_V2 | MTK_FOE_IB1_BIND_TTL_V2;
+		entry->ib1 = val;
 
-	val = FIELD_PREP(MTK_FOE_IB2_PORT_MG, 0x3f) |
-	      FIELD_PREP(MTK_FOE_IB2_PORT_AG, 0x1f) |
-	      FIELD_PREP(MTK_FOE_IB2_DEST_PORT, pse_port);
+		val = FIELD_PREP(MTK_FOE_IB2_DEST_PORT_V2, pse_port) |
+		      FIELD_PREP(MTK_FOE_IB2_PORT_AG_V2, 0xf);
+	} else {
+		val = FIELD_PREP(MTK_FOE_IB1_STATE, MTK_FOE_STATE_BIND) |
+		      FIELD_PREP(MTK_FOE_IB1_PACKET_TYPE, type) |
+		      FIELD_PREP(MTK_FOE_IB1_UDP, l4proto == IPPROTO_UDP) |
+		      MTK_FOE_IB1_BIND_CACHE | MTK_FOE_IB1_BIND_TTL;
+		entry->ib1 = val;
+
+		val = FIELD_PREP(MTK_FOE_IB2_DEST_PORT, pse_port) |
+		      FIELD_PREP(MTK_FOE_IB2_PORT_MG, 0x3f) |
+		      FIELD_PREP(MTK_FOE_IB2_PORT_AG, 0x1f);
+	}
 
 	if (is_multicast_ether_addr(dest_mac))
-		val |= MTK_FOE_IB2_MULTICAST;
+		val |= mtk_get_ib2_multicast_mask(eth);
 
 	ports_pad = 0xa5a5a500 | (l4proto & 0xff);
 	if (type == MTK_PPE_PKT_TYPE_IPV4_ROUTE)
@@ -210,24 +221,30 @@ int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
 	return 0;
 }
 
-int mtk_foe_entry_set_pse_port(struct mtk_foe_entry *entry, u8 port)
+int mtk_foe_entry_set_pse_port(struct mtk_eth *eth,
+			       struct mtk_foe_entry *entry, u8 port)
 {
-	u32 *ib2 = mtk_foe_entry_ib2(entry);
-	u32 val;
+	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
+	u32 val = *ib2;
 
-	val = *ib2;
-	val &= ~MTK_FOE_IB2_DEST_PORT;
-	val |= FIELD_PREP(MTK_FOE_IB2_DEST_PORT, port);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		val &= ~MTK_FOE_IB2_DEST_PORT_V2;
+		val |= FIELD_PREP(MTK_FOE_IB2_DEST_PORT_V2, port);
+	} else {
+		val &= ~MTK_FOE_IB2_DEST_PORT;
+		val |= FIELD_PREP(MTK_FOE_IB2_DEST_PORT, port);
+	}
 	*ib2 = val;
 
 	return 0;
 }
 
-int mtk_foe_entry_set_ipv4_tuple(struct mtk_foe_entry *entry, bool egress,
+int mtk_foe_entry_set_ipv4_tuple(struct mtk_eth *eth,
+				 struct mtk_foe_entry *entry, bool egress,
 				 __be32 src_addr, __be16 src_port,
 				 __be32 dest_addr, __be16 dest_port)
 {
-	int type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
+	int type = mtk_get_ib1_pkt_type(eth, entry->ib1);
 	struct mtk_ipv4_tuple *t;
 
 	switch (type) {
@@ -262,11 +279,12 @@ int mtk_foe_entry_set_ipv4_tuple(struct mtk_foe_entry *entry, bool egress,
 	return 0;
 }
 
-int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
+int mtk_foe_entry_set_ipv6_tuple(struct mtk_eth *eth,
+				 struct mtk_foe_entry *entry,
 				 __be32 *src_addr, __be16 src_port,
 				 __be32 *dest_addr, __be16 dest_port)
 {
-	int type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
+	int type = mtk_get_ib1_pkt_type(eth, entry->ib1);
 	u32 *src, *dest;
 	int i;
 
@@ -297,39 +315,41 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
 	return 0;
 }
 
-int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int port)
+int mtk_foe_entry_set_dsa(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			  int port)
 {
-	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
+	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
 
 	l2->etype = BIT(port);
 
-	if (!(entry->ib1 & MTK_FOE_IB1_BIND_VLAN_LAYER))
-		entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_VLAN_LAYER, 1);
+	if (!(entry->ib1 & mtk_get_ib1_vlan_layer_mask(eth)))
+		entry->ib1 |= mtk_prep_ib1_vlan_layer(eth, 1);
 	else
 		l2->etype |= BIT(8);
 
-	entry->ib1 &= ~MTK_FOE_IB1_BIND_VLAN_TAG;
+	entry->ib1 &= ~mtk_get_ib1_vlan_tag_mask(eth);
 
 	return 0;
 }
 
-int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid)
+int mtk_foe_entry_set_vlan(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			   int vid)
 {
-	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
+	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
 
-	switch (FIELD_GET(MTK_FOE_IB1_BIND_VLAN_LAYER, entry->ib1)) {
+	switch (mtk_prep_ib1_vlan_layer(eth, entry->ib1)) {
 	case 0:
-		entry->ib1 |= MTK_FOE_IB1_BIND_VLAN_TAG |
-			      FIELD_PREP(MTK_FOE_IB1_BIND_VLAN_LAYER, 1);
+		entry->ib1 |= mtk_get_ib1_vlan_tag_mask(eth) |
+			      mtk_prep_ib1_vlan_layer(eth, 1);
 		l2->vlan1 = vid;
 		return 0;
 	case 1:
-		if (!(entry->ib1 & MTK_FOE_IB1_BIND_VLAN_TAG)) {
+		if (!(entry->ib1 & mtk_get_ib1_vlan_tag_mask(eth))) {
 			l2->vlan1 = vid;
 			l2->etype |= BIT(8);
 		} else {
 			l2->vlan2 = vid;
-			entry->ib1 += FIELD_PREP(MTK_FOE_IB1_BIND_VLAN_LAYER, 1);
+			entry->ib1 += mtk_prep_ib1_vlan_layer(eth, 1);
 		}
 		return 0;
 	default:
@@ -337,34 +357,42 @@ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid)
 	}
 }
 
-int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid)
+int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			    int sid)
 {
-	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
+	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
 
-	if (!(entry->ib1 & MTK_FOE_IB1_BIND_VLAN_LAYER) ||
-	    (entry->ib1 & MTK_FOE_IB1_BIND_VLAN_TAG))
+	if (!(entry->ib1 & mtk_get_ib1_vlan_layer_mask(eth)) ||
+	    (entry->ib1 & mtk_get_ib1_vlan_tag_mask(eth)))
 		l2->etype = ETH_P_PPP_SES;
 
-	entry->ib1 |= MTK_FOE_IB1_BIND_PPPOE;
+	entry->ib1 |= mtk_get_ib1_ppoe_mask(eth);
 	l2->pppoe_id = sid;
 
 	return 0;
 }
 
-int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
-			   int bss, int wcid)
+int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+			   int wdma_idx, int txq, int bss, int wcid)
 {
-	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
-	u32 *ib2 = mtk_foe_entry_ib2(entry);
+	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(eth, entry);
+	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
 
-	*ib2 &= ~MTK_FOE_IB2_PORT_MG;
-	*ib2 |= MTK_FOE_IB2_WDMA_WINFO;
-	if (wdma_idx)
-		*ib2 |= MTK_FOE_IB2_WDMA_DEVIDX;
-
-	l2->vlan2 = FIELD_PREP(MTK_FOE_VLAN2_WINFO_BSS, bss) |
-		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_WCID, wcid) |
-		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_RING, txq);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		*ib2 &= ~MTK_FOE_IB2_PORT_MG_V2;
+		*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq) |
+			 MTK_FOE_IB2_WDMA_WINFO_V2;
+		l2->winfo = FIELD_PREP(MTK_FOE_WINFO_WCID, wcid) |
+			    FIELD_PREP(MTK_FOE_WINFO_BSS, bss);
+	} else {
+		*ib2 &= ~MTK_FOE_IB2_PORT_MG;
+		*ib2 |= MTK_FOE_IB2_WDMA_WINFO;
+		if (wdma_idx)
+			*ib2 |= MTK_FOE_IB2_WDMA_DEVIDX;
+		l2->vlan2 = FIELD_PREP(MTK_FOE_VLAN2_WINFO_BSS, bss) |
+			    FIELD_PREP(MTK_FOE_VLAN2_WINFO_WCID, wcid) |
+			    FIELD_PREP(MTK_FOE_VLAN2_WINFO_RING, txq);
+	}
 
 	return 0;
 }
@@ -376,14 +404,15 @@ static inline bool mtk_foe_entry_usable(struct mtk_foe_entry *entry)
 }
 
 static bool
-mtk_flow_entry_match(struct mtk_flow_entry *entry, struct mtk_foe_entry *data)
+mtk_flow_entry_match(struct mtk_eth *eth, struct mtk_flow_entry *entry,
+		     struct mtk_foe_entry *data)
 {
 	int type, len;
 
 	if ((data->ib1 ^ entry->data.ib1) & MTK_FOE_IB1_UDP)
 		return false;
 
-	type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->data.ib1);
+	type = mtk_get_ib1_pkt_type(eth, entry->data.ib1);
 	if (type > MTK_PPE_PKT_TYPE_IPV4_DSLITE)
 		len = offsetof(struct mtk_foe_entry, ipv6._rsv);
 	else
@@ -427,14 +456,12 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 
 static int __mtk_foe_entry_idle_time(struct mtk_ppe *ppe, u32 ib1)
 {
-	u16 timestamp;
-	u16 now;
-
-	now = mtk_eth_timestamp(ppe->eth) & MTK_FOE_IB1_BIND_TIMESTAMP;
-	timestamp = ib1 & MTK_FOE_IB1_BIND_TIMESTAMP;
+	u32 ib1_ts_mask = mtk_get_ib1_ts_mask(ppe->eth);
+	u16 now = mtk_eth_timestamp(ppe->eth);
+	u16 timestamp = ib1 & ib1_ts_mask;
 
 	if (timestamp > now)
-		return MTK_FOE_IB1_BIND_TIMESTAMP + 1 - timestamp + now;
+		return ib1_ts_mask + 1 - timestamp + now;
 	else
 		return now - timestamp;
 }
@@ -442,6 +469,7 @@ static int __mtk_foe_entry_idle_time(struct mtk_ppe *ppe, u32 ib1)
 static void
 mtk_flow_entry_update_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 {
+	u32 ib1_ts_mask = mtk_get_ib1_ts_mask(ppe->eth);
 	struct mtk_flow_entry *cur;
 	struct mtk_foe_entry *hwe;
 	struct hlist_node *tmp;
@@ -466,8 +494,8 @@ mtk_flow_entry_update_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 			continue;
 
 		idle = cur_idle;
-		entry->data.ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP;
-		entry->data.ib1 |= hwe->ib1 & MTK_FOE_IB1_BIND_TIMESTAMP;
+		entry->data.ib1 &= ~ib1_ts_mask;
+		entry->data.ib1 |= hwe->ib1 & ib1_ts_mask;
 	}
 }
 
@@ -489,7 +517,7 @@ mtk_flow_entry_update(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 
 	hwe = mtk_foe_get_entry(ppe, entry->hash);
 	memcpy(&foe, hwe, ppe->eth->soc->foe_entry_size);
-	if (!mtk_flow_entry_match(entry, &foe)) {
+	if (!mtk_flow_entry_match(ppe->eth, entry, &foe)) {
 		entry->hash = 0xffff;
 		goto out;
 	}
@@ -504,16 +532,22 @@ static void
 __mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
 		       u16 hash)
 {
+	struct mtk_eth *eth = ppe->eth;
+	u16 timestamp = mtk_eth_timestamp(eth);
 	struct mtk_foe_entry *hwe;
-	u16 timestamp;
 
-	timestamp = mtk_eth_timestamp(ppe->eth);
-	timestamp &= MTK_FOE_IB1_BIND_TIMESTAMP;
-	entry->ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP;
-	entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_TIMESTAMP, timestamp);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		entry->ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP_V2;
+		entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_TIMESTAMP_V2,
+					 timestamp);
+	} else {
+		entry->ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP;
+		entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_TIMESTAMP,
+					 timestamp);
+	}
 
 	hwe = mtk_foe_get_entry(ppe, hash);
-	memcpy(&hwe->data, &entry->data, ppe->eth->soc->foe_entry_size);
+	memcpy(&hwe->data, &entry->data, eth->soc->foe_entry_size);
 	wmb();
 	hwe->ib1 = entry->ib1;
 
@@ -540,8 +574,8 @@ mtk_foe_entry_commit_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 
 int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 {
-	int type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->data.ib1);
 	const struct mtk_soc_data *soc = ppe->eth->soc;
+	int type = mtk_get_ib1_pkt_type(ppe->eth, entry->data.ib1);
 	u32 hash;
 
 	if (type == MTK_PPE_PKT_TYPE_BRIDGE)
@@ -564,7 +598,7 @@ mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 	struct mtk_flow_entry *flow_info;
 	struct mtk_foe_entry foe = {}, *hwe;
 	struct mtk_foe_mac_info *l2;
-	u32 ib1_mask = MTK_FOE_IB1_PACKET_TYPE | MTK_FOE_IB1_UDP;
+	u32 ib1_mask = mtk_get_ib1_pkt_type_mask(ppe->eth) | MTK_FOE_IB1_UDP;
 	int type;
 
 	flow_info = kzalloc(offsetof(struct mtk_flow_entry, l2_data.end),
@@ -584,16 +618,16 @@ mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 	foe.ib1 &= ib1_mask;
 	foe.ib1 |= entry->data.ib1 & ~ib1_mask;
 
-	l2 = mtk_foe_entry_l2(&foe);
+	l2 = mtk_foe_entry_l2(ppe->eth, &foe);
 	memcpy(l2, &entry->data.bridge.l2, sizeof(*l2));
 
-	type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, foe.ib1);
+	type = mtk_get_ib1_pkt_type(ppe->eth, foe.ib1);
 	if (type == MTK_PPE_PKT_TYPE_IPV4_HNAPT)
 		memcpy(&foe.ipv4.new, &foe.ipv4.orig, sizeof(foe.ipv4.new));
 	else if (type >= MTK_PPE_PKT_TYPE_IPV6_ROUTE_3T && l2->etype == ETH_P_IP)
 		l2->etype = ETH_P_IPV6;
 
-	*mtk_foe_entry_ib2(&foe) = entry->data.bridge.ib2;
+	*mtk_foe_entry_ib2(ppe->eth, &foe) = entry->data.bridge.ib2;
 
 	__mtk_foe_entry_commit(ppe, &foe, hash);
 }
@@ -626,7 +660,7 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 			continue;
 		}
 
-		if (found || !mtk_flow_entry_match(entry, hwe)) {
+		if (found || !mtk_flow_entry_match(ppe->eth, entry, hwe)) {
 			if (entry->hash != 0xffff)
 				entry->hash = 0xffff;
 			continue;
@@ -771,6 +805,8 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 			 MTK_PPE_SCAN_MODE_KEEPALIVE_AGE) |
 	      FIELD_PREP(MTK_PPE_TB_CFG_ENTRY_NUM,
 			 MTK_PPE_ENTRIES_SHIFT);
+	if (MTK_HAS_CAPS(ppe->eth->soc->caps, MTK_NETSYS_V2))
+		val |= MTK_PPE_TB_CFG_INFO_SEL;
 	ppe_w32(ppe, MTK_PPE_TB_CFG, val);
 
 	ppe_w32(ppe, MTK_PPE_IP_PROTO_CHK,
@@ -778,15 +814,21 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 
 	mtk_ppe_cache_enable(ppe, true);
 
-	val = MTK_PPE_FLOW_CFG_IP4_TCP_FRAG |
-	      MTK_PPE_FLOW_CFG_IP4_UDP_FRAG |
-	      MTK_PPE_FLOW_CFG_IP6_3T_ROUTE |
+	val = MTK_PPE_FLOW_CFG_IP6_3T_ROUTE |
 	      MTK_PPE_FLOW_CFG_IP6_5T_ROUTE |
 	      MTK_PPE_FLOW_CFG_IP6_6RD |
 	      MTK_PPE_FLOW_CFG_IP4_NAT |
 	      MTK_PPE_FLOW_CFG_IP4_NAPT |
 	      MTK_PPE_FLOW_CFG_IP4_DSLITE |
 	      MTK_PPE_FLOW_CFG_IP4_NAT_FRAG;
+	if (MTK_HAS_CAPS(ppe->eth->soc->caps, MTK_NETSYS_V2))
+		val |= MTK_PPE_MD_TOAP_BYP_CRSN0 |
+		       MTK_PPE_MD_TOAP_BYP_CRSN1 |
+		       MTK_PPE_MD_TOAP_BYP_CRSN2 |
+		       MTK_PPE_FLOW_CFG_IP4_HASH_GRE_KEY;
+	else
+		val |= MTK_PPE_FLOW_CFG_IP4_TCP_FRAG |
+		       MTK_PPE_FLOW_CFG_IP4_UDP_FRAG;
 	ppe_w32(ppe, MTK_PPE_FLOW_CFG, val);
 
 	val = FIELD_PREP(MTK_PPE_UNBIND_AGE_MIN_PACKETS, 1000) |
@@ -820,6 +862,11 @@ void mtk_ppe_start(struct mtk_ppe *ppe)
 	ppe_w32(ppe, MTK_PPE_GLO_CFG, val);
 
 	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT, 0);
+
+	if (MTK_HAS_CAPS(ppe->eth->soc->caps, MTK_NETSYS_V2)) {
+		ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT1, 0xcb777);
+		ppe_w32(ppe, MTK_PPE_SBW_CTRL, 0x7f);
+	}
 }
 
 int mtk_ppe_stop(struct mtk_ppe *ppe)
