@@ -336,19 +336,24 @@ static void serial_omap_stop_rx(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
+static void serial_omap_put_char(struct uart_omap_port *up, unsigned char ch)
+{
+	serial_out(up, UART_TX, ch);
+
+	if ((up->port.rs485.flags & SER_RS485_ENABLED) &&
+			!(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
+		up->rs485_tx_filter_count++;
+}
+
 static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
 	int count;
 
 	if (up->port.x_char) {
-		serial_out(up, UART_TX, up->port.x_char);
+		serial_omap_put_char(up, up->port.x_char);
 		up->port.icount.tx++;
 		up->port.x_char = 0;
-		if ((up->port.rs485.flags & SER_RS485_ENABLED) &&
-		    !(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
-			up->rs485_tx_filter_count++;
-
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
@@ -357,12 +362,9 @@ static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 	}
 	count = up->port.fifosize / 4;
 	do {
-		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
+		serial_omap_put_char(up, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		up->port.icount.tx++;
-		if ((up->port.rs485.flags & SER_RS485_ENABLED) &&
-		    !(up->port.rs485.flags & SER_RS485_RX_DURING_TX))
-			up->rs485_tx_filter_count++;
 
 		if (uart_circ_empty(xmit))
 			break;
