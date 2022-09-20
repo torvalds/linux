@@ -1394,7 +1394,8 @@ struct rtw89_btc_bt_info {
 	u32 pag: 1;
 	u32 run_patch_code: 1;
 	u32 hi_lna_rx: 1;
-	u32 rsvd: 22;
+	u32 scan_rx_low_pri: 1;
+	u32 rsvd: 21;
 };
 
 struct rtw89_btc_cx {
