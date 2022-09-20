@@ -640,7 +640,7 @@ invalid_canary:
  * Looks up smem item and returns pointer to it. Size of smem
  * item is returned in @size.
  */
-void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
+void *qcom_smem_get(unsigned int host, unsigned int item, size_t *size)
 {
 	struct smem_partition *part;
 	unsigned long flags;
