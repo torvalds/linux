@@ -1062,7 +1062,7 @@ struct snd_soc_pcm_runtime {
 	unsigned int params_select; /* currently selected param for dai link */
 
 	/* Dynamic PCM BE runtime data */
-	struct snd_soc_dpcm_runtime dpcm[2];
+	struct snd_soc_dpcm_runtime dpcm[SNDRV_PCM_STREAM_LAST + 1];
 
 	long pmdown_time;
 
