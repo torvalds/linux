@@ -587,7 +587,8 @@ static inline pgprot_t verify_rwx(pgprot_t old, pgprot_t new, unsigned long star
 {
 	unsigned long end;
 
-	if (!cpu_feature_enabled(X86_FEATURE_NX))
+	/* Only enforce when NX is supported: */
+	if (!(__supported_pte_mask & _PAGE_NX))
 		return new;
 
 	if (!((pgprot_val(old) ^ pgprot_val(new)) & (_PAGE_RW | _PAGE_NX)))
