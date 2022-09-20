@@ -7,6 +7,7 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_port.h"
+#include "sparx5_tc.h"
 
 /* The IFH bit position of the first VSTAX bit. This is because the
  * VSTAX bit positions in Data sheet is starting from zero.
@@ -228,6 +229,7 @@ static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_get_stats64        = sparx5_get_stats64,
 	.ndo_get_port_parent_id = sparx5_get_port_parent_id,
 	.ndo_eth_ioctl          = sparx5_port_ioctl,
+	.ndo_setup_tc           = sparx5_port_setup_tc,
 };
 
 bool sparx5_netdevice_check(const struct net_device *dev)
