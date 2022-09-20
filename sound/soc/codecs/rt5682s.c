@@ -2864,15 +2864,10 @@ static inline int rt5682s_dai_probe_clks(struct snd_soc_component *component)
 static int rt5682s_probe(struct snd_soc_component *component)
 {
 	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
-	int ret;
 
 	rt5682s->component = component;
 
-	ret = rt5682s_dai_probe_clks(component);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rt5682s_dai_probe_clks(component);
 }
 
 static void rt5682s_remove(struct snd_soc_component *component)
