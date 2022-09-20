@@ -197,15 +197,18 @@ static bool vec_is_stale(struct aa_profile **vec, int n)
 	return false;
 }
 
-static long union_vec_flags(struct aa_profile **vec, int n, long mask)
+static long accum_vec_flags(struct aa_profile **vec, int n)
 {
-	long u = 0;
+	long u = FLAG_UNCONFINED;
 	int i;
 
 	AA_BUG(!vec);
 
 	for (i = 0; i < n; i++) {
-		u |= vec[i]->label.flags & mask;
+		u |= vec[i]->label.flags & (FLAG_DEBUG1 | FLAG_DEBUG2 |
+					    FLAG_STALE);
+		if (!(u & vec[i]->label.flags & FLAG_UNCONFINED))
+			u &= ~FLAG_UNCONFINED;
 	}
 
 	return u;
@@ -1097,8 +1100,7 @@ static struct aa_label *label_merge_insert(struct aa_label *new,
 		else if (k == b->size)
 			return aa_get_label(b);
 	}
-	new->flags |= union_vec_flags(new->vec, new->size, FLAG_UNCONFINED |
-					      FLAG_DEBUG1 | FLAG_DEBUG2);
+	new->flags |= accum_vec_flags(new->vec, new->size);
 	ls = labels_set(new);
 	write_lock_irqsave(&ls->lock, flags);
 	label = __label_insert(labels_set(new), new, false);
