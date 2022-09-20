@@ -107,7 +107,7 @@ static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_pmdown_time.attr)
 		return attr->mode; /* always visible */
-	return rtd->num_codecs ? attr->mode : 0; /* enabled only with codec */
+	return rtd->dai_link->num_codecs ? attr->mode : 0; /* enabled only with codec */
 }
 
 static const struct attribute_group soc_dapm_dev_group = {
@@ -482,8 +482,6 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 *	asoc_rtd_to_cpu()
 	 *	asoc_rtd_to_codec()
 	 */
-	rtd->num_cpus	= dai_link->num_cpus;
-	rtd->num_codecs	= dai_link->num_codecs;
 	rtd->card	= card;
 	rtd->dai_link	= dai_link;
 	rtd->num	= card->num_rtd++;
