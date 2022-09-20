@@ -658,6 +658,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	unsigned long flags, buffree_flags;
 	u32 diff_time = 1000000;
 	u32 early_time = 0;
+	bool is_free = false;
 
 	if (!buf) {
 		v4l2_err(&cif_dev->v4l2_dev, "buf is NULL\n");
@@ -703,9 +704,10 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		list_add_tail(&dbufs->list, &priv->buf_free_list);
 		spin_unlock_irqrestore(&cif_dev->buffree_lock, buffree_flags);
 		schedule_work(&priv->buffree_work.work);
+		is_free = true;
 	}
 
-	if (!rx_buf->dummy.is_free) {
+	if (!is_free) {
 		list_add_tail(&dbufs->list, &stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->rdbk_debug) {
