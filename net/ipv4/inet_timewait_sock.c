@@ -59,9 +59,7 @@ static void inet_twsk_kill(struct inet_timewait_sock *tw)
 	inet_twsk_bind_unhash(tw, hashinfo);
 	spin_unlock(&bhead->lock);
 
-	if (refcount_dec_and_test(&tw->tw_dr->tw_refcount))
-		kfree(tw->tw_dr);
-
+	refcount_dec(&tw->tw_dr->tw_refcount);
 	inet_twsk_put(tw);
 }
 
