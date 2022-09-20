@@ -646,9 +646,9 @@ get_mod_hdr_table(struct mlx5e_priv *priv, struct mlx5e_tc_flow *flow)
 		&tc->mod_hdr;
 }
 
-static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
-				struct mlx5e_tc_flow *flow,
-				struct mlx5_flow_attr *attr)
+static int mlx5e_tc_attach_mod_hdr(struct mlx5e_priv *priv,
+				   struct mlx5e_tc_flow *flow,
+				   struct mlx5_flow_attr *attr)
 {
 	struct mlx5e_mod_hdr_handle *mh;
 
@@ -665,9 +665,9 @@ static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static void mlx5e_detach_mod_hdr(struct mlx5e_priv *priv,
-				 struct mlx5e_tc_flow *flow,
-				 struct mlx5_flow_attr *attr)
+static void mlx5e_tc_detach_mod_hdr(struct mlx5e_priv *priv,
+				    struct mlx5e_tc_flow *flow,
+				    struct mlx5_flow_attr *attr)
 {
 	/* flow wasn't fully initialized */
 	if (!attr->mh)
@@ -1433,7 +1433,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		err = mlx5e_attach_mod_hdr(priv, flow, attr);
+		err = mlx5e_tc_attach_mod_hdr(priv, flow, attr);
 		if (err)
 			return err;
 	}
@@ -1493,7 +1493,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
-		mlx5e_detach_mod_hdr(priv, flow, attr);
+		mlx5e_tc_detach_mod_hdr(priv, flow, attr);
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
@@ -1928,7 +1928,7 @@ post_process_attr(struct mlx5e_tc_flow *flow,
 			if (err)
 				goto err_out;
 		} else {
-			err = mlx5e_attach_mod_hdr(flow->priv, flow, attr);
+			err = mlx5e_tc_attach_mod_hdr(flow->priv, flow, attr);
 			if (err)
 				goto err_out;
 		}
@@ -2145,7 +2145,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		if (vf_tun && attr->modify_hdr)
 			mlx5_modify_header_dealloc(priv->mdev, attr->modify_hdr);
 		else
-			mlx5e_detach_mod_hdr(priv, flow, attr);
+			mlx5e_tc_detach_mod_hdr(priv, flow, attr);
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
