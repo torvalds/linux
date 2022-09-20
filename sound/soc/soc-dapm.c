@@ -4361,6 +4361,7 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	struct snd_soc_dapm_widget *dai, *codec, *playback_cpu, *capture_cpu;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_str *streams = rtd->pcm->streams;
+	int stream;
 
 	if (dai_link->params) {
 		playback_cpu = cpu_dai->capture_widget;
@@ -4371,37 +4372,39 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	}
 
 	/* connect BE DAI playback if widgets are valid */
+	stream = SNDRV_PCM_STREAM_PLAYBACK;
 	codec = codec_dai->playback_widget;
 
 	if (playback_cpu && codec) {
-		if (dai_link->params && !rtd->playback_widget) {
-			substream = streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+		if (dai_link->params && !rtd->c2c_widget[stream]) {
+			substream = streams[stream].substream;
 			dai = snd_soc_dapm_new_dai(card, substream, "playback");
 			if (IS_ERR(dai))
 				goto capture;
-			rtd->playback_widget = dai;
+			rtd->c2c_widget[stream] = dai;
 		}
 
 		dapm_connect_dai_routes(&card->dapm, cpu_dai, playback_cpu,
-					rtd->playback_widget,
+					rtd->c2c_widget[stream],
 					codec_dai, codec);
 	}
 
 capture:
 	/* connect BE DAI capture if widgets are valid */
+	stream = SNDRV_PCM_STREAM_CAPTURE;
 	codec = codec_dai->capture_widget;
 
 	if (codec && capture_cpu) {
-		if (dai_link->params && !rtd->capture_widget) {
-			substream = streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+		if (dai_link->params && !rtd->c2c_widget[stream]) {
+			substream = streams[stream].substream;
 			dai = snd_soc_dapm_new_dai(card, substream, "capture");
 			if (IS_ERR(dai))
 				return;
-			rtd->capture_widget = dai;
+			rtd->c2c_widget[stream] = dai;
 		}
 
 		dapm_connect_dai_routes(&card->dapm, codec_dai, codec,
-					rtd->capture_widget,
+					rtd->c2c_widget[stream],
 					cpu_dai, capture_cpu);
 	}
 }
