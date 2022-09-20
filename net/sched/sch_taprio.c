@@ -78,8 +78,6 @@ struct taprio_sched {
 	struct sched_gate_list __rcu *admin_sched;
 	struct hrtimer advance_timer;
 	struct list_head taprio_list;
-	struct sk_buff *(*dequeue)(struct Qdisc *sch);
-	struct sk_buff *(*peek)(struct Qdisc *sch);
 	u32 txtime_delay;
 };
 
@@ -434,17 +432,15 @@ static int taprio_enqueue_one(struct sk_buff *skb, struct Qdisc *sch,
 	return qdisc_enqueue(skb, child, to_free);
 }
 
+/* Will not be called in the full offload case, since the TX queues are
+ * attached to the Qdisc created using qdisc_create_dflt()
+ */
 static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			  struct sk_buff **to_free)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct Qdisc *child;
 	int queue;
-
-	if (unlikely(FULL_OFFLOAD_IS_ENABLED(q->flags))) {
-		WARN_ONCE(1, "Trying to enqueue skb into the root of a taprio qdisc configured with full offload\n");
-		return qdisc_drop(skb, sch, to_free);
-	}
 
 	queue = skb_get_queue_mapping(skb);
 
@@ -454,10 +450,10 @@ static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	/* Large packets might not be transmitted when the transmission duration
 	 * exceeds any configured interval. Therefore, segment the skb into
-	 * smaller chunks. Skip it for the full offload case, as the driver
-	 * and/or the hardware is expected to handle this.
+	 * smaller chunks. Drivers with full offload are expected to handle
+	 * this in hardware.
 	 */
-	if (skb_is_gso(skb) && !FULL_OFFLOAD_IS_ENABLED(q->flags)) {
+	if (skb_is_gso(skb)) {
 		unsigned int slen = 0, numsegs = 0, len = qdisc_pkt_len(skb);
 		netdev_features_t features = netif_skb_features(skb);
 		struct sk_buff *segs, *nskb;
@@ -491,7 +487,10 @@ static int taprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return taprio_enqueue_one(skb, sch, child, to_free);
 }
 
-static struct sk_buff *taprio_peek_soft(struct Qdisc *sch)
+/* Will not be called in the full offload case, since the TX queues are
+ * attached to the Qdisc created using qdisc_create_dflt()
+ */
+static struct sk_buff *taprio_peek(struct Qdisc *sch)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
@@ -535,20 +534,6 @@ static struct sk_buff *taprio_peek_soft(struct Qdisc *sch)
 	return NULL;
 }
 
-static struct sk_buff *taprio_peek_offload(struct Qdisc *sch)
-{
-	WARN_ONCE(1, "Trying to peek into the root of a taprio qdisc configured with full offload\n");
-
-	return NULL;
-}
-
-static struct sk_buff *taprio_peek(struct Qdisc *sch)
-{
-	struct taprio_sched *q = qdisc_priv(sch);
-
-	return q->peek(sch);
-}
-
 static void taprio_set_budget(struct taprio_sched *q, struct sched_entry *entry)
 {
 	atomic_set(&entry->budget,
@@ -556,7 +541,10 @@ static void taprio_set_budget(struct taprio_sched *q, struct sched_entry *entry)
 			     atomic64_read(&q->picos_per_byte)));
 }
 
-static struct sk_buff *taprio_dequeue_soft(struct Qdisc *sch)
+/* Will not be called in the full offload case, since the TX queues are
+ * attached to the Qdisc created using qdisc_create_dflt()
+ */
+static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
@@ -642,20 +630,6 @@ done:
 	rcu_read_unlock();
 
 	return skb;
-}
-
-static struct sk_buff *taprio_dequeue_offload(struct Qdisc *sch)
-{
-	WARN_ONCE(1, "Trying to dequeue from the root of a taprio qdisc configured with full offload\n");
-
-	return NULL;
-}
-
-static struct sk_buff *taprio_dequeue(struct Qdisc *sch)
-{
-	struct taprio_sched *q = qdisc_priv(sch);
-
-	return q->dequeue(sch);
 }
 
 static bool should_restart_cycle(const struct sched_gate_list *oper,
@@ -1193,16 +1167,10 @@ static void taprio_offload_config_changed(struct taprio_sched *q)
 {
 	struct sched_gate_list *oper, *admin;
 
-	spin_lock(&q->current_entry_lock);
-
-	oper = rcu_dereference_protected(q->oper_sched,
-					 lockdep_is_held(&q->current_entry_lock));
-	admin = rcu_dereference_protected(q->admin_sched,
-					  lockdep_is_held(&q->current_entry_lock));
+	oper = rtnl_dereference(q->oper_sched);
+	admin = rtnl_dereference(q->admin_sched);
 
 	switch_schedules(q, &admin, &oper);
-
-	spin_unlock(&q->current_entry_lock);
 }
 
 static u32 tc_map_to_queue_mask(struct net_device *dev, u32 tc_mask)
@@ -1490,10 +1458,8 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 	INIT_LIST_HEAD(&new_admin->entries);
 
-	rcu_read_lock();
-	oper = rcu_dereference(q->oper_sched);
-	admin = rcu_dereference(q->admin_sched);
-	rcu_read_unlock();
+	oper = rtnl_dereference(q->oper_sched);
+	admin = rtnl_dereference(q->admin_sched);
 
 	/* no changes - no new mqprio settings */
 	if (!taprio_mqprio_cmp(dev, mqprio))
@@ -1561,17 +1527,6 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	    !hrtimer_active(&q->advance_timer)) {
 		hrtimer_init(&q->advance_timer, q->clockid, HRTIMER_MODE_ABS);
 		q->advance_timer.function = advance_sched;
-	}
-
-	if (FULL_OFFLOAD_IS_ENABLED(q->flags)) {
-		q->dequeue = taprio_dequeue_offload;
-		q->peek = taprio_peek_offload;
-	} else {
-		/* Be sure to always keep the function pointers
-		 * in a consistent state.
-		 */
-		q->dequeue = taprio_dequeue_soft;
-		q->peek = taprio_peek_soft;
 	}
 
 	err = taprio_get_start_time(sch, new_admin, &start);
@@ -1642,6 +1597,7 @@ static void taprio_destroy(struct Qdisc *sch)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
+	struct sched_gate_list *oper, *admin;
 	unsigned int i;
 
 	spin_lock(&taprio_list_lock);
@@ -1665,11 +1621,14 @@ static void taprio_destroy(struct Qdisc *sch)
 
 	netdev_reset_tc(dev);
 
-	if (q->oper_sched)
-		call_rcu(&q->oper_sched->rcu, taprio_free_sched_cb);
+	oper = rtnl_dereference(q->oper_sched);
+	admin = rtnl_dereference(q->admin_sched);
 
-	if (q->admin_sched)
-		call_rcu(&q->admin_sched->rcu, taprio_free_sched_cb);
+	if (oper)
+		call_rcu(&oper->rcu, taprio_free_sched_cb);
+
+	if (admin)
+		call_rcu(&admin->rcu, taprio_free_sched_cb);
 }
 
 static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
@@ -1684,9 +1643,6 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 	hrtimer_init(&q->advance_timer, CLOCK_TAI, HRTIMER_MODE_ABS);
 	q->advance_timer.function = advance_sched;
 
-	q->dequeue = taprio_dequeue_soft;
-	q->peek = taprio_peek_soft;
-
 	q->root = sch;
 
 	/* We only support static clockids. Use an invalid value as default
@@ -1699,11 +1655,15 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 	list_add(&q->taprio_list, &taprio_list);
 	spin_unlock(&taprio_list_lock);
 
-	if (sch->parent != TC_H_ROOT)
+	if (sch->parent != TC_H_ROOT) {
+		NL_SET_ERR_MSG_MOD(extack, "Can only be attached as root qdisc");
 		return -EOPNOTSUPP;
+	}
 
-	if (!netif_is_multiqueue(dev))
+	if (!netif_is_multiqueue(dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Multi-queue device is required");
 		return -EOPNOTSUPP;
+	}
 
 	/* pre-allocate qdisc, attachment can't fail */
 	q->qdiscs = kcalloc(dev->num_tx_queues,
@@ -1884,9 +1844,8 @@ static int taprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct nlattr *nest, *sched_nest;
 	unsigned int i;
 
-	rcu_read_lock();
-	oper = rcu_dereference(q->oper_sched);
-	admin = rcu_dereference(q->admin_sched);
+	oper = rtnl_dereference(q->oper_sched);
+	admin = rtnl_dereference(q->admin_sched);
 
 	opt.num_tc = netdev_get_num_tc(dev);
 	memcpy(opt.prio_tc_map, dev->prio_tc_map, sizeof(opt.prio_tc_map));
@@ -1930,8 +1889,6 @@ static int taprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	nla_nest_end(skb, sched_nest);
 
 done:
-	rcu_read_unlock();
-
 	return nla_nest_end(skb, nest);
 
 admin_error:
@@ -1941,7 +1898,6 @@ options_error:
 	nla_nest_cancel(skb, nest);
 
 start_error:
-	rcu_read_unlock();
 	return -ENOSPC;
 }
 
