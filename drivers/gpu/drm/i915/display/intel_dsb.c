@@ -9,6 +9,36 @@
 #include "i915_drv.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dsb.h"
+
+struct i915_vma;
+
+enum dsb_id {
+	INVALID_DSB = -1,
+	DSB1,
+	DSB2,
+	DSB3,
+	MAX_DSB_PER_PIPE
+};
+
+struct intel_dsb {
+	enum dsb_id id;
+	u32 *cmd_buf;
+	struct i915_vma *vma;
+
+	/*
+	 * free_pos will point the first free entry position
+	 * and help in calculating tail of command buffer.
+	 */
+	int free_pos;
+
+	/*
+	 * ins_start_offset will help to store start address of the dsb
+	 * instuction and help in identifying the batch of auto-increment
+	 * register.
+	 */
+	u32 ins_start_offset;
+};
 
 #define DSB_BUF_SIZE    (2 * PAGE_SIZE)
 

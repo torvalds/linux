@@ -26,6 +26,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
+#include "intel_dsb.h"
 #include "vlv_dsi_pll.h"
 
 struct intel_color_funcs {

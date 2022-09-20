@@ -210,6 +210,12 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
+	mutex_lock(&ifbdev->hpd_lock);
+	ret = ifbdev->hpd_suspended ? -EAGAIN : 0;
+	mutex_unlock(&ifbdev->hpd_lock);
+	if (ret)
+		return ret;
+
 	if (intel_fb &&
 	    (sizes->fb_width > intel_fb->base.width ||
 	     sizes->fb_height > intel_fb->base.height)) {
@@ -573,7 +579,8 @@ void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
 	if (!ifbdev)
 		return;
 
-	cancel_work_sync(&dev_priv->display.fbdev.suspend_work);
+	intel_fbdev_set_suspend(&dev_priv->drm, FBINFO_STATE_SUSPENDED, true);
+
 	if (!current_is_async())
 		intel_fbdev_sync(ifbdev);
 
@@ -618,7 +625,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	struct fb_info *info;
 
 	if (!ifbdev || !ifbdev->vma)
-		return;
+		goto set_suspend;
 
 	info = ifbdev->helper.fbdev;
 
@@ -661,6 +668,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	drm_fb_helper_set_suspend(&ifbdev->helper, state);
 	console_unlock();
 
+set_suspend:
 	intel_fbdev_hpd_set_suspend(dev_priv, state);
 }
 

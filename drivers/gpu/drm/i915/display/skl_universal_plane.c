@@ -14,11 +14,11 @@
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fbc.h"
-#include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
+#include "skl_watermark.h"
 #include "pxp/intel_pxp.h"
 
 static const u32 skl_plane_formats[] = {
@@ -1940,7 +1940,7 @@ static struct intel_fbc *skl_plane_fbc(struct drm_i915_private *dev_priv,
 	enum intel_fbc_id fbc_id = skl_fbc_id_for_pipe(pipe);
 
 	if (skl_plane_has_fbc(dev_priv, fbc_id, plane_id))
-		return dev_priv->fbc[fbc_id];
+		return dev_priv->display.fbc[fbc_id];
 	else
 		return NULL;
 }

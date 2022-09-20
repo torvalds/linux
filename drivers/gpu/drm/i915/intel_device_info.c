@@ -92,21 +92,29 @@ void intel_device_info_print(const struct intel_device_info *info,
 			     const struct intel_runtime_info *runtime,
 			     struct drm_printer *p)
 {
-	if (runtime->graphics.rel)
-		drm_printf(p, "graphics version: %u.%02u\n", runtime->graphics.ver,
-			   runtime->graphics.rel);
+	if (runtime->graphics.ip.rel)
+		drm_printf(p, "graphics version: %u.%02u\n",
+			   runtime->graphics.ip.ver,
+			   runtime->graphics.ip.rel);
 	else
-		drm_printf(p, "graphics version: %u\n", runtime->graphics.ver);
+		drm_printf(p, "graphics version: %u\n",
+			   runtime->graphics.ip.ver);
 
-	if (info->media.rel)
-		drm_printf(p, "media version: %u.%02u\n", info->media.ver, info->media.rel);
+	if (runtime->media.ip.rel)
+		drm_printf(p, "media version: %u.%02u\n",
+			   runtime->media.ip.ver,
+			   runtime->media.ip.rel);
 	else
-		drm_printf(p, "media version: %u\n", info->media.ver);
+		drm_printf(p, "media version: %u\n",
+			   runtime->media.ip.ver);
 
-	if (info->display.rel)
-		drm_printf(p, "display version: %u.%02u\n", info->display.ver, info->display.rel);
+	if (runtime->display.ip.rel)
+		drm_printf(p, "display version: %u.%02u\n",
+			   runtime->display.ip.ver,
+			   runtime->display.ip.rel);
 	else
-		drm_printf(p, "display version: %u\n", info->display.ver);
+		drm_printf(p, "display version: %u\n",
+			   runtime->display.ip.ver);
 
 	drm_printf(p, "gt: %d\n", info->gt);
 	drm_printf(p, "memory-regions: %x\n", runtime->memory_regions);

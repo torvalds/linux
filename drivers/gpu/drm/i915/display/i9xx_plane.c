@@ -125,7 +125,7 @@ static struct intel_fbc *i9xx_plane_fbc(struct drm_i915_private *dev_priv,
 					enum i9xx_plane_id i9xx_plane)
 {
 	if (i9xx_plane_has_fbc(dev_priv, i9xx_plane))
-		return dev_priv->fbc[INTEL_FBC_A];
+		return dev_priv->display.fbc[INTEL_FBC_A];
 	else
 		return NULL;
 }

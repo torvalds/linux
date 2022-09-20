@@ -211,9 +211,9 @@ static void i830_overlay_clock_gating(struct drm_i915_private *dev_priv,
 
 	/* WA_OVERLAY_CLKGATE:alm */
 	if (enable)
-		intel_de_write(dev_priv, DSPCLK_GATE_D, 0);
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), 0);
 	else
-		intel_de_write(dev_priv, DSPCLK_GATE_D,
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv),
 			       OVRUNIT_CLOCK_GATE_DISABLE);
 
 	/* WA_DISABLE_L2CACHE_CLOCK_GATING:alm */

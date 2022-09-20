@@ -19,9 +19,9 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
-#include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "skl_watermark.h"
 
 /* Cursor formats */
 static const u32 intel_cursor_formats[] = {
