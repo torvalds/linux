@@ -990,14 +990,6 @@ static inline int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 }
 #endif
 
-static inline int nvme_ctrl_init_connect_q(struct nvme_ctrl *ctrl)
-{
-	ctrl->connect_q = blk_mq_init_queue(ctrl->tagset);
-	if (IS_ERR(ctrl->connect_q))
-		return PTR_ERR(ctrl->connect_q);
-	return 0;
-}
-
 static inline struct nvme_ns *nvme_get_ns_from_dev(struct device *dev)
 {
 	return dev_to_disk(dev)->private_data;
