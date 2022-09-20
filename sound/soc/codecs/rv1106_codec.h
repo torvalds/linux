@@ -265,9 +265,9 @@
 #define ACODEC_ADC_REF_VOL_MSK			(0x1 << 5)
 #define ACODEC_ADC_REF_VOL_EN			(0x1 << 5)
 #define ACODEC_ADC_REF_VOL_DIS			(0x0 << 5)
-#define ACODEC_ADC_CUR_SRC_MSK			(0x1 << 4)
-#define ACODEC_ADC_CUR_SRC_EN			(0x1 << 4)
-#define ACODEC_ADC_CUR_SRC_DIS			(0x0 << 4)
+#define ACODEC_ADC_IBIAS_MSK			(0x1 << 4)
+#define ACODEC_ADC_IBIAS_EN			(0x1 << 4)
+#define ACODEC_ADC_IBIAS_DIS			(0x0 << 4)
 #define ACODEC_MICBIAS_SFT			3
 #define ACODEC_MICBIAS_MSK			(0x1 << 3)
 #define ACODEC_MICBIAS_WORK			(0x1 << 3)

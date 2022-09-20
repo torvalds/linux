@@ -1370,13 +1370,6 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 				   R(lr, ACODEC_ADC_R_SINGLE_END));
 	}
 
-	regmap_update_bits(rv1106->regmap,
-			   ACODEC_ADC_ANA_CTL3,
-			   L(lr, ACODEC_MIC_L_MSK) |
-			   R(lr, ACODEC_MIC_R_MSK),
-			   L(lr, ACODEC_MIC_L_EN) |
-			   R(lr, ACODEC_MIC_R_EN));
-
 	/* vendor step 2 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
 			   L(lr, ACODEC_ADC_L_MIC_MSK) |
@@ -1386,8 +1379,8 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 
 	/* vendor step 3 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL0,
-			   ACODEC_ADC_CUR_SRC_MSK,
-			   ACODEC_ADC_CUR_SRC_EN);
+			   ACODEC_ADC_IBIAS_MSK,
+			   ACODEC_ADC_IBIAS_EN);
 
 	/* vendor step 4*/
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
@@ -1395,6 +1388,8 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 			   R(lr, ACODEC_ADC_R_REF_VOL_BUF_MSK),
 			   L(lr, ACODEC_ADC_L_REF_VOL_BUF_EN) |
 			   R(lr, ACODEC_ADC_R_REF_VOL_BUF_EN));
+	/* waiting VREF be stable */
+	msleep(100);
 
 	/* vendor step 5 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
@@ -1511,8 +1506,8 @@ static int rv1106_codec_adc_disable(struct rv1106_codec_priv *rv1106)
 
 	/* vendor step 7 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL0,
-			   ACODEC_ADC_CUR_SRC_MSK,
-			   ACODEC_ADC_CUR_SRC_DIS);
+			   ACODEC_ADC_IBIAS_MSK,
+			   ACODEC_ADC_IBIAS_DIS);
 
 	/* vendor step 8 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
