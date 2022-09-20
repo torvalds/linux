@@ -300,6 +300,9 @@ struct dsa_port {
 	u8			master_admin_up:1;
 	u8			master_oper_up:1;
 
+	/* Valid only on user ports */
+	u8			cpu_port_in_lag:1;
+
 	u8			setup:1;
 
 	struct device_node	*dn;
@@ -559,6 +562,10 @@ static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 	list_for_each_entry((_dp), &(_dst)->ports, list) \
 		if (dsa_port_is_user((_dp)))
 
+#define dsa_tree_for_each_user_port_continue_reverse(_dp, _dst) \
+	list_for_each_entry_continue_reverse((_dp), &(_dst)->ports, list) \
+		if (dsa_port_is_user((_dp)))
+
 #define dsa_tree_for_each_cpu_port(_dp, _dst) \
 	list_for_each_entry((_dp), &(_dst)->ports, list) \
 		if (dsa_port_is_cpu((_dp)))
@@ -718,6 +725,14 @@ static inline bool dsa_port_offloads_lag(struct dsa_port *dp,
 	return dsa_port_lag_dev_get(dp) == lag->dev;
 }
 
+static inline struct net_device *dsa_port_to_master(const struct dsa_port *dp)
+{
+	if (dp->cpu_port_in_lag)
+		return dsa_port_lag_dev_get(dp->cpu_dp);
+
+	return dp->cpu_dp->master;
+}
+
 static inline
 struct net_device *dsa_port_to_bridge_port(const struct dsa_port *dp)
 {
@@ -802,6 +817,12 @@ dsa_tree_offloads_bridge_dev(struct dsa_switch_tree *dst,
 	return false;
 }
 
+static inline bool dsa_port_tree_same(const struct dsa_port *a,
+				      const struct dsa_port *b)
+{
+	return a->ds->dst == b->ds->dst;
+}
+
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
 struct dsa_switch_ops {
@@ -824,6 +845,10 @@ struct dsa_switch_ops {
 	 */
 	int	(*connect_tag_protocol)(struct dsa_switch *ds,
 					enum dsa_tag_protocol proto);
+
+	int	(*port_change_master)(struct dsa_switch *ds, int port,
+				      struct net_device *master,
+				      struct netlink_ext_ack *extack);
 
 	/* Optional switch-wide initialization and destruction methods */
 	int	(*setup)(struct dsa_switch *ds);
@@ -1081,7 +1106,8 @@ struct dsa_switch_ops {
 					int port);
 	int	(*crosschip_lag_join)(struct dsa_switch *ds, int sw_index,
 				      int port, struct dsa_lag lag,
-				      struct netdev_lag_upper_info *info);
+				      struct netdev_lag_upper_info *info,
+				      struct netlink_ext_ack *extack);
 	int	(*crosschip_lag_leave)(struct dsa_switch *ds, int sw_index,
 				       int port, struct dsa_lag lag);
 
@@ -1156,7 +1182,8 @@ struct dsa_switch_ops {
 	int	(*port_lag_change)(struct dsa_switch *ds, int port);
 	int	(*port_lag_join)(struct dsa_switch *ds, int port,
 				 struct dsa_lag lag,
-				 struct netdev_lag_upper_info *info);
+				 struct netdev_lag_upper_info *info,
+				 struct netlink_ext_ack *extack);
 	int	(*port_lag_leave)(struct dsa_switch *ds, int port,
 				  struct dsa_lag lag);
 

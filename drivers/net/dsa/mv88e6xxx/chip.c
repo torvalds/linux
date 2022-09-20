@@ -6593,14 +6593,17 @@ out:
 
 static bool mv88e6xxx_lag_can_offload(struct dsa_switch *ds,
 				      struct dsa_lag lag,
-				      struct netdev_lag_upper_info *info)
+				      struct netdev_lag_upper_info *info,
+				      struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct dsa_port *dp;
 	int members = 0;
 
-	if (!mv88e6xxx_has_lag(chip))
+	if (!mv88e6xxx_has_lag(chip)) {
+		NL_SET_ERR_MSG_MOD(extack, "Chip does not support LAG offload");
 		return false;
+	}
 
 	if (!lag.id)
 		return false;
@@ -6609,14 +6612,20 @@ static bool mv88e6xxx_lag_can_offload(struct dsa_switch *ds,
 		/* Includes the port joining the LAG */
 		members++;
 
-	if (members > 8)
+	if (members > 8) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot offload more than 8 LAG ports");
 		return false;
+	}
 
 	/* We could potentially relax this to include active
 	 * backup in the future.
 	 */
-	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH)
+	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can only offload LAG using hash TX type");
 		return false;
+	}
 
 	/* Ideally we would also validate that the hash type matches
 	 * the hardware. Alas, this is always set to unknown on team
@@ -6769,12 +6778,13 @@ static int mv88e6xxx_port_lag_change(struct dsa_switch *ds, int port)
 
 static int mv88e6xxx_port_lag_join(struct dsa_switch *ds, int port,
 				   struct dsa_lag lag,
-				   struct netdev_lag_upper_info *info)
+				   struct netdev_lag_upper_info *info,
+				   struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err, id;
 
-	if (!mv88e6xxx_lag_can_offload(ds, lag, info))
+	if (!mv88e6xxx_lag_can_offload(ds, lag, info, extack))
 		return -EOPNOTSUPP;
 
 	/* DSA LAG IDs are one-based */
@@ -6827,12 +6837,13 @@ static int mv88e6xxx_crosschip_lag_change(struct dsa_switch *ds, int sw_index,
 
 static int mv88e6xxx_crosschip_lag_join(struct dsa_switch *ds, int sw_index,
 					int port, struct dsa_lag lag,
-					struct netdev_lag_upper_info *info)
+					struct netdev_lag_upper_info *info,
+					struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
-	if (!mv88e6xxx_lag_can_offload(ds, lag, info))
+	if (!mv88e6xxx_lag_can_offload(ds, lag, info, extack))
 		return -EOPNOTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
