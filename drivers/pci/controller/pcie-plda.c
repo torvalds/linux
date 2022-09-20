@@ -41,6 +41,7 @@
 #define ISTATUS_MSI			0x194
 #define CFG_SPACE			0x1000
 #define GEN_SETTINGS			0x80
+#define PCIE_WINROM			0xFC
 #define PMSG_SUPPORT_RX			0x3F0
 
 #define PCI_MISC			0xB4
@@ -48,6 +49,7 @@
 #define PLDA_EP_ENABLE			0
 #define PLDA_RP_ENABLE			1
 
+#define PREF_MEM_WIN_64_SUPPORT		BIT(3)
 #define PMSG_LTR_SUPPORT		BIT(2)
 #define PDLA_LINK_SPEED_GEN2		BIT(12)
 #define PLDA_FUNCTION_DIS		BIT(15)
@@ -801,6 +803,11 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	value = readl(pcie->reg_base + PMSG_SUPPORT_RX);
 	value &= ~PMSG_LTR_SUPPORT;
 	writel(value, pcie->reg_base + PMSG_SUPPORT_RX);
+
+	/* Prefetchable memory window 64-bit addressing support */
+	value = readl(pcie->reg_base + PCIE_WINROM);
+	value |= PREF_MEM_WIN_64_SUPPORT;
+	writel(value, pcie->reg_base + PCIE_WINROM);
 
 	/* As the two host bridges in JH7110 soc have the same default
 	 * address translation table, this cause the second root port can't
