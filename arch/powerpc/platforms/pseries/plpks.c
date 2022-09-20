@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <asm/hvcall.h>
+#include <asm/machdep.h>
 
 #include "plpks.h"
 
@@ -457,4 +458,4 @@ static __init int pseries_plpks_init(void)
 
 	return rc;
 }
-arch_initcall(pseries_plpks_init);
+machine_arch_initcall(pseries, pseries_plpks_init);

@@ -1003,9 +1003,6 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 	unsigned msg_flags, cflags;
 	int ret, min_ret = 0;
 
-	if (!(req->flags & REQ_F_POLLED) &&
-	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
-		return -EAGAIN;
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
 		return -ENOTSOCK;
@@ -1029,6 +1026,10 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		}
 		msg.msg_namelen = zc->addr_len;
 	}
+
+	if (!(req->flags & REQ_F_POLLED) &&
+	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
+		return io_setup_async_addr(req, addr, issue_flags);
 
 	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
 		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,
