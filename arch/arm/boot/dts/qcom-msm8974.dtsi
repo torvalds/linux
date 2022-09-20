@@ -1194,7 +1194,7 @@
 			resets = <&gcc GCC_MSS_RESTART>;
 			reset-names = "mss_restart";
 
-			qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
+			qcom,halt-regs = <&tcsr_mutex 0x1180 0x1200 0x1280>;
 
 			qcom,smem-states = <&modem_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
@@ -1233,9 +1233,10 @@
 			};
 		};
 
-		tcsr_mutex_block: syscon@fd484000 {
-			compatible = "syscon";
+		tcsr_mutex: hwlock@fd484000 {
+			compatible = "qcom,msm8974-tcsr-mutex", "qcom,tcsr-mutex", "syscon";
 			reg = <0xfd484000 0x2000>;
+			#hwlock-cells = <1>;
 		};
 
 		tcsr: syscon@fd4a0000 {
@@ -1716,13 +1717,6 @@
 				offset = <0x65c>;
 			};
 		};
-	};
-
-	tcsr_mutex: tcsr-mutex {
-		compatible = "qcom,tcsr-mutex";
-		syscon = <&tcsr_mutex_block 0 0x80>;
-
-		#hwlock-cells = <1>;
 	};
 
 	thermal-zones {
