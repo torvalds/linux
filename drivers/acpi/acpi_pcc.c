@@ -121,7 +121,7 @@ acpi_pcc_address_space_handler(u32 function, acpi_physical_address addr,
 		}
 	}
 
-	mbox_client_txdone(data->pcc_chan->mchan, ret);
+	mbox_chan_txdone(data->pcc_chan->mchan, ret);
 
 	memcpy_fromio(value, data->pcc_comm_addr, data->ctx.length);
 
