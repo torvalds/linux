@@ -18,7 +18,7 @@
 #define RG_DSI_PAD_TIEL_SEL		BIT(8)
 
 #define MIPITX_VOLTAGE_SEL	0x0010
-#define RG_DSI_HSTX_LDO_REF_SEL		(0xf << 6)
+#define RG_DSI_HSTX_LDO_REF_SEL		GENMASK(9, 6)
 
 #define MIPITX_PLL_PWR		0x0028
 #define MIPITX_PLL_CON0		0x002c
@@ -26,7 +26,7 @@
 #define MIPITX_PLL_CON2		0x0034
 #define MIPITX_PLL_CON3		0x0038
 #define MIPITX_PLL_CON4		0x003c
-#define RG_DSI_PLL_IBIAS		(3 << 10)
+#define RG_DSI_PLL_IBIAS		GENMASK(11, 10)
 
 #define MIPITX_D2P_RTCODE	0x0100
 #define MIPITX_D2_SW_CTL_EN	0x0144
@@ -41,7 +41,7 @@
 #define AD_DSI_PLL_SDM_ISO_EN		BIT(1)
 
 #define RG_DSI_PLL_EN			BIT(4)
-#define RG_DSI_PLL_POSDIV		(0x7 << 8)
+#define RG_DSI_PLL_POSDIV		GENMASK(10, 8)
 
 static int mtk_mipi_tx_pll_enable(struct clk_hw *hw)
 {
