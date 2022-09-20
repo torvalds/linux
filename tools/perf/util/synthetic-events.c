@@ -364,15 +364,30 @@ static bool read_proc_maps_line(struct io *io, __u64 *start, __u64 *end,
 }
 
 static void perf_record_mmap2__read_build_id(struct perf_record_mmap2 *event,
+					     struct machine *machine,
 					     bool is_kernel)
 {
 	struct build_id bid;
 	struct nsinfo *nsi;
 	struct nscookie nc;
+	struct dso *dso = NULL;
+	struct dso_id id;
 	int rc;
 
 	if (is_kernel) {
 		rc = sysfs__read_build_id("/sys/kernel/notes", &bid);
+		goto out;
+	}
+
+	id.maj = event->maj;
+	id.min = event->min;
+	id.ino = event->ino;
+	id.ino_generation = event->ino_generation;
+
+	dso = dsos__findnew_id(&machine->dsos, event->filename, &id);
+	if (dso && dso->has_build_id) {
+		bid = dso->bid;
+		rc = 0;
 		goto out;
 	}
 
@@ -391,12 +406,16 @@ out:
 		event->header.misc |= PERF_RECORD_MISC_MMAP_BUILD_ID;
 		event->__reserved_1 = 0;
 		event->__reserved_2 = 0;
+
+		if (dso && !dso->has_build_id)
+			dso__set_build_id(dso, &bid);
 	} else {
 		if (event->filename[0] == '/') {
 			pr_debug2("Failed to read build ID for %s\n",
 				  event->filename);
 		}
 	}
+	dso__put(dso);
 }
 
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
@@ -507,7 +526,7 @@ out:
 		event->mmap2.tid = pid;
 
 		if (symbol_conf.buildid_mmap2)
-			perf_record_mmap2__read_build_id(&event->mmap2, false);
+			perf_record_mmap2__read_build_id(&event->mmap2, machine, false);
 
 		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
@@ -690,7 +709,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 			memcpy(event->mmap2.filename, pos->dso->long_name,
 			       pos->dso->long_name_len + 1);
 
-			perf_record_mmap2__read_build_id(&event->mmap2, false);
+			perf_record_mmap2__read_build_id(&event->mmap2, machine, false);
 		} else {
 			size = PERF_ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
 			event->mmap.header.type = PERF_RECORD_MMAP;
@@ -1126,7 +1145,7 @@ static int __perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		event->mmap2.len   = map->end - event->mmap.start;
 		event->mmap2.pid   = machine->pid;
 
-		perf_record_mmap2__read_build_id(&event->mmap2, true);
+		perf_record_mmap2__read_build_id(&event->mmap2, machine, true);
 	} else {
 		size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),
 				"%s%s", machine->mmap_name, kmap->ref_reloc_sym->name) + 1;
