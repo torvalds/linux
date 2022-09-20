@@ -1447,7 +1447,6 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 
 static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
 	struct sof_ipc4_msg *msg;
 	void *ipc_data = NULL;
@@ -1530,7 +1529,7 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 				swidget->widget->name);
 			return ret;
 		}
-		pipeline = pipe_widget->private;
+
 		msg->primary &= ~SOF_IPC4_MOD_INSTANCE_MASK;
 		msg->primary |= SOF_IPC4_MOD_INSTANCE(swidget->instance_id);
 
