@@ -237,9 +237,30 @@ mtk_wed_set_ext_int(struct mtk_wed_device *dev, bool en)
 }
 
 static void
+mtk_wed_dma_disable(struct mtk_wed_device *dev)
+{
+	wed_clr(dev, MTK_WED_WPDMA_GLO_CFG,
+		MTK_WED_WPDMA_GLO_CFG_TX_DRV_EN |
+		MTK_WED_WPDMA_GLO_CFG_RX_DRV_EN);
+
+	wed_clr(dev, MTK_WED_WDMA_GLO_CFG, MTK_WED_WDMA_GLO_CFG_RX_DRV_EN);
+
+	wed_clr(dev, MTK_WED_GLO_CFG,
+		MTK_WED_GLO_CFG_TX_DMA_EN |
+		MTK_WED_GLO_CFG_RX_DMA_EN);
+
+	regmap_write(dev->hw->mirror, dev->hw->index * 4, 0);
+	wdma_m32(dev, MTK_WDMA_GLO_CFG,
+		 MTK_WDMA_GLO_CFG_TX_DMA_EN |
+		 MTK_WDMA_GLO_CFG_RX_INFO1_PRERES |
+		 MTK_WDMA_GLO_CFG_RX_INFO2_PRERES |
+		 MTK_WDMA_GLO_CFG_RX_INFO3_PRERES, 0);
+}
+
+static void
 mtk_wed_stop(struct mtk_wed_device *dev)
 {
-	regmap_write(dev->hw->mirror, dev->hw->index * 4, 0);
+	mtk_wed_dma_disable(dev);
 	mtk_wed_set_ext_int(dev, false);
 
 	wed_clr(dev, MTK_WED_CTRL,
@@ -252,15 +273,6 @@ mtk_wed_stop(struct mtk_wed_device *dev)
 	wdma_w32(dev, MTK_WDMA_INT_MASK, 0);
 	wdma_w32(dev, MTK_WDMA_INT_GRP2, 0);
 	wed_w32(dev, MTK_WED_WPDMA_INT_MASK, 0);
-
-	wed_clr(dev, MTK_WED_GLO_CFG,
-		MTK_WED_GLO_CFG_TX_DMA_EN |
-		MTK_WED_GLO_CFG_RX_DMA_EN);
-	wed_clr(dev, MTK_WED_WPDMA_GLO_CFG,
-		MTK_WED_WPDMA_GLO_CFG_TX_DRV_EN |
-		MTK_WED_WPDMA_GLO_CFG_RX_DRV_EN);
-	wed_clr(dev, MTK_WED_WDMA_GLO_CFG,
-		MTK_WED_WDMA_GLO_CFG_RX_DRV_EN);
 }
 
 static void
@@ -313,7 +325,10 @@ mtk_wed_hw_init_early(struct mtk_wed_device *dev)
 	      MTK_WED_WDMA_GLO_CFG_IDLE_DMAD_SUPPLY;
 	wed_m32(dev, MTK_WED_WDMA_GLO_CFG, mask, set);
 
-	wdma_set(dev, MTK_WDMA_GLO_CFG, MTK_WDMA_GLO_CFG_RX_INFO_PRERES);
+	wdma_set(dev, MTK_WDMA_GLO_CFG,
+		 MTK_WDMA_GLO_CFG_RX_INFO1_PRERES |
+		 MTK_WDMA_GLO_CFG_RX_INFO2_PRERES |
+		 MTK_WDMA_GLO_CFG_RX_INFO3_PRERES);
 
 	offset = dev->hw->index ? 0x04000400 : 0;
 	wed_w32(dev, MTK_WED_WDMA_OFFSET0, 0x2a042a20 + offset);
@@ -520,43 +535,38 @@ mtk_wed_wdma_ring_setup(struct mtk_wed_device *dev, int idx, int size)
 }
 
 static void
-mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+mtk_wed_configure_irq(struct mtk_wed_device *dev, u32 irq_mask)
 {
-	u32 wdma_mask;
-	u32 val;
-	int i;
+	u32 wdma_mask = FIELD_PREP(MTK_WDMA_INT_MASK_RX_DONE, GENMASK(1, 0));
 
-	for (i = 0; i < ARRAY_SIZE(dev->tx_wdma); i++)
-		if (!dev->tx_wdma[i].desc)
-			mtk_wed_wdma_ring_setup(dev, i, 16);
-
-	wdma_mask = FIELD_PREP(MTK_WDMA_INT_MASK_RX_DONE, GENMASK(1, 0));
-
-	mtk_wed_hw_init(dev);
-
+	/* wed control cr set */
 	wed_set(dev, MTK_WED_CTRL,
 		MTK_WED_CTRL_WDMA_INT_AGENT_EN |
 		MTK_WED_CTRL_WPDMA_INT_AGENT_EN |
 		MTK_WED_CTRL_WED_TX_BM_EN |
 		MTK_WED_CTRL_WED_TX_FREE_AGENT_EN);
 
-	wed_w32(dev, MTK_WED_PCIE_INT_TRIGGER, MTK_WED_PCIE_INT_TRIGGER_STATUS);
+	wed_w32(dev, MTK_WED_PCIE_INT_TRIGGER,
+		MTK_WED_PCIE_INT_TRIGGER_STATUS);
 
 	wed_w32(dev, MTK_WED_WPDMA_INT_TRIGGER,
 		MTK_WED_WPDMA_INT_TRIGGER_RX_DONE |
 		MTK_WED_WPDMA_INT_TRIGGER_TX_DONE);
 
-	wed_set(dev, MTK_WED_WPDMA_INT_CTRL,
-		MTK_WED_WPDMA_INT_CTRL_SUBRT_ADV);
-
+	/* initail wdma interrupt agent */
 	wed_w32(dev, MTK_WED_WDMA_INT_TRIGGER, wdma_mask);
 	wed_clr(dev, MTK_WED_WDMA_INT_CTRL, wdma_mask);
 
 	wdma_w32(dev, MTK_WDMA_INT_MASK, wdma_mask);
 	wdma_w32(dev, MTK_WDMA_INT_GRP2, wdma_mask);
-
 	wed_w32(dev, MTK_WED_WPDMA_INT_MASK, irq_mask);
 	wed_w32(dev, MTK_WED_INT_MASK, irq_mask);
+}
+
+static void
+mtk_wed_dma_enable(struct mtk_wed_device *dev)
+{
+	wed_set(dev, MTK_WED_WPDMA_INT_CTRL, MTK_WED_WPDMA_INT_CTRL_SUBRT_ADV);
 
 	wed_set(dev, MTK_WED_GLO_CFG,
 		MTK_WED_GLO_CFG_TX_DMA_EN |
@@ -566,6 +576,26 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
 		MTK_WED_WPDMA_GLO_CFG_RX_DRV_EN);
 	wed_set(dev, MTK_WED_WDMA_GLO_CFG,
 		MTK_WED_WDMA_GLO_CFG_RX_DRV_EN);
+
+	wdma_set(dev, MTK_WDMA_GLO_CFG,
+		 MTK_WDMA_GLO_CFG_TX_DMA_EN |
+		 MTK_WDMA_GLO_CFG_RX_INFO1_PRERES |
+		 MTK_WDMA_GLO_CFG_RX_INFO2_PRERES |
+		 MTK_WDMA_GLO_CFG_RX_INFO3_PRERES);
+}
+
+static void
+mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+{
+	u32 val;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dev->tx_wdma); i++)
+		if (!dev->tx_wdma[i].desc)
+			mtk_wed_wdma_ring_setup(dev, i, 16);
+
+	mtk_wed_hw_init(dev);
+	mtk_wed_configure_irq(dev, irq_mask);
 
 	mtk_wed_set_ext_int(dev, true);
 	val = dev->wlan.wpdma_phys |
@@ -577,6 +607,7 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
 	val |= BIT(0);
 	regmap_write(dev->hw->mirror, dev->hw->index * 4, val);
 
+	mtk_wed_dma_enable(dev);
 	dev->running = true;
 }
 
