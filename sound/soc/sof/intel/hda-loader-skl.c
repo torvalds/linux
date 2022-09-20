@@ -93,17 +93,14 @@
 
 /* Buffer Descriptor List Lower Base Address */
 #define HDA_CL_SD_BDLPLBA_SHIFT		7
-#define HDA_CL_SD_BDLPLBA_MASK		(0x1ffffff << HDA_CL_SD_BDLPLBA_SHIFT)
+#define HDA_CL_SD_BDLPLBA_MASK		GENMASK(31, 7)
 #define HDA_CL_SD_BDLPLBA(x)		\
 	((BDL_ALIGN(lower_32_bits(x)) << HDA_CL_SD_BDLPLBA_SHIFT) & \
 	 HDA_CL_SD_BDLPLBA_MASK)
 
 /* Buffer Descriptor List Upper Base Address */
-#define HDA_CL_SD_BDLPUBA_SHIFT		0
-#define HDA_CL_SD_BDLPUBA_MASK		(0xffffffff << HDA_CL_SD_BDLPUBA_SHIFT)
 #define HDA_CL_SD_BDLPUBA(x)		\
-		((upper_32_bits(x) << HDA_CL_SD_BDLPUBA_SHIFT) & \
-		 HDA_CL_SD_BDLPUBA_MASK)
+			(upper_32_bits(x))
 
 /* Software Position in Buffer Enable */
 #define HDA_CL_SPBFIFO_SPBFCCTL_SPIBE_SHIFT	0
