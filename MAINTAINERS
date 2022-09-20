@@ -5139,6 +5139,7 @@ M:	Steve French <sfrench@samba.org>
 R:	Paulo Alcantara <pc@cjr.nz> (DFS, global name space)
 R:	Ronnie Sahlberg <lsahlber@redhat.com> (directory leases, sparse files)
 R:	Shyam Prasad N <sprasad@microsoft.com> (multichannel)
+R:	Tom Talpey <tom@talpey.com> (RDMA, smbdirect)
 L:	linux-cifs@vger.kernel.org
 L:	samba-technical@lists.samba.org (moderated for non-subscribers)
 S:	Supported
