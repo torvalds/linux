@@ -5586,7 +5586,21 @@ static ssize_t failslab_show(struct kmem_cache *s, char *buf)
 {
 	return sysfs_emit(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
 }
-SLAB_ATTR_RO(failslab);
+
+static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
+				size_t length)
+{
+	if (s->refcount > 1)
+		return -EINVAL;
+
+	if (buf[0] == '1')
+		WRITE_ONCE(s->flags, s->flags | SLAB_FAILSLAB);
+	else
+		WRITE_ONCE(s->flags, s->flags & ~SLAB_FAILSLAB);
+
+	return length;
+}
+SLAB_ATTR(failslab);
 #endif
 
 static ssize_t shrink_show(struct kmem_cache *s, char *buf)
