@@ -5727,6 +5727,7 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 #define CASE_BTC_ACT_STR(e) case BTC_ACT_ ## e | BTC_ACT_EXT_BIT: return #e
 #define CASE_BTC_POLICY_STR(e) \
 	case BTC_CXP_ ## e | BTC_POLICY_EXT_BIT: return #e
+#define CASE_BTC_SLOT_STR(e) case CXST_ ## e: return #e
 
 static const char *steps_to_str(u16 step)
 {
@@ -5837,6 +5838,32 @@ static const char *steps_to_str(u16 step)
 	CASE_BTC_POLICY_STR(PAUTO2_TDW1B4);
 	default:
 		return "unknown step";
+	}
+}
+
+static const char *id_to_slot(u32 id)
+{
+	switch (id) {
+	CASE_BTC_SLOT_STR(OFF);
+	CASE_BTC_SLOT_STR(B2W);
+	CASE_BTC_SLOT_STR(W1);
+	CASE_BTC_SLOT_STR(W2);
+	CASE_BTC_SLOT_STR(W2B);
+	CASE_BTC_SLOT_STR(B1);
+	CASE_BTC_SLOT_STR(B2);
+	CASE_BTC_SLOT_STR(B3);
+	CASE_BTC_SLOT_STR(B4);
+	CASE_BTC_SLOT_STR(LK);
+	CASE_BTC_SLOT_STR(BLK);
+	CASE_BTC_SLOT_STR(E2G);
+	CASE_BTC_SLOT_STR(E5G);
+	CASE_BTC_SLOT_STR(EBT);
+	CASE_BTC_SLOT_STR(ENULL);
+	CASE_BTC_SLOT_STR(WLK);
+	CASE_BTC_SLOT_STR(W1FDD);
+	CASE_BTC_SLOT_STR(B1FDD);
+	default:
+		return "unknown";
 	}
 }
 
@@ -6239,7 +6266,8 @@ static void _show_fbtc_cysta_v1(struct rtw89_dev *rtwdev, struct seq_file *m)
 		if (!le32_to_cpu(pcysta->slot_cnt[i]))
 			continue;
 
-		seq_printf(m, ", %d:%d", i, le32_to_cpu(pcysta->slot_cnt[i]));
+		seq_printf(m, ", %s:%d", id_to_slot(i),
+			   le32_to_cpu(pcysta->slot_cnt[i]));
 	}
 
 	if (dm->tdma_now.rxflctrl)
