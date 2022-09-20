@@ -41,3 +41,21 @@ smcr_testlink_time - INTEGER
 	disabling TEST_LINK.
 
 	Default: 30 seconds.
+
+wmem - INTEGER
+	Initial size of send buffer used by SMC sockets.
+	The default value inherits from net.ipv4.tcp_wmem[1].
+
+	The minimum value is 16KiB and there is no hard limit for max value, but
+	only allowed 512KiB for SMC-R and 1MiB for SMC-D.
+
+	Default: 16K
+
+rmem - INTEGER
+	Initial size of receive buffer (RMB) used by SMC sockets.
+	The default value inherits from net.ipv4.tcp_rmem[1].
+
+	The minimum value is 16KiB and there is no hard limit for max value, but
+	only allowed 512KiB for SMC-R and 1MiB for SMC-D.
+
+	Default: 128K
