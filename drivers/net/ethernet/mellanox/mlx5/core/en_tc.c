@@ -648,34 +648,34 @@ get_mod_hdr_table(struct mlx5e_priv *priv, struct mlx5e_tc_flow *flow)
 
 static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 				struct mlx5e_tc_flow *flow,
-				struct mlx5e_tc_flow_parse_attr *parse_attr)
+				struct mlx5_flow_attr *attr)
 {
-	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5e_mod_hdr_handle *mh;
 
 	mh = mlx5e_mod_hdr_attach(priv->mdev, get_mod_hdr_table(priv, flow),
 				  mlx5e_get_flow_namespace(flow),
-				  &parse_attr->mod_hdr_acts);
+				  &attr->parse_attr->mod_hdr_acts);
 	if (IS_ERR(mh))
 		return PTR_ERR(mh);
 
-	modify_hdr = mlx5e_mod_hdr_get(mh);
-	flow->attr->modify_hdr = modify_hdr;
-	flow->mh = mh;
+	WARN_ON(attr->modify_hdr);
+	attr->modify_hdr = mlx5e_mod_hdr_get(mh);
+	attr->mh = mh;
 
 	return 0;
 }
 
 static void mlx5e_detach_mod_hdr(struct mlx5e_priv *priv,
-				 struct mlx5e_tc_flow *flow)
+				 struct mlx5e_tc_flow *flow,
+				 struct mlx5_flow_attr *attr)
 {
 	/* flow wasn't fully initialized */
-	if (!flow->mh)
+	if (!attr->mh)
 		return;
 
 	mlx5e_mod_hdr_detach(priv->mdev, get_mod_hdr_table(priv, flow),
-			     flow->mh);
-	flow->mh = NULL;
+			     attr->mh);
+	attr->mh = NULL;
 }
 
 static
@@ -1433,7 +1433,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
-		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
+		err = mlx5e_attach_mod_hdr(priv, flow, attr);
 		if (err)
 			return err;
 	}
@@ -1493,7 +1493,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		mlx5e_mod_hdr_dealloc(&attr->parse_attr->mod_hdr_acts);
-		mlx5e_detach_mod_hdr(priv, flow);
+		mlx5e_detach_mod_hdr(priv, flow, attr);
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
@@ -1604,7 +1604,7 @@ skip_restore:
 		goto err_offload;
 	}
 
-	flow->slow_mh = mh;
+	flow->attr->slow_mh = mh;
 	flow->chain_mapping = chain_mapping;
 	flow_flag_set(flow, SLOW);
 
@@ -1629,6 +1629,7 @@ err_get_chain:
 void mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 				       struct mlx5e_tc_flow *flow)
 {
+	struct mlx5e_mod_hdr_handle *slow_mh = flow->attr->slow_mh;
 	struct mlx5_flow_attr *slow_attr;
 
 	slow_attr = mlx5_alloc_flow_attr(MLX5_FLOW_NAMESPACE_FDB);
@@ -1641,16 +1642,16 @@ void mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	slow_attr->esw_attr->split_count = 0;
 	slow_attr->flags |= MLX5_ATTR_FLAG_SLOW_PATH;
-	if (flow->slow_mh) {
+	if (slow_mh) {
 		slow_attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-		slow_attr->modify_hdr = mlx5e_mod_hdr_get(flow->slow_mh);
+		slow_attr->modify_hdr = mlx5e_mod_hdr_get(slow_mh);
 	}
 	mlx5e_tc_unoffload_fdb_rules(esw, flow, slow_attr);
-	if (flow->slow_mh) {
-		mlx5e_mod_hdr_detach(esw->dev, get_mod_hdr_table(flow->priv, flow), flow->slow_mh);
+	if (slow_mh) {
+		mlx5e_mod_hdr_detach(esw->dev, get_mod_hdr_table(flow->priv, flow), slow_mh);
 		mlx5_chains_put_chain_mapping(esw_chains(esw), flow->chain_mapping);
 		flow->chain_mapping = 0;
-		flow->slow_mh = NULL;
+		flow->attr->slow_mh = NULL;
 	}
 	flow_flag_clear(flow, SLOW);
 	kfree(slow_attr);
@@ -1927,7 +1928,7 @@ post_process_attr(struct mlx5e_tc_flow *flow,
 			if (err)
 				goto err_out;
 		} else {
-			err = mlx5e_attach_mod_hdr(flow->priv, flow, attr->parse_attr);
+			err = mlx5e_attach_mod_hdr(flow->priv, flow, attr);
 			if (err)
 				goto err_out;
 		}
@@ -2144,7 +2145,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		if (vf_tun && attr->modify_hdr)
 			mlx5_modify_header_dealloc(priv->mdev, attr->modify_hdr);
 		else
-			mlx5e_detach_mod_hdr(priv, flow);
+			mlx5e_detach_mod_hdr(priv, flow, attr);
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)

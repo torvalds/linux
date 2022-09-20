@@ -71,6 +71,8 @@ struct mlx5_flow_attr {
 	u32 action;
 	struct mlx5_fc *counter;
 	struct mlx5_modify_hdr *modify_hdr;
+	struct mlx5e_mod_hdr_handle *mh; /* attached mod header instance */
+	struct mlx5e_mod_hdr_handle *slow_mh; /* attached mod header instance for slow path */
 	struct mlx5_ct_attr ct_attr;
 	struct mlx5e_sample_attr sample_attr;
 	struct mlx5e_meter_attr meter_attr;
