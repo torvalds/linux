@@ -295,7 +295,7 @@ static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 		struct request *rq, unsigned int hctx_idx,
 		unsigned int numa_node)
 {
-	struct nvme_rdma_ctrl *ctrl = set->driver_data;
+	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(set->driver_data);
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 	int queue_idx = (set == &ctrl->tag_set) ? hctx_idx + 1 : 0;
 	struct nvme_rdma_queue *queue = &ctrl->queues[queue_idx];
@@ -320,7 +320,7 @@ static int nvme_rdma_init_request(struct blk_mq_tag_set *set,
 static int nvme_rdma_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 		unsigned int hctx_idx)
 {
-	struct nvme_rdma_ctrl *ctrl = data;
+	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(data);
 	struct nvme_rdma_queue *queue = &ctrl->queues[hctx_idx + 1];
 
 	BUG_ON(hctx_idx >= ctrl->ctrl.queue_count);
@@ -332,7 +332,7 @@ static int nvme_rdma_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 static int nvme_rdma_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 		unsigned int hctx_idx)
 {
-	struct nvme_rdma_ctrl *ctrl = data;
+	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(data);
 	struct nvme_rdma_queue *queue = &ctrl->queues[0];
 
 	BUG_ON(hctx_idx != 0);
@@ -801,7 +801,7 @@ static int nvme_rdma_alloc_admin_tag_set(struct nvme_ctrl *nctrl)
 	set->numa_node = nctrl->numa_node;
 	set->cmd_size = sizeof(struct nvme_rdma_request) +
 			NVME_RDMA_DATA_SGL_SIZE;
-	set->driver_data = ctrl;
+	set->driver_data = &ctrl->ctrl;
 	set->nr_hw_queues = 1;
 	set->timeout = NVME_ADMIN_TIMEOUT;
 	set->flags = BLK_MQ_F_NO_SCHED;
@@ -828,7 +828,7 @@ static int nvme_rdma_alloc_tag_set(struct nvme_ctrl *nctrl)
 	if (nctrl->max_integrity_segments)
 		set->cmd_size += sizeof(struct nvme_rdma_sgl) +
 				 NVME_RDMA_METADATA_SGL_SIZE;
-	set->driver_data = ctrl;
+	set->driver_data = &ctrl->ctrl;
 	set->nr_hw_queues = nctrl->queue_count - 1;
 	set->timeout = NVME_IO_TIMEOUT;
 	set->nr_maps = nctrl->opts->nr_poll_queues ? HCTX_MAX_TYPES : 2;
@@ -2206,7 +2206,7 @@ static void nvme_rdma_complete_rq(struct request *rq)
 
 static void nvme_rdma_map_queues(struct blk_mq_tag_set *set)
 {
-	struct nvme_rdma_ctrl *ctrl = set->driver_data;
+	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(set->driver_data);
 	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
 
 	if (opts->nr_write_queues && ctrl->io_queues[HCTX_TYPE_READ]) {
