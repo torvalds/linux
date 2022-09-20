@@ -223,14 +223,16 @@ static void audit_ptrace_cb(struct audit_buffer *ab, void *va)
 
 /* assumes check for RULE_MEDIATES is already done */
 /* TODO: conditionals */
-static int profile_ptrace_perm(struct aa_profile *profile,
-			     struct aa_label *peer, u32 request,
-			     struct apparmor_audit_data *ad)
+static int profile_ptrace_perm(const struct cred *cred,
+			       struct aa_profile *profile,
+			       struct aa_label *peer, u32 request,
+			       struct apparmor_audit_data *ad)
 {
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
 	struct aa_perms perms = { };
 
+	ad->subj_cred = cred;
 	ad->peer = peer;
 	aa_profile_match_label(profile, rules, peer, AA_CLASS_PTRACE, request,
 			       &perms);
@@ -238,7 +240,8 @@ static int profile_ptrace_perm(struct aa_profile *profile,
 	return aa_check_perms(profile, &perms, request, ad, audit_ptrace_cb);
 }
 
-static int profile_tracee_perm(struct aa_profile *tracee,
+static int profile_tracee_perm(const struct cred *cred,
+			       struct aa_profile *tracee,
 			       struct aa_label *tracer, u32 request,
 			       struct apparmor_audit_data *ad)
 {
@@ -246,10 +249,11 @@ static int profile_tracee_perm(struct aa_profile *tracee,
 	    !ANY_RULE_MEDIATES(&tracee->rules, AA_CLASS_PTRACE))
 		return 0;
 
-	return profile_ptrace_perm(tracee, tracer, request, ad);
+	return profile_ptrace_perm(cred, tracee, tracer, request, ad);
 }
 
-static int profile_tracer_perm(struct aa_profile *tracer,
+static int profile_tracer_perm(const struct cred *cred,
+			       struct aa_profile *tracer,
 			       struct aa_label *tracee, u32 request,
 			       struct apparmor_audit_data *ad)
 {
@@ -257,7 +261,7 @@ static int profile_tracer_perm(struct aa_profile *tracer,
 		return 0;
 
 	if (ANY_RULE_MEDIATES(&tracer->rules, AA_CLASS_PTRACE))
-		return profile_ptrace_perm(tracer, tracee, request, ad);
+		return profile_ptrace_perm(cred, tracer, tracee, request, ad);
 
 	/* profile uses the old style capability check for ptrace */
 	if (&tracer->label == tracee)
@@ -266,8 +270,8 @@ static int profile_tracer_perm(struct aa_profile *tracer,
 	ad->subj_label = &tracer->label;
 	ad->peer = tracee;
 	ad->request = 0;
-	ad->error = aa_capable(&tracer->label, CAP_SYS_PTRACE,
-				    CAP_OPT_NONE);
+	ad->error = aa_capable(cred, &tracer->label, CAP_SYS_PTRACE,
+			       CAP_OPT_NONE);
 
 	return aa_audit(AUDIT_APPARMOR_AUTO, tracer, ad, audit_ptrace_cb);
 }
@@ -280,7 +284,8 @@ static int profile_tracer_perm(struct aa_profile *tracer,
  *
  * Returns: %0 else error code if permission denied or error
  */
-int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
+int aa_may_ptrace(const struct cred *tracer_cred, struct aa_label *tracer,
+		  const struct cred *tracee_cred, struct aa_label *tracee,
 		  u32 request)
 {
 	struct aa_profile *profile;
@@ -288,6 +293,8 @@ int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_PTRACE, OP_PTRACE);
 
 	return xcheck_labels(tracer, tracee, profile,
-			profile_tracer_perm(profile, tracee, request, &sa),
-			profile_tracee_perm(profile, tracer, xrequest, &sa));
+			profile_tracer_perm(tracer_cred, profile, tracee,
+					    request, &sa),
+			profile_tracee_perm(tracee_cred, profile, tracer,
+					    xrequest, &sa));
 }

@@ -97,7 +97,8 @@ void audit_net_cb(struct audit_buffer *ab, void *va);
 int aa_profile_af_perm(struct aa_profile *profile,
 		       struct apparmor_audit_data *ad,
 		       u32 request, u16 family, int type);
-int aa_af_perm(struct aa_label *label, const char *op, u32 request, u16 family,
+int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
+	       const char *op, u32 request, u16 family,
 	       int type, int protocol);
 static inline int aa_profile_af_sk_perm(struct aa_profile *profile,
 					struct apparmor_audit_data *ad,
@@ -109,7 +110,8 @@ static inline int aa_profile_af_sk_perm(struct aa_profile *profile,
 }
 int aa_sk_perm(const char *op, u32 request, struct sock *sk);
 
-int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
+int aa_sock_file_perm(const struct cred *subj_cred, struct aa_label *label,
+		      const char *op, u32 request,
 		      struct socket *sock);
 
 int apparmor_secmark_check(struct aa_label *label, char *op, u32 request,

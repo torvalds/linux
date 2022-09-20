@@ -109,6 +109,7 @@ struct apparmor_audit_data {
 	int type;
 	u16 class;
 	const char *op;
+	const struct cred *subj_cred;
 	struct aa_label *subj_label;
 	const char *name;
 	const char *info;

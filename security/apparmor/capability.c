@@ -140,6 +140,7 @@ static int profile_capable(struct aa_profile *profile, int cap,
 
 /**
  * aa_capable - test permission to use capability
+ * @subj_cread: cred we are testing capability against
  * @label: label being tested for capability (NOT NULL)
  * @cap: capability to be tested
  * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
@@ -148,12 +149,14 @@ static int profile_capable(struct aa_profile *profile, int cap,
  *
  * Returns: 0 on success, or else an error code.
  */
-int aa_capable(struct aa_label *label, int cap, unsigned int opts)
+int aa_capable(const struct cred *subj_cred, struct aa_label *label,
+	       int cap, unsigned int opts)
 {
 	struct aa_profile *profile;
 	int error = 0;
 	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_CAP, AA_CLASS_CAP, OP_CAPABLE);
 
+	ad.subj_cred = subj_cred;
 	ad.common.u.cap = cap;
 	error = fn_for_each_confined(label, profile,
 			profile_capable(profile, cap, opts, &ad));

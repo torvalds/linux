@@ -91,7 +91,8 @@ static inline void aa_clear_task_ctx_trans(struct aa_task_ctx *ctx)
 	"segv usr2 pipe alrm term stkflt chld cont stop stp ttin ttou urg " \
 	"xcpu xfsz vtalrm prof winch io pwr sys emt lost"
 
-int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
+int aa_may_ptrace(const struct cred *tracer_cred, struct aa_label *tracer,
+		  const struct cred *tracee_cred, struct aa_label *tracee,
 		  u32 request);
 
 

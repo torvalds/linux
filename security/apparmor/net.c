@@ -135,8 +135,8 @@ int aa_profile_af_perm(struct aa_profile *profile,
 	return aa_check_perms(profile, &perms, request, ad, audit_net_cb);
 }
 
-int aa_af_perm(struct aa_label *label, const char *op, u32 request, u16 family,
-	       int type, int protocol)
+int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
+	       const char *op, u32 request, u16 family, int type, int protocol)
 {
 	struct aa_profile *profile;
 	DEFINE_AUDIT_NET(ad, op, NULL, family, type, protocol);
@@ -146,7 +146,9 @@ int aa_af_perm(struct aa_label *label, const char *op, u32 request, u16 family,
 					   type));
 }
 
-static int aa_label_sk_perm(struct aa_label *label, const char *op, u32 request,
+static int aa_label_sk_perm(const struct cred *subj_cred,
+			    struct aa_label *label,
+			    const char *op, u32 request,
 			    struct sock *sk)
 {
 	struct aa_sk_ctx *ctx = SK_CTX(sk);
@@ -159,6 +161,7 @@ static int aa_label_sk_perm(struct aa_label *label, const char *op, u32 request,
 		struct aa_profile *profile;
 		DEFINE_AUDIT_SK(ad, op, sk);
 
+		ad.subj_cred = subj_cred;
 		error = fn_for_each_confined(label, profile,
 			    aa_profile_af_sk_perm(profile, &ad, request, sk));
 	}
@@ -176,21 +179,21 @@ int aa_sk_perm(const char *op, u32 request, struct sock *sk)
 
 	/* TODO: switch to begin_current_label ???? */
 	label = begin_current_label_crit_section();
-	error = aa_label_sk_perm(label, op, request, sk);
+	error = aa_label_sk_perm(current_cred(), label, op, request, sk);
 	end_current_label_crit_section(label);
 
 	return error;
 }
 
 
-int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
-		      struct socket *sock)
+int aa_sock_file_perm(const struct cred *subj_cred, struct aa_label *label,
+		      const char *op, u32 request, struct socket *sock)
 {
 	AA_BUG(!label);
 	AA_BUG(!sock);
 	AA_BUG(!sock->sk);
 
-	return aa_label_sk_perm(label, op, request, sock->sk);
+	return aa_label_sk_perm(subj_cred, label, op, request, sock->sk);
 }
 
 #ifdef CONFIG_NETWORK_SECMARK
