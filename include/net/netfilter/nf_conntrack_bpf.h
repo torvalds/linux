@@ -3,8 +3,6 @@
 #ifndef _NF_CONNTRACK_BPF_H
 #define _NF_CONNTRACK_BPF_H
 
-#include <linux/bpf.h>
-#include <linux/btf.h>
 #include <linux/kconfig.h>
 #include <linux/mutex.h>
 
@@ -29,16 +27,6 @@ static inline int register_nf_conntrack_bpf(void)
 
 static inline void cleanup_nf_conntrack_bpf(void)
 {
-}
-
-static inline int nf_conntrack_btf_struct_access(struct bpf_verifier_log *log,
-						 const struct btf *btf,
-						 const struct btf_type *t, int off,
-						 int size, enum bpf_access_type atype,
-						 u32 *next_btf_id,
-						 enum bpf_type_flag *flag)
-{
-	return -EACCES;
 }
 
 #endif
