@@ -1344,11 +1344,8 @@ ES18XX_SINGLE("GPO1 Switch", 0, ES18XX_PM, 1, 1, ES18XX_FL_PMPORT),
 
 static int snd_es18xx_config_read(struct snd_es18xx *chip, unsigned char reg)
 {
-	int data;
-
 	outb(reg, chip->ctrl_port);
-	data = inb(chip->ctrl_port + 1);
-	return data;
+	return inb(chip->ctrl_port + 1);
 }
 
 static void snd_es18xx_config_write(struct snd_es18xx *chip,
