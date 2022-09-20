@@ -465,7 +465,7 @@ static int nvme_tcp_init_request(struct blk_mq_tag_set *set,
 		struct request *rq, unsigned int hctx_idx,
 		unsigned int numa_node)
 {
-	struct nvme_tcp_ctrl *ctrl = set->driver_data;
+	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(set->driver_data);
 	struct nvme_tcp_request *req = blk_mq_rq_to_pdu(rq);
 	struct nvme_tcp_cmd_pdu *pdu;
 	int queue_idx = (set == &ctrl->tag_set) ? hctx_idx + 1 : 0;
@@ -489,7 +489,7 @@ static int nvme_tcp_init_request(struct blk_mq_tag_set *set,
 static int nvme_tcp_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 		unsigned int hctx_idx)
 {
-	struct nvme_tcp_ctrl *ctrl = data;
+	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(data);
 	struct nvme_tcp_queue *queue = &ctrl->queues[hctx_idx + 1];
 
 	hctx->driver_data = queue;
@@ -499,7 +499,7 @@ static int nvme_tcp_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 static int nvme_tcp_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 		unsigned int hctx_idx)
 {
-	struct nvme_tcp_ctrl *ctrl = data;
+	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(data);
 	struct nvme_tcp_queue *queue = &ctrl->queues[0];
 
 	hctx->driver_data = queue;
@@ -1700,7 +1700,7 @@ static int nvme_tcp_alloc_admin_tag_set(struct nvme_ctrl *nctrl)
 	set->numa_node = nctrl->numa_node;
 	set->flags = BLK_MQ_F_BLOCKING;
 	set->cmd_size = sizeof(struct nvme_tcp_request);
-	set->driver_data = ctrl;
+	set->driver_data = &ctrl->ctrl;
 	set->nr_hw_queues = 1;
 	set->timeout = NVME_ADMIN_TIMEOUT;
 	ret = blk_mq_alloc_tag_set(set);
@@ -1722,7 +1722,7 @@ static int nvme_tcp_alloc_tag_set(struct nvme_ctrl *nctrl)
 	set->numa_node = nctrl->numa_node;
 	set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
 	set->cmd_size = sizeof(struct nvme_tcp_request);
-	set->driver_data = ctrl;
+	set->driver_data = &ctrl->ctrl;
 	set->nr_hw_queues = nctrl->queue_count - 1;
 	set->timeout = NVME_IO_TIMEOUT;
 	set->nr_maps = nctrl->opts->nr_poll_queues ? HCTX_MAX_TYPES : 2;
@@ -2486,7 +2486,7 @@ static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static void nvme_tcp_map_queues(struct blk_mq_tag_set *set)
 {
-	struct nvme_tcp_ctrl *ctrl = set->driver_data;
+	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(set->driver_data);
 	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
 
 	if (opts->nr_write_queues && ctrl->io_queues[HCTX_TYPE_READ]) {
