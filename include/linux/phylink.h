@@ -21,6 +21,35 @@ enum {
 	MLO_AN_FIXED,	/* Fixed-link mode */
 	MLO_AN_INBAND,	/* In-band protocol */
 
+	/* MAC_SYM_PAUSE and MAC_ASYM_PAUSE are used when configuring our
+	 * autonegotiation advertisement. They correspond to the PAUSE and
+	 * ASM_DIR bits defined by 802.3, respectively.
+	 *
+	 * The following table lists the values of tx_pause and rx_pause which
+	 * might be requested in mac_link_up. The exact values depend on either
+	 * the results of autonegotation (if MLO_PAUSE_AN is set) or user
+	 * configuration (if MLO_PAUSE_AN is not set).
+	 *
+	 * MAC_SYM_PAUSE MAC_ASYM_PAUSE MLO_PAUSE_AN tx_pause/rx_pause
+	 * ============= ============== ============ ==================
+	 *             0              0            0 0/0
+	 *             0              0            1 0/0
+	 *             0              1            0 0/0, 0/1, 1/0, 1/1
+	 *             0              1            1 0/0,      1/0
+	 *             1              0            0 0/0,           1/1
+	 *             1              0            1 0/0,           1/1
+	 *             1              1            0 0/0, 0/1, 1/0, 1/1
+	 *             1              1            1 0/0, 0/1,      1/1
+	 *
+	 * If you set MAC_ASYM_PAUSE, the user may request any combination of
+	 * tx_pause and rx_pause. You do not have to support these
+	 * combinations.
+	 *
+	 * However, you should support combinations of tx_pause and rx_pause
+	 * which might be the result of autonegotation. For example, don't set
+	 * MAC_SYM_PAUSE unless your device can support tx_pause and rx_pause
+	 * at the same time.
+	 */
 	MAC_SYM_PAUSE	= BIT(0),
 	MAC_ASYM_PAUSE	= BIT(1),
 	MAC_10HD	= BIT(2),
