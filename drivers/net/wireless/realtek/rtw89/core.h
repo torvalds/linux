@@ -1308,6 +1308,7 @@ struct rtw89_btc_wl_info {
 	u8 port_id[RTW89_WIFI_ROLE_MLME_MAX];
 	u8 rssi_level;
 
+	bool scbd_change;
 	u32 scbd;
 };
 

@@ -3558,11 +3558,22 @@ static void _set_bt_rx_agc(struct rtw89_dev *rtwdev)
 /* TODO add these functions */
 static void _action_common(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+
 	_set_btg_ctrl(rtwdev);
 	_set_wl_tx_limit(rtwdev);
 	_set_bt_afh_info(rtwdev);
 	_set_bt_rx_agc(rtwdev);
 	_set_rf_trx_para(rtwdev);
+
+	if (wl->scbd_change) {
+		rtw89_mac_cfg_sb(rtwdev, wl->scbd);
+		rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], write scbd: 0x%08x\n",
+			    wl->scbd);
+		wl->scbd_change = false;
+		btc->cx.cnt_wl[BTC_WCNT_SCBDUPDATE]++;
+	}
 }
 
 static void _action_by_bt(struct rtw89_dev *rtwdev)
@@ -3885,20 +3896,20 @@ static void _write_scbd(struct rtw89_dev *rtwdev, u32 val, bool state)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	u32 scbd_val = 0;
+	u8 force_exec = false;
 
 	if (!chip->scbd)
 		return;
 
 	scbd_val = state ? wl->scbd | val : wl->scbd & ~val;
 
-	if (scbd_val == wl->scbd)
-		return;
-	rtw89_mac_cfg_sb(rtwdev, scbd_val);
-	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], write scbd: 0x%08x\n",
-		    scbd_val);
-	wl->scbd = scbd_val;
+	if (val & BTC_WSCB_ACTIVE || val & BTC_WSCB_ON)
+		force_exec = true;
 
-	btc->cx.cnt_wl[BTC_WCNT_SCBDUPDATE]++;
+	if (scbd_val != wl->scbd || force_exec) {
+		wl->scbd = scbd_val;
+		wl->scbd_change = true;
+	}
 }
 
 static u8
