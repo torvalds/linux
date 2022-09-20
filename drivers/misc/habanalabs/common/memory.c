@@ -2109,7 +2109,7 @@ static int hl_ts_alloc_buf(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
 
 	/* Allocate the internal kernel buffer */
 	size = num_elements * sizeof(struct hl_user_pending_interrupt);
-	p = vmalloc(size);
+	p = vzalloc(size);
 	if (!p)
 		goto free_user_buff;
 
