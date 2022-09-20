@@ -16,7 +16,7 @@
 
 	i2c2: i2c@40000200 {
 		compatible = "microchip,corei2c-rtl-v7";
-		reg = <0x0 0x40000200 0x0 0x1000>;
+		reg = <0x0 0x40000200 0x0 0x100>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&fabric_clk3>;
