@@ -272,7 +272,8 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 	req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
 
 	if (nvmet_has_auth(ctrl))
-		nvmet_init_auth(ctrl, req);
+		req->cqe->result.u32 |=
+			cpu_to_le32((u32)NVME_CONNECT_AUTHREQ_ATR << 16);
 out:
 	kfree(d);
 complete:
@@ -333,7 +334,8 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 
 	pr_debug("adding queue %d to ctrl %d.\n", qid, ctrl->cntlid);
 	if (nvmet_has_auth(ctrl))
-		nvmet_init_auth(ctrl, req);
+		req->cqe->result.u32 |=
+			cpu_to_le32((u32)NVME_CONNECT_AUTHREQ_ATR << 16);
 
 out:
 	kfree(d);
