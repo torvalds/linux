@@ -390,6 +390,10 @@ static void meson_drv_unbind(struct device *dev)
 	drm_atomic_helper_shutdown(drm);
 	free_irq(priv->vsync_irq, drm);
 	drm_dev_put(drm);
+
+	meson_encoder_hdmi_remove(priv);
+	meson_encoder_cvbs_remove(priv);
+
 	component_unbind_all(dev, drm);
 
 	if (priv->afbcd.ops)
