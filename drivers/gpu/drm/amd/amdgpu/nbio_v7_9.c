@@ -98,7 +98,7 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 
 	switch (dev_inst % adev->sdma.num_inst_per_aid) {
 	case 0:
-		WREG32(SOC15_REG_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_1) +
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_1,
 			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
@@ -118,7 +118,7 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 			doorbell_ctrl);
 		break;
 	case 1:
-		WREG32(SOC15_REG_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_2) +
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_2,
 			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
@@ -138,7 +138,7 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 			doorbell_ctrl);
 		break;
 	case 2:
-		WREG32(SOC15_REG_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_3) +
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_3,
 			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
@@ -157,7 +157,7 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 			doorbell_ctrl);
 		break;
 	case 3:
-		WREG32(SOC15_REG_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_4) +
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_4,
 			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
@@ -219,7 +219,7 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 				S2A_DOORBELL_ENTRY_1_CTRL,
 				S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE, 0x4);
 
-		WREG32(SOC15_REG_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17) +
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17,
 					aid_id, doorbell_range);
 		WREG32_PCIE_EXT(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_4_CTRL) * 4
 				+ AMDGPU_SMN_TARGET_AID(aid_id)
@@ -233,7 +233,8 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 				S2A_DOORBELL_ENTRY_1_CTRL,
 				S2A_DOORBELL_PORT1_RANGE_SIZE, 0);
 
-		WREG32_SOC15(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17, doorbell_range);
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17,
+					aid_id, doorbell_range);
 		WREG32(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_4_CTRL),
 						doorbell_ctrl);
 	}
