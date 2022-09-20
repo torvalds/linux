@@ -14,17 +14,17 @@
   - auto idle mode support
 */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/input/mt.h>
-#include <linux/of_gpio.h>
 
 /*
  * Mouse Mode: some panel may configure the controller to mouse mode,
@@ -119,32 +119,26 @@ static irqreturn_t egalax_ts_interrupt(int irq, void *dev_id)
 /* wake up controller by an falling edge of interrupt gpio.  */
 static int egalax_wake_up_device(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
-	int gpio;
+	struct gpio_desc *gpio;
 	int ret;
 
-	if (!np)
-		return -ENODEV;
-
-	gpio = of_get_named_gpio(np, "wakeup-gpios", 0);
-	if (!gpio_is_valid(gpio))
-		return -ENODEV;
-
-	ret = gpio_request(gpio, "egalax_irq");
-	if (ret < 0) {
-		dev_err(&client->dev,
-			"request gpio failed, cannot wake up controller: %d\n",
-			ret);
+	/* wake up controller via an falling edge on IRQ gpio. */
+	gpio = gpiod_get(&client->dev, "wakeup", GPIOD_OUT_HIGH);
+	ret = PTR_ERR_OR_ZERO(gpio);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(&client->dev,
+				"failed to request wakeup gpio, cannot wake up controller: %d\n",
+				ret);
 		return ret;
 	}
 
-	/* wake up controller via an falling edge on IRQ gpio. */
-	gpio_direction_output(gpio, 0);
-	gpio_set_value(gpio, 1);
+	/* release the line */
+	gpiod_set_value_cansleep(gpio, 0);
 
-	/* controller should be waken up, return irq.  */
-	gpio_direction_input(gpio);
-	gpio_free(gpio);
+	/* controller should be woken up, return irq.  */
+	gpiod_direction_input(gpio);
+	gpiod_put(gpio);
 
 	return 0;
 }
@@ -185,10 +179,8 @@ static int egalax_ts_probe(struct i2c_client *client,
 
 	/* controller may be in sleep, wake it up. */
 	error = egalax_wake_up_device(client);
-	if (error) {
-		dev_err(&client->dev, "Failed to wake up the controller\n");
+	if (error)
 		return error;
-	}
 
 	error = egalax_firmware_version(client);
 	if (error < 0) {
