@@ -251,15 +251,8 @@ static void basic_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	struct basic_filter *f;
 
 	list_for_each_entry(f, &head->flist, link) {
-		if (arg->count < arg->skip)
-			goto skip;
-
-		if (arg->fn(tp, f, arg) < 0) {
-			arg->stop = 1;
+		if (!tc_cls_stats_dump(tp, arg, f))
 			break;
-		}
-skip:
-		arg->count++;
 	}
 }
 

@@ -566,13 +566,8 @@ static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker,
 		for (i = 0; i < p->hash; i++) {
 			if (!p->perfect[i].res.class)
 				continue;
-			if (walker->count >= walker->skip) {
-				if (walker->fn(tp, p->perfect + i, walker) < 0) {
-					walker->stop = 1;
-					return;
-				}
-			}
-			walker->count++;
+			if (!tc_cls_stats_dump(tp, walker, p->perfect + i))
+				return;
 		}
 	}
 	if (!p->h)
@@ -580,13 +575,8 @@ static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker,
 	for (i = 0; i < p->hash; i++) {
 		for (f = rtnl_dereference(p->h[i]); f; f = next) {
 			next = rtnl_dereference(f->next);
-			if (walker->count >= walker->skip) {
-				if (walker->fn(tp, &f->result, walker) < 0) {
-					walker->stop = 1;
-					return;
-				}
-			}
-			walker->count++;
+			if (!tc_cls_stats_dump(tp, walker, &f->result))
+				return;
 		}
 	}
 }
