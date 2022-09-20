@@ -242,9 +242,13 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 	struct sparx5_port *spx5_port;
 	struct net_device *ndev;
 
-	ndev = devm_alloc_etherdev(sparx5->dev, sizeof(struct sparx5_port));
+	ndev = devm_alloc_etherdev_mqs(sparx5->dev, sizeof(struct sparx5_port),
+				       SPX5_PRIOS, 1);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
+
+	ndev->hw_features |= NETIF_F_HW_TC;
+	ndev->features |= NETIF_F_HW_TC;
 
 	SET_NETDEV_DEV(ndev, sparx5->dev);
 	spx5_port = netdev_priv(ndev);
