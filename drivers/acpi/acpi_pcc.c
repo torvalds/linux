@@ -23,6 +23,12 @@
 
 #include <acpi/pcc.h>
 
+/*
+ * Arbitrary retries in case the remote processor is slow to respond
+ * to PCC commands
+ */
+#define PCC_CMD_WAIT_RETRIES_NUM	500
+
 struct pcc_data {
 	struct pcc_mbox_chan *pcc_chan;
 	void __iomem *pcc_comm_addr;
@@ -89,6 +95,7 @@ acpi_pcc_address_space_handler(u32 function, acpi_physical_address addr,
 {
 	int ret;
 	struct pcc_data *data = region_context;
+	u64 usecs_lat;
 
 	reinit_completion(&data->done);
 
@@ -99,8 +106,20 @@ acpi_pcc_address_space_handler(u32 function, acpi_physical_address addr,
 	if (ret < 0)
 		return AE_ERROR;
 
-	if (data->pcc_chan->mchan->mbox->txdone_irq)
-		wait_for_completion(&data->done);
+	if (data->pcc_chan->mchan->mbox->txdone_irq) {
+		/*
+		 * pcc_chan->latency is just a Nominal value. In reality the remote
+		 * processor could be much slower to reply. So add an arbitrary
+		 * amount of wait on top of Nominal.
+		 */
+		usecs_lat = PCC_CMD_WAIT_RETRIES_NUM * data->pcc_chan->latency;
+		ret = wait_for_completion_timeout(&data->done,
+						  usecs_to_jiffies(usecs_lat));
+		if (ret == 0) {
+			pr_err("PCC command executed timeout!\n");
+			return AE_TIME;
+		}
+	}
 
 	mbox_client_txdone(data->pcc_chan->mchan, ret);
 
