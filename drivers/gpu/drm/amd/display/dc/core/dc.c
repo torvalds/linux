@@ -2946,6 +2946,12 @@ static bool update_planes_and_stream_state(struct dc *dc,
 		dc_resource_state_copy_construct(
 				dc->current_state, context);
 
+		/* For each full update, remove all existing phantom pipes first.
+		 * Ensures that we have enough pipes for newly added MPO planes
+		 */
+		if (dc->res_pool->funcs->remove_phantom_pipes)
+			dc->res_pool->funcs->remove_phantom_pipes(dc, context);
+
 		/*remove old surfaces from context */
 		if (!dc_rem_all_planes_for_stream(dc, stream, context)) {
 
@@ -3353,8 +3359,14 @@ static void commit_planes_for_stream(struct dc *dc,
 		/* Since phantom pipe programming is moved to post_unlock_program_front_end,
 		 * move the SubVP lock to after the phantom pipes have been setup
 		 */
-		if (dc->hwss.subvp_pipe_control_lock)
-			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
+			if (dc->hwss.subvp_pipe_control_lock)
+				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		} else {
+			if (dc->hwss.subvp_pipe_control_lock)
+				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		}
+
 		return;
 	}
 

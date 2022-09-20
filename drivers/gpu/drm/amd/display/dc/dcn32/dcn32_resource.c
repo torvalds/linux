@@ -1680,6 +1680,8 @@ static void dcn32_enable_phantom_plane(struct dc *dc,
 		phantom_plane->clip_rect.y = 0;
 		phantom_plane->clip_rect.height = phantom_stream->timing.v_addressable;
 
+		phantom_plane->is_phantom = true;
+
 		dc_add_plane_to_context(dc, phantom_stream, phantom_plane, context);
 
 		curr_pipe = curr_pipe->bottom_pipe;
@@ -1748,6 +1750,10 @@ bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
 		if (pipe->stream) {
 			pipe->stream->mall_stream_config.type = SUBVP_NONE;
 			pipe->stream->mall_stream_config.paired_stream = NULL;
+		}
+
+		if (pipe->plane_state) {
+			pipe->plane_state->is_phantom = false;
 		}
 	}
 	return removed_pipe;
