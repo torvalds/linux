@@ -355,11 +355,23 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 
 #ifdef CONFIG_PPC64
 
-#define spin_begin()	HMT_low()
+#define spin_begin()							\
+	asm volatile(ASM_FTR_IFCLR(					\
+		"or 1,1,1", /* HMT_LOW */				\
+		"nop", /* v3.1 uses pause_short in cpu_relax instead */	\
+		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
-#define spin_cpu_relax()	barrier()
+#define spin_cpu_relax()						\
+	asm volatile(ASM_FTR_IFCLR(					\
+		"nop", /* Before v3.1 use priority nops in spin_begin/end */ \
+		PPC_WAIT(2, 0),	/* aka pause_short */			\
+		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
-#define spin_end()	HMT_medium()
+#define spin_end()							\
+	asm volatile(ASM_FTR_IFCLR(					\
+		"or 2,2,2", /* HMT_MEDIUM */				\
+		"nop",							\
+		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
 #endif
 
