@@ -4,6 +4,7 @@
  * Author: jitao.shi <jitao.shi@mediatek.com>
  */
 
+#include "phy-mtk-io.h"
 #include "phy-mtk-mipi-dsi.h"
 
 #define MIPITX_DSI_CON		0x00
@@ -121,6 +122,7 @@
 static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 {
 	struct mtk_mipi_tx *mipi_tx = mtk_mipi_tx_from_clk_hw(hw);
+	void __iomem *base = mipi_tx->regs;
 	u8 txdiv, txdiv0, txdiv1;
 	u64 pcw;
 
@@ -150,40 +152,38 @@ static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 		return -EINVAL;
 	}
 
-	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_BG_CON,
-				RG_DSI_VOUT_MSK |
-				RG_DSI_BG_CKEN | RG_DSI_BG_CORE_EN,
-				FIELD_PREP(RG_DSI_V02_SEL, 4) |
-				FIELD_PREP(RG_DSI_V032_SEL, 4) |
-				FIELD_PREP(RG_DSI_V04_SEL, 4) |
-				FIELD_PREP(RG_DSI_V072_SEL, 4) |
-				FIELD_PREP(RG_DSI_V10_SEL, 4) |
-				FIELD_PREP(RG_DSI_V12_SEL, 4) |
-				RG_DSI_BG_CKEN | RG_DSI_BG_CORE_EN);
+	mtk_phy_update_bits(base + MIPITX_DSI_BG_CON,
+			    RG_DSI_VOUT_MSK | RG_DSI_BG_CKEN |
+			    RG_DSI_BG_CORE_EN,
+			    FIELD_PREP(RG_DSI_V02_SEL, 4) |
+			    FIELD_PREP(RG_DSI_V032_SEL, 4) |
+			    FIELD_PREP(RG_DSI_V04_SEL, 4) |
+			    FIELD_PREP(RG_DSI_V072_SEL, 4) |
+			    FIELD_PREP(RG_DSI_V10_SEL, 4) |
+			    FIELD_PREP(RG_DSI_V12_SEL, 4) |
+			    RG_DSI_BG_CKEN | RG_DSI_BG_CORE_EN);
 
 	usleep_range(30, 100);
 
-	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_TOP_CON,
-				RG_DSI_LNT_IMP_CAL_CODE | RG_DSI_LNT_HS_BIAS_EN,
-				FIELD_PREP(RG_DSI_LNT_IMP_CAL_CODE, 8) |
-				RG_DSI_LNT_HS_BIAS_EN);
+	mtk_phy_update_bits(base + MIPITX_DSI_TOP_CON,
+			    RG_DSI_LNT_IMP_CAL_CODE | RG_DSI_LNT_HS_BIAS_EN,
+			    FIELD_PREP(RG_DSI_LNT_IMP_CAL_CODE, 8) |
+			    RG_DSI_LNT_HS_BIAS_EN);
 
-	mtk_mipi_tx_set_bits(mipi_tx, MIPITX_DSI_CON,
-			     RG_DSI_CKG_LDOOUT_EN | RG_DSI_LDOCORE_EN);
+	mtk_phy_set_bits(base + MIPITX_DSI_CON,
+			 RG_DSI_CKG_LDOOUT_EN | RG_DSI_LDOCORE_EN);
 
-	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_PLL_PWR,
-				RG_DSI_MPPLL_SDM_PWR_ON |
-				RG_DSI_MPPLL_SDM_ISO_EN,
-				RG_DSI_MPPLL_SDM_PWR_ON);
+	mtk_phy_update_bits(base + MIPITX_DSI_PLL_PWR,
+			    RG_DSI_MPPLL_SDM_PWR_ON | RG_DSI_MPPLL_SDM_ISO_EN,
+			    RG_DSI_MPPLL_SDM_PWR_ON);
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_PLL_CON0,
-			       RG_DSI_MPPLL_PLL_EN);
+	mtk_phy_clear_bits(base + MIPITX_DSI_PLL_CON0, RG_DSI_MPPLL_PLL_EN);
 
-	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_PLL_CON0,
-				RG_DSI_MPPLL_TXDIV0 | RG_DSI_MPPLL_TXDIV1 |
-				RG_DSI_MPPLL_PREDIV,
-				FIELD_PREP(RG_DSI_MPPLL_TXDIV0, txdiv0) |
-				FIELD_PREP(RG_DSI_MPPLL_TXDIV1, txdiv1));
+	mtk_phy_update_bits(base + MIPITX_DSI_PLL_CON0,
+			    RG_DSI_MPPLL_TXDIV0 | RG_DSI_MPPLL_TXDIV1 |
+			    RG_DSI_MPPLL_PREDIV,
+			    FIELD_PREP(RG_DSI_MPPLL_TXDIV0, txdiv0) |
+			    FIELD_PREP(RG_DSI_MPPLL_TXDIV1, txdiv1));
 
 	/*
 	 * PLL PCW config
@@ -193,23 +193,20 @@ static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 	 * Post DIV =4, so need data_Rate*4
 	 * Ref_clk is 26MHz
 	 */
-	pcw = div_u64(((u64)mipi_tx->data_rate * 2 * txdiv) << 24,
-		      26000000);
-	writel(pcw, mipi_tx->regs + MIPITX_DSI_PLL_CON2);
+	pcw = div_u64(((u64)mipi_tx->data_rate * 2 * txdiv) << 24, 26000000);
+	writel(pcw, base + MIPITX_DSI_PLL_CON2);
 
-	mtk_mipi_tx_set_bits(mipi_tx, MIPITX_DSI_PLL_CON1,
-			     RG_DSI_MPPLL_SDM_FRA_EN);
+	mtk_phy_set_bits(base + MIPITX_DSI_PLL_CON1, RG_DSI_MPPLL_SDM_FRA_EN);
 
-	mtk_mipi_tx_set_bits(mipi_tx, MIPITX_DSI_PLL_CON0, RG_DSI_MPPLL_PLL_EN);
+	mtk_phy_set_bits(base + MIPITX_DSI_PLL_CON0, RG_DSI_MPPLL_PLL_EN);
 
 	usleep_range(20, 100);
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_PLL_CON1,
-			       RG_DSI_MPPLL_SDM_SSC_EN);
+	mtk_phy_clear_bits(base + MIPITX_DSI_PLL_CON1, RG_DSI_MPPLL_SDM_SSC_EN);
 
-	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_PLL_TOP,
-				RG_DSI_MPPLL_PRESERVE,
-				mipi_tx->driver_data->mppll_preserve);
+	mtk_phy_update_field(base + MIPITX_DSI_PLL_TOP,
+			     RG_DSI_MPPLL_PRESERVE,
+			     mipi_tx->driver_data->mppll_preserve);
 
 	return 0;
 }
@@ -217,31 +214,27 @@ static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 static void mtk_mipi_tx_pll_unprepare(struct clk_hw *hw)
 {
 	struct mtk_mipi_tx *mipi_tx = mtk_mipi_tx_from_clk_hw(hw);
+	void __iomem *base = mipi_tx->regs;
 
 	dev_dbg(mipi_tx->dev, "unprepare\n");
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_PLL_CON0,
-			       RG_DSI_MPPLL_PLL_EN);
+	mtk_phy_clear_bits(base + MIPITX_DSI_PLL_CON0, RG_DSI_MPPLL_PLL_EN);
 
-	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_PLL_TOP,
-				RG_DSI_MPPLL_PRESERVE, 0);
+	mtk_phy_clear_bits(base + MIPITX_DSI_PLL_TOP, RG_DSI_MPPLL_PRESERVE);
 
-	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_PLL_PWR,
-				RG_DSI_MPPLL_SDM_ISO_EN |
-				RG_DSI_MPPLL_SDM_PWR_ON,
-				RG_DSI_MPPLL_SDM_ISO_EN);
+	mtk_phy_update_bits(base + MIPITX_DSI_PLL_PWR,
+			    RG_DSI_MPPLL_SDM_ISO_EN | RG_DSI_MPPLL_SDM_PWR_ON,
+			    RG_DSI_MPPLL_SDM_ISO_EN);
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_TOP_CON,
-			       RG_DSI_LNT_HS_BIAS_EN);
+	mtk_phy_clear_bits(base + MIPITX_DSI_TOP_CON, RG_DSI_LNT_HS_BIAS_EN);
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_CON,
-			       RG_DSI_CKG_LDOOUT_EN | RG_DSI_LDOCORE_EN);
+	mtk_phy_clear_bits(base + MIPITX_DSI_CON,
+			   RG_DSI_CKG_LDOOUT_EN | RG_DSI_LDOCORE_EN);
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_BG_CON,
-			       RG_DSI_BG_CKEN | RG_DSI_BG_CORE_EN);
+	mtk_phy_clear_bits(base + MIPITX_DSI_BG_CON,
+			   RG_DSI_BG_CKEN | RG_DSI_BG_CORE_EN);
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_PLL_CON0,
-			       RG_DSI_MPPLL_DIV_MSK);
+	mtk_phy_clear_bits(base + MIPITX_DSI_PLL_CON0, RG_DSI_MPPLL_DIV_MSK);
 }
 
 static long mtk_mipi_tx_pll_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -265,10 +258,10 @@ static void mtk_mipi_tx_power_on_signal(struct phy *phy)
 
 	for (reg = MIPITX_DSI_CLOCK_LANE;
 	     reg <= MIPITX_DSI_DATA_LANE3; reg += 4)
-		mtk_mipi_tx_set_bits(mipi_tx, reg, RG_DSI_LNTx_LDOOUT_EN);
+		mtk_phy_set_bits(mipi_tx->regs + reg, RG_DSI_LNTx_LDOOUT_EN);
 
-	mtk_mipi_tx_clear_bits(mipi_tx, MIPITX_DSI_TOP_CON,
-			       RG_DSI_PAD_TIE_LOW_EN);
+	mtk_phy_clear_bits(mipi_tx->regs + MIPITX_DSI_TOP_CON,
+			   RG_DSI_PAD_TIE_LOW_EN);
 }
 
 static void mtk_mipi_tx_power_off_signal(struct phy *phy)
@@ -276,23 +269,23 @@ static void mtk_mipi_tx_power_off_signal(struct phy *phy)
 	struct mtk_mipi_tx *mipi_tx = phy_get_drvdata(phy);
 	u32 reg;
 
-	mtk_mipi_tx_set_bits(mipi_tx, MIPITX_DSI_TOP_CON,
-			     RG_DSI_PAD_TIE_LOW_EN);
+	mtk_phy_set_bits(mipi_tx->regs + MIPITX_DSI_TOP_CON,
+			 RG_DSI_PAD_TIE_LOW_EN);
 
 	for (reg = MIPITX_DSI_CLOCK_LANE;
 	     reg <= MIPITX_DSI_DATA_LANE3; reg += 4)
-		mtk_mipi_tx_clear_bits(mipi_tx, reg, RG_DSI_LNTx_LDOOUT_EN);
+		mtk_phy_clear_bits(mipi_tx->regs + reg, RG_DSI_LNTx_LDOOUT_EN);
 }
 
 const struct mtk_mipitx_data mt2701_mipitx_data = {
-	.mppll_preserve = (3 << 8),
+	.mppll_preserve = 3,
 	.mipi_tx_clk_ops = &mtk_mipi_tx_pll_ops,
 	.mipi_tx_enable_signal = mtk_mipi_tx_power_on_signal,
 	.mipi_tx_disable_signal = mtk_mipi_tx_power_off_signal,
 };
 
 const struct mtk_mipitx_data mt8173_mipitx_data = {
-	.mppll_preserve = (0 << 8),
+	.mppll_preserve = 0,
 	.mipi_tx_clk_ops = &mtk_mipi_tx_pll_ops,
 	.mipi_tx_enable_signal = mtk_mipi_tx_power_on_signal,
 	.mipi_tx_disable_signal = mtk_mipi_tx_power_off_signal,
