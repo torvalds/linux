@@ -171,6 +171,11 @@ static void rzg2l_mipi_dsi_link_write(struct rzg2l_mipi_dsi *dsi, u32 reg, u32 d
 	iowrite32(data, dsi->mmio + LINK_REG_OFFSET + reg);
 }
 
+static u32 rzg2l_mipi_dsi_phy_read(struct rzg2l_mipi_dsi *dsi, u32 reg)
+{
+	return ioread32(dsi->mmio + reg);
+}
+
 static u32 rzg2l_mipi_dsi_link_read(struct rzg2l_mipi_dsi *dsi, u32 reg)
 {
 	return ioread32(dsi->mmio + LINK_REG_OFFSET + reg);
@@ -180,19 +185,11 @@ static u32 rzg2l_mipi_dsi_link_read(struct rzg2l_mipi_dsi *dsi, u32 reg)
  * Hardware Setup
  */
 
-static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
-				  const struct drm_display_mode *mode)
+static int rzg2l_mipi_dsi_dphy_init(struct rzg2l_mipi_dsi *dsi,
+				    unsigned long hsfreq)
 {
 	const struct rzg2l_mipi_dsi_timings *dphy_timings;
-	unsigned long hsfreq;
-	unsigned int i, bpp;
-	u32 txsetr;
-	u32 clstptsetr;
-	u32 lptrnstsetr;
-	u32 clkkpt;
-	u32 clkbfht;
-	u32 clkstpt;
-	u32 golpbkt;
+	unsigned int i;
 	u32 dphyctrl0;
 	u32 dphytim0;
 	u32 dphytim1;
@@ -200,31 +197,12 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 	u32 dphytim3;
 	int ret;
 
-	/*
-	 * Relationship between hsclk and vclk must follow
-	 * vclk * bpp = hsclk * 8 * lanes
-	 * where vclk: video clock (Hz)
-	 *       bpp: video pixel bit depth
-	 *       hsclk: DSI HS Byte clock frequency (Hz)
-	 *       lanes: number of data lanes
-	 *
-	 * hsclk(bit) = hsclk(byte) * 8
-	 */
-	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
-	hsfreq = (mode->clock * bpp * 8) / (8 * dsi->lanes);
-
 	/* All DSI global operation timings are set with recommended setting */
 	for (i = 0; i < ARRAY_SIZE(rzg2l_mipi_dsi_global_timings); ++i) {
 		dphy_timings = &rzg2l_mipi_dsi_global_timings[i];
 		if (hsfreq <= dphy_timings->hsfreq_max)
 			break;
 	}
-
-	ret = pm_runtime_resume_and_get(dsi->dev);
-	if (ret < 0)
-		return ret;
-
-	clk_set_rate(dsi->vclk, mode->clock * 1000);
 
 	/* Initializing DPHY before accessing LINK */
 	dphyctrl0 = DSIDPHYCTRL0_CAL_EN_HSRX_OFS | DSIDPHYCTRL0_CMN_MASTER_EN |
@@ -259,9 +237,61 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 
 	ret = reset_control_deassert(dsi->rstc);
 	if (ret < 0)
-		goto err_pm_put;
+		return ret;
 
 	udelay(1);
+
+	return 0;
+}
+
+static void rzg2l_mipi_dsi_dphy_exit(struct rzg2l_mipi_dsi *dsi)
+{
+	u32 dphyctrl0;
+
+	dphyctrl0 = rzg2l_mipi_dsi_phy_read(dsi, DSIDPHYCTRL0);
+
+	dphyctrl0 &= ~(DSIDPHYCTRL0_EN_LDO1200 | DSIDPHYCTRL0_EN_BGR);
+	rzg2l_mipi_dsi_phy_write(dsi, DSIDPHYCTRL0, dphyctrl0);
+
+	reset_control_assert(dsi->rstc);
+}
+
+static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
+				  const struct drm_display_mode *mode)
+{
+	unsigned long hsfreq;
+	unsigned int bpp;
+	u32 txsetr;
+	u32 clstptsetr;
+	u32 lptrnstsetr;
+	u32 clkkpt;
+	u32 clkbfht;
+	u32 clkstpt;
+	u32 golpbkt;
+	int ret;
+
+	/*
+	 * Relationship between hsclk and vclk must follow
+	 * vclk * bpp = hsclk * 8 * lanes
+	 * where vclk: video clock (Hz)
+	 *       bpp: video pixel bit depth
+	 *       hsclk: DSI HS Byte clock frequency (Hz)
+	 *       lanes: number of data lanes
+	 *
+	 * hsclk(bit) = hsclk(byte) * 8
+	 */
+	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
+	hsfreq = (mode->clock * bpp * 8) / (8 * dsi->lanes);
+
+	ret = pm_runtime_resume_and_get(dsi->dev);
+	if (ret < 0)
+		return ret;
+
+	clk_set_rate(dsi->vclk, mode->clock * 1000);
+
+	ret = rzg2l_mipi_dsi_dphy_init(dsi, hsfreq);
+	if (ret < 0)
+		goto err_phy;
 
 	/* Enable Data lanes and Clock lanes */
 	txsetr = TXSETR_DLEN | TXSETR_NUMLANEUSE(dsi->lanes - 1) | TXSETR_CLEN;
@@ -301,7 +331,8 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 
 	return 0;
 
-err_pm_put:
+err_phy:
+	rzg2l_mipi_dsi_dphy_exit(dsi);
 	pm_runtime_put(dsi->dev);
 
 	return ret;
@@ -309,7 +340,7 @@ err_pm_put:
 
 static void rzg2l_mipi_dsi_stop(struct rzg2l_mipi_dsi *dsi)
 {
-	reset_control_assert(dsi->rstc);
+	rzg2l_mipi_dsi_dphy_exit(dsi);
 	pm_runtime_put(dsi->dev);
 }
 
@@ -666,7 +697,9 @@ static const struct dev_pm_ops rzg2l_mipi_pm_ops = {
 
 static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 {
+	unsigned int num_data_lanes;
 	struct rzg2l_mipi_dsi *dsi;
+	u32 txsetr;
 	int ret;
 
 	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
@@ -681,7 +714,7 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 		return dev_err_probe(dsi->dev, ret,
 				     "missing or invalid data-lanes property\n");
 
-	dsi->num_data_lanes = ret;
+	num_data_lanes = ret;
 
 	dsi->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dsi->mmio))
@@ -710,6 +743,24 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dsi->dev);
 
+	ret = pm_runtime_resume_and_get(dsi->dev);
+	if (ret < 0)
+		goto err_pm_disable;
+
+	/*
+	 * TXSETR register can be read only after DPHY init. But during probe
+	 * mode->clock and format are not available. So initialize DPHY with
+	 * timing parameters for 80Mbps.
+	 */
+	ret = rzg2l_mipi_dsi_dphy_init(dsi, 80000);
+	if (ret < 0)
+		goto err_phy;
+
+	txsetr = rzg2l_mipi_dsi_link_read(dsi, TXSETR);
+	dsi->num_data_lanes = min(((txsetr >> 16) & 3) + 1, num_data_lanes);
+	rzg2l_mipi_dsi_dphy_exit(dsi);
+	pm_runtime_put(dsi->dev);
+
 	/* Initialize the DRM bridge. */
 	dsi->bridge.funcs = &rzg2l_mipi_dsi_bridge_ops;
 	dsi->bridge.of_node = dsi->dev->of_node;
@@ -723,6 +774,9 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_phy:
+	rzg2l_mipi_dsi_dphy_exit(dsi);
+	pm_runtime_put(dsi->dev);
 err_pm_disable:
 	pm_runtime_disable(dsi->dev);
 	return ret;
