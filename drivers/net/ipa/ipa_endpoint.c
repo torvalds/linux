@@ -182,6 +182,15 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 		return true;	/* Nothing more to check for RX */
 	}
 
+	/* Starting with IPA v4.5 sequencer replication is obsolete */
+	if (ipa->version >= IPA_VERSION_4_5) {
+		if (data->endpoint.config.tx.seq_rep_type) {
+			dev_err(dev, "no-zero seq_rep_type TX endpoint %u\n",
+				data->endpoint_id);
+			return false;
+		}
+	}
+
 	if (data->endpoint.config.status_enable) {
 		other_name = data->endpoint.config.tx.status_endpoint;
 		if (other_name >= count) {
@@ -494,12 +503,12 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 		enum ipa_version version = endpoint->ipa->version;
 
 		if (endpoint->toward_ipa) {
-			u32 checksum_offset;
+			u32 off;
 
 			/* Checksum header offset is in 4-byte units */
-			checksum_offset = sizeof(struct rmnet_map_header);
-			checksum_offset /= sizeof(u32);
-			val |= u32_encode_bits(checksum_offset,
+			off = sizeof(struct rmnet_map_header);
+			off /= sizeof(u32);
+			val |= u32_encode_bits(off,
 					       CS_METADATA_HDR_OFFSET_FMASK);
 
 			enabled = version < IPA_VERSION_4_5
@@ -590,20 +599,20 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 
 		/* Define how to fill fields in a received QMAP header */
 		if (!endpoint->toward_ipa) {
-			u32 offset;	/* Field offset within header */
+			u32 off;	/* Field offset within header */
 
 			/* Where IPA will write the metadata value */
-			offset = offsetof(struct rmnet_map_header, mux_id);
-			val |= ipa_metadata_offset_encoded(version, offset);
+			off = offsetof(struct rmnet_map_header, mux_id);
+			val |= ipa_metadata_offset_encoded(version, off);
 
 			/* Where IPA will write the length */
-			offset = offsetof(struct rmnet_map_header, pkt_len);
+			off = offsetof(struct rmnet_map_header, pkt_len);
 			/* Upper bits are stored in HDR_EXT with IPA v4.5 */
 			if (version >= IPA_VERSION_4_5)
-				offset &= field_mask(HDR_OFST_PKT_SIZE_FMASK);
+				off &= field_mask(HDR_OFST_PKT_SIZE_FMASK);
 
 			val |= HDR_OFST_PKT_SIZE_VALID_FMASK;
-			val |= u32_encode_bits(offset, HDR_OFST_PKT_SIZE_FMASK);
+			val |= u32_encode_bits(off, HDR_OFST_PKT_SIZE_FMASK);
 		}
 		/* For QMAP TX, metadata offset is 0 (modem assumes this) */
 		val |= HDR_OFST_METADATA_VALID_FMASK;
@@ -653,11 +662,11 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	if (ipa->version >= IPA_VERSION_4_5) {
 		/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0, so MSB is 0 */
 		if (endpoint->config.qmap && !endpoint->toward_ipa) {
-			u32 offset;
+			u32 off;
 
-			offset = offsetof(struct rmnet_map_header, pkt_len);
-			offset >>= hweight32(HDR_OFST_PKT_SIZE_FMASK);
-			val |= u32_encode_bits(offset,
+			off = offsetof(struct rmnet_map_header, pkt_len);
+			off >>= hweight32(HDR_OFST_PKT_SIZE_FMASK);
+			val |= u32_encode_bits(off,
 					       HDR_OFST_PKT_SIZE_MSB_FMASK);
 			/* HDR_ADDITIONAL_CONST_LEN is 0 so MSB is 0 */
 		}
@@ -995,9 +1004,10 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	/* Low-order byte configures primary packet processing */
 	val |= u32_encode_bits(endpoint->config.tx.seq_type, SEQ_TYPE_FMASK);
 
-	/* Second byte configures replicated packet processing */
-	val |= u32_encode_bits(endpoint->config.tx.seq_rep_type,
-			       SEQ_REP_TYPE_FMASK);
+	/* Second byte (if supported) configures replicated packet processing */
+	if (endpoint->ipa->version < IPA_VERSION_4_5)
+		val |= u32_encode_bits(endpoint->config.tx.seq_rep_type,
+				       SEQ_REP_TYPE_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }

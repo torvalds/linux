@@ -31,14 +31,6 @@ struct gsi_trans;
 struct gsi_channel_data;
 struct ipa_gsi_endpoint_data;
 
-/* Execution environment IDs */
-enum gsi_ee_id {
-	GSI_EE_AP				= 0x0,
-	GSI_EE_MODEM				= 0x1,
-	GSI_EE_UC				= 0x2,
-	GSI_EE_TZ				= 0x3,
-};
-
 struct gsi_ring {
 	void *virt;			/* ring array base address */
 	dma_addr_t addr;		/* primarily low 32 bits used */

@@ -616,27 +616,6 @@ static void ipa_validate_build(void)
 			field_max(AGGR_GRANULARITY_FMASK));
 }
 
-static bool ipa_version_valid(enum ipa_version version)
-{
-	switch (version) {
-	case IPA_VERSION_3_0:
-	case IPA_VERSION_3_1:
-	case IPA_VERSION_3_5:
-	case IPA_VERSION_3_5_1:
-	case IPA_VERSION_4_0:
-	case IPA_VERSION_4_1:
-	case IPA_VERSION_4_2:
-	case IPA_VERSION_4_5:
-	case IPA_VERSION_4_7:
-	case IPA_VERSION_4_9:
-	case IPA_VERSION_4_11:
-		return true;
-
-	default:
-		return false;
-	}
-}
-
 /**
  * ipa_probe() - IPA platform driver probe function
  * @pdev:	Platform device pointer
@@ -678,8 +657,8 @@ static int ipa_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!ipa_version_valid(data->version)) {
-		dev_err(dev, "invalid IPA version\n");
+	if (!ipa_version_supported(data->version)) {
+		dev_err(dev, "unsupported IPA version %u\n", data->version);
 		return -EINVAL;
 	}
 
