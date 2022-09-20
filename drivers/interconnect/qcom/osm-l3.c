@@ -217,7 +217,9 @@ static int qcom_osm_l3_remove(struct platform_device *pdev)
 	struct qcom_osm_l3_icc_provider *qp = platform_get_drvdata(pdev);
 
 	icc_nodes_remove(&qp->provider);
-	return icc_provider_del(&qp->provider);
+	icc_provider_del(&qp->provider);
+
+	return 0;
 }
 
 static int qcom_osm_l3_probe(struct platform_device *pdev)
