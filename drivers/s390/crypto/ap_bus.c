@@ -201,6 +201,18 @@ static inline int ap_qact_available(void)
 }
 
 /*
+ * ap_sb_available(): Test if the AP secure binding facility is available.
+ *
+ * Returns 1 if secure binding facility is available.
+ */
+int ap_sb_available(void)
+{
+	if (ap_qci_info)
+		return ap_qci_info->apsb;
+	return 0;
+}
+
+/*
  * ap_fetch_qci_info(): Fetch cryptographic config info
  *
  * Returns the ap configuration info fetched via PQAP(QCI).
@@ -248,13 +260,13 @@ static void __init ap_init_qci_info(void)
 	AP_DBF_INFO("%s successful fetched initial qci info\n", __func__);
 
 	if (ap_qci_info->apxa) {
-		if (ap_qci_info->Na) {
-			ap_max_adapter_id = ap_qci_info->Na;
+		if (ap_qci_info->na) {
+			ap_max_adapter_id = ap_qci_info->na;
 			AP_DBF_INFO("%s new ap_max_adapter_id is %d\n",
 				    __func__, ap_max_adapter_id);
 		}
-		if (ap_qci_info->Nd) {
-			ap_max_domain_id = ap_qci_info->Nd;
+		if (ap_qci_info->nd) {
+			ap_max_domain_id = ap_qci_info->nd;
 			AP_DBF_INFO("%s new ap_max_domain_id is %d\n",
 				    __func__, ap_max_domain_id);
 		}

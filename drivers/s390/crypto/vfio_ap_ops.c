@@ -599,9 +599,9 @@ out_unlock:
 static void vfio_ap_matrix_init(struct ap_config_info *info,
 				struct ap_matrix *matrix)
 {
-	matrix->apm_max = info->apxa ? info->Na : 63;
-	matrix->aqm_max = info->apxa ? info->Nd : 15;
-	matrix->adm_max = info->apxa ? info->Nd : 15;
+	matrix->apm_max = info->apxa ? info->na : 63;
+	matrix->aqm_max = info->apxa ? info->nd : 15;
+	matrix->adm_max = info->apxa ? info->nd : 15;
 }
 
 static void vfio_ap_mdev_update_guest_apcb(struct ap_matrix_mdev *matrix_mdev)

@@ -180,15 +180,16 @@ struct ap_config_info {
 	unsigned int apxa	 : 1;	/* N bit */
 	unsigned int qact	 : 1;	/* C bit */
 	unsigned int rc8a	 : 1;	/* R bit */
-	unsigned char _reserved1 : 4;
-	unsigned char _reserved2[3];
-	unsigned char Na;		/* max # of APs - 1 */
-	unsigned char Nd;		/* max # of Domains - 1 */
-	unsigned char _reserved3[10];
+	unsigned int		 : 4;
+	unsigned int apsb	 : 1;	/* B bit */
+	unsigned int		 : 23;
+	unsigned char na;		/* max # of APs - 1 */
+	unsigned char nd;		/* max # of Domains - 1 */
+	unsigned char _reserved0[10];
 	unsigned int apm[8];		/* AP ID mask */
 	unsigned int aqm[8];		/* AP (usage) queue mask */
 	unsigned int adm[8];		/* AP (control) domain mask */
-	unsigned char _reserved4[16];
+	unsigned char _reserved1[16];
 } __aligned(8);
 
 /**
