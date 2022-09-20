@@ -4397,11 +4397,9 @@ static int read_exp_features_info(struct sock *sk, struct hci_dev *hdev,
 
 	/* Enough space for 7 features */
 	len = sizeof(*rp) + (sizeof(rp->features[0]) * 7);
-	rp = kmalloc(len, GFP_KERNEL);
+	rp = kzalloc(len, GFP_KERNEL);
 	if (!rp)
 		return -ENOMEM;
-
-	memset(rp, 0, len);
 
 #ifdef CONFIG_BT_FEATURE_DEBUG
 	if (!hdev) {
