@@ -1028,8 +1028,11 @@ static void ip6mr_cache_resolve(struct net *net, struct mr_table *mrt,
 				((struct nlmsgerr *)nlmsg_data(nlh))->error = -EMSGSIZE;
 			}
 			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
-		} else
+		} else {
+			rcu_read_lock();
 			ip6_mr_forward(net, mrt, skb->dev, skb, c);
+			rcu_read_unlock();
+		}
 	}
 }
 
