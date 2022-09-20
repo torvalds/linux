@@ -881,6 +881,7 @@
   extcon_get_edev_name
   extcon_get_extcon_dev
   extcon_get_property
+  extcon_get_property_capability
   extcon_get_state
   extcon_register_notifier
   extcon_set_state_sync
