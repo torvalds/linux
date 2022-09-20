@@ -672,23 +672,31 @@ out:
 
 int kvm_s390_pci_init(void)
 {
+	zpci_kvm_hook.kvm_register = kvm_s390_pci_register_kvm;
+	zpci_kvm_hook.kvm_unregister = kvm_s390_pci_unregister_kvm;
+
+	if (!kvm_s390_pci_interp_allowed())
+		return 0;
+
 	aift = kzalloc(sizeof(struct zpci_aift), GFP_KERNEL);
 	if (!aift)
 		return -ENOMEM;
 
 	spin_lock_init(&aift->gait_lock);
 	mutex_init(&aift->aift_lock);
-	zpci_kvm_hook.kvm_register = kvm_s390_pci_register_kvm;
-	zpci_kvm_hook.kvm_unregister = kvm_s390_pci_unregister_kvm;
 
 	return 0;
 }
 
 void kvm_s390_pci_exit(void)
 {
-	mutex_destroy(&aift->aift_lock);
 	zpci_kvm_hook.kvm_register = NULL;
 	zpci_kvm_hook.kvm_unregister = NULL;
+
+	if (!kvm_s390_pci_interp_allowed())
+		return;
+
+	mutex_destroy(&aift->aift_lock);
 
 	kfree(aift);
 }
