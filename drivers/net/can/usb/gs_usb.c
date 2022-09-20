@@ -386,8 +386,7 @@ static inline int gs_usb_get_timestamp(const struct gs_can *dev,
 	__le32 timestamp;
 	int rc;
 
-	rc = usb_control_msg_recv(interface_to_usbdev(dev->iface),
-				  usb_sndctrlpipe(interface_to_usbdev(dev->iface), 0),
+	rc = usb_control_msg_recv(interface_to_usbdev(dev->iface), 0,
 				  GS_USB_BREQ_TIMESTAMP,
 				  USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 				  dev->channel, 0,
