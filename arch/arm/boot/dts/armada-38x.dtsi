@@ -296,6 +296,11 @@
 						       "mpp52", "mpp53";
 					marvell,function = "audio";
 				};
+
+				spdif_pins: spdif-pins {
+					marvell,pins = "mpp51";
+					marvell,function = "audio";
+				};
 			};
 
 			gpio0: gpio@18100 {
