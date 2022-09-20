@@ -3944,6 +3944,7 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev)
 
 static int mtk_probe(struct platform_device *pdev)
 {
+	struct resource *res = NULL;
 	struct device_node *mac_np;
 	struct mtk_eth *eth;
 	int err, i;
@@ -4024,16 +4025,31 @@ static int mtk_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (i = 0;; i++) {
-		struct device_node *np = of_parse_phandle(pdev->dev.of_node,
-							  "mediatek,wed", i);
-		void __iomem *wdma;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -EINVAL;
+	}
 
-		if (!np || i >= ARRAY_SIZE(eth->soc->reg_map->wdma_base))
-			break;
+	if (eth->soc->offload_version) {
+		for (i = 0;; i++) {
+			struct device_node *np;
+			phys_addr_t wdma_phy;
+			u32 wdma_base;
 
-		wdma = eth->base + eth->soc->reg_map->wdma_base[i];
-		mtk_wed_add_hw(np, eth, wdma, i);
+			if (i >= ARRAY_SIZE(eth->soc->reg_map->wdma_base))
+				break;
+
+			np = of_parse_phandle(pdev->dev.of_node,
+					      "mediatek,wed", i);
+			if (!np)
+				break;
+
+			wdma_base = eth->soc->reg_map->wdma_base[i];
+			wdma_phy = res ? res->start + wdma_base : 0;
+			mtk_wed_add_hw(np, eth, eth->base + wdma_base,
+				       wdma_phy, i);
+		}
 	}
 
 	for (i = 0; i < 3; i++) {
