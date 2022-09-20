@@ -40,8 +40,13 @@ properties:
               - renesas,etheravb-r8a77980     # R-Car V3H
               - renesas,etheravb-r8a77990     # R-Car E3
               - renesas,etheravb-r8a77995     # R-Car D3
-              - renesas,etheravb-r8a779a0     # R-Car V3U
           - const: renesas,etheravb-rcar-gen3 # R-Car Gen3 and RZ/G2
+
+      - items:
+          - enum:
+              - renesas,etheravb-r8a779a0     # R-Car V3U
+              - renesas,etheravb-r8a779g0     # R-Car V4H
+          - const: renesas,etheravb-rcar-gen4 # R-Car Gen4
 
       - items:
           - enum:
@@ -207,7 +212,7 @@ allOf:
               - renesas,etheravb-r8a77965
               - renesas,etheravb-r8a77970
               - renesas,etheravb-r8a77980
-              - renesas,etheravb-r8a779a0
+              - renesas,etheravb-rcar-gen4
     then:
       required:
         - tx-internal-delay-ps
