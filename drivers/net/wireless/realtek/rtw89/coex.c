@@ -9,6 +9,7 @@
 #include "ps.h"
 #include "reg.h"
 
+#define RTW89_COEX_VERSION 0x06030013
 #define FCXDEF_STEP 50 /* MUST <= FCXMAX_STEP and match with wl fw*/
 
 enum btc_fbtc_tdma_template {
@@ -5495,10 +5496,10 @@ static void _show_cx_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	seq_printf(m, "========== [BTC COEX INFO (%d)] ==========\n",
 		   chip->chip_id);
 
-	ver_main = FIELD_GET(GENMASK(31, 24), chip->para_ver);
-	ver_sub = FIELD_GET(GENMASK(23, 16), chip->para_ver);
-	ver_hotfix = FIELD_GET(GENMASK(15, 8), chip->para_ver);
-	id_branch = FIELD_GET(GENMASK(7, 0), chip->para_ver);
+	ver_main = FIELD_GET(GENMASK(31, 24), RTW89_COEX_VERSION);
+	ver_sub = FIELD_GET(GENMASK(23, 16), RTW89_COEX_VERSION);
+	ver_hotfix = FIELD_GET(GENMASK(15, 8), RTW89_COEX_VERSION);
+	id_branch = FIELD_GET(GENMASK(7, 0), RTW89_COEX_VERSION);
 	seq_printf(m, " %-15s : Coex:%d.%d.%d(branch:%d), ",
 		   "[coex_version]", ver_main, ver_sub, ver_hotfix, id_branch);
 
