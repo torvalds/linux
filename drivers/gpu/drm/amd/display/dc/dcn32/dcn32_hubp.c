@@ -79,6 +79,8 @@ void hubp32_phantom_hubp_post_enable(struct hubp *hubp)
 	uint32_t reg_val;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
+	/* For phantom pipe enable, disable GSL */
+	REG_UPDATE(DCSURF_FLIP_CONTROL2, SURFACE_GSL_ENABLE, 0);
 	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, 1);
 	reg_val = REG_READ(DCHUBP_CNTL);
 	if (reg_val) {
