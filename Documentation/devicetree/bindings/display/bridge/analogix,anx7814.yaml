@@ -8,7 +8,7 @@ title: Analogix ANX7814 SlimPort (Full-HD Transmitter)
 
 maintainers:
   - Andrzej Hajda <andrzej.hajda@intel.com>
-  - Neil Armstrong <narmstrong@baylibre.com>
+  - Neil Armstrong <neil.armstrong@linaro.org>
   - Robert Foss <robert.foss@linaro.org>
 
 properties:

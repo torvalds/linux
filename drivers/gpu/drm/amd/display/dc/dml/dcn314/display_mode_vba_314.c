@@ -61,7 +61,7 @@
 // fudge factor for min dcfclk calclation
 #define __DML_MIN_DCFCLK_FACTOR__   1.15
 
-struct {
+typedef struct {
 	double DPPCLK;
 	double DISPCLK;
 	double PixelClock;
@@ -1599,7 +1599,7 @@ static void CalculateDCCConfiguration(
 	int segment_order_vert_contiguous_luma;
 	int segment_order_vert_contiguous_chroma;
 
-	enum {
+	typedef enum {
 		REQ_256Bytes, REQ_128BytesNonContiguous, REQ_128BytesContiguous, REQ_NA
 	} RequestType;
 	RequestType RequestLuma;
@@ -4071,9 +4071,7 @@ void dml314_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 
 	v->SourceFormatPixelAndScanSupport = true;
 	for (k = 0; k < v->NumberOfActivePlanes; k++) {
-		if ((v->SurfaceTiling[k] == dm_sw_linear && (!(v->SourceScan[k] != dm_vert) || v->DCCEnable[k] == true))
-				|| ((v->SurfaceTiling[k] == dm_sw_64kb_d || v->SurfaceTiling[k] == dm_sw_64kb_d_t
-						|| v->SurfaceTiling[k] == dm_sw_64kb_d_x) && !(v->SourcePixelFormat[k] == dm_444_64))) {
+		if (v->SurfaceTiling[k] == dm_sw_linear && (!(v->SourceScan[k] != dm_vert) || v->DCCEnable[k] == true)) {
 			v->SourceFormatPixelAndScanSupport = false;
 		}
 	}
@@ -7157,12 +7155,13 @@ static double CalculateExtraLatencyBytes(
 			HostVMDynamicLevels = dml_max(0, (int) HostVMMaxNonCachedPageTableLevels - 1);
 		else
 			HostVMDynamicLevels = dml_max(0, (int) HostVMMaxNonCachedPageTableLevels - 2);
-	else
+	} else {
 		HostVMDynamicLevels = 0;
+	}
 
 	ret = ReorderingBytes + (TotalNumberOfActiveDPP * PixelChunkSizeInKByte + TotalNumberOfDCCActiveDPP * MetaChunkSize) * 1024.0;
 
-	if (GPUVMEnable == true)
+	if (GPUVMEnable == true) {
 		for (k = 0; k < NumberOfActivePlanes; ++k)
 			ret = ret + NumberOfDPP[k] * dpte_group_bytes[k] * (1 + 8 * HostVMDynamicLevels) * HostVMInefficiencyFactor;
 	}
