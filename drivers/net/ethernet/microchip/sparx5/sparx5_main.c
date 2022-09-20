@@ -27,6 +27,7 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_port.h"
+#include "sparx5_qos.h"
 
 #define QLIM_WM(fraction) \
 	((SPX5_BUFFER_MEMORY / SPX5_BUFFER_CELL_SZ - 100) * (fraction) / 100)
@@ -865,6 +866,12 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	err = sparx5_start(sparx5);
 	if (err) {
 		dev_err(sparx5->dev, "Start failed\n");
+		goto cleanup_ports;
+	}
+
+	err = sparx5_qos_init(sparx5);
+	if (err) {
+		dev_err(sparx5->dev, "Failed to initialize QoS\n");
 		goto cleanup_ports;
 	}
 
