@@ -247,6 +247,7 @@ struct mtk_flow_entry {
 	};
 	u8 type;
 	s8 wed_index;
+	u8 ppe_index;
 	u16 hash;
 	union {
 		struct mtk_foe_entry data;
@@ -265,6 +266,7 @@ struct mtk_ppe {
 	struct device *dev;
 	void __iomem *base;
 	int version;
+	char dirname[5];
 
 	struct mtk_foe_entry *foe_table;
 	dma_addr_t foe_phys;
@@ -277,8 +279,9 @@ struct mtk_ppe {
 	void *acct_table;
 };
 
-struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version);
-int mtk_ppe_start(struct mtk_ppe *ppe);
+struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
+			     int version, int index);
+void mtk_ppe_start(struct mtk_ppe *ppe);
 int mtk_ppe_stop(struct mtk_ppe *ppe);
 
 void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash);
@@ -320,6 +323,6 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
 int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
-int mtk_ppe_debugfs_init(struct mtk_ppe *ppe);
+int mtk_ppe_debugfs_init(struct mtk_ppe *ppe, int index);
 
 #endif

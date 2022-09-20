@@ -682,7 +682,7 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 }
 
 struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
-		 int version)
+			     int version, int index)
 {
 	const struct mtk_soc_data *soc = eth->soc;
 	struct device *dev = eth->dev;
@@ -717,7 +717,7 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
 	if (!ppe->foe_flow)
 		return NULL;
 
-	mtk_ppe_debugfs_init(ppe);
+	mtk_ppe_debugfs_init(ppe, index);
 
 	return ppe;
 }
@@ -738,9 +738,12 @@ static void mtk_ppe_init_foe_table(struct mtk_ppe *ppe)
 			ppe->foe_table[i + skip[k]].ib1 |= MTK_FOE_IB1_STATIC;
 }
 
-int mtk_ppe_start(struct mtk_ppe *ppe)
+void mtk_ppe_start(struct mtk_ppe *ppe)
 {
 	u32 val;
+
+	if (!ppe)
+		return;
 
 	mtk_ppe_init_foe_table(ppe);
 	ppe_w32(ppe, MTK_PPE_TB_BASE, ppe->foe_phys);
@@ -809,14 +812,15 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
 	ppe_w32(ppe, MTK_PPE_GLO_CFG, val);
 
 	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT, 0);
-
-	return 0;
 }
 
 int mtk_ppe_stop(struct mtk_ppe *ppe)
 {
 	u32 val;
 	int i;
+
+	if (!ppe)
+		return 0;
 
 	for (i = 0; i < MTK_PPE_ENTRIES; i++)
 		ppe->foe_table[i].ib1 = FIELD_PREP(MTK_FOE_IB1_STATE,
