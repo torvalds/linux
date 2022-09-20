@@ -177,7 +177,7 @@ static u16 nvmet_auth_reply(struct nvmet_req *req, void *d)
 	return 0;
 }
 
-static u16 nvmet_auth_failure2(struct nvmet_req *req, void *d)
+static u16 nvmet_auth_failure2(void *d)
 {
 	struct nvmf_auth_dhchap_failure_data *data = d;
 
@@ -229,10 +229,8 @@ void nvmet_execute_auth_send(struct nvmet_req *req)
 	}
 
 	status = nvmet_copy_from_sgl(req, 0, d, tl);
-	if (status) {
-		kfree(d);
-		goto done;
-	}
+	if (status)
+		goto done_kfree;
 
 	data = d;
 	pr_debug("%s: ctrl %d qid %d type %d id %d step %x\n", __func__,
@@ -310,7 +308,7 @@ void nvmet_execute_auth_send(struct nvmet_req *req)
 		goto done_kfree;
 		break;
 	case NVME_AUTH_DHCHAP_MESSAGE_FAILURE2:
-		status = nvmet_auth_failure2(req, d);
+		status = nvmet_auth_failure2(d);
 		if (status) {
 			pr_warn("ctrl %d qid %d: authentication failed (%d)\n",
 				ctrl->cntlid, req->sq->qid, status);
