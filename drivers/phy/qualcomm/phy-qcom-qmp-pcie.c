@@ -1877,8 +1877,9 @@ static int qmp_pcie_serdes_init(struct qmp_phy *qphy)
 	return 0;
 }
 
-static int qmp_pcie_com_init(struct qmp_phy *qphy)
+static int qmp_pcie_init(struct phy *phy)
 {
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
 	void __iomem *pcs = qphy->pcs;
@@ -1925,8 +1926,9 @@ err_disable_regulators:
 	return ret;
 }
 
-static int qmp_pcie_com_exit(struct qmp_phy *qphy)
+static int qmp_pcie_exit(struct phy *phy)
 {
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
 
@@ -1935,20 +1937,6 @@ static int qmp_pcie_com_exit(struct qmp_phy *qphy)
 	clk_bulk_disable_unprepare(cfg->num_clks, qmp->clks);
 
 	regulator_bulk_disable(cfg->num_vregs, qmp->vregs);
-
-	return 0;
-}
-
-static int qmp_pcie_init(struct phy *phy)
-{
-	struct qmp_phy *qphy = phy_get_drvdata(phy);
-	struct qcom_qmp *qmp = qphy->qmp;
-	int ret;
-	dev_vdbg(qmp->dev, "Initializing QMP phy\n");
-
-	ret = qmp_pcie_com_init(qphy);
-	if (ret)
-		return ret;
 
 	return 0;
 }
@@ -2056,15 +2044,6 @@ static int qmp_pcie_power_off(struct phy *phy)
 		qphy_clrbits(qphy->pcs, QPHY_V2_PCS_POWER_DOWN_CONTROL,
 				cfg->pwrdn_ctrl);
 	}
-
-	return 0;
-}
-
-static int qmp_pcie_exit(struct phy *phy)
-{
-	struct qmp_phy *qphy = phy_get_drvdata(phy);
-
-	qmp_pcie_com_exit(qphy);
 
 	return 0;
 }
