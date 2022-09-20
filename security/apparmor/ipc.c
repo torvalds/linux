@@ -75,7 +75,8 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 			FLAGS_NONE, GFP_ATOMIC);
 }
 
-static int profile_signal_perm(struct aa_profile *profile,
+static int profile_signal_perm(const struct cred *cred,
+			       struct aa_profile *profile,
 			       struct aa_label *peer, u32 request,
 			       struct apparmor_audit_data *ad)
 {
@@ -88,6 +89,7 @@ static int profile_signal_perm(struct aa_profile *profile,
 	    !ANY_RULE_MEDIATES(&profile->rules, AA_CLASS_SIGNAL))
 		return 0;
 
+	ad->subj_cred = cred;
 	ad->peer = peer;
 	/* TODO: secondary cache check <profile, profile, perm> */
 	state = aa_dfa_next(rules->policy.dfa,
@@ -98,7 +100,9 @@ static int profile_signal_perm(struct aa_profile *profile,
 	return aa_check_perms(profile, &perms, request, ad, audit_signal_cb);
 }
 
-int aa_may_signal(struct aa_label *sender, struct aa_label *target, int sig)
+int aa_may_signal(const struct cred *subj_cred, struct aa_label *sender,
+		  const struct cred *target_cred, struct aa_label *target,
+		  int sig)
 {
 	struct aa_profile *profile;
 	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_SIGNAL, OP_SIGNAL);
@@ -106,6 +110,8 @@ int aa_may_signal(struct aa_label *sender, struct aa_label *target, int sig)
 	ad.signal = map_signal_num(sig);
 	ad.unmappedsig = sig;
 	return xcheck_labels(sender, target, profile,
-			profile_signal_perm(profile, target, MAY_WRITE, &ad),
-			profile_signal_perm(profile, sender, MAY_READ, &ad));
+			     profile_signal_perm(subj_cred, profile, target,
+						 MAY_WRITE, &ad),
+			     profile_signal_perm(target_cred, profile, sender,
+						 MAY_READ, &ad));
 }
