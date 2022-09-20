@@ -7,8 +7,8 @@
 
 / {
 	reserved-memory {
-		mmc_ecsd: mmc@3fe00 {
-			reg = <0x3fe00 0x00000800>;
+		mmc_ecsd: mmc@3f000 {
+			reg = <0x3f000 0x00001000>;
 		};
 
 		mmc_idmac: mmc@100000 {
