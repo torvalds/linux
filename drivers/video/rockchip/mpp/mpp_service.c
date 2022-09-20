@@ -39,6 +39,7 @@
 #define HAS_RKVDEC2	IS_ENABLED(CONFIG_ROCKCHIP_MPP_RKVDEC2)
 #define HAS_RKVENC2	IS_ENABLED(CONFIG_ROCKCHIP_MPP_RKVENC2)
 #define HAS_AV1DEC	IS_ENABLED(CONFIG_ROCKCHIP_MPP_AV1DEC)
+#define HAS_VDPP	IS_ENABLED(CONFIG_ROCKCHIP_MPP_VDPP)
 
 #define MPP_REGISTER_DRIVER(srv, flag, X, x) {\
 	if (flag)\
@@ -433,6 +434,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 	MPP_REGISTER_DRIVER(srv, HAS_RKVDEC2, RKVDEC2, rkvdec2);
 	MPP_REGISTER_DRIVER(srv, HAS_RKVENC2, RKVENC2, rkvenc2);
 	MPP_REGISTER_DRIVER(srv, HAS_AV1DEC, AV1DEC, av1dec);
+	MPP_REGISTER_DRIVER(srv, HAS_VDPP, VDPP, vdpp);
 
 	dev_info(dev, "probe success\n");
 

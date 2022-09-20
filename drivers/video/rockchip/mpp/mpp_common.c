@@ -77,6 +77,7 @@ const char *mpp_device_name[MPP_DEVICE_BUTT] = {
 	[MPP_DEVICE_VEPU2_JPEG]		= "VEPU2",
 	[MPP_DEVICE_VEPU22]		= "VEPU22",
 	[MPP_DEVICE_IEP2]		= "IEP2",
+	[MPP_DEVICE_VDPP]		= "VDPP",
 };
 
 const char *enc_info_item_name[ENC_INFO_BUTT] = {
@@ -2178,7 +2179,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		if (mpp->hw_ops->clk_on)
 			mpp->hw_ops->clk_on(mpp);
 
-		hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
+		hw_info->hw_id = mpp_read(mpp, hw_info->reg_id * sizeof(u32));
 		if (mpp->hw_ops->clk_off)
 			mpp->hw_ops->clk_off(mpp);
 		pm_runtime_put_sync(dev);
