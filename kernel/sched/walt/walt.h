@@ -1075,7 +1075,6 @@ extern void walt_cfs_deactivate_mvp_task(struct rq *rq, struct task_struct *p);
 enum WALT_DEBUG_FEAT {
 	WALT_BUG_UPSTREAM,
 	WALT_BUG_WALT,
-	WALT_BUG_NONCRITICAL,
 	WALT_BUG_UNUSED,
 
 	/* maximum 4 entries allowed */
