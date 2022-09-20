@@ -1687,51 +1687,6 @@ static int nvme_tcp_start_queue(struct nvme_ctrl *nctrl, int idx)
 	return ret;
 }
 
-static int nvme_tcp_alloc_admin_tag_set(struct nvme_ctrl *nctrl)
-{
-	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(nctrl);
-	struct blk_mq_tag_set *set = &ctrl->admin_tag_set;
-	int ret;
-
-	memset(set, 0, sizeof(*set));
-	set->ops = &nvme_tcp_admin_mq_ops;
-	set->queue_depth = NVME_AQ_MQ_TAG_DEPTH;
-	set->reserved_tags = NVMF_RESERVED_TAGS;
-	set->numa_node = nctrl->numa_node;
-	set->flags = BLK_MQ_F_BLOCKING;
-	set->cmd_size = sizeof(struct nvme_tcp_request);
-	set->driver_data = &ctrl->ctrl;
-	set->nr_hw_queues = 1;
-	set->timeout = NVME_ADMIN_TIMEOUT;
-	ret = blk_mq_alloc_tag_set(set);
-	if (!ret)
-		nctrl->admin_tagset = set;
-	return ret;
-}
-
-static int nvme_tcp_alloc_tag_set(struct nvme_ctrl *nctrl)
-{
-	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(nctrl);
-	struct blk_mq_tag_set *set = &ctrl->tag_set;
-	int ret;
-
-	memset(set, 0, sizeof(*set));
-	set->ops = &nvme_tcp_mq_ops;
-	set->queue_depth = nctrl->sqsize + 1;
-	set->reserved_tags = NVMF_RESERVED_TAGS;
-	set->numa_node = nctrl->numa_node;
-	set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
-	set->cmd_size = sizeof(struct nvme_tcp_request);
-	set->driver_data = &ctrl->ctrl;
-	set->nr_hw_queues = nctrl->queue_count - 1;
-	set->timeout = NVME_IO_TIMEOUT;
-	set->nr_maps = nctrl->opts->nr_poll_queues ? HCTX_MAX_TYPES : 2;
-	ret = blk_mq_alloc_tag_set(set);
-	if (!ret)
-		nctrl->tagset = set;
-	return ret;
-}
-
 static void nvme_tcp_free_admin_queue(struct nvme_ctrl *ctrl)
 {
 	if (to_tcp_ctrl(ctrl)->async_req.pdu) {
@@ -1890,10 +1845,8 @@ static int nvme_tcp_alloc_io_queues(struct nvme_ctrl *ctrl)
 static void nvme_tcp_destroy_io_queues(struct nvme_ctrl *ctrl, bool remove)
 {
 	nvme_tcp_stop_io_queues(ctrl);
-	if (remove) {
-		blk_mq_destroy_queue(ctrl->connect_q);
-		blk_mq_free_tag_set(ctrl->tagset);
-	}
+	if (remove)
+		nvme_remove_io_tag_set(ctrl);
 	nvme_tcp_free_io_queues(ctrl);
 }
 
@@ -1906,13 +1859,12 @@ static int nvme_tcp_configure_io_queues(struct nvme_ctrl *ctrl, bool new)
 		return ret;
 
 	if (new) {
-		ret = nvme_tcp_alloc_tag_set(ctrl);
+		ret = nvme_alloc_io_tag_set(ctrl, &to_tcp_ctrl(ctrl)->tag_set,
+				&nvme_tcp_mq_ops,
+				BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING,
+				sizeof(struct nvme_tcp_request));
 		if (ret)
 			goto out_free_io_queues;
-
-		ret = nvme_ctrl_init_connect_q(ctrl);
-		if (ret)
-			goto out_free_tag_set;
 	}
 
 	/*
@@ -1959,10 +1911,7 @@ out_wait_freeze_timed_out:
 out_cleanup_connect_q:
 	nvme_cancel_tagset(ctrl);
 	if (new)
-		blk_mq_destroy_queue(ctrl->connect_q);
-out_free_tag_set:
-	if (new)
-		blk_mq_free_tag_set(ctrl->tagset);
+		nvme_remove_io_tag_set(ctrl);
 out_free_io_queues:
 	nvme_tcp_free_io_queues(ctrl);
 	return ret;
@@ -1971,11 +1920,8 @@ out_free_io_queues:
 static void nvme_tcp_destroy_admin_queue(struct nvme_ctrl *ctrl, bool remove)
 {
 	nvme_tcp_stop_queue(ctrl, 0);
-	if (remove) {
-		blk_mq_destroy_queue(ctrl->admin_q);
-		blk_mq_destroy_queue(ctrl->fabrics_q);
-		blk_mq_free_tag_set(ctrl->admin_tagset);
-	}
+	if (remove)
+		nvme_remove_admin_tag_set(ctrl);
 	nvme_tcp_free_admin_queue(ctrl);
 }
 
@@ -1988,26 +1934,17 @@ static int nvme_tcp_configure_admin_queue(struct nvme_ctrl *ctrl, bool new)
 		return error;
 
 	if (new) {
-		error = nvme_tcp_alloc_admin_tag_set(ctrl);
+		error = nvme_alloc_admin_tag_set(ctrl,
+				&to_tcp_ctrl(ctrl)->admin_tag_set,
+				&nvme_tcp_admin_mq_ops, BLK_MQ_F_BLOCKING,
+				sizeof(struct nvme_tcp_request));
 		if (error)
 			goto out_free_queue;
-
-		ctrl->fabrics_q = blk_mq_init_queue(ctrl->admin_tagset);
-		if (IS_ERR(ctrl->fabrics_q)) {
-			error = PTR_ERR(ctrl->fabrics_q);
-			goto out_free_tagset;
-		}
-
-		ctrl->admin_q = blk_mq_init_queue(ctrl->admin_tagset);
-		if (IS_ERR(ctrl->admin_q)) {
-			error = PTR_ERR(ctrl->admin_q);
-			goto out_cleanup_fabrics_q;
-		}
 	}
 
 	error = nvme_tcp_start_queue(ctrl, 0);
 	if (error)
-		goto out_cleanup_queue;
+		goto out_cleanup_tagset;
 
 	error = nvme_enable_ctrl(ctrl);
 	if (error)
@@ -2027,15 +1964,9 @@ out_quiesce_queue:
 out_stop_queue:
 	nvme_tcp_stop_queue(ctrl, 0);
 	nvme_cancel_admin_tagset(ctrl);
-out_cleanup_queue:
+out_cleanup_tagset:
 	if (new)
-		blk_mq_destroy_queue(ctrl->admin_q);
-out_cleanup_fabrics_q:
-	if (new)
-		blk_mq_destroy_queue(ctrl->fabrics_q);
-out_free_tagset:
-	if (new)
-		blk_mq_free_tag_set(ctrl->admin_tagset);
+		nvme_remove_admin_tag_set(ctrl);
 out_free_queue:
 	nvme_tcp_free_admin_queue(ctrl);
 	return error;
