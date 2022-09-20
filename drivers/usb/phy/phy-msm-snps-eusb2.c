@@ -682,6 +682,7 @@ static int msm_eusb2_phy_init(struct usb_phy *uphy)
 			phy->re_enable_eud = true;
 		} else {
 			msm_eusb2_phy_power(phy, true);
+			msm_eusb2_phy_clocks(phy, true);
 			return msm_eusb2_repeater_reset_and_init(phy);
 		}
 	}
