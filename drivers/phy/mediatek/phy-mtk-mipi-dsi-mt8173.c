@@ -153,15 +153,20 @@ static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_BG_CON,
 				RG_DSI_VOUT_MSK |
 				RG_DSI_BG_CKEN | RG_DSI_BG_CORE_EN,
-				(4 << 20) | (4 << 17) | (4 << 14) |
-				(4 << 11) | (4 << 8) | (4 << 5) |
+				FIELD_PREP(RG_DSI_V02_SEL, 4) |
+				FIELD_PREP(RG_DSI_V032_SEL, 4) |
+				FIELD_PREP(RG_DSI_V04_SEL, 4) |
+				FIELD_PREP(RG_DSI_V072_SEL, 4) |
+				FIELD_PREP(RG_DSI_V10_SEL, 4) |
+				FIELD_PREP(RG_DSI_V12_SEL, 4) |
 				RG_DSI_BG_CKEN | RG_DSI_BG_CORE_EN);
 
 	usleep_range(30, 100);
 
 	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_TOP_CON,
 				RG_DSI_LNT_IMP_CAL_CODE | RG_DSI_LNT_HS_BIAS_EN,
-				(8 << 4) | RG_DSI_LNT_HS_BIAS_EN);
+				FIELD_PREP(RG_DSI_LNT_IMP_CAL_CODE, 8) |
+				RG_DSI_LNT_HS_BIAS_EN);
 
 	mtk_mipi_tx_set_bits(mipi_tx, MIPITX_DSI_CON,
 			     RG_DSI_CKG_LDOOUT_EN | RG_DSI_LDOCORE_EN);
@@ -177,7 +182,8 @@ static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 	mtk_mipi_tx_update_bits(mipi_tx, MIPITX_DSI_PLL_CON0,
 				RG_DSI_MPPLL_TXDIV0 | RG_DSI_MPPLL_TXDIV1 |
 				RG_DSI_MPPLL_PREDIV,
-				(txdiv0 << 3) | (txdiv1 << 5));
+				FIELD_PREP(RG_DSI_MPPLL_TXDIV0, txdiv0) |
+				FIELD_PREP(RG_DSI_MPPLL_TXDIV1, txdiv1));
 
 	/*
 	 * PLL PCW config
