@@ -38,14 +38,6 @@
 /* cpufreq transisition latency */
 #define TEGRA_CPUFREQ_TRANSITION_LATENCY (300 * 1000) /* unit in nanoseconds */
 
-enum cluster {
-	CLUSTER0,
-	CLUSTER1,
-	CLUSTER2,
-	CLUSTER3,
-	MAX_CLUSTERS,
-};
-
 struct tegra_cpu_ctr {
 	u32 cpu;
 	u32 coreclk_cnt, last_coreclk_cnt;
@@ -67,12 +59,12 @@ struct tegra_cpufreq_ops {
 struct tegra_cpufreq_soc {
 	struct tegra_cpufreq_ops *ops;
 	int maxcpus_per_cluster;
+	unsigned int num_clusters;
 	phys_addr_t actmon_cntr_base;
 };
 
 struct tegra194_cpufreq_data {
 	void __iomem *regs;
-	size_t num_clusters;
 	struct cpufreq_frequency_table **tables;
 	const struct tegra_cpufreq_soc *soc;
 };
@@ -166,6 +158,14 @@ static const struct tegra_cpufreq_soc tegra234_cpufreq_soc = {
 	.ops = &tegra234_cpufreq_ops,
 	.actmon_cntr_base = 0x9000,
 	.maxcpus_per_cluster = 4,
+	.num_clusters = 3,
+};
+
+const struct tegra_cpufreq_soc tegra239_cpufreq_soc = {
+	.ops = &tegra234_cpufreq_ops,
+	.actmon_cntr_base = 0x4000,
+	.maxcpus_per_cluster = 8,
+	.num_clusters = 1,
 };
 
 static void tegra194_get_cpu_cluster_id(u32 cpu, u32 *cpuid, u32 *clusterid)
@@ -378,7 +378,7 @@ static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
 
 	data->soc->ops->get_cpu_cluster_id(policy->cpu, NULL, &clusterid);
 
-	if (clusterid >= data->num_clusters || !data->tables[clusterid])
+	if (clusterid >= data->soc->num_clusters || !data->tables[clusterid])
 		return -EINVAL;
 
 	start_cpu = rounddown(policy->cpu, maxcpus_per_cluster);
@@ -429,6 +429,7 @@ static struct tegra_cpufreq_ops tegra194_cpufreq_ops = {
 static const struct tegra_cpufreq_soc tegra194_cpufreq_soc = {
 	.ops = &tegra194_cpufreq_ops,
 	.maxcpus_per_cluster = 2,
+	.num_clusters = 4,
 };
 
 static void tegra194_cpufreq_free_resources(void)
@@ -521,15 +522,14 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 
 	soc = of_device_get_match_data(&pdev->dev);
 
-	if (soc->ops && soc->maxcpus_per_cluster) {
+	if (soc->ops && soc->maxcpus_per_cluster && soc->num_clusters) {
 		data->soc = soc;
 	} else {
 		dev_err(&pdev->dev, "soc data missing\n");
 		return -EINVAL;
 	}
 
-	data->num_clusters = MAX_CLUSTERS;
-	data->tables = devm_kcalloc(&pdev->dev, data->num_clusters,
+	data->tables = devm_kcalloc(&pdev->dev, data->soc->num_clusters,
 				    sizeof(*data->tables), GFP_KERNEL);
 	if (!data->tables)
 		return -ENOMEM;
@@ -554,7 +554,7 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 		goto put_bpmp;
 	}
 
-	for (i = 0; i < data->num_clusters; i++) {
+	for (i = 0; i < data->soc->num_clusters; i++) {
 		data->tables[i] = init_freq_table(pdev, bpmp, i);
 		if (IS_ERR(data->tables[i])) {
 			err = PTR_ERR(data->tables[i]);
@@ -586,6 +586,7 @@ static int tegra194_cpufreq_remove(struct platform_device *pdev)
 static const struct of_device_id tegra194_cpufreq_of_match[] = {
 	{ .compatible = "nvidia,tegra194-ccplex", .data = &tegra194_cpufreq_soc },
 	{ .compatible = "nvidia,tegra234-ccplex-cluster", .data = &tegra234_cpufreq_soc },
+	{ .compatible = "nvidia,tegra239-ccplex-cluster", .data = &tegra239_cpufreq_soc },
 	{ /* sentinel */ }
 };
 
