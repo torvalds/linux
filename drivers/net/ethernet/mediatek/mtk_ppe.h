@@ -270,7 +270,7 @@ struct mtk_ppe {
 	dma_addr_t foe_phys;
 
 	u16 foe_check_time[MTK_PPE_ENTRIES];
-	struct hlist_head foe_flow[MTK_PPE_ENTRIES / 2];
+	struct hlist_head *foe_flow;
 
 	struct rhashtable l2_flows;
 

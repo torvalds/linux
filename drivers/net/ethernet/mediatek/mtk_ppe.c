@@ -88,7 +88,7 @@ static void mtk_ppe_cache_enable(struct mtk_ppe *ppe, bool enable)
 		enable * MTK_PPE_CACHE_CTL_EN);
 }
 
-static u32 mtk_ppe_hash_entry(struct mtk_foe_entry *e)
+static u32 mtk_ppe_hash_entry(struct mtk_eth *eth, struct mtk_foe_entry *e)
 {
 	u32 hv1, hv2, hv3;
 	u32 hash;
@@ -122,7 +122,7 @@ static u32 mtk_ppe_hash_entry(struct mtk_foe_entry *e)
 	hash = (hash >> 24) | ((hash & 0xffffff) << 8);
 	hash ^= hv1 ^ hv2 ^ hv3;
 	hash ^= hash >> 16;
-	hash <<= 1;
+	hash <<= (ffs(eth->soc->hash_offset) - 1);
 	hash &= MTK_PPE_ENTRIES - 1;
 
 	return hash;
@@ -540,15 +540,16 @@ mtk_foe_entry_commit_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 {
 	int type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->data.ib1);
+	const struct mtk_soc_data *soc = ppe->eth->soc;
 	u32 hash;
 
 	if (type == MTK_PPE_PKT_TYPE_BRIDGE)
 		return mtk_foe_entry_commit_l2(ppe, entry);
 
-	hash = mtk_ppe_hash_entry(&entry->data);
+	hash = mtk_ppe_hash_entry(ppe->eth, &entry->data);
 	entry->hash = 0xffff;
 	spin_lock_bh(&ppe_lock);
-	hlist_add_head(&entry->list, &ppe->foe_flow[hash / 2]);
+	hlist_add_head(&entry->list, &ppe->foe_flow[hash / soc->hash_offset]);
 	spin_unlock_bh(&ppe_lock);
 
 	return 0;
@@ -558,6 +559,7 @@ static void
 mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 			     u16 hash)
 {
+	const struct mtk_soc_data *soc = ppe->eth->soc;
 	struct mtk_flow_entry *flow_info;
 	struct mtk_foe_entry foe, *hwe;
 	struct mtk_foe_mac_info *l2;
@@ -572,7 +574,8 @@ mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 	flow_info->l2_data.base_flow = entry;
 	flow_info->type = MTK_FLOW_TYPE_L2_SUBFLOW;
 	flow_info->hash = hash;
-	hlist_add_head(&flow_info->list, &ppe->foe_flow[hash / 2]);
+	hlist_add_head(&flow_info->list,
+		       &ppe->foe_flow[hash / soc->hash_offset]);
 	hlist_add_head(&flow_info->l2_data.list, &entry->l2_flows);
 
 	hwe = &ppe->foe_table[hash];
@@ -596,7 +599,8 @@ mtk_foe_entry_commit_subflow(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
 
 void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 {
-	struct hlist_head *head = &ppe->foe_flow[hash / 2];
+	const struct mtk_soc_data *soc = ppe->eth->soc;
+	struct hlist_head *head = &ppe->foe_flow[hash / soc->hash_offset];
 	struct mtk_foe_entry *hwe = &ppe->foe_table[hash];
 	struct mtk_flow_entry *entry;
 	struct mtk_foe_bridge key = {};
@@ -680,9 +684,11 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
 		 int version)
 {
+	const struct mtk_soc_data *soc = eth->soc;
 	struct device *dev = eth->dev;
 	struct mtk_foe_entry *foe;
 	struct mtk_ppe *ppe;
+	u32 foe_flow_size;
 
 	ppe = devm_kzalloc(dev, sizeof(*ppe), GFP_KERNEL);
 	if (!ppe)
@@ -704,6 +710,12 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
 		return NULL;
 
 	ppe->foe_table = foe;
+
+	foe_flow_size = (MTK_PPE_ENTRIES / soc->hash_offset) *
+			sizeof(*ppe->foe_flow);
+	ppe->foe_flow = devm_kzalloc(dev, foe_flow_size, GFP_KERNEL);
+	if (!ppe->foe_flow)
+		return NULL;
 
 	mtk_ppe_debugfs_init(ppe);
 
