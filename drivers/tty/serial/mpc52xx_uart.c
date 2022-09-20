@@ -1364,7 +1364,7 @@ static const struct uart_ops mpc52xx_uart_ops = {
 /* Interrupt handling                                                       */
 /* ======================================================================== */
 
-static inline unsigned int
+static inline bool
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
@@ -1425,7 +1425,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 	return psc_ops->raw_rx_rdy(port);
 }
 
-static inline int
+static inline bool
 mpc52xx_uart_int_tx_chars(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
@@ -1435,13 +1435,13 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 		psc_ops->write_char(port, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
-		return 1;
+		return true;
 	}
 
 	/* Nothing to do ? */
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		mpc52xx_uart_stop_tx(port);
-		return 0;
+		return false;
 	}
 
 	/* Send chars */
@@ -1460,23 +1460,23 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 	/* Maybe we're done after all */
 	if (uart_circ_empty(xmit)) {
 		mpc52xx_uart_stop_tx(port);
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 static irqreturn_t
 mpc5xxx_uart_process_int(struct uart_port *port)
 {
 	unsigned long pass = ISR_PASS_LIMIT;
-	unsigned int keepgoing;
+	bool keepgoing;
 	u8 status;
 
 	/* While we have stuff to do, we continue */
 	do {
 		/* If we don't find anything to do, we stop */
-		keepgoing = 0;
+		keepgoing = false;
 
 		psc_ops->rx_clr_irq(port);
 		if (psc_ops->rx_rdy(port))
@@ -1495,7 +1495,7 @@ mpc5xxx_uart_process_int(struct uart_port *port)
 
 		/* Limit number of iteration */
 		if (!(--pass))
-			keepgoing = 0;
+			keepgoing = false;
 
 	} while (keepgoing);
 
