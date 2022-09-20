@@ -37,6 +37,7 @@ static struct sof_dev_desc skl_desc = {
 	},
 	.nocodec_tplg_filename = "sof-skl-nocodec.tplg",
 	.ops = &sof_skl_ops,
+	.ops_init = sof_skl_ops_init,
 };
 
 static struct sof_dev_desc kbl_desc = {
@@ -59,6 +60,7 @@ static struct sof_dev_desc kbl_desc = {
 	},
 	.nocodec_tplg_filename = "sof-kbl-nocodec.tplg",
 	.ops = &sof_skl_ops,
+	.ops_init = sof_skl_ops_init,
 };
 
 /* PCI IDs */
