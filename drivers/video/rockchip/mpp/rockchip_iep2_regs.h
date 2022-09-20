@@ -21,6 +21,8 @@
 #define     IEP2_REG_DST_FMT(x)				(((x) & 3) << 8)
 #define     IEP2_REG_SRC_YUV_SWAP(x)			(((x) & 3) << 4)
 #define     IEP2_REG_SRC_FMT(x)				((x) & 3)
+#define IEP2_REG_WORK_MODE			0x0008
+#define     IEP2_REG_IEP2_MODE				BIT(0)
 #define IEP2_REG_GATING_CTRL			0x0010
 #define     IEP2_REG_REG_CLK_ON				BIT(11)
 #define     IEP2_REG_DMA_CLK_ON				BIT(10)
