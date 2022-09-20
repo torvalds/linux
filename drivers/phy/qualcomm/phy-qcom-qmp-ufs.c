@@ -535,8 +535,6 @@ struct qmp_phy;
 
 /* struct qmp_phy_cfg - per-PHY initialization config */
 struct qmp_phy_cfg {
-	/* phy-type - PCIE/UFS/USB */
-	unsigned int type;
 	/* number of lanes provided by phy */
 	int nlanes;
 
@@ -668,7 +666,6 @@ static const char * const qmp_phy_vreg_l[] = {
 };
 
 static const struct qmp_phy_cfg msm8996_ufs_cfg = {
-	.type			= PHY_TYPE_UFS,
 	.nlanes			= 1,
 
 	.serdes_tbl		= msm8996_ufs_serdes_tbl,
@@ -694,7 +691,6 @@ static const struct qmp_phy_cfg msm8996_ufs_cfg = {
 };
 
 static const struct qmp_phy_cfg sdm845_ufsphy_cfg = {
-	.type			= PHY_TYPE_UFS,
 	.nlanes			= 2,
 
 	.serdes_tbl		= sdm845_ufsphy_serdes_tbl,
@@ -720,7 +716,6 @@ static const struct qmp_phy_cfg sdm845_ufsphy_cfg = {
 };
 
 static const struct qmp_phy_cfg sm6115_ufsphy_cfg = {
-	.type			= PHY_TYPE_UFS,
 	.nlanes			= 1,
 
 	.serdes_tbl		= sm6115_ufsphy_serdes_tbl,
@@ -744,7 +739,6 @@ static const struct qmp_phy_cfg sm6115_ufsphy_cfg = {
 };
 
 static const struct qmp_phy_cfg sm8150_ufsphy_cfg = {
-	.type			= PHY_TYPE_UFS,
 	.nlanes			= 2,
 
 	.serdes_tbl		= sm8150_ufsphy_serdes_tbl,
@@ -769,7 +763,6 @@ static const struct qmp_phy_cfg sm8150_ufsphy_cfg = {
 };
 
 static const struct qmp_phy_cfg sm8350_ufsphy_cfg = {
-	.type			= PHY_TYPE_UFS,
 	.nlanes			= 2,
 
 	.serdes_tbl		= sm8350_ufsphy_serdes_tbl,
@@ -794,7 +787,6 @@ static const struct qmp_phy_cfg sm8350_ufsphy_cfg = {
 };
 
 static const struct qmp_phy_cfg sm8450_ufsphy_cfg = {
-	.type			= PHY_TYPE_UFS,
 	.nlanes			= 2,
 
 	.serdes_tbl		= sm8350_ufsphy_serdes_tbl,
