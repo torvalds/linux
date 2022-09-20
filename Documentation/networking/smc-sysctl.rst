@@ -34,3 +34,10 @@ smcr_buf_type - INTEGER
         - 1 - Use virtually contiguous buffers
         - 2 - Mixed use of the two types. Try physically contiguous buffers first.
           If not available, use virtually contiguous buffers then.
+
+smcr_testlink_time - INTEGER
+	How frequently SMC-R link sends out TEST_LINK LLC messages to confirm
+	viability, after the last activity of connections on it. Value 0 means
+	disabling TEST_LINK.
+
+	Default: 30 seconds.

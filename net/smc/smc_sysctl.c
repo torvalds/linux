@@ -16,6 +16,7 @@
 
 #include "smc.h"
 #include "smc_core.h"
+#include "smc_llc.h"
 #include "smc_sysctl.h"
 
 static struct ctl_table smc_table[] = {
@@ -34,6 +35,13 @@ static struct ctl_table smc_table[] = {
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
+	},
+	{
+		.procname	= "smcr_testlink_time",
+		.data		= &init_net.smc.sysctl_smcr_testlink_time,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{  }
 };
@@ -60,6 +68,7 @@ int __net_init smc_sysctl_net_init(struct net *net)
 
 	net->smc.sysctl_autocorking_size = SMC_AUTOCORKING_DEFAULT_SIZE;
 	net->smc.sysctl_smcr_buf_type = SMCR_PHYS_CONT_BUFS;
+	net->smc.sysctl_smcr_testlink_time = SMC_LLC_TESTLINK_DEFAULT_TIME;
 
 	return 0;
 
