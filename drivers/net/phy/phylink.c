@@ -373,18 +373,70 @@ void phylink_caps_to_linkmodes(unsigned long *linkmodes, unsigned long caps)
 }
 EXPORT_SYMBOL_GPL(phylink_caps_to_linkmodes);
 
+static struct {
+	unsigned long mask;
+	int speed;
+	unsigned int duplex;
+} phylink_caps_params[] = {
+	{ MAC_400000FD, SPEED_400000, DUPLEX_FULL },
+	{ MAC_200000FD, SPEED_200000, DUPLEX_FULL },
+	{ MAC_100000FD, SPEED_100000, DUPLEX_FULL },
+	{ MAC_56000FD,  SPEED_56000,  DUPLEX_FULL },
+	{ MAC_50000FD,  SPEED_50000,  DUPLEX_FULL },
+	{ MAC_40000FD,  SPEED_40000,  DUPLEX_FULL },
+	{ MAC_25000FD,  SPEED_25000,  DUPLEX_FULL },
+	{ MAC_20000FD,  SPEED_20000,  DUPLEX_FULL },
+	{ MAC_10000FD,  SPEED_10000,  DUPLEX_FULL },
+	{ MAC_5000FD,   SPEED_5000,   DUPLEX_FULL },
+	{ MAC_2500FD,   SPEED_2500,   DUPLEX_FULL },
+	{ MAC_1000FD,   SPEED_1000,   DUPLEX_FULL },
+	{ MAC_1000HD,   SPEED_1000,   DUPLEX_HALF },
+	{ MAC_100FD,    SPEED_100,    DUPLEX_FULL },
+	{ MAC_100HD,    SPEED_100,    DUPLEX_HALF },
+	{ MAC_10FD,     SPEED_10,     DUPLEX_FULL },
+	{ MAC_10HD,     SPEED_10,     DUPLEX_HALF },
+};
+
+/**
+ * phylink_cap_from_speed_duplex - Get mac capability from speed/duplex
+ * @speed: the speed to search for
+ * @duplex: the duplex to search for
+ *
+ * Find the mac capability for a given speed and duplex.
+ *
+ * Return: A mask with the mac capability patching @speed and @duplex, or 0 if
+ *         there were no matches.
+ */
+static unsigned long phylink_cap_from_speed_duplex(int speed,
+						   unsigned int duplex)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(phylink_caps_params); i++) {
+		if (speed == phylink_caps_params[i].speed &&
+		    duplex == phylink_caps_params[i].duplex)
+			return phylink_caps_params[i].mask;
+	}
+
+	return 0;
+}
+
 /**
  * phylink_get_capabilities() - get capabilities for a given MAC
  * @interface: phy interface mode defined by &typedef phy_interface_t
  * @mac_capabilities: bitmask of MAC capabilities
+ * @rate_matching: type of rate matching being performed
  *
  * Get the MAC capabilities that are supported by the @interface mode and
  * @mac_capabilities.
  */
 unsigned long phylink_get_capabilities(phy_interface_t interface,
-				       unsigned long mac_capabilities)
+				       unsigned long mac_capabilities,
+				       int rate_matching)
 {
+	int max_speed = phylink_interface_max_speed(interface);
 	unsigned long caps = MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
+	unsigned long matched_caps = 0;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_USXGMII:
@@ -458,7 +510,53 @@ unsigned long phylink_get_capabilities(phy_interface_t interface,
 		break;
 	}
 
-	return caps & mac_capabilities;
+	switch (rate_matching) {
+	case RATE_MATCH_OPEN_LOOP:
+		/* TODO */
+		fallthrough;
+	case RATE_MATCH_NONE:
+		matched_caps = 0;
+		break;
+	case RATE_MATCH_PAUSE: {
+		/* The MAC must support asymmetric pause towards the local
+		 * device for this. We could allow just symmetric pause, but
+		 * then we might have to renegotiate if the link partner
+		 * doesn't support pause. This is because there's no way to
+		 * accept pause frames without transmitting them if we only
+		 * support symmetric pause.
+		 */
+		if (!(mac_capabilities & MAC_SYM_PAUSE) ||
+		    !(mac_capabilities & MAC_ASYM_PAUSE))
+			break;
+
+		/* We can't adapt if the MAC doesn't support the interface's
+		 * max speed at full duplex.
+		 */
+		if (mac_capabilities &
+		    phylink_cap_from_speed_duplex(max_speed, DUPLEX_FULL)) {
+			/* Although a duplex-matching phy might exist, we
+			 * conservatively remove these modes because the MAC
+			 * will not be aware of the half-duplex nature of the
+			 * link.
+			 */
+			matched_caps = GENMASK(__fls(caps), __fls(MAC_10HD));
+			matched_caps &= ~(MAC_1000HD | MAC_100HD | MAC_10HD);
+		}
+		break;
+	}
+	case RATE_MATCH_CRS:
+		/* The MAC must support half duplex at the interface's max
+		 * speed.
+		 */
+		if (mac_capabilities &
+		    phylink_cap_from_speed_duplex(max_speed, DUPLEX_HALF)) {
+			matched_caps = GENMASK(__fls(caps), __fls(MAC_10HD));
+			matched_caps &= mac_capabilities;
+		}
+		break;
+	}
+
+	return (caps & mac_capabilities) | matched_caps;
 }
 EXPORT_SYMBOL_GPL(phylink_get_capabilities);
 
@@ -482,7 +580,8 @@ void phylink_generic_validate(struct phylink_config *config,
 	phylink_set_port_modes(mask);
 	phylink_set(mask, Autoneg);
 	caps = phylink_get_capabilities(state->interface,
-					config->mac_capabilities);
+					config->mac_capabilities,
+					state->rate_matching);
 	phylink_caps_to_linkmodes(mask, caps);
 
 	linkmode_and(supported, supported, mask);
@@ -1512,6 +1611,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 		config.interface = PHY_INTERFACE_MODE_NA;
 	else
 		config.interface = interface;
+	config.rate_matching = phy_get_rate_matching(phy, config.interface);
 
 	ret = phylink_validate(pl, supported, &config);
 	if (ret) {
