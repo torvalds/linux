@@ -411,24 +411,6 @@ static void enc32_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
-static void enc32_stream_encoder_reset_fifo(struct stream_encoder *enc)
-{
-	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-	uint32_t fifo_enabled;
-
-	REG_GET(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, &fifo_enabled);
-
-	if (fifo_enabled == 0) {
-		/* reset DIG resync FIFO */
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
-		/* TODO: fix timeout when wait for DIG_FIFO_RESET_DONE */
-		//REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 1, 100);
-		udelay(1);
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
-		REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 1, 100);
-	}
-}
-
 static void enc32_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
@@ -458,8 +440,6 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 		enc3_stream_encoder_update_dp_info_packets,
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
-	.reset_fifo =
-		enc32_stream_encoder_reset_fifo,
 	.dp_blank =
 		enc1_stream_encoder_dp_blank,
 	.dp_unblank =

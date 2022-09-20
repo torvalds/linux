@@ -94,8 +94,6 @@
 #include "dcn20/dcn20_vmid.h"
 
 #define DC_LOGGER_INIT(logger)
-#define fixed16_to_double(x) (((double)x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
 enum dcn321_clk_src_array_id {
 	DCN321_CLK_SRC_PLL0,
