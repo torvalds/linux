@@ -268,9 +268,16 @@ static inline void rq_list_move(struct request **src, struct request **dst,
 	rq_list_add(dst, rq);
 }
 
+/**
+ * enum blk_eh_timer_return - How the timeout handler should proceed
+ * @BLK_EH_DONE: The block driver completed the command or will complete it at
+ *	a later time.
+ * @BLK_EH_RESET_TIMER: Reset the request timer and continue waiting for the
+ *	request to complete.
+ */
 enum blk_eh_timer_return {
-	BLK_EH_DONE,		/* drivers has completed the command */
-	BLK_EH_RESET_TIMER,	/* reset timer and try again */
+	BLK_EH_DONE,
+	BLK_EH_RESET_TIMER,
 };
 
 #define BLK_TAG_ALLOC_FIFO 0 /* allocate starting from 0 */
