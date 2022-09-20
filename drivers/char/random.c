@@ -865,9 +865,9 @@ void add_hwgenerator_randomness(const void *buf, size_t len, size_t entropy)
 
 	/*
 	 * Throttle writing to once every reseed interval, unless we're not yet
-	 * initialized.
+	 * initialized or no entropy is credited.
 	 */
-	if (!kthread_should_stop() && crng_ready())
+	if (!kthread_should_stop() && (crng_ready() || !entropy))
 		schedule_timeout_interruptible(crng_reseed_interval());
 }
 EXPORT_SYMBOL_GPL(add_hwgenerator_randomness);
