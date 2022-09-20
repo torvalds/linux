@@ -38,6 +38,8 @@ static struct platform_device *pdev;
 #define VT8231_BASE_REG 0x70
 #define VT8231_ENABLE_REG 0x74
 
+#define DRIVER_NAME "vt8231"
+
 /*
  * The VT8231 registers
  *
@@ -753,7 +755,7 @@ static const struct attribute_group vt8231_group = {
 
 static struct platform_driver vt8231_driver = {
 	.driver = {
-		.name	= "vt8231",
+		.name	= DRIVER_NAME,
 	},
 	.probe	= vt8231_probe,
 	.remove	= vt8231_remove,
@@ -770,7 +772,7 @@ static int vt8231_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id);
 
 static struct pci_driver vt8231_pci_driver = {
-	.name		= "vt8231",
+	.name		= DRIVER_NAME,
 	.id_table	= vt8231_pci_ids,
 	.probe		= vt8231_pci_probe,
 };
@@ -784,7 +786,7 @@ static int vt8231_probe(struct platform_device *pdev)
 	/* Reserve the ISA region */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, VT8231_EXTENT,
-				 vt8231_driver.driver.name)) {
+				 DRIVER_NAME)) {
 		dev_err(&pdev->dev, "Region 0x%lx-0x%lx already in use!\n",
 			(unsigned long)res->start, (unsigned long)res->end);
 		return -ENODEV;
@@ -796,7 +798,7 @@ static int vt8231_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 	data->addr = res->start;
-	data->name = "vt8231";
+	data->name = DRIVER_NAME;
 
 	mutex_init(&data->update_lock);
 	vt8231_init_device(data);
@@ -942,7 +944,7 @@ static int vt8231_device_add(unsigned short address)
 	struct resource res = {
 		.start	= address,
 		.end	= address + VT8231_EXTENT - 1,
-		.name	= "vt8231",
+		.name	= DRIVER_NAME,
 		.flags	= IORESOURCE_IO,
 	};
 	int err;
@@ -951,7 +953,7 @@ static int vt8231_device_add(unsigned short address)
 	if (err)
 		goto exit;
 
-	pdev = platform_device_alloc("vt8231", address);
+	pdev = platform_device_alloc(DRIVER_NAME, address);
 	if (!pdev) {
 		err = -ENOMEM;
 		pr_err("Device allocation failed\n");
