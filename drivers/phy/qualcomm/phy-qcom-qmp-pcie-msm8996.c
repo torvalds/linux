@@ -238,7 +238,6 @@ struct qmp_phy_cfg {
  * @index: lane index
  * @qmp: QMP phy to which this lane belongs
  * @lane_rst: lane's reset controller
- * @mode: current PHY mode
  */
 struct qmp_phy {
 	struct phy *phy;
