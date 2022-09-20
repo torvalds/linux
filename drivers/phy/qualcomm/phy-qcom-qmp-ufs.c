@@ -580,7 +580,6 @@ struct qmp_phy_cfg {
  * @tx2: iomapped memory space for second lane's tx (in dual lane PHYs)
  * @rx2: iomapped memory space for second lane's rx (in dual lane PHYs)
  * @pcs_misc: iomapped memory space for lane's pcs_misc
- * @index: lane index
  * @qmp: QMP phy to which this lane belongs
  */
 struct qmp_phy {
@@ -593,7 +592,6 @@ struct qmp_phy {
 	void __iomem *tx2;
 	void __iomem *rx2;
 	void __iomem *pcs_misc;
-	unsigned int index;
 	struct qcom_qmp *qmp;
 };
 
@@ -1149,7 +1147,6 @@ static int qmp_ufs_create(struct device *dev, struct device_node *np, int id,
 	}
 
 	qphy->phy = generic_phy;
-	qphy->index = id;
 	qphy->qmp = qmp;
 	qmp->phys[id] = qphy;
 	phy_set_drvdata(generic_phy, qphy);

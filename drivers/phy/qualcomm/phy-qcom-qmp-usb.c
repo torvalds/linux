@@ -1491,7 +1491,6 @@ struct qmp_phy_cfg {
  * @pcs_misc: iomapped memory space for lane's pcs_misc
  * @pcs_usb: iomapped memory space for lane's pcs_usb
  * @pipe_clk: pipe clock
- * @index: lane index
  * @qmp: QMP phy to which this lane belongs
  * @mode: current PHY mode
  */
@@ -1507,7 +1506,6 @@ struct qmp_phy {
 	void __iomem *pcs_misc;
 	void __iomem *pcs_usb;
 	struct clk *pipe_clk;
-	unsigned int index;
 	struct qcom_qmp *qmp;
 	enum phy_mode mode;
 };
@@ -2648,7 +2646,6 @@ int qmp_usb_create(struct device *dev, struct device_node *np, int id,
 	}
 
 	qphy->phy = generic_phy;
-	qphy->index = id;
 	qphy->qmp = qmp;
 	qmp->phys[id] = qphy;
 	phy_set_drvdata(generic_phy, qphy);
