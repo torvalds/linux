@@ -591,6 +591,17 @@ static void rockchip_i2s_tdm_trcm_resume(struct snd_pcm_substream *substream,
 
 static void rockchip_i2s_tdm_start(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 {
+	/*
+	 * On HDMI-PATH-ALWAYS-ON situation, we almost keep XFER always on,
+	 * so, for new data start, suggested to STOP-CLEAR-START to make sure
+	 * data aligned.
+	 */
+	if ((i2s_tdm->quirks & QUIRK_HDMI_PATH) &&
+	    (i2s_tdm->quirks & QUIRK_ALWAYS_ON) &&
+	    (stream == SNDRV_PCM_STREAM_PLAYBACK)) {
+		rockchip_i2s_tdm_xfer_stop(i2s_tdm, stream, true);
+	}
+
 	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 1);
 
 	if (i2s_tdm->clk_trcm)
@@ -1127,6 +1138,17 @@ static int rockchip_i2s_tdm_params(struct snd_pcm_substream *substream,
 				   fmt);
 	}
 
+	/*
+	 * Bring back CLK ASAP after cfg changed to make SINK devices active
+	 * on HDMI-PATH-ALWAYS-ON situation, this workaround for some TVs no
+	 * sound issue. at the moment, it's 8K@60Hz display situation.
+	 */
+	if ((i2s_tdm->quirks & QUIRK_HDMI_PATH) &&
+	    (i2s_tdm->quirks & QUIRK_ALWAYS_ON) &&
+	    (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) {
+		rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
+	}
+
 	return 0;
 }
 
@@ -1497,16 +1519,6 @@ static int rockchip_i2s_tdm_startup(struct snd_pcm_substream *substream,
 		return -EBUSY;
 
 	i2s_tdm->substreams[substream->stream] = substream;
-
-	/*
-	 * Suggested to stop audio source before HDMI configure to make
-	 * sure audio data integrity on HDMI-PATH-ALWAYS-ON situation.
-	 */
-	if ((i2s_tdm->quirks & QUIRK_HDMI_PATH) &&
-	    (i2s_tdm->quirks & QUIRK_ALWAYS_ON) &&
-	    (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) {
-		rockchip_i2s_tdm_xfer_stop(i2s_tdm, substream->stream, true);
-	}
 
 	return 0;
 }
