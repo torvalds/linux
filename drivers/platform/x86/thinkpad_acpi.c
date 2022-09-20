@@ -10592,10 +10592,9 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	/* Ensure initial values are correct */
 	dytc_profile_refresh();
 
-	/* Set AMT correctly now we know current profile */
-	if ((dytc_capabilities & BIT(DYTC_FC_PSC)) &&
-	    (dytc_capabilities & BIT(DYTC_FC_AMT)))
-	    dytc_control_amt(dytc_current_profile == PLATFORM_PROFILE_BALANCED);
+	/* Workaround for https://bugzilla.kernel.org/show_bug.cgi?id=216347 */
+	if (dytc_capabilities & BIT(DYTC_FC_PSC))
+		dytc_profile_set(NULL, PLATFORM_PROFILE_BALANCED);
 
 	return 0;
 }

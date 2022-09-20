@@ -1094,7 +1094,8 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 				dc->current_state->stream_count != context->stream_count)
 			should_disable = true;
 
-		if (old_stream && !dc->current_state->res_ctx.pipe_ctx[i].top_pipe) {
+		if (old_stream && !dc->current_state->res_ctx.pipe_ctx[i].top_pipe &&
+				!dc->current_state->res_ctx.pipe_ctx[i].prev_odm_pipe) {
 			struct pipe_ctx *old_pipe, *new_pipe;
 
 			old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];

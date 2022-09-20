@@ -1076,7 +1076,8 @@ static int iterate_skl_plus_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(GEN8_HDC_CHICKEN1);
 	MMIO_D(GEN9_WM_CHICKEN3);
 
-	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
+	if (IS_KABYLAKE(dev_priv) ||
+	    IS_COFFEELAKE(dev_priv) || IS_COMETLAKE(dev_priv))
 		MMIO_D(GAMT_CHKN_BIT_REG);
 	if (!IS_BROXTON(dev_priv))
 		MMIO_D(GEN9_CTX_PREEMPT_REG);

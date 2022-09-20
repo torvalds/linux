@@ -388,11 +388,29 @@ static int smu_v13_0_0_append_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
+static int smu_v13_0_0_get_pptable_from_pmfw(struct smu_context *smu,
+					     void **table,
+					     uint32_t *size)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	void *combo_pptable = smu_table->combo_pptable;
+	int ret = 0;
+
+	ret = smu_cmn_get_combo_pptable(smu);
+	if (ret)
+		return ret;
+
+	*table = combo_pptable;
+	*size = sizeof(struct smu_13_0_0_powerplay_table);
+
+	return 0;
+}
+
+static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
 	struct amdgpu_device *adev = smu->adev;
+	uint32_t pptable_id;
 	int ret = 0;
 
 	/*
@@ -401,17 +419,51 @@ static int smu_v13_0_0_setup_pptable(struct smu_context *smu)
 	 * rely on the combo pptable(and its revelant SMU message).
 	 */
 	if (adev->scpm_enabled) {
-		ret = smu_cmn_get_combo_pptable(smu);
-		if (ret)
-			return ret;
-
-		smu->smu_table.power_play_table = combo_pptable;
-		smu->smu_table.power_play_table_size = sizeof(struct smu_13_0_0_powerplay_table);
+		ret = smu_v13_0_0_get_pptable_from_pmfw(smu,
+							&smu_table->power_play_table,
+							&smu_table->power_play_table_size);
 	} else {
-		ret = smu_v13_0_setup_pptable(smu);
-		if (ret)
-			return ret;
+		/* override pptable_id from driver parameter */
+		if (amdgpu_smu_pptable_id >= 0) {
+			pptable_id = amdgpu_smu_pptable_id;
+			dev_info(adev->dev, "override pptable id %d\n", pptable_id);
+		} else {
+			pptable_id = smu_table->boot_values.pp_table_id;
+		}
+
+		/*
+		 * Temporary solution for SMU V13.0.0 with SCPM disabled:
+		 *   - use vbios carried pptable when pptable_id is 3664, 3715 or 3795
+		 *   - use soft pptable when pptable_id is 3683
+		 */
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0)) {
+			switch (pptable_id) {
+			case 3664:
+			case 3715:
+			case 3795:
+				pptable_id = 0;
+				break;
+			case 3683:
+				break;
+			default:
+				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
+				return -EINVAL;
+			}
+		}
+
+		/* force using vbios pptable in sriov mode */
+		if ((amdgpu_sriov_vf(adev) || !pptable_id) && (amdgpu_emu_mode != 1))
+			ret = smu_v13_0_0_get_pptable_from_pmfw(smu,
+								&smu_table->power_play_table,
+								&smu_table->power_play_table_size);
+		else
+			ret = smu_v13_0_get_pptable_from_firmware(smu,
+								  &smu_table->power_play_table,
+								  &smu_table->power_play_table_size,
+								  pptable_id);
 	}
+	if (ret)
+		return ret;
 
 	ret = smu_v13_0_0_store_powerplay_table(smu);
 	if (ret)

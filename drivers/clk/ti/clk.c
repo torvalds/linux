@@ -135,6 +135,7 @@ static struct device_node *ti_find_clock_provider(struct device_node *from,
 			continue;
 
 		if (!strncmp(n, tmp, strlen(tmp))) {
+			of_node_get(np);
 			found = true;
 			break;
 		}

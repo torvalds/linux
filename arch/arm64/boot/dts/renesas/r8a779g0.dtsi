@@ -85,7 +85,7 @@
 				     "renesas,rcar-gen4-hscif",
 				     "renesas,hscif";
 			reg = <0 0xe6540000 0 96>;
-			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 514>,
 				 <&cpg CPG_CORE R8A779G0_CLK_S0D3_PER>,
 				 <&scif_clk>;

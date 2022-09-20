@@ -246,13 +246,12 @@ const struct io_op_def io_op_defs[] = {
 		.prep			= io_close_prep,
 		.issue			= io_close,
 	},
-	[IORING_OP_RSRC_UPDATE] = {
+	[IORING_OP_FILES_UPDATE] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
-		.name			= "RSRC_UPDATE",
-		.prep			= io_rsrc_update_prep,
-		.issue			= io_rsrc_update,
-		.ioprio			= 1,
+		.name			= "FILES_UPDATE",
+		.prep			= io_files_update_prep,
+		.issue			= io_files_update,
 	},
 	[IORING_OP_STATX] = {
 		.audit_skip		= 1,
@@ -471,7 +470,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_uring_cmd,
 		.prep_async		= io_uring_cmd_prep_async,
 	},
-	[IORING_OP_SENDZC_NOTIF] = {
+	[IORING_OP_SEND_ZC] = {
 		.name			= "SENDZC_NOTIF",
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
@@ -484,6 +483,7 @@ const struct io_op_def io_op_defs[] = {
 		.prep			= io_sendzc_prep,
 		.issue			= io_sendzc,
 		.prep_async		= io_sendzc_prep_async,
+		.cleanup		= io_sendzc_cleanup,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
