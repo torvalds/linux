@@ -58,6 +58,55 @@ static int sparx5_tc_setup_qdisc_tbf(struct net_device *ndev,
 	return -EOPNOTSUPP;
 }
 
+static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
+				     struct tc_ets_qopt_offload *qopt)
+{
+	struct tc_ets_qopt_offload_replace_params *params =
+		&qopt->replace_params;
+	struct sparx5_port *port = netdev_priv(ndev);
+	int i;
+
+	/* Only allow ets on ports  */
+	if (qopt->parent != TC_H_ROOT)
+		return -EOPNOTSUPP;
+
+	switch (qopt->command) {
+	case TC_ETS_REPLACE:
+
+		/* We support eight priorities */
+		if (params->bands != SPX5_PRIOS)
+			return -EOPNOTSUPP;
+
+		/* Sanity checks */
+		for (i = 0; i < SPX5_PRIOS; ++i) {
+			/* Priority map is *always* reverse e.g: 7 6 5 .. 0 */
+			if (params->priomap[i] != (7 - i))
+				return -EOPNOTSUPP;
+			/* Throw an error if we receive zero weights by tc */
+			if (params->quanta[i] && params->weights[i] == 0) {
+				pr_err("Invalid ets configuration; band %d has weight zero",
+				       i);
+				return -EINVAL;
+			}
+		}
+
+		sparx5_tc_ets_add(port, params);
+		break;
+	case TC_ETS_DESTROY:
+
+		sparx5_tc_ets_del(port);
+
+		break;
+	case TC_ETS_GRAFT:
+		return -EOPNOTSUPP;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			 void *type_data)
 {
@@ -66,6 +115,8 @@ int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 		return sparx5_tc_setup_qdisc_mqprio(ndev, type_data);
 	case TC_SETUP_QDISC_TBF:
 		return sparx5_tc_setup_qdisc_tbf(ndev, type_data);
+	case TC_SETUP_QDISC_ETS:
+		return sparx5_tc_setup_qdisc_ets(ndev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

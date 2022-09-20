@@ -296,6 +296,36 @@ static int sparx5_shaper_conf_set(struct sparx5_port *port,
 	return 0;
 }
 
+static u32 sparx5_weight_to_hw_cost(u32 weight_min, u32 weight)
+{
+	return ((((SPX5_DWRR_COST_MAX << 4) * weight_min / weight) + 8) >> 4) -
+	       1;
+}
+
+static int sparx5_dwrr_conf_set(struct sparx5_port *port,
+				struct sparx5_dwrr *dwrr)
+{
+	int i;
+
+	spx5_rmw(HSCH_HSCH_CFG_CFG_HSCH_LAYER_SET(2) |
+		 HSCH_HSCH_CFG_CFG_CFG_SE_IDX_SET(port->portno),
+		 HSCH_HSCH_CFG_CFG_HSCH_LAYER | HSCH_HSCH_CFG_CFG_CFG_SE_IDX,
+		 port->sparx5, HSCH_HSCH_CFG_CFG);
+
+	/* Number of *lower* indexes that are arbitrated dwrr */
+	spx5_rmw(HSCH_SE_CFG_SE_DWRR_CNT_SET(dwrr->count),
+		 HSCH_SE_CFG_SE_DWRR_CNT, port->sparx5,
+		 HSCH_SE_CFG(port->portno));
+
+	for (i = 0; i < dwrr->count; i++) {
+		spx5_rmw(HSCH_DWRR_ENTRY_DWRR_COST_SET(dwrr->cost[i]),
+			 HSCH_DWRR_ENTRY_DWRR_COST, port->sparx5,
+			 HSCH_DWRR_ENTRY(i));
+	}
+
+	return 0;
+}
+
 static int sparx5_leak_groups_init(struct sparx5 *sparx5)
 {
 	struct sparx5_layer *layer;
@@ -437,4 +467,47 @@ int sparx5_tc_tbf_del(struct sparx5_port *port, u32 layer, u32 idx)
 	sparx5_lg_get_group_by_index(port->sparx5, layer, idx, &group);
 
 	return sparx5_shaper_conf_set(port, &sh, layer, idx, group);
+}
+
+int sparx5_tc_ets_add(struct sparx5_port *port,
+		      struct tc_ets_qopt_offload_replace_params *params)
+{
+	struct sparx5_dwrr dwrr = {0};
+	/* Minimum weight for each iteration */
+	unsigned int w_min = 100;
+	int i;
+
+	/* Find minimum weight for all dwrr bands */
+	for (i = 0; i < SPX5_PRIOS; i++) {
+		if (params->quanta[i] == 0)
+			continue;
+		w_min = min(w_min, params->weights[i]);
+	}
+
+	for (i = 0; i < SPX5_PRIOS; i++) {
+		/* Strict band; skip */
+		if (params->quanta[i] == 0)
+			continue;
+
+		dwrr.count++;
+
+		/* On the sparx5, bands with higher indexes are preferred and
+		 * arbitrated strict. Strict bands are put in the lower indexes,
+		 * by tc, so we reverse the bands here.
+		 *
+		 * Also convert the weight to something the hardware
+		 * understands.
+		 */
+		dwrr.cost[SPX5_PRIOS - i - 1] =
+			sparx5_weight_to_hw_cost(w_min, params->weights[i]);
+	}
+
+	return sparx5_dwrr_conf_set(port, &dwrr);
+}
+
+int sparx5_tc_ets_del(struct sparx5_port *port)
+{
+	struct sparx5_dwrr dwrr = {0};
+
+	return sparx5_dwrr_conf_set(port, &dwrr);
 }

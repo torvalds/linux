@@ -34,6 +34,9 @@
 #define SPX5_SE_BURST_MIN 1
 #define SPX5_SE_BURST_UNIT 4096
 
+/* Dwrr */
+#define SPX5_DWRR_COST_MAX 63
+
 struct sparx5_shaper {
 	u32 mode;
 	u32 rate;
@@ -51,6 +54,11 @@ struct sparx5_layer {
 	struct sparx5_lg leak_groups[SPX5_HSCH_LEAK_GRP_CNT];
 };
 
+struct sparx5_dwrr {
+	u32 count; /* Number of inputs running dwrr */
+	u8 cost[SPX5_PRIOS];
+};
+
 int sparx5_qos_init(struct sparx5 *sparx5);
 
 /* Multi-Queue Priority */
@@ -63,5 +71,12 @@ int sparx5_tc_tbf_add(struct sparx5_port *port,
 		      struct tc_tbf_qopt_offload_replace_params *params,
 		      u32 layer, u32 idx);
 int sparx5_tc_tbf_del(struct sparx5_port *port, u32 layer, u32 idx);
+
+/* Enhanced Transmission Selection */
+struct tc_ets_qopt_offload_replace_params;
+int sparx5_tc_ets_add(struct sparx5_port *port,
+		      struct tc_ets_qopt_offload_replace_params *params);
+
+int sparx5_tc_ets_del(struct sparx5_port *port);
 
 #endif	/* __SPARX5_QOS_H__ */
