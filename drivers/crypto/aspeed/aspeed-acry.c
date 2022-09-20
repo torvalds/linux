@@ -208,10 +208,8 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 	}
 
 	acry_dev->irq = platform_get_irq(pdev, 0);
-	if (!acry_dev->irq) {
-		dev_err(&pdev->dev, "no memory/irq resource for acry_dev\n");
+	if (acry_dev->irq < 0)
 		return -ENXIO;
-	}
 
 	if (devm_request_irq(&pdev->dev, acry_dev->irq, aspeed_acry_irq, 0, dev_name(&pdev->dev), acry_dev)) {
 		dev_err(dev, "unable to request aes irq.\n");

@@ -214,10 +214,8 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	}
 
 	hace_dev->irq = platform_get_irq(pdev, 0);
-	if (!hace_dev->irq) {
-		dev_err(&pdev->dev, "no memory/irq resource for hace_dev\n");
+	if (hace_dev->irq < 0)
 		return -ENXIO;
-	}
 
 	if (devm_request_irq(&pdev->dev, hace_dev->irq, aspeed_hace_irq, 0, dev_name(&pdev->dev), hace_dev)) {
 		dev_err(dev, "unable to request aes irq.\n");
