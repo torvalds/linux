@@ -233,6 +233,23 @@ bool dcn32_mpo_in_use(struct dc_state *context)
 	return false;
 }
 
+
+bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context)
+{
+	uint32_t i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->plane_state && pipe->plane_state->rotation != ROTATION_ANGLE_0)
+			return true;
+	}
+	return false;
+}
+
 /**
  * *******************************************************************************************
  * dcn32_determine_det_override: Determine DET allocation for each pipe
