@@ -384,6 +384,8 @@ intel_reference_shared_dpll(struct intel_atomic_state *state,
 	if (shared_dpll[id].pipe_mask == 0)
 		shared_dpll[id].hw_state = *pll_state;
 
+	drm_WARN_ON(&i915->drm, (shared_dpll[id].pipe_mask & BIT(crtc->pipe)) != 0);
+
 	shared_dpll[id].pipe_mask |= BIT(crtc->pipe);
 
 	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] reserving %s\n",
@@ -396,10 +398,13 @@ static void intel_unreference_shared_dpll(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_shared_dpll_state *shared_dpll;
+	const enum intel_dpll_id id = pll->info->id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	shared_dpll[pll->info->id].pipe_mask &= ~BIT(crtc->pipe);
+	drm_WARN_ON(&i915->drm, (shared_dpll[id].pipe_mask & BIT(crtc->pipe)) == 0);
+
+	shared_dpll[id].pipe_mask &= ~BIT(crtc->pipe);
 
 	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] releasing %s\n",
 		    crtc->base.base.id, crtc->base.name, pll->info->name);
