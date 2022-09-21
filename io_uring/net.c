@@ -1103,6 +1103,22 @@ void io_sendrecv_fail(struct io_kiocb *req)
 	io_req_set_res(req, res, req->cqe.flags);
 }
 
+void io_send_zc_fail(struct io_kiocb *req)
+{
+	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+	int res = req->cqe.res;
+
+	if (req->flags & REQ_F_PARTIAL_IO) {
+		if (req->flags & REQ_F_NEED_CLEANUP) {
+			io_notif_flush(sr->notif);
+			sr->notif = NULL;
+			req->flags &= ~REQ_F_NEED_CLEANUP;
+		}
+		res = sr->done_io;
+	}
+	io_req_set_res(req, res, req->cqe.flags);
+}
+
 int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_accept *accept = io_kiocb_to_cmd(req, struct io_accept);
