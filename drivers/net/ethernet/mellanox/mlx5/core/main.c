@@ -1588,6 +1588,16 @@ err:
 	return -ENOMEM;
 }
 
+static int vhca_id_show(struct seq_file *file, void *priv)
+{
+	struct mlx5_core_dev *dev = file->private;
+
+	seq_printf(file, "0x%x\n", MLX5_CAP_GEN(dev, vhca_id));
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(vhca_id);
+
 int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -1612,6 +1622,7 @@ int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 	priv->numa_node = dev_to_node(mlx5_core_dma_dev(dev));
 	priv->dbg.dbg_root = debugfs_create_dir(dev_name(dev->device),
 						mlx5_debugfs_root);
+	debugfs_create_file("vhca_id", 0400, priv->dbg.dbg_root, dev, &vhca_id_fops);
 	INIT_LIST_HEAD(&priv->traps);
 
 	err = mlx5_tout_init(dev);
