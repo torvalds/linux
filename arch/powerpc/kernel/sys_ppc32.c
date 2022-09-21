@@ -47,45 +47,55 @@
 #include <asm/syscalls.h>
 #include <asm/switch_to.h>
 
-compat_ssize_t compat_sys_pread64(unsigned int fd, char __user *ubuf, compat_size_t count,
-			     u32 reg6, u32 pos1, u32 pos2)
+COMPAT_SYSCALL_DEFINE6(ppc_pread64,
+		       unsigned int, fd,
+		       char __user *, ubuf, compat_size_t, count,
+		       u32, reg6, u32, pos1, u32, pos2)
 {
 	return ksys_pread64(fd, ubuf, count, merge_64(pos1, pos2));
 }
 
-compat_ssize_t compat_sys_pwrite64(unsigned int fd, const char __user *ubuf, compat_size_t count,
-			      u32 reg6, u32 pos1, u32 pos2)
+COMPAT_SYSCALL_DEFINE6(ppc_pwrite64,
+		       unsigned int, fd,
+		       const char __user *, ubuf, compat_size_t, count,
+		       u32, reg6, u32, pos1, u32, pos2)
 {
 	return ksys_pwrite64(fd, ubuf, count, merge_64(pos1, pos2));
 }
 
-compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offset1, u32 offset2, u32 count)
+COMPAT_SYSCALL_DEFINE5(ppc_readahead,
+		       int, fd, u32, r4,
+		       u32, offset1, u32, offset2, u32, count)
 {
 	return ksys_readahead(fd, merge_64(offset1, offset2), count);
 }
 
-int compat_sys_truncate64(const char __user * path, u32 reg4,
-				unsigned long len1, unsigned long len2)
+COMPAT_SYSCALL_DEFINE4(ppc_truncate64,
+		       const char __user *, path, u32, reg4,
+		       unsigned long, len1, unsigned long, len2)
 {
 	return ksys_truncate(path, merge_64(len1, len2));
 }
 
-int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long len1,
-				 unsigned long len2)
+COMPAT_SYSCALL_DEFINE4(ppc_ftruncate64,
+		       unsigned int, fd, u32, reg4,
+		       unsigned long, len1, unsigned long, len2)
 {
 	return ksys_ftruncate(fd, merge_64(len1, len2));
 }
 
-long ppc32_fadvise64(int fd, u32 unused, u32 offset1, u32 offset2,
-		     size_t len, int advice)
+COMPAT_SYSCALL_DEFINE6(ppc32_fadvise64,
+		       int, fd, u32, unused, u32, offset1, u32, offset2,
+		       size_t, len, int, advice)
 {
 	return ksys_fadvise64_64(fd, merge_64(offset1, offset2), len,
 				 advice);
 }
 
-long compat_sys_sync_file_range2(int fd, unsigned int flags,
-				   unsigned offset1, unsigned offset2,
-				   unsigned nbytes1, unsigned nbytes2)
+COMPAT_SYSCALL_DEFINE6(ppc_sync_file_range2,
+		       int, fd, unsigned int, flags,
+		       unsigned int, offset1, unsigned int, offset2,
+		       unsigned int, nbytes1, unsigned int, nbytes2)
 {
 	loff_t offset = merge_64(offset1, offset2);
 	loff_t nbytes = merge_64(nbytes1, nbytes2);

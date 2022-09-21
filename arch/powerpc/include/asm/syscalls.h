@@ -28,10 +28,10 @@ long sys_mmap(unsigned long addr, size_t len,
 long sys_mmap2(unsigned long addr, size_t len,
 	       unsigned long prot, unsigned long flags,
 	       unsigned long fd, unsigned long pgoff);
-long ppc64_personality(unsigned long personality);
+long sys_ppc64_personality(unsigned long personality);
 long sys_rtas(struct rtas_args __user *uargs);
-long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
-		      u32 len_high, u32 len_low);
+long sys_ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
+			  u32 len_high, u32 len_low);
 
 #ifdef CONFIG_COMPAT
 long compat_sys_mmap2(unsigned long addr, size_t len,
@@ -52,8 +52,8 @@ int compat_sys_truncate64(const char __user *path, u32 reg4,
 int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long len1,
 			   unsigned long len2);
 
-long ppc32_fadvise64(int fd, u32 unused, u32 offset1, u32 offset2,
-		     size_t len, int advice);
+long compat_sys_ppc32_fadvise64(int fd, u32 unused, u32 offset1, u32 offset2,
+				size_t len, int advice);
 
 long compat_sys_sync_file_range2(int fd, unsigned int flags,
 				 unsigned int offset1, unsigned int offset2,
