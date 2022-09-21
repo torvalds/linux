@@ -24,6 +24,7 @@ MODULE_PARM_DESC(set_vf_link_state, "Set vf link state, 0 represents link auto, 
 #define HINIC_VLAN_PRIORITY_SHIFT 13
 #define HINIC_ADD_VLAN_IN_MAC 0x8000
 #define HINIC_TX_RATE_TABLE_FULL 12
+#define HINIC_MAX_QOS 7
 
 static int hinic_set_mac(struct hinic_hwdev *hwdev, const u8 *mac_addr,
 			 u16 vlan_id, u16 func_id)
@@ -774,7 +775,7 @@ int hinic_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 	u16 vlanprio, cur_vlanprio;
 
 	sriov_info = &nic_dev->sriov_info;
-	if (vf >= sriov_info->num_vfs || vlan > 4095 || qos > 7)
+	if (vf >= sriov_info->num_vfs || vlan >= VLAN_N_VID || qos > HINIC_MAX_QOS)
 		return -EINVAL;
 	if (vlan_proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
