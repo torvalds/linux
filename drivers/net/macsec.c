@@ -1663,7 +1663,6 @@ static int macsec_offload(int (* const func)(struct macsec_context *),
 	if (ctx->offload == MACSEC_OFFLOAD_PHY)
 		mutex_lock(&ctx->phydev->lock);
 
-	ctx->prepare = false;
 	ret = (*func)(ctx);
 
 	if (ctx->offload == MACSEC_OFFLOAD_PHY)
