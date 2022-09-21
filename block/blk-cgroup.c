@@ -1261,7 +1261,7 @@ int blkcg_init_disk(struct gendisk *disk)
 	if (ret)
 		goto err_destroy_all;
 
-	ret = blk_throtl_init(q);
+	ret = blk_throtl_init(disk);
 	if (ret)
 		goto err_ioprio_exit;
 
@@ -1272,7 +1272,7 @@ int blkcg_init_disk(struct gendisk *disk)
 	return 0;
 
 err_throtl_exit:
-	blk_throtl_exit(q);
+	blk_throtl_exit(disk);
 err_ioprio_exit:
 	blk_ioprio_exit(disk);
 err_destroy_all:
@@ -1288,7 +1288,7 @@ err_unlock:
 void blkcg_exit_disk(struct gendisk *disk)
 {
 	blkg_destroy_all(disk->queue);
-	blk_throtl_exit(disk->queue);
+	blk_throtl_exit(disk);
 }
 
 static void blkcg_bind(struct cgroup_subsys_state *root_css)
