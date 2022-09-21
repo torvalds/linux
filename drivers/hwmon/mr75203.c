@@ -266,9 +266,9 @@ static long pvt_calc_temp(struct pvt_device *pvt, u32 nbs)
 	struct temp_coeff *ts_coeff = &pvt->ts_coeff;
 
 	s64 tmp = ts_coeff->g +
-		ts_coeff->h * (s64)nbs / ts_coeff->cal5 -
+		div_s64(ts_coeff->h * (s64)nbs, ts_coeff->cal5) -
 		ts_coeff->h / 2 +
-		ts_coeff->j * (s64)pvt->ip_freq / HZ_PER_MHZ;
+		div_s64(ts_coeff->j * (s64)pvt->ip_freq, HZ_PER_MHZ);
 
 	return clamp_val(tmp, PVT_TEMP_MIN_mC, PVT_TEMP_MAX_mC);
 }
