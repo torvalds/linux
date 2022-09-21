@@ -152,28 +152,6 @@ intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
 	return &dev_priv->display.dpll.shared_dplls[id];
 }
 
-/**
- * intel_get_shared_dpll_id - get the id of a DPLL
- * @dev_priv: i915 device instance
- * @pll: the DPLL
- *
- * Returns:
- * The id of @pll
- */
-enum intel_dpll_id
-intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
-			 struct intel_shared_dpll *pll)
-{
-	long pll_idx = pll - dev_priv->display.dpll.shared_dplls;
-
-	if (drm_WARN_ON(&dev_priv->drm,
-			pll_idx < 0 ||
-			pll_idx >= dev_priv->display.dpll.num_shared_dpll))
-		return -1;
-
-	return pll_idx;
-}
-
 /* For ILK+ */
 void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			struct intel_shared_dpll *pll,
