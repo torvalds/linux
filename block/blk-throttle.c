@@ -2408,8 +2408,9 @@ void blk_throtl_exit(struct gendisk *disk)
 	kfree(q->td);
 }
 
-void blk_throtl_register_queue(struct request_queue *q)
+void blk_throtl_register(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct throtl_data *td;
 	int i;
 

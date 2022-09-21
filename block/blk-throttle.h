@@ -170,13 +170,13 @@ static inline struct throtl_grp *blkg_to_tg(struct blkcg_gq *blkg)
 #ifndef CONFIG_BLK_DEV_THROTTLING
 static inline int blk_throtl_init(struct gendisk *disk) { return 0; }
 static inline void blk_throtl_exit(struct gendisk *disk) { }
-static inline void blk_throtl_register_queue(struct request_queue *q) { }
+static inline void blk_throtl_register(struct gendisk *disk) { }
 static inline bool blk_throtl_bio(struct bio *bio) { return false; }
 static inline void blk_throtl_cancel_bios(struct request_queue *q) { }
 #else /* CONFIG_BLK_DEV_THROTTLING */
 int blk_throtl_init(struct gendisk *disk);
 void blk_throtl_exit(struct gendisk *disk);
-void blk_throtl_register_queue(struct request_queue *q);
+void blk_throtl_register(struct gendisk *disk);
 bool __blk_throtl_bio(struct bio *bio);
 void blk_throtl_cancel_bios(struct request_queue *q);
 
