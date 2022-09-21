@@ -292,7 +292,7 @@ static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 	unsigned use_delay = atomic_read(&lat_to_blkg(iolat)->use_delay);
 
 	if (use_delay)
-		blkcg_schedule_throttle(rqos->q, use_memdelay);
+		blkcg_schedule_throttle(rqos->q->disk, use_memdelay);
 
 	/*
 	 * To avoid priority inversions we want to just take a slot if we are

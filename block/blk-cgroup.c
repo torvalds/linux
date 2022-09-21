@@ -1792,13 +1792,13 @@ out:
 
 /**
  * blkcg_schedule_throttle - this task needs to check for throttling
- * @q: the request queue IO was submitted on
+ * @gendisk: disk to throttle
  * @use_memdelay: do we charge this to memory delay for PSI
  *
  * This is called by the IO controller when we know there's delay accumulated
  * for the blkg for this task.  We do not pass the blkg because there are places
  * we call this that may not have that information, the swapping code for
- * instance will only have a request_queue at that point.  This set's the
+ * instance will only have a block_device at that point.  This set's the
  * notify_resume for the task to check and see if it requires throttling before
  * returning to user space.
  *
@@ -1807,8 +1807,10 @@ out:
  * throttle once.  If the task needs to be throttled again it'll need to be
  * re-set at the next time we see the task.
  */
-void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
+void blkcg_schedule_throttle(struct gendisk *disk, bool use_memdelay)
 {
+	struct request_queue *q = disk->queue;
+
 	if (unlikely(current->flags & PF_KTHREAD))
 		return;
 
