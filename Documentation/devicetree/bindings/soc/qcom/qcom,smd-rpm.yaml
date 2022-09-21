@@ -45,6 +45,7 @@ properties:
       - qcom,rpm-sdm660
       - qcom,rpm-sm6115
       - qcom,rpm-sm6125
+      - qcom,rpm-sm6375
       - qcom,rpm-qcm2290
       - qcom,rpm-qcs404
 
