@@ -820,7 +820,7 @@ int hinic_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting)
 
 	cur_trust = nic_io->vf_infos[vf].trust;
 	/* same request, so just return success */
-	if ((setting && cur_trust) || (!setting && !cur_trust))
+	if (setting == cur_trust)
 		return 0;
 
 	err = hinic_set_vf_trust(adapter->hwdev, vf, setting);
@@ -940,7 +940,7 @@ int hinic_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	cur_spoofchk = nic_dev->hwdev->func_to_io.vf_infos[vf].spoofchk;
 
 	/* same request, so just return success */
-	if ((setting && cur_spoofchk) || (!setting && !cur_spoofchk))
+	if (setting == cur_spoofchk)
 		return 0;
 
 	err = hinic_set_vf_spoofchk(sriov_info->hwdev,
