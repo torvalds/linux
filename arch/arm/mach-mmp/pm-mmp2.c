@@ -21,40 +21,6 @@
 #include "addr-map.h"
 #include "pm-mmp2.h"
 #include "regs-icu.h"
-#include "irqs.h"
-
-int mmp2_set_wake(struct irq_data *d, unsigned int on)
-{
-	unsigned long data = 0;
-	int irq = d->irq;
-
-	/* enable wakeup sources */
-	switch (irq) {
-	case IRQ_MMP2_RTC:
-	case IRQ_MMP2_RTC_ALARM:
-		data = MPMU_WUCRM_PJ_WAKEUP(4) | MPMU_WUCRM_PJ_RTC_ALARM;
-		break;
-	case IRQ_MMP2_PMIC:
-		data = MPMU_WUCRM_PJ_WAKEUP(7);
-		break;
-	case IRQ_MMP2_MMC2:
-		/* mmc use WAKEUP2, same as GPIO wakeup source */
-		data = MPMU_WUCRM_PJ_WAKEUP(2);
-		break;
-	}
-	if (on) {
-		if (data) {
-			data |= __raw_readl(MPMU_WUCRM_PJ);
-			__raw_writel(data, MPMU_WUCRM_PJ);
-		}
-	} else {
-		if (data) {
-			data = ~data & __raw_readl(MPMU_WUCRM_PJ);
-			__raw_writel(data, MPMU_WUCRM_PJ);
-		}
-	}
-	return 0;
-}
 
 static void pm_scu_clk_disable(void)
 {

@@ -2,7 +2,7 @@
 #
 # Makefile for Marvell's PXA168 processors line
 #
-obj-y				+= common.o devices.o time.o
+obj-y				+= common.o time.o
 
 # SoC support
 obj-$(CONFIG_CPU_PXA168)	+= pxa168.o

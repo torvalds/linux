@@ -19,11 +19,8 @@
 
 #include <asm/mach/time.h>
 #include "addr-map.h"
-#include "regs-apbc.h"
 #include <linux/soc/mmp/cputype.h>
-#include "irqs.h"
-#include "mfp.h"
-#include "devices.h"
+#include <linux/soc/pxa/mfp.h>
 #include "mmp2.h"
 #include "pm-mmp2.h"
 
@@ -91,14 +88,6 @@ void mmp2_clear_pmic_int(void)
 	__raw_writel(data, mfpr_pmic);
 }
 
-void __init mmp2_init_irq(void)
-{
-	mmp2_init_icu();
-#ifdef CONFIG_PM
-	icu_irq_chip.irq_set_wake = mmp2_set_wake;
-#endif
-}
-
 static int __init mmp2_init(void)
 {
 	if (cpu_is_mmp2()) {
@@ -115,61 +104,3 @@ static int __init mmp2_init(void)
 	return 0;
 }
 postcore_initcall(mmp2_init);
-
-#define APBC_TIMERS	APBC_REG(0x024)
-
-void __init mmp2_timer_init(void)
-{
-	unsigned long clk_rst;
-
-	__raw_writel(APBC_APBCLK | APBC_RST, APBC_TIMERS);
-
-	/*
-	 * enable bus/functional clock, enable 6.5MHz (divider 4),
-	 * release reset
-	 */
-	clk_rst = APBC_APBCLK | APBC_FNCLK | APBC_FNCLKSEL(1);
-	__raw_writel(clk_rst, APBC_TIMERS);
-
-	mmp_timer_init(IRQ_MMP2_TIMER1, 6500000);
-}
-
-/* on-chip devices */
-MMP2_DEVICE(uart1, "pxa2xx-uart", 0, UART1, 0xd4030000, 0x30, 4, 5);
-MMP2_DEVICE(uart2, "pxa2xx-uart", 1, UART2, 0xd4017000, 0x30, 20, 21);
-MMP2_DEVICE(uart3, "pxa2xx-uart", 2, UART3, 0xd4018000, 0x30, 22, 23);
-MMP2_DEVICE(uart4, "pxa2xx-uart", 3, UART4, 0xd4016000, 0x30, 18, 19);
-MMP2_DEVICE(twsi1, "pxa2xx-i2c", 0, TWSI1, 0xd4011000, 0x70);
-MMP2_DEVICE(twsi2, "pxa2xx-i2c", 1, TWSI2, 0xd4031000, 0x70);
-MMP2_DEVICE(twsi3, "pxa2xx-i2c", 2, TWSI3, 0xd4032000, 0x70);
-MMP2_DEVICE(twsi4, "pxa2xx-i2c", 3, TWSI4, 0xd4033000, 0x70);
-MMP2_DEVICE(twsi5, "pxa2xx-i2c", 4, TWSI5, 0xd4033800, 0x70);
-MMP2_DEVICE(twsi6, "pxa2xx-i2c", 5, TWSI6, 0xd4034000, 0x70);
-MMP2_DEVICE(nand, "pxa3xx-nand", -1, NAND, 0xd4283000, 0x100, 28, 29);
-MMP2_DEVICE(sdh0, "sdhci-pxav3", 0, MMC, 0xd4280000, 0x120);
-MMP2_DEVICE(sdh1, "sdhci-pxav3", 1, MMC2, 0xd4280800, 0x120);
-MMP2_DEVICE(sdh2, "sdhci-pxav3", 2, MMC3, 0xd4281000, 0x120);
-MMP2_DEVICE(sdh3, "sdhci-pxav3", 3, MMC4, 0xd4281800, 0x120);
-MMP2_DEVICE(asram, "asram", -1, NONE, 0xe0000000, 0x4000);
-/* 0xd1000000 ~ 0xd101ffff is reserved for secure processor */
-MMP2_DEVICE(isram, "isram", -1, NONE, 0xd1020000, 0x18000);
-
-struct resource mmp2_resource_gpio[] = {
-	{
-		.start	= 0xd4019000,
-		.end	= 0xd4019fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_MMP2_GPIO,
-		.end	= IRQ_MMP2_GPIO,
-		.name	= "gpio_mux",
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mmp2_device_gpio = {
-	.name		= "mmp2-gpio",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(mmp2_resource_gpio),
-	.resource	= mmp2_resource_gpio,
-};
