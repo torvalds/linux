@@ -756,8 +756,9 @@ static void blkiolatency_enable_work_fn(struct work_struct *work)
 	}
 }
 
-int blk_iolatency_init(struct request_queue *q)
+int blk_iolatency_init(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct blk_iolatency *blkiolat;
 	struct rq_qos *rqos;
 	int ret;

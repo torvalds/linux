@@ -389,9 +389,9 @@ static inline struct bio *blk_queue_bounce(struct bio *bio,
 }
 
 #ifdef CONFIG_BLK_CGROUP_IOLATENCY
-extern int blk_iolatency_init(struct request_queue *q);
+int blk_iolatency_init(struct gendisk *disk);
 #else
-static inline int blk_iolatency_init(struct request_queue *q) { return 0; }
+static inline int blk_iolatency_init(struct gendisk *disk) { return 0; };
 #endif
 
 #ifdef CONFIG_BLK_DEV_ZONED

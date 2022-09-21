@@ -1265,7 +1265,7 @@ int blkcg_init_disk(struct gendisk *disk)
 	if (ret)
 		goto err_ioprio_exit;
 
-	ret = blk_iolatency_init(q);
+	ret = blk_iolatency_init(disk);
 	if (ret)
 		goto err_throtl_exit;
 
