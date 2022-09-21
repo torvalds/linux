@@ -1621,8 +1621,10 @@ static void setup_pebs_fixed_sample_data(struct perf_event *event,
 
 
 	if ((sample_type & PERF_SAMPLE_ADDR_TYPE) &&
-	    x86_pmu.intel_cap.pebs_format >= 1)
+	    x86_pmu.intel_cap.pebs_format >= 1) {
 		data->addr = pebs->dla;
+		data->sample_flags |= PERF_SAMPLE_ADDR;
+	}
 
 	if (x86_pmu.intel_cap.pebs_format >= 2) {
 		/* Only set the TSX weight when no memory weight. */
@@ -1783,8 +1785,10 @@ static void setup_pebs_adaptive_sample_data(struct perf_event *event,
 			data->sample_flags |= PERF_SAMPLE_DATA_SRC;
 		}
 
-		if (sample_type & PERF_SAMPLE_ADDR_TYPE)
+		if (sample_type & PERF_SAMPLE_ADDR_TYPE) {
 			data->addr = meminfo->address;
+			data->sample_flags |= PERF_SAMPLE_ADDR;
+		}
 
 		if (sample_type & PERF_SAMPLE_TRANSACTION) {
 			data->txn = intel_get_tsx_transaction(meminfo->tsx_tuning,

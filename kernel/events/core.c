@@ -7414,6 +7414,11 @@ void perf_prepare_sample(struct perf_event_header *header,
 	if (filtered_sample_type & PERF_SAMPLE_TRANSACTION)
 		data->txn = 0;
 
+	if (sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR | PERF_SAMPLE_DATA_PAGE_SIZE)) {
+		if (filtered_sample_type & PERF_SAMPLE_ADDR)
+			data->addr = 0;
+	}
+
 	if (sample_type & PERF_SAMPLE_REGS_INTR) {
 		/* regs dump ABI info */
 		int size = sizeof(u64);
