@@ -602,25 +602,6 @@ u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v)
 }
 EXPORT_SYMBOL_GPL(__blkg_prfill_u64);
 
-/* Performs queue bypass and policy enabled checks then looks up blkg. */
-static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
-					  const struct blkcg_policy *pol,
-					  struct request_queue *q)
-{
-	struct blkcg_gq *blkg;
-
-	WARN_ON_ONCE(!rcu_read_lock_held());
-	lockdep_assert_held(&q->queue_lock);
-
-	if (!blkcg_policy_enabled(q, pol))
-		return ERR_PTR(-EOPNOTSUPP);
-
-	blkg = blkg_lookup(blkcg, q);
-	if (blkg)
-		blkg_update_hint(blkcg, blkg);
-	return blkg;
-}
-
 /**
  * blkcg_conf_open_bdev - parse and open bdev for per-blkg config update
  * @inputp: input string pointer
@@ -697,14 +678,16 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	rcu_read_lock();
 	spin_lock_irq(&q->queue_lock);
 
-	blkg = blkg_lookup_check(blkcg, pol, q);
-	if (IS_ERR(blkg)) {
-		ret = PTR_ERR(blkg);
+	if (!blkcg_policy_enabled(q, pol)) {
+		ret = -EOPNOTSUPP;
 		goto fail_unlock;
 	}
 
-	if (blkg)
+	blkg = blkg_lookup(blkcg, q);
+	if (blkg) {
+		blkg_update_hint(blkcg, blkg);
 		goto success;
+	}
 
 	/*
 	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
@@ -740,14 +723,15 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 		rcu_read_lock();
 		spin_lock_irq(&q->queue_lock);
 
-		blkg = blkg_lookup_check(pos, pol, q);
-		if (IS_ERR(blkg)) {
-			ret = PTR_ERR(blkg);
+		if (!blkcg_policy_enabled(q, pol)) {
 			blkg_free(new_blkg);
+			ret = -EOPNOTSUPP;
 			goto fail_preloaded;
 		}
 
+		blkg = blkg_lookup(pos, q);
 		if (blkg) {
+			blkg_update_hint(pos, blkg);
 			blkg_free(new_blkg);
 		} else {
 			blkg = blkg_create(pos, q, new_blkg);
