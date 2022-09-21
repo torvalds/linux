@@ -745,6 +745,17 @@ bool acpi_dev_ready_for_enumeration(const struct acpi_device *device);
 struct acpi_device *acpi_dev_get_next_consumer_dev(struct acpi_device *supplier,
 						   struct acpi_device *start);
 
+/**
+ * for_each_acpi_consumer_dev - iterate over the consumer ACPI devices for a
+ *				given supplier
+ * @supplier: Pointer to the supplier's ACPI device
+ * @consumer: Pointer to &struct acpi_device to hold the consumer, initially NULL
+ */
+#define for_each_acpi_consumer_dev(supplier, consumer)			\
+	for (consumer = acpi_dev_get_next_consumer_dev(supplier, NULL);	\
+	     consumer;							\
+	     consumer = acpi_dev_get_next_consumer_dev(supplier, consumer))
+
 struct acpi_device *
 acpi_dev_get_next_match_dev(struct acpi_device *adev, const char *hid, const char *uid, s64 hrv);
 struct acpi_device *
