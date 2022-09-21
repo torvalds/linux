@@ -519,9 +519,6 @@ static int mlx5e_macsec_add_txsa(struct macsec_context *ctx)
 	struct mlx5e_macsec *macsec;
 	int err = 0;
 
-	if (ctx->prepare)
-		return 0;
-
 	mutex_lock(&priv->macsec->lock);
 
 	macsec = priv->macsec;
@@ -595,9 +592,6 @@ static int mlx5e_macsec_upd_txsa(struct macsec_context *ctx)
 	struct net_device *netdev;
 	int err = 0;
 
-	if (ctx->prepare)
-		return 0;
-
 	mutex_lock(&priv->macsec->lock);
 
 	macsec = priv->macsec;
@@ -658,9 +652,6 @@ static int mlx5e_macsec_del_txsa(struct macsec_context *ctx)
 	struct mlx5e_macsec *macsec;
 	int err = 0;
 
-	if (ctx->prepare)
-		return 0;
-
 	mutex_lock(&priv->macsec->lock);
 	macsec = priv->macsec;
 	macsec_device = mlx5e_macsec_get_macsec_device_context(macsec, ctx);
@@ -712,9 +703,6 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 	struct list_head *rx_sc_list;
 	struct mlx5e_macsec *macsec;
 	int err = 0;
-
-	if (ctx->prepare)
-		return 0;
 
 	mutex_lock(&priv->macsec->lock);
 	macsec = priv->macsec;
@@ -793,9 +781,6 @@ static int mlx5e_macsec_upd_rxsc(struct macsec_context *ctx)
 	int i;
 	int err = 0;
 
-	if (ctx->prepare)
-		return 0;
-
 	mutex_lock(&priv->macsec->lock);
 
 	macsec = priv->macsec;
@@ -843,9 +828,6 @@ static int mlx5e_macsec_del_rxsc(struct macsec_context *ctx)
 	struct list_head *list;
 	int err = 0;
 	int i;
-
-	if (ctx->prepare)
-		return 0;
 
 	mutex_lock(&priv->macsec->lock);
 
@@ -911,9 +893,6 @@ static int mlx5e_macsec_add_rxsa(struct macsec_context *ctx)
 	struct mlx5e_macsec *macsec;
 	struct list_head *list;
 	int err = 0;
-
-	if (ctx->prepare)
-		return 0;
 
 	mutex_lock(&priv->macsec->lock);
 
@@ -999,9 +978,6 @@ static int mlx5e_macsec_upd_rxsa(struct macsec_context *ctx)
 	struct list_head *list;
 	int err = 0;
 
-	if (ctx->prepare)
-		return 0;
-
 	mutex_lock(&priv->macsec->lock);
 
 	macsec = priv->macsec;
@@ -1058,9 +1034,6 @@ static int mlx5e_macsec_del_rxsa(struct macsec_context *ctx)
 	struct list_head *list;
 	int err = 0;
 
-	if (ctx->prepare)
-		return 0;
-
 	mutex_lock(&priv->macsec->lock);
 
 	macsec = priv->macsec;
@@ -1109,9 +1082,6 @@ static int mlx5e_macsec_add_secy(struct macsec_context *ctx)
 	struct mlx5e_macsec_device *macsec_device;
 	struct mlx5e_macsec *macsec;
 	int err = 0;
-
-	if (ctx->prepare)
-		return 0;
 
 	if (!mlx5e_macsec_secy_features_validate(ctx))
 		return -EINVAL;
@@ -1213,9 +1183,6 @@ static int mlx5e_macsec_upd_secy(struct macsec_context *ctx)
 	struct mlx5e_macsec *macsec;
 	int i, err = 0;
 
-	if (ctx->prepare)
-		return 0;
-
 	if (!mlx5e_macsec_secy_features_validate(ctx))
 		return -EINVAL;
 
@@ -1273,9 +1240,6 @@ static int mlx5e_macsec_del_secy(struct macsec_context *ctx)
 	struct list_head *list;
 	int err = 0;
 	int i;
-
-	if (ctx->prepare)
-		return 0;
 
 	mutex_lock(&priv->macsec->lock);
 	macsec = priv->macsec;
