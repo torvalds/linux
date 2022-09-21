@@ -304,10 +304,10 @@ static void __init vdso_setup_syscall_map(void)
 	unsigned int i;
 
 	for (i = 0; i < NR_syscalls; i++) {
-		if (sys_call_table[i] != (unsigned long)&sys_ni_syscall)
+		if (sys_call_table[i] != (void *)&sys_ni_syscall)
 			vdso_data->syscall_map[i >> 5] |= 0x80000000UL >> (i & 0x1f);
 		if (IS_ENABLED(CONFIG_COMPAT) &&
-		    compat_sys_call_table[i] != (unsigned long)&sys_ni_syscall)
+		    compat_sys_call_table[i] != (void *)&sys_ni_syscall)
 			vdso_data->compat_syscall_map[i >> 5] |= 0x80000000UL >> (i & 0x1f);
 	}
 }

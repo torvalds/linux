@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/compat.h>
 
+#include <asm/syscall.h>
 #ifdef CONFIG_PPC64
 #include <asm/syscalls_32.h>
 #endif

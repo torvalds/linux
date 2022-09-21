@@ -16,9 +16,14 @@
 #include <asm/syscalls.h>
 
 #define __SYSCALL_WITH_COMPAT(nr, entry, compat) __SYSCALL(nr, entry)
-#define __SYSCALL(nr, entry) [nr] = (unsigned long) &entry,
 
-const unsigned long sys_call_table[] = {
+/*
+ * Coerce syscall handlers with arbitrary parameters to common type
+ * requires cast to void* to avoid -Wcast-function-type.
+ */
+#define __SYSCALL(nr, entry) [nr] = (void *) entry,
+
+const syscall_fn sys_call_table[] = {
 #ifdef CONFIG_PPC64
 #include <asm/syscall_table_64.h>
 #else
@@ -29,7 +34,7 @@ const unsigned long sys_call_table[] = {
 #ifdef CONFIG_COMPAT
 #undef __SYSCALL_WITH_COMPAT
 #define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
-const unsigned long compat_sys_call_table[] = {
+const syscall_fn compat_sys_call_table[] = {
 #include <asm/syscall_table_32.h>
 };
 #endif /* CONFIG_COMPAT */

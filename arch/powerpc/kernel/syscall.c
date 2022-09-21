@@ -12,8 +12,6 @@
 #include <asm/unistd.h>
 
 
-typedef long (*syscall_fn)(long, long, long, long, long, long);
-
 /* Has to run notrace because it is entered not completely "reconciled" */
 notrace long system_call_exception(long r3, long r4, long r5,
 				   long r6, long r7, long r8,
