@@ -158,6 +158,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_sendmsg,
 		.prep_async		= io_sendmsg_prep_async,
 		.cleanup		= io_sendmsg_recvmsg_cleanup,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
@@ -176,6 +177,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_recvmsg,
 		.prep_async		= io_recvmsg_prep_async,
 		.cleanup		= io_sendmsg_recvmsg_cleanup,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
@@ -318,6 +320,7 @@ const struct io_op_def io_op_defs[] = {
 #if defined(CONFIG_NET)
 		.prep			= io_sendmsg_prep,
 		.issue			= io_send,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
@@ -333,6 +336,7 @@ const struct io_op_def io_op_defs[] = {
 #if defined(CONFIG_NET)
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recv,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
