@@ -165,6 +165,8 @@ static void lan966x_port_link_up(struct lan966x_port *port)
 		break;
 	}
 
+	lan966x_taprio_speed_set(port, config->speed);
+
 	/* Also the GIGA_MODE_ENA(1) needs to be set regardless of the
 	 * port speed for QSGMII ports.
 	 */

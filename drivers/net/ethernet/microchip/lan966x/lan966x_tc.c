@@ -15,6 +15,13 @@ static int lan966x_tc_setup_qdisc_mqprio(struct lan966x_port *port,
 			lan966x_mqprio_del(port);
 }
 
+static int lan966x_tc_setup_qdisc_taprio(struct lan966x_port *port,
+					 struct tc_taprio_qopt_offload *taprio)
+{
+	return taprio->enable ? lan966x_taprio_add(port, taprio) :
+				lan966x_taprio_del(port);
+}
+
 int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
 		     void *type_data)
 {
@@ -23,6 +30,8 @@ int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
 	switch (type) {
 	case TC_SETUP_QDISC_MQPRIO:
 		return lan966x_tc_setup_qdisc_mqprio(port, type_data);
+	case TC_SETUP_QDISC_TAPRIO:
+		return lan966x_tc_setup_qdisc_taprio(port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
