@@ -28,6 +28,8 @@
 #include <linux/suspend.h>
 
 #include "e1000.h"
+#define CREATE_TRACE_POINTS
+#include "e1000e_trace.h"
 
 char e1000e_driver_name[] = "e1000e";
 
@@ -6351,6 +6353,7 @@ static void e1000e_s0ix_entry_flow(struct e1000_adapter *adapter)
 		mac_data = er32(H2ME);
 		mac_data |= E1000_H2ME_START_DPG;
 		mac_data &= ~E1000_H2ME_EXIT_DPG;
+		trace_e1000e_trace_mac_register(mac_data);
 		ew32(H2ME, mac_data);
 	} else {
 		/* Request driver configure the device to S0ix */
@@ -6505,6 +6508,7 @@ static void e1000e_s0ix_exit_flow(struct e1000_adapter *adapter)
 		mac_data = er32(H2ME);
 		mac_data &= ~E1000_H2ME_START_DPG;
 		mac_data |= E1000_H2ME_EXIT_DPG;
+		trace_e1000e_trace_mac_register(mac_data);
 		ew32(H2ME, mac_data);
 
 		/* Poll up to 2.5 seconds for ME to unconfigure DPG.
