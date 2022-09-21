@@ -15,6 +15,12 @@
 #include <asm/unistd.h>
 #include <asm/ucontext.h>
 
+#ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
+long sys_ni_syscall(void);
+#else
+long sys_ni_syscall(const struct pt_regs *regs);
+#endif
+
 struct rtas_args;
 
 /*
@@ -29,11 +35,11 @@ struct rtas_args;
 #define merge_64(high, low) (((u64)high << 32) | low)
 #endif
 
-long sys_ni_syscall(void);
-
 /*
  * PowerPC architecture-specific syscalls
  */
+
+#ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
 
 long sys_rtas(struct rtas_args __user *uargs);
 
@@ -113,6 +119,20 @@ long sys_ppc_fadvise64_64(int fd, int advice,
 			  u32 offset_high, u32 offset_low,
 			  u32 len_high, u32 len_low);
 #endif
+
+#else
+
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
+#define __SYSCALL(nr, entry) \
+	long __powerpc_##entry(const struct pt_regs *regs);
+
+#ifdef CONFIG_PPC64
+#include <asm/syscall_table_64.h>
+#else
+#include <asm/syscall_table_32.h>
+#endif /* CONFIG_PPC64 */
+
+#endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_SYSCALLS_H */

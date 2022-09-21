@@ -15,7 +15,6 @@
 /* Has to run notrace because it is entered not completely "reconciled" */
 notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 {
-	unsigned long r3, r4, r5, r6, r7, r8;
 	long ret;
 	syscall_fn f;
 
@@ -145,31 +144,34 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 		return -ENOSYS;
 	}
 
-	r3 = regs->gpr[3];
-	r4 = regs->gpr[4];
-	r5 = regs->gpr[5];
-	r6 = regs->gpr[6];
-	r7 = regs->gpr[7];
-	r8 = regs->gpr[8];
-
 	/* May be faster to do array_index_nospec? */
 	barrier_nospec();
 
+#ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
+	// No COMPAT if we have SYSCALL_WRAPPER, see Kconfig
+	f = (void *)sys_call_table[r0];
+	ret = f(regs);
+#else
 	if (unlikely(is_compat_task())) {
+		unsigned long r3, r4, r5, r6, r7, r8;
+
 		f = (void *)compat_sys_call_table[r0];
 
-		r3 &= 0x00000000ffffffffULL;
-		r4 &= 0x00000000ffffffffULL;
-		r5 &= 0x00000000ffffffffULL;
-		r6 &= 0x00000000ffffffffULL;
-		r7 &= 0x00000000ffffffffULL;
-		r8 &= 0x00000000ffffffffULL;
+		r3 = regs->gpr[3] & 0x00000000ffffffffULL;
+		r4 = regs->gpr[4] & 0x00000000ffffffffULL;
+		r5 = regs->gpr[5] & 0x00000000ffffffffULL;
+		r6 = regs->gpr[6] & 0x00000000ffffffffULL;
+		r7 = regs->gpr[7] & 0x00000000ffffffffULL;
+		r8 = regs->gpr[8] & 0x00000000ffffffffULL;
 
+		ret = f(r3, r4, r5, r6, r7, r8);
 	} else {
 		f = (void *)sys_call_table[r0];
-	}
 
-	ret = f(r3, r4, r5, r6, r7, r8);
+		ret = f(regs->gpr[3], regs->gpr[4], regs->gpr[5],
+			regs->gpr[6], regs->gpr[7], regs->gpr[8]);
+	}
+#endif
 
 	/*
 	 * Ultimately, this value will get limited by KSTACK_OFFSET_MAX(),
