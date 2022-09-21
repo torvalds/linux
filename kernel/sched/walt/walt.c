@@ -1237,7 +1237,6 @@ static void migrate_busy_time_addition(struct task_struct *p, int new_cpu, u64 w
 	if (is_ed_enabled() && is_ed_task(p, wallclock))
 		dest_wrq->ed_task = p;
 
-	wts->enqueue_after_migration = 0;
 	wts->new_cpu = -1;
 }
 
@@ -3406,6 +3405,12 @@ static void transfer_busy_time(struct rq *rq,
 
 	new_task = is_new_task(p);
 
+	if (wts->enqueue_after_migration != 0) {
+		wallclock = walt_sched_clock();
+		migrate_busy_time_addition(p, cpu_of(rq), wallclock);
+		wts->enqueue_after_migration = 0;
+	}
+
 	cpu_time = &wrq->grp_time;
 	if (event == ADD_TASK) {
 		migrate_type = RQ_TO_GROUP;
@@ -4232,6 +4237,7 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	if (wts->enqueue_after_migration != 0) {
 		wallclock = walt_sched_clock();
 		migrate_busy_time_addition(p, cpu_of(rq), wallclock);
+		wts->enqueue_after_migration = 0;
 	}
 
 	wts->prev_on_rq = 1;
