@@ -1380,8 +1380,6 @@ err_pci_regions:
 	return err;
 }
 
-#define HINIC_WAIT_SRIOV_CFG_TIMEOUT	15000
-
 static void wait_sriov_cfg_complete(struct hinic_dev *nic_dev)
 {
 	struct hinic_sriov_info *sriov_info = &nic_dev->sriov_info;
