@@ -3564,6 +3564,7 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 
 	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
 	bool force_minimal_pipe_splitting = false;
+	uint32_t i;
 
 	*is_plane_addition = false;
 
@@ -3595,6 +3596,36 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 		}
 	}
 
+	/* For SubVP pipe split case when adding MPO video
+	 * we need to add a minimal transition. In this case
+	 * there will be 2 streams (1 main stream, 1 phantom
+	 * stream).
+	 */
+	if (cur_stream_status &&
+			dc->current_state->stream_count == 2 &&
+			stream->mall_stream_config.type == SUBVP_MAIN) {
+		bool is_pipe_split = false;
+
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream &&
+					(dc->current_state->res_ctx.pipe_ctx[i].bottom_pipe ||
+					dc->current_state->res_ctx.pipe_ctx[i].next_odm_pipe)) {
+				is_pipe_split = true;
+				break;
+			}
+		}
+
+		/* determine if minimal transition is required due to SubVP*/
+		if (surface_count > 0 && is_pipe_split) {
+			if (cur_stream_status->plane_count > surface_count) {
+				force_minimal_pipe_splitting = true;
+			} else if (cur_stream_status->plane_count < surface_count) {
+				force_minimal_pipe_splitting = true;
+				*is_plane_addition = true;
+			}
+		}
+	}
+
 	return force_minimal_pipe_splitting;
 }
 
@@ -3604,6 +3635,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	struct dc_state *transition_context = dc_create_state(dc);
 	enum pipe_split_policy tmp_mpc_policy;
 	bool temp_dynamic_odm_policy;
+	bool temp_subvp_policy;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
 
@@ -3617,6 +3649,9 @@ static bool commit_minimal_transition_state(struct dc *dc,
 
 	temp_dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
 	dc->debug.enable_single_display_2to1_odm_policy = false;
+
+	temp_subvp_policy = dc->debug.force_disable_subvp;
+	dc->debug.force_disable_subvp = true;
 
 	dc_resource_state_copy_construct(transition_base_context, transition_context);
 
@@ -3646,6 +3681,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		dc->debug.pipe_split_policy = tmp_mpc_policy;
 
 	dc->debug.enable_single_display_2to1_odm_policy = temp_dynamic_odm_policy;
+	dc->debug.force_disable_subvp = temp_subvp_policy;
 
 	if (ret != DC_OK) {
 		/*this should never happen*/

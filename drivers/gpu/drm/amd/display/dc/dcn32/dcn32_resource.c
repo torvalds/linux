@@ -1798,13 +1798,31 @@ bool dcn32_validate_bandwidth(struct dc *dc,
 	int vlevel = 0;
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	struct mall_temp_config mall_temp_config;
 	DC_LOGGER_INIT(dc->ctx->logger);
+
+	/* For fast validation, there are situations where a shallow copy of
+	 * of the dc->current_state is created for the validation. In this case
+	 * we want to save and restore the mall config because we always
+	 * teardown subvp at the beginning of validation (and don't attempt
+	 * to add it back if it's fast validation). If we don't restore the
+	 * subvp config in cases of fast validation + shallow copy of the
+	 * dc->current_state, the dc->current_state will have a partially
+	 * removed subvp state when we did not intend to remove it.
+	 */
+	if (fast_validate) {
+		memset(&mall_temp_config, 0, sizeof(mall_temp_config));
+		dcn32_save_mall_state(dc, context, &mall_temp_config);
+	}
 
 	BW_VAL_TRACE_COUNT();
 
 	DC_FP_START();
 	out = dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
 	DC_FP_END();
+
+	if (fast_validate)
+		dcn32_restore_mall_state(dc, context, &mall_temp_config);
 
 	if (pipe_cnt == 0)
 		goto validate_out;
