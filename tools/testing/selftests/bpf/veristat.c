@@ -52,6 +52,11 @@ enum resfmt {
 	RESFMT_CSV,
 };
 
+struct filter {
+	char *file_glob;
+	char *prog_glob;
+};
+
 static struct env {
 	char **filenames;
 	int filename_cnt;
@@ -68,6 +73,11 @@ static struct env {
 
 	struct stat_specs output_spec;
 	struct stat_specs sort_spec;
+
+	struct filter *allow_filters;
+	struct filter *deny_filters;
+	int allow_filter_cnt;
+	int deny_filter_cnt;
 } env;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
@@ -94,10 +104,13 @@ static const struct argp_option opts[] = {
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
 	{ "output-format", 'o', "FMT", 0, "Result output format (table, csv), default is table." },
 	{ "compare", 'C', NULL, 0, "Comparison mode" },
+	{ "filter", 'f', "FILTER", 0, "Filter expressions (or @filename for file with expressions)." },
 	{},
 };
 
 static int parse_stats(const char *stats_str, struct stat_specs *specs);
+static int append_filter(struct filter **filters, int *cnt, const char *str);
+static int append_filter_file(const char *path);
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
@@ -134,6 +147,18 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'C':
 		env.comparison_mode = true;
 		break;
+	case 'f':
+		if (arg[0] == '@')
+			err = append_filter_file(arg + 1);
+		else if (arg[0] == '!')
+			err = append_filter(&env.deny_filters, &env.deny_filter_cnt, arg + 1);
+		else
+			err = append_filter(&env.allow_filters, &env.allow_filter_cnt, arg);
+		if (err) {
+			fprintf(stderr, "Failed to collect program filter expressions: %d\n", err);
+			return err;
+		}
+		break;
 	case ARGP_KEY_ARG:
 		tmp = realloc(env.filenames, (env.filename_cnt + 1) * sizeof(*env.filenames));
 		if (!tmp)
@@ -155,6 +180,150 @@ static const struct argp argp = {
 	.parser = parse_arg,
 	.doc = argp_program_doc,
 };
+
+
+/* Adapted from perf/util/string.c */
+static bool glob_matches(const char *str, const char *pat)
+{
+	while (*str && *pat && *pat != '*') {
+		if (*str != *pat)
+			return false;
+		str++;
+		pat++;
+	}
+	/* Check wild card */
+	if (*pat == '*') {
+		while (*pat == '*')
+			pat++;
+		if (!*pat) /* Tail wild card matches all */
+			return true;
+		while (*str)
+			if (glob_matches(str++, pat))
+				return true;
+	}
+	return !*str && !*pat;
+}
+
+static bool should_process_file(const char *filename)
+{
+	int i;
+
+	if (env.deny_filter_cnt > 0) {
+		for (i = 0; i < env.deny_filter_cnt; i++) {
+			if (glob_matches(filename, env.deny_filters[i].file_glob))
+				return false;
+		}
+	}
+
+	if (env.allow_filter_cnt == 0)
+		return true;
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		if (glob_matches(filename, env.allow_filters[i].file_glob))
+			return true;
+	}
+
+	return false;
+}
+
+static bool should_process_prog(const char *filename, const char *prog_name)
+{
+	int i;
+
+	if (env.deny_filter_cnt > 0) {
+		for (i = 0; i < env.deny_filter_cnt; i++) {
+			if (glob_matches(filename, env.deny_filters[i].file_glob))
+				return false;
+			if (!env.deny_filters[i].prog_glob)
+				continue;
+			if (glob_matches(prog_name, env.deny_filters[i].prog_glob))
+				return false;
+		}
+	}
+
+	if (env.allow_filter_cnt == 0)
+		return true;
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		if (!glob_matches(filename, env.allow_filters[i].file_glob))
+			continue;
+		/* if filter specifies only filename glob part, it implicitly
+		 * allows all progs within that file
+		 */
+		if (!env.allow_filters[i].prog_glob)
+			return true;
+		if (glob_matches(prog_name, env.allow_filters[i].prog_glob))
+			return true;
+	}
+
+	return false;
+}
+
+static int append_filter(struct filter **filters, int *cnt, const char *str)
+{
+	struct filter *f;
+	void *tmp;
+	const char *p;
+
+	tmp = realloc(*filters, (*cnt + 1) * sizeof(**filters));
+	if (!tmp)
+		return -ENOMEM;
+	*filters = tmp;
+
+	f = &(*filters)[*cnt];
+	f->file_glob = f->prog_glob = NULL;
+
+	/* filter can be specified either as "<obj-glob>" or "<obj-glob>/<prog-glob>" */
+	p = strchr(str, '/');
+	if (!p) {
+		f->file_glob = strdup(str);
+		if (!f->file_glob)
+			return -ENOMEM;
+	} else {
+		f->file_glob = strndup(str, p - str);
+		f->prog_glob = strdup(p + 1);
+		if (!f->file_glob || !f->prog_glob) {
+			free(f->file_glob);
+			free(f->prog_glob);
+			f->file_glob = f->prog_glob = NULL;
+			return -ENOMEM;
+		}
+	}
+
+	*cnt = *cnt + 1;
+	return 0;
+}
+
+static int append_filter_file(const char *path)
+{
+	char buf[1024];
+	FILE *f;
+	int err = 0;
+
+	f = fopen(path, "r");
+	if (!f) {
+		err = -errno;
+		fprintf(stderr, "Failed to open '%s': %d\n", path, err);
+		return err;
+	}
+
+	while (fscanf(f, " %1023[^\n]\n", buf) == 1) {
+		/* lines starting with # are comments, skip them */
+		if (buf[0] == '\0' || buf[0] == '#')
+			continue;
+		/* lines starting with ! are negative match filters */
+		if (buf[0] == '!')
+			err = append_filter(&env.deny_filters, &env.deny_filter_cnt, buf + 1);
+		else
+			err = append_filter(&env.allow_filters, &env.allow_filter_cnt, buf);
+		if (err)
+			goto cleanup;
+	}
+
+cleanup:
+	fclose(f);
+	return err;
+}
 
 static const struct stat_specs default_output_spec = {
 	.spec_cnt = 7,
@@ -283,6 +452,9 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	int err = 0;
 	void *tmp;
 
+	if (!should_process_prog(basename(filename), bpf_program__name(prog)))
+		return 0;
+
 	tmp = realloc(env.prog_stats, (env.prog_stat_cnt + 1) * sizeof(*env.prog_stats));
 	if (!tmp)
 		return -ENOMEM;
@@ -329,6 +501,9 @@ static int process_obj(const char *filename)
 	libbpf_print_fn_t old_libbpf_print_fn;
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	int err = 0, prog_cnt = 0;
+
+	if (!should_process_file(basename(filename)))
+		return 0;
 
 	old_libbpf_print_fn = libbpf_set_print(libbpf_print_fn);
 
@@ -666,7 +841,10 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 				goto cleanup;
 			}
 			*statsp = tmp;
+
 			st = &(*statsp)[*stat_cntp];
+			memset(st, 0, sizeof(*st));
+
 			*stat_cntp += 1;
 		}
 
@@ -692,14 +870,34 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 			col++;
 		}
 
-		if (!header && col < specs->spec_cnt) {
+		if (header) {
+			header = false;
+			continue;
+		}
+
+		if (col < specs->spec_cnt) {
 			fprintf(stderr, "Not enough columns in row #%d in '%s'\n",
 				*stat_cntp, filename);
 			err = -EINVAL;
 			goto cleanup;
 		}
 
-		header = false;
+		if (!st->file_name || !st->prog_name) {
+			fprintf(stderr, "Row #%d in '%s' is missing file and/or program name\n",
+				*stat_cntp, filename);
+			err = -EINVAL;
+			goto cleanup;
+		}
+
+		/* in comparison mode we can only check filters after we
+		 * parsed entire line; if row should be ignored we pretend we
+		 * never parsed it
+		 */
+		if (!should_process_prog(st->file_name, st->prog_name)) {
+			free(st->file_name);
+			free(st->prog_name);
+			*stat_cntp -= 1;
+		}
 	}
 
 	if (!feof(f)) {
@@ -1012,5 +1210,15 @@ int main(int argc, char **argv)
 	for (i = 0; i < env.filename_cnt; i++)
 		free(env.filenames[i]);
 	free(env.filenames);
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		free(env.allow_filters[i].file_glob);
+		free(env.allow_filters[i].prog_glob);
+	}
+	free(env.allow_filters);
+	for (i = 0; i < env.deny_filter_cnt; i++) {
+		free(env.deny_filters[i].file_glob);
+		free(env.deny_filters[i].prog_glob);
+	}
+	free(env.deny_filters);
 	return -err;
 }
