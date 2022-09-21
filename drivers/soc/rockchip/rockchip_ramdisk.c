@@ -7,9 +7,12 @@
  */
 
 #include <linux/backing-dev.h>
+#include <linux/dax.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/pfn_t.h>
 #include <linux/platform_device.h>
+#include <linux/uio.h>
 
 #define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
 #define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
@@ -21,6 +24,9 @@ struct rd_device {
 	struct device		*dev;
 	phys_addr_t		mem_addr;
 	size_t			mem_size;
+	size_t			mem_pages;
+	void			*mem_kaddr;
+	struct dax_device	*dax_dev;
 };
 
 static int rd_major;
@@ -182,8 +188,65 @@ static const struct block_device_operations rd_fops = {
 	.rw_page =	rd_rw_page,
 };
 
+static long rd_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
+				 long nr_pages, void **kaddr, pfn_t *pfn)
+{
+	struct rd_device *rd = dax_get_private(dax_dev);
+
+	phys_addr_t offset = PFN_PHYS(pgoff);
+	size_t max_nr_pages = rd->mem_pages - pgoff;
+
+	if (kaddr)
+		*kaddr = rd->mem_kaddr + offset;
+	if (pfn)
+		*pfn = phys_to_pfn_t(rd->mem_addr + offset, PFN_DEV | PFN_MAP);
+
+	return nr_pages > max_nr_pages ? max_nr_pages : nr_pages;
+}
+
+static bool rd_dax_supported(struct dax_device *dax_dev,
+			     struct block_device *bdev, int blocksize,
+			     sector_t start, sector_t sectors)
+{
+	return true;
+}
+
+static size_t rd_dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+				    void *addr, size_t bytes, struct iov_iter *i)
+{
+	return copy_from_iter(addr, bytes, i);
+}
+
+static size_t rd_dax_copy_to_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+				  void *addr, size_t bytes, struct iov_iter *i)
+{
+	return copy_to_iter(addr, bytes, i);
+}
+
+static int rd_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff, size_t nr_pages)
+{
+	long rc;
+	void *kaddr;
+
+	rc = dax_direct_access(dax_dev, pgoff, nr_pages, &kaddr, NULL);
+	if (rc < 0)
+		return rc;
+	memset(kaddr, 0, nr_pages << PAGE_SHIFT);
+
+	return 0;
+}
+
+static const struct dax_operations rd_dax_ops = {
+	.direct_access = rd_dax_direct_access,
+	.dax_supported = rd_dax_supported,
+	.copy_from_iter = rd_dax_copy_from_iter,
+	.copy_to_iter = rd_dax_copy_to_iter,
+	.zero_page_range = rd_dax_zero_page_range,
+};
+
 static int rd_init(struct rd_device *rd, int major, int minor)
 {
+	int ret;
 	struct gendisk *disk;
 
 	rd->rd_queue = blk_alloc_queue(NUMA_NO_NODE);
@@ -198,8 +261,10 @@ static int rd_init(struct rd_device *rd, int major, int minor)
 	 */
 	blk_queue_physical_block_size(rd->rd_queue, PAGE_SIZE);
 	disk = alloc_disk(1);
-	if (!disk)
+	if (!disk) {
+		ret = -ENOMEM;
 		goto out_free_queue;
+	}
 	disk->major		= major;
 	disk->first_minor	= 0;
 	disk->fops		= &rd_fops;
@@ -209,9 +274,21 @@ static int rd_init(struct rd_device *rd, int major, int minor)
 	set_capacity(disk, rd->mem_size >> SECTOR_SHIFT);
 	rd->rd_disk = disk;
 
+	rd->mem_kaddr = phys_to_virt(rd->mem_addr);
+	rd->mem_pages = PHYS_PFN(rd->mem_size);
+	rd->dax_dev = alloc_dax(rd, disk->disk_name, &rd_dax_ops, DAXDEV_F_SYNC);
+	if (IS_ERR(rd->dax_dev)) {
+		ret = PTR_ERR(rd->dax_dev);
+		dev_err(rd->dev, "alloc_dax failed %d\n", ret);
+		rd->dax_dev = NULL;
+		goto out_free_queue;
+	}
+
 	/* Tell the block layer that this is not a rotational device */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, rd->rd_queue);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, rd->rd_queue);
+	if (rd->dax_dev)
+		blk_queue_flag_set(QUEUE_FLAG_DAX, rd->rd_queue);
 
 	rd->rd_disk->queue = rd->rd_queue;
 	add_disk(rd->rd_disk);
@@ -220,7 +297,7 @@ static int rd_init(struct rd_device *rd, int major, int minor)
 
 out_free_queue:
 	blk_cleanup_queue(rd->rd_queue);
-	return -ENOMEM;
+	return ret;
 }
 
 static int rd_probe(struct platform_device *pdev)
@@ -253,6 +330,8 @@ static int rd_probe(struct platform_device *pdev)
 	rd->mem_size = resource_size(&reg);
 
 	ret = rd_init(rd, rd_major, 0);
+	dev_info(dev, "0x%zx@%pa -> 0x%px dax:%d ret:%d\n",
+		 rd->mem_size, &rd->mem_addr, rd->mem_kaddr, (bool)rd->dax_dev, ret);
 
 	return ret;
 }
