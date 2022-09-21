@@ -38,20 +38,17 @@ static void sditf_buffree_work(struct work_struct *work)
 						struct sditf_priv,
 						buffree_work);
 	struct rkcif_rx_buffer *rx_buf = NULL;
-	struct rkisp_rx_buf *dbufs = NULL;
 	unsigned long flags;
 	LIST_HEAD(local_list);
 
 	spin_lock_irqsave(&priv->cif_dev->buffree_lock, flags);
 	list_replace_init(&priv->buf_free_list, &local_list);
 	while (!list_empty(&local_list)) {
-		dbufs = list_first_entry(&local_list,
-					  struct rkisp_rx_buf, list);
-		if (dbufs) {
-			list_del(&dbufs->list);
-			rx_buf = container_of(dbufs, struct rkcif_rx_buffer, dbufs);
-			if (rx_buf)
-				rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
+		rx_buf = list_first_entry(&local_list,
+					  struct rkcif_rx_buffer, list_free);
+		if (rx_buf) {
+			list_del(&rx_buf->list_free);
+			rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
 		}
 	}
 	spin_unlock_irqrestore(&priv->cif_dev->buffree_lock, flags);
@@ -701,14 +698,14 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	if (!list_empty(&stream->rx_buf_head) &&
 	    cif_dev->is_thunderboot) {
 		spin_lock_irqsave(&cif_dev->buffree_lock, buffree_flags);
-		list_add_tail(&dbufs->list, &priv->buf_free_list);
+		list_add_tail(&rx_buf->list_free, &priv->buf_free_list);
 		spin_unlock_irqrestore(&cif_dev->buffree_lock, buffree_flags);
 		schedule_work(&priv->buffree_work.work);
 		is_free = true;
 	}
 
 	if (!is_free) {
-		list_add_tail(&dbufs->list, &stream->rx_buf_head);
+		list_add_tail(&rx_buf->list, &stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->rdbk_debug) {
 			u32 offset = 0;
@@ -738,7 +735,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
 	if (dbufs->runtime_us && cif_dev->early_line == 0) {
-		if (cif_dev->sensor_linetime)
+		if (!cif_dev->sensor_linetime)
 			cif_dev->sensor_linetime = rkcif_get_linetime(stream);
 		cif_dev->isp_runtime_max = dbufs->runtime_us;
 		if (cif_dev->is_thunderboot)

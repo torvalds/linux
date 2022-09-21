@@ -1496,7 +1496,7 @@ static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 					 int channel_id)
 {
 	struct rkcif_device *dev = stream->cifdev;
-	struct rkisp_rx_buf *dbufs;
+	struct rkcif_rx_buffer *rx_buf;
 	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
 	u32 frm0_addr_y;
 	u32 frm1_addr_y;
@@ -1516,12 +1516,12 @@ static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 
 	if (!stream->curr_buf_toisp) {
 		if (!list_empty(&stream->rx_buf_head)) {
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf,
+			rx_buf = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer,
 						 list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->curr_buf_toisp = to_cif_rx_buf(dbufs);
+			if (rx_buf) {
+				list_del(&rx_buf->list);
+				stream->curr_buf_toisp = rx_buf;
 			}
 		}
 	}
@@ -1532,11 +1532,11 @@ static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 
 	if (!stream->next_buf_toisp) {
 		if (!list_empty(&stream->rx_buf_head)) {
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf, list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->next_buf_toisp = to_cif_rx_buf(dbufs);
+			rx_buf = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer, list);
+			if (rx_buf) {
+				list_del(&rx_buf->list);
+				stream->next_buf_toisp = rx_buf;
 			} else {
 				stream->next_buf_toisp = stream->curr_buf_toisp;
 			}
@@ -1559,7 +1559,6 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
 	struct rkcif_rx_buffer *buffer = NULL;
-	struct rkisp_rx_buf *dbufs = NULL;
 	struct rkcif_rx_buffer *active_buf = NULL;
 	struct sditf_priv *priv = dev->sditf[0];
 	u32 frm_addr_y;
@@ -1584,12 +1583,11 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 			else
 				active_buf = stream->curr_buf_toisp;
 
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf, list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->curr_buf_toisp = to_cif_rx_buf(dbufs);
-				buffer = stream->curr_buf_toisp;
+			buffer = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer, list);
+			if (buffer) {
+				list_del(&buffer->list);
+				stream->curr_buf_toisp = buffer;
 			}
 			if (priv && priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 				if (!active_buf)
@@ -1610,12 +1608,11 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 				active_buf = NULL;
 			else
 				active_buf = stream->next_buf_toisp;
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf, list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->next_buf_toisp = to_cif_rx_buf(dbufs);
-				buffer = stream->next_buf_toisp;
+			buffer = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer, list);
+			if (buffer) {
+				list_del(&buffer->list);
+				stream->next_buf_toisp = buffer;
 			}
 			if (priv && priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 				if (!active_buf)
@@ -1710,7 +1707,7 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 {
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
-	struct rkisp_rx_buf *dbufs = NULL;
+	struct rkcif_rx_buffer *buffer = NULL;
 	struct rkcif_rx_buffer *active_buf = NULL;
 	u32 frm_addr_y;
 	u32 vblank = 0;
@@ -1768,11 +1765,11 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 	if (!list_empty(&stream->rx_buf_head)) {
 		if (frame_phase == CIF_CSI_FRAME0_READY) {
 			active_buf = stream->curr_buf_toisp;
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf, list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->curr_buf_toisp = to_cif_rx_buf(dbufs);
+			buffer = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer, list);
+			if (buffer) {
+				list_del(&buffer->list);
+				stream->curr_buf_toisp = buffer;
 				rkcif_write_register(dev, frm_addr_y,
 						     stream->curr_buf_toisp->dummy.dma_addr);
 				if (dev->rdbk_debug > 1 &&
@@ -1785,11 +1782,11 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 			}
 		} else if (frame_phase == CIF_CSI_FRAME1_READY) {
 			active_buf = stream->next_buf_toisp;
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf, list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->next_buf_toisp = to_cif_rx_buf(dbufs);
+			buffer = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer, list);
+			if (buffer) {
+				list_del(&buffer->list);
+				stream->next_buf_toisp = buffer;
 				rkcif_write_register(dev, frm_addr_y,
 						     stream->next_buf_toisp->dummy.dma_addr);
 				if (dev->rdbk_debug > 1 &&
@@ -2326,25 +2323,25 @@ static int rkcif_update_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 
 static int rkcif_get_new_buffer_wake_up_mode_rdbk(struct rkcif_stream *stream)
 {
-	struct rkisp_rx_buf *dbufs = NULL;
+	struct rkcif_rx_buffer *buffer = NULL;
 	int ret = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (!list_empty(&stream->rx_buf_head)) {
 		if (stream->line_int_cnt % 2) {
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf, list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->curr_buf_toisp = to_cif_rx_buf(dbufs);
+			buffer = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer, list);
+			if (buffer) {
+				list_del(&buffer->list);
+				stream->curr_buf_toisp = buffer;
 			}
 		} else {
-			dbufs = list_first_entry(&stream->rx_buf_head,
-						 struct rkisp_rx_buf, list);
-			if (dbufs) {
-				list_del(&dbufs->list);
-				stream->next_buf_toisp = to_cif_rx_buf(dbufs);
+			buffer = list_first_entry(&stream->rx_buf_head,
+						 struct rkcif_rx_buffer, list);
+			if (buffer) {
+				list_del(&buffer->list);
+				stream->next_buf_toisp = buffer;
 			}
 		}
 		stream->is_buf_active = true;
@@ -3608,7 +3605,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 		if (!dev->is_thunderboot)
 			rkcif_free_buffer(dev, &buf->dummy);
 		else
-			list_add_tail(&buf->dbufs.list, &priv->buf_free_list);
+			list_add_tail(&buf->list_free, &priv->buf_free_list);
 	}
 
 	if (dev->is_thunderboot) {
@@ -3672,7 +3669,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 			ret = rkcif_alloc_reserved_mem_buf(dev, buf);
 			if (ret) {
 				priv->buf_num = i;
-				v4l2_err(&dev->v4l2_dev,
+				v4l2_info(&dev->v4l2_dev,
 					 "reserved mem support alloc buf num %d, require buf num %d\n",
 					 i, buf_num);
 				break;
@@ -3681,7 +3678,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 			ret = rkcif_alloc_buffer(dev, dummy);
 			if (ret) {
 				priv->buf_num = i;
-				v4l2_err(&dev->v4l2_dev,
+				v4l2_info(&dev->v4l2_dev,
 					 "alloc buf num %d, require buf num %d\n",
 					 i, buf_num);
 				break;
@@ -3690,7 +3687,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		}
 		buf->dbufs.is_init = false;
 		buf->dbufs.type = frm_type;
-		list_add_tail(&buf->dbufs.list, &stream->rx_buf_head);
+		list_add_tail(&buf->list, &stream->rx_buf_head);
 		dummy->is_free = false;
 		if (priv && priv->mode.rdbk_mode == RKISP_VICAP_ONLINE && i == 0) {
 			buf->dbufs.is_first = true;
@@ -3698,8 +3695,14 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 			stream->buf_num_toisp--;
 		}
 		i++;
-		if (!dev->is_thunderboot && i >= buf_num)
+		if (!dev->is_thunderboot && i >= buf_num) {
 			break;
+		} else if (i >= RKISP_VICAP_BUF_CNT_MAX) {
+			priv->buf_num = i;
+			v4l2_info(&dev->v4l2_dev,
+				  "reserved mem alloc buf num %d\n", i);
+			break;
+		}
 		v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 			"init rx_buf,dma_addr 0x%llx size: 0x%x\n",
 			(u64)dummy->dma_addr, pixm->plane_fmt[0].sizeimage);
