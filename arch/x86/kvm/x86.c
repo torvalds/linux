@@ -10813,8 +10813,6 @@ static inline int vcpu_block(struct kvm_vcpu *vcpu)
 		if (hv_timer)
 			kvm_lapic_switch_to_hv_timer(vcpu);
 
-		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
-
 		/*
 		 * If the vCPU is not runnable, a signal or another host event
 		 * of some kind is pending; service it without changing the
@@ -11034,7 +11032,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 			r = 0;
 			goto out;
 		}
-		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 		r = -EAGAIN;
 		if (signal_pending(current)) {
 			r = -EINTR;
