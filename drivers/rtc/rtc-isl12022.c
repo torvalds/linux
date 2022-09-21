@@ -251,6 +251,8 @@ static int isl12022_probe(struct i2c_client *client)
 		return PTR_ERR(isl12022->rtc);
 
 	isl12022->rtc->ops = &isl12022_rtc_ops;
+	isl12022->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	isl12022->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	return devm_rtc_register_device(isl12022->rtc);
 }
