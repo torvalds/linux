@@ -46,10 +46,17 @@ struct stat_specs {
 	int lens[ALL_STATS_CNT];
 };
 
+enum resfmt {
+	RESFMT_TABLE,
+	RESFMT_TABLE_CALCLEN, /* fake format to pre-calculate table's column widths */
+	RESFMT_CSV,
+};
+
 static struct env {
 	char **filenames;
 	int filename_cnt;
 	bool verbose;
+	enum resfmt out_fmt;
 
 	struct verif_stats *prog_stats;
 	int prog_stat_cnt;
@@ -78,8 +85,9 @@ const char argp_program_doc[] =
 static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
-	{ "output", 'o', "SPEC", 0, "Specify output stats" },
+	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
+	{ "output-format", 'o', "FMT", 0, "Result output format (table, csv), default is table." },
 	{},
 };
 
@@ -97,7 +105,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'v':
 		env.verbose = true;
 		break;
-	case 'o':
+	case 'e':
 		err = parse_stats(arg, &env.output_spec);
 		if (err)
 			return err;
@@ -106,6 +114,16 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		err = parse_stats(arg, &env.sort_spec);
 		if (err)
 			return err;
+		break;
+	case 'o':
+		if (strcmp(arg, "table") == 0) {
+			env.out_fmt = RESFMT_TABLE;
+		} else if (strcmp(arg, "csv") == 0) {
+			env.out_fmt = RESFMT_CSV;
+		} else {
+			fprintf(stderr, "Unrecognized output format '%s'\n", arg);
+			return -EINVAL;
+		}
 		break;
 	case ARGP_KEY_ARG:
 		tmp = realloc(env.filenames, (env.filename_cnt + 1) * sizeof(*env.filenames));
@@ -147,7 +165,7 @@ static struct stat_def {
 	[FILE_NAME] = { "File", {"file_name", "filename", "file"}, true /* asc */ },
 	[PROG_NAME] = { "Program", {"prog_name", "progname", "prog"}, true /* asc */ },
 	[VERDICT] = { "Verdict", {"verdict"}, true /* asc: failure, success */ },
-	[DURATION] = { "Duration, us", {"duration", "dur"}, },
+	[DURATION] = { "Duration (us)", {"duration", "dur"}, },
 	[TOTAL_INSNS] = { "Total insns", {"total_insns", "insns"}, },
 	[TOTAL_STATES] = { "Total states", {"total_states", "states"}, },
 	[PEAK_STATES] = { "Peak states", {"peak_states"}, },
@@ -385,27 +403,6 @@ static int cmp_prog_stats(const void *v1, const void *v2)
 #define HEADER_CHAR '-'
 #define COLUMN_SEP "  "
 
-static void output_headers(bool calc_len)
-{
-	int i, len;
-
-	for (i = 0; i < env.output_spec.spec_cnt; i++) {
-		int id = env.output_spec.ids[i];
-		int *max_len = &env.output_spec.lens[i];
-
-		if (calc_len) {
-			len = snprintf(NULL, 0, "%s", stat_defs[id].header);
-			if (len > *max_len)
-				*max_len = len;
-		} else {
-			printf("%s%-*s", i == 0 ? "" : COLUMN_SEP,  *max_len, stat_defs[id].header);
-		}
-	}
-
-	if (!calc_len)
-		printf("\n");
-}
-
 static void output_header_underlines(void)
 {
 	int i, j, len;
@@ -420,7 +417,38 @@ static void output_header_underlines(void)
 	printf("\n");
 }
 
-static void output_stats(const struct verif_stats *s, bool calc_len)
+static void output_headers(enum resfmt fmt)
+{
+	int i, len;
+
+	for (i = 0; i < env.output_spec.spec_cnt; i++) {
+		int id = env.output_spec.ids[i];
+		int *max_len = &env.output_spec.lens[i];
+
+		switch (fmt) {
+		case RESFMT_TABLE_CALCLEN:
+			len = snprintf(NULL, 0, "%s", stat_defs[id].header);
+			if (len > *max_len)
+				*max_len = len;
+			break;
+		case RESFMT_TABLE:
+			printf("%s%-*s", i == 0 ? "" : COLUMN_SEP,  *max_len, stat_defs[id].header);
+			if (i == env.output_spec.spec_cnt - 1)
+				printf("\n");
+			break;
+		case RESFMT_CSV:
+			printf("%s%s", i == 0 ? "" : ",", stat_defs[id].names[0]);
+			if (i == env.output_spec.spec_cnt - 1)
+				printf("\n");
+			break;
+		}
+	}
+
+	if (fmt == RESFMT_TABLE)
+		output_header_underlines();
+}
+
+static void output_stats(const struct verif_stats *s, enum resfmt fmt, bool last)
 {
 	int i;
 
@@ -453,23 +481,36 @@ static void output_stats(const struct verif_stats *s, bool calc_len)
 			exit(1);
 		}
 
-		if (calc_len) {
+		switch (fmt) {
+		case RESFMT_TABLE_CALCLEN:
 			if (str)
 				len = snprintf(NULL, 0, "%s", str);
 			else
 				len = snprintf(NULL, 0, "%ld", val);
 			if (len > *max_len)
 				*max_len = len;
-		} else {
+			break;
+		case RESFMT_TABLE:
 			if (str)
 				printf("%s%-*s", i == 0 ? "" : COLUMN_SEP, *max_len, str);
 			else
 				printf("%s%*ld", i == 0 ? "" : COLUMN_SEP,  *max_len, val);
+			if (i == env.output_spec.spec_cnt - 1)
+				printf("\n");
+			break;
+		case RESFMT_CSV:
+			if (str)
+				printf("%s%s", i == 0 ? "" : ",", str);
+			else
+				printf("%s%ld", i == 0 ? "" : ",", val);
+			if (i == env.output_spec.spec_cnt - 1)
+				printf("\n");
+			break;
 		}
 	}
 
-	if (!calc_len)
-		printf("\n");
+	if (last && fmt == RESFMT_TABLE)
+		output_header_underlines();
 }
 
 int main(int argc, char **argv)
@@ -505,20 +546,18 @@ int main(int argc, char **argv)
 
 	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
 
-	/* calculate column widths */
-	output_headers(true);
-	for (i = 0; i < env.prog_stat_cnt; i++) {
-		output_stats(&env.prog_stats[i], true);
+	if (env.out_fmt == RESFMT_TABLE) {
+		/* calculate column widths */
+		output_headers(RESFMT_TABLE_CALCLEN);
+		for (i = 0; i < env.prog_stat_cnt; i++)
+			output_stats(&env.prog_stats[i], RESFMT_TABLE_CALCLEN, false);
 	}
 
 	/* actually output the table */
-	output_headers(false);
-	output_header_underlines();
+	output_headers(env.out_fmt);
 	for (i = 0; i < env.prog_stat_cnt; i++) {
-		output_stats(&env.prog_stats[i], false);
+		output_stats(&env.prog_stats[i], env.out_fmt, i == env.prog_stat_cnt - 1);
 	}
-	output_header_underlines();
-	printf("\n");
 
 	printf("Done. Processed %d object files, %d programs.\n",
 	       env.filename_cnt, env.prog_stat_cnt);
