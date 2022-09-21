@@ -121,53 +121,68 @@ static void child_start(struct child_data *child, const char *program)
 	}
 }
 
-static void child_output(struct child_data *child, uint32_t events,
-			 bool flush)
+static bool child_output_read(struct child_data *child)
 {
 	char read_data[1024];
 	char work[1024];
 	int ret, len, cur_work, cur_read;
 
-	if (events & EPOLLIN) {
-		ret = read(child->stdout, read_data, sizeof(read_data));
-		if (ret < 0) {
-			ksft_print_msg("%s: read() failed: %s (%d)\n",
-				       child->name, strerror(errno), errno);
-			return;
-		}
-		len = ret;
+	ret = read(child->stdout, read_data, sizeof(read_data));
+	if (ret < 0) {
+		if (errno == EINTR)
+			return true;
 
-		child->output_seen = true;
+		ksft_print_msg("%s: read() failed: %s (%d)\n",
+			       child->name, strerror(errno),
+			       errno);
+		return false;
+	}
+	len = ret;
 
-		/* Pick up any partial read */
-		if (child->output) {
-			strncpy(work, child->output, sizeof(work) - 1);
-			cur_work = strnlen(work, sizeof(work));
-			free(child->output);
-			child->output = NULL;
-		} else {
-			cur_work = 0;
-		}
+	child->output_seen = true;
 
-		cur_read = 0;
-		while (cur_read < len) {
-			work[cur_work] = read_data[cur_read++];
+	/* Pick up any partial read */
+	if (child->output) {
+		strncpy(work, child->output, sizeof(work) - 1);
+		cur_work = strnlen(work, sizeof(work));
+		free(child->output);
+		child->output = NULL;
+	} else {
+		cur_work = 0;
+	}
 
-			if (work[cur_work] == '\n') {
-				work[cur_work] = '\0';
-				ksft_print_msg("%s: %s\n", child->name, work);
-				cur_work = 0;
-			} else {
-				cur_work++;
-			}
-		}
+	cur_read = 0;
+	while (cur_read < len) {
+		work[cur_work] = read_data[cur_read++];
 
-		if (cur_work) {
+		if (work[cur_work] == '\n') {
 			work[cur_work] = '\0';
-			ret = asprintf(&child->output, "%s", work);
-			if (ret == -1)
-				ksft_exit_fail_msg("Out of memory\n");
+			ksft_print_msg("%s: %s\n", child->name, work);
+			cur_work = 0;
+		} else {
+			cur_work++;
 		}
+	}
+
+	if (cur_work) {
+		work[cur_work] = '\0';
+		ret = asprintf(&child->output, "%s", work);
+		if (ret == -1)
+			ksft_exit_fail_msg("Out of memory\n");
+	}
+
+	return false;
+}
+
+static void child_output(struct child_data *child, uint32_t events,
+			 bool flush)
+{
+	bool read_more;
+
+	if (events & EPOLLIN) {
+		do {
+			read_more = child_output_read(child);
+		} while (read_more);
 	}
 
 	if (events & EPOLLHUP) {
