@@ -27,6 +27,10 @@ static bool sleep_no_lps0 __read_mostly;
 module_param(sleep_no_lps0, bool, 0644);
 MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
 
+static bool prefer_microsoft_dsm_guid __read_mostly;
+module_param(prefer_microsoft_dsm_guid, bool, 0644);
+MODULE_PARM_DESC(prefer_microsoft_dsm_guid, "Prefer using Microsoft GUID in LPS0 device _DSM evaluation");
+
 static const struct acpi_device_id lps0_device_ids[] = {
 	{"PNP0D80", },
 	{"", },
@@ -402,6 +406,9 @@ static int lps0_device_attach(struct acpi_device *adev,
 	if (lps0_device_handle)
 		return 0;
 
+	lps0_dsm_func_mask_microsoft = validate_dsm(adev->handle,
+						    ACPI_LPS0_DSM_UUID_MICROSOFT, 0,
+						    &lps0_dsm_guid_microsoft);
 	if (acpi_s2idle_vendor_amd()) {
 		static const struct acpi_device_id *dev_id;
 		const struct amd_lps0_hid_device_data *data;
@@ -416,16 +423,12 @@ static int lps0_device_attach(struct acpi_device *adev,
 		rev_id = data->rev_id;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID_AMD, rev_id, &lps0_dsm_guid);
-		lps0_dsm_func_mask_microsoft = validate_dsm(adev->handle,
-					ACPI_LPS0_DSM_UUID_MICROSOFT, 0,
-					&lps0_dsm_guid_microsoft);
 		if (lps0_dsm_func_mask > 0x3 && data->check_off_by_one) {
 			lps0_dsm_func_mask = (lps0_dsm_func_mask << 1) | 0x1;
 			acpi_handle_debug(adev->handle, "_DSM UUID %s: Adjusted function mask: 0x%x\n",
 					  ACPI_LPS0_DSM_UUID_AMD, lps0_dsm_func_mask);
 		} else if (lps0_dsm_func_mask_microsoft > 0 && data->prefer_amd_guid &&
-				(!strcmp(hid, "AMDI0007") ||
-				 !strcmp(hid, "AMDI0008"))) {
+				!prefer_microsoft_dsm_guid) {
 			lps0_dsm_func_mask_microsoft = -EINVAL;
 			acpi_handle_debug(adev->handle, "_DSM Using AMD method\n");
 		}
@@ -433,7 +436,8 @@ static int lps0_device_attach(struct acpi_device *adev,
 		rev_id = 1;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID, rev_id, &lps0_dsm_guid);
-		lps0_dsm_func_mask_microsoft = -EINVAL;
+		if (!prefer_microsoft_dsm_guid)
+			lps0_dsm_func_mask_microsoft = -EINVAL;
 	}
 
 	if (lps0_dsm_func_mask < 0 && lps0_dsm_func_mask_microsoft < 0)
