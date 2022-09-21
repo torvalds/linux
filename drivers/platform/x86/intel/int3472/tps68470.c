@@ -150,6 +150,7 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 	int n_consumers;
 	int device_type;
 	int ret;
+	int i;
 
 	n_consumers = skl_int3472_fill_clk_pdata(&client->dev, &clk_pdata);
 	if (n_consumers < 0)
@@ -194,15 +195,18 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 		cells[1].pdata_size = sizeof(struct tps68470_regulator_platform_data);
 		cells[2].name = "tps68470-gpio";
 
-		gpiod_add_lookup_table(board_data->tps68470_gpio_lookup_table);
+		for (i = 0; i < board_data->n_gpiod_lookups; i++)
+			gpiod_add_lookup_table(board_data->tps68470_gpio_lookup_tables[i]);
 
 		ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
 					   cells, TPS68470_WIN_MFD_CELL_COUNT,
 					   NULL, 0, NULL);
 		kfree(cells);
 
-		if (ret)
-			gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_table);
+		if (ret) {
+			for (i = 0; i < board_data->n_gpiod_lookups; i++)
+				gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_tables[i]);
+		}
 
 		break;
 	case DESIGNED_FOR_CHROMEOS:
@@ -226,10 +230,13 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 static int skl_int3472_tps68470_remove(struct i2c_client *client)
 {
 	const struct int3472_tps68470_board_data *board_data;
+	int i;
 
 	board_data = int3472_tps68470_get_board_data(dev_name(&client->dev));
-	if (board_data)
-		gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_table);
+	if (board_data) {
+		for (i = 0; i < board_data->n_gpiod_lookups; i++)
+			gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_tables[i]);
+	}
 
 	return 0;
 }
