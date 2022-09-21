@@ -8,6 +8,14 @@
 #define __MINIDUMP_H
 
 #include <linux/types.h>
+#include <linux/workqueue.h>
+
+enum minidump_entry_cmd {
+	MINIDUMP_ADD,
+	MINIDUMP_REMOVE,
+	MINIDUMP_UPDATE,
+	MINIDUMP_NO_CMD
+};
 
 #define MAX_NAME_LENGTH		12
 /* md_region -  Minidump table entry
@@ -27,8 +35,19 @@ struct md_region {
 };
 
 struct md_pending_region {
-	struct list_head list;
-	struct md_region entry;
+	struct list_head	list;
+	struct md_region	entry;
+};
+
+struct md_rm_region {
+	char	name[MAX_NAME_LENGTH];
+	u32	slot_num;
+};
+
+struct md_rm_request {
+	struct md_region	entry;
+	struct work_struct	work;
+	enum minidump_entry_cmd	work_cmd;
 };
 
 /*
@@ -49,7 +68,7 @@ extern int msm_minidump_remove_region(const struct md_region *entry);
  */
 extern int msm_minidump_update_region(int regno, const struct md_region *entry);
 extern bool msm_minidump_enabled(void);
-extern struct md_region *md_get_region(char *name);
+extern struct md_region md_get_region(char *name);
 extern void dump_stack_minidump(u64 sp);
 extern int msm_minidump_get_available_region(void);
 #else
@@ -63,7 +82,11 @@ static inline int msm_minidump_remove_region(const struct md_region *entry)
 	return 0;
 }
 static inline bool msm_minidump_enabled(void) { return false; }
-static inline struct md_region *md_get_region(char *name) { return NULL; }
+static inline struct md_region md_get_region(char *name)
+{
+	struct md_region mdr = {0};
+	return mdr;
+}
 static inline void dump_stack_minidump(u64 sp) {}
 static inline void add_trace_event(char *buf, size_t size) {}
 #endif
