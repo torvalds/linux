@@ -781,6 +781,7 @@ fail:
 			},
 		};
 		data.raw = &raw;
+		data.sample_flags |= PERF_SAMPLE_RAW;
 	}
 
 	/*

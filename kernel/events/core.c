@@ -7332,7 +7332,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 		struct perf_raw_record *raw = data->raw;
 		int size;
 
-		if (raw) {
+		if (raw && (data->sample_flags & PERF_SAMPLE_RAW)) {
 			struct perf_raw_frag *frag = &raw->frag;
 			u32 sum = 0;
 
@@ -7348,6 +7348,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 			frag->pad = raw->size - sum;
 		} else {
 			size = sizeof(u64);
+			data->raw = NULL;
 		}
 
 		header->size += size;
