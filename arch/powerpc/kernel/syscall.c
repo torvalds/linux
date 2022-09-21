@@ -13,10 +13,9 @@
 
 
 /* Has to run notrace because it is entered not completely "reconciled" */
-notrace long system_call_exception(long r3, long r4, long r5,
-				   long r6, long r7, long r8,
-				   unsigned long r0, struct pt_regs *regs)
+notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 {
+	unsigned long r3, r4, r5, r6, r7, r8;
 	long ret;
 	syscall_fn f;
 
@@ -136,12 +135,6 @@ notrace long system_call_exception(long r3, long r4, long r5,
 		r0 = do_syscall_trace_enter(regs);
 		if (unlikely(r0 >= NR_syscalls))
 			return regs->gpr[3];
-		r3 = regs->gpr[3];
-		r4 = regs->gpr[4];
-		r5 = regs->gpr[5];
-		r6 = regs->gpr[6];
-		r7 = regs->gpr[7];
-		r8 = regs->gpr[8];
 
 	} else if (unlikely(r0 >= NR_syscalls)) {
 		if (unlikely(trap_is_unsupported_scv(regs))) {
@@ -151,6 +144,13 @@ notrace long system_call_exception(long r3, long r4, long r5,
 		}
 		return -ENOSYS;
 	}
+
+	r3 = regs->gpr[3];
+	r4 = regs->gpr[4];
+	r5 = regs->gpr[5];
+	r6 = regs->gpr[6];
+	r7 = regs->gpr[7];
+	r8 = regs->gpr[8];
 
 	/* May be faster to do array_index_nospec? */
 	barrier_nospec();
