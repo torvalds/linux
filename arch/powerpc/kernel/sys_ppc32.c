@@ -85,20 +85,20 @@ compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offset1, u32 offset2, u3
 	return ksys_readahead(fd, merge_64(offset1, offset2), count);
 }
 
-asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
+int compat_sys_truncate64(const char __user * path, u32 reg4,
 				unsigned long len1, unsigned long len2)
 {
 	return ksys_truncate(path, merge_64(len1, len2));
 }
 
-asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offset1, u32 offset2,
+long compat_sys_fallocate(int fd, int mode, u32 offset1, u32 offset2,
 				     u32 len1, u32 len2)
 {
 	return ksys_fallocate(fd, mode, ((loff_t)offset1 << 32) | offset2,
 			     merge_64(len1, len2));
 }
 
-asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long len1,
+int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long len1,
 				 unsigned long len2)
 {
 	return ksys_ftruncate(fd, merge_64(len1, len2));
@@ -111,7 +111,7 @@ long ppc32_fadvise64(int fd, u32 unused, u32 offset1, u32 offset2,
 				 advice);
 }
 
-asmlinkage long compat_sys_sync_file_range2(int fd, unsigned int flags,
+long compat_sys_sync_file_range2(int fd, unsigned int flags,
 				   unsigned offset1, unsigned offset2,
 				   unsigned nbytes1, unsigned nbytes2)
 {

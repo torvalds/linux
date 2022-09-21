@@ -10,14 +10,14 @@
 
 struct rtas_args;
 
-asmlinkage long sys_mmap(unsigned long addr, size_t len,
-		unsigned long prot, unsigned long flags,
-		unsigned long fd, off_t offset);
-asmlinkage long sys_mmap2(unsigned long addr, size_t len,
-		unsigned long prot, unsigned long flags,
-		unsigned long fd, unsigned long pgoff);
-asmlinkage long ppc64_personality(unsigned long personality);
-asmlinkage long sys_rtas(struct rtas_args __user *uargs);
+long sys_mmap(unsigned long addr, size_t len,
+	      unsigned long prot, unsigned long flags,
+	      unsigned long fd, off_t offset);
+long sys_mmap2(unsigned long addr, size_t len,
+	       unsigned long prot, unsigned long flags,
+	       unsigned long fd, unsigned long pgoff);
+long ppc64_personality(unsigned long personality);
+long sys_rtas(struct rtas_args __user *uargs);
 int ppc_select(int n, fd_set __user *inp, fd_set __user *outp,
 	       fd_set __user *exp, struct __kernel_old_timeval __user *tvp);
 long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
