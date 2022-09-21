@@ -1215,6 +1215,7 @@ int io_run_local_work(struct io_ring_ctx *ctx)
 	if (llist_empty(&ctx->work_llist))
 		return 0;
 
+	__set_current_state(TASK_RUNNING);
 	locked = mutex_trylock(&ctx->uring_lock);
 	ret = __io_run_local_work(ctx, locked);
 	if (locked)
