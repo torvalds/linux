@@ -115,8 +115,6 @@ int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index)
  * hinic_set_pf_action - set action on pf channel
  * @hwif: the HW interface of a pci function device
  * @action: action on pf channel
- *
- * Return 0 - Success, negative - Failure
  **/
 void hinic_set_pf_action(struct hinic_hwif *hwif, enum hinic_pf_action action)
 {
