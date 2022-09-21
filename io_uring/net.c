@@ -196,17 +196,18 @@ int io_sendzc_prep_async(struct io_kiocb *req)
 }
 
 static int io_setup_async_addr(struct io_kiocb *req,
-			      struct sockaddr_storage *addr,
+			      struct sockaddr_storage *addr_storage,
 			      unsigned int issue_flags)
 {
+	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *io;
 
-	if (!addr || req_has_async_data(req))
+	if (!sr->addr || req_has_async_data(req))
 		return -EAGAIN;
 	io = io_msg_alloc_async(req, issue_flags);
 	if (!io)
 		return -ENOMEM;
-	memcpy(&io->addr, addr, sizeof(io->addr));
+	memcpy(&io->addr, addr_storage, sizeof(io->addr));
 	return -EAGAIN;
 }
 
@@ -1000,7 +1001,7 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 
 int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct sockaddr_storage __address, *addr = NULL;
+	struct sockaddr_storage __address;
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct msghdr msg;
 	struct iovec iov;
@@ -1021,20 +1022,19 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		if (req_has_async_data(req)) {
 			struct io_async_msghdr *io = req->async_data;
 
-			msg.msg_name = addr = &io->addr;
+			msg.msg_name = &io->addr;
 		} else {
 			ret = move_addr_to_kernel(zc->addr, zc->addr_len, &__address);
 			if (unlikely(ret < 0))
 				return ret;
 			msg.msg_name = (struct sockaddr *)&__address;
-			addr = &__address;
 		}
 		msg.msg_namelen = zc->addr_len;
 	}
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
-		return io_setup_async_addr(req, addr, issue_flags);
+		return io_setup_async_addr(req, &__address, issue_flags);
 
 	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
 		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,
@@ -1065,14 +1065,14 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return io_setup_async_addr(req, addr, issue_flags);
+			return io_setup_async_addr(req, &__address, issue_flags);
 
 		if (ret > 0 && io_net_retry(sock, msg.msg_flags)) {
 			zc->len -= ret;
 			zc->buf += ret;
 			zc->done_io += ret;
 			req->flags |= REQ_F_PARTIAL_IO;
-			return io_setup_async_addr(req, addr, issue_flags);
+			return io_setup_async_addr(req, &__address, issue_flags);
 		}
 		if (ret < 0 && !zc->done_io)
 			zc->notif->flags |= REQ_F_CQE_SKIP;
