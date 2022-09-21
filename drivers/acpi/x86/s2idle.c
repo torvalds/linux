@@ -440,6 +440,17 @@ static const struct dmi_system_id s2idle_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "82"),
 		},
 	},
+	{
+		/*
+		 * ASUSTeK COMPUTER INC. ROG Flow X13 GV301RE_GV301RE
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/2148
+		 */
+		.callback = lps0_prefer_microsoft,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ROG Flow X13 GV301"),
+		},
+	},
 	{}
 };
 
