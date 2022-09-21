@@ -11585,15 +11585,15 @@ struct mlx5_ifc_macsec_offload_obj_bits {
 
 	u8    confidentiality_en[0x1];
 	u8    reserved_at_41[0x1];
-	u8    esn_en[0x1];
-	u8    esn_overlap[0x1];
+	u8    epn_en[0x1];
+	u8    epn_overlap[0x1];
 	u8    reserved_at_44[0x2];
 	u8    confidentiality_offset[0x2];
 	u8    reserved_at_48[0x4];
 	u8    aso_return_reg[0x4];
 	u8    reserved_at_50[0x10];
 
-	u8    esn_msb[0x20];
+	u8    epn_msb[0x20];
 
 	u8    reserved_at_80[0x8];
 	u8    dekn[0x18];
