@@ -66,7 +66,6 @@ static inline void mlx5e_macsec_offload_handle_rx_skb(struct net_device *netdev,
 						      struct mlx5_cqe64 *cqe)
 {}
 static inline bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev) { return false; }
-
 #endif  /* CONFIG_MLX5_EN_MACSEC */
 
 #endif	/* __MLX5_ACCEL_EN_MACSEC_H__ */
