@@ -505,6 +505,25 @@ const struct io_op_def io_op_defs[] = {
 		.prep			= io_eopnotsupp_prep,
 #endif
 	},
+	[IORING_OP_SENDMSG_ZC] = {
+		.name			= "SENDMSG_ZC",
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+		.pollout		= 1,
+		.audit_skip		= 1,
+		.ioprio			= 1,
+		.manual_alloc		= 1,
+#if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
+		.prep			= io_send_zc_prep,
+		.issue			= io_sendmsg_zc,
+		.prep_async		= io_sendmsg_prep_async,
+		.cleanup		= io_send_zc_cleanup,
+		.fail			= io_sendrecv_fail,
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
+	},
 };
 
 const char *io_uring_get_opcode(u8 opcode)

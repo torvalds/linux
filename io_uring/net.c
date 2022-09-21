@@ -909,7 +909,12 @@ out_free:
 void io_send_zc_cleanup(struct io_kiocb *req)
 {
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
+	struct io_async_msghdr *io;
 
+	if (req_has_async_data(req)) {
+		io = req->async_data;
+		kfree(io->free_iov);
+	}
 	zc->notif->flags |= REQ_F_CQE_SKIP;
 	io_notif_flush(zc->notif);
 	zc->notif = NULL;
@@ -921,8 +926,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *notif;
 
-	if (READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3) ||
-	    READ_ONCE(sqe->__pad3[0]))
+	if (unlikely(READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3)))
 		return -EINVAL;
 	/* we don't support IOSQE_CQE_SKIP_SUCCESS just yet */
 	if (req->flags & REQ_F_CQE_SKIP)
@@ -949,14 +953,24 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		io_req_set_rsrc_node(notif, ctx, 0);
 	}
 
+	if (req->opcode == IORING_OP_SEND_ZC) {
+		if (READ_ONCE(sqe->__pad3[0]))
+			return -EINVAL;
+		zc->addr = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+		zc->addr_len = READ_ONCE(sqe->addr_len);
+	} else {
+		if (unlikely(sqe->addr2 || sqe->file_index))
+			return -EINVAL;
+		if (unlikely(zc->flags & IORING_RECVSEND_FIXED_BUF))
+			return -EINVAL;
+	}
+
 	zc->buf = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	zc->len = READ_ONCE(sqe->len);
 	zc->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
 	if (zc->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
 
-	zc->addr = u64_to_user_ptr(READ_ONCE(sqe->addr2));
-	zc->addr_len = READ_ONCE(sqe->addr_len);
 	zc->done_io = 0;
 
 #ifdef CONFIG_COMPAT
@@ -1118,6 +1132,73 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+	struct io_async_msghdr iomsg, *kmsg;
+	struct socket *sock;
+	unsigned flags, cflags;
+	int ret, min_ret = 0;
+
+	sock = sock_from_file(req->file);
+	if (unlikely(!sock))
+		return -ENOTSOCK;
+
+	if (req_has_async_data(req)) {
+		kmsg = req->async_data;
+	} else {
+		ret = io_sendmsg_copy_hdr(req, &iomsg);
+		if (ret)
+			return ret;
+		kmsg = &iomsg;
+	}
+
+	if (!(req->flags & REQ_F_POLLED) &&
+	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
+		return io_setup_async_msg(req, kmsg, issue_flags);
+
+	flags = sr->msg_flags | MSG_ZEROCOPY;
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		flags |= MSG_DONTWAIT;
+	if (flags & MSG_WAITALL)
+		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
+
+	kmsg->msg.msg_ubuf = &io_notif_to_data(sr->notif)->uarg;
+	kmsg->msg.sg_from_iter = io_sg_from_iter_iovec;
+	ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
+
+	if (unlikely(ret < min_ret)) {
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+			return io_setup_async_msg(req, kmsg, issue_flags);
+
+		if (ret > 0 && io_net_retry(sock, flags)) {
+			sr->done_io += ret;
+			req->flags |= REQ_F_PARTIAL_IO;
+			return io_setup_async_msg(req, kmsg, issue_flags);
+		}
+		if (ret < 0 && !sr->done_io)
+			sr->notif->flags |= REQ_F_CQE_SKIP;
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
+		req_set_fail(req);
+	}
+	/* fast path, check for non-NULL to avoid function call */
+	if (kmsg->free_iov)
+		kfree(kmsg->free_iov);
+
+	io_netmsg_recycle(req, issue_flags);
+	if (ret >= 0)
+		ret += sr->done_io;
+	else if (sr->done_io)
+		ret = sr->done_io;
+
+	io_notif_flush(sr->notif);
+	req->flags &= ~REQ_F_NEED_CLEANUP;
+	cflags = ret >= 0 ? IORING_CQE_F_MORE : 0;
+	io_req_set_res(req, ret, cflags);
+	return IOU_OK;
+}
+
 void io_sendrecv_fail(struct io_kiocb *req)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
@@ -1127,7 +1208,7 @@ void io_sendrecv_fail(struct io_kiocb *req)
 	if (req->flags & REQ_F_PARTIAL_IO)
 		res = sr->done_io;
 	if ((req->flags & REQ_F_NEED_CLEANUP) &&
-	    req->opcode == IORING_OP_SEND_ZC) {
+	    (req->opcode == IORING_OP_SEND_ZC || req->opcode == IORING_OP_SENDMSG_ZC)) {
 		/* preserve notification for partial I/O */
 		if (res < 0)
 			sr->notif->flags |= REQ_F_CQE_SKIP;
