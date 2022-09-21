@@ -287,9 +287,13 @@ int mlx5e_tc_match_to_reg_set_and_get_id(struct mlx5_core_dev *mdev,
 					 enum mlx5e_tc_attr_to_reg type,
 					 u32 data);
 
-int mlx5e_tc_add_flow_mod_hdr(struct mlx5e_priv *priv,
-			      struct mlx5e_tc_flow *flow,
-			      struct mlx5_flow_attr *attr);
+int mlx5e_tc_attach_mod_hdr(struct mlx5e_priv *priv,
+			    struct mlx5e_tc_flow *flow,
+			    struct mlx5_flow_attr *attr);
+
+void mlx5e_tc_detach_mod_hdr(struct mlx5e_priv *priv,
+			     struct mlx5e_tc_flow *flow,
+			     struct mlx5_flow_attr *attr);
 
 void mlx5e_tc_set_ethertype(struct mlx5_core_dev *mdev,
 			    struct flow_match_basic *match, bool outer,
