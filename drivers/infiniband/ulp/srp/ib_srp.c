@@ -2988,7 +2988,7 @@ static ssize_t local_ib_port_show(struct device *dev,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sysfs_emit(buf, "%d\n", target->srp_host->port);
+	return sysfs_emit(buf, "%u\n", target->srp_host->port);
 }
 
 static DEVICE_ATTR_RO(local_ib_port);
@@ -3886,7 +3886,7 @@ static ssize_t port_show(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_host *host = container_of(dev, struct srp_host, dev);
 
-	return sysfs_emit(buf, "%d\n", host->port);
+	return sysfs_emit(buf, "%u\n", host->port);
 }
 
 static DEVICE_ATTR_RO(port);
@@ -3898,7 +3898,7 @@ static struct attribute *srp_class_attrs[] = {
 	NULL
 };
 
-static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
+static struct srp_host *srp_add_port(struct srp_device *device, u32 port)
 {
 	struct srp_host *host;
 
@@ -3915,7 +3915,7 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 	device_initialize(&host->dev);
 	host->dev.class = &srp_class;
 	host->dev.parent = device->dev->dev.parent;
-	if (dev_set_name(&host->dev, "srp-%s-%d", dev_name(&device->dev->dev),
+	if (dev_set_name(&host->dev, "srp-%s-%u", dev_name(&device->dev->dev),
 			 port))
 		goto put_host;
 	if (device_add(&host->dev))
@@ -3937,7 +3937,7 @@ static void srp_rename_dev(struct ib_device *device, void *client_data)
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
 		char name[IB_DEVICE_NAME_MAX + 8];
 
-		snprintf(name, sizeof(name), "srp-%s-%d",
+		snprintf(name, sizeof(name), "srp-%s-%u",
 			 dev_name(&device->dev), host->port);
 		device_rename(&host->dev, name);
 	}
@@ -3949,7 +3949,7 @@ static int srp_add_one(struct ib_device *device)
 	struct ib_device_attr *attr = &device->attrs;
 	struct srp_host *host;
 	int mr_page_shift;
-	unsigned int p;
+	u32 p;
 	u64 max_pages_per_mr;
 	unsigned int flags = 0;
 
