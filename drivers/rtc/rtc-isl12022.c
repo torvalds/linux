@@ -173,9 +173,6 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		/* Check if WRTC (write rtc enable) is set factory default is
 		 * 0 (not set) */
 		if (!(buf[0] & ISL12022_INT_WRTC)) {
-			dev_info(&client->dev,
-				 "init write enable and 24 hour format\n");
-
 			/* Set the write enable bit. */
 			ret = isl12022_write_reg(client,
 						 ISL12022_REG_INT,
