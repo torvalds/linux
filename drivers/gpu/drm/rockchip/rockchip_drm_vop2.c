@@ -6384,19 +6384,38 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 		 * dly_num = delay_line_num * T(one-line) / T (dsc_cds)
 		 * T (one-line) = 1/v_pixclk_mhz * htotal = htotal/v_pixclk_mhz
 		 * T (dsc_cds) = 1 / dsc_cds_rate_mhz
+		 *
+		 * HDMI:
 		 * delay_line_num: according the pps initial_xmit_delay to adjust vop dsc delay
 		 *                 delay_line_num = 4 - BPP / 8
 		 *                                = (64 - target_bpp / 8) / 16
-		 *
 		 * dly_num = htotal * dsc_cds_rate_mhz / v_pixclk_mhz * (64 - target_bpp / 8) / 16;
+		 *
+		 * MIPI DSI[4320 and 9216 is buffer size for DSC]:
+		 * DSC0:delay_line_num = 4320 * 8 / slince_num / chunk_size;
+		 *	delay_line_num = delay_line_num > 5 ? 5 : delay_line_num;
+		 * DSC1:delay_line_num = 9216 * 2 / slince_num / chunk_size;
+		 *	delay_line_num = delay_line_num > 5 ? 5 : delay_line_num;
+		 * dly_num = htotal * dsc_cds_rate_mhz / v_pixclk_mhz * delay_line_num
 		 */
 		do_div(dsc_cds_rate, 1000000); /* hz to Mhz */
 		dsc_cds_rate_mhz = dsc_cds_rate;
-		dly_num = htotal * dsc_cds_rate_mhz / v_pixclk_mhz * (64 - target_bpp / 8) / 16;
+		dsc_hsync = hsync_len / 2;
+		if (dsc_interface_mode == VOP_DSC_IF_HDMI) {
+			dly_num = htotal * dsc_cds_rate_mhz / v_pixclk_mhz * (64 - target_bpp / 8) / 16;
+		} else {
+			int dsc_buf_size  = dsc->id == 0 ? 4320 * 8 : 9216 * 2;
+			int delay_line_num = dsc_buf_size / vcstate->dsc_slice_num / be16_to_cpu(vcstate->pps.chunk_size);
+
+			delay_line_num = delay_line_num > 5 ? 5 : delay_line_num;
+			dly_num = htotal * dsc_cds_rate_mhz / v_pixclk_mhz * delay_line_num;
+
+			/* The dsc mipi video mode dsc_hsync minimum size is 8 pixels */
+			if (dsc_hsync < 8)
+				dsc_hsync = 8;
+		}
 		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_mode, 0);
 		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_num, dly_num);
-
-		dsc_hsync = hsync_len / 2;
 		/*
 		 * htotal / dclk_core = dsc_htotal /cds_clk
 		 *
