@@ -6,12 +6,10 @@
 #include <linux/xarray.h>
 
 #include "en.h"
+#include "lib/aso.h"
 #include "lib/mlx5.h"
 #include "en_accel/macsec.h"
 #include "en_accel/macsec_fs.h"
-
-#define MLX5_MACSEC_ASO_INC_SN  0x2
-#define MLX5_MACSEC_ASO_REG_C_4_5 0x2
 
 struct mlx5e_macsec_sa {
 	bool active;
@@ -43,6 +41,23 @@ struct mlx5e_macsec_rx_sc {
 	struct rcu_head rcu_head;
 };
 
+struct mlx5e_macsec_umr {
+	dma_addr_t dma_addr;
+	u8 ctx[MLX5_ST_SZ_BYTES(macsec_aso)];
+	u32 mkey;
+};
+
+struct mlx5e_macsec_aso {
+	/* ASO */
+	struct mlx5_aso *maso;
+	/* Protects macsec ASO */
+	struct mutex aso_lock;
+	/* UMR */
+	struct mlx5e_macsec_umr *umr;
+
+	u32 pdn;
+};
+
 static const struct rhashtable_params rhash_sci = {
 	.key_len = sizeof_field(struct mlx5e_macsec_sa, sci),
 	.key_offset = offsetof(struct mlx5e_macsec_sa, sci),
@@ -65,9 +80,6 @@ struct mlx5e_macsec {
 	struct mlx5e_macsec_fs *macsec_fs;
 	struct mutex lock; /* Protects mlx5e_macsec internal contexts */
 
-	/* Global PD for MACsec object ASO context */
-	u32 aso_pdn;
-
 	/* Tx sci -> fs id mapping handling */
 	struct rhashtable sci_hash;      /* sci -> mlx5e_macsec_sa */
 
@@ -78,6 +90,9 @@ struct mlx5e_macsec {
 
 	/* Stats manage */
 	struct mlx5e_macsec_stats stats;
+
+	/* ASO */
+	struct mlx5e_macsec_aso aso;
 };
 
 struct mlx5_macsec_obj_attrs {
@@ -87,6 +102,55 @@ struct mlx5_macsec_obj_attrs {
 	u32 enc_key_id;
 	bool encrypt;
 };
+
+static int mlx5e_macsec_aso_reg_mr(struct mlx5_core_dev *mdev, struct mlx5e_macsec_aso *aso)
+{
+	struct mlx5e_macsec_umr *umr;
+	struct device *dma_device;
+	dma_addr_t dma_addr;
+	int err;
+
+	umr = kzalloc(sizeof(*umr), GFP_KERNEL);
+	if (!umr) {
+		err = -ENOMEM;
+		return err;
+	}
+
+	dma_device = &mdev->pdev->dev;
+	dma_addr = dma_map_single(dma_device, umr->ctx, sizeof(umr->ctx), DMA_BIDIRECTIONAL);
+	err = dma_mapping_error(dma_device, dma_addr);
+	if (err) {
+		mlx5_core_err(mdev, "Can't map dma device, err=%d\n", err);
+		goto out_dma;
+	}
+
+	err = mlx5e_create_mkey(mdev, aso->pdn, &umr->mkey);
+	if (err) {
+		mlx5_core_err(mdev, "Can't create mkey, err=%d\n", err);
+		goto out_mkey;
+	}
+
+	umr->dma_addr = dma_addr;
+
+	aso->umr = umr;
+
+	return 0;
+
+out_mkey:
+	dma_unmap_single(dma_device, dma_addr, sizeof(umr->ctx), DMA_BIDIRECTIONAL);
+out_dma:
+	kfree(umr);
+	return err;
+}
+
+static void mlx5e_macsec_aso_dereg_mr(struct mlx5_core_dev *mdev, struct mlx5e_macsec_aso *aso)
+{
+	struct mlx5e_macsec_umr *umr = aso->umr;
+
+	mlx5_core_destroy_mkey(mdev, umr->mkey);
+	dma_unmap_single(&mdev->pdev->dev, umr->dma_addr, sizeof(umr->ctx), DMA_BIDIRECTIONAL);
+	kfree(umr);
+}
 
 static int mlx5e_macsec_create_object(struct mlx5_core_dev *mdev,
 				      struct mlx5_macsec_obj_attrs *attrs,
@@ -180,7 +244,7 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	obj_attrs.sci = cpu_to_be64((__force u64)sa->sci);
 	obj_attrs.enc_key_id = sa->enc_key_id;
 	obj_attrs.encrypt = encrypt;
-	obj_attrs.aso_pdn = macsec->aso_pdn;
+	obj_attrs.aso_pdn = macsec->aso.pdn;
 
 	err = mlx5e_macsec_create_object(mdev, &obj_attrs, is_tx, &sa->macsec_obj_id);
 	if (err)
@@ -1122,6 +1186,54 @@ out:
 	return err;
 }
 
+static int mlx5e_macsec_aso_init(struct mlx5e_macsec_aso *aso, struct mlx5_core_dev *mdev)
+{
+	struct mlx5_aso *maso;
+	int err;
+
+	err = mlx5_core_alloc_pd(mdev, &aso->pdn);
+	if (err) {
+		mlx5_core_err(mdev,
+			      "MACsec offload: Failed to alloc pd for MACsec ASO, err=%d\n",
+			      err);
+		return err;
+	}
+
+	maso = mlx5_aso_create(mdev, aso->pdn);
+	if (IS_ERR(maso)) {
+		err = PTR_ERR(maso);
+		goto err_aso;
+	}
+
+	err = mlx5e_macsec_aso_reg_mr(mdev, aso);
+	if (err)
+		goto err_aso_reg;
+
+	mutex_init(&aso->aso_lock);
+
+	aso->maso = maso;
+
+	return 0;
+
+err_aso_reg:
+	mlx5_aso_destroy(maso);
+err_aso:
+	mlx5_core_dealloc_pd(mdev, aso->pdn);
+	return err;
+}
+
+static void mlx5e_macsec_aso_cleanup(struct mlx5e_macsec_aso *aso, struct mlx5_core_dev *mdev)
+{
+	if (!aso)
+		return;
+
+	mlx5e_macsec_aso_dereg_mr(mdev, aso);
+
+	mlx5_aso_destroy(aso->maso);
+
+	mlx5_core_dealloc_pd(mdev, aso->pdn);
+}
+
 bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
 {
 	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
@@ -1272,19 +1384,17 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 	INIT_LIST_HEAD(&macsec->macsec_device_list_head);
 	mutex_init(&macsec->lock);
 
-	err = mlx5_core_alloc_pd(mdev, &macsec->aso_pdn);
-	if (err) {
-		mlx5_core_err(mdev,
-			      "MACsec offload: Failed to alloc pd for MACsec ASO, err=%d\n",
-			      err);
-		goto err_pd;
-	}
-
 	err = rhashtable_init(&macsec->sci_hash, &rhash_sci);
 	if (err) {
 		mlx5_core_err(mdev, "MACsec offload: Failed to init SCI hash table, err=%d\n",
 			      err);
 		goto err_hash;
+	}
+
+	err = mlx5e_macsec_aso_init(&macsec->aso, priv->mdev);
+	if (err) {
+		mlx5_core_err(mdev, "MACsec offload: Failed to init aso, err=%d\n", err);
+		goto err_aso;
 	}
 
 	xa_init_flags(&macsec->sc_xarray, XA_FLAGS_ALLOC1);
@@ -1306,10 +1416,10 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 	return 0;
 
 err_out:
+	mlx5e_macsec_aso_cleanup(&macsec->aso, priv->mdev);
+err_aso:
 	rhashtable_destroy(&macsec->sci_hash);
 err_hash:
-	mlx5_core_dealloc_pd(priv->mdev, macsec->aso_pdn);
-err_pd:
 	kfree(macsec);
 	priv->macsec = NULL;
 	return err;
@@ -1318,15 +1428,16 @@ err_pd:
 void mlx5e_macsec_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_macsec *macsec = priv->macsec;
+	struct mlx5_core_dev *mdev = macsec->mdev;
 
 	if (!macsec)
 		return;
 
 	mlx5e_macsec_fs_cleanup(macsec->macsec_fs);
 
-	priv->macsec = NULL;
+	mlx5e_macsec_aso_cleanup(&macsec->aso, mdev);
 
-	mlx5_core_dealloc_pd(priv->mdev, macsec->aso_pdn);
+	priv->macsec = NULL;
 
 	rhashtable_destroy(&macsec->sci_hash);
 
