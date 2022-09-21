@@ -6230,9 +6230,7 @@ split_irqchip_unlock:
 		break;
 	case KVM_CAP_X86_USER_SPACE_MSR:
 		r = -EINVAL;
-		if (cap->args[0] & ~(KVM_MSR_EXIT_REASON_INVAL |
-				     KVM_MSR_EXIT_REASON_UNKNOWN |
-				     KVM_MSR_EXIT_REASON_FILTER))
+		if (cap->args[0] & ~KVM_MSR_EXIT_REASON_VALID_MASK)
 			break;
 		kvm->arch.user_space_msr_mask = cap->args[0];
 		r = 0;
