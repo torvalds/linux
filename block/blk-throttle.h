@@ -172,13 +172,13 @@ static inline int blk_throtl_init(struct gendisk *disk) { return 0; }
 static inline void blk_throtl_exit(struct gendisk *disk) { }
 static inline void blk_throtl_register(struct gendisk *disk) { }
 static inline bool blk_throtl_bio(struct bio *bio) { return false; }
-static inline void blk_throtl_cancel_bios(struct request_queue *q) { }
+static inline void blk_throtl_cancel_bios(struct gendisk *disk) { }
 #else /* CONFIG_BLK_DEV_THROTTLING */
 int blk_throtl_init(struct gendisk *disk);
 void blk_throtl_exit(struct gendisk *disk);
 void blk_throtl_register(struct gendisk *disk);
 bool __blk_throtl_bio(struct bio *bio);
-void blk_throtl_cancel_bios(struct request_queue *q);
+void blk_throtl_cancel_bios(struct gendisk *disk);
 
 static inline bool blk_should_throtl(struct bio *bio)
 {

@@ -1716,8 +1716,9 @@ struct blkcg_policy blkcg_policy_throtl = {
 	.pd_free_fn		= throtl_pd_free,
 };
 
-void blk_throtl_cancel_bios(struct request_queue *q)
+void blk_throtl_cancel_bios(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct cgroup_subsys_state *pos_css;
 	struct blkcg_gq *blkg;
 

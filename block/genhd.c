@@ -626,7 +626,7 @@ void del_gendisk(struct gendisk *disk)
 	pm_runtime_set_memalloc_noio(disk_to_dev(disk), false);
 	device_del(disk_to_dev(disk));
 
-	blk_throtl_cancel_bios(disk->queue);
+	blk_throtl_cancel_bios(disk);
 
 	blk_sync_queue(q);
 	blk_flush_integrity();
