@@ -3,12 +3,12 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright(c) 2022 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Authors: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
 
-/*
- * PCI interface for Renoir ACP device
+/*.
+ * PCI interface for Rembrandt ACP device
  */
 
 #include <linux/module.h>
@@ -23,16 +23,16 @@
 #include "acp.h"
 #include "acp-dsp-offset.h"
 
-#define ACP3x_REG_START		0x1240000
-#define ACP3x_REG_END		0x125C000
+#define ACP6x_REG_START		0x1240000
+#define ACP6x_REG_END		0x125C000
 
 static struct platform_device *dmic_dev;
 static struct platform_device *pdev;
 
-static const struct resource renoir_res[] = {
+static const struct resource rembrandt_res[] = {
 	{
 		.start = 0,
-		.end = ACP3x_REG_END - ACP3x_REG_START,
+		.end = ACP6x_REG_END - ACP6x_REG_START,
 		.name = "acp_mem",
 		.flags = IORESOURCE_MEM,
 	},
@@ -44,44 +44,44 @@ static const struct resource renoir_res[] = {
 	},
 };
 
-static const struct sof_amd_acp_desc renoir_chip_info = {
-	.rev		= 3,
-	.host_bridge_id = HOST_BRIDGE_CZN,
-	.i2s_mode	= 0x04,
-	.pgfsm_base	= ACP3X_PGFSM_BASE,
-	.ext_intr_stat	= ACP3X_EXT_INTR_STAT,
-	.dsp_intr_base	= ACP3X_DSP_SW_INTR_BASE,
-	.sram_pte_offset = ACP3X_SRAM_PTE_OFFSET,
-	.i2s_pin_config_offset = ACP3X_I2S_PIN_CONFIG,
-	.hw_semaphore_offset = ACP3X_AXI2DAGB_SEM_0,
-	.acp_clkmux_sel	= ACP3X_CLKMUX_SEL,
+static const struct sof_amd_acp_desc rembrandt_chip_info = {
+	.rev		= 6,
+	.host_bridge_id = HOST_BRIDGE_RMB,
+	.i2s_mode	= 0x0a,
+	.pgfsm_base	= ACP6X_PGFSM_BASE,
+	.ext_intr_stat	= ACP6X_EXT_INTR_STAT,
+	.dsp_intr_base	= ACP6X_DSP_SW_INTR_BASE,
+	.sram_pte_offset = ACP6X_SRAM_PTE_OFFSET,
+	.i2s_pin_config_offset = ACP6X_I2S_PIN_CONFIG,
+	.hw_semaphore_offset = ACP6X_AXI2DAGB_SEM_0,
+	.acp_clkmux_sel = ACP6X_CLKMUX_SEL,
+	.fusion_dsp_offset = ACP6X_DSP_FUSION_RUNSTALL,
 };
 
-static const struct sof_dev_desc renoir_desc = {
-	.machines		= snd_soc_acpi_amd_sof_machines,
-	.use_acpi_target_states	= true,
+static const struct sof_dev_desc rembrandt_desc = {
+	.machines		= snd_soc_acpi_amd_rmb_sof_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
-	.chip_info		= &renoir_chip_info,
-	.ipc_supported_mask	= BIT(SOF_IPC),
-	.ipc_default		= SOF_IPC,
-	.default_fw_path = {
+	.chip_info		= &rembrandt_chip_info,
+	.ipc_supported_mask     = BIT(SOF_IPC),
+	.ipc_default            = SOF_IPC,
+	.default_fw_path	= {
 		[SOF_IPC] = "amd/sof",
 	},
-	.default_tplg_path = {
+	.default_tplg_path	= {
 		[SOF_IPC] = "amd/sof-tplg",
 	},
 	.default_fw_filename	= {
-		[SOF_IPC] = "sof-rn.ri",
+		[SOF_IPC] = "sof-rmb.ri",
 	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
-	.ops			= &sof_renoir_ops,
-	.ops_init		= sof_renoir_ops_init,
+	.ops			= &sof_rembrandt_ops,
+	.ops_init		= sof_rembrandt_ops_init,
 };
 
-static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
+static int acp_pci_rmb_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	struct platform_device_info pdevinfo;
 	struct device *dev = &pci->dev;
@@ -110,15 +110,16 @@ static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci
 		return 0;
 
 	addr = pci_resource_start(pci, 0);
-	res = devm_kzalloc(&pci->dev, sizeof(struct resource) * ARRAY_SIZE(renoir_res), GFP_KERNEL);
+	res = devm_kzalloc(&pci->dev, sizeof(struct resource) * ARRAY_SIZE(rembrandt_res),
+			   GFP_KERNEL);
 	if (!res) {
-		sof_pci_remove(pci);
 		platform_device_unregister(dmic_dev);
+		sof_pci_remove(pci);
 		return -ENOMEM;
 	}
 
-	res_i2s = renoir_res;
-	for (i = 0; i < ARRAY_SIZE(renoir_res); i++, res_i2s++) {
+	res_i2s = rembrandt_res;
+	for (i = 0; i < ARRAY_SIZE(rembrandt_res); i++, res_i2s++) {
 		res[i].name = res_i2s->name;
 		res[i].flags = res_i2s->flags;
 		res[i].start = addr + res_i2s->start;
@@ -136,53 +137,49 @@ static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci
 	 * for some distributions. Register platform device that will be used to support non dsp
 	 * ACP's audio ends points on some machines.
 	 */
-
-	pdevinfo.name = "acp_asoc_renoir";
+	pdevinfo.name = "acp_asoc_rembrandt";
 	pdevinfo.id = 0;
 	pdevinfo.parent = &pci->dev;
-	pdevinfo.num_res = ARRAY_SIZE(renoir_res);
+	pdevinfo.num_res = ARRAY_SIZE(rembrandt_res);
 	pdevinfo.res = &res[0];
 
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev)) {
 		dev_err(&pci->dev, "cannot register %s device\n", pdevinfo.name);
-		sof_pci_remove(pci);
 		platform_device_unregister(dmic_dev);
+		sof_pci_remove(pci);
 		ret = PTR_ERR(pdev);
 	}
 
 	return ret;
 };
 
-static void acp_pci_rn_remove(struct pci_dev *pci)
+static void acp_pci_rmb_remove(struct pci_dev *pci)
 {
 	if (dmic_dev)
 		platform_device_unregister(dmic_dev);
 	if (pdev)
 		platform_device_unregister(pdev);
 
-	return sof_pci_remove(pci);
+	sof_pci_remove(pci);
 }
 
 /* PCI IDs */
-static const struct pci_device_id rn_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, ACP_PCI_DEV_ID),
-	.driver_data = (unsigned long)&renoir_desc},
-	{ 0, }
+static const struct pci_device_id rmb_pci_ids[] = {
+		{ PCI_DEVICE(PCI_VENDOR_ID_AMD, ACP_PCI_DEV_ID),
+		.driver_data = (unsigned long)&rembrandt_desc},
+		{ 0, }
 };
-MODULE_DEVICE_TABLE(pci, rn_pci_ids);
+MODULE_DEVICE_TABLE(pci, rmb_pci_ids);
 
 /* pci_driver definition */
-static struct pci_driver snd_sof_pci_amd_rn_driver = {
+static struct pci_driver snd_sof_pci_amd_rmb_driver = {
 	.name = KBUILD_MODNAME,
-	.id_table = rn_pci_ids,
-	.probe = acp_pci_rn_probe,
-	.remove = acp_pci_rn_remove,
-	.driver = {
-		.pm = &sof_pci_pm,
-	},
+	.id_table = rmb_pci_ids,
+	.probe = acp_pci_rmb_probe,
+	.remove = acp_pci_rmb_remove,
 };
-module_pci_driver(snd_sof_pci_amd_rn_driver);
+module_pci_driver(snd_sof_pci_amd_rmb_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_IMPORT_NS(SND_SOC_SOF_AMD_COMMON);
