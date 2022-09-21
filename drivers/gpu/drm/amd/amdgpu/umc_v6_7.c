@@ -452,9 +452,8 @@ static void umc_v6_7_query_ras_error_count(struct amdgpu_device *adev,
 
 static void umc_v6_7_query_error_address(struct amdgpu_device *adev,
 					 struct ras_err_data *err_data,
-					 uint32_t umc_reg_offset,
-					 uint32_t ch_inst,
-					 uint32_t umc_inst)
+					 uint32_t umc_reg_offset, uint32_t ch_inst,
+					 uint32_t umc_inst, uint64_t mca_addr)
 {
 	uint32_t mc_umc_status_addr;
 	uint32_t channel_index;
@@ -540,9 +539,8 @@ static void umc_v6_7_query_ras_error_address(struct amdgpu_device *adev,
 							 ch_inst);
 		umc_v6_7_query_error_address(adev,
 					     err_data,
-					     umc_reg_offset,
-					     ch_inst,
-					     umc_inst);
+					     umc_reg_offset, ch_inst,
+					     umc_inst, UMC_INVALID_ADDR);
 	}
 }
 
@@ -583,4 +581,5 @@ struct amdgpu_umc_ras umc_v6_7_ras = {
 	.query_ras_poison_mode = umc_v6_7_query_ras_poison_mode,
 	.ecc_info_query_ras_error_count = umc_v6_7_ecc_info_query_ras_error_count,
 	.ecc_info_query_ras_error_address = umc_v6_7_ecc_info_query_ras_error_address,
+	.convert_ras_error_address = umc_v6_7_query_error_address,
 };
