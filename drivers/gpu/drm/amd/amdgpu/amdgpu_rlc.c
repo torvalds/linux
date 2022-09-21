@@ -406,3 +406,38 @@ static void amdgpu_gfx_rlc_init_microcode_v2_2(struct amdgpu_device *adev)
 		}
 	}
 }
+
+static void amdgpu_gfx_rlc_init_microcode_v2_3(struct amdgpu_device *adev)
+{
+	const struct rlc_firmware_header_v2_3 *rlc_hdr;
+	struct amdgpu_firmware_info *info;
+
+	rlc_hdr = (const struct rlc_firmware_header_v2_3 *)adev->gfx.rlc_fw->data;
+	adev->gfx.rlcp_ucode_version = le32_to_cpu(rlc_hdr->rlcp_ucode_version);
+	adev->gfx.rlcp_ucode_feature_version = le32_to_cpu(rlc_hdr->rlcp_ucode_feature_version);
+	adev->gfx.rlc.rlcp_ucode_size_bytes = le32_to_cpu(rlc_hdr->rlcp_ucode_size_bytes);
+	adev->gfx.rlc.rlcp_ucode = (u8 *)rlc_hdr + le32_to_cpu(rlc_hdr->rlcp_ucode_offset_bytes);
+
+	adev->gfx.rlcv_ucode_version = le32_to_cpu(rlc_hdr->rlcv_ucode_version);
+	adev->gfx.rlcv_ucode_feature_version = le32_to_cpu(rlc_hdr->rlcv_ucode_feature_version);
+	adev->gfx.rlc.rlcv_ucode_size_bytes = le32_to_cpu(rlc_hdr->rlcv_ucode_size_bytes);
+	adev->gfx.rlc.rlcv_ucode = (u8 *)rlc_hdr + le32_to_cpu(rlc_hdr->rlcv_ucode_offset_bytes);
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		if (adev->gfx.rlc.rlcp_ucode_size_bytes) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_RLC_P];
+			info->ucode_id = AMDGPU_UCODE_ID_RLC_P;
+			info->fw = adev->gfx.rlc_fw;
+			adev->firmware.fw_size +=
+				ALIGN(adev->gfx.rlc.rlcp_ucode_size_bytes, PAGE_SIZE);
+		}
+
+		if (adev->gfx.rlc.rlcv_ucode_size_bytes) {
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_RLC_V];
+			info->ucode_id = AMDGPU_UCODE_ID_RLC_V;
+			info->fw = adev->gfx.rlc_fw;
+			adev->firmware.fw_size +=
+				ALIGN(adev->gfx.rlc.rlcv_ucode_size_bytes, PAGE_SIZE);
+		}
+	}
+}
