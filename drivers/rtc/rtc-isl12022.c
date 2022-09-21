@@ -149,7 +149,7 @@ static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct isl12022 *isl12022 = i2c_get_clientdata(client);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
 	size_t i;
 	int ret;
 	uint8_t buf[ISL12022_REG_DW + 1];
@@ -232,8 +232,7 @@ static int isl12022_probe(struct i2c_client *client)
 				GFP_KERNEL);
 	if (!isl12022)
 		return -ENOMEM;
-
-	i2c_set_clientdata(client, isl12022);
+	dev_set_drvdata(&client->dev, isl12022);
 
 	isl12022->rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(isl12022->rtc))
