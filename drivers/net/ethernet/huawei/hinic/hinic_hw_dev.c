@@ -1041,13 +1041,6 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
 	hinic_free_hwif(hwdev->hwif);
 }
 
-int hinic_hwdev_max_num_qps(struct hinic_hwdev *hwdev)
-{
-	struct hinic_cap *nic_cap = &hwdev->nic_cap;
-
-	return nic_cap->max_qps;
-}
-
 /**
  * hinic_hwdev_num_qps - return the number QPs available for use
  * @hwdev: the NIC HW device

@@ -566,8 +566,6 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev, struct devlink *devli
 
 void hinic_free_hwdev(struct hinic_hwdev *hwdev);
 
-int hinic_hwdev_max_num_qps(struct hinic_hwdev *hwdev);
-
 int hinic_hwdev_num_qps(struct hinic_hwdev *hwdev);
 
 struct hinic_sq *hinic_hwdev_get_sq(struct hinic_hwdev *hwdev, int i);
