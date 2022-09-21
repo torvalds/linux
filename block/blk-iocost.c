@@ -2828,8 +2828,9 @@ static struct rq_qos_ops ioc_rqos_ops = {
 	.exit = ioc_rqos_exit,
 };
 
-static int blk_iocost_init(struct request_queue *q)
+static int blk_iocost_init(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct ioc *ioc;
 	struct rq_qos *rqos;
 	int i, cpu, ret;
@@ -3178,7 +3179,7 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 
 	ioc = q_to_ioc(bdev_get_queue(bdev));
 	if (!ioc) {
-		ret = blk_iocost_init(bdev_get_queue(bdev));
+		ret = blk_iocost_init(bdev->bd_disk);
 		if (ret)
 			goto err;
 		ioc = q_to_ioc(bdev_get_queue(bdev));
@@ -3345,7 +3346,7 @@ static ssize_t ioc_cost_model_write(struct kernfs_open_file *of, char *input,
 
 	ioc = q_to_ioc(bdev_get_queue(bdev));
 	if (!ioc) {
-		ret = blk_iocost_init(bdev_get_queue(bdev));
+		ret = blk_iocost_init(bdev->bd_disk);
 		if (ret)
 			goto err;
 		ioc = q_to_ioc(bdev_get_queue(bdev));
