@@ -100,4 +100,13 @@ struct clk_hw *mtk_clk_register_ref2usb_tx(const char *name,
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_ref2usb_tx);
 
+void mtk_clk_unregister_ref2usb_tx(struct clk_hw *hw)
+{
+	struct mtk_ref2usb_tx *tx = to_mtk_ref2usb_tx(hw);
+
+	clk_hw_unregister(hw);
+	kfree(tx);
+}
+EXPORT_SYMBOL_GPL(mtk_clk_unregister_ref2usb_tx);
+
 MODULE_LICENSE("GPL");
