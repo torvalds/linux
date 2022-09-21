@@ -375,6 +375,14 @@ out:
 	return max_size;
 }
 
+static ssize_t security_enabled_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", hdev->asic_prop.fw_security_enabled);
+}
+
 static DEVICE_ATTR_RO(armcp_kernel_ver);
 static DEVICE_ATTR_RO(armcp_ver);
 static DEVICE_ATTR_RO(cpld_ver);
@@ -393,6 +401,7 @@ static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RO(thermal_ver);
 static DEVICE_ATTR_RO(uboot_ver);
 static DEVICE_ATTR_RO(fw_os_ver);
+static DEVICE_ATTR_RO(security_enabled);
 
 static struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
@@ -417,6 +426,7 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_thermal_ver.attr,
 	&dev_attr_uboot_ver.attr,
 	&dev_attr_fw_os_ver.attr,
+	&dev_attr_security_enabled.attr,
 	NULL,
 };
 

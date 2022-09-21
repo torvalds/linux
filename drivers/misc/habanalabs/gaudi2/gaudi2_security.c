@@ -2559,6 +2559,10 @@ static const u32 gaudi2_pb_pcie[] = {
 	mmPCIE_WRAP_BASE,
 };
 
+static const u32 gaudi2_pb_pcie_unsecured_regs[] = {
+	mmPCIE_WRAP_SPECIAL_GLBL_SPARE_0,
+};
+
 static const u32 gaudi2_pb_thermal_sensor0[] = {
 	mmDCORE0_XFT_BASE,
 	mmDCORE0_TSTDVS_BASE,
@@ -2583,9 +2587,9 @@ struct gaudi2_tpc_pb_data {
 };
 
 static void gaudi2_config_tpcs_glbl_sec(struct hl_device *hdev, int dcore, int inst, u32 offset,
-					void *data)
+						struct iterate_module_ctx *ctx)
 {
-	struct gaudi2_tpc_pb_data *pb_data = (struct gaudi2_tpc_pb_data *)data;
+	struct gaudi2_tpc_pb_data *pb_data = ctx->data;
 
 	hl_config_glbl_sec(hdev, gaudi2_pb_dcr0_tpc0, pb_data->glbl_sec,
 					offset, pb_data->block_array_size);
@@ -2660,15 +2664,14 @@ static int gaudi2_init_pb_tpc(struct hl_device *hdev)
 struct gaudi2_tpc_arc_pb_data {
 	u32 unsecured_regs_arr_size;
 	u32 arc_regs_arr_size;
-	int rc;
 };
 
 static void gaudi2_config_tpcs_pb_ranges(struct hl_device *hdev, int dcore, int inst, u32 offset,
-					void *data)
+						struct iterate_module_ctx *ctx)
 {
-	struct gaudi2_tpc_arc_pb_data *pb_data = (struct gaudi2_tpc_arc_pb_data *)data;
+	struct gaudi2_tpc_arc_pb_data *pb_data = ctx->data;
 
-	pb_data->rc |= hl_init_pb_ranges(hdev, HL_PB_SHARED, HL_PB_NA, 1,
+	ctx->rc = hl_init_pb_ranges(hdev, HL_PB_SHARED, HL_PB_NA, 1,
 					offset, gaudi2_pb_dcr0_tpc0_arc,
 					pb_data->arc_regs_arr_size,
 					gaudi2_pb_dcr0_tpc0_arc_unsecured_regs,
@@ -2683,12 +2686,12 @@ static int gaudi2_init_pb_tpc_arc(struct hl_device *hdev)
 	tpc_arc_pb_data.arc_regs_arr_size = ARRAY_SIZE(gaudi2_pb_dcr0_tpc0_arc);
 	tpc_arc_pb_data.unsecured_regs_arr_size =
 			ARRAY_SIZE(gaudi2_pb_dcr0_tpc0_arc_unsecured_regs);
-	tpc_arc_pb_data.rc = 0;
+
 	tpc_iter.fn = &gaudi2_config_tpcs_pb_ranges;
 	tpc_iter.data = &tpc_arc_pb_data;
 	gaudi2_iterate_tpcs(hdev, &tpc_iter);
 
-	return tpc_arc_pb_data.rc;
+	return tpc_iter.rc;
 }
 
 static int gaudi2_init_pb_sm_objs(struct hl_device *hdev)
@@ -3419,7 +3422,8 @@ static int gaudi2_init_protection_bits(struct hl_device *hdev)
 	rc |= hl_init_pb(hdev, HL_PB_SHARED, HL_PB_NA,
 			HL_PB_SINGLE_INSTANCE, HL_PB_NA,
 			gaudi2_pb_pcie, ARRAY_SIZE(gaudi2_pb_pcie),
-			NULL, HL_PB_NA);
+			gaudi2_pb_pcie_unsecured_regs,
+			ARRAY_SIZE(gaudi2_pb_pcie_unsecured_regs));
 
 	/* Thermal Sensor.
 	 * Skip when security is enabled in F/W, because the blocks are protected by privileged RR.
@@ -3547,9 +3551,9 @@ struct gaudi2_ack_pb_tpc_data {
 };
 
 static void gaudi2_ack_pb_tpc_config(struct hl_device *hdev, int dcore, int inst, u32 offset,
-					void *data)
+					struct iterate_module_ctx *ctx)
 {
-	struct gaudi2_ack_pb_tpc_data *pb_data = (struct gaudi2_ack_pb_tpc_data *)data;
+	struct gaudi2_ack_pb_tpc_data *pb_data = ctx->data;
 
 	hl_ack_pb_single_dcore(hdev, offset, HL_PB_SINGLE_INSTANCE, HL_PB_NA,
 				gaudi2_pb_dcr0_tpc0, pb_data->tpc_regs_array_size);

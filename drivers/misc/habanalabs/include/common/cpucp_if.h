@@ -629,6 +629,12 @@ enum pq_init_status {
  * CPUCP_PACKET_ENGINE_CORE_ASID_SET -
  *       Packet to perform engine core ASID configuration
  *
+ * CPUCP_PACKET_SEC_ATTEST_GET -
+ *       Get the attestaion data that is collected during various stages of the
+ *       boot sequence. the attestation data is also hashed with some unique
+ *       number (nonce) provided by the host to prevent replay attacks.
+ *       public key and certificate also provided as part of the FW response.
+ *
  * CPUCP_PACKET_MONITOR_DUMP_GET -
  *       Get monitors registers dump from the CpuCP kernel.
  *       The CPU will put the registers dump in the a buffer allocated by the driver
@@ -636,6 +642,10 @@ enum pq_init_status {
  *       passes the max size it allows the CpuCP to write to the structure, to prevent
  *       data corruption in case of mismatched driver/FW versions.
  *       Relevant only to Gaudi.
+ *
+ * CPUCP_PACKET_ACTIVE_STATUS_SET -
+ *       LKD sends FW indication whether device is free or in use, this indication is reported
+ *       also to the BMC.
  */
 
 enum cpucp_packet_id {
@@ -687,10 +697,17 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_RESERVED,			/* not used */
 	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
 	CPUCP_PACKET_RESERVED2,			/* not used */
+	CPUCP_PACKET_SEC_ATTEST_GET,		/* internal */
 	CPUCP_PACKET_RESERVED3,			/* not used */
 	CPUCP_PACKET_RESERVED4,			/* not used */
-	CPUCP_PACKET_RESERVED5,			/* not used */
 	CPUCP_PACKET_MONITOR_DUMP_GET,		/* debugfs */
+	CPUCP_PACKET_RESERVED5,			/* not used */
+	CPUCP_PACKET_RESERVED6,			/* not used */
+	CPUCP_PACKET_RESERVED7,			/* not used */
+	CPUCP_PACKET_RESERVED8,			/* not used */
+	CPUCP_PACKET_RESERVED9,			/* not used */
+	CPUCP_PACKET_ACTIVE_STATUS_SET,		/* internal */
+	CPUCP_PACKET_ID_MAX			/* must be last */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -783,6 +800,9 @@ struct cpucp_packet {
 		 * result cannot be used to hold general purpose data.
 		 */
 		__le32 status_mask;
+
+		/* random, used once number, for security packets */
+		__le32 nonce;
 	};
 
 	/* For NIC requests */
@@ -813,10 +833,25 @@ enum cpucp_led_index {
 	CPUCP_LED2_INDEX
 };
 
+/*
+ * enum cpucp_packet_rc - Error return code
+ * @cpucp_packet_success	-> in case of success.
+ * @cpucp_packet_invalid	-> this is to support Goya and Gaudi platform.
+ * @cpucp_packet_fault		-> in case of processing error like failing to
+ *                                 get device binding or semaphore etc.
+ * @cpucp_packet_invalid_pkt	-> when cpucp packet is un-supported. This is
+ *                                 supported Greco onwards.
+ * @cpucp_packet_invalid_params	-> when checking parameter like length of buffer
+ *				   or attribute value etc. Supported Greco onwards.
+ * @cpucp_packet_rc_max		-> It indicates size of enum so should be at last.
+ */
 enum cpucp_packet_rc {
 	cpucp_packet_success,
 	cpucp_packet_invalid,
-	cpucp_packet_fault
+	cpucp_packet_fault,
+	cpucp_packet_invalid_pkt,
+	cpucp_packet_invalid_params,
+	cpucp_packet_rc_max
 };
 
 /*
@@ -1191,6 +1226,70 @@ struct cpucp_hbm_row_replaced_rows_info {
 enum cpu_reset_status {
 	CPU_RST_STATUS_NA = 0,
 	CPU_RST_STATUS_SOFT_RST_DONE = 1,
+};
+
+#define SEC_PCR_DATA_BUF_SZ	256
+#define SEC_PCR_QUOTE_BUF_SZ	510	/* (512 - 2) 2 bytes used for size */
+#define SEC_SIGNATURE_BUF_SZ	255	/* (256 - 1) 1 byte used for size */
+#define SEC_PUB_DATA_BUF_SZ	510	/* (512 - 2) 2 bytes used for size */
+#define SEC_CERTIFICATE_BUF_SZ	2046	/* (2048 - 2) 2 bytes used for size */
+
+/*
+ * struct cpucp_sec_attest_info - attestation report of the boot
+ * @pcr_data: raw values of the PCR registers
+ * @pcr_num_reg: number of PCR registers in the pcr_data array
+ * @pcr_reg_len: length of each PCR register in the pcr_data array (bytes)
+ * @nonce: number only used once. random number provided by host. this also
+ *	    passed to the quote command as a qualifying data.
+ * @pcr_quote_len: length of the attestation quote data (bytes)
+ * @pcr_quote: attestation report data structure
+ * @quote_sig_len: length of the attestation report signature (bytes)
+ * @quote_sig: signature structure of the attestation report
+ * @pub_data_len: length of the public data (bytes)
+ * @public_data: public key for the signed attestation
+ *		 (outPublic + name + qualifiedName)
+ * @certificate_len: length of the certificate (bytes)
+ * @certificate: certificate for the attestation signing key
+ */
+struct cpucp_sec_attest_info {
+	__u8 pcr_data[SEC_PCR_DATA_BUF_SZ];
+	__u8 pcr_num_reg;
+	__u8 pcr_reg_len;
+	__le16 pad0;
+	__le32 nonce;
+	__le16 pcr_quote_len;
+	__u8 pcr_quote[SEC_PCR_QUOTE_BUF_SZ];
+	__u8 quote_sig_len;
+	__u8 quote_sig[SEC_SIGNATURE_BUF_SZ];
+	__le16 pub_data_len;
+	__u8 public_data[SEC_PUB_DATA_BUF_SZ];
+	__le16 certificate_len;
+	__u8 certificate[SEC_CERTIFICATE_BUF_SZ];
+};
+
+/*
+ * struct cpucp_dev_info_signed - device information signed by a secured device
+ * @info: device information structure as defined above
+ * @nonce: number only used once. random number provided by host. this number is
+ *	   hashed and signed along with the device information.
+ * @info_sig_len: length of the attestation signature (bytes)
+ * @info_sig: signature of the info + nonce data.
+ * @pub_data_len: length of the public data (bytes)
+ * @public_data: public key info signed info data
+ *		 (outPublic + name + qualifiedName)
+ * @certificate_len: length of the certificate (bytes)
+ * @certificate: certificate for the signing key
+ */
+struct cpucp_dev_info_signed {
+	struct cpucp_info info;	/* assumed to be 64bit aligned */
+	__le32 nonce;
+	__le32 pad0;
+	__u8 info_sig_len;
+	__u8 info_sig[SEC_SIGNATURE_BUF_SZ];
+	__le16 pub_data_len;
+	__u8 public_data[SEC_PUB_DATA_BUF_SZ];
+	__le16 certificate_len;
+	__u8 certificate[SEC_CERTIFICATE_BUF_SZ];
 };
 
 /*
