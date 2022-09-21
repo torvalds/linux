@@ -1233,7 +1233,7 @@ enum {
 
 /* Query effective (directly attached + inherited from ancestor cgroups)
  * programs that will be executed for events within a cgroup.
- * attach_flags with this flag are returned only for directly attached programs.
+ * attach_flags with this flag are always returned 0.
  */
 #define BPF_F_QUERY_EFFECTIVE	(1U << 0)
 
@@ -1432,7 +1432,10 @@ union bpf_attr {
 		__u32		attach_flags;
 		__aligned_u64	prog_ids;
 		__u32		prog_cnt;
-		__aligned_u64	prog_attach_flags; /* output: per-program attach_flags */
+		/* output: per-program attach_flags.
+		 * not allowed to be set during effective query.
+		 */
+		__aligned_u64	prog_attach_flags;
 	} query;
 
 	struct { /* anonymous struct used by BPF_RAW_TRACEPOINT_OPEN command */
