@@ -2229,8 +2229,6 @@ static int gswip_remove(struct platform_device *pdev)
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
