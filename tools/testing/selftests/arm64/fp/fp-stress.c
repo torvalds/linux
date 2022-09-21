@@ -522,6 +522,7 @@ int main(int argc, char **argv)
 	}
 
 	ksft_print_msg("Finishing up...\n");
+	terminate = true;
 
 	for (i = 0; i < tests; i++)
 		child_stop(&children[i]);
