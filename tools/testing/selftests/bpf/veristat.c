@@ -300,7 +300,6 @@ static int process_obj(const char *filename)
 		prog = bpf_object__next_program(obj, NULL);
 		bpf_program__set_autoload(prog, true);
 		process_prog(filename, obj, prog);
-		bpf_object__close(obj);
 		goto cleanup;
 	}
 
