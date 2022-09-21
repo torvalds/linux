@@ -304,6 +304,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 /* Check if an IPC IRQ occurred */
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	bool ret = false;
 	u32 irq_status;
 
@@ -318,6 +319,13 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 	/* IPC message ? */
 	if (irq_status & HDA_DSP_ADSPIS_IPC)
 		ret = true;
+
+	/* CLDMA message ? */
+	if (irq_status & HDA_DSP_ADSPIS_CL_DMA) {
+		hda->code_loading = 0;
+		wake_up(&hda->waitq);
+		ret = false;
+	}
 
 out:
 	return ret;

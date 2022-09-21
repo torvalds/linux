@@ -229,6 +229,7 @@
 #define FSR_STATE_ROM_GET_LOAD_OFFSET		0x7
 #define FSR_STATE_ROM_FETCH_ROM_EXT		0x8
 #define FSR_STATE_ROM_FETCH_ROM_EXT_DONE	0x9
+#define FSR_STATE_ROM_BASEFW_ENTERED		0xf /* SKL */
 
 /* (ROM) CSE states */
 #define FSR_STATE_ROM_CSE_IMR_REQUEST			0x10
@@ -418,6 +419,7 @@
 #endif
 
 /* Intel HD Audio SRAM Window 0*/
+#define HDA_DSP_SRAM_REG_ROM_STATUS_SKL	0x8000
 #define HDA_ADSP_SRAM0_BASE_SKL		0x8000
 
 /* Firmware status window */
@@ -514,6 +516,9 @@ struct sof_intel_hda_dev {
 	/* FW clock config, 0:HPRO, 1:LPRO */
 	bool clk_config_lpro;
 
+	wait_queue_head_t waitq;
+	bool code_loading;
+
 	/* Intel NHLT information */
 	struct nhlt_acpi_table *nhlt;
 };
@@ -565,6 +570,7 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 int hda_dsp_core_get(struct snd_sof_dev *sdev, int core);
 void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev);
 void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev);
+bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask);
 
 int hda_dsp_set_power_state(struct snd_sof_dev *sdev,
 			    const struct sof_dsp_power_state *target_state);
@@ -769,6 +775,8 @@ int hda_dsp_dais_suspend(struct snd_sof_dev *sdev);
  */
 extern struct snd_sof_dsp_ops sof_hda_common_ops;
 
+extern struct snd_sof_dsp_ops sof_skl_ops;
+int sof_skl_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_apl_ops;
 int sof_apl_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_cnl_ops;
@@ -780,6 +788,7 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_mtl_ops;
 int sof_mtl_ops_init(struct snd_sof_dev *sdev);
 
+extern const struct sof_intel_dsp_desc skl_chip_info;
 extern const struct sof_intel_dsp_desc apl_chip_info;
 extern const struct sof_intel_dsp_desc cnl_chip_info;
 extern const struct sof_intel_dsp_desc icl_chip_info;
@@ -832,6 +841,10 @@ extern int sof_hda_position_quirk;
 
 void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops);
 void hda_ops_free(struct snd_sof_dev *sdev);
+
+/* SKL/KBL */
+int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev);
+int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask);
 
 /* IPC4 */
 irqreturn_t cnl_ipc4_irq_thread(int irq, void *context);
