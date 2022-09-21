@@ -500,7 +500,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_send_zc,
 		.prep_async		= io_send_prep_async,
 		.cleanup		= io_send_zc_cleanup,
-		.fail			= io_send_zc_fail,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif

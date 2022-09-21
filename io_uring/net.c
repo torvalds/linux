@@ -192,6 +192,7 @@ int io_send_prep_async(struct io_kiocb *req)
 	io = io_msg_alloc_async_prep(req);
 	if (!io)
 		return -ENOMEM;
+	io->free_iov = NULL;
 	ret = move_addr_to_kernel(zc->addr, zc->addr_len, &io->addr);
 	return ret;
 }
@@ -208,6 +209,7 @@ static int io_setup_async_addr(struct io_kiocb *req,
 	io = io_msg_alloc_async(req, issue_flags);
 	if (!io)
 		return -ENOMEM;
+	io->free_iov = NULL;
 	memcpy(&io->addr, addr_storage, sizeof(io->addr));
 	return -EAGAIN;
 }
@@ -1119,26 +1121,25 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 void io_sendrecv_fail(struct io_kiocb *req)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+	struct io_async_msghdr *io;
 	int res = req->cqe.res;
 
 	if (req->flags & REQ_F_PARTIAL_IO)
 		res = sr->done_io;
-	io_req_set_res(req, res, req->cqe.flags);
-}
-
-void io_send_zc_fail(struct io_kiocb *req)
-{
-	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	int res = req->cqe.res;
-
-	if (req->flags & REQ_F_PARTIAL_IO) {
-		if (req->flags & REQ_F_NEED_CLEANUP) {
-			io_notif_flush(sr->notif);
-			sr->notif = NULL;
-			req->flags &= ~REQ_F_NEED_CLEANUP;
-		}
-		res = sr->done_io;
+	if ((req->flags & REQ_F_NEED_CLEANUP) &&
+	    req->opcode == IORING_OP_SEND_ZC) {
+		/* preserve notification for partial I/O */
+		if (res < 0)
+			sr->notif->flags |= REQ_F_CQE_SKIP;
+		io_notif_flush(sr->notif);
+		sr->notif = NULL;
 	}
+	if (req_has_async_data(req)) {
+		io = req->async_data;
+		kfree(io->free_iov);
+		io->free_iov = NULL;
+	}
+	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, res, req->cqe.flags);
 }
 
