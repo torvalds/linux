@@ -832,8 +832,9 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 	LINK_INFO("link=%d, mst branch is now Connected\n",
 		  link->link_index);
 
-	apply_dpia_mst_dsc_always_on_wa(link);
 	link->type = dc_connection_mst_branch;
+	apply_dpia_mst_dsc_always_on_wa(link);
+
 	dm_helpers_dp_update_branch_info(link->ctx, link);
 	if (dm_helpers_dp_mst_start_top_mgr(link->ctx,
 			link, (reason == DETECT_REASON_BOOT || reason == DETECT_REASON_RESUMEFROMS3S4))) {
@@ -4298,6 +4299,19 @@ void core_link_enable_stream(
 
 		if (pipe_ctx->stream->dpms_off)
 			return;
+
+		/* Have to setup DSC before DIG FE and BE are connected (which happens before the
+		 * link training). This is to make sure the bandwidth sent to DIG BE won't be
+		 * bigger than what the link and/or DIG BE can handle. VBID[6]/CompressedStream_flag
+		 * will be automatically set at a later time when the video is enabled
+		 * (DP_VID_STREAM_EN = 1).
+		 */
+		if (pipe_ctx->stream->timing.flags.DSC) {
+			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+				dc_is_virtual_signal(pipe_ctx->stream->signal))
+			dp_set_dsc_enable(pipe_ctx, true);
+
+		}
 
 		status = enable_link(state, pipe_ctx);
 

@@ -159,6 +159,13 @@ enum dcn321_clk_src_array_id {
 	REG_STRUCT[id].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## reg_name
 
+#define SR_ARR_I2C(reg_name, id) \
+	REG_STRUCT[id-1].reg_name = BASE(reg##reg_name##_BASE_IDX) + reg##reg_name
+
+#define SRI_ARR_I2C(reg_name, block, id)\
+	REG_STRUCT[id-1].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
+		reg ## block ## id ## _ ## reg_name
+
 #define SRI_ARR_ALPHABET(reg_name, block, index, id)\
 	REG_STRUCT[index].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## reg_name
@@ -466,21 +473,15 @@ static const struct dcn20_dsc_mask dsc_mask = {
 
 static struct dcn30_mpc_registers mpc_regs;
 #define dcn_mpc_regs_init()\
-		( \
-		MPC_REG_LIST_DCN3_0_RI(0),\
-		MPC_REG_LIST_DCN3_0_RI(1),\
-		MPC_REG_LIST_DCN3_0_RI(2),\
-		MPC_REG_LIST_DCN3_0_RI(3),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(0),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(1),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(2),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(3),\
-		MPC_MCM_REG_LIST_DCN32_RI(0),\
-		MPC_MCM_REG_LIST_DCN32_RI(1),\
-		MPC_MCM_REG_LIST_DCN32_RI(2),\
-		MPC_MCM_REG_LIST_DCN32_RI(3),\
-		MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0)\
-		)
+	MPC_REG_LIST_DCN3_2_RI(0),\
+	MPC_REG_LIST_DCN3_2_RI(1),\
+	MPC_REG_LIST_DCN3_2_RI(2),\
+	MPC_REG_LIST_DCN3_2_RI(3),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(0),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(1),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(2),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(3),\
+	MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0)
 
 static const struct dcn30_mpc_shift mpc_shift = {
 	MPC_COMMON_MASK_SH_LIST_DCN32(__SHIFT)
@@ -743,6 +744,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.exit_idle_opt_for_cursor_updates = true,
 	.enable_single_display_2to1_odm_policy = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
+	.allow_sw_cursor_fallback = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -796,7 +798,7 @@ static struct dce_aux *dcn321_aux_engine_create(
 #define i2c_inst_regs_init(id)\
 	I2C_HW_ENGINE_COMMON_REG_LIST_DCN30_RI(id)
 
-static struct dce_i2c_registers i2c_hw_regs[6];
+static struct dce_i2c_registers i2c_hw_regs[5];
 
 static const struct dce_i2c_shift i2c_shifts = {
 		I2C_COMMON_MASK_SH_LIST_DCN30(__SHIFT)
@@ -1713,7 +1715,8 @@ static bool dcn321_resource_construct(
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a applied by default*/
-	dc->caps.max_cursor_size = 256;
+	/* TODO: Bring max cursor size back to 256 after subvp cursor corruption is fixed*/
+	dc->caps.max_cursor_size = 64;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 	dc->caps.mall_size_per_mem_channel = 0;

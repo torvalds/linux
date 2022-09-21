@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.201"
+#define DC_VER "3.2.202"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -830,6 +830,8 @@ struct dc_debug_options {
 	bool disable_fixed_vs_aux_timeout_wa;
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
+	bool allow_sw_cursor_fallback;
+	unsigned int force_subvp_num_ways;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;

@@ -67,8 +67,7 @@ static void enc314_disable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	REG_UPDATE_2(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 0,
-		     DIG_FIFO_READ_START_LEVEL, 0);
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 0);
 }
 
 static void enc314_dp_set_odm_combine(
@@ -81,7 +80,7 @@ static void enc314_dp_set_odm_combine(
 }
 
 /* setup stream encoder in dvi mode */
-void enc314_stream_encoder_dvi_set_stream_attribute(
+static void enc314_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)

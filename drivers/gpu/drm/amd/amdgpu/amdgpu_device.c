@@ -2365,8 +2365,16 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		}
 		adev->ip_blocks[i].status.sw = true;
 
-		/* need to do gmc hw init early so we can allocate gpu mem */
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON) {
+			/* need to do common hw init early so everything is set up for gmc */
+			r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
+			if (r) {
+				DRM_ERROR("hw_init %d failed %d\n", i, r);
+				goto init_failed;
+			}
+			adev->ip_blocks[i].status.hw = true;
+		} else if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
+			/* need to do gmc hw init early so we can allocate gpu mem */
 			/* Try to reserve bad pages early */
 			if (amdgpu_sriov_vf(adev))
 				amdgpu_virt_exchange_data(adev);
@@ -2451,19 +2459,21 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	 */
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
 		if (amdgpu_xgmi_add_device(adev) == 0) {
-			struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
+			if (!amdgpu_sriov_vf(adev)) {
+				struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
 
-			if (!hive->reset_domain ||
-			    !amdgpu_reset_get_reset_domain(hive->reset_domain)) {
-				r = -ENOENT;
+				if (!hive->reset_domain ||
+				    !amdgpu_reset_get_reset_domain(hive->reset_domain)) {
+					r = -ENOENT;
+					amdgpu_put_xgmi_hive(hive);
+					goto init_failed;
+				}
+
+				/* Drop the early temporary reset domain we created for device */
+				amdgpu_reset_put_reset_domain(adev->reset_domain);
+				adev->reset_domain = hive->reset_domain;
 				amdgpu_put_xgmi_hive(hive);
-				goto init_failed;
 			}
-
-			/* Drop the early temporary reset domain we created for device */
-			amdgpu_reset_put_reset_domain(adev->reset_domain);
-			adev->reset_domain = hive->reset_domain;
-			amdgpu_put_xgmi_hive(hive);
 		}
 	}
 
@@ -3052,8 +3062,8 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 	int i, r;
 
 	static enum amd_ip_block_type ip_order[] = {
-		AMD_IP_BLOCK_TYPE_GMC,
 		AMD_IP_BLOCK_TYPE_COMMON,
+		AMD_IP_BLOCK_TYPE_GMC,
 		AMD_IP_BLOCK_TYPE_PSP,
 		AMD_IP_BLOCK_TYPE_IH,
 	};

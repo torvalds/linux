@@ -417,8 +417,8 @@ void get_subvp_visual_confirm_color(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-	if (pipe->stream && pipe->stream->mall_stream_config.paired_stream &&
-				pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+		if (pipe->stream && pipe->stream->mall_stream_config.paired_stream &&
+		    pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 			/* SubVP enable - red */
 			color->color_r_cr = color_value;
 			enable_subvp = true;

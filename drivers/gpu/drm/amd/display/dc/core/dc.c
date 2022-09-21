@@ -401,6 +401,9 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 {
 	int i;
 
+	if (memcmp(adjust, &stream->adjust, sizeof(struct dc_crtc_timing_adjust)) == 0)
+		return true;
+
 	stream->adjust.v_total_max = adjust->v_total_max;
 	stream->adjust.v_total_mid = adjust->v_total_mid;
 	stream->adjust.v_total_mid_frame_num = adjust->v_total_mid_frame_num;
@@ -2849,16 +2852,6 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	}
 }
 
-void dc_reset_state(struct dc *dc, struct dc_state *context)
-{
-	dc_resource_state_destruct(context);
-
-	/* clear the structure, but don't reset the reference count */
-	memset(context, 0, offsetof(struct dc_state, refcount));
-
-	init_state(dc, context);
-}
-
 static bool update_planes_and_stream_state(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -3622,11 +3615,13 @@ bool dc_update_planes_and_stream(struct dc *dc,
 			dc->current_state->stream_count > 0 &&
 			dc->debug.pipe_split_policy != MPC_SPLIT_AVOID) {
 		/* determine if minimal transition is required */
-		if (cur_stream_status->plane_count > surface_count) {
-			force_minimal_pipe_splitting = true;
-		} else if (cur_stream_status->plane_count < surface_count) {
-			force_minimal_pipe_splitting = true;
-			is_plane_addition = true;
+		if (surface_count > 0) {
+			if (cur_stream_status->plane_count > surface_count) {
+				force_minimal_pipe_splitting = true;
+			} else if (cur_stream_status->plane_count < surface_count) {
+				force_minimal_pipe_splitting = true;
+				is_plane_addition = true;
+			}
 		}
 	}
 

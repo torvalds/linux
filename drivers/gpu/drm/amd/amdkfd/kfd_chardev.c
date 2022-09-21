@@ -2153,6 +2153,12 @@ static int criu_restore_devices(struct kfd_process *p,
 			ret = PTR_ERR(pdd);
 			goto exit;
 		}
+
+		if (!pdd->doorbell_index &&
+		    kfd_alloc_process_doorbells(pdd->dev, &pdd->doorbell_index) < 0) {
+			ret = -ENOMEM;
+			goto exit;
+		}
 	}
 
 	/*

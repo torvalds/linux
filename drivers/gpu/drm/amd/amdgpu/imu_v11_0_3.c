@@ -22,6 +22,7 @@
  */
 #include "amdgpu.h"
 #include "amdgpu_imu.h"
+#include "imu_v11_0_3.h"
 
 #include "gc/gc_11_0_3_offset.h"
 #include "gc/gc_11_0_3_sh_mask.h"

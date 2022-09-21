@@ -101,22 +101,16 @@ static void umc_v8_10_query_correctable_error_count(struct amdgpu_device *adev,
 						   uint32_t umc_reg_offset,
 						   unsigned long *error_count)
 {
-	uint32_t ecc_err_cnt, ecc_err_cnt_addr;
 	uint64_t mc_umc_status;
 	uint32_t mc_umc_status_addr;
 
 	/* UMC 8_10 registers */
-	ecc_err_cnt_addr =
-		SOC15_REG_OFFSET(UMC, 0, regUMCCH0_0_GeccErrCnt);
 	mc_umc_status_addr =
 		SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_STATUST0);
 
-	ecc_err_cnt = RREG32_PCIE((ecc_err_cnt_addr + umc_reg_offset) * 4);
-	*error_count +=
-		(REG_GET_FIELD(ecc_err_cnt, UMCCH0_0_GeccErrCnt, GeccErrCnt) -
-		 UMC_V8_10_CE_CNT_INIT);
-
-	/* Check for SRAM correctable error, MCUMC_STATUS is a 64 bit register */
+	/* Rely on MCUMC_STATUS for correctable error counter
+	 * MCUMC_STATUS is a 64 bit register
+	 */
 	mc_umc_status = RREG64_PCIE((mc_umc_status_addr + umc_reg_offset) * 4);
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
 	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)

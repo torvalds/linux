@@ -766,7 +766,7 @@ static int psp_tmr_init(struct psp_context *psp)
 	}
 
 	pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
-	ret = amdgpu_bo_create_kernel(psp->adev, tmr_size, PSP_TMR_SIZE(psp->adev),
+	ret = amdgpu_bo_create_kernel(psp->adev, tmr_size, PSP_TMR_ALIGNMENT,
 				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &psp->tmr_bo, &psp->tmr_mc_addr, pptr);
 
@@ -2055,6 +2055,15 @@ static int psp_hw_start(struct psp_context *psp)
 			}
 		}
 
+		if ((is_psp_fw_valid(psp->ras_drv)) &&
+		    (psp->funcs->bootloader_load_ras_drv != NULL)) {
+			ret = psp_bootloader_load_ras_drv(psp);
+			if (ret) {
+				DRM_ERROR("PSP load ras_drv failed!\n");
+				return ret;
+			}
+		}
+
 		if ((is_psp_fw_valid(psp->sos)) &&
 		    (psp->funcs->bootloader_load_sos != NULL)) {
 			ret = psp_bootloader_load_sos(psp);
@@ -3039,6 +3048,12 @@ static int parse_sos_bin_descriptor(struct psp_context *psp,
 		psp->dbg_drv.feature_version    = le32_to_cpu(desc->fw_version);
 		psp->dbg_drv.size_bytes         = le32_to_cpu(desc->size_bytes);
 		psp->dbg_drv.start_addr         = ucode_start_addr;
+		break;
+	case PSP_FW_TYPE_PSP_RAS_DRV:
+		psp->ras_drv.fw_version         = le32_to_cpu(desc->fw_version);
+		psp->ras_drv.feature_version    = le32_to_cpu(desc->fw_version);
+		psp->ras_drv.size_bytes         = le32_to_cpu(desc->size_bytes);
+		psp->ras_drv.start_addr         = ucode_start_addr;
 		break;
 	default:
 		dev_warn(psp->adev->dev, "Unsupported PSP FW type: %d\n", desc->fw_type);

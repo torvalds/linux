@@ -709,7 +709,7 @@ static bool hubbub32_program_usr_watermarks(
 	return wm_pending;
 }
 
-void hubbub32_force_usr_retraining_allow(struct hubbub *hubbub, bool allow)
+static void hubbub32_force_usr_retraining_allow(struct hubbub *hubbub, bool allow)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -769,7 +769,7 @@ static bool hubbub32_program_watermarks(
 }
 
 /* Copy values from WM set A to all other sets */
-void hubbub32_init_watermarks(struct hubbub *hubbub)
+static void hubbub32_init_watermarks(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	uint32_t reg;
@@ -820,7 +820,7 @@ void hubbub32_init_watermarks(struct hubbub *hubbub)
 	REG_WRITE(DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D, reg);
 }
 
-void hubbub32_wm_read_state(struct hubbub *hubbub,
+static void hubbub32_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
@@ -909,7 +909,7 @@ void hubbub32_wm_read_state(struct hubbub *hubbub,
 			DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D, &s->fclk_pstate_change);
 }
 
-void hubbub32_force_wm_propagate_to_pipes(struct hubbub *hubbub)
+static void hubbub32_force_wm_propagate_to_pipes(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	uint32_t refclk_mhz = hubbub->ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;

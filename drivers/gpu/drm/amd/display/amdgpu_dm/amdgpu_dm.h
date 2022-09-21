@@ -681,7 +681,6 @@ struct dm_crtc_state {
 
 	int crc_skip_count;
 
-	bool freesync_timing_changed;
 	bool freesync_vrr_info_changed;
 
 	bool dsc_force_changed;

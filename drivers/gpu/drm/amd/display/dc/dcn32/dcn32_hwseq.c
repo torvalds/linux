@@ -741,7 +741,29 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 		struct hubp *hubp = pipe->plane_res.hubp;
 
 		if (pipe->stream && pipe->plane_state && hubp && hubp->funcs->hubp_update_mall_sel) {
-			if (hubp->curs_attr.width * hubp->curs_attr.height * 4 > 16384)
+			//Round cursor width up to next multiple of 64
+			int cursor_width = ((hubp->curs_attr.width + 63) / 64) * 64;
+			int cursor_height = hubp->curs_attr.height;
+			int cursor_size = cursor_width * cursor_height;
+
+			switch (hubp->curs_attr.color_format) {
+			case CURSOR_MODE_MONO:
+				cursor_size /= 2;
+				break;
+			case CURSOR_MODE_COLOR_1BIT_AND:
+			case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+			case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+				cursor_size *= 4;
+				break;
+
+			case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+			case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+			default:
+				cursor_size *= 8;
+				break;
+			}
+
+			if (cursor_size > 16384)
 				cache_cursor = true;
 
 			if (pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
@@ -1278,4 +1300,36 @@ void dcn32_update_phy_state(struct dc_state *state, struct pipe_ctx *pipe_ctx,
 		pipe_ctx->stream->link->phy_state = TX_OFF_SYMCLK_ON;
 	} else
 		BREAK_TO_DEBUGGER();
+}
+
+/* For SubVP the main pipe can have a viewport position change
+ * without a full update. In this case we must also update the
+ * viewport positions for the phantom pipe accordingly.
+ */
+void dcn32_update_phantom_vp_position(struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *phantom_pipe)
+{
+	uint8_t i;
+	struct dc_plane_state *phantom_plane = phantom_pipe->plane_state;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_MAIN &&
+				pipe->stream->mall_stream_config.paired_stream == phantom_pipe->stream) {
+			if (pipe->plane_state && pipe->plane_state->update_flags.bits.position_change) {
+
+				phantom_plane->src_rect.x = pipe->plane_state->src_rect.x;
+				phantom_plane->src_rect.y = pipe->plane_state->src_rect.y;
+				phantom_plane->clip_rect.x = pipe->plane_state->clip_rect.x;
+				phantom_plane->dst_rect.x = pipe->plane_state->dst_rect.x;
+				phantom_plane->dst_rect.y = pipe->plane_state->dst_rect.y;
+
+				phantom_pipe->plane_state->update_flags.bits.position_change = 1;
+				resource_build_scaling_params(phantom_pipe);
+				return;
+			}
+		}
+	}
 }

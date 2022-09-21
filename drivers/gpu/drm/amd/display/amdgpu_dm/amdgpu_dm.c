@@ -98,8 +98,6 @@
 #include "soc15_common.h"
 #include "vega10_ip_offset.h"
 
-#include "soc15_common.h"
-
 #include "gc/gc_11_0_0_offset.h"
 #include "gc/gc_11_0_0_sh_mask.h"
 
@@ -1296,13 +1294,21 @@ static struct hpd_rx_irq_offload_work_queue *hpd_rx_irq_create_workqueue(struct 
 
 		if (hpd_rx_offload_wq[i].wq == NULL) {
 			DRM_ERROR("create amdgpu_dm_hpd_rx_offload_wq fail!");
-			return NULL;
+			goto out_err;
 		}
 
 		spin_lock_init(&hpd_rx_offload_wq[i].offload_lock);
 	}
 
 	return hpd_rx_offload_wq;
+
+out_err:
+	for (i = 0; i < max_caps; i++) {
+		if (hpd_rx_offload_wq[i].wq)
+			destroy_workqueue(hpd_rx_offload_wq[i].wq);
+	}
+	kfree(hpd_rx_offload_wq);
+	return NULL;
 }
 
 struct amdgpu_stutter_quirk {
@@ -7370,11 +7376,6 @@ static void update_freesync_state_on_stream(
 		&vrr_infopacket,
 		pack_sdp_v1_3);
 
-	new_crtc_state->freesync_timing_changed |=
-		(memcmp(&acrtc->dm_irq_params.vrr_params.adjust,
-			&vrr_params.adjust,
-			sizeof(vrr_params.adjust)) != 0);
-
 	new_crtc_state->freesync_vrr_info_changed |=
 		(memcmp(&new_crtc_state->vrr_infopacket,
 			&vrr_infopacket,
@@ -7383,7 +7384,6 @@ static void update_freesync_state_on_stream(
 	acrtc->dm_irq_params.vrr_params = vrr_params;
 	new_crtc_state->vrr_infopacket = vrr_infopacket;
 
-	new_stream->adjust = acrtc->dm_irq_params.vrr_params.adjust;
 	new_stream->vrr_infopacket = vrr_infopacket;
 
 	if (new_crtc_state->freesync_vrr_info_changed)
@@ -7445,10 +7445,6 @@ static void update_stream_irq_parameters(
 	mod_freesync_build_vrr_params(dm->freesync_module,
 				      new_stream,
 				      &config, &vrr_params);
-
-	new_crtc_state->freesync_timing_changed |=
-		(memcmp(&acrtc->dm_irq_params.vrr_params.adjust,
-			&vrr_params.adjust, sizeof(vrr_params.adjust)) != 0);
 
 	new_crtc_state->freesync_config = config;
 	/* Copy state for access from DM IRQ handler */

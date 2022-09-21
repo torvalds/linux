@@ -38,6 +38,7 @@
 #define EEPROM_I2C_MADDR_ARCTURUS_D342  0x0
 #define EEPROM_I2C_MADDR_SIENNA_CICHLID 0x0
 #define EEPROM_I2C_MADDR_ALDEBARAN      0x0
+#define EEPROM_I2C_MADDR_SMU_13_0_0     (0x54UL << 16)
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -154,6 +155,15 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 
 	default:
 		return false;
+	}
+
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+		control->i2c_address = EEPROM_I2C_MADDR_SMU_13_0_0;
+		break;
+
+	default:
+		break;
 	}
 
 	return true;

@@ -61,7 +61,7 @@
 // fudge factor for min dcfclk calclation
 #define __DML_MIN_DCFCLK_FACTOR__   1.15
 
-struct {
+typedef struct {
 	double DPPCLK;
 	double DISPCLK;
 	double PixelClock;
@@ -1599,7 +1599,7 @@ static void CalculateDCCConfiguration(
 	int segment_order_vert_contiguous_luma;
 	int segment_order_vert_contiguous_chroma;
 
-	enum {
+	typedef enum {
 		REQ_256Bytes, REQ_128BytesNonContiguous, REQ_128BytesContiguous, REQ_NA
 	} RequestType;
 	RequestType RequestLuma;
@@ -4071,9 +4071,7 @@ void dml314_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 
 	v->SourceFormatPixelAndScanSupport = true;
 	for (k = 0; k < v->NumberOfActivePlanes; k++) {
-		if ((v->SurfaceTiling[k] == dm_sw_linear && (!(v->SourceScan[k] != dm_vert) || v->DCCEnable[k] == true))
-				|| ((v->SurfaceTiling[k] == dm_sw_64kb_d || v->SurfaceTiling[k] == dm_sw_64kb_d_t
-						|| v->SurfaceTiling[k] == dm_sw_64kb_d_x) && !(v->SourcePixelFormat[k] == dm_444_64))) {
+		if (v->SurfaceTiling[k] == dm_sw_linear && (!(v->SourceScan[k] != dm_vert) || v->DCCEnable[k] == true)) {
 			v->SourceFormatPixelAndScanSupport = false;
 		}
 	}
@@ -7049,8 +7047,6 @@ static void CalculateSwathWidth(
 		{
 		int surface_width_ub_l = dml_ceil(SurfaceWidthY[k], Read256BytesBlockWidthY[k]);
 		int surface_height_ub_l = dml_ceil(SurfaceHeightY[k], Read256BytesBlockHeightY[k]);
-		int surface_width_ub_c = dml_ceil(SurfaceWidthC[k], Read256BytesBlockWidthC[k]);
-		int surface_height_ub_c = dml_ceil(SurfaceHeightC[k], Read256BytesBlockHeightC[k]);
 
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: k=%d surface_width_ub_l=%0d\n", __func__, k, surface_width_ub_l);
@@ -7061,6 +7057,8 @@ static void CalculateSwathWidth(
 			MaximumSwathHeightC[k] = Read256BytesBlockHeightC[k];
 			swath_width_luma_ub[k] = dml_min(surface_width_ub_l, (int) dml_ceil(SwathWidthY[k] - 1, Read256BytesBlockWidthY[k]) + Read256BytesBlockWidthY[k]);
 			if (BytePerPixC[k] > 0) {
+				int surface_width_ub_c = dml_ceil(SurfaceWidthC[k], Read256BytesBlockWidthC[k]);
+
 				swath_width_chroma_ub[k] = dml_min(
 						surface_width_ub_c,
 						(int) dml_ceil(SwathWidthC[k] - 1, Read256BytesBlockWidthC[k]) + Read256BytesBlockWidthC[k]);
@@ -7072,6 +7070,8 @@ static void CalculateSwathWidth(
 			MaximumSwathHeightC[k] = Read256BytesBlockWidthC[k];
 			swath_width_luma_ub[k] = dml_min(surface_height_ub_l, (int) dml_ceil(SwathWidthY[k] - 1, Read256BytesBlockHeightY[k]) + Read256BytesBlockHeightY[k]);
 			if (BytePerPixC[k] > 0) {
+				int surface_height_ub_c = dml_ceil(SurfaceHeightC[k], Read256BytesBlockHeightC[k]);
+
 				swath_width_chroma_ub[k] = dml_min(
 						surface_height_ub_c,
 						(int) dml_ceil(SwathWidthC[k] - 1, Read256BytesBlockHeightC[k]) + Read256BytesBlockHeightC[k]);
@@ -7157,12 +7157,13 @@ static double CalculateExtraLatencyBytes(
 			HostVMDynamicLevels = dml_max(0, (int) HostVMMaxNonCachedPageTableLevels - 1);
 		else
 			HostVMDynamicLevels = dml_max(0, (int) HostVMMaxNonCachedPageTableLevels - 2);
-	else
+	} else {
 		HostVMDynamicLevels = 0;
+	}
 
 	ret = ReorderingBytes + (TotalNumberOfActiveDPP * PixelChunkSizeInKByte + TotalNumberOfDCCActiveDPP * MetaChunkSize) * 1024.0;
 
-	if (GPUVMEnable == true)
+	if (GPUVMEnable == true) {
 		for (k = 0; k < NumberOfActivePlanes; ++k)
 			ret = ret + NumberOfDPP[k] * dpte_group_bytes[k] * (1 + 8 * HostVMDynamicLevels) * HostVMInefficiencyFactor;
 	}
