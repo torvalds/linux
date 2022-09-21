@@ -412,7 +412,7 @@ static irqreturn_t vu_req_read_message(struct virtio_uml_device *vu_dev,
 		if (msg.msg.header.flags & VHOST_USER_FLAG_NEED_REPLY)
 			vhost_user_reply(vu_dev, &msg.msg, response);
 		irq_rc = IRQ_HANDLED;
-	};
+	}
 	/* mask EAGAIN as we try non-blocking read until socket is empty */
 	vu_dev->recv_rc = (rc == -EAGAIN) ? 0 : rc;
 	return irq_rc;
