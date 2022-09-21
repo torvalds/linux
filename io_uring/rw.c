@@ -954,6 +954,14 @@ static void io_cqring_ev_posted_iopoll(struct io_ring_ctx *ctx)
 		io_cqring_wake(ctx);
 }
 
+void io_rw_fail(struct io_kiocb *req)
+{
+	int res;
+
+	res = io_fixup_rw_res(req, req->cqe.res);
+	io_req_set_res(req, res, req->cqe.flags);
+}
+
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
 	struct io_wq_work_node *pos, *start, *prev;

@@ -69,6 +69,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_read,
 		.prep_async		= io_readv_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITEV] = {
 		.needs_file		= 1,
@@ -85,6 +86,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_write,
 		.prep_async		= io_writev_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
@@ -105,6 +107,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "READ_FIXED",
 		.prep			= io_prep_rw,
 		.issue			= io_read,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
@@ -119,6 +122,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "WRITE_FIXED",
 		.prep			= io_prep_rw,
 		.issue			= io_write,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -275,6 +279,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "READ",
 		.prep			= io_prep_rw,
 		.issue			= io_read,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE] = {
 		.needs_file		= 1,
@@ -289,6 +294,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "WRITE",
 		.prep			= io_prep_rw,
 		.issue			= io_write,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
