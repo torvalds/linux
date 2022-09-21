@@ -679,16 +679,6 @@ void optc1_unlock(struct timing_generator *optc)
 			OTG_MASTER_UPDATE_LOCK, 0);
 }
 
-bool optc1_is_locked(struct timing_generator *optc)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	uint32_t locked;
-
-	REG_GET(OTG_MASTER_UPDATE_LOCK, UPDATE_LOCK_STATUS, &locked);
-
-	return (locked == 1);
-}
-
 void optc1_get_position(struct timing_generator *optc,
 		struct crtc_position *position)
 {
@@ -1583,7 +1573,6 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.enable_crtc_reset = optc1_enable_crtc_reset,
 		.disable_reset_trigger = optc1_disable_reset_trigger,
 		.lock = optc1_lock,
-		.is_locked = optc1_is_locked,
 		.unlock = optc1_unlock,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_drr = optc1_set_drr,
