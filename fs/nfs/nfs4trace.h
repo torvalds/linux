@@ -2097,6 +2097,7 @@ TRACE_EVENT(ff_layout_commit_error,
 		)
 );
 
+#ifdef CONFIG_NFS_V4_2
 TRACE_DEFINE_ENUM(NFS4_CONTENT_DATA);
 TRACE_DEFINE_ENUM(NFS4_CONTENT_HOLE);
 
@@ -2105,7 +2106,6 @@ TRACE_DEFINE_ENUM(NFS4_CONTENT_HOLE);
 		{ NFS4_CONTENT_DATA, "DATA" },		\
 		{ NFS4_CONTENT_HOLE, "HOLE" })
 
-#ifdef CONFIG_NFS_V4_2
 TRACE_EVENT(nfs4_llseek,
 		TP_PROTO(
 			const struct inode *inode,
