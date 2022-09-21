@@ -27,7 +27,6 @@
 #include <net/tcp.h>
 
 static LIST_HEAD(taprio_list);
-static DEFINE_SPINLOCK(taprio_list_lock);
 
 #define TAPRIO_ALL_GATES_OPEN -1
 
@@ -1082,7 +1081,6 @@ static int taprio_dev_notifier(struct notifier_block *nb, unsigned long event,
 	if (event != NETDEV_UP && event != NETDEV_CHANGE)
 		return NOTIFY_DONE;
 
-	spin_lock(&taprio_list_lock);
 	list_for_each_entry(q, &taprio_list, taprio_list) {
 		qdev = qdisc_dev(q->root);
 		if (qdev == dev) {
@@ -1090,7 +1088,6 @@ static int taprio_dev_notifier(struct notifier_block *nb, unsigned long event,
 			break;
 		}
 	}
-	spin_unlock(&taprio_list_lock);
 
 	if (found)
 		taprio_set_picos_per_byte(dev, q);
@@ -1602,9 +1599,7 @@ static void taprio_destroy(struct Qdisc *sch)
 	struct sched_gate_list *oper, *admin;
 	unsigned int i;
 
-	spin_lock(&taprio_list_lock);
 	list_del(&q->taprio_list);
-	spin_unlock(&taprio_list_lock);
 
 	/* Note that taprio_reset() might not be called if an error
 	 * happens in qdisc_create(), after taprio_init() has been called.
@@ -1653,9 +1648,7 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 	q->clockid = -1;
 	q->flags = TAPRIO_FLAGS_INVALID;
 
-	spin_lock(&taprio_list_lock);
 	list_add(&q->taprio_list, &taprio_list);
-	spin_unlock(&taprio_list_lock);
 
 	if (sch->parent != TC_H_ROOT) {
 		NL_SET_ERR_MSG_MOD(extack, "Can only be attached as root qdisc");
