@@ -3504,7 +3504,7 @@
 		};
 
 		saw3: syscon@9a10000 {
-			compatible = "qcom,tcsr-msm8996", "syscon";
+			compatible = "syscon";
 			reg = <0x09a10000 0x1000>;
 		};
 
