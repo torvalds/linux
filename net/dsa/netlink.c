@@ -59,4 +59,5 @@ struct rtnl_link_ops dsa_link_ops __read_mostly = {
 	.changelink		= dsa_changelink,
 	.get_size		= dsa_get_size,
 	.fill_info		= dsa_fill_info,
+	.netns_refund		= true,
 };
