@@ -412,7 +412,7 @@ static int lps0_device_attach(struct acpi_device *adev,
 		if (dev_id)
 			data = (const struct amd_lps0_hid_device_data *) dev_id->driver_data;
 		else
-			return 0;
+			data = &amd_rembrandt;
 		rev_id = data->rev_id;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID_AMD, rev_id, &lps0_dsm_guid);
