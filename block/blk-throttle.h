@@ -98,7 +98,8 @@ struct throtl_grp {
 	unsigned int flags;
 
 	/* are there any throtl rules between this group and td? */
-	bool has_rules[2];
+	bool has_rules_bps[2];
+	bool has_rules_iops[2];
 
 	/* internally used bytes per second rate limits */
 	uint64_t bps[2][LIMIT_CNT];
@@ -178,11 +179,26 @@ void blk_throtl_exit(struct request_queue *q);
 void blk_throtl_register_queue(struct request_queue *q);
 bool __blk_throtl_bio(struct bio *bio);
 void blk_throtl_cancel_bios(struct request_queue *q);
-static inline bool blk_throtl_bio(struct bio *bio)
+
+static inline bool blk_should_throtl(struct bio *bio)
 {
 	struct throtl_grp *tg = blkg_to_tg(bio->bi_blkg);
+	int rw = bio_data_dir(bio);
 
-	if (!tg->has_rules[bio_data_dir(bio)])
+	/* iops limit is always counted */
+	if (tg->has_rules_iops[rw])
+		return true;
+
+	if (tg->has_rules_bps[rw] && !bio_flagged(bio, BIO_BPS_THROTTLED))
+		return true;
+
+	return false;
+}
+
+static inline bool blk_throtl_bio(struct bio *bio)
+{
+
+	if (!blk_should_throtl(bio))
 		return false;
 
 	return __blk_throtl_bio(bio);
