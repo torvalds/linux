@@ -756,11 +756,7 @@ void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bo
 {
 	struct ras_err_data err_data = {0, 0, 0, NULL};
 
-	/* CPU MCA will handle page retirement if connected_to_cpu is 1 */
-	if (!adev->gmc.xgmi.connected_to_cpu)
-		amdgpu_umc_poison_handler(adev, &err_data, reset);
-	else if (reset)
-		amdgpu_amdkfd_gpu_reset(adev);
+	amdgpu_umc_poison_handler(adev, &err_data, reset);
 }
 
 bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev)
