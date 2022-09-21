@@ -65,7 +65,7 @@ static int asus_acpi_get_sensor_info(struct acpi_device *adev,
 
 			sub_elem = &elem->package.elements[j];
 			if (sub_elem->type == ACPI_TYPE_STRING)
-				strlcpy(info->type, sub_elem->string.pointer,
+				strscpy(info->type, sub_elem->string.pointer,
 					sizeof(info->type));
 			else if (sub_elem->type == ACPI_TYPE_INTEGER) {
 				if (sub_elem->integer.value != client->addr) {
@@ -158,7 +158,7 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 				char *name;
 
 				info.addr = secondary;
-				strlcpy(info.type, dev_name(&adev->dev),
+				strscpy(info.type, dev_name(&adev->dev),
 					sizeof(info.type));
 				name = strchr(info.type, ':');
 				if (name)

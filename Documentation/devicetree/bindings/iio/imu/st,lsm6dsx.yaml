@@ -45,8 +45,6 @@ properties:
     description:
       Supports up to 2 interrupt lines via the INT1 and INT2 pins.
 
-  spi-max-frequency: true
-
   vdd-supply:
     description: if defined provides VDD power to the sensor.
 
@@ -81,11 +79,14 @@ properties:
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
 
-additionalProperties: false
-
 required:
   - compatible
   - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

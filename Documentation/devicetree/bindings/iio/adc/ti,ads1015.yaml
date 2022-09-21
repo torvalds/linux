@@ -43,6 +43,7 @@ additionalProperties: false
 patternProperties:
   "^channel@[0-7]+$":
     type: object
+    additionalProperties: false
     description:
       Child nodes needed for each channel that the platform uses.
 

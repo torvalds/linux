@@ -540,13 +540,6 @@ static int adf4371_setup(struct adf4371_state *st)
 	return regmap_bulk_write(st->regmap, ADF4371_REG(0x30), st->buf, 5);
 }
 
-static void adf4371_clk_disable(void *data)
-{
-	struct adf4371_state *st = data;
-
-	clk_disable_unprepare(st->clkin);
-}
-
 static int adf4371_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -579,17 +572,9 @@ static int adf4371_probe(struct spi_device *spi)
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
 
-	st->clkin = devm_clk_get(&spi->dev, "clkin");
+	st->clkin = devm_clk_get_enabled(&spi->dev, "clkin");
 	if (IS_ERR(st->clkin))
 		return PTR_ERR(st->clkin);
-
-	ret = clk_prepare_enable(st->clkin);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_add_action_or_reset(&spi->dev, adf4371_clk_disable, st);
-	if (ret)
-		return ret;
 
 	st->clkin_freq = clk_get_rate(st->clkin);
 

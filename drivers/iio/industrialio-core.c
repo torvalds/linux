@@ -168,6 +168,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_OVERSAMPLING_RATIO] = "oversampling_ratio",
 	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
 	[IIO_CHAN_INFO_CALIBAMBIENT] = "calibambient",
+	[IIO_CHAN_INFO_ZEROPOINT] = "zeropoint",
 };
 /**
  * iio_device_id() - query the unique ID for the device
@@ -236,6 +237,7 @@ static int iio_sysfs_match_string_with_gaps(const char * const *array, size_t n,
 struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
 	return iio_dev_opaque->debugfs_dentry;
 }
 EXPORT_SYMBOL_GPL(iio_get_debugfs_dentry);
@@ -447,6 +449,7 @@ static const struct file_operations iio_debugfs_reg_fops = {
 static void iio_device_unregister_debugfs(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
 	debugfs_remove_recursive(iio_dev_opaque->debugfs_dentry);
 }
 
@@ -1021,6 +1024,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	int ret = 0;
 	char *name = NULL;
 	char *full_postfix;
+
 	sysfs_attr_init(&dev_attr->attr);
 
 	/* Build up postfix of <extend_name>_<modifier>_postfix */
@@ -1299,8 +1303,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 
 	ret = iio_device_add_info_mask_type_avail(indio_dev, chan,
 						  IIO_SEPARATE,
-						  &chan->
-						  info_mask_separate_available);
+						  &chan->info_mask_separate_available);
 	if (ret < 0)
 		return ret;
 	attrcount += ret;
@@ -1314,8 +1317,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 
 	ret = iio_device_add_info_mask_type_avail(indio_dev, chan,
 						  IIO_SHARED_BY_TYPE,
-						  &chan->
-						  info_mask_shared_by_type_available);
+						  &chan->info_mask_shared_by_type_available);
 	if (ret < 0)
 		return ret;
 	attrcount += ret;
@@ -1355,6 +1357,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 
 	if (chan->ext_info) {
 		unsigned int i = 0;
+
 		for (ext_info = chan->ext_info; ext_info->name; ext_info++) {
 			ret = __iio_add_chan_devattr(ext_info->name,
 					chan,
@@ -1403,6 +1406,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+
 	return sysfs_emit(buf, "%s\n", indio_dev->name);
 }
 
@@ -1412,6 +1416,7 @@ static ssize_t label_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+
 	return sysfs_emit(buf, "%s\n", indio_dev->label);
 }
 
@@ -1621,6 +1626,8 @@ static void iio_dev_release(struct device *device)
 
 	iio_device_detach_buffers(indio_dev);
 
+	lockdep_unregister_key(&iio_dev_opaque->mlock_key);
+
 	ida_free(&iio_ida, iio_dev_opaque->id);
 	kfree(iio_dev_opaque);
 }
@@ -1679,6 +1686,9 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 
 	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
+
+	lockdep_register_key(&iio_dev_opaque->mlock_key);
+	lockdep_set_class(&indio_dev->mlock, &iio_dev_opaque->mlock_key);
 
 	return indio_dev;
 }
@@ -1777,6 +1787,7 @@ static int iio_chrdev_release(struct inode *inode, struct file *filp)
 	struct iio_dev_opaque *iio_dev_opaque =
 		container_of(inode->i_cdev, struct iio_dev_opaque, chrdev);
 	struct iio_dev *indio_dev = &iio_dev_opaque->indio_dev;
+
 	kfree(ib);
 	clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);
 	iio_device_put(indio_dev);

@@ -13,4 +13,7 @@
 /* pressure channel index */
 #define AT91_SAMA5D2_ADC_P_CHANNEL		26
 
+/* SAMA7G5 Temperature sensor channel index. */
+#define AT91_SAMA7G5_ADC_TEMP_CHANNEL		31
+
 #endif
