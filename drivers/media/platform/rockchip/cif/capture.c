@@ -4028,7 +4028,6 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		if (dev->can_be_reset && dev->chip_id >= CHIP_RK3588_CIF)
 			rkcif_do_soft_reset(dev);
 		if (dev->can_be_reset && can_reset) {
-			rkcif_do_cru_reset(dev);
 			dev->can_be_reset = false;
 			dev->reset_work_cancel = true;
 			dev->early_line = 0;
