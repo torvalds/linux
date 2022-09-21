@@ -193,6 +193,7 @@
 	buffer-manager = <&bm>;
 	bm,pool-long = <2>;
 	bm,pool-short = <3>;
+	label = "wan";
 };
 
 &i2c0 {
