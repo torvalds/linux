@@ -446,6 +446,12 @@ void lan966x_port_ageing_set(struct lan966x_port *port,
 			     unsigned long ageing_clock_t);
 void lan966x_update_fwd_mask(struct lan966x *lan966x);
 
+int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
+		     void *type_data);
+
+int lan966x_mqprio_add(struct lan966x_port *port, u8 num_tc);
+int lan966x_mqprio_del(struct lan966x_port *port);
+
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
 				     int gbase, int ginst,
