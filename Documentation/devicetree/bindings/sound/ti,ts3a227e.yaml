@@ -41,6 +41,35 @@ properties:
       - 7 # 2.8 V
     default: 1
 
+  ti,debounce-release-ms:
+    description: key release debounce time in ms (datasheet section 9.6.7).
+    enum:
+      - 0
+      - 20
+    default: 20
+
+  ti,debounce-press-ms:
+    description: key press debounce time in ms (datasheet section 9.6.7).
+    enum:
+      - 2
+      - 40
+      - 80
+      - 120
+    default: 80
+
+  ti,debounce-insertion-ms:
+    description: headset insertion debounce time in ms (datasheet section 9.6.5).
+    enum:
+      - 2
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 1000
+      - 2000
+    default: 90
+
 required:
   - compatible
   - reg
