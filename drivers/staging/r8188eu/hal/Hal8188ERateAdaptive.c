@@ -279,6 +279,7 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 {  /*  Wilson 2011/10/26 */
 	u32 MaskFromReg;
 	s8 i;
+	int res;
 
 	switch (pRaInfo->RateID) {
 	case RATR_INX_WIRELESS_NGB:
@@ -303,19 +304,31 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & 0x0000000d;
 		break;
 	case 12:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR0);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR0, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 13:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR1);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR1, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 14:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR2);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR2, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 15:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR3);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR3, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	default:
@@ -601,12 +614,12 @@ void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 
 
 		pRAInfo = &dm_odm->RAInfo[MacId];
 		if (valid) {
-			pRAInfo->RTY[0] = (u16)GET_TX_REPORT_TYPE1_RERTY_0(pBuffer);
-			pRAInfo->RTY[1] = (u16)GET_TX_REPORT_TYPE1_RERTY_1(pBuffer);
-			pRAInfo->RTY[2] = (u16)GET_TX_REPORT_TYPE1_RERTY_2((u8 *)pBuffer);
-			pRAInfo->RTY[3] = (u16)GET_TX_REPORT_TYPE1_RERTY_3(pBuffer);
-			pRAInfo->RTY[4] = (u16)GET_TX_REPORT_TYPE1_RERTY_4(pBuffer);
-			pRAInfo->DROP =   (u16)GET_TX_REPORT_TYPE1_DROP_0(pBuffer);
+			pRAInfo->RTY[0] = le16_to_cpup((__le16 *)pBuffer);
+			pRAInfo->RTY[1] = pBuffer[2];
+			pRAInfo->RTY[2] = pBuffer[3];
+			pRAInfo->RTY[3] = pBuffer[4];
+			pRAInfo->RTY[4] = pBuffer[5];
+			pRAInfo->DROP = pBuffer[6];
 			pRAInfo->TOTAL = pRAInfo->RTY[0] + pRAInfo->RTY[1] +
 					 pRAInfo->RTY[2] + pRAInfo->RTY[3] +
 					 pRAInfo->RTY[4] + pRAInfo->DROP;

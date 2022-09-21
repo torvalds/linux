@@ -3,6 +3,7 @@
 #define _TRANSP_V6_H
 
 #include <net/checksum.h>
+#include <net/sock.h>
 
 /* IPv6 transport protocols */
 extern struct proto rawv6_prot;
@@ -12,6 +13,7 @@ extern struct proto tcpv6_prot;
 extern struct proto pingv6_prot;
 
 struct flowi6;
+struct ipcm6_cookie;
 
 /* extension headers */
 int ipv6_exthdrs_init(void);

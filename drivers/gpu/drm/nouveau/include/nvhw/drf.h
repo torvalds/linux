@@ -190,7 +190,7 @@
 #define DRF_MD_(X,_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,IMPL,...) IMPL
 #define DRF_MD(A...) DRF_MD_(X, ##A, DRF_MD_I, DRF_MD_N)(X, ##A)
 
-/* Helper for testing against field value in aribtrary object */
+/* Helper for testing against field value in arbitrary object */
 #define DRF_TV_N(X,e,p,o,d,r,  f,cmp,v)                                          \
 	NVVAL_TEST_X(DRF_RD_X(e, (p), (o), d##_##r   ), d##_##r##_##f, cmp, (v))
 #define DRF_TV_I(X,e,p,o,d,r,i,f,cmp,v)                                          \
@@ -198,7 +198,7 @@
 #define DRF_TV_(X,_1,_2,_3,_4,_5,_6,_7,_8,_9,IMPL,...) IMPL
 #define DRF_TV(A...) DRF_TV_(X, ##A, DRF_TV_I, DRF_TV_N)(X, ##A)
 
-/* Helper for testing against field definition in aribtrary object */
+/* Helper for testing against field definition in arbitrary object */
 #define DRF_TD_N(X,e,p,o,d,r,  f,cmp,v)                                                          \
 	NVVAL_TEST_X(DRF_RD_X(e, (p), (o), d##_##r   ), d##_##r##_##f, cmp, d##_##r##_##f##_##v)
 #define DRF_TD_I(X,e,p,o,d,r,i,f,cmp,v)                                                          \

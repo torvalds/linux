@@ -257,13 +257,7 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 	}
 
 	list_add_tail(&core->list, &vpu->cores);
-
 	vpu_core_get_vpu(core);
-
-	if (vpu_iface_get_power_state(core))
-		ret = vpu_core_restore(core);
-	if (ret)
-		goto error;
 
 	return 0;
 error:
@@ -362,7 +356,10 @@ struct vpu_core *vpu_request_core(struct vpu_dev *vpu, enum vpu_core_type type)
 	pm_runtime_resume_and_get(core->dev);
 
 	if (core->state == VPU_CORE_DEINIT) {
-		ret = vpu_core_boot(core, true);
+		if (vpu_iface_get_power_state(core))
+			ret = vpu_core_restore(core);
+		else
+			ret = vpu_core_boot(core, true);
 		if (ret) {
 			pm_runtime_put_sync(core->dev);
 			mutex_unlock(&core->lock);
@@ -455,8 +452,13 @@ int vpu_inst_unregister(struct vpu_inst *inst)
 	}
 	vpu_core_check_hang(core);
 	if (core->state == VPU_CORE_HANG && !core->instance_mask) {
+		int err;
+
 		dev_info(core->dev, "reset hang core\n");
-		if (!vpu_core_sw_reset(core)) {
+		mutex_unlock(&core->lock);
+		err = vpu_core_sw_reset(core);
+		mutex_lock(&core->lock);
+		if (!err) {
 			core->state = VPU_CORE_ACTIVE;
 			core->hang_mask = 0;
 		}

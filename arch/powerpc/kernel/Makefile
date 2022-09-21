@@ -54,6 +54,13 @@ CFLAGS_cputable.o += -DDISABLE_BRANCH_PROFILING
 CFLAGS_btext.o += -DDISABLE_BRANCH_PROFILING
 endif
 
+#ifdef CONFIG_RANDOMIZE_KSTACK_OFFSET
+# Remove stack protector to avoid triggering unneeded stack canary
+# checks due to randomize_kstack_offset.
+CFLAGS_REMOVE_syscall.o = -fstack-protector -fstack-protector-strong
+CFLAGS_syscall.o += -fno-stack-protector
+#endif
+
 obj-y				:= cputable.o syscalls.o \
 				   irq.o align.o signal_$(BITS).o pmc.o vdso.o \
 				   process.o systbl.o idle.o \
@@ -62,9 +69,9 @@ obj-y				:= cputable.o syscalls.o \
 				   udbg.o misc.o io.o misc_$(BITS).o \
 				   of_platform.o prom_parse.o firmware.o \
 				   hw_breakpoint_constraints.o interrupt.o \
-				   kdebugfs.o stacktrace.o
+				   kdebugfs.o stacktrace.o syscall.o
 obj-y				+= ptrace/
-obj-$(CONFIG_PPC64)		+= setup_64.o \
+obj-$(CONFIG_PPC64)		+= setup_64.o irq_64.o\
 				   paca.o nvram_64.o note.o
 obj-$(CONFIG_COMPAT)		+= sys_ppc32.o signal_32.o
 obj-$(CONFIG_VDSO32)		+= vdso32_wrapper.o

@@ -34,7 +34,7 @@
 struct bi_record {
 	__be16 tag;			/* tag ID */
 	__be16 size;			/* size of record (in bytes) */
-	__be32 data[0];			/* data */
+	__be32 data[];			/* data */
 };
 
 
@@ -168,7 +168,7 @@ struct bootversion {
 	struct {
 		__be32 machtype;
 		__be32 version;
-	} machversions[0];
+	} machversions[];
 } __packed;
 
 #endif /* __ASSEMBLY__ */

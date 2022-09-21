@@ -52,6 +52,8 @@
 #define SOF_DAI_INTEL_SSP_CLKCTRL_MCLK_ES               BIT(6)
 /* bclk early start */
 #define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_ES               BIT(7)
+/* mclk always on */
+#define SOF_DAI_INTEL_SSP_CLKCTRL_MCLK_AON		BIT(8)
 
 /* DMIC max. four controllers for eight microphone channels */
 #define SOF_DAI_INTEL_DMIC_NUM_CTRL			4

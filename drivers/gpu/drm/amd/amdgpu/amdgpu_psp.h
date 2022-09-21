@@ -36,6 +36,7 @@
 #define PSP_CMD_BUFFER_SIZE	0x1000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE(adev)	((adev)->asic_type == CHIP_ALDEBARAN ? 0x800000 : 0x400000)
+#define PSP_TMR_ALIGNMENT	0x100000
 #define PSP_FW_NAME_LEN		0x24
 
 enum psp_shared_mem_size {
@@ -69,8 +70,8 @@ enum psp_bootloader_cmd {
 	PSP_BL__LOAD_SOSDRV		= 0x20000,
 	PSP_BL__LOAD_KEY_DATABASE	= 0x80000,
 	PSP_BL__LOAD_SOCDRV             = 0xB0000,
-	PSP_BL__LOAD_INTFDRV            = 0xC0000,
-	PSP_BL__LOAD_DBGDRV             = 0xD0000,
+	PSP_BL__LOAD_DBGDRV             = 0xC0000,
+	PSP_BL__LOAD_INTFDRV		= 0xD0000,
 	PSP_BL__DRAM_LONG_TRAIN		= 0x100000,
 	PSP_BL__DRAM_SHORT_TRAIN	= 0x200000,
 	PSP_BL__LOAD_TOS_SPL_TABLE	= 0x10000000,
@@ -439,6 +440,7 @@ extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 extern const struct amdgpu_ip_block_version psp_v11_0_8_ip_block;
 extern const struct amdgpu_ip_block_version psp_v12_0_ip_block;
 extern const struct amdgpu_ip_block_version psp_v13_0_ip_block;
+extern const struct amdgpu_ip_block_version psp_v13_0_4_ip_block;
 
 extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);

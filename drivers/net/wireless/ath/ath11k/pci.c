@@ -50,6 +50,22 @@ static void ath11k_pci_bus_release(struct ath11k_base *ab)
 	mhi_device_put(ab_pci->mhi_ctrl->mhi_dev);
 }
 
+static u32 ath11k_pci_get_window_start(struct ath11k_base *ab, u32 offset)
+{
+	if (!ab->hw_params.static_window_map)
+		return ATH11K_PCI_WINDOW_START;
+
+	if ((offset ^ HAL_SEQ_WCSS_UMAC_OFFSET) < ATH11K_PCI_WINDOW_RANGE_MASK)
+		/* if offset lies within DP register range, use 3rd window */
+		return 3 * ATH11K_PCI_WINDOW_START;
+	else if ((offset ^ HAL_SEQ_WCSS_UMAC_CE0_SRC_REG(ab)) <
+		 ATH11K_PCI_WINDOW_RANGE_MASK)
+		 /* if offset lies within CE register range, use 2nd window */
+		return 2 * ATH11K_PCI_WINDOW_START;
+	else
+		return ATH11K_PCI_WINDOW_START;
+}
+
 static inline void ath11k_pci_select_window(struct ath11k_pci *ab_pci, u32 offset)
 {
 	struct ath11k_base *ab = ab_pci->ab;
@@ -70,26 +86,39 @@ static void
 ath11k_pci_window_write32(struct ath11k_base *ab, u32 offset, u32 value)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
-	u32 window_start = ATH11K_PCI_WINDOW_START;
+	u32 window_start;
 
-	spin_lock_bh(&ab_pci->window_lock);
-	ath11k_pci_select_window(ab_pci, offset);
-	iowrite32(value, ab->mem + window_start +
-		  (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
-	spin_unlock_bh(&ab_pci->window_lock);
+	window_start = ath11k_pci_get_window_start(ab, offset);
+
+	if (window_start == ATH11K_PCI_WINDOW_START) {
+		spin_lock_bh(&ab_pci->window_lock);
+		ath11k_pci_select_window(ab_pci, offset);
+		iowrite32(value, ab->mem + window_start +
+			  (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+		spin_unlock_bh(&ab_pci->window_lock);
+	} else {
+		iowrite32(value, ab->mem + window_start +
+			  (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+	}
 }
 
 static u32 ath11k_pci_window_read32(struct ath11k_base *ab, u32 offset)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
-	u32 window_start = ATH11K_PCI_WINDOW_START;
-	u32 val;
+	u32 window_start, val;
 
-	spin_lock_bh(&ab_pci->window_lock);
-	ath11k_pci_select_window(ab_pci, offset);
-	val = ioread32(ab->mem + window_start +
-		       (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
-	spin_unlock_bh(&ab_pci->window_lock);
+	window_start = ath11k_pci_get_window_start(ab, offset);
+
+	if (window_start == ATH11K_PCI_WINDOW_START) {
+		spin_lock_bh(&ab_pci->window_lock);
+		ath11k_pci_select_window(ab_pci, offset);
+		val = ioread32(ab->mem + window_start +
+			       (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+		spin_unlock_bh(&ab_pci->window_lock);
+	} else {
+		val = ioread32(ab->mem + window_start +
+			       (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+	}
 
 	return val;
 }
@@ -110,6 +139,8 @@ static const struct ath11k_pci_ops ath11k_pci_ops_qca6390 = {
 };
 
 static const struct ath11k_pci_ops ath11k_pci_ops_qcn9074 = {
+	.wakeup = NULL,
+	.release = NULL,
 	.get_msi_irq = ath11k_pci_get_msi_irq,
 	.window_write32 = ath11k_pci_window_write32,
 	.window_read32 = ath11k_pci_window_read32,
@@ -697,6 +728,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	struct ath11k_base *ab;
 	struct ath11k_pci *ab_pci;
 	u32 soc_hw_version_major, soc_hw_version_minor, addr;
+	const struct ath11k_pci_ops *pci_ops;
 	int ret;
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI);
@@ -754,10 +786,10 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 			goto err_pci_free_region;
 		}
 
-		ab->pci.ops = &ath11k_pci_ops_qca6390;
+		pci_ops = &ath11k_pci_ops_qca6390;
 		break;
 	case QCN9074_DEVICE_ID:
-		ab->pci.ops = &ath11k_pci_ops_qcn9074;
+		pci_ops = &ath11k_pci_ops_qcn9074;
 		ab->hw_rev = ATH11K_HW_QCN9074_HW10;
 		break;
 	case WCN6855_DEVICE_ID:
@@ -787,12 +819,18 @@ unsupported_wcn6855_soc:
 			goto err_pci_free_region;
 		}
 
-		ab->pci.ops = &ath11k_pci_ops_qca6390;
+		pci_ops = &ath11k_pci_ops_qca6390;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
 			pci_dev->device);
 		ret = -EOPNOTSUPP;
+		goto err_pci_free_region;
+	}
+
+	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
+	if (ret) {
+		ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
 		goto err_pci_free_region;
 	}
 
@@ -920,7 +958,9 @@ qmi_fail:
 static void ath11k_pci_shutdown(struct pci_dev *pdev)
 {
 	struct ath11k_base *ab = pci_get_drvdata(pdev);
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 	ath11k_pci_power_down(ab);
 }
 

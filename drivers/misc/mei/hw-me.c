@@ -561,7 +561,7 @@ static int mei_me_hbuf_write(struct mei_device *dev,
 	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM((struct mei_msg_hdr *)hdr));
 
 	empty_slots = mei_hbuf_empty_slots(dev);
-	dev_dbg(dev->dev, "empty slots = %hu.\n", empty_slots);
+	dev_dbg(dev->dev, "empty slots = %d.\n", empty_slots);
 
 	if (empty_slots < 0)
 		return -EOVERFLOW;

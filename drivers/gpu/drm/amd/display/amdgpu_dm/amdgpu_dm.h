@@ -242,6 +242,13 @@ struct hpd_rx_irq_offload_work {
  * @force_timing_sync: set via debugfs. When set, indicates that all connected
  *		       displays will be forced to synchronize.
  * @dmcub_trace_event_en: enable dmcub trace events
+ * @dmub_outbox_params: DMUB Outbox parameters
+ * @num_of_edps: number of backlight eDPs
+ * @disable_hpd_irq: disables all HPD and HPD RX interrupt handling in the
+ *		     driver when true
+ * @dmub_aux_transfer_done: struct completion used to indicate when DMUB
+ * 			    transfers are done
+ * @delayed_hpd_wq: work queue used to delay DMUB HPD work
  */
 struct amdgpu_display_manager {
 
@@ -564,6 +571,14 @@ struct dsc_preferred_settings {
 	bool dsc_force_disable_passthrough;
 };
 
+enum mst_progress_status {
+	MST_STATUS_DEFAULT = 0,
+	MST_PROBE = BIT(0),
+	MST_REMOTE_EDID = BIT(1),
+	MST_ALLOCATE_NEW_PAYLOAD = BIT(2),
+	MST_CLEAR_ALLOCATED_PAYLOAD = BIT(3),
+};
+
 struct amdgpu_dm_connector {
 
 	struct drm_connector base;
@@ -591,7 +606,6 @@ struct amdgpu_dm_connector {
 	struct drm_dp_mst_port *port;
 	struct amdgpu_dm_connector *mst_port;
 	struct drm_dp_aux *dsc_aux;
-
 	/* TODO see if we can merge with ddc_bus or make a dm_connector */
 	struct amdgpu_i2c_adapter *i2c;
 
@@ -617,7 +631,19 @@ struct amdgpu_dm_connector {
 	struct drm_display_mode freesync_vid_base;
 
 	int psr_skip_count;
+
+	/* Record progress status of mst*/
+	uint8_t mst_status;
 };
+
+static inline void amdgpu_dm_set_mst_status(uint8_t *status,
+		uint8_t flags, bool set)
+{
+	if (set)
+		*status |= flags;
+	else
+		*status &= ~flags;
+}
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
 
@@ -647,8 +673,6 @@ struct dm_crtc_state {
 
 	bool dsc_force_changed;
 	bool vrr_supported;
-
-	bool force_dpms_off;
 	struct mod_freesync_config freesync_config;
 	struct dc_info_packet vrr_infopacket;
 
@@ -757,4 +781,6 @@ int dm_atomic_get_state(struct drm_atomic_state *state,
 struct amdgpu_dm_connector *
 amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 					     struct drm_crtc *crtc);
+
+int convert_dc_color_depth_into_bpc(enum dc_color_depth display_color_depth);
 #endif /* __AMDGPU_DM_H__ */

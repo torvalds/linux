@@ -156,7 +156,8 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		    struct ieee80211_key_conf *key);
 int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params);
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params);
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta);
@@ -187,7 +188,7 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 void mt76x02_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct ieee80211_bss_conf *info, u32 changed);
+			      struct ieee80211_bss_conf *info, u64 changed);
 void mt76x02_reconfig_complete(struct ieee80211_hw *hw,
 			       enum ieee80211_reconfig_type reconfig_type);
 

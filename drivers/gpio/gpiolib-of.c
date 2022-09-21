@@ -354,6 +354,9 @@ struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 	if (flags & OF_GPIO_PULL_DOWN)
 		lflags |= GPIO_PULL_DOWN;
 
+	if (flags & OF_GPIO_PULL_DISABLE)
+		lflags |= GPIO_PULL_DISABLE;
+
 	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
 	if (ret < 0) {
 		gpiod_put(desc);
@@ -556,6 +559,8 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		*flags |= GPIO_PULL_UP;
 	if (of_flags & OF_GPIO_PULL_DOWN)
 		*flags |= GPIO_PULL_DOWN;
+	if (of_flags & OF_GPIO_PULL_DISABLE)
+		*flags |= GPIO_PULL_DISABLE;
 
 	return desc;
 }
@@ -621,6 +626,8 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		*lflags |= GPIO_PULL_UP;
 	if (xlate_flags & OF_GPIO_PULL_DOWN)
 		*lflags |= GPIO_PULL_DOWN;
+	if (xlate_flags & OF_GPIO_PULL_DISABLE)
+		*lflags |= GPIO_PULL_DISABLE;
 
 	if (of_property_read_bool(np, "input"))
 		*dflags |= GPIOD_IN;
@@ -720,7 +727,7 @@ static void of_gpiochip_remove_hog(struct gpio_chip *chip,
 
 static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
 {
-	return chip->gpiodev->dev.of_node == data;
+	return device_match_of_node(&chip->gpiodev->dev, data);
 }
 
 static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
@@ -860,7 +867,8 @@ int of_mm_gpiochip_add_data(struct device_node *np,
 	if (mm_gc->save_regs)
 		mm_gc->save_regs(mm_gc);
 
-	mm_gc->gc.of_node = np;
+	of_node_put(mm_gc->gc.of_node);
+	mm_gc->gc.of_node = of_node_get(np);
 
 	ret = gpiochip_add_data(gc, data);
 	if (ret)
@@ -868,6 +876,7 @@ int of_mm_gpiochip_add_data(struct device_node *np,
 
 	return 0;
 err2:
+	of_node_put(np);
 	iounmap(mm_gc->regs);
 err1:
 	kfree(gc->label);

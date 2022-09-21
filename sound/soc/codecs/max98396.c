@@ -5,10 +5,17 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <sound/pcm_params.h>
+#include <linux/regulator/consumer.h>
 #include <sound/soc.h>
 #include <linux/gpio.h>
 #include <sound/tlv.h>
 #include "max98396.h"
+
+static const char * const max98396_core_supplies[MAX98396_NUM_CORE_SUPPLIES] = {
+	"avdd",
+	"dvdd",
+	"dvddio",
+};
 
 static struct reg_default max98396_reg[] = {
 	{MAX98396_R2000_SW_RESET, 0x00},
@@ -368,7 +375,8 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		break;
 
 	default:
-		dev_err(component->dev, "DAI invert mode unsupported\n");
+		dev_err(component->dev, "DAI invert mode %d unsupported\n",
+			fmt & SND_SOC_DAIFMT_INV_MASK);
 		return -EINVAL;
 	}
 
@@ -387,6 +395,8 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		format |= MAX98396_PCM_FORMAT_TDM_MODE0;
 		break;
 	default:
+		dev_err(component->dev, "DAI format %d unsupported\n",
+			fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 		return -EINVAL;
 	}
 
@@ -428,46 +438,68 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-/* BCLKs per LRCLK */
-static const int bclk_sel_table[] = {
-	32, 48, 64, 96, 128, 192, 256, 384, 512, 320,
+#define MAX98396_BSEL_32	0x2
+#define MAX98396_BSEL_48	0x3
+#define MAX98396_BSEL_64	0x4
+#define MAX98396_BSEL_96	0x5
+#define MAX98396_BSEL_128	0x6
+#define MAX98396_BSEL_192	0x7
+#define MAX98396_BSEL_256	0x8
+#define MAX98396_BSEL_384	0x9
+#define MAX98396_BSEL_512	0xa
+#define MAX98396_BSEL_320	0xb
+#define MAX98396_BSEL_250	0xc
+#define MAX98396_BSEL_125	0xd
+
+/* Refer to table 5 in the datasheet */
+static const struct max98396_pcm_config {
+	int in, out, width, bsel, max_sr;
+} max98396_pcm_configs[] = {
+	{ .in = 2,  .out = 4,  .width = 16, .bsel = MAX98396_BSEL_32,  .max_sr = 192000 },
+	{ .in = 2,  .out = 6,  .width = 24, .bsel = MAX98396_BSEL_48,  .max_sr = 192000 },
+	{ .in = 2,  .out = 8,  .width = 32, .bsel = MAX98396_BSEL_64,  .max_sr = 192000 },
+	{ .in = 3,  .out = 15, .width = 32, .bsel = MAX98396_BSEL_125, .max_sr = 192000 },
+	{ .in = 4,  .out = 8,  .width = 16, .bsel = MAX98396_BSEL_64,  .max_sr = 192000 },
+	{ .in = 4,  .out = 12, .width = 24, .bsel = MAX98396_BSEL_96,  .max_sr = 192000 },
+	{ .in = 4,  .out = 16, .width = 32, .bsel = MAX98396_BSEL_128, .max_sr = 192000 },
+	{ .in = 5,  .out = 15, .width = 24, .bsel = MAX98396_BSEL_125, .max_sr = 192000 },
+	{ .in = 7,  .out = 15, .width = 16, .bsel = MAX98396_BSEL_125, .max_sr = 192000 },
+	{ .in = 2,  .out = 4,  .width = 16, .bsel = MAX98396_BSEL_32,  .max_sr = 96000  },
+	{ .in = 2,  .out = 6,  .width = 24, .bsel = MAX98396_BSEL_48,  .max_sr = 96000  },
+	{ .in = 2,  .out = 8,  .width = 32, .bsel = MAX98396_BSEL_64,  .max_sr = 96000  },
+	{ .in = 3,  .out = 15, .width = 32, .bsel = MAX98396_BSEL_125, .max_sr = 96000  },
+	{ .in = 4,  .out = 8,  .width = 16, .bsel = MAX98396_BSEL_64,  .max_sr = 96000  },
+	{ .in = 4,  .out = 12, .width = 24, .bsel = MAX98396_BSEL_96,  .max_sr = 96000  },
+	{ .in = 4,  .out = 16, .width = 32, .bsel = MAX98396_BSEL_128, .max_sr = 96000  },
+	{ .in = 5,  .out = 15, .width = 24, .bsel = MAX98396_BSEL_125, .max_sr = 96000  },
+	{ .in = 7,  .out = 15, .width = 16, .bsel = MAX98396_BSEL_125, .max_sr = 96000  },
+	{ .in = 7,  .out = 31, .width = 32, .bsel = MAX98396_BSEL_250, .max_sr = 96000  },
+	{ .in = 8,  .out = 16, .width = 16, .bsel = MAX98396_BSEL_128, .max_sr = 96000  },
+	{ .in = 8,  .out = 24, .width = 24, .bsel = MAX98396_BSEL_192, .max_sr = 96000  },
+	{ .in = 8,  .out = 32, .width = 32, .bsel = MAX98396_BSEL_256, .max_sr = 96000  },
+	{ .in = 10, .out = 31, .width = 24, .bsel = MAX98396_BSEL_250, .max_sr = 96000  },
+	{ .in = 15, .out = 31, .width = 16, .bsel = MAX98396_BSEL_250, .max_sr = 96000  },
+	{ .in = 16, .out = 32, .width = 16, .bsel = MAX98396_BSEL_256, .max_sr = 96000  },
+	{ .in = 7,  .out = 31, .width = 32, .bsel = MAX98396_BSEL_250, .max_sr = 48000  },
+	{ .in = 10, .out = 31, .width = 24, .bsel = MAX98396_BSEL_250, .max_sr = 48000  },
+	{ .in = 10, .out = 40, .width = 32, .bsel = MAX98396_BSEL_320, .max_sr = 48000  },
+	{ .in = 15, .out = 31, .width = 16, .bsel = MAX98396_BSEL_250, .max_sr = 48000  },
+	{ .in = 16, .out = 48, .width = 24, .bsel = MAX98396_BSEL_384, .max_sr = 48000  },
+	{ .in = 16, .out = 64, .width = 32, .bsel = MAX98396_BSEL_512, .max_sr = 48000  },
 };
 
-static int max98396_get_bclk_sel(int bclk)
+static int max98396_pcm_config_index(int in_slots, int out_slots, int width)
 {
 	int i;
-	/* match BCLKs per LRCLK */
-	for (i = 0; i < ARRAY_SIZE(bclk_sel_table); i++) {
-		if (bclk_sel_table[i] == bclk)
-			return i + 2;
-	}
-	return 0;
-}
 
-static int max98396_set_clock(struct snd_soc_component *component,
-			      struct snd_pcm_hw_params *params)
-{
-	struct max98396_priv *max98396 = snd_soc_component_get_drvdata(component);
-	/* BCLK/LRCLK ratio calculation */
-	int blr_clk_ratio = params_channels(params) * max98396->ch_size;
-	int value;
+	for (i = 0; i < ARRAY_SIZE(max98396_pcm_configs); i++) {
+		const struct max98396_pcm_config *c = &max98396_pcm_configs[i];
 
-	if (!max98396->tdm_mode) {
-		/* BCLK configuration */
-		value = max98396_get_bclk_sel(blr_clk_ratio);
-		if (!value) {
-			dev_err(component->dev, "format unsupported %d\n",
-				params_format(params));
-			return -EINVAL;
-		}
-
-		regmap_update_bits(max98396->regmap,
-				   MAX98396_R2042_PCM_CLK_SETUP,
-				   MAX98396_PCM_CLK_SETUP_BSEL_MASK,
-				   value);
+		if (in_slots == c->in && out_slots <= c->out && width == c->width)
+			return i;
 	}
 
-	return 0;
+	return -1;
 }
 
 static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
@@ -478,8 +510,7 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 	struct max98396_priv *max98396 = snd_soc_component_get_drvdata(component);
 	unsigned int sampling_rate = 0;
 	unsigned int chan_sz = 0;
-	int ret, reg;
-	int status;
+	int ret, reg, status, bsel = 0;
 	bool update = false;
 
 	/* pcm mode configuration */
@@ -498,8 +529,6 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 			params_format(params));
 		goto err;
 	}
-
-	max98396->ch_size = snd_pcm_format_width(params_format(params));
 
 	dev_dbg(component->dev, "format supported %d",
 		params_format(params));
@@ -548,6 +577,33 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 		goto err;
 	}
 
+	if (max98396->tdm_mode) {
+		if (params_rate(params) > max98396->tdm_max_samplerate) {
+			dev_err(component->dev, "TDM sample rate %d too high",
+				params_rate(params));
+			goto err;
+		}
+	} else {
+		/* BCLK configuration */
+		ret = max98396_pcm_config_index(params_channels(params),
+						params_channels(params),
+						snd_pcm_format_width(params_format(params)));
+		if (ret < 0) {
+			dev_err(component->dev,
+				"no PCM config for %d channels, format %d\n",
+				params_channels(params), params_format(params));
+			goto err;
+		}
+
+		bsel = max98396_pcm_configs[ret].bsel;
+
+		if (params_rate(params) > max98396_pcm_configs[ret].max_sr) {
+			dev_err(component->dev, "sample rate %d too high",
+				params_rate(params));
+			goto err;
+		}
+	}
+
 	ret = regmap_read(max98396->regmap, MAX98396_R210F_GLOBAL_EN, &status);
 	if (ret < 0)
 		goto err;
@@ -593,12 +649,16 @@ static int max98396_dai_hw_params(struct snd_pcm_substream *substream,
 				   MAX98396_IVADC_SR_MASK,
 				   sampling_rate << MAX98396_IVADC_SR_SHIFT);
 
-	ret = max98396_set_clock(component, params);
+	if (bsel)
+		regmap_update_bits(max98396->regmap,
+				MAX98396_R2042_PCM_CLK_SETUP,
+				MAX98396_PCM_CLK_SETUP_BSEL_MASK,
+				bsel);
 
 	if (status && update)
 		max98396_global_enable_onoff(max98396->regmap, true);
 
-	return ret;
+	return 0;
 
 err:
 	return -EINVAL;
@@ -623,12 +683,15 @@ static int max98396_dai_tdm_slot(struct snd_soc_dai *dai,
 		max98396->tdm_mode = true;
 
 	/* BCLK configuration */
-	bsel = max98396_get_bclk_sel(slots * slot_width);
-	if (bsel == 0) {
-		dev_err(component->dev, "BCLK %d not supported\n",
-			slots * slot_width);
+	ret = max98396_pcm_config_index(slots, slots, slot_width);
+	if (ret < 0) {
+		dev_err(component->dev, "no TDM config for %d slots %d bits\n",
+			slots, slot_width);
 		return -EINVAL;
 	}
+
+	bsel = max98396_pcm_configs[ret].bsel;
+	max98396->tdm_max_samplerate = max98396_pcm_configs[ret].max_sr;
 
 	/* Channel size configuration */
 	switch (slot_width) {
@@ -642,7 +705,7 @@ static int max98396_dai_tdm_slot(struct snd_soc_dai *dai,
 		chan_sz = MAX98396_PCM_MODE_CFG_CHANSZ_32;
 		break;
 	default:
-		dev_err(component->dev, "format unsupported %d\n",
+		dev_err(component->dev, "slot width %d unsupported\n",
 			slot_width);
 		return -EINVAL;
 	}
@@ -1331,6 +1394,12 @@ static int max98396_probe(struct snd_soc_component *component)
 		regmap_write(max98396->regmap,
 			     MAX98397_R2057_PCM_RX_SRC2, 0x10);
 	}
+	/* Supply control */
+	regmap_update_bits(max98396->regmap,
+			   MAX98396_R20A0_AMP_SUPPLY_CTL,
+			   MAX98396_AMP_SUPPLY_NOVBAT,
+			   (max98396->vbat == NULL) ?
+				MAX98396_AMP_SUPPLY_NOVBAT : 0);
 	/* Enable DC blocker */
 	regmap_update_bits(max98396->regmap,
 			   MAX98396_R2092_AMP_DSP_CFG, 1, 1);
@@ -1360,6 +1429,9 @@ static int max98396_probe(struct snd_soc_component *component)
 	regmap_write(max98396->regmap,
 		     MAX98396_R2045_PCM_TX_CTRL_2,
 		     max98396->i_slot);
+	regmap_write(max98396->regmap,
+		     MAX98396_R204A_PCM_TX_CTRL_7,
+		     max98396->spkfb_slot);
 
 	if (max98396->v_slot < 8)
 		if (max98396->device_id == CODEC_TYPE_MAX98396)
@@ -1426,12 +1498,38 @@ static int max98396_suspend(struct device *dev)
 
 	regcache_cache_only(max98396->regmap, true);
 	regcache_mark_dirty(max98396->regmap);
+	regulator_bulk_disable(MAX98396_NUM_CORE_SUPPLIES,
+			       max98396->core_supplies);
+	if (max98396->pvdd)
+		regulator_disable(max98396->pvdd);
+
+	if (max98396->vbat)
+		regulator_disable(max98396->vbat);
+
 	return 0;
 }
 
 static int max98396_resume(struct device *dev)
 {
 	struct max98396_priv *max98396 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(MAX98396_NUM_CORE_SUPPLIES,
+				    max98396->core_supplies);
+	if (ret < 0)
+		return ret;
+
+	if (max98396->pvdd) {
+		ret = regulator_enable(max98396->pvdd);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (max98396->vbat) {
+		ret = regulator_enable(max98396->vbat);
+		if (ret < 0)
+			return ret;
+	}
 
 	regcache_cache_only(max98396->regmap, false);
 	max98396_reset(max98396, dev);
@@ -1455,7 +1553,6 @@ static const struct snd_soc_component_driver soc_codec_dev_max98396 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_component_driver soc_codec_dev_max98397 = {
@@ -1469,7 +1566,6 @@ static const struct snd_soc_component_driver soc_codec_dev_max98397 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98396_regmap = {
@@ -1509,17 +1605,35 @@ static void max98396_read_device_property(struct device *dev,
 	else
 		max98396->i_slot = 1;
 
+	if (!device_property_read_u32(dev, "adi,spkfb-slot-no", &value))
+		max98396->spkfb_slot = value & 0xF;
+	else
+		max98396->spkfb_slot = 2;
+
 	if (!device_property_read_u32(dev, "adi,bypass-slot-no", &value))
 		max98396->bypass_slot = value & 0xF;
 	else
 		max98396->bypass_slot = 0;
 }
 
+static void max98396_core_supplies_disable(void *priv)
+{
+	struct max98396_priv *max98396 = priv;
+
+	regulator_bulk_disable(MAX98396_NUM_CORE_SUPPLIES,
+			       max98396->core_supplies);
+}
+
+static void max98396_supply_disable(void *r)
+{
+	regulator_disable((struct regulator *) r);
+}
+
 static int max98396_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct max98396_priv *max98396 = NULL;
-	int ret, reg;
+	int i, ret, reg;
 
 	max98396 = devm_kzalloc(&i2c->dev, sizeof(*max98396), GFP_KERNEL);
 
@@ -1543,6 +1657,69 @@ static int max98396_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev,
 			"Failed to allocate regmap: %d\n", ret);
 		return ret;
+	}
+
+	/* Obtain regulator supplies */
+	for (i = 0; i < MAX98396_NUM_CORE_SUPPLIES; i++)
+		max98396->core_supplies[i].supply = max98396_core_supplies[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, MAX98396_NUM_CORE_SUPPLIES,
+				      max98396->core_supplies);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to request core supplies: %d\n", ret);
+		return ret;
+	}
+
+	max98396->vbat = devm_regulator_get_optional(&i2c->dev, "vbat");
+	if (IS_ERR(max98396->vbat)) {
+		if (PTR_ERR(max98396->vbat) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		max98396->vbat = NULL;
+	}
+
+	max98396->pvdd = devm_regulator_get_optional(&i2c->dev, "pvdd");
+	if (IS_ERR(max98396->pvdd)) {
+		if (PTR_ERR(max98396->pvdd) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		max98396->pvdd = NULL;
+	}
+
+	ret = regulator_bulk_enable(MAX98396_NUM_CORE_SUPPLIES,
+				    max98396->core_supplies);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Unable to enable core supplies: %d", ret);
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(&i2c->dev, max98396_core_supplies_disable,
+				       max98396);
+	if (ret < 0)
+		return ret;
+
+	if (max98396->pvdd) {
+		ret = regulator_enable(max98396->pvdd);
+		if (ret < 0)
+			return ret;
+
+		ret = devm_add_action_or_reset(&i2c->dev,
+					       max98396_supply_disable,
+					       max98396->pvdd);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (max98396->vbat) {
+		ret = regulator_enable(max98396->vbat);
+		if (ret < 0)
+			return ret;
+
+		ret = devm_add_action_or_reset(&i2c->dev,
+					       max98396_supply_disable,
+					       max98396->vbat);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* update interleave mode info */

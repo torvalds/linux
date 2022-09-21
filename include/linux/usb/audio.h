@@ -6,9 +6,6 @@
  * Developed for Thumtronics by Grey Innovation
  * Ben Williamson <ben.williamson@greyinnovation.com>
  *
- * This software is distributed under the terms of the GNU General Public
- * License ("GPL") version 2, as published by the Free Software Foundation.
- *
  * This file holds USB constants and structures defined
  * by the USB Device Class Definition for Audio Devices.
  * Comments below reference relevant sections of that document:

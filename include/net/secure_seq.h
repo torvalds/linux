@@ -4,6 +4,8 @@
 
 #include <linux/types.h>
 
+struct net;
+
 u64 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport);
 u64 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr,
 			       __be16 dport);

@@ -175,11 +175,11 @@
 
 			/* tsin0 is TSA on NIMA */
 			tsin0: port {
-				tsin-num	= <0>;
+				tsin-num = <0>;
 				serial-not-parallel;
-				i2c-bus		= <&ssc2>;
-				reset-gpios	= <&pio15 4 GPIO_ACTIVE_HIGH>;
-				dvb-card	= <STV0367_TDA18212_NIMA_1>;
+				i2c-bus = <&ssc2>;
+				reset-gpios = <&pio15 4 GPIO_ACTIVE_HIGH>;
+				dvb-card = <STV0367_TDA18212_NIMA_1>;
 			};
 		};
 

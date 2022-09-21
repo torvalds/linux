@@ -216,7 +216,7 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 	bc->bus_power_dev = genpd_dev_pm_attach_by_name(dev, "bus");
 	if (IS_ERR(bc->bus_power_dev))
 		return dev_err_probe(dev, PTR_ERR(bc->bus_power_dev),
-				     "failed to attach power domain\n");
+				     "failed to attach power domain \"bus\"\n");
 
 	for (i = 0; i < bc_data->num_domains; i++) {
 		const struct imx8m_blk_ctrl_domain_data *data = &bc_data->domains[i];
@@ -238,11 +238,11 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 			dev_pm_domain_attach_by_name(dev, data->gpc_name);
 		if (IS_ERR(domain->power_dev)) {
 			dev_err_probe(dev, PTR_ERR(domain->power_dev),
-				      "failed to attach power domain\n");
+				      "failed to attach power domain \"%s\"\n",
+				      data->gpc_name);
 			ret = PTR_ERR(domain->power_dev);
 			goto cleanup_pds;
 		}
-		dev_set_name(domain->power_dev, "%s", data->name);
 
 		domain->genpd.name = data->name;
 		domain->genpd.power_on = imx8m_blk_ctrl_power_on;
@@ -251,7 +251,9 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 
 		ret = pm_genpd_init(&domain->genpd, NULL, true);
 		if (ret) {
-			dev_err_probe(dev, ret, "failed to init power domain\n");
+			dev_err_probe(dev, ret,
+				      "failed to init power domain \"%s\"\n",
+				      data->gpc_name);
 			dev_pm_domain_detach(domain->power_dev, true);
 			goto cleanup_pds;
 		}

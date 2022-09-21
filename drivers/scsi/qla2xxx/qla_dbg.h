@@ -383,5 +383,5 @@ ql_mask_match(uint level)
 	if (ql2xextended_error_logging == 1)
 		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
 
-	return (level & ql2xextended_error_logging) == level;
+	return level && ((level & ql2xextended_error_logging) == level);
 }

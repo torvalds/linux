@@ -1136,8 +1136,8 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 {
 	struct r10conf *conf = mddev->private;
 	struct bio *read_bio;
-	const int op = bio_op(bio);
-	const unsigned long do_sync = (bio->bi_opf & REQ_SYNC);
+	const enum req_op op = bio_op(bio);
+	const blk_opf_t do_sync = bio->bi_opf & REQ_SYNC;
 	int max_sectors;
 	struct md_rdev *rdev;
 	char b[BDEVNAME_SIZE];
@@ -1164,7 +1164,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 		disk = r10_bio->devs[slot].devnum;
 		err_rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (err_rdev)
-			bdevname(err_rdev->bdev, b);
+			snprintf(b, sizeof(b), "%pg", err_rdev->bdev);
 		else {
 			strcpy(b, "???");
 			/* This never gets dereferenced */
@@ -1230,9 +1230,9 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 				  struct bio *bio, bool replacement,
 				  int n_copy)
 {
-	const int op = bio_op(bio);
-	const unsigned long do_sync = (bio->bi_opf & REQ_SYNC);
-	const unsigned long do_fua = (bio->bi_opf & REQ_FUA);
+	const enum req_op op = bio_op(bio);
+	const blk_opf_t do_sync = bio->bi_opf & REQ_SYNC;
+	const blk_opf_t do_fua = bio->bi_opf & REQ_FUA;
 	unsigned long flags;
 	struct blk_plug_cb *cb;
 	struct raid1_plug_cb *plug = NULL;
@@ -2167,9 +2167,12 @@ static int raid10_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int err = 0;
 	int number = rdev->raid_disk;
 	struct md_rdev **rdevp;
-	struct raid10_info *p = conf->mirrors + number;
+	struct raid10_info *p;
 
 	print_conf(conf);
+	if (unlikely(number >= mddev->raid_disks))
+		return 0;
+	p = conf->mirrors + number;
 	if (rdev == p->rdev)
 		rdevp = &p->rdev;
 	else if (rdev == p->replacement)
@@ -2512,7 +2515,7 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 				  addr,
 				  s << 9,
 				  pages[idx],
-				  REQ_OP_READ, 0, false);
+				  REQ_OP_READ, false);
 		if (ok) {
 			rdev = conf->mirrors[dw].rdev;
 			addr = r10_bio->devs[1].addr + sect;
@@ -2520,7 +2523,7 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 					  addr,
 					  s << 9,
 					  pages[idx],
-					  REQ_OP_WRITE, 0, false);
+					  REQ_OP_WRITE, false);
 			if (!ok) {
 				set_bit(WriteErrorSeen, &rdev->flags);
 				if (!test_and_set_bit(WantReplacement,
@@ -2636,18 +2639,18 @@ static void check_decay_read_errors(struct mddev *mddev, struct md_rdev *rdev)
 }
 
 static int r10_sync_page_io(struct md_rdev *rdev, sector_t sector,
-			    int sectors, struct page *page, int rw)
+			    int sectors, struct page *page, enum req_op op)
 {
 	sector_t first_bad;
 	int bad_sectors;
 
 	if (is_badblock(rdev, sector, sectors, &first_bad, &bad_sectors)
-	    && (rw == READ || test_bit(WriteErrorSeen, &rdev->flags)))
+	    && (op == REQ_OP_READ || test_bit(WriteErrorSeen, &rdev->flags)))
 		return -1;
-	if (sync_page_io(rdev, sector, sectors << 9, page, rw, 0, false))
+	if (sync_page_io(rdev, sector, sectors << 9, page, op, false))
 		/* success */
 		return 1;
-	if (rw == WRITE) {
+	if (op == REQ_OP_WRITE) {
 		set_bit(WriteErrorSeen, &rdev->flags);
 		if (!test_and_set_bit(WantReplacement, &rdev->flags))
 			set_bit(MD_RECOVERY_NEEDED,
@@ -2726,7 +2729,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 						       sect,
 						       s<<9,
 						       conf->tmppage,
-						       REQ_OP_READ, 0, false);
+						       REQ_OP_READ, false);
 				rdev_dec_pending(rdev, mddev);
 				rcu_read_lock();
 				if (success)
@@ -2777,7 +2780,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			if (r10_sync_page_io(rdev,
 					     r10_bio->devs[sl].addr +
 					     sect,
-					     s, conf->tmppage, WRITE)
+					     s, conf->tmppage, REQ_OP_WRITE)
 			    == 0) {
 				/* Well, this device is dead */
 				pr_notice("md/raid10:%s: read correction write failed (%d sectors at %llu on %pg)\n",
@@ -2811,8 +2814,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			switch (r10_sync_page_io(rdev,
 					     r10_bio->devs[sl].addr +
 					     sect,
-					     s, conf->tmppage,
-						 READ)) {
+					     s, conf->tmppage, REQ_OP_READ)) {
 			case 0:
 				/* Well, this device is dead */
 				pr_notice("md/raid10:%s: unable to read back corrected sectors (%d sectors at %llu on %pg)\n",
@@ -5107,7 +5109,7 @@ static int handle_reshape_read_error(struct mddev *mddev,
 					       addr,
 					       s << 9,
 					       pages[idx],
-					       REQ_OP_READ, 0, false);
+					       REQ_OP_READ, false);
 			rdev_dec_pending(rdev, mddev);
 			rcu_read_lock();
 			if (success)

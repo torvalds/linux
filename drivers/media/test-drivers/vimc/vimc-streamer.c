@@ -30,7 +30,7 @@ static struct media_entity *vimc_get_source_entity(struct media_entity *ent)
 	for (i = 0; i < ent->num_pads; i++) {
 		if (ent->pads[i].flags & MEDIA_PAD_FL_SOURCE)
 			continue;
-		pad = media_entity_remote_pad(&ent->pads[i]);
+		pad = media_pad_remote_pad_first(&ent->pads[i]);
 		return pad ? pad->entity : NULL;
 	}
 	return NULL;

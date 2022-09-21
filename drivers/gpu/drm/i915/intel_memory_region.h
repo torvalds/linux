@@ -75,7 +75,6 @@ struct intel_memory_region {
 	resource_size_t io_size;
 	resource_size_t min_page_size;
 	resource_size_t total;
-	resource_size_t avail;
 
 	u16 type;
 	u16 instance;
@@ -126,6 +125,9 @@ int intel_memory_region_reserve(struct intel_memory_region *mem,
 
 void intel_memory_region_debug(struct intel_memory_region *mr,
 			       struct drm_printer *printer);
+
+void intel_memory_region_avail(struct intel_memory_region *mr,
+			       u64 *avail, u64 *visible_avail);
 
 struct intel_memory_region *
 i915_gem_ttm_system_setup(struct drm_i915_private *i915,

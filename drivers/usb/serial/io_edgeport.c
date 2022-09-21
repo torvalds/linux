@@ -220,7 +220,7 @@ struct edgeport_serial {
 	__u8			rxHeader3;			/* receive header byte 3 */
 	__u8			rxPort;				/* the port that we are currently receiving data for */
 	__u8			rxStatusCode;			/* the receive status code */
-	__u8			rxStatusParam;			/* the receive status paramater */
+	__u8			rxStatusParam;			/* the receive status parameter */
 	__s16			rxBytesRemaining;		/* the number of port bytes left to read */
 	struct usb_serial	*serial;			/* loop back to the owner of this object */
 };
@@ -901,7 +901,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	if (!edge_port->open) {
 		/* open timed out */
-		dev_dbg(dev, "%s - open timedout\n", __func__);
+		dev_dbg(dev, "%s - open timeout\n", __func__);
 		edge_port->openPending = false;
 		return -ENODEV;
 	}

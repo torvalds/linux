@@ -7,7 +7,6 @@
 int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		   int nr, struct nvkm_fifo *);
 void nvkm_fifo_uevent(struct nvkm_fifo *);
-void nvkm_fifo_cevent(struct nvkm_fifo *);
 void nvkm_fifo_kevent(struct nvkm_fifo *, int chid);
 void nvkm_fifo_recover_chan(struct nvkm_fifo *, int chid);
 

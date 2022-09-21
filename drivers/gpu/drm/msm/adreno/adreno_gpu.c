@@ -21,6 +21,10 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 
+static u64 address_space_size = 0;
+MODULE_PARM_DESC(address_space_size, "Override for size of processes private GPU address space");
+module_param(address_space_size, ullong, 0600);
+
 static bool zap_available = true;
 
 static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
@@ -226,6 +230,19 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 		mmu->funcs->destroy(mmu);
 
 	return aspace;
+}
+
+u64 adreno_private_address_space_size(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
+	if (address_space_size)
+		return address_space_size;
+
+	if (adreno_gpu->info->address_space_size)
+		return adreno_gpu->info->address_space_size;
+
+	return SZ_4G;
 }
 
 int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
@@ -790,11 +807,11 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 	for (i = 0; i < gpu->nr_rings; i++) {
 		drm_printf(p, "  - id: %d\n", i);
 		drm_printf(p, "    iova: 0x%016llx\n", state->ring[i].iova);
-		drm_printf(p, "    last-fence: %d\n", state->ring[i].seqno);
-		drm_printf(p, "    retired-fence: %d\n", state->ring[i].fence);
-		drm_printf(p, "    rptr: %d\n", state->ring[i].rptr);
-		drm_printf(p, "    wptr: %d\n", state->ring[i].wptr);
-		drm_printf(p, "    size: %d\n", MSM_GPU_RINGBUFFER_SZ);
+		drm_printf(p, "    last-fence: %u\n", state->ring[i].seqno);
+		drm_printf(p, "    retired-fence: %u\n", state->ring[i].fence);
+		drm_printf(p, "    rptr: %u\n", state->ring[i].rptr);
+		drm_printf(p, "    wptr: %u\n", state->ring[i].wptr);
+		drm_printf(p, "    size: %u\n", MSM_GPU_RINGBUFFER_SZ);
 
 		adreno_show_object(p, &state->ring[i].data,
 			state->ring[i].data_size, &state->ring[i].encoded);
@@ -807,6 +824,7 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 			drm_printf(p, "  - iova: 0x%016llx\n",
 				state->bos[i].iova);
 			drm_printf(p, "    size: %zd\n", state->bos[i].size);
+			drm_printf(p, "    name: %-32s\n", state->bos[i].name);
 
 			adreno_show_object(p, &state->bos[i].data,
 				state->bos[i].size, &state->bos[i].encoded);
@@ -1047,7 +1065,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	pm_runtime_set_autosuspend_delay(dev,
 		adreno_gpu->info->inactive_period);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_enable(dev);
 
 	return msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
 			gpu_name, &adreno_gpu_config);

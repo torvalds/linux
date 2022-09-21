@@ -50,6 +50,7 @@ properties:
 
   cm-battery-stat:
     description: battery status
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0 # battery always present
       - 1 # no battery

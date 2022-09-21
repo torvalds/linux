@@ -31,10 +31,16 @@
 #define NFP_NET_LSO_MAX_HDR_SZ		255
 #define NFP_NET_LSO_MAX_SEGS		64
 
+/* working with metadata vlan api (NFD version >= 2.0) */
+#define NFP_NET_META_VLAN_STRIP			BIT(31)
+#define NFP_NET_META_VLAN_TPID_MASK		GENMASK(19, 16)
+#define NFP_NET_META_VLAN_TCI_MASK		GENMASK(15, 0)
+
 /* Prepend field types */
 #define NFP_NET_META_FIELD_SIZE		4
 #define NFP_NET_META_HASH		1 /* next field carries hash type */
 #define NFP_NET_META_MARK		2
+#define NFP_NET_META_VLAN		4 /* ctag or stag type */
 #define NFP_NET_META_PORTID		5
 #define NFP_NET_META_CSUM		6 /* checksum complete type */
 #define NFP_NET_META_CONN_HANDLE	7
@@ -42,6 +48,10 @@
 
 #define NFP_META_PORT_ID_CTRL		~0U
 
+/* Prepend field sizes */
+#define NFP_NET_META_VLAN_SIZE			4
+#define NFP_NET_META_PORTID_SIZE		4
+#define NFP_NET_META_CONN_HANDLE_SIZE		8
 /* Hash type pre-pended when a RSS hash was computed */
 #define NFP_NET_RSS_NONE		0
 #define NFP_NET_RSS_IPV4		1
@@ -89,11 +99,15 @@
 #define   NFP_NET_CFG_CTRL_LSO		  (0x1 << 10) /* LSO/TSO (version 1) */
 #define   NFP_NET_CFG_CTRL_CTAG_FILTER	  (0x1 << 11) /* VLAN CTAG filtering */
 #define   NFP_NET_CFG_CTRL_CMSG_DATA	  (0x1 << 12) /* RX cmsgs on data Qs */
+#define   NFP_NET_CFG_CTRL_RXQINQ	  (0x1 << 13) /* Enable S-tag strip */
+#define   NFP_NET_CFG_CTRL_RXVLAN_V2	  (0x1 << 15) /* Enable C-tag strip */
 #define   NFP_NET_CFG_CTRL_RINGCFG	  (0x1 << 16) /* Ring runtime changes */
 #define   NFP_NET_CFG_CTRL_RSS		  (0x1 << 17) /* RSS (version 1) */
 #define   NFP_NET_CFG_CTRL_IRQMOD	  (0x1 << 18) /* Interrupt moderation */
 #define   NFP_NET_CFG_CTRL_MSIXAUTO	  (0x1 << 20) /* MSI-X auto-masking */
 #define   NFP_NET_CFG_CTRL_TXRWB	  (0x1 << 21) /* Write-back of TX ring*/
+#define   NFP_NET_CFG_CTRL_VEPA		  (0x1 << 22) /* Enable VEPA mode */
+#define   NFP_NET_CFG_CTRL_TXVLAN_V2	  (0x1 << 23) /* Enable VLAN C-tag insert*/
 #define   NFP_NET_CFG_CTRL_VXLAN	  (0x1 << 24) /* VXLAN tunnel support */
 #define   NFP_NET_CFG_CTRL_NVGRE	  (0x1 << 25) /* NVGRE tunnel support */
 #define   NFP_NET_CFG_CTRL_BPF		  (0x1 << 27) /* BPF offload capable */
@@ -110,6 +124,10 @@
 					 NFP_NET_CFG_CTRL_CSUM_COMPLETE)
 #define NFP_NET_CFG_CTRL_CHAIN_META	(NFP_NET_CFG_CTRL_RSS2 | \
 					 NFP_NET_CFG_CTRL_CSUM_COMPLETE)
+#define NFP_NET_CFG_CTRL_RXVLAN_ANY	(NFP_NET_CFG_CTRL_RXVLAN | \
+					 NFP_NET_CFG_CTRL_RXVLAN_V2)
+#define NFP_NET_CFG_CTRL_TXVLAN_ANY	(NFP_NET_CFG_CTRL_TXVLAN | \
+					 NFP_NET_CFG_CTRL_TXVLAN_V2)
 
 #define NFP_NET_CFG_UPDATE		0x0004
 #define   NFP_NET_CFG_UPDATE_GEN	  (0x1 <<  0) /* General update */

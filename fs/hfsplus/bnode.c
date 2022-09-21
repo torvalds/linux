@@ -447,10 +447,6 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 		page = read_mapping_page(mapping, block, NULL);
 		if (IS_ERR(page))
 			goto fail;
-		if (PageError(page)) {
-			put_page(page);
-			goto fail;
-		}
 		node->page[i] = page;
 	}
 

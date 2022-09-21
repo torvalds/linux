@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/leds-bcm63138.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom's BCM63138 LEDs controller
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+description: |
+  This LEDs controller was first used on BCM63138 and later reused on BCM4908,
+  BCM6848, BCM6858, BCM63138, BCM63148, BCM63381 and BCM68360 SoCs.
+
+  It supports up to 32 LEDs that can be connected parallelly or serially. It
+  also includes limited support for hardware blinking.
+
+  Binding serially connected LEDs isn't documented yet.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - brcm,bcm4908-leds
+              - brcm,bcm6848-leds
+              - brcm,bcm6858-leds
+              - brcm,bcm63148-leds
+              - brcm,bcm63381-leds
+              - brcm,bcm68360-leds
+          - const: brcm,bcm63138-leds
+      - const: brcm,bcm63138-leds
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^led@[a-f0-9]+$":
+    type: object
+
+    $ref: common.yaml#
+
+    properties:
+      reg:
+        maxItems: 1
+        description: LED pin number
+
+      active-low:
+        type: boolean
+        description: Makes LED active low
+
+    required:
+      - reg
+
+    unevaluatedProperties: false
+
+required:
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/leds/common.h>
+
+    leds@ff800800 {
+        compatible = "brcm,bcm4908-leds", "brcm,bcm63138-leds";
+        reg = <0xff800800 0xdc>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        led@0 {
+            reg = <0x0>;
+            function = LED_FUNCTION_POWER;
+            color = <LED_COLOR_ID_GREEN>;
+            default-state = "on";
+        };
+
+        led@3 {
+            reg = <0x3>;
+            function = LED_FUNCTION_STATUS;
+            color = <LED_COLOR_ID_GREEN>;
+            active-low;
+        };
+    };

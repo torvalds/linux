@@ -434,7 +434,7 @@ int gem_get_hwtst(struct net_device *dev, struct ifreq *rq)
 		return 0;
 }
 
-static int gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
+static void gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
 {
 	u32 reg_val;
 
@@ -444,8 +444,6 @@ static int gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
 		macb_writel(bp, NCR, reg_val | MACB_BIT(OSSMODE));
 	else
 		macb_writel(bp, NCR, reg_val & ~MACB_BIT(OSSMODE));
-
-	return 0;
 }
 
 int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -468,8 +466,7 @@ int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case HWTSTAMP_TX_OFF:
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
-		if (gem_ptp_set_one_step_sync(bp, 1) != 0)
-			return -ERANGE;
+		gem_ptp_set_one_step_sync(bp, 1);
 		tx_bd_control = TSTAMP_ALL_FRAMES;
 		break;
 	case HWTSTAMP_TX_ON:

@@ -63,9 +63,8 @@ static size_t
 pdu_write_u(struct p9_fcall *pdu, struct iov_iter *from, size_t size)
 {
 	size_t len = min(pdu->capacity - pdu->size, size);
-	struct iov_iter i = *from;
 
-	if (!copy_from_iter_full(&pdu->sdata[pdu->size], len, &i))
+	if (!copy_from_iter_full(&pdu->sdata[pdu->size], len, from))
 		len = 0;
 
 	pdu->size += len;

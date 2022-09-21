@@ -41,12 +41,6 @@ struct wilc_drv_handler {
 	u8 mode;
 } __packed;
 
-struct wilc_wep_key {
-	u8 index;
-	u8 key_len;
-	u8 key[];
-} __packed;
-
 struct wilc_sta_wpa_ptk {
 	u8 mac_addr[ETH_ALEN];
 	u8 key_len;
@@ -56,6 +50,14 @@ struct wilc_sta_wpa_ptk {
 struct wilc_ap_wpa_ptk {
 	u8 mac_addr[ETH_ALEN];
 	u8 index;
+	u8 key_len;
+	u8 key[];
+} __packed;
+
+struct wilc_wpa_igtk {
+	u8 index;
+	u8 pn_len;
+	u8 pn[6];
 	u8 key_len;
 	u8 key[];
 } __packed;
@@ -115,5 +117,14 @@ struct wilc_join_bss_param {
 		struct wilc_noa_opp_disable opp_dis;
 		struct wilc_noa_opp_enable opp_en;
 	};
+} __packed;
+
+struct wilc_external_auth_param {
+	u8 action;
+	u8 bssid[ETH_ALEN];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+	__le32 key_mgmt_suites;
+	__le16 status;
 } __packed;
 #endif

@@ -67,7 +67,7 @@ The ``netdevsim`` driver supports rate objects management, which includes:
 - setting tx_share and tx_max rate values for any rate object type;
 - setting parent node for any rate object type.
 
-Rate nodes and it's parameters are exposed in ``netdevsim`` debugfs in RO mode.
+Rate nodes and their parameters are exposed in ``netdevsim`` debugfs in RO mode.
 For example created rate node with name ``some_group``:
 
 .. code:: shell

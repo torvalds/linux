@@ -46,6 +46,7 @@
 #include "gem/i915_gem_lmem.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/uc/intel_guc_capture.h"
@@ -436,7 +437,6 @@ static void err_compression_marker(struct drm_i915_error_state_buf *m)
 static void error_print_instdone(struct drm_i915_error_state_buf *m,
 				 const struct intel_engine_coredump *ee)
 {
-	const struct sseu_dev_info *sseu = &ee->engine->gt->info.sseu;
 	int slice;
 	int subslice;
 	int iter;
@@ -453,33 +453,21 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) <= 6)
 		return;
 
-	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 50)) {
-		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
-			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.sampler[slice][subslice]);
+	for_each_ss_steering(iter, ee->engine->gt, slice, subslice)
+		err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice,
+			   ee->instdone.sampler[slice][subslice]);
 
-		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
-			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.row[slice][subslice]);
-	} else {
-		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-			err_printf(m, "  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.sampler[slice][subslice]);
-
-		for_each_instdone_slice_subslice(m->i915, sseu, slice, subslice)
-			err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
-				   slice, subslice,
-				   ee->instdone.row[slice][subslice]);
-	}
+	for_each_ss_steering(iter, ee->engine->gt, slice, subslice)
+		err_printf(m, "  ROW_INSTDONE[%d][%d]: 0x%08x\n",
+			   slice, subslice,
+			   ee->instdone.row[slice][subslice]);
 
 	if (GRAPHICS_VER(m->i915) < 12)
 		return;
 
 	if (GRAPHICS_VER_FULL(m->i915) >= IP_VER(12, 55)) {
-		for_each_instdone_gslice_dss_xehp(m->i915, sseu, iter, slice, subslice)
+		for_each_ss_steering(iter, ee->engine->gt, slice, subslice)
 			err_printf(m, "  GEOM_SVGUNIT_INSTDONE[%d][%d]: 0x%08x\n",
 				   slice, subslice,
 				   ee->instdone.geom_svg[slice][subslice]);
@@ -580,6 +568,15 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	if (GRAPHICS_VER(m->i915) >= 6) {
 		err_printf(m, "  RC PSMI: 0x%08x\n", ee->rc_psmi);
 		err_printf(m, "  FAULT_REG: 0x%08x\n", ee->fault_reg);
+	}
+	if (GRAPHICS_VER(m->i915) >= 11) {
+		err_printf(m, "  NOPID: 0x%08x\n", ee->nopid);
+		err_printf(m, "  EXCC: 0x%08x\n", ee->excc);
+		err_printf(m, "  CMD_CCTL: 0x%08x\n", ee->cmd_cctl);
+		err_printf(m, "  CSCMDOP: 0x%08x\n", ee->cscmdop);
+		err_printf(m, "  CTX_SR_CTL: 0x%08x\n", ee->ctx_sr_ctl);
+		err_printf(m, "  DMA_FADDR_HI: 0x%08x\n", ee->dma_faddr_hi);
+		err_printf(m, "  DMA_FADDR_LO: 0x%08x\n", ee->dma_faddr_lo);
 	}
 	if (HAS_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
@@ -1095,8 +1092,12 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 
 		for_each_sgt_daddr(dma, iter, vma_res->bi.pages) {
 			mutex_lock(&ggtt->error_mutex);
-			ggtt->vm.insert_page(&ggtt->vm, dma, slot,
-					     I915_CACHE_NONE, 0);
+			if (ggtt->vm.raw_insert_page)
+				ggtt->vm.raw_insert_page(&ggtt->vm, dma, slot,
+							 I915_CACHE_NONE, 0);
+			else
+				ggtt->vm.insert_page(&ggtt->vm, dma, slot,
+						     I915_CACHE_NONE, 0);
 			mb();
 
 			s = io_mapping_map_wc(&ggtt->iomap, slot, PAGE_SIZE);
@@ -1116,11 +1117,15 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 		dma_addr_t dma;
 
 		for_each_sgt_daddr(dma, iter, vma_res->bi.pages) {
+			dma_addr_t offset = dma - mem->region.start;
 			void __iomem *s;
 
-			s = io_mapping_map_wc(&mem->iomap,
-					      dma - mem->region.start,
-					      PAGE_SIZE);
+			if (offset + PAGE_SIZE > mem->io_size) {
+				ret = -EINVAL;
+				break;
+			}
+
+			s = io_mapping_map_wc(&mem->iomap, offset, PAGE_SIZE);
 			ret = compress_page(compress,
 					    (void __force *)s, dst,
 					    true);
@@ -1222,6 +1227,16 @@ static void engine_record_registers(struct intel_engine_coredump *ee)
 		ee->faddr = ENGINE_READ(engine, DMA_FADD_I8XX);
 		ee->ipeir = ENGINE_READ(engine, IPEIR);
 		ee->ipehr = ENGINE_READ(engine, IPEHR);
+	}
+
+	if (GRAPHICS_VER(i915) >= 11) {
+		ee->cmd_cctl = ENGINE_READ(engine, RING_CMD_CCTL);
+		ee->cscmdop = ENGINE_READ(engine, RING_CSCMDOP);
+		ee->ctx_sr_ctl = ENGINE_READ(engine, RING_CTX_SR_CTL);
+		ee->dma_faddr_hi = ENGINE_READ(engine, RING_DMA_FADD_UDW);
+		ee->dma_faddr_lo = ENGINE_READ(engine, RING_DMA_FADD);
+		ee->nopid = ENGINE_READ(engine, RING_NOPID);
+		ee->excc = ENGINE_READ(engine, RING_EXCC);
 	}
 
 	intel_engine_get_instdone(engine, &ee->instdone);

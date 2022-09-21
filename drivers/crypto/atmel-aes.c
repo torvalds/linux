@@ -2669,8 +2669,7 @@ static int atmel_aes_remove(struct platform_device *pdev)
 	struct atmel_aes_dev *aes_dd;
 
 	aes_dd = platform_get_drvdata(pdev);
-	if (!aes_dd)
-		return -ENODEV;
+
 	spin_lock(&atmel_aes.lock);
 	list_del(&aes_dd->list);
 	spin_unlock(&atmel_aes.lock);

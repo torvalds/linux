@@ -14,6 +14,7 @@
 
 struct dst_entry;
 struct neighbour;
+struct notifier_block ;
 
 struct netevent_redirect {
 	struct dst_entry *old;

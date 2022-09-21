@@ -228,10 +228,8 @@ static void balloon_page_putback(struct page *page)
 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 }
 
-
 /* move_to_new_page() counterpart for a ballooned page */
-static int balloon_page_migrate(struct address_space *mapping,
-		struct page *newpage, struct page *page,
+static int balloon_page_migrate(struct page *newpage, struct page *page,
 		enum migrate_mode mode)
 {
 	struct balloon_dev_info *balloon = balloon_page_device(page);
@@ -250,11 +248,11 @@ static int balloon_page_migrate(struct address_space *mapping,
 	return balloon->migratepage(balloon, newpage, page, mode);
 }
 
-const struct address_space_operations balloon_aops = {
-	.migratepage = balloon_page_migrate,
+const struct movable_operations balloon_mops = {
+	.migrate_page = balloon_page_migrate,
 	.isolate_page = balloon_page_isolate,
 	.putback_page = balloon_page_putback,
 };
-EXPORT_SYMBOL_GPL(balloon_aops);
+EXPORT_SYMBOL_GPL(balloon_mops);
 
 #endif /* CONFIG_BALLOON_COMPACTION */

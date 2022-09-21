@@ -39,6 +39,7 @@ properties:
               - rockchip,rk3399-dw-mshc
               - rockchip,rk3568-dw-mshc
               - rockchip,rv1108-dw-mshc
+              - rockchip,rv1126-dw-mshc
           - const: rockchip,rk3288-dw-mshc
 
   reg:

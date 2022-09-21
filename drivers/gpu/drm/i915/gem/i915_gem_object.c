@@ -268,7 +268,7 @@ static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
  */
 void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 {
-	assert_object_held(obj);
+	assert_object_held_shared(obj);
 
 	if (!list_empty(&obj->vma.list)) {
 		struct i915_vma *vma;
@@ -331,15 +331,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			continue;
 		}
 
-		if (!i915_gem_object_trylock(obj, NULL)) {
-			/* busy, toss it back to the pile */
-			if (llist_add(&obj->freed, &i915->mm.free_list))
-				queue_delayed_work(i915->wq, &i915->mm.free_work, msecs_to_jiffies(10));
-			continue;
-		}
-
 		__i915_gem_object_pages_fini(obj);
-		i915_gem_object_unlock(obj);
 		__i915_gem_free_object(obj);
 
 		/* But keep the pointer alive for RCU-protected lookups */
@@ -359,7 +351,7 @@ void i915_gem_flush_free_objects(struct drm_i915_private *i915)
 static void __i915_gem_free_work(struct work_struct *work)
 {
 	struct drm_i915_private *i915 =
-		container_of(work, struct drm_i915_private, mm.free_work.work);
+		container_of(work, struct drm_i915_private, mm.free_work);
 
 	i915_gem_flush_free_objects(i915);
 }
@@ -391,7 +383,7 @@ static void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	 */
 
 	if (llist_add(&obj->freed, &i915->mm.free_list))
-		queue_delayed_work(i915->wq, &i915->mm.free_work, 0);
+		queue_work(i915->wq, &i915->mm.free_work);
 }
 
 void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
@@ -717,9 +709,38 @@ bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
 	return false;
 }
 
+/**
+ * i915_gem_object_needs_ccs_pages - Check whether the object requires extra
+ * pages when placed in system-memory, in order to save and later restore the
+ * flat-CCS aux state when the object is moved between local-memory and
+ * system-memory
+ * @obj: Pointer to the object
+ *
+ * Return: True if the object needs extra ccs pages. False otherwise.
+ */
+bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj)
+{
+	bool lmem_placement = false;
+	int i;
+
+	if (!HAS_FLAT_CCS(to_i915(obj->base.dev)))
+		return false;
+
+	for (i = 0; i < obj->mm.n_placements; i++) {
+		/* Compression is not allowed for the objects with smem placement */
+		if (obj->mm.placements[i]->type == INTEL_MEMORY_SYSTEM)
+			return false;
+		if (!lmem_placement &&
+		    obj->mm.placements[i]->type == INTEL_MEMORY_LOCAL)
+			lmem_placement = true;
+	}
+
+	return lmem_placement;
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
-	INIT_DELAYED_WORK(&i915->mm.free_work, __i915_gem_free_work);
+	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
 }
 
 void i915_objects_module_exit(void)
@@ -783,8 +804,29 @@ int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				    intr, MAX_SCHEDULE_TIMEOUT);
 	if (!ret)
 		ret = -ETIME;
+	else if (ret > 0 && i915_gem_object_has_unknown_state(obj))
+		ret = -EIO;
 
 	return ret < 0 ? ret : 0;
+}
+
+/**
+ * i915_gem_object_has_unknown_state - Return true if the object backing pages are
+ * in an unknown_state. This means that userspace must NEVER be allowed to touch
+ * the pages, with either the GPU or CPU.
+ *
+ * ONLY valid to be called after ensuring that all kernel fences have signalled
+ * (in particular the fence for moving/clearing the object).
+ */
+bool i915_gem_object_has_unknown_state(struct drm_i915_gem_object *obj)
+{
+	/*
+	 * The below barrier pairs with the dma_fence_signal() in
+	 * __memcpy_work(). We should only sample the unknown_state after all
+	 * the kernel fences have signalled.
+	 */
+	smp_rmb();
+	return obj->mm.unknown_state;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

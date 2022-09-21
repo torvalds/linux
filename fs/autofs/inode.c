@@ -20,6 +20,7 @@ struct autofs_info *autofs_new_ino(struct autofs_sb_info *sbi)
 		INIT_LIST_HEAD(&ino->expiring);
 		ino->last_used = jiffies;
 		ino->sbi = sbi;
+		ino->count = 1;
 	}
 	return ino;
 }

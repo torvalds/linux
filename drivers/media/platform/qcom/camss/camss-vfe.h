@@ -163,9 +163,6 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 
 void msm_vfe_unregister_entities(struct vfe_device *vfe);
 
-void msm_vfe_get_vfe_id(struct media_entity *entity, u8 *id);
-void msm_vfe_get_vfe_line_id(struct media_entity *entity, enum vfe_line_id *id);
-
 /*
  * vfe_buf_add_pending - Add output buffer to list of pending
  * @output: VFE output

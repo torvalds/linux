@@ -41,6 +41,8 @@ enum dml_project {
 	DML_PROJECT_DCN30,
 	DML_PROJECT_DCN31,
 	DML_PROJECT_DCN31_FPGA,
+	DML_PROJECT_DCN314,
+	DML_PROJECT_DCN32,
 };
 
 struct display_mode_lib;
@@ -62,6 +64,20 @@ struct dml_funcs {
 		struct display_mode_lib *mode_lib,
 		display_rq_regs_st *rq_regs,
 		const display_pipe_params_st *pipe_param);
+	// DLG interfaces have different function parameters in DCN32.
+	// Create new function pointers to address the changes
+	void (*rq_dlg_get_dlg_reg_v2)(
+			struct display_mode_lib *mode_lib,
+			display_dlg_regs_st *dlg_regs,
+			display_ttu_regs_st *ttu_regs,
+			display_e2e_pipe_params_st *e2e_pipe_param,
+			const unsigned int num_pipes,
+			const unsigned int pipe_idx);
+	void (*rq_dlg_get_rq_reg_v2)(display_rq_regs_st *rq_regs,
+			struct display_mode_lib *mode_lib,
+			const display_e2e_pipe_params_st *e2e_pipe_param,
+			const unsigned int num_pipes,
+			const unsigned int pipe_idx);
 	void (*recalculate)(struct display_mode_lib *mode_lib);
 	void (*validate)(struct display_mode_lib *mode_lib);
 };

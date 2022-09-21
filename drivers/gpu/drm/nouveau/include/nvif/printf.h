@@ -17,4 +17,13 @@
 #endif
 
 #define NVIF_ERROR(o,f,a...) NVIF_PRINT(errorf, (o), f, ##a)
+#define NVIF_ERRON(c,o,f,a...) do {                            \
+	struct nvif_object *_object = (o);                     \
+	int _cond = (c);                                       \
+	if (_cond) {                                           \
+		NVIF_ERROR(_object, f" (ret:%d)", ##a, _cond); \
+	} else {                                               \
+		NVIF_DEBUG(_object, f, ##a);                   \
+	}                                                      \
+} while(0)
 #endif

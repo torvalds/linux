@@ -290,7 +290,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(dev->gd);
+	put_disk(dev->gd);
 out:
 	return err;
 }
@@ -344,7 +344,7 @@ static void simdisk_teardown(struct simdisk *dev, int which,
 	simdisk_detach(dev);
 	if (dev->gd) {
 		del_gendisk(dev->gd);
-		blk_cleanup_disk(dev->gd);
+		put_disk(dev->gd);
 	}
 	remove_proc_entry(tmp, procdir);
 }

@@ -49,7 +49,7 @@
 
 		/* For reasons still unknown, GAssist key and Camera Focus/Shutter don't work.. */
 
-		vol-down {
+		key-vol-down {
 			label = "Volume Down";
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpios = <&pmk8350_gpios 3 GPIO_ACTIVE_LOW>;

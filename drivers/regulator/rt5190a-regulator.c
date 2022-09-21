@@ -224,6 +224,9 @@ static int rt5190a_of_parse_cb(struct rt5190a_priv *priv, int rid,
 	bool latchup_enable;
 	unsigned int mask = RT5190A_RID_BITMASK(rid), val;
 
+	if (!init_data)
+		return 0;
+
 	switch (rid) {
 	case RT5190A_IDX_BUCK1:
 	case RT5190A_IDX_BUCK4:

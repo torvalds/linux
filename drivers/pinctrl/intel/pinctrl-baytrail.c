@@ -603,7 +603,7 @@ static const char *byt_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *vg = pinctrl_dev_get_drvdata(pctldev);
 
-	return vg->soc->groups[selector].name;
+	return vg->soc->groups[selector].grp.name;
 }
 
 static int byt_get_group_pins(struct pinctrl_dev *pctldev,
@@ -613,8 +613,8 @@ static int byt_get_group_pins(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *vg = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins		= vg->soc->groups[selector].pins;
-	*num_pins	= vg->soc->groups[selector].npins;
+	*pins		= vg->soc->groups[selector].grp.pins;
+	*num_pins	= vg->soc->groups[selector].grp.npins;
 
 	return 0;
 }
@@ -662,15 +662,15 @@ static void byt_set_group_simple_mux(struct intel_pinctrl *vg,
 
 	raw_spin_lock_irqsave(&byt_lock, flags);
 
-	for (i = 0; i < group.npins; i++) {
+	for (i = 0; i < group.grp.npins; i++) {
 		void __iomem *padcfg0;
 		u32 value;
 
-		padcfg0 = byt_gpio_reg(vg, group.pins[i], BYT_CONF0_REG);
+		padcfg0 = byt_gpio_reg(vg, group.grp.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
 			dev_warn(vg->dev,
 				 "Group %s, pin %i not muxed (no padcfg0)\n",
-				 group.name, i);
+				 group.grp.name, i);
 			continue;
 		}
 
@@ -692,15 +692,15 @@ static void byt_set_group_mixed_mux(struct intel_pinctrl *vg,
 
 	raw_spin_lock_irqsave(&byt_lock, flags);
 
-	for (i = 0; i < group.npins; i++) {
+	for (i = 0; i < group.grp.npins; i++) {
 		void __iomem *padcfg0;
 		u32 value;
 
-		padcfg0 = byt_gpio_reg(vg, group.pins[i], BYT_CONF0_REG);
+		padcfg0 = byt_gpio_reg(vg, group.grp.pins[i], BYT_CONF0_REG);
 		if (!padcfg0) {
 			dev_warn(vg->dev,
 				 "Group %s, pin %i not muxed (no padcfg0)\n",
-				 group.name, i);
+				 group.grp.name, i);
 			continue;
 		}
 

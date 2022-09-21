@@ -686,6 +686,9 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 				mmcr2 |= MMCR2_FCS(pmc);
 		}
 
+		if (pevents[i]->attr.exclude_idle)
+			mmcr2 |= MMCR2_FCWAIT(pmc);
+
 		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
 			if (pmc <= 4) {
 				val = (event[i] >> p10_EVENT_MMCR3_SHIFT) &

@@ -119,7 +119,7 @@ static int acm_ctrl_msg(struct acm *acm, int request, int value,
 	retval = usb_control_msg(acm->dev, usb_sndctrlpipe(acm->dev, 0),
 		request, USB_RT_ACM, value,
 		acm->control->altsetting[0].desc.bInterfaceNumber,
-		buf, len, 5000);
+		buf, len, USB_CTRL_SET_TIMEOUT);
 
 	dev_dbg(&acm->control->dev,
 		"%s - rq 0x%02x, val %#x, len %#x, result %d\n",
@@ -311,7 +311,7 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 		dev_dbg(&acm->control->dev,
 			"%s - serial state: 0x%x\n", __func__, newctrl);
 
-		if (!acm->clocal && (acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
+		if (!acm->clocal && (acm->ctrlin & ~newctrl & USB_CDC_SERIAL_STATE_DCD)) {
 			dev_dbg(&acm->control->dev,
 				"%s - calling hangup\n", __func__);
 			tty_port_tty_hangup(&acm->port, false);
@@ -322,25 +322,25 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 		acm->ctrlin = newctrl;
 		acm->oldcount = acm->iocount;
 
-		if (difference & ACM_CTRL_DSR)
+		if (difference & USB_CDC_SERIAL_STATE_DSR)
 			acm->iocount.dsr++;
-		if (difference & ACM_CTRL_DCD)
+		if (difference & USB_CDC_SERIAL_STATE_DCD)
 			acm->iocount.dcd++;
-		if (newctrl & ACM_CTRL_BRK) {
+		if (newctrl & USB_CDC_SERIAL_STATE_BREAK) {
 			acm->iocount.brk++;
 			tty_insert_flip_char(&acm->port, 0, TTY_BREAK);
 		}
-		if (newctrl & ACM_CTRL_RI)
+		if (newctrl & USB_CDC_SERIAL_STATE_RING_SIGNAL)
 			acm->iocount.rng++;
-		if (newctrl & ACM_CTRL_FRAMING)
+		if (newctrl & USB_CDC_SERIAL_STATE_FRAMING)
 			acm->iocount.frame++;
-		if (newctrl & ACM_CTRL_PARITY)
+		if (newctrl & USB_CDC_SERIAL_STATE_PARITY)
 			acm->iocount.parity++;
-		if (newctrl & ACM_CTRL_OVERRUN)
+		if (newctrl & USB_CDC_SERIAL_STATE_OVERRUN)
 			acm->iocount.overrun++;
 		spin_unlock_irqrestore(&acm->read_lock, flags);
 
-		if (newctrl & ACM_CTRL_BRK)
+		if (newctrl & USB_CDC_SERIAL_STATE_BREAK)
 			tty_flip_buffer_push(&acm->port);
 
 		if (difference)
@@ -658,7 +658,7 @@ static void acm_port_dtr_rts(struct tty_port *port, int raise)
 	int res;
 
 	if (raise)
-		val = ACM_CTRL_DTR | ACM_CTRL_RTS;
+		val = USB_CDC_CTRL_DTR | USB_CDC_CTRL_RTS;
 	else
 		val = 0;
 
@@ -903,11 +903,11 @@ static int acm_tty_tiocmget(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 
-	return (acm->ctrlout & ACM_CTRL_DTR ? TIOCM_DTR : 0) |
-	       (acm->ctrlout & ACM_CTRL_RTS ? TIOCM_RTS : 0) |
-	       (acm->ctrlin  & ACM_CTRL_DSR ? TIOCM_DSR : 0) |
-	       (acm->ctrlin  & ACM_CTRL_RI  ? TIOCM_RI  : 0) |
-	       (acm->ctrlin  & ACM_CTRL_DCD ? TIOCM_CD  : 0) |
+	return (acm->ctrlout & USB_CDC_CTRL_DTR ? TIOCM_DTR : 0) |
+	       (acm->ctrlout & USB_CDC_CTRL_RTS ? TIOCM_RTS : 0) |
+	       (acm->ctrlin  & USB_CDC_SERIAL_STATE_DSR ? TIOCM_DSR : 0) |
+	       (acm->ctrlin  & USB_CDC_SERIAL_STATE_RING_SIGNAL ? TIOCM_RI : 0) |
+	       (acm->ctrlin  & USB_CDC_SERIAL_STATE_DCD ? TIOCM_CD : 0) |
 	       TIOCM_CTS;
 }
 
@@ -918,10 +918,10 @@ static int acm_tty_tiocmset(struct tty_struct *tty,
 	unsigned int newctrl;
 
 	newctrl = acm->ctrlout;
-	set = (set & TIOCM_DTR ? ACM_CTRL_DTR : 0) |
-					(set & TIOCM_RTS ? ACM_CTRL_RTS : 0);
-	clear = (clear & TIOCM_DTR ? ACM_CTRL_DTR : 0) |
-					(clear & TIOCM_RTS ? ACM_CTRL_RTS : 0);
+	set = (set & TIOCM_DTR ? USB_CDC_CTRL_DTR : 0) |
+	      (set & TIOCM_RTS ? USB_CDC_CTRL_RTS : 0);
+	clear = (clear & TIOCM_DTR ? USB_CDC_CTRL_DTR : 0) |
+		(clear & TIOCM_RTS ? USB_CDC_CTRL_RTS : 0);
 
 	newctrl = (newctrl & ~clear) | set;
 
@@ -1068,9 +1068,9 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 
 	if (C_BAUD(tty) == B0) {
 		newline.dwDTERate = acm->line.dwDTERate;
-		newctrl &= ~ACM_CTRL_DTR;
+		newctrl &= ~USB_CDC_CTRL_DTR;
 	} else if (termios_old && (termios_old->c_cflag & CBAUD) == B0) {
-		newctrl |=  ACM_CTRL_DTR;
+		newctrl |=  USB_CDC_CTRL_DTR;
 	}
 
 	if (newctrl != acm->ctrlout)
@@ -1809,6 +1809,9 @@ static const struct usb_device_id acm_ids[] = {
 	},
 	{ USB_DEVICE(0x09d8, 0x0320), /* Elatec GmbH TWN3 */
 	.driver_info = NO_UNION_NORMAL, /* has misplaced union descriptor */
+	},
+	{ USB_DEVICE(0x0c26, 0x0020), /* Icom ICF3400 Serie */
+	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
 	{ USB_DEVICE(0x0ca6, 0xa050), /* Castles VEGA3000 */
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */

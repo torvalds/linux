@@ -554,6 +554,11 @@ properties:
           - const: vamrs,rk3399pro-vmarc-som
           - const: rockchip,rk3399pro
 
+      - description: Radxa ROCK Pi S
+        items:
+          - const: radxa,rockpis
+          - const: rockchip,rk3308
+
       - description: Radxa Rock2 Square
         items:
           - const: radxa,rock2-square

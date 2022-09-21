@@ -149,6 +149,9 @@ static void mlx5_fw_reset_complete_reload(struct mlx5_core_dev *dev)
 	if (test_bit(MLX5_FW_RESET_FLAGS_PENDING_COMP, &fw_reset->reset_flags)) {
 		complete(&fw_reset->done);
 	} else {
+		mlx5_unload_one(dev);
+		if (mlx5_health_wait_pci_up(dev))
+			mlx5_core_err(dev, "reset reload flow aborted, PCI reads still not working\n");
 		mlx5_load_one(dev, false);
 		devlink_remote_reload_actions_performed(priv_to_devlink(dev), 0,
 							BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
@@ -183,15 +186,9 @@ static void mlx5_sync_reset_reload_work(struct work_struct *work)
 	struct mlx5_fw_reset *fw_reset = container_of(work, struct mlx5_fw_reset,
 						      reset_reload_work);
 	struct mlx5_core_dev *dev = fw_reset->dev;
-	int err;
 
 	mlx5_sync_reset_clear_reset_requested(dev, false);
 	mlx5_enter_error_state(dev, true);
-	mlx5_unload_one(dev);
-	err = mlx5_health_wait_pci_up(dev);
-	if (err)
-		mlx5_core_err(dev, "reset reload flow aborted, PCI reads still not working\n");
-	fw_reset->ret = err;
 	mlx5_fw_reset_complete_reload(dev);
 }
 
@@ -395,7 +392,6 @@ static void mlx5_sync_reset_now_event(struct work_struct *work)
 	}
 
 	mlx5_enter_error_state(dev, true);
-	mlx5_unload_one(dev);
 done:
 	fw_reset->ret = err;
 	mlx5_fw_reset_complete_reload(dev);

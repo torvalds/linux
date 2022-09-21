@@ -114,7 +114,7 @@ For a function using multiple GPIOs all of those can be obtained with one call::
 
 This function returns a struct gpio_descs which contains an array of
 descriptors.  It also contains a pointer to a gpiolib private structure which,
-if passed back to get/set array functions, may speed up I/O proocessing::
+if passed back to get/set array functions, may speed up I/O processing::
 
 	struct gpio_descs {
 		struct gpio_array *info;

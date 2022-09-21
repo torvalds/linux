@@ -145,7 +145,7 @@ static int via_rng_init(struct hwrng *rng)
 	}
 
 	/* Control the RNG via MSR.  Tread lightly and pay very close
-	 * close attention to values written, as the reserved fields
+	 * attention to values written, as the reserved fields
 	 * are documented to be "undefined and unpredictable"; but it
 	 * does not say to write them as zero, so I make a guess that
 	 * we restore the values we find in the register.

@@ -116,7 +116,6 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(NOXMERGES),
 	QUEUE_FLAG_NAME(ADD_RANDOM),
 	QUEUE_FLAG_NAME(SAME_FORCE),
-	QUEUE_FLAG_NAME(DEAD),
 	QUEUE_FLAG_NAME(INIT_DONE),
 	QUEUE_FLAG_NAME(STABLE_WRITES),
 	QUEUE_FLAG_NAME(POLL),
@@ -151,11 +150,10 @@ static ssize_t queue_state_write(void *data, const char __user *buf,
 	char opbuf[16] = { }, *op;
 
 	/*
-	 * The "state" attribute is removed after blk_cleanup_queue() has called
-	 * blk_mq_free_queue(). Return if QUEUE_FLAG_DEAD has been set to avoid
-	 * triggering a use-after-free.
+	 * The "state" attribute is removed when the queue is removed.  Don't
+	 * allow setting the state on a dying queue to avoid a use-after-free.
 	 */
-	if (blk_queue_dead(q))
+	if (blk_queue_dying(q))
 		return -ENOENT;
 
 	if (count >= sizeof(opbuf)) {
@@ -285,7 +283,9 @@ static const char *const rqf_name[] = {
 	RQF_NAME(SPECIAL_PAYLOAD),
 	RQF_NAME(ZONE_WRITE_LOCKED),
 	RQF_NAME(MQ_POLL_SLEPT),
+	RQF_NAME(TIMED_OUT),
 	RQF_NAME(ELV),
+	RQF_NAME(RESV),
 };
 #undef RQF_NAME
 
@@ -306,7 +306,7 @@ static const char *blk_mq_rq_state_name(enum mq_rq_state rq_state)
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
-	const unsigned int op = req_op(rq);
+	const enum req_op op = req_op(rq);
 	const char *op_str = blk_op_str(op);
 
 	seq_printf(m, "%p {.op=", rq);
@@ -315,8 +315,8 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	else
 		seq_printf(m, "%s", op_str);
 	seq_puts(m, ", .cmd_flags=");
-	blk_flags_show(m, rq->cmd_flags & ~REQ_OP_MASK, cmd_flag_name,
-		       ARRAY_SIZE(cmd_flag_name));
+	blk_flags_show(m, (__force unsigned int)(rq->cmd_flags & ~REQ_OP_MASK),
+		       cmd_flag_name, ARRAY_SIZE(cmd_flag_name));
 	seq_puts(m, ", .rq_flags=");
 	blk_flags_show(m, (__force unsigned int)rq->rq_flags, rqf_name,
 		       ARRAY_SIZE(rqf_name));
@@ -377,7 +377,7 @@ struct show_busy_params {
  * e.g. due to a concurrent blk_mq_finish_request() call. Returns true to
  * keep iterating requests.
  */
-static bool hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
+static bool hctx_show_busy_rq(struct request *rq, void *data)
 {
 	const struct show_busy_params *params = data;
 
@@ -729,6 +729,9 @@ void blk_mq_debugfs_register_hctx(struct request_queue *q,
 	struct blk_mq_ctx *ctx;
 	char name[20];
 	int i;
+
+	if (!q->debugfs_dir)
+		return;
 
 	snprintf(name, sizeof(name), "hctx%u", hctx->queue_num);
 	hctx->debugfs_dir = debugfs_create_dir(name, q->debugfs_dir);

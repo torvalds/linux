@@ -116,8 +116,7 @@ static enum blk_eh_timer_return mmc_cqe_timed_out(struct request *req)
 	}
 }
 
-static enum blk_eh_timer_return mmc_mq_timed_out(struct request *req,
-						 bool reserved)
+static enum blk_eh_timer_return mmc_mq_timed_out(struct request *req)
 {
 	struct request_queue *q = req->q;
 	struct mmc_queue *mq = q->queuedata;
@@ -494,7 +493,6 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	if (blk_queue_quiesced(q))
 		blk_mq_unquiesce_queue(q);
 
-	blk_cleanup_queue(q);
 	blk_mq_free_tag_set(&mq->tag_set);
 
 	/*

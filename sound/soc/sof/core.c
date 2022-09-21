@@ -189,7 +189,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	ret = snd_sof_probe(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to probe DSP %d\n", ret);
-		return ret;
+		goto probe_err;
 	}
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
@@ -317,6 +317,8 @@ dbg_err:
 	snd_sof_free_debug(sdev);
 dsp_err:
 	snd_sof_remove(sdev);
+probe_err:
+	sof_ops_free(sdev);
 
 	/* all resources freed, update state to match */
 	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
@@ -374,6 +376,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
 	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
 	    !sof_ops(sdev)->ipc_msg_data) {
+		sof_ops_free(sdev);
 		dev_err(dev, "error: missing mandatory ops\n");
 		return -EINVAL;
 	}
@@ -456,6 +459,8 @@ int snd_sof_device_remove(struct device *dev)
 		snd_sof_free_debug(sdev);
 		snd_sof_remove(sdev);
 	}
+
+	sof_ops_free(sdev);
 
 	/* release firmware */
 	snd_sof_fw_unload(sdev);

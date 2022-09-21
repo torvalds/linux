@@ -29,6 +29,8 @@ properties:
     description: gpio valid number range.
     maxItems: 1
 
+  gpio-line-names: true
+
   reg:
     description: |
       Physical address base for gpio base registers. There are 8 GPIO
@@ -49,7 +51,7 @@ properties:
     description: The interrupt outputs to sysirq.
     maxItems: 1
 
-  mediatek,rsel_resistance_in_si_unit:
+  mediatek,rsel-resistance-in-si-unit:
     type: boolean
     description: |
       Identifying i2c pins pull up/down type which is RSEL. It can support
@@ -98,31 +100,8 @@ patternProperties:
           drive-strength:
             enum: [2, 4, 6, 8, 10, 12, 14, 16]
 
-          mediatek,drive-strength-adv:
-            description: |
-              Describe the specific driving setup property.
-              For I2C pins, the existing generic driving setup can only support
-              2/4/6/8/10/12/14/16mA driving. But in specific driving setup, they
-              can support 0.125/0.25/0.5/1mA adjustment. If we enable specific
-              driving setup, the existing generic setup will be disabled.
-              The specific driving setup is controlled by E1E0EN.
-              When E1=0/E0=0, the strength is 0.125mA.
-              When E1=0/E0=1, the strength is 0.25mA.
-              When E1=1/E0=0, the strength is 0.5mA.
-              When E1=1/E0=1, the strength is 1mA.
-              EN is used to enable or disable the specific driving setup.
-              Valid arguments are described as below:
-              0: (E1, E0, EN) = (0, 0, 0)
-              1: (E1, E0, EN) = (0, 0, 1)
-              2: (E1, E0, EN) = (0, 1, 0)
-              3: (E1, E0, EN) = (0, 1, 1)
-              4: (E1, E0, EN) = (1, 0, 0)
-              5: (E1, E0, EN) = (1, 0, 1)
-              6: (E1, E0, EN) = (1, 1, 0)
-              7: (E1, E0, EN) = (1, 1, 1)
-              So the valid arguments are from 0 to 7.
-            $ref: /schemas/types.yaml#/definitions/uint32
-            enum: [0, 1, 2, 3, 4, 5, 6, 7]
+          drive-strength-microamp:
+            enum: [125, 250, 500, 1000]
 
           bias-pull-down:
             oneOf:
@@ -142,7 +121,7 @@ patternProperties:
               "MTK_PUPD_SET_R1R0_11" define in mt8195.
               For pull down type is RSEL, it can add RSEL define & resistance
               value(ohm) to set different resistance by identifying property
-              "mediatek,rsel_resistance_in_si_unit".
+              "mediatek,rsel-resistance-in-si-unit".
               It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
               & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011"
               & "MTK_PULL_SET_RSEL_100" & "MTK_PULL_SET_RSEL_101"
@@ -161,7 +140,7 @@ patternProperties:
               };
               An example of using si unit resistance value(ohm):
               &pio {
-                mediatek,rsel_resistance_in_si_unit;
+                mediatek,rsel-resistance-in-si-unit;
               }
               pincontroller {
                 i2c0_pin {
@@ -190,7 +169,7 @@ patternProperties:
               "MTK_PUPD_SET_R1R0_11" define in mt8195.
               For pull up type is RSEL, it can add RSEL define & resistance
               value(ohm) to set different resistance by identifying property
-              "mediatek,rsel_resistance_in_si_unit".
+              "mediatek,rsel-resistance-in-si-unit".
               It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
               & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011"
               & "MTK_PULL_SET_RSEL_100" & "MTK_PULL_SET_RSEL_101"
@@ -209,7 +188,7 @@ patternProperties:
               };
               An example of using si unit resistance value(ohm):
               &pio {
-                mediatek,rsel_resistance_in_si_unit;
+                mediatek,rsel-resistance-in-si-unit;
               }
               pincontroller {
                 i2c0-pins {
@@ -302,7 +281,7 @@ examples:
           pinmux = <PINMUX_GPIO8__FUNC_SDA0>,
                    <PINMUX_GPIO9__FUNC_SCL0>;
           bias-disable;
-          mediatek,drive-strength-adv = <7>;
+          drive-strength-microamp = <1000>;
         };
       };
     };

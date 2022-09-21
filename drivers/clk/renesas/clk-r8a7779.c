@@ -21,12 +21,6 @@
 
 #define CPG_NUM_CLOCKS			(R8A7779_CLK_OUT + 1)
 
-struct r8a7779_cpg {
-	struct clk_onecell_data data;
-	spinlock_t lock;
-	void __iomem *reg;
-};
-
 /* -----------------------------------------------------------------------------
  * CPG Clock Data
  */
@@ -87,7 +81,7 @@ static const unsigned int cpg_plla_mult[4] __initconst = { 42, 48, 56, 64 };
  */
 
 static struct clk * __init
-r8a7779_cpg_register_clock(struct device_node *np, struct r8a7779_cpg *cpg,
+r8a7779_cpg_register_clock(struct device_node *np,
 			   const struct cpg_clk_config *config,
 			   unsigned int plla_mult, const char *name)
 {
@@ -119,7 +113,7 @@ r8a7779_cpg_register_clock(struct device_node *np, struct r8a7779_cpg *cpg,
 static void __init r8a7779_cpg_clocks_init(struct device_node *np)
 {
 	const struct cpg_clk_config *config;
-	struct r8a7779_cpg *cpg;
+	struct clk_onecell_data *data;
 	struct clk **clks;
 	unsigned int i, plla_mult;
 	int num_clks;
@@ -134,19 +128,17 @@ static void __init r8a7779_cpg_clocks_init(struct device_node *np)
 		return;
 	}
 
-	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	clks = kcalloc(CPG_NUM_CLOCKS, sizeof(*clks), GFP_KERNEL);
-	if (cpg == NULL || clks == NULL) {
+	if (data == NULL || clks == NULL) {
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.
 		 */
 		return;
 	}
 
-	spin_lock_init(&cpg->lock);
-
-	cpg->data.clks = clks;
-	cpg->data.clk_num = num_clks;
+	data->clks = clks;
+	data->clk_num = num_clks;
 
 	config = &cpg_clk_configs[CPG_CLK_CONFIG_INDEX(mode)];
 	plla_mult = cpg_plla_mult[CPG_PLLA_MULT_INDEX(mode)];
@@ -158,16 +150,15 @@ static void __init r8a7779_cpg_clocks_init(struct device_node *np)
 		of_property_read_string_index(np, "clock-output-names", i,
 					      &name);
 
-		clk = r8a7779_cpg_register_clock(np, cpg, config,
-						 plla_mult, name);
+		clk = r8a7779_cpg_register_clock(np, config, plla_mult, name);
 		if (IS_ERR(clk))
 			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
 			       __func__, np, name, PTR_ERR(clk));
 		else
-			cpg->data.clks[i] = clk;
+			data->clks[i] = clk;
 	}
 
-	of_clk_add_provider(np, of_clk_src_onecell_get, &cpg->data);
+	of_clk_add_provider(np, of_clk_src_onecell_get, data);
 
 	cpg_mstp_add_clk_domain(np);
 }

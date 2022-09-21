@@ -8,14 +8,11 @@ TEST_GEN_PROGS := $(src_test:.c=)
 
 TEST_GEN_PROGS_EXTENDED := true
 
-KSFT_KHDR_INSTALL := 1
 OVERRIDE_TARGETS := 1
+top_srcdir := ../../../..
 include ../lib.mk
 
 khdr_dir = $(top_srcdir)/usr/include
-
-$(khdr_dir)/linux/landlock.h: khdr
-	@:
 
 $(OUTPUT)/true: true.c
 	$(LINK.c) $< $(LDLIBS) -o $@ -static

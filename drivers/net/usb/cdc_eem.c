@@ -218,7 +218,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				if (unlikely(!skb2))
 					goto next;
 				skb_trim(skb2, len);
-				put_unaligned_le16(BIT(15) | (1 << 11) | len,
+				put_unaligned_le16(BIT(15) | BIT(11) | len,
 						skb_push(skb2, 2));
 				eem_linkcmd(dev, skb2);
 				break;

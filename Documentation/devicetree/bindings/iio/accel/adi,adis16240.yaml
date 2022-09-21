@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ADIS16240 Programmable Impact Sensor and Recorder driver
 
 maintainers:
-  - Alexandru Ardelean <alexandru.ardelean@analog.com>
+  - Alexandru Tachici <alexandru.tachici@analog.com>
 
 description: |
   ADIS16240 Programmable Impact Sensor and Recorder driver that supports

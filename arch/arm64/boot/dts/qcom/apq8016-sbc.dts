@@ -8,6 +8,7 @@
 #include "msm8916-pm8916.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 #include <dt-bindings/sound/apq8016-lpass.h>
@@ -20,11 +21,11 @@
 		serial0 = &blsp1_uart2;
 		serial1 = &blsp1_uart1;
 		usid0 = &pm8916_0;
-		i2c0	= &blsp_i2c2;
-		i2c1	= &blsp_i2c6;
-		i2c3	= &blsp_i2c4;
-		spi0	= &blsp_spi5;
-		spi1	= &blsp_spi3;
+		i2c0 = &blsp_i2c2;
+		i2c1 = &blsp_i2c6;
+		i2c3 = &blsp_i2c4;
+		spi0 = &blsp_spi5;
+		spi1 = &blsp_spi3;
 	};
 
 	chosen {
@@ -92,14 +93,12 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&msm_key_volp_n_default>;
 
-		button@0 {
+		button {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
@@ -116,6 +115,8 @@
 
 		led@1 {
 			label = "apq8016-sbc:green:user1";
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
@@ -123,6 +124,8 @@
 
 		led@2 {
 			label = "apq8016-sbc:green:user2";
+			function = LED_FUNCTION_DISK_ACTIVITY;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&msmgpio 120 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
@@ -130,6 +133,8 @@
 
 		led@3 {
 			label = "apq8016-sbc:green:user3";
+			function = LED_FUNCTION_DISK_ACTIVITY;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pm8916_gpios 1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc1";
 			default-state = "off";
@@ -137,6 +142,7 @@
 
 		led@4 {
 			label = "apq8016-sbc:green:user4";
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "none";
 			panic-indicator;
@@ -145,6 +151,8 @@
 
 		led@5 {
 			label = "apq8016-sbc:yellow:wlan";
+			function = LED_FUNCTION_WLAN;
+			color = <LED_COLOR_ID_YELLOW>;
 			gpios = <&pm8916_mpps 2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "phy0tx";
 			default-state = "off";
@@ -152,6 +160,8 @@
 
 		led@6 {
 			label = "apq8016-sbc:blue:bt";
+			function = LED_FUNCTION_BLUETOOTH;
+			color = <LED_COLOR_ID_BLUE>;
 			gpios = <&pm8916_mpps 3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "bluetooth-power";
 			default-state = "off";
@@ -773,7 +783,7 @@
 		"USB_HUB_RESET_N_PM",
 		"USB_SW_SEL_PM";
 
-	usb_hub_reset_pm: usb-hub-reset-pm {
+	usb_hub_reset_pm: usb-hub-reset-pm-state {
 		pins = "gpio3";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
@@ -781,14 +791,14 @@
 		output-high;
 	};
 
-	usb_hub_reset_pm_device: usb-hub-reset-pm-device {
+	usb_hub_reset_pm_device: usb-hub-reset-pm-device-state {
 		pins = "gpio3";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
 		output-low;
 	};
 
-	usb_sw_sel_pm: usb-sw-sel-pm {
+	usb_sw_sel_pm: usb-sw-sel-pm-state {
 		pins = "gpio4";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
@@ -797,7 +807,7 @@
 		output-high;
 	};
 
-	usb_sw_sel_pm_device: usb-sw-sel-pm-device {
+	usb_sw_sel_pm_device: usb-sw-sel-pm-device-state {
 		pins = "gpio4";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
@@ -806,7 +816,7 @@
 		output-low;
 	};
 
-	pm8916_gpios_leds: pm8916-gpios-leds {
+	pm8916_gpios_leds: pm8916-gpios-leds-state {
 		pins = "gpio1", "gpio2";
 		function = PMIC_GPIO_FUNC_NORMAL;
 

@@ -2,8 +2,9 @@
 #ifndef _ASM_POWERPC_ASM_PROTOTYPES_H
 #define _ASM_POWERPC_ASM_PROTOTYPES_H
 /*
- * This file is for prototypes of C functions that are only called
- * from asm, and any associated variables.
+ * This file is for C prototypes of asm symbols that are EXPORTed.
+ * It allows the modversions logic to see their prototype and
+ * generate proper CRCs for them.
  *
  * Copyright 2016, Daniel Axtens, IBM Corporation.
  */
@@ -33,12 +34,6 @@ static inline long ucall_norets(unsigned long opcode, ...)
 int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 		    int64_t a4, int64_t a5, int64_t a6, int64_t a7,
 		    int64_t opcode, uint64_t msr);
-
-/* prom_init (OpenFirmware) */
-unsigned long __init prom_init(unsigned long r3, unsigned long r4,
-			       unsigned long pp,
-			       unsigned long r6, unsigned long r7,
-			       unsigned long kbase);
 
 /* misc runtime */
 extern u64 __bswapdi2(u64);

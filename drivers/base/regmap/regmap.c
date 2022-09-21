@@ -882,6 +882,8 @@ struct regmap *__regmap_init(struct device *dev,
 
 	if (config && config->read && config->write) {
 		map->reg_read  = _regmap_bus_read;
+		if (config->reg_update_bits)
+			map->reg_update_bits = config->reg_update_bits;
 
 		/* Bulk read/write */
 		map->read = config->read;
@@ -1298,6 +1300,9 @@ static void regmap_field_init(struct regmap_field *rm_field,
 	rm_field->reg = reg_field.reg;
 	rm_field->shift = reg_field.lsb;
 	rm_field->mask = GENMASK(reg_field.msb, reg_field.lsb);
+
+	WARN_ONCE(rm_field->mask == 0, "invalid empty mask defined\n");
+
 	rm_field->id_size = reg_field.id_size;
 	rm_field->id_offset = reg_field.id_offset;
 }
@@ -2217,6 +2222,28 @@ int regmap_field_update_bits_base(struct regmap_field *field,
 				       change, async, force);
 }
 EXPORT_SYMBOL_GPL(regmap_field_update_bits_base);
+
+/**
+ * regmap_field_test_bits() - Check if all specified bits are set in a
+ *                            register field.
+ *
+ * @field: Register field to operate on
+ * @bits: Bits to test
+ *
+ * Returns -1 if the underlying regmap_field_read() fails, 0 if at least one of the
+ * tested bits is not set and 1 if all tested bits are set.
+ */
+int regmap_field_test_bits(struct regmap_field *field, unsigned int bits)
+{
+	unsigned int val, ret;
+
+	ret = regmap_field_read(field, &val);
+	if (ret)
+		return ret;
+
+	return (val & bits) == bits;
+}
+EXPORT_SYMBOL_GPL(regmap_field_test_bits);
 
 /**
  * regmap_fields_update_bits_base() - Perform a read/modify/write cycle a

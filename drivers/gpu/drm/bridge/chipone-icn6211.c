@@ -9,9 +9,12 @@
 #include <drm/drm_print.h>
 #include <drm/drm_mipi_dsi.h>
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
@@ -26,6 +29,11 @@
 #define PD_CTRL(n)		(0x0a + ((n) & 0x3)) /* 0..3 */
 #define RST_CTRL(n)		(0x0e + ((n) & 0x1)) /* 0..1 */
 #define SYS_CTRL(n)		(0x10 + ((n) & 0x7)) /* 0..4 */
+#define SYS_CTRL_1_CLK_PHASE_MSK	GENMASK(5, 4)
+#define CLK_PHASE_0			0
+#define CLK_PHASE_1_4			1
+#define CLK_PHASE_1_2			2
+#define CLK_PHASE_3_4			3
 #define RGB_DRV(n)		(0x18 + ((n) & 0x3)) /* 0..3 */
 #define RGB_DLY(n)		(0x1c + ((n) & 0x1)) /* 0..1 */
 #define RGB_TEST_CTRL		0x1e
@@ -100,7 +108,7 @@
 #define MIPI_PN_SWAP		0x87
 #define MIPI_PN_SWAP_CLK		BIT(4)
 #define MIPI_PN_SWAP_D(n)		BIT((n) & 0x3)
-#define MIPI_SOT_SYNC_BIT_(n)	(0x88 + ((n) & 0x1)) /* 0..1 */
+#define MIPI_SOT_SYNC_BIT(n)	(0x88 + ((n) & 0x1)) /* 0..1 */
 #define MIPI_ULPS_CTRL		0x8a
 #define MIPI_CLK_CHK_VAR	0x8e
 #define MIPI_CLK_CHK_INI	0x8f
@@ -115,7 +123,7 @@
 #define MIPI_T_CLK_SETTLE	0x9a
 #define MIPI_TO_HS_RX_L		0x9e
 #define MIPI_TO_HS_RX_H		0x9f
-#define MIPI_PHY_(n)		(0xa0 + ((n) & 0x7)) /* 0..5 */
+#define MIPI_PHY(n)		(0xa0 + ((n) & 0x7)) /* 0..5 */
 #define MIPI_PD_RX		0xb0
 #define MIPI_PD_TERM		0xb1
 #define MIPI_PD_HSRX		0xb2
@@ -125,13 +133,11 @@
 #define MIPI_FORCE_0		0xb6
 #define MIPI_RST_CTRL		0xb7
 #define MIPI_RST_NUM		0xb8
-#define MIPI_DBG_SET_(n)	(0xc0 + ((n) & 0xf)) /* 0..9 */
+#define MIPI_DBG_SET(n)		(0xc0 + ((n) & 0xf)) /* 0..9 */
 #define MIPI_DBG_SEL		0xe0
 #define MIPI_DBG_DATA		0xe1
 #define MIPI_ATE_TEST_SEL	0xe2
-#define MIPI_ATE_STATUS_(n)	(0xe3 + ((n) & 0x1)) /* 0..1 */
-#define MIPI_ATE_STATUS_1	0xe4
-#define ICN6211_MAX_REGISTER	MIPI_ATE_STATUS(1)
+#define MIPI_ATE_STATUS(n)	(0xe3 + ((n) & 0x1)) /* 0..1 */
 
 struct chipone {
 	struct device *dev;
@@ -155,10 +161,10 @@ static const struct regmap_range chipone_dsi_readable_ranges[] = {
 	regmap_reg_range(MIPI_CLK_CHK_VAR, MIPI_T_TA_SURE_PRE),
 	regmap_reg_range(MIPI_T_LPX_SET, MIPI_INIT_TIME_H),
 	regmap_reg_range(MIPI_T_CLK_TERM_EN, MIPI_T_CLK_SETTLE),
-	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY_(5)),
+	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY(5)),
 	regmap_reg_range(MIPI_PD_RX, MIPI_RST_NUM),
-	regmap_reg_range(MIPI_DBG_SET_(0), MIPI_DBG_SET_(9)),
-	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS_(1)),
+	regmap_reg_range(MIPI_DBG_SET(0), MIPI_DBG_SET(9)),
+	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS(1)),
 };
 
 static const struct regmap_access_table chipone_dsi_readable_table = {
@@ -172,10 +178,10 @@ static const struct regmap_range chipone_dsi_writeable_ranges[] = {
 	regmap_reg_range(MIPI_CLK_CHK_VAR, MIPI_T_TA_SURE_PRE),
 	regmap_reg_range(MIPI_T_LPX_SET, MIPI_INIT_TIME_H),
 	regmap_reg_range(MIPI_T_CLK_TERM_EN, MIPI_T_CLK_SETTLE),
-	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY_(5)),
+	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY(5)),
 	regmap_reg_range(MIPI_PD_RX, MIPI_RST_NUM),
-	regmap_reg_range(MIPI_DBG_SET_(0), MIPI_DBG_SET_(9)),
-	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS_(1)),
+	regmap_reg_range(MIPI_DBG_SET(0), MIPI_DBG_SET(9)),
+	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS(1)),
 };
 
 static const struct regmap_access_table chipone_dsi_writeable_table = {
@@ -189,7 +195,7 @@ static const struct regmap_config chipone_regmap_config = {
 	.rd_table = &chipone_dsi_readable_table,
 	.wr_table = &chipone_dsi_writeable_table,
 	.cache_type = REGCACHE_RBTREE,
-	.max_register = MIPI_ATE_STATUS_(1),
+	.max_register = MIPI_ATE_STATUS(1),
 };
 
 static int chipone_dsi_read(void *context,
@@ -336,7 +342,7 @@ static void chipone_atomic_enable(struct drm_bridge *bridge,
 	const struct drm_bridge_state *bridge_state;
 	u16 hfp, hbp, hsync;
 	u32 bus_flags;
-	u8 pol, id[4];
+	u8 pol, sys_ctrl_1, id[4];
 
 	chipone_readb(icn, VENDOR_ID, id);
 	chipone_readb(icn, DEVICE_ID_H, id + 1);
@@ -414,7 +420,14 @@ static void chipone_atomic_enable(struct drm_bridge *bridge,
 	chipone_configure_pll(icn, mode);
 
 	chipone_writeb(icn, SYS_CTRL(0), 0x40);
-	chipone_writeb(icn, SYS_CTRL(1), 0x88);
+	sys_ctrl_1 = 0x88;
+
+	if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
+		sys_ctrl_1 |= FIELD_PREP(SYS_CTRL_1_CLK_PHASE_MSK, CLK_PHASE_0);
+	else
+		sys_ctrl_1 |= FIELD_PREP(SYS_CTRL_1_CLK_PHASE_MSK, CLK_PHASE_1_2);
+
+	chipone_writeb(icn, SYS_CTRL(1), sys_ctrl_1);
 
 	/* icn6211 specific sequence */
 	chipone_writeb(icn, MIPI_FORCE_0, 0x20);
@@ -486,21 +499,18 @@ static int chipone_dsi_attach(struct chipone *icn)
 {
 	struct mipi_dsi_device *dsi = icn->dsi;
 	struct device *dev = icn->dev;
-	struct device_node *endpoint;
 	int dsi_lanes, ret;
 
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
-	dsi_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
-	of_node_put(endpoint);
+	dsi_lanes = drm_of_get_data_lanes_count_ep(dev->of_node, 0, 0, 1, 4);
 
 	/*
 	 * If the 'data-lanes' property does not exist in DT or is invalid,
 	 * default to previously hard-coded behavior, which was 4 data lanes.
 	 */
-	if (dsi_lanes >= 1 && dsi_lanes <= 4)
-		icn->dsi->lanes = dsi_lanes;
-	else
+	if (dsi_lanes < 0)
 		icn->dsi->lanes = 4;
+	else
+		icn->dsi->lanes = dsi_lanes;
 
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |

@@ -142,7 +142,7 @@ static void __exit fini(void)
 	crypto_unregister_shash(&sha384_alg);
 }
 
-module_cpu_feature_match(MSA, init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, init);
 module_exit(fini);
 
 MODULE_LICENSE("GPL");

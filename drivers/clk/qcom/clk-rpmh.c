@@ -274,6 +274,11 @@ static int clk_rpmh_bcm_send_cmd(struct clk_rpmh *c, bool enable)
 		cmd.addr = c->res_addr;
 		cmd.data = BCM_TCS_CMD(1, enable, 0, cmd_state);
 
+		/*
+		 * Send only an active only state request. RPMh continues to
+		 * use the active state when we're in sleep/wake state as long
+		 * as the sleep/wake state has never been set.
+		 */
 		ret = clk_rpmh_send(c, RPMH_ACTIVE_ONLY_STATE, &cmd, enable);
 		if (ret) {
 			dev_err(c->dev, "set active state of %s failed: (%d)\n",

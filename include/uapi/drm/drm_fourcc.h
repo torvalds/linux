@@ -559,7 +559,7 @@ extern "C" {
  *
  * The main surface is Y-tiled and is at plane index 0 whereas CCS is linear
  * and at index 1. The clear color is stored at index 2, and the pitch should
- * be ignored. The clear color structure is 256 bits. The first 128 bits
+ * be 64 bytes aligned. The clear color structure is 256 bits. The first 128 bits
  * represents Raw Clear Color Red, Green, Blue and Alpha color each represented
  * by 32 bits. The raw clear color is consumed by the 3d engine and generates
  * the converted clear color of size 64 bits. The first 32 bits store the Lower
@@ -612,9 +612,9 @@ extern "C" {
  * outside of the GEM object in a reserved memory area dedicated for the
  * storage of the CCS data for all RC/RC_CC/MC compressible GEM objects. The
  * main surface pitch is required to be a multiple of four Tile 4 widths. The
- * clear color is stored at plane index 1 and the pitch should be ignored. The
- * format of the 256 bits of clear color data matches the one used for the
- * I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC modifier, see its description
+ * clear color is stored at plane index 1 and the pitch should be 64 bytes
+ * aligned. The format of the 256 bits of clear color data matches the one used
+ * for the I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC modifier, see its description
  * for details.
  */
 #define I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC fourcc_mod_code(INTEL, 12)
@@ -1363,6 +1363,7 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 #define AMD_FMT_MOD_TILE_VER_GFX9 1
 #define AMD_FMT_MOD_TILE_VER_GFX10 2
 #define AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS 3
+#define AMD_FMT_MOD_TILE_VER_GFX11 4
 
 /*
  * 64K_S is the same for GFX9/GFX10/GFX10_RBPLUS and hence has GFX9 as canonical
@@ -1378,6 +1379,7 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 #define AMD_FMT_MOD_TILE_GFX9_64K_S_X 25
 #define AMD_FMT_MOD_TILE_GFX9_64K_D_X 26
 #define AMD_FMT_MOD_TILE_GFX9_64K_R_X 27
+#define AMD_FMT_MOD_TILE_GFX11_256K_R_X 31
 
 #define AMD_FMT_MOD_DCC_BLOCK_64B 0
 #define AMD_FMT_MOD_DCC_BLOCK_128B 1

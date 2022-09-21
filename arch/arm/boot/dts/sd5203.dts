@@ -15,7 +15,7 @@
 	#size-cells = <1>;
 
 	chosen {
-		bootargs="console=ttyS0,9600 earlycon=uart8250,mmio32,0x1600d000";
+		bootargs = "console=ttyS0,9600 earlycon=uart8250,mmio32,0x1600d000";
 	};
 
 	aliases {

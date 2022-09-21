@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2020 Facebook */
 
+#include <linux/bits.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -88,10 +89,10 @@ struct tod_reg {
 #define TOD_CTRL_DISABLE_FMT_A	BIT(17)
 #define TOD_CTRL_DISABLE_FMT_B	BIT(16)
 #define TOD_CTRL_ENABLE		BIT(0)
-#define TOD_CTRL_GNSS_MASK	((1U << 4) - 1)
+#define TOD_CTRL_GNSS_MASK	GENMASK(3, 0)
 #define TOD_CTRL_GNSS_SHIFT	24
 
-#define TOD_STATUS_UTC_MASK		0xff
+#define TOD_STATUS_UTC_MASK		GENMASK(7, 0)
 #define TOD_STATUS_UTC_VALID		BIT(8)
 #define TOD_STATUS_LEAP_ANNOUNCE	BIT(12)
 #define TOD_STATUS_LEAP_VALID		BIT(16)
@@ -205,7 +206,7 @@ struct frequency_reg {
 #define FREQ_STATUS_VALID	BIT(31)
 #define FREQ_STATUS_ERROR	BIT(30)
 #define FREQ_STATUS_OVERRUN	BIT(29)
-#define FREQ_STATUS_MASK	(BIT(24) - 1)
+#define FREQ_STATUS_MASK	GENMASK(23, 0)
 
 struct ptp_ocp_flash_info {
 	const char *name;
@@ -674,9 +675,9 @@ static const struct ocp_selector ptp_ocp_clock[] = {
 	{ }
 };
 
+#define SMA_DISABLE		BIT(16)
 #define SMA_ENABLE		BIT(15)
-#define SMA_SELECT_MASK		((1U << 15) - 1)
-#define SMA_DISABLE		0x10000
+#define SMA_SELECT_MASK		GENMASK(14, 0)
 
 static const struct ocp_selector ptp_ocp_sma_in[] = {
 	{ .name = "10Mhz",	.value = 0x0000 },
@@ -2154,7 +2155,7 @@ ptp_ocp_fb_set_pins(struct ptp_ocp *bp)
 	struct ptp_pin_desc *config;
 	int i;
 
-	config = kzalloc(sizeof(*config) * 4, GFP_KERNEL);
+	config = kcalloc(4, sizeof(*config), GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
 
@@ -3440,7 +3441,7 @@ ptp_ocp_tod_status_show(struct seq_file *s, void *data)
 
 	val = ioread32(&bp->tod->utc_status);
 	seq_printf(s, "UTC status register: 0x%08X\n", val);
-	seq_printf(s, "UTC offset: %d  valid:%d\n",
+	seq_printf(s, "UTC offset: %ld  valid:%d\n",
 		val & TOD_STATUS_UTC_MASK, val & TOD_STATUS_UTC_VALID ? 1 : 0);
 	seq_printf(s, "Leap second info valid:%d, Leap second announce %d\n",
 		val & TOD_STATUS_LEAP_VALID ? 1 : 0,
@@ -3700,10 +3701,8 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 		serial8250_unregister_port(bp->mac_port);
 	if (bp->nmea_port != -1)
 		serial8250_unregister_port(bp->nmea_port);
-	if (bp->spi_flash)
-		platform_device_unregister(bp->spi_flash);
-	if (bp->i2c_ctrl)
-		platform_device_unregister(bp->i2c_ctrl);
+	platform_device_unregister(bp->spi_flash);
+	platform_device_unregister(bp->i2c_ctrl);
 	if (bp->i2c_clk)
 		clk_hw_unregister_fixed_rate(bp->i2c_clk);
 	if (bp->n_irqs)
@@ -3773,7 +3772,6 @@ ptp_ocp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 out:
 	ptp_ocp_detach(bp);
-	pci_set_drvdata(pdev, NULL);
 out_disable:
 	pci_disable_device(pdev);
 out_free:
@@ -3789,7 +3787,6 @@ ptp_ocp_remove(struct pci_dev *pdev)
 
 	devlink_unregister(devlink);
 	ptp_ocp_detach(bp);
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 
 	devlink_free(devlink);

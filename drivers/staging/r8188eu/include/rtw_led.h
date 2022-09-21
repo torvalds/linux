@@ -37,8 +37,10 @@ enum LED_STATE_871x {
 	LED_BLINK_RUNTOP = 13, /*  Customized for RunTop */
 };
 
-struct LED_871x {
+struct led_priv {
 	struct adapter *padapter;
+
+	bool bRegUseLed;
 
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */
 	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
@@ -56,11 +58,6 @@ struct LED_871x {
 	bool bLedLinkBlinkInProgress;
 	bool bLedScanBlinkInProgress;
 	struct delayed_work blink_work;
-};
-
-struct led_priv{
-	struct LED_871x			SwLed0;
-	bool	bRegUseLed;
 };
 
 void rtl8188eu_InitSwLeds(struct adapter *padapter);

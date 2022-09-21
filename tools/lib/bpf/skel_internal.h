@@ -66,13 +66,13 @@ struct bpf_load_and_run_opts {
 	const char *errstr;
 };
 
-long bpf_sys_bpf(__u32 cmd, void *attr, __u32 attr_size);
+long kern_sys_bpf(__u32 cmd, void *attr, __u32 attr_size);
 
 static inline int skel_sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 			  unsigned int size)
 {
 #ifdef __KERNEL__
-	return bpf_sys_bpf(cmd, attr, size);
+	return kern_sys_bpf(cmd, attr, size);
 #else
 	return syscall(__NR_bpf, cmd, attr, size);
 #endif

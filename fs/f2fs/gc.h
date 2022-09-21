@@ -120,15 +120,13 @@ static inline block_t free_user_blocks(struct f2fs_sb_info *sbi)
 	return free_blks - ovp_blks;
 }
 
-static inline block_t limit_invalid_user_blocks(struct f2fs_sb_info *sbi)
+static inline block_t limit_invalid_user_blocks(block_t user_block_count)
 {
-	return (long)(sbi->user_block_count * LIMIT_INVALID_BLOCK) / 100;
+	return (long)(user_block_count * LIMIT_INVALID_BLOCK) / 100;
 }
 
-static inline block_t limit_free_user_blocks(struct f2fs_sb_info *sbi)
+static inline block_t limit_free_user_blocks(block_t reclaimable_user_blocks)
 {
-	block_t reclaimable_user_blocks = sbi->user_block_count -
-		written_block_count(sbi);
 	return (long)(reclaimable_user_blocks * LIMIT_FREE_BLOCK) / 100;
 }
 
@@ -163,15 +161,16 @@ static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
 
 static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
 {
-	block_t invalid_user_blocks = sbi->user_block_count -
-					written_block_count(sbi);
+	block_t user_block_count = sbi->user_block_count;
+	block_t invalid_user_blocks = user_block_count -
+		written_block_count(sbi);
 	/*
 	 * Background GC is triggered with the following conditions.
 	 * 1. There are a number of invalid blocks.
 	 * 2. There is not enough free space.
 	 */
-	if (invalid_user_blocks > limit_invalid_user_blocks(sbi) &&
-			free_user_blocks(sbi) < limit_free_user_blocks(sbi))
-		return true;
-	return false;
+	return (invalid_user_blocks >
+			limit_invalid_user_blocks(user_block_count) &&
+		free_user_blocks(sbi) <
+			limit_free_user_blocks(invalid_user_blocks));
 }

@@ -129,7 +129,7 @@ static int __init cpuintc_acpi_init(union acpi_subtable_headers *header,
 	clear_csr_ecfg(ECFG0_IM);
 	clear_csr_estat(ESTATF_IP);
 
-	cpuintc_handle = irq_domain_alloc_fwnode(NULL);
+	cpuintc_handle = irq_domain_alloc_named_fwnode("CPUINTC");
 	irq_domain = irq_domain_create_linear(cpuintc_handle, EXCCODE_INT_NUM,
 					&loongarch_cpu_intc_irq_domain_ops, NULL);
 

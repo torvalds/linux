@@ -272,7 +272,7 @@ struct max1027_state {
 	struct mutex			lock;
 	struct completion		complete;
 
-	u8				reg ____cacheline_aligned;
+	u8				reg __aligned(IIO_DMA_MINALIGN);
 };
 
 static int max1027_wait_eoc(struct iio_dev *indio_dev)
@@ -349,8 +349,7 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 	if (ret < 0) {
 		dev_err(&indio_dev->dev,
 			"Failed to configure conversion register\n");
-		iio_device_release_direct_mode(indio_dev);
-		return ret;
+		goto release;
 	}
 
 	/*
@@ -360,11 +359,12 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 	 */
 	ret = max1027_wait_eoc(indio_dev);
 	if (ret)
-		return ret;
+		goto release;
 
 	/* Read result */
 	ret = spi_read(st->spi, st->buffer, (chan->type == IIO_TEMP) ? 4 : 2);
 
+release:
 	iio_device_release_direct_mode(indio_dev);
 
 	if (ret < 0)

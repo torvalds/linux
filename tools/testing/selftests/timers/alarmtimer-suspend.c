@@ -92,7 +92,7 @@ long long timespec_sub(struct timespec a, struct timespec b)
 	return ret;
 }
 
-int final_ret = 0;
+int final_ret;
 
 void sigalarm(int signo)
 {

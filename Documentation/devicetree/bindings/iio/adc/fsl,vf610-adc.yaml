@@ -14,7 +14,14 @@ description:
 
 properties:
   compatible:
-    const: fsl,vf610-adc
+    oneOf:
+      - items:
+          - enum:
+              - fsl,imx6sx-adc
+              - fsl,imx6ul-adc
+          - const: fsl,vf610-adc
+      - items:
+          - const: fsl,vf610-adc
 
   reg:
     maxItems: 1

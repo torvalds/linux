@@ -36,6 +36,7 @@ Todolist:
    :maxdepth: 1
 
    reporting-issues
+   reporting-regressions
    security-bugs
    bug-hunting
    bug-bisect
@@ -44,7 +45,6 @@ Todolist:
 
 Todolist:
 
-*   reporting-bugs
 *   ramoops
 *   dynamic-debug-howto
 *   kdump/index

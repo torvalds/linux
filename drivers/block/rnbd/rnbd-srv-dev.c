@@ -28,7 +28,6 @@ struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags)
 		goto err;
 
 	dev->blk_open_flags = flags;
-	bdevname(dev->bdev, dev->name);
 
 	return dev;
 

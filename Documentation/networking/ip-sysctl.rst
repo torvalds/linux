@@ -202,6 +202,12 @@ neigh/default/unres_qlen - INTEGER
 
 	Default: 101
 
+neigh/default/interval_probe_time_ms - INTEGER
+	The probe interval for neighbor entries with NTF_MANAGED flag,
+	the min value is 1.
+
+	Default: 5000
+
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
 
@@ -630,6 +636,16 @@ tcp_recovery - INTEGER
 
 	Default: 0x1
 
+tcp_reflect_tos - BOOLEAN
+	For listening sockets, reuse the DSCP value of the initial SYN message
+	for outgoing packets. This allows to have both directions of a TCP
+	stream to use the same DSCP value, assuming DSCP remains unchanged for
+	the lifetime of the connection.
+
+	This options affects both IPv4 and IPv6.
+
+	Default: 0 (disabled)
+
 tcp_reordering - INTEGER
 	Initial reordering level of packets in a TCP stream.
 	TCP stack can then dynamically adjust flow reordering level
@@ -1019,7 +1035,10 @@ tcp_limit_output_bytes - INTEGER
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
 	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
-	Default: 1000
+	Note that this per netns rate limit can allow some side channel
+	attacks and probably should not be enabled.
+	TCP stack implements per TCP socket limits anyway.
+	Default: INT_MAX (unlimited)
 
 UDP variables
 =============
@@ -1623,12 +1642,15 @@ arp_notify - BOOLEAN
 	     or hardware address changes.
 	 ==  ==========================================================
 
-arp_accept - BOOLEAN
-	Define behavior for gratuitous ARP frames who's IP is not
-	already present in the ARP table:
+arp_accept - INTEGER
+	Define behavior for accepting gratuitous ARP (garp) frames from devices
+	that are not already present in the ARP table:
 
 	- 0 - don't create new entries in the ARP table
 	- 1 - create new entries in the ARP table
+	- 2 - create new entries only if the source IP address is in the same
+	  subnet as an address configured on the interface that received the
+	  garp message.
 
 	Both replies and requests type gratuitous arp will trigger the
 	ARP table to be updated, if this setting is on.
@@ -2470,27 +2492,36 @@ drop_unsolicited_na - BOOLEAN
 
 	By default this is turned off.
 
-accept_untracked_na - BOOLEAN
-	Add a new neighbour cache entry in STALE state for routers on receiving a
-	neighbour advertisement (either solicited or unsolicited) with target
-	link-layer address option specified if no neighbour entry is already
-	present for the advertised IPv6 address. Without this knob, NAs received
-	for untracked addresses (absent in neighbour cache) are silently ignored.
+accept_untracked_na - INTEGER
+	Define behavior for accepting neighbor advertisements from devices that
+	are absent in the neighbor cache:
 
-	This is as per router-side behaviour documented in RFC9131.
+	- 0 - (default) Do not accept unsolicited and untracked neighbor
+	  advertisements.
 
-	This has lower precedence than drop_unsolicited_na.
+	- 1 - Add a new neighbor cache entry in STALE state for routers on
+	  receiving a neighbor advertisement (either solicited or unsolicited)
+	  with target link-layer address option specified if no neighbor entry
+	  is already present for the advertised IPv6 address. Without this knob,
+	  NAs received for untracked addresses (absent in neighbor cache) are
+	  silently ignored.
 
-	This will optimize the return path for the initial off-link communication
-	that is initiated by a directly connected host, by ensuring that
-	the first-hop router which turns on this setting doesn't have to
-	buffer the initial return packets to do neighbour-solicitation.
-	The prerequisite is that the host is configured to send
-	unsolicited neighbour advertisements on interface bringup.
-	This setting should be used in conjunction with the ndisc_notify setting
-	on the host to satisfy this prerequisite.
+	  This is as per router-side behavior documented in RFC9131.
 
-	By default this is turned off.
+	  This has lower precedence than drop_unsolicited_na.
+
+	  This will optimize the return path for the initial off-link
+	  communication that is initiated by a directly connected host, by
+	  ensuring that the first-hop router which turns on this setting doesn't
+	  have to buffer the initial return packets to do neighbor-solicitation.
+	  The prerequisite is that the host is configured to send unsolicited
+	  neighbor advertisements on interface bringup. This setting should be
+	  used in conjunction with the ndisc_notify setting on the host to
+	  satisfy this prerequisite.
+
+	- 2 - Extend option (1) to add a new neighbor cache entry only if the
+	  source IP address is in the same subnet as an address configured on
+	  the interface that received the neighbor advertisement.
 
 enhanced_dad - BOOLEAN
 	Include a nonce option in the IPv6 neighbor solicitation messages used for

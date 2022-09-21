@@ -480,6 +480,7 @@ static int avs_dsp_do_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request
 	ret = ipc->rx.rsp.status;
 	if (reply) {
 		reply->header = ipc->rx.header;
+		reply->size = ipc->rx.size;
 		if (reply->data && ipc->rx.size)
 			memcpy(reply->data, ipc->rx.data, reply->size);
 	}

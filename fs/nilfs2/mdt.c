@@ -111,8 +111,8 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 }
 
 static int
-nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
-		       int mode, int mode_flags, struct buffer_head **out_bh)
+nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff, blk_opf_t opf,
+		       struct buffer_head **out_bh)
 {
 	struct buffer_head *bh;
 	__u64 blknum = 0;
@@ -126,12 +126,12 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 	if (buffer_uptodate(bh))
 		goto out;
 
-	if (mode_flags & REQ_RAHEAD) {
+	if (opf & REQ_RAHEAD) {
 		if (!trylock_buffer(bh)) {
 			ret = -EBUSY;
 			goto failed_bh;
 		}
-	} else /* mode == READ */
+	} else /* opf == REQ_OP_READ */
 		lock_buffer(bh);
 
 	if (buffer_uptodate(bh)) {
@@ -148,10 +148,11 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
-	submit_bh(mode, mode_flags, bh);
+	submit_bh(opf, bh);
 	ret = 0;
 
-	trace_nilfs2_mdt_submit_block(inode, inode->i_ino, blkoff, mode);
+	trace_nilfs2_mdt_submit_block(inode, inode->i_ino, blkoff,
+				      opf & REQ_OP_MASK);
  out:
 	get_bh(bh);
 	*out_bh = bh;
@@ -172,7 +173,7 @@ static int nilfs_mdt_read_block(struct inode *inode, unsigned long block,
 	int i, nr_ra_blocks = NILFS_MDT_MAX_RA_BLOCKS;
 	int err;
 
-	err = nilfs_mdt_submit_block(inode, block, REQ_OP_READ, 0, &first_bh);
+	err = nilfs_mdt_submit_block(inode, block, REQ_OP_READ, &first_bh);
 	if (err == -EEXIST) /* internal code */
 		goto out;
 
@@ -182,8 +183,8 @@ static int nilfs_mdt_read_block(struct inode *inode, unsigned long block,
 	if (readahead) {
 		blkoff = block + 1;
 		for (i = 0; i < nr_ra_blocks; i++, blkoff++) {
-			err = nilfs_mdt_submit_block(inode, blkoff, REQ_OP_READ,
-						     REQ_RAHEAD, &bh);
+			err = nilfs_mdt_submit_block(inode, blkoff,
+						REQ_OP_READ | REQ_RAHEAD, &bh);
 			if (likely(!err || err == -EEXIST))
 				brelse(bh);
 			else if (err != -EBUSY)

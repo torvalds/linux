@@ -298,7 +298,7 @@ static void __exit crc_vx_mod_exit(void)
 	crypto_unregister_shashes(crc32_vx_algs, ARRAY_SIZE(crc32_vx_algs));
 }
 
-module_cpu_feature_match(VXRS, crc_vx_mod_init);
+module_cpu_feature_match(S390_CPU_FEATURE_VXRS, crc_vx_mod_init);
 module_exit(crc_vx_mod_exit);
 
 MODULE_AUTHOR("Hendrik Brueckner <brueckner@linux.vnet.ibm.com>");

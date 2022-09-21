@@ -19,7 +19,5 @@ void mpage_readahead(struct readahead_control *, get_block_t get_block);
 int mpage_read_folio(struct folio *folio, get_block_t get_block);
 int mpage_writepages(struct address_space *mapping,
 		struct writeback_control *wbc, get_block_t get_block);
-int mpage_writepage(struct page *page, get_block_t *get_block,
-		struct writeback_control *wbc);
 
 #endif

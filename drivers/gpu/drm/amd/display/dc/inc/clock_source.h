@@ -160,8 +160,11 @@ struct calc_pll_clock_source {
 struct clock_source_funcs {
 	bool (*cs_power_down)(
 			struct clock_source *);
-	bool (*program_pix_clk)(struct clock_source *,
-			struct pixel_clk_params *, struct pll_settings *);
+	bool (*program_pix_clk)(
+			struct clock_source *,
+			struct pixel_clk_params *,
+			enum dp_link_encoding encoding,
+			struct pll_settings *);
 	uint32_t (*get_pix_clk_dividers)(
 			struct clock_source *,
 			struct pixel_clk_params *,

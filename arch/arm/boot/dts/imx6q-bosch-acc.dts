@@ -570,7 +570,7 @@
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	no-1-8-v;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	voltage-ranges = <3300 3300>;
 	vmmc-supply = <&reg_sw4>;
 	fsl,wp-controller;
@@ -594,7 +594,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog1>;
 	fsl,ext-reset-output;
-	timeout-sec=<10>;
+	timeout-sec = <10>;
 	status = "okay";
 };
 

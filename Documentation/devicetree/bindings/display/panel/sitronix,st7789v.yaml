@@ -23,6 +23,9 @@ properties:
   backlight: true
   port: true
 
+  spi-cpha: true
+  spi-cpol: true
+
 required:
   - compatible
   - reg

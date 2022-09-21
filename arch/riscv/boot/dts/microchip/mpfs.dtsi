@@ -142,6 +142,30 @@
 				interrupt-controller;
 			};
 		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+
+				core1 {
+					cpu = <&cpu1>;
+				};
+
+				core2 {
+					cpu = <&cpu2>;
+				};
+
+				core3 {
+					cpu = <&cpu3>;
+				};
+
+				core4 {
+					cpu = <&cpu4>;
+				};
+			};
+		};
 	};
 
 	refclk: mssrefclk {
@@ -161,7 +185,7 @@
 		ranges;
 
 		cctrllr: cache-controller@2010000 {
-			compatible = "sifive,fu540-c000-ccache", "cache";
+			compatible = "microchip,mpfs-ccache", "sifive,fu540-c000-ccache", "cache";
 			reg = <0x0 0x2010000 0x0 0x1000>;
 			cache-block-size = <64>;
 			cache-level = <2>;
@@ -169,7 +193,7 @@
 			cache-size = <2097152>;
 			cache-unified;
 			interrupt-parent = <&plic>;
-			interrupts = <1>, <2>, <3>;
+			interrupts = <1>, <3>, <4>, <2>;
 		};
 
 		clint: clint@2000000 {
@@ -291,7 +315,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <54>;
 			clocks = <&clkcfg CLK_SPI0>;
-			spi-max-frequency = <25000000>;
 			status = "disabled";
 		};
 
@@ -303,7 +326,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <55>;
 			clocks = <&clkcfg CLK_SPI1>;
-			spi-max-frequency = <25000000>;
 			status = "disabled";
 		};
 
@@ -315,7 +337,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <85>;
 			clocks = <&clkcfg CLK_QSPI>;
-			spi-max-frequency = <25000000>;
 			status = "disabled";
 		};
 
@@ -340,6 +361,24 @@
 			interrupts = <61>;
 			clocks = <&clkcfg CLK_I2C1>;
 			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		can0: can@2010c000 {
+			compatible = "microchip,mpfs-can";
+			reg = <0x0 0x2010c000 0x0 0x1000>;
+			clocks = <&clkcfg CLK_CAN0>;
+			interrupt-parent = <&plic>;
+			interrupts = <56>;
+			status = "disabled";
+		};
+
+		can1: can@2010d000 {
+			compatible = "microchip,mpfs-can";
+			reg = <0x0 0x2010d000 0x0 0x1000>;
+			clocks = <&clkcfg CLK_CAN1>;
+			interrupt-parent = <&plic>;
+			interrupts = <57>;
 			status = "disabled";
 		};
 
@@ -446,9 +485,8 @@
 			ranges = <0x3000000 0x0 0x8000000 0x20 0x8000000 0x0 0x80000000>;
 			msi-parent = <&pcie>;
 			msi-controller;
-			microchip,axi-m-atr0 = <0x10 0x0>;
 			status = "disabled";
-			pcie_intc: legacy-interrupt-controller {
+			pcie_intc: interrupt-controller {
 				#address-cells = <0>;
 				#interrupt-cells = <1>;
 				interrupt-controller;

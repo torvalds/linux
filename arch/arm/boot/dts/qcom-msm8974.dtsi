@@ -96,7 +96,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm";
+			compatible = "qcom,scm-msm8974", "qcom,scm";
 			clocks = <&gcc GCC_CE1_CLK>, <&gcc GCC_CE1_AXI_CLK>, <&gcc GCC_CE1_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
 		};
@@ -436,7 +436,7 @@
 			reg = <0xf90b8000 0x1000>, <0xf9008000 0x1000>;
 		};
 
-		sdhc_1: sdhci@f9824900 {
+		sdhc_1: mmc@f9824900 {
 			compatible = "qcom,msm8974-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf9824900 0x11c>, <0xf9824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -453,7 +453,7 @@
 			status = "disabled";
 		};
 
-		sdhc_3: sdhci@f9864900 {
+		sdhc_3: mmc@f9864900 {
 			compatible = "qcom,msm8974-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf9864900 0x11c>, <0xf9864000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -472,7 +472,7 @@
 			status = "disabled";
 		};
 
-		sdhc_2: sdhci@f98a4900 {
+		sdhc_2: mmc@f98a4900 {
 			compatible = "qcom,msm8974-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -580,7 +580,7 @@
 		blsp2_uart1: serial@f995d000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf995d000 0x1000>;
-			interrupts = <GIC_SPI 113 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_UART1_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
@@ -1128,10 +1128,10 @@
 		};
 
 		qfprom: qfprom@fc4bc000 {
+			compatible = "qcom,msm8974-qfprom", "qcom,qfprom";
+			reg = <0xfc4bc000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "qcom,qfprom";
-			reg = <0xfc4bc000 0x1000>;
 			tsens_calib: calib@d0 {
 				reg = <0xd0 0x18>;
 			};
@@ -1154,6 +1154,18 @@
 			#size-cells = <0>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
+		};
+
+		bam_dmux_dma: dma-controller@fc834000 {
+			compatible = "qcom,bam-v1.4.0";
+			reg = <0xfc834000 0x7000>;
+			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+
+			num-channels = <6>;
+			qcom,num-ees = <1>;
+			qcom,powered-remotely;
 		};
 
 		remoteproc_mss: remoteproc@fc880000 {
@@ -1182,12 +1194,28 @@
 			qcom,smem-states = <&modem_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
 
+			status = "disabled";
+
 			mba {
 				memory-region = <&mba_region>;
 			};
 
 			mpss {
 				memory-region = <&mpss_region>;
+			};
+
+			bam_dmux: bam-dmux {
+				compatible = "qcom,bam-dmux";
+
+				interrupt-parent = <&modem_smsm>;
+				interrupts = <1 IRQ_TYPE_EDGE_BOTH>, <11 IRQ_TYPE_EDGE_BOTH>;
+				interrupt-names = "pc", "pc-ack";
+
+				qcom,smem-states = <&apps_smsm 1>, <&apps_smsm 11>;
+				qcom,smem-state-names = "pc", "pc-ack";
+
+				dmas = <&bam_dmux_dma 4>, <&bam_dmux_dma 5>;
+				dma-names = "tx", "rx";
 			};
 
 			smd-edge {
@@ -1608,7 +1636,7 @@
 
 			status = "disabled";
 
-			gpu_opp_table: opp_table {
+			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-320000000 {
@@ -1625,11 +1653,12 @@
 			};
 		};
 
-		ocmem@fdd00000 {
+		sram@fdd00000 {
 			compatible = "qcom,msm8974-ocmem";
 			reg = <0xfdd00000 0x2000>,
 			      <0xfec00000 0x180000>;
 			reg-names = "ctrl", "mem";
+			ranges = <0 0xfec00000 0x180000>;
 			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
 				 <&mmcc OCMEMCX_OCMEMNOC_CLK>;
 			clock-names = "core", "iface";
@@ -1661,6 +1690,8 @@
 			qcom,smem-states = <&adsp_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
 
+			status = "disabled";
+
 			smd-edge {
 				interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
 
@@ -1672,8 +1703,8 @@
 			};
 		};
 
-		imem: imem@fe805000 {
-			compatible = "syscon", "simple-mfd";
+		imem: sram@fe805000 {
+			compatible = "qcom,msm8974-imem", "syscon", "simple-mfd";
 			reg = <0xfe805000 0x1000>;
 
 			reboot-mode {

@@ -123,7 +123,7 @@ config ARCH_OMAP2PLUS
 config OMAP_INTERCONNECT_BARRIER
 	bool
 	select ARM_HEAVY_MB
-	
+
 config ARCH_OMAP
 	bool
 
@@ -243,10 +243,10 @@ config MACH_OMAP2_TUSB6010
 	default y if MACH_NOKIA_N8X0
 
 config MACH_NOKIA_N810
-       bool
+	bool
 
 config MACH_NOKIA_N810_WIMAX
-       bool
+	bool
 
 config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"

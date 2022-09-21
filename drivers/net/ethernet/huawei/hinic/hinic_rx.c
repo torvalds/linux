@@ -73,17 +73,15 @@ void hinic_rxq_get_stats(struct hinic_rxq *rxq, struct hinic_rxq_stats *stats)
 	struct hinic_rxq_stats *rxq_stats = &rxq->rxq_stats;
 	unsigned int start;
 
-	u64_stats_update_begin(&stats->syncp);
 	do {
-		start = u64_stats_fetch_begin(&rxq_stats->syncp);
+		start = u64_stats_fetch_begin_irq(&rxq_stats->syncp);
 		stats->pkts = rxq_stats->pkts;
 		stats->bytes = rxq_stats->bytes;
 		stats->errors = rxq_stats->csum_errors +
 				rxq_stats->other_errors;
 		stats->csum_errors = rxq_stats->csum_errors;
 		stats->other_errors = rxq_stats->other_errors;
-	} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
-	u64_stats_update_end(&stats->syncp);
+	} while (u64_stats_fetch_retry_irq(&rxq_stats->syncp, start));
 }
 
 /**

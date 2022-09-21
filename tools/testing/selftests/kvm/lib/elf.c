@@ -11,7 +11,6 @@
 #include <linux/elf.h>
 
 #include "kvm_util.h"
-#include "kvm_util_internal.h"
 
 static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
 {

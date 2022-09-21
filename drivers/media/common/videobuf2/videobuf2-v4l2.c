@@ -638,6 +638,18 @@ int vb2_find_timestamp(const struct vb2_queue *q, u64 timestamp,
 }
 EXPORT_SYMBOL_GPL(vb2_find_timestamp);
 
+struct vb2_buffer *vb2_find_buffer(struct vb2_queue *q, u64 timestamp)
+{
+	unsigned int i;
+
+	for (i = 0; i < q->num_buffers; i++)
+		if (q->bufs[i]->copied_timestamp &&
+		    q->bufs[i]->timestamp == timestamp)
+			return vb2_get_buffer(q, i);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(vb2_find_buffer);
+
 /*
  * vb2_querybuf() - query video buffer information
  * @q:		videobuf queue

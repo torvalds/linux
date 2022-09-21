@@ -630,7 +630,7 @@
 				bitclock-master = <&rsnd_for_ak4613>;
 				frame-master = <&rsnd_for_ak4613>;
 				playback = <&ssi3>, <&src5>, <&dvc0>;
-				capture  = <&ssi4>, <&src6>, <&dvc1>;
+				capture = <&ssi4>, <&src6>, <&dvc1>;
 			};
 		};
 	};

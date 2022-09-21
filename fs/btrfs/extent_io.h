@@ -57,6 +57,7 @@ enum {
 #define BITMAP_LAST_BYTE_MASK(nbits) \
 	(BYTE_MASK >> (-(nbits) & (BITS_PER_BYTE - 1)))
 
+struct btrfs_bio;
 struct btrfs_root;
 struct btrfs_inode;
 struct btrfs_io_bio;
@@ -142,15 +143,10 @@ static inline void extent_changeset_free(struct extent_changeset *changeset)
 
 struct extent_map_tree;
 
-typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
-					  struct page *page, size_t pg_offset,
-					  u64 start, u64 len);
-
 int try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);
 
 int btrfs_read_folio(struct file *file, struct folio *folio);
-int extent_write_full_page(struct page *page, struct writeback_control *wbc);
 int extent_write_locked_range(struct inode *inode, u64 start, u64 end);
 int extent_writepages(struct address_space *mapping,
 		      struct writeback_control *wbc);
@@ -247,7 +243,6 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 
 int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array);
 struct bio *btrfs_bio_alloc(unsigned int nr_iovecs);
-struct bio *btrfs_bio_clone(struct block_device *bdev, struct bio *bio);
 struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size);
 
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
@@ -266,15 +261,13 @@ struct io_failure_record {
 	u64 start;
 	u64 len;
 	u64 logical;
-	enum btrfs_compression_type compress_type;
 	int this_mirror;
 	int failed_mirror;
+	int num_copies;
 };
 
-int btrfs_repair_one_sector(struct inode *inode,
-			    struct bio *failed_bio, u32 bio_offset,
-			    struct page *page, unsigned int pgoff,
-			    u64 start, int failed_mirror,
+int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
+			    u32 bio_offset, struct page *page, unsigned int pgoff,
 			    submit_bio_hook_t *submit_bio_hook);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS

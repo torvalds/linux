@@ -125,14 +125,14 @@ Following piece of code illustrates the usage of the SR-IOV API.
 		...
 	}
 
-	static int dev_suspend(struct pci_dev *dev, pm_message_t state)
+	static int dev_suspend(struct device *dev)
 	{
 		...
 
 		return 0;
 	}
 
-	static int dev_resume(struct pci_dev *dev)
+	static int dev_resume(struct device *dev)
 	{
 		...
 
@@ -165,8 +165,7 @@ Following piece of code illustrates the usage of the SR-IOV API.
 		.id_table =	dev_id_table,
 		.probe =	dev_probe,
 		.remove =	dev_remove,
-		.suspend =	dev_suspend,
-		.resume =	dev_resume,
+		.driver.pm =	&dev_pm_ops,
 		.shutdown =	dev_shutdown,
 		.sriov_configure = dev_sriov_configure,
 	};

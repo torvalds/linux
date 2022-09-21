@@ -59,7 +59,7 @@ static int imx_bus_init_icc(struct device *dev)
 	struct imx_bus *priv = dev_get_drvdata(dev);
 	const char *icc_driver_name;
 
-	if (!of_get_property(dev->of_node, "#interconnect-cells", 0))
+	if (!of_get_property(dev->of_node, "#interconnect-cells", NULL))
 		return 0;
 	if (!IS_ENABLED(CONFIG_INTERCONNECT_IMX)) {
 		dev_warn(dev, "imx interconnect drivers disabled\n");
@@ -145,6 +145,7 @@ static const struct of_device_id imx_bus_of_match[] = {
 	{ .compatible = "fsl,imx8mq-noc", .data = "imx8mq-interconnect", },
 	{ .compatible = "fsl,imx8mm-noc", .data = "imx8mm-interconnect", },
 	{ .compatible = "fsl,imx8mn-noc", .data = "imx8mn-interconnect", },
+	{ .compatible = "fsl,imx8mp-noc", .data = "imx8mp-interconnect", },
 	{ .compatible = "fsl,imx8m-noc", },
 	{ .compatible = "fsl,imx8m-nic", },
 	{ /* sentinel */ },

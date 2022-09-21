@@ -341,6 +341,9 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
 
 	tlinks[BPF_TRAMP_FENTRY].links[0] = link;
 	tlinks[BPF_TRAMP_FENTRY].nr_links = 1;
+	/* BPF_TRAMP_F_RET_FENTRY_RET is only used by bpf_struct_ops,
+	 * and it must be used alone.
+	 */
 	flags = model->ret_size > 0 ? BPF_TRAMP_F_RET_FENTRY_RET : 0;
 	return arch_prepare_bpf_trampoline(NULL, image, image_end,
 					   model, flags, tlinks, NULL);
@@ -503,10 +506,9 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		goto unlock;
 	}
 
-	/* Error during st_ops->reg().  It is very unlikely since
-	 * the above init_member() should have caught it earlier
-	 * before reg().  The only possibility is if there was a race
-	 * in registering the struct_ops (under the same name) to
+	/* Error during st_ops->reg(). Can happen if this struct_ops needs to be
+	 * verified as a whole, after all init_member() calls. Can also happen if
+	 * there was a race in registering the struct_ops (under the same name) to
 	 * a sub-system through different struct_ops's maps.
 	 */
 	set_memory_nx((long)st_map->image, 1);

@@ -14,7 +14,7 @@
 };
 
 &usdhc2 {
-	fsl,tuning-step= <6>;
+	fsl,tuning-step = <6>;
 };
 
 &iomuxc {

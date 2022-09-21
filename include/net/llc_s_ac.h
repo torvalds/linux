@@ -11,6 +11,10 @@
  *
  * See the GNU General Public License for more details.
  */
+
+struct llc_sap;
+struct sk_buff;
+
 /* SAP component actions */
 #define SAP_ACT_UNITDATA_IND	1
 #define SAP_ACT_SEND_UI		2

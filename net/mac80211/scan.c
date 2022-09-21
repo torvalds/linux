@@ -177,7 +177,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	rcu_read_lock();
 	scan_sdata = rcu_dereference(local->scan_sdata);
 	if (scan_sdata && scan_sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    scan_sdata->vif.bss_conf.assoc &&
+	    scan_sdata->vif.cfg.assoc &&
 	    ieee80211_have_rx_timestamp(rx_status)) {
 		bss_meta.parent_tsf =
 			ieee80211_calculate_rx_timestamp(local, rx_status,
@@ -209,8 +209,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	if (baselen > len)
 		return NULL;
 
-	elems = ieee802_11_parse_elems(elements, len - baselen, false,
-				       mgmt->bssid, cbss->bssid);
+	elems = ieee802_11_parse_elems(elements, len - baselen, false, cbss);
 	if (!elems)
 		return NULL;
 
@@ -221,15 +220,20 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 
 	bss = (void *)cbss->priv;
 	ieee80211_update_bss_from_elems(local, bss, elems, rx_status, beacon);
+	kfree(elems);
 
 	list_for_each_entry(non_tx_cbss, &cbss->nontrans_list, nontrans_list) {
 		non_tx_bss = (void *)non_tx_cbss->priv;
 
+		elems = ieee802_11_parse_elems(elements, len - baselen, false,
+					       non_tx_cbss);
+		if (!elems)
+			continue;
+
 		ieee80211_update_bss_from_elems(local, non_tx_bss, elems,
 						rx_status, beacon);
+		kfree(elems);
 	}
-
-	kfree(elems);
 
 	return bss;
 }
@@ -465,15 +469,18 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	scan_req = rcu_dereference_protected(local->scan_req,
 					     lockdep_is_held(&local->mtx));
 
-	if (scan_req != local->int_scan_req) {
-		local->scan_info.aborted = aborted;
-		cfg80211_scan_done(scan_req, &local->scan_info);
-	}
 	RCU_INIT_POINTER(local->scan_req, NULL);
 	RCU_INIT_POINTER(local->scan_sdata, NULL);
 
 	local->scanning = 0;
 	local->scan_chandef.chan = NULL;
+
+	synchronize_rcu();
+
+	if (scan_req != local->int_scan_req) {
+		local->scan_info.aborted = aborted;
+		cfg80211_scan_done(scan_req, &local->scan_info);
+	}
 
 	/* Set power back to normal operating levels. */
 	ieee80211_hw_config(local, 0);

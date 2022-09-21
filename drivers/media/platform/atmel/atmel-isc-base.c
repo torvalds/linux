@@ -132,12 +132,9 @@ static int isc_buffer_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static void isc_start_dma(struct isc_device *isc)
+static void isc_crop_pfe(struct isc_device *isc)
 {
 	struct regmap *regmap = isc->regmap;
-	u32 sizeimage = isc->fmt.fmt.pix.sizeimage;
-	u32 dctrl_dview;
-	dma_addr_t addr0;
 	u32 h, w;
 
 	h = isc->fmt.fmt.pix.height;
@@ -172,6 +169,14 @@ static void isc_start_dma(struct isc_device *isc)
 	regmap_update_bits(regmap, ISC_PFE_CFG0,
 			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN,
 			   ISC_PFE_CFG0_COLEN | ISC_PFE_CFG0_ROWEN);
+}
+
+static void isc_start_dma(struct isc_device *isc)
+{
+	struct regmap *regmap = isc->regmap;
+	u32 sizeimage = isc->fmt.fmt.pix.sizeimage;
+	u32 dctrl_dview;
+	dma_addr_t addr0;
 
 	addr0 = vb2_dma_contig_plane_dma_addr(&isc->cur_frm->vb.vb2_buf, 0);
 	regmap_write(regmap, ISC_DAD0 + isc->offsets.dma, addr0);
@@ -369,6 +374,7 @@ static int isc_start_streaming(struct vb2_queue *vq, unsigned int count)
 					struct isc_buffer, list);
 	list_del(&isc->cur_frm->list);
 
+	isc_crop_pfe(isc);
 	isc_start_dma(isc);
 
 	spin_unlock_irqrestore(&isc->dma_queue_lock, flags);
@@ -1466,7 +1472,7 @@ static void isc_awb_work(struct work_struct *w)
 	if (isc->stop) {
 		mutex_unlock(&isc->awb_mutex);
 		return;
-	};
+	}
 
 	isc_update_profile(isc);
 
@@ -1524,10 +1530,6 @@ static int isc_s_awb_ctrl(struct v4l2_ctrl *ctrl)
 			ctrls->awb = ISC_WB_AUTO;
 		else
 			ctrls->awb = ISC_WB_NONE;
-
-		/* we did not configure ISC yet */
-		if (!isc->config.sd_format)
-			break;
 
 		/* configure the controls with new values from v4l2 */
 		if (ctrl->cluster[ISC_CTRL_R_GAIN]->is_new)

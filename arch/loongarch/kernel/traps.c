@@ -43,6 +43,7 @@
 #include <asm/stacktrace.h>
 #include <asm/tlb.h>
 #include <asm/types.h>
+#include <asm/unwind.h>
 
 #include "access-helper.h"
 
@@ -64,19 +65,20 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs,
 			   const char *loglvl, bool user)
 {
 	unsigned long addr;
-	unsigned long *sp = (unsigned long *)(regs->regs[3] & ~3);
+	struct unwind_state state;
+	struct pt_regs *pregs = (struct pt_regs *)regs;
+
+	if (!task)
+		task = current;
+
+	if (user_mode(regs))
+		state.type = UNWINDER_GUESS;
 
 	printk("%sCall Trace:", loglvl);
-#ifdef CONFIG_KALLSYMS
-	printk("%s\n", loglvl);
-#endif
-	while (!kstack_end(sp)) {
-		if (__get_addr(&addr, sp++, user)) {
-			printk("%s (Bad stack address)", loglvl);
-			break;
-		}
-		if (__kernel_text_address(addr))
-			print_ip_sym(loglvl, addr);
+	for (unwind_start(&state, task, pregs);
+	      !unwind_done(&state); unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+		print_ip_sym(loglvl, addr);
 	}
 	printk("%s\n", loglvl);
 }

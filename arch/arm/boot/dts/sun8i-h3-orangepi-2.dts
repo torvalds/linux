@@ -88,16 +88,16 @@
 		};
 	};
 
-	r_gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		sw2 {
+		switch-2 {
 			label = "sw2";
 			linux,code = <BTN_1>;
 			gpios = <&r_pio 0 4 GPIO_ACTIVE_LOW>;
 		};
 
-		sw4 {
+		switch-4 {
 			label = "sw4";
 			linux,code = <KEY_POWER>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;

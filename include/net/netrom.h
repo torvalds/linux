@@ -14,6 +14,7 @@
 #include <net/sock.h>
 #include <linux/refcount.h>
 #include <linux/seq_file.h>
+#include <net/ax25.h>
 
 #define	NR_NETWORK_LEN			15
 #define	NR_TRANSPORT_LEN		5

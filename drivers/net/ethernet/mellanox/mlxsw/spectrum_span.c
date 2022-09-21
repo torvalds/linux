@@ -106,8 +106,8 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_init;
 
-	devlink_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_SPAN,
-					  mlxsw_sp_span_occ_get, mlxsw_sp);
+	devl_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_SPAN,
+				       mlxsw_sp_span_occ_get, mlxsw_sp);
 	INIT_WORK(&span->work, mlxsw_sp_span_respin_work);
 
 	return 0;
@@ -123,7 +123,7 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
 	cancel_work_sync(&mlxsw_sp->span->work);
-	devlink_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_SPAN);
+	devl_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_SPAN);
 
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp->span->trigger_entries_list));
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp->span->analyzed_ports_list));
@@ -423,7 +423,8 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 
 	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
 	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
-			    0, 0, dev_net(to_dev), parms.link, tun->fwmark, 0);
+			    0, 0, dev_net(to_dev), parms.link, tun->fwmark, 0,
+			    0);
 
 	rt = ip_route_output_key(tun->net, &fl4);
 	if (IS_ERR(rt))

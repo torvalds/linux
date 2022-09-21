@@ -347,7 +347,7 @@
 
 	pcie {
 		pcie_pwr: pcie-pwr {
-			rockchip,pins =	<4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 

@@ -27,7 +27,7 @@ static DEFINE_MUTEX(iio_device_types_lock);
 
 static
 struct iio_sw_device_type *__iio_find_sw_device_type(const char *name,
-						     unsigned len)
+						     unsigned int len)
 {
 	struct iio_sw_device_type *d = NULL, *iter;
 

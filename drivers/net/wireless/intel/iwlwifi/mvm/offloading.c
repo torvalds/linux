@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2021-2022 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -192,9 +192,9 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		size = sizeof(cmd.v1);
 	}
 
-	if (vif->bss_conf.arp_addr_cnt) {
+	if (vif->cfg.arp_addr_cnt) {
 		enabled |= IWL_D3_PROTO_OFFLOAD_ARP | IWL_D3_PROTO_IPV4_VALID;
-		common->host_ipv4_addr = vif->bss_conf.arp_addr_list[0];
+		common->host_ipv4_addr = vif->cfg.arp_addr_list[0];
 		memcpy(common->arp_mac_addr, vif->addr, ETH_ALEN);
 	}
 

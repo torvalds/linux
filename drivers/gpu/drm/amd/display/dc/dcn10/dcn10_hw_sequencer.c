@@ -51,6 +51,8 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "dsc.h"
+#include "dce/dmub_psr.h"
+#include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
@@ -108,6 +110,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 		 */
 		if (pipe_ctx->top_pipe ||
 		    !pipe_ctx->stream ||
+		    !pipe_ctx->plane_state ||
 		    !tg->funcs->is_tg_enabled(tg))
 			continue;
 
@@ -442,7 +445,7 @@ void dcn10_log_hw_state(struct dc *dc,
 
 		struct link_enc_state s = {0};
 
-		if (lenc->funcs->read_state) {
+		if (lenc && lenc->funcs->read_state) {
 			lenc->funcs->read_state(lenc, &s);
 			DTN_INFO("[%-3d]: %-12d %-22d %-22d %-25d\n",
 				i,
@@ -890,6 +893,7 @@ enum dc_status dcn10_enable_stream_timing(
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
 			&pipe_ctx->stream_res.pix_clk_params,
+			dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
@@ -1153,7 +1157,9 @@ void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
-	if (opp != NULL)
+	// Phantom pipes have OTG disabled by default, so MPCC_STATUS will never assert idle,
+	// so don't wait for MPCC_IDLE in the programming sequence
+	if (opp != NULL && !pipe_ctx->plane_state->is_phantom)
 		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
@@ -2611,7 +2617,6 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
 
 	ASSERT(new_mpcc != NULL);
-
 	hubp->opp_id = pipe_ctx->stream_res.opp->inst;
 	hubp->mpcc_id = mpcc_id;
 }
@@ -3242,7 +3247,7 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 	bool flip_pending;
-	struct dc *dc = plane_state->ctx->dc;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
 	if (plane_state == NULL)
 		return;
@@ -3326,6 +3331,127 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	}
 
 	return false;
+}
+
+static bool dcn10_dmub_should_update_cursor_data(
+		struct pipe_ctx *pipe_ctx,
+		struct dc_debug_options *debug)
+{
+	if (pipe_ctx->plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+		return false;
+
+	if (pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
+		return true;
+
+	if (pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_1 &&
+	    debug->enable_sw_cntl_psr)
+		return true;
+
+	return false;
+}
+
+static void dcn10_dmub_update_cursor_data(
+		struct pipe_ctx *pipe_ctx,
+		struct hubp *hubp,
+		const struct dc_cursor_mi_param *param,
+		const struct dc_cursor_position *cur_pos,
+		const struct dc_cursor_attributes *cur_attr)
+{
+	union dmub_rb_cmd cmd;
+	struct dmub_cmd_update_cursor_info_data *update_cursor_info;
+	const struct dc_cursor_position *pos;
+	const struct dc_cursor_attributes *attr;
+	int src_x_offset = 0;
+	int src_y_offset = 0;
+	int x_hotspot = 0;
+	int cursor_height = 0;
+	int cursor_width = 0;
+	uint32_t cur_en = 0;
+	unsigned int panel_inst = 0;
+
+	struct dc_debug_options *debug = &hubp->ctx->dc->debug;
+
+	if (!dcn10_dmub_should_update_cursor_data(pipe_ctx, debug))
+		return;
+	/**
+	 * if cur_pos == NULL means the caller is from cursor_set_attribute
+	 * then driver use previous cursor position data
+	 * if cur_attr == NULL means the caller is from cursor_set_position
+	 * then driver use previous cursor attribute
+	 * if cur_pos or cur_attr is not NULL then update it
+	 */
+	if (cur_pos != NULL)
+		pos = cur_pos;
+	else
+		pos = &hubp->curs_pos;
+
+	if (cur_attr != NULL)
+		attr = cur_attr;
+	else
+		attr = &hubp->curs_attr;
+
+	if (!dc_get_edp_link_panel_inst(hubp->ctx->dc, pipe_ctx->stream->link, &panel_inst))
+		return;
+
+	src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
+	src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
+	x_hotspot = pos->x_hotspot;
+	cursor_height = (int)attr->height;
+	cursor_width = (int)attr->width;
+	cur_en = pos->enable ? 1:0;
+
+	// Rotated cursor width/height and hotspots tweaks for offset calculation
+	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
+		swap(cursor_height, cursor_width);
+		if (param->rotation == ROTATION_ANGLE_90) {
+			src_x_offset = pos->x - pos->y_hotspot - param->viewport.x;
+			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
+		}
+	} else if (param->rotation == ROTATION_ANGLE_180) {
+		src_x_offset = pos->x - param->viewport.x;
+		src_y_offset = pos->y - param->viewport.y;
+	}
+
+	if (param->mirror) {
+		x_hotspot = param->viewport.width - x_hotspot;
+		src_x_offset = param->viewport.x + param->viewport.width - src_x_offset;
+	}
+
+	if (src_x_offset >= (int)param->viewport.width)
+		cur_en = 0;  /* not visible beyond right edge*/
+
+	if (src_x_offset + cursor_width <= 0)
+		cur_en = 0;  /* not visible beyond left edge*/
+
+	if (src_y_offset >= (int)param->viewport.height)
+		cur_en = 0;  /* not visible beyond bottom edge*/
+
+	if (src_y_offset + cursor_height <= 0)
+		cur_en = 0;  /* not visible beyond top edge*/
+
+	// Cursor bitmaps have different hotspot values
+	// There's a possibility that the above logic returns a negative value, so we clamp them to 0
+	if (src_x_offset < 0)
+		src_x_offset = 0;
+	if (src_y_offset < 0)
+		src_y_offset = 0;
+
+	memset(&cmd, 0x0, sizeof(cmd));
+	cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
+	cmd.update_cursor_info.header.payload_bytes =
+			sizeof(cmd.update_cursor_info.update_cursor_info_data);
+	update_cursor_info = &cmd.update_cursor_info.update_cursor_info_data;
+	update_cursor_info->cursor_rect.x = src_x_offset + param->viewport.x;
+	update_cursor_info->cursor_rect.y = src_y_offset + param->viewport.y;
+	update_cursor_info->cursor_rect.width = attr->width;
+	update_cursor_info->cursor_rect.height = attr->height;
+	update_cursor_info->enable = cur_en;
+	update_cursor_info->pipe_idx = pipe_ctx->pipe_idx;
+	update_cursor_info->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+	update_cursor_info->panel_inst = panel_inst;
+	dc_dmub_srv_cmd_queue(pipe_ctx->stream->ctx->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(pipe_ctx->stream->ctx->dmub_srv);
+	dc_dmub_srv_wait_idle(pipe_ctx->stream->ctx->dmub_srv);
 }
 
 void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
@@ -3526,6 +3652,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
 	}
 
+	dcn10_dmub_update_cursor_data(pipe_ctx, hubp, &param, &pos_cpy, NULL);
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width, hubp->curs_attr.height);
 }
@@ -3533,6 +3660,25 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 void dcn10_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
+	struct dc_cursor_mi_param param = { 0 };
+
+	/**
+	 * If enter PSR without cursor attribute update
+	 * the cursor attribute of dmub_restore_plane
+	 * are initial value. call dmub to exit PSR and
+	 * restore plane then update cursor attribute to
+	 * avoid override with initial value
+	 */
+	if (pipe_ctx->plane_state != NULL) {
+		param.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
+		param.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz;
+		param.viewport = pipe_ctx->plane_res.scl_data.viewport;
+		param.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz;
+		param.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert;
+		param.rotation = pipe_ctx->plane_state->rotation;
+		param.mirror = pipe_ctx->plane_state->horizontal_mirror;
+		dcn10_dmub_update_cursor_data(pipe_ctx, pipe_ctx->plane_res.hubp, &param, NULL, attributes);
+	}
 
 	pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes(
 			pipe_ctx->plane_res.hubp, attributes);

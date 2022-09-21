@@ -44,7 +44,7 @@
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 
 
-static bool mpc3_is_dwb_idle(
+bool mpc3_is_dwb_idle(
 	struct mpc *mpc,
 	int dwb_id)
 {
@@ -59,7 +59,7 @@ static bool mpc3_is_dwb_idle(
 		return false;
 }
 
-static void mpc3_set_dwb_mux(
+void mpc3_set_dwb_mux(
 	struct mpc *mpc,
 	int dwb_id,
 	int mpcc_id)
@@ -70,7 +70,7 @@ static void mpc3_set_dwb_mux(
 		MPC_DWB0_MUX, mpcc_id);
 }
 
-static void mpc3_disable_dwb_mux(
+void mpc3_disable_dwb_mux(
 	struct mpc *mpc,
 	int dwb_id)
 {
@@ -80,7 +80,7 @@ static void mpc3_disable_dwb_mux(
 		MPC_DWB0_MUX, 0xf);
 }
 
-static void mpc3_set_out_rate_control(
+void mpc3_set_out_rate_control(
 	struct mpc *mpc,
 	int opp_id,
 	bool enable,
@@ -99,7 +99,7 @@ static void mpc3_set_out_rate_control(
 			MPC_OUT_FLOW_CONTROL_COUNT, flow_control->flow_ctrl_cnt1);
 }
 
-static enum dc_lut_mode mpc3_get_ogam_current(struct mpc *mpc, int mpcc_id)
+enum dc_lut_mode mpc3_get_ogam_current(struct mpc *mpc, int mpcc_id)
 {
 	/*Contrary to DCN2 and DCN1 wherein a single status register field holds this info;
 	 *in DCN3/3AG, we need to read two separate fields to retrieve the same info
@@ -109,35 +109,35 @@ static enum dc_lut_mode mpc3_get_ogam_current(struct mpc *mpc, int mpcc_id)
 	uint32_t state_ram_lut_in_use;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
-	REG_GET_2(MPCC_OGAM_CONTROL[mpcc_id],
-			MPCC_OGAM_MODE_CURRENT, &state_mode,
-			MPCC_OGAM_SELECT_CURRENT, &state_ram_lut_in_use);
+	REG_GET_2(MPCC_OGAM_CONTROL[mpcc_id], MPCC_OGAM_MODE_CURRENT, &state_mode,
+		  MPCC_OGAM_SELECT_CURRENT, &state_ram_lut_in_use);
 
-		switch (state_mode) {
+	switch (state_mode) {
+	case 0:
+		mode = LUT_BYPASS;
+		break;
+	case 2:
+		switch (state_ram_lut_in_use) {
 		case 0:
-			mode = LUT_BYPASS;
+			mode = LUT_RAM_A;
 			break;
-		case 2:
-			switch (state_ram_lut_in_use) {
-			case 0:
-				mode = LUT_RAM_A;
-				break;
-			case 1:
-				mode = LUT_RAM_B;
-				break;
-			default:
-				mode = LUT_BYPASS;
-				break;
-			}
+		case 1:
+			mode = LUT_RAM_B;
 			break;
 		default:
 			mode = LUT_BYPASS;
 			break;
 		}
-		return mode;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
-static void mpc3_power_on_ogam_lut(
+void mpc3_power_on_ogam_lut(
 		struct mpc *mpc, int mpcc_id,
 		bool power_on)
 {
@@ -439,24 +439,24 @@ static enum dc_lut_mode mpc3_get_shaper_current(struct mpc *mpc, uint32_t rmu_id
 	uint32_t state_mode;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
-	REG_GET(SHAPER_CONTROL[rmu_idx],
-			MPC_RMU_SHAPER_LUT_MODE_CURRENT, &state_mode);
+	REG_GET(SHAPER_CONTROL[rmu_idx], MPC_RMU_SHAPER_LUT_MODE_CURRENT, &state_mode);
 
-		switch (state_mode) {
-		case 0:
-			mode = LUT_BYPASS;
-			break;
-		case 1:
-			mode = LUT_RAM_A;
-			break;
-		case 2:
-			mode = LUT_RAM_B;
-			break;
-		default:
-			mode = LUT_BYPASS;
-			break;
-		}
-		return mode;
+	switch (state_mode) {
+	case 0:
+		mode = LUT_BYPASS;
+		break;
+	case 1:
+		mode = LUT_RAM_A;
+		break;
+	case 2:
+		mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
 static void mpc3_configure_shaper_lut(
@@ -1035,7 +1035,7 @@ static void mpc3_set3dlut_ram10(
 }
 
 
-static void mpc3_init_mpcc(struct mpcc *mpcc, int mpcc_inst)
+void mpc3_init_mpcc(struct mpcc *mpcc, int mpcc_inst)
 {
 	mpcc->mpcc_id = mpcc_inst;
 	mpcc->dpp_id = 0xf;

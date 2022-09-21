@@ -228,17 +228,6 @@ enum {
 	 */
 	HCI_QUIRK_VALID_LE_STATES,
 
-	/* When this quirk is set, then erroneous data reporting
-	 * is ignored. This is mainly due to the fact that the HCI
-	 * Read Default Erroneous Data Reporting command is advertised,
-	 * but not supported; these controllers often reply with unknown
-	 * command and tend to lock up randomly. Needing a hard reset.
-	 *
-	 * This quirk can be set before hci_register_dev is called or
-	 * during the hdev->setup vendor callback.
-	 */
-	HCI_QUIRK_BROKEN_ERR_DATA_REPORTING,
-
 	/*
 	 * When this quirk is set, then the hci_suspend_notifier is not
 	 * registered. This is intended for devices which drop completely
@@ -327,6 +316,7 @@ enum {
 	HCI_USER_CHANNEL,
 	HCI_EXT_CONFIGURED,
 	HCI_LE_ADV,
+	HCI_LE_PER_ADV,
 	HCI_LE_SCAN,
 	HCI_SSP_ENABLED,
 	HCI_SC_ENABLED,
@@ -349,6 +339,7 @@ enum {
 	HCI_LE_SCAN_INTERRUPTED,
 	HCI_WIDEBAND_SPEECH_ENABLED,
 	HCI_EVENT_FILTER_CONFIGURED,
+	HCI_PA_SYNC,
 
 	HCI_DUT_MODE,
 	HCI_VENDOR_DIAG,
@@ -361,6 +352,7 @@ enum {
 	HCI_QUALITY_REPORT,
 	HCI_OFFLOAD_CODECS_ENABLED,
 	HCI_LE_SIMULTANEOUS_ROLES,
+	HCI_CMD_DRAIN_WORKQUEUE,
 
 	__HCI_NUM_FLAGS,
 };
@@ -496,6 +488,7 @@ enum {
 #define LMP_EXT_INQ	0x01
 #define LMP_SIMUL_LE_BR	0x02
 #define LMP_SIMPLE_PAIR	0x08
+#define LMP_ERR_DATA_REPORTING 0x20
 #define LMP_NO_FLUSH	0x40
 
 #define LMP_LSTO	0x01
@@ -528,9 +521,11 @@ enum {
 #define HCI_LE_PHY_2M			0x01
 #define HCI_LE_PHY_CODED		0x08
 #define HCI_LE_EXT_ADV			0x10
+#define HCI_LE_PERIODIC_ADV		0x20
 #define HCI_LE_CHAN_SEL_ALG2		0x40
 #define HCI_LE_CIS_CENTRAL		0x10
 #define HCI_LE_CIS_PERIPHERAL		0x20
+#define HCI_LE_ISO_BROADCASTER		0x40
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -1874,6 +1869,22 @@ struct hci_cp_le_ext_conn_param {
 	__le16 max_ce_len;
 } __packed;
 
+#define HCI_OP_LE_PA_CREATE_SYNC	0x2044
+struct hci_cp_le_pa_create_sync {
+	__u8      options;
+	__u8      sid;
+	__u8      addr_type;
+	bdaddr_t  addr;
+	__le16    skip;
+	__le16    sync_timeout;
+	__u8      sync_cte_type;
+} __packed;
+
+#define HCI_OP_LE_PA_TERM_SYNC		0x2046
+struct hci_cp_le_pa_term_sync {
+	__le16    handle;
+} __packed;
+
 #define HCI_OP_LE_READ_NUM_SUPPORTED_ADV_SETS	0x203b
 struct hci_rp_le_read_num_supported_adv_sets {
 	__u8  status;
@@ -1908,13 +1919,6 @@ struct hci_rp_le_set_ext_adv_params {
 	__u8  tx_power;
 } __packed;
 
-#define HCI_OP_LE_SET_EXT_ADV_ENABLE		0x2039
-struct hci_cp_le_set_ext_adv_enable {
-	__u8  enable;
-	__u8  num_of_sets;
-	__u8  data[];
-} __packed;
-
 struct hci_cp_ext_adv_set {
 	__u8  handle;
 	__le16 duration;
@@ -1939,6 +1943,37 @@ struct hci_cp_le_set_ext_scan_rsp_data {
 	__u8  frag_pref;
 	__u8  length;
 	__u8  data[];
+} __packed;
+
+#define HCI_OP_LE_SET_EXT_ADV_ENABLE		0x2039
+struct hci_cp_le_set_ext_adv_enable {
+	__u8  enable;
+	__u8  num_of_sets;
+	__u8  data[];
+} __packed;
+
+#define HCI_OP_LE_SET_PER_ADV_PARAMS		0x203e
+struct hci_cp_le_set_per_adv_params {
+	__u8      handle;
+	__le16    min_interval;
+	__le16    max_interval;
+	__le16    periodic_properties;
+} __packed;
+
+#define HCI_MAX_PER_AD_LENGTH	252
+
+#define HCI_OP_LE_SET_PER_ADV_DATA		0x203f
+struct hci_cp_le_set_per_adv_data {
+	__u8  handle;
+	__u8  operation;
+	__u8  length;
+	__u8  data[];
+} __packed;
+
+#define HCI_OP_LE_SET_PER_ADV_ENABLE		0x2040
+struct hci_cp_le_set_per_adv_enable {
+	__u8  enable;
+	__u8  handle;
 } __packed;
 
 #define LE_SET_ADV_DATA_OP_COMPLETE	0x03
@@ -1998,7 +2033,7 @@ struct hci_rp_le_read_iso_tx_sync {
 struct hci_cis_params {
 	__u8    cis_id;
 	__le16  c_sdu;
-	__le16  p_pdu;
+	__le16  p_sdu;
 	__u8    c_phy;
 	__u8    p_phy;
 	__u8    c_rtn;
@@ -2009,7 +2044,7 @@ struct hci_cp_le_set_cig_params {
 	__u8    cig_id;
 	__u8    c_interval[3];
 	__u8    p_interval[3];
-	__u8    wc_sca;
+	__u8    sca;
 	__u8    packing;
 	__u8    framing;
 	__le16  c_latency;
@@ -2050,6 +2085,73 @@ struct hci_cp_le_accept_cis {
 struct hci_cp_le_reject_cis {
 	__le16  handle;
 	__u8    reason;
+} __packed;
+
+#define HCI_OP_LE_CREATE_BIG			0x2068
+struct hci_bis {
+	__u8    sdu_interval[3];
+	__le16  sdu;
+	__le16  latency;
+	__u8    rtn;
+	__u8    phy;
+	__u8    packing;
+	__u8    framing;
+	__u8    encryption;
+	__u8    bcode[16];
+} __packed;
+
+struct hci_cp_le_create_big {
+	__u8    handle;
+	__u8    adv_handle;
+	__u8    num_bis;
+	struct hci_bis bis;
+} __packed;
+
+#define HCI_OP_LE_TERM_BIG			0x206a
+struct hci_cp_le_term_big {
+	__u8    handle;
+	__u8    reason;
+} __packed;
+
+#define HCI_OP_LE_BIG_CREATE_SYNC		0x206b
+struct hci_cp_le_big_create_sync {
+	__u8    handle;
+	__le16  sync_handle;
+	__u8    encryption;
+	__u8    bcode[16];
+	__u8    mse;
+	__le16  timeout;
+	__u8    num_bis;
+	__u8    bis[0];
+} __packed;
+
+#define HCI_OP_LE_BIG_TERM_SYNC			0x206c
+struct hci_cp_le_big_term_sync {
+	__u8    handle;
+} __packed;
+
+#define HCI_OP_LE_SETUP_ISO_PATH		0x206e
+struct hci_cp_le_setup_iso_path {
+	__le16  handle;
+	__u8    direction;
+	__u8    path;
+	__u8    codec;
+	__le16  codec_cid;
+	__le16  codec_vid;
+	__u8    delay[3];
+	__u8    codec_cfg_len;
+	__u8    codec_cfg[0];
+} __packed;
+
+struct hci_rp_le_setup_iso_path {
+	__u8    status;
+	__le16  handle;
+} __packed;
+
+#define HCI_OP_LE_SET_HOST_FEATURE		0x2074
+struct hci_cp_le_set_host_feature {
+	__u8     bit_number;
+	__u8     bit_value;
 } __packed;
 
 /* ---- HCI Events ---- */
@@ -2580,6 +2682,18 @@ struct hci_ev_le_ext_adv_report {
 	struct hci_ev_le_ext_adv_info info[];
 } __packed;
 
+#define HCI_EV_LE_PA_SYNC_ESTABLISHED	0x0e
+struct hci_ev_le_pa_sync_established {
+	__u8      status;
+	__le16    handle;
+	__u8      sid;
+	__u8      bdaddr_type;
+	bdaddr_t  bdaddr;
+	__u8      phy;
+	__le16    interval;
+	__u8      clock_accuracy;
+} __packed;
+
 #define HCI_EV_LE_ENHANCED_CONN_COMPLETE    0x0a
 struct hci_ev_le_enh_conn_complete {
 	__u8      status;
@@ -2629,6 +2743,55 @@ struct hci_evt_le_cis_req {
 	__le16 cis_handle;
 	__u8  cig_id;
 	__u8  cis_id;
+} __packed;
+
+#define HCI_EVT_LE_CREATE_BIG_COMPLETE	0x1b
+struct hci_evt_le_create_big_complete {
+	__u8    status;
+	__u8    handle;
+	__u8    sync_delay[3];
+	__u8    transport_delay[3];
+	__u8    phy;
+	__u8    nse;
+	__u8    bn;
+	__u8    pto;
+	__u8    irc;
+	__le16  max_pdu;
+	__le16  interval;
+	__u8    num_bis;
+	__le16  bis_handle[];
+} __packed;
+
+#define HCI_EVT_LE_BIG_SYNC_ESTABILISHED 0x1d
+struct hci_evt_le_big_sync_estabilished {
+	__u8    status;
+	__u8    handle;
+	__u8    latency[3];
+	__u8    nse;
+	__u8    bn;
+	__u8    pto;
+	__u8    irc;
+	__le16  max_pdu;
+	__le16  interval;
+	__u8    num_bis;
+	__le16  bis[];
+} __packed;
+
+#define HCI_EVT_LE_BIG_INFO_ADV_REPORT	0x22
+struct hci_evt_le_big_info_adv_report {
+	__le16  sync_handle;
+	__u8    num_bis;
+	__u8    nse;
+	__le16  iso_interval;
+	__u8    bn;
+	__u8    pto;
+	__u8    irc;
+	__le16  max_pdu;
+	__u8    sdu_interval[3];
+	__le16  max_sdu;
+	__u8    phy;
+	__u8    framing;
+	__u8    encryption;
 } __packed;
 
 #define HCI_EV_VENDOR			0xff

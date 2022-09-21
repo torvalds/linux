@@ -92,4 +92,12 @@ config DAMON_RECLAIM
 	  reclamation under light memory pressure, while the traditional page
 	  scanning-based reclamation is used for heavy pressure.
 
+config DAMON_LRU_SORT
+	bool "Build DAMON-based LRU-lists sorting (DAMON_LRU_SORT)"
+	depends on DAMON_PADDR
+	help
+	  This builds the DAMON-based LRU-lists sorting subsystem.  It tries to
+	  protect frequently accessed (hot) pages while rarely accessed (cold)
+	  pages reclaimed first under memory pressure.
+
 endmenu

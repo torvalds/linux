@@ -213,6 +213,28 @@ void dcn31_init_hw(struct dc *dc)
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
+
+		// we want to turn off edp displays if odm is enabled and no seamless boot
+		if (!dc->caps.seamless_odm) {
+			for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
+				struct timing_generator *tg = dc->res_pool->timing_generators[i];
+				uint32_t num_opps, opp_id_src0, opp_id_src1;
+
+				num_opps = 1;
+				if (tg) {
+					if (tg->funcs->is_tg_enabled(tg) && tg->funcs->get_optc_source) {
+						tg->funcs->get_optc_source(tg, &num_opps,
+								&opp_id_src0, &opp_id_src1);
+					}
+				}
+
+				if (num_opps > 1) {
+					dc_link_blank_all_edp_displays(dc);
+					break;
+				}
+			}
+		}
+
 		hws->funcs.init_pipes(dc, dc->current_state);
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
@@ -591,7 +613,7 @@ void dcn31_reset_hw_ctx_wrap(
 	}
 
 	/* New dc_state in the process of being applied to hardware. */
-	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
+	link_enc_cfg_set_transient_mode(dc, dc->current_state, context);
 }
 
 void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)

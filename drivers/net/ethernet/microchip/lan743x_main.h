@@ -43,6 +43,11 @@
 #define STRAP_READ_ADV_PM_DISABLE_	BIT(0)
 
 #define HW_CFG					(0x010)
+#define HW_CFG_RST_PROTECT_PCIE_		BIT(19)
+#define HW_CFG_HOT_RESET_DIS_			BIT(15)
+#define HW_CFG_D3_VAUX_OVR_			BIT(14)
+#define HW_CFG_D3_RESET_DIS_			BIT(13)
+#define HW_CFG_RST_PROTECT_			BIT(12)
 #define HW_CFG_RELOAD_TYPE_ALL_			(0x00000FC0)
 #define HW_CFG_EE_OTP_RELOAD_			BIT(4)
 #define HW_CFG_LRST_				BIT(1)
@@ -92,6 +97,11 @@
 #define CONFIG_REG_ADDR_BASE		(0x0000)
 #define ETH_EEPROM_REG_ADDR_BASE	(0x0E00)
 #define ETH_OTP_REG_ADDR_BASE		(0x1000)
+#define GEN_SYS_CONFIG_LOAD_STARTED_REG	(0x0078)
+#define ETH_SYS_CONFIG_LOAD_STARTED_REG (ETH_SYS_REG_ADDR_BASE + \
+					 CONFIG_REG_ADDR_BASE + \
+					 GEN_SYS_CONFIG_LOAD_STARTED_REG)
+#define GEN_SYS_LOAD_STARTED_REG_ETH_	BIT(4)
 #define SYS_LOCK_REG			(0x00A0)
 #define SYS_LOCK_REG_MAIN_LOCK_		BIT(7)
 #define SYS_LOCK_REG_GEN_PERI_LOCK_	BIT(5)
@@ -214,6 +224,7 @@
 #define MAC_EEE_TX_LPI_REQ_DLY_CNT		(0x130)
 
 #define MAC_WUCSR				(0x140)
+#define MAC_MP_SO_EN_				BIT(21)
 #define MAC_WUCSR_RFE_WAKE_EN_			BIT(14)
 #define MAC_WUCSR_PFDA_EN_			BIT(3)
 #define MAC_WUCSR_WAKE_EN_			BIT(2)
@@ -221,6 +232,8 @@
 #define MAC_WUCSR_BCST_EN_			BIT(0)
 
 #define MAC_WK_SRC				(0x144)
+#define MAC_MP_SO_HI				(0x148)
+#define MAC_MP_SO_LO				(0x14C)
 
 #define MAC_WUF_CFG0			(0x150)
 #define MAC_NUM_OF_WUF_CFG		(32)
@@ -280,10 +293,81 @@
 
 #define MAC_WUCSR2			(0x600)
 
+#define SGMII_ACC			(0x720)
+#define SGMII_ACC_SGMII_BZY_		BIT(31)
+#define SGMII_ACC_SGMII_WR_		BIT(30)
+#define SGMII_ACC_SGMII_MMD_SHIFT_	(16)
+#define SGMII_ACC_SGMII_MMD_MASK_	GENMASK(20, 16)
+#define SGMII_ACC_SGMII_MMD_VSR_	BIT(15)
+#define SGMII_ACC_SGMII_ADDR_SHIFT_	(0)
+#define SGMII_ACC_SGMII_ADDR_MASK_	GENMASK(15, 0)
+#define SGMII_DATA			(0x724)
+#define SGMII_DATA_SHIFT_		(0)
+#define SGMII_DATA_MASK_		GENMASK(15, 0)
 #define SGMII_CTL			(0x728)
 #define SGMII_CTL_SGMII_ENABLE_		BIT(31)
 #define SGMII_CTL_LINK_STATUS_SOURCE_	BIT(8)
 #define SGMII_CTL_SGMII_POWER_DN_	BIT(1)
+
+/* Vendor Specific SGMII MMD details */
+#define SR_VSMMD_PCS_ID1		0x0004
+#define SR_VSMMD_PCS_ID2		0x0005
+#define SR_VSMMD_STS			0x0008
+#define SR_VSMMD_CTRL			0x0009
+
+#define VR_MII_DIG_CTRL1			0x8000
+#define VR_MII_DIG_CTRL1_VR_RST_		BIT(15)
+#define VR_MII_DIG_CTRL1_R2TLBE_		BIT(14)
+#define VR_MII_DIG_CTRL1_EN_VSMMD1_		BIT(13)
+#define VR_MII_DIG_CTRL1_CS_EN_			BIT(10)
+#define VR_MII_DIG_CTRL1_MAC_AUTO_SW_		BIT(9)
+#define VR_MII_DIG_CTRL1_INIT_			BIT(8)
+#define VR_MII_DIG_CTRL1_DTXLANED_0_		BIT(4)
+#define VR_MII_DIG_CTRL1_CL37_TMR_OVR_RIDE_	BIT(3)
+#define VR_MII_DIG_CTRL1_EN_2_5G_MODE_		BIT(2)
+#define VR_MII_DIG_CTRL1_BYP_PWRUP_		BIT(1)
+#define VR_MII_DIG_CTRL1_PHY_MODE_CTRL_		BIT(0)
+#define VR_MII_AN_CTRL				0x8001
+#define VR_MII_AN_CTRL_MII_CTRL_		BIT(8)
+#define VR_MII_AN_CTRL_SGMII_LINK_STS_		BIT(4)
+#define VR_MII_AN_CTRL_TX_CONFIG_		BIT(3)
+#define VR_MII_AN_CTRL_1000BASE_X_		(0)
+#define VR_MII_AN_CTRL_SGMII_MODE_		(2)
+#define VR_MII_AN_CTRL_QSGMII_MODE_		(3)
+#define VR_MII_AN_CTRL_PCS_MODE_SHIFT_		(1)
+#define VR_MII_AN_CTRL_PCS_MODE_MASK_		GENMASK(2, 1)
+#define VR_MII_AN_CTRL_MII_AN_INTR_EN_		BIT(0)
+#define VR_MII_AN_INTR_STS			0x8002
+#define VR_MII_AN_INTR_STS_LINK_UP_		BIT(4)
+#define VR_MII_AN_INTR_STS_SPEED_MASK_		GENMASK(3, 2)
+#define VR_MII_AN_INTR_STS_1000_MBPS_		BIT(3)
+#define VR_MII_AN_INTR_STS_100_MBPS_		BIT(2)
+#define VR_MII_AN_INTR_STS_10_MBPS_		(0)
+#define VR_MII_AN_INTR_STS_FDX_			BIT(1)
+#define VR_MII_AN_INTR_STS_CL37_ANCMPLT_INTR_	BIT(0)
+
+#define VR_MII_LINK_TIMER_CTRL			0x800A
+#define VR_MII_DIG_STS                          0x8010
+#define VR_MII_DIG_STS_PSEQ_STATE_MASK_         GENMASK(4, 2)
+#define VR_MII_DIG_STS_PSEQ_STATE_POS_          (2)
+#define VR_MII_GEN2_4_MPLL_CTRL0		0x8078
+#define VR_MII_MPLL_CTRL0_REF_CLK_DIV2_		BIT(12)
+#define VR_MII_MPLL_CTRL0_USE_REFCLK_PAD_	BIT(4)
+#define VR_MII_GEN2_4_MPLL_CTRL1		0x8079
+#define VR_MII_MPLL_CTRL1_MPLL_MULTIPLIER_	GENMASK(6, 0)
+#define VR_MII_BAUD_RATE_3P125GBPS		(3125)
+#define VR_MII_BAUD_RATE_1P25GBPS		(1250)
+#define VR_MII_MPLL_MULTIPLIER_125		(125)
+#define VR_MII_MPLL_MULTIPLIER_100		(100)
+#define VR_MII_MPLL_MULTIPLIER_50		(50)
+#define VR_MII_MPLL_MULTIPLIER_40		(40)
+#define VR_MII_GEN2_4_MISC_CTRL1		0x809A
+#define VR_MII_CTRL1_RX_RATE_0_MASK_		GENMASK(3, 2)
+#define VR_MII_CTRL1_RX_RATE_0_SHIFT_		(2)
+#define VR_MII_CTRL1_TX_RATE_0_MASK_		GENMASK(1, 0)
+#define VR_MII_MPLL_BAUD_CLK			(0)
+#define VR_MII_MPLL_BAUD_CLK_DIV_2		(1)
+#define VR_MII_MPLL_BAUD_CLK_DIV_4		(2)
 
 #define INT_STS				(0x780)
 #define INT_BIT_DMA_RX_(channel)	BIT(24 + (channel))
@@ -906,12 +990,28 @@ struct lan743x_rx {
 	struct sk_buff *skb_head, *skb_tail;
 };
 
+/* SGMII Link Speed Duplex status */
+enum lan743x_sgmii_lsd {
+	POWER_DOWN = 0,
+	LINK_DOWN,
+	ANEG_BUSY,
+	LINK_10HD,
+	LINK_10FD,
+	LINK_100HD,
+	LINK_100FD,
+	LINK_1000_MASTER,
+	LINK_1000_SLAVE,
+	LINK_2500_MASTER,
+	LINK_2500_SLAVE
+};
+
 struct lan743x_adapter {
 	struct net_device       *netdev;
 	struct mii_bus		*mdiobus;
 	int                     msg_enable;
 #ifdef CONFIG_PM
 	u32			wolopts;
+	u8			sopass[SOPASS_MAX];
 #endif
 	struct pci_dev		*pdev;
 	struct lan743x_csr      csr;
@@ -931,12 +1031,16 @@ struct lan743x_adapter {
 	spinlock_t		eth_syslock_spinlock;
 	bool			eth_syslock_en;
 	u32			eth_syslock_acquire_cnt;
+	struct mutex		sgmii_rw_lock;
+	/* SGMII Link Speed & Duplex status */
+	enum			lan743x_sgmii_lsd sgmii_lsd;
 	u8			max_tx_channels;
 	u8			used_tx_channels;
 	u8			max_vector_count;
 
 #define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
 	u32			flags;
+	u32			hw_cfg;
 };
 
 #define LAN743X_COMPONENT_FLAG_RX(channel)  BIT(20 + (channel))
@@ -1049,5 +1153,7 @@ struct lan743x_rx_buffer_info {
 
 u32 lan743x_csr_read(struct lan743x_adapter *adapter, int offset);
 void lan743x_csr_write(struct lan743x_adapter *adapter, int offset, u32 data);
+int lan743x_hs_syslock_acquire(struct lan743x_adapter *adapter, u16 timeout);
+void lan743x_hs_syslock_release(struct lan743x_adapter *adapter);
 
 #endif /* _LAN743X_H */

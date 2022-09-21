@@ -125,7 +125,7 @@ netcp: netcp@4000000 {
 			interfaces {
 				gbe0: interface-0 {
 					slave-port = <0>;
-					link-interface	= <5>;
+					link-interface = <5>;
 				};
 			};
 		};

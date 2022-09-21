@@ -2859,7 +2859,7 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
  *				address stored on the adapter
  *	@adapter: The adapter
  *
- *	Find the the port mask for the VF based on the index of mac
+ *	Find the port mask for the VF based on the index of mac
  *	address stored in the adapter. If no mac address is stored on
  *	the adapter for the VF, use the port mask received from the
  *	firmware.

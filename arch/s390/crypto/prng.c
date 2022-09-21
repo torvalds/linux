@@ -907,5 +907,5 @@ static void __exit prng_exit(void)
 	}
 }
 
-module_cpu_feature_match(MSA, prng_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, prng_init);
 module_exit(prng_exit);

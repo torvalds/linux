@@ -182,7 +182,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 	u8 ip_proto = 0;
 	/* Temporary buffer for mangling keys, 64 is enough to cover max
 	 * struct size of key in various fields that may be mangled.
-	 * Supported fileds to mangle:
+	 * Supported fields to mangle:
 	 * mac_src/mac_dst(struct flow_match_eth_addrs, 12B)
 	 * nw_tos/nw_ttl(struct flow_match_ip, 2B)
 	 * nw_src/nw_dst(struct flow_match_ipv4/6_addrs, 32B)
@@ -194,7 +194,7 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 	    entry1->netdev != entry2->netdev)
 		return -EINVAL;
 
-	/* check the overlapped fields one by one, the unmasked part
+	/* Check the overlapped fields one by one, the unmasked part
 	 * should not conflict with each other.
 	 */
 	if (ovlp_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -563,7 +563,7 @@ static int nfp_fl_merge_actions_offload(struct flow_rule **rules,
 		if (flow_rule_match_key(rules[j], FLOW_DISSECTOR_KEY_BASIC)) {
 			struct flow_match_basic match;
 
-			/* ip_proto is the only field that needed in later compile_action,
+			/* ip_proto is the only field that is needed in later compile_action,
 			 * needed to set the correct checksum flags. It doesn't really matter
 			 * which input rule's ip_proto field we take as the earlier merge checks
 			 * would have made sure that they don't conflict. We do not know which
@@ -1013,7 +1013,7 @@ static int nfp_ct_do_nft_merge(struct nfp_fl_ct_zone_entry *zt,
 	nft_m_entry->tc_m_parent = tc_m_entry;
 	nft_m_entry->nft_parent = nft_entry;
 	nft_m_entry->tc_flower_cookie = 0;
-	/* Copy the netdev from one the pre_ct entry. When the tc_m_entry was created
+	/* Copy the netdev from the pre_ct entry. When the tc_m_entry was created
 	 * it only combined them if the netdevs were the same, so can use any of them.
 	 */
 	nft_m_entry->netdev = pre_ct_entry->netdev;
@@ -1143,7 +1143,7 @@ nfp_fl_ct_zone_entry *get_nfp_zone_entry(struct nfp_flower_priv *priv,
 	zt->priv = priv;
 	zt->nft = NULL;
 
-	/* init the various hash tables and lists*/
+	/* init the various hash tables and lists */
 	INIT_LIST_HEAD(&zt->pre_ct_list);
 	INIT_LIST_HEAD(&zt->post_ct_list);
 	INIT_LIST_HEAD(&zt->nft_flows_list);
@@ -1346,7 +1346,7 @@ static void nfp_free_nft_merge_children(void *entry, bool is_nft_flow)
 	 */
 
 	if (is_nft_flow) {
-		/* Need to iterate through list of nft_flow entries*/
+		/* Need to iterate through list of nft_flow entries */
 		struct nfp_fl_ct_flow_entry *ct_entry = entry;
 
 		list_for_each_entry_safe(m_entry, tmp, &ct_entry->children,
@@ -1354,7 +1354,7 @@ static void nfp_free_nft_merge_children(void *entry, bool is_nft_flow)
 			cleanup_nft_merge_entry(m_entry);
 		}
 	} else {
-		/* Need to iterate through list of tc_merged_flow entries*/
+		/* Need to iterate through list of tc_merged_flow entries */
 		struct nfp_fl_ct_tc_merge *ct_entry = entry;
 
 		list_for_each_entry_safe(m_entry, tmp, &ct_entry->children,

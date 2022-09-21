@@ -98,7 +98,7 @@ struct lpc18xx_pwm_chip {
 	unsigned long clk_rate;
 	unsigned int period_ns;
 	unsigned int min_period_ns;
-	unsigned int max_period_ns;
+	u64 max_period_ns;
 	unsigned int period_event;
 	unsigned long event_map;
 	struct mutex res_lock;
@@ -145,40 +145,48 @@ static void lpc18xx_pwm_set_conflict_res(struct lpc18xx_pwm_chip *lpc18xx_pwm,
 	mutex_unlock(&lpc18xx_pwm->res_lock);
 }
 
-static void lpc18xx_pwm_config_period(struct pwm_chip *chip, int period_ns)
+static void lpc18xx_pwm_config_period(struct pwm_chip *chip, u64 period_ns)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	u64 val;
+	u32 val;
 
-	val = (u64)period_ns * lpc18xx_pwm->clk_rate;
-	do_div(val, NSEC_PER_SEC);
+	/*
+	 * With clk_rate < NSEC_PER_SEC this cannot overflow.
+	 * With period_ns < max_period_ns this also fits into an u32.
+	 * As period_ns >= min_period_ns = DIV_ROUND_UP(NSEC_PER_SEC, lpc18xx_pwm->clk_rate);
+	 * we have val >= 1.
+	 */
+	val = mul_u64_u64_div_u64(period_ns, lpc18xx_pwm->clk_rate, NSEC_PER_SEC);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCH(lpc18xx_pwm->period_event),
-			   (u32)val - 1);
+			   val - 1);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCHREL(lpc18xx_pwm->period_event),
-			   (u32)val - 1);
+			   val - 1);
 }
 
 static void lpc18xx_pwm_config_duty(struct pwm_chip *chip,
-				    struct pwm_device *pwm, int duty_ns)
+				    struct pwm_device *pwm, u64 duty_ns)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
 	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
-	u64 val;
+	u32 val;
 
-	val = (u64)duty_ns * lpc18xx_pwm->clk_rate;
-	do_div(val, NSEC_PER_SEC);
+	/*
+	 * With clk_rate < NSEC_PER_SEC this cannot overflow.
+	 * With duty_ns <= period_ns < max_period_ns this also fits into an u32.
+	 */
+	val = mul_u64_u64_div_u64(duty_ns, lpc18xx_pwm->clk_rate, NSEC_PER_SEC);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCH(lpc18xx_data->duty_event),
-			   (u32)val);
+			   val);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCHREL(lpc18xx_data->duty_event),
-			   (u32)val);
+			   val);
 }
 
 static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -359,30 +367,35 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(lpc18xx_pwm->base);
 
 	lpc18xx_pwm->pwm_clk = devm_clk_get(&pdev->dev, "pwm");
-	if (IS_ERR(lpc18xx_pwm->pwm_clk)) {
-		dev_err(&pdev->dev, "failed to get pwm clock\n");
-		return PTR_ERR(lpc18xx_pwm->pwm_clk);
-	}
+	if (IS_ERR(lpc18xx_pwm->pwm_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lpc18xx_pwm->pwm_clk),
+				     "failed to get pwm clock\n");
 
 	ret = clk_prepare_enable(lpc18xx_pwm->pwm_clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "could not prepare or enable pwm clock\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
+				     "could not prepare or enable pwm clock\n");
 
 	lpc18xx_pwm->clk_rate = clk_get_rate(lpc18xx_pwm->pwm_clk);
 	if (!lpc18xx_pwm->clk_rate) {
-		dev_err(&pdev->dev, "pwm clock has no frequency\n");
-		ret = -EINVAL;
+		ret = dev_err_probe(&pdev->dev,
+				    -EINVAL, "pwm clock has no frequency\n");
+		goto disable_pwmclk;
+	}
+
+	/*
+	 * If clkrate is too fast, the calculations in .apply() might overflow.
+	 */
+	if (lpc18xx_pwm->clk_rate > NSEC_PER_SEC) {
+		ret = dev_err_probe(&pdev->dev, -EINVAL, "pwm clock to fast\n");
 		goto disable_pwmclk;
 	}
 
 	mutex_init(&lpc18xx_pwm->res_lock);
 	mutex_init(&lpc18xx_pwm->period_lock);
 
-	val = (u64)NSEC_PER_SEC * LPC18XX_PWM_TIMER_MAX;
-	do_div(val, lpc18xx_pwm->clk_rate);
-	lpc18xx_pwm->max_period_ns = val;
+	lpc18xx_pwm->max_period_ns =
+		mul_u64_u64_div_u64(NSEC_PER_SEC, LPC18XX_PWM_TIMER_MAX, lpc18xx_pwm->clk_rate);
 
 	lpc18xx_pwm->min_period_ns = DIV_ROUND_UP(NSEC_PER_SEC,
 						  lpc18xx_pwm->clk_rate);
@@ -423,7 +436,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 
 	ret = pwmchip_add(&lpc18xx_pwm->chip);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "pwmchip_add failed: %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "pwmchip_add failed\n");
 		goto disable_pwmclk;
 	}
 

@@ -416,6 +416,7 @@ int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags);
 int security_task_fix_setgid(struct cred *new, const struct cred *old,
 			     int flags);
+int security_task_fix_setgroups(struct cred *new, const struct cred *old);
 int security_task_setpgid(struct task_struct *p, pid_t pgid);
 int security_task_getpgid(struct task_struct *p);
 int security_task_getsid(struct task_struct *p);
@@ -1096,6 +1097,12 @@ static inline int security_task_fix_setuid(struct cred *new,
 static inline int security_task_fix_setgid(struct cred *new,
 					   const struct cred *old,
 					   int flags)
+{
+	return 0;
+}
+
+static inline int security_task_fix_setgroups(struct cred *new,
+					   const struct cred *old)
 {
 	return 0;
 }
@@ -2053,12 +2060,17 @@ static inline int security_perf_event_write(struct perf_event *event)
 #ifdef CONFIG_SECURITY
 extern int security_uring_override_creds(const struct cred *new);
 extern int security_uring_sqpoll(void);
+extern int security_uring_cmd(struct io_uring_cmd *ioucmd);
 #else
 static inline int security_uring_override_creds(const struct cred *new)
 {
 	return 0;
 }
 static inline int security_uring_sqpoll(void)
+{
+	return 0;
+}
+static inline int security_uring_cmd(struct io_uring_cmd *ioucmd)
 {
 	return 0;
 }

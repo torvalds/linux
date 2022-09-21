@@ -249,6 +249,7 @@
 /* Bits in MMCR2 for PowerISA v2.07 */
 #define MMCR2_FCS(pmc)			(1ull << (63 - (((pmc) - 1) * 9)))
 #define MMCR2_FCP(pmc)			(1ull << (62 - (((pmc) - 1) * 9)))
+#define MMCR2_FCWAIT(pmc)		(1ull << (58 - (((pmc) - 1) * 9)))
 #define MMCR2_FCH(pmc)			(1ull << (57 - (((pmc) - 1) * 9)))
 
 #define MAX_ALT				2
