@@ -255,6 +255,10 @@ static void handle_exit_signal(int sig, siginfo_t *info, void *context)
 {
 	int i;
 
+	/* If we're already exiting then don't signal again */
+	if (terminate)
+		return;
+
 	ksft_print_msg("Got signal, exiting...\n");
 
 	terminate = true;
