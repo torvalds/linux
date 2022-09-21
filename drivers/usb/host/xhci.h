@@ -1807,8 +1807,6 @@ struct xhci_hcd {
 	struct xhci_erst	erst;
 	/* Scratchpad */
 	struct xhci_scratchpad  *scratchpad;
-	/* Store LPM test failed devices' information */
-	struct list_head	lpm_failed_devs;
 
 	/* slot enabling and address device helpers */
 	/* these are not thread safe so use mutex */
