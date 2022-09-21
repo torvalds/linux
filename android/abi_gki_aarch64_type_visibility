@@ -1,0 +1,4 @@
+[abi_symbol_list]
+
+# for type visibility
+  GKI_struct_selinux_state

@@ -53,7 +53,6 @@
 #include <trace/hooks/logbuf.h>
 #include <trace/hooks/vmscan.h>
 #include <trace/hooks/psi.h>
-#include <trace/hooks/selinux.h>
 #include <trace/hooks/hung_task.h>
 #include <trace/hooks/mmc_core.h>
 #include <trace/hooks/v4l2core.h>
@@ -336,7 +335,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_dequeue_task_fair);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sched_stat_runtime_rt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_prepare_update_load_avg_se);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_finish_update_load_avg_se);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_selinux_is_initialized);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_tune_inactive_ratio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_update_topology_flags_workfn);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_of_i2c_get_board_info);
