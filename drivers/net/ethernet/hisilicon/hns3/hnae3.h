@@ -195,6 +195,7 @@ struct hns3_mac_stats {
 
 /* hnae3 loop mode */
 enum hnae3_loop {
+	HNAE3_LOOP_EXTERNAL,
 	HNAE3_LOOP_APP,
 	HNAE3_LOOP_SERIAL_SERDES,
 	HNAE3_LOOP_PARALLEL_SERDES,
@@ -797,6 +798,8 @@ struct hnae3_tc_info {
 	bool mqprio_active;
 };
 
+#define HNAE3_MAX_DSCP			64
+#define HNAE3_PRIO_ID_INVALID		0xff
 struct hnae3_knic_private_info {
 	struct net_device *netdev; /* Set by KNIC client when init instance */
 	u16 rss_size;		   /* Allocated RSS queues */
@@ -808,6 +811,8 @@ struct hnae3_knic_private_info {
 
 	struct hnae3_tc_info tc_info;
 	u8 tc_map_mode;
+	u8 dscp_app_cnt;
+	u8 dscp_prio[HNAE3_MAX_DSCP];
 
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
@@ -839,6 +844,7 @@ struct hnae3_roce_private_info {
 #define HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK	BIT(2)
 #define HNAE3_SUPPORT_VF	      BIT(3)
 #define HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK	BIT(4)
+#define HNAE3_SUPPORT_EXTERNAL_LOOPBACK	BIT(5)
 
 #define HNAE3_USER_UPE		BIT(0)	/* unicast promisc enabled by user */
 #define HNAE3_USER_MPE		BIT(1)	/* mulitcast promisc enabled by user */

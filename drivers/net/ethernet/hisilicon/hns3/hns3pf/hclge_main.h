@@ -351,15 +351,11 @@ struct hclge_cfg {
 	u16 umv_space;
 };
 
-#define HCLGE_MAX_DSCP			64
-#define HCLGE_PRIO_ID_INVALID		0xff
 struct hclge_tm_info {
 	u8 num_tc;
 	u8 num_pg;      /* It must be 1 if vNET-Base schd */
-	u8 dscp_app_cnt;
 	u8 pg_dwrr[HCLGE_PG_NUM];
 	u8 prio_tc[HNAE3_MAX_USER_PRIO];
-	u8 dscp_prio[HCLGE_MAX_DSCP];
 	struct hclge_pg_info pg_info[HCLGE_PG_NUM];
 	struct hclge_tc_info tc_info[HNAE3_MAX_TC];
 	enum hclge_fc_mode fc_mode;

@@ -271,9 +271,9 @@ static void hclge_dscp_to_prio_map_init(struct hclge_dev *hdev)
 	u8 i;
 
 	hdev->vport[0].nic.kinfo.tc_map_mode = HNAE3_TC_MAP_MODE_PRIO;
-	hdev->tm_info.dscp_app_cnt = 0;
-	for (i = 0; i < HCLGE_MAX_DSCP; i++)
-		hdev->tm_info.dscp_prio[i] = HCLGE_PRIO_ID_INVALID;
+	hdev->vport[0].nic.kinfo.dscp_app_cnt = 0;
+	for (i = 0; i < HNAE3_MAX_DSCP; i++)
+		hdev->vport[0].nic.kinfo.dscp_prio[i] = HNAE3_PRIO_ID_INVALID;
 }
 
 int hclge_dscp_to_tc_map(struct hclge_dev *hdev)
@@ -288,18 +288,18 @@ int hclge_dscp_to_tc_map(struct hclge_dev *hdev)
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_QOS_MAP, false);
 
 	/* The low 32 dscp setting use bd0, high 32 dscp setting use bd1 */
-	for (i = 0; i < HCLGE_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM; i++) {
-		pri_id = hdev->tm_info.dscp_prio[i];
-		pri_id = pri_id == HCLGE_PRIO_ID_INVALID ? 0 : pri_id;
+	for (i = 0; i < HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM; i++) {
+		pri_id = hdev->vport[0].nic.kinfo.dscp_prio[i];
+		pri_id = pri_id == HNAE3_PRIO_ID_INVALID ? 0 : pri_id;
 		tc_id = hdev->tm_info.prio_tc[pri_id];
 		/* Each dscp setting has 4 bits, so each byte saves two dscp
 		 * setting
 		 */
 		req0[i >> 1] |= tc_id << HCLGE_DSCP_TC_SHIFT(i);
 
-		j = i + HCLGE_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM;
-		pri_id = hdev->tm_info.dscp_prio[j];
-		pri_id = pri_id == HCLGE_PRIO_ID_INVALID ? 0 : pri_id;
+		j = i + HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM;
+		pri_id = hdev->vport[0].nic.kinfo.dscp_prio[j];
+		pri_id = pri_id == HNAE3_PRIO_ID_INVALID ? 0 : pri_id;
 		tc_id = hdev->tm_info.prio_tc[pri_id];
 		req1[i >> 1] |= tc_id << HCLGE_DSCP_TC_SHIFT(i);
 	}

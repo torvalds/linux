@@ -1158,17 +1158,18 @@ static int hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev, char *buf,
 static int hclge_dbg_dump_qos_dscp_map(struct hclge_dev *hdev, char *buf,
 				       int len)
 {
+	struct hnae3_knic_private_info *kinfo = &hdev->vport[0].nic.kinfo;
 	struct hclge_desc desc[HCLGE_DSCP_MAP_TC_BD_NUM];
 	u8 *req0 = (u8 *)desc[0].data;
 	u8 *req1 = (u8 *)desc[1].data;
-	u8 dscp_tc[HCLGE_MAX_DSCP];
+	u8 dscp_tc[HNAE3_MAX_DSCP];
 	int pos, ret;
 	u8 i, j;
 
 	pos = scnprintf(buf, len, "tc map mode: %s\n",
-			tc_map_mode_str[hdev->vport[0].nic.kinfo.tc_map_mode]);
+			tc_map_mode_str[kinfo->tc_map_mode]);
 
-	if (hdev->vport[0].nic.kinfo.tc_map_mode != HNAE3_TC_MAP_MODE_DSCP)
+	if (kinfo->tc_map_mode != HNAE3_TC_MAP_MODE_DSCP)
 		return 0;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QOS_MAP, true);
@@ -1184,8 +1185,8 @@ static int hclge_dbg_dump_qos_dscp_map(struct hclge_dev *hdev, char *buf,
 	pos += scnprintf(buf + pos, len - pos, "\nDSCP  PRIO  TC\n");
 
 	/* The low 32 dscp setting use bd0, high 32 dscp setting use bd1 */
-	for (i = 0; i < HCLGE_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM; i++) {
-		j = i + HCLGE_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM;
+	for (i = 0; i < HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM; i++) {
+		j = i + HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM;
 		/* Each dscp setting has 4 bits, so each byte saves two dscp
 		 * setting
 		 */
@@ -1195,12 +1196,12 @@ static int hclge_dbg_dump_qos_dscp_map(struct hclge_dev *hdev, char *buf,
 		dscp_tc[j] &= HCLGE_DBG_TC_MASK;
 	}
 
-	for (i = 0; i < HCLGE_MAX_DSCP; i++) {
-		if (hdev->tm_info.dscp_prio[i] == HCLGE_PRIO_ID_INVALID)
+	for (i = 0; i < HNAE3_MAX_DSCP; i++) {
+		if (kinfo->dscp_prio[i] == HNAE3_PRIO_ID_INVALID)
 			continue;
 
 		pos += scnprintf(buf + pos, len - pos, " %2u    %u    %u\n",
-				 i, hdev->tm_info.dscp_prio[i], dscp_tc[i]);
+				 i, kinfo->dscp_prio[i], dscp_tc[i]);
 	}
 
 	return 0;

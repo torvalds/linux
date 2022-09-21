@@ -2987,22 +2987,19 @@ static u16 hns3_nic_select_queue(struct net_device *netdev,
 				 struct net_device *sb_dev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	u8 dscp, priority;
-	int ret;
+	u8 dscp;
 
 	if (h->kinfo.tc_map_mode != HNAE3_TC_MAP_MODE_DSCP ||
 	    !h->ae_algo->ops->get_dscp_prio)
 		goto out;
 
 	dscp = hns3_get_skb_dscp(skb);
-	if (unlikely(dscp == HNS3_INVALID_DSCP))
+	if (unlikely(dscp >= HNAE3_MAX_DSCP))
 		goto out;
 
-	ret = h->ae_algo->ops->get_dscp_prio(h, dscp, NULL, &priority);
-	if (ret)
-		goto out;
-
-	skb->priority = priority;
+	skb->priority = h->kinfo.dscp_prio[dscp];
+	if (skb->priority == HNAE3_PRIO_ID_INVALID)
+		skb->priority = 0;
 
 out:
 	return netdev_pick_tx(netdev, skb, sb_dev);
@@ -5825,6 +5822,57 @@ int hns3_set_channels(struct net_device *netdev,
 	}
 
 	return 0;
+}
+
+void hns3_external_lb_prepare(struct net_device *ndev, bool if_running)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	if (!if_running)
+		return;
+
+	netif_carrier_off(ndev);
+	netif_tx_disable(ndev);
+
+	for (i = 0; i < priv->vector_num; i++)
+		hns3_vector_disable(&priv->tqp_vector[i]);
+
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_disable(h->kinfo.tqp[i]);
+
+	/* delay ring buffer clearing to hns3_reset_notify_uninit_enet
+	 * during reset process, because driver may not be able
+	 * to disable the ring through firmware when downing the netdev.
+	 */
+	if (!hns3_nic_resetting(ndev))
+		hns3_nic_reset_all_ring(priv->ae_handle);
+
+	hns3_reset_tx_queue(priv->ae_handle);
+}
+
+void hns3_external_lb_restore(struct net_device *ndev, bool if_running)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	if (!if_running)
+		return;
+
+	hns3_nic_reset_all_ring(priv->ae_handle);
+
+	for (i = 0; i < priv->vector_num; i++)
+		hns3_vector_enable(&priv->tqp_vector[i]);
+
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_enable(h->kinfo.tqp[i]);
+
+	netif_tx_wake_all_queues(ndev);
+
+	if (h->ae_algo->ops->get_status(h))
+		netif_carrier_on(ndev);
 }
 
 static const struct hns3_hw_error_info hns3_hw_err[] = {
