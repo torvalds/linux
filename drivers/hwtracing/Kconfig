@@ -5,4 +5,6 @@ source "drivers/hwtracing/stm/Kconfig"
 
 source "drivers/hwtracing/intel_th/Kconfig"
 
+source "drivers/hwtracing/ptt/Kconfig"
+
 endmenu

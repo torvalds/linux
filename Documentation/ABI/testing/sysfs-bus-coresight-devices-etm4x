@@ -516,3 +516,11 @@ Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(Read) Returns the number of special conditional P1 right-hand keys
 		that the trace unit can use (0x194).  The value is taken
 		directly from the HW.
+
+What:		/sys/bus/coresight/devices/etm<N>/ts_source
+Date:		October 2022
+KernelVersion:	6.1
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org> or Suzuki K Poulose <suzuki.poulose@arm.com>
+Description:	(Read) When FEAT_TRF is implemented, value of TRFCR_ELx.TS used for
+		trace session. Otherwise -1 indicates an unknown time source. Check
+		trcidr0.tssize to see if a global timestamp is available.
