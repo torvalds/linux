@@ -126,7 +126,7 @@ choice
 	  If unsure, select Generic.
 
 config GENERIC_CPU
-	bool "Generic (POWER4 and above)"
+	bool "Generic (POWER5 and PowerPC 970 and above)"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 	select PPC_64S_HASH_MMU
 
@@ -145,8 +145,8 @@ config CELL_CPU
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 	select PPC_64S_HASH_MMU
 
-config POWER5_CPU
-	bool "POWER5"
+config PPC_970_CPU
+	bool "PowerPC 970 (including PowerPC G5)"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 	select PPC_64S_HASH_MMU
 
@@ -235,7 +235,7 @@ config TARGET_CPU
 	string
 	depends on TARGET_CPU_BOOL
 	default "cell" if CELL_CPU
-	default "power5" if POWER5_CPU
+	default "970" if PPC_970_CPU
 	default "power6" if POWER6_CPU
 	default "power7" if POWER7_CPU
 	default "power8" if POWER8_CPU
