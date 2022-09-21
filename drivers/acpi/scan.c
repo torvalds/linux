@@ -2235,9 +2235,22 @@ ok:
 	return 0;
 }
 
-static int acpi_dev_get_first_consumer_dev_cb(struct acpi_dep_data *dep, void *data)
+static int acpi_dev_get_next_consumer_dev_cb(struct acpi_dep_data *dep, void *data)
 {
-	struct acpi_device *adev;
+	struct acpi_device **adev_p = data;
+	struct acpi_device *adev = *adev_p;
+
+	/*
+	 * If we're passed a 'previous' consumer device then we need to skip
+	 * any consumers until we meet the previous one, and then NULL @data
+	 * so the next one can be returned.
+	 */
+	if (adev) {
+		if (dep->consumer == adev->handle)
+			*adev_p = NULL;
+
+		return 0;
+	}
 
 	adev = acpi_get_acpi_dev(dep->consumer);
 	if (adev) {
@@ -2368,25 +2381,32 @@ bool acpi_dev_ready_for_enumeration(const struct acpi_device *device)
 EXPORT_SYMBOL_GPL(acpi_dev_ready_for_enumeration);
 
 /**
- * acpi_dev_get_first_consumer_dev - Return ACPI device dependent on @supplier
+ * acpi_dev_get_next_consumer_dev - Return the next adev dependent on @supplier
  * @supplier: Pointer to the dependee device
+ * @start: Pointer to the current dependent device
  *
- * Returns the first &struct acpi_device which declares itself dependent on
+ * Returns the next &struct acpi_device which declares itself dependent on
  * @supplier via the _DEP buffer, parsed from the acpi_dep_list.
  *
- * The caller is responsible for putting the reference to adev when it is no
- * longer needed.
+ * If the returned adev is not passed as @start to this function, the caller is
+ * responsible for putting the reference to adev when it is no longer needed.
  */
-struct acpi_device *acpi_dev_get_first_consumer_dev(struct acpi_device *supplier)
+struct acpi_device *acpi_dev_get_next_consumer_dev(struct acpi_device *supplier,
+						   struct acpi_device *start)
 {
-	struct acpi_device *adev = NULL;
+	struct acpi_device *adev = start;
 
 	acpi_walk_dep_device_list(supplier->handle,
-				  acpi_dev_get_first_consumer_dev_cb, &adev);
+				  acpi_dev_get_next_consumer_dev_cb, &adev);
+
+	acpi_dev_put(start);
+
+	if (adev == start)
+		return NULL;
 
 	return adev;
 }
-EXPORT_SYMBOL_GPL(acpi_dev_get_first_consumer_dev);
+EXPORT_SYMBOL_GPL(acpi_dev_get_next_consumer_dev);
 
 /**
  * acpi_bus_scan - Add ACPI device node objects in a given namespace scope.
