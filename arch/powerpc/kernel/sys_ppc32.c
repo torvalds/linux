@@ -79,13 +79,6 @@ int compat_sys_truncate64(const char __user * path, u32 reg4,
 	return ksys_truncate(path, merge_64(len1, len2));
 }
 
-long compat_sys_fallocate(int fd, int mode, u32 offset1, u32 offset2,
-				     u32 len1, u32 len2)
-{
-	return ksys_fallocate(fd, mode, merge_64(offset1, offset2),
-			     merge_64(len1, len2));
-}
-
 int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long len1,
 				 unsigned long len2)
 {
