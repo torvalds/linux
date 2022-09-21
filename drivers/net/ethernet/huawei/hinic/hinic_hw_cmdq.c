@@ -82,11 +82,6 @@
 						     struct hinic_func_to_io, \
 						     cmdqs)
 
-enum cmdq_wqe_type {
-	WQE_LCMD_TYPE = 0,
-	WQE_SCMD_TYPE = 1,
-};
-
 enum completion_format {
 	COMPLETE_DIRECT = 0,
 	COMPLETE_SGE    = 1,

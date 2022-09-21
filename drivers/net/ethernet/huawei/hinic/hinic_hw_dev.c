@@ -41,11 +41,6 @@ enum intr_type {
 	INTR_MSIX_TYPE,
 };
 
-enum io_status {
-	IO_STOPPED = 0,
-	IO_RUNNING = 1,
-};
-
 /**
  * parse_capability - convert device capabilities to NIC capabilities
  * @hwdev: the HW device to set and convert device capabilities for
