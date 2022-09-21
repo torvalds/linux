@@ -107,8 +107,6 @@ static void ksz_spi_remove(struct spi_device *spi)
 
 	if (dev)
 		ksz_switch_remove(dev);
-
-	spi_set_drvdata(spi, NULL);
 }
 
 static void ksz_spi_shutdown(struct spi_device *spi)
