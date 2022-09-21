@@ -420,24 +420,12 @@ static void tg_update_has_rules(struct throtl_grp *tg)
 	struct throtl_grp *parent_tg = sq_to_tg(tg->service_queue.parent_sq);
 	struct throtl_data *td = tg->td;
 	int rw;
-	int has_iops_limit = 0;
 
-	for (rw = READ; rw <= WRITE; rw++) {
-		unsigned int iops_limit = tg_iops_limit(tg, rw);
-
+	for (rw = READ; rw <= WRITE; rw++)
 		tg->has_rules[rw] = (parent_tg && parent_tg->has_rules[rw]) ||
 			(td->limit_valid[td->limit_index] &&
 			 (tg_bps_limit(tg, rw) != U64_MAX ||
-			  iops_limit != UINT_MAX));
-
-		if (iops_limit != UINT_MAX)
-			has_iops_limit = 1;
-	}
-
-	if (has_iops_limit)
-		tg->flags |= THROTL_TG_HAS_IOPS_LIMIT;
-	else
-		tg->flags &= ~THROTL_TG_HAS_IOPS_LIMIT;
+			  tg_iops_limit(tg, rw) != UINT_MAX));
 }
 
 static void throtl_pd_online(struct blkg_policy_data *pd)
