@@ -107,12 +107,11 @@ static int mlx5e_macsec_create_object(struct mlx5_core_dev *mdev,
 	MLX5_SET64(macsec_offload_obj, obj, sci, (__force u64)(attrs->sci));
 	MLX5_SET(macsec_offload_obj, obj, aso_return_reg, MLX5_MACSEC_ASO_REG_C_4_5);
 	MLX5_SET(macsec_offload_obj, obj, macsec_aso_access_pd, attrs->aso_pdn);
+	MLX5_SET(macsec_aso, aso_ctx, mode_parameter, attrs->next_pn);
 
 	MLX5_SET(macsec_aso, aso_ctx, valid, 0x1);
-	if (is_tx) {
+	if (is_tx)
 		MLX5_SET(macsec_aso, aso_ctx, mode, MLX5_MACSEC_ASO_INC_SN);
-		MLX5_SET(macsec_aso, aso_ctx, mode_parameter, attrs->next_pn);
-	}
 
 	/* general object fields set */
 	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
