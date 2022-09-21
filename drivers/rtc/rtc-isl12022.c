@@ -171,20 +171,6 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 						 buf[0] | ISL12022_INT_WRTC);
 			if (ret)
 				return ret;
-
-			/* Write to any RTC register to start RTC, we use the
-			 * HR register, setting the MIL bit to use the 24 hour
-			 * format. */
-			ret = isl12022_read_regs(client, ISL12022_REG_HR,
-						 buf, 1);
-			if (ret)
-				return ret;
-
-			ret = isl12022_write_reg(client,
-						 ISL12022_REG_HR,
-						 buf[0] | ISL12022_HR_MIL);
-			if (ret)
-				return ret;
 		}
 
 		isl12022->write_enabled = true;
