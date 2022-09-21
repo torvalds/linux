@@ -29,7 +29,6 @@
 #include "hinic_hw_io.h"
 #include "hinic_hw_dev.h"
 
-#define IO_STATUS_TIMEOUT               100
 #define OUTBOUND_STATE_TIMEOUT          100
 #define DB_STATE_TIMEOUT                100
 
