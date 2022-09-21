@@ -1093,10 +1093,12 @@ bool blk_mq_complete_request_remote(struct request *rq)
 	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
 
 	/*
-	 * For a polled request, always complete locally, it's pointless
-	 * to redirect the completion.
+	 * For request which hctx has only one ctx mapping,
+	 * or a polled request, always complete locally,
+	 * it's pointless to redirect the completion.
 	 */
-	if (rq->cmd_flags & REQ_POLLED)
+	if (rq->mq_hctx->nr_ctx == 1 ||
+		rq->cmd_flags & REQ_POLLED)
 		return false;
 
 	if (blk_mq_complete_need_ipi(rq)) {
