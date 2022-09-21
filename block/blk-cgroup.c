@@ -1257,7 +1257,7 @@ int blkcg_init_disk(struct gendisk *disk)
 	if (preloaded)
 		radix_tree_preload_end();
 
-	ret = blk_ioprio_init(q);
+	ret = blk_ioprio_init(disk);
 	if (ret)
 		goto err_destroy_all;
 
@@ -1274,7 +1274,7 @@ int blkcg_init_disk(struct gendisk *disk)
 err_throtl_exit:
 	blk_throtl_exit(q);
 err_ioprio_exit:
-	blk_ioprio_exit(q);
+	blk_ioprio_exit(disk);
 err_destroy_all:
 	blkg_destroy_all(q);
 	return ret;
