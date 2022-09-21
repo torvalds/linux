@@ -46,8 +46,6 @@ struct vmbus_dynid {
 
 static struct acpi_device  *hv_acpi_dev;
 
-static struct completion probe_event;
-
 static int hyperv_cpuhp_online;
 
 static void *hv_panic_page;
@@ -2467,7 +2465,6 @@ static int vmbus_acpi_add(struct acpi_device *device)
 	ret_val = 0;
 
 acpi_walk_err:
-	complete(&probe_event);
 	if (ret_val)
 		vmbus_acpi_remove(device);
 	return ret_val;
@@ -2646,6 +2643,7 @@ static struct acpi_driver vmbus_acpi_driver = {
 		.remove = vmbus_acpi_remove,
 	},
 	.drv.pm = &vmbus_bus_pm,
+	.drv.probe_type = PROBE_FORCE_SYNCHRONOUS,
 };
 
 static void hv_kexec_handler(void)
@@ -2718,15 +2716,13 @@ static struct syscore_ops hv_synic_syscore_ops = {
 
 static int __init hv_acpi_init(void)
 {
-	int ret, t;
+	int ret;
 
 	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
 
 	if (hv_root_partition)
 		return 0;
-
-	init_completion(&probe_event);
 
 	/*
 	 * Get ACPI resources first.
@@ -2736,9 +2732,8 @@ static int __init hv_acpi_init(void)
 	if (ret)
 		return ret;
 
-	t = wait_for_completion_timeout(&probe_event, 5*HZ);
-	if (t == 0) {
-		ret = -ETIMEDOUT;
+	if (!hv_acpi_dev) {
+		ret = -ENODEV;
 		goto cleanup;
 	}
 
