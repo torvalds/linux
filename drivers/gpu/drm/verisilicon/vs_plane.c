@@ -193,6 +193,33 @@ static int vs_plane_atomic_get_property(struct drm_plane *plane,
 	return 0;
 }
 
+static bool vs_format_mod_supported(struct drm_plane *plane,
+					uint32_t format,
+					uint64_t modifier)
+{
+   int i;
+
+   /*
+	* We always have to allow these modifiers:
+	* 1. Core DRM checks for LINEAR support if userspace does not provide modifiers.
+	* 2. Not passing any modifiers is the same as explicitly passing INVALID.
+	*/
+   if (modifier == DRM_FORMAT_MOD_LINEAR) {
+	   return true;
+   }
+
+   /* Check that the modifier is on the list of the plane's supported modifiers. */
+   for (i = 0; i < plane->modifier_count; i++) {
+	   if (modifier == plane->modifiers[i])
+		   break;
+   }
+   if (i == plane->modifier_count)
+	   return false;
+
+   return true;
+}
+
+
 const struct drm_plane_funcs vs_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
@@ -202,6 +229,7 @@ const struct drm_plane_funcs vs_plane_funcs = {
 	.atomic_destroy_state	= vs_plane_atomic_destroy_state,
 	.atomic_set_property	= vs_plane_atomic_set_property,
 	.atomic_get_property	= vs_plane_atomic_get_property,
+	.format_mod_supported	= vs_format_mod_supported,
 };
 
 static unsigned char vs_get_plane_number(struct drm_framebuffer *fb)
