@@ -509,8 +509,8 @@ int hinic_cmdq_direct_resp(struct hinic_cmdqs *cmdqs,
  *
  * Return 0 - Success, negative - Failure
  **/
-int hinic_set_arm_bit(struct hinic_cmdqs *cmdqs,
-		      enum hinic_set_arm_qtype q_type, u32 q_id)
+static int hinic_set_arm_bit(struct hinic_cmdqs *cmdqs,
+			     enum hinic_set_arm_qtype q_type, u32 q_id)
 {
 	struct hinic_cmdq *cmdq = &cmdqs->cmdq[HINIC_CMDQ_SYNC];
 	struct hinic_hwif *hwif = cmdqs->hwif;

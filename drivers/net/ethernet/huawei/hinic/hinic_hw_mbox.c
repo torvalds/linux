@@ -621,7 +621,7 @@ static bool check_vf_mbox_random_id(struct hinic_mbox_func_to_func *func_to_func
 	return false;
 }
 
-void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
+static void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
 {
 	struct hinic_mbox_func_to_func *func_to_func;
 	u64 mbox_header = *((u64 *)header);
@@ -649,7 +649,7 @@ void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
 	recv_mbox_handler(func_to_func, (u64 *)header, recv_mbox);
 }
 
-void hinic_mbox_self_aeqe_handler(void *handle, void *header, u8 size)
+static void hinic_mbox_self_aeqe_handler(void *handle, void *header, u8 size)
 {
 	struct hinic_mbox_func_to_func *func_to_func;
 	struct hinic_send_mbox *send_mbox;

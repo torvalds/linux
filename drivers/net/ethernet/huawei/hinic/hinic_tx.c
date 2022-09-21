@@ -74,7 +74,7 @@ enum hinic_offload_type {
  * hinic_txq_clean_stats - Clean the statistics of specific queue
  * @txq: Logical Tx Queue
  **/
-void hinic_txq_clean_stats(struct hinic_txq *txq)
+static void hinic_txq_clean_stats(struct hinic_txq *txq)
 {
 	struct hinic_txq_stats *txq_stats = &txq->txq_stats;
 

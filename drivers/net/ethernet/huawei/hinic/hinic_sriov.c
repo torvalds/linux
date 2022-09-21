@@ -1293,7 +1293,7 @@ int hinic_pci_sriov_disable(struct pci_dev *pdev)
 	return 0;
 }
 
-int hinic_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
+static int hinic_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 {
 	struct hinic_sriov_info *sriov_info;
 	int err;

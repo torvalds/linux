@@ -587,9 +587,6 @@ int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
 void hinic_hwdev_set_msix_state(struct hinic_hwdev *hwdev, u16 msix_index,
 				enum hinic_msix_state flag);
 
-int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
-			    struct hinic_msix_config *interrupt_info);
-
 int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
 			    struct hinic_msix_config *interrupt_info);
 

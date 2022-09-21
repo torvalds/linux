@@ -837,8 +837,8 @@ static int hinic_l2nic_reset(struct hinic_hwdev *hwdev)
 	return 0;
 }
 
-int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
-			    struct hinic_msix_config *interrupt_info)
+static int hinic_get_interrupt_cfg(struct hinic_hwdev *hwdev,
+				   struct hinic_msix_config *interrupt_info)
 {
 	u16 out_size = sizeof(*interrupt_info);
 	struct hinic_pfhwdev *pfhwdev;
