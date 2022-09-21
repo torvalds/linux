@@ -428,6 +428,18 @@ static const struct dmi_system_id s2idle_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ROG Zephyrus G14 GA402"),
 		},
 	},
+	{
+		/*
+		 * Lenovo Yoga Slim 7 Pro X 14ARH7
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=216473 : 82V2
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=216438 : 82TL
+		 */
+		.callback = lps0_prefer_microsoft,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "82"),
+		},
+	},
 	{}
 };
 
