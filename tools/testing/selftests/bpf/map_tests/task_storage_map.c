@@ -79,6 +79,7 @@ void test_task_storage_map_stress_lookup(void)
 	/* Only for a fully preemptible kernel */
 	if (!skel->kconfig->CONFIG_PREEMPT) {
 		printf("%s SKIP (no CONFIG_PREEMPT)\n", __func__);
+		read_bpf_task_storage_busy__destroy(skel);
 		skips++;
 		return;
 	}
