@@ -828,6 +828,7 @@ struct rkcif_device {
 	bool				is_use_dummybuf;
 	bool				is_notifier_isp;
 	bool				is_thunderboot;
+	bool				is_rdbk_to_online;
 	int				rdbk_debug;
 	int				sync_type;
 	int				sditf_cnt;

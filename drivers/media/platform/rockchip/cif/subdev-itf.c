@@ -539,12 +539,30 @@ void sditf_change_to_online(struct sditf_priv *priv)
 		rkcif_free_rx_buf(&cif_dev->stream[2], priv->buf_num);
 }
 
+static void sditf_check_capture_mode(struct rkcif_device *cif_dev)
+{
+	struct rkcif_device *dev = NULL;
+	int i = 0;
+	int toisp_cnt = 0;
+
+	for (i = 0; i < cif_dev->hw_dev->dev_num; i++) {
+		dev = cif_dev->hw_dev->cif_dev[i];
+		if (dev && dev->sditf_cnt)
+			toisp_cnt++;
+	}
+	if (cif_dev->is_thunderboot && toisp_cnt == 1)
+		cif_dev->is_rdbk_to_online = true;
+	else
+		cif_dev->is_rdbk_to_online = false;
+}
+
 static int sditf_start_stream(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev_format fmt;
 	unsigned int mode = RKCIF_STREAM_MODE_TOISP;
 
+	sditf_check_capture_mode(cif_dev);
 	sditf_get_set_fmt(&priv->sd, NULL, &fmt);
 	if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
 		if (priv->toisp_inf.link_mode == TOISP0) {

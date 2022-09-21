@@ -7647,7 +7647,8 @@ static void rkcif_line_wake_up_rdbk(struct rkcif_stream *stream, int mipi_id)
 		if (stream->cur_stream_mode & RKCIF_STREAM_MODE_TOISP_RDBK) {
 			spin_lock_irqsave(&stream->vbq_lock, flags);
 			if (stream->cifdev->is_thunderboot &&
-			    (stream->frame_idx - 1) == stream->last_rx_buf_idx) {
+			    (stream->frame_idx - 1) == stream->last_rx_buf_idx &&
+			     stream->cifdev->is_rdbk_to_online) {
 				stream->cur_stream_mode &= ~RKCIF_STREAM_MODE_TOISP_RDBK;
 				stream->cur_stream_mode |= RKCIF_STREAM_MODE_TOISP;
 				stream->cifdev->wait_line = 0;
