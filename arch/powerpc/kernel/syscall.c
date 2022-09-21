@@ -25,7 +25,6 @@ notrace long system_call_exception(long r3, long r4, long r5,
 	kuap_lock();
 
 	add_random_kstack_offset();
-	regs->orig_gpr3 = r3;
 
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		BUG_ON(irq_soft_mask_return() != IRQS_ALL_DISABLED);
