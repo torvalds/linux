@@ -1131,8 +1131,8 @@ static void hinic_clear_vf_infos(struct hinic_dev *nic_dev, u16 vf_id)
 	hinic_init_vf_infos(&nic_dev->hwdev->func_to_io, HW_VF_ID_TO_OS(vf_id));
 }
 
-static int hinic_deinit_vf_hw(struct hinic_sriov_info *sriov_info,
-			      u16 start_vf_id, u16 end_vf_id)
+static void hinic_deinit_vf_hw(struct hinic_sriov_info *sriov_info,
+			       u16 start_vf_id, u16 end_vf_id)
 {
 	struct hinic_dev *nic_dev;
 	u16 func_idx, idx;
@@ -1145,8 +1145,6 @@ static int hinic_deinit_vf_hw(struct hinic_sriov_info *sriov_info,
 				       HINIC_HW_WQ_PAGE_SIZE);
 		hinic_clear_vf_infos(nic_dev, idx);
 	}
-
-	return 0;
 }
 
 int hinic_vf_func_init(struct hinic_hwdev *hwdev)
