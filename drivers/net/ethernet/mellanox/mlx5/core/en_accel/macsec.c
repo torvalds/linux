@@ -1285,7 +1285,7 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 	if (err) {
 		mlx5_core_err(mdev, "MACsec offload: Failed to init SCI hash table, err=%d\n",
 			      err);
-		goto err_out;
+		goto err_hash;
 	}
 
 	xa_init_flags(&macsec->sc_xarray, XA_FLAGS_ALLOC1);
@@ -1307,6 +1307,8 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 	return 0;
 
 err_out:
+	rhashtable_destroy(&macsec->sci_hash);
+err_hash:
 	mlx5_core_dealloc_pd(priv->mdev, macsec->aso_pdn);
 err_pd:
 	kfree(macsec);
