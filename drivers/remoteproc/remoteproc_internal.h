@@ -24,6 +24,21 @@ struct rproc_debug_trace {
 	struct rproc_mem_entry trace_mem;
 };
 
+/**
+ * struct rproc_vdev_data - remoteproc virtio device data
+ * @rsc_offset: offset of the vdev's resource entry
+ * @id: virtio device id (as in virtio_ids.h)
+ * @index: vdev position versus other vdev declared in resource table
+ * @rsc: pointer to the vdev resource entry. Valid only during vdev init as
+ *       the resource can be cached by rproc.
+ */
+struct rproc_vdev_data {
+	u32 rsc_offset;
+	unsigned int id;
+	u32 index;
+	struct fw_rsc_vdev *rsc;
+};
+
 /* from remoteproc_core.c */
 void rproc_release(struct kref *kref);
 irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int vq_id);
