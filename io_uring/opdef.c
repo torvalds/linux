@@ -496,10 +496,10 @@ const struct io_op_def io_op_defs[] = {
 		.manual_alloc		= 1,
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
-		.prep			= io_sendzc_prep,
-		.issue			= io_sendzc,
+		.prep			= io_send_zc_prep,
+		.issue			= io_send_zc,
 		.prep_async		= io_send_prep_async,
-		.cleanup		= io_sendzc_cleanup,
+		.cleanup		= io_send_zc_cleanup,
 		.fail			= io_send_zc_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
