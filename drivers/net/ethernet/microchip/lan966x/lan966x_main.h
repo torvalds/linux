@@ -36,6 +36,7 @@
 
 #define NUM_PHYS_PORTS			8
 #define CPU_PORT			8
+#define NUM_PRIO_QUEUES			8
 
 /* Reserved PGIDs */
 #define PGID_CPU			(PGID_AGGR - 6)
