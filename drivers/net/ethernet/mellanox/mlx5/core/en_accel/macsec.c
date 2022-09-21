@@ -153,6 +153,8 @@ struct mlx5_macsec_obj_attrs {
 	struct mlx5e_macsec_epn_state epn_state;
 	salt_t salt;
 	__be32 ssci;
+	bool replay_protect;
+	u32 replay_window;
 };
 
 struct mlx5_aso_ctrl_param {
@@ -220,6 +222,35 @@ static void mlx5e_macsec_aso_dereg_mr(struct mlx5_core_dev *mdev, struct mlx5e_m
 	kfree(umr);
 }
 
+static int macsec_set_replay_protection(struct mlx5_macsec_obj_attrs *attrs, void *aso_ctx)
+{
+	u8 window_sz;
+
+	if (!attrs->replay_protect)
+		return 0;
+
+	switch (attrs->replay_window) {
+	case 256:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_256BIT;
+		break;
+	case 128:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_128BIT;
+		break;
+	case 64:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_64BIT;
+		break;
+	case 32:
+		window_sz = MLX5_MACSEC_ASO_REPLAY_WIN_32BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
+	MLX5_SET(macsec_aso, aso_ctx, window_size, window_sz);
+	MLX5_SET(macsec_aso, aso_ctx, mode, MLX5_MACSEC_ASO_REPLAY_PROTECTION);
+
+	return 0;
+}
+
 static int mlx5e_macsec_create_object(struct mlx5_core_dev *mdev,
 				      struct mlx5_macsec_obj_attrs *attrs,
 				      bool is_tx,
@@ -253,15 +284,18 @@ static int mlx5e_macsec_create_object(struct mlx5_core_dev *mdev,
 		salt_p = MLX5_ADDR_OF(macsec_offload_obj, obj, salt);
 		for (i = 0; i < 3 ; i++)
 			memcpy((u32 *)salt_p + i, &attrs->salt.bytes[4 * (2 - i)], 4);
-		if (!is_tx)
-			MLX5_SET(macsec_aso, aso_ctx, mode, MLX5_MACSEC_ASO_REPLAY_PROTECTION);
 	} else {
 		MLX5_SET64(macsec_offload_obj, obj, sci, (__force u64)(attrs->sci));
 	}
 
 	MLX5_SET(macsec_aso, aso_ctx, valid, 0x1);
-	if (is_tx)
+	if (is_tx) {
 		MLX5_SET(macsec_aso, aso_ctx, mode, MLX5_MACSEC_ASO_INC_SN);
+	} else {
+		err = macsec_set_replay_protection(attrs, aso_ctx);
+		if (err)
+			return err;
+	}
 
 	/* general object fields set */
 	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
@@ -343,6 +377,8 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	}
 
 	memcpy(&obj_attrs.salt, &key->salt, sizeof(key->salt));
+	obj_attrs.replay_window = ctx->secy->replay_window;
+	obj_attrs.replay_protect = ctx->secy->replay_protect;
 
 	err = mlx5e_macsec_create_object(mdev, &obj_attrs, is_tx, &sa->macsec_obj_id);
 	if (err)
@@ -437,11 +473,6 @@ static bool mlx5e_macsec_secy_features_validate(struct macsec_context *ctx)
 	if (!secy->protect_frames) {
 		netdev_err(netdev,
 			   "MACsec offload is supported only when protect_frames is set\n");
-		return false;
-	}
-
-	if (secy->replay_protect) {
-		netdev_err(netdev, "MACsec offload: replay protection is not supported\n");
 		return false;
 	}
 
