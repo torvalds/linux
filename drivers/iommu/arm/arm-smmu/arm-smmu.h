@@ -514,6 +514,8 @@ struct arm_smmu_domain {
 
 	struct iommu_debug_attachment	*logger;
 	struct iommu_domain		domain;
+	struct qcom_io_pgtable_info	pgtbl_info;
+	enum io_pgtable_fmt		pgtbl_fmt;
 	/* mapping_cfg.atomic indicates that runtime power management should be disabled. */
 	bool				rpm_always_on;
 	/* skip tlb management. */
