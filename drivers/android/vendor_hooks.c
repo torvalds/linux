@@ -456,3 +456,16 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_page_look_around_ref);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_look_around);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_look_around_migrate_page);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_test_clear_look_around_ref);
+
+/*
+ * For type visibility
+ */
+#ifdef CONFIG_ARM64
+#include <linux/irqchip/arm-gic-v3.h>
+const struct gic_chip_data *GKI_struct_gic_chip_data;
+EXPORT_SYMBOL_GPL(GKI_struct_gic_chip_data);
+#endif
+
+#include <linux/swap_slots.h>
+const struct swap_slots_cache *GKI_struct_swap_slots_cache;
+EXPORT_SYMBOL_GPL(GKI_struct_swap_slots_cache);
