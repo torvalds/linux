@@ -14,7 +14,12 @@ struct blk_flush_queue;
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_DEFAULT_RQ	128
 
-typedef void (rq_end_io_fn)(struct request *, blk_status_t);
+enum rq_end_io_ret {
+	RQ_END_IO_NONE,
+	RQ_END_IO_FREE,
+};
+
+typedef enum rq_end_io_ret (rq_end_io_fn)(struct request *, blk_status_t);
 
 /*
  * request flags */

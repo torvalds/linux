@@ -392,7 +392,8 @@ static void nvme_uring_task_cb(struct io_uring_cmd *ioucmd)
 	io_uring_cmd_done(ioucmd, status, result);
 }
 
-static void nvme_uring_cmd_end_io(struct request *req, blk_status_t err)
+static enum rq_end_io_ret nvme_uring_cmd_end_io(struct request *req,
+						blk_status_t err)
 {
 	struct io_uring_cmd *ioucmd = req->end_io_data;
 	struct nvme_uring_cmd_pdu *pdu = nvme_uring_cmd_pdu(ioucmd);
@@ -411,6 +412,8 @@ static void nvme_uring_cmd_end_io(struct request *req, blk_status_t err)
 		nvme_uring_task_cb(ioucmd);
 	else
 		io_uring_cmd_complete_in_task(ioucmd, nvme_uring_task_cb);
+
+	return RQ_END_IO_NONE;
 }
 
 static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
