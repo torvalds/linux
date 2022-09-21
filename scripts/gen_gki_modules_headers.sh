@@ -26,12 +26,6 @@ set -e
 #
 # Common Definitions
 #
-# Use "make V=1" to debug this script.
-case "$KBUILD_VERBOSE" in
-*1*)
-	set -x
-	;;
-esac
 
 #
 # generate_header():
@@ -44,6 +38,7 @@ generate_header() {
 	local symbol_file=$2
 	local symbol_type=$3
 
+	echo "  GEN     ${header_file}"
 	if [ -f "${header_file}" ]; then
 		rm -f -- "${header_file}"
 	fi
