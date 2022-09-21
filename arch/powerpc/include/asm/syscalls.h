@@ -34,7 +34,7 @@ long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 		      u32 len_high, u32 len_low);
 
 #ifdef CONFIG_COMPAT
-unsigned long compat_sys_mmap2(unsigned long addr, size_t len,
+long compat_sys_mmap2(unsigned long addr, size_t len,
 			       unsigned long prot, unsigned long flags,
 			       unsigned long fd, unsigned long pgoff);
 

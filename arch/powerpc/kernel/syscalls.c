@@ -36,9 +36,9 @@
 #include <asm/time.h>
 #include <asm/unistd.h>
 
-static inline long do_mmap2(unsigned long addr, size_t len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long off, int shift)
+static long do_mmap2(unsigned long addr, size_t len,
+		     unsigned long prot, unsigned long flags,
+		     unsigned long fd, unsigned long off, int shift)
 {
 	if (!arch_validate_prot(prot, addr))
 		return -EINVAL;
@@ -55,6 +55,16 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, size_t, len,
 {
 	return do_mmap2(addr, len, prot, flags, fd, pgoff, PAGE_SHIFT-12);
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE6(mmap2,
+		       unsigned long, addr, size_t, len,
+		       unsigned long, prot, unsigned long, flags,
+		       unsigned long, fd, unsigned long, off_4k)
+{
+	return do_mmap2(addr, len, prot, flags, fd, off_4k, PAGE_SHIFT-12);
+}
+#endif
 
 SYSCALL_DEFINE6(mmap, unsigned long, addr, size_t, len,
 		unsigned long, prot, unsigned long, flags,
