@@ -59,7 +59,7 @@ struct dmic_rate {
 	unsigned int rate_bit;
 };
 
-const static struct dmic_rate dmic_rate_s[] = {
+static const struct dmic_rate dmic_rate_s[] = {
 	{48000, 0x0},
 	{44100, 0x0},
 	{32000, 0x1},
