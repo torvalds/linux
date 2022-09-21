@@ -1484,7 +1484,7 @@ static int concurrent_reads_and_writes_test(const char *mount_dir)
 		goto failure;
 
 	/* Mount FS and release the backing file. */
-	if (mount_fs(mount_dir, backing_dir, 50) != 0)
+	if (mount_fs(mount_dir, backing_dir, 500) != 0)
 		goto failure;
 	free(backing_dir);
 
