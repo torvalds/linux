@@ -1149,7 +1149,7 @@ struct cifs_tcon {
 	struct list_head openFileList;
 	spinlock_t open_file_lock; /* protects list above */
 	struct cifs_ses *ses;	/* pointer to session associated with */
-	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
+	char tree_name[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	char *password;		/* for share-level security */
 	__u32 tid;		/* The 4 byte tree id */

@@ -1327,7 +1327,7 @@ SMB2_request_res_key(const unsigned int xid, struct cifs_tcon *tcon,
 			CIFSMaxBufSize, (char **)&res_key, &ret_data_len);
 
 	if (rc == -EOPNOTSUPP) {
-		pr_warn_once("Server share %s does not support copy range\n", tcon->treeName);
+		pr_warn_once("Server share %s does not support copy range\n", tcon->tree_name);
 		goto req_res_key_exit;
 	} else if (rc) {
 		cifs_tcon_dbg(VFS, "refcpy ioctl error %d getting resume key\n", rc);
@@ -2289,7 +2289,7 @@ smb2_is_network_name_deleted(char *buf, struct TCP_Server_Info *server)
 				spin_unlock(&tcon->tc_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
 				pr_warn_once("Server share %s deleted.\n",
-					     tcon->treeName);
+					     tcon->tree_name);
 				return;
 			}
 		}
@@ -2498,7 +2498,7 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 		if (rc == -EREMCHG) {
 			tcon->need_reconnect = true;
 			pr_warn_once("server share %s deleted\n",
-				     tcon->treeName);
+				     tcon->tree_name);
 		}
 		goto qic_exit;
 	}

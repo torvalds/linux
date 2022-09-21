@@ -160,7 +160,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		if (rc == -EREMCHG) {
 			tcon->need_reconnect = true;
 			pr_warn_once("server share %s deleted\n",
-				     tcon->treeName);
+				     tcon->tree_name);
 		}
 		goto oshr_exit;
 	}

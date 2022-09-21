@@ -1930,7 +1930,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	tcon->capabilities = rsp->Capabilities; /* we keep caps little endian */
 	tcon->maximal_access = le32_to_cpu(rsp->MaximalAccess);
 	tcon->tid = le32_to_cpu(rsp->hdr.Id.SyncId.TreeId);
-	strscpy(tcon->treeName, tree, sizeof(tcon->treeName));
+	strscpy(tcon->tree_name, tree, sizeof(tcon->tree_name));
 
 	if ((rsp->Capabilities & SMB2_SHARE_CAP_DFS) &&
 	    ((tcon->share_flags & SHI1005_FLAGS_DFS) == 0))
@@ -1973,6 +1973,7 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	if (!ses || !(ses->server))
 		return -EIO;
 
+	trace_smb3_tdis_enter(xid, tcon->tid, ses->Suid, tcon->tree_name);
 	spin_lock(&ses->chan_lock);
 	if ((tcon->need_reconnect) ||
 	    (CIFS_ALL_CHANS_NEED_RECONNECT(tcon->ses))) {
@@ -2004,8 +2005,11 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	rc = cifs_send_recv(xid, ses, ses->server,
 			    &rqst, &resp_buf_type, flags, &rsp_iov);
 	cifs_small_buf_release(req);
-	if (rc)
+	if (rc) {
 		cifs_stats_fail_inc(tcon, SMB2_TREE_DISCONNECT_HE);
+		trace_smb3_tdis_err(xid, tcon->tid, ses->Suid, rc);
+	}
+	trace_smb3_tdis_done(xid, tcon->tid, ses->Suid);
 
 	return rc;
 }
@@ -2674,7 +2678,7 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 		req->hdr.Flags |= SMB2_FLAGS_DFS_OPERATIONS;
 		rc = alloc_path_with_tree_prefix(&copy_path, &copy_size,
 						 &name_len,
-						 tcon->treeName, utf16_path);
+						 tcon->tree_name, utf16_path);
 		if (rc)
 			goto err_free_req;
 
@@ -2816,7 +2820,7 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		req->hdr.Flags |= SMB2_FLAGS_DFS_OPERATIONS;
 		rc = alloc_path_with_tree_prefix(&copy_path, &copy_size,
 						 &name_len,
-						 tcon->treeName, path);
+						 tcon->tree_name, path);
 		if (rc)
 			return rc;
 		req->NameLength = cpu_to_le16(name_len * 2);
@@ -3011,7 +3015,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 				    oparms->create_options, oparms->desired_access, rc);
 		if (rc == -EREMCHG) {
 			pr_warn_once("server share %s deleted\n",
-				     tcon->treeName);
+				     tcon->tree_name);
 			tcon->need_reconnect = true;
 		}
 		goto creat_exit;
@@ -4429,7 +4433,7 @@ smb2_writev_callback(struct mid_q_entry *mid)
 				     wdata->bytes, wdata->result);
 		if (wdata->result == -ENOSPC)
 			pr_warn_once("Out of space writing to %s\n",
-				     tcon->treeName);
+				     tcon->tree_name);
 	} else
 		trace_smb3_write_done(0 /* no xid */,
 				      wdata->cfile->fid.persistent_fid,

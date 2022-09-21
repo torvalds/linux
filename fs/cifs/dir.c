@@ -50,7 +50,7 @@ cifs_build_path_to_root(struct smb3_fs_context *ctx, struct cifs_sb_info *cifs_s
 	}
 
 	if (add_treename)
-		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
+		dfsplen = strnlen(tcon->tree_name, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
 
@@ -59,7 +59,7 @@ cifs_build_path_to_root(struct smb3_fs_context *ctx, struct cifs_sb_info *cifs_s
 		return full_path;
 
 	if (dfsplen)
-		memcpy(full_path, tcon->treeName, dfsplen);
+		memcpy(full_path, tcon->tree_name, dfsplen);
 	full_path[dfsplen] = CIFS_DIR_SEP(cifs_sb);
 	memcpy(full_path + dfsplen + 1, ctx->prepath, pplen);
 	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
@@ -93,7 +93,7 @@ build_path_from_dentry_optional_prefix(struct dentry *direntry, void *page,
 		return ERR_PTR(-ENOMEM);
 
 	if (prefix)
-		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
+		dfsplen = strnlen(tcon->tree_name, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
 
@@ -123,7 +123,7 @@ build_path_from_dentry_optional_prefix(struct dentry *direntry, void *page,
 	}
 	if (dfsplen) {
 		s -= dfsplen;
-		memcpy(s, tcon->treeName, dfsplen);
+		memcpy(s, tcon->tree_name, dfsplen);
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
 			int i;
 			for (i = 0; i < dfsplen; i++) {
