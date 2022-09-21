@@ -462,14 +462,9 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	percpu_ref_kill(&blkg->refcnt);
 }
 
-/**
- * blkg_destroy_all - destroy all blkgs associated with a request_queue
- * @q: request_queue of interest
- *
- * Destroy all blkgs associated with @q.
- */
-static void blkg_destroy_all(struct request_queue *q)
+static void blkg_destroy_all(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct blkcg_gq *blkg, *n;
 	int count = BLKG_DESTROY_BATCH_SIZE;
 
@@ -1276,7 +1271,7 @@ err_throtl_exit:
 err_ioprio_exit:
 	blk_ioprio_exit(disk);
 err_destroy_all:
-	blkg_destroy_all(q);
+	blkg_destroy_all(disk);
 	return ret;
 err_unlock:
 	spin_unlock_irq(&q->queue_lock);
@@ -1287,7 +1282,7 @@ err_unlock:
 
 void blkcg_exit_disk(struct gendisk *disk)
 {
-	blkg_destroy_all(disk->queue);
+	blkg_destroy_all(disk);
 	blk_throtl_exit(disk);
 }
 
