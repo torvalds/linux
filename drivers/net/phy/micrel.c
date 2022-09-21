@@ -2874,9 +2874,9 @@ static int lan8814_config_intr(struct phy_device *phydev)
 		if (err)
 			return err;
 
-		err =  phy_write(phydev, LAN8814_INTC, LAN8814_INT_LINK);
+		err = phy_write(phydev, LAN8814_INTC, LAN8814_INT_LINK);
 	} else {
-		err =  phy_write(phydev, LAN8814_INTC, 0);
+		err = phy_write(phydev, LAN8814_INTC, 0);
 		if (err)
 			return err;
 
