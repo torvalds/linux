@@ -2476,8 +2476,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.PixelClock[k], mode_lib->vba.PixelClockBackEnd[k]);
 		}
 
-		m = 0;
-
 		for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 			for (m = 0; m <= mode_lib->vba.NumberOfActiveSurfaces - 1; m++) {
 				for (j = 0; j <= mode_lib->vba.NumberOfActiveSurfaces - 1; j++) {
@@ -2853,8 +2851,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					&mode_lib->vba.ProjectedDCFCLKDeepSleep[i][j]);
 		}
 	}
-
-	m = 0;
 
 	//Calculate Return BW
 	for (i = 0; i < (int) v->soc.num_states; ++i) {
@@ -3616,11 +3612,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.ModeIsSupported = mode_lib->vba.ModeSupport[i][0] == true
 					|| mode_lib->vba.ModeSupport[i][1] == true;
 
-			if (mode_lib->vba.ModeSupport[i][0] == true) {
+			if (mode_lib->vba.ModeSupport[i][0] == true)
 				MaximumMPCCombine = 0;
-			} else {
+			else
 				MaximumMPCCombine = 1;
-			}
 		}
 	}
 
