@@ -12,6 +12,7 @@
 #include <linux/crc32.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/vmalloc.h>
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
@@ -1988,10 +1989,11 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 						struct fw_load_mgr *fw_loader)
 {
 	struct lkd_fw_comms_desc *fw_desc;
+	void __iomem *src, *temp_fw_desc;
 	struct pci_mem_region *region;
 	struct fw_response *response;
+	u16 fw_data_size;
 	enum pci_region region_id;
-	void __iomem *src;
 	int rc;
 
 	fw_desc = &fw_loader->dynamic_loader.comm_desc;
@@ -2018,9 +2020,29 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 	fw_loader->dynamic_loader.fw_desc_valid = false;
 	src = hdev->pcie_bar[region->bar_id] + region->offset_in_bar +
 							response->ram_offset;
-	memcpy_fromio(fw_desc, src, sizeof(struct lkd_fw_comms_desc));
 
-	return hl_fw_dynamic_validate_descriptor(hdev, fw_loader, fw_desc);
+	/*
+	 * We do the copy of the fw descriptor in 2 phases:
+	 * 1. copy the header + data info according to our lkd_fw_comms_desc definition.
+	 *    then we're able to read the actual data size provided by fw.
+	 *    this is needed for cases where data in descriptor was changed(add/remove)
+	 *    in embedded specs header file before updating lkd copy of the header file
+	 * 2. copy descriptor to temporary buffer with aligned size and send it to validation
+	 */
+	memcpy_fromio(fw_desc, src, sizeof(struct lkd_fw_comms_desc));
+	fw_data_size = le16_to_cpu(fw_desc->header.size);
+
+	temp_fw_desc = vzalloc(sizeof(struct comms_desc_header) + fw_data_size);
+	if (!temp_fw_desc)
+		return -ENOMEM;
+
+	memcpy_fromio(temp_fw_desc, src, sizeof(struct comms_desc_header) + fw_data_size);
+
+	rc = hl_fw_dynamic_validate_descriptor(hdev, fw_loader,
+					(struct lkd_fw_comms_desc *) temp_fw_desc);
+	vfree(temp_fw_desc);
+
+	return rc;
 }
 
 /**
