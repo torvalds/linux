@@ -49,6 +49,7 @@
 #define	ATMEL_US_USCLKS		GENMASK(5, 4)	/* Clock Selection */
 #define		ATMEL_US_USCLKS_MCK		(0 <<  4)
 #define		ATMEL_US_USCLKS_MCK_DIV8	(1 <<  4)
+#define		ATMEL_US_USCLKS_GCLK		(2 <<  4)
 #define		ATMEL_US_USCLKS_SCK		(3 <<  4)
 #define	ATMEL_UA_FILTER		BIT(4)
 #define	ATMEL_US_CHRL		GENMASK(7, 6)	/* Character Length */

@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
 #include <linux/tty_flip.h>
@@ -110,6 +111,7 @@ struct atmel_uart_char {
 struct atmel_uart_port {
 	struct uart_port	uart;		/* uart */
 	struct clk		*clk;		/* uart clock */
+	struct clk		*gclk;		/* uart generic clock */
 	int			may_wakeup;	/* cached value of device_may_wakeup for times we need to disable it */
 	u32			backup_imr;	/* IMR saved during suspend */
 	int			break_active;	/* break being received */
@@ -227,6 +229,11 @@ static inline int atmel_uart_is_half_duplex(struct uart_port *port)
 	return ((port->rs485.flags & SER_RS485_ENABLED) &&
 		!(port->rs485.flags & SER_RS485_RX_DURING_TX)) ||
 		(port->iso7816.flags & SER_ISO7816_ENABLED);
+}
+
+static inline int atmel_error_rate(int desired_value, int actual_value)
+{
+	return 100 - (desired_value * 100) / actual_value;
 }
 
 #ifdef CONFIG_SERIAL_ATMEL_PDC
@@ -2117,6 +2124,8 @@ static void atmel_serial_pm(struct uart_port *port, unsigned int state,
 		 * This is called on uart_close() or a suspend event.
 		 */
 		clk_disable_unprepare(atmel_port->clk);
+		if (__clk_is_enabled(atmel_port->gclk))
+			clk_disable_unprepare(atmel_port->gclk);
 		break;
 	default:
 		dev_err(port->dev, "atmel_serial: unknown pm %d\n", state);
@@ -2132,7 +2141,9 @@ static void atmel_set_termios(struct uart_port *port,
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned long flags;
-	unsigned int old_mode, mode, imr, quot, baud, div, cd, fp = 0;
+	unsigned int old_mode, mode, imr, quot, div, cd, fp = 0;
+	unsigned int baud, actual_baud, gclk_rate;
+	int ret;
 
 	/* save the current mode register */
 	mode = old_mode = atmel_uart_readl(port, ATMEL_US_MR);
@@ -2305,6 +2316,45 @@ static void atmel_set_termios(struct uart_port *port,
 		cd = min_t(unsigned int, cd, ATMEL_US_CD);
 	}
 
+	/*
+	 * If there is no Fractional Part, there is a high chance that
+	 * we may be able to generate a baudrate closer to the desired one
+	 * if we use the GCLK as the clock source driving the baudrate
+	 * generator.
+	 */
+	if (!atmel_port->has_frac_baudrate) {
+		if (__clk_is_enabled(atmel_port->gclk))
+			clk_disable_unprepare(atmel_port->gclk);
+		gclk_rate = clk_round_rate(atmel_port->gclk, 16 * baud);
+		actual_baud = clk_get_rate(atmel_port->clk) / (16 * cd);
+		if (gclk_rate && abs(atmel_error_rate(baud, actual_baud)) >
+		    abs(atmel_error_rate(baud, gclk_rate / 16))) {
+			clk_set_rate(atmel_port->gclk, 16 * baud);
+			ret = clk_prepare_enable(atmel_port->gclk);
+			if (ret)
+				goto gclk_fail;
+
+			if (atmel_port->is_usart) {
+				mode &= ~ATMEL_US_USCLKS;
+				mode |= ATMEL_US_USCLKS_GCLK;
+			} else {
+				mode |= ATMEL_UA_BRSRCCK;
+			}
+
+			/*
+			 * Set the Clock Divisor for GCLK to 1.
+			 * Since we were able to generate the smallest
+			 * multiple of the desired baudrate times 16,
+			 * then we surely can generate a bigger multiple
+			 * with the exact error rate for an equally increased
+			 * CD. Thus no need to take into account
+			 * a higher value for CD.
+			 */
+			cd = 1;
+		}
+	}
+
+gclk_fail:
 	quot = cd | fp << ATMEL_US_FP_OFFSET;
 
 	if (!(port->iso7816.flags & SER_ISO7816_ENABLED))
@@ -2899,6 +2949,12 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(atmel_port->clk);
 	if (ret)
 		goto err;
+
+	atmel_port->gclk = devm_clk_get_optional(&pdev->dev, "gclk");
+	if (IS_ERR(atmel_port->gclk)) {
+		ret = PTR_ERR(atmel_port->gclk);
+		goto err_clk_disable_unprepare;
+	}
 
 	ret = atmel_init_port(atmel_port, pdev);
 	if (ret)
