@@ -1004,6 +1004,13 @@ struct efi_rel_offset_dev_path {
 	u64				ending_offset;
 } __packed;
 
+struct efi_mem_mapped_dev_path {
+	struct efi_generic_dev_path	header;
+	u32				memory_type;
+	u64				starting_addr;
+	u64				ending_addr;
+} __packed;
+
 struct efi_dev_path {
 	union {
 		struct efi_generic_dev_path	header;

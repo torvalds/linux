@@ -162,6 +162,11 @@ static void append_end_node(efi_device_path_protocol_t **dp)
 asmlinkage efi_status_t __efiapi
 efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 {
+	struct efi_mem_mapped_dev_path mmdp = {
+		.header.type		= EFI_DEV_HW,
+		.header.sub_type	= EFI_DEV_MEM_MAPPED,
+		.header.length		= sizeof(struct efi_mem_mapped_dev_path)
+	};
 	efi_device_path_protocol_t *parent_dp, *dpp, *lf2_dp, *li_dp;
 	efi_load_file2_protocol_t zboot_load_file2;
 	efi_loaded_image_t *parent, *child;
@@ -191,13 +196,20 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 	status = efi_bs_call(handle_protocol, handle,
 			     &LOADED_IMAGE_DEVICE_PATH_PROTOCOL_GUID,
 			     (void **)&parent_dp);
-	if (status != EFI_SUCCESS) {
-		log(L"Failed to locate parent's loaded image device path protocol");
-		return status;
+	if (status != EFI_SUCCESS || parent_dp == NULL) {
+		// Create a MemoryMapped() device path node to describe
+		// the parent image if no device path was provided.
+		mmdp.memory_type	= parent->image_code_type;
+		mmdp.starting_addr	= (unsigned long)parent->image_base;
+		mmdp.ending_addr	= (unsigned long)parent->image_base +
+					  parent->image_size - 1;
+		parent_dp = &mmdp.header;
+		dp_len = sizeof(mmdp);
+	} else {
+		dp_len = device_path_length(parent_dp);
 	}
 
 	// Allocate some pool memory for device path protocol data
-	dp_len = parent_dp ? device_path_length(parent_dp) : 0;
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
 			     2 * (dp_len + sizeof(struct efi_rel_offset_dev_path) +
 			          sizeof(struct efi_generic_dev_path)) +
