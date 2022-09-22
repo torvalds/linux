@@ -8589,7 +8589,7 @@ int smb3_encrypt_resp(struct ksmbd_work *work)
 	buf_size += iov[1].iov_len;
 	work->resp_hdr_sz = iov[1].iov_len;
 
-	rc = ksmbd_crypt_message(work->conn, iov, rq_nvec, 1);
+	rc = ksmbd_crypt_message(work, iov, rq_nvec, 1);
 	if (rc)
 		return rc;
 
@@ -8608,7 +8608,6 @@ bool smb3_is_transform_hdr(void *buf)
 
 int smb3_decrypt_req(struct ksmbd_work *work)
 {
-	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess;
 	char *buf = work->request_buf;
 	unsigned int pdu_length = get_rfc1002_len(buf);
@@ -8628,7 +8627,7 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 		return -ECONNABORTED;
 	}
 
-	sess = ksmbd_session_lookup_all(conn, le64_to_cpu(tr_hdr->SessionId));
+	sess = ksmbd_session_lookup_all(work->conn, le64_to_cpu(tr_hdr->SessionId));
 	if (!sess) {
 		pr_err("invalid session id(%llx) in transform header\n",
 		       le64_to_cpu(tr_hdr->SessionId));
@@ -8639,7 +8638,7 @@ int smb3_decrypt_req(struct ksmbd_work *work)
 	iov[0].iov_len = sizeof(struct smb2_transform_hdr) + 4;
 	iov[1].iov_base = buf + sizeof(struct smb2_transform_hdr) + 4;
 	iov[1].iov_len = buf_data_size;
-	rc = ksmbd_crypt_message(conn, iov, 2, 0);
+	rc = ksmbd_crypt_message(work, iov, 2, 0);
 	if (rc)
 		return rc;
 
