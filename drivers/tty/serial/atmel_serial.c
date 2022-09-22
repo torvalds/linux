@@ -150,6 +150,7 @@ struct atmel_uart_port {
 	u32			rts_low;
 	bool			ms_irq_enabled;
 	u32			rtor;	/* address of receiver timeout register if it exists */
+	bool			is_usart;
 	bool			has_frac_baudrate;
 	bool			has_hw_timer;
 	struct timer_list	uart_timer;
@@ -1825,6 +1826,7 @@ static void atmel_get_ip_name(struct uart_port *port)
 	 */
 	atmel_port->has_frac_baudrate = false;
 	atmel_port->has_hw_timer = false;
+	atmel_port->is_usart = false;
 
 	if (name == new_uart) {
 		dev_dbg(port->dev, "Uart with hw timer");
@@ -1834,6 +1836,7 @@ static void atmel_get_ip_name(struct uart_port *port)
 		dev_dbg(port->dev, "Usart\n");
 		atmel_port->has_frac_baudrate = true;
 		atmel_port->has_hw_timer = true;
+		atmel_port->is_usart = true;
 		atmel_port->rtor = ATMEL_US_RTOR;
 		version = atmel_uart_readl(port, ATMEL_US_VERSION);
 		switch (version) {
@@ -1863,6 +1866,7 @@ static void atmel_get_ip_name(struct uart_port *port)
 			dev_dbg(port->dev, "This version is usart\n");
 			atmel_port->has_frac_baudrate = true;
 			atmel_port->has_hw_timer = true;
+			atmel_port->is_usart = true;
 			atmel_port->rtor = ATMEL_US_RTOR;
 			break;
 		case 0x203:
@@ -2286,10 +2290,21 @@ static void atmel_set_termios(struct uart_port *port,
 		cd = uart_get_divisor(port, baud);
 	}
 
-	if (cd > 65535) {	/* BRGR is 16-bit, so switch to slower clock */
+	/*
+	 * If the current value of the Clock Divisor surpasses the 16 bit
+	 * ATMEL_US_CD mask and the IP is USART, switch to the Peripheral
+	 * Clock implicitly divided by 8.
+	 * If the IP is UART however, keep the highest possible value for
+	 * the CD and avoid needless division of CD, since UART IP's do not
+	 * support implicit division of the Peripheral Clock.
+	 */
+	if (atmel_port->is_usart && cd > ATMEL_US_CD) {
 		cd /= 8;
 		mode |= ATMEL_US_USCLKS_MCK_DIV8;
+	} else {
+		cd = min_t(unsigned int, cd, ATMEL_US_CD);
 	}
+
 	quot = cd | fp << ATMEL_US_FP_OFFSET;
 
 	if (!(port->iso7816.flags & SER_ISO7816_ENABLED))
