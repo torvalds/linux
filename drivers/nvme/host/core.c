@@ -4815,6 +4815,16 @@ void nvme_start_ctrl(struct nvme_ctrl *ctrl)
 
 	nvme_enable_aen(ctrl);
 
+	/*
+	 * persistent discovery controllers need to send indication to userspace
+	 * to re-read the discovery log page to learn about possible changes
+	 * that were missed. We identify persistent discovery controllers by
+	 * checking that they started once before, hence are reconnecting back.
+	 */
+	if (test_and_set_bit(NVME_CTRL_STARTED_ONCE, &ctrl->flags) &&
+	    nvme_discovery_ctrl(ctrl))
+		nvme_change_uevent(ctrl, "NVME_EVENT=rediscover");
+
 	if (ctrl->queue_count > 1) {
 		nvme_queue_scan(ctrl);
 		nvme_start_queues(ctrl);
