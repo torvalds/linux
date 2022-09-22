@@ -4613,7 +4613,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		hr_reg_clear(qpc_mask, QPC_DQPN);
 	}
 
-	memcpy(&(context->dmac), dmac, sizeof(u32));
+	memcpy(&context->dmac, dmac, sizeof(u32));
 	hr_reg_write(context, QPC_DMAC_H, *((u16 *)(&dmac[4])));
 	qpc_mask->dmac = 0;
 	hr_reg_clear(qpc_mask, QPC_DMAC_H);
@@ -5904,12 +5904,12 @@ static void hns_roce_v2_init_irq_work(struct hns_roce_dev *hr_dev,
 	if (!irq_work)
 		return;
 
-	INIT_WORK(&(irq_work->work), hns_roce_irq_work_handle);
+	INIT_WORK(&irq_work->work, hns_roce_irq_work_handle);
 	irq_work->hr_dev = hr_dev;
 	irq_work->event_type = eq->event_type;
 	irq_work->sub_type = eq->sub_type;
 	irq_work->queue_num = queue_num;
-	queue_work(hr_dev->irq_workq, &(irq_work->work));
+	queue_work(hr_dev->irq_workq, &irq_work->work);
 }
 
 static void update_eq_db(struct hns_roce_eq *eq)

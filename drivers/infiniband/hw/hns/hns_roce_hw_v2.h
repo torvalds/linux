@@ -406,6 +406,7 @@ enum hns_roce_v2_qp_state {
 struct hns_roce_v2_qp_context_ex {
 	__le32 data[64];
 };
+
 struct hns_roce_v2_qp_context {
 	__le32 byte_4_sqpn_tst;
 	__le32 wqe_sge_ba;
