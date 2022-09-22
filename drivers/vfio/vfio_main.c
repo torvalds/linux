@@ -2397,15 +2397,11 @@ static struct miscdevice vfio_dev = {
 	.mode = S_IRUGO | S_IWUGO,
 };
 
-static int __init vfio_init(void)
+static int __init vfio_container_init(void)
 {
 	int ret;
 
-	ida_init(&vfio.group_ida);
-	ida_init(&vfio.device_ida);
-	mutex_init(&vfio.group_lock);
 	mutex_init(&vfio.iommu_drivers_lock);
-	INIT_LIST_HEAD(&vfio.group_list);
 	INIT_LIST_HEAD(&vfio.iommu_drivers_list);
 
 	ret = misc_register(&vfio_dev);
@@ -2413,6 +2409,39 @@ static int __init vfio_init(void)
 		pr_err("vfio: misc device register failed\n");
 		return ret;
 	}
+
+	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU)) {
+		ret = vfio_register_iommu_driver(&vfio_noiommu_ops);
+		if (ret)
+			goto err_misc;
+	}
+	return 0;
+
+err_misc:
+	misc_deregister(&vfio_dev);
+	return ret;
+}
+
+static void vfio_container_cleanup(void)
+{
+	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU))
+		vfio_unregister_iommu_driver(&vfio_noiommu_ops);
+	misc_deregister(&vfio_dev);
+	mutex_destroy(&vfio.iommu_drivers_lock);
+}
+
+static int __init vfio_init(void)
+{
+	int ret;
+
+	ida_init(&vfio.group_ida);
+	ida_init(&vfio.device_ida);
+	mutex_init(&vfio.group_lock);
+	INIT_LIST_HEAD(&vfio.group_list);
+
+	ret = vfio_container_init();
+	if (ret)
+		return ret;
 
 	/* /dev/vfio/$GROUP */
 	vfio.class = class_create(THIS_MODULE, "vfio");
@@ -2434,17 +2463,9 @@ static int __init vfio_init(void)
 	if (ret)
 		goto err_alloc_chrdev;
 
-	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU)) {
-		ret = vfio_register_iommu_driver(&vfio_noiommu_ops);
-		if (ret)
-			goto err_driver_register;
-	}
-
 	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	return 0;
 
-err_driver_register:
-	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
 err_alloc_chrdev:
 	class_destroy(vfio.device_class);
 	vfio.device_class = NULL;
@@ -2452,7 +2473,7 @@ err_dev_class:
 	class_destroy(vfio.class);
 	vfio.class = NULL;
 err_group_class:
-	misc_deregister(&vfio_dev);
+	vfio_container_cleanup();
 	return ret;
 }
 
@@ -2460,17 +2481,14 @@ static void __exit vfio_cleanup(void)
 {
 	WARN_ON(!list_empty(&vfio.group_list));
 
-	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU))
-		vfio_unregister_iommu_driver(&vfio_noiommu_ops);
-
 	ida_destroy(&vfio.device_ida);
 	ida_destroy(&vfio.group_ida);
 	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
 	class_destroy(vfio.device_class);
 	vfio.device_class = NULL;
 	class_destroy(vfio.class);
+	vfio_container_cleanup();
 	vfio.class = NULL;
-	misc_deregister(&vfio_dev);
 	xa_destroy(&vfio_device_set_xa);
 }
 
