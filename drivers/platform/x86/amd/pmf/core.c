@@ -123,6 +123,11 @@ static void amd_pmf_get_metrics(struct work_struct *work)
 		amd_pmf_trans_automode(dev, socket_power, time_elapsed_ms);
 	}
 
+	if (dev->cnqf_enabled) {
+		/* Apply the CnQF transition */
+		amd_pmf_trans_cnqf(dev, socket_power, time_elapsed_ms);
+	}
+
 	dev->start_time = ktime_to_ms(ktime_get());
 	schedule_delayed_work(&dev->work_buffer, msecs_to_jiffies(metrics_table_loop_ms));
 	mutex_unlock(&dev->update_mutex);
@@ -252,6 +257,8 @@ int amd_pmf_init_metrics_table(struct amd_pmf_dev *dev)
 
 static void amd_pmf_init_features(struct amd_pmf_dev *dev)
 {
+	int ret;
+
 	/* Enable Static Slider */
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR)) {
 		amd_pmf_init_sps(dev);
@@ -262,6 +269,12 @@ static void amd_pmf_init_features(struct amd_pmf_dev *dev)
 	if (is_apmf_func_supported(dev, APMF_FUNC_AUTO_MODE)) {
 		amd_pmf_init_auto_mode(dev);
 		dev_dbg(dev->dev, "Auto Mode Init done\n");
+	} else if (is_apmf_func_supported(dev, APMF_FUNC_DYN_SLIDER_AC) ||
+			  is_apmf_func_supported(dev, APMF_FUNC_DYN_SLIDER_DC)) {
+		/* Enable Cool n Quiet Framework (CnQF) */
+		ret = amd_pmf_init_cnqf(dev);
+		if (ret)
+			dev_warn(dev->dev, "CnQF Init failed\n");
 	}
 }
 
@@ -270,8 +283,12 @@ static void amd_pmf_deinit_features(struct amd_pmf_dev *dev)
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR))
 		amd_pmf_deinit_sps(dev);
 
-	if (is_apmf_func_supported(dev, APMF_FUNC_AUTO_MODE))
+	if (is_apmf_func_supported(dev, APMF_FUNC_AUTO_MODE)) {
 		amd_pmf_deinit_auto_mode(dev);
+	} else if (is_apmf_func_supported(dev, APMF_FUNC_DYN_SLIDER_AC) ||
+			  is_apmf_func_supported(dev, APMF_FUNC_DYN_SLIDER_DC)) {
+		amd_pmf_deinit_cnqf(dev);
+	}
 }
 
 static const struct acpi_device_id amd_pmf_acpi_ids[] = {
