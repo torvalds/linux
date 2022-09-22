@@ -149,9 +149,11 @@ struct gc2093 {
 	const char      *module_facing;
 	const char      *module_name;
 	const char      *len_name;
-	u32		cur_vts;
 
-	bool			  has_init_exp;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
+
+	bool			has_init_exp;
 	bool			is_thunderboot;
 	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
@@ -551,6 +553,14 @@ static int gc2093_set_gain(struct gc2093 *gc2093, u32 gain)
 	return ret;
 }
 
+static void gc2093_modify_fps_info(struct gc2093 *gc2093)
+{
+	const struct gc2093_mode *mode = gc2093->cur_mode;
+
+	gc2093->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc2093->cur_vts;
+}
+
 static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc2093 *gc2093 = container_of(ctrl->handler,
@@ -596,6 +606,8 @@ static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 				       (vts >> 8) & 0x3f);
 		ret |= gc2093_write_reg(gc2093, GC2093_REG_VTS_L,
 					vts & 0xff);
+		if (gc2093->cur_vts != gc2093->cur_mode->vts_def)
+			gc2093_modify_fps_info(gc2093);
 		dev_dbg(gc2093->dev, " set blank value 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
@@ -694,6 +706,8 @@ static int gc2093_initialize_controls(struct gc2093 *gc2093)
 
 	gc2093->subdev.ctrl_handler = handler;
 	gc2093->has_init_exp = false;
+	gc2093->cur_vts = mode->vts_def;
+	gc2093->cur_fps = mode->max_fps;
 
 	return 0;
 
@@ -921,6 +935,7 @@ static long gc2093_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 						 GC2093_VTS_MAX - gc2093->cur_mode->height,
 						 1, h);
 			gc2093->cur_vts = gc2093->cur_mode->vts_def;
+			gc2093->cur_fps = gc2093->cur_mode->max_fps;
 			dev_info(gc2093->dev, "sensor mode: %d\n",
 				 gc2093->cur_mode->hdr_mode);
 		}
@@ -1242,6 +1257,8 @@ static int gc2093_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(gc2093->vblank, vblank_def,
 					 GC2093_VTS_MAX - mode->height,
 					 1, vblank_def);
+		gc2093->cur_vts = mode->vts_def;
+		gc2093->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc2093->lock);
