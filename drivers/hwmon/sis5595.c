@@ -192,21 +192,75 @@ struct sis5595_data {
 
 static struct pci_dev *s_bridge;	/* pointer to the (only) sis5595 */
 
-static int sis5595_probe(struct platform_device *pdev);
-static int sis5595_remove(struct platform_device *pdev);
+/* ISA access must be locked explicitly. */
+static int sis5595_read_value(struct sis5595_data *data, u8 reg)
+{
+	int res;
 
-static int sis5595_read_value(struct sis5595_data *data, u8 reg);
-static void sis5595_write_value(struct sis5595_data *data, u8 reg, u8 value);
-static struct sis5595_data *sis5595_update_device(struct device *dev);
-static void sis5595_init_device(struct sis5595_data *data);
+	mutex_lock(&data->lock);
+	outb_p(reg, data->addr + SIS5595_ADDR_REG_OFFSET);
+	res = inb_p(data->addr + SIS5595_DATA_REG_OFFSET);
+	mutex_unlock(&data->lock);
+	return res;
+}
 
-static struct platform_driver sis5595_driver = {
-	.driver = {
-		.name	= DRIVER_NAME,
-	},
-	.probe		= sis5595_probe,
-	.remove		= sis5595_remove,
-};
+static void sis5595_write_value(struct sis5595_data *data, u8 reg, u8 value)
+{
+	mutex_lock(&data->lock);
+	outb_p(reg, data->addr + SIS5595_ADDR_REG_OFFSET);
+	outb_p(value, data->addr + SIS5595_DATA_REG_OFFSET);
+	mutex_unlock(&data->lock);
+}
+
+static struct sis5595_data *sis5595_update_device(struct device *dev)
+{
+	struct sis5595_data *data = dev_get_drvdata(dev);
+	int i;
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	    || !data->valid) {
+
+		for (i = 0; i <= data->maxins; i++) {
+			data->in[i] =
+			    sis5595_read_value(data, SIS5595_REG_IN(i));
+			data->in_min[i] =
+			    sis5595_read_value(data,
+					       SIS5595_REG_IN_MIN(i));
+			data->in_max[i] =
+			    sis5595_read_value(data,
+					       SIS5595_REG_IN_MAX(i));
+		}
+		for (i = 0; i < 2; i++) {
+			data->fan[i] =
+			    sis5595_read_value(data, SIS5595_REG_FAN(i));
+			data->fan_min[i] =
+			    sis5595_read_value(data,
+					       SIS5595_REG_FAN_MIN(i));
+		}
+		if (data->maxins == 3) {
+			data->temp =
+			    sis5595_read_value(data, SIS5595_REG_TEMP);
+			data->temp_over =
+			    sis5595_read_value(data, SIS5595_REG_TEMP_OVER);
+			data->temp_hyst =
+			    sis5595_read_value(data, SIS5595_REG_TEMP_HYST);
+		}
+		i = sis5595_read_value(data, SIS5595_REG_FANDIV);
+		data->fan_div[0] = (i >> 4) & 0x03;
+		data->fan_div[1] = i >> 6;
+		data->alarms =
+		    sis5595_read_value(data, SIS5595_REG_ALARM1) |
+		    (sis5595_read_value(data, SIS5595_REG_ALARM2) << 8);
+		data->last_updated = jiffies;
+		data->valid = true;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 /* 4 Voltages */
 static ssize_t in_show(struct device *dev, struct device_attribute *da,
@@ -569,6 +623,15 @@ static const struct attribute_group sis5595_group_temp1 = {
 	.attrs = sis5595_attributes_temp1,
 };
 
+/* Called when we have found a new SIS5595. */
+static void sis5595_init_device(struct sis5595_data *data)
+{
+	u8 config = sis5595_read_value(data, SIS5595_REG_CONFIG);
+	if (!(config & 0x01))
+		sis5595_write_value(data, SIS5595_REG_CONFIG,
+				(config & 0xf7) | 0x01);
+}
+
 /* This is called when the module is loaded */
 static int sis5595_probe(struct platform_device *pdev)
 {
@@ -658,85 +721,6 @@ static int sis5595_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* ISA access must be locked explicitly. */
-static int sis5595_read_value(struct sis5595_data *data, u8 reg)
-{
-	int res;
-
-	mutex_lock(&data->lock);
-	outb_p(reg, data->addr + SIS5595_ADDR_REG_OFFSET);
-	res = inb_p(data->addr + SIS5595_DATA_REG_OFFSET);
-	mutex_unlock(&data->lock);
-	return res;
-}
-
-static void sis5595_write_value(struct sis5595_data *data, u8 reg, u8 value)
-{
-	mutex_lock(&data->lock);
-	outb_p(reg, data->addr + SIS5595_ADDR_REG_OFFSET);
-	outb_p(value, data->addr + SIS5595_DATA_REG_OFFSET);
-	mutex_unlock(&data->lock);
-}
-
-/* Called when we have found a new SIS5595. */
-static void sis5595_init_device(struct sis5595_data *data)
-{
-	u8 config = sis5595_read_value(data, SIS5595_REG_CONFIG);
-	if (!(config & 0x01))
-		sis5595_write_value(data, SIS5595_REG_CONFIG,
-				(config & 0xf7) | 0x01);
-}
-
-static struct sis5595_data *sis5595_update_device(struct device *dev)
-{
-	struct sis5595_data *data = dev_get_drvdata(dev);
-	int i;
-
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
-	    || !data->valid) {
-
-		for (i = 0; i <= data->maxins; i++) {
-			data->in[i] =
-			    sis5595_read_value(data, SIS5595_REG_IN(i));
-			data->in_min[i] =
-			    sis5595_read_value(data,
-					       SIS5595_REG_IN_MIN(i));
-			data->in_max[i] =
-			    sis5595_read_value(data,
-					       SIS5595_REG_IN_MAX(i));
-		}
-		for (i = 0; i < 2; i++) {
-			data->fan[i] =
-			    sis5595_read_value(data, SIS5595_REG_FAN(i));
-			data->fan_min[i] =
-			    sis5595_read_value(data,
-					       SIS5595_REG_FAN_MIN(i));
-		}
-		if (data->maxins == 3) {
-			data->temp =
-			    sis5595_read_value(data, SIS5595_REG_TEMP);
-			data->temp_over =
-			    sis5595_read_value(data, SIS5595_REG_TEMP_OVER);
-			data->temp_hyst =
-			    sis5595_read_value(data, SIS5595_REG_TEMP_HYST);
-		}
-		i = sis5595_read_value(data, SIS5595_REG_FANDIV);
-		data->fan_div[0] = (i >> 4) & 0x03;
-		data->fan_div[1] = i >> 6;
-		data->alarms =
-		    sis5595_read_value(data, SIS5595_REG_ALARM1) |
-		    (sis5595_read_value(data, SIS5595_REG_ALARM2) << 8);
-		data->last_updated = jiffies;
-		data->valid = true;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
-
 static const struct pci_device_id sis5595_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_503) },
 	{ 0, }
@@ -800,6 +784,14 @@ exit_device_put:
 exit:
 	return err;
 }
+
+static struct platform_driver sis5595_driver = {
+	.driver = {
+		.name	= DRIVER_NAME,
+	},
+	.probe		= sis5595_probe,
+	.remove		= sis5595_remove,
+};
 
 static int sis5595_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
