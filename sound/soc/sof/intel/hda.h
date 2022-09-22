@@ -587,6 +587,7 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags);
 void hda_ipc_dump(struct snd_sof_dev *sdev);
 void hda_ipc_irq_dump(struct snd_sof_dev *sdev);
 void hda_dsp_d0i3_work(struct work_struct *work);
+int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev);
 
 /*
  * DSP PCM Operations.

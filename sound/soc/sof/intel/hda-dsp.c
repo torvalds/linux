@@ -989,3 +989,11 @@ power_down:
 
 	return ret;
 }
+
+int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev)
+{
+	hda_sdw_int_enable(sdev, false);
+	hda_dsp_ipc_int_disable(sdev);
+
+	return 0;
+}
