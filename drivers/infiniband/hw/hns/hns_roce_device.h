@@ -240,7 +240,6 @@ struct hns_roce_hem_table {
 	/* Single obj size */
 	unsigned long	obj_size;
 	unsigned long	table_chunk_size;
-	int		lowmem;
 	struct mutex	mutex;
 	struct hns_roce_hem **hem;
 	u64		**bt_l1;

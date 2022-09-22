@@ -659,7 +659,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table,
 				      HEM_TYPE_MTPT, hr_dev->caps.mtpt_entry_sz,
-				      hr_dev->caps.num_mtpts, 1);
+				      hr_dev->caps.num_mtpts);
 	if (ret) {
 		dev_err(dev, "Failed to init MTPT context memory, aborting.\n");
 		return ret;
@@ -667,7 +667,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qp_table.qp_table,
 				      HEM_TYPE_QPC, hr_dev->caps.qpc_sz,
-				      hr_dev->caps.num_qps, 1);
+				      hr_dev->caps.num_qps);
 	if (ret) {
 		dev_err(dev, "Failed to init QP context memory, aborting.\n");
 		goto err_unmap_dmpt;
@@ -677,7 +677,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 				      HEM_TYPE_IRRL,
 				      hr_dev->caps.irrl_entry_sz *
 				      hr_dev->caps.max_qp_init_rdma,
-				      hr_dev->caps.num_qps, 1);
+				      hr_dev->caps.num_qps);
 	if (ret) {
 		dev_err(dev, "Failed to init irrl_table memory, aborting.\n");
 		goto err_unmap_qp;
@@ -689,7 +689,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      HEM_TYPE_TRRL,
 					      hr_dev->caps.trrl_entry_sz *
 					      hr_dev->caps.max_qp_dest_rdma,
-					      hr_dev->caps.num_qps, 1);
+					      hr_dev->caps.num_qps);
 		if (ret) {
 			dev_err(dev,
 				"Failed to init trrl_table memory, aborting.\n");
@@ -699,7 +699,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->cq_table.table,
 				      HEM_TYPE_CQC, hr_dev->caps.cqc_entry_sz,
-				      hr_dev->caps.num_cqs, 1);
+				      hr_dev->caps.num_cqs);
 	if (ret) {
 		dev_err(dev, "Failed to init CQ context memory, aborting.\n");
 		goto err_unmap_trrl;
@@ -709,7 +709,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->srq_table.table,
 					      HEM_TYPE_SRQC,
 					      hr_dev->caps.srqc_entry_sz,
-					      hr_dev->caps.num_srqs, 1);
+					      hr_dev->caps.num_srqs);
 		if (ret) {
 			dev_err(dev,
 				"Failed to init SRQ context memory, aborting.\n");
@@ -722,7 +722,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      &hr_dev->qp_table.sccc_table,
 					      HEM_TYPE_SCCC,
 					      hr_dev->caps.sccc_sz,
-					      hr_dev->caps.num_qps, 1);
+					      hr_dev->caps.num_qps);
 		if (ret) {
 			dev_err(dev,
 				"Failed to init SCC context memory, aborting.\n");
@@ -734,7 +734,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qpc_timer_table,
 					      HEM_TYPE_QPC_TIMER,
 					      hr_dev->caps.qpc_timer_entry_sz,
-					      hr_dev->caps.num_qpc_timer, 1);
+					      hr_dev->caps.num_qpc_timer);
 		if (ret) {
 			dev_err(dev,
 				"Failed to init QPC timer memory, aborting.\n");
@@ -746,7 +746,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->cqc_timer_table,
 					      HEM_TYPE_CQC_TIMER,
 					      hr_dev->caps.cqc_timer_entry_sz,
-					      hr_dev->caps.cqc_timer_bt_num, 1);
+					      hr_dev->caps.cqc_timer_bt_num);
 		if (ret) {
 			dev_err(dev,
 				"Failed to init CQC timer memory, aborting.\n");
@@ -758,7 +758,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->gmv_table,
 					      HEM_TYPE_GMV,
 					      hr_dev->caps.gmv_entry_sz,
-					      hr_dev->caps.gmv_entry_num, 1);
+					      hr_dev->caps.gmv_entry_num);
 		if (ret) {
 			dev_err(dev,
 				"failed to init gmv table memory, ret = %d\n",

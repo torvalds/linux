@@ -455,7 +455,7 @@ static int alloc_mhop_hem(struct hns_roce_dev *hr_dev,
 	 * alloc bt space chunk for MTT/CQE.
 	 */
 	size = table->type < HEM_TYPE_MTT ? mhop->buf_chunk_size : bt_size;
-	flag = (table->lowmem ? GFP_KERNEL : GFP_HIGHUSER) | __GFP_NOWARN;
+	flag = GFP_KERNEL | __GFP_NOWARN;
 	table->hem[index->buf] = hns_roce_alloc_hem(hr_dev, size >> PAGE_SHIFT,
 						    size, flag);
 	if (!table->hem[index->buf]) {
@@ -588,8 +588,7 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 	table->hem[i] = hns_roce_alloc_hem(hr_dev,
 				       table->table_chunk_size >> PAGE_SHIFT,
 				       table->table_chunk_size,
-				       (table->lowmem ? GFP_KERNEL :
-					GFP_HIGHUSER) | __GFP_NOWARN);
+				       GFP_KERNEL | __GFP_NOWARN);
 	if (!table->hem[i]) {
 		ret = -ENOMEM;
 		goto out;
@@ -725,9 +724,6 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 	int length;
 	int i, j;
 
-	if (!table->lowmem)
-		return NULL;
-
 	mutex_lock(&table->mutex);
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type)) {
@@ -783,8 +779,7 @@ out:
 
 int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, u32 type,
-			    unsigned long obj_size, unsigned long nobj,
-			    int use_lowmem)
+			    unsigned long obj_size, unsigned long nobj)
 {
 	unsigned long obj_per_chunk;
 	unsigned long num_hem;
@@ -861,7 +856,6 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 	table->type = type;
 	table->num_hem = num_hem;
 	table->obj_size = obj_size;
-	table->lowmem = use_lowmem;
 	mutex_init(&table->mutex);
 
 	return 0;
