@@ -506,8 +506,15 @@ static void rcar_du_plane_setup_format_gen3(struct rcar_du_group *rgrp,
 					    unsigned int index,
 					    const struct rcar_du_plane_state *state)
 {
-	rcar_du_plane_write(rgrp, index, PnMR,
-			    PnMR_SPIM_TP_OFF | state->format->pnmr);
+	struct rcar_du_device *rcdu = rgrp->dev;
+	u32 pnmr = state->format->pnmr | PnMR_SPIM_TP_OFF;
+
+	if (rcdu->info->features & RCAR_DU_FEATURE_NO_BLENDING) {
+		/* No blending. ALP and EOR are not supported. */
+		pnmr &= ~(PnMR_SPIM_ALP | PnMR_SPIM_EOR);
+	}
+
+	rcar_du_plane_write(rgrp, index, PnMR, pnmr);
 
 	rcar_du_plane_write(rgrp, index, PnDDCR4,
 			    state->format->edf | PnDDCR4_CODE);
@@ -521,7 +528,6 @@ static void rcar_du_plane_setup_format_gen3(struct rcar_du_group *rgrp,
 	 * register to 0 to avoid this.
 	 */
 
-	/* TODO: Check if alpha-blending should be disabled in PnMR. */
 	rcar_du_plane_write(rgrp, index, PnALPHAR, 0);
 }
 
@@ -619,8 +625,8 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 
 	*format = rcar_du_format_info(state->fb->format->format);
 	if (*format == NULL) {
-		dev_dbg(dev->dev, "%s: unsupported format %08x\n", __func__,
-			state->fb->format->format);
+		dev_dbg(dev->dev, "%s: unsupported format %p4cc\n", __func__,
+			&state->fb->format->format);
 		return -EINVAL;
 	}
 
