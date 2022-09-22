@@ -165,8 +165,6 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 		int *end_index, int per_task_boost, bool is_uclamp_boosted,
 		bool *energy_eval_needed)
 {
-	int i = 0;
-
 	*order_index = 0;
 	*end_index = 0;
 
@@ -182,9 +180,12 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 	if (is_full_throttle_boost()) {
 		*energy_eval_needed = false;
 		*order_index = num_sched_clusters - 1;
-		if ((*order_index > 1) && task_demand_fits(p,
-			cpumask_first(&cpu_array[*order_index][1])))
-			*end_index = 1;
+		*end_index = num_sched_clusters - 2;
+
+		for (; *end_index >= 0; (*end_index)--)
+			if (task_demand_fits(p,
+					cpumask_first(&cpu_array[*order_index][*end_index])))
+				break;
 		return;
 	}
 
@@ -193,18 +194,18 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 		walt_task_skip_min_cpu(p)) {
 		*energy_eval_needed = false;
 		*order_index = 1;
+		*end_index = max(0, num_sched_clusters - 3);
+
 		if (sysctl_sched_asymcap_boost) {
-			*end_index = 1;
+			(*end_index)++;
 			return;
 		}
 	}
 
-	for (i = *order_index ; i < num_sched_clusters - 1; i++) {
-		if (task_demand_fits(p, cpumask_first(&cpu_array[i][0])))
+	for (; *order_index < num_sched_clusters - 1; (*order_index)++) {
+		if (task_demand_fits(p, cpumask_first(&cpu_array[*order_index][0])))
 			break;
 	}
-
-	*order_index = i;
 
 	if (*order_index == 0 &&
 			(task_util(p) >= MIN_UTIL_FOR_ENERGY_EVAL) &&
