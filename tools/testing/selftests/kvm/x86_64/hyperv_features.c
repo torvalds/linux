@@ -508,7 +508,7 @@ static void guest_test_hcalls_access(void)
 		switch (stage) {
 		case 0:
 			feat->eax |= HV_MSR_HYPERCALL_AVAILABLE;
-			hcall->control = 0xdeadbeef;
+			hcall->control = 0xbeef;
 			hcall->expect = HV_STATUS_INVALID_HYPERCALL_CODE;
 			break;
 
