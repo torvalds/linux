@@ -14,6 +14,8 @@
 #include <linux/fileattr.h>
 #include <linux/security.h>
 #include <linux/namei.h>
+#include <linux/posix_acl.h>
+#include <linux/posix_acl_xattr.h>
 #include "overlayfs.h"
 
 
@@ -460,7 +462,7 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
  * of the POSIX ACLs retrieved from the lower layer to this function to not
  * alter the POSIX ACLs for the underlying filesystem.
  */
-static void ovl_idmap_posix_acl(struct inode *realinode,
+static void ovl_idmap_posix_acl(const struct inode *realinode,
 				struct user_namespace *mnt_userns,
 				struct posix_acl *acl)
 {
@@ -485,6 +487,64 @@ static void ovl_idmap_posix_acl(struct inode *realinode,
 }
 
 /*
+ * The @noperm argument is used to skip permission checking and is a temporary
+ * measure. Quoting Miklos from an earlier discussion:
+ *
+ * > So there are two paths to getting an acl:
+ * > 1) permission checking and 2) retrieving the value via getxattr(2).
+ * > This is a similar situation as reading a symlink vs. following it.
+ * > When following a symlink overlayfs always reads the link on the
+ * > underlying fs just as if it was a readlink(2) call, calling
+ * > security_inode_readlink() instead of security_inode_follow_link().
+ * > This is logical: we are reading the link from the underlying storage,
+ * > and following it on overlayfs.
+ * >
+ * > Applying the same logic to acl: we do need to call the
+ * > security_inode_getxattr() on the underlying fs, even if just want to
+ * > check permissions on overlay. This is currently not done, which is an
+ * > inconsistency.
+ * >
+ * > Maybe adding the check to ovl_get_acl() is the right way to go, but
+ * > I'm a little afraid of a performance regression.  Will look into that.
+ *
+ * Until we have made a decision allow this helper to take the @noperm
+ * argument. We should hopefully be able to remove it soon.
+ */
+static struct posix_acl *ovl_get_acl_path(const struct path *path,
+					  const char *acl_name, bool noperm)
+{
+	struct posix_acl *real_acl, *clone;
+	struct user_namespace *mnt_userns;
+	struct inode *realinode = d_inode(path->dentry);
+
+	mnt_userns = mnt_user_ns(path->mnt);
+
+	if (noperm)
+		real_acl = get_inode_acl(realinode, posix_acl_type(acl_name));
+	else
+		real_acl = vfs_get_acl(mnt_userns, path->dentry, acl_name);
+	if (IS_ERR_OR_NULL(real_acl))
+		return real_acl;
+
+	if (!is_idmapped_mnt(path->mnt))
+		return real_acl;
+
+	/*
+        * We cannot alter the ACLs returned from the relevant layer as that
+        * would alter the cached values filesystem wide for the lower
+        * filesystem. Instead we can clone the ACLs and then apply the
+        * relevant idmapping of the layer.
+        */
+	clone = posix_acl_clone(real_acl, GFP_KERNEL);
+	posix_acl_release(real_acl); /* release original acl */
+	if (!clone)
+		return ERR_PTR(-ENOMEM);
+
+	ovl_idmap_posix_acl(realinode, mnt_userns, clone);
+	return clone;
+}
+
+/*
  * When the relevant layer is an idmapped mount we need to take the idmapping
  * of the layer into account and translate any ACL_{GROUP,USER} values
  * according to the idmapped mount.
@@ -495,10 +555,12 @@ static void ovl_idmap_posix_acl(struct inode *realinode,
  *
  * This is obviously only relevant when idmapped layers are used.
  */
-struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
+struct posix_acl *do_ovl_get_acl(struct user_namespace *mnt_userns,
+				 struct inode *inode, int type,
+				 bool rcu, bool noperm)
 {
 	struct inode *realinode = ovl_inode_real(inode);
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
 	struct path realpath;
 
 	if (!IS_POSIXACL(realinode))
@@ -512,40 +574,23 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
 	}
 
 	if (rcu) {
+		/*
+		 * If the layer is idmapped drop out of RCU path walk
+		 * so we can clone the ACLs.
+		 */
+		if (is_idmapped_mnt(realpath.mnt))
+			return ERR_PTR(-ECHILD);
+
 		acl = get_cached_acl_rcu(realinode, type);
 	} else {
 		const struct cred *old_cred;
 
 		old_cred = ovl_override_creds(inode->i_sb);
-		acl = get_inode_acl(realinode, type);
+		acl = ovl_get_acl_path(&realpath, posix_acl_xattr_name(type), noperm);
 		revert_creds(old_cred);
 	}
-	/*
-	 * If there are no POSIX ACLs, or we encountered an error,
-	 * or the layer isn't idmapped we don't need to do anything.
-	 */
-	if (!is_idmapped_mnt(realpath.mnt) || IS_ERR_OR_NULL(acl))
-		return acl;
 
-	/*
-	 * We only get here if the layer is idmapped. So drop out of RCU path
-	 * walk so we can clone the ACLs. There's no need to release the ACLs
-	 * since get_cached_acl_rcu() doesn't take a reference on the ACLs.
-	 */
-	if (rcu)
-		return ERR_PTR(-ECHILD);
-
-	clone = posix_acl_clone(acl, GFP_KERNEL);
-	if (!clone)
-		clone = ERR_PTR(-ENOMEM);
-	else
-		ovl_idmap_posix_acl(realinode, mnt_user_ns(realpath.mnt), clone);
-	/*
-	 * Since we're not in RCU path walk we always need to release the
-	 * original ACLs.
-	 */
-	posix_acl_release(acl);
-	return clone;
+	return acl;
 }
 #endif
 
@@ -721,7 +766,8 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.permission	= ovl_permission,
 	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
-	.get_inode_acl	= ovl_get_acl,
+	.get_inode_acl	= ovl_get_inode_acl,
+	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 	.fiemap		= ovl_fiemap,
 	.fileattr_get	= ovl_fileattr_get,
@@ -741,7 +787,8 @@ static const struct inode_operations ovl_special_inode_operations = {
 	.permission	= ovl_permission,
 	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
-	.get_inode_acl	= ovl_get_acl,
+	.get_inode_acl	= ovl_get_inode_acl,
+	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 };
 
