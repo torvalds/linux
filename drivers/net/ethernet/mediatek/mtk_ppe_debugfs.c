@@ -79,7 +79,7 @@ mtk_ppe_debugfs_foe_show(struct seq_file *m, void *private, bool bind)
 	int i;
 
 	for (i = 0; i < MTK_PPE_ENTRIES; i++) {
-		struct mtk_foe_entry *entry = &ppe->foe_table[i];
+		struct mtk_foe_entry *entry = mtk_foe_get_entry(ppe, i);
 		struct mtk_foe_mac_info *l2;
 		struct mtk_flow_addr_info ai = {};
 		unsigned char h_source[ETH_ALEN];
@@ -187,7 +187,7 @@ mtk_ppe_debugfs_foe_open_bind(struct inode *inode, struct file *file)
 			   inode->i_private);
 }
 
-int mtk_ppe_debugfs_init(struct mtk_ppe *ppe)
+int mtk_ppe_debugfs_init(struct mtk_ppe *ppe, int index)
 {
 	static const struct file_operations fops_all = {
 		.open = mtk_ppe_debugfs_foe_open_all,
@@ -195,17 +195,17 @@ int mtk_ppe_debugfs_init(struct mtk_ppe *ppe)
 		.llseek = seq_lseek,
 		.release = single_release,
 	};
-
 	static const struct file_operations fops_bind = {
 		.open = mtk_ppe_debugfs_foe_open_bind,
 		.read = seq_read,
 		.llseek = seq_lseek,
 		.release = single_release,
 	};
-
 	struct dentry *root;
 
-	root = debugfs_create_dir("mtk_ppe", NULL);
+	snprintf(ppe->dirname, sizeof(ppe->dirname), "ppe%d", index);
+
+	root = debugfs_create_dir(ppe->dirname, NULL);
 	debugfs_create_file("entries", S_IRUGO, root, ppe, &fops_all);
 	debugfs_create_file("bind", S_IRUGO, root, ppe, &fops_bind);
 
