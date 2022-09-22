@@ -725,17 +725,42 @@ static u32 aggr_byte_limit_encoded(enum ipa_version version, u32 limit)
 	return u32_encode_bits(limit, aggr_byte_limit_fmask(false));
 }
 
+/* For IPA v4.5+, times are expressed using Qtime.  The AP uses one of two
+ * pulse generators (0 and 1) to measure elapsed time.  In ipa_qtime_config()
+ * they're configured to have granularity 100 usec and 1 msec, respectively.
+ *
+ * The return value is the positive or negative Qtime value to use to
+ * express the (microsecond) time provided.  A positive return value
+ * means pulse generator 0 can be used; otherwise use pulse generator 1.
+ */
+static int ipa_qtime_val(u32 microseconds, u32 max)
+{
+	u32 val;
+
+	/* Use 100 microsecond granularity if possible */
+	val = DIV_ROUND_CLOSEST(microseconds, 100);
+	if (val <= max)
+		return (int)val;
+
+	/* Have to use pulse generator 1 (millisecond granularity) */
+	val = DIV_ROUND_CLOSEST(microseconds, 1000);
+	WARN_ON(val > max);
+
+	return (int)-val;
+}
+
 /* Encode the aggregation timer limit (microseconds) based on IPA version */
-static u32 aggr_time_limit_encoded(enum ipa_version version, u32 limit)
+static u32 aggr_time_limit_encode(enum ipa_version version, u32 microseconds)
 {
 	u32 gran_sel;
 	u32 fmask;
 	u32 val;
+	int ret;
 
 	if (version < IPA_VERSION_4_5) {
 		/* We set aggregation granularity in ipa_hardware_config() */
 		fmask = aggr_time_limit_fmask(true);
-		val = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
+		val = DIV_ROUND_CLOSEST(microseconds, IPA_AGGR_GRANULARITY);
 		WARN(val > field_max(fmask),
 		     "aggr_time_limit too large (%u > %u usec)\n",
 		     val, field_max(fmask) * IPA_AGGR_GRANULARITY);
@@ -743,23 +768,14 @@ static u32 aggr_time_limit_encoded(enum ipa_version version, u32 limit)
 		return u32_encode_bits(val, fmask);
 	}
 
-	/* IPA v4.5 expresses the time limit using Qtime.  The AP has
-	 * pulse generators 0 and 1 available, which were configured
-	 * in ipa_qtime_config() to have granularity 100 usec and
-	 * 1 msec, respectively.  Use pulse generator 0 if possible,
-	 * otherwise fall back to pulse generator 1.
-	 */
+	/* Compute the Qtime limit value to use */
 	fmask = aggr_time_limit_fmask(false);
-	val = DIV_ROUND_CLOSEST(limit, 100);
-	if (val > field_max(fmask)) {
-		/* Have to use pulse generator 1 (millisecond granularity) */
+	ret = ipa_qtime_val(microseconds, field_max(fmask));
+	if (ret < 0) {
+		val = -ret;
 		gran_sel = AGGR_GRAN_SEL_FMASK;
-		val = DIV_ROUND_CLOSEST(limit, 1000);
-		WARN(val > field_max(fmask),
-		     "aggr_time_limit too large (%u > %u usec)\n",
-		     limit, field_max(fmask) * 1000);
 	} else {
-		/* We can use pulse generator 0 (100 usec granularity) */
+		val = ret;
 		gran_sel = 0;
 	}
 
@@ -799,7 +815,7 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 			val |= aggr_byte_limit_encoded(version, limit);
 
 			limit = rx_config->aggr_time_limit;
-			val |= aggr_time_limit_encoded(version, limit);
+			val |= aggr_time_limit_encode(version, limit);
 
 			/* AGGR_PKT_LIMIT is 0 (unlimited) */
 
@@ -825,24 +841,18 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
  * represents the given number of microseconds.  The result
  * includes both the timer value and the selected timer granularity.
  */
-static u32 hol_block_timer_qtime_val(struct ipa *ipa, u32 microseconds)
+static u32 hol_block_timer_qtime_encode(struct ipa *ipa, u32 microseconds)
 {
 	u32 gran_sel;
 	u32 val;
+	int ret;
 
-	/* IPA v4.5 expresses time limits using Qtime.  The AP has
-	 * pulse generators 0 and 1 available, which were configured
-	 * in ipa_qtime_config() to have granularity 100 usec and
-	 * 1 msec, respectively.  Use pulse generator 0 if possible,
-	 * otherwise fall back to pulse generator 1.
-	 */
-	val = DIV_ROUND_CLOSEST(microseconds, 100);
-	if (val > field_max(TIME_LIMIT_FMASK)) {
-		/* Have to use pulse generator 1 (millisecond granularity) */
+	ret = ipa_qtime_val(microseconds, field_max(TIME_LIMIT_FMASK));
+	if (ret < 0) {
+		val = -ret;
 		gran_sel = GRAN_SEL_FMASK;
-		val = DIV_ROUND_CLOSEST(microseconds, 1000);
 	} else {
-		/* We can use pulse generator 0 (100 usec granularity) */
+		val = ret;
 		gran_sel = 0;
 	}
 
@@ -854,12 +864,10 @@ static u32 hol_block_timer_qtime_val(struct ipa *ipa, u32 microseconds)
  * derived from the 19.2 MHz SoC XO clock.  For older IPA versions
  * each tick represents 128 cycles of the IPA core clock.
  *
- * Return the encoded value that should be written to that register
- * that represents the timeout period provided.  For IPA v4.2 this
- * encodes a base and scale value, while for earlier versions the
- * value is a simple tick count.
+ * Return the encoded value representing the timeout period provided
+ * that should be written to the ENDP_INIT_HOL_BLOCK_TIMER register.
  */
-static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
+static u32 hol_block_timer_encode(struct ipa *ipa, u32 microseconds)
 {
 	u32 width;
 	u32 scale;
@@ -872,7 +880,7 @@ static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 		return 0;	/* Nothing to compute if timer period is 0 */
 
 	if (ipa->version >= IPA_VERSION_4_5)
-		return hol_block_timer_qtime_val(ipa, microseconds);
+		return hol_block_timer_qtime_encode(ipa, microseconds);
 
 	/* Use 64 bit arithmetic to avoid overflow... */
 	rate = ipa_core_clock_rate(ipa);
@@ -920,7 +928,7 @@ static void ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
 
 	/* This should only be changed when HOL_BLOCK_EN is disabled */
 	offset = IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(endpoint_id);
-	val = hol_block_timer_val(ipa, microseconds);
+	val = hol_block_timer_encode(ipa, microseconds);
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
