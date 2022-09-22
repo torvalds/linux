@@ -517,7 +517,7 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
 		const struct cred *old_cred;
 
 		old_cred = ovl_override_creds(inode->i_sb);
-		acl = get_acl(realinode, type);
+		acl = get_inode_acl(realinode, type);
 		revert_creds(old_cred);
 	}
 	/*
@@ -721,7 +721,7 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.permission	= ovl_permission,
 	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
-	.get_acl	= ovl_get_acl,
+	.get_inode_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 	.fiemap		= ovl_fiemap,
 	.fileattr_get	= ovl_fileattr_get,
@@ -741,7 +741,7 @@ static const struct inode_operations ovl_special_inode_operations = {
 	.permission	= ovl_permission,
 	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
-	.get_acl	= ovl_get_acl,
+	.get_inode_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 };
 

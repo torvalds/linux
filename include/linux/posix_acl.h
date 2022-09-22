@@ -128,6 +128,6 @@ static inline void forget_all_cached_acls(struct inode *inode)
 }
 #endif /* CONFIG_FS_POSIX_ACL */
 
-struct posix_acl *get_acl(struct inode *inode, int type);
+struct posix_acl *get_inode_acl(struct inode *inode, int type);
 
 #endif  /* __LINUX_POSIX_ACL_H */

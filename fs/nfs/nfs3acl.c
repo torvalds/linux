@@ -265,14 +265,14 @@ int nfs3_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (S_ISDIR(inode->i_mode)) {
 		switch(type) {
 		case ACL_TYPE_ACCESS:
-			alloc = get_acl(inode, ACL_TYPE_DEFAULT);
+			alloc = get_inode_acl(inode, ACL_TYPE_DEFAULT);
 			if (IS_ERR(alloc))
 				goto fail;
 			dfacl = alloc;
 			break;
 
 		case ACL_TYPE_DEFAULT:
-			alloc = get_acl(inode, ACL_TYPE_ACCESS);
+			alloc = get_inode_acl(inode, ACL_TYPE_ACCESS);
 			if (IS_ERR(alloc))
 				goto fail;
 			dfacl = acl;
@@ -313,7 +313,7 @@ nfs3_list_one_acl(struct inode *inode, int type, const char *name, void *data,
 	struct posix_acl *acl;
 	char *p = data + *result;
 
-	acl = get_acl(inode, type);
+	acl = get_inode_acl(inode, type);
 	if (IS_ERR_OR_NULL(acl))
 		return 0;
 

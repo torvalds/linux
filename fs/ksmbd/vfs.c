@@ -1375,7 +1375,7 @@ static struct xattr_smb_acl *ksmbd_vfs_make_xattr_posix_acl(struct user_namespac
 	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL))
 		return NULL;
 
-	posix_acls = get_acl(inode, acl_type);
+	posix_acls = get_inode_acl(inode, acl_type);
 	if (!posix_acls)
 		return NULL;
 
@@ -1884,7 +1884,7 @@ int ksmbd_vfs_inherit_posix_acl(struct user_namespace *user_ns,
 	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL))
 		return -EOPNOTSUPP;
 
-	acls = get_acl(parent_inode, ACL_TYPE_DEFAULT);
+	acls = get_inode_acl(parent_inode, ACL_TYPE_DEFAULT);
 	if (!acls)
 		return -ENOENT;
 	pace = acls->a_entries;

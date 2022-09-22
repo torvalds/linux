@@ -870,7 +870,7 @@ static int ext4_xattr_credits_for_new_inode(struct inode *dir, mode_t mode,
 	struct super_block *sb = dir->i_sb;
 	int nblocks = 0;
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
-	struct posix_acl *p = get_acl(dir, ACL_TYPE_DEFAULT);
+	struct posix_acl *p = get_inode_acl(dir, ACL_TYPE_DEFAULT);
 
 	if (IS_ERR(p))
 		return PTR_ERR(p);

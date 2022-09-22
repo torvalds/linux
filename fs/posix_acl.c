@@ -64,7 +64,7 @@ struct posix_acl *get_cached_acl_rcu(struct inode *inode, int type)
 	if (acl == ACL_DONT_CACHE) {
 		struct posix_acl *ret;
 
-		ret = inode->i_op->get_acl(inode, type, LOOKUP_RCU);
+		ret = inode->i_op->get_inode_acl(inode, type, LOOKUP_RCU);
 		if (!IS_ERR(ret))
 			acl = ret;
 	}
@@ -106,7 +106,7 @@ void forget_all_cached_acls(struct inode *inode)
 }
 EXPORT_SYMBOL(forget_all_cached_acls);
 
-struct posix_acl *get_acl(struct inode *inode, int type)
+struct posix_acl *get_inode_acl(struct inode *inode, int type)
 {
 	void *sentinel;
 	struct posix_acl **p;
@@ -114,7 +114,7 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 
 	/*
 	 * The sentinel is used to detect when another operation like
-	 * set_cached_acl() or forget_cached_acl() races with get_acl().
+	 * set_cached_acl() or forget_cached_acl() races with get_inode_acl().
 	 * It is guaranteed that is_uncached_acl(sentinel) is true.
 	 */
 
@@ -133,24 +133,24 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 	 * current value of the ACL will not be ACL_NOT_CACHED and so our own
 	 * sentinel will not be set; another task will update the cache.  We
 	 * could wait for that other task to complete its job, but it's easier
-	 * to just call ->get_acl to fetch the ACL ourself.  (This is going to
-	 * be an unlikely race.)
+	 * to just call ->get_inode_acl to fetch the ACL ourself.  (This is
+	 * going to be an unlikely race.)
 	 */
 	cmpxchg(p, ACL_NOT_CACHED, sentinel);
 
 	/*
-	 * Normally, the ACL returned by ->get_acl will be cached.
+	 * Normally, the ACL returned by ->get_inode_acl will be cached.
 	 * A filesystem can prevent that by calling
-	 * forget_cached_acl(inode, type) in ->get_acl.
+	 * forget_cached_acl(inode, type) in ->get_inode_acl.
 	 *
-	 * If the filesystem doesn't have a get_acl() function at all, we'll
-	 * just create the negative cache entry.
+	 * If the filesystem doesn't have a get_inode_acl() function at all,
+	 * we'll just create the negative cache entry.
 	 */
-	if (!inode->i_op->get_acl) {
+	if (!inode->i_op->get_inode_acl) {
 		set_cached_acl(inode, type, NULL);
 		return NULL;
 	}
-	acl = inode->i_op->get_acl(inode, type, false);
+	acl = inode->i_op->get_inode_acl(inode, type, false);
 
 	if (IS_ERR(acl)) {
 		/*
@@ -169,7 +169,7 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 		posix_acl_release(acl);
 	return acl;
 }
-EXPORT_SYMBOL(get_acl);
+EXPORT_SYMBOL(get_inode_acl);
 
 /*
  * Init a fresh posix_acl
@@ -600,7 +600,7 @@ int
 	if (!inode->i_op->set_acl)
 		return -EOPNOTSUPP;
 
-	acl = get_acl(inode, ACL_TYPE_ACCESS);
+	acl = get_inode_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR_OR_NULL(acl)) {
 		if (acl == ERR_PTR(-EOPNOTSUPP))
 			return 0;
@@ -630,7 +630,7 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 	if (S_ISLNK(*mode) || !IS_POSIXACL(dir))
 		return 0;
 
-	p = get_acl(dir, ACL_TYPE_DEFAULT);
+	p = get_inode_acl(dir, ACL_TYPE_DEFAULT);
 	if (!p || p == ERR_PTR(-EOPNOTSUPP)) {
 		*mode &= ~current_umask();
 		return 0;
@@ -1045,7 +1045,8 @@ posix_acl_from_xattr_kgid(struct user_namespace *mnt_userns,
  * Filesystems that store POSIX ACLs in the unaltered uapi format should use
  * posix_acl_from_xattr() when reading them from the backing store and
  * converting them into the struct posix_acl VFS format. The helper is
- * specifically intended to be called from the ->get_acl() inode operation.
+ * specifically intended to be called from the ->get_inode_acl() inode
+ * operation.
  *
  * The posix_acl_from_xattr() function will map the raw {g,u}id values stored
  * in ACL_{GROUP,USER} entries into the filesystem idmapping in @fs_userns. The
@@ -1053,11 +1054,11 @@ posix_acl_from_xattr_kgid(struct user_namespace *mnt_userns,
  * correct k{g,u}id_t. The returned struct posix_acl can be cached.
  *
  * Note that posix_acl_from_xattr() does not take idmapped mounts into account.
- * If it did it calling is from the ->get_acl() inode operation would return
- * POSIX ACLs mapped according to an idmapped mount which would mean that the
- * value couldn't be cached for the filesystem. Idmapped mounts are taken into
- * account on the fly during permission checking or right at the VFS -
- * userspace boundary before reporting them to the user.
+ * If it did it calling is from the ->get_inode_acl() inode operation would
+ * return POSIX ACLs mapped according to an idmapped mount which would mean
+ * that the value couldn't be cached for the filesystem. Idmapped mounts are
+ * taken into account on the fly during permission checking or right at the VFS
+ * - userspace boundary before reporting them to the user.
  *
  * Return: Allocated struct posix_acl on success, NULL for a valid header but
  *         without actual POSIX ACL entries, or ERR_PTR() encoded error code.
@@ -1127,7 +1128,7 @@ posix_acl_xattr_get(const struct xattr_handler *handler,
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	acl = get_acl(inode, handler->flags);
+	acl = get_inode_acl(inode, handler->flags);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
