@@ -37,6 +37,7 @@
  *	 735		0008		0735
  */
 
+#define DRIVER_NAME "sis5595"
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
@@ -201,7 +202,7 @@ static void sis5595_init_device(struct sis5595_data *data);
 
 static struct platform_driver sis5595_driver = {
 	.driver = {
-		.name	= "sis5595",
+		.name	= DRIVER_NAME,
 	},
 	.probe		= sis5595_probe,
 	.remove		= sis5595_remove,
@@ -580,7 +581,7 @@ static int sis5595_probe(struct platform_device *pdev)
 	/* Reserve the ISA region */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, SIS5595_EXTENT,
-				 sis5595_driver.driver.name))
+				 DRIVER_NAME))
 		return -EBUSY;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sis5595_data),
@@ -591,7 +592,7 @@ static int sis5595_probe(struct platform_device *pdev)
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 	data->addr = res->start;
-	data->name = "sis5595";
+	data->name = DRIVER_NAME;
 	platform_set_drvdata(pdev, data);
 
 	/*
@@ -764,7 +765,7 @@ static int sis5595_device_add(unsigned short address)
 	struct resource res = {
 		.start	= address,
 		.end	= address + SIS5595_EXTENT - 1,
-		.name	= "sis5595",
+		.name	= DRIVER_NAME,
 		.flags	= IORESOURCE_IO,
 	};
 	int err;
@@ -773,7 +774,7 @@ static int sis5595_device_add(unsigned short address)
 	if (err)
 		goto exit;
 
-	pdev = platform_device_alloc("sis5595", address);
+	pdev = platform_device_alloc(DRIVER_NAME, address);
 	if (!pdev) {
 		err = -ENOMEM;
 		pr_err("Device allocation failed\n");
@@ -886,7 +887,7 @@ exit:
 }
 
 static struct pci_driver sis5595_pci_driver = {
-	.name            = "sis5595",
+	.name            = DRIVER_NAME,
 	.id_table        = sis5595_pci_ids,
 	.probe           = sis5595_pci_probe,
 };
