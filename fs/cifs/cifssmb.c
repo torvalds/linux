@@ -3212,6 +3212,202 @@ setACLerrorExit:
 	return rc;
 }
 
+#ifdef CONFIG_FS_POSIX_ACL
+/**
+ * cifs_init_posix_acl - convert ACL from cifs to POSIX ACL format
+ * @ace: POSIX ACL entry to store converted ACL into
+ * @cifs_ace: ACL in cifs format
+ *
+ * Convert an Access Control Entry from wire format to local POSIX xattr
+ * format.
+ *
+ * Note that the @cifs_uid member is used to store both {g,u}id_t.
+ */
+static void cifs_init_posix_acl(struct posix_acl_entry *ace,
+				struct cifs_posix_ace *cifs_ace)
+{
+	/* u8 cifs fields do not need le conversion */
+	ace->e_perm = cifs_ace->cifs_e_perm;
+	ace->e_tag = cifs_ace->cifs_e_tag;
+
+	switch (ace->e_tag) {
+	case ACL_USER:
+		ace->e_uid = make_kuid(&init_user_ns,
+				       le64_to_cpu(cifs_ace->cifs_uid));
+		break;
+	case ACL_GROUP:
+		ace->e_gid = make_kgid(&init_user_ns,
+				       le64_to_cpu(cifs_ace->cifs_uid));
+		break;
+	}
+	return;
+}
+
+/**
+ * cifs_to_posix_acl - copy cifs ACL format to POSIX ACL format
+ * @acl: ACLs returned in POSIX ACL format
+ * @src: ACLs in cifs format
+ * @acl_type: type of POSIX ACL requested
+ * @size_of_data_area: size of SMB we got
+ *
+ * This function converts ACLs from cifs format to POSIX ACL format.
+ * If @acl is NULL then the size of the buffer required to store POSIX ACLs in
+ * their uapi format is returned.
+ */
+static int cifs_to_posix_acl(struct posix_acl **acl, char *src,
+			     const int acl_type, const int size_of_data_area)
+{
+	int size =  0;
+	__u16 count;
+	struct cifs_posix_ace *pACE;
+	struct cifs_posix_acl *cifs_acl = (struct cifs_posix_acl *)src;
+	struct posix_acl *kacl = NULL;
+	struct posix_acl_entry *pa, *pe;
+
+	if (le16_to_cpu(cifs_acl->version) != CIFS_ACL_VERSION)
+		return -EOPNOTSUPP;
+
+	if (acl_type == ACL_TYPE_ACCESS) {
+		count = le16_to_cpu(cifs_acl->access_entry_count);
+		pACE = &cifs_acl->ace_array[0];
+		size = sizeof(struct cifs_posix_acl);
+		size += sizeof(struct cifs_posix_ace) * count;
+		/* check if we would go beyond end of SMB */
+		if (size_of_data_area < size) {
+			cifs_dbg(FYI, "bad CIFS POSIX ACL size %d vs. %d\n",
+				 size_of_data_area, size);
+			return -EINVAL;
+		}
+	} else if (acl_type == ACL_TYPE_DEFAULT) {
+		count = le16_to_cpu(cifs_acl->access_entry_count);
+		size = sizeof(struct cifs_posix_acl);
+		size += sizeof(struct cifs_posix_ace) * count;
+		/* skip past access ACEs to get to default ACEs */
+		pACE = &cifs_acl->ace_array[count];
+		count = le16_to_cpu(cifs_acl->default_entry_count);
+		size += sizeof(struct cifs_posix_ace) * count;
+		/* check if we would go beyond end of SMB */
+		if (size_of_data_area < size)
+			return -EINVAL;
+	} else {
+		/* illegal type */
+		return -EINVAL;
+	}
+
+	/* Allocate number of POSIX ACLs to store in VFS format. */
+	kacl = posix_acl_alloc(count, GFP_NOFS);
+	if (!kacl)
+		return -ENOMEM;
+
+	FOREACH_ACL_ENTRY(pa, kacl, pe) {
+		cifs_init_posix_acl(pa, pACE);
+		pACE++;
+	}
+
+	*acl = kacl;
+	return 0;
+}
+
+int cifs_do_get_acl(const unsigned int xid, struct cifs_tcon *tcon,
+		    const unsigned char *searchName, struct posix_acl **acl,
+		    const int acl_type, const struct nls_table *nls_codepage,
+		    int remap)
+{
+/* SMB_QUERY_POSIX_ACL */
+	TRANSACTION2_QPI_REQ *pSMB = NULL;
+	TRANSACTION2_QPI_RSP *pSMBr = NULL;
+	int rc = 0;
+	int bytes_returned;
+	int name_len;
+	__u16 params, byte_count;
+
+	cifs_dbg(FYI, "In GetPosixACL (Unix) for path %s\n", searchName);
+
+queryAclRetry:
+	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
+		(void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
+		name_len =
+			cifsConvertToUTF16((__le16 *) pSMB->FileName,
+					   searchName, PATH_MAX, nls_codepage,
+					   remap);
+		name_len++;     /* trailing null */
+		name_len *= 2;
+		pSMB->FileName[name_len] = 0;
+		pSMB->FileName[name_len+1] = 0;
+	} else {
+		name_len = copy_path_name(pSMB->FileName, searchName);
+	}
+
+	params = 2 /* level */  + 4 /* rsrvd */  + name_len /* incl null */ ;
+	pSMB->TotalDataCount = 0;
+	pSMB->MaxParameterCount = cpu_to_le16(2);
+	/* BB find exact max data count below from sess structure BB */
+	pSMB->MaxDataCount = cpu_to_le16(4000);
+	pSMB->MaxSetupCount = 0;
+	pSMB->Reserved = 0;
+	pSMB->Flags = 0;
+	pSMB->Timeout = 0;
+	pSMB->Reserved2 = 0;
+	pSMB->ParameterOffset = cpu_to_le16(
+		offsetof(struct smb_com_transaction2_qpi_req,
+			 InformationLevel) - 4);
+	pSMB->DataCount = 0;
+	pSMB->DataOffset = 0;
+	pSMB->SetupCount = 1;
+	pSMB->Reserved3 = 0;
+	pSMB->SubCommand = cpu_to_le16(TRANS2_QUERY_PATH_INFORMATION);
+	byte_count = params + 1 /* pad */ ;
+	pSMB->TotalParameterCount = cpu_to_le16(params);
+	pSMB->ParameterCount = pSMB->TotalParameterCount;
+	pSMB->InformationLevel = cpu_to_le16(SMB_QUERY_POSIX_ACL);
+	pSMB->Reserved4 = 0;
+	inc_rfc1001_len(pSMB, byte_count);
+	pSMB->ByteCount = cpu_to_le16(byte_count);
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+		(struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	cifs_stats_inc(&tcon->stats.cifs_stats.num_acl_get);
+	if (rc) {
+		cifs_dbg(FYI, "Send error in Query POSIX ACL = %d\n", rc);
+	} else {
+		/* decode response */
+
+		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
+		/* BB also check enough total bytes returned */
+		if (rc || get_bcc(&pSMBr->hdr) < 2)
+			rc = -EIO;      /* bad smb */
+		else {
+			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
+			__u16 count = le16_to_cpu(pSMBr->t2.DataCount);
+			rc = cifs_to_posix_acl(acl,
+				(char *)&pSMBr->hdr.Protocol+data_offset,
+				acl_type, count);
+		}
+	}
+	cifs_buf_release(pSMB);
+	/*
+	 * The else branch after SendReceive() doesn't return EAGAIN so if we
+	 * allocated @acl in cifs_to_posix_acl() we are guaranteed to return
+	 * here and don't leak POSIX ACLs.
+	 */
+	if (rc == -EAGAIN)
+		goto queryAclRetry;
+	return rc;
+}
+#else
+int cifs_do_get_acl(const unsigned int xid, struct cifs_tcon *tcon,
+		    const unsigned char *searchName, struct posix_acl **acl,
+		    const int acl_type, const struct nls_table *nls_codepage,
+		    int remap)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_FS_POSIX_ACL */
+
 int
 CIFSGetExtAttr(const unsigned int xid, struct cifs_tcon *tcon,
 	       const int netfid, __u64 *pExtAttrBits, __u64 *pMask)
