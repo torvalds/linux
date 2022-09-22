@@ -454,10 +454,7 @@ vfs_getxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		return ret;
 	}
 nolsm:
-	error = __vfs_getxattr(dentry, inode, name, value, size);
-	if (error > 0 && is_posix_acl_xattr(name))
-		posix_acl_getxattr_idmapped_mnt(mnt_userns, inode, value, size);
-	return error;
+	return __vfs_getxattr(dentry, inode, name, value, size);
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
 

@@ -35,11 +35,6 @@ posix_acl_xattr_count(size_t size)
 #ifdef CONFIG_FS_POSIX_ACL
 struct posix_acl *posix_acl_from_xattr(struct user_namespace *user_ns,
 				       const void *value, size_t size);
-void posix_acl_fix_xattr_from_user(void *value, size_t size);
-void posix_acl_fix_xattr_to_user(void *value, size_t size);
-void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
-				     const struct inode *inode,
-				     void *value, size_t size);
 ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
 			       struct inode *inode, const struct posix_acl *acl,
 			       void *buffer, size_t size);
@@ -49,18 +44,6 @@ posix_acl_from_xattr(struct user_namespace *user_ns, const void *value,
 		     size_t size)
 {
 	return ERR_PTR(-EOPNOTSUPP);
-}
-static inline void posix_acl_fix_xattr_from_user(void *value, size_t size)
-{
-}
-static inline void posix_acl_fix_xattr_to_user(void *value, size_t size)
-{
-}
-static inline void
-posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
-				const struct inode *inode, void *value,
-				size_t size)
-{
 }
 static inline ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
 					     struct inode *inode,
@@ -73,9 +56,6 @@ static inline ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
 
 int posix_acl_to_xattr(struct user_namespace *user_ns,
 		       const struct posix_acl *acl, void *buffer, size_t size);
-struct posix_acl *vfs_set_acl_prepare(struct user_namespace *mnt_userns,
-				      struct user_namespace *fs_userns,
-				      const void *value, size_t size);
 static inline const char *posix_acl_xattr_name(int type)
 {
 	switch (type) {
