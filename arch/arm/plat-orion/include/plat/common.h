@@ -12,7 +12,6 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 
-struct dsa_chip_data;
 struct mv_sata_platform_data;
 
 void __init orion_uart0_init(void __iomem *membase,
@@ -56,8 +55,6 @@ void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq);
-
-void __init orion_ge00_switch_init(struct dsa_chip_data *d);
 
 void __init orion_i2c_init(unsigned long mapbase,
 			   unsigned long irq,
