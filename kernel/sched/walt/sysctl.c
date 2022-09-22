@@ -365,39 +365,25 @@ static void sched_update_updown_migrate_values(bool up)
 {
 	int i = 0, cpu;
 	struct walt_sched_cluster *cluster;
-	int cap_margin_levels = num_sched_clusters - 1;
 
-	if (cap_margin_levels > 1) {
+	for_each_sched_cluster(cluster) {
 		/*
 		 * No need to worry about CPUs in last cluster
 		 * if there are more than 2 clusters in the system
 		 */
-		for_each_sched_cluster(cluster) {
-			for_each_cpu(cpu, &cluster->cpus) {
-				if (up)
-					sched_capacity_margin_up[cpu] =
-					SCHED_FIXEDPOINT_SCALE * 100 /
-					sysctl_sched_capacity_margin_up_pct[i];
-				else
-					sched_capacity_margin_down[cpu] =
-					SCHED_FIXEDPOINT_SCALE * 100 /
-					sysctl_sched_capacity_margin_dn_pct[i];
-			}
-
-			if (++i >= cap_margin_levels)
-				break;
-		}
-	} else {
-		for_each_possible_cpu(cpu) {
+		for_each_cpu(cpu, &cluster->cpus) {
 			if (up)
 				sched_capacity_margin_up[cpu] =
-
 				SCHED_FIXEDPOINT_SCALE * 100 /
-				sysctl_sched_capacity_margin_up_pct[0];
+				sysctl_sched_capacity_margin_up_pct[i];
 			else
 				sched_capacity_margin_down[cpu] =
-				sysctl_sched_capacity_margin_dn_pct[0];
+				SCHED_FIXEDPOINT_SCALE * 100 /
+				sysctl_sched_capacity_margin_dn_pct[i];
 		}
+
+		if (++i >= num_sched_clusters - 1)
+			break;
 	}
 }
 
