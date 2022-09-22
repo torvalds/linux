@@ -598,6 +598,34 @@
 		"AP_SPI_FLASH_MOSI",
 		"AP_SPI_FLASH_MISO";
 
+	aud_pins_default: audio-default-pins {
+		pins-cmd-dat {
+		    pinmux = <PINMUX_GPIO69__FUNC_AUD_CLK_MOSI>,
+			     <PINMUX_GPIO70__FUNC_AUD_SYNC_MOSI>,
+			     <PINMUX_GPIO71__FUNC_AUD_DAT_MOSI0>,
+			     <PINMUX_GPIO72__FUNC_AUD_DAT_MOSI1>,
+			     <PINMUX_GPIO73__FUNC_AUD_DAT_MISO0>,
+			     <PINMUX_GPIO74__FUNC_AUD_DAT_MISO1>,
+			     <PINMUX_GPIO75__FUNC_AUD_DAT_MISO2>,
+			     <PINMUX_GPIO0__FUNC_TDMIN_MCK>,
+			     <PINMUX_GPIO1__FUNC_TDMIN_DI>,
+			     <PINMUX_GPIO2__FUNC_TDMIN_LRCK>,
+			     <PINMUX_GPIO3__FUNC_TDMIN_BCK>,
+			     <PINMUX_GPIO60__FUNC_I2SO2_D0>,
+			     <PINMUX_GPIO49__FUNC_I2SIN_D0>,
+			     <PINMUX_GPIO50__FUNC_I2SO1_MCK>,
+			     <PINMUX_GPIO51__FUNC_I2SO1_BCK>,
+			     <PINMUX_GPIO52__FUNC_I2SO1_WS>,
+			     <PINMUX_GPIO53__FUNC_I2SO1_D0>;
+		};
+
+		pins-hp-jack-int-odl {
+			pinmux = <PINMUX_GPIO89__FUNC_GPIO89>;
+			input-enable;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+	};
+
 	cr50_int: cr50-irq-default-pins {
 		pins-gsc-ap-int-odl {
 			pinmux = <PINMUX_GPIO88__FUNC_GPIO88>;
@@ -917,6 +945,18 @@
 		compatible = "google,cros-ec-rpmsg";
 		mediatek,rpmsg-name = "cros-ec-rpmsg";
 	};
+};
+
+&sound {
+	status = "okay";
+
+	mediatek,adsp = <&adsp>;
+	mediatek,dai-link =
+		"DL10_FE", "DPTX_BE", "ETDM1_IN_BE", "ETDM2_IN_BE",
+		"ETDM1_OUT_BE", "ETDM2_OUT_BE","UL_SRC1_BE",
+		"AFE_SOF_DL2", "AFE_SOF_DL3", "AFE_SOF_UL4", "AFE_SOF_UL5";
+	pinctrl-names = "default";
+	pinctrl-0 = <&aud_pins_default>;
 };
 
 &spi0 {

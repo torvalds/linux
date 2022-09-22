@@ -36,6 +36,11 @@
 	};
 };
 
+&sound {
+	compatible = "mediatek,mt8195_mt6359_rt1019_rt5682";
+	model = "m8195_r1019_5682s";
+};
+
 &ts_10 {
 	status = "okay";
 };
