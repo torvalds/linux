@@ -1046,7 +1046,6 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp)
 	req->lun = scp->device->lun;
 	req->header.size = cpu_to_le32(
 				sizeof(struct hpt_iop_request_scsi_command)
-				 - sizeof(struct hpt_iopsg)
 				 + sg_count * sizeof(struct hpt_iopsg));
 
 	memcpy(req->cdb, scp->cmnd, sizeof(req->cdb));
@@ -1398,7 +1397,7 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 	host->max_cmd_len = 16;
 
 	req_size = sizeof(struct hpt_iop_request_scsi_command)
-		+ sizeof(struct hpt_iopsg) * (hba->max_sg_descriptors - 1);
+		+ sizeof(struct hpt_iopsg) * hba->max_sg_descriptors;
 	if ((req_size & 0x1f) != 0)
 		req_size = (req_size + 0x1f) & ~0x1f;
 

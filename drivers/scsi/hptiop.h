@@ -228,7 +228,7 @@ struct hpt_iop_request_scsi_command {
 	u8     pad1;
 	u8     cdb[16];
 	__le32 dataxfer_length;
-	struct hpt_iopsg sg_list[1];
+	struct hpt_iopsg sg_list[];
 };
 
 struct hpt_iop_request_ioctl_command {
