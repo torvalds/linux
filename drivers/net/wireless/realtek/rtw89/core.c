@@ -496,8 +496,14 @@ static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = tx_info->control.vif;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	u16 lowest_rate = chan->band_type == RTW89_BAND_2G ?
-			  RTW89_HW_RATE_CCK1 : RTW89_HW_RATE_OFDM6;
+	u16 lowest_rate;
+
+	if (tx_info->flags & IEEE80211_TX_CTL_NO_CCK_RATE || vif->p2p)
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (chan->band_type == RTW89_BAND_2G)
+		lowest_rate = RTW89_HW_RATE_CCK1;
+	else
+		lowest_rate = RTW89_HW_RATE_OFDM6;
 
 	if (!vif || !vif->bss_conf.basic_rates || !tx_req->sta)
 		return lowest_rate;
@@ -708,7 +714,9 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	if (IEEE80211_SKB_CB(skb)->control.hw_key)
 		rtw89_core_tx_update_sec_key(rtwdev, tx_req);
 
-	if (rate_pattern->enable)
+	if (vif->p2p)
+		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (rate_pattern->enable)
 		desc_info->data_retry_lowest_rate = rate_pattern->rate;
 	else if (chan->band_type == RTW89_BAND_2G)
 		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_CCK1;

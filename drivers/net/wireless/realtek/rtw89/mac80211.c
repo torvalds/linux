@@ -677,7 +677,7 @@ static void rtw89_ra_mask_info_update_iter(void *data, struct ieee80211_sta *sta
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwsta->rtwvif);
 
-	if (vif != br_data->vif)
+	if (vif != br_data->vif || vif->p2p)
 		return;
 
 	rtwsta->use_cfg_mask = true;
