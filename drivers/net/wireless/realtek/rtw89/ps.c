@@ -59,8 +59,11 @@ static void rtw89_ps_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 		rtw89_mac_power_mode_change(rtwdev, enter);
 }
 
-static void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev)
+static void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
+	if (rtwvif->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
+		return;
+
 	if (!rtwdev->ps_mode)
 		return;
 
@@ -111,20 +114,21 @@ void rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 	__rtw89_leave_ps_mode(rtwdev);
 }
 
-void rtw89_enter_lps(struct rtw89_dev *rtwdev, u8 mac_id)
+void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	lockdep_assert_held(&rtwdev->mutex);
 
 	if (test_and_set_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
 		return;
 
-	__rtw89_enter_lps(rtwdev, mac_id);
-	__rtw89_enter_ps_mode(rtwdev);
+	__rtw89_enter_lps(rtwdev, rtwvif->mac_id);
+	__rtw89_enter_ps_mode(rtwdev, rtwvif);
 }
 
 static void rtw89_leave_lps_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION)
+	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION &&
+	    rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT)
 		return;
 
 	__rtw89_leave_lps(rtwdev, rtwvif->mac_id);

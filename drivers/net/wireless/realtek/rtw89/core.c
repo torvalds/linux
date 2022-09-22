@@ -2167,12 +2167,13 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 
 static void rtw89_vif_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION)
+	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION &&
+	    rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT)
 		return;
 
 	if (rtwvif->stats.tx_tfc_lv == RTW89_TFC_IDLE &&
 	    rtwvif->stats.rx_tfc_lv == RTW89_TFC_IDLE)
-		rtw89_enter_lps(rtwdev, rtwvif->mac_id);
+		rtw89_enter_lps(rtwdev, rtwvif);
 }
 
 static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
@@ -2333,9 +2334,19 @@ void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc)
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 
 	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		if (vif->p2p)
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_P2P_CLIENT;
+		else
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_STATION;
+		break;
+	case NL80211_IFTYPE_AP:
+		if (vif->p2p)
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_P2P_GO;
+		else
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_AP;
+		break;
 	RTW89_TYPE_MAPPING(ADHOC);
-	RTW89_TYPE_MAPPING(STATION);
-	RTW89_TYPE_MAPPING(AP);
 	RTW89_TYPE_MAPPING(MONITOR);
 	RTW89_TYPE_MAPPING(MESH_POINT);
 	default:
