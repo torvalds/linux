@@ -1399,6 +1399,9 @@ void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr)
 	if (!PageHead(hpage))
 		goto drop_hpage;
 
+	if (compound_order(hpage) != HPAGE_PMD_ORDER)
+		goto drop_hpage;
+
 	if (find_pmd_or_thp_or_none(mm, haddr, &pmd) != SCAN_SUCCEED)
 		goto drop_hpage;
 
