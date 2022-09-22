@@ -846,9 +846,8 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	hns_roce_init_cq_table(hr_dev);
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
 		hns_roce_init_srq_table(hr_dev);
-	}
 
 	return 0;
 
