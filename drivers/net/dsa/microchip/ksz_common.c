@@ -1768,276 +1768,162 @@ static int ksz_mdio_register(struct ksz_device *dev)
 	return ret;
 }
 
-static void ksz_girq_mask(struct irq_data *d)
+static void ksz_irq_mask(struct irq_data *d)
 {
-	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
-	unsigned int n = d->hwirq;
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
 
-	dev->girq.masked |= (1 << n);
+	kirq->masked |= BIT(d->hwirq);
 }
 
-static void ksz_girq_unmask(struct irq_data *d)
+static void ksz_irq_unmask(struct irq_data *d)
 {
-	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
-	unsigned int n = d->hwirq;
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
 
-	dev->girq.masked &= ~(1 << n);
+	kirq->masked &= ~BIT(d->hwirq);
 }
 
-static void ksz_girq_bus_lock(struct irq_data *d)
+static void ksz_irq_bus_lock(struct irq_data *d)
 {
-	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
+	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
 
-	mutex_lock(&dev->lock_irq);
+	mutex_lock(&kirq->dev->lock_irq);
 }
 
-static void ksz_girq_bus_sync_unlock(struct irq_data *d)
+static void ksz_irq_bus_sync_unlock(struct irq_data *d)
 {
-	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
+	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
+	struct ksz_device *dev = kirq->dev;
 	int ret;
 
-	ret = ksz_write32(dev, REG_SW_PORT_INT_MASK__4, dev->girq.masked);
+	ret = ksz_write32(dev, kirq->reg_mask, kirq->masked);
 	if (ret)
 		dev_err(dev->dev, "failed to change IRQ mask\n");
 
 	mutex_unlock(&dev->lock_irq);
 }
 
-static const struct irq_chip ksz_girq_chip = {
-	.name			= "ksz-global",
-	.irq_mask		= ksz_girq_mask,
-	.irq_unmask		= ksz_girq_unmask,
-	.irq_bus_lock		= ksz_girq_bus_lock,
-	.irq_bus_sync_unlock	= ksz_girq_bus_sync_unlock,
+static const struct irq_chip ksz_irq_chip = {
+	.name			= "ksz-irq",
+	.irq_mask		= ksz_irq_mask,
+	.irq_unmask		= ksz_irq_unmask,
+	.irq_bus_lock		= ksz_irq_bus_lock,
+	.irq_bus_sync_unlock	= ksz_irq_bus_sync_unlock,
 };
 
-static int ksz_girq_domain_map(struct irq_domain *d,
-			       unsigned int irq, irq_hw_number_t hwirq)
+static int ksz_irq_domain_map(struct irq_domain *d,
+			      unsigned int irq, irq_hw_number_t hwirq)
 {
-	struct ksz_device *dev = d->host_data;
-
 	irq_set_chip_data(irq, d->host_data);
-	irq_set_chip_and_handler(irq, &dev->girq.chip, handle_level_irq);
+	irq_set_chip_and_handler(irq, &ksz_irq_chip, handle_level_irq);
 	irq_set_noprobe(irq);
 
 	return 0;
 }
 
-static const struct irq_domain_ops ksz_girq_domain_ops = {
-	.map	= ksz_girq_domain_map,
+static const struct irq_domain_ops ksz_irq_domain_ops = {
+	.map	= ksz_irq_domain_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-static void ksz_girq_free(struct ksz_device *dev)
+static void ksz_irq_free(struct ksz_irq *kirq)
 {
 	int irq, virq;
 
-	free_irq(dev->irq, dev);
+	free_irq(kirq->irq_num, kirq);
 
-	for (irq = 0; irq < dev->girq.nirqs; irq++) {
-		virq = irq_find_mapping(dev->girq.domain, irq);
+	for (irq = 0; irq < kirq->nirqs; irq++) {
+		virq = irq_find_mapping(kirq->domain, irq);
 		irq_dispose_mapping(virq);
 	}
 
-	irq_domain_remove(dev->girq.domain);
+	irq_domain_remove(kirq->domain);
 }
 
-static irqreturn_t ksz_girq_thread_fn(int irq, void *dev_id)
+static irqreturn_t ksz_irq_thread_fn(int irq, void *dev_id)
 {
-	struct ksz_device *dev = dev_id;
+	struct ksz_irq *kirq = dev_id;
 	unsigned int nhandled = 0;
+	struct ksz_device *dev;
 	unsigned int sub_irq;
-	unsigned int n;
-	u32 data;
+	u8 data;
 	int ret;
+	u8 n;
 
-	/* Read global interrupt status register */
-	ret = ksz_read32(dev, REG_SW_PORT_INT_STATUS__4, &data);
+	dev = kirq->dev;
+
+	/* Read interrupt status register */
+	ret = ksz_read8(dev, kirq->reg_status, &data);
 	if (ret)
 		goto out;
 
-	for (n = 0; n < dev->girq.nirqs; ++n) {
-		if (data & (1 << n)) {
-			sub_irq = irq_find_mapping(dev->girq.domain, n);
+	for (n = 0; n < kirq->nirqs; ++n) {
+		if (data & BIT(n)) {
+			sub_irq = irq_find_mapping(kirq->domain, n);
 			handle_nested_irq(sub_irq);
 			++nhandled;
 		}
 	}
 out:
 	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+}
+
+static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
+{
+	int ret, n;
+
+	kirq->dev = dev;
+	kirq->masked = ~0;
+
+	kirq->domain = irq_domain_add_simple(dev->dev->of_node, kirq->nirqs, 0,
+					     &ksz_irq_domain_ops, kirq);
+	if (!kirq->domain)
+		return -ENOMEM;
+
+	for (n = 0; n < kirq->nirqs; n++)
+		irq_create_mapping(kirq->domain, n);
+
+	ret = request_threaded_irq(kirq->irq_num, NULL, ksz_irq_thread_fn,
+				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+				   kirq->name, kirq);
+	if (ret)
+		goto out;
+
+	return 0;
+
+out:
+	ksz_irq_free(kirq);
+
+	return ret;
 }
 
 static int ksz_girq_setup(struct ksz_device *dev)
 {
-	int ret, irq;
+	struct ksz_irq *girq = &dev->girq;
 
-	dev->girq.nirqs = dev->info->port_cnt;
-	dev->girq.domain = irq_domain_add_simple(NULL, dev->girq.nirqs, 0,
-						 &ksz_girq_domain_ops, dev);
-	if (!dev->girq.domain)
-		return -ENOMEM;
+	girq->nirqs = dev->info->port_cnt;
+	girq->reg_mask = REG_SW_PORT_INT_MASK__1;
+	girq->reg_status = REG_SW_PORT_INT_STATUS__1;
+	snprintf(girq->name, sizeof(girq->name), "global_port_irq");
 
-	for (irq = 0; irq < dev->girq.nirqs; irq++)
-		irq_create_mapping(dev->girq.domain, irq);
+	girq->irq_num = dev->irq;
 
-	dev->girq.chip = ksz_girq_chip;
-	dev->girq.masked = ~0;
-
-	ret = request_threaded_irq(dev->irq, NULL, ksz_girq_thread_fn,
-				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
-				   dev_name(dev->dev), dev);
-	if (ret)
-		goto out;
-
-	return 0;
-
-out:
-	ksz_girq_free(dev);
-
-	return ret;
-}
-
-static void ksz_pirq_mask(struct irq_data *d)
-{
-	struct ksz_port *port = irq_data_get_irq_chip_data(d);
-	unsigned int n = d->hwirq;
-
-	port->pirq.masked |= (1 << n);
-}
-
-static void ksz_pirq_unmask(struct irq_data *d)
-{
-	struct ksz_port *port = irq_data_get_irq_chip_data(d);
-	unsigned int n = d->hwirq;
-
-	port->pirq.masked &= ~(1 << n);
-}
-
-static void ksz_pirq_bus_lock(struct irq_data *d)
-{
-	struct ksz_port *port = irq_data_get_irq_chip_data(d);
-	struct ksz_device *dev = port->ksz_dev;
-
-	mutex_lock(&dev->lock_irq);
-}
-
-static void ksz_pirq_bus_sync_unlock(struct irq_data *d)
-{
-	struct ksz_port *port = irq_data_get_irq_chip_data(d);
-	struct ksz_device *dev = port->ksz_dev;
-
-	ksz_pwrite8(dev, port->num, REG_PORT_INT_MASK, port->pirq.masked);
-	mutex_unlock(&dev->lock_irq);
-}
-
-static const struct irq_chip ksz_pirq_chip = {
-	.name			= "ksz-port",
-	.irq_mask		= ksz_pirq_mask,
-	.irq_unmask		= ksz_pirq_unmask,
-	.irq_bus_lock		= ksz_pirq_bus_lock,
-	.irq_bus_sync_unlock	= ksz_pirq_bus_sync_unlock,
-};
-
-static int ksz_pirq_domain_map(struct irq_domain *d, unsigned int irq,
-			       irq_hw_number_t hwirq)
-{
-	struct ksz_port *port = d->host_data;
-
-	irq_set_chip_data(irq, d->host_data);
-	irq_set_chip_and_handler(irq, &port->pirq.chip, handle_level_irq);
-	irq_set_noprobe(irq);
-
-	return 0;
-}
-
-static const struct irq_domain_ops ksz_pirq_domain_ops = {
-	.map	= ksz_pirq_domain_map,
-	.xlate	= irq_domain_xlate_twocell,
-};
-
-static void ksz_pirq_free(struct ksz_device *dev, u8 p)
-{
-	struct ksz_port *port = &dev->ports[p];
-	int irq, virq;
-	int irq_num;
-
-	irq_num = irq_find_mapping(dev->girq.domain, p);
-	if (irq_num < 0)
-		return;
-
-	free_irq(irq_num, port);
-
-	for (irq = 0; irq < port->pirq.nirqs; irq++) {
-		virq = irq_find_mapping(port->pirq.domain, irq);
-		irq_dispose_mapping(virq);
-	}
-
-	irq_domain_remove(port->pirq.domain);
-}
-
-static irqreturn_t ksz_pirq_thread_fn(int irq, void *dev_id)
-{
-	struct ksz_port *port = dev_id;
-	unsigned int nhandled = 0;
-	struct ksz_device *dev;
-	unsigned int sub_irq;
-	unsigned int n;
-	u8 data;
-
-	dev = port->ksz_dev;
-
-	/* Read port interrupt status register */
-	ksz_pread8(dev, port->num, REG_PORT_INT_STATUS, &data);
-
-	for (n = 0; n < port->pirq.nirqs; ++n) {
-		if (data & (1 << n)) {
-			sub_irq = irq_find_mapping(port->pirq.domain, n);
-			handle_nested_irq(sub_irq);
-			++nhandled;
-		}
-	}
-
-	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+	return ksz_irq_common_setup(dev, girq);
 }
 
 static int ksz_pirq_setup(struct ksz_device *dev, u8 p)
 {
-	struct ksz_port *port = &dev->ports[p];
-	int ret, irq;
-	int irq_num;
+	struct ksz_irq *pirq = &dev->ports[p].pirq;
 
-	port->pirq.nirqs = dev->info->port_nirqs;
-	port->pirq.domain = irq_domain_add_simple(dev->dev->of_node,
-						  port->pirq.nirqs, 0,
-						  &ksz_pirq_domain_ops,
-						  port);
-	if (!port->pirq.domain)
-		return -ENOMEM;
+	pirq->nirqs = dev->info->port_nirqs;
+	pirq->reg_mask = dev->dev_ops->get_port_addr(p, REG_PORT_INT_MASK);
+	pirq->reg_status = dev->dev_ops->get_port_addr(p, REG_PORT_INT_STATUS);
+	snprintf(pirq->name, sizeof(pirq->name), "port_irq-%d", p);
 
-	for (irq = 0; irq < port->pirq.nirqs; irq++)
-		irq_create_mapping(port->pirq.domain, irq);
+	pirq->irq_num = irq_find_mapping(dev->girq.domain, p);
+	if (pirq->irq_num < 0)
+		return pirq->irq_num;
 
-	port->pirq.chip = ksz_pirq_chip;
-	port->pirq.masked = ~0;
-
-	irq_num = irq_find_mapping(dev->girq.domain, p);
-	if (irq_num < 0)
-		return irq_num;
-
-	snprintf(port->pirq.name, sizeof(port->pirq.name), "port_irq-%d", p);
-
-	ret = request_threaded_irq(irq_num, NULL, ksz_pirq_thread_fn,
-				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
-				   port->pirq.name, port);
-	if (ret)
-		goto out;
-
-	return 0;
-
-out:
-	ksz_pirq_free(dev, p);
-
-	return ret;
+	return ksz_irq_common_setup(dev, pirq);
 }
 
 static int ksz_setup(struct dsa_switch *ds)
@@ -2119,10 +2005,10 @@ static int ksz_setup(struct dsa_switch *ds)
 out_pirq:
 	if (dev->irq > 0)
 		dsa_switch_for_each_user_port(dp, dev->ds)
-			ksz_pirq_free(dev, dp->index);
+			ksz_irq_free(&dev->ports[dp->index].pirq);
 out_girq:
 	if (dev->irq > 0)
-		ksz_girq_free(dev);
+		ksz_irq_free(&dev->girq);
 
 	return ret;
 }
@@ -2134,9 +2020,9 @@ static void ksz_teardown(struct dsa_switch *ds)
 
 	if (dev->irq > 0) {
 		dsa_switch_for_each_user_port(dp, dev->ds)
-			ksz_pirq_free(dev, dp->index);
+			ksz_irq_free(&dev->ports[dp->index].pirq);
 
-		ksz_girq_free(dev);
+		ksz_irq_free(&dev->girq);
 	}
 
 	if (dev->dev_ops->teardown)

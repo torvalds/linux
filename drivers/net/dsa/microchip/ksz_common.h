@@ -72,10 +72,13 @@ struct ksz_chip_data {
 
 struct ksz_irq {
 	u16 masked;
-	struct irq_chip chip;
+	u16 reg_mask;
+	u16 reg_status;
 	struct irq_domain *domain;
 	int nirqs;
+	int irq_num;
 	char name[16];
+	struct ksz_device *dev;
 };
 
 struct ksz_port {
@@ -574,8 +577,8 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define P_MII_SEL_M			0x3
 
 /* Interrupt */
-#define REG_SW_PORT_INT_STATUS__4	0x0018
-#define REG_SW_PORT_INT_MASK__4		0x001C
+#define REG_SW_PORT_INT_STATUS__1	0x001B
+#define REG_SW_PORT_INT_MASK__1		0x001F
 
 #define REG_PORT_INT_STATUS		0x001B
 #define REG_PORT_INT_MASK		0x001F
