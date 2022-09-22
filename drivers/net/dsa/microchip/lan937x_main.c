@@ -214,10 +214,8 @@ static int lan937x_mdio_register(struct ksz_device *dev)
 	int ret;
 
 	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
-	if (!mdio_np) {
-		dev_err(ds->dev, "no MDIO bus node\n");
-		return -ENODEV;
-	}
+	if (!mdio_np)
+		return 0;
 
 	bus = devm_mdiobus_alloc(ds->dev);
 	if (!bus) {
