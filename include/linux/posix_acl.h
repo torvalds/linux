@@ -104,6 +104,8 @@ int vfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		const char *acl_name, struct posix_acl *kacl);
 struct posix_acl *vfs_get_acl(struct user_namespace *mnt_userns,
 			      struct dentry *dentry, const char *acl_name);
+int vfs_remove_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   const char *acl_name);
 #else
 static inline int posix_acl_chmod(struct user_namespace *mnt_userns,
 				  struct dentry *dentry, umode_t mode)
@@ -144,6 +146,12 @@ static inline struct posix_acl *vfs_get_acl(struct user_namespace *mnt_userns,
 					    const char *acl_name)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int vfs_remove_acl(struct user_namespace *mnt_userns,
+				 struct dentry *dentry, const char *acl_name)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_FS_POSIX_ACL */
 
