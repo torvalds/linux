@@ -2338,12 +2338,12 @@ EXPORT_SYMBOL_GPL(task_cgroup_path);
  * Unfortunately, letting ->attach() operations acquire cpus_read_lock() can
  * lead to deadlocks.
  *
- * Bringing up a CPU may involve creating new tasks which requires read-locking
- * threadgroup_rwsem, so threadgroup_rwsem nests inside cpus_read_lock(). If we
- * call an ->attach() which acquires the cpus lock while write-locking
- * threadgroup_rwsem, the locking order is reversed and we end up waiting for an
- * on-going CPU hotplug operation which in turn is waiting for the
- * threadgroup_rwsem to be released to create new tasks. For more details:
+ * Bringing up a CPU may involve creating and destroying tasks which requires
+ * read-locking threadgroup_rwsem, so threadgroup_rwsem nests inside
+ * cpus_read_lock(). If we call an ->attach() which acquires the cpus lock while
+ * write-locking threadgroup_rwsem, the locking order is reversed and we end up
+ * waiting for an on-going CPU hotplug operation which in turn is waiting for
+ * the threadgroup_rwsem to be released to create new tasks. For more details:
  *
  *   http://lkml.kernel.org/r/20220711174629.uehfmqegcwn2lqzu@wubuntu
  *
