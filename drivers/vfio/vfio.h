@@ -3,6 +3,14 @@
  * Copyright (C) 2012 Red Hat, Inc.  All rights reserved.
  *     Author: Alex Williamson <alex.williamson@redhat.com>
  */
+#ifndef __VFIO_VFIO_H__
+#define __VFIO_VFIO_H__
+
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/module.h>
+
+struct iommu_group;
 
 enum vfio_group_type {
 	/*
@@ -69,3 +77,5 @@ struct vfio_iommu_driver_ops {
 
 int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops);
 void vfio_unregister_iommu_driver(const struct vfio_iommu_driver_ops *ops);
+
+#endif
