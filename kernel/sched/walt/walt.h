@@ -14,6 +14,11 @@
 
 #include <linux/cgroup.h>
 
+#include <uapi/linux/sched/types.h>
+#include <linux/cpuidle.h>
+#include <linux/sched/clock.h>
+#include <trace/hooks/cgroup.h>
+
 #ifdef CONFIG_HZ_300
 /*
  * Tick interval becomes to 3333333 due to
