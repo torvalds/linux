@@ -4129,7 +4129,8 @@ static void android_rvh_flush_task(void *unused, struct task_struct *p)
 	walt_task_dead(p);
 }
 
-static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_struct *p)
+static void android_rvh_enqueue_task(void *unused, struct rq *rq,
+		struct task_struct *p, int flags)
 {
 	u64 wallclock;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -4184,7 +4185,8 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	trace_sched_enq_deq_task(p, 1, cpumask_bits(p->cpus_ptr)[0], is_mvp(wts));
 }
 
-static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_struct *p)
+static void android_rvh_dequeue_task(void *unused, struct rq *rq,
+		struct task_struct *p, int flags)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
