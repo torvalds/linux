@@ -1148,16 +1148,19 @@ void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 				true);
 	}
 
-	// Don't program pixel clock after link is already enabled
-/*	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
-			pipe_ctx->clock_source,
-			&pipe_ctx->stream_res.pix_clk_params,
-			&pipe_ctx->pll_settings)) {
-		BREAK_TO_DEBUGGER();
-	}*/
+	if (pipe_ctx->stream_res.dsc) {
+		struct pipe_ctx *current_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
-	if (pipe_ctx->stream_res.dsc)
 		update_dsc_on_stream(pipe_ctx, pipe_ctx->stream->timing.flags.DSC);
+
+		/* Check if no longer using pipe for ODM, then need to disconnect DSC for that pipe */
+		if (!pipe_ctx->next_odm_pipe && current_pipe_ctx->next_odm_pipe &&
+				current_pipe_ctx->next_odm_pipe->stream_res.dsc) {
+			struct display_stream_compressor *dsc = current_pipe_ctx->next_odm_pipe->stream_res.dsc;
+			/* disconnect DSC block from stream */
+			dsc->funcs->dsc_disconnect(dsc);
+		}
+	}
 }
 
 unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div)
