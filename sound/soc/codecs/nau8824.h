@@ -436,6 +436,7 @@ struct nau8824 {
 	struct semaphore jd_sem;
 	int fs;
 	int irq;
+	int resume_lock;
 	int micbias_voltage;
 	int vref_impedance;
 	int jkdet_polarity;

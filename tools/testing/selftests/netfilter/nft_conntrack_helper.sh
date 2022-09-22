@@ -102,26 +102,42 @@ check_for_helper()
 
 	ip netns exec ${netns} conntrack -L -f $family -p tcp --dport $port 2> /dev/null |grep -q 'helper=ftp'
 	if [ $? -ne 0 ] ; then
-		echo "FAIL: ${netns} did not show attached helper $message" 1>&2
-		ret=1
+		if [ $autoassign -eq 0 ] ;then
+			echo "FAIL: ${netns} did not show attached helper $message" 1>&2
+			ret=1
+		else
+			echo "PASS: ${netns} did not show attached helper $message" 1>&2
+		fi
+	else
+		if [ $autoassign -eq 0 ] ;then
+			echo "PASS: ${netns} connection on port $port has ftp helper attached" 1>&2
+		else
+			echo "FAIL: ${netns} connection on port $port has ftp helper attached" 1>&2
+			ret=1
+		fi
 	fi
 
-	echo "PASS: ${netns} connection on port $port has ftp helper attached" 1>&2
 	return 0
 }
 
 test_helper()
 {
 	local port=$1
-	local msg=$2
+	local autoassign=$2
+
+	if [ $autoassign -eq 0 ] ;then
+		msg="set via ruleset"
+	else
+		msg="auto-assign"
+	fi
 
 	sleep 3 | ip netns exec ${ns2} nc -w 2 -l -p $port > /dev/null &
 
 	sleep 1 | ip netns exec ${ns1} nc -w 2 10.0.1.2 $port > /dev/null &
 	sleep 1
 
-	check_for_helper "$ns1" "ip $msg" $port
-	check_for_helper "$ns2" "ip $msg" $port
+	check_for_helper "$ns1" "ip $msg" $port $autoassign
+	check_for_helper "$ns2" "ip $msg" $port $autoassign
 
 	wait
 
@@ -173,9 +189,9 @@ if [ $? -ne 0 ];then
 	fi
 fi
 
-test_helper 2121 "set via ruleset"
-ip netns exec ${ns1} sysctl -q 'net.netfilter.nf_conntrack_helper=1'
-ip netns exec ${ns2} sysctl -q 'net.netfilter.nf_conntrack_helper=1'
-test_helper 21 "auto-assign"
+test_helper 2121 0
+ip netns exec ${ns1} sysctl -qe 'net.netfilter.nf_conntrack_helper=1'
+ip netns exec ${ns2} sysctl -qe 'net.netfilter.nf_conntrack_helper=1'
+test_helper 21 1
 
 exit $ret

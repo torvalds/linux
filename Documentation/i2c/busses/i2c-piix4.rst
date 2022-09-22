@@ -64,7 +64,7 @@ correct address for this module, you could get in big trouble (read:
 crashes, data corruption, etc.). Try this only as a last resort (try BIOS
 updates first, for example), and backup first! An even more dangerous
 option is 'force_addr=<IOPORT>'. This will not only enable the PIIX4 like
-'force' foes, but it will also set a new base I/O port address. The SMBus
+'force' does, but it will also set a new base I/O port address. The SMBus
 parts of the PIIX4 needs a range of 8 of these addresses to function
 correctly. If these addresses are already reserved by some other device,
 you will get into big trouble! DON'T USE THIS IF YOU ARE NOT VERY SURE
@@ -86,15 +86,15 @@ If you own Force CPCI735 motherboard or other OSB4 based systems you may need
 to change the SMBus Interrupt Select register so the SMBus controller uses
 the SMI mode.
 
-1) Use lspci command and locate the PCI device with the SMBus controller:
+1) Use ``lspci`` command and locate the PCI device with the SMBus controller:
    00:0f.0 ISA bridge: ServerWorks OSB4 South Bridge (rev 4f)
    The line may vary for different chipsets. Please consult the driver source
-   for all possible PCI ids (and lspci -n to match them). Lets assume the
+   for all possible PCI ids (and ``lspci -n`` to match them). Let's assume the
    device is located at 00:0f.0.
 2) Now you just need to change the value in 0xD2 register. Get it first with
-   command: lspci -xxx -s 00:0f.0
+   command: ``lspci -xxx -s 00:0f.0``
    If the value is 0x3 then you need to change it to 0x1:
-   setpci  -s 00:0f.0 d2.b=1
+   ``setpci  -s 00:0f.0 d2.b=1``
 
 Please note that you don't need to do that in all cases, just when the SMBus is
 not working properly.
@@ -109,6 +109,3 @@ which can easily get corrupted due to a state machine bug. These are mostly
 Thinkpad laptops, but desktop systems may also be affected. We have no list
 of all affected systems, so the only safe solution was to prevent access to
 the SMBus on all IBM systems (detected using DMI data.)
-
-For additional information, read:
-http://www.lm-sensors.org/browser/lm-sensors/trunk/README

@@ -146,10 +146,10 @@ menu "Processor type and features"
 
 choice
 	prompt "Processor type"
-	default PA7000
+	default PA7000 if "$(ARCH)" = "parisc"
 
 config PA7000
-	bool "PA7000/PA7100"
+	bool "PA7000/PA7100" if "$(ARCH)" = "parisc"
 	help
 	  This is the processor type of your CPU.  This information is
 	  used for optimizing purposes.  In order to compile a kernel
@@ -160,21 +160,21 @@ config PA7000
 	  which is required on some machines.
 
 config PA7100LC
-	bool "PA7100LC"
+	bool "PA7100LC" if "$(ARCH)" = "parisc"
 	help
 	  Select this option for the PCX-L processor, as used in the
 	  712, 715/64, 715/80, 715/100, 715/100XC, 725/100, 743, 748,
 	  D200, D210, D300, D310 and E-class
 
 config PA7200
-	bool "PA7200"
+	bool "PA7200" if "$(ARCH)" = "parisc"
 	help
 	  Select this option for the PCX-T' processor, as used in the
 	  C100, C110, J100, J110, J210XC, D250, D260, D350, D360,
 	  K100, K200, K210, K220, K400, K410 and K420
 
 config PA7300LC
-	bool "PA7300LC"
+	bool "PA7300LC" if "$(ARCH)" = "parisc"
 	help
 	  Select this option for the PCX-L2 processor, as used in the
 	  744, A180, B132L, B160L, B180L, C132L, C160L, C180L,
@@ -224,17 +224,8 @@ config MLONGCALLS
 	  Enabling this option will probably slow down your kernel.
 
 config 64BIT
-	bool "64-bit kernel"
+	def_bool "$(ARCH)" = "parisc64"
 	depends on PA8X00
-	help
-	  Enable this if you want to support 64bit kernel on PA-RISC platform.
-
-	  At the moment, only people willing to use more than 2GB of RAM,
-	  or having a 64bit-only capable PA-RISC machine should say Y here.
-
-	  Since there is no 64bit userland on PA-RISC, there is no point to
-	  enable this option otherwise. The 64bit kernel is significantly bigger
-	  and slower than the 32bit one.
 
 choice
 	prompt "Kernel page size"

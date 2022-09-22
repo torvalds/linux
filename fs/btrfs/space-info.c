@@ -199,7 +199,7 @@ static u64 calc_chunk_size(const struct btrfs_fs_info *fs_info, u64 flags)
 	ASSERT(flags & BTRFS_BLOCK_GROUP_TYPE_MASK);
 
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
-		return SZ_1G;
+		return BTRFS_MAX_DATA_CHUNK_SIZE;
 	else if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
 		return SZ_32M;
 

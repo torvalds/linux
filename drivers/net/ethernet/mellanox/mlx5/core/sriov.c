@@ -159,11 +159,11 @@ static int mlx5_sriov_enable(struct pci_dev *pdev, int num_vfs)
 
 	devl_lock(devlink);
 	err = mlx5_device_enable_sriov(dev, num_vfs);
+	devl_unlock(devlink);
 	if (err) {
 		mlx5_core_warn(dev, "mlx5_device_enable_sriov failed : %d\n", err);
 		return err;
 	}
-	devl_unlock(devlink);
 
 	err = pci_enable_sriov(pdev, num_vfs);
 	if (err) {

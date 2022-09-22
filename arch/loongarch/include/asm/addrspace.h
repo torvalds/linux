@@ -109,4 +109,20 @@ extern unsigned long vm_map_base;
  */
 #define PHYSADDR(a)		((_ACAST64_(a)) & TO_PHYS_MASK)
 
+/*
+ * On LoongArch, I/O ports mappring is following:
+ *
+ *              |         ....          |
+ *              |-----------------------|
+ *              | pci io ports(16K~32M) |
+ *              |-----------------------|
+ *              | isa io ports(0  ~16K) |
+ * PCI_IOBASE ->|-----------------------|
+ *              |         ....          |
+ */
+#define PCI_IOBASE	((void __iomem *)(vm_map_base + (2 * PAGE_SIZE)))
+#define PCI_IOSIZE	SZ_32M
+#define ISA_IOSIZE	SZ_16K
+#define IO_SPACE_LIMIT	(PCI_IOSIZE - 1)
+
 #endif /* _ASM_ADDRSPACE_H */
