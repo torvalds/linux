@@ -1042,15 +1042,24 @@ static int rga_mm_sgt_to_page_table(struct sg_table *sg,
 	uint32_t break_flag = 0;
 
 	do {
-		len = sg_dma_len(sgl) >> PAGE_SHIFT;
-		if (len == 0)
-			len = sgl->length >> PAGE_SHIFT;
+		/*
+		 *   The length of each sgl is expected to be obtained here, not
+		 * the length of the entire dma_buf, so sg_dma_len() is not used.
+		 */
+		len = sgl->length >> PAGE_SHIFT;
 
 		if (use_dma_address)
 			/*
-			 * The fd passed by user space gets sg through
-			 * dma_buf_map_attachment,
-			 * so dma_address can be use here.
+			 *   The fd passed by user space gets sg through
+			 * dma_buf_map_attachment, so dma_address can
+			 * be use here.
+			 *   When the mapped device does not have iommu, it will
+			 * return the first address of the real physical page
+			 * when it meets the requirements of the current device,
+			 * and will trigger swiotlb when it does not meet the
+			 * requirements to obtain a software-mapped physical
+			 * address that is mapped to meet the device address
+			 * requirements.
 			 */
 			Address = sg_dma_address(sgl);
 		else
@@ -1061,15 +1070,13 @@ static int rga_mm_sgt_to_page_table(struct sg_table *sg,
 				break_flag = 1;
 				break;
 			}
-			page_table[mapped_size + i] =
-				(uint32_t) (Address + (i << PAGE_SHIFT));
+			page_table[mapped_size + i] = (uint32_t)(Address + (i << PAGE_SHIFT));
 		}
 		if (break_flag)
 			break;
 		mapped_size += len;
 		sg_num += 1;
-	} while ((sgl = sg_next(sgl)) && (mapped_size < pageCount)
-		 && (sg_num < sg->nents));
+	} while ((sgl = sg_next(sgl)) && (mapped_size < pageCount) && (sg_num < sg->orig_nents));
 
 	return 0;
 }
