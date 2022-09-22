@@ -109,6 +109,9 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	int ret = 0;
 
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "add vif %pM type %d, p2p %d\n",
+		    vif->addr, vif->type, vif->p2p);
+
 	mutex_lock(&rtwdev->mutex);
 	rtwvif->rtwdev = rtwdev;
 	list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
@@ -151,6 +154,9 @@ static void rtw89_ops_remove_interface(struct ieee80211_hw *hw,
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "remove vif %pM type %d p2p %d\n",
+		    vif->addr, vif->type, vif->p2p);
+
 	cancel_work_sync(&rtwvif->update_beacon_work);
 
 	mutex_lock(&rtwdev->mutex);
@@ -160,6 +166,23 @@ static void rtw89_ops_remove_interface(struct ieee80211_hw *hw,
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
 	list_del_init(&rtwvif->list);
 	mutex_unlock(&rtwdev->mutex);
+}
+
+static int rtw89_ops_change_interface(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum nl80211_iftype type, bool p2p)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "change vif %pM (%d)->(%d), p2p (%d)->(%d)\n",
+		    vif->addr, vif->type, type, vif->p2p, p2p);
+
+	rtw89_ops_remove_interface(hw, vif);
+
+	vif->type = type;
+	vif->p2p = p2p;
+
+	return rtw89_ops_add_interface(hw, vif);
 }
 
 static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
@@ -896,6 +919,7 @@ const struct ieee80211_ops rtw89_ops = {
 	.stop			= rtw89_ops_stop,
 	.config			= rtw89_ops_config,
 	.add_interface		= rtw89_ops_add_interface,
+	.change_interface       = rtw89_ops_change_interface,
 	.remove_interface	= rtw89_ops_remove_interface,
 	.configure_filter	= rtw89_ops_configure_filter,
 	.bss_info_changed	= rtw89_ops_bss_info_changed,
