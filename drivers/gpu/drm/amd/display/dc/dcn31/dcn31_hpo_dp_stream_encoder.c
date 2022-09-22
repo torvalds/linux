@@ -197,7 +197,7 @@ static void dcn31_hpo_dp_stream_enc_set_stream_attribute(
 	uint32_t h_back_porch;
 	uint32_t h_width;
 	uint32_t v_height;
-	unsigned long long v_freq;
+	uint64_t v_freq;
 	uint8_t misc0 = 0;
 	uint8_t misc1 = 0;
 	uint8_t hsp;
@@ -360,7 +360,7 @@ static void dcn31_hpo_dp_stream_enc_set_stream_attribute(
 	v_height = hw_crtc_timing.v_border_top + hw_crtc_timing.v_addressable + hw_crtc_timing.v_border_bottom;
 	hsp = hw_crtc_timing.flags.HSYNC_POSITIVE_POLARITY ? 0 : 0x80;
 	vsp = hw_crtc_timing.flags.VSYNC_POSITIVE_POLARITY ? 0 : 0x80;
-	v_freq = hw_crtc_timing.pix_clk_100hz * 100;
+	v_freq = (uint64_t)hw_crtc_timing.pix_clk_100hz * 100;
 
 	/*   MSA Packet Mapping to 32-bit Link Symbols - DP2 spec, section 2.7.4.1
 	 *
