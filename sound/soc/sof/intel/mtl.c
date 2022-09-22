@@ -406,6 +406,33 @@ static int mtl_dsp_core_power_down(struct snd_sof_dev *sdev, int core)
 	return ret;
 }
 
+static int mtl_power_down_dsp(struct snd_sof_dev *sdev)
+{
+	u32 dsphfdsscs, cpa;
+	int ret;
+
+	/* first power down core */
+	ret = mtl_dsp_core_power_down(sdev, SOF_DSP_PRIMARY_CORE);
+	if (ret) {
+		dev_err(sdev->dev, "mtl dsp power down error, %d\n", ret);
+		return ret;
+	}
+
+	/* Set the DSP subsystem power down */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFDSSCS,
+				MTL_HFDSSCS_SPA_MASK, 0);
+
+	/* Wait for unstable CPA read (1 then 0 then 1) just after setting SPA bit */
+	usleep_range(1000, 1010);
+
+	/* poll with timeout to check if operation successful */
+	cpa = MTL_HFDSSCS_CPA_MASK;
+	dsphfdsscs = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFDSSCS);
+	return snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_HFDSSCS, dsphfdsscs,
+					     (dsphfdsscs & cpa) == 0, HDA_DSP_REG_POLL_INTERVAL_US,
+					     HDA_DSP_RESET_TIMEOUT_US);
+}
+
 static int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
@@ -792,6 +819,7 @@ const struct sof_intel_dsp_desc mtl_chip_info = {
 	.check_sdw_irq = mtl_dsp_check_sdw_irq,
 	.check_ipc_irq = mtl_dsp_check_ipc_irq,
 	.cl_init = mtl_dsp_cl_init,
+	.power_down_dsp = mtl_power_down_dsp,
 	.hw_ip_version = SOF_INTEL_ACE_1_0,
 };
 EXPORT_SYMBOL_NS(mtl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
