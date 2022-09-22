@@ -1381,12 +1381,9 @@ tegra186_xusb_read_fuse_calibration(struct tegra186_xusb_padctl *padctl)
 		return -ENOMEM;
 
 	err = tegra_fuse_readl(TEGRA_FUSE_SKU_CALIB_0, &value);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "failed to read calibration fuse: %d\n",
-				err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "failed to read calibration fuse\n");
 
 	dev_dbg(dev, "FUSE_USB_CALIB_0 %#x\n", value);
 
