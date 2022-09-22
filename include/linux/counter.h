@@ -38,64 +38,64 @@ enum counter_comp_type {
  * @type:		Counter component data type
  * @name:		device-specific component name
  * @priv:		component-relevant data
- * @action_read:		Synapse action mode read callback. The read value of the
+ * @action_read:	Synapse action mode read callback. The read value of the
  *			respective Synapse action mode should be passed back via
  *			the action parameter.
- * @device_u8_read:		Device u8 component read callback. The read value of the
+ * @device_u8_read:	Device u8 component read callback. The read value of the
  *			respective Device u8 component should be passed back via
  *			the val parameter.
- * @count_u8_read:		Count u8 component read callback. The read value of the
+ * @count_u8_read:	Count u8 component read callback. The read value of the
  *			respective Count u8 component should be passed back via
  *			the val parameter.
- * @signal_u8_read:		Signal u8 component read callback. The read value of the
+ * @signal_u8_read:	Signal u8 component read callback. The read value of the
  *			respective Signal u8 component should be passed back via
  *			the val parameter.
- * @device_u32_read:		Device u32 component read callback. The read value of
+ * @device_u32_read:	Device u32 component read callback. The read value of
  *			the respective Device u32 component should be passed
  *			back via the val parameter.
- * @count_u32_read:		Count u32 component read callback. The read value of the
+ * @count_u32_read:	Count u32 component read callback. The read value of the
  *			respective Count u32 component should be passed back via
  *			the val parameter.
- * @signal_u32_read:		Signal u32 component read callback. The read value of
+ * @signal_u32_read:	Signal u32 component read callback. The read value of
  *			the respective Signal u32 component should be passed
  *			back via the val parameter.
- * @device_u64_read:		Device u64 component read callback. The read value of
+ * @device_u64_read:	Device u64 component read callback. The read value of
  *			the respective Device u64 component should be passed
  *			back via the val parameter.
- * @count_u64_read:		Count u64 component read callback. The read value of the
+ * @count_u64_read:	Count u64 component read callback. The read value of the
  *			respective Count u64 component should be passed back via
  *			the val parameter.
- * @signal_u64_read:		Signal u64 component read callback. The read value of
+ * @signal_u64_read:	Signal u64 component read callback. The read value of
  *			the respective Signal u64 component should be passed
  *			back via the val parameter.
- * @action_write:		Synapse action mode write callback. The write value of
+ * @action_write:	Synapse action mode write callback. The write value of
  *			the respective Synapse action mode is passed via the
  *			action parameter.
- * @device_u8_write:		Device u8 component write callback. The write value of
+ * @device_u8_write:	Device u8 component write callback. The write value of
  *			the respective Device u8 component is passed via the val
  *			parameter.
- * @count_u8_write:		Count u8 component write callback. The write value of
+ * @count_u8_write:	Count u8 component write callback. The write value of
  *			the respective Count u8 component is passed via the val
  *			parameter.
- * @signal_u8_write:		Signal u8 component write callback. The write value of
+ * @signal_u8_write:	Signal u8 component write callback. The write value of
  *			the respective Signal u8 component is passed via the val
  *			parameter.
- * @device_u32_write:		Device u32 component write callback. The write value of
+ * @device_u32_write:	Device u32 component write callback. The write value of
  *			the respective Device u32 component is passed via the
  *			val parameter.
- * @count_u32_write:		Count u32 component write callback. The write value of
+ * @count_u32_write:	Count u32 component write callback. The write value of
  *			the respective Count u32 component is passed via the val
  *			parameter.
- * @signal_u32_write:		Signal u32 component write callback. The write value of
+ * @signal_u32_write:	Signal u32 component write callback. The write value of
  *			the respective Signal u32 component is passed via the
  *			val parameter.
- * @device_u64_write:		Device u64 component write callback. The write value of
+ * @device_u64_write:	Device u64 component write callback. The write value of
  *			the respective Device u64 component is passed via the
  *			val parameter.
- * @count_u64_write:		Count u64 component write callback. The write value of
+ * @count_u64_write:	Count u64 component write callback. The write value of
  *			the respective Count u64 component is passed via the val
  *			parameter.
- * @signal_u64_write:		Signal u64 component write callback. The write value of
+ * @signal_u64_write:	Signal u64 component write callback. The write value of
  *			the respective Signal u64 component is passed via the
  *			val parameter.
  */
