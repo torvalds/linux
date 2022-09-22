@@ -50,6 +50,7 @@
 #define		ATMEL_US_USCLKS_MCK		(0 <<  4)
 #define		ATMEL_US_USCLKS_MCK_DIV8	(1 <<  4)
 #define		ATMEL_US_USCLKS_SCK		(3 <<  4)
+#define	ATMEL_UA_FILTER		BIT(4)
 #define	ATMEL_US_CHRL		GENMASK(7, 6)	/* Character Length */
 #define		ATMEL_US_CHRL_5			(0 <<  6)
 #define		ATMEL_US_CHRL_6			(1 <<  6)
@@ -67,6 +68,7 @@
 #define		ATMEL_US_NBSTOP_1		(0 << 12)
 #define		ATMEL_US_NBSTOP_1_5		(1 << 12)
 #define		ATMEL_US_NBSTOP_2		(2 << 12)
+#define	ATMEL_UA_BRSRCCK	BIT(12)	/* Clock Selection for UART */
 #define	ATMEL_US_CHMODE		GENMASK(15, 14)	/* Channel Mode */
 #define		ATMEL_US_CHMODE_NORMAL		(0 << 14)
 #define		ATMEL_US_CHMODE_ECHO		(1 << 14)

@@ -2134,8 +2134,11 @@ static void atmel_set_termios(struct uart_port *port,
 	mode = old_mode = atmel_uart_readl(port, ATMEL_US_MR);
 
 	/* reset the mode, clock divisor, parity, stop bits and data size */
-	mode &= ~(ATMEL_US_USCLKS | ATMEL_US_CHRL | ATMEL_US_NBSTOP |
-		  ATMEL_US_PAR | ATMEL_US_USMODE);
+	if (atmel_port->is_usart)
+		mode &= ~(ATMEL_US_NBSTOP | ATMEL_US_PAR | ATMEL_US_CHRL |
+			  ATMEL_US_USCLKS | ATMEL_US_USMODE);
+	else
+		mode &= ~(ATMEL_UA_BRSRCCK | ATMEL_US_PAR | ATMEL_UA_FILTER);
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 
