@@ -233,6 +233,11 @@ struct nvme_fault_inject {
 #endif
 };
 
+enum nvme_ctrl_flags {
+	NVME_CTRL_FAILFAST_EXPIRED	= 0,
+	NVME_CTRL_ADMIN_Q_STOPPED	= 1,
+};
+
 struct nvme_ctrl {
 	bool comp_seen;
 	enum nvme_ctrl_state state;
@@ -354,8 +359,6 @@ struct nvme_ctrl {
 	u16 maxcmd;
 	int nr_reconnects;
 	unsigned long flags;
-#define NVME_CTRL_FAILFAST_EXPIRED	0
-#define NVME_CTRL_ADMIN_Q_STOPPED	1
 	struct nvmf_ctrl_options *opts;
 
 	struct page *discard_page;
