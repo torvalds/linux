@@ -26,7 +26,8 @@ static inline uint8_t hypercall(u64 control, vm_vaddr_t input_address,
 		     : "=a" (*hv_status),
 		       "+c" (control), "+d" (input_address),
 		       KVM_ASM_SAFE_OUTPUTS(vector)
-		     : [output_address] "r"(output_address)
+		     : [output_address] "r"(output_address),
+		       "a" (-EFAULT)
 		     : "cc", "memory", "r8", KVM_ASM_SAFE_CLOBBERS);
 	return vector;
 }
