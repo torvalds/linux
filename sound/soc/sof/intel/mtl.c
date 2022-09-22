@@ -144,7 +144,6 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK;
-	irqinten = snd_sof_dsp_read(sdev, HDA_DSP_BAR, hfintipptr);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, hfintipptr, irqinten,
 					    (irqinten & host_ipc) == host_ipc,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -159,7 +158,6 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_DSP_REG_HfHIPCIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE, hipcie,
 					    (hipcie & host_ipc) == host_ipc,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -171,7 +169,6 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE,
 				MTL_DSP_REG_HfSNDWIE_IE_MASK, MTL_DSP_REG_HfSNDWIE_IE_MASK);
 	host_ipc = MTL_DSP_REG_HfSNDWIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
 					    (hipcie & host_ipc) == host_ipc,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -199,7 +196,6 @@ static int mtl_disable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK;
-	irqinten = snd_sof_dsp_read(sdev, HDA_DSP_BAR, hfintipptr);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, hfintipptr, irqinten,
 					    (irqinten & host_ipc) == 0,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -213,7 +209,6 @@ static int mtl_disable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_DSP_REG_HfHIPCIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE);
 	ret1 = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE, hipcie,
 					     (hipcie & host_ipc) == 0,
 					     HDA_DSP_REG_POLL_INTERVAL_US,
@@ -228,7 +223,6 @@ static int mtl_disable_interrupts(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE,
 				MTL_DSP_REG_HfSNDWIE_IE_MASK, 0);
 	host_ipc = MTL_DSP_REG_HfSNDWIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE);
 	ret1 = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
 					     (hipcie & host_ipc) == 0,
 					     HDA_DSP_REG_POLL_INTERVAL_US,
@@ -260,7 +254,6 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	/* poll with timeout to check if operation successful */
 	cpa = MTL_HFDSSCS_CPA_MASK;
-	dsphfdsscs = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFDSSCS);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_HFDSSCS, dsphfdsscs,
 					    (dsphfdsscs & cpa) == cpa, HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_RESET_TIMEOUT_US);
@@ -277,7 +270,6 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	/* poll with timeout to check if operation successful */
 	pgs = MTL_HFPWRSTS_DSPHPXPGS_MASK;
-	dsphfpwrsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFPWRSTS);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_HFPWRSTS, dsphfpwrsts,
 					    (dsphfpwrsts & pgs) == pgs,
 					    HDA_DSP_REG_POLL_INTERVAL_US,
