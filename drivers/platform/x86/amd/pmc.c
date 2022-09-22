@@ -371,6 +371,64 @@ static void amd_pmc_validate_deepest(struct amd_pmc_dev *pdev)
 }
 #endif
 
+static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
+{
+	int rc;
+	u32 val;
+
+	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, 1);
+	if (rc)
+		return rc;
+
+	dev->smu_program = (val >> 24) & GENMASK(7, 0);
+	dev->major = (val >> 16) & GENMASK(7, 0);
+	dev->minor = (val >> 8) & GENMASK(7, 0);
+	dev->rev = (val >> 0) & GENMASK(7, 0);
+
+	dev_dbg(dev->dev, "SMU program %u version is %u.%u.%u\n",
+		dev->smu_program, dev->major, dev->minor, dev->rev);
+
+	return 0;
+}
+
+static ssize_t smu_fw_version_show(struct device *d, struct device_attribute *attr,
+				   char *buf)
+{
+	struct amd_pmc_dev *dev = dev_get_drvdata(d);
+
+	if (!dev->major) {
+		int rc = amd_pmc_get_smu_version(dev);
+
+		if (rc)
+			return rc;
+	}
+	return sysfs_emit(buf, "%u.%u.%u\n", dev->major, dev->minor, dev->rev);
+}
+
+static ssize_t smu_program_show(struct device *d, struct device_attribute *attr,
+				   char *buf)
+{
+	struct amd_pmc_dev *dev = dev_get_drvdata(d);
+
+	if (!dev->major) {
+		int rc = amd_pmc_get_smu_version(dev);
+
+		if (rc)
+			return rc;
+	}
+	return sysfs_emit(buf, "%u\n", dev->smu_program);
+}
+
+static DEVICE_ATTR_RO(smu_fw_version);
+static DEVICE_ATTR_RO(smu_program);
+
+static struct attribute *pmc_attrs[] = {
+	&dev_attr_smu_fw_version.attr,
+	&dev_attr_smu_program.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(pmc);
+
 #ifdef CONFIG_DEBUG_FS
 static int smu_fw_info_show(struct seq_file *s, void *unused)
 {
@@ -436,64 +494,6 @@ static int s0ix_stats_show(struct seq_file *s, void *unused)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(s0ix_stats);
-
-static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
-{
-	int rc;
-	u32 val;
-
-	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, 1);
-	if (rc)
-		return rc;
-
-	dev->smu_program = (val >> 24) & GENMASK(7, 0);
-	dev->major = (val >> 16) & GENMASK(7, 0);
-	dev->minor = (val >> 8) & GENMASK(7, 0);
-	dev->rev = (val >> 0) & GENMASK(7, 0);
-
-	dev_dbg(dev->dev, "SMU program %u version is %u.%u.%u\n",
-		dev->smu_program, dev->major, dev->minor, dev->rev);
-
-	return 0;
-}
-
-static ssize_t smu_fw_version_show(struct device *d, struct device_attribute *attr,
-				   char *buf)
-{
-	struct amd_pmc_dev *dev = dev_get_drvdata(d);
-
-	if (!dev->major) {
-		int rc = amd_pmc_get_smu_version(dev);
-
-		if (rc)
-			return rc;
-	}
-	return sysfs_emit(buf, "%u.%u.%u\n", dev->major, dev->minor, dev->rev);
-}
-
-static ssize_t smu_program_show(struct device *d, struct device_attribute *attr,
-				   char *buf)
-{
-	struct amd_pmc_dev *dev = dev_get_drvdata(d);
-
-	if (!dev->major) {
-		int rc = amd_pmc_get_smu_version(dev);
-
-		if (rc)
-			return rc;
-	}
-	return sysfs_emit(buf, "%u\n", dev->smu_program);
-}
-
-static DEVICE_ATTR_RO(smu_fw_version);
-static DEVICE_ATTR_RO(smu_program);
-
-static struct attribute *pmc_attrs[] = {
-	&dev_attr_smu_fw_version.attr,
-	&dev_attr_smu_program.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(pmc);
 
 static int amd_pmc_idlemask_show(struct seq_file *s, void *unused)
 {
