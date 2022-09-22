@@ -1707,6 +1707,7 @@ int cmd_top(int argc, const char **argv)
 	if (evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
 			  errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
+		status = -errno;
 		goto out_delete_evlist;
 	}
 
@@ -1759,11 +1760,13 @@ int cmd_top(int argc, const char **argv)
 
 		if (top.sb_evlist == NULL) {
 			pr_err("Couldn't create side band evlist.\n.");
+			status = -EINVAL;
 			goto out_delete_evlist;
 		}
 
 		if (evlist__add_bpf_sb_event(top.sb_evlist, &perf_env)) {
 			pr_err("Couldn't ask for PERF_RECORD_BPF_EVENT side band events.\n.");
+			status = -EINVAL;
 			goto out_delete_evlist;
 		}
 	}
