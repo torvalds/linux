@@ -220,20 +220,18 @@ static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 
 /* The next register is not present for IPA v4.5+ */
 #define IPA_REG_BCR_OFFSET				0x000001d0
-/* The next two fields are not present for IPA v4.2+ */
-#define BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK		GENMASK(0, 0)
-#define BCR_TX_NOT_USING_BRESP_FMASK		GENMASK(1, 1)
-/* The next field is invalid for IPA v4.0+ */
-#define BCR_TX_SUSPEND_IRQ_ASSERT_ONCE_FMASK	GENMASK(2, 2)
-/* The next two fields are not present for IPA v4.2+ */
-#define BCR_SUSPEND_L2_IRQ_FMASK		GENMASK(3, 3)
-#define BCR_HOLB_DROP_L2_IRQ_FMASK		GENMASK(4, 4)
-/* The next five fields are present for IPA v3.5+ */
-#define BCR_DUAL_TX_FMASK			GENMASK(5, 5)
-#define BCR_ENABLE_FILTER_DATA_CACHE_FMASK	GENMASK(6, 6)
-#define BCR_NOTIF_PRIORITY_OVER_ZLT_FMASK	GENMASK(7, 7)
-#define BCR_FILTER_PREFETCH_EN_FMASK		GENMASK(8, 8)
-#define BCR_ROUTER_PREFETCH_EN_FMASK		GENMASK(9, 9)
+enum ipa_bcr_compat {
+	BCR_CMDQ_L_LACK_ONE_ENTRY		= 0x0,	/* Not IPA v4.2+ */
+	BCR_TX_NOT_USING_BRESP			= 0x1,	/* Not IPA v4.2+ */
+	BCR_TX_SUSPEND_IRQ_ASSERT_ONCE		= 0x2,	/* Not IPA v4.0+ */
+	BCR_SUSPEND_L2_IRQ			= 0x3,	/* Not IPA v4.2+ */
+	BCR_HOLB_DROP_L2_IRQ			= 0x4,	/* Not IPA v4.2+ */
+	BCR_DUAL_TX				= 0x5,	/* IPA v3.5+ */
+	BCR_ENABLE_FILTER_DATA_CACHE		= 0x6,	/* IPA v3.5+ */
+	BCR_NOTIF_PRIORITY_OVER_ZLT		= 0x7,	/* IPA v3.5+ */
+	BCR_FILTER_PREFETCH_EN			= 0x8,	/* IPA v3.5+ */
+	BCR_ROUTER_PREFETCH_EN			= 0x9,	/* IPA v3.5+ */
+};
 
 /* The value of the next register must be a multiple of 8 (bottom 3 bits 0) */
 #define IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET		0x000001e8
