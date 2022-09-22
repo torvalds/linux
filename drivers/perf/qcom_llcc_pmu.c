@@ -316,6 +316,7 @@ static struct platform_driver qcom_llcc_pmu_driver = {
 	.driver = {
 		.name = "qcom-llcc-pmu",
 		.of_match_table = qcom_llcc_pmu_match_table,
+		.suppress_bind_attrs = true,
 	},
 	.probe = qcom_llcc_pmu_probe,
 };
