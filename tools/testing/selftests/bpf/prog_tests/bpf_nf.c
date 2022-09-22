@@ -26,7 +26,10 @@ enum {
 	TEST_TC_BPF,
 };
 
-#define TIMEOUT_MS 3000
+#define TIMEOUT_MS		3000
+#define IPS_STATUS_MASK		(IPS_CONFIRMED | IPS_SEEN_REPLY | \
+				 IPS_SRC_NAT_DONE | IPS_DST_NAT_DONE | \
+				 IPS_SRC_NAT | IPS_DST_NAT)
 
 static int connect_to_server(int srv_fd)
 {
@@ -114,10 +117,11 @@ static void test_bpf_nf_ct(int mode)
 	ASSERT_GT(skel->bss->test_delta_timeout, 8, "Test for min ct timeout update");
 	ASSERT_LE(skel->bss->test_delta_timeout, 10, "Test for max ct timeout update");
 	ASSERT_EQ(skel->bss->test_insert_lookup_mark, 77, "Test for insert and lookup mark value");
-	ASSERT_EQ(skel->bss->test_status, IPS_CONFIRMED | IPS_SEEN_REPLY,
-		  "Test for ct status update ");
+	ASSERT_EQ(skel->bss->test_status, IPS_STATUS_MASK, "Test for ct status update ");
 	ASSERT_EQ(skel->data->test_exist_lookup, 0, "Test existing connection lookup");
 	ASSERT_EQ(skel->bss->test_exist_lookup_mark, 43, "Test existing connection lookup ctmark");
+	ASSERT_EQ(skel->data->test_snat_addr, 0, "Test for source natting");
+	ASSERT_EQ(skel->data->test_dnat_addr, 0, "Test for destination natting");
 end:
 	if (srv_client_fd != -1)
 		close(srv_client_fd);

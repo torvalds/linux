@@ -6227,7 +6227,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 				    bool processing_call)
 {
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
-	bool rel = false, kptr_get = false, trusted_arg = false;
+	bool rel = false, kptr_get = false, trusted_args = false;
 	bool sleepable = false;
 	struct bpf_verifier_log *log = &env->log;
 	u32 i, nargs, ref_id, ref_obj_id = 0;
@@ -6265,7 +6265,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 		/* Only kfunc can be release func */
 		rel = kfunc_meta->flags & KF_RELEASE;
 		kptr_get = kfunc_meta->flags & KF_KPTR_GET;
-		trusted_arg = kfunc_meta->flags & KF_TRUSTED_ARGS;
+		trusted_args = kfunc_meta->flags & KF_TRUSTED_ARGS;
 		sleepable = kfunc_meta->flags & KF_SLEEPABLE;
 	}
 
@@ -6276,6 +6276,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 		enum bpf_arg_type arg_type = ARG_DONTCARE;
 		u32 regno = i + 1;
 		struct bpf_reg_state *reg = &regs[regno];
+		bool obj_ptr = false;
 
 		t = btf_type_skip_modifiers(btf, args[i].type, NULL);
 		if (btf_type_is_scalar(t)) {
@@ -6323,10 +6324,17 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 			return -EINVAL;
 		}
 
+		/* These register types have special constraints wrt ref_obj_id
+		 * and offset checks. The rest of trusted args don't.
+		 */
+		obj_ptr = reg->type == PTR_TO_CTX || reg->type == PTR_TO_BTF_ID ||
+			  reg2btf_ids[base_type(reg->type)];
+
 		/* Check if argument must be a referenced pointer, args + i has
 		 * been verified to be a pointer (after skipping modifiers).
+		 * PTR_TO_CTX is ok without having non-zero ref_obj_id.
 		 */
-		if (is_kfunc && trusted_arg && !reg->ref_obj_id) {
+		if (is_kfunc && trusted_args && (obj_ptr && reg->type != PTR_TO_CTX) && !reg->ref_obj_id) {
 			bpf_log(log, "R%d must be referenced\n", regno);
 			return -EINVAL;
 		}
@@ -6335,7 +6343,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 		ref_tname = btf_name_by_offset(btf, ref_t->name_off);
 
 		/* Trusted args have the same offset checks as release arguments */
-		if (trusted_arg || (rel && reg->ref_obj_id))
+		if ((trusted_args && obj_ptr) || (rel && reg->ref_obj_id))
 			arg_type |= OBJ_RELEASE;
 		ret = check_func_arg_reg_off(env, reg, regno, arg_type);
 		if (ret < 0)
@@ -6435,7 +6443,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 							   reg_ref_t->name_off);
 			if (!btf_struct_ids_match(log, reg_btf, reg_ref_id,
 						  reg->off, btf, ref_id,
-						  trusted_arg || (rel && reg->ref_obj_id))) {
+						  trusted_args || (rel && reg->ref_obj_id))) {
 				bpf_log(log, "kernel function %s args#%d expected pointer to %s %s but R%d has a pointer to %s %s\n",
 					func_name, i,
 					btf_type_str(ref_t), ref_tname,
