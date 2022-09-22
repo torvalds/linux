@@ -117,7 +117,21 @@
 			reg = <0 0x50000000 0 0x2900000>;
 			no-map;
 		};
+
+		afe_mem: memory@60d80000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60d80000 0 0x100000>;
+			no-map;
+		};
 	};
+};
+
+&afe {
+	status = "okay";
+
+	mediatek,etdm-in2-cowork-source = <2>;
+	mediatek,etdm-out2-cowork-source = <0>;
+	memory-region = <&afe_mem>;
 };
 
 &dp_intf0 {
