@@ -6069,7 +6069,7 @@ static irqreturn_t hns_roce_v2_msix_interrupt_eq(int irq, void *eq_ptr)
 		/* Completion event interrupt */
 		int_work = hns_roce_v2_ceq_int(hr_dev, eq);
 	else
-		/* Asychronous event interrupt */
+		/* Asynchronous event interrupt */
 		int_work = hns_roce_v2_aeq_int(hr_dev, eq);
 
 	return IRQ_RETVAL(int_work);
