@@ -610,7 +610,7 @@
 		compatible = "atmel,maxtouch";
 		/*
 		 * Verdin GPIO_9_DSI
-		 * (TOUCH_INT#, SODIMM 17, also routed to SN65DSI83 IRQ albeit currently unused)
+		 * (TOUCH_INT#, SODIMM 17, also routed to SN65DSI84 IRQ albeit currently unused)
 		 */
 		interrupt-parent = <&gpio3>;
 		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;

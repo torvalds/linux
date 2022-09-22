@@ -679,8 +679,8 @@
 		status = "disabled";
 	};
 
-	lvds_ti_sn65dsi83: bridge@2c {
-		compatible = "ti,sn65dsi83";
+	lvds_ti_sn65dsi84: bridge@2c {
+		compatible = "ti,sn65dsi84";
 		/* Verdin GPIO_9_DSI (SN65DSI84 IRQ, SODIMM 17, unused) */
 		/* Verdin GPIO_10_DSI (SODIMM 21) */
 		enable-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
@@ -713,7 +713,7 @@
 		compatible = "atmel,maxtouch";
 		/*
 		 * Verdin GPIO_9_DSI
-		 * (TOUCH_INT#, SODIMM 17, also routed to SN65DSI83 IRQ albeit currently unused)
+		 * (TOUCH_INT#, SODIMM 17, also routed to SN65DSI84 IRQ albeit currently unused)
 		 */
 		interrupt-parent = <&gpio4>;
 		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
