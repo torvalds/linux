@@ -35,6 +35,7 @@ enum scan_result {
 	SCAN_EXCEED_SHARED_PTE,
 	SCAN_PTE_NON_PRESENT,
 	SCAN_PTE_UFFD_WP,
+	SCAN_PTE_MAPPED_HUGEPAGE,
 	SCAN_PAGE_RO,
 	SCAN_LACK_REFERENCED_PAGE,
 	SCAN_PAGE_NULL,
@@ -1320,20 +1321,24 @@ static void collect_mm_slot(struct khugepaged_mm_slot *mm_slot)
  * Notify khugepaged that given addr of the mm is pte-mapped THP. Then
  * khugepaged should try to collapse the page table.
  */
-static void khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
+static bool khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
 					  unsigned long addr)
 {
 	struct khugepaged_mm_slot *mm_slot;
 	struct mm_slot *slot;
+	bool ret = false;
 
 	VM_BUG_ON(addr & ~HPAGE_PMD_MASK);
 
 	spin_lock(&khugepaged_mm_lock);
 	slot = mm_slot_lookup(mm_slots_hash, mm);
 	mm_slot = mm_slot_entry(slot, struct khugepaged_mm_slot, slot);
-	if (likely(mm_slot && mm_slot->nr_pte_mapped_thp < MAX_PTE_MAPPED_THP))
+	if (likely(mm_slot && mm_slot->nr_pte_mapped_thp < MAX_PTE_MAPPED_THP)) {
 		mm_slot->pte_mapped_thp[mm_slot->nr_pte_mapped_thp++] = addr;
+		ret = true;
+	}
 	spin_unlock(&khugepaged_mm_lock);
+	return ret;
 }
 
 static void collapse_and_free_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -1370,8 +1375,15 @@ void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr)
 	pte_t *start_pte, *pte;
 	pmd_t *pmd;
 	spinlock_t *ptl;
-	int count = 0;
+	int count = 0, result = SCAN_FAIL;
 	int i;
+
+	mmap_assert_write_locked(mm);
+
+	/* Fast check before locking page if not PMD mapping PTE table */
+	result = find_pmd_or_thp_or_none(mm, haddr, &pmd);
+	if (result != SCAN_SUCCEED)
+		return;
 
 	if (!vma || !vma->vm_file ||
 	    !range_in_vma(vma, haddr, haddr + HPAGE_PMD_SIZE))
@@ -1726,9 +1738,16 @@ static int collapse_file(struct mm_struct *mm, struct file *file,
 		/*
 		 * If file was truncated then extended, or hole-punched, before
 		 * we locked the first page, then a THP might be there already.
+		 * This will be discovered on the first iteration.
 		 */
 		if (PageTransCompound(page)) {
-			result = SCAN_PAGE_COMPOUND;
+			struct page *head = compound_head(page);
+
+			result = compound_order(head) == HPAGE_PMD_ORDER &&
+					head->index == start
+					/* Maybe PMD-mapped */
+					? SCAN_PTE_MAPPED_HUGEPAGE
+					: SCAN_PAGE_COMPOUND;
 			goto out_unlock;
 		}
 
@@ -1962,11 +1981,23 @@ static int khugepaged_scan_file(struct mm_struct *mm, struct file *file,
 		}
 
 		/*
-		 * XXX: khugepaged should compact smaller compound pages
+		 * TODO: khugepaged should compact smaller compound pages
 		 * into a PMD sized page
 		 */
 		if (PageTransCompound(page)) {
-			result = SCAN_PAGE_COMPOUND;
+			struct page *head = compound_head(page);
+
+			result = compound_order(head) == HPAGE_PMD_ORDER &&
+					head->index == start
+					/* Maybe PMD-mapped */
+					? SCAN_PTE_MAPPED_HUGEPAGE
+					: SCAN_PAGE_COMPOUND;
+			/*
+			 * For SCAN_PTE_MAPPED_HUGEPAGE, further processing
+			 * by the caller won't touch the page cache, and so
+			 * it's safe to skip LRU and refcount checks before
+			 * returning.
+			 */
 			break;
 		}
 
@@ -2025,6 +2056,12 @@ static int khugepaged_scan_file(struct mm_struct *mm, struct file *file,
 
 static void khugepaged_collapse_pte_mapped_thps(struct khugepaged_mm_slot *mm_slot)
 {
+}
+
+static bool khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
+					  unsigned long addr)
+{
+	return false;
 }
 #endif
 
@@ -2118,8 +2155,26 @@ skip:
 								  &mmap_locked,
 								  cc);
 			}
-			if (*result == SCAN_SUCCEED)
+			switch (*result) {
+			case SCAN_PTE_MAPPED_HUGEPAGE: {
+				pmd_t *pmd;
+
+				*result = find_pmd_or_thp_or_none(mm,
+								  khugepaged_scan.address,
+								  &pmd);
+				if (*result != SCAN_SUCCEED)
+					break;
+				if (!khugepaged_add_pte_mapped_thp(mm,
+								   khugepaged_scan.address))
+					break;
+			} fallthrough;
+			case SCAN_SUCCEED:
 				++khugepaged_pages_collapsed;
+				break;
+			default:
+				break;
+			}
+
 			/* move to next address */
 			khugepaged_scan.address += HPAGE_PMD_SIZE;
 			progress += HPAGE_PMD_NR;

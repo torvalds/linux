@@ -191,7 +191,14 @@ allocation failure to throttle the next allocation attempt::
 
 	/sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs
 
-The khugepaged progress can be seen in the number of pages collapsed::
+The khugepaged progress can be seen in the number of pages collapsed (note
+that this counter may not be an exact count of the number of pages
+collapsed, since "collapsed" could mean multiple things: (1) A PTE mapping
+being replaced by a PMD mapping, or (2) All 4K physical pages replaced by
+one 2M hugepage. Each may happen independently, or together, depending on
+the type of memory and the failures that occur. As such, this value should
+be interpreted roughly as a sign of progress, and counters in /proc/vmstat
+consulted for more accurate accounting)::
 
 	/sys/kernel/mm/transparent_hugepage/khugepaged/pages_collapsed
 
