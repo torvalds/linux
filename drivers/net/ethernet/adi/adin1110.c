@@ -1028,7 +1028,7 @@ static int adin1110_port_get_port_parent_id(struct net_device *dev,
 	struct adin1110_port_priv *port_priv = netdev_priv(dev);
 	struct adin1110_priv *priv = port_priv->priv;
 
-	ppid->id_len = strnlen(priv->mii_bus_name, MII_BUS_ID_SIZE);
+	ppid->id_len = strnlen(priv->mii_bus_name, MAX_PHYS_ITEM_ID_LEN);
 	memcpy(ppid->id, priv->mii_bus_name, ppid->id_len);
 
 	return 0;
