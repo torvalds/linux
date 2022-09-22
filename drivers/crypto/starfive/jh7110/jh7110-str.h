@@ -60,8 +60,11 @@ struct jh7110_sec_ctx {
 	struct jh7110_rsa_key			rsa_key;
 	size_t					sha_len_total;
 	u8					*buffer;
-	struct crypto_akcipher			*soft_tfm;
-	struct crypto_shash			*fallback;
+	union {
+		struct crypto_akcipher			*akcipher;
+		struct crypto_aead			*aead;
+		struct crypto_shash			*shash;
+	} fallback;
 	bool					fallback_available;
 };
 
@@ -132,7 +135,6 @@ struct jh7110_sec_request_ctx {
 		struct skcipher_request		*sreq;
 		struct aead_request		*areq;
 	} req;
-
 #define JH7110_AHASH_REQ			0
 #define JH7110_ABLK_REQ				1
 #define JH7110_AEAD_REQ				2
@@ -176,8 +178,6 @@ struct jh7110_sec_request_ctx {
 	size_t					assoclen;
 	size_t					ctr_over_count;
 
-	u32					msg_end[4];
-	u32					dec_end[4];
 	u32					last_ctr[4];
 	u32                                     aes_iv[4];
 	u32					tag_out[4];

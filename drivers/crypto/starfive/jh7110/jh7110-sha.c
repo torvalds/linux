@@ -573,10 +573,10 @@ static int jh7110_hash_final(struct ahash_request *req)
 
 	if (ctx->fallback_available && (rctx->bufcnt < JH7110_HASH_THRES)) {
 		if (ctx->sha_mode & JH7110_SHA_HMAC_FLAGS)
-			crypto_shash_setkey(ctx->fallback, ctx->key,
+			crypto_shash_setkey(ctx->fallback.shash, ctx->key,
 					ctx->keylen);
 
-		return crypto_shash_tfm_digest(ctx->fallback, ctx->buffer,
+		return crypto_shash_tfm_digest(ctx->fallback.shash, ctx->buffer,
 				rctx->bufcnt, req->result);
 	}
 
@@ -643,10 +643,10 @@ static int jh7110_hash_cra_init_algs(struct crypto_tfm *tfm,
 	if (!ctx->sdev)
 		return -ENODEV;
 
-	ctx->fallback = crypto_alloc_shash(alg_name, 0,
+	ctx->fallback.shash = crypto_alloc_shash(alg_name, 0,
 			CRYPTO_ALG_NEED_FALLBACK);
-	
-	if (IS_ERR(ctx->fallback)) {
+
+	if (IS_ERR(ctx->fallback.shash)) {
 		pr_err("fallback unavailable for '%s'\n", alg_name);
 		ctx->fallback_available = false;
 	}
@@ -673,9 +673,9 @@ static void jh7110_hash_cra_exit(struct crypto_tfm *tfm)
 {
 	struct jh7110_sec_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	crypto_free_shash(ctx->fallback);
+	crypto_free_shash(ctx->fallback.shash);
 
-	ctx->fallback = NULL;
+	ctx->fallback.shash = NULL;
 	ctx->enginectx.op.do_one_request = NULL;
 	ctx->enginectx.op.prepare_request = NULL;
 	ctx->enginectx.op.unprepare_request = NULL;
