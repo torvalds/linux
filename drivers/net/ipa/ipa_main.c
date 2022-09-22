@@ -306,6 +306,27 @@ static void ipa_qtime_config(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET);
 }
 
+/* Before IPA v4.5 timing is controlled by a counter register */
+static void ipa_hardware_config_counter(struct ipa *ipa)
+{
+	u32 granularity;
+	u32 val;
+
+	granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
+
+	val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
+
+	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
+}
+
+static void ipa_hardware_config_timing(struct ipa *ipa)
+{
+	if (ipa->version < IPA_VERSION_4_5)
+		ipa_hardware_config_counter(ipa);
+	else
+		ipa_qtime_config(ipa);
+}
+
 static void ipa_hardware_config_hashing(struct ipa *ipa)
 {
 	u32 offset;
@@ -362,7 +383,6 @@ static void ipa_hardware_dcd_deconfig(struct ipa *ipa)
 static void ipa_hardware_config(struct ipa *ipa, const struct ipa_data *data)
 {
 	enum ipa_version version = ipa->version;
-	u32 granularity;
 	u32 val;
 
 	/* IPA v4.5+ has no backward compatibility register */
@@ -389,19 +409,8 @@ static void ipa_hardware_config(struct ipa *ipa, const struct ipa_data *data)
 		iowrite32(val, ipa->reg_virt + IPA_REG_CLKON_CFG_OFFSET);
 
 	ipa_hardware_config_comp(ipa);
-
-	/* Configure system bus limits */
 	ipa_hardware_config_qsb(ipa, data);
-
-	if (version < IPA_VERSION_4_5) {
-		/* Configure aggregation timer granularity */
-		granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
-		val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
-		iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
-	} else {
-		ipa_qtime_config(ipa);
-	}
-
+	ipa_hardware_config_timing(ipa);
 	ipa_hardware_config_hashing(ipa);
 	ipa_hardware_dcd_config(ipa);
 }
