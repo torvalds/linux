@@ -1219,6 +1219,14 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+int hda_power_down_dsp(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	return hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
+}
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 				       struct snd_soc_acpi_mach **mach)

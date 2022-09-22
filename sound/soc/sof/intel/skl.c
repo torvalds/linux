@@ -111,6 +111,7 @@ const struct sof_intel_dsp_desc skl_chip_info = {
 	.rom_status_reg = HDA_DSP_SRAM_REG_ROM_STATUS_SKL,
 	.rom_init_timeout	= 300,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
+	.power_down_dsp = hda_power_down_dsp,
 	.hw_ip_version = SOF_INTEL_CAVS_1_5,
 };
 EXPORT_SYMBOL_NS(skl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
