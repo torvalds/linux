@@ -36,6 +36,8 @@
 #include "ufshcd-pltfrm.h"
 #include <ufs/unipro.h>
 #include "ufs-qcom.h"
+#define CREATE_TRACE_POINTS
+#include "ufs-qcom-trace.h"
 #include <ufs/ufshci.h>
 #include <ufs/ufs_quirks.h>
 #include <ufs/ufshcd-crypto-qti.h>
@@ -78,6 +80,11 @@
 				       ",%d,"fmt, raw_smp_processor_id(), \
 				       ##__VA_ARGS__);	\
 	} while (0)
+
+enum {
+	UFS_QCOM_CMD_SEND,
+	UFS_QCOM_CMD_COMPL,
+};
 
 static char android_boot_dev[ANDROID_BOOT_DEV_MAX];
 
@@ -1028,6 +1035,10 @@ static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba,
 	}
 
 	ufs_qcom_log_str(host, "-,%d,%d\n", status, err);
+
+	if (host->dbg_en)
+		trace_ufs_qcom_hce_enable_notify(dev_name(hba->dev), status, err);
+
 	return err;
 }
 
@@ -1416,6 +1427,9 @@ static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 
 out:
 	ufs_qcom_log_str(host, "*,%d,%d\n", status, err);
+	if (host->dbg_en)
+		trace_ufs_qcom_link_startup_notify(dev_name(hba->dev), status, err);
+
 	return err;
 }
 
@@ -1684,6 +1698,9 @@ static int ufs_qcom_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 	ufs_qcom_log_str(host, "&,%d,%d,%d,%d,%d,%d\n",
 			pm_op, hba->rpm_lvl, hba->spm_lvl, hba->uic_link_state,
 			hba->curr_dev_pwr_mode, err);
+	if (host->dbg_en)
+		trace_ufs_qcom_suspend(dev_name(hba->dev), pm_op, hba->rpm_lvl, hba->spm_lvl,
+				hba->uic_link_state, hba->curr_dev_pwr_mode, err);
 	ufs_qcom_ice_disable(host);
 
 	cancel_dwork_unvote_cpufreq(hba);
@@ -1710,6 +1727,9 @@ static int ufs_qcom_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	ufs_qcom_log_str(host, "$,%d,%d,%d,%d,%d,%d\n",
 			pm_op, hba->rpm_lvl, hba->spm_lvl, hba->uic_link_state,
 			hba->curr_dev_pwr_mode, err);
+	if (host->dbg_en)
+		trace_ufs_qcom_resume(dev_name(hba->dev), pm_op, hba->rpm_lvl, hba->spm_lvl,
+				hba->uic_link_state, hba->curr_dev_pwr_mode, err);
 	return 0;
 }
 
@@ -2121,7 +2141,7 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 	u32 val;
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct phy *phy = host->generic_phy;
-	struct ufs_qcom_dev_params ufs_qcom_cap;
+struct ufs_qcom_dev_params ufs_qcom_cap;
 	int ret = 0;
 
 	if (!dev_req_params) {
@@ -2214,13 +2234,22 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 	}
 
 out:
-	if (dev_req_params)
+	if (dev_req_params) {
 		ufs_qcom_log_str(host, "@,%d,%d,%d,%d,%d\n", status,
 			dev_req_params->gear_rx, dev_req_params->pwr_rx,
 			dev_req_params->hs_rate, ret);
-	else
+		if (host->dbg_en)
+			trace_ufs_qcom_pwr_change_notify(dev_name(hba->dev),
+				status, dev_req_params->gear_rx,
+				dev_req_params->pwr_rx,
+				dev_req_params->hs_rate, ret);
+	} else {
 		ufs_qcom_log_str(host, "@,%d,%d,%d,%d,%d\n", status,
 			0, 0, 0, ret);
+		if (host->dbg_en)
+			trace_ufs_qcom_pwr_change_notify(dev_name(hba->dev),
+				status, 0, 0, 0, ret);
+	}
 	return ret;
 }
 
@@ -2604,6 +2633,8 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 		break;
 	}
 	ufs_qcom_log_str(host, "#,%d,%d,%d\n", status, on, err);
+	if (host->dbg_en)
+		trace_ufs_qcom_setup_clocks(dev_name(hba->dev), status, on, err);
 
 	return err;
 }
@@ -3899,6 +3930,10 @@ out:
 		ufs_qcom_log_str(host, "^,%d,%d\n", status, err);
 	else
 		ufs_qcom_log_str(host, "v,%d,%d\n", status, err);
+
+	if (host->dbg_en)
+		trace_ufs_qcom_clk_scale_notify(dev_name(hba->dev), status, scale_up, err);
+
 	return err;
 }
 
@@ -5246,6 +5281,13 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 							ufshcd_readl(hba,
 								REG_UTP_TRANSFER_REQ_DOOR_BELL),
 							sz);
+			if (host->dbg_en)
+				trace_ufs_qcom_command(dev_name(hba->dev), UFS_QCOM_CMD_SEND,
+						lrbp->cmd->cmnd[0],
+						lrbp->task_tag,
+						ufshcd_readl(hba,
+							REG_UTP_TRANSFER_REQ_DOOR_BELL),
+						sz);
 			return;
 		}
 
@@ -5261,6 +5303,12 @@ static void ufs_qcom_hook_send_command(void *param, struct ufs_hba *hba,
 							lrbp->task_tag,
 							hwq->id,
 							sz);
+			if (host->dbg_en)
+				trace_ufs_qcom_command(dev_name(hba->dev), UFS_QCOM_CMD_SEND,
+						lrbp->cmd->cmnd[0],
+						lrbp->task_tag,
+						hwq->id,
+						sz);
 		}
 	}
 }
@@ -5282,6 +5330,13 @@ static void ufs_qcom_hook_compl_command(void *param, struct ufs_hba *hba,
 							ufshcd_readl(hba,
 								REG_UTP_TRANSFER_REQ_DOOR_BELL),
 							sz);
+			if (host->dbg_en)
+				trace_ufs_qcom_command(dev_name(hba->dev), UFS_QCOM_CMD_COMPL,
+						lrbp->cmd->cmnd[0],
+						lrbp->task_tag,
+						ufshcd_readl(hba,
+							REG_UTP_TRANSFER_REQ_DOOR_BELL),
+						sz);
 			return;
 		}
 
@@ -5297,6 +5352,12 @@ static void ufs_qcom_hook_compl_command(void *param, struct ufs_hba *hba,
 							lrbp->task_tag,
 							hwq->id,
 							sz);
+			if (host->dbg_en)
+				trace_ufs_qcom_command(dev_name(hba->dev), UFS_QCOM_CMD_COMPL,
+						lrbp->cmd->cmnd[0],
+						lrbp->task_tag,
+						hwq->id,
+						sz);
 		}
 	}
 }
@@ -5315,12 +5376,18 @@ static void ufs_qcom_hook_send_uic_command(void *param, struct ufs_hba *hba,
 		c = ucmd->argument3;
 		cmd = ucmd->command;
 		ch = '(';
+		if (host->dbg_en)
+			trace_ufs_qcom_uic(dev_name(hba->dev), UFS_QCOM_CMD_SEND,
+					cmd, a, b, c);
 	} else {
 		a = ufshcd_readl(hba, REG_UIC_COMMAND_ARG_1),
 		b = ufshcd_readl(hba, REG_UIC_COMMAND_ARG_2),
 		c = ufshcd_readl(hba, REG_UIC_COMMAND_ARG_3);
 		cmd = ufshcd_readl(hba, REG_UIC_COMMAND);
 		ch = ')';
+		if (host->dbg_en)
+			trace_ufs_qcom_uic(dev_name(hba->dev), UFS_QCOM_CMD_COMPL,
+					cmd, a, b, c);
 	}
 	ufs_qcom_log_str(host, "%c,%x,%x,%x,%x\n",
 				ch, cmd, a, b, c);
@@ -5337,9 +5404,13 @@ static void ufs_qcom_hook_check_int_errors(void *param, struct ufs_hba *hba,
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
-	if (queue_eh_work)
+	if (queue_eh_work) {
 		ufs_qcom_log_str(host, "_,%x,%x\n",
 					hba->errors, hba->uic_error);
+		if (host->dbg_en)
+			trace_ufs_qcom_hook_check_int_errors(dev_name(hba->dev), hba->errors,
+						hba->uic_error);
+	}
 }
 
 static void ufs_qcom_update_sdev(void *param, struct scsi_device *sdev)
@@ -5470,6 +5541,8 @@ static void ufs_qcom_shutdown(struct platform_device *pdev)
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
 	ufs_qcom_log_str(host, "0xdead\n");
+	if (host->dbg_en)
+		trace_ufs_qcom_shutdown(dev_name(hba->dev));
 	ufshcd_pltfrm_shutdown(pdev);
 
 	/* UFS_RESET TLMM register cannot reset to POR value '1' after warm
