@@ -2394,18 +2394,7 @@ static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int aspeed_video_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, aspeed_video_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations aspeed_video_debugfs_ops = {
-	.owner   = THIS_MODULE,
-	.open    = aspeed_video_proc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(aspeed_video_debugfs);
 
 static struct dentry *debugfs_entry;
 
@@ -2417,7 +2406,7 @@ static void aspeed_video_debugfs_remove(struct aspeed_video *video)
 static void aspeed_video_debugfs_create(struct aspeed_video *video)
 {
 	debugfs_entry = debugfs_create_file(DEVICE_NAME, 0444, NULL, video,
-					    &aspeed_video_debugfs_ops);
+					    &aspeed_video_debugfs_fops);
 }
 #else
 static void aspeed_video_debugfs_remove(struct aspeed_video *video) { }
