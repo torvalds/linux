@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
@@ -478,6 +479,26 @@ static void fill_memory(int *p, unsigned long start, unsigned long end)
 }
 
 /*
+ * MADV_COLLAPSE is a best-effort request and may fail if an internal
+ * resource is temporarily unavailable, in which case it will set errno to
+ * EAGAIN.  In such a case, immediately reattempt the operation one more
+ * time.
+ */
+static int madvise_collapse_retry(void *p, unsigned long size)
+{
+	bool retry = true;
+	int ret;
+
+retry:
+	ret = madvise(p, size, MADV_COLLAPSE);
+	if (ret && errno == EAGAIN && retry) {
+		retry = false;
+		goto retry;
+	}
+	return ret;
+}
+
+/*
  * Returns pmd-mapped hugepage in VMA marked VM_HUGEPAGE, filled with
  * validate_memory()'able contents.
  */
@@ -531,7 +552,7 @@ static void madvise_collapse(const char *msg, char *p, int nr_hpages,
 
 	/* Clear VM_NOHUGEPAGE */
 	madvise(p, nr_hpages * hpage_pmd_size, MADV_HUGEPAGE);
-	ret = madvise(p, nr_hpages * hpage_pmd_size, MADV_COLLAPSE);
+	ret = madvise_collapse_retry(p, nr_hpages * hpage_pmd_size);
 	if (((bool)ret) == expect)
 		fail("Fail: Bad return value");
 	else if (check_huge(p, nr_hpages) != expect)
