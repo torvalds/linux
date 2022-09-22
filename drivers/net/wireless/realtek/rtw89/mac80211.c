@@ -407,6 +407,9 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_MU_GROUPS)
 		rtw89_mac_bf_set_gid_table(rtwdev, vif, conf);
 
+	if (changed & BSS_CHANGED_P2P_PS)
+		rtw89_process_p2p_ps(rtwdev, vif);
+
 	mutex_unlock(&rtwdev->mutex);
 }
 

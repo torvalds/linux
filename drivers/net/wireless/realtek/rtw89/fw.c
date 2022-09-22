@@ -931,6 +931,58 @@ fail:
 	return ret;
 }
 
+#define H2C_P2P_ACT_LEN 20
+int rtw89_fw_h2c_p2p_act(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
+			 struct ieee80211_p2p_noa_desc *desc,
+			 u8 act, u8 noa_id)
+{
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	bool p2p_type_gc = rtwvif->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT;
+	u8 ctwindow_oppps = vif->bss_conf.p2p_noa_attr.oppps_ctwindow;
+	struct sk_buff *skb;
+	u8 *cmd;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_P2P_ACT_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c p2p act\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, H2C_P2P_ACT_LEN);
+	cmd = skb->data;
+
+	RTW89_SET_FWCMD_P2P_MACID(cmd, rtwvif->mac_id);
+	RTW89_SET_FWCMD_P2P_P2PID(cmd, 0);
+	RTW89_SET_FWCMD_P2P_NOAID(cmd, noa_id);
+	RTW89_SET_FWCMD_P2P_ACT(cmd, act);
+	RTW89_SET_FWCMD_P2P_TYPE(cmd, p2p_type_gc);
+	RTW89_SET_FWCMD_P2P_ALL_SLEP(cmd, 0);
+	if (desc) {
+		RTW89_SET_FWCMD_NOA_START_TIME(cmd, desc->start_time);
+		RTW89_SET_FWCMD_NOA_INTERVAL(cmd, desc->interval);
+		RTW89_SET_FWCMD_NOA_DURATION(cmd, desc->duration);
+		RTW89_SET_FWCMD_NOA_COUNT(cmd, desc->count);
+		RTW89_SET_FWCMD_NOA_CTWINDOW(cmd, ctwindow_oppps);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_PS,
+			      H2C_FUNC_P2P_ACT, 0, 0,
+			      H2C_P2P_ACT_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 static void __rtw89_fw_h2c_set_tx_path(struct rtw89_dev *rtwdev,
 				       struct sk_buff *skb)
 {
@@ -1433,6 +1485,46 @@ int rtw89_fw_h2c_set_edca(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
 			      H2C_FUNC_USR_EDCA, 0, 1,
 			      H2C_EDCA_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+#define H2C_TSF32_TOGL_LEN 4
+int rtw89_fw_h2c_tsf32_toggle(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			      bool en)
+{
+	struct sk_buff *skb;
+	u16 early_us = en ? 2000 : 0;
+	u8 *cmd;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_TSF32_TOGL_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c p2p act\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, H2C_TSF32_TOGL_LEN);
+	cmd = skb->data;
+
+	RTW89_SET_FWCMD_TSF32_TOGL_BAND(cmd, rtwvif->mac_idx);
+	RTW89_SET_FWCMD_TSF32_TOGL_EN(cmd, en);
+	RTW89_SET_FWCMD_TSF32_TOGL_PORT(cmd, rtwvif->port);
+	RTW89_SET_FWCMD_TSF32_TOGL_EARLY(cmd, early_us);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
+			      H2C_FUNC_TSF32_TOGL, 0, 0,
+			      H2C_TSF32_TOGL_LEN);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

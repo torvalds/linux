@@ -2205,6 +2205,8 @@ struct rtw89_phy_rate_pattern {
 	bool enable;
 };
 
+#define RTW89_P2P_MAX_NOA_NUM 2
+
 struct rtw89_vif {
 	struct list_head list;
 	struct rtw89_dev *rtwdev;
@@ -2220,6 +2222,7 @@ struct rtw89_vif {
 	u8 wmm;
 	u8 bcn_hit_cond;
 	u8 hit_rule;
+	u8 last_noa_nr;
 	bool trigger;
 	bool lsig_txop;
 	u8 tgt_ind;

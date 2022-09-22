@@ -155,6 +155,13 @@ enum rtw89_chan_type {
 	RTW89_CHAN_DFS,
 };
 
+enum rtw89_p2pps_action {
+	RTW89_P2P_ACT_INIT = 0,
+	RTW89_P2P_ACT_UPDATE = 1,
+	RTW89_P2P_ACT_REMOVE = 2,
+	RTW89_P2P_ACT_TERMINATE = 3,
+};
+
 #define FWDL_SECTION_MAX_NUM 10
 #define FWDL_SECTION_CHKSUM_LEN	8
 #define FWDL_SECTION_PER_PKT_LEN 2020
@@ -2442,6 +2449,86 @@ static inline void RTW89_SET_FWCMD_SCANOFLD_TSF_SLOW(void *cmd, u32 val)
 	le32p_replace_bits((__le32 *)((u8 *)(cmd) + 16), val, GENMASK(31, 0));
 }
 
+static inline void RTW89_SET_FWCMD_P2P_MACID(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(7, 0));
+}
+
+static inline void RTW89_SET_FWCMD_P2P_P2PID(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(11, 8));
+}
+
+static inline void RTW89_SET_FWCMD_P2P_NOAID(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(15, 12));
+}
+
+static inline void RTW89_SET_FWCMD_P2P_ACT(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(19, 16));
+}
+
+static inline void RTW89_SET_FWCMD_P2P_TYPE(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, BIT(20));
+}
+
+static inline void RTW89_SET_FWCMD_P2P_ALL_SLEP(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, BIT(21));
+}
+
+static inline void RTW89_SET_FWCMD_NOA_START_TIME(void *cmd, __le32 val)
+{
+	*((__le32 *)cmd + 1) = val;
+}
+
+static inline void RTW89_SET_FWCMD_NOA_INTERVAL(void *cmd, __le32 val)
+{
+	*((__le32 *)cmd + 2) = val;
+}
+
+static inline void RTW89_SET_FWCMD_NOA_DURATION(void *cmd, __le32 val)
+{
+	*((__le32 *)cmd + 3) = val;
+}
+
+static inline void RTW89_SET_FWCMD_NOA_COUNT(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 4, val, GENMASK(7, 0));
+}
+
+static inline void RTW89_SET_FWCMD_NOA_CTWINDOW(void *cmd, u32 val)
+{
+	u8 ctwnd;
+
+	if (!(val & IEEE80211_P2P_OPPPS_ENABLE_BIT))
+		return;
+	ctwnd = FIELD_GET(IEEE80211_P2P_OPPPS_CTWINDOW_MASK, val);
+	le32p_replace_bits((__le32 *)(cmd) + 4, ctwnd, GENMASK(23, 8));
+}
+
+static inline void RTW89_SET_FWCMD_TSF32_TOGL_BAND(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, BIT(0));
+}
+
+static inline void RTW89_SET_FWCMD_TSF32_TOGL_EN(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, BIT(1));
+}
+
+static inline void RTW89_SET_FWCMD_TSF32_TOGL_PORT(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(4, 2));
+}
+
+static inline void RTW89_SET_FWCMD_TSF32_TOGL_EARLY(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd, val, GENMASK(31, 16));
+}
+
 #define RTW89_C2H_HEADER_LEN 8
 
 #define RTW89_GET_C2H_CATEGORY(c2h) \
@@ -2592,6 +2679,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 /* CLASS 2 - PS */
 #define H2C_CL_MAC_PS			0x2
 #define H2C_FUNC_MAC_LPS_PARM		0x0
+#define H2C_FUNC_P2P_ACT		0x1
 
 /* CLASS 3 - FW download */
 #define H2C_CL_MAC_FWDL		0x3
@@ -2618,6 +2706,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_FUNC_PACKET_OFLD		0x1
 #define H2C_FUNC_MAC_MACID_PAUSE	0x8
 #define H2C_FUNC_USR_EDCA		0xF
+#define H2C_FUNC_TSF32_TOGL		0x10
 #define H2C_FUNC_OFLD_CFG		0x14
 #define H2C_FUNC_ADD_SCANOFLD_CH	0x16
 #define H2C_FUNC_SCANOFLD		0x17
@@ -2751,6 +2840,11 @@ void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 			  const struct rtw89_pkt_drop_params *params);
+int rtw89_fw_h2c_p2p_act(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
+			 struct ieee80211_p2p_noa_desc *desc,
+			 u8 act, u8 noa_id);
+int rtw89_fw_h2c_tsf32_toggle(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			      bool en);
 
 static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {
