@@ -687,18 +687,58 @@ static void
 intel_tc_port_link_init_refcount(struct intel_digital_port *dig_port,
 				 int refcount)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-
-	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount);
 	dig_port->tc_link_refcount = refcount;
 }
 
-void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
+/**
+ * intel_tc_port_init_mode: Read out HW state and init the given port's TypeC mode
+ * @dig_port: digital port
+ *
+ * Read out the HW state and initialize the TypeC mode of @dig_port. The mode
+ * will be locked until intel_tc_port_sanitize_mode() is called.
+ */
+void intel_tc_port_init_mode(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	intel_wakeref_t tc_cold_wref;
+	enum intel_display_power_domain domain;
+
+	mutex_lock(&dig_port->tc_lock);
+
+	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_DISCONNECTED);
+	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
+	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount);
+
+	tc_cold_wref = tc_cold_block(dig_port, &domain);
+
+	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
+	/* Prevent changing dig_port->tc_mode until intel_tc_port_sanitize_mode() is called. */
+	intel_tc_port_link_init_refcount(dig_port, 1);
+	dig_port->tc_lock_wakeref = tc_cold_block(dig_port, &dig_port->tc_lock_power_domain);
+
+	tc_cold_unblock(dig_port, domain, tc_cold_wref);
+
+	drm_dbg_kms(&i915->drm, "Port %s: init mode (%s)\n",
+		    dig_port->tc_port_name,
+		    tc_port_mode_name(dig_port->tc_mode));
+
+	mutex_unlock(&dig_port->tc_lock);
+}
+
+/**
+ * intel_tc_port_sanitize_mode: Sanitize the given port's TypeC mode
+ * @dig_port: digital port
+ *
+ * Sanitize @dig_port's TypeC mode wrt. the encoder's state right after driver
+ * loading and system resume:
+ * If the encoder is enabled keep the TypeC mode/PHY connected state locked until
+ * the encoder is disabled.
+ * If the encoder is disabled make sure the PHY is disconnected.
+ */
+void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_encoder *encoder = &dig_port->base;
-	intel_wakeref_t tc_cold_wref;
-	enum intel_display_power_domain domain;
 	int active_links = 0;
 
 	mutex_lock(&dig_port->tc_lock);
@@ -708,21 +748,14 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 	else if (encoder->base.crtc)
 		active_links = to_intel_crtc(encoder->base.crtc)->active;
 
-	drm_WARN_ON(&i915->drm, dig_port->tc_mode != TC_PORT_DISCONNECTED);
-	drm_WARN_ON(&i915->drm, dig_port->tc_lock_wakeref);
+	drm_WARN_ON(&i915->drm, dig_port->tc_link_refcount != 1);
+	intel_tc_port_link_init_refcount(dig_port, active_links);
 
-	tc_cold_wref = tc_cold_block(dig_port, &domain);
-
-	dig_port->tc_mode = intel_tc_port_get_current_mode(dig_port);
 	if (active_links) {
 		if (!icl_tc_phy_is_connected(dig_port))
 			drm_dbg_kms(&i915->drm,
 				    "Port %s: PHY disconnected with %d active link(s)\n",
 				    dig_port->tc_port_name, active_links);
-		intel_tc_port_link_init_refcount(dig_port, active_links);
-
-		dig_port->tc_lock_wakeref = tc_cold_block(dig_port,
-							  &dig_port->tc_lock_power_domain);
 	} else {
 		/*
 		 * TBT-alt is the default mode in any case the PHY ownership is not
@@ -736,9 +769,10 @@ void intel_tc_port_sanitize(struct intel_digital_port *dig_port)
 				    dig_port->tc_port_name,
 				    tc_port_mode_name(dig_port->tc_mode));
 		icl_tc_phy_disconnect(dig_port);
-	}
 
-	tc_cold_unblock(dig_port, domain, tc_cold_wref);
+		tc_cold_unblock(dig_port, dig_port->tc_lock_power_domain,
+				fetch_and_zero(&dig_port->tc_lock_wakeref));
+	}
 
 	drm_dbg_kms(&i915->drm, "Port %s: sanitize mode (%s)\n",
 		    dig_port->tc_port_name,
@@ -923,4 +957,6 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	dig_port->tc_mode = TC_PORT_DISCONNECTED;
 	dig_port->tc_link_refcount = 0;
 	tc_port_load_fia_params(i915, dig_port);
+
+	intel_tc_port_init_mode(dig_port);
 }
