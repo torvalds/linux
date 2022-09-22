@@ -81,13 +81,13 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 	}
 
 	vector = hypercall(hcall->control, input, output, &res);
-	if (hcall->ud_expected)
+	if (hcall->ud_expected) {
 		GUEST_ASSERT_2(vector == UD_VECTOR, hcall->control, vector);
-	else
+	} else {
 		GUEST_ASSERT_2(!vector, hcall->control, vector);
+		GUEST_ASSERT_2(res == hcall->expect, hcall->expect, res);
+	}
 
-	GUEST_ASSERT_2(!hcall->ud_expected || res == hcall->expect,
-			hcall->expect, res);
 	GUEST_DONE();
 }
 
