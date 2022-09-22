@@ -118,12 +118,30 @@
 			no-map;
 		};
 
+		adsp_mem: memory@60000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60000000 0 0xd80000>;
+			no-map;
+		};
+
 		afe_mem: memory@60d80000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x60d80000 0 0x100000>;
 			no-map;
 		};
+
+		adsp_device_mem: memory@60e80000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60e80000 0 0x280000>;
+			no-map;
+		};
 	};
+};
+
+&adsp {
+	status = "okay";
+
+	memory-region = <&adsp_device_mem>, <&adsp_mem>;
 };
 
 &afe {
