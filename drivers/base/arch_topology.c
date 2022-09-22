@@ -724,7 +724,7 @@ const struct cpumask *cpu_clustergroup_mask(int cpu)
 	 */
 	if (cpumask_subset(cpu_coregroup_mask(cpu),
 			   &cpu_topology[cpu].cluster_sibling))
-		return get_cpu_mask(cpu);
+		return topology_sibling_cpumask(cpu);
 
 	return &cpu_topology[cpu].cluster_sibling;
 }
@@ -735,7 +735,7 @@ void update_siblings_masks(unsigned int cpuid)
 	int cpu, ret;
 
 	ret = detect_cache_attributes(cpuid);
-	if (ret)
+	if (ret && ret != -ENOENT)
 		pr_info("Early cacheinfo failed, ret = %d\n", ret);
 
 	/* update core and thread sibling masks */

@@ -192,6 +192,7 @@ static int ice_qp_dis(struct ice_vsi *vsi, u16 q_idx)
 	err = ice_vsi_ctrl_one_rx_ring(vsi, false, q_idx, true);
 	if (err)
 		return err;
+	ice_clean_rx_ring(rx_ring);
 
 	ice_qvec_toggle_napi(vsi, q_vector, false);
 	ice_qp_clean_rings(vsi, q_idx);
@@ -243,7 +244,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 		if (err)
 			goto free_buf;
 		ice_set_ring_xdp(xdp_ring);
-		xdp_ring->xsk_pool = ice_tx_xsk_pool(xdp_ring);
+		ice_tx_xsk_pool(vsi, q_idx);
 	}
 
 	err = ice_vsi_cfg_rxq(rx_ring);
@@ -317,6 +318,62 @@ ice_xsk_pool_enable(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 }
 
 /**
+ * ice_realloc_rx_xdp_bufs - reallocate for either XSK or normal buffer
+ * @rx_ring: Rx ring
+ * @pool_present: is pool for XSK present
+ *
+ * Try allocating memory and return ENOMEM, if failed to allocate.
+ * If allocation was successful, substitute buffer with allocated one.
+ * Returns 0 on success, negative on failure
+ */
+static int
+ice_realloc_rx_xdp_bufs(struct ice_rx_ring *rx_ring, bool pool_present)
+{
+	size_t elem_size = pool_present ? sizeof(*rx_ring->xdp_buf) :
+					  sizeof(*rx_ring->rx_buf);
+	void *sw_ring = kcalloc(rx_ring->count, elem_size, GFP_KERNEL);
+
+	if (!sw_ring)
+		return -ENOMEM;
+
+	if (pool_present) {
+		kfree(rx_ring->rx_buf);
+		rx_ring->rx_buf = NULL;
+		rx_ring->xdp_buf = sw_ring;
+	} else {
+		kfree(rx_ring->xdp_buf);
+		rx_ring->xdp_buf = NULL;
+		rx_ring->rx_buf = sw_ring;
+	}
+
+	return 0;
+}
+
+/**
+ * ice_realloc_zc_buf - reallocate XDP ZC queue pairs
+ * @vsi: Current VSI
+ * @zc: is zero copy set
+ *
+ * Reallocate buffer for rx_rings that might be used by XSK.
+ * XDP requires more memory, than rx_buf provides.
+ * Returns 0 on success, negative on failure
+ */
+int ice_realloc_zc_buf(struct ice_vsi *vsi, bool zc)
+{
+	struct ice_rx_ring *rx_ring;
+	unsigned long q;
+
+	for_each_set_bit(q, vsi->af_xdp_zc_qps,
+			 max_t(int, vsi->alloc_txq, vsi->alloc_rxq)) {
+		rx_ring = vsi->rx_rings[q];
+		if (ice_realloc_rx_xdp_bufs(rx_ring, zc))
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+/**
  * ice_xsk_pool_setup - enable/disable a buffer pool region depending on its state
  * @vsi: Current VSI
  * @pool: buffer pool to enable/associate to a ring, NULL to disable
@@ -329,6 +386,12 @@ int ice_xsk_pool_setup(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 	bool if_running, pool_present = !!pool;
 	int ret = 0, pool_failure = 0;
 
+	if (qid >= vsi->num_rxq || qid >= vsi->num_txq) {
+		netdev_err(vsi->netdev, "Please use queue id in scope of combined queues count\n");
+		pool_failure = -EINVAL;
+		goto failure;
+	}
+
 	if (!is_power_of_2(vsi->rx_rings[qid]->count) ||
 	    !is_power_of_2(vsi->tx_rings[qid]->count)) {
 		netdev_err(vsi->netdev, "Please align ring sizes to power of 2\n");
@@ -339,11 +402,17 @@ int ice_xsk_pool_setup(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 	if_running = netif_running(vsi->netdev) && ice_is_xdp_ena_vsi(vsi);
 
 	if (if_running) {
+		struct ice_rx_ring *rx_ring = vsi->rx_rings[qid];
+
 		ret = ice_qp_dis(vsi, qid);
 		if (ret) {
 			netdev_err(vsi->netdev, "ice_qp_dis error = %d\n", ret);
 			goto xsk_pool_if_up;
 		}
+
+		ret = ice_realloc_rx_xdp_bufs(rx_ring, pool_present);
+		if (ret)
+			goto xsk_pool_if_up;
 	}
 
 	pool_failure = pool_present ? ice_xsk_pool_enable(vsi, pool, qid) :
@@ -353,7 +422,7 @@ xsk_pool_if_up:
 	if (if_running) {
 		ret = ice_qp_ena(vsi, qid);
 		if (!ret && pool_present)
-			napi_schedule(&vsi->xdp_rings[qid]->q_vector->napi);
+			napi_schedule(&vsi->rx_rings[qid]->xdp_ring->q_vector->napi);
 		else if (ret)
 			netdev_err(vsi->netdev, "ice_qp_ena error = %d\n", ret);
 	}
@@ -944,13 +1013,13 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 	if (!ice_is_xdp_ena_vsi(vsi))
 		return -EINVAL;
 
-	if (queue_id >= vsi->num_txq)
+	if (queue_id >= vsi->num_txq || queue_id >= vsi->num_rxq)
 		return -EINVAL;
 
-	if (!vsi->xdp_rings[queue_id]->xsk_pool)
-		return -EINVAL;
+	ring = vsi->rx_rings[queue_id]->xdp_ring;
 
-	ring = vsi->xdp_rings[queue_id];
+	if (!ring->xsk_pool)
+		return -EINVAL;
 
 	/* The idea here is that if NAPI is running, mark a miss, so
 	 * it will run again. If not, trigger an interrupt and

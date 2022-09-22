@@ -104,6 +104,9 @@ static bool has_query_dp_alt(struct link_encoder *enc)
 {
 	struct dc_dmub_srv *dc_dmub_srv = enc->ctx->dmub_srv;
 
+	if (enc->ctx->dce_version >= DCN_VERSION_3_15)
+		return true;
+
 	/* Supports development firmware and firmware >= 4.0.11 */
 	return dc_dmub_srv &&
 	       !(dc_dmub_srv->dmub->fw_version >= DMUB_FW_VERSION(4, 0, 0) &&

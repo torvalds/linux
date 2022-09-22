@@ -245,6 +245,7 @@ struct wilc {
 	u8 *rx_buffer;
 	u32 rx_buffer_offset;
 	u8 *tx_buffer;
+	u32 *vmm_table;
 
 	struct txq_handle txq[NQUEUES];
 	int txq_entries;
