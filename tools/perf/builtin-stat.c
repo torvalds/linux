@@ -900,8 +900,6 @@ try_again:
 		evlist__for_each_cpu(evlist_cpu_itr, evsel_list, affinity) {
 			counter = evlist_cpu_itr.evsel;
 
-			if (!counter->reset_group && !counter->errored)
-				continue;
 			if (!counter->reset_group)
 				continue;
 try_again_reset:
