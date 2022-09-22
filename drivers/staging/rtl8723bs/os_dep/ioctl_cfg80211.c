@@ -198,7 +198,7 @@ static int rtw_ieee80211_channel_to_frequency(int chan, int band)
 	if (band == NL80211_BAND_2GHZ) {
 		if (chan == 14)
 			return 2484;
-             else if (chan < 14)
+		else if (chan < 14)
 			return 2407 + chan * 5;
 	}
 
@@ -810,7 +810,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 						memcpy(padapter->securitypriv.dot118021XGrpKey[param->u.crypt.idx].skey, param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
 						memcpy(padapter->securitypriv.dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
 						memcpy(padapter->securitypriv.dot118021XGrprxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[24]), 8);
-	                                        padapter->securitypriv.binstallGrpkey = true;
+						padapter->securitypriv.binstallGrpkey = true;
 
 						padapter->securitypriv.dot118021XGrpKeyid = param->u.crypt.idx;
 						rtw_set_key(padapter, &padapter->securitypriv, param->u.crypt.idx, 1, true);
@@ -920,9 +920,9 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 		ret = rtw_cfg80211_ap_set_encryption(ndev, param, param_len);
 	} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true
-                || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true) {
-                ret =  rtw_cfg80211_set_encryption(ndev, param, param_len);
-        }
+		|| check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true) {
+		ret =  rtw_cfg80211_set_encryption(ndev, param, param_len);
+	}
 
 addkey_end:
 	kfree(param);
@@ -2348,7 +2348,7 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int cfg80211_rtw_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
-                                struct cfg80211_beacon_data *info)
+		struct cfg80211_beacon_data *info)
 {
 	struct adapter *adapter = rtw_netdev_priv(ndev);
 
