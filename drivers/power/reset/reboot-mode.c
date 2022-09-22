@@ -51,6 +51,8 @@ static int get_reboot_mode_magic(struct reboot_mode_driver *reboot,
 	return magic;
 }
 
+static int last_magic;
+
 static void reboot_mode_write(struct reboot_mode_driver *reboot,
 			      const void *cmd)
 {
@@ -59,8 +61,10 @@ static void reboot_mode_write(struct reboot_mode_driver *reboot,
 	magic = get_reboot_mode_magic(reboot, cmd);
 	if (!magic)
 		magic = get_reboot_mode_magic(reboot, NULL);
-	if (magic)
+	if (magic) {
 		reboot->write(reboot, magic);
+		last_magic = magic;
+	}
 }
 
 static int reboot_mode_notify(struct notifier_block *this,
@@ -70,6 +74,18 @@ static int reboot_mode_notify(struct notifier_block *this,
 
 	reboot = container_of(this, struct reboot_mode_driver, reboot_notifier);
 	reboot_mode_write(reboot, cmd);
+
+	return NOTIFY_DONE;
+}
+
+static int reboot_mode_pre_restart_notify(struct notifier_block *this,
+			      unsigned long mode, void *cmd)
+{
+	struct reboot_mode_driver *reboot;
+
+	reboot = container_of(this, struct reboot_mode_driver, pre_restart_notifier);
+	if (cmd || !last_magic)
+		reboot_mode_write(reboot, cmd);
 
 	return NOTIFY_DONE;
 }
@@ -151,9 +167,10 @@ int reboot_mode_register(struct reboot_mode_driver *reboot)
 
 	boot_mode_parse(reboot);
 	reboot->reboot_notifier.notifier_call = reboot_mode_notify;
+	reboot->pre_restart_notifier.notifier_call = reboot_mode_pre_restart_notify;
 	reboot->panic_notifier.notifier_call = reboot_mode_panic_notify;
 	register_reboot_notifier(&reboot->reboot_notifier);
-	register_pre_restart_handler(&reboot->reboot_notifier);
+	register_pre_restart_handler(&reboot->pre_restart_notifier);
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &reboot->panic_notifier);
 	ret = sysfs_create_file(kernel_kobj, &kobj_boot_mode.attr);
