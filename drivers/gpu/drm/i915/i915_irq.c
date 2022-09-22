@@ -3411,17 +3411,18 @@ static u32 gen11_hotplug_enables(struct drm_i915_private *i915,
 	}
 }
 
+static void dg1_hpd_invert(struct drm_i915_private *i915)
+{
+	u32 val = (INVERT_DDIA_HPD |
+		   INVERT_DDIB_HPD |
+		   INVERT_DDIC_HPD |
+		   INVERT_DDID_HPD);
+	intel_uncore_rmw(&i915->uncore, SOUTH_CHICKEN1, 0, val);
+}
+
 static void dg1_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
-	val = intel_uncore_read(&dev_priv->uncore, SOUTH_CHICKEN1);
-	val |= (INVERT_DDIA_HPD |
-		INVERT_DDIB_HPD |
-		INVERT_DDIC_HPD |
-		INVERT_DDID_HPD);
-	intel_uncore_write(&dev_priv->uncore, SOUTH_CHICKEN1, val);
-
+	dg1_hpd_invert(dev_priv);
 	icp_hpd_irq_setup(dev_priv);
 }
 
