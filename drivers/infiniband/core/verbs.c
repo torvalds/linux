@@ -1038,7 +1038,7 @@ struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
 	ret = pd->device->ops.create_srq(srq, srq_init_attr, udata);
 	if (ret) {
 		rdma_restrack_put(&srq->res);
-		atomic_dec(&srq->pd->usecnt);
+		atomic_dec(&pd->usecnt);
 		if (srq->srq_type == IB_SRQT_XRC && srq->ext.xrc.xrcd)
 			atomic_dec(&srq->ext.xrc.xrcd->usecnt);
 		if (ib_srq_has_cq(srq->srq_type))
