@@ -549,10 +549,9 @@
  */
 #ifdef CONFIG_CFI_CLANG
 #define TEXT_CFI_JT							\
-		. = ALIGN(PMD_SIZE);					\
+		ALIGN_FUNCTION();					\
 		__cfi_jt_start = .;					\
 		*(.text..L.cfi.jumptable .text..L.cfi.jumptable.*)	\
-		. = ALIGN(PMD_SIZE);					\
 		__cfi_jt_end = .;
 #else
 #define TEXT_CFI_JT
