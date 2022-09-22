@@ -306,6 +306,18 @@ static void ipa_qtime_config(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET);
 }
 
+static void ipa_hardware_config_hashing(struct ipa *ipa)
+{
+	u32 offset;
+
+	if (ipa->version != IPA_VERSION_4_2)
+		return;
+
+	/* IPA v4.2 does not support hashed tables, so disable them */
+	offset = ipa_reg_filt_rout_hash_en_offset(IPA_VERSION_4_2);
+	iowrite32(0, ipa->reg_virt + offset);
+}
+
 static void ipa_idle_indication_cfg(struct ipa *ipa,
 				    u32 enter_idle_debounce_thresh,
 				    bool const_non_idle_enable)
@@ -390,14 +402,7 @@ static void ipa_hardware_config(struct ipa *ipa, const struct ipa_data *data)
 		ipa_qtime_config(ipa);
 	}
 
-	/* IPA v4.2 does not support hashed tables, so disable them */
-	if (version == IPA_VERSION_4_2) {
-		u32 offset = ipa_reg_filt_rout_hash_en_offset(version);
-
-		iowrite32(0, ipa->reg_virt + offset);
-	}
-
-	/* Enable dynamic clock division */
+	ipa_hardware_config_hashing(ipa);
 	ipa_hardware_dcd_config(ipa);
 }
 
