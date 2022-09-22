@@ -17,7 +17,9 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 
+#include <linux/soc/qcom/qcom_aoss.h>
 #include <linux/soc/qcom/smem.h>
+#include <soc/qcom/qcom_stats.h>
 #include <clocksource/arm_arch_timer.h>
 
 #define RPM_DYNAMIC_ADDR	0x14
@@ -32,6 +34,12 @@
 
 #define DDR_STATS_MAGIC_KEY	0xA1157A75
 #define DDR_STATS_MAX_NUM_MODES	0x14
+#define MAX_DRV			18
+#define MAX_MSG_LEN		64
+#define DRV_ABSENT		0xdeaddead
+#define DRV_INVALID		0xffffdead
+#define VOTE_MASK		0x3fff
+#define VOTE_X_SHIFT		14
 
 #define DDR_STATS_MAGIC_KEY_ADDR	0x0
 #define DDR_STATS_NUM_MODES_ADDR	0x4
@@ -104,6 +112,7 @@ struct stats_config {
 	bool appended_stats_avail;
 	bool dynamic_offset;
 	bool subsystem_stats_in_smem;
+	bool read_ddr_votes;
 };
 
 struct stats_data {
@@ -121,7 +130,10 @@ struct stats_drvdata {
 	struct device	*stats_device;
 	struct cdev	stats_cdev;
 	struct mutex lock;
+	struct qmp *qmp;
 };
+
+static struct stats_drvdata *drv;
 
 struct sleep_stats {
 	u32 stat_type;
@@ -320,6 +332,66 @@ static const struct file_operations qcom_stats_device_fops = {
 	.open		=	qcom_stats_device_open,
 	.unlocked_ioctl =	qcom_stats_device_ioctl,
 };
+
+int ddr_stats_get_ss_count(void)
+{
+	return drv->config->read_ddr_votes ? MAX_DRV : -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(ddr_stats_get_ss_count);
+
+int ddr_stats_get_ss_vote_info(int ss_count,
+			       struct ddr_stats_ss_vote_info *vote_info)
+{
+	static const char buf[MAX_MSG_LEN] = "{class: ddr, res: drvs_ddr_votes}";
+	u32 vote_offset, val[MAX_DRV];
+	void __iomem *reg;
+	u32 entry_count;
+	int ret, i;
+
+	if (!vote_info || !(ss_count == MAX_DRV) || !drv)
+		return -ENODEV;
+
+	if (!drv->qmp)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&drv->lock);
+	ret = qmp_send(drv->qmp, buf, sizeof(buf));
+	if (ret) {
+		pr_err("Error sending qmp message: %d\n", ret);
+		mutex_unlock(&drv->lock);
+		return ret;
+	}
+
+	entry_count = readl_relaxed(drv->base + DDR_STATS_NUM_MODES_ADDR);
+	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
+		pr_err("Invalid entry count\n");
+		mutex_unlock(&drv->lock);
+		return -EINVAL;
+	}
+
+	vote_offset = entry_count * (sizeof(struct sleep_stats) - sizeof(u64));
+	reg = drv->base + drv->config->ddr_stats_offset;
+
+	for (i = 0; i < ss_count; i++, reg += sizeof(u32)) {
+		val[i] = readl_relaxed(reg + vote_offset);
+		if (val[i] == DRV_ABSENT) {
+			vote_info[i].ab = DRV_ABSENT;
+			vote_info[i].ib = DRV_ABSENT;
+			continue;
+		} else if (val[i] == DRV_INVALID) {
+			vote_info[i].ab = DRV_INVALID;
+			vote_info[i].ib = DRV_INVALID;
+			continue;
+		}
+
+		vote_info[i].ab = (val[i] >> VOTE_X_SHIFT) & VOTE_MASK;
+		vote_info[i].ib = val[i] & VOTE_MASK;
+	}
+
+	mutex_unlock(&drv->lock);
+	return 0;
+}
+EXPORT_SYMBOL(ddr_stats_get_ss_vote_info);
 
 static void qcom_print_stats(struct seq_file *s, const struct sleep_stats *stat)
 {
@@ -554,7 +626,6 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	struct dentry *root;
 	const struct stats_config *config;
 	struct stats_data *d;
-	struct stats_drvdata *drv;
 	int i;
 	int ret;
 
@@ -589,6 +660,12 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	drv->base = reg;
 	drv->root = root;
 	mutex_init(&drv->lock);
+
+	if (config->read_ddr_votes && config->ddr_stats_offset) {
+		drv->qmp = qmp_get(&pdev->dev);
+		if (IS_ERR(drv->qmp))
+			return PTR_ERR(drv->qmp);
+	}
 
 	ret = qcom_create_stats_device(drv);
 	if (ret)
@@ -639,6 +716,16 @@ static const struct stats_config rpmh_data = {
 	.subsystem_stats_in_smem = true,
 };
 
+static const struct stats_config rpmh_v2_data = {
+	.stats_offset = 0x48,
+	.ddr_stats_offset = 0xb8,
+	.num_records = 3,
+	.appended_stats_avail = false,
+	.dynamic_offset = false,
+	.subsystem_stats_in_smem = true,
+	.read_ddr_votes = true,
+};
+
 static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,apq8084-rpm-stats", .data = &rpm_data_dba0 },
 	{ .compatible = "qcom,msm8226-rpm-stats", .data = &rpm_data_dba0 },
@@ -646,6 +733,7 @@ static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,msm8974-rpm-stats", .data = &rpm_data_dba0 },
 	{ .compatible = "qcom,rpm-stats", .data = &rpm_data },
 	{ .compatible = "qcom,rpmh-stats", .data = &rpmh_data },
+	{ .compatible = "qcom,rpmh-stats-v2", .data = &rpmh_v2_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_stats_table);
