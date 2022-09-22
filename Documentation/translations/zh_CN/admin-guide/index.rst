@@ -63,6 +63,7 @@ Todolist:
 .. toctree::
    :maxdepth: 1
 
+   bootconfig
    clearing-warn-once
    cpu-load
    cputopology
@@ -80,7 +81,6 @@ Todolist:
 *   binderfs
 *   binfmt-misc
 *   blockdev/index
-*   bootconfig
 *   braille-console
 *   btmrvl
 *   cgroup-v1/index
