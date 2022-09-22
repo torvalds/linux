@@ -1680,6 +1680,7 @@ static const struct spi_device_id adin1110_spi_id[] = {
 	{ .name = "adin2111", .driver_data = ADIN2111_MAC },
 	{ }
 };
+MODULE_DEVICE_TABLE(spi, adin1110_spi_id);
 
 static struct spi_driver adin1110_driver = {
 	.driver = {
