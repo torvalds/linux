@@ -406,7 +406,7 @@ config QCOM_SPM
 
 config QCOM_STATS
 	tristate "Qualcomm Technologies, Inc. (QTI) Sleep stats driver"
-	depends on (ARCH_QCOM && DEBUG_FS) || COMPILE_TEST
+	depends on ARCH_QCOM || COMPILE_TEST
 	depends on QCOM_SMEM
 	help
 	  Qualcomm Technologies, Inc. (QTI) Sleep stats driver to read
