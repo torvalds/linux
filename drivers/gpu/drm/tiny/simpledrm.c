@@ -470,10 +470,10 @@ static const uint64_t simpledrm_primary_plane_format_modifiers[] = {
 };
 
 static void simpledrm_primary_plane_helper_atomic_update(struct drm_plane *plane,
-							 struct drm_atomic_state *old_state)
+							 struct drm_atomic_state *state)
 {
-	struct drm_plane_state *plane_state = plane->state;
-	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(old_state, plane);
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_device *dev = plane->dev;
@@ -503,7 +503,7 @@ static void simpledrm_primary_plane_helper_atomic_update(struct drm_plane *plane
 }
 
 static void simpledrm_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-							  struct drm_atomic_state *old_state)
+							  struct drm_atomic_state *state)
 {
 	struct drm_device *dev = plane->dev;
 	struct simpledrm_device *sdev = simpledrm_device_of_dev(dev);
