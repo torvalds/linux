@@ -1805,6 +1805,13 @@ bool dcn32_validate_bandwidth(struct dc *dc,
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
 	struct mall_temp_config mall_temp_config;
+
+	/* To handle Freesync properly, setting FreeSync DML parameters
+	 * to its default state for the first stage of validation
+	 */
+	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+	context->bw_ctx.dml.soc.dram_clock_change_requirement_final = true;
+
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	/* For fast validation, there are situations where a shallow copy of
