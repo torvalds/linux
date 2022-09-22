@@ -2071,9 +2071,6 @@ static int inode_needs_update_time(struct inode *inode, struct timespec64 *now)
 	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
 		sync_it |= S_VERSION;
 
-	if (!sync_it)
-		return 0;
-
 	return sync_it;
 }
 
