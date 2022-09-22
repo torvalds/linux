@@ -72,13 +72,13 @@ static struct rv_monitor rv_MODEL_NAME = {
 	.enabled = 0,
 };
 
-static int register_MODEL_NAME(void)
+static int __init register_MODEL_NAME(void)
 {
 	rv_register_monitor(&rv_MODEL_NAME);
 	return 0;
 }
 
-static void unregister_MODEL_NAME(void)
+static void __exit unregister_MODEL_NAME(void)
 {
 	rv_unregister_monitor(&rv_MODEL_NAME);
 }

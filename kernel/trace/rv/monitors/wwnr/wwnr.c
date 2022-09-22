@@ -68,13 +68,13 @@ static struct rv_monitor rv_wwnr = {
 	.enabled = 0,
 };
 
-static int register_wwnr(void)
+static int __init register_wwnr(void)
 {
 	rv_register_monitor(&rv_wwnr);
 	return 0;
 }
 
-static void unregister_wwnr(void)
+static void __exit unregister_wwnr(void)
 {
 	rv_unregister_monitor(&rv_wwnr);
 }
