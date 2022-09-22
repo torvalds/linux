@@ -1544,3 +1544,40 @@ out_inode_unlock:
 	return error;
 }
 EXPORT_SYMBOL_GPL(vfs_remove_acl);
+
+int do_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+	       const char *acl_name, const void *kvalue, size_t size)
+{
+	int error;
+	struct posix_acl *acl = NULL;
+
+	if (size) {
+		/*
+		 * Note that posix_acl_from_xattr() uses GFP_NOFS when it
+		 * probably doesn't need to here.
+		 */
+		acl = posix_acl_from_xattr(current_user_ns(), kvalue, size);
+		if (IS_ERR(acl))
+			return PTR_ERR(acl);
+	}
+
+	error = vfs_set_acl(mnt_userns, dentry, acl_name, acl);
+	posix_acl_release(acl);
+	return error;
+}
+
+ssize_t do_get_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   const char *acl_name, void *kvalue, size_t size)
+{
+	ssize_t error;
+	struct posix_acl *acl;
+
+	acl = vfs_get_acl(mnt_userns, dentry, acl_name);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+
+	error = vfs_posix_acl_to_xattr(mnt_userns, d_inode(dentry),
+				       acl, kvalue, size);
+	posix_acl_release(acl);
+	return error;
+}
