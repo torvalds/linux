@@ -422,5 +422,6 @@ int apmf_get_dyn_slider_def_dc(struct amd_pmf_dev *pdev, struct apmf_dyn_slider_
 int amd_pmf_init_cnqf(struct amd_pmf_dev *dev);
 void amd_pmf_deinit_cnqf(struct amd_pmf_dev *dev);
 int amd_pmf_trans_cnqf(struct amd_pmf_dev *dev, int socket_power, ktime_t time_lapsed_ms);
+extern const struct attribute_group cnqf_feature_attribute_group;
 
 #endif /* PMF_H */

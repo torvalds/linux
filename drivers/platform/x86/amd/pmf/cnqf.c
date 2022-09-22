@@ -302,6 +302,66 @@ static int amd_pmf_load_defaults_cnqf(struct amd_pmf_dev *dev)
 	return 0;
 }
 
+static ssize_t cnqf_enable_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct amd_pmf_dev *pdev = dev_get_drvdata(dev);
+	int mode, result, src;
+	bool input;
+
+	mode = amd_pmf_get_pprof_modes(pdev);
+	if (mode < 0)
+		return mode;
+
+	result = kstrtobool(buf, &input);
+	if (result)
+		return result;
+
+	src = amd_pmf_cnqf_get_power_source(pdev);
+	pdev->cnqf_enabled = input;
+
+	if (pdev->cnqf_enabled && pdev->current_profile == PLATFORM_PROFILE_BALANCED) {
+		amd_pmf_set_cnqf(pdev, src, config_store.current_mode, NULL);
+	} else {
+		if (is_apmf_func_supported(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR))
+			amd_pmf_update_slider(pdev, SLIDER_OP_SET, mode, NULL);
+	}
+
+	dev_dbg(pdev->dev, "Received CnQF %s\n", input ? "on" : "off");
+	return count;
+}
+
+static ssize_t cnqf_enable_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct amd_pmf_dev *pdev = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", pdev->cnqf_enabled ? "on" : "off");
+}
+
+static DEVICE_ATTR_RW(cnqf_enable);
+
+static umode_t cnqf_feature_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct amd_pmf_dev *pdev = dev_get_drvdata(dev);
+
+	return pdev->cnqf_supported ? attr->mode : 0;
+}
+
+static struct attribute *cnqf_feature_attrs[] = {
+	&dev_attr_cnqf_enable.attr,
+	NULL
+};
+
+const struct attribute_group cnqf_feature_attribute_group = {
+	.is_visible = cnqf_feature_is_visible,
+	.attrs = cnqf_feature_attrs,
+};
+
 void amd_pmf_deinit_cnqf(struct amd_pmf_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->work_buffer);

@@ -391,10 +391,16 @@ static int amd_pmf_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct attribute_group *amd_pmf_driver_groups[] = {
+	&cnqf_feature_attribute_group,
+	NULL,
+};
+
 static struct platform_driver amd_pmf_driver = {
 	.driver = {
 		.name = "amd-pmf",
 		.acpi_match_table = amd_pmf_acpi_ids,
+		.dev_groups = amd_pmf_driver_groups,
 	},
 	.probe = amd_pmf_probe,
 	.remove = amd_pmf_remove,
