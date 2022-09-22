@@ -1689,7 +1689,7 @@ static int hl_dmabuf_attach(struct dma_buf *dmabuf,
 	hl_dmabuf = dmabuf->priv;
 	hdev = hl_dmabuf->ctx->hdev;
 
-	rc = pci_p2pdma_distance_many(hdev->pdev, &attachment->dev, 1, true);
+	rc = pci_p2pdma_distance(hdev->pdev, attachment->dev, true);
 
 	if (rc < 0)
 		attachment->peer2peer = false;
