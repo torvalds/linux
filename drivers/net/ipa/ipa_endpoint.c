@@ -752,34 +752,38 @@ static int ipa_qtime_val(u32 microseconds, u32 max)
 /* Encode the aggregation timer limit (microseconds) based on IPA version */
 static u32 aggr_time_limit_encode(enum ipa_version version, u32 microseconds)
 {
-	u32 gran_sel;
 	u32 fmask;
 	u32 val;
-	int ret;
 
-	if (version < IPA_VERSION_4_5) {
-		/* We set aggregation granularity in ipa_hardware_config() */
-		fmask = aggr_time_limit_fmask(true);
-		val = DIV_ROUND_CLOSEST(microseconds, IPA_AGGR_GRANULARITY);
-		WARN(val > field_max(fmask),
-		     "aggr_time_limit too large (%u > %u usec)\n",
-		     val, field_max(fmask) * IPA_AGGR_GRANULARITY);
+	if (!microseconds)
+		return 0;	/* Nothing to compute if time limit is 0 */
 
-		return u32_encode_bits(val, fmask);
+	if (version >= IPA_VERSION_4_5) {
+		u32 gran_sel;
+		int ret;
+
+		/* Compute the Qtime limit value to use */
+		fmask = aggr_time_limit_fmask(false);
+		ret = ipa_qtime_val(microseconds, field_max(fmask));
+		if (ret < 0) {
+			val = -ret;
+			gran_sel = AGGR_GRAN_SEL_FMASK;
+		} else {
+			val = ret;
+			gran_sel = 0;
+		}
+
+		return gran_sel | u32_encode_bits(val, fmask);
 	}
 
-	/* Compute the Qtime limit value to use */
-	fmask = aggr_time_limit_fmask(false);
-	ret = ipa_qtime_val(microseconds, field_max(fmask));
-	if (ret < 0) {
-		val = -ret;
-		gran_sel = AGGR_GRAN_SEL_FMASK;
-	} else {
-		val = ret;
-		gran_sel = 0;
-	}
+	/* We set aggregation granularity in ipa_hardware_config() */
+	fmask = aggr_time_limit_fmask(true);
+	val = DIV_ROUND_CLOSEST(microseconds, IPA_AGGR_GRANULARITY);
+	WARN(val > field_max(fmask),
+	     "aggr_time_limit too large (%u > %u usec)\n",
+	     val, field_max(fmask) * IPA_AGGR_GRANULARITY);
 
-	return gran_sel | u32_encode_bits(val, fmask);
+	return u32_encode_bits(val, fmask);
 }
 
 static u32 aggr_sw_eof_active_encoded(enum ipa_version version, bool enabled)
@@ -837,28 +841,6 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/* Return the Qtime-based head-of-line blocking timer value that
- * represents the given number of microseconds.  The result
- * includes both the timer value and the selected timer granularity.
- */
-static u32 hol_block_timer_qtime_encode(struct ipa *ipa, u32 microseconds)
-{
-	u32 gran_sel;
-	u32 val;
-	int ret;
-
-	ret = ipa_qtime_val(microseconds, field_max(TIME_LIMIT_FMASK));
-	if (ret < 0) {
-		val = -ret;
-		gran_sel = GRAN_SEL_FMASK;
-	} else {
-		val = ret;
-		gran_sel = 0;
-	}
-
-	return gran_sel | u32_encode_bits(val, TIME_LIMIT_FMASK);
-}
-
 /* The head-of-line blocking timer is defined as a tick count.  For
  * IPA version 4.5 the tick count is based on the Qtimer, which is
  * derived from the 19.2 MHz SoC XO clock.  For older IPA versions
@@ -879,8 +861,22 @@ static u32 hol_block_timer_encode(struct ipa *ipa, u32 microseconds)
 	if (!microseconds)
 		return 0;	/* Nothing to compute if timer period is 0 */
 
-	if (ipa->version >= IPA_VERSION_4_5)
-		return hol_block_timer_qtime_encode(ipa, microseconds);
+	if (ipa->version >= IPA_VERSION_4_5) {
+		u32 gran_sel;
+		int ret;
+
+		/* Compute the Qtime limit value to use */
+		ret = ipa_qtime_val(microseconds, field_max(TIME_LIMIT_FMASK));
+		if (ret < 0) {
+			val = -ret;
+			gran_sel = GRAN_SEL_FMASK;
+		} else {
+			val = ret;
+			gran_sel = 0;
+		}
+
+		return gran_sel | u32_encode_bits(val, TIME_LIMIT_FMASK);
+	}
 
 	/* Use 64 bit arithmetic to avoid overflow... */
 	rate = ipa_core_clock_rate(ipa);
