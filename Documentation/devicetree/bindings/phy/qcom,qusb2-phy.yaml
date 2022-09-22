@@ -30,6 +30,7 @@ properties:
       - items:
           - enum:
               - qcom,sc7180-qusb2-phy
+              - qcom,sdm670-qusb2-phy
               - qcom,sdm845-qusb2-phy
               - qcom,sm6350-qusb2-phy
           - const: qcom,qusb2-v2-phy
