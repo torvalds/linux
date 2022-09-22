@@ -48,7 +48,7 @@ static int regmap_mmio_get_min_stride(size_t val_bits)
 	case 8:
 		/* The core treats 0 as 1 */
 		min_stride = 0;
-		return 0;
+		break;
 	case 16:
 		min_stride = 2;
 		break;
