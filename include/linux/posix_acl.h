@@ -102,6 +102,8 @@ static inline void cache_no_acl(struct inode *inode)
 
 int vfs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		const char *acl_name, struct posix_acl *kacl);
+struct posix_acl *vfs_get_acl(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, const char *acl_name);
 #else
 static inline int posix_acl_chmod(struct user_namespace *mnt_userns,
 				  struct dentry *dentry, umode_t mode)
@@ -135,6 +137,13 @@ static inline int vfs_set_acl(struct user_namespace *mnt_userns,
 			      struct posix_acl *acl)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline struct posix_acl *vfs_get_acl(struct user_namespace *mnt_userns,
+					    struct dentry *dentry,
+					    const char *acl_name)
+{
+	return ERR_PTR(-EOPNOTSUPP);
 }
 #endif /* CONFIG_FS_POSIX_ACL */
 

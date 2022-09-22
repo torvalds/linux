@@ -111,7 +111,9 @@ void forget_all_cached_acls(struct inode *inode)
 }
 EXPORT_SYMBOL(forget_all_cached_acls);
 
-struct posix_acl *get_inode_acl(struct inode *inode, int type)
+static struct posix_acl *__get_acl(struct user_namespace *mnt_userns,
+				   struct dentry *dentry, struct inode *inode,
+				   int type)
 {
 	void *sentinel;
 	struct posix_acl **p;
@@ -144,19 +146,21 @@ struct posix_acl *get_inode_acl(struct inode *inode, int type)
 	cmpxchg(p, ACL_NOT_CACHED, sentinel);
 
 	/*
-	 * Normally, the ACL returned by ->get_inode_acl will be cached.
+	 * Normally, the ACL returned by ->get{_inode}_acl will be cached.
 	 * A filesystem can prevent that by calling
-	 * forget_cached_acl(inode, type) in ->get_inode_acl.
+	 * forget_cached_acl(inode, type) in ->get{_inode}_acl.
 	 *
-	 * If the filesystem doesn't have a get_inode_acl() function at all,
+	 * If the filesystem doesn't have a get{_inode}_ acl() function at all,
 	 * we'll just create the negative cache entry.
 	 */
-	if (!inode->i_op->get_inode_acl) {
+	if (dentry && inode->i_op->get_acl) {
+		acl = inode->i_op->get_acl(mnt_userns, dentry, type);
+	} else if (inode->i_op->get_inode_acl) {
+		acl = inode->i_op->get_inode_acl(inode, type, false);
+	} else {
 		set_cached_acl(inode, type, NULL);
 		return NULL;
 	}
-	acl = inode->i_op->get_inode_acl(inode, type, false);
-
 	if (IS_ERR(acl)) {
 		/*
 		 * Remove our sentinel so that we don't block future attempts
@@ -173,6 +177,11 @@ struct posix_acl *get_inode_acl(struct inode *inode, int type)
 	if (unlikely(cmpxchg(p, sentinel, acl) != sentinel))
 		posix_acl_release(acl);
 	return acl;
+}
+
+struct posix_acl *get_inode_acl(struct inode *inode, int type)
+{
+	return __get_acl(&init_user_ns, NULL, inode, type);
 }
 EXPORT_SYMBOL(get_inode_acl);
 
@@ -1120,6 +1129,67 @@ posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
 }
 EXPORT_SYMBOL (posix_acl_to_xattr);
 
+/**
+ * vfs_posix_acl_to_xattr - convert from kernel to userspace representation
+ * @mnt_userns: user namespace of the mount
+ * @inode: inode the posix acls are set on
+ * @acl: the posix acls as represented by the vfs
+ * @buffer: the buffer into which to convert @acl
+ * @size: size of @buffer
+ *
+ * This converts @acl from the VFS representation in the filesystem idmapping
+ * to the uapi form reportable to userspace. And mount and caller idmappings
+ * are handled appropriately.
+ *
+ * Return: On success, the size of the stored uapi posix acls, on error a
+ * negative errno.
+ */
+ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
+			       struct inode *inode, const struct posix_acl *acl,
+			       void *buffer, size_t size)
+
+{
+	struct posix_acl_xattr_header *ext_acl = buffer;
+	struct posix_acl_xattr_entry *ext_entry;
+	struct user_namespace *fs_userns, *caller_userns;
+	ssize_t real_size, n;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
+
+	real_size = posix_acl_xattr_size(acl->a_count);
+	if (!buffer)
+		return real_size;
+	if (real_size > size)
+		return -ERANGE;
+
+	ext_entry = (void *)(ext_acl + 1);
+	ext_acl->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
+
+	fs_userns = i_user_ns(inode);
+	caller_userns = current_user_ns();
+	for (n=0; n < acl->a_count; n++, ext_entry++) {
+		const struct posix_acl_entry *acl_e = &acl->a_entries[n];
+		ext_entry->e_tag  = cpu_to_le16(acl_e->e_tag);
+		ext_entry->e_perm = cpu_to_le16(acl_e->e_perm);
+		switch(acl_e->e_tag) {
+		case ACL_USER:
+			vfsuid = make_vfsuid(mnt_userns, fs_userns, acl_e->e_uid);
+			ext_entry->e_id = cpu_to_le32(from_kuid(
+				caller_userns, vfsuid_into_kuid(vfsuid)));
+			break;
+		case ACL_GROUP:
+			vfsgid = make_vfsgid(mnt_userns, fs_userns, acl_e->e_gid);
+			ext_entry->e_id = cpu_to_le32(from_kgid(
+				caller_userns, vfsgid_into_kgid(vfsgid)));
+			break;
+		default:
+			ext_entry->e_id = cpu_to_le32(ACL_UNDEFINED_ID);
+			break;
+		}
+	}
+	return real_size;
+}
+
 static int
 posix_acl_xattr_get(const struct xattr_handler *handler,
 		    struct dentry *unused, struct inode *inode,
@@ -1364,3 +1434,48 @@ out_inode_unlock:
 	return error;
 }
 EXPORT_SYMBOL_GPL(vfs_set_acl);
+
+/**
+ * vfs_get_acl - get posix acls
+ * @mnt_userns: user namespace of the mount
+ * @dentry: the dentry based on which to retrieve the posix acls
+ * @acl_name: the name of the posix acl
+ *
+ * This function retrieves @kacl from the filesystem. The caller must all
+ * posix_acl_release() on @kacl.
+ *
+ * Return: On success POSIX ACLs in VFS format, on error negative errno.
+ */
+struct posix_acl *vfs_get_acl(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, const char *acl_name)
+{
+	struct inode *inode = d_inode(dentry);
+	struct posix_acl *acl;
+	int acl_type, error;
+
+	acl_type = posix_acl_type(acl_name);
+	if (acl_type < 0)
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * The VFS has no restrictions on reading POSIX ACLs so calling
+	 * something like xattr_permission() isn't needed. Only LSMs get a say.
+	 */
+	error = security_inode_get_acl(mnt_userns, dentry, acl_name);
+	if (error)
+		return ERR_PTR(error);
+
+	if (!IS_POSIXACL(inode))
+		return ERR_PTR(-EOPNOTSUPP);
+	if (S_ISLNK(inode->i_mode))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	acl = __get_acl(mnt_userns, dentry, inode, acl_type);
+	if (IS_ERR(acl))
+		return acl;
+	if (!acl)
+		return ERR_PTR(-ENODATA);
+
+	return acl;
+}
+EXPORT_SYMBOL_GPL(vfs_get_acl);
