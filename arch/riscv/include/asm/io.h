@@ -114,9 +114,9 @@ __io_reads_ins(reads, u32, l, __io_br(), __io_ar(addr))
 __io_reads_ins(ins,  u8, b, __io_pbr(), __io_par(addr))
 __io_reads_ins(ins, u16, w, __io_pbr(), __io_par(addr))
 __io_reads_ins(ins, u32, l, __io_pbr(), __io_par(addr))
-#define insb(addr, buffer, count) __insb((void __iomem *)(long)addr, buffer, count)
-#define insw(addr, buffer, count) __insw((void __iomem *)(long)addr, buffer, count)
-#define insl(addr, buffer, count) __insl((void __iomem *)(long)addr, buffer, count)
+#define insb(addr, buffer, count) __insb(PCI_IOBASE + (addr), buffer, count)
+#define insw(addr, buffer, count) __insw(PCI_IOBASE + (addr), buffer, count)
+#define insl(addr, buffer, count) __insl(PCI_IOBASE + (addr), buffer, count)
 
 __io_writes_outs(writes,  u8, b, __io_bw(), __io_aw())
 __io_writes_outs(writes, u16, w, __io_bw(), __io_aw())
@@ -128,22 +128,22 @@ __io_writes_outs(writes, u32, l, __io_bw(), __io_aw())
 __io_writes_outs(outs,  u8, b, __io_pbw(), __io_paw())
 __io_writes_outs(outs, u16, w, __io_pbw(), __io_paw())
 __io_writes_outs(outs, u32, l, __io_pbw(), __io_paw())
-#define outsb(addr, buffer, count) __outsb((void __iomem *)(long)addr, buffer, count)
-#define outsw(addr, buffer, count) __outsw((void __iomem *)(long)addr, buffer, count)
-#define outsl(addr, buffer, count) __outsl((void __iomem *)(long)addr, buffer, count)
+#define outsb(addr, buffer, count) __outsb(PCI_IOBASE + (addr), buffer, count)
+#define outsw(addr, buffer, count) __outsw(PCI_IOBASE + (addr), buffer, count)
+#define outsl(addr, buffer, count) __outsl(PCI_IOBASE + (addr), buffer, count)
 
 #ifdef CONFIG_64BIT
 __io_reads_ins(reads, u64, q, __io_br(), __io_ar(addr))
 #define readsq(addr, buffer, count) __readsq(addr, buffer, count)
 
 __io_reads_ins(ins, u64, q, __io_pbr(), __io_par(addr))
-#define insq(addr, buffer, count) __insq((void __iomem *)addr, buffer, count)
+#define insq(addr, buffer, count) __insq(PCI_IOBASE + (addr), buffer, count)
 
 __io_writes_outs(writes, u64, q, __io_bw(), __io_aw())
 #define writesq(addr, buffer, count) __writesq(addr, buffer, count)
 
 __io_writes_outs(outs, u64, q, __io_pbr(), __io_paw())
-#define outsq(addr, buffer, count) __outsq((void __iomem *)addr, buffer, count)
+#define outsq(addr, buffer, count) __outsq(PCI_IOBASE + (addr), buffer, count)
 #endif
 
 #include <asm-generic/io.h>
