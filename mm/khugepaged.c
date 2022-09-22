@@ -2372,6 +2372,7 @@ static int madvise_collapse_errno(enum scan_result r)
 	/* Resource temporary unavailable - trying again might succeed */
 	case SCAN_PAGE_LOCK:
 	case SCAN_PAGE_LRU:
+	case SCAN_DEL_PAGE_LRU:
 		return -EAGAIN;
 	/*
 	 * Other: Trying again likely not to succeed / error intrinsic to
@@ -2454,6 +2455,7 @@ int madvise_collapse(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		case SCAN_PAGE_LOCK:
 		case SCAN_PAGE_COMPOUND:
 		case SCAN_PAGE_LRU:
+		case SCAN_DEL_PAGE_LRU:
 			last_fail = result;
 			break;
 		default:
