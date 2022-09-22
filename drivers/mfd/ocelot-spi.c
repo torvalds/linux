@@ -276,6 +276,7 @@ static const struct spi_device_id ocelot_spi_ids[] = {
 	{ "vsc7512", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(spi, ocelot_spi_ids);
 
 static const struct of_device_id ocelot_spi_of_match[] = {
 	{ .compatible = "mscc,vsc7512" },
