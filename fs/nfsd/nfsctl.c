@@ -206,12 +206,7 @@ static const struct file_operations pool_stats_operations = {
 
 DEFINE_SHOW_ATTRIBUTE(nfsd_reply_cache_stats);
 
-static const struct file_operations filecache_ops = {
-	.open		= nfsd_file_cache_stats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(nfsd_file_cache_stats);
 
 /*----------------------------------------------------------------------------*/
 /*
@@ -1355,7 +1350,7 @@ static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
 		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
 		[NFSD_MaxConnections] = {"max_connections", &transaction_ops, S_IWUSR|S_IRUGO},
-		[NFSD_Filecache] = {"filecache", &filecache_ops, S_IRUGO},
+		[NFSD_Filecache] = {"filecache", &nfsd_file_cache_stats_fops, S_IRUGO},
 #if defined(CONFIG_SUNRPC_GSS) || defined(CONFIG_SUNRPC_GSS_MODULE)
 		[NFSD_SupportedEnctypes] = {"supported_krb5_enctypes",
 					&supported_enctypes_fops, S_IRUGO},

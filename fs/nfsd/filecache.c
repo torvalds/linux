@@ -1212,7 +1212,7 @@ nfsd_file_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
  * scraping this file for info should test the labels to ensure they're
  * getting the correct field.
  */
-static int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
+int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 {
 	unsigned long releases = 0, pages_flushed = 0, evictions = 0;
 	unsigned long hits = 0, acquisitions = 0;
@@ -1258,9 +1258,4 @@ static int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 		seq_printf(m, "mean age (ms): -\n");
 	seq_printf(m, "pages flushed: %lu\n", pages_flushed);
 	return 0;
-}
-
-int nfsd_file_cache_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nfsd_file_cache_stats_show, NULL);
 }
