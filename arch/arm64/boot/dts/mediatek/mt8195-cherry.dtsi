@@ -26,6 +26,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	dmic-codec {
+		compatible = "dmic-codec";
+		num-channels = <2>;
+		wakeup-delay-ms = <50>;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x80000000>;
@@ -135,6 +141,14 @@
 			reg = <0 0x60e80000 0 0x280000>;
 			no-map;
 		};
+	};
+
+	spk_amplifier: rt1019p {
+		compatible = "realtek,rt1019p";
+		label = "rt1019p";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rt1019p_pins_default>;
+		sdb-gpios = <&pio 100 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -257,6 +271,17 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
+
+	audio_codec: codec@1a {
+		/* Realtek RT5682i or RT5682s, sharing the same configuration */
+		reg = <0x1a>;
+		interrupts-extended = <&pio 89 IRQ_TYPE_EDGE_BOTH>;
+		realtek,jd-src = <1>;
+
+		AVDD-supply = <&mt6359_vio18_ldo_reg>;
+		MICVDD-supply = <&pp3300_z2>;
+		VBAT-supply = <&pp3300_z5>;
+	};
 };
 
 &i2c3 {
@@ -359,6 +384,11 @@
 	sd-uhs-sdr104;
 	vmmc-supply = <&mt_pmic_vmch_ldo_reg>;
 	vqmmc-supply = <&mt_pmic_vmc_ldo_reg>;
+};
+
+&mt6359codec {
+	mediatek,dmic-mode = <1>;  /* one-wire */
+	mediatek,mic-type-0 = <2>; /* DMIC */
 };
 
 /* for CPU-L */
@@ -806,6 +836,13 @@
 				 <PINMUX_GPIO107__FUNC_GPIO107>;
 			input-enable;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_01>;
+		};
+	};
+
+	rt1019p_pins_default: rt1019p-default-pins {
+		pins-amp-sdb {
+			pinmux = <PINMUX_GPIO100__FUNC_GPIO100>;
+			output-low;
 		};
 	};
 
