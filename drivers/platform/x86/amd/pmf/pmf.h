@@ -333,7 +333,6 @@ struct cnqf_mode_settings {
 
 struct cnqf_tran_params {
 	u32 time_constant; /* minimum time required to switch to next mode */
-	u32 power_delta; /* minimum power required to switch to next mode */
 	u32 power_threshold;
 	u32 timer; /* elapsed time. if timer > timethreshold, it will move to next mode */
 	u32 total_power;
@@ -343,21 +342,11 @@ struct cnqf_tran_params {
 	enum cnqf_mode target_mode;
 };
 
-struct cnqf_power_delta {
-	u32 to_turbo;
-	u32 balance_to_perf;
-	u32 quiet_to_balance;
-	u32 to_quiet;
-	u32 perf_to_balance;
-	u32 turbo_to_perf;
-};
-
 struct cnqf_config {
 	struct cnqf_tran_params trans_param[POWER_SOURCE_MAX][CNQF_TRANSITION_MAX];
 	struct cnqf_mode_settings mode_set[POWER_SOURCE_MAX][CNQF_MODE_MAX];
 	struct power_table_control defaults;
 	enum cnqf_mode current_mode;
-	struct cnqf_power_delta power_delta[POWER_SOURCE_MAX];
 	u32 power_src;
 	u32 avg_power;
 };

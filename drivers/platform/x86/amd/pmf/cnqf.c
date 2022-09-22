@@ -45,27 +45,27 @@ static void amd_pmf_update_power_threshold(int src)
 
 	tp = &config_store.trans_param[src][CNQF_TRANSITION_TO_QUIET];
 	ts = &config_store.mode_set[src][CNQF_MODE_BALANCE];
-	tp->power_threshold = ts->power_floor - tp->power_delta;
+	tp->power_threshold = ts->power_floor;
 
 	tp = &config_store.trans_param[src][CNQF_TRANSITION_TO_TURBO];
 	ts = &config_store.mode_set[src][CNQF_MODE_PERFORMANCE];
-	tp->power_threshold = ts->power_floor - tp->power_delta;
+	tp->power_threshold = ts->power_floor;
 
 	tp = &config_store.trans_param[src][CNQF_TRANSITION_FROM_BALANCE_TO_PERFORMANCE];
 	ts = &config_store.mode_set[src][CNQF_MODE_BALANCE];
-	tp->power_threshold = ts->power_floor - tp->power_delta;
+	tp->power_threshold = ts->power_floor;
 
 	tp = &config_store.trans_param[src][CNQF_TRANSITION_FROM_PERFORMANCE_TO_BALANCE];
 	ts = &config_store.mode_set[src][CNQF_MODE_PERFORMANCE];
-	tp->power_threshold = ts->power_floor - tp->power_delta;
+	tp->power_threshold = ts->power_floor;
 
 	tp = &config_store.trans_param[src][CNQF_TRANSITION_FROM_QUIET_TO_BALANCE];
 	ts = &config_store.mode_set[src][CNQF_MODE_QUIET];
-	tp->power_threshold = ts->power_floor - tp->power_delta;
+	tp->power_threshold = ts->power_floor;
 
 	tp = &config_store.trans_param[src][CNQF_TRANSITION_FROM_TURBO_TO_PERFORMANCE];
 	ts = &config_store.mode_set[src][CNQF_MODE_TURBO];
-	tp->power_threshold = ts->power_floor - tp->power_delta;
+	tp->power_threshold = ts->power_floor;
 }
 
 static const char *state_as_str(unsigned int state)
