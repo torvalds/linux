@@ -3703,6 +3703,50 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	return 0;
 }
 
+static void rtw89_mac_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
+						      struct cfg80211_bss *bss,
+						      void *data)
+{
+	const struct cfg80211_bss_ies *ies;
+	const struct element *elem;
+	bool *tolerated = data;
+
+	rcu_read_lock();
+	ies = rcu_dereference(bss->ies);
+	elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY, ies->data,
+				  ies->len);
+
+	if (!elem || elem->datalen < 10 ||
+	    !(elem->data[10] & WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT))
+		*tolerated = false;
+	rcu_read_unlock();
+}
+
+void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
+					struct ieee80211_vif *vif)
+{
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct ieee80211_hw *hw = rtwdev->hw;
+	bool tolerated = true;
+	u32 reg;
+
+	if (!vif->bss_conf.he_support || vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (!(vif->bss_conf.chandef.chan->flags & IEEE80211_CHAN_RADAR))
+		return;
+
+	cfg80211_bss_iter(hw->wiphy, &vif->bss_conf.chandef,
+			  rtw89_mac_check_he_obss_narrow_bw_ru_iter,
+			  &tolerated);
+
+	reg = rtw89_mac_reg_by_idx(R_AX_RXTRIG_TEST_USER_2, rtwvif->mac_idx);
+	if (tolerated)
+		rtw89_write32_clr(rtwdev, reg, B_AX_RXTRIG_RU26_DIS);
+	else
+		rtw89_write32_set(rtwdev, reg, B_AX_RXTRIG_RU26_DIS);
+}
+
 int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	int ret;
