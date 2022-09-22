@@ -2306,6 +2306,7 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	bool fastset = true;
 
 	/*
 	 * If BIOS has set an unsupported or non-standard link rate for some
@@ -2313,9 +2314,10 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 	 */
 	if (intel_dp_rate_index(intel_dp->source_rates, intel_dp->num_source_rates,
 				crtc_state->port_clock) < 0) {
-		drm_dbg_kms(&i915->drm, "Forcing full modeset due to unsupported link rate\n");
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Forcing full modeset due to unsupported link rate\n",
+			    encoder->base.base.id, encoder->base.name);
 		crtc_state->uapi.connectors_changed = true;
-		return false;
+		fastset = false;
 	}
 
 	/*
@@ -2326,18 +2328,20 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 	 * Remove once we have readout for DSC.
 	 */
 	if (crtc_state->dsc.compression_enable) {
-		drm_dbg_kms(&i915->drm, "Forcing full modeset due to DSC being enabled\n");
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Forcing full modeset due to DSC being enabled\n",
+			    encoder->base.base.id, encoder->base.name);
 		crtc_state->uapi.mode_changed = true;
-		return false;
+		fastset = false;
 	}
 
 	if (CAN_PSR(intel_dp)) {
-		drm_dbg_kms(&i915->drm, "Forcing full modeset to compute PSR state\n");
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Forcing full modeset to compute PSR state\n",
+			    encoder->base.base.id, encoder->base.name);
 		crtc_state->uapi.mode_changed = true;
-		return false;
+		fastset = false;
 	}
 
-	return true;
+	return fastset;
 }
 
 static void intel_dp_get_pcon_dsc_cap(struct intel_dp *intel_dp)
