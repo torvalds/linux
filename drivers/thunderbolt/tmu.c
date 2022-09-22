@@ -398,11 +398,10 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 
 	if (tb_route(sw)) {
 		bool unidirectional = sw->tmu.unidirectional;
-		struct tb_switch *parent = tb_switch_parent(sw);
 		struct tb_port *down, *up;
 		int ret;
 
-		down = tb_port_at(tb_route(sw), parent);
+		down = tb_switch_downstream_port(sw);
 		up = tb_upstream_port(sw);
 		/*
 		 * In case of uni-directional time sync, TMU handshake is
@@ -442,10 +441,9 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 
 static void __tb_switch_tmu_off(struct tb_switch *sw, bool unidirectional)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *down, *up;
 
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 	up = tb_upstream_port(sw);
 	/*
 	 * In case of any failure in one of the steps when setting
@@ -457,7 +455,8 @@ static void __tb_switch_tmu_off(struct tb_switch *sw, bool unidirectional)
 	tb_port_tmu_time_sync_disable(down);
 	tb_port_tmu_time_sync_disable(up);
 	if (unidirectional)
-		tb_switch_tmu_rate_write(parent, TB_SWITCH_TMU_RATE_OFF);
+		tb_switch_tmu_rate_write(tb_switch_parent(sw),
+					 TB_SWITCH_TMU_RATE_OFF);
 	else
 		tb_switch_tmu_rate_write(sw, TB_SWITCH_TMU_RATE_OFF);
 
@@ -472,12 +471,11 @@ static void __tb_switch_tmu_off(struct tb_switch *sw, bool unidirectional)
  */
 static int __tb_switch_tmu_enable_bidirectional(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *up, *down;
 	int ret;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 
 	ret = tb_port_tmu_unidirectional_disable(up);
 	if (ret)
@@ -537,13 +535,13 @@ static int tb_switch_tmu_unidirectional_enable(struct tb_switch *sw)
  */
 static int __tb_switch_tmu_enable_unidirectional(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *up, *down;
 	int ret;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
-	ret = tb_switch_tmu_rate_write(parent, sw->tmu.rate_request);
+	down = tb_switch_downstream_port(sw);
+	ret = tb_switch_tmu_rate_write(tb_switch_parent(sw),
+				       sw->tmu.rate_request);
 	if (ret)
 		return ret;
 
@@ -576,10 +574,9 @@ out:
 
 static void __tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *down, *up;
 
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 	up = tb_upstream_port(sw);
 	/*
 	 * In case of any failure in one of the steps when change mode,
@@ -589,7 +586,7 @@ static void __tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
 	 */
 	tb_port_tmu_set_unidirectional(down, sw->tmu.unidirectional);
 	if (sw->tmu.unidirectional_request)
-		tb_switch_tmu_rate_write(parent, sw->tmu.rate);
+		tb_switch_tmu_rate_write(tb_switch_parent(sw), sw->tmu.rate);
 	else
 		tb_switch_tmu_rate_write(sw, sw->tmu.rate);
 
@@ -599,18 +596,18 @@ static void __tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
 
 static int __tb_switch_tmu_change_mode(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *up, *down;
 	int ret;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 	ret = tb_port_tmu_set_unidirectional(down, sw->tmu.unidirectional_request);
 	if (ret)
 		goto out;
 
 	if (sw->tmu.unidirectional_request)
-		ret = tb_switch_tmu_rate_write(parent, sw->tmu.rate_request);
+		ret = tb_switch_tmu_rate_write(tb_switch_parent(sw),
+					       sw->tmu.rate_request);
 	else
 		ret = tb_switch_tmu_rate_write(sw, sw->tmu.rate_request);
 	if (ret)

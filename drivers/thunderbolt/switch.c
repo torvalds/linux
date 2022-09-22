@@ -2754,7 +2754,6 @@ static int tb_switch_update_link_attributes(struct tb_switch *sw)
  */
 int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_to_switch(sw->dev.parent);
 	struct tb_port *up, *down;
 	u64 route = tb_route(sw);
 	int ret;
@@ -2766,7 +2765,7 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 		return 0;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(route, parent);
+	down = tb_switch_downstream_port(sw);
 
 	if (!tb_port_is_width_supported(up, 2) ||
 	    !tb_port_is_width_supported(down, 2))
@@ -2808,7 +2807,6 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
  */
 void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_to_switch(sw->dev.parent);
 	struct tb_port *up, *down;
 
 	if (!tb_route(sw))
@@ -2818,7 +2816,7 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 	if (!up->bonded)
 		return;
 
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 
 	tb_port_lane_bonding_disable(up);
 	tb_port_lane_bonding_disable(down);
@@ -3476,7 +3474,6 @@ struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 
 static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *up, *down;
 	int ret;
 
@@ -3484,7 +3481,7 @@ static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
 		return 0;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 	ret = tb_port_pm_secondary_enable(up);
 	if (ret)
 		return ret;
@@ -3494,7 +3491,6 @@ static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
 
 static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	bool up_clx_support, down_clx_support;
 	struct tb_port *up, *down;
 	int ret;
@@ -3510,7 +3506,7 @@ static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 		return 0;
 
 	/* Enable CLx only for first hop router (depth = 1) */
-	if (tb_route(parent))
+	if (tb_route(tb_switch_parent(sw)))
 		return 0;
 
 	ret = tb_switch_pm_secondary_resolve(sw);
@@ -3518,7 +3514,7 @@ static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 		return ret;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 
 	up_clx_support = tb_port_clx_supported(up, clx);
 	down_clx_support = tb_port_clx_supported(down, clx);
@@ -3594,7 +3590,6 @@ int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 
 static int __tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
 {
-	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *up, *down;
 	int ret;
 
@@ -3609,11 +3604,11 @@ static int __tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
 		return 0;
 
 	/* Disable CLx only for first hop router (depth = 1) */
-	if (tb_route(parent))
+	if (tb_route(tb_switch_parent(sw)))
 		return 0;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
+	down = tb_switch_downstream_port(sw);
 	ret = tb_port_clx_disable(up, clx);
 	if (ret)
 		return ret;

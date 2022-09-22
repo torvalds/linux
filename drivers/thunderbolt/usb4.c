@@ -234,8 +234,8 @@ static bool link_is_usb4(struct tb_port *port)
  */
 int usb4_switch_setup(struct tb_switch *sw)
 {
-	struct tb_port *downstream_port;
-	struct tb_switch *parent;
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *down;
 	bool tbt3, xhci;
 	u32 val = 0;
 	int ret;
@@ -249,9 +249,8 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	parent = tb_switch_parent(sw);
-	downstream_port = tb_port_at(tb_route(sw), parent);
-	sw->link_usb4 = link_is_usb4(downstream_port);
+	down = tb_switch_downstream_port(sw);
+	sw->link_usb4 = link_is_usb4(down);
 	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT");
 
 	xhci = val & ROUTER_CS_6_HCI;

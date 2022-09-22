@@ -628,7 +628,7 @@ static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
 	 * Look up available down port. Since we are chaining it should
 	 * be found right above this switch.
 	 */
-	port = tb_port_at(tb_route(sw), parent);
+	port = tb_switch_downstream_port(sw);
 	down = tb_find_usb3_down(parent, port);
 	if (!down)
 		return 0;
@@ -1378,7 +1378,6 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 {
 	struct tb_port *up, *down, *port;
 	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_switch *parent_sw;
 	struct tb_tunnel *tunnel;
 
 	up = tb_switch_find_port(sw, TB_TYPE_PCIE_UP);
@@ -1389,9 +1388,8 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	 * Look up available down port. Since we are chaining it should
 	 * be found right above this switch.
 	 */
-	parent_sw = tb_to_switch(sw->dev.parent);
-	port = tb_port_at(tb_route(sw), parent_sw);
-	down = tb_find_pcie_down(parent_sw, port);
+	port = tb_switch_downstream_port(sw);
+	down = tb_find_pcie_down(tb_switch_parent(sw), port);
 	if (!down)
 		return 0;
 

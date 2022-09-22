@@ -857,6 +857,20 @@ static inline struct tb_switch *tb_switch_parent(struct tb_switch *sw)
 	return tb_to_switch(sw->dev.parent);
 }
 
+/**
+ * tb_switch_downstream_port() - Return downstream facing port of parent router
+ * @sw: Device router pointer
+ *
+ * Only call for device routers. Returns the downstream facing port of
+ * the parent router.
+ */
+static inline struct tb_port *tb_switch_downstream_port(struct tb_switch *sw)
+{
+	if (WARN_ON(!tb_route(sw)))
+		return NULL;
+	return tb_port_at(tb_route(sw), tb_switch_parent(sw));
+}
+
 static inline bool tb_switch_is_light_ridge(const struct tb_switch *sw)
 {
 	return sw->config.vendor_id == PCI_VENDOR_ID_INTEL &&
