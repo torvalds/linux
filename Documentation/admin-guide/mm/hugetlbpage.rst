@@ -65,7 +65,7 @@ HugePages_Surp
 	may be temporarily larger than the maximum number of surplus huge
 	pages when the system is under memory pressure.
 Hugepagesize
-	is the default hugepage size (in Kb).
+	is the default hugepage size (in kB).
 Hugetlb
         is the total amount of memory (in kB), consumed by huge
         pages of all sizes.
