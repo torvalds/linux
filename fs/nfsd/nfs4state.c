@@ -974,19 +974,19 @@ out_free:
  * Create a unique stateid_t to represent each COPY.
  */
 static int nfs4_init_cp_state(struct nfsd_net *nn, copy_stateid_t *stid,
-			      unsigned char sc_type)
+			      unsigned char cs_type)
 {
 	int new_id;
 
-	stid->stid.si_opaque.so_clid.cl_boot = (u32)nn->boot_time;
-	stid->stid.si_opaque.so_clid.cl_id = nn->s2s_cp_cl_id;
-	stid->sc_type = sc_type;
+	stid->cs_stid.si_opaque.so_clid.cl_boot = (u32)nn->boot_time;
+	stid->cs_stid.si_opaque.so_clid.cl_id = nn->s2s_cp_cl_id;
+	stid->cs_type = cs_type;
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&nn->s2s_cp_lock);
 	new_id = idr_alloc_cyclic(&nn->s2s_cp_stateids, stid, 0, 0, GFP_NOWAIT);
-	stid->stid.si_opaque.so_id = new_id;
-	stid->stid.si_generation = 1;
+	stid->cs_stid.si_opaque.so_id = new_id;
+	stid->cs_stid.si_generation = 1;
 	spin_unlock(&nn->s2s_cp_lock);
 	idr_preload_end();
 	if (new_id < 0)
@@ -1008,7 +1008,7 @@ struct nfs4_cpntf_state *nfs4_alloc_init_cpntf_state(struct nfsd_net *nn,
 	if (!cps)
 		return NULL;
 	cps->cpntf_time = ktime_get_boottime_seconds();
-	refcount_set(&cps->cp_stateid.sc_count, 1);
+	refcount_set(&cps->cp_stateid.cs_count, 1);
 	if (!nfs4_init_cp_state(nn, &cps->cp_stateid, NFS4_COPYNOTIFY_STID))
 		goto out_free;
 	spin_lock(&nn->s2s_cp_lock);
@@ -1024,11 +1024,11 @@ void nfs4_free_copy_state(struct nfsd4_copy *copy)
 {
 	struct nfsd_net *nn;
 
-	WARN_ON_ONCE(copy->cp_stateid.sc_type != NFS4_COPY_STID);
+	WARN_ON_ONCE(copy->cp_stateid.cs_type != NFS4_COPY_STID);
 	nn = net_generic(copy->cp_clp->net, nfsd_net_id);
 	spin_lock(&nn->s2s_cp_lock);
 	idr_remove(&nn->s2s_cp_stateids,
-		   copy->cp_stateid.stid.si_opaque.so_id);
+		   copy->cp_stateid.cs_stid.si_opaque.so_id);
 	spin_unlock(&nn->s2s_cp_lock);
 }
 
@@ -6027,7 +6027,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 	spin_lock(&nn->s2s_cp_lock);
 	idr_for_each_entry(&nn->s2s_cp_stateids, cps_t, i) {
 		cps = container_of(cps_t, struct nfs4_cpntf_state, cp_stateid);
-		if (cps->cp_stateid.sc_type == NFS4_COPYNOTIFY_STID &&
+		if (cps->cp_stateid.cs_type == NFS4_COPYNOTIFY_STID &&
 				state_expired(&lt, cps->cpntf_time))
 			_free_cpntf_state_locked(nn, cps);
 	}
@@ -6359,12 +6359,12 @@ out:
 static void
 _free_cpntf_state_locked(struct nfsd_net *nn, struct nfs4_cpntf_state *cps)
 {
-	WARN_ON_ONCE(cps->cp_stateid.sc_type != NFS4_COPYNOTIFY_STID);
-	if (!refcount_dec_and_test(&cps->cp_stateid.sc_count))
+	WARN_ON_ONCE(cps->cp_stateid.cs_type != NFS4_COPYNOTIFY_STID);
+	if (!refcount_dec_and_test(&cps->cp_stateid.cs_count))
 		return;
 	list_del(&cps->cp_list);
 	idr_remove(&nn->s2s_cp_stateids,
-		   cps->cp_stateid.stid.si_opaque.so_id);
+		   cps->cp_stateid.cs_stid.si_opaque.so_id);
 	kfree(cps);
 }
 /*
@@ -6386,12 +6386,12 @@ __be32 manage_cpntf_state(struct nfsd_net *nn, stateid_t *st,
 	if (cps_t) {
 		state = container_of(cps_t, struct nfs4_cpntf_state,
 				     cp_stateid);
-		if (state->cp_stateid.sc_type != NFS4_COPYNOTIFY_STID) {
+		if (state->cp_stateid.cs_type != NFS4_COPYNOTIFY_STID) {
 			state = NULL;
 			goto unlock;
 		}
 		if (!clp)
-			refcount_inc(&state->cp_stateid.sc_count);
+			refcount_inc(&state->cp_stateid.cs_count);
 		else
 			_free_cpntf_state_locked(nn, state);
 	}
