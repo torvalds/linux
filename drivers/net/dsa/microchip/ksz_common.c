@@ -14,6 +14,9 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
+#include <linux/of_mdio.h>
 #include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/micrel_phy.h>
@@ -1653,9 +1656,394 @@ static void ksz_update_port_member(struct ksz_device *dev, int port)
 	dev->dev_ops->cfg_port_member(dev, port, port_member | cpu_port);
 }
 
+static int ksz_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
+{
+	struct ksz_device *dev = bus->priv;
+	u16 val;
+	int ret;
+
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
+	ret = dev->dev_ops->r_phy(dev, addr, regnum, &val);
+	if (ret < 0)
+		return ret;
+
+	return val;
+}
+
+static int ksz_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
+			     u16 val)
+{
+	struct ksz_device *dev = bus->priv;
+
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->w_phy(dev, addr, regnum, val);
+}
+
+static int ksz_irq_phy_setup(struct ksz_device *dev)
+{
+	struct dsa_switch *ds = dev->ds;
+	int phy;
+	int irq;
+	int ret;
+
+	for (phy = 0; phy < KSZ_MAX_NUM_PORTS; phy++) {
+		if (BIT(phy) & ds->phys_mii_mask) {
+			irq = irq_find_mapping(dev->ports[phy].pirq.domain,
+					       PORT_SRC_PHY_INT);
+			if (irq < 0) {
+				ret = irq;
+				goto out;
+			}
+			ds->slave_mii_bus->irq[phy] = irq;
+		}
+	}
+	return 0;
+out:
+	while (phy--)
+		if (BIT(phy) & ds->phys_mii_mask)
+			irq_dispose_mapping(ds->slave_mii_bus->irq[phy]);
+
+	return ret;
+}
+
+static void ksz_irq_phy_free(struct ksz_device *dev)
+{
+	struct dsa_switch *ds = dev->ds;
+	int phy;
+
+	for (phy = 0; phy < KSZ_MAX_NUM_PORTS; phy++)
+		if (BIT(phy) & ds->phys_mii_mask)
+			irq_dispose_mapping(ds->slave_mii_bus->irq[phy]);
+}
+
+static int ksz_mdio_register(struct ksz_device *dev)
+{
+	struct dsa_switch *ds = dev->ds;
+	struct device_node *mdio_np;
+	struct mii_bus *bus;
+	int ret;
+
+	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
+	if (!mdio_np)
+		return 0;
+
+	bus = devm_mdiobus_alloc(ds->dev);
+	if (!bus) {
+		of_node_put(mdio_np);
+		return -ENOMEM;
+	}
+
+	bus->priv = dev;
+	bus->read = ksz_sw_mdio_read;
+	bus->write = ksz_sw_mdio_write;
+	bus->name = "ksz slave smi";
+	snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+	bus->parent = ds->dev;
+	bus->phy_mask = ~ds->phys_mii_mask;
+
+	ds->slave_mii_bus = bus;
+
+	if (dev->irq > 0) {
+		ret = ksz_irq_phy_setup(dev);
+		if (ret) {
+			of_node_put(mdio_np);
+			return ret;
+		}
+	}
+
+	ret = devm_of_mdiobus_register(ds->dev, bus, mdio_np);
+	if (ret) {
+		dev_err(ds->dev, "unable to register MDIO bus %s\n",
+			bus->id);
+		if (dev->irq > 0)
+			ksz_irq_phy_free(dev);
+	}
+
+	of_node_put(mdio_np);
+
+	return ret;
+}
+
+static void ksz_girq_mask(struct irq_data *d)
+{
+	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
+	unsigned int n = d->hwirq;
+
+	dev->girq.masked |= (1 << n);
+}
+
+static void ksz_girq_unmask(struct irq_data *d)
+{
+	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
+	unsigned int n = d->hwirq;
+
+	dev->girq.masked &= ~(1 << n);
+}
+
+static void ksz_girq_bus_lock(struct irq_data *d)
+{
+	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
+
+	mutex_lock(&dev->lock_irq);
+}
+
+static void ksz_girq_bus_sync_unlock(struct irq_data *d)
+{
+	struct ksz_device *dev = irq_data_get_irq_chip_data(d);
+	int ret;
+
+	ret = ksz_write32(dev, REG_SW_PORT_INT_MASK__4, dev->girq.masked);
+	if (ret)
+		dev_err(dev->dev, "failed to change IRQ mask\n");
+
+	mutex_unlock(&dev->lock_irq);
+}
+
+static const struct irq_chip ksz_girq_chip = {
+	.name			= "ksz-global",
+	.irq_mask		= ksz_girq_mask,
+	.irq_unmask		= ksz_girq_unmask,
+	.irq_bus_lock		= ksz_girq_bus_lock,
+	.irq_bus_sync_unlock	= ksz_girq_bus_sync_unlock,
+};
+
+static int ksz_girq_domain_map(struct irq_domain *d,
+			       unsigned int irq, irq_hw_number_t hwirq)
+{
+	struct ksz_device *dev = d->host_data;
+
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_chip_and_handler(irq, &dev->girq.chip, handle_level_irq);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops ksz_girq_domain_ops = {
+	.map	= ksz_girq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static void ksz_girq_free(struct ksz_device *dev)
+{
+	int irq, virq;
+
+	free_irq(dev->irq, dev);
+
+	for (irq = 0; irq < dev->girq.nirqs; irq++) {
+		virq = irq_find_mapping(dev->girq.domain, irq);
+		irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(dev->girq.domain);
+}
+
+static irqreturn_t ksz_girq_thread_fn(int irq, void *dev_id)
+{
+	struct ksz_device *dev = dev_id;
+	unsigned int nhandled = 0;
+	unsigned int sub_irq;
+	unsigned int n;
+	u32 data;
+	int ret;
+
+	/* Read global interrupt status register */
+	ret = ksz_read32(dev, REG_SW_PORT_INT_STATUS__4, &data);
+	if (ret)
+		goto out;
+
+	for (n = 0; n < dev->girq.nirqs; ++n) {
+		if (data & (1 << n)) {
+			sub_irq = irq_find_mapping(dev->girq.domain, n);
+			handle_nested_irq(sub_irq);
+			++nhandled;
+		}
+	}
+out:
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+}
+
+static int ksz_girq_setup(struct ksz_device *dev)
+{
+	int ret, irq;
+
+	dev->girq.nirqs = dev->info->port_cnt;
+	dev->girq.domain = irq_domain_add_simple(NULL, dev->girq.nirqs, 0,
+						 &ksz_girq_domain_ops, dev);
+	if (!dev->girq.domain)
+		return -ENOMEM;
+
+	for (irq = 0; irq < dev->girq.nirqs; irq++)
+		irq_create_mapping(dev->girq.domain, irq);
+
+	dev->girq.chip = ksz_girq_chip;
+	dev->girq.masked = ~0;
+
+	ret = request_threaded_irq(dev->irq, NULL, ksz_girq_thread_fn,
+				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+				   dev_name(dev->dev), dev);
+	if (ret)
+		goto out;
+
+	return 0;
+
+out:
+	ksz_girq_free(dev);
+
+	return ret;
+}
+
+static void ksz_pirq_mask(struct irq_data *d)
+{
+	struct ksz_port *port = irq_data_get_irq_chip_data(d);
+	unsigned int n = d->hwirq;
+
+	port->pirq.masked |= (1 << n);
+}
+
+static void ksz_pirq_unmask(struct irq_data *d)
+{
+	struct ksz_port *port = irq_data_get_irq_chip_data(d);
+	unsigned int n = d->hwirq;
+
+	port->pirq.masked &= ~(1 << n);
+}
+
+static void ksz_pirq_bus_lock(struct irq_data *d)
+{
+	struct ksz_port *port = irq_data_get_irq_chip_data(d);
+	struct ksz_device *dev = port->ksz_dev;
+
+	mutex_lock(&dev->lock_irq);
+}
+
+static void ksz_pirq_bus_sync_unlock(struct irq_data *d)
+{
+	struct ksz_port *port = irq_data_get_irq_chip_data(d);
+	struct ksz_device *dev = port->ksz_dev;
+
+	ksz_pwrite8(dev, port->num, REG_PORT_INT_MASK, port->pirq.masked);
+	mutex_unlock(&dev->lock_irq);
+}
+
+static const struct irq_chip ksz_pirq_chip = {
+	.name			= "ksz-port",
+	.irq_mask		= ksz_pirq_mask,
+	.irq_unmask		= ksz_pirq_unmask,
+	.irq_bus_lock		= ksz_pirq_bus_lock,
+	.irq_bus_sync_unlock	= ksz_pirq_bus_sync_unlock,
+};
+
+static int ksz_pirq_domain_map(struct irq_domain *d, unsigned int irq,
+			       irq_hw_number_t hwirq)
+{
+	struct ksz_port *port = d->host_data;
+
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_chip_and_handler(irq, &port->pirq.chip, handle_level_irq);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops ksz_pirq_domain_ops = {
+	.map	= ksz_pirq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static void ksz_pirq_free(struct ksz_device *dev, u8 p)
+{
+	struct ksz_port *port = &dev->ports[p];
+	int irq, virq;
+	int irq_num;
+
+	irq_num = irq_find_mapping(dev->girq.domain, p);
+	if (irq_num < 0)
+		return;
+
+	free_irq(irq_num, port);
+
+	for (irq = 0; irq < port->pirq.nirqs; irq++) {
+		virq = irq_find_mapping(port->pirq.domain, irq);
+		irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(port->pirq.domain);
+}
+
+static irqreturn_t ksz_pirq_thread_fn(int irq, void *dev_id)
+{
+	struct ksz_port *port = dev_id;
+	unsigned int nhandled = 0;
+	struct ksz_device *dev;
+	unsigned int sub_irq;
+	unsigned int n;
+	u8 data;
+
+	dev = port->ksz_dev;
+
+	/* Read port interrupt status register */
+	ksz_pread8(dev, port->num, REG_PORT_INT_STATUS, &data);
+
+	for (n = 0; n < port->pirq.nirqs; ++n) {
+		if (data & (1 << n)) {
+			sub_irq = irq_find_mapping(port->pirq.domain, n);
+			handle_nested_irq(sub_irq);
+			++nhandled;
+		}
+	}
+
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+}
+
+static int ksz_pirq_setup(struct ksz_device *dev, u8 p)
+{
+	struct ksz_port *port = &dev->ports[p];
+	int ret, irq;
+	int irq_num;
+
+	port->pirq.nirqs = dev->info->port_nirqs;
+	port->pirq.domain = irq_domain_add_simple(dev->dev->of_node,
+						  port->pirq.nirqs, 0,
+						  &ksz_pirq_domain_ops,
+						  port);
+	if (!port->pirq.domain)
+		return -ENOMEM;
+
+	for (irq = 0; irq < port->pirq.nirqs; irq++)
+		irq_create_mapping(port->pirq.domain, irq);
+
+	port->pirq.chip = ksz_pirq_chip;
+	port->pirq.masked = ~0;
+
+	irq_num = irq_find_mapping(dev->girq.domain, p);
+	if (irq_num < 0)
+		return irq_num;
+
+	snprintf(port->pirq.name, sizeof(port->pirq.name), "port_irq-%d", p);
+
+	ret = request_threaded_irq(irq_num, NULL, ksz_pirq_thread_fn,
+				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+				   port->pirq.name, port);
+	if (ret)
+		goto out;
+
+	return 0;
+
+out:
+	ksz_pirq_free(dev, p);
+
+	return ret;
+}
+
 static int ksz_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	struct dsa_port *dp;
 	struct ksz_port *p;
 	const u16 *regs;
 	int ret;
@@ -1704,16 +2092,52 @@ static int ksz_setup(struct dsa_switch *ds)
 	p = &dev->ports[dev->cpu_port];
 	p->learning = true;
 
+	if (dev->irq > 0) {
+		ret = ksz_girq_setup(dev);
+		if (ret)
+			return ret;
+
+		dsa_switch_for_each_user_port(dp, dev->ds) {
+			ret = ksz_pirq_setup(dev, dp->index);
+			if (ret)
+				goto out_girq;
+		}
+	}
+
+	ret = ksz_mdio_register(dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to register the mdio");
+		goto out_pirq;
+	}
+
 	/* start switch */
 	regmap_update_bits(dev->regmap[0], regs[S_START_CTRL],
 			   SW_START, SW_START);
 
 	return 0;
+
+out_pirq:
+	if (dev->irq > 0)
+		dsa_switch_for_each_user_port(dp, dev->ds)
+			ksz_pirq_free(dev, dp->index);
+out_girq:
+	if (dev->irq > 0)
+		ksz_girq_free(dev);
+
+	return ret;
 }
 
 static void ksz_teardown(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	struct dsa_port *dp;
+
+	if (dev->irq > 0) {
+		dsa_switch_for_each_user_port(dp, dev->ds)
+			ksz_pirq_free(dev, dp->index);
+
+		ksz_girq_free(dev);
+	}
 
 	if (dev->dev_ops->teardown)
 		dev->dev_ops->teardown(ds);
