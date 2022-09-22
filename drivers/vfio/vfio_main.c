@@ -1097,40 +1097,29 @@ out_unlock:
 	return ret;
 }
 
-static int vfio_group_ioctl_set_container(struct vfio_group *group,
-					  int __user *arg)
+static struct vfio_container *vfio_container_from_file(struct file *file)
 {
-	struct fd f;
 	struct vfio_container *container;
+
+	/* Sanity check, is this really our fd? */
+	if (file->f_op != &vfio_fops)
+		return NULL;
+
+	container = file->private_data;
+	WARN_ON(!container); /* fget ensures we don't race vfio_release */
+	return container;
+}
+
+static int vfio_container_attach_group(struct vfio_container *container,
+				       struct vfio_group *group)
+{
 	struct vfio_iommu_driver *driver;
-	int container_fd;
 	int ret = 0;
+
+	lockdep_assert_held_write(&group->group_rwsem);
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
-
-	if (get_user(container_fd, arg))
-		return -EFAULT;
-	if (container_fd < 0)
-		return -EINVAL;
-	f = fdget(container_fd);
-	if (!f.file)
-		return -EBADF;
-
-	/* Sanity check, is this really our fd? */
-	if (f.file->f_op != &vfio_fops) {
-		ret = -EINVAL;
-		goto out_fdput;
-	}
-	container = f.file->private_data;
-	WARN_ON(!container); /* fget ensures we don't race vfio_release */
-
-	down_write(&group->group_rwsem);
-
-	if (group->container || WARN_ON(group->container_users)) {
-		ret = -EINVAL;
-		goto out_unlock_group;
-	}
 
 	down_write(&container->group_lock);
 
@@ -1142,7 +1131,7 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 	}
 
 	if (group->type == VFIO_IOMMU) {
-		ret = iommu_group_claim_dma_owner(group->iommu_group, f.file);
+		ret = iommu_group_claim_dma_owner(group->iommu_group, group);
 		if (ret)
 			goto out_unlock_container;
 	}
@@ -1170,9 +1159,38 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 
 out_unlock_container:
 	up_write(&container->group_lock);
-out_unlock_group:
+	return ret;
+}
+
+static int vfio_group_ioctl_set_container(struct vfio_group *group,
+					  int __user *arg)
+{
+	struct vfio_container *container;
+	struct fd f;
+	int ret;
+	int fd;
+
+	if (get_user(fd, arg))
+		return -EFAULT;
+
+	f = fdget(fd);
+	if (!f.file)
+		return -EBADF;
+
+	down_write(&group->group_rwsem);
+	if (group->container || WARN_ON(group->container_users)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+	container = vfio_container_from_file(f.file);
+	ret = -EINVAL;
+	if (container) {
+		ret = vfio_container_attach_group(container, group);
+		goto out_unlock;
+	}
+
+out_unlock:
 	up_write(&group->group_rwsem);
-out_fdput:
 	fdput(f);
 	return ret;
 }
