@@ -435,66 +435,6 @@ static enum integrity_status evm_verify_current_integrity(struct dentry *dentry)
 }
 
 /*
- * evm_xattr_acl_change - check if passed ACL changes the inode mode
- * @mnt_userns: user namespace of the idmapped mount
- * @dentry: pointer to the affected dentry
- * @xattr_name: requested xattr
- * @xattr_value: requested xattr value
- * @xattr_value_len: requested xattr value length
- *
- * Check if passed ACL changes the inode mode, which is protected by EVM.
- *
- * Returns 1 if passed ACL causes inode mode change, 0 otherwise.
- */
-static int evm_xattr_acl_change(struct user_namespace *mnt_userns,
-				struct dentry *dentry, const char *xattr_name,
-				const void *xattr_value, size_t xattr_value_len)
-{
-#ifdef CONFIG_FS_POSIX_ACL
-	umode_t mode;
-	struct posix_acl *acl = NULL, *acl_res;
-	struct inode *inode = d_backing_inode(dentry);
-	int rc;
-
-	/*
-	 * An earlier comment here mentioned that the idmappings for
-	 * ACL_{GROUP,USER} don't matter since EVM is only interested in the
-	 * mode stored as part of POSIX ACLs. Nonetheless, if it must translate
-	 * from the uapi POSIX ACL representation to the VFS internal POSIX ACL
-	 * representation it should do so correctly. There's no guarantee that
-	 * we won't change POSIX ACLs in a way that ACL_{GROUP,USER} matters
-	 * for the mode at some point and it's difficult to keep track of all
-	 * the LSM and integrity modules and what they do to POSIX ACLs.
-	 *
-	 * Frankly, EVM shouldn't try to interpret the uapi struct for POSIX
-	 * ACLs it received. It requires knowledge that only the VFS is
-	 * guaranteed to have.
-	 */
-	acl = vfs_set_acl_prepare(mnt_userns, i_user_ns(inode),
-				  xattr_value, xattr_value_len);
-	if (IS_ERR_OR_NULL(acl))
-		return 1;
-
-	acl_res = acl;
-	/*
-	 * Passing mnt_userns is necessary to correctly determine the GID in
-	 * an idmapped mount, as the GID is used to clear the setgid bit in
-	 * the inode mode.
-	 */
-	rc = posix_acl_update_mode(mnt_userns, inode, &mode, &acl_res);
-
-	posix_acl_release(acl);
-
-	if (rc)
-		return 1;
-
-	if (inode->i_mode != mode)
-		return 1;
-#endif
-	return 0;
-}
-
-/*
  * evm_xattr_change - check if passed xattr value differs from current value
  * @mnt_userns: user namespace of the idmapped mount
  * @dentry: pointer to the affected dentry
@@ -512,10 +452,6 @@ static int evm_xattr_change(struct user_namespace *mnt_userns,
 {
 	char *xattr_data = NULL;
 	int rc = 0;
-
-	if (posix_xattr_acl(xattr_name))
-		return evm_xattr_acl_change(mnt_userns, dentry, xattr_name,
-					    xattr_value, xattr_value_len);
 
 	rc = vfs_getxattr_alloc(&init_user_ns, dentry, xattr_name, &xattr_data,
 				0, GFP_NOFS);
