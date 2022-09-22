@@ -20,8 +20,6 @@
 #include "ksz_common.h"
 #include "lan937x.h"
 
-#define LAN937x_PNIRQS 6
-
 static int lan937x_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
 	return regmap_update_bits(dev->regmap[0], addr, bits, set ? bits : 0);
@@ -695,7 +693,7 @@ static int lan937x_pirq_setup(struct ksz_device *dev, u8 p)
 	int ret, irq;
 	int irq_num;
 
-	port->pirq.nirqs = LAN937x_PNIRQS;
+	port->pirq.nirqs = dev->info->port_nirqs;
 	port->pirq.domain = irq_domain_add_simple(dev->dev->of_node,
 						  port->pirq.nirqs, 0,
 						  &lan937x_pirq_domain_ops,
