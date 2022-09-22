@@ -190,8 +190,8 @@ struct tb_regs_switch_header {
 	u32 thunderbolt_version:8;
 } __packed;
 
-/* USB4 version 1.0 */
-#define USB4_VERSION_1_0			0x20
+/* Used with the router thunderbolt_version */
+#define USB4_VERSION_MAJOR_MASK			GENMASK(7, 5)
 
 #define ROUTER_CS_1				0x01
 #define ROUTER_CS_4				0x04
