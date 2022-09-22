@@ -454,6 +454,28 @@ unlock_mutex:
 	return ret;
 }
 
+static void sched_update_updown_early_migrate_values(bool up)
+{
+	int i = 0, cpu;
+	struct walt_sched_cluster *cluster;
+
+	for_each_sched_cluster(cluster) {
+		/*
+		 * No need to worry about CPUs in last cluster
+		 * if there are more than 2 clusters in the system
+		 */
+		for_each_cpu(cpu, &cluster->cpus) {
+			if (up)
+				sched_capacity_margin_early_up[cpu] = sysctl_sched_early_up[i];
+			else
+				sched_capacity_margin_early_down[cpu] = sysctl_sched_early_down[i];
+		}
+
+		if (++i >= num_sched_clusters - 1)
+			break;
+	}
+}
+
 int sched_updown_early_migrate_handler(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos)
@@ -490,7 +512,7 @@ int sched_updown_early_migrate_handler(struct ctl_table *table, int write,
 		}
 	}
 
-	/* check up pct is greater than dn pct */
+	/* check up thresh is greater than dn thresh */
 	if (data == &sysctl_sched_early_up[0]) {
 		for (i = 0; i < cap_margin_levels; i++) {
 			if (val[i] >= sysctl_sched_early_down[i]) {
@@ -511,6 +533,8 @@ int sched_updown_early_migrate_handler(struct ctl_table *table, int write,
 	for (i = 0; i < cap_margin_levels; i++)
 		data[i] = val[i];
 
+	/* update individual cpu thresholds */
+	sched_update_updown_early_migrate_values(data == &sysctl_sched_early_up[0]);
 unlock_mutex:
 	mutex_unlock(&mutex);
 

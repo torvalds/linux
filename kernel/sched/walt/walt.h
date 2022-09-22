@@ -769,8 +769,9 @@ static bool check_for_higher_capacity(int cpu1, int cpu2)
 	return capacity_orig_of(cpu1) > capacity_orig_of(cpu2);
 }
 
-extern unsigned int sysctl_sched_early_up[MAX_MARGIN_LEVELS];
-extern unsigned int sysctl_sched_early_down[MAX_MARGIN_LEVELS];
+/* Migration margins for topapp */
+extern unsigned int sched_capacity_margin_early_up[WALT_NR_CPUS];
+extern unsigned int sched_capacity_margin_early_down[WALT_NR_CPUS];
 static inline bool task_fits_capacity(struct task_struct *p,
 					int dst_cpu)
 {
@@ -783,18 +784,12 @@ static inline bool task_fits_capacity(struct task_struct *p,
 	if (check_for_higher_capacity(task_cpu(p), dst_cpu)) {
 		margin = sched_capacity_margin_down[dst_cpu];
 		if (task_in_related_thread_group(p)) {
-			if (is_min_cluster_cpu(dst_cpu))
-				margin = sysctl_sched_early_down[0];
-			else if (!is_max_cluster_cpu(dst_cpu))
-				margin = sysctl_sched_early_down[1];
+			margin = sched_capacity_margin_early_down[dst_cpu];
 		}
 	} else {
 		margin = sched_capacity_margin_up[task_cpu(p)];
 		if (task_in_related_thread_group(p)) {
-			if (is_min_cluster_cpu(task_cpu(p)))
-				margin = sysctl_sched_early_up[0];
-			else if (!is_max_cluster_cpu(task_cpu(p)))
-				margin = sysctl_sched_early_up[1];
+			margin = sched_capacity_margin_early_up[task_cpu(p)];
 		}
 	}
 
