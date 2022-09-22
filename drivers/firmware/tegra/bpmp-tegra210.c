@@ -137,8 +137,8 @@ static int tegra210_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 				      unsigned int index)
 {
 	struct tegra210_bpmp *priv = bpmp->priv;
+	void __iomem *p;
 	u32 address;
-	void *p;
 
 	/* Retrieve channel base address from BPMP */
 	writel(index << TRIGGER_ID_SHIFT | TRIGGER_CMD_GET,
@@ -149,8 +149,9 @@ static int tegra210_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 	if (!p)
 		return -ENOMEM;
 
-	channel->ib = p;
-	channel->ob = p;
+	iosys_map_set_vaddr_iomem(&channel->ib, p);
+	iosys_map_set_vaddr_iomem(&channel->ob, p);
+
 	channel->index = index;
 	init_completion(&channel->completion);
 	channel->bpmp = bpmp;
