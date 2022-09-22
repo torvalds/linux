@@ -895,10 +895,10 @@ void __cold add_bootloader_randomness(const void *buf, size_t len)
 EXPORT_SYMBOL_GPL(add_bootloader_randomness);
 
 struct fast_pool {
-	struct work_struct mix;
 	unsigned long pool[4];
 	unsigned long last;
 	unsigned int count;
+	struct work_struct mix;
 };
 
 static DEFINE_PER_CPU(struct fast_pool, irq_randomness) = {
