@@ -510,8 +510,8 @@ static void ovl_idmap_posix_acl(const struct inode *realinode,
  * Until we have made a decision allow this helper to take the @noperm
  * argument. We should hopefully be able to remove it soon.
  */
-static struct posix_acl *ovl_get_acl_path(const struct path *path,
-					  const char *acl_name, bool noperm)
+struct posix_acl *ovl_get_acl_path(const struct path *path,
+				   const char *acl_name, bool noperm)
 {
 	struct posix_acl *real_acl, *clone;
 	struct user_namespace *mnt_userns;

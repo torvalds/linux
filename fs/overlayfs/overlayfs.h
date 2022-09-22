@@ -623,10 +623,18 @@ static inline struct posix_acl *ovl_get_acl(struct user_namespace *mnt_userns,
 }
 int ovl_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		struct posix_acl *acl, int type);
+struct posix_acl *ovl_get_acl_path(const struct path *path,
+				   const char *acl_name, bool noperm);
 #else
 #define ovl_get_inode_acl	NULL
 #define ovl_get_acl		NULL
 #define ovl_set_acl		NULL
+static inline struct posix_acl *ovl_get_acl_path(const struct path *path,
+						 const char *acl_name,
+						 bool noperm)
+{
+	return NULL;
+}
 #endif
 
 int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags);
