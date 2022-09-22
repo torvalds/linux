@@ -4,6 +4,7 @@
  */
 
 #ifndef __TEGRA_IVC_H
+#define __TEGRA_IVC_H
 
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
