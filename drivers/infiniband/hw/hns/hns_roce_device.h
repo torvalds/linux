@@ -735,7 +735,7 @@ struct hns_roce_caps {
 	u32		max_srq_sges;
 	u32		max_sq_desc_sz;
 	u32		max_rq_desc_sz;
-	u32		max_srq_desc_sz;
+	u32		rsv2;
 	int		max_qp_init_rdma;
 	int		max_qp_dest_rdma;
 	u32		num_cqs;

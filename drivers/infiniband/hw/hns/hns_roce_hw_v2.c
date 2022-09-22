@@ -1983,7 +1983,6 @@ static void set_default_caps(struct hns_roce_dev *hr_dev)
 	caps->max_qp_dest_rdma	= HNS_ROCE_V2_MAX_QP_DEST_RDMA;
 	caps->max_sq_desc_sz	= HNS_ROCE_V2_MAX_SQ_DESC_SZ;
 	caps->max_rq_desc_sz	= HNS_ROCE_V2_MAX_RQ_DESC_SZ;
-	caps->max_srq_desc_sz	= HNS_ROCE_V2_MAX_SRQ_DESC_SZ;
 	caps->irrl_entry_sz	= HNS_ROCE_V2_IRRL_ENTRY_SZ;
 	caps->trrl_entry_sz	= HNS_ROCE_V2_EXT_ATOMIC_TRRL_ENTRY_SZ;
 	caps->cqc_entry_sz	= HNS_ROCE_V2_CQC_ENTRY_SZ;
@@ -2277,7 +2276,6 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->num_other_vectors	     = resp_a->num_other_vectors;
 	caps->max_sq_desc_sz	     = resp_a->max_sq_desc_sz;
 	caps->max_rq_desc_sz	     = resp_a->max_rq_desc_sz;
-	caps->max_srq_desc_sz	     = resp_a->max_srq_desc_sz;
 	caps->cqe_sz		     = resp_a->cqe_sz;
 
 	caps->mtpt_entry_sz	     = resp_b->mtpt_entry_sz;

@@ -63,7 +63,6 @@
 #define HNS_ROCE_V2_MAX_QP_DEST_RDMA		128
 #define HNS_ROCE_V2_MAX_SQ_DESC_SZ		64
 #define HNS_ROCE_V2_MAX_RQ_DESC_SZ		16
-#define HNS_ROCE_V2_MAX_SRQ_DESC_SZ		64
 #define HNS_ROCE_V2_IRRL_ENTRY_SZ		64
 #define HNS_ROCE_V2_EXT_ATOMIC_TRRL_ENTRY_SZ	100
 #define HNS_ROCE_V2_CQC_ENTRY_SZ		64
@@ -1181,7 +1180,7 @@ struct hns_roce_query_pf_caps_a {
 	u8 num_other_vectors;
 	u8 max_sq_desc_sz;
 	u8 max_rq_desc_sz;
-	u8 max_srq_desc_sz;
+	u8 rsv1;
 	u8 cqe_sz;
 };
 
