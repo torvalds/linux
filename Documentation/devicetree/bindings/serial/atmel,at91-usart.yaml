@@ -36,10 +36,16 @@ properties:
     maxItems: 1
 
   clock-names:
-    const: usart
+    minItems: 1
+    items:
+      - const: usart
+      - const: gclk
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: USART Peripheral Clock
+      - description: USART Generic Clock
 
   dmas:
     items:
