@@ -86,10 +86,12 @@ struct vfio_group {
 };
 
 #ifdef CONFIG_VFIO_NOIOMMU
-static bool noiommu __read_mostly;
+static bool vfio_noiommu __read_mostly;
 module_param_named(enable_unsafe_noiommu_mode,
-		   noiommu, bool, S_IRUGO | S_IWUSR);
+		   vfio_noiommu, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_unsafe_noiommu_mode, "Enable UNSAFE, no-IOMMU mode.  This mode provides no device isolation, no DMA translation, no host kernel protection, cannot be used for device assignment to virtual machines, requires RAWIO permissions, and will taint the kernel.  If you do not know what this is for, step away. (default: false)");
+#else
+enum { vfio_noiommu = false };
 #endif
 
 static DEFINE_XARRAY(vfio_device_set_xa);
@@ -166,7 +168,6 @@ static void vfio_release_device_set(struct vfio_device *device)
 	xa_unlock(&vfio_device_set_xa);
 }
 
-#ifdef CONFIG_VFIO_NOIOMMU
 static void *vfio_noiommu_open(unsigned long arg)
 {
 	if (arg != VFIO_NOIOMMU_IOMMU)
@@ -185,7 +186,7 @@ static long vfio_noiommu_ioctl(void *iommu_data,
 			       unsigned int cmd, unsigned long arg)
 {
 	if (cmd == VFIO_CHECK_EXTENSION)
-		return noiommu && (arg == VFIO_NOIOMMU_IOMMU) ? 1 : 0;
+		return vfio_noiommu && (arg == VFIO_NOIOMMU_IOMMU) ? 1 : 0;
 
 	return -ENOTTY;
 }
@@ -215,18 +216,13 @@ static const struct vfio_iommu_driver_ops vfio_noiommu_ops = {
  * Only noiommu containers can use vfio-noiommu and noiommu containers can only
  * use vfio-noiommu.
  */
-static inline bool vfio_iommu_driver_allowed(struct vfio_container *container,
-		const struct vfio_iommu_driver *driver)
+static bool vfio_iommu_driver_allowed(struct vfio_container *container,
+				      const struct vfio_iommu_driver *driver)
 {
+	if (!IS_ENABLED(CONFIG_VFIO_NOIOMMU))
+		return true;
 	return container->noiommu == (driver->ops == &vfio_noiommu_ops);
 }
-#else
-static inline bool vfio_iommu_driver_allowed(struct vfio_container *container,
-		const struct vfio_iommu_driver *driver)
-{
-	return true;
-}
-#endif /* CONFIG_VFIO_NOIOMMU */
 
 /*
  * IOMMU driver registration
@@ -630,8 +626,7 @@ static struct vfio_group *vfio_group_find_or_alloc(struct device *dev)
 	struct vfio_group *group;
 
 	iommu_group = iommu_group_get(dev);
-#ifdef CONFIG_VFIO_NOIOMMU
-	if (!iommu_group && noiommu) {
+	if (!iommu_group && vfio_noiommu) {
 		/*
 		 * With noiommu enabled, create an IOMMU group for devices that
 		 * don't already have one, implying no IOMMU hardware/driver
@@ -645,7 +640,7 @@ static struct vfio_group *vfio_group_find_or_alloc(struct device *dev)
 		}
 		return group;
 	}
-#endif
+
 	if (!iommu_group)
 		return ERR_PTR(-EINVAL);
 
@@ -2439,11 +2434,11 @@ static int __init vfio_init(void)
 	if (ret)
 		goto err_alloc_chrdev;
 
-#ifdef CONFIG_VFIO_NOIOMMU
-	ret = vfio_register_iommu_driver(&vfio_noiommu_ops);
-#endif
-	if (ret)
-		goto err_driver_register;
+	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU)) {
+		ret = vfio_register_iommu_driver(&vfio_noiommu_ops);
+		if (ret)
+			goto err_driver_register;
+	}
 
 	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	return 0;
@@ -2465,9 +2460,9 @@ static void __exit vfio_cleanup(void)
 {
 	WARN_ON(!list_empty(&vfio.group_list));
 
-#ifdef CONFIG_VFIO_NOIOMMU
-	vfio_unregister_iommu_driver(&vfio_noiommu_ops);
-#endif
+	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU))
+		vfio_unregister_iommu_driver(&vfio_noiommu_ops);
+
 	ida_destroy(&vfio.device_ida);
 	ida_destroy(&vfio.group_ida);
 	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
