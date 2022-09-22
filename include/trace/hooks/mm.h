@@ -7,8 +7,6 @@
 #if !defined(_TRACE_HOOK_MM_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_MM_H
 
-#include <linux/types.h>
-
 #include <trace/hooks/vendor_hooks.h>
 /*
 

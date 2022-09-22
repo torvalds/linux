@@ -25,7 +25,6 @@
 &enetc_port0 {
 	phy-handle = <&slot1_sgmii>;
 	phy-mode = "2500base-x";
-	managed = "in-band-status";
 	status = "okay";
 };
 

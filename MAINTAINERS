@@ -10039,6 +10039,7 @@ F:	Documentation/devicetree/bindings/input/
 F:	Documentation/devicetree/bindings/serio/
 F:	Documentation/input/
 F:	drivers/input/
+F:	include/dt-bindings/input/
 F:	include/linux/input.h
 F:	include/linux/input/
 F:	include/uapi/linux/input-event-codes.h
@@ -17538,9 +17539,19 @@ M:	Conor Dooley <conor.dooley@microchip.com>
 M:	Daire McNamara <daire.mcnamara@microchip.com>
 L:	linux-riscv@lists.infradead.org
 S:	Supported
+F:	Documentation/devicetree/bindings/clock/microchip,mpfs.yaml
+F:	Documentation/devicetree/bindings/gpio/microchip,mpfs-gpio.yaml
+F:	Documentation/devicetree/bindings/i2c/microchip,corei2c.yaml
+F:	Documentation/devicetree/bindings/mailbox/microchip,mpfs-mailbox.yaml
+F:	Documentation/devicetree/bindings/net/can/microchip,mpfs-can.yaml
+F:	Documentation/devicetree/bindings/pwm/microchip,corepwm.yaml
+F:	Documentation/devicetree/bindings/soc/microchip/microchip,mpfs-sys-controller.yaml
+F:	Documentation/devicetree/bindings/spi/microchip,mpfs-spi.yaml
+F:	Documentation/devicetree/bindings/usb/microchip,mpfs-musb.yaml
 F:	arch/riscv/boot/dts/microchip/
 F:	drivers/char/hw_random/mpfs-rng.c
 F:	drivers/clk/microchip/clk-mpfs.c
+F:	drivers/i2c/busses/i2c-microchip-core.c
 F:	drivers/mailbox/mailbox-mpfs.c
 F:	drivers/pci/controller/pcie-microchip-host.c
 F:	drivers/rtc/rtc-mpfs.c
@@ -20771,6 +20782,7 @@ UBLK USERSPACE BLOCK DRIVER
 M:	Ming Lei <ming.lei@redhat.com>
 L:	linux-block@vger.kernel.org
 S:	Maintained
+F:	Documentation/block/ublk.rst
 F:	drivers/block/ublk_drv.c
 F:	include/uapi/linux/ublk_cmd.h
 
@@ -22312,7 +22324,7 @@ M:	Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
 R:	Srinivas Neeli <srinivas.neeli@xilinx.com>
 R:	Michal Simek <michal.simek@xilinx.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/gpio/gpio-xilinx.txt
+F:	Documentation/devicetree/bindings/gpio/xlnx,gpio-xilinx.yaml
 F:	Documentation/devicetree/bindings/gpio/gpio-zynq.yaml
 F:	drivers/gpio/gpio-xilinx.c
 F:	drivers/gpio/gpio-zynq.c

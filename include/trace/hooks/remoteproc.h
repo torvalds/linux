@@ -8,7 +8,8 @@
 #define _TRACE_HOOK_RPROC_H
 
 #include <trace/hooks/vendor_hooks.h>
-#include <linux/remoteproc.h>
+
+struct rproc;
 
 /* When recovery succeeds */
 DECLARE_HOOK(android_vh_rproc_recovery,

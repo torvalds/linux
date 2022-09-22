@@ -17,18 +17,17 @@ package(
     ],
 )
 
-load("//build/kernel/kleaf:constants.bzl", "aarch64_gz_outs")
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
 
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_outs": [
+        "module_implicit_outs": [
             "drivers/block/zram/zram.ko",
             "mm/zsmalloc.ko",
         ],
     },
     "kernel_aarch64_debug": {
-        "module_outs": [
+        "module_implicit_outs": [
             "drivers/block/zram/zram.ko",
             "mm/zsmalloc.ko",
         ],
@@ -38,7 +37,7 @@ define_common_kernels(target_configs = {
 # Sync with build.config.db845c
 define_db845c(
     name = "db845c",
-    outs = aarch64_gz_outs + [
+    outs = [
         "arch/arm64/boot/dts/qcom/qrb5165-rb5.dtb",
         "arch/arm64/boot/dts/qcom/sdm845-db845c.dtb",
         "arch/arm64/boot/dts/qcom/sm8450-qrd.dtb",
@@ -49,8 +48,6 @@ define_db845c(
         "drivers/base/regmap/regmap-sdw.ko",
         "drivers/base/regmap/regmap-slimbus.ko",
         "drivers/base/regmap/regmap-spmi.ko",
-        # TODO(b/233404531): Remove zram.ko when db845c is a mixed build
-        "drivers/block/zram/zram.ko",
         "drivers/bus/mhi/host/mhi.ko",
         "drivers/clk/qcom/clk-qcom.ko",
         "drivers/clk/qcom/clk-rpmh.ko",
@@ -195,8 +192,6 @@ define_db845c(
         "drivers/usb/typec/qcom-pmic-typec.ko",
         "drivers/watchdog/pm8916_wdt.ko",
         "drivers/watchdog/qcom-wdt.ko",
-        # TODO(b/233404531): Remove zsmalloc.ko when db845c is a mixed build
-        "mm/zsmalloc.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-mhi.ko",
         "net/qrtr/qrtr-smd.ko",

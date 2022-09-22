@@ -70,7 +70,7 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 
@@ -403,8 +403,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c5>;
 	pinctrl-1 = <&pinctrl_i2c5_gpio>;
-	scl-gpios = <&gpio5 26 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
-	sda-gpios = <&gpio5 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	scl-gpios = <&gpio3 26 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio3 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 };
 
@@ -648,10 +648,10 @@
 
 	pinctrl_ecspi1: dhcom-ecspi1-grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_ECSPI1_SCLK__ECSPI1_SCLK		0x44
-			MX8MP_IOMUXC_ECSPI1_MOSI__ECSPI1_MOSI		0x44
-			MX8MP_IOMUXC_ECSPI1_MISO__ECSPI1_MISO		0x44
-			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09		0x40
+			MX8MP_IOMUXC_I2C1_SCL__ECSPI1_SCLK		0x44
+			MX8MP_IOMUXC_I2C1_SDA__ECSPI1_MOSI		0x44
+			MX8MP_IOMUXC_I2C2_SCL__ECSPI1_MISO		0x44
+			MX8MP_IOMUXC_I2C2_SDA__GPIO5_IO17		0x40
 		>;
 	};
 

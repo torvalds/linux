@@ -226,8 +226,10 @@ static int cm3605_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return dev_err_probe(dev, irq, "failed to get irq\n");
+	if (irq < 0) {
+		ret = dev_err_probe(dev, irq, "failed to get irq\n");
+		goto out_disable_aset;
+	}
 
 	ret = devm_request_threaded_irq(dev, irq, cm3605_prox_irq,
 					NULL, 0, "cm3605", indio_dev);

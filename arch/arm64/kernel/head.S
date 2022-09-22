@@ -371,7 +371,9 @@ SYM_FUNC_END(create_idmap)
 SYM_FUNC_START_LOCAL(create_kernel_mapping)
 	adrp	x0, init_pg_dir
 	mov_q	x5, KIMAGE_VADDR		// compile time __va(_text)
+#ifdef CONFIG_RELOCATABLE
 	add	x5, x5, x23			// add KASLR displacement
+#endif
 	adrp	x6, _end			// runtime __pa(_end)
 	adrp	x3, _text			// runtime __pa(_text)
 	sub	x6, x6, x3			// _end - _text
