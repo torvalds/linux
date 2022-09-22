@@ -653,7 +653,8 @@
 	assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_50M>,
 				 <&clk IMX8MM_SYS_PLL2_250M>;
 	assigned-clock-rates = <10000000>, <250000000>;
-	clocks = <&clk IMX8MM_CLK_PCIE1_ROOT>, <&clk IMX8MM_CLK_PCIE1_AUX>,
+	clocks = <&clk IMX8MM_CLK_PCIE1_ROOT>,
+		 <&clk IMX8MM_CLK_PCIE1_AUX>,
 		 <&clk IMX8MM_CLK_PCIE1_PHY>;
 	clock-names = "pcie", "pcie_aux", "pcie_bus";
 	pinctrl-names = "default";
@@ -664,6 +665,7 @@
 
 &pcie_phy {
 	clocks = <&clk IMX8MM_CLK_PCIE1_PHY>;
+	clock-names = "ref";
 	fsl,clkreq-unsupported;
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_OUTPUT>;
 	fsl,tx-deemph-gen1 = <0x2d>;
