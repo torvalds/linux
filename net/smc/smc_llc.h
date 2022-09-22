@@ -19,6 +19,7 @@
 
 #define SMC_LLC_WAIT_FIRST_TIME		(5 * HZ)
 #define SMC_LLC_WAIT_TIME		(2 * HZ)
+#define SMC_LLC_TESTLINK_DEFAULT_TIME	(30 * HZ)
 
 enum smc_llc_reqresp {
 	SMC_LLC_REQ,
