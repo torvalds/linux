@@ -62,15 +62,6 @@ static u32 nbio_v7_9_get_memsize(struct amdgpu_device *adev)
 	return RREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF0_RCC_CONFIG_MEMSIZE);
 }
 
-#define S2A_DOORBELL_REG_LSD_OFFSET	0x40
-
-/* Temporarily add 2 macros below. Range is 0 ~ 3 as total AID number is 4.
- * They will be obsoleted after the latest ip offset header
- * is imported in driver in near future.
- */
-#define AMDGPU_SMN_TARGET_AID(x)	((u64)(x) << 32)
-#define AMDGPU_SMN_CROSS_AID		(1ULL << 34)
-
 static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
@@ -111,11 +102,8 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x1);
-		WREG32_PCIE_EXT((SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_1_CTRL)
-			+ S2A_DOORBELL_REG_LSD_OFFSET) * 4
-			+ AMDGPU_SMN_TARGET_AID(aid_id)
-			+ AMDGPU_SMN_CROSS_AID * !!aid_id,
-			doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_1_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	case 1:
 		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_2,
@@ -131,11 +119,8 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x2);
-		WREG32_PCIE_EXT((SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_2_CTRL)
-			+ S2A_DOORBELL_REG_LSD_OFFSET) * 4
-			+ AMDGPU_SMN_TARGET_AID(aid_id)
-			+ AMDGPU_SMN_CROSS_AID * !!aid_id,
-			doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_2_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	case 2:
 		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_3,
@@ -151,10 +136,8 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x8);
-		WREG32_PCIE_EXT(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_5_CTRL) * 4
-			+ AMDGPU_SMN_TARGET_AID(aid_id)
-			+ AMDGPU_SMN_CROSS_AID * !!aid_id,
-			doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_5_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	case 3:
 		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_4,
@@ -170,10 +153,8 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x9);
-		WREG32_PCIE_EXT(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_6_CTRL) * 4
-			+ AMDGPU_SMN_TARGET_AID(aid_id)
-			+ AMDGPU_SMN_CROSS_AID * !!aid_id,
-			doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_6_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	default:
 		break;
@@ -221,10 +202,8 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 
 		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17,
 					aid_id, doorbell_range);
-		WREG32_PCIE_EXT(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_4_CTRL) * 4
-				+ AMDGPU_SMN_TARGET_AID(aid_id)
-				+ AMDGPU_SMN_CROSS_AID * !!aid_id,
-				doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_4_CTRL,
+				aid_id, doorbell_ctrl);
 	} else {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
 				DOORBELL0_CTRL_ENTRY_0,
@@ -235,8 +214,8 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 
 		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17,
 					aid_id, doorbell_range);
-		WREG32(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_4_CTRL),
-						doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_4_CTRL,
+				aid_id, doorbell_ctrl);
 	}
 }
 
