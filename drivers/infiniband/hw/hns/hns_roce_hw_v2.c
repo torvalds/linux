@@ -380,7 +380,7 @@ static int check_send_valid(struct hns_roce_dev *hr_dev,
 	if (unlikely(ibqp->qp_type != IB_QPT_RC &&
 		     ibqp->qp_type != IB_QPT_GSI &&
 		     ibqp->qp_type != IB_QPT_UD)) {
-		ibdev_err(ibdev, "Not supported QP(0x%x)type!\n",
+		ibdev_err(ibdev, "not supported QP(0x%x)type!\n",
 			  ibqp->qp_type);
 		return -EOPNOTSUPP;
 	} else if (unlikely(hr_qp->state == IB_QPS_RESET ||
@@ -1405,20 +1405,20 @@ static void func_clr_hw_resetting_state(struct hns_roce_dev *hr_dev,
 	hr_dev->dis_db = true;
 
 	dev_warn(hr_dev->dev,
-		 "Func clear is pending, device in resetting state.\n");
+		 "func clear is pending, device in resetting state.\n");
 	end = HNS_ROCE_V2_HW_RST_TIMEOUT;
 	while (end) {
 		if (!ops->get_hw_reset_stat(handle)) {
 			hr_dev->is_reset = true;
 			dev_info(hr_dev->dev,
-				 "Func clear success after reset.\n");
+				 "func clear success after reset.\n");
 			return;
 		}
 		msleep(HNS_ROCE_V2_HW_RST_COMPLETION_WAIT);
 		end -= HNS_ROCE_V2_HW_RST_COMPLETION_WAIT;
 	}
 
-	dev_warn(hr_dev->dev, "Func clear failed.\n");
+	dev_warn(hr_dev->dev, "func clear failed.\n");
 }
 
 static void func_clr_sw_resetting_state(struct hns_roce_dev *hr_dev,
@@ -1430,21 +1430,21 @@ static void func_clr_sw_resetting_state(struct hns_roce_dev *hr_dev,
 	hr_dev->dis_db = true;
 
 	dev_warn(hr_dev->dev,
-		 "Func clear is pending, device in resetting state.\n");
+		 "func clear is pending, device in resetting state.\n");
 	end = HNS_ROCE_V2_HW_RST_TIMEOUT;
 	while (end) {
 		if (ops->ae_dev_reset_cnt(handle) !=
 		    hr_dev->reset_cnt) {
 			hr_dev->is_reset = true;
 			dev_info(hr_dev->dev,
-				 "Func clear success after sw reset\n");
+				 "func clear success after sw reset\n");
 			return;
 		}
 		msleep(HNS_ROCE_V2_HW_RST_COMPLETION_WAIT);
 		end -= HNS_ROCE_V2_HW_RST_COMPLETION_WAIT;
 	}
 
-	dev_warn(hr_dev->dev, "Func clear failed because of unfinished sw reset\n");
+	dev_warn(hr_dev->dev, "func clear failed because of unfinished sw reset\n");
 }
 
 static void hns_roce_func_clr_rst_proc(struct hns_roce_dev *hr_dev, int retval,
@@ -1457,7 +1457,7 @@ static void hns_roce_func_clr_rst_proc(struct hns_roce_dev *hr_dev, int retval,
 	if (ops->ae_dev_reset_cnt(handle) != hr_dev->reset_cnt) {
 		hr_dev->dis_db = true;
 		hr_dev->is_reset = true;
-		dev_info(hr_dev->dev, "Func clear success after reset.\n");
+		dev_info(hr_dev->dev, "func clear success after reset.\n");
 		return;
 	}
 
@@ -1474,9 +1474,9 @@ static void hns_roce_func_clr_rst_proc(struct hns_roce_dev *hr_dev, int retval,
 
 	if (retval && !flag)
 		dev_warn(hr_dev->dev,
-			 "Func clear read failed, ret = %d.\n", retval);
+			 "func clear read failed, ret = %d.\n", retval);
 
-	dev_warn(hr_dev->dev, "Func clear failed.\n");
+	dev_warn(hr_dev->dev, "func clear failed.\n");
 }
 
 static void __hns_roce_function_clear(struct hns_roce_dev *hr_dev, int vf_id)
@@ -1497,7 +1497,7 @@ static void __hns_roce_function_clear(struct hns_roce_dev *hr_dev, int vf_id)
 	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
 	if (ret) {
 		fclr_write_fail_flag = true;
-		dev_err(hr_dev->dev, "Func clear write failed, ret = %d.\n",
+		dev_err(hr_dev->dev, "func clear write failed, ret = %d.\n",
 			 ret);
 		goto out;
 	}
@@ -5033,14 +5033,14 @@ static bool check_qp_timeout_cfg_range(struct hns_roce_dev *hr_dev, u8 *timeout)
 	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08) {
 		if (*timeout > QP_ACK_TIMEOUT_MAX_HIP08) {
 			ibdev_warn(&hr_dev->ib_dev,
-				   "Local ACK timeout shall be 0 to 20.\n");
+				   "local ACK timeout shall be 0 to 20.\n");
 			return false;
 		}
 		*timeout += QP_ACK_TIMEOUT_OFFSET;
 	} else if (hr_dev->pci_dev->revision > PCI_REVISION_ID_HIP08) {
 		if (*timeout > QP_ACK_TIMEOUT_MAX) {
 			ibdev_warn(&hr_dev->ib_dev,
-				   "Local ACK timeout shall be 0 to 31.\n");
+				   "local ACK timeout shall be 0 to 31.\n");
 			return false;
 		}
 	}
@@ -5543,7 +5543,7 @@ static int hns_roce_v2_qp_flow_control_init(struct hns_roce_dev *hr_dev,
 		msleep(20);
 	}
 
-	ibdev_err(ibdev, "Query SCC clr done flag overtime.\n");
+	ibdev_err(ibdev, "query SCC clr done flag overtime.\n");
 	ret = -ETIMEDOUT;
 
 out:
@@ -5832,26 +5832,26 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 
 	switch (irq_work->event_type) {
 	case HNS_ROCE_EVENT_TYPE_PATH_MIG:
-		ibdev_info(ibdev, "Path migrated succeeded.\n");
+		ibdev_info(ibdev, "path migrated succeeded.\n");
 		break;
 	case HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED:
-		ibdev_warn(ibdev, "Path migration failed.\n");
+		ibdev_warn(ibdev, "path migration failed.\n");
 		break;
 	case HNS_ROCE_EVENT_TYPE_COMM_EST:
 		break;
 	case HNS_ROCE_EVENT_TYPE_SQ_DRAINED:
-		ibdev_warn(ibdev, "Send queue drained.\n");
+		ibdev_warn(ibdev, "send queue drained.\n");
 		break;
 	case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
-		ibdev_err(ibdev, "Local work queue 0x%x catast error, sub_event type is: %d\n",
+		ibdev_err(ibdev, "local work queue 0x%x catast error, sub_event type is: %d\n",
 			  irq_work->queue_num, irq_work->sub_type);
 		break;
 	case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
-		ibdev_err(ibdev, "Invalid request local work queue 0x%x error.\n",
+		ibdev_err(ibdev, "invalid request local work queue 0x%x error.\n",
 			  irq_work->queue_num);
 		break;
 	case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
-		ibdev_err(ibdev, "Local access violation work queue 0x%x error, sub_event type is: %d\n",
+		ibdev_err(ibdev, "local access violation work queue 0x%x error, sub_event type is: %d\n",
 			  irq_work->queue_num, irq_work->sub_type);
 		break;
 	case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
@@ -5873,7 +5873,7 @@ static void hns_roce_irq_work_handle(struct work_struct *work)
 		ibdev_warn(ibdev, "DB overflow.\n");
 		break;
 	case HNS_ROCE_EVENT_TYPE_FLR:
-		ibdev_warn(ibdev, "Function level reset.\n");
+		ibdev_warn(ibdev, "function level reset.\n");
 		break;
 	case HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION:
 		ibdev_err(ibdev, "xrc domain violation error.\n");
@@ -5992,7 +5992,7 @@ static irqreturn_t hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		case HNS_ROCE_EVENT_TYPE_FLR:
 			break;
 		default:
-			dev_err(dev, "Unhandled event %d on EQ %d at idx %u.\n",
+			dev_err(dev, "unhandled event %d on EQ %d at idx %u.\n",
 				event_type, eq->eqn, eq->cons_index);
 			break;
 		}
@@ -6383,7 +6383,7 @@ static int alloc_eq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 				  hr_dev->caps.eqe_ba_pg_sz + PAGE_SHIFT, NULL,
 				  0);
 	if (err)
-		dev_err(hr_dev->dev, "Failed to alloc EQE mtr, err %d\n", err);
+		dev_err(hr_dev->dev, "failed to alloc EQE mtr, err %d\n", err);
 
 	return err;
 }
@@ -6472,7 +6472,7 @@ static int __hns_roce_request_irq(struct hns_roce_dev *hr_dev, int irq_num,
 					  0, hr_dev->irq_names[j - comp_num],
 					  &eq_table->eq[j - other_num]);
 		if (ret) {
-			dev_err(hr_dev->dev, "Request irq error!\n");
+			dev_err(hr_dev->dev, "request irq error!\n");
 			goto err_request_failed;
 		}
 	}
@@ -6894,7 +6894,7 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 		dev_err(dev, "In reset process RoCE reinit failed %d.\n", ret);
 	} else {
 		handle->rinfo.reset_state = HNS_ROCE_STATE_RST_INITED;
-		dev_info(dev, "Reset done, RoCE client reinit finished.\n");
+		dev_info(dev, "reset done, RoCE client reinit finished.\n");
 	}
 
 	return ret;

@@ -97,7 +97,7 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u32 port,
 
 	netdev = hr_dev->iboe.netdevs[port];
 	if (!netdev) {
-		dev_err(dev, "Can't find netdev on port(%u)!\n", port);
+		dev_err(dev, "can't find netdev on port(%u)!\n", port);
 		return -ENODEV;
 	}
 
@@ -239,7 +239,7 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u32 port_num,
 	net_dev = hr_dev->iboe.netdevs[port];
 	if (!net_dev) {
 		spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
-		dev_err(dev, "Find netdev %u failed!\n", port);
+		dev_err(dev, "find netdev %u failed!\n", port);
 		return -EINVAL;
 	}
 
@@ -661,7 +661,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 				      HEM_TYPE_MTPT, hr_dev->caps.mtpt_entry_sz,
 				      hr_dev->caps.num_mtpts);
 	if (ret) {
-		dev_err(dev, "Failed to init MTPT context memory, aborting.\n");
+		dev_err(dev, "failed to init MTPT context memory, aborting.\n");
 		return ret;
 	}
 
@@ -669,7 +669,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 				      HEM_TYPE_QPC, hr_dev->caps.qpc_sz,
 				      hr_dev->caps.num_qps);
 	if (ret) {
-		dev_err(dev, "Failed to init QP context memory, aborting.\n");
+		dev_err(dev, "failed to init QP context memory, aborting.\n");
 		goto err_unmap_dmpt;
 	}
 
@@ -679,7 +679,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 				      hr_dev->caps.max_qp_init_rdma,
 				      hr_dev->caps.num_qps);
 	if (ret) {
-		dev_err(dev, "Failed to init irrl_table memory, aborting.\n");
+		dev_err(dev, "failed to init irrl_table memory, aborting.\n");
 		goto err_unmap_qp;
 	}
 
@@ -692,7 +692,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.num_qps);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init trrl_table memory, aborting.\n");
+				"failed to init trrl_table memory, aborting.\n");
 			goto err_unmap_irrl;
 		}
 	}
@@ -701,7 +701,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 				      HEM_TYPE_CQC, hr_dev->caps.cqc_entry_sz,
 				      hr_dev->caps.num_cqs);
 	if (ret) {
-		dev_err(dev, "Failed to init CQ context memory, aborting.\n");
+		dev_err(dev, "failed to init CQ context memory, aborting.\n");
 		goto err_unmap_trrl;
 	}
 
@@ -712,7 +712,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.num_srqs);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init SRQ context memory, aborting.\n");
+				"failed to init SRQ context memory, aborting.\n");
 			goto err_unmap_cq;
 		}
 	}
@@ -725,7 +725,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.num_qps);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init SCC context memory, aborting.\n");
+				"failed to init SCC context memory, aborting.\n");
 			goto err_unmap_srq;
 		}
 	}
@@ -737,7 +737,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.num_qpc_timer);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init QPC timer memory, aborting.\n");
+				"failed to init QPC timer memory, aborting.\n");
 			goto err_unmap_ctx;
 		}
 	}
@@ -749,7 +749,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      hr_dev->caps.cqc_timer_bt_num);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init CQC timer memory, aborting.\n");
+				"failed to init CQC timer memory, aborting.\n");
 			goto err_unmap_qpc_timer;
 		}
 	}
@@ -827,13 +827,13 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	ret = hns_roce_uar_alloc(hr_dev, &hr_dev->priv_uar);
 	if (ret) {
-		dev_err(dev, "Failed to allocate priv_uar.\n");
+		dev_err(dev, "failed to allocate priv_uar.\n");
 		goto err_uar_table_free;
 	}
 
 	ret = hns_roce_init_qp_table(hr_dev);
 	if (ret) {
-		dev_err(dev, "Failed to init qp_table.\n");
+		dev_err(dev, "failed to init qp_table.\n");
 		goto err_uar_table_free;
 	}
 
@@ -910,14 +910,14 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 	if (hr_dev->hw->cmq_init) {
 		ret = hr_dev->hw->cmq_init(hr_dev);
 		if (ret) {
-			dev_err(dev, "Init RoCE Command Queue failed!\n");
+			dev_err(dev, "init RoCE Command Queue failed!\n");
 			return ret;
 		}
 	}
 
 	ret = hr_dev->hw->hw_profile(hr_dev);
 	if (ret) {
-		dev_err(dev, "Get RoCE engine profile failed!\n");
+		dev_err(dev, "get RoCE engine profile failed!\n");
 		goto error_failed_cmd_init;
 	}
 

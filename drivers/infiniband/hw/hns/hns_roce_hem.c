@@ -926,7 +926,7 @@ void hns_roce_cleanup_hem_table(struct hns_roce_dev *hr_dev,
 		if (table->hem[i]) {
 			if (hr_dev->hw->clear_hem(hr_dev, table,
 			    i * table->table_chunk_size / table->obj_size, 0))
-				dev_err(dev, "Clear HEM base address failed.\n");
+				dev_err(dev, "clear HEM base address failed.\n");
 
 			hns_roce_free_hem(hr_dev, table->hem[i]);
 		}
@@ -1415,7 +1415,7 @@ int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
 						    &hem_list->btm_bt);
 			if (ret) {
 				dev_err(hr_dev->dev,
-					"alloc hem trunk fail ret=%d!\n", ret);
+					"alloc hem trunk fail ret = %d!\n", ret);
 				goto err_alloc;
 			}
 		}
@@ -1424,7 +1424,7 @@ int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
 	ret = hem_list_alloc_root_bt(hr_dev, hem_list, unit, regions,
 				     region_cnt);
 	if (ret)
-		dev_err(hr_dev->dev, "alloc hem root fail ret=%d!\n", ret);
+		dev_err(hr_dev->dev, "alloc hem root fail ret = %d!\n", ret);
 	else
 		return 0;
 
