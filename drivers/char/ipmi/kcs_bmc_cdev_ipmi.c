@@ -548,7 +548,7 @@ static struct kcs_bmc_driver kcs_bmc_ipmi_driver = {
 	.ops = &kcs_bmc_ipmi_driver_ops,
 };
 
-static int kcs_bmc_ipmi_init(void)
+static int __init kcs_bmc_ipmi_init(void)
 {
 	kcs_bmc_register_driver(&kcs_bmc_ipmi_driver);
 
@@ -556,7 +556,7 @@ static int kcs_bmc_ipmi_init(void)
 }
 module_init(kcs_bmc_ipmi_init);
 
-static void kcs_bmc_ipmi_exit(void)
+static void __exit kcs_bmc_ipmi_exit(void)
 {
 	kcs_bmc_unregister_driver(&kcs_bmc_ipmi_driver);
 }

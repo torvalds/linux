@@ -140,7 +140,7 @@ static struct kcs_bmc_driver kcs_bmc_serio_driver = {
 	.ops = &kcs_bmc_serio_driver_ops,
 };
 
-static int kcs_bmc_serio_init(void)
+static int __init kcs_bmc_serio_init(void)
 {
 	kcs_bmc_register_driver(&kcs_bmc_serio_driver);
 
@@ -148,7 +148,7 @@ static int kcs_bmc_serio_init(void)
 }
 module_init(kcs_bmc_serio_init);
 
-static void kcs_bmc_serio_exit(void)
+static void __exit kcs_bmc_serio_exit(void)
 {
 	kcs_bmc_unregister_driver(&kcs_bmc_serio_driver);
 }
