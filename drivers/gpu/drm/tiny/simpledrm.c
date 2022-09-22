@@ -482,9 +482,6 @@ static void simpledrm_primary_plane_helper_atomic_update(struct drm_plane *plane
 	struct drm_rect src_clip, dst_clip;
 	int idx;
 
-	if (!fb)
-		return;
-
 	if (!drm_atomic_helper_damage_merged(old_plane_state, plane_state, &src_clip))
 		return;
 
