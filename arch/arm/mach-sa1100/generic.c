@@ -250,25 +250,6 @@ void sa11x0_register_mtd(struct flash_platform_data *flash,
 	sa11x0_register_device(&sa11x0mtd_device, flash);
 }
 
-static struct resource sa11x0ir_resources[] = {
-	DEFINE_RES_MEM(__PREG(Ser2UTCR0), 0x24),
-	DEFINE_RES_MEM(__PREG(Ser2HSCR0), 0x1c),
-	DEFINE_RES_MEM(__PREG(Ser2HSCR2), 0x04),
-	DEFINE_RES_IRQ(IRQ_Ser2ICP),
-};
-
-static struct platform_device sa11x0ir_device = {
-	.name		= "sa11x0-ir",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(sa11x0ir_resources),
-	.resource	= sa11x0ir_resources,
-};
-
-void sa11x0_register_irda(struct irda_platform_data *irda)
-{
-	sa11x0_register_device(&sa11x0ir_device, irda);
-}
-
 static struct resource sa1100_rtc_resources[] = {
 	DEFINE_RES_MEM(0x90010000, 0x40),
 	DEFINE_RES_IRQ_NAMED(IRQ_RTC1Hz, "rtc 1Hz"),
