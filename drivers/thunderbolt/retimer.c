@@ -162,7 +162,7 @@ static ssize_t device_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_retimer *rt = tb_to_retimer(dev);
 
-	return sprintf(buf, "%#x\n", rt->device);
+	return sysfs_emit(buf, "%#x\n", rt->device);
 }
 static DEVICE_ATTR_RO(device);
 
@@ -180,7 +180,7 @@ static ssize_t nvm_authenticate_show(struct device *dev,
 	else if (rt->no_nvm_upgrade)
 		ret = -EOPNOTSUPP;
 	else
-		ret = sprintf(buf, "%#x\n", rt->auth_status);
+		ret = sysfs_emit(buf, "%#x\n", rt->auth_status);
 
 	mutex_unlock(&rt->tb->lock);
 
@@ -255,7 +255,7 @@ static ssize_t nvm_version_show(struct device *dev,
 	if (!rt->nvm)
 		ret = -EAGAIN;
 	else
-		ret = sprintf(buf, "%x.%x\n", rt->nvm->major, rt->nvm->minor);
+		ret = sysfs_emit(buf, "%x.%x\n", rt->nvm->major, rt->nvm->minor);
 
 	mutex_unlock(&rt->tb->lock);
 	return ret;
@@ -267,7 +267,7 @@ static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_retimer *rt = tb_to_retimer(dev);
 
-	return sprintf(buf, "%#x\n", rt->vendor);
+	return sysfs_emit(buf, "%#x\n", rt->vendor);
 }
 static DEVICE_ATTR_RO(vendor);
 

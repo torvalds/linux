@@ -1694,7 +1694,7 @@ static ssize_t authorized_show(struct device *dev,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->authorized);
+	return sysfs_emit(buf, "%u\n", sw->authorized);
 }
 
 static int disapprove_switch(struct device *dev, void *not_used)
@@ -1804,7 +1804,7 @@ static ssize_t boot_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->boot);
+	return sysfs_emit(buf, "%u\n", sw->boot);
 }
 static DEVICE_ATTR_RO(boot);
 
@@ -1813,7 +1813,7 @@ static ssize_t device_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%#x\n", sw->device);
+	return sysfs_emit(buf, "%#x\n", sw->device);
 }
 static DEVICE_ATTR_RO(device);
 
@@ -1822,7 +1822,7 @@ device_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%s\n", sw->device_name ? sw->device_name : "");
+	return sysfs_emit(buf, "%s\n", sw->device_name ?: "");
 }
 static DEVICE_ATTR_RO(device_name);
 
@@ -1831,7 +1831,7 @@ generation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->generation);
+	return sysfs_emit(buf, "%u\n", sw->generation);
 }
 static DEVICE_ATTR_RO(generation);
 
@@ -1845,9 +1845,9 @@ static ssize_t key_show(struct device *dev, struct device_attribute *attr,
 		return restart_syscall();
 
 	if (sw->key)
-		ret = sprintf(buf, "%*phN\n", TB_SWITCH_KEY_SIZE, sw->key);
+		ret = sysfs_emit(buf, "%*phN\n", TB_SWITCH_KEY_SIZE, sw->key);
 	else
-		ret = sprintf(buf, "\n");
+		ret = sysfs_emit(buf, "\n");
 
 	mutex_unlock(&sw->tb->lock);
 	return ret;
@@ -1892,7 +1892,7 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u.0 Gb/s\n", sw->link_speed);
+	return sysfs_emit(buf, "%u.0 Gb/s\n", sw->link_speed);
 }
 
 /*
@@ -1907,7 +1907,7 @@ static ssize_t lanes_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%u\n", sw->link_width);
+	return sysfs_emit(buf, "%u\n", sw->link_width);
 }
 
 /*
@@ -1924,7 +1924,7 @@ static ssize_t nvm_authenticate_show(struct device *dev,
 	u32 status;
 
 	nvm_get_auth_status(sw, &status);
-	return sprintf(buf, "%#x\n", status);
+	return sysfs_emit(buf, "%#x\n", status);
 }
 
 static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
@@ -2033,7 +2033,7 @@ static ssize_t nvm_version_show(struct device *dev,
 	else if (!sw->nvm)
 		ret = -EAGAIN;
 	else
-		ret = sprintf(buf, "%x.%x\n", sw->nvm->major, sw->nvm->minor);
+		ret = sysfs_emit(buf, "%x.%x\n", sw->nvm->major, sw->nvm->minor);
 
 	mutex_unlock(&sw->tb->lock);
 
@@ -2046,7 +2046,7 @@ static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%#x\n", sw->vendor);
+	return sysfs_emit(buf, "%#x\n", sw->vendor);
 }
 static DEVICE_ATTR_RO(vendor);
 
@@ -2055,7 +2055,7 @@ vendor_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%s\n", sw->vendor_name ? sw->vendor_name : "");
+	return sysfs_emit(buf, "%s\n", sw->vendor_name ?: "");
 }
 static DEVICE_ATTR_RO(vendor_name);
 
@@ -2064,7 +2064,7 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_switch *sw = tb_to_switch(dev);
 
-	return sprintf(buf, "%pUb\n", sw->uuid);
+	return sysfs_emit(buf, "%pUb\n", sw->uuid);
 }
 static DEVICE_ATTR_RO(unique_id);
 

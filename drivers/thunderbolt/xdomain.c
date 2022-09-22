@@ -877,7 +877,7 @@ static ssize_t key_show(struct device *dev, struct device_attribute *attr,
 	 * It should be null terminated but anything else is pretty much
 	 * allowed.
 	 */
-	return sprintf(buf, "%*pE\n", (int)strlen(svc->key), svc->key);
+	return sysfs_emit(buf, "%*pE\n", (int)strlen(svc->key), svc->key);
 }
 static DEVICE_ATTR_RO(key);
 
@@ -903,7 +903,7 @@ static ssize_t prtcid_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_service *svc = container_of(dev, struct tb_service, dev);
 
-	return sprintf(buf, "%u\n", svc->prtcid);
+	return sysfs_emit(buf, "%u\n", svc->prtcid);
 }
 static DEVICE_ATTR_RO(prtcid);
 
@@ -912,7 +912,7 @@ static ssize_t prtcvers_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_service *svc = container_of(dev, struct tb_service, dev);
 
-	return sprintf(buf, "%u\n", svc->prtcvers);
+	return sysfs_emit(buf, "%u\n", svc->prtcvers);
 }
 static DEVICE_ATTR_RO(prtcvers);
 
@@ -921,7 +921,7 @@ static ssize_t prtcrevs_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_service *svc = container_of(dev, struct tb_service, dev);
 
-	return sprintf(buf, "%u\n", svc->prtcrevs);
+	return sysfs_emit(buf, "%u\n", svc->prtcrevs);
 }
 static DEVICE_ATTR_RO(prtcrevs);
 
@@ -930,7 +930,7 @@ static ssize_t prtcstns_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_service *svc = container_of(dev, struct tb_service, dev);
 
-	return sprintf(buf, "0x%08x\n", svc->prtcstns);
+	return sysfs_emit(buf, "0x%08x\n", svc->prtcstns);
 }
 static DEVICE_ATTR_RO(prtcstns);
 
@@ -1661,7 +1661,7 @@ static ssize_t device_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
 
-	return sprintf(buf, "%#x\n", xd->device);
+	return sysfs_emit(buf, "%#x\n", xd->device);
 }
 static DEVICE_ATTR_RO(device);
 
@@ -1673,7 +1673,7 @@ device_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	if (mutex_lock_interruptible(&xd->lock))
 		return -ERESTARTSYS;
-	ret = sprintf(buf, "%s\n", xd->device_name ? xd->device_name : "");
+	ret = sysfs_emit(buf, "%s\n", xd->device_name ?: "");
 	mutex_unlock(&xd->lock);
 
 	return ret;
@@ -1685,7 +1685,7 @@ static ssize_t maxhopid_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
 
-	return sprintf(buf, "%d\n", xd->remote_max_hopid);
+	return sysfs_emit(buf, "%d\n", xd->remote_max_hopid);
 }
 static DEVICE_ATTR_RO(maxhopid);
 
@@ -1694,7 +1694,7 @@ static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
 
-	return sprintf(buf, "%#x\n", xd->vendor);
+	return sysfs_emit(buf, "%#x\n", xd->vendor);
 }
 static DEVICE_ATTR_RO(vendor);
 
@@ -1706,7 +1706,7 @@ vendor_name_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	if (mutex_lock_interruptible(&xd->lock))
 		return -ERESTARTSYS;
-	ret = sprintf(buf, "%s\n", xd->vendor_name ? xd->vendor_name : "");
+	ret = sysfs_emit(buf, "%s\n", xd->vendor_name ?: "");
 	mutex_unlock(&xd->lock);
 
 	return ret;
@@ -1718,7 +1718,7 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
 
-	return sprintf(buf, "%pUb\n", xd->remote_uuid);
+	return sysfs_emit(buf, "%pUb\n", xd->remote_uuid);
 }
 static DEVICE_ATTR_RO(unique_id);
 
@@ -1727,7 +1727,7 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
 
-	return sprintf(buf, "%u.0 Gb/s\n", xd->link_speed);
+	return sysfs_emit(buf, "%u.0 Gb/s\n", xd->link_speed);
 }
 
 static DEVICE_ATTR(rx_speed, 0444, speed_show, NULL);
@@ -1738,7 +1738,7 @@ static ssize_t lanes_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tb_xdomain *xd = container_of(dev, struct tb_xdomain, dev);
 
-	return sprintf(buf, "%u\n", xd->link_width);
+	return sysfs_emit(buf, "%u\n", xd->link_width);
 }
 
 static DEVICE_ATTR(rx_lanes, 0444, lanes_show, NULL);
