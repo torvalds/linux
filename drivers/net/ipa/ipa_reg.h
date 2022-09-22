@@ -363,10 +363,10 @@ enum ipa_pulse_gran {
 
 /** enum ipa_cs_offload_en - ENDP_INIT_CFG register CS_OFFLOAD_EN field value */
 enum ipa_cs_offload_en {
-	IPA_CS_OFFLOAD_NONE		= 0x0,
-	IPA_CS_OFFLOAD_UL		= 0x1,	/* Before IPA v4.5 (TX) */
-	IPA_CS_OFFLOAD_DL		= 0x2,	/* Before IPA v4.5 (RX) */
-	IPA_CS_OFFLOAD_INLINE		= 0x1,	/* IPA v4.5 (TX and RX) */
+	IPA_CS_OFFLOAD_NONE			= 0x0,
+	IPA_CS_OFFLOAD_UL	/* TX */	= 0x1,	/* Not IPA v4.5+ */
+	IPA_CS_OFFLOAD_DL	/* RX */	= 0x2,	/* Not IPA v4.5+ */
+	IPA_CS_OFFLOAD_INLINE	/* TX and RX */	= 0x1,	/* IPA v4.5+ */
 };
 
 /* Valid only for TX (IPA consumer) endpoints */
@@ -376,9 +376,9 @@ enum ipa_cs_offload_en {
 
 /** enum ipa_nat_en - ENDP_INIT_NAT register NAT_EN field value */
 enum ipa_nat_en {
-	IPA_NAT_BYPASS			= 0x0,
-	IPA_NAT_SRC			= 0x1,
-	IPA_NAT_DST			= 0x2,
+	IPA_NAT_BYPASS				= 0x0,
+	IPA_NAT_SRC				= 0x1,
+	IPA_NAT_DST				= 0x2,
 };
 
 #define IPA_REG_ENDP_INIT_HDR_N_OFFSET(ep) \
@@ -472,10 +472,10 @@ static inline u32 ipa_metadata_offset_encoded(enum ipa_version version,
 
 /** enum ipa_mode - ENDP_INIT_MODE register MODE field value */
 enum ipa_mode {
-	IPA_BASIC			= 0x0,
-	IPA_ENABLE_FRAMING_HDLC		= 0x1,
-	IPA_ENABLE_DEFRAMING_HDLC	= 0x2,
-	IPA_DMA				= 0x3,
+	IPA_BASIC				= 0x0,
+	IPA_ENABLE_FRAMING_HDLC			= 0x1,
+	IPA_ENABLE_DEFRAMING_HDLC		= 0x2,
+	IPA_DMA					= 0x3,
 };
 
 #define IPA_REG_ENDP_INIT_AGGR_N_OFFSET(ep) \
@@ -524,20 +524,20 @@ static inline u32 aggr_hard_byte_limit_enable_fmask(bool legacy)
 
 /** enum ipa_aggr_en - ENDP_INIT_AGGR register AGGR_EN field value */
 enum ipa_aggr_en {
-	IPA_BYPASS_AGGR			= 0x0,	/* (TX, RX) */
-	IPA_ENABLE_AGGR			= 0x1,	/* (RX) */
-	IPA_ENABLE_DEAGGR		= 0x2,	/* (TX) */
+	IPA_BYPASS_AGGR		/* TX and RX */	= 0x0,
+	IPA_ENABLE_AGGR		/* RX */	= 0x1,
+	IPA_ENABLE_DEAGGR	/* TX */	= 0x2,
 };
 
 /** enum ipa_aggr_type - ENDP_INIT_AGGR register AGGR_TYPE field value */
 enum ipa_aggr_type {
-	IPA_MBIM_16			= 0x0,
-	IPA_HDLC			= 0x1,
-	IPA_TLP				= 0x2,
-	IPA_RNDIS			= 0x3,
-	IPA_GENERIC			= 0x4,
-	IPA_COALESCE			= 0x5,
-	IPA_QCMAP			= 0x6,
+	IPA_MBIM_16				= 0x0,
+	IPA_HDLC				= 0x1,
+	IPA_TLP					= 0x2,
+	IPA_RNDIS				= 0x3,
+	IPA_GENERIC				= 0x4,
+	IPA_COALESCE				= 0x5,
+	IPA_QCMAP				= 0x6,
 };
 
 /* Valid only for RX (IPA producer) endpoints */
