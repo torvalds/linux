@@ -155,15 +155,33 @@ int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
 static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 {
 	int err = 0;
+	uint16_t version_major;
+	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
+	const struct sdma_firmware_header_v2_0 *hdr_v2;
 
 	err = amdgpu_ucode_validate(sdma_inst->fw);
 	if (err)
 		return err;
 
-	hdr = (const struct sdma_firmware_header_v1_0 *)sdma_inst->fw->data;
-	sdma_inst->fw_version = le32_to_cpu(hdr->header.ucode_version);
-	sdma_inst->feature_version = le32_to_cpu(hdr->ucode_feature_version);
+	header = (const struct common_firmware_header *)
+		sdma_inst->fw->data;
+	version_major = le16_to_cpu(header->header_version_major);
+
+	switch (version_major) {
+	case 1:
+		hdr = (const struct sdma_firmware_header_v1_0 *)sdma_inst->fw->data;
+		sdma_inst->fw_version = le32_to_cpu(hdr->header.ucode_version);
+		sdma_inst->feature_version = le32_to_cpu(hdr->ucode_feature_version);
+		break;
+	case 2:
+		hdr_v2 = (const struct sdma_firmware_header_v2_0 *)sdma_inst->fw->data;
+		sdma_inst->fw_version = le32_to_cpu(hdr_v2->header.ucode_version);
+		sdma_inst->feature_version = le32_to_cpu(hdr_v2->ucode_feature_version);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (sdma_inst->feature_version >= 20)
 		sdma_inst->burst_nop = true;
@@ -193,13 +211,20 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
 	int err = 0, i;
-
-	if (duplicate && instance)
-		return -EINVAL;
+	const struct sdma_firmware_header_v2_0 *sdma_hdr;
+	uint16_t version_major;
 
 	err = request_firmware(&adev->sdma.instance[instance].fw, fw_name, adev->dev);
 	if (err)
 		goto out;
+
+	header = (const struct common_firmware_header *)
+		adev->sdma.instance[instance].fw->data;
+	version_major = le16_to_cpu(header->header_version_major);
+
+	if ((duplicate && instance) || (!duplicate && version_major > 1))
+		return -EINVAL;
+
 	err = amdgpu_sdma_init_inst_ctx(&adev->sdma.instance[instance]);
 	if (err)
 		goto out;
@@ -218,17 +243,36 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 		  adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-			if (!duplicate && (instance != i))
-				continue;
-			else {
-				info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA0 + i];
-				info->ucode_id = AMDGPU_UCODE_ID_SDMA0 + i;
-				info->fw = adev->sdma.instance[i].fw;
-				header = (const struct common_firmware_header *)info->fw->data;
-				adev->firmware.fw_size +=
-					ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
+		switch (version_major) {
+		case 1:
+			for (i = 0; i < adev->sdma.num_instances; i++) {
+				if (!duplicate && (instance != i))
+					continue;
+				else {
+					info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA0 + i];
+					info->ucode_id = AMDGPU_UCODE_ID_SDMA0 + i;
+					info->fw = adev->sdma.instance[i].fw;
+					adev->firmware.fw_size +=
+						ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
+				}
 			}
+			break;
+		case 2:
+			sdma_hdr = (const struct sdma_firmware_header_v2_0 *)
+				adev->sdma.instance[0].fw->data;
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA_UCODE_TH0];
+			info->ucode_id = AMDGPU_UCODE_ID_SDMA_UCODE_TH0;
+			info->fw = adev->sdma.instance[0].fw;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(sdma_hdr->ctx_ucode_size_bytes), PAGE_SIZE);
+			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA_UCODE_TH1];
+			info->ucode_id = AMDGPU_UCODE_ID_SDMA_UCODE_TH1;
+			info->fw = adev->sdma.instance[0].fw;
+			adev->firmware.fw_size +=
+				ALIGN(le32_to_cpu(sdma_hdr->ctl_ucode_size_bytes), PAGE_SIZE);
+			break;
+		default:
+			return -EINVAL;
 		}
 	}
 
