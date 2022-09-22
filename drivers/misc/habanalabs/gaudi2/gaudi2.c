@@ -7602,6 +7602,7 @@ static void _gaudi2_handle_qm_sei_err(struct hl_device *hdev, u64 qman_base)
 static void gaudi2_handle_qm_sei_err(struct hl_device *hdev, u16 event_type,
 					struct hl_eq_razwi_info *razwi_info)
 {
+	enum razwi_event_sources module;
 	u64 qman_base;
 	u8 index;
 
@@ -7611,9 +7612,11 @@ static void gaudi2_handle_qm_sei_err(struct hl_device *hdev, u16 event_type,
 		qman_base = mmDCORE0_TPC0_QM_BASE +
 				(index / NUM_OF_TPC_PER_DCORE) * DCORE_OFFSET +
 				(index % NUM_OF_TPC_PER_DCORE) * DCORE_TPC_OFFSET;
+		module = RAZWI_TPC;
 		break;
 	case GAUDI2_EVENT_TPC24_AXI_ERR_RSP:
 		qman_base = mmDCORE0_TPC6_QM_BASE;
+		module = RAZWI_TPC;
 		break;
 	case GAUDI2_EVENT_MME0_CTRL_AXI_ERROR_RESPONSE:
 	case GAUDI2_EVENT_MME1_CTRL_AXI_ERROR_RESPONSE:
@@ -7623,16 +7626,19 @@ static void gaudi2_handle_qm_sei_err(struct hl_device *hdev, u16 event_type,
 				(GAUDI2_EVENT_MME1_CTRL_AXI_ERROR_RESPONSE -
 						GAUDI2_EVENT_MME0_CTRL_AXI_ERROR_RESPONSE);
 		qman_base = mmDCORE0_MME_QM_BASE + index * DCORE_OFFSET;
+		module = RAZWI_MME;
 		break;
 	case GAUDI2_EVENT_PDMA_CH0_AXI_ERR_RSP:
 	case GAUDI2_EVENT_PDMA_CH1_AXI_ERR_RSP:
 		index = event_type - GAUDI2_EVENT_PDMA_CH0_AXI_ERR_RSP;
 		qman_base = mmPDMA0_QM_BASE + index * PDMA_OFFSET;
+		module = RAZWI_PDMA;
 		break;
 	case GAUDI2_EVENT_ROTATOR0_AXI_ERROR_RESPONSE:
 	case GAUDI2_EVENT_ROTATOR1_AXI_ERROR_RESPONSE:
 		index = event_type - GAUDI2_EVENT_ROTATOR0_AXI_ERROR_RESPONSE;
 		qman_base = mmROT0_QM_BASE + index * ROT_OFFSET;
+		module = RAZWI_ROT;
 		break;
 	default:
 		return;
@@ -7647,7 +7653,7 @@ static void gaudi2_handle_qm_sei_err(struct hl_device *hdev, u16 event_type,
 
 	/* check if RAZWI happened */
 	if (razwi_info)
-		gaudi2_ack_module_razwi_event_handler(hdev, RAZWI_PDMA, 0, 0, razwi_info);
+		gaudi2_ack_module_razwi_event_handler(hdev, module, 0, 0, razwi_info);
 }
 
 static void gaudi2_handle_qman_err(struct hl_device *hdev, u16 event_type)
