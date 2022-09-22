@@ -561,6 +561,7 @@ struct fec_enet_private {
 	struct clk *clk_2x_txclk;
 
 	bool ptp_clk_on;
+	struct mutex ptp_clk_mutex;
 	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
 
@@ -638,13 +639,6 @@ struct fec_enet_private {
 	int pps_enable;
 	unsigned int next_counter;
 
-	struct {
-		struct timespec64 ts_phc;
-		u64 ns_sys;
-		u32 at_corr;
-		u8 at_inc_corr;
-	} ptp_saved_state;
-
 	u64 ethtool_stats[];
 };
 
@@ -654,9 +648,6 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev);
 void fec_ptp_disable_hwts(struct net_device *ndev);
 int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr);
 int fec_ptp_get(struct net_device *ndev, struct ifreq *ifr);
-
-void fec_ptp_save_state(struct fec_enet_private *fep);
-int fec_ptp_restore_state(struct fec_enet_private *fep);
 
 /****************************************************************************/
 #endif /* FEC_H */
