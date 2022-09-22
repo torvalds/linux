@@ -1413,7 +1413,8 @@ static int wiz_probe(struct platform_device *pdev)
 	if (IS_ERR(wiz->scm_regmap)) {
 		if (wiz->type == J7200_WIZ_10G) {
 			dev_err(dev, "Couldn't get ti,scm regmap\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto err_addr_to_resource;
 		}
 
 		wiz->scm_regmap = NULL;
@@ -1463,7 +1464,7 @@ static int wiz_probe(struct platform_device *pdev)
 
 	ret = wiz_get_lane_phy_types(dev, wiz);
 	if (ret)
-		return ret;
+		goto err_addr_to_resource;
 
 	wiz->dev = dev;
 	wiz->regmap = regmap;
