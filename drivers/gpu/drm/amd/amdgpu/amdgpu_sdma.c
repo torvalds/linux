@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_sdma.h"
 #include "amdgpu_ras.h"
@@ -149,4 +150,92 @@ int amdgpu_sdma_process_ecc_irq(struct amdgpu_device *adev,
 
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;
+}
+
+static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
+{
+	int err = 0;
+	const struct sdma_firmware_header_v1_0 *hdr;
+
+	err = amdgpu_ucode_validate(sdma_inst->fw);
+	if (err)
+		return err;
+
+	hdr = (const struct sdma_firmware_header_v1_0 *)sdma_inst->fw->data;
+	sdma_inst->fw_version = le32_to_cpu(hdr->header.ucode_version);
+	sdma_inst->feature_version = le32_to_cpu(hdr->ucode_feature_version);
+
+	if (sdma_inst->feature_version >= 20)
+		sdma_inst->burst_nop = true;
+
+	return 0;
+}
+
+void amdgpu_sdma_destroy_inst_ctx(struct amdgpu_device *adev,
+				  bool duplicate)
+{
+	int i;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		release_firmware(adev->sdma.instance[i].fw);
+		if (duplicate)
+			break;
+	}
+
+	memset((void *)adev->sdma.instance, 0,
+	       sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
+}
+
+int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
+			       char *fw_name, u32 instance,
+			       bool duplicate)
+{
+	struct amdgpu_firmware_info *info = NULL;
+	const struct common_firmware_header *header = NULL;
+	int err = 0, i;
+
+	if (duplicate && instance)
+		return -EINVAL;
+
+	err = request_firmware(&adev->sdma.instance[instance].fw, fw_name, adev->dev);
+	if (err)
+		goto out;
+	err = amdgpu_sdma_init_inst_ctx(&adev->sdma.instance[instance]);
+	if (err)
+		goto out;
+
+	if (duplicate) {
+		for (i = 1; i < adev->sdma.num_instances; i++)
+			memcpy((void *)&adev->sdma.instance[i],
+			       (void *)&adev->sdma.instance[0],
+			       sizeof(struct amdgpu_sdma_instance));
+	}
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	DRM_DEBUG("psp_load == '%s'\n",
+		  adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			if (!duplicate && (instance != i))
+				continue;
+			else {
+				info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA0 + i];
+				info->ucode_id = AMDGPU_UCODE_ID_SDMA0 + i;
+				info->fw = adev->sdma.instance[i].fw;
+				header = (const struct common_firmware_header *)info->fw->data;
+				adev->firmware.fw_size +=
+					ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
+			}
+		}
+	}
+
+out:
+	if (err) {
+		DRM_ERROR("SDMA: Failed to init firmware \"%s\"\n", fw_name);
+		amdgpu_sdma_destroy_inst_ctx(adev, duplicate);
+	}
+	return err;
 }
