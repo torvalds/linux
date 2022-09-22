@@ -146,15 +146,15 @@ static void *c2c_he_zalloc(size_t size)
 
 	c2c_he->cpuset = bitmap_zalloc(c2c.cpus_cnt);
 	if (!c2c_he->cpuset)
-		return NULL;
+		goto out_free;
 
 	c2c_he->nodeset = bitmap_zalloc(c2c.nodes_cnt);
 	if (!c2c_he->nodeset)
-		return NULL;
+		goto out_free;
 
 	c2c_he->node_stats = zalloc(c2c.nodes_cnt * sizeof(*c2c_he->node_stats));
 	if (!c2c_he->node_stats)
-		return NULL;
+		goto out_free;
 
 	init_stats(&c2c_he->cstats.lcl_hitm);
 	init_stats(&c2c_he->cstats.rmt_hitm);
@@ -163,6 +163,12 @@ static void *c2c_he_zalloc(size_t size)
 	init_stats(&c2c_he->cstats.load);
 
 	return &c2c_he->he;
+
+out_free:
+	free(c2c_he->nodeset);
+	free(c2c_he->cpuset);
+	free(c2c_he);
+	return NULL;
 }
 
 static void c2c_he_free(void *he)

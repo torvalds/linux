@@ -872,6 +872,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.exit_idle_opt_for_cursor_updates = true,
 	.enable_single_display_2to1_odm_policy = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
+	.allow_sw_cursor_fallback = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1651,7 +1652,8 @@ static bool dcn321_resource_construct(
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a applied by default*/
-	dc->caps.max_cursor_size = 256;
+	/* TODO: Bring max cursor size back to 256 after subvp cursor corruption is fixed*/
+	dc->caps.max_cursor_size = 64;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 	dc->caps.mall_size_per_mem_channel = 0;

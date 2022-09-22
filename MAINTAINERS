@@ -1810,7 +1810,7 @@ N:	sun[x456789]i
 N:	sun50i
 
 ARM/Amlogic Meson SoC CLOCK FRAMEWORK
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 M:	Jerome Brunet <jbrunet@baylibre.com>
 L:	linux-amlogic@lists.infradead.org
 S:	Maintained
@@ -1835,7 +1835,7 @@ F:	Documentation/devicetree/bindings/sound/amlogic*
 F:	sound/soc/meson/
 
 ARM/Amlogic Meson SoC support
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 M:	Kevin Hilman <khilman@baylibre.com>
 R:	Jerome Brunet <jbrunet@baylibre.com>
 R:	Martin Blumenstingl <martin.blumenstingl@googlemail.com>
@@ -2538,7 +2538,7 @@ W:	http://www.digriz.org.uk/ts78xx/kernel
 F:	arch/arm/mach-orion5x/ts78xx-*
 
 ARM/OXNAS platform support
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-oxnas@groups.io (moderated for non-subscribers)
 S:	Maintained
@@ -6792,7 +6792,7 @@ F:	Documentation/devicetree/bindings/display/allwinner*
 F:	drivers/gpu/drm/sun4i/
 
 DRM DRIVERS FOR AMLOGIC SOCS
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-amlogic@lists.infradead.org
 S:	Supported
@@ -6814,7 +6814,7 @@ F:	drivers/gpu/drm/atmel-hlcdc/
 
 DRM DRIVERS FOR BRIDGE CHIPS
 M:	Andrzej Hajda <andrzej.hajda@intel.com>
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 M:	Robert Foss <robert.foss@linaro.org>
 R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
 R:	Jonas Karlman <jonas@kwiboo.se>
@@ -8652,8 +8652,8 @@ F:	drivers/input/touchscreen/goodix*
 
 GOOGLE ETHERNET DRIVERS
 M:	Jeroen de Borst <jeroendb@google.com>
-R:	Catherine Sullivan <csully@google.com>
-R:	David Awogbemila <awogbemila@google.com>
+M:	Catherine Sullivan <csully@google.com>
+R:	Shailend Chand <shailend@google.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
@@ -9122,7 +9122,7 @@ S:	Maintained
 F:	drivers/dma/hisi_dma.c
 
 HISILICON GPIO DRIVER
-M:	Luo Jiaxing <luojiaxing@huawei.com>
+M:	Jay Fang <f.fangjian@huawei.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-hisi.c
@@ -9208,8 +9208,8 @@ F:	Documentation/ABI/testing/debugfs-hisi-zip
 F:	drivers/crypto/hisilicon/zip/
 
 HISILICON ROCE DRIVER
+M:	Haoyue Xu <xuhaoyue1@hisilicon.com>
 M:	Wenpeng Liang <liangwenpeng@huawei.com>
-M:	Weihang Li <liweihang@huawei.com>
 L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/infiniband/hisilicon-hns-roce.txt
@@ -10828,7 +10828,7 @@ F:	drivers/media/tuners/it913x*
 
 ITE IT66121 HDMI BRIDGE DRIVER
 M:	Phong LE <ple@baylibre.com>
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/bridge/ite,it66121.yaml
@@ -11347,7 +11347,7 @@ F:	kernel/debug/
 F:	kernel/module/kdb.c
 
 KHADAS MCU MFD DRIVER
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 L:	linux-amlogic@lists.infradead.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/mfd/khadas,mcu.yaml
@@ -13218,7 +13218,7 @@ S:	Maintained
 F:	drivers/watchdog/menz69_wdt.c
 
 MESON AO CEC DRIVER FOR AMLOGIC SOCS
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 L:	linux-media@vger.kernel.org
 L:	linux-amlogic@lists.infradead.org
 S:	Supported
@@ -13229,7 +13229,7 @@ F:	drivers/media/cec/platform/meson/ao-cec-g12a.c
 F:	drivers/media/cec/platform/meson/ao-cec.c
 
 MESON GE2D DRIVER FOR AMLOGIC SOCS
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 L:	linux-media@vger.kernel.org
 L:	linux-amlogic@lists.infradead.org
 S:	Supported
@@ -13245,7 +13245,7 @@ F:	Documentation/devicetree/bindings/mtd/amlogic,meson-nand.txt
 F:	drivers/mtd/nand/raw/meson_*
 
 MESON VIDEO DECODER DRIVER FOR AMLOGIC SOCS
-M:	Neil Armstrong <narmstrong@baylibre.com>
+M:	Neil Armstrong <neil.armstrong@linaro.org>
 L:	linux-media@vger.kernel.org
 L:	linux-amlogic@lists.infradead.org
 S:	Supported
@@ -16864,6 +16864,7 @@ F:	drivers/net/ethernet/qualcomm/emac/
 
 QUALCOMM ETHQOS ETHERNET DRIVER
 M:	Vinod Koul <vkoul@kernel.org>
+R:	Bhupesh Sharma <bhupesh.sharma@linaro.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/qcom,ethqos.txt
@@ -17751,6 +17752,17 @@ M:	Jack Wang <jinpu.wang@ionos.com>
 L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	drivers/infiniband/ulp/rtrs/
+
+RUNTIME VERIFICATION (RV)
+M:	Daniel Bristot de Oliveira <bristot@kernel.org>
+M:	Steven Rostedt <rostedt@goodmis.org>
+L:	linux-trace-devel@vger.kernel.org
+S:	Maintained
+F:	Documentation/trace/rv/
+F:	include/linux/rv.h
+F:	include/rv/
+F:	kernel/trace/rv/
+F:	tools/verification/
 
 RXRPC SOCKETS (AF_RXRPC)
 M:	David Howells <dhowells@redhat.com>
@@ -19955,6 +19967,7 @@ S:	Supported
 F:	drivers/net/team/
 F:	include/linux/if_team.h
 F:	include/uapi/linux/if_team.h
+F:	tools/testing/selftests/net/team/
 
 TECHNOLOGIC SYSTEMS TS-5500 PLATFORM SUPPORT
 M:	"Savoir-faire Linux Inc." <kernel@savoirfairelinux.com>
@@ -20618,6 +20631,7 @@ F:	include/*/ftrace.h
 F:	include/linux/trace*.h
 F:	include/trace/
 F:	kernel/trace/
+F:	scripts/tracing/
 F:	tools/testing/selftests/ftrace/
 
 TRACING MMIO ACCESSES (MMIOTRACE)

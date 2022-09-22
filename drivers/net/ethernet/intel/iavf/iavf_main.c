@@ -1077,7 +1077,6 @@ static int iavf_set_mac(struct net_device *netdev, void *p)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
-	bool handle_mac = iavf_is_mac_set_handled(netdev, addr->sa_data);
 	int ret;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -1094,10 +1093,9 @@ static int iavf_set_mac(struct net_device *netdev, void *p)
 		return 0;
 	}
 
-	if (handle_mac)
-		goto done;
-
-	ret = wait_event_interruptible_timeout(adapter->vc_waitqueue, false, msecs_to_jiffies(2500));
+	ret = wait_event_interruptible_timeout(adapter->vc_waitqueue,
+					       iavf_is_mac_set_handled(netdev, addr->sa_data),
+					       msecs_to_jiffies(2500));
 
 	/* If ret < 0 then it means wait was interrupted.
 	 * If ret == 0 then it means we got a timeout.
@@ -1111,7 +1109,6 @@ static int iavf_set_mac(struct net_device *netdev, void *p)
 	if (!ret)
 		return -EAGAIN;
 
-done:
 	if (!ether_addr_equal(netdev->dev_addr, addr->sa_data))
 		return -EACCES;
 

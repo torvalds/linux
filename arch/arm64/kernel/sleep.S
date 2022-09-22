@@ -101,6 +101,9 @@ SYM_FUNC_END(__cpu_suspend_enter)
 SYM_CODE_START(cpu_resume)
 	bl	init_kernel_el
 	bl	finalise_el2
+#if VA_BITS > 48
+	ldr_l	x0, vabits_actual
+#endif
 	bl	__cpu_setup
 	/* enable the MMU early - so we can access sleep_save_stash by va */
 	adrp	x1, swapper_pg_dir

@@ -95,7 +95,7 @@ static int bperf_load_program(struct evlist *evlist)
 
 	perf_cpu_map__for_each_cpu(cpu, i, evlist->core.all_cpus) {
 		link = bpf_program__attach_perf_event(skel->progs.on_cgrp_switch,
-						      FD(cgrp_switch, cpu.cpu));
+						      FD(cgrp_switch, i));
 		if (IS_ERR(link)) {
 			pr_err("Failed to attach cgroup program\n");
 			err = PTR_ERR(link);
@@ -115,15 +115,15 @@ static int bperf_load_program(struct evlist *evlist)
 			evsel->cgrp = NULL;
 
 			/* open single copy of the events w/o cgroup */
-			err = evsel__open_per_cpu(evsel, evlist->core.all_cpus, -1);
+			err = evsel__open_per_cpu(evsel, evsel->core.cpus, -1);
 			if (err) {
 				pr_err("Failed to open first cgroup events\n");
 				goto out;
 			}
 
 			map_fd = bpf_map__fd(skel->maps.events);
-			perf_cpu_map__for_each_cpu(cpu, j, evlist->core.all_cpus) {
-				int fd = FD(evsel, cpu.cpu);
+			perf_cpu_map__for_each_cpu(cpu, j, evsel->core.cpus) {
+				int fd = FD(evsel, j);
 				__u32 idx = evsel->core.idx * total_cpus + cpu.cpu;
 
 				err = bpf_map_update_elem(map_fd, &idx, &fd,
@@ -269,7 +269,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 			goto out;
 		}
 
-		perf_cpu_map__for_each_cpu(cpu, i, evlist->core.all_cpus) {
+		perf_cpu_map__for_each_cpu(cpu, i, evsel->core.cpus) {
 			counts = perf_counts(evsel->counts, i, 0);
 			counts->val = values[cpu.cpu].counter;
 			counts->ena = values[cpu.cpu].enabled;

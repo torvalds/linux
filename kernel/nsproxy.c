@@ -179,8 +179,7 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 	if (IS_ERR(new_ns))
 		return  PTR_ERR(new_ns);
 
-	if ((flags & CLONE_VM) == 0)
-		timens_on_fork(new_ns, tsk);
+	timens_on_fork(new_ns, tsk);
 
 	tsk->nsproxy = new_ns;
 	return 0;

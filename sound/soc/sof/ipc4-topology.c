@@ -771,7 +771,7 @@ static int sof_ipc4_widget_setup_comp_src(struct snd_sof_widget *swidget)
 		goto err;
 
 	ret = sof_update_ipc_object(scomp, src, SOF_SRC_TOKENS, swidget->tuples,
-				    swidget->num_tuples, sizeof(src), 1);
+				    swidget->num_tuples, sizeof(*src), 1);
 	if (ret) {
 		dev_err(scomp->dev, "Parsing SRC tokens failed\n");
 		goto err;
@@ -1251,7 +1251,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			if (blob->alh_cfg.count > 1) {
 				int group_id;
 
-				group_id = ida_alloc_max(&alh_group_ida, ALH_MULTI_GTW_COUNT,
+				group_id = ida_alloc_max(&alh_group_ida, ALH_MULTI_GTW_COUNT - 1,
 							 GFP_KERNEL);
 
 				if (group_id < 0)
