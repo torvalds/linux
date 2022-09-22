@@ -248,8 +248,8 @@
 	status = "okay";
 
 	/* default boot source: workaround #1 for errata ERR006282 */
-	smarc_flash: spi-flash@0 {
-		compatible = "winbond,w25q16dw", "jedec,spi-nor";
+	smarc_flash: flash@0 {
+		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 	};
