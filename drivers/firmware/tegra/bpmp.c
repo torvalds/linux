@@ -502,7 +502,7 @@ EXPORT_SYMBOL_GPL(tegra_bpmp_free_mrq);
 
 bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq)
 {
-	struct mrq_query_abi_request req = { .mrq = cpu_to_le32(mrq) };
+	struct mrq_query_abi_request req = { .mrq = mrq };
 	struct mrq_query_abi_response resp;
 	struct tegra_bpmp_message msg = {
 		.mrq = MRQ_QUERY_ABI,

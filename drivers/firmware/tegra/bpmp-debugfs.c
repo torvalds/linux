@@ -50,11 +50,7 @@ static int seqbuf_read(struct seqbuf *seqbuf, void *buf, size_t nbyte)
 
 static int seqbuf_read_u32(struct seqbuf *seqbuf, u32 *v)
 {
-	int err;
-
-	err = seqbuf_read(seqbuf, v, 4);
-	*v = le32_to_cpu(*v);
-	return err;
+	return seqbuf_read(seqbuf, v, 4);
 }
 
 static int seqbuf_read_str(struct seqbuf *seqbuf, const char **str)
@@ -112,7 +108,7 @@ static int mrq_debug_open(struct tegra_bpmp *bpmp, const char *name,
 			  u32 *fd, u32 *len, bool write)
 {
 	struct mrq_debug_request req = {
-		.cmd = cpu_to_le32(write ? CMD_DEBUG_OPEN_WO : CMD_DEBUG_OPEN_RO),
+		.cmd = write ? CMD_DEBUG_OPEN_WO : CMD_DEBUG_OPEN_RO,
 	};
 	struct mrq_debug_response resp;
 	struct tegra_bpmp_message msg = {
@@ -150,7 +146,7 @@ static int mrq_debug_open(struct tegra_bpmp *bpmp, const char *name,
 static int mrq_debug_close(struct tegra_bpmp *bpmp, u32 fd)
 {
 	struct mrq_debug_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUG_CLOSE),
+		.cmd = CMD_DEBUG_CLOSE,
 		.frd = {
 			.fd = fd,
 		},
@@ -182,7 +178,7 @@ static int mrq_debug_read(struct tegra_bpmp *bpmp, const char *name,
 			  char *data, size_t sz_data, u32 *nbytes)
 {
 	struct mrq_debug_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUG_READ),
+		.cmd = CMD_DEBUG_READ,
 	};
 	struct mrq_debug_response resp;
 	struct tegra_bpmp_message msg = {
@@ -245,7 +241,7 @@ static int mrq_debug_write(struct tegra_bpmp *bpmp, const char *name,
 			   uint8_t *data, size_t sz_data)
 {
 	struct mrq_debug_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUG_WRITE)
+		.cmd = CMD_DEBUG_WRITE
 	};
 	struct mrq_debug_response resp;
 	struct tegra_bpmp_message msg = {
@@ -308,7 +304,7 @@ static int bpmp_debug_show(struct seq_file *m, void *p)
 	char fnamebuf[256];
 	const char *filename;
 	struct mrq_debug_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUG_READ),
+		.cmd = CMD_DEBUG_READ,
 	};
 	struct mrq_debug_response resp;
 	struct tegra_bpmp_message msg = {
@@ -487,12 +483,12 @@ static int mrq_debugfs_read(struct tegra_bpmp *bpmp,
 			    size_t *nbytes)
 {
 	struct mrq_debugfs_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUGFS_READ),
+		.cmd = CMD_DEBUGFS_READ,
 		.fop = {
-			.fnameaddr = cpu_to_le32((u32)name),
-			.fnamelen = cpu_to_le32((u32)sz_name),
-			.dataaddr = cpu_to_le32((u32)data),
-			.datalen = cpu_to_le32((u32)sz_data),
+			.fnameaddr = (u32)name,
+			.fnamelen = (u32)sz_name,
+			.dataaddr = (u32)data,
+			.datalen = (u32)sz_data,
 		},
 	};
 	struct mrq_debugfs_response resp;
@@ -525,12 +521,12 @@ static int mrq_debugfs_write(struct tegra_bpmp *bpmp,
 			     dma_addr_t data, size_t sz_data)
 {
 	const struct mrq_debugfs_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUGFS_WRITE),
+		.cmd = CMD_DEBUGFS_WRITE,
 		.fop = {
-			.fnameaddr = cpu_to_le32((u32)name),
-			.fnamelen = cpu_to_le32((u32)sz_name),
-			.dataaddr = cpu_to_le32((u32)data),
-			.datalen = cpu_to_le32((u32)sz_data),
+			.fnameaddr = (u32)name,
+			.fnamelen = (u32)sz_name,
+			.dataaddr = (u32)data,
+			.datalen = (u32)sz_data,
 		},
 	};
 	struct tegra_bpmp_message msg = {
@@ -548,10 +544,10 @@ static int mrq_debugfs_dumpdir(struct tegra_bpmp *bpmp, dma_addr_t addr,
 			       size_t size, size_t *nbytes)
 {
 	const struct mrq_debugfs_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUGFS_DUMPDIR),
+		.cmd = CMD_DEBUGFS_DUMPDIR,
 		.dumpdir = {
-			.dataaddr = cpu_to_le32((u32)addr),
-			.datalen = cpu_to_le32((u32)size),
+			.dataaddr = (u32)addr,
+			.datalen = (u32)size,
 		},
 	};
 	struct mrq_debugfs_response resp;
