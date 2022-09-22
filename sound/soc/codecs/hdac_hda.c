@@ -461,9 +461,6 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		dev_dbg(&hdev->dev, "no patch file found\n");
 	}
 
-	/* configure codec for 1:1 PCM:DAI mapping */
-	hcodec->mst_no_extra_pcms = 1;
-
 	ret = snd_hda_codec_parse_pcms(hcodec);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to map pcms to dai %d\n", ret);
