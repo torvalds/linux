@@ -297,7 +297,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 		i915_tt->is_shmem = true;
 	}
 
-	if (HAS_FLAT_CCS(i915) && i915_gem_object_needs_ccs_pages(obj))
+	if (i915_gem_object_needs_ccs_pages(obj))
 		ccs_pages = DIV_ROUND_UP(DIV_ROUND_UP(bo->base.size,
 						      NUM_BYTES_PER_CCS_BYTE),
 					 PAGE_SIZE);

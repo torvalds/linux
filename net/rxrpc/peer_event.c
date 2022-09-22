@@ -16,18 +16,263 @@
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <net/ip.h>
+#include <net/icmp.h>
 #include "ar-internal.h"
 
+static void rxrpc_adjust_mtu(struct rxrpc_peer *, unsigned int);
 static void rxrpc_store_error(struct rxrpc_peer *, struct sock_exterr_skb *);
 static void rxrpc_distribute_error(struct rxrpc_peer *, int,
 				   enum rxrpc_call_completion);
 
 /*
- * Find the peer associated with an ICMP packet.
+ * Find the peer associated with an ICMPv4 packet.
  */
 static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
-						     const struct sk_buff *skb,
+						     struct sk_buff *skb,
+						     unsigned int udp_offset,
+						     unsigned int *info,
 						     struct sockaddr_rxrpc *srx)
+{
+	struct iphdr *ip, *ip0 = ip_hdr(skb);
+	struct icmphdr *icmp = icmp_hdr(skb);
+	struct udphdr *udp = (struct udphdr *)(skb->data + udp_offset);
+
+	_enter("%u,%u,%u", ip0->protocol, icmp->type, icmp->code);
+
+	switch (icmp->type) {
+	case ICMP_DEST_UNREACH:
+		*info = ntohs(icmp->un.frag.mtu);
+		fallthrough;
+	case ICMP_TIME_EXCEEDED:
+	case ICMP_PARAMETERPROB:
+		ip = (struct iphdr *)((void *)icmp + 8);
+		break;
+	default:
+		return NULL;
+	}
+
+	memset(srx, 0, sizeof(*srx));
+	srx->transport_type = local->srx.transport_type;
+	srx->transport_len = local->srx.transport_len;
+	srx->transport.family = local->srx.transport.family;
+
+	/* Can we see an ICMP4 packet on an ICMP6 listening socket?  and vice
+	 * versa?
+	 */
+	switch (srx->transport.family) {
+	case AF_INET:
+		srx->transport_len = sizeof(srx->transport.sin);
+		srx->transport.family = AF_INET;
+		srx->transport.sin.sin_port = udp->dest;
+		memcpy(&srx->transport.sin.sin_addr, &ip->daddr,
+		       sizeof(struct in_addr));
+		break;
+
+#ifdef CONFIG_AF_RXRPC_IPV6
+	case AF_INET6:
+		srx->transport_len = sizeof(srx->transport.sin);
+		srx->transport.family = AF_INET;
+		srx->transport.sin.sin_port = udp->dest;
+		memcpy(&srx->transport.sin.sin_addr, &ip->daddr,
+		       sizeof(struct in_addr));
+		break;
+#endif
+
+	default:
+		WARN_ON_ONCE(1);
+		return NULL;
+	}
+
+	_net("ICMP {%pISp}", &srx->transport);
+	return rxrpc_lookup_peer_rcu(local, srx);
+}
+
+#ifdef CONFIG_AF_RXRPC_IPV6
+/*
+ * Find the peer associated with an ICMPv6 packet.
+ */
+static struct rxrpc_peer *rxrpc_lookup_peer_icmp6_rcu(struct rxrpc_local *local,
+						      struct sk_buff *skb,
+						      unsigned int udp_offset,
+						      unsigned int *info,
+						      struct sockaddr_rxrpc *srx)
+{
+	struct icmp6hdr *icmp = icmp6_hdr(skb);
+	struct ipv6hdr *ip, *ip0 = ipv6_hdr(skb);
+	struct udphdr *udp = (struct udphdr *)(skb->data + udp_offset);
+
+	_enter("%u,%u,%u", ip0->nexthdr, icmp->icmp6_type, icmp->icmp6_code);
+
+	switch (icmp->icmp6_type) {
+	case ICMPV6_DEST_UNREACH:
+		*info = ntohl(icmp->icmp6_mtu);
+		fallthrough;
+	case ICMPV6_PKT_TOOBIG:
+	case ICMPV6_TIME_EXCEED:
+	case ICMPV6_PARAMPROB:
+		ip = (struct ipv6hdr *)((void *)icmp + 8);
+		break;
+	default:
+		return NULL;
+	}
+
+	memset(srx, 0, sizeof(*srx));
+	srx->transport_type = local->srx.transport_type;
+	srx->transport_len = local->srx.transport_len;
+	srx->transport.family = local->srx.transport.family;
+
+	/* Can we see an ICMP4 packet on an ICMP6 listening socket?  and vice
+	 * versa?
+	 */
+	switch (srx->transport.family) {
+	case AF_INET:
+		_net("Rx ICMP6 on v4 sock");
+		srx->transport_len = sizeof(srx->transport.sin);
+		srx->transport.family = AF_INET;
+		srx->transport.sin.sin_port = udp->dest;
+		memcpy(&srx->transport.sin.sin_addr,
+		       &ip->daddr.s6_addr32[3], sizeof(struct in_addr));
+		break;
+	case AF_INET6:
+		_net("Rx ICMP6");
+		srx->transport.sin.sin_port = udp->dest;
+		memcpy(&srx->transport.sin6.sin6_addr, &ip->daddr,
+		       sizeof(struct in6_addr));
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return NULL;
+	}
+
+	_net("ICMP {%pISp}", &srx->transport);
+	return rxrpc_lookup_peer_rcu(local, srx);
+}
+#endif /* CONFIG_AF_RXRPC_IPV6 */
+
+/*
+ * Handle an error received on the local endpoint as a tunnel.
+ */
+void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb,
+			 unsigned int udp_offset)
+{
+	struct sock_extended_err ee;
+	struct sockaddr_rxrpc srx;
+	struct rxrpc_local *local;
+	struct rxrpc_peer *peer;
+	unsigned int info = 0;
+	int err;
+	u8 version = ip_hdr(skb)->version;
+	u8 type = icmp_hdr(skb)->type;
+	u8 code = icmp_hdr(skb)->code;
+
+	rcu_read_lock();
+	local = rcu_dereference_sk_user_data(sk);
+	if (unlikely(!local)) {
+		rcu_read_unlock();
+		return;
+	}
+
+	rxrpc_new_skb(skb, rxrpc_skb_received);
+
+	switch (ip_hdr(skb)->version) {
+	case IPVERSION:
+		peer = rxrpc_lookup_peer_icmp_rcu(local, skb, udp_offset,
+						  &info, &srx);
+		break;
+#ifdef CONFIG_AF_RXRPC_IPV6
+	case 6:
+		peer = rxrpc_lookup_peer_icmp6_rcu(local, skb, udp_offset,
+						   &info, &srx);
+		break;
+#endif
+	default:
+		rcu_read_unlock();
+		return;
+	}
+
+	if (peer && !rxrpc_get_peer_maybe(peer))
+		peer = NULL;
+	if (!peer) {
+		rcu_read_unlock();
+		return;
+	}
+
+	memset(&ee, 0, sizeof(ee));
+
+	switch (version) {
+	case IPVERSION:
+		switch (type) {
+		case ICMP_DEST_UNREACH:
+			switch (code) {
+			case ICMP_FRAG_NEEDED:
+				rxrpc_adjust_mtu(peer, info);
+				rcu_read_unlock();
+				rxrpc_put_peer(peer);
+				return;
+			default:
+				break;
+			}
+
+			err = EHOSTUNREACH;
+			if (code <= NR_ICMP_UNREACH) {
+				/* Might want to do something different with
+				 * non-fatal errors
+				 */
+				//harderr = icmp_err_convert[code].fatal;
+				err = icmp_err_convert[code].errno;
+			}
+			break;
+
+		case ICMP_TIME_EXCEEDED:
+			err = EHOSTUNREACH;
+			break;
+		default:
+			err = EPROTO;
+			break;
+		}
+
+		ee.ee_origin = SO_EE_ORIGIN_ICMP;
+		ee.ee_type = type;
+		ee.ee_code = code;
+		ee.ee_errno = err;
+		break;
+
+#ifdef CONFIG_AF_RXRPC_IPV6
+	case 6:
+		switch (type) {
+		case ICMPV6_PKT_TOOBIG:
+			rxrpc_adjust_mtu(peer, info);
+			rcu_read_unlock();
+			rxrpc_put_peer(peer);
+			return;
+		}
+
+		icmpv6_err_convert(type, code, &err);
+
+		if (err == EACCES)
+			err = EHOSTUNREACH;
+
+		ee.ee_origin = SO_EE_ORIGIN_ICMP6;
+		ee.ee_type = type;
+		ee.ee_code = code;
+		ee.ee_errno = err;
+		break;
+#endif
+	}
+
+	trace_rxrpc_rx_icmp(peer, &ee, &srx);
+
+	rxrpc_distribute_error(peer, err, RXRPC_CALL_NETWORK_ERROR);
+	rcu_read_unlock();
+	rxrpc_put_peer(peer);
+}
+
+/*
+ * Find the peer associated with a local error.
+ */
+static struct rxrpc_peer *rxrpc_lookup_peer_local_rcu(struct rxrpc_local *local,
+						      const struct sk_buff *skb,
+						      struct sockaddr_rxrpc *srx)
 {
 	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
 
@@ -38,9 +283,6 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 	srx->transport_len = local->srx.transport_len;
 	srx->transport.family = local->srx.transport.family;
 
-	/* Can we see an ICMP4 packet on an ICMP6 listening socket?  and vice
-	 * versa?
-	 */
 	switch (srx->transport.family) {
 	case AF_INET:
 		srx->transport_len = sizeof(srx->transport.sin);
@@ -104,10 +346,8 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 /*
  * Handle an MTU/fragmentation problem.
  */
-static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, struct sock_exterr_skb *serr)
+static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, unsigned int mtu)
 {
-	u32 mtu = serr->ee.ee_info;
-
 	_net("Rx ICMP Fragmentation Needed (%d)", mtu);
 
 	/* wind down the local interface MTU */
@@ -148,7 +388,7 @@ void rxrpc_error_report(struct sock *sk)
 	struct sock_exterr_skb *serr;
 	struct sockaddr_rxrpc srx;
 	struct rxrpc_local *local;
-	struct rxrpc_peer *peer;
+	struct rxrpc_peer *peer = NULL;
 	struct sk_buff *skb;
 
 	rcu_read_lock();
@@ -172,41 +412,20 @@ void rxrpc_error_report(struct sock *sk)
 	}
 	rxrpc_new_skb(skb, rxrpc_skb_received);
 	serr = SKB_EXT_ERR(skb);
-	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
-		_leave("UDP empty message");
-		rcu_read_unlock();
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
-		return;
+
+	if (serr->ee.ee_origin == SO_EE_ORIGIN_LOCAL) {
+		peer = rxrpc_lookup_peer_local_rcu(local, skb, &srx);
+		if (peer && !rxrpc_get_peer_maybe(peer))
+			peer = NULL;
+		if (peer) {
+			trace_rxrpc_rx_icmp(peer, &serr->ee, &srx);
+			rxrpc_store_error(peer, serr);
+		}
 	}
 
-	peer = rxrpc_lookup_peer_icmp_rcu(local, skb, &srx);
-	if (peer && !rxrpc_get_peer_maybe(peer))
-		peer = NULL;
-	if (!peer) {
-		rcu_read_unlock();
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
-		_leave(" [no peer]");
-		return;
-	}
-
-	trace_rxrpc_rx_icmp(peer, &serr->ee, &srx);
-
-	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP &&
-	     serr->ee.ee_type == ICMP_DEST_UNREACH &&
-	     serr->ee.ee_code == ICMP_FRAG_NEEDED)) {
-		rxrpc_adjust_mtu(peer, serr);
-		rcu_read_unlock();
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
-		rxrpc_put_peer(peer);
-		_leave(" [MTU update]");
-		return;
-	}
-
-	rxrpc_store_error(peer, serr);
 	rcu_read_unlock();
 	rxrpc_free_skb(skb, rxrpc_skb_freed);
 	rxrpc_put_peer(peer);
-
 	_leave("");
 }
 

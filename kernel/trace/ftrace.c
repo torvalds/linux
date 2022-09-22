@@ -1861,8 +1861,6 @@ static void ftrace_hash_rec_enable_modify(struct ftrace_ops *ops,
 	ftrace_hash_rec_update_modify(ops, filter_hash, 1);
 }
 
-static bool ops_references_ip(struct ftrace_ops *ops, unsigned long ip);
-
 /*
  * Try to update IPMODIFY flag on each ftrace_rec. Return 0 if it is OK
  * or no-needed to update, -EBUSY if it detects a conflict of the flag
@@ -3116,49 +3114,6 @@ static inline int ops_traces_mod(struct ftrace_ops *ops)
 	 */
 	return ftrace_hash_empty(ops->func_hash->filter_hash) &&
 		ftrace_hash_empty(ops->func_hash->notrace_hash);
-}
-
-/*
- * Check if the current ops references the given ip.
- *
- * If the ops traces all functions, then it was already accounted for.
- * If the ops does not trace the current record function, skip it.
- * If the ops ignores the function via notrace filter, skip it.
- */
-static bool
-ops_references_ip(struct ftrace_ops *ops, unsigned long ip)
-{
-	/* If ops isn't enabled, ignore it */
-	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
-		return false;
-
-	/* If ops traces all then it includes this function */
-	if (ops_traces_mod(ops))
-		return true;
-
-	/* The function must be in the filter */
-	if (!ftrace_hash_empty(ops->func_hash->filter_hash) &&
-	    !__ftrace_lookup_ip(ops->func_hash->filter_hash, ip))
-		return false;
-
-	/* If in notrace hash, we ignore it too */
-	if (ftrace_lookup_ip(ops->func_hash->notrace_hash, ip))
-		return false;
-
-	return true;
-}
-
-/*
- * Check if the current ops references the record.
- *
- * If the ops traces all functions, then it was already accounted for.
- * If the ops does not trace the current record function, skip it.
- * If the ops ignores the function via notrace filter, skip it.
- */
-static bool
-ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
-{
-	return ops_references_ip(ops, rec->ip);
 }
 
 static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
@@ -6822,6 +6777,38 @@ static int ftrace_get_trampoline_kallsym(unsigned int symnum,
 	return -ERANGE;
 }
 
+#if defined(CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS) || defined(CONFIG_MODULES)
+/*
+ * Check if the current ops references the given ip.
+ *
+ * If the ops traces all functions, then it was already accounted for.
+ * If the ops does not trace the current record function, skip it.
+ * If the ops ignores the function via notrace filter, skip it.
+ */
+static bool
+ops_references_ip(struct ftrace_ops *ops, unsigned long ip)
+{
+	/* If ops isn't enabled, ignore it */
+	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
+		return false;
+
+	/* If ops traces all then it includes this function */
+	if (ops_traces_mod(ops))
+		return true;
+
+	/* The function must be in the filter */
+	if (!ftrace_hash_empty(ops->func_hash->filter_hash) &&
+	    !__ftrace_lookup_ip(ops->func_hash->filter_hash, ip))
+		return false;
+
+	/* If in notrace hash, we ignore it too */
+	if (ftrace_lookup_ip(ops->func_hash->notrace_hash, ip))
+		return false;
+
+	return true;
+}
+#endif
+
 #ifdef CONFIG_MODULES
 
 #define next_to_ftrace_page(p) container_of(p, struct ftrace_page, next)
@@ -6834,7 +6821,7 @@ static int referenced_filters(struct dyn_ftrace *rec)
 	int cnt = 0;
 
 	for (ops = ftrace_ops_list; ops != &ftrace_list_end; ops = ops->next) {
-		if (ops_references_rec(ops, rec)) {
+		if (ops_references_ip(ops, rec->ip)) {
 			if (WARN_ON_ONCE(ops->flags & FTRACE_OPS_FL_DIRECT))
 				continue;
 			if (WARN_ON_ONCE(ops->flags & FTRACE_OPS_FL_IPMODIFY))

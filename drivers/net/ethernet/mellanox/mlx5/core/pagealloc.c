@@ -376,8 +376,8 @@ retry:
 			goto out_dropped;
 		}
 	}
+	err = mlx5_cmd_check(dev, err, in, out);
 	if (err) {
-		err = mlx5_cmd_check(dev, err, in, out);
 		mlx5_core_warn(dev, "func_id 0x%x, npages %d, err %d\n",
 			       func_id, npages, err);
 		goto out_dropped;
@@ -524,10 +524,13 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 		dev->priv.reclaim_pages_discard += npages;
 	}
 	/* if triggered by FW event and failed by FW then ignore */
-	if (event && err == -EREMOTEIO)
+	if (event && err == -EREMOTEIO) {
 		err = 0;
+		goto out_free;
+	}
+
+	err = mlx5_cmd_check(dev, err, in, out);
 	if (err) {
-		err = mlx5_cmd_check(dev, err, in, out);
 		mlx5_core_err(dev, "failed reclaiming pages: err %d\n", err);
 		goto out_free;
 	}
