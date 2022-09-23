@@ -24,32 +24,31 @@ properties:
 
   compatible:
     oneOf:
-      - const: allwinner,sun4i-a10-sram-controller
+      - enum:
+          - allwinner,sun4i-a10-sram-controller
+          - allwinner,sun50i-a64-sram-controller
         deprecated: true
-      - const: allwinner,sun4i-a10-system-control
-      - const: allwinner,sun5i-a13-system-control
+      - enum:
+          - allwinner,sun4i-a10-system-control
+          - allwinner,sun5i-a13-system-control
+          - allwinner,sun8i-a23-system-control
+          - allwinner,sun8i-h3-system-control
+          - allwinner,sun20i-d1-system-control
+          - allwinner,sun50i-a64-system-control
+          - allwinner,sun50i-h5-system-control
+          - allwinner,sun50i-h616-system-control
       - items:
-          - const: allwinner,sun7i-a20-system-control
+          - enum:
+              - allwinner,suniv-f1c100s-system-control
+              - allwinner,sun7i-a20-system-control
+              - allwinner,sun8i-r40-system-control
           - const: allwinner,sun4i-a10-system-control
-      - const: allwinner,sun8i-a23-system-control
-      - const: allwinner,sun8i-h3-system-control
       - items:
           - const: allwinner,sun8i-v3s-system-control
           - const: allwinner,sun8i-h3-system-control
       - items:
-          - const: allwinner,sun8i-r40-system-control
-          - const: allwinner,sun4i-a10-system-control
-      - const: allwinner,sun50i-a64-sram-controller
-        deprecated: true
-      - const: allwinner,sun50i-a64-system-control
-      - const: allwinner,sun50i-h5-system-control
-      - items:
           - const: allwinner,sun50i-h6-system-control
           - const: allwinner,sun50i-a64-system-control
-      - items:
-          - const: allwinner,suniv-f1c100s-system-control
-          - const: allwinner,sun4i-a10-system-control
-      - const: allwinner,sun50i-h616-system-control
 
   reg:
     maxItems: 1
@@ -76,43 +75,26 @@ patternProperties:
               - const: allwinner,sun4i-a10-sram-d
               - const: allwinner,sun50i-a64-sram-c
               - items:
-                  - const: allwinner,sun5i-a13-sram-a3-a4
+                  - enum:
+                      - allwinner,sun5i-a13-sram-a3-a4
+                      - allwinner,sun7i-a20-sram-a3-a4
                   - const: allwinner,sun4i-a10-sram-a3-a4
               - items:
-                  - const: allwinner,sun7i-a20-sram-a3-a4
-                  - const: allwinner,sun4i-a10-sram-a3-a4
-              - items:
-                  - const: allwinner,sun5i-a13-sram-c1
+                  - enum:
+                      - allwinner,sun5i-a13-sram-c1
+                      - allwinner,sun7i-a20-sram-c1
+                      - allwinner,sun8i-a23-sram-c1
+                      - allwinner,sun8i-h3-sram-c1
+                      - allwinner,sun8i-r40-sram-c1
+                      - allwinner,sun50i-a64-sram-c1
+                      - allwinner,sun50i-h5-sram-c1
+                      - allwinner,sun50i-h6-sram-c1
                   - const: allwinner,sun4i-a10-sram-c1
               - items:
-                  - const: allwinner,sun7i-a20-sram-c1
-                  - const: allwinner,sun4i-a10-sram-c1
-              - items:
-                  - const: allwinner,sun8i-a23-sram-c1
-                  - const: allwinner,sun4i-a10-sram-c1
-              - items:
-                  - const: allwinner,sun8i-h3-sram-c1
-                  - const: allwinner,sun4i-a10-sram-c1
-              - items:
-                  - const: allwinner,sun8i-r40-sram-c1
-                  - const: allwinner,sun4i-a10-sram-c1
-              - items:
-                  - const: allwinner,sun50i-a64-sram-c1
-                  - const: allwinner,sun4i-a10-sram-c1
-              - items:
-                  - const: allwinner,sun50i-h5-sram-c1
-                  - const: allwinner,sun4i-a10-sram-c1
-              - items:
-                  - const: allwinner,sun50i-h6-sram-c1
-                  - const: allwinner,sun4i-a10-sram-c1
-              - items:
-                  - const: allwinner,sun5i-a13-sram-d
-                  - const: allwinner,sun4i-a10-sram-d
-              - items:
-                  - const: allwinner,sun7i-a20-sram-d
-                  - const: allwinner,sun4i-a10-sram-d
-              - items:
-                  - const: allwinner,suniv-f1c100s-sram-d
+                  - enum:
+                      - allwinner,suniv-f1c100s-sram-d
+                      - allwinner,sun5i-a13-sram-d
+                      - allwinner,sun7i-a20-sram-d
                   - const: allwinner,sun4i-a10-sram-d
               - items:
                   - const: allwinner,sun50i-h6-sram-c
