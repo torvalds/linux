@@ -915,9 +915,11 @@ void io_send_zc_cleanup(struct io_kiocb *req)
 		io = req->async_data;
 		kfree(io->free_iov);
 	}
-	zc->notif->flags |= REQ_F_CQE_SKIP;
-	io_notif_flush(zc->notif);
-	zc->notif = NULL;
+	if (zc->notif) {
+		zc->notif->flags |= REQ_F_CQE_SKIP;
+		io_notif_flush(zc->notif);
+		zc->notif = NULL;
+	}
 }
 
 int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -1202,7 +1204,6 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 void io_sendrecv_fail(struct io_kiocb *req)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *io;
 	int res = req->cqe.res;
 
 	if (req->flags & REQ_F_PARTIAL_IO)
@@ -1215,12 +1216,6 @@ void io_sendrecv_fail(struct io_kiocb *req)
 		io_notif_flush(sr->notif);
 		sr->notif = NULL;
 	}
-	if (req_has_async_data(req)) {
-		io = req->async_data;
-		kfree(io->free_iov);
-		io->free_iov = NULL;
-	}
-	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, res, req->cqe.flags);
 }
 
