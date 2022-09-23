@@ -13292,7 +13292,7 @@ F:	include/dt-bindings/dma/at91.h
 MICROCHIP AT91 SERIAL DRIVER
 M:	Richard Genoud <richard.genoud@gmail.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/mfd/atmel-usart.txt
+F:	Documentation/devicetree/bindings/serial/atmel,at91-usart.yaml
 F:	drivers/tty/serial/atmel_serial.c
 F:	drivers/tty/serial/atmel_serial.h
 
@@ -13300,7 +13300,7 @@ MICROCHIP AT91 USART MFD DRIVER
 M:	Radu Pirea <radu_nicolae.pirea@upb.ro>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/mfd/atmel-usart.txt
+F:	Documentation/devicetree/bindings/serial/atmel,at91-usart.yaml
 F:	drivers/mfd/at91-usart.c
 F:	include/dt-bindings/mfd/at91-usart.h
 
@@ -13308,7 +13308,7 @@ MICROCHIP AT91 USART SPI DRIVER
 M:	Radu Pirea <radu_nicolae.pirea@upb.ro>
 L:	linux-spi@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/mfd/atmel-usart.txt
+F:	Documentation/devicetree/bindings/serial/atmel,at91-usart.yaml
 F:	drivers/spi/spi-at91-usart.c
 
 MICROCHIP AUDIO ASOC DRIVERS
