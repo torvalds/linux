@@ -419,19 +419,30 @@ static void free_verif_stats(struct verif_stats *stats, size_t stat_cnt)
 
 static char verif_log_buf[64 * 1024];
 
-static int parse_verif_log(const char *buf, size_t buf_sz, struct verif_stats *s)
+#define MAX_PARSED_LOG_LINES 100
+
+static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *s)
 {
-	const char *next;
-	int pos;
+	const char *cur;
+	int pos, lines;
 
-	for (pos = 0; buf[0]; buf = next) {
-		if (buf[0] == '\n')
-			buf++;
-		next = strchrnul(&buf[pos], '\n');
+	buf[buf_sz - 1] = '\0';
 
-		if (1 == sscanf(buf, "verification time %ld usec\n", &s->stats[DURATION]))
+	for (pos = strlen(buf) - 1, lines = 0; pos >= 0 && lines < MAX_PARSED_LOG_LINES; lines++) {
+		/* find previous endline or otherwise take the start of log buf */
+		for (cur = &buf[pos]; cur > buf && cur[0] != '\n'; cur--, pos--) {
+		}
+		/* next time start from end of previous line (or pos goes to <0) */
+		pos--;
+		/* if we found endline, point right after endline symbol;
+		 * otherwise, stay at the beginning of log buf
+		 */
+		if (cur[0] == '\n')
+			cur++;
+
+		if (1 == sscanf(cur, "verification time %ld usec\n", &s->stats[DURATION]))
 			continue;
-		if (6 == sscanf(buf, "processed %ld insns (limit %*d) max_states_per_insn %ld total_states %ld peak_states %ld mark_read %ld",
+		if (6 == sscanf(cur, "processed %ld insns (limit %*d) max_states_per_insn %ld total_states %ld peak_states %ld mark_read %ld",
 				&s->stats[TOTAL_INSNS],
 				&s->stats[MAX_STATES_PER_INSN],
 				&s->stats[TOTAL_STATES],
