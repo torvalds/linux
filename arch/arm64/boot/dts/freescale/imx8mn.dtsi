@@ -576,10 +576,10 @@
 				};
 			};
 
-			anatop: anatop@30360000 {
-				compatible = "fsl,imx8mn-anatop", "fsl,imx8mm-anatop",
-					     "syscon";
+			anatop: clock-controller@30360000 {
+				compatible = "fsl,imx8mn-anatop", "fsl,imx8mm-anatop";
 				reg = <0x30360000 0x10000>;
+				#clock-cells = <1>;
 			};
 
 			snvs: snvs@30370000 {
