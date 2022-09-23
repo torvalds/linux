@@ -270,26 +270,50 @@ static int run_test(struct intel_gt *gt, int test_type)
 static int live_slpc_vary_min(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_gt *gt = to_gt(i915);
+	struct intel_gt *gt;
+	unsigned int i;
+	int ret;
 
-	return run_test(gt, VARY_MIN);
+	for_each_gt(gt, i915, i) {
+		ret = run_test(gt, VARY_MIN);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 static int live_slpc_vary_max(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_gt *gt = to_gt(i915);
+	struct intel_gt *gt;
+	unsigned int i;
+	int ret;
 
-	return run_test(gt, VARY_MAX);
+	for_each_gt(gt, i915, i) {
+		ret = run_test(gt, VARY_MAX);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 /* check if pcode can grant RP0 */
 static int live_slpc_max_granted(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_gt *gt = to_gt(i915);
+	struct intel_gt *gt;
+	unsigned int i;
+	int ret;
 
-	return run_test(gt, MAX_GRANTED);
+	for_each_gt(gt, i915, i) {
+		ret = run_test(gt, MAX_GRANTED);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 int intel_slpc_live_selftests(struct drm_i915_private *i915)
@@ -300,8 +324,13 @@ int intel_slpc_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_slpc_max_granted),
 	};
 
-	if (intel_gt_is_wedged(to_gt(i915)))
-		return 0;
+	struct intel_gt *gt;
+	unsigned int i;
+
+	for_each_gt(gt, i915, i) {
+		if (intel_gt_is_wedged(gt))
+			return 0;
+	}
 
 	return i915_live_subtests(tests, i915);
 }
