@@ -255,8 +255,6 @@ static int gh_sec_vm_loader_load_fw(struct gh_sec_vm_dev *vm_dev,
 	if (ret) {
 		dev_err(dev, "Loading Secure VM %s failed %d\n",
 						vm_dev->vm_name, ret);
-		if (!vm_dev->is_static)
-			dma_free_coherent(dev, vm_dev->fw_size, virt, dma_handle);
 		return ret;
 	}
 
