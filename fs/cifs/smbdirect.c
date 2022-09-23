@@ -1984,10 +1984,11 @@ int smbd_send(struct TCP_Server_Info *server,
 	int num_rqst, struct smb_rqst *rqst_array)
 {
 	struct smbd_connection *info = server->smbd_conn;
-	struct kvec vec;
+	struct kvec vecs[SMBDIRECT_MAX_SEND_SGE - 1];
 	int nvecs;
 	int size;
 	unsigned int buflen, remaining_data_length;
+	unsigned int offset, remaining_vec_data_length;
 	int start, i, j;
 	int max_iov_size =
 		info->max_send_size - sizeof(struct smbd_data_transfer);
@@ -1996,10 +1997,8 @@ int smbd_send(struct TCP_Server_Info *server,
 	struct smb_rqst *rqst;
 	int rqst_idx;
 
-	if (info->transport_status != SMBD_CONNECTED) {
-		rc = -EAGAIN;
-		goto done;
-	}
+	if (info->transport_status != SMBD_CONNECTED)
+		return -EAGAIN;
 
 	/*
 	 * Add in the page array if there is one. The caller needs to set
@@ -2010,125 +2009,95 @@ int smbd_send(struct TCP_Server_Info *server,
 	for (i = 0; i < num_rqst; i++)
 		remaining_data_length += smb_rqst_len(server, &rqst_array[i]);
 
-	if (remaining_data_length > info->max_fragmented_send_size) {
+	if (unlikely(remaining_data_length > info->max_fragmented_send_size)) {
+		/* assertion: payload never exceeds negotiated maximum */
 		log_write(ERR, "payload size %d > max size %d\n",
 			remaining_data_length, info->max_fragmented_send_size);
-		rc = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 
 	log_write(INFO, "num_rqst=%d total length=%u\n",
 			num_rqst, remaining_data_length);
 
 	rqst_idx = 0;
-next_rqst:
-	rqst = &rqst_array[rqst_idx];
-	iov = rqst->rq_iov;
+	do {
+		rqst = &rqst_array[rqst_idx];
+		iov = rqst->rq_iov;
 
-	cifs_dbg(FYI, "Sending smb (RDMA): idx=%d smb_len=%lu\n",
-		rqst_idx, smb_rqst_len(server, rqst));
-	for (i = 0; i < rqst->rq_nvec; i++)
-		dump_smb(iov[i].iov_base, iov[i].iov_len);
-
-
-	log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d rq_tailsz=%d buflen=%lu\n",
-		  rqst_idx, rqst->rq_nvec, rqst->rq_npages, rqst->rq_pagesz,
-		  rqst->rq_tailsz, smb_rqst_len(server, rqst));
-
-	start = i = 0;
-	buflen = 0;
-	while (true) {
-		buflen += iov[i].iov_len;
-		if (buflen > max_iov_size) {
-			if (i > start) {
-				remaining_data_length -=
-					(buflen-iov[i].iov_len);
-				log_write(INFO, "sending iov[] from start=%d i=%d nvecs=%d remaining_data_length=%d\n",
-					  start, i, i - start,
-					  remaining_data_length);
-				rc = smbd_post_send_data(
-					info, &iov[start], i-start,
-					remaining_data_length);
-				if (rc)
-					goto done;
-			} else {
-				/* iov[start] is too big, break it */
-				nvecs = (buflen+max_iov_size-1)/max_iov_size;
-				log_write(INFO, "iov[%d] iov_base=%p buflen=%d break to %d vectors\n",
-					  start, iov[start].iov_base,
-					  buflen, nvecs);
-				for (j = 0; j < nvecs; j++) {
-					vec.iov_base =
-						(char *)iov[start].iov_base +
-						j*max_iov_size;
-					vec.iov_len = max_iov_size;
-					if (j == nvecs-1)
-						vec.iov_len =
-							buflen -
-							max_iov_size*(nvecs-1);
-					remaining_data_length -= vec.iov_len;
-					log_write(INFO,
-						"sending vec j=%d iov_base=%p iov_len=%zu remaining_data_length=%d\n",
-						  j, vec.iov_base, vec.iov_len,
-						  remaining_data_length);
-					rc = smbd_post_send_data(
-						info, &vec, 1,
-						remaining_data_length);
-					if (rc)
-						goto done;
-				}
-				i++;
-				if (i == rqst->rq_nvec)
-					break;
-			}
-			start = i;
-			buflen = 0;
-		} else {
-			i++;
-			if (i == rqst->rq_nvec) {
-				/* send out all remaining vecs */
-				remaining_data_length -= buflen;
-				log_write(INFO, "sending iov[] from start=%d i=%d nvecs=%d remaining_data_length=%d\n",
-					  start, i, i - start,
-					  remaining_data_length);
-				rc = smbd_post_send_data(info, &iov[start],
-					i-start, remaining_data_length);
-				if (rc)
-					goto done;
-				break;
-			}
+		cifs_dbg(FYI, "Sending smb (RDMA): idx=%d smb_len=%lu\n",
+			rqst_idx, smb_rqst_len(server, rqst));
+		remaining_vec_data_length = 0;
+		for (i = 0; i < rqst->rq_nvec; i++) {
+			remaining_vec_data_length += iov[i].iov_len;
+			dump_smb(iov[i].iov_base, iov[i].iov_len);
 		}
-		log_write(INFO, "looping i=%d buflen=%d\n", i, buflen);
-	}
 
-	/* now sending pages if there are any */
-	for (i = 0; i < rqst->rq_npages; i++) {
-		unsigned int offset;
+		log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d rq_tailsz=%d buflen=%lu\n",
+			  rqst_idx, rqst->rq_nvec,
+			  rqst->rq_npages, rqst->rq_pagesz,
+			  rqst->rq_tailsz, smb_rqst_len(server, rqst));
 
-		rqst_page_get_length(rqst, i, &buflen, &offset);
-		nvecs = (buflen + max_iov_size - 1) / max_iov_size;
-		log_write(INFO, "sending pages buflen=%d nvecs=%d\n",
-			buflen, nvecs);
-		for (j = 0; j < nvecs; j++) {
-			size = max_iov_size;
-			if (j == nvecs-1)
-				size = buflen - j*max_iov_size;
-			remaining_data_length -= size;
-			log_write(INFO, "sending pages i=%d offset=%d size=%d remaining_data_length=%d\n",
-				  i, j * max_iov_size + offset, size,
-				  remaining_data_length);
-			rc = smbd_post_send_page(
-				info, rqst->rq_pages[i],
-				j*max_iov_size + offset,
-				size, remaining_data_length);
+		start = 0;
+		offset = 0;
+		do {
+			buflen = 0;
+			i = start;
+			j = 0;
+			while (i < rqst->rq_nvec &&
+				j < SMBDIRECT_MAX_SEND_SGE - 1 &&
+				buflen < max_iov_size) {
+
+				vecs[j].iov_base = iov[i].iov_base + offset;
+				if (buflen + iov[i].iov_len > max_iov_size) {
+					vecs[j].iov_len =
+						max_iov_size - iov[i].iov_len;
+					buflen = max_iov_size;
+					offset = vecs[j].iov_len;
+				} else {
+					vecs[j].iov_len =
+						iov[i].iov_len - offset;
+					buflen += vecs[j].iov_len;
+					offset = 0;
+					++i;
+				}
+				++j;
+			}
+
+			remaining_vec_data_length -= buflen;
+			remaining_data_length -= buflen;
+			log_write(INFO, "sending %s iov[%d] from start=%d nvecs=%d remaining_data_length=%d\n",
+					remaining_vec_data_length > 0 ?
+						"partial" : "complete",
+					rqst->rq_nvec, start, j,
+					remaining_data_length);
+
+			start = i;
+			rc = smbd_post_send_data(info, vecs, j, remaining_data_length);
 			if (rc)
 				goto done;
-		}
-	}
+		} while (remaining_vec_data_length > 0);
 
-	rqst_idx++;
-	if (rqst_idx < num_rqst)
-		goto next_rqst;
+		/* now sending pages if there are any */
+		for (i = 0; i < rqst->rq_npages; i++) {
+			rqst_page_get_length(rqst, i, &buflen, &offset);
+			nvecs = (buflen + max_iov_size - 1) / max_iov_size;
+			log_write(INFO, "sending pages buflen=%d nvecs=%d\n",
+				buflen, nvecs);
+			for (j = 0; j < nvecs; j++) {
+				size = min_t(unsigned int, max_iov_size, remaining_data_length);
+				remaining_data_length -= size;
+				log_write(INFO, "sending pages i=%d offset=%d size=%d remaining_data_length=%d\n",
+					  i, j * max_iov_size + offset, size,
+					  remaining_data_length);
+				rc = smbd_post_send_page(
+					info, rqst->rq_pages[i],
+					j*max_iov_size + offset,
+					size, remaining_data_length);
+				if (rc)
+					goto done;
+			}
+		}
+	} while (++rqst_idx < num_rqst);
 
 done:
 	/*
