@@ -163,6 +163,7 @@ struct z_erofs_maprecorder {
 	u16 delta[2];
 	erofs_blk_t pblk, compressedblks;
 	erofs_off_t nextpackoff;
+	bool partialref;
 };
 
 static int z_erofs_reload_indexes(struct z_erofs_maprecorder *m,
@@ -221,6 +222,8 @@ static int legacy_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 	case Z_EROFS_VLE_CLUSTER_TYPE_PLAIN:
 	case Z_EROFS_VLE_CLUSTER_TYPE_HEAD1:
 	case Z_EROFS_VLE_CLUSTER_TYPE_HEAD2:
+		if (advise & Z_EROFS_VLE_DI_PARTIAL_REF)
+			m->partialref = true;
 		m->clusterofs = le16_to_cpu(di->di_clusterofs);
 		m->pblk = le32_to_cpu(di->di_u.blkaddr);
 		break;
@@ -684,7 +687,8 @@ static int z_erofs_do_map_blocks(struct inode *inode,
 		err = -EOPNOTSUPP;
 		goto unmap_out;
 	}
-
+	if (m.partialref)
+		map->m_flags |= EROFS_MAP_PARTIAL_REF;
 	map->m_llen = end - map->m_la;
 
 	if (flags & EROFS_GET_BLOCKS_FINDTAIL) {

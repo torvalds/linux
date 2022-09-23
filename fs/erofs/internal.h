@@ -291,6 +291,7 @@ EROFS_FEATURE_FUNCS(device_table, incompat, INCOMPAT_DEVICE_TABLE)
 EROFS_FEATURE_FUNCS(compr_head2, incompat, INCOMPAT_COMPR_HEAD2)
 EROFS_FEATURE_FUNCS(ztailpacking, incompat, INCOMPAT_ZTAILPACKING)
 EROFS_FEATURE_FUNCS(fragments, incompat, INCOMPAT_FRAGMENTS)
+EROFS_FEATURE_FUNCS(dedupe, incompat, INCOMPAT_DEDUPE)
 EROFS_FEATURE_FUNCS(sb_chksum, compat, COMPAT_SB_CHKSUM)
 
 /* atomic flag definitions */
@@ -392,6 +393,7 @@ enum {
 	BH_Encoded = BH_PrivateStart,
 	BH_FullMapped,
 	BH_Fragment,
+	BH_Partialref,
 };
 
 /* Has a disk mapping */
@@ -404,6 +406,8 @@ enum {
 #define EROFS_MAP_FULL_MAPPED	(1 << BH_FullMapped)
 /* Located in the special packed inode */
 #define EROFS_MAP_FRAGMENT	(1 << BH_Fragment)
+/* The extent refers to partial decompressed data */
+#define EROFS_MAP_PARTIAL_REF	(1 << BH_Partialref)
 
 struct erofs_map_blocks {
 	struct erofs_buf buf;

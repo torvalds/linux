@@ -424,6 +424,8 @@ static int erofs_read_superblock(struct super_block *sb)
 		erofs_info(sb, "EXPERIMENTAL fscache-based on-demand read feature in use. Use at your own risk!");
 	if (erofs_sb_has_fragments(sbi))
 		erofs_info(sb, "EXPERIMENTAL compressed fragments feature in use. Use at your own risk!");
+	if (erofs_sb_has_dedupe(sbi))
+		erofs_info(sb, "EXPERIMENTAL global deduplication feature in use. Use at your own risk!");
 out:
 	erofs_put_metabuf(&buf);
 	return ret;
