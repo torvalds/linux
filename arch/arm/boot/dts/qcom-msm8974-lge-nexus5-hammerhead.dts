@@ -175,7 +175,7 @@
 			ak8963@f {
 				compatible = "asahi-kasei,ak8963";
 				reg = <0x0f>;
-				gpios = <&tlmm 67 0>;
+				gpios = <&tlmm 67 GPIO_ACTIVE_HIGH>;
 				vid-supply = <&pm8941_lvs1>;
 				vdd-supply = <&pm8941_l17>;
 			};
