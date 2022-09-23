@@ -4,6 +4,7 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/seq_file.h>
 #include <trace/hooks/sched.h>
 #include <trace/hooks/binder.h>
 
@@ -280,8 +281,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 	}
 
 	/* fast path for packing_cpu */
-	packing_cpu = walt_find_cluster_packing_cpu(start_cpu);
-	if (walt_choose_packing_cpu(packing_cpu, p)) {
+	packing_cpu = walt_find_and_choose_cluster_packing_cpu(start_cpu, p);
+	if (packing_cpu >= 0) {
 		fbt_env->fastpath = CLUSTER_PACKING_FASTPATH;
 		cpumask_set_cpu(packing_cpu, candidates);
 			goto out;
@@ -1041,14 +1042,17 @@ static void binder_restore_priority_hook(void *data,
  */
 int walt_get_mvp_task_prio(struct task_struct *p)
 {
+	if (walt_procfs_low_latency_task(p) ||
+			walt_pipeline_low_latency_task(p))
+		return WALT_LL_PIPE_MVP;
+
 	if (per_task_boost(p) == TASK_BOOST_STRICT_MAX)
 		return WALT_TASK_BOOST_MVP;
 
 	if (walt_binder_low_latency_task(p))
 		return WALT_BINDER_MVP;
 
-	if (task_rtg_high_prio(p) || walt_procfs_low_latency_task(p) ||
-			walt_pipeline_low_latency_task(p))
+	if (task_rtg_high_prio(p))
 		return WALT_RTG_MVP;
 
 	return WALT_NOT_MVP;

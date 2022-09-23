@@ -354,79 +354,6 @@ static void fixup_walt_sched_stats_common(struct rq *rq, struct task_struct *p,
 static void rollover_cpu_window(struct rq *rq, bool full_window);
 static void rollover_top_tasks(struct rq *rq, bool full_window);
 
-/* walt_find_cluster_packing_cpu - Return a packing_cpu choice common for this cluster.
- * @start_cpu:  The cpu from the cluster to choose from
- *
- * If the cluster has a 32bit capable cpu return it regardless
- * of whether it is halted or not.
- *
- * If the cluster does not have a 32 bit capable cpu, find the
- * first unhalted, active cpu in this cluster.
- */
-int walt_find_cluster_packing_cpu(int start_cpu)
-{
-	struct rq *rq = cpu_rq(start_cpu);
-	struct walt_rq *wrq = (struct walt_rq *)rq->android_vendor_data1;
-	struct walt_sched_cluster *cluster = wrq->cluster;
-	cpumask_t unhalted_cpus;
-	cpumask_t cluster_32bit_cpus;
-
-	/* find all 32 bit capable cpus in this cluster */
-	cpumask_and(&cluster_32bit_cpus, &cluster->cpus, system_32bit_el0_cpumask());
-
-	/* pack 32 bit and 64 bit tasks on the same cpu, if possible */
-	if (cpumask_weight(&cluster_32bit_cpus) > 0)
-		return cpumask_first(&cluster_32bit_cpus);
-
-	/* find all unhalted active cpus */
-	cpumask_andnot(&unhalted_cpus, cpu_active_mask, cpu_halt_mask);
-
-	/* find all unhalted active cpus in this cluster */
-	cpumask_and(&unhalted_cpus, &unhalted_cpus, &cluster->cpus);
-
-	/* return the first found unhalted, active cpu, in this cluster */
-	return cpumask_first(&unhalted_cpus);
-}
-
-/* for cfs and rt, determine if packing_cpu should be used */
-bool walt_choose_packing_cpu(int packing_cpu, struct task_struct *p)
-{
-	struct rq *rq;
-	struct walt_rq *wrq;
-	struct walt_sched_cluster *cluster;
-
-	/* packing cpu must be a valid cpu for runqueue lookup */
-	if (packing_cpu >= nr_cpu_ids)
-		return false;
-
-	rq = cpu_rq(packing_cpu);
-	wrq = (struct walt_rq *)rq->android_vendor_data1;
-	cluster = wrq->cluster;
-
-	/* if idle_enough feature is not enabled */
-	if (!sysctl_sched_idle_enough)
-		return false;
-
-	/* if cpu is not allowed for this task */
-	if (!cpumask_test_cpu(packing_cpu, p->cpus_ptr))
-		return false;
-
-	/* if cluster util is high */
-	if (sched_get_cluster_util_pct(cluster) >= sysctl_sched_cluster_util_thres_pct)
-		return false;
-
-	/* if cpu utilization is high */
-	if (cpu_util(packing_cpu) >= sysctl_sched_idle_enough)
-		return false;
-
-	/* don't pack big tasks */
-	if (task_util(p) >= sysctl_sched_idle_enough)
-		return false;
-
-	/* the packing cpu can be used, so pack! */
-	return true;
-}
-
 /*
  * Demand aggregation for frequency purpose:
  *
@@ -657,12 +584,6 @@ static inline u64 freq_policy_load(struct rq *rq, unsigned int *reason)
 	u64 load, tt_load = 0, kload = 0;
 	struct task_struct *cpu_ksoftirqd = per_cpu(ksoftirqd, cpu_of(rq));
 
-	if (wrq->ed_task != NULL) {
-		load = sched_ravg_window;
-		*reason = CPUFREQ_REASON_EARLY_DET;
-		goto done;
-	}
-
 	if (sched_freq_aggr_en) {
 		load = wrq->prev_runnable_sum + aggr_grp_load;
 		*reason = CPUFREQ_REASON_FREQ_AGR;
@@ -694,7 +615,6 @@ static inline u64 freq_policy_load(struct rq *rq, unsigned int *reason)
 		*reason = CPUFREQ_REASON_SUH;
 	}
 
-done:
 	trace_sched_load_to_gov(rq, aggr_grp_load, tt_load, sched_freq_aggr_en,
 				load, 0, walt_rotation_enabled,
 				sysctl_sched_user_hint, wrq, *reason);
@@ -732,6 +652,10 @@ __cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *rea
 		walt_load->pl = pl;
 		walt_load->ws = walt_load_reported_window;
 		walt_load->rtgb_active = rtgb_active;
+		if (wrq->ed_task)
+			walt_load->ed_active = true;
+		else
+			walt_load->ed_active = false;
 	}
 
 	return (util >= capacity) ? capacity : util;
@@ -2457,6 +2381,7 @@ static void init_new_task_load(struct task_struct *p)
 	wts->mvp_prio = WALT_NOT_MVP;
 	wts->cidx = 0;
 	__sched_fork_init(p);
+	walt_flag_set(p, WALT_INIT, 1);
 }
 
 static void init_existing_task_load(struct task_struct *p)
@@ -3798,6 +3723,50 @@ static inline void irq_work_restrict_to_mig_clusters(cpumask_t *lock_cpus)
 	}
 }
 
+static void update_cpu_capacity_helper(int cpu)
+{
+	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
+	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
+	unsigned long thermal_cap, old;
+	struct walt_sched_cluster *cluster;
+	struct rq *rq = cpu_rq(cpu);
+
+	if (unlikely(walt_disabled))
+		return;
+
+	/*
+	 * thermal_pressure = cpu_scale - curr_cap_as_per_thermal.
+	 * so,
+	 * curr_cap_as_per_thermal = cpu_scale - thermal_pressure.
+	 */
+
+	thermal_cap = fmax_capacity - thermal_pressure;
+
+	cluster = cpu_cluster(cpu);
+	/* reduce the fmax_capacity under cpufreq constraints */
+	if (cluster->max_freq != cluster->max_possible_freq)
+		fmax_capacity = mult_frac(fmax_capacity, cluster->max_freq,
+					 cluster->max_possible_freq);
+
+	old = rq->cpu_capacity_orig;
+	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
+
+	if (old != rq->cpu_capacity_orig)
+		trace_update_cpu_capacity(cpu, 0, 0);
+}
+
+/*
+ * The intention of this hook is to update cpu_capacity_orig as well as
+ * (*capacity), otherwise we will end up capacity_of() > capacity_orig_of().
+ */
+static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long *capacity)
+{
+	unsigned long rt_pressure = arch_scale_cpu_capacity(cpu) - *capacity;
+
+	update_cpu_capacity_helper(cpu);
+	*capacity = max((int)(cpu_rq(cpu)->cpu_capacity_orig - rt_pressure), 0);
+}
+
 /**
  * walt_irq_work() - perform walt irq work for rollover and migration
  *
@@ -3837,6 +3806,11 @@ static void walt_irq_work(struct irq_work *irq_work)
 		else
 			raw_spin_lock_nested(&cpu_rq(cpu)->__lock, level);
 		level++;
+	}
+
+	if (!is_migration) {
+		for_each_cpu(cpu, &lock_cpus)
+			update_cpu_capacity_helper(cpu);
 	}
 
 	__walt_irq_work_locked(is_migration, &lock_cpus);
@@ -4074,45 +4048,6 @@ static void walt_cpu_frequency_limits(void *unused, struct cpufreq_policy *polic
 	cpu_cluster(policy->cpu)->max_freq = policy->max;
 }
 
-/*
- * The intention of this hook is to update cpu_capacity_orig as well as
- * (*capacity), otherwise we will end up capacity_of() > capacity_orig_of().
- */
-static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long *capacity)
-{
-	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
-	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
-	unsigned long thermal_cap, old;
-	unsigned long rt_pressure = fmax_capacity - *capacity;
-	struct walt_sched_cluster *cluster;
-	struct rq *rq = cpu_rq(cpu);
-
-	if (unlikely(walt_disabled))
-		return;
-
-	/*
-	 * thermal_pressure = cpu_scale - curr_cap_as_per_thermal.
-	 * so,
-	 * curr_cap_as_per_thermal = cpu_scale - thermal_pressure.
-	 */
-
-	thermal_cap = fmax_capacity - thermal_pressure;
-
-	cluster = cpu_cluster(cpu);
-	/* reduce the fmax_capacity under cpufreq constraints */
-	if (cluster->max_freq != cluster->max_possible_freq)
-		fmax_capacity = mult_frac(fmax_capacity, cluster->max_freq,
-					 cluster->max_possible_freq);
-
-	old = rq->cpu_capacity_orig;
-	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
-
-	if (old != rq->cpu_capacity_orig)
-		trace_update_cpu_capacity(cpu, rt_pressure, *capacity);
-
-	*capacity = max(rq->cpu_capacity_orig - rt_pressure, 1UL);
-}
-
 static void android_rvh_sched_cpu_starting(void *unused, int cpu)
 {
 	if (unlikely(walt_disabled))
@@ -4255,6 +4190,10 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 
 	if (!double_enqueue)
 		walt_inc_cumulative_runnable_avg(rq, p);
+
+	if ((flags & ENQUEUE_WAKEUP) && do_pl_notif(rq))
+		waltgov_run_callback(rq, WALT_CPUFREQ_PL);
+
 	trace_sched_enq_deq_task(p, 1, cpumask_bits(p->cpus_ptr)[0], is_mvp(wts));
 }
 
@@ -4274,7 +4213,8 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	 * therefore the check to ensure that prev_on_rq_cpu is needed to prevent
 	 * an invalid failure.
 	 */
-	if (wts->prev_on_rq_cpu >= 0 && wts->prev_on_rq_cpu != cpu_of(rq))
+	if (wts->prev_on_rq_cpu >= 0 && wts->prev_on_rq_cpu != cpu_of(rq) &&
+			walt_flag_test(p, WALT_INIT))
 		WALT_BUG(WALT_BUG_UPSTREAM, p, "dequeue cpu %d not same as enqueue %d\n",
 			 cpu_of(rq), wts->prev_on_rq_cpu);
 
@@ -4369,20 +4309,6 @@ static void android_rvh_try_to_wake_up(void *unused, struct task_struct *p)
 	if (update_preferred_cluster(grp, p, old_load, false))
 		set_preferred_cluster(grp);
 	rcu_read_unlock();
-}
-
-static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct *p)
-{
-	unsigned long flags;
-	int cpu = p->cpu;
-
-	if (unlikely(walt_disabled))
-		return;
-
-	raw_spin_lock_irqsave(&cpu_rq(cpu)->__lock, flags);
-	if (do_pl_notif(cpu_rq(cpu)))
-		waltgov_run_callback(cpu_rq(cpu), WALT_CPUFREQ_PL);
-	raw_spin_unlock_irqrestore(&cpu_rq(cpu)->__lock, flags);
 }
 
 static u64 tick_sched_clock;
@@ -4556,7 +4482,6 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_after_enqueue_task(android_rvh_enqueue_task, NULL);
 	register_trace_android_rvh_after_dequeue_task(android_rvh_dequeue_task, NULL);
 	register_trace_android_rvh_try_to_wake_up(android_rvh_try_to_wake_up, NULL);
-	register_trace_android_rvh_try_to_wake_up_success(android_rvh_try_to_wake_up_success, NULL);
 	register_trace_android_rvh_tick_entry(android_rvh_tick_entry, NULL);
 	register_trace_android_vh_scheduler_tick(android_vh_scheduler_tick, NULL);
 	register_trace_android_rvh_schedule(android_rvh_schedule, NULL);

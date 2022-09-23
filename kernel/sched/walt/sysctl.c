@@ -74,6 +74,7 @@ unsigned int sysctl_sched_asymcap_boost;
 unsigned int sysctl_sched_long_running_rt_task_ms;
 unsigned int sysctl_sched_idle_enough;
 unsigned int sysctl_sched_cluster_util_thres_pct;
+unsigned int sysctl_ed_boost_pct;
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -921,6 +922,15 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= sched_long_running_rt_task_ms_handler,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &two_thousand,
+	},
+	{
+		.procname	= "sched_ed_boost",
+		.data		= &sysctl_ed_boost_pct,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &one_hundred,
 	},
 	{ }
 };
