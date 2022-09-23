@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: May 2022
+:Date: September 2022
 
 The goal of Landlock is to enable to restrict ambient rights (e.g. global
 filesystem access) for a set of processes.  Because Landlock is a stackable
@@ -170,7 +170,7 @@ It is recommended setting access rights to file hierarchy leaves as much as
 possible.  For instance, it is better to be able to have ``~/doc/`` as a
 read-only hierarchy and ``~/tmp/`` as a read-write hierarchy, compared to
 ``~/`` as a read-only hierarchy and ``~/tmp/`` as a read-write hierarchy.
-Following this good practice leads to self-sufficient hierarchies that don't
+Following this good practice leads to self-sufficient hierarchies that do not
 depend on their location (i.e. parent directories).  This is particularly
 relevant when we want to allow linking or renaming.  Indeed, having consistent
 access rights per directory enables to change the location of such directory
@@ -380,8 +380,8 @@ by the Documentation/admin-guide/cgroup-v1/memory.rst.
 Previous limitations
 ====================
 
-File renaming and linking (ABI 1)
----------------------------------
+File renaming and linking (ABI < 2)
+-----------------------------------
 
 Because Landlock targets unprivileged access controls, it needs to properly
 handle composition of rules.  Such property also implies rules nesting.
@@ -410,7 +410,7 @@ contains `CONFIG_LSM=landlock,[...]` with `[...]`  as the list of other
 potentially useful security modules for the running system (see the
 `CONFIG_LSM` help).
 
-If the running kernel doesn't have `landlock` in `CONFIG_LSM`, then we can
+If the running kernel does not have `landlock` in `CONFIG_LSM`, then we can
 still enable it by adding ``lsm=landlock,[...]`` to
 Documentation/admin-guide/kernel-parameters.rst thanks to the bootloader
 configuration.
