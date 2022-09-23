@@ -25,6 +25,9 @@
 
 #include "soc15_common.h"
 #include "amdgpu_xcp.h"
+#include "gfx_v9_4_3.h"
+#include "gfxhub_v1_2.h"
+#include "sdma_v4_4_2.h"
 
 #define XCP_INST_MASK(num_inst, xcp_id)                                        \
 	(num_inst ? GENMASK(num_inst - 1, 0) << (xcp_id * num_inst) : 0)
@@ -205,15 +208,15 @@ int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 	switch (ip_id) {
 	case AMDGPU_XCP_GFXHUB:
 		ip->inst_mask = XCP_INST_MASK(num_xcc_xcp, xcp_id);
-		/* TODO : Assign IP funcs */
+		ip->ip_funcs = &gfxhub_v1_2_xcp_funcs;
 		break;
 	case AMDGPU_XCP_GFX:
 		ip->inst_mask = XCP_INST_MASK(num_xcc_xcp, xcp_id);
-		/* TODO : Assign IP funcs */
+		ip->ip_funcs = &gfx_v9_4_3_xcp_funcs;
 		break;
 	case AMDGPU_XCP_SDMA:
 		ip->inst_mask = XCP_INST_MASK(num_sdma_xcp, xcp_id);
-		/* TODO : Assign IP funcs */
+		ip->ip_funcs = &sdma_v4_4_2_xcp_funcs;
 		break;
 	case AMDGPU_XCP_VCN:
 		ip->inst_mask = XCP_INST_MASK(num_vcn_xcp, xcp_id);
