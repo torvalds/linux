@@ -54,8 +54,8 @@ content of a listed inode.  Indeed, a file name is local to its parent
 directory, and an inode can be referenced by multiple file names thanks to
 (hard) links.  Being able to unlink a file only has a direct impact on the
 directory, not the unlinked inode.  This is the reason why
-`LANDLOCK_ACCESS_FS_REMOVE_FILE` or `LANDLOCK_ACCESS_FS_REFER` are not allowed
-to be tied to files but only to directories.
+``LANDLOCK_ACCESS_FS_REMOVE_FILE`` or ``LANDLOCK_ACCESS_FS_REFER`` are not
+allowed to be tied to files but only to directories.
 
 Tests
 =====
