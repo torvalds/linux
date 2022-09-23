@@ -325,6 +325,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR = 0x10,
 	MLX5_EVENT_TYPE_WQ_ACCESS_ERROR	   = 0x11,
 	MLX5_EVENT_TYPE_SRQ_CATAS_ERROR	   = 0x12,
+	MLX5_EVENT_TYPE_OBJECT_CHANGE	   = 0x27,
 
 	MLX5_EVENT_TYPE_INTERNAL_ERROR	   = 0x08,
 	MLX5_EVENT_TYPE_PORT_CHANGE	   = 0x09,
@@ -699,6 +700,12 @@ struct mlx5_eqe_temp_warning {
 	__be64 sensor_warning_lsb;
 } __packed;
 
+struct mlx5_eqe_obj_change {
+	u8      rsvd0[2];
+	__be16  obj_type;
+	__be32  obj_id;
+} __packed;
+
 #define SYNC_RST_STATE_MASK    0xf
 
 enum sync_rst_state_type {
@@ -737,6 +744,7 @@ union ev_data {
 	struct mlx5_eqe_xrq_err		xrq_err;
 	struct mlx5_eqe_sync_fw_update	sync_fw_update;
 	struct mlx5_eqe_vhca_state	vhca_state;
+	struct mlx5_eqe_obj_change	obj_change;
 } __packed;
 
 struct mlx5_eqe {

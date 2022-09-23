@@ -11,7 +11,9 @@
 	(DIV_ROUND_UP(sizeof(struct mlx5_aso_wqe), MLX5_SEND_WQE_BB))
 #define MLX5_ASO_WQEBBS_DATA \
 	(DIV_ROUND_UP(sizeof(struct mlx5_aso_wqe_data), MLX5_SEND_WQE_BB))
+#define ASO_CTRL_READ_EN BIT(0)
 #define MLX5_WQE_CTRL_WQE_OPC_MOD_SHIFT 24
+#define MLX5_MACSEC_ASO_DS_CNT (DIV_ROUND_UP(sizeof(struct mlx5_aso_wqe), MLX5_SEND_WQE_DS))
 
 struct mlx5_wqe_aso_ctrl_seg {
 	__be32  va_h;
@@ -70,6 +72,7 @@ enum {
 
 enum {
 	MLX5_ACCESS_ASO_OPC_MOD_FLOW_METER = 0x2,
+	MLX5_ACCESS_ASO_OPC_MOD_MACSEC = 0x5,
 };
 
 struct mlx5_aso;

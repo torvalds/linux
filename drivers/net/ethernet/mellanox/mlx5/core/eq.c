@@ -575,6 +575,9 @@ static void gather_async_events_mask(struct mlx5_core_dev *dev, u64 mask[4])
 	if (MLX5_CAP_GEN_MAX(dev, vhca_state))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_VHCA_STATE_CHANGE);
 
+	if (MLX5_CAP_MACSEC(dev, log_max_macsec_offload))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_OBJECT_CHANGE);
+
 	mask[0] = async_event_mask;
 
 	if (MLX5_CAP_GEN(dev, event_cap))

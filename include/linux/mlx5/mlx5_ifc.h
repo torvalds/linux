@@ -11558,6 +11558,20 @@ struct mlx5_ifc_modify_ipsec_obj_in_bits {
 	struct mlx5_ifc_ipsec_obj_bits ipsec_object;
 };
 
+enum {
+	MLX5_MACSEC_ASO_REPLAY_PROTECTION = 0x1,
+};
+
+enum {
+	MLX5_MACSEC_ASO_REPLAY_WIN_32BIT  = 0x0,
+	MLX5_MACSEC_ASO_REPLAY_WIN_64BIT  = 0x1,
+	MLX5_MACSEC_ASO_REPLAY_WIN_128BIT = 0x2,
+	MLX5_MACSEC_ASO_REPLAY_WIN_256BIT = 0x3,
+};
+
+#define MLX5_MACSEC_ASO_INC_SN  0x2
+#define MLX5_MACSEC_ASO_REG_C_4_5 0x2
+
 struct mlx5_ifc_macsec_aso_bits {
 	u8    valid[0x1];
 	u8    reserved_at_1[0x1];
@@ -11585,15 +11599,15 @@ struct mlx5_ifc_macsec_offload_obj_bits {
 
 	u8    confidentiality_en[0x1];
 	u8    reserved_at_41[0x1];
-	u8    esn_en[0x1];
-	u8    esn_overlap[0x1];
+	u8    epn_en[0x1];
+	u8    epn_overlap[0x1];
 	u8    reserved_at_44[0x2];
 	u8    confidentiality_offset[0x2];
 	u8    reserved_at_48[0x4];
 	u8    aso_return_reg[0x4];
 	u8    reserved_at_50[0x10];
 
-	u8    esn_msb[0x20];
+	u8    epn_msb[0x20];
 
 	u8    reserved_at_80[0x8];
 	u8    dekn[0x18];
@@ -11616,6 +11630,21 @@ struct mlx5_ifc_macsec_offload_obj_bits {
 
 struct mlx5_ifc_create_macsec_obj_in_bits {
 	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_macsec_offload_obj_bits macsec_object;
+};
+
+struct mlx5_ifc_modify_macsec_obj_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_macsec_offload_obj_bits macsec_object;
+};
+
+enum {
+	MLX5_MODIFY_MACSEC_BITMASK_EPN_OVERLAP = BIT(0),
+	MLX5_MODIFY_MACSEC_BITMASK_EPN_MSB = BIT(1),
+};
+
+struct mlx5_ifc_query_macsec_obj_out_bits {
+	struct mlx5_ifc_general_obj_out_cmd_hdr_bits general_obj_out_cmd_hdr;
 	struct mlx5_ifc_macsec_offload_obj_bits macsec_object;
 };
 
