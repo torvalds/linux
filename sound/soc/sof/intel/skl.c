@@ -87,7 +87,7 @@ int sof_skl_ops_init(struct snd_sof_dev *sdev)
 	/* debug */
 	sof_skl_ops.debug_map	= skl_dsp_debugfs;
 	sof_skl_ops.debug_map_count	= ARRAY_SIZE(skl_dsp_debugfs);
-	sof_skl_ops.ipc_dump	= hda_ipc_dump;
+	sof_skl_ops.ipc_dump	= hda_ipc4_dump;
 
 	/* firmware run */
 	sof_skl_ops.run = hda_dsp_cl_boot_firmware_skl;
