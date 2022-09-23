@@ -136,10 +136,14 @@
 #define FIFO_PTRWID			3
 #define FIFO_LEN			BIT(FIFO_PTRWID)
 
-#define MICFIL_IRQ_LINES		2
+#define MICFIL_IRQ_LINES		4
 #define MICFIL_MAX_RETRY		25
 #define MICFIL_SLEEP_MIN		90000 /* in us */
 #define MICFIL_SLEEP_MAX		100000 /* in us */
 #define MICFIL_DMA_MAXBURST_RX		6
+
+/* HWVAD Constants */
+#define MICFIL_HWVAD_ENVELOPE_MODE	0
+#define MICFIL_HWVAD_ENERGY_MODE	1
 
 #endif /* _FSL_MICFIL_H */
