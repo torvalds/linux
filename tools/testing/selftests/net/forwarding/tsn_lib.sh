@@ -147,7 +147,9 @@ isochron_recv_start()
 {
 	local if_name=$1
 	local uds=$2
-	local extra_args=$3
+	local stats_port=$3
+	local extra_args=$4
+	local pid="isochron_pid_${stats_port}"
 
 	if ! [ -z "${uds}" ]; then
 		extra_args="${extra_args} --unix-domain-socket ${uds}"
@@ -158,16 +160,20 @@ isochron_recv_start()
 		--sched-priority 98 \
 		--sched-fifo \
 		--utc-tai-offset ${UTC_TAI_OFFSET} \
+		--stats-port ${stats_port} \
 		--quiet \
 		${extra_args} & \
-	isochron_pid=$!
+	declare -g "${pid}=$!"
 
 	sleep 1
 }
 
 isochron_recv_stop()
 {
-	{ kill ${isochron_pid} && wait ${isochron_pid}; } 2> /dev/null
+	local stats_port=$1
+	local pid="isochron_pid_${stats_port}"
+
+	{ kill ${!pid} && wait ${!pid}; } 2> /dev/null
 }
 
 isochron_do()
@@ -219,7 +225,7 @@ isochron_do()
 
 	cpufreq_max ${ISOCHRON_CPU}
 
-	isochron_recv_start "${h2}" "${receiver_uds}" "${receiver_extra_args}"
+	isochron_recv_start "${h2}" "${receiver_uds}" 5000 "${receiver_extra_args}"
 
 	isochron send \
 		--interface ${sender_if_name} \
@@ -240,7 +246,7 @@ isochron_do()
 		${extra_args} \
 		--quiet
 
-	isochron_recv_stop
+	isochron_recv_stop 5000
 
 	cpufreq_restore ${ISOCHRON_CPU}
 }
