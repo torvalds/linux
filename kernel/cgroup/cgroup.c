@@ -6066,14 +6066,16 @@ void cgroup_path_from_kernfs_id(u64 id, char *buf, size_t buflen)
 struct cgroup *cgroup_get_from_id(u64 id)
 {
 	struct kernfs_node *kn;
-	struct cgroup *cgrp = NULL, *root_cgrp;
+	struct cgroup *cgrp, *root_cgrp;
 
 	kn = kernfs_find_and_get_node_by_id(cgrp_dfl_root.kf_root, id);
 	if (!kn)
-		goto out;
+		return ERR_PTR(-ENOENT);
 
-	if (kernfs_type(kn) != KERNFS_DIR)
-		goto put;
+	if (kernfs_type(kn) != KERNFS_DIR) {
+		kernfs_put(kn);
+		return ERR_PTR(-ENOENT);
+	}
 
 	rcu_read_lock();
 
@@ -6082,21 +6084,20 @@ struct cgroup *cgroup_get_from_id(u64 id)
 		cgrp = NULL;
 
 	rcu_read_unlock();
-put:
 	kernfs_put(kn);
 
 	if (!cgrp)
-		goto out;
+		return ERR_PTR(-ENOENT);
 
 	spin_lock_irq(&css_set_lock);
 	root_cgrp = current_cgns_cgroup_from_root(&cgrp_dfl_root);
 	spin_unlock_irq(&css_set_lock);
 	if (!cgroup_is_descendant(cgrp, root_cgrp)) {
 		cgroup_put(cgrp);
-		cgrp = NULL;
+		return ERR_PTR(-ENOENT);
 	}
-out:
-	return cgrp ?: ERR_PTR(-ENOENT);
+
+	return cgrp;
 }
 EXPORT_SYMBOL_GPL(cgroup_get_from_id);
 
