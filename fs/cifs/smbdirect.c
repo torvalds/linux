@@ -90,7 +90,7 @@ int smbd_max_send_size = 1364;
 int smbd_max_fragmented_recv_size = 1024 * 1024;
 
 /*  The maximum single-message size which can be received */
-int smbd_max_receive_size = 8192;
+int smbd_max_receive_size = 1364;
 
 /* The timeout to initiate send of a keepalive message on idle */
 int smbd_keep_alive_interval = 120;
