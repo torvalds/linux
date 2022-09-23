@@ -19,11 +19,11 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 	mutex_lock(&count_lock);
 	if (on) {
 		clk_set_rate(stfcamss->sys_clk[STFCLK_M31DPHY_CFGCLK_IN].clk,
-			102400000);
+			99000000);
 		clk_set_rate(stfcamss->sys_clk[STFCLK_M31DPHY_REFCLK_IN].clk,
-			51200000);
+			49500000);
 		clk_set_rate(stfcamss->sys_clk[STFCLK_M31DPHY_TXCLKESC_LAN0].clk,
-			20480000);
+			19800000);
 
 		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_HW].rstc);
 		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_B09_ALWAYS_ON].rstc);
