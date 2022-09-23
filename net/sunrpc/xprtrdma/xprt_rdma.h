@@ -149,8 +149,6 @@ static inline void *rdmab_data(const struct rpcrdma_regbuf *rb)
 	return rb->rg_data;
 }
 
-#define RPCRDMA_DEF_GFP		(GFP_NOIO | __GFP_NOWARN)
-
 /* To ensure a transport can always make forward progress,
  * the number of RDMA segments allowed in header chunk lists
  * is capped at 16. This prevents less-capable devices from
