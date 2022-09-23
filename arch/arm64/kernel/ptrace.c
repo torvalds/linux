@@ -1084,7 +1084,6 @@ static int za_set(struct task_struct *target,
 	if (!target->thread.sve_state) {
 		sve_alloc(target, false);
 		if (!target->thread.sve_state) {
-			clear_thread_flag(TIF_SME);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -1094,7 +1093,6 @@ static int za_set(struct task_struct *target,
 	sme_alloc(target);
 	if (!target->thread.za_state) {
 		ret = -ENOMEM;
-		clear_tsk_thread_flag(target, TIF_SME);
 		goto out;
 	}
 

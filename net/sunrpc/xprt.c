@@ -1179,11 +1179,8 @@ xprt_request_dequeue_receive_locked(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 
-	if (test_and_clear_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
+	if (test_and_clear_bit(RPC_TASK_NEED_RECV, &task->tk_runstate))
 		xprt_request_rb_remove(req->rq_xprt, req);
-		xdr_free_bvec(&req->rq_rcv_buf);
-		req->rq_private_buf.bvec = NULL;
-	}
 }
 
 /**
@@ -1221,6 +1218,8 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 
 	xprt->stat.recvs++;
 
+	xdr_free_bvec(&req->rq_rcv_buf);
+	req->rq_private_buf.bvec = NULL;
 	req->rq_private_buf.len = copied;
 	/* Ensure all writes are done before we update */
 	/* req->rq_reply_bytes_recvd */
@@ -1453,6 +1452,7 @@ xprt_request_dequeue_xprt(struct rpc_task *task)
 		xprt_request_dequeue_transmit_locked(task);
 		xprt_request_dequeue_receive_locked(task);
 		spin_unlock(&xprt->queue_lock);
+		xdr_free_bvec(&req->rq_rcv_buf);
 	}
 }
 

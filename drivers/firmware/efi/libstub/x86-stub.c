@@ -220,7 +220,6 @@ adjust_memory_range_protection(unsigned long start, unsigned long size)
 	unsigned long end, next;
 	unsigned long rounded_start, rounded_end;
 	unsigned long unprotect_start, unprotect_size;
-	int has_system_memory = 0;
 
 	if (efi_dxe_table == NULL)
 		return;

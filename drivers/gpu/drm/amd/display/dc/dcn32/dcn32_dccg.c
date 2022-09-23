@@ -225,19 +225,19 @@ void dccg32_set_dpstreamclk(
 	case 0:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 			     DPSTREAMCLK0_EN,
-			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK0_SRC_SEL, 0);
+			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK0_SRC_SEL, otg_inst);
 		break;
 	case 1:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL, DPSTREAMCLK1_EN,
-			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK1_SRC_SEL, 1);
+			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK1_SRC_SEL, otg_inst);
 		break;
 	case 2:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL, DPSTREAMCLK2_EN,
-			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK2_SRC_SEL, 2);
+			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK2_SRC_SEL, otg_inst);
 		break;
 	case 3:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL, DPSTREAMCLK3_EN,
-			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK3_SRC_SEL, 3);
+			     (src == REFCLK) ? 0 : 1, DPSTREAMCLK3_SRC_SEL, otg_inst);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
