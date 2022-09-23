@@ -721,16 +721,6 @@ static struct attribute *compal_hwmon_attrs[] = {
 };
 ATTRIBUTE_GROUPS(compal_hwmon);
 
-static int compal_probe(struct platform_device *);
-static int compal_remove(struct platform_device *);
-static struct platform_driver compal_driver = {
-	.driver = {
-		.name = DRIVER_NAME,
-	},
-	.probe	= compal_probe,
-	.remove	= compal_remove,
-};
-
 static enum power_supply_property compal_bat_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -965,6 +955,80 @@ err_wifi:
 	return ret;
 }
 
+static int compal_probe(struct platform_device *pdev)
+{
+	int err;
+	struct compal_data *data;
+	struct device *hwmon_dev;
+	struct power_supply_config psy_cfg = {};
+
+	if (!extra_features)
+		return 0;
+
+	/* Fan control */
+	data = devm_kzalloc(&pdev->dev, sizeof(struct compal_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	initialize_fan_control_data(data);
+
+	err = sysfs_create_group(&pdev->dev.kobj, &compal_platform_attr_group);
+	if (err)
+		return err;
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(&pdev->dev,
+							   "compal", data,
+							   compal_hwmon_groups);
+	if (IS_ERR(hwmon_dev)) {
+		err = PTR_ERR(hwmon_dev);
+		goto remove;
+	}
+
+	/* Power supply */
+	initialize_power_supply_data(data);
+	psy_cfg.drv_data = data;
+	data->psy = power_supply_register(&compal_device->dev, &psy_bat_desc,
+					  &psy_cfg);
+	if (IS_ERR(data->psy)) {
+		err = PTR_ERR(data->psy);
+		goto remove;
+	}
+
+	platform_set_drvdata(pdev, data);
+
+	return 0;
+
+remove:
+	sysfs_remove_group(&pdev->dev.kobj, &compal_platform_attr_group);
+	return err;
+}
+
+static int compal_remove(struct platform_device *pdev)
+{
+	struct compal_data *data;
+
+	if (!extra_features)
+		return 0;
+
+	pr_info("Unloading: resetting fan control to motherboard\n");
+	pwm_disable_control();
+
+	data = platform_get_drvdata(pdev);
+	power_supply_unregister(data->psy);
+
+	sysfs_remove_group(&pdev->dev.kobj, &compal_platform_attr_group);
+
+	return 0;
+}
+
+static struct platform_driver compal_driver = {
+	.driver = {
+		.name = DRIVER_NAME,
+	},
+	.probe	= compal_probe,
+	.remove	= compal_remove,
+};
+
 static int __init compal_init(void)
 {
 	int ret;
@@ -1028,54 +1092,6 @@ err_backlight:
 	return ret;
 }
 
-static int compal_probe(struct platform_device *pdev)
-{
-	int err;
-	struct compal_data *data;
-	struct device *hwmon_dev;
-	struct power_supply_config psy_cfg = {};
-
-	if (!extra_features)
-		return 0;
-
-	/* Fan control */
-	data = devm_kzalloc(&pdev->dev, sizeof(struct compal_data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	initialize_fan_control_data(data);
-
-	err = sysfs_create_group(&pdev->dev.kobj, &compal_platform_attr_group);
-	if (err)
-		return err;
-
-	hwmon_dev = devm_hwmon_device_register_with_groups(&pdev->dev,
-							   "compal", data,
-							   compal_hwmon_groups);
-	if (IS_ERR(hwmon_dev)) {
-		err = PTR_ERR(hwmon_dev);
-		goto remove;
-	}
-
-	/* Power supply */
-	initialize_power_supply_data(data);
-	psy_cfg.drv_data = data;
-	data->psy = power_supply_register(&compal_device->dev, &psy_bat_desc,
-					  &psy_cfg);
-	if (IS_ERR(data->psy)) {
-		err = PTR_ERR(data->psy);
-		goto remove;
-	}
-
-	platform_set_drvdata(pdev, data);
-
-	return 0;
-
-remove:
-	sysfs_remove_group(&pdev->dev.kobj, &compal_platform_attr_group);
-	return err;
-}
-
 static void __exit compal_cleanup(void)
 {
 	platform_device_unregister(compal_device);
@@ -1088,25 +1104,6 @@ static void __exit compal_cleanup(void)
 
 	pr_info("Driver unloaded\n");
 }
-
-static int compal_remove(struct platform_device *pdev)
-{
-	struct compal_data *data;
-
-	if (!extra_features)
-		return 0;
-
-	pr_info("Unloading: resetting fan control to motherboard\n");
-	pwm_disable_control();
-
-	data = platform_get_drvdata(pdev);
-	power_supply_unregister(data->psy);
-
-	sysfs_remove_group(&pdev->dev.kobj, &compal_platform_attr_group);
-
-	return 0;
-}
-
 
 module_init(compal_init);
 module_exit(compal_cleanup);
