@@ -609,7 +609,7 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 
 	io_cq_lock(ctx);
 	while (!list_empty(&ctx->cq_overflow_list)) {
-		struct io_uring_cqe *cqe = io_get_cqe(ctx);
+		struct io_uring_cqe *cqe = io_get_cqe_overflow(ctx, true);
 		struct io_overflow_cqe *ocqe;
 
 		if (!cqe && !force)
@@ -736,12 +736,19 @@ bool io_req_cqe_overflow(struct io_kiocb *req)
  * control dependency is enough as we're using WRITE_ONCE to
  * fill the cq entry
  */
-struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
+struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow)
 {
 	struct io_rings *rings = ctx->rings;
 	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
 	unsigned int free, queued, len;
 
+	/*
+	 * Posting into the CQ when there are pending overflowed CQEs may break
+	 * ordering guarantees, which will affect links, F_MORE users and more.
+	 * Force overflow the completion.
+	 */
+	if (!overflow && (ctx->check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT)))
+		return NULL;
 
 	/* userspace may cheat modifying the tail, be safe and do min */
 	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
@@ -2394,6 +2401,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		if (ret < 0)
 			return ret;
 		io_cqring_overflow_flush(ctx);
+
 		if (io_cqring_events(ctx) >= min_events)
 			return 0;
 	} while (ret > 0);
