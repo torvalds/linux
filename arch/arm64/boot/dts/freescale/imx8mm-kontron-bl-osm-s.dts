@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0+ OR MIT
 /*
- * Copyright (C) 2019 Kontron Electronics GmbH
+ * Copyright (C) 2022 Kontron Electronics GmbH
  */
 
 /dts-v1/;
 
-#include "imx8mm-kontron-n801x-som.dtsi"
+#include "imx8mm-kontron-osm-s.dtsi"
 
 / {
-	model = "Kontron i.MX8MM N801X S";
-	compatible = "kontron,imx8mm-n801x-s", "kontron,imx8mm-n801x-som", "fsl,imx8mm";
+	model = "Kontron BL i.MX8MM OSM-S (N802X S)";
+	compatible = "kontron,imx8mm-bl-osm-s", "kontron,imx8mm-osm-s", "fsl,imx8mm";
 
 	aliases {
 		ethernet1 = &usbnet;
 	};
 
-	/* fixed crystal dedicated to mcp2515 */
+	/* fixed crystal dedicated to mcp2542fd */
 	osc_can: clock-osc-can {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <16000000>;
+		clock-frequency = <40000000>;
 		clock-output-names = "osc-can";
 	};
 
@@ -30,33 +30,18 @@
 
 		led1 {
 			label = "led1";
-			gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		led2 {
 			label = "led2";
-			gpios = <&gpio4 19 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
 		};
 
 		led3 {
 			label = "led3";
-			gpios = <&gpio4 18 GPIO_ACTIVE_LOW>;
-		};
-
-		led4 {
-			label = "led4";
-			gpios = <&gpio4 8 GPIO_ACTIVE_LOW>;
-		};
-
-		led5 {
-			label = "led5";
-			gpios = <&gpio4 9 GPIO_ACTIVE_LOW>;
-		};
-
-		led6 {
-			label = "led6";
-			gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -67,19 +52,30 @@
 
 	reg_rst_eth2: regulator-rst-eth2 {
 		compatible = "regulator-fixed";
-		regulator-name = "rst-usb-eth2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb_eth2>;
 		gpio = <&gpio3 2 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
+		regulator-name = "rst-usb-eth2";
+	};
+
+	reg_usb1_vbus: regulator-usb1-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_reg_usb1_vbus>;
+		gpio = <&gpio3 25 GPIO_ACTIVE_LOW>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-name = "usb1-vbus";
 	};
 
 	reg_vdd_5v: regulator-5v {
 		compatible = "regulator-fixed";
-		regulator-name = "vdd-5v";
+		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-name = "vdd-5v";
 	};
 };
 
@@ -89,15 +85,18 @@
 	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
-	can0: can@0 {
-		compatible = "microchip,mcp2515";
+	can@0 {
+		compatible = "microchip,mcp251xfd";
 		reg = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_can>;
 		clocks = <&osc_can>;
-		interrupt-parent = <&gpio4>;
-		interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
-		spi-max-frequency = <10000000>;
+		interrupts-extended = <&gpio4 28 IRQ_TYPE_LEVEL_LOW>;
+		/*
+		 * Limit the SPI clock to 15 MHz to prevent issues
+		 * with corrupted data due to chip errata.
+		 */
+		spi-max-frequency = <15000000>;
 		vdd-supply = <&reg_vdd_3v3>;
 		xceiver-supply = <&reg_vdd_5v>;
 	};
@@ -108,6 +107,12 @@
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	cs-gpios = <&gpio5 25 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	eeram@0 {
+		compatible = "microchip,48l640";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+	};
 };
 
 &fec1 {
@@ -125,9 +130,27 @@
 			reg = <0>;
 			reset-assert-us = <1>;
 			reset-deassert-us = <15000>;
-			reset-gpios = <&gpio4 27 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio1>;
+	gpio-line-names = "", "", "", "dio1-out", "", "", "dio1-in", "dio2-out",
+			  "dio2-in", "dio3-out", "dio3-in", "dio4-out", "", "", "", "",
+			  "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "";
+};
+
+&gpio5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio5>;
+	gpio-line-names = "", "", "dio4-in", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "";
 };
 
 &i2c4 {
@@ -135,11 +158,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
-
-	rtc@32 {
-		compatible = "epson,rx8900";
-		reg = <0x32>;
-	};
 };
 
 &pwm2 {
@@ -165,7 +183,8 @@
 
 &usbotg1 {
 	dr_mode = "otg";
-	over-current-active-low;
+	disable-over-current;
+	vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";
 };
 
@@ -202,9 +221,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_gpio>;
-
 	pinctrl_can: cangrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI3_RXFS_GPIO4_IO28		0x19
@@ -245,24 +261,20 @@
 			MX8MM_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x91
 			MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x91
 			MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x1f
-			MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27		0x19 /* PHY RST */
-			MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25		0x19 /* ETH IRQ */
+			MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1		0x19 /* PHY RST */
+			MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5		0x19 /* ETH IRQ */
 		>;
 	};
 
 	pinctrl_gpio_led: gpioledgrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_NAND_READY_B_GPIO3_IO16		0x19
-			MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7		0x19
-			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8		0x19
-			MX8MM_IOMUXC_SAI1_RXD7_GPIO4_IO9		0x19
-			MX8MM_IOMUXC_SAI1_TXD5_GPIO4_IO17		0x19
-			MX8MM_IOMUXC_SAI1_TXD6_GPIO4_IO18		0x19
-			MX8MM_IOMUXC_SAI1_TXD7_GPIO4_IO19		0x19
+			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12		0x19
+			MX8MM_IOMUXC_GPIO1_IO13_GPIO1_IO13		0x19
+			MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14		0x19
 		>;
 	};
 
-	pinctrl_gpio: gpiogrp {
+	pinctrl_gpio1: gpio1grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3		0x19
 			MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7		0x19
@@ -271,6 +283,11 @@
 			MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6		0x19
 			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8		0x19
 			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10		0x19
+		>;
+	};
+
+	pinctrl_gpio5: gpio5grp {
+		fsl,pins = <
 			MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2		0x19
 		>;
 	};
@@ -285,6 +302,12 @@
 	pinctrl_pwm2: pwm2grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SPDIF_RX_PWM2_OUT			0x19
+		>;
+	};
+
+	pinctrl_reg_usb1_vbus: regusb1vbusgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SAI5_MCLK_GPIO3_IO25		0x19
 		>;
 	};
 
@@ -321,6 +344,7 @@
 			MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2		0x1d0
 			MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3		0x1d0
 			MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x019
+			MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0x1d0
 		>;
 	};
 
@@ -333,6 +357,7 @@
 			MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2		0x1d4
 			MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3		0x1d4
 			MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x019
+			MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0x1d0
 		>;
 	};
 
@@ -345,6 +370,7 @@
 			MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2		0x1d6
 			MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3		0x1d6
 			MX8MM_IOMUXC_SD2_CD_B_GPIO2_IO12		0x019
+			MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0x1d0
 		>;
 	};
 };

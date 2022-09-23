@@ -146,6 +146,22 @@
 	};
 };
 
+&A53_0 {
+	cpu-supply = <&reg_vdd_arm>;
+};
+
+&A53_1 {
+	cpu-supply = <&reg_vdd_arm>;
+};
+
+&A53_2 {
+	cpu-supply = <&reg_vdd_arm>;
+};
+
+&A53_3 {
+	cpu-supply = <&reg_vdd_arm>;
+};
+
 &cpu_alert0 {
 	temperature = <95000>;
 };
@@ -285,7 +301,6 @@
 	pinctrl-0 = <&pinctrl_flexcan1>;
 	status = "disabled";
 };
-
 
 /* Verdin CAN_2 */
 &flexcan2 {
@@ -454,7 +469,7 @@
 				regulator-ramp-delay = <3125>;
 			};
 
-			BUCK2 {
+			reg_vdd_arm: BUCK2 {
 				nxp,dvs-run-voltage = <950000>;
 				nxp,dvs-standby-voltage = <850000>;
 				regulator-always-on;

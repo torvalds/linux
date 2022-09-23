@@ -13,13 +13,8 @@
 #include "imx8mm.dtsi"
 
 / {
-	model = "Gateworks Venice GW7903 i.MX8MM board";
-	compatible = "gw,imx8mm-gw7903", "fsl,imx8mm";
-
-	aliases {
-		ethernet0 = &fec1;
-		usb0 = &usbotg1;
-	};
+	model = "Gateworks Venice GW7904 i.MX8MM board";
+	compatible = "gateworks,imx8mm-gw7904", "fsl,imx8mm";
 
 	chosen {
 		stdout-path = &uart2;
@@ -33,34 +28,34 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		key-user-pb {
+		key-0 {
 			label = "user_pb";
 			gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
 			linux,code = <BTN_0>;
 		};
 
-		key-user-pb1x {
+		key-1 {
 			label = "user_pb1x";
 			linux,code = <BTN_1>;
 			interrupt-parent = <&gsc>;
 			interrupts = <0>;
 		};
 
-		key-erased {
+		key-2 {
 			label = "key_erased";
 			linux,code = <BTN_2>;
 			interrupt-parent = <&gsc>;
 			interrupts = <1>;
 		};
 
-		key-eeprom-wp {
+		key-3 {
 			label = "eeprom_wp";
 			linux,code = <BTN_3>;
 			interrupt-parent = <&gsc>;
 			interrupts = <2>;
 		};
 
-		switch-hold {
+		key-4 {
 			label = "switch_hold";
 			linux,code = <BTN_5>;
 			interrupt-parent = <&gsc>;
@@ -75,97 +70,161 @@
 
 		led-0 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_RED>;
-			label = "led01_red";
-			gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led01_grn";
+			gpios = <&gpioled 0 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-1 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_GREEN>;
-			label = "led01_grn";
-			gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led01_yel";
+			gpios = <&gpioled 1 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-2 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_RED>;
-			label = "led02_red";
-			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led02_grn";
+			gpios = <&gpioled 2 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-3 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_GREEN>;
-			label = "led02_grn";
-			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led02_yel";
+			gpios = <&gpioled 3 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-4 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_RED>;
-			label = "led03_red";
-			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led03_grn";
+			gpios = <&gpioled 4 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-5 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_GREEN>;
-			label = "led03_grn";
-			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led03_yel";
+			gpios = <&gpioled 5 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-6 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_RED>;
-			label = "led04_red";
-			gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led04_grn";
+			gpios = <&gpioled 6 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-7 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_GREEN>;
-			label = "led04_grn";
-			gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led04_yel";
+			gpios = <&gpioled 7 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-8 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_RED>;
-			label = "led05_red";
-			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led05_grn";
+			gpios = <&gpioled 8 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led-9 {
 			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_GREEN>;
-			label = "led05_grn";
-			gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led05_yel";
+			gpios = <&gpioled 9 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led-a {
-			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_RED>;
-			label = "led06_red";
-			gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-		};
-
-		led-b {
+		led-10 {
 			function = LED_FUNCTION_STATUS;
 			color = <LED_COLOR_ID_GREEN>;
 			label = "led06_grn";
-			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-11 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			label = "led06_red";
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-12 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led07_grn";
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-13 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			label = "led07_red";
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-14 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led08_grn";
+			gpios = <&gpioled 10 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-15 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led08_yel";
+			gpios = <&gpioled 11 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-16 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led09_grn";
+			gpios = <&gpioled 12 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-17 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led09_yel";
+			gpios = <&gpioled 13 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-18 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			label = "led10_grn";
+			gpios = <&gpioled 14 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-19 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_YELLOW>;
+			label = "led10_yel";
+			gpios = <&gpioled 15 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 	};
@@ -236,29 +295,20 @@
 		ethphy0: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
-			rx-internal-delay-ps = <2000>;
-			tx-internal-delay-ps = <2500>;
 		};
 	};
 };
 
 &gpio1 {
 	gpio-line-names = "", "", "", "", "", "", "", "",
-		"", "", "rs422_en#", "rs485_en#", "rs232_en#", "", "", "",
-		"", "", "", "", "", "", "", "",
-		"", "", "", "", "", "", "", "";
-};
-
-&gpio2 {
-	gpio-line-names = "dig2_in", "dig2_out#", "dig2_ctl", "", "", "", "dig1_ctl", "",
-		"dig1_out#", "dig1_in", "", "", "", "", "", "",
+		"", "", "", "", "rs232_en#", "", "", "",
 		"", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "";
 };
 
 &gpio5 {
-	gpio-line-names = "", "", "", "", "", "", "", "sim1_det#",
-		"sim2_det#", "sim2_sel", "", "", "pci_wdis#", "", "", "",
+	gpio-line-names = "", "", "", "", "", "", "", "",
+		"", "", "", "", "pci_wdis#", "", "", "",
 		"", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "";
 };
@@ -287,12 +337,6 @@
 				gw,mode = <0>;
 				reg = <0x06>;
 				label = "temp";
-			};
-
-			channel@8 {
-				gw,mode = <1>;
-				reg = <0x08>;
-				label = "vdd_bat";
 			};
 
 			channel@82 {
@@ -536,6 +580,20 @@
 	};
 };
 
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	status = "okay";
+
+	gpioled: gpio@27 {
+		compatible = "nxp,pca9555";
+		reg = <0x27>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
 &pcie_phy {
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
 	fsl,clkreq-unsupported;
@@ -563,16 +621,10 @@
 	status = "disabled";
 };
 
-/* off-board RS232/RS485/RS422 */
+/* off-board RS232 */
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	cts-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
-	rts-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
-	dtr-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
-	dsr-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
-	dcd-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
-	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -580,6 +632,13 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+/* off-board RS232 */
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
 	status = "okay";
 };
 
@@ -625,18 +684,7 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x40000041 /* RS422# */
-			MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11	0x40000041 /* RS485# */
 			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12	0x40000041 /* RS232# */
-			MX8MM_IOMUXC_SD1_DATA7_GPIO2_IO9	0x40000041 /* DIG1_IN */
-			MX8MM_IOMUXC_SD1_DATA6_GPIO2_IO8	0x40000041 /* DIG1_OUT */
-			MX8MM_IOMUXC_SD1_DATA4_GPIO2_IO6	0x40000041 /* DIG1_CTL */
-			MX8MM_IOMUXC_SD1_DATA0_GPIO2_IO2	0x40000041 /* DIG2_CTL */
-			MX8MM_IOMUXC_SD1_CLK_GPIO2_IO0		0x40000041 /* DIG2_IN */
-			MX8MM_IOMUXC_SD1_CMD_GPIO2_IO1		0x40000041 /* DIG2_OUT */
-			MX8MM_IOMUXC_ECSPI1_MOSI_GPIO5_IO7	0x40000041 /* SIM1DET# */
-			MX8MM_IOMUXC_ECSPI1_MISO_GPIO5_IO8	0x40000041 /* SIM2DET# */
-			MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9	0x40000041 /* SIM2SEL */
 			MX8MM_IOMUXC_ECSPI2_MISO_GPIO5_IO12	0x40000041 /* PCI_WDIS# */
 		>;
 	};
@@ -668,6 +716,15 @@
 		>;
 	};
 
+	pinctrl_gpio_leds: gpioledsgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8	0x40000019
+			MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9	0x40000019
+			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x40000019
+			MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11	0x40000019
+		>;
+	};
+
 	pinctrl_gsc: gscgrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI2_TXD0_GPIO4_IO26	0x159
@@ -695,20 +752,10 @@
 		>;
 	};
 
-	pinctrl_gpio_leds: gpioledgrp {
+	pinctrl_i2c4: i2c4grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5	0x19
-			MX8MM_IOMUXC_SAI3_RXD_GPIO4_IO30	0x19
-			MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2	0x19
-			MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14	0x19
-			MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9	0x19
-			MX8MM_IOMUXC_SPDIF_TX_GPIO5_IO3		0x19
-			MX8MM_IOMUXC_SAI3_RXC_GPIO4_IO29	0x19
-			MX8MM_IOMUXC_SAI3_RXFS_GPIO4_IO28	0x19
-			MX8MM_IOMUXC_GPIO1_IO13_GPIO1_IO13	0x19
-			MX8MM_IOMUXC_SAI3_TXFS_GPIO4_IO31	0x19
-			MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4		0x19
-			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8	0x19
+			MX8MM_IOMUXC_I2C4_SCL_I2C4_SCL		0x400001c3
+			MX8MM_IOMUXC_I2C4_SDA_I2C4_SDA		0x400001c3
 		>;
 	};
 
@@ -728,11 +775,6 @@
 		fsl,pins = <
 			MX8MM_IOMUXC_UART1_RXD_UART1_DCE_RX	0x140
 			MX8MM_IOMUXC_UART1_TXD_UART1_DCE_TX	0x140
-			MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0	0x140
-			MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1	0x140
-			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3	0x140
-			MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5	0x140
-			MX8MM_IOMUXC_SAI5_RXD3_GPIO3_IO24	0x140
 		>;
 	};
 
@@ -740,6 +782,13 @@
 		fsl,pins = <
 			MX8MM_IOMUXC_UART2_RXD_UART2_DCE_RX	0x140
 			MX8MM_IOMUXC_UART2_TXD_UART2_DCE_TX	0x140
+		>;
+	};
+
+	pinctrl_uart3: uart3grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_UART3_RXD_UART3_DCE_RX	0x140
+			MX8MM_IOMUXC_UART3_TXD_UART3_DCE_TX	0x140
 		>;
 	};
 

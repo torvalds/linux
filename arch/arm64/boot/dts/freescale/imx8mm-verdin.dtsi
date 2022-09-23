@@ -53,6 +53,21 @@
 		};
 	};
 
+	hdmi_connector: hdmi-connector {
+		compatible = "hdmi-connector";
+		ddc-i2c-bus = <&i2c2>;
+		label = "hdmi";
+		type = "a";
+		status = "disabled";
+	};
+
+	panel_lvds: panel-lvds {
+		compatible = "panel-lvds";
+		backlight = <&backlight>;
+		data-mapping = "vesa-24";
+		status = "disabled";
+	};
+
 	/* Carrier Board Supplies */
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
@@ -561,8 +576,8 @@
 		status = "disabled";
 	};
 
-	lvds_ti_sn65dsi83: bridge@2c {
-		compatible = "ti,sn65dsi83";
+	lvds_ti_sn65dsi84: bridge@2c {
+		compatible = "ti,sn65dsi84";
 		/* Verdin GPIO_9_DSI (SN65DSI84 IRQ, SODIMM 17, unused) */
 		/* Verdin GPIO_10_DSI (SODIMM 21) */
 		enable-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
