@@ -1392,6 +1392,16 @@
 			starfive,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
+
+	mclk_ext_pins: mclk_ext_pins {
+		mclk_ext_pins {
+			starfive,pins = <PAD_GPIO61>;
+			starfive,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-din = <GPI_CRG0_EXT_MCLK>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
 };
 
 &gpioa {

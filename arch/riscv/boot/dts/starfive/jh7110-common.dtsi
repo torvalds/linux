@@ -430,7 +430,7 @@
 
 &spdif0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif0_pins>;
+	pinctrl-0 = <&spdif0_pins &mclk_ext_pins>;
 	status = "disabled";
 };
 
@@ -446,7 +446,7 @@
 
 &pdm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pdm0_pins>;
+	pinctrl-0 = <&pdm0_pins &mclk_ext_pins>;
 	status = "disabled";
 };
 

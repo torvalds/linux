@@ -174,42 +174,63 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	audio_root = 204800000;
 	switch (rate) {
 	case 8000:
-		mclk = 4096000;
 		break;
 	case 11025:
-		mclk = 5644800;
+		audio_root = 148500000;
+		/* 11025 * 512 = 5644800 */
+		/* But now pll2 is 1188m and mclk should be 5711539 closely. */
+		mclk = 5711539;
 		break;
 	case 16000:
-		mclk = 8192000;
 		break;
 	case 22050:
-		audio_root = 153600000;
-		mclk = 11289600;
+		audio_root = 148500000;
+		mclk = 11423077;
 		break;
 	default:
 		dev_err(dai->dev, "channel:%d sample rate:%d\n", channels, rate);
 		return -EINVAL;
 	}
 
-	ret = clk_set_rate(spdif->audio_root, audio_root);
-	if (ret) {
-		dev_err(dai->dev, "failed to set audio_root rate :%d\n", ret);
-		return ret;
-	}
-	dev_dbg(dai->dev, "audio_root get rate:%ld\n",
-			clk_get_rate(spdif->audio_root));
+	/* use mclk_inner clock from 1188m PLL2 will be better about 11k and 22k*/
+	if ((rate == 11025) || (rate == 22050)) {
+		ret = clk_set_parent(spdif->mclk, spdif->mclk_inner);
+		if (ret) {
+			dev_err(dai->dev,
+				"failed to set parent to mclk_inner ret=%d\n", ret);
+			goto fail_ext;
+		}
 
-	ret = clk_set_rate(spdif->mclk_inner, mclk);
-	if (ret) {
-		dev_err(dai->dev, "failed to set mclk_inner rate :%d\n", ret);
-		return ret;
+		ret = clk_set_rate(spdif->audio_root, audio_root);
+		if (ret) {
+			dev_err(dai->dev, "failed to set audio_root rate :%d\n", ret);
+			goto fail_ext;
+		}
+		dev_dbg(dai->dev, "audio_root get rate:%ld\n",
+				clk_get_rate(spdif->audio_root));
+
+		ret = clk_set_rate(spdif->mclk_inner, mclk);
+		if (ret) {
+			dev_err(dai->dev, "failed to set mclk_inner rate :%d\n", ret);
+			goto fail_ext;
+		}
+
+		mclk = clk_get_rate(spdif->mclk_inner);
+		dev_dbg(dai->dev, "mclk_inner get rate:%d\n", mclk);
+	} else {
+		ret = clk_set_parent(spdif->mclk, spdif->mclk_ext);
+		if (ret) {
+			dev_err(dai->dev,
+				"failed to set parent to mclk_ext ret=%d\n", ret);
+			goto fail_ext;
+		}
+
+		mclk = clk_get_rate(spdif->mclk_ext);
+		dev_dbg(dai->dev, "mclk_ext get rate:%d\n", mclk);
 	}
 
-	mclk = clk_get_rate(spdif->mclk_inner);
-	dev_dbg(dai->dev, "mclk_inner get rate:%d\n", mclk);
 	/* (FCLK)4096000/128=32000 */
 	tsamplerate = (mclk / 128 + rate / 2) / rate - 1;
 	if (tsamplerate < 3)
@@ -219,6 +240,9 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(spdif->regmap, SPDIF_CTRL, 0xFF, tsamplerate);
 
 	return 0;
+
+fail_ext:
+	return ret;
 }
 
 static int sf_spdif_clks_get(struct platform_device *pdev,
@@ -229,6 +253,8 @@ static int sf_spdif_clks_get(struct platform_device *pdev,
 		{ .id = "spdif-core" },
 		{ .id = "audroot" },
 		{ .id = "mclk_inner"},
+		{ .id = "mclk_ext"},
+		{ .id = "mclk"},
 	};
 	int ret = devm_clk_bulk_get(&pdev->dev, ARRAY_SIZE(clks), clks);
 
@@ -236,6 +262,9 @@ static int sf_spdif_clks_get(struct platform_device *pdev,
 	spdif->spdif_core = clks[1].clk;
 	spdif->audio_root = clks[2].clk;
 	spdif->mclk_inner = clks[3].clk;
+	spdif->mclk_ext = clks[4].clk;
+	spdif->mclk = clks[5].clk;
+
 	return ret;
 }
 
@@ -286,6 +315,12 @@ static int sf_spdif_clk_init(struct platform_device *pdev,
 
 	dev_dbg(&pdev->dev, "spdif->spdif_apb = %lu\n", clk_get_rate(spdif->spdif_apb));
 	dev_dbg(&pdev->dev, "spdif->spdif_core = %lu\n", clk_get_rate(spdif->spdif_core));
+
+	ret = clk_set_parent(spdif->mclk, spdif->mclk_ext);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to set parent for mclk to mclk_ext ret=%d\n", ret);
+		goto disable_core_clk;
+	}
 
 	ret = reset_control_deassert(spdif->rst_apb);
 	if (ret) {
@@ -492,5 +527,6 @@ static struct platform_driver sf_spdif_driver = {
 module_platform_driver(sf_spdif_driver);
 
 MODULE_AUTHOR("curry.zhang <curry.zhang@starfive.com>");
+MODULE_AUTHOR("Xingyu Wu <xingyu.wu@starfivetech.com>");
 MODULE_DESCRIPTION("starfive SPDIF driver");
 MODULE_LICENSE("GPL v2");

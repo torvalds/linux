@@ -24,9 +24,8 @@ struct sf_pdm {
 	struct clk *clk_pdm_apb;
 	struct clk *clk_pdm_mclk;
 	struct clk *clk_apb0;
-	struct clk *clk_mclk_inner;
 	struct clk *clk_mclk;
-	struct clk *clk_mclk_out;
+	struct clk *clk_mclk_ext;
 	struct reset_control *rst_pdm_dmic;
 	struct reset_control *rst_pdm_apb;
 	unsigned char flag_first;
@@ -96,7 +95,6 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int sample_rate;
 	unsigned int data_width;
 	int ret;
-	unsigned int mclk_rate;
 	const int pdm_mul = 128;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -105,13 +103,8 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	sample_rate = params_rate(params);
 	switch (sample_rate) {
 	case 8000:
-		mclk_rate = 12288000;
-		break;
 	case 11025:
-		mclk_rate = 11289600;
-		break;
 	case 16000:
-		mclk_rate = 24576000;
 		break;
 	default:
 		pr_err("PDM: not support sample rate:%d\n", sample_rate);
@@ -126,13 +119,6 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	default:
 		pr_err("PDM: not support bit width %d\n", data_width);
 		return -EINVAL;
-	}
-
-	/* set clk_mclk */
-	ret = clk_set_rate(priv->clk_mclk_inner, mclk_rate);
-	if (ret) {
-		dev_info(priv->dev, "Can't set clk_mclk: %d\n", ret);
-		return ret;
 	}
 
 	/* set pdm_mclk,  PDM MCLK = 128 * LRCLK */
@@ -273,9 +259,8 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 		{ .id = "pdm_mclk" },
 		{ .id = "clk_apb0" },
 		{ .id = "pdm_apb" },
-		{ .id = "mclk_inner" },
 		{ .id = "clk_mclk" },
-		{ .id = "mclk_out" },
+		{ .id = "mclk_ext" },
 	};
 
 	ret = devm_clk_bulk_get(&pdev->dev, ARRAY_SIZE(clks), clks);
@@ -287,9 +272,8 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 	priv->clk_pdm_mclk = clks[0].clk;
 	priv->clk_apb0 = clks[1].clk;
 	priv->clk_pdm_apb = clks[2].clk;
-	priv->clk_mclk_inner = clks[3].clk;
-	priv->clk_mclk = clks[4].clk;
-	priv->clk_mclk_out = clks[5].clk;
+	priv->clk_mclk = clks[3].clk;
+	priv->clk_mclk_ext = clks[4].clk;
 
 	priv->rst_pdm_dmic = devm_reset_control_get_exclusive(&pdev->dev, "pdm_dmic");
 	if (IS_ERR(priv->rst_pdm_dmic)) {
@@ -312,9 +296,9 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 		goto exit;
 	}
 
-	ret = clk_prepare_enable(priv->clk_mclk_inner);
+	ret = clk_set_parent(priv->clk_mclk, priv->clk_mclk_ext);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_mclk_inner\n");
+		dev_err(&pdev->dev, "failed to set parent clk_mclk ret=%d\n", ret);
 		goto exit;
 	}
 
@@ -322,12 +306,6 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_mclk\n");
 		goto err_dis_mclk;
-	}
-
-	ret = clk_prepare_enable(priv->clk_mclk_out);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_mclk_out\n");
-		goto err_dis_mclk_out;
 	}
 
 	ret = clk_prepare_enable(priv->clk_pdm_mclk);
@@ -369,11 +347,8 @@ err_dis_pdm_apb:
 err_dis_apb0:
 	clk_disable_unprepare(priv->clk_pdm_mclk);
 err_dis_pdm_mclk:
-	clk_disable_unprepare(priv->clk_mclk_out);
-err_dis_mclk_out:
 	clk_disable_unprepare(priv->clk_mclk);
 err_dis_mclk:
-	clk_disable_unprepare(priv->clk_mclk_inner);
 exit:
 	return ret;
 }

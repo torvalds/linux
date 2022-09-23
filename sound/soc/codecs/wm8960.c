@@ -1006,7 +1006,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		if (wm8960->first_capture && wm8960->is_capture) {
-			msleep(800);
+			msleep(1000);
 			wm8960->first_capture = false;
 		}
 		break;
