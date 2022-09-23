@@ -3300,8 +3300,6 @@ mt7530_remove(struct mdio_device *mdiodev)
 
 	dsa_unregister_switch(priv->ds);
 	mutex_destroy(&priv->reg_mutex);
-
-	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static void mt7530_shutdown(struct mdio_device *mdiodev)

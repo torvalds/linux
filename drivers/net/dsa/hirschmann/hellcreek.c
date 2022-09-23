@@ -1996,7 +1996,6 @@ static int hellcreek_remove(struct platform_device *pdev)
 	hellcreek_hwtstamp_free(hellcreek);
 	hellcreek_ptp_free(hellcreek);
 	dsa_unregister_switch(hellcreek->ds);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

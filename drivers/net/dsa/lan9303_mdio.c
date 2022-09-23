@@ -138,8 +138,6 @@ static void lan9303_mdio_remove(struct mdio_device *mdiodev)
 		return;
 
 	lan9303_remove(&sw_dev->chip);
-
-	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static void lan9303_mdio_shutdown(struct mdio_device *mdiodev)

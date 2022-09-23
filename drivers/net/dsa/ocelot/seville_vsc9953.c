@@ -1153,8 +1153,6 @@ static int seville_remove(struct platform_device *pdev)
 	kfree(felix->ds);
 	kfree(felix);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

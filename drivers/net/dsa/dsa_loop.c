@@ -351,8 +351,6 @@ static void dsa_loop_drv_remove(struct mdio_device *mdiodev)
 
 	dsa_unregister_switch(ds);
 	dev_put(ps->netdev);
-
-	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static void dsa_loop_drv_shutdown(struct mdio_device *mdiodev)

@@ -2727,8 +2727,6 @@ static void felix_pci_remove(struct pci_dev *pdev)
 	kfree(felix);
 
 	pci_disable_device(pdev);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 static void felix_pci_shutdown(struct pci_dev *pdev)
