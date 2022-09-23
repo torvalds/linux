@@ -501,11 +501,11 @@ out:
  */
 static void submit_cleanup(struct msm_gem_submit *submit, bool error)
 {
-	unsigned cleanup_flags = BO_LOCKED | BO_OBJ_PINNED;
+	unsigned cleanup_flags = BO_LOCKED;
 	unsigned i;
 
 	if (error)
-		cleanup_flags |= BO_VMA_PINNED;
+		cleanup_flags |= BO_VMA_PINNED | BO_OBJ_PINNED;
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
