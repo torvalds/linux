@@ -295,6 +295,7 @@ static int ipc4_wait_tx_done(struct snd_sof_ipc *ipc, void *reply_data)
 	if (ret == 0) {
 		dev_err(sdev->dev, "ipc timed out for %#x|%#x\n",
 			ipc4_msg->primary, ipc4_msg->extension);
+		snd_sof_handle_fw_exception(ipc->sdev, "IPC timeout");
 		return -ETIMEDOUT;
 	}
 
