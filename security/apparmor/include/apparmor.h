@@ -43,7 +43,7 @@
 /* Control parameters settable through module/boot flags */
 extern enum audit_mode aa_g_audit;
 extern bool aa_g_audit_header;
-extern bool aa_g_debug;
+extern int aa_g_debug;
 extern bool aa_g_hash_policy;
 extern bool aa_g_export_binary;
 extern int aa_g_rawdata_compression_level;

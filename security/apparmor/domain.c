@@ -652,7 +652,7 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	if (error) {
 		if (profile_unconfined(profile) ||
 		    (profile->label.flags & FLAG_IX_ON_NAME_ERROR)) {
-			AA_DEBUG("name lookup ix on error");
+			AA_DEBUG(DEBUG_DOMAIN, "name lookup ix on error");
 			error = 0;
 			new = aa_get_newest_label(&profile->label);
 		}
@@ -664,10 +664,10 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 		new = find_attach(bprm, profile->ns,
 				  &profile->ns->base.profiles, name, &info);
 		if (new) {
-			AA_DEBUG("unconfined attached to new label");
+			AA_DEBUG(DEBUG_DOMAIN, "unconfined attached to new label");
 			return new;
 		}
-		AA_DEBUG("unconfined exec no attachment");
+		AA_DEBUG(DEBUG_DOMAIN, "unconfined exec no attachment");
 		return aa_get_newest_label(&profile->label);
 	}
 
@@ -766,7 +766,7 @@ static int profile_onexec(const struct cred *subj_cred,
 	if (error) {
 		if (profile_unconfined(profile) ||
 		    (profile->label.flags & FLAG_IX_ON_NAME_ERROR)) {
-			AA_DEBUG("name lookup ix on error");
+			AA_DEBUG(DEBUG_DOMAIN, "name lookup ix on error");
 			error = 0;
 		}
 		xname = bprm->filename;
@@ -1216,7 +1216,8 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		if (task_no_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			AA_DEBUG(DEBUG_DOMAIN,
+				 "no_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}
@@ -1237,7 +1238,8 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		if (task_no_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_unconfined_subset(previous, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			AA_DEBUG(DEBUG_DOMAIN,
+				 "no_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}
@@ -1343,7 +1345,7 @@ int aa_change_profile(const char *fqname, int flags)
 
 	if (!fqname || !*fqname) {
 		aa_put_label(label);
-		AA_DEBUG("no profile name");
+		AA_DEBUG(DEBUG_DOMAIN, "no profile name");
 		return -EINVAL;
 	}
 
@@ -1462,7 +1464,8 @@ check:
 		if (task_no_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			AA_DEBUG(DEBUG_DOMAIN,
+				 "no_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}

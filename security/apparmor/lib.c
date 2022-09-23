@@ -25,6 +25,97 @@ struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
 			     .quiet = ALL_PERMS_MASK,
 			     .hide = ALL_PERMS_MASK };
 
+struct val_table_ent {
+	const char *str;
+	int value;
+};
+
+struct val_table_ent debug_values_table[] = {
+	{ "N", DEBUG_NONE },
+	{ "none", DEBUG_NONE },
+	{ "n", DEBUG_NONE },
+	{ "0", DEBUG_NONE },
+	{ "all", DEBUG_ALL },
+	{ "Y", DEBUG_ALL },
+	{ "y", DEBUG_ALL },
+	{ "1", DEBUG_ALL },
+	{ "abs_root", DEBUG_LABEL_ABS_ROOT },
+	{ "label", DEBUG_LABEL },
+	{ "domain", DEBUG_DOMAIN },
+	{ "policy", DEBUG_POLICY },
+	{ "interface", DEBUG_INTERFACE },
+	{ NULL, 0 }
+};
+
+static struct val_table_ent *val_table_find_ent(struct val_table_ent *table,
+						const char *name, size_t len)
+{
+	struct val_table_ent *entry;
+
+	for (entry = table; entry->str != NULL; entry++) {
+		if (strncmp(entry->str, name, len) == 0 &&
+		    strlen(entry->str) == len)
+			return entry;
+	}
+	return NULL;
+}
+
+int aa_parse_debug_params(const char *str)
+{
+	struct val_table_ent *ent;
+	const char *next;
+	int val = 0;
+
+	do {
+		size_t n = strcspn(str, "\r\n,");
+
+		next = str + n;
+		ent = val_table_find_ent(debug_values_table, str, next - str);
+		if (ent)
+			val |= ent->value;
+		else
+			AA_DEBUG(DEBUG_INTERFACE, "unknown debug type '%.*s'",
+				 (int)(next - str), str);
+		str = next + 1;
+	} while (*next != 0);
+	return val;
+}
+
+/**
+ * aa_mask_to_str - convert a perm mask to its short string
+ * @str: character buffer to store string in (at least 10 characters)
+ * @str_size: size of the @str buffer
+ * @chrs: NUL-terminated character buffer of permission characters
+ * @mask: permission mask to convert
+ */
+static int val_mask_to_str(char *str, size_t size,
+			   const struct val_table_ent *table, u32 mask)
+{
+	const struct val_table_ent *ent;
+	int total = 0;
+
+	for (ent = table; ent->str; ent++) {
+		if (ent->value && (ent->value & mask) == ent->value) {
+			int len = scnprintf(str, size, "%s%s", total ? "," : "",
+					    ent->str);
+			size -= len;
+			str += len;
+			total += len;
+			mask &= ~ent->value;
+		}
+	}
+
+	return total;
+}
+
+int aa_print_debug_params(char *buffer)
+{
+	if (!aa_g_debug)
+		return sprintf(buffer, "N");
+	return val_mask_to_str(buffer, PAGE_SIZE, debug_values_table,
+			       aa_g_debug);
+}
+
 /**
  * aa_free_str_table - free entries str table
  * @t: the string table to free  (MAYBE NULL)

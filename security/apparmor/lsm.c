@@ -1571,6 +1571,9 @@ static const struct kernel_param_ops param_ops_aalockpolicy = {
 	.get = param_get_aalockpolicy
 };
 
+static int param_set_debug(const char *val, const struct kernel_param *kp);
+static int param_get_debug(char *buffer, const struct kernel_param *kp);
+
 static int param_set_audit(const char *val, const struct kernel_param *kp);
 static int param_get_audit(char *buffer, const struct kernel_param *kp);
 
@@ -1604,8 +1607,9 @@ module_param_named(rawdata_compression_level, aa_g_rawdata_compression_level,
 		   aacompressionlevel, 0400);
 
 /* Debug mode */
-bool aa_g_debug = IS_ENABLED(CONFIG_SECURITY_APPARMOR_DEBUG_MESSAGES);
-module_param_named(debug, aa_g_debug, aabool, S_IRUSR | S_IWUSR);
+int aa_g_debug;
+module_param_call(debug, param_set_debug, param_get_debug,
+		  &aa_g_debug, 0600);
 
 /* Audit mode */
 enum audit_mode aa_g_audit;
@@ -1796,6 +1800,34 @@ static int param_get_aacompressionlevel(char *buffer,
 	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
 		return -EPERM;
 	return param_get_int(buffer, kp);
+}
+
+static int param_get_debug(char *buffer, const struct kernel_param *kp)
+{
+	if (!apparmor_enabled)
+		return -EINVAL;
+	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
+		return -EPERM;
+	return aa_print_debug_params(buffer);
+}
+
+static int param_set_debug(const char *val, const struct kernel_param *kp)
+{
+	int i;
+
+	if (!apparmor_enabled)
+		return -EINVAL;
+	if (!val)
+		return -EINVAL;
+	if (apparmor_initialized && !aa_current_policy_admin_capable(NULL))
+		return -EPERM;
+
+	i = aa_parse_debug_params(val);
+	if (i == DEBUG_PARSE_ERROR)
+		return -EINVAL;
+
+	aa_g_debug = i;
+	return 0;
 }
 
 static int param_get_audit(char *buffer, const struct kernel_param *kp)
