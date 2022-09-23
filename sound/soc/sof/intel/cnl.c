@@ -332,6 +332,27 @@ void cnl_ipc_dump(struct snd_sof_dev *sdev)
 		hipcida, hipctdr, hipcctl);
 }
 
+void cnl_ipc4_dump(struct snd_sof_dev *sdev)
+{
+	u32 hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl;
+
+	hda_ipc_irq_dump(sdev);
+
+	hipcidr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR);
+	hipcidd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDD);
+	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
+	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
+	hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDD);
+	hipctda = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDA);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
+
+	/* dump the IPC regs */
+	/* TODO: parse the raw msg */
+	dev_err(sdev->dev,
+		"Host IPC initiator: %#x|%#x|%#x, target: %#x|%#x|%#x, ctl: %#x\n",
+		hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl);
+}
+
 /* cannonlake ops */
 struct snd_sof_dsp_ops sof_cnl_ops;
 EXPORT_SYMBOL_NS(sof_cnl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
@@ -351,6 +372,9 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_cnl_ops.send_msg	= cnl_ipc_send_msg;
+
+		/* debug */
+		sof_cnl_ops.ipc_dump	= cnl_ipc_dump;
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
@@ -370,6 +394,9 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_cnl_ops.send_msg	= cnl_ipc4_send_msg;
+
+		/* debug */
+		sof_cnl_ops.ipc_dump	= cnl_ipc4_dump;
 	}
 
 	/* set DAI driver ops */
@@ -378,7 +405,6 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 	/* debug */
 	sof_cnl_ops.debug_map	= cnl_dsp_debugfs;
 	sof_cnl_ops.debug_map_count	= ARRAY_SIZE(cnl_dsp_debugfs);
-	sof_cnl_ops.ipc_dump	= cnl_ipc_dump;
 
 	/* pre/post fw run */
 	sof_cnl_ops.post_fw_run = hda_dsp_post_fw_run;

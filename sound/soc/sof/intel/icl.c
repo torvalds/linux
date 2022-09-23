@@ -113,6 +113,9 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_icl_ops.send_msg	= cnl_ipc_send_msg;
+
+		/* debug */
+		sof_icl_ops.ipc_dump	= cnl_ipc_dump;
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
@@ -132,12 +135,14 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_icl_ops.send_msg	= cnl_ipc4_send_msg;
+
+		/* debug */
+		sof_icl_ops.ipc_dump	= cnl_ipc4_dump;
 	}
 
 	/* debug */
 	sof_icl_ops.debug_map	= icl_dsp_debugfs;
 	sof_icl_ops.debug_map_count	= ARRAY_SIZE(icl_dsp_debugfs);
-	sof_icl_ops.ipc_dump	= cnl_ipc_dump;
 
 	/* pre/post fw run */
 	sof_icl_ops.post_fw_run = icl_dsp_post_fw_run;
