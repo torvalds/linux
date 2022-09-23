@@ -17,6 +17,13 @@
 
 #define RK3036_GRF_SOC_CON3	0x0154
 #define RK312X_GRF_TVE_CON	0x0170
+	#define m_EXTREF_EN		BIT(0)
+	#define m_VBG_EN		BIT(1)
+	#define m_DAC_EN		BIT(2)
+	#define m_SENSE_EN		BIT(3)
+	#define m_BIAS_EN		(7 << 4)
+	#define m_DAC_GAIN		(0x3f << 7)
+	#define v_DAC_GAIN(x)		(((x) & 0x3f) << 7)
 
 #define TV_CTRL			(0x00)
 	#define m_CVBS_MODE			BIT(24)
@@ -87,40 +94,123 @@
 
 #define TV_BRIGHTNESS_CONTRAST	(0x90)
 
-#define m_EXTREF_EN		BIT(0)
-#define m_VBG_EN		BIT(1)
-#define m_DAC_EN		BIT(2)
-#define m_SENSE_EN		BIT(3)
-#define m_BIAS_EN		(7 << 4)
-#define m_DAC_GAIN		(0x3f << 7)
-#define v_DAC_GAIN(x)		(((x) & 0x3f) << 7)
+#define VDAC_VDAC0		(0x00)
+	#define m_RST_ANA		BIT(7)
+	#define m_RST_DIG		BIT(6)
 
-#define VDAC_VDAC0             (0x00)
-       #define m_RST_ANA               BIT(7)
-       #define m_RST_DIG               BIT(6)
+	#define v_RST_ANA(x)		(((x) & 1) << 7)
+	#define v_RST_DIG(x)		(((x) & 1) << 6)
+#define VDAC_VDAC1		(0x280)
+	#define m_CUR_REG		(0xf << 4)
+	#define m_DR_PWR_DOWN		BIT(1)
+	#define m_BG_PWR_DOWN		BIT(0)
 
-       #define v_RST_ANA(x)            (((x) & 1) << 7)
-       #define v_RST_DIG(x)            (((x) & 1) << 6)
-#define VDAC_VDAC1             (0x280)
-       #define m_CUR_REG               (0xf << 4)
-       #define m_DR_PWR_DOWN           BIT(1)
-       #define m_BG_PWR_DOWN           BIT(0)
+	#define v_CUR_REG(x)		(((x) & 0xf) << 4)
+	#define v_DR_PWR_DOWN(x)	(((x) & 1) << 1)
+	#define v_BG_PWR_DOWN(x)	(((x) & 1) << 0)
+#define VDAC_VDAC2	(0x284)
+	#define m_CUR_CTR		(0X3f)
 
-       #define v_CUR_REG(x)            (((x) & 0xf) << 4)
-       #define v_DR_PWR_DOWN(x)        (((x) & 1) << 1)
-       #define v_BG_PWR_DOWN(x)        (((x) & 1) << 0)
-#define VDAC_VDAC2             (0x284)
-       #define m_CUR_CTR               (0X3f)
+	#define v_CUR_CTR(x)		(((x) & 0x3f))
+#define VDAC_VDAC3		(0x288)
+	#define m_CAB_EN		BIT(5)
+	#define m_CAB_REF		BIT(4)
+	#define m_CAB_FLAG		BIT(0)
 
-       #define v_CUR_CTR(x)            (((x) & 0x3f))
-#define VDAC_VDAC3             (0x288)
-       #define m_CAB_EN                BIT(5)
-       #define m_CAB_REF               BIT(4)
-       #define m_CAB_FLAG              BIT(0)
+	#define v_CAB_EN(x)		(((x) & 1) << 5)
+	#define v_CAB_REF(x)		(((x) & 1) << 4)
+	#define v_CAB_FLAG(x)		(((x) & 1) << 0)
 
-       #define v_CAB_EN(x)             (((x) & 1) << 5)
-       #define v_CAB_REF(x)            (((x) & 1) << 4)
-       #define v_CAB_FLAG(x)           (((x) & 1) << 0)
+// RK3528 CVBS GRF
+#define RK3528_VO_GRF_CVBS_CON	0x60010
+	#define m_TVE_DCLK_POL		BIT(5)
+	#define m_TVE_DCLK_EN		BIT(4)
+	#define m_DCLK_UPSAMPLE_2X4X	BIT(3)
+	#define m_DCLK_UPSAMPLE_EN	BIT(2)
+	#define m_TVE_MODE		BIT(1)
+	#define m_TVE_EN		BIT(0)
+
+	#define v_TVE_DCLK_POL(x)	(((x) & 1) << 5)
+	#define v_TVE_DCLK_EN(x)	(((x) & 1) << 4)
+	#define v_DCLK_UPSAMPLE_2X4X(x)	(((x) & 1) << 3)
+	#define v_DCLK_UPSAMPLE_EN(x)	(((x) & 1) << 2)
+	#define v_TVE_MODE(x)		(((x) & 1) << 1)
+	#define v_TVE_EN(x)		(((x) & 1) << 0)
+
+// RK3528 CVBS BT656
+#define BT656_DECODER_CTRL		(0x3D00)
+#define BT656_DECODER_CROP		(0x3D04)
+#define BT656_DECODER_SIZE		(0x3D08)
+#define BT656_DECODER_HTOTAL_HS_END	(0x3D0C)
+#define BT656_DECODER_VACT_ST_HACT_ST	(0x3D10)
+#define BT656_DECODER_VTOTAL_VS_END	(0x3D14)
+#define BT656_DECODER_VS_ST_END_F1	(0x3D18)
+#define BT656_DECODER_DBG_REG		(0x3D1C)
+
+// RK3528 CVBS TVE
+#define TVE_MODE_CTRL			(0x3E00)
+#define TVE_HOR_TIMING1			(0x3E04)
+#define TVE_HOR_TIMING2			(0x3E08)
+#define TVE_HOR_TIMING3			(0x3E0C)
+#define TVE_SUB_CAR_FRQ			(0x3E10)
+#define TVE_LUMA_FILTER1		(0x3E14)
+#define TVE_LUMA_FILTER2		(0x3E18)
+#define TVE_LUMA_FILTER3		(0x3E1C)
+#define TVE_LUMA_FILTER4		(0x3E20)
+#define TVE_LUMA_FILTER5		(0x3E24)
+#define TVE_LUMA_FILTER6		(0x3E28)
+#define TVE_LUMA_FILTER7		(0x3E2C)
+#define TVE_LUMA_FILTER8		(0x3E30)
+#define TVE_IMAGE_POSITION		(0x3E34)
+#define TVE_ROUTING			(0x3E38)
+#define TVE_SYNC_ADJUST			(0x3E50)
+#define TVE_STATUS			(0x3E54)
+#define TVE_CTRL			(0x3E68)
+#define TVE_INTR_STATUS			(0x3E6C)
+#define TVE_INTR_EN			(0x3E70)
+#define TVE_INTR_CLR			(0x3E74)
+#define TVE_COLOR_BUSRT_SAT		(0x3E78)
+#define TVE_CHROMA_BANDWIDTH		(0x3E8C)
+#define TVE_BRIGHTNESS_CONTRAST		(0x3E90)
+#define TVE_ID				(0x3E98)
+#define TVE_REVISION			(0x3E9C)
+#define TVE_CLAMP			(0x3EA0)
+
+// RK3528 CVBS VDAC
+#define VDAC_CLK_RST			(0x0000)
+	#define m_ANALOG_RST		BIT(7)
+	#define m_DIGITAL_RST		BIT(6)
+	#define m_INPUT_CLK_INV		BIT(0)
+
+	#define v_ANALOG_RST(x)		(((x) & 1) << 7)
+	#define v_DIGITAL_RST(x)	(((x) & 1) << 6)
+	#define v_INPUT_CLK_INV(x)	(((x) & 1) << 0)
+#define VDAC_SINE_CTRL			(0x0004)
+#define VDAC_SQUARE_CTRL		(0x0008)
+#define VDAC_LEVEL_CTRL0		(0x0018)
+#define VDAC_LEVEL_CTRL1		(0x001C)
+#define VDAC_PWM_REF_CTRL		(0x0280)
+	#define m_REF_VOLTAGE		(0xf << 4)
+	#define m_REF_RESISTOR		BIT(3)
+	#define m_SMP_CLK_INV		BIT(2)
+	#define m_DAC_PWN		BIT(1)
+	#define m_BIAS_PWN		BIT(0)
+
+	#define v_REF_VOLTAGE(x)	(((x) & 0xf) << 4)
+	#define v_SMP_CLK_INV(x)	(((x) & 1) << 2)
+	#define v_REF_RESISTOR(x)	(((x) & 1) << 3)
+	#define v_DAC_PWN(x)		(((x) & 1) << 1)
+	#define v_BIAS_PWN(x)		(((x) & 1) << 0)
+#define VDAC_CURRENT_CTRL		(0x0284)
+	#define m_OUT_CURRENT		(0xff << 0)
+
+	#define v_OUT_CURRENT(x)	(((x) & 0xff) << 0)
+#define VDAC_CABLE_CTRL			(0x0288)
+#define VDAC_VOLTAGE_CTRL		(0x028C)
+#define VDAC_BIAS_CLK_CTRL0		(0x0290)
+#define VDAC_BIAS_CLK_CTRL1		(0x0294)
+#define VDAC_AUTO_CLK_CTRL0		(0x0298)
+#define VDAC_AUTO_CLK_CTRL1		(0x029C)
 
 enum {
 	TVOUT_CVBS_NTSC = 0,
@@ -136,7 +226,14 @@ enum {
 	SOC_RK3036 = 0,
 	SOC_RK312X,
 	SOC_RK322X,
-	SOC_RK3328
+	SOC_RK3328,
+	SOC_RK3528
+};
+
+enum {
+	DCLK_UPSAMPLEx1 = 0,
+	DCLK_UPSAMPLEx2,
+	DCLK_UPSAMPLEx4
 };
 
 #define grf_writel(offset, v)	do { \
@@ -154,12 +251,16 @@ struct rockchip_tve {
 	void __iomem			*regbase;
 	void __iomem			*vdacbase;
 	struct clk			*aclk;
-	struct clk			*dac_clk;
+	struct clk			*hclk;
+	struct clk			*pclk_vdac;
+	struct clk			*dclk;
+	struct clk			*dclk_4x;
 	struct regmap			*dac_grf;
 	u32				reg_phy_base;
 	u32				len;
 	int				input_format;
 	int				soc_type;
+	int				upsample_mode;
 	bool				enable;
 	u32 test_mode;
 	u32 saturation;
@@ -168,6 +269,11 @@ struct rockchip_tve {
 	u32 lumafilter0;
 	u32 lumafilter1;
 	u32 lumafilter2;
+	u32 lumafilter3;
+	u32 lumafilter4;
+	u32 lumafilter5;
+	u32 lumafilter6;
+	u32 lumafilter7;
 	u32 daclevel;
 	u32 dac1level;
 	u32 preferred_mode;
