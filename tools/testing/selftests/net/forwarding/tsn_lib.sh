@@ -53,14 +53,26 @@ phc2sys_stop()
 	rm "${phc2sys_log}" 2> /dev/null
 }
 
+# Replace space separators from interface list with underscores
+if_names_to_label()
+{
+	local if_name_list="$1"
+
+	echo "${if_name_list/ /_}"
+}
+
 ptp4l_start()
 {
-	local if_name=$1
+	local if_names="$1"
 	local slave_only=$2
 	local uds_address=$3
-	local log="ptp4l_log_${if_name}"
-	local pid="ptp4l_pid_${if_name}"
+	local log="ptp4l_log_$(if_names_to_label ${if_names})"
+	local pid="ptp4l_pid_$(if_names_to_label ${if_names})"
 	local extra_args=""
+
+	for if_name in ${if_names}; do
+		extra_args="${extra_args} -i ${if_name}"
+	done
 
 	if [ "${slave_only}" = true ]; then
 		extra_args="${extra_args} -s"
@@ -71,7 +83,6 @@ ptp4l_start()
 	declare -g "${log}=$(mktemp)"
 
 	chrt -f 10 ptp4l -m -2 -P \
-		-i ${if_name} \
 		--step_threshold 0.00002 \
 		--first_step_threshold 0.00002 \
 		--tx_timestamp_timeout 100 \
@@ -80,16 +91,16 @@ ptp4l_start()
 		> "${!log}" 2>&1 &
 	declare -g "${pid}=$!"
 
-	echo "ptp4l for interface ${if_name} logs to ${!log} and has pid ${!pid}"
+	echo "ptp4l for interfaces ${if_names} logs to ${!log} and has pid ${!pid}"
 
 	sleep 1
 }
 
 ptp4l_stop()
 {
-	local if_name=$1
-	local log="ptp4l_log_${if_name}"
-	local pid="ptp4l_pid_${if_name}"
+	local if_names="$1"
+	local log="ptp4l_log_$(if_names_to_label ${if_names})"
+	local pid="ptp4l_pid_$(if_names_to_label ${if_names})"
 
 	{ kill ${!pid} && wait ${!pid}; } 2> /dev/null
 	rm "${!log}" 2> /dev/null
