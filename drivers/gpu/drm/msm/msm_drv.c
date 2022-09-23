@@ -819,6 +819,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 	case MSM_INFO_GET_OFFSET:
 	case MSM_INFO_GET_IOVA:
 	case MSM_INFO_SET_IOVA:
+	case MSM_INFO_GET_FLAGS:
 		/* value returned as immediate, not pointer, so len==0: */
 		if (args->len)
 			return -EINVAL;
@@ -845,6 +846,15 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		break;
 	case MSM_INFO_SET_IOVA:
 		ret = msm_ioctl_gem_info_set_iova(dev, file, obj, args->value);
+		break;
+	case MSM_INFO_GET_FLAGS:
+		if (obj->import_attach) {
+			ret = -EINVAL;
+			break;
+		}
+		/* Hide internal kernel-only flags: */
+		args->value = to_msm_bo(obj)->flags & MSM_BO_FLAGS;
+		ret = 0;
 		break;
 	case MSM_INFO_SET_NAME:
 		/* length check should leave room for terminating null: */
