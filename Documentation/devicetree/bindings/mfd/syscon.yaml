@@ -40,6 +40,8 @@ properties:
               - allwinner,sun50i-a64-system-controller
               - brcm,cru-clkset
               - freecom,fsg-cs2-system-controller
+              - fsl,imx93-aonmix-ns-syscfg
+              - fsl,imx93-wakeupmix-syscfg
               - hisilicon,dsa-subctrl
               - hisilicon,hi6220-sramctrl
               - hisilicon,pcie-sas-subctrl
